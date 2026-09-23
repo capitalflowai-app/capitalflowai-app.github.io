@@ -1,0 +1,53 @@
+name: Strona i dane
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'      # co 20 minut (GitHub może opóźnić o kilka minut)
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  zbuduj:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Zbierz dane (klucze tylko z Secrets)
+        env:
+          SOSOVALUE_KEY: ${{ secrets.SOSOVALUE_KEY }}
+          FINNHUB_KEY: ${{ secrets.FINNHUB_KEY }}
+          COINGECKO_KEY: ${{ secrets.COINGECKO_KEY }}
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: python3 zbieraj_dane.py
+      - name: Złóż stronę
+        run: |
+          mkdir -p _site/data
+          cp index.html _site/
+          cp data/*.json _site/data/ 2>/dev/null || true
+          touch _site/.nojekyll
+          ls -la _site _site/data
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  opublikuj:
+    needs: zbuduj
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
