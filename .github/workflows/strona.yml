@@ -26,6 +26,8 @@ jobs:
           python-version: '3.12'
       - name: Testy zbieracza (brak nie jest zerem, zakres dat, pamięć podręczna) — awaria blokuje publikację
         run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_zbieraj_dane.py
+      - name: Test bramki strony dla plików widoków silnika (bez przeglądarki) — awaria blokuje publikację
+        run: node --test test_widoki.cjs
       - name: Zbierz dane (klucze tylko z Secrets)
         env:
           SOSOVALUE_KEY: ${{ secrets.SOSOVALUE_KEY }}
