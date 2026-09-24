@@ -71,7 +71,7 @@ FRED_CITE = 'Board of Governors of the Federal Reserve System (US), via FRED, Fe
 FRED_API_NOTE = 'This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.'
 OUT = 'data'
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
-META = {'at': NOW, 'ok': {}, 'errors': []}
+META = {'at': NOW, 'ok': {}, 'errors': [], 'notes': []}   # notes: informacje (np. brak poprzedniego pliku), nie błędy
 SECRETS = []      # wartości kluczy — maskowane w każdym komunikacie błędu
 TICKER = re.compile(r'^[A-Z0-9.]{1,10}$')
 
@@ -117,16 +117,44 @@ def soso(path, key, _retry=True):
     return j['data'] if isinstance(j, dict) and 'data' in j else j
 
 
-def previous(name):
-    """Poprzedni plik z opublikowanej strony (żeby awaria API nie wymazała danych)."""
+def _prev_site(name):
     site = os.environ.get('SITE_URL', '').rstrip('/')
     if not site:
         return None
     try:
         return get_json(f'{site}/data/{name}.json?t={int(time.time())}')
+    except urllib.error.HTTPError as e:
+        if e.code == 404:   # pliku jeszcze nie ma (pierwszy przebieg) — informacja, nie błąd
+            META['notes'].append(f'poprzedni {name}.json: brak na stronie (404)'); return None
+        META['errors'].append(mask(f'poprzedni {name}.json: {e}')); return None
     except Exception as e:  # noqa
         META['errors'].append(mask(f'poprzedni {name}.json: {e}'))
         return None
+
+
+def _prev_cache(name):
+    """v51: plik z pamięci GitHub Actions (CACHE_DIR) — przeżywa awarię publikacji strony."""
+    d = os.environ.get('CACHE_DIR', '').strip()
+    if not d:
+        return None
+    p = os.path.join(d, name + '.json')
+    if not os.path.exists(p):
+        return None
+    try:
+        with open(p, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'pamięć {name}.json: {e}'))
+        return None
+
+
+def previous(name):
+    """Poprzedni plik: nowszy (wg pola at) z pamięci Actions i z opublikowanej strony — awaria API nie wymaże danych,
+    a awaria publikacji nie zwielokrotni zapytań (v51)."""
+    cands = [c for c in (_prev_cache(name), _prev_site(name)) if isinstance(c, dict)]
+    if not cands:
+        return None
+    return max(cands, key=lambda c: str(c.get('at') or ''))
 
 
 def fresh(prev, minutes):
@@ -492,6 +520,33 @@ def td_batch(syms, key, _retry=True):
     return q, errors
 
 
+def _ny_now():
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.datetime.now(ZoneInfo('America/New_York'))
+    except Exception:   # brak bazy stref — przyjmij czas letni (UTC−4)
+        return datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)
+
+
+def _drop_open_session(q, now_ny=None):
+    """v51: świeca z dzisiejszą datą przed 16:15 czasu Nowego Jorku to trwająca sesja, nie zamknięcie — pomijamy ją,
+    żeby wszystkie regiony liczyły zmianę do tego samego rodzaju ceny (ostatnie zamknięcie)."""
+    now_ny = now_ny or _ny_now()
+    today = now_ny.date().isoformat()
+    if (now_ny.hour, now_ny.minute) >= (16, 15):
+        return 0
+    n = 0
+    for s, v in q.items():
+        d = v.get('d') or []
+        if d and str(d[-1][0])[:10] == today:
+            v['d'] = d[:-1]; n += 1
+            if v['d']:
+                v['asof'] = str(v['d'][-1][0])[:10]
+    if n:
+        META['notes'].append(f'Twelve Data: pominięto {n} świec trwającej sesji ({today})')
+    return n
+
+
 def build_prices(key):
     """data/ceny.json: dzienne zamknięcia 14 ETF-ów zastępczych (te same co DZIŚ), rosnąco po dacie."""
     q, errors = {}, []
@@ -503,6 +558,7 @@ def build_prices(key):
         q.update(bq)
         errors.extend(be)
     META['errors'].extend(errors)
+    _drop_open_session(q)
     good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
     if len(good) < TD_MIN_SYMBOLS:
         raise RuntimeError(f'tylko {len(good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec')
@@ -1531,7 +1587,8 @@ def _etf_coin(out, s, key):
         aum = last['total_net_assets'] / 1e6 if last.get('total_net_assets') else None
         mc = out['mcap'].get(s)
         a = {'sym': s.upper(), 'asof': last['date'], 'day': day, 'd1': day[-1][1],
-             'w': sum(v for _, v in day[-5:]), 'm': sum(v for _, v in day[-min(len(day), 22):]),
+             'w': sum(v for _, v in day[-5:]), 'm': sum(v for _, v in day[-22:]) if len(day) >= 22 else None, 'm_n': min(len(day), 22),   # v51: 22 sesje albo brak (nie cicha niepełna suma)
+            
              'cum': last['cum_net_inflow'] / 1e6, 'aum': aum,
              'share': (aum * 1e6 / mc * 100) if (aum and mc) else None, 'funds': []}
         lst = soso(f'/etfs?symbol={s.upper()}&country_code=US', key)

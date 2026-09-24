@@ -855,3 +855,16 @@ test('v50: rezerwy i depozyt Fed wpięte w sekcję danych urzędowych, plik reze
   const ex = html.indexOf('for(const l in EXTRA38)'), e42 = html.indexOf('for(const l in EXTRA42)if(I18N[l])Object.assign(I18N[l],EXTRA42[l]);');
   assert.ok(ex > 0 && e42 > ex, 'EXTRA42 nakładany po EXTRA38');
 });
+
+// v51: stan źródeł z meta.json, czas pliku zamiast chwili pobrania, wiek dla zakresu miesięcy
+test('v51: instFoot bierze koniec zakresu dat; strona Źródła pokazuje czas pliku serwera i błąd ostatniego przebiegu', () => {
+  const f0 = html.indexOf('function instFoot(d){'), f1 = html.indexOf('\n', f0);
+  const instFoot = new Function('escH', 'gAgeNote', html.slice(f0, f1) + '\nreturn instFoot;')(s => String(s), s => '|' + s);
+  assert.equal(instFoot('2026-06 – 2026-07'), '2026-06 – 2026-07|2026-07'); assert.equal(instFoot('2026-09-16'), '2026-09-16|2026-09-16');
+  const m0 = html.indexOf('function metaErr(k){'), m1 = html.indexOf('\n}', html.indexOf('return e||t(', m0)) ;
+  const GLIVE = { meta: { ok: { fred: false, tic: 'cached', krypto: true }, errors: ['FRED WALCL: HTTP 500', 'TIC: x'] } };
+  const metaErr = new Function('GLIVE', 't', html.slice(m0, html.indexOf('return e||t(', m0)) + "return e||t('src.m.err');}\nreturn metaErr;")(GLIVE, k => k);
+  assert.equal(metaErr('fred'), 'FRED WALCL: HTTP 500'); assert.equal(metaErr('tic'), null, 'z pamięci to nie błąd'); assert.equal(metaErr('kr'), null);
+  assert.ok(html.includes("const ms=k==='etf'?(typeof ETF!=='undefined'&&ETF.atMs):(fa||(k&&GLIVE.srcAt&&GLIVE.srcAt[k]));"));
+  assert.ok(html.includes('metaLoad();setInterval('), 'meta.json wczytywany i odświeżany');
+});

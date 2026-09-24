@@ -1818,5 +1818,42 @@ class MainFlowRezerwyV50(unittest.TestCase):
         self.assertIs(self.saved['rezerwy'], new); self.assertIs(zd.META['ok']['imf'], True)
 
 
+class StanV51(unittest.TestCase):
+    """v51: poprzedni plik = nowszy z pamięci Actions i ze strony; 404 to informacja; bez świecy trwającej sesji."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear(); zd.SECRETS[:] = []
+
+    def test_previous_takes_the_newer_of_cache_and_site(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'ceny.json'), 'w', encoding='utf-8') as f:
+                json.dump({'at': '2026-09-25T08:00:00+00:00', 'src': 'pamięć'}, f)
+            with mock.patch.dict(os.environ, {'CACHE_DIR': d, 'SITE_URL': 'https://x'}, clear=False), \
+                 mock.patch.object(zd, 'get_json', lambda u, h=None: {'at': '2026-09-25T07:00:00+00:00', 'src': 'strona'}):
+                self.assertEqual(zd.previous('ceny')['src'], 'pamięć')
+            with mock.patch.dict(os.environ, {'CACHE_DIR': d, 'SITE_URL': 'https://x'}, clear=False), \
+                 mock.patch.object(zd, 'get_json', lambda u, h=None: {'at': '2026-09-25T09:00:00+00:00', 'src': 'strona'}):
+                self.assertEqual(zd.previous('ceny')['src'], 'strona')
+            with mock.patch.dict(os.environ, {'CACHE_DIR': d, 'SITE_URL': ''}, clear=False):
+                self.assertEqual(zd.previous('ceny')['src'], 'pamięć', 'awaria/brak strony — zostaje pamięć')
+
+    def test_missing_previous_file_is_a_note_not_an_error(self):
+        def nf(u, h=None):
+            raise zd.urllib.error.HTTPError(u, 404, 'Not Found', None, None)
+        with mock.patch.dict(os.environ, {'CACHE_DIR': '', 'SITE_URL': 'https://x'}, clear=False), mock.patch.object(zd, 'get_json', nf):
+            self.assertIsNone(zd.previous('bis'))
+        self.assertEqual(zd.META['errors'], []); self.assertTrue(any('bis.json' in n for n in zd.META['notes']))
+
+    def test_running_session_candle_is_dropped_before_the_close(self):
+        ny = datetime.datetime(2026, 9, 24, 15, 2)
+        q = {'SPY': {'d': [['2026-09-23', 600.0, 54700000], ['2026-09-24', 601.0, 1100000]], 'asof': '2026-09-24'},
+             'ASEA': {'d': [['2026-09-22', 10.0, 1], ['2026-09-23', 10.1, 1]], 'asof': '2026-09-23'}}
+        self.assertEqual(zd._drop_open_session(q, ny), 1)
+        self.assertEqual(q['SPY']['d'][-1][0], '2026-09-23'); self.assertEqual(q['SPY']['asof'], '2026-09-23'); self.assertEqual(q['ASEA']['asof'], '2026-09-23')
+        q2 = {'SPY': {'d': [['2026-09-24', 601.0, 50000000]], 'asof': '2026-09-24'}}
+        self.assertEqual(zd._drop_open_session(q2, datetime.datetime(2026, 9, 24, 16, 30)), 0, 'po zamknięciu świeca zostaje')
+
+
 if __name__ == '__main__':
     unittest.main()
