@@ -137,11 +137,12 @@ class MainFlow(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline'))
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
+        self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
 
     def tearDown(self):
         self.p_save.stop()
         self.p_inst.stop()
-        self.p_kr.stop()
+        self.p_kr.stop(); self.p_tic.stop()
 
     def test_young_previous_file_is_reused_without_asking_sosovalue(self):
         prev = {'at': _iso(10), 'assets': {'btc': {'day': [[1, 1.0]]}}}
@@ -170,7 +171,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY'])
 
 
@@ -334,11 +335,12 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline'))
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
+        self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
 
     def tearDown(self):
         self.p_save.stop()
         self.p_inst.stop()
-        self.p_kr.stop()
+        self.p_kr.stop(); self.p_tic.stop()
 
     def test_young_previous_file_is_reused_without_asking_twelve_data(self):
         prev = {'at': _iso(10), 'q': {'SPY': {'d': [['2026-09-23', 1.0, 1]]}}}
@@ -517,9 +519,10 @@ class MainFlowInstytucje(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
+        self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
 
     def tearDown(self):
-        self.p_save.stop(); self.p_kr.stop()
+        self.p_save.stop(); self.p_kr.stop(); self.p_tic.stop()
 
     def test_young_previous_file_is_reused(self):
         prev = {'at': _iso(10), 'tga': {'d': [['2026-09-22', 1]]}}
@@ -602,9 +605,10 @@ class MainFlowFred(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
+        self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
 
     def tearDown(self):
-        self.p_save.stop(); self.p_inst.stop(); self.p_kr.stop()
+        self.p_save.stop(); self.p_inst.stop(); self.p_kr.stop(); self.p_tic.stop()
 
     def test_young_previous_file_is_reused_without_asking_fred(self):
         prev = {'at': _iso(10), 'series': {'WALCL': {'d': [['2026-09-16', 1.0]]}}}
@@ -731,9 +735,10 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
+        self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
 
     def tearDown(self):
-        self.p_save.stop(); self.p_inst.stop(); self.p_kr.stop()
+        self.p_save.stop(); self.p_inst.stop(); self.p_kr.stop(); self.p_tic.stop()
 
     def test_young_previous_file_is_reused(self):
         prev = {'at': _iso(10), 'fng': {'d': [['2026-09-24', 71, 'Greed']]}}
@@ -792,6 +797,59 @@ class BilansPlatniczy(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             zd.parse_bop(None, empty)
         self.assertEqual(sorted(zd.BOP_FA_KEYS.values()), ['di', 'fa', 'oi', 'pi', 'pi_debt', 'pi_eq'])
+
+
+class Tic(unittest.TestCase):
+    """Sekcja A zadania „więcej danych”: TIC SLT — tabulatory, nagłówek techniczny, brak = None, sumy po regionach z liczbą obecnych."""
+    T1 = ("Table 1\nAll Countries\nnote\nMillions of dollars\nLink\n\n|||Total\nCountry\tCountry Code\tDate\tHoldings\tNet\tVal\n"
+          "country\tcountry_code\tdate\tfor_lt_total_pos\tfor_lt_total_net\tfor_lt_total_valchg\tfor_lt_treas_pos\tfor_lt_treas_net\tfor_lt_treas_valchg\tfor_lt_agcy_pos\tfor_lt_agcy_net\tfor_lt_agcy_valchg\tfor_lt_corp_pos\tfor_lt_corp_net\tfor_lt_corp_valchg\tfor_lt_eqty_pos\tfor_lt_eqty_net\tfor_lt_eqty_valchg\n"
+          "Japan\t42609\t2026-07\t2998094\t-6454\t-34194\t1023754\t-8846\t-12120\t269484\t-1096\t-5091\t312507\t1495\t-5349\t1392349\t1993\t-11634\n"
+          "Japan\t42609\t2026-06\t3000000\t100\t0\t1000000\t50\t0\t1\t1\t1\t1\t1\t1\t1\t40\t1\n"
+          "Korea, South\t42500\t2026-07\t100\t\t0\t1\t2\t3\t4\t5\t6\t7\t8\t9\t10\t11\t12\n"
+          "Grand Total\t99996\t2026-07\t38820547\t40616\t-527089\t7783259\t-3560\t-101562\t1\t1\t1\t1\t1\t1\t24341164\t3705\t-304335\n"
+          "Euro area:  As of January 2026, includes Austria\n"
+          "for_lt_total_net: 3 + 7 - 2\n")
+
+    def test_table_parsed_by_technical_header_blanks_are_none_footer_ignored(self):
+        t = zd.parse_tic_table(self.T1.encode())
+        self.assertEqual(t['Japan']['2026-07']['for_lt_total_net'], -6454.0); self.assertEqual(t['Japan']['2026-07']['for_lt_eqty_net'], 1993.0)
+        self.assertIsNone(t['Korea, South']['2026-07']['for_lt_total_net'])       # puste pole = brak, nie zero
+        self.assertNotIn('Euro area:  As of January 2026, includes Austria', t); self.assertNotIn('for_lt_total_net: 3 + 7 - 2', t)
+        with self.assertRaises(RuntimeError):
+            zd.parse_tic_table(b'no header\n')
+
+    def test_region_sums_count_present_members_and_missing_is_none(self):
+        t = zd.parse_tic_table(self.T1.encode())
+        rows = zd._tic_sum(t, ['Japan', 'Korea, South', 'Taiwan'], ['2026-06', '2026-07'], 'for_lt_total_net')
+        self.assertEqual(rows, [['2026-06', 100, 1], ['2026-07', -6454, 1]])     # Korea bez liczby, Tajwanu brak → tylko Japonia
+        rows = zd._tic_sum(t, ['Taiwan'], ['2026-07'], 'for_lt_total_net')
+        self.assertEqual(rows, [['2026-07', None, 0]])
+
+    def test_holders_table_in_billions_with_grand_total(self):
+        raw = ("Table 5\nHoldings\nBillions of dollars\nLink\n\nCountry\t2026-07\t2026-06\t2026-05\nJapan\t1103.9\t1116.7\t1143.1\n"
+               "United Kingdom\t998.3\t939.9\t948.6\nAll Other\t1842.4\t1850.3\t1\nGrand Total\t9248.1\t9298.5\t9300.0\nOf Which: Foreign Official\t3773.1\t3778.1\t1\n")
+        h = zd.parse_tic_holders(raw.encode())
+        self.assertEqual(h['months'], ['2026-07', '2026-06', '2026-05'])
+        self.assertEqual(h['rows'][0], ['Japan', [1103.9, 1116.7, 1143.1]]); self.assertEqual(h['rows'][-1], ['Grand Total', [9248.1, 9298.5, 9300.0]])
+        self.assertFalse(any(r[0].startswith('Of Which') or r[0] == 'All Other' for r in h['rows']))
+
+    def test_build_tic_regions_world_and_optional_tables(self):
+        t2 = ("x\n" * 8 + "country\tcountry_code\tdate\tus_lt_total_pos\tus_lt_total_net\tus_lt_total_valchg\tus_lt_govt_bond_pos\tus_lt_govt_bond_net\tus_lt_govt_bond_valchg\tus_lt_corp_bond_pos\tus_lt_corp_bond_net\tus_lt_corp_bond_valchg\tus_lt_eqty_pos\tus_lt_eqty_net\tus_lt_eqty_valchg\n"
+              "Japan\t42609\t2026-07\t1750866\t20746\t-525\t1\t2\t3\t4\t5\t6\t7\t8\t9\nGrand Total\t99996\t2026-07\t20356009\t68522\t-158325\t1\t2\t3\t4\t5\t6\t7\t8\t9\n")
+        def get_bytes(url, headers=None, timeout=60):
+            if 'table1' in url: return self.T1.encode()
+            if 'table2' in url: return t2.encode()
+            raise RuntimeError('503')
+        with mock.patch.object(zd, 'get_bytes', get_bytes):
+            out = zd.build_tic()
+        self.assertEqual(out['asof'], '2026-07'); self.assertEqual(out['months'], ['2026-06', '2026-07']); self.assertEqual(out['unit'], 'mln USD')
+        jp = out['regions']['jpn']
+        self.assertEqual(jp['in'], [['2026-06', 100, 1], ['2026-07', -6454, 1]]); self.assertEqual(jp['out'], [['2026-06', None, 0], ['2026-07', 20746, 1]])
+        self.assertEqual(jp['hold_in'], ['2026-07', 2998194, 2]); self.assertEqual(jp['hold_out'], ['2026-07', 1750866, 1]); self.assertEqual(jp['n'], 3)   # zasób: Japonia + Korea (Korea ma zasób, brak jej tylko netto)
+        self.assertEqual(out['world']['in'][-1], ['2026-07', 40616, 1]); self.assertEqual(out['world']['out'][-1], ['2026-07', 68522, 1])
+        self.assertEqual(out['regions']['can']['in'][-1], ['2026-07', None, 0])           # brak Kanady w próbce → brak, nie zero
+        self.assertIsNone(out['holders']); self.assertTrue(any(e.startswith('TIC tabela 5') for e in zd.META['errors']))
+        self.assertIn('positive = capital into the USA', out['sign'])
 
 
 if __name__ == '__main__':

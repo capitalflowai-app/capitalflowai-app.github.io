@@ -30,6 +30,22 @@ TD_OUTPUT = 45      # ≈ 2 miesiące sesji; 1M = 21 sesji + zapas
 TD_MIN_SYMBOLS = 10
 TD_MIN_CANDLES = 22
 CMC = 'https://pro-api.coinmarketcap.com'
+# TIC (Skarb USA, dane rządowe): pliki SLT tabulatorowe; pobierane najwyżej raz na dobę (publikacja ok. 15–18 dnia miesiąca)
+TIC_BASE = 'https://ticdata.treasury.gov/resource-center/data-chart-center/tic/Documents/'
+TIC_MONTHS = 13
+TIC_REGIONS = {   # region strony → wiersze TIC (kraje i sumy urzędowe); 'usa' nie ma sensu (TIC = zagranica vs USA)
+    'can': ['Canada'],
+    'lat': ['Total Latin America'],                         # bez Karaibów (centra finansowe — osobno jako 'carib')
+    'eur': ['Memo: European Union', 'United Kingdom', 'Switzerland', 'Norway'],
+    'rus': ['Russia'],
+    'mea': ['Saudi Arabia', 'United Arab Emirates', 'Kuwait', 'Israel', 'Turkey'],   # tabela 2 nie ma Arabii Saudyjskiej
+    'afr': ['Total Africa'],
+    'ind': ['India'],
+    'chn': ['China, Mainland', 'Hong Kong'],
+    'jpn': ['Japan', 'Korea, South', 'Taiwan'],
+    'asean': ['Singapore', 'Malaysia', 'Thailand', 'Indonesia', 'Philippines'],
+    'oce': ['Australia', 'New Zealand'],
+}
 CG = 'https://api.coingecko.com/api/v3'      # plan Demo: klucz w nagłówku, atrybucja „Data by CoinGecko” wymagana
 FNG_URL = 'https://api.alternative.me/fng/?limit=31'   # 31 dni: dziś + wartość sprzed 30 dni   # wskaźnik nastroju (model), podać źródło z linkiem
 # FRED (Federal Reserve Bank of St. Louis) — tylko serie Rady Gubernatorów Fed: domena publiczna, „citation requested”.
@@ -598,6 +614,112 @@ def parse_fng(j):
             'kind': 'indicator', 'asof': rows[-1][0], 'd': rows}
 
 
+def parse_tic_table(raw):
+    """TIC SLT (tekst rozdzielany tabulatorami, nagłówek techniczny w wierszu zaczynającym się od 'country\t'):
+    {kraj: {YYYY-MM: {kolumna: liczba}}}; puste pola = brak (None), wiersze stopki (bez daty YYYY-MM) pominięte."""
+    text = raw.decode('utf-8', errors='replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    lines = text.splitlines()
+    cols = None
+    out = {}
+    for line in lines:
+        parts = line.split('\t')
+        if cols is None:
+            if parts and parts[0].strip() == 'country':
+                cols = [p.strip() for p in parts]
+            continue
+        if len(parts) < 4 or not re.match(r'^\d{4}-\d{2}$', parts[2].strip()):
+            continue
+        name = parts[0].strip(); month = parts[2].strip()
+        rec = {}
+        for i, c in enumerate(cols[3:], start=3):
+            rec[c] = _num(parts[i]) if i < len(parts) else None
+        out.setdefault(name, {})[month] = rec
+    if cols is None or not out:
+        raise RuntimeError('TIC: brak nagłówka technicznego albo wierszy z datą')
+    return out
+
+
+def parse_tic_holders(raw):
+    """TIC Table 5 (Major Foreign Holders of Treasury Securities, mld USD): {'months': [...], 'rows': [[kraj, [wartości]]]}."""
+    text = raw.decode('utf-8', errors='replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    months = None; rows = []
+    for line in text.splitlines():
+        parts = [p.strip() for p in line.split('\t')]
+        if months is None:
+            if parts and parts[0] == 'Country' and len(parts) > 1 and re.match(r'^\d{4}-\d{2}$', parts[1]):
+                months = parts[1:]
+            continue
+        if not parts or not parts[0] or parts[0].startswith('Of Which') or parts[0] in ('All Other', 'Grand Total'):
+            if parts and parts[0] == 'Grand Total':
+                rows.append(['Grand Total', [_num(v) for v in parts[1:len(months) + 1]]])
+            continue
+        vals = [_num(v) for v in parts[1:len(months) + 1]]
+        if any(v is not None for v in vals):
+            rows.append([parts[0], vals])
+    if not months or not rows:
+        raise RuntimeError('TIC tabela 5: brak nagłówka z miesiącami albo wierszy')
+    return {'months': months, 'rows': rows}
+
+
+def _tic_sum(table, members, months, col):
+    """Suma kolumny po członkach regionu w każdym miesiącu: [[miesiąc, suma, liczba obecnych członków]]; brak = None, nie 0."""
+    rows = []
+    for m in months:
+        vals = [table.get(name, {}).get(m, {}).get(col) for name in members]
+        present = [v for v in vals if v is not None]
+        rows.append([m, int(round(sum(present))) if present else None, len(present)])
+    return rows
+
+
+def build_tic():
+    """data/tic.json — przepływy papierów wartościowych USA ↔ regiony strony (mln USD, miesięcznie, TIC SLT).
+    in = netto zakupy amerykańskich papierów przez zagranicę (plus = kapitał do USA); out = netto zakupy zagranicznych
+    papierów przez USA (plus = kapitał z USA). Tabela 2 i 5 osobno: ich awaria nie kasuje tabeli 1."""
+    t1 = parse_tic_table(get_bytes(TIC_BASE + 'slt_table1.txt', timeout=120))
+    months = sorted({m for c in t1.values() for m in c})[-TIC_MONTHS:]
+    if not months:
+        raise RuntimeError('TIC: brak miesięcy')
+    try:
+        t2 = parse_tic_table(get_bytes(TIC_BASE + 'slt_table2.txt', timeout=120))
+    except Exception as e:
+        META['errors'].append(mask(f'TIC tabela 2: {e}')); t2 = None
+    try:
+        holders = parse_tic_holders(get_bytes(TIC_BASE + 'slt_table5.txt'))
+    except Exception as e:
+        META['errors'].append(mask(f'TIC tabela 5: {e}')); holders = None
+    last = months[-1]
+
+    def region(members):
+        r = {'members': members, 'n': len(members),
+             'in': _tic_sum(t1, members, months, 'for_lt_total_net'), 'in_tr': _tic_sum(t1, members, months, 'for_lt_treas_net'),
+             'in_eq': _tic_sum(t1, members, months, 'for_lt_eqty_net'), 'hold_in': _tic_sum(t1, members, [last], 'for_lt_total_pos')[0]}
+        if t2 is not None:
+            r['out'] = _tic_sum(t2, members, months, 'us_lt_total_net'); r['out_eq'] = _tic_sum(t2, members, months, 'us_lt_eqty_net')
+            r['out_gov'] = _tic_sum(t2, members, months, 'us_lt_govt_bond_net'); r['hold_out'] = _tic_sum(t2, members, [last], 'us_lt_total_pos')[0]
+        else:
+            r['out'] = None; r['out_eq'] = None; r['out_gov'] = None; r['hold_out'] = None
+        return r
+
+    out = {'at': NOW, 'src': 'U.S. Department of the Treasury — Treasury International Capital (TIC), SLT tables 1, 2, 5',
+           'url': 'https://home.treasury.gov/data/treasury-international-capital-tic-system', 'unit': 'mln USD', 'asof': last, 'months': months,
+           'sign': 'in: net foreign purchases of U.S. long-term securities (positive = capital into the USA); out: net U.S. purchases of foreign long-term securities (positive = capital out of the USA)',
+           'regions': {rid: region(members) for rid, members in TIC_REGIONS.items()},
+           'world': region(['Grand Total']), 'carib': region(['Total Caribbean']), 'holders': None}
+    if holders:
+        hm = holders['months']
+        top = []
+        for name, vals in holders['rows']:
+            if name == 'Grand Total' or vals[0] is None:
+                continue
+            d1 = (vals[0] - vals[1]) if len(vals) > 1 and vals[1] is not None else None
+            d12 = (vals[0] - vals[12]) if len(vals) > 12 and vals[12] is not None else None
+            top.append([name, vals[0], None if d1 is None else round(d1, 1), None if d12 is None else round(d12, 1)])
+        total = next((vals for name, vals in holders['rows'] if name == 'Grand Total'), None)
+        out['holders'] = {'asof': hm[0], 'unit': 'mld USD', 'top': top[:15], 'total': total[0] if total else None,
+                          'total_d12': (round(total[0] - total[12], 1) if total and len(total) > 12 and total[12] is not None and total[0] is not None else None)}
+    return out
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -737,6 +859,16 @@ def main():
             if prev_fred: save('fred', prev_fred); print('FRED zawiódł — zachowano poprzedni fred.json z', prev_fred.get('at'))
     else:
         META['errors'].append('brak FRED_KEY'); META['ok']['fred'] = False
+    # TIC (Skarb USA, bez klucza, ~1,6 MB): najwyżej raz na dobę; przy awarii zachowaj poprzedni plik
+    prev_tic = previous('tic')
+    if prev_tic and fresh(prev_tic, 24 * 60):
+        save('tic', prev_tic); META['ok']['tic'] = 'cached'; print('TIC: dane z', prev_tic.get('at'), '— młodsze niż doba')
+    else:
+        try:
+            save('tic', build_tic()); META['ok']['tic'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'TIC: {e}')); META['ok']['tic'] = False
+            if prev_tic: save('tic', prev_tic); print('TIC zawiódł — zachowano poprzedni tic.json z', prev_tic.get('at'))
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):

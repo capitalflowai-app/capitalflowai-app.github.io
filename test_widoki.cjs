@@ -384,3 +384,32 @@ test('bilans płatniczy: klucz bop w pliku urzędowym, blok, wiersz Źródła, w
   assert.ok(dict.pl['inst.bop.sub'].includes('plus = kapitał netto wypływa')); assert.ok(dict.en['inst.bop.sub'].includes('positive = capital flows out'));
   assert.ok(dict.pl['src.l.2m'] && dict.en['src.l.2m']);
 });
+
+// v47: TIC — przepływy netto USA ↔ regiony; netto = do − z tylko z kompletu; regiony z niepełnym składem oznaczone
+const tc0 = html.indexOf('const ticLast=rows=>');
+const tc1 = html.indexOf('\nfunction renderTic(){', tc0);
+const ticFns = new Function('bopSum', 't', html.slice(tc0, tc1) + '\nreturn {ticLast, ticVal, ticNet, ticPartial};')(
+  (rows, n) => { if (!Array.isArray(rows) || rows.length < n) return null; let s = 0; for (let i = rows.length - n; i < rows.length; i++) { if (typeof rows[i][1] !== 'number') return null; s += rows[i][1]; } return s; },
+  (k, v) => k + (v ? ':' + JSON.stringify(v) : ''));
+
+test('TIC: netto do USA = do − z, brak po którejkolwiek stronie → brak; suma 12 mies. z kompletu', () => {
+  const mk = (n, v) => Array.from({ length: n }, (_, i) => ['2025-' + String(i + 1).padStart(2, '0'), v, 1]);
+  const reg = { n: 1, in: mk(12, 100), out: mk(12, 30) };
+  assert.equal(ticFns.ticNet(reg, 0), 70); assert.equal(ticFns.ticNet(reg, 12), 840); assert.equal(ticFns.ticNet(reg, 13), null);
+  assert.equal(ticFns.ticNet({ n: 1, in: mk(12, 100), out: null }, 0), null);
+  assert.equal(ticFns.ticNet({ n: 1, in: mk(12, 100), out: [['2025-12', null, 0]] }, 0), null);
+  assert.equal(ticFns.ticPartial({ n: 5 }, [['2026-07', 10, 3]]), ' <small class="mtxt">(tic.partial:{"k":3,"n":5})</small>');
+  assert.equal(ticFns.ticPartial({ n: 5 }, [['2026-07', 10, 5]]), '');
+});
+
+test('TIC: sekcja #tic w GLOBAL przed widokami silnika, plik tic.json, karty WITHHELD widoków TIC ukryte, wiersz Źródła, prawa', () => {
+  const a = html.indexOf('<section class="panel pcard" id="tic" hidden></section>'), b = html.indexOf('<section class="panel pcard" id="eng-tic-flows" hidden></section>');
+  assert.ok(a > 0 && b > a, 'sekcja');
+  assert.ok(html.includes("srvJSON('tic')"), 'plik');
+  assert.ok(html.includes("if(v.startsWith('tic-')&&!(chk.ok&&chk.state==='BOUND')){el.hidden=true;el.innerHTML='';return;}"), 'karty TIC silnika ukryte, gdy nie BOUND');
+  assert.ok(html.includes("'ticdata.treasury.gov','src.f.m','src.l.2m',GLIVE.src.tic,'g.hs.tic','tic']"), 'wiersz Źródła');
+  assert.ok(html.includes('<summary><b>Skarb USA — TIC</b>'), 'prawa');
+  const d0 = html.indexOf('const EXTRA35='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA35='.length, d1));
+  for (const l of ['pl', 'en']) for (const k of ['tic.t', 'tic.in', 'tic.out', 'tic.net', 'tic.not2', 'tic.src', 'g.hs.tic']) assert.ok(dict[l][k], l + ' ' + k);
+});
