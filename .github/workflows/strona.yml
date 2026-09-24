@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Testy zbieracza (brak nie jest zerem, zakres dat, pamięć podręczna) — awaria blokuje publikację
-        run: python3 -m unittest -v test_zbieraj_dane.py
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_zbieraj_dane.py
       - name: Zbierz dane (klucze tylko z Secrets)
         env:
           SOSOVALUE_KEY: ${{ secrets.SOSOVALUE_KEY }}
@@ -35,9 +35,12 @@ jobs:
         run: python3 zbieraj_dane.py
       - name: Złóż stronę
         run: |
-          mkdir -p _site/data
+          mkdir -p _site/data _site/data/widoki
           cp index.html _site/
+          cp -r fonts _site/fonts                      # czcionki z tej samej strony (v34) — bez tego zmienia się wygląd
           cp data/*.json _site/data/ 2>/dev/null || true
+          cp data/widoki/*.json _site/data/widoki/ 2>/dev/null || true   # widoki silnika (v35), gdy już będą
+          test -f _site/fonts/fonts.css                 # brak czcionek = przerwij publikację
           touch _site/.nojekyll
           ls -la _site _site/data
       - uses: actions/upload-pages-artifact@v3
