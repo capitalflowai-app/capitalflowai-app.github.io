@@ -3487,6 +3487,170 @@ function renderSectorsPage(){
        <span class="sval ${pos?'pos':'neg'}">${pos?'+':'−'}${pgFmt(Math.abs(n.v),n.u)}</span>
        <span class="ssub">${n.sub||''}</span></div>`;}).join('')}</section>`;
 }
+/* v34: sekcje informacyjne — treść po polsku, w innych językach krótka nota (wygląd: istniejące klasy) */
+const TXT_ZRODLA_PL=`
+<section class="panel pgc"><h2>Źródła i prawa do danych</h2>
+<p class="mtxt"><b>Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.</b></p>
+<p class="mtxt">Wszystkie liczby na tej stronie pochodzą ze źródeł opisanych niżej albo są z nich przez nas policzone. Przy każdej liczbie podajemy źródło, datę danych i ich wiek („dane sprzed N dni”). Gdy liczby nie ma, pole zostaje puste. Puste pole to nie zero. Opisy praw to nasza ocena warunków dostawców, nie porada prawna. Stan opisu: 24 września 2026.</p>
+<h3>Jak dziś działa ta strona</h3>
+<p class="mtxt">Większość liczb pobiera Twoja przeglądarka prosto od dostawców: OECD, BIS, Skarb USA, Bundesbank, Frankfurter, CoinGecko, CoinPaprika i DefiLlama. Każdy z nich widzi wtedy adres IP Twojego połączenia, tak jak każda odwiedzana strona. Dane SoSoValue, Finnhub i kapitalizacje z CoinGecko zbiera nasz automat na serwerze (co 20 minut; SoSoValue najwyżej raz na godzinę) i zapisuje w plikach, które strona czyta. Czcionki i wszystkie pliki strony są serwowane z tej samej strony. Bez ciasteczek, bez śledzenia, bez kont. Stronę udostępnia GitHub Pages; jak każdy serwer, widzi adres IP. Klucze wpisane w Ustawieniach zostają tylko w tej przeglądarce i idą wyłącznie do danego dostawcy. Historię wyników rankingu warunków strona zapisuje w Twojej przeglądarce i nigdzie jej nie wysyła.</p>
+<h3>Jak czytać stan praw</h3>
+<p class="mtxt"><b>pokazujemy</b> — warunki właściciela danych, tak jak je przeczytaliśmy, pozwalają je pokazywać, a my te warunki spełniamy.<br>
+<b>pokazujemy warunkowo</b> — pokazujemy z podaniem źródła, ale warunków dostawcy nie przeczytaliśmy w całości; opieramy się na tym, co o nich wiemy. Jeśli okaże się, że nie wolno, liczba zniknie.<br>
+<b>pokazujemy, prosząc o potwierdzenie</b> — naszym zdaniem warunki dostawcy wymagają jego potwierdzenia; zamierzamy o nie wystąpić. Bez potwierdzenia te dane wyłączymy.<br>
+<b>w przygotowaniu</b> — tych danych na stronie jeszcze nie ma; pokażemy je po sprawdzeniu praw.</p>
+<h3>Źródła po kolei</h3>
+
+<details class="etfd" open><summary><b>OECD</b> · indeksy giełdowe, stopy 10-letnie, wskaźnik koniunktury · <i>pokazujemy warunkowo</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> miesięczne indeksy giełdowe krajów, rentowności obligacji 10-letnich (zapas, gdy nie działają dane dzienne Skarbu USA i Bundesbanku) oraz wskaźnik wyprzedzający koniunktury (CLI, z angielskiego „composite leading indicator”), który zasila ranking warunków.<br>
+<b>Jak często i z jakim opóźnieniem:</b> co miesiąc, z opóźnieniem około trzech tygodni.<br>
+<b>Czego nie mówi:</b> zmiana indeksu to zmiana wartości rynku, a nie przelewy pieniędzy między krajami. Wskaźnik koniunktury opisuje gospodarkę, nie jest prognozą cen. Kraj bez danych ma „brak danych”, a nie zero.<br>
+<b>Stan praw:</b> z tego, co wiemy, OECD udostępnia dane na licencji CC BY 4.0, z podaniem źródła. Warunków OECD nie przeczytaliśmy w całości. Poziomy indeksów giełdowych mogą należeć do firm, które je liczą (np. S&amp;P, MSCI, FTSE, Nikkei). Podpis na stronie: „OECD · miesiąc danych”.</p></details>
+
+<details class="etfd"><summary><b>BIS</b> · należności banków wobec zagranicy · <i>pokazujemy warunkowo</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> ile należności mają banki z jednego kraju wobec drugiego (statystyki lokalizacyjne, LBS). Na mapie służą jako struktura korytarzy, czyli powiązań między regionami.<br>
+<b>Jak często i z jakim opóźnieniem:</b> co kwartał; dane pojawiają się około 4–5 miesięcy po końcu kwartału.<br>
+<b>Czego nie mówi:</b> to stany na koniec kwartału, a nie przepływy. Korytarze i sumy regionalne liczymy sami. Polskie nazwy to nasze nieoficjalne tłumaczenie.<br>
+<b>Stan praw:</b> BIS pozwala używać i rozpowszechniać dane z podaniem źródła i bez sugerowania jego poparcia; tłumaczenia trzeba oznaczać jako nieoficjalne. Dokładne brzmienie zasad o przeróbkach sprawdzamy. BIS nie firmuje tej strony.</p></details>
+
+<details class="etfd"><summary><b>Skarb USA</b> · dzienna rentowność obligacji 10-letnich · <i>pokazujemy warunkowo</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> dzienna rentowność 10-letnich obligacji rządu USA z oficjalnej krzywej rentowności Departamentu Skarbu (Daily Treasury Par Yield Curve Rates).<br>
+<b>Jak często:</b> codziennie w dni robocze.<br>
+<b>Czego nie mówi:</b> rentowność to oprocentowanie, a nie przepływ pieniędzy. Zmiany dzienne, miesięczne, kwartalne i roczne liczymy sami. Dzień bez notowań to brak danych, a nie zero.<br>
+<b>Stan praw:</b> z tego, co wiemy, to dane rządu USA, które wolno pokazywać z podaniem źródła, bez pieczęci Skarbu i bez sugerowania jego poparcia. Departament Skarbu USA nie jest autorem tej strony i jej nie popiera.</p></details>
+
+<details class="etfd"><summary><b>Bundesbank</b> · dzienna rentowność obligacji Niemiec 10-letnich · <i>pokazujemy warunkowo</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> dzienna rentowność 10-letnich obligacji rządu Niemiec (seria BBSIS w bazie Bundesbanku).<br>
+<b>Jak często:</b> codziennie w dni robocze; w dni bez notowań wartości nie ma, a to nie jest zero.<br>
+<b>Czego nie mówi:</b> jak wyżej: oprocentowanie, nie przepływ; zmiany w czasie liczymy sami.<br>
+<b>Stan praw:</b> z tego, co wiemy, Bundesbank pozwala przytaczać swoje statystyki z podaniem źródła. Warunków Bundesbanku nie przeczytaliśmy w całości.</p></details>
+
+<details class="etfd"><summary><b>EBC przez Frankfurter</b> · kursy referencyjne euro · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> dzienne kursy referencyjne euro Europejskiego Banku Centralnego. Docierają do nas przez Frankfurter, darmowy serwis pośredniczący, który przelicza je na dolara. „Dolar vs koszyk” to nasze własne obliczenie, nie liczba EBC.<br>
+<b>Jak często:</b> raz dziennie w dni robocze, zwykle około 16:00 czasu środkowoeuropejskiego. W niektóre dni wolne kursów nie ma.<br>
+<b>Czego nie mówi:</b> kurs referencyjny jest informacyjny, nie transakcyjny. To cena waluty, nie przepływ. Frankfurter nie daje gwarancji działania.<br>
+<b>Stan praw:</b> EBC pozwala bezpłatnie używać swoich statystyk, także zarobkowo, z podaniem źródła, bez zniekształcania i z zachowaniem daty. Własnych warunków Frankfurtera jeszcze nie znamy. Podpis na stronie: „ECB · data”.</p></details>
+
+<details class="etfd"><summary><b>Bank Światowy</b> · wartość giełd i PKB · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> roczna wartość giełd (kapitalizacja) i PKB gospodarek. Mapa liczy na tej podstawie zmianę wartości rynków w dolarach; braki uzupełnia wzrostem PKB i pisze o tym w metodologii. Te liczby są wpisane w kod strony, więc Bank Światowy nie widzi Twojego adresu.<br>
+<b>Jak często:</b> raz w roku; najnowszy rok bywa niepełny.<br>
+<b>Czego nie mówi:</b> wartość giełdy to stan, nie przepływ.<br>
+<b>Stan praw:</b> z tego, co wiemy, wskaźniki Banku Światowego są na licencji CC BY 4.0 (wolno używać z podaniem źródła). Licencję każdego użytego wskaźnika sprawdzimy osobno. Bank Światowy nie jest autorem tej strony i jej nie popiera.</p></details>
+
+<details class="etfd"><summary><b>CoinGecko</b> · wartość rynku kryptowalut · <i>pokazujemy warunkowo</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> wartość rynkowa (kapitalizacja) całego rynku kryptowalut i poszczególnych monet. Kapitalizacje bitcoina, etheru, solany i XRP pobiera nasz automat na serwerze; dane rynku globalnego pobiera Twoja przeglądarka.<br>
+<b>Jak często:</b> dane zmieniają się na bieżąco; strona odświeża je co minutę, automat co 20 minut.<br>
+<b>Czego nie mówi:</b> kapitalizacja to cena razy liczba monet. Zmienia się przede wszystkim z ceną, więc nie jest napływem nowych pieniędzy.<br>
+<b>Stan praw:</b> z tego, co wiemy, darmowy dostęp CoinGecko wymaga podpisu z linkiem i jest przeznaczony do użytku osobistego lub niekomercyjnego. Nie wiemy jeszcze, czy wolno zapisywać te dane w publicznym pliku na serwerze; zamierzamy o to zapytać. Dane: <a href="https://www.coingecko.com" rel="noopener">CoinGecko</a>.</p></details>
+
+<details class="etfd"><summary><b>CoinPaprika</b> · handel bitcoinem według walut, kursy monet · <i>pokazujemy warunkowo</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> udział walut (np. dolara, euro, jena) w handlu bitcoinem na giełdach oraz kursy i wartość rynkowa setek kryptowalut (okno CRYPTO). Pobiera je Twoja przeglądarka.<br>
+<b>Czego nie mówi:</b> obrót to nie napływ netto, dlatego pokazujemy tylko proporcje. Udział dolara to nie udział USA, bo dolarem handluje się na całym świecie. Handel poza giełdami jest niewidoczny.<br>
+<b>Stan praw:</b> z tego, co wiemy, darmowy dostęp CoinPaprika pozwala na użycie niekomercyjne z podpisem i linkiem. Warunków nie przeczytaliśmy w całości. Dane: <a href="https://coinpaprika.com" rel="noopener">CoinPaprika</a>.</p></details>
+
+<details class="etfd"><summary><b>DefiLlama</b> · stablecoiny i wartość zablokowana w sieciach · <i>pokazujemy, prosząc o potwierdzenie</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> podaż stablecoinów (kryptowalut powiązanych z walutą, np. z dolarem) i wartość zablokowana w sieciach kryptowalut (TVL). Pobiera je Twoja przeglądarka.<br>
+<b>Jak często:</b> bieżąca podaż porównana ze stanem sprzed dnia, miesiąca, kwartału i roku.<br>
+<b>Czego nie mówi:</b> zmiana podaży to emisja, umorzenie i przeniesienia między sieciami razem. Nie mówi, z której sieci na którą monety przepłynęły, ani że ktoś coś kupił.<br>
+<b>Stan praw:</b> warunki DefiLlama (wersja z 24.06.2025) mówią o użytku osobistym i niekomercyjnym oraz o publikacji za zgodą. Naszym zdaniem publiczna strona takiej zgody wymaga; zamierzamy o nią wystąpić. Bez zgody te dane wyłączymy. Dane: <a href="https://defillama.com" rel="noopener">DefiLlama</a>.</p></details>
+
+<details class="etfd"><summary><b>SoSoValue</b> · napływy do funduszy ETF na kryptowaluty · <i>pokazujemy, prosząc o potwierdzenie</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> dzienne napływy i odpływy pieniędzy w funduszach ETF notowanych w USA: na bitcoina, ether, solanę i XRP, łącznie i według funduszy. Zbiera je nasz automat na serwerze najwyżej raz na godzinę i zapisuje w pliku, który strona czyta.<br>
+<b>Jak często:</b> dane dzienne; fundusze różnych monet bywają z różnych dni, więc data jest podana osobno dla każdej monety, a znacznik pokazuje zakres.<br>
+<b>Czego nie mówi:</b> napływ do funduszy w USA to nie cały rynek kryptowalut. Gdy brakuje danych jednego funduszu, suma jest nieznana; braku nie liczymy jako zera.<br>
+<b>Stan praw:</b> warunków SoSoValue nie przeczytaliśmy w całości; naszym zdaniem publiczne wyświetlanie i kopia danych na serwerze wymagają potwierdzenia dostawcy, o które zamierzamy wystąpić. Dane: <a href="https://sosovalue.com" rel="noopener">SoSoValue</a>.</p></details>
+
+<details class="etfd"><summary><b>Finnhub</b> · notowania funduszy krajowych (okres „DZIŚ”) · <i>pokazujemy, prosząc o potwierdzenie</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> bieżące notowania 14 funduszy ETF z giełd w USA, które naśladują rynki regionów. Służą do okresu „DZIŚ” na mapie. Zbiera je nasz automat na serwerze co 20 minut.<br>
+<b>Czego nie mówi:</b> zmiana ceny funduszu to nie przepływ pieniędzy do regionu; fundusz notowany w USA tylko w przybliżeniu oddaje rynek regionu. Dla Rosji takiego funduszu nie ma. Notowanie z innego dnia niż dzisiaj pokazuje datę.<br>
+<b>Stan praw:</b> cennik Finnhub opisuje darmowy plan jako przeznaczony do użytku osobistego. Naszym zdaniem publiczna strona wymaga potwierdzenia dostawcy albo innego planu; zamierzamy to wyjaśnić. Bez potwierdzenia okres „DZIŚ” wyłączymy.</p></details>
+
+<details class="etfd"><summary><b>CoinMarketCap</b> · migawka funduszy ETF z 22.09.2026 · <i>zapas, do usunięcia</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> jednorazowa migawka napływów i aktywów funduszy ETF z 22.09.2026, wpisana w kod strony jako zapas. Pokazuje się tylko wtedy, gdy nie ma danych z serwera ani klucza SoSoValue, zawsze z napisem „Migawka z 2026-09-22 · CoinMarketCap”.<br>
+<b>Czego nie mówi:</b> nic o dniach po 22.09.2026.<br>
+<b>Stan praw:</b> naszym zdaniem regulamin CoinMarketCap nie pozwala publikować tych danych bez zgody. Planujemy usunąć migawkę; zamiast niej będzie „brak danych”.</p></details>
+
+<details class="etfd"><summary><b>W przygotowaniu:</b> CFTC, Skarb USA (raport TIC), MFW, Coin Metrics</summary>
+<p class="mtxt">Te dane przygotowujemy w osobnym programie sprawdzającym (silniku projektu) i pokażemy po sprawdzeniu praw do każdego z nich.<br>
+<b>CFTC</b> — pozycje dużych inwestorów w kontraktach terminowych na euro, bitcoina i ether; co tydzień (stan z wtorku publikowany w piątek). Dane rządu USA w domenie publicznej, z podaniem źródła; CFTC nie jest autorem tej strony i jej nie popiera.<br>
+<b>Skarb USA, raport TIC</b> — czy zagranica netto kupuje amerykańskie obligacje i akcje; co miesiąc, z opóźnieniem około półtora miesiąca. Pokażemy po zmianie naszej własnej ostrożnej zasady „bez dalszego rozpowszechniania”.<br>
+<b>MFW</b> — kto trzyma czyje papiery (zbiór PIP, dawniej CPIS); stan co pół roku, publikowany z opóźnieniem około dziewięciu miesięcy. Z podaniem źródła; na użycie zarobkowe potrzebna zgoda MFW.<br>
+<b>Coin Metrics</b> — wpłaty bitcoina i etheru na giełdy kryptowalut i wypłaty z nich; dane dzienne. Licencja CC BY-NC 4.0 (tylko niekomercyjnie); przed pokazaniem zapytamy dostawcę.</p></details>
+
+<p class="mtxt" style="margin-top:10px"><b>Warunki dostawców</b> są zawsze u dostawcy i mogą się zmienić. Jeśli jesteś dostawcą danych albo widzisz błąd w podpisie, napisz do nas przez stronę projektu. Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.</p>
+</section>
+`;
+const TXT_JAK_PL=`
+<section class="panel pgc"><h2>Jak czytać liczby</h2>
+<p class="mtxt"><b>Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.</b> Tu wyjaśniamy, jak czytać liczby na tej stronie. Nie trzeba znać się na finansach.</p>
+
+<h3>Na co strona odpowiada, a na co nie</h3>
+<p class="mtxt"><b>Odpowiada:</b> gdzie w ostatnim dniu, miesiącu, kwartale i roku rosła, a gdzie malała wartość rynków akcji (mapa); ile pieniędzy weszło do funduszy ETF na kryptowaluty i z nich wyszło (panel ETF); jak zmienia się podaż stablecoinów i wartość rynku kryptowalut (kafelki i okno CRYPTO); jak duże są powiązania bankowe między regionami (korytarze); jak zmieniają się rentowności obligacji i kursy walut.<br>
+<b>Nie odpowiada:</b> co kupić, a co sprzedać (nie prognozujemy cen i nie doradzamy); kto konkretnie kupuje i dlaczego (dane mówią o krajach, funduszach i grupach, nie o osobach); co dzieje się w tej chwili (źródła publikują dane z opóźnieniem od jednego dnia do wielu miesięcy).</p>
+
+<h3>Sześć zasad, których pilnujemy</h3>
+<p class="mtxt"><b>1. Brak to nie zero.</b> Gdy źródło nie podało wartości, pole zostaje puste („—”), a region na mapie jest niebieski. Nie wstawiamy w to miejsce liczby przykładowej ani zera. Liczby przykładowe pokazujemy tylko bez połączenia ze źródłami i zawsze z napisem „dane przykładowe”.<br>
+<b>2. Stan to nie przepływ.</b> Mapa pokazuje zmianę wartości rynków akcji w dolarach: mogły wzrosnąć ceny albo zmienić się kursy, nikt nie musiał nic dokupić. Korytarze między regionami to szacunek oparty na powiązaniach bankowych, a nie zmierzone przelewy. Podaż stablecoinów i wartość rynku krypto to stany. Napływ do funduszy ETF to prawdziwy przepływ (kreacja jednostek minus umorzenia).<br>
+<b>3. Każda liczba ma źródło, datę i wiek.</b> Pod kafelkami: „źródło · data · dane sprzed N dni”. Na mapie: okienko „Dlaczego to widzisz?” i karta „Świeżość danych”. W panelu ETF: znacznik z datą danych i datą zapisu na serwerze.<br>
+<b>4. Pokazujemy tylko to, co naszym zdaniem wolno.</b> Stan praw każdego źródła jest opisany na stronie „Źródła”. Gdzie potrzebne jest potwierdzenie dostawcy, piszemy to wprost.<br>
+<b>5. Nie zgadujemy.</b> Gdy pobranie się nie uda, liczba znika, a znacznik pokazuje czas ostatniego udanego pobrania. Plik z serwera starszy niż trzy godziny dostaje napis „nieodświeżone”. Nigdy nie pokazujemy starej liczby jako nowej.<br>
+<b>6. Nie doradzamy.</b> Ranking „warunków” to zdjęcie chwili z mierzonych składników; brakujący składnik po prostu wypada, a strona pokazuje, ile składników było. Kolory na mapie mówią o kierunku zmiany wartości, nie o ocenie rynku.</p>
+
+<h3>Co znaczą napisy przy liczbach</h3>
+<div class="list-wrap"><table><thead><tr><th>Napis</th><th>Co znaczy</th></tr></thead><tbody>
+<tr><td><span class="cell">źródło · 2026-08 · dane sprzed 24 dni</span></td><td><span class="cell">skąd jest liczba, jakiego okresu dotyczy i ile dni minęło od końca tego okresu do teraz. Przy danych dziennych liczymy od dnia danych, przy miesięcznych od końca miesiąca.</span></td></tr>
+<tr><td><span class="cell">Na żywo · 07:21</span></td><td><span class="cell">godzina ostatniego udanego pobrania w Twojej przeglądarce. To nie jest data danych. Datę danych sprawdzaj w podpisie.</span></td></tr>
+<tr><td><span class="cell">Odświeżone N s temu · N źródeł</span></td><td><span class="cell">ile sekund temu ostatnie odświeżenie się udało i ile źródeł odpowiedziało przy ostatnim pełnym pobraniu.</span></td></tr>
+<tr><td><span class="cell">Ostatnie udane pobranie 07:21 · od tego czasu brak nowych danych</span></td><td><span class="cell">od ponad dwóch odświeżeń żadne źródło nie odpowiedziało. Liczby na ekranie są z podanej godziny.</span></td></tr>
+<tr><td><span class="cell">Na żywo · SoSoValue · dane z 2026-09-23 · 24.09.2026, 05:33 · dane sprzed 1 dnia</span></td><td><span class="cell">panel ETF: dzień danych, data i godzina zapisu pliku na serwerze, wiek danych.</span></td></tr>
+<tr><td><span class="cell">Dane z serwera z … · nieodświeżone</span></td><td><span class="cell">automat nie odświeżył pliku od ponad trzech godzin. Liczby są z podanej daty.</span></td></tr>
+<tr><td><span class="cell">Migawka z 2026-09-22 · CoinMarketCap</span></td><td><span class="cell">zapas z jednego dnia; brak nowszych danych. Planujemy go usunąć.</span></td></tr>
+<tr><td><span class="cell">Pokrycie regionów N / 12</span></td><td><span class="cell">ile regionów ma prawdziwe dane w tym okresie. Regiony bez danych są niebieskie i nie wchodzą do sum.</span></td></tr>
+<tr><td><span class="cell">—</span></td><td><span class="cell">brak danych. To nie jest zero.</span></td></tr>
+<tr><td><span class="cell">Zbieracz na serwerze: ostatni przebieg … · SoSoValue: … · Finnhub: …</span></td><td><span class="cell">stopka panelu ETF: kiedy automat ostatnio działał i czy zgłosił błędy. „z pamięci” znaczy, że plik był młodszy niż 55 minut i automat nie pytał dostawcy ponownie.</span></td></tr>
+</tbody></table></div>
+
+<h3>Jak często zmieniają się dane</h3>
+<div class="list-wrap"><table><thead><tr><th>Co pokazujemy</th><th>Źródło</th><th>Jak często publikuje</th><th>Opóźnienie i uwagi</th></tr></thead><tbody>
+<tr><td><span class="cell">indeksy giełdowe, stopy, koniunktura</span></td><td><span class="cell">OECD</span></td><td><span class="cell">co miesiąc</span></td><td><span class="cell">około trzech tygodni</span></td></tr>
+<tr><td><span class="cell">powiązania bankowe (korytarze)</span></td><td><span class="cell">BIS</span></td><td><span class="cell">co kwartał</span></td><td><span class="cell">4–5 miesięcy po końcu kwartału</span></td></tr>
+<tr><td><span class="cell">rentowność 10 lat USA i Niemiec</span></td><td><span class="cell">Skarb USA, Bundesbank</span></td><td><span class="cell">codziennie w dni robocze</span></td><td><span class="cell">dzień bez notowań to brak danych</span></td></tr>
+<tr><td><span class="cell">kursy walut, dolar vs koszyk</span></td><td><span class="cell">EBC przez Frankfurter</span></td><td><span class="cell">raz dziennie w dni robocze</span></td><td><span class="cell">około 16:00 czasu środkowoeuropejskiego</span></td></tr>
+<tr><td><span class="cell">wartość giełd i PKB</span></td><td><span class="cell">Bank Światowy</span></td><td><span class="cell">raz w roku</span></td><td><span class="cell">najnowszy rok bywa niepełny</span></td></tr>
+<tr><td><span class="cell">wartość rynku krypto, stablecoiny, obrót BTC wg walut</span></td><td><span class="cell">CoinGecko, DefiLlama, CoinPaprika</span></td><td><span class="cell">na bieżąco</span></td><td><span class="cell">strona odświeża co minutę; pełne pobranie co pół godziny</span></td></tr>
+<tr><td><span class="cell">napływy do ETF na krypto</span></td><td><span class="cell">SoSoValue</span></td><td><span class="cell">dane dzienne (po zamknięciu giełdy w USA, rano D+1)</span></td><td><span class="cell">automat pyta najwyżej raz na godzinę</span></td></tr>
+<tr><td><span class="cell">okres „DZIŚ” (fundusze krajowe)</span></td><td><span class="cell">Finnhub</span></td><td><span class="cell">bieżąca sesja w USA</span></td><td><span class="cell">automat co 20 minut; poza sesją pokazuje ostatnie notowanie z datą</span></td></tr>
+</tbody></table></div>
+<p class="mtxt">Przy danych urzędowych opóźnienie jest po stronie instytucji; nie możemy go skrócić. Dlatego zawsze patrz na datę danych i ich wiek, a nie na napis „Na żywo”.</p>
+
+<h3>Słowniczek</h3>
+<p class="mtxt"><b>Przepływ</b> — pieniądze, które w danym okresie zmieniły właściciela, np. w ciągu dnia inwestorzy wpłacili do funduszu więcej, niż wypłacili. Zwykle podajemy wynik netto.<br>
+<b>Stan (zasób)</b> — ile czegoś jest w jednym dniu, np. podaż stablecoinów. Zmiana stanu obejmuje też zmiany cen i kursów, więc nie jest przepływem.<br>
+<b>Pozycja</b> — zaangażowanie w kontraktach terminowych: ile kontraktów trzyma dana grupa inwestorów. To nie jest ruch pieniędzy.<br>
+<b>Kontrakt terminowy</b> — umowa na kupno lub sprzedaż czegoś w przyszłości po cenie ustalonej dziś.<br>
+<b>Napływ netto / odpływ netto</b> — kupiono więcej, niż sprzedano / sprzedano więcej, niż kupiono. Netto zero nie znaczy, że nie było transakcji.<br>
+<b>Brak danych</b> — źródło nie podało wartości. To nie jest zero.<br>
+<b>Kapitalizacja</b> — cena razy liczba akcji albo monet. Zmienia się przede wszystkim z ceną.<br>
+<b>Indeks giełdowy</b> — jedna liczba opisująca wartość koszyka akcji danego kraju.<br>
+<b>Rentowność obligacji</b> — roczny dochód w procentach z obligacji kupionej po dzisiejszej cenie i trzymanej do wykupu. Gdy cena obligacji spada, rentowność rośnie, i odwrotnie.<br>
+<b>Kurs referencyjny</b> — kurs waluty ogłaszany w celach informacyjnych przez bank centralny; nikt nie musi po nim wymieniać pieniędzy.<br>
+<b>Stablecoin</b> — kryptowaluta, której cena ma się trzymać zwykłej waluty, najczęściej dolara. Gdy na sieci przybywa stablecoinów, to zmiana ich ilości, a nie czyjś zakup.<br>
+<b>Sieć kryptowaluty</b> — wspólny rejestr w internecie, w którym zapisuje się przelewy kryptowalut, np. sieć Ethereum.<br>
+<b>ETF</b> — fundusz, którego jednostki kupuje się i sprzedaje na giełdzie jak akcje (z angielskiego „exchange-traded fund”). Fundusz ETF typu spot na bitcoina kupuje i trzyma bitcoiny za pieniądze swoich inwestorów.<br>
+<b>Napływ do ETF</b> — pieniądze, które danego dnia netto weszły do funduszu: wartość nowych jednostek minus wartość jednostek odkupionych od inwestorów. Nie mówi, kto wpłacił ani dlaczego.<br>
+<b>Aktywa funduszu (AUM)</b> — wartość wszystkiego, co fundusz trzyma dla inwestorów.<br>
+<b>Korytarz</b> — na mapie: szacowany kierunek przesunięcia wartości między regionami, ważony powiązaniami bankowymi BIS. To nie jest zmierzony przelew.<br>
+<b>CC BY 4.0</b> — licencja Creative Commons: wolno używać danych, także zarobkowo, z podaniem źródła i licencji. <b>CC BY-NC 4.0</b> — jak wyżej, ale tylko niekomercyjnie. <b>Domena publiczna</b> — materiały, których nie chroni prawo autorskie; tak CFTC opisuje własne dane (prawo USA). To nasze rozumienie licencji, nie porada prawna.<br>
+<b>UTC</b> — czas uniwersalny; w Polsce zegar pokazuje o 1 godzinę więcej zimą i o 2 godziny więcej latem. Godziny na tej stronie są w czasie Twojego urządzenia.</p>
+
+<h3>Jak sprawdzamy liczby</h3>
+<p class="mtxt">Strona nie poprawia danych źródeł. Od wersji z 24 września 2026 nie zastępuje braków liczbami przykładowymi ani zerem, a znaczniki czasu przesuwają się tylko po udanym pobraniu. Automat na serwerze ma własne testy; gdy testy nie przechodzą, nowa wersja nie jest publikowana. Osobny program sprawdzający projektu (silnik, sprawdzany pełnym zestawem testów przed każdą zmianą) przygotowujemy do zasilania strony danymi CFTC, Skarbu USA, MFW i Banku Światowego. Jeśli źródło później poprawi dane, zobaczysz to po kolejnym pobraniu. <b>Czego to nie gwarantuje:</b> testy sprawdzają nasz kod, a nie samo źródło.</p>
+</section>
+`;
+const TXT_ZRODLA_EN=`<section class="panel pgc"><h2>Sources and data rights</h2><p class="mtxt">This section is available in Polish for now (switch the language to Polski in Settings). It lists, for every source, what the data is, how often it is published, what the number does not tell you, and our reading of the provider's terms.</p></section>`;
+const TXT_JAK_EN=`<section class="panel pgc"><h2>How to read the numbers</h2><p class="mtxt">This section is available in Polish for now (switch the language to Polski in Settings). It explains the six rules of this site (a gap is never a zero, a stock is not a flow, every number carries its source, date and age, we only show what we believe we may, we never guess, we never advise), the labels beside the numbers, how often each source publishes, and a glossary.</p></section>`;
+function txtZrodla(){return LANG==='pl'?TXT_ZRODLA_PL:TXT_ZRODLA_EN;}
+function txtJakCzytac(){return LANG==='pl'?TXT_JAK_PL:TXT_JAK_EN;}
 function renderSources(){
   const w=$('#page-sources');if(!w)return;
   const S=gActive()?[
@@ -3521,7 +3685,7 @@ function renderSources(){
      <td><span class="cell">${t(l)}</span></td>
      <td><span class="cell"><span class="live ${ok?'on':'off'}"><i></i>${t(ok?'pg.ok':'pg.no')}</span>${ok&&tm?` <small class="mtxt">${tm}</small>`:''}</span></td></tr>`;}).join('')}
    </tbody></table></div></section>
-   <section class="panel pgc"><h2>${t('pg.nosrc')}</h2><p class="mtxt">${t('pg.nosrc.d')}</p></section>`;
+   <section class="panel pgc"><h2>${t('pg.nosrc')}</h2><p class="mtxt">${t('pg.nosrc.d')}</p></section>${txtZrodla()}`;
 }
 function renderMethod(){
   const w=$('#page-method');if(!w)return;
@@ -3542,7 +3706,7 @@ function renderMethod(){
        : `<div class="calt">${t('pg.cal.none')}</div>`}</div></section>
    <section class="panel pgc"><h2>${t('pg.m6')}</h2><p class="mtxt">${t('g.cf.m')}</p><p class="mtxt">${t('g.cf.l')}</p></section>
    <section class="panel pgc"><h2>${t('pg.m7')}</h2><p class="mtxt">${t('etf.m')}</p><p class="mtxt">${t('g.help.etf')}</p></section>
-   <section class="panel pgc"><h2>${t('pg.m5')}</h2><p class="mtxt">${t('g.help.limd')}</p></section>`;
+   <section class="panel pgc"><h2>${t('pg.m5')}</h2><p class="mtxt">${t('g.help.limd')}</p></section>${txtJakCzytac()}`;
 }
 function renderPage(){
   if(page==='flows')renderFlows();
