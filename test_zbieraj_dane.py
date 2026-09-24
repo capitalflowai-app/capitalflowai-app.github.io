@@ -503,8 +503,8 @@ class Instytucje(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('cp932')):
             out = zd.build_instytucje()
         self.assertEqual(sorted(k for k in out if k not in ('at', 'src')), ['rrp', 'soma'])
-        self.assertEqual(zd.META['ok'], {'tga': False, 'rrp': True, 'soma': True, 'tgb': False, 'ilm': False, 'm3': False, 'mof': False})
-        self.assertEqual(len(zd.META['errors']), 5)
+        self.assertEqual(zd.META['ok'], {'tga': False, 'rrp': True, 'soma': True, 'tgb': False, 'ilm': False, 'm3': False, 'bop': False, 'mof': False})
+        self.assertEqual(len(zd.META['errors']), 6)
 
     def test_all_sources_failing_is_an_error(self):
         with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('down')):
@@ -751,6 +751,47 @@ class MainFlowKrypto(unittest.TestCase):
             zd.main()
         self.assertIs(self.saved['krypto'], prev); self.assertIs(zd.META['ok']['krypto'], False)
         self.assertIn('krypto: żadne źródło rynku krypto nie odpowiedziało', zd.META['errors'])
+
+
+class BilansPlatniczy(unittest.TestCase):
+    """B.4 zadania „więcej danych”: bilans płatniczy strefy euro z ECB Data Portal (BPS), miesięcznie."""
+
+    @staticmethod
+    def _multi(keys_rows, periods):
+        # dwie serie zakodowane przez indeksy wymiarów: wymiar 0 = STO-like z wartościami po kolei
+        vals = [{'id': k} for k in keys_rows]
+        series = {f'{i}': {'observations': {str(j): [v] for j, v in enumerate(rows)}} for i, (k, rows) in enumerate(keys_rows.items())}
+        return {'structure': {'dimensions': {'series': [{'id': 'KEY', 'values': vals}],
+                                             'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': p} for p in periods]}]}},
+                'dataSets': [{'series': series}]}
+
+    def test_multi_series_are_mapped_by_full_key_and_missing_is_skipped(self):
+        j = self._multi({'A': [1.5, None, 3], 'B': [None, None, None]}, ['2026-05', '2026-06', '2026-07'])
+        m = zd.parse_ecb_multi(j)
+        self.assertEqual(m, {'A': [['2026-05', 1.5], ['2026-07', 3]]})
+
+    def test_bop_keeps_components_and_missing_series_is_none_not_zero(self):
+        periods = ['2026-06', '2026-07']
+        fa = {'structure': {'dimensions': {'series': [{'id': 'K', 'values': [{'id': k} for k in zd.BOP_FA_KEYS]}],
+                                           'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': p} for p in periods]}]}},
+              'dataSets': [{'series': {'0': {'observations': {'0': [10220.7459], '1': [11368.5966]}},        # fa
+                                       '2': {'observations': {'0': [-204704.2331], '1': [-21793.6606]}}}}]}  # pi
+        ca = {'structure': {'dimensions': {'series': [{'id': 'K', 'values': [{'id': 'CA'}]}],
+                                           'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': p} for p in periods]}]}},
+              'dataSets': [{'series': {'0': {'observations': {'0': [30000.4], '1': [36516.5003]}}}}]}
+        b = zd.parse_bop(ca, fa)
+        self.assertEqual(b['s']['ca'], [['2026-06', 30000], ['2026-07', 36517]])
+        self.assertEqual(b['s']['fa'], [['2026-06', 10221], ['2026-07', 11369]])
+        self.assertEqual(b['s']['pi'], [['2026-06', -204704], ['2026-07', -21794]])
+        for k in ('di', 'pi_eq', 'pi_debt', 'oi'):
+            self.assertIsNone(b['s'][k], k)
+        self.assertEqual(b['asof'], '2026-07'); self.assertEqual(b['unit'], 'mln EUR'); self.assertIn('positive = net outflow', b['sign'])
+
+    def test_bop_without_any_series_is_an_error(self):
+        empty = {'structure': {'dimensions': {'series': [{'id': 'K', 'values': []}], 'observation': [{'id': 'TIME_PERIOD', 'values': []}]}}, 'dataSets': [{'series': {}}]}
+        with self.assertRaises(RuntimeError):
+            zd.parse_bop(None, empty)
+        self.assertEqual(sorted(zd.BOP_FA_KEYS.values()), ['di', 'fa', 'oi', 'pi', 'pi_debt', 'pi_eq'])
 
 
 if __name__ == '__main__':

@@ -136,6 +136,18 @@ TGB_URL = ('https://data-api.ecb.europa.eu/service/data/TGB/M.' + '+'.join(TGB_C
            + '.N.A094T.U2.EUR.E?format=jsondata&lastNObservations=13')
 ILM_URL = 'https://data-api.ecb.europa.eu/service/data/ILM/W.U2.C.T000000.Z5.Z01?lastNObservations=13&format=jsondata'
 M3_URL = 'https://data-api.ecb.europa.eu/service/data/BSI/M.U2.Y.V.M30.X.1.U2.2300.Z01.E?lastNObservations=14&format=jsondata'
+BOP_CA_URL = ('https://data-api.ecb.europa.eu/service/data/BPS/M.N.U2.W1.S1.S1.T.B.CA._Z._Z._Z.EUR._T._X.N.ALL'
+              '?lastNObservations=13&format=jsondata')
+BOP_FA_URL = ('https://data-api.ecb.europa.eu/service/data/BPS/M.N.U2.W1.S1.S1.T.N.FA........'   # jedno zapytanie: wszystkie serie FA netto
+              '?lastNObservations=13&format=jsondata')
+BOP_FA_KEYS = {   # klucze sprawdzone 24.09.2026 (U2 = strefa euro w zmiennym składzie; serie I9 skończyły się na 2025-12)
+    'M.N.U2.W1.S1.S1.T.N.FA._T.F._Z.EUR._T._X.N.ALL': 'fa',       # rachunek finansowy netto, razem
+    'M.N.U2.W1.S1.S1.T.N.FA.D.F._Z.EUR._T._X.N.ALL': 'di',        # inwestycje bezpośrednie netto
+    'M.N.U2.W1.S1.S1.T.N.FA.P.F._Z.EUR._T.M.N.ALL': 'pi',         # inwestycje portfelowe netto, razem
+    'M.N.U2.W1.S1.S1.T.N.FA.P.F5._Z.EUR._T.M.N.ALL': 'pi_eq',     # … akcje i fundusze
+    'M.N.U2.W1.S1.S1.T.N.FA.P.F3.T.EUR._T.M.N.ALL': 'pi_debt',    # … papiery dłużne
+    'M.N.U2.W1.S1.S1.T.N.FA.O.F._Z.EUR._T._X.N.ALL': 'oi',        # pozostałe inwestycje netto
+}
 ECB_SLEEP = 1.2      # EBC blokuje serie szybkich zapytań („access blocked”): odstęp między zapytaniami do EBC
 _ECB_LAST = -1e9
 MOF_URL = 'https://www.mof.go.jp/policy/international_policy/reference/itn_transactions_in_securities/week.csv'
@@ -328,12 +340,52 @@ def parse_m3(j):
             'asof': d[-1][0], 'url': 'https://data.ecb.europa.eu/data/datasets/BSI', 'd': d}
 
 
+def parse_ecb_multi(j):
+    """EBC Data Portal (SDMX-JSON) z wieloma seriami → {pełny klucz serii: [[okres, wartość]] rosnąco}; brak pominięty."""
+    dims = j['structure']['dimensions']
+    sdims = dims['series']
+    periods = [v['id'] for v in dims['observation'][0]['values']]
+    out = {}
+    for key, ser in j['dataSets'][0]['series'].items():
+        full = '.'.join(sdims[i]['values'][int(p)]['id'] for i, p in enumerate(key.split(':')))
+        rows = []
+        for oi, o in ser['observations'].items():
+            v = _num(o[0] if o else None)
+            if v is not None:
+                rows.append([periods[int(oi)], v])
+        rows.sort(key=lambda x: x[0])
+        if rows:
+            out[full] = rows
+    return out
+
+
+def parse_bop(j_ca, j_fa):
+    """Bilans płatniczy strefy euro (mln EUR, miesięcznie, nieskorygowany sezonowo): saldo rachunku bieżącego oraz rachunek
+    finansowy netto (aktywa − pasywa) z podziałem; plus = kapitał netto wypływa ze strefy euro. Brak serii = None (nie zero)."""
+    s = {}
+    try:
+        s['ca'] = [[p, int(round(v))] for p, v in parse_ecb_single(j_ca, 'BPS CA')] if j_ca is not None else None
+    except Exception as e:
+        META['errors'].append(mask(f'bop ca: {e}')); s['ca'] = None
+    multi = parse_ecb_multi(j_fa) if j_fa is not None else {}
+    for key, name in BOP_FA_KEYS.items():
+        rows = multi.get(key)
+        s[name] = [[p, int(round(v))] for p, v in rows] if rows else None
+    if not any(s.get(n) for n in s):
+        raise RuntimeError('BPS: żadna seria bilansu płatniczego nie odpowiedziała')
+    asof = max(r[-1][0] for r in s.values() if r)
+    return {'src': 'European Central Bank — euro area balance of payments (BPS), monthly, not seasonally adjusted', 'unit': 'mln EUR',
+            'asof': asof, 'url': 'https://data.ecb.europa.eu/data/datasets/BPS',
+            'sign': 'net = assets minus liabilities; positive = net outflow from the euro area', 's': s}
+
+
 def build_instytucje():
     """data/instytucje.json — każde źródło osobno: awaria jednego nie kasuje pozostałych (brak nie jest zerem)."""
     out = {'at': NOW, 'src': 'instytucje'}
     jobs = [('tga', lambda: parse_tga(get_json(TGA_URL))), ('rrp', lambda: parse_rrp(get_json(RRP_URL))),
             ('soma', lambda: parse_soma(get_json(SOMA_URL))), ('tgb', lambda: parse_tgb(_ecb_json(TGB_URL))),
             ('ilm', lambda: parse_ilm(_ecb_json(ILM_URL))), ('m3', lambda: parse_m3(_ecb_json(M3_URL))),
+            ('bop', lambda: parse_bop(_ecb_json(BOP_CA_URL), _ecb_json(BOP_FA_URL))),
             ('mof', lambda: parse_mof(get_bytes(MOF_URL)))]
     for name, job in jobs:
         try:

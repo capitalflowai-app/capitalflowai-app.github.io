@@ -308,7 +308,7 @@ test('wiek danych: dziś → „dane z dzisiaj”, 1 dzień → g.age1, więcej 
 });
 
 test('Eurosystem: sekcja czyta ilm i m3 z pliku urzędowego, podpis EBC, wiersz Źródła i wpis w prawach', () => {
-  assert.ok(html.includes("['tga','rrp','soma','tgb','ilm','m3','mof'].some("), 'klucze pliku');
+  assert.ok(html.includes("['tga','rrp','soma','tgb','ilm','m3','bop','mof'].some("), 'klucze pliku (v46 dodało bop)');
   assert.ok(html.includes("const ilm=D.ilm,m3=D.m3,"), 'blok');
   assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.w','src.l.3w',(GLIVE.src['inst.ilm']||GLIVE.src['inst.m3']),'g.hs.ecb2','inst.ilm']"), 'wiersz Źródła');
   assert.ok(html.includes('<summary><b>EBC — bilans Eurosystemu i M3</b>'), 'Źródła i prawa');
@@ -359,4 +359,28 @@ test('CSP: meta obecna, connect-src obejmuje wszystkie hosty pobierane przez str
   assert.deepEqual(dir('frame-src'), ['https://www.tradingview-widget.com', 'https://www.tradingview.com']);
   assert.deepEqual(dir('object-src'), ["'none'"]); assert.deepEqual(dir('base-uri'), ["'self'"]);
   assert.ok(html.includes('<meta name="referrer" content="no-referrer">'), 'referrer');
+});
+
+// v46: bilans płatniczy strefy euro (EBC) — suma 12 mies. tylko z kompletu, znak objaśniony, wiersz Źródła, prawa
+const bs0 = html.indexOf('function bopSum(rows,n){');
+const bs1 = html.indexOf('\nfunction instRow(', bs0);
+const bopFns = new Function('instSign', 'instMld', html.slice(bs0, bs1) + '\nreturn {bopSum, bopMld};')(
+  v => v > 0 ? '+' : (v < 0 ? '−' : ''), mln => (Math.round(mln / 100) / 10).toFixed(1));
+
+test('bilans płatniczy: suma 12 miesięcy tylko z kompletu liczb, brak → null; znak przy mld', () => {
+  const rows = Array.from({ length: 13 }, (_, i) => ['2025-' + String(i + 1).padStart(2, '0'), 1000]);
+  assert.equal(bopFns.bopSum(rows, 12), 12000); assert.equal(bopFns.bopSum(rows, 13), 13000); assert.equal(bopFns.bopSum(rows, 14), null);
+  rows[5][1] = null; assert.equal(bopFns.bopSum(rows, 12), null, 'brak w środku → brak sumy');
+  assert.equal(bopFns.bopMld(36516), '+36.5'); assert.equal(bopFns.bopMld(-21794), '−21.8'); assert.equal(bopFns.bopMld(0), '0.0'); assert.equal(bopFns.bopMld(null), '—');
+});
+
+test('bilans płatniczy: klucz bop w pliku urzędowym, blok, wiersz Źródła, wpis w prawach, znak objaśniony w obu językach', () => {
+  assert.ok(html.includes("['tga','rrp','soma','tgb','ilm','m3','bop','mof'].some("), 'klucze');
+  assert.ok(html.includes("const bop=D.bop,BS="), 'blok');
+  assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.m','src.l.2m',GLIVE.src['inst.bop'],'g.hs.bop','inst.bop']"), 'wiersz Źródła');
+  assert.ok(html.includes('<summary><b>EBC — bilans płatniczy strefy euro</b>'), 'prawa');
+  const d0 = html.indexOf('const EXTRA34='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA34='.length, d1));
+  assert.ok(dict.pl['inst.bop.sub'].includes('plus = kapitał netto wypływa')); assert.ok(dict.en['inst.bop.sub'].includes('positive = capital flows out'));
+  assert.ok(dict.pl['src.l.2m'] && dict.en['src.l.2m']);
 });
