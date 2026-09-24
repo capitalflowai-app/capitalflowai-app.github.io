@@ -16,7 +16,7 @@ ETF_SYMS = ['btc', 'eth', 'sol', 'xrp']
 CG_IDS = {'btc': 'bitcoin', 'eth': 'ethereum', 'sol': 'solana', 'xrp': 'ripple'}
 # te same ETF-y zastępcze co w index.html (GPROXY)
 DAY_SYMS = ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA']
-SOSO_SLEEP = 3.2   # limit 20 zapytań/min
+SOSO_SLEEP = 4.0   # limit 20 zapytań/min — 15/min zostawia zapas
 OUT = 'data'
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 META = {'at': NOW, 'ok': {}, 'errors': []}
@@ -33,9 +33,16 @@ def get_json(url, headers=None):
     return json.loads(body)
 
 
-def soso(path, key):
+def soso(path, key, _retry=True):
     time.sleep(SOSO_SLEEP)
-    j = get_json(SOSO + path, {'x-soso-api-key': key})
+    try:
+        j = get_json(SOSO + path, {'x-soso-api-key': key})
+    except urllib.error.HTTPError as e:
+        if e.code == 429 and _retry:          # limit minutowy — odczekaj pełną minutę i spróbuj raz jeszcze
+            print('SoSoValue 429 — czekam 65 s')
+            time.sleep(65)
+            return soso(path, key, _retry=False)
+        raise
     if isinstance(j, dict) and j.get('code') not in (None, 0):
         raise RuntimeError(f'SoSoValue {path}: {j.get("message")}')
     return j['data'] if isinstance(j, dict) and 'data' in j else j
@@ -51,6 +58,15 @@ def previous(name):
     except Exception as e:  # noqa
         META['errors'].append(f'poprzedni {name}.json: {e}')
         return None
+
+
+def fresh(prev, minutes):
+    """Czy poprzedni plik (z opublikowanej strony) jest młodszy niż `minutes` minut."""
+    try:
+        at = datetime.datetime.fromisoformat(prev['at'])
+        return (datetime.datetime.now(datetime.timezone.utc) - at).total_seconds() < minutes * 60
+    except Exception:
+        return False
 
 
 def save(name, obj):
@@ -87,7 +103,7 @@ def build_etf(key, cg_key):
         out['asof'] = max(out['asof'], last['date'])
         aum = last['total_net_assets'] / 1e6 if last.get('total_net_assets') else None
         mc = out['mcap'].get(s)
-        a = {'sym': s.upper(), 'day': day, 'd1': day[-1][1],
+        a = {'sym': s.upper(), 'asof': last['date'], 'day': day, 'd1': day[-1][1],
              'w': sum(v for _, v in day[-5:]), 'm': sum(v for _, v in day[-min(len(day), 22):]),
              'cum': last['cum_net_inflow'] / 1e6, 'aum': aum,
              'share': (aum * 1e6 / mc * 100) if (aum and mc) else None, 'funds': []}
@@ -105,11 +121,15 @@ def build_etf(key, cg_key):
                 META['errors'].append(f'SoSoValue {it.get("ticker")}: {e}')
         a['funds'].sort(key=lambda f: -(f['aum'] or 0))
         if not a['aum'] and a['funds']:
-            a['aum'] = sum(f['aum'] or 0 for f in a['funds']) or None
+            # suma aktywów tylko wtedy, gdy KAŻDY fundusz ma aktywa — brak nie jest zerem
+            a['aum'] = (sum(f['aum'] for f in a['funds']) or None) if all(f['aum'] is not None for f in a['funds']) else None
             if a['aum'] and mc:
                 a['share'] = a['aum'] * 1e6 / mc * 100
         out['assets'][s] = a
-        print(f'{s.upper()}: dzień {a["d1"]:+.1f} mln, AUM {a["aum"]}, funduszy {len(a["funds"])}')
+        print(f'{s.upper()}: dzień {last["date"]} {a["d1"]:+.1f} mln, AUM {a["aum"]}, funduszy {len(a["funds"])}')
+    # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
+    dates = sorted({a['asof'] for a in out['assets'].values()})
+    out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
     return out
 
 
@@ -131,14 +151,17 @@ def main():
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     fh_key = os.environ.get('FINNHUB_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
-    # ETF
-    if soso_key:
+    # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
+    # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
+    prev_etf = previous('etf') if soso_key else None
+    if soso_key and prev_etf and fresh(prev_etf, 55):
+        save('etf', prev_etf); META['ok']['sosovalue'] = 'cached'; print('ETF: dane z', prev_etf.get('at'), '— młodsze niż 55 min, bez zapytań do SoSoValue')
+    elif soso_key:
         try:
             save('etf', build_etf(soso_key, cg_key)); META['ok']['sosovalue'] = True
         except Exception as e:
             META['errors'].append(f'SoSoValue: {e}'); META['ok']['sosovalue'] = False
-            prev = previous('etf')
-            if prev: save('etf', prev); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev.get('at'))
+            if prev_etf: save('etf', prev_etf); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))
     else:
         META['errors'].append('brak SOSOVALUE_KEY'); META['ok']['sosovalue'] = False
     # DZIŚ
