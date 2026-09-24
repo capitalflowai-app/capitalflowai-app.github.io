@@ -1034,6 +1034,9 @@ for(const l in EXTRA50)if(I18N[l])Object.assign(I18N[l],EXTRA50[l]);
 /* v62: mapa — każdy kraj osobno; baza Indii */
 const EXTRA51={"pl":{"g.win.nomonth":"{c}: brak indeksu OECD za {m} — poza średnią","g.win.nofx":"{c}: brak kursu {cur} w danych EBC — poza średnią","g.src.regu":"OECD (indeksy akcji, średnie miesięczne) · Bank Światowy (kapitalizacja); region w dolarach — bez przeliczania walut","g.d.basey.fix":"Indie: rok 2024 (5 131 mld USD) — Bank Światowy za 2025 podaje 10 560 mld USD (+106% w rok przy wzroście indeksu o ok. 10%), co wygląda na podwójne liczenie dwóch giełd (NSE i BSE); tej wartości nie używamy"},"en":{"g.win.nomonth":"{c}: no OECD index for {m} — left out of the average","g.win.nofx":"{c}: no {cur} rate in ECB data — left out of the average","g.src.regu":"OECD (share price indices, monthly averages) · World Bank (market capitalisation); region in dollars — no currency conversion","g.d.basey.fix":"India: year 2024 (USD 5,131 bn) — for 2025 the World Bank reports USD 10,560 bn (+106% in a year while the index rose about 10%), which looks like double counting of two exchanges (NSE and BSE); we do not use that value"}};
 for(const l in EXTRA51)if(I18N[l])Object.assign(I18N[l],EXTRA51[l]);
+/* v63: poprawki po niezależnym przeglądzie */
+const EXTRA52={"pl":{"sp.none.n":"bez zmian w danych ({n} mies.)","g.hs.sp":"Główne stopy 20 banków centralnych, dziennie (BIS; zwykle 0–2 dni opóźnienia, dla części krajów dłużej — wiek przy liczbie): stan, zmiana 12 mies., ostatnia zmiana i różnica wobec Fed. Serwer strony, co 6 h.","eer.reg.v":"{c}: {a} w 30 dni, {b} w 12 mies. (średnia {m} wobec roku wcześniej)","bi.e.v":"banki z regionu {a} → {b}: {v} w kwartale {q}; suma 4 kwartałów: {s}","bi.e.none":"banki z regionu {a} → {b}: brak danych BIS (to nie zero)","bi.e.norep":"banki z regionu {a}: BIS nie publikuje danych kraj–kraj — brak (to nie zero)","stc.t0":"Podaż stablecoinów (DefiLlama)","stc.sub0":"Łączna podaż stablecoinów powiązanych z dolarem i jej zmiana w 7 i 30 dni. Podziału na sieci w tym pliku nie ma.","g.src.tdown":"Twelve Data (klucz własny)"},"en":{"sp.none.n":"no change in the data ({n} months)","g.hs.sp":"Main rates of 20 central banks, daily (BIS; usually a 0–2 day lag, longer for some countries — the age is next to each number): level, 12-month change, last change and gap to the Fed. Site server, every 6 h.","eer.reg.v":"{c}: {a} in 30 days, {b} in 12 months ({m} average vs a year earlier)","bi.e.v":"banks in {a} → {b}: {v} in {q}; 4-quarter sum: {s}","bi.e.none":"banks in {a} → {b}: no BIS data (not zero)","bi.e.norep":"banks in {a}: BIS does not publish country-to-country data — no data (not zero)","stc.t0":"Stablecoin supply (DefiLlama)","stc.sub0":"Total supply of dollar-pegged stablecoins and its change over 7 and 30 days. This file has no split by chain.","g.src.tdown":"Twelve Data (own key)","eng.x.gen.kind":"","eng.x.gen.says":"","eng.x.gen.not_says":"See the Sources page for what these data do not say.","eng.x.gen.rights":"Terms and attribution are described on the Sources page.","eng.x.gen.lim":"See the Sources page for the limitations of these data.","eng.x.gen.age":"The age of the data is shown next to the date above.","eng.x.gen.attr":"Source: {u}","eng.x.gen.why":"The project’s checking program did not approve this view for display."}};
+for(const l in EXTRA52)if(I18N[l])Object.assign(I18N[l],EXTRA52[l]);
 /* v50: Coin Metrics — wpłaty i wypłaty BTC/ETH na giełdy (teksty PL i EN; inne języki spadają na EN) */
 const EXTRA41={"pl":{"cm.t":"Czy bitcoin i ether płyną na giełdy (Coin Metrics, pomiar)","cm.sub":"Pomiar z blockchaina, nie szacunek: ile monet wysłano w ciągu doby (UTC) na adresy giełd („wpłynęło”) i ile z nich wypłacono („wypłynęło”), w monetach i w dolarach, oraz ile monet leży na giełdach („zapas”). Netto = wpłynęło − wypłynęło: plus znaczy, że na giełdy trafiło więcej monet, niż z nich wyszło; minus — że więcej wyszło.","cm.btc":"Bitcoin (BTC)","cm.eth":"Ether (ETH)","cm.day":"dzień danych","cm.flash":"dane wstępne („flash”) — Coin Metrics może je jeszcze poprawić","cm.reviewed":"dane po przeglądzie Coin Metrics („reviewed”)","cm.pending":"Coin Metrics publikuje jeszcze dzień {d} — pokazujemy ostatni pełny dzień","cm.missing":"dni bez danych w ostatnich 35 dniach: {n} — suma obejmująca taki dzień jest pusta, nie zerowa","cm.in":"Wpłynęło na giełdy (dzień)","cm.out":"Wypłynęło z giełd (dzień)","cm.net":"Netto dnia (wpłynęło − wypłynęło)","cm.net7":"Netto 7 dni","cm.net30":"Netto 30 dni","cm.win":"{n} dni do {d}","cm.sply":"Zapas na giełdach","cm.ch7":"Zmiana zapasu w 7 dni","cm.ch30":"Zmiana zapasu w 30 dni","cm.usd":"w USD: {v}","cm.s.in":"więcej wpłynęło, niż wypłynęło","cm.s.out":"więcej wypłynęło, niż wpłynęło","cm.s.eq":"wpłynęło tyle, ile wypłynęło","cm.z.up":"na giełdach jest więcej monet niż {n} dni wcześniej ({d})","cm.z.down":"na giełdach jest mniej monet niż {n} dni wcześniej ({d})","cm.z.eq":"na giełdach jest tyle samo monet co {n} dni wcześniej ({d})","cm.tab":"Ostatnie 14 dni: netto dziennie (wpłynęło − wypłynęło)","cm.c.day":"Dzień (UTC)","cm.c.net":"netto (monety)","cm.c.netusd":"netto (USD)","cm.tab.note":"Plus = więcej monet wpłynęło na giełdy, minus = więcej wypłynęło. „—” = brak danych za ten dzień, to nie zero.","cm.not1":"Przelewy między giełdami są pominięte: liczą się tylko monety wysłane na giełdy spoza giełd i wypłacone z giełd na adresy spoza giełd.","cm.not2":"Zmiana zapasu na giełdach nie musi być równa sumie netto z tych samych dni — Coin Metrics liczy te dwie wielkości osobno.","cm.not3":"Liczą się tylko giełdy, których adresy Coin Metrics rozpoznaje (około 20 giełd); innych giełd i platform tu nie ma.","cm.not4":"Wpłata na giełdę to nie sprzedaż, a wypłata to nie zakup — liczby pokazują tylko ruch monet między adresami. Kwoty w USD to wycena tych monet przez Coin Metrics.","cm.not5":"Dane oznaczone „flash” są wstępne — Coin Metrics może je jeszcze poprawić.","cm.src":"Netto oraz sumy 7 i 30 dni policzyliśmy sami z dziennych danych Coin Metrics (netto z liczb niezaokrąglonych). Coin Metrics nie jest autorem tej strony i jej nie popiera.","cm.disc":"Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.","g.hs.cm":"Zmierzone dzienne wpłaty i wypłaty BTC i ETH na giełdy i z giełd oraz zapas monet na giełdach (Coin Metrics Community, bez klucza, licencja CC BY-NC 4.0). Nowy dzień pojawia się ok. 02–03 UTC; automat strony pyta najwyżej raz na godzinę."},"en":{"cm.t":"Are bitcoin and ether flowing to exchanges (Coin Metrics, measured)","cm.sub":"A measurement from the blockchain, not an estimate: how many coins were sent to exchange addresses during the day (UTC) (“in”) and how many were withdrawn from them (“out”), in coins and in US dollars, and how many coins sit on exchanges (“supply”). Net = in − out: plus means more coins reached exchanges than left them; minus means more left.","cm.btc":"Bitcoin (BTC)","cm.eth":"Ether (ETH)","cm.day":"data day","cm.flash":"preliminary data (“flash”) — Coin Metrics may still revise it","cm.reviewed":"data reviewed by Coin Metrics (“reviewed”)","cm.pending":"Coin Metrics is still publishing {d} — the last complete day is shown","cm.missing":"days without data in the last 35 days: {n} — a sum that includes such a day is empty, not zero","cm.in":"Into exchanges (day)","cm.out":"Out of exchanges (day)","cm.net":"Net for the day (in − out)","cm.net7":"Net over 7 days","cm.net30":"Net over 30 days","cm.win":"{n} days to {d}","cm.sply":"Held on exchanges","cm.ch7":"Change in exchange supply, 7 days","cm.ch30":"Change in exchange supply, 30 days","cm.usd":"in USD: {v}","cm.s.in":"more flowed in than out","cm.s.out":"more flowed out than in","cm.s.eq":"as much flowed in as out","cm.z.up":"more coins on exchanges than {n} days earlier ({d})","cm.z.down":"fewer coins on exchanges than {n} days earlier ({d})","cm.z.eq":"the same number of coins on exchanges as {n} days earlier ({d})","cm.tab":"Last 14 days: daily net (in − out)","cm.c.day":"Day (UTC)","cm.c.net":"net (coins)","cm.c.netusd":"net (USD)","cm.tab.note":"Plus = more coins flowed into exchanges, minus = more flowed out. “—” = no data for that day, not zero.","cm.not1":"Transfers between exchanges are left out: only coins sent to exchanges from outside and withdrawn from exchanges to outside addresses are counted.","cm.not2":"The change in exchange supply need not equal the sum of net flows over the same days — Coin Metrics computes the two separately.","cm.not3":"Only exchanges whose addresses Coin Metrics recognises are counted (about 20 exchanges); other exchanges and platforms are not included.","cm.not4":"A deposit to an exchange is not a sale and a withdrawal is not a purchase — the numbers only show coins moving between addresses. USD amounts are Coin Metrics’ valuation of those coins.","cm.not5":"Data marked “flash” is preliminary — Coin Metrics may still revise it.","cm.src":"Net and the 7- and 30-day sums were computed by us from Coin Metrics daily data (net from unrounded values). Coin Metrics is not the author of this site and does not endorse it.","cm.disc":"Observation, not forecast. This is not investment advice or a recommendation.","g.hs.cm":"Measured daily BTC and ETH deposits to and withdrawals from exchanges, and coins held on exchanges (Coin Metrics Community, no key, CC BY-NC 4.0 licence). A new day appears around 02–03 UTC; the site job asks at most once an hour."}};
 for(const l in EXTRA41)if(I18N[l])Object.assign(I18N[l],EXTRA41[l]);
@@ -2841,7 +2844,7 @@ const SP={data:null};
 const SP_REG={usa:['US'],can:['CA'],lat:['BR','MX'],eur:['XM','GB','CH','SE','PL'],rus:['RU'],mea:['SA','TR'],afr:['ZA'],ind:['IN'],chn:['CN'],jpn:['JP','KR'],asean:['ID'],oce:['AU']};
 function spApply(j){const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&j.rows&&typeof j.rows==='object'&&Array.isArray(j.order)&&j.order.length);SP.data=ok?j:null;if(ok)gOk('stopy');renderInst();}
 const spPct=v=>(typeof v==='number'&&isFinite(v))?nfmt(v,Math.round(v*1000)%10===0?2:3):'—';   /* 2 miejsca, 3 gdy stopa ma trzecie (np. 3,875) */
-const spPP=v=>(typeof v==='number'&&isFinite(v))?(v===0?'0':instSign(v)+nfmt(Math.abs(v),2)):'—';
+const spPP=v=>(typeof v==='number'&&isFinite(v))?(v===0?'0':instSign(v)+nfmt(Math.abs(v),Math.round(Math.abs(v)*1000)%10===0?2:3)):'—';   /* v63: ta sama dokładność co stopy */
 /* v56: kursy efektywne BIS (WS_EER, szeroki koszyk) z pliku serwera eer.json — siła waluty obok stopy procentowej */
 const EER={data:null};
 const EER_CUR={US:'USD',XM:'EUR',GB:'GBP',CH:'CHF',SE:'SEK',NO:'NOK',PL:'PLN',JP:'JPY',KR:'KRW',CN:'CNY',HK:'HKD',IN:'INR',ID:'IDR',SG:'SGD',TH:'THB',MY:'MYR',PH:'PHP',AU:'AUD',NZ:'NZD',CA:'CAD',BR:'BRL',MX:'MXN',TR:'TRY',IL:'ILS',ZA:'ZAR',SA:'SAR',RU:'RUB'};
@@ -2851,13 +2854,13 @@ const eerPct=v=>(typeof v==='number'&&isFinite(v))?(v===0?'0%':instSign(v)+nfmt(
 const eerRow=a=>{const r=EER.data&&EER.data.rows&&EER.data.rows[a];return (r&&typeof r==='object')?r:null;};
 function eerCell(a){const r=eerRow(a);return r?`${eerPct(r.c30)} · ${eerPct(r.c12)}`:'—';}
 function eerRegion(id){const L=(EER_REG[id]||[]).filter(a=>eerRow(a));if(!L.length)return '';
-  return `<div class="wide"><dt>${t('eer.reg')}</dt><dd>${L.map(a=>{const r=eerRow(a);return t('eer.reg.v',{c:EER_CUR[a]||escH(a),a:eerPct(r.c30),b:eerPct(r.c12)})+(r.d?' · '+instFoot(r.d):'');}).join('<br>')}</dd></div>`;}
+  return `<div class="wide"><dt>${t('eer.reg')}</dt><dd>${L.map(a=>{const r=eerRow(a);return t('eer.reg.v',{c:EER_CUR[a]||escH(a),a:eerPct(r.c30),b:eerPct(r.c12),m:escH(r.m||'—')})+(r.d?' · '+instFoot(r.d):'');}).join('<br>')}</dd></div>`;}
 function spRegion(id){const D=SP.data;if(!D)return '';const L=(SP_REG[id]||[]).filter(a=>D.rows[a]&&typeof D.rows[a].rate==='number');
   if(!L.length)return '';
   return `<div class="wide"><dt>${t('sp.region')}</dt><dd>${L.map(a=>{const r=D.rows[a];return t('sp.region.v',{cb:escH(t('sp.cc.'+a)),r:spPct(r.rate),v:spPP(r.vs_us)})+' · '+instFoot(r.date);}).join('<br>')}</dd></div>`;}
 function spBlock(){const D=SP.data;if(!D)return '';
   const rows=D.order.filter(a=>D.rows[a]).map(a=>{const r=D.rows[a];
-    const last=Array.isArray(r.last)?t('sp.last',{m:escH(r.last[0]),v:spPP(r.last[1])}):t('sp.none');
+    const last=Array.isArray(r.last)?t('sp.last',{m:escH(r.last[0]),v:spPP(r.last[1])}):(typeof r.m_n==='number'?(r.m_n>=13?t('sp.none.n',{n:r.m_n}):'—'):t('sp.none'));   /* v63: „bez zmian” tylko z historią */
     return `<tr><td><span class="cell">${escH(t('sp.cc.'+a))} <span class="cell mono">${escH(a)}</span></span></td><td><span class="cell mono">${spPct(r.rate)}</span></td><td><span class="cell mono">${instFoot(r.date)}</span></td><td><span class="cell mono">${spPP(r.d12)}</span></td><td><span class="cell mono">${last}</span></td><td><span class="cell mono">${spPP(r.vs_us)}</span></td><td><span class="cell mono">${eerCell(a)}</span></td></tr>`;}).join('');
   return `<h3 class="mtxt"><b>${t('sp.t')}</b></h3><p class="pnote">${t('sp.sub')}</p><div class="list-wrap"><table class="etft"><thead><tr><th>${t('sp.c.cb')}</th><th>${t('sp.c.rate')}</th><th>${t('sp.c.date')}</th><th>${t('sp.c.d12')}</th><th>${t('sp.c.last')}</th><th>${t('sp.c.vs')}</th><th>${t('sp.c.fx')}</th></tr></thead><tbody>${rows}</tbody></table></div>`+(EER.data?`<p class="pnote">${t('eer.not')}</p>`:'')+
     `<details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('sp.not')}</p></details><p class="pnote">${t('sp.src')} · ${t('inst.file',{t:engDate(D.at)})}${EER.data?' · '+t('eer.src')+' · '+t('inst.file',{t:engDate(EER.data.at)}):''}</p>`;}
@@ -2883,7 +2886,7 @@ function zagBlock(){if(!ZAG.data)return '';const I=zagPart('in'),W=zagPart('tw')
     return `<tr>${c(escH(d))}${c(a?zagM(zagNum(a[1])):'—')}${c(a?zagM(zagNum(a[2])):'—')}${c(a?zagM(zagNum(a[4])):'—')}${c(b?zagB(zagNum(b[1])):'—')}${c(b?zagM(zagNum(b[5])):'—')}</tr>`;}).join('')}</tbody></table></div><p class="pnote">${t('ob.tabnote')}</p></details>`;
   return h+`<details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('ob.not')}</p></details><p class="pnote">${t('ob.src')} · ${t('inst.file',{t:engDate(ZAG.data.at)})}</p>`;}
 function zagRegion(id){if(id!=='ind')return '';const I=zagPart('in');if(!I)return '';const l=I.d[I.d.length-1];
-  return `<div class="wide"><dt>${t('ob.reg')}</dt><dd>${t('ob.reg.v',{d:escH(l[0]),v:zagM(zagNum(l[4])),e:zagM(zagNum(l[1])),b:zagM(zagNum(l[2])),n:Math.min(20,I.d.length),s:zagM(zagSum(I.d,4,Math.min(20,I.d.length)))})}</dd></div>`;}
+  return `<div class="wide"><dt>${t('ob.reg')}</dt><dd>${t('ob.reg.v',{d:instFoot(l[0]),v:zagM(zagNum(l[4])),e:zagM(zagNum(l[1])),b:zagM(zagNum(l[2])),n:Math.min(20,I.d.length),s:zagM(zagSum(I.d,4,Math.min(20,I.d.length)))})}</dd></div>`;}
 /* v59: MFW COFER — skład walutowy rezerw świata (plik serwera cofer.json); brak = „—”, nie zero */
 const COF={data:null};
 function cofApply(j){const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&typeof j.asof==='string'&&j.rows&&typeof j.rows==='object'&&Array.isArray(j.order)&&j.order.length);COF.data=ok?j:null;if(ok)gOk('cofer');renderInst();}
@@ -2892,11 +2895,12 @@ function cofHtml(C){if(!C)return '';const n=v=>(typeof v==='number'&&isFinite(v)
     return `<tr><td><span class="cell">${c==='OTHC'?t('cof.oth'):escH(c)}</span></td><td><span class="cell mono">${n(r.sh)==null?'—':nfmt(r.sh,2)}</span></td><td><span class="cell mono">${pp(r.d1)}</span></td><td><span class="cell mono">${pp(r.d4)}</span></td><td><span class="cell mono">${v==null?'—':nfmt(v,0)}${dv==null?'':` <small class="mtxt">(${dv===0?'0':instSign(dv)+nfmt(Math.abs(dv),Math.abs(dv)<10?1:0)})</small>`}</span></td></tr>`;}).join('');
   if(!rows)return '';
   return `<h3 class="mtxt"><b>${t('cof.t')}</b></h3><p class="pnote">${t('cof.sub')}</p><div class="list-wrap"><table class="etft"><thead><tr><th>${t('cof.c.cur')}</th><th>${t('cof.c.sh')}</th><th>${t('cof.c.d1')}</th><th>${t('cof.c.d4')}</th><th>${t('cof.c.v')}</th></tr></thead><tbody>${rows}</tbody></table></div>`+
-    `<p class="pnote">${n(C.imp_pct)!=null?t('cof.foot',{q:escH(C.asof),a:n(C.alloc)==null?'—':nfmt(C.alloc,0),i:nfmt(C.imp_pct,1)}):t('cof.foot0',{q:escH(C.asof),a:n(C.alloc)==null?'—':nfmt(C.alloc,0),p:n(C.alloc_pct)==null?'—':nfmt(C.alloc_pct,1)})}</p><details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('cof.not')}</p></details><p class="pnote">${t('cof.src')} · ${t('inst.file',{t:engDate(C.at)})}</p>`;}
+    `<p class="pnote">${n(C.imp_pct)!=null?t('cof.foot',{q:instFoot(C.asof),a:n(C.alloc)==null?'—':nfmt(C.alloc,0),i:nfmt(C.imp_pct,1)}):t('cof.foot0',{q:instFoot(C.asof),a:n(C.alloc)==null?'—':nfmt(C.alloc,0),p:n(C.alloc_pct)==null?'—':nfmt(C.alloc_pct,1)})}</p><details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('cof.not')}</p></details><p class="pnote">${t('cof.src')} · ${t('inst.file',{t:engDate(C.at)})}</p>`;}
 function renderInst(){
   const el=$('#inst');if(!el)return;
-  const D=INST.data||{};if(!INST.data&&!FRED.data&&!REZ.data){el.hidden=true;el.innerHTML='';return;}   /* v42: sekcja także z samym FRED */
-  const at=engDate(INST.at||(FRED.data&&FRED.data.at)||(REZ.data&&REZ.data.at)||'');
+  const xtra=[typeof SP!=='undefined'?SP.data:null,typeof ZAG!=='undefined'?ZAG.data:null,typeof COF!=='undefined'?COF.data:null].filter(Boolean);   /* v63: także same nowe pliki */
+  const D=INST.data||{};if(!INST.data&&!FRED.data&&!REZ.data&&!xtra.length){el.hidden=true;el.innerHTML='';return;}   /* v42: sekcja także z samym FRED */
+  const at=engDate(INST.at||(FRED.data&&FRED.data.at)||(REZ.data&&REZ.data.at)||(xtra[0]&&xtra[0].at)||'');
   let html=`<div class="etfh"><div><h2>${t('inst.t')}</h2><p class="pnote">${t('inst.sub')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:at})}</span></div></div>`;
   html+=spBlock();   /* v52: stopy banków centralnych na początku — główny motor krótkoterminowych przepływów */
   html+=zagBlock();   /* v54: zmierzone dzienne przepływy inwestorów zagranicznych (Indie, Tajwan) */
@@ -3421,7 +3425,7 @@ function gKpis(){
   const st=gStabDelta(per);
   const yu=gDaily(GLIVE.ust,per),yd=gDaily(GLIVE.buba,per);
   GKPI=[
-   {k:'g.k.eq',v:GREG.some(r=>F[r.id][2])?mc+fl:null,u:'u.b',d:mc&&GREG.some(r=>F[r.id][2])?fl/mc*100:null,cov:(c=>c<GREG.length?[c,GREG.length]:null)(GREG.filter(r=>F[r.id][2]).length),src:per==='1D'?'Finnhub · ETF':(F.td?(GLIVE.cenySrv?'Twelve Data · ETF':'Twelve Data (klucz własny) · ETF'):(F.fxm?'OECD · EBC':'OECD')),fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)},
+   {k:'g.k.eq',v:GREG.some(r=>F[r.id][2])?mc+fl:null,u:'u.b',d:mc&&GREG.some(r=>F[r.id][2])?fl/mc*100:null,cov:(c=>c<GREG.length?[c,GREG.length]:null)(GREG.filter(r=>F[r.id][2]).length),src:per==='1D'?'Finnhub · ETF':(F.td?(GLIVE.cenySrv?'Twelve Data · ETF':t('g.src.tdown')+' · ETF'):(F.fxm?'OECD · EBC':'OECD')),fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)},
    {k:'g.k.dxy',v:dxy?dxy[0]:null,u:'',dec:2,d:dxy?dxy[1]:null,src:'ECB',fresh:GLIVE.fx?GLIVE.fx.now.date:''},
    /* rentowności: dziennie ze źródeł pierwotnych (pomiar), OECD miesięcznie tylko jako zapas */
    yu?{k:'g.k.us10',v:yu.v,u:'u.pp0',dec:2,d:yu.d,dpp:1,src:'US Treasury',fresh:yu.date}
@@ -3961,7 +3965,7 @@ function gRenderDetail(){
           ${gBaseRow(s.id)}
           ${zagRegion(s.id)}
           <div class="wide"><dt>${t('g.d.method')}</dt><dd>${gst.period==='1D'?t('g.m.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?t('g.m.regtd',{n:GCENY_N[gst.period]}):t('g.m.reg'))}</dd></div>
-          <div class="wide"><dt>${t('d.source')}</dt><dd>${gst.period==='1D'?'Finnhub · '+t('g.src.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?(GLIVE.cenySrv?'Twelve Data · ':'Twelve Data (klucz własny) · ')+t('g.src.regtd'):(()=>{const w=GDATA[gst.period]&&GDATA[gst.period].fxw&&GDATA[gst.period].fxw[s.id];return t(w&&w.k==='m'?'g.src.regm':(w&&w.k==='u'?'g.src.regu':'g.src.reg'));})())}</dd></div>
+          <div class="wide"><dt>${t('d.source')}</dt><dd>${gst.period==='1D'?'Finnhub · '+t('g.src.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?(GLIVE.cenySrv?'Twelve Data · ':t('g.src.tdown')+' · ')+t('g.src.regtd'):(()=>{const w=GDATA[gst.period]&&GDATA[gst.period].fxw&&GDATA[gst.period].fxw[s.id];return t(w&&w.k==='m'?'g.src.regm':(w&&w.k==='u'?'g.src.regu':'g.src.reg'));})())}</dd></div>
           <div class="wide"><dt>${t('d.limits')}</dt><dd>${t('g.l.reg')}</dd></div>
         </dl>${gProbBox(s.id)}`;
     }
@@ -4009,7 +4013,7 @@ function biEdgeRow(a,b){const D=BI.data;if(!D||!D.flows||typeof D.flows!=='objec
   const one=(x,y)=>{const rows=D.flows[x+'>'+y];
     if(!Array.isArray(rows)||!rows.length)return nr.includes(x)?t('bi.e.norep',{a:rn(x)}):t('bi.e.none',{a:rn(x),b:rn(y)});
     const r=biRow(rows,0),v=biV(r),s4=rows.length>=4?bopSum(rows,4):null;
-    return t('bi.e.v',{a:rn(x),b:rn(y),q:escH(r?r[0]:'—'),v:mld(v)+' '+t('inst.mld.usd'),s:s4==null?t('eng.gap'):mld(s4)+' '+t('inst.mld.usd')});};
+    return t('bi.e.v',{a:rn(x),b:rn(y),q:r?instFoot(r[0]):'—',v:mld(v)+' '+t('inst.mld.usd'),s:s4==null?t('eng.gap'):mld(s4)+' '+t('inst.mld.usd')});};
   return `<div class="wide"><dt>${t('bi.e.t')}</dt><dd>${one(a,b)}<br>${one(b,a)}<br><small class="mtxt">${t('bi.e.note')}</small></dd></div>`;}
 function gProbBox(id){
   const o=GPROB.find(x=>x.id===id);if(!o)return '';
@@ -4264,7 +4268,7 @@ function renderAssets(){
     const okR=F?GREG.filter(r=>F[r.id]&&F[r.id][2]):[];
     const eq=okR.reduce((a,r)=>a+r.mcap,0),fl=okR.reduce((a,r)=>a+F[r.id][0],0);
     const covT=okR.length<GREG.length?' · '+t('g.q.cov')+' '+okR.length+'/'+GREG.length:'';
-    rows.push(['as.eq',okR.length?gfmt(eq+fl):'—',okR.length&&eq?fl/eq*100:null,((F&&F.td)?(GLIVE.cenySrv?'Twelve Data · ':'Twelve Data (klucz własny) · ')+t('pg.daily'):(gst.period==='1D'?'Finnhub · '+t('pg.daily'):'OECD · '+t('pg.monthly')))+covT]);
+    rows.push(['as.eq',okR.length?gfmt(eq+fl):'—',okR.length&&eq?fl/eq*100:null,((F&&F.td)?(GLIVE.cenySrv?'Twelve Data · ':t('g.src.tdown')+' · ')+t('pg.daily'):(gst.period==='1D'?'Finnhub · '+t('pg.daily'):'OECD · '+t('pg.monthly')))+covT]);
     const dxy=gDxy(gst.period);
     if(dxy)rows.push(['as.fx',dxy[0].toFixed(2),dxy[1],'EBC · '+t('pg.daily')]);
     const y=(c)=>{const s2=GLIVE.irlt&&GLIVE.irlt[c];return s2?s2[s2.length-1][1]:null;};
@@ -4433,11 +4437,12 @@ const ENG_DN={};
 function engCty(c3,pl,en){if(LANG==='pl')return pl||en||c3||'';const i2=ISO32[c3];
   if(i2){try{const k=LOCALE[LANG]||'en';const dn=ENG_DN[k]||(ENG_DN[k]=new Intl.DisplayNames([k],{type:'region'}));const n=dn.of(i2);if(n&&n!==i2)return n;}catch(e){}}
   return en||c3||pl||'';}
-function engTx(rec,f){const pl=rec&&rec[f+'_pl'];if(LANG==='pl'||!rec)return pl;const k='eng.x.'+rec.view+'.'+f,v=t(k);return v!==k?v:pl;}
-function engAge(rec){const pl=rec&&rec.data_age&&rec.data_age.phrase_pl;if(LANG==='pl'||!pl)return pl;const m=String(pl).match(/(\d+)\s*mies/),k='eng.x.'+rec.view+'.age',v=t(k,{n:m?m[1]:''});return (m&&v!==k)?v:pl;}
-function engAttr(rec){if(LANG==='pl'||!rec)return rec&&rec.attribution;const k='eng.x.'+rec.view+'.attr',v=t(k);return v!==k?v:rec.attribution;}
-function engRights(rec){const pl=rec&&rec.rights&&rec.rights.sentence_pl;if(LANG==='pl'||!rec)return pl;const k='eng.x.'+rec.view+'.rights',v=t(k);return v!==k?v:pl;}
-function engLim(rec){const L=Array.isArray(rec&&rec.limitations_pl)?rec.limitations_pl:[];if(LANG==='pl')return L;const k='eng.x.'+rec.view+'.lim',v=t(k);return v!==k?v.split('\n'):L;}
+const engGen=(f,o)=>{const k='eng.x.gen.'+f,v=t(k,o);return v===k?null:v;};   /* v63: krótki zapas po angielsku zamiast polskiego tekstu z pliku */
+function engTx(rec,f){const pl=rec&&rec[f+'_pl'];if(LANG==='pl'||!rec)return pl;const k='eng.x.'+rec.view+'.'+f,v=t(k);if(v!==k)return v;const g=engGen(f);return g!=null?g:pl;}
+function engAge(rec){const pl=rec&&rec.data_age&&rec.data_age.phrase_pl;if(LANG==='pl'||!pl)return pl;const m=String(pl).match(/(\d+)\s*mies/),k='eng.x.'+rec.view+'.age',v=t(k,{n:m?m[1]:''});if(m&&v!==k)return v;const g=engGen('age');return g!=null?g:pl;}
+function engAttr(rec){if(LANG==='pl'||!rec)return rec&&rec.attribution;const k='eng.x.'+rec.view+'.attr',v=t(k);if(v!==k)return v;const g=engGen('attr',{u:String(rec.source_home||rec.source_url||'')});return g!=null?g:rec.attribution;}
+function engRights(rec){const pl=rec&&rec.rights&&rec.rights.sentence_pl;if(LANG==='pl'||!rec)return pl;const k='eng.x.'+rec.view+'.rights',v=t(k);if(v!==k)return v;const g=engGen('rights');return g!=null?g:pl;}
+function engLim(rec){const L=Array.isArray(rec&&rec.limitations_pl)?rec.limitations_pl:[];if(LANG==='pl')return L;const k='eng.x.'+rec.view+'.lim',v=t(k);if(v!==k)return v.split('\n');const g=engGen('lim');return g!=null?[g]:L;}
 function engKpis(rec){
   const d=rec.engine_panel&&rec.engine_panel.data;
   if(d&&Array.isArray(d.pairs)){const c=d.counts||{},p=engHalf(d.latest_period),r0=d.pairs[0];
@@ -4465,7 +4470,7 @@ function engBound(rec){
 function engWithheld(view,rec,chk){
   const has=!!rec&&typeof rec==='object';
   const title=(LANG==='pl'&&has&&rec.title_pl)?rec.title_pl:t('eng.t.'+view);   /* v48: tytuł w języku widza */
-  const why=chk.ok?escH((rec.reason_texts_pl||[])[0]||''):t('eng.r.'+chk.code);
+  const why=chk.ok?((LANG!=='pl'&&engGen('why')!=null)?engGen('why'):escH((rec.reason_texts_pl||[])[0]||'')):t('eng.r.'+chk.code);   /* v63: bez polskiego w innych językach */
   const codes=chk.ok?(rec.reason_codes||[]):[chk.code];
   return `<div class="etfh"><div><h2>${escH(title)}</h2><p class="pnote">${has&&rec.kind_pl?escH(engTx(rec,'kind'))+' · ':''}${has&&rec.says_pl?escH(engTx(rec,'says')):''}</p></div>
     <div class="etfb"><span class="live off"><i></i>${t('eng.b.off')}</span></div></div>
@@ -4602,14 +4607,16 @@ function cmPanel(D){
 function stcPanel(S,H){const g=v=>(typeof v==='number'&&isFinite(v))?v:null,mld=v=>v==null?'—':(v===0?'0':(v>0?'+':'−')+gfmt(Math.abs(v)/1e9)),lvl=v=>v==null?'—':gfmt(v/1e9);
   const tot=S&&Array.isArray(S.total)?S.total:null,cur=H&&g(H.cur)!=null?H.cur:(tot?g(tot[0]):null);
   const d7=H&&H.d&&g(H.d['7'])!=null?H.d['7']:(tot?g(tot[2]):null),d30=H&&H.d&&g(H.d['30'])!=null?H.d['30']:(tot?g(tot[3]):null),asof=(H&&typeof H.asof==='string')?H.asof:(S?S.asof:'');
-  let h=`<div class="etfh"><div><h2>${t('stc.t')}</h2><p class="pnote">${t('stc.sub')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:engDate(KR.data&&KR.data.at)})}</span></div></div>`;
+  const R0=!!(S&&Array.isArray(S.rows)&&S.rows.length);   /* v63: bez podziału na sieci — tytuł panelu sum */
+  let h=`<div class="etfh"><div><h2>${t(R0?'stc.t':'stc.t0')}</h2><p class="pnote">${t(R0?'stc.sub':'stc.sub0')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:engDate(KR.data&&KR.data.at)})}</span></div></div>`;
   h+=`<div class="etfkpis">`+instRow(t('stc.k.tot'),lvl(g(cur)),'',asof?t('stc.day',{d:instFoot(asof)}):'')+instRow(t('stc.k.d7'),mld(g(d7)),'','')+instRow(t('stc.k.d30'),mld(g(d30)),'','')+`</div>`;
   const R=S&&Array.isArray(S.rows)?S.rows.filter(r=>Array.isArray(r)&&typeof r[0]==='string'):[];
   if(R.length)h+=`<details class="etfd" open><summary><b>${t('stc.tab',{n:R.length,t:typeof S.n==='number'?engNum(S.n):'—'})}</b></summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('stc.c.chain')}</th><th>${t('stc.c.cur')}</th><th>${t('stc.c.d7')}</th><th>${t('stc.c.d30')}</th></tr></thead><tbody>${R.map(r=>
     `<tr><td><span class="cell">${escH(r[0])}</span></td><td><span class="cell mono">${lvl(g(r[1]))}</span></td><td><span class="cell mono ${g(r[3])>0?'pos':(g(r[3])<0?'neg':'')}">${mld(g(r[3]))}</span></td><td><span class="cell mono ${g(r[4])>0?'pos':(g(r[4])<0?'neg':'')}">${mld(g(r[4]))}</span></td></tr>`).join('')}</tbody></table></div></details>`;
   return h+`<p class="pnote">${t('stc.not')}</p><p class="pfoot">${t('stc.src')} ${t('eng.disclaimer')}</p>`;}
 ENG_OVR['defillama-stablecoins']=el=>{const D=typeof krData==='function'?krData():null,S=D&&D.stabc&&Array.isArray(D.stabc.rows)?D.stabc:null,H=krStabh();
-  if(!S&&!H)return false;el.innerHTML=stcPanel(S,H);el.hidden=false;return true;};
+  if(!S&&!H){el.hidden=true;el.innerHTML='';return true;}   /* v63: bez danych panel ukryty (karta silnika „bez zgody” przeczyłaby reszcie strony) */
+  el.innerHTML=stcPanel(S,H);el.hidden=false;return true;};
 ENG_OVR['coinmetrics-exchange-flows']=el=>{const D=CM.data;if(!D)return false;el.innerHTML=cmPanel(D);el.hidden=false;return true;};
 /* v50 cm: koniec */
 function renderEng(){
@@ -4632,7 +4639,10 @@ const TXT_ZRODLA_PL=`
 <h3>Jak czytać stan praw</h3>
 <p class="mtxt"><b>pokazujemy</b> — warunki właściciela danych, tak jak je przeczytaliśmy, pozwalają je pokazywać, a my te warunki spełniamy.<br>
 <b>pokazujemy warunkowo</b> — pokazujemy z podaniem źródła; warunków dostawcy nie przeczytaliśmy w całości i opieramy się na tym, co o nich wiemy.<br>
-<b>w przygotowaniu</b> — tych danych na stronie jeszcze nie ma; pokażemy je po sprawdzeniu praw.</p>
+<b>pokazujemy z klucza właściciela</b> — dane pobiera automat strony z kluczem API właściciela; klucz nigdy nie trafia na stronę.<br>
+<b>pokazujemy jako wskaźnik</b> — liczba to wskaźnik (np. nastrojów), nie pomiar przepływu.<br>
+<b>pokazujemy po kliknięciu, z ich serwerów</b> — widgety ładują się dopiero po Twojej zgodzie, wprost od dostawcy.<br>
+<b>zapas</b> — używane tylko wtedy, gdy główne źródło nie odpowie.</p>
 <h3>Źródła po kolei</h3>
 
 <details class="etfd" open><summary><b>OECD</b> · indeksy giełdowe, stopy 10-letnie, wskaźnik koniunktury · <i>pokazujemy warunkowo</i></summary>
@@ -4800,7 +4810,7 @@ const TXT_ZRODLA_PL=`
 <b>Podpis:</b> „Taiwan Stock Exchange”, przy liczbach i tu. Korea (giełda KRX) wymaga dziś logowania — tych danych nie ma.</p></details>
 
 <details class="etfd"><summary><b>MFW — COFER</b> · skład walutowy rezerw świata, kwartalnie · <i>pokazujemy</i></summary>
-<p class="mtxt"><b>Co to za dane:</b> jaką część rezerw walutowych banki centralne świata trzymają w dolarach, euro, jenach, funtach, juanach i innych walutach; zmiana udziału w kwartał i rok. Od 2026 MFW sam szacuje skład części rezerw za kraje, które go nie podają — ten odsetek jest przy tabeli. Automat raz na dobę.<br>
+<p class="mtxt"><b>Co to za dane:</b> jaką część rezerw walutowych banki centralne świata trzymają w dolarach, euro, jenach, funtach, juanach i innych walutach; zmiana udziału w kwartał i rok. Od drugiej połowy 2025 MFW sam szacuje skład części rezerw za kraje, które go nie podają — ten odsetek jest przy tabeli. Automat raz na dobę.<br>
 <b>Jak często:</b> kwartalnie, z opóźnieniem około trzech miesięcy.<br>
 <b>Czego nie mówi:</b> udział zmienia się także przez kursy walut: słabszy dolar zmniejsza jego udział bez żadnej sprzedaży.<br>
 <b>Podpis:</b> „International Monetary Fund, COFER”, przy liczbach i tu.</p></details>
@@ -4878,7 +4888,7 @@ const TXT_JAK_PL=`
 <b>UTC</b> — czas uniwersalny; w Polsce zegar pokazuje o 1 godzinę więcej zimą i o 2 godziny więcej latem. Godziny na tej stronie są w czasie Twojego urządzenia.</p>
 
 <h3>Jak sprawdzamy liczby</h3>
-<p class="mtxt">Strona nie poprawia danych źródeł. Od wersji z 24 września 2026 nie zastępuje braków liczbami przykładowymi ani zerem, a znaczniki czasu przesuwają się tylko po udanym pobraniu. Automat na serwerze ma własne testy; gdy testy nie przechodzą, nowa wersja nie jest publikowana. Osobny program sprawdzający projektu (silnik, sprawdzany pełnym zestawem testów przed każdą zmianą) przygotowujemy do zasilania strony danymi CFTC, Skarbu USA, MFW i Banku Światowego. Jeśli źródło później poprawi dane, zobaczysz to po kolejnym pobraniu. <b>Czego to nie gwarantuje:</b> testy sprawdzają nasz kod, a nie samo źródło.</p>
+<p class="mtxt">Strona nie poprawia danych źródeł. Od wersji z 24 września 2026 nie zastępuje braków liczbami przykładowymi ani zerem, a znaczniki czasu przesuwają się tylko po udanym pobraniu. Automat na serwerze ma własne testy; gdy testy nie przechodzą, nowa wersja nie jest publikowana. Osobny program sprawdzający projektu (silnik, sprawdzany pełnym zestawem testów przed każdą zmianą) zasila dziś dwa panele: MFW (kto trzyma czyje papiery) i Bank Światowy (napływy w akcje); pozostałe dane zbiera automat strony wprost od źródeł. Jeśli źródło później poprawi dane, zobaczysz to po kolejnym pobraniu. <b>Czego to nie gwarantuje:</b> testy sprawdzają nasz kod, a nie samo źródło.</p>
 </section>
 `;
 const TXT_ZRODLA_EN=`<section class="panel pgc"><h2>Sources and data rights</h2><p class="mtxt">This section is available in Polish for now (switch the language to Polski in Settings). It lists, for every source, what the data is, how often it is published, what the number does not tell you, and our reading of the provider's terms.</p></section>`;

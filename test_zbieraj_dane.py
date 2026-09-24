@@ -1885,6 +1885,7 @@ class StopyV52(unittest.TestCase):
         self.assertEqual(us['d12'], -0.25); self.assertEqual(us['last'], ['2026-09', 0.25]); self.assertEqual(us['vs_us'], 0)
         self.assertEqual(xm['last'], ['2026-09', 0.25]); self.assertEqual(xm['d12'], 0.5); self.assertEqual(xm['vs_us'], -1.375)
         self.assertEqual(idn['rate'], 5.75); self.assertIsNone(idn['d12'], 'brak historii 12 mies. = brak, nie zero')
+        self.assertEqual((us['m_n'], idn['m_n']), (3, 1), 'v63: liczba miesięcy historii przy każdym kraju')
 
     def test_build_uses_daily_and_monthly_and_keeps_order(self):
         def gb(url, headers=None, timeout=60):

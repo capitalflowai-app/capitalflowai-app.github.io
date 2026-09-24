@@ -1607,7 +1607,7 @@ def cbpol_summary(daily, monthly):
         for i in range(len(seq) - 1, 0, -1):
             if abs(seq[i] - seq[i - 1]) > 1e-9:
                 last = [per[i], round(seq[i] - seq[i - 1], 4)]; break
-        rows[a] = {'rate': rate, 'date': date, 'd12': d12, 'last': last}
+        rows[a] = {'rate': rate, 'date': date, 'd12': d12, 'last': last, 'm_n': len(m)}   # v63: ile miesięcy historii (bez historii nie ma „bez zmian”)
     us = rows.get('US', {}).get('rate')
     for a, r in rows.items():
         r['vs_us'] = round(r['rate'] - us, 4) if us is not None else None
