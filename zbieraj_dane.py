@@ -2,10 +2,10 @@
 """CapitalFlowAI — zbieranie danych wymagających klucza API (uruchamiane przez GitHub Actions).
 
 Wynik: data/etf.json (napływy ETF, SoSoValue + kapitalizacje CoinGecko),
-       data/dzis.json (notowania ETF-ów krajowych USA, Finnhub — okres DZIŚ),
-       data/ceny.json (dzienne notowania 14 ETF-ów zastępczych, Twelve Data — okresy 1T i 1M),
        data/meta.json (kiedy, co się udało, błędy).
-Klucze wyłącznie ze zmiennych środowiskowych: SOSOVALUE_KEY, FINNHUB_KEY, COINGECKO_KEY, TWELVEDATA_KEY.
+Klucze wyłącznie ze zmiennych środowiskowych: SOSOVALUE_KEY, COINGECKO_KEY.
+Notowania ETF-ów (Finnhub, Twelve Data) NIE są zbierane ani publikowane: ich darmowe plany pozwalają tylko na użytek
+osobisty (strona/LICENCJE-zrodel.md, 24.09.2026) — działają wyłącznie z własnym kluczem widza w przeglądarce.
 SITE_URL (opcjonalnie): adres opublikowanej strony — gdy źródło zawiedzie, zachowujemy poprzedni plik
 zamiast pustki (data w polu "at" pokazuje wtedy prawdziwy wiek danych).
 Tylko biblioteka standardowa — zero zależności.
@@ -15,15 +15,7 @@ import json, os, sys, time, datetime, urllib.request, urllib.error
 SOSO = 'https://openapi.sosovalue.com/openapi/v1'
 ETF_SYMS = ['btc', 'eth', 'sol', 'xrp']
 CG_IDS = {'btc': 'bitcoin', 'eth': 'ethereum', 'sol': 'solana', 'xrp': 'ripple'}
-# te same ETF-y zastępcze co w index.html (GPROXY)
-DAY_SYMS = ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA']
 SOSO_SLEEP = 4.0   # limit 20 zapytań/min — 15/min zostawia zapas
-TD = 'https://api.twelvedata.com'
-TD_BATCH = 7        # limit 8 kredytów/min (1 symbol = 1 kredyt): dwie paczki po 7 z minutą przerwy
-TD_SLEEP = 61
-TD_OUTPUT = 45      # ≈ 2 miesiące sesji; 1M = 21 sesji + zapas
-TD_MIN_SYMBOLS = 10
-TD_MIN_CANDLES = 22
 OUT = 'data'
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 META = {'at': NOW, 'ok': {}, 'errors': []}
@@ -140,105 +132,8 @@ def build_etf(key, cg_key):
     return out
 
 
-def parse_td(j, syms):
-    """Odpowiedź Twelve Data (zbiorcza: klucze = symbole; pojedyncza: obiekt z 'values') → (notowania, błędy).
-
-    Notowanie symbolu: {'asof': ostatnia świeca, 'ex': kod giełdy, 'd': [[data, close, volume|None], …] rosnąco}.
-    Świeca bez poprawnego close jest pomijana (brak nie jest zerem); symbol z status != ok trafia do błędów, nie do q.
-    """
-    if not isinstance(j, dict):
-        raise RuntimeError('Twelve Data: odpowiedź nie jest obiektem JSON')
-    if j.get('status') == 'error' and 'values' not in j and not any(s in j for s in syms):
-        raise RuntimeError(f'Twelve Data: {j.get("code")} {j.get("message")}')
-    if 'values' in j and len(syms) == 1:
-        j = {syms[0]: j}
-    q, errors = {}, []
-    for sym in syms:
-        o = j.get(sym)
-        if not isinstance(o, dict):
-            errors.append(f'Twelve Data {sym}: brak w odpowiedzi')
-            continue
-        if o.get('status') != 'ok' or not isinstance(o.get('values'), list):
-            errors.append(f'Twelve Data {sym}: {o.get("message") or o.get("status") or "błąd"}')
-            continue
-        rows = []
-        for v in o['values']:
-            try:
-                date = str(v['datetime'])[:10]
-                datetime.datetime.strptime(date, '%Y-%m-%d')
-                close = round(float(v['close']), 4)
-            except (KeyError, TypeError, ValueError):
-                continue
-            if not close > 0:
-                continue
-            try:
-                volume = int(float(v['volume'])) if v.get('volume') not in (None, '') else None
-            except (TypeError, ValueError):
-                volume = None
-            rows.append([date, close, volume])
-        if not rows:
-            errors.append(f'Twelve Data {sym}: brak poprawnych świec')
-            continue
-        rows.sort(key=lambda r: r[0])
-        meta = o.get('meta') or {}
-        q[sym] = {'asof': rows[-1][0], 'ex': meta.get('mic_code') or meta.get('exchange') or '', 'd': rows}
-    return q, errors
-
-
-def td_batch(syms, key, _retry=True):
-    url = f'{TD}/time_series?symbol={",".join(syms)}&interval=1day&outputsize={TD_OUTPUT}&apikey={key}'
-    try:
-        st, body = get(url)
-    except urllib.error.HTTPError as e:
-        # treść błędu bez adresu (adres zawiera klucz); 401 = zły klucz
-        raise RuntimeError(f'HTTP {e.code}') from None
-    j = json.loads(body)
-    q, errors = parse_td(j, syms)
-    if _retry and any(': 429' in e or 'credits' in e.lower() or 'limit' in e.lower() for e in errors) and not q:
-        print('Twelve Data 429 — czekam 61 s')
-        time.sleep(TD_SLEEP)
-        return td_batch(syms, key, _retry=False)
-    return q, errors
-
-
-def build_prices(key):
-    """data/ceny.json: dzienne zamknięcia 14 ETF-ów zastępczych (te same co DZIŚ), rosnąco po dacie."""
-    q, errors = {}, []
-    batches = [DAY_SYMS[i:i + TD_BATCH] for i in range(0, len(DAY_SYMS), TD_BATCH)]
-    for n, syms in enumerate(batches):
-        if n:
-            time.sleep(TD_SLEEP)
-        bq, be = td_batch(syms, key)
-        q.update(bq)
-        errors.extend(be)
-    META['errors'].extend(errors)
-    good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
-    if len(good) < TD_MIN_SYMBOLS:
-        raise RuntimeError(f'tylko {len(good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec')
-    dates = sorted({v['asof'] for v in q.values()})
-    asof = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
-    for s, v in q.items():
-        print(f'{s}: {len(v["d"])} świec, ostatnia {v["asof"]} close {v["d"][-1][1]}')
-    return {'at': NOW, 'src': 'Twelve Data', 'plan': 'basic', 'asof': asof, 'q': q}
-
-
-def build_day(key):
-    q = {}
-    for sym in DAY_SYMS:
-        st, body = get(f'https://finnhub.io/api/v1/quote?symbol={sym}&token={key}')
-        j = json.loads(body)
-        if j.get('c') and j.get('pc'):
-            q[sym] = {'c': j['c'], 'pc': j['pc'], 'dp': j['dp'] if j.get('dp') is not None else (j['c'] / j['pc'] - 1) * 100,
-                      't': j.get('t')}
-        time.sleep(0.2)
-    if len(q) < 10:
-        raise RuntimeError(f'Finnhub: tylko {len(q)} notowań z {len(DAY_SYMS)}')
-    return {'at': NOW, 'src': 'Finnhub', 'q': q}
-
-
 def main():
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
-    fh_key = os.environ.get('FINNHUB_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
@@ -253,29 +148,6 @@ def main():
             if prev_etf: save('etf', prev_etf); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))
     else:
         META['errors'].append('brak SOSOVALUE_KEY'); META['ok']['sosovalue'] = False
-    # DZIŚ
-    if fh_key:
-        try:
-            save('dzis', build_day(fh_key)); META['ok']['finnhub'] = True
-        except Exception as e:
-            META['errors'].append(f'Finnhub: {e}'); META['ok']['finnhub'] = False
-            prev = previous('dzis')
-            if prev: save('dzis', prev); print('Finnhub zawiódł — zachowano poprzedni dzis.json z', prev.get('at'))
-    else:
-        META['errors'].append('brak FINNHUB_KEY'); META['ok']['finnhub'] = False
-    # CENY (okresy 1T i 1M): Twelve Data najwyżej raz na godzinę — 24 × 14 kredytów = 336 z 800 dziennie
-    td_key = os.environ.get('TWELVEDATA_KEY', '').strip()
-    prev_ceny = previous('ceny') if td_key else None
-    if td_key and prev_ceny and fresh(prev_ceny, 55):
-        save('ceny', prev_ceny); META['ok']['twelvedata'] = 'cached'; print('CENY: dane z', prev_ceny.get('at'), '— młodsze niż 55 min, bez zapytań do Twelve Data')
-    elif td_key:
-        try:
-            save('ceny', build_prices(td_key)); META['ok']['twelvedata'] = True
-        except Exception as e:
-            META['errors'].append(f'Twelve Data: {e}'); META['ok']['twelvedata'] = False
-            if prev_ceny: save('ceny', prev_ceny); print('Twelve Data zawiódł — zachowano poprzedni ceny.json z', prev_ceny.get('at'))
-    else:
-        META['errors'].append('brak TWELVEDATA_KEY'); META['ok']['twelvedata'] = False
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')
     return 0

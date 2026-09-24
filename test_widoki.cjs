@@ -108,3 +108,28 @@ test('sekcja Banku Światowego ma etykiety v36 w obu językach', () => {
     assert.ok(html.includes(`"${key}":`), key);
   }
 });
+
+// v37: licencje — strona publiczna bez danych z planów „tylko do użytku osobistego”; atrybucje; migawka z SoSoValue
+test('migawka ETF pochodzi z SoSoValue, a CoinMarketCap zostaje tylko w zdaniu o usunięciu', () => {
+  assert.ok(html.includes("const ETF_SNAP={asof:'2026-09-23',fetched:'2026-09-24 13:48 UTC',src:'SoSoValue',"));
+  const mentions = html.match(/CoinMarketCap/g) || [];
+  assert.equal(mentions.length, 2, 'tylko dwa wyjaśnienia o usuniętej migawce');
+  assert.ok(!html.includes('CoinMarketCap ETF Tracker'));
+});
+
+test('atrybucje wymagane przez dostawców są na stronie', () => {
+  assert.ok(html.includes('>Data by CoinGecko</a>'));
+  assert.ok(html.includes("['Napływy ETF: SoSoValue','https://sosovalue.com']"));
+  for (const host of ['home.treasury.gov', 'www.bundesbank.de', 'www.ecb.europa.eu', 'www.oecd.org', 'www.bis.org', 'www.worldbank.org']) {
+    assert.ok(html.includes(`'https://${host}'`), host);
+  }
+});
+
+test('notowania ETF-ów tylko z własnym kluczem: brak ścieżek serwerowych dla Finnhub i Twelve Data', () => {
+  assert.ok(!html.includes("srvJSON('ceny')"), 'ceny.json nie jest czytany z serwera');
+  assert.ok(html.includes("const KEYS={soso:'cfai.key.soso',finnhub:'cfai.key.finnhub',cg:'cfai.key.cg',td:'cfai.key.td'};"));
+  assert.ok(html.includes('wyłącznie z własnym kluczem użytkownika — nie są publikowane na tej stronie'));
+  assert.ok(html.includes("TD_B1=['SPY','VGK','EWJ','MCHI','INDA','EWY','EWC'],TD_B2=['ILF','KSA','TUR','EIS','EZA','ASEA','EWA']"));
+  assert.ok(html.includes('TD_GAP=61000'), 'druga paczka po 61 s (limit 8 kredytów/min)');
+  assert.ok(html.includes('TD_TTL=60*60*1000'), 'pamięć podręczna 60 min');
+});
