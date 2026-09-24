@@ -868,3 +868,16 @@ test('v51: instFoot bierze koniec zakresu dat; strona Źródła pokazuje czas pl
   assert.ok(html.includes("const ms=k==='etf'?(typeof ETF!=='undefined'&&ETF.atMs):(fa||(k&&GLIVE.srcAt&&GLIVE.srcAt[k]));"));
   assert.ok(html.includes('metaLoad();setInterval('), 'meta.json wczytywany i odświeżany');
 });
+
+// v52: stopy banków centralnych — tabela w sekcji banków centralnych, wiersz w szczegółach regionu, brak = „—”
+test('v52: stopy banków centralnych: formatowanie, różnica wobec Fed, wiersz regionu i Źródła', () => {
+  assert.ok(html.includes("srvJSON('stopy')") && html.includes('html+=spBlock();') && html.includes('${spRegion(s.id)}'));
+  const p0 = html.indexOf('const spPct='), p1 = html.indexOf('\nfunction spRegion(', p0);
+  const f = new Function('nfmt', 'instSign', html.slice(p0, p1) + '\nreturn {spPct, spPP};')((v, d) => v.toFixed(d), v => v > 0 ? '+' : (v < 0 ? '−' : ''));
+  assert.equal(f.spPct(3.875), '3.875'); assert.equal(f.spPct(2.5), '2.50'); assert.equal(f.spPct(1), '1.00'); assert.equal(f.spPct(null), '—');
+  assert.equal(f.spPP(-1.375), '−1.38'); assert.equal(f.spPP(0), '0'); assert.equal(f.spPP(0.25), '+0.25'); assert.equal(f.spPP(undefined), '—');
+  assert.ok(html.includes("'stats.bis.org','src.f.d','src.l.1d',GLIVE.src.stopy,'g.hs.sp','stopy']"));
+  const d0 = html.indexOf('const EXTRA44='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA44='.length, d1));
+  for (const l of ['pl', 'en']) for (const k of ['sp.t', 'sp.sub', 'sp.src', 'sp.cc.XM', 'sp.cc.US', 'g.hs.sp']) assert.ok(dict[l][k], l + ' ' + k);
+});

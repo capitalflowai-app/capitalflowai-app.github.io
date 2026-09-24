@@ -1529,6 +1529,73 @@ def build_rezerwy():
     return out
 
 
+# BIS — stopy procentowe banków centralnych (WS_CBPOL), bez klucza; dzienne (stan) + miesięczne (historia zmian)
+CBPOL_AREAS = ['US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'JP', 'KR', 'CN', 'IN', 'ID', 'AU', 'CA', 'BR', 'MX', 'ZA', 'TR', 'SA', 'RU']
+CBPOL_BASE = 'https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/'
+
+
+def parse_cbpol_csv(raw):
+    """CSV BIS (pola w cudzysłowach, długie opisy) → {kraj: [[okres, stopa %], ...]} rosnąco; NaN / status braku = pominięte."""
+    text = raw.decode('utf-8', errors='replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    out = {}
+    for r in csv.DictReader(io.StringIO(text)):
+        area = (r.get('REF_AREA') or '').strip(); per = (r.get('TIME_PERIOD') or '').strip()
+        if not area or not re.match(r'^\d{4}-\d{2}(-\d{2})?$', per):
+            continue
+        if (r.get('OBS_STATUS') or '').strip() in ('H', 'K', 'L', 'M', 'Q'):
+            continue
+        v = _num(r.get('OBS_VALUE'))
+        if v is None or v != v or v in (float('inf'), float('-inf')):
+            continue
+        out.setdefault(area, []).append([per, v])
+    for a in out:
+        out[a].sort(key=lambda x: x[0])
+    if not out:
+        raise RuntimeError('brak obserwacji w odpowiedzi')
+    return out
+
+
+def cbpol_summary(daily, monthly):
+    """Stan (ostatnia wartość dzienna), zmiana od 12 miesięcy, ostatnia zmiana (miesiąc, o ile pkt proc.), różnica wobec Fed."""
+    rows = {}
+    for a in CBPOL_AREAS:
+        d = daily.get(a) or []; m = monthly.get(a) or []
+        if not d and not m:
+            continue
+        rate, date = (d[-1][1], d[-1][0]) if d else (m[-1][1], m[-1][0])
+        cur_m = date[:7]
+        y, mo = int(cur_m[:4]), int(cur_m[5:7])
+        ago = f'{y - 1:04d}-{mo:02d}'
+        base = [v for p, v in m if p <= ago]
+        d12 = round(rate - base[-1], 4) if base else None
+        last = None   # (miesiąc, zmiana) — przeszukanie od najnowszego: wartość dzienna vs ostatni miesiąc, potem miesiąc do miesiąca
+        seq = [v for p, v in m if p < cur_m] + [rate]
+        per = [p for p, v in m if p < cur_m] + [cur_m]
+        for i in range(len(seq) - 1, 0, -1):
+            if abs(seq[i] - seq[i - 1]) > 1e-9:
+                last = [per[i], round(seq[i] - seq[i - 1], 4)]; break
+        rows[a] = {'rate': rate, 'date': date, 'd12': d12, 'last': last}
+    us = rows.get('US', {}).get('rate')
+    for a, r in rows.items():
+        r['vs_us'] = round(r['rate'] - us, 4) if us is not None else None
+    return rows
+
+
+def build_stopy():
+    """data/stopy.json — stopy banków centralnych (BIS WS_CBPOL): dzienne 15 obserwacji (ostatnia ważna), miesięczne 25."""
+    keys = '+'.join(CBPOL_AREAS)
+    daily = parse_cbpol_csv(get_bytes(CBPOL_BASE + f'D.{keys}?lastNObservations=15&format=csv', timeout=90))
+    try:
+        monthly = parse_cbpol_csv(get_bytes(CBPOL_BASE + f'M.{keys}?lastNObservations=25&format=csv', timeout=90))
+    except Exception as e:
+        META['errors'].append(mask(f'BIS stopy (miesięczne): {e}')); monthly = {}
+    rows = cbpol_summary(daily, monthly)
+    if not rows:
+        raise RuntimeError('BIS stopy: żadna gospodarka')
+    return {'at': NOW, 'src': 'BIS — Central bank policy rates (WS_CBPOL)', 'url': 'https://data.bis.org/topics/CBPOL', 'unit': '% rocznie',
+            'asof': max(r['date'] for r in rows.values()), 'order': [a for a in CBPOL_AREAS if a in rows], 'rows': rows}
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -1737,6 +1804,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW rezerwy: {e}')); META['ok']['imf'] = False
             if prev_res: save('rezerwy', prev_res); print('MFW zawiódł — zachowano poprzedni rezerwy.json z', prev_res.get('at'))
+    # STOPY banków centralnych (BIS, bez klucza): najwyżej co 6 h; przy awarii poprzedni plik
+    prev_st = previous('stopy')
+    if prev_st and fresh(prev_st, 360):
+        save('stopy', prev_st); META['ok']['stopy'] = 'cached'
+    else:
+        try:
+            save('stopy', build_stopy()); META['ok']['stopy'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'BIS stopy: {e}')); META['ok']['stopy'] = False
+            if prev_st: save('stopy', prev_st)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):

@@ -144,7 +144,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -345,7 +345,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -532,7 +532,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -622,7 +622,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -755,7 +755,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1853,6 +1853,45 @@ class StanV51(unittest.TestCase):
         self.assertEqual(q['SPY']['d'][-1][0], '2026-09-23'); self.assertEqual(q['SPY']['asof'], '2026-09-23'); self.assertEqual(q['ASEA']['asof'], '2026-09-23')
         q2 = {'SPY': {'d': [['2026-09-24', 601.0, 50000000]], 'asof': '2026-09-24'}}
         self.assertEqual(zd._drop_open_session(q2, datetime.datetime(2026, 9, 24, 16, 30)), 0, 'po zamknięciu świeca zostaje')
+
+
+class StopyV52(unittest.TestCase):
+    """v52: stopy banków centralnych (BIS WS_CBPOL): CSV z cudzysłowami, NaN/status M = brak, zmiany i różnica wobec Fed."""
+    D = ('FREQ,REF_AREA,UNIT_MEASURE,TITLE,TIME_PERIOD,OBS_VALUE,OBS_STATUS\n'
+         'D,US,368,"Central bank policy rates - United States, daily",2026-09-19,3.625,A\n'
+         'D,US,368,"Central bank policy rates - United States, daily",2026-09-22,3.875,A\n'
+         'D,ID,368,"Indonesia, ""policy""",2026-09-19,5.75,A\n'
+         'D,ID,368,"Indonesia",2026-09-20,NaN,M\n'
+         'D,XM,368,"Euro area",2026-09-22,2.5,A\n')
+    M = ('FREQ,REF_AREA,UNIT_MEASURE,TITLE,TIME_PERIOD,OBS_VALUE,OBS_STATUS\n'
+         'M,US,368,"x",2025-09,4.125,A\nM,US,368,"x",2026-07,3.625,A\nM,US,368,"x",2026-08,3.625,A\n'
+         'M,XM,368,"x",2025-09,2.0,A\nM,XM,368,"x",2026-06,2.25,A\nM,XM,368,"x",2026-07,2.25,A\nM,XM,368,"x",2026-08,2.25,A\n'
+         'M,ID,368,"x",2026-08,5.75,A\n')
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_csv_with_quotes_and_missing_values(self):
+        d = zd.parse_cbpol_csv(self.D.encode())
+        self.assertEqual(d['US'], [['2026-09-19', 3.625], ['2026-09-22', 3.875]])
+        self.assertEqual(d['ID'], [['2026-09-19', 5.75]], 'NaN ze statusem M pominięte, nie zero')
+        with self.assertRaises(RuntimeError):
+            zd.parse_cbpol_csv(b'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\n')
+
+    def test_summary_changes_and_spread_vs_fed(self):
+        rows = zd.cbpol_summary(zd.parse_cbpol_csv(self.D.encode()), zd.parse_cbpol_csv(self.M.encode()))
+        us, xm, idn = rows['US'], rows['XM'], rows['ID']
+        self.assertEqual((us['rate'], us['date']), (3.875, '2026-09-22'))
+        self.assertEqual(us['d12'], -0.25); self.assertEqual(us['last'], ['2026-09', 0.25]); self.assertEqual(us['vs_us'], 0)
+        self.assertEqual(xm['last'], ['2026-09', 0.25]); self.assertEqual(xm['d12'], 0.5); self.assertEqual(xm['vs_us'], -1.375)
+        self.assertEqual(idn['rate'], 5.75); self.assertIsNone(idn['d12'], 'brak historii 12 mies. = brak, nie zero')
+
+    def test_build_uses_daily_and_monthly_and_keeps_order(self):
+        def gb(url, headers=None, timeout=60):
+            return (self.D if '/D.' in url else self.M).encode()
+        with mock.patch.object(zd, 'get_bytes', gb):
+            out = zd.build_stopy()
+        self.assertEqual(out['order'], ['US', 'XM', 'ID']); self.assertEqual(out['asof'], '2026-09-22'); self.assertEqual(out['unit'], '% rocznie')
 
 
 if __name__ == '__main__':
