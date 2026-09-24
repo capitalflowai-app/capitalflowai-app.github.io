@@ -839,6 +839,39 @@ def parse_mk(pages):
     return {'src': 'CoinGecko — coins/markets', 'asof': last[:19], 'cols': ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'], 'rows': rows}
 
 
+def parse_stabc(j, top=14):
+    """v58: DefiLlama /stablecoins → podaż stablecoinów dolarowych per sieć: teraz, zmiana 1, 7 i 30 dni (USD).
+    Zmiana liczona tylko z aktywów, które mają obie wartości (brak poprzedniej = poza oknem, nie zero)."""
+    A = j.get('peggedAssets') if isinstance(j, dict) else None
+    if not isinstance(A, list) or not A:
+        raise RuntimeError('stablecoins: brak peggedAssets')
+    num = lambda o: (o.get('peggedUSD') if isinstance(o, dict) and isinstance(o.get('peggedUSD'), (int, float)) and not isinstance(o.get('peggedUSD'), bool) else None)
+    ch = {}
+    for a in A:
+        if not isinstance(a, dict) or a.get('pegType') != 'peggedUSD' or not isinstance(a.get('chainCirculating'), dict):
+            continue
+        for name, v in a['chainCirculating'].items():
+            if not isinstance(v, dict):
+                continue
+            cur = num(v.get('current'))
+            if cur is None or cur < 0:
+                continue
+            c = ch.setdefault(str(name)[:40], {'cur': 0.0, 'd1': [0.0, 0.0], 'd7': [0.0, 0.0], 'd30': [0.0, 0.0]})
+            c['cur'] += cur
+            for k, f in (('d1', 'circulatingPrevDay'), ('d7', 'circulatingPrevWeek'), ('d30', 'circulatingPrevMonth')):
+                p = num(v.get(f))
+                if p is not None and p >= 0:
+                    c[k][0] += cur; c[k][1] += p
+    if not ch:
+        raise RuntimeError('stablecoins: żadna sieć')
+    rows = [[n, round(c['cur']), round(c['d1'][0] - c['d1'][1]), round(c['d7'][0] - c['d7'][1]), round(c['d30'][0] - c['d30'][1])]
+            for n, c in sorted(ch.items(), key=lambda x: -x[1]['cur'])]
+    tot = lambda i: sum(r[i] for r in rows)
+    return {'src': 'DefiLlama — stablecoins (chainCirculating, peggedUSD)', 'unit': 'USD', 'asof': NOW[:10],
+            'cols': ['sieć', 'podaż', 'zmiana 1 dzień', 'zmiana 7 dni', 'zmiana 30 dni'], 'n': len(rows),
+            'total': [round(tot(1)), round(tot(2)), round(tot(3)), round(tot(4))], 'rows': rows[:top]}
+
+
 def parse_stabh(j):
     """DefiLlama stablecoincharts/all → podaż stablecoinów w USD (totalCirculatingUSD.peggedUSD) teraz i zmiany za 1, 7, 30, 91, 365 dni
     (wartość z ostatniego dnia nie później niż N dni wstecz). To zmiana podaży = emisja − umorzenia, nie zmiana ceny."""
@@ -1874,7 +1907,8 @@ def build_krypto(cg_key):
             ('fng', lambda: parse_fng(get_json(FNG_URL))),
             ('mk', lambda: parse_mk([get_json(CG + f'/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page={p}'
                                              '&price_change_percentage=24h,7d,30d,1y', hdr) for p in (1, 2)])),
-            ('stabh', lambda: parse_stabh(get_json('https://stablecoins.llama.fi/stablecoincharts/all')))]
+            ('stabh', lambda: parse_stabh(get_json('https://stablecoins.llama.fi/stablecoincharts/all'))),
+            ('stabc', lambda: parse_stabc(get_json('https://stablecoins.llama.fi/stablecoins?includePrices=true')))]   # v58: per sieć
     for name, job in jobs:
         try:
             out[name] = job(); META['ok']['krypto.' + name] = True

@@ -737,7 +737,7 @@ class Krypto(unittest.TestCase):
             out = zd.build_krypto('TAJNY-CG')
         self.assertEqual(sorted(k for k in out if k not in ('at', 'src', 'attribution')), ['defi', 'fng'])
         self.assertEqual(out['attribution'], 'Data by CoinGecko')
-        self.assertEqual(zd.META['ok'], {'krypto.deriv': False, 'krypto.defi': True, 'krypto.fng': True, 'krypto.mk': False, 'krypto.stabh': False})
+        self.assertEqual(zd.META['ok'], {'krypto.deriv': False, 'krypto.defi': True, 'krypto.fng': True, 'krypto.mk': False, 'krypto.stabh': False, 'krypto.stabc': False})
         self.assertTrue(all('TAJNY' not in u for u in seen), 'klucz nie w adresie')
         self.assertEqual(seen[zd.CG + '/global/decentralized_finance_defi'], {'x-cg-demo-api-key': 'TAJNY-CG'})
         self.assertIsNone(seen[zd.FNG_URL])
@@ -2090,6 +2090,25 @@ class EerV56(unittest.TestCase):
         self.assertIn('D.N.B.US+XM', seen[0]); self.assertIn('detail=dataonly', seen[0])
         self.assertEqual(out['asof'], '2026-09-22'); self.assertIsNone(out['rows']['JP']['c12'])
         self.assertTrue(any(e.startswith('BIS kursy efektywne (miesięczne)') for e in zd.META['errors']))
+
+
+class StablecoinChainsV58(unittest.TestCase):
+    """v58: stablecoiny per sieć (DefiLlama /stablecoins) — tylko dolarowe; brak poprzedniej wartości = poza oknem, nie zero."""
+
+    def test_sums_per_chain_and_missing_previous_is_left_out(self):
+        j = {'peggedAssets': [
+            {'pegType': 'peggedUSD', 'chainCirculating': {
+                'Ethereum': {'current': {'peggedUSD': 100.0}, 'circulatingPrevDay': {'peggedUSD': 99.0}, 'circulatingPrevWeek': {'peggedUSD': 90.0}, 'circulatingPrevMonth': {'peggedUSD': 80.0}},
+                'Solana': {'current': {'peggedUSD': 10.0}, 'circulatingPrevWeek': {'peggedUSD': 5.0}}}},
+            {'pegType': 'peggedUSD', 'chainCirculating': {
+                'Solana': {'current': {'peggedUSD': 30.0}, 'circulatingPrevDay': {'peggedUSD': 30.0}, 'circulatingPrevWeek': {'peggedUSD': 20.0}, 'circulatingPrevMonth': {'peggedUSD': 10.0}}}},
+            {'pegType': 'peggedEUR', 'chainCirculating': {'Ethereum': {'current': {'peggedUSD': 999.0}}}}]}
+        out = zd.parse_stabc(j)
+        self.assertEqual(out['rows'][0], ['Ethereum', 100, 1, 10, 20], 'stablecoin euro pominięty')
+        self.assertEqual(out['rows'][1], ['Solana', 40, 0, 15, 20], '30 dni: aktywo bez wartości sprzed miesiąca poza oknem (nie liczone jako 0)')
+        self.assertEqual(out['total'], [140, 1, 25, 40]); self.assertEqual(out['n'], 2)
+        with self.assertRaises(RuntimeError):
+            zd.parse_stabc({'data': []})
 
 
 if __name__ == '__main__':
