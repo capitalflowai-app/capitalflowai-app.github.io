@@ -968,3 +968,25 @@ test('v54: inwestorzy zagraniczni: wczytanie, sumy okien, blok, wiersz regionu I
   const dict = JSON.parse(html.slice(x0 + 'const EXTRA46='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['ob.t', 'ob.sub', 'ob.in.k', 'ob.tw.k', 'ob.not', 'ob.src', 'ob.reg.v', 'g.hs.nsdl', 'g.hs.twse']) assert.ok(dict[l][k], l + ' ' + k);
 });
+
+// v56: kursy efektywne BIS obok stóp — kolumna w tabeli stóp, wiersz w szczegółach regionu; brak = „—”
+test('v56: kursy efektywne BIS: format, komórka tabeli stóp, wiersz regionu, Źródła', () => {
+  const a0 = html.indexOf('const EER={data:null};'), a1 = html.indexOf('function spRegion(id){', a0);
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'instFoot', 'escH', html.slice(a0, a1) + '\nreturn {EER, eerApply, eerPct, eerCell, eerRegion};')(
+    T, k => oks.push(k), () => {}, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), s => s, s => String(s));
+  assert.equal(f.eerCell('JP'), '—', 'bez pliku = brak'); assert.equal(f.eerRegion('jpn'), '');
+  f.eerApply({at: '2026-09-25T00:00:00+00:00', rows: {JP: {v: 69.16, d: '2026-09-22', c30: 1.62, m: '2026-08', c12: -2.5}, KR: {v: 92, d: '2026-09-22', c30: null, c12: 0}}});
+  assert.deepEqual(oks, ['eer']);
+  assert.equal(f.eerPct(1.62), '+1.6%'); assert.equal(f.eerPct(0), '0%'); assert.equal(f.eerPct(null), '—');
+  assert.equal(f.eerCell('JP'), '+1.6% · −2.5%'); assert.equal(f.eerCell('KR'), '— · 0%'); assert.equal(f.eerCell('US'), '—');
+  const r = f.eerRegion('jpn');
+  assert.ok(r.includes('eer.reg.v{"c":"JPY","a":"+1.6%","b":"−2.5%"} · 2026-09-22') && r.includes('"c":"KRW","a":"—","b":"0%"'), r);
+  assert.equal(f.eerRegion('usa'), '', 'region bez danych w pliku = bez wiersza');
+  assert.ok(html.includes('<td><span class="cell mono">${eerCell(a)}</span></td></tr>') && html.includes("<th>${t('sp.c.fx')}</th></tr></thead>"));
+  assert.ok(html.includes('${eerRegion(s.id)}') && html.includes("srvJSON('eer')"));
+  assert.ok(html.includes("'stats.bis.org','src.f.d','src.l.1d',GLIVE.src.eer,'g.hs.eer','eer']") && html.includes("eer:'BIS kursy efektywne'") && html.includes('eer:()=>EER.data&&EER.data.at'));
+  const x0 = html.indexOf('const EXTRA47='), x1 = html.indexOf(';\n', x0);
+  const dict = JSON.parse(html.slice(x0 + 'const EXTRA47='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['sp.c.fx', 'eer.not', 'eer.src', 'eer.reg', 'eer.reg.v', 'g.hs.eer']) assert.ok(dict[l][k], l + ' ' + k);
+});

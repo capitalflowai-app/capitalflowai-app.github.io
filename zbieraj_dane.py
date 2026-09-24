@@ -1822,6 +1822,49 @@ def build_obce(key, prev=None):
     return out
 
 
+# v56: BIS — nominalne efektywne kursy walut (WS_EER, szeroki koszyk 64 gospodarek), bez klucza
+EER_AREAS = ['US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'JP', 'KR', 'CN', 'HK', 'IN', 'ID', 'SG', 'TH', 'MY', 'PH', 'AU', 'NZ',
+             'CA', 'BR', 'MX', 'TR', 'IL', 'ZA', 'SA', 'RU']
+EER_BASE = 'https://stats.bis.org/api/v2/data/dataflow/BIS/WS_EER/1.0/'
+
+
+def eer_summary(daily, monthly):
+    """Poziom (ostatni dzienny), zmiana 30 dni (dzienne) i 12 miesięcy (średnie miesięczne, ten sam miesiąc rok wcześniej), w %."""
+    rows = {}
+    for a in EER_AREAS:
+        d = daily.get(a) or []; m = monthly.get(a) or []
+        if not d and not m:
+            continue
+        r = {'v': None, 'd': None, 'c30': None, 'm': None, 'c12': None}
+        if d:
+            p, v = d[-1]
+            lim = (datetime.date.fromisoformat(p) - datetime.timedelta(days=30)).isoformat()
+            base = [x for q, x in d if q <= lim]
+            r.update({'v': v, 'd': p, 'c30': round((v / base[-1] - 1) * 100, 2) if base and base[-1] else None})
+        if m:
+            p, v = m[-1]
+            ago = f'{int(p[:4]) - 1:04d}-{p[5:7]}'
+            prev = [x for q, x in m if q == ago]
+            r.update({'m': p, 'c12': round((v / prev[0] - 1) * 100, 2) if prev and prev[0] else None})
+        rows[a] = r
+    return rows
+
+
+def build_eer():
+    """data/eer.json — kursy efektywne BIS: dzienne 45 obserwacji (do zmiany 30 dni), miesięczne 14 (do zmiany 12 mies.)."""
+    keys = '+'.join(EER_AREAS)
+    daily = parse_cbpol_csv(get_bytes(EER_BASE + f'D.N.B.{keys}?lastNObservations=45&format=csv&detail=dataonly', timeout=90))
+    try:
+        monthly = parse_cbpol_csv(get_bytes(EER_BASE + f'M.N.B.{keys}?lastNObservations=14&format=csv&detail=dataonly', timeout=90))
+    except Exception as e:
+        META['errors'].append(mask(f'BIS kursy efektywne (miesięczne): {e}')); monthly = {}
+    rows = eer_summary(daily, monthly)
+    if not rows:
+        raise RuntimeError('żadna waluta')
+    return {'at': NOW, 'src': 'BIS — Effective exchange rates (WS_EER), nominal, broad basket', 'url': 'https://data.bis.org/topics/EER',
+            'unit': 'indeks 2020=100; zmiany w %', 'asof': max((r['d'] or '') for r in rows.values()), 'rows': rows}
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -2077,6 +2120,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'obce: {e}')); META['ok']['obce'] = False
             if prev_o: save('obce', prev_o)
+    # EER — kursy efektywne BIS (bez klucza): najwyżej co 6 h
+    prev_e = previous('eer')
+    if prev_e and fresh(prev_e, 360):
+        save('eer', prev_e); META['ok']['eer'] = 'cached'
+    else:
+        try:
+            save('eer', build_eer()); META['ok']['eer'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'BIS kursy efektywne: {e}')); META['ok']['eer'] = False
+            if prev_e: save('eer', prev_e)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):
