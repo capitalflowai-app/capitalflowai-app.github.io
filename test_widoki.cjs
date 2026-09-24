@@ -1080,3 +1080,14 @@ test('v59: COFER: tabela udziałów, zmiany, „inne waluty”, stopka z udział
   const dict = JSON.parse(html.slice(x0 + 'const EXTRA50='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['cof.t', 'cof.sub', 'cof.foot', 'cof.foot0', 'cof.not', 'cof.src', 'g.hs.cofer']) assert.ok(dict[l][k], l + ' ' + k);
 });
+
+// v60: strona Źródła zgodna z decyzją właściciela (bez obietnic zgody/wyłączenia) i ze stanem strony (nowe źródła, silnik = 2 panele)
+test('v60: tekst Źródeł: bez „wystąpimy o zgodę / wyłączymy”, wpisy nowych źródeł, prawdziwy opis paneli silnika', () => {
+  const a0 = html.indexOf('const TXT_ZRODLA_PL=`'), a1 = html.indexOf('`;', a0), z = html.slice(a0, a1);
+  for (const w of ['wystąpić', 'wyłączymy', 'prosząc o potwierdzenie', 'zamierzamy']) assert.ok(!z.includes(w), w);
+  for (const w of ['BIS — stopy procentowe banków centralnych', 'BIS — efektywne kursy walut', 'EBC — średnie miesięczne kursów', 'NSDL (Indie)', 'Giełda w Tajpej (TWSE)', 'MFW — COFER'])
+    assert.ok(z.includes('<summary><b>' + w + '</b>'), w);
+  assert.ok(z.includes('<b>Widoki silnika projektu:</b> MFW, Bank Światowy · <i>pokazujemy</i></summary>') && !z.includes('DefiLlama (sieci) · <i>nie pokazujemy</i>'));
+  assert.ok(z.includes('Stan opisu: 25 września 2026.'));
+  assert.equal((z.match(/<details class="etfd"/g) || []).length, (z.match(/<\/details>/g) || []).length, 'zbalansowane bloki');
+});

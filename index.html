@@ -4607,13 +4607,12 @@ function renderEng(){
 const TXT_ZRODLA_PL=`
 <section class="panel pgc"><h2>Źródła i prawa do danych</h2>
 <p class="mtxt"><b>Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.</b></p>
-<p class="mtxt">Wszystkie liczby na tej stronie pochodzą ze źródeł opisanych niżej albo są z nich przez nas policzone. Przy każdej liczbie podajemy źródło, datę danych i ich wiek („dane sprzed N dni”). Gdy liczby nie ma, pole zostaje puste. Puste pole to nie zero. Opisy praw to nasza ocena warunków dostawców, nie porada prawna. Stan opisu: 24 września 2026.</p>
+<p class="mtxt">Wszystkie liczby na tej stronie pochodzą ze źródeł opisanych niżej albo są z nich przez nas policzone. Przy każdej liczbie podajemy źródło, datę danych i ich wiek („dane sprzed N dni”). Gdy liczby nie ma, pole zostaje puste. Puste pole to nie zero. Opisy praw to nasza ocena warunków dostawców, nie porada prawna. Stan opisu: 25 września 2026.</p>
 <h3>Jak dziś działa ta strona</h3>
-<p class="mtxt">Większość liczb pobiera Twoja przeglądarka prosto od dostawców: OECD, BIS, Skarb USA, Bundesbank, Frankfurter, CoinGecko, CoinPaprika i DefiLlama. Każdy z nich widzi wtedy adres IP Twojego połączenia, tak jak każda odwiedzana strona. Dane SoSoValue, Finnhub, Twelve Data, CoinMarketCap i kapitalizacje z CoinGecko zbiera nasz automat na serwerze z kluczy właściciela (co 20 minut; SoSoValue i Twelve Data najwyżej raz na godzinę). Notowania ETF-ów (DZIŚ/1T/1M) działają też z własnym kluczem użytkownika, który odświeża je częściej i zapisuje w plikach, które strona czyta. Czcionki i wszystkie pliki strony są serwowane z tej samej strony. Bez ciasteczek, bez śledzenia, bez kont. Stronę udostępnia GitHub Pages; jak każdy serwer, widzi adres IP. Klucze wpisane w Ustawieniach zostają tylko w tej przeglądarce i idą wyłącznie do danego dostawcy. Historię wyników rankingu warunków strona zapisuje w Twojej przeglądarce i nigdzie jej nie wysyła.</p>
+<p class="mtxt">Większość liczb pobiera Twoja przeglądarka prosto od dostawców: OECD, BIS, Skarb USA, Bundesbank, Frankfurter, CoinGecko, CoinPaprika i DefiLlama. Każdy z nich widzi wtedy adres IP Twojego połączenia, tak jak każda odwiedzana strona. Dane instytucji (Skarb USA, NY Fed, EBC, BIS, MFW, CFTC, MOF Japonii; serie Fed przez FRED z kluczem właściciela), giełd i depozytów (NSDL, TWSE) oraz Coin Metrics zbiera automat strony na serwerze. Dane SoSoValue, Finnhub, Twelve Data, CoinMarketCap i kapitalizacje z CoinGecko zbiera nasz automat na serwerze z kluczy właściciela (co 20 minut; SoSoValue i Twelve Data najwyżej raz na godzinę). Notowania ETF-ów (DZIŚ/1T/1M) działają też z własnym kluczem użytkownika, który odświeża je częściej i zapisuje w plikach, które strona czyta. Czcionki i wszystkie pliki strony są serwowane z tej samej strony. Bez ciasteczek, bez śledzenia, bez kont. Stronę udostępnia GitHub Pages; jak każdy serwer, widzi adres IP. Klucze wpisane w Ustawieniach zostają tylko w tej przeglądarce i idą wyłącznie do danego dostawcy. Historię wyników rankingu warunków strona zapisuje w Twojej przeglądarce i nigdzie jej nie wysyła.</p>
 <h3>Jak czytać stan praw</h3>
 <p class="mtxt"><b>pokazujemy</b> — warunki właściciela danych, tak jak je przeczytaliśmy, pozwalają je pokazywać, a my te warunki spełniamy.<br>
-<b>pokazujemy warunkowo</b> — pokazujemy z podaniem źródła, ale warunków dostawcy nie przeczytaliśmy w całości; opieramy się na tym, co o nich wiemy. Jeśli okaże się, że nie wolno, liczba zniknie.<br>
-<b>pokazujemy, prosząc o potwierdzenie</b> — naszym zdaniem warunki dostawcy wymagają jego potwierdzenia; zamierzamy o nie wystąpić. Bez potwierdzenia te dane wyłączymy.<br>
+<b>pokazujemy warunkowo</b> — pokazujemy z podaniem źródła; warunków dostawcy nie przeczytaliśmy w całości i opieramy się na tym, co o nich wiemy.<br>
 <b>w przygotowaniu</b> — tych danych na stronie jeszcze nie ma; pokażemy je po sprawdzeniu praw.</p>
 <h3>Źródła po kolei</h3>
 
@@ -4662,24 +4661,24 @@ const TXT_ZRODLA_PL=`
 <p class="mtxt"><b>Co to za dane:</b> wartość rynkowa (kapitalizacja) całego rynku kryptowalut i poszczególnych monet. Kapitalizacje bitcoina, etheru, solany i XRP pobiera nasz automat na serwerze; dane rynku globalnego pobiera Twoja przeglądarka.<br>
 <b>Jak często:</b> dane zmieniają się na bieżąco; strona odświeża je co minutę, automat co 20 minut.<br>
 <b>Czego nie mówi:</b> kapitalizacja to cena razy liczba monet. Zmienia się przede wszystkim z ceną, więc nie jest napływem nowych pieniędzy.<br>
-<b>Stan praw:</b> z tego, co wiemy, darmowy dostęp CoinGecko wymaga podpisu z linkiem i jest przeznaczony do użytku osobistego lub niekomercyjnego. Nie wiemy jeszcze, czy wolno zapisywać te dane w publicznym pliku na serwerze; zamierzamy o to zapytać. Dane: <a href="https://www.coingecko.com" rel="noopener">CoinGecko</a>.</p></details>
+<b>Stan praw:</b> z tego, co wiemy, darmowy dostęp CoinGecko wymaga podpisu z linkiem i jest przeznaczony do użytku osobistego lub niekomercyjnego. Podpis z linkiem „Data by CoinGecko” jest na dole strony i przy liczbach. Dane: <a href="https://www.coingecko.com" rel="noopener">CoinGecko</a>.</p></details>
 
 <details class="etfd"><summary><b>CoinPaprika</b> · handel bitcoinem według walut, kursy monet · <i>pokazujemy warunkowo</i></summary>
 <p class="mtxt"><b>Co to za dane:</b> udział walut (np. dolara, euro, jena) w handlu bitcoinem na giełdach oraz kursy i wartość rynkowa setek kryptowalut (okno CRYPTO). Pobiera je Twoja przeglądarka.<br>
 <b>Czego nie mówi:</b> obrót to nie napływ netto, dlatego pokazujemy tylko proporcje. Udział dolara to nie udział USA, bo dolarem handluje się na całym świecie. Handel poza giełdami jest niewidoczny.<br>
 <b>Stan praw:</b> z tego, co wiemy, darmowy dostęp CoinPaprika pozwala na użycie niekomercyjne z podpisem i linkiem. Warunków nie przeczytaliśmy w całości. Dane: <a href="https://coinpaprika.com" rel="noopener">CoinPaprika</a>.</p></details>
 
-<details class="etfd"><summary><b>DefiLlama</b> · stablecoiny i wartość zablokowana w sieciach · <i>pokazujemy, prosząc o potwierdzenie</i></summary>
-<p class="mtxt"><b>Co to za dane:</b> podaż stablecoinów (kryptowalut powiązanych z walutą, np. z dolarem) i wartość zablokowana w sieciach kryptowalut (TVL). Pobiera je Twoja przeglądarka.<br>
+<details class="etfd"><summary><b>DefiLlama</b> · stablecoiny (razem i według sieci) i wartość zablokowana w sieciach · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> podaż stablecoinów (kryptowalut powiązanych z walutą, np. z dolarem) i wartość zablokowana w sieciach kryptowalut (TVL). Pobiera je Twoja przeglądarka; podaż według sieci (zmiana 7 i 30 dni) i historię podaży zbiera automat strony.<br>
 <b>Jak często:</b> bieżąca podaż porównana ze stanem sprzed dnia, miesiąca, kwartału i roku.<br>
 <b>Czego nie mówi:</b> zmiana podaży to emisja, umorzenie i przeniesienia między sieciami razem. Nie mówi, z której sieci na którą monety przepłynęły, ani że ktoś coś kupił.<br>
-<b>Stan praw:</b> warunki DefiLlama (wersja z 24.06.2025) mówią o użytku osobistym i niekomercyjnym oraz o publikacji za zgodą. Naszym zdaniem publiczna strona takiej zgody wymaga; zamierzamy o nią wystąpić. Bez zgody te dane wyłączymy. Dane: <a href="https://defillama.com" rel="noopener">DefiLlama</a>.</p></details>
+<b>Podpis:</b> „DefiLlama”, przy liczbach i tu. Dane: <a href="https://defillama.com" rel="noopener">DefiLlama</a>.</p></details>
 
-<details class="etfd"><summary><b>SoSoValue</b> · napływy do funduszy ETF na kryptowaluty · <i>pokazujemy, prosząc o potwierdzenie</i></summary>
+<details class="etfd"><summary><b>SoSoValue</b> · napływy do funduszy ETF na kryptowaluty · <i>pokazujemy</i></summary>
 <p class="mtxt"><b>Co to za dane:</b> dzienne napływy i odpływy pieniędzy w funduszach ETF notowanych w USA: na bitcoina, ether, solanę i XRP, łącznie i według funduszy. Zbiera je nasz automat na serwerze najwyżej raz na godzinę i zapisuje w pliku, który strona czyta.<br>
 <b>Jak często:</b> dane dzienne; fundusze różnych monet bywają z różnych dni, więc data jest podana osobno dla każdej monety, a znacznik pokazuje zakres.<br>
 <b>Czego nie mówi:</b> napływ do funduszy w USA to nie cały rynek kryptowalut. Gdy brakuje danych jednego funduszu, suma jest nieznana; braku nie liczymy jako zera.<br>
-<b>Stan praw:</b> warunków SoSoValue nie przeczytaliśmy w całości; naszym zdaniem publiczne wyświetlanie i kopia danych na serwerze wymagają potwierdzenia dostawcy, o które zamierzamy wystąpić. Dane: <a href="https://sosovalue.com" rel="noopener">SoSoValue</a>.</p></details>
+<b>Podpis:</b> „SoSoValue”, przy liczbach i tu. Dane: <a href="https://sosovalue.com" rel="noopener">SoSoValue</a>.</p></details>
 
 <details class="etfd"><summary><b>CoinMarketCap</b> · kapitalizacja rynku krypto, dominacja, stablecoiny, DeFi · <i>pokazujemy z klucza właściciela</i></summary>
 <p class="mtxt"><b>Co to za dane:</b> Global Metrics: łączna kapitalizacja rynku, zmiana 24h, udział BTC i ETH, kapitalizacja stablecoinów i DeFi, wolumen 24h. Zbiera je nasz automat na serwerze co 20 minut z klucza właściciela.<br>
@@ -4754,14 +4753,44 @@ const TXT_ZRODLA_PL=`
 <b>Czego nie mówi:</b> to pozycje, nie przepływ pieniędzy; kontrakt to nie moneta ani kwota w dolarach; grupy to role uczestników, nie kraje ani ich zamiary; tylko giełda CME.<br>
 <b>Stan praw:</b> dane rządu USA (domena publiczna); podajemy źródło przy liczbach i tu. CFTC nie jest autorem tej strony i jej nie popiera.</p></details>
 
-<details class="etfd"><summary><b>Widoki silnika projektu:</b> CFTC, MFW, Bank Światowy · <i>pokazujemy</i>; DefiLlama (sieci) · <i>nie pokazujemy</i></summary>
-<p class="mtxt">Cztery panele pochodzą z osobnego programu sprawdzającego (silnika projektu), który przed publikacją sprawdza każdą liczbę i termin ważności pliku.<br>
-<b>CFTC</b> — pozycje dużych inwestorów w kontraktach terminowych na euro, bitcoina i ether; co tydzień (stan z wtorku publikowany w piątek). Dane rządu USA w domenie publicznej, z podaniem źródła; CFTC nie jest autorem tej strony i jej nie popiera.<br>
+<details class="etfd"><summary><b>BIS — stopy procentowe banków centralnych</b> · główna stopa 20 banków centralnych, dziennie · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> główna stopa procentowa 20 banków centralnych (m.in. Fed, EBC, Bank Anglii, NBP, Bank Japonii, Ludowy Bank Chin) ze zbioru BIS „Central bank policy rates”: stan, zmiana w 12 miesięcy, ostatnia zmiana i różnica wobec Fed. Zbiera je automat strony najwyżej co 6 godzin.<br>
+<b>Jak często i z jakim opóźnieniem:</b> dziennie; zwykle 0–2 dni, dla części krajów dłużej — wiek jest przy każdej liczbie.<br>
+<b>Czego nie mówi:</b> stopa to nie przepływ, tylko warunek: różnica stóp („carry”) przyciąga albo odpycha kapitał krótkoterminowy. Wysoka stopa bywa też znakiem inflacji i ryzyka waluty.<br>
+<b>Podpis:</b> „BIS — Central bank policy rates”, przy liczbach i tu. BIS nie jest autorem tej strony i jej nie popiera.</p></details>
+
+<details class="etfd"><summary><b>BIS — efektywne kursy walut</b> · siła 27 walut wobec koszyka 64 gospodarek · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> nominalny efektywny kurs walut BIS (szeroki koszyk 64 gospodarek, indeks 2020 = 100): zmiana w 30 dni (dane dzienne) i w 12 miesięcy (średnie miesięczne). Automat strony, najwyżej co 6 godzin.<br>
+<b>Czego nie mówi:</b> mocniejsza waluta często idzie w parze z napływem kapitału, ale może też wynikać z handlu albo interwencji banku centralnego — to nie jest pomiar przepływu.<br>
+<b>Podpis:</b> „BIS — Effective exchange rates”, przy liczbach i tu.</p></details>
+
+<details class="etfd"><summary><b>EBC — średnie miesięczne kursów</b> · kursy 23 walut do okresów mapy liczonych z OECD · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> średnie miesięczne kursy referencyjne EBC. Na mapie, w okresach liczonych z miesięcznych indeksów OECD (kwartał, rok), waluta pochodzi ze średnich tych samych miesięcy co indeks akcji — jedna liczba ma jedno okno czasu. Szczegóły regionu pokazują, które miesiące porównano.<br>
+<b>Jak często:</b> miesiąc publikowany na początku następnego; automat co 12 godzin.<br>
+<b>Podpis:</b> „EBC”, przy liczbach i tu.</p></details>
+
+<details class="etfd"><summary><b>NSDL (Indie)</b> · dzienne inwestycje zagranicznych inwestorów portfelowych · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> zakupy minus sprzedaże zagranicznych inwestorów portfelowych (FPI) w akcjach i dłużnych papierach Indii, w mln USD po kursie podanym przez NSDL (depozyt papierów wartościowych). To bezpośredni pomiar przepływu kapitału. Automat strony co 3 godziny; historia narasta z dnia na dzień.<br>
+<b>Jak często i z jakim opóźnieniem:</b> dziennie; data raportu obejmuje transakcje do poprzedniego dnia sesyjnego.<br>
+<b>Czego nie mówi:</b> to papiery notowane i dług, nie całe przepływy kapitału do Indii (np. bez inwestycji bezpośrednich).<br>
+<b>Podpis:</b> „NSDL”, przy liczbach i tu.</p></details>
+
+<details class="etfd"><summary><b>Giełda w Tajpej (TWSE)</b> · dzienne obroty inwestorów zagranicznych · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> zakupy minus sprzedaże akcji przez inwestorów zagranicznych na giełdzie w Tajpej, w dolarach tajwańskich; przybliżenie w USD liczymy kursem Fed (H.10, przez FRED) z najbliższego wcześniejszego dnia. Automat strony pyta giełdę dzień po dniu (z przerwami), co 3 godziny; dni bez sesji zapamiętuje.<br>
+<b>Czego nie mówi:</b> kurs Fed ma około tygodnia opóźnienia, więc kwota w USD jest przybliżona. To tylko giełda akcji.<br>
+<b>Podpis:</b> „Taiwan Stock Exchange”, przy liczbach i tu. Korea (giełda KRX) wymaga dziś logowania — tych danych nie ma.</p></details>
+
+<details class="etfd"><summary><b>MFW — COFER</b> · skład walutowy rezerw świata, kwartalnie · <i>pokazujemy</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> jaką część rezerw walutowych banki centralne świata trzymają w dolarach, euro, jenach, funtach, juanach i innych walutach; zmiana udziału w kwartał i rok. Od 2026 MFW sam szacuje skład części rezerw za kraje, które go nie podają — ten odsetek jest przy tabeli. Automat raz na dobę.<br>
+<b>Jak często:</b> kwartalnie, z opóźnieniem około trzech miesięcy.<br>
+<b>Czego nie mówi:</b> udział zmienia się także przez kursy walut: słabszy dolar zmniejsza jego udział bez żadnej sprzedaży.<br>
+<b>Podpis:</b> „International Monetary Fund, COFER”, przy liczbach i tu.</p></details>
+
+<details class="etfd"><summary><b>Widoki silnika projektu:</b> MFW, Bank Światowy · <i>pokazujemy</i></summary>
+<p class="mtxt">Dwa panele pochodzą z osobnego programu sprawdzającego (silnika projektu), który przed publikacją sprawdza każdą liczbę i termin ważności pliku.<br>
 <b>MFW</b> — kto trzyma czyje papiery (zbiór PIP, dawniej CPIS); stan co pół roku, publikowany z opóźnieniem około dziewięciu miesięcy; z podaniem źródła.<br>
 <b>Bank Światowy (WDI)</b> — roczny napływ netto inwestycji portfelowych w akcje do gospodarek świata; licencja CC BY 4.0 z podaniem źródła.<br>
-<b>Coin Metrics</b> — wpłaty i wypłaty BTC i ETH na giełdy nie pochodzą już z silnika: pokazujemy je wprost z Coin Metrics Community (licencja niekomercyjna CC BY-NC 4.0; strona jest bezpłatna) — wpis „Coin Metrics” wyżej.<br>
-<b>Nie pokazujemy (karta wyjaśnia dlaczego):</b> DefiLlama (stablecoiny według sieci — warunki wymagają zgody na publikację).<br>
-Dane TIC Skarbu USA pokazujemy od 25.09.2026 wprost ze źródła (wpis „Skarb USA — TIC” wyżej).</p></details>
+Pozycje w kontraktach (CFTC), wpłaty i wypłaty na giełdy (Coin Metrics), stablecoiny według sieci (DefiLlama) i TIC Skarbu USA zbiera dziś wprost automat strony — wpisy wyżej.</p></details>
 
 <p class="mtxt" style="margin-top:10px"><b>Warunki dostawców</b> są zawsze u dostawcy i mogą się zmienić. Jeśli jesteś dostawcą danych albo widzisz błąd w podpisie, napisz do nas przez stronę projektu. Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.</p>
 </section>
