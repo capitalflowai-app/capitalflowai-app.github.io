@@ -183,5 +183,42 @@ class MainFlow(unittest.TestCase):
         self.assertNotIn('TWELVEDATA_KEY', src)
 
 
+class Hardening(unittest.TestCase):
+    """Audyt 24.09 (B6, B8, B9): klucz nigdy w meta.json, klucz CoinGecko w nagłówku, ticker sprawdzany wzorcem."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.SECRETS[:] = ['TAJNY-SOSO', 'TAJNY-CG']
+
+    def tearDown(self):
+        zd.SECRETS[:] = []
+
+    def test_error_messages_never_contain_a_key(self):
+        self.assertEqual(zd.mask('boom https://x?key=TAJNY-CG'), 'boom https://x?key=***')
+        self.assertEqual(zd.mask(RuntimeError('SoSoValue TAJNY-SOSO')), 'SoSoValue ***')
+
+    def test_coingecko_key_travels_in_a_header_not_in_the_url(self):
+        seen = {}
+        def get_json(url, headers=None):
+            seen['url'], seen['headers'] = url, headers
+            raise RuntimeError('stop')
+        with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'soso', side_effect=RuntimeError('stop')):
+            with self.assertRaises(RuntimeError):
+                zd.build_etf('TAJNY-SOSO', 'TAJNY-CG')
+        self.assertNotIn('TAJNY-CG', seen['url'])
+        self.assertEqual(seen['headers'], {'x-cg-demo-api-key': 'TAJNY-CG'})
+        self.assertTrue(all('TAJNY' not in e for e in zd.META['errors']))
+
+    def test_ticker_outside_the_pattern_is_rejected_and_reported(self):
+        funds = {'btc': [{'ticker': 'IBIT', 'name': 'ok'}, {'ticker': '<img src=x>', 'name': 'zły'}]}
+        snapshots = {'IBIT': {'net_assets': 1e9, 'cum_inflow': 1e9, 'net_inflow': 1e6, 'sponsor_fee': 0.0025}}
+        with mock.patch.object(zd, 'soso', _soso_factory({'btc': _rows(['2026-09-22', '2026-09-23'])}, funds, snapshots)), \
+             mock.patch.object(zd, 'get_json', lambda url, headers=None: {'bitcoin': {'usd_market_cap': 1e12}, 'ethereum': {'usd_market_cap': 1},
+                                                                          'solana': {'usd_market_cap': 1}, 'ripple': {'usd_market_cap': 1}}), \
+             mock.patch.object(zd, 'ETF_SYMS', ['btc']):
+            out = zd.build_etf('k', 'c')
+        self.assertEqual([f['t'] for f in out['assets']['btc']['funds']], ['IBIT'])
+        self.assertTrue(any('odrzucony ticker' in e for e in zd.META['errors']))
+
+
 if __name__ == '__main__':
     unittest.main()

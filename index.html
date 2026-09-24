@@ -828,9 +828,9 @@ const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 /* ===================== I18N ===================== */
 const LOCALE={pl:'pl-PL',en:'en-US',de:'de-DE',es:'es-ES',fr:'fr-FR',it:'it-IT',pt:'pt-BR',ru:'ru-RU',zh:'zh-CN',ja:'ja-JP'};
 const I18N={
-pl:{'tab.global':'GLOBAL','tab.crypto':'CRYPTO','nav.overview':'Przegląd','nav.flows':'Przepływy','nav.assets':'Aktywa','nav.sectors':'Sektory','nav.sources':'Źródła','nav.method':'Metodologia','nav.na':'Poza zakresem makiety','upd':'Ostatnia aktualizacja','upd.v':'—','lang':'Język','theme':'Motyw','theme.system':'Systemowy','theme.light':'Jasny','theme.dark':'Ciemny','theme.custom':'Niestandardowy','theme.color':'Kolor tła','theme.image':'Obraz tła…','theme.removeImage':'Usuń obraz','theme.pattern':'Wzór hex','bg':'Tło hex','bg.off':'Wył.','bg.soft':'Subtelne','bg.strong':'Wyraźne','anim':'Animacja','help':'Jak czytać ten widok','h1':'Co dzieje się w krypto?','badge':'Makieta','sub':'Dane przykładowe · zmiany względem poprzedniego okresu','p.24H':'24H','p.7D':'7D','p.30D':'30D','p.1R':'1R','per.24H':'24 godziny','per.7D':'7 dni','per.30D':'30 dni','per.1R':'12 miesięcy','prev.24H':'24 godzin','prev.7D':'7 dni','prev.30D':'30 dni','prev.1R':'12 miesięcy','d.vs':'względem poprzednich {p}','plain.in':'W ciągu ostatnich {p} do „{n}” napłynęło netto {v} więcej, niż odpłynęło.','plain.out':'W ciągu ostatnich {p} z „{n}” odpłynęło netto {v} więcej, niż napłynęło.','plain.edge':'W ciągu ostatnich {p} z „{a}” do „{b}” przepłynęło około {v}.','kpi.mcap':'Rynek krypto','kpi.dom':'Dominacja BTC','kpi.stab':'Podaż stablecoinów','kpi.exch':'Przepływy giełdowe','kpi.tvl':'DeFi TVL','kpi.oi':'Open Interest','u.t':'bln USD','u.b':'mld USD','u.m':'mln USD','u.pp':'pp','view.blocks':'KLOCKI 3D','view.net':'SIEĆ','view.list':'LISTA','label':'Etykieta','label.pct':'% przepływu','label.val':'Przepływ netto','label.none':'Tylko nazwa','cam':'Kamera','cam.iso':'Izometria','cam.top':'Z góry','cam.side':'Z boku','rot':'Obrót','size':'Rozmiar','size.s':'Mały','size.m':'Średni','size.l':'Duży','hint':'Przeciągnij: obrót · kółko lub szczypnięcie: zoom · prawy przycisk lub Shift: przesuwanie','zoom.in':'Przybliż','zoom.out':'Oddal','zoom.reset':'Resetuj kamerę','chips':'Elementy:','leg.area':'Powierzchnia klocka odpowiada przepływowi netto. Największy element: {v}.','leg.in':'napływ','leg.out':'odpływ','leg.measured':'pomiar','leg.proxy':'proxy','leg.unc':'niepewne','leg.current':'Ruch na liniach pokazuje kierunek, nie szybkość kapitału.','howto.t':'Jak to czytać?','howto.1':'Klocek to aktywo lub sektor, a kula to giełdy. Im większy element, tym więcej kapitału netto napłynęło (zielony) albo odpłynęło (czerwony).','howto.2':'Linie to przepływy między nimi. „Prąd” płynie w stronę strzałki, a grubość linii oznacza kwotę.','howto.3':'Kliknij element lub linię, aby zobaczyć kwotę, źródło danych i ograniczenia. Przeciągaj, aby obejrzeć scenę z każdej strony.','howto.ok':'Rozumiem','why':'Dlaczego to widzisz?','why.empty':'Kliknij klocek, kulę lub linię w scenie 3D (albo pozycję na liście), aby zobaczyć wartość, jednostkę, okres, źródło, rodzaj dowodu i ograniczenia.','d.netin':'Napływ netto','d.netout':'Odpływ netto','d.in':'Napływ','d.out':'Odpływ','d.value':'Wartość','d.unit':'Jednostka','d.unitNode':'przepływ netto','d.unitEdge':'wartość transferu','d.period':'Okres','d.source':'Źródło','d.evidence':'Rodzaj dowodu','d.limits':'Ograniczenia','d.plain':'Prostymi słowami','d.close':'Zamknij szczegóły','q.src':'Jakość źródeł','q.src.v':'4,2 / 5','q.src.d':'Zróżnicowane, wiarygodne źródła on-chain i off-chain.','q.fresh':'Świeżość danych','q.fresh.v':'Śr. opóźnienie 2,8 h','q.fresh.d':'Dane aktualizowane w sposób ciągły, zależnie od źródła.','q.compl':'Kompletność','q.compl.v':'78%','q.compl.d':'Pokrycie ekosystemu: szeroki zakres sektorów i protokołów.','q.meth':'Metodologia','q.meth.v':'Model hybrydowy','q.meth.d':'Łączy bezpośrednie przepływy on-chain z inferencją statystyczną.','q.lin':'Pochodzenie (lineage)','q.lin.v':'Pełna ścieżka danych','q.lin.d':'Każdy sygnał ma źródło i metodę obliczeń.','ev.direct':'Bezpośredni flow','ev.onchain':'Transfer on-chain','ev.proxy':'Proxy / inferencja','ev.unc':'Niepewne','evd.direct':'Bezpośrednio udokumentowane przepływy kapitału on-chain.','evd.onchain':'Zaobserwowane transfery między adresami lub protokołami.','evd.proxy':'Wnioski statystyczne na podstawie wzorców i korelacji.','evd.unc':'Niska pewność ze względu na ograniczone dane lub sprzeczne sygnały.','rail':'Kapitał w krypto','rail.in':'Największe napływy','rail.out':'Największe odpływy','rail.sect':'Aktywność sektorów','rail.rel':'Wiarygodność danych','rail.relLvl':'Umiarkowanie wysoka','rail.relDesc':'Na podstawie jakości źródeł, świeżości i kompletności danych.','rail.sectAria':'{n}: aktywność {v} z 10','list.asset':'Aktywo / sektor','list.net':'Przepływ netto','list.pct':'% przepływu','list.dir':'Kierunek','list.ev':'Rodzaj dowodu','list.cap':'Przepływ netto w okresie: {p}','global.t':'Widok GLOBAL bez zmian','global.d':'Tu zostaje dotychczasowa mapa świata z regionalnymi bąblami i połączeniami. W tej makiecie zmieniony jest tylko tryb CRYPTO.','scene.aria':'Scena 3D: klocki blockchain i kula giełd połączone liniami przepływu. Rozmiar elementu odpowiada przepływowi netto. Przeciągnij, aby obracać kamerę, kółko myszy przybliża. Strzałki obracają, plus i minus zmieniają zbliżenie. Te same dane są w widoku listy.','n.btc':'BTC','n.eth':'ETH','n.stab':'Stablecoiny','n.defi':'DeFi','n.l12':'L1/L2','n.exch':'Giełdy','n.ai':'AI','n.rwa':'RWA','n.depin':'DePIN','n.gaming':'Gaming','n.meme':'Memecoiny','src.asset':'Salda i transfery adresów {n} (on-chain) zestawione z danymi giełd.','src.stab':'Emisja, spalanie i transfery stablecoinów w największych sieciach.','src.defi':'Zmiany TVL w agregowanych protokołach DeFi.','src.l12':'Mosty i depozyty w sieciach warstwy 1 i 2.','src.exch':'Salda giełd z publicznych dowodów rezerw i oznaczonych adresów.','src.basket':'Koszyk tokenów sektora {n}: szacunek z wolumenu i płynności.','src.rwa':'Wybrane emisje tokenizowanych aktywów.','lim.direct':'Nie obejmuje transakcji OTC ani przepływów wewnątrz portfeli własnych giełd.','lim.onchain':'Transfery między własnymi adresami jednego podmiotu mogą zawyżać wolumen; część aktywności jest widoczna z opóźnieniem.','lim.proxy':'Wniosek statystyczny: nie wiadomo dokładnie, skąd kapitał pochodzi; silna zależność od kilku tokenów.','lim.unc':'Niepełne dane: część emitentów nie publikuje sald.','esrc.direct':'Transfery {a} → {b} na oznaczonych adresach giełd.','esrc.onchain':'Transfery {a} → {b} obserwowane on-chain między adresami protokołów.','esrc.proxy':'Przepływ {a} → {b} szacowany z wolumenu mostów i płynności.','esrc.unc':'Przepływ {a} → {b} z niepełnych danych emitentów.','elim.direct':'Wpłata na giełdę nie musi oznaczać sprzedaży, a wypłata nie zawsze oznacza nowy kapitał.','elim.onchain':'Ruch przez mosty i depozyty pochodne bywa liczony podwójnie.','elim.proxy':'Wniosek statystyczny, nie bezpośredni pomiar.','elim.unc':'Niepełne dane: część emitentów nie publikuje sald.'},
+pl:{'tab.global':'GLOBAL','tab.crypto':'CRYPTO','nav.overview':'Przegląd','nav.flows':'Przepływy','nav.assets':'Aktywa','nav.sectors':'Sektory','nav.sources':'Źródła','nav.method':'Metodologia','nav.na':'Poza zakresem makiety','upd':'Ostatnia aktualizacja','upd.v':'—','lang':'Język','theme':'Motyw','theme.system':'Systemowy','theme.light':'Jasny','theme.dark':'Ciemny','theme.custom':'Niestandardowy','theme.color':'Kolor tła','theme.image':'Obraz tła…','theme.removeImage':'Usuń obraz','theme.pattern':'Wzór hex','bg':'Tło hex','bg.off':'Wył.','bg.soft':'Subtelne','bg.strong':'Wyraźne','anim':'Animacja','help':'Jak czytać ten widok','h1':'Co dzieje się w krypto?','badge':'Makieta','sub':'Dane przykładowe · zmiany względem poprzedniego okresu','p.24H':'24H','p.7D':'7D','p.30D':'30D','p.1R':'1R','per.24H':'24 godziny','per.7D':'7 dni','per.30D':'30 dni','per.1R':'12 miesięcy','prev.24H':'24 godzin','prev.7D':'7 dni','prev.30D':'30 dni','prev.1R':'12 miesięcy','d.vs':'względem poprzednich {p}','plain.in':'W ciągu ostatnich {p} do „{n}” napłynęło netto {v} więcej, niż odpłynęło.','plain.out':'W ciągu ostatnich {p} z „{n}” odpłynęło netto {v} więcej, niż napłynęło.','plain.edge':'W ciągu ostatnich {p} z „{a}” do „{b}” przepłynęło około {v}.','kpi.mcap':'Rynek krypto','kpi.dom':'Dominacja BTC','kpi.stab':'Podaż stablecoinów','kpi.exch':'Przepływy giełdowe','kpi.tvl':'DeFi TVL','kpi.oi':'Open Interest','u.t':'bln USD','u.b':'mld USD','u.m':'mln USD','u.pp':'pp','view.blocks':'KLOCKI 3D','view.net':'SIEĆ','view.list':'LISTA','label':'Etykieta','label.pct':'% przepływu','label.val':'Przepływ netto','label.none':'Tylko nazwa','cam':'Kamera','cam.iso':'Izometria','cam.top':'Z góry','cam.side':'Z boku','rot':'Obrót','size':'Rozmiar','size.s':'Mały','size.m':'Średni','size.l':'Duży','hint':'Przeciągnij: obrót · kółko lub szczypnięcie: zoom · prawy przycisk lub Shift: przesuwanie','zoom.in':'Przybliż','zoom.out':'Oddal','zoom.reset':'Resetuj kamerę','chips':'Elementy:','leg.area':'Powierzchnia klocka odpowiada przepływowi netto. Największy element: {v}.','leg.in':'napływ','leg.out':'odpływ','leg.measured':'pomiar','leg.proxy':'proxy','leg.unc':'niepewne','leg.current':'Ruch na liniach pokazuje kierunek, nie szybkość kapitału.','howto.t':'Jak to czytać?','howto.1':'Klocek to aktywo lub sektor, a kula to giełdy. Im większy element, tym więcej kapitału netto napłynęło (zielony) albo odpłynęło (czerwony).','howto.2':'Linie to przepływy między nimi. „Prąd” płynie w stronę strzałki, a grubość linii oznacza kwotę.','howto.3':'Kliknij element lub linię, aby zobaczyć kwotę, źródło danych i ograniczenia. Przeciągaj, aby obejrzeć scenę z każdej strony.','howto.ok':'Rozumiem','why':'Dlaczego to widzisz?','why.empty':'Kliknij klocek, kulę lub linię w scenie 3D (albo pozycję na liście), aby zobaczyć wartość, jednostkę, okres, źródło, rodzaj dowodu i ograniczenia.','d.netin':'Napływ netto','d.netout':'Odpływ netto','d.in':'Napływ','d.out':'Odpływ','d.value':'Wartość','d.unit':'Jednostka','d.unitNode':'przepływ netto','d.unitEdge':'wartość transferu','d.period':'Okres','d.source':'Źródło','d.evidence':'Rodzaj dowodu','d.limits':'Ograniczenia','d.plain':'Prostymi słowami','d.close':'Zamknij szczegóły','q.src':'Jakość źródeł','q.src.v':'4,2 / 5','q.src.d':'Zróżnicowane, wiarygodne źródła on-chain i off-chain.','q.fresh':'Świeżość danych','q.fresh.v':'Śr. opóźnienie 2,8 h','q.fresh.d':'Dane aktualizowane w sposób ciągły, zależnie od źródła.','q.compl':'Kompletność','q.compl.v':'78%','q.compl.d':'Pokrycie ekosystemu: szeroki zakres sektorów i protokołów.','q.meth':'Metodologia','q.meth.v':'Model hybrydowy','q.meth.d':'Łączy bezpośrednie przepływy on-chain z inferencją statystyczną.','q.lin':'Pochodzenie (lineage)','q.lin.v':'Pełna ścieżka danych','q.lin.d':'Każdy sygnał ma źródło i metodę obliczeń.','ev.direct':'Bezpośredni flow','ev.onchain':'Transfer on-chain','ev.proxy':'Proxy / inferencja','ev.unc':'Niepewne','evd.direct':'Bezpośrednio udokumentowane przepływy kapitału on-chain.','evd.onchain':'Zaobserwowane transfery między adresami lub protokołami.','evd.proxy':'Wnioski statystyczne na podstawie wzorców i korelacji.','evd.unc':'Niska pewność ze względu na ograniczone dane lub sprzeczne sygnały.','rail':'Kapitał w krypto','rail.in':'Największe napływy','rail.out':'Największe odpływy','rail.sect':'Aktywność sektorów','rail.rel':'Wiarygodność danych','rail.relLvl':'Umiarkowanie wysoka','rail.relDesc':'Na podstawie jakości źródeł, świeżości i kompletności danych.','rail.sectAria':'{n}: aktywność {v} z 10','list.asset':'Aktywo / sektor','list.net':'Przepływ netto','list.pct':'% przepływu','list.dir':'Kierunek','list.ev':'Rodzaj dowodu','list.cap':'Przepływ netto w okresie: {p}','global.t':'Widok GLOBAL bez zmian','global.d':'Tu zostaje dotychczasowa mapa świata z regionalnymi bąblami i połączeniami. W tej makiecie zmieniony jest tylko tryb CRYPTO.','scene.aria':'Scena 3D: klocki blockchain i kula giełd połączone liniami przepływu. Rozmiar elementu odpowiada przepływowi netto. Przeciągnij, aby obracać kamerę, kółko myszy przybliża. Strzałki obracają, plus i minus zmieniają zbliżenie. Te same dane są w widoku listy.','n.btc':'BTC','n.eth':'ETH','n.stab':'Stablecoiny','n.defi':'DeFi','n.l12':'L1/L2','n.exch':'Giełdy','n.ai':'AI','n.rwa':'RWA','n.depin':'DePIN','n.gaming':'Gaming','n.meme':'Memecoiny','src.asset':'CoinPaprika · {n}: zmiana kapitalizacji liczona ze zmiany ceny przy obecnej podaży (bez połączenia na żywo — dane przykładowe).','src.stab':'Na żywo: CoinPaprika · zmiana kapitalizacji koszyka stablecoinów (USDT, USDC, USDe, DAI, FDUSD, PYUSD, TUSD, USDS), liczona z procentowej zmiany ceny; bez połączenia — dane przykładowe.','src.defi':'CoinPaprika (gdy dostępne są dane na żywo) · zmiana kapitalizacji koszyka tokenów DeFi (np. AAVE, UNI), liczona ze zmiany ceny w okresie. To nie jest TVL.','src.l12':'CoinPaprika · zmiana kapitalizacji koszyka tokenów sieci warstwy 1 i 2 (np. SOL, ARB), liczona ze zmiany ceny.','src.exch':'Salda giełd nie są mierzone. Wartość = minus suma zmian kapitalizacji wszystkich pozostałych elementów (dane CoinPaprika); model zakłada, że ta różnica przeszła przez giełdy.','src.basket':'Koszyk tokenów sektora {n}: zmiana kapitalizacji monet z koszyka w okresie, liczona ze zmiany ceny; dane CoinPaprika, gdy są wczytane — inaczej wartości przykładowe.','src.rwa':'CoinPaprika · zmiana kapitalizacji koszyka tokenów RWA (np. ONDO), liczona ze zmiany ceny.','lim.direct':'Nie obejmuje transakcji OTC ani przepływów wewnątrz portfeli własnych giełd.','lim.onchain':'Transfery między własnymi adresami jednego podmiotu mogą zawyżać wolumen; część aktywności jest widoczna z opóźnieniem.','lim.proxy':'Wniosek statystyczny: nie wiadomo dokładnie, skąd kapitał pochodzi; silna zależność od kilku tokenów.','lim.unc':'Niepełne dane: część emitentów nie publikuje sald.','esrc.direct':'Transfery {a} → {b} na oznaczonych adresach giełd.','esrc.onchain':'Transfery {a} → {b} obserwowane on-chain między adresami protokołów.','esrc.proxy':'Przepływ {a} → {b} szacowany z wolumenu mostów i płynności.','esrc.unc':'Przepływ {a} → {b} z niepełnych danych emitentów.','elim.direct':'Wpłata na giełdę nie musi oznaczać sprzedaży, a wypłata nie zawsze oznacza nowy kapitał.','elim.onchain':'Ruch przez mosty i depozyty pochodne bywa liczony podwójnie.','elim.proxy':'Wniosek statystyczny, nie bezpośredni pomiar.','elim.unc':'Niepełne dane: część emitentów nie publikuje sald.'},
 
-en:{'tab.global':'GLOBAL','tab.crypto':'CRYPTO','nav.overview':'Overview','nav.flows':'Flows','nav.assets':'Assets','nav.sectors':'Sectors','nav.sources':'Sources','nav.method':'Methodology','nav.na':'Outside the scope of this mockup','upd':'Last update','upd.v':'—','lang':'Language','theme':'Theme','theme.system':'System','theme.light':'Light','theme.dark':'Dark','theme.custom':'Custom','theme.color':'Background color','theme.image':'Background image…','theme.removeImage':'Remove image','theme.pattern':'Hex pattern','bg':'Hex background','bg.off':'Off','bg.soft':'Subtle','bg.strong':'Strong','anim':'Animation','help':'How to read this view','h1':'What is happening in crypto?','badge':'Mockup','sub':'Sample data · change vs the previous period','p.24H':'24H','p.7D':'7D','p.30D':'30D','p.1R':'1Y','per.24H':'24 hours','per.7D':'7 days','per.30D':'30 days','per.1R':'12 months','prev.24H':'24 hours','prev.7D':'7 days','prev.30D':'30 days','prev.1R':'12 months','d.vs':'vs the previous {p}','plain.in':'Over the last {p}, {v} more net capital flowed into “{n}” than out of it.','plain.out':'Over the last {p}, {v} more net capital flowed out of “{n}” than into it.','plain.edge':'Over the last {p}, about {v} moved from “{a}” to “{b}”.','kpi.mcap':'Crypto market','kpi.dom':'BTC dominance','kpi.stab':'Stablecoin supply','kpi.exch':'Exchange flows','kpi.tvl':'DeFi TVL','kpi.oi':'Open interest','u.t':'T USD','u.b':'B USD','u.m':'M USD','u.pp':'pp','view.blocks':'3D BLOCKS','view.net':'NETWORK','view.list':'LIST','label':'Label','label.pct':'% of flow','label.val':'Net flow','label.none':'Name only','cam':'Camera','cam.iso':'Isometric','cam.top':'Top','cam.side':'Side','rot':'Rotate','size':'Size','size.s':'Small','size.m':'Medium','size.l':'Large','hint':'Drag: rotate · wheel or pinch: zoom · right button or Shift: pan','zoom.in':'Zoom in','zoom.out':'Zoom out','zoom.reset':'Reset camera','chips':'Items:','leg.area':'Block area is proportional to net flow. Largest item: {v}.','leg.in':'inflow','leg.out':'outflow','leg.measured':'measured','leg.proxy':'proxy','leg.unc':'uncertain','leg.current':'Motion on the lines shows direction, not the speed of capital.','howto.t':'How to read this?','howto.1':'A block is an asset or sector; the sphere is the exchanges. The bigger it is, the more net capital flowed in (green) or out (red).','howto.2':'Lines are flows between them. The “current” runs toward the arrow, and line thickness shows the amount.','howto.3':'Click an item or a line to see the amount, data source and limitations. Drag to look at the scene from any side.','howto.ok':'Got it','why':'Why am I seeing this?','why.empty':'Click a block, the sphere or a line in the 3D scene (or an item in the list) to see the value, unit, period, source, type of evidence and limitations.','d.netin':'Net inflow','d.netout':'Net outflow','d.in':'Inflow','d.out':'Outflow','d.value':'Value','d.unit':'Unit','d.unitNode':'net flow','d.unitEdge':'transfer value','d.period':'Period','d.source':'Source','d.evidence':'Type of evidence','d.limits':'Limitations','d.plain':'In plain words','d.close':'Close details','q.src':'Source quality','q.src.v':'4.2 / 5','q.src.d':'Diverse, reliable on-chain and off-chain sources.','q.fresh':'Data freshness','q.fresh.v':'Avg. delay 2.8 h','q.fresh.d':'Data is updated continuously, depending on the source.','q.compl':'Completeness','q.compl.v':'78%','q.compl.d':'Ecosystem coverage: a broad range of sectors and protocols.','q.meth':'Methodology','q.meth.v':'Hybrid model','q.meth.d':'Combines direct on-chain flows with statistical inference.','q.lin':'Lineage','q.lin.v':'Full data path','q.lin.d':'Every signal has a source and a calculation method.','ev.direct':'Direct flow','ev.onchain':'On-chain transfer','ev.proxy':'Proxy / inference','ev.unc':'Uncertain','evd.direct':'Directly documented on-chain capital flows.','evd.onchain':'Observed transfers between addresses or protocols.','evd.proxy':'Statistical conclusions based on patterns and correlations.','evd.unc':'Low confidence due to limited data or conflicting signals.','rail':'Capital in crypto','rail.in':'Largest inflows','rail.out':'Largest outflows','rail.sect':'Sector activity','rail.rel':'Data reliability','rail.relLvl':'Moderately high','rail.relDesc':'Based on source quality, freshness and completeness of data.','rail.sectAria':'{n}: activity {v} of 10','list.asset':'Asset / sector','list.net':'Net flow','list.pct':'% of flow','list.dir':'Direction','list.ev':'Type of evidence','list.cap':'Net flow over: {p}','global.t':'GLOBAL view unchanged','global.d':'The existing world map with regional bubbles and connections stays here. Only the CRYPTO mode is changed in this mockup.','scene.aria':'3D scene: blockchain blocks and an exchange sphere connected by flow lines. Item size corresponds to net flow. Drag to rotate the camera, mouse wheel zooms. Arrow keys rotate, plus and minus zoom. The same data is available in the list view.','n.btc':'BTC','n.eth':'ETH','n.stab':'Stablecoins','n.defi':'DeFi','n.l12':'L1/L2','n.exch':'Exchanges','n.ai':'AI','n.rwa':'RWA','n.depin':'DePIN','n.gaming':'Gaming','n.meme':'Memecoins','src.asset':'Balances and transfers of {n} addresses (on-chain) matched with exchange data.','src.stab':'Issuance, burning and transfers of stablecoins on the largest networks.','src.defi':'TVL changes in aggregated DeFi protocols.','src.l12':'Bridges and deposits on layer 1 and layer 2 networks.','src.exch':'Exchange balances from public proof of reserves and labelled addresses.','src.basket':'{n} sector token basket: estimate from volume and liquidity.','src.rwa':'Selected issuances of tokenized assets.','lim.direct':'Excludes OTC trades and flows inside exchanges’ own wallets.','lim.onchain':'Transfers between one entity’s own addresses can inflate volume; some activity is visible with a delay.','lim.proxy':'Statistical conclusion: the exact origin of capital is unknown; strong dependence on a few tokens.','lim.unc':'Incomplete data: some issuers do not publish balances.','esrc.direct':'{a} → {b} transfers on labelled exchange addresses.','esrc.onchain':'{a} → {b} transfers observed on-chain between protocol addresses.','esrc.proxy':'{a} → {b} flow estimated from bridge volume and liquidity.','esrc.unc':'{a} → {b} flow from incomplete issuer data.','elim.direct':'A deposit to an exchange does not have to mean a sale, and a withdrawal is not always new capital.','elim.onchain':'Traffic through bridges and derivative deposits can be counted twice.','elim.proxy':'Statistical conclusion, not a direct measurement.','elim.unc':'Incomplete data: some issuers do not publish balances.'},
+en:{'tab.global':'GLOBAL','tab.crypto':'CRYPTO','nav.overview':'Overview','nav.flows':'Flows','nav.assets':'Assets','nav.sectors':'Sectors','nav.sources':'Sources','nav.method':'Methodology','nav.na':'Outside the scope of this mockup','upd':'Last update','upd.v':'—','lang':'Language','theme':'Theme','theme.system':'System','theme.light':'Light','theme.dark':'Dark','theme.custom':'Custom','theme.color':'Background color','theme.image':'Background image…','theme.removeImage':'Remove image','theme.pattern':'Hex pattern','bg':'Hex background','bg.off':'Off','bg.soft':'Subtle','bg.strong':'Strong','anim':'Animation','help':'How to read this view','h1':'What is happening in crypto?','badge':'Mockup','sub':'Sample data · change vs the previous period','p.24H':'24H','p.7D':'7D','p.30D':'30D','p.1R':'1Y','per.24H':'24 hours','per.7D':'7 days','per.30D':'30 days','per.1R':'12 months','prev.24H':'24 hours','prev.7D':'7 days','prev.30D':'30 days','prev.1R':'12 months','d.vs':'vs the previous {p}','plain.in':'Over the last {p}, {v} more net capital flowed into “{n}” than out of it.','plain.out':'Over the last {p}, {v} more net capital flowed out of “{n}” than into it.','plain.edge':'Over the last {p}, about {v} moved from “{a}” to “{b}”.','kpi.mcap':'Crypto market','kpi.dom':'BTC dominance','kpi.stab':'Stablecoin supply','kpi.exch':'Exchange flows','kpi.tvl':'DeFi TVL','kpi.oi':'Open interest','u.t':'T USD','u.b':'B USD','u.m':'M USD','u.pp':'pp','view.blocks':'3D BLOCKS','view.net':'NETWORK','view.list':'LIST','label':'Label','label.pct':'% of flow','label.val':'Net flow','label.none':'Name only','cam':'Camera','cam.iso':'Isometric','cam.top':'Top','cam.side':'Side','rot':'Rotate','size':'Size','size.s':'Small','size.m':'Medium','size.l':'Large','hint':'Drag: rotate · wheel or pinch: zoom · right button or Shift: pan','zoom.in':'Zoom in','zoom.out':'Zoom out','zoom.reset':'Reset camera','chips':'Items:','leg.area':'Block area is proportional to net flow. Largest item: {v}.','leg.in':'inflow','leg.out':'outflow','leg.measured':'measured','leg.proxy':'proxy','leg.unc':'uncertain','leg.current':'Motion on the lines shows direction, not the speed of capital.','howto.t':'How to read this?','howto.1':'A block is an asset or sector; the sphere is the exchanges. The bigger it is, the more net capital flowed in (green) or out (red).','howto.2':'Lines are flows between them. The “current” runs toward the arrow, and line thickness shows the amount.','howto.3':'Click an item or a line to see the amount, data source and limitations. Drag to look at the scene from any side.','howto.ok':'Got it','why':'Why am I seeing this?','why.empty':'Click a block, the sphere or a line in the 3D scene (or an item in the list) to see the value, unit, period, source, type of evidence and limitations.','d.netin':'Net inflow','d.netout':'Net outflow','d.in':'Inflow','d.out':'Outflow','d.value':'Value','d.unit':'Unit','d.unitNode':'net flow','d.unitEdge':'transfer value','d.period':'Period','d.source':'Source','d.evidence':'Type of evidence','d.limits':'Limitations','d.plain':'In plain words','d.close':'Close details','q.src':'Source quality','q.src.v':'4.2 / 5','q.src.d':'Diverse, reliable on-chain and off-chain sources.','q.fresh':'Data freshness','q.fresh.v':'Avg. delay 2.8 h','q.fresh.d':'Data is updated continuously, depending on the source.','q.compl':'Completeness','q.compl.v':'78%','q.compl.d':'Ecosystem coverage: a broad range of sectors and protocols.','q.meth':'Methodology','q.meth.v':'Hybrid model','q.meth.d':'Combines direct on-chain flows with statistical inference.','q.lin':'Lineage','q.lin.v':'Full data path','q.lin.d':'Every signal has a source and a calculation method.','ev.direct':'Direct flow','ev.onchain':'On-chain transfer','ev.proxy':'Proxy / inference','ev.unc':'Uncertain','evd.direct':'Directly documented on-chain capital flows.','evd.onchain':'Observed transfers between addresses or protocols.','evd.proxy':'Statistical conclusions based on patterns and correlations.','evd.unc':'Low confidence due to limited data or conflicting signals.','rail':'Capital in crypto','rail.in':'Largest inflows','rail.out':'Largest outflows','rail.sect':'Sector activity','rail.rel':'Data reliability','rail.relLvl':'Moderately high','rail.relDesc':'Based on source quality, freshness and completeness of data.','rail.sectAria':'{n}: activity {v} of 10','list.asset':'Asset / sector','list.net':'Net flow','list.pct':'% of flow','list.dir':'Direction','list.ev':'Type of evidence','list.cap':'Net flow over: {p}','global.t':'GLOBAL view unchanged','global.d':'The existing world map with regional bubbles and connections stays here. Only the CRYPTO mode is changed in this mockup.','scene.aria':'3D scene: blockchain blocks and an exchange sphere connected by flow lines. Item size corresponds to net flow. Drag to rotate the camera, mouse wheel zooms. Arrow keys rotate, plus and minus zoom. The same data is available in the list view.','n.btc':'BTC','n.eth':'ETH','n.stab':'Stablecoins','n.defi':'DeFi','n.l12':'L1/L2','n.exch':'Exchanges','n.ai':'AI','n.rwa':'RWA','n.depin':'DePIN','n.gaming':'Gaming','n.meme':'Memecoins','src.asset':'{n}: market-cap change derived from the CoinPaprika price change at current supply (without live data: sample data).','src.stab':'CoinPaprika · market-cap change of a stablecoin basket (USDT, USDC, USDe, DAI, FDUSD, PYUSD, TUSD, USDS), derived from price change.','src.defi':'CoinPaprika (live data only) · market-cap change of a DeFi token basket (e.g. AAVE, UNI), derived from price change. This is not TVL.','src.l12':'CoinPaprika · market-cap change of a layer 1 and layer 2 network token basket (e.g. SOL, ARB), derived from price change. Without live data the scene shows sample values.','src.exch':'Exchange balances are not measured. With live data, value = minus the sum of market-cap changes of all other items (CoinPaprika); the model assumes the difference passed through exchanges. Without live data, demo values are shown.','src.basket':'CoinPaprika · market-cap change of the {n} sector token basket, derived from price change.','src.rwa':'CoinPaprika · market-cap change of the RWA token basket (e.g. ONDO), derived from price change. Without live data the view shows sample values.','lim.direct':'Excludes OTC trades and flows inside exchanges’ own wallets.','lim.onchain':'Transfers between one entity’s own addresses can inflate volume; some activity is visible with a delay.','lim.proxy':'Statistical conclusion: the exact origin of capital is unknown; strong dependence on a few tokens.','lim.unc':'Incomplete data: some issuers do not publish balances.','esrc.direct':'{a} → {b} transfers on labelled exchange addresses.','esrc.onchain':'{a} → {b} transfers observed on-chain between protocol addresses.','esrc.proxy':'{a} → {b} flow estimated from bridge volume and liquidity.','esrc.unc':'{a} → {b} flow from incomplete issuer data.','elim.direct':'A deposit to an exchange does not have to mean a sale, and a withdrawal is not always new capital.','elim.onchain':'Traffic through bridges and derivative deposits can be counted twice.','elim.proxy':'Statistical conclusion, not a direct measurement.','elim.unc':'Incomplete data: some issuers do not publish balances.'},
 
 de:{'tab.global':'GLOBAL','tab.crypto':'KRYPTO','nav.overview':'Übersicht','nav.flows':'Flüsse','nav.assets':'Assets','nav.sectors':'Sektoren','nav.sources':'Quellen','nav.method':'Methodik','nav.na':'Nicht Teil dieses Mockups','upd':'Letzte Aktualisierung','upd.v':'—','lang':'Sprache','theme':'Design','theme.system':'System','theme.light':'Hell','theme.dark':'Dunkel','theme.custom':'Benutzerdefiniert','theme.color':'Hintergrundfarbe','theme.image':'Hintergrundbild…','theme.removeImage':'Bild entfernen','theme.pattern':'Hex-Muster','bg':'Hex-Hintergrund','bg.off':'Aus','bg.soft':'Dezent','bg.strong':'Kräftig','anim':'Animation','help':'So liest man diese Ansicht','h1':'Was passiert gerade im Krypto-Markt?','badge':'Mockup','sub':'Beispieldaten · Veränderung gegenüber dem Vorzeitraum','p.24H':'24h','p.7D':'7T','p.30D':'30T','p.1R':'1J','per.24H':'24 Stunden','per.7D':'7 Tage','per.30D':'30 Tage','per.1R':'12 Monate','prev.24H':'24 Stunden','prev.7D':'7 Tagen','prev.30D':'30 Tagen','prev.1R':'12 Monaten','d.vs':'gegenüber den vorherigen {p}','plain.in':'In den letzten {p} sind netto {v} mehr Kapital in „{n}“ geflossen als abgeflossen.','plain.out':'In den letzten {p} sind netto {v} mehr Kapital aus „{n}“ abgeflossen als zugeflossen.','plain.edge':'In den letzten {p} flossen etwa {v} von „{a}“ nach „{b}“.','kpi.mcap':'Krypto-Markt','kpi.dom':'BTC-Dominanz','kpi.stab':'Stablecoin-Angebot','kpi.exch':'Börsenflüsse','kpi.tvl':'DeFi TVL','kpi.oi':'Open Interest','u.t':'Bio. USD','u.b':'Mrd. USD','u.m':'Mio. USD','u.pp':'Pp.','view.blocks':'3D-BLÖCKE','view.net':'NETZ','view.list':'LISTE','label':'Beschriftung','label.pct':'% des Flusses','label.val':'Nettofluss','label.none':'Nur Name','cam':'Kamera','cam.iso':'Isometrie','cam.top':'Von oben','cam.side':'Seitlich','rot':'Drehen','size':'Größe','size.s':'Klein','size.m':'Mittel','size.l':'Groß','hint':'Ziehen: drehen · Rad oder Pinch: Zoom · rechte Taste oder Shift: verschieben','zoom.in':'Vergrößern','zoom.out':'Verkleinern','zoom.reset':'Kamera zurücksetzen','chips':'Elemente:','leg.area':'Die Blockfläche entspricht dem Nettofluss. Größtes Element: {v}.','leg.in':'Zufluss','leg.out':'Abfluss','leg.measured':'gemessen','leg.proxy':'Proxy','leg.unc':'unsicher','leg.current':'Die Bewegung auf den Linien zeigt die Richtung, nicht die Geschwindigkeit des Kapitals.','howto.t':'Wie liest man das?','howto.1':'Ein Block ist ein Asset oder Sektor, die Kugel steht für die Börsen. Je größer, desto mehr Kapital ist netto zugeflossen (grün) oder abgeflossen (rot).','howto.2':'Linien sind Flüsse dazwischen. Der „Strom“ läuft in Pfeilrichtung, die Linienstärke zeigt den Betrag.','howto.3':'Klicke ein Element oder eine Linie an, um Betrag, Datenquelle und Einschränkungen zu sehen. Ziehe, um die Szene von allen Seiten zu betrachten.','howto.ok':'Verstanden','why':'Warum sehe ich das?','why.empty':'Klicke in der 3D-Szene auf einen Block, die Kugel oder eine Linie (oder auf einen Listeneintrag), um Wert, Einheit, Zeitraum, Quelle, Evidenzart und Einschränkungen zu sehen.','d.netin':'Nettozufluss','d.netout':'Nettoabfluss','d.in':'Zufluss','d.out':'Abfluss','d.value':'Wert','d.unit':'Einheit','d.unitNode':'Nettofluss','d.unitEdge':'Transferwert','d.period':'Zeitraum','d.source':'Quelle','d.evidence':'Evidenzart','d.limits':'Einschränkungen','d.plain':'Einfach gesagt','d.close':'Details schließen','q.src':'Quellenqualität','q.src.v':'4,2 / 5','q.fresh':'Aktualität','q.fresh.v':'Ø Verzögerung 2,8 h','q.compl':'Vollständigkeit','q.compl.v':'78 %','q.meth':'Methodik','q.meth.v':'Hybridmodell','q.lin':'Herkunft (Lineage)','q.lin.v':'Vollständiger Datenpfad','ev.direct':'Direkter Fluss','ev.onchain':'On-Chain-Transfer','ev.proxy':'Proxy / Inferenz','ev.unc':'Unsicher','rail':'Kapital im Krypto-Markt','rail.in':'Größte Zuflüsse','rail.out':'Größte Abflüsse','rail.sect':'Sektoraktivität','rail.rel':'Datenverlässlichkeit','rail.relLvl':'Mäßig hoch','rail.relDesc':'Basierend auf Quellenqualität, Aktualität und Vollständigkeit der Daten.','rail.sectAria':'{n}: Aktivität {v} von 10','list.asset':'Asset / Sektor','list.net':'Nettofluss','list.pct':'% des Flusses','list.dir':'Richtung','list.ev':'Evidenzart','list.cap':'Nettofluss im Zeitraum: {p}','global.t':'GLOBAL-Ansicht unverändert','global.d':'Hier bleibt die bisherige Weltkarte mit regionalen Blasen und Verbindungen. In diesem Mockup ist nur der KRYPTO-Modus geändert.','n.stab':'Stablecoins','n.exch':'Börsen','n.ai':'KI','n.meme':'Memecoins'},
 
@@ -889,9 +889,9 @@ const EXTRA4={"pl": {"top.t": "Top 10 — szanse wzrostu","top.d": "Ranking licz
 for(const l in EXTRA4)Object.assign(I18N[l],EXTRA4[l]);
 const EXTRA5={"pl": {"top.t": "Top 10 — przepływ kapitału","top.d": "Monety z koszyka sektora, ułożone według zmiany kapitalizacji w wybranym okresie. Kolejność zmienia się razem z danymi. To nie jest porada inwestycyjna.","top.chg": "zmiana","top.load": "Pobieram dane rynkowe…","top.err": "Nie udało się pobrać danych rynkowych.","top.retry": "Spróbuj ponownie","top.none": "Brak danych dla monet z tego koszyka.","top.live": "Dane: CoinPaprika, stan na {t}. Przepływ = zmiana kapitalizacji monety w okresie."},"en": {"top.t": "Top 10 — capital flow","top.d": "Coins from the sector basket, ordered by change in market capitalisation over the selected period. The order moves with the data. Not investment advice.","top.chg": "change","top.load": "Loading market data…","top.err": "Could not load market data.","top.retry": "Try again","top.none": "No data for the coins in this basket.","top.live": "Data: CoinPaprika, as of {t}. Flow = change in the coin’s market capitalisation over the period."},"de": {"top.t": "Top 10 — Kapitalfluss","top.d": "Coins aus dem Sektorkorb, sortiert nach der Veränderung der Marktkapitalisierung im gewählten Zeitraum. Die Reihenfolge ändert sich mit den Daten. Keine Anlageberatung.","top.chg": "Änderung","top.load": "Marktdaten werden geladen…","top.err": "Marktdaten konnten nicht geladen werden.","top.retry": "Erneut versuchen","top.none": "Keine Daten für die Coins in diesem Korb.","top.live": "Daten: CoinPaprika, Stand {t}. Fluss = Veränderung der Marktkapitalisierung im Zeitraum."},"es": {"top.t": "Top 10 — flujo de capital","top.d": "Monedas de la cesta del sector, ordenadas por el cambio de capitalización en el periodo elegido. El orden se mueve con los datos. No es asesoramiento de inversión.","top.chg": "cambio","top.load": "Cargando datos de mercado…","top.err": "No se pudieron cargar los datos de mercado.","top.retry": "Reintentar","top.none": "No hay datos para las monedas de esta cesta.","top.live": "Datos: CoinPaprika, a fecha {t}. Flujo = cambio de la capitalización de la moneda en el periodo."},"fr": {"top.t": "Top 10 — flux de capitaux","top.d": "Jetons du panier sectoriel, classés selon la variation de capitalisation sur la période choisie. L’ordre évolue avec les données. Ceci n’est pas un conseil en investissement.","top.chg": "variation","top.load": "Chargement des données de marché…","top.err": "Impossible de charger les données de marché.","top.retry": "Réessayer","top.none": "Aucune donnée pour les jetons de ce panier.","top.live": "Données : CoinPaprika, au {t}. Flux = variation de la capitalisation du jeton sur la période."},"it": {"top.t": "Top 10 — flusso di capitale","top.d": "Token del paniere di settore, ordinati per variazione della capitalizzazione nel periodo scelto. L’ordine cambia con i dati. Non è un consiglio di investimento.","top.chg": "variazione","top.load": "Caricamento dei dati di mercato…","top.err": "Impossibile caricare i dati di mercato.","top.retry": "Riprova","top.none": "Nessun dato per i token di questo paniere.","top.live": "Dati: CoinPaprika, aggiornati al {t}. Flusso = variazione della capitalizzazione nel periodo."},"pt": {"top.t": "Top 10 — fluxo de capital","top.d": "Moedas da cesta do setor, ordenadas pela variação da capitalização no período escolhido. A ordem muda com os dados. Não é recomendação de investimento.","top.chg": "variação","top.load": "Carregando dados de mercado…","top.err": "Não foi possível carregar os dados de mercado.","top.retry": "Tentar de novo","top.none": "Sem dados para as moedas desta cesta.","top.live": "Dados: CoinPaprika, em {t}. Fluxo = variação da capitalização da moeda no período."},"ru": {"top.t": "Топ-10 — поток капитала","top.d": "Монеты из корзины сектора, отсортированные по изменению капитализации за выбранный период. Порядок меняется вместе с данными. Это не инвестиционная рекомендация.","top.chg": "изменение","top.load": "Загружаю рыночные данные…","top.err": "Не удалось загрузить рыночные данные.","top.retry": "Повторить","top.none": "Нет данных по монетам этой корзины.","top.live": "Данные: CoinPaprika, на {t}. Поток = изменение капитализации монеты за период."},"zh": {"top.t": "前十 — 资金流","top.d": "该板块篮子中的币种，按所选周期内市值变化排序。顺序随数据变化。不构成投资建议。","top.chg": "涨跌","top.load": "正在加载市场数据…","top.err": "无法加载市场数据。","top.retry": "重试","top.none": "该篮子中的币种暂无数据。","top.live": "数据：CoinPaprika，截至 {t}。资金流 = 该周期内币种市值的变化。"},"ja": {"top.t": "トップ10 — 資金フロー","top.d": "セクターのバスケットに入る銘柄を、選んだ期間の時価総額の変化で並べています。順位はデータとともに入れ替わります。投資助言ではありません。","top.chg": "変化","top.load": "市場データを読み込み中…","top.err": "市場データを取得できませんでした。","top.retry": "再試行","top.none": "このバスケットの銘柄のデータがありません。","top.live": "データ：CoinPaprika（{t} 時点）。フロー＝期間中の時価総額の変化。"}};
 for(const l in EXTRA5)Object.assign(I18N[l],EXTRA5[l]);
-const EXTRA6={"pl": {"top.err2": "Okno Claude nie przepuszcza zapytań do zewnętrznych serwisów. Otwórz ten plik w przeglądarce — wtedy ranking pobierze się na żywo."},"en": {"top.err2": "The Claude window blocks requests to outside services. Open this file in a browser and the ranking will load live."},"de": {"top.err2": "Das Claude-Fenster lässt keine Anfragen an externe Dienste durch. Öffne diese Datei im Browser, dann lädt die Rangliste live."},"es": {"top.err2": "La ventana de Claude bloquea las peticiones a servicios externos. Abre este archivo en un navegador y el ranking se cargará en vivo."},"fr": {"top.err2": "La fenêtre de Claude bloque les requêtes vers les services externes. Ouvre ce fichier dans un navigateur : le classement se chargera en direct."},"it": {"top.err2": "La finestra di Claude blocca le richieste verso servizi esterni. Apri questo file in un browser e la classifica si caricherà in tempo reale."},"pt": {"top.err2": "A janela do Claude bloqueia pedidos a serviços externos. Abra este ficheiro num navegador e o ranking carrega ao vivo."},"ru": {"top.err2": "Окно Claude не пропускает запросы к внешним сервисам. Откройте этот файл в браузере — рейтинг загрузится вживую."},"zh": {"top.err2": "Claude 窗口会拦截对外部服务的请求。在浏览器中打开此文件，排行榜即可实时加载。"},"ja": {"top.err2": "Claude のウィンドウは外部サービスへの通信を遮断します。このファイルをブラウザで開くと、ランキングがライブで読み込まれます。"}};
+const EXTRA6={"pl": {"top.err2": "Nie udało się pobrać użytecznych danych z serwisu CoinPaprika (ceny i kapitalizacja monet). Zwykle to chwilowa przerwa po stronie serwisu albo połączenia — spróbuj ponownie za kilka minut. Dopóki dane nie dotrą, ranking zostaje pusty: nie pokazujemy zer ani liczb zastępczych. Stan wszystkich źródeł jest w menu „Źródła”.", "top.err.st": "Stan źródła CoinPaprika: brak użytecznej odpowiedzi. Szczegóły techniczne:", "pg.cal.base": "Na podstawie {n} sprawdzonych przypadków z danymi. Pominięto {s} bez danych — brak danych nie jest liczony jako pudło.", "pg.cal.zero": "Brak sprawdzonych przypadków: liczba miesięcy odczytów w pamięci: {m}, ale żaden mocny sygnał nie miał jeszcze danych do porównania. Skuteczność pojawi się, gdy będzie z czego ją policzyć."}, "en": {"top.err2": "Could not load usable data from CoinPaprika (coin prices and market caps). This is usually a short outage on the service or connection side — please try again in a few minutes. Until the data arrives the ranking stays empty: we show no zeros and no stand-in numbers. The status of every source is in the “Sources” menu.", "top.err.st": "Source status, CoinPaprika: no usable response. Technical details:", "pg.cal.base": "Based on {n} checked cases with data. {s} cases without data were skipped — missing data is not counted as a miss.", "pg.cal.zero": "No checked cases yet: {m} months of readings are stored, but no strong signal has had data to compare against so far. Accuracy will appear once there is something to count."}};
 for(const l in EXTRA6)Object.assign(I18N[l],EXTRA6[l]);
-const EXTRA7={"pl": {"kpi.vol": "Wolumen 24h","kpi.alt": "Kapitał poza BTC i ETH","kpi.nodelta": "brak porównania","u.24h": "24h","live.on": "Dane na żywo · {t}","live.load": "Pobieram dane…","live.off": "Dane przykładowe","rel.high": "Wysoka","rel.mid": "Umiarkowana","rel.low": "Niska","rel.descLive": "Liczone z danych na żywo. Pokrycie koszyków: {n}%.","rel.descOff": "Nie udało się pobrać danych — scena pokazuje wartości przykładowe."},"en": {"kpi.vol": "24h volume","kpi.alt": "Capital outside BTC and ETH","kpi.nodelta": "no comparison","u.24h": "24h","live.on": "Live data · {t}","live.load": "Loading data…","live.off": "Sample data","rel.high": "High","rel.mid": "Moderate","rel.low": "Low","rel.descLive": "Computed from live data. Basket coverage: {n}%.","rel.descOff": "Could not load data — the scene shows sample values."},"de": {"kpi.vol": "24-h-Volumen","kpi.alt": "Kapital außerhalb von BTC und ETH","kpi.nodelta": "kein Vergleich","u.24h": "24 Std","live.on": "Live-Daten · {t}","live.load": "Daten werden geladen…","live.off": "Beispieldaten","rel.high": "Hoch","rel.mid": "Mittel","rel.low": "Niedrig","rel.descLive": "Aus Live-Daten berechnet. Abdeckung der Körbe: {n}%.","rel.descOff": "Daten konnten nicht geladen werden — die Szene zeigt Beispielwerte."},"es": {"kpi.vol": "Volumen 24 h","kpi.alt": "Capital fuera de BTC y ETH","kpi.nodelta": "sin comparación","u.24h": "24 h","live.on": "Datos en vivo · {t}","live.load": "Cargando datos…","live.off": "Datos de ejemplo","rel.high": "Alta","rel.mid": "Moderada","rel.low": "Baja","rel.descLive": "Calculado con datos en vivo. Cobertura de las cestas: {n}%.","rel.descOff": "No se pudieron cargar los datos: la escena muestra valores de ejemplo."},"fr": {"kpi.vol": "Volume 24 h","kpi.alt": "Capitaux hors BTC et ETH","kpi.nodelta": "pas de comparaison","u.24h": "24 h","live.on": "Données en direct · {t}","live.load": "Chargement des données…","live.off": "Données d’exemple","rel.high": "Élevée","rel.mid": "Moyenne","rel.low": "Faible","rel.descLive": "Calculé à partir de données en direct. Couverture des paniers : {n}%.","rel.descOff": "Impossible de charger les données — la scène affiche des valeurs d’exemple."},"it": {"kpi.vol": "Volume 24 h","kpi.alt": "Capitale fuori da BTC ed ETH","kpi.nodelta": "nessun confronto","u.24h": "24 h","live.on": "Dati in tempo reale · {t}","live.load": "Caricamento dati…","live.off": "Dati di esempio","rel.high": "Alta","rel.mid": "Media","rel.low": "Bassa","rel.descLive": "Calcolato da dati in tempo reale. Copertura dei panieri: {n}%.","rel.descOff": "Impossibile caricare i dati — la scena mostra valori di esempio."},"pt": {"kpi.vol": "Volume 24 h","kpi.alt": "Capital fora de BTC e ETH","kpi.nodelta": "sem comparação","u.24h": "24 h","live.on": "Dados ao vivo · {t}","live.load": "A carregar dados…","live.off": "Dados de exemplo","rel.high": "Alta","rel.mid": "Moderada","rel.low": "Baixa","rel.descLive": "Calculado a partir de dados ao vivo. Cobertura das cestas: {n}%.","rel.descOff": "Não foi possível carregar os dados — a cena mostra valores de exemplo."},"ru": {"kpi.vol": "Объём за 24 ч","kpi.alt": "Капитал вне BTC и ETH","kpi.nodelta": "нет сравнения","u.24h": "24 ч","live.on": "Данные вживую · {t}","live.load": "Загружаю данные…","live.off": "Демонстрационные данные","rel.high": "Высокая","rel.mid": "Умеренная","rel.low": "Низкая","rel.descLive": "Рассчитано по живым данным. Покрытие корзин: {n}%.","rel.descOff": "Не удалось загрузить данные — сцена показывает демонстрационные значения."},"zh": {"kpi.vol": "24 小时成交量","kpi.alt": "BTC 和 ETH 以外的资金","kpi.nodelta": "无可比数据","u.24h": "24小时","live.on": "实时数据 · {t}","live.load": "正在加载数据…","live.off": "示例数据","rel.high": "高","rel.mid": "中等","rel.low": "低","rel.descLive": "基于实时数据计算。篮子覆盖率：{n}%。","rel.descOff": "无法加载数据 — 场景显示示例数值。"},"ja": {"kpi.vol": "24時間の出来高","kpi.alt": "BTC・ETH 以外の資金","kpi.nodelta": "比較なし","u.24h": "24時間","live.on": "ライブデータ · {t}","live.load": "データを読み込み中…","live.off": "サンプルデータ","rel.high": "高い","rel.mid": "中程度","rel.low": "低い","rel.descLive": "ライブデータから算出。バスケットの網羅率：{n}%。","rel.descOff": "データを取得できませんでした — シーンはサンプル値を表示しています。"}};
+const EXTRA7={"pl": {"kpi.vol": "Wolumen 24h","kpi.alt": "Kapitał poza BTC i ETH","kpi.nodelta": "brak porównania","kpi.agemin": "dane sprzed {n} min","kpi.ageh": "dane sprzed {n} godz.","u.24h": "24h","live.on": "Dane na żywo · {t}","live.load": "Pobieram dane…","live.off": "Dane przykładowe","rel.high": "Wysoka","rel.mid": "Umiarkowana","rel.low": "Niska","rel.descLive": "Liczone z danych na żywo. Pokrycie koszyków: {n}%.","rel.descOff": "Nie udało się pobrać danych — scena pokazuje wartości przykładowe."},"en": {"kpi.vol": "24h volume","kpi.alt": "Capital outside BTC and ETH","kpi.nodelta": "no comparison","kpi.agemin": "data {n} min old","kpi.ageh": "data {n} h old","u.24h": "24h","live.on": "Live data · {t}","live.load": "Loading data…","live.off": "Sample data","rel.high": "High","rel.mid": "Moderate","rel.low": "Low","rel.descLive": "Computed from live data. Basket coverage: {n}%.","rel.descOff": "Could not load data — the scene shows sample values."},"de": {"kpi.vol": "24-h-Volumen","kpi.alt": "Kapital außerhalb von BTC und ETH","kpi.nodelta": "kein Vergleich","u.24h": "24 Std","live.on": "Live-Daten · {t}","live.load": "Daten werden geladen…","live.off": "Beispieldaten","rel.high": "Hoch","rel.mid": "Mittel","rel.low": "Niedrig","rel.descLive": "Aus Live-Daten berechnet. Abdeckung der Körbe: {n}%.","rel.descOff": "Daten konnten nicht geladen werden — die Szene zeigt Beispielwerte."},"es": {"kpi.vol": "Volumen 24 h","kpi.alt": "Capital fuera de BTC y ETH","kpi.nodelta": "sin comparación","u.24h": "24 h","live.on": "Datos en vivo · {t}","live.load": "Cargando datos…","live.off": "Datos de ejemplo","rel.high": "Alta","rel.mid": "Moderada","rel.low": "Baja","rel.descLive": "Calculado con datos en vivo. Cobertura de las cestas: {n}%.","rel.descOff": "No se pudieron cargar los datos: la escena muestra valores de ejemplo."},"fr": {"kpi.vol": "Volume 24 h","kpi.alt": "Capitaux hors BTC et ETH","kpi.nodelta": "pas de comparaison","u.24h": "24 h","live.on": "Données en direct · {t}","live.load": "Chargement des données…","live.off": "Données d’exemple","rel.high": "Élevée","rel.mid": "Moyenne","rel.low": "Faible","rel.descLive": "Calculé à partir de données en direct. Couverture des paniers : {n}%.","rel.descOff": "Impossible de charger les données — la scène affiche des valeurs d’exemple."},"it": {"kpi.vol": "Volume 24 h","kpi.alt": "Capitale fuori da BTC ed ETH","kpi.nodelta": "nessun confronto","u.24h": "24 h","live.on": "Dati in tempo reale · {t}","live.load": "Caricamento dati…","live.off": "Dati di esempio","rel.high": "Alta","rel.mid": "Media","rel.low": "Bassa","rel.descLive": "Calcolato da dati in tempo reale. Copertura dei panieri: {n}%.","rel.descOff": "Impossibile caricare i dati — la scena mostra valori di esempio."},"pt": {"kpi.vol": "Volume 24 h","kpi.alt": "Capital fora de BTC e ETH","kpi.nodelta": "sem comparação","u.24h": "24 h","live.on": "Dados ao vivo · {t}","live.load": "A carregar dados…","live.off": "Dados de exemplo","rel.high": "Alta","rel.mid": "Moderada","rel.low": "Baixa","rel.descLive": "Calculado a partir de dados ao vivo. Cobertura das cestas: {n}%.","rel.descOff": "Não foi possível carregar os dados — a cena mostra valores de exemplo."},"ru": {"kpi.vol": "Объём за 24 ч","kpi.alt": "Капитал вне BTC и ETH","kpi.nodelta": "нет сравнения","u.24h": "24 ч","live.on": "Данные вживую · {t}","live.load": "Загружаю данные…","live.off": "Демонстрационные данные","rel.high": "Высокая","rel.mid": "Умеренная","rel.low": "Низкая","rel.descLive": "Рассчитано по живым данным. Покрытие корзин: {n}%.","rel.descOff": "Не удалось загрузить данные — сцена показывает демонстрационные значения."},"zh": {"kpi.vol": "24 小时成交量","kpi.alt": "BTC 和 ETH 以外的资金","kpi.nodelta": "无可比数据","u.24h": "24小时","live.on": "实时数据 · {t}","live.load": "正在加载数据…","live.off": "示例数据","rel.high": "高","rel.mid": "中等","rel.low": "低","rel.descLive": "基于实时数据计算。篮子覆盖率：{n}%。","rel.descOff": "无法加载数据 — 场景显示示例数值。"},"ja": {"kpi.vol": "24時間の出来高","kpi.alt": "BTC・ETH 以外の資金","kpi.nodelta": "比較なし","u.24h": "24時間","live.on": "ライブデータ · {t}","live.load": "データを読み込み中…","live.off": "サンプルデータ","rel.high": "高い","rel.mid": "中程度","rel.low": "低い","rel.descLive": "ライブデータから算出。バスケットの網羅率：{n}%。","rel.descOff": "データを取得できませんでした — シーンはサンプル値を表示しています。"}};
 for(const l in EXTRA7)Object.assign(I18N[l],EXTRA7[l]);
 const EXTRA8={"pl": {"rail.none": "Brak w tym okresie."},"en": {"rail.none": "None in this period."},"de": {"rail.none": "In diesem Zeitraum keine."},"es": {"rail.none": "Ninguno en este periodo."},"fr": {"rail.none": "Aucun sur cette période."},"it": {"rail.none": "Nessuno in questo periodo."},"pt": {"rail.none": "Nenhum neste período."},"ru": {"rail.none": "Нет за этот период."},"zh": {"rail.none": "本期没有。"},"ja": {"rail.none": "この期間にはありません。"}};
 for(const l in EXTRA8)Object.assign(I18N[l],EXTRA8[l]);
@@ -939,10 +939,22 @@ for(const l in EXTRA24)Object.assign(I18N[l],EXTRA24[l]);
 const EXTRA25={"pl":{"key.fh.hint":"Darmowy klucz: <a href=\"https://finnhub.io/register\" target=\"_blank\" rel=\"noopener\">finnhub.io/register</a> → po zalogowaniu klucz jest na stronie Dashboard. Limit 60 zapytań na minutę — aplikacja robi 14 na odświeżenie. Włącza przycisk DZIŚ nad mapą: zmiany regionów z bieżącej sesji na podstawie ETF-ów krajowych w USA. <b>Klucz tylko do użytku osobistego — dane nie są publikowane na stronie.</b>","key.td.label":"Klucz API Twelve Data (okresy 1T i 1M regionów)","key.td.check":"Sprawdź","key.td.hint":"Darmowy klucz: <a href=\"https://twelvedata.com/register\" target=\"_blank\" rel=\"noopener\">twelvedata.com/register</a> → klucz jest na stronie Dashboard. Plan Basic: 8 zapytań na minutę, 800 na dzień — strona robi 14 na godzinę (dwie paczki po 7 symboli, druga po minucie; między odświeżeniami dane leżą w pamięci tej przeglądarki przez godzinę). Włącza okres 1T i liczy 1M z dziennych notowań. <b>Klucz tylko do użytku osobistego — dane nie są publikowane na stronie.</b>","key.td.none":"brak klucza — okres 1T ukryty, 1M liczony z OECD","key.td.ok":"działa · plan {p} · zużycie dziś {u} z {l}","key.td.err":"nie działa · {e}","key.td.loading":"ładowanie… druga paczka (7 symboli) za 61 s","key.td.file":"dane z {t}","g.td.loading":"ładowanie…","g.src.regtd":"dzienne notowania ETF-ów z kluczem użytkownika (plan Basic, użytek osobisty; nie publikowane na stronie) · Bank Światowy (kapitalizacja rynków)","g.d.tdnote":"zmiana ceny ETF vs zamknięcie 5 albo 21 sesji temu; w trakcie sesji w USA ostatnia wartość jest bieżąca · Twelve Data (klucz własny) · dane z {t}","g.hs.td":"Dzienne zamknięcia 14 ETF-ów krajowych notowanych w USA — tylko z własnym kluczem użytkownika (plan Basic: użytek osobisty; 8 zapytań na minutę, 800 na dzień; strona robi 14 na godzinę). Zasilają okresy 1T (5 sesji) i 1M (21 sesji). Nie są publikowane na tej stronie.","g.hs.fh":"Bieżące notowania 14 ETF-ów krajowych notowanych w USA — tylko z własnym kluczem użytkownika (plan Free: użytek osobisty). Zasilają okres DZIŚ. Nie są publikowane na tej stronie.","pg.attr":"Atrybucje","pg.attr.d":"Dostawcy i instytucje, których dane pokazujemy — z podaniem źródła tak, jak wymagają tego ich warunki (CoinGecko: „Data by CoinGecko”)."},
 "en":{"key.fh.hint":"Free key: <a href=\"https://finnhub.io/register\" target=\"_blank\" rel=\"noopener\">finnhub.io/register</a> → after signing in the key is on the Dashboard page. Limit 60 requests a minute — the app makes 14 per refresh. Enables the TODAY button above the map: regional moves in the current session based on US-listed country ETFs. <b>Personal-use key only — the data is not published on this site.</b>","key.td.label":"Twelve Data API key (1W and 1M periods by region)","key.td.check":"Check","key.td.hint":"Free key: <a href=\"https://twelvedata.com/register\" target=\"_blank\" rel=\"noopener\">twelvedata.com/register</a> → the key is on the Dashboard page. Basic plan: 8 requests a minute, 800 a day — the page makes 14 an hour (two batches of 7 symbols, the second after a minute; between refreshes the data stays in this browser for an hour). Enables the 1W period and computes 1M from daily quotes. <b>Personal-use key only — the data is not published on this site.</b>","key.td.none":"no key — the 1W period is hidden and 1M is computed from OECD","key.td.ok":"working · plan {p} · used today {u} of {l}","key.td.err":"not working · {e}","key.td.loading":"loading… second batch (7 symbols) in 61 s","key.td.file":"data from {t}","g.td.loading":"loading…","g.src.regtd":"daily ETF quotes with the user's own key (Basic plan, personal use; not published on this site) · World Bank (market capitalisation)","g.d.tdnote":"ETF price change vs the close 5 or 21 sessions ago; during US trading hours the latest value is the current price · Twelve Data (own key) · data from {t}","g.hs.td":"Daily closes of the 14 US-listed country ETFs — only with the user's own key (Basic plan: personal use; 8 requests a minute, 800 a day; the page makes 14 an hour). They feed the 1W (5 sessions) and 1M (21 sessions) periods. Not published on this site.","g.hs.fh":"Current quotes of the 14 US-listed country ETFs — only with the user's own key (Free plan: personal use). They feed the TODAY period. Not published on this site.","pg.attr":"Attributions","pg.attr.d":"Providers and institutions whose data we show — credited as their terms require (CoinGecko: “Data by CoinGecko”)."}};
 for(const l in EXTRA25)Object.assign(I18N[l],EXTRA25[l]);
+/* v38: widok MFW „kto trzyma czyje papiery” (pary gospodarek) z pliku silnika */
+const EXTRA26={"pl":{"eng.c.pair":"Inwestorzy z → papiery emitentów z","eng.c.pos":"Stan, mld USD ({p})","eng.c.chg":"Zmiana stanu od {p}, mld USD","eng.h.1":"I półrocze {y}","eng.h.2":"II półrocze {y}","eng.h.of.1":"I półrocza {y}","eng.h.of.2":"II półrocza {y}","eng.d.pairs":"Największe pozycje: {n} z {t} par gospodarek","eng.k.top":"Największa pozycja ({p})","eng.k.pairs":"Pary z danymi","eng.k.pairs.v":"{t} par · {r} gospodarek raportujących","eng.bld":"mld USD","eng.chg.gap":"brak danych","eng.exact.t":"dokładnie: {v} dziesiątych mld USD"},
+"en":{"eng.c.pair":"Investors from → securities issued in","eng.c.pos":"Position, USD bn ({p})","eng.c.chg":"Change since {p}, USD bn","eng.h.1":"H1 {y}","eng.h.2":"H2 {y}","eng.h.of.1":"H1 {y}","eng.h.of.2":"H2 {y}","eng.d.pairs":"Largest positions: {n} of {t} economy pairs","eng.k.top":"Largest position ({p})","eng.k.pairs":"Pairs with data","eng.k.pairs.v":"{t} pairs · {r} reporting economies","eng.bld":"USD bn","eng.chg.gap":"no data","eng.exact.t":"exactly: {v} tenths of USD bn"}};
+for(const l in EXTRA26)Object.assign(I18N[l],EXTRA26[l]);
 /* v36: widok Banku Światowego (napływy/odpływy netto według gospodarek) z pliku silnika */
 const EXTRA23={"pl":{"eng.c.rank":"#","eng.c.economy":"Gospodarka","eng.c.year":"{y}, mln USD","eng.c.prev":"{y}, mln USD","eng.d.in":"Największe napływy netto w {y} — {n} z {t}","eng.d.out":"Największe odpływy netto w {y} — {n} z {t}","eng.d.none.in":"W {y} żadna gospodarka z danymi nie miała napływu netto.","eng.d.none.out":"W {y} żadna gospodarka z danymi nie miała odpływu netto.","eng.k.in":"Największy napływ netto {y}","eng.k.out":"Największy odpływ netto {y}","eng.k.cov":"Gospodarki z danymi za {y}","eng.k.cov.v":"{a} z {e} · bez danych: {b}","eng.mln":"mln USD","eng.exact":"dokładnie: {v} USD","eng.prev.gap":"brak danych za rok wcześniej — to nie zero","eng.prev.zero":" (netto zero)","eng.prev.negzero":" (netto zero, zgłoszone jako −0)"},
 "en":{"eng.c.rank":"#","eng.c.economy":"Economy","eng.c.year":"{y}, USD million","eng.c.prev":"{y}, USD million","eng.d.in":"Largest net inflows in {y} — {n} of {t}","eng.d.out":"Largest net outflows in {y} — {n} of {t}","eng.d.none.in":"In {y} no economy with data had a net inflow.","eng.d.none.out":"In {y} no economy with data had a net outflow.","eng.k.in":"Largest net inflow {y}","eng.k.out":"Largest net outflow {y}","eng.k.cov":"Economies with data for {y}","eng.k.cov.v":"{a} of {e} · without data: {b}","eng.mln":"USD million","eng.exact":"exactly: {v} USD","eng.prev.gap":"no data for the previous year — not zero","eng.prev.zero":" (net zero)","eng.prev.negzero":" (net zero, reported as −0)"}};
 for(const l in EXTRA23)Object.assign(I18N[l],EXTRA23[l]);
+/* F09: prawdziwe opisy źródeł — pośrednik Frankfurter, serwisy komercyjne, tabela Banku Światowego wpisana w stronę (inne języki spadają na en przez t()) */
+const EXTRA27={"pl":{"g.q.srcd2":"Głównie publiczne API instytucji (OECD, BIS, Skarb USA, Bundesbank). Wyjątki: kursy EBC idą przez darmowy serwis pośredniczący Frankfurter, krypto i ceny ETF-ów pochodzą z serwisów komercyjnych, a wielkość rynków to tabela Banku Światowego wpisana w stronę. Pełna lista: Źródła.","g.hs.fx2":"Kursy walut, codziennie: kursy referencyjne Europejskiego Banku Centralnego, pobierane przez darmowy serwis pośredniczący Frankfurter.","pg.fixed":"nie pobieramy — tabela wpisana w kod strony","src.d.wbfix":"Kapitalizacja rynków akcji w mld USD, wpisana na stałe w kod strony: dla każdego kraju ostatni dostępny rok Banku Światowego, braki przeniesione w czasie wzrostem nominalnego PKB. Przeglądarka nie pobiera tych liczb z Banku Światowego. Baza wielkości regionów."},
+"en":{"g.q.srcd2":"Mostly public institutional APIs (OECD, BIS, US Treasury, Bundesbank). Exceptions: ECB rates come through the free Frankfurter relay service, crypto and ETF prices come from commercial services, and market sizes are a World Bank table built into the page. Full list: Sources.","g.hs.fx2":"Exchange rates, daily: European Central Bank reference rates, fetched through the free Frankfurter relay service.","pg.fixed":"not fetched — table built into the page","src.d.wbfix":"Equity market capitalisation in USD billion, built into the page code: for each country the latest year available from the World Bank, gaps carried forward with nominal GDP growth. Your browser does not fetch these numbers from the World Bank. The size base for regions."}};
+for(const l in EXTRA27)Object.assign(I18N[l],EXTRA27[l]);
+/* F14/F15: kafelki bez daty u źródła i pokrycie regionów w sumach (brak nie jest zerem) */
+const EXTRA_F1415={"pl":{"g.k.nodate":"bez daty u źródła","g.cov.of":"z {n} z {m} regionów","g.cov.sent":"Dane ma {n} z {m} regionów; pozostałe pominięto (brak nie jest zerem)."},
+"en":{"g.k.nodate":"no date from source","g.cov.of":"from {n} of {m} regions","g.cov.sent":"{n} of {m} regions have data; the rest are left out (missing is not zero)."}};
+for(const l in EXTRA_F1415)Object.assign(I18N[l],EXTRA_F1415[l]);
 
 /* ===================== STAN I DANE ===================== */
 const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1104,7 +1116,7 @@ const getJSON=(urls,i)=>{i=i||0;
 };
 function loadAll(cb){
   if(LIVE.st==='load')return;
-  LIVE.st='load';LIVE.err='';cb&&cb();
+  LIVE.st='load';LIVE.err='';LIVE.okTvl=false;LIVE.okStab=false;cb&&cb();
   const want=new Set();for(const k in SEC_SYM)SEC_SYM[k].forEach(s=>want.add(s));
   getJSON(SRC.coins).then(arr=>{
     if(!Array.isArray(arr))throw new Error('zła odpowiedź');
@@ -1129,7 +1141,7 @@ function loadAll(cb){
       getJSON(SRC.stab).catch(()=>null)
     ]);
   }).then(extra=>{
-    if(extra){LIVE.G=extra[0]||null;
+    if(extra){LIVE.G=extra[0]||null;LIVE.okTvl=Array.isArray(extra[1]);LIVE.okStab=!!(extra[2]&&Array.isArray(extra[2].peggedAssets));
       if(Array.isArray(extra[1]))LIVE.tvl=extra[1].reduce((a,c)=>a+(c.tvl||0),0);
       const sd=extra[2];
       if(sd&&Array.isArray(sd.peggedAssets))
@@ -1246,52 +1258,63 @@ const KV_SAMPLE={mcap:[2.43,'u.t',2.31,1],dom:[54.2,'%',.38,1],stab:[162.7,'u.b'
                  vol:[98.4,'u.b',6.2,1],tvl:[88.4,'u.b',1.85,1],alt:[1.11,'u.t',3.4,2]};
 const big=v=>v>=1e12?[v/1e12,'u.t',2]:v>=1e9?[v/1e9,'u.b',1]:[v/1e6,'u.m',0];
 function kpiVals(){
-  const G=LIVE.G,C=LIVE.C;
-  if(!isLive()||!G)return null;
-  const tot=+G.market_cap_usd||0,vol=+G.volume_24h_usd||0,dom=+G.bitcoin_dominance_percentage||0;
-  const dTot=+G.market_cap_change_24h,dVol=+G.volume_24h_change_24h;
+  if(!isLive())return null;
+  const G=LIVE.G,C=LIVE.C||{};
+  const ok=v=>typeof v==='number'&&isFinite(v)&&v>0;   /* 0 albo brak z API = brak danych, nie zero */
+  const tot=G?+G.market_cap_usd:NaN,vol=G?+G.volume_24h_usd:NaN,dom=G?+G.bitcoin_dominance_percentage:NaN;
+  const dTot=G?+G.market_cap_change_24h:NaN,dVol=G?+G.volume_24h_change_24h:NaN;
   const btc=C.BTC,eth=C.ETH;
   const out={};
-  const put=(id,val,unit,dec,d,lim)=>{let v=(typeof d==='number'&&isFinite(d))?d:null;
+  const SRC_DEF={mcap:'CoinPaprika',dom:'CoinPaprika',stab:'DefiLlama',vol:'CoinPaprika',tvl:'DefiLlama',alt:'CoinPaprika'};
+  const put=(id,val,unit,dec,d,lim,src)=>{let v=(typeof d==='number'&&isFinite(d))?d:null;
     if(v!==null&&Math.abs(v)<.005)v=0;
     if(v!==null&&lim&&Math.abs(v)>lim)v=null;   /* niespójne dane -> bez porównania */
-    out[id]={val,unit,dec,d:v};};
-  let x=big(tot);put('mcap',x[0],x[1],x[2],dTot);
+    out[id]={val,unit,dec,d:v,src:src||SRC_DEF[id]};};
+  let x;
+  if(ok(tot)){x=big(tot);put('mcap',x[0],x[1],x[2],dTot);}
   /* dominacja: liczymy poprzednią z cen sprzed 24h */
-  let dDom=null;
-  if(btc&&typeof btc.pct['24H']==='number'&&isFinite(dTot)){
-    const bPrev=btc.mcap/(1+btc.pct['24H']/100),tPrev=tot/(1+dTot/100);
-    if(tPrev>0)dDom=dom-bPrev/tPrev*100;
+  if(ok(dom)){
+    let dDom=null;
+    if(ok(tot)&&btc&&typeof btc.pct['24H']==='number'&&isFinite(dTot)){
+      const bPrev=btc.mcap/(1+btc.pct['24H']/100),tPrev=tot/(1+dTot/100);
+      if(tPrev>0)dDom=dom-bPrev/tPrev*100;
+    }
+    put('dom',dom,'%',1,dDom,5);
   }
-  put('dom',dom,'%',1,dDom,5);
   const sf=secFlow('stab','24H');
-  if(LIVE.stab){x=big(LIVE.stab);put('stab',x[0],x[1],x[2],sf?sf[1]:null);}
-  else{const m=SEC_SYM.stab.reduce((a,s)=>a+((C[s]&&C[s].mcap)||0),0);x=big(m);put('stab',x[0],x[1],x[2],sf?sf[1]:null);}
-  x=big(vol);put('vol',x[0],x[1],x[2],dVol);
-  if(LIVE.tvl){x=big(LIVE.tvl);put('tvl',x[0],x[1],x[2],null);}
-  else{const df=secFlow('defi','24H');x=big(0);out.tvl=null;if(df)out.tvl=null;}
-  const alt=tot-(btc?btc.mcap:0)-(eth?eth.mcap:0);
-  let dAlt=null;
-  if(btc&&eth&&isFinite(dTot)&&typeof btc.pct['24H']==='number'&&typeof eth.pct['24H']==='number'){
-    const prev=tot/(1+dTot/100)-btc.mcap/(1+btc.pct['24H']/100)-eth.mcap/(1+eth.pct['24H']/100);
-    if(prev>0)dAlt=(alt-prev)/prev*100;
+  if(ok(LIVE.stab)){x=big(LIVE.stab);put('stab',x[0],x[1],x[2],sf?sf[1]:null,0,'DefiLlama');}
+  else{const m=SEC_SYM.stab.reduce((a,s)=>a+((C[s]&&C[s].mcap)||0),0);
+    if(ok(m)){x=big(m);put('stab',x[0],x[1],x[2],sf?sf[1]:null,0,'CoinPaprika');}}
+  if(ok(vol)){x=big(vol);put('vol',x[0],x[1],x[2],dVol);}
+  if(ok(LIVE.tvl)){x=big(LIVE.tvl);put('tvl',x[0],x[1],x[2],null);}   /* brak TVL = brak kafelka z liczbą, nigdy wartość przykładowa */
+  if(ok(tot)&&btc&&eth&&ok(btc.mcap)&&ok(eth.mcap)){
+    const alt=tot-btc.mcap-eth.mcap;
+    let dAlt=null;
+    if(isFinite(dTot)&&typeof btc.pct['24H']==='number'&&typeof eth.pct['24H']==='number'){
+      const prev=tot/(1+dTot/100)-btc.mcap/(1+btc.pct['24H']/100)-eth.mcap/(1+eth.pct['24H']/100);
+      if(prev>0)dAlt=(alt-prev)/prev*100;
+    }
+    if(ok(alt)){x=big(alt);put('alt',x[0],x[1],x[2],dAlt);}
   }
-  x=big(alt);put('alt',x[0],x[1],x[2],dAlt);
   return out;
 }
 function renderKPI(){
-  const L=kpiVals();
+  const L=kpiVals(),lv=isLive();
+  const KSRC={mcap:'CoinPaprika',dom:'CoinPaprika',vol:'CoinPaprika',alt:'CoinPaprika',tvl:'DefiLlama',stab:LIVE.stab?'DefiLlama':'CoinPaprika'};
   $('#kpis').innerHTML=KDEF.map(k=>{
-    let val,unit,dec,d;
+    let val,unit,dec,d,src=KSRC[k.id]||'',gap=false;
     if(L&&L[k.id]){({val,unit,dec,d}=L[k.id]);}
+    else if(lv){gap=true;d=null;}   /* na żywo bez danych: „—” i napis, nie liczba przykładowa */
     else{const s=KV_SAMPLE[k.id];if(!s)return '';val=s[0];unit=s[1];d=s[2];dec=s[3];}
     const up=d===null?null:d>=0;
-    const uTxt=unit==='%'?'%':t(unit);
-    const dl=d===null?`<span class="dlt na">${t('kpi.nodelta')}</span>`
+    const uTxt=gap?'':unit==='%'?'%':t(unit);
+    const dl=gap?`<span class="dlt na">${t('eng.gap')}</span>`
+      :d===null?`<span class="dlt na">${t('kpi.nodelta')}</span>`
       :`<span class="dlt ${up?'up':'dn'}">${up?'▲':'▼'} ${sg(d)}${nfmt(Math.abs(d),2)}${k.id==='dom'?' '+t('u.pp'):'%'}<i>${t('u.24h')}</i></span>`;
+    const ks=!lv?t('live.off'):gap?src:src+' · '+liveWhen()+gAgeNote(LIVE.at||'');
     return `<div class="panel kpi"><div class="k-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">${k.ic}</svg>${t('kpi.'+k.id)}</div>
-    <div class="k-val sora">${nfmt(val,dec)}<small>${uTxt}</small></div>
-    <div class="k-foot">${dl}</div></div>`;}).join('');
+    <div class="k-val sora">${gap?'—':nfmt(val,dec)}<small>${uTxt}</small></div>
+    <div class="k-foot">${dl}<span class="ksrc">${ks}</span></div></div>`;}).join('');
 }
 
 /* ===================== PALETA SCENY (z CSS) ===================== */
@@ -2602,7 +2625,7 @@ function gLinks(){
 
 
 /* Zestaw zapasowy: używany tylko wtedy, gdy nie da się dosięgnąć źródeł
-   (np. w podglądzie w oknie Claude, które blokuje zapytania na zewnątrz).
+   (np. gdy przeglądarka, sieć lub podgląd pliku blokuje zapytania na zewnątrz).
    Wartości są rzędu wielkości realnych zmian miesięcznych, wyraźnie oznaczone jako przykładowe. */
 const GSAMPLE={
  '1M':{usa:2.6,can:1.4,lat:-0.9,eur:1.8,rus:-2.1,mea:0.7,afr:1.1,ind:-1.6,chn:3.4,jpn:2.2,asean:0.9,oce:1.3,crypto:3.1},
@@ -2756,10 +2779,14 @@ function gDxy(per){
   if(!ok)return null;
   return [50.14348112*Math.exp(lv),(Math.exp(lv-lp)-1)*100];
 }
+/* dzień (RRRR-MM-DD, UTC) ze znacznika czasu źródła w sekundach; brak = pusty tekst */
+const gUnixDay=s=>{const n=Number(s);return n>0&&isFinite(n)?new Date(n*1000).toISOString().slice(0,10):'';};
 function gKpis(){
   const per=gst.period,F=GDATA[per];
-  const mc=GREG.reduce((a,r)=>a+r.mcap,0);
-  const fl=GREG.reduce((a,r)=>a+(F[r.id][2]?F[r.id][0]:0),0);
+  /* F15: suma i zmiana tylko z regionów z danymi (brak nie jest zerem); pokrycie „z N z 12” w podpisie kafelka; zero regionów = brak (NaN → „—”), nie 0 */
+  const okR=GREG.filter(r=>F[r.id]&&F[r.id][2]);
+  const mc=okR.length?okR.reduce((a,r)=>a+r.mcap,0):NaN;
+  const fl=okR.reduce((a,r)=>a+F[r.id][0],0);
   const dxy=gDxy(per);
   const irlt=(c,off)=>{const s=GLIVE.irlt&&GLIVE.irlt[c];if(!s||s.length<off+1)return null;return s[s.length-1-off][1];};
   const n=GBACK[per];
@@ -2767,15 +2794,15 @@ function gKpis(){
   const st=gStabDelta(per);
   const yu=gDaily(GLIVE.ust,per),yd=gDaily(GLIVE.buba,per);
   GKPI=[
-   {k:'g.k.eq',v:mc+fl,u:'u.b',d:mc?fl/mc*100:null,src:per==='1D'?'Finnhub · ETF':(F.td?'Twelve Data (klucz własny) · ETF':'OECD'),fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)},
+   {k:'g.k.eq',v:GREG.some(r=>F[r.id][2])?mc+fl:null,u:'u.b',d:mc&&GREG.some(r=>F[r.id][2])?fl/mc*100:null,cov:(c=>c<GREG.length?[c,GREG.length]:null)(GREG.filter(r=>F[r.id][2]).length),src:per==='1D'?'Finnhub · ETF':(F.td?'Twelve Data (klucz własny) · ETF':'OECD'),fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)},
    {k:'g.k.dxy',v:dxy?dxy[0]:null,u:'',dec:2,d:dxy?dxy[1]:null,src:'ECB',fresh:GLIVE.fx?GLIVE.fx.now.date:''},
    /* rentowności: dziennie ze źródeł pierwotnych (pomiar), OECD miesięcznie tylko jako zapas */
    yu?{k:'g.k.us10',v:yu.v,u:'u.pp0',dec:2,d:yu.d,dpp:1,src:'US Treasury',fresh:yu.date}
      :{k:'g.k.us10',v:irlt('USA',0),u:'u.pp0',dec:2,d:n&&irlt('USA',0)!=null&&irlt('USA',n)!=null?irlt('USA',0)-irlt('USA',n):null,dpp:1,src:'OECD',fresh:GLIVE.asof},
    yd?{k:'g.k.de10',v:yd.v,u:'u.pp0',dec:2,d:yd.d,dpp:1,src:'Bundesbank',fresh:yd.date}
      :{k:'g.k.de10',v:irlt('DEU',0),u:'u.pp0',dec:2,d:n&&irlt('DEU',0)!=null&&irlt('DEU',n)!=null?irlt('DEU',0)-irlt('DEU',n):null,dpp:1,src:'OECD',fresh:GLIVE.asof},
-   {k:'g.k.cry',v:cy?cy.total_market_cap.usd/1e9:null,u:'u.b',d:cy?cy.market_cap_change_percentage_24h_usd:null,d24:1,src:'CoinGecko',fresh:''},
-   {k:'g.k.stab',v:st?st[2]:null,u:'u.b',d:st?st[1]:null,src:'DefiLlama',fresh:''}
+   {k:'g.k.cry',v:cy?cy.total_market_cap.usd/1e9:null,u:'u.b',d:cy?cy.market_cap_change_percentage_24h_usd:null,d24:1,src:'CoinGecko',fresh:(cy&&isFinite(+cy.updated_at)&&+cy.updated_at>0)?new Date(+cy.updated_at*1000).toISOString().slice(0,10):''},
+   {k:'g.k.stab',v:st?st[2]:null,u:'u.b',d:st?st[1]:null,src:'DefiLlama',fresh:(st&&isFinite(+GLIVE.stab[GLIVE.stab.length-1].date)&&+GLIVE.stab[GLIVE.stab.length-1].date>0)?new Date(+GLIVE.stab[GLIVE.stab.length-1].date*1000).toISOString().slice(0,10):''}
   ];
 }
 
@@ -3267,7 +3294,7 @@ function gRenderKpi(){
     }else d=`<span class="dlt na">${t('kpi.nodelta')}</span>`;
     return `<div class="panel kpi"><div class="k-head"><span>${t(k.k)}</span></div>
       <div class="k-val">${val}${unit}${k.u==='u.b'?'':''}</div>
-      <div class="k-foot">${d}<span class="ksrc">${k.src}${k.fresh?' · '+k.fresh+gAgeNote(k.fresh):''}</span></div></div>`;
+      <div class="k-foot">${d}<span class="ksrc">${k.src}${k.cov?' · '+t('g.cov.of',{n:k.cov[0],m:k.cov[1]}):''}${k.fresh?' · '+k.fresh+gAgeNote(k.fresh):(k.nd&&has?' · '+t('g.k.nodate'):'')}</span></div></div>`;
   }).join('');
 }
 function gNameL(id){const k='g.nl.'+id;return ((I18N[LANG]&&I18N[LANG][k])||I18N.en[k])?t(k):t('g.n.'+id);}
@@ -3361,7 +3388,7 @@ function gRenderQ(){
    ['g.q.cov','g.q.covv','g.q.covd',cov+' / '+GREG.length],
    ['g.q.meth','g.q.methv','g.q.methd',''],
    ['g.q.corr',GLINK?'g.q.corrv1':'g.q.corrv0','g.q.corrd',''],
-   ['g.q.src','g.q.srcv','g.q.srcd',''],
+   ['g.q.src','g.q.srcv','g.q.srcd2',''],
    ['g.q.lim','g.q.limv','g.q.limd','']
   ];
   w.innerHTML=cards.map(([a,b,c,extra])=>
@@ -3506,21 +3533,24 @@ function gMemSave(){
   if(h.some(r=>r.m===asof))return;                      /* jeden wpis na miesiąc danych */
   const F=GDATA['1M'];
   h.push({m:asof,t:Date.now(),s:Object.fromEntries(GPROB.map(o=>[o.id,o.score])),
-          c:Object.fromEntries(GREG.map(r=>[r.id,+(F[r.id][1].toFixed(2))]))});
+          c:Object.fromEntries(GREG.map(r=>{const v=F[r.id];   /* brak danych (v[2]===false) albo liczba przykładowa (v[3]) = null, nigdy 0 */
+            return [r.id,(v&&v[2]&&!v[3]&&isFinite(v[1]))?+(v[1].toFixed(2)):null];}))});
   h.sort((a,b)=>a.m<b.m?-1:1);gMemWrite(h);
 }
 function gMemStats(){
   const h=gMemRead();if(h.length<2)return null;
-  let hit=0,n=0;
+  let hit=0,n=0,skip=0;
   for(let i=0;i<h.length-1;i++){
     const a=h[i],b=h[i+1];
     for(const id in a.s){
-      const sc=a.s[id],nx=b.c[id];
-      if(sc==null||nx==null||Math.abs(sc)<8)continue;   /* słabe sygnały pomijamy */
+      const sc=a.s[id],nx=b.c&&b.c[id];
+      if(sc==null||!isFinite(sc)||Math.abs(sc)<8)continue;   /* słabe sygnały pomijamy */
+      /* brak danych nie jest pudłem: null/brak oraz dokładne 0 (tak starsze wpisy zapisywały brak) wypadają z liczenia */
+      if(nx==null||!isFinite(nx)||nx===0){skip++;continue;}
       n++;if((sc>0&&nx>0)||(sc<0&&nx<0))hit++;
     }
   }
-  return n?{hit,n,pct:Math.round(100*hit/n),months:h.length}:null;
+  return n?{hit,n,skip,pct:Math.round(100*hit/n),months:h.length}:null;
 }
 
 /* ===================== STRONY Z MENU ===================== */
@@ -3537,9 +3567,10 @@ function pgEdges(){
 }
 function pgNodes(){
   if(gActive()){const F=GDATA?GDATA[gst.period]:null;
-    return GREG.map(r=>({id:r.id,nm:t('g.n.'+r.id),v:F?F[r.id][0]:0,p:F?F[r.id][1]:0,
+    /* has=false: brak danych dla regionu (nie zero); v=0 jest wtedy tylko wartością techniczną — widok powinien pokazać „—” */
+    return GREG.map(r=>({id:r.id,nm:t('g.n.'+r.id),v:F?F[r.id][0]:0,p:F?F[r.id][1]:0,has:!!(F&&F[r.id]&&F[r.id][2]),
       base:r.mcap,sub:r.iso.join(', '),u:'u.b'}))
-      .concat(GDATA?[{id:'crypto',nm:t('g.n.crypto'),v:GDATA[gst.period].crypto[0],
+      .concat(GDATA?[{id:'crypto',nm:t('g.n.crypto'),v:GDATA[gst.period].crypto[0],has:!!GDATA[gst.period].crypto[2],
         p:GDATA[gst.period].crypto[1],base:null,sub:'BTC · ETH · stablecoiny',u:'u.b'}]:[]);}
   const D=DATA[st.period];
   return NODES.map(n=>({id:n.id,nm:nName(n.id),v:D[n.id][0],p:D[n.id][1],base:null,
@@ -3577,8 +3608,11 @@ function renderAssets(){
   const rows=[];
   if(gActive()){
     const F=GDATA?GDATA[gst.period]:null;
-    const eq=GREG.reduce((a,r)=>a+r.mcap,0),fl=F?GREG.reduce((a,r)=>a+F[r.id][0],0):0;
-    rows.push(['as.eq',gfmt(eq+fl),eq?fl/eq*100:null,(F&&F.td)?'Twelve Data (klucz własny) · '+t('pg.daily'):(gst.period==='1D'?'Finnhub · '+t('pg.daily'):'OECD · '+t('pg.monthly'))]);
+    /* F15: suma i zmiana tylko z regionów z danymi (brak nie jest zerem); pokrycie „N/12” w kolumnie źródła */
+    const okR=F?GREG.filter(r=>F[r.id]&&F[r.id][2]):[];
+    const eq=okR.reduce((a,r)=>a+r.mcap,0),fl=okR.reduce((a,r)=>a+F[r.id][0],0);
+    const covT=okR.length<GREG.length?' · '+t('g.q.cov')+' '+okR.length+'/'+GREG.length:'';
+    rows.push(['as.eq',okR.length?gfmt(eq+fl):'—',okR.length&&eq?fl/eq*100:null,((F&&F.td)?'Twelve Data (klucz własny) · '+t('pg.daily'):(gst.period==='1D'?'Finnhub · '+t('pg.daily'):'OECD · '+t('pg.monthly')))+covT]);
     const dxy=gDxy(gst.period);
     if(dxy)rows.push(['as.fx',dxy[0].toFixed(2),dxy[1],'EBC · '+t('pg.daily')]);
     const y=(c)=>{const s2=GLIVE.irlt&&GLIVE.irlt[c];return s2?s2[s2.length-1][1]:null;};
@@ -3590,17 +3624,23 @@ function renderAssets(){
     else if(yd!=null)rows.push(['as.de10',yd.toFixed(2)+'%',null,'OECD · '+t('pg.monthly')]);
     if(yj!=null)rows.push(['as.jp10',yj.toFixed(2)+'%',null,'OECD · '+t('pg.monthly')]);
     const cy=GLIVE.crypto;
-    if(cy)rows.push(['as.cry',gfmt(cy.total_market_cap.usd/1e9),cy.market_cap_change_percentage_24h_usd,'CoinGecko · '+t('pg.live')]);
+    const uDay=u=>{const n=+u;return (n>0&&isFinite(n))?new Date(n*1000).toISOString().slice(0,10):'';};
+    const noD=()=>{const s=t('g.k.nodate');return s==='g.k.nodate'?(LANG==='pl'?'bez daty u źródła':'no date at source'):s;};
+    const cyD=cy?uDay(cy.updated_at):'';
+    if(cy)rows.push(['as.cry',gfmt(cy.total_market_cap.usd/1e9),cy.market_cap_change_percentage_24h_usd,'CoinGecko · '+t('pg.live')+' · '+(cyD?cyD+gAgeNote(cyD):noD())]);
     const sd=gStabDelta(gst.period);
-    if(sd)rows.push(['as.stab',gfmt(sd[2]),sd[1],'DefiLlama · '+t('pg.daily')]);
+    const sdD=sd?uDay(GLIVE.stab[GLIVE.stab.length-1].date):'';
+    if(sd)rows.push(['as.stab',gfmt(sd[2]),sd[1],'DefiLlama · '+t('pg.daily')+' · '+(sdD?sdD+gAgeNote(sdD):noD())]);
   }else{
     const KV=kpiVals();
     KDEF.forEach(k=>{
       let val,unit,dec,d;
+      const ks=k.id==='tvl'?'DefiLlama':(k.id==='stab'&&LIVE.stab?'DefiLlama':'CoinPaprika');
       if(KV&&KV[k.id]){({val,unit,dec,d}=KV[k.id]);}
+      else if(isLive()){rows.push(['kpi.'+k.id,'— · '+t('eng.gap'),null,ks]);return;}   /* brak na żywo ≠ liczba przykładowa */
       else{const sm=KV_SAMPLE[k.id];if(!sm)return;val=sm[0];unit=sm[1];d=sm[2];dec=sm[3];}
       const txt2=val.toLocaleString(LOCALE[LANG],{minimumFractionDigits:dec||0,maximumFractionDigits:dec||0})+(unit?' '+t(unit):'');
-      rows.push(['kpi.'+k.id,txt2,d,(isLive()?'CoinPaprika · '+t('pg.live'):t('badge'))]);});
+      rows.push(['kpi.'+k.id,txt2,d,(isLive()?ks+' · '+t('pg.live')+' · '+liveWhen():t('badge'))]);});
   }
   w.innerHTML=`<h1>${t('pg.assets')}</h1><p class="pgsub">${t('pg.assets.d')}</p>
     <section class="panel"><div class="list-wrap"><table>
@@ -3612,16 +3652,20 @@ function renderAssets(){
 }
 function renderSectorsPage(){
   const w=$('#page-sectors');if(!w)return;
-  const N=pgNodes().slice().sort((a,b)=>b.v-a.v);
-  const mx=Math.max(...N.map(n=>Math.abs(n.v)),1);
+  /* F15: pozycja bez danych nie jest zerem — na końcu listy, „—” bez paska; podtytuł podaje liczbę regionów bez danych */
+  const GF=gActive()&&GDATA?GDATA[gst.period]:null;
+  const hasD=n=>!gActive()||!!(GF&&GF[n.id]&&GF[n.id][2]);
+  const N=pgNodes().slice().sort((a,b)=>hasD(b)-hasD(a)||b.v-a.v);
+  const mx=Math.max(...N.filter(hasD).map(n=>Math.abs(n.v)),1);
+  const nR=gActive()?GREG.filter(r=>hasD({id:r.id})).length:GREG.length;
   w.innerHTML=`<h1>${t('pg.sectors')}</h1>
-   <p class="pgsub">${t(gActive()?'pg.sectors.dg':'pg.sectors.dc',{p:pgPeriod()})}</p>
+   <p class="pgsub">${t(gActive()?'pg.sectors.dg':'pg.sectors.dc',{p:pgPeriod()})}${nR<GREG.length?' · '+t('g.nodata')+': '+(GREG.length-nR)+'/'+GREG.length:''}</p>
    <section class="panel pgc">${N.map(n=>{
-     const pos=n.v>=0,wd=Math.max(2,Math.abs(n.v)/mx*100);
+     const na=!hasD(n),pos=n.v>=0,wd=na?0:Math.max(2,Math.abs(n.v)/mx*100);
      return `<div class="secrow"><span class="sname">${n.nm}</span>
        <span class="sbar ${pos?'p':'n'}"><i style="width:${wd}%"></i></span>
-       <span class="sval ${pos?'pos':'neg'}">${pos?'+':'−'}${pgFmt(Math.abs(n.v),n.u)}</span>
-       <span class="ssub">${n.sub||''}</span></div>`;}).join('')}</section>`;
+       <span class="sval ${na?'':(pos?'pos':'neg')}">${na?'—':(pos?'+':'−')+pgFmt(Math.abs(n.v),n.u)}</span>
+       <span class="ssub">${na?t('g.nodata')+(n.sub?' · ':''):''}${n.sub||''}</span></div>`;}).join('')}</section>`;
 }
 /* v35: widoki silnika z plików data/widoki/*.json — tylko odczyt z serwera, bez zapasu w przeglądarce i bez migawki.
    Sekcje pozostają ukryte, dopóki na serwerze nie ma data/widoki/index.json. O dopuszczeniu decyduje wyłącznie
@@ -3693,8 +3737,27 @@ function engTable(rec){
   const head=`<thead><tr><th>${t('eng.c.group')}</th>${cols.map(col=>`<th>${escH(col.label)}</th>`).join('')}</tr></thead>`;
   if(Array.isArray(d.categories))return `<div class="list-wrap"><table class="etft">${head}<tbody>${rows(d.categories)}</tbody></table></div>`;
   if(Array.isArray(d.inflows)&&Array.isArray(d.outflows))return engDest(rec);
+  if(Array.isArray(d.pairs))return engPairs(rec);
   if(Array.isArray(d.markets))return d.markets.map(m=>`<details class="etfd" open><summary><b>${escH(m.label)}</b> · ${m.data?t('eng.oi')+': '+engNum(m.data.open_interest&&m.data.open_interest.value):t('eng.gap')}</summary>${m.data?`<div class="list-wrap"><table class="etft">${head}<tbody>${rows(m.data.categories||[])}</tbody></table></div>`:`<p class="pnote">${t('eng.r.MARKET_MISSING')}</p>`}${m.unit_note?`<p class="pnote">${escH(m.unit_note)}</p>`:''}</details>`).join('');
   return '';
+}
+/* v38: dziesiąte części miliarda (liczby całkowite z silnika) → mld USD z jednym miejscem; te same reguły co w silniku */
+function engBld(v,signed){
+  if(!Number.isInteger(v))return null;
+  const a=Math.abs(v),text=String(Math.floor(a/10)).replace(/\B(?=(\d{3})+(?!\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr */
+  if(v<0)return '−'+text;
+  return (signed&&v>0)?'+'+text:text;
+}
+function engHalf(label,of){const m=/^(\d{4})-S([12])$/.exec(String(label||''));return m?t((of?'eng.h.of.':'eng.h.')+m[2],{y:m[1]}):String(label||'—');}
+function engPairs(rec){
+  const d=rec.engine_panel.data,rows=d.pairs,c=d.counts||{},p=engHalf(d.latest_period),pp=d.previous_period==null?null:engHalf(d.previous_period,true);
+  const head=`<thead><tr><th>${t('eng.c.rank')}</th><th>${t('eng.c.pair')}</th><th>${t('eng.c.pos',{p})}</th>${pp==null?'':`<th>${t('eng.c.chg',{p:pp})}</th>`}</tr></thead>`;
+  const body=rows.map((r,i)=>{const pos=engBld(r.position_tenths);let chg;
+    if(r.change_tenths==null)chg=t('eng.chg.gap');else if(r.change_tenths===0&&r.change_sign)chg=(r.change_sign>0?'+':'−')+(LANG==='pl'?'<0,1':'<0.1');else chg=engBld(r.change_tenths,true);
+    return `<tr><td><span class="cell mono">${i+1}</span></td><td><span class="cell">${escH(r.investor_name||r.investor||'')} → ${escH(r.issuer_name||r.issuer||'')}</span> <span class="cell mono">${escH(r.investor||'')} → ${escH(r.issuer||'')}</span></td>`+
+      `<td><span class="cell mono" title="${escH(t('eng.exact.t',{v:String(r.position_tenths)}))}">${pos==null?t('eng.gap'):pos}</span></td>`+(pp==null?'':`<td><span class="cell mono">${escH(chg==null?t('eng.gap'):chg)}</span></td>`)+`</tr>`;}).join('');
+  const cap=t('eng.d.pairs',{n:rows.length,t:c.economy_pairs==null?'—':engNum(c.economy_pairs)});
+  return `<details class="etfd" open><summary><b>${cap}</b></summary>${rows.length?`<div class="list-wrap"><table class="etft">${head}<tbody>${body}</tbody></table></div>`:`<p class="pnote">${t('eng.gap')}</p>`}</details>`;
 }
 function engDestRows(rows,y,py){
   return rows.map((r,i)=>{const v=engMln(r.value),p0=r.previous==null?null:engMln(r.previous,!!r.previous_negative_zero),p=p0==null?null:(/[1-9]/.test(String(r.previous))?p0:p0+t(r.previous_negative_zero?'eng.prev.negzero':'eng.prev.zero'));
@@ -3711,7 +3774,11 @@ function engDest(rec){
   return block(d.inflows,'in')+block(d.outflows,'out');
 }
 function engKpis(rec){
-  const d=rec.engine_panel&&rec.engine_panel.data;if(!d||!Array.isArray(d.inflows)||!Array.isArray(d.outflows))return '';
+  const d=rec.engine_panel&&rec.engine_panel.data;
+  if(d&&Array.isArray(d.pairs)){const c=d.counts||{},p=engHalf(d.latest_period),r0=d.pairs[0];
+    return engK(t('eng.k.top',{p}),r0?`${escH(r0.investor_name||r0.investor)} → ${escH(r0.issuer_name||r0.issuer)}: ${engBld(r0.position_tenths)||t('eng.gap')} ${t('eng.bld')}`:t('eng.gap'),true)+
+      engK(t('eng.k.pairs'),c.economy_pairs==null?t('eng.gap'):t('eng.k.pairs.v',{t:engNum(c.economy_pairs),r:c.reporting_economies==null?'—':engNum(c.reporting_economies)}));}
+  if(!d||!Array.isArray(d.inflows)||!Array.isArray(d.outflows))return '';
   const y=String(d.year||''),c=d.counts||{},top=(rows)=>rows.length?`${escH(rows[0].name_pl||rows[0].name||'')}: ${engMln(rows[0].value)||t('eng.gap')} ${t('eng.mln')}`:t('eng.gap');
   return engK(t('eng.k.in',{y}),top(d.inflows))+engK(t('eng.k.out',{y}),top(d.outflows))+
     engK(t('eng.k.cov',{y}),c.with_value==null?t('eng.gap'):t('eng.k.cov.v',{a:engNum(c.with_value),e:engNum(c.economies),b:engNum(c.without_value)}));
@@ -3935,7 +4002,7 @@ function renderSources(){
     ['Bundesbank — rentowność 10L Niemcy','api.statistiken.bundesbank.de','src.f.d','src.l.0',GLIVE.src.buba,'g.hs.buba','buba'],
     ['BIS — należności transgraniczne','stats.bis.org','src.f.q','src.l.q',GLIVE.src.bis,'g.hs.bis','bis'],
     ['EBC przez Frankfurter — kursy walut','api.frankfurter.dev','src.f.d','src.l.0',GLIVE.src.fx,'g.hs.fx','fx'],
-    ['Bank Światowy — kapitalizacja i PKB','api.worldbank.org','src.f.y','src.l.y',1,'g.hs.wb'],
+    ['Bank Światowy — kapitalizacja i PKB','api.worldbank.org','src.f.y','src.l.y',null,LANG==='pl'?'Kapitalizacja rynków akcji (ostatni dostępny rok) jest wpisana w kod strony; braki przeniesiono w czasie wzrostem nominalnego PKB. Strona nie łączy się z Bankiem Światowym, stąd brak odpowiedzi.':'Equity market capitalisation (latest available year) is built into the page code; gaps were carried forward with nominal GDP growth. The page does not connect to the World Bank, hence no answer.'],
     ['CoinGecko — rynek krypto','api.coingecko.com','src.f.l','src.l.0',GLIVE.src.crypto,'g.hs.cg','crypto'],
     ['DefiLlama — stablecoiny','stablecoins.llama.fi','src.f.d','src.l.0',GLIVE.src.stab,'g.hs.stab','stab'],
     ['CoinPaprika — obrót BTC wg walut','api.coinpaprika.com','src.f.l','src.l.0',GLIVE.src.fiat,'g.hs.fiat','fiat'],
@@ -3945,8 +4012,8 @@ function renderSources(){
   ]:[
     ['SoSoValue — napływy ETF','openapi.sosovalue.com','src.f.d','src.l.0',(typeof ETF!=='undefined'&&ETF.live)?1:0,'g.hs.etf'],
     ['CoinPaprika — kursy i kapitalizacja','api.coinpaprika.com','src.f.l','src.l.0',isLive()?1:0,'src.d.cp'],
-    ['DefiLlama — TVL sieci','api.llama.fi','src.f.d','src.l.0',isLive()?1:0,'src.d.tvl'],
-    ['DefiLlama — stablecoiny','stablecoins.llama.fi','src.f.d','src.l.0',isLive()?1:0,'src.d.stab']
+    ['DefiLlama — TVL sieci','api.llama.fi','src.f.d','src.l.0',LIVE.tvl>0?1:0,'src.d.tvl'],
+    ['DefiLlama — stablecoiny','stablecoins.llama.fi','src.f.d','src.l.0',(isLive()&&LIVE.stab!=null)?1:0,'src.d.stab']
   ];
   w.innerHTML=`<h1>${t('pg.sources')}</h1><p class="pgsub">${t('pg.sources.d')}</p>
    <section class="panel"><div class="list-wrap"><table>
@@ -3958,7 +4025,7 @@ function renderSources(){
      return `<tr><td><span class="cell"><b>${n}</b><br><small class="mtxt">${t(d)}</small></span></td>
      <td><span class="cell mono">${h}</span></td><td><span class="cell">${t(f)}</span></td>
      <td><span class="cell">${t(l)}</span></td>
-     <td><span class="cell"><span class="live ${ok?'on':'off'}"><i></i>${t(ok?'pg.ok':'pg.no')}</span>${ok&&tm?` <small class="mtxt">${tm}</small>`:''}</span></td></tr>`;}).join('')}
+     <td><span class="cell">${ok===null?t('pg.fixed'):`<span class="live ${ok?'on':'off'}"><i></i>${t(ok?'pg.ok':'pg.no')}</span>${ok&&tm?` <small class="mtxt">${tm}</small>`:''}`}</span></td></tr>`;}).join('')}
    </tbody></table></div></section>
    <section class="panel pgc"><h2>${t('pg.nosrc')}</h2><p class="mtxt">${t('pg.nosrc.d')}</p></section>
    <section class="panel pgc"><h2>${t('pg.attr')}</h2><p class="mtxt">${t('pg.attr.d')}</p><p class="mtxt">${ATTR_LINKS}</p></section>${txtZrodla()}`;
@@ -3977,9 +4044,11 @@ function renderMethod(){
      <tbody>${wts.map(([k,v])=>`<tr><td><span class="cell">${t(k)}</span></td><td><span class="cell mono">${v}</span></td></tr>`).join('')}</tbody></table></div></section>
    <section class="panel pgc"><h2>${t('pg.m4')}</h2>
      <p class="mtxt">${t('pg.cal.d')}</p>
-     <div class="calbox">${cal
-       ? `<div class="calv">${cal.pct}%</div><div class="calt">${t('pg.cal.hit',{h:cal.hit,n:cal.n,m:cal.months})}</div>`
-       : `<div class="calt">${t('pg.cal.none')}</div>`}</div></section>
+     <div class="calbox">${cal&&cal.n
+       ? `<div class="calv">${cal.pct}%</div><div class="calt">${t('pg.cal.hit',{h:cal.hit,n:cal.n,m:cal.months})}</div>${cal.skip!=null?`<div class="calt">${t('pg.cal.base',{n:cal.n,s:cal.skip})}</div>`:''}`
+       : cal
+       ? `<div class="calv">—</div><div class="calt">${t('pg.cal.zero',{m:cal.months})}</div>`
+       : `<div class="calv">—</div><div class="calt">${t('pg.cal.none')}</div>`}</div></section>
    <section class="panel pgc"><h2>${t('pg.m6')}</h2><p class="mtxt">${t('g.cf.m')}</p><p class="mtxt">${t('g.cf.l')}</p></section>
    <section class="panel pgc"><h2>${t('pg.m7')}</h2><p class="mtxt">${t('etf.m')}</p><p class="mtxt">${t('g.help.etf')}</p></section>
    <section class="panel pgc"><h2>${t('pg.m5')}</h2><p class="mtxt">${t('g.help.limd')}</p></section>${txtJakCzytac()}`;
@@ -4129,7 +4198,7 @@ function etfBars(day){
 function etfBadge(){
   if(ETF.st==='load')return `<span class="live wait"><i></i>${t('etf.b.load')}</span>`;
   if(ETF.live){const asof=ETF.data.asof||'',age=gAgeNote(String(asof).split('–').pop().trim());
-    return ETF.stale?`<span class="live off"><i></i>${t('etf.b.stale',{d:asof,t:ETF.at})}${age}</span>`:`<span class="live on"><i></i>${t('etf.b.live',{d:asof,t:ETF.at})}${age}</span>`;}
+    return ETF.stale?`<span class="live off"><i></i>${t('etf.b.stale',{d:escH(asof),t:escH(ETF.at)})}${age}</span>`:`<span class="live on"><i></i>${t('etf.b.live',{d:escH(asof),t:escH(ETF.at)})}${age}</span>`;}
   const d=ETF.data?ETF.data.asof:ETF_SNAP.asof;
   return `<span class="live off"><i></i>${t('etf.b.snap',{d})}</span>`+(ETF.st==='err'?` <span class="pchip n">${t('etf.b.err',{e:ETF.err==='KEY'?t('etf.e.key'):ETF.err})}</span>`:'');
 }
@@ -4140,7 +4209,7 @@ function etfMetaLine(){
   const at=new Date(m.at).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'});
   const ok=m.ok||{};const w=k=>ok[k]===true?'ok':ok[k]==='cached'?t('etf.meta.cached'):t('etf.meta.err');
   const errs=(m.errors||[]).slice(0,3).map(esc).join('; ');
-  return ' · '+t('etf.meta',{t:at,s:w('sosovalue'),f:w('finnhub')})+(errs?' · '+t('etf.meta.errs')+': '+errs:'');
+  return ' · '+t('etf.meta',{t:at,s:w('sosovalue'),f:w('finnhub')})+(errs?' · '+t('etf.meta.errs')+': '+escH(errs):'');
 }
 function etfTotals(D){
   const A=ETF_SYMS.map(s=>D.assets[s]).filter(Boolean);
@@ -4173,7 +4242,7 @@ function renderEtf(){
       <td><span class="cell">${etfBars(a.day)}</span></td></tr>`;}).join('');
   const fundTables=['btc','eth','sol','xrp'].map(s=>{const a=D.assets[s];if(!a||!a.funds||!a.funds.length)return '';
     const tot=a.funds.reduce((x,f)=>x+(f.aum||0),0);
-    const rows=a.funds.slice(0,14).map(f=>`<tr><td><span class="cell"><b>${f.t}</b>${f.cty==='hk'?' <span class="pchip">HK</span>':''}<small class="mtxt">${f.n}</small></span></td>
+    const rows=a.funds.slice(0,14).map(f=>`<tr><td><span class="cell"><b>${escH(f.t)}</b>${f.cty==='hk'?' <span class="pchip">HK</span>':''}<small class="mtxt">${escH(f.n)}</small></span></td>
       <td><span class="cell mono">${etfA(f.aum)}</span></td>
       <td><span class="cell mono">${tot&&f.aum?etfP(f.aum/tot*100,1):'—'}</span></td>
       <td><span class="cell mono ${etfCls(f.d1)}">${f.d1==null?'—':etfM(f.d1)}</span></td>
@@ -4192,7 +4261,7 @@ function renderEtf(){
   if(g){
     g.innerHTML=head+`<div class="list-wrap"><table class="etft"><thead><tr><th>${t('etf.c.asset')}</th><th>${t('etf.c.day')}</th><th>${t('etf.c.w')}</th><th>${t('etf.c.m')}</th><th>${t('etf.c.cum')}</th><th>${t('etf.c.aum')}</th><th>${t('etf.c.share')}</th><th>${t('etf.c.turn')}</th><th>${t('etf.c.bars')}</th></tr></thead><tbody>${rowsA}</tbody></table></div>
       ${fundTables}
-      <p class="pfoot">${t('etf.m')} ${ETF.live?t('etf.src.live'):t('etf.src.snap',{d:D.asof,f:ETF_SNAP.fetched})} ${etfKey()?'':t('etf.key.cta')}${etfMetaLine()} · <a href="https://www.coingecko.com" target="_blank" rel="noopener">Data by CoinGecko</a> · <a href="https://sosovalue.com" target="_blank" rel="noopener">SoSoValue</a></p>`;
+      <p class="pfoot">${t('etf.m')} ${ETF.live?t('etf.src.live'):t('etf.src.snap',{d:escH(D.asof),f:escH(ETF_SNAP.fetched)})} ${etfKey()?'':t('etf.key.cta')}${etfMetaLine()} · <a href="https://www.coingecko.com" target="_blank" rel="noopener">Data by CoinGecko</a> · <a href="https://sosovalue.com" target="_blank" rel="noopener">SoSoValue</a></p>`;
     g.hidden=false;
   }
   if(c){
@@ -4319,7 +4388,7 @@ function renderTop10(id){
   const wrap=x=>`<div class="top10">${head}${x}</div>`;
   if(LIVE.st==='load'||LIVE.st==='idle')return wrap(`<p class="t10-s">${t('top.load')}</p>`);
   if(LIVE.st==='err')return wrap(`<p class="t10-s err">${t('top.err')}</p>
-    <p class="t10-s">${t('top.err2')}<br><small>${String(LIVE.err).replace(/[<>&]/g,'')}</small></p>
+    <p class="t10-s">${t('top.err2')}<br><small>CoinPaprika: ${String(LIVE.err).replace(/[<>&]/g,'')}</small></p>
     <button class="small-btn" id="t10-retry">${t('top.retry')}</button>`);
   const rows=bas.map(sym=>{
     const c=LIVE.C[sym];if(!c)return null;
@@ -4331,7 +4400,7 @@ function renderTop10(id){
   const li=rows.map((r,i)=>{
     const lg=COIN_LOGO[r.sym],pos=r.fl>=0,mln=r.fl/1e6;
     const w=Math.max(3,Math.abs(r.fl)/mx*100);
-    return `<li><span class="r">${i+1}</span>${lg?`<img class="cic" src="${lg}" alt="" width="22" height="22" loading="lazy">`:'<span class="cic"></span>'}<span class="sym">${r.sym}</span><span class="nm">${r.name}</span>
+    return `<li><span class="r">${i+1}</span>${(lg&&/^https:\/\//.test(String(lg)))?`<img class="cic" src="${escH(lg)}" alt="" width="22" height="22" loading="lazy">`:'<span class="cic"></span>'}<span class="sym">${escH(r.sym)}</span><span class="nm">${escH(r.name)}</span>
       <span class="fl ${pos?'pos':'neg'}">${pos?'+':'−'}${nfmt(Math.abs(mln),Math.abs(mln)<10?1:0)}</span>
       <span class="bar ${pos?'pos':'neg'}"><i style="width:${w.toFixed(1)}%"></i></span><span class="sc ${pos?'pos':'neg'}">${fPct(r.pct)}</span></li>`;}).join('');
   return wrap(`<div class="t10-cols"><span></span><span>${t('top.flow')} <i class="u">(${t('u.m')})</i></span><span>${t('top.chg')}</span></div>

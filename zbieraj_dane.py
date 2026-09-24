@@ -10,7 +10,7 @@ SITE_URL (opcjonalnie): adres opublikowanej strony — gdy źródło zawiedzie, 
 zamiast pustki (data w polu "at" pokazuje wtedy prawdziwy wiek danych).
 Tylko biblioteka standardowa — zero zależności.
 """
-import json, os, sys, time, datetime, urllib.request, urllib.error
+import json, os, re, sys, time, datetime, urllib.request, urllib.error
 
 SOSO = 'https://openapi.sosovalue.com/openapi/v1'
 ETF_SYMS = ['btc', 'eth', 'sol', 'xrp']
@@ -19,6 +19,17 @@ SOSO_SLEEP = 4.0   # limit 20 zapytań/min — 15/min zostawia zapas
 OUT = 'data'
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 META = {'at': NOW, 'ok': {}, 'errors': []}
+SECRETS = []      # wartości kluczy — maskowane w każdym komunikacie błędu
+TICKER = re.compile(r'^[A-Z0-9.]{1,10}$')
+
+
+def mask(text):
+    """Komunikat błędu nigdy nie zawiera klucza (nawet gdy dostawca odbije adres z parametrem)."""
+    text = str(text)
+    for k in SECRETS:
+        if k:
+            text = text.replace(k, '***')
+    return text
 
 
 def get(url, headers=None, timeout=30):
@@ -55,7 +66,7 @@ def previous(name):
     try:
         return get_json(f'{site}/data/{name}.json?t={int(time.time())}')
     except Exception as e:  # noqa
-        META['errors'].append(f'poprzedni {name}.json: {e}')
+        META['errors'].append(mask(f'poprzedni {name}.json: {e}'))
         return None
 
 
@@ -84,12 +95,12 @@ def build_etf(key, cg_key):
     # kapitalizacje (CoinGecko) — do udziału ETF w rynku
     try:
         u = ('https://api.coingecko.com/api/v3/simple/price?ids=' + ','.join(CG_IDS.values())
-             + '&vs_currencies=usd&include_market_cap=true' + (f'&x_cg_demo_api_key={cg_key}' if cg_key else ''))
-        j = get_json(u)
+             + '&vs_currencies=usd&include_market_cap=true')
+        j = get_json(u, {'x-cg-demo-api-key': cg_key} if cg_key else None)   # klucz w nagłówku, nie w adresie
         out['mcap'] = {s: j[CG_IDS[s]]['usd_market_cap'] for s in ETF_SYMS}
         META['ok']['coingecko'] = True
     except Exception as e:
-        META['errors'].append(f'CoinGecko: {e}')
+        META['errors'].append(mask(f'CoinGecko: {e}'))
         META['ok']['coingecko'] = False
     for s in ETF_SYMS:
         rows = soso(f'/etfs/summary-history?symbol={s.upper()}&country_code=US&limit=60', key)
@@ -108,6 +119,10 @@ def build_etf(key, cg_key):
              'share': (aum * 1e6 / mc * 100) if (aum and mc) else None, 'funds': []}
         lst = soso(f'/etfs?symbol={s.upper()}&country_code=US', key)
         for it in (lst or [])[:12]:
+            if not TICKER.match(str(it.get('ticker', ''))):
+                # ticker spoza wzorca nie trafia na stronę — i nie znika po cichu
+                META['errors'].append(f'SoSoValue {s.upper()}: odrzucony ticker {str(it.get("ticker"))[:20]!r}')
+                continue
             try:
                 d = soso(f'/etfs/{it["ticker"]}/market-snapshot', key)
                 a['funds'].append({'t': it['ticker'], 'n': it.get('name'), 'cty': 'us',
@@ -117,7 +132,7 @@ def build_etf(key, cg_key):
                                    'fee': d['sponsor_fee'] * 100 if d.get('sponsor_fee') is not None else None,
                                    'prem': d.get('prem_dsc')})
             except Exception as e:
-                META['errors'].append(f'SoSoValue {it.get("ticker")}: {e}')
+                META['errors'].append(mask(f'SoSoValue {it.get("ticker")}: {e}'))
         a['funds'].sort(key=lambda f: -(f['aum'] or 0))
         if not a['aum'] and a['funds']:
             # suma aktywów tylko wtedy, gdy KAŻDY fundusz ma aktywa — brak nie jest zerem
@@ -135,6 +150,7 @@ def build_etf(key, cg_key):
 def main():
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
+    SECRETS[:] = [k for k in (soso_key, cg_key) if k]
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
     prev_etf = previous('etf') if soso_key else None
@@ -144,7 +160,7 @@ def main():
         try:
             save('etf', build_etf(soso_key, cg_key)); META['ok']['sosovalue'] = True
         except Exception as e:
-            META['errors'].append(f'SoSoValue: {e}'); META['ok']['sosovalue'] = False
+            META['errors'].append(mask(f'SoSoValue: {e}')); META['ok']['sosovalue'] = False
             if prev_etf: save('etf', prev_etf); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))
     else:
         META['errors'].append('brak SOSOVALUE_KEY'); META['ok']['sosovalue'] = False

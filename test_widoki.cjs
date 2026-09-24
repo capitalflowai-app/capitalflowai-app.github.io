@@ -133,3 +133,34 @@ test('notowania ETF-ów tylko z własnym kluczem: brak ścieżek serwerowych dla
   assert.ok(html.includes('TD_GAP=61000'), 'druga paczka po 61 s (limit 8 kredytów/min)');
   assert.ok(html.includes('TD_TTL=60*60*1000'), 'pamięć podręczna 60 min');
 });
+
+// v38: nazwy i daty z zewnątrz (CoinPaprika, SoSoValue, pliki serwera) są escapowane przed wstawieniem do HTML (audyt B5/B6)
+test('nazwy monet i funduszy oraz daty z plików są escapowane', () => {
+  assert.ok(html.includes('<span class="nm">${escH(r.name)}</span>'));
+  assert.ok(html.includes('<b>${escH(f.t)}</b>'));
+  assert.ok(html.includes('<small class="mtxt">${escH(f.n)}</small>'));
+  assert.ok(html.includes("t('etf.src.snap',{d:escH(D.asof),f:escH(ETF_SNAP.fetched)})"));
+  assert.ok(!html.includes('${r.name}') && !html.includes('${f.n}') && !html.includes('${f.t}'));
+  assert.ok(html.includes('/^https:\\/\\//.test(String(lg))'), 'logo tylko z https');
+  const e0 = html.indexOf('function escH('); const e1 = html.indexOf('\n', e0);
+  const escH = new Function(html.slice(e0, e1) + '\nreturn escH;')();
+  assert.equal(escH('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
+  assert.equal(escH('A&B "c" \'d\''), 'A&amp;B &quot;c&quot; &#39;d&#39;');
+});
+
+// v38: widok MFW (pary gospodarek) — mld USD z dziesiątych części miliarda, te same reguły co w silniku (holdings_page.py)
+test('mld USD z dziesiątych: znak minus typograficzny, plus tylko przy zmianie, zero bez znaku', () => {
+  const b0 = html.indexOf('function engBld('); const b1 = html.indexOf('function engHalf(', b0);
+  assert.ok(b0 > 0 && b1 > b0, 'engBld musi istnieć przed engHalf');
+  const mk = (lang) => new Function('LANG', 'engNum', html.slice(b0, b1) + '\nreturn engBld;')(lang, v => v.toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-GB'));
+  const pl = mk('pl');
+  assert.equal(pl(45133), '4 513,3');
+  assert.equal(pl(36, true), '+3,6');
+  assert.equal(pl(-36, true), '−3,6');
+  assert.equal(pl(0, true), '0,0');
+  assert.equal(pl(7), '0,7');
+  assert.equal(pl(1.5), null);
+  assert.equal(mk('en')(45133), '4,513.3');
+  assert.ok(html.includes("if(Array.isArray(d.pairs))return engPairs(rec);"));
+  for (const key of ['eng.c.pair', 'eng.d.pairs', 'eng.k.top', 'eng.h.of.2']) assert.ok(html.includes(`"${key}":`), key);
+});
