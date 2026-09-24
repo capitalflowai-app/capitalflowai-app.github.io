@@ -580,7 +580,7 @@ class ParseFred(unittest.TestCase):
         self.assertIn('api_key is not set', str(cm.exception))
 
     def test_only_fed_series_are_configured(self):
-        self.assertEqual(sorted(zd.FRED_SERIES), ['DTWEXBGS', 'RRPONTSYD', 'WALCL', 'WTREGEN'])
+        self.assertEqual(sorted(zd.FRED_SERIES), ['DTWEXBGS', 'RRPONTSYD', 'WALCL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1', 'WTREGEN'])   # v50: + depozyt H.4.1
         for third_party in ('SP500', 'VIXCLS', 'BAMLH0A0HYM2'):
             self.assertNotIn(third_party, zd.FRED_SERIES)
         self.assertIn('Board of Governors of the Federal Reserve System', zd.FRED_CITE)
@@ -603,7 +603,8 @@ class BuildFred(unittest.TestCase):
             return {'observations': [{'date': '2026-09-16', 'value': '5'}]}
         with mock.patch.object(zd, 'get_json', get_json):
             out = zd.build_fred('TAJNY-FRED')
-        self.assertEqual(sorted(out['series']), ['RRPONTSYD', 'WALCL', 'WTREGEN'])
+        self.assertEqual(sorted(out['series']), ['RRPONTSYD', 'WALCL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1', 'WTREGEN'])   # v50: + depozyt H.4.1
+        self.assertEqual(out['custody']['total'], 5.0); self.assertIsNone(out['custody']['d1w'])   # jedna środa: zmiany = brak, nie zero
         self.assertEqual(out['src'], zd.FRED_CITE); self.assertEqual(out['api_note'], zd.FRED_API_NOTE)
         self.assertTrue(any(e.startswith('FRED DTWEXBGS:') for e in zd.META['errors']))
         self.assertTrue(all('TAJNY' not in e for e in zd.META['errors']), zd.META['errors'])
@@ -934,6 +935,887 @@ class RobustnessV49(unittest.TestCase):
             b = zd.parse_bop(zd._ecb_try(zd.BOP_CA_URL, 'bop ca'), zd._ecb_try(zd.BOP_FA_URL, 'bop fa'))
         self.assertIsNone(b['s']['ca']); self.assertEqual(b['s']['fa'], [['2026-07', 11369]])
         self.assertIn('bop ca: access blocked', zd.META['errors'])
+
+
+class BisLbs(unittest.TestCase):
+    """v50: BIS LBS miara F — prawdziwe wiersze z odpowiedzi BIS z 24.09.2026 (wycinek), brak = None, salda na parach krajów."""
+    HEAD = ('FREQ,L_MEASURE,L_POSITION,L_INSTR,L_DENOM,L_CURR_TYPE,L_PARENT_CTY,L_REP_BANK_TYPE,L_REP_CTY,L_CP_SECTOR,'
+            'L_CP_COUNTRY,L_POS_TYPE,DECIMALS,UNIT_MEASURE,UNIT_MULT,AVAILABILITY,TITLE_GRP,TIME_FORMAT,COLLECTION,'
+            'ORG_VISIBILITY,TIME_PERIOD,OBS_VALUE,OBS_STATUS,OBS_CONF,OBS_PRE_BREAK')
+    # raportujący,kontrahent,kwartał,wartość (mln USD),status — wycinek odpowiedzi BIS_URL z 24.09.2026
+    REAL = """GB,US,2025-Q4,-3166.185,A
+GB,US,2026-Q1,194782.426,A
+US,GB,2025-Q4,-30041.572,A
+US,GB,2026-Q1,83065.607,A
+DE,US,2025-Q4,-2044.566,A
+DE,US,2026-Q1,83688.666,A
+US,DE,2025-Q4,12255.226,A
+US,DE,2026-Q1,-4162.079,A
+FR,US,2025-Q4,-22266.654,A
+FR,US,2026-Q1,9684.247,A
+US,FR,2025-Q4,10462.481,A
+US,FR,2026-Q1,-28926.626,A
+IT,US,2025-Q4,-1689.259,A
+IT,US,2026-Q1,845.285,A
+US,IT,2025-Q4,1444.204,A
+US,IT,2026-Q1,-297.234,A
+ES,US,2025-Q4,9287.087,A
+ES,US,2026-Q1,6161.192,A
+US,ES,2025-Q4,-573.321,A
+US,ES,2026-Q1,2499.191,A
+NL,US,2025-Q4,3992.794,A
+NL,US,2026-Q1,3636.218,A
+US,NL,2025-Q4,-1535.223,A
+US,NL,2026-Q1,1082.293,A
+CH,US,2025-Q4,9277.264,A
+CH,US,2026-Q1,198.058,A
+US,CH,2025-Q4,-2172.68,A
+US,CH,2026-Q1,2632.248,A
+SE,US,2025-Q4,-7265.643,A
+SE,US,2026-Q1,3402.082,A
+US,SE,2025-Q4,-13091.585,A
+US,SE,2026-Q1,11438.216,A
+JP,US,2025-Q4,69752.073,A
+JP,US,2026-Q1,108345.812,A
+KR,US,2025-Q4,3712.058,A
+KR,US,2026-Q1,3205.537,A
+HK,US,2025-Q4,30742.922,A
+HK,US,2026-Q1,-18637.593,A
+US,JP,2025-Q4,31172.02,A
+US,JP,2026-Q1,-23517.386,A
+US,KR,2025-Q4,-66.076,A
+US,KR,2026-Q1,988.328,A
+US,HK,2025-Q4,-6669.386,A
+US,HK,2026-Q1,12479.868,A
+ZA,GB,2025-Q4,1767.63,A
+ZA,GB,2026-Q1,836.013,A
+CA,RU,2025-Q4,-0.969,A
+CA,RU,2026-Q1,0.132,A
+AU,SG,2025-Q4,5986.833,A
+AU,SG,2026-Q1,-483.505,A
+AU,NZ,2025-Q4,389.123,A
+AU,NZ,2026-Q1,1136.897,A
+CA,MY,2025-Q4,NaN,Q
+CA,MY,2026-Q1,NaN,Q
+CA,MX,2025-Q4,NaN,Q
+CL,EG,2022-Q2,-0.032,A
+CL,IL,2022-Q2,-0.053,A"""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    @classmethod
+    def row(cls, rep, cp, q, v, status='A', unit='USD', mult='6', measure='F'):
+        return f'Q,{measure},C,A,TO1,A,5J,A,{rep},A,{cp},N,3,{unit},{mult},K,,,S,E,{q},{v},{status},F,'
+
+    @classmethod
+    def csv_of(cls, rows):
+        return (cls.HEAD + '\n' + '\n'.join(rows) + '\n').encode()
+
+    @classmethod
+    def real(cls):
+        return cls.csv_of([cls.row(*ln.split(',')) for ln in cls.REAL.splitlines()])
+
+    # siedem par regionów (próg jakości to 6) w czterech kolejnych kwartałach
+    Q4 = ['2025-Q2', '2025-Q3', '2025-Q4', '2026-Q1']
+
+    def base4(self, skip=()):
+        pairs = [('GB', 'US', 100), ('US', 'GB', 40), ('JP', 'US', 7), ('AU', 'SG', 2), ('ZA', 'GB', 3), ('CA', 'RU', 1), ('HK', 'IN', 5), ('BR', 'US', 4)]
+        return [self.row(a, b, q, v) for a, b, v in pairs for q in self.Q4 if (a, b, q) not in skip]
+
+    def test_real_rows_give_the_known_corridors(self):
+        j = zd.parse_bis_flows(self.real(), at='2026-09-24T21:00:00+00:00')
+        self.assertEqual(j['asof'], '2026-Q1'); self.assertEqual(j['unit'], 'mln USD')
+        self.assertEqual(j['quarters'], ['2025-Q2', '2025-Q3', '2025-Q4', '2026-Q1'])   # okno 4 kolejnych kwartałów; stare 2022-Q2 nie liczą się
+        f = j['flows']
+        self.assertEqual(f['eur>usa'][-1], ['2026-Q1', 302398.2, 8])       # 8 krajów Europy → USA (tyle samo co w pełnej odpowiedzi)
+        self.assertEqual(f['eur>usa'][-2], ['2025-Q4', -13875.2, 8])       # minus = banki ograniczyły należności
+        self.assertEqual(f['usa>eur'][-1], ['2026-Q1', 67331.6, 8])
+        self.assertEqual(f['jpn>usa'][-1], ['2026-Q1', 111551.3, 2])
+        self.assertEqual(f['chn>usa'][-1], ['2026-Q1', -18637.6, 1])       # Chiny jako pożyczający = tylko Hongkong
+        self.assertEqual(f['eur>usa'][0], ['2025-Q2', None, 0])            # kwartał w oknie bez danych = brak, nie zero
+        self.assertIsNone(j['regions']['eur']['out4'])                     # suma 4 kwartałów tylko z kompletu
+        self.assertEqual(f['can>rus'][-1], ['2026-Q1', 0.1, 1])            # 0,132 mln: mała liczba to liczba, nie brak
+        self.assertNotIn('can>asean', f); self.assertNotIn('can>lat', f)   # Q (poufne) i NaN = brak, nie 0
+        self.assertNotIn('oce>oce', f)                                     # AU→NZ: ten sam region
+        self.assertIn('can|rus', j['oneway']); self.assertIn('eur|usa', j['pairs'])
+        self.assertEqual(j['regions']['eur']['cp'], zd.BIS_CP['eur'])
+        self.assertEqual(j['regions']['eur']['rep_q'][0], ['GB', 194782.4, 1])   # wkład Wielkiej Brytanii (Londyn) w wypływ Europy
+        self.assertEqual(j['regions']['oce']['rep_q'], [['AU', -483.5, 1]])      # AU→NZ (ten sam region) nie jest wypływem regionu
+        self.assertIn('rus', j['no_reporter']); self.assertIn('ind', j['no_reporter']); self.assertIn('mea', j['no_reporter'])
+        self.assertTrue(all(x[1] is None and x[2] == 0 for x in j['regions']['rus']['out']))
+
+    def test_net_uses_only_matched_country_pairs_and_sums_to_zero(self):
+        j = zd.parse_bis_flows(self.real())
+        v = {(a, b, q): float(x) for a, b, q, x, s in (ln.split(',') for ln in self.REAL.splitlines()) if s == 'A'}
+        eur = sum(v[(c, 'US', '2026-Q1')] - v[('US', c, '2026-Q1')] for c in zd.BIS_CP['eur'])
+        self.assertEqual(j['regions']['eur']['net'][-1], ['2026-Q1', round(eur, 1), 8])   # ZA→GB bez GB→ZA nie wchodzi do salda
+        self.assertGreater(j['regions']['eur']['net'][-1][1], 0)                         # plus = Europa netto pożycza innym
+        for i in range(4):
+            s = sum(r['net'][i][1] for r in j['regions'].values() if r['net'][i][1] is not None)
+            self.assertAlmostEqual(s, 0, delta=1.0)
+        self.assertEqual(j['regions']['afr']['net'][-1], ['2026-Q1', None, 0])          # brak pary dwustronnej = brak, nie 0
+        self.assertEqual(j['regions']['afr']['out'][-1], ['2026-Q1', 836.0, 1])
+
+    def test_missing_statuses_nan_and_empty_are_missing_not_zero(self):
+        rows = self.base4() + [self.row('DE', 'CN', '2026-Q1', 'NaN', 'Q'), self.row('DE', 'CN', '2025-Q4', '9', 'K'),
+                               self.row('FR', 'CN', '2026-Q1', ''), self.row('IT', 'CN', '2026-Q1', '5', 'M')]
+        j = zd.parse_bis_flows(self.csv_of(rows))
+        self.assertNotIn('eur>chn', j['flows'])
+
+    def test_totals_need_the_full_window(self):
+        j = zd.parse_bis_flows(self.csv_of(self.base4()))
+        self.assertEqual(j['regions']['eur']['out4'], 4 * 100 + 0.0)
+        self.assertEqual(j['regions']['usa']['net4'], 4 * (40 - 100) + 0.0)
+        j = zd.parse_bis_flows(self.csv_of(self.base4(skip={('GB', 'US', '2025-Q3')})))
+        self.assertIsNone(j['regions']['eur']['out4']); self.assertEqual(j['flows']['eur>usa'][1], ['2025-Q3', None, 0])
+
+    def test_latest_quarter_must_be_full(self):
+        rows = self.base4() + [self.row('GB', 'US', '2026-Q2', '1')]      # szczątkowa świeża publikacja nie przesuwa okna
+        j = zd.parse_bis_flows(self.csv_of(rows))
+        self.assertEqual(j['asof'], '2026-Q1')
+
+    def test_unit_multiplier_currency_measure_and_columns(self):
+        j = zd.parse_bis_flows(self.csv_of(self.base4() + [self.row('DE', 'CN', '2026-Q1', '2', mult='9')]))
+        self.assertEqual(j['flows']['eur>chn'][-1], ['2026-Q1', 2000.0, 1])   # 2 mld = 2000 mln
+        with self.assertRaises(RuntimeError):
+            zd.parse_bis_flows(self.csv_of(self.base4() + [self.row('DE', 'CN', '2026-Q1', '2', unit='EUR')]))
+        j = zd.parse_bis_flows(self.csv_of(self.base4() + [self.row('DE', 'CN', '2026-Q1', '999999', measure='S')]))
+        self.assertNotIn('eur>chn', j['flows'])                             # stan (S) zamiast zmiany (F) nie trafia do sum
+        with self.assertRaises(RuntimeError):
+            zd.parse_bis_flows(b'FREQ,TIME_PERIOD,OBS_VALUE\nQ,2026-Q1,1\n')
+        with self.assertRaises(RuntimeError):
+            zd.parse_bis_flows(self.csv_of([]))
+        with self.assertRaises(RuntimeError):
+            zd.parse_bis_flows(self.csv_of(self.base4()[:8]))               # za mało par regionów
+
+    def test_url_is_measure_f_without_key_and_regions_are_consistent(self):
+        self.assertIn('/Q.F.C.A.TO1.A.5J.A.', zd.BIS_URL); self.assertIn('lastNObservations=5', zd.BIS_URL)
+        self.assertTrue(zd.BIS_URL.startswith('https://stats.bis.org/')); self.assertNotIn('key', zd.BIS_URL.lower())
+        c2r = {c: r for r, cs in zd.BIS_CP.items() for c in cs}
+        for r, cs in zd.BIS_REP.items():
+            for c in cs:
+                self.assertEqual(c2r[c], r)
+        self.assertEqual(zd._bis_qshift('2026-Q1', 1), '2025-Q4'); self.assertEqual(zd._bis_qshift('2026-Q1', 4), '2025-Q1')
+
+    def test_build_bis_single_request_with_file_time(self):
+        calls = []
+        def get_bytes(url, headers=None, timeout=60):
+            calls.append((url, timeout)); return self.real()
+        with mock.patch.object(zd, 'get_bytes', get_bytes):
+            out = zd.build_bis()
+        self.assertEqual(calls, [(zd.BIS_URL, 90)]); self.assertEqual(out['at'], zd.NOW)
+        self.assertIn('positive = banks in a lent/placed more in b', out['sign'])
+        self.assertLess(len(json.dumps(out)), 60000)
+
+
+class MainFlowBis(unittest.TestCase):
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
+        self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
+                      for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy')]
+        [p.start() for p in self.p_off]
+
+    def tearDown(self):
+        self.p_save.stop(); [p.stop() for p in self.p_off]
+
+    def test_young_previous_file_is_reused(self):
+        prev = {'at': _iso(60), 'asof': '2026-Q1', 'flows': {}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'bis' else None), \
+             mock.patch.object(zd, 'build_bis', side_effect=AssertionError('bez zapytań')):
+            zd.main()
+        self.assertIs(self.saved['bis'], prev); self.assertEqual(zd.META['ok']['bis'], 'cached')
+
+    def test_failure_keeps_previous_and_reports(self):
+        prev = {'at': _iso(26 * 60), 'asof': '2026-Q1', 'flows': {}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'bis' else None), \
+             mock.patch.object(zd, 'build_bis', side_effect=RuntimeError('HTTP Error 503')):
+            zd.main()
+        self.assertIs(self.saved['bis'], prev); self.assertIs(zd.META['ok']['bis'], False)
+        self.assertIn('BIS: HTTP Error 503', zd.META['errors'])
+
+    def test_fresh_build_is_saved(self):
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        new = {'at': zd.NOW, 'asof': '2026-Q1'}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: None), \
+             mock.patch.object(zd, 'build_bis', return_value=new):
+            zd.main()
+        self.assertIs(self.saved['bis'], new); self.assertIs(zd.META['ok']['bis'], True)
+
+
+
+# v50 CFTC: prawdziwe wiersze FinFutWk.txt (raport na 15.09.2026, pobrane 24.09.2026, końce linii CRLF jak w pliku CFTC);
+# MICRO BITCOIN (133742) ma zostać pominięty. Historia w testach powstaje z tych wierszy (inna data, przesunięte pozycje).
+_CFTC_WK = (
+    '"EURO FX - CHICAGO MERCANTILE EXCHANGE",260915,2026-09-15,099741,CME ,00,099 ,  920035,   41113,  299193,    5144,  486435,  234737,   43899,  103260,  131416,   23388,   24818,   17063,    3579,  731636,  758419,  188399,  161616,  -22429,  -13244,  -16618,  -73160,    1992,     972,   -1665,    8452,    3323,  -37719,     231,     651,   -2934, -118047, -127150,   95618,  104721,  100.0,    4.5,   32.5,    0.6,   52.9,   25.5,    4.8,   11.2,   14.3,    2.5,    2.7,    1.9,    0.4,   79.5,   82.4,   20.5,   17.6,    318,     16,     13,      8,    116,     43,     49,     48,     48,     23,     21,     13,      6,    235,    169,    17.7,    30.6,    25.5,    45.6,    17.5,    30.6,    25.2,    44.5,"(CONTRACTS OF EUR 125,000)","099741","CME ","099 ","F10","FutOnly"\r\n'
+    '"BITCOIN - CHICAGO MERCANTILE EXCHANGE",260915,2026-09-15,133741,CME ,00,133 ,   20773,    6587,    3168,     620,    4528,    1768,     486,    5545,   11899,    1841,     122,     136,      23,   19752,   19941,    1021,     832,    -310,    -212,    -688,      31,    -422,     561,     185,     399,   -1139,     585,    -647,      36,      23,     -58,    -406,    -252,      96,  100.0,   31.7,   15.3,    3.0,   21.8,    8.5,    2.3,   26.7,   57.3,    8.9,    0.6,    0.7,    0.1,   95.1,   96.0,    4.9,    4.0,    111,     12,      9,      4,      6,      7,      5,     26,     42,     16,      4,.,.,     63,     74,    61.0,    28.6,    71.7,    47.0,    59.6,    25.3,    68.2,    41.8,"(5 Bitcoins)","133741","CME ","133 ","F85","FutOnly"\r\n'
+    '"MICRO BITCOIN - CHICAGO MERCANTILE EXCHANGE",260915,2026-09-15,133742,CME ,00,133 ,   37455,    3991,    6069,       0,    4700,     571,       0,   16881,   25363,     405,    6047,    2847,      87,   32111,   35342,    5344,    2113,    2276,    2804,    -116,       0,    3154,     532,     -10,   -2378,     698,     157,    -976,     766,      17,    2768,    2044,    -492,     232,  100.0,   10.7,   16.2,    0.0,   12.5,    1.5,    0.0,   45.1,   67.7,    1.1,   16.1,    7.6,    0.2,   85.7,   94.4,   14.3,    5.6,    198,      8,      4,      0,      8,.,      0,     51,     15,      6,     74,     36,.,    146,     61,    32.6,    76.1,    49.9,    82.4,    32.6,    75.7,    49.9,    81.9,"(Bitcoin X $0.10)","133742","CME ","133 ","F85","FutOnly"\r\n'
+    '"ETHER CASH SETTLED - CHICAGO MERCANTILE EXCHANGE",260915,2026-09-15,146021,CME ,00,146 ,   28413,   19586,    9015,     980,    1419,    3339,     460,    3293,   11015,    1939,     159,    1282,       0,   27836,   28030,     577,     383,    1849,     -48,   -1216,     685,    -206,      61,     -39,     197,     633,    1581,       2,     180,       0,    2172,    1885,    -323,     -36,  100.0,   68.9,   31.7,    3.4,    5.0,   11.8,    1.6,   11.6,   38.8,    6.8,    0.6,    4.5,    0.0,   98.0,   98.7,    2.0,    1.3,    101,      5,     10,.,      5,      8,.,     29,     34,     14,      5,      4,      0,     55,     65,    81.5,    35.8,    86.8,    54.3,    75.2,    32.0,    78.5,    47.9,"(50 Index Points)","146021","CME ","146 ","F85","FutOnly"\r\n')
+_CFTC_TODAY = datetime.date(2026, 9, 24)
+
+
+def _cftc_row(line, day, delta=0, **cols):
+    """Ten sam wiersz z innego tygodnia: data `day`; dealer long +delta, pozostali short +delta, open interest +delta
+    (sumy dalej równe OI, więc strażnik go przepuszcza; netto dealerów +delta, pozostałych −delta); cols = nadpisane pola."""
+    import csv, io
+    p = next(csv.reader([line.strip()]))
+    C = zd.CFTC_COLS
+    p[C.index('Report_Date_as_YYYY-MM-DD')] = day
+    p[C.index('As_of_Date_In_Form_YYMMDD')] = day[2:].replace('-', '')
+    for c in ('Open_Interest_All', 'Dealer_Positions_Long_All', 'Other_Rept_Positions_Short_All'):
+        p[C.index(c)] = str(int(p[C.index(c)]) + delta)
+    for c, v in cols.items():
+        p[C.index(c)] = v
+    buf = io.StringIO(); csv.writer(buf, lineterminator='\n').writerow(p)
+    return buf.getvalue()
+
+
+def _cftc_weeks(last, n):
+    d = datetime.date.fromisoformat(last)
+    return [(d - datetime.timedelta(days=7 * k)).isoformat() for k in range(n - 1, -1, -1)]
+
+
+def _cftc_year(days, skip=()):
+    """Plik roczny (zip z FinFutYY.txt, z nagłówkiem): każdy tydzień z `days` dla każdego wiersza próbki; tydzień o k wcześniej
+    niż ostatni ma delta = 100·k. skip = kody rynków pominiętych."""
+    import io, zipfile
+    lines = [l for l in _CFTC_WK.split('\r\n') if l and not any(f',{c},' in l for c in skip)]
+    text = ','.join(zd.CFTC_COLS) + '\n' + ''.join(_cftc_row(l, d, 100 * (len(days) - 1 - i)) for i, d in enumerate(days) for l in lines)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w') as z:
+        z.writestr('FinFutYY.txt', text)
+    return buf.getvalue()
+
+
+def _cftc_fetch(mapping):
+    """Udaje sieć: URL → bajty albo wyjątek; nieznany URL → HTTP 404 (jak nieistniejący plik roczny CFTC)."""
+    import urllib.error
+    def fetch(url):
+        v = mapping.get(url)
+        if isinstance(v, Exception):
+            raise v
+        if v is None:
+            raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+        return v
+    return fetch
+
+
+def _cftc_std(**over):
+    m = {zd.CFTC_WEEK_URL: _CFTC_WK.encode(), zd.CFTC_YEAR_URL.format(2026): _cftc_year(_cftc_weeks('2026-09-15', 14))}
+    m.update(over)
+    return m
+
+
+class Cftc(unittest.TestCase):
+    """v50: CFTC Traders in Financial Futures wprost z cftc.gov — brak to None (nigdy 0), strażnik sum, historia z okna 90 dni."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.SECRETS[:] = []   # inne testy zostawiają klucze — mask() psułby komunikaty
+
+    def test_weekly_file_without_header_real_numbers_only_our_markets(self):
+        w = zd.parse_cftc_csv(_CFTC_WK, header=zd.CFTC_COLS)
+        self.assertEqual(sorted(w), ['099741', '133741', '146021'])                 # MICRO BITCOIN 133742 pominięty
+        self.assertEqual(len(zd.CFTC_COLS), 87)
+        r = zd.cftc_record(w['099741']['2026-09-15'])
+        d = r['g']['dealer']
+        self.assertEqual((d['long'], d['short'], d['spread'], d['net'], d['chg_net']), (41113, 299193, 5144, -258080, 3374))
+        self.assertEqual((r['g']['asset_mgr']['net'], r['g']['lev_funds']['net'], r['g']['other_rept']['net']), (251698, -28156, 7755))
+        self.assertEqual(r['g']['lev_funds']['chg_net'], 5129)
+        n = r['g']['nonrept']
+        self.assertEqual((n['long'], n['short'], n['net'], n['chg_net']), (188399, 161616, 26783, -9103))
+        self.assertIsNone(n['spread'])                                              # CFTC nie dzieli małych graczy — brak, nie 0
+        self.assertEqual((r['oi'], r['oi_chg'], r['units']), (920035, -22429, '(CONTRACTS OF EUR 125,000)'))
+        self.assertTrue(zd.cftc_consistent(r))
+        eth = zd.cftc_record(w['146021']['2026-09-15'])
+        self.assertEqual(eth['g']['other_rept']['spread'], 0)                       # prawdziwe zero z raportu zostaje zerem
+        self.assertEqual(eth['units'], '(50 Index Points)')
+
+    def test_missing_values_bad_dates_and_other_layouts_are_gaps_not_zeros(self):
+        for tok in ('.', '', 'nan', 'inf', '-', 'x'):
+            self.assertIsNone(zd._cftc_int(tok), tok)
+        self.assertEqual(zd._cftc_int(' -22429'), -22429)
+        line = _CFTC_WK.split('\r\n')[1]
+        row = zd.parse_cftc_csv(_cftc_row(line, '2026-09-15', Change_in_Dealer_Long_All='.', Change_in_Open_Interest_All='nan'),
+                                header=zd.CFTC_COLS)['133741']['2026-09-15']
+        r = zd.cftc_record(row)
+        self.assertIsNone(r['g']['dealer']['chg_net']); self.assertIsNone(r['oi_chg']); self.assertEqual(r['g']['dealer']['net'], 3419)
+        self.assertEqual(zd.parse_cftc_csv(_cftc_row(line, '2026-13-45'), header=zd.CFTC_COLS), {})   # nieistniejąca data
+        self.assertEqual(zd.parse_cftc_csv(line.rsplit(',', 1)[0] + '\n', header=zd.CFTC_COLS), {})  # 86 pól zamiast 87
+        with self.assertRaises(RuntimeError):
+            zd.parse_cftc_csv('a,b,c\n1,2,3\n')
+
+    def test_guard_catches_shifted_columns(self):
+        row = dict(zd.parse_cftc_csv(_CFTC_WK, header=zd.CFTC_COLS)['099741']['2026-09-15'])
+        row['Dealer_Positions_Long_All'] = row['Dealer_Positions_Short_All']          # kolumna przesunięta o jedną w prawo
+        self.assertFalse(zd.cftc_consistent(zd.cftc_record(row)))
+        self.assertFalse(zd.cftc_consistent(zd.cftc_record(dict(row, Dealer_Positions_Long_All='.'))))
+
+    def test_build_state_history_13_reports_and_order(self):
+        out = zd.build_cftc(fetch=_cftc_fetch(_cftc_std()), today=_CFTC_TODAY)
+        self.assertEqual(zd.META['errors'], [])
+        self.assertEqual((out['asof'], out['unit'], out['url']), ('2026-09-15', 'kontrakty', zd.CFTC_HOME))
+        self.assertEqual(out['order'], ['dealer', 'asset_mgr', 'lev_funds', 'other_rept', 'nonrept'])
+        eur = out['markets']['eur']
+        self.assertTrue(eur['in_week_file']); self.assertEqual((eur['oi'], eur['oi_chg']), (920035, -22429))
+        self.assertEqual(eur['groups']['dealer'], {'long': 41113, 'short': 299193, 'spread': 5144, 'net': -258080, 'chg_net': 3374})
+        self.assertEqual([out['markets']['btc']['groups']['lev_funds'][k] for k in ('long', 'short', 'spread')], [5545, 11899, 1841])
+        self.assertEqual([out['markets']['eth']['groups']['dealer'][k] for k in ('long', 'short', 'spread')], [19586, 9015, 980])
+        for key in ('eur', 'btc', 'eth'):
+            h = out['markets'][key]['hist']
+            self.assertEqual(h['dates'], _cftc_weeks('2026-09-15', 13))              # 23.06–15.09, rosnąco, 14. tydzień odcięty
+            for g in out['order']:
+                self.assertEqual(len(h[g]), 13); self.assertEqual(h[g][-1], out['markets'][key]['groups'][g]['net'])
+        h = eur['hist']
+        self.assertEqual(h['dealer'][0], -258080 + 1200); self.assertEqual(h['other_rept'][0], 7755 - 1200); self.assertEqual(h['oi'][0], 920035 + 1200)
+        self.assertLess(len(json.dumps(out)), 8000)
+
+    def test_week_file_down_uses_annual_file(self):
+        import urllib.error
+        out = zd.build_cftc(fetch=_cftc_fetch(_cftc_std(**{zd.CFTC_WEEK_URL: urllib.error.URLError('timeout')})), today=_CFTC_TODAY)
+        eur = out['markets']['eur']
+        self.assertEqual(eur['asof'], '2026-09-15'); self.assertFalse(eur['in_week_file'])
+        self.assertEqual(eur['groups']['dealer']['chg_net'], 3374)
+        self.assertTrue(any(e.startswith('CFTC tydzień') for e in zd.META['errors']))
+
+    def test_missing_cftc_change_falls_back_to_previous_report_or_stays_gap(self):
+        wk = ''.join(_cftc_row(l, '2026-09-15', Change_in_Dealer_Long_All='.', Change_in_Open_Interest_All='.') if ',099741,' in l else l + '\n'
+                     for l in _CFTC_WK.split('\r\n') if l)
+        out = zd.build_cftc(fetch=_cftc_fetch(_cftc_std(**{zd.CFTC_WEEK_URL: wk.encode()})), today=_CFTC_TODAY)
+        self.assertEqual(out['markets']['eur']['groups']['dealer']['chg_net'], -100)   # −258080 − (−258080 + 100) z historii
+        self.assertEqual(out['markets']['eur']['oi_chg'], -100)
+        out = zd.build_cftc(fetch=_cftc_fetch(_cftc_std(**{zd.CFTC_WEEK_URL: wk.encode(), zd.CFTC_YEAR_URL.format(2026): RuntimeError('503')})),
+                            today=_CFTC_TODAY)
+        self.assertIsNone(out['markets']['eur']['groups']['dealer']['chg_net']); self.assertIsNone(out['markets']['eur']['oi_chg'])
+
+    def test_annual_file_down_single_point_or_previous_history_in_window(self):
+        full = zd.build_cftc(fetch=_cftc_fetch(_cftc_std()), today=_CFTC_TODAY)
+        zd.META['errors'].clear()
+        down = {zd.CFTC_YEAR_URL.format(2026): RuntimeError('HTTP 503'), zd.CFTC_YEAR_URL.format(2025): _cftc_year(_cftc_weeks('2025-12-30', 14))}
+        out = zd.build_cftc(fetch=_cftc_fetch(_cftc_std(**down)), today=_CFTC_TODAY)
+        for k in ('eur', 'btc', 'eth'):
+            self.assertEqual(out['markets'][k]['hist']['dates'], ['2026-09-15'])  # nie 2025 + 15.09.2026 (dziura)
+        self.assertEqual(out['markets']['eur']['groups']['lev_funds']['chg_net'], 5129)   # zmiana z kolumn CFTC, nie z historii
+        self.assertTrue(any(e.startswith('CFTC rok 2026') for e in zd.META['errors']))
+        prev = json.loads(json.dumps(full))
+        for m in prev['markets'].values():                                           # poprzedni plik: historia do 08.09
+            for f in list(m['hist']):
+                m['hist'][f] = m['hist'][f][:-1]
+        prev['markets']['btc']['hist']['dates'][0] = '2026-13-45'                   # zła data i nie-liczba w poprzednim pliku = pominięte
+        prev['markets']['btc']['hist']['dealer'][1] = 'x'
+        out = zd.build_cftc(fetch=_cftc_fetch(_cftc_std(**down)), today=_CFTC_TODAY, prev=prev)
+        h = out['markets']['eur']['hist']
+        self.assertEqual(h['dates'], _cftc_weeks('2026-09-15', 13)); self.assertEqual(h['dealer'], full['markets']['eur']['hist']['dealer'])
+        b = out['markets']['btc']['hist']
+        self.assertEqual(len(b['dates']), 12); self.assertIsNone(b['dealer'][0])
+        old = json.loads(json.dumps(prev))
+        for m in old['markets'].values():
+            m['hist']['dates'] = [d.replace('2026-', '2025-') for d in m['hist']['dates']]
+        out = zd.build_cftc(fetch=_cftc_fetch(_cftc_std(**down)), today=_CFTC_TODAY, prev=old)
+        self.assertEqual(out['markets']['eth']['hist']['dates'], ['2026-09-15'])   # stara historia spoza 90 dni odrzucona
+
+    def test_january_uses_previous_year_file(self):
+        import urllib.error
+        src = {zd.CFTC_WEEK_URL: urllib.error.URLError('down'), zd.CFTC_YEAR_URL.format(2025): _cftc_year(_cftc_weeks('2025-12-30', 15))}
+        out = zd.build_cftc(fetch=_cftc_fetch(src), today=datetime.date(2026, 1, 2))
+        h = out['markets']['btc']['hist']
+        self.assertEqual(h['dates'], _cftc_weeks('2025-12-30', 13)); self.assertEqual(out['asof'], '2025-12-30')
+        self.assertTrue(any('CFTC rok 2026: HTTP 404' in e for e in zd.META['errors']))
+
+    def test_missing_market_is_none_or_previous_state_up_to_35_days(self):
+        wk = '\r\n'.join(l for l in _CFTC_WK.split('\r\n') if ',133741,' not in l)
+        src = _cftc_std(**{zd.CFTC_WEEK_URL: wk.encode(), zd.CFTC_YEAR_URL.format(2026): _cftc_year(_cftc_weeks('2026-09-15', 14), skip=('133741',))})
+        out = zd.build_cftc(fetch=_cftc_fetch(src), today=_CFTC_TODAY)
+        self.assertIsNone(out['markets']['btc']); self.assertIsNotNone(out['markets']['eur'])
+        self.assertTrue(any('brak rynku 133741' in e for e in zd.META['errors']))
+        prev = {'at': '2026-09-20T00:00:00+00:00', 'markets': {'btc': {'asof': '2026-09-08', 'oi': 21083}}}
+        out = zd.build_cftc(fetch=_cftc_fetch(src), today=_CFTC_TODAY, prev=prev)
+        self.assertEqual(out['markets']['btc'], {'asof': '2026-09-08', 'oi': 21083, 'kept': True})
+        prev['markets']['btc']['asof'] = '2026-08-18'                                # 37 dni — za stare, brak zamiast starego stanu
+        self.assertIsNone(zd.build_cftc(fetch=_cftc_fetch(src), today=_CFTC_TODAY, prev=prev)['markets']['btc'])
+        prev['markets']['btc']['asof'] = '2026-13-01'
+        self.assertIsNone(zd.build_cftc(fetch=_cftc_fetch(src), today=_CFTC_TODAY, prev=prev)['markets']['btc'])
+
+    def test_nothing_fetched_raises_even_with_previous_file(self):
+        import urllib.error
+        down = {zd.CFTC_WEEK_URL: urllib.error.URLError('down'), zd.CFTC_YEAR_URL.format(2026): RuntimeError('503'),
+                zd.CFTC_YEAR_URL.format(2025): RuntimeError('503')}
+        with self.assertRaises(RuntimeError):
+            zd.build_cftc(fetch=_cftc_fetch(down), today=_CFTC_TODAY)
+        prev = {'at': '2026-09-19T00:00:00+00:00', 'markets': {k: {'asof': '2026-09-15', 'oi': 1} for k in ('eur', 'btc', 'eth')}}
+        with self.assertRaises(RuntimeError):                                        # tylko stare stany ⇒ main zachowa stary plik i jego „at”
+            zd.build_cftc(fetch=_cftc_fetch(down), today=_CFTC_TODAY, prev=prev)
+        self.assertTrue(all(e.startswith('CFTC') for e in zd.META['errors']))
+
+
+class MainFlowCftc(unittest.TestCase):
+    """v50: młody poprzedni cftc.json (< 6 h) → bez zapytań; awaria → poprzedni plik zostaje, błąd „CFTC: …” w meta."""
+    ENV = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': '', 'FINNHUB_KEY': '', 'TWELVEDATA_KEY': '', 'COINMARKETCAP_KEY': '', 'FRED_KEY': ''}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cm', 'build_rezerwy')]
+        [p.start() for p in self.ps]
+
+    def tearDown(self):
+        [p.stop() for p in self.ps]
+
+    def _main(self, prev, build):
+        with mock.patch.dict(os.environ, self.ENV, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'cftc' else None), \
+             mock.patch.object(zd, 'build_cftc', build) as b:
+            zd.main()
+        return b
+
+    def test_young_previous_file_is_reused_without_requests(self):
+        prev = {'at': _iso(5 * 60), 'asof': '2026-09-15', 'markets': {}}
+        self._main(prev, mock.Mock(side_effect=AssertionError('bez zapytań')))
+        self.assertIs(self.saved['cftc'], prev); self.assertEqual(zd.META['ok']['cftc'], 'cached')
+
+    def test_older_file_is_rebuilt_with_previous_passed_in(self):
+        prev = {'at': _iso(7 * 60), 'asof': '2026-09-08', 'markets': {}}
+        new = {'at': _iso(0), 'asof': '2026-09-15', 'markets': {}}
+        b = self._main(prev, mock.Mock(return_value=new))
+        b.assert_called_once_with(prev=prev)
+        self.assertIs(self.saved['cftc'], new); self.assertIs(zd.META['ok']['cftc'], True)
+
+    def test_failure_keeps_previous_and_reports(self):
+        prev = {'at': _iso(7 * 60), 'asof': '2026-09-08', 'markets': {}}
+        self._main(prev, mock.Mock(side_effect=RuntimeError('żaden rynek nie ma danych')))
+        self.assertIs(self.saved['cftc'], prev); self.assertIs(zd.META['ok']['cftc'], False)
+        self.assertIn('CFTC: żaden rynek nie ma danych', zd.META['errors'])
+        self.saved.clear(); zd.META['errors'].clear()
+        self._main(None, mock.Mock(side_effect=RuntimeError('x')))                      # bez poprzedniego pliku: nic nie zapisujemy
+        self.assertNotIn('cftc', self.saved); self.assertIn('CFTC: x', zd.META['errors'])
+
+
+def _cm_row(asset, day, i, o, iu, ou, s, su, status='flash'):
+    r = {'asset': asset, 'time': day + 'T00:00:00.000000000Z'}
+    for m, v in (('FlowInExNtv', i), ('FlowOutExNtv', o), ('FlowInExUSD', iu), ('FlowOutExUSD', ou),
+                 ('SplyExNtv', s), ('SplyExUSD', su)):
+        if v is not None:
+            r[m] = v; r[m + '-status'] = status; r[m + '-status-time'] = day + 'T02:00:00.000000000Z'
+    return r
+
+
+def _cm_series(asset, last='2026-09-23', n=35, skip=(), status='flash'):
+    """n dni rosnąco: wpływ 10, wypływ 12 (netto −2 dziennie), zapas 1000 − 2·k, USD ×100 (teksty jak u dostawcy)."""
+    d0 = datetime.date.fromisoformat(last)
+    rows = []
+    for k in range(n):
+        day = (d0 - datetime.timedelta(days=n - 1 - k)).isoformat()
+        if day in skip:
+            continue
+        rows.append(_cm_row(asset, day, '10.0', '12.0', '1000.5', '1200.5', str(1000 - 2 * k), str((1000 - 2 * k) * 100), status))
+    return rows
+
+
+# Prawdziwe odpowiedzi Coin Metrics Community z 24.09.2026 (8 ostatnich dni BTC i ETH, teksty bez zmian)
+CM_REAL = {
+    'btc': [
+        ('2026-09-16', '23005.0435735', '25111.95609172', '1750278397.87302521799362345', '1910577310.373092978573929644', '2715643.25254517', '206612593715.522673197628736459'),
+        ('2026-09-17', '21766.37576865', '22768.27672937', '1662666010.15348040373565032', '1739198120.534876233151184016', '2717241.34934502', '207561648340.492287723402723936'),
+        ('2026-09-18', '26956.79244258', '28008.10103786', '2181994790.729968312846095348', '2267092076.812386564929669316', '2718781.15287739', '220069443549.326947134534782334'),
+        ('2026-09-19', '13920.30109519', '15406.49176817', '1131196317.767704870377350018', '1251967657.789695729333835774', '2718047.40416887', '220874907380.868559276402635314'),
+        ('2026-09-20', '12118.44914273', '12143.14716736', '983954376.302886483419629726', '985959726.091007174726671232', '2721135.94115925', '220941936239.83360304532696735'),
+        ('2026-09-21', '39392.93389089', '43259.91376965', '3407697475.40797693418007915', '3742211721.20654441548406775', '2719494.22011218', '235250657235.4082620030970023'),
+        ('2026-09-22', '26788.45880433', '43695.27229361', '2309306372.292639122668101195', '3766762824.384114662172450315', '2705076.07472788', '233191818257.78390678652978102'),
+        ('2026-09-23', '22387.64642336', '32444.54357449', '1890285676.750714654929787264', '2739432937.603468979066092076', '2695208.79361638', '227568118688.422059403028163912'),
+    ],
+    'eth': [
+        ('2026-09-16', '289382.073310989575481583', '212743.194353739073070714', '698485929.04586564440410663348219881565', '513501496.6758600223263853703466012027', '15388706.801086797410188754', '37143956582.3421258144738703656887627247'),
+        ('2026-09-17', '267625.150138587144779647', '240294.989972524729939119', '654681864.07411971396984760189458268627', '587825067.56715277754633741250812832579', '15416030.460658763593125918', '37711685741.72171387332230353704504084038'),
+        ('2026-09-18', '356672.792475764516139621', '212648.878259904896237837', '931833389.97422577397346811150449431467', '555560528.53851446633457874501080026499', '15560044.485571174299546947', '40651738251.45286313523098914606477319469'),
+        ('2026-09-19', '110734.936450477785281349', '117829.794546268749835735', '291556129.28182150657257360720754134489', '310236316.67812432259804510538095462835', '15552943.686290538048104223', '40949642501.85785452245489574737288447003'),
+        ('2026-09-20', '92560.011058430166140539', '126968.139877963660133432', '244515137.73109773031821180382826407923', '335410852.42657819793719839574007359224', '15518530.952890564413554298', '40995195332.62570146917542426933120645386'),
+        ('2026-09-21', '369833.264598950719169977', '407638.521730416910587144', '1025844852.64772373878105520862139592522', '1130709212.19470504710965456670873458384', '15480710.367535076292751177', '42940450646.28609433714037931464559775722'),
+        ('2026-09-22', '166693.231624719601151318', '230825.920339214647048367', '459231641.12677258814244778721651149796', '635914039.09320861072150661229549779274', '15416565.793280767156723457', '42471879276.57467950330200650882065335254'),
+        ('2026-09-23', '167730.112637279856076631', '241843.073484394985997244', '450172921.29511826612335951381361423947', '649085612.43797930337580029021565884428', '15342440.16922408408424477', '41177764696.9759050596155967026849261849'),
+    ],
+}
+
+
+class CoinMetrics(unittest.TestCase):
+    """v50: Coin Metrics Community — wpłaty/wypłaty BTC i ETH na giełdy, zapas na giełdach; brak = None, nigdy 0."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_url_is_keyless_one_request_for_both_assets(self):
+        self.assertTrue(zd.CM_URL.startswith('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?'))
+        for m in ('FlowInExNtv', 'FlowOutExNtv', 'FlowInExUSD', 'FlowOutExUSD', 'SplyExNtv', 'SplyExUSD', 'assets=btc,eth',
+                  'frequency=1d', 'limit_per_asset=36', 'paging_from=end', 'ignore_unsupported_errors=true'):
+            self.assertIn(m, zd.CM_URL)
+        self.assertNotIn('api_key', zd.CM_URL)
+
+    def test_sums_net_and_supply_change(self):
+        out = zd.parse_cm({'data': _cm_series('btc') + _cm_series('eth')})
+        b = out['assets']['btc']
+        self.assertEqual(out['asof'], '2026-09-23'); self.assertEqual(b['asof'], '2026-09-23'); self.assertEqual(b['status'], 'flash')
+        self.assertEqual(len(b['d']), 35); self.assertEqual(b['d'][0][0], '2026-08-20'); self.assertEqual(b['d'][-1][0], '2026-09-23')
+        self.assertEqual(b['last'], {'in': 10.0, 'out': 12.0, 'net': -2.0, 'in_usd': 1000, 'out_usd': 1200, 'net_usd': -200,
+                                     'sply': 932.0, 'sply_usd': 93200})
+        self.assertEqual(b['sum7'], {'in': 70.0, 'out': 84.0, 'net': -14.0, 'in_usd': 7004, 'out_usd': 8404, 'net_usd': -1400})
+        self.assertEqual(b['sum30']['net'], -60.0)
+        self.assertEqual(b['sply_ch7'], {'ntv': -14.0, 'pct': round(-14 / 946 * 100, 2)})
+        self.assertEqual(b['sply_ch30']['ntv'], -60.0)
+        self.assertEqual(b['missing'], 0); self.assertIsNone(b['pending'])
+        self.assertEqual(out['cols'], ['date', 'in', 'out', 'net', 'in_usd', 'out_usd', 'net_usd', 'sply', 'sply_usd'])
+        self.assertEqual(out['license'], 'CC BY-NC 4.0')
+        self.assertTrue(out['attribution'].startswith('Source: Coin Metrics Community Network Data'))
+        self.assertIn('https://coinmetrics.io', out['attribution']); self.assertIn(zd.CM_LICENSE_URL, out['attribution'])
+
+    def test_missing_day_is_none_never_zero_and_breaks_only_its_windows(self):
+        out = zd.parse_cm({'data': _cm_series('btc', skip=('2026-09-20',)) + _cm_series('eth')})
+        b = out['assets']['btc']
+        gap = [r for r in b['d'] if r[0] == '2026-09-20'][0]
+        self.assertEqual(gap[1:], [None] * 8)
+        self.assertEqual(b['missing'], 1)
+        self.assertIsNone(b['sum7']['in']); self.assertIsNone(b['sum30']['net'])
+        self.assertEqual(b['sply_ch7']['ntv'], -14.0, 'zmiana zapasu liczy tylko dwa końce okna')
+        self.assertEqual(out['assets']['eth']['sum7']['net'], -14.0, 'luka BTC nie psuje ETH')
+
+    def test_one_side_missing_gives_none_net_but_keeps_other_values(self):
+        rows = _cm_series('btc')
+        del rows[-1]['FlowOutExUSD']
+        rows[-1]['FlowOutExNtv'] = 'nan'
+        rows[-2]['FlowInExNtv'] = '-5'
+        b = zd.parse_cm({'data': rows})['assets']['btc']
+        self.assertIsNone(b['last']['out']); self.assertIsNone(b['last']['net']); self.assertIsNone(b['last']['net_usd'])
+        self.assertEqual(b['last']['in_usd'], 1000); self.assertEqual(b['last']['sply'], 932.0)
+        self.assertIsNone(b['d'][-2][1], 'ujemny przepływ to błąd dostawcy → None')
+        self.assertIsNone(b['sum7']['out']); self.assertIsNone(b['sum7']['in'])
+
+    def test_one_asset_missing_keeps_the_other_and_reports(self):
+        out = zd.parse_cm({'data': _cm_series('eth')})
+        self.assertIsNone(out['assets']['btc']); self.assertEqual(out['assets']['eth']['asof'], '2026-09-23')
+        self.assertIn('Coin Metrics: brak dni dla btc', zd.META['errors'])
+
+    def test_different_last_days_give_a_range(self):
+        out = zd.parse_cm({'data': _cm_series('btc', last='2026-09-22') + _cm_series('eth')})
+        self.assertEqual(out['asof'], '2026-09-22 – 2026-09-23')
+
+    def test_reviewed_status_and_mixed_status(self):
+        self.assertEqual(zd.parse_cm({'data': _cm_series('btc', status='reviewed')})['assets']['btc']['status'], 'reviewed')
+        rows = _cm_series('btc', status='reviewed'); rows[-1]['SplyExUSD-status'] = 'flash'
+        self.assertEqual(zd.parse_cm({'data': rows})['assets']['btc']['status'], 'flash')
+
+    def test_errors_and_empty_answers_raise(self):
+        with self.assertRaises(RuntimeError):
+            zd.parse_cm({'error': {'type': 'bad_parameter', 'message': "Bad parameter 'metrics'."}})
+        with self.assertRaises(RuntimeError):
+            zd.parse_cm({'data': []})
+        with self.assertRaises(RuntimeError):
+            zd.parse_cm([])
+        with self.assertRaises(RuntimeError):
+            zd.parse_cm({'data': [{'asset': 'btc', 'time': 'wczoraj', 'FlowInExNtv': '1'}]})
+
+    def test_build_cm_uses_one_keyless_request(self):
+        seen = []
+        def get_json(url, headers=None):
+            seen.append((url, headers)); return {'data': _cm_series('btc') + _cm_series('eth')}
+        with mock.patch.object(zd, 'get_json', get_json):
+            out = zd.build_cm()
+        self.assertEqual(seen, [(zd.CM_URL, None)]); self.assertEqual(sorted(out['assets']), ['btc', 'eth'])
+
+    def test_newest_day_still_publishing_falls_back_to_last_full_day(self):
+        rows = _cm_series('btc') + _cm_series('eth')
+        rows.append(_cm_row('btc', '2026-09-24', '11.0', '9.0', None, None, '930', None))   # natywne już są, USD jeszcze nie
+        out = zd.parse_cm({'data': rows})
+        b = out['assets']['btc']
+        self.assertEqual(out['asof'], '2026-09-23'); self.assertEqual(b['asof'], '2026-09-23'); self.assertEqual(b['pending'], '2026-09-24')
+        self.assertEqual(b['d'][-1][0], '2026-09-23'); self.assertEqual(len(b['d']), 35); self.assertEqual(b['missing'], 0)
+        self.assertEqual(b['last']['net_usd'], -200); self.assertEqual(b['sum7']['in_usd'], 7004)
+        self.assertIsNone(out['assets']['eth']['pending'])
+
+    def test_api_window_has_no_false_gap_while_newest_day_is_publishing(self):
+        """Coin Metrics zwraca limit_per_asset NAJNOWSZYCH wierszy, także niepełny dzień w publikacji (ok. 02–03 UTC).
+        Po cofnięciu do ostatniego pełnego dnia okno 35 dni ma być pełne — brak dnia to tylko prawdziwa luka u dostawcy."""
+        lim = int(zd.CM_URL.split('limit_per_asset=')[1].split('&')[0])
+        rows = []
+        for a in ('btc', 'eth'):
+            r = _cm_series(a, last='2026-09-23', n=60) + [_cm_row(a, '2026-09-24', '11.0', '9.0', None, None, '930', None)]
+            rows += r[-lim:]                                   # tyle wierszy odda API (paging_from=end)
+        b = zd.parse_cm({'data': rows})['assets']['btc']
+        self.assertEqual(b['pending'], '2026-09-24'); self.assertEqual(b['asof'], '2026-09-23')
+        self.assertEqual(b['missing'], 0, 'najstarszy dzień okna nie może być fałszywą luką')
+        self.assertEqual(b['d'][0][0], '2026-08-20'); self.assertIsNotNone(b['d'][0][1]); self.assertIsNotNone(b['sply_ch30']['ntv'])
+        rows = [x for a in ('btc', 'eth') for x in _cm_series(a, n=60)[-lim:]]   # zwykła pora: wszystkie dni pełne
+        b = zd.parse_cm({'data': rows})['assets']['btc']
+        self.assertEqual(b['missing'], 0); self.assertEqual(len(b['d']), 35); self.assertIsNone(b['pending'])
+
+    def test_partial_day_after_a_gap_is_not_hidden(self):
+        rows = _cm_series('btc', last='2026-09-21')
+        rows.append(_cm_row('btc', '2026-09-23', '11.0', '9.0', None, None, '930', None))
+        b = zd.parse_cm({'data': rows})['assets']['btc']
+        self.assertEqual(b['asof'], '2026-09-23'); self.assertIsNone(b['pending']); self.assertIsNone(b['last']['in_usd'])
+        self.assertEqual(b['last']['net'], 2.0); self.assertIsNone(b['sum7']['in'], 'dzień 2026-09-22 brak → suma null, nie zero')
+
+    def test_impossible_date_is_skipped_not_crash(self):
+        rows = _cm_series('btc') + [_cm_row('btc', '2026-02-30', '1', '1', '1', '1', '1', '1')]
+        self.assertEqual(zd.parse_cm({'data': rows})['assets']['btc']['asof'], '2026-09-23')
+
+    def test_paged_answer_is_reported(self):
+        zd.parse_cm({'data': _cm_series('btc') + _cm_series('eth'), 'next_page_token': 'abc'})
+        self.assertTrue(any(e.startswith('Coin Metrics') and 'stron' in e for e in zd.META['errors']))
+
+    def test_whole_metric_missing_is_reported_and_left_null(self):
+        rows = _cm_series('btc') + _cm_series('eth')
+        for r in rows:
+            r.pop('SplyExUSD', None)
+        out = zd.parse_cm({'data': rows})
+        self.assertIn('Coin Metrics: brak metryki SplyExUSD w odpowiedzi', zd.META['errors'])
+        b = out['assets']['btc']
+        self.assertEqual(b['asof'], '2026-09-23'); self.assertIsNone(b['last']['sply_usd']); self.assertEqual(b['last']['sply'], 932.0)
+
+    def test_real_answer_24_09_2026_net_from_unrounded_values(self):
+        rows = [_cm_row(a, *r) for a in ('btc', 'eth') for r in CM_REAL[a]]
+        out = zd.parse_cm({'data': rows})
+        b, e = out['assets']['btc'], out['assets']['eth']
+        self.assertEqual(out['asof'], '2026-09-23'); self.assertEqual(b['status'], 'flash'); self.assertIsNone(b['pending'])
+        self.assertEqual(b['last']['in'], 22387.65); self.assertEqual(b['last']['out'], 32444.54)
+        self.assertEqual(b['last']['net'], -10056.9, 'netto z liczb niezaokrąglonych (22387.65 − 32444.54 dałoby −10056.89)')
+        self.assertEqual(b['last']['net_usd'], -849147261); self.assertEqual(b['last']['sply'], 2695208.79)
+        self.assertEqual(b['sum7']['net'], -34394.79); self.assertEqual(b['sply_ch7'], {'ntv': -20434.46, 'pct': -0.75})
+        self.assertIsNone(b['sum30']['net'], 'w próbce 8 dni — suma 30 dni to brak, nie zero')
+        self.assertEqual(b['missing'], 27)
+        self.assertEqual(e['last']['net'], -74112.96); self.assertEqual(e['sum7']['net'], -46199.82)
+        self.assertEqual(e['sply_ch7'], {'ntv': -46266.63, 'pct': -0.3})
+
+
+class MainFlowCm(unittest.TestCase):
+    """v50: blok Coin Metrics w main() — pamięć 60 min, przy awarii poprzedni plik i META ok False, błąd z prefiksem."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
+        for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
+            self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
+        for fn in ('build_bis', 'build_cftc', 'build_rezerwy'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć)
+            self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+
+    def _run(self, prev, build):
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'cm' else None), \
+             mock.patch.object(zd, 'build_cm', build):
+            zd.main()
+
+    def test_young_previous_file_is_reused_without_request(self):
+        prev = {'at': datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat(), 'assets': {}}
+        self._run(prev, mock.Mock(side_effect=AssertionError('bez zapytań')))
+        self.assertIs(self.saved['cm'], prev); self.assertEqual(zd.META['ok']['cm'], 'cached')
+
+    def test_failure_keeps_previous_and_reports(self):
+        prev = {'at': '2026-09-24T10:00:00+00:00', 'assets': {}}
+        self._run(prev, mock.Mock(side_effect=RuntimeError('HTTP Error 429')))
+        self.assertIs(self.saved['cm'], prev); self.assertIs(zd.META['ok']['cm'], False)
+        self.assertIn('Coin Metrics: HTTP Error 429', zd.META['errors'])
+
+    def test_parser_error_is_not_prefixed_twice(self):
+        self._run(None, lambda: zd.parse_cm({'data': []}))
+        self.assertNotIn('cm', self.saved); self.assertIs(zd.META['ok']['cm'], False)
+        self.assertIn('Coin Metrics: żadne aktywo nie ma danych', zd.META['errors'])
+        self.assertFalse(any(e.startswith('Coin Metrics: Coin Metrics') for e in zd.META['errors']))
+
+    def test_fresh_data_is_saved(self):
+        self._run(None, lambda: zd.parse_cm({'data': _cm_series('btc') + _cm_series('eth')}))
+        self.assertEqual(self.saved['cm']['asof'], '2026-09-23'); self.assertIs(zd.META['ok']['cm'], True)
+
+
+
+class FedCustodyV50(unittest.TestCase):
+    """v50: Fed H.4.1 — papiery w depozycie dla zagranicznych instytucji oficjalnych (FRED). Liczby = H.4.1 z 17.09.2026, mln USD."""
+    ROWS = {   # data: (WSEFINTL1, WMTSECL1, WFASECL1, WSEFINOL) — prawdziwe stany środowe
+        '2026-09-16': (2884717, 2608821, 202071, 73825),
+        '2026-09-09': (2865365, 2590095, 201252, 74017),
+        '2026-08-19': (2864974, 2586171, 204466, 74338),
+        '2025-09-17': (3119250, 2792652, 247489, 79109),
+        '2025-09-10': (3129862, 2802270, 248101, 79491),
+    }
+    IDS = ['WSEFINTL1', 'WMTSECL1', 'WFASECL1', 'WSEFINOL']
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def _json(self, sid, rows=None, drop=()):
+        i = self.IDS.index(sid)
+        return {'observations': [{'date': d, 'value': ('.' if (sid, d) in drop else str(v[i]) + '.0')}
+                                 for d, v in sorted((rows or self.ROWS).items(), reverse=True)]}
+
+    def _series(self, rows=None, drop=()):
+        out = {}
+        for sid in self.IDS:
+            try:
+                out[sid] = zd.parse_fred(self._json(sid, rows, drop), sid)
+            except RuntimeError:
+                pass
+        return out
+
+    def test_series_are_fed_board_h41_weekly_in_millions(self):
+        self.assertEqual(sorted(zd.FRED_CUSTODY), sorted(self.IDS))
+        for sid in self.IDS:
+            self.assertEqual((zd.FRED_SERIES[sid]['unit'], zd.FRED_SERIES[sid]['freq']), ('mln USD', 'W'))
+            self.assertIn('H.4.1', zd.FRED_SERIES[sid]['name'])
+
+    def test_summary_matches_h41_release_of_2026_09_17(self):
+        s = zd.custody_summary(self._series())
+        self.assertEqual((s['asof'], s['total'], s['unit']), ('2026-09-16', 2884717.0, 'mln USD'))
+        self.assertEqual((s['ust'], s['agency'], s['other']), (2608821.0, 202071.0, 73825.0))
+        self.assertEqual((s['d1w'], s['d4w'], s['d52w']), (19352.0, 19743.0, -234533.0))   # zmiana STANU NA ŚRODĘ
+        self.assertEqual((s['ust_d1w'], s['ust_d52w']), (18726.0, -183831.0))
+        self.assertEqual(s['ust_share_pct'], 90.4); self.assertIs(s['parts_ok'], True)
+        self.assertEqual(s['lo52'], ['2026-08-19', 2864974.0]); self.assertEqual(s['hi52'], ['2025-09-17', 3119250.0])
+
+    def test_missing_week_is_none_not_an_older_week_and_not_zero(self):
+        rows = {d: v for d, v in self.ROWS.items() if d != '2026-09-09'}
+        s = zd.custody_summary(self._series(rows))
+        self.assertIsNone(s['d1w']); self.assertIsNone(s['ust_d1w']); self.assertEqual(s['d4w'], 19743.0)
+
+    def test_missing_part_is_none_and_parts_not_summing_are_flagged(self):
+        s = zd.custody_summary(self._series(drop={('WFASECL1', '2026-09-16')}))
+        self.assertIsNone(s['agency']); self.assertIsNone(s['parts_ok']); self.assertEqual(s['total'], 2884717.0)
+        rows = dict(self.ROWS); rows['2026-09-16'] = (2884717, 2608821, 202071, 63825)
+        self.assertIs(zd.custody_summary(self._series(rows))['parts_ok'], False)
+
+    def test_no_total_series_gives_none_and_nan_is_ignored(self):
+        self.assertIsNone(zd.custody_summary({})); self.assertIsNone(zd.custody_summary(None))
+        self.assertIsNone(zd.custody_summary({'WMTSECL1': zd.parse_fred(self._json('WMTSECL1'), 'WMTSECL1')}))
+        ser = self._series(); ser['WSEFINTL1']['d'].append(['2026-09-23', float('nan')])
+        self.assertEqual(zd.custody_summary(ser)['asof'], '2026-09-16')
+
+    def test_build_fred_adds_custody_and_a_summary_error_does_not_stop_fred(self):
+        zd.SECRETS[:] = ['TAJNY-FRED']
+        def get_json(url, headers=None):
+            sid = url.split('series_id=')[1].split('&')[0]
+            return self._json(sid) if sid in self.IDS else {'observations': [{'date': '2026-09-16', 'value': '5'}]}
+        try:
+            with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd.time, 'sleep', lambda s: None):
+                out = zd.build_fred('TAJNY-FRED')
+                self.assertEqual(out['custody']['total'], 2884717.0); self.assertEqual(len(out['series']), 8)
+                with mock.patch.object(zd, 'custody_summary', side_effect=ValueError('zły kształt TAJNY-FRED')):
+                    out = zd.build_fred('TAJNY-FRED')
+        finally:
+            zd.SECRETS[:] = []
+        self.assertIsNone(out['custody']); self.assertEqual(len(out['series']), 8)
+        self.assertIn('FRED custody: zły kształt ***', zd.META['errors'])
+
+
+def _imf_sdmx(series, periods, dims=None):
+    """Minimalna odpowiedź SDMX-JSON 2.0 w kształcie API MFW 3.0 (IL, 24.09.2026)."""
+    dims = dims or [('COUNTRY', ['BRA', 'CHN', 'TWN']), ('INDICATOR', ['RXF11FX_REVS', 'RXF11_REVS', 'TRGMV_REVS']),
+                    ('UNIT', ['USD']), ('FREQUENCY', ['M'])]
+    return {'meta': {}, 'data': {
+        'dataSets': [{'structure': 0, 'action': 'Replace', 'series': {k: {'attributes': [0, None, 'true'], 'observations': {
+            str(i): [v, None, 0, None] for i, v in obs.items()}} for k, obs in series.items()}}],
+        'structures': [{'dimensions': {
+            'series': [{'id': n, 'keyPosition': p, 'values': [{'id': x} for x in vals]} for p, (n, vals) in enumerate(dims)],
+            'observation': [{'id': 'TIME_PERIOD', 'keyPosition': 4, 'values': [{'value': x} for x in periods]}]},
+            'attributes': {'series': [{'id': 'SCALE', 'values': [{'id': '6'}]}]}}]}}
+
+
+class ImfRezerwyV50(unittest.TestCase):
+    """v50: rezerwy walutowe z MFW (International Liquidity) — mld USD, każdy kraj z własnym miesiącem, brak = brak."""
+    PER = ['2026-M05', '2026-M06', '2025-M06', '2026-M08', '2026-M07', '2025-M08', '2026-M04', '2025-M04']   # celowo nie po kolei
+    MINI = {   # prawdziwe wartości (USD) z odpowiedzi IL 24.09.2026
+        '1:2:0:0': {1: '3786110832113.452', 0: '3850222574625.652', 2: '3627580370629.294'},   # CHN razem (złoto rynkowo)
+        '1:1:0:0': {1: '3482385620113.452', 0: '3509458162625.652'},                          # CHN bez złota
+        '1:0:0:0': {1: '3416262000000', 0: '3442238000000'},                                  # CHN waluty
+        '0:2:0:0': {3: '373354596341.5881', 4: '369648992876.5459', 5: None},                 # BRA razem; 2025-08 = null
+        '0:0:0:0': {3: '324148312609.55', 4: 'NaN'},                                          # BRA waluty; NaN = brak
+        '2:0:0:0': {6: '602488000000'},                                                       # TWN tylko waluty, bez sumy
+    }
+
+    def test_url_is_keyless_and_asks_for_all_countries_and_indicators(self):
+        u = zd.IMF_IL_URL
+        self.assertTrue(u.startswith('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/IL/+/'))
+        self.assertNotIn('key', u.lower().replace('lastnobservations', ''))
+        for c in ('CHN', 'JPN', 'IND', 'SAU', 'KOR', 'CHE', 'BRA', 'TWN', 'TRGMV_REVS', 'RXF11_REVS', 'RXF11FX_REVS'):
+            self.assertIn(c, u)
+        self.assertTrue(u.endswith('.USD.M?lastNObservations=13'))
+
+    def test_period_formats(self):
+        self.assertEqual(zd._imf_month('2026-M06'), '2026-06'); self.assertEqual(zd._imf_month('2026-06'), '2026-06')
+        self.assertIsNone(zd._imf_month('2026-Q2')); self.assertIsNone(zd._imf_month('2026-M13')); self.assertIsNone(zd._imf_month(None))
+        self.assertEqual(zd._imf_month_add('2026-01', -1), '2025-12'); self.assertEqual(zd._imf_month_add('2026-06', -12), '2025-06')
+
+    def test_parser_orders_periods_and_skips_null_and_nan(self):
+        ser = zd.parse_imf_sdmx(_imf_sdmx(self.MINI, self.PER))
+        self.assertEqual(ser[('CHN', 'TRGMV_REVS', 'USD', 'M')][0], ['2025-06', 3627580370629.294])
+        self.assertEqual([r[0] for r in ser[('BRA', 'TRGMV_REVS', 'USD', 'M')]], ['2026-07', '2026-08'])
+        self.assertEqual(ser[('BRA', 'RXF11FX_REVS', 'USD', 'M')], [['2026-08', 324148312609.55]])
+
+    def test_reserves_in_billions_each_country_with_own_month(self):
+        r = zd.parse_rezerwy(_imf_sdmx(self.MINI, self.PER))
+        chn, bra = r['countries']['CHN'], r['countries']['BRA']
+        self.assertEqual((chn['asof'], chn['total'], chn['fx'], chn['ex_gold'], chn['gold']), ('2026-06', 3786.1, 3416.3, 3482.4, 303.7))
+        self.assertEqual((chn['d1m'], chn['d12m'], chn['p12m']), (-64.1, 158.5, 4.4))
+        self.assertEqual((bra['asof'], bra['total'], bra['fx']), ('2026-08', 373.4, 324.1))
+        self.assertIsNone(bra['ex_gold']); self.assertIsNone(bra['gold']); self.assertIsNone(bra['d12m'])   # brak = brak, nie zero
+        self.assertEqual(r['order'], ['CHN', 'BRA']); self.assertEqual(r['unit'], 'mld USD')
+        self.assertIn('TWN', r['missing']); self.assertIn('JPN', r['missing'])
+        self.assertEqual((r['asof_min'], r['asof_max']), ('2026-06', '2026-08'))
+        self.assertIn('International Monetary Fund', r['src']); self.assertTrue(r['url'].startswith('https://data.imf.org/'))
+        json.dumps(r, allow_nan=False)   # żadnego NaN w pliku
+
+    def test_empty_answer_or_scaled_values_are_errors_not_zeros(self):
+        empty = _imf_sdmx({}, self.PER); del empty['data']['dataSets'][0]['series']
+        for bad in (empty, {'errors': [{'code': 404}]}, _imf_sdmx({'1:2:0:0': {1: '3786110.83'}, '0:2:0:0': {3: '373354.6'}}, self.PER)):
+            with self.assertRaises(RuntimeError):
+                zd.parse_rezerwy(bad)
+
+    def test_build_rezerwy_sends_json_accept_header_and_stamps_time(self):
+        seen = {}
+        def get_json(url, headers=None):
+            seen['url'], seen['headers'] = url, headers
+            return _imf_sdmx(self.MINI, self.PER)
+        with mock.patch.object(zd, 'get_json', get_json):
+            out = zd.build_rezerwy()
+        self.assertEqual(seen['url'], zd.IMF_IL_URL); self.assertEqual(seen['headers'], {'Accept': 'application/json'})
+        self.assertEqual(out['at'], zd.NOW); self.assertEqual(out['countries']['CHN']['total'], 3786.1)
+
+
+class MainFlowRezerwyV50(unittest.TestCase):
+    ENV = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY')}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm')]
+        [p.start() for p in self.ps]
+
+    def tearDown(self):
+        [p.stop() for p in self.ps]
+
+    def _main(self, prev, build):
+        with mock.patch.dict(os.environ, self.ENV, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'rezerwy' else None), \
+             mock.patch.object(zd, 'build_rezerwy', build):
+            zd.main()
+
+    def test_young_previous_file_is_reused_without_asking_imf(self):
+        prev = {'at': _iso(60), 'countries': {'CHN': {'total': 3786.1}}, 'order': ['CHN']}
+        self._main(prev, mock.Mock(side_effect=AssertionError('bez zapytań do MFW')))
+        self.assertIs(self.saved['rezerwy'], prev); self.assertEqual(zd.META['ok']['imf'], 'cached')
+
+    def test_failure_keeps_previous_file_and_reports_with_mfw_prefix(self):
+        prev = {'at': _iso(26 * 60), 'countries': {'CHN': {'total': 3786.1}}, 'order': ['CHN']}
+        self._main(prev, mock.Mock(side_effect=RuntimeError('brak serii z wartościami')))
+        self.assertIs(self.saved['rezerwy'], prev); self.assertIs(zd.META['ok']['imf'], False)
+        self.assertIn('MFW rezerwy: brak serii z wartościami', zd.META['errors'])
+
+    def test_fresh_build_is_saved(self):
+        new = {'at': zd.NOW, 'countries': {}, 'order': []}
+        self._main(None, mock.Mock(return_value=new))
+        self.assertIs(self.saved['rezerwy'], new); self.assertIs(zd.META['ok']['imf'], True)
 
 
 if __name__ == '__main__':

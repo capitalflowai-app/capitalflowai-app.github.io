@@ -7,6 +7,7 @@ Wynik: data/etf.json (napływy ETF, SoSoValue + kapitalizacje CoinGecko),
        data/cmc.json (CoinMarketCap: kapitalizacja rynku, dominacja BTC/ETH, stablecoiny, DeFi),
        data/instytucje.json (bez klucza: Skarb USA — saldo TGA; NY Fed — reverse repo i portfel SOMA; EBC — salda
        TARGET; MOF Japonia — tygodniowe transakcje w papierach wartościowych),
+       data/cm.json (bez klucza: Coin Metrics Community — wpłaty i wypłaty BTC/ETH na giełdy, zapas monet na giełdach),
        data/meta.json (kiedy, co się udało, błędy).
 Klucze wyłącznie ze zmiennych środowiskowych: SOSOVALUE_KEY, COINGECKO_KEY, FINNHUB_KEY, TWELVEDATA_KEY, COINMARKETCAP_KEY.
 Decyzja właściciela 24.09.2026 (wieczór): dane z jego kluczy Finnhub, Twelve Data i CoinMarketCap są publikowane na stronie
@@ -58,9 +59,14 @@ FRED_SERIES = {
     'RRPONTSYD': {'unit': 'mld USD', 'freq': 'D', 'name': 'Reverse repo overnight, wolumen dnia'},
     'DTWEXBGS': {'unit': 'indeks (styczeń 2006 = 100)', 'freq': 'D', 'name': 'Szeroki nominalny indeks dolara'},
     'WTREGEN': {'unit': 'mln USD', 'freq': 'W', 'name': 'Konto rządu USA w Fed (TGA) wg H.4.1, środa'},
+    # v50: H.4.1 Table 1A (Memorandum items, Wednesday level) — papiery w depozycie Fed dla zagranicznych instytucji oficjalnych
+    'WSEFINTL1': {'unit': 'mln USD', 'freq': 'W', 'name': 'Fed: papiery w depozycie dla zagranicznych instytucji oficjalnych i międzynarodowych (H.4.1), środa'},
+    'WMTSECL1': {'unit': 'mln USD', 'freq': 'W', 'name': '… w tym rynkowe papiery Skarbu USA (H.4.1), środa'},
+    'WFASECL1': {'unit': 'mln USD', 'freq': 'W', 'name': '… w tym dług agencji federalnych i MBS (H.4.1), środa'},
+    'WSEFINOL': {'unit': 'mln USD', 'freq': 'W', 'name': '… w tym pozostałe papiery (H.4.1), środa'},
 }
 FRED_LIMIT = 60      # ostatnie 60 obserwacji: ~1 rok tygodniowych, ~3 miesiące dziennych
-FRED_SLEEP = 0.6     # limit FRED: 120 zapytań/min — 4 zapytania na przebieg z odstępem
+FRED_SLEEP = 0.6     # limit FRED: 120 zapytań/min — 8 zapytań na przebieg z odstępem (v50: + 4 serie depozytu H.4.1)
 FRED_CITE = 'Board of Governors of the Federal Reserve System (US), via FRED, Federal Reserve Bank of St. Louis'
 FRED_API_NOTE = 'This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.'
 OUT = 'data'
@@ -577,6 +583,10 @@ def build_fred(key):
             META['errors'].append(mask(f'FRED {sid}: {e}'))
     if not out['series']:
         raise RuntimeError('żadna seria FRED nie odpowiedziała')
+    try:   # v50: podsumowanie depozytu H.4.1 — jego błąd nie może zatrzymać zapisu pozostałych serii FRED
+        out['custody'] = custody_summary(out['series'])
+    except Exception as e:
+        out['custody'] = None; META['errors'].append(mask(f'FRED custody: {e}'))
     return out
 
 
@@ -800,6 +810,669 @@ def parse_stabh(j):
     return out
 
 
+# BIS LBS (v50): kwartalne przepływy bankowe między regionami strony — statystyki lokalizacyjne, miara F (zmiana należności
+# skorygowana o kursy i przerwy w seriach), bez klucza. Warunki data.bis.org/help/legal: BIS jako źródło, tłumaczenie
+# oznaczone jako nieoficjalne, bez sugerowania poparcia BIS. Wynik: data/bis.json (mln USD), pobierany najwyżej raz na dobę.
+BIS_ORDER = ['usa', 'can', 'lat', 'eur', 'rus', 'mea', 'afr', 'ind', 'chn', 'jpn', 'asean', 'oce']   # kolejność GREG
+BIS_REP = {   # region strony → kraje raportujące (jak GBISREP w index.html); TR, IN, SG, MY publikują tylko sumy (5J)
+    'usa': ['US'], 'can': ['CA'], 'lat': ['BR', 'MX', 'CL'], 'eur': ['GB', 'DE', 'FR', 'IT', 'ES', 'NL', 'CH', 'SE'],
+    'mea': ['TR'], 'afr': ['ZA'], 'ind': ['IN'], 'chn': ['HK'], 'jpn': ['JP', 'KR'], 'asean': ['SG', 'MY', 'PH'], 'oce': ['AU']}
+BIS_CP = {    # region strony → kraje kontrahentów (jak GBISCP w index.html); te same kody mapują też raportujących
+    'usa': ['US'], 'can': ['CA'], 'lat': ['BR', 'MX', 'CL', 'CO', 'AR'], 'eur': ['GB', 'DE', 'FR', 'IT', 'ES', 'NL', 'CH', 'SE'],
+    'rus': ['RU'], 'mea': ['TR', 'SA', 'AE', 'IL'], 'afr': ['ZA', 'NG', 'EG'], 'ind': ['IN'], 'chn': ['CN', 'HK', 'TW'],
+    'jpn': ['JP', 'KR'], 'asean': ['SG', 'ID', 'TH', 'MY', 'VN', 'PH'], 'oce': ['AU', 'NZ']}
+BIS_Q = 4             # okno: 4 kolejne kwartały kończące się na ostatnim pełnym
+BIS_LASTN = 5         # o jeden więcej niż BIS_Q: serie spóźnione o kwartał nadal pokrywają okno
+BIS_URL = ('https://stats.bis.org/api/v2/data/dataflow/BIS/WS_LBS_D_PUB/1.0/Q.F.C.A.TO1.A.5J.A.'
+           + '+'.join(c for r in BIS_ORDER for c in BIS_REP.get(r, [])) + '.A.'
+           + '+'.join(dict.fromkeys(c for r in BIS_ORDER for c in BIS_CP[r]))
+           + f'.N?lastNObservations={BIS_LASTN}&format=csv')
+# wymiary klucza, których się spodziewamy — wiersz z innym kluczem nie trafia do sum (ochrona przed zmianą API)
+BIS_KEY = {'FREQ': 'Q', 'L_MEASURE': 'F', 'L_POSITION': 'C', 'L_INSTR': 'A', 'L_DENOM': 'TO1', 'L_CURR_TYPE': 'A',
+           'L_PARENT_CTY': '5J', 'L_REP_BANK_TYPE': 'A', 'L_CP_SECTOR': 'A', 'L_POS_TYPE': 'N'}
+BIS_MISSING = ('H', 'K', 'L', 'M', 'Q')   # OBS_STATUS: braki (Q = „suppressed”, poufne; K = ujęte w innej kategorii) — nigdy 0
+_BIS_PERIOD = re.compile(r'^\d{4}-Q[1-4]$')
+BIS_SIGN = ('flows["a>b"]: quarterly FX- and break-adjusted change in cross-border claims (all instruments, all sectors) '
+            'of banks located in region a on residents of region b; positive = banks in a lent/placed more in b '
+            '(bank capital a -> b), negative = they cut exposure (b -> a). pairs["a|b"]: a>b plus b>a. '
+            'regions[r].out = sum of r>x; regions[r].in = sum of x>r; regions[r].net = sum over matched country '
+            'pairs (both countries report in that quarter) of [claims of r on x] - [claims of x on r]; positive = r is '
+            'a net supplier of bank credit to the other regions (net outflow), negative = net recipient (net inflow). '
+            'Sum of net over all regions = 0. Residence principle: London branches of US banks count as "eur". '
+            'regions[r].rep_q = contribution of each reporting country of r to r.out in the latest quarter.')
+
+
+def _bis_num(row):
+    """OBS_VALUE → mln USD; 'NaN', pusty, status braku → None (nigdy 0). Inna waluta miary = błąd całej odpowiedzi."""
+    if row.get('OBS_STATUS') in BIS_MISSING:
+        return None
+    t = str(row.get('OBS_VALUE', '')).replace(',', '').strip()
+    try:
+        v = float(t)
+    except ValueError:
+        return None
+    if not (-1e15 < v < 1e15):   # NaN i ±inf nie spełniają nierówności
+        return None
+    if row.get('UNIT_MEASURE') != 'USD':
+        raise RuntimeError(f'nieoczekiwana jednostka {row.get("UNIT_MEASURE")!r} (oczekiwano USD)')
+    try:
+        mult = int(row.get('UNIT_MULT'))
+    except (TypeError, ValueError):
+        raise RuntimeError(f'nieczytelny mnożnik jednostki {row.get("UNIT_MULT")!r}')
+    return v * 10 ** (mult - 6)          # UNIT_MULT 6 = miliony → bez zmian
+
+
+def _bis_rows(d, quarters):
+    """{kwartał: [suma, n]} → [[kwartał, suma|None, n]] (brak = None i n = 0, nie 0)."""
+    return [[q, round(d[q][0], 1) + 0.0, d[q][1]] if q in d and d[q][1] else [q, None, 0] for q in quarters]   # + 0.0: bez „-0.0”
+
+
+def _bis_total(rows):
+    """Suma z pełnego okna; gdy którykolwiek kwartał nie ma danych → None."""
+    if len(rows) != BIS_Q or any(r[1] is None for r in rows):
+        return None
+    return round(sum(r[1] for r in rows), 1) + 0.0
+
+
+def _bis_qshift(q, k):
+    """'2026-Q1' cofnięty o k kwartałów (k=1 → '2025-Q4')."""
+    i = int(q[:4]) * 4 + int(q[-1]) - 1 - k
+    return f'{i // 4}-Q{i % 4 + 1}'
+
+
+def parse_bis_flows(raw, at=None):
+    """CSV z BIS (miara F) → struktura data/bis.json. Jednostka: mln USD. Brak ≠ 0 na każdym poziomie.
+    Okno = BIS_Q kolejnych kwartałów kończących się na ostatnim „pełnym” (co najmniej połowa najliczniejszego);
+    kwartał w oknie bez danych zostaje jako brak (None), sumy 4 kwartałów liczone tylko z kompletu."""
+    text = raw.decode('utf-8-sig', 'replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    rd = csv.DictReader(io.StringIO(text))
+    need = {'L_REP_CTY', 'L_CP_COUNTRY', 'TIME_PERIOD', 'OBS_VALUE', 'UNIT_MEASURE', 'UNIT_MULT', *BIS_KEY}
+    if not rd.fieldnames or not need <= set(rd.fieldnames):
+        raise RuntimeError('odpowiedź bez kolumn ' + ', '.join(sorted(need - set(rd.fieldnames or []))))
+    c2r = {c: rid for rid, cs in BIS_CP.items() for c in cs}
+    obs, count = {}, {}                   # (kraj raportujący, kraj kontrahenta) → {kwartał: mln USD}
+    for row in rd:
+        if any(row.get(k) != v for k, v in BIS_KEY.items()):
+            continue
+        rep, cp, q = row['L_REP_CTY'], row['L_CP_COUNTRY'], row['TIME_PERIOD']
+        if rep == cp or rep not in c2r or cp not in c2r or not _BIS_PERIOD.match(q or ''):
+            continue
+        v = _bis_num(row)
+        if v is None:
+            continue
+        obs.setdefault((rep, cp), {})[q] = v
+        count[q] = count.get(q, 0) + 1
+    if not count:
+        raise RuntimeError('brak liczb w odpowiedzi LBS')
+    top = max(count.values())
+    # ostatni kwartał „pełny” (co najmniej połowa najliczniejszego): stare końcówki zamkniętych serii i świeże
+    # szczątkowe publikacje nie wyznaczają okna
+    last = max(q for q, c in count.items() if 2 * c >= top)
+    quarters = [_bis_qshift(last, k) for k in range(BIS_Q - 1, -1, -1)]
+    acc = {}                              # (region a, region b) → {kwartał: [suma, liczba par krajów]}
+    for (rep, cp), ser in obs.items():
+        a, b = c2r[rep], c2r[cp]
+        if a == b:
+            continue
+        for q in quarters:
+            if q in ser:
+                s = acc.setdefault((a, b), {}).setdefault(q, [0.0, 0])
+                s[0] += ser[q]; s[1] += 1
+    if len(acc) < 6:
+        raise RuntimeError(f'za mało par regionów w LBS ({len(acc)})')
+    pos = {r: i for i, r in enumerate(BIS_ORDER)}
+    flows = {f'{a}>{b}': _bis_rows(d, quarters) for (a, b), d in sorted(acc.items(), key=lambda kv: (pos[kv[0][0]], pos[kv[0][1]]))}
+    pairs, oneway = {}, []
+    for i, a in enumerate(BIS_ORDER):
+        for b in BIS_ORDER[i + 1:]:
+            d1, d2 = acc.get((a, b), {}), acc.get((b, a), {})
+            if not d1 and not d2:
+                continue
+            m = {}
+            for d in (d1, d2):
+                for q, (v, n) in d.items():
+                    s = m.setdefault(q, [0.0, 0]); s[0] += v; s[1] += n
+            key = '|'.join(sorted((a, b)))    # jak klucze GLINK w index.html (a<b alfabetycznie)
+            pairs[key] = _bis_rows(m, quarters)
+            if not d1 or not d2:
+                oneway.append(key)            # tylko jeden kierunek: druga strona nie ma banków raportujących
+    net = {r: {} for r in BIS_ORDER}      # saldo na parach krajów, gdzie oba kraje raportują w danym kwartale
+    for (rep, cp), ser in obs.items():
+        a, b = c2r[rep], c2r[cp]
+        back = obs.get((cp, rep))
+        if a == b or rep > cp or not back:
+            continue
+        for q in quarters:
+            if q in ser and q in back:
+                d = ser[q] - back[q]
+                s = net[a].setdefault(q, [0.0, 0]); s[0] += d; s[1] += 1
+                s = net[b].setdefault(q, [0.0, 0]); s[0] -= d; s[1] += 1
+    seen = {rep for (rep, _), ser in obs.items() if any(q in ser for q in quarters)}
+    rep_q = {}                            # wkład kraju raportującego w wypływ regionu w ostatnim kwartale
+    for (rep, cp), ser in obs.items():
+        if c2r[rep] != c2r[cp] and last in ser:
+            s = rep_q.setdefault(rep, [0.0, 0]); s[0] += ser[last]; s[1] += 1
+    regions = {}
+    for r in BIS_ORDER:
+        out_d, in_d = {}, {}
+        for (a, b), d in acc.items():
+            tgt = out_d if a == r else in_d if b == r else None
+            if tgt is None:
+                continue
+            for q, (v, n) in d.items():
+                s = tgt.setdefault(q, [0.0, 0]); s[0] += v; s[1] += n
+        reg = {'rep': [c for c in BIS_REP.get(r, []) if c in seen], 'cp': list(BIS_CP[r]),
+               'out': _bis_rows(out_d, quarters), 'in': _bis_rows(in_d, quarters), 'net': _bis_rows(net[r], quarters),
+               'rep_q': sorted(([c, round(rep_q[c][0], 1) + 0.0, rep_q[c][1]] for c in BIS_REP.get(r, []) if c in rep_q),
+                               key=lambda x: -abs(x[1]))}
+        for k in ('out', 'in', 'net'):
+            reg[k + '4'] = _bis_total(reg[k])
+        regions[r] = reg
+    return {'at': at, 'src': 'BIS Locational Banking Statistics (WS_LBS_D_PUB), measure F: FX and break adjusted change',
+            'url': 'https://data.bis.org/topics/LBS', 'api': BIS_URL, 'unit': 'mln USD', 'asof': last,
+            'quarters': quarters, 'sign': BIS_SIGN,
+            'no_reporter': [r for r in BIS_ORDER if not regions[r]['rep']],
+            'regions': regions, 'flows': flows, 'pairs': pairs, 'oneway': oneway}
+
+
+def build_bis():
+    """data/bis.json — kwartalne przepływy bankowe BIS LBS między regionami strony (mln USD); jedno zapytanie bez klucza."""
+    return parse_bis_flows(get_bytes(BIS_URL, timeout=90), NOW)
+
+
+# --- v50: CFTC Commitments of Traders — Traders in Financial Futures (TFF), tylko futures; dane rządu USA (domena publiczna) ---
+# Plik tygodniowy FinFutWk.txt nie ma nagłówka: kolejność 87 kolumn z dokumentacji CFTC (cotvariablestfm.html), sprawdzona
+# 24.09.2026 z nagłówkiem pliku rocznego (identyczna). Stan na wtorek, publikacja zwykle w piątek ok. 19:30 UTC.
+import zipfile   # v50 CFTC: plik roczny to archiwum zip (biblioteka standardowa)
+
+CFTC_WEEK_URL = 'https://www.cftc.gov/dea/newcot/FinFutWk.txt'
+CFTC_YEAR_URL = 'https://www.cftc.gov/files/dea/history/fut_fin_txt_{}.zip'
+CFTC_HOME = 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm'
+CFTC_MARKETS = {'eur': '099741', 'btc': '133741', 'eth': '146021'}   # EURO FX, BITCOIN, ETHER CASH SETTLED — wszystkie CME
+CFTC_WEEKS = 13
+CFTC_SPAN_DAYS = CFTC_WEEKS * 7 - 1    # historia = raporty z 90 dni przed najnowszym (bez dziur na przełomie roku)
+CFTC_KEEP_DAYS = 35                    # rynek nieobecny w obu plikach: poprzedni stan najwyżej 5 tygodni (jego data mówi, jak stary)
+CFTC_GROUPS = (('dealer', 'Dealer_Positions', 'Dealer'), ('asset_mgr', 'Asset_Mgr_Positions', 'Asset_Mgr'),
+               ('lev_funds', 'Lev_Money_Positions', 'Lev_Money'), ('other_rept', 'Other_Rept_Positions', 'Other_Rept'),
+               ('nonrept', 'NonRept_Positions', 'NonRept'))
+CFTC_COLS = tuple((
+    'Market_and_Exchange_Names As_of_Date_In_Form_YYMMDD Report_Date_as_YYYY-MM-DD CFTC_Contract_Market_Code '
+    'CFTC_Market_Code CFTC_Region_Code CFTC_Commodity_Code Open_Interest_All Dealer_Positions_Long_All Dealer_Positions_Short_All '
+    'Dealer_Positions_Spread_All Asset_Mgr_Positions_Long_All Asset_Mgr_Positions_Short_All Asset_Mgr_Positions_Spread_All '
+    'Lev_Money_Positions_Long_All Lev_Money_Positions_Short_All Lev_Money_Positions_Spread_All Other_Rept_Positions_Long_All '
+    'Other_Rept_Positions_Short_All Other_Rept_Positions_Spread_All Tot_Rept_Positions_Long_All Tot_Rept_Positions_Short_All '
+    'NonRept_Positions_Long_All NonRept_Positions_Short_All Change_in_Open_Interest_All Change_in_Dealer_Long_All '
+    'Change_in_Dealer_Short_All Change_in_Dealer_Spread_All Change_in_Asset_Mgr_Long_All Change_in_Asset_Mgr_Short_All '
+    'Change_in_Asset_Mgr_Spread_All Change_in_Lev_Money_Long_All Change_in_Lev_Money_Short_All Change_in_Lev_Money_Spread_All '
+    'Change_in_Other_Rept_Long_All Change_in_Other_Rept_Short_All Change_in_Other_Rept_Spread_All Change_in_Tot_Rept_Long_All '
+    'Change_in_Tot_Rept_Short_All Change_in_NonRept_Long_All Change_in_NonRept_Short_All Pct_of_Open_Interest_All '
+    'Pct_of_OI_Dealer_Long_All Pct_of_OI_Dealer_Short_All Pct_of_OI_Dealer_Spread_All Pct_of_OI_Asset_Mgr_Long_All '
+    'Pct_of_OI_Asset_Mgr_Short_All Pct_of_OI_Asset_Mgr_Spread_All Pct_of_OI_Lev_Money_Long_All Pct_of_OI_Lev_Money_Short_All '
+    'Pct_of_OI_Lev_Money_Spread_All Pct_of_OI_Other_Rept_Long_All Pct_of_OI_Other_Rept_Short_All Pct_of_OI_Other_Rept_Spread_All '
+    'Pct_of_OI_Tot_Rept_Long_All Pct_of_OI_Tot_Rept_Short_All Pct_of_OI_NonRept_Long_All Pct_of_OI_NonRept_Short_All '
+    'Traders_Tot_All Traders_Dealer_Long_All Traders_Dealer_Short_All Traders_Dealer_Spread_All Traders_Asset_Mgr_Long_All '
+    'Traders_Asset_Mgr_Short_All Traders_Asset_Mgr_Spread_All Traders_Lev_Money_Long_All Traders_Lev_Money_Short_All '
+    'Traders_Lev_Money_Spread_All Traders_Other_Rept_Long_All Traders_Other_Rept_Short_All Traders_Other_Rept_Spread_All '
+    'Traders_Tot_Rept_Long_All Traders_Tot_Rept_Short_All Conc_Gross_LE_4_TDR_Long_All Conc_Gross_LE_4_TDR_Short_All '
+    'Conc_Gross_LE_8_TDR_Long_All Conc_Gross_LE_8_TDR_Short_All Conc_Net_LE_4_TDR_Long_All Conc_Net_LE_4_TDR_Short_All '
+    'Conc_Net_LE_8_TDR_Long_All Conc_Net_LE_8_TDR_Short_All Contract_Units CFTC_Contract_Market_Code_Quotes CFTC_Market_Code_Quotes '
+    'CFTC_Commodity_Code_Quotes CFTC_SubGroup_Code FutOnly_or_Combined').split())
+_CFTC_DATE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def _cftc_int(token):
+    """Liczba kontraktów: '  41113' → 41113; '.', '', 'nan', 'inf' i nie-liczba → None (nigdy 0)."""
+    v = _num(token)
+    try:
+        return None if v is None else int(round(v))
+    except (ValueError, OverflowError):
+        return None
+
+
+def _cftc_iso(day):
+    """'RRRR-MM-DD' → datetime.date; zły format albo nieistniejąca data (np. 2026-13-45) → None."""
+    if not isinstance(day, str) or not _CFTC_DATE.match(day):
+        return None
+    try:
+        return datetime.date.fromisoformat(day)
+    except ValueError:
+        return None
+
+
+def parse_cftc_csv(text, header=None, codes=None):
+    """CSV CFTC TFF → {kod rynku: {data raportu: wiersz jako dict nazwa→tekst}}.
+    header=None: pierwszy wiersz to nagłówek (plik roczny FinFutYY.txt); plik tygodniowy nie ma nagłówka — podaj CFTC_COLS.
+    Wiersz z inną liczbą pól niż nagłówek jest pomijany (zmiana układu pliku ⇒ brak rynku i błąd, nigdy przesunięte liczby)."""
+    codes = set(codes or CFTC_MARKETS.values())
+    reader = csv.reader(io.StringIO(text))
+    cols = [c.strip() for c in (header or next(reader, []))]
+    need = {'Report_Date_as_YYYY-MM-DD', 'CFTC_Contract_Market_Code', 'Open_Interest_All'}
+    need |= {f'{pos}_{side}_All' for _, pos, _ in CFTC_GROUPS for side in ('Long', 'Short')}
+    missing = need - set(cols)
+    if missing:
+        raise RuntimeError('brak kolumn ' + ', '.join(sorted(missing))[:200])
+    out = {}
+    for parts in reader:
+        if len(parts) != len(cols):
+            continue
+        r = {c: p.strip() for c, p in zip(cols, parts)}
+        code, day = r['CFTC_Contract_Market_Code'], r['Report_Date_as_YYYY-MM-DD']
+        if code not in codes or r.get('FutOnly_or_Combined', 'FutOnly') != 'FutOnly' or _cftc_iso(day) is None:
+            continue
+        out.setdefault(code, {})[day] = r
+    return out
+
+
+def cftc_record(r):
+    """Jeden wiersz → liczby dla strony. net = long − short (spreading liczy się po obu stronach, więc się znosi);
+    chg_net = zmiana long − zmiana short z kolumn CFTC „Change_in_…” (względem poprzedniego raportu). Brak = None."""
+    g = {}
+    for key, pos, chg in CFTC_GROUPS:
+        lo, sh = _cftc_int(r.get(f'{pos}_Long_All')), _cftc_int(r.get(f'{pos}_Short_All'))
+        clo, csh = _cftc_int(r.get(f'Change_in_{chg}_Long_All')), _cftc_int(r.get(f'Change_in_{chg}_Short_All'))
+        g[key] = {'long': lo, 'short': sh,
+                  'spread': None if key == 'nonrept' else _cftc_int(r.get(f'{pos}_Spread_All')),   # małe pozycje: CFTC nie dzieli
+                  'net': lo - sh if lo is not None and sh is not None else None,
+                  'chg_net': clo - csh if clo is not None and csh is not None else None}
+    return {'date': r.get('Report_Date_as_YYYY-MM-DD'), 'name': r.get('Market_and_Exchange_Names', ''),
+            'units': r.get('Contract_Units', ''), 'oi': _cftc_int(r.get('Open_Interest_All')),
+            'oi_chg': _cftc_int(r.get('Change_in_Open_Interest_All')), 'g': g}
+
+
+def cftc_consistent(rec):
+    """Strażnik przesunięcia kolumn: suma long (i osobno short) wszystkich grup + spreading = open interest.
+    W danych CFTC 2025–2026 różnica wynosi najwyżej 0,0014% (dla EUR/BTC/ETH zawsze 0); tolerancja 0,5%."""
+    oi = rec['oi']
+    if oi is None or oi <= 0:
+        return False
+    for side in ('long', 'short'):
+        vals = [x[side] for x in rec['g'].values()] + [x['spread'] for k, x in rec['g'].items() if k != 'nonrept']
+        if any(v is None for v in vals) or abs(sum(vals) - oi) > max(5, oi * 0.005):
+            return False
+    return True
+
+
+def _cftc_hv(seq, i):
+    """Wartość z poprzedniej historii: tylko liczba całkowita; inaczej brak (None), nigdy 0."""
+    v = seq[i] if isinstance(seq, list) and i < len(seq) else None
+    return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+
+def build_cftc(fetch=None, today=None, prev=None):
+    """data/cftc.json — pozycje grup uczestników (TFF, futures-only) dla EUR, BTC, ETH na CME: stan z ostatniego raportu
+    (plik tygodniowy) + netto z raportów z ostatnich 90 dni (plik roczny; w styczniu dociągany też rok poprzedni).
+    Każda część osobno: awaria pliku rocznego nie kasuje bieżącego tygodnia i odwrotnie. prev = poprzedni cftc.json ze strony:
+    gdy rynku brak w obu plikach — zostaje poprzedni stan (kept=True, najwyżej 35 dni; jego asof mówi, jak stary); gdy historia
+    jest krótsza niż 13 raportów — brakujące starsze tygodnie z okna 90 dni uzupełnia poprzednia historia. Gdy żaden rynek
+    nie ma danych z tego pobrania — wyjątek (main zachowuje wtedy poprzedni plik z jego prawdziwym „at”)."""
+    fetch = fetch or (lambda u: get_bytes(u, timeout=120))
+    today = today or datetime.datetime.now(datetime.timezone.utc).date()
+    errors = []
+    week = {}
+    try:
+        week = parse_cftc_csv(fetch(CFTC_WEEK_URL).decode('utf-8', 'replace'), header=CFTC_COLS)
+    except Exception as e:
+        errors.append(f'CFTC tydzień: {e}')
+    hist = {}
+
+    def load_year(y):
+        try:
+            with zipfile.ZipFile(io.BytesIO(fetch(CFTC_YEAR_URL.format(y)))) as z:
+                names = [n for n in z.namelist() if n.lower().endswith('.txt')]
+                if not names:
+                    raise RuntimeError('brak pliku .txt w archiwum')
+                text = z.read(names[0]).decode('utf-8', 'replace')
+            for code, rows in parse_cftc_csv(text).items():
+                for day, r in rows.items():
+                    hist.setdefault(code, {}).setdefault(day, r)
+        except urllib.error.HTTPError as e:
+            errors.append(f'CFTC rok {y}: HTTP {e.code}' + (' (w pierwszych dniach stycznia to normalne)' if e.code == 404 else ''))
+        except Exception as e:
+            errors.append(f'CFTC rok {y}: {e}')
+
+    load_year(today.year)
+    if any(len(set(hist.get(c, {})) | set(week.get(c, {}))) < CFTC_WEEKS + 1 for c in CFTC_MARKETS.values()):
+        load_year(today.year - 1)
+    fields = ['oi'] + [gk for gk, _, _ in CFTC_GROUPS]
+    markets = {}
+    for key, code in CFTC_MARKETS.items():
+        rows = dict(hist.get(code, {}))
+        rows.update(week.get(code, {}))           # ten sam tydzień: wygrywa plik tygodniowy (liczby są identyczne)
+        recs = []
+        for day in sorted(rows):
+            rec = cftc_record(rows[day])
+            if cftc_consistent(rec):
+                recs.append(rec)
+            else:
+                errors.append(f'CFTC {key} {day}: suma pozycji ≠ open interest — wiersz pominięty')
+        if recs:                                  # rok poprzedni (lub stara historia) nie może wejść do „13 tygodni” z dziurą
+            last_d = _cftc_iso(recs[-1]['date'])
+            recs = [x for x in recs if (last_d - _cftc_iso(x['date'])).days <= CFTC_SPAN_DAYS]
+        prev_m = ((prev.get('markets') or {}).get(key) if isinstance(prev.get('markets'), dict) else None) if isinstance(prev, dict) else None
+        prev_m = prev_m if isinstance(prev_m, dict) else None
+        if not recs:
+            errors.append(f'CFTC {key}: brak rynku {code} w raporcie')
+            pd = _cftc_iso(prev_m.get('asof')) if prev_m else None
+            markets[key] = dict(prev_m, kept=True) if pd and 0 <= (today - pd).days <= CFTC_KEEP_DAYS else None
+            continue
+        last = recs[-1]
+        last_d = _cftc_iso(last['date'])
+        before = recs[-2] if len(recs) > 1 and (last_d - _cftc_iso(recs[-2]['date'])).days <= 10 else None
+        for gk, x in last['g'].items():           # zapas: gdy CFTC nie podał zmiany, różnica do poprzedniego raportu
+            if x['chg_net'] is None and before and x['net'] is not None and before['g'][gk]['net'] is not None:
+                x['chg_net'] = x['net'] - before['g'][gk]['net']
+        if last['oi_chg'] is None and before and before['oi'] is not None:
+            last['oi_chg'] = last['oi'] - before['oi']
+        byday = {}
+        ph = prev_m.get('hist') if prev_m and len(recs) < CFTC_WEEKS else None
+        if isinstance(ph, dict) and isinstance(ph.get('dates'), list):
+            for i, day in enumerate(ph['dates']):
+                d = _cftc_iso(day)
+                if d and day < recs[0]['date'] and (last_d - d).days <= CFTC_SPAN_DAYS:   # starsze niż pobrane, w oknie 90 dni
+                    byday[day] = {f: _cftc_hv(ph.get(f), i) for f in fields}
+        for r in recs:
+            byday[r['date']] = dict({'oi': r['oi']}, **{gk: r['g'][gk]['net'] for gk, _, _ in CFTC_GROUPS})
+        days = sorted(byday)[-CFTC_WEEKS:]
+        h = {'dates': days}
+        for f in fields:
+            h[f] = [byday[d][f] for d in days]
+        markets[key] = {'code': code, 'name': last['name'], 'units': last['units'], 'asof': last['date'],
+                        'in_week_file': last['date'] in week.get(code, {}), 'oi': last['oi'], 'oi_chg': last['oi_chg'],
+                        'groups': {gk: {k: v for k, v in x.items() if k in ('long', 'short', 'spread', 'net', 'chg_net')}
+                                   for gk, x in last['g'].items()},
+                        'hist': h}
+    for e in errors:
+        META['errors'].append(mask(e))
+    live = [m for m in markets.values() if m]
+    if not any(not m.get('kept') for m in live):
+        raise RuntimeError('żaden rynek nie ma danych z tego pobrania (szczegóły w osobnych błędach CFTC)')
+    return {'at': NOW, 'src': 'CFTC — Commitments of Traders: Traders in Financial Futures (futures only)',
+            'url': CFTC_HOME, 'data_url': CFTC_WEEK_URL, 'unit': 'kontrakty', 'asof': max(m['asof'] for m in live),
+            'net': 'long − short; spreading is counted on both sides and cancels out',
+            'order': [gk for gk, _, _ in CFTC_GROUPS], 'markets': markets}
+
+
+# --- Coin Metrics Community (bez klucza): przepływy BTC i ETH na giełdy i z giełd, zapas na giełdach -------------------
+# Licencja danych: CC BY-NC 4.0 (docs.coinmetrics.io/api/v4 → „Available to the community under the Creative Commons
+# license” z linkiem do by-nc/4.0; github.com/coinmetrics/data/LICENSE). Limit Community: 10 zapytań / 6 s na IP.
+# Jedno zapytanie na przebieg: 2 aktywa × 6 metryk × 36 dni (limit_per_asset + paging_from=end → rosnąco po dacie).
+# 36, nie 35: limit liczy też najnowszy dzień, który Coin Metrics jeszcze publikuje (ok. 02–03 UTC). Gdy parser cofa się
+# wtedy do ostatniego pełnego dnia, okno 35 dni nadal jest pełne — inaczej najstarszy dzień okna byłby fałszywą „luką”.
+CM_ASSETS = ('btc', 'eth')
+CM_DAYS = 35
+CM_METRICS = (('in', 'FlowInExNtv'), ('out', 'FlowOutExNtv'), ('in_usd', 'FlowInExUSD'),
+              ('out_usd', 'FlowOutExUSD'), ('sply', 'SplyExNtv'), ('sply_usd', 'SplyExUSD'))
+CM_URL = ('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=' + ','.join(CM_ASSETS)
+          + '&metrics=' + ','.join(m for _, m in CM_METRICS)
+          + f'&frequency=1d&limit_per_asset={CM_DAYS + 1}&paging_from=end&page_size=1000'
+          # metryka przeniesiona do planu płatnego nie zwraca wtedy 400 dla CAŁEGO zapytania (sprawdzone 24.09.2026)
+          + '&ignore_unsupported_errors=true')
+CM_LICENSE_URL = 'https://creativecommons.org/licenses/by-nc/4.0/'
+CM_ATTR = ('Source: Coin Metrics Community Network Data (https://coinmetrics.io), licensed under CC BY-NC 4.0 '
+           '(https://creativecommons.org/licenses/by-nc/4.0/). Net flows and 7/30-day sums computed by CapitalFlowAI. '
+           'Coin Metrics does not endorse this site.')
+CM_COLS = ['date', 'in', 'out', 'net', 'in_usd', 'out_usd', 'net_usd', 'sply', 'sply_usd']
+
+
+def _cm_val(v):
+    """Liczba z tekstu Coin Metrics ('28280.09508818'); brak, nie-liczba, nan/inf albo wartość ujemna → None (nigdy 0).
+    Przepływy i zapas na giełdach nie mogą być ujemne — ujemna liczba to błąd dostawcy, nie pomiar."""
+    if v is None or isinstance(v, bool):
+        return None
+    x = _num(v)
+    if x is None or x != x or x in (float('inf'), float('-inf')) or x < 0:
+        return None
+    return x
+
+
+def _cm_round(key, v):
+    if v is None:
+        return None
+    return int(round(v)) if key.endswith('_usd') else round(v, 2)
+
+
+def _cm_sum(by_day, last, days, key):
+    """Suma `key` z `days` kolejnych dni kalendarzowych kończących się na `last`; brak choćby jednego dnia → None."""
+    d0 = datetime.date.fromisoformat(last)
+    total = 0.0
+    for i in range(days):
+        v = by_day.get((d0 - datetime.timedelta(days=i)).isoformat(), {}).get(key)
+        if v is None:
+            return None
+        total += v
+    return total
+
+
+def _cm_net(rec, a, b):
+    return rec[a] - rec[b] if rec.get(a) is not None and rec.get(b) is not None else None
+
+
+def parse_cm_asset(rows, asset):
+    """Wiersze jednego aktywa → {'sym','asof','status','pending','d','missing','last','sum7','sum30','sply_ch7','sply_ch30'};
+    None gdy brak dni. d: CM_DAYS dni kalendarzowych rosnąco kończących się na ostatnim dniu z danymi; dzień bez wiersza = same None.
+    Netto liczone z liczb niezaokrąglonych (dopiero wynik jest zaokrąglany)."""
+    by_day, status = {}, {}
+    for r in rows:
+        if not isinstance(r, dict) or r.get('asset') != asset:
+            continue
+        day = str(r.get('time', ''))[:10]
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', day):
+            continue
+        try:
+            datetime.date.fromisoformat(day)      # np. '2026-02-30' przechodzi przez wzorzec, ale nie jest datą
+        except ValueError:
+            continue
+        rec = {k: _cm_val(r.get(m)) for k, m in CM_METRICS}
+        if all(v is None for v in rec.values()):
+            continue
+        rec['net'] = _cm_net(rec, 'in', 'out')
+        rec['net_usd'] = _cm_net(rec, 'in_usd', 'out_usd')
+        by_day[day] = rec
+        status[day] = {str(r.get(m + '-status')) for _, m in CM_METRICS if r.get(m) is not None and r.get(m + '-status')}
+    if not by_day:
+        return None
+    last = max(by_day)
+    # Metryki nowego dnia pojawiają się po kolei (natywne od ok. 01:10 UTC, USD do ~70 min później). Gdy najnowszy dzień
+    # jest jeszcze niepełny, a dzień wcześniej jest pełny — pokazujemy ten pełny (inaczej USD i sumy 7/30 dni = null
+    # przez ~1 h dziennie, a BTC i ETH mogą mieć różne daty). Starsza luka niż 1 dzień = zmiana u dostawcy → bez cofania.
+    full = [day for day, rec in by_day.items() if all(rec[k] is not None for k, _ in CM_METRICS)]
+    pending = None
+    if full and last not in full and (datetime.date.fromisoformat(last) - datetime.date.fromisoformat(max(full))).days == 1:
+        pending, last = last, max(full)
+    d0 = datetime.date.fromisoformat(last)
+    cal = [(d0 - datetime.timedelta(days=i)).isoformat() for i in range(CM_DAYS - 1, -1, -1)]
+    d = [[day] + [_cm_round(k, by_day.get(day, {}).get(k)) for k in CM_COLS[1:]] for day in cal]
+    st = status.get(last, set())
+    out = {'sym': asset.upper(), 'asof': last,
+           # 'flash' = wstępne (Coin Metrics może je poprawić), 'reviewed' = po przeglądzie; mieszane → 'flash'
+           'status': 'flash' if 'flash' in st else ('reviewed' if st == {'reviewed'} else None),
+           'pending': pending,   # najnowszy dzień, który Coin Metrics jeszcze publikuje (pominięty), albo null
+           'd': d, 'missing': sum(1 for day in cal if day not in by_day),
+           'last': {k: _cm_round(k, by_day[last].get(k)) for k in CM_COLS[1:]}}
+    flow_keys = ('in', 'out', 'net', 'in_usd', 'out_usd', 'net_usd')
+    for n in (7, 30):
+        out[f'sum{n}'] = {k: _cm_round(k, _cm_sum(by_day, last, n, k)) for k in flow_keys}
+        now_s = by_day[last].get('sply')
+        then_s = by_day.get((d0 - datetime.timedelta(days=n)).isoformat(), {}).get('sply')
+        ch = (now_s - then_s) if now_s is not None and then_s is not None else None
+        out[f'sply_ch{n}'] = {'ntv': _cm_round('sply', ch),
+                              'pct': round(ch / then_s * 100, 2) if ch is not None and then_s else None}
+    return out
+
+
+def parse_cm(j):
+    """Coin Metrics /timeseries/asset-metrics → data/cm.json. Każde aktywo osobno: brak jednego nie kasuje drugiego."""
+    if isinstance(j, dict) and isinstance(j.get('error'), dict):
+        raise RuntimeError('Coin Metrics: ' + str(j['error'].get('message', j['error']))[:200])
+    rows = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(rows, list):
+        raise RuntimeError('Coin Metrics: brak pola data')
+    if j.get('next_page_token'):
+        META['errors'].append('Coin Metrics: odpowiedź podzielona na strony — użyto tylko pierwszej')
+    seen = {m for r in rows if isinstance(r, dict) for _, m in CM_METRICS if r.get(m) is not None}
+    for _, m in CM_METRICS:
+        if m not in seen:
+            META['errors'].append(f'Coin Metrics: brak metryki {m} w odpowiedzi')
+    out = {'at': NOW, 'src': 'Coin Metrics Community Network Data — API v4 asset-metrics (exchange flows)',
+           'url': 'https://docs.coinmetrics.io/api/v4/', 'home': 'https://coinmetrics.io',
+           'license': 'CC BY-NC 4.0', 'license_url': CM_LICENSE_URL, 'attribution': CM_ATTR,
+           'unit': {'ntv': 'native units (BTC, ETH)', 'usd': 'USD'},
+           'sign': 'net = in - out; positive = more coins sent to exchanges than withdrawn (excl. exchange-to-exchange)',
+           'cols': CM_COLS, 'asof': None, 'assets': {}}
+    for a in CM_ASSETS:
+        out['assets'][a] = parse_cm_asset(rows, a)
+        if out['assets'][a] is None:
+            META['errors'].append(f'Coin Metrics: brak dni dla {a}')
+    dates = sorted({v['asof'] for v in out['assets'].values() if v})
+    if not dates:
+        raise RuntimeError('Coin Metrics: żadne aktywo nie ma danych')
+    out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
+    return out
+
+
+def build_cm():
+    """data/cm.json — jedno zapytanie bez klucza do Coin Metrics Community (limit 10 zapytań / 6 s na IP)."""
+    return parse_cm(get_json(CM_URL))
+
+
+# --- v50: Fed H.4.1 — papiery w depozycie Fed dla zagranicznych instytucji oficjalnych i międzynarodowych (serie w FRED_SERIES) ---
+FRED_CUSTODY = ('WSEFINTL1', 'WMTSECL1', 'WFASECL1', 'WSEFINOL')   # razem; w tym Skarb USA; agencje i MBS; pozostałe
+CUSTODY_TOL = 5     # mln USD: części H.4.1 są zaokrąglane („Components may not sum to totals because of rounding”)
+
+
+def _fed_day_back(date_str, days):
+    return (datetime.date.fromisoformat(date_str) - datetime.timedelta(days=days)).isoformat()
+
+
+def custody_summary(series):
+    """Z out['series'] build_fred: stan środowy (H.4.1, Table 1A, Wednesday level) papierów w depozycie Fed dla zagranicznych
+    instytucji oficjalnych. Zmiany tylko względem DOKŁADNIE tej samej środy 1/4/52 tygodnie wcześniej (brak takiej środy = None,
+    nigdy 0 i nigdy starszy tydzień); części (Skarb USA, agencje/MBS, pozostałe) tylko z tej samej daty co suma."""
+    fin = lambda v: v if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf')) else None
+    tot = (series or {}).get('WSEFINTL1') or {}
+    rows = sorted([[d, v] for d, v in (tot.get('d') or []) if fin(v) is not None], key=lambda r: r[0])
+    if not rows:
+        return None
+    idx = {sid: {d: fin(v) for d, v in (((series or {}).get(sid) or {}).get('d') or [])} for sid in FRED_CUSTODY}
+    asof, total = rows[-1]
+    at = lambda sid, day: idx[sid].get(day)
+    out = {'asof': asof, 'unit': 'mln USD', 'total': total, 'ust': at('WMTSECL1', asof),
+           'agency': at('WFASECL1', asof), 'other': at('WSEFINOL', asof)}
+    for key, days in (('d1w', 7), ('d4w', 28), ('d52w', 364)):
+        day = _fed_day_back(asof, days)
+        p = at('WSEFINTL1', day)
+        out[key] = None if p is None else round(total - p, 1)
+        u0, u1 = at('WMTSECL1', day), out['ust']
+        out['ust_' + key] = None if u0 is None or u1 is None else round(u1 - u0, 1)
+    out['ust_share_pct'] = round(100.0 * out['ust'] / total, 1) if out['ust'] is not None and total else None
+    parts = [out['ust'], out['agency'], out['other']]
+    out['parts_ok'] = None if any(p is None for p in parts) else abs(sum(parts) - total) <= CUSTODY_TOL
+    year = [r for r in rows if r[0] >= _fed_day_back(asof, 364)]
+    lo = min(year, key=lambda r: r[1]); hi = max(year, key=lambda r: r[1])
+    out['lo52'] = [lo[0], lo[1]]; out['hi52'] = [hi[0], hi[1]]; out['n52'] = len(year)
+    return out
+
+
+# --- v50: rezerwy walutowe dużych posiadaczy — MFW (IMF), International Liquidity (IL), API SDMX 3.0 bez klucza ---
+# Warunki MFW („The Use of IMF Data”): wolno pobierać i publikować z atrybucją „Source: International Monetary Fund, <baza>”;
+# przekształcenie trzeba oznaczyć (strona: mld USD, złoto jako różnica, zmiany liczone przez stronę).
+RES_COUNTRIES = ['CHN', 'JPN', 'CHE', 'IND', 'TWN', 'SAU', 'KOR', 'BRA']
+RES_NAMES = {'CHN': ('Chiny', 'China'), 'JPN': ('Japonia', 'Japan'), 'CHE': ('Szwajcaria', 'Switzerland'),
+             'IND': ('Indie', 'India'), 'TWN': ('Tajwan', 'Taiwan'), 'SAU': ('Arabia Saudyjska', 'Saudi Arabia'),
+             'KOR': ('Korea Płd.', 'Korea'), 'BRA': ('Brazylia', 'Brazil')}
+RES_IND = {'TRGMV_REVS': 'total', 'RXF11_REVS': 'ex_gold', 'RXF11FX_REVS': 'fx'}   # razem ze złotem rynkowo; bez złota; waluty obce
+IMF_IL_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/IL/+/'
+              + '+'.join(RES_COUNTRIES) + '.' + '+'.join(RES_IND) + '.USD.M?lastNObservations=13')
+IMF_IL_PAGE = 'https://data.imf.org/en/datasets/IMF.STA:IL'
+IMF_IL_SRC = 'International Monetary Fund, International Liquidity (IL)'
+_IMF_PERIOD = re.compile(r'^(\d{4})-M?(\d{2})$')
+
+
+def _imf_month(p):
+    """'2026-M06' albo '2026-06' → '2026-06'; inny zapis → None."""
+    m = _IMF_PERIOD.match(str(p or '').strip())
+    return f'{m.group(1)}-{m.group(2)}' if m and 1 <= int(m.group(2)) <= 12 else None
+
+
+def _imf_month_add(ym, k):
+    t = int(ym[:4]) * 12 + int(ym[5:7]) - 1 + k
+    return f'{t // 12:04d}-{t % 12 + 1:02d}'
+
+
+def parse_imf_sdmx(j):
+    """SDMX-JSON 2.0 z API MFW 3.0: {(kod wymiaru 1, 2, …): [[YYYY-MM, liczba]]} rosnąco. Klucz serii '0:2:0:0' = indeksy
+    wartości wymiarów wg keyPosition; obserwacja [OBS_VALUE, atrybuty…]; wartość pusta / nie-liczba / NaN pominięta (nigdy 0).
+    Brak jakiejkolwiek serii = błąd (API odpowiada 200 bez 'series')."""
+    try:
+        st = j['data']['structures'][0]; ds = j['data']['dataSets'][0]
+        sdims = sorted(st['dimensions']['series'], key=lambda d: d.get('keyPosition', 0))
+        periods = [v.get('value') or v.get('id') for v in st['dimensions']['observation'][0]['values']]
+    except (KeyError, IndexError, TypeError) as e:
+        raise RuntimeError(f'nieznany kształt odpowiedzi ({e})')
+    out = {}
+    for key, s in (ds.get('series') or {}).items():
+        try:
+            lab = tuple(sdims[i]['values'][int(n)]['id'] for i, n in enumerate(key.split(':')))
+        except (IndexError, ValueError, KeyError):
+            continue
+        rows = []
+        for oi, ov in ((s or {}).get('observations') or {}).items():
+            try:
+                per = _imf_month(periods[int(oi)])
+            except (IndexError, ValueError):
+                continue
+            v = _num(ov[0]) if isinstance(ov, list) and ov and ov[0] is not None else None
+            if v is not None and (v != v or v in (float('inf'), float('-inf'))):
+                v = None      # 'NaN' / 'inf' = brak — nigdy NaN w JSON (JSON.parse na stronie by padł)
+            if per is not None and v is not None:
+                rows.append([per, v])
+        if rows:
+            out[lab] = sorted(rows)
+    if not out:
+        raise RuntimeError('brak serii z wartościami')
+    return out
+
+
+def parse_rezerwy(j):
+    """IL → rezerwy 8 gospodarek w mld USD. total = rezerwy razem ze złotem po cenie rynkowej (TRGMV), ex_gold = bez złota
+    (RXF11), fx = waluty obce (RXF11FX), gold = total − ex_gold (wyliczenie strony). Każdy kraj ma własny miesiąc 'asof'
+    (MFW publikuje z różnym opóźnieniem); części i porównania tylko z dokładnie tego miesiąca (i 1/12 mies. wcześniej).
+    Kraj bez sumy → 'missing' (nie zero)."""
+    ser = parse_imf_sdmx(j)
+    r1 = lambda v: None if v is None else round(v / 1e9, 1)
+    countries, missing = {}, []
+    for c in RES_COUNTRIES:
+        by = {k: dict(ser.get((c, code, 'USD', 'M')) or []) for code, k in RES_IND.items()}
+        if not by['total']:
+            missing.append(c); continue
+        tot_rows = sorted(by['total'].items())
+        asof, total = tot_rows[-1]
+        ex_gold, fx = by['ex_gold'].get(asof), by['fx'].get(asof)
+        p1, p12 = by['total'].get(_imf_month_add(asof, -1)), by['total'].get(_imf_month_add(asof, -12))
+        countries[c] = {'pl': RES_NAMES[c][0], 'en': RES_NAMES[c][1], 'asof': asof, 'total': r1(total), 'ex_gold': r1(ex_gold),
+                        'fx': r1(fx), 'gold': None if ex_gold is None else r1(total - ex_gold),
+                        'd1m': None if p1 is None else r1(total - p1), 'd12m': None if p12 is None else r1(total - p12),
+                        'p12m': None if not p12 else round(100.0 * (total - p12) / p12, 1),
+                        'd': [[m, r1(v)] for m, v in tot_rows]}
+    if not countries:
+        raise RuntimeError('żaden kraj bez sumy rezerw')
+    tots = sorted(v['total'] for v in countries.values())
+    if tots[len(tots) // 2] < 1:      # mediana < 1 mld USD: wartości nie są w dolarach (zmiana SCALE?) — nie pokazujemy źle
+        raise RuntimeError('wartości wyglądają na przeskalowane (atrybut SCALE) — sprawdź jednostkę')
+    order = sorted(countries, key=lambda c: -countries[c]['total'])
+    months = [countries[c]['asof'] for c in countries]
+    return {'src': IMF_IL_SRC, 'url': IMF_IL_PAGE, 'unit': 'mld USD', 'asof_min': min(months), 'asof_max': max(months),
+            'order': order, 'countries': countries, 'missing': missing,
+            'note': 'gold = total − ex_gold (wyliczenie strony z danych MFW); zmiana zawiera wycenę walut i złota'}
+
+
+def build_rezerwy():
+    """data/rezerwy.json — jedno zapytanie do API MFW (bez klucza); dane miesięczne, w main() najwyżej raz na dobę."""
+    out = parse_rezerwy(get_json(IMF_IL_URL, {'Accept': 'application/json'}))
+    out['at'] = NOW
+    return out
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -943,7 +1616,7 @@ def main():
             if prev: save('cmc', prev)
     else:
         META['errors'].append('brak COINMARKETCAP_KEY'); META['ok']['coinmarketcap'] = False
-    # FRED (klucz właściciela): cztery serie Fed, najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik
+    # FRED (klucz właściciela): osiem serii Fed (v50: + depozyt H.4.1), najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik
     prev_fred = previous('fred') if fred_key else None
     if fred_key and prev_fred and fresh(prev_fred, 55):
         save('fred', prev_fred); META['ok']['fred'] = 'cached'; print('FRED: dane z', prev_fred.get('at'), '— młodsze niż 55 min, bez zapytań do FRED')
@@ -957,7 +1630,7 @@ def main():
         META['errors'].append('brak FRED_KEY'); META['ok']['fred'] = False
     # TIC (Skarb USA, bez klucza, ~1,6 MB): najwyżej raz na dobę; przy awarii zachowaj poprzedni plik
     prev_tic = previous('tic')
-    if prev_tic and fresh(prev_tic, 24 * 60):
+    if prev_tic and fresh(prev_tic, 24 * 60) and 'twn' in prev_tic:   # v50: plik sprzed v48 (bez netto ze wspólnych krajów) pobieramy od nowa
         save('tic', prev_tic); META['ok']['tic'] = 'cached'; print('TIC: dane z', prev_tic.get('at'), '— młodsze niż doba')
     else:
         try:
@@ -965,6 +1638,48 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'TIC: {e}')); META['ok']['tic'] = False
             if prev_tic: save('tic', prev_tic); print('TIC zawiódł — zachowano poprzedni tic.json z', prev_tic.get('at'))
+    # BIS LBS (bez klucza, ~220 KB, dane kwartalne): najwyżej raz na dobę; przy awarii zachowaj poprzedni plik
+    prev_bis = previous('bis')
+    if prev_bis and fresh(prev_bis, 24 * 60):
+        save('bis', prev_bis); META['ok']['bis'] = 'cached'; print('BIS: dane z', prev_bis.get('at'), '— młodsze niż doba')
+    else:
+        try:
+            save('bis', build_bis()); META['ok']['bis'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'BIS: {e}')); META['ok']['bis'] = False
+            if prev_bis: save('bis', prev_bis); print('BIS zawiódł — zachowano poprzedni bis.json z', prev_bis.get('at'))
+    # CFTC TFF (v50, bez klucza): raport w piątki ok. 19:30 UTC (stan na wtorek) — pytamy najwyżej raz na 6 h; przy awarii poprzedni plik
+    prev_cftc = previous('cftc')
+    if prev_cftc and fresh(prev_cftc, 360):
+        save('cftc', prev_cftc); META['ok']['cftc'] = 'cached'; print('CFTC: dane z', prev_cftc.get('at'), '— młodsze niż 6 h')
+    else:
+        try:
+            save('cftc', build_cftc(prev=prev_cftc)); META['ok']['cftc'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'CFTC: {e}')); META['ok']['cftc'] = False
+            if prev_cftc: save('cftc', prev_cftc); print('CFTC zawiódł — zachowano poprzedni cftc.json z', prev_cftc.get('at'))
+    # COIN METRICS (Community, bez klucza): dane dzienne (nowy dzień ok. 02–03 UTC) — plik młodszy niż 60 min bez zapytań;
+    # przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
+    prev_cm = previous('cm')
+    if prev_cm and fresh(prev_cm, 60):
+        save('cm', prev_cm); META['ok']['cm'] = 'cached'; print('Coin Metrics: dane z', prev_cm.get('at'), '— młodsze niż 60 min')
+    else:
+        try:
+            save('cm', build_cm()); META['ok']['cm'] = True
+        except Exception as e:
+            msg = str(e)
+            META['errors'].append(mask(msg if msg.startswith('Coin Metrics') else f'Coin Metrics: {msg}')); META['ok']['cm'] = False
+            if prev_cm: save('cm', prev_cm); print('Coin Metrics zawiódł — zachowano poprzedni cm.json z', prev_cm.get('at'))
+    # MFW — rezerwy walutowe (International Liquidity, bez klucza): dane miesięczne, najwyżej raz na dobę; przy awarii poprzedni plik
+    prev_res = previous('rezerwy')
+    if prev_res and fresh(prev_res, 24 * 60):
+        save('rezerwy', prev_res); META['ok']['imf'] = 'cached'; print('MFW: dane z', prev_res.get('at'), '— młodsze niż doba')
+    else:
+        try:
+            save('rezerwy', build_rezerwy()); META['ok']['imf'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'MFW rezerwy: {e}')); META['ok']['imf'] = False
+            if prev_res: save('rezerwy', prev_res); print('MFW zawiódł — zachowano poprzedni rezerwy.json z', prev_res.get('at'))
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):
