@@ -2135,5 +2135,36 @@ class CoferV59(unittest.TestCase):
             zd.parse_cofer(_imf_sdmx({'0:0:2:1:0': {0: '56'}}, self.PER, self.DIMS))
 
 
+class EtfHongKongV61(unittest.TestCase):
+    """v61: ETF-y z Hongkongu — osobna część pliku; awaria = notatka, część USA bez zmian; historia jak w USA."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def test_hk_part_note_with_field_names_and_failure_is_only_a_note(self):
+        dates = ['2026-09-22', '2026-09-23']
+        seen = []
+
+        def soso(path, key, _retry=True):
+            seen.append(path)
+            if 'country_code=HK' in path:
+                if 'ETH' in path:
+                    raise RuntimeError('HTTP Error 400')
+                return [{'date': d, 'total_net_inflow': 5e6, 'cum_net_inflow': 3e8, 'total_net_assets': 4e8} for d in dates]
+            if path.startswith('/etfs/summary-history'):
+                return _rows(dates)
+            return []
+        with mock.patch.object(zd, 'soso', soso), mock.patch.object(zd, 'get_json', side_effect=RuntimeError('brak sieci')):
+            out = zd.build_etf('klucz', '')
+        self.assertEqual(sorted(out['hk']), ['btc'], 'ETH z błędem — pominięty, BTC jest')
+        b = out['hk']['btc']
+        self.assertEqual((b['d1'], b['w'], b['m'], b['cum'], b['aum']), (5.0, None, None, 300.0, 400.0), 'za krótko na 5 i 22 sesje = brak')
+        self.assertEqual(sorted(out['assets']), sorted(zd.ETF_SYMS), 'część USA bez zmian')
+        self.assertTrue(any(n.startswith('SoSoValue HK BTC: 2 dni do 2026-09-23; pola: cum_net_inflow, date,') for n in zd.META['notes']))
+        self.assertTrue(any(n.startswith('SoSoValue HK ETH: HTTP Error 400') for n in zd.META['notes']))
+        self.assertFalse(any('HK' in e for e in zd.META['errors']), 'Hongkong nigdy jako błąd strony')
+        self.assertTrue(any('country_code=HK' in p for p in seen))
+
+
 if __name__ == '__main__':
     unittest.main()

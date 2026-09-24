@@ -2007,10 +2007,39 @@ def build_etf(key, cg_key, prev=None):
             META['errors'].append(mask(f'SoSoValue {s.upper()}: {e}'))
     if not out['assets']:
         raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
+    _etf_hk(out, key, prev.get('hk') if isinstance(prev, dict) else None)   # v61: Hongkong (próba, nie psuje części USA)
     # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
     dates = sorted({a['asof'] for a in out['assets'].values()})
     out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
     return out
+
+
+def _etf_hk(out, key, prev_assets_hk):
+    """v61: ETF-y spot w Hongkongu (SoSoValue country_code=HK), BTC i ETH — dane dzienne jak dla USA (bez listy funduszy).
+    Brak/awaria = notatka w meta (nie błąd strony); pole 'fields' mówi, co zwraca API (nazwy pól, bez wartości)."""
+    hk = {}
+    for s in ('btc', 'eth'):
+        if _DEADLINE[0] is not None and time.monotonic() > _DEADLINE[0]:
+            META['notes'].append('SoSoValue HK: pominięte — limit czasu przebiegu'); break
+        try:
+            rows = soso(f'/etfs/summary-history?symbol={s.upper()}&country_code=HK&limit=60', key)
+            rows = sorted([r for r in (rows or []) if isinstance(r, dict) and r.get('date') and r.get('total_net_inflow') is not None],
+                          key=lambda r: r['date'])
+            if not rows:
+                META['notes'].append(f'SoSoValue HK {s.upper()}: brak danych'); continue
+            last = rows[-1]
+            pd = (prev_assets_hk or {}).get(s) if isinstance(prev_assets_hk, dict) else None
+            day = etf_merge_days(pd.get('day') if isinstance(pd, dict) else None, [[ts(r['date']), r['total_net_inflow'] / 1e6] for r in rows])
+            num = lambda k: last[k] / 1e6 if isinstance(last.get(k), (int, float)) and not isinstance(last.get(k), bool) else None
+            hk[s] = {'sym': s.upper(), 'asof': last['date'], 'day': day, 'd1': day[-1][1],
+                     'w': sum(v for _, v in day[-5:]) if len(day) >= 5 else None,
+                     'm': sum(v for _, v in day[-22:]) if len(day) >= 22 else None, 'm_n': min(len(day), 22),
+                     'cum': num('cum_net_inflow'), 'aum': num('total_net_assets'), 'fields': sorted(str(k) for k in last)[:20]}
+            META['notes'].append(f'SoSoValue HK {s.upper()}: {len(rows)} dni do {last["date"]}; pola: {", ".join(hk[s]["fields"])}')
+        except Exception as e:
+            META['notes'].append(mask(f'SoSoValue HK {s.upper()}: {e}'))
+    if hk:
+        out['hk'] = hk
 
 
 def _etf_coin(out, s, key, prev_day=None):
