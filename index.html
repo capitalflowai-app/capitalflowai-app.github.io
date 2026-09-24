@@ -627,6 +627,9 @@ td .cell .logo-img{width:34px;height:34px}
       <h2 data-i18n="why"></h2>
       <div class="detail" id="detail" aria-live="polite"></div>
     </section>
+    <section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>
+    <section class="panel pcard" id="eng-defillama-stablecoins" hidden></section>
+    <section class="panel pcard" id="eng-cftc-crypto" hidden></section>
   </main>
 
   <aside class="rail" id="rail">
@@ -746,6 +749,11 @@ td .cell .logo-img{width:34px;height:34px}
     <section class="panel pcard etf" id="g-etf" hidden></section>
     <section id="g-prob"></section>
     <section class="q-grid gq" id="g-q"></section>
+    <section class="panel pcard" id="eng-tic-flows" hidden></section>
+    <section class="panel pcard" id="eng-tic-countries" hidden></section>
+    <section class="panel pcard" id="eng-wdi-destinations" hidden></section>
+    <section class="panel pcard" id="eng-imf-portfolio-pairs" hidden></section>
+    <section class="panel pcard" id="eng-cftc-euro-fx" hidden></section>
   </section>
 </div>
 
@@ -908,6 +916,10 @@ for(const l in EXTRA20)Object.assign(I18N[l],EXTRA20[l])
 const EXTRA21={"pl":{"g.rf.stale":"Ostatnie udane pobranie {t} · od tego czasu brak nowych danych","etf.b.stale":"Dane z serwera z {t} · nieodświeżone (dane z {d})","etf.meta":"Zbieracz na serwerze: ostatni przebieg {t} · SoSoValue: {s} · Finnhub: {f}","etf.meta.cached":"z pamięci (młodsze niż 55 min)","etf.meta.err":"błąd","etf.meta.errs":"Błędy","g.age":"dane sprzed {n} dni","g.age1":"dane sprzed 1 dnia"},
 "en":{"g.rf.stale":"Last successful fetch {t} · no new data since","etf.b.stale":"Server data from {t} · not refreshed (data as of {d})","etf.meta":"Server collector: last run {t} · SoSoValue: {s} · Finnhub: {f}","etf.meta.cached":"cached (under 55 min old)","etf.meta.err":"error","etf.meta.errs":"Errors","g.age":"data {n} days old","g.age1":"data 1 day old"}};
 for(const l in EXTRA21)Object.assign(I18N[l],EXTRA21[l]);
+/* v35: widoki silnika — etykiety PL/EN (zdania z plików są po polsku) */
+const EXTRA22={"pl":{"eng.b.state":"Stan na {p} · pobrano {c}","eng.b.off":"Nie pokazujemy","eng.kept":"zachowane z poprzedniego przebiegu od {d}","eng.failed":"ostatnie pobranie nie powiodło się","eng.gap":"brak danych — to nie zero","eng.k.age":"Wiek danych","eng.k.src":"Źródło","eng.k.rights":"Prawa do danych","eng.k.why":"Dlaczego nie pokazujemy","eng.notsays":"Czego te dane nie mówią","eng.c.group":"Grupa uczestników","eng.oi":"otwarte kontrakty","eng.p.none":"źródło nie podaje daty okresu","eng.p.month":"miesiąc {v}","eng.p.half":"{h} półrocze {y}","eng.p.year":"rok {v}","eng.foot":"Plik z {g} · plik ważny do {v} · odcisk pliku źródłowego {s}…","eng.foot.w":"Stan z {g}.","eng.disclaimer":"Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.","eng.r.SITE_FILE_MISSING":"Na serwerze nie ma jeszcze pliku tego widoku.","eng.r.SITE_FILE_INVALID":"Plik tego widoku nie przeszedł sprawdzenia na stronie. Nie pokazujemy wartości.","eng.r.SITE_TRIAL_FILE":"To plik z przebiegu próbnego, nie do publikacji.","eng.r.FILE_EXPIRED":"Plik z danymi jest starszy niż limit ustalony dla tego źródła. Nie pokazujemy wartości.","eng.r.MARKET_MISSING":"Tego rynku nie było w raporcie. To nie znaczy zera.","eng.t.tic-flows":"Przepływy: zagranica ↔ USA","eng.t.tic-countries":"Skąd płynie kapitał do papierów USA","eng.t.wdi-destinations":"Dokąd płynie kapitał portfelowy","eng.t.imf-portfolio-pairs":"Kto trzyma czyje papiery","eng.t.cftc-euro-fx":"Pozycjonowanie EURO FX","eng.t.coinmetrics-exchange-flows":"Czy bitcoin i ether płyną na giełdy","eng.t.defillama-stablecoins":"Na które sieci płyną stablecoiny","eng.t.cftc-crypto":"Kontrakty na Bitcoin i Ether (CME)"},
+"en":{"eng.b.state":"As of {p} · fetched {c}","eng.b.off":"Not shown","eng.kept":"kept from an earlier run since {d}","eng.failed":"last fetch failed","eng.gap":"no data — not zero","eng.k.age":"Data age","eng.k.src":"Source","eng.k.rights":"Data rights","eng.k.why":"Why not shown","eng.notsays":"What this data does not say","eng.c.group":"Trader group","eng.oi":"open interest","eng.p.none":"the source gives no period date","eng.p.month":"month {v}","eng.p.half":"half {h} of {y}","eng.p.year":"year {v}","eng.foot":"File from {g} · valid until {v} · source file fingerprint {s}…","eng.foot.w":"State as of {g}.","eng.disclaimer":"Observation, not forecast. This is not investment advice or a recommendation. (Texts inside the file are in Polish.)","eng.r.SITE_FILE_MISSING":"The server has no file for this view yet.","eng.r.SITE_FILE_INVALID":"This view's file failed the page's checks. No values shown.","eng.r.SITE_TRIAL_FILE":"A trial-run file, not for publication.","eng.r.FILE_EXPIRED":"The data file is older than the limit set for this source. No values shown.","eng.r.MARKET_MISSING":"This market was not in the report. That does not mean zero.","eng.t.tic-flows":"Flows: abroad ↔ USA","eng.t.tic-countries":"Where capital flows into US securities from","eng.t.wdi-destinations":"Where portfolio capital goes","eng.t.imf-portfolio-pairs":"Who holds whose securities","eng.t.cftc-euro-fx":"EURO FX positioning","eng.t.coinmetrics-exchange-flows":"Are bitcoin and ether flowing to exchanges","eng.t.defillama-stablecoins":"Which chains stablecoins flow to","eng.t.cftc-crypto":"Bitcoin and Ether futures (CME)"}};
+for(const l in EXTRA22)Object.assign(I18N[l],EXTRA22[l]);
 
 /* ===================== STAN I DANE ===================== */
 const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -3487,6 +3499,92 @@ function renderSectorsPage(){
        <span class="sval ${pos?'pos':'neg'}">${pos?'+':'−'}${pgFmt(Math.abs(n.v),n.u)}</span>
        <span class="ssub">${n.sub||''}</span></div>`;}).join('')}</section>`;
 }
+/* v35: widoki silnika z plików data/widoki/*.json — tylko odczyt z serwera, bez zapasu w przeglądarce i bez migawki.
+   Sekcje pozostają ukryte, dopóki na serwerze nie ma data/widoki/index.json. O dopuszczeniu decyduje wyłącznie
+   public_display.admitted w pliku; plik po terminie valid_until albo próbny nie pokazuje liczb. */
+const ENG_VIEWS=['tic-flows','tic-countries','wdi-destinations','imf-portfolio-pairs','cftc-euro-fx','coinmetrics-exchange-flows','defillama-stablecoins','cftc-crypto'];
+const ENG={index:null,files:{},at:0,timer:null};
+function escH(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function engSafeUrl(u){return typeof u==='string'&&/^https:\/\//.test(u)?u:'';}
+/* czysta funkcja: co wolno pokazać z pliku widoku (do testu bez przeglądarki) */
+function engCheck(rec,view,nowMs){
+  if(rec==null)return {ok:false,code:'SITE_FILE_MISSING'};
+  if(typeof rec!=='object'||rec.schema!=='capitalflowai.public-view.v1'||rec.view!==view)return {ok:false,code:'SITE_FILE_INVALID'};
+  if(rec.trial===true)return {ok:false,code:'SITE_TRIAL_FILE'};
+  if(rec.state==='BOUND'){
+    if(!(rec.public_display&&rec.public_display.admitted===true))return {ok:false,code:'SITE_FILE_INVALID'};
+    const until=Date.parse(rec.valid_until||'');
+    if(!isFinite(until))return {ok:false,code:'SITE_FILE_INVALID'};
+    if(until<=nowMs)return {ok:false,code:'FILE_EXPIRED'};
+    if(!rec.captured_at||(!Array.isArray(rec.values)&&!rec.engine_panel))return {ok:false,code:'SITE_FILE_INVALID'};
+    return {ok:true,state:'BOUND'};
+  }
+  if(rec.state==='WITHHELD')return {ok:true,state:'WITHHELD'};
+  return {ok:false,code:'SITE_FILE_INVALID'};
+}
+function engLoad(cb){
+  srvJSON('widoki/index').then(idx=>{
+    if(!idx||idx.schema!=='capitalflowai.public-views-index.v1'){ENG.index=null;ENG.files={};renderEng();cb&&cb();return;}
+    ENG.index=idx;
+    return Promise.all(ENG_VIEWS.map(v=>srvJSON('widoki/'+v).then(r=>{ENG.files[v]=r;})))
+      .then(()=>{ENG.at=Date.now();renderEng();cb&&cb();});
+  });
+}
+function engAuto(){if(ENG.timer)clearInterval(ENG.timer);ENG.timer=setInterval(()=>{if(!document.hidden)engLoad();},60*60*1000);}
+const engNum=v=>typeof v==='number'&&isFinite(v)?v.toLocaleString(LOCALE[LANG]):(typeof v==='string'&&v!==''?v:'—');
+const engDate=iso=>{const ms=Date.parse(iso||'');return isFinite(ms)?new Date(ms).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'}):'—';};
+function engPeriod(p){
+  if(!p||!p.kind)return t('eng.p.none');
+  const v=String(p.value||'');
+  if(p.kind==='DAY'){const ms=Date.parse(v+'T00:00:00Z');return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG],{dateStyle:'medium',timeZone:'UTC'}):v;}
+  if(p.kind==='MONTH')return t('eng.p.month',{v});
+  if(p.kind==='HALF'){const m=v.match(/^(\d{4})-S([12])$/);return m?t('eng.p.half',{h:m[2]==='1'?'I':'II',y:m[1]}):v;}
+  if(p.kind==='YEAR')return t('eng.p.year',{v});
+  return v;
+}
+const engK=(label,value,wrap)=>`<div class="etfk${wrap?' wrap':''}"><span>${label}</span><b>${value}</b></div>`;
+function engTable(rec){
+  const P=rec.engine_panel,d=P&&P.data;if(!d)return '';
+  const cols=(P.data.position_columns||[]);
+  const rows=cats=>cats.map(c=>`<tr><td><span class="cell">${escH(c.label)}</span></td>${cols.map(col=>`<td><span class="cell mono">${engNum(c[col.key])}</span></td>`).join('')}</tr>`).join('');
+  const head=`<thead><tr><th>${t('eng.c.group')}</th>${cols.map(col=>`<th>${escH(col.label)}</th>`).join('')}</tr></thead>`;
+  if(Array.isArray(d.categories))return `<div class="list-wrap"><table class="etft">${head}<tbody>${rows(d.categories)}</tbody></table></div>`;
+  if(Array.isArray(d.markets))return d.markets.map(m=>`<details class="etfd" open><summary><b>${escH(m.label)}</b> · ${m.data?t('eng.oi')+': '+engNum(m.data.open_interest&&m.data.open_interest.value):t('eng.gap')}</summary>${m.data?`<div class="list-wrap"><table class="etft">${head}<tbody>${rows(m.data.categories||[])}</tbody></table></div>`:`<p class="pnote">${t('eng.r.MARKET_MISSING')}</p>`}${m.unit_note?`<p class="pnote">${escH(m.unit_note)}</p>`:''}</details>`).join('');
+  return '';
+}
+function engBound(rec){
+  const vals=Array.isArray(rec.values)?rec.values:[];
+  const kept=rec.fetch&&rec.fetch.origin==='KEPT_FROM_PREVIOUS';
+  return `<div class="etfh"><div><h2>${escH(rec.title_pl)}</h2><p class="pnote">${escH(rec.kind_pl)} · ${escH(rec.says_pl)}</p></div>
+    <div class="etfb"><span class="live"><i></i>${t('eng.b.state',{p:engPeriod(rec.period),c:engDate(rec.captured_at)})}</span>${kept?`<span class="pchip">${t('eng.kept',{d:engDate(rec.fetch.kept_since)})}</span>`:''}${rec.fetch&&rec.fetch.last_failed_attempt?`<span class="pchip n">${t('eng.failed')}: ${escH(rec.fetch.last_failed_attempt)}</span>`:''}</div></div>
+    <div class="etfkpis">${vals.slice(0,4).map(v=>engK(escH(v.label_pl),v.value==null?t('eng.gap'):engNum(v.value)+' '+escH(v.unit_label_pl||''))).join('')}
+      ${engK(t('eng.k.age'),escH(rec.data_age?rec.data_age.phrase_pl:t('eng.p.none')),true)}
+      ${engK(t('eng.k.src'),engSafeUrl(rec.source_url||rec.source_home)?`<a href="${escH(engSafeUrl(rec.source_url||rec.source_home))}" rel="noopener">${escH(rec.attribution)}</a>`:escH(rec.attribution),true)}
+    </div>
+    <p class="pnote">${t('eng.k.rights')}: ${escH(rec.rights&&rec.rights.sentence_pl)}</p>
+    ${engTable(rec)}
+    <details class="etfd"><summary>${t('eng.notsays')}</summary>${(rec.limitations_pl||[]).map(l=>`<p class="pnote">${escH(l)}</p>`).join('')}</details>
+    <p class="pfoot">${t('eng.foot',{g:engDate(rec.generated_at),v:engDate(rec.valid_until),s:escH(String(rec.source_sha256||'').slice(0,12))})} ${t('eng.disclaimer')}</p>`;
+}
+function engWithheld(view,rec,chk){
+  const has=!!rec&&typeof rec==='object';
+  const title=has&&rec.title_pl?rec.title_pl:t('eng.t.'+view);
+  const why=chk.ok?escH((rec.reason_texts_pl||[])[0]||''):t('eng.r.'+chk.code);
+  const codes=chk.ok?(rec.reason_codes||[]):[chk.code];
+  return `<div class="etfh"><div><h2>${escH(title)}</h2><p class="pnote">${has&&rec.kind_pl?escH(rec.kind_pl)+' · ':''}${has&&rec.says_pl?escH(rec.says_pl):''}</p></div>
+    <div class="etfb"><span class="live off"><i></i>${t('eng.b.off')}</span></div></div>
+    <div class="etfkpis">${engK(t('eng.k.why'),why,true)}${engK(t('eng.k.src'),has?escH(rec.attribution):'—',true)}${engK(t('eng.k.rights'),has&&rec.rights?escH(rec.rights.sentence_pl):'—',true)}${engK(t('eng.notsays'),has?escH(rec.not_says_pl):'—',true)}</div>
+    <p class="pnote">${codes.map(c=>`<span class="pchip">${escH(c)}</span>`).join(' ')}</p>
+    <p class="pfoot">${has&&rec.generated_at?t('eng.foot.w',{g:engDate(rec.generated_at)})+' ':''}${t('eng.disclaimer')}</p>`;
+}
+function renderEng(){
+  const now=Date.now();
+  ENG_VIEWS.forEach(v=>{const el=$('#eng-'+v);if(!el)return;
+    if(!ENG.index){el.hidden=true;el.innerHTML='';return;}
+    const rec=ENG.files[v],chk=engCheck(rec,v,now);
+    el.innerHTML=chk.ok&&chk.state==='BOUND'?engBound(rec):engWithheld(v,rec,chk);
+    el.hidden=false;});
+}
 /* v34: sekcje informacyjne — treść po polsku, w innych językach krótka nota (wygląd: istniejące klasy) */
 const TXT_ZRODLA_PL=`
 <section class="panel pgc"><h2>Źródła i prawa do danych</h2>
@@ -4318,6 +4416,7 @@ function applyLang(){
   $$('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
   renderAll();if(gStarted)gRenderAll();renderPage();DD.forEach(d=>d.refresh());dirty=true;
   if(typeof renderEtf==='function')renderEtf();
+  if(typeof renderEng==='function')renderEng();
 }
 
 /* ---------- motyw ---------- */
@@ -4400,7 +4499,7 @@ if(st.anim){from={...cur};t0=performance.now();sizeTw=true;}
 requestAnimationFrame(loop);hResize();
 if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('16px "JetBrains Mono"'),document.fonts.load('600 16px "Sora"')]).catch(()=>{}).then(()=>{hResize();dirty=true;});}
 /* ETF → krypto: migawka od razu, dane na żywo gdy jest klucz */
-etfInitSettings();etfLoad();etfAuto();cgPing();
+etfInitSettings();etfLoad();etfAuto();cgPing();engLoad();engAuto();
 /* GLOBAL jest oknem startowym projektu */
 setMode('global');
 window.__cf={cam,st,select,camTo,applyTheme,LIVE,loadAll,afterLive,setLang:l=>{LANG=l;applyLang();},setTheme:v=>{st.theme=v;applyTheme();},setView:v=>{st.view=v;setView();DD.forEach(d=>d.refresh());},setPage,openHelp,closeHelp,camPreset,setMode,ETF,etfLoad,renderEtf};
