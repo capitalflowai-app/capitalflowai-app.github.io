@@ -112,9 +112,8 @@ test('sekcja Banku Światowego ma etykiety v36 w obu językach', () => {
 // v37: licencje — strona publiczna bez danych z planów „tylko do użytku osobistego”; atrybucje; migawka z SoSoValue
 test('migawka ETF pochodzi z SoSoValue, a CoinMarketCap zostaje tylko w zdaniu o usunięciu', () => {
   assert.ok(html.includes("const ETF_SNAP={asof:'2026-09-23',fetched:'2026-09-24 13:48 UTC',src:'SoSoValue',"));
-  const mentions = html.match(/CoinMarketCap/g) || [];
-  assert.equal(mentions.length, 2, 'tylko dwa wyjaśnienia o usuniętej migawce');
-  assert.ok(!html.includes('CoinMarketCap ETF Tracker'));
+  assert.ok(!html.includes('CoinMarketCap ETF Tracker'), 'migawka ETF nie pochodzi już ze strony CMC');
+  assert.ok(!html.includes("src:'CoinMarketCap'"), 'migawka: src SoSoValue');
 });
 
 test('atrybucje wymagane przez dostawców są na stronie', () => {
@@ -125,10 +124,12 @@ test('atrybucje wymagane przez dostawców są na stronie', () => {
   }
 });
 
-test('notowania ETF-ów tylko z własnym kluczem: brak ścieżek serwerowych dla Finnhub i Twelve Data', () => {
-  assert.ok(!html.includes("srvJSON('ceny')"), 'ceny.json nie jest czytany z serwera');
+test('notowania ETF-ów: plik z serwera (klucz właściciela) najpierw, potem własny klucz; CoinMarketCap z serwera', () => {
+  assert.ok(html.includes("srvJSON('ceny')"), 'ceny.json z serwera (klucz właściciela) czytany najpierw — decyzja właściciela 24.09');
   assert.ok(html.includes("const KEYS={soso:'cfai.key.soso',finnhub:'cfai.key.finnhub',cg:'cfai.key.cg',td:'cfai.key.td'};"));
-  assert.ok(html.includes('wyłącznie z własnym kluczem użytkownika — nie są publikowane na tej stronie'));
+  assert.ok(html.includes('zbiera nasz automat na serwerze z kluczy właściciela'));
+  assert.ok(html.includes('<section class="panel pcard" id="cmc" hidden></section>'), 'sekcja CoinMarketCap');
+  assert.ok(html.includes("srvJSON('cmc')") && html.includes('X-CMC') === false, 'cmc.json z serwera; klucz nigdy w stronie');
   assert.ok(html.includes("TD_B1=['SPY','VGK','EWJ','MCHI','INDA','EWY','EWC'],TD_B2=['ILF','KSA','TUR','EIS','EZA','ASEA','EWA']"));
   assert.ok(html.includes('TD_GAP=61000'), 'druga paczka po 61 s (limit 8 kredytów/min)');
   assert.ok(html.includes('TD_TTL=60*60*1000'), 'pamięć podręczna 60 min');
