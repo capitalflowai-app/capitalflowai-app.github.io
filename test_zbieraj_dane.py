@@ -103,8 +103,14 @@ class BuildEtf(unittest.TestCase):
         self.assertEqual(out['asof'], '2026-09-23')
 
     def test_no_rows_for_a_coin_is_an_error_not_a_zero(self):
+        # v49: moneta bez danych jest pomijana (brak klucza, błąd zapisany), pozostałe zostają; wszystkie puste = błąd
         history = {'btc': _rows(['2026-09-23']), 'eth': [], 'sol': _rows(['2026-09-23']), 'xrp': _rows(['2026-09-23'])}
         with mock.patch.object(zd, 'soso', _soso_factory(history, {}, {})):
+            out = zd.build_etf('klucz', '')
+        self.assertNotIn('eth', out['assets']); self.assertEqual(sorted(out['assets']), ['btc', 'sol', 'xrp'])
+        self.assertTrue(any(e.startswith('SoSoValue ETH') for e in zd.META['errors']))
+        empty = {'btc': [], 'eth': [], 'sol': [], 'xrp': []}
+        with mock.patch.object(zd, 'soso', _soso_factory(empty, {}, {})):
             with self.assertRaises(RuntimeError):
                 zd.build_etf('klucz', '')
 
@@ -506,7 +512,7 @@ class Instytucje(unittest.TestCase):
             out = zd.build_instytucje()
         self.assertEqual(sorted(k for k in out if k not in ('at', 'src')), ['rrp', 'soma'])
         self.assertEqual(zd.META['ok'], {'tga': False, 'rrp': True, 'soma': True, 'tgb': False, 'ilm': False, 'm3': False, 'bop': False, 'mof': False})
-        self.assertEqual(len(zd.META['errors']), 6)
+        self.assertEqual(len(zd.META['errors']), 8)   # v49: bop ca + bop fa + bop razem
 
     def test_all_sources_failing_is_an_error(self):
         with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('down')):
@@ -718,7 +724,7 @@ class Krypto(unittest.TestCase):
             out = zd.build_krypto('TAJNY-CG')
         self.assertEqual(sorted(k for k in out if k not in ('at', 'src', 'attribution')), ['defi', 'fng'])
         self.assertEqual(out['attribution'], 'Data by CoinGecko')
-        self.assertEqual(zd.META['ok'], {'krypto.deriv': False, 'krypto.defi': True, 'krypto.fng': True})
+        self.assertEqual(zd.META['ok'], {'krypto.deriv': False, 'krypto.defi': True, 'krypto.fng': True, 'krypto.mk': False, 'krypto.stabh': False})
         self.assertTrue(all('TAJNY' not in u for u in seen), 'klucz nie w adresie')
         self.assertEqual(seen[zd.CG + '/global/decentralized_finance_defi'], {'x-cg-demo-api-key': 'TAJNY-CG'})
         self.assertIsNone(seen[zd.FNG_URL])
@@ -852,6 +858,67 @@ class Tic(unittest.TestCase):
         self.assertEqual(out['regions']['can']['in'][-1], ['2026-07', None, 0])           # brak Kanady w próbce → brak, nie zero
         self.assertIsNone(out['holders']); self.assertTrue(any(e.startswith('TIC tabela 5') for e in zd.META['errors']))
         self.assertIn('positive = capital into the USA', out['sign'])
+
+
+class KryptoV49(unittest.TestCase):
+    """v49: zmiany 30D/1R z CoinGecko (CoinPaprika free zwraca 0) i historia podaży stablecoinów na serwerze."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_markets_rows_dedupe_symbols_and_missing_is_none(self):
+        p1 = [{'symbol': 'btc', 'market_cap': 1.69e12, 'price_change_percentage_24h_in_currency': -0.07, 'price_change_percentage_7d_in_currency': 10.2,
+               'price_change_percentage_30d_in_currency': 6.5954, 'price_change_percentage_1y_in_currency': -25.7682, 'last_updated': '2026-09-24T20:35:20.000Z'},
+              {'symbol': 'btc', 'market_cap': 1, 'price_change_percentage_30d_in_currency': 99},
+              {'symbol': 'usdt', 'market_cap': 1.8e11, 'price_change_percentage_1y_in_currency': None}]
+        m = zd.parse_mk([p1, []])
+        self.assertEqual(m['rows'][0], ['BTC', 1.69e12, -0.07, 10.2, 6.5954, -25.7682])
+        self.assertEqual(len(m['rows']), 2); self.assertIsNone(m['rows'][1][5]); self.assertEqual(m['asof'], '2026-09-24T20:35:20')
+        with self.assertRaises(RuntimeError):
+            zd.parse_mk([{'error': 'x'}])
+
+    def test_stablecoin_history_changes_are_supply_not_price(self):
+        day = 86400; t0 = 1790208000
+        j = [{'date': str(t0 - k * day), 'totalCirculatingUSD': {'peggedUSD': 300e9 + (400 - k) * 1e8}} for k in range(400, -1, -1)]
+        h = zd.parse_stabh(j)
+        self.assertEqual(h['asof'], '2026-09-24'); self.assertEqual(h['cur'], round(300e9 + 400 * 1e8))
+        self.assertEqual(h['d']['1'], round(1e8)); self.assertEqual(h['d']['30'], round(30e8)); self.assertEqual(h['d']['365'], round(365e8))
+        self.assertAlmostEqual(h['pct']['7'], round((340e9 / (340e9 - 7e8) - 1) * 100, 4))
+        with self.assertRaises(RuntimeError):
+            zd.parse_stabh([{'date': '1', 'totalCirculatingUSD': {'peggedUSD': 1}}])
+
+
+class RobustnessV49(unittest.TestCase):
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.SECRETS[:] = []   # inne testy uruchamiają main() z kluczami z otoczenia
+
+    def test_one_finnhub_symbol_error_does_not_stop_the_rest(self):
+        calls = []
+        def get(url, headers=None, timeout=30):
+            calls.append(url)
+            if 'symbol=EWC' in url:
+                raise RuntimeError('HTTP 429 for token=TAJNY')
+            return 200, json.dumps({'c': 10.0, 'pc': 9.0, 'dp': 11.1, 't': 1})
+        zd.SECRETS[:] = ['TAJNY']
+        try:
+            with mock.patch.object(zd, 'get', get), mock.patch.object(zd.time, 'sleep', lambda s: None):
+                out = zd.build_day('TAJNY')
+        finally:
+            zd.SECRETS[:] = []
+        self.assertEqual(len(calls), len(zd.DAY_SYMS)); self.assertNotIn('EWC', out['q']); self.assertEqual(len(out['q']), len(zd.DAY_SYMS) - 1)
+        self.assertTrue(any(e.startswith('Finnhub EWC') and 'TAJNY' not in e for e in zd.META['errors']))
+
+    def test_bop_current_account_failure_keeps_financial_account(self):
+        fa = {'structure': {'dimensions': {'series': [{'id': 'K', 'values': [{'id': k} for k in zd.BOP_FA_KEYS]}],
+                                           'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': '2026-07'}]}]}},
+              'dataSets': [{'series': {'0': {'observations': {'0': [11368.6]}}}}]}
+        def ecb(url):
+            if 'T.B.CA.' in url: raise RuntimeError('access blocked')
+            return fa
+        with mock.patch.object(zd, '_ecb_json', ecb):
+            b = zd.parse_bop(zd._ecb_try(zd.BOP_CA_URL, 'bop ca'), zd._ecb_try(zd.BOP_FA_URL, 'bop fa'))
+        self.assertIsNone(b['s']['ca']); self.assertEqual(b['s']['fa'], [['2026-07', 11369]])
+        self.assertIn('bop ca: access blocked', zd.META['errors'])
 
 
 if __name__ == '__main__':

@@ -20,6 +20,8 @@ import csv, io, json, os, re, sys, time, datetime, urllib.request, urllib.error
 SOSO = 'https://openapi.sosovalue.com/openapi/v1'
 ETF_SYMS = ['btc', 'eth', 'sol', 'xrp']
 CG_IDS = {'btc': 'bitcoin', 'eth': 'ethereum', 'sol': 'solana', 'xrp': 'ripple'}
+_DEADLINE = [None]   # v49: po tym czasie (monotonic) SoSoValue nie czeka na 429 i pomija listy funduszy
+SOSO_BUDGET = 8 * 60
 SOSO_SLEEP = 4.0   # limit 20 zapytań/min — 15/min zostawia zapas
 # te same ETF-y zastępcze co w index.html (GPROXY)
 DAY_SYMS = ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA']
@@ -99,7 +101,7 @@ def soso(path, key, _retry=True):
     try:
         j = get_json(SOSO + path, {'x-soso-api-key': key})
     except urllib.error.HTTPError as e:
-        if e.code == 429 and _retry:          # limit minutowy — odczekaj pełną minutę i spróbuj raz jeszcze
+        if e.code == 429 and _retry and (_DEADLINE[0] is None or time.monotonic() < _DEADLINE[0]):          # limit minutowy — odczekaj pełną minutę i spróbuj raz jeszcze
             print('SoSoValue 429 — czekam 65 s')
             time.sleep(65)
             return soso(path, key, _retry=False)
@@ -314,6 +316,15 @@ def _ecb_json(url):
         _ECB_LAST = time.monotonic()
 
 
+def _ecb_try(url, label):
+    """v49: zapytanie do EBC, które przy błędzie zwraca None i zapisuje błąd (druga seria nadal może się udać)."""
+    try:
+        return _ecb_json(url)
+    except Exception as e:
+        META['errors'].append(mask(f'{label}: {e}'))
+        return None
+
+
 def _iso_week_end(period):
     """'2026-W38' → piątek tego tygodnia ISO (dzień, na który EBC sporządza tygodniowe sprawozdanie); inne → None."""
     m = re.match(r'^(\d{4})-W(\d{2})$', str(period))
@@ -401,7 +412,7 @@ def build_instytucje():
     jobs = [('tga', lambda: parse_tga(get_json(TGA_URL))), ('rrp', lambda: parse_rrp(get_json(RRP_URL))),
             ('soma', lambda: parse_soma(get_json(SOMA_URL))), ('tgb', lambda: parse_tgb(_ecb_json(TGB_URL))),
             ('ilm', lambda: parse_ilm(_ecb_json(ILM_URL))), ('m3', lambda: parse_m3(_ecb_json(M3_URL))),
-            ('bop', lambda: parse_bop(_ecb_json(BOP_CA_URL), _ecb_json(BOP_FA_URL))),
+            ('bop', lambda: parse_bop(_ecb_try(BOP_CA_URL, 'bop ca'), _ecb_try(BOP_FA_URL, 'bop fa'))),
             ('mof', lambda: parse_mof(get_bytes(MOF_URL)))]
     for name, job in jobs:
         try:
@@ -499,8 +510,11 @@ def build_prices(key):
 def build_day(key):
     q = {}
     for sym in DAY_SYMS:
-        st, body = get(f'https://finnhub.io/api/v1/quote?symbol={sym}&token={key}')
-        j = json.loads(body)
+        try:
+            st, body = get(f'https://finnhub.io/api/v1/quote?symbol={sym}&token={key}')
+            j = json.loads(body)
+        except Exception as e:   # v49: jeden symbol z błędem nie przerywa pozostałych (próg ≥10 z 14 zostaje)
+            META['errors'].append(mask(f'Finnhub {sym}: {e}')); time.sleep(0.2); continue
         if j.get('c') and j.get('pc'):
             q[sym] = {'c': j['c'], 'pc': j['pc'], 'dp': j['dp'] if j.get('dp') is not None else (j['c'] / j['pc'] - 1) * 100,
                       't': j.get('t')}
@@ -736,13 +750,66 @@ def build_tic():
     return out
 
 
+def parse_mk(pages):
+    """CoinGecko /coins/markets (strony po 250): [[SYMBOL, kapitalizacja, zm.24h, 7d, 30d, 1y]] — pierwszy (większy) symbol
+    wygrywa; brak liczby = None (nigdy 0)."""
+    rows, seen, last = [], set(), ''
+    for page in pages:
+        if not isinstance(page, list):
+            raise RuntimeError('markets: odpowiedź nie jest listą')
+        for c in page:
+            if not isinstance(c, dict):
+                continue
+            sy = str(c.get('symbol') or '').upper()
+            if not sy or sy in seen or not re.match(r'^[A-Z0-9.$-]{1,15}$', sy):
+                continue
+            seen.add(sy)
+            num = lambda k: c.get(k) if isinstance(c.get(k), (int, float)) and not isinstance(c.get(k), bool) else None
+            rows.append([sy, num('market_cap'), num('price_change_percentage_24h_in_currency'), num('price_change_percentage_7d_in_currency'),
+                         num('price_change_percentage_30d_in_currency'), num('price_change_percentage_1y_in_currency')])
+            last = max(last, str(c.get('last_updated') or ''))
+    if not rows:
+        raise RuntimeError('markets: brak monet')
+    return {'src': 'CoinGecko — coins/markets', 'asof': last[:19], 'cols': ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'], 'rows': rows}
+
+
+def parse_stabh(j):
+    """DefiLlama stablecoincharts/all → podaż stablecoinów w USD (totalCirculatingUSD.peggedUSD) teraz i zmiany za 1, 7, 30, 91, 365 dni
+    (wartość z ostatniego dnia nie później niż N dni wstecz). To zmiana podaży = emisja − umorzenia, nie zmiana ceny."""
+    if not isinstance(j, list) or len(j) < 40:
+        raise RuntimeError('stablecoincharts: za krótka seria')
+    pts = []
+    for o in j:
+        t = _num(o.get('date')) if isinstance(o, dict) else None
+        tc = (o.get('totalCirculatingUSD') or o.get('totalCirculating') or {}) if isinstance(o, dict) else {}
+        v = tc.get('peggedUSD') if isinstance(tc, dict) else None
+        if t is None or not isinstance(v, (int, float)) or v <= 0:
+            continue
+        pts.append((int(t), float(v)))
+    pts.sort()
+    if len(pts) < 40:
+        raise RuntimeError('stablecoincharts: za mało punktów')
+    t_last, cur = pts[-1]
+    out = {'src': 'DefiLlama — stablecoincharts/all (peggedUSD)', 'unit': 'USD',
+           'asof': datetime.datetime.fromtimestamp(t_last, datetime.timezone.utc).date().isoformat(), 'cur': round(cur), 'd': {}, 'pct': {}}
+    for n in (1, 7, 30, 91, 365):
+        target = t_last - n * 86400
+        prev = [v for t, v in pts if t <= target]
+        if prev:
+            out['d'][str(n)] = round(cur - prev[-1]); out['pct'][str(n)] = round((cur / prev[-1] - 1) * 100, 4)
+    return out
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
     hdr = {'x-cg-demo-api-key': cg_key} if cg_key else None
     jobs = [('deriv', lambda: parse_deriv(get_json(CG + '/derivatives/exchanges?per_page=20', hdr))),
             ('defi', lambda: parse_defi(get_json(CG + '/global/decentralized_finance_defi', hdr))),
-            ('fng', lambda: parse_fng(get_json(FNG_URL)))]
+            ('fng', lambda: parse_fng(get_json(FNG_URL))),
+            ('mk', lambda: parse_mk([get_json(CG + f'/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page={p}'
+                                             '&price_change_percentage=24h,7d,30d,1y', hdr) for p in (1, 2)])),
+            ('stabh', lambda: parse_stabh(get_json('https://stablecoins.llama.fi/stablecoincharts/all')))]
     for name, job in jobs:
         try:
             out[name] = job(); META['ok']['krypto.' + name] = True
@@ -766,6 +833,20 @@ def build_etf(key, cg_key):
         META['errors'].append(mask(f'CoinGecko: {e}'))
         META['ok']['coingecko'] = False
     for s in ETF_SYMS:
+        try:
+            _etf_coin(out, s, key)
+        except Exception as e:   # v49: brak jednej monety nie kasuje pozostałych
+            META['errors'].append(mask(f'SoSoValue {s.upper()}: {e}'))
+    if not out['assets']:
+        raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
+    # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
+    dates = sorted({a['asof'] for a in out['assets'].values()})
+    out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
+    return out
+
+
+def _etf_coin(out, s, key):
+        """v49: dane jednej monety (wydzielone z build_etf, żeby błąd jednej nie kasował pozostałych)."""
         rows = soso(f'/etfs/summary-history?symbol={s.upper()}&country_code=US&limit=60', key)
         rows = [r for r in rows if r.get('date') and r.get('total_net_inflow') is not None]
         rows.sort(key=lambda r: r['date'])
@@ -782,6 +863,8 @@ def build_etf(key, cg_key):
              'share': (aum * 1e6 / mc * 100) if (aum and mc) else None, 'funds': []}
         lst = soso(f'/etfs?symbol={s.upper()}&country_code=US', key)
         for it in (lst or [])[:12]:
+            if _DEADLINE[0] is not None and time.monotonic() > _DEADLINE[0]:   # v49: limit czasu przebiegu
+                META['errors'].append(f'SoSoValue {s.upper()}: lista funduszy pominięta — limit czasu przebiegu'); break
             if not TICKER.match(str(it.get('ticker', ''))):
                 # ticker spoza wzorca nie trafia na stronę — i nie znika po cichu
                 META['errors'].append(f'SoSoValue {s.upper()}: odrzucony ticker {str(it.get("ticker"))[:20]!r}')
@@ -804,13 +887,10 @@ def build_etf(key, cg_key):
                 a['share'] = a['aum'] * 1e6 / mc * 100
         out['assets'][s] = a
         print(f'{s.upper()}: dzień {last["date"]} {a["d1"]:+.1f} mln, AUM {a["aum"]}, funduszy {len(a["funds"])}')
-    # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
-    dates = sorted({a['asof'] for a in out['assets'].values()})
-    out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
-    return out
 
 
 def main():
+    _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
     fh_key = os.environ.get('FINNHUB_KEY', '').strip()
