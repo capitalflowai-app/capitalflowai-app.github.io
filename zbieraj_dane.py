@@ -1596,6 +1596,40 @@ def build_stopy():
             'asof': max(r['date'] for r in rows.values()), 'order': [a for a in CBPOL_AREAS if a in rows], 'rows': rows}
 
 
+# EBC — średnie miesięczne kursy referencyjne (EXR), bez klucza: kurs z tych samych miesięcy co średni indeks OECD na mapie
+EXR_CUR = ['USD', 'CAD', 'BRL', 'MXN', 'GBP', 'CHF', 'SEK', 'PLN', 'TRY', 'ILS', 'ZAR', 'INR', 'CNY', 'HKD', 'JPY', 'KRW',
+           'IDR', 'SGD', 'THB', 'MYR', 'PHP', 'AUD', 'NZD']
+EXR_URL = ('https://data-api.ecb.europa.eu/service/data/EXR/M.' + '+'.join(EXR_CUR)
+           + '.EUR.SP00.A?lastNObservations=15&format=csvdata')
+
+
+def parse_exr_csv(raw):
+    """CSV EBC (EXR, miesięczne średnie) → {waluta: [[RRRR-MM, jednostek waluty za 1 EUR], ...]} rosnąco; brak/0 = pominięte."""
+    text = raw.decode('utf-8', errors='replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    out = {}
+    for r in csv.DictReader(io.StringIO(text)):
+        cur = (r.get('CURRENCY') or '').strip(); per = (r.get('TIME_PERIOD') or '').strip()
+        if not cur or not re.match(r'^\d{4}-\d{2}$', per):
+            continue
+        v = _num(r.get('OBS_VALUE'))
+        if v is None or v != v or v <= 0 or v == float('inf'):
+            continue
+        out.setdefault(cur, []).append([per, round(v, 6)])
+    for c in out:
+        out[c].sort(key=lambda x: x[0])
+    if not out.get('USD'):
+        raise RuntimeError('brak kursu USD w odpowiedzi')
+    return out
+
+
+def build_kursy():
+    """data/kursy.json — średnie miesięczne kursów EBC (15 miesięcy) dla walut regionów mapy."""
+    m = parse_exr_csv(get_bytes(EXR_URL, timeout=90))
+    return {'at': NOW, 'src': 'ECB — euro foreign exchange reference rates, monthly averages (EXR)',
+            'url': 'https://data.ecb.europa.eu/data/datasets/EXR', 'unit': 'jednostek waluty za 1 EUR, średnia miesiąca',
+            'asof': m['USD'][-1][0], 'm': m}
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -1814,6 +1848,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'BIS stopy: {e}')); META['ok']['stopy'] = False
             if prev_st: save('stopy', prev_st)
+    # KURSY — średnie miesięczne EBC (bez klucza): najwyżej co 12 h (miesiąc publikowany raz, na początku następnego)
+    prev_k = previous('kursy')
+    if prev_k and fresh(prev_k, 720):
+        save('kursy', prev_k); META['ok']['kursy'] = 'cached'
+    else:
+        try:
+            save('kursy', build_kursy()); META['ok']['kursy'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'EBC kursy: {e}')); META['ok']['kursy'] = False
+            if prev_k: save('kursy', prev_k)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):

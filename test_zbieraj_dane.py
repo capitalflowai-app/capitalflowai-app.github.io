@@ -144,7 +144,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -180,7 +180,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY'])
 
 
@@ -345,7 +345,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -532,7 +532,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -622,7 +622,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -755,7 +755,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1892,6 +1892,38 @@ class StopyV52(unittest.TestCase):
         with mock.patch.object(zd, 'get_bytes', gb):
             out = zd.build_stopy()
         self.assertEqual(out['order'], ['US', 'XM', 'ID']); self.assertEqual(out['asof'], '2026-09-22'); self.assertEqual(out['unit'], '% rocznie')
+
+
+class KursyV53(unittest.TestCase):
+    """v53: średnie miesięczne kursów EBC (EXR) — do okien OECD na mapie; brak/0 = pominięte, bez USD = błąd."""
+    CSV = ('KEY,FREQ,CURRENCY,CURRENCY_DENOM,EXR_TYPE,EXR_SUFFIX,TIME_PERIOD,OBS_VALUE,OBS_STATUS,TITLE\n'
+           'EXR.M.USD.EUR.SP00.A,M,USD,EUR,SP00,A,2026-07,1.1500,A,"US dollar/Euro, ""ECB"""\n'
+           'EXR.M.USD.EUR.SP00.A,M,USD,EUR,SP00,A,2026-08,1.1593095238,A,"US dollar/Euro"\n'
+           'EXR.M.JPY.EUR.SP00.A,M,JPY,EUR,SP00,A,2026-08,184.1019047619,A,"Japanese yen/Euro"\n'
+           'EXR.M.JPY.EUR.SP00.A,M,JPY,EUR,SP00,A,2026-07,182.0,A,"Japanese yen/Euro"\n'
+           'EXR.M.TRY.EUR.SP00.A,M,TRY,EUR,SP00,A,2026-08,NaN,M,"Turkish lira/Euro"\n'
+           'EXR.M.KRW.EUR.SP00.A,M,KRW,EUR,SP00,A,2026-08,0,A,"x"\n')
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_parse_sorted_rounded_and_missing_skipped(self):
+        m = zd.parse_exr_csv(self.CSV.encode())
+        self.assertEqual(m['USD'], [['2026-07', 1.15], ['2026-08', 1.15931]])
+        self.assertEqual(m['JPY'][0][0], '2026-07', 'rosnąco po miesiącu')
+        self.assertNotIn('TRY', m, 'NaN = brak, nie zero'); self.assertNotIn('KRW', m, 'kurs 0 = brak')
+        with self.assertRaises(RuntimeError):
+            zd.parse_exr_csv(b'KEY,FREQ,CURRENCY,TIME_PERIOD,OBS_VALUE\nX,M,JPY,2026-08,184\n')
+
+    def test_build_has_asof_from_usd_and_no_key_in_url(self):
+        seen = []
+
+        def gb(url, headers=None, timeout=60):
+            seen.append(url); return self.CSV.encode()
+        with mock.patch.object(zd, 'get_bytes', gb):
+            out = zd.build_kursy()
+        self.assertEqual(out['asof'], '2026-08'); self.assertIn('m', out); self.assertIn('EXR/M.USD+CAD', seen[0])
+        self.assertIn('lastNObservations=15', seen[0]); self.assertNotIn('key', seen[0].lower())
 
 
 if __name__ == '__main__':
