@@ -164,3 +164,24 @@ test('mld USD z dziesiątych: znak minus typograficzny, plus tylko przy zmianie,
   assert.ok(html.includes("if(Array.isArray(d.pairs))return engPairs(rec);"));
   for (const key of ['eng.c.pair', 'eng.d.pairs', 'eng.k.top', 'eng.h.of.2']) assert.ok(html.includes(`"${key}":`), key);
 });
+
+// v39: dane urzędowe (TGA, RRP, SOMA, TARGET, MOF) — sekcja z pliku instytucje.json, liczby z datą i wiekiem
+test('sekcja danych urzędowych: mln → mld z jednym miejscem, grupowanie jak w silniku, nota NY Fed i licencja MOF', () => {
+  assert.ok(html.includes('<section class="panel pcard" id="inst" hidden></section>'));
+  assert.ok(html.includes("srvJSON('instytucje')"));
+  const m0 = html.indexOf('function instMld('); const m1 = html.indexOf('const instSign=', m0);
+  assert.ok(m0 > 0 && m1 > m0);
+  const mk = (lang) => new Function('LANG', html.slice(m0, m1) + '\nreturn instMld;')(lang);
+  const pl = mk('pl');
+  assert.equal(pl(957409), '957,4');
+  assert.equal(pl(6364278), '6 364,3');
+  assert.equal(pl(1037116.1), '1 037,1');
+  assert.equal(pl(-331168.67), '−331,2');
+  assert.equal(pl(999950), '1 000,0');
+  assert.equal(pl(461), '0,5');
+  assert.equal(pl('x'), null);
+  assert.equal(mk('en')(6364278), '6,364.3');
+  assert.ok(html.includes('subject to the Terms of Use posted at newyorkfed.org'), 'nota wymagana przez NY Fed');
+  assert.ok(html.includes('Public Data License (PDL) v1.0'), 'licencja MOF');
+  for (const key of ['inst.tga', 'inst.rrp', 'inst.soma', 'inst.tgb.t', 'inst.mof.t', 'inst.not1', 'g.hs.tga', 'g.hs.mof']) assert.ok(html.includes(`"${key}":`), key);
+});

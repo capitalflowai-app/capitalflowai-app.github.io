@@ -133,9 +133,13 @@ class MainFlow(unittest.TestCase):
         self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))
         self.p_save.start()
+        # testy bez sieci: źródła urzędowe udają awarię (ich własne testy są w klasie Instytucje)
+        self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline'))
+        self.p_inst.start()
 
     def tearDown(self):
         self.p_save.stop()
+        self.p_inst.stop()
 
     def test_young_previous_file_is_reused_without_asking_sosovalue(self):
         prev = {'at': _iso(10), 'assets': {'btc': {'day': [[1, 1.0]]}}}
@@ -164,14 +168,14 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual(self.saved['meta']['errors'], ['brak SOSOVALUE_KEY'])
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith('instytucje') and not e.startswith('poprzedni')], ['brak SOSOVALUE_KEY'])
 
     def test_no_quotes_are_collected_or_published(self):
         """Finnhub i Twelve Data: darmowe plany tylko do użytku osobistego — zbieracz ich nie dotyka (LICENCJE-zrodel.md)."""
         env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': '', 'FINNHUB_KEY': 'k', 'TWELVEDATA_KEY': 'k'}
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
-        self.assertEqual(sorted(zd.META['ok']), ['sosovalue'])
+        self.assertEqual(sorted(k for k in zd.META['ok'] if k not in ('instytucje', 'tga', 'rrp', 'soma', 'tgb', 'mof')), ['sosovalue'])
         self.assertNotIn('dzis', self.saved)
         self.assertNotIn('ceny', self.saved)
         self.assertFalse(hasattr(zd, 'build_day'))
@@ -218,6 +222,109 @@ class Hardening(unittest.TestCase):
             out = zd.build_etf('k', 'c')
         self.assertEqual([f['t'] for f in out['assets']['btc']['funds']], ['IBIT'])
         self.assertTrue(any('odrzucony ticker' in e for e in zd.META['errors']))
+
+
+class Instytucje(unittest.TestCase):
+    """Źródła urzędowe bez klucza: parsery na kształtach odpowiedzi sprawdzonych 24.09.2026; brak nie jest zerem."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_tga_closing_balance_ascending_and_null_skipped(self):
+        j = {'data': [
+            {'record_date': '2026-09-22', 'account_type': 'Treasury General Account (TGA) Closing Balance', 'open_today_bal': '957409'},
+            {'record_date': '2026-09-21', 'account_type': 'Treasury General Account (TGA) Closing Balance', 'open_today_bal': 'null'},
+            {'record_date': '2026-09-18', 'account_type': 'Treasury General Account (TGA) Closing Balance', 'open_today_bal': '1004391'},
+            {'record_date': '2026-09-18', 'account_type': 'Total TGA Deposits (Table II)', 'open_today_bal': '5'}]}
+        t = zd.parse_tga(j)
+        self.assertEqual(t['d'], [['2026-09-18', 1004391], ['2026-09-22', 957409]])
+        self.assertEqual(t['asof'], '2026-09-22'); self.assertEqual(t['unit'], 'mln USD')
+        with self.assertRaises(RuntimeError):
+            zd.parse_tga({'data': []})
+
+    def test_rrp_accepted_in_millions_only_reverse_repo(self):
+        j = {'repo': {'operations': [
+            {'operationDate': '2026-09-23', 'operationType': 'Reverse Repo', 'totalAmtAccepted': 461000000},
+            {'operationDate': '2026-09-22', 'operationType': 'Reverse Repo', 'totalAmtAccepted': 453000000},
+            {'operationDate': '2026-09-24', 'operationType': 'Repo', 'totalAmtAccepted': 1000000}]}}
+        r = zd.parse_rrp(j)
+        self.assertEqual(r['d'], [['2026-09-22', 453], ['2026-09-23', 461]])
+        self.assertEqual(r['asof'], '2026-09-23')
+
+    def test_soma_total_last_twelve_weeks(self):
+        rows = [{'asOfDate': f'2026-0{1 + i // 4}-{1 + 7 * (i % 4):02d}', 'total': str((6000000 + i) * 1e6)} for i in range(16)]
+        s = zd.parse_soma({'soma': {'summary': rows}})
+        self.assertEqual(len(s['d']), 12)
+        self.assertEqual(s['d'][-1][1], 6000015)
+
+    def test_tgb_series_mapped_by_country(self):
+        j = {'structure': {'dimensions': {'series': [{'id': 'FREQ', 'values': [{'id': 'M'}]}, {'id': 'REF_AREA', 'values': [{'id': 'DE'}, {'id': 'IT'}]}],
+                                          'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': '2026-06'}, {'id': '2026-07'}]}]}},
+             'dataSets': [{'series': {'0:0': {'observations': {'0': [1043208.02], '1': [1037116.1]}},
+                                      '0:1': {'observations': {'0': [None], '1': [-331168.67]}}}}]}
+        g = zd.parse_tgb(j)
+        self.assertEqual(g['q']['DE'], [['2026-06', 1043208.02], ['2026-07', 1037116.1]])
+        self.assertEqual(g['q']['IT'], [['2026-07', -331168.67]])       # brak obserwacji pominięty, nie zero
+        self.assertEqual(g['asof'], '2026-07')
+
+    def test_mof_period_and_columns(self):
+        self.assertEqual(zd._mof_period('2026．9．6～9．12'), ('2026-09-06', '2026-09-12'))
+        self.assertEqual(zd._mof_period('2025．12．28～2026．1．3'), ('2025-12-28', '2026-01-03'))
+        self.assertEqual(zd._mof_period('2025．12．28～1．3'), ('2025-12-28', '2026-01-03'))
+        self.assertIsNone(zd._mof_period('razem'))
+        head = 'tytul,,,,,,,,,,,,,,,,,,,,,,\n"期間\nPeriod",a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v\n'
+        row = '2026．9．6～9．12,"30,037 ","28,345 ","1,692 ","117,497 ","106,668 ","10,829 ","12,521 ","18,524 ","17,015 ","1,508 ","14,029 ","381,075 ","396,303 ","-15,228 ","75,958 ","53,597 ","22,362 ","7,133 ","32,871 ","45,000 ","-12,128 ","-4,995 "\n'
+        m = zd.parse_mof((head + row + '(Note 1),uwaga\n').encode('cp932'))
+        self.assertEqual(len(m['d']), 1)
+        w = m['d'][0]
+        self.assertEqual((w['from'], w['to']), ('2026-09-06', '2026-09-12'))
+        self.assertEqual(w['assets']['equity_net'], 1692.0); self.assertEqual(w['assets']['total_net'], 14029.0)
+        self.assertEqual(w['liabilities']['equity_net'], -15228.0); self.assertEqual(w['liabilities']['total_net'], -4995.0)
+        self.assertEqual(m['unit'], '100 mln JPY')
+
+    def test_one_failing_source_does_not_erase_the_others(self):
+        def get_json(url, headers=None):
+            if 'fiscaldata' in url: raise RuntimeError('timeout')
+            if 'reverserepo' in url: return {'repo': {'operations': [{'operationDate': '2026-09-23', 'operationType': 'Reverse Repo', 'totalAmtAccepted': 1e6}]}}
+            if 'soma' in url: return {'soma': {'summary': [{'asOfDate': '2026-09-16', 'total': '6.364e12'}]}}
+            if 'ecb' in url: raise RuntimeError('503')
+            raise AssertionError(url)
+        with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('cp932')):
+            out = zd.build_instytucje()
+        self.assertEqual(sorted(k for k in out if k not in ('at', 'src')), ['rrp', 'soma'])
+        self.assertEqual(zd.META['ok'], {'tga': False, 'rrp': True, 'soma': True, 'tgb': False, 'mof': False})
+        self.assertEqual(len(zd.META['errors']), 3)
+
+    def test_all_sources_failing_is_an_error(self):
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('down')):
+            with self.assertRaises(RuntimeError):
+                zd.build_instytucje()
+
+
+class MainFlowInstytucje(unittest.TestCase):
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
+
+    def tearDown(self):
+        self.p_save.stop()
+
+    def test_young_previous_file_is_reused(self):
+        prev = {'at': _iso(10), 'tga': {'d': [['2026-09-22', 1]]}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'instytucje' else None), \
+             mock.patch.object(zd, 'build_instytucje', side_effect=AssertionError('bez zapytań')):
+            zd.main()
+        self.assertIs(self.saved['instytucje'], prev); self.assertEqual(zd.META['ok']['instytucje'], 'cached')
+
+    def test_failure_keeps_previous_and_reports(self):
+        prev = {'at': _iso(180), 'tga': {'d': [['2026-09-22', 1]]}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'instytucje' else None), \
+             mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('nic nie odpowiedziało')):
+            zd.main()
+        self.assertIs(self.saved['instytucje'], prev); self.assertIs(zd.META['ok']['instytucje'], False)
+        self.assertIn('instytucje: nic nie odpowiedziało', zd.META['errors'])
 
 
 if __name__ == '__main__':
