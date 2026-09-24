@@ -42,7 +42,7 @@ TIC_REGIONS = {   # region strony → wiersze TIC (kraje i sumy urzędowe); 'usa
     'afr': ['Total Africa'],
     'ind': ['India'],
     'chn': ['China, Mainland', 'Hong Kong'],
-    'jpn': ['Japan', 'Korea, South', 'Taiwan'],
+    'jpn': ['Japan', 'Korea, South'],                  # Tajwan osobno (nie ma go na mapie strony)
     'asean': ['Singapore', 'Malaysia', 'Thailand', 'Indonesia', 'Philippines'],
     'oce': ['Australia', 'New Zealand'],
 }
@@ -671,6 +671,21 @@ def _tic_sum(table, members, months, col):
     return rows
 
 
+def _tic_net(t1, t2, members, months):
+    """Netto do USA = zakupy zagranicy (tabela 1) − zakupy USA (tabela 2) tylko dla krajów obecnych w OBU tabelach w danym
+    miesiącu: [[miesiąc, suma, liczba krajów]]; brak = None (np. tabela 2 nie ma Arabii Saudyjskiej)."""
+    rows = []
+    for m in months:
+        vals = []
+        for name in members:
+            a = t1.get(name, {}).get(m, {}).get('for_lt_total_net')
+            b = t2.get(name, {}).get(m, {}).get('us_lt_total_net')
+            if a is not None and b is not None:
+                vals.append(a - b)
+        rows.append([m, int(round(sum(vals))) if vals else None, len(vals)])
+    return rows
+
+
 def build_tic():
     """data/tic.json — przepływy papierów wartościowych USA ↔ regiony strony (mln USD, miesięcznie, TIC SLT).
     in = netto zakupy amerykańskich papierów przez zagranicę (plus = kapitał do USA); out = netto zakupy zagranicznych
@@ -696,15 +711,16 @@ def build_tic():
         if t2 is not None:
             r['out'] = _tic_sum(t2, members, months, 'us_lt_total_net'); r['out_eq'] = _tic_sum(t2, members, months, 'us_lt_eqty_net')
             r['out_gov'] = _tic_sum(t2, members, months, 'us_lt_govt_bond_net'); r['hold_out'] = _tic_sum(t2, members, [last], 'us_lt_total_pos')[0]
+            r['net'] = _tic_net(t1, t2, members, months)
         else:
-            r['out'] = None; r['out_eq'] = None; r['out_gov'] = None; r['hold_out'] = None
+            r['out'] = None; r['out_eq'] = None; r['out_gov'] = None; r['hold_out'] = None; r['net'] = None
         return r
 
     out = {'at': NOW, 'src': 'U.S. Department of the Treasury — Treasury International Capital (TIC), SLT tables 1, 2, 5',
            'url': 'https://home.treasury.gov/data/treasury-international-capital-tic-system', 'unit': 'mln USD', 'asof': last, 'months': months,
            'sign': 'in: net foreign purchases of U.S. long-term securities (positive = capital into the USA); out: net U.S. purchases of foreign long-term securities (positive = capital out of the USA)',
            'regions': {rid: region(members) for rid, members in TIC_REGIONS.items()},
-           'world': region(['Grand Total']), 'carib': region(['Total Caribbean']), 'holders': None}
+           'world': region(['Grand Total']), 'carib': region(['Total Caribbean']), 'twn': region(['Taiwan']), 'holders': None}
     if holders:
         hm = holders['months']
         top = []

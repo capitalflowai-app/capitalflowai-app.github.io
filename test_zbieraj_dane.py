@@ -845,7 +845,9 @@ class Tic(unittest.TestCase):
         self.assertEqual(out['asof'], '2026-07'); self.assertEqual(out['months'], ['2026-06', '2026-07']); self.assertEqual(out['unit'], 'mln USD')
         jp = out['regions']['jpn']
         self.assertEqual(jp['in'], [['2026-06', 100, 1], ['2026-07', -6454, 1]]); self.assertEqual(jp['out'], [['2026-06', None, 0], ['2026-07', 20746, 1]])
-        self.assertEqual(jp['hold_in'], ['2026-07', 2998194, 2]); self.assertEqual(jp['hold_out'], ['2026-07', 1750866, 1]); self.assertEqual(jp['n'], 3)   # zasób: Japonia + Korea (Korea ma zasób, brak jej tylko netto)
+        self.assertEqual(jp['hold_in'], ['2026-07', 2998194, 2]); self.assertEqual(jp['hold_out'], ['2026-07', 1750866, 1]); self.assertEqual(jp['n'], 2)   # Japonia + Korea (Tajwan osobno)
+        self.assertEqual(jp['net'], [['2026-06', None, 0], ['2026-07', -27200, 1]])   # netto tylko z krajów obecnych w obu tabelach
+        self.assertIn('twn', out); self.assertEqual(out['twn']['members'], ['Taiwan'])
         self.assertEqual(out['world']['in'][-1], ['2026-07', 40616, 1]); self.assertEqual(out['world']['out'][-1], ['2026-07', 68522, 1])
         self.assertEqual(out['regions']['can']['in'][-1], ['2026-07', None, 0])           # brak Kanady w próbce → brak, nie zero
         self.assertIsNone(out['holders']); self.assertTrue(any(e.startswith('TIC tabela 5') for e in zd.META['errors']))

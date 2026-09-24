@@ -285,7 +285,7 @@ test('FRED: strona czyta fred.json z serwera, pokazuje cztery serie Fed z podpis
     assert.ok(dict[l]['inst.fred.src'].includes('Board of Governors of the Federal Reserve System (US), via FRED'), l);
     assert.equal(dict[l]['inst.fred.api'], 'This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.');
   }
-  assert.ok(html.includes("'api.stlouisfed.org','src.f.d','src.l.0',GLIVE.src.fred,'g.hs.fred','fred']"), 'wiersz Źródła');
+  assert.ok(html.includes("'api.stlouisfed.org','src.f.h','src.l.w',GLIVE.src.fred,'g.hs.fred','fred']"), 'wiersz Źródła');
   assert.ok(html.includes("['Board of Governors of the Federal Reserve System (US), via FRED','https://fred.stlouisfed.org']"), 'atrybucja');
   assert.ok(html.includes('<summary><b>Federal Reserve przez FRED</b>'), 'Źródła i prawa');
   assert.ok(html.includes("if(!INST.data&&!FRED.data){el.hidden=true;el.innerHTML='';return;}"), 'sekcja także z samym FRED');
@@ -310,7 +310,7 @@ test('wiek danych: dziś → „dane z dzisiaj”, 1 dzień → g.age1, więcej 
 test('Eurosystem: sekcja czyta ilm i m3 z pliku urzędowego, podpis EBC, wiersz Źródła i wpis w prawach', () => {
   assert.ok(html.includes("['tga','rrp','soma','tgb','ilm','m3','bop','mof'].some("), 'klucze pliku (v46 dodało bop)');
   assert.ok(html.includes("const ilm=D.ilm,m3=D.m3,"), 'blok');
-  assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.w','src.l.3w',(GLIVE.src['inst.ilm']||GLIVE.src['inst.m3']),'g.hs.ecb2','inst.ilm']"), 'wiersz Źródła');
+  assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.w','src.l.w',(GLIVE.src['inst.ilm']||GLIVE.src['inst.m3']),'g.hs.ecb2','inst.ilm']"), 'wiersz Źródła');
   assert.ok(html.includes('<summary><b>EBC — bilans Eurosystemu i M3</b>'), 'Źródła i prawa');
   const d0 = html.indexOf('const EXTRA32='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA32='.length, d1));
@@ -333,7 +333,7 @@ test('rynek krypto: sekcja w CRYPTO po CoinMarketCap, plik krypto.json, atrybucj
   assert.ok(c > 0 && k > c, 'sekcja po #cmc');
   assert.ok(html.includes("srvJSON('krypto')"), 'plik automatu');
   assert.ok(html.includes("['Alternative.me — Crypto Fear & Greed Index','https://alternative.me/crypto/fear-and-greed-index/']"), 'atrybucja');
-  assert.ok(html.includes("'api.coingecko.com','src.f.l','src.l.0',GLIVE.src.kr,'g.hs.kr','kr']") && html.includes("'api.alternative.me','src.f.d','src.l.0',GLIVE.src.fng,'g.hs.fng','fng']"), 'wiersze Źródła');
+  assert.ok(html.includes("'api.coingecko.com','src.f.h','src.l.90m',GLIVE.src.kr,'g.hs.kr','kr']") && html.includes("'api.alternative.me','src.f.d','src.l.90m',GLIVE.src.fng,'g.hs.fng','fng']"), 'wiersze Źródła');
   assert.ok(html.includes('<summary><b>Alternative.me</b>') && html.includes('<summary><b>CoinGecko przez automat strony</b>'), 'Źródła i prawa');
   const d0 = html.indexOf('const EXTRA33='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA33='.length, d1));
@@ -412,4 +412,55 @@ test('TIC: sekcja #tic w GLOBAL przed widokami silnika, plik tic.json, karty WIT
   const d0 = html.indexOf('const EXTRA35='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA35='.length, d1));
   for (const l of ['pl', 'en']) for (const k of ['tic.t', 'tic.in', 'tic.out', 'tic.net', 'tic.not2', 'tic.src', 'g.hs.tic']) assert.ok(dict[l][k], l + ' ' + k);
+});
+
+// v48: uczciwość — zmiana wyceny to „zmiana wartości”; brak wymyślonych ocen, linii i liczb przykładowych na stronie publicznej
+test('v48: słownik nadpisań ma wszystkie 10 języków i nie mówi o „napływie” tam, gdzie liczymy zmianę ceny', () => {
+  const d0 = html.indexOf('const EXTRA36='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA36='.length, d1));
+  assert.deepEqual(Object.keys(dict).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const l of Object.keys(dict)) for (const k of ['plain.in', 'plain.out', 'g.leg.in', 'g.leg.out', 'q.src.v', 'rail.rel', 'src.f.h', 'src.l.w']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(!/napłynęło|odpłynęło/.test(dict.pl['plain.in'] + dict.pl['plain.out']));
+  assert.ok(dict.pl['plain.in'].includes('nie zmierzony napływ'));
+  assert.ok(html.indexOf('for(const l in EXTRA36)') > html.indexOf('for(const l in EXTRA_F1415)'), 'nadpisania stosowane na końcu');
+});
+
+test('v48: panel jakości CRYPTO liczy fakty (bez gwiazdek i stałych ocen), miernik = pokrycie koszyków', () => {
+  const w0 = html.indexOf('function renderWhy(){'), w1 = html.indexOf('\nfunction renderList(', w0);
+  const why = html.slice(w0, w1);
+  assert.ok(!why.includes('★'), 'bez gwiazdek'); assert.ok(why.includes("t('q.src.v',{k:okN,n:srcs.length})"));
+  const g0 = html.indexOf('function renderGauge(){'), g1 = html.indexOf('\n}', g0);
+  const gauge = html.slice(g0, g1);
+  assert.ok(!gauge.includes('score=42') && !gauge.includes('55+25*'), 'bez wymyślonego wyniku');
+  assert.ok(gauge.includes('Math.round(LIVE.cover*100)'));
+});
+
+test('v48: scena CRYPTO — bez wymyślonych połączeń i bez linii przykładowych na żywo; stablecoiny z podaży', () => {
+  const b0 = html.indexOf('function buildEdges(F){'), b1 = html.indexOf('\nfunction applyLive(', b0);
+  assert.ok(!html.slice(b0, b1).includes('ref*.06'), 'bez wymyślonych kwot');
+  const a0 = html.indexOf('function applyLive(){'), a1 = html.indexOf('\n}\n', a0);
+  assert.ok(!html.slice(a0, a1).includes('EDGES_SAMPLE'), 'applyLive bez próbki');
+  assert.ok(html.includes("LIVE.stabD={'24H':dlt('circulatingPrevDay'),'7D':dlt('circulatingPrevWeek'),'30D':dlt('circulatingPrevMonth')};"));
+  assert.ok(html.includes(" {id:'btc',p:[9.2,0,0],ev:'proxy',src:'src.asset'},"), 'BTC z ceny = proxy, nie „bezpośredni flow”');
+});
+
+test('v48: GLOBAL na stronie publicznej bez OECD pokazuje brak danych, nie liczby przykładowe', () => {
+  assert.ok(html.includes("if(location.protocol!=='file:'){F[r.id]=[0,0,false];return;}"));
+  assert.ok(html.includes("s2.hidden=live||location.protocol!=='file:';"));
+});
+
+test('v48: gfmt i etfM — poniżej 1 mln i poniżej 0,1 mln to nie zero; 999,7 mld to już bilion', () => {
+  const f0 = html.indexOf('const gfmt=v=>{'), f1 = html.indexOf('\nconst gpct=', f0);
+  const gfmt = new Function('LOCALE', 'LANG', 't', html.slice(f0, f1) + '\nreturn gfmt;')({ pl: 'pl-PL' }, 'pl', k => k);
+  assert.ok(gfmt(999.7).endsWith('u.t'), gfmt(999.7)); assert.equal(gfmt(0.0001), '<1 u.m'); assert.equal(gfmt(-0.0001), '−<1 u.m');
+  const e0 = html.indexOf('const etfM=v=>{'), e1 = html.indexOf('\nconst etfA=', e0);
+  const etfM = new Function('LOCALE', 'LANG', 't', html.slice(e0, e1) + '\nreturn etfM;')({ pl: 'pl-PL' }, 'pl', k => k);
+  assert.equal(etfM(0), '0 u.m'); assert.equal(etfM(0.03), '+<0,1 u.m'); assert.equal(etfM(-0.03), '−<0,1 u.m');
+});
+
+test('v48: TIC — netto z krajów obecnych w obu tabelach, znacznik niepełnego składu w każdej kolumnie, Tajwan osobno', () => {
+  assert.ok(html.includes('function ticNet(reg,back){if(Array.isArray(reg.net))'));
+  assert.ok(html.includes("${ticPartial(reg,reg.out)}") && html.includes("${ticPartial(reg,reg.net)}"));
+  assert.ok(html.includes("${D.twn?row(t('tic.twn'),D.twn):''}"));
+  assert.ok(!html.includes('<b>W przygotowaniu:</b>'), 'Źródła bez nieaktualnego bloku');
 });
