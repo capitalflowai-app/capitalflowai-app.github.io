@@ -2471,14 +2471,14 @@ function tvSetOk(v){try{if(v)localStorage.setItem(TV.KEY,'1');else localStorage.
 function tvPair(){return TV.sym.split(':')[1]||'BTCUSD';}
 const TV_W={
   markets:{id:'tv-markets',js:'embed-widget-market-overview.js',h:460,link:'https://www.tradingview.com/markets/',copy:'Track all markets on TradingView',by:false,
-    cfg:()=>({colorTheme:tvTheme(),dateRange:'12M',showChart:true,locale:tvLocale(),width:'100%',height:'100%',largeChartUrl:'',isTransparent:true,showSymbolLogo:true,showFloatingTooltip:false,
+    cfg:()=>({colorTheme:tvTheme(),dateRange:'12M',showChart:true,locale:tvLocale(),width:'100%',height:'100%',largeChartUrl:'',isTransparent:false,showSymbolLogo:true,showFloatingTooltip:false,
       tabs:[
         {title:t('tv.tab.idx'),symbols:[{s:'FOREXCOM:SPXUSD',d:'S&P 500'},{s:'FOREXCOM:NSXUSD',d:'US 100'},{s:'FOREXCOM:DJI',d:'Dow Jones'},{s:'INDEX:NKY',d:'Nikkei 225'},{s:'INDEX:DEU40',d:'DAX'},{s:'FOREXCOM:UKXGBP',d:'FTSE 100'}],originalTitle:'Indices'},
         {title:t('tv.tab.fx'),symbols:[{s:'FX:EURUSD',d:'EUR/USD'},{s:'FX:GBPUSD',d:'GBP/USD'},{s:'FX:USDJPY',d:'USD/JPY'},{s:'FX:USDCHF',d:'USD/CHF'},{s:'FX_IDC:USDCNY',d:'USD/CNY'},{s:'FX_IDC:USDPLN',d:'USD/PLN'}],originalTitle:'Forex'},
         {title:t('tv.tab.bonds'),symbols:[{s:'TVC:US10Y',d:'US 10Y'},{s:'TVC:US02Y',d:'US 2Y'},{s:'TVC:DE10Y',d:'DE 10Y'},{s:'TVC:GB10Y',d:'GB 10Y'},{s:'TVC:JP10Y',d:'JP 10Y'}],originalTitle:'Bonds'},
         {title:t('tv.tab.cmd'),symbols:[{s:'TVC:GOLD',d:'Gold'},{s:'TVC:SILVER',d:'Silver'},{s:'TVC:USOIL',d:'WTI'},{s:'TVC:UKOIL',d:'Brent'},{s:'COMEX:HG1!',d:'Copper'},{s:'NYMEX:NG1!',d:'Natural gas'}],originalTitle:'Commodities'}]})},
   calendar:{id:'tv-calendar',js:'embed-widget-events.js',h:460,link:'https://www.tradingview.com/economic-calendar/',copy:'Economic Calendar',by:true,
-    cfg:()=>({colorTheme:tvTheme(),isTransparent:true,locale:tvLocale(),countryFilter:'us,eu,gb,jp,cn,de',importanceFilter:'1',width:'100%',height:'100%'})},
+    cfg:()=>({colorTheme:tvTheme(),isTransparent:false,locale:tvLocale(),countryFilter:'us,eu,gb,jp,cn,de',importanceFilter:'1',width:'100%',height:'100%'})},
   heatmap:{id:'tv-heatmap',js:'embed-widget-crypto-coins-heatmap.js',h:500,link:'https://www.tradingview.com/heatmap/crypto/',copy:'Crypto Heatmap',by:true,
     cfg:()=>({dataSource:'Crypto',blockSize:'market_cap_calc',blockColor:'24h_close_change|5',locale:tvLocale(),symbolUrl:'',colorTheme:tvTheme(),hasTopBar:false,isDataSetEnabled:false,isZoomEnabled:true,hasSymbolTooltip:true,isMonoSize:false,width:'100%',height:'100%'})},
   chart:{id:'tv-chart',js:'embed-widget-advanced-chart.js',h:520,link:()=>`https://www.tradingview.com/symbols/${tvPair()}/?exchange=${TV.sym.split(':')[0]}`,copy:()=>`${tvPair()} chart`,by:true,
@@ -2488,6 +2488,7 @@ const TV_W={
       return c;}}
 };
 /* kontener i stopka dokładnie jak w generatorze TradingView (tryb „use container size”); skrypt dodaje tvMount po zgodzie */
+/* isTransparent:false (v41.1): z „true” Przegląd rynków i Kalendarz rysują się na biało mimo colorTheme dark — sprawdzone 24.09 na widgecie samodzielnie */
 function tvMarkup(k){const w=TV_W[k],link=typeof w.link==='function'?w.link():w.link,copy=typeof w.copy==='function'?w.copy():w.copy;
   return `<!-- TradingView Widget BEGIN -->\n<div class="tradingview-widget-container" style="height:100%;width:100%">\n  <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>\n`+
     `  <div class="tradingview-widget-copyright"><a href="${link}" rel="noopener nofollow" target="_blank"><span class="blue-text">${copy}</span></a>${w.by?'<span class="trademark"> by TradingView</span>':''}</div>\n</div>\n<!-- TradingView Widget END -->`;}
