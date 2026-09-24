@@ -633,6 +633,7 @@ td .cell .logo-img{width:34px;height:34px}
     <section class="panel pcard" id="eng-defillama-stablecoins" hidden></section>
     <section class="panel pcard" id="eng-cftc-crypto" hidden></section>
       <section class="panel pcard" id="cmc" hidden></section>
+      <section class="panel pcard" id="krypto" hidden></section>
   </main>
 
   <aside class="rail" id="rail">
@@ -965,6 +966,9 @@ for(const l in EXTRA31)if(I18N[l])Object.assign(I18N[l],EXTRA31[l]);
 /* v43: Eurosystem (EBC): bilans tygodniowy (ILM) i M3 (BSI); „dane z dzisiaj” zamiast „sprzed 0 dni” */
 const EXTRA32={"pl":{"g.age0":"dane z dzisiaj","inst.mld.eur":"mld EUR","inst.ecb.t":"Eurosystem (EBC): bilans tygodniowy i podaż pieniądza M3","inst.ecb.sub":"Aktywa razem Eurosystemu z tygodniowego sprawozdania finansowego (stan na piątek) i agregat M3 strefy euro (miesięcznie, wyrównany sezonowo). Prosto z ECB Data Portal, bez klucza.","inst.ecb.ilm":"Eurosystem: aktywa razem (tygodniowo)","inst.ecb.m3":"Podaż pieniądza M3, strefa euro (miesięcznie)","inst.ecb.d4":"od 4 tygodni: {v} mld","inst.ecb.dm":"zmiana od poprzedniego miesiąca: {v} mld","inst.ecb.p12":"od 12 mies.: {v}","inst.ecb.tab":"Ostatnie 8 tygodni: aktywa Eurosystemu","inst.ecb.ilm.s":"Aktywa razem, mln EUR","inst.ecb.unit":"Liczby w tabeli w milionach EUR, jak podaje EBC; kafelki zaokrąglamy do dziesiątych miliarda. Tydzień ISO i piątek, na który sporządzono sprawozdanie.","inst.ecb.src":"Źródło: European Central Bank, ECB Data Portal — zbiory ILM (tygodniowe sprawozdanie finansowe Eurosystemu) i BSI (agregaty monetarne). Reproduction is permitted provided the source is acknowledged. EBC nie jest autorem tej strony i jej nie popiera.","g.hs.ecb2":"Aktywa razem Eurosystemu z tygodniowego sprawozdania (ILM; stan na piątek, publikacja we wtorek) i agregat M3 strefy euro (BSI; miesięcznie, ok. 4 tygodnie po końcu miesiąca). Automat strony, bez klucza, z odstępem między zapytaniami do EBC."},"en":{"g.age0":"today's data","inst.mld.eur":"EUR bn","inst.ecb.t":"Eurosystem (ECB): weekly balance sheet and M3 money supply","inst.ecb.sub":"Eurosystem total assets from the weekly financial statement (as of Friday) and the euro-area M3 aggregate (monthly, seasonally adjusted). Straight from the ECB Data Portal, no key.","inst.ecb.ilm":"Eurosystem: total assets (weekly)","inst.ecb.m3":"M3 money supply, euro area (monthly)","inst.ecb.d4":"over 4 weeks: {v} bn","inst.ecb.dm":"change from the previous month: {v} bn","inst.ecb.p12":"over 12 months: {v}","inst.ecb.tab":"Last 8 weeks: Eurosystem assets","inst.ecb.ilm.s":"Total assets, EUR mn","inst.ecb.unit":"Table in millions of EUR as published by the ECB; tiles rounded to a tenth of a billion. ISO week and the Friday the statement refers to.","inst.ecb.src":"Source: European Central Bank, ECB Data Portal — datasets ILM (Eurosystem weekly financial statement) and BSI (monetary aggregates). Reproduction is permitted provided the source is acknowledged. The ECB is not the author of this site and does not endorse it.","g.hs.ecb2":"Eurosystem total assets from the weekly statement (ILM; as of Friday, published on Tuesday) and the euro-area M3 aggregate (BSI; monthly, about 4 weeks after month end). Fetched by the site's job, no key, with spacing between ECB requests."},"de":{"g.age0":"Daten von heute"},"es":{"g.age0":"datos de hoy"},"fr":{"g.age0":"données du jour"},"it":{"g.age0":"dati di oggi"},"pt":{"g.age0":"dados de hoje"},"ru":{"g.age0":"данные за сегодня"},"zh":{"g.age0":"今日数据"},"ja":{"g.age0":"本日のデータ"}};
 for(const l in EXTRA32)if(I18N[l])Object.assign(I18N[l],EXTRA32[l]);
+/* v44: rynek krypto z plików automatu — otwarte pozycje i DeFi (CoinGecko), Fear & Greed (Alternative.me) */
+const EXTRA33={"pl":{"kr.t":"Rynek krypto: kontrakty, DeFi, nastroje","kr.sub":"Otwarte pozycje w kontraktach terminowych (suma 20 największych giełd wg CoinGecko), rynek DeFi i wskaźnik nastrojów — z plików automatu strony, z czasem pobrania.","kr.oi":"Otwarte pozycje (open interest), kontrakty na krypto","kr.oi.v":"{v} tys. BTC","kr.oi.n":"{n} giełd z danymi · największa: {e} ({v} tys. BTC)","kr.defi":"Kapitalizacja DeFi","kr.defi.ratio":"DeFi / ETH: {v}%","kr.defi.vol":"Wolumen DeFi 24h","kr.defi.dom":"udział w całym rynku: {v}%","kr.fng":"Nastroje: Fear & Greed (Alternative.me)","kr.fng.v":"{v} / 100 · {c}","kr.fng.ago":"7 dni temu: {a} · 30 dni temu: {b}","kr.ind":"wskaźnik (model), nie pomiar","kr.c.xf":"skrajny strach","kr.c.f":"strach","kr.c.n":"neutralnie","kr.c.g":"chciwość","kr.c.xg":"skrajna chciwość","kr.fng.note":"Wskaźnik nastroju liczy Alternative.me z kilku składników (zmienność, wolumen, media społecznościowe, dominacja BTC, trendy wyszukiwań). To model, nie pomiar przepływu pieniędzy.","kr.not":"Otwarte pozycje to wartość otwartych kontraktów, nie pieniądze, które wpłynęły; suma obejmuje tylko giełdy raportowane przez CoinGecko. Kapitalizacja DeFi to cena razy podaż tokenów.","kr.src.cg":"Data by CoinGecko","kr.src.fng":"Alternative.me — Crypto Fear & Greed Index","g.hs.kr":"Otwarte pozycje w kontraktach (suma 20 giełd) i rynek DeFi z CoinGecko (klucz właściciela w nagłówku, atrybucja „Data by CoinGecko”), przez automat strony co ok. godzinę.","g.hs.fng":"Wskaźnik nastrojów Crypto Fear & Greed (0–100) z Alternative.me, dziennie, przez automat strony. To model, nie pomiar."},"en":{"kr.t":"Crypto market: futures, DeFi, sentiment","kr.sub":"Open interest in crypto futures (sum of the 20 largest exchanges per CoinGecko), the DeFi market and a sentiment indicator — from the site's job files, with fetch time.","kr.oi":"Open interest, crypto futures","kr.oi.v":"{v}k BTC","kr.oi.n":"{n} exchanges with data · largest: {e} ({v}k BTC)","kr.defi":"DeFi market cap","kr.defi.ratio":"DeFi / ETH: {v}%","kr.defi.vol":"DeFi volume 24h","kr.defi.dom":"share of the whole market: {v}%","kr.fng":"Sentiment: Fear & Greed (Alternative.me)","kr.fng.v":"{v} / 100 · {c}","kr.fng.ago":"7 days ago: {a} · 30 days ago: {b}","kr.ind":"indicator (model), not a measurement","kr.c.xf":"extreme fear","kr.c.f":"fear","kr.c.n":"neutral","kr.c.g":"greed","kr.c.xg":"extreme greed","kr.fng.note":"Alternative.me computes the index from several inputs (volatility, volume, social media, BTC dominance, search trends). It is a model, not a measurement of money flows.","kr.not":"Open interest is the value of open contracts, not money that flowed in; the sum covers only exchanges reported by CoinGecko. DeFi market cap is price times token supply.","kr.src.cg":"Data by CoinGecko","kr.src.fng":"Alternative.me — Crypto Fear & Greed Index","g.hs.kr":"Open interest in futures (sum of 20 exchanges) and the DeFi market from CoinGecko (owner's key in a header, attribution “Data by CoinGecko”), via the site's job about hourly.","g.hs.fng":"Crypto Fear & Greed sentiment index (0–100) from Alternative.me, daily, via the site's job. A model, not a measurement."}};
+for(const l in EXTRA33)if(I18N[l])Object.assign(I18N[l],EXTRA33[l]);
 Object.assign(I18N.pl,{"g.hs.tga":"Daily Treasury Statement: saldo zamknięcia konta rządu USA w Fed, codziennie w dni robocze. Dane rządu USA, domena publiczna.","g.hs.nyfed":"Operacje reverse repo (dziennie) i portfel SOMA (tygodniowo). Na warunkach NY Fed (Terms of Use); nota przy liczbach.","g.hs.tgb":"Salda TARGET dziewięciu krajów strefy euro, miesięcznie (EBC Data Portal).","g.hs.mof":"Tygodniowe zakupy i sprzedaże netto papierów zagranicznych i japońskich przez głównych zgłaszających inwestorów (Public Data License v1.0).","src.f.w":"co tydzień"});
 /* v36: widok Banku Światowego (napływy/odpływy netto według gospodarek) z pliku silnika */
 const EXTRA23={"pl":{"eng.c.rank":"#","eng.c.economy":"Gospodarka","eng.c.year":"{y}, mln USD","eng.c.prev":"{y}, mln USD","eng.d.in":"Największe napływy netto w {y} — {n} z {t}","eng.d.out":"Największe odpływy netto w {y} — {n} z {t}","eng.d.none.in":"W {y} żadna gospodarka z danymi nie miała napływu netto.","eng.d.none.out":"W {y} żadna gospodarka z danymi nie miała odpływu netto.","eng.k.in":"Największy napływ netto {y}","eng.k.out":"Największy odpływ netto {y}","eng.k.cov":"Gospodarki z danymi za {y}","eng.k.cov.v":"{a} z {e} · bez danych: {b}","eng.mln":"mln USD","eng.exact":"dokładnie: {v} USD","eng.prev.gap":"brak danych za rok wcześniej — to nie zero","eng.prev.zero":" (netto zero)","eng.prev.negzero":" (netto zero, zgłoszone jako −0)"},
@@ -2527,6 +2531,33 @@ function tvInit(){TV.ready=true;tvRenderAll();tvObserve();
     if(b.dataset.tvSym){TV.sym=b.dataset.tvSym;if(TV.loaded.chart)tvRender('chart');else{tvRender('chart');if(tvOk())tvOn('chart');}return;}
     tvSetOk(true);tvOn(b.dataset.tvLoad);});}
 /* v41: TradingView — koniec */
+/* v44: rynek krypto z pliku automatu (krypto.json): otwarte pozycje, DeFi, Fear & Greed — każda część osobno, brak = brak */
+const KR={data:null,timer:null};
+function krLoad(){srvJSON('krypto').then(j=>{KR.data=(j&&typeof j==='object'&&typeof j.at==='string'&&(j.deriv||j.defi||j.fng))?j:null;if(KR.data){if(KR.data.deriv||KR.data.defi)gOk('kr');if(KR.data.fng)gOk('fng');}renderKr();}).catch(()=>{KR.data=null;renderKr();});}
+function krAuto(){if(KR.timer)clearInterval(KR.timer);KR.timer=setInterval(()=>{if(!document.hidden)krLoad();},20*60*1000);}
+function krClass(c){const m={'Extreme Fear':'kr.c.xf','Fear':'kr.c.f','Neutral':'kr.c.n','Greed':'kr.c.g','Extreme Greed':'kr.c.xg'};return m[c]?t(m[c]):escH(c||'');}
+function krFngAt(rows,back){const i=rows.length-1-back;return i>=0&&Array.isArray(rows[i])&&typeof rows[i][1]==='number'?rows[i][1]:null;}
+function renderKr(){
+  const el=$('#krypto');if(!el)return;const D=KR.data;if(!D){el.hidden=true;el.innerHTML='';return;}
+  const bln=v=>typeof v==='number'?gfmt(v/1e9):t('eng.gap'),k=v=>typeof v==='number'?nfmt(v/1000,1):null;
+  let kp='';
+  if(D.deriv&&typeof D.deriv.total_oi_btc==='number'){const top=Array.isArray(D.deriv.top)&&D.deriv.top[0];
+    kp+=engK(t('kr.oi'),`${t('kr.oi.v',{v:k(D.deriv.total_oi_btc)})}<br><small class="mtxt">${t('kr.oi.n',{n:engNum(D.deriv.n),e:escH(top?top[0]:'—'),v:top?k(top[1]):'—'})}</small>`,true);}
+  else kp+=engK(t('kr.oi'),t('eng.gap'));
+  if(D.defi&&typeof D.defi.defi_market_cap==='number'){
+    kp+=engK(t('kr.defi'),`${bln(D.defi.defi_market_cap)}<br><small class="mtxt">${typeof D.defi.defi_to_eth_ratio==='number'?t('kr.defi.ratio',{v:nfmt(D.defi.defi_to_eth_ratio,1)}):''}${typeof D.defi.defi_dominance==='number'?' · '+t('kr.defi.dom',{v:nfmt(D.defi.defi_dominance,2)}):''}</small>`,true);
+    kp+=engK(t('kr.defi.vol'),bln(D.defi.trading_volume_24h));}
+  else{kp+=engK(t('kr.defi'),t('eng.gap'));}
+  if(D.fng&&Array.isArray(D.fng.d)&&D.fng.d.length){const r=D.fng.d,l=r[r.length-1],a=krFngAt(r,7),b=krFngAt(r,30);
+    kp+=engK(t('kr.fng'),`${t('kr.fng.v',{v:engNum(l[1]),c:krClass(l[2])})}<br><small class="mtxt">${t('kr.fng.ago',{a:a==null?'—':engNum(a),b:b==null?'—':engNum(b)})} · ${t('inst.asof')} ${escH(l[0])}${gAgeNote(l[0])} · ${t('kr.ind')}</small>`,true);}
+  else kp+=engK(t('kr.fng'),t('eng.gap'));
+  el.innerHTML=`<div class="etfh"><div><h2>${t('kr.t')}</h2><p class="pnote">${t('kr.sub')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`+
+    `<div class="etfkpis">${kp}</div>`+
+    `<p class="pnote"><a href="https://www.coingecko.com" target="_blank" rel="noopener">${t('kr.src.cg')}</a> · <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">${t('kr.src.fng')}</a></p>`+
+    `<details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('kr.not')}</p><p class="pnote">${t('kr.fng.note')}</p></details>`+
+    `<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('eng.disclaimer')}</p>`;
+  el.hidden=false;
+}
 function renderCmc(){
   const el=$('#cmc');if(!el)return;const D=CMC.data;if(!D){el.hidden=true;el.innerHTML='';return;}
   const bln=v=>typeof v==='number'?gfmt(v/1e9):t('eng.gap');   /* gfmt dobiera mld/bln USD sam */
@@ -4144,6 +4175,16 @@ const TXT_ZRODLA_PL=`
 <b>Czego nie mówi:</b> zmiana aktywów Eurosystemu to suma wielu pozycji (skup papierów, operacje refinansujące, złoto i rezerwy walutowe po wycenie) — nie sam „dodruk”. M3 jest wyrównane sezonowo, więc miesięczna zmiana nie jest gotówką, która „wpłynęła” w danym miesiącu.<br>
 <b>Stan praw:</b> EBC: „Reproduction is permitted provided the source is acknowledged” — podajemy źródło przy liczbach i tu. EBC nie jest autorem tej strony i jej nie popiera.</p></details>
 
+<details class="etfd"><summary><b>CoinGecko przez automat strony</b> · otwarte pozycje w kontraktach, rynek DeFi · <i>pokazujemy z klucza właściciela</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> suma otwartych pozycji (open interest, w BTC) na 20 największych giełdach kontraktów raportowanych przez CoinGecko oraz kapitalizacja, wolumen i udział rynku DeFi. Pobiera je automat strony z API CoinGecko (plan Demo, klucz właściciela w nagłówku) co ok. godzinę; giełda bez liczby jest pominięta, nie liczona jako zero.<br>
+<b>Czego nie mówi:</b> otwarte pozycje to wartość otwartych kontraktów, nie pieniądze, które wpłynęły; suma zależy od tego, które giełdy raportują do CoinGecko. Kapitalizacja DeFi to cena razy podaż tokenów.<br>
+<b>Stan praw:</b> plan Demo CoinGecko jest do użytku niekomercyjnego i wymaga widocznej atrybucji „Data by CoinGecko” z linkiem — jest przy liczbach i w Atrybucjach. Po wprowadzeniu opłat: plan płatny z licencją komercyjną.</p></details>
+
+<details class="etfd"><summary><b>Alternative.me</b> · wskaźnik nastrojów Crypto Fear &amp; Greed · <i>pokazujemy jako wskaźnik</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> dzienny wskaźnik nastroju rynku krypto od 0 (skrajny strach) do 100 (skrajna chciwość), liczony przez Alternative.me z kilku składników (zmienność, wolumen, media społecznościowe, dominacja BTC, trendy wyszukiwań). Automat strony pobiera 30 ostatnich dni.<br>
+<b>Czego nie mówi:</b> to model, nie pomiar przepływu pieniędzy — pokazujemy go oddzielnie od liczb mierzonych i podpisujemy „wskaźnik”.<br>
+<b>Stan praw:</b> Alternative.me udostępnia wskaźnik przez publiczne API i prosi o podanie źródła z linkiem — podajemy przy liczbach i w Atrybucjach.</p></details>
+
 <details class="etfd"><summary><b>Twelve Data</b> · dzienne notowania funduszy krajowych (okresy 1T i 1M) · <i>pokazujemy z klucza właściciela</i></summary>
 <p class="mtxt"><b>Co to za dane:</b> dzienne zamknięcia 14 funduszy ETF notowanych w USA, które zastępują rynki akcji regionów. Z nich liczymy zmianę ceny od zamknięcia 5 sesji temu (okres 1T) i 21 sesji temu (okres 1M). To pomiar zmiany ceny, nie szacunek — ale zmiana ceny funduszu to nie przelew pieniędzy między krajami.<br>
 <b>Jak to działa:</b> nasz automat na serwerze pobiera dzienne notowania z klucza właściciela najwyżej raz na godzinę (limity: 8 zapytań na minutę, 800 na dzień) i zapisuje plik, który strona czyta. Z kluczem wpisanym w Ustawieniach → Dane przeglądarka pyta Twelve Data sama (dwie paczki po 7 symboli, druga po minucie) i trzyma wynik u siebie przez godzinę. W godzinach sesji w USA ostatnia wartość jest bieżąca, nie zamknięcie; data danych stoi przy liczbie.<br>
@@ -4246,7 +4287,7 @@ function txtJakCzytac(){return LANG==='pl'?TXT_JAK_PL:TXT_JAK_EN;}
 const ATTR_LINKS=[['Data by CoinGecko','https://www.coingecko.com'],['Napływy ETF: SoSoValue','https://sosovalue.com'],['DefiLlama','https://defillama.com'],
   ['U.S. Department of the Treasury','https://home.treasury.gov'],['Deutsche Bundesbank','https://www.bundesbank.de'],['European Central Bank','https://www.ecb.europa.eu'],
   ['Frankfurter (kursy EBC)','https://frankfurter.dev'],['OECD','https://www.oecd.org'],['BIS — Bank for International Settlements','https://www.bis.org'],['World Bank','https://www.worldbank.org'],
-  ['CoinPaprika','https://coinpaprika.com'],['CFTC','https://www.cftc.gov'],['U.S. Treasury Fiscal Data','https://fiscaldata.treasury.gov'],['Federal Reserve Bank of New York','https://www.newyorkfed.org'],['Ministry of Finance, Japan','https://www.mof.go.jp'],['TradingView','https://www.tradingview.com'],['Board of Governors of the Federal Reserve System (US), via FRED','https://fred.stlouisfed.org'],['CoinMarketCap','https://coinmarketcap.com'],['Finnhub','https://finnhub.io'],['Twelve Data','https://twelvedata.com']].map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join(' · ');
+  ['CoinPaprika','https://coinpaprika.com'],['CFTC','https://www.cftc.gov'],['U.S. Treasury Fiscal Data','https://fiscaldata.treasury.gov'],['Federal Reserve Bank of New York','https://www.newyorkfed.org'],['Ministry of Finance, Japan','https://www.mof.go.jp'],['TradingView','https://www.tradingview.com'],['Board of Governors of the Federal Reserve System (US), via FRED','https://fred.stlouisfed.org'],['Alternative.me — Crypto Fear & Greed Index','https://alternative.me/crypto/fear-and-greed-index/'],['CoinMarketCap','https://coinmarketcap.com'],['Finnhub','https://finnhub.io'],['Twelve Data','https://twelvedata.com']].map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join(' · ');
 function renderSources(){
   const w=$('#page-sources');if(!w)return;
   const S=gActive()?[
@@ -4277,6 +4318,8 @@ function renderSources(){
     ['CoinPaprika — kursy i kapitalizacja','api.coinpaprika.com','src.f.l','src.l.0',isLive()?1:0,'src.d.cp'],
     ['DefiLlama — TVL sieci','api.llama.fi','src.f.d','src.l.0',LIVE.tvl>0?1:0,'src.d.tvl'],
     ['DefiLlama — stablecoiny','stablecoins.llama.fi','src.f.d','src.l.0',(isLive()&&LIVE.stab!=null)?1:0,'src.d.stab'],
+    ['CoinGecko — otwarte pozycje w kontraktach, rynek DeFi (automat strony, klucz właściciela)','api.coingecko.com','src.f.l','src.l.0',GLIVE.src.kr,'g.hs.kr','kr'],
+    ['Alternative.me — wskaźnik Fear & Greed','api.alternative.me','src.f.d','src.l.0',GLIVE.src.fng,'g.hs.fng','fng'],
     ['TradingView — widgety: mapa cieplna krypto, wykres BTC/ETH','www.tradingview.com','src.f.l','src.l.0',tvState(),'g.hs.tv']
   ];
   w.innerHTML=`<h1>${t('pg.sources')}</h1><p class="pgsub">${t('pg.sources.d')}</p>
@@ -4931,7 +4974,7 @@ function applyLang(){
   $$('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
   renderAll();if(gStarted)gRenderAll();renderPage();DD.forEach(d=>d.refresh());dirty=true;
   if(typeof renderEtf==='function')renderEtf();
-  if(typeof renderEng==='function')renderEng();if(typeof renderInst==='function')renderInst();if(typeof renderCmc==='function')renderCmc();
+  if(typeof renderEng==='function')renderEng();if(typeof renderInst==='function')renderInst();if(typeof renderCmc==='function')renderCmc();if(typeof renderKr==='function')renderKr();
   if(typeof tvRefresh==='function')tvRefresh();   /* v41: widgety TradingView w nowym języku */
 }
 
@@ -5016,7 +5059,7 @@ if(st.anim){from={...cur};t0=performance.now();sizeTw=true;}
 requestAnimationFrame(loop);hResize();
 if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('16px "JetBrains Mono"'),document.fonts.load('600 16px "Sora"')]).catch(()=>{}).then(()=>{hResize();dirty=true;});}
 /* ETF → krypto: migawka od razu, dane na żywo gdy jest klucz */
-etfInitSettings();etfLoad();etfAuto();cgPing();engLoad();engAuto();cmcLoad();cmcAuto();tvInit();
+etfInitSettings();etfLoad();etfAuto();cgPing();engLoad();engAuto();cmcLoad();cmcAuto();krLoad();krAuto();tvInit();
 /* GLOBAL jest oknem startowym projektu */
 setMode('global');
 window.__cf={cam,st,select,camTo,applyTheme,LIVE,loadAll,afterLive,setLang:l=>{LANG=l;applyLang();},setTheme:v=>{st.theme=v;applyTheme();},setView:v=>{st.view=v;setView();DD.forEach(d=>d.refresh());},setPage,openHelp,closeHelp,camPreset,setMode,ETF,etfLoad,renderEtf};

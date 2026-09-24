@@ -316,3 +316,26 @@ test('Eurosystem: sekcja czyta ilm i m3 z pliku urzędowego, podpis EBC, wiersz 
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA32='.length, d1));
   for (const l of ['pl', 'en']) assert.ok(dict[l]['inst.ecb.src'].includes('Reproduction is permitted provided the source is acknowledged'), l);
 });
+
+// v44: rynek krypto z pliku automatu (open interest, DeFi, Fear & Greed) — brak = brak, wskaźnik podpisany jako model
+const kr0 = html.indexOf('function krClass(c){');
+const kr1 = html.indexOf('\nfunction renderKr(){', kr0);
+const krFns = new Function('t', 'escH', html.slice(kr0, kr1) + '\nreturn {krClass, krFngAt};')(k => k, s => String(s));
+
+test('Fear & Greed: klasy tłumaczone przez klucze, nieznana klasa escapowana; wartość sprzed N dni albo brak', () => {
+  assert.equal(krFns.krClass('Extreme Greed'), 'kr.c.xg'); assert.equal(krFns.krClass('Neutral'), 'kr.c.n'); assert.equal(krFns.krClass('Weird'), 'Weird');
+  const rows = [['2026-09-22', 78, 'Extreme Greed'], ['2026-09-23', 71, 'Greed'], ['2026-09-24', 71, 'Greed']];
+  assert.equal(krFns.krFngAt(rows, 0), 71); assert.equal(krFns.krFngAt(rows, 2), 78); assert.equal(krFns.krFngAt(rows, 7), null);
+});
+
+test('rynek krypto: sekcja w CRYPTO po CoinMarketCap, plik krypto.json, atrybucje i wiersze Źródła', () => {
+  const c = html.indexOf('<section class="panel pcard" id="cmc" hidden></section>'), k = html.indexOf('<section class="panel pcard" id="krypto" hidden></section>');
+  assert.ok(c > 0 && k > c, 'sekcja po #cmc');
+  assert.ok(html.includes("srvJSON('krypto')"), 'plik automatu');
+  assert.ok(html.includes("['Alternative.me — Crypto Fear & Greed Index','https://alternative.me/crypto/fear-and-greed-index/']"), 'atrybucja');
+  assert.ok(html.includes("'api.coingecko.com','src.f.l','src.l.0',GLIVE.src.kr,'g.hs.kr','kr']") && html.includes("'api.alternative.me','src.f.d','src.l.0',GLIVE.src.fng,'g.hs.fng','fng']"), 'wiersze Źródła');
+  assert.ok(html.includes('<summary><b>Alternative.me</b>') && html.includes('<summary><b>CoinGecko przez automat strony</b>'), 'Źródła i prawa');
+  const d0 = html.indexOf('const EXTRA33='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA33='.length, d1));
+  for (const l of ['pl', 'en']) { assert.equal(dict[l]['kr.src.cg'], 'Data by CoinGecko'); assert.ok(dict[l]['kr.ind'], l); }
+});

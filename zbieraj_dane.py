@@ -30,6 +30,8 @@ TD_OUTPUT = 45      # ≈ 2 miesiące sesji; 1M = 21 sesji + zapas
 TD_MIN_SYMBOLS = 10
 TD_MIN_CANDLES = 22
 CMC = 'https://pro-api.coinmarketcap.com'
+CG = 'https://api.coingecko.com/api/v3'      # plan Demo: klucz w nagłówku, atrybucja „Data by CoinGecko” wymagana
+FNG_URL = 'https://api.alternative.me/fng/?limit=31'   # 31 dni: dziś + wartość sprzed 30 dni   # wskaźnik nastroju (model), podać źródło z linkiem
 # FRED (Federal Reserve Bank of St. Louis) — tylko serie Rady Gubernatorów Fed: domena publiczna, „citation requested”.
 # Serie firm trzecich na FRED (SP500, VIXCLS, BAMLH0A0HYM2 …) wymagają zgody właściciela — nie pobieramy.
 FRED = 'https://api.stlouisfed.org/fred/series/observations'
@@ -496,6 +498,71 @@ def build_fred(key):
     return out
 
 
+def parse_deriv(j):
+    """CoinGecko /derivatives/exchanges: otwarte pozycje w BTC per giełda; giełda bez liczby pominięta (nie zero)."""
+    if not isinstance(j, list):
+        raise RuntimeError('derivatives: odpowiedź nie jest listą')
+    rows = []
+    for x in j:
+        oi = x.get('open_interest_btc') if isinstance(x, dict) else None
+        if isinstance(oi, bool) or not isinstance(oi, (int, float)) or oi < 0:
+            continue
+        rows.append([str(x.get('name', ''))[:60], round(float(oi), 2)])
+    if not rows:
+        raise RuntimeError('derivatives: żadna giełda bez liczby otwartych pozycji')
+    rows.sort(key=lambda r: -r[1])
+    return {'src': 'CoinGecko — derivatives exchanges', 'unit': 'BTC', 'n': len(rows), 'total_oi_btc': round(sum(r[1] for r in rows), 2), 'top': rows[:5]}
+
+
+def parse_defi(j):
+    """CoinGecko /global/decentralized_finance_defi: liczby jako teksty → float; brak → None (nigdy 0)."""
+    d = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(d, dict):
+        raise RuntimeError('defi: brak pola data')
+    out = {'src': 'CoinGecko — global DeFi'}
+    for k in ('defi_market_cap', 'eth_market_cap', 'defi_to_eth_ratio', 'trading_volume_24h', 'defi_dominance'):
+        out[k] = _num(d.get(k))
+    if out['defi_market_cap'] is None:
+        raise RuntimeError('defi: brak defi_market_cap')
+    return out
+
+
+def parse_fng(j):
+    """Alternative.me Fear & Greed: [[data UTC, wartość 0–100, klasa]] rosnąco (wskaźnik nastroju — model, nie pomiar)."""
+    data = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(data, list):
+        raise RuntimeError('fng: brak pola data')
+    rows = []
+    for x in data:
+        v = _num(x.get('value')); t = _num(x.get('timestamp'))
+        if v is None or t is None or not 0 <= v <= 100:
+            continue
+        day = datetime.datetime.fromtimestamp(int(t), datetime.timezone.utc).date().isoformat()
+        rows.append([day, int(round(v)), str(x.get('value_classification', ''))[:20]])
+    rows.sort(key=lambda r: r[0])
+    if not rows:
+        raise RuntimeError('fng: brak wartości')
+    return {'src': 'Alternative.me — Crypto Fear & Greed Index', 'url': 'https://alternative.me/crypto/fear-and-greed-index/',
+            'kind': 'indicator', 'asof': rows[-1][0], 'd': rows}
+
+
+def build_krypto(cg_key):
+    """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
+    out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
+    hdr = {'x-cg-demo-api-key': cg_key} if cg_key else None
+    jobs = [('deriv', lambda: parse_deriv(get_json(CG + '/derivatives/exchanges?per_page=20', hdr))),
+            ('defi', lambda: parse_defi(get_json(CG + '/global/decentralized_finance_defi', hdr))),
+            ('fng', lambda: parse_fng(get_json(FNG_URL)))]
+    for name, job in jobs:
+        try:
+            out[name] = job(); META['ok']['krypto.' + name] = True
+        except Exception as e:
+            META['errors'].append(mask(f'krypto {name}: {e}')); META['ok']['krypto.' + name] = False
+    if not any(k in out for k, _ in jobs):
+        raise RuntimeError('żadne źródło rynku krypto nie odpowiedziało')
+    return out
+
+
 def build_etf(key, cg_key):
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
     # kapitalizacje (CoinGecko) — do udziału ETF w rynku
@@ -618,6 +685,16 @@ def main():
             if prev_fred: save('fred', prev_fred); print('FRED zawiódł — zachowano poprzedni fred.json z', prev_fred.get('at'))
     else:
         META['errors'].append('brak FRED_KEY'); META['ok']['fred'] = False
+    # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
+    prev_kr = previous('krypto')
+    if prev_kr and fresh(prev_kr, 55):
+        save('krypto', prev_kr); META['ok']['krypto'] = 'cached'; print('KRYPTO: dane z', prev_kr.get('at'), '— młodsze niż 55 min')
+    else:
+        try:
+            save('krypto', build_krypto(cg_key)); META['ok']['krypto'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'krypto: {e}')); META['ok']['krypto'] = False
+            if prev_kr: save('krypto', prev_kr); print('rynek krypto zawiódł — zachowano poprzedni krypto.json z', prev_kr.get('at'))
     # INSTYTUCJE (bez klucza): najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_inst = previous('instytucje')
     if prev_inst and fresh(prev_inst, 55):

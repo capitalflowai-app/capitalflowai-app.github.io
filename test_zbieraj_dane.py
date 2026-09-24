@@ -136,10 +136,12 @@ class MainFlow(unittest.TestCase):
         # testy bez sieci: źródła urzędowe udają awarię (ich własne testy są w klasie Instytucje)
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline'))
         self.p_inst.start()
+        self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
 
     def tearDown(self):
         self.p_save.stop()
         self.p_inst.stop()
+        self.p_kr.stop()
 
     def test_young_previous_file_is_reused_without_asking_sosovalue(self):
         prev = {'at': _iso(10), 'assets': {'btc': {'day': [[1, 1.0]]}}}
@@ -168,7 +170,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith('instytucje') and not e.startswith('poprzedni')],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY'])
 
 
@@ -331,10 +333,12 @@ class MainFlowPrices(unittest.TestCase):
         self.p_save.start()
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline'))
         self.p_inst.start()
+        self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
 
     def tearDown(self):
         self.p_save.stop()
         self.p_inst.stop()
+        self.p_kr.stop()
 
     def test_young_previous_file_is_reused_without_asking_twelve_data(self):
         prev = {'at': _iso(10), 'q': {'SPY': {'d': [['2026-09-23', 1.0, 1]]}}}
@@ -512,9 +516,10 @@ class MainFlowInstytucje(unittest.TestCase):
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
+        self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
 
     def tearDown(self):
-        self.p_save.stop()
+        self.p_save.stop(); self.p_kr.stop()
 
     def test_young_previous_file_is_reused(self):
         prev = {'at': _iso(10), 'tga': {'d': [['2026-09-22', 1]]}}
@@ -596,9 +601,10 @@ class MainFlowFred(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
+        self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
 
     def tearDown(self):
-        self.p_save.stop(); self.p_inst.stop()
+        self.p_save.stop(); self.p_inst.stop(); self.p_kr.stop()
 
     def test_young_previous_file_is_reused_without_asking_fred(self):
         prev = {'at': _iso(10), 'series': {'WALCL': {'d': [['2026-09-16', 1.0]]}}}
@@ -667,6 +673,84 @@ class Eurosystem(unittest.TestCase):
             zd._ecb_json('https://data-api.ecb.europa.eu/a'); zd._ecb_json('https://data-api.ecb.europa.eu/b')
         self.assertEqual(calls, [zd.ECB_SLEEP])         # pierwsze bez czekania, drugie po odstępie
         self.assertGreaterEqual(zd.ECB_SLEEP, 1.0)
+
+
+class Krypto(unittest.TestCase):
+    """Sekcja C zadania „więcej danych” (część bez zgód): open interest i DeFi z CoinGecko, Fear & Greed z Alternative.me."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_deriv_sums_only_numeric_open_interest_and_keeps_top5(self):
+        j = [{'name': 'Binance (Futures)', 'open_interest_btc': 410657.33}, {'name': 'X', 'open_interest_btc': None},
+             {'name': 'Y', 'open_interest_btc': '12'}, {'name': 'Z', 'open_interest_btc': 100.004}]
+        d = zd.parse_deriv(j)
+        self.assertEqual(d['n'], 2); self.assertEqual(d['total_oi_btc'], 410757.33); self.assertEqual(d['top'][0], ['Binance (Futures)', 410657.33])
+        with self.assertRaises(RuntimeError):
+            zd.parse_deriv([{'name': 'X', 'open_interest_btc': None}])
+
+    def test_defi_numbers_from_text_and_missing_is_none(self):
+        d = zd.parse_defi({'data': {'defi_market_cap': '131076415637.0771', 'defi_to_eth_ratio': '39.9998', 'trading_volume_24h': None, 'defi_dominance': '4.4055'}})
+        self.assertAlmostEqual(d['defi_market_cap'], 131076415637.0771); self.assertIsNone(d['trading_volume_24h']); self.assertIsNone(d['eth_market_cap'])
+        with self.assertRaises(RuntimeError):
+            zd.parse_defi({'data': {'defi_market_cap': None}})
+
+    def test_fng_days_ascending_and_bad_values_skipped(self):
+        j = {'data': [{'value': '71', 'value_classification': 'Greed', 'timestamp': '1790208000'},
+                      {'value': '78', 'value_classification': 'Extreme Greed', 'timestamp': '1790035200'},
+                      {'value': 'x', 'value_classification': '?', 'timestamp': '1790121600'}]}
+        f = zd.parse_fng(j)
+        self.assertEqual(f['d'], [['2026-09-22', 78, 'Extreme Greed'], ['2026-09-24', 71, 'Greed']])
+        self.assertEqual(f['asof'], '2026-09-24'); self.assertEqual(f['kind'], 'indicator')
+
+    def test_one_failing_part_does_not_erase_the_others_and_key_is_a_header(self):
+        seen = {}
+        def get_json(url, headers=None):
+            seen[url] = headers
+            if 'derivatives' in url: raise RuntimeError('429')
+            if 'defi' in url: return {'data': {'defi_market_cap': '1'}}
+            return {'data': [{'value': '50', 'value_classification': 'Neutral', 'timestamp': '1790208000'}]}
+        with mock.patch.object(zd, 'get_json', get_json):
+            out = zd.build_krypto('TAJNY-CG')
+        self.assertEqual(sorted(k for k in out if k not in ('at', 'src', 'attribution')), ['defi', 'fng'])
+        self.assertEqual(out['attribution'], 'Data by CoinGecko')
+        self.assertEqual(zd.META['ok'], {'krypto.deriv': False, 'krypto.defi': True, 'krypto.fng': True})
+        self.assertTrue(all('TAJNY' not in u for u in seen), 'klucz nie w adresie')
+        self.assertEqual(seen[zd.CG + '/global/decentralized_finance_defi'], {'x-cg-demo-api-key': 'TAJNY-CG'})
+        self.assertIsNone(seen[zd.FNG_URL])
+
+    def test_all_parts_failing_is_an_error(self):
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')):
+            with self.assertRaises(RuntimeError):
+                zd.build_krypto('')
+
+
+class MainFlowKrypto(unittest.TestCase):
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
+        self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
+        self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
+
+    def tearDown(self):
+        self.p_save.stop(); self.p_inst.stop(); self.p_kr.stop()
+
+    def test_young_previous_file_is_reused(self):
+        prev = {'at': _iso(10), 'fng': {'d': [['2026-09-24', 71, 'Greed']]}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'krypto' else None), \
+             mock.patch.object(zd, 'build_krypto', side_effect=AssertionError('bez zapytań')):
+            zd.main()
+        self.assertIs(self.saved['krypto'], prev); self.assertEqual(zd.META['ok']['krypto'], 'cached')
+
+    def test_failure_keeps_previous_and_reports(self):
+        prev = {'at': _iso(180), 'fng': {'d': [['2026-09-24', 71, 'Greed']]}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'krypto' else None), \
+             mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('żadne źródło rynku krypto nie odpowiedziało')):
+            zd.main()
+        self.assertIs(self.saved['krypto'], prev); self.assertIs(zd.META['ok']['krypto'], False)
+        self.assertIn('krypto: żadne źródło rynku krypto nie odpowiedziało', zd.META['errors'])
 
 
 if __name__ == '__main__':
