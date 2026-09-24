@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
 <title>CapitalFlowAI — CRYPTO 3D v3</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- v34: czcionki serwowane z tej samej strony (folder fonts/), bez zapytań do Google — te same kroje, ten sam wygląd -->
+<link href="fonts/fonts.css" rel="stylesheet">
 <style>
 :root{
   box-sizing:border-box;
@@ -3491,19 +3490,19 @@ function renderSectorsPage(){
 function renderSources(){
   const w=$('#page-sources');if(!w)return;
   const S=gActive()?[
-    ['OECD — indeksy giełdowe','sdmx.oecd.org','src.f.m','src.l.3w',GLIVE.src.oecd,'g.hs.oecd'],
-    ['OECD — wskaźnik wyprzedzający (CLI)','sdmx.oecd.org','src.f.m','src.l.3w',GLIVE.src.cli,'g.hs.cli'],
-    ['OECD — rentowności 10-letnie','sdmx.oecd.org','src.f.m','src.l.3w',GLIVE.src.irlt,'g.hs.irlt'],
-    ['US Treasury — rentowność 10L USA','home.treasury.gov','src.f.d','src.l.0',GLIVE.src.ust,'g.hs.ust'],
-    ['Bundesbank — rentowność 10L Niemcy','api.statistiken.bundesbank.de','src.f.d','src.l.0',GLIVE.src.buba,'g.hs.buba'],
-    ['BIS — należności transgraniczne','stats.bis.org','src.f.q','src.l.q',GLIVE.src.bis,'g.hs.bis'],
-    ['EBC przez Frankfurter — kursy walut','api.frankfurter.dev','src.f.d','src.l.0',GLIVE.src.fx,'g.hs.fx'],
+    ['OECD — indeksy giełdowe','sdmx.oecd.org','src.f.m','src.l.3w',GLIVE.src.oecd,'g.hs.oecd','oecd'],
+    ['OECD — wskaźnik wyprzedzający (CLI)','sdmx.oecd.org','src.f.m','src.l.3w',GLIVE.src.cli,'g.hs.cli','cli'],
+    ['OECD — rentowności 10-letnie','sdmx.oecd.org','src.f.m','src.l.3w',GLIVE.src.irlt,'g.hs.irlt','irlt'],
+    ['US Treasury — rentowność 10L USA','home.treasury.gov','src.f.d','src.l.0',GLIVE.src.ust,'g.hs.ust','ust'],
+    ['Bundesbank — rentowność 10L Niemcy','api.statistiken.bundesbank.de','src.f.d','src.l.0',GLIVE.src.buba,'g.hs.buba','buba'],
+    ['BIS — należności transgraniczne','stats.bis.org','src.f.q','src.l.q',GLIVE.src.bis,'g.hs.bis','bis'],
+    ['EBC przez Frankfurter — kursy walut','api.frankfurter.dev','src.f.d','src.l.0',GLIVE.src.fx,'g.hs.fx','fx'],
     ['Bank Światowy — kapitalizacja i PKB','api.worldbank.org','src.f.y','src.l.y',1,'g.hs.wb'],
-    ['CoinGecko — rynek krypto','api.coingecko.com','src.f.l','src.l.0',GLIVE.src.crypto,'g.hs.cg'],
-    ['DefiLlama — stablecoiny','stablecoins.llama.fi','src.f.d','src.l.0',GLIVE.src.stab,'g.hs.stab'],
-    ['CoinPaprika — obrót BTC wg walut','api.coinpaprika.com','src.f.l','src.l.0',GLIVE.src.fiat,'g.hs.fiat'],
-    ['SoSoValue — napływy ETF','openapi.sosovalue.com','src.f.d','src.l.0',(typeof ETF!=='undefined'&&ETF.live)?1:0,'g.hs.etf'],
-    ['Finnhub — ETF-y krajowe (DZIŚ)','finnhub.io','src.f.l','src.l.0',GLIVE.src.finnhub,'g.hs.fh']
+    ['CoinGecko — rynek krypto','api.coingecko.com','src.f.l','src.l.0',GLIVE.src.crypto,'g.hs.cg','crypto'],
+    ['DefiLlama — stablecoiny','stablecoins.llama.fi','src.f.d','src.l.0',GLIVE.src.stab,'g.hs.stab','stab'],
+    ['CoinPaprika — obrót BTC wg walut','api.coinpaprika.com','src.f.l','src.l.0',GLIVE.src.fiat,'g.hs.fiat','fiat'],
+    ['SoSoValue — napływy ETF','openapi.sosovalue.com','src.f.d','src.l.0',(typeof ETF!=='undefined'&&ETF.live)?1:0,'g.hs.etf','etf'],
+    ['Finnhub — ETF-y krajowe (DZIŚ)','finnhub.io','src.f.l','src.l.0',GLIVE.src.finnhub,'g.hs.fh','finnhub']
   ]:[
     ['SoSoValue — napływy ETF','openapi.sosovalue.com','src.f.d','src.l.0',(typeof ETF!=='undefined'&&ETF.live)?1:0,'g.hs.etf'],
     ['CoinPaprika — kursy i kapitalizacja','api.coinpaprika.com','src.f.l','src.l.0',isLive()?1:0,'src.d.cp'],
@@ -3513,10 +3512,14 @@ function renderSources(){
   w.innerHTML=`<h1>${t('pg.sources')}</h1><p class="pgsub">${t('pg.sources.d')}</p>
    <section class="panel"><div class="list-wrap"><table>
    <thead><tr><th>${t('pg.source')}</th><th>${t('pg.host')}</th><th>${t('pg.freq')}</th><th>${t('pg.lag')}</th><th>${t('pg.state')}</th></tr></thead>
-   <tbody>${S.map(([n,h,f,l,ok,d])=>`<tr><td><span class="cell"><b>${n}</b><br><small class="mtxt">${t(d)}</small></span></td>
+   <tbody>${S.map(([n,h,f,l,ok,d,k])=>{
+     /* czas ostatniej udanej odpowiedzi tego źródła (nowa informacja; brak = nic) */
+     const ms=k==='etf'?(typeof ETF!=='undefined'&&ETF.atMs):(k&&GLIVE.srcAt&&GLIVE.srcAt[k]);
+     const tm=ms?(new Date(ms).toDateString()===new Date().toDateString()?new Date(ms).toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit'}):new Date(ms).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'})):'';
+     return `<tr><td><span class="cell"><b>${n}</b><br><small class="mtxt">${t(d)}</small></span></td>
      <td><span class="cell mono">${h}</span></td><td><span class="cell">${t(f)}</span></td>
      <td><span class="cell">${t(l)}</span></td>
-     <td><span class="cell"><span class="live ${ok?'on':'off'}"><i></i>${t(ok?'pg.ok':'pg.no')}</span></span></td></tr>`).join('')}
+     <td><span class="cell"><span class="live ${ok?'on':'off'}"><i></i>${t(ok?'pg.ok':'pg.no')}</span>${ok&&tm?` <small class="mtxt">${tm}</small>`:''}</span></td></tr>`;}).join('')}
    </tbody></table></div></section>
    <section class="panel pgc"><h2>${t('pg.nosrc')}</h2><p class="mtxt">${t('pg.nosrc.d')}</p></section>`;
 }
