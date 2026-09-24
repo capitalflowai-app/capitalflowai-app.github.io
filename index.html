@@ -4032,6 +4032,7 @@ function renderSectorsPage(){
 /* v35: widoki silnika z plików data/widoki/*.json — tylko odczyt z serwera, bez zapasu w przeglądarce i bez migawki.
    Sekcje pozostają ukryte, dopóki na serwerze nie ma data/widoki/index.json. O dopuszczeniu decyduje wyłącznie
    public_display.admitted w pliku; plik po terminie valid_until albo próbny nie pokazuje liczb. */
+const ENG_OVR={};   /* v50: widok → funkcja(el) rysująca panel z pliku zbieracza; zwraca true, gdy narysowała */
 const ENG_VIEWS=['tic-flows','tic-countries','wdi-destinations','imf-portfolio-pairs','cftc-euro-fx','coinmetrics-exchange-flows','defillama-stablecoins','cftc-crypto'];
 const ENG={index:null,files:{},at:0,timer:null};
 function escH(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -4173,6 +4174,7 @@ function engWithheld(view,rec,chk){
 function renderEng(){
   const now=Date.now();
   ENG_VIEWS.forEach(v=>{const el=$('#eng-'+v);if(!el)return;
+    if(ENG_OVR[v]&&ENG_OVR[v](el))return;   /* v50: panel zasilany wprost z pliku zbieracza (np. CFTC, Coin Metrics) zamiast widoku silnika */
     if(!ENG.index){el.hidden=true;el.innerHTML='';return;}
     const rec=ENG.files[v],chk=engCheck(rec,v,now);
     if(v.startsWith('tic-')&&!(chk.ok&&chk.state==='BOUND')){el.hidden=true;el.innerHTML='';return;}   /* v47: dane TIC są w sekcji #tic wprost ze Skarbu USA — karta „nie pokazujemy” zbędna */
