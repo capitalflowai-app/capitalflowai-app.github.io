@@ -144,7 +144,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -180,7 +180,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY'])
 
 
@@ -345,7 +345,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -532,7 +532,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -622,7 +622,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -755,7 +755,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1114,7 +1114,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy')]
+                      for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1358,7 +1358,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cm', 'build_rezerwy')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1594,7 +1594,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_bis', 'build_cftc', 'build_rezerwy'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć)
+        for fn in ('build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć)
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1790,7 +1790,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1924,6 +1924,94 @@ class KursyV53(unittest.TestCase):
             out = zd.build_kursy()
         self.assertEqual(out['asof'], '2026-08'); self.assertIn('m', out); self.assertIn('EXR/M.USD+CAD', seen[0])
         self.assertIn('lastNObservations=15', seen[0]); self.assertNotIn('key', seen[0].lower())
+
+
+class ObceV54(unittest.TestCase):
+    """v54: zmierzone dzienne przepływy inwestorów zagranicznych — NSDL (Indie) i TWSE (Tajwan)."""
+    NSDL = (
+        '<html><body><table><tr><td colspan="8">Daily Trends in FPI Investments on 24-Sep-2026</td></tr>'
+        '<tr><th>Reporting Date</th><th>Debt/Equity</th><th>Route</th><th>GP</th><th>GS</th><th>Net</th><th>Net US($) million</th><th>Conv</th></tr>'
+        '<tr><td rowspan="3">23-Sep-2026</td><td rowspan="3">Equity</td><td>Stock Exchange</td><td>10.0</td><td>20.0</td><td>(10.00)</td><td>(270.67)</td><td>Rs.95.8179</td></tr>'
+        '<tr><td>Primary market &amp; others</td><td>1</td><td>0</td><td>1</td><td>0.10</td></tr>'
+        '<tr><td>Sub-total</td><td>11</td><td>20</td><td>(9)</td><td>(270.67)</td></tr>'
+        '<tr><td>Debt-General Limit</td><td>Stock Exchange</td><td>1</td><td>1</td><td>0</td><td>(20.00)</td></tr>'
+        '<tr><td>Sub-total</td><td>1</td><td>1</td><td>0</td><td>(20.00)</td></tr>'
+        '<tr><td>Debt-VRR</td><td>Stock Exchange</td><td>1</td><td>1</td><td>0</td><td>(4.91)</td></tr>'
+        '<tr><td>Sub-total</td><td>1</td><td>1</td><td>0</td><td>(4.91)</td></tr>'
+        '<tr><td>Total</td><td>1</td><td>1</td><td>0</td><td>(290.42)</td></tr>'
+        '<tr><td rowspan="2">24-Sep-2026</td><td>Equity</td><td>Stock Exchange</td><td>1</td><td>1</td><td>1</td><td>178.14</td><td>Rs.95.7310</td></tr>'
+        '<tr><td>Sub-total</td><td>1</td><td>1</td><td>1</td><td>754.19</td></tr>'
+        '<tr><td>Hybrid</td><td>Stock Exchange</td><td>1</td><td>1</td><td>1</td><td>(0.19)</td></tr>'
+        '<tr><td>Sub-total</td><td>1</td><td>1</td><td>1</td><td>(0.19)</td></tr>'
+        '<tr><td>Total</td><td>1</td><td>1</td><td>1</td><td>1,806.15</td></tr>'
+        '<tr><td>Reporting Date</td><td>Derivative Products</td></tr>'
+        '<tr><td>25-Sep-2026</td><td>Index Futures</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td></tr>'
+        '</table></body></html>')
+
+    @staticmethod
+    def tw(date, fx='-32,964,613,655', stat='OK'):
+        if stat != 'OK':
+            return {'stat': 'No Data!'}
+        return {'stat': 'OK', 'date': date.replace('-', ''), 'data': [
+            ['Dealers (Proprietary)', '1', '1', '4,235,536,088'], ['Dealers (Hedge)', '1', '1', '-2,897,105,667'],
+            ['Securities Investment Trust Companies', '1', '1', '-12,823,263,300'],
+            ['Foreign Investors include Mainland Area Investors(Foreign Dealers excluded)', '1', '1', fx],
+            ['Foreign Dealers', '0', '0', '0'], ['Total', '1', '1', '-44,449,446,534']]}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_nsdl_parse_parentheses_debt_sum_and_stop_at_derivatives(self):
+        rows = zd.parse_nsdl_html(self.NSDL)
+        self.assertEqual(rows[0], ['2026-09-23', -270.67, -24.91, None, -290.42, 95.8179])
+        self.assertEqual(rows[1], ['2026-09-24', 754.19, None, -0.19, 1806.15, 95.731], 'brak długu = None, nie zero')
+        self.assertEqual(len(rows), 2, 'tabela instrumentów pochodnych pominięta')
+        with self.assertRaises(RuntimeError):
+            zd.parse_nsdl_html('<table><tr><td>nic</td></tr></table>')
+
+    def test_twse_parse_units_and_no_session(self):
+        self.assertEqual(zd.parse_twse(self.tw('2026-09-24')), ['2026-09-24', -32964.6, -12823.3, 1338.4, -44449.4])
+        self.assertIsNone(zd.parse_twse(self.tw('2026-09-20', stat='x')), 'weekend / święto = brak, nie zero')
+        self.assertIsNone(zd.parse_twse({'stat': 'OK', 'date': '20260924', 'data': [['Total', '1', '1', '5']]}))
+
+    def test_tw_dates_skip_weekend_known_and_today_before_close(self):
+        now = datetime.datetime(2026, 9, 25, 10, 0)   # piątek 10:00 w Tajpej — dzisiejsza sesja jeszcze trwa
+        d = zd.tw_dates({'2026-09-24'}, {'2026-09-22'}, now, first=False)
+        self.assertNotIn('2026-09-25', d); self.assertNotIn('2026-09-24', d); self.assertNotIn('2026-09-22', d)
+        self.assertNotIn('2026-09-20', d); self.assertIn('2026-09-23', d); self.assertEqual(d, sorted(d))
+        self.assertIn('2026-09-25', zd.tw_dates(set(), set(), datetime.datetime(2026, 9, 25, 17, 0), first=False))
+
+    def test_build_merges_history_converts_twd_and_keeps_failed_part(self):
+        prev = {'in': {'d': [['2026-09-22', -67.67, -137.58, 2.82, -212.95, 95.8]]},
+                'tw': {'d': [['2026-09-23', -1000.0, 0, 0, 0, -31.4, '2026-09-18']], 'empty': []}}
+
+        def gj(url, headers=None):
+            if 'DEXTAUS' in url:
+                return {'observations': [{'date': '2026-09-18', 'value': '31.82'}, {'date': '2026-09-17', 'value': '.'}]}
+            day = url.split('dayDate=')[1][:8]
+            iso = f'{day[:4]}-{day[4:6]}-{day[6:]}'
+            return self.tw(iso) if iso == '2026-09-24' else self.tw(iso, stat='x')
+
+        with mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: self.NSDL.encode()), \
+                mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.build_obce('KLUCZ', prev)
+        self.assertEqual([r[0] for r in out['in']['d']], ['2026-09-22', '2026-09-23', '2026-09-24'], 'historia z poprzedniego pliku zostaje')
+        tw = {r[0]: r for r in out['tw']['d']}
+        self.assertEqual(tw['2026-09-24'][5:], [round(-32964.6 / 31.82, 1), '2026-09-18'])
+        self.assertIn('2026-09-24', tw); self.assertIn('2026-09-23', tw)
+        self.assertIn('2026-09-22', out['tw']['empty'], 'dzień bez sesji zapamiętany'); self.assertNotIn('2026-09-25', out['tw']['empty'], 'dzisiejszy brak nie jest świętem')
+        self.assertEqual(zd.META['ok'], {'obce_in': True, 'obce_tw': True})
+        self.assertFalse(any('KLUCZ' in e for e in zd.META['errors']), 'klucz nigdy w komunikatach')
+
+        def boom(url, headers=None, timeout=60):
+            raise RuntimeError('HTTP Error 503')
+        zd.META['ok'].clear()
+        with mock.patch.object(zd, 'get_bytes', boom), mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out2 = zd.build_obce('', prev)
+        self.assertIs(out2['in'], prev['in'], 'awaria NSDL: poprzednia część zostaje')
+        self.assertFalse(zd.META['ok']['obce_in']); self.assertTrue(any(e.startswith('NSDL:') for e in zd.META['errors']))
 
 
 if __name__ == '__main__':

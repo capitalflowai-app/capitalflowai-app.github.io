@@ -1630,6 +1630,198 @@ def build_kursy():
             'asof': m['USD'][-1][0], 'm': m}
 
 
+# v54: ZMIERZONE dzienne przepływy inwestorów zagranicznych — Indie (NSDL, FPI) i Tajwan (TWSE), bez klucza
+import html as _html   # biblioteka standardowa: encje w tabeli HTML NSDL
+NSDL_URL = 'https://www.fpi.nsdl.co.in/web/Reports/Monthly.aspx'
+TWSE_URL = 'https://www.twse.com.tw/rwd/en/fund/BFI82U?type=day&dayDate={d}&response=json'
+TWSE_SLEEP = 2.0          # TWSE blokuje szybkie serie zapytań (ok. 3 na 5 s)
+TWSE_MAX = 30             # najwyżej tyle dni na jeden przebieg (pierwszy przebieg: ok. 25 dni sesyjnych)
+OBCE_KEEP = 100           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg)
+NSDL_CATS = {'equity': 'eq', 'debt-general limit': 'debt', 'debt-vrr': 'debt', 'debt-far': 'debt', 'hybrid': 'hyb',
+             'mutual funds': 'mf', 'aifs': 'aif'}
+
+
+def _nsdl_num(tok):
+    """'1,705.34' → 1705.34; '(126.43)' → -126.43 (nawias = minus); brak → None."""
+    t = str(tok).replace(',', '').strip()
+    neg = t.startswith('(') and t.endswith(')')
+    try:
+        v = float(t.strip('()').strip())
+    except ValueError:
+        return None
+    return -v if neg else v
+
+
+def parse_nsdl_html(text):
+    """Tabela NSDL „Daily Trends in FPI Investments” → [[data, akcje, dług, hybrydy, razem, INR za USD], ...] w mln USD.
+    Dług = Debt-General Limit + Debt-VRR + Debt-FAR; tabela instrumentów pochodnych (dalej na stronie) pominięta."""
+    t = re.sub(r'<script.*?</script>|<style.*?</style>', '', text, flags=re.S | re.I)
+    days, date, cat = {}, None, None
+    for r in re.findall(r'<tr[^>]*>(.*?)</tr>', t, flags=re.S | re.I):
+        cells = [re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', '', c))).strip()
+                 for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, flags=re.S | re.I)]
+        if not any(cells):
+            continue
+        if any('derivative' in c.lower() for c in cells):
+            break
+        if re.match(r'^\d{2}-[A-Za-z]{3}-\d{4}$', cells[0]):
+            date = datetime.datetime.strptime(cells[0], '%d-%b-%Y').date().isoformat(); cells = cells[1:]; cat = None
+            d = days.setdefault(date, {})
+            if cells and cells[-1].lower().startswith('rs'):
+                m = re.search(r'(\d+(?:\.\d+)?)', cells[-1])
+                if m:
+                    d['inr'] = float(m.group(1))
+                cells = cells[:-1]
+        if date is None or not cells:
+            continue
+        d = days[date]
+        if cells[0].lower() == 'total' and len(cells) >= 5:
+            d['tot'] = _nsdl_num(cells[4]); continue
+        if cells[0].lower() in NSDL_CATS:
+            cat = NSDL_CATS[cells[0].lower()]; cells = cells[1:]
+        if cells and cells[0].lower() == 'sub-total' and cat and len(cells) >= 5:
+            v = _nsdl_num(cells[4])
+            if v is not None:
+                d[cat] = round(d.get(cat, 0.0) + v, 2)
+    out = [[k, days[k].get('eq'), days[k].get('debt'), days[k].get('hyb'), days[k].get('tot'), days[k].get('inr')]
+           for k in sorted(days) if days[k].get('eq') is not None and days[k].get('tot') is not None]
+    if not out:
+        raise RuntimeError('brak dni w tabeli')
+    return out
+
+
+def parse_twse(j):
+    """TWSE BFI82U (jeden dzień) → [data, zagraniczni, fundusze krajowe (SITC), dealerzy, razem] w mln TWD; brak sesji → None."""
+    if not isinstance(j, dict) or j.get('stat') != 'OK' or not isinstance(j.get('data'), list):
+        return None
+    ds = str(j.get('date') or '')
+    if not re.match(r'^\d{8}$', ds):
+        return None
+    fx = it = dl = tot = None
+    for row in j['data']:
+        if not isinstance(row, list) or len(row) < 4:
+            continue
+        name, v = str(row[0]).strip().lower(), _num(row[3])
+        if v is None:
+            continue
+        if name.startswith('foreign'):
+            fx = (fx or 0.0) + v          # inwestorzy zagraniczni (z Chin kontynentalnych) + zagraniczni dealerzy
+        elif name.startswith('securities investment trust'):
+            it = v
+        elif name.startswith('dealers'):
+            dl = (dl or 0.0) + v
+        elif name.startswith('total'):
+            tot = v
+    if fx is None:
+        return None
+    m = lambda v: None if v is None else round(v / 1e6, 1)
+    return [f'{ds[:4]}-{ds[4:6]}-{ds[6:]}', m(fx), m(it), m(dl), m(tot)]
+
+
+def tw_dates(have, empty, now_tpe, first):
+    """Dni robocze do pobrania z TWSE: brakujące w pliku, bez znanych dni bez sesji; dziś dopiero po 16:00 czasu Tajpej."""
+    today = now_tpe.date(); out = []
+    for i in range(35 if first else 10, -1, -1):
+        d = today - datetime.timedelta(days=i)
+        iso = d.isoformat()
+        if d.weekday() >= 5 or iso in have or iso in empty or (d == today and now_tpe.hour < 16):
+            continue
+        out.append(iso)
+    return out
+
+
+def twd_rates(key):
+    """FRED DEXTAUS (TWD za 1 USD, Fed H.10) → {data: kurs}; '.' = brak."""
+    j = get_json(f'{FRED}?series_id=DEXTAUS&api_key={key}&file_type=json&sort_order=desc&limit=60')
+    out = {}
+    for o in j.get('observations', []) if isinstance(j, dict) else []:
+        v = _num(o.get('value'))
+        if v and v > 0 and re.match(r'^\d{4}-\d{2}-\d{2}$', str(o.get('date', ''))):
+            out[o['date']] = v
+    return out
+
+
+def _now_utc():
+    return datetime.datetime.now(datetime.timezone.utc)   # osobno, żeby testy mogły ustawić czas
+
+
+def _rate_for(rates, day):
+    ks = [k for k in rates if k <= day] or []
+    return (max(ks), rates[max(ks)]) if ks else (None, None)
+
+
+def _rows(prev_part):
+    return {r[0]: r for r in (prev_part or {}).get('d', []) if isinstance(r, list) and r and isinstance(r[0], str)}
+
+
+def nsdl_part(prev_in):
+    rows = parse_nsdl_html(get_bytes(NSDL_URL, timeout=60).decode('utf-8', 'replace'))
+    m = _rows(prev_in); m.update({r[0]: r for r in rows})
+    d = [m[k] for k in sorted(m)][-OBCE_KEEP:]
+    return {'at': NOW, 'src': 'NSDL — Daily Trends in FPI Investments', 'url': NSDL_URL, 'unit': 'mln USD (przeliczenie NSDL)',
+            'cols': ['data raportu', 'akcje', 'dług', 'hybrydy', 'razem', 'INR za USD'], 'asof': d[-1][0], 'd': d}
+
+
+def twse_part(prev_tw, key):
+    prev_tw = prev_tw if isinstance(prev_tw, dict) else {}
+    have = {k: list(v) for k, v in _rows(prev_tw).items()}   # kopie — poprzedni plik nie jest zmieniany w miejscu
+    now_tpe = _now_utc() + datetime.timedelta(hours=8)
+    lim = (now_tpe.date() - datetime.timedelta(days=40)).isoformat()
+    empty = {x for x in prev_tw.get('empty', []) if isinstance(x, str) and x >= lim}
+    fails = []
+    for iso in tw_dates(set(have), empty, now_tpe, first=not have)[-TWSE_MAX:]:
+        time.sleep(TWSE_SLEEP)
+        try:
+            r = parse_twse(get_json(TWSE_URL.format(d=iso.replace('-', ''))))
+        except Exception as e:
+            fails.append(f'{iso}: {e}'); continue
+        if r is None:
+            if iso < now_tpe.date().isoformat():
+                empty.add(iso)      # dzień bez sesji (święto) — nie pytamy ponownie
+            continue
+        have[r[0]] = r[:5]
+    if not have:
+        raise RuntimeError('brak dni' + (f' ({fails[0]})' if fails else ''))
+    if fails:
+        META['errors'].append(mask(f'TWSE: {len(fails)} dni bez odpowiedzi, np. {fails[0]}'))
+    d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
+    rates = {}
+    if key:
+        try:
+            rates = twd_rates(key)
+        except Exception as e:
+            META['errors'].append(mask(f'TWSE kurs FRED DEXTAUS: {e}'))
+    old = _rows(prev_tw)
+    for r in d:
+        rd, rt = _rate_for(rates, r[0])
+        if rt and r[1] is not None:
+            r[5:] = [round(r[1] / rt, 1), rd]
+        elif r[0] in old and len(old[r[0]]) >= 7:
+            r[5:] = old[r[0]][5:7]          # bez nowego kursu zostaje poprzednie przeliczenie
+        else:
+            r[5:] = [None, None]
+    return {'at': NOW, 'src': 'TWSE — Trading Value of Foreign & Other Investors (BFI82U)',
+            'url': 'https://www.twse.com.tw/en/trading/foreign/bfi82u.html', 'unit': 'mln TWD; ≈ mln USD kursem Fed H.10 (FRED DEXTAUS)',
+            'cols': ['data', 'zagraniczni', 'fundusze krajowe', 'dealerzy', 'razem', '≈ mln USD (zagraniczni)', 'data kursu'],
+            'asof': d[-1][0], 'empty': sorted(empty), 'd': d}
+
+
+def build_obce(key, prev=None):
+    """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
+    prev = prev if isinstance(prev, dict) else {}
+    out = {'at': NOW}
+    for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key))):
+        try:
+            out[part] = fn(); META['ok']['obce_' + part] = True
+        except Exception as e:
+            META['errors'].append(mask(f"{'NSDL' if part == 'in' else 'TWSE'}: {e}")); META['ok']['obce_' + part] = False
+            if isinstance(prev.get(part), dict):
+                out[part] = prev[part]
+    if 'in' not in out and 'tw' not in out:
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -1858,6 +2050,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'EBC kursy: {e}')); META['ok']['kursy'] = False
             if prev_k: save('kursy', prev_k)
+    # OBCE — zmierzone dzienne przepływy inwestorów zagranicznych (NSDL Indie, TWSE Tajwan): najwyżej co 3 h
+    prev_o = previous('obce')
+    if prev_o and fresh(prev_o, 180):
+        save('obce', prev_o); META['ok']['obce'] = 'cached'
+    else:
+        try:
+            save('obce', build_obce(fred_key, prev_o)); META['ok']['obce'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'obce: {e}')); META['ok']['obce'] = False
+            if prev_o: save('obce', prev_o)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):
