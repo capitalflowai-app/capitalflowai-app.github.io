@@ -260,3 +260,33 @@ test('TradingView: wiersz na stronie Źródła, atrybucja, wpis w „Źródła i
   assert.ok(dict.pl['tv.ph'].includes('kliknij, aby załadować (treść z serwerów TradingView, mogą ustawić ciasteczka)'));
   assert.ok(dict.pl['g.hs.tv'] && dict.en['g.hs.tv'], 'opis wiersza Źródła');
 });
+
+// v42: serie Fed przez FRED (klucz właściciela) — tylko serie Fed, podpis z FRED, brak nie jest zerem
+const fp0 = html.indexOf('function fredPct(series,back){');
+const fp1 = html.indexOf('\nconst FRED={data:null};', fp0);
+const fredFns = new Function('instSign', 'nfmt', html.slice(fp0, fp1) + '\nreturn {fredPct, fredSignPct};')(
+  v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d));
+
+test('FRED: zmiana procentowa indeksu dolara liczona tylko z liczb; za krótka seria to brak, nie zero', () => {
+  const s = [['2026-09-10', 120], ['2026-09-11', 121.2], ['2026-09-12', 119.5133]];
+  assert.equal(fredFns.fredPct(s, 2).toFixed(4), '-0.4056');
+  assert.equal(fredFns.fredPct(s, 3), null, 'brak obserwacji wstecz → null');
+  assert.equal(fredFns.fredPct([['2026-09-12', 'x'], ['2026-09-13', 1]], 1), null);
+  assert.equal(fredFns.fredSignPct(-0.4056), '−0.41%'); assert.equal(fredFns.fredSignPct(1.5), '+1.50%'); assert.equal(fredFns.fredSignPct(0), '0.00%');
+});
+
+test('FRED: strona czyta fred.json z serwera, pokazuje cztery serie Fed z podpisem FRED i notą API', () => {
+  assert.ok(html.includes("srvJSON('fred')"), 'plik automatu');
+  for (const k of ['WALCL', 'RRPONTSYD', 'DTWEXBGS', 'WTREGEN']) assert.ok(html.includes(`sr('${k}')`), k);
+  assert.ok(!/sr\('(SP500|VIXCLS|BAMLH0A0HYM2)'\)/.test(html), 'tylko serie Fed');
+  const d0 = html.indexOf('const EXTRA31='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA31='.length, d1));
+  for (const l of ['pl', 'en']) {
+    assert.ok(dict[l]['inst.fred.src'].includes('Board of Governors of the Federal Reserve System (US), via FRED'), l);
+    assert.equal(dict[l]['inst.fred.api'], 'This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.');
+  }
+  assert.ok(html.includes("'api.stlouisfed.org','src.f.d','src.l.0',GLIVE.src.fred,'g.hs.fred','fred']"), 'wiersz Źródła');
+  assert.ok(html.includes("['Board of Governors of the Federal Reserve System (US), via FRED','https://fred.stlouisfed.org']"), 'atrybucja');
+  assert.ok(html.includes('<summary><b>Federal Reserve przez FRED</b>'), 'Źródła i prawa');
+  assert.ok(html.includes("if(!INST.data&&!FRED.data){el.hidden=true;el.innerHTML='';return;}"), 'sekcja także z samym FRED');
+});

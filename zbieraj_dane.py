@@ -30,6 +30,19 @@ TD_OUTPUT = 45      # ≈ 2 miesiące sesji; 1M = 21 sesji + zapas
 TD_MIN_SYMBOLS = 10
 TD_MIN_CANDLES = 22
 CMC = 'https://pro-api.coinmarketcap.com'
+# FRED (Federal Reserve Bank of St. Louis) — tylko serie Rady Gubernatorów Fed: domena publiczna, „citation requested”.
+# Serie firm trzecich na FRED (SP500, VIXCLS, BAMLH0A0HYM2 …) wymagają zgody właściciela — nie pobieramy.
+FRED = 'https://api.stlouisfed.org/fred/series/observations'
+FRED_SERIES = {
+    'WALCL': {'unit': 'mln USD', 'freq': 'W', 'name': 'Fed: aktywa razem (H.4.1), środa'},
+    'RRPONTSYD': {'unit': 'mld USD', 'freq': 'D', 'name': 'Reverse repo overnight, wolumen dnia'},
+    'DTWEXBGS': {'unit': 'indeks (styczeń 2006 = 100)', 'freq': 'D', 'name': 'Szeroki nominalny indeks dolara'},
+    'WTREGEN': {'unit': 'mln USD', 'freq': 'W', 'name': 'Konto rządu USA w Fed (TGA) wg H.4.1, środa'},
+}
+FRED_LIMIT = 60      # ostatnie 60 obserwacji: ~1 rok tygodniowych, ~3 miesiące dziennych
+FRED_SLEEP = 0.6     # limit FRED: 120 zapytań/min — 4 zapytania na przebieg z odstępem
+FRED_CITE = 'Board of Governors of the Federal Reserve System (US), via FRED, Federal Reserve Bank of St. Louis'
+FRED_API_NOTE = 'This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.'
 OUT = 'data'
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 META = {'at': NOW, 'ok': {}, 'errors': []}
@@ -389,6 +402,41 @@ def build_cmc(key):
     return out
 
 
+def parse_fred(j, sid):
+    """FRED observations → [[data, wartość]] rosnąco; '.' albo pusta wartość = brak (pomijamy, nigdy 0)."""
+    if not isinstance(j, dict) or 'observations' not in j:
+        raise RuntimeError(f'{sid}: odpowiedź bez observations' + (f" ({j.get('error_message')})" if isinstance(j, dict) and j.get('error_message') else ''))
+    rows = []
+    for o in j.get('observations', []):
+        d = str(o.get('date', ''))[:10]
+        v = _num(o.get('value')) if str(o.get('value', '')).strip() != '.' else None
+        if v is None or not re.match(r'^\d{4}-\d{2}-\d{2}$', d):
+            continue
+        rows.append([d, v])
+    rows.sort(key=lambda x: x[0])
+    if not rows:
+        raise RuntimeError(f'{sid}: brak obserwacji z wartością')
+    meta = FRED_SERIES[sid]
+    return {'unit': meta['unit'], 'freq': meta['freq'], 'name': meta['name'], 'asof': rows[-1][0], 'd': rows}
+
+
+def build_fred(key):
+    """data/fred.json — serie Rady Gubernatorów Fed przez FRED API (klucz tylko w adresie zapytania, nigdy w komunikatach).
+    Każda seria osobno: awaria jednej nie kasuje pozostałych (brak nie jest zerem)."""
+    out = {'at': NOW, 'src': FRED_CITE, 'api_note': FRED_API_NOTE, 'url': 'https://fred.stlouisfed.org/', 'series': {}}
+    for sid in FRED_SERIES:
+        time.sleep(FRED_SLEEP)
+        try:
+            j = get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit={FRED_LIMIT}')
+            out['series'][sid] = parse_fred(j, sid)
+            print(f"FRED {sid}: stan {out['series'][sid]['asof']}")
+        except Exception as e:
+            META['errors'].append(mask(f'FRED {sid}: {e}'))
+    if not out['series']:
+        raise RuntimeError('żadna seria FRED nie odpowiedziała')
+    return out
+
+
 def build_etf(key, cg_key):
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
     # kapitalizacje (CoinGecko) — do udziału ETF w rynku
@@ -452,7 +500,8 @@ def main():
     fh_key = os.environ.get('FINNHUB_KEY', '').strip()
     td_key = os.environ.get('TWELVEDATA_KEY', '').strip()
     cmc_key = os.environ.get('COINMARKETCAP_KEY', '').strip()
-    SECRETS[:] = [k for k in (soso_key, cg_key, fh_key, td_key, cmc_key) if k]
+    fred_key = os.environ.get('FRED_KEY', '').strip()
+    SECRETS[:] = [k for k in (soso_key, cg_key, fh_key, td_key, cmc_key, fred_key) if k]
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
     prev_etf = previous('etf') if soso_key else None
@@ -498,6 +547,18 @@ def main():
             if prev: save('cmc', prev)
     else:
         META['errors'].append('brak COINMARKETCAP_KEY'); META['ok']['coinmarketcap'] = False
+    # FRED (klucz właściciela): cztery serie Fed, najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik
+    prev_fred = previous('fred') if fred_key else None
+    if fred_key and prev_fred and fresh(prev_fred, 55):
+        save('fred', prev_fred); META['ok']['fred'] = 'cached'; print('FRED: dane z', prev_fred.get('at'), '— młodsze niż 55 min, bez zapytań do FRED')
+    elif fred_key:
+        try:
+            save('fred', build_fred(fred_key)); META['ok']['fred'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'FRED: {e}')); META['ok']['fred'] = False
+            if prev_fred: save('fred', prev_fred); print('FRED zawiódł — zachowano poprzedni fred.json z', prev_fred.get('at'))
+    else:
+        META['errors'].append('brak FRED_KEY'); META['ok']['fred'] = False
     # INSTYTUCJE (bez klucza): najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_inst = previous('instytucje')
     if prev_inst and fresh(prev_inst, 55):

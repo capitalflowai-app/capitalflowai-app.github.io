@@ -169,7 +169,7 @@ class MainFlow(unittest.TestCase):
             zd.main()
         self.assertIn('meta', self.saved)
         self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith('instytucje') and not e.startswith('poprzedni')],
-                         ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY'])
+                         ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY'])
 
 
 class BuildDay(unittest.TestCase):
@@ -528,6 +528,97 @@ class MainFlowInstytucje(unittest.TestCase):
             zd.main()
         self.assertIs(self.saved['instytucje'], prev); self.assertIs(zd.META['ok']['instytucje'], False)
         self.assertIn('instytucje: nic nie odpowiedziało', zd.META['errors'])
+
+
+class ParseFred(unittest.TestCase):
+    """B.2 zadania „więcej danych”: FRED API, '.' = brak (nigdy zero), rosnąco po dacie, tylko serie Fed."""
+
+    def test_dot_and_empty_values_are_skipped_and_rows_ascend(self):
+        j = {'observations': [{'date': '2026-09-23', 'value': '0.461'}, {'date': '2026-09-22', 'value': '.'},
+                              {'date': '2026-09-21', 'value': ''}, {'date': '2026-09-19', 'value': '2.155'}]}
+        out = zd.parse_fred(j, 'RRPONTSYD')
+        self.assertEqual(out['d'], [['2026-09-19', 2.155], ['2026-09-23', 0.461]])
+        self.assertEqual(out['asof'], '2026-09-23'); self.assertEqual(out['unit'], 'mld USD'); self.assertEqual(out['freq'], 'D')
+
+    def test_weekly_series_in_millions_keeps_documented_value(self):
+        j = {'observations': [{'date': '2026-09-16', 'value': '6746548.0'}, {'date': '2026-09-09', 'value': '6750000.0'}]}
+        out = zd.parse_fred(j, 'WALCL')
+        self.assertEqual(out['d'][-1], ['2026-09-16', 6746548.0]); self.assertEqual(out['unit'], 'mln USD')
+
+    def test_no_observations_or_error_body_is_an_error_not_a_zero(self):
+        with self.assertRaises(RuntimeError):
+            zd.parse_fred({'observations': [{'date': '2026-09-16', 'value': '.'}]}, 'WALCL')
+        with self.assertRaises(RuntimeError) as cm:
+            zd.parse_fred({'error_code': 400, 'error_message': 'Bad Request. Variable api_key is not set.'}, 'WALCL')
+        self.assertIn('api_key is not set', str(cm.exception))
+
+    def test_only_fed_series_are_configured(self):
+        self.assertEqual(sorted(zd.FRED_SERIES), ['DTWEXBGS', 'RRPONTSYD', 'WALCL', 'WTREGEN'])
+        for third_party in ('SP500', 'VIXCLS', 'BAMLH0A0HYM2'):
+            self.assertNotIn(third_party, zd.FRED_SERIES)
+        self.assertIn('Board of Governors of the Federal Reserve System', zd.FRED_CITE)
+        self.assertIn('not endorsed or certified by the Federal Reserve Bank of St. Louis', zd.FRED_API_NOTE)
+
+
+class BuildFred(unittest.TestCase):
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.SECRETS[:] = ['TAJNY-FRED']
+        self.p_sleep = mock.patch.object(zd.time, 'sleep', lambda s: None); self.p_sleep.start()
+
+    def tearDown(self):
+        self.p_sleep.stop(); zd.SECRETS[:] = []
+
+    def test_one_failing_series_does_not_erase_the_others_and_key_never_leaks(self):
+        def get_json(url, headers=None):
+            self.assertIn('api_key=TAJNY-FRED', url); self.assertIn('file_type=json', url)
+            if 'series_id=DTWEXBGS' in url:
+                raise RuntimeError('HTTP 500 for ' + url)
+            return {'observations': [{'date': '2026-09-16', 'value': '5'}]}
+        with mock.patch.object(zd, 'get_json', get_json):
+            out = zd.build_fred('TAJNY-FRED')
+        self.assertEqual(sorted(out['series']), ['RRPONTSYD', 'WALCL', 'WTREGEN'])
+        self.assertEqual(out['src'], zd.FRED_CITE); self.assertEqual(out['api_note'], zd.FRED_API_NOTE)
+        self.assertTrue(any(e.startswith('FRED DTWEXBGS:') for e in zd.META['errors']))
+        self.assertTrue(all('TAJNY' not in e for e in zd.META['errors']), zd.META['errors'])
+
+    def test_all_series_failing_is_an_error(self):
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')):
+            with self.assertRaises(RuntimeError):
+                zd.build_fred('TAJNY-FRED')
+
+
+class MainFlowFred(unittest.TestCase):
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
+        self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
+
+    def tearDown(self):
+        self.p_save.stop(); self.p_inst.stop()
+
+    def test_young_previous_file_is_reused_without_asking_fred(self):
+        prev = {'at': _iso(10), 'series': {'WALCL': {'d': [['2026-09-16', 1.0]]}}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': '', 'FRED_KEY': 'TAJNY-FRED'}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'fred' else None), \
+             mock.patch.object(zd, 'build_fred', side_effect=AssertionError('bez zapytań')):
+            zd.main()
+        self.assertIs(self.saved['fred'], prev); self.assertEqual(zd.META['ok']['fred'], 'cached')
+
+    def test_failure_keeps_previous_and_reports(self):
+        prev = {'at': _iso(180), 'series': {'WALCL': {'d': [['2026-09-16', 1.0]]}}}
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': '', 'FRED_KEY': 'TAJNY-FRED'}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'fred' else None), \
+             mock.patch.object(zd, 'build_fred', side_effect=RuntimeError('żadna seria FRED nie odpowiedziała')):
+            zd.main()
+        self.assertIs(self.saved['fred'], prev); self.assertIs(zd.META['ok']['fred'], False)
+        self.assertIn('FRED: żadna seria FRED nie odpowiedziała', zd.META['errors'])
+
+    def test_missing_key_is_reported_and_no_file_is_written(self):
+        env = {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': '', 'FRED_KEY': ''}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'previous', lambda name: None), \
+             mock.patch.object(zd, 'build_fred', side_effect=AssertionError('bez zapytań')):
+            zd.main()
+        self.assertNotIn('fred', self.saved); self.assertIs(zd.META['ok']['fred'], False); self.assertIn('brak FRED_KEY', zd.META['errors'])
 
 
 if __name__ == '__main__':
