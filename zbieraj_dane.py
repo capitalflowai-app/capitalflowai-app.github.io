@@ -1842,8 +1842,24 @@ def build_krypto(cg_key):
     return out
 
 
-def build_etf(key, cg_key):
+ETF_KEEP_DAYS = 60   # v55: tyle dni trzyma etf.json (SoSoValue oddaje tylko ok. 21 ostatnich — reszta z poprzedniego pliku)
+
+
+def etf_merge_days(prev_day, new_day):
+    """v55: [[ts, mln USD], ...] — nowe okno SoSoValue + starsze dni z poprzedniego pliku, TYLKO gdy okna się nakładają
+    (bez cichej luki w sumie 22 sesji); dla tego samego dnia wygrywa nowa wartość; ostatnie ETF_KEEP_DAYS dni."""
+    new = [r for r in (new_day or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], int)]
+    old = [r for r in (prev_day or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], int) and not isinstance(r[0], bool)
+           and isinstance(r[1], (int, float)) and not isinstance(r[1], bool)]
+    if not new or not old or max(r[0] for r in old) < min(r[0] for r in new):
+        return new
+    m = {r[0]: r[1] for r in old}; m.update({r[0]: r[1] for r in new})
+    return [[k, m[k]] for k in sorted(m)][-ETF_KEEP_DAYS:]
+
+
+def build_etf(key, cg_key, prev=None):
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
+    prev_assets = prev.get('assets') if isinstance(prev, dict) and isinstance(prev.get('assets'), dict) else {}
     # kapitalizacje (CoinGecko) — do udziału ETF w rynku
     try:
         u = ('https://api.coingecko.com/api/v3/simple/price?ids=' + ','.join(CG_IDS.values())
@@ -1856,7 +1872,8 @@ def build_etf(key, cg_key):
         META['ok']['coingecko'] = False
     for s in ETF_SYMS:
         try:
-            _etf_coin(out, s, key)
+            pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
+            _etf_coin(out, s, key, pa.get('day'))
         except Exception as e:   # v49: brak jednej monety nie kasuje pozostałych
             META['errors'].append(mask(f'SoSoValue {s.upper()}: {e}'))
     if not out['assets']:
@@ -1867,14 +1884,14 @@ def build_etf(key, cg_key):
     return out
 
 
-def _etf_coin(out, s, key):
+def _etf_coin(out, s, key, prev_day=None):
         """v49: dane jednej monety (wydzielone z build_etf, żeby błąd jednej nie kasował pozostałych)."""
         rows = soso(f'/etfs/summary-history?symbol={s.upper()}&country_code=US&limit=60', key)
         rows = [r for r in rows if r.get('date') and r.get('total_net_inflow') is not None]
         rows.sort(key=lambda r: r['date'])
         if not rows:
             raise RuntimeError(f'SoSoValue: brak danych dla {s}')
-        day = [[ts(r['date']), r['total_net_inflow'] / 1e6] for r in rows]
+        day = etf_merge_days(prev_day, [[ts(r['date']), r['total_net_inflow'] / 1e6] for r in rows])   # v55: historia dłuższa niż okno API
         last = rows[-1]
         out['asof'] = max(out['asof'], last['date'])
         aum = last['total_net_assets'] / 1e6 if last.get('total_net_assets') else None
@@ -1928,7 +1945,7 @@ def main():
         save('etf', prev_etf); META['ok']['sosovalue'] = 'cached'; print('ETF: dane z', prev_etf.get('at'), '— młodsze niż 55 min, bez zapytań do SoSoValue')
     elif soso_key:
         try:
-            save('etf', build_etf(soso_key, cg_key)); META['ok']['sosovalue'] = True
+            save('etf', build_etf(soso_key, cg_key, prev_etf)); META['ok']['sosovalue'] = True
         except Exception as e:
             META['errors'].append(mask(f'SoSoValue: {e}')); META['ok']['sosovalue'] = False
             if prev_etf: save('etf', prev_etf); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))

@@ -2014,5 +2014,47 @@ class ObceV54(unittest.TestCase):
         self.assertFalse(zd.META['ok']['obce_in']); self.assertTrue(any(e.startswith('NSDL:') for e in zd.META['errors']))
 
 
+class EtfHistoryV55(unittest.TestCase):
+    """v55: SoSoValue oddaje ok. 21 dni — suma 22 sesji z historii poprzedniego pliku, tylko gdy okna się nakładają."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    @staticmethod
+    def days(start, n, v=1.0):
+        d0 = datetime.date.fromisoformat(start); out = []
+        while len(out) < n:
+            if d0.weekday() < 5:
+                out.append(d0.isoformat())
+            d0 += datetime.timedelta(days=1)
+        return out
+
+    def test_merge_overlap_extends_and_new_values_win(self):
+        old = [[zd.ts(d), 1.0] for d in self.days('2026-08-24', 21)]
+        new = [[zd.ts(d), 2.0] for d in self.days('2026-08-25', 21)]
+        m = zd.etf_merge_days(old, new)
+        self.assertEqual(len(m), 22); self.assertEqual(m[0], old[0]); self.assertEqual(m[-1][1], 2.0)
+        self.assertEqual(sum(1 for r in m if r[1] == 2.0), 21, 'nakładające się dni: wartość z nowego okna')
+
+    def test_merge_without_overlap_keeps_only_new(self):
+        old = [[zd.ts(d), 1.0] for d in self.days('2026-06-01', 21)]
+        new = [[zd.ts(d), 2.0] for d in self.days('2026-08-25', 21)]
+        self.assertEqual(zd.etf_merge_days(old, new), new, 'luka między oknami — bez sklejania')
+        self.assertEqual(zd.etf_merge_days(None, new), new)
+        self.assertEqual(zd.etf_merge_days([['x', 1], [zd.ts('2026-08-25'), 'a']], new), new, 'śmieci z poprzedniego pliku pominięte')
+
+    def test_build_uses_previous_history_for_22_sessions(self):
+        new_dates = self.days('2026-08-25', 21)
+        prev = {'assets': {s: {'day': [[zd.ts(d), 10.0] for d in self.days('2026-08-24', 21)]} for s in zd.ETF_SYMS}}
+        history = {s: _rows(new_dates) for s in zd.ETF_SYMS}
+        with mock.patch.object(zd, 'soso', _soso_factory(history, {s: [] for s in zd.ETF_SYMS}, {})), \
+                mock.patch.object(zd, 'get_json', side_effect=RuntimeError('brak sieci')):
+            out = zd.build_etf('klucz', '', prev)
+            out0 = zd.build_etf('klucz', '')
+        a = out['assets']['btc']
+        self.assertEqual((len(a['day']), a['m_n']), (22, 22)); self.assertAlmostEqual(a['m'], 10.0 + 21 * 100.0)
+        self.assertIsNone(out0['assets']['btc']['m'], 'bez poprzedniego pliku: 21 dni = brak sumy 22 sesji (bez zmian)')
+
+
 if __name__ == '__main__':
     unittest.main()
