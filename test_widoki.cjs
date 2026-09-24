@@ -71,3 +71,38 @@ test('każdy z ośmiu widoków ma w stronie własną sekcję', () => {
     assert.ok(html.includes(`id="eng-${view}" hidden`), view);
   }
 });
+
+// v36: dokładny tekst w mln USD (Bank Światowy) — te same reguły co na lokalnej stronie silnika (destinations_page.py)
+const m0 = html.indexOf('function engInc(');
+assert.ok(m0 > 0, 'index.html musi zawierać engInc/engMln (v36)');
+const m1 = html.indexOf('const engK=(label,value,wrap)=>', m0);
+assert.ok(m1 > m0, 'engMln musi kończyć się przed engK');
+const mlnFor = (lang) => new Function('LANG', html.slice(m0, m1) + '\nreturn engMln;')(lang);
+const mln = mlnFor('pl');
+
+test('mln USD: zaokrąglenie do parzystej z dokładnego tekstu, bez zmiennoprzecinkowych błędów', () => {
+  assert.equal(mln('382049649287.081'), '+382 049,6');
+  assert.equal(mln('-19616207108.3879'), '−19 616,2');
+  assert.equal(mln('1250000'), '+1,2');      // remis: cyfra parzysta zostaje
+  assert.equal(mln('1350000'), '+1,4');      // remis: cyfra nieparzysta idzie w górę
+  assert.equal(mln('1250000.001'), '+1,3');  // powyżej remisu
+  assert.equal(mln('999950000'), '+1 000,0'); // przeniesienie przez tysiące
+});
+
+test('mln USD: kwota poniżej 0,1 mln nie jest zerem, zero bez znaku, −0 ze znakiem tylko gdy zgłoszone', () => {
+  assert.equal(mln('49999'), '+<0,1');
+  assert.equal(mln('-40000'), '−<0,1');
+  assert.equal(mln('0'), '0,0');
+  assert.equal(mln('-0'), '0,0');
+  assert.equal(mln('-0', true), '−0,0');
+  assert.equal(mln('1e5'), null);
+  assert.equal(mln(5), null);
+  assert.equal(mlnFor('en')('-1'), '−<0.1');
+  assert.equal(mlnFor('en')('382049649287.081'), '+382 049.6');
+});
+
+test('sekcja Banku Światowego ma etykiety v36 w obu językach', () => {
+  for (const key of ['eng.c.economy', 'eng.d.in', 'eng.d.out', 'eng.k.cov', 'eng.prev.gap', 'eng.prev.zero']) {
+    assert.ok(html.includes(`"${key}":`), key);
+  }
+});

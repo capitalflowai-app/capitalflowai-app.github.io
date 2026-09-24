@@ -696,6 +696,13 @@ td .cell .logo-img{width:34px;height:34px}
       </div>
       <p class="mtxt keyhint" data-i18n-html="key.fh.hint"></p>
       <div class="set-row cust">
+        <span data-i18n="key.td.label"></span>
+        <div class="tools keyrow">
+          <span id="td-st"></span>
+        </div>
+      </div>
+      <p class="mtxt keyhint" data-i18n-html="key.td.hint"></p>
+      <div class="set-row cust">
         <span data-i18n="key.cg.label"></span>
         <div class="tools keyrow">
           <input type="password" id="cg-key" class="keyin" autocomplete="off" spellcheck="false" data-i18n-ph="etf.key.ph">
@@ -723,6 +730,7 @@ td .cell .logo-img{width:34px;height:34px}
       </div>
       <div class="seg" id="g-period" role="group">
         <button data-v="1D" aria-pressed="false" data-i18n="g.p.1D" hidden></button>
+        <button data-v="1T" aria-pressed="false" data-i18n="g.p.1T" hidden></button>
         <button data-v="1M" aria-pressed="true" data-i18n="g.p.1M"></button>
         <button data-v="1Q" aria-pressed="false" data-i18n="g.p.1Q"></button>
         <button data-v="1R" aria-pressed="false" data-i18n="g.p.1R"></button>
@@ -920,6 +928,14 @@ for(const l in EXTRA21)Object.assign(I18N[l],EXTRA21[l]);
 const EXTRA22={"pl":{"eng.b.state":"Stan na {p} · pobrano {c}","eng.b.off":"Nie pokazujemy","eng.kept":"zachowane z poprzedniego przebiegu od {d}","eng.failed":"ostatnie pobranie nie powiodło się","eng.gap":"brak danych — to nie zero","eng.k.age":"Wiek danych","eng.k.src":"Źródło","eng.k.rights":"Prawa do danych","eng.k.why":"Dlaczego nie pokazujemy","eng.notsays":"Czego te dane nie mówią","eng.c.group":"Grupa uczestników","eng.oi":"otwarte kontrakty","eng.p.none":"źródło nie podaje daty okresu","eng.p.month":"miesiąc {v}","eng.p.half":"{h} półrocze {y}","eng.p.year":"rok {v}","eng.foot":"Plik z {g} · plik ważny do {v} · odcisk pliku źródłowego {s}…","eng.foot.w":"Stan z {g}.","eng.disclaimer":"Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.","eng.r.SITE_FILE_MISSING":"Na serwerze nie ma jeszcze pliku tego widoku.","eng.r.SITE_FILE_INVALID":"Plik tego widoku nie przeszedł sprawdzenia na stronie. Nie pokazujemy wartości.","eng.r.SITE_TRIAL_FILE":"To plik z przebiegu próbnego, nie do publikacji.","eng.r.FILE_EXPIRED":"Plik z danymi jest starszy niż limit ustalony dla tego źródła. Nie pokazujemy wartości.","eng.r.MARKET_MISSING":"Tego rynku nie było w raporcie. To nie znaczy zera.","eng.t.tic-flows":"Przepływy: zagranica ↔ USA","eng.t.tic-countries":"Skąd płynie kapitał do papierów USA","eng.t.wdi-destinations":"Dokąd płynie kapitał portfelowy","eng.t.imf-portfolio-pairs":"Kto trzyma czyje papiery","eng.t.cftc-euro-fx":"Pozycjonowanie EURO FX","eng.t.coinmetrics-exchange-flows":"Czy bitcoin i ether płyną na giełdy","eng.t.defillama-stablecoins":"Na które sieci płyną stablecoiny","eng.t.cftc-crypto":"Kontrakty na Bitcoin i Ether (CME)"},
 "en":{"eng.b.state":"As of {p} · fetched {c}","eng.b.off":"Not shown","eng.kept":"kept from an earlier run since {d}","eng.failed":"last fetch failed","eng.gap":"no data — not zero","eng.k.age":"Data age","eng.k.src":"Source","eng.k.rights":"Data rights","eng.k.why":"Why not shown","eng.notsays":"What this data does not say","eng.c.group":"Trader group","eng.oi":"open interest","eng.p.none":"the source gives no period date","eng.p.month":"month {v}","eng.p.half":"half {h} of {y}","eng.p.year":"year {v}","eng.foot":"File from {g} · valid until {v} · source file fingerprint {s}…","eng.foot.w":"State as of {g}.","eng.disclaimer":"Observation, not forecast. This is not investment advice or a recommendation. (Texts inside the file are in Polish.)","eng.r.SITE_FILE_MISSING":"The server has no file for this view yet.","eng.r.SITE_FILE_INVALID":"This view's file failed the page's checks. No values shown.","eng.r.SITE_TRIAL_FILE":"A trial-run file, not for publication.","eng.r.FILE_EXPIRED":"The data file is older than the limit set for this source. No values shown.","eng.r.MARKET_MISSING":"This market was not in the report. That does not mean zero.","eng.t.tic-flows":"Flows: abroad ↔ USA","eng.t.tic-countries":"Where capital flows into US securities from","eng.t.wdi-destinations":"Where portfolio capital goes","eng.t.imf-portfolio-pairs":"Who holds whose securities","eng.t.cftc-euro-fx":"EURO FX positioning","eng.t.coinmetrics-exchange-flows":"Are bitcoin and ether flowing to exchanges","eng.t.defillama-stablecoins":"Which chains stablecoins flow to","eng.t.cftc-crypto":"Bitcoin and Ether futures (CME)"}};
 for(const l in EXTRA22)Object.assign(I18N[l],EXTRA22[l]);
+/* v36: okresy 1T i 1M z dziennych notowań ETF-ów (Twelve Data, plik ceny.json z serwera) */
+const EXTRA24={"pl":{"g.p.1T":"1T","g.per.1T":"tydzień (5 sesji)","g.m.regtd":"Kapitalizacja rynku akcji × zmiana ceny ETF-u krajowego notowanego w USA od zamknięcia {n} sesji temu (ETF-y są w dolarach, więc bez przeliczania walut). To pomiar zmiany ceny, nie przelewów między krajami. W godzinach sesji w USA ostatnia wartość jest bieżąca, nie zamknięcie.","g.src.regtd":"dzienne notowania ETF-ów (plan Basic, pobierane przez automat strony co ok. 1 h) · Bank Światowy (kapitalizacja rynków)","g.hs.td":"Dzienne zamknięcia 14 ETF-ów krajowych notowanych w USA (te same co dla okresu DZIŚ). Zasilają okresy 1T (5 sesji) i 1M (21 sesji). Limity dostawcy: 8 zapytań na minutę, 800 na dzień; automat pyta najwyżej raz na godzinę. Plan Basic — użycie osobiste i niekomercyjne; przed etapem opłat wymaga wyjaśnienia.","g.d.td":"Zmiana ceny ETF-ów (Twelve Data)","g.d.tdnote":"zmiana ceny ETF od zamknięcia 5 albo 21 sesji temu — pomiar, nie szacunek · plik z {t}","g.td.none":"brak danych","key.td.label":"Twelve Data (okresy 1T i 1M regionów)","key.td.hint":"Klucz Twelve Data jest tylko na serwerze strony (GitHub Actions). Widz niczego nie wpisuje. Plik <code>data/ceny.json</code> odświeża się co ok. godzinę.","ceny.s.srv":"działa · dane z serwera strony (plik z {t}) — klucz niepotrzebny","ceny.s.none":"brak pliku ceny.json na serwerze — okres 1T ukryty, 1M liczony jak dotąd z OECD"},
+"en":{"g.p.1T":"1W","g.per.1T":"week (5 sessions)","g.m.regtd":"Equity market capitalisation × change in the price of the US-listed country ETF since the close {n} sessions ago (the ETFs trade in dollars, so no currency conversion). It measures a price change, not transfers between countries. During US trading hours the latest value is the current price, not a close.","g.src.regtd":"daily ETF quotes (Basic plan, fetched by the site's server job about hourly) · World Bank (market capitalisation)","g.hs.td":"Daily closes of the 14 US-listed country ETFs (the same ones as the TODAY period). They feed the 1W (5 sessions) and 1M (21 sessions) periods. Provider limits: 8 requests per minute, 800 per day; the job asks at most once an hour. Basic plan — personal and non-commercial use; to be clarified before any paid stage.","g.d.td":"ETF price change (Twelve Data)","g.d.tdnote":"ETF price change since the close 5 or 21 sessions ago — a measurement, not an estimate · file from {t}","g.td.none":"no data","key.td.label":"Twelve Data (1W and 1M periods by region)","key.td.hint":"The Twelve Data key lives only on the site's server (GitHub Actions). Visitors enter nothing. The file <code>data/ceny.json</code> refreshes about hourly.","ceny.s.srv":"working · data from the site server (file from {t}) — no key needed","ceny.s.none":"no ceny.json on the server — the 1W period is hidden and 1M is computed from OECD as before"}};
+for(const l in EXTRA24)Object.assign(I18N[l],EXTRA24[l]);
+/* v36: widok Banku Światowego (napływy/odpływy netto według gospodarek) z pliku silnika */
+const EXTRA23={"pl":{"eng.c.rank":"#","eng.c.economy":"Gospodarka","eng.c.year":"{y}, mln USD","eng.c.prev":"{y}, mln USD","eng.d.in":"Największe napływy netto w {y} — {n} z {t}","eng.d.out":"Największe odpływy netto w {y} — {n} z {t}","eng.d.none.in":"W {y} żadna gospodarka z danymi nie miała napływu netto.","eng.d.none.out":"W {y} żadna gospodarka z danymi nie miała odpływu netto.","eng.k.in":"Największy napływ netto {y}","eng.k.out":"Największy odpływ netto {y}","eng.k.cov":"Gospodarki z danymi za {y}","eng.k.cov.v":"{a} z {e} · bez danych: {b}","eng.mln":"mln USD","eng.exact":"dokładnie: {v} USD","eng.prev.gap":"brak danych za rok wcześniej — to nie zero","eng.prev.zero":" (netto zero)","eng.prev.negzero":" (netto zero, zgłoszone jako −0)"},
+"en":{"eng.c.rank":"#","eng.c.economy":"Economy","eng.c.year":"{y}, USD million","eng.c.prev":"{y}, USD million","eng.d.in":"Largest net inflows in {y} — {n} of {t}","eng.d.out":"Largest net outflows in {y} — {n} of {t}","eng.d.none.in":"In {y} no economy with data had a net inflow.","eng.d.none.out":"In {y} no economy with data had a net outflow.","eng.k.in":"Largest net inflow {y}","eng.k.out":"Largest net outflow {y}","eng.k.cov":"Economies with data for {y}","eng.k.cov.v":"{a} of {e} · without data: {b}","eng.mln":"USD million","eng.exact":"exactly: {v} USD","eng.prev.gap":"no data for the previous year — not zero","eng.prev.zero":" (net zero)","eng.prev.negzero":" (net zero, reported as −0)"}};
+for(const l in EXTRA23)Object.assign(I18N[l],EXTRA23[l]);
 
 /* ===================== STAN I DANE ===================== */
 const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2176,7 +2192,7 @@ const GB_=Object.fromEntries(GREG.map(r=>[r.id,r]));
 /* Powiązania bankowe BIS (należności transgraniczne) — struktura korytarzy.
    Wypełniane na żywo; zanim przyjdą, korytarze liczone są proporcjonalnie. */
 let GLINK=null;
-const GPER=['1D','1M','1Q','1R'];   /* 1D = dzisiejsza sesja z ETF-ów krajowych (Finnhub, wymaga klucza) */
+const GPER=['1D','1T','1M','1Q','1R'];   /* 1D = dzisiejsza sesja z ETF-ów krajowych (Finnhub); 1T i 1M z pliku ceny.json (Twelve Data), 1M bez pliku = OECD */
 const gst={period:'1M',sel:null,hover:null,label:'both',dots:'mid'};
 const gv={x:0,y:0,k:1};   /* lupa: przesunięcie i powiększenie mapy */
 const GLIVE={st:'idle',err:'',at:'',oecd:null,fx:null,crypto:null,stab:null,asof:'',src:{},srcAt:{},failN:0};
@@ -2358,7 +2374,38 @@ function gDayLive(cb){
     .catch(e=>{GLIVE.dayErr=e.message;})))
   .then(()=>{gDayApply(q);gDayBusy=false;gPeriodButtons();cb&&cb();});
 }
+/* ---------- ceny.json (Twelve Data przez automat na serwerze): zamknięcia dzienne 14 ETF-ów zastępczych → 1T (5 sesji) i 1M (21 sesji) ---------- */
+const GCENY_N={'1T':5,'1M':21};
+function gCenyApply(j){
+  const ok=!!(j&&typeof j==='object'&&j.q&&typeof j.q==='object'&&typeof j.at==='string'&&Object.keys(j.q).length);
+  GLIVE.ceny=ok?j:null;if(ok)gOk('twelvedata');
+  gPeriodButtons();if(typeof tdStatus==='function')tdStatus();
+}
+function gCenyHas(){const C=GLIVE.ceny;return !!(C&&C.q&&Object.values(GPROXY).flat().some(x=>C.q[x[0]]));}
+function gCenyDp(sym,per){
+  const C=GLIVE.ceny,n=GCENY_N[per];if(!C||!C.q||!n)return null;
+  const d=C.q[sym]&&C.q[sym].d;if(!Array.isArray(d)||d.length<n+1)return null;
+  const last=d[d.length-1][1],ref=d[d.length-1-n][1];
+  if(!(typeof last==='number'&&last>0&&typeof ref==='number'&&ref>0))return null;
+  return (last/ref-1)*100;
+}
+function gCenyReg(r,per){
+  const P=GPROXY[r.id]||[];let s=0,ws=0,syms=[];
+  P.forEach(([sy,w])=>{const dp=gCenyDp(sy,per);if(dp==null)return;s+=dp*w;ws+=w;syms.push(sy);});
+  return ws?{dp:s/ws,syms}:null;
+}
+function gCenyAt(){const C=GLIVE.ceny;const ms=Date.parse(C&&C.at||'');return isFinite(ms)?new Date(ms).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'}):'—';}
+function gCenyRow(r){
+  if(!gCenyHas())return '';
+  const parts=['1T','1M'].map(p=>{const c=gCenyReg(r,p);return c?`${t('g.p.'+p)}: <b class="${c.dp>=0?'pos':'neg'}">${gpct(c.dp)}</b> · ${c.syms.join(' + ')}`:`${t('g.p.'+p)}: ${t('g.td.none')}`;});
+  return `<div class="wide"><dt>${t('g.d.td')}</dt><dd>${parts.join(' · ')}<br><small class="mtxt">${t('g.d.tdnote',{t:gCenyAt()})}</small></dd></div>`;
+}
+function tdStatus(){const el=$('#td-st');if(!el)return;
+  el.innerHTML=GLIVE.ceny?`<span class="live on"><i></i>${t('ceny.s.srv',{t:gCenyAt()})}</span>`:`<span class="mtxt">${t('ceny.s.none')}</span>`;}
 function gPeriodButtons(){const b=$('#g-period button[data-v="1D"]');if(!b)return;
+  const bt=$('#g-period button[data-v="1T"]');const onT=gCenyHas();if(bt)bt.hidden=!onT;
+  if(!onT&&gst.period==='1T'){gst.period='1M';$$('#g-period button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v==='1M'?'true':'false'));
+    if(GDATA){gEdges();gKpis();gRenderAll();}}
   const on=!!keyGet('finnhub')||!!GLIVE.daySrv;b.hidden=!on;
   if(!on&&gst.period==='1D'){gst.period='1M';$$('#g-period button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v==='1M'?'true':'false'));
     if(GDATA){gEdges();gKpis();gRenderAll();}}
@@ -2402,6 +2449,8 @@ function gDaily(s,per){
   if(!s||!s.length)return null;
   const last=s[s.length-1];let ref=null;
   if(per==='1D')ref=s.length>1?s[s.length-2]:null;
+  else if(per==='1T'){const d=new Date(last[0]+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7);const lim=d.toISOString().slice(0,10);
+    for(let i=s.length-1;i>=0;i--){if(s[i][0]<=lim){ref=s[i];break;}}}
   else{const d=new Date(last[0]+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-(GBACK[per]||1));const lim=d.toISOString().slice(0,10);
     for(let i=s.length-1;i>=0;i--){if(s[i][0]<=lim){ref=s[i];break;}}}
   return {v:last[1],d:ref?last[1]-ref[1]:null,date:last[0]};
@@ -2416,10 +2465,11 @@ function gLoad(cb){
     gJSON(GSRC.oecd(gISO.join('+'))).then(j=>{GLIVE.oecd=gOecd(j);gOk('oecd');}).catch(e=>{GLIVE.err='OECD '+e.message;}),
     gJSON(GSRC.rate(gISO.join('+'))).then(j=>{GLIVE.irlt=gOecd(j);gOk('irlt');}).catch(()=>{}),
     gJSON(GSRC.cli(gISO.join('+'))).then(j=>{GLIVE.cli=gOecd(j);gOk('cli');}).catch(()=>{}),
-    Promise.all([gJSON(GSRC.fx('latest')),gJSON(GSRC.fx(back(1))),gJSON(GSRC.fx(back(3))),gJSON(GSRC.fx(back(12))),gJSON(GSRC.fx(backD(1)))])
-      .then(a=>{GLIVE.fx={now:a[0],'1M':a[1],'1Q':a[2],'1R':a[3],'1D':a[4]};gOk('fx');}).catch(e=>{GLIVE.err=GLIVE.err||('FX '+e.message);}),
+    Promise.all([gJSON(GSRC.fx('latest')),gJSON(GSRC.fx(back(1))),gJSON(GSRC.fx(back(3))),gJSON(GSRC.fx(back(12))),gJSON(GSRC.fx(backD(1))),gJSON(GSRC.fx(backD(7)))])
+      .then(a=>{GLIVE.fx={now:a[0],'1M':a[1],'1Q':a[2],'1R':a[3],'1D':a[4],'1T':a[5]};gOk('fx');}).catch(e=>{GLIVE.err=GLIVE.err||('FX '+e.message);}),
     gJSON(cgUrl(GSRC.crypto)).then(j=>{GLIVE.crypto=j.data;gOk('crypto');}).catch(()=>{}),
     gJSON(GSRC.stab).then(j=>{GLIVE.stab=j;gOk('stab');}).catch(()=>{}),
+    srvJSON('ceny').then(j=>{gCenyApply(j);}).catch(()=>{gCenyApply(null);}),
     gJSON(GSRC.fiat).then(j=>{const f=gFiat(j);if(f){GLIVE.fiat=f;gOk('fiat');}}).catch(()=>{}),
     /* 10L USA: bieżący rok + poprzedni (poprzedni tylko raz — nie zmienia się) */
     (()=>{const yr=new Date().getUTCFullYear();
@@ -2499,7 +2549,7 @@ const GSAMPLE={
 };
 const GSCLI={usa:100.4,can:100.9,lat:100.2,eur:100.6,rus:99.6,mea:100.1,afr:100.3,ind:101.4,chn:100.2,jpn:100.3,asean:100.5,oce:100.1};
 /* ---------- obliczenia: przepływ = zmiana wartości rynku akcji w USD ---------- */
-const GBACK={'1D':0,'1M':1,'1Q':3,'1R':12};
+const GBACK={'1D':0,'1T':0,'1M':1,'1Q':3,'1R':12};
 let GDATA=null,GEDGE=[],GCEDGE=[],GKPI=null;
 function gWAvg(iso,w,pick){
   let s=0,ws=0;
@@ -2528,7 +2578,7 @@ function gFxRatio(r,per){
 function gStabDelta(per){
   const S=GLIVE.stab;if(!Array.isArray(S)||S.length<40)return null;
   const val=o=>{const t=o.totalCirculatingUSD||o.totalCirculating;return t?(t.peggedUSD||Object.values(t).reduce((a,b)=>a+b,0)):null;};
-  const n=S.length-1,back={'1D':1,'1M':30,'1Q':91,'1R':364}[per];
+  const n=S.length-1,back={'1D':1,'1T':7,'1M':30,'1Q':91,'1R':364}[per];
   const a=val(S[n]),b=val(S[Math.max(0,n-back)]);
   return (a&&b)?[(a-b)/1e9,(a/b-1)*100,a/1e9]:null;
 }
@@ -2548,6 +2598,17 @@ function gBuild(){
       if(cr&&GLIVE.fiat){F.cry={};GREG.forEach(r=>{const sh=(GLIVE.fiat.byReg[r.id]||0)/GLIVE.fiat.total;
         if(sh>=.004)F.cry[r.id]=[F.crypto[0]*sh,sh];});}
       GDATA[per]=F;return;
+    }
+    if(per==='1T'||(per==='1M'&&gCenyHas())){
+      /* zmiana ceny ETF-ów krajowych od zamknięcia 5 albo 21 sesji temu (Twelve Data); region bez symbolu = brak liczby */
+      const has=gCenyHas();
+      GREG.forEach(r=>{const c=has?gCenyReg(r,per):null;F[r.id]=c?[r.mcap*c.dp/100,c.dp,true]:[0,0,false];});
+      const cr=gStabDelta(per);
+      F.crypto=cr?[cr[0],cr[1],true]:[0,0,false];
+      F.cry=null;
+      if(cr&&GLIVE.fiat){F.cry={};GREG.forEach(r=>{const sh=(GLIVE.fiat.byReg[r.id]||0)/GLIVE.fiat.total;
+        if(sh>=.004)F.cry[r.id]=[F.crypto[0]*sh,sh];});}
+      F.td=has;GDATA[per]=F;return;
     }
     GREG.forEach(r=>{
       if(live){
@@ -2644,7 +2705,7 @@ function gKpis(){
   const st=gStabDelta(per);
   const yu=gDaily(GLIVE.ust,per),yd=gDaily(GLIVE.buba,per);
   GKPI=[
-   {k:'g.k.eq',v:mc+fl,u:'u.b',d:mc?fl/mc*100:null,src:per==='1D'?'Finnhub · ETF':'OECD',fresh:per==='1D'?(GLIVE.dayAt||''):GLIVE.asof},
+   {k:'g.k.eq',v:mc+fl,u:'u.b',d:mc?fl/mc*100:null,src:per==='1D'?'Finnhub · ETF':(F.td?'Twelve Data · ETF':'OECD'),fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)},
    {k:'g.k.dxy',v:dxy?dxy[0]:null,u:'',dec:2,d:dxy?dxy[1]:null,src:'ECB',fresh:GLIVE.fx?GLIVE.fx.now.date:''},
    /* rentowności: dziennie ze źródeł pierwotnych (pomiar), OECD miesięcznie tylko jako zapas */
    yu?{k:'g.k.us10',v:yu.v,u:'u.pp0',dec:2,d:yu.d,dpp:1,src:'US Treasury',fresh:yu.date}
@@ -3177,8 +3238,9 @@ function gRenderDetail(){
           <div><dt>${t('g.d.chgp')}</dt><dd>${v[2]?gpct(v[1]):'—'}</dd></div>
           <div><dt>${t('g.d.cty')}</dt><dd>${r.iso.join(', ')}</dd></div>
           ${(GLIVE.day&&GLIVE.day[s.id]&&GLIVE.day[s.id].dp!=null)?`<div class="wide"><dt>${t('g.d.today')}</dt><dd><b class="${GLIVE.day[s.id].dp>=0?'pos':'neg'}">${gpct(GLIVE.day[s.id].dp)}</b> · ${GLIVE.day[s.id].syms.join(' + ')} · ${GLIVE.dayAt||''}</dd></div>`:''}
-          <div class="wide"><dt>${t('g.d.method')}</dt><dd>${gst.period==='1D'?t('g.m.reg1d'):t('g.m.reg')}</dd></div>
-          <div class="wide"><dt>${t('d.source')}</dt><dd>${gst.period==='1D'?'Finnhub · '+t('g.src.reg1d'):t('g.src.reg')}</dd></div>
+          ${gCenyRow(s)}
+          <div class="wide"><dt>${t('g.d.method')}</dt><dd>${gst.period==='1D'?t('g.m.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?t('g.m.regtd',{n:GCENY_N[gst.period]}):t('g.m.reg'))}</dd></div>
+          <div class="wide"><dt>${t('d.source')}</dt><dd>${gst.period==='1D'?'Finnhub · '+t('g.src.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?'Twelve Data · '+t('g.src.regtd'):t('g.src.reg'))}</dd></div>
           <div class="wide"><dt>${t('d.limits')}</dt><dd>${t('g.l.reg')}</dd></div>
         </dl>${gProbBox(s.id)}`;
     }
@@ -3454,7 +3516,7 @@ function renderAssets(){
   if(gActive()){
     const F=GDATA?GDATA[gst.period]:null;
     const eq=GREG.reduce((a,r)=>a+r.mcap,0),fl=F?GREG.reduce((a,r)=>a+F[r.id][0],0):0;
-    rows.push(['as.eq',gfmt(eq+fl),eq?fl/eq*100:null,'OECD · '+t('pg.monthly')]);
+    rows.push(['as.eq',gfmt(eq+fl),eq?fl/eq*100:null,(F&&F.td)?'Twelve Data · '+t('pg.daily'):(gst.period==='1D'?'Finnhub · '+t('pg.daily'):'OECD · '+t('pg.monthly'))]);
     const dxy=gDxy(gst.period);
     if(dxy)rows.push(['as.fx',dxy[0].toFixed(2),dxy[1],'EBC · '+t('pg.daily')]);
     const y=(c)=>{const s2=GLIVE.irlt&&GLIVE.irlt[c];return s2?s2[s2.length-1][1]:null;};
@@ -3542,6 +3604,25 @@ function engPeriod(p){
   if(p.kind==='YEAR')return t('eng.p.year',{v});
   return v;
 }
+/* v36: dokładny tekst w mln USD z jednym miejscem po przecinku, zaokrąglenie do parzystej, bez arytmetyki zmiennoprzecinkowej */
+function engInc(s){const a=s.split('');let i=a.length-1;while(i>=0){if(a[i]==='9'){a[i]='0';i--;}else{a[i]=String(Number(a[i])+1);return a.join('');}}return '1'+a.join('');}
+function engMln(token,zeroSign){
+  if(typeof token!=='string'||!/^-?\d+(\.\d+)?$/.test(token))return null;
+  const neg=token.startsWith('-');const body=neg?token.slice(1):token;
+  let [ip,fp='']=body.split('.');ip=ip.replace(/^0+(?=\d)/,'');
+  const pad=ip.padStart(7,'0');const whole=pad.slice(0,-6),rest=pad.slice(-6);
+  let tenth=Number(rest[0]);const tail=rest.slice(1)+fp;
+  const cmp=tail.replace(/0+$/,'');
+  let carry=false;
+  if(cmp.length&&cmp>='5'){if(cmp==='5'){if(tenth%2===1)carry=true;}else carry=true;}
+  let wholeN=whole.replace(/^0+(?=\d)/,'');
+  if(carry){tenth+=1;if(tenth===10){tenth=0;wholeN=engInc(wholeN);}}
+  const grouped=wholeN.replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  const isZero=!/[1-9]/.test(body);const text=grouped+(LANG==='pl'?',':'.')+tenth;
+  if(isZero)return (zeroSign?'−':'')+text;
+  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(LANG==='pl'?'0,1':'0.1');
+  return (neg?'−':'+')+text;
+}
 const engK=(label,value,wrap)=>`<div class="etfk${wrap?' wrap':''}"><span>${label}</span><b>${value}</b></div>`;
 function engTable(rec){
   const P=rec.engine_panel,d=P&&P.data;if(!d)return '';
@@ -3549,15 +3630,36 @@ function engTable(rec){
   const rows=cats=>cats.map(c=>`<tr><td><span class="cell">${escH(c.label)}</span></td>${cols.map(col=>`<td><span class="cell mono">${engNum(c[col.key])}</span></td>`).join('')}</tr>`).join('');
   const head=`<thead><tr><th>${t('eng.c.group')}</th>${cols.map(col=>`<th>${escH(col.label)}</th>`).join('')}</tr></thead>`;
   if(Array.isArray(d.categories))return `<div class="list-wrap"><table class="etft">${head}<tbody>${rows(d.categories)}</tbody></table></div>`;
+  if(Array.isArray(d.inflows)&&Array.isArray(d.outflows))return engDest(rec);
   if(Array.isArray(d.markets))return d.markets.map(m=>`<details class="etfd" open><summary><b>${escH(m.label)}</b> · ${m.data?t('eng.oi')+': '+engNum(m.data.open_interest&&m.data.open_interest.value):t('eng.gap')}</summary>${m.data?`<div class="list-wrap"><table class="etft">${head}<tbody>${rows(m.data.categories||[])}</tbody></table></div>`:`<p class="pnote">${t('eng.r.MARKET_MISSING')}</p>`}${m.unit_note?`<p class="pnote">${escH(m.unit_note)}</p>`:''}</details>`).join('');
   return '';
+}
+function engDestRows(rows,y,py){
+  return rows.map((r,i)=>{const v=engMln(r.value),p0=r.previous==null?null:engMln(r.previous,!!r.previous_negative_zero),p=p0==null?null:(/[1-9]/.test(String(r.previous))?p0:p0+t(r.previous_negative_zero?'eng.prev.negzero':'eng.prev.zero'));
+    return `<tr><td><span class="cell mono">${i+1}</span></td><td><span class="cell" title="${escH(r.name||'')}">${escH(r.name_pl||r.name||'')}</span> <span class="cell mono">${escH(r.code||'')}</span></td>`+
+      `<td><span class="cell mono" title="${escH(t('eng.exact',{v:String(r.value)}))}">${v==null?t('eng.gap'):v}</span></td>`+
+      (py==null?'':`<td><span class="cell mono"${p==null?'':` title="${escH(t('eng.exact',{v:String(r.previous)}))}"`}>${p==null?t('eng.prev.gap'):p}</span></td>`)+`</tr>`;}).join('');
+}
+function engDest(rec){
+  const d=rec.engine_panel.data,y=String(d.year||''),py=d.previous_year==null?null:String(d.previous_year),c=d.counts||{};
+  const head=`<thead><tr><th>${t('eng.c.rank')}</th><th>${t('eng.c.economy')}</th><th>${t('eng.c.year',{y})}</th>${py==null?'':`<th>${t('eng.c.prev',{y:py})}</th>`}</tr></thead>`;
+  const block=(rows,kind)=>{const total=c[kind==='in'?'inflows':'outflows'];
+    const cap=t(kind==='in'?'eng.d.in':'eng.d.out',{y,n:rows.length,t:total==null?'—':engNum(total)});
+    return `<details class="etfd" open><summary><b>${cap}</b></summary>${rows.length?`<div class="list-wrap"><table class="etft">${head}<tbody>${engDestRows(rows,y,py)}</tbody></table></div>`:`<p class="pnote">${t(kind==='in'?'eng.d.none.in':'eng.d.none.out',{y})}</p>`}</details>`;};
+  return block(d.inflows,'in')+block(d.outflows,'out');
+}
+function engKpis(rec){
+  const d=rec.engine_panel&&rec.engine_panel.data;if(!d||!Array.isArray(d.inflows)||!Array.isArray(d.outflows))return '';
+  const y=String(d.year||''),c=d.counts||{},top=(rows)=>rows.length?`${escH(rows[0].name_pl||rows[0].name||'')}: ${engMln(rows[0].value)||t('eng.gap')} ${t('eng.mln')}`:t('eng.gap');
+  return engK(t('eng.k.in',{y}),top(d.inflows))+engK(t('eng.k.out',{y}),top(d.outflows))+
+    engK(t('eng.k.cov',{y}),c.with_value==null?t('eng.gap'):t('eng.k.cov.v',{a:engNum(c.with_value),e:engNum(c.economies),b:engNum(c.without_value)}));
 }
 function engBound(rec){
   const vals=Array.isArray(rec.values)?rec.values:[];
   const kept=rec.fetch&&rec.fetch.origin==='KEPT_FROM_PREVIOUS';
   return `<div class="etfh"><div><h2>${escH(rec.title_pl)}</h2><p class="pnote">${escH(rec.kind_pl)} · ${escH(rec.says_pl)}</p></div>
     <div class="etfb"><span class="live"><i></i>${t('eng.b.state',{p:engPeriod(rec.period),c:engDate(rec.captured_at)})}</span>${kept?`<span class="pchip">${t('eng.kept',{d:engDate(rec.fetch.kept_since)})}</span>`:''}${rec.fetch&&rec.fetch.last_failed_attempt?`<span class="pchip n">${t('eng.failed')}: ${escH(rec.fetch.last_failed_attempt)}</span>`:''}</div></div>
-    <div class="etfkpis">${vals.slice(0,4).map(v=>engK(escH(v.label_pl),v.value==null?t('eng.gap'):engNum(v.value)+' '+escH(v.unit_label_pl||''))).join('')}
+    <div class="etfkpis">${vals.length?vals.slice(0,4).map(v=>engK(escH(v.label_pl),v.value==null?t('eng.gap'):engNum(v.value)+' '+escH(v.unit_label_pl||''))).join(''):engKpis(rec)}
       ${engK(t('eng.k.age'),escH(rec.data_age?rec.data_age.phrase_pl:t('eng.p.none')),true)}
       ${engK(t('eng.k.src'),engSafeUrl(rec.source_url||rec.source_home)?`<a href="${escH(engSafeUrl(rec.source_url||rec.source_home))}" rel="noopener">${escH(rec.attribution)}</a>`:escH(rec.attribution),true)}
     </div>
@@ -3591,7 +3693,7 @@ const TXT_ZRODLA_PL=`
 <p class="mtxt"><b>Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.</b></p>
 <p class="mtxt">Wszystkie liczby na tej stronie pochodzą ze źródeł opisanych niżej albo są z nich przez nas policzone. Przy każdej liczbie podajemy źródło, datę danych i ich wiek („dane sprzed N dni”). Gdy liczby nie ma, pole zostaje puste. Puste pole to nie zero. Opisy praw to nasza ocena warunków dostawców, nie porada prawna. Stan opisu: 24 września 2026.</p>
 <h3>Jak dziś działa ta strona</h3>
-<p class="mtxt">Większość liczb pobiera Twoja przeglądarka prosto od dostawców: OECD, BIS, Skarb USA, Bundesbank, Frankfurter, CoinGecko, CoinPaprika i DefiLlama. Każdy z nich widzi wtedy adres IP Twojego połączenia, tak jak każda odwiedzana strona. Dane SoSoValue, Finnhub i kapitalizacje z CoinGecko zbiera nasz automat na serwerze (co 20 minut; SoSoValue najwyżej raz na godzinę) i zapisuje w plikach, które strona czyta. Czcionki i wszystkie pliki strony są serwowane z tej samej strony. Bez ciasteczek, bez śledzenia, bez kont. Stronę udostępnia GitHub Pages; jak każdy serwer, widzi adres IP. Klucze wpisane w Ustawieniach zostają tylko w tej przeglądarce i idą wyłącznie do danego dostawcy. Historię wyników rankingu warunków strona zapisuje w Twojej przeglądarce i nigdzie jej nie wysyła.</p>
+<p class="mtxt">Większość liczb pobiera Twoja przeglądarka prosto od dostawców: OECD, BIS, Skarb USA, Bundesbank, Frankfurter, CoinGecko, CoinPaprika i DefiLlama. Każdy z nich widzi wtedy adres IP Twojego połączenia, tak jak każda odwiedzana strona. Dane SoSoValue, Finnhub, Twelve Data i kapitalizacje z CoinGecko zbiera nasz automat na serwerze (co 20 minut; SoSoValue i Twelve Data najwyżej raz na godzinę) i zapisuje w plikach, które strona czyta. Czcionki i wszystkie pliki strony są serwowane z tej samej strony. Bez ciasteczek, bez śledzenia, bez kont. Stronę udostępnia GitHub Pages; jak każdy serwer, widzi adres IP. Klucze wpisane w Ustawieniach zostają tylko w tej przeglądarce i idą wyłącznie do danego dostawcy. Historię wyników rankingu warunków strona zapisuje w Twojej przeglądarce i nigdzie jej nie wysyła.</p>
 <h3>Jak czytać stan praw</h3>
 <p class="mtxt"><b>pokazujemy</b> — warunki właściciela danych, tak jak je przeczytaliśmy, pozwalają je pokazywać, a my te warunki spełniamy.<br>
 <b>pokazujemy warunkowo</b> — pokazujemy z podaniem źródła, ale warunków dostawcy nie przeczytaliśmy w całości; opieramy się na tym, co o nich wiemy. Jeśli okaże się, że nie wolno, liczba zniknie.<br>
@@ -3657,6 +3759,12 @@ const TXT_ZRODLA_PL=`
 <b>Jak często:</b> dane dzienne; fundusze różnych monet bywają z różnych dni, więc data jest podana osobno dla każdej monety, a znacznik pokazuje zakres.<br>
 <b>Czego nie mówi:</b> napływ do funduszy w USA to nie cały rynek kryptowalut. Gdy brakuje danych jednego funduszu, suma jest nieznana; braku nie liczymy jako zera.<br>
 <b>Stan praw:</b> warunków SoSoValue nie przeczytaliśmy w całości; naszym zdaniem publiczne wyświetlanie i kopia danych na serwerze wymagają potwierdzenia dostawcy, o które zamierzamy wystąpić. Dane: <a href="https://sosovalue.com" rel="noopener">SoSoValue</a>.</p></details>
+
+<details class="etfd"><summary><b>Twelve Data</b> · dzienne notowania funduszy krajowych (okresy 1T i 1M) · <i>pokazujemy, prosząc o potwierdzenie</i></summary>
+<p class="mtxt"><b>Co to za dane:</b> dzienne zamknięcia 14 funduszy ETF notowanych w USA, które zastępują rynki akcji regionów (te same co dla okresu „DZIŚ”). Z nich liczymy zmianę ceny od zamknięcia 5 sesji temu (okres 1T) i 21 sesji temu (okres 1M). To pomiar zmiany ceny, nie szacunek — ale zmiana ceny funduszu to nie przelew pieniędzy między krajami.<br>
+<b>Jak często:</b> nasz automat na serwerze pyta najwyżej raz na godzinę (limity dostawcy: 8 zapytań na minutę, 800 na dzień). W godzinach sesji w USA ostatnia wartość jest bieżąca, nie zamknięcie; data pliku stoi przy liczbie.<br>
+<b>Czego nie mówi:</b> region bez funduszu zastępczego (np. Rosja) nie ma liczby — to brak danych, nie zero. Bez pliku z serwera okres 1T znika, a 1M liczymy jak dotąd z miesięcznych indeksów OECD.<br>
+<b>Stan praw:</b> korzystamy z planu Basic (bezpłatnego). Jego warunki mówią o użyciu osobistym i niekomercyjnym, tak jak darmowy plan Finnhub. Naszym zdaniem publiczna strona wymaga potwierdzenia dostawcy albo innego planu; zamierzamy to wyjaśnić przed etapem opłat. Podpis na stronie: „Twelve Data (plan Basic)”.</p></details>
 
 <details class="etfd"><summary><b>Finnhub</b> · notowania funduszy krajowych (okres „DZIŚ”) · <i>pokazujemy, prosząc o potwierdzenie</i></summary>
 <p class="mtxt"><b>Co to za dane:</b> bieżące notowania 14 funduszy ETF z giełd w USA, które naśladują rynki regionów. Służą do okresu „DZIŚ” na mapie. Zbiera je nasz automat na serwerze co 20 minut.<br>
@@ -3764,7 +3872,8 @@ function renderSources(){
     ['DefiLlama — stablecoiny','stablecoins.llama.fi','src.f.d','src.l.0',GLIVE.src.stab,'g.hs.stab','stab'],
     ['CoinPaprika — obrót BTC wg walut','api.coinpaprika.com','src.f.l','src.l.0',GLIVE.src.fiat,'g.hs.fiat','fiat'],
     ['SoSoValue — napływy ETF','openapi.sosovalue.com','src.f.d','src.l.0',(typeof ETF!=='undefined'&&ETF.live)?1:0,'g.hs.etf','etf'],
-    ['Finnhub — ETF-y krajowe (DZIŚ)','finnhub.io','src.f.l','src.l.0',GLIVE.src.finnhub,'g.hs.fh','finnhub']
+    ['Finnhub — ETF-y krajowe (DZIŚ)','finnhub.io','src.f.l','src.l.0',GLIVE.src.finnhub,'g.hs.fh','finnhub'],
+    ['Twelve Data — dzienne notowania 14 ETF-ów zastępczych (plan Basic)','api.twelvedata.com','src.f.d','src.l.0',GLIVE.src.twelvedata,'g.hs.td','twelvedata']
   ]:[
     ['SoSoValue — napływy ETF','openapi.sosovalue.com','src.f.d','src.l.0',(typeof ETF!=='undefined'&&ETF.live)?1:0,'g.hs.etf'],
     ['CoinPaprika — kursy i kapitalizacja','api.coinpaprika.com','src.f.l','src.l.0',isLive()?1:0,'src.d.cp'],
@@ -4048,6 +4157,7 @@ function etfInitSettings(){
     clr.addEventListener('click',()=>{inp.value='';keySet(r.k,'');show();r.run(show);});
     document.addEventListener('cfai-etf',show);document.addEventListener('cfai-keys',show);
   });
+  tdStatus();document.addEventListener('cfai-etf',tdStatus);
 }
 const CGST={ok:false,err:''};
 function cgPing(cb){
