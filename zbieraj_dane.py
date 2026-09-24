@@ -132,6 +132,10 @@ SOMA_URL = 'https://markets.newyorkfed.org/api/soma/summary.json'
 TGB_COUNTRIES = ['DE', 'IT', 'ES', 'NL', 'FR', 'IE', 'PT', 'GR', 'LU']
 TGB_URL = ('https://data-api.ecb.europa.eu/service/data/TGB/M.' + '+'.join(TGB_COUNTRIES)
            + '.N.A094T.U2.EUR.E?format=jsondata&lastNObservations=13')
+ILM_URL = 'https://data-api.ecb.europa.eu/service/data/ILM/W.U2.C.T000000.Z5.Z01?lastNObservations=13&format=jsondata'
+M3_URL = 'https://data-api.ecb.europa.eu/service/data/BSI/M.U2.Y.V.M30.X.1.U2.2300.Z01.E?lastNObservations=14&format=jsondata'
+ECB_SLEEP = 1.2      # EBC blokuje serie szybkich zapytań („access blocked”): odstęp między zapytaniami do EBC
+_ECB_LAST = -1e9
 MOF_URL = 'https://www.mof.go.jp/policy/international_policy/reference/itn_transactions_in_securities/week.csv'
 MOF_WEEKS = 26
 _FULLWIDTH = str.maketrans({'．': '.', '～': '~', '　': ' '})
@@ -268,11 +272,66 @@ def parse_mof(raw):
             'd': out}
 
 
+def _ecb_json(url):
+    """EBC blokuje serie szybkich zapytań: odstęp ECB_SLEEP od poprzedniego zapytania do EBC (User-Agent ustawia get)."""
+    global _ECB_LAST
+    wait = ECB_SLEEP - (time.monotonic() - _ECB_LAST)
+    if wait > 0:
+        time.sleep(wait)
+    try:
+        return get_json(url)
+    finally:
+        _ECB_LAST = time.monotonic()
+
+
+def _iso_week_end(period):
+    """'2026-W38' → piątek tego tygodnia ISO (dzień, na który EBC sporządza tygodniowe sprawozdanie); inne → None."""
+    m = re.match(r'^(\d{4})-W(\d{2})$', str(period))
+    if not m:
+        return None
+    return datetime.date.fromisocalendar(int(m.group(1)), int(m.group(2)), 5).isoformat()
+
+
+def parse_ecb_single(j, label):
+    """EBC Data Portal (SDMX-JSON), dokładnie jedna seria: [[okres, wartość]] rosnąco; brak obserwacji pominięty (nigdy 0)."""
+    dims = j['structure']['dimensions']
+    periods = [v['id'] for v in dims['observation'][0]['values']]
+    series = j['dataSets'][0]['series']
+    if len(series) != 1:
+        raise RuntimeError(f'{label}: oczekiwano jednej serii, jest {len(series)}')
+    ser = next(iter(series.values()))
+    rows = []
+    for oi, o in ser['observations'].items():
+        v = _num(o[0] if o else None)
+        if v is None:
+            continue
+        rows.append([periods[int(oi)], v])
+    rows.sort(key=lambda x: x[0])
+    if not rows:
+        raise RuntimeError(f'{label}: brak obserwacji')
+    return rows
+
+
+def parse_ilm(j):
+    """Eurosystem, aktywa razem z tygodniowego sprawozdania (mln EUR): [[piątek tygodnia, wartość, tydzień ISO]]."""
+    d = [[_iso_week_end(p) or p, int(round(v)), p] for p, v in parse_ecb_single(j, 'ILM')]
+    return {'src': 'European Central Bank — Eurosystem weekly financial statement (ILM)', 'unit': 'mln EUR',
+            'asof': d[-1][0], 'period': d[-1][2], 'url': 'https://data.ecb.europa.eu/data/datasets/ILM', 'd': d}
+
+
+def parse_m3(j):
+    """Agregat M3 strefy euro (mln EUR, wyrównany sezonowo), miesięcznie: [[YYYY-MM, wartość]]."""
+    d = [[p, int(round(v))] for p, v in parse_ecb_single(j, 'BSI M3')]
+    return {'src': 'European Central Bank — monetary aggregate M3 (BSI), seasonally adjusted', 'unit': 'mln EUR',
+            'asof': d[-1][0], 'url': 'https://data.ecb.europa.eu/data/datasets/BSI', 'd': d}
+
+
 def build_instytucje():
     """data/instytucje.json — każde źródło osobno: awaria jednego nie kasuje pozostałych (brak nie jest zerem)."""
     out = {'at': NOW, 'src': 'instytucje'}
     jobs = [('tga', lambda: parse_tga(get_json(TGA_URL))), ('rrp', lambda: parse_rrp(get_json(RRP_URL))),
-            ('soma', lambda: parse_soma(get_json(SOMA_URL))), ('tgb', lambda: parse_tgb(get_json(TGB_URL))),
+            ('soma', lambda: parse_soma(get_json(SOMA_URL))), ('tgb', lambda: parse_tgb(_ecb_json(TGB_URL))),
+            ('ilm', lambda: parse_ilm(_ecb_json(ILM_URL))), ('m3', lambda: parse_m3(_ecb_json(M3_URL))),
             ('mof', lambda: parse_mof(get_bytes(MOF_URL)))]
     for name, job in jobs:
         try:

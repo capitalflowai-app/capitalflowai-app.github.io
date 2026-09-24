@@ -432,6 +432,10 @@ class Instytucje(unittest.TestCase):
 
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear()
+        self.p_sleep = mock.patch.object(zd.time, 'sleep', lambda s: None); self.p_sleep.start()   # odstępy EBC bez czekania
+
+    def tearDown(self):
+        self.p_sleep.stop()
 
     def test_tga_closing_balance_ascending_and_null_skipped(self):
         j = {'data': [
@@ -495,8 +499,8 @@ class Instytucje(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('cp932')):
             out = zd.build_instytucje()
         self.assertEqual(sorted(k for k in out if k not in ('at', 'src')), ['rrp', 'soma'])
-        self.assertEqual(zd.META['ok'], {'tga': False, 'rrp': True, 'soma': True, 'tgb': False, 'mof': False})
-        self.assertEqual(len(zd.META['errors']), 3)
+        self.assertEqual(zd.META['ok'], {'tga': False, 'rrp': True, 'soma': True, 'tgb': False, 'ilm': False, 'm3': False, 'mof': False})
+        self.assertEqual(len(zd.META['errors']), 5)
 
     def test_all_sources_failing_is_an_error(self):
         with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('down')):
@@ -619,6 +623,50 @@ class MainFlowFred(unittest.TestCase):
              mock.patch.object(zd, 'build_fred', side_effect=AssertionError('bez zapytań')):
             zd.main()
         self.assertNotIn('fred', self.saved); self.assertIs(zd.META['ok']['fred'], False); self.assertIn('brak FRED_KEY', zd.META['errors'])
+
+
+class Eurosystem(unittest.TestCase):
+    """B.3 zadania „więcej danych”: bilans Eurosystemu (ILM, tygodniowo) i M3 (BSI, miesięcznie) z ECB Data Portal."""
+
+    @staticmethod
+    def _sdmx(periods, values, n_series=1):
+        series = {}
+        for i in range(n_series):
+            series[':'.join(['0'] * 6) if n_series == 1 else f'{i}:0:0:0:0:0'] = {'observations': {str(k): [v] for k, v in enumerate(values)}}
+        return {'structure': {'dimensions': {'series': [{'id': 'FREQ', 'values': [{'id': 'W'}]}],
+                                             'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': p} for p in periods]}]}},
+                'dataSets': [{'series': series}]}
+
+    def test_ilm_weeks_map_to_friday_and_missing_is_skipped(self):
+        j = self._sdmx(['2026-W36', '2026-W37', '2026-W38'], [5901000.4, None, 5898477])
+        out = zd.parse_ilm(j)
+        self.assertEqual(out['d'], [['2026-09-04', 5901000, '2026-W36'], ['2026-09-18', 5898477, '2026-W38']])
+        self.assertEqual(out['asof'], '2026-09-18'); self.assertEqual(out['period'], '2026-W38'); self.assertEqual(out['unit'], 'mln EUR')
+
+    def test_m3_monthly_keeps_period_and_documented_value(self):
+        j = self._sdmx(['2026-05', '2026-06', '2026-07'], [17500000, 17550000, 17613983])
+        out = zd.parse_m3(j)
+        self.assertEqual(out['d'][-1], ['2026-07', 17613983]); self.assertEqual(out['asof'], '2026-07')
+
+    def test_two_series_or_no_values_is_an_error_not_a_zero(self):
+        with self.assertRaises(RuntimeError):
+            zd.parse_ilm(self._sdmx(['2026-W38'], [1], n_series=2))
+        with self.assertRaises(RuntimeError):
+            zd.parse_m3(self._sdmx(['2026-07'], [None]))
+
+    def test_iso_week_end(self):
+        self.assertEqual(zd._iso_week_end('2026-W38'), '2026-09-18')
+        self.assertEqual(zd._iso_week_end('2026-01'), None)
+
+    def test_ecb_calls_are_spaced(self):
+        calls = []
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None: {'u': url}), \
+             mock.patch.object(zd.time, 'sleep', lambda s: calls.append(round(s, 1))), \
+             mock.patch.object(zd.time, 'monotonic', lambda: 100.0):
+            zd._ECB_LAST = -1e9
+            zd._ecb_json('https://data-api.ecb.europa.eu/a'); zd._ecb_json('https://data-api.ecb.europa.eu/b')
+        self.assertEqual(calls, [zd.ECB_SLEEP])         # pierwsze bez czekania, drugie po odstępie
+        self.assertGreaterEqual(zd.ECB_SLEEP, 1.0)
 
 
 if __name__ == '__main__':

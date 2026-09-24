@@ -290,3 +290,29 @@ test('FRED: strona czyta fred.json z serwera, pokazuje cztery serie Fed z podpis
   assert.ok(html.includes('<summary><b>Federal Reserve przez FRED</b>'), 'Źródła i prawa');
   assert.ok(html.includes("if(!INST.data&&!FRED.data){el.hidden=true;el.innerHTML='';return;}"), 'sekcja także z samym FRED');
 });
+
+// v43: Eurosystem (EBC) w sekcji danych urzędowych; „dane z dzisiaj” zamiast „sprzed 0 dni”
+const ga0 = html.indexOf('function gAgeNote(fresh){');
+const ga1 = html.indexOf('\nfunction gRenderKpi(){', ga0);
+const ageFor = new Function('t', html.slice(ga0, ga1) + '\nreturn gAgeNote;')(k => k);
+const dayIso = (back) => new Date(Date.now() - back * 86400000).toISOString().slice(0, 10);
+
+test('wiek danych: dziś → „dane z dzisiaj”, 1 dzień → g.age1, więcej → g.age; brak daty → nic', () => {
+  assert.equal(ageFor(dayIso(0)), ' · g.age0');
+  assert.equal(ageFor(dayIso(1)), ' · g.age1');
+  assert.equal(ageFor(dayIso(5)), ' · g.age');
+  assert.equal(ageFor(''), ''); assert.equal(ageFor('x'), '');
+  const d0 = html.indexOf('const EXTRA32='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA32='.length, d1));
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(dict[l]['g.age0'], l);
+});
+
+test('Eurosystem: sekcja czyta ilm i m3 z pliku urzędowego, podpis EBC, wiersz Źródła i wpis w prawach', () => {
+  assert.ok(html.includes("['tga','rrp','soma','tgb','ilm','m3','mof'].some("), 'klucze pliku');
+  assert.ok(html.includes("const ilm=D.ilm,m3=D.m3,"), 'blok');
+  assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.w','src.l.3w',(GLIVE.src['inst.ilm']||GLIVE.src['inst.m3']),'g.hs.ecb2','inst.ilm']"), 'wiersz Źródła');
+  assert.ok(html.includes('<summary><b>EBC — bilans Eurosystemu i M3</b>'), 'Źródła i prawa');
+  const d0 = html.indexOf('const EXTRA32='), d1 = html.indexOf(';\n', d0);
+  const dict = JSON.parse(html.slice(d0 + 'const EXTRA32='.length, d1));
+  for (const l of ['pl', 'en']) assert.ok(dict[l]['inst.ecb.src'].includes('Reproduction is permitted provided the source is acknowledged'), l);
+});
