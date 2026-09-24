@@ -1488,7 +1488,7 @@ def _imf_month_add(ym, k):
     return f'{t // 12:04d}-{t % 12 + 1:02d}'
 
 
-def parse_imf_sdmx(j):
+def parse_imf_sdmx(j, norm=None):
     """SDMX-JSON 2.0 z API MFW 3.0: {(kod wymiaru 1, 2, …): [[YYYY-MM, liczba]]} rosnąco. Klucz serii '0:2:0:0' = indeksy
     wartości wymiarów wg keyPosition; obserwacja [OBS_VALUE, atrybuty…]; wartość pusta / nie-liczba / NaN pominięta (nigdy 0).
     Brak jakiejkolwiek serii = błąd (API odpowiada 200 bez 'series')."""
@@ -1507,7 +1507,7 @@ def parse_imf_sdmx(j):
         rows = []
         for oi, ov in ((s or {}).get('observations') or {}).items():
             try:
-                per = _imf_month(periods[int(oi)])
+                per = (norm or _imf_month)(periods[int(oi)])   # v59: norm — np. kwartały COFER
             except (IndexError, ValueError):
                 continue
             v = _num(ov[0]) if isinstance(ov, list) and ov and ov[0] is not None else None
@@ -1898,6 +1898,58 @@ def build_eer():
             'unit': 'indeks 2020=100; zmiany w %', 'asof': max((r['d'] or '') for r in rows.values()), 'rows': rows}
 
 
+# v59: MFW COFER — skład walutowy światowych rezerw walutowych (kwartalnie), bez klucza
+COFER_CUR = ['CI_USD', 'CI_EUR', 'CI_JPY', 'CI_GBP', 'CI_CNY', 'CI_CAD', 'CI_AUD', 'CI_CHF', 'CI_OTHC']
+COFER_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/COFER/+/G001.AFXRA+TFXRA+TFXRA_IMP.'
+             + '+'.join(COFER_CUR + ['CI_T']) + '.SHRO_PT+NV_USD.Q?lastNObservations=9')
+
+
+def _imf_quarter(p):
+    s = str(p or '').strip()
+    return s if re.match(r'^\d{4}-Q[1-4]$', s) else None
+
+
+def _q_add(q, n):
+    i = int(q[:4]) * 4 + int(q[-1]) - 1 + n
+    return f'{i // 4:04d}-Q{i % 4 + 1}'
+
+
+def parse_cofer(j):
+    """COFER → udział walut w rezerwach przypisanych do walut (%), zmiana 1 kw. i 1 roku (pkt proc.), wartość (mld USD).
+    Brak wartości = brak (nie zero); zmiana tylko z dokładnie tego kwartału rok / kwartał wcześniej."""
+    ser = parse_imf_sdmx(j, _imf_quarter)
+    alloc = dict(ser.get(('G001', 'AFXRA', 'CI_T', 'NV_USD', 'Q')) or [])
+    total = dict(ser.get(('G001', 'TFXRA', 'CI_T', 'NV_USD', 'Q')) or [])
+    if not alloc:
+        raise RuntimeError('COFER: brak sumy rezerw przypisanych do walut')
+    q = max(alloc)
+    bn = lambda v: None if v is None else round(v / 1e9, 1)
+    dif = lambda a, b: None if a is None or b is None else round(a - b, 2)
+    rows = {}
+    for c in COFER_CUR:
+        sh = dict(ser.get(('G001', 'AFXRA', c, 'SHRO_PT', 'Q')) or []); v = dict(ser.get(('G001', 'AFXRA', c, 'NV_USD', 'Q')) or [])
+        if sh.get(q) is None and v.get(q) is None:
+            continue
+        s0, v0, v4 = sh.get(q), v.get(q), v.get(_q_add(q, -4))
+        rows[c[3:]] = {'sh': None if s0 is None else round(s0, 2), 'd1': dif(s0, sh.get(_q_add(q, -1))), 'd4': dif(s0, sh.get(_q_add(q, -4))),
+                       'v': bn(v0), 'dv4': bn(None if v0 is None or v4 is None else v0 - v4)}
+    if not rows:
+        raise RuntimeError('COFER: żadna waluta')
+    tq = total.get(q)
+    imp = dict(ser.get(('G001', 'TFXRA_IMP', 'CI_T', 'SHRO_PT', 'Q')) or []).get(q)   # od 2026: część składu szacuje MFW
+    return {'src': 'International Monetary Fund, Currency Composition of Official Foreign Exchange Reserves (COFER)',
+            'url': 'https://data.imf.org/en/datasets/IMF.STA:COFER', 'unit': '% rezerw przypisanych do walut; mld USD',
+            'asof': q, 'alloc': bn(alloc[q]), 'total': bn(tq), 'alloc_pct': round(alloc[q] / tq * 100, 1) if tq else None,
+            'imp_pct': None if imp is None else round(imp, 2),
+            'order': [c[3:] for c in COFER_CUR if c[3:] in rows], 'rows': rows}
+
+
+def build_cofer():
+    out = parse_cofer(get_json(COFER_URL, {'Accept': 'application/json'}))
+    out['at'] = NOW
+    return out
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -2164,6 +2216,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'BIS kursy efektywne: {e}')); META['ok']['eer'] = False
             if prev_e: save('eer', prev_e)
+    # COFER — skład walutowy rezerw świata (MFW, kwartalnie): najwyżej raz na dobę
+    prev_c = previous('cofer')
+    if prev_c and fresh(prev_c, 1440):
+        save('cofer', prev_c); META['ok']['cofer'] = 'cached'
+    else:
+        try:
+            save('cofer', build_cofer()); META['ok']['cofer'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'MFW COFER: {e}')); META['ok']['cofer'] = False
+            if prev_c: save('cofer', prev_c)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):

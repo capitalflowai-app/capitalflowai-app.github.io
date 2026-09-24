@@ -1058,3 +1058,25 @@ test('v58: panele silnika po angielsku — teksty wg widoku, wiek z liczbą mies
   assert.ok(html.includes("escH(engCty(r.code,r.name_pl,r.name))") && html.includes("escH(engTx(rec,'kind'))") && html.includes('engLim(rec).map('));
   for (const k of ['stc.t', 'stc.sub', 'stc.not', 'stc.src']) assert.ok(dict.pl[k] && dict.en[k], k);
 });
+
+// v59: MFW COFER — udziały walut w rezerwach świata; brak = „—”
+test('v59: COFER: tabela udziałów, zmiany, „inne waluty”, stopka z udziałem przypisanych, Źródła', () => {
+  const a0 = html.indexOf('const COF={data:null};'), a1 = html.indexOf('function renderInst(){', a0);
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'escH', 'engDate', html.slice(a0, a1) + '\nreturn {COF, cofApply, cofHtml};')(
+    T, k => oks.push(k), () => {}, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), s => String(s), s => String(s));
+  assert.equal(f.cofHtml(null), '');
+  f.cofApply({at: 'x', asof: '2025-Q2', alloc: 12400, total: 13000, alloc_pct: 95.4, imp_pct: 10.65, order: ['USD', 'EUR', 'OTHC'],
+              rows: {USD: {sh: 56.32, d1: -1.48, d4: -1.88, v: 7000, dv4: 100}, EUR: {sh: 20.1, d1: null, d4: null, v: null, dv4: null}, OTHC: {sh: 5.5, d1: 0, d4: 0.3, v: 700, dv4: -2}}});
+  assert.deepEqual(oks, ['cofer']);
+  const h = f.cofHtml(f.COF.data);
+  assert.ok(h.includes('<td><span class="cell mono">56.32</span></td><td><span class="cell mono">−1.48</span></td><td><span class="cell mono">−1.88</span></td><td><span class="cell mono">7000 <small class="mtxt">(+100)</small></span></td>'), h);
+  assert.ok(h.includes('<td><span class="cell">EUR</span></td><td><span class="cell mono">20.10</span></td><td><span class="cell mono">—</span></td>'), 'brak zmiany = —');
+  assert.ok(h.includes('<span class="cell">cof.oth</span>') && h.includes('cof.foot{"q":"2025-Q2","a":"12400","i":"10.7"}'));
+  f.cofApply({at: 'x', asof: 'q', rows: {}, order: []}); assert.equal(f.COF.data, null, 'plik bez walut odrzucony');
+  assert.ok(html.includes('html+=cofHtml(COF.data);') && html.includes("srvJSON('cofer')") && html.includes("cofer:'MFW COFER'"));
+  assert.ok(html.includes("'api.imf.org','src.f.q','src.l.q',GLIVE.src.cofer,'g.hs.cofer','cofer']"));
+  const x0 = html.indexOf('const EXTRA50='), x1 = html.indexOf(';\n', x0);
+  const dict = JSON.parse(html.slice(x0 + 'const EXTRA50='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['cof.t', 'cof.sub', 'cof.foot', 'cof.foot0', 'cof.not', 'cof.src', 'g.hs.cofer']) assert.ok(dict[l][k], l + ' ' + k);
+});
