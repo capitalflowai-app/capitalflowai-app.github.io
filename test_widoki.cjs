@@ -902,8 +902,8 @@ test('v53: kurs ze średnich miesięcznych EBC z tych samych miesięcy co indeks
   f.kmApply({at: 'x', m: {JPY: []}}); assert.equal(f.KM.data, null, 'plik bez USD odrzucony');
   assert.equal(f.gFrozenN([['a', 1], ['b', 2], ['c', 2]]), 2); assert.equal(f.gFrozen([['a', 1], ['b', 2], ['c', 2]]), false);
   assert.equal(f.gWin({iso: ['RUS'], w: [1], fx: []}, 1), null, 'zamrożony indeks (Rosja) nie daje okna — brak, nie 0 %');
-  assert.ok(html.includes('if(!s||s.length<off+1||gFrozen(s))return null;'), 'gIdxRatio pomija zamrożony indeks');
-  assert.ok(html.includes("fm=gFxRatioM(r,n),fr=fm?fm.v:gFxRatio(r,per)") && html.includes("k:gNoFx(r)?'u':(fm?'m':'d')"));
+  assert.ok(html.includes('function gCtyIdx(S,w){if(!Array.isArray(S)||!S.length||gFrozen(S))return null;'), 'v62: indeks kraju pomija zamrożony');
+  assert.ok(html.includes('const R=gRegRatio(r,n,per),wn=gWin(r,n);') && html.includes("k:R?R.k:null,out:R?R.out:[]"));
   assert.ok(html.includes("(F.fxm?'OECD · EBC':'OECD')") && html.includes("srvJSON('kursy')"));
   assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.m','src.l.w',GLIVE.src.kursy,'g.hs.km','kursy']"));
   assert.ok(html.includes('stopy:()=>SP.data&&SP.data.at,kursy:()=>KM.data&&KM.data.at') && html.includes("stopy:'BIS stopy',kursy:'EBC kursy'"), 'Źródła: czas pliku i błąd serwera dla stóp i kursów');
@@ -1090,4 +1090,38 @@ test('v60: tekst Źródeł: bez „wystąpimy o zgodę / wyłączymy”, wpisy n
   assert.ok(z.includes('<b>Widoki silnika projektu:</b> MFW, Bank Światowy · <i>pokazujemy</i></summary>') && !z.includes('DefiLlama (sieci) · <i>nie pokazujemy</i>'));
   assert.ok(z.includes('Stan opisu: 25 września 2026.'));
   assert.equal((z.match(/<details class="etfd"/g) || []).length, (z.match(/<\/details>/g) || []).length, 'zbalansowane bloki');
+});
+
+// v62: mapa — średnia ważona ZMIAN krajów (nie poziomów), każdy kraj z własną walutą i tymi samymi miesiącami
+test('v62: region = średnia ważona zmian; kraj bez miesiąca / bez kursu poza średnią; kurs dzienny oznaczony; Indie z bazą 2024', () => {
+  const a0 = html.indexOf('const KM={data:null};'), a1 = html.indexOf('function gFxRatio(r,per){', a0);
+  const GLIVE = {oecd: {
+    TUR: [['2026-05', 1700], ['2026-06', 1720], ['2026-07', 1740], ['2026-08', 1753]],
+    ISR: [['2026-05', 300], ['2026-06', 295], ['2026-07', 292], ['2026-08', 290]],
+    COL: [['2026-04', 100], ['2026-05', 101], ['2026-06', 102], ['2026-07', 103]],
+    USA: [['2026-05', 100], ['2026-06', 101], ['2026-07', 102], ['2026-08', 110]]}, fx: null};
+  const f = new Function('GLIVE', 'gOk', html.slice(a0, a1) + '\nreturn {KM, kmApply, gRegRatio, gIdxRatio, gWin, GCUR};')(GLIVE, () => {});
+  const mea = {iso: ['SAU', 'TUR', 'ISR'], w: [2359, 404, 331]};
+  // bez kursów EBC i dziennych: TUR/ISR poza średnią (brak kursu), SAU bez indeksu → brak liczby
+  assert.equal(f.gRegRatio(mea, 3, '1Q'), null);
+  f.kmApply({at: 'x', m: {USD: [['2026-05', 1], ['2026-08', 1]], TRY: [['2026-05', 40], ['2026-08', 44]], ILS: [['2026-05', 4], ['2026-08', 4]]}});
+  const R = f.gRegRatio(mea, 3, '1Q');
+  const tur = (1753 / 1700) * (40 / 44), isr = (290 / 300) * 1, want = (404 * tur + 331 * isr) / (404 + 331);
+  assert.ok(Math.abs(R.v - want) < 1e-12, 'średnia ważona zmian (nie poziomów)'); assert.equal(R.k, 'm'); assert.deepEqual([R.a, R.b], ['2026-08', '2026-05']);
+  const old = ((404 * 1753 + 331 * 290) / (404 * 1700 + 331 * 300));   // dawna średnia poziomów — inna liczba
+  assert.ok(Math.abs(f.gIdxRatio(mea, 3) - (404 * 1753 / 1700 + 331 * 290 / 300) / 735) < 1e-12 && Math.abs(f.gIdxRatio(mea, 3) - old) > 1e-4);
+  const lat = {iso: ['USA', 'COL'], w: [10, 5]};
+  const L = f.gRegRatio(lat, 3, '1Q');
+  assert.deepEqual(L.out, [['COL', 'nomonth']], 'Kolumbia bez sierpnia — poza średnią, nie jako sierpień');
+  assert.equal(L.k, 'u'); assert.ok(Math.abs(L.v - 1.1) < 1e-12);
+  f.kmApply({at: 'x', m: {USD: [['2026-05', 1], ['2026-08', 1]]}});
+  GLIVE.fx = {now: {rates: {TRY: 44}}, '1Q': {rates: {TRY: 40}}};
+  const D = f.gRegRatio(mea, 3, '1Q');
+  assert.equal(D.k, 'd', 'kurs dzienny — oznaczony'); assert.deepEqual(D.out, [['ISR', 'nofx', 'ILS']]);
+  assert.equal(f.GCUR.SAU, 'USD'); assert.equal(f.GCUR.CHL, 'CLP');
+  assert.ok(html.includes(" {id:'ind', lat:22,  lon:79,   mcap:5131, iso:['IND'], w:[1],") && html.includes('fix:{ind:1}'));
+  assert.ok(html.includes("return t(w&&w.k==='m'?'g.src.regm':(w&&w.k==='u'?'g.src.regu':'g.src.reg'));"), 'źródło w szczegółach wg regionu, nie wg okresu');
+  const x0 = html.indexOf('const EXTRA51='), x1 = html.indexOf(';\n', x0);
+  const dict = JSON.parse(html.slice(x0 + 'const EXTRA51='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['g.win.nomonth', 'g.win.nofx', 'g.src.regu', 'g.d.basey.fix']) assert.ok(dict[l][k], l + ' ' + k);
 });

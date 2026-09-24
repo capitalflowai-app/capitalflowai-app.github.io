@@ -1031,6 +1031,9 @@ for(const l in EXTRA49)if(I18N[l])Object.assign(I18N[l],EXTRA49[l]);
 /* v59: MFW COFER */
 const EXTRA50={"pl":{"cof.t":"Rezerwy świata według walut (MFW, COFER)","cof.sub":"Jaką część rezerw walutowych banki centralne świata trzymają w dolarach, euro, jenach, juanach… Zmiany udziałów to powolny, ale ogromny przepływ kapitału między walutami.","cof.c.cur":"Waluta","cof.c.sh":"Udział, %","cof.c.d1":"Zmiana 1 kw., pkt proc.","cof.c.d4":"Zmiana 1 rok, pkt proc.","cof.c.v":"Wartość, mld USD (zmiana roku)","cof.oth":"Inne waluty","cof.foot":"Stan: {q} · rezerwy walutowe świata: {a} mld USD; skład {i}% z nich MFW szacuje, bo część krajów go nie podaje.","cof.foot0":"Stan: {q} · rezerwy przypisane do walut: {a} mld USD ({p}% wszystkich rezerw walutowych świata).","cof.not":"Udział zmienia się także przez kursy walut: słabszy dolar zmniejsza jego udział bez żadnej sprzedaży. Kwartalne dane MFW mają około trzech miesięcy opóźnienia.","cof.src":"Źródło: International Monetary Fund, COFER; zmiany policzone przez nas. MFW nie firmuje tej strony.","g.hs.cofer":"Udziały walut w rezerwach walutowych świata, kwartalnie (MFW COFER, opóźnienie ok. 3 mies.). Serwer strony, raz na dobę."},"en":{"cof.t":"World reserves by currency (IMF, COFER)","cof.sub":"What share of the world’s official FX reserves central banks hold in dollars, euros, yen, renminbi… Shifts in shares are a slow but enormous flow of capital between currencies.","cof.c.cur":"Currency","cof.c.sh":"Share, %","cof.c.d1":"Change, 1 quarter, pp","cof.c.d4":"Change, 1 year, pp","cof.c.v":"Value, USD bn (1-year change)","cof.oth":"Other currencies","cof.foot":"As of {q} · world FX reserves: USD {a} bn; the IMF estimates the composition of {i}% of them because some countries do not report it.","cof.foot0":"As of {q} · reserves allocated to currencies: USD {a} bn ({p}% of all the world’s FX reserves).","cof.not":"Shares also move with exchange rates: a weaker dollar lowers its share without any selling. Quarterly IMF data lag by about three months.","cof.src":"Source: International Monetary Fund, COFER; changes computed by us. The IMF does not endorse this site.","g.hs.cofer":"Currency shares in the world’s FX reserves, quarterly (IMF COFER, about 3 months’ lag). Site server, once a day."}};
 for(const l in EXTRA50)if(I18N[l])Object.assign(I18N[l],EXTRA50[l]);
+/* v62: mapa — każdy kraj osobno; baza Indii */
+const EXTRA51={"pl":{"g.win.nomonth":"{c}: brak indeksu OECD za {m} — poza średnią","g.win.nofx":"{c}: brak kursu {cur} w danych EBC — poza średnią","g.src.regu":"OECD (indeksy akcji, średnie miesięczne) · Bank Światowy (kapitalizacja); region w dolarach — bez przeliczania walut","g.d.basey.fix":"Indie: rok 2024 (5 131 mld USD) — Bank Światowy za 2025 podaje 10 560 mld USD (+106% w rok przy wzroście indeksu o ok. 10%), co wygląda na podwójne liczenie dwóch giełd (NSE i BSE); tej wartości nie używamy"},"en":{"g.win.nomonth":"{c}: no OECD index for {m} — left out of the average","g.win.nofx":"{c}: no {cur} rate in ECB data — left out of the average","g.src.regu":"OECD (share price indices, monthly averages) · World Bank (market capitalisation); region in dollars — no currency conversion","g.d.basey.fix":"India: year 2024 (USD 5,131 bn) — for 2025 the World Bank reports USD 10,560 bn (+106% in a year while the index rose about 10%), which looks like double counting of two exchanges (NSE and BSE); we do not use that value"}};
+for(const l in EXTRA51)if(I18N[l])Object.assign(I18N[l],EXTRA51[l]);
 /* v50: Coin Metrics — wpłaty i wypłaty BTC/ETH na giełdy (teksty PL i EN; inne języki spadają na EN) */
 const EXTRA41={"pl":{"cm.t":"Czy bitcoin i ether płyną na giełdy (Coin Metrics, pomiar)","cm.sub":"Pomiar z blockchaina, nie szacunek: ile monet wysłano w ciągu doby (UTC) na adresy giełd („wpłynęło”) i ile z nich wypłacono („wypłynęło”), w monetach i w dolarach, oraz ile monet leży na giełdach („zapas”). Netto = wpłynęło − wypłynęło: plus znaczy, że na giełdy trafiło więcej monet, niż z nich wyszło; minus — że więcej wyszło.","cm.btc":"Bitcoin (BTC)","cm.eth":"Ether (ETH)","cm.day":"dzień danych","cm.flash":"dane wstępne („flash”) — Coin Metrics może je jeszcze poprawić","cm.reviewed":"dane po przeglądzie Coin Metrics („reviewed”)","cm.pending":"Coin Metrics publikuje jeszcze dzień {d} — pokazujemy ostatni pełny dzień","cm.missing":"dni bez danych w ostatnich 35 dniach: {n} — suma obejmująca taki dzień jest pusta, nie zerowa","cm.in":"Wpłynęło na giełdy (dzień)","cm.out":"Wypłynęło z giełd (dzień)","cm.net":"Netto dnia (wpłynęło − wypłynęło)","cm.net7":"Netto 7 dni","cm.net30":"Netto 30 dni","cm.win":"{n} dni do {d}","cm.sply":"Zapas na giełdach","cm.ch7":"Zmiana zapasu w 7 dni","cm.ch30":"Zmiana zapasu w 30 dni","cm.usd":"w USD: {v}","cm.s.in":"więcej wpłynęło, niż wypłynęło","cm.s.out":"więcej wypłynęło, niż wpłynęło","cm.s.eq":"wpłynęło tyle, ile wypłynęło","cm.z.up":"na giełdach jest więcej monet niż {n} dni wcześniej ({d})","cm.z.down":"na giełdach jest mniej monet niż {n} dni wcześniej ({d})","cm.z.eq":"na giełdach jest tyle samo monet co {n} dni wcześniej ({d})","cm.tab":"Ostatnie 14 dni: netto dziennie (wpłynęło − wypłynęło)","cm.c.day":"Dzień (UTC)","cm.c.net":"netto (monety)","cm.c.netusd":"netto (USD)","cm.tab.note":"Plus = więcej monet wpłynęło na giełdy, minus = więcej wypłynęło. „—” = brak danych za ten dzień, to nie zero.","cm.not1":"Przelewy między giełdami są pominięte: liczą się tylko monety wysłane na giełdy spoza giełd i wypłacone z giełd na adresy spoza giełd.","cm.not2":"Zmiana zapasu na giełdach nie musi być równa sumie netto z tych samych dni — Coin Metrics liczy te dwie wielkości osobno.","cm.not3":"Liczą się tylko giełdy, których adresy Coin Metrics rozpoznaje (około 20 giełd); innych giełd i platform tu nie ma.","cm.not4":"Wpłata na giełdę to nie sprzedaż, a wypłata to nie zakup — liczby pokazują tylko ruch monet między adresami. Kwoty w USD to wycena tych monet przez Coin Metrics.","cm.not5":"Dane oznaczone „flash” są wstępne — Coin Metrics może je jeszcze poprawić.","cm.src":"Netto oraz sumy 7 i 30 dni policzyliśmy sami z dziennych danych Coin Metrics (netto z liczb niezaokrąglonych). Coin Metrics nie jest autorem tej strony i jej nie popiera.","cm.disc":"Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.","g.hs.cm":"Zmierzone dzienne wpłaty i wypłaty BTC i ETH na giełdy i z giełd oraz zapas monet na giełdach (Coin Metrics Community, bez klucza, licencja CC BY-NC 4.0). Nowy dzień pojawia się ok. 02–03 UTC; automat strony pyta najwyżej raz na godzinę."},"en":{"cm.t":"Are bitcoin and ether flowing to exchanges (Coin Metrics, measured)","cm.sub":"A measurement from the blockchain, not an estimate: how many coins were sent to exchange addresses during the day (UTC) (“in”) and how many were withdrawn from them (“out”), in coins and in US dollars, and how many coins sit on exchanges (“supply”). Net = in − out: plus means more coins reached exchanges than left them; minus means more left.","cm.btc":"Bitcoin (BTC)","cm.eth":"Ether (ETH)","cm.day":"data day","cm.flash":"preliminary data (“flash”) — Coin Metrics may still revise it","cm.reviewed":"data reviewed by Coin Metrics (“reviewed”)","cm.pending":"Coin Metrics is still publishing {d} — the last complete day is shown","cm.missing":"days without data in the last 35 days: {n} — a sum that includes such a day is empty, not zero","cm.in":"Into exchanges (day)","cm.out":"Out of exchanges (day)","cm.net":"Net for the day (in − out)","cm.net7":"Net over 7 days","cm.net30":"Net over 30 days","cm.win":"{n} days to {d}","cm.sply":"Held on exchanges","cm.ch7":"Change in exchange supply, 7 days","cm.ch30":"Change in exchange supply, 30 days","cm.usd":"in USD: {v}","cm.s.in":"more flowed in than out","cm.s.out":"more flowed out than in","cm.s.eq":"as much flowed in as out","cm.z.up":"more coins on exchanges than {n} days earlier ({d})","cm.z.down":"fewer coins on exchanges than {n} days earlier ({d})","cm.z.eq":"the same number of coins on exchanges as {n} days earlier ({d})","cm.tab":"Last 14 days: daily net (in − out)","cm.c.day":"Day (UTC)","cm.c.net":"net (coins)","cm.c.netusd":"net (USD)","cm.tab.note":"Plus = more coins flowed into exchanges, minus = more flowed out. “—” = no data for that day, not zero.","cm.not1":"Transfers between exchanges are left out: only coins sent to exchanges from outside and withdrawn from exchanges to outside addresses are counted.","cm.not2":"The change in exchange supply need not equal the sum of net flows over the same days — Coin Metrics computes the two separately.","cm.not3":"Only exchanges whose addresses Coin Metrics recognises are counted (about 20 exchanges); other exchanges and platforms are not included.","cm.not4":"A deposit to an exchange is not a sale and a withdrawal is not a purchase — the numbers only show coins moving between addresses. USD amounts are Coin Metrics’ valuation of those coins.","cm.not5":"Data marked “flash” is preliminary — Coin Metrics may still revise it.","cm.src":"Net and the 7- and 30-day sums were computed by us from Coin Metrics daily data (net from unrounded values). Coin Metrics is not the author of this site and does not endorse it.","cm.disc":"Observation, not forecast. This is not investment advice or a recommendation.","g.hs.cm":"Measured daily BTC and ETH deposits to and withdrawals from exchanges, and coins held on exchanges (Coin Metrics Community, no key, CC BY-NC 4.0 licence). A new day appears around 02–03 UTC; the site job asks at most once an hour."}};
 for(const l in EXTRA41)if(I18N[l])Object.assign(I18N[l],EXTRA41[l]);
@@ -2296,7 +2299,7 @@ const GREG=[
   fx:[['TRY',404],['ILS',331]], box:[33,12,61,41]},
  {id:'afr', lat:2,   lon:20,   mcap:1548,  iso:['ZAF'], w:[1],
   fx:[['ZAR',1398]], box:[-18,-35,52,20]},
- {id:'ind', lat:22,  lon:79,   mcap:10560, iso:['IND'], w:[1],
+ {id:'ind', lat:22,  lon:79,   mcap:5131, iso:['IND'], w:[1],   /* v62: WB 2024; 2025 (10 560) wygląda na podwójne liczenie NSE+BSE */
   fx:[['INR',1]], box:[67,7,91,35]},
  {id:'chn', lat:35,  lon:104,  mcap:21598, iso:['CHN'], w:[1],
   fx:[['CNY',15509],['HKD',6089]], box:[73,17,135,49]},
@@ -3245,11 +3248,26 @@ function gFxRatioM(r,n){   /* jak gFxRatio, ale ze średnich miesięcznych EBC d
   if(gNoFx(r))return null;const w=gWin(r,n);if(!w||!KM.data)return null;let s=0,ws=0;
   r.fx.forEach(([cur,wt])=>{const a=kmUsd(cur,w[0]),b=kmUsd(cur,w[1]);if(a==null||b==null)return;s+=(b/a)*wt;ws+=wt;});
   return ws?{v:s/ws,a:w[0],b:w[1]}:null;}
-function gIdxRatio(r,n){
-  const O=GLIVE.oecd;if(!O)return null;
-  const val=(c,off)=>{const s=O[c];if(!s||s.length<off+1||gFrozen(s))return null;return s[s.length-1-off][1];};   /* v53: zamrożony indeks = brak */
-  const now=gWAvg(r.iso,r.w,c=>val(c,0)),then=gWAvg(r.iso,r.w,c=>val(c,n));
-  return (now&&then)?now/then:null;
+/* v62: każdy kraj osobno — własny indeks OECD i własna waluta z tych samych miesięcy; region = średnia ważona ZMIAN krajów.
+   Wcześniej iloraz średnich POZIOMÓW indeksów ważył kraje także poziomem indeksu (np. Turcja 1753 pkt, Izrael 290) — błąd z przeglądu 25.09. */
+const GCUR={USA:'USD',CAN:'CAD',BRA:'BRL',MEX:'MXN',CHL:'CLP',COL:'COP',DEU:'EUR',FRA:'EUR',GBR:'GBP',ITA:'EUR',ESP:'EUR',NLD:'EUR',CHE:'CHF',SWE:'SEK',POL:'PLN',RUS:'RUB',SAU:'USD',TUR:'TRY',ISR:'ILS',ZAF:'ZAR',IND:'INR',CHN:'CNY',JPN:'JPY',KOR:'KRW',IDN:'IDR',AUS:'AUD',NZL:'NZD'};   /* SAR: stały kurs 3,75 za USD od 1986 */
+function gCtyIdx(S,w){if(!Array.isArray(S)||!S.length||gFrozen(S))return null;const a=S.find(x=>Array.isArray(x)&&x[0]===w[0]),b=S.find(x=>Array.isArray(x)&&x[0]===w[1]);return (a&&b&&b[1])?a[1]/b[1]:null;}
+function gRegRatio(r,n,per){   /* {v: średnia ważona (indeks×waluta) krajów, a/b: miesiące, k: 'm' średnie EBC | 'd' kurs dzienny | 'u' dolary, out: kraje poza średnią} */
+  const O=GLIVE.oecd;if(!O)return null;const w=gWin(r,n);if(!w)return null;let s=0,ws=0,m=0,d=0;const out=[];
+  r.iso.forEach((c,i)=>{const S=O[c];if(!Array.isArray(S)||!S.length||gFrozen(S))return;   /* brak albo zamrożony — opisane w gWinRow */
+    const ir=gCtyIdx(S,w);if(ir==null){out.push([c,'nomonth']);return;}
+    const cur=GCUR[c]||'';let fx=null;
+    if(cur==='USD')fx=1;
+    else if(cur){const x=kmUsd(cur,w[0]),y=kmUsd(cur,w[1]);
+      if(x!=null&&y!=null){fx=y/x;m++;}
+      else{const F=GLIVE.fx,A=F&&F.now&&F.now.rates&&F.now.rates[cur],B=F&&F[per]&&F[per].rates&&F[per].rates[cur];if(A&&B){fx=B/A;d++;}}}
+    if(fx==null){out.push([c,'nofx',cur]);return;}
+    const wt=r.w[i]||0;s+=wt*ir*fx;ws+=wt;});
+  return ws?{v:s/ws,a:w[0],b:w[1],k:d?'d':(m?'m':'u'),out}:null;}
+function gIdxRatio(r,n){   /* v62: średnia ważona zmian indeksów krajów z tych samych miesięcy (zamrożony indeks = brak) */
+  const O=GLIVE.oecd;if(!O)return null;const w=gWin(r,n);if(!w)return null;let s=0,ws=0;
+  r.iso.forEach((c,i)=>{const q=gCtyIdx(O[c],w);if(q==null)return;const wt=r.w[i]||0;s+=wt*q;ws+=wt;});
+  return ws?s/ws:null;
 }
 function gFxRatio(r,per){
   /* null = brak kursów (nie udajemy, że waluta stała w miejscu); 1 tylko, gdy region nie ma walut do przeliczenia */
@@ -3304,10 +3322,10 @@ function gBuild(){
     GREG.forEach(r=>{
       if(live){
         /* dane na żywo: brak serii OECD albo brak kursu = brak liczby (nigdy liczba przykładowa ani zero) */
-        const ir=gIdxRatio(r,n),fm=gFxRatioM(r,n),fr=fm?fm.v:gFxRatio(r,per),wn=gWin(r,n);   /* v53: waluta ze średnich EBC tych samych miesięcy; bez nich kurs dzienny, oznaczony */
-        if(wn){F.fxw=F.fxw||{};F.fxw[r.id]={a:wn[0],b:wn[1],k:gNoFx(r)?'u':(fm?'m':'d')};}
-        if(fm)F.fxm=1;
-        if(ir!=null&&fr!=null){const g=ir*fr-1;F[r.id]=[r.mcap*g,g*100,true];return;}
+        const R=gRegRatio(r,n,per),wn=gWin(r,n);   /* v62: każdy kraj: własny indeks × własna waluta (średnie EBC tych samych miesięcy; bez nich kurs dzienny, oznaczony) */
+        if(wn){F.fxw=F.fxw||{};F.fxw[r.id]={a:wn[0],b:wn[1],k:R?R.k:null,out:R?R.out:[]};}
+        if(R&&R.k==='m')F.fxm=1;
+        if(R){const g=R.v-1;F[r.id]=[r.mcap*g,g*100,true];return;}
         F[r.id]=[0,0,false];return;
       }
       if(location.protocol!=='file:'){F[r.id]=[0,0,false];return;}   /* v48: strona publiczna bez OECD — brak danych, nigdy liczby przykładowe */
@@ -3943,7 +3961,7 @@ function gRenderDetail(){
           ${gBaseRow(s.id)}
           ${zagRegion(s.id)}
           <div class="wide"><dt>${t('g.d.method')}</dt><dd>${gst.period==='1D'?t('g.m.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?t('g.m.regtd',{n:GCENY_N[gst.period]}):t('g.m.reg'))}</dd></div>
-          <div class="wide"><dt>${t('d.source')}</dt><dd>${gst.period==='1D'?'Finnhub · '+t('g.src.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?(GLIVE.cenySrv?'Twelve Data · ':'Twelve Data (klucz własny) · ')+t('g.src.regtd'):t(GDATA[gst.period]&&GDATA[gst.period].fxm?'g.src.regm':'g.src.reg'))}</dd></div>
+          <div class="wide"><dt>${t('d.source')}</dt><dd>${gst.period==='1D'?'Finnhub · '+t('g.src.reg1d'):(GDATA[gst.period]&&GDATA[gst.period].td?(GLIVE.cenySrv?'Twelve Data · ':'Twelve Data (klucz własny) · ')+t('g.src.regtd'):(()=>{const w=GDATA[gst.period]&&GDATA[gst.period].fxw&&GDATA[gst.period].fxw[s.id];return t(w&&w.k==='m'?'g.src.regm':(w&&w.k==='u'?'g.src.regu':'g.src.reg'));})())}</dd></div>
           <div class="wide"><dt>${t('d.limits')}</dt><dd>${t('g.l.reg')}</dd></div>
         </dl>${gProbBox(s.id)}`;
     }
@@ -3976,14 +3994,15 @@ function gRenderDetail(){
 }
 /* v53: okno czasu i źródło bazy w szczegółach regionu; zmierzone przepływy BIS w szczegółach korytarza */
 function gWinRow(id){const F=GDATA&&GDATA[gst.period],w=F&&F.fxw&&F.fxw[id],O=GLIVE.oecd,r=GB_[id];
-  let h=w?`<div class="wide"><dt>${t('g.win')}</dt><dd>${t('g.win.'+w.k,{a:escH(w.a),b:escH(w.b)})}</dd></div>`:'';
+  let h=(w&&w.k)?`<div class="wide"><dt>${t('g.win')}</dt><dd>${t('g.win.'+w.k,{a:escH(w.a),b:escH(w.b)})}</dd></div>`:'';
   if(F&&F.fxw&&O&&r){   /* tylko okresy liczone z OECD: kraje pominięte w średniej regionu — brak to nie zero */
-    const L=r.iso.map(c=>(!Array.isArray(O[c])||!O[c].length)?t('g.win.miss',{c:escH(c)}):(gFrozen(O[c])?t('g.win.fz',{c:escH(c),n:gFrozenN(O[c])}):'')).filter(Boolean);
+    const L=r.iso.map(c=>(!Array.isArray(O[c])||!O[c].length)?t('g.win.miss',{c:escH(c)}):(gFrozen(O[c])?t('g.win.fz',{c:escH(c),n:gFrozenN(O[c])}):'')).filter(Boolean)
+      .concat((w&&Array.isArray(w.out)?w.out:[]).map(o=>o[1]==='nofx'?t('g.win.nofx',{c:escH(o[0]),cur:escH(o[2]||'')}):t('g.win.nomonth',{c:escH(o[0]),m:escH(w.a)})));   /* v62 */
     if(L.length)h+=`<div class="wide"><dt>${t('g.win.out')}</dt><dd>${L.join('<br>')}</dd></div>`;}
   return h;}
-const GBASE={more:{lat:'AR',mea:'AE',afr:'NG, EG',asean:'SG, TH, MY, PH, VN',chn:'HK'},y24:{mea:'IL'},old:{lat:'AR 2022',eur:'FR 2018, GB 2022, IT 2014, NL 2017, SE 2003',rus:'RU 2023'}};   /* sprawdzone w API Banku Światowego 25.09.2026 */
+const GBASE={more:{lat:'AR',mea:'AE',afr:'NG, EG',asean:'SG, TH, MY, PH, VN',chn:'HK'},y24:{mea:'IL'},fix:{ind:1},old:{lat:'AR 2022',eur:'FR 2018, GB 2022, IT 2014, NL 2017, SE 2003',rus:'RU 2023'}};   /* sprawdzone w API Banku Światowego 25.09.2026 */
 function gBaseRow(id){const m=GBASE.more[id],y=GBASE.y24[id],o=GBASE.old[id];
-  return `<div class="wide"><dt>${t('g.d.basey')}</dt><dd>${t('g.d.basey.v')}${m?' · '+t('g.d.basey.more',{c:m}):''}${y?' · '+t('g.d.basey.y',{c:y}):''}${o?' · '+t('g.d.basey.old',{c:o}):''}</dd></div>`;}
+  return `<div class="wide"><dt>${t('g.d.basey')}</dt><dd>${t('g.d.basey.v')}${m?' · '+t('g.d.basey.more',{c:m}):''}${y?' · '+t('g.d.basey.y',{c:y}):''}${o?' · '+t('g.d.basey.old',{c:o}):''}${GBASE.fix&&GBASE.fix[id]?' · '+t('g.d.basey.fix'):''}</dd></div>`;}
 function biEdgeRow(a,b){const D=BI.data;if(!D||!D.flows||typeof D.flows!=='object'||!GB_[a]||!GB_[b])return '';
   const nr=Array.isArray(D.no_reporter)?D.no_reporter:[],rn=id=>t('g.n.'+id);
   const mld=v=>v==null?'—':((v!==0&&Math.abs(v)<50)?instSign(v)+'&lt;'+instMld(100):bopMld(v));   /* poniżej 0,1 mld to nie zero */
