@@ -205,7 +205,7 @@ test('TradingView: bez kliknięcia w kodzie strony nie ma żadnego elementu ład
   // jedyne miejsce włączające widget sprawdza zgodę; adres skryptu jest budowany tylko w tvMount
   assert.equal((tvBlock.match(/TV\.loaded\[k\]=true/g) || []).length, 1);
   assert.ok(tvBlock.includes("function tvOn(k){if(!tvOk())return;TV.loaded[k]=true;"), 'włączenie tylko za zgodą');
-  assert.equal((html.match(/https:\/\/s3\.tradingview\.com/g) || []).length, 1, 'adres loadera tylko w stałej TV.HOST (nazwa domeny w tekście „Źródła i prawa” to nie adres)');
+  assert.equal((html.match(/https:\/\/s3\.tradingview\.com\/external-embedding\//g) || []).length, 1, 'adres loadera tylko w stałej TV.HOST (nazwa domeny w tekście „Źródła i prawa” i host w polityce CSP to nie adresy loadera)');
   assert.ok(html.includes("KEY:'cfai.tv.ok'"), 'klucz zgody w localStorage');
 });
 
@@ -338,4 +338,25 @@ test('rynek krypto: sekcja w CRYPTO po CoinMarketCap, plik krypto.json, atrybucj
   const d0 = html.indexOf('const EXTRA33='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA33='.length, d1));
   for (const l of ['pl', 'en']) { assert.equal(dict[l]['kr.src.cg'], 'Data by CoinGecko'); assert.ok(dict[l]['kr.ind'], l); }
+});
+
+// v45: polityka bezpieczeństwa treści — każdy adres, z którym łączy się strona, jest na liście; obce adresy nie
+test('CSP: meta obecna, connect-src obejmuje wszystkie hosty pobierane przez stronę, skrypty tylko własne i loader TradingView', () => {
+  const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/);
+  assert.ok(m, 'meta CSP');
+  const csp = m[1];
+  const dir = (name) => (csp.split(';').map(x => x.trim()).find(x => x.startsWith(name + ' ')) || '').slice(name.length + 1).split(/\s+/);
+  const connect = dir('connect-src');
+  assert.ok(connect.includes("'self'"), 'własne pliki');
+  for (const h of ['https://api.coingecko.com', 'https://api.coinpaprika.com', 'https://sdmx.oecd.org', 'https://stablecoins.llama.fi', 'https://api.llama.fi',
+    'https://home.treasury.gov', 'https://stats.bis.org', 'https://openapi.sosovalue.com', 'https://api.twelvedata.com', 'https://api.statistiken.bundesbank.de',
+    'https://api.frankfurter.dev', 'https://finnhub.io']) assert.ok(connect.includes(h), h);
+  // każdy host pobierany fetch-em w kodzie strony (poza tekstami i linkami) musi być dozwolony
+  const script = html.slice(html.indexOf('<script>'), html.lastIndexOf('</script>'));
+  const fetched = new Set([...script.matchAll(/(?:fetch|gJSON|gText)\((?:[^)]*?)(https:\/\/[a-z0-9.-]+)/g)].map(x => x[1]));
+  for (const h of fetched) assert.ok(connect.includes(h), 'fetch bez zezwolenia: ' + h);
+  assert.deepEqual(dir('script-src'), ["'self'", "'unsafe-inline'", 'https://s3.tradingview.com']);
+  assert.deepEqual(dir('frame-src'), ['https://www.tradingview-widget.com', 'https://www.tradingview.com']);
+  assert.deepEqual(dir('object-src'), ["'none'"]); assert.deepEqual(dir('base-uri'), ["'self'"]);
+  assert.ok(html.includes('<meta name="referrer" content="no-referrer">'), 'referrer');
 });

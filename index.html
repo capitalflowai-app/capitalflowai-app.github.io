@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
+<!-- v45: polityka bezpieczeństwa treści (audyt B7): połączenia tylko do wymienionych źródeł i własnych plików; skrypty tylko własne
+     i loader TradingView; ramki tylko TradingView (po kliknięciu widza); bez wtyczek; obrazy z danych źródeł przez https -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self'; frame-src https://www.tradingview-widget.com https://www.tradingview.com; connect-src 'self' https://api.coingecko.com https://api.coinpaprika.com https://sdmx.oecd.org https://stablecoins.llama.fi https://api.llama.fi https://home.treasury.gov https://stats.bis.org https://openapi.sosovalue.com https://api.twelvedata.com https://api.statistiken.bundesbank.de https://api.frankfurter.dev https://finnhub.io">
+<meta name="referrer" content="no-referrer">
 <title>CapitalFlowAI — CRYPTO 3D v3</title>
 <!-- v34: czcionki serwowane z tej samej strony (folder fonts/), bez zapytań do Google — te same kroje, ten sam wygląd -->
 <link href="fonts/fonts.css" rel="stylesheet">
