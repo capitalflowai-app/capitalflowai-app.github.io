@@ -29,7 +29,7 @@ DAY_SYMS = ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCH
 TD = 'https://api.twelvedata.com'
 TD_BATCH = 7        # limit 8 kredytów/min (1 symbol = 1 kredyt): dwie paczki po 7 z minutą przerwy
 TD_SLEEP = 61
-TD_OUTPUT = 45      # ≈ 2 miesiące sesji; 1M = 21 sesji + zapas
+TD_OUTPUT = 260     # v64: ponad rok sesji (1R = 252) — koszt zapytania ten sam (1 kredyt na symbol niezależnie od liczby świec)
 TD_MIN_SYMBOLS = 10
 TD_MIN_CANDLES = 22
 CMC = 'https://pro-api.coinmarketcap.com'

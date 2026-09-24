@@ -2167,5 +2167,19 @@ class EtfHongKongV61(unittest.TestCase):
         self.assertTrue(any('country_code=HK' in p for p in seen))
 
 
+class TdHistoryV64(unittest.TestCase):
+    """v64: plik cen ma ponad rok sesji (kwartał i rok na mapie z cen ETF-ów); koszt zapytania bez zmian."""
+
+    def test_output_size_covers_a_year(self):
+        self.assertGreaterEqual(zd.TD_OUTPUT, 253, '1R = 252 sesje + punkt odniesienia')
+        seen = []
+
+        def get(url, headers=None, timeout=30):
+            seen.append(url); return 200, json.dumps({'SPY': {'status': 'error', 'code': 400, 'message': 'x'}})
+        with mock.patch.object(zd, 'get', get):
+            zd.td_batch(['SPY'], 'KLUCZ', _retry=False)
+        self.assertIn('outputsize=260', seen[0])
+
+
 if __name__ == '__main__':
     unittest.main()
