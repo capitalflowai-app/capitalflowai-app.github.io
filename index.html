@@ -726,6 +726,10 @@ td .cell .logo-img{width:34px;height:34px}
 @media (max-width:620px){#page-sources .etfd summary{flex-wrap:wrap;row-gap:2px}}
 /* v96 (źródła): Metodologia — flaga albo logo w pierwszej kolumnie tabeli „Jak często zmieniają się dane” */
 #page-method td .cell>.icos{margin-right:0}
+/* v96 etap 2 — EXTRA94 */
+/* v98.1: panel USA — zmiana tygodnia/miesiąca w kolorze kierunku (reguła .etfk b small gasi kolor), ikony w linii z nazwą */
+#g-usa .etfk b small.pos{color:var(--gr-tx)}#g-usa .etfk b small.neg{color:var(--rd-tx)}#g-usa .etfk b small.neu{color:var(--yl-tx)}
+#g-usa .etfk span.icos{display:inline-flex;vertical-align:-3px;margin-right:6px}
 </style>
 </head>
 <body data-bg="soft">
@@ -6868,16 +6872,16 @@ function usaQ(q){const m=/^(\d{4})-Q([1-4])$/.exec(String(q||''));return m?t('us
 function usaLast(rows){const r=usaRows(rows).filter(x=>usaNum(x[1]));return r.length?r[r.length-1]:null;}
 function usaBack(rows,d,k){const r=usaRows(rows).filter(x=>usaNum(x[1])&&x[0]<d);return r.length>=k?r[r.length-k]:null;}
 /* kafel: ikony + etykieta, wartość, zmiana (kolor wg kierunku), data i jej wiek */
-function usaTile(ico,label,val,chg,tone,when,age){
-  return `<div class="etfk"><span>${ico?`<span class="icos">${ico}</span>`:''}${escH(label)}</span><b>${val}${chg?` <small class="${tone}">${chg}</small>`:''}</b><small class="mtxt">${when}${age||''}</small></div>`;
+function usaTile(ico,label,val,vt,chg,tone,when,age){
+  return `<div class="etfk"><span>${ico?`<span class="icos">${ico}</span>`:''}${escH(label)}</span><b${vt?` class="${vt}"`:''}>${val}${chg?` <small class="${tone}">${chg}</small>`:''}</b><small class="mtxt">${when}${age||''}</small></div>`;
 }
 function usaEnergy(){
   const S=(USA.e&&USA.e.s)||{},out=[];
   const oil=usaG('oil'),us=usaF('us','sm');
   const px=(k,label,ico,unit)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],5);const ch=p&&p[1]?(l[1]/p[1]-1)*100:null;
-    out.push(usaTile(ico,t(label),`${nfmt(l[1],2)} <small class="mtxt">${t(unit)}</small>`,usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${fPct(ch,1)} ${t('usa.wk')}`:'',usaTone(ch),usaDay(l[0]),gAgeNote(l[0])));};
+    out.push(usaTile(ico,t(label),`${nfmt(l[1],2)} <small class="mtxt">${t(unit)}</small>`,'',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${fPct(ch,1)} ${t('usa.wk')}`:'',usaTone(ch),usaDay(l[0]),gAgeNote(l[0])));};
   const st=(k,label,ico)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],1);const ch=p?(l[1]-p[1])/1000:null;
-    out.push(usaTile(ico,t(label),`${nfmt(l[1]/1000,1)} <small class="mtxt">${t('usa.u.mbbl')}</small>`,usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.wk1')}`:'',usaTone(ch),t('usa.weekto',{d:usaDay(l[0])}),gAgeNote(l[0])));};
+    out.push(usaTile(ico,t(label),`${nfmt(l[1]/1000,1)} <small class="mtxt">${t('usa.u.mbbl')}</small>`,'',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.wk1')}`:'',usaTone(ch),t('usa.weekto',{d:usaDay(l[0])}),gAgeNote(l[0])));};
   px('wti','usa.wti',oil+us,'usa.u.bbl');px('brent','usa.brent',oil,'usa.u.bbl');px('gas','usa.gas',usaG('gas')+us,'usa.u.mmbtu');
   st('crude','usa.crude',oil+us);st('spr','usa.spr',oil+us);
   return out.length?`<h3 class="mtxt"><b>${t('usa.h.e')}</b></h3><p class="pnote">${t('usa.e.sub')}</p><div class="etfkpis">${out.join('')}</div>`:'';
@@ -6885,13 +6889,13 @@ function usaEnergy(){
 function usaMacro(){
   const S=(USA.m&&USA.m.s)||{},out=[],us=usaF('us');
   const yoy=(k,label)=>{const s=S[k];const l=s&&usaLast(s.yoy);if(!l)return;const p=usaBack(s.yoy,l[0],1);const ch=p?l[1]-p[1]:null;
-    out.push(usaTile(us,t(label),fPct(l[1],1).replace(/^\+/,''),usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.pp')}`:'',usaTone(ch),usaMon(l[0]),gAgeNote(l[0])));};
+    out.push(usaTile(us,t(label),fPct(l[1],1).replace(/^\+/,''),'',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.pp')}`:'',usaTone(ch),usaMon(l[0]),gAgeNote(l[0])));};
   yoy('cpi','usa.cpi');yoy('core','usa.core');
   {const s=S.unemp;const l=s&&usaLast(s.d);if(l){const p=usaBack(s.d,l[0],1);const ch=p?l[1]-p[1]:null;
-    out.push(usaTile(us,t('usa.unemp'),nfmt(l[1],1)+'%',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.pp')}`:'',usaTone(ch),usaMon(l[0]),gAgeNote(l[0])));}}
-  {const s=S.nfp;const l=s&&usaLast(s.chg);if(l)out.push(usaTile(us,t('usa.nfp'),`<span class="${usaTone(l[1])}">${sg(l[1])}${nfmt(Math.abs(l[1]),0)}</span> <small class="mtxt">${t('usa.u.k')}</small>`,'','',usaMon(l[0]),gAgeNote(l[0])));}
+    out.push(usaTile(us,t('usa.unemp'),nfmt(l[1],1)+'%','',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.pp')}`:'',usaTone(ch),usaMon(l[0]),gAgeNote(l[0])));}}
+  {const s=S.nfp;const l=s&&usaLast(s.chg);if(l)out.push(usaTile(us,t('usa.nfp'),`${sg(l[1])}${nfmt(Math.abs(l[1]),0)} <small class="mtxt">${t('usa.u.k')}</small>`,usaTone(l[1]),'','',usaMon(l[0]),gAgeNote(l[0])));}
   yoy('ahe','usa.ahe');
-  {const g=usaRows(USA.b&&USA.b.gdp),l=usaLast(g);if(l)out.push(usaTile(us,t('usa.gdp'),`<span class="${usaTone(l[1])}">${fPct(l[1],1)}</span>`,'','',usaQ(l[0]),gAgeNote(l[0])));}
+  {const g=usaRows(USA.b&&USA.b.gdp),l=usaLast(g);if(l)out.push(usaTile(us,t('usa.gdp'),fPct(l[1],1),usaTone(l[1]),'','',usaQ(l[0]),gAgeNote(l[0])));}
   return out.length?`<h3 class="mtxt"><b>${t('usa.h.m')}</b></h3><p class="pnote">${t('usa.m.sub')}</p><div class="etfkpis">${out.join('')}</div>`:'';
 }
 /* obszary BEA → flagi (kraje) albo flagi regionu; kolejność: regiony, potem wybrane kraje */
@@ -6902,19 +6906,19 @@ function usaFlow(){
   const L=usaLast(B.ita.FinLiabsExclFinDeriv),A=usaLast(B.ita.FinAssetsExclFinDeriv),C=usaLast(B.ita.BalCurrAcct);
   const bn=v=>`${sg(v)}${nfmt(Math.abs(v)/1000,1)} <small class="mtxt">${t('usa.u.bn')}</small>`;
   const tiles=[],us=usaF('us');
-  if(L)tiles.push(usaTile(usaG('globe')+us,t('usa.in'),`<span class="${usaTone(L[1])}">${bn(L[1])}</span>`,'','',usaQ(L[0]),gAgeNote(L[0])));
-  if(A)tiles.push(usaTile(us+usaG('globe'),t('usa.out'),`<span class="${usaTone(-A[1])}">${bn(-A[1])}</span>`,'','',usaQ(A[0]),gAgeNote(A[0])));
-  if(L&&A&&L[0]===A[0]){const n=L[1]-A[1];tiles.push(usaTile(us,t('usa.net'),`<span class="${usaTone(n)}">${bn(n)}</span>`,'','',usaQ(L[0]),gAgeNote(L[0])));}
-  if(C)tiles.push(usaTile(us,t('usa.ca'),`<span class="${usaTone(C[1])}">${bn(C[1])}</span>`,'','',usaQ(C[0]),gAgeNote(C[0])));
+  if(L)tiles.push(usaTile(usaG('globe')+us,t('usa.in'),bn(L[1]),usaTone(L[1]),'','',usaQ(L[0]),gAgeNote(L[0])));
+  if(A)tiles.push(usaTile(us+usaG('globe'),t('usa.out'),bn(-A[1]),usaTone(-A[1]),'','',usaQ(A[0]),gAgeNote(A[0])));
+  if(L&&A&&L[0]===A[0]){const n=L[1]-A[1];tiles.push(usaTile(us,t('usa.net'),bn(n),usaTone(n),'','',usaQ(L[0]),gAgeNote(L[0])));}
+  if(C)tiles.push(usaTile(us,t('usa.ca'),bn(C[1]),usaTone(C[1]),'','',usaQ(C[0]),gAgeNote(C[0])));
   const AR=(B.areas&&B.areas.FinLiabsExclFinDeriv)||{},AA=(B.areas&&B.areas.FinAssetsExclFinDeriv)||{};
   const q=(()=>{const qs=Object.values(AR).map(r=>{const l=usaLast(r);return l?l[0]:'';}).filter(Boolean).sort();return qs.length?qs[qs.length-1]:'';})();
   const val=(M,k)=>{const r=usaRows(M[k]).find(x=>x[0]===q);return r&&usaNum(r[1])?r[1]:null;};
   const nm=k=>t('usa.a.'+k)!=='usa.a.'+k?t('usa.a.'+k):escH((B.names&&B.names[k])||k);
-  const cell=v=>v===null?'<td class="mono na">—</td>':`<td class="mono ${usaTone(v)}">${sg(v)}${nfmt(Math.abs(v)/1000,1)}</td>`;
+  const cell=v=>v===null?'<td><span class="cell mono na">—</span></td>':`<td><span class="cell mono ${usaTone(v)}">${sg(v)}${nfmt(Math.abs(v)/1000,1)}</span></td>`;
   const row=(k,fl)=>{const i=val(AR,k),o=val(AA,k);if(i===null&&o===null)return '';const n=i!==null&&o!==null?i-o:null;
-    return `<tr><td>${usaFs(fl,3,'sm')}${nm(k)}</td>${cell(i)}${cell(o===null?null:-o)}${cell(n)}</tr>`;};
+    return `<tr><td><span class="cell">${usaFs(fl,3,'sm')}${nm(k)}</span></td>${cell(i)}${cell(o===null?null:-o)}${cell(n)}</tr>`;};
   const rr=USA_REG.map(([k,f])=>row(k,f)).join(''),rc=USA_CTY.map(([k,f])=>row(k,[f])).join('');
-  const tab=q&&(rr||rc)?`<details class="etfd" id="usa-areas"><summary>${t('usa.tab',{q:usaQ(q)})}</summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('usa.c.area')}</th><th>${t('usa.c.in')}</th><th>${t('usa.c.out')}</th><th>${t('usa.c.net')}</th></tr></thead><tbody>${rr?`<tr><td colspan="4" class="mtxt"><b>${t('usa.g.reg')}</b></td></tr>${rr}`:''}${rc?`<tr><td colspan="4" class="mtxt"><b>${t('usa.g.cty')}</b></td></tr>${rc}`:''}</tbody></table></div><p class="pnote">${t('usa.tab.note')}</p></details>`:'';
+  const tab=q&&(rr||rc)?`<details class="etfd" id="usa-areas"><summary>${t('usa.tab',{q:usaQ(q)})}</summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('usa.c.area')}</th><th>${t('usa.c.in')}</th><th>${t('usa.c.out')}</th><th>${t('usa.c.net')}</th></tr></thead><tbody>${rr?`<tr><td colspan="4"><span class="cell mtxt"><b>${t('usa.g.reg')}</b></span></td></tr>${rr}`:''}${rc?`<tr><td colspan="4"><span class="cell mtxt"><b>${t('usa.g.cty')}</b></span></td></tr>${rc}`:''}</tbody></table></div><p class="pnote">${t('usa.tab.note')}</p></details>`:'';
   return tiles.length?`<h3 class="mtxt"><b>${t('usa.h.f')}</b></h3><p class="pnote">${t('usa.f.sub')}</p><div class="etfkpis">${tiles.join('')}</div>${tab}`:'';
 }
 function usaDay(d){const ms=Date.parse(String(d||'').slice(0,10)+'T12:00:00Z');return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):escH(d);}

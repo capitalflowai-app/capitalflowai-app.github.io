@@ -3422,13 +3422,13 @@ test('v98-usa: panel USA — energia, gospodarka i przepływ kapitału; ikony, k
   h = el.innerHTML;
   assert.ok(h.includes('usa.cpi') && h.includes('3.4%') && h.includes('class="neu">• 0.0 usa.pp'), 'inflacja bez zmiany — żółty „•”');
   assert.ok(h.includes('usa.unemp') && h.includes('4.1%') && h.includes('class="neg">▼ −0.1 usa.pp'), 'bezrobocie spadło o 0,1 pkt — czerwona strzałka w dół');
-  assert.ok(h.includes('<span class="pos">+162</span>'), 'nowe etaty na zielono');
-  assert.ok(h.includes('usa.gdp') && h.includes('<span class="pos">+1.5%</span>') && h.includes('usa.q{"q":"2","r":"II","y":"2026"}'));
-  assert.ok(h.includes('<span class="pos">+978.9 <small class="mtxt">usa.u.bn</small></span>') && h.includes('<span class="neg">−663.3'), 'do USA zielono, z USA czerwono');
-  assert.ok(h.includes('<span class="pos">+315.6'), 'netto = do USA − z USA');
-  assert.ok(h.includes('<td>Europe</td>'), 'bez tłumaczenia — nazwa obszaru z pliku (w stronie: „Europa”)');
-  assert.ok(h.includes('<td class="mono pos">+300.0</td><td class="mono neg">−100.0</td><td class="mono pos">+200.0</td>'));
-  assert.ok(h.includes('China</td><td class="mono neg">−1.2</td><td class="mono na">—</td><td class="mono na">—</td>'), 'brak = „—”, nie zero');
+  assert.ok(h.includes('<b class="pos">+162 <small class="mtxt">usa.u.k</small></b>'), 'nowe etaty na zielono');
+  assert.ok(h.includes('usa.gdp') && h.includes('<b class="pos">+1.5%</b>') && h.includes('usa.q{"q":"2","r":"II","y":"2026"}'), 'PKB na zielono, kwartał po rzymsku');
+  assert.ok(h.includes('<b class="pos">+978.9 <small class="mtxt">usa.u.bn</small></b>') && h.includes('<b class="neg">−663.3'), 'do USA zielono, z USA czerwono');
+  assert.ok(h.includes('<b class="pos">+315.6'), 'netto = do USA − z USA');
+  assert.ok(h.includes('<td><span class="cell">Europe</span></td>'), 'bez tłumaczenia — nazwa obszaru z pliku (w stronie: „Europa”)');
+  assert.ok(h.includes('<td><span class="cell mono pos">+300.0</span></td><td><span class="cell mono neg">−100.0</span></td><td><span class="cell mono pos">+200.0</span></td>'), 'tabela: kolory jak w innych tabelach strony');
+  assert.ok(h.includes('China</span></td><td><span class="cell mono neg">−1.2</span></td><td><span class="cell mono na">—</span></td><td><span class="cell mono na">—</span></td>'), 'brak = „—”, nie zero');
   const g = mk({flagImg: (c, cls) => `<img class="ico" src="img/flagi/${c}.svg">`, glyphImg: n => `<img class="ico" src="img/glify/${n}.svg">`,
     flagsHtml: (l, m, cls) => `<span class="icos">${l.map(c => `<img src="img/flagi/${c}.svg">`).join('')}</span>`});
   g.usaApply('e', {at: 'x', s: {wti: {d: [['2026-09-22', 96.41]]}}});
@@ -3437,4 +3437,8 @@ test('v98-usa: panel USA — energia, gospodarka i przepływ kapitału; ikony, k
   assert.ok(h.includes('img/glify/oil.svg') && h.includes('img/flagi/us.svg') && h.includes('img/flagi/eu.svg') && h.includes('img/flagi/gb.svg'), 'ikony: ropa, flaga USA, flagi Europy');
   const e2 = mk({}); e2.usaApply('e', null);
   assert.ok(html.includes('<section class="panel pcard" id="g-usa" hidden></section>') && html.includes('usaLoad();usaAuto();'));
+});
+test('v98.1-usa: panel USA — kolory widoczne (styl kafelków nie gasi zmian), ikony w linii z nazwą', () => {
+  assert.ok(html.includes('#g-usa .etfk b small.pos{color:var(--gr-tx)}') && html.includes('#g-usa .etfk b small.neg{color:var(--rd-tx)}') && html.includes('#g-usa .etfk b small.neu{color:var(--yl-tx)}'));
+  assert.ok(html.includes('#g-usa .etfk span.icos{display:inline-flex'));
 });
