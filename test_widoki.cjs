@@ -3480,7 +3480,7 @@ test('v98.2: jednostka kontraktu i podpis wykresu bez nazw dostawców; flagi prz
   assert.ok(cal('zh').includes('<span class="tvc">[cn]中国</span>、<span class="tvc">[de]德国</span>。'), cal('zh'));
   for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'ja']) assert.equal((cal(L).match(/class="tvc"/g) || []).length, 6, 'sześć flag: ' + L + ' ' + cal(L));
   assert.equal(cal('pl', () => 'Tekst bez listy'), 'Tekst bez listy', 'inny kształt tekstu — sam tekst, bez błędu');
-  assert.ok(html.includes("<p class=\"pnote\">${k==='calendar'?tvCalSub():t('tv.sub.'+k)}</p>") && html.includes("${k==='chart'&&typeof icoWrap==='function'&&typeof coinImg==='function'?icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')):''}${t('tv.t.'+k)}"));
+  assert.ok(html.includes("<p class=\"pnote\">${k==='calendar'?tvCalSub():t('tv.sub.'+k)}</p>") && html.includes("<h2>${hIc}${t('tv.t.'+k)}</h2>") && html.includes("({chart:()=>icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')),"));
 });
 test('v98.2: zero po zaokrągleniu bez koloru i bez minusa (panel USA, kurs efektywny); kolor i strzałka z pokazanej liczby', () => {
   const u0 = html.indexOf('function usaTone('), u1 = html.indexOf('\nfunction usaMon(', u0);
@@ -3551,4 +3551,23 @@ test('v99: OECD najpierw z pliku serwera (co 6 h), prosto z OECD tylko brakując
   assert.ok(G.includes("srvJSON('oecd').then(j=>{const S=oecdSrv(j),pa=") && G.includes("S[k]?Promise.resolve().then(()=>{set(S[k]);gOk(src);GLIVE.oecdAt[src]=pa[k]||j.at;}):gJSON(GSRC[g](gISO.join('+')))"), 'najpierw plik, potem zapas');
   assert.ok(G.includes("one('share','oecd','oecd',v=>{GLIVE.oecd=v;},1)") && G.includes("one('cli','cli','cli',v=>{GLIVE.cli=v;})") && !G.includes("gJSON(GSRC.oecd(gISO.join('+'))).then"), 'bez bezpośrednich zapytań przy dobrym pliku');
   assert.ok(html.includes('const M={oecd:()=>GLIVE.oecdAt&&GLIVE.oecdAt.oecd,') && html.includes("const MK={oecd:'oecd',irlt:'oecd',cli:'oecd',") && html.includes("const PX={oecd:'OECD',irlt:'OECD',cli:'OECD',"), 'Źródła: czas pliku serwera i błąd z meta przy wierszach OECD');
+});
+test('v100: nowe widgety TradingView po kliknięciu — wiadomości (GLOBAL, CRYPTO), zmienność opcji BTC/ETH (DVOL); zgoda wspólna', () => {
+  const w0 = html.indexOf('const TV_W={'), w1 = html.indexOf('\n};', w0), W = html.slice(w0, w1);
+  for (const k of ['markets', 'calendar', 'heatmap', 'chart', 'news', 'newsc', 'dvol']) assert.ok(W.includes('\n  ' + k + ":{id:'tv-" + k + "'"), 'widget ' + k);
+  assert.ok(W.includes("js:'embed-widget-timeline.js'") && W.includes("feedMode:'all_symbols'") && W.includes("feedMode:'market',market:'crypto'"), 'wiadomości: świat i krypto');
+  assert.ok(W.includes('symbol:TV.dvol') && html.includes("dvol:'DERIBIT:DVOL'") && html.includes("[['DERIBIT:DVOL','BTC'],['DERIBIT:ETHDVOL','ETH']]"), 'DVOL: BTC i ETH');
+  for (const id of ['tv-news', 'tv-newsc', 'tv-dvol']) assert.equal(html.split('<section class="panel pcard" id="' + id + '" hidden></section>').length, 2, 'jedno miejsce: ' + id);
+  const c0 = html.indexOf('<section class="panel pcard" id="tv-chart" hidden></section>'), g0 = html.indexOf('<section class="panel pcard" id="tv-calendar" hidden></section>');
+  assert.ok(html.indexOf('id="tv-dvol"') > c0 && html.indexOf('id="tv-dvol"') < c0 + 200 && html.indexOf('id="tv-news"') > g0 && html.indexOf('id="tv-news"') < g0 + 200, 'CRYPTO: po wykresie; GLOBAL: po kalendarzu');
+  assert.ok(html.includes("closest('[data-tv-load],[data-tv-sym],[data-tv-dvol],[data-tv-off]')") && html.includes("if(b.dataset.tvDvol){TV.dvol=b.dataset.tvDvol;tvRender('dvol');if(!TV.loaded.dvol&&tvOk())tvOn('dvol');return;}"), 'przełącznik BTC/ETH ładuje tylko za zgodą');
+  assert.ok(html.includes('function tvOn(k){if(!tvOk())return;TV.loaded[k]=true;tvRender(k);}'), 'bez kliknięcia — zero połączeń z TradingView');
+  const PROV = /Deribit|CoinDesk|Reuters|Bloomberg/;
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of ['tv.t.news', 'tv.sub.news', 'tv.n.news', 'tv.t.newsc', 'tv.sub.newsc', 'tv.n.newsc', 'tv.t.dvol', 'tv.sub.dvol', 'tv.n.dvol']) assert.ok(t(k) !== k && !PROV.test(t(k)), L + ' ' + k);
+    assert.ok(!/cztery|four|vier|cuatro|quatre|quattro|quatro|четыр|四|4 つ/.test(t('tv.ph.note')), 'zgoda bez liczby widgetów: ' + L);
+  }
+  assert.ok(v96src.tFor('pl')('tv.sub.dvol').includes('nie prognoza kierunku') && v96src.tFor('pl')('tv.sub.news').includes('nie jest nasza ocena'), 'oczekiwanie rynku, nie prognoza; nagłówki, nie nasza ocena');
+  assert.ok(v96src.tFor('pl')('g.hs.tv').includes('wiadomości krypto') && v96src.tFor('en')('g.hs.tv').includes('DVOL'), 'strona Źródła wymienia nowe widgety');
 });
