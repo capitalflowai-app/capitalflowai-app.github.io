@@ -1156,7 +1156,7 @@ test('v64: gCenyDeep — 1KW/1R z cen ETF tylko przy pełnej historii; zmiana 63
   const GPROXY = {usa: [['SPY', 1]], mea: [['KSA', .76], ['TUR', .13], ['EIS', .11]], jpn: [['EWJ', .76], ['EWY', .24]]};
   const GLIVE = {ceny: null};
   const f = new Function('GLIVE', 'GPROXY', 'gOk', 'gPeriodButtons', html.slice(a0, a1) + '\nreturn {GCENY_N, gCenyDeep, gCenyDp};')(GLIVE, GPROXY, () => {}, () => {});
-  const series = n => Array.from({length: n}, (_, i) => ['d' + i, 100 + i]);
+  const series = n => Array.from({length: n}, (_, i) => ['d' + String(260 - n + i).padStart(3, '0'), 100 + 260 - n + i]);   // v69: krótsza historia = najnowsze sesje, wspólny kalendarz
   GLIVE.ceny = {q: {SPY: {d: series(260)}, KSA: {d: series(260)}, TUR: {d: series(260)}, EIS: {d: series(260)}, EWJ: {d: series(45)}, EWY: {d: series(260)}}};
   assert.equal(f.gCenyDeep('1Q'), true, '5 z 6 symboli (83%) ma ≥ 64 sesje');
   GLIVE.ceny.q.EWY.d = series(45);
@@ -1214,7 +1214,7 @@ test('v67: Stock Connect — kafelek, kolumna, wiersz regionu Chiny; brak częś
   let b = f.zagBlock(); assert.ok(!b.includes('ob.c.hk') && !b.includes('ob.hk.k'), 'bez części HK — bez kafelka i kolumny');
   f.zagApply({at: 'x', hk: {d: [['2026-09-23', 1000, 1, 1, 2, 127.5, '2026-09-18'], ['2026-09-24', 2899.77, 32950.11, 30050.34, 2, 369.6, '2026-09-18']]}});
   b = f.zagBlock();
-  assert.ok(b.includes('[ob.hk.k|+2.9 ob.mld.hkd|') && b.includes('ob.hk.usd{"v":"+370","d":"2026-09-18"}') && b.includes('ob.snh{"n":2,"v":"+3.9"}'), b.slice(0, 600));
+  assert.ok(b.includes('[ob.hk.k|+2.9 ob.mld.hkd|') && b.includes('ob.hk.usd{"v":"+370","d":"2026-09-18"}') && b.includes('ob.snh{"n":2,"w":"sessions","v":"+3.9"}'), b.slice(0, 600));
   assert.ok(b.includes('<th>ob.c.hk</th>') && b.includes('ob.not.hk') && b.includes('[ob.in.k|—||eng.gap]'));
   const r = f.zagRegion('chn'); assert.ok(r.includes('ob.reg.hk.v') && r.includes('"v":"+2.9"') && r.includes('≈ +370 inst.mln.usd'), r);
   assert.equal(f.zagRegion('jpn'), '');
@@ -1239,4 +1239,25 @@ test('v68: cftcOthers — wiersze tylko dla obecnych rynków, zmiana 13 tyg. z h
   assert.ok(html.includes('cftcHist(m)+cftcOthers()+cftcTail()'));
   const x0 = html.indexOf('const EXTRA56='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA56='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['cftc.x.t', 'cftc.x.sub', 'cftc.m.jpy', 'cftc.m.msciem']) assert.ok(dict[l][k], l + ' ' + k);
+});
+
+// v69: wspólny kalendarz sesji ETF-ów, nagłówek CRYPTO z CoinMarketCap, teksty regionu dla okresów z ETF-ów
+test('v69: fałszywa sesja nie przesuwa okna; ETF bez daty końca = brak; daty okna przy zmianach ETF', () => {
+  const a0 = html.indexOf('const GCENY_N='), a1 = html.indexOf('function gCenyReg(r,per){', a0);
+  const GPROXY = {usa: [['SPY', 1]], oce: [['EWA', 1]]}, GLIVE = {ceny: null};
+  const f = new Function('GLIVE', 'GPROXY', 'gOk', 'gPeriodButtons', html.slice(a0, a1) + '\nreturn {gCenyWin, gCenyDp, gCenyDeep};')(GLIVE, GPROXY, () => {}, () => {});
+  const days = Array.from({length: 70}, (_, i) => 'd' + String(i).padStart(3, '0'));
+  GLIVE.ceny = {q: {SPY: {d: days.map((d, i) => [d, 100 + i])}, EWA: {d: [...days.slice(0, 10).map((d, i) => [d, 50 + i]), ['d009x', 59], ...days.slice(10).map((d, i) => [d, 60 + i])]}}};
+  assert.deepEqual(f.gCenyWin('1Q'), ['d006', 'd069']);
+  assert.ok(Math.abs(f.gCenyDp('EWA', '1Q') - ((119 / 56) - 1) * 100) < 1e-9, 'wiersz spoza kalendarza nie przesuwa okna');
+  GLIVE.ceny.q.EWA.d.pop(); assert.equal(f.gCenyDp('EWA', '1Q'), null, 'ETF bez ostatniej sesji — brak, nie inne okno');
+  assert.ok(html.includes("(w=>w?' · '+escH(w[0])+' → '+escH(w[1]):'')(gCenyWin(p))"));
+  assert.ok(html.includes("jpn:[['EWJ',7611],['EWY',2757]]"), 'wagi Japonii i Korei z bazy');
+  assert.ok(html.includes("put('mcap',x[0],x[1],x[2],(typeof M.mcap_chg24_pct==='number'&&isFinite(M.mcap_chg24_pct))?M.mcap_chg24_pct:null,null,'CoinMarketCap')") && html.includes('if(L[k.id].src)src=L[k.id].src;'));
+  assert.ok(html.includes("t(GLIVE.cenySrv?'g.m.regtds':'g.m.regtd',{n:GCENY_N[gst.period]})") && html.includes("'g.l.regtd':'g.l.reg'"));
+  const z0 = html.indexOf('const zagSes='), z1 = html.indexOf('\n', z0), zs = new Function('LANG', html.slice(z0, z1) + '\nreturn zagSes;')('pl');
+  assert.deepEqual([1, 2, 4, 5, 12, 20, 22].map(zs), ['sesja', 'sesje', 'sesje', 'sesji', 'sesji', 'sesji', 'sesje']);
+  const x0 = html.indexOf('const EXTRA57='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA57='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['g.m.regtds', 'g.src.regtds', 'g.l.regtd', 'g.pf.mom3', 'ob.src', 'ob.reg.hk.v']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.equal(dict.pl['g.per.1R'], 'rok (12 miesięcy)');
 });

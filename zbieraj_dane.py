@@ -547,6 +547,33 @@ def _drop_open_session(q, now_ny=None):
     return n
 
 
+def _align_calendar(q):
+    """v69: wszystkie ETF-y na wspólnym kalendarzu sesji (daty SPY; bez SPY — daty obecne w co najmniej połowie symboli).
+    Świeca spoza kalendarza (np. 25.12 przy święcie w USA) jest usuwana — każdy region liczy zmianę z tych samych sesji."""
+    if not q:
+        return 0
+    spy = q.get('SPY') if isinstance(q.get('SPY'), dict) else None
+    if spy and spy.get('d'):
+        cal = {str(r[0])[:10] for r in spy['d']}
+    else:
+        cnt = {}
+        for v in q.values():
+            for r in (v.get('d') or []):
+                cnt[str(r[0])[:10]] = cnt.get(str(r[0])[:10], 0) + 1
+        cal = {d for d, c in cnt.items() if c * 2 >= len(q)}
+    n = 0
+    for v in q.values():
+        d = v.get('d') or []
+        keep = [r for r in d if str(r[0])[:10] in cal]
+        if len(keep) != len(d):
+            n += len(d) - len(keep); v['d'] = keep
+            if keep:
+                v['asof'] = str(keep[-1][0])[:10]
+    if n:
+        META['notes'].append(f'Twelve Data: świece spoza wspólnego kalendarza sesji pominięte: {n}')
+    return n
+
+
 def build_prices(key):
     """data/ceny.json: dzienne zamknięcia 14 ETF-ów zastępczych (te same co DZIŚ), rosnąco po dacie."""
     q, errors = {}, []
@@ -559,6 +586,7 @@ def build_prices(key):
         errors.extend(be)
     META['errors'].extend(errors)
     _drop_open_session(q)
+    _align_calendar(q)   # v69: jeden kalendarz sesji dla wszystkich ETF-ów
     good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
     if len(good) < TD_MIN_SYMBOLS:
         raise RuntimeError(f'tylko {len(good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec')
@@ -1859,9 +1887,12 @@ def parse_hkex(text):
         j = json.loads(t[t.index('['):t.rindex(']') + 1])
     except (ValueError, json.JSONDecodeError):
         return None
-    date, buy, sell, n = None, 0.0, 0.0, 0
+    date, buy, sell, n, sb = None, 0.0, 0.0, 0, 0
     for m in j if isinstance(j, list) else []:
-        if not isinstance(m, dict) or 'southbound' not in str(m.get('market', '')).lower() or not m.get('tradingDay'):
+        if not isinstance(m, dict) or 'southbound' not in str(m.get('market', '')).lower():
+            continue
+        sb += 1
+        if not m.get('tradingDay'):
             continue
         try:
             tb = m['content'][0]['table']; d = dict(zip(tb['schema'][0], [x['td'][0][0] for x in tb['tr']]))
@@ -1872,7 +1903,7 @@ def parse_hkex(text):
             continue
         date = m['date']; buy += b; sell += s; n += 1
     if not n:
-        return None
+        return False if sb else None   # v69: False = dzień bez sesji (plik z tradingDay 0), None = nieczytelny plik
     return [date, round(buy - sell, 2), round(buy, 2), round(sell, 2), n]
 
 
@@ -1899,17 +1930,15 @@ def hkex_part(prev_hk, key):
         try:
             r = parse_hkex(get_bytes(HKEX_URL.format(d=iso.replace('-', '')), timeout=30).decode('utf-8', 'replace'))
         except urllib.error.HTTPError as e:
-            if e.code == 404 and iso < now_hk.date().isoformat():
-                empty.add(iso)      # dzień bez sesji — nie pytamy ponownie
-            elif e.code != 404:
-                fails.append(f'{iso}: HTTP {e.code}')
+            if e.code != 404 or iso < now_hk.date().isoformat():
+                fails.append(f'{iso}: HTTP {e.code}')   # v69: 404 za dzień roboczy z przeszłości = brak pliku (święta mają plik) — ponowimy
             continue
         except Exception as e:
             fails.append(f'{iso}: {e}'); continue
+        if r is False:
+            empty.add(iso); continue      # v69: święto w Hongkongu — plik z tradingDay 0
         if r is None:
-            if iso < now_hk.date().isoformat():
-                empty.add(iso)
-            continue
+            fails.append(f'{iso}: nieczytelny plik'); continue
         have[r[0]] = r[:5]
     if not have:
         raise RuntimeError('brak dni' + (f' ({fails[0]})' if fails else ''))

@@ -2192,7 +2192,7 @@ class HkexV67(unittest.TestCase):
 
     def test_parse_southbound_net_and_no_session(self):
         self.assertEqual(zd.parse_hkex(self.JS), ['2026-09-24', 2899.77, 32950.11, 30050.34, 2])
-        self.assertIsNone(zd.parse_hkex(self.JS.replace('"tradingDay":1', '"tradingDay":0')), 'dzień bez sesji = brak, nie zero')
+        self.assertIs(zd.parse_hkex(self.JS.replace('"tradingDay":1', '"tradingDay":0')), False, 'v69: dzień bez sesji (święto) = False, nie zero')
         self.assertIsNone(zd.parse_hkex('<html>404</html>'))
 
     def test_part_404_marks_holiday_and_converts_hkd(self):
@@ -2200,7 +2200,9 @@ class HkexV67(unittest.TestCase):
             d = url.split('daily_')[1][:8]
             if d == '20260924':
                 return self.JS.encode()
-            raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            if d == '20260925':
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, None)   # dzisiejszy plik jeszcze nie wyszedł
+            return self.JS.replace('"tradingDay":1', '"tradingDay":0').replace('2026-09-24', d[:4] + '-' + d[4:6] + '-' + d[6:]).encode()   # v69: święto = plik z tradingDay 0
 
         def gj(url, headers=None):
             return {'observations': [{'date': '2026-09-18', 'value': '7.8456'}]}
@@ -2229,6 +2231,32 @@ class CftcExtraV68(unittest.TestCase):
         self.assertEqual(jpy['groups']['lev_funds']['net'], out['markets']['eur']['groups']['lev_funds']['net'])
         self.assertTrue(any(n.startswith('CFTC gbp: brak rynku 096742') for n in zd.META['notes']))
         self.assertNotIn('gbp', {k for k, v in out['markets'].items() if v})
+
+
+class CalendarAndHkexV69(unittest.TestCase):
+    """v69: jeden kalendarz sesji dla ETF-ów; 404 HKEX za dzień roboczy z przeszłości = błąd do ponowienia, nie święto."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    def test_fake_holiday_candle_removed(self):
+        q = {'SPY': {'asof': '2025-12-26', 'd': [['2025-12-24', 1, 1], ['2025-12-26', 2, 1]]},
+             'TUR': {'asof': '2025-12-26', 'd': [['2025-12-24', 1, 1], ['2025-12-25', 1, 1], ['2025-12-26', 2, 1]]}}
+        self.assertEqual(zd._align_calendar(q), 1)
+        self.assertEqual([r[0] for r in q['TUR']['d']], ['2025-12-24', '2025-12-26'])
+        self.assertTrue(any('spoza wspólnego kalendarza' in n for n in zd.META['notes']))
+
+    def test_hkex_past_404_is_a_failure_not_a_holiday(self):
+        def gb(url, headers=None, timeout=60):
+            d = url.split('daily_')[1][:8]
+            if d == '20260924':
+                return HkexV67.JS.encode()
+            raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+        with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.hkex_part(None, '')
+        self.assertNotIn('2026-09-23', out['empty'], 'brak pliku to nie święto')
+        self.assertTrue(any(e.startswith('HKEX:') and 'HTTP 404' in e for e in zd.META['errors']))
 
 
 if __name__ == '__main__':
