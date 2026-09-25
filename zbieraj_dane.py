@@ -3393,7 +3393,8 @@ def main():
             if prev_sp: save('spw', prev_sp)
     # v88: Meksyk — Banxico (dziennie, z opóźnieniem ok. 1,5 tygodnia): najwyżej co 6 h; awaria = poprzedni plik i błąd
     prev_mx = previous('meksyk')
-    if prev_mx and fresh(prev_mx, 360):
+    old_mx = bool(prev_mx) and any(isinstance(r, list) and len(r) < 6 for r in (prev_mx.get('d') or [])[-1:])   # v88.2: plik sprzed podziału na rodzaje papierów
+    if prev_mx and fresh(prev_mx, 360) and not old_mx:
         save('meksyk', prev_mx); META['ok']['meksyk'] = 'cached'
     else:
         try:

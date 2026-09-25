@@ -3129,5 +3129,28 @@ class MeksykV88(unittest.TestCase):
         self.run_(self.CSV2.replace('"1512900.00"', '"1712900.00"'))
         self.assertTrue(any(n.startswith('Banxico: Bonos M + Cetes + Udibonos większe niż całość') for n in zd.META['notes']), zd.META['notes'])
 
+class MeksykFormatV882(unittest.TestCase):
+    """v88.2: meksyk.json bez kolumn rodzajów papierów jest pobierany od razu; plik w nowym formacie — z pamięci."""
+
+    def test_old_format_rebuilt_new_format_cached(self):
+        for row, rebuilt in ((['2026-09-14', 1788646.44, 16097115.95], True), (['2026-09-14', 1788646.44, 16097115.95, 1.0, 1.0, 1.0], False)):
+            zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
+            prev = {'at': _iso(30), 'd': [row]}
+            new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
+            offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
+                    for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw')]
+            [p.start() for p in offs]
+            try:
+                with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), \
+                        mock.patch.object(zd, 'previous', lambda name: prev if name == 'meksyk' else None), \
+                        mock.patch.object(zd, 'build_meksyk', return_value=new):
+                    zd.main()
+            finally:
+                [p.stop() for p in offs]
+            self.assertIs(saved['meksyk'], new if rebuilt else prev, 'stary format — od razu nowy plik' if rebuilt else 'nowy format — z pamięci')
+
+
 if __name__ == '__main__':
     unittest.main()
