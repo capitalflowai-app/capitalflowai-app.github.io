@@ -1323,6 +1323,107 @@ def build_cftc(fetch=None, today=None, prev=None):
             'order': [gk for gk, _, _ in CFTC_GROUPS], 'markets': markets}
 
 
+# v92: CFTC — raport „disaggregated” (tylko futures): pozycje grup w kontraktach na surowce — złoto, srebro, miedź (COMEX), ropa WTI (NYMEX).
+# Dane rządu USA (domena publiczna). Plik tygodniowy bez nagłówka: pierwsze 23 kolumny w kolejności pliku rocznego (sprawdzone 25.09.2026:
+# 274 wiersze tygodnia identyczne z plikiem rocznym). Stan na wtorek, publikacja w piątek. Wynik: data/surowce.json.
+CFTCD_WEEK_URL = 'https://www.cftc.gov/dea/newcot/f_disagg.txt'
+CFTCD_YEAR_URL = 'https://www.cftc.gov/files/dea/history/fut_disagg_txt_{}.zip'
+CFTCD_MARKETS = {'gold': '088691', 'silver': '084691', 'copper': '085692', 'wti': '067651'}
+CFTCD_COLS = ('Market_and_Exchange_Names', 'As_of_Date_In_Form_YYMMDD', 'Report_Date_as_YYYY-MM-DD', 'CFTC_Contract_Market_Code',
+              'CFTC_Market_Code', 'CFTC_Region_Code', 'CFTC_Commodity_Code', 'Open_Interest_All', 'Prod_Merc_Positions_Long_All',
+              'Prod_Merc_Positions_Short_All', 'Swap_Positions_Long_All', 'Swap__Positions_Short_All', 'Swap__Positions_Spread_All',
+              'M_Money_Positions_Long_All', 'M_Money_Positions_Short_All', 'M_Money_Positions_Spread_All', 'Other_Rept_Positions_Long_All',
+              'Other_Rept_Positions_Short_All', 'Other_Rept_Positions_Spread_All', 'Tot_Rept_Positions_Long_All', 'Tot_Rept_Positions_Short_All',
+              'NonRept_Positions_Long_All', 'NonRept_Positions_Short_All')
+CFTCD_GROUPS = (('prod', 'Prod_Merc_Positions_Long_All', 'Prod_Merc_Positions_Short_All', None),
+                ('swap', 'Swap_Positions_Long_All', 'Swap__Positions_Short_All', 'Swap__Positions_Spread_All'),
+                ('mm', 'M_Money_Positions_Long_All', 'M_Money_Positions_Short_All', 'M_Money_Positions_Spread_All'),
+                ('other', 'Other_Rept_Positions_Long_All', 'Other_Rept_Positions_Short_All', 'Other_Rept_Positions_Spread_All'),
+                ('nonrept', 'NonRept_Positions_Long_All', 'NonRept_Positions_Short_All', None))
+
+
+def parse_cftcd(text, header=None):
+    """Plik disaggregated (CSV) → {kod rynku: {data: rekord}} dla rynków CFTCD_MARKETS; nagłówek z pliku (roczny) albo podany (tygodniowy).
+    Rekord: {'name','date','oi','g': {grupa: {long, short, spread, net}}}; wiersz, w którym pozycje grup nie sumują się do open interest,
+    trafia do 'bad' (pomijany — brak, nie zero)."""
+    rows = list(csv.reader(io.StringIO(text)))
+    if header is None:
+        if not rows:
+            return {}, []
+        header, rows = rows[0], rows[1:]
+    I = {n.strip(): i for i, n in enumerate(header)}
+    want = set(CFTCD_MARKETS.values())
+    out, bad = {}, []
+    for r in rows:
+        if len(r) < len(CFTCD_COLS) or r[I['CFTC_Contract_Market_Code']].strip() not in want:
+            continue
+        v = lambda n: _cftc_int(r[I[n]]) if n else 0
+        day = r[I['Report_Date_as_YYYY-MM-DD']].strip()
+        oi = v('Open_Interest_All')
+        g = {}
+        for gk, lo, sh, sp in CFTCD_GROUPS:
+            L, S, P = v(lo), v(sh), v(sp) if sp else None
+            g[gk] = {'long': L, 'short': S, 'spread': P, 'net': L - S if L is not None and S is not None else None}
+        tl = [oi] + [x['long'] for x in g.values()] + [x['short'] for x in g.values()] + [g[k]['spread'] for k in ('swap', 'mm', 'other')]
+        if None in tl or sum(x['long'] + (x['spread'] or 0) for x in g.values()) != oi or sum(x['short'] + (x['spread'] or 0) for x in g.values()) != oi:
+            bad.append(f'{r[I["CFTC_Contract_Market_Code"]].strip()} {day}'); continue
+        out.setdefault(r[I['CFTC_Contract_Market_Code']].strip(), {})[day] = {'name': r[I['Market_and_Exchange_Names']].strip(), 'date': day, 'oi': oi, 'g': g}
+    return out, bad
+
+
+def build_surowce(fetch=None, today=None):
+    """data/surowce.json — pozycje w kontraktach na złoto, srebro, miedź i ropę WTI: stan z ostatniego raportu + netto grup z 13 raportów."""
+    fetch = fetch or (lambda u: get_bytes(u, timeout=120))
+    today = today or _now_utc().date()
+    errors, rows, bad = [], {}, []
+
+    def add(parsed):
+        p, b = parsed
+        bad.extend(b)
+        for code, days in p.items():
+            for d, rec in days.items():
+                rows.setdefault(code, {})[d] = rec          # plik tygodniowy wczytywany na końcu — wygrywa (liczby są identyczne)
+
+    def year(y):
+        try:
+            with zipfile.ZipFile(io.BytesIO(fetch(CFTCD_YEAR_URL.format(y)))) as z:
+                names = [n for n in z.namelist() if n.lower().endswith('.txt')]
+                if not names:
+                    raise RuntimeError('brak pliku .txt w archiwum')
+                add(parse_cftcd(z.read(names[0]).decode('utf-8', 'replace')))
+        except urllib.error.HTTPError as e:
+            errors.append(f'CFTC surowce rok {y}: HTTP {e.code}' + (' (w pierwszych dniach stycznia to normalne)' if e.code == 404 else ''))
+        except Exception as e:
+            errors.append(f'CFTC surowce rok {y}: {e}')
+    year(today.year)
+    if any(len(rows.get(c, {})) < CFTC_WEEKS + 1 for c in CFTCD_MARKETS.values()):
+        year(today.year - 1)
+    try:
+        add(parse_cftcd(fetch(CFTCD_WEEK_URL).decode('utf-8', 'replace'), header=CFTCD_COLS))
+    except Exception as e:
+        errors.append(f'CFTC surowce tydzień: {e}')
+    markets = {}
+    for key, code in CFTCD_MARKETS.items():
+        recs = [rows[code][d] for d in sorted(rows.get(code, {}))]
+        if not recs:
+            errors.append(f'CFTC surowce: brak rynku {key} ({code})'); continue
+        last = recs[-1]
+        last_d = _cftc_iso(last['date'])
+        recs = [x for x in recs if (last_d - _cftc_iso(x['date'])).days <= CFTC_SPAN_DAYS][-CFTC_WEEKS:]
+        h = {'dates': [x['date'] for x in recs], 'oi': [x['oi'] for x in recs]}
+        for gk, _, _, _ in CFTCD_GROUPS:
+            h[gk] = [x['g'][gk]['net'] for x in recs]
+        markets[key] = {'code': code, 'name': last['name'], 'asof': last['date'], 'oi': last['oi'], 'groups': last['g'], 'hist': h}
+    if bad:
+        META['notes'].append('CFTC surowce: pozycje ≠ open interest (wiersz pominięty): ' + ', '.join(bad[-5:]))
+    for e in errors:
+        META['errors'].append(mask(e))
+    if not markets:
+        raise RuntimeError('żaden rynek surowców nie ma danych')
+    return {'at': NOW, 'src': 'CFTC — Commitments of Traders: Disaggregated (futures only)', 'url': CFTC_HOME, 'data_url': CFTCD_WEEK_URL,
+            'unit': 'kontrakty', 'asof': max(m['asof'] for m in markets.values()), 'order': [g for g, _, _, _ in CFTCD_GROUPS], 'markets': markets}
+
+
 # --- Coin Metrics Community (bez klucza): przepływy BTC i ETH na giełdy i z giełd, zapas na giełdach -------------------
 # Licencja danych: CC BY-NC 4.0 (docs.coinmetrics.io/api/v4 → „Available to the community under the Creative Commons
 # license” z linkiem do by-nc/4.0; github.com/coinmetrics/data/LICENSE). Limit Community: 10 zapytań / 6 s na IP.
@@ -3773,6 +3874,14 @@ def _tr_flows(S):
                 if r and _cftc_roll(r['date']):
                     r['roll'] = True; r['x'] = False       # rolowanie kontraktów kwartalnych zawyża zmiany — bez „wyjątkowo”
                 out.append(r)
+        su = S.get('surowce') if isinstance(S.get('surowce'), dict) else {}   # v92: surowce — fundusze zarządzające (managed money)
+        for k in CFTCD_MARKETS:
+            h = ((su.get('markets') or {}).get(k) or {}).get('hist') or {}
+            ds, lv = h.get('dates') or [], h.get('mm') or []
+            if len(ds) == len(lv) and len(ds) > 1:
+                wd, wv = _tr_weeks(ds, lv, n=len(ds) + 4)
+                ch = [wv[i] - wv[i - 1] if _isnum(wv[i]) and _isnum(wv[i - 1]) else None for i in range(1, len(wv))]
+                out.append(_tr_row('cs_' + k, 'pos', 'pos', 1, wd[1:], ch, weekly_days=14, cur='CT'))
         return out
 
     def funds():
@@ -3901,7 +4010,7 @@ def build_trendy(S):
         nw = len(pp['weeks'])            # rynki są ze sobą powiązane: niepewność liczona na tygodnie, nie na pary rynek-tydzień
         base.append({'id': 'px', 'kind': 'price', 'k': pp['k'], 'n': pp['n'], 'weeks': nw, 'from': pp['from'].isoformat(),
                      'to': pp['to'].isoformat(), 'ci': list(wilson(pp['k'], pp['n'], n_eff=nw))})
-    return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (fundusze, obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, ceny)',
+    return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (fundusze, obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, surowce, ceny)',
             'rules': {'base_min': TR_BASE_MIN, 'base_max': TR_BASE_MAX, 'dir': TR_DIR, 'all': TR_ALL, 'floor': TR_FLOOR, 'strong': TR_STRONG,
                       'exc': TR_EXC, 'day_z': TR_DAY_Z, 'span': TR_SPAN, 'px_min': TR_PX_MIN, 'cr_typ': TR_CR_TYP},
             'f': flows, 'p': prices, 'b': base}
@@ -4004,6 +4113,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'CFTC: {e}')); META['ok']['cftc'] = False
             if prev_cftc: save('cftc', prev_cftc); print('CFTC zawiódł — zachowano poprzedni cftc.json z', prev_cftc.get('at'))
+    # v92: CFTC — surowce (raport disaggregated): publikacja w piątki — najwyżej co 6 h; przy awarii poprzedni plik
+    prev_su = previous('surowce')
+    if prev_su and fresh(prev_su, 360):
+        save('surowce', prev_su); META['ok']['surowce'] = 'cached'
+    else:
+        try:
+            save('surowce', build_surowce()); META['ok']['surowce'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'CFTC surowce: {e}')); META['ok']['surowce'] = False
+            if prev_su: save('surowce', prev_su)
     # COIN METRICS (Community, bez klucza): dane dzienne (nowy dzień ok. 02–03 UTC) — plik młodszy niż 60 min bez zapytań;
     # przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_cm = previous('cm')

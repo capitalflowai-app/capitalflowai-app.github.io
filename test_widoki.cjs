@@ -1909,3 +1909,11 @@ test('v91: GLOBAL — linie funduszy ETF w opisie regionu z pliku TRENDÓW; brak
   const a = 'const EXTRA82=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   assert.ok(D.pl['fe.reg'] && D.en['fe.reg']);
 });
+
+test('v92: surowce z CFTC w TRENDACH — nazwy, źródło, wiersz na stronie Źródła', () => {
+  const a = 'const EXTRA83=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  for (const k of ['gold', 'silver', 'copper', 'wti']) assert.ok(D.pl['trd.s.cs_' + k] && D.en['trd.s.cs_' + k]);
+  assert.ok(D.pl['trd.src.cs'] && D.pl['trd.p.sub'].includes('fundusze zarządzające') && D.en['g.hs.cs'].includes('open interest'));
+  assert.ok(html.includes("'www.cftc.gov','src.f.w','src.l.w',(typeof TRD!=='undefined'&&TRD.data&&TRD.data.f.some(r=>r&&typeof r.id==='string'&&r.id.slice(0,3)==='cs_'))?1:0,'g.hs.cs','cs']"));
+  assert.ok(html.includes("cs:'surowce'") && html.includes("cs:'CFTC surowce'"));
+});
