@@ -3536,3 +3536,19 @@ test('v98.2: czytelność — żółty w jasnym motywie, chipy CRYPTO, znaczki w
   assert.ok(html.includes("'g.k.dxy':()=>flagImg('us','sm'),"));
   assert.ok(html.includes('@supports (grid-template-rows:subgrid){.gkpis>.kpi{display:grid;grid-template-columns:minmax(0,1fr);grid-row:span 4;grid-template-rows:subgrid;align-content:start}'), 'kafle: kwoty w rzędzie na jednej wysokości');
 });
+test('v99: OECD najpierw z pliku serwera (co 6 h), prosto z OECD tylko brakująca część; plik starszy niż 7 dni pominięty', () => {
+  const o0 = html.indexOf('function oecdSrv('), o1 = html.indexOf('\n  return out;}', o0) + '\n  return out;}'.length;
+  const f = new Function(html.slice(o0, o1) + '\nreturn oecdSrv;')();
+  const now = new Date().toISOString(), old = new Date(Date.now() - 8 * 864e5).toISOString();
+  const S = {USA: [['2026-07', 224.2], ['2026-08', 230.7]], JPN: [['2026-08', null], 'x']};
+  const r = f({at: now, share: S, irlt: {USA: [['2026-08', 4.68]]}, cli: {USA: [['2026-08', 100.9]]}, part_at: {share: now, irlt: now, cli: old}});
+  assert.deepEqual(r.share, {USA: [['2026-07', 224.2], ['2026-08', 230.7]]}, 'wiersze bez liczby odrzucone (brak ≠ zero)');
+  assert.deepEqual(r.irlt, {USA: [['2026-08', 4.68]]});
+  assert.ok(!('cli' in r), 'część starsza niż 7 dni — pominięta (strona zapyta OECD sama)');
+  assert.deepEqual(f({at: old, share: S}), {}, 'cały plik starszy niż 7 dni — pominięty');
+  assert.deepEqual(f(null), {}); assert.deepEqual(f({at: 'x', share: S}), {}); assert.deepEqual(f({at: now, share: []}), {});
+  const g0 = html.indexOf('function gLoad(cb){'), g1 = html.indexOf('\n  Promise.all(P).then(', g0), G = html.slice(g0, g1);
+  assert.ok(G.includes("srvJSON('oecd').then(j=>{const S=oecdSrv(j),pa=") && G.includes("S[k]?Promise.resolve().then(()=>{set(S[k]);gOk(src);GLIVE.oecdAt[src]=pa[k]||j.at;}):gJSON(GSRC[g](gISO.join('+')))"), 'najpierw plik, potem zapas');
+  assert.ok(G.includes("one('share','oecd','oecd',v=>{GLIVE.oecd=v;},1)") && G.includes("one('cli','cli','cli',v=>{GLIVE.cli=v;})") && !G.includes("gJSON(GSRC.oecd(gISO.join('+'))).then"), 'bez bezpośrednich zapytań przy dobrym pliku');
+  assert.ok(html.includes('const M={oecd:()=>GLIVE.oecdAt&&GLIVE.oecdAt.oecd,') && html.includes("const MK={oecd:'oecd',irlt:'oecd',cli:'oecd',") && html.includes("const PX={oecd:'OECD',irlt:'OECD',cli:'OECD',"), 'Źródła: czas pliku serwera i błąd z meta przy wierszach OECD');
+});

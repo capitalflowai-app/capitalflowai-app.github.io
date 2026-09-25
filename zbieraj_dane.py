@@ -4519,6 +4519,88 @@ def build_bilans_usa(key, prev=None, today=None):
     return out
 
 
+# ===================== v99: OECD na serwerze =====================
+# Indeksy giełdowe (SHARE), rentowności 10-letnie (IRLT) i wskaźnik wyprzedzający (CLI) dla 27 krajów mapy GLOBAL.
+# Strona pobierała je dotąd prosto z OECD; OECD ogranicza liczbę zapytań z jednego adresu (HTTP 429) i wtedy mapa
+# pokazywała „dane przykładowe”. Teraz: zbieracz co 6 h → data/oecd.json; strona pyta OECD tylko, gdy pliku brak.
+# Lista krajów = kody ISO z GREG na stronie (test pilnuje zgodności).
+OECD_ISO = ['USA', 'CAN', 'BRA', 'MEX', 'CHL', 'COL', 'DEU', 'FRA', 'GBR', 'ITA', 'ESP', 'NLD', 'CHE', 'SWE', 'POL', 'RUS',
+            'SAU', 'TUR', 'ISR', 'ZAF', 'IND', 'CHN', 'JPN', 'KOR', 'IDN', 'AUS', 'NZL']
+OECD_BASE = 'https://sdmx.oecd.org/public/rest/data/'
+OECD_Q = {   # te same zapytania co na stronie (GSRC.oecd / rate / cli)
+    'share': 'OECD.SDD.STES,DSD_STES@DF_FINMARK,4.0/{iso}.M.SHARE.IX._Z._Z._Z._Z.N',
+    'irlt': 'OECD.SDD.STES,DSD_STES@DF_FINMARK,4.0/{iso}.M.IRLT.PA._Z._Z._Z._Z.N',
+    'cli': 'OECD.SDD.STES,DSD_STES@DF_CLI,4.1/{iso}.M.LI...AA...H',
+}
+OECD_SLEEP = 4       # odstęp między trzema zapytaniami (limit OECD na adres)
+OECD_EVERY = 6 * 60  # dane miesięczne — co 6 h wystarczy
+OECD_RETRY = 60      # część z błędem — ponów po godzinie, nie co 20 min
+
+
+def oecd_start(today=None, months=15):
+    """Pierwszy miesiąc zapytania — jak gStart() na stronie: bieżący miesiąc minus 15."""
+    d = today or datetime.datetime.now(datetime.timezone.utc).date()
+    m = d.year * 12 + (d.month - 1) - months
+    return f'{m // 12:04d}-{m % 12 + 1:02d}'
+
+
+def oecd_parse(j):
+    """SDMX-JSON (obserwacje płaskie) → {kraj: [[miesiąc, wartość], …]} rosnąco — ten sam kształt co gOecd() na stronie.
+    Brak obserwacji albo wartość nieliczbowa = brak wpisu (nigdy zero)."""
+    D = j['data']['structure']['dimensions']['observation']
+    obs = j['data']['dataSets'][0].get('observations') or {}
+    iA = next(i for i, d in enumerate(D) if d.get('id') == 'REF_AREA')
+    iT = next(i for i, d in enumerate(D) if d.get('id') == 'TIME_PERIOD')
+    A = [v.get('id') for v in D[iA]['values']]
+    T = [v.get('id') for v in D[iT]['values']]
+    out = {}
+    for k, v in obs.items():
+        p = k.split(':')
+        x = v[0] if isinstance(v, list) and v else None
+        if isinstance(x, bool) or not isinstance(x, (int, float)) or x != x:
+            continue
+        a, tm = A[int(p[iA])], T[int(p[iT])]
+        if a and tm:
+            out.setdefault(a, {})[tm] = x
+    return {a: [[tm, v] for tm, v in sorted(m.items())] for a, m in sorted(out.items())}
+
+
+def oecd_get(path, start, _retry=True):
+    url = f'{OECD_BASE}{path.format(iso="+".join(OECD_ISO))}?startPeriod={start}&format=jsondata&dimensionAtObservation=AllDimensions'
+    try:
+        return get_json(url, timeout=60)
+    except urllib.error.HTTPError as e:
+        if e.code == 429 and _retry:   # limit zapytań OECD — jedna ponowna próba po przerwie
+            time.sleep(20)
+            return oecd_get(path, start, _retry=False)
+        raise
+
+
+def build_oecd(prev=None, today=None):
+    start = oecd_start(today)
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    out = {'at': NOW, 'start': start, 'iso': OECD_ISO, 'ok': {}, 'part_at': {}}
+    fails = []
+    for i, (k, path) in enumerate(OECD_Q.items()):
+        if i:
+            time.sleep(OECD_SLEEP)
+        try:
+            ser = oecd_parse(oecd_get(path, start))
+            if not ser:
+                raise ValueError('pusta odpowiedź')
+            out[k] = ser; out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część bez danych: poprzednia wersja tej części (z własnym czasem), nigdy zera
+            fails.append(f'{k}: {e}'); out['ok'][k] = False
+            if isinstance(prev.get(k), dict) and prev[k]:
+                out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
+    if 'share' not in out:
+        raise RuntimeError('brak indeksów giełdowych' + (f' ({fails[0]})' if fails else ''))
+    if fails:
+        META['errors'].append(mask(f'OECD: {"; ".join(fails)}'))
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -4661,6 +4743,17 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'BIS stopy: {e}')); META['ok']['stopy'] = False
             if prev_st: save('stopy', prev_st)
+    # v99: OECD (bez klucza) — co 6 h; część z błędem ponawiana po godzinie
+    prev_oe = previous('oecd')
+    pok_oe = (prev_oe or {}).get('ok') or {}
+    if prev_oe and fresh(prev_oe, OECD_EVERY) and (all(pok_oe.get(k) for k in OECD_Q) or fresh(prev_oe, OECD_RETRY)):
+        save('oecd', prev_oe); META['ok']['oecd'] = 'cached'
+    else:
+        try:
+            save('oecd', build_oecd(prev_oe)); META['ok']['oecd'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'OECD: {e}')); META['ok']['oecd'] = False
+            if prev_oe: save('oecd', prev_oe)
     # KURSY — średnie miesięczne EBC (bez klucza): najwyżej co 12 h (miesiąc publikowany raz, na początku następnego)
     prev_k = previous('kursy')
     if prev_k and fresh(prev_k, 720):
