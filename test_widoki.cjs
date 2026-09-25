@@ -1440,3 +1440,28 @@ test('v75: przegląd: USA, strefa euro (znak odwrócony), Japonia (100 mln JPY),
   const x0 = html.indexOf('const EXTRA63='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA63='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['fo.t', 'fo.sub', 'fo.eur', 'fo.usa', 'fo.jpn', 'fo.chn', 'fo.hkg', 'fo.ind', 'fo.twn', 'fo.bra', 'fo.tur', 'fo.foot', 'fo.u.usdx']) assert.ok(dict[l][k], l + ' ' + k);
 });
+
+// v76: Eurostat — kraje UE; ranking z 12 miesięcy; Polska zawsze w głównej tabeli; wiersz Polski w przeglądzie
+test('v76: UE: sumy tylko z kompletu 12 miesięcy, Polska zawsze widoczna, starszy miesiąc w rozwinięciu, podpięcie', () => {
+  const a0 = html.indexOf('const UE={data:null};'), a1 = html.indexOf('function flowRows(){', a0);
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'escH', 'engDate', 'instFoot', 'etfCls', 'bopMld', 'LANG', 'LOCALE', 'ENG_DN', html.slice(a0, a1) + '\nreturn {UE, ueApply, ueHtml, ueSum, ueMadd};')(
+    T, k => oks.push(k), () => {}, s => String(s), s => String(s), s => 'F' + s, v => v > 0 ? 'pos' : (v < 0 ? 'neg' : ''), v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—', 'xx', {}, {en: {of: x => x}});
+  assert.equal(f.ueHtml(null), ''); assert.equal(f.ueMadd('2026-01', -1), '2025-12');
+  const S = (m0, vals) => vals.map((v, i) => [f.ueMadd(m0, i - vals.length + 1), v]);
+  const full = v => ({in_d: S('2026-07', Array(12).fill(0)), in_p: S('2026-07', Array(12).fill(v)), in_o: S('2026-07', Array(12).fill(0))});
+  const rows = {};
+  ['DE', 'FR', 'IT', 'ES', 'SE', 'AT', 'BE', 'DK', 'FI', 'PT', 'GR2', 'CZ'].forEach((g, i) => { rows[g] = {m: '2026-07', s: full(10000 - i * 500)}; });
+  rows.PL = {m: '2026-07', s: full(100)}; rows.LU = {m: '2026-03', s: {in_p: S('2026-03', [5000])}};
+  f.ueApply({at: 'x', order: [...Object.keys(rows)], rows}); assert.deepEqual(oks, ['ue']);
+  const h = f.ueHtml(f.UE.data), main = h.split('<details')[0], more = h.split('ue.more')[1] || '';
+  assert.ok(main.includes('<span class="cell">PL</span>'), 'Polska zawsze w głównej tabeli'); assert.ok(!main.includes('<span class="cell">CZ</span>') && more.includes('CZ'), 'poza 10 — w rozwinięciu');
+  assert.ok(!main.includes('>LU<') && more.includes('LU'), 'starszy miesiąc — w rozwinięciu');
+  assert.ok(main.includes('<span class="cell mono pos">+120.0</span>'), 'DE 12 miesięcy = 12 × 10 000 mln');
+  assert.ok(more.includes('F2026-03') && more.includes('<span class="cell mono ">—</span>'), 'LU bez kompletu — „—”');
+  assert.ok(html.includes("html+=(typeof ueHtml==='function'&&typeof UE!=='undefined')?ueHtml(UE.data):'';") && html.includes("srvJSON('ue')") && html.includes("ue:'Eurostat'"));
+  assert.ok(html.includes("add('POL',t('fo.pol')") && html.includes("'ec.europa.eu/eurostat','src.f.m','src.l.2m',GLIVE.src.ue,'g.hs.ue','ue']"));
+  const x0 = html.indexOf('const EXTRA64='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA64='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['ue.t', 'ue.sub', 'ue.c.t12', 'ue.foot', 'ue.not', 'ue.src', 'g.hs.ue', 'fo.pol', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['inst.sub'].includes('kraje UE'));
+});

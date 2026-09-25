@@ -2381,6 +2381,76 @@ def build_safe():
             'asof': m[-1][0], 'm': m}
 
 
+# v76: Eurostat — miesięczny bilans płatniczy krajów UE (bop_c6_m), bez klucza
+UE_GEO = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT',
+          'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']
+UE_KEYS = {('FA__P__F', 'LIAB'): 'in_p', ('FA__D__F', 'LIAB'): 'in_d', ('FA__O__F', 'LIAB'): 'in_o',
+           ('FA__P__F', 'ASS'): 'out_p', ('FA__D__F', 'ASS'): 'out_d', ('FA__O__F', 'ASS'): 'out_o'}
+UE_URL = ('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/bop_c6_m?format=JSON&lang=EN&currency=MIO_EUR'
+          '&partner=WRL_REST&sector10=S1&sectpart=S1&lastTimePeriod=13&' + '&'.join('geo=' + g for g in UE_GEO)
+          + '&bop_item=FA__P__F&bop_item=FA__D__F&bop_item=FA__O__F&stk_flow=LIAB&stk_flow=ASS')
+
+
+def parse_jsonstat(j):
+    """JSON-stat 2.0 (Eurostat) → {(kod wymiaru 1, 2, …): wartość}; indeks płaski = wiersz po wymiarach w kolejności 'id'."""
+    try:
+        ids, size = j['id'], j['size']
+        keys = [sorted(j['dimension'][d]['category']['index'].items(), key=lambda kv: kv[1]) for d in ids]
+        keys = [[k for k, _ in kv] for kv in keys]
+        vals = j.get('value') or {}
+    except (KeyError, TypeError) as e:
+        raise RuntimeError(f'nieznany kształt odpowiedzi ({e})')
+    if isinstance(vals, list):
+        vals = {str(i): v for i, v in enumerate(vals) if v is not None}
+    out = {}
+    for flat, v in vals.items():
+        try:
+            i = int(flat)
+        except ValueError:
+            continue
+        lab = []
+        for s, ks in zip(reversed(size), reversed(keys)):
+            lab.append(ks[i % s]); i //= s
+        x = _num(v)
+        if x is not None and x == x:
+            out[tuple(reversed(lab))] = x
+    if not out:
+        raise RuntimeError('brak wartości')
+    return out, ids
+
+
+def parse_ue(j):
+    """bop_c6_m → {kraj: {'m': ostatni miesiąc z napływem, 's': {klucz: [[YYYY-MM, mln EUR]]}}}; brak = brak (nigdy 0)."""
+    vals, ids = parse_jsonstat(j)
+    pos = {d: i for i, d in enumerate(ids)}
+    rows = {}
+    for lab, v in vals.items():
+        k = UE_KEYS.get((lab[pos['bop_item']], lab[pos['stk_flow']]))
+        g, m = lab[pos['geo']], lab[pos['time']]
+        if k and g in UE_GEO and re.match(r'^\d{4}-\d{2}$', m):
+            rows.setdefault(g, {}).setdefault(k, []).append([m, round(v, 1)])
+    out = {}
+    for g in UE_GEO:
+        s = {k: sorted(x) for k, x in (rows.get(g) or {}).items()}
+        ms = [x[-1][0] for k, x in s.items() if k.startswith('in_') and x]
+        if ms:
+            out[g] = {'m': max(ms), 's': s}
+    if not out:
+        raise RuntimeError('żaden kraj z napływem kapitału')
+    de = (out.get('DE') or {}).get('s', {}).get('in_p')
+    if de and not 100 <= abs(de[-1][1]) <= 1e6:
+        raise RuntimeError(f'skala niezgodna (Niemcy, napływ portfelowy {de[-1][1]} mln EUR)')
+    return {'src': 'Eurostat, Balance of payments by country — monthly data (BPM6), bop_c6_m', 'url': 'https://ec.europa.eu/eurostat/databrowser/view/bop_c6_m/default/table',
+            'unit': 'mln EUR, transakcje w miesiącu; in_* = napływ kapitału z zagranicy (pasywa), out_* = kapitał mieszkańców za granicę (aktywa); p portfelowe, d bezpośrednie, o pozostałe',
+            'asof_max': max(r['m'] for r in out.values()), 'order': [g for g in UE_GEO if g in out], 'rows': out}
+
+
+def build_ue():
+    out = parse_ue(get_json(UE_URL))
+    out['at'] = NOW
+    return out
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -2706,6 +2776,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'SAFE: {e}')); META['ok']['safe'] = False
             if prev_sf: save('safe', prev_sf)
+    # v76: Eurostat — bilans płatniczy krajów UE (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
+    prev_ue = previous('ue')
+    if prev_ue and fresh(prev_ue, 1440):
+        save('ue', prev_ue); META['ok']['ue'] = 'cached'
+    else:
+        try:
+            save('ue', build_ue()); META['ok']['ue'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'Eurostat: {e}')); META['ok']['ue'] = False
+            if prev_ue: save('ue', prev_ue)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):
