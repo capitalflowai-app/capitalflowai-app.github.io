@@ -2002,7 +2002,7 @@ class ObceV54(unittest.TestCase):
         self.assertEqual(tw['2026-09-24'][5:], [round(-32964.6 / 31.82, 1), '2026-09-18'])
         self.assertIn('2026-09-24', tw); self.assertIn('2026-09-23', tw)
         self.assertIn('2026-09-22', out['tw']['empty'], 'dzień bez sesji zapamiętany'); self.assertNotIn('2026-09-25', out['tw']['empty'], 'dzisiejszy brak nie jest świętem')
-        self.assertEqual({k: v for k, v in zd.META['ok'].items() if k not in ('obce_hk', 'obce_br', 'obce_tr')}, {'obce_in': True, 'obce_tw': True})
+        self.assertEqual({k: v for k, v in zd.META['ok'].items() if k not in ('obce_hk', 'obce_br', 'obce_tr', 'obce_th')}, {'obce_in': True, 'obce_tw': True})
         self.assertFalse(any('KLUCZ' in e for e in zd.META['errors']), 'klucz nigdy w komunikatach')
 
         def boom(url, headers=None, timeout=60):
@@ -2592,9 +2592,10 @@ class ReviewV77(unittest.TestCase):
             zd.META['errors'].append('HKEX: 1 dni bez odpowiedzi, np. 2026-09-23: HTTP 404'); return {'d': [['2026-09-24', 1.0]]}
         with mock.patch.object(zd, 'nsdl_part', lambda prev: {'d': [['2026-09-24', 1.0]]}), mock.patch.object(zd, 'twse_part', boom), \
                 mock.patch.object(zd, 'hkex_part', hk), mock.patch.object(zd, 'bcb_part', lambda prev: {'d': [['2026-09-18', 1.0]]}), \
-                mock.patch.object(zd, 'tcmb_part', lambda prev: {'d': [['2026-09-18', 1.0]]}):
+                mock.patch.object(zd, 'tcmb_part', lambda prev: {'d': [['2026-09-18', 1.0]]}), \
+                mock.patch.object(zd, 'thbma_part', lambda prev, key: {'d': [['2026-09-24', 1.0]]}):
             out = zd.build_obce('', {})
-        self.assertEqual(out['ok'], {'in': True, 'tw': False, 'hk': True, 'br': True, 'tr': True})
+        self.assertEqual(out['ok'], {'in': True, 'tw': False, 'hk': True, 'br': True, 'tr': True, 'th': True})
         self.assertEqual(out['errs']['tw'], ['TWSE: HTTP Error 503']); self.assertTrue(out['errs']['hk'][0].startswith('HKEX: 1 dni'))
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
@@ -2850,6 +2851,74 @@ class KoreaV83(unittest.TestCase):
         out, _ = self.run_({1: KoreaV82.LIST}, {'229240': big, '223993': KoreaV82.JUL}, {'m': [['2026-06', 1.0, 1.0, None, None, None]]})
         self.assertNotIn('2026-08', {r[0] for r in out['m']}, 'wartość ponad 100 bln KRW — nieczytelna, nie liczba')
         self.assertTrue(any(e.startswith('FSS: 1 komunikaty nieczytelne') for e in zd.META['errors']))
+
+
+class ThailandV86(unittest.TestCase):
+    """v86: ThaiBMA — tylko pełne dni, powtórzone daty raz, brak = brak; ≈ USD kursem Fed; stan w wartości nominalnej; kontrole."""
+
+    @staticmethod
+    def row(day, nf, tot=None, st=None, lt=None, ex=0.0, hold=900000.0, p3=1.0):
+        tot = nf + ex if tot is None else tot
+        st = tot if st is None else st
+        lt = tot - st if lt is None else lt
+        return {'Asof': day + 'T00:00:00', 'DisplayAsof': day + 'T00:00:00', 'P1Net': tot, 'P2Net': 0.0, 'P3Net': p3, 'ShortTermTrade': st,
+                'LongTermTrade': lt, 'TotalNetTrade': tot, 'ExpireToday': ex, 'NetFlow': nf, 'NetHolding': hold}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def test_parse_full_days_dedupe_skip_partial_and_missing(self):
+        R = self.row
+        src = [R('2026-09-25', -3648.0, p3=None), R('2026-09-24', 3216.0, st=1695.0), R('2026-09-24', 1.0),
+               dict(R('2026-09-23', 1.0), NetFlow=None, TotalNetTrade=None), R('2026-09-22', -796.0, ex=3.0)]
+        out = zd.parse_thbma(src)
+        self.assertEqual([r[0] for r in out], ['2026-09-22', '2026-09-24'], 'dzień w toku i wiersz bez sum pominięte; rosnąco')
+        self.assertEqual(out[1][:4], ['2026-09-24', 3216.0, 3216.0, 1695.0], 'powtórzona data — pierwszy wiersz')
+        self.assertEqual(out[0][5], 3.0); self.assertEqual(out[0][1], -796.0)
+        with self.assertRaises(RuntimeError):
+            zd.parse_thbma([R('2026-09-25', 1.0, p3=None)])
+        with self.assertRaises(RuntimeError):
+            zd.parse_thbma({'error': 'x'})
+
+    def run_(self, rows, key='KLUCZ', prev=None, now=datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+        seen = []
+
+        def gb(url, headers=None, timeout=60):
+            seen.append(url); return json.dumps(rows).encode()
+
+        def gj(url, headers=None):
+            seen.append(url)
+            assert 'DEXTHUS' in url and 'limit=400' in url, url
+            return {'observations': [{'date': '2026-09-18', 'value': '32.50'}, {'date': '2026-09-17', 'value': '.'}]}
+        with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: now):
+            return zd.thbma_part(prev, key), seen
+
+    def test_part_usd_rates_old_values_and_checks(self):
+        R = self.row
+        rows = [R('2026-09-24', 3216.0), R('2026-09-23', 4612.0, st=4000.0, lt=100.0), R('2026-09-17', 650.0)]
+        out, seen = self.run_(rows)
+        d = {r[0]: r for r in out['d']}
+        self.assertEqual(d['2026-09-24'][7:], [round(3216.0 / 32.5, 1), 32.5, '2026-09-18'], 'kurs z najbliższego wcześniejszego dnia')
+        self.assertEqual(d['2026-09-17'][7:], [None, None, None], 'dzień przed pierwszym kursem — brak, nie zero')
+        self.assertEqual(out['asof'], '2026-09-24'); self.assertEqual(out['url'], zd.THBMA_PAGE)
+        self.assertTrue(any(n.startswith('ThaiBMA: sumy niezgodne w dniach: 2026-09-23') for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual(zd.META['errors'], [])
+        out2, seen2 = self.run_(rows, key='', prev=out)
+        self.assertEqual({r[0]: r for r in out2['d']}['2026-09-24'][7:], [round(3216.0 / 32.5, 1), 32.5, '2026-09-18'], 'bez klucza — przeliczenie z poprzedniego pliku')
+        self.assertFalse(any('DEXTHUS' in u for u in seen2))
+        rows[0] = R('2026-09-24', 3300.0)
+        out3, _ = self.run_(rows, key='', prev=out)
+        self.assertEqual({r[0]: r for r in out3['d']}['2026-09-24'][7:], [None, None, None], 'poprawiona wartość — stare przeliczenie nie pasuje')
+
+    def test_scale_and_stale(self):
+        R = self.row
+        with self.assertRaises(RuntimeError):
+            self.run_([R('2026-09-24', 3.2e6)])
+        with self.assertRaises(RuntimeError):
+            self.run_([R('2026-09-24', 32.0, hold=920.0)])        # stan 920 mln THB zamiast ok. 920 mld — zła skala
+        zd.META['errors'].clear()
+        self.run_([R('2026-09-10', 1.0)])
+        self.assertTrue(any(e.startswith('ThaiBMA: brak nowego pełnego dnia po 2026-09-10') for e in zd.META['errors']), zd.META['errors'])
 
 
 if __name__ == '__main__':

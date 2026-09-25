@@ -1915,9 +1915,9 @@ def parse_hkex(text):
     return [date, round(buy - sell, 2), round(buy, 2), round(sell, 2), n]
 
 
-def fred_rates(key, sid):
+def fred_rates(key, sid, limit=60):
     """FRED — kurs (dzienny albo średnia miesięczna, zależnie od serii; jednostek waluty za 1 USD, Fed H.10) → {data: kurs}; '.' = brak."""
-    j = get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit=60')
+    j = get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit={limit}')
     out = {}
     for o in j.get('observations', []) if isinstance(j, dict) else []:
         v = _num(o.get('value'))
@@ -2138,6 +2138,74 @@ def tcmb_part(prev_tr):
             'asof': d[-1][0], 'd': d}
 
 
+# v86: Tajlandia — ThaiBMA „Non-resident Flows”: dzienne transakcje nierezydentów w tajskich obligacjach (mln THB), bez klucza;
+# ≈ USD kursem Fed H.10 (FRED DEXTHUS). Źródło oddaje całą historię (od 2016) w jednym pliku JSON.
+THBMA_URL = 'https://www.thaibma.or.th/nrdaily/GetNR/'
+THBMA_PAGE = 'https://www.thaibma.or.th/EN/Market/NR/NRDaily.aspx'
+TH_KEEP = 270      # ok. 13 miesięcy sesji — wystarcza na sumę 12 miesięcy (250 sesji)
+TH_COLS = ('NetFlow', 'TotalNetTrade', 'ShortTermTrade', 'LongTermTrade', 'ExpireToday', 'NetHolding')
+TH_STALE = 10      # dni bez nowego pełnego dnia (Songkran trwa do 5 dni roboczych) = błąd
+
+
+def parse_thbma(j):
+    """ThaiBMA /nrdaily/GetNR/ → [[data, przepływ netto (transakcje netto − wykupy), transakcje netto, papiery do roku, papiery ponad rok,
+    wykupy, stan posiadania (wartość nominalna)]] mln THB, rosnąco. Tylko pełne dni (dzień w toku nie ma jeszcze części popołudniowej
+    P3 — ThaiBMA publikuje ją o 16:30 w Bangkoku); powtórzona data — pierwszy wiersz; bez przepływu netto — wiersz pominięty (brak, nie zero)."""
+    if not isinstance(j, list):
+        raise RuntimeError('odpowiedź nie jest listą')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict):
+            continue
+        day = str(r.get('Asof') or '')[:10]
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', day) or day in out or r.get('P3Net') is None:
+            continue
+        v = [_num(r.get(k)) for k in TH_COLS]
+        if v[0] is None or v[1] is None:
+            continue
+        out[day] = [day] + v
+    if not out:
+        raise RuntimeError('brak pełnych dni')
+    return [out[k] for k in sorted(out)]
+
+
+def thbma_part(prev_th, key):
+    prev_th = prev_th if isinstance(prev_th, dict) else {}
+    recent = parse_thbma(json.loads(get_bytes(THBMA_URL, timeout=120).decode('utf-8', 'replace')))[-TH_KEEP:]
+    big = [r[0] for r in recent if abs(r[1]) > 2e5 or (r[6] is not None and not 1e5 < r[6] < 1e7)]   # dzień > 200 mld THB / stan poza 0,1–10 bln THB
+    if big:
+        raise RuntimeError(f'skala niezgodna ({big[-1]})')
+    gap = [r[0] for r in recent[-30:] if None not in r[2:6] and (abs(r[2] - r[3] - r[4]) > 1 or abs(r[2] - r[5] - r[1]) > 1)]
+    if gap:
+        META['notes'].append('ThaiBMA: sumy niezgodne w dniach: ' + ', '.join(gap))
+    have = {k: list(v)[:7] for k, v in _rows(prev_th).items()}
+    have.update({r[0]: r for r in recent})     # nowszy plik poprawia dni (uzgodnienie stanu z bankiem centralnym)
+    d = [have[k] for k in sorted(have)][-TH_KEEP:]
+    rates = {}
+    if key:
+        try:
+            rates = fred_rates(key, 'DEXTHUS', limit=400)
+        except Exception as e:
+            META['errors'].append(mask(f'ThaiBMA kurs FRED DEXTHUS: {e}'))
+    old = _rows(prev_th)
+    for r in d:
+        rd, rt = _rate_for(rates, r[0])
+        if rt:
+            r[7:] = [round(r[1] / rt, 1), rt, rd]
+        elif r[0] in old and len(old[r[0]]) >= 10 and old[r[0]][1] == r[1]:
+            r[7:] = old[r[0]][7:10]
+        else:
+            r[7:] = [None, None, None]
+    last = d[-1][0]
+    if ((_now_utc() + datetime.timedelta(hours=7)).date() - datetime.date.fromisoformat(last)).days > TH_STALE:
+        META['errors'].append(f'ThaiBMA: brak nowego pełnego dnia po {last}')
+    return {'at': NOW, 'src': 'The Thai Bond Market Association (ThaiBMA) — Non-resident Flows (daily)', 'url': THBMA_PAGE,
+            'unit': 'mln THB; ≈ mln USD kursem Fed H.10 (FRED DEXTHUS); stan posiadania w wartości nominalnej',
+            'cols': ['data', 'przepływ netto', 'transakcje netto', 'papiery do roku', 'papiery ponad rok', 'wykupy', 'stan posiadania',
+                     '≈ mln USD', 'kurs THB/USD', 'dzień kursu'],
+            'asof': last, 'd': d}
+
+
 def build_obce(key, prev=None):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
     prev = prev if isinstance(prev, dict) else {}
@@ -2145,18 +2213,19 @@ def build_obce(key, prev=None):
     for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key)),
                      ('hk', lambda: hkex_part(prev.get('hk'), key)),   # v67: Stock Connect southbound
                      ('br', lambda: bcb_part(prev.get('br'))),   # v71: Brazylia — rynek walutowy (BCB)
-                     ('tr', lambda: tcmb_part(prev.get('tr')))):   # v74: Turcja — nierezydenci w papierach (CBRT)
+                     ('tr', lambda: tcmb_part(prev.get('tr'))),   # v74: Turcja — nierezydenci w papierach (CBRT)
+                     ('th', lambda: thbma_part(prev.get('th'), key))):   # v86: Tajlandia — nierezydenci w obligacjach (ThaiBMA)
         n0 = len(META['errors'])
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
         except Exception as e:
-            META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX', 'br': 'BCB', 'tr': 'CBRT'}[part] }: {e}")); META['ok']['obce_' + part] = False
+            META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX', 'br': 'BCB', 'tr': 'CBRT', 'th': 'ThaiBMA'}[part] }: {e}")); META['ok']['obce_' + part] = False
             if isinstance(prev.get(part), dict):
                 out[part] = prev[part]
         out['ok'][part] = META['ok']['obce_' + part]
         if META['errors'][n0:]:
             out['errs'][part] = META['errors'][n0:]
-    if not any(p in out for p in ('in', 'tw', 'hk', 'br', 'tr')):
+    if not any(p in out for p in ('in', 'tw', 'hk', 'br', 'tr', 'th')):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
 
@@ -2986,7 +3055,7 @@ def main():
     # OBCE — zmierzone dzienne przepływy inwestorów zagranicznych (NSDL Indie, TWSE Tajwan): najwyżej co 3 h
     prev_o = previous('obce')
     pok = (prev_o or {}).get('ok') or {}   # v80: brak oczekiwanej części = pobierz od nowa; część z błędem — ponów po 60 min
-    miss = [p for p in ('in', 'tw', 'hk', 'br', 'tr') if prev_o and p not in prev_o and pok.get(p) is not False]
+    miss = [p for p in ('in', 'tw', 'hk', 'br', 'tr', 'th') if prev_o and p not in prev_o and pok.get(p) is not False]
     retry = [p for p, st in pok.items() if st is False]
     if prev_o and isinstance(prev_o.get('br'), dict) and any(isinstance(r, list) and len(r) < 10 for r in (prev_o['br'].get('m') or [])):
         miss.append('br')   # v81: wiersze miesięczne Brazylii bez kolumn banku centralnego — pobierz od razu

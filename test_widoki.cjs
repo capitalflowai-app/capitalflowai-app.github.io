@@ -1625,3 +1625,33 @@ test('v85: teksty trybu CRYPTO nie nazywają zmian wyceny ani podziału modelu p
   assert.ok(html.indexOf('Object.assign(I18N[l],EXTRA73[l]);') > html.indexOf('Object.assign(I18N[l],EXTRA72[l]);'));
   assert.ok(html.includes("<h2>▲ ${t('rail.in.g')}</h2>") && html.includes("<h2>▼ ${t('rail.out.g')}</h2>") && html.includes('<span data-i18n="rail.in"></span>'));
 });
+
+// v86: Tajlandia — ThaiBMA: blok (przepływ netto dnia, sumy sesji, stan posiadania), linia regionu Azja Płd.-Wsch., wiersz przeglądu
+test('v86: Tajlandia (ThaiBMA): blok, sumy, stan, linia regionu, przegląd, podpięcie', () => {
+  const z0 = html.indexOf('const zagNum='), z1 = html.indexOf('function zagBlock(', z0);
+  const a0 = html.indexOf('/* v86: Tajlandia — nierezydenci w tajskich obligacjach (ThaiBMA; obce.json'), a1 = html.indexOf('/* v59: MFW COFER', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'instRow', 'instFoot', 'instSign', 'nfmt', 'engNum', 'escH', 'engDate', 'LANG',
+    'const ZAG={data:null};' + html.slice(z0, z1) + html.slice(a0, a1) + '\nreturn {ZAG, thBlock, thRegion, zagSum};')(
+    T, (l, v, x, n) => `[${l}|${v}|${n}]`, s => 'F' + s, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), v => String(v), s => s, s => s, 'pl');
+  assert.equal(f.thBlock(), ''); assert.equal(f.thRegion('asean'), '');
+  const day = i => '2026-08-' + String(i + 1).padStart(2, '0');
+  const d = Array.from({length: 23}, (_, i) => [day(i), 1000, 1000, 600, 400, 0, 900000 + 100 * i, 30.8, 32.5, '2026-08-01']);
+  d[22] = ['2026-09-24', 3216, 3216, 1695, 1521, 0, 920455.75, 98.9, 32.5, '2026-09-18'];
+  f.ZAG.data = {at: 'x', th: {at: 'x', d}};
+  const h = f.thBlock();
+  assert.ok(h.includes('[th.nf|+3.2 th.mld|ob.day F2026-09-24 · th.usd{"v":"+99","d":"2026-09-18"} · th.split{"s":"+1.7","l":"+1.5","x":"0.0"}]'), h);
+  assert.ok(h.includes('[th.sum{"n":21,"w":"sesji"}|+23.2 th.mld|th.s5{"v":"+7.2"}]'), h);
+  assert.ok(h.includes('[th.hold|920.5 th.mld|inst.asof F2026-09-24 · th.hold.usd{"v":"28.3"} · th.hold.ch{"d":"2026-08-02","v":"+20.4"}]'), h);
+  d[20][1] = null; assert.ok(f.thBlock().includes('th.s5{"v":"—"}'), 'brak dnia w oknie = brak sumy, nie zero');
+  const r = f.thRegion('asean'); assert.ok(r.includes('<dt>th.reg</dt>') && r.includes('"v":"+3.2"') && r.includes('"h":"920.5"'), r);
+  assert.equal(f.thRegion('chn'), '');
+  assert.ok(html.includes("html+=typeof thBlock==='function'?thBlock():'';") && html.includes("${typeof thRegion==='function'?thRegion(s.id):''}"));
+  assert.ok(html.includes("ses('th',7,'THA','fo.tha','fo.u.usdx');") && html.includes("if(okD(j.th))gOk('obce_th');") && html.includes("obce_th:'ThaiBMA'"));
+  assert.ok(html.includes("'www.thaibma.or.th','src.f.d','src.l.th',GLIVE.src.obce_th,'g.hs.thbma','obce_th']") && html.includes("['The Thai Bond Market Association (ThaiBMA)','https://www.thaibma.or.th']"));
+  assert.ok(html.includes('<b>ThaiBMA (Tajlandia) — nierezydenci w obligacjach</b>') && html.includes('<span class="cell">nierezydenci w tajskich obligacjach</span>'));
+  const a = 'const EXTRA74=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  for (const l of ['pl', 'en']) for (const k of ['th.t', 'th.sub', 'th.nf', 'th.split', 'th.hold', 'th.hold.ch', 'th.not', 'th.src', 'th.reg.v', 'fo.tha', 'g.hs.thbma', 'src.l.th', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(dict[l]['g.q.limd'] && dict[l]['g.help.limd'], l);
+  assert.ok(dict.pl['g.q.limd'].includes('Hongkong, Tajlandia;') && dict.pl['inst.sub'].includes('Hongkong, Tajlandia i dolary'));
+});
