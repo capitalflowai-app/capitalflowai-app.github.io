@@ -2803,7 +2803,8 @@ class KoreaV82(unittest.TestCase):
             if 'list.do' in url:
                 return self.LIST.encode() if url.endswith('pageIndex=1') else b'<html></html>'
             return (self.AUG if '229240' in url else '<p>Zmieniony układ</p>').encode()
-        with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, 'fred_rates', lambda key, sid: {'2026-08-01': 1380.0}):
+        with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, 'fred_rates', lambda key, sid: {'2026-08-01': 1380.0}), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
             out = zd.build_korea('KLUCZ', {'m': [['2026-06', -49336.0, 4478.0, None, None, None]]})
         m = {r[0]: r for r in out['m']}
         self.assertEqual(m['2026-08'], ['2026-08', 344.0, -4736.0, round(344000 / 1380, 1), round(-4736000 / 1380, 1), 1380.0])
@@ -2811,8 +2812,44 @@ class KoreaV82(unittest.TestCase):
         self.assertNotIn('2026-07', m, 'nieczytelny komunikat — bez miesiąca, nie zero')
         self.assertTrue(any(e.startswith('FSS: 1 komunikaty nieczytelne') for e in zd.META['errors']))
         self.assertIn('https://www.fss.or.kr/eng/bbs/B0000211/view.do?nttId=229240&menuNo=400010', seen)
-        self.assertEqual(sum('list.do' in u for u in seen), 2, 'z poprzednim plikiem — najwyżej 2 strony listy')
+        self.assertEqual(sum('list.do' in u for u in seen), zd.FSS_PAGES, 'v83: brakujący lipiec — szukamy na kolejnych stronach')
+        self.assertIn('FSS: brak komunikatów za miesiące: 2026-07', zd.META['errors'], 'brak zgłaszany przy każdym przebiegu')
         self.assertFalse(any('KLUCZ' in e for e in zd.META['errors']))
+
+
+class KoreaV83(unittest.TestCase):
+    """v83: FSS — komplet miesięcy = jedna strona listy; strona 1 czytana zawsze (poprawki); brak nowego komunikatu = błąd; limit wartości."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def run_(self, pages, views, prev, now=datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+        seen = []
+
+        def gb(url, headers=None, timeout=60):
+            seen.append(url)
+            if 'list.do' in url:
+                return pages.get(int(url.rsplit('=', 1)[1]), '<html></html>').encode()
+            return views[url.split('nttId=')[1].split('&')[0]].encode()
+        with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, '_now_utc', lambda: now):
+            return zd.build_korea('', prev), seen
+
+    def test_complete_one_list_page_and_correction(self):
+        page1 = KoreaV82.LIST
+        views = {'229240': KoreaV82.AUG, '223993': KoreaV82.JUL.replace('KRW31.6640 trillion', 'KRW31.7000 trillion')}
+        out, seen = self.run_({1: page1}, views, {'m': [['2026-07', -31664.0, 2388.0, None, None, None]]})
+        self.assertEqual(sum('list.do' in u for u in seen), 1, 'komplet miesięcy — tylko strona 1')
+        self.assertEqual({r[0]: r[1] for r in out['m']}['2026-07'], -31700.0, 'strona 1 czytana ponownie — poprawka wchodzi')
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_stale_and_sanity(self):
+        out, _ = self.run_({}, {}, {'m': [['2026-05', 1.0, 1.0, None, None, None]]})
+        self.assertTrue(any(e.startswith('FSS: brak nowego komunikatu po 2026-05') for e in zd.META['errors']), zd.META['errors'])
+        zd.META['errors'].clear()
+        big = KoreaV82.AUG.replace('KRW344.0 billion', 'KRW4,7360 trillion')   # przecinek jako separator dziesiętny = 47 360 000 mld
+        out, _ = self.run_({1: KoreaV82.LIST}, {'229240': big, '223993': KoreaV82.JUL}, {'m': [['2026-06', 1.0, 1.0, None, None, None]]})
+        self.assertNotIn('2026-08', {r[0] for r in out['m']}, 'wartość ponad 100 bln KRW — nieczytelna, nie liczba')
+        self.assertTrue(any(e.startswith('FSS: 1 komunikaty nieczytelne') for e in zd.META['errors']))
 
 
 if __name__ == '__main__':

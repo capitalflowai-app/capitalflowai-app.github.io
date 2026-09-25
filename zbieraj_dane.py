@@ -1916,7 +1916,7 @@ def parse_hkex(text):
 
 
 def fred_rates(key, sid):
-    """FRED — kurs dzienny (jednostek waluty za 1 USD, Fed H.10) → {data: kurs}; '.' = brak."""
+    """FRED — kurs (dzienny albo średnia miesięczna, zależnie od serii; jednostek waluty za 1 USD, Fed H.10) → {data: kurs}; '.' = brak."""
     j = get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit=60')
     out = {}
     for o in j.get('observations', []) if isinstance(j, dict) else []:
@@ -2634,11 +2634,22 @@ def parse_fss(text):
     return [f'{m.group(8)}-{mo:02d}', val(m.group(1), m.group(2), m.group(3)), val(m.group(4) or m.group(1), m.group(5), m.group(6))]   # bez drugiego czasownika = ten sam kierunek
 
 
+def fss_months(a, b):
+    """Lista miesięcy 'YYYY-MM' od a do b włącznie."""
+    out, (y, m) = [], (int(a[:4]), int(a[5:7]))
+    while f'{y:04d}-{m:02d}' <= b:
+        out.append(f'{y:04d}-{m:02d}'); m += 1
+        if m > 12:
+            y, m = y + 1, 1
+    return out
+
+
 def build_korea(key, prev=None):
     """data/korea.json — [[YYYY-MM, akcje mld KRW, obligacje mld KRW, akcje ≈ mln USD, obligacje ≈ mln USD, kurs]]; 25 miesięcy.
-    Pierwszy przebieg zbiera 13 miesięcy z listy komunikatów; kolejne czytają najwyżej 2 strony listy."""
+    v83: komunikaty ze strony 1 czytane zawsze (poprawki); brakujące miesiące szukane na kolejnych stronach i zgłaszane przy
+    każdym przebiegu; brak nowego komunikatu zbyt długo = błąd; wartość ponad 100 bln KRW = nieczytelna."""
     have = {r[0]: list(r) for r in ((prev or {}).get('m') or []) if isinstance(r, list) and r and isinstance(r[0], str)}
-    had, seen, fails = bool(have), 0, []
+    had, newest, fails, missing = bool(have), None, [], []
     for p in range(1, FSS_PAGES + 1):
         page = get_bytes(FSS_LIST.format(p=p), timeout=60).decode('utf-8', 'replace')
         for href, mon, yr in FSS_TITLE.findall(page):
@@ -2646,22 +2657,32 @@ def build_korea(key, prev=None):
             if not mo:
                 continue
             ym = f'{yr}-{mo:02d}'
-            seen += 1
-            if ym in have and have[ym][1] is not None and have[ym][2] is not None:
+            newest = max(newest or ym, ym)
+            if p > 1 and ym in have and have[ym][1] is not None and have[ym][2] is not None:
                 continue
             try:
                 r = parse_fss(get_bytes(FSS_BASE + _html.unescape(href), timeout=60).decode('utf-8', 'replace'))
-                if not r or r[0] != ym or r[1] is None or r[2] is None:
+                if not r or r[0] != ym or r[1] is None or r[2] is None or max(abs(r[1]), abs(r[2])) > 1e5:
                     raise RuntimeError('nieznany układ komunikatu')
-                have[ym] = r + [None, None, None]
+                old = have.get(ym) or []
+                have[ym] = r + (old[3:6] if len(old) >= 6 and old[1:3] == r[1:3] else [None, None, None])
             except Exception as e:
                 fails.append(f'{ym}: {e}')
-        if seen >= 13 or (had and p >= 2):
-            break
+        if newest:
+            lo = max(min(have) if had and have else _q_ym_add(newest, -12), _q_ym_add(newest, -24))
+            missing = [m for m in fss_months(lo, newest) if m not in have]
+            if not missing:
+                break
     if not have:
         raise RuntimeError('brak komunikatów' + (f' ({fails[0]})' if fails else ''))
     if fails:
         META['errors'].append(mask(f'FSS: {len(fails)} komunikaty nieczytelne, np. {fails[0]}'))
+    if missing:
+        META['errors'].append(f'FSS: brak komunikatów za miesiące: {", ".join(missing)}')
+    last = max(have)
+    due = datetime.date(int(_q_ym_add(last, 2)[:4]), int(_q_ym_add(last, 2)[5:7]), 1) + datetime.timedelta(days=34)
+    if _now_utc().date() > due:
+        META['errors'].append(f'FSS: brak nowego komunikatu po {last} (ostatni termin {due.isoformat()})')
     rates = {}
     if key:
         try:
@@ -2676,8 +2697,15 @@ def build_korea(key, prev=None):
         elif len(r) < 6 or r[5] is None:
             r[3:6] = [None, None, None]
     return {'at': NOW, 'src': 'Financial Supervisory Service (Korea) — monthly press release „Foreign Investors’ Stock and Bond Investment”',
-            'url': FSS_LIST.format(p=1), 'unit': 'mld KRW (plus = zakupy netto zagranicy); ≈ mln USD po średnim kursie miesiąca (Fed H.10, FRED EXKOUS)',
+            'url': FSS_LIST.format(p=1),
+            'unit': 'mld KRW; akcje = zakupy netto (KOSPI, KOSDAQ, rozliczenie), obligacje = inwestycje netto (zakupy netto minus wykupy); '
+                    '≈ mln USD po średnim kursie miesiąca (Fed H.10, FRED EXKOUS)',
             'cols': ['miesiąc', 'akcje mld KRW', 'obligacje mld KRW', 'akcje ≈ mln USD', 'obligacje ≈ mln USD', 'KRW za 1 USD'], 'asof': rows[-1][0], 'm': rows}
+
+
+def _q_ym_add(ym, k):
+    t = int(ym[:4]) * 12 + int(ym[5:7]) - 1 + k
+    return f'{t // 12:04d}-{t % 12 + 1:02d}'
 
 
 def build_krypto(cg_key):

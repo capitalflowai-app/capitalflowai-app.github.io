@@ -1574,3 +1574,13 @@ test('v82: blok Korei: bln KRW i ≈ mld USD, suma 12 kolejnych miesięcy, wiers
   for (const l of ['pl', 'en']) for (const k of ['kr.t', 'kr.sub', 'kr.eq', 'kr.bd', 'kr.u', 'kr.usd', 'kr.12', 'kr.not', 'kr.src', 'kr.reg.v', 'g.hs.fss', 'fo.kor', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['inst.sub'].includes('Korea'));
 });
+
+// v83: Korea — opisy zgodne z FSS (obligacje netto po wykupach, akcje KOSPI/KOSDAQ przy rozliczeniu), opóźnienie 9–31 dni, kurs miesięczny w przypisie
+test('v83: Korea: opisy i opóźnienie zgodne ze źródłem', () => {
+  const x0 = html.indexOf('const EXTRA71='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA71='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['kr.sub', 'kr.eq', 'kr.bd', 'kr.not', 'g.hs.fss', 'fo.kor', 'src.l.fss', 'fo.foot']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['kr.sub'].includes('wykupione przy zapadalności') && dict.pl['kr.sub'].includes('KOSPI i KOSDAQ') && dict.pl['kr.not'].includes('kraj rejestracji'));
+  assert.ok(dict.pl['fo.foot'].includes('Korea: średnim kursem miesiąca'));
+  assert.ok(html.includes("'www.fss.or.kr','src.f.m','src.l.fss',GLIVE.src.korea") && !html.includes(".replace(/^([+−])/,'$1')"));
+  assert.ok(html.includes('obligacje: inwestycje netto zagranicy po wykupach') && html.includes('zwykle 2–4 tygodnie po końcu miesiąca (w ostatnim roku 9–31 dni)'));
+});
