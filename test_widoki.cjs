@@ -1325,3 +1325,31 @@ test('v71: blok BCB: kapitał, handel, razem, sumy tylko z kompletu, wiersz regi
   const x0 = html.indexOf('const EXTRA59='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA59='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['br.t', 'br.sub', 'br.fin', 'br.com', 'br.tot', 'br.not', 'br.src', 'br.reg', 'br.reg.v', 'g.hs.bcb']) assert.ok(dict[l][k], l + ' ' + k);
 });
+
+// v72: SAFE (Chiny) — kupno i sprzedaż walut przez banki; 12 miesięcy tylko z kolejnych miesięcy; brak = „—”
+test('v72: SAFE: kapitał, handel, razem, suma 12 kolejnych miesięcy, wiersz regionu Chiny, podpięcie', () => {
+  const a0 = html.indexOf('const SAFE={data:null};'), a1 = html.indexOf('function renderInst(){', a0);
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instRow', 'instFoot', 'instSign', 'nfmt', 'engDate', html.slice(a0, a1) + '\nreturn {SAFE, safeApply, safeHtml, safeRegion, safeSum, safeMadd};')(
+    T, k => oks.push(k), () => {}, (l, v, x, n) => `[${l}|${v}|${n}]`, s => 'F' + s, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), s => s);
+  assert.equal(f.safeHtml(null), ''); assert.equal(f.safeRegion('chn'), '');
+  assert.equal(f.safeMadd('2026-01', -1), '2025-12'); assert.equal(f.safeMadd('2026-08', -11), '2025-09');
+  const M = Array.from({length: 13}, (_, i) => [f.safeMadd('2026-08', i - 12), 10, 12, -2, -0.5, -1, 40, 42]);
+  M[12] = ['2026-08', 51.92, 61.56, -9.63, -1.17, null, 36.24, 45.87];
+  f.safeApply({at: 'x', m: M}); assert.deepEqual(oks, ['safe']);
+  const h = f.safeHtml(f.SAFE.data);
+  assert.ok(h.includes('[sf.cfa|−9.6 inst.mld.usd|sf.m{"m":"F2026-08"} · sf.split{"p":"—","d":"−1.2"} · sf.12{"v":"−31.6"}]'), h);
+  assert.ok(h.includes('[sf.cust|+51.9 inst.mld.usd|sf.m{"m":"F2026-08"} · sf.12{"v":"+161.9"}]'), 'razem: 11×10 + 51,92');
+  const r = f.safeRegion('chn');
+  assert.ok(r.includes('<dt>sf.reg</dt>') && r.includes('"c":"−9.6","p":"—","d":"−1.2","a":"+61.6","c12":"−31.6"'), r);
+  assert.equal(f.safeRegion('ind'), '');
+  const G = M.filter((_, i) => i !== 5); f.safeApply({at: 'x', m: G});
+  assert.ok(f.safeHtml(f.SAFE.data).includes('sf.12{"v":"—"}'), 'brak miesiąca w oknie = brak sumy 12 miesięcy');
+  f.safeApply({at: 'x', m: []}); assert.equal(f.SAFE.data, null);
+  assert.ok(html.includes("html+=(typeof safeHtml==='function'&&typeof SAFE!=='undefined')?safeHtml(SAFE.data):'';") && html.includes("${typeof safeRegion==='function'?safeRegion(s.id):''}"));
+  assert.ok(html.includes("srvJSON('safe')") && html.includes("safe:'SAFE'") && html.includes('safe:()=>SAFE.data&&SAFE.data.at') && html.includes("safe:'safe',"));
+  assert.ok(html.includes("'www.safe.gov.cn','src.f.m','src.l.3w',GLIVE.src.safe,'g.hs.safe','safe']") && html.includes("['SAFE','https://www.safe.gov.cn']"));
+  assert.ok(html.includes('<summary><b>SAFE (Chiny) — kupno i sprzedaż walut przez banki</b>'));
+  const x0 = html.indexOf('const EXTRA60='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA60='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['sf.t', 'sf.sub', 'sf.cfa', 'sf.ca', 'sf.cust', 'sf.not', 'sf.src', 'sf.reg', 'sf.reg.v', 'g.hs.safe']) assert.ok(dict[l][k], l + ' ' + k);
+});

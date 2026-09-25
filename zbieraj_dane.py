@@ -2174,6 +2174,137 @@ def build_bilans():
     return out
 
 
+# v72: SAFE (Chiny) — kupno i sprzedaż walut przez banki w imieniu klientów, miesięcznie, w USD; bez klucza
+SAFE_PAGE = 'https://www.safe.gov.cn/en/2023/0215/2048.html'
+SAFE_LINK = 'Time-series Data of Foreign Exchange Settlement and Sales by Banks'
+SAFE_SHEET = 'in USD (Monthly)'
+SAFE_KEEP = 25     # miesięcy (12-miesięczna suma i porównanie rok do roku)
+
+
+def _xlsx_rows(data, sheet):
+    """Minimalny czytnik .xlsx (zip + XML, biblioteka standardowa): {nr wiersza: {nr kolumny: tekst}} arkusza o podanej nazwie."""
+    import html as _h
+    import zipfile
+    z = zipfile.ZipFile(io.BytesIO(data))
+    names = set(z.namelist())
+    strs = []
+    if 'xl/sharedStrings.xml' in names:
+        ss = z.read('xl/sharedStrings.xml').decode('utf-8')
+        strs = [_h.unescape(re.sub(r'<[^>]+>', '', m)) for m in re.findall(r'<si>(.*?)</si>', ss, re.S)]
+    attr = lambda tag, a: (re.search(r'\b' + a + r'="([^"]*)"', tag) or [None, None])[1]
+    rid = None
+    for tag in re.findall(r'<sheet\b[^>]*>', z.read('xl/workbook.xml').decode('utf-8')):
+        if _h.unescape(attr(tag, 'name') or '') == sheet:
+            rid = attr(tag, 'r:id')
+    if not rid:
+        raise RuntimeError(f'brak arkusza „{sheet}”')
+    target = None
+    for tag in re.findall(r'<Relationship\b[^>]*>', z.read('xl/_rels/workbook.xml.rels').decode('utf-8')):
+        if attr(tag, 'Id') == rid:
+            target = attr(tag, 'Target')
+    path = 'xl/' + target.lstrip('/').replace('xl/', '', 1) if target else None
+    if path not in names:
+        raise RuntimeError('brak pliku arkusza')
+    col = lambda c: sum((ord(ch) - 64) * 26 ** i for i, ch in enumerate(reversed(c)))
+    rows = {}
+    for rn, body in re.findall(r'<row\b[^>]*\br="(\d+)"[^>]*>(.*?)</row>', z.read(path).decode('utf-8'), re.S):
+        for ref, attrs, inner in re.findall(r'<c\b[^>]*?r="([A-Z]+)\d+"([^>]*)>(.*?)</c>', body, re.S):
+            t = (re.search(r'\bt="([^"]*)"', attrs) or [None, None])[1]
+            if t == 'inlineStr':
+                v = _h.unescape(re.sub(r'<[^>]+>', '', inner))
+            else:
+                m = re.search(r'<v>(.*?)</v>', inner, re.S)
+                if not m:
+                    continue
+                v = m.group(1)
+                if t == 's':
+                    i = int(v); v = strs[i] if 0 <= i < len(strs) else ''
+                else:
+                    v = _h.unescape(v)
+            rows.setdefault(int(rn), {})[col(ref)] = v.strip()
+    return rows
+
+
+def _xlsx_month(v):
+    """Nagłówek miesiąca: liczba seryjna Excela (46235 = 2026-08-01) albo tekst '2026-08' / '2026.08' → 'YYYY-MM'."""
+    s = str(v or '').strip()
+    m = re.match(r'^(\d{4})[.\-/](\d{1,2})$', s)
+    if m and 1 <= int(m.group(2)) <= 12:
+        return f'{m.group(1)}-{int(m.group(2)):02d}'
+    x = _num(s)
+    if x is not None and 20000 < x < 80000:
+        d = datetime.date(1899, 12, 30) + datetime.timedelta(days=int(x))
+        return f'{d.year:04d}-{d.month:02d}'
+    return None
+
+
+def parse_safe(rows):
+    """Arkusz „in USD (Monthly)” → [[YYYY-MM, klienci saldo, bieżący saldo, kapitałowy saldo, bezpośrednie saldo, portfelowe saldo,
+    kapitałowy rozliczenie, kapitałowy sprzedaż]] w mld USD (plik: 100 mln USD). Wiersze po nazwie w sekcjach I/II/III, nie po numerze."""
+    head = next((r for _, r in sorted(rows.items()) if r.get(1, '').strip().lower() == 'item'), None)
+    if not head:
+        raise RuntimeError('brak wiersza nagłówka')
+    months = {c: _xlsx_month(v) for c, v in head.items() if c > 1}
+    months = {c: m for c, m in months.items() if m}
+    if not months:
+        raise RuntimeError('brak miesięcy w nagłówku')
+    sec, cust, got = None, False, {}
+    for _, r in sorted(rows.items()):
+        lab = re.sub(r'\s+', ' ', r.get(1, '')).strip()
+        m = re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.\s', lab)
+        if m:
+            sec, cust = m.group(1), False
+            continue
+        if sec not in ('I', 'II', 'III'):
+            continue
+        low = lab.lower()
+        if low.startswith('(ii) by banks for customers'):
+            cust = True; key = 'cust'
+        elif low.startswith('(i) by banks for themselves'):
+            cust = False; continue
+        elif cust and low.startswith('1. current account'):
+            key = 'ca'
+        elif cust and low.startswith('2. capital and financial account'):
+            key = 'cfa'
+        elif cust and 'direct investment' in low:
+            key = 'fdi'
+        elif cust and low.startswith('portfolio investment'):
+            key = 'port'
+        else:
+            continue
+        got[(sec, key)] = {months[c]: _num(v) for c, v in r.items() if c in months and _num(v) is not None and _num(v) == _num(v)}
+    need = [('III', 'cust'), ('III', 'ca'), ('III', 'cfa')]
+    if any(k not in got for k in need):
+        raise RuntimeError('brak wierszy salda (klienci / bieżący / kapitałowy)')
+    keys = [('III', 'cust'), ('III', 'ca'), ('III', 'cfa'), ('III', 'fdi'), ('III', 'port'), ('I', 'cfa'), ('II', 'cfa')]
+    allm = sorted({mm for k in keys for mm in (got.get(k) or {})})
+    bn = lambda v: None if v is None else round(v / 10, 2)
+    out = [[mm] + [bn((got.get(k) or {}).get(mm)) for k in keys] for mm in allm]
+    out = [r for r in out if any(x is not None for x in r[1:])][-SAFE_KEEP:]
+    g = out[-1][6]   # straż skali: rozliczenia kapitałowe klientów w miesiącu to dziesiątki mld USD
+    if g is not None and not 5 <= g <= 1000:
+        raise RuntimeError(f'skala niezgodna (rozliczenia kapitałowe {g} mld USD)')
+    return out
+
+
+def build_safe():
+    page = get_bytes(SAFE_PAGE, timeout=60).decode('utf-8', 'replace')
+    href = next((h for h, t in re.findall(r'<a[^>]+href="([^"]+\.xlsx)"[^>]*>(.*?)</a>', page, re.S)
+                 if SAFE_LINK.lower() in re.sub(r'<[^>]+>', '', t).lower()), None)
+    if not href:
+        raise RuntimeError('brak odnośnika do pliku')
+    url = href if href.startswith('http') else 'https://www.safe.gov.cn' + href
+    m = parse_safe(_xlsx_rows(get_bytes(url, timeout=90), SAFE_SHEET))
+    ids = [r for r in m if None not in r[1:4] and abs(r[1] - r[2] - r[3]) > 0.2]
+    if ids:
+        META['notes'].append(f'SAFE: saldo klientów ≠ bieżący + kapitałowy w {len(ids)} mies. (np. {ids[-1][0]})')
+    return {'at': NOW, 'src': 'State Administration of Foreign Exchange (SAFE), Data on Foreign Exchange Settlement and Sales by Banks',
+            'url': SAFE_PAGE, 'file': url, 'unit': 'mld USD; saldo = rozliczenie (klienci sprzedają waluty bankom) minus sprzedaż (kupują od banków)',
+            'cols': ['miesiąc', 'klienci saldo', 'rachunek bieżący saldo', 'kapitałowy i finansowy saldo', 'w tym bezpośrednie saldo',
+                     'w tym portfelowe saldo', 'kapitałowy rozliczenie', 'kapitałowy sprzedaż'],
+            'asof': m[-1][0], 'm': m}
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -2489,6 +2620,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW bilans płatniczy: {e}')); META['ok']['bilans'] = False
             if prev_bl: save('bilans', prev_bl)
+    # v72: SAFE — kupno i sprzedaż walut przez banki w Chinach (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
+    prev_sf = previous('safe')
+    if prev_sf and fresh(prev_sf, 1440):
+        save('safe', prev_sf); META['ok']['safe'] = 'cached'
+    else:
+        try:
+            save('safe', build_safe()); META['ok']['safe'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'SAFE: {e}')); META['ok']['safe'] = False
+            if prev_sf: save('safe', prev_sf)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):

@@ -144,7 +144,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -180,7 +180,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY'])
 
 
@@ -345,7 +345,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -532,7 +532,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -622,7 +622,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -755,7 +755,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1114,7 +1114,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+                      for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1358,7 +1358,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1594,7 +1594,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć)
+        for fn in ('build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć)
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1790,7 +1790,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2302,7 +2302,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -2357,6 +2357,82 @@ class BcbV71(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', self.gj(broken=(13970, 13968, 13969, 13967, 13961))):
             with self.assertRaises(RuntimeError):
                 zd.bcb_part(prev)   # żadnego nowego dnia: build_obce zostawi poprzednią część
+
+
+def _xlsx(sheets, shared=True):
+    """Minimalny plik .xlsx do testów: {nazwa arkusza: [[komórki wiersza]]}; teksty jako wspólne napisy (t="s") albo inline."""
+    import io, zipfile
+    strs, buf = [], io.BytesIO()
+    cref = lambda i: chr(65 + i)   # kolumny A–Z wystarczą w testach
+
+    def cell(r, c, v):
+        ref = f'{cref(c)}{r}'
+        if isinstance(v, str):
+            if shared:
+                strs.append(v); return f'<c r="{ref}" t="s"><v>{len(strs) - 1}</v></c>'
+            return f'<c r="{ref}" t="inlineStr"><is><t>{v}</t></is></c>'
+        return f'<c r="{ref}"><v>{v}</v></c>'
+    with zipfile.ZipFile(buf, 'w') as z:
+        wb, rels = [], []
+        for n, (name, rows) in enumerate(sheets.items(), 1):
+            wb.append(f'<sheet name="{name}" sheetId="{n}" r:id="rId{n}"/>')
+            rels.append(f'<Relationship Id="rId{n}" Type="x" Target="worksheets/sheet{n}.xml"/>')
+            body = ''.join(f'<row r="{r}">' + ''.join(cell(r, c, v) for c, v in enumerate(row) if v is not None) + '</row>' for r, row in enumerate(rows, 1))
+            z.writestr(f'xl/worksheets/sheet{n}.xml', f'<worksheet><sheetData>{body}</sheetData></worksheet>')
+        z.writestr('xl/workbook.xml', '<workbook><sheets>' + ''.join(wb) + '</sheets></workbook>')
+        z.writestr('xl/_rels/workbook.xml.rels', '<Relationships>' + ''.join(rels) + '</Relationships>')
+        z.writestr('xl/sharedStrings.xml', '<sst>' + ''.join(f'<si><t>{s}</t></si>' for s in strs) + '</sst>')
+    return buf.getvalue()
+
+
+class SafeChinaVX(unittest.TestCase):
+    """SAFE — kupno i sprzedaż walut przez banki w Chinach: wiersze po nazwie w sekcjach, mld USD, brak = None, straż skali."""
+    HEAD = ['Item', 46204, 46235]   # 2026-07, 2026-08 (liczby seryjne Excela)
+    ROWS = [['Monthly Data on Foreign Exchange Settlement and Sales by Banks (in USD)'], ['Unit: USD 100 million'], HEAD,
+            ['I. Foreign exchange settlement', 2662.5672, 2518.2601], ['(I) by banks for themselves', 33.9, 35.8],
+            ['(II) by banks for customers', 2628.6432, 2482.4808], ['1. Current Account', 2142.06, 2120.08],
+            ['2. Capital and Financial Account', 486.5806, 362.3968], ['Including: Direct investment', 39.2, 33.2], ['       Portfolio investment', 434.0, 314.7],
+            ['II. Foreign exchange sales', 2479.95, 2033.46], ['(I) by banks for themselves', 103.1, 70.2], ['(II) by banks for customers', 2376.8, 1963.2],
+            ['1. Current Account', 1729.4, 1504.5], ['2. Capital and Financial Account', 647.3999, 458.7091], ['Including: Direct investment', 79.8, 44.8],
+            ['       Portfolio investment', 520.6, 385.2],
+            ['III. Balance', 182.6, 484.8], ['(I) by banks for themselves', -69.2, -34.4], ['(II) by banks for customers', 251.826, 519.2379],
+            ['1. Current Account', 412.6453, 615.5502], ['   1.1 Trade in goods', 607.0, 746.1], ['2. Capital and Financial Account', -160.8193, -96.3123],
+            ['Including: Direct investment', -40.5, -11.7], ['       Portfolio investment', -86.6, '-'],
+            ['IV. Newly Signed Contract Amount of Forward Foreign Exchange Settlement and Sales', 420.4, 408.4], ['Balance', 1, 1]]
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def test_reader_parser_units_and_missing(self):
+        for shared in (True, False):
+            data = _xlsx({'in RMB (Monthly)': [['Item', 1]], 'in USD (Monthly)': self.ROWS}, shared=shared)
+            m = zd.parse_safe(zd._xlsx_rows(data, 'in USD (Monthly)'))
+            self.assertEqual(m, [['2026-07', 25.18, 41.26, -16.08, -4.05, -8.66, 48.66, 64.74],
+                                 ['2026-08', 51.92, 61.56, -9.63, -1.17, None, 36.24, 45.87]], 'mld USD; „-” = brak, nie zero')
+        self.assertEqual((zd._xlsx_month('2026.08'), zd._xlsx_month('46235'), zd._xlsx_month('Item')), ('2026-08', '2026-08', None))
+        with self.assertRaises(RuntimeError):
+            zd._xlsx_rows(_xlsx({'in RMB (Monthly)': [['Item', 1]]}), 'in USD (Monthly)')
+        bad = [r if r[0] != '2. Capital and Financial Account' else [r[0], 4.866, 3.624] for r in self.ROWS]   # 100× za mało
+        with self.assertRaises(RuntimeError):
+            zd.parse_safe(zd._xlsx_rows(_xlsx({'in USD (Monthly)': bad}), 'in USD (Monthly)'))
+
+    def test_build_finds_monthly_link_and_notes_identity(self):
+        page = ('<a href="/en/file/file/20260915/aaa.xlsx">Data on Foreign Exchange Settlement and Sales by Banks in 2026 (by Region)</a>'
+                '<a href="/en/file/file/20260915/bbb.xlsx"><span>Time-series Data of Foreign Exchange Settlement and Sales by Banks</span></a>')
+        rows = [r if r[0] != '(II) by banks for customers' or r[1] != 251.826 else [r[0], 999.0, 519.2379] for r in self.ROWS]
+        seen = []
+
+        def gb(url, headers=None, timeout=60):
+            seen.append(url)
+            return page.encode() if url == zd.SAFE_PAGE else _xlsx({'in USD (Monthly)': rows})
+        with mock.patch.object(zd, 'get_bytes', gb):
+            out = zd.build_safe()
+        self.assertEqual(seen[1], 'https://www.safe.gov.cn/en/file/file/20260915/bbb.xlsx', 'szereg czasowy, nie plik roczny')
+        self.assertEqual((out['asof'], out['m'][-1][3]), ('2026-08', -9.63))
+        self.assertTrue(any(n.startswith('SAFE: saldo klientów') and '2026-07' in n for n in zd.META['notes']), zd.META['notes'])
+        with mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: b'<html>bez linku</html>'):
+            with self.assertRaises(RuntimeError):
+                zd.build_safe()
 
 
 if __name__ == '__main__':
