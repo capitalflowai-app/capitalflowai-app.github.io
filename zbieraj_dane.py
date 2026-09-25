@@ -1828,7 +1828,7 @@ TW_BACK_MAX = 12          # v95.1: najwyżej tyle starszych dni na źródło na 
 BACK_BUDGET = 40          # v95.1: sekund na uzupełnianie wstecz jednego źródła w przebiegu — potem przerwa do następnego przebiegu
 TW_BACK_TIMEOUT = 10      # v95.2: limit jednego zapytania wstecz (TWSE, HKEX); budżet liczony razem z nim — twardy limit czasu
 NSDL_BACK_BUDGET = 60     # v95.2: archiwum NSDL — sekund na przebieg; jeden miesiąc = formularz (15 s) + wynik (30 s)
-BACK_LATE = 540           # v95.4: przebieg dłuższy niż 9 min przed krokiem krajów — bez historii wstecz (po v95.3 testy trwają sekundy; zapas do 15 min)
+BACK_LATE = 600           # v96: przebieg dłuższy niż 10 min przed krokiem krajów — bez historii wstecz (kraje liczone po ok. 9 min; zapas do 15 min)
 _BACK_LATE_NOTE = [False]
 TW_PEND_H = 12            # v95.2: starszy dzień „No Data!” (TWSE) = święto dopiero przy drugiej takiej odpowiedzi po ≥ 12 h
 HK_NF_DAYS = 7            # v95.2: brak pliku HKEX za starszy dzień — ponowne pytanie po tygodniu (bez stałej granicy)

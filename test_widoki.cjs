@@ -143,7 +143,7 @@ test('nazwy monet i funduszy oraz daty z plików są escapowane', () => {
   assert.ok(html.includes('<small class="mtxt">${escH(f.n)}</small>'));
   assert.ok(html.includes("t('etf.src.snap',{d:escH(D.asof),f:escH(ETF_SNAP.fetched)})"));
   assert.ok(!html.includes('${r.name}') && !html.includes('${f.n}') && !html.includes('${f.t}'));
-  assert.ok(html.includes('/^https:\\/\\//.test(String(lg))'), 'logo tylko z https');
+  assert.ok(html.includes('/^(https:\\/\\/|data:image\\/(webp|png);base64,)/.test(String(lg))'), 'v96: logo z https albo wbudowany obraz (nie dowolny adres)');
   const e0 = html.indexOf('function escH('); const e1 = html.indexOf('\n', e0);
   const escH = new Function(html.slice(e0, e1) + '\nreturn escH;')();
   assert.equal(escH('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
@@ -1794,7 +1794,7 @@ test('v89: EXTRA80 — nazwa zakładki w 10 językach, pl i en z tymi samymi klu
   const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), blk = html.slice(b0, b1);
   const lit = [...blk.matchAll(/t\('(trd\.[A-Za-z0-9_.]+)'/g)].map(m => m[1]).filter(k => !/[._]$/.test(k));   /* v93: też przedrostki kluczy („trd.s.fe_”) */
   const ALL = {pl: {}, en: {}};   /* v93: klucze z EXTRA80 i późniejszych słowników TRENDÓW */
-  for (const m of html.matchAll(/const (EXTRA8\d)=/g)) { const x = html.indexOf(m[0]), d = JSON.parse(html.slice(x + m[0].length, html.indexOf(';\n', x))); Object.assign(ALL.pl, d.pl || {}); Object.assign(ALL.en, d.en || {}); }
+  for (const m of html.matchAll(/const (EXTRA(?:8\d|9\d))=/g)) { const x = html.indexOf(m[0]), d = JSON.parse(html.slice(x + m[0].length, html.indexOf(';\n', x))); Object.assign(ALL.pl, d.pl || {}); Object.assign(ALL.en, d.en || {}); }
   for (const k of lit) assert.ok(ALL.pl[k] && ALL.en[k], 'brak klucza ' + k);
   const ST = ['in_up', 'in_flat', 'in_down', 'in_rev', 'in_new', 'in_dir', 'out_up', 'out_flat', 'out_down', 'out_rev', 'out_new', 'out_dir'];
   for (const s of ST.concat(['mixed', 'none', 'short', 'gap', 'stale'])) assert.ok(D.pl['trd.sn.' + s] && D.en['trd.sn.' + s], 'trd.sn.' + s);
@@ -1985,4 +1985,48 @@ test('v95: TRENDY — „czy tydzień zapowiadał następny” dla dziennych prz
   assert.ok(el.innerHTML.includes('<b>trd.b.concl2</b>') && !el.innerHTML.includes('trd.b.concl3'), 'wynik tylko dla cen — bez zdania o przepływach');
   f.trdApply({at: '2026-09-25T13:00:00Z', f: [], p: [], b: [{id: 'ob', k: 30, n: 112, weeks: 51, from: '2025-09-22', to: '2026-09-14', ci: [19.4, 35.6]}]});
   assert.ok(el.innerHTML.includes('trd.b.v.less') && el.innerHTML.includes('<b>trd.b.concl2</b>'), 'przepływy częściej się odwracały — zwykły wniosek');
+});
+
+test('v96: fundament — flagi, loga, waluty, znaczki wydawców (jedna funkcja na rodzaj ikony, zawsze jakaś ikona)', () => {
+  const h0 = html.indexOf('/* ===================== v96: FLAGI, LOGA, WALUTY, ZNACZKI WYDAWCÓW'), h1 = html.indexOf('\nfunction fundIco(', h0);
+  assert.ok(h0 > 0 && h1 > h0);
+  const body = html.slice(h0, html.indexOf('\n', h1 + 1));
+  const escH = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const F = new Function('escH', 'ISO32', 'COIN_LOGO', body + '\nreturn {flagCode,flagImg,flagsHtml,regFlags,ccyMark,coinImg,netImg,exchImg,issuerOf,issBadge,fundIco,FLAGS_OK};')(
+    escH, {GRC: 'GR', DEU: 'DE', EMU: ''}, {PEPE: 'data:image/webp;base64,AAAA', BAD: 'https://zly.example/x.png'});
+  assert.equal(F.flagCode('XM'), 'eu'); assert.equal(F.flagCode('EA'), 'eu'); assert.equal(F.flagCode('EL'), 'gr'); assert.equal(F.flagCode('GRC'), 'gr');
+  assert.equal(F.flagCode('DEU'), 'de'); assert.equal(F.flagCode('PL'), 'pl'); assert.equal(F.flagCode('zz'), ''); assert.equal(F.flagCode('"><x'), '');
+  assert.ok(F.flagImg('pl').includes('src="img/flagi/pl.svg"') && F.flagImg('zz') === '');
+  const two = F.flagsHtml(['jp', 'kr']);
+  assert.equal((two.match(/<img /g) || []).length, 2, 'dwa kraje = dwie flagi');
+  assert.ok(F.flagsHtml(['id', 'sg', 'th', 'my', 'ph']).includes('<i class="more">+2</i>'), 'więcej niż 3 — „+N”');
+  assert.ok(F.flagsHtml([]).includes('img/glify/globe.svg'), 'bez flagi — glob, nigdy pusto');
+  assert.ok(F.regFlags('eur').includes('flagi/eu.svg') && F.regFlags('eur').includes('flagi/gb.svg') && F.regFlags('eur').includes('flagi/ch.svg'));
+  assert.ok(F.ccyMark('EUR').includes('flagi/eu.svg') && F.ccyMark('EUR').includes('<i>€</i>') && F.ccyMark('USD').includes('flagi/us.svg'));
+  assert.ok(F.ccyMark('XYZ').includes('glify/coin.svg'), 'nieznana waluta — glif monety');
+  assert.ok(F.coinImg('BTC').includes('img/krypto/btc.svg') && F.coinImg('pepe').includes('data:image/webp;base64,AAAA'));
+  assert.ok(F.coinImg('BAD').includes('class="iss') && !F.coinImg('BAD').includes('zly.example'), 'obcy adres obrazka nie przechodzi — znaczek z literami');
+  assert.ok(F.coinImg('<b>').includes('&lt;B') && !F.coinImg('<b>').includes('<b>'), 'litery ze znaczka są escapowane');
+  assert.ok(F.netImg('Hyperliquid L1').includes('sieci/hyper-evm.svg') && F.netImg('BSC').includes('binance-smart-chain') && F.netImg('Nowa Sieć').includes('class="iss'));
+  assert.ok(F.exchImg('Binance (Futures)').includes('gieldy/binance.svg') && F.exchImg('Hyperliquid').includes('sieci/hyper-evm.svg') && F.exchImg('MEXC').includes('class="iss'));
+  assert.equal(F.issuerOf('BTC', 'Grayscale Bitcoin Mini Trust'), 'grayscale', 'ticker BTC funduszu — wydawca z nazwy, nie logo monety');
+  assert.equal(F.issuerOf('ARKB', 'ARK 21Shares Bitcoin ETF'), 'ark'); assert.equal(F.issuerOf('TETH', '21Shares Core Ethereum ETF'), 's21');
+  assert.equal(F.issuerOf('IBIT', ''), 'ishares'); assert.equal(F.issuerOf('XLK', ''), 'ssga'); assert.equal(F.issuerOf('VGK', ''), 'vanguard');
+  assert.ok(F.fundIco('IBIT', 'iShares Bitcoin Trust', 'BTC').includes('>iS</span>') && F.fundIco('IBIT', 'iShares Bitcoin Trust', 'BTC').includes('krypto/btc.svg'));
+  assert.ok(F.fundIco('ZZZZ', '').includes('glify/etf.svg'), 'nieznany wydawca — glif ETF');
+});
+
+test('v96: Ustawienia bez pola kluczy, logo prowadzi do GLOBAL, ruchome tło w lewym pasku, kolory Apple', () => {
+  assert.ok(!html.includes('id="set-data"') && !html.includes('id="soso-key"') && !html.includes('function etfInitSettings('), 'pole „Dane” z kluczami usunięte');
+  assert.ok(html.includes("function keyGet(k){return '';}") && html.includes("Object.values(KEYS).concat(['cfai.td.cache']).forEach(k=>localStorage.removeItem(k))"), 'dawne klucze usuwane z przeglądarki');
+  assert.ok(html.includes('etfLoad();etfAuto();engLoad();') && !html.includes('cgPing();engLoad'));
+  assert.ok(html.includes('<a class="logo" id="logo-home" href="./" data-i18n-aria="nav.home">'));
+  assert.ok(html.includes("$('#logo-home').addEventListener('click',e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;e.preventDefault();page='overview';setMode('global');"));
+  assert.ok(html.includes('.side{grid-row:1/3;grid-column:1;background:transparent;') && html.includes('.nav::before{content:"";position:absolute;z-index:-1;'), 'tło pod „Metodologia” widoczne');
+  assert.ok(html.includes('  .nav::before{display:none}'), 'na telefonie pasek jest poziomy — panel jak dotąd');
+  assert.ok(html.includes('--yl:#FFD60A;') && html.includes('--yl:#FFCC00;') && html.includes('--gr-tx:#248A3D; --rd-tx:#D70015;'), 'żółty Apple i czytelne odcienie w jasnym motywie');
+  assert.ok(html.includes('.neu{--c:var(--yl);color:var(--yl-tx)}') && html.includes(".live.off{color:var(--yl-tx);"));
+  const a = 'const EXTRA87=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
+  assert.ok(D.pl['nav.home'] && !D.pl['etf.src.snap'].includes('Ustawienia') && !D.pl['pg.nosrc.d'].includes('Ustawieniach') && !D.pl['g.hs.fh'].includes('własnego klucza'));
 });

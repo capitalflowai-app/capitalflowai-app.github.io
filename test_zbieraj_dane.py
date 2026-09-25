@@ -3860,7 +3860,7 @@ class HistoriaV95(unittest.TestCase):
         with a, b, c, mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'monotonic', lambda: next(clock)):
             zd.twse_part(prev, '')
         self.assertEqual(asked, ['2026-09-24', '2026-09-25', '2026-09-10'], '15 s + 12 s ≤ 40 s — tak; 30 s + 12 s > 40 s — stop')
-        asked.clear(); zd._RUN_T0[0] = zd.time.monotonic() - 600
+        asked.clear(); zd._RUN_T0[0] = zd.time.monotonic() - 700
         a, b, c = self.at('2026-09-25T09:00:00+00:00')
         with a, b, c, mock.patch.object(zd, 'get_json', gj):
             zd.twse_part(prev, '')
@@ -3901,6 +3901,57 @@ class HistoriaV95(unittest.TestCase):
         self.assertLess(exp[2][1], exp[4][1], 'Tajwan: tydzień z brakującą sesją (10.06) nie jest liczony')
         self.assertEqual(exp[3][1], exp[4][1], 'Hongkong: znany dzień bez sesji (1.07) nie psuje tygodnia')
         self.assertNotIn('ob', {x['id'] for x in zd.build_trendy({'obce': {}})['b']})
+
+import re as re   # v96: test ikon (moduł testów nie importował re)
+
+
+class IkonyV96(unittest.TestCase):
+    """v96: każda ikona, o którą prosi strona (flagi, krypto, sieci, giełdy, glify), istnieje w img/ i jest bezpiecznym SVG
+    (bez skryptów, zdarzeń i odwołań na zewnątrz); publikacja kopiuje img/ i przerywa się bez ikon."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def setUp(self):
+        self.html = open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8').read()
+
+    def test_every_referenced_icon_file_exists(self):
+        h = self.html
+        flags = re.search(r"const FLAGS_OK=new Set\('([a-z ]+)'\.split", h).group(1).split()
+        self.assertGreater(len(flags), 240)
+        for c in flags + ['eu']:
+            self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'img', 'flagi', c + '.svg')), c)
+        for grp in re.findall(r"REGF=\{(.*?)\};", h)[:1]:
+            for c in re.findall(r"'([a-z]{2})'", grp):
+                self.assertIn(c, flags, 'flaga regionu ' + c)
+        ccy = re.search(r"const CCY=\{(.*?)\};", h).group(1)
+        for c in re.findall(r"\[\s*'([a-z]{2})'\s*,", ccy):
+            self.assertIn(c, flags, 'flaga waluty ' + c)
+        for c in re.search(r"const CRYPTO_SVG=new Set\('([a-z ]+)'\.split", h).group(1).split():
+            self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'img', 'krypto', c + '.svg')), c)
+        for c in set(re.findall(r":'([a-z0-9-]+)'", re.search(r"const NET_SVG=\{(.*?)\};", h).group(1))):
+            self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'img', 'sieci', c + '.svg')), c)
+        for c in set(re.findall(r":'([a-z0-9-]+)'", re.search(r"const EXCH_SVG=\{(.*?)\};", h).group(1))):
+            self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'img', 'gieldy', c + '.svg')), c)
+        self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'img', 'sieci', 'hyper-evm.svg')))
+        for g in set(re.findall(r"glyphImg\('([a-z]+)'", h)):
+            self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'img', 'glify', g + '.svg')), 'glif ' + g)
+        self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'img', 'LICENCJE.txt')))
+
+    def test_icon_files_are_safe_svg(self):
+        bad = re.compile(r'<script|\bon[a-z]+\s*=|javascript:|<foreignObject|<image\b|<!ENTITY|@import|href\s*=\s*["\'](?!#)|url\((?!#)', re.I)
+        n = 0
+        for d in ('flagi', 'krypto', 'sieci', 'gieldy', 'glify'):
+            for f in os.listdir(os.path.join(self.ROOT, 'img', d)):
+                t = open(os.path.join(self.ROOT, 'img', d, f), encoding='utf-8').read()
+                self.assertTrue(f.endswith('.svg') and t.lstrip().startswith('<svg'), f)
+                self.assertIsNone(bad.search(t), d + '/' + f)
+                n += 1
+        self.assertGreater(n, 300)
+
+    def test_publication_copies_icons(self):
+        w = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertIn('cp -r img _site/img', w)
+        self.assertIn('test -f _site/img/flagi/pl.svg', w)
+
 
 if __name__ == '__main__':
     unittest.main()

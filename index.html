@@ -26,6 +26,7 @@
   --dim:#6e6e73;
   --bl:#0A84FF; --gr:#30D158; --rd:#FF453A; --or:#FF9F0A; --tl:#64D2FF; --gy:#8E8E93;
   --gr-rgb:48,209,88; --rd-rgb:255,69,58; --bl-rgb:10,132,255; --or-rgb:255,159,10; --tl-rgb:100,210,255;
+  --yl:#FFD60A; --yl-rgb:255,214,10; --gy-rgb:142,142,147; --gr-tx:#30D158; --rd-tx:#FF453A; --yl-tx:#FFD60A; --ico-sep:#1c1c1e;
   --scene-glass:rgba(12,12,14,.4);
   --scene-stroke:rgba(0,0,0,.92);
   --scene-floor:rgba(235,235,245,.10);
@@ -51,6 +52,7 @@
   --dim:#8e8e93;
   --bl:#007AFF; --gr:#34C759; --rd:#FF3B30; --or:#FF9500; --tl:#32ADE6; --gy:#8E8E93;
   --gr-rgb:52,199,89; --rd-rgb:255,59,48; --bl-rgb:0,122,255; --or-rgb:255,149,0; --tl-rgb:50,173,230;
+  --yl:#FFCC00; --yl-rgb:255,204,0; --gy-rgb:142,142,147; --gr-tx:#248A3D; --rd-tx:#D70015; --yl-tx:#B25000; --ico-sep:#ffffff;
   --scene-glass:rgba(255,255,255,.5);
   --scene-stroke:rgba(255,255,255,.95);
   --scene-floor:rgba(60,60,67,.10);
@@ -83,16 +85,19 @@ h1,h2,h3,.sora{font-family:"Sora","Instrument Sans",system-ui,"PingFang SC","Hir
 body[data-bg="off"] #hex{display:none}
 
 .app{position:relative;z-index:1;min-height:100vh;display:grid;grid-template-columns:212px minmax(0,1fr) 336px;grid-template-rows:auto 1fr}
-.side{grid-row:1/3;grid-column:1;background:var(--panel);backdrop-filter:blur(10px);border-right:1px solid var(--line);
+.side{grid-row:1/3;grid-column:1;background:transparent;border-right:1px solid var(--line);
   display:flex;flex-direction:column;padding:18px 12px;gap:6px;position:sticky;top:0;height:100vh;align-self:start}
-.logo{display:flex;align-items:center;gap:10px;padding:2px 8px 18px;font-size:19px;font-weight:600;line-height:1;letter-spacing:-.01em}
+.logo{display:flex;align-items:center;gap:10px;padding:2px 8px 18px;font-size:19px;font-weight:600;line-height:1;letter-spacing:-.01em;color:inherit;text-decoration:none;border-radius:9px}
+.logo:focus-visible{outline:2px solid var(--bl);outline-offset:2px}
 .logo b{color:var(--bl);font-weight:600}
-.nav{display:flex;flex-direction:column;gap:2px}
+.nav{display:flex;flex-direction:column;gap:2px;position:relative}
+/* v96: panel tylko pod logo i menu; niżej (pod „Metodologia”) widać ruchome tło strony aż do dołu paska */
+.nav::before{content:"";position:absolute;z-index:-1;left:-12px;right:-12px;top:-100vh;bottom:-16px;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);-webkit-mask-image:linear-gradient(#000 calc(100% - 30px),transparent);mask-image:linear-gradient(#000 calc(100% - 30px),transparent);pointer-events:none}
 .nav button{display:flex;align-items:center;gap:12px;background:none;border:1px solid transparent;border-radius:9px;padding:10px 12px;text-align:left;color:var(--mut);font-weight:500}
 .nav button[aria-current="page"]{background:var(--sel);border-color:var(--line-2);color:var(--tx)}
 .nav button[aria-disabled="true"]{cursor:default;opacity:.7}
 .nav svg{width:19px;height:19px;flex:none}
-.upd{margin-top:auto;border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--mut);font-size:12px;display:flex;gap:10px;align-items:center}
+.upd{margin-top:auto;border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--mut);font-size:12px;display:flex;gap:10px;align-items:center;background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .upd svg{width:22px;height:22px;flex:none;color:var(--dim)}
 .upd b{display:block;color:var(--tx);font-weight:500}
 
@@ -129,7 +134,7 @@ input[type="range"]{accent-color:var(--bl);width:110px}
 .head-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 h1{margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.02em}
 .sub{color:var(--mut);font-size:12.5px;margin-top:4px}
-.badge{display:inline-block;border:1px solid var(--or);color:var(--or);border-radius:6px;padding:1px 7px;font-size:11.5px;margin-right:8px}
+.badge{display:inline-block;border:1px solid var(--yl);color:var(--yl-tx);border-radius:6px;padding:1px 7px;font-size:11.5px;margin-right:8px}
 h2{margin:0;font-size:16px;font-weight:600;line-height:1.2}
 h3{margin:0;font-size:14px;font-weight:600;line-height:1.2}
 
@@ -160,7 +165,7 @@ td .cell .logo-img{width:34px;height:34px}
 .k-val small{font-size:11px;font-weight:500;color:var(--mut);margin-left:3px;font-family:"Instrument Sans",system-ui,sans-serif}
 .k-foot{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .dlt{font-size:12px;font-weight:600;white-space:nowrap}
-.dlt.up{color:var(--gr)}.dlt.dn{color:var(--rd)}
+.dlt.up{color:var(--gr-tx)}.dlt.dn{color:var(--rd-tx)}
 .kpi svg.sp{width:52%;height:22px;flex:none}
 .kpi svg.sp polyline{fill:none;stroke-width:1.6;vector-effect:non-scaling-stroke}
 .kpi svg.sp.up polyline{stroke:var(--gr)}
@@ -211,8 +216,8 @@ body.gfull{overflow:hidden}
 .sig{width:30px;height:12px;flex:none;color:var(--mut)}
 .sig polyline{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .sig polygon{fill:currentColor}
-.sig.in{color:var(--gr)}
-.sig.out{color:var(--rd)}
+.sig.in{color:var(--gr-tx)}
+.sig.out{color:var(--rd-tx)}
 
 .list-wrap{overflow-x:auto;padding:6px 6px 10px}
 table{width:100%;border-collapse:collapse;min-width:560px}
@@ -224,7 +229,7 @@ tr.sel td{background:var(--sel)}
 .sqicon.round{border-radius:50%}
 td .cell .logo-img{width:34px;height:34px}
 .sz{display:inline-block;width:8px;border-radius:2px;background:var(--c);opacity:.7;height:10px;flex:none}
-.pos{--c:var(--gr);color:var(--gr)}.neg{--c:var(--rd);color:var(--rd)}
+.pos{--c:var(--gr);color:var(--gr-tx)}.neg{--c:var(--rd);color:var(--rd-tx)}
 
 .why{padding:14px}
 .why h2{margin-bottom:10px}
@@ -242,10 +247,10 @@ td .cell .logo-img{width:34px;height:34px}
 .d-grid .wide{grid-column:span 3}
 .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid;border-radius:7px;padding:2px 9px;font-size:12.5px;font-weight:500}
 .chip .sig{width:26px;height:11px;color:currentColor}
-.ev-direct-c{color:var(--gr);border-color:rgba(var(--gr-rgb),.5)}
+.ev-direct-c{color:var(--gr-tx);border-color:rgba(var(--gr-rgb),.5)}
 .ev-onchain-c{color:var(--tl);border-color:rgba(var(--tl-rgb),.55)}
 .ev-proxy-c{color:var(--or);border-color:rgba(var(--or-rgb),.55)}
-.ev-unc-c{color:var(--rd);border-color:rgba(var(--rd-rgb),.5)}
+.ev-unc-c{color:var(--rd-tx);border-color:rgba(var(--rd-rgb),.5)}
 /* Top 10 w sektorze */
 .top10{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
 .t10-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
@@ -269,7 +274,7 @@ td .cell .logo-img{width:34px;height:34px}
 .t10 .bar.pos i{background:linear-gradient(90deg,rgba(var(--gr-rgb),.55),var(--gr))}
 .t10 .bar.neg i{background:linear-gradient(90deg,rgba(var(--rd-rgb),.55),var(--rd))}
 .t10-s{margin:8px 0 4px;color:var(--mut);font-size:12.5px}
-.t10-s.err{color:var(--rd)}
+.t10-s.err{color:var(--rd-tx)}
 .t10-s small{color:var(--dim);font-size:11px}
 .t10-src{margin:9px 0 0;color:var(--dim);font-size:11px;line-height:1.4}
 .t10 .sc{text-align:right;font-weight:600;font-size:12px}
@@ -300,11 +305,11 @@ td .cell .logo-img{width:34px;height:34px}
 .rail h2{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .grp{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:8px 10px;background:var(--panel-2)}
 .grp h3{display:flex;align-items:center;gap:8px;padding:2px 0 6px}
-.grp.in h3{color:var(--gr)}.grp.out h3{color:var(--rd)}
+.grp.in h3{color:var(--gr-tx)}.grp.out h3{color:var(--rd-tx)}
 .row{display:grid;grid-template-columns:1fr auto 14px;gap:8px;align-items:center;width:100%;background:none;border:0;border-radius:6px;padding:6px 4px;text-align:left;font-size:12.5px;color:var(--mut)}
 .row:hover,.row[aria-pressed="true"]{background:var(--sel)}
 .row .amt{font-weight:600;white-space:nowrap}
-.row .amt.in{color:var(--gr)}.row .amt.out{color:var(--rd)}
+.row .amt.in{color:var(--gr-tx)}.row .amt.out{color:var(--rd-tx)}
 .row .chev{color:var(--dim)}
 .rail-none{margin:4px 2px;color:var(--dim);font-size:12px}
 .sec-row{display:grid;grid-template-columns:56px 1fr 34px;gap:8px;align-items:center;font-size:12.5px;color:var(--mut);padding:3px 0}
@@ -313,21 +318,21 @@ td .cell .logo-img{width:34px;height:34px}
 .segs i.on{background:var(--sc,var(--bl))}
 .live{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;border:1px solid var(--line-2);border-radius:6px;padding:1px 8px;color:var(--mut)}
 .live i{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
-.live.on{color:var(--gr);border-color:rgba(var(--gr-rgb),.5)}
+.live.on{color:var(--gr-tx);border-color:rgba(var(--gr-rgb),.5)}
 .live.on i{background:var(--gr);box-shadow:0 0 0 3px rgba(var(--gr-rgb),.18)}
 .live.wait{color:var(--tl);border-color:rgba(var(--tl-rgb),.5)}
 .live.wait i{background:var(--tl);animation:lp 1.1s ease-in-out infinite}
-.live.off{color:var(--or);border-color:rgba(var(--or-rgb),.5)}
-.live.off i{background:var(--or)}
+.live.off{color:var(--yl-tx);border-color:rgba(var(--yl-rgb),.55)}
+.live.off i{background:var(--yl)}
 @keyframes lp{0%,100%{opacity:.35}50%{opacity:1}}
 .dlt.na{color:var(--dim);font-weight:500}
 .dlt i{font-style:normal;color:var(--dim);font-weight:500;margin-left:4px;font-size:10px}
 .mini-i{width:20px;height:20px;border-radius:50%;border:1px solid var(--line-2);background:none;color:var(--mut);font-size:11px;font-weight:600;line-height:1;display:grid;place-items:center;flex:none}
-.gauge .lv.warn{color:var(--or)}
+.gauge .lv.warn{color:var(--yl-tx)}
 .sec-row span:last-child{text-align:right;color:var(--tx);font-weight:600}
 .gauge{text-align:center}
 .gauge svg{width:100%;max-width:230px}
-.gauge .lv{font-size:16px;font-weight:600;color:var(--gr)}
+.gauge .lv{font-size:16px;font-weight:600;color:var(--gr-tx)}
 .gauge p{margin:4px 0 0;color:var(--mut);font-size:12px}
 .ph{padding:36px;text-align:center;color:var(--mut);max-width:640px;margin:8vh auto}
 .ph h2{color:var(--tx);margin-bottom:8px}
@@ -365,7 +370,9 @@ td .cell .logo-img{width:34px;height:34px}
 }
 @media (max-width:900px){
   .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto}
-  .side{position:static;grid-row:1;grid-column:1;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:8px 10px}
+  .side{position:static;grid-row:1;grid-column:1;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:8px 10px;background:var(--panel);backdrop-filter:blur(10px)}
+  .nav::before{display:none}
+  .logo{min-height:44px}
   .logo{padding:0 8px 0 2px;white-space:nowrap;font-size:0;gap:0}
   .nav{flex-direction:row}
   .nav button{white-space:nowrap;padding:8px 10px}
@@ -466,7 +473,7 @@ td .cell .logo-img{width:34px;height:34px}
 .pnote{margin:0 0 10px;color:var(--mut);font-size:11.5px;line-height:1.4}
 .pcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 22px}
 .pcols h3{font-size:12px;letter-spacing:.04em;margin-bottom:6px}
-.pcols .pup{color:var(--gr)}.pcols .pdn{color:var(--rd)}
+.pcols .pup{color:var(--gr-tx)}.pcols .pdn{color:var(--rd-tx)}
 .prow{display:grid;grid-template-columns:minmax(96px,1.1fr) 1fr 44px;grid-template-areas:"n b s" "p p p";
   gap:4px 10px;align-items:center;width:100%;background:none;border:1px solid transparent;border-radius:9px;
   padding:7px 8px;text-align:left;color:var(--tx)}
@@ -477,11 +484,11 @@ td .cell .logo-img{width:34px;height:34px}
 .prow.pos .pbar i{background:linear-gradient(90deg,rgba(var(--gr-rgb),.5),var(--gr))}
 .prow.neg .pbar i{background:linear-gradient(90deg,rgba(var(--rd-rgb),.5),var(--rd))}
 .pscore{grid-area:s;text-align:right;font-weight:600;font-size:13px}
-.prow.pos .pscore{color:var(--gr)}.prow.neg .pscore{color:var(--rd)}
+.prow.pos .pscore{color:var(--gr-tx)}.prow.neg .pscore{color:var(--rd-tx)}
 .pparts{grid-area:p;display:flex;flex-wrap:wrap;gap:4px}
 .pchip{border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:10.5px;color:var(--mut);white-space:nowrap}
-.pchip.p{color:var(--gr);border-color:rgba(var(--gr-rgb),.4)}
-.pchip.n{color:var(--rd);border-color:rgba(var(--rd-rgb),.4)}
+.pchip.p{color:var(--gr-tx);border-color:rgba(var(--gr-rgb),.4)}
+.pchip.n{color:var(--rd-tx);border-color:rgba(var(--rd-rgb),.4)}
 .pfoot{margin:12px 0 0;color:var(--dim);font-size:11px;line-height:1.45;border-top:1px solid var(--line);padding-top:9px}
 .pbox{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 /* ETF → krypto */
@@ -494,11 +501,11 @@ td .cell .logo-img{width:34px;height:34px}
 .etfk b{display:block;font-size:15px;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .etfk b small{display:block;color:var(--dim);font-size:10px;font-weight:500;white-space:normal}
 .etfk.wrap b{white-space:normal;font-size:13.5px;line-height:1.3}
-.etfk b.pos{color:var(--gr)}.etfk b.neg{color:var(--rd)}
+.etfk b.pos{color:var(--gr-tx)}.etfk b.neg{color:var(--rd-tx)}
 .etft{min-width:720px}
 .etft td .cell{padding:8px 10px}
 .etft td .cell small{display:block;color:var(--dim);font-size:10.5px;margin-top:1px}
-.etft .cell.pos{color:var(--gr)}.etft .cell.neg{color:var(--rd)}
+.etft .cell.pos{color:var(--gr-tx)}.etft .cell.neg{color:var(--rd-tx)}
 .etfbars{width:120px;height:28px;display:block}
 .etfd{border-top:1px solid var(--line);padding:8px 0 0;margin-top:6px}
 .etfd summary{cursor:pointer;color:var(--mut);font-size:12.5px;padding:4px 0;list-style:none;display:flex;align-items:center;gap:8px}
@@ -509,18 +516,14 @@ td .cell .logo-img{width:34px;height:34px}
 .etf-rail .etfr:first-of-type{border-top:0}
 .etf-rail .etfr span:nth-child(n+2){text-align:right}
 .etf-rail .etfr-h{color:var(--dim);font-size:10.5px;padding:4px 0 0;border-top:0}
-.etf-rail .mono.pos,.etf-rail b.pos{color:var(--gr)}.etf-rail .mono.neg,.etf-rail b.neg{color:var(--rd)}
+.etf-rail .mono.pos,.etf-rail b.pos{color:var(--gr-tx)}.etf-rail .mono.neg,.etf-rail b.neg{color:var(--rd-tx)}
 .etf-rail h2 .live{font-weight:500;font-size:10.5px}
-.keyin{background:var(--panel-2);border:1px solid var(--line-2);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:12.5px;min-width:min(300px,100%);font-family:"JetBrains Mono",ui-monospace,monospace}
-.keyrow{gap:8px;align-items:center}
-.keyhint{padding:0 0 8px}
-.keyhint a{color:var(--bl)}
 @media (max-width:1240px){.etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:620px){.etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}.etfk b{font-size:13.5px}}
 .pbox h4{margin:0 0 6px;font-size:13px;font-family:"Sora",sans-serif}
 .plist{list-style:none;margin:0 0 8px;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 16px}
 .plist li{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--mut)}
-.plist b.pos{color:var(--gr)}.plist b.neg{color:var(--rd)}
+.plist b.pos{color:var(--gr-tx)}.plist b.neg{color:var(--rd-tx)}
 .gleg2{flex-direction:column;align-items:flex-start;gap:6px}
 @media (max-width:900px){.pcols{grid-template-columns:minmax(0,1fr)}.plist{grid-template-columns:minmax(0,1fr)}}
 
@@ -560,6 +563,22 @@ td .cell .logo-img{width:34px;height:34px}
 :root[data-theme="light"] .refresh .live{background:rgba(255,255,255,.6)}
 .rfsrc{color:var(--dim);font-size:10.5px}
 @media (max-width:620px){.clock{display:none}.refresh{right:8px;bottom:8px}.rfsrc{display:none}}
+/* v96: flagi, loga, znaczki wydawców, waluty — jeden wygląd w całym projekcie (okrągłe ikony jak w aplikacjach finansowych) */
+.ico{display:inline-block;width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:-4px;flex:none;background:var(--panel-2);box-shadow:0 0 0 1.5px var(--ico-sep)}
+.ico.sm{width:14px;height:14px;vertical-align:-2px}
+.ico.lg{width:24px;height:24px;vertical-align:-6px}
+.icos{display:inline-flex;align-items:center;flex:none;vertical-align:middle;margin-right:7px;line-height:1;white-space:nowrap}
+.icos>*+.ico,.icos>*+.iss{margin-left:-5px}
+.icos .more{font-style:normal;font-size:10px;font-weight:600;color:var(--mut);margin-left:4px}
+.iss{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--ic,#3a3a3c);color:#fff;font:600 7.5px/1 "Instrument Sans",system-ui,sans-serif;letter-spacing:-.03em;vertical-align:-4px;flex:none;box-shadow:0 0 0 1.5px var(--ico-sep);overflow:hidden;white-space:nowrap}
+.iss.sm{width:14px;height:14px;font-size:6px;vertical-align:-2px}
+.iss.lg{width:24px;height:24px;font-size:9.5px;vertical-align:-6px}
+.ccy{white-space:nowrap;display:inline-flex;align-items:center}
+.ccy .icos{margin-right:5px}
+.ccy i{font-style:normal;color:var(--mut);margin-left:4px;font-weight:500}
+/* v96: kolory Apple — wzrost/napływ zielony, spadek/odpływ czerwony, zmiana/brak wyraźnego kierunku żółty */
+.neu{--c:var(--yl);color:var(--yl-tx)}
+.dlt.chg{color:var(--yl-tx)}
 </style>
 </head>
 <body data-bg="soft">
@@ -567,10 +586,10 @@ td .cell .logo-img{width:34px;height:34px}
 
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo">
+    <a class="logo" id="logo-home" href="./" data-i18n-aria="nav.home">
       <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 27 9.5v13L16 29 5 22.5v-13z" fill="none" stroke="var(--bl)" stroke-width="2.2" stroke-linejoin="round"/><path d="M5 9.5 16 16l11-6.5M16 16v13" fill="none" stroke="var(--tl)" stroke-width="2" stroke-linejoin="round"/></svg>
       <span>CapitalFlow<b>AI</b></span>
-    </div>
+    </a>
     <nav class="nav">
       <button id="nav-overview" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg><span data-i18n="nav.overview"></span></button>
       <button id="nav-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 14.5a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4H21a1.6 1.6 0 0 0-1.5 1z"/></svg><span data-i18n="nav.settings"></span></button>
@@ -683,49 +702,6 @@ td .cell .logo-img{width:34px;height:34px}
       <div class="set-row"><span data-i18n="label"></span><div class="dd" id="dd-label"></div></div>
       <div class="set-row"><span data-i18n="cam"></span><div class="dd cam-tools" id="dd-cam"></div></div>
       <div class="set-row"><span data-i18n="size"></span><div class="dd" id="dd-size"></div></div>
-    </section>
-    <section class="panel set-card" id="set-data">
-      <h2 data-i18n="set.data"></h2>
-      <div class="set-row cust">
-        <span data-i18n="etf.key.label"></span>
-        <div class="tools keyrow">
-          <input type="password" id="soso-key" class="keyin" autocomplete="off" spellcheck="false" data-i18n-ph="etf.key.ph">
-          <button class="small-btn" id="soso-save" data-i18n="etf.key.save"></button>
-          <button class="small-btn" id="soso-clear" data-i18n="etf.key.clear"></button>
-          <span id="soso-st"></span>
-        </div>
-      </div>
-      <p class="mtxt keyhint" data-i18n-html="etf.key.hint"></p>
-      <div class="set-row cust">
-        <span data-i18n="key.fh.label"></span>
-        <div class="tools keyrow">
-          <input type="password" id="fh-key" class="keyin" autocomplete="off" spellcheck="false" data-i18n-ph="etf.key.ph">
-          <button class="small-btn" id="fh-save" data-i18n="etf.key.save"></button>
-          <button class="small-btn" id="fh-clear" data-i18n="etf.key.clear"></button>
-          <span id="fh-st"></span>
-        </div>
-      </div>
-      <p class="mtxt keyhint" data-i18n-html="key.fh.hint"></p>
-      <div class="set-row cust">
-        <span data-i18n="key.td.label"></span>
-        <div class="tools keyrow">
-          <input type="password" id="td-key" class="keyin" autocomplete="off" spellcheck="false" data-i18n-ph="etf.key.ph">
-          <button class="small-btn" id="td-save" data-i18n="key.td.check"></button>
-          <button class="small-btn" id="td-clear" data-i18n="etf.key.clear"></button>
-          <span id="td-st"></span>
-        </div>
-      </div>
-      <p class="mtxt keyhint" data-i18n-html="key.td.hint"></p>
-      <div class="set-row cust">
-        <span data-i18n="key.cg.label"></span>
-        <div class="tools keyrow">
-          <input type="password" id="cg-key" class="keyin" autocomplete="off" spellcheck="false" data-i18n-ph="etf.key.ph">
-          <button class="small-btn" id="cg-save" data-i18n="etf.key.save"></button>
-          <button class="small-btn" id="cg-clear" data-i18n="etf.key.clear"></button>
-          <span id="cg-st"></span>
-        </div>
-      </div>
-      <p class="mtxt keyhint" data-i18n-html="key.cg.hint"></p>
     </section>
     <div><button class="small-btn" id="set-done" data-i18n="set.done"></button></div>
   </section>
@@ -1145,6 +1121,8 @@ const EXTRA85={"pl":{"trd.b.fe":"Fundusze ETF w USA (wszystkie grupy razem)","tr
 for(const l in EXTRA85)if(I18N[l])Object.assign(I18N[l],EXTRA85[l]);
 const EXTRA86={"pl":{"trd.b.ob":"Przepływy dzienne w krajach: Indie (akcje, dług), Tajwan, Hongkong, Brazylia","g.hs.nsdl":"Dzienne zakupy i sprzedaże zagranicznych inwestorów portfelowych w Indiach (akcje, dług), w mln USD. Serwer strony, co godzinę; wcześniejsze miesiące (do 12) z archiwum NSDL — miesiąc przyjmujemy tylko wtedy, gdy suma dni zgadza się z sumą miesiąca podaną przez NSDL.","g.hs.twse":"Dzienne zakupy i sprzedaże inwestorów zagranicznych na giełdzie w Tajpej, w TWD (≈ USD kursem Fed). Serwer strony, co godzinę; brakujące starsze dni (do ok. 6 miesięcy wstecz) uzupełnia stopniowo.","g.hs.hkex":"Dzienne kupno i sprzedaż akcji w Hongkongu przez inwestorów z Chin kontynentalnych (Stock Connect, southbound), w HKD (≈ USD kursem Fed). Serwer strony, co godzinę; brakujące starsze dni (do ok. 6 miesięcy wstecz) uzupełnia stopniowo.","trd.b.concl3":"Tam, gdzie kierunek częściej trwał albo częściej się odwracał, to tylko częstość z przeszłości, a nie pewność na przyszły tydzień. Przepływy to nie ceny: to, że pieniądze dalej płynęły w tę samą stronę, nie znaczy, że cena dalej rosła albo spadała. Niezależnie od tych liczb nie piszemy „kupuj” ani „sprzedawaj” i nie prognozujemy."},"en":{"trd.b.ob":"Daily country flows: India (equity, debt), Taiwan, Hong Kong, Brazil","g.hs.nsdl":"Daily purchases and sales by foreign portfolio investors in India (equity, debt), in USD m. Site server, every hour; earlier months (up to 12) from the NSDL archive — a month is accepted only when its daily figures add up to the monthly total published by NSDL.","g.hs.twse":"Daily purchases and sales by foreign investors on the Taipei exchange, in TWD (≈ USD at the Fed rate). Site server, every hour; missing older days (up to about 6 months back) are filled in gradually.","g.hs.hkex":"Daily buying and selling of Hong Kong equities by mainland Chinese investors (Stock Connect, southbound), in HKD (≈ USD at the Fed rate). Site server, every hour; missing older days (up to about 6 months back) are filled in gradually.","trd.b.concl3":"Where the direction continued or reversed more often, that is only a past frequency, not a certainty for next week. Flows are not prices: money that kept flowing the same way does not mean the price kept rising or falling. Whatever these numbers show, we never write “buy” or “sell” and we do not forecast."}};
 for(const l in EXTRA86)if(I18N[l])Object.assign(I18N[l],EXTRA86[l]);
+const EXTRA87={"pl":{"nav.home":"Strona główna — GLOBAL","etf.src.snap":"Migawka z dnia {d} (pobrana {f}). Automat strony odświeża dane co godzinę — gdy plik z serwera jest chwilowo niedostępny, pokazujemy ostatnią migawkę.","pg.nosrc.d":"Nie pokazujemy dziennych poziomów indeksów giełdowych (S&P, MSCI, FTSE, Nikkei) — są licencjonowane i nie ma ich legalnie za darmo. Dlatego rynki akcji regionów liczymy we wszystkich okresach (DZIŚ, 1T, 1M, 1KW, 1R) z cen funduszy ETF notowanych w USA, które te rynki naśladują. Gdy cen brakuje, zapasem są miesięczne indeksy OECD; służą one też do rankingu warunków. Wszystkie dane z kluczem pobiera serwer strony — nikt nie musi niczego wpisywać.","g.hs.td":"Dzienne zamknięcia 14 ETF-ów krajowych notowanych w USA (te same co dla okresu DZIŚ), ponad rok historii. Zasilają okresy 1T (5 sesji), 1M (21), 1KW (63) i 1R (252) — w dolarach i z tych samych sesji dla każdego regionu. Pobiera automat strony z klucza właściciela (co ok. godzinę; limity dostawcy 8/min, 800/dzień).","g.hs.fh":"Bieżące notowania 14 ETF-ów krajowych notowanych w USA — pobiera automat strony z klucza właściciela (co 20 minut). Zasilają okres DZIŚ.","g.hs.etf":"Dzienne napływy netto do spot ETF na BTC, ETH, SOL i XRP oraz aktywa funduszy. Pobiera serwer strony co godzinę (dzień D pojawia się rano D+1). Bez pliku z serwera — ostatnia migawka z datą."},"en":{"nav.home":"Home — GLOBAL","etf.src.snap":"Snapshot as of {d} (fetched {f}). The site job refreshes the data hourly — when the server file is temporarily unavailable, we show the latest snapshot.","pg.nosrc.d":"We do not show daily equity index levels (S&P, MSCI, FTSE, Nikkei) — they are licensed and not legally available for free. Regional equity markets are therefore computed in every period (TODAY, 1W, 1M, 1Q, 1Y) from prices of US-listed ETFs that track those markets. When prices are missing, monthly OECD indices are the fallback; they also feed the conditions ranking. All keyed data are fetched by the site server — nobody needs to enter anything.","g.hs.td":"Daily closes of the 14 US-listed country ETFs (the same as the TODAY period), over a year of history. They feed 1W (5 sessions), 1M (21), 1Q (63) and 1Y (252) — in dollars and from the same sessions for every region. Fetched by the site job with the owner’s key (about hourly; provider limits 8/min, 800/day).","g.hs.fh":"Current quotes of the 14 US-listed country ETFs — fetched by the site job with the owner’s key (every 20 minutes). They feed the TODAY period.","g.hs.etf":"Daily net flows into spot ETFs on BTC, ETH, SOL and XRP plus fund assets. Fetched by the site server hourly (day D appears on the morning of D+1). Without the server file — the latest dated snapshot."}};
+for(const l in EXTRA87)if(I18N[l])Object.assign(I18N[l],EXTRA87[l]);
 
 /* ===================== STAN I DANE ===================== */
 const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1520,7 +1498,7 @@ function renderKPI(){
 let PAL={};
 function readPalette(){
   const cs=getComputedStyle(document.documentElement),g=k=>cs.getPropertyValue(k).trim();
-  PAL={gr:g('--gr-rgb'),rd:g('--rd-rgb'),bl:g('--bl-rgb'),tl:g('--tl-rgb'),or:g('--or-rgb'),glass:g('--scene-glass'),stroke:g('--scene-stroke'),floor:g('--scene-floor'),skel:g('--scene-skel'),text:g('--scene-text'),iconBg:g('--icon-bg'),hexHead:g('--hex-head'),hexTail:g('--hex-tail'),dark:document.documentElement.dataset.theme!=='light'};
+  PAL={gr:g('--gr-rgb'),rd:g('--rd-rgb'),yl:g('--yl-rgb'),gy:g('--gy-rgb'),bl:g('--bl-rgb'),tl:g('--tl-rgb'),or:g('--or-rgb'),glass:g('--scene-glass'),stroke:g('--scene-stroke'),floor:g('--scene-floor'),skel:g('--scene-skel'),text:g('--scene-text'),iconBg:g('--icon-bg'),hexHead:g('--hex-head'),hexTail:g('--hex-tail'),dark:document.documentElement.dataset.theme!=='light'};
 }
 
 /* ===================== SILNIK 3D (Canvas 2D) ===================== */
@@ -1796,6 +1774,68 @@ function iconURL(id,px=56){
 }
 const logoTag=(id,cls='logo-img')=>`<img class="${cls}" src="${iconURL(id)}" alt="" width="20" height="20">`;
 function refreshLogoImgs(){$$('img.logo-img[data-id]').forEach(im=>{im.src=iconURL(im.dataset.id);});}
+/* ===================== v96: FLAGI, LOGA, WALUTY, ZNACZKI WYDAWCÓW =====================
+   Obrazki z folderu img/ tej samej strony — przeglądarka nie łączy się z obcymi serwerami:
+   flagi — country-flag-icons (MIT); krypto, sieci i giełdy — web3icons (MIT) i cryptocurrency-icons (CC0); glify — własne.
+   Wydawcy funduszy — własne monogramy (bez cudzych logotypów). Licencje: img/LICENCJE.txt i strona Źródła.
+   Zasada właściciela (25.09): nic nie jest pokazywane bez flagi albo logo — gdy nie ma pliku, rysujemy znaczek z literami. */
+const FLAGS_OK=new Set('ac ad ae af ag ai al am ao aq ar as at au aw ax az ba bb bd be bf bg bh bi bj bl bm bn bo bq br bs bt bv bw by bz ca cc cd cf cg ch ci ck cl cm cn co cr cu cv cw cx cy cz de dj dk dm do dz ec ee eg eh er es et eu fi fj fk fm fo fr ga gb gd ge gf gg gh gi gl gm gn gp gq gr gs gt gu gw gy hk hm hn hr ht hu ic id ie il im in io iq ir is it je jm jo jp ke kg kh ki km kn kp kr kw ky kz la lb lc li lk lr ls lt lu lv ly ma mc md me mf mg mh mk ml mm mn mo mp mq mr ms mt mu mv mw mx my mz na nc ne nf ng ni nl no np nr nu nz om pa pe pf pg ph pk pl pm pn pr ps pt pw py qa re ro rs ru rw sa sb sc sd se sg sh si sj sk sl sm sn so sr ss st sv sx sy sz ta tc td tf tg th tj tk tl tm tn to tr tt tv tw tz ua ug um us uy uz va vc ve vg vi vn vu wf ws xa xc xk xo ye yt za zm zw'.split(' '));
+const FLAG_ALIAS={xm:'eu',ea:'eu',emu:'eu',eun:'eu',eur:'eu',el:'gr',uk:'gb'};
+function flagCode(c){
+  let k=String(c==null?'':c).trim().toLowerCase();
+  if(FLAG_ALIAS[k])return FLAG_ALIAS[k];
+  if(k.length===3){let m='';try{m=ISO32[k.toUpperCase()]||'';}catch(e){m='';}k=String(m).toLowerCase();}
+  k=FLAG_ALIAS[k]||k;
+  return FLAGS_OK.has(k)?k:'';
+}
+function icoImg(src,cls,title){return `<img class="ico${cls?' '+cls:''}" src="${escH(src)}" alt=""${title?` title="${escH(title)}"`:''} loading="lazy" decoding="async">`;}
+function icoWrap(inner){return inner?`<span class="icos">${inner}</span>`:'';}
+function glyphImg(n,cls,title){return icoImg('img/glify/'+n+'.svg',cls,title);}
+function flagImg(c,cls){const k=flagCode(c);return k?icoImg('img/flagi/'+k+'.svg',cls,k==='eu'?'EU':k.toUpperCase()):'';}
+/* kilka krajów = kilka flag (nachodzące kółka), ponad `max` — „+N”; bez żadnej znanej flagi — glob */
+function flagsHtml(codes,max,cls){
+  const k=[...new Set((codes||[]).map(flagCode).filter(Boolean))],m=max||3;
+  if(!k.length)return icoWrap(glyphImg('globe',cls));
+  return icoWrap(k.slice(0,m).map(c=>flagImg(c,cls)).join('')+(k.length>m?`<i class="more">+${k.length-m}</i>`:''));
+}
+/* regiony mapy GLOBAL: Europa = UE + Wielka Brytania + Szwajcaria; Japonia i Korea = dwie flagi itd. */
+const REGF={usa:['us'],can:['ca'],lat:['br','mx','cl','co'],eur:['eu','gb','ch'],rus:['ru'],mea:['sa','tr','il'],afr:['za'],ind:['in'],chn:['cn','hk'],jpn:['jp','kr'],asean:['id','sg','th','my','ph'],oce:['au','nz']};
+function regFlags(id,max,cls){return REGF[id]?flagsHtml(REGF[id],max,cls):icoWrap(glyphImg('globe',cls));}
+/* waluty: flaga kraju (UE dla euro) + kod + symbol */
+const CCY={USD:['us','$'],EUR:['eu','€'],JPY:['jp','¥'],GBP:['gb','£'],CHF:['ch','Fr'],CAD:['ca','C$'],AUD:['au','A$'],NZD:['nz','NZ$'],CNY:['cn','¥'],CNH:['cn','¥'],HKD:['hk','HK$'],TWD:['tw','NT$'],KRW:['kr','₩'],INR:['in','₹'],IDR:['id','Rp'],SGD:['sg','S$'],THB:['th','฿'],MYR:['my','RM'],PHP:['ph','₱'],VND:['vn','₫'],BRL:['br','R$'],MXN:['mx','Mex$'],CLP:['cl','$'],COP:['co','$'],ARS:['ar','$'],PEN:['pe','S/'],TRY:['tr','₺'],ILS:['il','₪'],SAR:['sa','SAR'],AED:['ae','AED'],QAR:['qa','QR'],KWD:['kw','KD'],BHD:['bh','BD'],ZAR:['za','R'],NGN:['ng','₦'],KES:['ke','KSh'],EGP:['eg','E£'],RUB:['ru','₽'],PLN:['pl','zł'],SEK:['se','kr'],NOK:['no','kr'],DKK:['dk','kr'],CZK:['cz','Kč'],HUF:['hu','Ft'],RON:['ro','lei']};
+const CRYPTO_SVG=new Set('btc eth sol xrp bnb trx ada link avax usdt usdc dai usde fdusd pyusd tusd pol doge'.split(' '));
+function hueOf(s){let h=0;for(const ch of String(s))h=(h*31+ch.charCodeAt(0))%360;return h;}
+function monoBadge(txt,color,cls,title){return `<span class="iss${cls?' '+cls:''}" style="--ic:${escH(color)}"${title?` title="${escH(title)}"`:''}>${escH(txt)}</span>`;}
+/* kryptowaluty: plik SVG → wbudowany obraz koszyka → znaczek z literami (zawsze jakaś ikona) */
+function coinImg(sym,cls){
+  const u=String(sym||'').trim().toUpperCase(),l=u.toLowerCase();
+  if(CRYPTO_SVG.has(l))return icoImg('img/krypto/'+l+'.svg',cls,u);
+  let lg='';try{lg=COIN_LOGO[u]||'';}catch(e){lg='';}
+  if(lg&&/^data:image\/(webp|png);base64,/.test(String(lg)))return icoImg(lg,cls,u);
+  return monoBadge(u.slice(0,3)||'?',`hsl(${hueOf(u)} 38% 36%)`,cls,u);
+}
+function ccyIco(code,cls){const c=String(code||'').toUpperCase(),m=CCY[c];return m?flagImg(m[0],cls):(CRYPTO_SVG.has(c.toLowerCase())?coinImg(c,cls):glyphImg('coin',cls,c));}
+function ccyMark(code,cls){const c=String(code||'').toUpperCase(),m=CCY[c];return `<span class="ccy">${icoWrap(ccyIco(c,cls||'sm'))}${escH(c)}${m&&m[1]&&m[1]!==c?`<i>${escH(m[1])}</i>`:''}</span>`;}
+/* sieci stablecoinów (nazwy z DefiLlama) */
+const NET_SVG={ethereum:'ethereum',tron:'tron',bsc:'binance-smart-chain','bnb chain':'binance-smart-chain','bnb smart chain':'binance-smart-chain',binance:'binance-smart-chain',solana:'solana','hyperliquid l1':'hyper-evm',hyperliquid:'hyper-evm',hyperevm:'hyper-evm',base:'base',arbitrum:'arbitrum-one','arbitrum one':'arbitrum-one',polygon:'polygon','polygon pos':'polygon',avalanche:'avalanche','avalanche c-chain':'avalanche','x layer':'x-layer',xlayer:'x-layer',plasma:'plasma',xrpl:'xrp','xrp ledger':'xrp',robinhood:'robinhood','robinhood chain':'robinhood',aptos:'aptos',ton:'ton',sui:'sui',optimism:'optimism','op mainnet':'optimism',mantle:'mantle',sei:'sei-network',linea:'linea',zksync:'zksync','zksync era':'zksync',stellar:'stellar',algorand:'algorand',near:'near-protocol',celo:'celo',kaia:'kaia',sonic:'sonic',ink:'ink',unichain:'unichain',hedera:'hedera-hashgraph',berachain:'berachain',bitcoin:'bitcoin',cardano:'cardano',starknet:'starknet',scroll:'scroll',blast:'blast','world chain':'world',gnosis:'gnosis',polkadot:'polkadot',cosmos:'cosmos',injective:'injective'};
+function netImg(name,cls){const k=String(name||'').trim().toLowerCase(),f=NET_SVG[k];return f?icoImg('img/sieci/'+f+'.svg',cls,name):monoBadge(String(name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'?',`hsl(${hueOf(k)} 30% 34%)`,cls,name);}
+/* giełdy krypto („Binance (Futures)” → Binance); Hyperliquid — logo sieci */
+const EXCH_SVG={binance:'binance',bybit:'bybit',okx:'okx',okex:'okx',coinbase:'coinbase',kraken:'kraken',bitget:'bitget',gate:'gate-io','gate.io':'gate-io',kucoin:'kucoin',upbit:'upbit',bithumb:'bithumb',bitstamp:'bitstamp',gemini:'gemini','crypto.com':'crypto-com'};
+function exchImg(name,cls){const k=String(name||'').trim().toLowerCase().split(/[\s(]/)[0];if(k==='hyperliquid')return icoImg('img/sieci/hyper-evm.svg',cls,name);const f=EXCH_SVG[k];return f?icoImg('img/gieldy/'+f+'.svg',cls,name):monoBadge(k.slice(0,2).toUpperCase()||'?',`hsl(${hueOf(k)} 30% 34%)`,cls,name);}
+/* wydawcy funduszy — własne monogramy (nazwa w podpowiedzi); kolejność ważna: ARK przed 21Shares */
+const ISS={ishares:['iShares (BlackRock)','iS','#141414'],ssga:['SPDR (State Street)','SP','#0B4EA2'],fidelity:['Fidelity','F','#2F7D32'],grayscale:['Grayscale','G','#56565C'],bitwise:['Bitwise','BW','#5B34D6'],ark:['ARK Invest · 21Shares','A21','#1F1F24'],s21:['21Shares','21','#33333A'],vaneck:['VanEck','VE','#0A3D8F'],ms:['Morgan Stanley','MS','#0A2A4F'],valkyrie:['CoinShares Valkyrie','VK','#3B2C85'],coinshares:['CoinShares','CS','#3B2C85'],franklin:['Franklin Templeton','FT','#0E3A78'],invesco:['Invesco Galaxy','IG','#0A2E6E'],wisdomtree:['WisdomTree','WT','#C8402A'],canary:['Canary Capital','CC','#9C7A12'],vanguard:['Vanguard','V','#8F1D22'],globalx:['Global X','GX','#00355F'],hashdex:['Hashdex','H','#1D3F5E']};
+const ISS_BY_NAME=[[/ishares|blackrock/i,'ishares'],[/spdr|state street/i,'ssga'],[/fidelity/i,'fidelity'],[/grayscale/i,'grayscale'],[/bitwise/i,'bitwise'],[/\bark\b/i,'ark'],[/21shares/i,'s21'],[/vaneck/i,'vaneck'],[/morgan stanley/i,'ms'],[/valkyrie/i,'valkyrie'],[/coinshares/i,'coinshares'],[/franklin/i,'franklin'],[/invesco|galaxy/i,'invesco'],[/wisdomtree/i,'wisdomtree'],[/canary/i,'canary'],[/vanguard/i,'vanguard'],[/global x/i,'globalx'],[/hashdex/i,'hashdex']];
+const FUND_ISS={};
+[['ssga','SPY XLK XLF XLE XLV XLI XLY XLP XLU SPDW SPEM BIL JNK GLD GLDM'],
+ ['ishares','IVV EFA IEFA EZU EWJ EEM IEMG MCHI FXI INDA EWZ EWY EWT TLT IEF SHY AGG LQD HYG EMB IAU SLV EWC ILF KSA TUR EIS EZA EWA IBIT ETHA ETHB'],
+ ['vanguard','VGK'],['globalx','ASEA'],['fidelity','FBTC FETH FSOL'],['grayscale','GBTC ETHE GSOL GXRP'],['bitwise','BITB ETHW BSOL'],['ark','ARKB'],
+ ['vaneck','HODL ETHV VSOL'],['ms','MSBT MSSE MSOL'],['valkyrie','BRRR'],['franklin','EZBC EZET SOEZ XRPZ'],['invesco','BTCO QETH QSOL'],['wisdomtree','BTCW'],
+ ['s21','TETH TSOL TOXR'],['canary','SOLC XRPC']].forEach(([k,v])=>v.split(' ').forEach(x=>{FUND_ISS[x]=k;}));
+/* najpierw nazwa funduszu (tickery BTC, ETH, XRP to też nazwy monet), potem ticker */
+function issuerOf(ticker,name){const n=String(name||'');for(const [re,k] of ISS_BY_NAME)if(re.test(n))return k;return FUND_ISS[String(ticker||'').toUpperCase()]||'';}
+function issBadge(key,cls){const i=ISS[key];return i?monoBadge(i[1],i[2],cls,i[0]):'';}
+/* fundusz: znaczek wydawcy (+ logo monety dla funduszy krypto); nieznany wydawca — glif ETF */
+function fundIco(ticker,name,coin,cls){const k=issuerOf(ticker,name);return icoWrap((k?issBadge(k,cls):glyphImg('etf',cls,String(ticker||'')))+(coin?coinImg(coin,'sm'):''));}
 
 /* ---------- klocek: neonowa bryła ---------- */
 function drawCube(n,mirror,ga){
@@ -2557,8 +2597,10 @@ function gFiat(j){
 }
 /* ---------- klucze użytkownika (zostają w tej przeglądarce) ---------- */
 const KEYS={soso:'cfai.key.soso',finnhub:'cfai.key.finnhub',cg:'cfai.key.cg',td:'cfai.key.td'};
-function keyGet(k){try{return (localStorage.getItem(KEYS[k])||'').trim();}catch(e){return '';}}
-function keySet(k,v){try{if(v)localStorage.setItem(KEYS[k],v);else localStorage.removeItem(KEYS[k]);}catch(e){}}
+/* v96: bez kluczy wpisywanych w przeglądarce (decyzja właściciela 25.09) — wszystko z plików serwera; dawne klucze usuwamy z tej przeglądarki */
+try{Object.values(KEYS).concat(['cfai.td.cache']).forEach(k=>localStorage.removeItem(k));}catch(e){}
+function keyGet(k){return '';}
+function keySet(k,v){}
 function cgUrl(u){const k=keyGet('cg');return k?u+(u.includes('?')?'&':'?')+'x_cg_demo_api_key='+encodeURIComponent(k):u;}
 /* ---------- dzisiejsza sesja: ETF-y krajowe notowane w USA (Finnhub) ----------
    Każdy region ma zastępnik: fundusz ETF w USA, który odwzorowuje jego rynek.
@@ -5724,35 +5766,6 @@ function renderEtf(){
       <p class="pnote" style="margin:8px 0 0">${t('etf.k.cum')}: <b class="${etfCls(T.cum)}">${etfM(T.cum)}</b> · ${t('etf.k.aum')}: <b>${etfA(T.aum)}</b></p>`;
   }
 }
-function etfInitSettings(){
-  /* trzy klucze: SoSoValue (ETF), Finnhub (dzisiejsza sesja), CoinGecko (wyższy limit) */
-  const rows=[
-    {k:'soso',inp:'#soso-key',save:'#soso-save',clr:'#soso-clear',st:'#soso-st',
-     srv:()=>ETF.st==='srv',
-     status:()=>ETF.st==='srv'?['on',t('etf.s.srv',{t:ETF.at||''})]:ETF.live?['on',t('etf.s.ok')]:(ETF.st==='err'?['off',t('etf.s.err',{e:ETF.err==='KEY'?t('etf.e.key'):ETF.err})]:(ETF.st==='load'?['wait',t('etf.s.wait')]:['off',t('etf.s.err',{e:'?'})])),
-     none:()=>t('etf.s.none'),run:cb=>etfLoad(cb)},
-    {k:'finnhub',inp:'#fh-key',save:'#fh-save',clr:'#fh-clear',st:'#fh-st',
-     srv:()=>!!GLIVE.daySrv,
-     status:()=>GLIVE.daySrv&&GLIVE.day?['on',t('key.fh.srv',{t:GLIVE.dayAt||''})]:GLIVE.day?['on',t('key.fh.ok',{t:GLIVE.dayAt||''})]:(GLIVE.dayErr?['off',t('key.fh.err',{e:GLIVE.dayErr==='KEY'?t('etf.e.key'):GLIVE.dayErr})]:['wait',t('etf.s.wait')]),
-     none:()=>t('key.fh.none'),run:cb=>{GLIVE.day=null;GLIVE.dayErr='';gPeriodButtons();gDay(cb);}},
-    {k:'cg',inp:'#cg-key',save:'#cg-save',clr:'#cg-clear',st:'#cg-st',
-     status:()=>CGST.ok?['on',t('key.cg.ok')]:(CGST.err?['off',t('key.cg.err',{e:CGST.err})]:['wait',t('etf.s.wait')]),
-     none:()=>t('key.cg.none'),run:cb=>cgPing(cb)},
-    {k:'td',inp:'#td-key',save:'#td-save',clr:'#td-clear',st:'#td-st',
-     status:()=>tdStatusPair(),
-     none:()=>t('key.td.none'),run:cb=>{tdPing(()=>{tdLoad(true);cb&&cb();});}}
-  ];
-  rows.forEach(r=>{
-    const inp=$(r.inp),btn=$(r.save),stt=$(r.st),clr=$(r.clr);if(!inp)return;
-    inp.value=keyGet(r.k);
-    const show=()=>{const k=keyGet(r.k);if(!k&&!(r.srv&&r.srv())){stt.innerHTML=`<span class="mtxt">${r.none()}</span>`;return;}
-      const [cls,txt]=r.status();stt.innerHTML=`<span class="live ${cls}"><i></i>${txt}</span>`;};
-    show();
-    btn.addEventListener('click',()=>{keySet(r.k,inp.value.trim());show();r.run(show);});
-    clr.addEventListener('click',()=>{inp.value='';keySet(r.k,'');show();r.run(show);});
-    document.addEventListener('cfai-etf',show);document.addEventListener('cfai-keys',show);
-  });
-}
 const CGST={ok:false,err:''};
 function cgPing(cb){
   const k=keyGet('cg');if(!k){CGST.ok=false;CGST.err='';cb&&cb();return;}
@@ -5853,7 +5866,7 @@ function renderTop10(id){
   const li=rows.map((r,i)=>{
     const lg=COIN_LOGO[r.sym],pos=r.fl>=0,mln=r.fl/1e6;
     const w=Math.max(3,Math.abs(r.fl)/mx*100);
-    return `<li><span class="r">${i+1}</span>${(lg&&/^https:\/\//.test(String(lg)))?`<img class="cic" src="${escH(lg)}" alt="" width="22" height="22" loading="lazy">`:'<span class="cic"></span>'}<span class="sym">${escH(r.sym)}</span><span class="nm">${escH(r.name)}</span>
+    return `<li><span class="r">${i+1}</span>${(lg&&/^(https:\/\/|data:image\/(webp|png);base64,)/.test(String(lg)))?`<img class="cic" src="${escH(lg)}" alt="" width="22" height="22" loading="lazy">`:coinImg(r.sym,'cic')}<span class="sym">${escH(r.sym)}</span><span class="nm">${escH(r.name)}</span>
       <span class="fl ${pos?'pos':'neg'}">${pos?'+':'−'}${nfmt(Math.abs(mln),Math.abs(mln)<10?1:0)}</span>
       <span class="bar ${pos?'pos':'neg'}"><i style="width:${w.toFixed(1)}%"></i></span><span class="sc ${pos?'pos':'neg'}">${fPct(r.pct)}</span></li>`;}).join('');
   return wrap(`<div class="t10-cols"><span></span><span>${t('top.flow')} <i class="u">(${t('u.m')})</i></span><span>${t('top.chg')}</span></div>
@@ -6199,6 +6212,7 @@ $('#nav-overview').addEventListener('click',()=>setPage('overview'));
 $('#nav-settings').addEventListener('click',()=>setPage('settings'));
 PAGES.forEach(k=>{const b=$('#nav-'+k);if(b)b.addEventListener('click',()=>setPage(k));});
 $('#set-done').addEventListener('click',()=>setPage('overview'));
+$('#logo-home').addEventListener('click',e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;e.preventDefault();page='overview';setMode('global');window.scrollTo({top:0,behavior:st.anim?'smooth':'auto'});});   /* v96: logo = strona główna GLOBAL */
 $('#tab-global').addEventListener('click',()=>setMode('global'));
 $('#tab-crypto').addEventListener('click',()=>setMode('crypto'));
 $('#tab-trendy').addEventListener('click',()=>setMode('trendy'));
@@ -6352,7 +6366,7 @@ if(st.anim){from={...cur};t0=performance.now();sizeTw=true;}
 requestAnimationFrame(loop);hResize();
 if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('16px "JetBrains Mono"'),document.fonts.load('600 16px "Sora"')]).catch(()=>{}).then(()=>{hResize();dirty=true;});}
 /* ETF → krypto: migawka od razu, dane na żywo gdy jest klucz */
-etfInitSettings();etfLoad();etfAuto();cgPing();engLoad();engAuto();cmcLoad();cmcAuto();krLoad();krAuto();tvInit();
+etfLoad();etfAuto();engLoad();engAuto();cmcLoad();cmcAuto();krLoad();krAuto();tvInit();
 metaLoad();setInterval(()=>{if(!document.hidden)metaLoad();},20*60*1000);   /* v51: stan źródeł z meta.json */
 trdLoad();trdAuto();   /* v89: TRENDY — plik serwera, co 20 min */
 cmLoad();cmAuto();   /* v50: Coin Metrics — plik automatu, zegar co 30 min (osobna linia: wspólna linia startu bez zmian) */
