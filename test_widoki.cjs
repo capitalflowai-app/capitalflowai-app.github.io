@@ -1660,3 +1660,35 @@ test('v86: Tajlandia (ThaiBMA): blok, sumy, stan, linia regionu, przegląd, podp
   assert.ok(dict.pl['g.q.limd'].includes('Hongkong, Tajlandia;') && dict.pl['inst.sub'].includes('Hongkong, Tajlandia i dolary'));
   assert.ok(fix.pl['th.split'].includes('z wykupem w ciągu roku') && fix.en['th.split'].includes('maturing within 1 year') && fix.pl['th.not'].includes('od 16:00 poprzedniego dnia roboczego'));
 });
+
+// v87: Polska — MF: zmiana stanu SPW u nierezydentów (tylko między istniejącymi miesiącami), tabele typów, regionów i krajów, linia regionu, przegląd
+test('v87: Polska (MF): blok, zmiany, tabele, kraje, linia regionu Europa, przegląd, podpięcie', () => {
+  const a0 = html.indexOf('/* v87: Polska — Ministerstwo Finansów: nierezydenci w krajowych SPW (plik serwera'), a1 = html.indexOf('const KOR={data:null};', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instRow', 'instFoot', 'nfmt', 'escH', 'engDate', 'bopMld', 'LANG', 'instMld', html.slice(a0, a1) + '\nreturn {SPW, spwApply, spwHtml, spwRegion, spwLast, spwMadd};')(
+    T, () => {}, () => {}, (l, v, x, n) => `[${l}|${v}|${n}]`, s => 'F' + s, (v, d) => v.toFixed(d), s => s, s => s,
+    v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—', 'pl', v => (v / 1000).toFixed(1));
+  assert.equal(f.spwMadd('2026-01', -1), '2025-12'); assert.equal(f.spwMadd('2026-07', -12), '2025-07'); assert.equal(f.spwMadd('2025-12', 1), '2026-01');
+  assert.equal(f.spwHtml(null), ''); assert.equal(f.spwRegion('eur'), '');
+  const M = [['2025-07', 180000, 179900, 100], ['2026-05', 206240, 205596, 644], ['2026-06', 198955.2, 198832, 123], ['2026-07', 204131.8, 204009, 123]];
+  const S = {at: 'x', m: M, t: {omni: [['2026-06', 95249.8], ['2026-07', 97615.9]], cb: [['2026-07', 14485.9]]}, r: {asia: [['2025-07', 30000], ['2026-07', 31590.6]]},
+    kr: [{m: '2026-07', c: [['Japonia', 'Japan', 18031.64, 19.59], ['Holandia', 'Netherlands (the)', 7678.98, 8.34]]}, {m: '2026-06', c: [['Japonia', 'Japan', 17382.46, 19.71]]}]};
+  f.spwApply(S);
+  const L = f.spwLast(S); assert.equal(L.m, '2026-07'); assert.ok(Math.abs(L.d1 - 5176.6) < 0.01); assert.ok(Math.abs(L.d12 - 24131.8) < 0.01);
+  const h = f.spwHtml(S);
+  assert.ok(h.includes('[spw.d1|+5.2 spw.u|spw.d1.n{"m":"F2026-07","s":"204.1","y":"+24.1"} · spw.omni{"p":"48"}]'), h);
+  assert.ok(h.includes('spw.ty.omni</span></td><td><span class="cell mono">97.6</span></td><td><span class="cell mono">+2.4</span></td><td><span class="cell mono">—</span></td>'), 'brak miesiąca = „—”, nie zero');
+  assert.ok(h.indexOf('spw.ty.omni') < h.indexOf('spw.ty.cb'), 'od największego');
+  assert.ok(h.includes('spw.rg.asia</span></td><td><span class="cell mono">31.6</span></td><td><span class="cell mono">—</span></td><td><span class="cell mono">+1.6</span></td>'));
+  assert.ok(h.includes('spw.tab.k{"m":"2026-07"}') && h.includes('<td><span class="cell">Japonia</span></td><td><span class="cell mono">18.0</span></td><td><span class="cell mono">19.6%</span></td><td><span class="cell mono">+0.6</span></td>'));
+  assert.ok(h.includes('<td><span class="cell">Holandia</span></td><td><span class="cell mono">7.7</span></td><td><span class="cell mono">8.3%</span></td><td><span class="cell mono">—</span></td>'), 'kraj bez poprzedniego miesiąca — bez zmiany');
+  S.r.afr = [['2026-07', 26.4]]; assert.ok(f.spwHtml(S).includes('spw.rg.afr</span></td><td><span class="cell mono">&lt;0.1</span>'), 'mały stan — „<0,1”'); delete S.r.afr;
+  const r = f.spwRegion('eur'); assert.ok(r.includes('<dt>spw.reg</dt>') && r.includes('"d":"+5.2","s":"204.1"'), r); assert.equal(f.spwRegion('usa'), '');
+  S.m = [['2026-05', 206240], ['2026-07', 204131.8]]; assert.equal(f.spwLast(S).d1, null, 'bez czerwca — zmiana lipca to brak, nie różnica z majem');
+  assert.ok(html.includes("srvJSON('spw').then(j=>{spwApply(j);})") && html.includes("html+=(typeof spwHtml==='function'&&typeof SPW!=='undefined')?spwHtml(SPW.data):'';"));
+  assert.ok(html.includes("${typeof spwRegion==='function'?spwRegion(s.id):''}") && html.includes("add('POL',t('fo.polspw'),t('fo.m',{m:L.m}),L.d1,'fo.u.pln',L.m);"));
+  assert.ok(html.includes("spw:()=>SPW.data&&SPW.data.at") && html.includes("spw:'MF SPW'") && html.includes("'www.gov.pl','src.f.m','src.l.spw',GLIVE.src.spw,'g.hs.spw','spw']"));
+  assert.ok(html.includes('<b>Ministerstwo Finansów (Polska) — nierezydenci w papierach skarbowych</b>') && html.includes('<span class="cell">nierezydenci w polskich papierach skarbowych</span>'));
+  const a = 'const EXTRA76=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  for (const l of ['pl', 'en']) for (const k of ['spw.t', 'spw.sub', 'spw.d1', 'spw.d1.n', 'spw.omni', 'spw.not', 'spw.src', 'spw.reg.v', 'spw.ty.omni', 'spw.rg.asia', 'fo.polspw', 'fo.u.pln', 'g.hs.spw', 'src.l.spw', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+});

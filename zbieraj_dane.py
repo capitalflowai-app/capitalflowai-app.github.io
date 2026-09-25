@@ -2699,6 +2699,131 @@ def build_kanada():
             'cols': ['miesiąc', 'razem', 'dłużne', 'obligacje', 'rynek pieniężny', 'akcje i jednostki funduszy'], 'asof': m[-1][0], 'm': m}
 
 
+# v87: Polska — Ministerstwo Finansów: nierezydenci w krajowych skarbowych papierach wartościowych (SPW), miesięcznie, bez klucza.
+# Odnośniki do plików zmieniają się co miesiąc — szukamy ich po stałych tytułach na stronie „Struktura inwestorów”.
+SPW_PAGE = 'https://www.gov.pl/web/finanse/struktura-inwestorow'
+SPW_BASE = 'https://www.gov.pl'
+SPW_FILES = {'st': 'Struktura podmiotowa zadłużenia wobec nierezydentów w krajowych SPW',
+             'kr': 'Zadłużenie wobec nierezydentów w krajowych SPW po krajach'}
+SPW_A = re.compile(r'<a\b[^>]*href="(/attachment/[0-9a-f-]{36})"[^>]*>((?:(?!</a>).)*?)</a>', re.S)
+SPW_KEEP = 25      # miesięcy (zmiana 12 miesięcy i rok wcześniej)
+SPW_GRP = 13       # miesięcy dla typów i regionów (zmiana 12 miesięcy)
+SPW_STALE = 70     # dni po końcu najnowszego miesiąca bez nowego pliku = błąd (zwykle ok. miesiąca)
+SPW_TYPES = (('bank', 'banki'), ('cb', 'banki centralne'), ('pub', 'instytucje publiczne'), ('ins', 'zakłady ubezpieczeniowe'),
+             ('pen', 'fundusze emerytalne'), ('inv', 'fundusze inwestycyjne'), ('hf', 'fundusze hedgingowe'), ('hh', 'gospodarstwa domowe'),
+             ('corp', 'przedsiębiorstwa niefinansowe'), ('oth', 'inne podmioty'), ('omni', 'rachunki zbiorcze'), ('tot', 'razem'))
+SPW_REGS = (('ea', 'europa - kraje strefy euro'), ('eun', 'europa - kraje ue spoza strefy euro'), ('eur', 'europa - kraje spoza ue'),
+            ('afr', 'afryka'), ('sam', 'ameryka południowa'), ('nam', 'ameryka północna'), ('oce', 'australia i oceania'),
+            ('asia', 'azja'), ('me', 'bliski wschód'), ('omni', 'rachunki zbiorcze'), ('tot', 'razem'))
+
+
+def _spw_month(v):
+    x = _num(v)
+    if x is None or not 30000 < x < 80000:
+        return None
+    d = datetime.date(1899, 12, 30) + datetime.timedelta(days=int(x))
+    return f'{d.year:04d}-{d.month:02d}'
+
+
+def spw_sheet(rows, keys):
+    """Arkusz MF → {miesiąc: {klucz: mln zł}}; kolumny po nazwach z wiersza nagłówka „Data” (najpierw nazwa dokładna, potem początek:
+    „Banki” ≠ „Banki centralne”); brak kolumny „Razem” = błąd; pusta komórka = brak, nie zero."""
+    col, out = None, {}
+    for _, r in sorted(rows.items()):
+        lab = re.sub(r'\s+', ' ', str(r.get(1, ''))).strip().lower()
+        if col is None:
+            if lab == 'data':
+                heads = {c: re.sub(r'\s+', ' ', str(v)).strip().lower() for c, v in r.items() if c > 1}
+                col = {}
+                for k, pre in keys:
+                    hit = [c for c, h in heads.items() if h == pre] or [c for c, h in heads.items() if h.startswith((pre + ' ', pre + '('))]
+                    if len(hit) == 1:
+                        col[k] = hit[0]
+                if 'tot' not in col:
+                    raise RuntimeError('brak kolumny „Razem”')
+            continue
+        m = _spw_month(r.get(1))
+        if m:
+            out[m] = {k: _num(r.get(c)) for k, c in col.items()}
+    if not out:
+        raise RuntimeError('brak miesięcy')
+    return out
+
+
+def spw_links(page):
+    out = {}
+    for href, txt in SPW_A.findall(page):
+        t = re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', txt))).strip()
+        for k, name in SPW_FILES.items():
+            if t == name or t.startswith(name + ' '):     # „…w krajowych SPW” ≠ „…w krajowych SPW po krajach”
+                out.setdefault(k, SPW_BASE + href)
+    return out
+
+
+def spw_countries(data):
+    """Plik „po krajach” → [{'m': YYYY-MM, 'c': [[kraj PL, kraj EN, mln zł, udział %]]}] dla dwóch najnowszych arkuszy (pierwsze w pliku);
+    bez wierszy sum, rachunków zbiorczych i banków centralnych (tak jak w źródle)."""
+    import zipfile
+    names = [_html.unescape(n) for n in re.findall(r'<sheet\b[^>]*\bname="([^"]+)"', zipfile.ZipFile(io.BytesIO(data)).read('xl/workbook.xml').decode('utf-8', 'replace'))]
+    out = []
+    for nm in names[:2]:
+        mm = re.search(r'\(\s*([A-Za-z]+)\s*(\d{4})\s*\)', nm)
+        mo = MONTHS_EN.get(mm.group(1).capitalize()) if mm else None
+        if not mo:
+            raise RuntimeError(f'nieznany arkusz „{nm}”')
+        cs = []
+        for _, r in sorted(_xlsx_rows(data, nm).items()):
+            lab = re.sub(r'\s+', ' ', str(r.get(1, ''))).strip()
+            v, sh = _num(r.get(2)), _num(r.get(3))
+            if '/' not in lab or v is None or lab.lower().startswith(('suma', 'rachunki zbiorcze', 'banki centralne', 'razem', 'kraje')):
+                continue
+            pl, en = [x.strip() for x in lab.split('/', 1)]
+            cs.append([pl, en, v, None if sh is None else round(sh * 100, 2)])
+        if not cs:
+            raise RuntimeError(f'brak krajów w arkuszu „{nm}”')
+        out.append({'m': f'{mm.group(2)}-{mo:02d}', 'c': cs})
+    return out
+
+
+def build_spw():
+    """data/spw.json — m: [[miesiąc, razem, obligacje, bony]] mln zł (wartość nominalna, koniec miesiąca), 25 miesięcy;
+    t / r: {typ|region: [[miesiąc, mln zł]]} 13 miesięcy; kr: kraje (2 najnowsze miesiące, opcjonalnie)."""
+    L = spw_links(get_bytes(SPW_PAGE, timeout=60).decode('utf-8', 'replace'))
+    if 'st' not in L:
+        raise RuntimeError('brak odnośnika do pliku struktury nierezydentów')
+    data = get_bytes(L['st'], timeout=90)
+    T = spw_sheet(_xlsx_rows(data, 'Razem_podmiot'), SPW_TYPES)
+    R = spw_sheet(_xlsx_rows(data, 'Razem_region'), SPW_REGS)
+    B = spw_sheet(_xlsx_rows(data, 'Obligacje skarbowe_podmiot'), (('tot', 'razem'),))
+    S = spw_sheet(_xlsx_rows(data, 'Bony skarbowe_podmiot'), (('tot', 'razem'),))
+    ms = sorted(m for m in T if T[m].get('tot') is not None)[-SPW_KEEP:]
+    bad = [m for m in ms if not 1e4 < T[m]['tot'] < 1e7]     # razem poza 10 mld – 10 bln zł = zła skala
+    if bad:
+        raise RuntimeError(f'skala niezgodna ({bad[-1]})')
+    gap = [m for m in ms[-SPW_GRP:] if any(abs(sum(v for k, v in G.get(m, {}).items() if k != 'tot' and v is not None) - T[m]['tot']) > 1 for G in (T, R))
+           or abs(((B.get(m) or {}).get('tot') or 0) + ((S.get(m) or {}).get('tot') or 0) - T[m]['tot']) > 1]
+    if gap:
+        META['notes'].append('MF SPW: sumy niezgodne w miesiącach: ' + ', '.join(gap))
+    grp = ms[-SPW_GRP:]
+    out = {'at': NOW, 'src': 'Ministerstwo Finansów — Struktura podmiotowa zadłużenia wobec nierezydentów w krajowych SPW (miesięcznie)',
+           'url': SPW_PAGE, 'unit': 'mln zł, wartość nominalna, stan na koniec miesiąca', 'asof': ms[-1],
+           'cols': ['miesiąc', 'razem', 'obligacje skarbowe', 'bony skarbowe'],
+           'm': [[m, T[m]['tot'], (B.get(m) or {}).get('tot'), (S.get(m) or {}).get('tot')] for m in ms],
+           't': {k: [[m, (T.get(m) or {}).get(k)] for m in grp] for k, _ in SPW_TYPES if k != 'tot'},
+           'r': {k: [[m, (R.get(m) or {}).get(k)] for m in grp] for k, _ in SPW_REGS if k != 'tot'}}
+    try:
+        if 'kr' not in L:
+            raise RuntimeError('brak odnośnika do pliku „po krajach”')
+        out['kr'] = spw_countries(get_bytes(L['kr'], timeout=90))
+    except Exception as e:
+        META['errors'].append(mask(f'MF SPW kraje: {e}'))
+    y, mo = int(ms[-1][:4]), int(ms[-1][5:7])
+    end = datetime.date(y + (mo == 12), mo % 12 + 1, 1) - datetime.timedelta(days=1)
+    if (_now_utc().date() - end).days > SPW_STALE:
+        META['errors'].append(f'MF SPW: brak nowego miesiąca po {ms[-1]}')
+    return out
+
+
 # v82: Korea Płd. — FSS, miesięczny komunikat „Foreign Investors' Stock and Bond Investment” (po angielsku), bez klucza
 FSS_LIST = 'https://www.fss.or.kr/eng/bbs/B0000211/list.do?menuNo=400010&pageIndex={p}'
 FSS_BASE = 'https://www.fss.or.kr'
@@ -3164,6 +3289,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'FSS: {e}')); META['ok']['korea'] = False
             if prev_kr: save('korea', prev_kr)
+    # v87: Polska — MF, nierezydenci w krajowych SPW (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
+    prev_sp = previous('spw')
+    if prev_sp and fresh(prev_sp, 1440):
+        save('spw', prev_sp); META['ok']['spw'] = 'cached'
+    else:
+        try:
+            save('spw', build_spw()); META['ok']['spw'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'MF SPW: {e}')); META['ok']['spw'] = False
+            if prev_sp: save('spw', prev_sp)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):
