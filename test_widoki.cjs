@@ -1507,10 +1507,10 @@ test('v79: BCB bilans płatniczy: razem z trzech składników, 12 kolejnych mies
   const a0 = html.indexOf('function brBopT('), a1 = html.indexOf('function brBlock(){', a0);
   const f = new Function('instSign', 'nfmt', html.slice(s0, s1) + html.slice(a0, a1) + '\nreturn {brBopRow, safeMadd};')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d));
   assert.equal(f.brBopRow(null), null); assert.equal(f.brBopRow({m: []}), null);
-  const M = Array.from({length: 13}, (_, i) => [f.safeMadd('2026-07', i - 12), 1000, 500, 300, 100, 100, 200]);
-  M[12] = ['2026-07', 7460.5, 2158.3, 1688.5, 167.9, 301.9, 3740.6];
-  const R = f.brBopRow({m: M});
-  assert.ok(Math.abs(R.t - 13359.4) < 1e-6 && Math.abs(R.t12 - (11 * 1700 + 13359.4)) < 1e-6 && R.m === '2026-07', JSON.stringify(R));
+  const M = Array.from({length: 13}, (_, i) => [f.safeMadd('2026-07', i - 12), 1000, 500, 300, 100, 100, 200, 0, 0, 0]);
+  M[12] = ['2026-07', 7460.5, 2158.3, 1688.5, 167.9, 301.9, 3740.6, 11.7, 0, 0];
+  const R = f.brBopRow({m: M});   // v81: pozostałe bez banku centralnego (3740,6 − 11,7)
+  assert.ok(Math.abs(R.t - 13347.7) < 1e-6 && Math.abs(R.t12 - (11 * 1700 + 13347.7)) < 1e-6 && R.m === '2026-07' && Math.abs(R.o - 3728.9) < 1e-6, JSON.stringify(R));
   M[5][6] = null; const R2 = f.brBopRow({m: M}); assert.equal(R2.t12, null, 'brak składnika w oknie = brak sumy');
   assert.ok(html.includes("t('br.bop.split',{d:bopMld(R.d),p:bopMld(R.p),o:bopMld(R.o)})") && html.includes("add('BRA',t('fo.bram')"));
   assert.ok(html.includes("t('br.reg.m',{m:instFoot(R.m)"));
@@ -1533,4 +1533,19 @@ test('v80: UE: kolumna pozostałych bez banku centralnego, status przy miesiącu
   for (const l of ['pl', 'en']) for (const k of ['ue.sub', 'ue.c.o', 'ue.foot', 'ue.not', 'ue.f.e', 'ue.f.p', 'fo.pol', 'kan.src', 'bil.not']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['kan.src'].includes('Adapted from Statistics Canada') && dict.pl['kan.src'].includes('{d}') && dict.pl['ue.foot'].includes('poufne'));
   assert.ok(dict.pl['fo.pol'].includes('bez banku centralnego') && dict.pl['bil.not'].includes('TARGET2'));
+});
+
+// v81: Brazylia — pozostałe bez banku centralnego; ostatni miesiąc z kompletem; opisy po szóstym przeglądzie
+test('v81: BCB: ostatni kompletny miesiąc zamiast niepełnego; brak pozycji banku centralnego = brak sumy', () => {
+  const s0 = html.indexOf('const safeV='), s1 = html.indexOf('function safeHtml(', s0);
+  const a0 = html.indexOf('function brBopT('), a1 = html.indexOf('function brBlock(){', a0);
+  const f = new Function('instSign', 'nfmt', html.slice(s0, s1) + html.slice(a0, a1) + '\nreturn {brBopRow, safeMadd};')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d));
+  const M = [['2026-06', 9074.8, -1055.3, 0, 0, 0, 6570.0, -1291.6, 0, 0], ['2026-07', 7460.5, 2158.3, 0, 0, 0, 3740.6, null, 0, 0]];
+  const R = f.brBopRow({m: M});
+  assert.equal(R.m, '2026-06', 'lipiec bez pozycji banku centralnego — czerwiec z kompletem');
+  assert.ok(Math.abs(R.t - (9074.8 - 1055.3 + 6570.0 + 1291.6)) < 1e-6 && Math.abs(R.o - 7861.6) < 1e-6, JSON.stringify(R));
+  const x0 = html.indexOf('const EXTRA69='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA69='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['br.sub', 'br.bop.note', 'br.bop.split', 'br.reg.m', 'br.src', 'g.hs.bcb', 'fo.bra', 'fo.bram', 'fo.sub', 'ue.foot', 'ue.not', 'kan.src', 'bil.not']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['br.src'].includes('22986') && dict.pl['ue.foot'].includes('Austrii i Luksemburga') && dict.pl['ue.not'].includes('kredyty dla rządu'));
+  assert.ok(html.includes('22971 minus 22986, 23001, 23042'));
 });

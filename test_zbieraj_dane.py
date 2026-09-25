@@ -2656,7 +2656,7 @@ class BrazyliaBopV79(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
 
     def test_monthly_rows_identity_and_failure_isolated(self):
-        vals = {22885: '7460.5', 22924: '2158.3', 22927: '1688.5', 22936: '167.9', 22939: '301.9', 22971: '3740.6'}
+        vals = {22885: '7460.5', 22924: '2158.3', 22927: '1688.5', 22936: '167.9', 22939: '301.9', 22971: '3740.6', 22986: '11.7', 23001: '0', 23042: '0'}
 
         def gj(url, headers=None):
             sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
@@ -2665,8 +2665,8 @@ class BrazyliaBopV79(unittest.TestCase):
             return [{'data': '01/06/2026', 'valor': '1'}, {'data': '01/07/2026', 'valor': vals[sid]}]
         with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
             rows = zd.bcb_bop([['2026-07', 1.0, 1.0, 1.0, 1.0, 1.0, 9.9]])
-        self.assertEqual(rows[-1], ['2026-07', 7460.5, 2158.3, 1688.5, 167.9, 301.9, 9.9], 'seria bez odpowiedzi: stara wartość zostaje')
-        self.assertEqual(rows[0], ['2026-06', 1.0, 1.0, 1.0, 1.0, 1.0, None], 'nowy miesiąc bez tej serii = None, nie 0')
+        self.assertEqual(rows[-1], ['2026-07', 7460.5, 2158.3, 1688.5, 167.9, 301.9, 9.9, 11.7, 0.0, 0.0], 'seria bez odpowiedzi: stara wartość zostaje')
+        self.assertEqual(rows[0], ['2026-06', 1.0, 1.0, 1.0, 1.0, 1.0, None, 1.0, 1.0, 1.0], 'nowy miesiąc bez tej serii = None, nie 0')
         self.assertTrue(any(e.startswith('BCB bilans płatniczy: 1 serie') for e in zd.META['errors']))
         self.assertTrue(any('portfelowe ≠' in n and '2026-06' in n for n in zd.META['notes']), 'czerwiec 1 ≠ 1+1+1')
 

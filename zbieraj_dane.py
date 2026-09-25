@@ -1989,7 +1989,8 @@ def _bcb_date(s):
 
 
 # v79: Brazylia — miesięczny bilans płatniczy (bank centralny, SGS): kapitał zagraniczny napływający do Brazylii (pasywa), mln USD
-BCB_BOP = (('fdi', 22885), ('pi', 22924), ('pi_eq', 22927), ('pi_fund', 22936), ('pi_debt', 22939), ('oi', 22971))
+BCB_BOP = (('fdi', 22885), ('pi', 22924), ('pi_eq', 22927), ('pi_fund', 22936), ('pi_debt', 22939), ('oi', 22971),
+           ('cb_dep', 22986), ('cb_loan', 23001), ('sdr', 23042))   # v81: pozycje banku centralnego i SDR — strona odejmuje je od pozostałych
 
 
 def bcb_bop(prev_m):
@@ -2058,8 +2059,9 @@ def bcb_part(prev_br):
         mrows = bcb_bop((prev_br or {}).get('m'))
     except Exception as e:
         mrows = (prev_br or {}).get('m'); META['errors'].append(mask(f'BCB bilans płatniczy: {e}'))
-    extra = {'m': mrows, 'm_cols': ['miesiąc', 'bezpośrednie', 'portfelowe', 'akcje', 'fundusze', 'obligacje', 'pozostałe'],
-             'm_src': 'Banco Central do Brasil — SGS, balanço de pagamentos (22885, 22924, 22927, 22936, 22939, 22971)'} if mrows else {}
+    extra = {'m': mrows, 'm_cols': ['miesiąc', 'bezpośrednie', 'portfelowe', 'akcje', 'fundusze', 'obligacje', 'pozostałe',
+                                    'bank centralny: waluty i depozyty', 'bank centralny: kredyty', 'SDR'],
+             'm_src': 'Banco Central do Brasil — SGS, balanço de pagamentos (22885, 22924, 22927, 22936, 22939, 22971, 22986, 23001, 23042)'} if mrows else {}
     return {**extra, 'at': NOW, 'src': 'Banco Central do Brasil — SGS, câmbio contratado (13961, 13967–13970)',
             'url': 'https://www.bcb.gov.br/estatisticas/tabelaespecial', 'unit': 'mln USD',
             'cols': ['data', 'finansowy saldo', 'finansowy kupno', 'finansowy sprzedaż', 'handlowy saldo', 'razem saldo'],
@@ -2884,6 +2886,8 @@ def main():
     pok = (prev_o or {}).get('ok') or {}   # v80: brak oczekiwanej części = pobierz od nowa; część z błędem — ponów po 60 min
     miss = [p for p in ('in', 'tw', 'hk', 'br', 'tr') if prev_o and p not in prev_o and pok.get(p) is not False]
     retry = [p for p, st in pok.items() if st is False]
+    if prev_o and isinstance(prev_o.get('br'), dict) and any(isinstance(r, list) and len(r) < 10 for r in (prev_o['br'].get('m') or [])):
+        miss.append('br')   # v81: wiersze miesięczne Brazylii bez kolumn banku centralnego — pobierz od razu
     if prev_o and fresh(prev_o, 180) and not miss and not (retry and not fresh(prev_o, 60)):
         save('obce', prev_o); META['ok']['obce'] = 'cached'
         for p, st in (prev_o.get('ok') or {}).items():   # v77: stan części z ostatniego pełnego pobrania (błąd zostaje widoczny)
@@ -2944,7 +2948,7 @@ def main():
             save('ue', build_ue()); META['ok']['ue'] = True
         except Exception as e:
             META['errors'].append(mask(f'Eurostat: {e}')); META['ok']['ue'] = False
-            if prev_ue: save('ue', prev_ue)
+            if prev_ue and 'S121' in str(prev_ue.get('unit', '')): save('ue', prev_ue)   # v81: pliku w starym formacie nie publikujemy ponownie
     # v78: Kanada — Statistics Canada (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
     prev_ka = previous('kanada')
     if prev_ka and fresh(prev_ka, 1440):
