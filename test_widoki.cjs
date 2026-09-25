@@ -1476,3 +1476,27 @@ test('v77: przegląd i SAFE opisane zgodnie z danymi; TIC przerysowuje panel; op
   assert.ok(html.includes("renderTic();if(typeof renderInst==='function')renderInst();}"));
   assert.ok(!html.includes('kraje publikują z opóźnieniem od jednego do dwóch kwartałów') && html.includes('kraje publikują od około 3 do 9 miesięcy po końcu kwartału'));
 });
+
+// v78: Kanada — Statistics Canada; 12 miesięcy tylko z kolejnych miesięcy; wiersz regionu; wiersz w przeglądzie
+test('v78: blok Kanady: razem, obligacje, akcje; suma 12 kolejnych miesięcy; wiersz regionu; podpięcie', () => {
+  const a0 = html.indexOf('const KAN={data:null};'), a1 = html.indexOf('function flowRows(){', a0);
+  const s0 = html.indexOf('const safeV='), s1 = html.indexOf('function safeHtml(', s0);
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instRow', 'instFoot', 'instSign', 'nfmt', 'engDate', 'bopMld', html.slice(s0, s1) + html.slice(a0, a1) + '\nreturn {KAN, kanApply, kanHtml, kanRegion, safeMadd};')(
+    T, k => oks.push(k), () => {}, (l, v, x, n) => `[${l}|${v}|${n}]`, s => 'F' + s, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), s => s,
+    v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—');
+  assert.equal(f.kanHtml(null), ''); assert.equal(f.kanRegion('can'), '');
+  const M = Array.from({length: 13}, (_, i) => [f.safeMadd('2026-07', i - 12), 1000, 500, 600, -100, 500]);
+  M[12] = ['2026-07', 20653, 13453, 25321, -11869, 7200];
+  f.kanApply({at: 'x', m: M}); assert.deepEqual(oks, ['kanada']);
+  const h = f.kanHtml(f.KAN.data);
+  assert.ok(h.includes('[kan.tot|+20.7 kan.u|sf.m{"m":"F2026-07"} · kan.split{"b":"+25.3","m":"-11.9","e":"+7.2"} · sf.12{"v":"+31.7"}]'), h);
+  const r = f.kanRegion('can');
+  assert.ok(r.includes('<dt>kan.reg</dt>') && r.includes('"t":"+20.7","b":"+25.3","e":"+7.2","t12":"+31.7"'), r);
+  assert.equal(f.kanRegion('usa'), '');
+  assert.ok(html.includes("html+=(typeof kanHtml==='function'&&typeof KAN!=='undefined')?kanHtml(KAN.data):'';") && html.includes("${typeof kanRegion==='function'?kanRegion(s.id):''}"));
+  assert.ok(html.includes("add('CAN',t('fo.can')") && html.includes("srvJSON('kanada')") && html.includes("kanada:'Statistics Canada'") && html.includes("['Statistics Canada','https://www.statcan.gc.ca']"));
+  const x0 = html.indexOf('const EXTRA66='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA66='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['kan.t', 'kan.sub', 'kan.tot', 'kan.not', 'kan.src', 'kan.reg.v', 'g.hs.kanada', 'fo.can', 'fo.u.cad', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['kan.src'].includes('with the permission of Statistics Canada') && dict.pl['inst.sub'].includes('Kanada'));
+});

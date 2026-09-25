@@ -2475,6 +2475,48 @@ def build_ue():
     return out
 
 
+# v78: Kanada — Statistics Canada, tabela 36-10-0028-01 (International transactions in securities), miesięcznie, bez klucza
+KAN_VEC = (('tot', 61915649), ('debt', 61915652), ('bond', 61915682), ('mm', 61915655), ('eq', 61915712))   # stałe numery wektorów „Net flows”
+KAN_URL = 'https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorByReferencePeriodRange?vectorIds={v}&startRefPeriod={a}&endReferencePeriod={b}'
+
+
+def parse_kanada(j):
+    """WDS → [[YYYY-MM, razem, dłużne, obligacje, rynek pieniężny, akcje]] w mln CAD; brak = None (nigdy 0); skala ≠ miliony = błąd."""
+    names = {vid: k for k, vid in KAN_VEC}
+    got = {}
+    for x in j if isinstance(j, list) else []:
+        o = (x or {}).get('object') or {}
+        name = names.get(o.get('vectorId'))
+        if not name:
+            continue
+        for p in o.get('vectorDataPoint') or []:
+            m = re.match(r'^(\d{4}-\d{2})-01$', str(p.get('refPer', '')))
+            v = p.get('value')
+            if not m or not isinstance(v, (int, float)) or v != v:
+                continue
+            if p.get('scalarFactorCode') != 6:
+                raise RuntimeError(f'skala niezgodna (scalarFactorCode {p.get("scalarFactorCode")})')
+            got.setdefault(name, {})[m.group(1)] = round(float(v), 1)
+    if 'tot' not in got:
+        raise RuntimeError('brak serii „razem”')
+    months = sorted({mm for d in got.values() for mm in d})[-25:]
+    rows = [[mm] + [got.get(k, {}).get(mm) for k, _ in KAN_VEC] for mm in months]
+    bad = [r[0] for r in rows if None not in (r[1], r[2], r[5]) and abs(r[1] - r[2] - r[5]) > 2]
+    if bad:
+        META['notes'].append('Statistics Canada: razem ≠ dłużne + akcje w miesiącach: ' + ', '.join(bad))
+    return rows
+
+
+def build_kanada():
+    now = _now_utc().date()
+    v = ','.join(f'%22{vid}%22' for _, vid in KAN_VEC)
+    m = parse_kanada(get_json(KAN_URL.format(v=v, a=f'{now.year - 2}-{now.month:02d}-01', b=now.isoformat())))
+    return {'at': NOW, 'src': 'Statistics Canada, Table 36-10-0028-01 International transactions in securities, portfolio transactions in Canadian and foreign securities, monthly',
+            'url': 'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3610002801',
+            'unit': 'mln CAD; transakcje nierezydentów w kanadyjskich papierach, netto (plus = zagranica kupiła netto)',
+            'cols': ['miesiąc', 'razem', 'dłużne', 'obligacje', 'rynek pieniężny', 'akcje i jednostki funduszy'], 'asof': m[-1][0], 'm': m}
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -2813,6 +2855,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'Eurostat: {e}')); META['ok']['ue'] = False
             if prev_ue: save('ue', prev_ue)
+    # v78: Kanada — Statistics Canada (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
+    prev_ka = previous('kanada')
+    if prev_ka and fresh(prev_ka, 1440):
+        save('kanada', prev_ka); META['ok']['kanada'] = 'cached'
+    else:
+        try:
+            save('kanada', build_kanada()); META['ok']['kanada'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'Statistics Canada: {e}')); META['ok']['kanada'] = False
+            if prev_ka: save('kanada', prev_ka)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):
