@@ -1,0 +1,59 @@
+name: Sondy źródeł (jednorazowo)
+
+# Sprawdza z serwera GitHub (USA), które źródła odpowiadają. Wynik: tylko nazwa dostawcy, NAZWA znalezionego sekretu,
+# kod HTTP, czas, rozmiar i kształt odpowiedzi — nigdy wartości kluczy, adresy z kluczem ani treść odpowiedzi.
+# Uruchamia się tylko po zmianie tego pliku albo narzedzia/sondy.py (lub ręcznie); wynik trafia do jednej adnotacji przebiegu.
+on:
+  push:
+    branches: [main]
+    paths: ['narzedzia/sondy.py', '.github/workflows/sondy.yml']
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sondy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Sondy (tylko statusy)
+        env:
+          ETHERSCAN_KEY: ${{ secrets.ETHERSCAN_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
+          CRYPTOPANIC_KEY: ${{ secrets.CRYPTOPANIC_KEY }}
+          CRYPTOPANIC_TOKEN: ${{ secrets.CRYPTOPANIC_TOKEN }}
+          CRYPTOPANIC_API_KEY: ${{ secrets.CRYPTOPANIC_API_KEY }}
+          CRYPTOPANIC_AUTH_TOKEN: ${{ secrets.CRYPTOPANIC_AUTH_TOKEN }}
+          TIINGO_KEY: ${{ secrets.TIINGO_KEY }}
+          TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
+          TIINGO_TOKEN: ${{ secrets.TIINGO_TOKEN }}
+          POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
+          MASSIVE_KEY: ${{ secrets.MASSIVE_KEY }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+          EOD_KEY: ${{ secrets.EOD_KEY }}
+          EODHD_TOKEN: ${{ secrets.EODHD_TOKEN }}
+          FMP_KEY: ${{ secrets.FMP_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          FINANCIALMODELINGPREP_KEY: ${{ secrets.FINANCIALMODELINGPREP_KEY }}
+          FINANCIALMODELINGPREP_API_KEY: ${{ secrets.FINANCIALMODELINGPREP_API_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        run: |
+          python3 narzedzia/sondy.py > sondy.txt 2>&1 || true
+          cat sondy.txt
+          # cały wynik jako jedna adnotacja (czytelna bez logowania); znaki specjalne kodowane jak wymaga GitHub
+          python3 -c "import sys;t=open('sondy.txt',encoding='utf-8').read()[-60000:];print('::notice title=sondy::'+t.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))"
