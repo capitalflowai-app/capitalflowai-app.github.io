@@ -1409,3 +1409,34 @@ test('v74: blok CBRT: razem, akcje, obligacje; 4 i 13 tygodni tylko z kolejnych 
   const x0 = html.indexOf('const EXTRA62='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA62='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['tr.t', 'tr.sub', 'tr.tot', 'tr.eq', 'tr.gd', 'tr.not', 'tr.src', 'tr.reg', 'tr.reg.v', 'g.hs.tcmb', 'src.l.tcmb', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
 });
+
+// v75: przegląd zmierzonych przepływów — jeden wiersz na źródło; znak EBC odwrócony; jednostki; brak = „—”
+test('v75: przegląd: USA, strefa euro (znak odwrócony), Japonia (100 mln JPY), Chiny (mld → mln), sesje, Turcja; brak = —', () => {
+  const a0 = html.indexOf('function flowRows(){'), a1 = html.indexOf('function renderInst(){', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const parts = {
+    hk: {d: Array.from({length: 3}, (_, i) => ['2026-09-2' + (2 + i), 1, 1, 1, 2, 100 + i, 'x'])},
+    tw: {d: [['2026-09-23', 1, 0, 0, 0, null, ''], ['2026-09-24', 1, 0, 0, 0, 50, '']]},
+    tr: {d: [['2026-09-18', -316.01]]}};
+  const zagPart = k => parts[k] || null;
+  const zagSum = (d, i, n) => { let s = 0; for (const r of d.slice(-n)) { if (typeof r[i] !== 'number') return null; s += r[i]; } return s; };
+  const env = {TIC: {data: {world: {in: [['2026-06', 1], ['2026-07', 75450]]}}},
+    INST: {data: {bop: {s: {pi: [['2026-07', -21794]]}}, mof: {d: [{from: '2026-09-06', to: '2026-09-12', liabilities: {total_net: -4995}}]}}},
+    SAFE: {data: {m: [['2026-08', 51.92, 61.56, -9.63]]}}};
+  const f = new Function('t', 'TIC', 'INST', 'SAFE', 'zagPart', 'zagSum', 'zagSes', 'trSum', 'bilCty', 'bopMld', 'etfCls', 'escH', 'gAgeNote', html.slice(a0, a1) + '\nreturn {flowRows, flowOverview};')(
+    T, env.TIC, env.INST, env.SAFE, zagPart, zagSum, n => n === 1 ? 'session' : 'sessions', (d, i, n) => -359.51, c => c, v => (v > 0 ? '+' : '') + (v / 1000).toFixed(1), v => v > 0 ? 'pos' : (v < 0 ? 'neg' : ''), s => String(s), d => ' · A' + d);
+  const R = f.flowRows(), by = Object.fromEntries(R.map(r => [r.c, r]));
+  assert.deepEqual(R.map(r => r.c), ['USA', 'EA', 'JPN', 'CHN', 'HKG', 'TWN', 'TUR'], 'kolejność; bez źródła — bez wiersza');
+  assert.equal(by.USA.v, 75450); assert.equal(by.EA.v, 21794, 'EBC: aktywa − pasywa → znak odwrócony');
+  assert.equal(by.JPN.v, -499500, '100 mln JPY → mln JPY'); assert.ok(Math.abs(by.CHN.v + 9630) < 1e-9, 'mld → mln USD');
+  assert.equal(by.HKG.v, 303); assert.equal(by.TWN.v, null, 'brak przeliczenia jednego dnia = brak sumy'); assert.equal(by.TUR.v, -359.51);
+  assert.equal(by.HKG.p, 'fo.s{"n":3,"x":"sessions","d":"2026-09-24"}');
+  const h = f.flowOverview();
+  assert.ok(h.includes('<span class="cell mono pos">+21.8 fo.u.eur</span>') && h.includes('<span class="cell mono neg">-499.5 fo.u.jpy</span>'), h);
+  assert.ok(h.includes('<span class="cell mono ">—</span>'), 'brak = —, bez jednostki');
+  assert.ok(h.includes('<span class="cell mono pos">≈ +0.3 fo.u.usd</span>'), 'przeliczenie: „≈” przed liczbą');
+  assert.ok(h.includes('fo.w{"w":"2026-09-06 – 2026-09-12"} · A2026-09-12'), 'okres z wiekiem danych');
+  assert.ok(html.includes("html+=typeof flowOverview==='function'?flowOverview():'';"));
+  const x0 = html.indexOf('const EXTRA63='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA63='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['fo.t', 'fo.sub', 'fo.eur', 'fo.usa', 'fo.jpn', 'fo.chn', 'fo.hkg', 'fo.ind', 'fo.twn', 'fo.bra', 'fo.tur', 'fo.foot', 'fo.u.usdx']) assert.ok(dict[l][k], l + ' ' + k);
+});
