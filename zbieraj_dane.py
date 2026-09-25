@@ -4292,6 +4292,233 @@ def build_trendy(S):
             'f': flows, 'p': prices, 'b': base}
 
 
+# ===================== v97: DANE RZĄDU USA (domena publiczna) — EIA, BLS, BEA =====================
+# Klucze tylko z GitHub Secrets (EIA_KEY, BLS_KEY, BEA_KEY); nigdy w plikach wynikowych (maskowanie komunikatów: SECRETS).
+EIA_API = 'https://api.eia.gov/v2/'
+EIA_SERIES = (('wti', 'petroleum/pri/spt', 'daily', 'RWTC', 90),        # ropa WTI, Cushing — cena spot, USD za baryłkę
+              ('brent', 'petroleum/pri/spt', 'daily', 'RBRTE', 90),     # ropa Brent — cena spot, USD za baryłkę
+              ('gas', 'natural-gas/pri/fut', 'daily', 'RNGWHHD', 90),   # gaz Henry Hub — cena spot, USD za mln BTU
+              ('crude', 'petroleum/stoc/wstk', 'weekly', 'WCESTUS1', 60),  # zapasy ropy w USA bez rezerwy strategicznej, tys. baryłek
+              ('spr', 'petroleum/stoc/wstk', 'weekly', 'WCSSTUS1', 60))    # rezerwa strategiczna (SPR), tys. baryłek
+
+
+def eia_series(key, route, freq, sid, n):
+    """EIA API v2 → ([[data, wartość], …] rosnąco, jednostka). Kody tras i serii sprawdzone 25.09.2026 (DEMO_KEY);
+    nie-liczba = brak (nigdy 0); odpowiedź z polem error = błąd."""
+    q = urllib.parse.urlencode([('api_key', key), ('frequency', freq), ('data[0]', 'value'), ('facets[series][]', sid),
+                                ('sort[0][column]', 'period'), ('sort[0][direction]', 'desc'), ('offset', '0'), ('length', str(n))])
+    j = get_json(f'{EIA_API}{route}/data/?{q}')
+    if not isinstance(j, dict) or j.get('error'):
+        raise RuntimeError(str((j or {}).get('error') if isinstance(j, dict) else 'nieznany kształt odpowiedzi')[:140])
+    rows = (j.get('response') or {}).get('data')
+    if not isinstance(rows, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out, unit = {}, None
+    for r in rows:
+        if not isinstance(r, dict) or r.get('series') != sid:
+            continue
+        d, v = str(r.get('period') or ''), _num(r.get('value'))
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', d) and v is not None and v == v and abs(v) != float('inf'):
+            out[d] = v; unit = unit or r.get('units')
+    if not out:
+        raise RuntimeError('brak wartości')
+    return [[d, out[d]] for d in sorted(out)], unit
+
+
+def build_energia(key, prev=None):
+    """data/energia.json — ceny ropy (WTI, Brent), gazu (Henry Hub) i zapasy ropy w USA (EIA). Seria bez odpowiedzi zostawia
+    poprzednie wartości (z datą); bez żadnej nowej serii = błąd (zostaje poprzedni plik)."""
+    old = (prev or {}).get('s') if isinstance(prev, dict) else None
+    old = old if isinstance(old, dict) else {}
+    out = {'at': NOW, 'src': 'U.S. Energy Information Administration (EIA) — Open Data API v2', 'url': 'https://www.eia.gov/opendata/', 's': {}}
+    fails, got = [], 0
+    for name, route, freq, sid, n in EIA_SERIES:
+        try:
+            d, unit = eia_series(key, route, freq, sid, n)
+            out['s'][name] = {'id': sid, 'freq': freq, 'unit': unit, 'd': d}; got += 1
+        except Exception as e:
+            fails.append(f'{sid}: {e}')
+            if isinstance(old.get(name), dict):
+                out['s'][name] = old[name]
+    if not got:
+        raise RuntimeError('brak serii' + (f' ({fails[0]})' if fails else ''))
+    if fails:
+        META['errors'].append(mask(f'EIA: {len(fails)} serie bez odpowiedzi, np. {fails[0]}'))
+    return out
+
+
+BLS_URL = 'https://api.bls.gov/publicAPI/v2/timeseries/data/'
+BLS_SERIES = (('cpi', 'CUUR0000SA0'),      # inflacja CPI-U (indeks, bez korekty sezonowej — r/r z 12 miesięcy)
+              ('core', 'CUUR0000SA0L1E'),  # inflacja bazowa (bez żywności i energii)
+              ('unemp', 'LNS14000000'),    # stopa bezrobocia, %, z korektą sezonową
+              ('nfp', 'CES0000000001'),    # zatrudnienie poza rolnictwem, tys. osób, z korektą sezonową
+              ('ahe', 'CES0500000003'))    # średnia płaca godzinowa w sektorze prywatnym, USD
+
+
+def post_json(url, obj, timeout=60):
+    req = urllib.request.Request(url, data=json.dumps(obj).encode(), headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode('utf-8', 'replace'))
+
+
+def _yoy(rows, k=12):
+    """Zmiana % wobec wartości sprzed k miesięcy — tylko gdy obie wartości istnieją (brak nie jest zerem)."""
+    m = {d: v for d, v in rows}
+    out = []
+    for d, v in rows:
+        y, mo = int(d[:4]), int(d[5:7]) - k
+        while mo < 1:
+            y, mo = y - 1, mo + 12
+        p = m.get(f'{y:04d}-{mo:02d}')
+        if v is not None and p:
+            out.append([d, round((v / p - 1) * 100, 1)])
+    return out
+
+
+def build_usa_makro(key, prev=None, today=None):
+    """data/usa-makro.json — BLS (miesięcznie): inflacja r/r (CPI i bazowa), bezrobocie, zatrudnienie (zmiana m/m), płace r/r.
+    „-” w danych BLS (np. październik 2025 — przerwa w pracy rządu USA) = brak, nigdy 0."""
+    y = (today or _now_utc().date()).year
+    body = {'seriesid': [s for _, s in BLS_SERIES], 'startyear': str(y - 2), 'endyear': str(y)}
+    if key:
+        body['registrationkey'] = key
+    j = post_json(BLS_URL, body)
+    if not isinstance(j, dict) or j.get('status') != 'REQUEST_SUCCEEDED':
+        raise RuntimeError(f"{(j or {}).get('status') if isinstance(j, dict) else '?'}: {'; '.join(map(str, (j or {}).get('message') or []))[:160] if isinstance(j, dict) else ''}")
+    series = {s.get('seriesID'): s for s in ((j.get('Results') or {}).get('series') or []) if isinstance(s, dict)}
+    out = {'at': NOW, 'src': 'U.S. Bureau of Labor Statistics (BLS) — Public Data API v2', 'url': 'https://www.bls.gov/developers/', 's': {}}
+    for name, sid in BLS_SERIES:
+        rows = {}
+        for r in (series.get(sid) or {}).get('data') or []:
+            p, yr = str(r.get('period') or ''), str(r.get('year') or '')
+            if re.match(r'^M(0[1-9]|1[0-2])$', p) and re.match(r'^\d{4}$', yr):   # M13 = średnia roczna — pomijamy
+                rows[f'{yr}-{p[1:]}'] = _num(r.get('value'))
+        if rows:
+            out['s'][name] = {'id': sid, 'd': [[d, rows[d]] for d in sorted(rows)]}
+    if not out['s']:
+        raise RuntimeError('brak serii w odpowiedzi')
+    for name in ('cpi', 'core', 'ahe'):
+        if name in out['s']:
+            out['s'][name]['yoy'] = _yoy(out['s'][name]['d'])
+    if 'nfp' in out['s']:
+        d = out['s']['nfp']['d']
+        out['s']['nfp']['chg'] = [[b[0], round(b[1] - a[1], 1)] for a, b in zip(d, d[1:])   # zmiana m/m tylko dla dwóch kolejnych miesięcy z danymi
+                                  if a[1] is not None and b[1] is not None and _next_month(a[0]) == b[0]]
+    miss = [s for _, s in BLS_SERIES if not (series.get(s) or {}).get('data')]
+    if miss:
+        META['errors'].append(f'BLS: brak serii {", ".join(miss)}')
+    return out
+
+
+def _next_month(ym):
+    y, m = int(ym[:4]), int(ym[5:7]) + 1
+    return f'{y + (m - 1) // 12:04d}-{(m - 1) % 12 + 1:02d}'
+
+
+BEA_URL = 'https://apps.bea.gov/api/data'
+BEA_IND = ('BalCurrAcct', 'FinAssetsExclFinDeriv', 'FinLiabsExclFinDeriv', 'NetLendBorrFinAcct')
+BEA_AREA_IND = ('FinAssetsExclFinDeriv', 'FinLiabsExclFinDeriv')
+
+
+def bea_get(key, **params):
+    """BEA API → Results; błąd BEA (także „Invalid API UserId”) = wyjątek. Klucz w adresie — komunikaty maskowane (SECRETS)."""
+    q = urllib.parse.urlencode({'UserID': key, **params, 'ResultFormat': 'JSON'})
+    j = get_json(f'{BEA_URL}?{q}')
+    api = (j or {}).get('BEAAPI') if isinstance(j, dict) else None
+    if not isinstance(api, dict):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    res = api.get('Results')
+    err = api.get('Error') or (res.get('Error') if isinstance(res, dict) else None)
+    if err:
+        raise RuntimeError(str(err.get('APIErrorDescription') if isinstance(err, dict) else err)[:160])
+    if isinstance(res, list):
+        res = res[0] if res and isinstance(res[0], dict) else {}
+    return res if isinstance(res, dict) else {}
+
+
+def _bea_q(p):
+    m = re.match(r'^(\d{4})Q([1-4])$', str(p or ''))
+    return f'{m.group(1)}-Q{m.group(2)}' if m else None
+
+
+def _bea_mln(r):
+    """Wartość BEA w mln USD (DataValue z przecinkami × 10^(UNIT_MULT−6)); „(D)”, puste = brak."""
+    v = _num(r.get('DataValue'))
+    if v is None or v != v or abs(v) == float('inf'):
+        return None
+    m = _num(r.get('UNIT_MULT'))
+    return round(v * 10 ** ((6 if m is None else m) - 6), 1)
+
+
+def build_bilans_usa(key, prev=None, today=None):
+    """data/bilans-usa.json — BEA: bilans płatniczy USA kwartalnie (rachunek bieżący, kapitał z USA za granicę i z zagranicy do USA,
+    także według obszarów) oraz realny PKB (zmiana % kw/kw, w skali roku). Uzupełnia TIC (miesięczne transakcje w papierach)."""
+    y = (today or _now_utc().date()).year
+    years = ','.join(str(x) for x in range(y - 3, y + 1))
+    out = {'at': NOW, 'src': 'U.S. Bureau of Economic Analysis (BEA) — Data API (ITA, NIPA T10101)', 'url': 'https://apps.bea.gov/api/',
+           'unit': 'mln USD; PKB: % kw/kw w skali roku', 'ita': {}, 'areas': {}, 'names': {}, 'ind': {}, 'gdp': []}
+    fails = []
+    try:
+        have = {v.get('Key'): v.get('Desc') for v in (bea_get(key, method='GetParameterValues', datasetname='ITA', ParameterName='Indicator').get('ParamValue') or [])
+                if isinstance(v, dict) and v.get('Key')}
+        out['ind'] = {k: have[k] for k in BEA_IND if k in have}
+        missing = [k for k in BEA_IND if k not in have]
+        if missing and have:
+            META['notes'].append('BEA: brak wskaźników ' + ', '.join(missing))
+    except Exception as e:
+        fails.append(f'lista wskaźników: {e}')
+    try:
+        out['names'] = {v.get('Key'): v.get('Desc') for v in (bea_get(key, method='GetParameterValues', datasetname='ITA', ParameterName='AreaOrCountry').get('ParamValue') or [])
+                        if isinstance(v, dict) and v.get('Key')}
+    except Exception as e:
+        fails.append(f'lista obszarów: {e}')
+    for ind in BEA_IND:
+        try:
+            d = {}
+            for r in bea_get(key, method='GetData', datasetname='ITA', Indicator=ind, AreaOrCountry='AllCountries', Frequency='QSA', Year=years).get('Data') or []:
+                q, v = _bea_q(r.get('TimePeriod')), _bea_mln(r) if isinstance(r, dict) else None
+                if q and v is not None:
+                    d[q] = v
+            if d:
+                out['ita'][ind] = [[q, d[q]] for q in sorted(d)]
+            else:
+                fails.append(f'{ind}: brak wartości')
+        except Exception as e:
+            fails.append(f'{ind}: {e}')
+    for ind in BEA_AREA_IND:
+        try:
+            A = {}
+            for r in bea_get(key, method='GetData', datasetname='ITA', Indicator=ind, AreaOrCountry='All', Frequency='QNSA', Year=years).get('Data') or []:
+                if not isinstance(r, dict):
+                    continue
+                a, q, v = str(r.get('AreaOrCountry') or ''), _bea_q(r.get('TimePeriod')), _bea_mln(r)
+                if a and q and v is not None:
+                    A.setdefault(a, {})[q] = v
+            if A:
+                out['areas'][ind] = {a: [[q, x[q]] for q in sorted(x)][-12:] for a, x in sorted(A.items())}
+            else:
+                fails.append(f'{ind} (obszary): brak wartości')
+        except Exception as e:
+            fails.append(f'{ind} (obszary): {e}')
+    try:
+        g = {}
+        for r in bea_get(key, method='GetData', datasetname='NIPA', TableName='T10101', Frequency='Q', Year=years).get('Data') or []:
+            if isinstance(r, dict) and str(r.get('LineNumber')) == '1':
+                q, v = _bea_q(r.get('TimePeriod')), _num(r.get('DataValue'))
+                if q and v is not None:
+                    g[q] = v
+        out['gdp'] = [[q, g[q]] for q in sorted(g)]
+        if not g:
+            fails.append('PKB: brak wartości')
+    except Exception as e:
+        fails.append(f'PKB: {e}')
+    if not out['ita'] and not out['areas'] and not out['gdp']:
+        raise RuntimeError('brak danych' + (f' ({fails[0]})' if fails else ''))
+    if fails:
+        META['errors'].append(mask(f'BEA: {len(fails)} zapytań bez danych, np. {fails[0]}'))
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -4303,7 +4530,8 @@ def main():
     td_key = os.environ.get('TWELVEDATA_KEY', '').strip()
     cmc_key = os.environ.get('COINMARKETCAP_KEY', '').strip()
     fred_key = os.environ.get('FRED_KEY', '').strip()
-    SECRETS[:] = [k for k in (soso_key, cg_key, fh_key, td_key, cmc_key, fred_key) if k]
+    eia_key, bls_key, bea_key = (os.environ.get(k, '').strip() for k in ('EIA_KEY', 'BLS_KEY', 'BEA_KEY'))   # v97
+    SECRETS[:] = [k for k in (soso_key, cg_key, fh_key, td_key, cmc_key, fred_key, eia_key, bls_key, bea_key) if k]
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
     prev_etf = previous('etf') if soso_key else None
@@ -4579,6 +4807,23 @@ def main():
     except Exception as e:
         META['errors'].append(mask(f'fundusze ETF: {e}')); META['ok']['fundusze'] = False
         if prev_fu: save('fundusze', prev_fu)
+    # v97: dane rządu USA — EIA (energia, co 6 h), BLS (makro, co 6 h; bez klucza — mniejszy limit), BEA (bilans płatniczy, raz na dobę);
+    # każde źródło osobno, awaria zostawia poprzedni plik (brak nie jest zerem)
+    for name, fn, key, mins, label, need in (('energia', build_energia, eia_key, 6 * 60, 'EIA', True),
+                                             ('usa-makro', build_usa_makro, bls_key, 6 * 60, 'BLS', False),
+                                             ('bilans-usa', build_bilans_usa, bea_key, 24 * 60, 'BEA', True)):
+        prev_x = previous(name)
+        if prev_x and fresh(prev_x, mins):
+            save(name, prev_x); META['ok'][label.lower()] = 'cached'; continue
+        if need and not key:
+            META['errors'].append(f'brak {label}_KEY'); META['ok'][label.lower()] = False
+            if prev_x: save(name, prev_x)
+            continue
+        try:
+            save(name, fn(key, prev_x)); META['ok'][label.lower()] = True
+        except Exception as e:
+            META['errors'].append(mask(f'{label}: {e}')); META['ok'][label.lower()] = False
+            if prev_x: save(name, prev_x)
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
