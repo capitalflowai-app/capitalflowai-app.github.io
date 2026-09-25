@@ -1610,9 +1610,18 @@ test('v84: klucze Korei nie kolidują z panelem krypto; słownik v84 nakładany 
   for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(/BIS|BIZ|BRI|BPI/.test(d[l]['g.help.2']) && d[l]['g.help.2'].includes('TIC') && !d[l]['g.help.2'].includes(E0[l]), l);
   assert.ok(d.pl['g.help.3'].includes('To model, nie pomiar') && d.en['g.help.3'].includes('not a measurement'));
   for (const l of ['pl', 'en']) for (const k of ['ue.not', 'bil.not']) assert.ok(!d[l][k].includes('TARGET2'), l + ' ' + k);
-  assert.ok(html.includes("t(gActive()?'rail.in.g':'rail.in')") && html.includes("['Finnhub','g.hs.fh'],['Twelve Data','g.hs.td']") && html.includes('data-i18n="g.help.regtds"'));
+  assert.ok(html.includes("t('rail.in.g')") && html.includes("['Finnhub','g.hs.fh'],['Twelve Data','g.hs.td']") && html.includes('data-i18n="g.help.regtds"'));
   assert.ok(html.includes("'ticdata.treasury.gov','src.f.m','src.l.7w'") && html.includes("'stats.bis.org','src.f.q','src.l.bis',GLIVE.src.bis2"));
   assert.ok(!html.includes('tych danych nie ma') && !html.includes('(okresy 1T i 1M)') && !html.includes('Plik z serwera starszy niż trzy godziny') && !html.includes('tylko giełda CME.'));
   for (const s of ['<b>Skarb USA — Fiscal Data</b>', '<b>NY Fed</b>', '<b>EBC — salda TARGET</b>', '<b>Ministerstwo Finansów Japonii (MOF)</b>', 'Obok pokazujemy dwie miary pokrewne', 'dopisek „pokazany poprzedni plik”', 'Coin Metrics</span>'])
     assert.ok(html.includes(s), s);
+});
+
+// v85: tryb CRYPTO — boczny panel to szacunek modelu, strona Przepływy i legenda to zmiana wartości
+test('v85: teksty trybu CRYPTO nie nazywają zmian wyceny ani podziału modelu przepływem', () => {
+  const a = 'const EXTRA73=', x0 = html.indexOf(a), d = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of ['rail.in', 'rail.out', 'leg.areaB', 'label.pct', 'pg.sectors.dc']) assert.ok(d[l][k], l + ' ' + k);
+  assert.ok(d.pl['rail.in'].includes('szacunek') && d.pl['leg.areaB'].includes('zmianie wartości') && d.pl['pg.sectors.dc'].includes('zmiany wartości'));
+  assert.ok(html.indexOf('Object.assign(I18N[l],EXTRA73[l]);') > html.indexOf('Object.assign(I18N[l],EXTRA72[l]);'));
+  assert.ok(html.includes("<h2>▲ ${t('rail.in.g')}</h2>") && html.includes("<h2>▼ ${t('rail.out.g')}</h2>") && html.includes('<span data-i18n="rail.in"></span>'));
 });
