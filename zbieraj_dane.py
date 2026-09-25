@@ -1988,6 +1988,44 @@ def _bcb_date(s):
     return f'{m.group(3)}-{m.group(2)}-{m.group(1)}' if m else None
 
 
+# v79: Brazylia — miesięczny bilans płatniczy (bank centralny, SGS): kapitał zagraniczny napływający do Brazylii (pasywa), mln USD
+BCB_BOP = (('fdi', 22885), ('pi', 22924), ('pi_eq', 22927), ('pi_fund', 22936), ('pi_debt', 22939), ('oi', 22971))
+
+
+def bcb_bop(prev_m):
+    """SGS (miesięcznie) → [[YYYY-MM, bezpośrednie, portfelowe, akcje, fundusze, obligacje, pozostałe]] w mln USD, 25 miesięcy.
+    Seria bez odpowiedzi zostawia stare wartości swojej kolumny (nowe miesiące: None, nigdy 0); bez żadnego miesiąca = błąd."""
+    now_br = _now_utc() - datetime.timedelta(hours=3)
+    a, b = f'01/{now_br.month:02d}/{now_br.year - 2}', now_br.strftime('%d/%m/%Y')
+    got, fails = {}, []
+    for name, sid in BCB_BOP:
+        try:
+            j = get_json(BCB_URL.format(id=sid, a=a, b=b))
+            if not isinstance(j, list):
+                raise RuntimeError('nieznany kształt odpowiedzi')
+            for r in j:
+                d = _bcb_date(r.get('data')) if isinstance(r, dict) else None
+                v = _num(r.get('valor')) if d else None
+                if d and v is not None and v == v and abs(v) != float('inf'):
+                    got.setdefault(d[:7], {})[name] = round(v, 1)
+        except Exception as e:
+            fails.append(f'{sid}: {e}')
+    if not got:
+        raise RuntimeError('brak miesięcy' + (f' ({fails[0]})' if fails else ''))
+    have = {r[0]: list(r) for r in (prev_m or []) if isinstance(r, list) and r and isinstance(r[0], str)}
+    cols = [n for n, _ in BCB_BOP]
+    for m, vals in got.items():
+        old = have.get(m) or []
+        have[m] = [m] + [vals[c] if c in vals else (old[i + 1] if len(old) > i + 1 else None) for i, c in enumerate(cols)]
+    if fails:
+        META['errors'].append(mask(f'BCB bilans płatniczy: {len(fails)} serie bez odpowiedzi, np. {fails[0]}'))
+    rows = [have[k] for k in sorted(have)][-25:]
+    bad = [r[0] for r in rows if None not in r[2:6] and abs(r[2] - r[3] - r[4] - r[5]) > 1]
+    if bad:
+        META['notes'].append('BCB: portfelowe ≠ akcje + fundusze + obligacje w miesiącach: ' + ', '.join(bad))
+    return rows
+
+
 def bcb_part(prev_br):
     """BCB SGS → [data, finansowy saldo, kupno, sprzedaż, handlowy saldo, razem] w mln USD. Każda seria osobno: seria bez odpowiedzi
     zostawia stare wartości swojej kolumny, a nowe dni mają tam None (nigdy 0). Bez żadnego nowego dnia = błąd (zostaje poprzednia część)."""
@@ -2016,7 +2054,13 @@ def bcb_part(prev_br):
     if fails:
         META['errors'].append(mask(f'BCB: {len(fails)} serie bez odpowiedzi, np. {fails[0]}'))
     d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
-    return {'at': NOW, 'src': 'Banco Central do Brasil — SGS, câmbio contratado (13961, 13967–13970)',
+    try:   # v79: miesięczny bilans płatniczy — jego awaria nie zatrzymuje części dziennej
+        mrows = bcb_bop((prev_br or {}).get('m'))
+    except Exception as e:
+        mrows = (prev_br or {}).get('m'); META['errors'].append(mask(f'BCB bilans płatniczy: {e}'))
+    extra = {'m': mrows, 'm_cols': ['miesiąc', 'bezpośrednie', 'portfelowe', 'akcje', 'fundusze', 'obligacje', 'pozostałe'],
+             'm_src': 'Banco Central do Brasil — SGS, balanço de pagamentos (22885, 22924, 22927, 22936, 22939, 22971)'} if mrows else {}
+    return {**extra, 'at': NOW, 'src': 'Banco Central do Brasil — SGS, câmbio contratado (13961, 13967–13970)',
             'url': 'https://www.bcb.gov.br/estatisticas/tabelaespecial', 'unit': 'mln USD',
             'cols': ['data', 'finansowy saldo', 'finansowy kupno', 'finansowy sprzedaż', 'handlowy saldo', 'razem saldo'],
             'asof': d[-1][0], 'd': d}

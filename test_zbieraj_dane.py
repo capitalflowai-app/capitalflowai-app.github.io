@@ -2332,6 +2332,8 @@ class BcbV71(unittest.TestCase):
             sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
             if sid in broken:
                 raise RuntimeError('HTTP Error 503')
+            if sid > 20000:   # v79: miesięczny bilans płatniczy
+                return [{'data': '01/07/2026', 'valor': {22924: '300', 22927: '100', 22936: '100', 22939: '100'}.get(sid, '50')}]
             return [{'data': d, 'valor': v[sid]} for d, v in self.DAYS] + [{'data': 'zła', 'valor': '1'}, {'data': '19/09/2026', 'valor': 'NaN'}]
         return f
 
@@ -2645,6 +2647,39 @@ class KanadaV78(unittest.TestCase):
             out = zd.build_kanada()
         self.assertEqual(len(seen), 1); self.assertIn('vectorIds=%2261915649%22,%2261915652%22', seen[0])
         self.assertIn('startRefPeriod=2024-09-01&endReferencePeriod=2026-09-25', seen[0]); self.assertEqual(out['asof'], '2026-07')
+
+
+class BrazyliaBopV79(unittest.TestCase):
+    """v79: BCB miesięczny bilans płatniczy — mln USD, miesiąc z daty, seria bez odpowiedzi = stare wartości / None, awaria nie psuje dziennych."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def test_monthly_rows_identity_and_failure_isolated(self):
+        vals = {22885: '7460.5', 22924: '2158.3', 22927: '1688.5', 22936: '167.9', 22939: '301.9', 22971: '3740.6'}
+
+        def gj(url, headers=None):
+            sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
+            if sid == 22971:
+                raise RuntimeError('HTTP Error 503')
+            return [{'data': '01/06/2026', 'valor': '1'}, {'data': '01/07/2026', 'valor': vals[sid]}]
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            rows = zd.bcb_bop([['2026-07', 1.0, 1.0, 1.0, 1.0, 1.0, 9.9]])
+        self.assertEqual(rows[-1], ['2026-07', 7460.5, 2158.3, 1688.5, 167.9, 301.9, 9.9], 'seria bez odpowiedzi: stara wartość zostaje')
+        self.assertEqual(rows[0], ['2026-06', 1.0, 1.0, 1.0, 1.0, 1.0, None], 'nowy miesiąc bez tej serii = None, nie 0')
+        self.assertTrue(any(e.startswith('BCB bilans płatniczy: 1 serie') for e in zd.META['errors']))
+        self.assertTrue(any('portfelowe ≠' in n and '2026-06' in n for n in zd.META['notes']), 'czerwiec 1 ≠ 1+1+1')
+
+        def gj2(url, headers=None):
+            sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
+            if sid > 20000:
+                raise RuntimeError('HTTP Error 503')
+            return [{'data': '18/09/2026', 'valor': '1'}]
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'get_json', gj2), mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part({'m': [['2026-06', 1.0, 2.0, 1.0, 0.5, 0.5, 3.0]]})
+        self.assertEqual(out['d'][-1][0], '2026-09-18'); self.assertEqual(out['m'], [['2026-06', 1.0, 2.0, 1.0, 0.5, 0.5, 3.0]], 'awaria miesięcznych — poprzednie wiersze zostają')
+        self.assertTrue(any(e.startswith('BCB bilans płatniczy:') for e in zd.META['errors']))
 
 
 if __name__ == '__main__':
