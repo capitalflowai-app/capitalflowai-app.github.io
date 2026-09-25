@@ -378,7 +378,7 @@ test('bilans płatniczy: suma 12 miesięcy tylko z kompletu liczb, brak → null
 test('bilans płatniczy: klucz bop w pliku urzędowym, blok, wiersz Źródła, wpis w prawach, znak objaśniony w obu językach', () => {
   assert.ok(html.includes("['tga','rrp','soma','tgb','ilm','m3','bop','mof'].some("), 'klucze');
   assert.ok(html.includes("const bop=D.bop,BS="), 'blok');
-  assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.m','src.l.2m',GLIVE.src['inst.bop'],'g.hs.bop','inst.bop']"), 'wiersz Źródła');
+  assert.ok(html.includes("'data-api.ecb.europa.eu','src.f.m','src.l.7w',GLIVE.src['inst.bop'],'g.hs.bop','inst.bop']"), 'wiersz Źródła');
   assert.ok(html.includes('<summary><b>EBC — bilans płatniczy strefy euro</b>'), 'prawa');
   const d0 = html.indexOf('const EXTRA34='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA34='.length, d1));
@@ -408,7 +408,7 @@ test('TIC: sekcja #tic w GLOBAL przed widokami silnika, plik tic.json, karty WIT
   assert.ok(a > 0 && b > a, 'sekcja');
   assert.ok(html.includes("srvJSON('tic')"), 'plik');
   assert.ok(html.includes("if(v.startsWith('tic-')&&!(chk.ok&&chk.state==='BOUND')){el.hidden=true;el.innerHTML='';return;}"), 'karty TIC silnika ukryte, gdy nie BOUND');
-  assert.ok(html.includes("'ticdata.treasury.gov','src.f.m','src.l.2m',GLIVE.src.tic,'g.hs.tic','tic']"), 'wiersz Źródła');
+  assert.ok(html.includes("'ticdata.treasury.gov','src.f.m','src.l.7w',GLIVE.src.tic,'g.hs.tic','tic']"), 'wiersz Źródła');
   assert.ok(html.includes('<summary><b>Skarb USA — TIC</b>'), 'prawa');
   const d0 = html.indexOf('const EXTRA35='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA35='.length, d1));
@@ -550,7 +550,7 @@ test('v50 BIS: sekcja #bis po #tic, plik bis.json w GLOBAL, język, wiersz Źró
   assert.ok(html.includes("srvJSON('bis').then(j=>{biApply(j);}).catch(()=>{biApply(null);}),"), 'plik');
   assert.ok(html.indexOf("srvJSON('bis')") > html.indexOf('function gLoad(cb){'), 'w gLoad');
   assert.ok(html.includes("if(typeof renderBis==='function')renderBis();"), 'zmiana języka');
-  assert.ok(html.includes("['BIS — przepływy bankowe między regionami (LBS, miara F: zmiana skorygowana o kursy)','stats.bis.org','src.f.q','src.l.q',GLIVE.src.bis2,'g.hs.bis2','bis2'],"), 'wiersz Źródła');
+  assert.ok(html.includes("['BIS — przepływy bankowe między regionami (LBS, miara F: zmiana skorygowana o kursy)','stats.bis.org','src.f.q','src.l.bis',GLIVE.src.bis2,'g.hs.bis2','bis2'],"), 'wiersz Źródła');
   assert.ok(html.includes("['BIS Locational Banking Statistics (own calculations; unofficial translation)','https://data.bis.org/topics/LBS']"), 'atrybucja');
   assert.ok(html.includes('<summary><b>BIS — przepływy bankowe między regionami</b>') && html.includes('oznaczenia tłumaczenia jako nieoficjalnego'), 'prawa');
   assert.ok(html.includes('w produkcie płatnym — że dane BIS nie podnoszą ceny'), '_fix: warunek BIS dla produktu płatnego');
@@ -654,7 +654,7 @@ test('v50 CFTC: plik w gLoad po TIC, zegar, wiersze Źródła (GLOBAL i CRYPTO),
   assert.ok(gl0 < tic && tic < cf && cf < gl1, 'plik cftc.json wczytywany w gLoad po TIC');
   assert.ok(cf0 > html.indexOf('const ENG_OVR={};') && cf1 > cf0, 'rejestracja po ENG_OVR, przed renderEng');
   const s0 = html.indexOf('const S=gActive()?['), s1 = html.indexOf('\n  ]:[', s0), s2 = html.indexOf('\n  ];', s1);
-  const rg = html.indexOf("['CFTC — pozycje w kontraktach (euro, bitcoin, ether), wprost z cftc.gov','www.cftc.gov','src.f.w','src.l.w',GLIVE.src.cftc,'g.hs.cftc','cftc']");
+  const rg = html.indexOf("['CFTC — pozycje w kontraktach na 14 rynkach (euro i inne waluty, indeks dolara, obligacje USA, S&P 500, MSCI EM, bitcoin, ether), wprost z cftc.gov','www.cftc.gov','src.f.w','src.l.w',GLIVE.src.cftc,'g.hs.cftc','cftc']");
   const rc = html.indexOf("['CFTC — pozycje w kontraktach na bitcoin i ether (CME), wprost z cftc.gov','www.cftc.gov','src.f.w','src.l.w',GLIVE.src.cftc,'g.hs.cftc','cftc']");
   assert.ok(html.indexOf("GLIVE.src['inst.bop'],'g.hs.bop','inst.bop']", s0) < rg && rg < s1, 'wiersz GLOBAL po BPS');
   assert.ok(html.indexOf("GLIVE.src.fng,'g.hs.fng','fng']", s1) < rc && rc < s2, 'wiersz CRYPTO po Fear & Greed');
@@ -1564,23 +1564,55 @@ test('v82: blok Korei: bln KRW i ≈ mld USD, suma 12 kolejnych miesięcy, wiers
   M[12] = ['2026-08', 344.0, -4736.0, 249.3, -3431.9, 1380.0];
   f.korApply({at: 'x', m: M}); assert.deepEqual(oks, ['korea']);
   const h = f.korHtml(f.KOR.data);
-  assert.ok(h.includes('[kr.eq|+0.3 kr.u|sf.m{"m":"F2026-08"} · kr.usd{"v":"+0.2","r":"1380.0"} · kr.12{"v":"-10.7"}]'), h);
-  assert.ok(h.includes('[kr.bd|-4.7 kr.u|sf.m{"m":"F2026-08"} · kr.usd{"v":"-3.4","r":"1380.0"} · kr.12{"v":"+0.8"}]'), h);
-  const r = f.korRegion('jpn'); assert.ok(r.includes('<dt>kr.reg</dt>') && r.includes('"e":"+0.3","b":"-4.7","e12":"-10.7","b12":"+0.8"'), r);
+  assert.ok(h.includes('[kor.eq|+0.3 kor.u|sf.m{"m":"F2026-08"} · kor.usd{"v":"+0.2","r":"1380.0"} · kor.12{"v":"-10.7"}]'), h);
+  assert.ok(h.includes('[kor.bd|-4.7 kor.u|sf.m{"m":"F2026-08"} · kor.usd{"v":"-3.4","r":"1380.0"} · kor.12{"v":"+0.8"}]'), h);
+  const r = f.korRegion('jpn'); assert.ok(r.includes('<dt>kor.reg</dt>') && r.includes('"e":"+0.3","b":"-4.7","e12":"-10.7","b12":"+0.8"'), r);
   assert.equal(f.korRegion('chn'), '');
   assert.ok(html.includes("html+=(typeof korHtml==='function'&&typeof KOR!=='undefined')?korHtml(KOR.data):'';") && html.includes("${typeof korRegion==='function'?korRegion(s.id):''}"));
   assert.ok(html.includes("add('KOR',t('fo.kor')") && html.includes("srvJSON('korea')") && html.includes("korea:'FSS'") && html.includes("['Financial Supervisory Service (Korea)','https://www.fss.or.kr']"));
   const x0 = html.indexOf('const EXTRA70='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA70='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['kr.t', 'kr.sub', 'kr.eq', 'kr.bd', 'kr.u', 'kr.usd', 'kr.12', 'kr.not', 'kr.src', 'kr.reg.v', 'g.hs.fss', 'fo.kor', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['kor.t', 'kor.sub', 'kor.eq', 'kor.bd', 'kor.u', 'kor.usd', 'kor.12', 'kor.not', 'kor.src', 'kor.reg.v', 'g.hs.fss', 'fo.kor', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['inst.sub'].includes('Korea'));
 });
 
 // v83: Korea — opisy zgodne z FSS (obligacje netto po wykupach, akcje KOSPI/KOSDAQ przy rozliczeniu), opóźnienie 9–31 dni, kurs miesięczny w przypisie
 test('v83: Korea: opisy i opóźnienie zgodne ze źródłem', () => {
   const x0 = html.indexOf('const EXTRA71='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA71='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['kr.sub', 'kr.eq', 'kr.bd', 'kr.not', 'g.hs.fss', 'fo.kor', 'src.l.fss', 'fo.foot']) assert.ok(dict[l][k], l + ' ' + k);
-  assert.ok(dict.pl['kr.sub'].includes('wykupione przy zapadalności') && dict.pl['kr.sub'].includes('KOSPI i KOSDAQ') && dict.pl['kr.not'].includes('kraj rejestracji'));
+  for (const l of ['pl', 'en']) for (const k of ['kor.sub', 'kor.eq', 'kor.bd', 'kor.not', 'g.hs.fss', 'fo.kor', 'src.l.fss', 'fo.foot']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['kor.sub'].includes('wykupione przy zapadalności') && dict.pl['kor.sub'].includes('KOSPI i KOSDAQ') && dict.pl['kor.not'].includes('kraj rejestracji'));
   assert.ok(dict.pl['fo.foot'].includes('Korea: średnim kursem miesiąca'));
   assert.ok(html.includes("'www.fss.or.kr','src.f.m','src.l.fss',GLIVE.src.korea") && !html.includes(".replace(/^([+−])/,'$1')"));
   assert.ok(html.includes('obligacje: inwestycje netto zagranicy po wykupach') && html.includes('zwykle 2–4 tygodnie po końcu miesiąca (w ostatnim roku 9–31 dni)'));
+});
+
+// v84: przegląd całościowy tekstów — Korea na własnych kluczach (panel krypto odzyskał teksty), nieaktualne i przesadzone opisy poprawione
+test('v84: klucze Korei nie kolidują z panelem krypto; słownik v84 nakładany jako ostatni; poprawione opisy', () => {
+  const dictOf = n => { const a = 'const EXTRA' + n + '=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0); return JSON.parse(html.slice(x0 + a.length, x1)); };
+  const k70 = dictOf(70), k71 = dictOf(71);
+  for (const l of ['pl', 'en']) {
+    assert.ok(k70[l]['kor.t'] && k70[l]['kor.reg.v'] && k71[l]['kor.sub'], l);
+    for (const k of ['kr.t', 'kr.sub', 'kr.not']) assert.ok(!(k in k70[l]) && !(k in k71[l]), l + ' ' + k);
+  }
+  for (const m of html.matchAll(/const EXTRA(\d+)=\{"/g)) {   // żaden słownik po v44 nie nadpisuje tytułu, podtytułu ani opisu panelu krypto
+    const n = +m[1]; if (n <= 36) continue;
+    const d = dictOf(n); for (const l in d) for (const k of ['kr.t', 'kr.sub', 'kr.not']) assert.ok(!(k in d[l]), 'EXTRA' + n + ' ' + l + ' ' + k);
+  }
+  const kh = html.slice(html.indexOf('function korHtml('), html.indexOf('function flowRows('));
+  assert.ok(kh.includes("t('kor.t')") && kh.includes("t('kor.reg')") && !kh.includes("t('kr."));
+  assert.ok(html.includes("<h2>${t('kr.t')}</h2><p class=\"pnote\">${t('kr.sub')}</p>"), 'panel krypto czyta swoje klucze');
+  const d = dictOf(72), a39 = html.indexOf('Object.assign(I18N[l],EXTRA39[l]);'), a84 = html.indexOf('Object.assign(I18N[l],EXTRA72[l]);');
+  assert.ok(a39 > 0 && a84 > a39, 'v84 nakładany po EXTRA39 (ostatni)');
+  assert.ok(d.pl['cftc.not4'].includes('ICE Futures U.S.') && d.pl['g.hs.cftc'].includes('11 innych rynkach') && d.pl['g.hs.fx'].includes('Frankfurter'));
+  assert.ok(d.pl['g.plain.cf'].startsWith('Waluty regionu „{r}”') && d.pl['g.plain.crypto'].includes('przybliżenie') && d.pl['g.stabflow'].includes('przybliżenie'));
+  assert.ok(d.pl['pg.nosrc.d'].includes('1KW, 1R') && d.pl['g.q.srcv'].includes('Twelve Data') && d.pl['rail.in.g'] && d.pl['src.l.7w'] && d.pl['src.l.bis']);
+  for (const l of ['de', 'fr', 'zh', 'ja']) assert.ok(d[l]['top.t'] && d[l]['g.q.limd'] && d[l]['pg.nosrc.d'] && d[l]['g.help.limd'], l);
+  const E0 = {"pl": "w panelach pod mapą (TIC, bilans płatniczy, MOF Japonii)", "en": "in the panels below the map (TIC, balance of payments, Japan MOF)", "de": "in den Panels unter der Karte (TIC, Zahlungsbilanz, MOF Japan)", "es": "en los paneles bajo el mapa (TIC, balanza de pagos, MOF de Japón)", "fr": "dans les panneaux sous la carte (TIC, balance des paiements, MOF du Japon)", "it": "nei pannelli sotto la mappa (TIC, bilancia dei pagamenti, MOF del Giappone)", "pt": "nos painéis abaixo do mapa (TIC, balanço de pagamentos, MOF do Japão)", "ru": "в панелях под картой (TIC, платёжный баланс, МФ Японии)", "zh": "见地图下方面板（TIC、国际收支、日本财务省）", "ja": "地図の下のパネル（TIC、国際収支、日本の財務省）"};
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(/BIS|BIZ|BRI|BPI/.test(d[l]['g.help.2']) && d[l]['g.help.2'].includes('TIC') && !d[l]['g.help.2'].includes(E0[l]), l);
+  assert.ok(d.pl['g.help.3'].includes('To model, nie pomiar') && d.en['g.help.3'].includes('not a measurement'));
+  for (const l of ['pl', 'en']) for (const k of ['ue.not', 'bil.not']) assert.ok(!d[l][k].includes('TARGET2'), l + ' ' + k);
+  assert.ok(html.includes("t(gActive()?'rail.in.g':'rail.in')") && html.includes("['Finnhub','g.hs.fh'],['Twelve Data','g.hs.td']") && html.includes('data-i18n="g.help.regtds"'));
+  assert.ok(html.includes("'ticdata.treasury.gov','src.f.m','src.l.7w'") && html.includes("'stats.bis.org','src.f.q','src.l.bis',GLIVE.src.bis2"));
+  assert.ok(!html.includes('tych danych nie ma') && !html.includes('(okresy 1T i 1M)') && !html.includes('Plik z serwera starszy niż trzy godziny') && !html.includes('tylko giełda CME.'));
+  for (const s of ['<b>Skarb USA — Fiscal Data</b>', '<b>NY Fed</b>', '<b>EBC — salda TARGET</b>', '<b>Ministerstwo Finansów Japonii (MOF)</b>', 'Obok pokazujemy dwie miary pokrewne', 'dopisek „pokazany poprzedni plik”', 'Coin Metrics</span>'])
+    assert.ok(html.includes(s), s);
 });
