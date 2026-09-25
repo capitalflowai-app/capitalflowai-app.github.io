@@ -2345,7 +2345,7 @@ class BcbV71(unittest.TestCase):
                          'zły zapis daty i NaN pominięte, nigdy 0')
         r = out['d'][-1]; self.assertAlmostEqual(r[1] + r[4], r[5], places=1)   # razem = finansowy + handlowy (tożsamość BCB)
         self.assertEqual(out['asof'], '2026-09-18'); self.assertEqual(zd.META['errors'], [])
-        self.assertTrue(any('bcdata.sgs.13961/dados?formato=json&dataInicial=27/07/2026&dataFinal=25/09/2026' in u for u in self.urls), self.urls)
+        self.assertTrue(any('bcdata.sgs.13961/dados?formato=json&dataInicial=21/08/2025&dataFinal=25/09/2026' in u for u in self.urls), self.urls)
 
     def test_failed_series_keeps_old_column_and_reports(self):
         prev = {'d': [['2026-09-17', -1.0, 1.0, 2.0, 9.9, 8.9]]}
@@ -3262,7 +3262,7 @@ class TrendyV89(unittest.TestCase):
             mx = by['mx']
             self.assertEqual((mx['m'], mx['cur'], mx['w'], mx['wu'], mx['st'], mx['n']), ('stock', 'MXN', 5.0, 0.5, 'in_dir', 7),
                              'Meksyk: zmiana stanu dzień do dnia (44 zmiany z 45 dni) — 7 tygodni historii, tylko kierunek')
-            self.assertEqual([b['id'] for b in out['b']], ['th', 'mx']); self.assertEqual(out['rules']['base_max'], 8)
+            self.assertEqual([b['id'] for b in out['b']], ['th', 'mx', 'ob']); self.assertEqual(out['rules']['base_max'], 8)
             self.assertEqual(out['b'][0]['from'][:4], '2026')
         with mock.patch.object(zd, '_now_utc', return_value=now + datetime.timedelta(days=4)):   # piątek: 4 dni robocze po danych
             r = {r['id']: r for r in zd.build_trendy(self.S())['f']}['th']
@@ -3632,6 +3632,173 @@ class FunduszeV94(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             zd.build_surowce(fetch=fetch, today=datetime.date(2026, 9, 25), prev=prev)   # bez pliku rocznego: 1 raport zamiast 13 — zostaje poprzedni plik
         self.assertTrue(any('rok 2026' in e for e in zd.META['errors']))
+
+
+def _wdays(a, b):
+    d0, d1 = datetime.date.fromisoformat(a), datetime.date.fromisoformat(b)
+    return [(d0 + datetime.timedelta(days=i)).isoformat() for i in range((d1 - d0).days + 1) if (d0 + datetime.timedelta(days=i)).weekday() < 5]
+
+
+class HistoriaV95(unittest.TestCase):
+    """v95: historia wstecz — Indie z archiwum NSDL (miesiąc przyjęty tylko, gdy suma dni = suma miesiąca), Tajwan i Hongkong do 26 tygodni,
+    Brazylia ponad rok; „czy tydzień zapowiadał następny” także dla dziennych przepływów krajów."""
+    FORM = ('<form><input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="a&amp;b" />'
+            '<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="G" />'
+            '<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="E" /></form>')
+
+    @staticmethod
+    def arch(days, month_total, month='August'):
+        """Strona archiwum NSDL: dni (data, akcje, razem), potem bloki „Total for <miesiąc>” i „Total for 2026” (jak na prawdziwej stronie)."""
+        h = '<html><body><table>'
+        for d, eq, tot in days:
+            h += (f'<tr><td rowspan="3">{d}</td><td>Equity</td><td>Stock Exchange</td><td>1</td><td>1</td><td>1</td><td>{eq}</td><td>Rs.95.5614</td></tr>'
+                  f'<tr><td>Sub-total</td><td>1</td><td>1</td><td>1</td><td>{eq}</td></tr>'
+                  f'<tr><td>Total</td><td>1</td><td>1</td><td>1</td><td>{tot}</td></tr>')
+        return h + (f'<tr><td rowspan="3">Total for {month}</td><td>Equity</td><td>Stock Exchange</td><td>1</td><td>1</td><td>1</td><td>999.00</td><td>&nbsp;</td></tr>'
+                    '<tr><td>Sub-total</td><td>1</td><td>1</td><td>1</td><td>999.00</td></tr>'
+                    '<tr><td>Debt-General Limit</td><td>Stock Exchange</td><td>1</td><td>1</td><td>1</td><td>500.00</td></tr>'
+                    '<tr><td>Sub-total</td><td>1</td><td>1</td><td>1</td><td>500.00</td></tr>'
+                    f'<tr><td>Total</td><td>1</td><td>1</td><td>1</td><td>{month_total}</td></tr>'
+                    '<tr><td>Total for 2026</td><td>Equity</td><td>Stock Exchange</td><td>1</td><td>1</td><td>1</td><td>5000.00</td></tr>'
+                    '<tr><td>Total</td><td>1</td><td>1</td><td>1</td><td>7,777.00</td></tr>'
+                    '<tr><td>Reporting Date</td><td>Derivative Products</td></tr></table></body></html>')
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    def test_archive_month_and_year_totals_do_not_leak_into_last_day(self):
+        tot = {}
+        rows = zd.parse_nsdl_html(self.arch([('28-Aug-2026', '10.00', '12.00'), ('31-Aug-2026', '(134.81)', '(139.40)')], '(127.40)'), tot)
+        self.assertEqual([r[0] for r in rows], ['2026-08-28', '2026-08-31'])
+        self.assertEqual(rows[-1][1:5], [-134.81, None, None, -139.4], 'suma miesiąca nie jest dopisana do 31 sierpnia')
+        self.assertEqual(tot, {'august': -127.4, '2026': 7777.0})
+
+    def test_month_arithmetic(self):
+        self.assertEqual((zd._ym_add('2026-01', -1), zd._ym_add('2026-09', -12), zd._ym_add('2025-12', 1)), ('2025-12', '2025-09', '2026-01'))
+
+    def test_nsdl_month_posts_last_day_and_checks_month_total(self):
+        sent = []
+
+        def pb(url, form, timeout=90):
+            sent.append(dict(form))
+            return self.arch([('03-Aug-2026', '1.00', '2.00'), ('31-Aug-2026', '3.00', '4.00'), ('01-Sep-2026', '5.00', '6.00')], '6.00').encode()
+        form = mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: self.FORM.encode())
+        with form, mock.patch.object(zd, 'post_bytes', pb):
+            rows = zd.nsdl_month('2026-08')
+            self.assertRaises(RuntimeError, zd.nsdl_month, '2025-12')      # w odpowiedzi nie ma dni grudnia
+        self.assertEqual([r[0] for r in rows], ['2026-08-03', '2026-08-31'], 'tylko dni tego miesiąca')
+        self.assertEqual((sent[0]['hdnDate'], sent[0]['__EVENTTARGET'], sent[0]['__VIEWSTATE'], sent[0]['__EVENTVALIDATION']),
+                         ('31-Aug-2026', 'btnSubmit1', 'a&b', 'E'))
+        self.assertEqual(sent[1]['hdnDate'], '31-Dec-2025')
+        bad = lambda url, form, timeout=90: self.arch([('03-Aug-2026', '1.00', '2.00')], '9.00').encode()
+        with mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: self.FORM.encode()), mock.patch.object(zd, 'post_bytes', bad):
+            with self.assertRaisesRegex(RuntimeError, 'suma dni'):
+                zd.nsdl_month('2026-08')          # suma dni 2 ≠ suma miesiąca 9 — miesiąc odrzucony
+        with mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: b'<html>nowy formularz</html>'):
+            with self.assertRaisesRegex(RuntimeError, 'formularza'):
+                zd.nsdl_month('2026-08')
+
+    def test_nsdl_part_fetches_missing_months_newest_first_and_stops_on_failure(self):
+        asked = []
+
+        def month(ym):
+            asked.append(ym)
+            if ym == '2026-05':
+                raise RuntimeError('suma dni ≠ suma miesiąca')
+            return [[ym + '-15', 1.0, 2.0, 0.0, 3.0, 95.0]]
+        prev = {'arch': ['2026-08', '1999-01'], 'd': [['2026-07-15', 9.0, 9.0, 9.0, 9.0, 90.0], ['2026-09-01', 1.0, 1.0, 1.0, 1.0, 95.0]]}
+        with mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: ObceV54.NSDL.encode()), mock.patch.object(zd, 'nsdl_month', month):
+            out = zd.nsdl_part(prev)
+        self.assertEqual(asked, ['2026-07', '2026-06', '2026-05'], 'najnowsze brakujące miesiące, najwyżej 3 na przebieg')
+        self.assertEqual(out['arch'], ['2026-06', '2026-07', '2026-08'], 'nieudany miesiąc nie jest zapisany; spoza 12 miesięcy — usunięty')
+        m = {r[0]: r for r in out['d']}
+        self.assertEqual(m['2026-07-15'][1], 1.0, 'archiwum zastępuje dzień zebrany wcześniej')
+        self.assertTrue({'2026-06-15', '2026-09-01', '2026-09-23', '2026-09-24'} <= set(m))
+        self.assertTrue(any(n.startswith('NSDL archiwum 2026-05') for n in zd.META['notes']))
+        self.assertFalse(zd.META['errors'], 'brak starszego miesiąca to notatka, nie błąd bieżących danych')
+
+    def test_tw_back_newest_first_skips_known_and_stops_at_floor(self):
+        now = datetime.datetime(2026, 9, 25, 17, 0)
+        self.assertEqual(zd.tw_back({'2026-09-24'}, {'2026-09-23'}, now, lo='2026-09-15', skip={'2026-09-22'}),
+                         ['2026-09-21', '2026-09-18', '2026-09-17', '2026-09-16'])
+        b = zd.tw_back(set(), set(), now)
+        self.assertEqual(b, sorted(b, reverse=True)); self.assertEqual(b[-1], '2026-03-27', '182 dni wstecz')
+
+    def test_twse_backfill_holiday_only_on_no_data(self):
+        prev = {'d': [[d, 1.0, 0, 0, 0] for d in _wdays('2026-09-11', '2026-09-23')], 'empty': []}
+        asked = []
+
+        def gj(url, headers=None):
+            if 'DEXTAUS' in url:
+                self.assertIn('limit=200', url)
+                return {'observations': [{'date': '2026-07-01', 'value': '31.0'}]}
+            day = url.split('dayDate=')[1][:8]; iso = f'{day[:4]}-{day[4:6]}-{day[6:]}'; asked.append(iso)
+            if iso == '2026-09-24':
+                return {'stat': 'Busy'}                          # ostatni dzień: dziwna odpowiedź = błąd, nie święto
+            if iso == '2026-09-10':
+                return {'stat': 'OK', 'date': '20260910', 'data': []}   # starszy dzień bez danych — nie święto
+            if iso == '2026-09-09':
+                return {'stat': 'No Data!'}
+            return ObceV54.tw(iso)
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.twse_part(prev, 'KLUCZ')
+        self.assertEqual(len(asked), zd.TWSE_MAX); self.assertEqual(asked[:2], ['2026-09-24', '2026-09-25'], 'najpierw ostatnie dni')
+        self.assertEqual((asked[2], asked[-1]), ('2026-09-10', '2026-08-04'), 'potem wstecz, od najnowszego')
+        days = {r[0] for r in out['d']}
+        self.assertIn('2026-09-09', out['empty']); self.assertNotIn('2026-09-10', out['empty']); self.assertNotIn('2026-09-24', out['empty'])
+        self.assertTrue({'2026-08-04', '2026-09-08', '2026-09-25'} <= days); self.assertFalse({'2026-09-10', '2026-09-24'} & days)
+        self.assertTrue(any(e.startswith('TWSE: 1 dni') and 'Busy' in e for e in zd.META['errors']))
+        self.assertTrue(any(n.startswith('TWSE historia wstecz: 1 dni') for n in zd.META['notes']))
+        self.assertEqual({r[0]: r[5] for r in out['d']}['2026-08-04'], round(-32964.6 / 31.0, 1), 'starszy dzień też przeliczony na USD')
+
+    def test_hkex_backfill_404_sets_floor_without_error(self):
+        prev = {'d': [[d, 1.0, 2.0, 1.0, 2] for d in _wdays('2026-09-11', '2026-09-24')], 'empty': []}
+        asked = []
+
+        def gb(url, headers=None, timeout=60):
+            d = url.split('daily_')[1][:8]; iso = f'{d[:4]}-{d[4:6]}-{d[6:]}'; asked.append(iso)
+            if iso == '2026-09-25' or iso < '2026-09-01':
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            return HkexV67.JS.replace('2026-09-24', iso).encode()
+        pat = lambda: (mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, 'get_json', lambda url, headers=None: {'observations': []}),
+                       mock.patch.object(zd.time, 'sleep', lambda s: None),
+                       mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)))
+        a, b, c, e = pat()
+        with a, b, c, e:
+            out = zd.hkex_part(prev, 'KLUCZ')
+        self.assertEqual(out['lo'], '2026-08-31')
+        self.assertNotIn('2026-08-28', asked, 'po braku pliku — dalej wstecz nie pytamy')
+        self.assertIn('2026-09-01', {r[0] for r in out['d']})
+        self.assertFalse(zd.META['errors'], 'koniec archiwum HKEX to nie błąd')
+        asked.clear()
+        a, b, c, e = pat()
+        with a, b, c, e:
+            out2 = zd.hkex_part(out, 'KLUCZ')
+        self.assertEqual(asked, ['2026-09-25'], 'następny przebieg nie pyta o dni sprzed końca archiwum')
+        self.assertEqual(out2['lo'], '2026-08-31')
+
+    def test_brazil_asks_for_more_than_a_year(self):
+        self.assertGreaterEqual(zd.BCB_DAYS, 365)
+
+    def test_base_rate_for_daily_country_flows(self):
+        days = _wdays('2026-03-02', '2026-09-18')
+        sign = lambda d: 1 if (datetime.date.fromisoformat(d).isocalendar()[1] // 3) % 2 else -1   # kierunek zmienia się co 3 tygodnie
+        ob = {'in': {'d': [[d, 50.0 * sign(d), 10.0, 0, 60.0, 95.0] for d in days]},
+              'br': {'d': [[d, -30.0 * sign(d), 0, 0, 0, 0] for d in days]},
+              'tw': {'d': [[d, 900.0 * sign(d), 0, 0, 0] for d in days if d != '2026-06-10'], 'empty': []}}
+        with mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.build_trendy({'obce': ob})
+            today = datetime.date(2026, 9, 25)
+            exp = [zd.trend_persist(*zd._tr_cols(ob['in'], 1), today), zd.trend_persist(*zd._tr_cols(ob['in'], 2), today),
+                   zd.trend_persist(*zd._tr_sessions(ob['tw'], 1), today), zd.trend_persist(*zd._tr_cols(ob['br'], 1), today)]
+        b = {x['id']: x for x in out['b']}['ob']
+        self.assertEqual((b['k'], b['n']), (sum(e[0] for e in exp), sum(e[1] for e in exp)))
+        self.assertGreater(b['n'], b['weeks'], 'kilka serii w tym samym tygodniu — niepewność liczona na tygodnie')
+        self.assertEqual(b['ci'], list(zd.wilson(b['k'], b['n'], n_eff=b['weeks'])))
+        tw_n = zd.trend_persist(*zd._tr_sessions(ob['tw'], 1), today)[1]
+        self.assertLess(tw_n, exp[3][1], 'Tajwan: tydzień z brakującą sesją (10.06) nie jest liczony')
+        self.assertNotIn('ob', {x['id'] for x in zd.build_trendy({'obce': {}})['b']})
 
 
 if __name__ == '__main__':

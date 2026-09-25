@@ -1958,3 +1958,26 @@ test('v94: TRENDY po drugim przeglądzie — wynik funduszy ETF widoczny, źród
   assert.ok(html.includes("['State Street Global Advisors (SPDR)','https://www.ssga.com'],['iShares by BlackRock','https://www.ishares.com']"));
   assert.ok(html.includes("'www.ssga.com · www.ishares.com · www.blackrock.com'"));
 });
+
+test('v95: TRENDY — „czy tydzień zapowiadał następny” dla dziennych przepływów krajów; opisy źródeł: co godzinę, historia wstecz', () => {
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */');
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const el = {innerHTML: '', querySelectorAll() { return []; }, querySelector() { return null; }};
+  const f = new Function('$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+    html.slice(b0, b1) + '\nreturn {trdApply};')(() => el, T, {mode: 'trendy'}, () => Promise.resolve(null), s => String(s), v => v > 0 ? 'pos' : v < 0 ? 'neg' : '',
+    d => '', v => String(v), v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d = 0) => v.toFixed(d), (v, d) => v.toFixed(d) + '%', n => 'ses', s => s, 'pl', {pl: 'pl-PL'}, {pl: {}, en: {}});
+  f.trdApply({at: '2026-09-25T10:00:00Z', f: [], p: [], b: [{id: 'ob', k: 40, n: 75, weeks: 26, from: '2026-03-30', to: '2026-09-14', ci: [41.2, 64.9]},
+    {id: 'zz', k: 1, n: 2, weeks: 1, ci: [1, 99]}]});
+  const h = el.innerHTML;
+  assert.ok(h.includes('<span>trd.b.ob</span>') && h.includes('trd.b.wk{"w":26}') && h.includes('trd.b.pxnote') && h.includes('trd.b.v.coin'), h);
+  assert.ok(!h.includes('trd.b.zz'), 'nieznany wynik z pliku — pominięty');
+  const a = 'const EXTRA86=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(x0 > html.indexOf('for(const l in EXTRA85)') && html.includes('for(const l in EXTRA86)if(I18N[l])Object.assign(I18N[l],EXTRA86[l]);'));
+  assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
+  assert.ok(D.pl['trd.b.ob'].includes('Brazylia') && D.en['trd.b.ob'].includes('Brazil'));
+  for (const k of ['g.hs.nsdl', 'g.hs.twse', 'g.hs.hkex']) assert.ok(D.pl[k].includes('co godzinę') && D.en[k].includes('every hour') && !D.pl[k].includes('co 3 h'), k);
+  assert.ok(D.pl['g.hs.nsdl'].includes('suma dni zgadza się z sumą miesiąca'));
+  assert.ok(D.pl['trd.b.concl2'].includes('Przepływy to nie ceny') && D.en['trd.b.concl2'].includes('Flows are not prices') && D.pl['trd.b.concl2'].includes('nie piszemy „kupuj”'));
+  f.trdApply({at: '2026-09-25T11:00:00Z', f: [], p: [], b: [{id: 'ob', k: 73, n: 112, weeks: 51, from: '2025-09-22', to: '2026-09-14', ci: [51.5, 76.8]}]});
+  assert.ok(el.innerHTML.includes('trd.b.v.more') && el.innerHTML.includes('<b>trd.b.concl2</b>'), 'wynik ponad 50% — opis „częściej trwał” i zastrzeżenie');
+});
