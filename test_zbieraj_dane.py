@@ -3463,5 +3463,20 @@ class FunduszeV90(unittest.TestCase):
         self.assertEqual([b['id'] for b in out['b']], ['fe'])
 
 
+class ObceV91(unittest.TestCase):
+    """v91: Indie, Tajwan, Hongkong co godzinę; Brazylia, Turcja, ThaiBMA najwyżej co 3 h (bez zapytania, gdy część świeża i bez błędu)."""
+
+    def test_slow_parts_reused(self):
+        called = []
+        mk = lambda name: (lambda *a, **k: called.append(name) or {'at': zd.NOW, 'd': [['2026-09-24', 1.0]]})
+        prev = {'ok': {'in': True, 'tw': True, 'hk': True, 'br': True, 'tr': False, 'th': True},
+                'br': {'at': _iso(30), 'd': [['2026-09-18', 2.0]]}, 'tr': {'at': _iso(30), 'd': []}, 'th': {'at': _iso(200), 'd': []}}
+        with mock.patch.object(zd, 'nsdl_part', mk('in')), mock.patch.object(zd, 'twse_part', mk('tw')), mock.patch.object(zd, 'hkex_part', mk('hk')), \
+                mock.patch.object(zd, 'bcb_part', mk('br')), mock.patch.object(zd, 'tcmb_part', mk('tr')), mock.patch.object(zd, 'thbma_part', mk('th')):
+            out = zd.build_obce('', prev)
+        self.assertEqual(called, ['in', 'tw', 'hk', 'tr', 'th'], 'Brazylia świeża (30 min) — z pamięci; Turcja z błędem i ThaiBMA sprzed 200 min — pobrane')
+        self.assertIs(out['br'], prev['br']); self.assertIs(out['ok']['br'], True); self.assertEqual(zd.META['ok']['obce_br'], 'cached')
+
+
 if __name__ == '__main__':
     unittest.main()

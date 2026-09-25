@@ -1893,3 +1893,19 @@ test('v90: TRENDY — panel funduszy ETF w USA, stany „prawie nic”, wiersz n
   const bad = /kupuj(?![a-ząćęłńóśźż])|sprzedawaj(?![a-ząćęłńóśźż])|warto kupi|okazj|prognozuj|rekomend|\btrwa(?![a-ząćęłńóśźż])|odbic|\bbuy\b|\bsell\b|forecast|recommend/i;
   for (const l of ['pl', 'en']) for (const k in D[l]) if (/^trd\.(sn|s|e)\b/.test(k)) assert.doesNotMatch(D[l][k], bad, `${l} ${k}`);
 });
+
+test('v91: GLOBAL — linie funduszy ETF w opisie regionu z pliku TRENDÓW; brak pliku = brak linii', () => {
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */');
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+    html.slice(b0, b1) + '\nreturn {TRD, feRegion};')(() => ({}), T, {mode: 'global'}, () => Promise.resolve(null), s => String(s), v => v > 0 ? 'pos' : v < 0 ? 'neg' : '',
+    d => ' ·age', v => String(v), v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d = 0) => v.toFixed(d), (v, d) => v.toFixed(d) + '%', n => 'ses', s => s, 'pl', {pl: 'pl-PL'}, {pl: {}, en: {}});
+  assert.equal(f.feRegion('usa'), '', 'bez pliku TRENDÓW — bez linii');
+  f.TRD.data = {at: 'x', f: [{id: 'fe_jpn', g: 'fe', m: 'flow', sz: 5, cur: 'USD', date: '2026-09-24', st: 'mixed', w: -58.39}, {id: 'fe_kor', g: 'fe', m: 'flow', sz: 5, cur: 'USD', date: '2026-09-24', st: 'weird', w: 1}], p: []};
+  const h = f.feRegion('jpn');
+  assert.ok(h.startsWith('<div class="wide"><dt>fe.reg</dt>') && h.includes('trd.s.fe_jpn: <b class="neg">−58 trd.u.m USD</b>') && !h.includes('fe_kor'), h);
+  assert.equal(f.feRegion('mea'), '', 'region bez funduszy — bez linii');
+  assert.ok(html.includes("${typeof feRegion==='function'?feRegion(s.id):''}"));
+  const a = 'const EXTRA82=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(D.pl['fe.reg'] && D.en['fe.reg']);
+});

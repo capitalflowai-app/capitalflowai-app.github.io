@@ -2234,6 +2234,9 @@ def thbma_part(prev_th, key):
                      '≈ mln USD', 'kurs THB/USD', 'dzień kursu'],
             'asof': last, 'd': d}
 
+OBCE_SLOW = {'br': 180, 'tr': 180, 'th': 180}   # v91: min — Brazylia i Turcja publikują raz w tygodniu, ThaiBMA raz dziennie (regulamin: umiar)
+
+
 def build_obce(key, prev=None):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
     prev = prev if isinstance(prev, dict) else {}
@@ -2244,6 +2247,10 @@ def build_obce(key, prev=None):
                      ('tr', lambda: tcmb_part(prev.get('tr'))),   # v74: Turcja — nierezydenci w papierach (CBRT)
                      ('th', lambda: thbma_part(prev.get('th'), key))):   # v86: Tajlandia — nierezydenci w obligacjach (ThaiBMA)
         n0 = len(META['errors'])
+        pp = prev.get(part)
+        if part in OBCE_SLOW and isinstance(pp, dict) and (prev.get('ok') or {}).get(part) is True and fresh(pp, OBCE_SLOW[part]):
+            out[part] = pp; META['ok']['obce_' + part] = 'cached'; out['ok'][part] = True   # v91: źródło publikujące rzadziej — bez zapytania
+            continue
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
         except Exception as e:
@@ -4046,7 +4053,7 @@ def main():
     retry = [p for p, st in pok.items() if st is False]
     if prev_o and isinstance(prev_o.get('br'), dict) and any(isinstance(r, list) and len(r) < 10 for r in (prev_o['br'].get('m') or [])):
         miss.append('br')   # v81: wiersze miesięczne Brazylii bez kolumn banku centralnego — pobierz od razu
-    if prev_o and fresh(prev_o, 180) and not miss and not (retry and not fresh(prev_o, 60)):
+    if prev_o and fresh(prev_o, 60) and not miss:   # v91: co godzinę (Indie, Tajwan, Hongkong; część z błędem też ponawiana po 60 min); wolniejsze — OBCE_SLOW
         save('obce', prev_o); META['ok']['obce'] = 'cached'
         for p, st in (prev_o.get('ok') or {}).items():   # v77: stan części z ostatniego pełnego pobrania (błąd zostaje widoczny)
             META['ok']['obce_' + p] = 'cached' if st is True else st
