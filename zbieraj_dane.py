@@ -1359,6 +1359,8 @@ def parse_cftcd(text, header=None):
             continue
         v = lambda n: _cftc_int(r[I[n]]) if n else 0
         day = r[I['Report_Date_as_YYYY-MM-DD']].strip()
+        if not _cftc_iso(day):
+            bad.append(f'{r[I["CFTC_Contract_Market_Code"]].strip()} {day} (data)'); continue   # v94: nieznany format daty — wiersz pominięty
         oi = v('Open_Interest_All')
         g = {}
         for gk, lo, sh, sp in CFTCD_GROUPS:
@@ -1371,7 +1373,7 @@ def parse_cftcd(text, header=None):
     return out, bad
 
 
-def build_surowce(fetch=None, today=None):
+def build_surowce(fetch=None, today=None, prev=None):
     """data/surowce.json — pozycje w kontraktach na złoto, srebro, miedź i ropę WTI: stan z ostatniego raportu + netto grup z 13 raportów."""
     fetch = fetch or (lambda u: get_bytes(u, timeout=120))
     today = today or _now_utc().date()
@@ -1420,6 +1422,10 @@ def build_surowce(fetch=None, today=None):
         META['errors'].append(mask(e))
     if not markets:
         raise RuntimeError('żaden rynek surowców nie ma danych')
+    pm = prev.get('markets') if isinstance(prev, dict) and isinstance(prev.get('markets'), dict) else {}   # v94: bez pliku rocznego — nie skracamy historii
+    short = [k for k, m in markets.items() if len(m['hist']['dates']) < CFTC_WEEKS // 2 <= len(((pm.get(k) or {}).get('hist') or {}).get('dates') or [])]
+    if short:
+        raise RuntimeError(f'krótka historia ({", ".join(short)}) — zostaje poprzedni plik')
     return {'at': NOW, 'src': 'CFTC — Commitments of Traders: Disaggregated (futures only)', 'url': CFTC_HOME, 'data_url': CFTCD_WEEK_URL,
             'unit': 'kontrakty', 'asof': max(m['asof'] for m in markets.values()), 'order': [g for g, _, _, _ in CFTCD_GROUPS], 'markets': markets}
 
@@ -3285,6 +3291,9 @@ FUND_BACKFILL = 3
 FUND_SSGA_EVERY = 360    # min — pliki State Street (cała historia) najwyżej co 6 h
 FUND_SCR_EVERY = 120     # min — zestawienie iShares najwyżej co 2 h
 FUND_SLEEP = 1.0
+FUND_BUDGET = 240       # v94: s — cały krok funduszy; po nim reszta w kolejnym przebiegu (automat strony ma limit 15 min)
+FUND_RETRY = 60         # v94: min — przerwa po błędzie pliku State Street
+FUND_BF_RETRY = 360     # v94: min — przerwa po błędzie pełnego pliku iShares
 
 
 def _fund_num(x):
@@ -3365,7 +3374,8 @@ def parse_ishares_screener(j):
         nav, tna, d1, d2 = g('navAmount'), g('totalNetAssetsFund'), g('navAmountAsOf'), g('totalNetAssetsFundAsOf')
         if _isnum(nav) and nav > 0 and _isnum(tna) and tna > 0 and d1 and d1 == d2 and re.match(r'^\d{8}$', str(d1)):
             s = str(d1)
-            out[t] = (str(f.get('portfolioId') or pid), f'{s[:4]}-{s[4:6]}-{s[6:]}', round(nav, 6), round(tna / nav))
+            sh = tna / nav; r3 = round(sh, -3)                  # v94: aktywa / NAV różni się od prawdziwej liczby o kilka jednostek (NAV do 6 miejsc)
+            out[t] = (str(f.get('portfolioId') or pid), f'{s[:4]}-{s[4:6]}-{s[6:]}', round(nav, 6), int(r3) if abs(sh - r3) <= 10 else round(sh))
     return out
 
 
@@ -3377,35 +3387,50 @@ def _fund_merge(old, new):
 
 
 def build_fundusze(prev=None):
+    """v90/v94: historia NAV i liczby jednostek 37 funduszy. v94: limit czasu całego kroku, przerwa po błędzie źródła, dzień z zestawienia
+    iShares dopisywany tylko bez luki w sesjach (inaczej fundusz czeka na uzupełnienie pełnym plikiem — brak zostaje brakiem)."""
     prev = prev if isinstance(prev, dict) else {}
     pf = prev.get('f') if isinstance(prev.get('f'), dict) else {}
     out = {'at': NOW, 'src': 'State Street Global Advisors (SPDR) — NAV history; iShares by BlackRock — product screener and fund data download',
            'unit': 'NAV w USD; liczba jednostek; przepływ = zmiana liczby jednostek × NAV (mln USD, liczony w TRENDACH)',
            'scr_at': prev.get('scr_at'), 'f': {}}
     errs = []
-    now = _now_utc()
+    now = _now_utc(); t0 = time.monotonic()
     due = lambda at, minutes: not at or (now - datetime.datetime.fromisoformat(at)).total_seconds() >= minutes * 60
+    left = lambda: time.monotonic() - t0 < FUND_BUDGET
     for t in FUND_SSGA:
         p = pf.get(t) if isinstance(pf.get(t), dict) else {}
-        if p.get('h') and not due(p.get('at'), FUND_SSGA_EVERY):
-            out['f'][t] = p; continue
+        if p.get('h') and not due(p.get('at'), FUND_SSGA_EVERY) or not due(p.get('err_at'), FUND_RETRY) or not left():
+            if p.get('h') or p.get('err_at'):
+                out['f'][t] = p
+            continue
         time.sleep(FUND_SLEEP)
         try:
-            h = parse_ssga_navhist(get_bytes(FUND_SSGA_URL.format(t=t.lower()), timeout=90), t)
+            h = parse_ssga_navhist(get_bytes(FUND_SSGA_URL.format(t=t.lower()), timeout=30), t)
             out['f'][t] = {'iss': 'ssga', 'at': NOW, 'h': _fund_merge(p.get('h'), h)}
         except Exception as e:
             errs.append(f'{t}: {e}')
-            if p.get('h'):
-                out['f'][t] = p
+            out['f'][t] = dict(p, iss='ssga', err_at=NOW)
+    spy = [r[0] for r in ((out['f'].get('SPY') or {}).get('h') or [])]            # sesje giełdy w Nowym Jorku według SPY
     scr = {}
-    if due(prev.get('scr_at'), FUND_SCR_EVERY) or any(not (pf.get(t) or {}).get('h') for t in FUND_ISH):
+    if due(prev.get('scr_at'), FUND_SCR_EVERY) and left():
         try:
-            scr = parse_ishares_screener(json.loads(get_bytes(FUND_ISH_SCR, timeout=90).decode('utf-8-sig', 'replace')))
+            scr = parse_ishares_screener(json.loads(get_bytes(FUND_ISH_SCR, timeout=45).decode('utf-8-sig', 'replace')))
             out['scr_at'] = NOW
             if len(scr) < len(FUND_ISH) // 2:
                 errs.append(f'zestawienie iShares: tylko {len(scr)} z {len(FUND_ISH)} funduszy')
         except Exception as e:
             errs.append(f'zestawienie iShares: {e}')
+
+    def gap(h, d):
+        """Czy między ostatnim dniem historii a dniem d brakuje sesji (według SPY, a bez niego — według dni roboczych)."""
+        if not h:
+            return False
+        L = h[-1][0]
+        if spy and spy[-1] >= d:
+            return any(L < c < d for c in spy)
+        return _bdays(_d(L), _d(d)) > 1
+
     backfills = 0
     for t in FUND_ISH:
         p = dict(pf.get(t)) if isinstance(pf.get(t), dict) else {'iss': 'ishares'}
@@ -3413,27 +3438,36 @@ def build_fundusze(prev=None):
         pid = (scr.get(t) or (p.get('pid'),))[0]
         if pid:
             p['pid'] = pid
-        if len(h) < FUND_MIN and pid and backfills < FUND_BACKFILL:
+        if t in scr and gap(h, scr[t][1]):
+            p['bf_need'] = True                                          # luka w sesjach — do uzupełnienia pełnym plikiem
+        need = (len(h) < FUND_MIN and not p.get('bf_done')) or p.get('bf_need')
+        if need and pid and backfills < FUND_BACKFILL and due(p.get('bf_err_at'), FUND_BF_RETRY) and left():
             backfills += 1
             time.sleep(FUND_SLEEP)
             try:
-                h = _fund_merge(h, parse_ishares_hist(get_bytes(FUND_ISH_DOC.format(pid=pid), timeout=120)))
-                p['at'] = NOW
+                full = parse_ishares_hist(get_bytes(FUND_ISH_DOC.format(pid=pid), timeout=90))
+                h = _fund_merge(h, full)
+                p['at'] = NOW; p.pop('bf_need', None); p.pop('bf_err_at', None)
+                if len(full) < FUND_MIN:
+                    p['bf_done'] = True                                  # młody fundusz — cała historia już jest
             except Exception as e:
-                errs.append(f'{t} (historia): {e}')
+                errs.append(f'{t} (historia): {e}'); p['bf_err_at'] = NOW
         if t in scr:
             _, d, nav, sh = scr[t]
             last = h[-1] if h else None
             if last and last[0] == d and abs(last[2] - sh) > max(1, 1e-4 * sh):
                 META['notes'].append(f'fundusze {t}: liczba jednostek z zestawienia ({sh}) ≠ z historii ({last[2]}) dla {d} — zostaje historia')
-            elif not last or d > last[0]:
+            elif (not last or d > last[0]) and not gap(h, d):
                 h = _fund_merge(h, [[d, nav, sh]])
+                p.pop('bf_need', None)
         p['iss'] = 'ishares'
         if h:
             p['h'] = h
             out['f'][t] = p
-    if not out['f']:
+    if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
+    if not left():
+        errs.append(f'limit czasu kroku funduszy ({FUND_BUDGET} s) — reszta w kolejnym przebiegu')
     if errs:
         (META['errors'] if len(errs) > 5 else META['notes']).append(mask(f'fundusze ETF: {len(errs)} problemów, np. {errs[0]}'))
     return out
@@ -3466,7 +3500,7 @@ TR_FE = (('fe_us', ('SPY', 'IVV')), ('fe_tech', ('XLK',)), ('fe_fin', ('XLF',)),
          ('fe_ustl', ('TLT',)), ('fe_ustm', ('IEF',)), ('fe_usts', ('SHY', 'BIL')), ('fe_agg', ('AGG',)), ('fe_ig', ('LQD',)),
          ('fe_hy', ('HYG', 'JNK')), ('fe_emb', ('EMB',)), ('fe_gold', ('GLD', 'IAU', 'GLDM')), ('fe_silver', ('SLV',)))   # v90: grupy funduszy ETF
 TR_FP = ('fe_tech', 'fe_fin', 'fe_energy', 'fe_health', 'fe_indu', 'fe_cdisc', 'fe_cstap', 'fe_util', 'fe_dev', 'fe_eur', 'fe_em', 'fe_twn',
-         'fe_bra', 'fe_ustl', 'fe_ustm', 'fe_usts', 'fe_agg', 'fe_ig', 'fe_hy', 'fe_emb', 'fe_gold', 'fe_silver')   # v93: ceny NAV (bez rynków z listy cen krajów)
+         'fe_bra', 'fe_gold', 'fe_silver')   # v93: ceny NAV (bez rynków z listy cen krajów); v94: bez obligacji — comiesięczna wypłata odsetek obniża NAV
 
 
 def _isnum(x):
@@ -3507,10 +3541,12 @@ def _sd(xs):
 
 
 def _tr_clear(w, typ, days):
-    """Wyraźny kierunek tygodnia: |suma| ≥ 0,5 typowego tygodnia i (gdy suma < 1 typowego tygodnia) większość dni ze znakiem sumy."""
+    """Wyraźny kierunek tygodnia: |suma| ≥ 0,5 typowego tygodnia i (gdy suma < 1 typowego tygodnia) większość dni ze zmianą ma znak sumy
+    (v94: dni bez zmiany się nie liczą — fundusz, który tworzy jednostki raz w tygodniu, nie ma „dni w różne strony”)."""
     if not w or not typ or abs(w) < TR_DIR * typ:
         return False
-    return days is None or abs(w) >= TR_ALL * typ or sum(1 for x in days if x * w > 0) >= len(days) // 2 + 1
+    nz = [x for x in days or [] if x != 0]
+    return days is None or abs(w) >= TR_ALL * typ or sum(1 for x in nz if x * w > 0) >= len(nz) // 2 + 1
 
 
 def trend_state(vals, size, dates=None, span=None):
@@ -3590,7 +3626,7 @@ def wilson(k, n, z=1.96, n_eff=None):
 
 def _iso_weeks(dates, vals, today):
     """Wartości dzienne → pełne tygodnie kalendarzowe (pon–nd) od najstarszego: [(poniedziałek, suma, wartości dni)].
-    Tydzień z brakiem (None) jest pominięty, tydzień z dniem dzisiejszym (niezakończony) też."""
+    Tydzień z brakiem (None), tydzień z dniem dzisiejszym (niezakończony) i niepełny pierwszy tydzień historii (mniej niż 4 dni) są pomijane."""
     wk = {}
     for d, v in zip(dates, vals):
         dd = _d(d)
@@ -3598,7 +3634,8 @@ def _iso_weeks(dates, vals, today):
             continue
         wk.setdefault(dd - datetime.timedelta(days=dd.weekday()), []).append(v)
     cur = today - datetime.timedelta(days=today.weekday())
-    return [(m, sum(v), v) for m, v in sorted(wk.items()) if m < cur and all(_isnum(x) for x in v)]
+    W = [(m, sum(v), v) for m, v in sorted(wk.items()) if m < cur and all(_isnum(x) for x in v)]
+    return W[1:] if W and len(W[0][2]) < 4 else W
 
 
 def trend_persist(dates, vals, today, weeks=None):
@@ -3729,22 +3766,29 @@ def _cftc_roll(ds):
 
 
 def fund_split(a, b):
-    """v93: podział jednostek między dniami a i b ([data, NAV, liczba jednostek]): 1 = bez podziału; k (np. 2 albo 1/2) = podział,
-    gdy NAV zmienia się o ponad 40%, a wartość funduszu (NAV × liczba) prawie nie; 0 = skok bez wyjaśnienia (dzień pomijany)."""
+    """v93/v94: podział jednostek między dniami a i b ([data, NAV, liczba jednostek]): 1 = zwykły dzień; k (2, 3, 3/2, 1/2 …) = podział,
+    gdy liczba jednostek zmienia się o prosty ułamek, a wartość funduszu (NAV × liczba) prawie nie; 0 = skok bez wyjaśnienia (dzień pomijany)."""
     nr, sr = b[1] / a[1], b[2] / a[2]
-    if 0.6 < nr < 1.6:
-        return 1
-    if not 0.8 < nr * sr < 1.25:
+    if abs(sr - 1) > 0.15 and abs(nr * sr - 1) < 0.1:
+        for q in (2, 3, 4, 5, 10, 1.5, 4 / 3, 1.25):
+            for k in (q, 1 / q):
+                if abs(sr / k - 1) < 0.05:
+                    return k
         return 0
-    k = round(sr) if sr >= 1 else (1 / round(1 / sr) if round(1 / sr) else 0)
-    return k if k not in (0, 1) else 0
+    return 1 if 0.6 < nr < 1.6 and 1 / 3 < sr < 3 else 0
+
+
+def _fund_rows(h):
+    """Poprawne wiersze historii bez wierszy powtórzonych (ten sam NAV i ta sama liczba jednostek — np. dzień wolny w USA w pliku złota)."""
+    h = [r for r in h or [] if isinstance(r, list) and len(r) == 3 and _d(r[0]) and _isnum(r[1]) and _isnum(r[2]) and r[1] > 0 and r[2] > 0]
+    return h[:1] + [b for a, b in zip(h, h[1:]) if not (b[1] == a[1] and b[2] == a[2])]
 
 
 def fund_flows(h):
     """Historia funduszu [[data, NAV, liczba jednostek]] → {data: przepływ w mln USD} = zmiana liczby jednostek × NAV z tego dnia;
     w dniu podziału jednostek poprzednia liczba mnożona przez współczynnik podziału (v93); skok bez wyjaśnienia — dzień pominięty."""
     out = {}
-    h = [r for r in h or [] if isinstance(r, list) and len(r) == 3 and _d(r[0]) and _isnum(r[1]) and _isnum(r[2]) and r[1] > 0 and r[2] > 0]
+    h = _fund_rows(h)
     for a, b in zip(h, h[1:]):
         k = fund_split(a, b)
         if k:
@@ -3753,17 +3797,22 @@ def fund_flows(h):
 
 
 def fund_group(fu, members):
-    """Grupa funduszy → (daty, przepływy, aktywa w mln USD): suma dnia tylko gdy każdy fundusz grupy ma ten dzień; do ostatniego wspólnego dnia."""
+    """Grupa funduszy → (daty, przepływy, aktywa w mln USD) do ostatniego wspólnego dnia. v94: dzień, którego nie ma któryś fundusz
+    (np. inny kalendarz), nie przerywa serii — przepływy pozostałych funduszy z tego dnia dodajemy do najbliższego wspólnego dnia (sumy dokładne)."""
     F, H = [], []
     for t in members:
-        h = ((fu or {}).get(t) or {}).get('h') or []
+        h = _fund_rows(((fu or {}).get(t) or {}).get('h') or [])
         fl = fund_flows(h)
         if not fl:
             return [], [], None
         F.append(fl); H.append(h[-1])
     end = min(max(f) for f in F)
-    days = sorted({d for f in F for d in f if d <= end})
-    vals = [sum(f[d] for f in F) if all(d in f for f in F) else None for d in days]
+    days, vals, pend = [], [], 0.0
+    for d in sorted({d for f in F for d in f if d <= end}):
+        if all(d in f for f in F):
+            days.append(d); vals.append(sum(f[d] for f in F) + pend); pend = 0.0
+        else:
+            pend += sum(f[d] for f in F if d in f)
     aum = sum(r[1] * r[2] for r in H) / 1e6
     return days, vals, aum
 
@@ -3906,7 +3955,16 @@ def _tr_flows(S):
         for gid, members in TR_FE:
             ds, v, aum = fund_group(fu, members)
             if ds:
-                out.append(_tr_row(gid, 'fe', 'flow', 5, ds, v, hold=aum, span=TR_SPAN))
+                r = _tr_row(gid, 'fe', 'flow', 5, ds, v, hold=aum, span=TR_SPAN)
+                if r:
+                    iss = {(fu.get(t) or {}).get('iss') for t in members}   # v94: źródło grupy — wydawcy jej funduszy
+                    r['iss'] = 'both' if len(iss) > 1 else (next(iter(iss)) or '')
+                    lasts = {t: ((fu.get(t) or {}).get('h') or [[None]])[-1][0] for t in members}
+                    top = max(x for x in lasts.values() if x)
+                    for t, x in lasts.items():
+                        if x and _bdays(_d(x), _d(top)) >= 5:
+                            META['notes'].append(f'trendy {gid}: {t} ma dane tylko do {x} — grupa liczona do tego dnia')
+                out.append(r)
         return out
 
     for name, fn in (('fundusze', funds), ('in', india), ('tw/hk', twhk), ('th', thai), ('br', brazil), ('tr', turkey), ('jp', japan), ('mx', mexico),
@@ -3966,11 +4024,11 @@ def _tr_prices(S):
         for gid, members in TR_FE:
             if gid not in TR_FP:
                 continue
-            best = None
-            for t in members:
-                h = [r for r in ((fu.get(t) or {}).get('h') or []) if isinstance(r, list) and len(r) == 3 and _d(r[0]) and _isnum(r[1]) and r[1] > 0 and _isnum(r[2])]
-                if len(h) >= 26 and (best is None or h[-1][1] * h[-1][2] > best[1][-1][1] * best[1][-1][2]):
-                    best = (t, h)
+            cand = [(t, _fund_rows((fu.get(t) or {}).get('h'))) for t in members]
+            cand = [(t, h) for t, h in cand if len(h) >= 5 * 21 + 1]        # v94: tylko fundusz z historią na cały rachunek i z bieżącą datą
+            newest = max((h[-1][0] for _, h in cand), default=None)
+            cand = [(t, h) for t, h in cand if _bdays(_d(h[-1][0]), _d(newest)) <= 3]
+            best = max(cand, key=lambda c: c[1][-1][1] * c[1][-1][2], default=None)
             if not best:
                 continue
             h = best[1][-(5 * (TR_PX_WEEKS + 1) + 1):]
@@ -4161,7 +4219,7 @@ def main():
         save('surowce', prev_su); META['ok']['surowce'] = 'cached'
     else:
         try:
-            save('surowce', build_surowce()); META['ok']['surowce'] = True
+            save('surowce', build_surowce(prev=prev_su)); META['ok']['surowce'] = True
         except Exception as e:
             META['errors'].append(mask(f'CFTC surowce: {e}')); META['ok']['surowce'] = False
             if prev_su: save('surowce', prev_su)

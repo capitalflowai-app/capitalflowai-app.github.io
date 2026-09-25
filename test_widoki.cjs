@@ -1891,7 +1891,7 @@ test('v90: TRENDY — panel funduszy ETF w USA, stany „prawie nic”, wiersz n
   assert.ok(D.pl['trd.m.6'].includes('fundusze rynków wschodzących tworzą jednostki rzadko'), 'dni z zerem w funduszach EM opisane jako pomiar');
   assert.ok(html.includes("trdPanel('e',F.filter(r=>r.g==='fe'))+") && html.indexOf("trdPanel('e'") < html.indexOf("trdPanel('f'"), 'panel funduszy przed krajami');
   assert.ok(html.includes("'in_down','in_stop','out_up'") && html.includes("['in_down','in_stop','out_down','out_stop'].includes(r.st)"));
-  assert.ok(html.includes("'www.ssga.com · www.ishares.com','src.f.d','src.l.1d',") && html.includes("fe:'fundusze ETF'") && html.includes("fe:()=>typeof TRD!=='undefined'&&TRD.data&&TRD.data.at"));
+  assert.ok(html.includes("'www.ssga.com · www.ishares.com · www.blackrock.com','src.f.d','src.l.1d',") && html.includes("fe:'fundusze ETF'") && html.includes("fe:()=>typeof TRD!=='undefined'&&TRD.data&&TRD.data.at"));
   const bad = /kupuj(?![a-ząćęłńóśźż])|sprzedawaj(?![a-ząćęłńóśźż])|warto kupi|okazj|prognozuj|rekomend|\btrwa(?![a-ząćęłńóśźż])|odbic|\bbuy\b|\bsell\b|forecast|recommend/i;
   for (const l of ['pl', 'en']) for (const k in D[l]) if (/^trd\.(sn|s|e)\b/.test(k)) assert.doesNotMatch(D[l][k], bad, `${l} ${k}`);
 });
@@ -1930,8 +1930,31 @@ test('v93: TRENDY — ceny jednostek funduszy (obligacje, metale, sektory) w pan
   f.trdApply({at: '2026-09-25T10:00:00Z', f: [], b: [], p: [{id: 'fp_gold', g: 'fp', sym: 'GLD', date: '2026-09-24', w: -1.2, pr: 4.1, typ: 1.8, st: 'up_fade'},
     {id: 'fp_bad', g: 'fp', sym: '<x>', date: '2026-09-24', w: 1, pr: 1, typ: 1, st: 'flat'}]});
   const h = el.innerHTML;
-  assert.ok(h.includes('<h3 class="mtxt"><b>trd.x.fp</b></h3>') && h.includes('<span>trd.s.fe_gold</span>') && h.includes('trd.n.nav{"s":"GLD"}') && h.includes('trd.n.typ{"v":"1.8"}'));
+  assert.ok(h.includes('<h3 class="mtxt"><b>trd.x.fp</b></h3>') && h.includes('<span>trd.s.fe_gold</span>') && h.includes('trd.n.nav0{"s":"GLD"}') && h.includes('trd.n.typ{"v":"1.8"}'));
   assert.ok(!h.includes('fp_bad') && !h.includes('<x>'), 'dziwny symbol z pliku — pominięty');
   const a = 'const EXTRA84=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   assert.ok(D.pl['trd.x.fp'] && D.en['trd.n.nav'] && D.pl['trd.x.sub'].includes('State Street'));
+});
+
+test('v94: TRENDY po drugim przeglądzie — wynik funduszy ETF widoczny, źródło grupy, kafel „osłabł”, opis w katalogu źródeł', () => {
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */');
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const el = {innerHTML: '', querySelectorAll() { return []; }, querySelector() { return null; }};
+  const f = new Function('$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+    html.slice(b0, b1) + '\nreturn {trdApply};')(() => el, T, {mode: 'trendy'}, () => Promise.resolve(null), s => String(s), v => v > 0 ? 'pos' : v < 0 ? 'neg' : '',
+    d => '', v => String(v), v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d = 0) => v.toFixed(d), (v, d) => v.toFixed(d) + '%', n => 'ses', s => s, 'pl', {pl: 'pl-PL'}, {pl: {}, en: {}});
+  const row = o => Object.assign({g: 'fe', m: 'flow', sz: 5, cur: 'USD', date: '2026-09-24', age: 1, n: 8, lc: false, s: 1, sg: 1, x: false}, o);
+  f.trdApply({at: '2026-09-25T10:00:00Z', p: [{id: 'fp_gold', g: 'fp', sym: 'GLD', date: '2026-09-24', w: -2, pr: 1, typ: 4, st: 'dn_new'}],
+    f: [row({id: 'fe_tech', st: 'in_rev', w: 552.6, base: -173, d: 1.7, du: 725.7, iss: 'ssga'}), row({id: 'fe_gold', st: 'in_stop', w: -229.5, base: 1423, d: -1.5, du: -1652.8, iss: 'both'})],
+    b: [{id: 'fe', k: 307, n: 536, weeks: 57, from: '2025-08-11', to: '2026-09-14', ci: [44.4, 69.3]}]});
+  const h = el.innerHTML;
+  assert.ok(h.includes('<span>trd.b.fe</span>') && h.includes('trd.b.wk{"w":57}'), 'wynik funduszy ETF pokazany, z liczbą tygodni');
+  assert.ok(h.includes('trd.src.fe.ssga') && h.includes('trd.src.fe.both'), 'źródło grupy — wydawcy jej funduszy');
+  assert.ok(h.includes('trd.k.fade</span></div><div class="k-val">−230 trd.u.m USD</div>') && h.includes('<span class="dlt na">•</span><span class="ksrc" title="trd.sn.in_stop">'), 'kafel „osłabł” przy *_stop — znak neutralny');
+  assert.ok(h.includes('trd.n.nav0{"s":"GLD"}'), 'złoto: bez wzmianki o dywidendzie');
+  const a = 'const EXTRA85=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(D.pl['trd.x.sub'].includes('Obligacji tu nie ma') && D.pl['g.hs.fe'].includes('niekomercyjnym') && D.pl['trd.s.fe_util'].includes('USA'));
+  assert.ok(html.includes("<summary><b>State Street (SPDR) i iShares (BlackRock) — fundusze ETF w USA</b>") && html.includes('<summary><b>CFTC — surowce (raport disaggregated)</b>'));
+  assert.ok(html.includes("['State Street Global Advisors (SPDR)','https://www.ssga.com'],['iShares by BlackRock','https://www.ishares.com']"));
+  assert.ok(html.includes("'www.ssga.com · www.ishares.com · www.blackrock.com'"));
 });

@@ -3390,7 +3390,7 @@ class FunduszeV90(unittest.TestCase):
                         'totalNetAssetsFund': {'r': 9e9}, 'totalNetAssetsFundAsOf': {'r': 20260923}},
              '1': {'localExchangeTicker': 'XYZ', 'navAmount': {'r': 1.0}, 'navAmountAsOf': {'r': 20260924}, 'totalNetAssetsFund': {'r': 1.0}, 'totalNetAssetsFundAsOf': {'r': 20260924}}}
         s = zd.parse_ishares_screener(j)
-        self.assertEqual(s, {'IVV': ('239726', '2026-09-24', 770.800542, 1144550001)}, 'różne daty NAV i aktywów — bez liczby; spoza listy — pominięty')
+        self.assertEqual(s, {'IVV': ('239726', '2026-09-24', 770.800542, 1144550000)}, 'różne daty NAV i aktywów — bez liczby; spoza listy — pominięty; v94: pełne tysiące')
 
     def test_parse_ssga(self):
         rows = {1: {1: 'Fund Name:', 2: 'SPDR® Gold Shares'}, 2: {1: 'Ticker Symbol:', 2: 'GLD®'}, 4: {1: 'Date', 2: 'NAV', 3: 'Shares Outstanding', 4: 'Total Net Assets'}}
@@ -3436,9 +3436,9 @@ class FunduszeV90(unittest.TestCase):
                 mock.patch.object(zd, 'FUND_SLEEP', 0), mock.patch.object(zd.time, 'sleep'):
             out = zd.build_fundusze(None)
         self.assertEqual(sum('get-fund-document' in u for u in calls), 3, 'najwyżej 3 pełne historie na przebieg')
-        full = [t for t, f in out['f'].items() if len(f['h']) > 1]
+        full = [t for t, f in out['f'].items() if len(f.get('h') or []) > 1]
         self.assertEqual(len(full), 3); self.assertEqual(out['f'][full[0]]['h'][-1], ['2026-09-25', 50.0, 2000000], 'dzień z zestawienia dopisany')
-        self.assertEqual(len(out['f']), 22, 'pozostałe fundusze iShares — jeden dzień z zestawienia (bez przepływu), do uzupełnienia w kolejnych przebiegach')
+        self.assertEqual(sum(1 for f in out['f'].values() if f.get('h')), 22, 'pozostałe fundusze iShares — jeden dzień z zestawienia (bez przepływu), do uzupełnienia w kolejnych przebiegach')
         self.assertTrue(any(e.startswith('fundusze ETF: 15 problemów') for e in zd.META['errors']), 'State Street niedostępny — błąd w meta')
         prev = out; prev['f']['SPY'] = {'iss': 'ssga', 'at': (now - datetime.timedelta(hours=1)).isoformat(), 'h': [['2026-09-24', 1.0, 1]]}
         calls.clear()
@@ -3538,22 +3538,100 @@ class CenyFunduszyV93(unittest.TestCase):
         days = [d for d in (datetime.date(2025, 9, 1) + datetime.timedelta(days=i) for i in range(390)) if d.weekday() < 5][-280:]
         mk = lambda nav0, sh, step: [[d.isoformat(), nav0 + step * i, sh] for i, d in enumerate(days)]
         fu = {'GLD': {'h': mk(300.0, 400, 0.1)}, 'IAU': {'h': mk(60.0, 700, 0.02)}, 'GLDM': {'h': mk(70.0, 10, 0.02)},
-              'TLT': {'h': mk(90.0, 500, -0.01)}, 'XLK': {'h': mk(200.0, 600, 0.0)}}
+              'TLT': {'h': mk(90.0, 500, -0.01)}, 'XLK': {'h': mk(200.0, 600, 0.01)}}
         fu['XLK']['h'][-3][1] = 100.0                                   # skok NAV o połowę — podział jednostek, bez wiersza
         with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 10, 0, tzinfo=datetime.timezone.utc)):
             zd.META['notes'].clear()
             out = zd.build_trendy({'fundusze': {'f': fu}})
         by = {r['id']: r for r in out['p']}
         self.assertEqual((by['fp_gold']['sym'], by['fp_gold']['g']), ('GLD', 'fp'), 'największy fundusz grupy (300 × 400 > 60 × 700)')
-        self.assertIn('fp_ustl', by); self.assertNotIn('fp_tech', by); self.assertNotIn('fp_us', by, 'akcje USA są już na liście cen krajów (SPY)')
+        self.assertNotIn('fp_ustl', by, 'v94: bez obligacji — wypłata odsetek obniża NAV'); self.assertNotIn('fp_tech', by); self.assertNotIn('fp_us', by, 'akcje USA są już na liście cen krajów (SPY)')
         self.assertTrue(any(n.startswith('trendy XLK: skok NAV bez podziału') for n in zd.META['notes']))
         fu2 = {'XLE': {'h': [[d.isoformat(), (90.0 if i < 200 else 45.0) + 0.01 * i, 300 if i < 200 else 600] for i, d in enumerate(days)]}}
         with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 10, 0, tzinfo=datetime.timezone.utc)):
             r = {x['id']: x for x in zd.build_trendy({'fundusze': {'f': fu2}})['p']}['fp_energy']
         self.assertTrue(abs(r['pr']) < 5 and abs(r['w']) < 5, 'podział 2:1 nie jest spadkiem ceny o połowę')
         self.assertEqual(zd.fund_split([0, 90.0, 300], [0, 45.0, 600]), 2); self.assertEqual(zd.fund_split([0, 45.0, 600], [0, 90.0, 300]), 0.5)
-        self.assertEqual(by['fp_ustl']['date'], days[-1].isoformat())
+        self.assertEqual(by['fp_gold']['date'], days[-1].isoformat())
         self.assertEqual([b['id'] for b in out['b'] if b['id'] == 'px'], [], 'ceny funduszy nie wchodzą do „14 rynków akcji”')
+
+
+class FunduszeV94(unittest.TestCase):
+    """v94 (po drugim przeglądzie): zaokrąglenie liczby jednostek z zestawienia, luka w sesjach naprawiana pełnym plikiem, dni innego
+    kalendarza w grupie, podziały 3:2, dni bez zmian w regule większości, krótka historia surowców, zły format daty CFTC."""
+
+    def test_screener_rounding_and_rows(self):
+        j = {'1': {'localExchangeTicker': 'EFA', 'portfolioId': '1', 'navAmount': {'r': 90.0}, 'navAmountAsOf': {'r': 20260924},
+                   'totalNetAssetsFund': {'r': 90.0 * 739199996.8}, 'totalNetAssetsFundAsOf': {'r': 20260924}}}
+        self.assertEqual(zd.parse_ishares_screener(j)['EFA'][3], 739200000, 'kilka jednostek różnicy z zaokrąglenia NAV — liczba z pełnymi tysiącami')
+        h = [['2026-09-04', 10.0, 100], ['2026-09-07', 10.0, 100], ['2026-09-08', 11.0, 110]]
+        self.assertEqual(zd._fund_rows(h), [h[0], h[2]], 'powtórzony wiersz (dzień wolny w USA w pliku złota) pominięty')
+
+    def test_splits_and_clear(self):
+        self.assertEqual(zd.fund_split([0, 30.0, 300], [0, 20.0, 450]), 1.5, 'podział 3:2')
+        self.assertEqual(zd.fund_split([0, 20.0, 450], [0, 30.0, 300]), 1 / 1.5, 'scalenie 2:3')
+        self.assertEqual(zd.fund_split([0, 30.0, 300], [0, 30.0, 3000]), 0, 'liczba ×10 przy tym samym NAV — błąd pliku, dzień pominięty')
+        self.assertEqual(zd.fund_split([0, 30.0, 300], [0, 30.3, 360]), 1, 'duży, ale zwykły napływ (+20%)')
+        self.assertTrue(zd._tr_clear(300, 400, [300, 0, 0, 0, 0]), 'jeden dzień tworzenia jednostek i dni bez zmian — wyraźny kierunek')
+        self.assertFalse(zd._tr_clear(300, 400, [500, -50, -50, -50, -50]), 'dni ze zmianą w różne strony — bez wyraźnego kierunku')
+        W = zd._iso_weeks(['2026-08-07', '2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14'], [1, 1, 1, 1, 1, 1], datetime.date(2026, 9, 1))
+        self.assertEqual([w[0].isoformat() for w in W], ['2026-08-10'], 'niepełny pierwszy tydzień historii (1 dzień) pominięty')
+
+    def test_group_other_calendar(self):
+        mk = lambda rows: {'h': rows}
+        fu = {'GLD': mk([['2026-09-03', 10.0, 100], ['2026-09-04', 10.0, 110], ['2026-09-07', 10.1, 110], ['2026-09-08', 10.0, 130]]),
+              'IAU': mk([['2026-09-03', 5.0, 100], ['2026-09-04', 5.0, 90], ['2026-09-08', 5.0, 120]])}
+        ds, v, _ = zd.fund_group(fu, ('GLD', 'IAU'))
+        self.assertEqual(ds, ['2026-09-04', '2026-09-08'], 'dzień tylko w jednym pliku nie robi luki w grupie')
+        self.assertAlmostEqual(v[1], ((130 - 110) * 10.0 + (120 - 90) * 5.0) / 1e6, msg='suma przez dzień wolny — dokładna')
+
+    def test_gap_repaired_by_backfill(self):
+        now = datetime.datetime(2026, 9, 25, 12, 0, tzinfo=datetime.timezone.utc)
+        spy = [[d, 700.0 + i, 1000000 + i] for i, d in enumerate(['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24'])]
+        prev = {'scr_at': None, 'f': {t: {'iss': 'ssga', 'at': (now - datetime.timedelta(hours=1)).isoformat(), 'h': spy} for t in zd.FUND_SSGA}}
+        hist = [['2026-09-%02d' % d, 50.0, 1000000] for d in (14, 15, 16, 17, 18, 21, 22)]
+        prev['f']['EFA'] = {'iss': 'ishares', 'pid': '1', 'bf_done': True, 'h': hist}
+        scr = {'1': {'localExchangeTicker': 'EFA', 'portfolioId': '1', 'navAmount': {'r': 50.0}, 'navAmountAsOf': {'r': 20260924},
+                     'totalNetAssetsFund': {'r': 50.0 * 1200000}, 'totalNetAssetsFundAsOf': {'r': 20260924}}}
+        doc = FunduszeV90.xml([(datetime.date(2026, 9, d).strftime('%b %d, %Y'), 50.0, 1000000 + 50000 * (d - 21)) for d in (24, 23, 22, 21, 18, 17, 16, 15, 14, 11, 10, 9, 8, 4, 3, 2, 1)
+                               ] + [(datetime.date(2026, 8, d).strftime('%b %d, %Y'), 50.0, 1000000) for d in (31, 28, 27, 26, 25)])
+        for fail in (False, True):
+            calls = []
+            def fake(url, timeout=60, headers=None):
+                calls.append(url)
+                if 'product-screener' in url:
+                    return json.dumps(scr).encode()
+                if fail:
+                    raise RuntimeError('503')
+                return doc
+            zd.META['notes'].clear(); zd.META['errors'].clear()
+            with mock.patch.object(zd, 'get_bytes', side_effect=fake), mock.patch.object(zd, '_now_utc', return_value=now), \
+                    mock.patch.object(zd, 'FUND_SLEEP', 0), mock.patch.object(zd.time, 'sleep'):
+                out = zd.build_fundusze(prev)
+            e = out['f']['EFA']
+            self.assertEqual(sum('get-fund-document' in u for u in calls), 1, 'luka 22.09 → 24.09 (brak 23.09) — pobranie pełnego pliku')
+            if fail:
+                self.assertEqual(e['h'][-1][0], '2026-09-22', 'bez pełnego pliku dzień z zestawienia nie jest dopisywany nad luką')
+                self.assertTrue(e.get('bf_need') and e.get('bf_err_at'))
+            else:
+                self.assertEqual([r[0] for r in e['h'][-3:]], ['2026-09-22', '2026-09-23', '2026-09-24'])
+                self.assertNotIn('bf_need', e)
+
+    def test_surowce_short_history_and_bad_date(self):
+        rows = SurowceV92.row('088691', '2026-09-15', 1000)
+        rows[zd.CFTCD_COLS.index('Report_Date_as_YYYY-MM-DD')] = '09/15/2026'
+        p, bad = zd.parse_cftcd(SurowceV92().text([rows]))
+        self.assertEqual((p, bad), ({}, ['088691 09/15/2026 (data)']), 'nieznany format daty — wiersz pominięty, nie wyjątek')
+        week = SurowceV92().text([SurowceV92.row('088691', '2026-09-15', 1000)], header=False).encode()
+        prev = {'markets': {'gold': {'hist': {'dates': ['2026-06-%02d' % d for d in range(1, 14)]}}}}
+        def fetch(u):
+            if u == zd.CFTCD_WEEK_URL:
+                return week
+            raise RuntimeError('timeout')
+        zd.META['errors'].clear()
+        with self.assertRaises(RuntimeError):
+            zd.build_surowce(fetch=fetch, today=datetime.date(2026, 9, 25), prev=prev)   # bez pliku rocznego: 1 raport zamiast 13 — zostaje poprzedni plik
+        self.assertTrue(any('rok 2026' in e for e in zd.META['errors']))
 
 
 if __name__ == '__main__':
