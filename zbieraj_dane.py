@@ -1824,6 +1824,8 @@ TW_FX_OBS = 200           # v95: tyle ostatnich kursów FRED (ok. 9 miesięcy) �
 NSDL_ARCH = 'https://www.fpi.nsdl.co.in/web/Reports/Archive.aspx'   # v95: archiwum NSDL — pełne miesiące wstecz (formularz, bez klucza)
 NSDL_ARCH_MONTHS = 12     # v95: tyle pełnych miesięcy wstecz
 NSDL_ARCH_MAX = 3         # v95: najwyżej tyle miesięcy archiwum na jeden przebieg
+TW_BACK_MAX = 12          # v95.1: najwyżej tyle starszych dni na źródło na przebieg (przebieg co godzinę ma już ok. 11 z 15 min limitu)
+BACK_BUDGET = 40          # v95.1: sekund na uzupełnianie wstecz jednego źródła w przebiegu — potem przerwa do następnego przebiegu
 NSDL_MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
 OBCE_KEEP = 300           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg; v89: 300 — tło dla TRENDÓW)
 NSDL_CATS = {'equity': 'eq', 'debt-general limit': 'debt', 'debt-vrr': 'debt', 'debt-far': 'debt', 'hybrid': 'hyb',
@@ -1979,7 +1981,7 @@ def _ym_add(ym, k):
 def nsdl_month(ym):
     """v95: archiwum NSDL — wszystkie dni raportu jednego miesiąca (ta sama tabela co bieżący miesiąc). Suma dni musi się zgadzać
     z sumą miesiąca podaną przez NSDL pod tabelą (±1 mln USD) — inaczej miesiąc odrzucony (ponowimy w następnym przebiegu)."""
-    page = get_bytes(NSDL_ARCH, timeout=60).decode('utf-8', 'replace')
+    page = get_bytes(NSDL_ARCH, timeout=30).decode('utf-8', 'replace')
     form = {}
     for n in ('__VIEWSTATE', '__VIEWSTATEGENERATOR', '__EVENTVALIDATION'):
         m = re.search(r'name="%s"[^>]*value="([^"]*)"' % n, page)
@@ -1992,7 +1994,7 @@ def nsdl_month(ym):
     form.update({'__EVENTTARGET': 'btnSubmit1', '__EVENTARGUMENT': '', 'hdnDate': f'{last.day:02d}-{NSDL_MONTHS[mo - 1][:3]}-{y}',
                  'HdnValexceldata': '', 'hdnFlag': ''})
     tot = {}
-    rows = [r for r in parse_nsdl_html(post_bytes(NSDL_ARCH, form, timeout=90).decode('utf-8', 'replace'), tot)
+    rows = [r for r in parse_nsdl_html(post_bytes(NSDL_ARCH, form, timeout=45).decode('utf-8', 'replace'), tot)
             if r[0][:7] == ym]
     if not rows:
         raise RuntimeError('brak dni tego miesiąca')
@@ -2010,7 +2012,10 @@ def nsdl_part(prev_in):
     m = _rows(prev_in)
     want = [_ym_add(rows[-1][0][:7], -i) for i in range(1, NSDL_ARCH_MONTHS + 1)]   # v95: pełne miesiące przed bieżącym
     arch = {x for x in ((prev_in or {}).get('arch') or []) if isinstance(x, str) and x in want}
+    t0 = time.monotonic()
     for ym in [x for x in want if x not in arch][:NSDL_ARCH_MAX]:
+        if ym != want[0] and time.monotonic() - t0 > BACK_BUDGET:
+            break                                        # v95.1: reszta w następnym przebiegu
         try:
             got = nsdl_month(ym)
         except Exception as e:
@@ -2030,9 +2035,12 @@ def twse_part(prev_tw, key):
     empty = {x for x in prev_tw.get('empty', []) if isinstance(x, str) and x >= lim}
     fails, bfails = [], []
     recent = tw_dates(set(have), empty, now_tpe, first=not have)[-TWSE_MAX:]
-    back = tw_back(set(have), empty, now_tpe, skip=set(recent))[:max(0, TWSE_MAX - len(recent))]   # v95: historia wstecz
+    back = tw_back(set(have), empty, now_tpe, skip=set(recent))[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz
+    t0 = time.monotonic()
     for iso in recent + back:
         bad = bfails if iso in back else fails
+        if iso in back and time.monotonic() - t0 > BACK_BUDGET:
+            break                                        # v95.1: ostatnie dni zawsze, starsze — tylko w budżecie czasu
         time.sleep(TWSE_SLEEP)
         try:
             j = get_json(TWSE_URL.format(d=iso.replace('-', '')))
@@ -2134,11 +2142,12 @@ def hkex_part(prev_hk, key):
     for k in [k for k, r in have.items() if len(r) > 3 and r[2] == 0 and r[3] == 0]:
         del have[k]; empty.add(k)   # v73: dawny zapis „sesja z zerem” w dniu bez handlu → dzień bez sesji
     recent = tw_dates(set(have), empty, now_hk, first=not have)[-TWSE_MAX:]   # te same zasady dni co dla Tajwanu (UTC+8)
-    back = tw_back(set(have), empty, now_hk, lo, set(recent))[:max(0, TWSE_MAX - len(recent))]   # v95: historia wstecz, od najnowszego
+    back = tw_back(set(have), empty, now_hk, lo, set(recent))[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz, od najnowszego
+    t0 = time.monotonic()
     for iso in recent + back:
         old = iso in back
-        if old and lo and iso <= lo:
-            continue
+        if old and (lo and iso <= lo or time.monotonic() - t0 > BACK_BUDGET):
+            continue                                     # v95.1: za końcem archiwum albo po budżecie czasu — w następnym przebiegu
         time.sleep(HKEX_SLEEP)
         try:
             r = parse_hkex(get_bytes(HKEX_URL.format(d=iso.replace('-', '')), timeout=30).decode('utf-8', 'replace'))

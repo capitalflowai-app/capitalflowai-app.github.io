@@ -3743,14 +3743,14 @@ class HistoriaV95(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'sleep', lambda s: None), \
                 mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
             out = zd.twse_part(prev, 'KLUCZ')
-        self.assertEqual(len(asked), zd.TWSE_MAX); self.assertEqual(asked[:2], ['2026-09-24', '2026-09-25'], 'najpierw ostatnie dni')
-        self.assertEqual((asked[2], asked[-1]), ('2026-09-10', '2026-08-04'), 'potem wstecz, od najnowszego')
+        self.assertEqual(len(asked), 2 + zd.TW_BACK_MAX); self.assertEqual(asked[:2], ['2026-09-24', '2026-09-25'], 'najpierw ostatnie dni')
+        self.assertEqual((asked[2], asked[-1]), ('2026-09-10', '2026-08-26'), 'potem wstecz, od najnowszego, najwyżej 12 dni')
         days = {r[0] for r in out['d']}
         self.assertIn('2026-09-09', out['empty']); self.assertNotIn('2026-09-10', out['empty']); self.assertNotIn('2026-09-24', out['empty'])
-        self.assertTrue({'2026-08-04', '2026-09-08', '2026-09-25'} <= days); self.assertFalse({'2026-09-10', '2026-09-24'} & days)
+        self.assertTrue({'2026-08-26', '2026-09-08', '2026-09-25'} <= days); self.assertFalse({'2026-09-10', '2026-09-24'} & days)
         self.assertTrue(any(e.startswith('TWSE: 1 dni') and 'Busy' in e for e in zd.META['errors']))
         self.assertTrue(any(n.startswith('TWSE historia wstecz: 1 dni') for n in zd.META['notes']))
-        self.assertEqual({r[0]: r[5] for r in out['d']}['2026-08-04'], round(-32964.6 / 31.0, 1), 'starszy dzień też przeliczony na USD')
+        self.assertEqual({r[0]: r[5] for r in out['d']}['2026-08-26'], round(-32964.6 / 31.0, 1), 'starszy dzień też przeliczony na USD')
 
     def test_hkex_backfill_404_sets_floor_without_error(self):
         prev = {'d': [[d, 1.0, 2.0, 1.0, 2] for d in _wdays('2026-09-11', '2026-09-24')], 'empty': []}
@@ -3777,6 +3777,32 @@ class HistoriaV95(unittest.TestCase):
             out2 = zd.hkex_part(out, 'KLUCZ')
         self.assertEqual(asked, ['2026-09-25'], 'następny przebieg nie pyta o dni sprzed końca archiwum')
         self.assertEqual(out2['lo'], '2026-08-31')
+
+    def test_backfill_time_budget_keeps_recent_days(self):
+        """v95.1: przebieg co godzinę ma limit 15 min — po 40 s uzupełniania wstecz przerwa do następnego przebiegu; ostatnie dni zawsze."""
+        clock = iter(range(0, 10000, 15))                  # każde sprawdzenie czasu = +15 s
+        prev = {'d': [[d, 1.0, 0, 0, 0] for d in _wdays('2026-09-11', '2026-09-23')], 'empty': []}
+        asked = []
+
+        def gj(url, headers=None):
+            if 'DEXTAUS' in url:
+                return {'observations': []}
+            day = url.split('dayDate=')[1][:8]; asked.append(f'{day[:4]}-{day[4:6]}-{day[6:]}')
+            return ObceV54.tw(asked[-1])
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                mock.patch.object(zd.time, 'monotonic', lambda: next(clock)), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            zd.twse_part(prev, '')
+        self.assertEqual(asked, ['2026-09-24', '2026-09-25', '2026-09-10', '2026-09-09'], 'ostatnie dni, potem tylko 2 starsze (15 s, 30 s; 45 s > 40 s)')
+        months = []
+
+        def month(ym):
+            months.append(ym); return [[ym + '-15', 1.0, 2.0, 0.0, 3.0, 95.0]]
+        clock = iter(range(0, 10000, 50))                  # każde sprawdzenie = +50 s
+        with mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: ObceV54.NSDL.encode()), mock.patch.object(zd, 'nsdl_month', month), \
+                mock.patch.object(zd.time, 'monotonic', lambda: next(clock)):
+            out = zd.nsdl_part({'d': []})
+        self.assertEqual((months, out['arch']), (['2026-08'], ['2026-08']), 'pierwszy miesiąc zawsze, kolejne tylko w budżecie czasu')
 
     def test_brazil_asks_for_more_than_a_year(self):
         self.assertGreaterEqual(zd.BCB_DAYS, 365)
