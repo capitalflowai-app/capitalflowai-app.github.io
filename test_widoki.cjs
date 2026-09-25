@@ -1465,3 +1465,14 @@ test('v76: UE: sumy tylko z kompletu 12 miesięcy, Polska zawsze widoczna, stars
   for (const l of ['pl', 'en']) for (const k of ['ue.t', 'ue.sub', 'ue.c.t12', 'ue.foot', 'ue.not', 'ue.src', 'g.hs.ue', 'fo.pol', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['inst.sub'].includes('kraje UE'));
 });
+
+// v77: poprawki po czwartym przeglądzie — uczciwe opisy „plus” i SAFE, przybliżenie kursu, wiersz USA po przyjściu TIC
+test('v77: przegląd i SAFE opisane zgodnie z danymi; TIC przerysowuje panel; opóźnienie MFW spójne', () => {
+  const x0 = html.indexOf('const EXTRA65='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA65='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['fo.sub', 'fo.foot', 'fo.ind', 'fo.jpn', 'fo.chn', 'sf.t', 'sf.sub', 'sf.not', 'tr.gd']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['fo.sub'].includes('transakcje mieszkańców') && !dict.pl['fo.sub'].includes('zagranica kupuje tam więcej'));
+  assert.ok(dict.pl['sf.sub'].includes('nie to samo co pieniądze przychodzące z zagranicy') && !dict.pl['sf.sub'].includes('napłynęło więcej walut'));
+  assert.ok(dict.pl['fo.foot'].includes('najbliższego wcześniejszego dnia'));
+  assert.ok(html.includes("renderTic();if(typeof renderInst==='function')renderInst();}"));
+  assert.ok(!html.includes('kraje publikują z opóźnieniem od jednego do dwóch kwartałów') && html.includes('kraje publikują od około 3 do 9 miesięcy po końcu kwartału'));
+});

@@ -2547,5 +2547,71 @@ class EurostatUE(unittest.TestCase):
         self.assertIn('geo=PL', zd.UE_URL); self.assertIn('lastTimePeriod=13', zd.UE_URL)
 
 
+class ReviewV77(unittest.TestCase):
+    """v77: czytnik .xlsx odporny na puste komórki i wiersze, tekst sformatowany, komórki bez adresu, system dat 1904;
+    CBRT — straż skali; obce.json pamięta stan i błędy części, widoczne także przy przebiegu z pamięci."""
+    NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def book(self, sheet, wbpr=''):
+        import io, zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as z:
+            z.writestr('xl/workbook.xml', f'<workbook {self.NS}>{wbpr}<sheets><sheet name="A &amp; B" sheetId="1" r:id="rId1"/></sheets></workbook>')
+            z.writestr('xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                                                      '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>')
+            z.writestr('xl/sharedStrings.xml', f'<sst {self.NS}><si><t>Item</t></si><si/><si><r><t>Rich</t></r><r><t xml:space="preserve"> text</t></r></si></sst>')
+            z.writestr('xl/worksheets/sheet1.xml', f'<worksheet {self.NS}><sheetData>{sheet}</sheetData></worksheet>')
+        return buf.getvalue()
+
+    def test_reader_empty_cells_rows_rich_text_and_1904(self):
+        sheet = ('<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" s="2"/><c r="C1"><v>46235</v></c></row><row r="2"/>'
+                 '<row r="3"><c r="A3" t="s"><v>2</v></c><c r="B3" t="s"><v>1</v></c><c t="inlineStr"><is><t>x&amp;y</t></is></c></row>')
+        rows = zd._xlsx_rows(self.book(sheet), 'A & B')
+        self.assertEqual(rows, {1: {1: 'Item', 3: '46235'}, 3: {1: 'Rich text', 2: '', 3: 'x&y'}}, 'pusta komórka nie przesuwa lipca/sierpnia')
+        with self.assertRaises(RuntimeError):
+            zd._xlsx_rows(self.book(sheet, '<workbookPr date1904="1"/>'), 'A & B')
+
+    def test_cbrt_scale_guard(self):
+        rows = [r if r[1] != 'NET TRANSACTIONS TOTAL (**)' else [None, r[1], -316010000.0, 393.81] for r in TurcjaV74.ROWS]
+        page = '<a href="/x/Securities+Statistics.zip?MOD=AJPERES">ZIP</a>'
+        z = TurcjaV74.zipped(None, rows)
+        with mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: page.encode() if url == zd.TCMB_PAGE else z):
+            with self.assertRaises(RuntimeError):
+                zd.tcmb_part(None)
+
+    def test_obce_part_status_kept_and_shown_on_cached_runs(self):
+        def boom(prev, key=''):
+            raise RuntimeError('HTTP Error 503')
+
+        def hk(prev, key):
+            zd.META['errors'].append('HKEX: 1 dni bez odpowiedzi, np. 2026-09-23: HTTP 404'); return {'d': [['2026-09-24', 1.0]]}
+        with mock.patch.object(zd, 'nsdl_part', lambda prev: {'d': [['2026-09-24', 1.0]]}), mock.patch.object(zd, 'twse_part', boom), \
+                mock.patch.object(zd, 'hkex_part', hk), mock.patch.object(zd, 'bcb_part', lambda prev: {'d': [['2026-09-18', 1.0]]}), \
+                mock.patch.object(zd, 'tcmb_part', lambda prev: {'d': [['2026-09-18', 1.0]]}):
+            out = zd.build_obce('', {})
+        self.assertEqual(out['ok'], {'in': True, 'tw': False, 'hk': True, 'br': True, 'tr': True})
+        self.assertEqual(out['errs']['tw'], ['TWSE: HTTP Error 503']); self.assertTrue(out['errs']['hk'][0].startswith('HKEX: 1 dni'))
+        zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
+        prev = dict(out, at=_iso(60))
+        offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
+                for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue')]
+        [p.start() for p in offs]
+        try:
+            with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                    mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), \
+                    mock.patch.object(zd, 'previous', lambda name: prev if name == 'obce' else None), \
+                    mock.patch.object(zd, 'build_obce', side_effect=AssertionError('bez zapytań')):
+                zd.main()
+        finally:
+            [p.stop() for p in offs]
+        self.assertIs(saved['obce'], prev); self.assertEqual(zd.META['ok']['obce'], 'cached')
+        self.assertIs(zd.META['ok']['obce_tw'], False); self.assertEqual(zd.META['ok']['obce_hk'], 'cached')
+        self.assertIn('TWSE: HTTP Error 503', zd.META['errors']); self.assertTrue(any(e.startswith('HKEX: 1 dni') for e in zd.META['errors']))
+
+
 if __name__ == '__main__':
     unittest.main()

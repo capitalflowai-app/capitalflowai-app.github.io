@@ -2077,6 +2077,12 @@ def tcmb_part(prev_tr):
     if not name:
         raise RuntimeError('brak pliku .xlsx w archiwum')
     new = parse_tcmb(_xlsx_rows(z.read(name), 'T1_En'))
+    big = [r[0] for r in new if any(v is not None and abs(v) > 1e5 for v in r[1:])]   # v77: tydzień > 100 mld USD = zła skala
+    if big:
+        raise RuntimeError(f'skala niezgodna ({big[-1]})')
+    gap = [r[0] for r in new if None not in r[1:6] and abs(r[1] - r[2] - r[3] - r[4] - r[5]) > 1]
+    if gap:
+        META['notes'].append('CBRT: razem ≠ suma składników w tygodniach: ' + ', '.join(gap))
     have = {k: list(v) for k, v in _rows(prev_tr).items()}
     have.update({r[0]: r for r in new})      # nowszy plik poprawia poprzedni tydzień (dane wstępne)
     d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
@@ -2089,17 +2095,21 @@ def tcmb_part(prev_tr):
 def build_obce(key, prev=None):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
     prev = prev if isinstance(prev, dict) else {}
-    out = {'at': NOW}
+    out = {'at': NOW, 'ok': {}, 'errs': {}}   # v77: stan i błędy części — widoczne także przy przebiegach z pamięci
     for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key)),
                      ('hk', lambda: hkex_part(prev.get('hk'), key)),   # v67: Stock Connect southbound
                      ('br', lambda: bcb_part(prev.get('br'))),   # v71: Brazylia — rynek walutowy (BCB)
                      ('tr', lambda: tcmb_part(prev.get('tr')))):   # v74: Turcja — nierezydenci w papierach (CBRT)
+        n0 = len(META['errors'])
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
         except Exception as e:
             META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX', 'br': 'BCB', 'tr': 'CBRT'}[part] }: {e}")); META['ok']['obce_' + part] = False
             if isinstance(prev.get(part), dict):
                 out[part] = prev[part]
+        out['ok'][part] = META['ok']['obce_' + part]
+        if META['errors'][n0:]:
+            out['errs'][part] = META['errors'][n0:]
     if not any(p in out for p in ('in', 'tw', 'hk', 'br', 'tr')):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
@@ -2258,18 +2268,25 @@ SAFE_KEEP = 25     # miesięcy (12-miesięczna suma i porównanie rok do roku)
 
 
 def _xlsx_rows(data, sheet):
-    """Minimalny czytnik .xlsx (zip + XML, biblioteka standardowa): {nr wiersza: {nr kolumny: tekst}} arkusza o podanej nazwie."""
+    """Czytnik .xlsx na bibliotece standardowej (zip + ElementTree): {nr wiersza: {nr kolumny: tekst}} arkusza o podanej nazwie.
+    v77: puste komórki i wiersze pomijane bez przesuwania sąsiednich; tekst sformatowany (kilka <r><t>) sklejany; komórka bez
+    adresu = następna kolumna; system dat 1904 = jawny błąd (daty byłyby przesunięte o 4 lata)."""
     import html as _h
     import zipfile
+    import xml.etree.ElementTree as ET
     z = zipfile.ZipFile(io.BytesIO(data))
     names = set(z.namelist())
+    loc = lambda tag: str(tag).rsplit('}', 1)[-1]
+    text = lambda el: ''.join(x.text or '' for x in el.iter() if loc(x.tag) == 't')
     strs = []
     if 'xl/sharedStrings.xml' in names:
-        ss = z.read('xl/sharedStrings.xml').decode('utf-8')
-        strs = [_h.unescape(re.sub(r'<[^>]+>', '', m)) for m in re.findall(r'<si>(.*?)</si>', ss, re.S)]
+        strs = [text(si) for si in ET.fromstring(z.read('xl/sharedStrings.xml')) if loc(si.tag) == 'si']
+    wb = z.read('xl/workbook.xml').decode('utf-8')
+    if re.search(r'date1904="(1|true)"', wb):
+        raise RuntimeError('system dat 1904 — nieobsługiwany')
     attr = lambda tag, a: (re.search(r'\b' + a + r'="([^"]*)"', tag) or [None, None])[1]
     rid = None
-    for tag in re.findall(r'<sheet\b[^>]*>', z.read('xl/workbook.xml').decode('utf-8')):
+    for tag in re.findall(r'<sheet\b[^>]*>', wb):
         if _h.unescape(attr(tag, 'name') or '') == sheet:
             rid = attr(tag, 'r:id')
     if not rid:
@@ -2282,22 +2299,29 @@ def _xlsx_rows(data, sheet):
     if path not in names:
         raise RuntimeError('brak pliku arkusza')
     col = lambda c: sum((ord(ch) - 64) * 26 ** i for i, ch in enumerate(reversed(c)))
-    rows = {}
-    for rn, body in re.findall(r'<row\b[^>]*\br="(\d+)"[^>]*>(.*?)</row>', z.read(path).decode('utf-8'), re.S):
-        for ref, attrs, inner in re.findall(r'<c\b[^>]*?r="([A-Z]+)\d+"([^>]*)>(.*?)</c>', body, re.S):
-            t = (re.search(r'\bt="([^"]*)"', attrs) or [None, None])[1]
+    rows, rn = {}, 0
+    for row in ET.fromstring(z.read(path)).iter():
+        if loc(row.tag) != 'row':
+            continue
+        r = row.get('r')
+        rn = int(r) if r and r.isdigit() else rn + 1
+        cn = 0
+        for c in row:
+            if loc(c.tag) != 'c':
+                continue
+            m = re.match(r'^([A-Z]+)\d*$', c.get('r') or '')
+            cn = col(m.group(1)) if m else cn + 1
+            t = c.get('t')
             if t == 'inlineStr':
-                v = _h.unescape(re.sub(r'<[^>]+>', '', inner))
+                v = text(c)
             else:
-                m = re.search(r'<v>(.*?)</v>', inner, re.S)
-                if not m:
-                    continue
-                v = m.group(1)
+                ve = next((x for x in c if loc(x.tag) == 'v'), None)
+                if ve is None or ve.text is None:
+                    continue          # pusta komórka — bez wartości, sąsiedzi na swoich miejscach
+                v = ve.text
                 if t == 's':
                     i = int(v); v = strs[i] if 0 <= i < len(strs) else ''
-                else:
-                    v = _h.unescape(v)
-            rows.setdefault(int(rn), {})[col(ref)] = v.strip()
+            rows.setdefault(rn, {})[cn] = v.strip()
     return rows
 
 
@@ -2730,6 +2754,9 @@ def main():
     prev_o = previous('obce')
     if prev_o and fresh(prev_o, 180):
         save('obce', prev_o); META['ok']['obce'] = 'cached'
+        for p, st in (prev_o.get('ok') or {}).items():   # v77: stan części z ostatniego pełnego pobrania (błąd zostaje widoczny)
+            META['ok']['obce_' + p] = 'cached' if st is True else st
+        META['errors'].extend(e for es in (prev_o.get('errs') or {}).values() for e in (es if isinstance(es, list) else []))
     else:
         try:
             save('obce', build_obce(fred_key, prev_o)); META['ok']['obce'] = True
