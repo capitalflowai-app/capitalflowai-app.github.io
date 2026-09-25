@@ -1261,3 +1261,37 @@ test('v69: fałszywa sesja nie przesuwa okna; ETF bez daty końca = brak; daty o
   for (const l of ['pl', 'en']) for (const k of ['g.m.regtds', 'g.src.regtds', 'g.l.regtd', 'g.pf.mom3', 'ob.src', 'ob.reg.hk.v']) assert.ok(dict[l][k], l + ' ' + k);
   assert.equal(dict.pl['g.per.1R'], 'rok (12 miesięcy)');
 });
+
+// v70: MFW bilans płatniczy — zmierzony napływ kapitału; ranking z 4 kwartałów; brak = „—”; wiersz regionu
+test('v70: bilans płatniczy: sumy tylko z kompletu, ranking, starszy kwartał w rozwinięciu, wiersz regionu, podpięcie źródła', () => {
+  const a0 = html.indexOf('const BIL={data:null};'), a1 = html.indexOf('function renderInst(){', a0);
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'escH', 'engDate', 'instFoot', 'etfCls', 'bopMld', 'LANG', html.slice(a0, a1) + '\nreturn {BIL, bilApply, bilHtml, bilRegion, bilSum, bilQadd};')(
+    T, k => oks.push(k), () => {}, s => String(s), s => String(s), s => 'F' + s, v => v > 0 ? 'pos' : (v < 0 ? 'neg' : ''), v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—', 'pl');
+  assert.equal(f.bilHtml(null), '');
+  assert.equal(f.bilQadd('2026-Q1', -1), '2025-Q4'); assert.equal(f.bilQadd('2026-Q2', -4), '2025-Q2');
+  const S = (q0, vals) => vals.map((v, i) => [f.bilQadd(q0, i - vals.length + 1), v]);
+  f.bilApply({at: 'x', asof_max: '2026-Q2', order: ['USA', 'KOR', 'IRL', 'HKG'], rows: {
+    USA: {q: '2026-Q1', s: {in_d: S('2026-Q1', [1, 1, 1, 1]), in_p: S('2026-Q1', [400000, 400000, 400000, 334100]), in_o: S('2026-Q1', [0, 0, 0, 0])}},
+    KOR: {q: '2026-Q2', s: {in_d: S('2026-Q2', [1000, 1000, 1000, 5000]), in_p: S('2026-Q2', [16300, 16300, -41300, -47463.3]), in_pe: S('2026-Q2', [-63905.4]), in_o: S('2026-Q2', [0, 0, 0, 17981.4]),
+                             out_d: S('2026-Q2', [1, 1, 1, 18807.5]), out_p: S('2026-Q2', [1, 1, 1, 18019]), out_o: S('2026-Q2', [1, 1, 1, 37327])}},
+    IRL: {q: '2025-Q4', s: {in_d: S('2025-Q4', [1, 1, 1, 1]), in_p: S('2025-Q4', [100900, 100900, 100900, 100900]), in_o: S('2025-Q4', [0, 0, 0, 0])}},
+    HKG: {q: '2026-Q2', s: {in_p: S('2026-Q2', [8100])}}}});
+  assert.deepEqual(oks, ['bilans']);
+  const h = f.bilHtml(f.BIL.data), main = h.split('<details')[0], more = h.split('bil.more')[1] || '';
+  assert.ok(main.indexOf('<span class="cell">USA</span>') < main.indexOf('<span class="cell">KOR</span>'), 'ranking wg 4 kwartałów');
+  assert.ok(main.includes('<span class="cell mono pos">+1534.1</span>') && main.includes('<span class="cell mono pos">+334.1</span>'), 'USA: kwartał 334,1; 4 kw. 1534,1 mld ' + main.slice(0, 900));
+  assert.ok(main.includes('<span class="cell mono neg">-24.5</span>') && main.includes('<span class="cell mono neg">-30.2</span>'), 'KOR: kwartał 5 − 47,5 + 18,0 = −24,5; 4 kw. −30,2');
+  assert.ok(main.includes('<span class="cell">HKG</span>') && main.includes('<span class="cell mono">—</span>'), 'HKG bez bezpośrednich = —, nie zero');
+  assert.ok(!main.includes('IRL') && more.includes('IRL') && h.includes('bil.more{"n":1}'), 'starszy kwartał tylko w rozwinięciu');
+  const r = f.bilRegion('jpn');
+  assert.ok(r.includes('<dt>bil.reg</dt>') && r.includes('"c":"KOR","q":"F2026-Q2"') && r.includes('"pe":"-63.9"') && r.includes('"pd":"—"') && r.includes('"out":"+74.2"'), r);
+  assert.equal(f.bilRegion('rus'), '', 'brak kraju w pliku = bez wiersza');
+  f.bilApply({at: 'x', rows: {}, order: []}); assert.equal(f.BIL.data, null, 'plik bez krajów odrzucony');
+  assert.ok(html.includes("html+=(typeof bilHtml==='function'&&typeof BIL!=='undefined')?bilHtml(BIL.data):'';") && html.includes("srvJSON('bilans')") && html.includes("bilans:'MFW bilans płatniczy'"));
+  assert.ok(html.includes("${typeof bilRegion==='function'?bilRegion(s.id):''}") && html.includes('bilans:()=>BIL.data&&BIL.data.at') && html.includes("bilans:'bilans',"));
+  assert.ok(html.includes("'api.imf.org','src.f.q','src.l.q',GLIVE.src.bilans,'g.hs.bilans','bilans']") && html.includes('"MFW — bilans płatniczy (BOP)":"IMF — balance of payments (BOP)"'));
+  assert.ok(html.includes('<summary><b>MFW — bilans płatniczy (BOP)</b>'));
+  const x0 = html.indexOf('const EXTRA58='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA58='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['bil.t', 'bil.sub', 'bil.c.t4', 'bil.more', 'bil.foot', 'bil.not', 'bil.src', 'bil.reg', 'bil.reg.v', 'g.hs.bilans']) assert.ok(dict[l][k], l + ' ' + k);
+});

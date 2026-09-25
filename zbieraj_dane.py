@@ -2079,6 +2079,55 @@ def build_cofer():
     return out
 
 
+# v70: MFW — bilans płatniczy (BOP, BPM6), kwartalnie, bez klucza: ZMIERZONE przepływy kapitału 37 gospodarek.
+# L_NIL_T = kapitał zagraniczny napływający do kraju; A_NFA_T = kapitał mieszkańców wysyłany za granicę; NETCD_T CAB = rachunek bieżący.
+BIL_CTY = ['USA', 'CAN', 'BRA', 'MEX', 'CHL', 'COL', 'ARG', 'DEU', 'FRA', 'GBR', 'ITA', 'ESP', 'NLD', 'CHE', 'SWE', 'POL', 'IRL',
+           'RUS', 'SAU', 'TUR', 'ISR', 'ZAF', 'EGY', 'NGA', 'IND', 'CHN', 'HKG', 'JPN', 'KOR', 'IDN', 'SGP', 'THA', 'MYS', 'PHL',
+           'VNM', 'AUS', 'NZL']
+BIL_KEYS = {('L_NIL_T', 'D_F'): 'in_d', ('L_NIL_T', 'P_F'): 'in_p', ('L_NIL_T', 'P_F5'): 'in_pe', ('L_NIL_T', 'P_F3'): 'in_pd',
+            ('L_NIL_T', 'O_F'): 'in_o', ('A_NFA_T', 'D_F'): 'out_d', ('A_NFA_T', 'P_F'): 'out_p', ('A_NFA_T', 'O_F'): 'out_o',
+            ('NETCD_T', 'CAB'): 'ca'}
+BIL_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/BOP/+/' + '+'.join(BIL_CTY)
+           + '.L_NIL_T+A_NFA_T+NETCD_T.D_F+P_F+P_F5+P_F3+O_F+CAB.USD.Q?lastNObservations=8&dimensionAtObservation=TIME_PERIOD')
+
+
+def parse_bilans(j):
+    """BOP MFW → {kraj: {'q': ostatni kwartał z napływem, 's': {klucz: [[kwartał, mln USD]] rosnąco, najwyżej 8}}}.
+    Wartość pusta / NaN = brak (nigdy 0). Straż skali: napływ portfelowy USA musi mieć rząd mld–bln USD na kwartał."""
+    ser = parse_imf_sdmx(j, _imf_quarter)
+    rows = {}
+    for lab, d in ser.items():
+        if len(lab) != 5:
+            continue
+        c, e, i, u, f = lab
+        k = BIL_KEYS.get((e, i))
+        if not k or u != 'USD' or f != 'Q' or c not in BIL_CTY:
+            continue
+        rows.setdefault(c, {})[k] = [[q, round(v / 1e6, 1)] for q, v in d][-8:]
+    usa = (rows.get('USA') or {}).get('in_p')
+    if usa and not 1e3 <= abs(usa[-1][1]) <= 1e7:
+        raise RuntimeError(f'skala niezgodna (USA napływ portfelowy {usa[-1][1]} mln USD)')
+    out = {}
+    for c in BIL_CTY:
+        s = rows.get(c)
+        qs = [x[-1][0] for k, x in (s or {}).items() if k in ('in_d', 'in_p', 'in_o') and x]
+        if qs:
+            out[c] = {'q': max(qs), 's': s}
+    if not out:
+        raise RuntimeError('żaden kraj z napływem kapitału')
+    return {'src': 'International Monetary Fund, Balance of Payments (BOP)', 'url': 'https://data.imf.org/en/datasets/IMF.STA:BOP',
+            'unit': 'mln USD, transakcje w kwartale; in_* = kapitał zagraniczny napływający do kraju (net incurrence of liabilities), '
+                    'out_* = kapitał mieszkańców wysyłany za granicę (net acquisition of financial assets); d bezpośrednie, '
+                    'p portfelowe (pe akcje, pd obligacje), o pozostałe (kredyty, depozyty); ca = saldo rachunku bieżącego',
+            'asof_max': max(r['q'] for r in out.values()), 'order': [c for c in BIL_CTY if c in out], 'rows': out}
+
+
+def build_bilans():
+    out = parse_bilans(get_json(BIL_URL, {'Accept': 'application/json'}))
+    out['at'] = NOW
+    return out
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -2384,6 +2433,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW COFER: {e}')); META['ok']['cofer'] = False
             if prev_c: save('cofer', prev_c)
+    # v70: MFW — bilans płatniczy 37 gospodarek (kwartalnie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
+    prev_bl = previous('bilans')
+    if prev_bl and fresh(prev_bl, 1440):
+        save('bilans', prev_bl); META['ok']['bilans'] = 'cached'
+    else:
+        try:
+            save('bilans', build_bilans()); META['ok']['bilans'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'MFW bilans płatniczy: {e}')); META['ok']['bilans'] = False
+            if prev_bl: save('bilans', prev_bl)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):
