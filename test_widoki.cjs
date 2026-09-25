@@ -1379,3 +1379,33 @@ test('v73: kafelki CoinMarketCap z własnym czasem, także bez CoinPaprika; bez 
   }
   assert.ok(dict.pl['br.sub'].includes('bez rynku międzybankowego') && dict.pl['bil.not'].includes('Wielka Brytania') && dict.pl['bil.foot'].includes('12 gospodarek'));
 });
+
+// v74: Turcja — tygodniowe transakcje nierezydentów (CBRT); sumy tylko z kolejnych tygodni; wiersz regionu Bliski Wschód
+test('v74: blok CBRT: razem, akcje, obligacje; 4 i 13 tygodni tylko z kolejnych tygodni; wiersz regionu; podpięcie', () => {
+  const a0 = html.indexOf('const trDadd='), a1 = html.indexOf('/* v59: MFW COFER', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : ''), ZAG = {data: null};
+  const zagNum = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  const zagPart = k => { const p = ZAG.data && ZAG.data[k]; return (p && Array.isArray(p.d) && p.d.length) ? p : null; };
+  const f = new Function('t', 'ZAG', 'zagPart', 'zagNum', 'zagM', 'instRow', 'instFoot', 'engDate', html.slice(a0, a1) + '\nreturn {trBlock, trRegion, trSum, trDadd};')(
+    T, ZAG, zagPart, zagNum, v => v == null ? '—' : String(Math.round(v * 100) / 100), (l, v, x, n) => `[${l}|${v}|${n}]`, s => s, s => s);
+  assert.equal(f.trBlock(), ''); assert.equal(f.trRegion('mea'), '');
+  assert.equal(f.trDadd('2026-09-18', -7), '2026-09-11'); assert.equal(f.trDadd('2026-01-02', -7), '2025-12-26');
+  const W = Array.from({length: 5}, (_, i) => [f.trDadd('2026-09-18', -7 * (4 - i)), 10, 5, 2, 1, 2, 1]);
+  W[4] = ['2026-09-18', -316.01, -109.83, -116.9, -331.69, 242.41, -168.69];
+  ZAG.data = {at: 'x', tr: {at: 'y', d: W}};
+  const h = f.trBlock();
+  assert.ok(h.includes('[tr.tot|-316.01 inst.mln.usd|tr.wk{"d":"2026-09-18"} · tr.s4{"v":"-286.01"} · tr.split{"c":"-331.69","x":"242.41"}]'), h);
+  assert.ok(!h.includes('tr.s13'), '13 tygodni pokazujemy dopiero z pełną historią');
+  const G = W.filter((_, i) => i !== 2); ZAG.data = {at: 'x', tr: {at: 'y', d: G}};
+  assert.ok(f.trBlock().includes('tr.s4{"v":"—"}'), 'luka w tygodniach = brak sumy, nie zero');
+  ZAG.data = {at: 'x', tr: {at: 'y', d: W}};
+  const r = f.trRegion('mea');
+  assert.ok(r.includes('<dt>tr.reg</dt>') && r.includes('"t":"-316.01","e":"-109.83","g":"-116.9","t4":"-286.01"'), r);
+  assert.equal(f.trRegion('eur'), '');
+  assert.ok(html.includes("html+=typeof trBlock==='function'?trBlock():'';") && html.includes("${typeof trRegion==='function'?trRegion(s.id):''}"));
+  assert.ok(html.includes("if(okD(j.tr))gOk('obce_tr');") && html.includes("obce_tr:'CBRT'") && html.includes('obce_tr:()=>ZAG.data&&ZAG.data.tr&&ZAG.data.tr.at'));
+  assert.ok(html.includes("'www.tcmb.gov.tr','src.f.w','src.l.tcmb',GLIVE.src.obce_tr,'g.hs.tcmb','obce_tr']") && html.includes("['Central Bank of the Republic of Türkiye','https://www.tcmb.gov.tr']"));
+  assert.ok(html.includes('<summary><b>Bank centralny Turcji (CBRT) — nierezydenci w akcjach i obligacjach</b>') && html.includes('<span class="cell">nierezydenci w tureckich akcjach i obligacjach</span>'));
+  const x0 = html.indexOf('const EXTRA62='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA62='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['tr.t', 'tr.sub', 'tr.tot', 'tr.eq', 'tr.gd', 'tr.not', 'tr.src', 'tr.reg', 'tr.reg.v', 'g.hs.tcmb', 'src.l.tcmb', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+});

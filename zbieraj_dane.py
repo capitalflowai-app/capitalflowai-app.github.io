@@ -2022,20 +2022,85 @@ def bcb_part(prev_br):
             'asof': d[-1][0], 'd': d}
 
 
+# v74: Turcja — bank centralny (CBRT), tygodniowe transakcje netto nierezydentów w papierach (oczyszczone z cen i kursów), bez klucza
+TCMB_PAGE = 'https://www.tcmb.gov.tr/wps/wcm/connect/EN/TCMB+EN/Main+Menu/Statistics/Monetary+and+Financial+Statistics/Securities+Statistics/'
+TCMB_KEYS = (('tot', 'net transactions total'), ('eq', 'equity'), ('gdds', 'gdds (outright purchase)'),
+             ('corp', 'debt securities issued by other than general'), ('intl', 'b.2. international market total'),
+             ('eurob', 'general government issuances'))
+
+
+def _tcmb_day(v):
+    s = str(v or '').strip()
+    m = re.match(r'^(\d{2})\.(\d{2})\.(\d{4})$', s)
+    if m:
+        return f'{m.group(3)}-{m.group(2)}-{m.group(1)}'
+    x = _num(s)
+    if x is not None and 20000 < x < 80000:
+        return (datetime.date(1899, 12, 30) + datetime.timedelta(days=int(x))).isoformat()
+    return None
+
+
+def parse_tcmb(rows):
+    """Arkusz T1_En → [[tydzień do (piątek), razem, akcje, obligacje skarbowe (zakup bezwarunkowy), obligacje firm i banków,
+    rynek zagraniczny razem, euroobligacje rządu]] w mln USD — tylko część „B. NET TRANSACTIONS”, wiersze po nazwie."""
+    head, got = None, {}
+    for _, r in sorted(rows.items()):
+        lab = re.sub(r'\s+', ' ', r.get(2, '')).strip().lower()
+        if lab.startswith('b. net transactions'):
+            head = {c: _tcmb_day(v) for c, v in r.items() if c > 2}
+            head = {c: d for c, d in head.items() if d}
+            continue
+        if head is None:
+            continue
+        if not lab or lab.startswith('('):
+            break          # koniec części B (przypisy)
+        for key, pre in TCMB_KEYS:
+            if key not in got and lab.startswith(pre):
+                got[key] = {head[c]: _num(v) for c, v in r.items() if c in head and _num(v) is not None and _num(v) == _num(v)}
+                break
+    if not head or 'tot' not in got:
+        raise RuntimeError('brak części „B. NET TRANSACTIONS”')
+    days = sorted({d for x in got.values() for d in x})
+    return [[d] + [(got.get(k) or {}).get(d) for k, _ in TCMB_KEYS] for d in days]
+
+
+def tcmb_part(prev_tr):
+    import html as _h
+    import zipfile
+    page = get_bytes(TCMB_PAGE, timeout=60).decode('utf-8', 'replace')
+    m = re.search(r'href="([^"]*Securities\+Statistics\.zip[^"]*)"', page)
+    if not m:
+        raise RuntimeError('brak odnośnika do pliku')
+    href = _h.unescape(m.group(1))
+    z = zipfile.ZipFile(io.BytesIO(get_bytes(href if href.startswith('http') else 'https://www.tcmb.gov.tr' + href, timeout=90)))
+    name = next((n for n in z.namelist() if n.lower().endswith('.xlsx')), None)
+    if not name:
+        raise RuntimeError('brak pliku .xlsx w archiwum')
+    new = parse_tcmb(_xlsx_rows(z.read(name), 'T1_En'))
+    have = {k: list(v) for k, v in _rows(prev_tr).items()}
+    have.update({r[0]: r for r in new})      # nowszy plik poprawia poprzedni tydzień (dane wstępne)
+    d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
+    return {'at': NOW, 'src': 'Central Bank of the Republic of Türkiye (CBRT) — Securities Statistics, Table 1, B. Net Transactions',
+            'url': TCMB_PAGE, 'unit': 'mln USD; transakcje netto nierezydentów oczyszczone ze zmian cen i kursów; bez repo, zabezpieczeń i pożyczek papierów',
+            'cols': ['tydzień do', 'razem', 'akcje', 'obligacje skarbowe (zakup bezwarunkowy)', 'obligacje firm i banków', 'rynek zagraniczny razem', 'euroobligacje rządu'],
+            'asof': d[-1][0], 'd': d}
+
+
 def build_obce(key, prev=None):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
     prev = prev if isinstance(prev, dict) else {}
     out = {'at': NOW}
     for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key)),
                      ('hk', lambda: hkex_part(prev.get('hk'), key)),   # v67: Stock Connect southbound
-                     ('br', lambda: bcb_part(prev.get('br')))):   # v71: Brazylia — rynek walutowy (BCB)
+                     ('br', lambda: bcb_part(prev.get('br'))),   # v71: Brazylia — rynek walutowy (BCB)
+                     ('tr', lambda: tcmb_part(prev.get('tr')))):   # v74: Turcja — nierezydenci w papierach (CBRT)
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
         except Exception as e:
-            META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX', 'br': 'BCB'}[part] }: {e}")); META['ok']['obce_' + part] = False
+            META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX', 'br': 'BCB', 'tr': 'CBRT'}[part] }: {e}")); META['ok']['obce_' + part] = False
             if isinstance(prev.get(part), dict):
                 out[part] = prev[part]
-    if not any(p in out for p in ('in', 'tw', 'hk', 'br')):
+    if not any(p in out for p in ('in', 'tw', 'hk', 'br', 'tr')):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
 

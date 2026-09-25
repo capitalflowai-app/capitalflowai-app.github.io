@@ -2002,7 +2002,7 @@ class ObceV54(unittest.TestCase):
         self.assertEqual(tw['2026-09-24'][5:], [round(-32964.6 / 31.82, 1), '2026-09-18'])
         self.assertIn('2026-09-24', tw); self.assertIn('2026-09-23', tw)
         self.assertIn('2026-09-22', out['tw']['empty'], 'dzień bez sesji zapamiętany'); self.assertNotIn('2026-09-25', out['tw']['empty'], 'dzisiejszy brak nie jest świętem')
-        self.assertEqual({k: v for k, v in zd.META['ok'].items() if k not in ('obce_hk', 'obce_br')}, {'obce_in': True, 'obce_tw': True})
+        self.assertEqual({k: v for k, v in zd.META['ok'].items() if k not in ('obce_hk', 'obce_br', 'obce_tr')}, {'obce_in': True, 'obce_tw': True})
         self.assertFalse(any('KLUCZ' in e for e in zd.META['errors']), 'klucz nigdy w komunikatach')
 
         def boom(url, headers=None, timeout=60):
@@ -2476,6 +2476,47 @@ class ReviewV73(unittest.TestCase):
         zd._align_calendar(q)
         self.assertEqual(len(q['EWA']['d']), 20, 'krótka historia SPY nie obcina innych')
         self.assertNotIn('TUR', q); self.assertTrue(any('bez świec' in n and 'TUR' in n for n in zd.META['notes']))
+
+
+class TurcjaV74(unittest.TestCase):
+    """v74: CBRT — tygodniowe transakcje nierezydentów; tylko część B; nowszy plik poprawia tydzień; brak = None, nie 0."""
+    ROWS = [[None, 'Table - 1. Shares and Debt Securities Held by Non-Residents (Million USD) (*)'],
+            [None, 'A. STOCK (Market Value)', '18.09.2026', 46276], [None, 'STOCK TOTAL (**)', 148753.16, 153388.46], [None, 'Equity', 39355.01, 42410.94],
+            [None, 'B. NET TRANSACTIONS (Adjusted for Market Prices and Exchange Rates)', '18.09.2026', 46276],
+            [None, 'NET TRANSACTIONS TOTAL (**)', -316.01, 393.81], [None, 'B.1. Domestic Market Total (**)', -558.42, 423.06],
+            [None, 'Equity', -109.83, 277.67], [None, 'GDDS (Outright Purchase)', -116.9, 151.15], [None, 'GDDS (Reverse Repo)', 0.61, 3.86],
+            [None, 'Debt Securities Issued by Other Than General Government (***)', -331.69, '-'], [None, 'B.2. International Market Total', 242.41, -29.25],
+            [None, 'General Government Issuances', -168.69, -52.28], [None, ''], [None, '(*) Data is disseminated provisionally']]
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def zipped(self, rows):
+        import io, zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as z:
+            z.writestr('Securities Statistics.xlsx', _xlsx({'Contents': [['x']], 'T1_En': rows}))
+        return buf.getvalue()
+
+    def test_part_b_only_rows_by_label_and_revision(self):
+        d = zd.parse_tcmb(zd._xlsx_rows(_xlsx({'T1_En': self.ROWS}), 'T1_En'))
+        self.assertEqual(d, [['2026-09-11', 393.81, 277.67, 151.15, None, -29.25, -52.28],
+                             ['2026-09-18', -316.01, -109.83, -116.9, -331.69, 242.41, -168.69]], 'akcje z części B, nie ze stanu; „-” = brak')
+        r = d[-1]; self.assertAlmostEqual(r[2] + r[3] + r[4] + r[5], r[1], places=2)
+        page = ('<a href="/wps/wcm/connect/dc9e/Securities+Statistics.zip?MOD=AJPERES&amp;CACHEID=ROOT-q3">ZIP</a>')
+        seen = []
+
+        def gb(url, headers=None, timeout=60):
+            seen.append(url)
+            return page.encode() if url == zd.TCMB_PAGE else self.zipped(self.ROWS)
+        prev = {'d': [['2026-09-04', 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], ['2026-09-11', 9.0, 9.0, 9.0, 9.0, 9.0, 9.0]]}
+        with mock.patch.object(zd, 'get_bytes', gb):
+            out = zd.tcmb_part(prev)
+        self.assertEqual(seen[1], 'https://www.tcmb.gov.tr/wps/wcm/connect/dc9e/Securities+Statistics.zip?MOD=AJPERES&CACHEID=ROOT-q3')
+        self.assertEqual([r[0] for r in out['d']], ['2026-09-04', '2026-09-11', '2026-09-18'], 'historia z poprzedniego pliku zostaje')
+        self.assertEqual(out['d'][1][1], 393.81, 'nowszy plik poprawia tydzień'); self.assertEqual(out['asof'], '2026-09-18')
+        with self.assertRaises(RuntimeError):
+            zd.parse_tcmb(zd._xlsx_rows(_xlsx({'T1_En': self.ROWS[:4]}), 'T1_En'))
 
 
 if __name__ == '__main__':
