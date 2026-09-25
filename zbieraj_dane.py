@@ -2937,7 +2937,7 @@ def main():
             if prev_sf: save('safe', prev_sf)
     # v76: Eurostat — bilans płatniczy krajów UE (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
     prev_ue = previous('ue')
-    if prev_ue and fresh(prev_ue, 1440):
+    if prev_ue and fresh(prev_ue, 1440) and 'S121' in str(prev_ue.get('unit', '')):   # v80: plik sprzed v80 (pozostałe z bankiem centralnym) — przebuduj
         save('ue', prev_ue); META['ok']['ue'] = 'cached'
     else:
         try:

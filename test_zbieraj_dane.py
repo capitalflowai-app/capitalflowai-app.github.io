@@ -2752,5 +2752,28 @@ class ReviewV80(unittest.TestCase):
         self.assertEqual(zd._xlsx_rows(buf.getvalue(), 'A & B'), {1: {1: 'Kanji'}})
 
 
+class UeFormatV80(unittest.TestCase):
+    """v80: ue.json sprzed v80 (pozostałe z bankiem centralnym) jest przebudowywany mimo świeżości."""
+
+    def test_old_format_rebuilt_new_format_cached(self):
+        for unit, rebuilt in (('mln EUR, transakcje w miesiącu', True), ('… o pozostałe bez banku centralnego (S1 − S121)', False)):
+            zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
+            prev = {'at': _iso(30), 'unit': unit, 'rows': {}, 'order': []}
+            new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
+            offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
+                    for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada')]
+            [p.start() for p in offs]
+            try:
+                with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), \
+                        mock.patch.object(zd, 'previous', lambda name: prev if name == 'ue' else None), \
+                        mock.patch.object(zd, 'build_ue', return_value=new):
+                    zd.main()
+            finally:
+                [p.stop() for p in offs]
+            self.assertIs(saved['ue'], new if rebuilt else prev, unit)
+
+
 if __name__ == '__main__':
     unittest.main()
