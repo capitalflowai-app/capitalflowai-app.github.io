@@ -486,7 +486,7 @@ test('v49: GLOBAL nie pobiera co minutę 1,3 MB historii stablecoinów, gdy serw
   const a0 = html.indexOf('function gAuto(on){'), a1 = html.indexOf('\n/* BIS:', a0);
   const auto = html.slice(a0, a1);
   assert.ok(auto.includes('(!krStabh()&&due(15))?gJSON(GSRC.stab)'), 'stablecoiny tylko bez pliku serwera i rzadko');
-  assert.ok(auto.includes('due(15)?gJSON(GSRC.fx'), 'kursy EBC raz na 15 min');
+  assert.ok(auto.includes("due(15)?srvJSON('rynki')") && auto.includes("return gJSON(GSRC.fx('latest'))"), 'kursy EBC raz na 15 min (v101: najpierw plik serwera, zapas — prosto)');
   assert.ok(html.includes("function gJSON(u){return fetch(u,{cache:'no-store',signal:fetchTO(30000)})"));
   assert.ok(html.includes("const keepSrc={};['cmc','kr','fng']"), 'pełne odświeżenie nie kasuje cmc/kr/fng');
   assert.ok(html.includes('loadAll(afterLive,true);},5*60*1000)'), 'CRYPTO odświeża się samo');
@@ -3550,7 +3550,7 @@ test('v99: OECD najpierw z pliku serwera (co 6 h), prosto z OECD tylko brakując
   const g0 = html.indexOf('function gLoad(cb){'), g1 = html.indexOf('\n  Promise.all(P).then(', g0), G = html.slice(g0, g1);
   assert.ok(G.includes("srvJSON('oecd').then(j=>{const S=oecdSrv(j),pa=") && G.includes("S[k]?Promise.resolve().then(()=>{set(S[k]);gOk(src);GLIVE.oecdAt[src]=pa[k]||j.at;}):gJSON(GSRC[g](gISO.join('+')))"), 'najpierw plik, potem zapas');
   assert.ok(G.includes("one('share','oecd','oecd',v=>{GLIVE.oecd=v;},1)") && G.includes("one('cli','cli','cli',v=>{GLIVE.cli=v;})") && !G.includes("gJSON(GSRC.oecd(gISO.join('+'))).then"), 'bez bezpośrednich zapytań przy dobrym pliku');
-  assert.ok(html.includes('const M={oecd:()=>GLIVE.oecdAt&&GLIVE.oecdAt.oecd,') && html.includes("const MK={oecd:'oecd',irlt:'oecd',cli:'oecd',") && html.includes("const PX={oecd:'OECD',irlt:'OECD',cli:'OECD',"), 'Źródła: czas pliku serwera i błąd z meta przy wierszach OECD');
+  assert.ok(html.includes('oecd:()=>GLIVE.oecdAt&&GLIVE.oecdAt.oecd,irlt:') && html.includes("oecd:'oecd',irlt:'oecd',cli:'oecd',") && html.includes("oecd:'OECD',irlt:'OECD',cli:'OECD',"), 'Źródła: czas pliku serwera i błąd z meta przy wierszach OECD');
 });
 test('v100: nowe widgety TradingView po kliknięciu — wiadomości (GLOBAL, CRYPTO), zmienność opcji BTC/ETH (DVOL); zgoda wspólna', () => {
   const w0 = html.indexOf('const TV_W={'), w1 = html.indexOf('\n};', w0), W = html.slice(w0, w1);
@@ -3570,4 +3570,22 @@ test('v100: nowe widgety TradingView po kliknięciu — wiadomości (GLOBAL, CRY
   }
   assert.ok(v96src.tFor('pl')('tv.sub.dvol').includes('nie prognoza kierunku') && v96src.tFor('pl')('tv.sub.news').includes('nie jest nasza ocena'), 'oczekiwanie rynku, nie prognoza; nagłówki, nie nasza ocena');
   assert.ok(v96src.tFor('pl')('g.hs.tv').includes('wiadomości krypto') && v96src.tFor('en')('g.hs.tv').includes('DVOL'), 'strona Źródła wymienia nowe widgety');
+});
+test('v101: kursy EBC i rentowności 10L najpierw z pliku serwera; prosto ze źródła tylko brakująca albo za stara część', () => {
+  const r0 = html.indexOf('function rynkiSrv('), r1 = html.indexOf('\n  return out;}', r0) + '\n  return out;}'.length;
+  const f = new Function(html.slice(r0, r1) + '\nreturn rynkiSrv;')();
+  const now = new Date().toISOString(), old = new Date(Date.now() - 40 * 3600e3).toISOString(), vold = new Date(Date.now() - 5 * 864e5).toISOString();
+  const R = {amount: 1, base: 'USD', date: '2026-09-25', rates: {EUR: 0.877}}, FX = {now: R, '1M': R, '1Q': R, '1R': R, '1D': R, '1T': R};
+  const ok = f({at: now, fx: FX, ust: [['2026-09-25', 5.17], ['x', null]], buba: [['2026-09-25', 3.6]], part_at: {fx: now, ust: now, buba: now}});
+  assert.ok(ok.fx === FX && ok.ust.length === 1 && ok.buba.length === 1, 'wiersze bez liczby odrzucone (brak ≠ zero)');
+  const miss = Object.assign({}, FX); delete miss['1T'];
+  assert.ok(!('fx' in f({at: now, fx: miss})), 'kursy bez jednej daty — nie z pliku');
+  assert.ok(!('fx' in f({at: now, fx: FX, part_at: {fx: old}})), 'kursy starsze niż 36 h — nie z pliku');
+  assert.ok('ust' in f({at: now, ust: [['2026-09-25', 5.17]], part_at: {ust: old}}) && !('ust' in f({at: now, ust: [['2026-09-25', 5.17]], part_at: {ust: vold}})), 'rentowności: do 4 dni');
+  assert.deepEqual(f(null), {}); assert.deepEqual(f({at: 'x', fx: FX}), {});
+  const g0 = html.indexOf('function gLoad(cb){'), g1 = html.indexOf('\n  Promise.all(P).then(', g0), G = html.slice(g0, g1);
+  assert.ok(G.includes("srvJSON('rynki').then(j=>{const S=rynkiSrv(j),") && G.includes("S.ust?Promise.resolve().then(()=>use('ust',v=>{GLIVE.ust=v;})):gUstLoad()"), 'najpierw plik, zapas — dawny kod');
+  assert.ok(!G.includes('gText(GSRC.ust(yr))') && html.includes('function gUstLoad(){'), 'pliki XML Skarbu USA tylko jako zapas');
+  assert.ok(html.includes("due(15)?srvJSON('rynki').then(j=>{const S=rynkiSrv(j);if(S.fx&&GLIVE.fx){GLIVE.fx=S.fx;"), 'odświeżanie kursów co 15 min — też z pliku');
+  assert.ok(html.includes("const MK={fx:'rynki_fx',ust:'rynki_ust',buba:'rynki_buba',") && html.includes("const PX={fx:'Frankfurter',ust:'Skarb USA 10L',buba:'Bundesbank 10L',"), 'Źródła: czas pliku i błąd z meta');
 });

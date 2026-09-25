@@ -4601,6 +4601,112 @@ def build_oecd(prev=None, today=None):
     return out
 
 
+# ===================== v101: kursy walut i rentowności 10L na serwerze =====================
+# Strona pobierała je z przeglądarki przy każdym wejściu (6 zapytań kursów, 2 pliki XML Skarbu USA po ~0,5 MB, Bundesbank).
+# Teraz: zbieracz co godzinę → data/rynki.json; strona pyta źródła sama tylko, gdy części pliku brak albo jest za stara.
+FX_URL = 'https://api.frankfurter.dev/v1/{d}?from=USD'
+UST_URL = 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value={y}'
+BUBA_URL = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A?startPeriod={f}&format=json'
+RYNKI_EVERY = 60     # kursy EBC i rentowności zmieniają się raz dziennie — co godzinę wystarczy
+RYNKI_PX = {'fx': 'Frankfurter', 'ust': 'Skarb USA 10L', 'buba': 'Bundesbank 10L'}   # początek komunikatu błędu (strona Źródła)
+
+
+def months_back(d, n):
+    """Ten sam dzień n miesięcy wcześniej (koniec miesiąca przycięty) — jak back(n) na stronie."""
+    m = d.year * 12 + (d.month - 1) - n
+    y, mo = m // 12, m % 12 + 1
+    last = (datetime.date(y + (mo == 12), mo % 12 + 1, 1) - datetime.timedelta(days=1)).day
+    return datetime.date(y, mo, min(d.day, last))
+
+
+def fx_dates(today):
+    return {'now': 'latest', '1M': months_back(today, 1).isoformat(), '1Q': months_back(today, 3).isoformat(), '1R': months_back(today, 12).isoformat(),
+            '1D': (today - datetime.timedelta(days=1)).isoformat(), '1T': (today - datetime.timedelta(days=7)).isoformat()}
+
+
+def ust_parse(xml_text):
+    """Plik XML Skarbu USA (krzywa rentowności) → [[dzień, rentowność 10L], …] rosnąco — jak gUst() na stronie."""
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(xml_text)
+    loc = lambda e: e.tag.rsplit('}', 1)[-1]
+    out = {}
+    for ent in root.iter():
+        if loc(ent) != 'entry':
+            continue
+        d = y = None
+        for e in ent.iter():
+            if loc(e) == 'NEW_DATE':
+                d = (e.text or '')[:10]
+            elif loc(e) == 'BC_10YEAR':
+                y = e.text
+        try:
+            v = float(y)
+        except (TypeError, ValueError):
+            continue
+        if d and v == v:
+            out[d] = v
+    return [[k, out[k]] for k in sorted(out)]
+
+
+def buba_parse(j):
+    """SDMX-JSON Bundesbanku → [[dzień, rentowność], …] rosnąco — jak gBuba() na stronie."""
+    o = j.get('data') or j
+    ser = list(o['dataSets'][0]['series'].values())[0]
+    T = [v['id'] for v in o['structure']['dimensions']['observation'][0]['values']]
+    out = []
+    for k, v in ser['observations'].items():
+        try:
+            x = float(v[0])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if x == x:
+            out.append([T[int(k)], x])
+    return sorted(out)
+
+
+def build_rynki(prev=None, today=None):
+    today = today or datetime.datetime.now(datetime.timezone.utc).date()
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    out = {'at': NOW, 'ok': {}, 'part_at': {}}
+
+    def part(k, fn):
+        try:
+            v = fn()
+            if not v:
+                raise ValueError('pusta odpowiedź')
+            out[k] = v; out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednia wersja z własnym czasem, nigdy zera
+            META['errors'].append(mask(f'{RYNKI_PX[k]}: {e}')); out['ok'][k] = False
+            if prev.get(k):
+                out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
+
+    def fx():
+        r = {}
+        for k, d in fx_dates(today).items():
+            j = get_json(FX_URL.format(d=d))
+            if not isinstance(j, dict) or not isinstance(j.get('rates'), dict) or not j['rates']:
+                raise ValueError(f'kursy {k}: brak')
+            r[k] = {'amount': j.get('amount'), 'base': j.get('base'), 'date': j.get('date'), 'rates': j['rates']}
+        return r
+
+    def ust():
+        y = today.year
+        old = [r for r in (prev.get('ust') or []) if isinstance(r, list) and str(r[0]).startswith(str(y - 1))]
+        if len(old) < 200:   # poprzedni rok zmienia się rzadko — pobierany tylko, gdy w pliku go brak
+            old = ust_parse(get(UST_URL.format(y=y - 1), timeout=60)[1])
+        cur = ust_parse(get(UST_URL.format(y=y), timeout=60)[1])
+        return old + [r for r in cur if not old or r[0] > old[-1][0]]
+
+    def buba():
+        return buba_parse(get_json(BUBA_URL.format(f=months_back(today, 13).isoformat()), timeout=60))
+
+    part('fx', fx); part('ust', ust); part('buba', buba)
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -4743,6 +4849,19 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'BIS stopy: {e}')); META['ok']['stopy'] = False
             if prev_st: save('stopy', prev_st)
+    # v101: kursy EBC i rentowności 10L (bez klucza) — co godzinę; każda część osobno (strona Źródła: rynki_fx / rynki_ust / rynki_buba)
+    prev_ry = previous('rynki')
+    if prev_ry and fresh(prev_ry, RYNKI_EVERY) and all((prev_ry.get('ok') or {}).get(k) for k in RYNKI_PX):
+        save('rynki', prev_ry)
+        for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = 'cached'
+    else:
+        try:
+            ry = build_rynki(prev_ry); save('rynki', ry)
+            for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = ry['ok'].get(k, False)
+        except Exception as e:
+            META['errors'].append(mask(f'Rynki: {e}'))
+            for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = False
+            if prev_ry: save('rynki', prev_ry)
     # v99: OECD (bez klucza) — co 6 h; część z błędem ponawiana po godzinie
     prev_oe = previous('oecd')
     pok_oe = (prev_oe or {}).get('ok') or {}

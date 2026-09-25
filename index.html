@@ -3083,13 +3083,13 @@ function instFoot(d){const s=String(d||''),last=s.split('–').pop().trim();retu
 function metaLoad(){srvJSON('meta').then(m=>{GLIVE.meta=(m&&typeof m==='object'&&m.ok)?m:null;try{if(page==='sources')renderPage();}catch(e){}});}
 function srvAt(k){const P=s=>{const v=Date.parse(s||'');return isNaN(v)?null:v;},g=f=>{try{return f();}catch(e){return null;}};
   if(k&&k.startsWith('inst.'))return P(g(()=>INST.at));
-  const M={oecd:()=>GLIVE.oecdAt&&GLIVE.oecdAt.oecd,irlt:()=>GLIVE.oecdAt&&GLIVE.oecdAt.irlt,cli:()=>GLIVE.oecdAt&&GLIVE.oecdAt.cli,finnhub:()=>GLIVE.daySrv,twelvedata:()=>GLIVE.cenySrv,cmc:()=>CMC.data&&CMC.data.at,kr:()=>KR.data&&KR.data.at,fng:()=>KR.data&&KR.data.at,fred:()=>FRED.data&&FRED.data.at,eia:()=>USA.e&&USA.e.at,bls:()=>USA.m&&USA.m.at,bea:()=>USA.b&&USA.b.at,
+  const M={fx:()=>GLIVE.rynkiAt&&GLIVE.rynkiAt.fx,ust:()=>GLIVE.rynkiAt&&GLIVE.rynkiAt.ust,buba:()=>GLIVE.rynkiAt&&GLIVE.rynkiAt.buba,oecd:()=>GLIVE.oecdAt&&GLIVE.oecdAt.oecd,irlt:()=>GLIVE.oecdAt&&GLIVE.oecdAt.irlt,cli:()=>GLIVE.oecdAt&&GLIVE.oecdAt.cli,finnhub:()=>GLIVE.daySrv,twelvedata:()=>GLIVE.cenySrv,cmc:()=>CMC.data&&CMC.data.at,kr:()=>KR.data&&KR.data.at,fng:()=>KR.data&&KR.data.at,fred:()=>FRED.data&&FRED.data.at,eia:()=>USA.e&&USA.e.at,bls:()=>USA.m&&USA.m.at,bea:()=>USA.b&&USA.b.at,
     tic:()=>TIC.data&&TIC.data.at,bis2:()=>BI.data&&BI.data.at,cftc:()=>CFTC.data&&CFTC.data.at,cm:()=>CM.data&&CM.data.at,imf:()=>REZ.data&&REZ.data.at,stopy:()=>SP.data&&SP.data.at,kursy:()=>KM.data&&KM.data.at,obce_in:()=>ZAG.data&&ZAG.data.in&&ZAG.data.in.at,obce_tw:()=>ZAG.data&&ZAG.data.tw&&ZAG.data.tw.at,obce_hk:()=>ZAG.data&&ZAG.data.hk&&ZAG.data.hk.at,obce_br:()=>ZAG.data&&ZAG.data.br&&ZAG.data.br.at,obce_tr:()=>ZAG.data&&ZAG.data.tr&&ZAG.data.tr.at,obce_th:()=>ZAG.data&&ZAG.data.th&&ZAG.data.th.at,eer:()=>EER.data&&EER.data.at,cofer:()=>COF.data&&COF.data.at,bilans:()=>BIL.data&&BIL.data.at,safe:()=>SAFE.data&&SAFE.data.at,ue:()=>UE.data&&UE.data.at,kanada:()=>KAN.data&&KAN.data.at,korea:()=>KOR.data&&KOR.data.at,spw:()=>SPW.data&&SPW.data.at,meksyk:()=>MX.data&&MX.data.at,fe:()=>typeof TRD!=='undefined'&&TRD.data&&TRD.data.at,cs:()=>typeof TRD!=='undefined'&&TRD.data&&TRD.data.at};
   return M[k]?P(g(M[k])):null;}
 function metaErr(k){const m=GLIVE.meta;if(!m||!m.ok)return null;
-  const MK={oecd:'oecd',irlt:'oecd',cli:'oecd',eia:'eia',bls:'bls',bea:'bea',etf:'sosovalue',finnhub:'finnhub',twelvedata:'twelvedata',cmc:'coinmarketcap',fred:'fred',tic:'tic',kr:'krypto',fng:'krypto',bis2:'bis',cftc:'cftc',cm:'cm',imf:'imf',stopy:'stopy',kursy:'kursy',obce_in:'obce_in',obce_tw:'obce_tw',obce_hk:'obce_hk',obce_br:'obce_br',obce_tr:'obce_tr',obce_th:'obce_th',eer:'eer',cofer:'cofer',bilans:'bilans',safe:'safe',ue:'ue',kanada:'kanada',korea:'korea',spw:'spw',meksyk:'meksyk',fe:'fundusze',cs:'surowce',
+  const MK={fx:'rynki_fx',ust:'rynki_ust',buba:'rynki_buba',oecd:'oecd',irlt:'oecd',cli:'oecd',eia:'eia',bls:'bls',bea:'bea',etf:'sosovalue',finnhub:'finnhub',twelvedata:'twelvedata',cmc:'coinmarketcap',fred:'fred',tic:'tic',kr:'krypto',fng:'krypto',bis2:'bis',cftc:'cftc',cm:'cm',imf:'imf',stopy:'stopy',kursy:'kursy',obce_in:'obce_in',obce_tw:'obce_tw',obce_hk:'obce_hk',obce_br:'obce_br',obce_tr:'obce_tr',obce_th:'obce_th',eer:'eer',cofer:'cofer',bilans:'bilans',safe:'safe',ue:'ue',kanada:'kanada',korea:'korea',spw:'spw',meksyk:'meksyk',fe:'fundusze',cs:'surowce',
     'inst.tga':'tga','inst.rrp':'rrp','inst.tgb':'tgb','inst.ilm':'ilm','inst.bop':'bop','inst.mof':'mof'};
-  const PX={oecd:'OECD',irlt:'OECD',cli:'OECD',eia:'EIA',bls:'BLS',bea:'BEA',etf:'SoSoValue',finnhub:'Finnhub',twelvedata:'Twelve Data',cmc:'CoinMarketCap',fred:'FRED',tic:'TIC',kr:'krypto',fng:'krypto',bis2:'BIS:',cftc:'CFTC',cm:'Coin Metrics',imf:'MFW',stopy:'BIS stopy',kursy:'EBC kursy',obce_in:'NSDL',obce_tw:'TWSE',obce_hk:'HKEX',obce_br:'BCB',obce_tr:'CBRT',obce_th:'ThaiBMA',eer:'BIS kursy efektywne',cofer:'MFW COFER',bilans:'MFW bilans płatniczy',safe:'SAFE',ue:'Eurostat',kanada:'Statistics Canada',korea:'FSS',spw:'MF SPW',meksyk:'Banxico',fe:'fundusze ETF',cs:'CFTC surowce',
+  const PX={fx:'Frankfurter',ust:'Skarb USA 10L',buba:'Bundesbank 10L',oecd:'OECD',irlt:'OECD',cli:'OECD',eia:'EIA',bls:'BLS',bea:'BEA',etf:'SoSoValue',finnhub:'Finnhub',twelvedata:'Twelve Data',cmc:'CoinMarketCap',fred:'FRED',tic:'TIC',kr:'krypto',fng:'krypto',bis2:'BIS:',cftc:'CFTC',cm:'Coin Metrics',imf:'MFW',stopy:'BIS stopy',kursy:'EBC kursy',obce_in:'NSDL',obce_tw:'TWSE',obce_hk:'HKEX',obce_br:'BCB',obce_tr:'CBRT',obce_th:'ThaiBMA',eer:'BIS kursy efektywne',cofer:'MFW COFER',bilans:'MFW bilans płatniczy',safe:'SAFE',ue:'Eurostat',kanada:'Statistics Canada',korea:'FSS',spw:'MF SPW',meksyk:'Banxico',fe:'fundusze ETF',cs:'CFTC surowce',
     'inst.tga':'tga','inst.rrp':'rrp','inst.tgb':'tgb','inst.ilm':'ilm','inst.bop':'bop','inst.mof':'mof'};
   const key=MK[k];if(!key||m.ok[key]!==false)return null;
   const e=(m.errors||[]).find(x=>typeof x==='string'&&x.startsWith(PX[k]||'~'));return e||t('src.m.err');}
@@ -3768,6 +3768,19 @@ function gDaily(s,per){
     for(let i=s.length-1;i>=0;i--){if(s[i][0]<=lim){ref=s[i];break;}}}
   return {v:last[1],d:ref?last[1]-ref[1]:null,date:last[0]};
 }
+/* 10L USA prosto ze Skarbu USA: bieżący rok + poprzedni (poprzedni tylko raz — nie zmienia się); v101: tylko zapas, gdy pliku serwera brak */
+function gUstLoad(){const yr=new Date().getUTCFullYear();
+  const prev=GLIVE.ustPrev?Promise.resolve(GLIVE.ustPrev):gText(GSRC.ust(yr-1)).then(x=>gUst(x)).catch(()=>[]);
+  return Promise.all([gText(GSRC.ust(yr)).then(x=>gUst(x)),prev]).then(a=>{
+    if(a[1].length)GLIVE.ustPrev=a[1];
+    const s=a[1].concat(a[0]);if(s.length){GLIVE.ust=s;gOk('ust');}}).catch(()=>{});}
+/* v101: plik serwera data/rynki.json — kursy EBC (6 dat) i dzienne rentowności 10L; część nieważna albo za stara — pominięta (strona zapyta źródło sama) */
+function rynkiSrv(j){const out={};if(!j||typeof j!=='object')return out;const now=Date.now(),pat=j.part_at&&typeof j.part_at==='object'?j.part_at:{};
+  const age=k=>{const t=Date.parse(pat[k]||j.at||'');return isFinite(t)?now-t:Infinity;};
+  const F=j.fx;if(F&&typeof F==='object'&&['now','1M','1Q','1R','1D','1T'].every(k=>F[k]&&F[k].rates&&typeof F[k].rates==='object'&&Object.keys(F[k].rates).length)&&age('fx')<36*3600e3)out.fx=F;
+  const ser=a=>Array.isArray(a)?a.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&typeof x[1]==='number'&&isFinite(x[1])):[];
+  for(const k of ['ust','buba']){const a=ser(j[k]);if(a.length&&age(k)<4*864e5)out[k]=a;}
+  return out;}
 function gLoad(cb){
   const keepSrc={};['cmc','kr','fng'].forEach(k=>{if(GLIVE.src&&GLIVE.src[k])keepSrc[k]=GLIVE.src[k];});   /* v49: te źródła ładuje osobny zegar */
   GLIVE.st='load';GLIVE.src=keepSrc;gStatus();   /* pełne odświeżenie: lista źródeł liczona od nowa */
@@ -3780,8 +3793,15 @@ function gLoad(cb){
     srvJSON('oecd').then(j=>{const S=oecdSrv(j),pa=(j&&j.part_at&&typeof j.part_at==='object')?j.part_at:{};GLIVE.oecdAt={};   /* czas każdej części pliku — dla strony Źródła */
       const one=(k,g,src,set,main)=>S[k]?Promise.resolve().then(()=>{set(S[k]);gOk(src);GLIVE.oecdAt[src]=pa[k]||j.at;}):gJSON(GSRC[g](gISO.join('+'))).then(x=>{set(gOecd(x));gOk(src);}).catch(e=>{if(main)GLIVE.err='OECD '+e.message;});
       return Promise.all([one('share','oecd','oecd',v=>{GLIVE.oecd=v;},1),one('irlt','rate','irlt',v=>{GLIVE.irlt=v;}),one('cli','cli','cli',v=>{GLIVE.cli=v;})]);}),
-    Promise.all([gJSON(GSRC.fx('latest')),gJSON(GSRC.fx(back(1))),gJSON(GSRC.fx(back(3))),gJSON(GSRC.fx(back(12))),gJSON(GSRC.fx(backD(1))),gJSON(GSRC.fx(backD(7)))])
-      .then(a=>{GLIVE.fx={now:a[0],'1M':a[1],'1Q':a[2],'1R':a[3],'1D':a[4],'1T':a[5]};gOk('fx');}).catch(e=>{GLIVE.err=GLIVE.err||('FX '+e.message);}),
+    /* v101: kursy EBC i rentowności 10L (USA, Niemcy) najpierw z pliku serwera (co godzinę); prosto ze źródła tylko część, której w pliku brak */
+    srvJSON('rynki').then(j=>{const S=rynkiSrv(j),pa=(j&&j.part_at&&typeof j.part_at==='object')?j.part_at:{};GLIVE.rynkiAt={};
+      const use=(k,f)=>{f(S[k]);gOk(k);GLIVE.rynkiAt[k]=pa[k]||j.at;};
+      return Promise.all([
+        S.fx?Promise.resolve().then(()=>use('fx',v=>{GLIVE.fx=v;})):
+        Promise.all([gJSON(GSRC.fx('latest')),gJSON(GSRC.fx(back(1))),gJSON(GSRC.fx(back(3))),gJSON(GSRC.fx(back(12))),gJSON(GSRC.fx(backD(1))),gJSON(GSRC.fx(backD(7)))])
+          .then(a=>{GLIVE.fx={now:a[0],'1M':a[1],'1Q':a[2],'1R':a[3],'1D':a[4],'1T':a[5]};gOk('fx');}).catch(e=>{GLIVE.err=GLIVE.err||('FX '+e.message);}),
+        S.ust?Promise.resolve().then(()=>use('ust',v=>{GLIVE.ust=v;})):gUstLoad(),
+        S.buba?Promise.resolve().then(()=>use('buba',v=>{GLIVE.buba=v;})):gJSON(GSRC.buba(back(13))).then(x=>{const s=gBuba(x);if(s.length){GLIVE.buba=s;gOk('buba');}}).catch(()=>{})]);}),
     gJSON(cgUrl(GSRC.crypto)).then(j=>{GLIVE.crypto=j.data;gOk('crypto');}).catch(()=>{}),
     (krStabh()?Promise.resolve().then(()=>gOk('stab')):gJSON(GSRC.stab).then(j=>{GLIVE.stab=j;gOk('stab');}).catch(()=>{})),   /* v49: bez 1,3 MB, gdy serwer ma historię */
     srvJSON('ceny').then(j=>{if(j&&j.q&&typeof j.q==='object'&&typeof j.at==='string'){GLIVE.cenySrv=j.at;gCenyApply(j);return;}GLIVE.cenySrv='';return tdLoad(false);}).catch(()=>{GLIVE.cenySrv='';return tdLoad(false);}),
@@ -3805,13 +3825,6 @@ function gLoad(cb){
     srvJSON('cftc').then(j=>{cftcApply(j);}).catch(()=>{cftcApply(null);}),   /* v50: CFTC wprost z cftc.gov (plik automatu, najwyżej co 6 h) */
     srvJSON('bis').then(j=>{biApply(j);}).catch(()=>{biApply(null);}),   /* v50: BIS LBS — przepływy bankowe między regionami (plik automatu, raz na dobę) */
     gJSON(GSRC.fiat).then(j=>{const f=gFiat(j);if(f){GLIVE.fiat=f;gOk('fiat');}}).catch(()=>{}),
-    /* 10L USA: bieżący rok + poprzedni (poprzedni tylko raz — nie zmienia się) */
-    (()=>{const yr=new Date().getUTCFullYear();
-      const prev=GLIVE.ustPrev?Promise.resolve(GLIVE.ustPrev):gText(GSRC.ust(yr-1)).then(x=>gUst(x)).catch(()=>[]);
-      return Promise.all([gText(GSRC.ust(yr)).then(x=>gUst(x)),prev]).then(a=>{
-        if(a[1].length)GLIVE.ustPrev=a[1];
-        const s=a[1].concat(a[0]);if(s.length){GLIVE.ust=s;gOk('ust');}});})().catch(()=>{}),
-    gJSON(GSRC.buba(back(13))).then(j=>{const s=gBuba(j);if(s.length){GLIVE.buba=s;gOk('buba');}}).catch(()=>{})
   ];
   Promise.all(P).then(()=>{
     GLIVE.st=(GLIVE.oecd&&GLIVE.fx)?'ok':'err';
@@ -3838,7 +3851,8 @@ function gAuto(on){
     let okN=0,tried=0;   /* v49: kursy EBC raz na 15 min (zmieniają się raz dziennie), krypto co 5 min, stablecoiny z serwera */
     const due=n=>{if(gTick%n===0){tried++;return true;}return false;};
     Promise.all([
-      due(15)?gJSON(GSRC.fx('latest')).then(j=>{if(GLIVE.fx&&j&&j.rates){GLIVE.fx.now=j;okN++;gOk('fx');}}).catch(()=>{}):null,
+      due(15)?srvJSON('rynki').then(j=>{const S=rynkiSrv(j);if(S.fx&&GLIVE.fx){GLIVE.fx=S.fx;okN++;gOk('fx');GLIVE.rynkiAt=GLIVE.rynkiAt||{};GLIVE.rynkiAt.fx=(j.part_at&&j.part_at.fx)||j.at;return;}
+        return gJSON(GSRC.fx('latest')).then(x=>{if(GLIVE.fx&&x&&x.rates){GLIVE.fx.now=x;okN++;gOk('fx');}});}).catch(()=>{}):null,   /* v101: najpierw plik serwera */
       due(5)?gJSON(cgUrl(GSRC.crypto)).then(j=>{if(j&&j.data){GLIVE.crypto=j.data;okN++;gOk('crypto');}}).catch(()=>{}):null,
       (!krStabh()&&due(15))?gJSON(GSRC.stab).then(j=>{if(Array.isArray(j)&&j.length){GLIVE.stab=j;okN++;gOk('stab');}}).catch(()=>{}):null
     ]).then(()=>{
