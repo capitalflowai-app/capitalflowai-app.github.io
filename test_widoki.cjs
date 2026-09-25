@@ -1253,7 +1253,7 @@ test('v69: fałszywa sesja nie przesuwa okna; ETF bez daty końca = brak; daty o
   GLIVE.ceny.q.EWA.d.pop(); assert.equal(f.gCenyDp('EWA', '1Q'), null, 'ETF bez ostatniej sesji — brak, nie inne okno');
   assert.ok(html.includes("(w=>w?' · '+escH(w[0])+' → '+escH(w[1]):'')(gCenyWin(p))"));
   assert.ok(html.includes("jpn:[['EWJ',7611],['EWY',2757]]"), 'wagi Japonii i Korei z bazy');
-  assert.ok(html.includes("put('mcap',x[0],x[1],x[2],(typeof M.mcap_chg24_pct==='number'&&isFinite(M.mcap_chg24_pct))?M.mcap_chg24_pct:null,null,'CoinMarketCap')") && html.includes('if(L[k.id].src)src=L[k.id].src;'));
+  assert.ok(html.includes('function kpiCmc(M,out,live)') && html.includes('if(L[k.id].src)src=L[k.id].src;'));   // v73: kafelki CMC w kpiCmc
   assert.ok(html.includes("t(GLIVE.cenySrv?'g.m.regtds':'g.m.regtd',{n:GCENY_N[gst.period]})") && html.includes("'g.l.regtd':'g.l.reg'"));
   const z0 = html.indexOf('const zagSes='), z1 = html.indexOf('\n', z0), zs = new Function('LANG', html.slice(z0, z1) + '\nreturn zagSes;')('pl');
   assert.deepEqual([1, 2, 4, 5, 12, 20, 22].map(zs), ['sesja', 'sesje', 'sesje', 'sesji', 'sesji', 'sesji', 'sesje']);
@@ -1290,7 +1290,7 @@ test('v70: bilans płatniczy: sumy tylko z kompletu, ranking, starszy kwartał w
   f.bilApply({at: 'x', rows: {}, order: []}); assert.equal(f.BIL.data, null, 'plik bez krajów odrzucony');
   assert.ok(html.includes("html+=(typeof bilHtml==='function'&&typeof BIL!=='undefined')?bilHtml(BIL.data):'';") && html.includes("srvJSON('bilans')") && html.includes("bilans:'MFW bilans płatniczy'"));
   assert.ok(html.includes("${typeof bilRegion==='function'?bilRegion(s.id):''}") && html.includes('bilans:()=>BIL.data&&BIL.data.at') && html.includes("bilans:'bilans',"));
-  assert.ok(html.includes("'api.imf.org','src.f.q','src.l.q',GLIVE.src.bilans,'g.hs.bilans','bilans']") && html.includes('"MFW — bilans płatniczy (BOP)":"IMF — balance of payments (BOP)"'));
+  assert.ok(html.includes("'api.imf.org','src.f.q','src.l.bop',GLIVE.src.bilans,'g.hs.bilans','bilans']") && html.includes('"MFW — bilans płatniczy (BOP)":"IMF — balance of payments (BOP)"'));
   assert.ok(html.includes('<summary><b>MFW — bilans płatniczy (BOP)</b>'));
   const x0 = html.indexOf('const EXTRA58='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA58='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['bil.t', 'bil.sub', 'bil.c.t4', 'bil.more', 'bil.foot', 'bil.not', 'bil.src', 'bil.reg', 'bil.reg.v', 'g.hs.bilans']) assert.ok(dict[l][k], l + ' ' + k);
@@ -1320,7 +1320,7 @@ test('v71: blok BCB: kapitał, handel, razem, sumy tylko z kompletu, wiersz regi
   assert.equal(f.brRegion('usa'), '');
   assert.ok(html.includes("html+=typeof brBlock==='function'?brBlock():'';") && html.includes("${typeof brRegion==='function'?brRegion(s.id):''}"));
   assert.ok(html.includes("if(okD(j.br))gOk('obce_br');") && html.includes("obce_br:'BCB'") && html.includes('obce_br:()=>ZAG.data&&ZAG.data.br&&ZAG.data.br.at'));
-  assert.ok(html.includes("'api.bcb.gov.br','src.f.d','src.l.w',GLIVE.src.obce_br,'g.hs.bcb','obce_br']") && html.includes("['Banco Central do Brasil','https://www.bcb.gov.br']"));
+  assert.ok(html.includes("'api.bcb.gov.br','src.f.d','src.l.bcb',GLIVE.src.obce_br,'g.hs.bcb','obce_br']") && html.includes("['Banco Central do Brasil','https://www.bcb.gov.br']"));
   assert.ok(html.includes('<summary><b>Banco Central do Brasil — câmbio contratado</b>'));
   const x0 = html.indexOf('const EXTRA59='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA59='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['br.t', 'br.sub', 'br.fin', 'br.com', 'br.tot', 'br.not', 'br.src', 'br.reg', 'br.reg.v', 'g.hs.bcb']) assert.ok(dict[l][k], l + ' ' + k);
@@ -1352,4 +1352,30 @@ test('v72: SAFE: kapitał, handel, razem, suma 12 kolejnych miesięcy, wiersz re
   assert.ok(html.includes('<summary><b>SAFE (Chiny) — kupno i sprzedaż walut przez banki</b>'));
   const x0 = html.indexOf('const EXTRA60='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA60='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['sf.t', 'sf.sub', 'sf.cfa', 'sf.ca', 'sf.cust', 'sf.not', 'sf.src', 'sf.reg', 'sf.reg.v', 'g.hs.safe']) assert.ok(dict[l][k], l + ' ' + k);
+});
+
+// v73: poprawki po trzecim przeglądzie
+test('v73: kafelki CoinMarketCap z własnym czasem, także bez CoinPaprika; bez „−0,0”; CFTC data przy wierszu; teksty panelu', () => {
+  const a0 = html.indexOf('function kpiCmc(M,out,live){'), a1 = html.indexOf('function renderKPI(){', a0);
+  const f = new Function('big', html.slice(a0, a1) + '\nreturn kpiCmc;')(v => [v / 1e12, 'u.T', 2]);
+  assert.equal(f(null, {}, false), null, 'bez pliku i bez CoinPaprika — brak');
+  const o = {vol: 1}; assert.equal(f(null, o, true), o, 'bez pliku — to, co z CoinPaprika');
+  const r = f({total_mcap: 2.88e12, mcap_chg24_pct: 0.004, btc_dom: 58.9, asof: '2026-09-25T01:47:59.999Z', at: 'x'}, {}, false);
+  assert.deepEqual(r.mcap, {val: 2.88, unit: 'u.T', dec: 2, d: 0, src: 'CoinMarketCap', at: '2026-09-25T01:47:59.999Z'});
+  assert.equal(r.dom.at, '2026-09-25T01:47:59.999Z'); assert.equal(r.dom.d, null);
+  assert.ok(html.includes("const ks=own?src+' · '+engDate(own)+gAgeNote(own):gap?src:!lv?t('live.off'):src+' · '+liveWhen()+gAgeNote(LIVE.at||'');") && html.includes('else if(lv||L){gap=true;d=null;}'));
+  const b0 = html.indexOf('const bopMld='), b1 = html.indexOf('\n', b0);
+  const bop = new Function('instSign', 'instMld', html.slice(b0, b1) + '\nreturn bopMld;')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), m => (m / 1000).toFixed(1));
+  assert.equal(bop(-29.7), '−&lt;0.1'); assert.equal(bop(0), '0.0'); assert.equal(bop(-1234), '−1.2'); assert.equal(bop(null), '—');
+  assert.ok(html.includes("t('cftc.x.from',{d:escH(c[1])})") && html.includes('cnt[b]-cnt[a]'));
+  assert.ok(!html.includes("${K?' · HKEX (Stock Connect)':''}"), 'HKEX nie dwa razy w linii źródeł');
+  assert.ok(html.includes('<td><span class="cell mono">${instFoot(r.q)}</span></td>'), 'kwartał z wiekiem danych');
+  assert.ok(html.includes('Zmierzone przepływy kapitału między krajami — transakcje, a nie zmiany cen'));
+  for (const k of ['bilans płatniczy 37 gospodarek', 'kupno i sprzedaż walut przez banki w Chinach', 'dolary przez rynek walutowy Brazylii', 'pozycje dużych graczy w kontraktach']) assert.ok(html.includes('<span class="cell">' + k + '</span>'), k);
+  const x0 = html.indexOf('const EXTRA61='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA61='.length, x1));
+  for (const l of ['pl', 'en']) {
+    for (const k of ['br.sub', 'br.fin', 'br.fin.bs', 'br.reg.v', 'src.l.bop', 'src.l.bcb', 'bil.c.o', 'bil.foot', 'bil.not', 'bil.reg.v', 'cftc.x.from', 'cftc.x.sub', 'inst.t', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+    assert.ok(!/Sześć|Six sets/.test(dict[l]['inst.sub']));
+  }
+  assert.ok(dict.pl['br.sub'].includes('bez rynku międzybankowego') && dict.pl['bil.not'].includes('Wielka Brytania') && dict.pl['bil.foot'].includes('12 gospodarek'));
 });

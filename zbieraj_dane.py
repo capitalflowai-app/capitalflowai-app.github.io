@@ -553,7 +553,8 @@ def _align_calendar(q):
     if not q:
         return 0
     spy = q.get('SPY') if isinstance(q.get('SPY'), dict) else None
-    if spy and spy.get('d'):
+    lens = sorted(len(v.get('d') or []) for v in q.values())
+    if spy and spy.get('d') and len(spy['d']) >= lens[len(lens) // 2] - 5:   # v73: SPY tylko z pełną historią
         cal = {str(r[0])[:10] for r in spy['d']}
     else:
         cnt = {}
@@ -561,14 +562,17 @@ def _align_calendar(q):
             for r in (v.get('d') or []):
                 cnt[str(r[0])[:10]] = cnt.get(str(r[0])[:10], 0) + 1
         cal = {d for d, c in cnt.items() if c * 2 >= len(q)}
-    n = 0
-    for v in q.values():
+    n, gone = 0, []
+    for sym, v in list(q.items()):
         d = v.get('d') or []
         keep = [r for r in d if str(r[0])[:10] in cal]
+        if not keep:
+            gone.append(sym); del q[sym]; continue   # v73: bez żadnej świecy w kalendarzu — poza plikiem (build_prices nie padnie)
         if len(keep) != len(d):
             n += len(d) - len(keep); v['d'] = keep
-            if keep:
-                v['asof'] = str(keep[-1][0])[:10]
+            v['asof'] = str(keep[-1][0])[:10]
+    if gone:
+        META['notes'].append('Twelve Data: bez świec we wspólnym kalendarzu: ' + ', '.join(sorted(gone)))
     if n:
         META['notes'].append(f'Twelve Data: świece spoza wspólnego kalendarza sesji pominięte: {n}')
     return n
@@ -1887,7 +1891,7 @@ def parse_hkex(text):
         j = json.loads(t[t.index('['):t.rindex(']') + 1])
     except (ValueError, json.JSONDecodeError):
         return None
-    date, buy, sell, n, sb = None, 0.0, 0.0, 0, 0
+    date, buy, sell, n, sb, bad = None, 0.0, 0.0, 0, 0, 0
     for m in j if isinstance(j, list) else []:
         if not isinstance(m, dict) or 'southbound' not in str(m.get('market', '')).lower():
             continue
@@ -1897,11 +1901,15 @@ def parse_hkex(text):
         try:
             tb = m['content'][0]['table']; d = dict(zip(tb['schema'][0], [x['td'][0][0] for x in tb['tr']]))
         except (KeyError, IndexError, TypeError):
-            continue
+            bad += 1; continue
         b, s = _num(d.get('Buy Turnover')), _num(d.get('Sell Turnover'))
         if b is None or s is None or not re.match(r'^\d{4}-\d{2}-\d{2}$', str(m.get('date', ''))):
-            continue
+            bad += 1; continue
+        if b == 0 and s == 0:
+            continue      # v73: rynek bez handlu (święto w Chinach kontynentalnych przy otwartym Hongkongu: tradingDay 1, obrót 0,00)
         date = m['date']; buy += b; sell += s; n += 1
+    if bad:
+        return None       # v73: nieczytelna tabela rynku w dniu sesji = nieczytelny plik (ponowimy), nie dzień z częścią rynków
     if not n:
         return False if sb else None   # v69: False = dzień bez sesji (plik z tradingDay 0), None = nieczytelny plik
     return [date, round(buy - sell, 2), round(buy, 2), round(sell, 2), n]
@@ -1925,6 +1933,8 @@ def hkex_part(prev_hk, key):
     lim = (now_hk.date() - datetime.timedelta(days=40)).isoformat()
     empty = {x for x in prev_hk.get('empty', []) if isinstance(x, str) and x >= lim}
     fails = []
+    for k in [k for k, r in have.items() if len(r) > 3 and r[2] == 0 and r[3] == 0]:
+        del have[k]; empty.add(k)   # v73: dawny zapis „sesja z zerem” w dniu bez handlu → dzień bez sesji
     for iso in tw_dates(set(have), empty, now_hk, first=not have)[-TWSE_MAX:]:   # te same zasady dni co dla Tajwanu (UTC+8)
         time.sleep(HKEX_SLEEP)
         try:
@@ -2158,7 +2168,8 @@ def parse_bilans(j):
         s = rows.get(c)
         qs = [x[-1][0] for k, x in (s or {}).items() if k in ('in_d', 'in_p', 'in_o') and x]
         if qs:
-            out[c] = {'q': max(qs), 's': s}
+            q = max(qs); lo = _q_add(q, -4)
+            out[c] = {'q': q, 's': {k: x for k, x in s.items() if x and x[-1][0] >= lo}}   # v73: seria urwana dawno (np. Wietnam 2014) — poza plikiem
     if not out:
         raise RuntimeError('żaden kraj z napływem kapitału')
     return {'src': 'International Monetary Fund, Balance of Payments (BOP)', 'url': 'https://data.imf.org/en/datasets/IMF.STA:BOP',

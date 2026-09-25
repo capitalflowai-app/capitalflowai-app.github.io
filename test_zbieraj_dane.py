@@ -2435,5 +2435,48 @@ class SafeChinaVX(unittest.TestCase):
                 zd.build_safe()
 
 
+class ReviewV73(unittest.TestCase):
+    """v73: święto w Chinach przy otwartym Hongkongu = brak sesji (nie zero); stare serie poza plikiem MFW; kalendarz ETF odporny."""
+
+    @staticmethod
+    def hk_file(day, buy='0.00', sell='0.00', trading=1, broken=False):
+        mk = lambda name: {'id': 0, 'date': day, 'market': name, 'tradingDay': trading, 'content': [{'style': 1, 'table': {
+            'schema': [['Total Turnover', 'Buy Turnover', 'Sell Turnover', 'Total Trade Count']],
+            'tr': [] if broken else [{'td': [[str(float(buy) + float(sell))]]}, {'td': [[buy]]}, {'td': [[sell]]}, {'td': [['0']]}]}}]}
+        north = {'id': 0, 'date': day, 'market': 'SSE Northbound', 'tradingDay': 0, 'content': []}
+        return 'tabData = ' + json.dumps([north, mk('SSE Southbound'), mk('SZSE Southbound')]) + ';'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def test_mainland_holiday_is_no_session_and_old_zero_rows_move_to_empty(self):
+        self.assertIs(zd.parse_hkex(self.hk_file('2026-05-05')), False, 'tradingDay 1 z obrotem 0,00 = brak sesji, nie zero')
+        self.assertEqual(zd.parse_hkex(self.hk_file('2026-09-24', '100.5', '50.25')), ['2026-09-24', 100.5, 201.0, 100.5, 2])
+        self.assertIsNone(zd.parse_hkex(self.hk_file('2026-09-24', broken=True)), 'nieczytelna tabela w dniu sesji = nieczytelny plik')
+        prev = {'d': [['2026-09-23', 3448.93, 42794.07, 39345.14, 2, 439.6, '2026-09-18'], ['2026-09-22', 0.0, 0.0, 0.0, 2, 0.0, '2026-09-18']], 'empty': []}
+
+        def gb(url, headers=None, timeout=60):
+            d = url.split('daily_')[1][:8]
+            return self.hk_file(f'{d[:4]}-{d[4:6]}-{d[6:]}').encode()   # każdy dzień: Chiny zamknięte
+        with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.hkex_part(prev, '')
+        self.assertEqual([r[0] for r in out['d']], ['2026-09-23'], 'dawny wiersz z zerem usunięty')
+        self.assertIn('2026-09-22', out['empty']); self.assertIn('2026-09-24', out['empty'])
+
+    def test_bilans_drops_series_that_ended_long_ago(self):
+        dims = [('COUNTRY', ['VNM']), ('BOP_ACCOUNTING_ENTRY', ['L_NIL_T']), ('INDICATOR', ['D_F', 'P_F5']), ('UNIT', ['USD']), ('FREQUENCY', ['Q'])]
+        out = zd.parse_bilans(_imf_sdmx({'0:0:0:0:0': {0: '5000000000'}, '0:0:1:0:0': {1: '100000000'}}, ['2026-Q1', '2014-Q4'], dims))
+        self.assertEqual(out['rows']['VNM']['q'], '2026-Q1'); self.assertNotIn('in_pe', out['rows']['VNM']['s'], 'seria z 2014 poza plikiem')
+
+    def test_calendar_uses_majority_when_spy_is_short_and_drops_empty_symbols(self):
+        days = [f'2026-09-{d:02d}' for d in range(1, 21)]
+        q = {'SPY': {'d': [[days[-1], 1, 1]]}, 'EWA': {'d': [[d, 1, 1] for d in days]}, 'EWJ': {'d': [[d, 1, 1] for d in days]},
+             'TUR': {'d': [['2025-12-25', 1, 1]]}}
+        zd._align_calendar(q)
+        self.assertEqual(len(q['EWA']['d']), 20, 'krótka historia SPY nie obcina innych')
+        self.assertNotIn('TUR', q); self.assertTrue(any('bez świec' in n and 'TUR' in n for n in zd.META['notes']))
+
+
 if __name__ == '__main__':
     unittest.main()
