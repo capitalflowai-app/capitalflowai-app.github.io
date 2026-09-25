@@ -1765,3 +1765,115 @@ test('v88.1: Meksyk (Banxico): rodzaje papierów, reszta do całości, brak = �
   assert.ok(dict.pl['inst.sub'].includes('meksykańskich papierów rządowych') && dict.pl['fo.sub'].includes('skarbowych (rządowych)'));
   assert.ok(html.includes('banki centralne Brazylii, Meksyku i Turcji') && html.includes('kursem Fed z dnia danych (H.10, przez FRED)'));
 });
+
+test('v89: TRENDY — trzecia zakładka, sekcja po GLOBAL, tryb w setMode/applyVis, klawiatura po indeksie, menu jak GLOBAL', () => {
+  assert.ok(html.includes('<button role="tab" id="tab-trendy" aria-selected="false" aria-controls="trendy" data-i18n="tab.trendy"></button>'));
+  assert.ok(html.indexOf('id="tab-trendy"') > html.indexOf('id="tab-crypto"'), 'TRENDY po CRYPTO');
+  const s = '<section class="global" id="trendy" role="tabpanel" aria-labelledby="tab-trendy" hidden></section>';
+  assert.ok(html.includes(s) && html.indexOf(s) > html.indexOf('<section class="panel pcard" id="inst" hidden></section>'), 'sekcja po GLOBAL (pierwsza .head-row .badge nadal z CRYPTO)');
+  assert.ok(html.includes("$('#trendy').hidden=!(ov&&st.mode==='trendy');"));
+  assert.ok(html.includes("['global','crypto','trendy'].forEach(k=>$('#tab-'+k).setAttribute('aria-selected',m===k));"));
+  assert.ok(html.includes("if(m==='trendy')renderTrendy();"));
+  assert.ok(html.includes("$('#tab-trendy').addEventListener('click',()=>setMode('trendy'));"));
+  assert.ok(!html.includes("b.id==='tab-crypto'?$('#tab-global'):$('#tab-crypto')"), 'strzałki: po indeksie, nie para GLOBAL/CRYPTO');
+  assert.ok(html.includes("function gActive(){return st.mode!=='crypto';}"), 'strony z menu w TRENDACH pokazują dane GLOBAL');
+  assert.ok(html.includes("if(document.hidden||!gActive())return;"), '… i dane GLOBAL odświeżają się także w TRENDACH');
+  assert.ok(html.includes("if(sc)sc.hidden=st.mode!=='crypto';"), 'ustawienia sceny 3D tylko w CRYPTO');
+  assert.ok(html.includes("if(st.mode==='trendy'){if(page!=='overview')setPage('overview');const d=$('#trd-method');"), 'znak zapytania w TRENDACH otwiera „Jak liczymy” (także z innej strony menu)');
+  assert.ok(html.includes('trdLoad();trdAuto();'), 'plik trendów wczytywany na starcie i co 20 min');
+  assert.ok(html.includes("if(typeof renderTrendy==='function'&&st.mode==='trendy')renderTrendy();"), 'zmiana języka odświeża TRENDY');
+  assert.ok(html.includes('.tabs button{padding:9px 16px}') && html.includes('@media (max-width:400px){.tabs button{padding:9px 10px;letter-spacing:.01em}}'), 'trzy zakładki mieszczą się na telefonie');
+});
+
+test('v89: EXTRA80 — nazwa zakładki w 10 językach, pl i en z tymi samymi kluczami, stany bez słów o przyszłości i bez „kupuj/sprzedaj”', () => {
+  const a = 'const EXTRA80=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(x0 > html.indexOf('for(const l in EXTRA79)'), 'po EXTRA79');
+  assert.ok(html.includes('for(const l in EXTRA80)if(I18N[l])Object.assign(I18N[l],EXTRA80[l]);'));
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(D[l] && D[l]['tab.trendy'], 'tab.trendy ' + l);
+  assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), blk = html.slice(b0, b1);
+  const lit = [...blk.matchAll(/t\('(trd\.[A-Za-z0-9_.]+)'/g)].map(m => m[1]).filter(k => !k.endsWith('.'));
+  for (const k of lit) assert.ok(D.pl[k] && D.en[k], 'brak klucza ' + k);
+  const ST = ['in_up', 'in_flat', 'in_down', 'in_rev', 'in_new', 'in_dir', 'out_up', 'out_flat', 'out_down', 'out_rev', 'out_new', 'out_dir'];
+  for (const s of ST.concat(['mixed', 'none', 'short', 'gap', 'stale'])) assert.ok(D.pl['trd.sn.' + s] && D.en['trd.sn.' + s], 'trd.sn.' + s);
+  for (const m of ['stock', 'exch', 'supply', 'pos']) for (const s of ST.concat(['none'])) assert.ok(D.pl[`trd.sn.${m}.${s}`] && D.en[`trd.sn.${m}.${s}`], `trd.sn.${m}.${s}`);
+  for (const s of ['up_cont', 'up_new', 'dn_fade', 'up_fade', 'dn_new', 'dn_cont', 'flat']) assert.ok(D.pl['trd.ps.' + s] && D.en['trd.ps.' + s]);
+  for (const id of ['in_eq', 'in_bd', 'tw', 'hk', 'th', 'br', 'tr_eq', 'tr_bd', 'jp_eq', 'jp_bd', 'mx', 'etf_btc', 'etf_eth', 'etf_sol', 'etf_xrp', 'stab', 'cm_btc', 'cm_eth',
+                    'cf_usd', 'cf_eur', 'cf_jpy', 'cf_spx', 'cf_msciem', 'cf_btc', 'cf_eth']) {
+    assert.ok(D.pl['trd.s.' + id] && D.en['trd.s.' + id], 'trd.s.' + id);
+    assert.ok(D.pl['trd.src.' + id.split('_')[0]], 'trd.src.' + id.split('_')[0]);
+  }
+  for (const s of ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA']) assert.ok(D.pl['trd.px.' + s] && D.en['trd.px.' + s]);
+  const bad = /kupuj(?![a-ząćęłńóśźż])|sprzedawaj(?![a-ząćęłńóśźż])|warto kupi|okazj|sygna[łl] (kupna|sprzeda)|prognozuj|rekomend|\btrwa(?![a-ząćęłńóśźż])|odbic|odbij|cofa si|zaczyna|\bbuy\b|\bsell\b|worth buying|opportunit|recommend|forecast|rebound|continues|pulling back|\bstarts\b/i;
+  for (const l of ['pl', 'en']) for (const k in D[l]) {
+    if (!/^trd\.(sn|ps|sum|k|s|px|x|f|c|p|h1|sub|n)\b/.test(k)) continue;   /* ostrzeżenia (disc, m.*, b.concl*) cytują te słowa w zaprzeczeniu */
+    assert.doesNotMatch(D[l][k], bad, `${l} ${k}: ${D[l][k]}`);
+  }
+  for (const k of ['trd.sn.pos.in_up', 'trd.sn.pos.out_up']) assert.ok(D.pl[k].includes('pozycja netto') && D.en[k].includes('net position'), 'CFTC: zmiana pozycji netto, nie „nowe zakłady”');
+  assert.ok(D.pl['trd.disc'].includes('ani rekomendacja') && D.en['trd.disc'].includes('not a recommendation'), 'ostrzeżenie zawsze na górze');
+  assert.ok(!D.pl['trd.disc'].includes('nie wynika') && !D.pl['trd.m.5'].includes('warto kupić'), 'ostrzeżenie nie zależy od statystyki');
+});
+
+test('v89: TRENDY — karty, kolejność stanów, brak = „—”, bez oceny przy braku danych, kafle z pełną historią, wniosek z liczb', () => {
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */');
+  const a = 'const EXTRA80=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const el = {innerHTML: '', q: [], querySelectorAll() { return this.q; }, querySelector() { return null; }}, st = {mode: 'trendy'};
+  const nf = (v, d = 0) => v.toFixed(d), sg = v => v > 0 ? '+' : v < 0 ? '−' : '';
+  const f = new Function('$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+    html.slice(b0, b1) + '\nreturn {TRD, trdApply, trdAmt, renderTrendy, trdVerdict};')(
+    () => el, T, st, () => Promise.resolve(null), s => String(s).replace(/</g, '&lt;'), v => v > 0 ? 'pos' : v < 0 ? 'neg' : '', d => ' ·age(' + d + ')',
+    v => sg(v) + Math.abs(v), sg, nf, (v, d) => sg(v) + nf(Math.abs(v), d) + '%', n => 'ses', s => 'DT(' + s + ')', 'pl', {pl: 'pl-PL'}, {pl: {}, en: D.en});
+  assert.equal(f.trdAmt(null, 'USD'), '—'); assert.equal(f.trdAmt(0.01, 'USD'), '+&lt;0.1 trd.u.m USD', 'mała kwota nie jest zerem');
+  assert.equal(f.trdAmt(-41054.2, 'BTC'), '−41054 BTC'); assert.equal(f.trdAmt(0.2, 'BTC'), '+&lt;1 BTC', 'ułamek monety nie jest „0 BTC”');
+  assert.equal(f.trdAmt(1538, 'CT'), '+1538 trd.u.ct'); assert.equal(f.trdAmt(-1522.8, 'JPY'), '−1522.8 trd.u.b JPY', 'JPY: plik w mld → mln × 1000');
+  f.renderTrendy();
+  assert.ok(el.innerHTML.includes('trd.nodata') && el.innerHTML.includes('trd.disc') && el.innerHTML.includes('live off') && el.innerHTML.includes('id="trd-method"'),
+            'bez pliku — komunikat, ostrzeżenie i opis metody, nie zera');
+  f.trdApply({at: 'x'}); assert.equal(f.TRD.data, null, 'plik bez list f/p — odrzucony');
+  const row = (o) => Object.assign({g: 'eq', m: 'flow', sz: 5, cur: 'USD', date: '2026-09-24', age: 1, n: 8, lc: false, s: 1, sg: 1, x: false}, o);
+  const data = {at: '2026-09-25T10:00:00Z', f: [
+    row({id: 'tw', st: 'out_dir', w: -500, d: -1.5, cur: 'TWD', wu: -15, du: -90, lc: true, n: 4}),
+    row({id: 'hk', st: 'in_dir', w: 24306.46, wu: 3098.1, d: 1.73, base: 10106.06, du: 1810, cur: 'HKD', s: 14, lc: true, n: 4}),
+    row({id: 'th', g: 'bd', st: 'in_new', w: 5497, wu: 164.7, d: 1.12, base: -2944.3, du: 252.9, cur: 'THB', ph: 0.6}),
+    row({id: 'jp_bd', g: 'bd', st: 'in_new', sz: 1, w: 2236.2, wu: 14081.6, d: 2.68, base: 34.9, du: 13861.8, cur: 'JPY', fxm: '2026-08'}),
+    row({id: 'jp_eq', st: 'out_new', sz: 1, w: -1522.8, wu: -9589.2, d: -2.78, base: 146.1, du: -10509.4, cur: 'JPY'}),
+    row({id: 'in_eq', st: 'short', w: 543.78, n: 2}),
+    row({id: 'tr_bd', g: 'bd', st: 'stale', sz: 1, w: -116.9, x: true, dz: 5, n: 8}),
+    row({id: 'mx', g: 'bd', m: 'stock', st: 'out_new', w: -13103.56, wu: -765.8, d: -1.24, du: -810.7, cur: 'MXN'}),
+    row({id: 'cm_btc', g: 'cr', m: 'exch', sz: 7, st: 'out_dir', w: -41054.24, wu: -3495.5, d: -2.98, cur: 'BTC', lc: true, n: 4}),
+    row({id: 'cf_spx', g: 'pos', m: 'pos', sz: 1, st: 'in_rev', w: 47961, d: 1.92, cur: 'CT', roll: true}),
+    row({id: 'bad', st: 'weird'}), row({id: 'x<y', st: 'in_up'}), row({id: 'hk', st: 'in_up', cur: '<b>'})],
+    p: [{id: 'SPY', g: 'eq', date: '2026-09-24', w: 0.6, pr: -0.84, typ: 1.9, st: 'flat'}, {id: 'EWJ', g: 'eq', date: '2026-09-24', w: -2.14, pr: 3.3, typ: 2.6, st: 'up_fade'},
+        {id: 'EZA', g: 'eq', date: '2026-09-24', w: -4.06, pr: -2.28, typ: 4.3, st: 'dn_new'}, {id: 'KSA', g: 'eq', date: '2026-09-24', w: -1.52, pr: -1.73, typ: 2.1, st: 'dn_new'},
+        {id: 'BTC', g: 'cr', date: '2026-09-25', w: 8.58, pr: -1.49, st: 'up_new'}],
+    b: [{id: 'th', k: 14, n: 28, weeks: 28, from: '2025-09-15', to: '2026-08-17', ci: [32.6, 67.4]}, {id: 'px', k: 143, n: 294, weeks: 32, from: '2026-02-02', to: '2026-09-14', ci: [32.4, 65.1]}]};
+  f.trdApply(data); const h = el.innerHTML;
+  assert.ok(h.includes('live wait') || h.includes('live on'));
+  assert.ok(!h.includes('x<y') && !h.includes('<b>USD') && !h.includes('trd.s.bad'), 'nieznany stan, dziwne id i waluta z pliku — pominięte');
+  const pf = h.slice(h.indexOf('trd.f.t'));
+  const at = id => pf.indexOf('<span>trd.s.' + id + '</span>');
+  assert.ok(at('jp_bd') < at('th') && at('th') < at('hk') && at('hk') < at('jp_eq') && at('jp_eq') < at('mx') && at('mx') < at('tw'), 'kolejność stanów, potem siła (|d|)');
+  assert.ok(h.includes('<b class="pos">+24.3 trd.u.b HKD<small>trd.sn.in_dir</small></b>'), 'Hongkong: 4 tygodnie historii — sam kierunek');
+  assert.ok(h.includes('≈ +3.10 trd.u.b USD') && h.includes('trd.n.sp{"n":14,"x":"ses"}') && h.includes('trd.n.ph.hold{"p":"+0.60%"}'));
+  assert.ok(h.includes('≈ +14.1 trd.u.b USD (trd.n.fxm{"m":"08.2026"})'), 'kurs EBC z miesiącem MM.RRRR');
+  assert.ok(h.includes('trd.sn.stock.out_new') && h.includes('trd.sn.exch.out_dir') && h.includes('trd.sn.pos.in_rev') && h.includes('trd.n.roll'));
+  assert.ok(h.includes('trd.rest{"n":2}') && h.includes('trd.sn.short{"n":2}') && h.includes('trd.sn.stale'), 'za krótka historia i brak nowych danych — w rozwijanym bloku');
+  const stale = h.slice(h.indexOf('<span>trd.s.tr_bd</span>'), h.indexOf('</div>', h.indexOf('<span>trd.s.tr_bd</span>')));
+  assert.ok(!stale.includes('trd.n.x') && !stale.includes('trd.n.day'), 'brak nowych danych — bez „wyjątkowo” i bez oceny dnia');
+  assert.ok(h.includes('<b>trd.sum.t</b> <b>trd.s.jp_bd</b>: trd.sn.in_new · <b>trd.s.th</b>: trd.sn.in_new'), 'podsumowanie: nazwy i stany, bez sumowania źródeł');
+  assert.ok(h.includes('trd.k.in</span></div><div class="k-val">≈ +14.1 trd.u.b USD</div>'), 'kafel napływu: największe odchylenie w USD, tylko pełna historia (Japonia, nie Hongkong)');
+  assert.ok(h.includes('trd.k.out</span></div><div class="k-val">≈ −9.59 trd.u.b USD</div>'), 'kafel odpływu: Japonia (Meksyk — zmiana stanu, nie w kaflach)');
+  assert.ok(h.includes('trd.k.fade</span></div><div class="k-val">—</div>'), 'brak słabnących — „—”, nie zero');
+  assert.ok(h.includes('trd.n.base{"v":"+34.9 trd.u.b JPY"}'), 'kafel: obok kwoty zwykły poziom');
+  assert.ok(h.includes('trd.k.pdn</span></div><div class="k-val">−4.06%</div>') && h.includes('trd.k.pup</span></div><div class="k-val">+0.60%</div>'));
+  assert.ok(h.indexOf('<span>trd.px.EZA</span>') < h.indexOf('<span>trd.px.KSA</span>'), 'spadki: najmocniejszy pierwszy');
+  assert.ok(h.includes('trd.k.coin{"k":143,"n":294}') && h.includes('<b>trd.b.concl</b>') && h.includes('trd.b.wk{"w":32}') && h.includes('trd.b.per{"a":"DT'.slice(0, 11)));
+  assert.ok(h.includes('trd.ps.up_fade') && h.includes('trd.n.typ{"v":"2.6"}') && h.includes('trd.n.pr23{"v":"−1.49%"}'));
+  assert.ok(h.includes('id="trd-method"') && h.includes('trd.m.6') && h.includes('eng.disclaimer'));
+  assert.equal(f.trdVerdict({ci: [52, 60]}), 'more'); assert.equal(f.trdVerdict({ci: [30, 45]}), 'less'); assert.equal(f.trdVerdict({}), 'coin');
+  const html2 = el.innerHTML; f.trdApply(Object.assign({}, data)); assert.equal(el.innerHTML, html2, 'ten sam plik (at) — bez przebudowy');
+  f.trdApply(null); assert.ok(f.TRD.data && el.innerHTML === html2, 'chwilowy błąd pobrania nie kasuje danych na ekranie');
+  f.trdApply(Object.assign({}, data, {at: '2026-09-25T10:20:00Z', b: [{id: 'th', k: 5, n: 28, ci: [8, 35], from: '2025-09-15', to: '2026-08-17'}]}));
+  assert.ok(el.innerHTML.includes('<b>trd.b.concl2</b>'), 'gdy kierunek częściej się odwracał — inny wniosek, nie wpisany na stałe');
+});

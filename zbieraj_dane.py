@@ -73,6 +73,7 @@ OUT = 'data'
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 META = {'at': NOW, 'ok': {}, 'errors': [], 'notes': []}   # notes: informacje (np. brak poprzedniego pliku), nie błędy
 SECRETS = []      # wartości kluczy — maskowane w każdym komunikacie błędu
+SAVED = {}        # v89: obiekty zapisane w tym przebiegu (wejście dla TRENDÓW)
 TICKER = re.compile(r'^[A-Z0-9.]{1,10}$')
 
 
@@ -170,6 +171,7 @@ def save(name, obj):
     os.makedirs(OUT, exist_ok=True)
     with open(f'{OUT}/{name}.json', 'w', encoding='utf-8') as f:
         json.dump(obj, f, ensure_ascii=False, separators=(',', ':'))
+    SAVED[name] = obj
     print(f'zapisano {OUT}/{name}.json ({os.path.getsize(f"{OUT}/{name}.json")} B)')
 
 
@@ -928,6 +930,7 @@ def parse_stabh(j):
         prev = [v for t, v in pts if t <= target]
         if prev:
             out['d'][str(n)] = round(cur - prev[-1]); out['pct'][str(n)] = round((cur / prev[-1] - 1) * 100, 4)
+    out['dd'] = [[datetime.datetime.fromtimestamp(t, datetime.timezone.utc).date().isoformat(), round(v)] for t, v in pts[-71:]]   # v89: 70 dni do TRENDÓW
     return out
 
 
@@ -1707,8 +1710,9 @@ import html as _html   # biblioteka standardowa: encje w tabeli HTML NSDL
 NSDL_URL = 'https://www.fpi.nsdl.co.in/web/Reports/Monthly.aspx'
 TWSE_URL = 'https://www.twse.com.tw/rwd/en/fund/BFI82U?type=day&dayDate={d}&response=json'
 TWSE_SLEEP = 2.0          # TWSE blokuje szybkie serie zapytań (ok. 3 na 5 s)
+OBCE_EMPTY_DAYS = 400    # v89: tyle dni pamiętamy dni bez sesji Tajwanu i Hongkongu (kalendarz sesji dla TRENDÓW)
 TWSE_MAX = 30             # najwyżej tyle dni na jeden przebieg (pierwszy przebieg: ok. 25 dni sesyjnych)
-OBCE_KEEP = 100           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg)
+OBCE_KEEP = 300           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg; v89: 300 — tło dla TRENDÓW)
 NSDL_CATS = {'equity': 'eq', 'debt-general limit': 'debt', 'debt-vrr': 'debt', 'debt-far': 'debt', 'hybrid': 'hyb',
              'mutual funds': 'mf', 'aifs': 'aif'}
 
@@ -1838,7 +1842,7 @@ def twse_part(prev_tw, key):
     prev_tw = prev_tw if isinstance(prev_tw, dict) else {}
     have = {k: list(v) for k, v in _rows(prev_tw).items()}   # kopie — poprzedni plik nie jest zmieniany w miejscu
     now_tpe = _now_utc() + datetime.timedelta(hours=8)
-    lim = (now_tpe.date() - datetime.timedelta(days=40)).isoformat()
+    lim = (now_tpe.date() - datetime.timedelta(days=OBCE_EMPTY_DAYS)).isoformat()
     empty = {x for x in prev_tw.get('empty', []) if isinstance(x, str) and x >= lim}
     fails = []
     for iso in tw_dates(set(have), empty, now_tpe, first=not have)[-TWSE_MAX:]:
@@ -1930,7 +1934,7 @@ def hkex_part(prev_hk, key):
     prev_hk = prev_hk if isinstance(prev_hk, dict) else {}
     have = {k: list(v) for k, v in _rows(prev_hk).items()}
     now_hk = _now_utc() + datetime.timedelta(hours=8)
-    lim = (now_hk.date() - datetime.timedelta(days=40)).isoformat()
+    lim = (now_hk.date() - datetime.timedelta(days=OBCE_EMPTY_DAYS)).isoformat()
     empty = {x for x in prev_hk.get('empty', []) if isinstance(x, str) and x >= lim}
     fails = []
     for k in [k for k, r in have.items() if len(r) > 3 and r[2] == 0 and r[3] == 0]:
@@ -3039,7 +3043,7 @@ def build_krypto(cg_key):
     return out
 
 
-ETF_KEEP_DAYS = 60   # v55: tyle dni trzyma etf.json (SoSoValue oddaje tylko ok. 21 ostatnich — reszta z poprzedniego pliku)
+ETF_KEEP_DAYS = 300  # v55: tyle dni trzyma etf.json (SoSoValue oddaje tylko ok. 21 ostatnich — reszta z poprzedniego pliku); v89: 300 (TRENDY)
 
 
 def etf_merge_days(prev_day, new_day):
@@ -3155,7 +3159,515 @@ def _etf_coin(out, s, key, prev_day=None):
         print(f'{s.upper()}: dzień {last["date"]} {a["d1"]:+.1f} mln, AUM {a["aum"]}, funduszy {len(a["funds"])}')
 
 
+# v89: TRENDY — dokąd płynął kapitał w ostatnim tygodniu. Każde źródło osobno, w swoich jednostkach, według jednej jawnej reguły:
+# suma ostatniego tygodnia (5 sesji giełdowych, 7 dni kalendarzowych albo 1 tydzień raportu) porównana ze średnią 4 poprzednich
+# tygodni, w jednostkach rozrzutu 4–8 poprzednich tygodni. Opis tego, co się stało — nie prognoza i nie rekomendacja.
+# Liczone z plików zapisanych w tym przebiegu (bez zapytań do sieci). Brak w oknie = brak wyniku, nigdy zero. Kwoty w USD: mln USD.
+TR_BASE_MIN = 4       # najmniej tylu poprzednich tygodni do porównania (mniej = „za krótka historia”)
+TR_BASE_MAX = 8       # najwyżej tylu; mniej niż 8 = pokazujemy tylko kierunek, bez oceny siły
+TR_DIR = 0.5          # tydzień ma wyraźny kierunek, gdy |suma| ≥ połowy typowego tygodnia …
+TR_ALL = 1.0          # … a gdy suma jest mniejsza niż typowy tydzień, także większość dni ma ten sam znak (dane dzienne)
+TR_FLOOR = 0.25       # rozrzut nie mniejszy niż 1/4 typowego tygodnia — małe liczby nie dają ogromnych wyników
+TR_STRONG = 1.0       # |d| ≥ 1 w stronę kierunku: „większy/słabszy niż zwykle”
+TR_EXC = 3.0          # |d| ≥ 3 (tylko przy 8 tygodniach historii): „wyjątkowo daleko od zwykłego poziomu”
+TR_DAY_N = 40         # dzień nietypowy: najmniej tylu poprzednich sesji …
+TR_DAY_Z = 3.0        # … i |ostatni dzień − średnia| ≥ 3 odchylenia (z najwyżej 60 poprzednich sesji)
+TR_SPAN = 11          # 5 sesji mieści się w 11 dniach kalendarzowych (święta do 4 dni roboczych); dłużej = brak dnia w tygodniu
+TR_PX_MIN = 0.5       # ceny: ruch tygodnia wyraźny, gdy |zmiana| ≥ 0,5 typowego tygodniowego ruchu tego rynku
+TR_PX_WEEKS = 50      # typowy tygodniowy ruch: z najwyżej 50 poprzednich tygodni (co najmniej 20)
+TR_CR_TYP = 9.0       # krypto (brak historii cen w plikach): umowny typowy tydzień 9% — ruch tygodnia wyraźny od 4,5%, 23 dni przed nim od 9%
+TR_CR_SYMS = ('BTC', 'ETH', 'XRP', 'BNB', 'SOL', 'DOGE', 'ADA', 'TRX', 'LINK', 'AVAX')
+TR_PX_SYMS = ('SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA')
+TR_CFTC = ('usd', 'eur', 'jpy', 'spx', 'msciem', 'btc', 'eth')   # fundusze lewarowane; bez obligacji 10L (transakcja na bazie)
+
+
+def _isnum(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) != float('inf')
+
+
+def _d(s):
+    try:
+        return datetime.date.fromisoformat(str(s)[:10])
+    except ValueError:
+        return None
+
+
+def _tr_sums(vals, size, k, dates=None, span=None):
+    """Sumy k kolejnych pełnych bloków po `size` wartości, od końca: [ostatni, poprzedni, …]. Blok z brakiem (None) albo — gdy podano
+    daty i `span` — rozciągnięty na więcej niż `span` dni kalendarzowych (brakujący dzień w pliku) kończy listę."""
+    out = []
+    for i in range(k):
+        a, b = len(vals) - (i + 1) * size, len(vals) - i * size
+        blk = vals[a:b] if a >= 0 else []
+        if len(blk) < size or not all(_isnum(x) for x in blk):
+            break
+        if dates is not None and span:
+            d0, d1 = _d(dates[a]), _d(dates[b - 1])
+            if not d0 or not d1 or (d1 - d0).days > span:
+                break
+        out.append(sum(blk))
+    return out
+
+
+def _mean(xs):
+    return sum(xs) / len(xs)
+
+
+def _sd(xs):
+    m = _mean(xs)
+    return (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5 if len(xs) > 1 else 0.0
+
+
+def _tr_clear(w, typ, days):
+    """Wyraźny kierunek tygodnia: |suma| ≥ 0,5 typowego tygodnia i (gdy suma < 1 typowego tygodnia) większość dni ze znakiem sumy."""
+    if not w or not typ or abs(w) < TR_DIR * typ:
+        return False
+    return days is None or abs(w) >= TR_ALL * typ or sum(1 for x in days if x * w > 0) >= len(days) // 2 + 1
+
+
+def trend_state(vals, size, dates=None, span=None):
+    """Stan trendu jednej serii (wartości w kolejności dat, None = brak). size = 5 (sesje), 7 (dni) albo 1 (tygodnie raportu).
+    → {st, w, base, d, n, x, lc}. st: in_up / in_flat / in_down (napływ jak zwykle, ale większy / taki sam / słabszy),
+    in_rev (napływ po tygodniach odpływu), in_new (napływ po okresie bez wyraźnego kierunku), in_dir (napływ, historia za krótka
+    do oceny siły); to samo dla out_*; mixed (duża suma, dni w różne strony); none; short; gap."""
+    sums = _tr_sums(vals, size, 1 + TR_BASE_MAX, dates, span)
+    if not sums:
+        return {'st': 'gap'}
+    w, prev = sums[0], sums[1:]
+    if len(prev) < TR_BASE_MIN:
+        return {'st': 'short', 'w': w, 'n': len(prev)}
+    n = len(prev); lc = n < TR_BASE_MAX
+    base = _mean(prev[:TR_BASE_MIN])
+    typ = _mean([abs(x) for x in prev])
+    sd = max(_sd(prev), TR_FLOOR * typ)
+    if sd <= 0:
+        return {'st': 'none', 'w': w, 'base': base, 'n': n, 'x': False, 'lc': lc}
+    d = (w - base) / sd
+    clear = _tr_clear(w, typ, None if size == 1 else vals[-size:])
+    bpos, bneg = base > 0 and base >= TR_DIR * typ, base < 0 and -base >= TR_DIR * typ
+    if clear:
+        s = 'in' if w > 0 else 'out'
+        same, opp = (bpos, bneg) if w > 0 else (bneg, bpos)
+        dd = d if w > 0 else -d                        # wynik w stronę kierunku tygodnia
+        if lc:
+            st = s + '_dir'
+        elif same:
+            st = s + ('_up' if dd >= TR_STRONG else '_down' if dd <= -TR_STRONG else '_flat')
+        else:
+            st = s + ('_rev' if opp else '_new')
+    elif w and abs(w) >= TR_DIR * typ:
+        st = 'mixed'                                   # duża suma z kilku dni, pozostałe dni w drugą stronę
+    elif not lc and bpos and d <= -TR_STRONG:
+        st = 'in_down'                                 # zwykle napływ, w tym tygodniu prawie nic
+    elif not lc and bneg and d >= TR_STRONG:
+        st = 'out_down'
+    else:
+        st = 'none'
+    return {'st': st, 'w': w, 'base': base, 'd': d, 'n': n, 'x': not lc and abs(d) >= TR_EXC, 'lc': lc}
+
+
+def trend_streak(vals):
+    """Ile ostatnich wartości z rzędu ma ten sam znak (brak albo zero przerywa); znak: +1 / −1 / 0."""
+    n, sg = 0, 0
+    for x in reversed(vals):
+        if not _isnum(x) or x == 0:
+            break
+        s = 1 if x > 0 else -1
+        if sg and s != sg:
+            break
+        sg = s; n += 1
+    return n, sg
+
+
+def trend_day_z(vals):
+    """Ostatnia wartość w odchyleniach od średniej najwyżej 60 poprzednich (tylko liczby); None, gdy mniej niż TR_DAY_N."""
+    if not vals or not _isnum(vals[-1]):
+        return None
+    prev = [x for x in vals[-61:-1] if _isnum(x)]
+    if len(prev) < TR_DAY_N:
+        return None
+    sd = _sd(prev)
+    return (vals[-1] - _mean(prev)) / sd if sd > 0 else None
+
+
+def wilson(k, n, z=1.96, n_eff=None):
+    """95% przedział Wilsona dla odsetka k/n (w %); n_eff — mniejsza liczba niezależnych obserwacji (np. tygodni przy wielu rynkach)."""
+    if not n:
+        return None, None
+    p = k / n; m = n_eff or n; den = 1 + z * z / m
+    c = (p + z * z / (2 * m)) / den; h = z * ((p * (1 - p) / m + z * z / (4 * m * m)) ** 0.5) / den
+    return max(0.0, round(100 * (c - h), 1)) + 0.0, min(100.0, round(100 * (c + h), 1)) + 0.0
+
+
+def _iso_weeks(dates, vals, today):
+    """Wartości dzienne → pełne tygodnie kalendarzowe (pon–nd) od najstarszego: [(poniedziałek, suma, wartości dni)].
+    Tydzień z brakiem (None) jest pominięty, tydzień z dniem dzisiejszym (niezakończony) też."""
+    wk = {}
+    for d, v in zip(dates, vals):
+        dd = _d(d)
+        if dd is None:
+            continue
+        wk.setdefault(dd - datetime.timedelta(days=dd.weekday()), []).append(v)
+    cur = today - datetime.timedelta(days=today.weekday())
+    return [(m, sum(v), v) for m, v in sorted(wk.items()) if m < cur and all(_isnum(x) for x in v)]
+
+
+def trend_persist(dates, vals, today):
+    """Jak często po tygodniu z wyraźnym kierunkiem następny tydzień kalendarzowy miał ten sam kierunek. Wyraźny tydzień — ta sama reguła
+    co na kartach, z typowym tygodniem liczonym tylko z 4–8 wcześniejszych tygodni. → (k, n, pierwszy, ostatni poniedziałek par)."""
+    W = _iso_weeks(dates, vals, today)
+    k = n = 0; first = last = None
+    for i in range(len(W) - 1):
+        prev = [s for _, s, _ in W[max(0, i - TR_BASE_MAX):i]]
+        if len(prev) < TR_BASE_MIN or (W[i + 1][0] - W[i][0]).days != 7:
+            continue
+        m, s, days = W[i]
+        if _tr_clear(s, _mean([abs(x) for x in prev]), days):
+            n += 1; k += 1 if s * W[i + 1][1] > 0 else 0
+            first = first or m; last = W[i + 1][0]
+    return k, n, first and first.isoformat(), last and last.isoformat()
+
+
+def _bdays(a, b, skip=()):
+    """Dni robocze (pon–pt) po dniu a do dnia b włącznie, bez dni z `skip` (znane dni bez sesji)."""
+    n, d = 0, a
+    while d < b:
+        d += datetime.timedelta(days=1)
+        n += d.weekday() < 5 and d.isoformat() not in skip
+    return n
+
+
+def _tr_row(sid, g, m, size, dates, vals, usd=None, hold=None, lag=1, weekly_days=None, cur='USD', span=None, skip=()):
+    """Jeden wiersz TRENDÓW. lag = zwykłe opóźnienie publikacji w dniach roboczych (dane sesyjne); dane z każdego dnia kalendarza
+    (size 7) — za stare po 3 dniach; weekly_days = po ilu dniach od końca tygodnia dane tygodniowe są za stare."""
+    if not dates or not vals or len(dates) != len(vals):
+        return None
+    ld = _d(dates[-1])
+    if ld is None:
+        return None
+    t = trend_state(vals, size, dates, span)
+    today = _now_utc().date()
+    age = (today - ld).days
+    stale = age > weekly_days if weekly_days else (age > 3 if size == 7 else _bdays(ld, today, skip) > lag + 2)
+    st = 'stale' if stale else t['st']
+    r = {'id': sid, 'g': g, 'm': m, 'sz': size, 'cur': cur, 'date': ld.isoformat(), 'age': age, 'st': st}
+    for k in ('w', 'base', 'd'):
+        if _isnum(t.get(k)):
+            r[k] = round(t[k], 2)
+    for k in ('n', 'lc'):
+        if k in t:
+            r[k] = t[k]
+    ev = st not in ('stale', 'gap', 'short')
+    r['x'] = bool(ev and t.get('x'))                   # bez oceny — bez dopisków oceny
+    ratio = 1.0 if cur == 'USD' else None
+    if usd is not None and cur != 'USD':
+        us = _tr_sums(usd, size, 1, dates, span)
+        if us:
+            r['wu'] = round(us[0], 1)
+            if _isnum(t.get('w')) and t['w']:
+                ratio = us[0] / t['w']
+    if ratio is not None and _isnum(t.get('w')) and _isnum(t.get('base')):
+        r['du'] = round((t['w'] - t['base']) * ratio, 1)   # odchylenie od zwykłego poziomu w mln USD (do kafli)
+    if _isnum(hold) and hold and _isnum(t.get('w')):
+        r['ph'] = round(100 * t['w'] / hold, 2)
+    r['s'], r['sg'] = trend_streak(vals)
+    dz = trend_day_z(vals) if size != 1 and ev else None
+    if dz is not None:
+        r['dz'] = round(dz, 2)
+    if _isnum(vals[-1]):
+        r['last'] = round(vals[-1], 2)
+    return r
+
+
+def _tr_weeks(ds, vals, n=30):
+    """Dane tygodniowe → kolejne tygodnie co 7 dni od ostatniego wstecz, z tolerancją ±3 dni (np. raport CFTC przesunięty na poniedziałek
+    po święcie). Brakujący tydzień = None (nie zero, nie sklejenie); etykieta = prawdziwa data raportu albo termin wyliczony."""
+    pts = sorted((d, v) for d, v in ((_d(a), b) for a, b in zip(ds, vals)) if d)
+    if not pts:
+        return [], []
+    last = pts[-1][0]; B = {}
+    for d, v in pts:
+        k = round((last - d).days / 7)
+        if abs((last - d).days - 7 * k) <= 3:
+            B[k] = (d, v)
+    out_d, out_v = [], []
+    for k in range(n - 1, -1, -1):
+        d, v = B.get(k, (last - datetime.timedelta(days=7 * k), None))
+        out_d.append(d.isoformat()); out_v.append(v)
+    return out_d, out_v
+
+
+def _jpy_per_usd(S):
+    """JPY za 1 USD ze średnich miesięcznych EBC (kursy.json: jednostek za 1 EUR) → {miesiąc: kurs}; brak pliku = pusty słownik."""
+    m = (S.get('kursy') or {}).get('m') if isinstance(S.get('kursy'), dict) else None
+    m = m if isinstance(m, dict) else {}
+    j = {r[0]: r[1] for r in m.get('JPY') or [] if isinstance(r, list) and len(r) == 2 and _isnum(r[1]) and r[1] > 0}
+    u = {r[0]: r[1] for r in m.get('USD') or [] if isinstance(r, list) and len(r) == 2 and _isnum(r[1]) and r[1] > 0}
+    return {mo: j[mo] / u[mo] for mo in j if mo in u}
+
+
+def _tr_cols(part, *idx):
+    """Kolumny części pliku: (daty, kolumna idx[0], kolumna idx[1], …); nie-liczba = None."""
+    d = [r for r in (part or {}).get('d') or [] if isinstance(r, list) and r and isinstance(r[0], str) and _d(r[0])]
+    return ([r[0] for r in d],) + tuple([r[i] if len(r) > i and _isnum(r[i]) else None for r in d] for i in idx)
+
+
+def _tr_sessions(part, *idx):
+    """Tajwan i Hongkong: kolumny na pełnym kalendarzu dni roboczych od pierwszego do ostatniego wiersza, bez znanych dni bez sesji
+    (part['empty']); dzień bez wiersza = None (brak, nie zero) — pomijany dzień nie jest cicho sklejany z sąsiednimi."""
+    cols = _tr_cols(part, *idx)
+    if not cols[0]:
+        return cols
+    empty = {x for x in (part or {}).get('empty') or [] if isinstance(x, str)}
+    by = [dict(zip(cols[0], c)) for c in cols[1:]]
+    have = set(cols[0])
+    d0, d1 = _d(cols[0][0]), _d(cols[0][-1])
+    cal = [(d0 + datetime.timedelta(days=i)).isoformat() for i in range((d1 - d0).days + 1)]
+    cal = [c for c in cal if c in have or (_d(c).weekday() < 5 and c not in empty)]
+    return (cal,) + tuple([b.get(c) for c in cal] for b in by)
+
+
+def _cftc_roll(ds):
+    """Raport CFTC w tygodniu wygasania kontraktów kwartalnych (±7 dni od 3. środy marca, czerwca, września, grudnia)."""
+    d = _d(ds)
+    if not d or d.month not in (3, 6, 9, 12):
+        return False
+    first = datetime.date(d.year, d.month, 1)
+    wed3 = first + datetime.timedelta(days=(2 - first.weekday()) % 7 + 14)
+    return abs((d - wed3).days) <= 7
+
+
+def _tr_try(name, fn, out):
+    """Jedno źródło TRENDÓW — błąd jednego źródła nie usuwa pozostałych (uwaga w meta zamiast pustej zakładki)."""
+    try:
+        for r in fn() or []:
+            if r:
+                out.append(r)
+    except Exception as e:
+        META['notes'].append(mask(f'trendy {name}: {e}'))
+
+
+def _tr_flows(S):
+    """Serie przepływów z obiektów zapisanych w tym przebiegu (brak pliku albo części = brak wiersza)."""
+    rows = []
+    today = _now_utc().date()
+    ob = S.get('obce') if isinstance(S.get('obce'), dict) else {}
+
+    def india():
+        if not ob.get('in'):
+            return []
+        ds, eq, db = _tr_cols(ob['in'], 1, 2)
+        return [_tr_row('in_eq', 'eq', 'flow', 5, ds, eq, span=TR_SPAN), _tr_row('in_bd', 'bd', 'flow', 5, ds, db, span=TR_SPAN)]
+
+    def twhk():
+        out = []
+        for k, cur in (('tw', 'TWD'), ('hk', 'HKD')):
+            if ob.get(k):
+                ds, v, u = _tr_sessions(ob[k], 1, 5)
+                out.append(_tr_row(k, 'eq', 'flow', 5, ds, v, usd=u, cur=cur, skip=set(ob[k].get('empty') or [])))
+        return out
+
+    def thai():
+        if not ob.get('th'):
+            return []
+        ds, v, u, h = _tr_cols(ob['th'], 1, 7, 6)
+        return [_tr_row('th', 'bd', 'flow', 5, ds, v, usd=u, hold=next((x for x in reversed(h) if _isnum(x)), None), cur='THB', span=TR_SPAN)]
+
+    def brazil():
+        if not ob.get('br'):
+            return []
+        ds, v = _tr_cols(ob['br'], 1)
+        return [_tr_row('br', 'fx', 'flow', 5, ds, v, lag=7, span=TR_SPAN)]   # publikacja w środy za tydzień do piątku
+
+    def turkey():
+        if not ob.get('tr'):
+            return []
+        ds, eq, gb = _tr_cols(ob['tr'], 2, 3)
+        return [_tr_row('tr_eq', 'eq', 'flow', 1, *_tr_weeks(ds, eq), weekly_days=16),
+                _tr_row('tr_bd', 'bd', 'flow', 1, *_tr_weeks(ds, gb), weekly_days=16)]
+
+    def japan():
+        inst = S.get('instytucje') if isinstance(S.get('instytucje'), dict) else {}
+        mof = [w for w in ((inst.get('mof') or {}).get('d') or []) if isinstance(w, dict) and w.get('to')]
+        if not mof:
+            return []
+        ds = [w['to'] for w in mof]
+        rates = _jpy_per_usd(S); out = []
+        for key, sid, g in (('equity_net', 'jp_eq', 'eq'), ('ltdebt_net', 'jp_bd', 'bd')):
+            v = [(w.get('liabilities') or {}).get(key) for w in mof]
+            wd, wv = _tr_weeks(ds, [x / 10 if _isnum(x) else None for x in v])      # mld JPY
+            fx = [_rate_for(rates, d[:7]) for d in wd]                                # średni kurs miesiąca EBC (ostatni znany ≤ miesiąc tygodnia)
+            usd = [x * 1000 / rt if _isnum(x) and rt else None for x, (_, rt) in zip(wv, fx)]
+            r = _tr_row(sid, g, 'flow', 1, wd, wv, usd=usd, weekly_days=20, cur='JPY')
+            if r and fx and fx[-1][0]:
+                r['fxm'] = fx[-1][0]
+            out.append(r)
+        return out
+
+    def mexico():
+        mx = S.get('meksyk') if isinstance(S.get('meksyk'), dict) else {}
+        md = [r for r in mx.get('d') or [] if isinstance(r, list) and len(r) > 1 and isinstance(r[0], str) and _d(r[0])]
+        if len(md) < 2:
+            return []
+        ch = [md[i][1] - md[i - 1][1] if _isnum(md[i][1]) and _isnum(md[i - 1][1]) else None for i in range(1, len(md))]
+        fx = (mx.get('fx') or [None])[0]
+        usd = [x / fx if _isnum(x) and _isnum(fx) and fx > 0 else None for x in ch]
+        return [_tr_row('mx', 'bd', 'stock', 5, [r[0] for r in md[1:]], ch, usd=usd, hold=md[-1][1], lag=10, cur='MXN', span=TR_SPAN)]
+
+    def etfs():
+        etf = S.get('etf') if isinstance(S.get('etf'), dict) else {}; out = []
+        for k in ('btc', 'eth', 'sol', 'xrp'):
+            a = (etf.get('assets') or {}).get(k) or {}
+            day = [r for r in a.get('day') or [] if isinstance(r, list) and len(r) == 2 and _isnum(r[0])]
+            if day:
+                ds = [datetime.datetime.fromtimestamp(r[0], datetime.timezone.utc).date().isoformat() for r in day]
+                out.append(_tr_row('etf_' + k, 'cr', 'flow', 5, ds, [r[1] if _isnum(r[1]) else None for r in day], hold=a.get('aum'), span=TR_SPAN))
+        return out
+
+    def coinmetrics():
+        cm = S.get('cm') if isinstance(S.get('cm'), dict) else {}; out = []
+        for k in ('btc', 'eth'):
+            a = (cm.get('assets') or {}).get(k) or {}
+            ds, v, u, sp = _tr_cols(a, 3, 6, 7)
+            if ds:
+                u = [x / 1e6 if _isnum(x) else None for x in u]      # Coin Metrics podaje USD — tu mln USD jak w pozostałych wierszach
+                out.append(_tr_row('cm_' + k, 'cr', 'exch', 7, ds, v, usd=u, hold=next((x for x in reversed(sp) if _isnum(x)), None), cur=k.upper()))
+        return out
+
+    def stable():
+        kr = S.get('krypto') if isinstance(S.get('krypto'), dict) else {}
+        dd = {r[0]: r[1] for r in (kr.get('stabh') or {}).get('dd') or []
+              if isinstance(r, list) and len(r) == 2 and _isnum(r[1]) and _d(r[0]) and _d(r[0]) < today}   # bez dzisiejszego, niezamkniętego dnia
+        if len(dd) < 2:
+            return []
+        d0, d1 = _d(min(dd)), _d(max(dd))
+        cal = [(d0 + datetime.timedelta(days=i)).isoformat() for i in range((d1 - d0).days + 1)]
+        ch = [(dd[b] - dd[a]) / 1e6 if a in dd and b in dd else None for a, b in zip(cal, cal[1:])]   # mln USD; brak dnia = brak
+        return [_tr_row('stab', 'cr', 'supply', 7, cal[1:], ch)]
+
+    def cftc():
+        cf = S.get('cftc') if isinstance(S.get('cftc'), dict) else {}; out = []
+        for k in TR_CFTC:
+            h = ((cf.get('markets') or {}).get(k) or {}).get('hist') or {}
+            ds, lv = h.get('dates') or [], h.get('lev_funds') or []
+            if len(ds) == len(lv) and len(ds) > 1:
+                wd, wv = _tr_weeks(ds, lv, n=len(ds) + 4)
+                ch = [wv[i] - wv[i - 1] if _isnum(wv[i]) and _isnum(wv[i - 1]) else None for i in range(1, len(wv))]
+                r = _tr_row('cf_' + k, 'pos', 'pos', 1, wd[1:], ch, weekly_days=14, cur='CT')
+                if r and _cftc_roll(r['date']):
+                    r['roll'] = True; r['x'] = False       # rolowanie kontraktów kwartalnych zawyża zmiany — bez „wyjątkowo”
+                out.append(r)
+        return out
+
+    for name, fn in (('in', india), ('tw/hk', twhk), ('th', thai), ('br', brazil), ('tr', turkey), ('jp', japan), ('mx', mexico),
+                     ('etf', etfs), ('cm', coinmetrics), ('stab', stable), ('cftc', cftc)):
+        _tr_try(name, fn, rows)
+    return rows
+
+
+def _px_state(w, prev, typ):
+    """Ceny: stan z ruchu tygodnia (w) i ruchu 4 tygodni przed nim (prev), progi względem typowego tygodniowego ruchu (typ, w %)."""
+    if abs(w) < TR_PX_MIN * typ:
+        return 'flat'
+    pc = abs(prev) >= TR_PX_MIN * 2 * typ       # 4 tygodnie ≈ dwa razy tyle co tydzień (pierwiastek z 4)
+    if w > 0:
+        return 'up_cont' if pc and prev > 0 else 'dn_fade' if pc else 'up_new'
+    return 'dn_cont' if pc and prev < 0 else 'up_fade' if pc else 'dn_new'
+
+
+def _tr_prices(S):
+    """Ceny ETF-ów krajów (Twelve Data, dzienne zamknięcia w USD) i największych kryptowalut (CoinGecko, zmiany 7 i 30 dni)
+    oraz dane do „czy tydzień zapowiada następny”: pary tygodni kalendarzowych (ta sama reguła wyraźnego ruchu, bez patrzenia w przód)."""
+    out, pairs = [], {'k': 0, 'n': 0, 'weeks': set(), 'from': None, 'to': None}
+    today = _now_utc().date()
+    cur = today - datetime.timedelta(days=today.weekday())
+    ce = S.get('ceny') if isinstance(S.get('ceny'), dict) else {}
+    for sym in TR_PX_SYMS:
+        d = [r for r in ((ce.get('q') or {}).get(sym) or {}).get('d') or []
+             if isinstance(r, list) and len(r) > 1 and _isnum(r[1]) and r[1] > 0 and _d(r[0])]
+        if len(d) < 26:
+            continue
+        c = [r[1] for r in d]
+        wk = [(c[-1 - 5 * i] / c[-1 - 5 * (i + 1)] - 1) * 100 for i in range(min(TR_PX_WEEKS + 1, (len(c) - 1) // 5))]   # [ten tydzień, poprzedni, …]
+        if len(wk) < 21:
+            continue
+        typ = _sd(wk[1:])
+        prev = (c[-6] / c[-26] - 1) * 100
+        z = wk[0] / typ if typ > 0 else None
+        out.append({'id': sym, 'g': 'eq', 'date': d[-1][0], 'w': round(wk[0], 2), 'pr': round(prev, 2), 'typ': round(typ, 2),
+                    'z': round(z, 2) if z is not None else None, 'st': _px_state(wk[0], prev, typ) if typ > 0 else 'flat'})
+        lastc = {}                                   # tygodnie kalendarzowe: zamknięcie ostatniej sesji tygodnia, bez bieżącego tygodnia
+        for r in d:
+            m = _d(r[0]) - datetime.timedelta(days=_d(r[0]).weekday())
+            if m < cur:
+                lastc[m] = r[1]
+        ms = sorted(lastc)
+        ret = [(ms[i], (lastc[ms[i]] / lastc[ms[i - 1]] - 1) * 100) for i in range(1, len(ms)) if (ms[i] - ms[i - 1]).days == 7]
+        for i in range(len(ret) - 1):
+            past = [x for _, x in ret[max(0, i - TR_PX_WEEKS):i]]
+            if len(past) < 20 or (ret[i + 1][0] - ret[i][0]).days != 7:
+                continue
+            (m0, a), (m1, b) = ret[i], ret[i + 1]
+            if abs(a) >= TR_PX_MIN * _sd(past):
+                pairs['n'] += 1; pairs['k'] += 1 if a * b > 0 else 0; pairs['weeks'].add(m0)
+                pairs['from'] = min(pairs['from'] or m0, m0); pairs['to'] = max(pairs['to'] or m1, m1)
+    kr = S.get('krypto') if isinstance(S.get('krypto'), dict) else {}
+    mk = kr.get('mk') or {}
+    cols = mk.get('cols') or []
+    if all(c in cols for c in ('sym', 'p7d', 'p30d')):
+        i_s, i7, i30 = cols.index('sym'), cols.index('p7d'), cols.index('p30d')
+        by = {}
+        for r in mk.get('rows') or []:      # wiersze od największej kapitalizacji — przy powtórzonym symbolu zostaje pierwszy
+            if isinstance(r, list) and len(r) == len(cols):
+                by.setdefault(str(r[i_s]).upper(), r)
+        for sym in TR_CR_SYMS:
+            r = by.get(sym)
+            if not r or not _isnum(r[i7]) or not _isnum(r[i30]) or r[i7] <= -100:
+                continue
+            prev = ((1 + r[i30] / 100) / (1 + r[i7] / 100) - 1) * 100     # 23 dni przed ostatnim tygodniem
+            out.append({'id': sym, 'g': 'cr', 'date': str(kr.get('at') or '')[:10], 'w': round(r[i7], 2), 'pr': round(prev, 2), 'z': None,
+                        'st': _px_state(r[i7], prev, TR_CR_TYP)})
+    return out, pairs
+
+
+def build_trendy(S):
+    """data/trendy.json — przepływy (f), ceny (p) i „czy tydzień zapowiada następny” (b) z obiektów zapisanych w tym przebiegu."""
+    S = S if isinstance(S, dict) else {}
+    today = _now_utc().date()
+    flows = _tr_flows(S)
+    prices, pp = [], {'k': 0, 'n': 0, 'weeks': set(), 'from': None, 'to': None}
+    try:
+        prices, pp = _tr_prices(S)
+    except Exception as e:
+        META['notes'].append(mask(f'trendy ceny: {e}'))
+    base = []
+    ob = S.get('obce') if isinstance(S.get('obce'), dict) else {}
+    try:
+        if ob.get('th'):
+            ds, v = _tr_cols(ob['th'], 1)
+            k, n, a, b = trend_persist(ds, v, today)
+            if n:
+                base.append({'id': 'th', 'kind': 'flow', 'k': k, 'n': n, 'weeks': n, 'from': a, 'to': b, 'ci': list(wilson(k, n))})
+        md = [r for r in ((S.get('meksyk') or {}).get('d') or []) if isinstance(r, list) and len(r) > 1 and isinstance(r[0], str)]
+        if len(md) > 1:
+            ch = [md[i][1] - md[i - 1][1] if _isnum(md[i][1]) and _isnum(md[i - 1][1]) else None for i in range(1, len(md))]
+            k, n, a, b = trend_persist([r[0] for r in md[1:]], ch, today)
+            if n:
+                base.append({'id': 'mx', 'kind': 'flow', 'k': k, 'n': n, 'weeks': n, 'from': a, 'to': b, 'ci': list(wilson(k, n))})
+    except Exception as e:
+        META['notes'].append(mask(f'trendy historia: {e}'))
+    if pp['n']:
+        nw = len(pp['weeks'])            # rynki są ze sobą powiązane: niepewność liczona na tygodnie, nie na pary rynek-tydzień
+        base.append({'id': 'px', 'kind': 'price', 'k': pp['k'], 'n': pp['n'], 'weeks': nw, 'from': pp['from'].isoformat(),
+                     'to': pp['to'].isoformat(), 'ci': list(wilson(pp['k'], pp['n'], n_eff=nw))})
+    return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, ceny)',
+            'rules': {'base_min': TR_BASE_MIN, 'base_max': TR_BASE_MAX, 'dir': TR_DIR, 'all': TR_ALL, 'floor': TR_FLOOR, 'strong': TR_STRONG,
+                      'exc': TR_EXC, 'day_z': TR_DAY_Z, 'span': TR_SPAN, 'px_min': TR_PX_MIN, 'cr_typ': TR_CR_TYP},
+            'f': flows, 'p': prices, 'b': base}
+
+
 def main():
+    SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
@@ -3422,6 +3934,11 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'instytucje: {e}')); META['ok']['instytucje'] = False
             if prev_inst: save('instytucje', prev_inst); print('źródła urzędowe zawiodły — zachowano poprzedni instytucje.json z', prev_inst.get('at'))
+    # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
+    try:
+        save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
+    except Exception as e:
+        META['errors'].append(mask(f'trendy: {e}')); META['ok']['trendy'] = False
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')
     return 0

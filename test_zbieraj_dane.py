@@ -3152,5 +3152,203 @@ class MeksykFormatV882(unittest.TestCase):
             self.assertIs(saved['meksyk'], new if rebuilt else prev, 'stary format — od razu nowy plik' if rebuilt else 'nowy format — z pamięci')
 
 
+class TrendyV89(unittest.TestCase):
+    """v89: TRENDY — tydzień porównany z 4 poprzednimi; brak w oknie = brak wyniku; stan „za stare” po zwykłym opóźnieniu źródła."""
+
+    @staticmethod
+    def blocks(*sums, size=5):
+        """Sumy tygodni od najstarszego → wartości dzienne (każdy dzień = suma / size)."""
+        return [s / size for s in sums for _ in range(size)]
+
+    @staticmethod
+    def weekdays(end, n):
+        """n kolejnych dni roboczych kończących się na `end` (data ISO)."""
+        d, out = datetime.date.fromisoformat(end), []
+        while len(out) < n:
+            if d.weekday() < 5:
+                out.append(d.isoformat())
+            d -= datetime.timedelta(days=1)
+        return out[::-1]
+
+    def test_state_rules(self):
+        prev = [100, 100, 90, 110, 100, 80, 120, 100]            # od najstarszego; 4 ostatnie przed bieżącym: 100, 80, 120, 100
+        t = zd.trend_state(self.blocks(*prev, 300), 5)
+        self.assertEqual((t['st'], t['n'], t['lc']), ('in_up', 8, False))
+        self.assertAlmostEqual(t['base'], 100); self.assertAlmostEqual(t['d'], 8.0, msg='rozrzut 11,95 < 1/4 typowego tygodnia (25) — próg 25')
+        self.assertTrue(t['x'], '|d| ≥ 3 przy 8 tygodniach historii')
+        self.assertEqual(zd.trend_state(self.blocks(*[200] * 8, 120), 5)['st'], 'in_down', 'napływ wyraźny, ale o 1,6 rozrzutu słabszy niż zwykle')
+        self.assertEqual(zd.trend_state(self.blocks(*[200] * 8, 190), 5)['st'], 'in_flat')
+        self.assertEqual(zd.trend_state(self.blocks(*[-100] * 8, -20), 5)['st'], 'out_down', 'odpływ prawie zniknął — odpływ słabszy niż zwykle')
+        self.assertEqual(zd.trend_state(self.blocks(*[-100] * 8, -300), 5)['st'], 'out_up')
+        self.assertEqual(zd.trend_state(self.blocks(*[-100] * 8, 200), 5)['st'], 'in_rev', 'napływ po tygodniach odpływu — nie „większy niż zwykle”')
+        self.assertEqual(zd.trend_state(self.blocks(*[10, -10] * 4, 200), 5)['st'], 'in_new', 'napływ po okresie bez wyraźnego kierunku')
+        v = self.blocks(*[100] * 8) + [150, -20, -20, -20, -20]          # suma 70 (≥ 0,5 i < 1 typowego tygodnia), tylko 1 z 5 sesji na plus
+        self.assertEqual(zd.trend_state(v, 5)['st'], 'mixed', 'duża suma z jednego dnia — tydzień niejednolity, nie „bez zmian”')
+        v = self.blocks(*[100] * 8) + [200, -30, -30, -30, -10]          # suma 100 = typowy tydzień: kierunek wyraźny mimo dni
+        self.assertEqual(zd.trend_state(v, 5)['st'], 'in_flat')
+        t = zd.trend_state(self.blocks(100, 100, 100, 300), 5)
+        self.assertEqual((t['st'], t['n']), ('short', 3), 'mniej niż 4 poprzednie tygodnie')
+        self.assertEqual(zd.trend_state(self.blocks(*[100] * 8, 300)[:-1] + [None], 5)['st'], 'gap', 'brak dnia w bieżącym tygodniu — brak wyniku')
+        t = zd.trend_state(self.blocks(*[100] * 5, 300), 5)
+        self.assertEqual((t['st'], t['n'], t['lc'], t['x']), ('in_dir', 5, True, False), '5 tygodni: tylko kierunek, bez oceny siły i bez „wyjątkowo”')
+        self.assertEqual(zd.trend_state([None] * 5 + self.blocks(*[100] * 4, 300), 5)['n'], 4)
+        t = zd.trend_state([0.0] * 45, 5)
+        self.assertEqual((t['st'], t.get('d')), ('none', None), 'same zera — bez dzielenia przez zero')
+        self.assertEqual(zd.trend_state([10] * 8 + [50], 1)['st'], 'in_up', 'dane tygodniowe: bez warunku większości dni')
+        self.assertEqual(zd.trend_state(self.blocks(*[70] * 8, 210, size=7), 7)['st'], 'in_up')
+        self.assertEqual(zd.trend_state([float('nan')] + self.blocks(*[100] * 8, 300)[1:], 5)['n'], 7, 'NaN to brak, nie liczba')
+
+    def test_calendar_gaps(self):
+        ds = self.weekdays('2026-09-18', 45)
+        v = self.blocks(*[100] * 8, 300)
+        self.assertEqual(zd.trend_state(v, 5, ds, 11)['st'], 'in_up')
+        ds2 = ds[:-5] + ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-10-05']   # ostatnie 5 wierszy na 15 dniach
+        self.assertEqual(zd.trend_state(v, 5, ds2, 11)['st'], 'gap', 'brak wierszy z kilku dni w tygodniu — brak wyniku, nie ciche sklejenie')
+        tw = {'d': [[d, 10.0, 0, 0, 0, 0.3, d] for d in ds], 'empty': []}
+        del tw['d'][-3]                                                  # dzień roboczy bez wiersza (nieudane pobranie)
+        now = datetime.datetime(2026, 9, 21, 10, 0, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            self.assertEqual({r['id']: r['st'] for r in zd.build_trendy({'obce': {'tw': tw}})['f']}['tw'], 'gap')
+            tw['empty'] = [ds[-3]]                                       # ten sam dzień jako znany dzień bez sesji — nie jest brakiem
+            r = {r['id']: r for r in zd.build_trendy({'obce': {'tw': tw}})['f']}['tw']
+            self.assertEqual((r['st'], r['n'], r['date']), ('in_dir', 7, '2026-09-18'), '44 sesje = bieżący tydzień + 7 pełnych: tylko kierunek')
+
+    def test_helpers(self):
+        self.assertEqual(zd.trend_streak([1, -2, 3, 4, 5]), (3, 1))
+        self.assertEqual(zd.trend_streak([1, None, -3, -4]), (2, -1))
+        self.assertEqual(zd.trend_streak([2, 0]), (0, 0), 'zero przerywa serię')
+        self.assertIsNone(zd.trend_day_z([1.0] * 30 + [5.0]), 'za mało sesji do porównania dnia')
+        v = [(-1) ** i * 10.0 for i in range(60)] + [60.0]
+        self.assertAlmostEqual(zd.trend_day_z(v), 60 / zd._sd(v[:-1]), places=6)
+        self.assertEqual(zd.wilson(22, 53), (29.3, 54.9), '22 z 53 — policzone też ręcznie')
+        self.assertEqual(str(zd.wilson(0, 10)[0]), '0.0', 'bez „-0.0”')
+        self.assertEqual(zd.wilson(0, 0), (None, None))
+        lo, hi = zd.wilson(195, 418, n_eff=50)
+        self.assertTrue(lo < 40 and hi > 55, 'powiązane rynki: przedział liczony na tygodnie, szerszy')
+        ds = self.weekdays('2026-09-11', 60)                            # 12 pełnych tygodni kalendarzowych
+        v = [20.0 if (i // 5) % 2 == 0 else -20.0 for i in range(60)]  # tydzień na plus, tydzień na minus, …
+        k, n, a, b = zd.trend_persist(ds, v, datetime.date(2026, 9, 25))
+        self.assertEqual((k, n), (0, 7), 'kierunek zawsze się odwracał; pierwsze 4 tygodnie tylko do porównania')
+        self.assertEqual((a, b), ('2026-07-20', '2026-09-07'))
+        k2, n2, _, _ = zd.trend_persist(ds, v, datetime.date(2026, 9, 9))
+        self.assertEqual(n2, 6, 'tydzień bieżący (niezakończony) nie jest liczony')
+        ds, v = zd._tr_weeks(['2026-09-04', '2026-09-18'], [1, 3], n=3)
+        self.assertEqual((ds, v), (['2026-09-04', '2026-09-11', '2026-09-18'], [1, None, 3]), 'brakujący tydzień = brak, nie sklejenie')
+        ds, v = zd._tr_weeks(['2026-09-01', '2026-09-08', '2026-09-14'], [1, 2, 3], n=3)
+        self.assertEqual((ds, v), (['2026-09-01', '2026-09-08', '2026-09-14'], [1, 2, 3]), 'raport w poniedziałek po święcie — ten sam tydzień')
+        self.assertEqual(zd._bdays(datetime.date(2026, 9, 18), datetime.date(2026, 9, 21)), 1, 'piątek → poniedziałek = 1 dzień roboczy')
+        self.assertEqual(zd._bdays(datetime.date(2026, 9, 18), datetime.date(2026, 9, 22), {'2026-09-21'}), 1, 'znany dzień bez sesji nie postarza danych')
+        self.assertTrue(zd._cftc_roll('2026-09-15')); self.assertFalse(zd._cftc_roll('2026-10-13'))
+        self.assertFalse(zd._isnum(float('nan'))); self.assertFalse(zd._isnum(float('inf'))); self.assertFalse(zd._isnum(True))
+
+    def S(self):
+        ses = self.weekdays('2026-09-18', 45)
+        th = [[d, 10.0, 10.0, 0, 0, 0, 1000000.0, 0.3, 33.0, d] for d in ses[:-5]] + [[d, 100.0, 100.0, 0, 0, 0, 1000000.0, 3.0, 33.0, d] for d in ses[-5:]]
+        tw = [[d, -50.0, 0, 0, 0, -1.6, d] for d in ses]
+        tw[-3][1] = None
+        mx = [[d, 1000.0 + i, 5000.0] for i, d in enumerate(ses)]
+        return {'obce': {'th': {'d': th}, 'tw': {'d': tw}}, 'meksyk': {'d': mx, 'fx': [10.0, ses[-1]]}}
+
+    def test_build_rows(self):
+        now = datetime.datetime(2026, 9, 21, 10, 0, tzinfo=datetime.timezone.utc)     # poniedziałek po ostatniej sesji
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            out = zd.build_trendy(self.S())
+            by = {r['id']: r for r in out['f']}
+            th = by['th']
+            self.assertEqual((th['st'], th['w'], th['base'], th['n'], th['cur'], th['wu'], th['du']), ('in_up', 500.0, 50.0, 8, 'THB', 15.0, 13.5))
+            self.assertEqual((th['ph'], th['s'], th['sg'], th['date'], th['age'], th['x']), (0.05, 45, 1, '2026-09-18', 3, True))
+            self.assertEqual(by['tw']['st'], 'gap', 'brak jednej sesji w tygodniu — bez stanu, nie zero')
+            self.assertNotIn('w', by['tw']); self.assertFalse(by['tw']['x'])
+            mx = by['mx']
+            self.assertEqual((mx['m'], mx['cur'], mx['w'], mx['wu'], mx['st'], mx['n']), ('stock', 'MXN', 5.0, 0.5, 'in_dir', 7),
+                             'Meksyk: zmiana stanu dzień do dnia (44 zmiany z 45 dni) — 7 tygodni historii, tylko kierunek')
+            self.assertEqual([b['id'] for b in out['b']], ['th', 'mx']); self.assertEqual(out['rules']['base_max'], 8)
+            self.assertEqual(out['b'][0]['from'][:4], '2026')
+        with mock.patch.object(zd, '_now_utc', return_value=now + datetime.timedelta(days=4)):   # piątek: 4 dni robocze po danych
+            r = {r['id']: r for r in zd.build_trendy(self.S())['f']}['th']
+            self.assertEqual((r['st'], r['x']), ('stale', False), 'za stare — bez oceny i bez „wyjątkowo”')
+        self.assertEqual(zd.build_trendy({})['f'], [], 'bez plików — pusta lista, nie błąd')
+        self.assertEqual(zd.build_trendy(None)['p'], [])
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            out = zd.build_trendy({'obce': {'th': 'zepsute', 'tw': self.S()['obce']['tw']}})
+        self.assertEqual([r['id'] for r in out['f']], ['tw'], 'zepsuta część jednego źródła nie usuwa pozostałych')
+        self.assertTrue(any(n.startswith('trendy th:') for n in zd.META['notes']), zd.META['notes'])
+
+    def test_japan_weekly_usd(self):
+        weeks = [(datetime.date(2026, 7, 18) + datetime.timedelta(days=7 * i)).isoformat() for i in range(9)]
+        mof = [{'from': w, 'to': w, 'liabilities': {'equity_net': 1000.0, 'ltdebt_net': None if i == 3 else 500.0}} for i, w in enumerate(weeks)]
+        S = {'instytucje': {'mof': {'d': mof}}, 'kursy': {'m': {'JPY': [['2026-07', 160.0], ['2026-08', 170.0]], 'USD': [['2026-07', 1.0], ['2026-08', 1.0]]}}}
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 20, 10, 0, tzinfo=datetime.timezone.utc)):
+            by = {r['id']: r for r in zd.build_trendy(S)['f']}
+        eq = by['jp_eq']
+        self.assertEqual((eq['w'], eq['cur'], eq['fxm'], eq['n'], eq['date'], eq['st']), (100.0, 'JPY', '2026-08', 8, '2026-09-12', 'in_flat'))
+        self.assertEqual(eq['wu'], round(100.0 * 1000 / 170.0, 1), 'mld JPY → mln USD kursem sierpnia (ostatni znany ≤ wrzesień)')
+        self.assertEqual(by['jp_bd']['n'], 4, 'brak tygodnia kończy porównanie: bieżący + 4 poprzednie (nie zero)')
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 20, 10, 0, tzinfo=datetime.timezone.utc)):
+            self.assertNotIn('wu', {r['id']: r for r in zd.build_trendy({'instytucje': S['instytucje']})['f']}['jp_eq'], 'bez kursów — bez ≈ USD, nie zero')
+
+    def test_cftc_and_stablecoins(self):
+        dates = [(datetime.date(2026, 6, 23) + datetime.timedelta(days=7 * i)).isoformat() for i in range(13)]
+        dates[-1] = '2026-09-14'                                         # święto we wtorek — raport z poniedziałku
+        cf = {'markets': {'usd': {'hist': {'dates': dates, 'lev_funds': [100 * i for i in range(12)] + [2000]}}}}
+        now = datetime.datetime(2026, 9, 21, 10, 0, tzinfo=datetime.timezone.utc)
+        dd = [[(datetime.date(2026, 7, 1) + datetime.timedelta(days=i)).isoformat(), 1e9 + 1e6 * i] for i in range(83)]   # do 2026-09-21 (dziś)
+        dd[-1][1] = 5e9                                                  # dzisiejszy, niezamknięty punkt — pomijany
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            by = {r['id']: r for r in zd.build_trendy({'cftc': cf, 'krypto': {'stabh': {'dd': dd}}})['f']}
+        u = by['cf_usd']
+        self.assertEqual((u['date'], u['w'], u['n'], u['st'], u['roll'], u['x']), ('2026-09-14', 900, 8, 'in_up', True, False),
+                         'poniedziałkowy raport w tym samym tygodniu; tydzień rolowania — bez „wyjątkowo”')
+        s = by['stab']
+        self.assertEqual((s['date'], s['w'], s['st'], s['sz']), ('2026-09-20', 7.0, 'in_flat', 7), 'stablecoiny: tylko zamknięte dni (bez dzisiejszego)')
+
+    def test_prices_and_crypto(self):
+        days = [d for d in (datetime.date(2025, 7, 1) + datetime.timedelta(days=i) for i in range(450)) if d.weekday() < 5 and d <= datetime.date(2026, 9, 18)]
+        d = [[x.isoformat(), 100.0 + (8 if (i // 5) % 2 else 0) + i * 0.05] for i, x in enumerate(days)]
+        mk = {'cols': ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'],
+              'rows': [['btc', 2e12, 1, 8.0, 7.0, 50], ['eth', 5e11, 1, -6.0, 8.0, 20], ['sol', 9e10, 1, 1.0, 2.0, 3], ['btc', 1e6, 0, -50.0, -50.0, 0]]}
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 21, 10, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.build_trendy({'ceny': {'q': {'SPY': {'d': d}, 'EWC': {'d': d[:20]}}}, 'krypto': {'at': '2026-09-25T08:00:00+00:00', 'mk': mk}})
+        by = {r['id']: r for r in out['p']}
+        self.assertNotIn('EWC', by, 'za krótka historia cen — bez wiersza')
+        self.assertIn(by['SPY']['st'], ('up_cont', 'dn_fade', 'up_new', 'flat', 'dn_cont', 'up_fade', 'dn_new'))
+        self.assertEqual(by['BTC']['st'], 'up_new', 'BTC: +8% w tygodniu po −0,9% w 23 dniach; pierwszy wiersz BTC, nie podróbka')
+        self.assertEqual(by['BTC']['pr'], -0.93)
+        self.assertEqual(by['ETH']['st'], 'up_fade', 'ETH: −6% po +14,9% w 23 dniach — w dół po wcześniejszych wzrostach')
+        self.assertEqual(by['SOL']['st'], 'flat', 'SOL: +1% < 4,5% — bez wyraźnego ruchu')
+        b = out['b'][0]
+        self.assertEqual((b['id'], b['kind'], b['n'] > 0, b['weeks'], b['n']), ('px', 'price', True, b['n'], b['n']), 'jeden rynek: tygodni tyle co par')
+        self.assertTrue(b['to'] < '2026-09-21', 'bez tygodnia bieżącego')
+
+    def test_main_writes_trendy_from_this_run(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
+        offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
+                for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk')]
+        [p.start() for p in offs]
+        def fake_save(name, obj):
+            saved[name] = obj; zd.SAVED[name] = obj
+        try:
+            with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                    mock.patch.object(zd, 'save', fake_save), mock.patch.object(zd, 'previous', lambda name: None), \
+                    mock.patch.object(zd, 'build_obce', return_value=self.S()['obce']), \
+                    mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 21, 10, 0, tzinfo=datetime.timezone.utc)):
+                zd.SAVED['meksyk'] = {'d': [['2026-01-01', 1.0]] * 3}     # pozostałość po innym przebiegu nie może trafić do TRENDÓW
+                zd.main()
+        finally:
+            [p.stop() for p in offs]
+        self.assertIs(zd.META['ok']['trendy'], True)
+        ids = [r['id'] for r in saved['trendy']['f']]
+        self.assertIn('th', ids); self.assertNotIn('mx', ids, 'SAVED czyszczony na początku przebiegu')
+        self.assertLess(list(saved).index('trendy'), list(saved).index('meta'), 'TRENDY przed meta — błąd TRENDÓW widać w meta')
+
+    def test_stabh_keeps_70_days(self):
+        j = [{'date': str(1780000000 + i * 86400), 'totalCirculatingUSD': {'peggedUSD': 1e9 + i}} for i in range(100)]
+        s = zd.parse_stabh(j)
+        self.assertEqual(len(s['dd']), 71); self.assertEqual(s['dd'][-1][1], 1000000099)
+        self.assertEqual(s['dd'][-1][0], datetime.datetime.fromtimestamp(1780000000 + 99 * 86400, datetime.timezone.utc).date().isoformat())
+
+
 if __name__ == '__main__':
     unittest.main()
