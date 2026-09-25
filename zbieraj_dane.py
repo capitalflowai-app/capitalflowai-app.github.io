@@ -92,8 +92,8 @@ def get(url, headers=None, timeout=30):
         return r.status, r.read().decode('utf-8', 'replace')
 
 
-def get_json(url, headers=None):
-    st, body = get(url, headers)
+def get_json(url, headers=None, timeout=30):
+    st, body = get(url, headers, timeout)
     return json.loads(body)
 
 
@@ -1826,6 +1826,12 @@ NSDL_ARCH_MONTHS = 12     # v95: tyle pełnych miesięcy wstecz
 NSDL_ARCH_MAX = 3         # v95: najwyżej tyle miesięcy archiwum na jeden przebieg
 TW_BACK_MAX = 12          # v95.1: najwyżej tyle starszych dni na źródło na przebieg (przebieg co godzinę ma już ok. 11 z 15 min limitu)
 BACK_BUDGET = 40          # v95.1: sekund na uzupełnianie wstecz jednego źródła w przebiegu — potem przerwa do następnego przebiegu
+TW_BACK_TIMEOUT = 10      # v95.2: limit jednego zapytania wstecz (TWSE, HKEX); budżet liczony razem z nim — twardy limit czasu
+NSDL_BACK_BUDGET = 60     # v95.2: archiwum NSDL — sekund na przebieg; jeden miesiąc = formularz (15 s) + wynik (30 s)
+BACK_LATE = 420           # v95.2: przebieg dłuższy niż 7 min przed krokiem krajów — bez historii wstecz (zapas do 15 min limitu)
+TW_PEND_H = 12            # v95.2: starszy dzień „No Data!” (TWSE) = święto dopiero przy drugiej takiej odpowiedzi po ≥ 12 h
+HK_NF_DAYS = 7            # v95.2: brak pliku HKEX za starszy dzień — ponowne pytanie po tygodniu (bez stałej granicy)
+_RUN_T0 = [None]          # v95.2: początek przebiegu (main)
 NSDL_MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
 OBCE_KEEP = 300           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg; v89: 300 — tło dla TRENDÓW)
 NSDL_CATS = {'equity': 'eq', 'debt-general limit': 'debt', 'debt-vrr': 'debt', 'debt-far': 'debt', 'hybrid': 'hyb',
@@ -1929,19 +1935,32 @@ def tw_dates(have, empty, now_tpe, first):
     return out
 
 
-def tw_back(have, empty, now_loc, lo=None, skip=()):
-    """v95: starsze dni robocze do uzupełnienia wstecz — od najnowszego, do TW_BACK_DAYS dni; bez dni znanych, bez dni bez sesji,
-    bez dni z `skip` (już w kolejce) i nie wcześniej niż `lo` (dzień, za który źródło nie ma już pliku)."""
+def tw_back(have, empty, now_loc, skip=()):
+    """v95: starsze dni robocze do uzupełnienia wstecz — od najnowszego, do TW_BACK_DAYS dni; bez dni znanych, bez dni bez sesji
+    i bez dni z `skip` (już w kolejce albo odłożone na później)."""
     today = now_loc.date(); out = []
     for i in range(1, TW_BACK_DAYS + 1):
         d = today - datetime.timedelta(days=i)
         iso = d.isoformat()
-        if lo and iso <= lo:
-            break
         if d.weekday() >= 5 or iso in have or iso in empty or iso in skip:
             continue
         out.append(iso)
     return out
+
+
+def _back_ok(t0, budget, cost):
+    """v95.2: czy zmieści się jeszcze jedno zapytanie wstecz: czas od t0 + najdłuższy możliwy czas zapytania ≤ budżet,
+    a cały przebieg nie trwa już dłużej niż BACK_LATE."""
+    now = time.monotonic()
+    return (_RUN_T0[0] is None or now - _RUN_T0[0] < BACK_LATE) and now - t0 + cost <= budget
+
+
+def _age_h(ts):
+    """Godziny od chwili `ts` (ISO) do początku tego przebiegu (NOW); zły zapis → None."""
+    try:
+        return (datetime.datetime.fromisoformat(NOW) - datetime.datetime.fromisoformat(ts)).total_seconds() / 3600
+    except (TypeError, ValueError):
+        return None
 
 
 def _twse_nodata(j):
@@ -1978,10 +1997,25 @@ def _ym_add(ym, k):
     return f'{y + (m - 1) // 12:04d}-{(m - 1) % 12 + 1:02d}'
 
 
+def nsdl_http(url, form=None, cookie='', timeout=30):
+    """v95.2: archiwum NSDL — formularz i wynik w jednej sesji: ciasteczka z pobrania formularza (sesja ASP.NET, równoważenie
+    obciążenia) idą razem z wysłaniem formularza. → (treść, ciasteczka)."""
+    data = None if form is None else urllib.parse.urlencode(form).encode()
+    h = {'User-Agent': 'CapitalFlowAI-collector/1.0'}
+    if cookie:
+        h['Cookie'] = cookie
+    if data is not None:
+        h.update({'Content-Type': 'application/x-www-form-urlencoded', 'Referer': url})
+    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h), timeout=timeout) as r:
+        got = '; '.join(c.split(';', 1)[0].strip() for c in (r.headers.get_all('Set-Cookie') or []) if '=' in c.split(';', 1)[0])
+        return r.read(), got or cookie
+
+
 def nsdl_month(ym):
     """v95: archiwum NSDL — wszystkie dni raportu jednego miesiąca (ta sama tabela co bieżący miesiąc). Suma dni musi się zgadzać
-    z sumą miesiąca podaną przez NSDL pod tabelą (±1 mln USD) — inaczej miesiąc odrzucony (ponowimy w następnym przebiegu)."""
-    page = get_bytes(NSDL_ARCH, timeout=30).decode('utf-8', 'replace')
+    z sumą miesiąca podaną przez NSDL pod tabelą (±1 mln USD) — inaczej miesiąc odrzucony (ponowimy jutro)."""
+    body, ck = nsdl_http(NSDL_ARCH, timeout=15)
+    page = body.decode('utf-8', 'replace')
     form = {}
     for n in ('__VIEWSTATE', '__VIEWSTATEGENERATOR', '__EVENTVALIDATION'):
         m = re.search(r'name="%s"[^>]*value="([^"]*)"' % n, page)
@@ -1994,7 +2028,7 @@ def nsdl_month(ym):
     form.update({'__EVENTTARGET': 'btnSubmit1', '__EVENTARGUMENT': '', 'hdnDate': f'{last.day:02d}-{NSDL_MONTHS[mo - 1][:3]}-{y}',
                  'HdnValexceldata': '', 'hdnFlag': ''})
     tot = {}
-    rows = [r for r in parse_nsdl_html(post_bytes(NSDL_ARCH, form, timeout=45).decode('utf-8', 'replace'), tot)
+    rows = [r for r in parse_nsdl_html(nsdl_http(NSDL_ARCH, form, ck, timeout=30)[0].decode('utf-8', 'replace'), tot)
             if r[0][:7] == ym]
     if not rows:
         raise RuntimeError('brak dni tego miesiąca')
@@ -2012,19 +2046,24 @@ def nsdl_part(prev_in):
     m = _rows(prev_in)
     want = [_ym_add(rows[-1][0][:7], -i) for i in range(1, NSDL_ARCH_MONTHS + 1)]   # v95: pełne miesiące przed bieżącym
     arch = {x for x in ((prev_in or {}).get('arch') or []) if isinstance(x, str) and x in want}
-    t0 = time.monotonic()
-    for ym in [x for x in want if x not in arch][:NSDL_ARCH_MAX]:
-        if ym != want[0] and time.monotonic() - t0 > BACK_BUDGET:
-            break                                        # v95.1: reszta w następnym przebiegu
+    afail = {k: v for k, v in ((prev_in or {}).get('afail') or {}).items()          # v95.2: miesiąc odrzucony dziś — ponowimy jutro
+             if k in want and isinstance(v, str) and v[:10] == NOW[:10]}
+    t0 = time.monotonic(); tried = 0
+    for ym in [x for x in want if x not in arch and x not in afail]:
+        if tried >= NSDL_ARCH_MAX or not _back_ok(t0, NSDL_BACK_BUDGET, 45):
+            break                                        # reszta w następnym przebiegu
+        tried += 1
         try:
             got = nsdl_month(ym)
-        except Exception as e:
+        except (RuntimeError, ValueError, KeyError, IndexError) as e:   # zła treść: ten miesiąc jutro, starsze dalej (v95.2)
+            afail[ym] = NOW; META['notes'].append(mask(f'NSDL archiwum {ym}: {e} — ponowimy jutro')); continue
+        except Exception as e:                                          # sieć: przerwa do następnego przebiegu
             META['notes'].append(mask(f'NSDL archiwum {ym}: {e} — ponowimy w następnym przebiegu')); break
         m.update({r[0]: r for r in got}); arch.add(ym)      # archiwum = pełny, ostateczny miesiąc (zastępuje dni zebrane wcześniej)
     m.update({r[0]: r for r in rows})
     d = [m[k] for k in sorted(m)][-OBCE_KEEP:]
     return {'at': NOW, 'src': 'NSDL — Daily Trends in FPI Investments', 'url': NSDL_URL, 'unit': 'mln USD (przeliczenie NSDL)',
-            'cols': ['data raportu', 'akcje', 'dług', 'hybrydy', 'razem', 'INR za USD'], 'asof': d[-1][0], 'arch': sorted(arch), 'd': d}
+            'cols': ['data raportu', 'akcje', 'dług', 'hybrydy', 'razem', 'INR za USD'], 'asof': d[-1][0], 'arch': sorted(arch), **({'afail': afail} if afail else {}), 'd': d}
 
 
 def twse_part(prev_tw, key):
@@ -2034,27 +2073,33 @@ def twse_part(prev_tw, key):
     lim = (now_tpe.date() - datetime.timedelta(days=OBCE_EMPTY_DAYS)).isoformat()
     empty = {x for x in prev_tw.get('empty', []) if isinstance(x, str) and x >= lim}
     fails, bfails = [], []
+    pend = {k: v for k, v in (prev_tw.get('pend') or {}).items() if isinstance(k, str) and k >= lim and _age_h(v) is not None}
     recent = tw_dates(set(have), empty, now_tpe, first=not have)[-TWSE_MAX:]
-    back = tw_back(set(have), empty, now_tpe, skip=set(recent))[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz
+    wait = {k for k, v in pend.items() if _age_h(v) < TW_PEND_H}
+    back = tw_back(set(have), empty, now_tpe, skip=set(recent) | wait)[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz
     t0 = time.monotonic()
     for iso in recent + back:
-        bad = bfails if iso in back else fails
-        if iso in back and time.monotonic() - t0 > BACK_BUDGET:
-            break                                        # v95.1: ostatnie dni zawsze, starsze — tylko w budżecie czasu
+        old = iso in back
+        bad = bfails if old else fails
+        if old and not _back_ok(t0, BACK_BUDGET, TWSE_SLEEP + TW_BACK_TIMEOUT):
+            break                                        # ostatnie dni zawsze, starsze — tylko w budżecie czasu (v95.1–v95.2)
         time.sleep(TWSE_SLEEP)
         try:
-            j = get_json(TWSE_URL.format(d=iso.replace('-', '')))
+            u = TWSE_URL.format(d=iso.replace('-', ''))
+            j = get_json(u, timeout=TW_BACK_TIMEOUT) if old else get_json(u)
             r = parse_twse(j)
         except Exception as e:
             bad.append(f'{iso}: {e}'); continue
         if r is None:
             if iso < now_tpe.date().isoformat():
-                if _twse_nodata(j):
-                    empty.add(iso)      # dzień bez sesji (święto) — nie pytamy ponownie
+                if _twse_nodata(j) and (not old or iso in pend):
+                    empty.add(iso); pend.pop(iso, None)   # dzień bez sesji (święto) — nie pytamy ponownie
+                elif _twse_nodata(j):
+                    pend[iso] = NOW     # v95.2: starszy dzień — święto dopiero po drugiej takiej odpowiedzi (≥ 12 h), nie po jednej awarii
                 else:
                     bad.append(f"{iso}: {str(j.get('stat'))[:60] if isinstance(j, dict) else 'nieczytelna odpowiedź'}")   # v95: nie święto — ponowimy
             continue
-        have[r[0]] = r[:5]
+        have[r[0]] = r[:5]; pend.pop(iso, None)
     if not have:
         raise RuntimeError('brak dni' + (f' ({fails[0]})' if fails else ''))
     if fails:
@@ -2080,7 +2125,7 @@ def twse_part(prev_tw, key):
     return {'at': NOW, 'src': 'TWSE — Trading Value of Foreign & Other Investors (BFI82U)',
             'url': 'https://www.twse.com.tw/en/trading/foreign/bfi82u.html', 'unit': 'mln TWD; ≈ mln USD kursem Fed H.10 (FRED DEXTAUS)',
             'cols': ['data', 'zagraniczni', 'fundusze krajowe', 'dealerzy', 'razem', '≈ mln USD (zagraniczni)', 'data kursu'],
-            'asof': d[-1][0], 'empty': sorted(empty), 'd': d}
+            'asof': d[-1][0], 'empty': sorted(empty), **({'pend': pend} if pend else {}), 'd': d}
 
 
 # v67: HKEX Stock Connect — dzienne kupno i sprzedaż akcji w Hongkongu przez inwestorów z Chin kontynentalnych (southbound)
@@ -2137,28 +2182,31 @@ def hkex_part(prev_hk, key):
     now_hk = _now_utc() + datetime.timedelta(hours=8)
     lim = (now_hk.date() - datetime.timedelta(days=OBCE_EMPTY_DAYS)).isoformat()
     empty = {x for x in prev_hk.get('empty', []) if isinstance(x, str) and x >= lim}
-    fails, bfails = [], []
-    lo = prev_hk.get('lo') if isinstance(prev_hk.get('lo'), str) and _d(prev_hk.get('lo')) else None
+    fails, bfails, nf_new = [], [], []
+    nf = {k: v for k, v in (prev_hk.get('nf') or {}).items()                  # v95.2: brak pliku za starszy dzień — pytamy znowu po tygodniu
+          if isinstance(k, str) and _age_h(v) is not None and _age_h(v) < 24 * HK_NF_DAYS}
     for k in [k for k, r in have.items() if len(r) > 3 and r[2] == 0 and r[3] == 0]:
         del have[k]; empty.add(k)   # v73: dawny zapis „sesja z zerem” w dniu bez handlu → dzień bez sesji
     recent = tw_dates(set(have), empty, now_hk, first=not have)[-TWSE_MAX:]   # te same zasady dni co dla Tajwanu (UTC+8)
-    back = tw_back(set(have), empty, now_hk, lo, set(recent))[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz, od najnowszego
-    t0 = time.monotonic()
+    back = tw_back(set(have), empty, now_hk, set(recent) | set(nf))[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz, od najnowszego
+    t0 = time.monotonic(); miss = 0
     for iso in recent + back:
         old = iso in back
-        if old and (lo and iso <= lo or time.monotonic() - t0 > BACK_BUDGET):
-            continue                                     # v95.1: za końcem archiwum albo po budżecie czasu — w następnym przebiegu
+        if old and (miss >= 3 or not _back_ok(t0, BACK_BUDGET, HKEX_SLEEP + TW_BACK_TIMEOUT)):
+            break                                        # 3 braki pliku z rzędu albo koniec budżetu czasu — reszta w następnym przebiegu
         time.sleep(HKEX_SLEEP)
         try:
-            r = parse_hkex(get_bytes(HKEX_URL.format(d=iso.replace('-', '')), timeout=30).decode('utf-8', 'replace'))
+            r = parse_hkex(get_bytes(HKEX_URL.format(d=iso.replace('-', '')), timeout=TW_BACK_TIMEOUT if old else 30).decode('utf-8', 'replace'))
         except urllib.error.HTTPError as e:
             if old and e.code == 404:
-                lo = iso; continue        # v95: HKEX nie ma już tak starego pliku — wcześniejszych dni nie pytamy
+                nf[iso] = NOW; nf_new.append(iso); miss += 1; continue   # v95.2: brak pliku za starszy dzień — bez stałej granicy
             if e.code != 404 or iso < now_hk.date().isoformat():
                 fails.append(f'{iso}: HTTP {e.code}')   # v69: 404 za dzień roboczy z przeszłości = brak pliku (święta mają plik) — ponowimy
             continue
         except Exception as e:
             (bfails if old else fails).append(f'{iso}: {e}'); continue
+        if old:
+            miss = 0
         if r is False:
             empty.add(iso); continue      # v69: święto w Hongkongu — plik z tradingDay 0
         if r is None:
@@ -2170,6 +2218,8 @@ def hkex_part(prev_hk, key):
         META['errors'].append(mask(f'HKEX: {len(fails)} dni bez odpowiedzi, np. {fails[0]}'))
     if bfails:
         META['notes'].append(mask(f'HKEX historia wstecz: {len(bfails)} dni bez odpowiedzi, np. {bfails[0]} — ponowimy'))
+    if nf_new:
+        META['notes'].append(mask(f'HKEX historia wstecz: brak pliku za {len(nf_new)} dni, np. {nf_new[0]} — ponowimy za tydzień'))
     d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
     rates = {}
     if key:
@@ -2190,7 +2240,7 @@ def hkex_part(prev_hk, key):
             'url': 'https://www.hkex.com.hk/Mutual-Market/Stock-Connect/Statistics/Historical-Daily',
             'unit': 'mln HKD; ≈ mln USD kursem Fed H.10 (FRED DEXHKUS)',
             'cols': ['data', 'netto', 'kupno', 'sprzedaż', 'rynki', '≈ mln USD (netto)', 'data kursu'],
-            'asof': d[-1][0], 'empty': sorted(empty), **({'lo': lo} if lo else {}), 'd': d}
+            'asof': d[-1][0], 'empty': sorted(empty), **({'nf': nf} if nf else {}), 'd': d}
 
 
 # v71: Banco Central do Brasil (SGS, bez klucza) — „câmbio contratado”: dzienne przepływy dolarów przez rynek walutowy Brazylii
@@ -4239,6 +4289,7 @@ def build_trendy(S):
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
+    _RUN_T0[0] = time.monotonic()      # v95.2: historia wstecz tylko, gdy przebieg nie jest już długi
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
     fh_key = os.environ.get('FINNHUB_KEY', '').strip()

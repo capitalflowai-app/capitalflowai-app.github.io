@@ -1977,7 +1977,12 @@ test('v95: TRENDY — „czy tydzień zapowiadał następny” dla dziennych prz
   assert.ok(D.pl['trd.b.ob'].includes('Brazylia') && D.en['trd.b.ob'].includes('Brazil'));
   for (const k of ['g.hs.nsdl', 'g.hs.twse', 'g.hs.hkex']) assert.ok(D.pl[k].includes('co godzinę') && D.en[k].includes('every hour') && !D.pl[k].includes('co 3 h'), k);
   assert.ok(D.pl['g.hs.nsdl'].includes('suma dni zgadza się z sumą miesiąca'));
-  assert.ok(D.pl['trd.b.concl2'].includes('Przepływy to nie ceny') && D.en['trd.b.concl2'].includes('Flows are not prices') && D.pl['trd.b.concl2'].includes('nie piszemy „kupuj”'));
+  assert.ok(D.pl['trd.b.concl3'].includes('Przepływy to nie ceny') && D.en['trd.b.concl3'].includes('Flows are not prices') && D.pl['trd.b.concl3'].includes('nie piszemy „kupuj”'));
+  assert.ok(!('trd.b.concl2' in D.pl) && !D.pl['g.hs.hkex'].includes('trzyma'), 'v95.2: zwykły wniosek bez zmian; opis HKEX bez nieścisłości');
   f.trdApply({at: '2026-09-25T11:00:00Z', f: [], p: [], b: [{id: 'ob', k: 73, n: 112, weeks: 51, from: '2025-09-22', to: '2026-09-14', ci: [51.5, 76.8]}]});
-  assert.ok(el.innerHTML.includes('trd.b.v.more') && el.innerHTML.includes('<b>trd.b.concl2</b>'), 'wynik ponad 50% — opis „częściej trwał” i zastrzeżenie');
+  assert.ok(el.innerHTML.includes('trd.b.v.more') && el.innerHTML.includes('<b>trd.b.concl3</b>'), 'wynik przepływów ponad 50% — opis „częściej trwał” i zdanie „przepływy to nie ceny”');
+  f.trdApply({at: '2026-09-25T12:00:00Z', f: [], p: [], b: [{id: 'px', k: 180, n: 290, weeks: 31, from: '2026-02-09', to: '2026-09-14', ci: [55.2, 67.4]}, {id: 'ob', k: 1, n: 2, weeks: 2, ci: [9.5, 90.5]}]});
+  assert.ok(el.innerHTML.includes('<b>trd.b.concl2</b>') && !el.innerHTML.includes('trd.b.concl3'), 'wynik tylko dla cen — bez zdania o przepływach');
+  f.trdApply({at: '2026-09-25T13:00:00Z', f: [], p: [], b: [{id: 'ob', k: 30, n: 112, weeks: 51, from: '2025-09-22', to: '2026-09-14', ci: [19.4, 35.6]}]});
+  assert.ok(el.innerHTML.includes('trd.b.v.less') && el.innerHTML.includes('<b>trd.b.concl2</b>'), 'przepływy częściej się odwracały — zwykły wniosek');
 });
