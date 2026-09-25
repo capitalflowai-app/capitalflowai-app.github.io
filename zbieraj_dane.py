@@ -3465,6 +3465,8 @@ TR_FE = (('fe_us', ('SPY', 'IVV')), ('fe_tech', ('XLK',)), ('fe_fin', ('XLF',)),
          ('fe_chn', ('MCHI', 'FXI')), ('fe_india', ('INDA',)), ('fe_bra', ('EWZ',)), ('fe_kor', ('EWY',)), ('fe_twn', ('EWT',)),
          ('fe_ustl', ('TLT',)), ('fe_ustm', ('IEF',)), ('fe_usts', ('SHY', 'BIL')), ('fe_agg', ('AGG',)), ('fe_ig', ('LQD',)),
          ('fe_hy', ('HYG', 'JNK')), ('fe_emb', ('EMB',)), ('fe_gold', ('GLD', 'IAU', 'GLDM')), ('fe_silver', ('SLV',)))   # v90: grupy funduszy ETF
+TR_FP = ('fe_tech', 'fe_fin', 'fe_energy', 'fe_health', 'fe_indu', 'fe_cdisc', 'fe_cstap', 'fe_util', 'fe_dev', 'fe_eur', 'fe_em', 'fe_twn',
+         'fe_bra', 'fe_ustl', 'fe_ustm', 'fe_usts', 'fe_agg', 'fe_ig', 'fe_hy', 'fe_emb', 'fe_gold', 'fe_silver')   # v93: ceny NAV (bez rynków z listy cen krajów)
 
 
 def _isnum(x):
@@ -3726,15 +3728,27 @@ def _cftc_roll(ds):
     return abs((d - wed3).days) <= 7
 
 
+def fund_split(a, b):
+    """v93: podział jednostek między dniami a i b ([data, NAV, liczba jednostek]): 1 = bez podziału; k (np. 2 albo 1/2) = podział,
+    gdy NAV zmienia się o ponad 40%, a wartość funduszu (NAV × liczba) prawie nie; 0 = skok bez wyjaśnienia (dzień pomijany)."""
+    nr, sr = b[1] / a[1], b[2] / a[2]
+    if 0.6 < nr < 1.6:
+        return 1
+    if not 0.8 < nr * sr < 1.25:
+        return 0
+    k = round(sr) if sr >= 1 else (1 / round(1 / sr) if round(1 / sr) else 0)
+    return k if k not in (0, 1) else 0
+
+
 def fund_flows(h):
-    """Historia funduszu [[data, NAV, liczba jednostek]] → {data: przepływ w mln USD} = zmiana liczby jednostek × NAV z tego dnia.
-    Podział albo scalenie jednostek (liczba i NAV zmieniają się naraz o ponad 25%) — dzień pomijany (brak, nie zero)."""
+    """Historia funduszu [[data, NAV, liczba jednostek]] → {data: przepływ w mln USD} = zmiana liczby jednostek × NAV z tego dnia;
+    w dniu podziału jednostek poprzednia liczba mnożona przez współczynnik podziału (v93); skok bez wyjaśnienia — dzień pominięty."""
     out = {}
     h = [r for r in h or [] if isinstance(r, list) and len(r) == 3 and _d(r[0]) and _isnum(r[1]) and _isnum(r[2]) and r[1] > 0 and r[2] > 0]
     for a, b in zip(h, h[1:]):
-        if abs(b[2] / a[2] - 1) > 0.25 and abs(b[1] / a[1] - 1) > 0.2:
-            continue
-        out[b[0]] = (b[2] - a[2]) * b[1] / 1e6
+        k = fund_split(a, b)
+        if k:
+            out[b[0]] = (b[2] - a[2] * k) * b[1] / 1e6
     return out
 
 
@@ -3947,6 +3961,34 @@ def _tr_prices(S):
             if abs(a) >= TR_PX_MIN * _sd(past):
                 pairs['n'] += 1; pairs['k'] += 1 if a * b > 0 else 0; pairs['weeks'].add(m0)
                 pairs['from'] = min(pairs['from'] or m0, m0); pairs['to'] = max(pairs['to'] or m1, m1)
+    fu = (S.get('fundusze') or {}).get('f') if isinstance(S.get('fundusze'), dict) else None   # v93: cena jednostki (NAV) największego funduszu grupy
+    if isinstance(fu, dict):
+        for gid, members in TR_FE:
+            if gid not in TR_FP:
+                continue
+            best = None
+            for t in members:
+                h = [r for r in ((fu.get(t) or {}).get('h') or []) if isinstance(r, list) and len(r) == 3 and _d(r[0]) and _isnum(r[1]) and r[1] > 0 and _isnum(r[2])]
+                if len(h) >= 26 and (best is None or h[-1][1] * h[-1][2] > best[1][-1][1] * best[1][-1][2]):
+                    best = (t, h)
+            if not best:
+                continue
+            h = best[1][-(5 * (TR_PX_WEEKS + 1) + 1):]
+            c, f = [h[-1][1]], 1.0                         # NAV w jednostkach po ostatnim podziale; skok bez wyjaśnienia ucina starszą część
+            for a, b in zip(reversed(h[:-1]), reversed(h[1:])):
+                k = fund_split(a, b)
+                if not k:
+                    META['notes'].append(f'trendy {best[0]}: skok NAV bez podziału jednostek ({b[0]}) — cena liczona od tego dnia'); break
+                f *= k; c.append(a[1] / f)
+            c.reverse()
+            if len(c) < 26:
+                continue
+            wk = [(c[-1 - 5 * i] / c[-1 - 5 * (i + 1)] - 1) * 100 for i in range(min(TR_PX_WEEKS + 1, (len(c) - 1) // 5))]
+            if len(wk) < 21:
+                continue
+            typ = _sd(wk[1:]); prev = (c[-6] / c[-26] - 1) * 100; z = wk[0] / typ if typ > 0 else None
+            out.append({'id': 'fp_' + gid[3:], 'g': 'fp', 'sym': best[0], 'date': best[1][-1][0], 'w': round(wk[0], 2), 'pr': round(prev, 2),
+                        'typ': round(typ, 2), 'z': round(z, 2) if z is not None else None, 'st': _px_state(wk[0], prev, typ) if typ > 0 else 'flat'})
     kr = S.get('krypto') if isinstance(S.get('krypto'), dict) else {}
     mk = kr.get('mk') or {}
     cols = mk.get('cols') or []

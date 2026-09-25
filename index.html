@@ -1139,6 +1139,8 @@ const EXTRA82={"pl":{"fe.reg":"Fundusze ETF w USA na ten region (więcej w zakł
 for(const l in EXTRA82)if(I18N[l])Object.assign(I18N[l],EXTRA82[l]);
 const EXTRA83={"pl":{"trd.s.cs_gold":"Złoto (COMEX)","trd.s.cs_silver":"Srebro (COMEX)","trd.s.cs_copper":"Miedź (COMEX)","trd.s.cs_wti":"Ropa WTI (NYMEX)","trd.src.cs":"CFTC (surowce)","trd.p.sub":"O ile w tygodniu zmieniła się pozycja netto funduszy spekulacyjnych (zakłady na wzrost minus zakłady na spadek), w kontraktach: w walutach, akcjach i krypto — fundusze lewarowane (raport TFF), w surowcach — fundusze zarządzające (managed money, raport disaggregated). Wzrost netto może oznaczać nowe zakłady na wzrost albo zamknięcie zakładów na spadek. To pozycje, nie przepływ pieniędzy. Dane z wtorku, publikowane w piątek.","g.hs.cs":"Raport CFTC „disaggregated” (tylko futures) — co tydzień, stan na wtorek, publikacja w piątek. Pokazujemy zmianę pozycji netto funduszy zarządzających (managed money) w złocie, srebrze, miedzi (COMEX) i ropie WTI (NYMEX). Dane rządu USA; sprawdzamy, czy pozycje grup sumują się do liczby otwartych kontraktów."},"en":{"trd.s.cs_gold":"Gold (COMEX)","trd.s.cs_silver":"Silver (COMEX)","trd.s.cs_copper":"Copper (COMEX)","trd.s.cs_wti":"WTI crude (NYMEX)","trd.src.cs":"CFTC (commodities)","trd.p.sub":"How the net position of speculative funds (bets on a rise minus bets on a fall) changed during the week, in contracts: in currencies, shares and crypto — leveraged funds (TFF report); in commodities — managed money (disaggregated report). A higher net can mean new bets on a rise or closed bets on a fall. Positions, not money flows. Tuesday data, published on Friday.","g.hs.cs":"CFTC “disaggregated” report (futures only) — weekly, positions as of Tuesday, published on Friday. We show the change in the net position of managed money in gold, silver, copper (COMEX) and WTI crude (NYMEX). US government data; we check that the groups' positions add up to open interest."}};
 for(const l in EXTRA83)if(I18N[l])Object.assign(I18N[l],EXTRA83[l]);
+const EXTRA84={"pl":{"trd.x.fp":"Obligacje, złoto, srebro, sektory USA i regiony (cena jednostki funduszu — NAV)","trd.n.nav":"cena jednostki {s} (NAV; wypłata dywidendy obniża NAV)","trd.x.sub":"Zmiana ceny w ostatnim tygodniu na tle 4 tygodni przed nim (krypto: 23 dni). Rynki akcji: fundusze ETF notowane w USA, w dolarach, czyli razem z ruchem waluty (Twelve Data). Obligacje, metale, sektory i regiony: cena jednostki (NAV) największego funduszu w grupie (State Street, iShares). Krypto: 10 dużych monet (CoinGecko). Cena to nie przepływ pieniędzy — napływ może iść w parze ze spadkiem ceny."},"en":{"trd.x.fp":"Bonds, gold, silver, US sectors and regions (fund NAV per share)","trd.n.nav":"{s} NAV per share (dividend payouts lower the NAV)","trd.x.sub":"The price change over the latest week against the 4 weeks before it (crypto: 23 days). Equity markets: US-listed ETFs, in dollars, so including the currency move (Twelve Data). Bonds, metals, sectors and regions: NAV per share of the largest fund in the group (State Street, iShares). Crypto: 10 large coins (CoinGecko). Price is not a money flow — an inflow can go together with a falling price."}};
+for(const l in EXTRA84)if(I18N[l])Object.assign(I18N[l],EXTRA84[l]);
 
 /* ===================== STAN I DANE ===================== */
 const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -6049,9 +6051,10 @@ function trdPanel(key,A){
     (rest.length?`<details class="etfd" id="trd-rest-${key}"><summary>${t('trd.rest',{n:rest.length})}</summary><div class="etfkpis">${rest.map(trdCard).join('')}</div></details>`:'')+`</section>`;
 }
 function trdPx(r){
-  const eq=r.g==='eq',name=eq?t('trd.px.'+r.id):r.id;
+  const eq=r.g==='eq'||r.g==='fp',name=r.g==='fp'?t('trd.s.fe_'+r.id.slice(3)):eq?t('trd.px.'+r.id):r.id;   /* v93: fp — cena jednostki funduszu */
   const l=[t(eq?'trd.n.pw':'trd.n.pw7',{d:trdDay(r.date)})+gAgeNote(r.date),t(eq?'trd.n.pr':'trd.n.pr23',{v:trdNum(r.pr)?fPct(r.pr,2):'—'})];
   if(eq&&trdNum(r.typ))l.push(t('trd.n.typ',{v:nfmt(r.typ,1)}));
+  if(r.g==='fp')l.push(t('trd.n.nav',{s:escH(r.sym)}));
   return `<div class="etfk"><span>${escH(name)}</span><b class="${etfCls(r.w)}">${trdNum(r.w)?fPct(r.w,2):'—'}<small>${escH(t('trd.ps.'+r.st))}</small></b><small class="mtxt">${l.join(' · ')}</small></div>`;
 }
 function trdPxSort(A){return A.slice().sort((a,b)=>(TRD_PORD.indexOf(a.st)-TRD_PORD.indexOf(b.st))||(Math.abs(b.w||0)-Math.abs(a.w||0)));}
@@ -6093,9 +6096,9 @@ function renderTrendy(){
   if(!D){w.innerHTML=head+`<section class="panel pcard"><p class="pnote">${t('trd.nodata')}</p><p class="pnote"><b>${t('trd.disc')}</b></p>${trdMethod()}</section>`;}
   else{
     const F=D.f.filter(r=>r&&typeof r.id==='string'&&/^[a-z_]{1,20}$/.test(r.id)&&TRD_ORD.includes(r.st)&&TRD_M.includes(r.m)&&typeof r.cur==='string'&&/^[A-Z]{2,4}$/.test(r.cur)&&trdNum(r.sz)),
-          P=D.p.filter(r=>r&&typeof r.id==='string'&&/^[A-Z]{2,5}$/.test(r.id)&&TRD_PORD.includes(r.st)),
+          P=D.p.filter(r=>r&&typeof r.id==='string'&&(/^[A-Z]{2,5}$/.test(r.id)||/^fp_[a-z]{2,8}$/.test(r.id)&&typeof r.sym==='string'&&/^[A-Z]{2,5}$/.test(r.sym))&&TRD_PORD.includes(r.st)),
           B=(Array.isArray(D.b)?D.b:[]).filter(b=>b&&['th','mx','px'].includes(b.id)&&trdNum(b.k)&&trdNum(b.n)&&b.n>0);
-    const EQ=trdPxSort(P.filter(r=>r.g==='eq')),CR=trdPxSort(P.filter(r=>r.g==='cr'));
+    const EQ=trdPxSort(P.filter(r=>r.g==='eq')),CR=trdPxSort(P.filter(r=>r.g==='cr')),FP=trdPxSort(P.filter(r=>r.g==='fp'));
     w.innerHTML=head+disc+trdKpis(F,P,B)+
       trdPanel('e',F.filter(r=>r.g==='fe'))+   /* v90: fundusze ETF w USA — najszerszy obraz: akcje, sektory, kraje, obligacje, złoto */
       trdPanel('f',F.filter(r=>['eq','bd','fx'].includes(r.g)))+
@@ -6103,6 +6106,7 @@ function renderTrendy(){
       trdPanel('p',F.filter(r=>r.g==='pos'))+
       (P.length?`<section class="panel pcard"><h2>${t('trd.x.t')}</h2><p class="pnote">${t('trd.x.sub')}</p>`+
         (EQ.length?`<h3 class="mtxt"><b>${t('trd.x.eq')}</b></h3><div class="etfkpis">${EQ.map(trdPx).join('')}</div>`:'')+
+        (FP.length?`<h3 class="mtxt"><b>${t('trd.x.fp')}</b></h3><div class="etfkpis">${FP.map(trdPx).join('')}</div>`:'')+
         (CR.length?`<h3 class="mtxt"><b>${t('trd.x.cr')}</b></h3><div class="etfkpis">${CR.map(trdPx).join('')}</div>`:'')+`</section>`:'')+
       trdBase(B)+
       `<section class="panel pcard">${trdMethod()}<p class="pfoot">${t('trd.foot')} · ${t('inst.file',{t:engDate(D.at)})} · ${t('eng.disclaimer')}</p></section>`;

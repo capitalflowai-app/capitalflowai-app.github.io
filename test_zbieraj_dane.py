@@ -3405,7 +3405,8 @@ class FunduszeV90(unittest.TestCase):
 
     def test_flows_and_groups(self):
         h = [['2026-09-21', 100.0, 1000], ['2026-09-22', 101.0, 1100], ['2026-09-23', 50.0, 2200], ['2026-09-24', 50.0, 2150]]
-        self.assertEqual(zd.fund_flows(h), {'2026-09-22': 100 * 101 / 1e6, '2026-09-24': -50 * 50 / 1e6}, 'podział jednostek 2:1 — dzień pominięty')
+        self.assertEqual(zd.fund_flows(h), {'2026-09-22': 100 * 101 / 1e6, '2026-09-23': 0.0, '2026-09-24': -50 * 50 / 1e6}, 'podział 2:1 — przepływ dnia liczony po podziale (v93)')
+        self.assertEqual(zd.fund_flows([['2026-09-21', 100.0, 1000], ['2026-09-22', 50.0, 1000]]), {}, 'skok NAV bez podziału — dzień pominięty')
         fu = {'SPY': {'h': [['2026-09-22', 10.0, 100], ['2026-09-23', 10.0, 110], ['2026-09-24', 10.0, 130]]},
               'IVV': {'h': [['2026-09-22', 20.0, 50], ['2026-09-23', 20.0, 60]]}}
         ds, v, aum = zd.fund_group(fu, ('SPY', 'IVV'))
@@ -3528,6 +3529,31 @@ class SurowceV92(unittest.TestCase):
         with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 12, 0, tzinfo=datetime.timezone.utc)):
             r = {x['id']: x for x in zd.build_trendy({'surowce': out})['f']}['cs_gold']
         self.assertEqual((r['g'], r['m'], r['cur'], r['w'], r['date']), ('pos', 'pos', 'CT', 80, days[-1]))
+
+
+class CenyFunduszyV93(unittest.TestCase):
+    """v93: TRENDY — tydzień ceny jednostki (NAV) największego funduszu w grupie: obligacje, metale, sektory, regiony spoza listy cen krajów."""
+
+    def test_nav_rows(self):
+        days = [d for d in (datetime.date(2025, 9, 1) + datetime.timedelta(days=i) for i in range(390)) if d.weekday() < 5][-280:]
+        mk = lambda nav0, sh, step: [[d.isoformat(), nav0 + step * i, sh] for i, d in enumerate(days)]
+        fu = {'GLD': {'h': mk(300.0, 400, 0.1)}, 'IAU': {'h': mk(60.0, 700, 0.02)}, 'GLDM': {'h': mk(70.0, 10, 0.02)},
+              'TLT': {'h': mk(90.0, 500, -0.01)}, 'XLK': {'h': mk(200.0, 600, 0.0)}}
+        fu['XLK']['h'][-3][1] = 100.0                                   # skok NAV o połowę — podział jednostek, bez wiersza
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 10, 0, tzinfo=datetime.timezone.utc)):
+            zd.META['notes'].clear()
+            out = zd.build_trendy({'fundusze': {'f': fu}})
+        by = {r['id']: r for r in out['p']}
+        self.assertEqual((by['fp_gold']['sym'], by['fp_gold']['g']), ('GLD', 'fp'), 'największy fundusz grupy (300 × 400 > 60 × 700)')
+        self.assertIn('fp_ustl', by); self.assertNotIn('fp_tech', by); self.assertNotIn('fp_us', by, 'akcje USA są już na liście cen krajów (SPY)')
+        self.assertTrue(any(n.startswith('trendy XLK: skok NAV bez podziału') for n in zd.META['notes']))
+        fu2 = {'XLE': {'h': [[d.isoformat(), (90.0 if i < 200 else 45.0) + 0.01 * i, 300 if i < 200 else 600] for i, d in enumerate(days)]}}
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 10, 0, tzinfo=datetime.timezone.utc)):
+            r = {x['id']: x for x in zd.build_trendy({'fundusze': {'f': fu2}})['p']}['fp_energy']
+        self.assertTrue(abs(r['pr']) < 5 and abs(r['w']) < 5, 'podział 2:1 nie jest spadkiem ceny o połowę')
+        self.assertEqual(zd.fund_split([0, 90.0, 300], [0, 45.0, 600]), 2); self.assertEqual(zd.fund_split([0, 45.0, 600], [0, 90.0, 300]), 0.5)
+        self.assertEqual(by['fp_ustl']['date'], days[-1].isoformat())
+        self.assertEqual([b['id'] for b in out['b'] if b['id'] == 'px'], [], 'ceny funduszy nie wchodzą do „14 rynków akcji”')
 
 
 if __name__ == '__main__':

@@ -1792,8 +1792,10 @@ test('v89: EXTRA80 — nazwa zakładki w 10 językach, pl i en z tymi samymi klu
   for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(D[l] && D[l]['tab.trendy'], 'tab.trendy ' + l);
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
   const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), blk = html.slice(b0, b1);
-  const lit = [...blk.matchAll(/t\('(trd\.[A-Za-z0-9_.]+)'/g)].map(m => m[1]).filter(k => !k.endsWith('.'));
-  for (const k of lit) assert.ok(D.pl[k] && D.en[k], 'brak klucza ' + k);
+  const lit = [...blk.matchAll(/t\('(trd\.[A-Za-z0-9_.]+)'/g)].map(m => m[1]).filter(k => !/[._]$/.test(k));   /* v93: też przedrostki kluczy („trd.s.fe_”) */
+  const ALL = {pl: {}, en: {}};   /* v93: klucze z EXTRA80 i późniejszych słowników TRENDÓW */
+  for (const m of html.matchAll(/const (EXTRA8\d)=/g)) { const x = html.indexOf(m[0]), d = JSON.parse(html.slice(x + m[0].length, html.indexOf(';\n', x))); Object.assign(ALL.pl, d.pl || {}); Object.assign(ALL.en, d.en || {}); }
+  for (const k of lit) assert.ok(ALL.pl[k] && ALL.en[k], 'brak klucza ' + k);
   const ST = ['in_up', 'in_flat', 'in_down', 'in_rev', 'in_new', 'in_dir', 'out_up', 'out_flat', 'out_down', 'out_rev', 'out_new', 'out_dir'];
   for (const s of ST.concat(['mixed', 'none', 'short', 'gap', 'stale'])) assert.ok(D.pl['trd.sn.' + s] && D.en['trd.sn.' + s], 'trd.sn.' + s);
   for (const m of ['stock', 'exch', 'supply', 'pos']) for (const s of ST.concat(['none'])) assert.ok(D.pl[`trd.sn.${m}.${s}`] && D.en[`trd.sn.${m}.${s}`], `trd.sn.${m}.${s}`);
@@ -1916,4 +1918,20 @@ test('v92: surowce z CFTC w TRENDACH — nazwy, źródło, wiersz na stronie Źr
   assert.ok(D.pl['trd.src.cs'] && D.pl['trd.p.sub'].includes('fundusze zarządzające') && D.en['g.hs.cs'].includes('open interest'));
   assert.ok(html.includes("'www.cftc.gov','src.f.w','src.l.w',(typeof TRD!=='undefined'&&TRD.data&&TRD.data.f.some(r=>r&&typeof r.id==='string'&&r.id.slice(0,3)==='cs_'))?1:0,'g.hs.cs','cs']"));
   assert.ok(html.includes("cs:'surowce'") && html.includes("cs:'CFTC surowce'"));
+});
+
+test('v93: TRENDY — ceny jednostek funduszy (obligacje, metale, sektory) w panelu cen', () => {
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */');
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const el = {innerHTML: '', querySelectorAll() { return []; }, querySelector() { return null; }};
+  const f = new Function('$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+    html.slice(b0, b1) + '\nreturn {trdApply};')(() => el, T, {mode: 'trendy'}, () => Promise.resolve(null), s => String(s).replace(/</g, '&lt;'), v => v > 0 ? 'pos' : v < 0 ? 'neg' : '',
+    d => '', v => String(v), v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d = 0) => v.toFixed(d), (v, d) => v.toFixed(d) + '%', n => 'ses', s => s, 'pl', {pl: 'pl-PL'}, {pl: {}, en: {}});
+  f.trdApply({at: '2026-09-25T10:00:00Z', f: [], b: [], p: [{id: 'fp_gold', g: 'fp', sym: 'GLD', date: '2026-09-24', w: -1.2, pr: 4.1, typ: 1.8, st: 'up_fade'},
+    {id: 'fp_bad', g: 'fp', sym: '<x>', date: '2026-09-24', w: 1, pr: 1, typ: 1, st: 'flat'}]});
+  const h = el.innerHTML;
+  assert.ok(h.includes('<h3 class="mtxt"><b>trd.x.fp</b></h3>') && h.includes('<span>trd.s.fe_gold</span>') && h.includes('trd.n.nav{"s":"GLD"}') && h.includes('trd.n.typ{"v":"1.8"}'));
+  assert.ok(!h.includes('fp_bad') && !h.includes('<x>'), 'dziwny symbol z pliku — pominięty');
+  const a = 'const EXTRA84=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(D.pl['trd.x.fp'] && D.en['trd.n.nav'] && D.pl['trd.x.sub'].includes('State Street'));
 });
