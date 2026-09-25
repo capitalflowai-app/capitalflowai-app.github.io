@@ -3667,7 +3667,7 @@ class HistoriaV95(unittest.TestCase):
                     '<tr><td>Reporting Date</td><td>Derivative Products</td></tr></table></body></html>')
 
     def setUp(self):
-        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear(); zd._RUN_T0[0] = None
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear(); zd._RUN_T0[0] = None; zd._BACK_LATE_NOTE[0] = False
 
     def at(self, now):
         """Wspólne atrapy czasu: data dnia stała (25.09, 17:00 w Tajpej), NOW przebiegu — podany."""
@@ -3846,7 +3846,7 @@ class HistoriaV95(unittest.TestCase):
         self.assertIn('2026-09-08', {r[0] for r in out3['d']})
 
     def test_backfill_hard_time_budget_and_long_run(self):
-        """v95.2: budżet liczony razem z najdłuższym możliwym zapytaniem; przebieg dłuższy niż 7 min — bez historii wstecz."""
+        """v95.2–v95.4: budżet liczony razem z najdłuższym możliwym zapytaniem; przebieg dłuższy niż 9 min — bez historii wstecz (z notatką)."""
         prev = {'d': [[d, 1.0, 0, 0, 0] for d in _wdays('2026-09-11', '2026-09-23')], 'empty': []}
         asked = []
 
@@ -3860,12 +3860,13 @@ class HistoriaV95(unittest.TestCase):
         with a, b, c, mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'monotonic', lambda: next(clock)):
             zd.twse_part(prev, '')
         self.assertEqual(asked, ['2026-09-24', '2026-09-25', '2026-09-10'], '15 s + 12 s ≤ 40 s — tak; 30 s + 12 s > 40 s — stop')
-        asked.clear(); zd._RUN_T0[0] = zd.time.monotonic() - 500
+        asked.clear(); zd._RUN_T0[0] = zd.time.monotonic() - 600
         a, b, c = self.at('2026-09-25T09:00:00+00:00')
         with a, b, c, mock.patch.object(zd, 'get_json', gj):
             zd.twse_part(prev, '')
         self.assertEqual(asked, ['2026-09-24', '2026-09-25'], 'długi przebieg — tylko ostatnie dni')
-        zd._RUN_T0[0] = None
+        self.assertEqual(sum('historia wstecz pominięta' in n for n in zd.META['notes']), 1, 'jedna notatka z czasem przebiegu')
+        zd._RUN_T0[0] = None; zd._BACK_LATE_NOTE[0] = False
         months = []
 
         def month(ym):

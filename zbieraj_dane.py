@@ -1828,7 +1828,8 @@ TW_BACK_MAX = 12          # v95.1: najwyżej tyle starszych dni na źródło na 
 BACK_BUDGET = 40          # v95.1: sekund na uzupełnianie wstecz jednego źródła w przebiegu — potem przerwa do następnego przebiegu
 TW_BACK_TIMEOUT = 10      # v95.2: limit jednego zapytania wstecz (TWSE, HKEX); budżet liczony razem z nim — twardy limit czasu
 NSDL_BACK_BUDGET = 60     # v95.2: archiwum NSDL — sekund na przebieg; jeden miesiąc = formularz (15 s) + wynik (30 s)
-BACK_LATE = 420           # v95.2: przebieg dłuższy niż 7 min przed krokiem krajów — bez historii wstecz (zapas do 15 min limitu)
+BACK_LATE = 540           # v95.4: przebieg dłuższy niż 9 min przed krokiem krajów — bez historii wstecz (po v95.3 testy trwają sekundy; zapas do 15 min)
+_BACK_LATE_NOTE = [False]
 TW_PEND_H = 12            # v95.2: starszy dzień „No Data!” (TWSE) = święto dopiero przy drugiej takiej odpowiedzi po ≥ 12 h
 HK_NF_DAYS = 7            # v95.2: brak pliku HKEX za starszy dzień — ponowne pytanie po tygodniu (bez stałej granicy)
 _RUN_T0 = [None]          # v95.2: początek przebiegu (main)
@@ -1952,7 +1953,12 @@ def _back_ok(t0, budget, cost):
     """v95.2: czy zmieści się jeszcze jedno zapytanie wstecz: czas od t0 + najdłuższy możliwy czas zapytania ≤ budżet,
     a cały przebieg nie trwa już dłużej niż BACK_LATE."""
     now = time.monotonic()
-    return (_RUN_T0[0] is None or now - _RUN_T0[0] < BACK_LATE) and now - t0 + cost <= budget
+    if _RUN_T0[0] is not None and now - _RUN_T0[0] >= BACK_LATE:
+        if not _BACK_LATE_NOTE[0]:
+            _BACK_LATE_NOTE[0] = True
+            META['notes'].append(f'historia wstecz pominięta w tym przebiegu: przebieg trwa już {now - _RUN_T0[0]:.0f} s (granica {BACK_LATE} s)')
+        return False
+    return now - t0 + cost <= budget
 
 
 def _age_h(ts):
@@ -4290,6 +4296,7 @@ def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
     _RUN_T0[0] = time.monotonic()      # v95.2: historia wstecz tylko, gdy przebieg nie jest już długi
+    _BACK_LATE_NOTE[0] = False
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
     fh_key = os.environ.get('FINNHUB_KEY', '').strip()
