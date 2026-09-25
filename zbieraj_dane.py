@@ -2842,6 +2842,73 @@ def build_spw():
     return out
 
 
+# v88: Meksyk — Banco de México (SIE, tabela CA138): stan meksykańskich papierów rządowych u nierezydentów, dziennie, mln MXN
+# w wartości nominalnej; eksport CSV bez tokenu (formularz strony); ≈ USD kursem Fed H.10 (FRED DEXMXUS).
+import urllib.parse
+BMX_URL = 'https://www.banxico.org.mx/SieInternet/consultarDirectorioInternetAction.do?accion=consultarSeries'
+BMX_PAGE = 'https://www.banxico.org.mx/SieInternet/consultarDirectorioInternetAction.do?accion=consultarCuadroAnalitico&idCuadro=CA138&sector=7&locale=es'
+BMX_SER = (('ext', 'SF65218'), ('tot', 'SF65219'))    # Residentes en el Extranjero (II); Total en Circulación (I + II)
+MX_KEEP = 270      # ok. 13 miesięcy sesji
+MX_STALE = 21      # dni bez nowego dnia (zwykłe opóźnienie ok. 1,5 tygodnia) = błąd
+
+
+def post_bytes(url, form, timeout=90):
+    data = urllib.parse.urlencode(form, doseq=True).encode()
+    req = urllib.request.Request(url, data=data, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Content-Type': 'application/x-www-form-urlencoded'})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def parse_bmx(text):
+    """CSV z SIE → [[data, nierezydenci, razem w obiegu]] mln MXN, rosnąco; kolumny po kodach serii z wiersza „Fecha”;
+    puste albo „N/E” = brak (nie zero); dzień bez nierezydentów pominięty."""
+    rows = list(csv.reader(io.StringIO(text)))
+    head = next((r for r in rows if r and r[0].strip() == 'Fecha'), None)
+    if not head:
+        raise RuntimeError('brak wiersza z kodami serii')
+    col = {k: head.index(c) for k, c in BMX_SER if c in head}
+    if 'ext' not in col:
+        raise RuntimeError('brak serii SF65218 (nierezydenci)')
+    out = {}
+    for r in rows:
+        m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', r[0].strip()) if r else None
+        if not m:
+            continue
+        v = {k: (_num(r[i]) if i < len(r) and r[i].strip() not in ('', 'N/E') else None) for k, i in col.items()}
+        if v.get('ext') is None:
+            continue
+        out[f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = [v.get('ext'), v.get('tot')]
+    if not out:
+        raise RuntimeError('brak dni')
+    return [[k] + out[k] for k in sorted(out)]
+
+
+def build_meksyk(key):
+    """data/meksyk.json — d: [[data, nierezydenci, razem w obiegu]] mln MXN nominalnie (270 sesji); fx: [kurs MXN/USD, dzień kursu] (Fed)."""
+    now = _now_utc().date()
+    form = {'locale': 'es', 'idCuadro': 'CA138', 'sector': '7', 'version': '3', 'series': [c for _, c in BMX_SER],
+            'anoInicial': str(now.year - 1), 'anoFinal': str(now.year), 'tipoInformacion': '4,1', 'formatoHorizontal': 'false',
+            'metadatosWeb': 'true', 'formatoCSV.x': '10', 'formatoCSV.y': '10'}
+    d = parse_bmx(post_bytes(BMX_URL, form).decode('latin-1'))[-MX_KEEP:]
+    bad = [r[0] for r in d if not 1e5 < r[1] < 1e8 or (r[2] is not None and not r[1] < r[2] < 1e9)]   # 0,1–100 bln MXN; mniej niż całość
+    if bad:
+        raise RuntimeError(f'skala niezgodna ({bad[-1]})')
+    out = {'at': NOW, 'src': 'Banco de México — SIE, Valores gubernamentales: tenencia de Residentes en el Extranjero (SF65218), Total en circulación (SF65219)',
+           'url': BMX_PAGE, 'unit': 'mln MXN, wartość nominalna (rejestry INDEVAL, podlegają poprawkom)', 'cols': ['data', 'nierezydenci', 'razem w obiegu'],
+           'asof': d[-1][0], 'd': d}
+    if key:
+        try:
+            rates = fred_rates(key, 'DEXMXUS')
+            if rates:
+                rd = max(rates)
+                out['fx'] = [rates[rd], rd]
+        except Exception as e:
+            META['errors'].append(mask(f'Banxico kurs FRED DEXMXUS: {e}'))
+    if (now - datetime.date.fromisoformat(d[-1][0])).days > MX_STALE:
+        META['errors'].append(f'Banxico: brak nowego dnia po {d[-1][0]}')
+    return out
+
+
 # v82: Korea Płd. — FSS, miesięczny komunikat „Foreign Investors' Stock and Bond Investment” (po angielsku), bez klucza
 FSS_LIST = 'https://www.fss.or.kr/eng/bbs/B0000211/list.do?menuNo=400010&pageIndex={p}'
 FSS_BASE = 'https://www.fss.or.kr'
@@ -3317,6 +3384,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MF SPW: {e}')); META['ok']['spw'] = False
             if prev_sp: save('spw', prev_sp)
+    # v88: Meksyk — Banxico (dziennie, z opóźnieniem ok. 1,5 tygodnia): najwyżej co 6 h; awaria = poprzedni plik i błąd
+    prev_mx = previous('meksyk')
+    if prev_mx and fresh(prev_mx, 360):
+        save('meksyk', prev_mx); META['ok']['meksyk'] = 'cached'
+    else:
+        try:
+            save('meksyk', build_meksyk(fred_key)); META['ok']['meksyk'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'Banxico: {e}')); META['ok']['meksyk'] = False
+            if prev_mx: save('meksyk', prev_mx)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):

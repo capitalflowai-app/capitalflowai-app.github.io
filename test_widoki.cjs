@@ -1704,8 +1704,40 @@ test('v87.1: Polska (MF): opisy po przeglądzie, zasada 2 i przegląd', () => {
   assert.ok(d.pl['spw.d1'].includes('Zmiana stanu') && !d.pl['spw.sub'].includes('zakupy netto minus wykupy') && d.pl['spw.not'].includes('z założenia'));
   assert.ok(d.pl['spw.c.sh'] === 'Udział w liście' && d.pl['spw.tab.k'].includes('{x}') && d.pl['spw.tab.k'].includes('{p}') && d.pl['fo.polspw'].includes('wycinek kapitału z wiersza wyżej'));
   assert.ok(d.pl['spw.src'].includes('Dane przetworzone') && d.en['spw.src'].includes('Processed data'));
-  assert.ok(html.includes('oraz zmianę stanu krajowych papierów skarbowych u nierezydentów w wartości nominalnej (Ministerstwo Finansów).'));
+  assert.ok(html.includes('oraz zmianę stanu papierów skarbowych u nierezydentów w wartości nominalnej: polskich (Ministerstwo Finansów)'));   // v88: rozszerzone o Meksyk
   assert.ok(!html.includes('polskie papiery skarbowe u nierezydentów (Ministerstwo Finansów) oraz kwartalne'), 'nie na liście transakcji');
   assert.ok(html.includes('w ostatni dzień roboczy następnego miesiąca (dane za lipiec 2026 — 31.08.2026)') && html.includes('dane przetworzone'));
   assert.ok(html.includes("replace(/\\s*\\(the\\)/g,'')"), 'angielskie nazwy krajów bez „(the)”');
+});
+
+// v88: Meksyk — Banxico: zmiana stanu (20 sesji, dzień, 5 sesji, od końca roku), stan i udział w obiegu, ≈ USD, linia regionu, przegląd
+test('v88: Meksyk (Banxico): blok, zmiany, stan, linia regionu Ameryka Łacińska, przegląd, podpięcie', () => {
+  const a0 = html.indexOf('/* v88: Meksyk — Banco de México (plik serwera'), a1 = html.indexOf('const KOR={data:null};', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instRow', 'instFoot', 'nfmt', 'escH', 'engDate', 'bopMld', 'zagSes', html.slice(a0, a1) + '\nreturn {MX, mxApply, mxHtml, mxRegion, mxLast};')(
+    T, () => {}, () => {}, (l, v, x, n) => `[${l}|${v}|${n}]`, s => 'F' + s, (v, d) => v.toFixed(d), s => s, s => s,
+    v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—', n => n === 1 ? 'sesja' : 'sesji');
+  assert.equal(f.mxHtml(null), ''); assert.equal(f.mxRegion('lat'), '');
+  const day = i => { const x = new Date(Date.UTC(2026, 7, 1) + i * 864e5); return x.toISOString().slice(0, 10); };
+  const d = [['2025-12-30', 1740000, 15200000], ['2025-12-31', 1739824.42, 15210747.57]].concat(Array.from({length: 25}, (_, i) => [day(i), 1800000 + 100 * i, 16000000]));
+  d.push(['2026-09-14', 1788646.44, 16097115.95]);
+  const M = {at: 'x', d, fx: [18.25, '2026-09-18']};
+  f.mxApply(M); const L = f.mxLast(M);
+  assert.equal(L.n, 20); assert.equal(L.y, '2025'); assert.ok(Math.abs(L.dy - (1788646.44 - 1739824.42)) < 1e-6, 'od końca roku — z 31.12');
+  assert.ok(Math.abs(L.d1 - (1788646.44 - 1802400)) < 1e-6);
+  const h = f.mxHtml(M);
+  assert.ok(h.includes('[mx.d{"n":20,"w":"sesji"}|−'.replace('−', '')) || h.includes('[mx.d{"n":20,"w":"sesji"}|'), h);
+  assert.ok(h.includes('"y":"2025","vy":"+48.8","u":"mx.usd{\\"v\\":\\"-0.6\\",\\"r\\":\\"2026-09-18\\"}"'), h);
+  assert.ok(h.includes('[mx.lv|1788.6 mx.u|mx.lv.n{"d":"F2026-09-14","u":"mx.lv.usd{\\"v\\":\\"98.0\\"}","p":"11.1","t":"16097.1"}]'), h);
+  const r = f.mxRegion('lat'); assert.ok(r.includes('<dt>mx.reg</dt>') && r.includes('"s":"1788.6"') && r.includes('"n":20'), r); assert.equal(f.mxRegion('eur'), '');
+  const M2 = {at: 'x', d: [['2026-09-14', 1788646.44, null]]}; const h2 = f.mxHtml(M2);
+  assert.ok(h2.includes('"p":"—"') && !h2.includes('mx.usd{'), 'bez całości i kursu — „—”, nie zero');
+  assert.ok(html.includes("srvJSON('meksyk').then(j=>{mxApply(j);})") && html.includes("html+=(typeof mxHtml==='function'&&typeof MX!=='undefined')?mxHtml(MX.data):'';"));
+  assert.ok(html.includes("${typeof mxRegion==='function'?mxRegion(s.id):''}") && html.includes("add('MEX',t('fo.mex'),t('fo.s',{n:L.n,x:zagSes(L.n),d:L.d}),L.rt&&L.dn!=null?L.dn/L.rt:null,'fo.u.usdx',L.d);"));
+  assert.ok(html.includes("meksyk:()=>MX.data&&MX.data.at") && html.includes("meksyk:'Banxico'") && html.includes("'www.banxico.org.mx','src.f.d','src.l.bmx',GLIVE.src.meksyk,'g.hs.bmx','meksyk']"));
+  assert.ok(html.includes('<b>Banco de México — nierezydenci w papierach rządowych</b>') && html.includes('<span class="cell">nierezydenci w meksykańskich papierach rządowych (zmiana stanu)</span>'));
+  assert.ok(html.includes('polskich (Ministerstwo Finansów) i meksykańskich (Banco de México).'));
+  const a = 'const EXTRA78=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  for (const l of ['pl', 'en']) for (const k of ['mx.t', 'mx.sub', 'mx.d', 'mx.d.n', 'mx.lv', 'mx.lv.n', 'mx.not', 'mx.src', 'mx.reg.v', 'fo.mex', 'g.hs.bmx', 'src.l.bmx', 'fo.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['fo.sub'].includes('Wyjątki: wiersz Polski z Ministerstwa Finansów i wiersz Meksyku'));
 });
