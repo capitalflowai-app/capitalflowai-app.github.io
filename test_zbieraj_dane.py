@@ -2854,7 +2854,8 @@ class KoreaV83(unittest.TestCase):
 
 
 class ThailandV86(unittest.TestCase):
-    """v86: ThaiBMA — tylko pełne dni, powtórzone daty raz, brak = brak; ≈ USD kursem Fed; stan w wartości nominalnej; kontrole."""
+    """v86 / v86.1: ThaiBMA — dzień w toku pominięty, zakończony dzień bez części popołudniowej = brak; zły dzień = brak (nie blokada);
+    ≈ USD kursem Fed; wiersze tylko ze źródła; BOM; kontrole skali, sum i świeżości."""
 
     @staticmethod
     def row(day, nf, tot=None, st=None, lt=None, ex=0.0, hold=900000.0, p3=1.0):
@@ -2864,38 +2865,50 @@ class ThailandV86(unittest.TestCase):
         return {'Asof': day + 'T00:00:00', 'DisplayAsof': day + 'T00:00:00', 'P1Net': tot, 'P2Net': 0.0, 'P3Net': p3, 'ShortTermTrade': st,
                 'LongTermTrade': lt, 'TotalNetTrade': tot, 'ExpireToday': ex, 'NetFlow': nf, 'NetHolding': hold}
 
+    @classmethod
+    def hist(cls, *extra):
+        """35 wcześniejszych dni (sierpień i wrzesień do 15.09) + podane wiersze — źródło oddaje historię malejąco."""
+        base = [(datetime.date(2026, 8, 1) + datetime.timedelta(days=i)).isoformat() for i in range(46)]
+        rows = {d: cls.row(d, 100.0) for d in base}
+        for r in extra:
+            rows[r['Asof'][:10]] = r
+        return [rows[k] for k in sorted(rows, reverse=True)]
+
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
 
-    def test_parse_full_days_dedupe_skip_partial_and_missing(self):
+    def test_parse_in_progress_gaps_and_duplicates(self):
         R = self.row
         src = [R('2026-09-25', -3648.0, p3=None), R('2026-09-24', 3216.0, st=1695.0), R('2026-09-24', 1.0),
-               dict(R('2026-09-23', 1.0), NetFlow=None, TotalNetTrade=None), R('2026-09-22', -796.0, ex=3.0)]
+               dict(R('2026-09-23', 1.0), NetFlow=None, TotalNetTrade=None), R('2026-09-22', -796.0, ex=3.0), R('2026-09-21', 5.0, p3=None)]
         out = zd.parse_thbma(src)
-        self.assertEqual([r[0] for r in out], ['2026-09-22', '2026-09-24'], 'dzień w toku i wiersz bez sum pominięte; rosnąco')
-        self.assertEqual(out[1][:4], ['2026-09-24', 3216.0, 3216.0, 1695.0], 'powtórzona data — pierwszy wiersz')
-        self.assertEqual(out[0][5], 3.0); self.assertEqual(out[0][1], -796.0)
+        self.assertEqual([r[0] for r in out], ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24'], 'dzień w toku pominięty; rosnąco')
+        self.assertEqual(out[0][1:], [None] * 6, 'zakończony dzień bez części popołudniowej = brak, nie pominięcie')
+        self.assertEqual(out[2][1:], [None] * 6, 'dzień bez sum = brak')
+        self.assertEqual(out[3][:4], ['2026-09-24', 3216.0, 3216.0, 1695.0], 'powtórzona data — pierwszy wiersz')
+        self.assertTrue(any(n.startswith('ThaiBMA: różne wiersze dla tej samej daty (wzięty pierwszy): 2026-09-24') for n in zd.META['notes']))
+        self.assertTrue(any('pokazany jako brak): 2026-09-21, 2026-09-23' in n for n in zd.META['notes']), zd.META['notes'])
         with self.assertRaises(RuntimeError):
             zd.parse_thbma([R('2026-09-25', 1.0, p3=None)])
         with self.assertRaises(RuntimeError):
             zd.parse_thbma({'error': 'x'})
 
-    def run_(self, rows, key='KLUCZ', prev=None, now=datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+    def run_(self, rows, key='KLUCZ', prev=None, now=datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc), raw=None):
         seen = []
 
         def gb(url, headers=None, timeout=60):
-            seen.append(url); return json.dumps(rows).encode()
+            seen.append(url); return raw if raw is not None else json.dumps(rows).encode()
 
         def gj(url, headers=None):
             seen.append(url)
             assert 'DEXTHUS' in url and 'limit=400' in url, url
-            return {'observations': [{'date': '2026-09-18', 'value': '32.50'}, {'date': '2026-09-17', 'value': '.'}]}
+            return {'observations': [{'date': '2026-09-18', 'value': '32.50'}, {'date': '2026-08-01', 'value': '.'}]}
         with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: now):
             return zd.thbma_part(prev, key), seen
 
     def test_part_usd_rates_old_values_and_checks(self):
         R = self.row
-        rows = [R('2026-09-24', 3216.0), R('2026-09-23', 4612.0, st=4000.0, lt=100.0), R('2026-09-17', 650.0)]
+        rows = self.hist(R('2026-09-24', 3216.0), R('2026-09-23', 4612.0, st=4000.0, lt=100.0), R('2026-09-17', 650.0))
         out, seen = self.run_(rows)
         d = {r[0]: r for r in out['d']}
         self.assertEqual(d['2026-09-24'][7:], [round(3216.0 / 32.5, 1), 32.5, '2026-09-18'], 'kurs z najbliższego wcześniejszego dnia')
@@ -2906,20 +2919,31 @@ class ThailandV86(unittest.TestCase):
         out2, seen2 = self.run_(rows, key='', prev=out)
         self.assertEqual({r[0]: r for r in out2['d']}['2026-09-24'][7:], [round(3216.0 / 32.5, 1), 32.5, '2026-09-18'], 'bez klucza — przeliczenie z poprzedniego pliku')
         self.assertFalse(any('DEXTHUS' in u for u in seen2))
-        rows[0] = R('2026-09-24', 3300.0)
-        out3, _ = self.run_(rows, key='', prev=out)
+        rows2 = self.hist(R('2026-09-24', 3300.0))
+        out3, _ = self.run_(rows2, key='', prev=dict(out, d=out['d'] + [['2026-07-01', 1.0, 1.0, 1.0, 0.0, 0.0, 900000.0, None, None, None]]))
         self.assertEqual({r[0]: r for r in out3['d']}['2026-09-24'][7:], [None, None, None], 'poprawiona wartość — stare przeliczenie nie pasuje')
+        self.assertNotIn('2026-07-01', {r[0] for r in out3['d']}, 'wiersze tylko ze źródła — bez starych dni z pliku')
 
-    def test_scale_and_stale(self):
+    def test_scale_bom_json_and_stale(self):
         R = self.row
         with self.assertRaises(RuntimeError):
-            self.run_([R('2026-09-24', 3.2e6)])
+            self.run_(self.hist(R('2026-09-24', 3.2e6)))
         with self.assertRaises(RuntimeError):
-            self.run_([R('2026-09-24', 32.0, hold=920.0)])        # stan 920 mln THB zamiast ok. 920 mld — zła skala
+            self.run_(self.hist(R('2026-09-24', 32.0, hold=920.0)))        # najnowszy stan 920 mln THB zamiast ok. 920 mld — zła skala
         zd.META['errors'].clear()
-        self.run_([R('2026-09-10', 1.0)])
-        self.assertTrue(any(e.startswith('ThaiBMA: brak nowego pełnego dnia po 2026-09-10') for e in zd.META['errors']), zd.META['errors'])
-
+        out, _ = self.run_(self.hist(R('2026-09-24', 3216.0), R('2026-09-02', 2.5e5)))
+        bad = {r[0]: r for r in out['d']}['2026-09-02']
+        self.assertEqual(bad[1:], [None] * 9, 'stary zły dzień = brak, część działa dalej')
+        self.assertTrue(any(e.startswith('ThaiBMA: wartości poza skalą (pokazane jako brak) w dniach: 2026-09-02') for e in zd.META['errors']))
+        zd.META['errors'].clear()
+        out, _ = self.run_(None, raw=b'\xef\xbb\xbf' + json.dumps(self.hist(R('2026-09-24', 3216.0))).encode())
+        self.assertEqual(out['asof'], '2026-09-24', 'znak BOM na początku nie psuje odczytu')
+        with self.assertRaisesRegex(RuntimeError, 'nie jest JSON'):
+            self.run_(None, raw=b'<html>przerwa techniczna</html>')
+        with self.assertRaisesRegex(RuntimeError, 'za mało dni'):
+            self.run_([R('2026-09-24', 1.0)])
+        self.run_(self.hist(R('2026-09-16', 1.0)), now=datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc))
+        self.assertTrue(any(e.startswith('ThaiBMA: brak nowego pełnego dnia po 2026-09-16') for e in zd.META['errors']), zd.META['errors'])
 
 if __name__ == '__main__':
     unittest.main()

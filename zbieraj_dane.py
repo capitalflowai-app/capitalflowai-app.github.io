@@ -2144,43 +2144,68 @@ THBMA_URL = 'https://www.thaibma.or.th/nrdaily/GetNR/'
 THBMA_PAGE = 'https://www.thaibma.or.th/EN/Market/NR/NRDaily.aspx'
 TH_KEEP = 270      # ok. 13 miesięcy sesji — wystarcza na sumę 12 miesięcy (250 sesji)
 TH_COLS = ('NetFlow', 'TotalNetTrade', 'ShortTermTrade', 'LongTermTrade', 'ExpireToday', 'NetHolding')
-TH_STALE = 10      # dni bez nowego pełnego dnia (Songkran trwa do 5 dni roboczych) = błąd
+TH_STALE = 8       # dni kalendarzowych bez nowego pełnego dnia = błąd (najdłuższa przerwa w 10 latach: 6 dni — Songkran, Nowy Rok)
 
 
 def parse_thbma(j):
-    """ThaiBMA /nrdaily/GetNR/ → [[data, przepływ netto (transakcje netto − wykupy), transakcje netto, papiery do roku, papiery ponad rok,
-    wykupy, stan posiadania (wartość nominalna)]] mln THB, rosnąco. Tylko pełne dni (dzień w toku nie ma jeszcze części popołudniowej
-    P3 — ThaiBMA publikuje ją o 16:30 w Bangkoku); powtórzona data — pierwszy wiersz; bez przepływu netto — wiersz pominięty (brak, nie zero)."""
+    """ThaiBMA /nrdaily/GetNR/ → [[data, przepływ netto (transakcje netto − wykupy), transakcje netto, z wykupem w ciągu roku, później,
+    wykupy, stan posiadania (wartość nominalna)]] mln THB, rosnąco. Dzień w toku (najnowsza data bez części popołudniowej P3 — ThaiBMA
+    publikuje ją o 16:30 w Bangkoku) pominięty; zakończony dzień bez P3 albo bez sum — wiersz z brakami (None), żeby sumy okien pokazały
+    „—”, a nie sięgnęły dzień dalej; powtórzona data — pierwszy wiersz (różne wiersze = uwaga)."""
     if not isinstance(j, list):
         raise RuntimeError('odpowiedź nie jest listą')
-    out = {}
-    for r in j:
-        if not isinstance(r, dict):
-            continue
-        day = str(r.get('Asof') or '')[:10]
-        if not re.match(r'^\d{4}-\d{2}-\d{2}$', day) or day in out or r.get('P3Net') is None:
-            continue
+    rows = [r for r in j if isinstance(r, dict) and re.match(r'^\d{4}-\d{2}-\d{2}$', str(r.get('Asof') or '')[:10])]
+    if not rows:
+        raise RuntimeError('brak dni')
+    newest = max(str(r['Asof'])[:10] for r in rows)
+    out, seen, dup, hole = {}, {}, [], []
+    for r in rows:
+        day = str(r['Asof'])[:10]
         v = [_num(r.get(k)) for k in TH_COLS]
-        if v[0] is None or v[1] is None:
+        if day in seen:
+            if seen[day] != v:
+                dup.append(day)
             continue
+        seen[day] = v
+        if r.get('P3Net') is None and day == newest:
+            continue                      # dzień w toku
+        if r.get('P3Net') is None or v[0] is None or v[1] is None:
+            v = [None] * len(TH_COLS); hole.append(day)
         out[day] = [day] + v
     if not out:
         raise RuntimeError('brak pełnych dni')
+    keep = set(sorted(out)[-TH_KEEP:])
+    if [x for x in dup if x in keep]:
+        META['notes'].append('ThaiBMA: różne wiersze dla tej samej daty (wzięty pierwszy): ' + ', '.join(sorted(x for x in dup if x in keep)))
+    if [x for x in hole if x in keep]:
+        META['notes'].append('ThaiBMA: zakończony dzień bez części popołudniowej albo bez sum (pokazany jako brak): ' + ', '.join(sorted(x for x in hole if x in keep)))
     return [out[k] for k in sorted(out)]
+
+
+def _th_scale_ok(r):
+    return r[1] is None or (abs(r[1]) <= 2e5 and (r[6] is None or 1e5 < r[6] < 1e7))   # dzień ≤ 200 mld THB; stan 0,1–10 bln THB
 
 
 def thbma_part(prev_th, key):
     prev_th = prev_th if isinstance(prev_th, dict) else {}
-    recent = parse_thbma(json.loads(get_bytes(THBMA_URL, timeout=120).decode('utf-8', 'replace')))[-TH_KEEP:]
-    big = [r[0] for r in recent if abs(r[1]) > 2e5 or (r[6] is not None and not 1e5 < r[6] < 1e7)]   # dzień > 200 mld THB / stan poza 0,1–10 bln THB
-    if big:
-        raise RuntimeError(f'skala niezgodna ({big[-1]})')
-    gap = [r[0] for r in recent[-30:] if None not in r[2:6] and (abs(r[2] - r[3] - r[4]) > 1 or abs(r[2] - r[5] - r[1]) > 1)]
+    try:
+        j = json.loads(get_bytes(THBMA_URL, timeout=120).decode('utf-8-sig', 'replace'))
+    except ValueError:
+        raise RuntimeError('odpowiedź nie jest JSON (np. przerwa techniczna)')
+    d = [list(r) for r in parse_thbma(j)[-TH_KEEP:]]      # źródło oddaje całą historię — wiersze tylko ze źródła (bez starych dni z pliku)
+    if len(d) < 30:
+        raise RuntimeError(f'za mało dni ({len(d)})')
+    if not _th_scale_ok(d[-1]):
+        raise RuntimeError(f'skala niezgodna ({d[-1][0]})')    # najnowszy dzień — zostaje poprzednia część
+    bad = [r[0] for r in d if not _th_scale_ok(r)]
+    for r in d:
+        if r[0] in bad:
+            r[1:7] = [None] * 6                                # pojedynczy zły dzień = brak, nie blokada całej części
+    if bad:
+        META['errors'].append('ThaiBMA: wartości poza skalą (pokazane jako brak) w dniach: ' + ', '.join(bad[-5:]))
+    gap = [r[0] for r in d[-30:] if None not in r[1:6] and (abs(r[2] - r[3] - r[4]) > 1 or abs(r[2] - r[5] - r[1]) > 1)]
     if gap:
         META['notes'].append('ThaiBMA: sumy niezgodne w dniach: ' + ', '.join(gap))
-    have = {k: list(v)[:7] for k, v in _rows(prev_th).items()}
-    have.update({r[0]: r for r in recent})     # nowszy plik poprawia dni (uzgodnienie stanu z bankiem centralnym)
-    d = [have[k] for k in sorted(have)][-TH_KEEP:]
     rates = {}
     if key:
         try:
@@ -2190,9 +2215,9 @@ def thbma_part(prev_th, key):
     old = _rows(prev_th)
     for r in d:
         rd, rt = _rate_for(rates, r[0])
-        if rt:
+        if rt and r[1] is not None:
             r[7:] = [round(r[1] / rt, 1), rt, rd]
-        elif r[0] in old and len(old[r[0]]) >= 10 and old[r[0]][1] == r[1]:
+        elif r[1] is not None and r[0] in old and len(old[r[0]]) >= 10 and old[r[0]][1] == r[1]:
             r[7:] = old[r[0]][7:10]
         else:
             r[7:] = [None, None, None]
@@ -2201,10 +2226,9 @@ def thbma_part(prev_th, key):
         META['errors'].append(f'ThaiBMA: brak nowego pełnego dnia po {last}')
     return {'at': NOW, 'src': 'The Thai Bond Market Association (ThaiBMA) — Non-resident Flows (daily)', 'url': THBMA_PAGE,
             'unit': 'mln THB; ≈ mln USD kursem Fed H.10 (FRED DEXTHUS); stan posiadania w wartości nominalnej',
-            'cols': ['data', 'przepływ netto', 'transakcje netto', 'papiery do roku', 'papiery ponad rok', 'wykupy', 'stan posiadania',
+            'cols': ['data', 'przepływ netto', 'transakcje netto', 'z wykupem w ciągu roku', 'z wykupem później', 'wykupy', 'stan posiadania',
                      '≈ mln USD', 'kurs THB/USD', 'dzień kursu'],
             'asof': last, 'd': d}
-
 
 def build_obce(key, prev=None):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
