@@ -2706,6 +2706,7 @@ SPW_BASE = 'https://www.gov.pl'
 SPW_FILES = {'st': 'Struktura podmiotowa zadłużenia wobec nierezydentów w krajowych SPW',
              'kr': 'Zadłużenie wobec nierezydentów w krajowych SPW po krajach'}
 SPW_A = re.compile(r'<a\b[^>]*href="(/attachment/[0-9a-f-]{36})"[^>]*>((?:(?!</a>).)*?)</a>', re.S)
+SPW_FILE_RE = {'st': re.compile(r'Struktura_nierezydentow\d{2}\.xlsm'), 'kr': re.compile(r'Nierezydenci_kraje\d{2}\.xlsx')}   # v87.1: zapas — nazwa pliku
 SPW_KEEP = 25      # miesięcy (zmiana 12 miesięcy i rok wcześniej)
 SPW_GRP = 13       # miesięcy dla typów i regionów (zmiana 12 miesięcy)
 SPW_STALE = 70     # dni po końcu najnowszego miesiąca bez nowego pliku = błąd (zwykle ok. miesiąca)
@@ -2751,12 +2752,16 @@ def spw_sheet(rows, keys):
 
 
 def spw_links(page):
-    out = {}
+    out, alt = {}, {}
     for href, txt in SPW_A.findall(page):
         t = re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', txt))).strip()
         for k, name in SPW_FILES.items():
             if t == name or t.startswith(name + ' '):     # „…w krajowych SPW” ≠ „…w krajowych SPW po krajach”
                 out.setdefault(k, SPW_BASE + href)
+            if SPW_FILE_RE[k].search(t.replace('\u200b', '').replace(' ', '')):
+                alt.setdefault(k, SPW_BASE + href)      # v87.1: tytuł zmieniony — plik rozpoznany po nazwie
+    for k, u in alt.items():
+        out.setdefault(k, u)
     return out
 
 
@@ -2765,12 +2770,16 @@ def spw_countries(data):
     bez wierszy sum, rachunków zbiorczych i banków centralnych (tak jak w źródle)."""
     import zipfile
     names = [_html.unescape(n) for n in re.findall(r'<sheet\b[^>]*\bname="([^"]+)"', zipfile.ZipFile(io.BytesIO(data)).read('xl/workbook.xml').decode('utf-8', 'replace'))]
-    out = []
-    for nm in names[:2]:
+    dated = []
+    for nm in names:     # v87.1: arkusze według odczytanego miesiąca, od najnowszego (nie według kolejności w pliku)
         mm = re.search(r'\(\s*([A-Za-z]+)\s*(\d{4})\s*\)', nm)
         mo = MONTHS_EN.get(mm.group(1).capitalize()) if mm else None
-        if not mo:
-            raise RuntimeError(f'nieznany arkusz „{nm}”')
+        if mo:
+            dated.append((f'{mm.group(2)}-{mo:02d}', nm))
+    if not dated:
+        raise RuntimeError('brak arkuszy z miesiącem')
+    out = []
+    for ym, nm in sorted(dated, reverse=True)[:2]:
         cs = []
         for _, r in sorted(_xlsx_rows(data, nm).items()):
             lab = re.sub(r'\s+', ' ', str(r.get(1, ''))).strip()
@@ -2778,10 +2787,14 @@ def spw_countries(data):
             if '/' not in lab or v is None or lab.lower().startswith(('suma', 'rachunki zbiorcze', 'banki centralne', 'razem', 'kraje')):
                 continue
             pl, en = [x.strip() for x in lab.split('/', 1)]
+            en = re.sub(r'\s*\(the\)', '', en).replace('(the ', '(')      # v87.1: „Netherlands (the)” → „Netherlands”
             cs.append([pl, en, v, None if sh is None else round(sh * 100, 2)])
         if not cs:
             raise RuntimeError(f'brak krajów w arkuszu „{nm}”')
-        out.append({'m': f'{mm.group(2)}-{mo:02d}', 'c': cs})
+        tot = sum(c[3] for c in cs if c[3] is not None)
+        if not 99 <= tot <= 101:
+            raise RuntimeError(f'udziały krajów w arkuszu „{nm}” sumują się do {tot:.1f}%, nie do 100%')
+        out.append({'m': ym, 'c': cs})
     return out
 
 
@@ -2800,10 +2813,13 @@ def build_spw():
     bad = [m for m in ms if not 1e4 < T[m]['tot'] < 1e7]     # razem poza 10 mld – 10 bln zł = zła skala
     if bad:
         raise RuntimeError(f'skala niezgodna ({bad[-1]})')
+    lost = [k for G, keys in ((T, SPW_TYPES), (R, SPW_REGS)) for k, _ in keys if k not in G.get(ms[-1], {})]
+    if lost:
+        META['errors'].append('MF SPW: brak kolumn: ' + ', '.join(lost))     # v87.1: nowa albo zmieniona kolumna = błąd, nie cisza
     gap = [m for m in ms[-SPW_GRP:] if any(abs(sum(v for k, v in G.get(m, {}).items() if k != 'tot' and v is not None) - T[m]['tot']) > 1 for G in (T, R))
            or abs(((B.get(m) or {}).get('tot') or 0) + ((S.get(m) or {}).get('tot') or 0) - T[m]['tot']) > 1]
     if gap:
-        META['notes'].append('MF SPW: sumy niezgodne w miesiącach: ' + ', '.join(gap))
+        META['errors'].append('MF SPW: sumy niezgodne w miesiącach: ' + ', '.join(gap))
     grp = ms[-SPW_GRP:]
     out = {'at': NOW, 'src': 'Ministerstwo Finansów — Struktura podmiotowa zadłużenia wobec nierezydentów w krajowych SPW (miesięcznie)',
            'url': SPW_PAGE, 'unit': 'mln zł, wartość nominalna, stan na koniec miesiąca', 'asof': ms[-1],
@@ -2815,6 +2831,8 @@ def build_spw():
         if 'kr' not in L:
             raise RuntimeError('brak odnośnika do pliku „po krajach”')
         out['kr'] = spw_countries(get_bytes(L['kr'], timeout=90))
+        if out['kr'][0]['m'] != ms[-1]:
+            META['notes'].append(f"MF SPW: kraje za {out['kr'][0]['m']}, stan za {ms[-1]} (tabela krajów ma własny miesiąc)")
     except Exception as e:
         META['errors'].append(mask(f'MF SPW kraje: {e}'))
     y, mo = int(ms[-1][:4]), int(ms[-1][5:7])

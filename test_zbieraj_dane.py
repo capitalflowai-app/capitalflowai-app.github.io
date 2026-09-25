@@ -2946,7 +2946,8 @@ class ThailandV86(unittest.TestCase):
         self.assertTrue(any(e.startswith('ThaiBMA: brak nowego pełnego dnia po 2026-09-16') for e in zd.META['errors']), zd.META['errors'])
 
 class PolskaV87(unittest.TestCase):
-    """v87: MF — nierezydenci w krajowych SPW: kolumny po nazwach, odnośniki po tytułach, kraje opcjonalnie, kontrole skali, sum i świeżości."""
+    """v87 / v87.1: MF — nierezydenci w krajowych SPW: kolumny po nazwach, odnośniki po tytułach (zapas: nazwa pliku), kraje opcjonalnie
+    (arkusze według miesiąca, udziały ok. 100%), brak kolumn i niezgodne sumy = błąd, kontrole skali i świeżości."""
     NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
 
     @classmethod
@@ -2974,37 +2975,37 @@ class PolskaV87(unittest.TestCase):
     RG = ['Data', 'Europa - kraje strefy euro', 'Europa - kraje UE spoza strefy euro', 'Europa - kraje spoza UE', 'Afryka',
           'Ameryka Południowa (w tym Karaiby)', 'Ameryka Północna', 'Australia i Oceania', 'Azja (bez Bliskiego Wschodu)', 'Bliski Wschód',
           'Rachunki zbiorcze', 'Razem']
-    MONTHS = [(46203, 190541.9), (46173, 206240.0), (46203 + 30, 198955.2), (46203 + 61, 204131.8)]   # 2026-06-30 … (seriale Excela)
 
-    def st_book(self, tot_jul=204131.8, swap=False):
-        def typ(v):
-            parts = [v * 0.1, v * 0.05, 0, 0, 0, v * 0.35, 0, 0, 0, 0, v * 0.5]
-            return parts + [sum(parts)]
+    def st_book(self, tot_jul=204131.8, swap=False, drop=None):
         ser = {'2026-05-31': 46173, '2026-06-30': 46203, '2026-07-31': 46234}
         vals = {'2026-05-31': 206240.0, '2026-06-30': 198955.2, '2026-07-31': tot_jul}
-        head = self.TY[:1] + (self.TY[2:3] + self.TY[1:2] + self.TY[3:] if swap else self.TY[1:])
-        rows_t = [['Struktura podmiotowa nierezydentów w krajowych SPW (mln zł)'], [], head]
+        head = list(self.TY)
+        rows_t = []
         for d, s in ser.items():
-            p = typ(vals[d])
-            if swap:
-                p = [p[1], p[0]] + p[2:]
-            rows_t.append([s] + p)
+            v = vals[d]
+            parts = [v * 0.1, v * 0.05, 0, 0, 0, v * 0.35, 0, 0, 0, 0, v * 0.5]
+            rows_t.append([s] + parts + [sum(parts)])
+        if swap:
+            head = [head[0], head[2], head[1]] + head[3:]
+            rows_t = [[r[0], r[2], r[1]] + r[3:] for r in rows_t]
+        if drop:
+            i = head.index(drop); head = head[:i] + head[i + 1:]; rows_t = [r[:i] + r[i + 1:] for r in rows_t]
+        rows_t = [['Struktura podmiotowa nierezydentów w krajowych SPW (mln zł)'], [], head] + rows_t
         rows_r = [['Struktura geograficzna'], [], self.RG] + [[s] + [vals[d] * 0.3, 0, 0, 0, 0, vals[d] * 0.2, 0, 0, 0, vals[d] * 0.5, vals[d]] for d, s in ser.items()]
         rows_b = [['x'], [], ['Data', 'Banki', 'Razem']] + [[s, 0, vals[d] - 100] for d, s in ser.items()]
         rows_s = [['x'], [], ['Data', 'Banki', 'Razem']] + [[s, 0, 100] for d, s in ser.items()]
         return self.book({'Legenda': [['Tabele']], 'Razem_podmiot': rows_t, 'Razem_region': rows_r,
                           'Obligacje skarbowe_podmiot': rows_b, 'Bony skarbowe_podmiot': rows_s})
 
-    KR = None
-
-    def kr_book(self):
+    def kr_book(self, order=('Lipiec2026(July2026)', 'Czerwiec2026(June2026)', 'Maj2026(May2026)'), others=0.2):
         def sheet(jp):
             return [['Kraje o udziale w zadłużeniu nierezydentów* w krajowych SPW większym niż 1% / Countries…'],
                     ['Kraje/Countries', 'Wartość nominalna', 'Udział'], [],
-                    ['Japonia/Japan', jp, 0.1959], ['Holandia/Netherlands (the)', 7678.98, 8.34e-2], ['Pozostałe kraje/Others', 7043.42, 7.65e-2],
+                    ['Japonia/Japan', jp, 0.5], ['Holandia/Netherlands (the)', 7678.98, 0.3], ['Pozostałe kraje/Others', 7043.42, others],
                     ['Suma/Total*', 92030.03, 1.0], ['Rachunki zbiorcze/Omnibus accounts', 97615.88, '-'], ['Banki centralne/Central banks', 14485.92, '-'],
                     ['Razem nierezydenci/Non-residents total', 204131.82, '-']]
-        return self.book({'Lipiec2026(July2026)': sheet(18031.64), 'Czerwiec2026(June2026)': sheet(17382.46), 'Maj2026(May2026)': sheet(1.0)})
+        vals = {'Lipiec2026(July2026)': 18031.64, 'Czerwiec2026(June2026)': 17382.46, 'Maj2026(May2026)': 1.0}
+        return self.book({n: sheet(vals[n]) for n in order})
 
     PAGE = ('<a class="file-download" href="/attachment/e73b4c6d-7ad4-4feb-81ce-dde6f293c39f" download>Struktura podmiotowa zadłużenia wobec nierezydentów '
             'w krajowych obligacjach rynkowych po seriach<br/><span>x.xls</span></a>'
@@ -3032,10 +3033,12 @@ class PolskaV87(unittest.TestCase):
         with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, '_now_utc', lambda: now):
             return zd.build_spw()
 
-    def test_links_by_title(self):
+    def test_links_by_title_and_by_file_name(self):
         L = zd.spw_links(self.PAGE)
         self.assertEqual(L, {'st': 'https://www.gov.pl/attachment/9ab3f0b9-1742-4b00-a6d9-a6a7753368ee',
                              'kr': 'https://www.gov.pl/attachment/fc49ffc2-3403-4ab7-977b-411ed9964215'}, 'plik „po seriach” pominięty')
+        renamed = self.PAGE.replace('Struktura podmiotowa zadłużenia wobec nierezydentów w krajowych SPW<br/>', 'Nierezydenci — struktura<br/>')
+        self.assertEqual(zd.spw_links(renamed)['st'], 'https://www.gov.pl/attachment/9ab3f0b9-1742-4b00-a6d9-a6a7753368ee', 'zmieniony tytuł — plik po nazwie')
 
     def test_build_months_groups_countries(self):
         out = self.run_()
@@ -3045,15 +3048,24 @@ class PolskaV87(unittest.TestCase):
         self.assertAlmostEqual(dict(out['t']['bank'])['2026-07'], 204131.8 * 0.1, msg='„Banki” to nie „Banki centralne”')
         self.assertAlmostEqual(dict(out['r']['omni'])['2026-07'], 204131.8 * 0.5)
         self.assertEqual([k['m'] for k in out['kr']], ['2026-07', '2026-06'], 'dwa najnowsze arkusze')
-        self.assertEqual(out['kr'][0]['c'][0], ['Japonia', 'Japan', 18031.64, 19.59])
+        self.assertEqual(out['kr'][0]['c'][0], ['Japonia', 'Japan', 18031.64, 50.0])
+        self.assertEqual(out['kr'][0]['c'][1][1], 'Netherlands', 'bez „(the)”')
         self.assertEqual([c[0] for c in out['kr'][0]['c']], ['Japonia', 'Holandia', 'Pozostałe kraje'], 'bez sum, rachunków zbiorczych i banków centralnych')
         self.assertEqual(zd.META['errors'], []); self.assertEqual(zd.META['notes'], [])
-        out2 = self.run_(st=self.st_book(swap=True))
+        out2 = self.run_(st=self.st_book(swap=True), kr=self.kr_book(order=('Maj2026(May2026)', 'Lipiec2026(July2026)', 'Czerwiec2026(June2026)')))
         self.assertAlmostEqual(dict(out2['t']['cb'])['2026-07'], 204131.8 * 0.05, msg='kolumny po nazwach, nie po kolejności')
+        self.assertEqual([k['m'] for k in out2['kr']], ['2026-07', '2026-06'], 'arkusze według miesiąca, nie kolejności w pliku')
 
-    def test_countries_optional_scale_and_stale(self):
+    def test_countries_optional_columns_scale_and_stale(self):
         out = self.run_(kr=RuntimeError('HTTP Error 503'))
         self.assertNotIn('kr', out); self.assertTrue(any(e.startswith('MF SPW kraje: HTTP Error 503') for e in zd.META['errors']))
+        zd.META['errors'].clear()
+        out = self.run_(kr=self.kr_book(others=0.9))
+        self.assertNotIn('kr', out); self.assertTrue(any('sumują się do 170.0%' in e for e in zd.META['errors']), zd.META['errors'])
+        zd.META['errors'].clear()
+        self.run_(st=self.st_book(drop='Fundusze hedgingowe'))
+        self.assertIn('MF SPW: brak kolumn: hf', zd.META['errors'])
+        zd.META['errors'].clear()
         with self.assertRaises(RuntimeError):
             self.run_(st=self.st_book(tot_jul=204.1))          # 204 mln zł zamiast 204 mld — zła skala
         zd.META['errors'].clear()
@@ -3061,7 +3073,6 @@ class PolskaV87(unittest.TestCase):
         self.assertIn('MF SPW: brak nowego miesiąca po 2026-07', zd.META['errors'])
         with self.assertRaises(RuntimeError):
             self.run_(page='<a href="/attachment/x">inne</a>')
-
 
 if __name__ == '__main__':
     unittest.main()

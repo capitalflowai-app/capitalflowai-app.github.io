@@ -1613,7 +1613,7 @@ test('v84: klucze Korei nie kolidują z panelem krypto; słownik v84 nakładany 
   assert.ok(html.includes("t('rail.in.g')") && html.includes("['Finnhub','g.hs.fh'],['Twelve Data','g.hs.td']") && html.includes('data-i18n="g.help.regtds"'));
   assert.ok(html.includes("'ticdata.treasury.gov','src.f.m','src.l.7w'") && html.includes("'stats.bis.org','src.f.q','src.l.bis',GLIVE.src.bis2"));
   assert.ok(!html.includes('tych danych nie ma') && !html.includes('(okresy 1T i 1M)') && !html.includes('Plik z serwera starszy niż trzy godziny') && !html.includes('tylko giełda CME.'));
-  for (const s of ['<b>Skarb USA — Fiscal Data</b>', '<b>NY Fed</b>', '<b>EBC — salda TARGET</b>', '<b>Ministerstwo Finansów Japonii (MOF)</b>', 'Obok pokazujemy dwie miary pokrewne', 'dopisek „pokazany poprzedni plik”', 'Coin Metrics</span>'])
+  for (const s of ['<b>Skarb USA — Fiscal Data</b>', '<b>NY Fed</b>', '<b>EBC — salda TARGET</b>', '<b>Ministerstwo Finansów Japonii (MOF)</b>', 'Obok pokazujemy miary pokrewne', 'dopisek „pokazany poprzedni plik”', 'Coin Metrics</span>'])
     assert.ok(html.includes(s), s);
 });
 
@@ -1677,10 +1677,14 @@ test('v87: Polska (MF): blok, zmiany, tabele, kraje, linia regionu Europa, przeg
   const L = f.spwLast(S); assert.equal(L.m, '2026-07'); assert.ok(Math.abs(L.d1 - 5176.6) < 0.01); assert.ok(Math.abs(L.d12 - 24131.8) < 0.01);
   const h = f.spwHtml(S);
   assert.ok(h.includes('[spw.d1|+5.2 spw.u|spw.d1.n{"m":"F2026-07","s":"204.1","y":"+24.1"} · spw.omni{"p":"48"}]'), h);
+  S.kr[0].c.push(['Pozostałe kraje', 'Others', 7043.42, 7.65]); S.kr[1].c.push(['Pozostałe kraje', 'Others', 6000.0, 6.9]);
+  const hk = f.spwHtml(S); S.kr[0].c.pop(); S.kr[1].c.pop();
+  assert.ok(hk.includes('<td><span class="cell">Pozostałe kraje</span></td><td><span class="cell mono">7.0</span></td><td><span class="cell mono">7.7%</span></td><td><span class="cell mono">—</span></td>'), 'v87.1: „Pozostałe kraje” bez zmiany');
+  assert.ok(hk.includes('spw.tab.k{"m":"2026-07","x":"32.8","p":"16"}'), 'v87.1: suma listy krajów i jej udział w stanie');
   assert.ok(h.includes('spw.ty.omni</span></td><td><span class="cell mono">97.6</span></td><td><span class="cell mono">+2.4</span></td><td><span class="cell mono">—</span></td>'), 'brak miesiąca = „—”, nie zero');
   assert.ok(h.indexOf('spw.ty.omni') < h.indexOf('spw.ty.cb'), 'od największego');
   assert.ok(h.includes('spw.rg.asia</span></td><td><span class="cell mono">31.6</span></td><td><span class="cell mono">—</span></td><td><span class="cell mono">+1.6</span></td>'));
-  assert.ok(h.includes('spw.tab.k{"m":"2026-07"}') && h.includes('<td><span class="cell">Japonia</span></td><td><span class="cell mono">18.0</span></td><td><span class="cell mono">19.6%</span></td><td><span class="cell mono">+0.6</span></td>'));
+  assert.ok(h.includes('spw.tab.k{"m":"2026-07","x":"25.7","p":"13"}') && h.includes('<td><span class="cell">Japonia</span></td><td><span class="cell mono">18.0</span></td><td><span class="cell mono">19.6%</span></td><td><span class="cell mono">+0.6</span></td>'));
   assert.ok(h.includes('<td><span class="cell">Holandia</span></td><td><span class="cell mono">7.7</span></td><td><span class="cell mono">8.3%</span></td><td><span class="cell mono">—</span></td>'), 'kraj bez poprzedniego miesiąca — bez zmiany');
   S.r.afr = [['2026-07', 26.4]]; assert.ok(f.spwHtml(S).includes('spw.rg.afr</span></td><td><span class="cell mono">&lt;0.1</span>'), 'mały stan — „<0,1”'); delete S.r.afr;
   const r = f.spwRegion('eur'); assert.ok(r.includes('<dt>spw.reg</dt>') && r.includes('"d":"+5.2","s":"204.1"'), r); assert.equal(f.spwRegion('usa'), '');
@@ -1688,7 +1692,20 @@ test('v87: Polska (MF): blok, zmiany, tabele, kraje, linia regionu Europa, przeg
   assert.ok(html.includes("srvJSON('spw').then(j=>{spwApply(j);})") && html.includes("html+=(typeof spwHtml==='function'&&typeof SPW!=='undefined')?spwHtml(SPW.data):'';"));
   assert.ok(html.includes("${typeof spwRegion==='function'?spwRegion(s.id):''}") && html.includes("add('POL',t('fo.polspw'),t('fo.m',{m:L.m}),L.d1,'fo.u.pln',L.m);"));
   assert.ok(html.includes("spw:()=>SPW.data&&SPW.data.at") && html.includes("spw:'MF SPW'") && html.includes("'www.gov.pl','src.f.m','src.l.spw',GLIVE.src.spw,'g.hs.spw','spw']"));
-  assert.ok(html.includes('<b>Ministerstwo Finansów (Polska) — nierezydenci w papierach skarbowych</b>') && html.includes('<span class="cell">nierezydenci w polskich papierach skarbowych</span>'));
+  assert.ok(html.includes('<b>Ministerstwo Finansów (Polska) — nierezydenci w krajowych papierach skarbowych</b>') && html.includes('<span class="cell">nierezydenci w krajowych papierach skarbowych (zmiana stanu)</span>'));
   const a = 'const EXTRA76=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   for (const l of ['pl', 'en']) for (const k of ['spw.t', 'spw.sub', 'spw.d1', 'spw.d1.n', 'spw.omni', 'spw.not', 'spw.src', 'spw.reg.v', 'spw.ty.omni', 'spw.rg.asia', 'fo.polspw', 'fo.u.pln', 'g.hs.spw', 'src.l.spw', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+});
+
+// v87.1: Polska (MF) po przeglądzie — zmiana stanu (nie transakcje), udział w liście, rachunki zbiorcze, wiersz przeglądu opisany
+test('v87.1: Polska (MF): opisy po przeglądzie, zasada 2 i przegląd', () => {
+  const a = 'const EXTRA77=', x0 = html.indexOf(a), d = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(d.pl['fo.sub'].includes('Wyjątek: wiersz Polski z Ministerstwa Finansów to zmiana stanu') && d.en['fo.sub'].includes('Exception: the Poland row'));
+  assert.ok(d.pl['spw.d1'].includes('Zmiana stanu') && !d.pl['spw.sub'].includes('zakupy netto minus wykupy') && d.pl['spw.not'].includes('z założenia'));
+  assert.ok(d.pl['spw.c.sh'] === 'Udział w liście' && d.pl['spw.tab.k'].includes('{x}') && d.pl['spw.tab.k'].includes('{p}') && d.pl['fo.polspw'].includes('wycinek kapitału z wiersza wyżej'));
+  assert.ok(d.pl['spw.src'].includes('Dane przetworzone') && d.en['spw.src'].includes('Processed data'));
+  assert.ok(html.includes('oraz zmianę stanu krajowych papierów skarbowych u nierezydentów w wartości nominalnej (Ministerstwo Finansów).'));
+  assert.ok(!html.includes('polskie papiery skarbowe u nierezydentów (Ministerstwo Finansów) oraz kwartalne'), 'nie na liście transakcji');
+  assert.ok(html.includes('w ostatni dzień roboczy następnego miesiąca (dane za lipiec 2026 — 31.08.2026)') && html.includes('dane przetworzone'));
+  assert.ok(html.includes("replace(/\\s*\\(the\\)/g,'')"), 'angielskie nazwy krajów bez „(the)”');
 });
