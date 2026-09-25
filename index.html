@@ -52,7 +52,7 @@
   --dim:#8e8e93;
   --bl:#007AFF; --gr:#34C759; --rd:#FF3B30; --or:#FF9500; --tl:#32ADE6; --gy:#8E8E93;
   --gr-rgb:52,199,89; --rd-rgb:255,59,48; --bl-rgb:0,122,255; --or-rgb:255,149,0; --tl-rgb:50,173,230;
-  --yl:#FFCC00; --yl-rgb:255,204,0; --gy-rgb:142,142,147; --gr-tx:#248A3D; --rd-tx:#D70015; --yl-tx:#B25000; --ico-sep:#ffffff;
+  --yl:#FFCC00; --yl-rgb:255,204,0; --gy-rgb:142,142,147; --gr-tx:#248A3D; --rd-tx:#D70015; --yl-tx:#8F6A00; --ico-sep:#ffffff;
   --scene-glass:rgba(255,255,255,.5);
   --scene-stroke:rgba(255,255,255,.95);
   --scene-floor:rgba(60,60,67,.10);
@@ -210,6 +210,7 @@ body.gfull{overflow:hidden}
 .chip-n .logo-img{width:18px;height:18px}
 .chip-n.in{--c:var(--gr)}.chip-n.out{--c:var(--rd)}
 .chip-n .p{font-weight:600;color:var(--c)}
+.chip-n.in .p{color:var(--gr-tx)}.chip-n.out .p{color:var(--rd-tx)}   /* v98.2: czytelne także w jasnym motywie */
 .legend{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;padding:10px 12px;border:1px solid var(--line);color:var(--mut);font-size:12px;background:var(--panel);border-radius:10px}
 .legend b{color:var(--tx);font-weight:600}
 .lg{display:inline-flex;align-items:center;gap:7px}
@@ -296,7 +297,6 @@ td .cell .logo-img{width:34px;height:34px}
 .q .t{color:var(--mut);font-size:11.5px}
 .q .v{font-size:16px;font-weight:600;line-height:1.3;margin:3px 0}
 .q p{margin:0;color:var(--mut);font-size:11.5px;line-height:1.35}
-.stars{color:var(--or);letter-spacing:1px;font-size:13px}
 .ev-legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .evl{border:1px solid;border-radius:10px;padding:9px 11px;font-size:12px;color:var(--mut);background:var(--panel-2)}
 .evl .chip{border:0;padding:0;margin-bottom:3px;font-weight:600}
@@ -409,7 +409,6 @@ td .cell .logo-img{width:34px;height:34px}
   .q p,.evl{font-size:10.5px;line-height:1.3}
   .evl .chip{font-size:11px;gap:5px}
   .chip .sig{width:20px}
-  .stars{font-size:11px;letter-spacing:0}
   .detail{padding:9px 10px}
   .d-val{font-size:19px}
   .d-plain{font-size:12px;padding:5px 8px}
@@ -676,8 +675,7 @@ td .cell .logo-img{width:34px;height:34px}
 .trd-seg{flex:none}
 .trd-seg button{display:inline-flex;align-items:center;white-space:nowrap}
 .trd-seg button .icos{margin-right:6px}
-.etfk.trk>.icos{float:left;margin:0 7px 3px 0}
-.etfk.trk>.icos+span{padding-top:2px}
+.etfk.trk>.icos{display:flex;margin:0 0 5px;height:18px}   /* v98.2: ikony w osobnej linii (nie opływane); wyrównanie kwot — wiersze wspólne dla rzędu (niżej) */
 .etfk.trk>b{clear:left}
 .etfk.trk .icos{display:inline-flex;color:inherit;font-size:inherit;line-height:1}
 .etfk.trk .icos .iss{display:inline-grid;color:#fff;font-size:7.5px;line-height:1}
@@ -691,7 +689,7 @@ td .cell .logo-img{width:34px;height:34px}
 .trd-lg{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0}
 .trd-lg span{display:inline-flex;align-items:center;gap:6px}
 .tdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c,var(--dim));flex:none}
-@media (max-width:620px){.trd-seg{width:100%}.trd-seg button{flex:1;justify-content:center;padding:7px 8px}.etfk.trk>.icos{margin-right:6px}}
+@media (max-width:620px){.trd-seg{width:100%}.trd-seg button{flex:1;justify-content:center;padding:7px 8px}.etfk.trk>.icos{margin-right:0}}
 #trendy .icos>*+.iss,.trd-fr .icos>*+.iss{margin-left:2px}
 /* v96 etap 2 — EXTRA93 */
 /* v96 (źródła): jedna stopka pod treścią stron z danymi — link do strony Źródła i wymagany podpis CoinGecko */
@@ -730,6 +728,24 @@ td .cell .logo-img{width:34px;height:34px}
 /* v98.1: panel USA — zmiana tygodnia/miesiąca w kolorze kierunku (reguła .etfk b small gasi kolor), ikony w linii z nazwą */
 #g-usa .etfk b small.pos{color:var(--gr-tx)}#g-usa .etfk b small.neg{color:var(--rd-tx)}#g-usa .etfk b small.neu{color:var(--yl-tx)}
 #g-usa .etfk span.icos{display:inline-flex;vertical-align:-3px;margin-right:6px}
+/* v98.2 — poprawki po przeglądzie v98.1 */
+#trendy .k-foot{justify-content:flex-start;align-items:flex-start}
+#trendy .ksrc{white-space:normal;overflow:visible;text-overflow:clip}
+#trendy .k-head .icos{margin-right:6px}
+#trendy h3.mtxt>.icos{margin-right:6px;vertical-align:-3px}
+.trd-nw{white-space:nowrap}
+.tvc{white-space:nowrap}.tvc .ico{margin-right:4px}
+#usa-areas .etft{min-width:0}
+#usa-areas td .cell>.icos{min-width:50px}
+#g-usa h3.mtxt>.icos{margin-right:6px;vertical-align:-3px}
+.secrow .sname>.icos{min-width:50px}
+#page-sectors .ssub .icos>*+.ico{margin-left:2px}
+#page-assets .cell.na,#page-sectors .sval.na,#g-q .na{color:var(--dim)}
+#eng-coinmetrics-exchange-flows .etfk b,#eng-defillama-stablecoins .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+#tic .etfk>span>.icos{display:inline-flex;vertical-align:-2px;margin-right:5px}
+/* kafle GLOBAL i TRENDY: wiersze wspólne dla całego rzędu (podpis, kwota, opis) — kwoty na jednej wysokości, nawet gdy podpis ma dwie linie */
+@supports (grid-template-rows:subgrid){.gkpis>.kpi{display:grid;grid-template-columns:minmax(0,1fr);grid-row:span 4;grid-template-rows:subgrid;align-content:start}.gkpis .k-head{align-items:flex-start}#trendy .etfkpis>.etfk.trk{display:grid;grid-template-columns:minmax(0,1fr);grid-row:span 4;grid-template-rows:subgrid;row-gap:0;align-content:start}}
+@media (max-width:620px){.secrow .sname>.icos{min-width:40px}#usa-areas td .cell>.icos{min-width:40px}#usa-areas .etft th,#usa-areas .etft td{padding-left:4px;padding-right:4px}#usa-areas .etft td .cell{padding-left:0;padding-right:0}}
 </style>
 </head>
 <body data-bg="soft">
@@ -925,9 +941,9 @@ td .cell .logo-img{width:34px;height:34px}
       <button class="x" id="gh-x" data-i18n-aria="help.close">×</button>
     </div>
     <div class="sheet-body">
-      <ol class="howto-ol"><li data-i18n="g.help.1"></li><li data-i18n="g.help.2"></li><li data-i18n="g.help.3"></li></ol>
+      <ol class="howto-ol"><li data-i18n="g.help.1"></li><li data-i18n="g.hm.2"></li><li data-i18n="g.help.3"></li></ol>
       <h3 data-i18n="g.help.read"></h3>
-      <p class="mtxt" data-i18n="g.help.readd"></p>
+      <p class="mtxt" data-i18n="g.hm.readd"></p>
       <h3 data-i18n="help.legend"></h3>
       <div class="legend gleg2">
         <span class="lg"><i class="dotl in"></i><span data-i18n="g.leg.in"></span></span>
@@ -939,15 +955,15 @@ td .cell .logo-img{width:34px;height:34px}
       <p class="mtxt" data-i18n="g.m.reg1d"></p>
       <p class="mtxt" data-i18n="g.help.regtds"></p>
       <p class="mtxt" data-i18n="g.help.regfb"></p>
-      <p class="mtxt" data-i18n="g.help.corr"></p>
+      <p class="mtxt" data-i18n="g.hm.corr"></p>
       <p class="mtxt" data-i18n="g.m.stab"></p>
       <p class="mtxt" data-i18n="g.help.etf"></p>
       <h3 data-i18n="g.help.prob"></h3>
-      <p class="mtxt" data-i18n="g.help.probd"></p>
+      <p class="mtxt" data-i18n="g.hm.probd"></p>
       <h3 data-i18n="g.help.src"></h3>
       <p class="mtxt" id="gh-src"></p>
       <h3 data-i18n="g.help.lim"></h3>
-      <p class="mtxt" data-i18n="g.help.limd"></p>
+      <p class="mtxt" data-i18n="g.hm.limd"></p>
     </div>
   </div>
 </div>
@@ -1294,6 +1310,9 @@ const EXTRA93={"pl":{"foot.src":"Źródła i licencje","zr.sub":"Jedyne miejsce 
 for(const l in EXTRA93)if(I18N[l])Object.assign(I18N[l],EXTRA93[l]);
 const EXTRA94={"pl":{"usa.t":"USA: energia, gospodarka i przepływ kapitału","usa.sub":"Dane rządu USA: ceny ropy i gazu oraz zapasy ropy, inflacja i rynek pracy (co miesiąc), wzrost gospodarki i kapitał, który wpływa do USA i z nich wypływa (co kwartał). Przy każdej liczbie — data i wiek danych.","usa.h.e":"Energia","usa.e.sub":"Ceny ropy i gazu z rynku natychmiastowego (codziennie) i zapasy ropy w USA (co tydzień). Zmiana ceny: wobec notowania sprzed 5 sesji; zapasy: tydzień do tygodnia.","usa.h.m":"Gospodarka USA","usa.m.sub":"Inflacja i płace — zmiana rok do roku; bezrobocie — odsetek osób szukających pracy; nowe etaty — zmiana liczby miejsc pracy w miesiącu; PKB — zmiana kwartał do kwartału w skali roku. Strzałka przy liczbie: zmiana wobec poprzedniego miesiąca.","usa.h.f":"Przepływ kapitału USA (bilans płatniczy)","usa.f.sub":"Ile pieniędzy z zagranicy trafiło do USA (zakupy akcji, obligacji, firm i depozytów) i ile pieniędzy z USA wypłynęło za granicę — w ostatnim kwartale. Netto dodatnie = więcej wpłynęło, niż wypłynęło. To uzupełnienie mapy: na mapie są miesięczne transakcje w papierach, tu — pełny bilans płatniczy.","usa.wti":"Ropa WTI (USA)","usa.brent":"Ropa Brent (Morze Północne)","usa.gas":"Gaz ziemny (Henry Hub, USA)","usa.crude":"Zapasy ropy w USA (bez rezerwy)","usa.spr":"Rezerwa strategiczna ropy USA","usa.u.bbl":"USD za baryłkę","usa.u.mmbtu":"USD za mln BTU","usa.u.mbbl":"mln baryłek","usa.u.k":"tys.","usa.u.bn":"mld USD","usa.wk":"w tygodniu","usa.wk1":"mln bbl w tygodniu","usa.weekto":"tydzień do {d}","usa.pp":"pkt proc.","usa.cpi":"Inflacja (rok do roku)","usa.core":"Inflacja bazowa (bez żywności i energii)","usa.unemp":"Bezrobocie","usa.nfp":"Nowe etaty w miesiącu","usa.ahe":"Płace godzinowe (rok do roku)","usa.gdp":"PKB (kwartał do kwartału, w skali roku)","usa.q":"{r} kw. {y}","usa.in":"Z zagranicy do USA","usa.out":"Z USA za granicę","usa.net":"Netto do USA","usa.ca":"Rachunek bieżący USA (handel, dochody)","usa.tab":"Według regionów i krajów — {q} (mld USD)","usa.tab.note":"Dane kwartalne bez korekty sezonowej. „Do USA” — zagranica kupiła amerykańskie aktywa; „Z USA” — mieszkańcy USA kupili aktywa za granicą (z minusem, bo to odpływ); netto = różnica. Kraj pośrednika (np. Wielka Brytania, Luksemburg, Karaiby) nie zawsze jest krajem właściciela pieniędzy.","usa.c.area":"Obszar","usa.c.in":"Do USA","usa.c.out":"Z USA","usa.c.net":"Netto","usa.g.reg":"Regiony świata","usa.g.cty":"Wybrane kraje","usa.a.Europe":"Europa","usa.a.Canada":"Kanada","usa.a.LatAmAndOthWestHem":"Ameryka Łacińska i Karaiby","usa.a.AsiaAndPac":"Azja i Pacyfik","usa.a.MiddleEast":"Bliski Wschód","usa.a.Africa":"Afryka","usa.a.UnitedKingdom":"Wielka Brytania","usa.a.EuroArea":"Strefa euro","usa.a.Germany":"Niemcy","usa.a.France":"Francja","usa.a.Netherlands":"Holandia","usa.a.Luxembourg":"Luksemburg","usa.a.Belgium":"Belgia","usa.a.China":"Chiny","usa.a.HongKong":"Hongkong","usa.a.Japan":"Japonia","usa.a.SouthKorea":"Korea Płd.","usa.a.Taiwan":"Tajwan","usa.a.Singapore":"Singapur","usa.a.India":"Indie","usa.a.Australia":"Australia","usa.a.Mexico":"Meksyk","usa.a.Brazil":"Brazylia","g.hs.eia":"Ceny ropy WTI i Brent oraz gazu Henry Hub z rynku natychmiastowego (dzienne; urząd publikuje je zwykle raz w tygodniu) i tygodniowe zapasy ropy w USA z rezerwą strategiczną. Pobiera automat strony co 6 godzin z klucza właściciela. Dane rządu USA — domena publiczna.","g.hs.bls":"Inflacja CPI i bazowa (rok do roku liczymy sami z indeksów), stopa bezrobocia, zatrudnienie poza rolnictwem (zmiana w miesiącu) i płace godzinowe. Pobiera automat strony co 6 godzin (z klucza właściciela; bez klucza — zapytanie publiczne o mniejszym limicie). Brak odczytu w danych (np. październik 2025) = „—”, nie zero.","g.hs.bea":"Bilans płatniczy USA (kwartalnie): rachunek bieżący, kapitał z zagranicy do USA i z USA za granicę — razem i według regionów i krajów — oraz realny PKB (zmiana kw/kw w skali roku). Pobiera automat strony raz na dobę z klucza właściciela. Uzupełnia miesięczne dane TIC o transakcjach w papierach.","zr.a.eia":"Dane rządu USA — domena publiczna. Źródło: „Source: U.S. Energy Information Administration” z datą danych (data przy liczbach i w tabeli źródeł).","zr.a.bls":"Dane rządu USA — domena publiczna. Źródło: U.S. Bureau of Labor Statistics. BLS nie popiera tej strony.","zr.a.bea":"Dane rządu USA — domena publiczna. Źródło: U.S. Bureau of Economic Analysis (bilans płatniczy — ITA, rachunki narodowe — NIPA). BEA nie popiera tej strony.","src.l.eia":"od kilku dni do tygodnia","src.l.bls":"ok. 2 tygodnie po końcu miesiąca","src.l.bea":"ok. 3 miesiące po końcu kwartału"},"en":{"usa.t":"USA: energy, economy and capital flows","usa.sub":"US government data: oil and gas prices and US crude stocks, inflation and the labour market (monthly), economic growth and capital flowing into and out of the US (quarterly). Every number shows its date and age.","usa.h.e":"Energy","usa.e.sub":"Spot prices of oil and gas (daily) and US crude stocks (weekly). Price change: against the quote 5 sessions earlier; stocks: week on week.","usa.h.m":"US economy","usa.m.sub":"Inflation and wages — year on year; unemployment — share of the labour force looking for work; new jobs — change in the number of jobs in the month; GDP — quarter on quarter at an annual rate. The arrow shows the change from the previous month.","usa.h.f":"US capital flows (balance of payments)","usa.f.sub":"How much money from abroad went into the US (purchases of shares, bonds, companies and deposits) and how much US money went abroad — in the latest quarter. A positive net = more came in than went out. This complements the map: the map shows monthly securities transactions, this is the full balance of payments.","usa.wti":"WTI crude (US)","usa.brent":"Brent crude (North Sea)","usa.gas":"Natural gas (Henry Hub, US)","usa.crude":"US crude stocks (excl. reserve)","usa.spr":"US Strategic Petroleum Reserve","usa.u.bbl":"USD per barrel","usa.u.mmbtu":"USD per MMBtu","usa.u.mbbl":"mn barrels","usa.u.k":"thousand","usa.u.bn":"bn USD","usa.wk":"in the week","usa.wk1":"mn bbl in the week","usa.weekto":"week to {d}","usa.pp":"pp","usa.cpi":"Inflation (year on year)","usa.core":"Core inflation (excl. food and energy)","usa.unemp":"Unemployment","usa.nfp":"New jobs in the month","usa.ahe":"Hourly wages (year on year)","usa.gdp":"GDP (q/q, annual rate)","usa.q":"Q{q} {y}","usa.in":"From abroad into the US","usa.out":"From the US abroad","usa.net":"Net into the US","usa.ca":"US current account (trade, income)","usa.tab":"By region and country — {q} (bn USD)","usa.tab.note":"Quarterly data, not seasonally adjusted. “Into the US” — foreigners bought US assets; “From the US” — US residents bought assets abroad (negative, as it is an outflow); net = the difference. The country of an intermediary (e.g. the UK, Luxembourg, the Caribbean) is not always the country of the money’s owner.","usa.c.area":"Area","usa.c.in":"Into US","usa.c.out":"From US","usa.c.net":"Net","usa.g.reg":"World regions","usa.g.cty":"Selected countries","usa.a.Europe":"Europe","usa.a.Canada":"Canada","usa.a.LatAmAndOthWestHem":"Latin America and Caribbean","usa.a.AsiaAndPac":"Asia and Pacific","usa.a.MiddleEast":"Middle East","usa.a.Africa":"Africa","usa.a.UnitedKingdom":"United Kingdom","usa.a.EuroArea":"Euro area","usa.a.Germany":"Germany","usa.a.France":"France","usa.a.Netherlands":"Netherlands","usa.a.Luxembourg":"Luxembourg","usa.a.Belgium":"Belgium","usa.a.China":"China","usa.a.HongKong":"Hong Kong","usa.a.Japan":"Japan","usa.a.SouthKorea":"South Korea","usa.a.Taiwan":"Taiwan","usa.a.Singapore":"Singapore","usa.a.India":"India","usa.a.Australia":"Australia","usa.a.Mexico":"Mexico","usa.a.Brazil":"Brazil","g.hs.eia":"WTI and Brent crude and Henry Hub gas spot prices (daily; the agency usually publishes them once a week) and weekly US crude stocks including the strategic reserve. Fetched by the site job every 6 hours with the owner’s key. US government data — public domain.","g.hs.bls":"CPI and core inflation (year on year computed by us from the indices), unemployment rate, nonfarm payrolls (monthly change) and hourly earnings. Fetched by the site job every 6 hours (owner’s key; without it — a public query with a lower limit). A missing reading (e.g. October 2025) = “—”, never zero.","g.hs.bea":"US balance of payments (quarterly): current account, capital from abroad into the US and from the US abroad — in total and by region and country — and real GDP (q/q at an annual rate). Fetched by the site job once a day with the owner’s key. Complements the monthly TIC securities data.","zr.a.eia":"US government data — public domain. Source: “Source: U.S. Energy Information Administration” with the data date (shown with the numbers and in the sources table).","zr.a.bls":"US government data — public domain. Source: U.S. Bureau of Labor Statistics. BLS does not endorse this site.","zr.a.bea":"US government data — public domain. Source: U.S. Bureau of Economic Analysis (balance of payments — ITA, national accounts — NIPA). BEA does not endorse this site.","src.l.eia":"a few days to a week","src.l.bls":"about 2 weeks after the month","src.l.bea":"about 3 months after the quarter"}};
 for(const l in EXTRA94)if(I18N[l])Object.assign(I18N[l],EXTRA94[l]);
+/* v98.2: okno pomocy GLOBAL bez nazw instytucji (g.hm.*; Metodologia zostaje przy g.help.*), jednostka kontraktu w języku strony, podpis wykresu bez nazwy giełdy */
+const EXTRA95={"pl":{"g.hm.2":"Linie łączą regiony, które w tym okresie traciły, z tymi, które zyskiwały na wartości; udział korytarza liczymy z międzynarodowych statystyk bankowych. To model, nie zmierzone przelewy — zmierzone przepływy są w panelu danych urzędowych pod mapą (urzędy statystyczne, ministerstwa finansów, banki centralne i giełdy). Kropki płyną w stronę strzałki, a z każdym uderzeniem serca przebiega wzdłuż linii jaśniejsza paczka.","g.hm.readd":"Zielony to wzrost wartości rynku, czerwony spadek. Linia przerywana oznacza niższą pewność — korytarz bez potwierdzenia w międzynarodowych statystykach bankowych. Puls jest wspólny dla całej mapy i służy tylko do pokazania ruchu; jego tempo nie odpowiada prędkości pieniądza.","g.hm.corr":"Kierunek korytarza wynika z tego, które regiony tracą, a które zyskują, ważonego rzeczywistą tabelą transgranicznych należności banków. Sam kierunek jest wnioskiem, nie przelewem.","g.hm.probd":"Ranking liczy sześć mierzonych składników: poziom i kierunek złożonego wskaźnika wyprzedzającego koniunktury, pęd rynku z miesiąca i z kwartału, zmianę waluty oraz kierunek rentowności długu. Największą wagę ma wskaźnik wyprzedzający, bo z założenia wyprzedza punkty zwrotne koniunktury o kilka miesięcy. To nadal tylko zdjęcie chwili — nie jest to porada inwestycyjna.","g.hm.limd":"Mapa nie pokazuje przelewów między krajami, tylko zmianę wartości rynków. Zmierzone przepływy przychodzą z opóźnieniem od jednego dnia do kilku miesięcy: dzienne (Indie, Tajwan, Hongkong, Tajlandia; dolary przez rynek walutowy Brazylii), tygodniowe (Japonia, Turcja), miesięczne (USA, Kanada, Korea, Brazylia, strefa euro i kraje UE; wymiana walut przez banki w Chinach), kwartalne (bilanse płatnicze i międzynarodowe statystyki bankowe) — są w panelu danych urzędowych pod mapą.","tv.sub.chart":"Wykres dzienny BTC/USD albo ETH/USD; symbol można zmienić także w samym widgecie.","cftc.u.btc":"1 kontrakt to {n} bitcoinów.","cftc.u.idx":"1 kontrakt to {n} punktów indeksu, rozliczany gotówkowo.","live.nosrc":"Żadne źródło danych nie odpowiedziało — pokazujemy dane przykładowe."},"en":{"g.hm.2":"Lines connect regions that lost value in the period with regions that gained it; the corridor share comes from international banking statistics. This is a model, not measured transfers — measured flows are in the official data panel below the map (statistics offices, finance ministries, central banks and exchanges). Dots travel towards the arrow, and with every heartbeat a brighter packet runs along the line.","g.hm.readd":"Green is a rise in market value, red a fall. A dashed line means lower confidence — a corridor without confirmation in international banking statistics. The pulse is shared across the map and only shows movement; its tempo does not represent the speed of money.","g.hm.corr":"A corridor direction follows from which regions are losing and which are gaining, weighted by the real table of cross-border bank claims. The direction itself is an inference, not a transfer.","g.hm.probd":"The ranking uses six measured components: the level and direction of the composite leading indicator, market momentum over a month and a quarter, the currency move and the direction of bond yields. The leading indicator carries the most weight because it is designed to anticipate turning points by several months. It is still only a snapshot — not investment advice.","g.hm.limd":"The map does not show transfers between countries, only changes in market value. Measured flows arrive with a delay of one day to several months: daily (India, Taiwan, Hong Kong, Thailand; dollars through Brazil’s FX market), weekly (Japan, Turkey), monthly (USA, Canada, Korea, Brazil, the euro area and EU countries; bank FX conversion in China), quarterly (balances of payments and international banking statistics) — they are in the official data panel below the map.","tv.sub.chart":"Daily chart of BTC/USD or ETH/USD; the symbol can also be changed inside the widget.","cftc.u.btc":"1 contract = {n} bitcoins.","cftc.u.idx":"1 contract = {n} index points, cash-settled.","live.nosrc":"No data source responded — showing sample data."},"de":{"g.hm.2":"Linien verbinden Regionen, die im Zeitraum an Wert verloren, mit Regionen, die gewannen; der Korridoranteil stammt aus internationalen Bankenstatistiken. Das ist ein Modell, keine gemessenen Überweisungen — gemessene Flüsse stehen im Panel mit amtlichen Daten unter der Karte (Statistikämter, Finanzministerien, Zentralbanken und Börsen). Punkte wandern in Pfeilrichtung, und mit jedem Herzschlag läuft ein hellerer Impuls entlang der Linie.","g.hm.readd":"Grün ist ein Anstieg des Marktwerts, Rot ein Rückgang. Eine gestrichelte Linie bedeutet geringere Sicherheit — ein Korridor ohne Bestätigung in internationalen Bankenstatistiken. Der Puls ist für die ganze Karte gleich und zeigt nur Bewegung; sein Tempo entspricht nicht der Geschwindigkeit des Geldes.","g.hm.corr":"Die Richtung eines Korridors ergibt sich daraus, welche Regionen verlieren und welche gewinnen, gewichtet mit der tatsächlichen Tabelle grenzüberschreitender Bankforderungen. Die Richtung selbst ist eine Schlussfolgerung, keine Überweisung.","g.hm.probd":"Das Ranking nutzt sechs gemessene Komponenten: Stand und Richtung des zusammengesetzten Frühindikators, das Marktmomentum über einen Monat und ein Quartal, die Währungsbewegung und die Richtung der Anleiherenditen. Der Frühindikator hat das größte Gewicht, weil er Wendepunkte der Konjunktur einige Monate vorwegnehmen soll. Es bleibt eine Momentaufnahme — keine Anlageberatung.","g.hm.limd":"Die Karte zeigt keine Überweisungen zwischen Ländern, nur Änderungen des Marktwerts. Gemessene Flüsse kommen mit einem Tag bis mehreren Monaten Verzögerung: täglich (Indien, Taiwan, Hongkong, Thailand; Dollar über den Devisenmarkt Brasiliens), wöchentlich (Japan, Türkei), monatlich (USA, Kanada, Korea, Brasilien, Euroraum und EU-Länder; Devisentausch bei Banken in China), vierteljährlich (Zahlungsbilanzen und internationale Bankenstatistiken) — sie stehen im Panel mit amtlichen Daten unter der Karte.","tv.sub.chart":"Tageschart BTC/USD oder ETH/USD; das Symbol lässt sich auch im Widget ändern.","cftc.u.btc":"1 Kontrakt = {n} Bitcoins.","cftc.u.idx":"1 Kontrakt = {n} Indexpunkte, bar abgerechnet.","live.nosrc":"Keine Datenquelle hat geantwortet — es werden Beispieldaten gezeigt."},"es":{"g.hm.2":"Las líneas unen regiones que perdieron valor en el periodo con las que lo ganaron; la parte de cada corredor sale de las estadísticas bancarias internacionales. Es un modelo, no transferencias medidas — los flujos medidos están en el panel de datos oficiales bajo el mapa (oficinas de estadística, ministerios de finanzas, bancos centrales y bolsas). Los puntos avanzan hacia la flecha y con cada latido recorre la línea un paquete más brillante.","g.hm.readd":"Verde es una subida del valor de mercado, rojo una bajada. Una línea discontinua indica menor certeza — un corredor sin confirmación en las estadísticas bancarias internacionales. El pulso es común a todo el mapa y solo muestra movimiento; su ritmo no representa la velocidad del dinero.","g.hm.corr":"La dirección de un corredor se deduce de qué regiones pierden y cuáles ganan, ponderada por la tabla real de créditos bancarios transfronterizos. La dirección en sí es una inferencia, no una transferencia.","g.hm.probd":"El ranking usa seis componentes medidos: el nivel y la dirección del indicador adelantado compuesto, el impulso del mercado en un mes y en un trimestre, el movimiento de la divisa y la dirección de los rendimientos de los bonos. El indicador adelantado tiene el mayor peso porque está diseñado para anticipar los puntos de giro con varios meses. Sigue siendo solo una instantánea — no es asesoramiento de inversión.","g.hm.limd":"El mapa no muestra transferencias entre países, solo cambios del valor de los mercados. Los flujos medidos llegan con un retraso de un día a varios meses: diarios (India, Taiwán, Hong Kong, Tailandia; dólares a través del mercado cambiario de Brasil), semanales (Japón, Turquía), mensuales (EE. UU., Canadá, Corea, Brasil, la zona del euro y países de la UE; cambio de divisas en bancos de China), trimestrales (balanzas de pagos y estadísticas bancarias internacionales) — están en el panel de datos oficiales bajo el mapa.","tv.sub.chart":"Gráfico diario BTC/USD o ETH/USD; el símbolo también se puede cambiar en el widget.","cftc.u.btc":"1 contrato = {n} bitcoins.","cftc.u.idx":"1 contrato = {n} puntos de índice, liquidado en efectivo.","live.nosrc":"Ninguna fuente de datos respondió — se muestran datos de ejemplo."},"fr":{"g.hm.2":"Les lignes relient les régions qui ont perdu de la valeur sur la période à celles qui en ont gagné ; la part de chaque corridor vient des statistiques bancaires internationales. C’est un modèle, pas des transferts mesurés — les flux mesurés sont dans le panneau des données officielles sous la carte (instituts statistiques, ministères des finances, banques centrales et bourses). Les points avancent vers la flèche et, à chaque battement, un paquet plus lumineux parcourt la ligne.","g.hm.readd":"Vert signifie une hausse de la valeur de marché, rouge une baisse. Une ligne pointillée indique une confiance moindre — un corridor sans confirmation dans les statistiques bancaires internationales. La pulsation est commune à toute la carte et montre seulement le mouvement ; son rythme ne représente pas la vitesse de l’argent.","g.hm.corr":"La direction d’un corridor découle des régions qui perdent et de celles qui gagnent, pondérée par le tableau réel des créances bancaires transfrontières. La direction elle-même est une déduction, pas un transfert.","g.hm.probd":"Le classement utilise six composantes mesurées : le niveau et la direction de l’indicateur avancé composite, la dynamique du marché sur un mois et sur un trimestre, la variation de la devise et la direction des rendements obligataires. L’indicateur avancé pèse le plus, car il est conçu pour anticiper les retournements de plusieurs mois. Ce n’est qu’un instantané — pas un conseil en investissement.","g.hm.limd":"La carte ne montre pas de transferts entre pays, seulement des variations de la valeur des marchés. Les flux mesurés arrivent avec un retard d’un jour à plusieurs mois : quotidiens (Inde, Taïwan, Hong Kong, Thaïlande ; dollars via le marché des changes du Brésil), hebdomadaires (Japon, Turquie), mensuels (États-Unis, Canada, Corée, Brésil, zone euro et pays de l’UE ; change de devises dans les banques en Chine), trimestriels (balances des paiements et statistiques bancaires internationales) — ils sont dans le panneau des données officielles sous la carte.","tv.sub.chart":"Graphique quotidien BTC/USD ou ETH/USD ; le symbole peut aussi être changé dans le widget.","cftc.u.btc":"1 contrat = {n} bitcoins.","cftc.u.idx":"1 contrat = {n} points d’indice, réglé en espèces.","live.nosrc":"Aucune source de données n’a répondu — données d’exemple affichées."},"it":{"g.hm.2":"Le linee collegano le regioni che nel periodo hanno perso valore con quelle che ne hanno guadagnato; la quota di ogni corridoio deriva dalle statistiche bancarie internazionali. È un modello, non trasferimenti misurati — i flussi misurati sono nel pannello dei dati ufficiali sotto la mappa (istituti di statistica, ministeri delle finanze, banche centrali e borse). I punti avanzano verso la freccia e a ogni battito un pacchetto più luminoso percorre la linea.","g.hm.readd":"Il verde indica un aumento del valore di mercato, il rosso un calo. Una linea tratteggiata indica minore certezza — un corridoio senza conferma nelle statistiche bancarie internazionali. L’impulso è comune a tutta la mappa e mostra solo il movimento; il suo ritmo non rappresenta la velocità del denaro.","g.hm.corr":"La direzione di un corridoio deriva da quali regioni perdono e quali guadagnano, ponderata con la tabella reale dei crediti bancari transfrontalieri. La direzione in sé è una deduzione, non un trasferimento.","g.hm.probd":"La classifica usa sei componenti misurate: livello e direzione dell’indicatore anticipatore composito, lo slancio del mercato su un mese e su un trimestre, il movimento della valuta e la direzione dei rendimenti obbligazionari. L’indicatore anticipatore pesa di più perché è pensato per anticipare di alcuni mesi i punti di svolta. Resta solo un’istantanea — non è una consulenza d’investimento.","g.hm.limd":"La mappa non mostra trasferimenti tra paesi, solo variazioni del valore dei mercati. I flussi misurati arrivano con un ritardo da un giorno a diversi mesi: giornalieri (India, Taiwan, Hong Kong, Thailandia; dollari attraverso il mercato dei cambi del Brasile), settimanali (Giappone, Turchia), mensili (USA, Canada, Corea, Brasile, area euro e paesi UE; cambio di valuta nelle banche in Cina), trimestrali (bilance dei pagamenti e statistiche bancarie internazionali) — sono nel pannello dei dati ufficiali sotto la mappa.","tv.sub.chart":"Grafico giornaliero BTC/USD o ETH/USD; il simbolo si può cambiare anche nel widget.","cftc.u.btc":"1 contratto = {n} bitcoin.","cftc.u.idx":"1 contratto = {n} punti indice, regolato in contanti.","live.nosrc":"Nessuna fonte di dati ha risposto — mostriamo dati di esempio."},"pt":{"g.hm.2":"As linhas ligam regiões que perderam valor no período às que ganharam; a parte de cada corredor vem das estatísticas bancárias internacionais. É um modelo, não transferências medidas — fluxos medidos estão no painel de dados oficiais abaixo do mapa (institutos de estatística, ministérios das finanças, bancos centrais e bolsas). Os pontos seguem para a seta e, a cada batida, um pacote mais brilhante percorre a linha.","g.hm.readd":"Verde é alta do valor de mercado, vermelho é queda. Uma linha tracejada indica menor confiança — um corredor sem confirmação nas estatísticas bancárias internacionais. O pulso é comum a todo o mapa e só mostra movimento; o seu ritmo não representa a velocidade do dinheiro.","g.hm.corr":"A direção de um corredor resulta de quais regiões perdem e quais ganham, ponderada pela tabela real de créditos bancários transfronteiriços. A direção em si é uma inferência, não uma transferência.","g.hm.probd":"O ranking usa seis componentes medidos: o nível e a direção do indicador antecedente composto, o momento do mercado em um mês e em um trimestre, a variação da moeda e a direção dos rendimentos dos títulos. O indicador antecedente tem o maior peso porque foi concebido para antecipar pontos de viragem com alguns meses. Continua a ser só um retrato do momento — não é aconselhamento de investimento.","g.hm.limd":"O mapa não mostra transferências entre países, apenas variações do valor dos mercados. Fluxos medidos chegam com atraso de um dia a vários meses: diários (Índia, Taiwan, Hong Kong, Tailândia; dólares pelo mercado de câmbio do Brasil), semanais (Japão, Turquia), mensais (EUA, Canadá, Coreia, Brasil, zona do euro e países da UE; câmbio nos bancos da China), trimestrais (balanços de pagamentos e estatísticas bancárias internacionais) — estão no painel de dados oficiais abaixo do mapa.","tv.sub.chart":"Gráfico diário BTC/USD ou ETH/USD; o símbolo também pode ser trocado no widget.","cftc.u.btc":"1 contrato = {n} bitcoins.","cftc.u.idx":"1 contrato = {n} pontos de índice, liquidado em dinheiro.","live.nosrc":"Nenhuma fonte de dados respondeu — mostramos dados de exemplo."},"ru":{"g.hm.2":"Линии соединяют регионы, терявшие стоимость за период, с регионами, набиравшими её; доля коридора рассчитана по международной банковской статистике. Это модель, а не измеренные переводы — измеренные потоки в панели официальных данных под картой (статистические службы, министерства финансов, центральные банки и биржи). Точки движутся к стрелке, и с каждым ударом сердца по линии пробегает более яркий импульс.","g.hm.readd":"Зелёный — рост рыночной стоимости, красный — снижение. Пунктир означает меньшую уверенность — коридор без подтверждения в международной банковской статистике. Пульс общий для всей карты и лишь показывает движение; его темп не отражает скорость денег.","g.hm.corr":"Направление коридора следует из того, какие регионы теряют, а какие приобретают, с весами по реальной таблице трансграничных банковских требований. Само направление — вывод, а не перевод.","g.hm.probd":"Рейтинг использует шесть измеренных компонентов: уровень и направление сводного опережающего индикатора, рыночный импульс за месяц и за квартал, изменение валюты и направление доходности облигаций. Наибольший вес у опережающего индикатора, потому что он задуман так, чтобы предвосхищать поворотные точки на несколько месяцев. Это всё равно лишь снимок момента — не инвестиционный совет.","g.hm.limd":"Карта не показывает переводы между странами, только изменение стоимости рынков. Измеренные потоки приходят с задержкой от одного дня до нескольких месяцев: ежедневные (Индия, Тайвань, Гонконг, Таиланд; доллары через валютный рынок Бразилии), еженедельные (Япония, Турция), ежемесячные (США, Канада, Корея, Бразилия, еврозона и страны ЕС; обмен валют в банках Китая), ежеквартальные (платёжные балансы и международная банковская статистика) — они в панели официальных данных под картой.","tv.sub.chart":"Дневной график BTC/USD или ETH/USD; символ можно сменить и в самом виджете.","cftc.u.btc":"1 контракт = {n} биткоинов.","cftc.u.idx":"1 контракт = {n} пунктов индекса, расчёт деньгами.","live.nosrc":"Ни один источник данных не ответил — показаны демонстрационные данные."},"zh":{"g.hm.2":"线条连接本期价值下降的地区与价值上升的地区；通道份额依据国际银行统计计算。这是模型，并非测得的转账——测得的资金流见地图下方的官方数据面板（统计机构、财政部、央行和交易所）。圆点向箭头方向移动，每次“心跳”都有一个更亮的包沿线跑过。","g.hm.readd":"绿色表示市值上升，红色表示下降。虚线表示把握较低——未经国际银行统计证实的通道。脉动在整张地图上统一，只表示运动；其节奏不代表资金速度。","g.hm.corr":"通道方向取决于哪些地区在流失、哪些在增加，并按实际的跨境银行债权表加权。方向本身是推断，不是转账。","g.hm.probd":"排名使用六个实测成分：综合领先指标的水平和方向、一个月和一个季度的市场动能、汇率变化以及债券收益率方向。领先指标权重最大，因为它旨在提前数月预示景气拐点。这仍只是某一时刻的快照——不构成投资建议。","g.hm.limd":"地图不显示国家间转账，只显示市场价值变化。实测资金流有一天到数月不等的延迟：每日（印度、台湾、香港、泰国；经巴西外汇市场的美元）、每周（日本、土耳其）、每月（美国、加拿大、韩国、巴西、欧元区及欧盟国家；中国银行结售汇）、每季（国际收支和国际银行统计）——见地图下方的官方数据面板。","tv.sub.chart":"BTC/USD 或 ETH/USD 日线图；也可在小部件中更换代码。","cftc.u.btc":"1 份合约 = {n} 个比特币。","cftc.u.idx":"1 份合约 = {n} 个指数点，现金结算。","live.nosrc":"没有数据源响应——显示示例数据。"},"ja":{"g.hm.2":"線は、期間中に価値を失った地域と得た地域を結びます。経路の配分は国際銀行統計から算出します。これはモデルで、計測された送金ではありません — 計測された資金フローは地図の下の公式データパネル（統計機関、財務当局、中央銀行、取引所）にあります。点は矢印の方向へ進み、鼓動ごとに明るいパケットが線に沿って流れます。","g.hm.readd":"緑は市場価値の上昇、赤は下落です。破線は確度が低いこと — 国際銀行統計で裏付けのない経路 — を示します。脈動は地図全体で共通で、動きを示すだけです。そのテンポはお金の速さを表しません。","g.hm.corr":"経路の向きは、どの地域が失い、どの地域が得ているかから決まり、国境を越えた銀行債権の実際の表で重み付けされます。向きそのものは推論であり、送金ではありません。","g.hm.probd":"ランキングは6つの計測要素を使います：総合先行指標の水準と方向、1か月と四半期の市場の勢い、通貨の変化、債券利回りの方向。先行指標は景気の転換点を数か月先取りするよう設計されているため、最も重みが大きくなります。あくまでその時点のスナップショットで、投資助言ではありません。","g.hm.limd":"地図は国同士の送金ではなく、市場価値の変化だけを示します。実測の資金フローは1日から数か月遅れて届きます：日次（インド、台湾、香港、タイ；ブラジルの外国為替市場を通るドル）、週次（日本、トルコ）、月次（米国、カナダ、韓国、ブラジル、ユーロ圏とEU諸国；中国の銀行での外貨両替）、四半期（国際収支と国際銀行統計）— 地図の下の公式データパネルにあります。","tv.sub.chart":"BTC/USD または ETH/USD の日足。ウィジェット内でも銘柄を変更できます。","cftc.u.btc":"1 契約 = {n} ビットコイン。","cftc.u.idx":"1 契約 = 指数 {n} ポイント、現金決済。","live.nosrc":"どのデータ源も応答しませんでした — サンプルデータを表示しています。"}};
+for(const l in EXTRA95)if(I18N[l])Object.assign(I18N[l],EXTRA95[l]);
 
 /* ===================== STAN I DANE ===================== */
 const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2001,7 +2020,7 @@ function netImg(name,cls){const k=String(name||'').trim().toLowerCase(),f=NET_SV
 const EXCH_SVG={binance:'binance',bybit:'bybit',okx:'okx',okex:'okx',coinbase:'coinbase',kraken:'kraken',bitget:'bitget',gate:'gate-io','gate.io':'gate-io',kucoin:'kucoin',upbit:'upbit',bithumb:'bithumb',bitstamp:'bitstamp',gemini:'gemini','crypto.com':'crypto-com'};
 function exchImg(name,cls){const k=String(name||'').trim().toLowerCase().split(/[\s(]/)[0];if(k==='hyperliquid')return icoImg('img/sieci/hyper-evm.svg',cls,name);const f=EXCH_SVG[k];return f?icoImg('img/gieldy/'+f+'.svg',cls,name):monoBadge(k.slice(0,2).toUpperCase()||'?',`hsl(${hueOf(k)} 30% 34%)`,cls,name);}
 /* wydawcy funduszy — własne monogramy (nazwa w podpowiedzi); kolejność ważna: ARK przed 21Shares */
-const ISS={ishares:['iShares (BlackRock)','iS','#141414'],ssga:['SPDR (State Street)','SP','#0B4EA2'],fidelity:['Fidelity','F','#2F7D32'],grayscale:['Grayscale','G','#56565C'],bitwise:['Bitwise','BW','#5B34D6'],ark:['ARK Invest · 21Shares','A21','#1F1F24'],s21:['21Shares','21','#33333A'],vaneck:['VanEck','VE','#0A3D8F'],ms:['Morgan Stanley','MS','#0A2A4F'],valkyrie:['CoinShares Valkyrie','VK','#3B2C85'],coinshares:['CoinShares','CS','#3B2C85'],franklin:['Franklin Templeton','FT','#0E3A78'],invesco:['Invesco Galaxy','IG','#0A2E6E'],wisdomtree:['WisdomTree','WT','#C8402A'],canary:['Canary Capital','CC','#9C7A12'],vanguard:['Vanguard','V','#8F1D22'],globalx:['Global X','GX','#00355F'],hashdex:['Hashdex','H','#1D3F5E']};
+const ISS={ishares:['iShares (BlackRock)','iS','#5A5A5E'],ssga:['SPDR (State Street)','SP','#0B4EA2'],fidelity:['Fidelity','F','#2F7D32'],grayscale:['Grayscale','G','#56565C'],bitwise:['Bitwise','BW','#5B34D6'],ark:['ARK Invest · 21Shares','A21','#4A4A52'],s21:['21Shares','21','#55555D'],vaneck:['VanEck','VE','#0A3D8F'],ms:['Morgan Stanley','MS','#0A2A4F'],valkyrie:['CoinShares Valkyrie','VK','#3B2C85'],coinshares:['CoinShares','CS','#3B2C85'],franklin:['Franklin Templeton','FT','#0E3A78'],invesco:['Invesco Galaxy','IG','#0A2E6E'],wisdomtree:['WisdomTree','WT','#C8402A'],canary:['Canary Capital','CC','#9C7A12'],vanguard:['Vanguard','V','#8F1D22'],globalx:['Global X','GX','#00355F'],hashdex:['Hashdex','H','#1D3F5E']};
 const ISS_BY_NAME=[[/ishares|blackrock/i,'ishares'],[/spdr|state street/i,'ssga'],[/fidelity/i,'fidelity'],[/grayscale/i,'grayscale'],[/bitwise/i,'bitwise'],[/\bark\b/i,'ark'],[/21shares/i,'s21'],[/vaneck/i,'vaneck'],[/morgan stanley/i,'ms'],[/valkyrie/i,'valkyrie'],[/coinshares/i,'coinshares'],[/franklin/i,'franklin'],[/invesco|galaxy/i,'invesco'],[/wisdomtree/i,'wisdomtree'],[/canary/i,'canary'],[/vanguard/i,'vanguard'],[/global x/i,'globalx'],[/hashdex/i,'hashdex']];
 const FUND_ISS={};
 [['ssga','SPY XLK XLF XLE XLV XLI XLY XLP XLU SPDW SPEM BIL JNK GLD GLDM'],
@@ -2911,10 +2930,14 @@ function tvMount(k){const w=TV_W[k],box=$('#'+w.id+'-w');if(!box)return;
 function tvPlaceholder(k){const w=TV_W[k],box=$('#'+w.id+'-w');if(!box)return;box.style.height='';
   box.innerHTML=`<p class="pnote">${t('tv.ph',{w:t('tv.n.'+k)})} · <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a></p>`+
     `<p><button class="small-btn" type="button" data-tv-load="${k}">${t('tv.load')}</button> <small class="mtxt">${t('tv.ph.note')}</small></p>`;}
+/* v98.2: opis kalendarza — flaga przed każdą gospodarką (kolejność w tekście: USA, strefa euro, W. Brytania, Japonia, Chiny, Niemcy); gdy tekst ma inny kształt — sam tekst */
+function tvCalSub(){const s=t('tv.sub.calendar'),m=/^(.*?[:：]\s*)(.+?)([.。]?)$/.exec(s);if(!m||typeof flagImg!=='function')return s;
+  const zh=m[2].includes('、'),L=m[2].split(zh?'、':/,\s*/),C=['us','eu','gb','jp','cn','de'];if(L.length!==C.length)return s;
+  return m[1]+L.map((x,i)=>`<span class="tvc">${flagImg(C[i],'sm')}${x}</span>`).join(zh?'、':', ')+m[3];}
 function tvRender(k){const w=TV_W[k],el=$('#'+w.id);if(!el)return;const on=!!TV.loaded[k];
   const tvIc=p=>(typeof icoWrap==='function'&&typeof coinImg==='function'&&typeof ccyIco==='function')?icoWrap(coinImg(p.replace('USD',''),'sm')+ccyIco('USD','sm')):'';   /* v96: logo monety i znak dolara przy parze */
   const ctl=k==='chart'?['BITSTAMP:BTCUSD','BITSTAMP:ETHUSD'].map(sy=>`<button class="small-btn" type="button" data-tv-sym="${sy}" aria-pressed="${TV.sym===sy}">${tvIc(sy.split(':')[1])}${sy.split(':')[1].replace('USD','/USD')}</button>`).join(' ')+' ':'';
-  el.innerHTML=`<div class="etfh"><div><h2>${t('tv.t.'+k)}</h2><p class="pnote">${t('tv.sub.'+k)}</p></div><div class="etfb">${ctl}<span class="live ${on?'on':'off'}"><i></i>${t(on?'tv.st.on':'tv.st.off')}</span></div></div>`+
+  el.innerHTML=`<div class="etfh"><div><h2>${k==='chart'&&typeof icoWrap==='function'&&typeof coinImg==='function'?icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')):''}${t('tv.t.'+k)}</h2><p class="pnote">${k==='calendar'?tvCalSub():t('tv.sub.'+k)}</p></div><div class="etfb">${ctl}<span class="live ${on?'on':'off'}"><i></i>${t(on?'tv.st.on':'tv.st.off')}</span></div></div>`+
     `<div id="${w.id}-w"></div>`+
     (on?`<p class="pfoot"><button class="small-btn" type="button" data-tv-off="1">${t('tv.off')}</button></p>`:'');   /* v96: bez stopki ze źródłem; własny link widgetu (tvMarkup) i tekst zgody zostają */
   if(on)tvMount(k);else tvPlaceholder(k);
@@ -3118,9 +3141,9 @@ function renderTic(){
   const kpi=(label,rows,extra,inv)=>{const l=ticLast(rows);if(!l||typeof l[1]!=='number')return instRow(label,'—','',t('eng.gap'));const s12=bopSum(rows,12);
     return instRow(label,I('w',l[1],`${bopMld(l[1])} ${t('inst.mld.usd')}`,inv),t('inst.exact',{v:engNum(l[1])+' '+t('inst.mln.usd')}),`${t('inst.asof')} ${instFoot(l[0])}${s12==null?'':' · '+t('tic.s12',{v:bopMld(s12)})}${extra||''}`);};
   let html=`<div class="etfh"><div><h2>${I('f','us')}${t('tic.t')}</h2><p class="pnote">${t('tic.sub')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`;
-  html+=`<h3 class="mtxt">${I('g','globe')}<b>${t('tic.world')}</b></h3><div class="etfkpis">`+kpi(t('tic.in'),W.in)+kpi(t('tic.out'),W.out,'',1);
-  {const n1=ticNet(W,0),n12=ticNet(W,12);html+=instRow(t('tic.net'),n1==null?'—':I('w',n1,`${bopMld(n1)} ${t('inst.mld.usd')}`),'',n1==null?t('eng.gap'):`${t('inst.asof')} ${instFoot(mon)}${n12==null?'':' · '+t('tic.s12',{v:bopMld(n12)})}`);}
-  html+=instRow(t('tic.hold.in'),bln(ticVal(W.hold_in)),'',`${t('inst.asof')} ${instFoot(mon)}`)+instRow(t('tic.hold.out'),bln(ticVal(W.hold_out)),'',`${t('inst.asof')} ${instFoot(mon)}`)+`</div>`;
+  html+=`<h3 class="mtxt">${I('g','globe')}<b>${t('tic.world')}</b></h3><div class="etfkpis">`+kpi(I('f','us','sm')+t('tic.in'),W.in)+kpi(I('f','us','sm')+t('tic.out'),W.out,'',1);
+  {const n1=ticNet(W,0),n12=ticNet(W,12);html+=instRow(I('f','us','sm')+t('tic.net'),n1==null?'—':I('w',n1,`${bopMld(n1)} ${t('inst.mld.usd')}`),'',n1==null?t('eng.gap'):`${t('inst.asof')} ${instFoot(mon)}${n12==null?'':' · '+t('tic.s12',{v:bopMld(n12)})}`);}
+  html+=instRow(I('f','us','sm')+t('tic.hold.in'),bln(ticVal(W.hold_in)),'',`${t('inst.asof')} ${instFoot(mon)}`)+instRow(I('f','us','sm')+t('tic.hold.out'),bln(ticVal(W.hold_out)),'',`${t('inst.asof')} ${instFoot(mon)}`)+`</div>`;
   const ids=Object.keys(D.regions).filter(id=>GB_[id]).sort((a,b)=>{const x=ticNet(D.regions[a],12),y=ticNet(D.regions[b],12);return (y==null?-1e18:y)-(x==null?-1e18:x);});
   const row=(name,reg)=>{const i=ticLast(reg.in),o=ticLast(reg.out),n1=ticNet(reg,0),n12=ticNet(reg,12),h=ticVal(reg.hold_in);
     return `<tr><td><span class="cell">${name}</span></td><td><span class="cell mono${I('t',i&&i[1])}">${i?bopMld(i[1]):'—'}${ticPartial(reg,reg.in)}</span></td><td><span class="cell mono${I('t',o&&o[1],1)}">${o?bopMld(o[1]):'—'}${ticPartial(reg,reg.out)}</span></td><td><span class="cell mono${I('t',n1)}">${n1==null?'—':bopMld(n1)}${ticPartial(reg,reg.net)}</span></td><td><span class="cell mono${I('t',n12)}">${n12==null?'—':bopMld(n12)}</span></td><td><span class="cell mono">${h==null?'—':nfmt(h/1e6,2)}</span></td></tr>`;};
@@ -3190,7 +3213,7 @@ const EER={data:null};
 const EER_CUR={US:'USD',XM:'EUR',GB:'GBP',CH:'CHF',SE:'SEK',NO:'NOK',PL:'PLN',JP:'JPY',KR:'KRW',CN:'CNY',HK:'HKD',IN:'INR',ID:'IDR',SG:'SGD',TH:'THB',MY:'MYR',PH:'PHP',AU:'AUD',NZ:'NZD',CA:'CAD',BR:'BRL',MX:'MXN',TR:'TRY',IL:'ILS',ZA:'ZAR',SA:'SAR',RU:'RUB'};
 const EER_REG={usa:['US'],can:['CA'],lat:['BR','MX'],eur:['XM','GB','CH','SE','PL'],rus:['RU'],mea:['SA','TR','IL'],afr:['ZA'],ind:['IN'],chn:['CN','HK'],jpn:['JP','KR'],asean:['ID','SG','TH','MY','PH'],oce:['AU','NZ']};
 function eerApply(j){const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&j.rows&&typeof j.rows==='object'&&Object.keys(j.rows).length);EER.data=ok?j:null;if(ok)gOk('eer');renderInst();}
-const eerPct=v=>(typeof v==='number'&&isFinite(v))?(v===0?'0%':instSign(v)+nfmt(Math.abs(v),1)+'%'):'—';
+const eerPct=v=>(typeof v==='number'&&isFinite(v))?(v===0?'0%':Math.round(Math.abs(v)*10)===0?nfmt(0,1)+'%':instSign(v)+nfmt(Math.abs(v),1)+'%'):'—';   /* v98.2: −0,04 → „0,0%”, bez minusa */
 const eerRow=a=>{const r=EER.data&&EER.data.rows&&EER.data.rows[a];return (r&&typeof r==='object')?r:null;};
 function eerCell(a){const r=eerRow(a),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';return r?`${I('w',r.c30,eerPct(r.c30))} · ${I('w',r.c12,eerPct(r.c12))}`:'—';}   /* v96: mocniejsza waluta zielona, słabsza czerwona */
 function eerRegion(id){const L=(EER_REG[id]||[]).filter(a=>eerRow(a)),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';if(!L.length)return '';   /* v96: waluta z flagą i symbolem, zmiany w kolorze */
@@ -4526,7 +4549,7 @@ function gRenderKpi(){
   /* v96: ikona przy każdym kafelku (flaga kraju, logo monety albo glob). Pod kafelkiem: pokrycie, data i wiek danych —
      nazwy dostawców są tylko na stronie Źródła (pole src zostaje w danych). Zmiana: wzrost zielony, spadek czerwony, zero neutralne. */
   const H=typeof flagImg==='function'&&typeof icoWrap==='function'&&typeof glyphImg==='function'&&typeof coinImg==='function',ico={
-    'g.k.eq':()=>glyphImg('globe','sm'),'g.k.dxy':()=>flagImg('us','sm')+'<i class="ksym">$</i>',
+    'g.k.eq':()=>glyphImg('globe','sm'),'g.k.dxy':()=>flagImg('us','sm'),
     'g.k.us10':()=>flagImg('us','sm'),'g.k.de10':()=>flagImg('de','sm'),
     'g.k.cry':()=>coinImg('BTC','sm')+coinImg('ETH','sm'),'g.k.stab':()=>coinImg('USDT','sm')+coinImg('USDC','sm')};
   wrap.innerHTML=GKPI.map(k=>{
@@ -4575,7 +4598,7 @@ function gRenderDetail(){
           <div><dt>${t('g.d.base')}</dt><dd>${gfmt(r.mcap)}</dd></div>
           <div><dt>${t('g.d.chgp')}</dt><dd>${v[2]?`<span class="${gmTone(v[1])}">${gmPct(v[1])}</span>`:'—'}</dd></div>
           <div${r.iso.length>2?' class="wide"':''}><dt>${t('g.d.cty')}</dt><dd class="gctys">${r.iso.map(gmCty).join('')}</dd></div>
-          ${(dy&&dy.dp!=null)?`<div class="wide"><dt>${t('g.d.today')}</dt><dd><b class="${gmTone(dy.dp)}">${gmPct(dy.dp)}</b> · ${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund).join(' + ')} · ${escH(GLIVE.dayAt||'')}</dd></div>`:''}
+          ${(dy&&dy.dp!=null)?`<div class="wide"><dt>${t('g.d.today')}</dt><dd><b class="${gmTone(dy.dp)}">${gmPct(dy.dp)}</b> · ${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund).join(' + ')} · ${escH(GLIVE.dayAt||'')}</dd></div>`:''}
           ${gCenyRow(s)}
           ${spRegion(s.id)}
           ${eerRegion(s.id)}
@@ -4655,13 +4678,13 @@ function biEdgeRow(a,b){const D=BI.data;if(!D||!D.flows||typeof D.flows!=='objec
     return t('bi.e.v',{a:rn(x),b:rn(y),q:r?instFoot(r[0]):'—',v:mld(v)+' '+t('inst.mld.usd'),s:s4==null?t('eng.gap'):mld(s4)+' '+t('inst.mld.usd')});};
   return `<div class="wide"><dt>${t('bi.e.t')}</dt><dd>${one(a,b)}<br>${one(b,a)}<br><small class="mtxt">${t('bi.e.note')}</small></dd></div>`;}
 /* v65: zmierzone przepływy urzędowe przy regionach mapy (USA — TIC, Europa — bilans płatniczy EBC, Japonia — MOF); brak = bez wiersza */
-function msRegion(id){try{const n=v=>(typeof v==='number'&&isFinite(v))?v:null,mld=v=>n(v)==null?'—':instSign(v)+instMld(Math.abs(v));let txt='';
+function msRegion(id){try{const n=v=>(typeof v==='number'&&isFinite(v))?v:null,m0=v=>n(v)==null?'—':instSign(v)+instMld(Math.abs(v)),mld=(v,inv)=>typeof gtI==='function'&&n(v)!=null?gtI('w',v,m0(v),inv):m0(v);let txt='';   /* v98.2: kwoty w kolorze; inv — plus oznacza odpływ */
   if(id==='usa'){const W=typeof TIC!=='undefined'&&TIC.data&&TIC.data.world;if(!W)return '';const L=k=>Array.isArray(W[k])&&W[k].length&&Array.isArray(W[k][W[k].length-1])?W[k][W[k].length-1]:null,i=L('in');   /* ostatni miesiąc [miesiąc, mln USD, n] */
-    if(!i||n(i[1])==null)return '';txt=t('ms.usa',{m:instFoot(i[0]),in:mld(i[1]),tr:mld(L('in_tr')&&L('in_tr')[0]===i[0]?L('in_tr')[1]:null),eq:mld(L('in_eq')&&L('in_eq')[0]===i[0]?L('in_eq')[1]:null),out:mld(L('out')&&L('out')[0]===i[0]?L('out')[1]:null)});}
+    if(!i||n(i[1])==null)return '';txt=t('ms.usa',{m:instFoot(i[0]),in:mld(i[1]),tr:mld(L('in_tr')&&L('in_tr')[0]===i[0]?L('in_tr')[1]:null),eq:mld(L('in_eq')&&L('in_eq')[0]===i[0]?L('in_eq')[1]:null),out:mld(L('out')&&L('out')[0]===i[0]?L('out')[1]:null,1)});}
   else if(id==='eur'){const B=typeof INST!=='undefined'&&INST.data&&INST.data.bop,S=B&&B.s;if(!S||!Array.isArray(S.fa)||!S.fa.length)return '';const f=S.fa[S.fa.length-1],p=Array.isArray(S.pi)?S.pi.find(r=>r[0]===f[0]):null;
-    if(n(f[1])==null)return '';txt=t('ms.eur',{m:instFoot(f[0]),fa:mld(f[1]),pi:p?mld(p[1]):'—'});}
-  else if(id==='jpn'){const M=typeof INST!=='undefined'&&INST.data&&INST.data.mof;if(!M||!Array.isArray(M.d)||!M.d.length)return '';const w=M.d[M.d.length-1],A=w.assets||{},Lb=w.liabilities||{},j=v=>n(v)==null?'—':instSign(v)+instMld(Math.abs(v)*100);   /* 100 mln JPY → mld JPY */
-    if(n(Lb.equity_net)==null&&n(Lb.ltdebt_net)==null)return '';txt=t('ms.jpn',{w:escH(w.from)+' – '+instFoot(w.to),e:j(Lb.equity_net),b:j(Lb.ltdebt_net),a:j(A.total_net)});}
+    if(n(f[1])==null)return '';txt=t('ms.eur',{m:instFoot(f[0]),fa:mld(f[1],1),pi:p?mld(p[1],1):'—'});}
+  else if(id==='jpn'){const M=typeof INST!=='undefined'&&INST.data&&INST.data.mof;if(!M||!Array.isArray(M.d)||!M.d.length)return '';const w=M.d[M.d.length-1],A=w.assets||{},Lb=w.liabilities||{},j=(v,inv)=>{const x=n(v)==null?'—':instSign(v)+instMld(Math.abs(v)*100);return typeof gtI==='function'&&n(v)!=null?gtI('w',v,x,inv):x;};   /* 100 mln JPY → mld JPY */
+    if(n(Lb.equity_net)==null&&n(Lb.ltdebt_net)==null)return '';txt=t('ms.jpn',{w:escH(w.from)+' – '+instFoot(w.to),e:j(Lb.equity_net),b:j(Lb.ltdebt_net),a:j(A.total_net,1)});}
   else return '';
   const fl=typeof gmFl==='function'?gmFl({usa:'us',eur:'eu',jpn:'jp'}[id]):'';   /* v96: flaga USA / UE / Japonii */
   return `<div class="wide"><dt>${t('ms.t')}</dt><dd>${fl}${txt}<br><small class="mtxt">${t('ms.note')}</small></dd></div>`;}catch(e){return '';}}
@@ -4692,7 +4715,7 @@ function gRenderQ(){
   const cov=GREG.filter(r=>GDATA&&GDATA[gst.period][r.id][2]).length;
   /* v96: bez karty „Źródła” — nazwy dostawców są tylko na stronie Źródła; pozostałe opisy bez nazw instytucji */
   const cards=[
-   ['g.q.fresh','g.q.freshv','gmap.q.freshd',GLIVE.asof?escH(GLIVE.asof)+gAgeNote(GLIVE.asof):'—'],
+   ['g.q.fresh','g.q.freshv','gmap.q.freshd',GLIVE.asof?escH(GLIVE.asof)+gAgeNote(GLIVE.asof):'<span class="na">—</span>'],
    ['g.q.cov','g.q.covv','gmap.q.covd',cov+' / '+GREG.length],
    ['g.q.meth','g.q.methv','gmap.q.methd',''],
    ['g.q.corr',GLINK?'gmap.q.corrv1':'g.q.corrv0','gmap.q.corrd',''],
@@ -5002,7 +5025,7 @@ function renderAssets(){
       rows.push(['kpi.'+k.id,txt2,d,own?t('pg.20m')+' · '+escH(engDate(own))+gAgeNote(String(own)):lv?t('pg.live')+' · '+escH(liveWhen()):t('badge')]);});   /* own: plik automatu strony (co 20 min) */
   }
   /* v96: zmiana w trzech kolorach — wzrost zielony, spadek czerwony, zero (po zaokrągleniu do pokazanych miejsc) bez koloru */
-  const chg=(k,d)=>{if(d==null||!isFinite(d))return `<span class="cell">—</span>`;
+  const chg=(k,d)=>{if(d==null||!isFinite(d))return `<span class="cell na">—</span>`;
     const r=Math.round(d*100)/100,c=pgTone(r);
     return `<span class="cell ${c}">${c==='pos'?'▲ +':c==='neg'?'▼ −':''}${n2(Math.abs(r))}${k==='kpi.dom'?' '+t('u.pp'):'%'}</span>`;};
   w.innerHTML=`<h1>${t('pg.assets')}</h1><p class="pgsub">${t('pg.assets.dv')}</p>
@@ -5031,7 +5054,7 @@ function renderSectorsPage(){
      const ic=n.iso&&n.iso.length?flagsHtml(n.iso):pgIco(n.id);
      return `<div class="secrow"><span class="sname">${ic}<span>${n.nm}</span></span>
        <span class="sbar ${c==='neg'?'n':'p'}"><i style="width:${wd}%"></i></span>
-       <span class="sval ${c}">${na?'—':pgSign(c)+pgFmt(n.v,n.u)}</span>
+       <span class="sval ${na?'na':c}">${na?'—':pgSign(c)+pgFmt(n.v,n.u)}</span>
        <span class="ssub">${na?`<span class="sna">${t('g.nodata')}</span>`:''}${sub}</span></div>`;}).join('')}</section>`;
 }
 /* v35: widoki silnika z plików data/widoki/*.json — tylko odczyt z serwera, bez zapasu w przeglądarce i bez migawki.
@@ -5106,7 +5129,7 @@ function engTable(rec){
   if(Array.isArray(d.categories))return `<div class="list-wrap"><table class="etft">${head}<tbody>${rows(d.categories)}</tbody></table></div>`;
   if(Array.isArray(d.inflows)&&Array.isArray(d.outflows))return engDest(rec);
   if(Array.isArray(d.pairs))return engPairs(rec);
-  if(Array.isArray(d.markets))return d.markets.map(m=>`<details class="etfd" open><summary><b>${escH(m.label)}</b> · ${m.data?t('eng.oi')+': '+engNum(m.data.open_interest&&m.data.open_interest.value):t('eng.gap')}</summary>${m.data?`<div class="list-wrap"><table class="etft">${head}<tbody>${rows(m.data.categories||[])}</tbody></table></div>`:`<p class="pnote">${t('eng.r.MARKET_MISSING')}</p>`}${m.unit_note?`<p class="pnote">${escH(m.unit_note)}</p>`:''}</details>`).join('');
+  if(Array.isArray(d.markets))return d.markets.map(m=>`<details class="etfd" open><summary><b>${escH(m.label)}</b> · ${m.data?t('eng.oi')+': '+engNum(m.data.open_interest&&m.data.open_interest.value):t('eng.gap')}</summary>${m.data?`<div class="list-wrap"><table class="etft">${head}<tbody>${rows(m.data.categories||[])}</tbody></table></div>`:`<p class="pnote">${t('eng.r.MARKET_MISSING')}</p>`}${cftcUnit(m.unit_note)}</details>`).join('');
   return '';
 }
 /* v38: dziesiąte części miliarda (liczby całkowite z silnika) → mld USD z jednym miejscem; te same reguły co w silniku */
@@ -5198,6 +5221,10 @@ const cftcIso=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&isFinite(Da
 const cftcIsN=v=>typeof v==='number'&&isFinite(v);
 const cftcN=v=>cftcIsN(v)?nfmt(v):'—';
 const cftcS=v=>cftcIsN(v)?(v===0?nfmt(0):instSign(v)+nfmt(Math.abs(v))):'—';
+/* v98.2: opis jednostki kontraktu (np. „(5 Bitcoins)”) → zdanie w języku strony, bez nazwy dostawcy; nierozpoznany opis — tylko po polsku, oczyszczony */
+function cftcUnit(s){if(typeof s!=='string'||!s)return '';const b=/\((\d+)\s*Bitcoins?\)/i.exec(s),x=/\((\d+)\s*Index Points?\)/i.exec(s);
+  const v=b?t('cftc.u.btc',{n:b[1]}):x?t('cftc.u.idx',{n:x[1]}):(LANG==='pl'&&typeof gtEngClean==='function'?String(gtEngClean(s)||'').replace(/^Po polsku:\s*/,''):'');
+  return v?`<p class="pnote">${escH(v)}</p>`:'';}
 const cftcFri=iso=>{const ms=Date.parse(iso+'T00:00:00Z');return new Date(ms+((12-new Date(ms).getUTCDay())%7||7)*864e5).toISOString().slice(0,10);};   /* najbliższy piątek po dniu stanu (wtorek → +3, poniedziałek w tygodniu ze świętem → +4) */
 const cftcD=iso=>escH(engPeriod({kind:'DAY',value:iso}));
 function cftcMkt(k){const D=CFTC.data,M=D&&D.markets&&typeof D.markets==='object'?D.markets:null,m=M?M[k]:null;
@@ -5314,7 +5341,7 @@ function cmTable(D){
 }
 function cmPanel(D){
   const fileMs=Date.parse(D.at||''),live=isFinite(fileMs)&&Date.now()-fileMs<6*3600e3;   /* plik starszy niż 6 h = zbieracz nie odświeża */
-  let h=`<div class="etfh"><div><h2>${t('cm.t')}</h2><p class="pnote">${t('cm.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`;
+  let h=`<div class="etfh"><div><h2>${typeof icoWrap==='function'&&typeof coinImg==='function'?icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')):''}${t('cm.t')}</h2><p class="pnote">${t('cm.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`;
   CM_ASSETS.forEach(([a,sym,k])=>{h+=cmAsset(cmA(D,a),sym,t(k));});
   h+=cmTable(D);
   h+=`<details class="etfd"><summary>${t('eng.notsays')}</summary>${['cm.not1','cm.not2','cm.not3','cm.not4','cm.not5'].map(k=>`<p class="pnote">${t(k)}</p>`).join('')}</details>`;
@@ -6095,6 +6122,7 @@ function etfStabCompare(){
 /* v57: bilans przepływu kapitału w krypto (boczny panel CRYPTO) — sygnały z różnych źródeł w jednym miejscu, każdy z rodzajem,
    datą i wiekiem; NIE sumowane (pieniądz, monety i pozycje to różne miary); brak = „—”, nie zero */
 function cBal(){try{const el=$('#c-bal');if(!el)return;const L=[];
+  const cbTone=v=>{const x=cftcS(v);return (typeof v==='number'&&v!==0)?`<span class="${v>0?'pos':'neg'}">${x}</span>`:x;};   /* v98.2: pozycja netto w kolorze (długie zielone, krótkie czerwone, zero bez koloru) — jak w GLOBAL */
   /* v96: logo przy każdej linii (ETF-y w USA, stablecoiny, BTC+ETH); bez pomocników v96 — bez ikon */
   const ok96=typeof icoWrap==='function'&&typeof coinImg==='function',ic=(...s)=>ok96?icoWrap(s.map(x=>coinImg(x,'sm')).join('')):'';
   const ln=(k,v,cls,kind,d,extra,icon)=>`<p class="pnote" style="margin:6px 0 0">${icon||''}${t(k)}: <b class="${cls||''}">${v}</b><br><small class="mtxt">${t(kind)}${extra?' · '+extra:''}${d?' · '+instFoot(d):''}</small></p>`;
@@ -6106,7 +6134,7 @@ function cBal(){try{const el=$('#c-bal');if(!el)return;const L=[];
     const vx=(vb!=null&&ve!=null)?vb+ve:null;   /* v96: więcej na giełdy = zielone (napływ), więcej z giełd = czerwone */
     L.push(ln('cb.ex',vx!=null?cmUsd(vx,true):'—',vx!=null&&vx!==0?(vx>0?'pos':'neg'):'','cb.k.chain',b?b.asof:(e?e.asof:''),t('cb.ex.n'),ic('BTC','ETH')));}
   const mb=cftcMkt('btc'),me=cftcMkt('eth'),g=m=>(m&&m.groups.asset_mgr&&typeof m.groups.asset_mgr==='object')?m.groups.asset_mgr.net:null;
-  if(mb||me)L.push(ln('cb.cme',t('cb.cme.v',{b:cftcS(g(mb)),e:cftcS(g(me))}),'','cb.k.pos',(mb||me).asof,0,ic('BTC','ETH')));
+  if(mb||me)L.push(ln('cb.cme',t('cb.cme.v',{b:cbTone(g(mb)),e:cbTone(g(me))}),'','cb.k.pos',(mb||me).asof,0,ic('BTC','ETH')));
   el.hidden=!L.length;el.innerHTML=L.length?`<h2><span>${t('cb.t')}</span></h2><p class="pnote" style="margin:0">${t('cb.sub')}</p>${L.join('')}`:'';
 }catch(e){}}
 function renderEtf(){
@@ -6144,7 +6172,7 @@ function renderEtf(){
     icUS=i96&&typeof flagImg==='function'?icoWrap(flagImg('us')+glyphImg('etf')):'',icE=i96?icoWrap(glyphImg('etf')):'',
     icS=i96&&typeof coinImg==='function'?icoWrap(glyphImg('etf')+coinImg('USDT')+coinImg('USDC')):'';
   const kpi=(k,v,cls,ic)=>`<div class="etfk${k==='etf.k.share'||k==='etf.k.vsstab'?' wrap':''}"><span>${ic||''}${t(k)}</span><b class="${cls||''}">${v}</b></div>`;
-  const head=`<div class="etfh"><div><h2>${t('etf.t')}</h2><p class="pnote">${t('etf.sub')}</p></div><div class="etfb">${etfBadge()}</div></div>
+  const head=`<div class="etfh"><div><h2>${i96&&typeof coinImg==='function'&&typeof flagImg==='function'?icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')+flagImg('us','sm')):''}${t('etf.t')}</h2><p class="pnote">${t('etf.sub')}</p></div><div class="etfb">${etfBadge()}</div></div>
     <div class="etfkpis">
       ${kpi('etf.k.day',etfM(T.d1),etfCls(T.d1),icUS)}${kpi('etf.k.w',etfM(T.w),etfCls(T.w),icUS)}${kpi('etf.k.m',etfM(T.m),etfCls(T.m),icUS)}
       ${kpi('etf.k.cum',etfM(T.cum),etfCls(T.cum),icUS)}${kpi('etf.k.aum',etfA(T.aum),'',icUS)}
@@ -6285,21 +6313,21 @@ function renderDetails(){
   const box=$('#detail'),s=st.sel;
   $('#why').hidden=!s;
   if(!s){box.innerHTML='';return;}
-  let title,sub2,val,pct='',ev,src,lim,plain,unit;
+  let title,sub2,val,pct='',ev,src,lim,plain,unit,dTone='';   /* v98.2: dTone — kolor kwoty w nagłówku (jak w GLOBAL) */
   const per=t('per.'+st.period),prev=t('prev.'+st.period);
   if(s.type==='node'){
     const n=NB[s.id],[v,p]=DATA[st.period][s.id],name=nName(s.id);
-    title=cGrpW(s.id,'lg')+name;sub2=(v>0?t('d.netin'):v<0?t('d.netout'):t('d.flat'))+' · '+per;val=fInt(v);pct=` (${fPct(p)} ${t('d.vs',{p:prev})})`;   /* v96: logo grupy; zero = „bez zmiany” */
+    title=cGrpW(s.id,'lg')+name;sub2=(v>0?t('d.netin'):v<0?t('d.netout'):t('d.flat'))+' · '+per;val=fInt(v);pct=` (${fPct(p)} ${t('d.vs',{p:prev})})`;dTone=Math.round(v)>0?'pos':Math.round(v)<0?'neg':'';   /* v96: logo grupy; zero = „bez zmiany” */
     ev=n.ev;src=t(n.src,{n:name});lim=t('lim.'+n.ev);unit=t('d.unitNode');
     plain=t(v>0?'plain.in':v<0?'plain.out':'plain.flat',{p:prev,n:name,v:compact(Math.abs(v))});
   }else{
     const e=EB[s.id],a=eAmt(e),A=nName(e.f),B=nName(e.t);
-    title=`${cGrpW(e.f)}${A} → ${cGrpW(e.t)}${B}`;sub2=(e.k==='in'?t('d.in'):t('d.out'))+' · '+per;val=(e.k==='in'?'+':'−')+nfmt(a);
+    title=`${cGrpW(e.f)}${A} → ${cGrpW(e.t)}${B}`;sub2=(e.k==='in'?t('d.in'):t('d.out'))+' · '+per;val=(e.k==='in'?'+':'−')+nfmt(a);dTone=Math.round(a)>0?(e.k==='in'?'pos':'neg'):'';
     ev=e.ev;src=t('esrc.'+e.ev,{a:A,b:B});lim=t('elim.'+e.ev);unit=t('d.unitEdge');
     plain=t('plain.edge',{p:prev,a:A,b:B,v:compact(a)});
   }
   box.innerHTML=`<div class="d-top"><div><h3>${title}</h3><div class="sub" style="margin:2px 0 0">${sub2}</div></div><button class="x" id="d-x" aria-label="${t('d.close')}">×</button></div>
-  <div class="d-val sora">${val}<small>${t('u.m')}</small></div>
+  <div class="d-val sora${dTone?' '+dTone:''}">${val}<small>${t('u.m')}</small></div>
   <p class="d-plain"><span>${t('d.plain')}</span>${plain}</p>
   <dl class="d-grid">
    <div><dt>${t('d.value')}</dt><dd>${val} ${t('u.m')}${pct}</dd></div>
@@ -6419,7 +6447,7 @@ function renderStatus(){
   el.innerHTML=s==='ok'?`<i></i>${t('live.on',{t:liveWhen()})}`
     :s==='load'?`<i></i>${t('live.load')}`
     :`<i></i>${t('live.off')}`;
-  el.title=s==='err'?String(LIVE.err):'';
+  el.title=s==='err'?(/brak źródła/.test(String(LIVE.err))?t('live.nosrc'):String(LIVE.err)):'';
   const bd=document.querySelector('.head-row .badge');if(bd)bd.hidden=(s==='ok');
 }
 
@@ -6496,10 +6524,10 @@ function trdIco(spec,iss,max,cls){
 }
 function trdIcoF(r,cls){const fe=r.id.slice(0,3)==='fe_',iss=fe?TRD_ISS[r.iss]||[]:[];return trdIco((TRD_ICO[r.id]||'@globe')+(fe&&!iss.length?' @etf':''),iss,0,cls);}
 function trdIssOf(sym){const k=typeof issuerOf==='function'?issuerOf(sym,''):'';return k?[k]:[];}
-function trdIcoP(r){
-  if(r.g==='cr')return trdIco('$'+r.id);
-  if(r.g==='fp')return trdIco(TRD_ICO['fe_'+r.id.slice(3)]||'@etf',trdIssOf(r.sym));   /* fundusz wybrany w pliku (np. GLD albo IAU) — wydawca z symbolu */
-  return trdIco(TRD_ICO[r.id]||'@globe',trdIssOf(r.id));
+function trdIcoP(r,cls){
+  if(r.g==='cr')return trdIco('$'+r.id,[],0,cls);
+  if(r.g==='fp'){const fe=TRD.data&&Array.isArray(TRD.data.flows)?TRD.data.flows.find(x=>x&&x.id==='fe_'+r.id.slice(3)):null,iss=fe&&TRD_ISS[fe.iss]||trdIssOf(r.sym);return trdIco(TRD_ICO['fe_'+r.id.slice(3)]||'@etf',iss,0,cls);}   /* v98.2: grupa funduszy (np. GLD, IAU, GLDM) — znaczki wszystkich wydawców, jak na karcie przepływów */   /* fundusz wybrany w pliku (np. GLD albo IAU) — wydawca z symbolu */
+  return trdIco(TRD_ICO[r.id]||'@globe',trdIssOf(r.id),0,cls);
 }
 function trdCard(r){
   const tone=trdTone(r),ev=trdEv(r);
@@ -6524,7 +6552,7 @@ function trdSum(A){
   if(!ev.length)return `<p class="pnote">${t('trd.sum.noeval')}</p>`;
   const K=trdSort(ev.filter(r=>TRD_KEY.includes(r.st))).slice(0,6);
   if(!K.length)return `<p class="pnote">${t('trd.sum.none')}</p>`;
-  return `<p class="pnote"><b>${t('trd.sum.t')}</b> ${K.map(r=>`${trdIcoF(r,'sm')}<b>${escH(t('trd.s.'+r.id))}</b>: ${trdSt(trdSn(r),trdTone(r))}`).join(' · ')}</p>`;   /* v96: flaga / logo także w zdaniu */
+  return `<p class="pnote"><b>${t('trd.sum.t')}</b> ${K.map(r=>{const ic=trdIcoF(r,'sm'),nm=`<b>${escH(t('trd.s.'+r.id))}</b>`;return `${ic?`<span class="trd-nw">${ic}${nm}</span>`:nm}: ${trdSt(trdSn(r),trdTone(r))}`;}).join(' · ')}</p>`;   /* v96: flaga / logo także w zdaniu */
 }
 function trdPanel(key,A,keep){
   if(!A.length)return '';
@@ -6548,7 +6576,7 @@ function trdTile(title,val,tone,line,foot,ico,ftone){
   const f=String(foot),m=/^([▲▼△▽•])\s+/.exec(f),ft=ftone===undefined?tone:ftone,g=m?m[1]:ft==='pos'?'▲':ft==='neg'?'▼':'•',x=m?f.slice(m[0].length):f,vt=val==='—'?'na':tone;   /* brak — szary „—” */
   return `<div class="panel kpi"><div class="k-head">${ico||''}<span>${title}</span></div><div class="k-val${vt?' '+vt:''}">${val}</div>`+
     (line?`<small class="mtxt">${line}</small>`:'')+
-    `<div class="k-foot"><span class="dlt ${TRD_DLT[ft]||'na'}">${g}</span><span class="ksrc" title="${escH(x)}">${escH(x)}</span></div></div>`;
+    (x.trim()?`<div class="k-foot"><span class="dlt ${TRD_DLT[ft]||'na'}">${g}</span><span class="ksrc" title="${escH(x)}">${escH(x)}</span></div>`:'')+`</div>`;   /* v98.2: pusty opis — bez samotnego „•” */
 }
 function trdPick(A,f,k){return A.filter(f).sort((a,b)=>k(b)-k(a))[0]||null;}
 /* kafle: źródła z pełną historią (8 tygodni), wybór według odchylenia od zwykłego poziomu w mln USD (du); Meksyk (zmiana stanu), giełdy krypto i CFTC — bez kafli; v96: tylko świat (krypto ma własne kafle) */
@@ -6559,12 +6587,12 @@ function trdKpis(F,P,B){
         fade=pick(money,r=>['in_down','in_stop','out_down','out_stop'].includes(r.st),r=>Math.abs(r.du));
   const EQ=P.filter(r=>r.g==='eq'&&trdNum(r.w)),pU=pick(EQ,r=>r.w>0,r=>r.w),pD=pick(EQ,r=>r.w<0,r=>-r.w);
   const b=B.find(x=>x.id==='px')||null;
-  const ft=(title,r,tone)=>{if(!r)return trdTile(title,'—','','',t('trd.k.none'),trdIco('@globe'));const u=trdUsd(r);
+  const ft=(title,r,tone)=>{if(!r)return trdTile(title,'—','','',t('trd.k.none'),trdIco('@globe',[],2,'sm'));const u=trdUsd(r);
     return trdTile(title,trdNum(u)?(r.cur==='USD'?'':'≈ ')+trdAmt(u,'USD'):trdAmt(r.w,r.cur),tone,
-      `${escH(t('trd.s.'+r.id))} · ${trdWin(r)}${gAgeNote(r.date)} · ${t('trd.n.base',{v:trdAmt(r.base,r.cur)})}`,trdSn(r),trdIcoF(r),trdTone(r));};
-  const pt=(title,r,tone)=>r?trdTile(title,fPct(r.w,2),tone,`${escH(t('trd.px.'+r.id))} · ${t('trd.n.pw',{d:trdDay(r.date)})}${gAgeNote(r.date)}`,t('trd.ps.'+r.st),trdIcoP(r),trdTone(r)):trdTile(title,'—','','',t('trd.k.none'),trdIco('@globe'));
-  const bt=b?trdTile(t('trd.k.next'),nfmt(100*b.k/b.n,0)+'%','',t('trd.b.per',{a:trdDay(b.from),b:trdDay(b.to)}),t('trd.k.'+trdVerdict(b),{k:b.k,n:b.n}),trdIco(TRD_ICO.b_px)):trdTile(t('trd.k.next'),'—','','',t('trd.k.none'),trdIco(TRD_ICO.b_px));
-  return `<section class="kpis gkpis">${ft(t('trd.k.in'),inU,'pos')}${ft(t('trd.k.out'),outU,'neg')}${ft(t('trd.k.fade'),fade,'neu')}${pt(t('trd.k.pup'),pU,'pos')}${pt(t('trd.k.pdn'),pD,'neg')}${bt}</section>`;
+      `${escH(t('trd.s.'+r.id))} · ${trdWin(r)}${gAgeNote(r.date)} · ${t('trd.n.base',{v:trdAmt(r.base,r.cur)})}`,trdSn(r),trdIcoF(r,'sm'),trdTone(r));};
+  const pt=(title,r)=>r?trdTile(title,fPct(r.w,2),trdTone(r),`${escH(t('trd.px.'+r.id))} · ${t('trd.n.pw',{d:trdDay(r.date)})}${gAgeNote(r.date)}`,t('trd.ps.'+r.st),trdIcoP(r,'sm'),trdTone(r)):trdTile(title,'—','','',t('trd.k.none'),trdIco('@globe',[],2,'sm'));
+  const bt=b?trdTile(t('trd.k.next'),nfmt(100*b.k/b.n,0)+'%','',t('trd.b.per',{a:trdDay(b.from),b:trdDay(b.to)}),t('trd.k.'+trdVerdict(b),{k:b.k,n:b.n}),trdIco(TRD_ICO.b_px,[],2,'sm')):trdTile(t('trd.k.next'),'—','','',t('trd.k.none'),trdIco(TRD_ICO.b_px,[],2,'sm'));
+  return `<section class="kpis gkpis">${ft(t('trd.k.in'),inU,'pos')}${ft(t('trd.k.out'),outU,'neg')}${ft(t('trd.k.fade'),fade,'neu')}${pt(t('trd.k.pup'),pU)}${pt(t('trd.k.pdn'),pD)}${bt}</section>`;
 }
 /* v96: kafle krypto — fundusze ETF mają jeszcze krótką historię, więc tytuły mówią o tygodniu, nie o „zwykłym poziomie”; stan widać pod kwotą */
 function trdKpisC(F,P){
@@ -6572,10 +6600,10 @@ function trdKpisC(F,P){
   const eIn=trdPick(E,r=>r.w>0,r=>r.w),eOut=trdPick(E,r=>r.w<0,r=>-r.w);
   const one=id=>F.find(r=>r.id===id&&trdNum(r.w))||null,stab=one('stab'),cmb=one('cm_btc');
   const CR=P.filter(r=>r.g==='cr'&&trdNum(r.w)),pU=trdPick(CR,r=>r.w>0,r=>r.w),pD=trdPick(CR,r=>r.w<0,r=>-r.w);
-  const none=(title,key,ic)=>trdTile(title,'—','',t(key),'',trdIco(ic));
+  const none=(title,key,ic)=>trdTile(title,'—','',t(key),'',trdIco(ic,[],2,'sm'));
   const line=r=>[escH(t('trd.s.'+r.id)),(r.cur!=='USD'&&trdNum(r.wu)?'≈ '+trdAmt(r.wu,'USD'):''),trdWin(r)+gAgeNote(r.date),(trdNum(r.base)?t('trd.n.base',{v:trdAmt(r.base,r.cur)}):'')].filter(Boolean).join(' · ');
-  const ft=(title,r,tone,key,ic)=>r?trdTile(title,trdAmt(r.w,r.cur),tone,line(r),trdSn(r),trdIcoF(r),trdTone(r)):none(title,key,ic);
-  const pt=(title,r,tone,key)=>r?trdTile(title,fPct(r.w,2),tone,`${escH(r.id)} · ${t('trd.n.pw7',{d:trdDay(r.date)})}${gAgeNote(r.date)}`,t('trd.ps.'+r.st),trdIcoP(r),trdTone(r)):none(title,CR.length?key:'trd.kc.none','@coin');
+  const ft=(title,r,tone,key,ic)=>r?trdTile(title,trdAmt(r.w,r.cur),tone,line(r),trdSn(r),trdIcoF(r,'sm'),trdTone(r)):none(title,key,ic);
+  const pt=(title,r,tone,key)=>r?trdTile(title,fPct(r.w,2),trdTone(r),`${escH(r.id)} · ${t('trd.n.pw7',{d:trdDay(r.date)})}${gAgeNote(r.date)}`,t('trd.ps.'+r.st),trdIcoP(r,'sm'),trdTone(r)):none(title,CR.length?key:'trd.kc.none','@coin');
   const ek=k=>E.length?k:'trd.kc.none';   /* brak danych ≠ „nikt nie wpłacił” */
   return `<section class="kpis gkpis">${ft(t('trd.kc.in'),eIn,'pos',ek('trd.kc.noin'),'@etf')}${ft(t('trd.kc.out'),eOut,'neg',ek('trd.kc.noout'),'@etf')}`+
     `${ft(t('trd.kc.stab'),stab,stab?trdTone(stab):'','trd.kc.none','$USDT $USDC')}${ft(t('trd.kc.exch'),cmb,cmb?trdTone(cmb):'','trd.kc.none','$BTC')}`+
@@ -6610,7 +6638,7 @@ function renderTrendy(){
           P=D.p.filter(r=>r&&typeof r.id==='string'&&(/^[A-Z]{2,5}$/.test(r.id)||/^fp_[a-z]{2,8}$/.test(r.id)&&typeof r.sym==='string'&&/^[A-Z]{2,5}$/.test(r.sym))&&TRD_PORD.includes(r.st)),
           B=(Array.isArray(D.b)?D.b:[]).filter(b=>b&&['th','mx','ob','fe','px'].includes(b.id)&&trdNum(b.k)&&trdNum(b.n)&&b.n>0);
     const EQ=trdPxSort(P.filter(r=>r.g==='eq')),CR=trdPxSort(P.filter(r=>r.g==='cr')),FP=trdPxSort(P.filter(r=>r.g==='fp'));
-    const grid=(k,A)=>A.length?`<h3 class="mtxt"><b>${t(k)}</b></h3><div class="etfkpis">${A.map(trdPx).join('')}</div>`:'';
+    const grid=(k,A,ic)=>A.length?`<h3 class="mtxt">${ic?trdIco(ic,[],2,'sm'):''}<b>${t(k)}</b></h3><div class="etfkpis">${A.map(trdPx).join('')}</div>`:'';
     /* v96: stopka bez listy dostawców (są na stronie Źródła) — zostaje czas pliku i ostrzeżenie */
     const foot=`<section class="panel pcard">${trdMethod()}<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('eng.disclaimer')}</p></section>`;
     w.innerHTML=head+disc+(!cr?
@@ -6618,7 +6646,7 @@ function renderTrendy(){
       trdPanel('e',F.filter(r=>r.g==='fe'))+   /* v90: fundusze ETF w USA — najszerszy obraz: akcje, sektory, kraje, obligacje, złoto */
       trdPanel('f',F.filter(r=>['eq','bd','fx'].includes(r.g)))+
       trdPanel('p',F.filter(r=>r.g==='pos'&&!trdCry(r)))+
-      (EQ.length||FP.length?`<section class="panel pcard"><h2>${t('trd.x.t')}</h2><p class="pnote">${t('trd.x.sub')}</p>`+grid('trd.x.eq',EQ)+grid('trd.x.fp',FP)+`</section>`:'')+
+      (EQ.length||FP.length?`<section class="panel pcard"><h2>${t('trd.x.t')}</h2><p class="pnote">${t('trd.x.sub')}</p>`+grid('trd.x.eq',EQ,'@globe')+grid('trd.x.fp',FP,'@gold @silver us')+`</section>`:'')+
       trdBase(B)
     :
       trdKpisC(F,P)+
@@ -6771,6 +6799,7 @@ function applyLang(){
   if(typeof renderEng==='function')renderEng();if(typeof renderInst==='function')renderInst();if(typeof renderCmc==='function')renderCmc();if(typeof renderKr==='function')renderKr();if(typeof renderTic==='function')renderTic();if(typeof renderBis==='function')renderBis();
   if(typeof tvRefresh==='function')tvRefresh();   /* v41: widgety TradingView w nowym języku */
   if(typeof renderTrendy==='function'&&st.mode==='trendy')renderTrendy();   /* v89 */
+  if(typeof renderStatus==='function')renderStatus();   /* v98.2: plakietka stanu danych CRYPTO też w nowym języku */
 }
 
 /* ---------- motyw ---------- */
@@ -6866,7 +6895,8 @@ const USA={e:null,m:null,b:null,timer:null};
 const usaNum=v=>typeof v==='number'&&isFinite(v);
 const usaRows=a=>Array.isArray(a)?a.filter(r=>Array.isArray(r)&&typeof r[0]==='string'&&(r[1]===null||usaNum(r[1]))):[];
 const usaF=(c,cls)=>typeof flagImg==='function'?flagImg(c,cls):'',usaG=(n,cls)=>typeof glyphImg==='function'?glyphImg(n,cls):'',usaFs=(l,m,cls)=>typeof flagsHtml==='function'?flagsHtml(l,m,cls):'';
-function usaTone(v){return !usaNum(v)?'':v>0?'pos':v<0?'neg':'neu';}
+function usaTone(v,dec){if(!usaNum(v))return '';const r=dec==null?v:Math.round(v*10**dec)/10**dec;return r>0?'pos':r<0?'neg':'';}   /* v98.2: zero (także po zaokrągleniu) — bez koloru */
+function usaChg(v,dec,suf,tail){const r=Math.round(v*10**dec)/10**dec;return `${r>0?'▲':r<0?'▼':'•'} ${sg(r)}${nfmt(Math.abs(r),dec)}${suf} ${tail}`;}
 function usaMon(ym){const y=+String(ym).slice(0,4),m=+String(ym).slice(5,7);if(!y||!m)return escH(ym);try{return new Date(Date.UTC(y,m-1,1)).toLocaleDateString(LOCALE[LANG]||'pl-PL',{month:'long',year:'numeric',timeZone:'UTC'});}catch(e){return escH(ym);}}
 function usaQ(q){const m=/^(\d{4})-Q([1-4])$/.exec(String(q||''));return m?t('usa.q',{q:m[2],r:['I','II','III','IV'][m[2]-1],y:m[1]}):escH(q);}
 function usaLast(rows){const r=usaRows(rows).filter(x=>usaNum(x[1]));return r.length?r[r.length-1]:null;}
@@ -6879,24 +6909,24 @@ function usaEnergy(){
   const S=(USA.e&&USA.e.s)||{},out=[];
   const oil=usaG('oil'),us=usaF('us','sm');
   const px=(k,label,ico,unit)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],5);const ch=p&&p[1]?(l[1]/p[1]-1)*100:null;
-    out.push(usaTile(ico,t(label),`${nfmt(l[1],2)} <small class="mtxt">${t(unit)}</small>`,'',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${fPct(ch,1)} ${t('usa.wk')}`:'',usaTone(ch),usaDay(l[0]),gAgeNote(l[0])));};
+    out.push(usaTile(ico,t(label),`${nfmt(l[1],2)} <small class="mtxt">${t(unit)}</small>`,'',usaNum(ch)?usaChg(ch,1,'%',t('usa.wk')):'',usaTone(ch,1),usaDay(l[0]),gAgeNote(l[0])));};
   const st=(k,label,ico)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],1);const ch=p?(l[1]-p[1])/1000:null;
-    out.push(usaTile(ico,t(label),`${nfmt(l[1]/1000,1)} <small class="mtxt">${t('usa.u.mbbl')}</small>`,'',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.wk1')}`:'',usaTone(ch),t('usa.weekto',{d:usaDay(l[0])}),gAgeNote(l[0])));};
+    out.push(usaTile(ico,t(label),`${nfmt(l[1]/1000,1)} <small class="mtxt">${t('usa.u.mbbl')}</small>`,'',usaNum(ch)?usaChg(ch,1,'',t('usa.wk1')):'',usaTone(ch,1),t('usa.weekto',{d:usaDay(l[0])}),gAgeNote(l[0])));};
   px('wti','usa.wti',oil+us,'usa.u.bbl');px('brent','usa.brent',oil,'usa.u.bbl');px('gas','usa.gas',usaG('gas')+us,'usa.u.mmbtu');
   st('crude','usa.crude',oil+us);st('spr','usa.spr',oil+us);
-  return out.length?`<h3 class="mtxt"><b>${t('usa.h.e')}</b></h3><p class="pnote">${t('usa.e.sub')}</p><div class="etfkpis">${out.join('')}</div>`:'';
+  return out.length?`<h3 class="mtxt"><span class="icos">${usaG('oil','sm')}${usaF('us','sm')}</span><b>${t('usa.h.e')}</b></h3><p class="pnote">${t('usa.e.sub')}</p><div class="etfkpis">${out.join('')}</div>`:'';
 }
 function usaMacro(){
   const S=(USA.m&&USA.m.s)||{},out=[],us=usaF('us');
   const yoy=(k,label)=>{const s=S[k];const l=s&&usaLast(s.yoy);if(!l)return;const p=usaBack(s.yoy,l[0],1);const ch=p?l[1]-p[1]:null;
-    out.push(usaTile(us,t(label),fPct(l[1],1).replace(/^\+/,''),'',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.pp')}`:'',usaTone(ch),usaMon(l[0]),gAgeNote(l[0])));};
+    out.push(usaTile(us,t(label),fPct(l[1],1).replace(/^\+/,''),'',usaNum(ch)?usaChg(ch,1,'',t('usa.pp')):'',usaTone(ch,1),usaMon(l[0]),gAgeNote(l[0])));};
   yoy('cpi','usa.cpi');yoy('core','usa.core');
   {const s=S.unemp;const l=s&&usaLast(s.d);if(l){const p=usaBack(s.d,l[0],1);const ch=p?l[1]-p[1]:null;
-    out.push(usaTile(us,t('usa.unemp'),nfmt(l[1],1)+'%','',usaNum(ch)?`${ch>0?'▲':ch<0?'▼':'•'} ${sg(ch)}${nfmt(Math.abs(ch),1)} ${t('usa.pp')}`:'',usaTone(ch),usaMon(l[0]),gAgeNote(l[0])));}}
-  {const s=S.nfp;const l=s&&usaLast(s.chg);if(l)out.push(usaTile(us,t('usa.nfp'),`${sg(l[1])}${nfmt(Math.abs(l[1]),0)} <small class="mtxt">${t('usa.u.k')}</small>`,usaTone(l[1]),'','',usaMon(l[0]),gAgeNote(l[0])));}
+    out.push(usaTile(us,t('usa.unemp'),nfmt(l[1],1)+'%','',usaNum(ch)?usaChg(ch,1,'',t('usa.pp')):'',usaTone(ch,1),usaMon(l[0]),gAgeNote(l[0])));}}
+  {const s=S.nfp;const l=s&&usaLast(s.chg);if(l)out.push(usaTile(us,t('usa.nfp'),`${sg(Math.round(l[1]))}${nfmt(Math.abs(l[1]),0)} <small class="mtxt">${t('usa.u.k')}</small>`,usaTone(l[1],0),'','',usaMon(l[0]),gAgeNote(l[0])));}
   yoy('ahe','usa.ahe');
-  {const g=usaRows(USA.b&&USA.b.gdp),l=usaLast(g);if(l)out.push(usaTile(us,t('usa.gdp'),fPct(l[1],1),usaTone(l[1]),'','',usaQ(l[0]),gAgeNote(l[0])));}
-  return out.length?`<h3 class="mtxt"><b>${t('usa.h.m')}</b></h3><p class="pnote">${t('usa.m.sub')}</p><div class="etfkpis">${out.join('')}</div>`:'';
+  {const g=usaRows(USA.b&&USA.b.gdp),l=usaLast(g);if(l)out.push(usaTile(us,t('usa.gdp'),fPct(Math.round(l[1]*10)/10,1),usaTone(l[1],1),'','',usaQ(l[0]),gAgeNote(l[0])));}
+  return out.length?`<h3 class="mtxt"><span class="icos">${usaF('us','sm')}</span><b>${t('usa.h.m')}</b></h3><p class="pnote">${t('usa.m.sub')}</p><div class="etfkpis">${out.join('')}</div>`:'';
 }
 /* obszary BEA → flagi (kraje) albo flagi regionu; kolejność: regiony, potem wybrane kraje */
 const USA_REG=[['Europe',['eu','gb','ch']],['Canada',['ca']],['LatAmAndOthWestHem',['br','mx','cl','co']],['AsiaAndPac',['jp','cn','kr']],['MiddleEast',['sa','ae','il']],['Africa',['za','ng','eg']]];
@@ -6904,22 +6934,22 @@ const USA_CTY=[['UnitedKingdom','gb'],['EuroArea','eu'],['Germany','de'],['Franc
 function usaFlow(){
   const B=USA.b;if(!B||!B.ita)return '';
   const L=usaLast(B.ita.FinLiabsExclFinDeriv),A=usaLast(B.ita.FinAssetsExclFinDeriv),C=usaLast(B.ita.BalCurrAcct);
-  const bn=v=>`${sg(v)}${nfmt(Math.abs(v)/1000,1)} <small class="mtxt">${t('usa.u.bn')}</small>`;
+  const bn=v=>`${sg(Math.round(v/100))}${nfmt(Math.abs(v)/1000,1)} <small class="mtxt">${t('usa.u.bn')}</small>`,bt=v=>usaTone(v/1000,1);
   const tiles=[],us=usaF('us');
-  if(L)tiles.push(usaTile(usaG('globe')+us,t('usa.in'),bn(L[1]),usaTone(L[1]),'','',usaQ(L[0]),gAgeNote(L[0])));
-  if(A)tiles.push(usaTile(us+usaG('globe'),t('usa.out'),bn(-A[1]),usaTone(-A[1]),'','',usaQ(A[0]),gAgeNote(A[0])));
-  if(L&&A&&L[0]===A[0]){const n=L[1]-A[1];tiles.push(usaTile(us,t('usa.net'),bn(n),usaTone(n),'','',usaQ(L[0]),gAgeNote(L[0])));}
-  if(C)tiles.push(usaTile(us,t('usa.ca'),bn(C[1]),usaTone(C[1]),'','',usaQ(C[0]),gAgeNote(C[0])));
+  if(L)tiles.push(usaTile(usaG('globe')+us,t('usa.in'),bn(L[1]),bt(L[1]),'','',usaQ(L[0]),gAgeNote(L[0])));
+  if(A)tiles.push(usaTile(us+usaG('globe'),t('usa.out'),bn(-A[1]),bt(-A[1]),'','',usaQ(A[0]),gAgeNote(A[0])));
+  if(L&&A&&L[0]===A[0]){const n=L[1]-A[1];tiles.push(usaTile(us,t('usa.net'),bn(n),bt(n),'','',usaQ(L[0]),gAgeNote(L[0])));}
+  if(C)tiles.push(usaTile(us,t('usa.ca'),bn(C[1]),bt(C[1]),'','',usaQ(C[0]),gAgeNote(C[0])));
   const AR=(B.areas&&B.areas.FinLiabsExclFinDeriv)||{},AA=(B.areas&&B.areas.FinAssetsExclFinDeriv)||{};
   const q=(()=>{const qs=Object.values(AR).map(r=>{const l=usaLast(r);return l?l[0]:'';}).filter(Boolean).sort();return qs.length?qs[qs.length-1]:'';})();
   const val=(M,k)=>{const r=usaRows(M[k]).find(x=>x[0]===q);return r&&usaNum(r[1])?r[1]:null;};
   const nm=k=>t('usa.a.'+k)!=='usa.a.'+k?t('usa.a.'+k):escH((B.names&&B.names[k])||k);
-  const cell=v=>v===null?'<td><span class="cell mono na">—</span></td>':`<td><span class="cell mono ${usaTone(v)}">${sg(v)}${nfmt(Math.abs(v)/1000,1)}</span></td>`;
+  const cell=v=>v===null?'<td><span class="cell mono na">—</span></td>':`<td><span class="cell mono ${usaTone(v/1000,1)}">${sg(Math.round(v/100))}${nfmt(Math.abs(v)/1000,1)}</span></td>`;
   const row=(k,fl)=>{const i=val(AR,k),o=val(AA,k);if(i===null&&o===null)return '';const n=i!==null&&o!==null?i-o:null;
     return `<tr><td><span class="cell">${usaFs(fl,3,'sm')}${nm(k)}</span></td>${cell(i)}${cell(o===null?null:-o)}${cell(n)}</tr>`;};
   const rr=USA_REG.map(([k,f])=>row(k,f)).join(''),rc=USA_CTY.map(([k,f])=>row(k,[f])).join('');
   const tab=q&&(rr||rc)?`<details class="etfd" id="usa-areas"><summary>${t('usa.tab',{q:usaQ(q)})}</summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('usa.c.area')}</th><th>${t('usa.c.in')}</th><th>${t('usa.c.out')}</th><th>${t('usa.c.net')}</th></tr></thead><tbody>${rr?`<tr><td colspan="4"><span class="cell mtxt"><b>${t('usa.g.reg')}</b></span></td></tr>${rr}`:''}${rc?`<tr><td colspan="4"><span class="cell mtxt"><b>${t('usa.g.cty')}</b></span></td></tr>${rc}`:''}</tbody></table></div><p class="pnote">${t('usa.tab.note')}</p></details>`:'';
-  return tiles.length?`<h3 class="mtxt"><b>${t('usa.h.f')}</b></h3><p class="pnote">${t('usa.f.sub')}</p><div class="etfkpis">${tiles.join('')}</div>${tab}`:'';
+  return tiles.length?`<h3 class="mtxt"><span class="icos">${usaF('us','sm')}${usaG('globe','sm')}</span><b>${t('usa.h.f')}</b></h3><p class="pnote">${t('usa.f.sub')}</p><div class="etfkpis">${tiles.join('')}</div>${tab}`:'';
 }
 function usaDay(d){const ms=Date.parse(String(d||'').slice(0,10)+'T12:00:00Z');return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):escH(d);}
 function renderUsa(){

@@ -1014,7 +1014,7 @@ test('v57: bilans krypto: linie z rodzajem, datą; brak = —; bez danych ukryty
   assert.ok(h.includes('cb.etf: <b class="pos">5100</b>') && h.includes('cb.k.meas · 2026-09-23'), 'ETF: pomiar przepływu z datą');
   assert.ok(h.includes('cb.stab: <b class="pos">+2.46 mld</b>') && h.includes('cb.k.sply · 2026-09-24'));
   assert.ok(h.includes('cb.ex: <b class="">—</b>') && h.includes('cb.k.chain · cb.ex.n · 2026-09-23'), 'brak ETH = brak sumy giełd, nie połowa');
-  assert.ok(h.includes('cb.cme.v{"b":"1234","e":"—"}') && h.includes('cb.k.pos · 2026-09-15'), 'CME: pozycje, nie przepływ');
+  assert.ok(h.includes('cb.cme.v{"b":"<span class=\\"pos\\">1234</span>","e":"—"}') && h.includes('cb.k.pos · 2026-09-15'), 'CME: pozycje, nie przepływ; v98.2: długie netto zielone, brak bez koloru');
   assert.ok(html.includes('<section class="panel etf-rail" id="c-bal" hidden></section>') && html.includes("function renderKr(){if(typeof cBal==='function')cBal();"));
   const x0 = html.indexOf('const EXTRA48='), x1 = html.indexOf(';\n', x0);
   const dict = JSON.parse(html.slice(x0 + 'const EXTRA48='.length, x1));
@@ -1877,7 +1877,7 @@ test('v89: TRENDY — karty, kolejność stanów, brak = „—”, bez oceny pr
   assert.ok(h.includes('trd.k.out</span></div><div class="k-val neg">≈ −9.59 trd.u.b USD</div>'), 'kafel odpływu: Japonia (Meksyk — zmiana stanu, nie w kaflach); v96: czerwony');
   assert.ok(h.includes('trd.k.fade</span></div><div class="k-val na">—</div>'), 'brak słabnących — „—”, nie zero; v96: szary');
   assert.ok(h.includes('trd.n.base{"v":"+34.9 trd.u.b JPY"}'), 'kafel: obok kwoty zwykły poziom');
-  assert.ok(h.includes('trd.k.pdn</span></div><div class="k-val neg">−4.06%</div>') && h.includes('trd.k.pup</span></div><div class="k-val pos">+0.60%</div>'));
+  assert.ok(h.includes('trd.k.pdn</span></div><div class="k-val neg">−4.06%</div>') && h.includes('trd.k.pup</span></div><div class="k-val neu">+0.60%</div>') && h.includes('<span class="dlt chg">•</span><span class="ksrc" title="trd.ps.flat">'), 'v98.2: kolor kwoty według stanu, jak na karcie — +0,60% „bez wyraźnego ruchu” żółte, nie zielone');
   assert.ok(h.indexOf('<span>trd.px.EZA</span>') < h.indexOf('<span>trd.px.KSA</span>'), 'spadki: najmocniejszy pierwszy');
   assert.ok(h.includes('trd.k.coin{"k":143,"n":294}') && h.includes('<b>trd.b.concl</b>') && h.includes('trd.b.wk{"w":32}') && h.includes('trd.b.per{"a":"DT'.slice(0, 11)));
   assert.ok(h.includes('trd.ps.up_fade') && h.includes('trd.n.typ{"v":"2.6"}') && !h.includes('trd.n.pr23'), 'v96: ceny krypto — w widoku krypto');
@@ -2080,7 +2080,7 @@ test('v96-global_map: kafelki GLOBAL — ikona na każdym kafelku, bez nazw dost
   const tiles = h.split('<div class="panel kpi">').slice(1);
   assert.equal(tiles.length, 6);
   tiles.forEach((x, i) => assert.ok(/<div class="k-head"><span class="icos">.+?<\/span><span>g\.k\./.test(x), 'kafelek ' + i + ' ma ikonę przed nazwą'));
-  assert.ok(tiles[0].includes('img/glify/globe.svg') && tiles[1].includes('flagi/us.svg') && tiles[1].includes('<i class="ksym">$</i>'));
+  assert.ok(tiles[0].includes('img/glify/globe.svg') && tiles[1].includes('flagi/us.svg') && !tiles[1].includes('ksym'));   // v98.2: DXY — sama flaga USA (podpis w jednej linii)
   assert.ok(tiles[2].includes('flagi/us.svg') && tiles[3].includes('flagi/de.svg'));
   assert.ok(tiles[4].includes('krypto/btc.svg') && tiles[4].includes('krypto/eth.svg') && tiles[5].includes('krypto/usdt.svg') && tiles[5].includes('krypto/usdc.svg'));
   assert.ok(tiles[0].includes('class="dlt up">▲ +') && tiles[1].includes('class="dlt dn">▼ −'), 'wzrost zielony, spadek czerwony');
@@ -2137,7 +2137,7 @@ test('v96-global_map: szczegóły regionu — flagi krajów i regionów, waluty 
   assert.ok(R.includes('<h3>${gmRf(e.f,\'\')}${t(\'g.n.\'+e.f)} → ${gmRf(e.t,\'\')}${t(\'g.n.\'+e.t)}</h3>'), 'korytarz: flagi po obu stronach');
   assert.ok(R.includes("t('gmap.cf.edge',{r:gmRf(e.f,'')+t('g.n.'+e.f),c:CRY()})") && R.includes("gmCoins(['BTC','ETH'])"), 'krypto: loga monet');
   assert.ok(!R.includes("t('d.source')") && !GM_PROV.test(R.replace(/\/\*[\s\S]*?\*\//g, '')), 'bez wierszy „Źródło” i nazw dostawców');
-  assert.ok(R.includes('<b class="${gmTone(dy.dp)}">') && R.includes('.map(gmFund)'), 'dzisiejsza sesja: kolor wg znaku, fundusze ze znaczkiem');
+  assert.ok(R.includes('<b class="${gmTone(dy.dp)}">') && R.includes('${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund)'), 'dzisiejsza sesja: kolor wg znaku, flagi regionu (v98.2), fundusze ze znaczkiem');
 });
 
 test('v96-global_map: „Gdzie warunki sprzyjają” z flagami; karty jakości bez karty „Źródła”; słownik bez nazw dostawców', () => {
@@ -2489,7 +2489,7 @@ test('v96-global_tables: zero po zaokrągleniu bez koloru („−0,0%” nie jes
   assert.ok(Z('−0,0%') && Z('<b>+0.0</b>') && !Z('—') && !Z('+<0,1') && !Z('Holandia: −19 616,2'), 'gtZero');
   const e0 = html.indexOf('const eerPct='), e1 = html.indexOf('\nfunction eerRegion(', e0);
   const f = new Function('instSign', 'nfmt', 'EER', 'gtI', html.slice(e0, e1) + '\nreturn {eerCell};')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => Number(v).toFixed(d), { data: { rows: { XM: { c30: -0.03, c12: 2.4 } } } }, I);
-  assert.equal(f.eerCell('XM'), '−0.0% · <span class="pos">+2.4%</span>', 'kurs efektywny: „−0,0%” bez koloru, wzrost zielony');
+  assert.equal(f.eerCell('XM'), '0.0% · <span class="pos">+2.4%</span>', 'kurs efektywny: zero po zaokrągleniu bez koloru i bez „−” (v98.2), wzrost zielony');
   for (const s of ["I('t',x.d1m,0,rezD(x.d1m))", "I('t',r[2],0,sg(r[2]))", "I('t',n(r.d1),0,pp(r.d1))", "G('t',x,0,v)", "I('t',nv(r.value),0,v)"]) assert.ok(html.includes(s), 'tekst komórki trafia do koloru: ' + s);
   assert.equal(html.split("c=(v,x)=>`<td><span class=\"cell mono${I('t',x,0,v)}\">${v}</span></td>`").length, 3, 'SPW: obie tabele');
 });
@@ -2843,7 +2843,7 @@ test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa k
   assert.ok(/title="[^"]+"/.test(subOf(jpn)), 'nazwa kraju w podpowiedzi');
   assert.ok(eur.includes('<span class="sval neg">−5.0 B</span>') && jpn.includes('<span class="sval pos">+3.0 B</span>'));
   assert.ok(usa.includes('<span class="sval ">0.0 B</span>') && usa.includes('width:0%'), 'dokładne zero — bez koloru i bez paska');
-  assert.ok(rus.includes('<span class="sval ">—</span>') && rus.includes('class="sna">g.nodata<'), 'brak danych to „—”, nie zero');
+  assert.ok(rus.includes('<span class="sval na">—</span>') && rus.includes('class="sna">g.nodata<'), 'brak danych to szary „—” (v98.2), nie zero');
   assert.ok(nameOf(cr).includes('krypto/btc.svg') && subOf(cr).includes('pg.sub.crypto') && subOf(cr).includes('krypto/usdt.svg') && subOf(cr).includes('krypto/usdc.svg'));
   const p0 = html.indexOf('function pgNodes(){'), p1 = html.indexOf('\nconst pgFmt=', p0);
   assert.ok(p1 > p0 && !html.slice(p0, p1).includes("'BTC · ETH · stablecoiny'") && html.slice(p0, p1).includes("t('pg.sub.crypto')"), 'podpis krypto tłumaczony');
@@ -3052,7 +3052,7 @@ test('v96-trendy: przełącznik „Trendy global / Trendy krypto” — .seg w n
   assert.ok(c.indexOf('<span>trd.s.etf_btc</span>') < c.indexOf('id="trd-rest-c"'), 'fundusze ETF krypto z krótką historią na wierzchu, nie w zwiniętym bloku');
   assert.ok(c.includes('trd.kc.in</span></div><div class="k-val pos">+2.68 trd.u.b USD</div>') && c.includes('trd.kc.out</span></div><div class="k-val neg">−747 trd.u.m USD</div>'), 'kafle krypto: największy napływ i odpływ ETF (bez „brak nowych danych”)');
   assert.ok(c.includes('title="trd.sn.short{&quot;n&quot;:3}"') && !c.includes('trd.k.in<') && !c.includes('trd.k.out<'), 'krótka historia — stan widać, tytuł nie mówi o „zwykłym poziomie”');
-  assert.ok(c.includes('trd.kc.pup</span></div><div class="k-val pos">+4.89%</div>') && c.includes('trd.kc.pdn</span></div><div class="k-val neg">−0.67%</div>') && c.includes('trd.kc.exch</span></div><div class="k-val neg">−41054 BTC</div>'));
+  assert.ok(c.includes('trd.kc.pup</span></div><div class="k-val pos">+4.89%</div>') && c.includes('trd.kc.pdn</span></div><div class="k-val neu">−0.67%</div>') && c.includes('<b class="neu">−0.67%') && c.includes('trd.kc.exch</span></div><div class="k-val neg">−41054 BTC</div>'));
   st.trdv = 'zzz'; f.renderTrendy(); assert.ok(f.el.innerHTML.includes('<h1>trd.h1</h1>'), 'nieznana wartość = global');
 });
 
@@ -3126,7 +3126,7 @@ test('v96-trendy: kolory według stanu — napływ zielony, odpływ czerwony, os
   assert.ok(g2.includes('<b class="neu">−230 mln USD<small><i class="tg neu">△</i> zwykle napływ'), 'złoto: żółty trójkąt');
   assert.ok(g2.includes('<small><i class="tg pos">▲</i> napływ po tygodniach odpływu</small>') && g2.includes('<i class="tg neg">▼</i>'));
   const css = html.slice(html.indexOf('/* v96 etap 2 — EXTRA92 */'));
-  assert.ok(css.includes('.etfk.trk>.icos{float:left;') && css.includes('.etfk.trk>b{clear:left}') && css.includes('.tdot{') && css.includes('#trendy .icos>*+.iss,.trd-fr .icos>*+.iss{margin-left:2px}') && css.includes('#trendy .etfk.trk b.na,#trendy .k-val.na{color:var(--dim)}'));
+  assert.ok(css.includes('.etfk.trk>.icos{display:flex;margin:0 0 5px;height:18px}') && !css.includes('.etfk.trk>.icos{float:left;') && css.includes('#trendy .etfkpis>.etfk.trk{display:grid;grid-template-columns:minmax(0,1fr);grid-row:span 4;grid-template-rows:subgrid;') && css.includes('.tdot{') && css.includes('#trendy .icos>*+.iss,.trd-fr .icos>*+.iss{margin-left:2px}') && css.includes('#trendy .etfk.trk b.na,#trendy .k-val.na{color:var(--dim)}'));
   assert.ok(html.includes('.neu{--c:var(--yl);color:var(--yl-tx)}') && html.includes('.dlt.chg{color:var(--yl-tx)}'), 'żółty Apple przez tokeny (czytelny w jasnym motywie)');
 });
 
@@ -3219,7 +3219,7 @@ test('v96-trendy: puste kafle krypto (brak danych ≠ brak napływu), szary „�
   const f2 = make({mode: 'trendy'}, true); f2.trdApply(data); const h = f2.el.innerHTML;
   const sums = [...h.matchAll(/<b>trd\.sum\.t<\/b>(.*?)<\/p>/g)].map(m => m[1]);
   assert.ok(sums.length >= 2, 'zdania w panelach');
-  for (const s of sums) for (const part of s.split(' · ')) assert.match(part, /^\s*<span class="icos"><img class="ico sm" src="img\/(flagi|glify|krypto)\//, 'każda nazwa w zdaniu z ikoną: ' + part.slice(0, 200));
+  for (const s of sums) for (const part of s.split(' · ')) assert.match(part, /^\s*<span class="trd-nw"><span class="icos"><img class="ico sm" src="img\/(flagi|glify|krypto)\//, 'każda nazwa w zdaniu z ikoną (v98.2: razem z nazwą, bez łamania linii): ' + part.slice(0, 200));
   assert.ok(sums[0].includes('flagi/us.svg') && sums[0].includes('>SP</span>') && sums[0].includes('<b>trd.s.fe_us</b>') && sums.some(s => s.includes('flagi/jp.svg')), sums.join('\n'));
   const g1 = make({mode: 'trendy'}); g1.trdApply(data); assert.ok(g1.el.innerHTML.includes('<b>trd.sum.t</b> <b>trd.s.fe_us</b>'), 'bez funkcji ikon (test) — zdanie bez zmian');
   /* opis regionu GLOBAL: własna klasa, żeby znaczki SP i iS się nie zasłaniały (reguła poza #trendy) */
@@ -3420,7 +3420,7 @@ test('v98-usa: panel USA — energia, gospodarka i przepływ kapitału; ikony, k
   f.usaApply('b', {at: '2026-09-25T18:42:19+00:00', ita: {FinLiabsExclFinDeriv: [['2026-Q2', 978860]], FinAssetsExclFinDeriv: [['2026-Q2', 663301]], BalCurrAcct: [['2026-Q2', -246023]]},
     gdp: [['2026-Q2', 1.5]], areas: {FinLiabsExclFinDeriv: {Europe: [['2026-Q2', 300000]], China: [['2026-Q2', -1234]]}, FinAssetsExclFinDeriv: {Europe: [['2026-Q2', 100000]]}}, names: {}});
   h = el.innerHTML;
-  assert.ok(h.includes('usa.cpi') && h.includes('3.4%') && h.includes('class="neu">• 0.0 usa.pp'), 'inflacja bez zmiany — żółty „•”');
+  assert.ok(h.includes('usa.cpi') && h.includes('3.4%') && h.includes('<small class="">• 0.0 usa.pp') && !h.includes('class="neu">• 0.0'), 'inflacja bez zmiany — v98.2: zero bez koloru (szary „•”)');
   assert.ok(h.includes('usa.unemp') && h.includes('4.1%') && h.includes('class="neg">▼ −0.1 usa.pp'), 'bezrobocie spadło o 0,1 pkt — czerwona strzałka w dół');
   assert.ok(h.includes('<b class="pos">+162 <small class="mtxt">usa.u.k</small></b>'), 'nowe etaty na zielono');
   assert.ok(h.includes('usa.gdp') && h.includes('<b class="pos">+1.5%</b>') && h.includes('usa.q{"q":"2","r":"II","y":"2026"}'), 'PKB na zielono, kwartał po rzymsku');
@@ -3441,4 +3441,98 @@ test('v98-usa: panel USA — energia, gospodarka i przepływ kapitału; ikony, k
 test('v98.1-usa: panel USA — kolory widoczne (styl kafelków nie gasi zmian), ikony w linii z nazwą', () => {
   assert.ok(html.includes('#g-usa .etfk b small.pos{color:var(--gr-tx)}') && html.includes('#g-usa .etfk b small.neg{color:var(--rd-tx)}') && html.includes('#g-usa .etfk b small.neu{color:var(--yl-tx)}'));
   assert.ok(html.includes('#g-usa .etfk span.icos{display:inline-flex'));
+});
+test('v98.2: okno pomocy GLOBAL bez nazw instytucji, w 10 językach; Metodologia zostaje przy dawnych tekstach', () => {
+  const m0 = html.indexOf('<div class="modal" id="g-help-modal"'), m1 = html.indexOf('<div class="modal" id="help-modal"', m0), M = html.slice(m0, m1);
+  for (const k of ['2', 'readd', 'corr', 'probd', 'limd']) assert.ok(M.includes(`data-i18n="g.hm.${k}"`) && !M.includes(`data-i18n="g.help.${k}"`), 'okno pomocy: ' + k);
+  const PROV = /\b(BIS|BIZ|BRI|BPI|OECD|OCDE|TIC|MOF|EBC|ECB|EZB|BCE|Eurostat|MFW|IMF|IWF|FMI|CFTC)\b|МВФ|ЕЦБ|Евростат|欧洲央行|欧盟统计局|ユーロスタット/;
+  const en = v96src.tFor('en');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of ['g.hm.2', 'g.hm.readd', 'g.hm.corr', 'g.hm.probd', 'g.hm.limd']) { const v = t(k); assert.ok(v && v !== k && !PROV.test(v), L + ' ' + k + ': ' + v); }
+    if (L !== 'en') for (const k of ['g.hm.corr', 'g.hm.probd']) assert.notEqual(t(k), en(k), 'przetłumaczone (wcześniej po angielsku): ' + L + ' ' + k);
+  }
+  assert.ok(v96src.tFor('pl')('g.hm.limd').includes('kwartalne (bilanse płatnicze i międzynarodowe statystyki bankowe)'));
+  assert.ok(v96src.tFor('pl')('g.hm.probd').includes('nie jest to porada inwestycyjna'), 'zastrzeżenie zostaje');
+  assert.ok(html.includes("<p class=\"mtxt\">${t('g.help.corr')}</p>") && html.includes("${t('g.help.limd')}"), 'Metodologia: dawne teksty bez zmian');
+});
+test('v98.2: jednostka kontraktu i podpis wykresu bez nazw dostawców; flagi przy gospodarkach w opisie kalendarza', () => {
+  const c0 = html.indexOf('function cftcUnit('), c1 = html.indexOf('\n', html.indexOf("return v?`<p class=\"pnote\">", c0));
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const clean = s => s.replace(/Opis jednostki w raporcie CFTC: \([^)]*\)\.\s*/, '');
+  const mk = L => new Function('t', 'LANG', 'escH', 'gtEngClean', html.slice(c0, c1 + 1) + '\nreturn cftcUnit;')(v96src.tFor(L), L, esc, clean);
+  const btc = 'Opis jednostki w raporcie CFTC: (5 Bitcoins). Po polsku: 1 kontrakt to 5 bitcoinów.', eth = 'Opis jednostki w raporcie CFTC: (50 Index Points). Po polsku: 1 kontrakt to 50 punktów indeksu, rozliczany gotówkowo (bez dostawy etheru).';
+  assert.equal(mk('pl')(btc), '<p class="pnote">1 kontrakt to 5 bitcoinów.</p>');
+  assert.equal(mk('de')(eth), '<p class="pnote">1 Kontrakt = 50 Indexpunkte, bar abgerechnet.</p>');
+  assert.equal(mk('en')(btc), '<p class="pnote">1 contract = 5 bitcoins.</p>');
+  assert.equal(mk('pl')('Opis jednostki w raporcie CFTC: (1 Ounce). Po polsku: 1 kontrakt to 1 uncja.'), '<p class="pnote">1 kontrakt to 1 uncja.</p>', 'nieznana jednostka po polsku — oczyszczona');
+  assert.equal(mk('ja')('Opis jednostki w raporcie CFTC: (1 Ounce). Po polsku: 1 kontrakt to 1 uncja.'), '', 'nieznana jednostka w innym języku — bez polskiego zdania');
+  assert.equal(mk('pl')(''), ''); assert.equal(mk('pl')(null), '');
+  assert.ok(!html.includes('escH(m.unit_note)') && html.includes('${cftcUnit(m.unit_note)}'));
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    assert.ok(!t('tv.sub.chart').includes('Bitstamp') && t('tv.sub.chart').includes('BTC/USD'), 'wykres bez nazwy giełdy: ' + L);
+    for (const k of ['cftc.u.btc', 'cftc.u.idx', 'live.nosrc']) assert.ok(t(k) !== k && !/CFTC|Bitstamp/.test(t(k)), L + ' ' + k);
+  }
+  const k0 = html.indexOf('function tvCalSub('), k1 = html.indexOf('\nfunction tvRender(', k0);
+  const cal = (L, tt) => new Function('t', 'flagImg', html.slice(k0, k1) + '\nreturn tvCalSub();')(tt || v96src.tFor(L), c => `[${c}]`);
+  assert.equal(cal('pl'), 'Wydarzenia o wysokiej wadze: <span class="tvc">[us]USA</span>, <span class="tvc">[eu]strefa euro</span>, <span class="tvc">[gb]Wielka Brytania</span>, <span class="tvc">[jp]Japonia</span>, <span class="tvc">[cn]Chiny</span>, <span class="tvc">[de]Niemcy</span>.');
+  assert.ok(cal('zh').includes('<span class="tvc">[cn]中国</span>、<span class="tvc">[de]德国</span>。'), cal('zh'));
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'ja']) assert.equal((cal(L).match(/class="tvc"/g) || []).length, 6, 'sześć flag: ' + L + ' ' + cal(L));
+  assert.equal(cal('pl', () => 'Tekst bez listy'), 'Tekst bez listy', 'inny kształt tekstu — sam tekst, bez błędu');
+  assert.ok(html.includes("<p class=\"pnote\">${k==='calendar'?tvCalSub():t('tv.sub.'+k)}</p>") && html.includes("${k==='chart'&&typeof icoWrap==='function'&&typeof coinImg==='function'?icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')):''}${t('tv.t.'+k)}"));
+});
+test('v98.2: zero po zaokrągleniu bez koloru i bez minusa (panel USA, kurs efektywny); kolor i strzałka z pokazanej liczby', () => {
+  const u0 = html.indexOf('function usaTone('), u1 = html.indexOf('\nfunction usaMon(', u0);
+  const U = new Function('usaNum', 'sg', 'nfmt', html.slice(u0, u1) + '\nreturn {usaTone, usaChg};')(v => typeof v === 'number' && isFinite(v), v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d) => Number(v).toFixed(d));
+  assert.equal(U.usaTone(0), ''); assert.equal(U.usaTone(0.04, 1), ''); assert.equal(U.usaTone(0.06, 1), 'pos'); assert.equal(U.usaTone(-0.06, 1), 'neg'); assert.equal(U.usaTone(null), ''); assert.equal(U.usaTone(-2), 'neg');
+  assert.equal(U.usaChg(0.04, 1, '', 'usa.pp'), '• 0.0 usa.pp'); assert.equal(U.usaChg(-0.26, 1, '%', 'usa.wk'), '▼ −0.3% usa.wk'); assert.equal(U.usaChg(-0.04, 1, '%', 'usa.wk'), '• 0.0% usa.wk');
+  assert.ok(!html.includes(":v<0?'neg':'neu';}"), 'zero nie jest żółte');
+  const e0 = html.indexOf('const eerPct='), e1 = html.indexOf('\n', e0);
+  const eer = new Function('instSign', 'nfmt', html.slice(e0, e1) + '\nreturn eerPct;')(v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d) => Number(v).toFixed(d));
+  assert.equal(eer(-0.04), '0.0%'); assert.equal(eer(0.04), '0.0%'); assert.equal(eer(0), '0%'); assert.equal(eer(-0.06), '−0.1%'); assert.equal(eer(null), '—');
+});
+test('v98.2: kolory tam, gdzie ich brakowało; brak danych szary; plakietka CRYPTO w nowym języku', () => {
+  assert.ok(html.includes("L.push(ln('cb.cme',t('cb.cme.v',{b:cbTone(g(mb)),e:cbTone(g(me))}),"), 'CME w bilansie krypto: kolor pozycji');
+  assert.ok(html.includes('<div class="d-val sora${dTone?\' \'+dTone:\'\'}">') && html.includes("dTone=Math.round(v)>0?'pos':Math.round(v)<0?'neg':'';"), 'CRYPTO: kwota w nagłówku szczegółów w kolorze, zero bez');
+  assert.ok(html.includes("out:mld(L('out')&&L('out')[0]===i[0]?L('out')[1]:null,1)") && html.includes('fa:mld(f[1],1),pi:p?mld(p[1],1)') && html.includes('a:j(A.total_net,1)'), 'zmierzone przepływy regionu: plus = odpływ — odwrócony kolor');
+  const r0 = html.indexOf('function msRegion('), r1 = html.indexOf('\nfunction gProbBox(', r0);
+  const gtI = (k, v, txt, inv) => { const x = inv ? -v : v; return x > 0 ? `<span class="pos">${txt}</span>` : x < 0 ? `<span class="neg">${txt}</span>` : txt; };
+  const ms = new Function('t', 'TIC', 'INST', 'instSign', 'instMld', 'instFoot', 'gtI', 'gmFl', html.slice(r0, r1) + '\nreturn msRegion;')((k, o) => k + (o ? JSON.stringify(o) : ''),
+    {data: {world: {in: [['2026-07', 40600]], in_tr: [['2026-07', -3600]], in_eq: [['2026-07', 3700]], out: [['2026-07', 68500]]}}}, undefined,
+    v => v > 0 ? '+' : v < 0 ? '−' : '', v => (v / 1000).toFixed(1), d => d, gtI, c => '');
+  const us = ms('usa');
+  assert.ok(us.includes('"in":"<span class=\\"pos\\">+40.6</span>"') && us.includes('"tr":"<span class=\\"neg\\">−3.6</span>"') && us.includes('"out":"<span class=\\"neg\\">+68.5</span>"'), 'USA: napływ zielony, zakupy Amerykanów za granicą (odpływ) czerwone: ' + us);
+  assert.ok(html.includes("const chg=(k,d)=>{if(d==null||!isFinite(d))return `<span class=\"cell na\">—</span>`;") && html.includes("<span class=\"sval ${na?'na':c}\">") && html.includes("gAgeNote(GLIVE.asof):'<span class=\"na\">—</span>'],"));
+  assert.ok(html.includes('#page-assets .cell.na,#page-sectors .sval.na,#g-q .na{color:var(--dim)}'));
+  const a0 = html.indexOf('function applyLang(){'), a1 = html.indexOf('\nfunction applyTheme(', a0);
+  assert.ok(html.slice(a0, a1).includes("if(typeof renderStatus==='function')renderStatus();"), 'applyLang odświeża plakietkę');
+  assert.ok(html.includes("el.title=s==='err'?(/brak źródła/.test(String(LIVE.err))?t('live.nosrc'):String(LIVE.err)):'';"), 'podpowiedź bez polskiego komunikatu błędu');
+});
+test('v98.2: TRENDY — kafle bez ucinania opisu, kolor ceny według stanu, ikony nad nazwą; brakujące flagi i loga', () => {
+  const d0 = html.indexOf('const TRD_DLT='), d1 = html.indexOf('\n', d0), f0 = html.indexOf('function trdTile('), f1 = html.indexOf('\nfunction trdPick(', f0);
+  const T = new Function('escH', html.slice(d0, d1) + '\n' + html.slice(f0, f1) + '\nreturn trdTile;')(s => String(s));
+  const empty = T('trd.kc.out', '—', '', 'trd.kc.noout', '', '');
+  assert.ok(!empty.includes('k-foot') && !empty.includes('>•<'), 'pusty opis — bez samotnego „•”: ' + empty);
+  assert.ok(T('x', '+1%', 'neu', '', '• trd.ps.flat', '').includes('<div class="k-foot"><span class="dlt chg">•</span><span class="ksrc" title="trd.ps.flat">trd.ps.flat</span></div>'));
+  assert.ok(html.includes('#trendy .k-foot{justify-content:flex-start;') && html.includes('#trendy .ksrc{white-space:normal;overflow:visible;text-overflow:clip}'), 'opis od lewej, w całości');
+  assert.ok(html.includes("const pt=(title,r)=>r?trdTile(title,fPct(r.w,2),trdTone(r),") && html.includes("const pt=(title,r,tone,key)=>r?trdTile(title,fPct(r.w,2),trdTone(r),"), 'kafel ceny: kolor jak na karcie');
+  assert.ok(html.includes("iss=fe&&TRD_ISS[fe.iss]||trdIssOf(r.sym)"), 'karta cen grupy funduszy: znaczki wszystkich wydawców');
+  assert.ok(html.includes("grid('trd.x.eq',EQ,'@globe')+grid('trd.x.fp',FP,'@gold @silver us')"));
+  assert.ok(html.includes('.trd-nw{white-space:nowrap}'), 'ikona i nazwa w zdaniu „Najważniejsze” nie rozdzielają się');
+  assert.ok(html.includes("kpi(I('f','us','sm')+t('tic.in'),W.in)+kpi(I('f','us','sm')+t('tic.out'),W.out,'',1)") && html.includes("instRow(I('f','us','sm')+t('tic.net'),") && html.includes("instRow(I('f','us','sm')+t('tic.hold.out'),"), 'TIC: flaga USA w kaflach „Świat razem”');
+  assert.ok(html.includes("${usaG('oil','sm')}${usaF('us','sm')}</span><b>${t('usa.h.e')}</b>") && html.includes("<b>${t('usa.h.m')}</b>") && html.includes("icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')+flagImg('us','sm')):''}${t('etf.t')}</h2>"), 'nagłówki USA i ETF z ikonami');
+  assert.ok(html.includes("?icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')):''}${t('cm.t')}</h2>"), 'nagłówek przepływów na giełdy z logo BTC i ETH');
+  assert.ok(html.includes("${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund)"), 'dzisiejsza sesja: flagi regionu');
+});
+test('v98.2: czytelność — żółty w jasnym motywie, chipy CRYPTO, znaczki wydawców, tabela USA na telefonie, liczby bez ucinania', () => {
+  assert.ok(html.includes('--gr-tx:#248A3D; --rd-tx:#D70015; --yl-tx:#8F6A00;'), 'jasny motyw: ciemnozłoty zamiast pomarańczowo-brązowego');
+  assert.ok(html.includes('.chip-n.in .p{color:var(--gr-tx)}.chip-n.out .p{color:var(--rd-tx)}'));
+  assert.ok(!html.includes('.stars{'), 'bez martwej reguły .stars (jedyny pomarańczowy)');
+  assert.ok(html.includes("ishares:['iShares (BlackRock)','iS','#5A5A5E']") && !html.includes("'#141414'"), 'znaczek iShares widoczny na ciemnym tle');
+  assert.ok(html.includes('#usa-areas .etft{min-width:0}') && html.includes('#usa-areas td .cell>.icos{min-width:50px}'), 'tabela USA mieści się na telefonie, nazwy w jednej linii');
+  assert.ok(html.includes('#eng-coinmetrics-exchange-flows .etfk b,#eng-defillama-stablecoins .etfk b{white-space:normal;'), 'liczby w kafelkach giełd i stablecoinów nie są ucinane');
+  assert.ok(html.includes('#page-sectors .ssub .icos>*+.ico{margin-left:2px}'), 'Sektory: loga krypto nie zakrywają się');
+  assert.ok(html.includes("'g.k.dxy':()=>flagImg('us','sm'),"));
+  assert.ok(html.includes('@supports (grid-template-rows:subgrid){.gkpis>.kpi{display:grid;grid-template-columns:minmax(0,1fr);grid-row:span 4;grid-template-rows:subgrid;align-content:start}'), 'kafle: kwoty w rzędzie na jednej wysokości');
 });
