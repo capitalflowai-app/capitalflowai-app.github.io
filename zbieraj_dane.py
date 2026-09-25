@@ -2606,6 +2606,80 @@ def build_kanada():
             'cols': ['miesiąc', 'razem', 'dłużne', 'obligacje', 'rynek pieniężny', 'akcje i jednostki funduszy'], 'asof': m[-1][0], 'm': m}
 
 
+# v82: Korea Płd. — FSS, miesięczny komunikat „Foreign Investors' Stock and Bond Investment” (po angielsku), bez klucza
+FSS_LIST = 'https://www.fss.or.kr/eng/bbs/B0000211/list.do?menuNo=400010&pageIndex={p}'
+FSS_BASE = 'https://www.fss.or.kr'
+FSS_PAGES = 12
+FSS_TITLE = re.compile(r'<a href="(/eng/bbs/B0000211/view\.do\?[^"]+)"[^>]*>\s*Foreign Investors(?:&#39;|\'|’) Stock and Bond Investment, ([A-Z][a-z]+) (\d{4})\s*</a>')
+FSS_SENT = re.compile(r'Foreign investors (bought|sold) a net KRW\s?([\d.,]+) (billion|trillion) of listed stocks? and (?:(bought|sold) )?a net KRW\s?([\d.,]+) '
+                      r'(billion|trillion) of listed bonds in ([A-Z][a-z]+) (\d{4})')
+MONTHS_EN = {m: i for i, m in enumerate(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+                                         'November', 'December'], 1)}
+
+
+def parse_fss(text):
+    """Komunikat FSS → [YYYY-MM, akcje, obligacje] w mld KRW (plus = zakupy netto zagranicy); inne zdanie = None (nigdy zgadywanie)."""
+    t = re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', str(text))))
+    m = FSS_SENT.search(t)
+    mo = MONTHS_EN.get(m.group(7)) if m else None
+    if not mo:
+        return None
+
+    def val(side, num, unit):
+        v = _num(num)
+        if v is None:
+            return None
+        v *= 1000 if unit == 'trillion' else 1
+        return round(v if side == 'bought' else -v, 1)
+    return [f'{m.group(8)}-{mo:02d}', val(m.group(1), m.group(2), m.group(3)), val(m.group(4) or m.group(1), m.group(5), m.group(6))]   # bez drugiego czasownika = ten sam kierunek
+
+
+def build_korea(key, prev=None):
+    """data/korea.json — [[YYYY-MM, akcje mld KRW, obligacje mld KRW, akcje ≈ mln USD, obligacje ≈ mln USD, kurs]]; 25 miesięcy.
+    Pierwszy przebieg zbiera 13 miesięcy z listy komunikatów; kolejne czytają najwyżej 2 strony listy."""
+    have = {r[0]: list(r) for r in ((prev or {}).get('m') or []) if isinstance(r, list) and r and isinstance(r[0], str)}
+    had, seen, fails = bool(have), 0, []
+    for p in range(1, FSS_PAGES + 1):
+        page = get_bytes(FSS_LIST.format(p=p), timeout=60).decode('utf-8', 'replace')
+        for href, mon, yr in FSS_TITLE.findall(page):
+            mo = MONTHS_EN.get(mon)
+            if not mo:
+                continue
+            ym = f'{yr}-{mo:02d}'
+            seen += 1
+            if ym in have and have[ym][1] is not None and have[ym][2] is not None:
+                continue
+            try:
+                r = parse_fss(get_bytes(FSS_BASE + _html.unescape(href), timeout=60).decode('utf-8', 'replace'))
+                if not r or r[0] != ym or r[1] is None or r[2] is None:
+                    raise RuntimeError('nieznany układ komunikatu')
+                have[ym] = r + [None, None, None]
+            except Exception as e:
+                fails.append(f'{ym}: {e}')
+        if seen >= 13 or (had and p >= 2):
+            break
+    if not have:
+        raise RuntimeError('brak komunikatów' + (f' ({fails[0]})' if fails else ''))
+    if fails:
+        META['errors'].append(mask(f'FSS: {len(fails)} komunikaty nieczytelne, np. {fails[0]}'))
+    rates = {}
+    if key:
+        try:
+            rates = fred_rates(key, 'EXKOUS')   # Fed H.10, średnia miesięczna KRW za 1 USD
+        except Exception as e:
+            META['errors'].append(mask(f'FSS kurs FRED EXKOUS: {e}'))
+    rows = [have[k] for k in sorted(have)][-25:]
+    for r in rows:
+        rt = rates.get(r[0] + '-01')
+        if rt:
+            r[3:6] = [round(r[1] * 1000 / rt, 1) if r[1] is not None else None, round(r[2] * 1000 / rt, 1) if r[2] is not None else None, rt]
+        elif len(r) < 6 or r[5] is None:
+            r[3:6] = [None, None, None]
+    return {'at': NOW, 'src': 'Financial Supervisory Service (Korea) — monthly press release „Foreign Investors’ Stock and Bond Investment”',
+            'url': FSS_LIST.format(p=1), 'unit': 'mld KRW (plus = zakupy netto zagranicy); ≈ mln USD po średnim kursie miesiąca (Fed H.10, FRED EXKOUS)',
+            'cols': ['miesiąc', 'akcje mld KRW', 'obligacje mld KRW', 'akcje ≈ mln USD', 'obligacje ≈ mln USD', 'KRW za 1 USD'], 'asof': rows[-1][0], 'm': rows}
+
+
 def build_krypto(cg_key):
     """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
     out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
@@ -2959,6 +3033,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'Statistics Canada: {e}')); META['ok']['kanada'] = False
             if prev_ka: save('kanada', prev_ka)
+    # v82: Korea — FSS (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
+    prev_kr = previous('korea')
+    if prev_kr and fresh(prev_kr, 1440):
+        save('korea', prev_kr); META['ok']['korea'] = 'cached'
+    else:
+        try:
+            save('korea', build_korea(fred_key, prev_kr)); META['ok']['korea'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'FSS: {e}')); META['ok']['korea'] = False
+            if prev_kr: save('korea', prev_kr)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')
     if prev_kr and fresh(prev_kr, 55):

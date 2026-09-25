@@ -1549,3 +1549,28 @@ test('v81: BCB: ostatni kompletny miesiąc zamiast niepełnego; brak pozycji ban
   assert.ok(dict.pl['br.src'].includes('22986') && dict.pl['ue.foot'].includes('Austrii i Luksemburga') && dict.pl['ue.not'].includes('kredyty dla rządu'));
   assert.ok(html.includes('22971 minus 22986, 23001, 23042'));
 });
+
+// v82: Korea — FSS; akcje i obligacje; ≈ USD kursem Fed; 12 miesięcy tylko z kolejnych miesięcy; wiersz regionu i przeglądu
+test('v82: blok Korei: bln KRW i ≈ mld USD, suma 12 kolejnych miesięcy, wiersz regionu Japonia i Korea, podpięcie', () => {
+  const s0 = html.indexOf('const safeV='), s1 = html.indexOf('function safeHtml(', s0);
+  const k0 = html.indexOf('function kanLast('), k1 = html.indexOf('function kanHtml(', k0);
+  const a0 = html.indexOf('const KOR={data:null};'), a1 = html.indexOf('function flowRows(){', a0);
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instRow', 'instFoot', 'instSign', 'nfmt', 'engDate', 'bopMld', html.slice(s0, s1) + html.slice(k0, k1) + html.slice(a0, a1) + '\nreturn {KOR, korApply, korHtml, korRegion, safeMadd};')(
+    T, k => oks.push(k), () => {}, (l, v, x, n) => `[${l}|${v}|${n}]`, s => 'F' + s, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), s => s,
+    v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—');
+  assert.equal(f.korHtml(null), ''); assert.equal(f.korRegion('jpn'), '');
+  const M = Array.from({length: 13}, (_, i) => [f.safeMadd('2026-08', i - 12), -1000, 500, -700, 350, 1400]);
+  M[12] = ['2026-08', 344.0, -4736.0, 249.3, -3431.9, 1380.0];
+  f.korApply({at: 'x', m: M}); assert.deepEqual(oks, ['korea']);
+  const h = f.korHtml(f.KOR.data);
+  assert.ok(h.includes('[kr.eq|+0.3 kr.u|sf.m{"m":"F2026-08"} · kr.usd{"v":"+0.2","r":"1380.0"} · kr.12{"v":"-10.7"}]'), h);
+  assert.ok(h.includes('[kr.bd|-4.7 kr.u|sf.m{"m":"F2026-08"} · kr.usd{"v":"-3.4","r":"1380.0"} · kr.12{"v":"+0.8"}]'), h);
+  const r = f.korRegion('jpn'); assert.ok(r.includes('<dt>kr.reg</dt>') && r.includes('"e":"+0.3","b":"-4.7","e12":"-10.7","b12":"+0.8"'), r);
+  assert.equal(f.korRegion('chn'), '');
+  assert.ok(html.includes("html+=(typeof korHtml==='function'&&typeof KOR!=='undefined')?korHtml(KOR.data):'';") && html.includes("${typeof korRegion==='function'?korRegion(s.id):''}"));
+  assert.ok(html.includes("add('KOR',t('fo.kor')") && html.includes("srvJSON('korea')") && html.includes("korea:'FSS'") && html.includes("['Financial Supervisory Service (Korea)','https://www.fss.or.kr']"));
+  const x0 = html.indexOf('const EXTRA70='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA70='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['kr.t', 'kr.sub', 'kr.eq', 'kr.bd', 'kr.u', 'kr.usd', 'kr.12', 'kr.not', 'kr.src', 'kr.reg.v', 'g.hs.fss', 'fo.kor', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['inst.sub'].includes('Korea'));
+});
