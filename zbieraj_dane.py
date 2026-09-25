@@ -3666,6 +3666,27 @@ def build_trendy(S):
             'f': flows, 'p': prices, 'b': base}
 
 
+# v89.1: SONDA (tymczasowa) — czy serwer GitHub Actions dostaje pliki wydawców ETF (State Street, iShares) do przepływów v90.
+# Wynik tylko w data/sonda.json (strona go nie czyta); najwyżej raz na 6 h; bez wpływu na inne pliki i na meta.
+SONDA_URLS = (('ssga_spy', 'https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/navhist-us-en-spy.xlsx'),
+              ('ishares_screener', 'https://www.ishares.com/us/product-screener/product-screener-v3.1.jsn?dcrPath=/templatedata/config/product-screener-v3/data/en/us-ishares/ishares-product-screener-backend-config&siteEntryPassthrough=true'),
+              ('blackrock_ivv', 'https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appType=PRODUCT_PAGE&appSubType=ISHARES&targetSite=us-ishares&locale=en_US&portfolioId=239726&component=fundDownload&userType=individual'))
+
+
+def build_sonda():
+    out = {'at': NOW, 'r': {}}
+    for name, url in SONDA_URLS:
+        t0 = time.monotonic()
+        try:
+            b = get_bytes(url, timeout=90)
+            out['r'][name] = {'ok': True, 'bytes': len(b), 'head': b[:40].decode('latin-1', 'replace'), 's': round(time.monotonic() - t0, 1)}
+        except urllib.error.HTTPError as e:
+            out['r'][name] = {'ok': False, 'http': e.code, 's': round(time.monotonic() - t0, 1)}
+        except Exception as e:
+            out['r'][name] = {'ok': False, 'err': str(e)[:200], 's': round(time.monotonic() - t0, 1)}
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -3934,6 +3955,15 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'instytucje: {e}')); META['ok']['instytucje'] = False
             if prev_inst: save('instytucje', prev_inst); print('źródła urzędowe zawiodły — zachowano poprzedni instytucje.json z', prev_inst.get('at'))
+    # v89.1: sonda dostępu do plików wydawców ETF (tymczasowa, własny plik, bez meta)
+    prev_so = previous('sonda')
+    if not (prev_so and fresh(prev_so, 360)):
+        try:
+            save('sonda', build_sonda())
+        except Exception as e:
+            print('sonda:', e)
+    elif prev_so:
+        save('sonda', prev_so)
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
