@@ -304,8 +304,22 @@ def g_alternatives():
 def g_onchain_public():
     usdt = "0xdac17f958d2ee523a2206206994597c13d831ec7"
     probe("blockscout", "eth_tokentx_USDT_compat", f"https://eth.blockscout.com/api?module=account&action=tokentx&contractaddress={usdt}&page=1&offset=5&sort=desc")
-    probe("publicnode", "eth_blockNumber", "https://ethereum-rpc.publicnode.com", method="POST",
-          body={"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []})
+    st, raw = probe("publicnode", "eth_blockNumber", "https://ethereum-rpc.publicnode.com", method="POST",
+                    body={"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []})
+    # v99: odczyt, jakiego potrzebują „wieloryby” — logi Transfer USDT do portfela giełdy (adres opublikowany przez Binance, 11.2022) z ok. 900 bloków
+    try:
+        head = int(json.loads(raw)["result"], 16) if st == 200 and raw else None
+    except Exception:
+        head = None
+    if head:
+        hot = "0x28c6c06298d514db089934071355e5743bf21d60"
+        topic = "0x" + "0" * 24 + hot[2:]
+        for host, lab in (("https://ethereum-rpc.publicnode.com", "publicnode"), ("https://eth.llamarpc.com", "llamarpc")):
+            probe(lab, "eth_getLogs_USDT_to_exchange_900", host, method="POST",
+                  body={"jsonrpc": "2.0", "id": 2, "method": "eth_getLogs", "params": [{"address": usdt, "fromBlock": hex(head - 900), "toBlock": hex(head),
+                        "topics": ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", None, topic]}]})
+            probe(lab, "eth_getBalance_exchange", host, method="POST",
+                  body={"jsonrpc": "2.0", "id": 3, "method": "eth_getBalance", "params": [hot, "latest"]})
 
 
 # --------------------------------------------------------------------------- keyed groups

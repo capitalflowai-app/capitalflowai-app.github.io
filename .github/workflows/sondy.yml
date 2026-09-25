@@ -56,4 +56,5 @@ jobs:
           python3 narzedzia/sondy.py > sondy.txt 2>&1 || true
           cat sondy.txt
           # cały wynik jako jedna adnotacja (czytelna bez logowania); znaki specjalne kodowane jak wymaga GitHub
-          python3 -c "import sys;t=open('sondy.txt',encoding='utf-8').read()[-60000:];print('::notice title=sondy::'+t.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))"
+          # adnotacja ma ok. 4 KB: najpierw podsumowanie, potem wiersze źródeł, które mają wejść do zbieracza
+          python3 -c "L=open('sondy.txt',encoding='utf-8').read().splitlines();A=[l for l in L if l.startswith('summary')];B=[l for l in L if l.split('|')[0].strip() in ('binance-vision','publicnode','llamarpc','hyperliquid','deribit') or 'env=' in l and 'SKIP' not in l and l.split('|')[0].strip() in ('etherscan','cryptopanic','tiingo','massive','eodhd','alphavantage','fmp')];t=chr(10).join(A+['--']+B);print('::notice title=sondy::'+t.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"
