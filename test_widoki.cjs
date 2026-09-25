@@ -1741,3 +1741,27 @@ test('v88: Meksyk (Banxico): blok, zmiany, stan, linia regionu Ameryka Łacińsk
   for (const l of ['pl', 'en']) for (const k of ['mx.t', 'mx.sub', 'mx.d', 'mx.d.n', 'mx.lv', 'mx.lv.n', 'mx.not', 'mx.src', 'mx.reg.v', 'fo.mex', 'g.hs.bmx', 'src.l.bmx', 'fo.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['fo.sub'].includes('Wyjątki: wiersz Polski z Ministerstwa Finansów i wiersz Meksyku'));
 });
+
+// v88.1: Meksyk — podział na rodzaje papierów (Bonos M, Cetes, Udibonos, reszta), liczba USD przy zmianie 20 sesji, opisy po przeglądzie
+test('v88.1: Meksyk (Banxico): rodzaje papierów, reszta do całości, brak = „—”, opisy', () => {
+  const a0 = html.indexOf('/* v88: Meksyk — Banco de México (plik serwera'), a1 = html.indexOf('const KOR={data:null};', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instRow', 'instFoot', 'nfmt', 'escH', 'engDate', 'bopMld', 'zagSes', html.slice(a0, a1) + '\nreturn {mxHtml, mxLast, mxI};')(
+    T, () => {}, () => {}, (l, v, x, n) => `[${l}|${v}|${n}]`, s => 'F' + s, (v, d) => v.toFixed(d), s => s, s => s,
+    v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—', n => n === 1 ? 'sesja' : 'sesji');
+  const day = i => { const x = new Date(Date.UTC(2026, 7, 1) + i * 864e5); return x.toISOString().slice(0, 10); };
+  const d = [['2025-12-31', 1739824.42, 15210747.57, 1400000, 250000, 60000]].concat(Array.from({length: 21}, (_, i) => [day(i), 1800000, 16000000, 1500000, 210000, 50000]));
+  d.push(['2026-09-14', 1788646.44, 16097115.95, 1512900, 202500, 46000]);
+  const M = {at: 'x', d, fx: [17.11, '2026-09-11']}, h = f.mxHtml(M);
+  assert.ok(h.includes('<tr><td><span class="cell">mx.i.bon</span></td><td><span class="cell mono">1512.9</span></td><td><span class="cell mono">84.6%</span></td><td><span class="cell mono">+12.9</span></td><td><span class="cell mono">+112.9</span></td></tr>'), h);
+  assert.ok(h.includes('<tr><td><span class="cell">mx.i.oth</span></td><td><span class="cell mono">27.2</span></td>'), 'reszta = całość − trzy rodzaje');
+  assert.ok(h.includes('mx.c.dn{"n":20,"w":"sesji"}') && h.includes('mx.c.dy{"y":"2025"}'));
+  d[d.length - 1][4] = null; const h2 = f.mxHtml(M);
+  assert.ok(h2.includes('<tr><td><span class="cell">mx.i.oth</span></td><td><span class="cell mono">—</span></td>'), 'brak Cetes — reszta to brak, nie zero');
+  assert.equal(f.mxHtml({at: 'x', d: [['2026-09-14', 1788646.44, 16097115.95]]}).includes('mx.tab'), false, 'stary plik bez rodzajów — bez tabeli');
+  const a = 'const EXTRA79=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(dict.pl['mx.d.n'].startsWith('do {d}{u} ·') && dict.en['mx.d.n'].startsWith('to {d}{u} ·'), 'USD przy zmianie 20 sesji, nie przy „od końca roku”');
+  assert.ok(dict.pl['mx.not'].includes('repo') && dict.pl['mx.not'].includes('instytucji przechowującej') && dict.pl['mx.not'].includes('IPAB'));
+  assert.ok(dict.pl['inst.sub'].includes('meksykańskich papierów rządowych') && dict.pl['fo.sub'].includes('skarbowych (rządowych)'));
+  assert.ok(html.includes('banki centralne Brazylii, Meksyku i Turcji') && html.includes('kursem Fed z dnia danych (H.10, przez FRED)'));
+});

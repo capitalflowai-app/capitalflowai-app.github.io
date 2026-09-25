@@ -2847,7 +2847,8 @@ def build_spw():
 import urllib.parse
 BMX_URL = 'https://www.banxico.org.mx/SieInternet/consultarDirectorioInternetAction.do?accion=consultarSeries'
 BMX_PAGE = 'https://www.banxico.org.mx/SieInternet/consultarDirectorioInternetAction.do?accion=consultarCuadroAnalitico&idCuadro=CA138&sector=7&locale=es'
-BMX_SER = (('ext', 'SF65218'), ('tot', 'SF65219'))    # Residentes en el Extranjero (II); Total en Circulación (I + II)
+BMX_SER = (('ext', 'SF65218'), ('tot', 'SF65219'),    # Residentes en el Extranjero (II); Total en Circulación (I + II)
+           ('bon', 'SF65137'), ('cet', 'SF65046'), ('udi', 'SF65107'), ('udv', 'SP68257'))   # v88.1: Bonos M, Cetes, Udibonos (mln UDI), wartość UDI
 MX_KEEP = 270      # ok. 13 miesięcy sesji
 MX_STALE = 21      # dni bez nowego dnia (zwykłe opóźnienie ok. 1,5 tygodnia) = błąd
 
@@ -2860,8 +2861,9 @@ def post_bytes(url, form, timeout=90):
 
 
 def parse_bmx(text):
-    """CSV z SIE → [[data, nierezydenci, razem w obiegu]] mln MXN, rosnąco; kolumny po kodach serii z wiersza „Fecha”;
-    puste albo „N/E” = brak (nie zero); dzień bez nierezydentów pominięty."""
+    """CSV z SIE → [[data, nierezydenci, razem w obiegu, Bonos M, Cetes, Udibonos w pesos]] mln MXN, rosnąco; kolumny po kodach serii
+    z wiersza „Fecha”; puste albo „N/E” = brak (nie zero); dzień bez nierezydentów pominięty (np. dni z samą wartością UDI);
+    v88.1: Udibonos (mln UDI) × wartość UDI z tego dnia = mln MXN."""
     rows = list(csv.reader(io.StringIO(text)))
     head = next((r for r in rows if r and r[0].strip() == 'Fecha'), None)
     if not head:
@@ -2877,31 +2879,36 @@ def parse_bmx(text):
         v = {k: (_num(r[i]) if i < len(r) and r[i].strip() not in ('', 'N/E') else None) for k, i in col.items()}
         if v.get('ext') is None:
             continue
-        out[f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = [v.get('ext'), v.get('tot')]
+        udi = round(v['udi'] * v['udv'], 2) if v.get('udi') is not None and v.get('udv') is not None else None
+        out[f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = [v.get('ext'), v.get('tot'), v.get('bon'), v.get('cet'), udi]
     if not out:
         raise RuntimeError('brak dni')
     return [[k] + out[k] for k in sorted(out)]
 
 
 def build_meksyk(key):
-    """data/meksyk.json — d: [[data, nierezydenci, razem w obiegu]] mln MXN nominalnie (270 sesji); fx: [kurs MXN/USD, dzień kursu] (Fed)."""
+    """data/meksyk.json — d: [[data, nierezydenci, razem w obiegu, Bonos M, Cetes, Udibonos]] mln MXN nominalnie (270 sesji);
+    fx: [kurs MXN/USD, dzień kursu] (Fed, z dnia danych albo najbliższego wcześniejszego)."""
     now = _now_utc().date()
     form = {'locale': 'es', 'idCuadro': 'CA138', 'sector': '7', 'version': '3', 'series': [c for _, c in BMX_SER],
-            'anoInicial': str(now.year - 1), 'anoFinal': str(now.year), 'tipoInformacion': '4,1', 'formatoHorizontal': 'false',
+            'anoInicial': str(now.year - 2), 'anoFinal': str(now.year),    # v88.1: w styczniu też jest koniec poprzedniego roku 'tipoInformacion': '4,1', 'formatoHorizontal': 'false',
             'metadatosWeb': 'true', 'formatoCSV.x': '10', 'formatoCSV.y': '10'}
     d = parse_bmx(post_bytes(BMX_URL, form).decode('latin-1'))[-MX_KEEP:]
     bad = [r[0] for r in d if not 1e5 < r[1] < 1e8 or (r[2] is not None and not r[1] < r[2] < 1e9)]   # 0,1–100 bln MXN; mniej niż całość
     if bad:
         raise RuntimeError(f'skala niezgodna ({bad[-1]})')
+    over = [r[0] for r in d[-30:] if None not in r[3:6] and r[3] + r[4] + r[5] > r[1] + 1]
+    if over:
+        META['notes'].append('Banxico: Bonos M + Cetes + Udibonos większe niż całość u nierezydentów w dniach: ' + ', '.join(over))
     out = {'at': NOW, 'src': 'Banco de México — SIE, Valores gubernamentales: tenencia de Residentes en el Extranjero (SF65218), Total en circulación (SF65219)',
-           'url': BMX_PAGE, 'unit': 'mln MXN, wartość nominalna (rejestry INDEVAL, podlegają poprawkom)', 'cols': ['data', 'nierezydenci', 'razem w obiegu'],
+           'url': BMX_PAGE, 'unit': 'mln MXN, wartość nominalna (rejestry INDEVAL, podlegają poprawkom)', 'cols': ['data', 'nierezydenci', 'razem w obiegu', 'Bonos M', 'Cetes', 'Udibonos (w pesos)'],
            'asof': d[-1][0], 'd': d}
     if key:
         try:
             rates = fred_rates(key, 'DEXMXUS')
-            if rates:
-                rd = max(rates)
-                out['fx'] = [rates[rd], rd]
+            rd, rt = _rate_for(rates, d[-1][0])        # v88.1: kurs z dnia danych albo najbliższego wcześniejszego (jak w przypisie przeglądu)
+            if rt:
+                out['fx'] = [rt, rd]
         except Exception as e:
             META['errors'].append(mask(f'Banxico kurs FRED DEXMXUS: {e}'))
     if (now - datetime.date.fromisoformat(d[-1][0])).days > MX_STALE:

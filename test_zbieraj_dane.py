@@ -3075,17 +3075,24 @@ class PolskaV87(unittest.TestCase):
             self.run_(page='<a href="/attachment/x">inne</a>')
 
 class MeksykV88(unittest.TestCase):
-    """v88: Banxico — kolumny po kodach serii, „N/E” = brak, POST bez tokenu, ≈ USD kursem Fed, kontrole skali i świeżości."""
+    """v88 / v88.1: Banxico — kolumny po kodach serii, „N/E” = brak, POST bez tokenu, rodzaje papierów (Udibonos × UDI),
+    ≈ USD kursem Fed z dnia danych, kontrole skali i świeżości."""
     CSV = ('\r\n"Banco de México"\r\n\r\n"Valores en circulación"\r\n\r\n"Título","GUBERNAMENTAL, Total en Circulación (I + II)","GUBERNAMENTAL, Residentes en el Extranjero (II)"\r\n'
            '"Periodicidad","Diaria","Diaria"\r\n"Fecha","SF65219","SF65218"\r\n"11/09/2026","16096101.67","1789166.23"\r\n'
            '"14/09/2026","16097115.95","1788646.44"\r\n"10/09/2026","16090000.00","N/E"\r\n"12/09/2026","",""\r\n')
+    CSV2 = ('"Fecha","SF65218","SF65219","SF65137","SF65046","SF65107","SP68257"\r\n'
+            '"14/09/2026","1788646.44","16097115.95","1512900.00","202500.00","5200.00","8.84"\r\n'
+            '"15/09/2026","N/E","N/E","N/E","N/E","N/E","8.845"\r\n')
 
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
 
-    def test_parse_by_codes_and_gaps(self):
+    def test_parse_by_codes_gaps_and_instruments(self):
         out = zd.parse_bmx(self.CSV)
-        self.assertEqual(out, [['2026-09-11', 1789166.23, 16096101.67], ['2026-09-14', 1788646.44, 16097115.95]], 'po kodach, nie po kolejności; N/E i puste = brak dnia')
+        self.assertEqual(out, [['2026-09-11', 1789166.23, 16096101.67, None, None, None], ['2026-09-14', 1788646.44, 16097115.95, None, None, None]],
+                         'po kodach, nie po kolejności; N/E i puste = brak dnia; bez serii rodzajów — brak, nie zero')
+        out2 = zd.parse_bmx(self.CSV2)
+        self.assertEqual(out2, [['2026-09-14', 1788646.44, 16097115.95, 1512900.0, 202500.0, round(5200.0 * 8.84, 2)]], 'Udibonos: mln UDI × wartość UDI; dzień z samą UDI pominięty')
         with self.assertRaises(RuntimeError):
             zd.parse_bmx('"Fecha","SF65219"\r\n"14/09/2026","1"\r\n')
 
@@ -3097,17 +3104,18 @@ class MeksykV88(unittest.TestCase):
 
         def gj(url, headers=None):
             assert 'DEXMXUS' in url, url
-            return {'observations': [{'date': '2026-09-18', 'value': '18.25'}, {'date': '2026-09-17', 'value': '.'}]}
+            return {'observations': [{'date': '2026-09-18', 'value': '18.25'}, {'date': '2026-09-11', 'value': '17.11'}, {'date': '2026-09-17', 'value': '.'}]}
         with mock.patch.object(zd, 'post_bytes', pb), mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: now):
             return zd.build_meksyk(key), seen
 
     def test_build_form_fx_scale_and_stale(self):
         out, seen = self.run_(self.CSV)
         url, form = seen[0]
-        self.assertEqual(url, zd.BMX_URL); self.assertEqual(form['series'], ['SF65218', 'SF65219']); self.assertEqual(form['anoInicial'], '2025')
-        self.assertIn('formatoCSV.x', form); self.assertNotIn('token', json.dumps(form).lower())
-        self.assertEqual(out['asof'], '2026-09-14'); self.assertEqual(out['fx'], [18.25, '2026-09-18']); self.assertEqual(out['url'], zd.BMX_PAGE)
-        self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(url, zd.BMX_URL); self.assertEqual(form['series'], ['SF65218', 'SF65219', 'SF65137', 'SF65046', 'SF65107', 'SP68257'])
+        self.assertEqual(form['anoInicial'], '2024', 'dwa lata wstecz — w styczniu też jest koniec roku'); self.assertIn('formatoCSV.x', form)
+        self.assertNotIn('token', json.dumps(form).lower())
+        self.assertEqual(out['asof'], '2026-09-14'); self.assertEqual(out['fx'], [17.11, '2026-09-11'], 'kurs z dnia danych albo wcześniejszego, nie najnowszy')
+        self.assertEqual(out['url'], zd.BMX_PAGE); self.assertEqual(zd.META['errors'], [])
         out2, _ = self.run_(self.CSV, key='')
         self.assertNotIn('fx', out2, 'bez klucza — bez przeliczenia, nie zero')
         with self.assertRaises(RuntimeError):
@@ -3117,7 +3125,9 @@ class MeksykV88(unittest.TestCase):
         zd.META['errors'].clear()
         self.run_(self.CSV, now=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=datetime.timezone.utc))
         self.assertIn('Banxico: brak nowego dnia po 2026-09-14', zd.META['errors'])
-
+        zd.META['notes'].clear()
+        self.run_(self.CSV2.replace('"1512900.00"', '"1712900.00"'))
+        self.assertTrue(any(n.startswith('Banxico: Bonos M + Cetes + Udibonos większe niż całość') for n in zd.META['notes']), zd.META['notes'])
 
 if __name__ == '__main__':
     unittest.main()
