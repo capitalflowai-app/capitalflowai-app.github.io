@@ -1295,3 +1295,33 @@ test('v70: bilans płatniczy: sumy tylko z kompletu, ranking, starszy kwartał w
   const x0 = html.indexOf('const EXTRA58='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA58='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['bil.t', 'bil.sub', 'bil.c.t4', 'bil.more', 'bil.foot', 'bil.not', 'bil.src', 'bil.reg', 'bil.reg.v', 'g.hs.bilans']) assert.ok(dict[l][k], l + ' ' + k);
 });
+
+// v71: Brazylia — dolary przez rynek walutowy (BCB); brak = „—”; wiersz regionu Ameryka Łacińska; podpięcie źródła
+test('v71: blok BCB: kapitał, handel, razem, sumy tylko z kompletu, wiersz regionu, podpięcie', () => {
+  const a0 = html.indexOf('function brBlock(){'), a1 = html.indexOf('/* v59: MFW COFER', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const ZAG = {data: null};
+  const zagNum = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  const zagSum = (d, i, n) => { if (d.length < n) return null; let s = 0; for (const r of d.slice(-n)) { const v = zagNum(r[i]); if (v == null) return null; s += v; } return s; };
+  const zagPart = k => { const p = ZAG.data && ZAG.data[k]; return (p && Array.isArray(p.d) && p.d.length) ? p : null; };
+  const f = new Function('t', 'ZAG', 'zagPart', 'zagNum', 'zagSum', 'zagM', 'zagSes', 'instRow', 'instFoot', 'engDate', 'nfmt', html.slice(a0, a1) + '\nreturn {brBlock, brRegion};')(
+    T, ZAG, zagPart, zagNum, zagSum, v => v == null ? '—' : String(Math.round(v * 100) / 100), n => n === 1 ? 'session' : 'sessions',
+    (l, v, x, n) => `[${l}|${v}|${n}]`, s => s, s => s, (v, d) => v.toFixed(d));
+  assert.equal(f.brBlock(), ''); assert.equal(f.brRegion('lat'), '');
+  const days = Array.from({length: 22}, (_, i) => ['2026-08-' + String(10 + i).padStart(2, '0'), 10, 20, 10, 1, 11]);
+  days[21] = ['2026-09-18', -330.4, 2955.74, 3286.14, null, -392.5];
+  ZAG.data = {at: 'x', br: {at: 'y', d: days}};
+  const h = f.brBlock();
+  assert.ok(h.includes('[br.fin|-330.4 inst.mln.usd|br.fin.bs{"b":"2956","s":"3286"} · ob.day 2026-09-18 · br.s5{"v":"-290.4"} · br.sn{"n":20,"w":"sessions","v":"-140.4"}]'), h);
+  assert.ok(h.includes('[br.com|— inst.mln.usd|ob.day 2026-09-18 · br.s5{"v":"—"}'), 'brak handlu w oknie = brak sumy, nie zero');
+  assert.ok(h.includes('br.src · inst.file{"t":"y"}'));
+  const r = f.brRegion('lat');
+  assert.ok(r.includes('<dt>br.reg</dt>') && r.includes('"f":"-330.4","c":"—"') && r.includes('"f20":"-140.4","t20":"-183.5"'), r);
+  assert.equal(f.brRegion('usa'), '');
+  assert.ok(html.includes("html+=typeof brBlock==='function'?brBlock():'';") && html.includes("${typeof brRegion==='function'?brRegion(s.id):''}"));
+  assert.ok(html.includes("if(okD(j.br))gOk('obce_br');") && html.includes("obce_br:'BCB'") && html.includes('obce_br:()=>ZAG.data&&ZAG.data.br&&ZAG.data.br.at'));
+  assert.ok(html.includes("'api.bcb.gov.br','src.f.d','src.l.w',GLIVE.src.obce_br,'g.hs.bcb','obce_br']") && html.includes("['Banco Central do Brasil','https://www.bcb.gov.br']"));
+  assert.ok(html.includes('<summary><b>Banco Central do Brasil — câmbio contratado</b>'));
+  const x0 = html.indexOf('const EXTRA59='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA59='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['br.t', 'br.sub', 'br.fin', 'br.com', 'br.tot', 'br.not', 'br.src', 'br.reg', 'br.reg.v', 'g.hs.bcb']) assert.ok(dict[l][k], l + ' ' + k);
+});

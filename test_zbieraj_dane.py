@@ -2002,7 +2002,7 @@ class ObceV54(unittest.TestCase):
         self.assertEqual(tw['2026-09-24'][5:], [round(-32964.6 / 31.82, 1), '2026-09-18'])
         self.assertIn('2026-09-24', tw); self.assertIn('2026-09-23', tw)
         self.assertIn('2026-09-22', out['tw']['empty'], 'dzień bez sesji zapamiętany'); self.assertNotIn('2026-09-25', out['tw']['empty'], 'dzisiejszy brak nie jest świętem')
-        self.assertEqual({k: v for k, v in zd.META['ok'].items() if k != 'obce_hk'}, {'obce_in': True, 'obce_tw': True})
+        self.assertEqual({k: v for k, v in zd.META['ok'].items() if k not in ('obce_hk', 'obce_br')}, {'obce_in': True, 'obce_tw': True})
         self.assertFalse(any('KLUCZ' in e for e in zd.META['errors']), 'klucz nigdy w komunikatach')
 
         def boom(url, headers=None, timeout=60):
@@ -2314,6 +2314,49 @@ class BilansV70(unittest.TestCase):
             [p.stop() for p in offs]
         self.assertIs(saved['bilans'], prev); self.assertIs(zd.META['ok']['bilans'], False)
         self.assertIn('MFW bilans płatniczy: HTTP Error 503', zd.META['errors'])
+
+
+class BcbV71(unittest.TestCase):
+    """v71: BCB — dzienne przepływy dolarów przez rynek walutowy Brazylii; seria bez odpowiedzi = stare wartości / None, nie 0."""
+    DAYS = [('17/09/2026', {13970: '-1346.26818222', 13968: '2685.49075138', 13969: '4031.75893360', 13967: '-329.92553221', 13961: '-1676.19371443'}),
+            ('18/09/2026', {13970: '-330.40093998', 13968: '2955.74363009', 13969: '3286.14457007', 13967: '-62.09649291', 13961: '-392.49743289'})]
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def gj(self, broken=()):
+        self.urls = []
+
+        def f(url, headers=None):
+            self.urls.append(url)
+            sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
+            if sid in broken:
+                raise RuntimeError('HTTP Error 503')
+            return [{'data': d, 'valor': v[sid]} for d, v in self.DAYS] + [{'data': 'zła', 'valor': '1'}, {'data': '19/09/2026', 'valor': 'NaN'}]
+        return f
+
+    def test_rows_identity_and_dates(self):
+        with mock.patch.object(zd, 'get_json', self.gj()), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part(None)
+        self.assertEqual(out['d'], [['2026-09-17', -1346.27, 2685.49, 4031.76, -329.93, -1676.19], ['2026-09-18', -330.4, 2955.74, 3286.14, -62.1, -392.5]],
+                         'zły zapis daty i NaN pominięte, nigdy 0')
+        r = out['d'][-1]; self.assertAlmostEqual(r[1] + r[4], r[5], places=1)   # razem = finansowy + handlowy (tożsamość BCB)
+        self.assertEqual(out['asof'], '2026-09-18'); self.assertEqual(zd.META['errors'], [])
+        self.assertTrue(any('bcdata.sgs.13961/dados?formato=json&dataInicial=27/07/2026&dataFinal=25/09/2026' in u for u in self.urls), self.urls)
+
+    def test_failed_series_keeps_old_column_and_reports(self):
+        prev = {'d': [['2026-09-17', -1.0, 1.0, 2.0, 9.9, 8.9]]}
+        with mock.patch.object(zd, 'get_json', self.gj(broken=(13967,))):
+            out = zd.bcb_part(prev)
+        rows = {r[0]: r for r in out['d']}
+        self.assertEqual(rows['2026-09-17'][4], 9.9, 'seria bez odpowiedzi: stara wartość zostaje')
+        self.assertIsNone(rows['2026-09-18'][4], 'nowy dzień bez tej serii = None, nie 0')
+        self.assertEqual(rows['2026-09-18'][1], -330.4)
+        self.assertTrue(any(e.startswith('BCB: 1 serie') for e in zd.META['errors']))
+        with mock.patch.object(zd, 'get_json', self.gj(broken=(13970, 13968, 13969, 13967, 13961))):
+            with self.assertRaises(RuntimeError):
+                zd.bcb_part(prev)   # żadnego nowego dnia: build_obce zostawi poprzednią część
 
 
 if __name__ == '__main__':

@@ -1967,19 +1967,65 @@ def hkex_part(prev_hk, key):
             'asof': d[-1][0], 'empty': sorted(empty), 'd': d}
 
 
+# v71: Banco Central do Brasil (SGS, bez klucza) — „câmbio contratado”: dzienne przepływy dolarów przez rynek walutowy Brazylii
+BCB_URL = 'https://api.bcb.gov.br/dados/serie/bcdata.sgs.{id}/dados?formato=json&dataInicial={a}&dataFinal={b}'   # „ultimos/N” ma limit 20
+BCB_SERIES = (('fin', 13970), ('fin_buy', 13968), ('fin_sell', 13969), ('com', 13967), ('tot', 13961))
+BCB_DAYS = 60     # dni kalendarzowe wstecz (ok. 40 dni roboczych)
+
+
+def _bcb_date(s):
+    m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', str(s or '').strip())
+    return f'{m.group(3)}-{m.group(2)}-{m.group(1)}' if m else None
+
+
+def bcb_part(prev_br):
+    """BCB SGS → [data, finansowy saldo, kupno, sprzedaż, handlowy saldo, razem] w mln USD. Każda seria osobno: seria bez odpowiedzi
+    zostawia stare wartości swojej kolumny, a nowe dni mają tam None (nigdy 0). Bez żadnego nowego dnia = błąd (zostaje poprzednia część)."""
+    have = {k: list(v) for k, v in _rows(prev_br).items()}
+    got, fails = {}, []
+    now_br = _now_utc() - datetime.timedelta(hours=3)
+    a, b = (now_br - datetime.timedelta(days=BCB_DAYS)).strftime('%d/%m/%Y'), now_br.strftime('%d/%m/%Y')
+    for name, sid in BCB_SERIES:
+        try:
+            j = get_json(BCB_URL.format(id=sid, a=a, b=b))
+            if not isinstance(j, list):
+                raise RuntimeError('nieznany kształt odpowiedzi')
+            for r in j:
+                d = _bcb_date(r.get('data')) if isinstance(r, dict) else None
+                v = _num(r.get('valor')) if d else None
+                if d and v is not None and v == v and abs(v) != float('inf'):
+                    got.setdefault(d, {})[name] = round(v, 2)
+        except Exception as e:
+            fails.append(f'{sid}: {e}')
+    if not got:
+        raise RuntimeError('brak dni' + (f' ({fails[0]})' if fails else ''))
+    cols = [n for n, _ in BCB_SERIES]
+    for d, vals in got.items():
+        old = have.get(d) or []
+        have[d] = [d] + [vals[c] if c in vals else (old[i + 1] if len(old) > i + 1 else None) for i, c in enumerate(cols)]
+    if fails:
+        META['errors'].append(mask(f'BCB: {len(fails)} serie bez odpowiedzi, np. {fails[0]}'))
+    d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
+    return {'at': NOW, 'src': 'Banco Central do Brasil — SGS, câmbio contratado (13961, 13967–13970)',
+            'url': 'https://www.bcb.gov.br/estatisticas/tabelaespecial', 'unit': 'mln USD',
+            'cols': ['data', 'finansowy saldo', 'finansowy kupno', 'finansowy sprzedaż', 'handlowy saldo', 'razem saldo'],
+            'asof': d[-1][0], 'd': d}
+
+
 def build_obce(key, prev=None):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
     prev = prev if isinstance(prev, dict) else {}
     out = {'at': NOW}
     for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key)),
-                     ('hk', lambda: hkex_part(prev.get('hk'), key))):   # v67: Stock Connect southbound
+                     ('hk', lambda: hkex_part(prev.get('hk'), key)),   # v67: Stock Connect southbound
+                     ('br', lambda: bcb_part(prev.get('br')))):   # v71: Brazylia — rynek walutowy (BCB)
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
         except Exception as e:
-            META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX'}[part] }: {e}")); META['ok']['obce_' + part] = False
+            META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX', 'br': 'BCB'}[part] }: {e}")); META['ok']['obce_' + part] = False
             if isinstance(prev.get(part), dict):
                 out[part] = prev[part]
-    if not any(p in out for p in ('in', 'tw', 'hk')):
+    if not any(p in out for p in ('in', 'tw', 'hk', 'br')):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
 
