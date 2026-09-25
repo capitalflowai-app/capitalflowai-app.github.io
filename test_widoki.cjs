@@ -1517,3 +1517,20 @@ test('v79: BCB bilans płatniczy: razem z trzech składników, 12 kolejnych mies
   const x0 = html.indexOf('const EXTRA67='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA67='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['br.bop', 'br.bop.split', 'br.bop.note', 'br.reg.m', 'fo.bram']) assert.ok(dict[l][k], l + ' ' + k);
 });
+
+// v80: poprawki po piątym przeglądzie — pozostałe bez banku centralnego, statusy Eurostatu, licencja Statistics Canada z datą
+test('v80: UE: kolumna pozostałych bez banku centralnego, status przy miesiącu; Kanada: formuła „Adapted from” z datą', () => {
+  const a0 = html.indexOf('const UE={data:null};'), a1 = html.indexOf('/* v78: Kanada', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'escH', 'engDate', 'instFoot', 'etfCls', 'bopMld', 'LANG', 'LOCALE', 'ENG_DN', html.slice(a0, a1) + '\nreturn {UE, ueApply, ueHtml, ueMadd};')(
+    T, () => {}, () => {}, s => String(s), s => String(s), s => 'F' + s, () => '', v => typeof v === 'number' ? String(v) : '—', 'xx', {}, {en: {of: x => x}});
+  const S = (vals) => vals.map((v, i) => [f.ueMadd('2026-07', i - vals.length + 1), v]);
+  f.ueApply({at: 'x', order: ['PL'], rows: {PL: {m: '2026-07', f: {'2026-07': 'e'}, s: {in_p: S([1]), in_d: S([1]), in_o: S([1])}}}});
+  const h = f.ueHtml(f.UE.data);
+  assert.ok(h.includes('<th>ue.c.o</th>') && h.includes('F2026-07 · ue.f.e'), h.slice(0, 900));
+  assert.ok(html.includes("${t('kan.src',{d:l[0]})}"));
+  const x0 = html.indexOf('const EXTRA68='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA68='.length, x1));
+  for (const l of ['pl', 'en']) for (const k of ['ue.sub', 'ue.c.o', 'ue.foot', 'ue.not', 'ue.f.e', 'ue.f.p', 'fo.pol', 'kan.src', 'bil.not']) assert.ok(dict[l][k], l + ' ' + k);
+  assert.ok(dict.pl['kan.src'].includes('Adapted from Statistics Canada') && dict.pl['kan.src'].includes('{d}') && dict.pl['ue.foot'].includes('poufne'));
+  assert.ok(dict.pl['fo.pol'].includes('bez banku centralnego') && dict.pl['bil.not'].includes('TARGET2'));
+});

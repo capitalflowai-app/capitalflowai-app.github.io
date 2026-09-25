@@ -2546,7 +2546,7 @@ class EurostatUE(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             zd.parse_ue(self.js({}))
         self.assertIn('bop_item=FA__P__F&bop_item=FA__D__F&bop_item=FA__O__F&stk_flow=LIAB&stk_flow=ASS', zd.UE_URL)
-        self.assertIn('geo=PL', zd.UE_URL); self.assertIn('lastTimePeriod=13', zd.UE_URL)
+        self.assertIn('geo=PL', zd.UE_URL); self.assertIn('lastTimePeriod=24', zd.UE_URL)
 
 
 class ReviewV77(unittest.TestCase):
@@ -2597,7 +2597,7 @@ class ReviewV77(unittest.TestCase):
         self.assertEqual(out['ok'], {'in': True, 'tw': False, 'hk': True, 'br': True, 'tr': True})
         self.assertEqual(out['errs']['tw'], ['TWSE: HTTP Error 503']); self.assertTrue(out['errs']['hk'][0].startswith('HKEX: 1 dni'))
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
-        prev = dict(out, at=_iso(60))
+        prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
                           'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada')]
@@ -2680,6 +2680,76 @@ class BrazyliaBopV79(unittest.TestCase):
             out = zd.bcb_part({'m': [['2026-06', 1.0, 2.0, 1.0, 0.5, 0.5, 3.0]]})
         self.assertEqual(out['d'][-1][0], '2026-09-18'); self.assertEqual(out['m'], [['2026-06', 1.0, 2.0, 1.0, 0.5, 0.5, 3.0]], 'awaria miesięcznych — poprzednie wiersze zostają')
         self.assertTrue(any(e.startswith('BCB bilans płatniczy:') for e in zd.META['errors']))
+
+
+class ReviewV80(unittest.TestCase):
+    """v80: Eurostat — pozostałe bez banku centralnego, miesiąc z kompletem, statusy, 24 miesiące; obce — brak części = pobierz;
+    czytnik xlsx bez <rPh>; JSON-stat z indeksem jako lista."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    @staticmethod
+    def js(values, status=None, geo=('DE', 'PL'), time=('2026-06', '2026-07'), as_list=False):
+        dims = [('bop_item', ['FA__D__F', 'FA__O__F', 'FA__P__F']), ('sector10', ['S1', 'S121']), ('stk_flow', ['ASS', 'LIAB']), ('geo', list(geo)), ('time', list(time))]
+        cat = lambda v: v if as_list else {k: i for i, k in enumerate(v)}
+        return {'id': [d for d, _ in dims], 'size': [len(v) for _, v in dims], 'dimension': {d: {'category': {'index': cat(v)}} for d, v in dims},
+                'value': values, 'status': status or {}}
+
+    @staticmethod
+    def ix(item, sec, flow, geo, time):
+        return str((((item * 2 + sec) * 2 + flow) * 2 + geo) * 2 + time)
+
+    def test_other_without_central_bank_full_month_and_flags(self):
+        ix = self.ix
+        v = {ix(2, 0, 1, 1, 1): 2422.2, ix(0, 0, 1, 1, 1): 509.5, ix(1, 0, 1, 1, 1): 7517.0, ix(1, 1, 1, 1, 1): 6834.0,   # PL 07: portfelowe, bezpośrednie, pozostałe S1 i S121
+             ix(2, 0, 1, 1, 0): 100.0, ix(0, 0, 1, 1, 0): 50.0, ix(1, 0, 1, 1, 0): 999.0,                                   # PL 06: pozostałe bez S121
+             ix(2, 0, 1, 0, 1): 42440.0, ix(2, 0, 1, 0, 0): 50.0}                                                          # DE: miesiąc bliski zera jest dozwolony
+        out = zd.parse_ue(self.js(v, status={ix(2, 0, 1, 1, 1): 'e', ix(1, 1, 1, 1, 1): '|C'}))
+        pl = out['rows']['PL']
+        self.assertEqual(pl['s']['in_o'], [['2026-07', 683.0]], 'pozostałe bez banku centralnego; czerwiec bez S121 = brak, nie suma z TARGET2')
+        self.assertEqual(pl['m'], '2026-07'); self.assertEqual(pl['f'], {'2026-07': 'e'})
+        self.assertEqual(out['rows']['DE']['m'], '2026-07', 'bez kompletu — ostatni miesiąc z czymkolwiek')
+        out2 = zd.parse_ue(self.js(v, as_list=True)); self.assertEqual(out2['rows']['PL']['s']['in_o'], [['2026-07', 683.0]], 'indeks kategorii jako lista')
+        self.assertIn('sector10=S1&sector10=S121', zd.UE_URL); self.assertIn('lastTimePeriod=24', zd.UE_URL)
+        with self.assertRaises(RuntimeError):
+            zd.parse_ue(self.js({ix(2, 0, 1, 0, 1): 42.4, ix(2, 0, 1, 0, 0): 30.0}))   # skala: całe Niemcy poniżej 100 mln
+
+    def test_latest_complete_month_wins(self):
+        ix = self.ix
+        v = {ix(2, 0, 1, 1, 0): 1.0, ix(0, 0, 1, 1, 0): 1.0, ix(1, 0, 1, 1, 0): 3.0, ix(1, 1, 1, 1, 0): 1.0, ix(2, 0, 1, 1, 1): 5.0,
+             ix(2, 0, 1, 0, 1): 42440.0}
+        self.assertEqual(zd.parse_ue(self.js(v))['rows']['PL']['m'], '2026-06', 'lipiec bez kompletu — czerwiec z kompletem')
+
+    def test_obce_missing_part_forces_rebuild(self):
+        prev = {'at': _iso(30), 'in': {'d': [['2026-09-24', 1.0]]}, 'tw': {'d': []}, 'hk': {'d': []}}
+        new = {'at': zd.NOW, 'in': {}, 'tw': {}, 'hk': {}, 'br': {}, 'tr': {}}
+        saved = {}
+        offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
+                for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada')]
+        [p.start() for p in offs]
+        try:
+            with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                    mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), \
+                    mock.patch.object(zd, 'previous', lambda name: prev if name == 'obce' else None), \
+                    mock.patch.object(zd, 'build_obce', return_value=new):
+                zd.main()
+        finally:
+            [p.stop() for p in offs]
+        self.assertIs(saved['obce'], new, 'brakuje części br i tr — pobieramy od nowa, choć plik jest świeży'); self.assertIs(zd.META['ok']['obce'], True)
+
+    def test_xlsx_phonetic_runs_skipped(self):
+        book = ReviewV77.book(ReviewV77(), '<row r="1"><c r="A1" t="s"><v>0</v></c></row>')
+        import io, zipfile
+        src = zipfile.ZipFile(io.BytesIO(book)); buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as z:
+            for n in src.namelist():
+                data = src.read(n)
+                if n == 'xl/sharedStrings.xml':
+                    data = data.replace(b'<si><t>Item</t></si>', b'<si><r><t>Kanji</t></r><rPh sb="0" eb="1"><t>kana</t></rPh></si>')
+                z.writestr(n, data)
+        self.assertEqual(zd._xlsx_rows(buf.getvalue(), 'A & B'), {1: {1: 'Kanji'}})
 
 
 if __name__ == '__main__':

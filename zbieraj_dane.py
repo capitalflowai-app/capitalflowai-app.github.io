@@ -2321,7 +2321,11 @@ def _xlsx_rows(data, sheet):
     z = zipfile.ZipFile(io.BytesIO(data))
     names = set(z.namelist())
     loc = lambda tag: str(tag).rsplit('}', 1)[-1]
-    text = lambda el: ''.join(x.text or '' for x in el.iter() if loc(x.tag) == 't')
+    def text(el):   # v80: tekst elementu bez podpowiedzi fonetycznych (<rPh>)
+        if loc(el.tag) == 'rPh':
+            return ''
+        own = (el.text or '') if loc(el.tag) == 't' else ''
+        return own + ''.join(text(c) for c in el)
     strs = []
     if 'xl/sharedStrings.xml' in names:
         strs = [text(si) for si in ET.fromstring(z.read('xl/sharedStrings.xml')) if loc(si.tag) == 'si']
@@ -2455,61 +2459,100 @@ UE_GEO = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR'
 UE_KEYS = {('FA__P__F', 'LIAB'): 'in_p', ('FA__D__F', 'LIAB'): 'in_d', ('FA__O__F', 'LIAB'): 'in_o',
            ('FA__P__F', 'ASS'): 'out_p', ('FA__D__F', 'ASS'): 'out_d', ('FA__O__F', 'ASS'): 'out_o'}
 UE_URL = ('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/bop_c6_m?format=JSON&lang=EN&currency=MIO_EUR'
-          '&partner=WRL_REST&sector10=S1&sectpart=S1&lastTimePeriod=13&' + '&'.join('geo=' + g for g in UE_GEO)
+          '&partner=WRL_REST&sector10=S1&sector10=S121&sectpart=S1&lastTimePeriod=24&' + '&'.join('geo=' + g for g in UE_GEO)
           + '&bop_item=FA__P__F&bop_item=FA__D__F&bop_item=FA__O__F&stk_flow=LIAB&stk_flow=ASS')
 
 
 def parse_jsonstat(j):
-    """JSON-stat 2.0 (Eurostat) → {(kod wymiaru 1, 2, …): wartość}; indeks płaski = wiersz po wymiarach w kolejności 'id'."""
+    """JSON-stat 2.0 (Eurostat) → ({(kod wymiaru 1, 2, …): wartość}, id wymiarów, {(…): litery statusu}); indeks płaski = wiersz po
+    wymiarach w kolejności 'id'; indeks kategorii jako obiekt albo lista (v80); status np. 'e' szacunek, 'p' wstępne (poufne bez wartości)."""
     try:
         ids, size = j['id'], j['size']
-        keys = [sorted(j['dimension'][d]['category']['index'].items(), key=lambda kv: kv[1]) for d in ids]
-        keys = [[k for k, _ in kv] for kv in keys]
+        keys = []
+        for d in ids:
+            idx = j['dimension'][d]['category']['index']
+            if isinstance(idx, list):
+                idx = {k: i for i, k in enumerate(idx)}
+            keys.append([k for k, _ in sorted(idx.items(), key=lambda kv: kv[1])])
         vals = j.get('value') or {}
-    except (KeyError, TypeError) as e:
+        stat = j.get('status') or {}
+    except (KeyError, TypeError, AttributeError) as e:
         raise RuntimeError(f'nieznany kształt odpowiedzi ({e})')
     if isinstance(vals, list):
         vals = {str(i): v for i, v in enumerate(vals) if v is not None}
-    out = {}
+    if isinstance(stat, list):
+        stat = {str(i): v for i, v in enumerate(stat) if v}
+
+    def lab(flat):
+        i, out = int(flat), []
+        for s, ks in zip(reversed(size), reversed(keys)):
+            out.append(ks[i % s]); i //= s
+        return tuple(reversed(out))
+    out, flags = {}, {}
     for flat, v in vals.items():
         try:
-            i = int(flat)
-        except ValueError:
+            k = lab(flat)
+        except (ValueError, IndexError):
             continue
-        lab = []
-        for s, ks in zip(reversed(size), reversed(keys)):
-            lab.append(ks[i % s]); i //= s
         x = _num(v)
         if x is not None and x == x:
-            out[tuple(reversed(lab))] = x
+            out[k] = x
+            f = ''.join(ch for ch in str(stat.get(flat, '')).split('|')[0] if ch in 'ep')
+            if f:
+                flags[k] = f
     if not out:
         raise RuntimeError('brak wartości')
-    return out, ids
+    return out, ids, flags
 
 
 def parse_ue(j):
-    """bop_c6_m → {kraj: {'m': ostatni miesiąc z napływem, 's': {klucz: [[YYYY-MM, mln EUR]]}}}; brak = brak (nigdy 0)."""
-    vals, ids = parse_jsonstat(j)
+    """bop_c6_m → {kraj: {'m': ostatni miesiąc z kompletem składników, 's': {klucz: [[YYYY-MM, mln EUR]]}, 'f': {YYYY-MM: 'e'|'p'}}}.
+    v80: „pozostałe” bez banku centralnego (S1 minus S121, tylko gdy są obie wartości; bez S121 = brak, nigdy suma z TARGET2)."""
+    vals, ids, flags = parse_jsonstat(j)
     pos = {d: i for i, d in enumerate(ids)}
-    rows = {}
+    rows, cb, fl = {}, {}, {}
     for lab, v in vals.items():
-        k = UE_KEYS.get((lab[pos['bop_item']], lab[pos['stk_flow']]))
-        g, m = lab[pos['geo']], lab[pos['time']]
-        if k and g in UE_GEO and re.match(r'^\d{4}-\d{2}$', m):
-            rows.setdefault(g, {}).setdefault(k, []).append([m, round(v, 1)])
+        item, flow, g, m = lab[pos['bop_item']], lab[pos['stk_flow']], lab[pos['geo']], lab[pos['time']]
+        sec = lab[pos['sector10']] if 'sector10' in pos else 'S1'
+        if g not in UE_GEO or not re.match(r'^\d{4}-\d{2}$', m):
+            continue
+        k = UE_KEYS.get((item, flow))
+        if not k:
+            continue
+        if sec == 'S121':
+            if item == 'FA__O__F':
+                cb.setdefault(g, {}).setdefault(k, {})[m] = v
+            continue
+        if sec != 'S1':
+            continue
+        rows.setdefault(g, {}).setdefault(k, {})[m] = v
+        if lab in flags and k.startswith('in_'):
+            fl.setdefault(g, {})[m] = ''.join(sorted(set(fl.get(g, {}).get(m, '') + flags[lab])))
     out = {}
     for g in UE_GEO:
-        s = {k: sorted(x) for k, x in (rows.get(g) or {}).items()}
-        ms = [x[-1][0] for k, x in s.items() if k.startswith('in_') and x]
-        if ms:
-            out[g] = {'m': max(ms), 's': s}
+        s0 = rows.get(g) or {}
+        s = {}
+        for k, series in s0.items():
+            if k.endswith('_o'):   # pozostałe bez banku centralnego
+                c = (cb.get(g) or {}).get(k) or {}
+                series = {m: v - c[m] for m, v in series.items() if m in c}
+            if series:
+                s[k] = [[m, round(v, 1)] for m, v in sorted(series.items())]
+        have = lambda k: {m for m, _ in s.get(k, [])}
+        full = have('in_p') & have('in_d') & have('in_o')
+        anym = have('in_p') | have('in_d') | have('in_o')
+        if anym:
+            out[g] = {'m': max(full) if full else max(anym), 's': s}
+            if fl.get(g):
+                out[g]['f'] = fl[g]
     if not out:
         raise RuntimeError('żaden kraj z napływem kapitału')
-    de = (out.get('DE') or {}).get('s', {}).get('in_p')
-    if de and not 100 <= abs(de[-1][1]) <= 1e6:
-        raise RuntimeError(f'skala niezgodna (Niemcy, napływ portfelowy {de[-1][1]} mln EUR)')
+    de = [abs(v) for _, v in ((out.get('DE') or {}).get('s', {}).get('in_p') or [])]
+    if de and not 100 <= max(de) <= 1e6:
+        raise RuntimeError(f'skala niezgodna (Niemcy, napływ portfelowy do {max(de)} mln EUR)')
     return {'src': 'Eurostat, Balance of payments by country — monthly data (BPM6), bop_c6_m', 'url': 'https://ec.europa.eu/eurostat/databrowser/view/bop_c6_m/default/table',
-            'unit': 'mln EUR, transakcje w miesiącu; in_* = napływ kapitału z zagranicy (pasywa), out_* = kapitał mieszkańców za granicę (aktywa); p portfelowe, d bezpośrednie, o pozostałe',
+            'unit': 'mln EUR, transakcje w miesiącu; in_* = napływ kapitału z zagranicy (pasywa), out_* = kapitał mieszkańców za granicę (aktywa); '
+                    'p portfelowe, d bezpośrednie, o pozostałe bez banku centralnego (S1 − S121); f = status Eurostatu (e szacunek, p wstępne)',
             'asof_max': max(r['m'] for r in out.values()), 'order': [g for g in UE_GEO if g in out], 'rows': out}
 
 
@@ -2838,7 +2881,10 @@ def main():
             if prev_k: save('kursy', prev_k)
     # OBCE — zmierzone dzienne przepływy inwestorów zagranicznych (NSDL Indie, TWSE Tajwan): najwyżej co 3 h
     prev_o = previous('obce')
-    if prev_o and fresh(prev_o, 180):
+    pok = (prev_o or {}).get('ok') or {}   # v80: brak oczekiwanej części = pobierz od nowa; część z błędem — ponów po 60 min
+    miss = [p for p in ('in', 'tw', 'hk', 'br', 'tr') if prev_o and p not in prev_o and pok.get(p) is not False]
+    retry = [p for p, st in pok.items() if st is False]
+    if prev_o and fresh(prev_o, 180) and not miss and not (retry and not fresh(prev_o, 60)):
         save('obce', prev_o); META['ok']['obce'] = 'cached'
         for p, st in (prev_o.get('ok') or {}).items():   # v77: stan części z ostatniego pełnego pobrania (błąd zostaje widoczny)
             META['ok']['obce_' + p] = 'cached' if st is True else st
