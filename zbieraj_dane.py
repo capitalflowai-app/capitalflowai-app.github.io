@@ -1839,18 +1839,111 @@ def twse_part(prev_tw, key):
             'asof': d[-1][0], 'empty': sorted(empty), 'd': d}
 
 
+# v67: HKEX Stock Connect — dzienne kupno i sprzedaż akcji w Hongkongu przez inwestorów z Chin kontynentalnych (southbound)
+HKEX_URL = 'https://www.hkex.com.hk/eng/csm/DailyStat/data_tab_daily_{d}e.js'
+HKEX_SLEEP = 1.0
+
+
+def parse_hkex(text):
+    """Plik dzienny HKEX (JS `tabData = [...]`) → [data, netto, kupno, sprzedaż, liczba rynków] w mln HKD (Szanghaj + Shenzhen
+    → Hongkong); dzień bez sesji albo bez kupna/sprzedaży → None. Northbound od 2024 bez podziału na kupno i sprzedaż — pomijamy."""
+    t = str(text)
+    try:
+        j = json.loads(t[t.index('['):t.rindex(']') + 1])
+    except (ValueError, json.JSONDecodeError):
+        return None
+    date, buy, sell, n = None, 0.0, 0.0, 0
+    for m in j if isinstance(j, list) else []:
+        if not isinstance(m, dict) or 'southbound' not in str(m.get('market', '')).lower() or not m.get('tradingDay'):
+            continue
+        try:
+            tb = m['content'][0]['table']; d = dict(zip(tb['schema'][0], [x['td'][0][0] for x in tb['tr']]))
+        except (KeyError, IndexError, TypeError):
+            continue
+        b, s = _num(d.get('Buy Turnover')), _num(d.get('Sell Turnover'))
+        if b is None or s is None or not re.match(r'^\d{4}-\d{2}-\d{2}$', str(m.get('date', ''))):
+            continue
+        date = m['date']; buy += b; sell += s; n += 1
+    if not n:
+        return None
+    return [date, round(buy - sell, 2), round(buy, 2), round(sell, 2), n]
+
+
+def fred_rates(key, sid):
+    """FRED — kurs dzienny (jednostek waluty za 1 USD, Fed H.10) → {data: kurs}; '.' = brak."""
+    j = get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit=60')
+    out = {}
+    for o in j.get('observations', []) if isinstance(j, dict) else []:
+        v = _num(o.get('value'))
+        if v and v > 0 and re.match(r'^\d{4}-\d{2}-\d{2}$', str(o.get('date', ''))):
+            out[o['date']] = v
+    return out
+
+
+def hkex_part(prev_hk, key):
+    prev_hk = prev_hk if isinstance(prev_hk, dict) else {}
+    have = {k: list(v) for k, v in _rows(prev_hk).items()}
+    now_hk = _now_utc() + datetime.timedelta(hours=8)
+    lim = (now_hk.date() - datetime.timedelta(days=40)).isoformat()
+    empty = {x for x in prev_hk.get('empty', []) if isinstance(x, str) and x >= lim}
+    fails = []
+    for iso in tw_dates(set(have), empty, now_hk, first=not have)[-TWSE_MAX:]:   # te same zasady dni co dla Tajwanu (UTC+8)
+        time.sleep(HKEX_SLEEP)
+        try:
+            r = parse_hkex(get_bytes(HKEX_URL.format(d=iso.replace('-', '')), timeout=30).decode('utf-8', 'replace'))
+        except urllib.error.HTTPError as e:
+            if e.code == 404 and iso < now_hk.date().isoformat():
+                empty.add(iso)      # dzień bez sesji — nie pytamy ponownie
+            elif e.code != 404:
+                fails.append(f'{iso}: HTTP {e.code}')
+            continue
+        except Exception as e:
+            fails.append(f'{iso}: {e}'); continue
+        if r is None:
+            if iso < now_hk.date().isoformat():
+                empty.add(iso)
+            continue
+        have[r[0]] = r[:5]
+    if not have:
+        raise RuntimeError('brak dni' + (f' ({fails[0]})' if fails else ''))
+    if fails:
+        META['errors'].append(mask(f'HKEX: {len(fails)} dni bez odpowiedzi, np. {fails[0]}'))
+    d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
+    rates = {}
+    if key:
+        try:
+            rates = fred_rates(key, 'DEXHKUS')
+        except Exception as e:
+            META['errors'].append(mask(f'HKEX kurs FRED DEXHKUS: {e}'))
+    old = _rows(prev_hk)
+    for r in d:
+        rd, rt = _rate_for(rates, r[0])
+        if rt and r[1] is not None:
+            r[5:] = [round(r[1] / rt, 1), rd]
+        elif r[0] in old and len(old[r[0]]) >= 7:
+            r[5:] = old[r[0]][5:7]
+        else:
+            r[5:] = [None, None]
+    return {'at': NOW, 'src': 'HKEX — Stock Connect daily statistics (Southbound: Shanghai + Shenzhen → Hong Kong)',
+            'url': 'https://www.hkex.com.hk/Mutual-Market/Stock-Connect/Statistics/Historical-Daily',
+            'unit': 'mln HKD; ≈ mln USD kursem Fed H.10 (FRED DEXHKUS)',
+            'cols': ['data', 'netto', 'kupno', 'sprzedaż', 'rynki', '≈ mln USD (netto)', 'data kursu'],
+            'asof': d[-1][0], 'empty': sorted(empty), 'd': d}
+
+
 def build_obce(key, prev=None):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
     prev = prev if isinstance(prev, dict) else {}
     out = {'at': NOW}
-    for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key))):
+    for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key)),
+                     ('hk', lambda: hkex_part(prev.get('hk'), key))):   # v67: Stock Connect southbound
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
         except Exception as e:
-            META['errors'].append(mask(f"{'NSDL' if part == 'in' else 'TWSE'}: {e}")); META['ok']['obce_' + part] = False
+            META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX'}[part] }: {e}")); META['ok']['obce_' + part] = False
             if isinstance(prev.get(part), dict):
                 out[part] = prev[part]
-    if 'in' not in out and 'tw' not in out:
+    if not any(p in out for p in ('in', 'tw', 'hk')):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
 

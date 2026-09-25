@@ -2002,7 +2002,7 @@ class ObceV54(unittest.TestCase):
         self.assertEqual(tw['2026-09-24'][5:], [round(-32964.6 / 31.82, 1), '2026-09-18'])
         self.assertIn('2026-09-24', tw); self.assertIn('2026-09-23', tw)
         self.assertIn('2026-09-22', out['tw']['empty'], 'dzień bez sesji zapamiętany'); self.assertNotIn('2026-09-25', out['tw']['empty'], 'dzisiejszy brak nie jest świętem')
-        self.assertEqual(zd.META['ok'], {'obce_in': True, 'obce_tw': True})
+        self.assertEqual({k: v for k, v in zd.META['ok'].items() if k != 'obce_hk'}, {'obce_in': True, 'obce_tw': True})
         self.assertFalse(any('KLUCZ' in e for e in zd.META['errors']), 'klucz nigdy w komunikatach')
 
         def boom(url, headers=None, timeout=60):
@@ -2179,6 +2179,38 @@ class TdHistoryV64(unittest.TestCase):
         with mock.patch.object(zd, 'get', get):
             zd.td_batch(['SPY'], 'KLUCZ', _retry=False)
         self.assertIn('outputsize=260', seen[0])
+
+
+class HkexV67(unittest.TestCase):
+    """v67: HKEX Stock Connect southbound — kupno − sprzedaż (SSE + SZSE), mln HKD; 404 w przeszłości = dzień bez sesji."""
+    JS = ('tabData = [{"id":0,"date":"2026-09-24","market":"SSE Northbound","tradingDay":1,"content":[{"table":{"schema":[["Total Turnover","DQB"]],"tr":[{"td":[["113,943.72"]]},{"td":[["999"]]}]}}]},'
+          '{"id":1,"date":"2026-09-24","market":"SSE Southbound","tradingDay":1,"content":[{"table":{"schema":[["Total Turnover","Buy Turnover","Sell Turnover"]],"tr":[{"td":[["41,143.90"]]},{"td":[["22,121.38"]]},{"td":[["19,022.52"]]}]}}]},'
+          '{"id":3,"date":"2026-09-24","market":"SZSE Southbound","tradingDay":1,"content":[{"table":{"schema":[["Total Turnover","Buy Turnover","Sell Turnover"]],"tr":[{"td":[["21,856.55"]]},{"td":[["10,828.73"]]},{"td":[["11,027.82"]]}]}}]}];')
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def test_parse_southbound_net_and_no_session(self):
+        self.assertEqual(zd.parse_hkex(self.JS), ['2026-09-24', 2899.77, 32950.11, 30050.34, 2])
+        self.assertIsNone(zd.parse_hkex(self.JS.replace('"tradingDay":1', '"tradingDay":0')), 'dzień bez sesji = brak, nie zero')
+        self.assertIsNone(zd.parse_hkex('<html>404</html>'))
+
+    def test_part_404_marks_holiday_and_converts_hkd(self):
+        def gb(url, headers=None, timeout=60):
+            d = url.split('daily_')[1][:8]
+            if d == '20260924':
+                return self.JS.encode()
+            raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+
+        def gj(url, headers=None):
+            return {'observations': [{'date': '2026-09-18', 'value': '7.8456'}]}
+        with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.hkex_part(None, 'KLUCZ')
+        self.assertEqual(out['d'][-1][:5], ['2026-09-24', 2899.77, 32950.11, 30050.34, 2])
+        self.assertEqual(out['d'][-1][5:], [round(2899.77 / 7.8456, 1), '2026-09-18'])
+        self.assertIn('2026-09-23', out['empty']); self.assertNotIn('2026-09-25', out['empty'], 'dzisiejszy brak nie jest świętem')
+        self.assertFalse(zd.META['errors'])
 
 
 if __name__ == '__main__':
