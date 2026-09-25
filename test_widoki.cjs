@@ -113,12 +113,13 @@ test('sekcja Banku Światowego ma etykiety v36 w obu językach', () => {
 test('migawka ETF pochodzi z SoSoValue, a CoinMarketCap zostaje tylko w zdaniu o usunięciu', () => {
   assert.ok(html.includes("const ETF_SNAP={asof:'2026-09-23',fetched:'2026-09-24 13:48 UTC',src:'SoSoValue',"));
   assert.ok(!html.includes('CoinMarketCap ETF Tracker'), 'migawka ETF nie pochodzi już ze strony CMC');
-  assert.ok(!html.includes("src:'CoinMarketCap'"), 'migawka: src SoSoValue');
+  const sn0 = html.indexOf('const ETF_SNAP='), snap = html.slice(sn0, html.indexOf(';\n', sn0));
+  assert.ok(sn0 > 0 && !snap.includes("src:'CoinMarketCap'"), 'migawka: src SoSoValue (v66: CoinMarketCap wolno w kafelku kapitalizacji)');
 });
 
 test('atrybucje wymagane przez dostawców są na stronie', () => {
   assert.ok(html.includes('>Data by CoinGecko</a>'));
-  assert.ok(html.includes("['Napływy ETF: SoSoValue','https://sosovalue.com']"));
+  assert.ok(html.includes("['SoSoValue','https://sosovalue.com']"), 'v66: podpis neutralny językowo');
   for (const host of ['home.treasury.gov', 'www.bundesbank.de', 'www.ecb.europa.eu', 'www.oecd.org', 'www.bis.org', 'www.worldbank.org']) {
     assert.ok(html.includes(`'https://${host}'`), host);
   }
@@ -550,7 +551,7 @@ test('v50 BIS: sekcja #bis po #tic, plik bis.json w GLOBAL, język, wiersz Źró
   assert.ok(html.indexOf("srvJSON('bis')") > html.indexOf('function gLoad(cb){'), 'w gLoad');
   assert.ok(html.includes("if(typeof renderBis==='function')renderBis();"), 'zmiana języka');
   assert.ok(html.includes("['BIS — przepływy bankowe między regionami (LBS, miara F: zmiana skorygowana o kursy)','stats.bis.org','src.f.q','src.l.q',GLIVE.src.bis2,'g.hs.bis2','bis2'],"), 'wiersz Źródła');
-  assert.ok(html.includes("['BIS Locational Banking Statistics (obliczenia własne; tłumaczenie nieoficjalne)','https://data.bis.org/topics/LBS']"), 'atrybucja');
+  assert.ok(html.includes("['BIS Locational Banking Statistics (own calculations; unofficial translation)','https://data.bis.org/topics/LBS']"), 'atrybucja');
   assert.ok(html.includes('<summary><b>BIS — przepływy bankowe między regionami</b>') && html.includes('oznaczenia tłumaczenia jako nieoficjalnego'), 'prawa');
   assert.ok(html.includes('w produkcie płatnym — że dane BIS nie podnoszą ceny'), '_fix: warunek BIS dla produktu płatnego');
   const d0 = html.indexOf('const EXTRA39='), d1 = html.indexOf(';\n', d0);
@@ -1182,4 +1183,23 @@ test('v65: msRegion — USA z TIC, Europa z bilansu płatniczego, Japonia z MOF;
   assert.ok(html.includes('${msRegion(s.id)}'));
   const x0 = html.indexOf('const EXTRA54='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA54='.length, x1));
   for (const l of ['pl', 'en']) for (const k of ['ms.t', 'ms.usa', 'ms.eur', 'ms.jpn', 'ms.note']) assert.ok(dict[l][k], l + ' ' + k);
+});
+
+// v66: jedna kapitalizacja krypto z jednego źródła; nazwy źródeł po angielsku poza polskim
+test('v66: kafelek kapitalizacji krypto z CoinMarketCap (jak panel CRYPTO), CoinGecko jako zapas; nazwy Źródeł po angielsku', () => {
+  const k0 = html.indexOf("((M=>(M&&typeof M.total_mcap==='number'"), k1 = html.indexOf("(typeof CMC!=='undefined'?CMC.data:null))", k0) + "(typeof CMC!=='undefined'?CMC.data:null))".length;
+  const expr = html.slice(k0, k1);
+  const run = (CMC, cy) => new Function('CMC', 'cy', 'return ' + expr + ';')(CMC, cy);
+  const a = run({data: {total_mcap: 2887476408334.7, mcap_chg24_pct: 0.83135, asof: '2026-09-25T00:10:59.999Z'}}, {total_market_cap: {usd: 2.9e12}, market_cap_change_percentage_24h_usd: -2.02, updated_at: 1790295334});
+  assert.equal(a.src, 'CoinMarketCap'); assert.ok(Math.abs(a.v - 2887.4764) < 1e-3); assert.equal(a.d, 0.83135); assert.equal(a.fresh, '2026-09-25');
+  const b = run({data: null}, {total_market_cap: {usd: 2.9e12}, market_cap_change_percentage_24h_usd: -2.02, updated_at: 1790295334});
+  assert.equal(b.src, 'CoinGecko', 'bez pliku CMC — zapas CoinGecko'); assert.equal(b.d, -2.02);
+  const c = run({data: {total_mcap: 1, mcap_chg24_pct: 'x', asof: ''}}, null); assert.equal(c.d, null, 'zła zmiana = brak, nie 0');
+  const s0 = html.indexOf('const SRC_EN='), s1 = html.indexOf(';\n', s0), M = JSON.parse(html.slice(s0 + 'const SRC_EN='.length, s1));
+  const rows = [...html.matchAll(/\[\s*'([^']+)','[^']*','src\.f/g)].map(m => m[1]);
+  assert.ok(rows.length >= 40); for (const n of rows) assert.ok(M[n], 'brak nazwy EN dla: ' + n);
+  for (const v of Object.values(M)) assert.ok(!/[ąćęłńóśźż]/i.test(v), 'polski znak w nazwie EN: ' + v);
+  assert.ok(html.includes("<b>${LANG==='pl'?n:(SRC_EN[n]||n)}</b>"));
+  const a0 = html.indexOf('const ATTR_LINKS='), a1 = html.indexOf(';\n', a0);
+  assert.ok(!/[ąćęłńóśźż]/i.test(html.slice(a0, a1)), 'podpisy źródeł bez polskich słów');
 });
