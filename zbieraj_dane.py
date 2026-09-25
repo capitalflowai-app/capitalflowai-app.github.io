@@ -1078,6 +1078,8 @@ CFTC_WEEK_URL = 'https://www.cftc.gov/dea/newcot/FinFutWk.txt'
 CFTC_YEAR_URL = 'https://www.cftc.gov/files/dea/history/fut_fin_txt_{}.zip'
 CFTC_HOME = 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm'
 CFTC_MARKETS = {'eur': '099741', 'btc': '133741', 'eth': '146021'}   # EURO FX, BITCOIN, ETHER CASH SETTLED — wszystkie CME
+CFTC_EXTRA = {'usd': '098662', 'jpy': '097741', 'gbp': '096742', 'chf': '092741', 'cad': '090741', 'aud': '232741', 'mxn': '095741',
+              'brl': '102741', 'ust10': '043602', 'spx': '13874A', 'msciem': '244042'}   # v68: dodatkowe rynki z tych samych plików; brak = notatka
 CFTC_WEEKS = 13
 CFTC_SPAN_DAYS = CFTC_WEEKS * 7 - 1    # historia = raporty z 90 dni przed najnowszym (bez dziur na przełomie roku)
 CFTC_KEEP_DAYS = 35                    # rynek nieobecny w obu plikach: poprzedni stan najwyżej 5 tygodni (jego data mówi, jak stary)
@@ -1132,7 +1134,7 @@ def parse_cftc_csv(text, header=None, codes=None):
     """CSV CFTC TFF → {kod rynku: {data raportu: wiersz jako dict nazwa→tekst}}.
     header=None: pierwszy wiersz to nagłówek (plik roczny FinFutYY.txt); plik tygodniowy nie ma nagłówka — podaj CFTC_COLS.
     Wiersz z inną liczbą pól niż nagłówek jest pomijany (zmiana układu pliku ⇒ brak rynku i błąd, nigdy przesunięte liczby)."""
-    codes = set(codes or CFTC_MARKETS.values())
+    codes = set(codes or list(CFTC_MARKETS.values()) + list(CFTC_EXTRA.values()))   # v68
     reader = csv.reader(io.StringIO(text))
     cols = [c.strip() for c in (header or next(reader, []))]
     need = {'Report_Date_as_YYYY-MM-DD', 'CFTC_Contract_Market_Code', 'Open_Interest_All'}
@@ -1224,7 +1226,8 @@ def build_cftc(fetch=None, today=None, prev=None):
         load_year(today.year - 1)
     fields = ['oi'] + [gk for gk, _, _ in CFTC_GROUPS]
     markets = {}
-    for key, code in CFTC_MARKETS.items():
+    notes = []   # v68: problemy dodatkowych rynków to notatki, nie błędy
+    for key, code in list(CFTC_MARKETS.items()) + list(CFTC_EXTRA.items()):
         rows = dict(hist.get(code, {}))
         rows.update(week.get(code, {}))           # ten sam tydzień: wygrywa plik tygodniowy (liczby są identyczne)
         recs = []
@@ -1233,16 +1236,18 @@ def build_cftc(fetch=None, today=None, prev=None):
             if cftc_consistent(rec):
                 recs.append(rec)
             else:
-                errors.append(f'CFTC {key} {day}: suma pozycji ≠ open interest — wiersz pominięty')
+                (errors if key in CFTC_MARKETS else notes).append(f'CFTC {key} {day}: suma pozycji ≠ open interest — wiersz pominięty')
         if recs:                                  # rok poprzedni (lub stara historia) nie może wejść do „13 tygodni” z dziurą
             last_d = _cftc_iso(recs[-1]['date'])
             recs = [x for x in recs if (last_d - _cftc_iso(x['date'])).days <= CFTC_SPAN_DAYS]
         prev_m = ((prev.get('markets') or {}).get(key) if isinstance(prev.get('markets'), dict) else None) if isinstance(prev, dict) else None
         prev_m = prev_m if isinstance(prev_m, dict) else None
         if not recs:
-            errors.append(f'CFTC {key}: brak rynku {code} w raporcie')
+            (errors if key in CFTC_MARKETS else notes).append(f'CFTC {key}: brak rynku {code} w raporcie')
             pd = _cftc_iso(prev_m.get('asof')) if prev_m else None
-            markets[key] = dict(prev_m, kept=True) if pd and 0 <= (today - pd).days <= CFTC_KEEP_DAYS else None
+            kept_m = dict(prev_m, kept=True) if pd and 0 <= (today - pd).days <= CFTC_KEEP_DAYS else None
+            if kept_m is not None or key in CFTC_MARKETS:   # v68: brakujący dodatkowy rynek w ogóle nie trafia do pliku
+                markets[key] = kept_m
             continue
         last = recs[-1]
         last_d = _cftc_iso(last['date'])
@@ -1272,6 +1277,8 @@ def build_cftc(fetch=None, today=None, prev=None):
                         'hist': h}
     for e in errors:
         META['errors'].append(mask(e))
+    for n in notes:
+        META['notes'].append(mask(n))
     live = [m for m in markets.values() if m]
     if not any(not m.get('kept') for m in live):
         raise RuntimeError('żaden rynek nie ma danych z tego pobrania (szczegóły w osobnych błędach CFTC)')

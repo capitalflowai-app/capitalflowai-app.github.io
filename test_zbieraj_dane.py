@@ -2213,5 +2213,23 @@ class HkexV67(unittest.TestCase):
         self.assertFalse(zd.META['errors'])
 
 
+class CftcExtraV68(unittest.TestCase):
+    """v68: dodatkowe rynki CFTC (jen, funt, …) z tych samych plików; brak dodatkowego rynku = notatka, nie błąd."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    def test_extra_market_parsed_and_missing_extra_is_only_a_note(self):
+        wk = _CFTC_WK.replace(',099741,', ',097741,').replace('EURO FX - CHICAGO', 'JAPANESE YEN - CHICAGO')
+        std = _cftc_std(); std[zd.CFTC_WEEK_URL] = (_CFTC_WK.rstrip('\r\n') + '\r\n' + wk).encode()
+        out = zd.build_cftc(fetch=_cftc_fetch(std), today=_CFTC_TODAY)
+        self.assertEqual(zd.META['errors'], [], 'brak pozostałych dodatkowych rynków to nie błąd')
+        jpy = out['markets']['jpy']
+        self.assertEqual((jpy['code'], jpy['asof']), ('097741', '2026-09-15')); self.assertIn('JAPANESE YEN', jpy['name'])
+        self.assertEqual(jpy['groups']['lev_funds']['net'], out['markets']['eur']['groups']['lev_funds']['net'])
+        self.assertTrue(any(n.startswith('CFTC gbp: brak rynku 096742') for n in zd.META['notes']))
+        self.assertNotIn('gbp', {k for k, v in out['markets'].items() if v})
+
+
 if __name__ == '__main__':
     unittest.main()
