@@ -3159,6 +3159,178 @@ def _etf_coin(out, s, key, prev_day=None):
         print(f'{s.upper()}: dzień {last["date"]} {a["d1"]:+.1f} mln, AUM {a["aum"]}, funduszy {len(a["funds"])}')
 
 
+# v90: FUNDUSZE ETF notowane w USA — dzienny przepływ = zmiana liczby jednostek × cena jednostki (NAV) z plików samych wydawców:
+# State Street (SPDR: pełna historia NAV i liczby jednostek w pliku xlsx) i iShares (BlackRock: zestawienie 525 funduszy z NAV
+# i aktywami z datą — aktywa / NAV = liczba jednostek; pełna historia funduszu tylko do uzupełnienia wstecz). Bez klucza.
+# Wynik: data/fundusze.json (historia do obliczeń; strona go nie czyta — liczby trafiają do TRENDÓW).
+FUND_SSGA_URL = 'https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/navhist-us-en-{t}.xlsx'
+FUND_ISH_SCR = ('https://www.ishares.com/us/product-screener/product-screener-v3.1.jsn?dcrPath=/templatedata/config/product-screener-v3/'
+                'data/en/us-ishares/ishares-product-screener-backend-config&siteEntryPassthrough=true')
+FUND_ISH_DOC = ('https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appType=PRODUCT_PAGE'
+                '&appSubType=ISHARES&targetSite=us-ishares&locale=en_US&portfolioId={pid}&component=fundDownload&userType=individual')
+FUND_SSGA = ('SPY', 'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU', 'SPDW', 'SPEM', 'BIL', 'JNK', 'GLD', 'GLDM')
+FUND_ISH = ('IVV', 'EFA', 'IEFA', 'EZU', 'EWJ', 'EEM', 'IEMG', 'MCHI', 'FXI', 'INDA', 'EWZ', 'EWY', 'EWT',
+            'TLT', 'IEF', 'SHY', 'AGG', 'LQD', 'HYG', 'EMB', 'IAU', 'SLV')
+FUND_KEEP = 300          # dni historii na fundusz (tło dla TRENDÓW: 9 tygodni porównania + historia „czy tydzień zapowiadał następny”)
+FUND_MIN = 250           # fundusz iShares z krótszą historią — uzupełnienie pełnym plikiem (najwyżej FUND_BACKFILL na przebieg)
+FUND_BACKFILL = 3
+FUND_SSGA_EVERY = 360    # min — pliki State Street (cała historia) najwyżej co 6 h
+FUND_SCR_EVERY = 120     # min — zestawienie iShares najwyżej co 2 h
+FUND_SLEEP = 1.0
+
+
+def _fund_num(x):
+    try:
+        v = float(str(x).replace(',', '').strip())
+    except ValueError:
+        return None
+    return v if _isnum(v) and v > 0 else None
+
+
+def parse_ssga_navhist(data, ticker):
+    """State Street navhist-us-en-{ticker}.xlsx → [[data, NAV, liczba jednostek]] rosnąco. Symbol w pliku musi się zgadzać."""
+    rows = _xlsx_rows(data, 'navhist')
+    tick, head, out = None, None, []
+    for k in sorted(rows):
+        r = rows[k]
+        c1 = str(r.get(1, '')).strip()
+        if c1.lower().startswith('ticker'):
+            tick = re.sub(r'[^A-Z]', '', str(r.get(2, '')).upper())
+        elif c1 == 'Date' and 'share' in str(r.get(3, '')).lower():
+            head = k
+        elif head is not None:
+            try:
+                d = datetime.datetime.strptime(c1, '%d-%b-%Y').date().isoformat()
+            except ValueError:
+                break                      # koniec tabeli (dalej są zastrzeżenia prawne)
+            nav, sh = _fund_num(r.get(2)), _fund_num(r.get(3))
+            if nav and sh:
+                out.append([d, round(nav, 6), round(sh)])
+    if tick != ticker:
+        raise RuntimeError(f'{ticker}: w pliku inny symbol ({tick})')
+    if head is None or len(out) < 20:
+        raise RuntimeError(f'{ticker}: brak tabeli NAV')
+    return sorted({r[0]: r for r in out}.values())
+
+
+def parse_ishares_hist(data):
+    """iShares (BlackRock) — plik funduszu (Excel 2003 XML), arkusz „Historical”: As Of, NAV per Share, Shares Outstanding →
+    [[data, NAV, liczba jednostek]] rosnąco."""
+    import xml.etree.ElementTree as ET
+    ns = '{urn:schemas-microsoft-com:office:spreadsheet}'
+    txt = data.decode('utf-8-sig', 'replace')
+    txt = re.sub(r'&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)', '&amp;', txt)   # gołe „&” w nazwach spółek
+    root = ET.fromstring(txt)
+    ws = next((w for w in root.iter(ns + 'Worksheet') if w.get(ns + 'Name') == 'Historical'), None)
+    if ws is None:
+        raise RuntimeError('brak arkusza Historical')
+    head, out = None, []
+    for row in ws.iter(ns + 'Row'):
+        cells = [(c.find(ns + 'Data').text if c.find(ns + 'Data') is not None else '') or '' for c in row.iter(ns + 'Cell')]
+        if head is None:
+            if 'As Of' in cells and 'Shares Outstanding' in cells:
+                head = {n: i for i, n in enumerate(cells)}
+            continue
+        try:
+            d = datetime.datetime.strptime(cells[head['As Of']].strip(), '%b %d, %Y').date().isoformat()
+        except (ValueError, IndexError, KeyError):
+            continue
+        nav = _fund_num(cells[head['NAV per Share']]) if 'NAV per Share' in head and len(cells) > head['NAV per Share'] else None
+        sh = _fund_num(cells[head['Shares Outstanding']]) if len(cells) > head['Shares Outstanding'] else None
+        if nav and sh:
+            out.append([d, round(nav, 6), round(sh)])
+    if len(out) < 20:
+        raise RuntimeError('za krótka historia')
+    return sorted({r[0]: r for r in out}.values())
+
+
+def parse_ishares_screener(j):
+    """Zestawienie iShares → {symbol: (id funduszu, data, NAV, liczba jednostek = aktywa funduszu / NAV)}; tylko gdy obie daty są te same."""
+    out = {}
+    for pid, f in (j.items() if isinstance(j, dict) else []):
+        if not isinstance(f, dict):
+            continue
+        t = str(f.get('localExchangeTicker') or '').upper()
+        if t not in FUND_ISH:
+            continue
+        g = lambda k: (f.get(k) or {}).get('r') if isinstance(f.get(k), dict) else None
+        nav, tna, d1, d2 = g('navAmount'), g('totalNetAssetsFund'), g('navAmountAsOf'), g('totalNetAssetsFundAsOf')
+        if _isnum(nav) and nav > 0 and _isnum(tna) and tna > 0 and d1 and d1 == d2 and re.match(r'^\d{8}$', str(d1)):
+            s = str(d1)
+            out[t] = (str(f.get('portfolioId') or pid), f'{s[:4]}-{s[4:6]}-{s[6:]}', round(nav, 6), round(tna / nav))
+    return out
+
+
+def _fund_merge(old, new):
+    """Historia funduszu: nowe wiersze wygrywają dla tych samych dni; ostatnie FUND_KEEP dni rosnąco."""
+    m = {r[0]: r for r in old or [] if isinstance(r, list) and len(r) == 3}
+    m.update({r[0]: r for r in new or []})
+    return [m[k] for k in sorted(m)][-FUND_KEEP:]
+
+
+def build_fundusze(prev=None):
+    prev = prev if isinstance(prev, dict) else {}
+    pf = prev.get('f') if isinstance(prev.get('f'), dict) else {}
+    out = {'at': NOW, 'src': 'State Street Global Advisors (SPDR) — NAV history; iShares by BlackRock — product screener and fund data download',
+           'unit': 'NAV w USD; liczba jednostek; przepływ = zmiana liczby jednostek × NAV (mln USD, liczony w TRENDACH)',
+           'scr_at': prev.get('scr_at'), 'f': {}}
+    errs = []
+    now = _now_utc()
+    due = lambda at, minutes: not at or (now - datetime.datetime.fromisoformat(at)).total_seconds() >= minutes * 60
+    for t in FUND_SSGA:
+        p = pf.get(t) if isinstance(pf.get(t), dict) else {}
+        if p.get('h') and not due(p.get('at'), FUND_SSGA_EVERY):
+            out['f'][t] = p; continue
+        time.sleep(FUND_SLEEP)
+        try:
+            h = parse_ssga_navhist(get_bytes(FUND_SSGA_URL.format(t=t.lower()), timeout=90), t)
+            out['f'][t] = {'iss': 'ssga', 'at': NOW, 'h': _fund_merge(p.get('h'), h)}
+        except Exception as e:
+            errs.append(f'{t}: {e}')
+            if p.get('h'):
+                out['f'][t] = p
+    scr = {}
+    if due(prev.get('scr_at'), FUND_SCR_EVERY) or any(not (pf.get(t) or {}).get('h') for t in FUND_ISH):
+        try:
+            scr = parse_ishares_screener(json.loads(get_bytes(FUND_ISH_SCR, timeout=90).decode('utf-8-sig', 'replace')))
+            out['scr_at'] = NOW
+            if len(scr) < len(FUND_ISH) // 2:
+                errs.append(f'zestawienie iShares: tylko {len(scr)} z {len(FUND_ISH)} funduszy')
+        except Exception as e:
+            errs.append(f'zestawienie iShares: {e}')
+    backfills = 0
+    for t in FUND_ISH:
+        p = dict(pf.get(t)) if isinstance(pf.get(t), dict) else {'iss': 'ishares'}
+        h = p.get('h') or []
+        pid = (scr.get(t) or (p.get('pid'),))[0]
+        if pid:
+            p['pid'] = pid
+        if len(h) < FUND_MIN and pid and backfills < FUND_BACKFILL:
+            backfills += 1
+            time.sleep(FUND_SLEEP)
+            try:
+                h = _fund_merge(h, parse_ishares_hist(get_bytes(FUND_ISH_DOC.format(pid=pid), timeout=120)))
+                p['at'] = NOW
+            except Exception as e:
+                errs.append(f'{t} (historia): {e}')
+        if t in scr:
+            _, d, nav, sh = scr[t]
+            last = h[-1] if h else None
+            if last and last[0] == d and abs(last[2] - sh) > max(1, 1e-4 * sh):
+                META['notes'].append(f'fundusze {t}: liczba jednostek z zestawienia ({sh}) ≠ z historii ({last[2]}) dla {d} — zostaje historia')
+            elif not last or d > last[0]:
+                h = _fund_merge(h, [[d, nav, sh]])
+        p['iss'] = 'ishares'
+        if h:
+            p['h'] = h
+            out['f'][t] = p
+    if not out['f']:
+        raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
+    if errs:
+        (META['errors'] if len(errs) > 5 else META['notes']).append(mask(f'fundusze ETF: {len(errs)} problemów, np. {errs[0]}'))
+    return out
+
+
 # v89: TRENDY — dokąd płynął kapitał w ostatnim tygodniu. Każde źródło osobno, w swoich jednostkach, według jednej jawnej reguły:
 # suma ostatniego tygodnia (5 sesji giełdowych, 7 dni kalendarzowych albo 1 tydzień raportu) porównana ze średnią 4 poprzednich
 # tygodni, w jednostkach rozrzutu 4–8 poprzednich tygodni. Opis tego, co się stało — nie prognoza i nie rekomendacja.
@@ -3179,6 +3351,12 @@ TR_CR_TYP = 9.0       # krypto (brak historii cen w plikach): umowny typowy tydz
 TR_CR_SYMS = ('BTC', 'ETH', 'XRP', 'BNB', 'SOL', 'DOGE', 'ADA', 'TRX', 'LINK', 'AVAX')
 TR_PX_SYMS = ('SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA')
 TR_CFTC = ('usd', 'eur', 'jpy', 'spx', 'msciem', 'btc', 'eth')   # fundusze lewarowane; bez obligacji 10L (transakcja na bazie)
+TR_FE = (('fe_us', ('SPY', 'IVV')), ('fe_tech', ('XLK',)), ('fe_fin', ('XLF',)), ('fe_energy', ('XLE',)), ('fe_health', ('XLV',)),
+         ('fe_indu', ('XLI',)), ('fe_cdisc', ('XLY',)), ('fe_cstap', ('XLP',)), ('fe_util', ('XLU',)),
+         ('fe_dev', ('EFA', 'IEFA', 'SPDW')), ('fe_eur', ('EZU',)), ('fe_jpn', ('EWJ',)), ('fe_em', ('EEM', 'IEMG', 'SPEM')),
+         ('fe_chn', ('MCHI', 'FXI')), ('fe_india', ('INDA',)), ('fe_bra', ('EWZ',)), ('fe_kor', ('EWY',)), ('fe_twn', ('EWT',)),
+         ('fe_ustl', ('TLT',)), ('fe_ustm', ('IEF',)), ('fe_usts', ('SHY', 'BIL')), ('fe_agg', ('AGG',)), ('fe_ig', ('LQD',)),
+         ('fe_hy', ('HYG', 'JNK')), ('fe_emb', ('EMB',)), ('fe_gold', ('GLD', 'IAU', 'GLDM')), ('fe_silver', ('SLV',)))   # v90: grupy funduszy ETF
 
 
 def _isnum(x):
@@ -3229,7 +3407,8 @@ def trend_state(vals, size, dates=None, span=None):
     """Stan trendu jednej serii (wartości w kolejności dat, None = brak). size = 5 (sesje), 7 (dni) albo 1 (tygodnie raportu).
     → {st, w, base, d, n, x, lc}. st: in_up / in_flat / in_down (napływ jak zwykle, ale większy / taki sam / słabszy),
     in_rev (napływ po tygodniach odpływu), in_new (napływ po okresie bez wyraźnego kierunku), in_dir (napływ, historia za krótka
-    do oceny siły); to samo dla out_*; mixed (duża suma, dni w różne strony); none; short; gap."""
+    do oceny siły), in_stop (zwykle napływ, w tym tygodniu prawie nic); to samo dla out_*; mixed (duża suma, dni w różne strony);
+    none; short; gap."""
     sums = _tr_sums(vals, size, 1 + TR_BASE_MAX, dates, span)
     if not sums:
         return {'st': 'gap'}
@@ -3258,9 +3437,9 @@ def trend_state(vals, size, dates=None, span=None):
     elif w and abs(w) >= TR_DIR * typ:
         st = 'mixed'                                   # duża suma z kilku dni, pozostałe dni w drugą stronę
     elif not lc and bpos and d <= -TR_STRONG:
-        st = 'in_down'                                 # zwykle napływ, w tym tygodniu prawie nic
+        st = 'in_stop'                                 # v90: zwykle napływ, w tym tygodniu prawie nic (osobny stan — nie „słabszy napływ”)
     elif not lc and bneg and d >= TR_STRONG:
-        st = 'out_down'
+        st = 'out_stop'
     else:
         st = 'none'
     return {'st': st, 'w': w, 'base': base, 'd': d, 'n': n, 'x': not lc and abs(d) >= TR_EXC, 'lc': lc}
@@ -3312,7 +3491,7 @@ def _iso_weeks(dates, vals, today):
     return [(m, sum(v), v) for m, v in sorted(wk.items()) if m < cur and all(_isnum(x) for x in v)]
 
 
-def trend_persist(dates, vals, today):
+def trend_persist(dates, vals, today, weeks=None):
     """Jak często po tygodniu z wyraźnym kierunkiem następny tydzień kalendarzowy miał ten sam kierunek. Wyraźny tydzień — ta sama reguła
     co na kartach, z typowym tygodniem liczonym tylko z 4–8 wcześniejszych tygodni. → (k, n, pierwszy, ostatni poniedziałek par)."""
     W = _iso_weeks(dates, vals, today)
@@ -3325,6 +3504,8 @@ def trend_persist(dates, vals, today):
         if _tr_clear(s, _mean([abs(x) for x in prev]), days):
             n += 1; k += 1 if s * W[i + 1][1] > 0 else 0
             first = first or m; last = W[i + 1][0]
+            if weeks is not None:
+                weeks.add(m)
     return k, n, first and first.isoformat(), last and last.isoformat()
 
 
@@ -3435,6 +3616,34 @@ def _cftc_roll(ds):
     first = datetime.date(d.year, d.month, 1)
     wed3 = first + datetime.timedelta(days=(2 - first.weekday()) % 7 + 14)
     return abs((d - wed3).days) <= 7
+
+
+def fund_flows(h):
+    """Historia funduszu [[data, NAV, liczba jednostek]] → {data: przepływ w mln USD} = zmiana liczby jednostek × NAV z tego dnia.
+    Podział albo scalenie jednostek (liczba i NAV zmieniają się naraz o ponad 25%) — dzień pomijany (brak, nie zero)."""
+    out = {}
+    h = [r for r in h or [] if isinstance(r, list) and len(r) == 3 and _d(r[0]) and _isnum(r[1]) and _isnum(r[2]) and r[1] > 0 and r[2] > 0]
+    for a, b in zip(h, h[1:]):
+        if abs(b[2] / a[2] - 1) > 0.25 and abs(b[1] / a[1] - 1) > 0.2:
+            continue
+        out[b[0]] = (b[2] - a[2]) * b[1] / 1e6
+    return out
+
+
+def fund_group(fu, members):
+    """Grupa funduszy → (daty, przepływy, aktywa w mln USD): suma dnia tylko gdy każdy fundusz grupy ma ten dzień; do ostatniego wspólnego dnia."""
+    F, H = [], []
+    for t in members:
+        h = ((fu or {}).get(t) or {}).get('h') or []
+        fl = fund_flows(h)
+        if not fl:
+            return [], [], None
+        F.append(fl); H.append(h[-1])
+    end = min(max(f) for f in F)
+    days = sorted({d for f in F for d in f if d <= end})
+    vals = [sum(f[d] for f in F) if all(d in f for f in F) else None for d in days]
+    aum = sum(r[1] * r[2] for r in H) / 1e6
+    return days, vals, aum
 
 
 def _tr_try(name, fn, out):
@@ -3559,7 +3768,18 @@ def _tr_flows(S):
                 out.append(r)
         return out
 
-    for name, fn in (('in', india), ('tw/hk', twhk), ('th', thai), ('br', brazil), ('tr', turkey), ('jp', japan), ('mx', mexico),
+    def funds():
+        fu = (S.get('fundusze') or {}).get('f') if isinstance(S.get('fundusze'), dict) else None
+        if not isinstance(fu, dict):
+            return []
+        out = []
+        for gid, members in TR_FE:
+            ds, v, aum = fund_group(fu, members)
+            if ds:
+                out.append(_tr_row(gid, 'fe', 'flow', 5, ds, v, hold=aum, span=TR_SPAN))
+        return out
+
+    for name, fn in (('fundusze', funds), ('in', india), ('tw/hk', twhk), ('th', thai), ('br', brazil), ('tr', turkey), ('jp', japan), ('mx', mexico),
                      ('etf', etfs), ('cm', coinmetrics), ('stab', stable), ('cftc', cftc)):
         _tr_try(name, fn, rows)
     return rows
@@ -3656,35 +3876,28 @@ def build_trendy(S):
                 base.append({'id': 'mx', 'kind': 'flow', 'k': k, 'n': n, 'weeks': n, 'from': a, 'to': b, 'ci': list(wilson(k, n))})
     except Exception as e:
         META['notes'].append(mask(f'trendy historia: {e}'))
+    try:                                  # v90: fundusze ETF — wszystkie grupy razem, niepewność liczona na tygodnie
+        fu = (S.get('fundusze') or {}).get('f') if isinstance(S.get('fundusze'), dict) else None
+        if isinstance(fu, dict):
+            K = N = 0; wk = set(); a0 = b0 = None
+            for gid, members in TR_FE:
+                ds, v, _ = fund_group(fu, members)
+                k, n, a, b = trend_persist(ds, v, today, wk)
+                K += k; N += n
+                if n:
+                    a0 = min(a0 or a, a); b0 = max(b0 or b, b)
+            if N:
+                base.append({'id': 'fe', 'kind': 'flow', 'k': K, 'n': N, 'weeks': len(wk), 'from': a0, 'to': b0, 'ci': list(wilson(K, N, n_eff=len(wk)))})
+    except Exception as e:
+        META['notes'].append(mask(f'trendy historia funduszy: {e}'))
     if pp['n']:
         nw = len(pp['weeks'])            # rynki są ze sobą powiązane: niepewność liczona na tygodnie, nie na pary rynek-tydzień
         base.append({'id': 'px', 'kind': 'price', 'k': pp['k'], 'n': pp['n'], 'weeks': nw, 'from': pp['from'].isoformat(),
                      'to': pp['to'].isoformat(), 'ci': list(wilson(pp['k'], pp['n'], n_eff=nw))})
-    return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, ceny)',
+    return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (fundusze, obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, ceny)',
             'rules': {'base_min': TR_BASE_MIN, 'base_max': TR_BASE_MAX, 'dir': TR_DIR, 'all': TR_ALL, 'floor': TR_FLOOR, 'strong': TR_STRONG,
                       'exc': TR_EXC, 'day_z': TR_DAY_Z, 'span': TR_SPAN, 'px_min': TR_PX_MIN, 'cr_typ': TR_CR_TYP},
             'f': flows, 'p': prices, 'b': base}
-
-
-# v89.1: SONDA (tymczasowa) — czy serwer GitHub Actions dostaje pliki wydawców ETF (State Street, iShares) do przepływów v90.
-# Wynik tylko w data/sonda.json (strona go nie czyta); najwyżej raz na 6 h; bez wpływu na inne pliki i na meta.
-SONDA_URLS = (('ssga_spy', 'https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/navhist-us-en-spy.xlsx'),
-              ('ishares_screener', 'https://www.ishares.com/us/product-screener/product-screener-v3.1.jsn?dcrPath=/templatedata/config/product-screener-v3/data/en/us-ishares/ishares-product-screener-backend-config&siteEntryPassthrough=true'),
-              ('blackrock_ivv', 'https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appType=PRODUCT_PAGE&appSubType=ISHARES&targetSite=us-ishares&locale=en_US&portfolioId=239726&component=fundDownload&userType=individual'))
-
-
-def build_sonda():
-    out = {'at': NOW, 'r': {}}
-    for name, url in SONDA_URLS:
-        t0 = time.monotonic()
-        try:
-            b = get_bytes(url, timeout=90)
-            out['r'][name] = {'ok': True, 'bytes': len(b), 'head': b[:40].decode('latin-1', 'replace'), 's': round(time.monotonic() - t0, 1)}
-        except urllib.error.HTTPError as e:
-            out['r'][name] = {'ok': False, 'http': e.code, 's': round(time.monotonic() - t0, 1)}
-        except Exception as e:
-            out['r'][name] = {'ok': False, 'err': str(e)[:200], 's': round(time.monotonic() - t0, 1)}
-    return out
 
 
 def main():
@@ -3955,15 +4168,13 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'instytucje: {e}')); META['ok']['instytucje'] = False
             if prev_inst: save('instytucje', prev_inst); print('źródła urzędowe zawiodły — zachowano poprzedni instytucje.json z', prev_inst.get('at'))
-    # v89.1: sonda dostępu do plików wydawców ETF (tymczasowa, własny plik, bez meta)
-    prev_so = previous('sonda')
-    if not (prev_so and fresh(prev_so, 360)):
-        try:
-            save('sonda', build_sonda())
-        except Exception as e:
-            print('sonda:', e)
-    elif prev_so:
-        save('sonda', prev_so)
+    # v90: fundusze ETF w USA (State Street, iShares) — historia NAV i liczby jednostek; odświeżanie w środku (6 h / 2 h); awaria = poprzedni plik
+    prev_fu = previous('fundusze')
+    try:
+        save('fundusze', build_fundusze(prev_fu)); META['ok']['fundusze'] = True
+    except Exception as e:
+        META['errors'].append(mask(f'fundusze ETF: {e}')); META['ok']['fundusze'] = False
+        if prev_fu: save('fundusze', prev_fu)
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
