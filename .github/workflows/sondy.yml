@@ -26,29 +26,29 @@ jobs:
           python-version: '3.12'
       - name: Sondy (tylko statusy)
         env:
-          ETHERSCAN_KEY: ${{ secrets.ETHERSCAN_KEY }}
+          ETHERSCAN_KEY: ${{ secrets.ETHERSCAN || secrets.ETHERSCAN_KEY }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
-          CRYPTOPANIC_KEY: ${{ secrets.CRYPTOPANIC_KEY }}
+          CRYPTOPANIC_KEY: ${{ secrets.CRYPTOPANIC || secrets.CRYPTOPANIC_KEY }}
           CRYPTOPANIC_TOKEN: ${{ secrets.CRYPTOPANIC_TOKEN }}
           CRYPTOPANIC_API_KEY: ${{ secrets.CRYPTOPANIC_API_KEY }}
           CRYPTOPANIC_AUTH_TOKEN: ${{ secrets.CRYPTOPANIC_AUTH_TOKEN }}
-          TIINGO_KEY: ${{ secrets.TIINGO_KEY }}
+          TIINGO_KEY: ${{ secrets.TIINGO || secrets.TIINGO_KEY }}
           TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
           TIINGO_TOKEN: ${{ secrets.TIINGO_TOKEN }}
           POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
-          MASSIVE_KEY: ${{ secrets.MASSIVE_KEY }}
+          MASSIVE_KEY: ${{ secrets.MASSIVEPOLYGON || secrets.MASSIVE_KEY }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
-          EODHD_KEY: ${{ secrets.EODHD_KEY }}
+          EODHD_KEY: ${{ secrets.EODHD || secrets.EODHD_KEY }}
           EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
           EOD_KEY: ${{ secrets.EOD_KEY }}
           EODHD_TOKEN: ${{ secrets.EODHD_TOKEN }}
-          FMP_KEY: ${{ secrets.FMP_KEY }}
+          FMP_KEY: ${{ secrets.FINANCIALMODELINGPREP || secrets.FMP_KEY }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           FINANCIALMODELINGPREP_KEY: ${{ secrets.FINANCIALMODELINGPREP_KEY }}
           FINANCIALMODELINGPREP_API_KEY: ${{ secrets.FINANCIALMODELINGPREP_API_KEY }}
-          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE || secrets.ALPHAVANTAGE_KEY }}
           ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
