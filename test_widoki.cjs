@@ -183,7 +183,7 @@ test('sekcja danych urzędowych: mln → mld z jednym miejscem, grupowanie jak w
   assert.equal(mk('en')(6364278), '6,364.3');
   assert.ok(html.includes('subject to the Terms of Use posted at newyorkfed.org'), 'nota wymagana przez NY Fed');
   assert.ok(html.includes('Public Data License (PDL) v1.0'), 'licencja MOF');
-  for (const key of ['inst.tga', 'inst.rrp', 'inst.soma', 'inst.tgb.t', 'inst.mof.t', 'inst.not1', 'g.hs.tga', 'g.hs.mof']) assert.ok(html.includes(`"${key}":`), key);
+  for (const key of ['inst.tga', 'inst.rrp', 'inst.soma', 'inst.tgb.t', 'inst.mof.t', 'inst.not1']) assert.ok(html.includes(`"${key}":`), key);
 });
 
 // v41: oficjalne widgety TradingView — tylko po kliknięciu (zgoda cfai.tv.ok), atrybucja zachowana, motyw i język ze strony
@@ -254,7 +254,6 @@ test('TradingView: wiersz na stronie Źródła, atrybucja, wpis w „Źródła i
   assert.deepEqual(Object.keys(dict).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
   for (const l of Object.keys(dict)) for (const k of ['tv.ph', 'tv.load', 'tv.off', 'tv.foot', 'tv.st.on', 'tv.st.off', 'tv.t.markets', 'tv.t.chart', 'tv.tab.idx', 'tv.tab.cmd']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['tv.ph'].includes('kliknij, aby załadować (treść z serwerów TradingView, mogą ustawić ciasteczka)'));
-  assert.ok(dict.pl['g.hs.tv'] && dict.en['g.hs.tv'], 'opis wiersza Źródła');
 });
 
 // v42: serie Fed przez FRED (klucz właściciela) — tylko serie Fed, podpis z FRED, brak nie jest zerem
@@ -368,7 +367,6 @@ test('bilans płatniczy: klucz bop w pliku urzędowym, blok, wiersz Źródła, w
   const d0 = html.indexOf('const EXTRA34='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA34='.length, d1));
   assert.ok(dict.pl['inst.bop.sub'].includes('plus = kapitał netto wypływa')); assert.ok(dict.en['inst.bop.sub'].includes('positive = capital flows out'));
-  assert.ok(dict.pl['src.l.2m'] && dict.en['src.l.2m']);
 });
 
 // v47: TIC — przepływy netto USA ↔ regiony; netto = do − z tylko z kompletu; regiony z niepełnym składem oznaczone
@@ -395,7 +393,7 @@ test('TIC: sekcja #tic w GLOBAL przed widokami silnika, plik tic.json, karty WIT
   assert.ok(html.includes("if(v.startsWith('tic-')&&!(chk.ok&&chk.state==='BOUND')){el.hidden=true;el.innerHTML='';return;}"), 'karty TIC silnika ukryte, gdy nie BOUND');
   const d0 = html.indexOf('const EXTRA35='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA35='.length, d1));
-  for (const l of ['pl', 'en']) for (const k of ['tic.t', 'tic.in', 'tic.out', 'tic.net', 'tic.not2', 'tic.src', 'g.hs.tic']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['tic.t', 'tic.in', 'tic.out', 'tic.net', 'tic.not2', 'tic.src']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v48: uczciwość — zmiana wyceny to „zmiana wartości”; brak wymyślonych ocen, linii i liczb przykładowych na stronie publicznej
@@ -403,7 +401,7 @@ test('v48: słownik nadpisań ma wszystkie 10 języków i nie mówi o „napływ
   const d0 = html.indexOf('const EXTRA36='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA36='.length, d1));
   assert.deepEqual(Object.keys(dict).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
-  for (const l of Object.keys(dict)) for (const k of ['plain.in', 'plain.out', 'g.leg.in', 'g.leg.out', 'q.src.v', 'rail.rel', 'src.f.h', 'src.l.w']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of Object.keys(dict)) for (const k of ['plain.in', 'plain.out', 'g.leg.in', 'g.leg.out', 'q.src.v', 'rail.rel']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(!/napłynęło|odpłynęło/.test(dict.pl['plain.in'] + dict.pl['plain.out']));
   assert.ok(dict.pl['plain.in'].includes('nie zmierzony napływ'));
   assert.ok(html.indexOf('for(const l in EXTRA36)') > html.indexOf('for(const l in EXTRA_F1415)'), 'nadpisania stosowane na końcu');
@@ -538,7 +536,7 @@ test('v50 BIS: sekcja #bis po #tic, plik bis.json w GLOBAL, język, wiersz Źró
   const b0 = html.indexOf('const BI={data:null};'), b1 = html.indexOf('/* v50 BIS: koniec */', b0);
   const used = [...new Set([...html.slice(b0, b1).matchAll(/t\('(bis2\.[a-z0-9.]+)'/g)].map(x => x[1]))];
   assert.ok(used.length > 20, 'klucze panelu');
-  for (const l of ['pl', 'en']) for (const k of used.concat(['g.hs.bis2'])) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of used) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['bis2.src'].includes('nieoficjalne tłumaczenie') && dict.pl['bis2.src'].includes('nie popiera'), 'atrybucja zgodna z warunkami BIS');
   assert.ok(dict.en['bis2.src'].includes('unofficial translations'));
   assert.ok(html.indexOf('for(const l in EXTRA39)') > html.indexOf('for(const l in EXTRA38)'), 'słownik po EXTRA38');
@@ -635,7 +633,7 @@ test('v50 CFTC: plik w gLoad po TIC, zegar, wiersze Źródła (GLOBAL i CRYPTO),
   const d0 = html.indexOf('const EXTRA40='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA40='.length, d1));
   assert.deepEqual(Object.keys(dict.pl).sort(), Object.keys(dict.en).sort());
-  for (const l of ['pl', 'en']) for (const k of ['cftc.how', 'cftc.u.eth', 'cftc.not1', 'cftc.src', 'g.hs.cftc', 'cftc.g.nonrept']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['cftc.how', 'cftc.u.eth', 'cftc.not1', 'cftc.src', 'cftc.g.nonrept']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(/50 eth/.test(dict.en['cftc.u.eth']) && /50 etherów/.test(dict.pl['cftc.u.eth']) && /gotówkowo/.test(dict.pl['cftc.u.eth']));
 });
 
@@ -719,7 +717,7 @@ test('v50 cm: plik cm.json w gLoad i osobny zegar, wiersz Źródła CRYPTO, atry
   assert.ok(html.includes('<section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>'), 'sekcja bez zmian');
   const d0 = html.indexOf('const EXTRA41='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA41='.length, d1));
-  for (const l of ['pl', 'en']) for (const k of ['cm.t', 'cm.sub', 'cm.in', 'cm.out', 'cm.net', 'cm.s.in', 'cm.s.out', 'cm.tab', 'cm.not1', 'cm.not2', 'cm.not3', 'cm.src', 'cm.disc', 'g.hs.cm']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['cm.t', 'cm.sub', 'cm.in', 'cm.out', 'cm.net', 'cm.s.in', 'cm.s.out', 'cm.tab', 'cm.not1', 'cm.not2', 'cm.not3', 'cm.src', 'cm.disc']) assert.ok(dict[l][k], l + ' ' + k);
   assert.equal(Object.keys(dict.pl).sort().join(), Object.keys(dict.en).sort().join(), 'te same klucze PL i EN');
   assert.ok(html.indexOf('const EXTRA41=') > html.indexOf('for(const l in EXTRA38)'), 'po EXTRA38');
 });
@@ -808,7 +806,7 @@ test('v50: rezerwy i depozyt Fed wpięte w sekcję danych urzędowych, plik reze
   assert.deepEqual(Object.keys(dict.en), keys, 'te same klucze pl/en');
   for (const l of ['pl', 'en']) {
     for (const k of keys) assert.ok(typeof dict[l][k] === 'string' && dict[l][k].length > 1, l + ' ' + k);
-    for (const sid of ['WSEFINTL1', 'WMTSECL1', 'WFASECL1', 'WSEFINOL']) assert.ok(dict[l]['inst.fred.src'].includes(sid) && dict[l]['g.hs.fred'].includes(sid), l + ' ' + sid);
+    for (const sid of ['WSEFINTL1', 'WMTSECL1', 'WFASECL1', 'WSEFINOL']) assert.ok(dict[l]['inst.fred.src'].includes(sid), l + ' ' + sid);
     assert.ok(dict[l]['inst.fred.src'].includes('Board of Governors of the Federal Reserve System (US), via FRED'));
     assert.ok(dict[l]['rez.src'].includes('International Monetary Fund, International Liquidity (IL)'));
   }
@@ -826,10 +824,7 @@ test('v51: instFoot bierze koniec zakresu dat; strona Źródła pokazuje czas pl
   const f0 = html.indexOf('function instFoot(d){'), f1 = html.indexOf('\n', f0);
   const instFoot = new Function('escH', 'gAgeNote', html.slice(f0, f1) + '\nreturn instFoot;')(s => String(s), s => '|' + s);
   assert.equal(instFoot('2026-06 – 2026-07'), '2026-06 – 2026-07|2026-07'); assert.equal(instFoot('2026-09-16'), '2026-09-16|2026-09-16');
-  const m0 = html.indexOf('function metaErr(k){'), m1 = html.indexOf('\n}', html.indexOf('return e||t(', m0)) ;
-  const GLIVE = { meta: { ok: { fred: false, tic: 'cached', krypto: true }, errors: ['FRED WALCL: HTTP 500', 'TIC: x'] } };
-  const metaErr = new Function('GLIVE', 't', html.slice(m0, html.indexOf('return e||t(', m0)) + "return e||t('src.m.err');}\nreturn metaErr;")(GLIVE, k => k);
-  assert.equal(metaErr('fred'), 'FRED WALCL: HTTP 500'); assert.equal(metaErr('tic'), null, 'z pamięci to nie błąd'); assert.equal(metaErr('kr'), null);
+  // v107: metaErr (błąd ostatniego przebiegu w wierszu dawnej tabeli źródeł) usunięta razem z tabelą — sprawdzenie metaErr wypadło
   assert.ok(html.includes('metaLoad();setInterval('), 'meta.json wczytywany i odświeżany');
 });
 
@@ -842,7 +837,7 @@ test('v52: stopy banków centralnych: formatowanie, różnica wobec Fed, wiersz 
   assert.equal(f.spPP(-1.375), '−1.375'); assert.equal(f.spPP(0), '0'); assert.equal(f.spPP(0.25), '+0.25'); assert.equal(f.spPP(undefined), '—');
   const d0 = html.indexOf('const EXTRA44='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA44='.length, d1));
-  for (const l of ['pl', 'en']) for (const k of ['sp.t', 'sp.sub', 'sp.src', 'sp.cc.XM', 'sp.cc.US', 'g.hs.sp']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['sp.t', 'sp.sub', 'sp.src', 'sp.cc.XM', 'sp.cc.US']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v53: jedno okno czasu na liczbę mapy (średnie EBC tych samych miesięcy co OECD), baza, BIS w korytarzach, BOP w podpowiedzi
@@ -868,7 +863,7 @@ test('v53: kurs ze średnich miesięcznych EBC z tych samych miesięcy co indeks
   assert.ok(html.includes('function gCtyIdx(S,w){if(!Array.isArray(S)||!S.length||gFrozen(S))return null;'), 'v62: indeks kraju pomija zamrożony');
   assert.ok(html.includes('const R=gRegRatio(r,n,per),wn=gWin(r,n);') && html.includes("k:R?R.k:null,out:R?R.out:[]"));
   assert.ok(html.includes("(F.fxm?'OECD · EBC':'OECD')") && html.includes("srvJSON('kursy')"));
-  assert.ok(html.includes('stopy:()=>SP.data&&SP.data.at,kursy:()=>KM.data&&KM.data.at') && html.includes("stopy:'BIS stopy',kursy:'EBC kursy'"), 'Źródła: czas pliku i błąd serwera dla stóp i kursów');
+  // v107: mapy srvAt/metaErr (czas pliku i błąd w wierszu dawnej tabeli źródeł) usunięte razem z tabelą
 });
 
 test('v53: szczegóły — okno czasu, źródło bazy, zmierzone BIS w korytarzu; BOP z dokładną wartością w podpowiedzi', () => {
@@ -899,7 +894,7 @@ test('v53: szczegóły — okno czasu, źródło bazy, zmierzone BIS w korytarzu
   assert.ok(html.includes('<td><span class="cell mono"${atT(k,p)}>${at(k,p)}</span></td>'), 'BOP: dokładna wartość w podpowiedzi');
   const x0 = html.indexOf('const EXTRA45='), x1 = html.indexOf(';\n', x0);
   const dict = JSON.parse(html.slice(x0 + 'const EXTRA45='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['g.win', 'g.win.m', 'g.win.u', 'g.win.d', 'g.win.out', 'g.win.fz', 'g.win.miss', 'g.plain.none', 'g.src.regm', 'g.d.basey.v', 'bi.e.v', 'bi.e.none', 'bi.e.norep', 'g.hs.km']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['g.win', 'g.win.m', 'g.win.u', 'g.win.d', 'g.win.out', 'g.win.fz', 'g.win.miss', 'g.plain.none', 'g.src.regm', 'g.d.basey.v', 'bi.e.v', 'bi.e.none', 'bi.e.norep']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v54: zmierzone dzienne przepływy inwestorów zagranicznych (Indie, Tajwan) — sumy tylko z pełnego okna, brak = „—”
@@ -924,10 +919,10 @@ test('v54: inwestorzy zagraniczni: wczytanie, sumy okien, blok, wiersz regionu I
   f.zagApply({at: 'x', tw: {d: [['2026-09-24', 1, 1, 1, 1, null, null]]}});
   assert.ok(f.zagBlock().includes('[ob.in.k|—||eng.gap]') && !f.zagBlock().includes('ob.tw.usd'), 'brak części Indii = brak, bez przeliczenia bez kursu');
   assert.ok(html.includes('html+=zagBlock();') && html.includes("srvJSON('obce')") && html.includes('${zagRegion(s.id)}'));
-  assert.ok(html.includes("obce_in:'NSDL',obce_tw:'TWSE'") && html.includes('obce_in:()=>ZAG.data&&ZAG.data.in&&ZAG.data.in.at'));
+  // v107: bez map srvAt/metaErr
   const x0 = html.indexOf('const EXTRA46='), x1 = html.indexOf(';\n', x0);
   const dict = JSON.parse(html.slice(x0 + 'const EXTRA46='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['ob.t', 'ob.sub', 'ob.in.k', 'ob.tw.k', 'ob.not', 'ob.src', 'ob.reg.v', 'g.hs.nsdl', 'g.hs.twse']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['ob.t', 'ob.sub', 'ob.in.k', 'ob.tw.k', 'ob.not', 'ob.src', 'ob.reg.v']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v56: kursy efektywne BIS obok stóp — kolumna w tabeli stóp, wiersz w szczegółach regionu; brak = „—”
@@ -946,10 +941,10 @@ test('v56: kursy efektywne BIS: format, komórka tabeli stóp, wiersz regionu, �
   assert.equal(f.eerRegion('usa'), '', 'region bez danych w pliku = bez wiersza');
   assert.ok(html.includes('<td><span class="cell mono"><span>${eerCell(a)}</span></span></td></tr>') && html.includes("<th>${t('sp.c.fx')}</th></tr></thead>"));
   assert.ok(html.includes('${eerRegion(s.id)}') && html.includes("srvJSON('eer')"));
-  assert.ok(html.includes("eer:'BIS kursy efektywne'") && html.includes('eer:()=>EER.data&&EER.data.at'));
+  // v107: bez map srvAt/metaErr
   const x0 = html.indexOf('const EXTRA47='), x1 = html.indexOf(';\n', x0);
   const dict = JSON.parse(html.slice(x0 + 'const EXTRA47='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['sp.c.fx', 'eer.not', 'eer.src', 'eer.reg', 'eer.reg.v', 'g.hs.eer']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['sp.c.fx', 'eer.not', 'eer.src', 'eer.reg', 'eer.reg.v']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v57: bilans przepływu w krypto — cztery rodzaje miar osobno (bez sumowania), brak = „—”, ukryty bez danych
@@ -1035,10 +1030,10 @@ test('v59: COFER: tabela udziałów, zmiany, „inne waluty”, stopka z udział
   assert.ok(h.includes('<td><span class="cell">EUR</span></td><td><span class="cell mono">20.10</span></td><td><span class="cell mono">—</span></td>'), 'brak zmiany = —');
   assert.ok(h.includes('<span class="cell">cof.oth</span>') && h.includes('cof.foot{"q":"2025-Q2","a":"12400","i":"10.7"}'));
   f.cofApply({at: 'x', asof: 'q', rows: {}, order: []}); assert.equal(f.COF.data, null, 'plik bez walut odrzucony');
-  assert.ok(html.includes('html+=cofHtml(COF.data);') && html.includes("srvJSON('cofer')") && html.includes("cofer:'MFW COFER'"));
+  assert.ok(html.includes('html+=cofHtml(COF.data);') && html.includes("srvJSON('cofer')"));
   const x0 = html.indexOf('const EXTRA50='), x1 = html.indexOf(';\n', x0);
   const dict = JSON.parse(html.slice(x0 + 'const EXTRA50='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['cof.t', 'cof.sub', 'cof.foot', 'cof.foot0', 'cof.not', 'cof.src', 'g.hs.cofer']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['cof.t', 'cof.sub', 'cof.foot', 'cof.foot0', 'cof.not', 'cof.src']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v60: strona Źródła zgodna z decyzją właściciela (bez obietnic zgody/wyłączenia) i ze stanem strony (nowe źródła, silnik = 2 panele)
@@ -1099,7 +1094,7 @@ test('v63: „bez zmian” tylko z historią, dokładność różnicy wobec Fed,
   assert.equal(e.engAttr(rec), 'Source: https://www.cftc.gov'); assert.ok(!/[ąćęłńóśźż]/i.test(e.engAge(rec)), 'bez polskiego');
   assert.ok(!html.includes('przygotowujemy do zasilania strony danymi CFTC'));
   assert.ok(!html.includes("'Twelve Data (klucz własny) · ETF'") && html.includes("t('g.src.tdown')+' · ETF'"));
-  for (const l of ['pl', 'en']) for (const k of ['sp.none.n', 'g.hs.sp', 'eer.reg.v', 'bi.e.norep', 'stc.t0', 'g.src.tdown']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['sp.none.n', 'eer.reg.v', 'bi.e.norep', 'stc.t0', 'g.src.tdown']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(!dict.pl['bi.e.norep'].includes('nie raportują'));
 });
 
@@ -1164,9 +1159,9 @@ test('v67: Stock Connect — kafelek, kolumna, wiersz regionu Chiny; brak częś
   assert.ok(b.includes('<th>ob.c.hk</th>') && b.includes('ob.not.hk') && b.includes('[ob.in.k|—||eng.gap]'));
   const r = f.zagRegion('chn'); assert.ok(r.includes('ob.reg.hk.v') && r.includes('"v":"+2.9"') && r.includes('≈ +370 inst.mln.usd'), r);
   assert.equal(f.zagRegion('jpn'), '');
-  assert.ok(html.includes("obce_hk:'HKEX'"));
+  // v107: bez map srvAt/metaErr
   const x0 = html.indexOf('const EXTRA55='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA55='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['ob.t', 'ob.hk.k', 'ob.not.hk', 'ob.reg.hk.v', 'g.hs.hkex']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['ob.t', 'ob.hk.k', 'ob.not.hk', 'ob.reg.hk.v']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v68: CFTC — dodatkowe rynki (waluty, indeks dolara, 10-latki, S&P 500, MSCI EM); brak rynku = bez wiersza
@@ -1234,10 +1229,10 @@ test('v70: bilans płatniczy: sumy tylko z kompletu, ranking, starszy kwartał w
   assert.ok(r.includes('<dt>bil.reg</dt>') && r.includes('"c":"KOR","q":"F2026-Q2"') && r.includes('"pe":"-63.9"') && r.includes('"pd":"—"') && r.includes('"out":"+74.2"'), r);
   assert.equal(f.bilRegion('rus'), '', 'brak kraju w pliku = bez wiersza');
   f.bilApply({at: 'x', rows: {}, order: []}); assert.equal(f.BIL.data, null, 'plik bez krajów odrzucony');
-  assert.ok(html.includes("html+=(typeof bilHtml==='function'&&typeof BIL!=='undefined')?bilHtml(BIL.data):'';") && html.includes("srvJSON('bilans')") && html.includes("bilans:'MFW bilans płatniczy'"));
-  assert.ok(html.includes("${typeof bilRegion==='function'?bilRegion(s.id):''}") && html.includes('bilans:()=>BIL.data&&BIL.data.at') && html.includes("bilans:'bilans',"));
+  assert.ok(html.includes("html+=(typeof bilHtml==='function'&&typeof BIL!=='undefined')?bilHtml(BIL.data):'';") && html.includes("srvJSON('bilans')"));
+  assert.ok(html.includes("${typeof bilRegion==='function'?bilRegion(s.id):''}"));
   const x0 = html.indexOf('const EXTRA58='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA58='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['bil.t', 'bil.sub', 'bil.c.t4', 'bil.more', 'bil.foot', 'bil.not', 'bil.src', 'bil.reg', 'bil.reg.v', 'g.hs.bilans']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['bil.t', 'bil.sub', 'bil.c.t4', 'bil.more', 'bil.foot', 'bil.not', 'bil.src', 'bil.reg', 'bil.reg.v']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v71: Brazylia — dolary przez rynek walutowy (BCB); brak = „—”; wiersz regionu Ameryka Łacińska; podpięcie źródła
@@ -1263,9 +1258,9 @@ test('v71: blok BCB: kapitał, handel, razem, sumy tylko z kompletu, wiersz regi
   assert.ok(r.includes('<dt>br.reg</dt>') && r.includes('"f":"-330.4","c":"—"') && r.includes('"f20":"-140.4","t20":"-183.5"'), r);
   assert.equal(f.brRegion('usa'), '');
   assert.ok(html.includes("html+=typeof brBlock==='function'?brBlock():'';") && html.includes("${typeof brRegion==='function'?brRegion(s.id):''}"));
-  assert.ok(html.includes("if(okD(j.br))gOk('obce_br');") && html.includes("obce_br:'BCB'") && html.includes('obce_br:()=>ZAG.data&&ZAG.data.br&&ZAG.data.br.at'));
+  assert.ok(html.includes("if(okD(j.br))gOk('obce_br');"));
   const x0 = html.indexOf('const EXTRA59='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA59='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['br.t', 'br.sub', 'br.fin', 'br.com', 'br.tot', 'br.not', 'br.src', 'br.reg', 'br.reg.v', 'g.hs.bcb']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['br.t', 'br.sub', 'br.fin', 'br.com', 'br.tot', 'br.not', 'br.src', 'br.reg', 'br.reg.v']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v72: SAFE (Chiny) — kupno i sprzedaż walut przez banki; 12 miesięcy tylko z kolejnych miesięcy; brak = „—”
@@ -1289,9 +1284,9 @@ test('v72: SAFE: kapitał, handel, razem, suma 12 kolejnych miesięcy, wiersz re
   assert.ok(f.safeHtml(f.SAFE.data).includes('sf.12{"v":"—"}'), 'brak miesiąca w oknie = brak sumy 12 miesięcy');
   f.safeApply({at: 'x', m: []}); assert.equal(f.SAFE.data, null);
   assert.ok(html.includes("html+=(typeof safeHtml==='function'&&typeof SAFE!=='undefined')?safeHtml(SAFE.data):'';") && html.includes("${typeof safeRegion==='function'?safeRegion(s.id):''}"));
-  assert.ok(html.includes("srvJSON('safe')") && html.includes("safe:'SAFE'") && html.includes('safe:()=>SAFE.data&&SAFE.data.at') && html.includes("safe:'safe',"));
+  assert.ok(html.includes("srvJSON('safe')"));
   const x0 = html.indexOf('const EXTRA60='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA60='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['sf.t', 'sf.sub', 'sf.cfa', 'sf.ca', 'sf.cust', 'sf.not', 'sf.src', 'sf.reg', 'sf.reg.v', 'g.hs.safe']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['sf.t', 'sf.sub', 'sf.cfa', 'sf.ca', 'sf.cust', 'sf.not', 'sf.src', 'sf.reg', 'sf.reg.v']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v73: poprawki po trzecim przeglądzie
@@ -1314,7 +1309,7 @@ test('v73: kafelki CoinMarketCap z własnym czasem, także bez CoinPaprika; bez 
   for (const k of ['bilans płatniczy 37 gospodarek', 'kupno i sprzedaż walut przez banki w Chinach', 'dolary przez rynek walutowy Brazylii', 'pozycje dużych graczy w kontraktach']) assert.ok(html.includes('<span class="cell">' + k + '</span>'), k);
   const x0 = html.indexOf('const EXTRA61='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA61='.length, x1));
   for (const l of ['pl', 'en']) {
-    for (const k of ['br.sub', 'br.fin', 'br.fin.bs', 'br.reg.v', 'src.l.bop', 'src.l.bcb', 'bil.c.o', 'bil.foot', 'bil.not', 'bil.reg.v', 'cftc.x.from', 'cftc.x.sub', 'inst.t', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+    for (const k of ['br.sub', 'br.fin', 'br.fin.bs', 'br.reg.v', 'bil.c.o', 'bil.foot', 'bil.not', 'bil.reg.v', 'cftc.x.from', 'cftc.x.sub', 'inst.t', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
     assert.ok(!/Sześć|Six sets/.test(dict[l]['inst.sub']));
   }
   assert.ok(dict.pl['br.sub'].includes('bez rynku międzybankowego') && dict.pl['bil.not'].includes('Wielka Brytania') && dict.pl['bil.foot'].includes('12 gospodarek'));
@@ -1343,10 +1338,10 @@ test('v74: blok CBRT: razem, akcje, obligacje; 4 i 13 tygodni tylko z kolejnych 
   assert.ok(r.includes('<dt>tr.reg</dt>') && r.includes('"t":"-316.01","e":"-109.83","g":"-116.9","t4":"-286.01"'), r);
   assert.equal(f.trRegion('eur'), '');
   assert.ok(html.includes("html+=typeof trBlock==='function'?trBlock():'';") && html.includes("${typeof trRegion==='function'?trRegion(s.id):''}"));
-  assert.ok(html.includes("if(okD(j.tr))gOk('obce_tr');") && html.includes("obce_tr:'CBRT'") && html.includes('obce_tr:()=>ZAG.data&&ZAG.data.tr&&ZAG.data.tr.at'));
+  assert.ok(html.includes("if(okD(j.tr))gOk('obce_tr');"));
   assert.ok(html.includes('<span class="cell">nierezydenci w tureckich akcjach i obligacjach</span>'));
   const x0 = html.indexOf('const EXTRA62='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA62='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['tr.t', 'tr.sub', 'tr.tot', 'tr.eq', 'tr.gd', 'tr.not', 'tr.src', 'tr.reg', 'tr.reg.v', 'g.hs.tcmb', 'src.l.tcmb', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['tr.t', 'tr.sub', 'tr.tot', 'tr.eq', 'tr.gd', 'tr.not', 'tr.src', 'tr.reg', 'tr.reg.v', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v75: przegląd zmierzonych przepływów — jeden wiersz na źródło; znak EBC odwrócony; jednostki; brak = „—”
@@ -1398,10 +1393,10 @@ test('v76: UE: sumy tylko z kompletu 12 miesięcy, Polska zawsze widoczna, stars
   assert.ok(!main.includes('>LU<') && more.includes('LU'), 'starszy miesiąc — w rozwinięciu');
   assert.ok(main.includes('<span class="cell mono pos">+120.0</span>'), 'DE 12 miesięcy = 12 × 10 000 mln');
   assert.ok(more.includes('F2026-03') && more.includes('<span class="cell mono ">—</span>'), 'LU bez kompletu — „—”');
-  assert.ok(html.includes("html+=(typeof ueHtml==='function'&&typeof UE!=='undefined')?ueHtml(UE.data):'';") && html.includes("srvJSON('ue')") && html.includes("ue:'Eurostat'"));
+  assert.ok(html.includes("html+=(typeof ueHtml==='function'&&typeof UE!=='undefined')?ueHtml(UE.data):'';") && html.includes("srvJSON('ue')"));
   assert.ok(html.includes("add('POL',t('fo.pol')"));
   const x0 = html.indexOf('const EXTRA64='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA64='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['ue.t', 'ue.sub', 'ue.c.t12', 'ue.foot', 'ue.not', 'ue.src', 'g.hs.ue', 'fo.pol', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['ue.t', 'ue.sub', 'ue.c.t12', 'ue.foot', 'ue.not', 'ue.src', 'fo.pol', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['inst.sub'].includes('kraje UE'));
 });
 
@@ -1434,9 +1429,9 @@ test('v78: blok Kanady: razem, obligacje, akcje; suma 12 kolejnych miesięcy; wi
   assert.ok(r.includes('<dt>kan.reg</dt>') && r.includes('"t":"+20.7","b":"+25.3","e":"+7.2","t12":"+31.7"'), r);
   assert.equal(f.kanRegion('usa'), '');
   assert.ok(html.includes("html+=(typeof kanHtml==='function'&&typeof KAN!=='undefined')?kanHtml(KAN.data):'';") && html.includes("${typeof kanRegion==='function'?kanRegion(s.id):''}"));
-  assert.ok(html.includes("add('CAN',t('fo.can')") && html.includes("srvJSON('kanada')") && html.includes("kanada:'Statistics Canada'"));
+  assert.ok(html.includes("add('CAN',t('fo.can')") && html.includes("srvJSON('kanada')"));
   const x0 = html.indexOf('const EXTRA66='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA66='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['kan.t', 'kan.sub', 'kan.tot', 'kan.not', 'kan.src', 'kan.reg.v', 'g.hs.kanada', 'fo.can', 'fo.u.cad', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['kan.t', 'kan.sub', 'kan.tot', 'kan.not', 'kan.src', 'kan.reg.v', 'fo.can', 'fo.u.cad', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['kan.src'].includes('with the permission of Statistics Canada') && dict.pl['inst.sub'].includes('Kanada'));
 });
 
@@ -1485,7 +1480,7 @@ test('v81: BCB: ostatni kompletny miesiąc zamiast niepełnego; brak pozycji ban
   assert.equal(R.m, '2026-06', 'lipiec bez pozycji banku centralnego — czerwiec z kompletem');
   assert.ok(Math.abs(R.t - (9074.8 - 1055.3 + 6570.0 + 1291.6)) < 1e-6 && Math.abs(R.o - 7861.6) < 1e-6, JSON.stringify(R));
   const x0 = html.indexOf('const EXTRA69='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA69='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['br.sub', 'br.bop.note', 'br.bop.split', 'br.reg.m', 'br.src', 'g.hs.bcb', 'fo.bra', 'fo.bram', 'fo.sub', 'ue.foot', 'ue.not', 'kan.src', 'bil.not']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['br.sub', 'br.bop.note', 'br.bop.split', 'br.reg.m', 'br.src', 'fo.bra', 'fo.bram', 'fo.sub', 'ue.foot', 'ue.not', 'kan.src', 'bil.not']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['br.src'].includes('22986') && dict.pl['ue.foot'].includes('Austrii i Luksemburga') && dict.pl['ue.not'].includes('kredyty dla rządu'));
   assert.ok(html.includes('22971 minus 22986, 23001, 23042'));
 });
@@ -1509,16 +1504,16 @@ test('v82: blok Korei: bln KRW i ≈ mld USD, suma 12 kolejnych miesięcy, wiers
   const r = f.korRegion('jpn'); assert.ok(r.includes('<dt>kor.reg</dt>') && r.includes('"e":"+0.3","b":"-4.7","e12":"-10.7","b12":"+0.8"'), r);
   assert.equal(f.korRegion('chn'), '');
   assert.ok(html.includes("html+=(typeof korHtml==='function'&&typeof KOR!=='undefined')?korHtml(KOR.data):'';") && html.includes("${typeof korRegion==='function'?korRegion(s.id):''}"));
-  assert.ok(html.includes("add('KOR',t('fo.kor')") && html.includes("srvJSON('korea')") && html.includes("korea:'FSS'"));
+  assert.ok(html.includes("add('KOR',t('fo.kor')") && html.includes("srvJSON('korea')"));
   const x0 = html.indexOf('const EXTRA70='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA70='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['kor.t', 'kor.sub', 'kor.eq', 'kor.bd', 'kor.u', 'kor.usd', 'kor.12', 'kor.not', 'kor.src', 'kor.reg.v', 'g.hs.fss', 'fo.kor', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['kor.t', 'kor.sub', 'kor.eq', 'kor.bd', 'kor.u', 'kor.usd', 'kor.12', 'kor.not', 'kor.src', 'kor.reg.v', 'fo.kor', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['inst.sub'].includes('Korea'));
 });
 
 // v83: Korea — opisy zgodne z FSS (obligacje netto po wykupach, akcje KOSPI/KOSDAQ przy rozliczeniu), opóźnienie 9–31 dni, kurs miesięczny w przypisie
 test('v83: Korea: opisy i opóźnienie zgodne ze źródłem', () => {
   const x0 = html.indexOf('const EXTRA71='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA71='.length, x1));
-  for (const l of ['pl', 'en']) for (const k of ['kor.sub', 'kor.eq', 'kor.bd', 'kor.not', 'g.hs.fss', 'fo.kor', 'src.l.fss', 'fo.foot']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['kor.sub', 'kor.eq', 'kor.bd', 'kor.not', 'fo.kor', 'fo.foot']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['kor.sub'].includes('wykupione przy zapadalności') && dict.pl['kor.sub'].includes('KOSPI i KOSDAQ') && dict.pl['kor.not'].includes('kraj rejestracji'));
   assert.ok(dict.pl['fo.foot'].includes('Korea: średnim kursem miesiąca'));
   assert.ok(!html.includes(".replace(/^([+−])/,'$1')"));
@@ -1542,10 +1537,10 @@ test('v84: klucze Korei nie kolidują z panelem krypto; słownik v84 nakładany 
   assert.ok(html.includes("<h2>${t('kr.t')}</h2><p class=\"pnote\">${t('kr.sub2')}</p>"), 'panel krypto czyta swoje klucze (v96: podtytuł bez nazwy dostawcy)');
   const d = dictOf(72), a39 = html.indexOf('Object.assign(I18N[l],EXTRA39[l]);'), a84 = html.indexOf('Object.assign(I18N[l],EXTRA72[l]);');
   assert.ok(a39 > 0 && a84 > a39, 'v84 nakładany po EXTRA39 (ostatni)');
-  assert.ok(d.pl['cftc.not4'].includes('ICE Futures U.S.') && d.pl['g.hs.cftc'].includes('11 innych rynkach') && d.pl['g.hs.fx'].includes('Frankfurter'));
+  assert.ok(d.pl['cftc.not4'].includes('ICE Futures U.S.'));
   assert.ok(d.pl['g.plain.cf'].startsWith('Waluty regionu „{r}”') && d.pl['g.plain.crypto'].includes('przybliżenie') && d.pl['g.stabflow'].includes('przybliżenie'));
-  assert.ok(d.pl['pg.nosrc.d'].includes('1KW, 1R') && d.pl['g.q.srcv'].includes('Twelve Data') && d.pl['rail.in.g'] && d.pl['src.l.7w'] && d.pl['src.l.bis']);
-  for (const l of ['de', 'fr', 'zh', 'ja']) assert.ok(d[l]['top.t'] && d[l]['g.q.limd'] && d[l]['pg.nosrc.d'] && d[l]['g.help.limd'], l);
+  assert.ok(d.pl['g.q.srcv'].includes('Twelve Data') && d.pl['rail.in.g']);
+  for (const l of ['de', 'fr', 'zh', 'ja']) assert.ok(d[l]['top.t'] && d[l]['g.q.limd'] && d[l]['g.help.limd'], l);
   const E0 = {"pl": "w panelach pod mapą (TIC, bilans płatniczy, MOF Japonii)", "en": "in the panels below the map (TIC, balance of payments, Japan MOF)", "de": "in den Panels unter der Karte (TIC, Zahlungsbilanz, MOF Japan)", "es": "en los paneles bajo el mapa (TIC, balanza de pagos, MOF de Japón)", "fr": "dans les panneaux sous la carte (TIC, balance des paiements, MOF du Japon)", "it": "nei pannelli sotto la mappa (TIC, bilancia dei pagamenti, MOF del Giappone)", "pt": "nos painéis abaixo do mapa (TIC, balanço de pagamentos, MOF do Japão)", "ru": "в панелях под картой (TIC, платёжный баланс, МФ Японии)", "zh": "见地图下方面板（TIC、国际收支、日本财务省）", "ja": "地図の下のパネル（TIC、国際収支、日本の財務省）"};
   for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(/BIS|BIZ|BRI|BPI/.test(d[l]['g.help.2']) && d[l]['g.help.2'].includes('TIC') && !d[l]['g.help.2'].includes(E0[l]), l);
   assert.ok(d.pl['g.help.3'].includes('To model, nie pomiar') && d.en['g.help.3'].includes('not a measurement'));
@@ -1589,11 +1584,11 @@ test('v86: Tajlandia (ThaiBMA): blok, sumy, stan, linia regionu, przegląd, podp
   const r = f.thRegion('asean'); assert.ok(r.includes('<dt>th.reg</dt>') && r.includes('"v":"+3.2"') && r.includes('"n":20') && r.includes('"h":"920.5"'), r);
   assert.equal(f.thRegion('chn'), '');
   assert.ok(html.includes("html+=typeof thBlock==='function'?thBlock():'';") && html.includes("${typeof thRegion==='function'?thRegion(s.id):''}"));
-  assert.ok(html.includes("ses('th',7,'THA','fo.tha','fo.u.usdx');") && html.includes("if(okD(j.th))gOk('obce_th');") && html.includes("obce_th:'ThaiBMA'"));
+  assert.ok(html.includes("ses('th',7,'THA','fo.tha','fo.u.usdx');") && html.includes("if(okD(j.th))gOk('obce_th');"));
   assert.ok(html.includes('<span class="cell">nierezydenci w tajskich obligacjach</span>'));
   const dictOf = n => { const a = 'const EXTRA' + n + '=', x0 = html.indexOf(a); return JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))); };
   const dict = dictOf(74), fix = dictOf(75);
-  for (const l of ['pl', 'en']) for (const k of ['th.t', 'th.sub', 'th.nf', 'th.split', 'th.hold', 'th.hold.ch', 'th.not', 'th.src', 'th.reg.v', 'fo.tha', 'g.hs.thbma', 'src.l.th', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['th.t', 'th.sub', 'th.nf', 'th.split', 'th.hold', 'th.hold.ch', 'th.not', 'th.src', 'th.reg.v', 'fo.tha', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
   for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(dict[l]['g.q.limd'] && dict[l]['g.help.limd'], l);
   assert.ok(dict.pl['g.q.limd'].includes('Hongkong, Tajlandia;') && dict.pl['inst.sub'].includes('Hongkong, Tajlandia i dolary'));
   assert.ok(fix.pl['th.split'].includes('z wykupem w ciągu roku') && fix.en['th.split'].includes('maturing within 1 year') && fix.pl['th.not'].includes('od 16:00 poprzedniego dnia roboczego'));
@@ -1629,10 +1624,10 @@ test('v87: Polska (MF): blok, zmiany, tabele, kraje, linia regionu Europa, przeg
   S.m = [['2026-05', 206240], ['2026-07', 204131.8]]; assert.equal(f.spwLast(S).d1, null, 'bez czerwca — zmiana lipca to brak, nie różnica z majem');
   assert.ok(html.includes("srvJSON('spw').then(j=>{spwApply(j);})") && html.includes("html+=(typeof spwHtml==='function'&&typeof SPW!=='undefined')?spwHtml(SPW.data):'';"));
   assert.ok(html.includes("${typeof spwRegion==='function'?spwRegion(s.id):''}") && html.includes("add('POL',t('fo.polspw'),t('fo.m',{m:L.m}),L.d1,'fo.u.pln',L.m);"));
-  assert.ok(html.includes("spw:()=>SPW.data&&SPW.data.at") && html.includes("spw:'MF SPW'"));
+  // v107: bez map srvAt/metaErr
   assert.ok(html.includes('<span class="cell">nierezydenci w krajowych papierach skarbowych (zmiana stanu)</span>'));
   const a = 'const EXTRA76=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
-  for (const l of ['pl', 'en']) for (const k of ['spw.t', 'spw.sub', 'spw.d1', 'spw.d1.n', 'spw.omni', 'spw.not', 'spw.src', 'spw.reg.v', 'spw.ty.omni', 'spw.rg.asia', 'fo.polspw', 'fo.u.pln', 'g.hs.spw', 'src.l.spw', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['spw.t', 'spw.sub', 'spw.d1', 'spw.d1.n', 'spw.omni', 'spw.not', 'spw.src', 'spw.reg.v', 'spw.ty.omni', 'spw.rg.asia', 'fo.polspw', 'fo.u.pln', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
 // v87.1: Polska (MF) po przeglądzie — zmiana stanu (nie transakcje), udział w liście, rachunki zbiorcze, wiersz przeglądu opisany
@@ -1671,11 +1666,11 @@ test('v88: Meksyk (Banxico): blok, zmiany, stan, linia regionu Ameryka Łacińsk
   assert.ok(h2.includes('"p":"—"') && !h2.includes('mx.usd{'), 'bez całości i kursu — „—”, nie zero');
   assert.ok(html.includes("srvJSON('meksyk').then(j=>{mxApply(j);})") && html.includes("html+=(typeof mxHtml==='function'&&typeof MX!=='undefined')?mxHtml(MX.data):'';"));
   assert.ok(html.includes("${typeof mxRegion==='function'?mxRegion(s.id):''}") && html.includes("add('MEX',t('fo.mex'),t('fo.s',{n:L.n,x:zagSes(L.n),d:L.d}),L.rt&&L.dn!=null?L.dn/L.rt:null,'fo.u.usdx',L.d);"));
-  assert.ok(html.includes("meksyk:()=>MX.data&&MX.data.at") && html.includes("meksyk:'Banxico'"));
+  // v107: bez map srvAt/metaErr
   assert.ok(html.includes('<span class="cell">nierezydenci w meksykańskich papierach rządowych (zmiana stanu)</span>'));
   assert.ok(html.includes('polskich (Ministerstwo Finansów) i meksykańskich (Banco de México).'));
   const a = 'const EXTRA78=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
-  for (const l of ['pl', 'en']) for (const k of ['mx.t', 'mx.sub', 'mx.d', 'mx.d.n', 'mx.lv', 'mx.lv.n', 'mx.not', 'mx.src', 'mx.reg.v', 'fo.mex', 'g.hs.bmx', 'src.l.bmx', 'fo.sub']) assert.ok(dict[l][k], l + ' ' + k);
+  for (const l of ['pl', 'en']) for (const k of ['mx.t', 'mx.sub', 'mx.d', 'mx.d.n', 'mx.lv', 'mx.lv.n', 'mx.not', 'mx.src', 'mx.reg.v', 'fo.mex', 'fo.sub']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['fo.sub'].includes('Wyjątki: wiersz Polski z Ministerstwa Finansów i wiersz Meksyku'));
 });
 
@@ -1827,11 +1822,11 @@ test('v90: TRENDY — panel funduszy ETF w USA, stany „prawie nic”, wiersz n
   for (const m of ['', 'stock.', 'exch.', 'supply.', 'pos.']) for (const s of ['in_stop', 'out_stop']) assert.ok(D.pl[`trd.sn.${m}${s}`] && D.en[`trd.sn.${m}${s}`], `trd.sn.${m}${s}`);
   for (const g of ['us', 'tech', 'fin', 'energy', 'health', 'indu', 'cdisc', 'cstap', 'util', 'dev', 'eur', 'jpn', 'em', 'chn', 'india', 'bra', 'kor', 'twn',
                    'ustl', 'ustm', 'usts', 'agg', 'ig', 'hy', 'emb', 'gold', 'silver']) assert.ok(D.pl['trd.s.fe_' + g] && D.en['trd.s.fe_' + g], 'trd.s.fe_' + g);
-  for (const k of ['trd.e.t', 'trd.e.sub', 'trd.src.fe', 'trd.b.fe', 'g.hs.fe']) assert.ok(D.pl[k] && D.en[k], k);
+  for (const k of ['trd.e.t', 'trd.e.sub', 'trd.src.fe', 'trd.b.fe']) assert.ok(D.pl[k] && D.en[k], k);
   assert.ok(D.pl['trd.m.6'].includes('fundusze rynków wschodzących tworzą jednostki rzadko'), 'dni z zerem w funduszach EM opisane jako pomiar');
   assert.ok(html.includes("trdPanel('e',F.filter(r=>r.g==='fe'))+") && html.indexOf("trdPanel('e'") < html.indexOf("trdPanel('f'"), 'panel funduszy przed krajami');
   assert.ok(html.includes("'in_down','in_stop','out_up'") && html.includes("['in_down','in_stop','out_down','out_stop'].includes(r.st)"));
-  assert.ok(html.includes("fe:'fundusze ETF'") && html.includes("fe:()=>typeof TRD!=='undefined'&&TRD.data&&TRD.data.at"));
+  // v107: bez map srvAt/metaErr
   const bad = /kupuj(?![a-ząćęłńóśźż])|sprzedawaj(?![a-ząćęłńóśźż])|warto kupi|okazj|prognozuj|rekomend|\btrwa(?![a-ząćęłńóśźż])|odbic|\bbuy\b|\bsell\b|forecast|recommend/i;
   for (const l of ['pl', 'en']) for (const k in D[l]) if (/^trd\.(sn|s|e)\b/.test(k)) assert.doesNotMatch(D[l][k], bad, `${l} ${k}`);
 });
@@ -1855,8 +1850,8 @@ test('v91: GLOBAL — linie funduszy ETF w opisie regionu z pliku TRENDÓW; brak
 test('v92: surowce z CFTC w TRENDACH — nazwy, źródło, wiersz na stronie Źródła', () => {
   const a = 'const EXTRA83=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   for (const k of ['gold', 'silver', 'copper', 'wti']) assert.ok(D.pl['trd.s.cs_' + k] && D.en['trd.s.cs_' + k]);
-  assert.ok(D.pl['trd.src.cs'] && D.pl['trd.p.sub'].includes('fundusze zarządzające') && D.en['g.hs.cs'].includes('open interest'));
-  assert.ok(html.includes("cs:'surowce'") && html.includes("cs:'CFTC surowce'"));
+  assert.ok(D.pl['trd.src.cs'] && D.pl['trd.p.sub'].includes('fundusze zarządzające'));
+  // v107: bez map srvAt/metaErr
 });
 
 test('v93: TRENDY — ceny jednostek funduszy (obligacje, metale, sektory) w panelu cen', () => {
@@ -1892,7 +1887,7 @@ test('v94: TRENDY po drugim przeglądzie — wynik funduszy ETF widoczny, źród
   assert.ok(h.includes('trd.k.fade</span></div><div class="k-val neu">−230 trd.u.m USD</div>') && h.includes('<span class="dlt chg">•</span><span class="ksrc" title="trd.sn.in_stop">'), 'kafel „osłabł” przy *_stop — v96: żółty (zmiana bez wyraźnego kierunku)');
   assert.ok(h.includes('trd.n.nav0{"s":"GLD"}'), 'złoto: bez wzmianki o dywidendzie');
   const a = 'const EXTRA85=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
-  assert.ok(D.pl['trd.x.sub'].includes('Obligacji tu nie ma') && D.pl['g.hs.fe'].includes('niekomercyjnym') && D.pl['trd.s.fe_util'].includes('USA'));
+  assert.ok(D.pl['trd.x.sub'].includes('Obligacji tu nie ma') && D.pl['trd.s.fe_util'].includes('USA'));
 });
 
 test('v95: TRENDY — „czy tydzień zapowiadał następny” dla dziennych przepływów krajów; opisy źródeł: co godzinę, historia wstecz', () => {
@@ -1911,10 +1906,8 @@ test('v95: TRENDY — „czy tydzień zapowiadał następny” dla dziennych prz
   assert.ok(x0 > html.indexOf('for(const l in EXTRA85)') && html.includes('for(const l in EXTRA86)if(I18N[l])Object.assign(I18N[l],EXTRA86[l]);'));
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
   assert.ok(D.pl['trd.b.ob'].includes('Brazylia') && D.en['trd.b.ob'].includes('Brazil'));
-  for (const k of ['g.hs.nsdl', 'g.hs.twse', 'g.hs.hkex']) assert.ok(D.pl[k].includes('co godzinę') && D.en[k].includes('every hour') && !D.pl[k].includes('co 3 h'), k);
-  assert.ok(D.pl['g.hs.nsdl'].includes('suma dni zgadza się z sumą miesiąca'));
   assert.ok(D.pl['trd.b.concl3'].includes('Przepływy to nie ceny') && D.en['trd.b.concl3'].includes('Flows are not prices') && D.pl['trd.b.concl3'].includes('nie piszemy „kupuj”'));
-  assert.ok(!('trd.b.concl2' in D.pl) && !D.pl['g.hs.hkex'].includes('trzyma'), 'v95.2: zwykły wniosek bez zmian; opis HKEX bez nieścisłości');
+  assert.ok(!('trd.b.concl2' in D.pl), 'v95.2: zwykły wniosek bez zmian');
   f.trdApply({at: '2026-09-25T11:00:00Z', f: [], p: [], b: [{id: 'ob', k: 73, n: 112, weeks: 51, from: '2025-09-22', to: '2026-09-14', ci: [51.5, 76.8]}]});
   assert.ok(el.innerHTML.includes('trd.b.v.more') && el.innerHTML.includes('<b>trd.b.concl3</b>'), 'wynik przepływów ponad 50% — opis „częściej trwał” i zdanie „przepływy to nie ceny”');
   f.trdApply({at: '2026-09-25T12:00:00Z', f: [], p: [], b: [{id: 'px', k: 180, n: 290, weeks: 31, from: '2026-02-09', to: '2026-09-14', ci: [55.2, 67.4]}, {id: 'ob', k: 1, n: 2, weeks: 2, ci: [9.5, 90.5]}]});
@@ -1964,7 +1957,7 @@ test('v96: Ustawienia bez pola kluczy, logo prowadzi do GLOBAL, ruchome tło w l
   assert.ok(html.includes('.neu{--c:var(--yl);color:var(--yl-tx)}') && html.includes(".live.off{color:var(--yl-tx);"));
   const a = 'const EXTRA87=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
-  assert.ok(D.pl['nav.home'] && !D.pl['etf.src.snap'].includes('Ustawienia') && !D.pl['pg.nosrc.d'].includes('Ustawieniach') && !D.pl['g.hs.fh'].includes('własnego klucza'));
+  assert.ok(D.pl['nav.home'] && !D.pl['etf.src.snap'].includes('Ustawienia'));
 });
 
 // ===== v96 — obszar global_map: mapa GLOBAL, kafelki, szczegóły regionu, „Gdzie warunki sprzyjają”, karty jakości =====
@@ -3410,7 +3403,7 @@ test('v99: OECD najpierw z pliku serwera (co 6 h), prosto z OECD tylko brakując
   const g0 = html.indexOf('function gLoad(cb){'), g1 = html.indexOf('\n  Promise.all(P).then(', g0), G = html.slice(g0, g1);
   assert.ok(G.includes("srvJSON('oecd').then(j=>{const S=oecdSrv(j),pa=") && G.includes("S[k]?Promise.resolve().then(()=>{set(S[k]);gOk(src);GLIVE.oecdAt[src]=pa[k]||j.at;}):gJSON(GSRC[g](gISO.join('+')))"), 'najpierw plik, potem zapas');
   assert.ok(G.includes("one('share','oecd','oecd',v=>{GLIVE.oecd=v;},1)") && G.includes("one('cli','cli','cli',v=>{GLIVE.cli=v;})") && !G.includes("gJSON(GSRC.oecd(gISO.join('+'))).then"), 'bez bezpośrednich zapytań przy dobrym pliku');
-  assert.ok(html.includes('oecd:()=>GLIVE.oecdAt&&GLIVE.oecdAt.oecd,irlt:') && html.includes("oecd:'oecd',irlt:'oecd',cli:'oecd',") && html.includes("oecd:'OECD',irlt:'OECD',cli:'OECD',"), 'Źródła: czas pliku serwera i błąd z meta przy wierszach OECD');
+  // v107: mapy srvAt/metaErr usunięte razem z dawną tabelą źródeł
 });
 test('v100: nowe widgety TradingView po kliknięciu — wiadomości (GLOBAL, CRYPTO), zmienność opcji BTC/ETH (DVOL); zgoda wspólna', () => {
   const w0 = html.indexOf('const TV_W={'), w1 = html.indexOf('\n};', w0), W = html.slice(w0, w1);
@@ -3429,7 +3422,6 @@ test('v100: nowe widgety TradingView po kliknięciu — wiadomości (GLOBAL, CRY
     assert.ok(!/cztery|four|vier|cuatro|quatre|quattro|quatro|четыр|四|4 つ/.test(t('tv.ph.note')), 'zgoda bez liczby widgetów: ' + L);
   }
   assert.ok(v96src.tFor('pl')('tv.sub.dvol').includes('nie prognoza kierunku') && v96src.tFor('pl')('tv.sub.news').includes('nie jest nasza ocena'), 'oczekiwanie rynku, nie prognoza; nagłówki, nie nasza ocena');
-  assert.ok(v96src.tFor('pl')('g.hs.tv').includes('wiadomości krypto') && v96src.tFor('en')('g.hs.tv').includes('DVOL'), 'strona Źródła wymienia nowe widgety');
 });
 test('v101: kursy EBC i rentowności 10L najpierw z pliku serwera; prosto ze źródła tylko brakująca albo za stara część', () => {
   const r0 = html.indexOf('function rynkiSrv('), r1 = html.indexOf('\n  return out;}', r0) + '\n  return out;}'.length;
@@ -3447,7 +3439,7 @@ test('v101: kursy EBC i rentowności 10L najpierw z pliku serwera; prosto ze źr
   assert.ok(G.includes("srvJSON('rynki').then(j=>{const S=rynkiSrv(j),") && G.includes("S.ust?Promise.resolve().then(()=>use('ust',v=>{GLIVE.ust=v;})):gUstLoad()"), 'najpierw plik, zapas — dawny kod');
   assert.ok(!G.includes('gText(GSRC.ust(yr))') && html.includes('function gUstLoad(){'), 'pliki XML Skarbu USA tylko jako zapas');
   assert.ok(html.includes("due(15)?srvJSON('rynki').then(j=>{const S=rynkiSrv(j);if(S.fx&&GLIVE.fx){GLIVE.fx=S.fx;"), 'odświeżanie kursów co 15 min — też z pliku');
-  assert.ok(html.includes("const MK={fx:'rynki_fx',ust:'rynki_ust',buba:'rynki_buba',") && html.includes("const PX={fx:'Frankfurter',ust:'Skarb USA 10L',buba:'Bundesbank 10L',"), 'Źródła: czas pliku i błąd z meta');
+  // v107: mapy srvAt/metaErr usunięte razem z dawną tabelą źródeł
 });
 test('v102: tło — dwie warstwy ciągów, wolniejsze tempo, najwyżej jeden złoty ciąg naraz z przerwą; kolor złota z motywu', () => {
   const h0 = html.indexOf('/* ---------- tło: znaki szesnastkowe ---------- */'), h1 = html.indexOf('/* ---------- zegar ---------- */', h0), B = html.slice(h0, h1);
@@ -3596,7 +3588,7 @@ test('v103-zrodla: bez nazw dostawców poza akapitem wymaganych podpisów; podpi
   assert.ok(!ni.includes('class="icos"') && ni.includes('NA ŻYWO') && ni.includes('1 z 1') && ni.includes('Data by CoinGecko'), 'bez pomocników ikon — te same teksty');
   for (const s of ['const TXT_ZRODLA_PL=', 'const TXT_ZRODLA_EN=', 'function txtZrodla(', 'function attrHtml(', 'function iconsHtml(', 'const ATTR_LINKS=', 'const ATTR_META=', 'const SRC_EN=', 'const SRC_ICO=', 'function srcIco(', "t('zr.sub')", "t('pg.nosrc')", "t('pg.attr')", "t('zr.help')"])
     assert.ok(!html.includes(s), 'usunięte: ' + s);
-  for (const s of ['const TXT_JAK_PL=`', 'const TXT_JAK_EN=`', 'const JAK_ICO=', 'function jakIco(', 'function txtJakCzytac(){', 'function renderMethod(){', '<section class="page" id="page-sources" hidden></section>', "else if(page==='sources')renderSources();", 'function metaErr(k){', 'metaLoad();setInterval('])
+  for (const s of ['const TXT_JAK_PL=`', 'const TXT_JAK_EN=`', 'const JAK_ICO=', 'function jakIco(', 'function txtJakCzytac(){', 'function renderMethod(){', '<section class="page" id="page-sources" hidden></section>', "else if(page==='sources')renderSources();", 'metaLoad();setInterval('])
     assert.ok(html.includes(s), 'zostaje: ' + s);
   assert.equal((html.match(/function renderSources\(\)\{/g) || []).length, 1);
   assert.ok(v96src.render('pl', false, null).txtJakCzytac().includes('<h3>Jak często zmieniają się dane</h3>'), 'Metodologia renderuje się po zmianie');
@@ -4167,4 +4159,42 @@ test('v110: nazwy widoków i opisy w 10 językach — BLOCKCHAIN 3D / KULE 3D, b
   for (const L of Object.keys(NAMES)) assert.equal(Object.keys(E[L]).sort().join('|'), KEYS.slice().sort().join('|'), L + ': klucze EXTRA104');
   assert.ok(!html.includes("t('hint3')") && !html.includes("t('leg.area'") && html.includes("t('leg.areaB'") && !html.includes('HINTK'), 'hint3 i leg.area nie są czytane przez stronę');
   assert.ok(html.includes('<div class="hint" id="hint" data-i18n="hint"></div>'), 'podpowiedź pod sceną z klucza hint');
+});
+
+// v107 (sprzątanie): martwy kod po dawnej stronie Źródła usunięty — funkcje bez wywołań, CSS bez klas, 160 kluczy bez użycia;
+// strażnik „bez wiszących kluczy”: każdy literał t('…') / t("…") i każdy atrybut data-i18n* w stronie ma wpis w pl i en
+test('v107: srvAt/metaErr/tvState, CSS dawnej strony Źródła i klucze zr./g.hs./src./pg.attr… nie istnieją; klucze v103 zostają', () => {
+  for (const s of ['function srvAt(', 'function metaErr(', 'function tvState(', '.zr-attr{', '.zr-g{', '.zr-ico small{', '#zr-icons', '.cell.zr-n{', "t('src.m.err')", "'tv.src.on'",
+    'const EXTRA16=', 'const EXTRA37=', 'const EXTRA_YLD=', 'Object.assign(I18N.pl,{"g.hs.tga":'])
+    assert.ok(!html.includes(s), 'usunięte: ' + s);
+  const D = v96src.I18N;
+  const gone = ['zr.sub', 'zr.help', 'zr.lic', 'zr.ico', 'zr.ico.flags', 'zr.g.i', 'zr.a.oecd', 'zr.a.tv', 'g.hs.tv', 'g.hs.oecd', 'g.hs.tga', 'g.hs.mof', 'g.hs.fh', 'g.hs.irlt', 'g.hs.ust', 'g.hs.mk',
+    'src.f.d', 'src.f.w', 'src.l.1d', 'src.l.7w', 'src.d.cp', 'src.d.wbfix', 'src.m.file', 'src.m.err', 'pg.attr', 'pg.attr.d', 'pg.nosrc', 'pg.nosrc.d', 'pg.source', 'pg.host', 'pg.freq', 'pg.lag', 'pg.state', 'pg.sources.d', 'tv.src.on', 'tv.src.off'];
+  for (const k of gone) for (const L in D) assert.ok(!(k in D[L]), 'martwy klucz usunięty: ' + L + ' ' + k);
+  for (const L in D) for (const k in D[L]) assert.ok(!/^(zr\.(a|g|ico)\.|g\.hs\.|src\.(f|l|d|m)\.|pg\.(attr|nosrc)|tv\.src\.)/.test(k) && k !== 'zr.sub' && k !== 'zr.help' && k !== 'zr.lic' && k !== 'zr.ico', 'rodzina usunięta w całości: ' + L + ' ' + k);
+  for (const k of ['zr2.live', 'zr2.refresh', 'zr2.count', 'zr2.legal', 'zr2.attr', 'zr2.help', 'foot.src', 'pg.sources', 'pg.fixed', 'pg.ok', 'pg.no', 'g.age', 'g.age1', 'g.age0', 'inst.file', 'eng.notsays', 'eng.disclaimer'])
+    assert.ok(D.pl[k] && D.en[k], 'zostaje: ' + k);
+  assert.ok(html.includes('function metaLoad(){') && html.includes('function tvAnyLoaded(){') && html.includes('GLIVE.srcAt'), 'metaLoad, tvAnyLoaded i GLIVE.srcAt zostają');
+  // strona Źródła v103 renderuje się po sprzątaniu tak samo (karta stanu, podpisy), bez surowych kluczy
+  for (const L of ['pl', 'de', 'ja']) {
+    const out = v96src.render(L, false, null).out;
+    assert.ok(out.includes('id="zr-clock"') && out.includes('zr-attr2') && out.includes('Data by CoinGecko') && !/zr2?\.[a-z]/.test(out.replace(/zr-attr2/g, '')), L + ': karta stanu bez surowych kluczy');
+  }
+});
+
+test('v107: strażnik — każdy literał t(\'klucz\') i data-i18n w stronie ma wpis w słowniku pl i en', () => {
+  const D = v96src.I18N;
+  const s0 = html.indexOf('<script>'), s1 = html.lastIndexOf('</script>'), js = html.slice(s0, s1);
+  const d0 = js.indexOf('const I18N={'), d1 = js.indexOf('/* ===================== STAN I DANE');
+  assert.ok(d0 > 0 && d1 > d0);
+  const code = js.slice(0, d0) + js.slice(d1);   // kod strony bez samego bloku słowników
+  // klucze składane dynamicznie ('g.n.'+id, 'trd.'+key+'.t' …) nie są literałami, więc strażnik ich nie widzi; tu wpisać literał, który celowo nie ma wpisu
+  const EXCLUDE = [];
+  const keys = new Set();
+  for (const m of code.matchAll(/(?<![A-Za-z0-9_$.])t\(\s*(['"])([^'"\\]+)\1\s*[,)]/g)) keys.add(m[2]);
+  for (const m of html.matchAll(/data-i18n(?:-[a-z]+)?="([^"]+)"/g)) keys.add(m[1]);
+  assert.ok(keys.size > 900, 'literały znalezione: ' + keys.size);
+  const missing = [...keys].filter(k => !EXCLUDE.includes(k) && !(k in D.pl && k in D.en));
+  assert.deepEqual(missing, [], 'literały bez wpisu w pl/en');
+  for (const k of ['pg.sources', 'zr2.live', 'inst.file', 'eng.notsays', 'lev.t', 'wh.t', 'ix.t']) assert.ok(keys.has(k), 'literał widziany przez strażnika: ' + k);
 });
