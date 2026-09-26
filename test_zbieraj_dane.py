@@ -4531,7 +4531,7 @@ class WielorybyV105(unittest.TestCase):
         self.assertEqual(zd.wh_hex('0x1a'), 26); self.assertEqual(zd.wh_hex('0x0'), 0)
         self.assertIsNone(zd.wh_hex('0x')); self.assertIsNone(zd.wh_hex(None)); self.assertIsNone(zd.wh_hex('zz')); self.assertIsNone(zd.wh_hex(12))
         self.assertEqual(zd.wh_topic('0xBE0EB53F46CD790CD13851D5EFF43D12404D33E8'), '0x000000000000000000000000be0eb53f46cd790cd13851d5eff43d12404d33e8')
-        self.assertEqual(len(zd.wh_portfele()), 19); self.assertTrue(all(w['src'] and w['since'] and w['addr'] == w['addr'].lower() for w in zd.wh_portfele()))
+        self.assertEqual(len(zd.wh_portfele()), 164); self.assertTrue(all(w['src'] and w['since'] and w['addr'] == w['addr'].lower() for w in zd.wh_portfele()))   # v108: 9 + 10 + 108 + 33 + 4
 
     def test_zakres(self):
         p, luka = zd.wh_zakres(10000, None)
@@ -4641,8 +4641,9 @@ class WielorybyV105(unittest.TestCase):
             o = zd.build_wieloryby(None)
         self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': True}); self.assertEqual(zd.META['errors'], [])
         self.assertEqual(sorted(o['part_at']), ['salda', 'transfery']); self.assertEqual(o['blk'], 10000)
-        self.assertEqual(len(calls), 2 + 6 + 1, 'dwie paczki sald (≤ 40 wywołań), sześć paczek logów, jedna o czasy bloków')
-        self.assertEqual(calls[0][1][:2], ['eth_getBlockByNumber', 'eth_call']); self.assertEqual(len(calls[0][1]) + len(calls[1][1]), 2 + 3 * 19); self.assertEqual(len(calls[0][1]), 40)
+        NB = -(-(2 + 3 * len(zd.wh_portfele())) // zd.WH_BATCH)   # v108: 494 wywołań w paczkach po 40 = 13 żądań
+        self.assertEqual(NB, 13); self.assertEqual(len(calls), NB + 6 + 1, 'trzynaście paczek sald (≤ 40 wywołań), sześć paczek logów, jedna o czasy bloków')
+        self.assertEqual(calls[0][1][:2], ['eth_getBlockByNumber', 'eth_call']); self.assertEqual(sum(len(c[1]) for c in calls[:NB]), 2 + 3 * 164); self.assertEqual(len(calls[0][1]), 40)
         self.assertTrue(all(u == zd.WH_RPC for u, _ in calls))
         self.assertAlmostEqual(o['eth_usd'], 2688.8695031); self.assertEqual(o['eth_usd_at'], o['blk_t'])
         b = o['salda']['Binance']
@@ -4657,13 +4658,13 @@ class WielorybyV105(unittest.TestCase):
         self.assertTrue(all(r['t'].endswith('+00:00') for r in o['transfery']))
         self.assertEqual((o['ostatni_blok'], o['okno_od'], o['okno'], o['luka']), (10000, 5201, 4800, False))
         self.assertTrue(o['okno_od_t'] < o['ostatni_t'] == o['blk_t']); self.assertEqual(o['gieldy']['OKX']['tokeny'], ['USDC'])
-        self.assertEqual(len(o['wallets']), 19); self.assertTrue(all(w['src'] for w in o['wallets']))
+        self.assertEqual(len(o['wallets']), 164); self.assertTrue(all(w['src'] for w in o['wallets']))
         # drugi przebieg: od ostatniego bloku, jedna paczka, historia bez drugiego zrzutu tego dnia, okno ≈ 24 h w blokach
         post2, calls2 = self._rpc(head=10100)
         with mock.patch.object(zd, 'post_json', side_effect=post2):
             o2 = zd.build_wieloryby(o)
-        self.assertEqual(len(calls2), 3, 'salda (dwie paczki) + jedna paczka logów; czasy bloków znane z poprzedniego pliku')
-        self.assertEqual(calls2[2][1], ['eth_getLogs', 'eth_getLogs'])
+        self.assertEqual(len(calls2), NB + 1, 'salda (trzynaście paczek) + jedna paczka logów; czasy bloków znane z poprzedniego pliku')
+        self.assertEqual(calls2[NB][1], ['eth_getLogs', 'eth_getLogs'], 'jedna grupa tematów (164 ≤ WH_TOPICS) = dwa zapytania o logi')
         self.assertEqual((o2['ostatni_blok'], o2['okno_od'], o2['okno']), (10100, 5201, 4900)); self.assertEqual(len(o2['hist']['Binance']), 1)
         self.assertEqual([r['tx'][:4] for r in o2['transfery']], ['0xff', '0xee', '0xaa', '0xbb'], 'wiersze z poprzedniego pliku zostają w oknie')
         self.assertEqual([r.get('wew') for r in o2['transfery']], [True, True, None, None], 'oznaczenie pary zostaje w kolejnym przebiegu')
@@ -5335,3 +5336,114 @@ class DzwigniaV109(unittest.TestCase):
         self.assertIn("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']", html); self.assertIn("LEV_LIVE=['hl','okx','kr','cb','dy'],LEV_SUMAGE=6*3600e3", html); self.assertIn('function levAll(){', html)
         self.assertEqual(zd.LEV_LIVE, ['hl', 'okx', 'kr', 'cb', 'dy']); self.assertEqual(zd.LEV_SUMAGE, 6 * 3600); self.assertEqual(zd.LEV_HOURS, {'kr': 1, 'cb': 1, 'dy': 1})
         self.assertEqual(sorted(zd.LEV_PX), ['bn', 'cb', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_TIMEOUT, 20)
+
+
+class Wieloryby2V108(WielorybyV105):
+    '''v108: więcej giełd (Bybit, KuCoin, Bitfinex) — listy z raportów dowodu rezerw giełd; sumy sald i noty per giełda, brak ≠ zero,
+    nowa giełda bez wcześniejszego zrzutu, para „ta sama kwota w obie strony” także na nowej giełdzie, grupy tematów eth_getLogs.'''
+    BY1 = '0x695f7dea85bf8c0aaafef0a9484e74834e28ce8b'   # Bybit (z raportu 26.08.2026)
+    KC1 = '0xbee64116bd2b1b6373273d01664fbc5532dad06d'   # KuCoin (z raportu 31.08.2026)
+    BF1 = '0x742d35cc6634c0532925a3b844bc454e4438f44e'   # Bitfinex (zimny, lista 11.2022)
+
+    def test_ksztalt_list_gield(self):
+        g = zd.WH_GIELDY
+        self.assertEqual(list(g), ['Binance', 'OKX', 'Bybit', 'KuCoin', 'Bitfinex'])
+        self.assertEqual((len(g['Bybit']['addr']), len(g['KuCoin']['addr']), len(g['Bitfinex']['addr'])), (108, 33, 4))
+        for n in ('Bybit', 'KuCoin', 'Bitfinex'):
+            self.assertEqual(g[n]['tokeny'], ['USDT', 'USDC', 'ETH']); self.assertTrue(g[n]['src'] and g[n]['url'].startswith('https://') and g[n]['since'])
+            self.assertEqual(len(set(a.lower() for a in g[n]['addr'])), len(g[n]['addr']), 'bez powtórzeń: ' + n)
+        self.assertEqual((g['Bybit']['since'], g['KuCoin']['since'], g['Bitfinex']['since']), ('2026-08-26', '2026-08-31', '2022-11'))
+        W = self.W
+        self.assertEqual((W[self.BY1], W[self.KC1], W[self.BF1]), ('Bybit', 'KuCoin', 'Bitfinex'))
+        self.assertEqual(len(set(W.values())), 5); self.assertEqual(len(W), 164, 'adres należy do jednej giełdy')
+
+    def test_nowe_gieldy_salda_noty_i_pierwszy_zrzut(self):
+        '''Pełny przebieg: sumy nowych giełd, wpisy gieldy[...] (n, since, tokeny), historia zaczyna się od pierwszego odczytu;
+        poprzedni plik bez nowych giełd zachowuje historię Binance/OKX i nie dopisuje im niczego.'''
+        post, calls = self._rpc()
+        prev = {'at': '2026-09-25T00:00:00+00:00', 'hist': {'Binance': [['2026-09-25', '2026-09-25T00:05:00+00:00', 1.0, 2.0, 3.0]]},
+                'salda': {'Binance': {'eth': 1.0, 'usdt': 2.0, 'usdc': 3.0, 'usd': 9.0, 'blk': 1, 't': '2026-09-25T00:00:00+00:00', 'n': 9}}}
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez zapasu kursu')):
+            o = zd.build_wieloryby(prev)
+        self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': True}); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(sorted(o['salda']), ['Binance', 'Bitfinex', 'Bybit', 'KuCoin', 'OKX'])
+        b = o['salda']['Bybit']
+        self.assertAlmostEqual(b['eth'], 108 * 1.5); self.assertAlmostEqual(b['usdt'], 108 * 2_000_000); self.assertEqual((b['n'], b['blk']), (108, 10000))
+        self.assertAlmostEqual(o['salda']['KuCoin']['eth'], 33 * 1.5); self.assertAlmostEqual(o['salda']['Bitfinex']['usdc'], 4 * 2_000_000)
+        self.assertAlmostEqual(o['salda']['Bitfinex']['usd'], 4 * 1.5 * 2688.8695031 + 4 * 4_000_000, places=2)
+        for n, k in (('Bybit', 108), ('KuCoin', 33), ('Bitfinex', 4)):
+            self.assertEqual((o['gieldy'][n]['n'], o['gieldy'][n]['tokeny']), (k, ['USDT', 'USDC', 'ETH'])); self.assertIn('https://', o['gieldy'][n]['url'])
+            self.assertEqual(o['hist'][n], [[o['blk_t'][:10], o['blk_t'], k * 1.5, k * 2_000_000.0, k * 2_000_000.0]], 'historia nowej giełdy zaczyna się od pierwszego odczytu')
+        self.assertEqual(o['hist']['Binance'][0], ['2026-09-25', '2026-09-25T00:05:00+00:00', 1.0, 2.0, 3.0]); self.assertEqual(len(o['hist']['Binance']), 2)
+        self.assertNotIn('OKX', prev['hist']); self.assertEqual(len(o['hist']['OKX']), 1)
+        self.assertEqual(sum(1 for w in o['wallets'] if w['exch'] == 'Bybit'), 108); self.assertTrue(all(w['since'] == '2026-08-26' for w in o['wallets'] if w['exch'] == 'Bybit'))
+
+    def test_nowa_gielda_bez_odpowiedzi_nie_jest_zerem(self):
+        '''Jeden portfel Bybit bez odpowiedzi = Bybit bez nowego salda (bez sumy częściowej); bez poprzedniego wpisu — brak wpisu, nie zero.
+        Pozostałe giełdy liczone normalnie; błąd nazwany.'''
+        bad = lambda a, tok: '0x' if (a == self.BY1 and tok == 'usdt') else self._h(10 ** 6)
+        post, _ = self._rpc(bal=bad)
+        with mock.patch.object(zd, 'post_json', side_effect=post):
+            o = zd.build_wieloryby(None)
+        self.assertNotIn('Bybit', o['salda']); self.assertNotIn('Bybit', o['hist']); self.assertEqual(o['ok']['salda'], False)
+        self.assertEqual(sorted(o['salda']), ['Binance', 'Bitfinex', 'KuCoin', 'OKX']); self.assertAlmostEqual(o['salda']['KuCoin']['usdt'], 33.0)
+        self.assertEqual(len(zd.META['errors']), 1); self.assertIn('salda Bybit: brak odpowiedzi węzła', zd.META['errors'][0])
+        self.assertTrue(zd.META['errors'][0].startswith('Wieloryby: '))
+        # z poprzednim wpisem Bybit: poprzednie saldo z własnym czasem, historia bez nowego wiersza
+        zd.META['errors'].clear()
+        prev = dict(o, at='2026-09-26T07:00:00+00:00'); prev['salda'] = dict(o['salda'], Bybit={'eth': 5.0, 'usdt': 6.0, 'usdc': 7.0, 'usd': 1.0, 'blk': 1, 't': '2026-09-25T00:00:00+00:00', 'n': 108})
+        prev['hist'] = dict(o['hist'], Bybit=[['2026-09-25', '2026-09-25T00:00:00+00:00', 5.0, 6.0, 7.0]])
+        with mock.patch.object(zd, 'post_json', side_effect=post):
+            o2 = zd.build_wieloryby(prev)
+        self.assertEqual(o2['salda']['Bybit'], prev['salda']['Bybit']); self.assertEqual(o2['hist']['Bybit'], prev['hist']['Bybit'])
+
+    def test_dekoduj_i_pary_na_nowych_gieldach(self):
+        '''Przelew Bybit → KuCoin = dwa wiersze (out/in); wewnętrzny Bybit → Bybit pominięty; para „ta sama kwota w obie strony” na Bybit oznaczona wew.'''
+        BY2 = [a for a in zd.WH_GIELDY['Bybit']['addr'] if a != self.BY1][0]
+        L = [self._log(zd.WH_USDT, self.BY1, self.KC1, 3_000_000, tx='0x' + '11' * 32), self._log(zd.WH_USDC, self.BY1, BY2, 9_000_000, tx='0x' + '22' * 32),
+             self._log(zd.WH_USDT, self.X, self.BF1, 1_500_000, tx='0x' + '33' * 32), self._log(zd.WH_USDC, self.BY1, self.X, 4_000_000, blk=200, tx='0x' + '44' * 32),
+             self._log(zd.WH_USDC, self.X, BY2, 4_000_000, blk=210, tx='0x' + '55' * 32)]
+        R = zd.wh_dekoduj(L, self.W)
+        rows = sorted(R.values(), key=lambda r: (r['tx'], r['dir']))
+        self.assertEqual([(r['tx'][:4], r['dir'], r['exch'], r['amt']) for r in rows],
+                         [('0x11', 'in', 'KuCoin', 3000000.0), ('0x11', 'out', 'Bybit', 3000000.0), ('0x33', 'in', 'Bitfinex', 1500000.0), ('0x44', 'out', 'Bybit', 4000000.0), ('0x55', 'in', 'Bybit', 4000000.0)])
+        zd.wh_pary(rows)
+        self.assertEqual([r.get('wew') for r in rows], [None, None, None, True, True], 'para w 10 bloków na Bybit oznaczona; przelew między giełdami nie')
+
+    def test_grupy_tematow(self):
+        '''wh_logi: ≤ WH_TOPICS tematów = dwa zapytania; więcej = po dwa na grupę, wszystkie tematy dokładnie raz; grupa z wynikiem null = paczka nieudana.'''
+        f = {'fromBlock': '0x1', 'toBlock': '0x2', 'address': [zd.WH_USDT, zd.WH_USDC]}
+        tw = [zd.wh_topic(w['addr']) for w in zd.wh_portfele()]
+        c = zd.wh_logi(f, tw)
+        self.assertEqual(len(c), 2); self.assertEqual(c[0][1][0]['topics'], [zd.WH_TRANSFER, None, tw]); self.assertEqual(c[1][1][0]['topics'], [zd.WH_TRANSFER, tw])
+        c = zd.wh_logi(f, tw, maks=50)
+        self.assertEqual(len(c), 8, '164 tematy po 50 = 4 grupy × 2 zapytania')
+        self.assertEqual([len(x[1][0]['topics'][2]) for x in c[0::2]], [50, 50, 50, 14]); self.assertEqual(sum((x[1][0]['topics'][1] for x in c[1::2]), []), tw)
+        self.assertTrue(all(x[1][0]['fromBlock'] == '0x1' and x[1][0]['address'] == [zd.WH_USDT, zd.WH_USDC] for x in c))
+        self.assertEqual(zd.wh_logi(f, []), [])
+        # pełny przebieg z grupami po 50: 8 zapytań o logi na paczkę w jednym żądaniu, wiersze z każdej grupy
+        post, calls = self._rpc()
+        with mock.patch.object(zd, 'WH_TOPICS', 50), mock.patch.object(zd, 'post_json', side_effect=post):
+            o = zd.build_wieloryby(None)
+        lg = [c for c in calls if c[1][0] == 'eth_getLogs']
+        self.assertEqual(len(lg), 6); self.assertTrue(all(c[1] == ['eth_getLogs'] * 8 for c in lg)); self.assertEqual(o['ok']['transfery'], True)
+        self.assertEqual([r['tx'][:4] for r in o['transfery']], ['0xff', '0xee', '0xaa', '0xbb'], 'te same wiersze co bez grup (Binance/OKX są w pierwszej grupie)')
+        # null w jednej z grup: paczka nieudana, ostatni_blok nie idzie dalej
+        prev = dict(o, at='2026-09-26T07:00:00+00:00', part_at={'salda': '2026-09-26T07:00:00+00:00', 'transfery': '2026-09-26T06:40:00+00:00'})
+        base, _ = self._rpc(head=10100)
+
+        def nul(url, body, timeout=60):
+            out = base(url, body, timeout)
+            k = [i for i, b in enumerate(body) if b['method'] == 'eth_getLogs']
+            if k:
+                out[k[-1]] = dict(out[k[-1]], result=None)   # ostatnia grupa bez odpowiedzi
+            return out
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'WH_TOPICS', 50), mock.patch.object(zd, 'post_json', side_effect=nul), mock.patch.object(zd.time, 'sleep'):
+            o2 = zd.build_wieloryby(prev)
+        self.assertEqual((o2['ok']['transfery'], o2['ostatni_blok']), (False, 10000)); self.assertIn('nie jest listą', zd.META['errors'][0])
+
+
+# klasa v108 dziedziczy tylko pomocnicze (_rpc, _log, _h, setUp) — testy v105 nie mają biegać drugi raz (loader pomija atrybuty niewywoływalne)
+for _n in [n for n in dir(WielorybyV105) if n.startswith('test_') and n not in Wieloryby2V108.__dict__]:
+    setattr(Wieloryby2V108, _n, None)

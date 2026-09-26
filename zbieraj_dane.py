@@ -5264,6 +5264,7 @@ WH_HIST_DNI = 120       # historia sald: jeden zrzut na dobę UTC
 WH_BUDZET = 12          # sekund na skanowanie logów w jednym przebiegu (cały przebieg < 20 s) — reszta w następnym
 WH_LIMIT = 40           # sekund na cały przebieg budowniczego: gdy węzeł milczy, nie czekamy dłużej (limit BRIEF: < 60 s)
 WH_PARA = 30            # ta sama kwota w obie strony tej samej giełdy w ≤ tylu blokach = najpewniej ruch wewnętrzny (oznaczenie)
+WH_TOPICS = 200         # v108: najwyżej tyle portfeli w jednej tablicy tematów eth_getLogs (150 sprawdzone na obu węzłach 26.09.2026); więcej = grupy
 WH_GIELDY = {
     'Binance': {'src': 'Binance — wpis „Our Commitment To Transparency” (blog giełdy, listopad 2022): portfele gorące i zimne na Ethereum',
                 'url': 'https://www.binance.com/en/blog/community/our-commitment-to-transparency-2895840147147652626', 'since': '2022-11',
@@ -5282,6 +5283,93 @@ WH_GIELDY = {
                      '0x445f16314284b43dfa1fd3cd77b9dea4a1bebd97', '0x87d0d6c8cdd71a658ecf1566f13e4cbc562beaf9',
                      '0x1dfc6bec8499fcb5e3151c7c6d27feb9d7eae1d4', '0xebf6c883a1d60ab38c8ed4780aadbfe4c805ed4f',
                      '0x3425519651e4c42833633fe5c0e24ed89c1023a3', '0x7fea5b4568751533039179116e372e26b6b41b13']},
+    # v108: pełne listy portfeli w sieci Ethereum z raportów dowodu rezerw giełd (sprawdzone 26.09.2026): Bybit — tabela „Audited wallets”
+    # z raportu audytu z 26.08.2026 (PDF na stronie giełdy; lista styczniowa CSV giełdy pokrywa się w 90 ze 108 adresów — portfele rotują),
+    # KuCoin — tabela „Verified wallets” z raportu ze stanem na 31.08.2026 (PDF podlinkowany na stronie Proof of Reserves giełdy),
+    # Bitfinex — publiczna lista portfeli giełdy (GitHub bitfinexcom/pub, wallets.txt, 11.2022). Salda wszystkich odczytane 26.09.2026:
+    # Bybit 2,34 mld USD (108 portfeli), KuCoin 0,74 mld (33), Bitfinex 0,76 mld (4) — pełne listy, bez wyboru „największych N”.
+    'Bybit': {'src': 'Bybit — miesięczny raport dowodu rezerw giełdy (audyt z 26.08.2026, PDF na stronie giełdy): wszystkie 108 portfeli w sieci Ethereum z tabeli „Audited wallets”',
+              'url': 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Aug_26.pdf', 'since': '2026-08-26',
+              'tokeny': ['USDT', 'USDC', 'ETH'],
+              'addr': ['0x01e2fb8f565d5e3cb9e0e8f0b607a96169b94393', '0x076d55c8998da29531ef7fcac2a01fa21582eed2',
+                      '0x0ac92eb5716516a08e7760d314d42e1d5d3c03ae', '0x0e928b196f0ba723de312a7798027b014a7f1055',
+                      '0x13f52026493dccf09065952d44101c3e42b41dda', '0x18673311fec54ac2244a602e6d91845553d24e62',
+                      '0x187c9fbf5bd0f266883c03f320260c407c7b4100', '0x18e296053cbdf986196903e889b7dca7a73882f6',
+                      '0x1c3944173abee256456b1498299fc501ad5bbd6f', '0x223fea5291d43a2fb372c5f332e9ade371ded0b5',
+                      '0x25c76fa90e90f5a5a6914da07baed9a9647c3dfd', '0x25c7d768a7d53e6ebe5590c621437126c766e1ea',
+                      '0x260b364fe0d3d37e6fd3cda0fa50926a06c54cea', '0x2adcd148c975fc5fac0b11c92ed79637d4f1016c',
+                      '0x30ba21597f22aafa4b0e86c250c8a6eebaf0da54', '0x324316a23cd9dc84681e730225559015798567a7',
+                      '0x33ae83071432116ae892693b45466949a38ac74c', '0x35696b0847ed8428a098cba726b6514582aa5fc7',
+                      '0x35bf33df55472938ad314678962b7c69204f0a8a', '0x371c31f9221459e10565cfe78937cbda5db1791c',
+                      '0x3bd0e57e2917d3d9a93f479b3a23b28c3f31a789', '0x3cef1f90be0f15f1573bda7a3e045cca9cff1d15',
+                      '0x3db4cb6d753d9e0ba7cc84e576d17dcd01b6b67d', '0x3ef28b7e18c510b8fa031d7f8a1bb24a83ccceb0',
+                      '0x412dd3f282b1fa20d3232d86ae060dec644249f6', '0x429b41e5eb73e2266affbc2d7a41553bd8f1ede1',
+                      '0x448c642074d7be4c5fc25929bb5536f772cd9d5c', '0x4865d4bcf4ab92e1c9ba5011560e7d4c36f54106',
+                      '0x495c70e181c45f80806dcbd733140361a0f75cc2', '0x495eb9345788ee6be50c9c36ed67ffa2beb3699f',
+                      '0x4e19698c366f7dcd1cfad4d7f621b4d275bb1a6c', '0x4e5e17e8ef17c9a7ef9798ddf78f3a2c38367d16',
+                      '0x4e7292e03703e38ad5dbee25fadbf9e61016b3fe', '0x554e61af48afb53bd28670c3a2aa14ce858e63dd',
+                      '0x59800fc68c7039566ed7a04b0f735255093cac1d', '0x61b2aa17c1c1114e7583bb31f777ff4bdc7ab717',
+                      '0x6206ae3781f9f1b6fbcf44c7240b1be14f3169ef', '0x62425cd6bdcb6bfe51558ea465b063486b70dc9f',
+                      '0x63bee4a7e4aa5d76dc6ab9b9d1852aabb9a40936', '0x651641299c7ec0aa44ad7ed9b7e12702fed2022f',
+                      '0x6522b7f9d481eceb96557f44753a4b893f837e90', '0x695f7dea85bf8c0aaafef0a9484e74834e28ce8b',
+                      '0x6b9b774502e6afaafcac84f840ac8a0844a1abe3', '0x6bd869be16359f9e26f0608a50497f6ef122ee3e',
+                      '0x6f4565c9d673dbdd379aba0b13f8088d1af3bb0c', '0x70167b76543c4a12b49b2f2b70cbf04d99345786',
+                      '0x70f58622158d7e609ae5839c4ad0d477f468863f', '0x72187db55473b693ded367983212fe2db3768829',
+                      '0x75df67943d35129dd22da5d14fda4983571f553a', '0x77439637cac35bedd63fc9e769d7819ca1d24a48',
+                      '0x79ae8c1b31b1e61c4b9d1040217a051f954d4433', '0x7a84c1f1aa344d466b0f161f57b0321b98faf6ee',
+                      '0x7b66a51bad1c2fb2b21b42e6ec98e70e891edf24', '0x7c41c7d883dbbe1edfcefca9d7a7592dd30c8b51',
+                      '0x801bfd99636ec8961f7e2d2dd0a296d726f5f1ae', '0x80a9b4aab0ad3c73cce1c9223236b722db5d6628',
+                      '0x80d45515a84e762c6497a089913f26b41235bf65', '0x8121cf7f01b32a5cc4dc079a5c3127849c85bd6e',
+                      '0x855e9a74196764ab41adb3e3b76eaf9e3d6d6d48', '0x869bcee3a0bad2211a65c63ec47dbd3d85a84d68',
+                      '0x88a1493366d48225fc3cefbdae9ebb23e323ade3', '0x8a2458f32e5ec9935f20e7c2e06e8d4820f726e5',
+                      '0x8c28e696c89200d423f9a5eea7347747e78ed25f', '0x8fa129f87b8a11ee1ca35abd46674f8b66984d4a',
+                      '0x922fa922da1b0b28d0af5aa274d7326eaa108c3d', '0x93228d328c9c74c2bfe9f97638bbb5ef322f2bd5',
+                      '0x933646d78ede6f1ef5cf4a0a03e3a819c8057922', '0x9814ba501c7ad64bed5ac731d0a4f9a506e18f8a',
+                      '0x9cdb59516b37f5c1bd166bc41c5b9f68a57225bd', '0xa0acdf9fa38b293f0bbdd01ca6bf3e7ed8291dd4',
+                      '0xa1abfa21f80ecf401bd41365adbb6fef6fefdf09', '0xa4287bc8a021025974a642806cf2ab717b857380',
+                      '0xa7a93fd0a276fc1c0197a5b5623ed117786eed06', '0xa9acc15d8b74a01e5605eb0f1e815ba98e3a16af',
+                      '0xa9cf4aa55c675badb68519e3cfa8f4be942e6d11', '0xad85405cbb1476825b78a021fa9e543bf7937549',
+                      '0xb24692d17babefd97ea2b4ca604a481a7cc2c8ea', '0xb3dc298398877e65ab5125ced5014438bd5c3c4c',
+                      '0xb829e684df8e31b402a4d4aedf3bbc18a52e7589', '0xba0553154a8e0fc37d822f042f2cf7b6823c4377',
+                      '0xbaed383ede0e5d9d72430661f3285daa77e9439f', '0xbce9aecd3985d4cbb9d273453159a26301fa02ef',
+                      '0xc19bb2709321bd6ad6d8396a885b7c151b8d48c5', '0xc22166664e820cda6bf4cedbdbb4fa1e6a84c440',
+                      '0xc273a2e3fc4c8f8610ebe51123dc32d233913da7', '0xc63fe58d36bef77a9a98df32a547537f45aac71d',
+                      '0xc6c6a48ee8e9f593724161c72414d76e94cda93f', '0xc6ddab48e5966115810974de57a3b367ec893cc1',
+                      '0xc93e48d89f2d6dbc1672908aa68ce7c24d0413b4', '0xcab3f132a11e5b723fc20ddab8bb1b858d00a8e8',
+                      '0xcbf446565eddf074b2c99e8f1c15582a0bfe6eba', '0xd07e6ab4b75b3da5a96b5e81064a65fc04f98814',
+                      '0xd4d2e6ebca6c94dd28a0935ae468012fdda5d35a', '0xd7c4d4b3f076bf9fe391190c42676b4dc269ee02',
+                      '0xd860962a96cd471bbe60a83c33e65011d40eb65f', '0xdae4fdcb7fc93738ec6d5b1ea92b7c7f75e4f2f6',
+                      '0xdba34cfc849738b2075fd28446902d3f1689c09d', '0xee5b5b923ffce93a870b3104b7ca09c3db80047a',
+                      '0xefef30bd1cca520619306c95091ab18473febc5c', '0xf2f40c3bb444288f6f64d8336dcc14dbd929fd94',
+                      '0xf42aac93ab142090db9fdc0bc86aab73cb36f173', '0xf440139a62b2b939699c5b3e09f88e40464ab9bc',
+                      '0xf833685f98eba1b99947d418c9512d27c8193b1a', '0xf89d7b9c864f589bbf53a82105107622b35eaa40',
+                      '0xf8f061cfc030928a4acb8c4980911b4f5afc4002', '0x3f07566d6b5febfbd0b813b857bb388c2bd15569',
+                      '0xeb9af6505bdfd2b64848a21ed02f8ccab9144f5d', '0x3dedec283546862d78e7f0707215954e166907bd']},
+    'KuCoin': {'src': 'KuCoin — miesięczny raport dowodu rezerw giełdy (stan z 31.08.2026, PDF podlinkowany na stronie Proof of Reserves giełdy): wszystkie 33 portfele w sieci Ethereum z tabeli „Verified wallets”',
+               'url': 'https://assets.staticimg.com/cms/media/YKni0XbjiNeiu4woYgDkB3rZ2Uk6rBO4nmihgsvRI.pdf', 'since': '2026-08-31',
+               'tokeny': ['USDT', 'USDC', 'ETH'],
+               'addr': ['0x061f7937b7b2bc7596539959804f86538b6368dc', '0x0c32131b67a9306a42e5b66f869bc213d40e43f0',
+                       '0x1692e170361cefd1eb7240ec13d048fd9af6d667', '0x175ce6204bfda2a509c7e9c786b74407f569c9cc',
+                       '0x189b24f3eb15dc71b4fc57c5914e7e9b3246e449', '0x1b14376ee2d46ae5c27a43d902d96d4f3f264b83',
+                       '0x2677c4c8757da1857cc7cc4071e0e0dd32ccb975', '0x2933782b5a8d72f2754103d1489614f29bfa4625',
+                       '0x37e4d1cd3fe31edf473ebcf3b6a75f419c8839d1', '0x3b6d76719a4ea8c53a7a26b50175b8de23c8e956',
+                       '0x41e29c02713929f800419abe5770faa8a5b4dadc', '0x446b86a33e2a438f569b15855189e3da28d027ba',
+                       '0x44f1b02d78ed39962600df6440cf8eed3e02a96b', '0x5b234aaab0f61d346a3ef8faca474c1c19f80c1f',
+                       '0x651f1d419c548125d7e5456fb61f3df47c29600d', '0x69be413d648ae00f0fbd9856f1355e22b36ee5e0',
+                       '0x6d6cc65e2060d0a280fcd47b6c22ec5636797fec', '0x7491f26a0fcb459111b3a1db2fbfc4035d096933',
+                       '0x7b915c27a0ed48e2ce726ee40f20b2bf8a88a1b3', '0x83c41363cbee0081dab75cb841fa24f3db46627e',
+                       '0x8dac80ce96f69f9762bc450faa4d7fbd5891ae18', '0x9f4cf329f4cf376b7aded854d6054859dd102a2a',
+                       '0xa152f8bb749c55e9943a3a0a3111d18ee2b3f94e', '0xaa10db8804d076601999c7cd769e02e44a99d5b2',
+                       '0xaa99fc695eb1bbfb359fbad718c7c6dafc03a839', '0xb514c67824443868d3a70352398f524ef6af6207',
+                       '0xb8e6d31e7b212b2b7250ee9c26c56cebbfbe6b23', '0xbee64116bd2b1b6373273d01664fbc5532dad06d',
+                       '0xd6216fc19db775df9774a6e33526131da7d19a2c', '0xd91efec7e42f80156d1d9f660a69847188950747',
+                       '0xdd276dc5223d0120f9bf1776f38957cc8da23cb0', '0xe8c15aad9d4cd3f59c9dfa18828b91a8b2c49596',
+                       '0xf16e9b0d03470827a95cdfd0cb8a8a3b46969b91']},
+    'Bitfinex': {'src': 'Bitfinex — publiczna lista portfeli giełdy (GitHub bitfinexcom/pub, plik wallets.txt, listopad 2022): portfele gorące i zimne ETH/ERC-20',
+                 'url': 'https://github.com/bitfinexcom/pub/blob/main/wallets.txt', 'since': '2022-11',
+                 'tokeny': ['USDT', 'USDC', 'ETH'],
+                 'addr': ['0x77134cbc06cb00b66f4c7e623d5fdbf6777635ec', '0x742d35cc6634c0532925a3b844bc454e4438f44e',
+                         '0xc61b9bb3a7a0767e3179713f3a5c7a9aedce193c', '0x876eabf441b2ee5b5b0554fd502a8e0600950cfa']},
 }
 
 
@@ -5450,6 +5538,17 @@ def wh_pary(rows, bloki=WH_PARA):
     return rows
 
 
+def wh_logi(f, tw, maks=None):
+    """v108: zapytania o zdarzenia Transfer dla paczki bloków f — po dwa (do portfeli, z portfeli) na każdą grupę ≤ maks tematów.
+    Koszt skanu nie rośnie z liczbą portfeli (tablica tematów), ale bardzo długą tablicę węzeł mógłby odrzucić — stąd grupy."""
+    maks = maks or WH_TOPICS   # stała czytana przy wywołaniu (testy ją podmieniają)
+    out = []
+    for i in range(0, len(tw), maks):
+        g = tw[i:i + maks]
+        out += [('eth_getLogs', [dict(f, topics=[WH_TRANSFER, None, g])]), ('eth_getLogs', [dict(f, topics=[WH_TRANSFER, g])])]
+    return out
+
+
 def build_wieloryby(prev=None):
     """data/wieloryby.json — salda ETH/USDT/USDC ogłoszonych portfeli giełd (co przebieg, jedno żądanie zbiorcze), historia
     dobowa i duże transfery USDT/USDC (skan zdarzeń od ostatniego zapisanego bloku). Każda część osobno: błąd = poprzednia
@@ -5539,12 +5638,12 @@ def build_wieloryby(prev=None):
                 break
             try:
                 f = {'fromBlock': hex(a), 'toBlock': hex(b), 'address': [WH_USDT, WH_USDC]}
-                r = wh_rpc([('eth_getLogs', [dict(f, topics=[WH_TRANSFER, None, tw])]), ('eth_getLogs', [dict(f, topics=[WH_TRANSFER, tw])])], kind='logi', termin=termin)
+                r = wh_rpc(wh_logi(f, tw), kind='logi', termin=termin)   # v108: grupy tematów (przy ≤ WH_TOPICS portfeli — jedna)
             except Exception as e:  # noqa — postęp do tej paczki zostaje, reszta w następnym przebiegu
                 err = str(e); break
-            if not (isinstance(r[0], list) and isinstance(r[1], list)):   # null zamiast listy = brak odpowiedzi, nie „brak zdarzeń” — paczka nieudana
+            if not all(isinstance(x, list) for x in r):   # null zamiast listy = brak odpowiedzi, nie „brak zdarzeń” — paczka nieudana
                 err = f'logi bloków {a}–{b}: wynik nie jest listą'; break
-            rows.update(wh_dekoduj(r[0] + r[1], wmap))
+            rows.update(wh_dekoduj([l for x in r for l in x], wmap))
             done, n = b, n + 1
         if done is None or (err and not n):   # nic nie zeskanowano — poprzednia część w całości, z własnym czasem
             raise ValueError(err or 'brak zeskanowanych bloków')

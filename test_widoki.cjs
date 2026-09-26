@@ -4056,3 +4056,61 @@ test('v109-dzwignia2: EXTRA102 — 10 języków, te same klucze lev.* i miejsca 
   const ja = lev104.mk({}, v96src.tFor('ja')); ja.levApply(lev109.fix());
   assert.ok(ja.el.innerHTML.includes('全取引所の合計') && ja.el.innerHTML.includes('十億ドル'), 'japoński: nagłówek i jednostka jak w słowniku bazowym');
 });
+
+test('v108: wieloryby — nowe giełdy (Bybit, KuCoin, Bitfinex): kafle, noty z listą i datą, brak wcześniejszego zrzutu, przelew między giełdami, dziesięć języków', () => {
+  const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whApply(', w0);
+  assert.ok(w0 > 0 && w1 > w0, 'blok v105 w stronie');
+  const T = (k, v) => (k.startsWith('wh.n.') ? 'nota:' + k : k) + (v ? JSON.stringify(v) : '');
+  const run = D => {
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    new Function('$', 't', 'nfmt', 'escH', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'exchImg', 'netImg', 'D', html.slice(w0, w1) + '\nWH.data=D;renderWh();')(
+      q => q === '#c-wieloryby' ? el : null, T, (v, d) => Number(v).toFixed(d), v96src.escH, s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')',
+      x => `<span class="icos">${x}</span>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, D);
+    return el;
+  };
+  const now = new Date().toISOString(), t0 = '2026-09-26T08:00:00+00:00', tx = '0x' + '2b'.repeat(32), S = {blk: 4899, t: t0};
+  const D = {at: now, eth_usd: 2690.54, eth_usd_at: now, okno: 4800, okno_od: 100, okno_od_t: '2026-09-25T16:00:00+00:00', ostatni_blok: 4899, ostatni_t: t0,
+    gieldy: {Binance: {n: 9, since: '2022-11', tokeny: ['USDT', 'USDC', 'ETH']}, OKX: {n: 10, since: '2026-09-08', tokeny: ['USDC']},
+      Bybit: {n: 108, since: '2026-08-26', tokeny: ['USDT', 'USDC', 'ETH']}, KuCoin: {n: 33, since: '2026-08-31', tokeny: ['USDT', 'USDC', 'ETH']}, Bitfinex: {n: 4, since: '2022-11', tokeny: ['USDT', 'USDC', 'ETH']}},
+    salda: {Binance: Object.assign({eth: 2702952.36, usdt: 20743650467.52, usdc: 57096.09, usd: 28004143062.82, n: 9}, S), OKX: Object.assign({eth: 0.6, usdt: 29.81, usdc: 1359427317.99, usd: 1359428969.12, n: 10}, S),
+      Bybit: Object.assign({eth: 305310.2, usdt: 1217100000, usdc: 301600000, usd: 2340000000, n: 108}, S), KuCoin: Object.assign({eth: 67834, usdt: 510000000, usdc: 46600000, usd: 739000000, n: 33}, S),
+      Bitfinex: Object.assign({eth: 272369, usdt: 2000000, usdc: 22200000, usd: null, n: 4}, S)},
+    hist: {Bybit: [['2026-09-25', '2026-09-25T00:03:00+00:00', 305000, 1217000000, 301600000]]},
+    transfery: [{t: '2026-09-26T07:12:00+00:00', token: 'USDT', amt: 3000000, dir: 'out', exch: 'Bybit', tx, blk: 4890}, {t: '2026-09-26T07:12:00+00:00', token: 'USDT', amt: 3000000, dir: 'in', exch: 'KuCoin', tx, blk: 4890},
+      {t: '2026-09-26T06:00:00+00:00', token: 'USDC', amt: 4000000, dir: 'out', exch: 'Bybit', tx: '0x' + '3c'.repeat(32), blk: 4850, wew: true}, {t: '2026-09-26T06:01:00+00:00', token: 'USDC', amt: 4000000, dir: 'in', exch: 'Bybit', tx: '0x' + '4d'.repeat(32), blk: 4855, wew: true}]};
+  const el = run(D), out = el.innerHTML;
+  assert.ok(!el.hidden, 'sekcja widoczna');
+  const order = ['Binance', 'OKX', 'Bybit', 'KuCoin', 'Bitfinex'].map(g => out.indexOf(`<b>${g}</b>`));
+  assert.ok(order.every((p, i) => p > 0 && (i === 0 || p > order[i - 1])), 'giełdy w kolejności pliku: ' + order.join(','));
+  assert.ok(out.includes('wh.wal{"n":"108","d":"2026-08-26"}') && out.includes('<span class="whn">nota:wh.n.Bybit</span>'), 'Bybit: 108 portfeli, data listy, nota');
+  assert.ok(out.includes('wh.wal{"n":"33","d":"2026-08-31"}') && out.includes('nota:wh.n.KuCoin') && out.includes('wh.wal{"n":"4","d":"2022-11"}') && out.includes('nota:wh.n.Bitfinex'), 'KuCoin i Bitfinex: liczba portfeli, data listy, nota');
+  for (const g of ['Bybit', 'KuCoin', 'Bitfinex']) for (const k of ['USDT', 'USDC', 'ETH', 'wh.k.usd']) assert.ok(out.includes(`${g} · ${k}`), 'kafel ' + g + ' ' + k);
+  assert.ok(out.includes('Bybit · USDT</span><b>1.22 wh.u.mld USDT') && out.includes('Bybit · ETH</span><b>305310 ETH') && out.includes('Bybit · wh.k.usd</span><b>2.34 wh.u.mld USD'), 'kwoty Bybit: ' + out.slice(out.indexOf('Bybit · USDT'), out.indexOf('Bybit · USDT') + 120));
+  assert.ok(out.includes('KuCoin · USDT</span><b>510.0 wh.u.mln USDT') && out.includes('Bitfinex · ETH</span><b>272369 ETH'), 'kwoty KuCoin i Bitfinex');
+  assert.ok(out.includes('Bitfinex · wh.k.usd</span><b>— <small class="na">wh.usd.na</small>'), 'suma Bitfinex bez liczby = „—” z powodem, nie zero');
+  const seg = g => out.slice(out.indexOf(`<b>${g}</b>`), out.indexOf('<h3', out.indexOf(`<b>${g}</b>`) + 1) > 0 ? out.indexOf('<h3', out.indexOf(`<b>${g}</b>`) + 1) : out.length);
+  assert.equal((seg('KuCoin').match(/— · wh\.nochg/g) || []).length, 3, 'KuCoin bez historii: trzy kafle z „brak wcześniejszego zrzutu”, nie zero');
+  assert.equal((seg('Bitfinex').match(/— · wh\.nochg/g) || []).length, 3, 'Bitfinex bez historii: trzy kafle z „brak wcześniejszego zrzutu”');
+  assert.ok(seg('Bybit').includes('<small class="pos">▲ +100000 · wh.vs{"t":"[2026-09-25T00:03:00+00:00]"}</small>'), 'Bybit USDT: zmiana wobec wczorajszego zrzutu, zielona');
+  assert.ok(seg('Bybit').includes('<small class="">• 0 · wh.vs{"t":"[2026-09-25T00:03:00+00:00]"}</small>'), 'Bybit USDC: równe salda = zero bez koloru i strzałki');
+  assert.equal((seg('Bybit').match(/wh\.d7: — · wh\.short/g) || []).length, 3, 'Bybit: 7 dni bez zrzutu = „za krótka historia” przy trzech kaflach'); assert.ok(!seg('Bybit').includes('wh.nochg'), 'Bybit ma wczorajszy zrzut');
+  assert.ok(out.includes(`wh.blk{"t":"[${t0}]","n":"4899"} · age(2026-09-26)`), 'data i wiek salda przy kaflach');
+  assert.ok((out.match(/<i class="ico sm">Bybit<\/i>/g) || []).length >= 5 && (out.match(/<i class="ico sm">Bitfinex<\/i>/g) || []).length >= 5, 'logo (albo monogram) giełdy przy nagłówku, kaflach i w tabeli');
+  const rows = out.split('<tr><td>').length - 1;
+  assert.equal(rows, 4, 'przelew Bybit → KuCoin = dwa wiersze (z giełdy / na giełdę), para wew = dwa wiersze');
+  assert.ok(out.includes('▼ wh.out · <span class="icos"><i class="ico sm">Bybit</i></span>Bybit</span>') && out.includes('▲ wh.in · <span class="icos"><i class="ico sm">KuCoin</i></span>KuCoin</span>'), 'kierunki z logo i nazwą nowej giełdy');
+  assert.equal((out.match(/class="cell neu wew"/g) || []).length, 2, 'para na Bybit: obie strony bursztynowe z dopiskiem');
+  assert.ok(!/Hacken|Etherscan|Chainlink|CoinGecko|PublicNode|publicnode|GitHub/.test(out.replace(/href="[^"]*"/g, '')), 'bez nazw dostawców ani audytora w tekście panelu');
+  // słownik: nowe klucze wh.n.* w dziesięciu językach, z datą listy, bez nazw dostawców i audytora; stare klucze bez zmian
+  const keys = ['wh.n.Bybit', 'wh.n.KuCoin', 'wh.n.Bitfinex'], PROV = /Etherscan|Chainlink|CoinGecko|PublicNode|Allnodes|Coin Metrics|Hacken|GitHub/i;
+  assert.ok(html.includes('const EXTRA103=') && html.includes('for(const l in EXTRA103)if(I18N[l])Object.assign(I18N[l],EXTRA103[l]);'), 'słownik EXTRA103 podpięty');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of keys) { assert.ok(v96src.I18N[L][k] && t(k) !== k && t(k).length > 40, L + ' ' + k); assert.ok(!PROV.test(t(k)), 'dostawca: ' + L + ' ' + k); }
+    assert.ok(/2026/.test(t('wh.n.Bybit')) && /2026/.test(t('wh.n.KuCoin')) && /2022/.test(t('wh.n.Bitfinex')), 'data listy w nocie: ' + L);
+    if (!['pl', 'en'].includes(L)) for (const k of keys) assert.notEqual(t(k), v96src.tFor('en')(k), 'przetłumaczone: ' + L + ' ' + k);
+  }
+  assert.ok(v96src.tFor('pl')('wh.n.Bybit').includes('108') === false && v96src.tFor('pl')('wh.n.Bybit').includes('Wszystkie portfele'), 'nota Bybit: „wszystkie portfele” (liczba i data listy są w wh.wal z pliku)');
+  assert.ok(v96src.tFor('en')('wh.n.Bitfinex').includes('not all of them') && v96src.tFor('pl')('wh.n.Bitfinex').includes('nie całość'), 'nota Bitfinex: część majątku, nie całość');
+  assert.equal(v96src.tFor('pl')('wh.n.Binance'), 'Portfele gorące i zimne z wpisu giełdy o przejrzystości (listopad 2022) — część majątku giełdy, nie całość.', 'stara nota bez zmian');
+});
