@@ -1,13 +1,16 @@
-# Kontrola strony — 26.09.2026, 10:18 (czas polski)
+# Kontrola strony — 26.09.2026, 13:38 (czas polski)
 
-**Wynik: OK**
+**Wynik: UWAGA**
 
-- Strona główna: działa (HTTP 200, 517 ms).
-- Ostatni przebieg automatu: 26.09.2026, 10:03 — sprzed 14 min; źródeł: 54, bez odpowiedzi: żadne; błędów zbieracza: 0.
-- Przebiegi Actions w 24 h: 95 (in_progress: 1, success: 93, cancelled: 1).
-- Pliki danych (wiek): etf 0h34, trendy 0h14, oecd 3h50, rynki 0h34, dzwignia 0h14, wieloryby 0h14, energia 1h29, usa-makro 1h29, bilans-usa 13h36, krypto 0h34, instytucje 0h14, tic 10h51, cm 0h34.
-- Notatki automatu: Twelve Data: świece spoza wspólnego kalendarza sesji pominięte: 3 · brak EODHD_KEY — indeksy świata wyłączone · brak MASSIVE_KEY — notowania ETF (Massive) wyłączone · brak TIINGO_KEY — zapas notowań ETF (Tiingo) wyłączony.
+- Strona główna: działa (HTTP 200, 497 ms).
+- Ostatni przebieg automatu: 26.09.2026, 13:26 — sprzed 12 min; źródeł: 51, bez odpowiedzi: żadne; błędów zbieracza: 0.
+- Przebiegi Actions w 24 h: 93 (in_progress: 1, success: 90, failure: 1, cancelled: 1).
+- Pliki danych (wiek): etf 0h54, trendy 0h12, oecd 0h54, rynki 0h54, dzwignia 0h35, wieloryby 0h12, energia 4h49, usa-makro 4h49, bilans-usa 16h55, krypto 0h54, instytucje 0h35, tic 14h10, cm 0h54, robots.txt HTTP ?, sitemap.xml HTTP ?, google433f7c24524100a9.html HTTP ?.
 
-Wszystko w normie.
+## Uwagi
+- robots.txt: HTTP Error 404: Not Found
+- sitemap.xml: HTTP Error 404: Not Found
+- google433f7c24524100a9.html: HTTP Error 404: Not Found
+- 1 nieudany przebieg automatu w 24 h (ostatni: 26.09.2026, 13:13)
 
 Kontrola wykonana przez GitHub Actions (plik `narzedzia/kontrola.py`), bez kluczy, tylko odczyt.
