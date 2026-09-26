@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name 'kontrola-strony'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add kontrola/ostatnia.md kontrola/ostatnia.json
+          git add kontrola/ostatnia.md kontrola/ostatnia.json kontrola/zgodnosc.csv kontrola/historia.json   # v115: historia różnic i przebiegów
           if git diff --cached --quiet; then echo "bez zmian"; else
             git commit -q -m "Kontrola strony $(date -u +%Y-%m-%d\ %H:%M) UTC [skip ci]"
             git push -q origin HEAD:main || (git pull -q --rebase origin main && git push -q origin HEAD:main)

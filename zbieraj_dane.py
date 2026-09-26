@@ -5287,7 +5287,7 @@ WH_ETH_URL = 'https://api.etherscan.io/v2/api?chainid=1&module=account&action=tx
 WH_ETH_PER_RUN = 40     # portfeli na przebieg (154 portfele z ETH ≈ co 4 przebiegi ≈ 80 min); dobowo ≤ 40 × 72 = 2 880 zapytań (limit dostawcy 100 000)
 WH_ETH_BUDZET = 12      # sekund na część ETH w jednym przebiegu (cały przebieg wielorybów < WH_LIMIT)
 WH_ETH_OFFSET = 10000   # najwyżej tyle transakcji w jednej odpowiedzi (limit dostawcy); pełna odpowiedź = ciąg dalszy od jej ostatniego bloku
-WH_ETH_TEMPO = 0.21     # sekund między zapytaniami (limit dostawcy: 5 zapytań na sekundę)
+WH_ETH_TEMPO = 0.4      # sekund między zapytaniami (limit planu bezpłatnego dostawcy: 3 zapytania na sekundę — 0,21 s dawało „rate limit reached (3/sec)” 26.09.2026)
 WH_ETH_LAG = 5          # bloków za głowicą węzła RPC — indeks eksploratora bywa o chwilę w tyle; skan portfela kończy się na head − WH_ETH_LAG
 WH_ETH_BLEDY = 3        # tyle kolejnych błędów (limit, awaria) = koniec części ETH w tym przebiegu; pojedynczy błąd = portfel wraca na początek kolejki
 WH_ETH_START = WH_START   # pierwszy skan portfela albo zaległość większa niż tyle bloków: od head − WH_ETH_START + 1 (≈ 16 h), bez udawania ciągłości

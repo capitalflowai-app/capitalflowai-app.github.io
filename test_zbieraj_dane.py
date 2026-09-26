@@ -8,6 +8,7 @@ Uruchomienie: python3 -m unittest -v test_zbieraj_dane.py
 import datetime
 import json
 import os
+import statistics
 import unittest
 from unittest import mock
 
@@ -5849,3 +5850,147 @@ class ArchiwumV113(unittest.TestCase):
         self.assertIn('FRED_OBS', src)
         for bad in ('api.coingecko.com', 'sosovalue.xyz', 'coinpaprika.com', 'finnhub.io', 'twelvedata.com', 'coinmarketcap.com', 'api.etherscan.io', 'cryptopanic.com', 'eodhd.com', 'tiingo.com', 'massive.com', 'polygon.io'):
             self.assertNotIn(bad, src, 'archiwum publiczne tylko z domeny publicznej i obliczeń własnych')
+
+
+class KontrolaV115(unittest.TestCase):
+    """v115 (część C): kontrola jakości — godziny robocze, wiek danych wg kategorii i progi (żółte / czerwone 2×), zgodność kapitalizacji
+    z medianą 30 dni, TGA, wieloryby z archiwum, historia 3 przebiegów, format raportu (nagłówek i „Wynik:” bez zmian), straż kluczy, workflow."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='kontrola-')
+        os.environ['KONTROLA_DIR'] = os.path.join(cls.tmp, 'kontrola'); os.environ['KONTROLA_ARCH'] = os.path.join(cls.tmp, 'archiwum')
+        for n, f in (('k', 'kontrola.py'), ('s', 'straz_kluczy.py')):
+            spec = importlib.util.spec_from_file_location('v115_' + n, os.path.join(cls.ROOT, 'narzedzia', f))
+            mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod); setattr(cls, n, mod)
+
+    def test_godziny_robocze_i_wiek(self):
+        k, D = self.k, datetime.datetime
+        tz = datetime.timezone.utc
+        self.assertEqual(k.godziny_robocze(D(2026, 9, 25, 0, tzinfo=tz), D(2026, 9, 25, 12, tzinfo=tz)), 12.0)                  # piątek
+        self.assertEqual(k.godziny_robocze(D(2026, 9, 25, 12, tzinfo=tz), D(2026, 9, 28, 6, tzinfo=tz)), 18.0, 'sobota i niedziela nie liczą się')
+        self.assertEqual(k.godziny_robocze(D(2026, 9, 26, 0, tzinfo=tz), D(2026, 9, 27, 23, tzinfo=tz)), 0.0)
+        now = D(2026, 9, 26, 6, 20, tzinfo=tz)   # sobota rano
+        self.assertEqual(k.wiek_danych('2026-09-24', 'day', 'd', now), 24 * 60, 'dane z czwartku: cały piątek (24 h roboczych), sobota nie')
+        self.assertEqual(k.wiek_danych('2026-09-24', 'day', 'w', now), int((now - D(2026, 9, 25, tzinfo=tz)).total_seconds() // 60), 'tygodniowe: zwykłe minuty od końca dnia')
+        self.assertEqual(k.wiek_danych('2026-07', 'month', 'm', now), int((now - D(2026, 8, 1, tzinfo=tz)).total_seconds() // 60))
+        self.assertEqual(k.wiek_danych('2026-12', 'month', 'm', D(2027, 1, 1, 1, tzinfo=tz)), 60)
+        self.assertEqual(k.wiek_danych('2026-09-26T05:20:00+00:00', 'ts', 'h', now), 60); self.assertIsNone(k.wiek_danych('zle', 'day', 'd', now))
+        self.assertEqual((k.ocena(100, 180), k.ocena(181, 180), k.ocena(361, 180), k.ocena(None, 180)), ('✅', '⚠️', '❌', '?'))
+
+    def test_swiezosc_wg_plikow(self):
+        k, tz = self.k, datetime.timezone.utc
+        now = datetime.datetime(2026, 9, 26, 6, 20, tzinfo=tz)
+        files = {'rynki': {'part_at': {'fx': '2026-09-26T05:43:00+00:00', 'ust': '2026-09-26T02:00:00+00:00'}},
+                 'wieloryby': {'part_at': {'salda': '2026-09-26T01:00:00+00:00'}}, 'dzwignia': None,
+                 'instytucje': {'tga': {'asof': '2026-09-24'}}, 'etf': {'asof': '2026-09-25'}, 'energia': {'s': {'wti': {'d': [['2026-09-01', 1]]}}},
+                 'fred': {'series': {'RRPONTSYD': {'asof': '2026-09-25'}, 'WALCL': {'asof': '2026-09-16'}}}, 'cftc': {'asof': '2026-09-08'},
+                 'tic': {'asof': '2026-04'}, 'oecd': {'cli': {'USA': [['2026-07', 1], ['2026-08', 2]]}, 'irlt': {'DEU': [['2026-08', 1]]}}, 'usa-makro': {'s': {'cpi': {'d': [['2026-06', 1]]}}}}
+        rows = {r[0]: r for r in k.swiezosc(files, now)}
+        st = {lab: r[1] for lab, r in rows.items()}
+        self.assertEqual(st['rynki (kursy EBC, rentowności)'], '✅', 'najnowsza część 37 min temu'); self.assertEqual(rows['rynki (kursy EBC, rentowności)'][3], '2026-09-26T05:43:00+00:00')
+        self.assertEqual(st['wieloryby (salda portfeli giełd)'], '⚠️', '5 h 20 min > 3 h'); self.assertEqual(st['dźwignia (giełdy pochodnych)'], '?')
+        self.assertEqual(st['TGA (Fiscal Data, dziennie)'], '✅', 'czwartek + piątek roboczy = 24 h < 36 h; sobota nie liczy się')
+        self.assertEqual(st['EIA ceny dzienne (publikowane co tydzień)'], '❌', 'dane z 1.09: 24 dni > 2 × 9 dni')
+        self.assertEqual(st['CFTC (raport tygodniowy)'], '⚠️', '17 dni > 12'); self.assertEqual(st['FRED tygodniowe (WALCL)'], '⚠️', '9,3 dnia > 9')
+        self.assertEqual(st['TIC (miesięcznie)'], '⚠️', 'kwiecień: 148 dni > 75, < 150'); self.assertEqual(st['OECD (miesięcznie)'], '✅'); self.assertEqual(st['BLS (miesięcznie)'], '⚠️', 'czerwiec: 87 dni > 45')
+        self.assertIn('ponad 2× progu', rows['EIA ceny dzienne (publikowane co tydzień)'][4]); self.assertNotIn('godziny robocze', rows['EIA ceny dzienne (publikowane co tydzień)'][4])
+        files['instytucje'] = {'tga': {'asof': '2026-09-18'}}
+        self.assertIn('godziny robocze', {r[0]: r for r in k.swiezosc(files, now)}['TGA (Fiscal Data, dziennie)'][4], 'dzienne: próg w godzinach roboczych')
+        self.assertEqual(len(rows), 12)
+
+    def test_kapitalizacja_mediana(self):
+        k = self.k
+        rows = {'2026-09-%02d' % d: {'cap': 4.0 + (d % 3) * 0.1} for d in range(1, 11)}
+        st, med, n, opis = k.kapitalizacja(rows, 4.5, '2026-09-26')
+        self.assertEqual((st, n), ('✅', 10)); self.assertAlmostEqual(med, 4.1)
+        self.assertEqual(k.kapitalizacja(rows, 6.5, '2026-09-26')[0], '⚠️'); self.assertEqual(k.kapitalizacja(rows, 9.2, '2026-09-26')[0], '❌'); self.assertEqual(k.kapitalizacja(rows, -1.5, '2026-09-26')[0], '❌')
+        self.assertEqual(k.kapitalizacja({'2026-09-01': {'cap': 4.0}}, 9.0, '2026-09-26')[0], 'ℹ️', 'za mało historii — bez koloru')
+        self.assertEqual(k.kapitalizacja(dict(rows, **{'2026-09-26': {'cap': 99.0}}), 4.5, '2026-09-26')[1], 4.1, 'dzisiejszy wpis nie wchodzi do mediany')
+        self.assertEqual(k.kapitalizacja(rows, None, '2026-09-26')[0], '?')
+        big = {'2026-%02d-%02d' % (1 + i // 28, 1 + i % 28): {'cap': float(i)} for i in range(60)}
+        self.assertEqual(k.kapitalizacja(big, 45.0, '2026-09-26')[1], statistics.median(range(30, 60)), 'mediana z ostatnich 30 dni')
+        # TGA: ta sama mediana, próg 1 pkt proc., bez czerwonego; dni bez odczytu TGA (pusta komórka) nie wchodzą do historii
+        tg = {'2026-09-%02d' % d: {'cap': 4.0, 'tga': 3.0 + (d % 2) * 0.2} for d in range(1, 11)}; tg['2026-09-11'] = {'cap': 4.0}
+        self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', k.TGA_PROG, None)[0], '✅'); self.assertEqual(k.mediana_ocena(tg, 'tga', 4.3, '2026-09-26', k.TGA_PROG, None)[0], '⚠️')
+        self.assertEqual(k.mediana_ocena(tg, 'tga', 9.9, '2026-09-26', k.TGA_PROG, None)[0], '⚠️', 'TGA nigdy nie jest czerwone'); self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', 1.0, None)[2], 10)
+        p = os.path.join(self.tmp, 'zgodnosc.csv'); k.zgodnosc_zapisz(p, {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
+        self.assertEqual(open(p, encoding='utf-8').read(), 'date,cap_gap_pct,tga_gap_pct\n2026-09-25,4.361,3.050\n2026-09-26,4.400,\n'); self.assertEqual(k.zgodnosc_csv(p), {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
+
+    def test_tga_i_wieloryby(self):
+        k = self.k
+        inst = {'tga': {'d': [['2026-09-22', 957409], ['2026-09-23', 947317], ['2026-09-24', 924627]]}}
+        fred = {'series': {'WTREGEN': {'d': [['2026-09-16', 877028.0], ['2026-09-23', 977084.0]]}}}
+        d, a, b, r = k.tga_porownanie(inst, fred)
+        self.assertEqual((d, a, b), ('2026-09-23', 947317.0, 977084.0)); self.assertAlmostEqual(r, abs(947317 - 977084) / 977084 * 100)
+        self.assertIsNone(k.tga_porownanie({}, fred)); self.assertIsNone(k.tga_porownanie(inst, {'series': {'WTREGEN': {'d': [['2026-01-01', 1]]}}}))
+        arch = os.path.join(self.tmp, 'archiwum'); os.makedirs(arch, exist_ok=True); p = os.path.join(arch, 'wieloryby.csv')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n'
+                    '2026-09-26,Binance,USDT,100,20000000000,0,0,0,1\n2026-09-26,Binance,ETH,1,7000000000,0,0,0,1\n2026-09-26,OKX,USDC,1,1000000000,0,0,0,1\n'
+                    '2026-09-27,Binance,USDT,100,20050000000,60000000,10000000,50000000,2\n2026-09-27,Binance,ETH,1,7300000000,0,0,0,2\n2026-09-27,OKX,USDC,1,1000400000,0,0,0,2\n2026-09-27,Bybit,USDT,1,5,0,0,0,2\n')
+        d, pdn, zle, n = k.wieloryby_porownanie(p)
+        self.assertEqual((d, pdn, n), ('2026-09-27', '2026-09-26', 3), 'Bybit bez poprzedniego dnia nie liczony')
+        self.assertEqual([(g, a) for g, a, *_ in zle], [('Binance', 'ETH')], 'USDT: zmiana 50 mln = netto 50 mln; OKX: 0,4 mln < 1 mln; ETH: 300 mln vs 0')
+        self.assertIsNone(k.wieloryby_porownanie(os.path.join(arch, 'nie-ma.csv')))
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n2026-09-26,Binance,USDT,100,1,0,0,0,1\n')
+        self.assertIsNone(k.wieloryby_porownanie(p), 'jeden dzień = bez porównania')
+
+    def test_historia_i_raport(self):
+        k = self.k
+        p = os.path.join(self.tmp, 'historia.json')
+        for i in range(1, 5):
+            h = k.historia(p, {'at': f'2026-09-2{i}T06:20:00+00:00', 'bledy_zbieracza': 1 if i > 1 else 0, 'uwagi': 0, 'bledy': 0})
+        self.assertEqual([x['bledy_zbieracza'] for x in h], [0, 1, 1, 1]); self.assertTrue(all(x > 0 for x in [y['bledy_zbieracza'] for y in h[-3:]]))
+        h = k.historia(p, {'at': '2026-09-24T06:20:00+00:00', 'bledy_zbieracza': 0, 'uwagi': 0, 'bledy': 0})
+        self.assertEqual(len(h), 4, 'ten sam czas = nadpisanie, nie duplikat'); self.assertEqual(h[-1]['bledy_zbieracza'], 0)
+        for i in range(40):
+            h = k.historia(p, {'at': f'2026-10-{1 + i // 28:02d}T{i % 24:02d}:00:00+00:00', 'bledy_zbieracza': 0, 'uwagi': 0, 'bledy': 0})
+        self.assertEqual(len(h), k.HIST_N)
+        R = {'at': '2026-09-26T06:20:00+00:00', 'wynik': 'UWAGA', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-09-26T06:03:00+00:00', 'wiek_min': 17, 'zrodla': 55, 'bez_odpowiedzi': [], 'errors': [], 'notes': []},
+             'pliki': {'etf': {'wiek_min': 34}, 'robots.txt': {'http': 200}}, 'actions': {'przebiegi_24h': 70, 'wg_wyniku': {'success': 70}},
+             'swiezosc': [{'zrodlo': 'TIC (miesięcznie)', 'status': '⚠️', 'wiek_min': 80 * 1440, 'data': '2026-06', 'uwaga': 'próg 75 d 0 h'}],
+             'zgodnosc': {'kapitalizacja': {'status': '✅', 'dzis_pct': 4.37, 'mediana_pct': 4.2, 'dni': 12, 'opis': 'odchylenie 0,17'}, 'ceny': {'bitcoin': {'a': 84154.0, 'b': 84174.9, 'roznica_pct': 0.025}},
+                          'tga': {'data': '2026-09-23', 'fiscal_mln': 947317.0, 'fred_mln': 977084.0, 'roznica_pct': 3.05, 'status': 'ℹ️', 'mediana_pct': None, 'dni': 0, 'opis': 'historia 0 z 7 dni — bez oceny'}, 'wieloryby': None},
+             'uwagi': ['TIC (miesięcznie): dane z 2026-06'], 'bledy': []}
+        md = k.raport_md(R)
+        self.assertRegex(md.splitlines()[0], r'^# Kontrola strony — \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} \(czas polski\)$', 'nagłówek w stałym formacie (czyta go zadanie w chmurze)')
+        self.assertEqual(md.splitlines()[2], '**Wynik: UWAGA**'); self.assertTrue(md.splitlines()[4].startswith('⚠️ Uwag: 1'))
+        self.assertIn('| Źródło | Status | Wiek danych | Data danych | Uwaga |', md); self.assertIn('| TIC (miesięcznie) | ⚠️ | 80 d 0 h | 2026-06 | próg 75 d 0 h |', md)
+        self.assertIn('różnica dziś 4.37%, norma (mediana 12 dni) 4.20% — ✅', md); self.assertIn('TGA 2026-09-23: Fiscal Data 947,317 vs FRED 977,084 mln USD — różnica 3.05%, norma (mediana 0 dni) — — ℹ️ historia 0 z 7 dni — bez oceny.', md)
+        self.assertIn('Cena BTC: 84,154 vs 84,175 USD — różnica 0.03% ✅', md); self.assertIn('Wieloryby: archiwum ma mniej niż dwa dni', md)
+        ok = k.raport_md(dict(R, wynik='OK', uwagi=[], swiezosc=[], zgodnosc={}))
+        self.assertEqual(ok.splitlines()[2], '**Wynik: OK**'); self.assertEqual(ok.splitlines()[4], '✅ Wszystko w normie.')
+        bl = k.raport_md(dict(R, wynik='BŁĄD', bledy=['x']))
+        self.assertEqual(bl.splitlines()[2], '**Wynik: BŁĄD**'); self.assertTrue(bl.splitlines()[4].startswith('❌ Błędów: 1'))
+
+    def test_straz_kluczy(self):
+        s = self.s
+        root = os.path.join(self.tmp, 'straz'); os.makedirs(os.path.join(root, '_site', 'data'), exist_ok=True); os.makedirs(os.path.join(root, 'data'), exist_ok=True)
+        with open(os.path.join(root, '_site', 'index.html'), 'w', encoding='utf-8') as f:
+            f.write('<html>abc TAJNY-KLUCZ-12345 def TAJNY-KLUCZ-12345</html>')
+        with open(os.path.join(root, 'data', 'x.json'), 'w', encoding='utf-8') as f:
+            f.write('{"k":"DRUGI-KLUCZ-98765"}')
+        sek, krotkie = s.sekrety({'FRED_KEY': 'TAJNY-KLUCZ-12345', 'EIA_KEY': 'abc', 'BLS_KEY': '', 'ETHERSCAN_KEY': ' DRUGI-KLUCZ-98765 ', 'INNE': 'X' * 20})
+        self.assertEqual((sorted(sek), krotkie), (['ETHERSCAN_KEY', 'FRED_KEY'], ['EIA_KEY']), 'tylko znane nazwy; krótkie pominięte; białe znaki obcięte')
+        tr, n = s.skanuj(sek, root)
+        self.assertEqual(n, 2); self.assertEqual(sorted((a, b) for a, b, _ in tr), [('ETHERSCAN_KEY', 'data/x.json'), ('FRED_KEY', '_site/index.html'), ('FRED_KEY', '_site/index.html')])
+        self.assertTrue(all('TAJNY' not in str(x) and 'DRUGI' not in str(x) for x in tr), 'wynik nie zawiera wartości')
+        tr2, _ = s.skanuj({'FRED_KEY': b'NIEMA-TEGO-NIGDZIE'}, root); self.assertEqual(tr2, [])
+        self.assertEqual(s.skanuj(sek, os.path.join(self.tmp, 'pusto'))[1], 0)
+
+    def test_workflow_v115(self):
+        wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        i = wf.index('python3 narzedzia/straz_kluczy.py'); j = wf.index('actions/upload-pages-artifact')
+        self.assertLess(i, j, 'straż kluczy przed publikacją'); self.assertGreater(i, wf.index('touch _site/.nojekyll'), 'straż po złożeniu strony')
+        blok = wf[wf.rindex('- name:', 0, i):i]
+        for k in ('ETHERSCAN_KEY', 'FRED_KEY', 'SOSOVALUE_KEY', 'MASSIVE_KEY', 'CENSUS_KEY'):
+            self.assertIn(k + ':', blok, 'straż dostaje ten sam zestaw sekretów co zbieracz')
+        self.assertNotIn('toJSON(secrets)', wf)
+        ky = open(os.path.join(self.ROOT, '.github', 'workflows', 'kontrola.yml'), encoding='utf-8').read()
+        self.assertIn('kontrola/zgodnosc.csv kontrola/historia.json', ky)
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertIn("f'# Kontrola strony — {czas_pl(R[\"at\"])} (czas polski)'", src); self.assertIn("f'**Wynik: {R[\"wynik\"]}**'", src)

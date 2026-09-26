@@ -83,6 +83,26 @@ jobs:
           test -f _site/sitemap.xml && test -f _site/robots.txt
           touch _site/.nojekyll
           ls -la _site _site/data
+      - name: Straż kluczy — wartość żadnego sekretu nie może być w plikach strony (znalezisko = publikacja przerwana)
+        env:
+          SOSOVALUE_KEY: ${{ secrets.SOSOVALUE_KEY }}
+          COINGECKO_KEY: ${{ secrets.COINGECKO_KEY }}
+          FINNHUB_KEY: ${{ secrets.FINNHUB_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
+          COINMARKETCAP_KEY: ${{ secrets.COINMARKETCAP_KEY }}
+          FRED_KEY: ${{ secrets.FRED_KEY }}
+          EIA_KEY: ${{ secrets.EIA_KEY }}
+          BLS_KEY: ${{ secrets.BLS_KEY }}
+          BEA_KEY: ${{ secrets.BEA_KEY }}
+          EODHD_KEY: ${{ secrets.EODHD || secrets.EODHD_KEY }}
+          MASSIVE_KEY: ${{ secrets.MASSIVEPOLYGON || secrets.MASSIVE_KEY }}
+          TIINGO_KEY: ${{ secrets.TIINGO || secrets.TIINGO_KEY }}
+          FMP_KEY: ${{ secrets.FINANCIALMODELINGPREP || secrets.FMP_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE || secrets.ALPHAVANTAGE_KEY }}
+          ETHERSCAN_KEY: ${{ secrets.ETHERSCAN || secrets.ETHERSCAN_KEY }}
+          CRYPTOPANIC_KEY: ${{ secrets.CRYPTOPANIC || secrets.CRYPTOPANIC_KEY }}
+          CENSUS_KEY: ${{ secrets.CENSUS_KEY }}
+        run: python3 narzedzia/straz_kluczy.py
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
