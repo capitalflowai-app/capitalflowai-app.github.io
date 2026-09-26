@@ -4886,7 +4886,7 @@ class IndeksyV106(unittest.TestCase):
         self.assertEqual(zd.ix_plan(part, self.FRI, 1), ['JKSE'])
         self.assertEqual(zd.ix_plan(part, self.FRI, 0), [])
         self.assertEqual(zd.ix_plan({}, self.FRI, 20), ['GSPC', 'IXIC', 'DJI', 'GSPTSE'])   # pusty plik: kolejność listy, najwyżej IX_PER_RUN
-        self.assertEqual(zd.IX_PER_RUN, 4); self.assertEqual(zd.IX_DAILY, 20); self.assertEqual(len(zd.IX_SYMBOLS), 25)
+        self.assertEqual(zd.IX_PER_RUN, 4); self.assertEqual(zd.IX_DAILY, 20); self.assertEqual(len(zd.IX_SYMBOLS), 23)   # v118.2: bez FTSE i FTMIB (poza planem)
         self.assertEqual([zd._ix_pause({'bad_n': n}) for n in (1, 2, 3, 4, 9)], [1, 2, 4, 7, 7], 'przerwa rośnie: 1, 2, 4, potem tydzień')
         self.assertEqual((zd._ix_pause({}), zd._ix_pause({'bad_n': 'x'}), zd._ix_pause({'bad_n': 0})), (1, 1, 1))
         p = {'GSPC': {'cc': 'us', 'at': 'x', 'd': [['2026-09-24', 1.0]], 'bad_n': 1}}
@@ -4979,33 +4979,33 @@ class IndeksyV106(unittest.TestCase):
         self.assertEqual(o3['ix_calls'], {'d': '2026-09-26', 'n': 4})
 
     def test_single_403_does_not_stall_the_rotation(self):
-        # jeden kod, którego plan nie obejmuje (FTMIB → 403), wśród działających: dostaje rosnącą przerwę, reszta rotacji idzie dalej
-        eod = lambda url: self._http(403) if 'FTMIB' in url else [{'date': '2026-09-25', 'close': 5.0}]
+        # jeden kod, którego plan nie obejmuje (AEX → 403), wśród działających: dostaje rosnącą przerwę, reszta rotacji idzie dalej
+        eod = lambda url: self._http(403) if 'AEX' in url else [{'date': '2026-09-25', 'close': 5.0}]
         prev = {'at': '2026-09-25T17:40:00+00:00', 'ok': {'ix': True}, 'part_at': {'ix': '2026-09-25T17:40:00+00:00'}, 'ix_calls': {'d': '2026-09-25', 'n': 3},
-                'ix': {s: {'cc': c, 'at': '2026-09-25T17:30:00+00:00', 'd': [['2026-09-25', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('FTMIB', 'AEX', 'SSMI')}}
+                'ix': {s: {'cc': c, 'at': '2026-09-25T17:30:00+00:00', 'd': [['2026-09-25', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('AEX', 'SSMI', 'OMXS30')}}
         runs = []
-        for k, (dt, due) in enumerate([(self.FRI, ['FTMIB', 'AEX', 'SSMI']),                                  # A: nigdy nie pobrane, kolejność listy
-                                       (self.FRI + datetime.timedelta(hours=1), []),                            # B: FTMIB ma dobę przerwy, reszta świeża
-                                       (self.FRI + datetime.timedelta(days=1, hours=1), ['FTMIB', 'WIG20']),    # C: doba minęła — druga próba obok działającego
+        for k, (dt, due) in enumerate([(self.FRI, ['AEX', 'SSMI', 'OMXS30']),                                  # A: nigdy nie pobrane, kolejność listy
+                                       (self.FRI + datetime.timedelta(hours=1), []),                            # B: AEX ma dobę przerwy, reszta świeża
+                                       (self.FRI + datetime.timedelta(days=1, hours=1), ['AEX', 'WIG20']),    # C: doba minęła — druga próba obok działającego
                                        (self.FRI + datetime.timedelta(days=2, hours=1), []),                    # D: 2 dni przerwy
-                                       (self.FRI + datetime.timedelta(days=3, hours=2), ['FTMIB', 'WIG20'])]):  # E: trzecia próba → 4 dni
+                                       (self.FRI + datetime.timedelta(days=3, hours=2), ['AEX', 'WIG20'])]):  # E: trzecia próba → 4 dni
             calls = []; zd.META['errors'].clear()
             for r in prev['ix'].values():
                 if r.get('d'):
-                    r['at'] = dt.isoformat()   # reszta „świeżo po sesji” — w tym teście liczy się tylko FTMIB (i WIG20 w C, E)
+                    r['at'] = dt.isoformat()   # reszta „świeżo po sesji” — w tym teście liczy się tylko AEX (i WIG20 w C, E)
             if k in (2, 4):
-                prev['ix']['WIG20']['at'] = '2026-09-25T10:00:00+00:00'   # sprzed sesji — do odświeżenia razem z FTMIB
+                prev['ix']['WIG20']['at'] = '2026-09-25T10:00:00+00:00'   # sprzed sesji — do odświeżenia razem z AEX
             with mock.patch.object(zd, 'get_json', self._gj(calls, eod=eod)), mock.patch.object(zd, 'NOW', dt.isoformat()):
                 prev = zd.build_indeksy({'EODHD_KEY': 'k'}, prev, now=dt)
             self.assertEqual(self._syms(calls), due, f'przebieg {k}')
             runs.append(prev)
         self.assertEqual(runs[0]['ok'], {'ix': False}); self.assertEqual(runs[0]['part_at']['ix'], self.FRI.isoformat(), 'coś odświeżono — czas części bieżący')
-        self.assertEqual(runs[0]['ix']['AEX']['d'], [['2026-09-25', 5.0]]); self.assertEqual(runs[0]['ix']['FTMIB'], {'bad_at': self.FRI.isoformat(), 'bad_n': 1, 'bad': 403})
+        self.assertEqual(runs[0]['ix']['SSMI']['d'], [['2026-09-25', 5.0]]); self.assertEqual(runs[0]['ix']['AEX'], {'bad_at': self.FRI.isoformat(), 'bad_n': 1, 'bad': 403})
         self.assertEqual(runs[1]['ok'], {'ix': True}, 'nic do zrobienia = bez błędu')
-        self.assertEqual(runs[2]['ix']['FTMIB']['bad_n'], 2); self.assertEqual(runs[4]['ix']['FTMIB']['bad_n'], 3); self.assertEqual(zd._ix_pause(runs[4]['ix']['FTMIB']), 4)
-        self.assertEqual(len(runs[4]['ix']), 25); self.assertEqual(sum(1 for r in runs[4]['ix'].values() if r.get('d')), 24)
+        self.assertEqual(runs[2]['ix']['AEX']['bad_n'], 2); self.assertEqual(runs[4]['ix']['AEX']['bad_n'], 3); self.assertEqual(zd._ix_pause(runs[4]['ix']['AEX']), 4)
+        self.assertEqual(len(runs[4]['ix']), 23); self.assertEqual(sum(1 for r in runs[4]['ix'].values() if r.get('d')), 22)   # v118.2: 23 kody
         e = ' '.join(zd.META['errors'])
-        self.assertIn('HTTP 403 — odrzucony kod FTMIB.INDX', e); self.assertNotIn('klucz odrzucony', e, 'inne próby udane — to kod, nie klucz')
+        self.assertIn('HTTP 403 — odrzucony kod AEX.INDX', e); self.assertNotIn('klucz odrzucony', e, 'inne próby udane — to kod, nie klucz')
 
     def test_404_and_other_errors(self):
         calls = []

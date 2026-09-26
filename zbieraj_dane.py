@@ -5868,12 +5868,12 @@ def build_wieloryby(prev=None, eth_key=None):
 # ===================== v106: INDEKSY GIEŁDOWE ŚWIATA I NOTOWANIA ETF (klucze właściciela: EODHD, Massive, Tiingo) =====================
 # Decyzja właściciela 26.09.2026: wszystkie jego klucze pracują dla strony publicznej. Klucze wyłącznie z GitHub Secrets
 # (EODHD_KEY, MASSIVE_KEY, TIINGO_KEY; FMP_KEY i ALPHAVANTAGE_KEY są odczytywane i maskowane, ale jeszcze nieużywane — RAPORT v106).
-# Plan bezpłatny EODHD: 20 zapytań na dobę i rok historii — 25 indeksów odświeżanych rotacyjnie (najdłużej czekające najpierw),
+# Plan bezpłatny EODHD: 20 zapytań na dobę i rok historii — 23 indeksy odświeżane rotacyjnie (FTSE 100 i FTSE MIB poza planem, v118.2) (najdłużej czekające najpierw),
 # każdy najwyżej raz po zamknięciu swojej sesji. Nazwy dostawców zostają w tym pliku i na stronie Źródła — nie w panelu.
 IX_URL = 'https://eodhd.com/api/eod/{sym}.INDX?api_token={key}&fmt=json&period=d&from={frm}'
 IX_SYMBOLS = (   # kod EODHD (giełda INDX), kraj (flaga), godzina UTC, po której zamknięcie sesji powinno już być u dostawcy
     ('GSPC', 'us', 22), ('IXIC', 'us', 22), ('DJI', 'us', 22), ('GSPTSE', 'ca', 22), ('BVSP', 'br', 22), ('MXX', 'mx', 22),
-    ('GDAXI', 'de', 17), ('FCHI', 'fr', 17), ('FTSE', 'gb', 17), ('IBEX', 'es', 17), ('FTMIB', 'it', 17), ('AEX', 'nl', 17),
+    ('GDAXI', 'de', 17), ('FCHI', 'fr', 17), ('IBEX', 'es', 17), ('AEX', 'nl', 17),   # v118.2: FTSE 100 i FTSE MIB (grupa LSE) poza planem — sonda 26.09: HTTP 200, pusta lista
     ('SSMI', 'ch', 17), ('OMXS30', 'se', 17), ('WIG20', 'pl', 17), ('TA125', 'il', 16), ('XU100', 'tr', 16), ('JTOPI', 'za', 16),
     ('N225', 'jp', 7), ('KS11', 'kr', 7), ('HSI', 'hk', 9), ('SSEC', 'cn', 8), ('BSESN', 'in', 11), ('AXJO', 'au', 7), ('JKSE', 'id', 10))
 IX_KEYS = ('EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'FMP_KEY', 'ALPHAVANTAGE_KEY')
@@ -5952,6 +5952,10 @@ def ix_plan(part, now, budget):
     return [s for _, _, s in due[:max(0, min(IX_PER_RUN, budget))]]
 
 
+class IxPusto(ValueError):
+    """v118.2: dostawca odpowiedział HTTP 200 pustą listą — kod istnieje, ale plan nie obejmuje tego indeksu (26.09: FTSE.INDX, UKX.INDX)."""
+
+
 def eod_parse(j):
     """Odpowiedź EODHD (lista świec) → [[dzień, zamknięcie], …] rosnąco; świeca bez liczby = brak (nigdy 0);
     słownik zamiast listy = komunikat błędu dostawcy."""
@@ -5967,7 +5971,7 @@ def eod_parse(j):
         if re.match(r'^\d{4}-\d{2}-\d{2}$', d) and v is not None and v == v and 0 < v < float('inf'):
             out[d] = v
     if not out:
-        raise ValueError('pusta odpowiedź')
+        raise IxPusto('pusta odpowiedź')
     return [[d, out[d]] for d in sorted(out)]
 
 
@@ -6000,7 +6004,8 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None):
     dopiero gdy każda próba w przebiegu została odrzucona, zgłaszamy „klucz odrzucony”. Dwa braki odpowiedzi z rzędu albo
     przekroczony budżet czasu = koniec pętli (zbieracz ma 15 min na wszystkie źródła).
     Zwraca (część, licznik, dzień blokady, czy bez błędów, ile odświeżono)."""
-    part = {s: dict(r) for s, r in prev_part.items() if isinstance(r, dict)} if isinstance(prev_part, dict) else {}
+    znane = {s for s, _, _ in IX_SYMBOLS}
+    part = {s: dict(r) for s, r in prev_part.items() if isinstance(r, dict) and s in znane} if isinstance(prev_part, dict) else {}   # v118.2: kod usunięty z listy wypada z pliku
     today = now.date().isoformat()
     calls = dict(prev_calls) if isinstance(prev_calls, dict) and prev_calls.get('d') == today else {'d': today, 'n': 0}
     quota = today if prev_quota == today else None
@@ -6023,6 +6028,8 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None):
             if e.code == 404:             # nieznany kod indeksu — przerwa
                 _ix_bad(part, sym, 404); errors.append(f'EODHD HTTP 404 — nieznany kod {sym}.INDX'); continue
             errors.append(f'EODHD HTTP {e.code} ({sym})')
+        except IxPusto:               # v118.2: pusta lista = indeks poza planem — przerwa rosnąca (1, 2, 4, 7 dni), nie „brak odpowiedzi”
+            _ix_bad(part, sym, 'pusto'); errors.append(f'EODHD: pusta lista dla {sym}.INDX (poza planem?) — przerwa'); continue
         except Exception as e:  # noqa — jeden indeks bez odpowiedzi nie zatrzymuje pozostałych; dwa z rzędu = dostawca nie odpowiada
             ok = False; miss += 1; errors.append(mask(f'{sym}: {e}'))
             if miss >= IX_MISS_MAX:
@@ -6126,7 +6133,7 @@ def etf_part(keys, prev_etf, now, errors, deadline=None):
 
 
 def build_indeksy(keys, prev=None, now=None):
-    """data/indeksy.json — część ix: dzienne zamknięcia 25 indeksów świata (EODHD, rotacja 20 zapytań na dobę);
+    """data/indeksy.json — część ix: dzienne zamknięcia 23 indeksów świata (EODHD, rotacja 20 zapytań na dobę);
     część etf: zamknięcia funduszy ETF używanych przez stronę (Massive; zapas Tiingo). Część bez klucza albo z błędem = poprzednia
     wersja z własnym czasem (part_at), nigdy zera. Z kluczem plik powstaje zawsze — także gdy nic się nie udało (licznik dobowy,
     blokada limitu i przerwy na kodach muszą przetrwać do następnej godziny); bez kluczy i bez poprzednich danych = wyjątek."""

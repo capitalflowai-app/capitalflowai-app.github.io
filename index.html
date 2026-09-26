@@ -6719,11 +6719,11 @@ function whLoad(){srvJSON('wieloryby').then(whApply);}
 function whAuto(){if(WH.timer)return;WH.timer=setInterval(()=>{if(!document.hidden)whLoad();},20*60*1000);}
 whLoad();whAuto();try{new MutationObserver(()=>renderWh()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* v105: zmiana języka = nowe etykiety */
 /* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA (plik automatu data/indeksy.json; klucze zostają na serwerze) =====================
-   Dzienne zamknięcia 25 indeksów; zmiany 1 D / 1 T (5 sesji) / 1 M (21 sesji) / od początku roku liczone tu, z sesji danego indeksu.
+   Dzienne zamknięcia 23 indeksów (FTSE 100 i FTSE MIB poza planem dostawcy — v118.2); zmiany 1 D / 1 T (5 sesji) / 1 M (21 sesji) / od początku roku liczone tu, z sesji danego indeksu.
    Brak pliku albo części ix = sekcja ukryta; wiersz bez liczby = „—”, nigdy zero. Nazwy dostawców — tylko na stronie Źródła. */
 const IX={data:null,timer:null};
 const IX_META={GSPC:['us','S&P 500'],IXIC:['us','Nasdaq Composite'],DJI:['us','Dow Jones'],GSPTSE:['ca','S&P/TSX'],BVSP:['br','Bovespa'],MXX:['mx','IPC'],
-  GDAXI:['de','DAX'],FCHI:['fr','CAC 40'],FTSE:['gb','FTSE 100'],IBEX:['es','IBEX 35'],FTMIB:['it','FTSE MIB'],AEX:['nl','AEX'],SSMI:['ch','SMI'],OMXS30:['se','OMXS30'],WIG20:['pl','WIG20'],
+  GDAXI:['de','DAX'],FCHI:['fr','CAC 40'],IBEX:['es','IBEX 35'],AEX:['nl','AEX'],SSMI:['ch','SMI'],OMXS30:['se','OMXS30'],WIG20:['pl','WIG20'],
   TA125:['il','TA-125'],XU100:['tr','BIST 100'],JTOPI:['za','JSE Top 40'],N225:['jp','Nikkei 225'],KS11:['kr','KOSPI'],HSI:['hk','Hang Seng'],SSEC:['cn','Shanghai Composite'],BSESN:['in','Sensex'],AXJO:['au','S&P/ASX 200'],JKSE:['id','IDX Composite']};
 const IX_MAX_AGE=30;   /* dni: część ix starsza — sekcja ukryta (klucz wygasł?); każdy wiersz i tak nosi własną datę i wiek */
 const ixNum=v=>typeof v==='number'&&isFinite(v)&&v>0;

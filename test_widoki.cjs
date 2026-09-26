@@ -3867,11 +3867,11 @@ test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od począ
   assert.equal(X.ixPct(0.04), '<span class="cell mono">0.0%</span>', 'zero po zaokrągleniu — bez koloru i bez znaku');
   assert.equal(X.ixPct(-0.06), '<span class="cell mono neg">−0.1%</span>'); assert.equal(X.ixPct(2.345), '<span class="cell mono pos">+2.3%</span>');
   assert.equal(X.ixPct(null), '<span class="cell mono na">—</span>'); assert.equal(X.ixPct(NaN), '<span class="cell mono na">—</span>');
-  const it = X.ixItems({ix: {GSPC: {d: rows}, ZZZ: {d: rows}, DJI: {d: []}, FTSE: 'x', GDAXI: {d: rows.slice(-3)}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 1, bad: 403}}});
-  assert.equal(it.length, 25, 'część ix istnieje — wiersz dla każdego indeksu z listy (nieznany ZZZ pominięty)');
+  const it = X.ixItems({ix: {GSPC: {d: rows}, ZZZ: {d: rows}, DJI: {d: []}, FCHI: 'x', GDAXI: {d: rows.slice(-3)}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 1, bad: 403}}});
+  assert.equal(it.length, 23, 'część ix istnieje — wiersz dla każdego indeksu z listy (nieznany ZZZ pominięty); v118.2: 23 kody');
   assert.deepEqual(it.filter(x => x.close !== null).map(x => x.sym), ['GSPC', 'GDAXI'], 'seria tylko dla znanych kodów z danymi');
   const by = Object.fromEntries(it.map(x => [x.sym, x]));
-  assert.ok(by.DJI.close === null && by.DJI.m1 === null && by.DJI.why === 'none' && by.FTSE.why === 'none' && by.KS11.why === 'none', 'bez serii: brak (null) z powodem, nie zero');
+  assert.ok(by.DJI.close === null && by.DJI.m1 === null && by.DJI.why === 'none' && by.FCHI.why === 'none' && by.KS11.why === 'none', 'bez serii: brak (null) z powodem, nie zero');
   assert.ok(by.N225.why === 'bad' && by.N225.bad_at === '2026-01-15T10:00:00+00:00' && by.N225.close === null, 'kod odrzucony — powód „bad” z datą');
   assert.ok(!('ZZZ' in by));
   assert.deepEqual(X.ixSort(it, 'm1').map(x => x.sym).slice(0, 2), ['GSPC', 'GDAXI'], 'z wartością najpierw, potem z zamknięciem bez 1 M, bez danych na końcu');
