@@ -4230,7 +4230,8 @@ test('v111: wyszukiwarki — weryfikacja Google w <head>, opis, canonical, hrefl
 
 test('v112: transfery ETH natywne w tabeli wielorybów — słownik EXTRA106 (10 języków), sortowanie wg USD, nota o rotacji / braku odczytu, kwota ETH z ≈ USD', () => {
   const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
-  assert.equal(apl[apl.length - 1][1], 'EXTRA106', 'EXTRA106 nałożony jako ostatni (starszy słownik EXTRA99 nie może nadpisać nagłówka)');
+  const order = apl.map(m => m[1]);
+  assert.ok(order.indexOf('EXTRA106') > order.indexOf('EXTRA99') && order.indexOf('EXTRA106') > order.indexOf('EXTRA103'), 'EXTRA106 nałożony po EXTRA99/EXTRA103 (starszy słownik nie może nadpisać nagłówka)');
   assert.ok(v96src.tFor('pl')('wh.n.Bybit').includes('w jej miesięcznym raporcie dowodu rezerw') && v96src.tFor('ru')('wh.n.Bybit').includes('в её ежемесячном аудиторском отчёте'), 'noty v108.1 poprawione gramatycznie');
   assert.ok(html.includes("function whUsd(r){return whNum(r.usd)?r.usd:r.amt;}") && html.includes(".sort((a,b)=>whUsd(b)-whUsd(a));}"), 'tabela malejąco wg USD');
   assert.ok(html.includes("t(E||ethNa?'wh.h.tr':'wh.h.tr2')") && html.includes("t('wh.eth.na')") && html.includes("t('wh.eth.note',{n:") && html.includes("coinImg('ETH','sm'):''}${coinImg('USDT','sm')}"));
@@ -4242,4 +4243,31 @@ test('v112: transfery ETH natywne w tabeli wielorybów — słownik EXTRA106 (10
     assert.ok(t('wh.eth.note').includes('{n}') && t('wh.eth.note').includes('{m}') && t('wh.eth.note').includes('{l}') && t('wh.eth.note').length > 80, L + ' nota');
     assert.ok(t('wh.eth.na').length > 30 && t('wh.eth.na').includes('USDT'), L + ' brak odczytu');
   }
+});
+
+test('v114: archiwum własne na stronie — słownik EXTRA107 (10 języków), sekcje GLOBAL/CRYPTO, wczytanie archiwum/seria.json, okno 30/90/365 zapamiętane, wykres bez zera za brak', () => {
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
+  assert.equal(apl[apl.length - 1][1], 'EXTRA107', 'EXTRA107 nałożony jako ostatni');
+  assert.ok(html.includes('<section class="panel pcard" id="g-archiwum" hidden></section>') && html.includes('<section class="panel pcard" id="c-archiwum" hidden></section>'));
+  assert.ok(html.includes("fetch('archiwum/seria.json?t='") && html.includes("localStorage.setItem('cfai.arc.per',String(p))") && html.includes("const ARC={data:null,timer:null,per:90,ok:[30,90,365]};"));
+  assert.ok(html.includes("if(freq==='M')return d.slice(-12);") && html.includes('if(gaps[i-1]>7*med)out.push([]);'), 'dane miesięczne = 12 punktów; luka > 7 odstępów przerywa linię');
+  assert.ok(html.includes('arcLoad();arcAuto();') && html.includes('if [ -d archiwum ]') === false, 'start wczytywania na stronie');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of ['arc.t', 'arc.t.c', 'arc.sub', 'arc.credit', 'arc.foot', 'arc.k.liq', 'arc.k.yld', 'arc.k.tic', 'arc.k.stab', 'arc.k.wh', 'arc.src.fred', 'arc.u.ct']) assert.ok(t(k) !== k && t(k).length > 0, L + ' ' + k);   // ja: „枚” — jeden znak
+    assert.ok(t('arc.per').includes('{n}') && t('arc.since').includes('{d}') && t('arc.since').includes('{n}') && t('arc.k.cftc').includes('{c}') && t('arc.src').includes('{s}'), L + ' zmienne');
+    assert.ok(t('arc.credit').includes('CapitalFlowAI'), L + ' podpis archiwum');
+  }
+  // funkcje czyste: okno, luki, format
+  const src = html.slice(html.indexOf('function arcMs(d)'), html.indexOf('function arcBlock('));
+  const env = new Function('t', 'nfmt', 'escH', src + '\nreturn {arcMs, arcWin, arcSegs, arcVal, arcChart};')(k => ({'u.t': 'bln USD', 'u.b': 'mld USD', 'u.m': 'mln USD', 'u.pp': 'pp', 'arc.u.ct': 'kontraktów', 'arc.empty': 'brak'}[k] || k), (v, d) => v.toFixed(d || 0), s => String(s));
+  const d = [['2026-09-01', 1], ['2026-09-02', 2], ['2026-09-03', 3], ['2026-09-20', 4], ['2026-09-21', 5]];
+  assert.deepEqual(env.arcWin(d, 30, 'D'), d); assert.deepEqual(env.arcWin(d, 2, 'D'), [['2026-09-20', 4], ['2026-09-21', 5]], 'okno od ostatniego punktu, nie od dziś');
+  assert.equal(env.arcWin(Array.from({length: 20}, (_, i) => ['2025-' + String(i + 1).padStart(2, '0'), i]), 30, 'M').length, 12, 'miesięczne: 12 punktów');
+  assert.deepEqual(env.arcSegs(d).map(s => s.length), [3, 2], 'przerwa 17 dni przy typowym odstępie 1 dnia = luka');
+  assert.equal(env.arcVal(6590000, 'mln USD'), '6.59 bln USD'); assert.equal(env.arcVal(-120500, 'mln USD'), '−120.5 mld USD'); assert.equal(env.arcVal(88304342264.55, 'tok'), '88.30 mld');
+  assert.equal(env.arcVal(5.17, '%'), '5.17 %'); assert.equal(env.arcVal(-7953, 'kontrakty'), '−7953 kontraktów'); assert.equal(env.arcVal(null, '%'), '—');
+  const svg = env.arcChart([{d, cls: 'l1'}], '%', false);
+  assert.ok(svg.includes('<polyline class="arc-l l1"') && (svg.match(/<polyline/g) || []).length === 2 && svg.includes('2026-09-01') && svg.includes('2026-09-21'), 'dwa odcinki (luka), daty skrajne');
+  assert.ok(env.arcChart([{d: [], cls: 'l1'}], '%', false).includes('arc-empty') && env.arcChart([{d: [['2026-09-26', 1]], cls: 'l1'}], '%', true).includes('<circle'), 'pusto = napis; jeden punkt = kropka');
 });
