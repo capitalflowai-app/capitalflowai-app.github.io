@@ -77,6 +77,9 @@ jobs:
           cp data/*.json _site/data/ 2>/dev/null || true
           cp data/widoki/*.json _site/data/widoki/ 2>/dev/null || true   # widoki silnika (v35), gdy już będą
           test -f _site/fonts/fonts.css                 # brak czcionek = przerwij publikację
+          cp robots.txt google433f7c24524100a9.html _site/   # v111: wyszukiwarki (robots, weryfikacja Google metodą pliku)
+          sed "s/LASTMOD/$(date -u +%Y-%m-%d)/g" sitemap.xml > _site/sitemap.xml
+          test -f _site/sitemap.xml && test -f _site/robots.txt
           touch _site/.nojekyll
           ls -la _site _site/data
       - uses: actions/upload-pages-artifact@v3

@@ -5501,3 +5501,33 @@ class DzwigniaV109_1(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 zd.lev_tmo()
         zd._LEV_TERMIN[0] = None
+
+
+class SeoV111(unittest.TestCase):
+    """v111: pliki dla wyszukiwarek w repozytorium i ich kopiowanie na stronę; kontrola sprawdza ich dostępność."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def test_files(self):
+        import xml.etree.ElementTree as ET
+        r = open(os.path.join(self.ROOT, 'robots.txt'), encoding='utf-8').read()
+        self.assertIn('User-agent: *', r); self.assertIn('Allow: /', r); self.assertIn('Sitemap: https://capitalflowai-app.github.io/sitemap.xml', r)
+        self.assertEqual(open(os.path.join(self.ROOT, 'google433f7c24524100a9.html'), encoding='utf-8').read(), 'google-site-verification: google433f7c24524100a9.html')
+        xml = open(os.path.join(self.ROOT, 'sitemap.xml'), encoding='utf-8').read().replace('LASTMOD', '2026-09-26')
+        root = ET.fromstring(xml)
+        ns = {'s': 'http://www.sitemaps.org/schemas/sitemap/0.9', 'x': 'http://www.w3.org/1999/xhtml'}
+        urls = root.findall('s:url', ns)
+        self.assertEqual(len(urls), 10)
+        locs = [u.find('s:loc', ns).text for u in urls]
+        self.assertEqual(locs[0], 'https://capitalflowai-app.github.io/'); self.assertIn('https://capitalflowai-app.github.io/?lang=ja', locs)
+        for u in urls:
+            alts = u.findall('x:link', ns)
+            self.assertEqual(len(alts), 11); self.assertEqual(sum(1 for a in alts if a.get('hreflang') == 'x-default'), 1)
+            self.assertEqual(u.find('s:lastmod', ns).text, '2026-09-26')
+
+    def test_workflow_copies_and_check_reads(self):
+        wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertIn('cp robots.txt google433f7c24524100a9.html _site/', wf)
+        self.assertIn('sitemap.xml > _site/sitemap.xml', wf); self.assertIn('LASTMOD', wf)
+        k = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html'):
+            self.assertIn(f, k)

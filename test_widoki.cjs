@@ -4211,3 +4211,19 @@ test('v109.2: logo dYdX z tej samej paczki ikon (wpis EXCH_SVG; plik img/gieldy/
   assert.ok(html.includes("if(k==='hyperliquid')") && html.includes("icoImg('img/gieldy/'+f+'.svg'"), 'exchImg mapuje nazwę giełdy na plik z img/gieldy');
 });
 
+test('v111: wyszukiwarki — weryfikacja Google w <head>, opis, canonical, hreflang ×11, Open Graph, tytuł; ?lang= i pamięć języka; teksty w 10 językach', () => {
+  const head = html.slice(0, html.indexOf('</head>'));
+  assert.ok(head.includes('<meta name="google-site-verification" content="ZdWOjrS6sSu-8eNCUvoFlkLmzqCpRlTcOmZpoomXvAQ" />'), 'tag weryfikacji Google — nigdy nie usuwać');
+  assert.ok(head.includes('<meta name="description" content="Mapa przepływu kapitału na żywo') && head.includes('<link rel="canonical" href="https://capitalflowai-app.github.io/">'));
+  assert.equal((head.match(/<link rel="alternate" hreflang="/g) || []).length, 11, '10 języków + x-default');
+  assert.ok(head.includes('hreflang="x-default" href="https://capitalflowai-app.github.io/"') && head.includes('hreflang="ja" href="https://capitalflowai-app.github.io/?lang=ja"'));
+  for (const p of ['og:type', 'og:site_name', 'og:url', 'og:title', 'og:description', 'og:image', 'og:image:width', 'og:image:height', 'og:locale']) assert.ok(head.includes('<meta property="' + p + '"'), p);
+  assert.ok(head.includes('content="https://capitalflowai-app.github.io/img/og.png"') && head.includes('<meta name="twitter:card" content="summary_large_image">'));
+  assert.ok(head.includes('<title>CapitalFlowAI — Gdzie płynie kapitał?</title>') && !head.includes('CRYPTO 3D v3'));
+  assert.ok(html.includes("new URLSearchParams(location.search).get('lang')") && html.includes("localStorage.getItem('cfai.lang')") && html.includes("localStorage.setItem('cfai.lang',LANG)"), 'język z adresu, potem zapamiętany');
+  assert.ok(html.includes('function applyLang(){\n  document.documentElement.lang=LANG;\n  seoApply();'), 'applyLang odświeża tytuł/opis/canonical/og');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    assert.ok(t('seo.title').startsWith('CapitalFlowAI — ') && t('seo.desc').length <= 155 && t('seo.desc').length > 30, L + ': ' + t('seo.desc').length);   // zh/ja: znaki CJK — krótsze napisy
+  }
+});

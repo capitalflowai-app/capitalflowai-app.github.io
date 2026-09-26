@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://capitalflowai-app.github.io/sitemap.xml

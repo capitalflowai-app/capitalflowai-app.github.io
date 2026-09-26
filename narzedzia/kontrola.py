@@ -106,6 +106,15 @@ def kontrola():
         except Exception as e:  # noqa
             R['pliki'][n] = {'blad': str(e)[:160]}
             R['uwagi'].append(f'{n}.json: {str(e)[:100]}')
+    # 3b. v111: pliki dla wyszukiwarek (robots.txt, sitemap.xml, plik weryfikacji Google) — tylko kod HTTP
+    for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html'):
+        try:
+            st, body, ms = get(f'{SITE}/{f}?nc={int(time.time())}')
+            R['pliki'][f] = {'http': st, 'bajty': len(body)}
+            if st != 200 or len(body) < 20:
+                R['uwagi'].append(f'{f}: HTTP {st}, {len(body)} B')
+        except Exception as e:  # noqa
+            R['pliki'][f] = {'blad': str(e)[:120]}; R['uwagi'].append(f'{f}: {str(e)[:80]}')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
