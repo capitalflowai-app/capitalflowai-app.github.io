@@ -4247,7 +4247,7 @@ test('v112: transfery ETH natywne w tabeli wielorybów — słownik EXTRA106 (10
 
 test('v114: archiwum własne na stronie — słownik EXTRA107 (10 języków), sekcje GLOBAL/CRYPTO, wczytanie archiwum/seria.json, okno 30/90/365 zapamiętane, wykres bez zera za brak', () => {
   const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
-  assert.equal(apl[apl.length - 1][1], 'EXTRA107', 'EXTRA107 nałożony jako ostatni');
+  const ordr = apl.map(m => m[1]); assert.ok(ordr.indexOf('EXTRA107') > ordr.indexOf('EXTRA106') && ordr.indexOf('EXTRA107') > ordr.indexOf('EXTRA99'), 'EXTRA107 po EXTRA106');
   assert.ok(html.includes('<section class="panel pcard" id="g-archiwum" hidden></section>') && html.includes('<section class="panel pcard" id="c-archiwum" hidden></section>'));
   assert.ok(html.includes("fetch('archiwum/seria.json?t='") && html.includes("localStorage.setItem('cfai.arc.per',String(p))") && html.includes("const ARC={data:null,timer:null,per:90,ok:[30,90,365]};"));
   assert.ok(html.includes("if(freq==='M')return d.slice(-12);") && html.includes('if(gaps[i-1]>7*med)out.push([]);'), 'dane miesięczne = 12 punktów; luka > 7 odstępów przerywa linię');
@@ -4282,4 +4282,12 @@ test('v116: małe ikony — piktogramy własne dla zdjęć węzłów przy ≤ 24
   const scene = html.slice(html.indexOf('function drawIconOn('), html.indexOf('const drawIcon=('));
   assert.ok(scene.includes('const im=logoImg(id);') && !scene.includes('SMALL_PICTO') && scene.includes('LOGO_PHOTO.has(id)'), 'scena 3D rysuje zdjęcia jak dotąd');
   assert.ok(!/emoji|😀|🎮/.test(html.slice(html.indexOf('const SMALL_PICTO='), html.indexOf('function iconURL('))), 'własne kształty, nie emoji');
+});
+
+test('v117: poprawki po przeglądzie — nota o starych wierszach ETH (EXTRA108), roundRect z zapasem dla starszych przeglądarek', () => {
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
+  assert.equal(apl[apl.length - 1][1], 'EXTRA108');
+  assert.ok(html.includes("ethOld=ethNa&&R.some(r=>r.token==='ETH')") && html.includes("ethOld?`<p class=\"pnote neu\">${t('wh.eth.old',{t:engDate(D.part_at&&D.part_at.eth)})}</p>`:ethNa?"), 'stare wiersze ETH ≠ „tylko USDT i USDC”');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(v96src.tFor(L)('wh.eth.old').includes('{t}') && v96src.tFor(L)('wh.eth.old').includes('ETH'), L);
+  assert.ok(html.includes('if(c.roundRect)c.roundRect(-w/2,-hh/2,w,hh,hh*.5);else c.rect(-w/2,-hh/2,w,hh);'), 'roundRect tylko gdy istnieje');
 });

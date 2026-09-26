@@ -5277,6 +5277,7 @@ WH_CHUNK, WH_CHUNKS, WH_START = 800, 6, 4800   # paczka logów, paczek na przebi
 WH_OKNO = 7200          # okno tabeli: ≈ 24 h w blokach (12 s/blok)
 WH_MAX = 60             # najwyżej tyle wierszy transferów
 WH_HIST_DNI = 120       # historia sald: jeden zrzut na dobę UTC
+WH_DOB_DNI = 3          # v117: sumy dobowe przelewów (UTC) trzymane w pliku — archiwum bierze pełną poprzednią dobę; tabela (60 wierszy) jest obcięta
 WH_BUDZET = 12          # sekund na skanowanie logów w jednym przebiegu (cały przebieg < 20 s) — reszta w następnym
 WH_LIMIT = 40           # sekund na cały przebieg budowniczego: gdy węzeł milczy, nie czekamy dłużej (limit BRIEF: < 60 s)
 WH_PARA = 30            # ta sama kwota w obie strony tej samej giełdy w ≤ tylu blokach = najpewniej ruch wewnętrzny (oznaczenie)
@@ -5550,6 +5551,29 @@ def wh_polacz(prev_rows, new_rows, od, maks=WH_MAX):
     return sorted(seen.values(), key=lambda r: (-wh_usd(r), -r['blk']))[:maks]
 
 
+def wh_dobowe(prev, prev_klucze, rows):
+    """v117: sumy dobowe (UTC) przelewów ≥ progu per giełda i aktywo, liczone z KAŻDEGO zdekodowanego wiersza zanim tabela zostanie obcięta
+    do WH_MAX: {dzień: {giełda: {token: {'in': USD, 'out': USD, 'n': liczba}}}}. Klucze (tx|giełda|kierunek → dzień) pilnują, by ten sam
+    przelew — znaleziony po raz drugi (druga strona przy rotacji portfeli ETH, ponownie zeskanowany blok) — nie był liczony dwa razy.
+    Zwraca (sumy, klucze) z ostatnich WH_DOB_DNI dni; nic nie jest zerem z braku obserwacji — dzień bez wpisu = brak sum."""
+    dob = {d: v for d, v in prev.items() if isinstance(d, str) and isinstance(v, dict)} if isinstance(prev, dict) else {}
+    kl = {k: d for k, d in prev_klucze.items() if isinstance(k, str) and isinstance(d, str)} if isinstance(prev_klucze, dict) else {}
+    for r in rows:
+        if not isinstance(r, dict) or not isinstance(r.get('t'), str) or r.get('dir') not in ('in', 'out') or not isinstance(r.get('amt'), (int, float)):
+            continue
+        k = f"{r.get('tx')}|{r.get('exch')}|{r['dir']}"
+        if k in kl:
+            continue
+        d = r['t'][:10]; kl[k] = d
+        s = dob.setdefault(d, {}).setdefault(str(r.get('exch')), {}).setdefault(str(r.get('token')), {'in': 0.0, 'out': 0.0, 'n': 0})
+        s[r['dir']] = round(s[r['dir']] + wh_usd(r), 2); s['n'] += 1
+    dni = sorted(dob)[-WH_DOB_DNI:]
+    dob = {d: dob[d] for d in dni}
+    if dni:
+        kl = {k: d for k, d in kl.items() if d >= dni[0]}
+    return dob, kl
+
+
 def wh_pary(rows, bloki=WH_PARA):
     """Ta sama kwota tego samego tokena w obie strony tej samej giełdy w odstępie ≤ bloki bloków = najpewniej ruch wewnętrzny
     przez nieogłoszony portfel giełdy. Wiersze zostają (przejrzystość), ale dostają wew=True — strona pokazuje to przy kierunku.
@@ -5683,7 +5707,9 @@ def build_wieloryby(prev=None, eth_key=None):
                             + ('; transfery ETH natywne: publiczne API eksploratora łańcucha (klucz właściciela), portfele w rotacji' if eth_key else ''),
            'rpc': WH_RPC, 'ok': {}, 'part_at': {}, 'wallets': W,
            'gieldy': {g: {'n': len(c['addr']), 'src': c['src'], 'url': c['url'], 'since': c['since'], 'tokeny': c['tokeny']} for g, c in WH_GIELDY.items()},
-           'prog': WH_PROG, 'eth_usd': None, 'eth_usd_at': None}
+           'prog': WH_PROG, 'eth_usd': None, 'eth_usd_at': None,
+           'dobowe': prev.get('dobowe') if isinstance(prev.get('dobowe'), dict) else {}, 'dobowe_klucze': prev.get('dobowe_klucze') if isinstance(prev.get('dobowe_klucze'), dict) else {},
+           'dobowe_od': prev.get('dobowe_od') if isinstance(prev.get('dobowe_od'), str) else NOW}   # v117: sumy dobowe + od kiedy są zbierane (pierwsza doba jest niepełna)
     errs = []
 
     def keep(k):   # część z błędem: poprzednia wersja z własnym czasem
@@ -5788,6 +5814,7 @@ def build_wieloryby(prev=None, eth_key=None):
                 znane[b] = wh_iso(ts)
         for r in rows.values():
             r['t'] = znane[r['blk']]
+        out['dobowe'], out['dobowe_klucze'] = wh_dobowe(out['dobowe'], out['dobowe_klucze'], rows.values())   # v117: sumy dobowe z pełnej listy
         out['transfery'] = wh_pary(wh_polacz(prev_rows, rows.values(), od))   # pary „ta sama kwota w obie strony” = oznaczenie wew
         out['ostatni_blok'], out['ostatni_t'] = done, znane[done]
         out['okno_od'], out['okno_od_t'], out['okno'] = od, znane[od], done - od + 1
@@ -5815,6 +5842,7 @@ def build_wieloryby(prev=None, eth_key=None):
             if not n:   # nic nie sprawdzono w tym przebiegu — część bez nowego stanu, z własnym czasem
                 raise ValueError(eerrs[0] if eerrs else 'brak czasu na część ETH')
             od = out['okno_od'] if isinstance(out.get('okno_od'), int) else head - WH_OKNO + 1
+            out['dobowe'], out['dobowe_klucze'] = wh_dobowe(out['dobowe'], out['dobowe_klucze'], ers.values())   # v117
             out['transfery'] = wh_pary(wh_polacz([r for r in (out.get('transfery') or []) if isinstance(r, dict)], ers.values(), od))
             out['eth_scan'] = scan
             done = [scan[w['addr']] for w in cands if w['addr'] in scan]
@@ -5822,7 +5850,7 @@ def build_wieloryby(prev=None, eth_key=None):
                           'lag_min': int((head - min(done)) * 12 // 60) if done else None}   # ≈ 12 s na blok — orientacyjnie
             out['part_at']['eth'] = NOW; out['ok']['eth'] = not przerwane
             if eerrs:
-                (errs if przerwane else META['notes']).append(('ETH: ' if przerwane else 'Wieloryby ETH: ') + '; '.join(eerrs)[:240])
+                (errs if przerwane else META['notes']).append(mask(('ETH: ' if przerwane else 'Wieloryby ETH: ') + '; '.join(eerrs)[:240]))   # v117: także notatka maskowana
         except Exception as e:  # noqa
             errs.append(f'ETH: {e}'); out['ok']['eth'] = False
             for k in ('eth_scan', 'eth'):
@@ -6531,6 +6559,7 @@ def main():
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
     except Exception as e:
         META['errors'].append(mask(f'trendy: {e}')); META['ok']['trendy'] = False
+    META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')
     return 0

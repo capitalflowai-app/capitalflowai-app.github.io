@@ -41,7 +41,7 @@ CREDIT = 'Archiwum własne CapitalFlowAI'
 FILES = {
     'wieloryby': {'file': 'wieloryby.csv', 'cols': ['date', 'exchange', 'asset', 'balance', 'balance_usd', 'inflow_24h', 'outflow_24h', 'net_24h', 'block'],
                   'key': ['date', 'exchange', 'asset'], 'back': None,
-                  'src': 'Obliczenia własne z publicznego łańcucha Ethereum (salda ogłoszonych portfeli giełd; przepływy = przelewy ≥ 1 mln USD z tabeli wielorybów)'},
+                  'src': 'Obliczenia własne z publicznego łańcucha Ethereum (salda ogłoszonych portfeli giełd; przepływy = suma przelewów ≥ 1 mln USD z pełnej doby UTC poprzedzającej datę wiersza)'},
     'stablecoiny-eth': {'file': 'stablecoiny-eth.csv', 'cols': ['date', 'token', 'total_supply'], 'key': ['date', 'token'], 'back': None,
                         'src': 'Odczyt własny totalSupply() USDT i USDC przez publiczny węzeł JSON-RPC — tylko sieć Ethereum'},
     'plynnosc': {'file': 'plynnosc.csv', 'cols': ['date', 'walcl_musd', 'tga_musd', 'rrp_musd', 'net_liquidity_musd', 'method'], 'key': ['date'], 'back': 3,
@@ -129,15 +129,22 @@ def write_csv(path, cols, rows):
 # ------------------------------------------------------------------ źródła: każde zwraca listę wierszy (listy wartości) ------------
 def src_wieloryby(today=None):
     """data/wieloryby.json ze strony (obliczenie własne z łańcucha): saldo każdej giełdy w ETH/USDT/USDC z ostatniego bloku,
-    saldo w USD po kursie z pliku, przepływy = suma przelewów ≥ 1 mln USD z tabeli (in/out per giełda i aktywo, USD). Część bez
-    odpowiedzi (ok=False) = pole puste, nie zero; giełda bez tokena na liście = bez wiersza."""
+    saldo w USD po kursie z pliku, przepływy = sumy dobowe zbieracza (`dobowe`, pełna lista przelewów ≥ 1 mln USD, nie obcięta tabela)
+    za pełną dobę UTC poprzedzającą datę wiersza (zapis o 00:20). Dzień bez sum albo część bez odpowiedzi (ok=False) = pole puste,
+    nie zero; giełda bez tokena na liście = bez wiersza."""
     today = today or TODAY
     d = zd.get_json(f'{SITE}/data/wieloryby.json?t={int(time.time())}', timeout=60)
     salda, gieldy, ok = d.get('salda') or {}, d.get('gieldy') or {}, d.get('ok') or {}
     if not isinstance(salda, dict) or not salda:
         raise RuntimeError('plik wielorybów bez sald')
     px = d.get('eth_usd') if isinstance(d.get('eth_usd'), (int, float)) and d.get('eth_usd') > 0 else None
-    tr = [r for r in (d.get('transfery') or []) if isinstance(r, dict) and r.get('dir') in ('in', 'out')]
+    wczoraj = (today - datetime.timedelta(days=1)).isoformat()
+    dob = (d.get('dobowe') or {}).get(wczoraj) if isinstance(d.get('dobowe'), dict) else None
+    od = str(d.get('dobowe_od') or '')[:10]
+    if not isinstance(dob, dict):
+        dob = None; NOTES.append(f'brak sum dobowych za {wczoraj} — przepływy puste')
+    elif not od or od >= wczoraj:   # zbieranie sum zaczęło się w tej dobie (albo później) — doba niepełna, nie udajemy pełnej
+        dob = None; NOTES.append(f'sumy dobowe zbierane od {od or "?"} — doba {wczoraj} niepełna, przepływy puste')
     flows_ok = {'USDT': ok.get('transfery') is True, 'USDC': ok.get('transfery') is True, 'ETH': ok.get('eth') is True}
     rows = []
     for g, s in salda.items():
@@ -149,10 +156,11 @@ def src_wieloryby(today=None):
                 continue
             bal = float(s[fld])
             usd = (None if px is None else round(bal * px, 2)) if asset == 'ETH' else round(bal, 2)   # ETH bez kursu = brak, nie zero
-            if flows_ok[asset]:
-                inn = sum(zd.wh_usd(r) for r in tr if r.get('exch') == g and r.get('token') == asset and r['dir'] == 'in')
-                out = sum(zd.wh_usd(r) for r in tr if r.get('exch') == g and r.get('token') == asset and r['dir'] == 'out')
-                inn, out, net = round(inn, 2), round(out, 2), round(inn - out, 2)
+            ds = (dob.get(g) or {}).get(asset) if dob else None   # sumy dobowe tej giełdy i aktywa (nie nadpisywać `s` = salda giełdy)
+            if flows_ok[asset] and dob is not None:   # doba obserwowana: giełda/aktywo bez wpisu = 0 dużych przelewów (zmierzone), nie brak
+                inn = round(float(ds['in']), 2) if isinstance(ds, dict) else 0.0
+                out = round(float(ds['out']), 2) if isinstance(ds, dict) else 0.0
+                net = round(inn - out, 2)
             else:
                 inn = out = net = None
             rows.append([today.isoformat(), g, asset, round(bal, 6), usd, inn, out, net, s.get('blk') if isinstance(s.get('blk'), int) else None])

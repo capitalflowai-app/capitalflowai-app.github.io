@@ -32,14 +32,14 @@ LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 18
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
-# TIC +30 dni (Skarb USA publikuje dane miesiąca ok. 6–7 tygodni po jego końcu) — inaczej żółte świeciłoby co tydzień / co miesiąc bez powodu.
+# TIC +40 dni (Skarb USA publikuje dane miesiąca 46–51 dni po jego końcu; tuż przed publikacją wiek = 30 + 51 = 81 dni) — inaczej żółte świeciłoby co miesiąc bez powodu.
 # EIA: ceny dzienne ropy są publikowane raz w tygodniu (środa, za poprzedni tydzień) — próg tygodniowy 9 dni, nie 36 h (26.09: dane z wtorku w sobotę = 3 dni).
 SWIEZOSC = [
     ('rynki (kursy EBC, rentowności)', 'rynki', 'h', 180), ('wieloryby (salda portfeli giełd)', 'wieloryby', 'h', 180), ('dźwignia (giełdy pochodnych)', 'dzwignia', 'h', 180),
     ('TGA (Fiscal Data, dziennie)', 'instytucje', 'd', 36 * 60), ('ETF krypto (SoSoValue, dziennie)', 'etf', 'd', 36 * 60),
     ('FRED dzienne (RRPONTSYD)', 'fred', 'd', 36 * 60), ('EIA ceny dzienne (publikowane co tydzień)', 'energia', 'w', 9 * 24 * 60),
     ('CFTC (raport tygodniowy)', 'cftc', 'w', (9 + 3) * 24 * 60), ('FRED tygodniowe (WALCL)', 'fred', 'w', 9 * 24 * 60),
-    ('TIC (miesięcznie)', 'tic', 'm', (45 + 30) * 24 * 60), ('OECD (miesięcznie)', 'oecd', 'm', 45 * 24 * 60), ('BLS (miesięcznie)', 'usa-makro', 'm', 45 * 24 * 60),
+    ('TIC (miesięcznie)', 'tic', 'm', (45 + 40) * 24 * 60), ('OECD (miesięcznie)', 'oecd', 'm', 45 * 24 * 60), ('BLS (miesięcznie)', 'usa-makro', 'm', 45 * 24 * 60),
 ]
 CG_GLOBAL = 'https://api.coingecko.com/api/v3/global'
 CP_GLOBAL = 'https://api.coinpaprika.com/v1/global'
@@ -266,8 +266,9 @@ def tga_porownanie(inst, fred):
 
 
 def wieloryby_porownanie(path):
-    """archiwum/wieloryby.csv: dla ostatniego dnia z poprzednim dniem — |zmiana salda − przelewy netto| na giełdę i aktywo.
-    Zwraca (dzień, poprzedni, lista (giełda, aktywo, zmiana, netto, rozbieżność) ponad progiem, liczba porównanych) albo None."""
+    """archiwum/wieloryby.csv: dla ostatniego dnia z poprzednim dniem — |zmiana salda − przelewy netto| na giełdę i aktywo; zmiana salda liczona
+    w jednostkach aktywa po dzisiejszym kursie (saldo w USD zmienia się też przez kurs ETH, a to nie przelew). Pusta komórka przepływów (brak sum
+    dobowych) = para pominięta. Zwraca (dzień, poprzedni, lista (giełda, aktywo, zmiana, netto, rozbieżność) ponad progiem, liczba porównanych) albo None."""
     if not os.path.exists(path):
         return None
     by = {}
@@ -288,15 +289,28 @@ def wieloryby_porownanie(path):
         if not prev:
             continue
         try:
-            bal, bal0, net = float(row[4]), float(prev[4]), float(row[7])
+            u, u0, usd, net = float(row[3]), float(prev[3]), float(row[4]), float(row[7])
         except ValueError:
             continue
+        if not u:
+            continue
         n += 1
-        delta = bal - bal0
+        delta = (u - u0) * (usd / u)   # zmiana w jednostkach × dzisiejszy kurs — ruch kursu ETH nie jest przelewem (v117)
         roz = abs(delta - net)
         if roz > WH_MIN_USD and roz > WH_PROG / 100 * max(abs(delta), abs(net), WH_MIN_USD):
             zle.append((k[0], k[1], delta, net, roz))
     return d, p, zle, n
+
+
+def czerwone_z_historii(hist, n=None):
+    """Błędy zbieracza w n kolejnych kontrolach z RÓŻNYCH dni UTC (kontrola rusza też po pushu — kilka przebiegów jednego dnia to nie „3 dni z rzędu”)."""
+    n = HIST_CZERWONE if n is None else n
+    ost = {}
+    for h in hist:
+        if isinstance(h, dict) and isinstance(h.get('at'), str):
+            ost[h['at'][:10]] = h   # ostatni przebieg dnia
+    dni = sorted(ost)[-n:]
+    return len(dni) >= n and all((ost[d].get('bledy_zbieracza') or 0) > 0 for d in dni)
 
 
 def historia(path, wpis):
@@ -478,9 +492,8 @@ def kontrola():
     # 5. v115: historia — błędy zbieracza w 3 kolejnych przebiegach kontroli = czerwone
     n_err = len(R['meta'].get('errors') or []) if isinstance(R['meta'], dict) else 0
     hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy'])})
-    ost3 = hist[-HIST_CZERWONE:]
-    if len(ost3) >= HIST_CZERWONE and all((h.get('bledy_zbieracza') or 0) > 0 for h in ost3):
-        R['bledy'].append(f'zbieracz zgłasza błędy w {HIST_CZERWONE} kolejnych kontrolach (' + '; '.join((R['meta'].get('errors') or ['?'])[:2]) + ')')
+    if czerwone_z_historii(hist):
+        R['bledy'].append(f'zbieracz zgłasza błędy w {HIST_CZERWONE} kolejnych dniach kontroli (' + '; '.join((R['meta'].get('errors') or ['?'])[:2]) + ')')
     R['historia_n'] = len(hist)
     R['wynik'] = 'BŁĄD' if R['bledy'] else ('UWAGA' if R['uwagi'] else 'OK')
     return R

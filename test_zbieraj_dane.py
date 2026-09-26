@@ -5671,6 +5671,46 @@ class WielorybyEthV112(WielorybyV105):
         self.assertNotIn(self.KEY, zd.META['errors'][0]); self.assertIn('***', zd.META['errors'][0]); self.assertTrue(zd.META['errors'][0].startswith('Wieloryby: ETH: '))
         self.assertEqual(o['ok']['transfery'], True, 'część USDT/USDC niezależna od ETH')
 
+    def test_dobowe_sumy_i_dedupe(self):
+        R = lambda tx, exch, d, tok, amt, usd, t: {'tx': tx, 'exch': exch, 'dir': d, 'token': tok, 'amt': amt, 'usd': usd, 't': t, 'blk': 1}
+        rows = [R('0x1', 'Binance', 'in', 'USDT', 5e6, 5e6, '2026-09-25T23:59:00+00:00'), R('0x2', 'Binance', 'out', 'ETH', 400.0, 1e6, '2026-09-26T00:01:00+00:00'),
+                R('0x2', 'Bybit', 'in', 'ETH', 400.0, 1e6, '2026-09-26T00:01:00+00:00'), R('0x1', 'Binance', 'in', 'USDT', 5e6, 5e6, '2026-09-25T23:59:00+00:00'),   # duplikat
+                {'tx': '0x3', 'exch': 'OKX', 'dir': 'in', 'token': 'USDC', 'amt': 2e6, 't': None}, 'x']
+        dob, kl = zd.wh_dobowe(None, None, rows)
+        self.assertEqual(dob, {'2026-09-25': {'Binance': {'USDT': {'in': 5e6, 'out': 0.0, 'n': 1}}}, '2026-09-26': {'Binance': {'ETH': {'in': 0.0, 'out': 1e6, 'n': 1}}, 'Bybit': {'ETH': {'in': 1e6, 'out': 0.0, 'n': 1}}}})
+        self.assertEqual(kl, {'0x1|Binance|in': '2026-09-25', '0x2|Binance|out': '2026-09-26', '0x2|Bybit|in': '2026-09-26'}, 'wiersz bez czasu pominięty; duplikat raz')
+        dob2, kl2 = zd.wh_dobowe(dob, kl, [R('0x2', 'Bybit', 'in', 'ETH', 400.0, 1e6, '2026-09-26T00:01:00+00:00'), R('0x9', 'OKX', 'in', 'USDC', 3e6, 3e6, '2026-09-29T01:00:00+00:00')])
+        self.assertEqual(dob2['2026-09-26']['Bybit']['ETH']['n'], 1, 'ten sam przelew w następnym przebiegu nie liczy się drugi raz')
+        self.assertEqual(sorted(dob2), ['2026-09-25', '2026-09-26', '2026-09-29'])
+        dob3, kl3 = zd.wh_dobowe(dob2, kl2, [R('0x8', 'OKX', 'in', 'USDC', 3e6, 3e6, '2026-09-30T01:00:00+00:00')])
+        self.assertEqual(sorted(dob3), ['2026-09-26', '2026-09-29', '2026-09-30'], 'najwyżej WH_DOB_DNI dni'); self.assertNotIn('0x1|Binance|in', kl3, 'klucze z usuniętych dni odpadają')
+        # pełny przebieg: sumy z wierszy USDT/USDC (z czasem bloku) i z wierszy ETH; przy braku części — sumy z poprzedniego pliku zostają
+        post, _ = self._rpc()
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez zapasu kursu')):
+            o = zd.build_wieloryby(None)
+        dn = o['blk_t'][:10]
+        self.assertIn(dn, o['dobowe']); self.assertEqual(o['dobowe'][dn]['Binance']['USDT'], {'in': 2500000.0, 'out': 0.0, 'n': 1}); self.assertEqual(o['dobowe'][dn]['OKX']['USDC']['out'], 6200000.0)
+        self.assertEqual(len(o['dobowe_klucze']), 4); self.assertEqual(o['dobowe_od'], zd.NOW)
+        with mock.patch.object(zd, 'post_json', side_effect=self._rpc(head=10100)[0]):
+            o2 = zd.build_wieloryby(dict(o, dobowe_od='2026-09-01T00:00:00+00:00'))
+        self.assertEqual(o2['dobowe_od'], '2026-09-01T00:00:00+00:00', 'początek zbierania sum zostaje z poprzedniego pliku')
+        with mock.patch.object(zd, 'post_json', side_effect=RuntimeError('offline')), mock.patch.object(zd.time, 'sleep'):
+            with self.assertRaises(RuntimeError):
+                zd.build_wieloryby(o)
+
+    def test_notatka_eth_maskowana(self):
+        post, _ = self._rpc()
+        zd.SECRETS.append(self.KEY)
+        try:
+            first = sorted(w['addr'] for w in zd.wh_eth_portfele(zd.wh_portfele()))[:2]
+            gj, _ = self._api({first[0]: RuntimeError('Invalid API Key ' + self.KEY)})   # jeden błąd, reszta OK → notatka, nie błąd
+            with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd.time, 'sleep'):
+                o = zd.build_wieloryby(None, eth_key=self.KEY)
+        finally:
+            zd.SECRETS.remove(self.KEY)
+        self.assertEqual(o['ok']['eth'], True); self.assertEqual(zd.META['errors'], []); self.assertEqual(len(zd.META['notes']), 1)
+        self.assertNotIn(self.KEY, zd.META['notes'][0]); self.assertIn('***', zd.META['notes'][0])
+
     def test_polacz_wg_usd(self):
         a = {'tx': '0x1', 'li': 1, 'exch': 'Binance', 'dir': 'in', 'amt': 2e6, 'blk': 50}                       # stary wiersz bez usd
         b = {'tx': '0x2', 'li': None, 'exch': 'Binance', 'dir': 'in', 'amt': 1500.0, 'usd': 4e6, 'blk': 40, 'token': 'ETH'}
@@ -5748,12 +5788,14 @@ class ArchiwumV113(unittest.TestCase):
         y = self.a.rent_rows([['2026-09-24', 4.1], ['2026-09-25', 4.2], ['2024-01-01', 3.0]], [['2026-09-25', 2.6], ['2026-09-26', 2.7]], '2026-01-01')
         self.assertEqual(y, [['2026-09-24', 4.1, None, None], ['2026-09-25', 4.2, 2.6, 1.6], ['2026-09-26', None, 2.7, None]], 'różnica tylko przy obu wartościach; brak = None')
 
-    def _wh(self, ok_eth=True, ok_tr=True, px=2500.0):
+    def _wh(self, ok_eth=True, ok_tr=True, px=2500.0, dobowe=True):
         return {'at': '2026-09-26T00:10:00+00:00', 'eth_usd': px, 'ok': {'salda': True, 'transfery': ok_tr, 'eth': ok_eth},
                 'gieldy': {'Binance': {'tokeny': ['USDT', 'USDC', 'ETH']}, 'OKX': {'tokeny': ['USDC']}},
                 'salda': {'Binance': {'eth': 10.5, 'usdt': 1000000.0, 'usdc': 2.0, 'blk': 500}, 'OKX': {'eth': 0.6, 'usdt': 29.0, 'usdc': 3000000.0, 'blk': 500}},
-                'transfery': [{'token': 'USDT', 'amt': 5e6, 'usd': 5e6, 'dir': 'in', 'exch': 'Binance'}, {'token': 'USDT', 'amt': 2e6, 'dir': 'out', 'exch': 'Binance'},
-                              {'token': 'ETH', 'amt': 400.0, 'usd': 1e6, 'dir': 'out', 'exch': 'Binance'}, {'token': 'USDC', 'amt': 1e6, 'usd': 1e6, 'dir': 'in', 'exch': 'OKX'}, 'x']}
+                'transfery': [{'token': 'USDT', 'amt': 5e6, 'usd': 5e6, 'dir': 'in', 'exch': 'Binance'}, 'x'],   # tabela obcięta — nie służy do sum (v117)
+                'dobowe_od': '2026-09-20T10:00:00+00:00',
+                'dobowe': ({'2026-09-25': {'Binance': {'USDT': {'in': 5e6, 'out': 2e6, 'n': 2}, 'ETH': {'in': 0.0, 'out': 1e6, 'n': 1}}, 'OKX': {'USDC': {'in': 1e6, 'out': 0.0, 'n': 1}}},
+                            '2026-09-26': {'Binance': {'USDT': {'in': 9e9, 'out': 0.0, 'n': 1}}}} if dobowe else {})}
 
     def test_src_wieloryby(self):
         d = datetime.date(2026, 9, 26)
@@ -5761,11 +5803,19 @@ class ArchiwumV113(unittest.TestCase):
             r = self.a.src_wieloryby(today=d)
         self.assertEqual(sorted(r), [['2026-09-26', 'Binance', 'ETH', 10.5, 26250.0, 0.0, 1e6, -1e6, 500], ['2026-09-26', 'Binance', 'USDC', 2.0, 2.0, 0.0, 0.0, 0.0, 500],
                                      ['2026-09-26', 'Binance', 'USDT', 1000000.0, 1000000.0, 5e6, 2e6, 3e6, 500], ['2026-09-26', 'OKX', 'USDC', 3000000.0, 3000000.0, 1e6, 0.0, 1e6, 500]],
-                         'OKX tylko USDC (lista giełdy); wiersz USDT bez pola usd liczony wg amt; ETH w USD po kursie z pliku')
+                         'przepływy z sum dobowych za 25.09 (pełna poprzednia doba), nie z obciętej tabeli ani z dnia bieżącego; USDC bez wpisu w obserwowanej dobie = 0 zmierzone')
         with mock.patch.object(zd, 'get_json', return_value=self._wh(ok_eth=False, ok_tr=False, px=None)):
             r = self.a.src_wieloryby(today=d)
         e = [x for x in r if x[2] == 'ETH'][0]; u = [x for x in r if x[2] == 'USDT'][0]
         self.assertEqual(e[4:8], [None, None, None, None], 'bez kursu i bez części ETH: USD i przepływy puste, nie zero'); self.assertEqual(u[5:8], [None, None, None])
+        self.a.NOTES.clear()
+        with mock.patch.object(zd, 'get_json', return_value=self._wh(dobowe=False)):
+            r = self.a.src_wieloryby(today=d)
+        self.assertTrue(all(x[5:8] == [None, None, None] for x in r), 'plik bez sum dobowych (sprzed v117): przepływy puste'); self.assertTrue(any('brak sum dobowych' in n for n in self.a.NOTES))
+        self.a.NOTES.clear(); fx = self._wh(); fx['dobowe_od'] = '2026-09-25T13:00:00+00:00'
+        with mock.patch.object(zd, 'get_json', return_value=fx):
+            r = self.a.src_wieloryby(today=d)
+        self.assertTrue(all(x[5:8] == [None, None, None] for x in r), 'sumy zbierane od środka doby 25.09 = doba niepełna = puste'); self.assertTrue(any('niepełna' in n for n in self.a.NOTES))
         with mock.patch.object(zd, 'get_json', return_value={'at': 'x', 'salda': {}}):
             with self.assertRaises(RuntimeError):
                 self.a.src_wieloryby(today=d)
@@ -5929,11 +5979,15 @@ class KontrolaV115(unittest.TestCase):
         arch = os.path.join(self.tmp, 'archiwum'); os.makedirs(arch, exist_ok=True); p = os.path.join(arch, 'wieloryby.csv')
         with open(p, 'w', encoding='utf-8') as f:
             f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n'
-                    '2026-09-26,Binance,USDT,100,20000000000,0,0,0,1\n2026-09-26,Binance,ETH,1,7000000000,0,0,0,1\n2026-09-26,OKX,USDC,1,1000000000,0,0,0,1\n'
-                    '2026-09-27,Binance,USDT,100,20050000000,60000000,10000000,50000000,2\n2026-09-27,Binance,ETH,1,7300000000,0,0,0,2\n2026-09-27,OKX,USDC,1,1000400000,0,0,0,2\n2026-09-27,Bybit,USDT,1,5,0,0,0,2\n')
+                    '2026-09-26,Binance,USDT,20000000000,20000000000,0,0,0,1\n2026-09-26,Binance,ETH,1000000,7000000000,0,0,0,1\n2026-09-26,OKX,USDC,1000000000,1000000000,0,0,0,1\n'
+                    '2026-09-26,KuCoin,USDT,500000000,500000000,0,0,0,1\n2026-09-26,Bybit,ETH,1000,2900000,0,0,0,1\n'
+                    '2026-09-27,Binance,USDT,20050000000,20050000000,60000000,10000000,50000000,2\n2026-09-27,Binance,ETH,1000000,7300000000,0,0,0,2\n'
+                    '2026-09-27,OKX,USDC,1000400000,1000400000,0,0,0,2\n2026-09-27,KuCoin,USDT,600000000,600000000,0,0,0,2\n2026-09-27,Bybit,ETH,1100,3300000,0,0,0,2\n'
+                    '2026-09-27,Bitfinex,USDT,1,1,0,0,0,2\n2026-09-27,Bitfinex,USDC,5,5,,,,2\n')
         d, pdn, zle, n = k.wieloryby_porownanie(p)
-        self.assertEqual((d, pdn, n), ('2026-09-27', '2026-09-26', 3), 'Bybit bez poprzedniego dnia nie liczony')
-        self.assertEqual([(g, a) for g, a, *_ in zle], [('Binance', 'ETH')], 'USDT: zmiana 50 mln = netto 50 mln; OKX: 0,4 mln < 1 mln; ETH: 300 mln vs 0')
+        self.assertEqual((d, pdn, n), ('2026-09-27', '2026-09-26', 5), 'Bitfinex bez poprzedniego dnia (i z pustymi przepływami) nie liczony')
+        self.assertEqual([(g, a) for g, a, *_ in zle], [('KuCoin', 'USDT')],
+                         'Binance USDT: zmiana 50 mln = netto 50 mln; Binance ETH: te same jednostki, wyższy kurs = nie przelew (v117); OKX 0,4 mln < 1 mln; Bybit ETH 100 × 3000 = 0,3 mln < 1 mln; KuCoin +100 mln vs 0')
         self.assertIsNone(k.wieloryby_porownanie(os.path.join(arch, 'nie-ma.csv')))
         with open(p, 'w', encoding='utf-8') as f:
             f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n2026-09-26,Binance,USDT,100,1,0,0,0,1\n')
@@ -5950,6 +6004,12 @@ class KontrolaV115(unittest.TestCase):
         for i in range(40):
             h = k.historia(p, {'at': f'2026-10-{1 + i // 28:02d}T{i % 24:02d}:00:00+00:00', 'bledy_zbieracza': 0, 'uwagi': 0, 'bledy': 0})
         self.assertEqual(len(h), k.HIST_N)
+        E = lambda at, b: {'at': at, 'bledy_zbieracza': b}
+        self.assertTrue(k.czerwone_z_historii([E('2026-09-24T06:20:00+00:00', 1), E('2026-09-25T06:20:00+00:00', 2), E('2026-09-26T06:20:00+00:00', 1)]))
+        self.assertFalse(k.czerwone_z_historii([E('2026-09-26T06:20:00+00:00', 1), E('2026-09-26T09:00:00+00:00', 1), E('2026-09-26T12:00:00+00:00', 1)]), 'trzy przebiegi jednego dnia (po pushu) to nie 3 dni')
+        self.assertFalse(k.czerwone_z_historii([E('2026-09-24T06:20:00+00:00', 1), E('2026-09-25T06:20:00+00:00', 0), E('2026-09-25T12:00:00+00:00', 1), E('2026-09-26T06:20:00+00:00', 1)]) is False and False)
+        self.assertTrue(k.czerwone_z_historii([E('2026-09-24T06:20:00+00:00', 1), E('2026-09-25T06:20:00+00:00', 0), E('2026-09-25T12:00:00+00:00', 1), E('2026-09-26T06:20:00+00:00', 1)]), 'liczy się ostatni przebieg dnia')
+        self.assertFalse(k.czerwone_z_historii([E('2026-09-25T06:20:00+00:00', 1), E('2026-09-26T06:20:00+00:00', 1)]), 'dwa dni to za mało')
         R = {'at': '2026-09-26T06:20:00+00:00', 'wynik': 'UWAGA', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-09-26T06:03:00+00:00', 'wiek_min': 17, 'zrodla': 55, 'bez_odpowiedzi': [], 'errors': [], 'notes': []},
              'pliki': {'etf': {'wiek_min': 34}, 'robots.txt': {'http': 200}}, 'actions': {'przebiegi_24h': 70, 'wg_wyniku': {'success': 70}},
              'swiezosc': [{'zrodlo': 'TIC (miesięcznie)', 'status': '⚠️', 'wiek_min': 80 * 1440, 'data': '2026-06', 'uwaga': 'próg 75 d 0 h'}],
