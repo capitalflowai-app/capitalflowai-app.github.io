@@ -2,7 +2,9 @@
 """Codzienna kontrola strony — uruchamiana w GitHub Actions (ma dostęp do sieci), nie w chmurze Claude (tam brak dostępu do strony).
 Sprawdza: stronę główną, plik stanu automatu (meta.json: wiek, błędy, źródła bez odpowiedzi), wiek plików danych, przebiegi Actions z 24 h.
 Zapisuje `kontrola/ostatnia.md` (po polsku, krótko) i `kontrola/ostatnia.json`; wynik trafia też do podsumowania przebiegu.
-Kod wyjścia 1 = BŁĄD (GitHub wysyła właścicielowi e-mail o nieudanym przebiegu). Bez kluczy, tylko odczyt. Python 3.12, sama biblioteka standardowa."""
+Kod wyjścia 1 = BŁĄD (GitHub wysyła właścicielowi e-mail o nieudanym przebiegu). Bez kluczy, tylko odczyt. Python 3.12, sama biblioteka standardowa.
+Uwaga: komunikat commita bota zawiera „[skip ci]” — GitHub pomija wtedy przebiegi wyzwalane pushem (dlatego commit dodający ten plik
+nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśnie z tego powodu)."""
 import datetime as dt
 import json
 import os
