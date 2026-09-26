@@ -1,0 +1,50 @@
+name: Kontrola strony (codziennie)
+
+# Codzienna kontrola z serwera GitHub (ma dostęp do strony i do listy przebiegów) — zamiast zadania w chmurze Claude, które nie ma
+# dostępu do sieci. Wynik: kontrola/ostatnia.md i ostatnia.json w repozytorium (commit z [skip ci] — nie uruchamia budowy strony),
+# podsumowanie przebiegu i adnotacja. Nieudany przebieg (BŁĄD) = e-mail od GitHuba do właściciela.
+on:
+  schedule:
+    - cron: '20 6 * * *'        # 06:20 UTC = 08:20 czasu polskiego (letniego)
+  push:
+    branches: [main]
+    paths: ['narzedzia/kontrola.py', '.github/workflows/kontrola.yml']
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: kontrola
+  cancel-in-progress: false
+
+jobs:
+  kontrola:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: write          # zapis kontrola/ostatnia.* do repozytorium
+      actions: read            # lista przebiegów
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Kontrola (tylko odczyt strony i API GitHuba)
+        id: kontrola
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SITE_URL: ${{ endsWith(github.event.repository.name, '.github.io') && format('https://{0}', github.event.repository.name) || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+        run: python3 narzedzia/kontrola.py
+      - name: Zapisz wynik w repozytorium
+        run: |
+          git config user.name 'kontrola-strony'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add kontrola/ostatnia.md kontrola/ostatnia.json
+          if git diff --cached --quiet; then echo "bez zmian"; else
+            git commit -q -m "Kontrola strony $(date -u +%Y-%m-%d\ %H:%M) UTC [skip ci]"
+            git push -q origin HEAD:main || (git pull -q --rebase origin main && git push -q origin HEAD:main)
+          fi
+      - name: Wynik
+        if: steps.kontrola.outcome == 'failure'
+        run: echo "Kontrola zgłosiła BŁĄD — patrz podsumowanie" && exit 1
