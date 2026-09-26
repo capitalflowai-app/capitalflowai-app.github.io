@@ -1,0 +1,49 @@
+name: Archiwum własne (codziennie)
+
+# v113 (część B zadania z 26.09.2026): raz dziennie ok. 00:20 UTC zapis własnych szeregów do archiwum/*.csv (domena publiczna,
+# otwarte licencje i obliczenia własne — bez danych z API osobistych). Commit z [skip ci] — nie uruchamia budowy strony; kolejna
+# planowa budowa (co 20 min) kopiuje archiwum/ na stronę. Nieudane źródło = kod wyjścia 1 = e-mail od GitHuba (pozostałe pliki zapisane).
+on:
+  schedule:
+    - cron: '20 0 * * *'        # 00:20 UTC = 02:20 czasu polskiego (letniego)
+  push:
+    branches: [main]
+    paths: ['narzedzia/archiwum.py', '.github/workflows/archiwum.yml']
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: archiwum
+  cancel-in-progress: false
+
+jobs:
+  archiwum:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write          # zapis archiwum/*.csv i indeks.json do repozytorium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Zapis archiwum (klucz FRED tylko z Secrets; dane z domeny publicznej i obliczenia własne)
+        id: archiwum
+        continue-on-error: true
+        env:
+          FRED_KEY: ${{ secrets.FRED_KEY }}
+          SITE_URL: ${{ endsWith(github.event.repository.name, '.github.io') && format('https://{0}', github.event.repository.name) || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+        run: python3 narzedzia/archiwum.py
+      - name: Zapisz archiwum w repozytorium
+        run: |
+          git config user.name 'archiwum-strony'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add archiwum
+          if git diff --cached --quiet; then echo "bez zmian"; else
+            git commit -q -m "Archiwum własne $(date -u +%Y-%m-%d) [skip ci]"
+            git push -q origin HEAD:main || (git pull -q --rebase origin main && git push -q origin HEAD:main)
+          fi
+      - name: Wynik
+        if: steps.archiwum.outcome == 'failure'
+        run: echo "Archiwum: co najmniej jedno źródło zawiodło — patrz podsumowanie" && exit 1

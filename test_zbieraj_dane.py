@@ -5684,3 +5684,142 @@ class WielorybyEthV112(WielorybyV105):
         self.assertIn("brak ETHERSCAN_KEY — transfery ETH natywne w wielorybach wyłączone", src)
         wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
         self.assertRegex(wf, r'ETHERSCAN_KEY: \$\{\{ secrets\.ETHERSCAN \|\| secrets\.ETHERSCAN_KEY \}\}')
+
+
+class ArchiwumV113(unittest.TestCase):
+    """v113 (część B): własne archiwum CSV — format liczb, scalanie idempotentne z liczeniem rewizji, przeniesienie serii tygodniowych
+    do przodu, wiersze TIC/CFTC/rentowności/wielorybów/stablecoinów z nagrań, zapis plików i indeks.json, workflow i krok budowy."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='archiwum-')
+        os.environ['ARCHIWUM_DIR'] = cls.tmp
+        spec = importlib.util.spec_from_file_location('archiwum_v113', os.path.join(cls.ROOT, 'narzedzia', 'archiwum.py'))
+        cls.a = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.a)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); self.a.NOTES.clear()
+
+    def test_fmt(self):
+        f = self.a.fmt
+        self.assertEqual([f(x) for x in (88304342264.55, 2706087.305344, 3.79, 5.0, -0.0, 0.0, None, 12, float('nan'), 'x', True)],
+                         ['88304342264.55', '2706087.305344', '3.79', '5', '0', '0', '', '12', '', 'x', 'true'])
+        self.assertEqual(self.a.lata_wstecz(datetime.date(2028, 2, 29), 3), datetime.date(2025, 2, 28)); self.assertEqual(self.a.lata_wstecz(datetime.date(2026, 9, 26), 2), datetime.date(2024, 9, 26))
+
+    def test_merge_idempotent_and_revisions(self):
+        cols, key = ['date', 'x', 'v'], ['date', 'x']
+        rows = [['2026-09-25', 'a', 1.5], ['2026-09-25', 'b', None], ['2026-09-26', 'a', 2]]
+        m1, add1, rev1 = self.a.merge({}, rows, cols, key)
+        self.assertEqual((len(m1), add1, rev1), (3, 3, 0)); self.assertEqual(m1[('2026-09-25', 'b')], ['2026-09-25', 'b', ''], 'brak = puste pole, nie 0')
+        m2, add2, rev2 = self.a.merge(m1, rows, cols, key)
+        self.assertEqual((len(m2), add2, rev2), (3, 0, 0), 'drugie uruchomienie tego samego dnia = ta sama liczba wierszy')
+        m3, add3, rev3 = self.a.merge(m2, [['2026-09-26', 'a', 2.5], ['2026-09-27', 'a', 3]], cols, key)
+        self.assertEqual((len(m3), add3, rev3), (4, 1, 1)); self.assertEqual(m3[('2026-09-26', 'a')][2], '2.5', 'rewizja = najnowsza wartość')
+        self.assertIn(('2026-09-25', 'a'), m3, 'wiersze spoza przebiegu zostają')
+        with self.assertRaises(ValueError):
+            self.a.merge({}, [['2026-09-25', 'a']], cols, key)
+
+    def test_plynnosc_rows(self):
+        walcl = {'2026-09-02': 6600000.0, '2026-09-09': 6590000.0}; tga = {'2026-09-02': 800000.0, '2026-09-09': 810000.0}
+        rrp = {'2026-09-01': 100.0, '2026-09-03': 120.5, '2026-09-09': 90.0, '2026-09-10': 80.0}
+        r = self.a.plynnosc_rows(walcl, tga, rrp, '2026-09-01')
+        self.assertEqual([x[0] for x in r], ['2026-09-03', '2026-09-09', '2026-09-10'], 'dzień sprzed pierwszej środy bez wiersza (nie zero)')
+        self.assertEqual(r[0], ['2026-09-03', 6600000.0, 800000.0, 120500.0, 6600000.0 - 800000.0 - 120500.0, 'walcl@2026-09-02,tga@2026-09-02'], 'mld → mln, serie tygodniowe przeniesione')
+        self.assertEqual(r[2][1:3], [6590000.0, 810000.0]); self.assertEqual(r[2][5], 'walcl@2026-09-09,tga@2026-09-09')
+        self.assertEqual(self.a.plynnosc_rows(walcl, tga, rrp, '2026-09-10'), [r[2]], 'od = początek okresu')
+
+    def test_tic_cftc_rent_rows(self):
+        t1 = {'Japan': {'2019-12': {'for_lt_total_net': 5.0}, '2020-01': {'for_lt_total_net': 1234.6}, '2020-02': {'for_lt_total_net': None}}, 'All Countries': {'2020-01': {'for_lt_total_net': -7.4}}}
+        t2 = {'Japan': {'2020-01': {'us_lt_total_net': 42.0}}}
+        r = self.a.tic_rows(t1, t2)
+        self.assertEqual(sorted(r), [['2020-01', 'All Countries', -7, 'slt1_for_lt_total_net'], ['2020-01', 'Japan', 42, 'slt2_us_lt_total_net'], ['2020-01', 'Japan', 1235, 'slt1_for_lt_total_net']])
+        self.assertEqual(self.a.tic_rows(t1, None), [x for x in r if x[3].startswith('slt1')], 'bez tabeli 2 — tylko tabela 1')
+        rec = {}
+        for i, (k, pos, _) in enumerate(zd.CFTC_GROUPS):
+            rec[f'{pos}_Long_All'] = str(10 + i); rec[f'{pos}_Short_All'] = str(3 + i)
+        bad = dict(rec); bad['Dealer_Positions_Long_All'] = ''
+        tabs = {zd.CFTC_MARKETS['btc']: {'2026-09-22': rec, '2024-01-02': rec}, zd.CFTC_MARKETS['eth']: {'2026-09-22': bad}, zd.CFTC_MARKETS['eur']: {'2026-09-22': rec}}
+        c = self.a.cftc_rows(tabs, '2024-09-26')
+        self.assertEqual(len(c), 5 + 4, 'BTC 5 grup, ETH bez dealera (brak liczby = brak wiersza), EUR nie należy do pliku, stary tydzień poza oknem')
+        self.assertIn(['2026-09-22', 'BTC', 'dealer', 10, 3, 7], c); self.assertIn(['2026-09-22', 'ETH', 'nonrept', 14, 7, 7], c)
+        y = self.a.rent_rows([['2026-09-24', 4.1], ['2026-09-25', 4.2], ['2024-01-01', 3.0]], [['2026-09-25', 2.6], ['2026-09-26', 2.7]], '2026-01-01')
+        self.assertEqual(y, [['2026-09-24', 4.1, None, None], ['2026-09-25', 4.2, 2.6, 1.6], ['2026-09-26', None, 2.7, None]], 'różnica tylko przy obu wartościach; brak = None')
+
+    def _wh(self, ok_eth=True, ok_tr=True, px=2500.0):
+        return {'at': '2026-09-26T00:10:00+00:00', 'eth_usd': px, 'ok': {'salda': True, 'transfery': ok_tr, 'eth': ok_eth},
+                'gieldy': {'Binance': {'tokeny': ['USDT', 'USDC', 'ETH']}, 'OKX': {'tokeny': ['USDC']}},
+                'salda': {'Binance': {'eth': 10.5, 'usdt': 1000000.0, 'usdc': 2.0, 'blk': 500}, 'OKX': {'eth': 0.6, 'usdt': 29.0, 'usdc': 3000000.0, 'blk': 500}},
+                'transfery': [{'token': 'USDT', 'amt': 5e6, 'usd': 5e6, 'dir': 'in', 'exch': 'Binance'}, {'token': 'USDT', 'amt': 2e6, 'dir': 'out', 'exch': 'Binance'},
+                              {'token': 'ETH', 'amt': 400.0, 'usd': 1e6, 'dir': 'out', 'exch': 'Binance'}, {'token': 'USDC', 'amt': 1e6, 'usd': 1e6, 'dir': 'in', 'exch': 'OKX'}, 'x']}
+
+    def test_src_wieloryby(self):
+        d = datetime.date(2026, 9, 26)
+        with mock.patch.object(zd, 'get_json', return_value=self._wh()):
+            r = self.a.src_wieloryby(today=d)
+        self.assertEqual(sorted(r), [['2026-09-26', 'Binance', 'ETH', 10.5, 26250.0, 0.0, 1e6, -1e6, 500], ['2026-09-26', 'Binance', 'USDC', 2.0, 2.0, 0.0, 0.0, 0.0, 500],
+                                     ['2026-09-26', 'Binance', 'USDT', 1000000.0, 1000000.0, 5e6, 2e6, 3e6, 500], ['2026-09-26', 'OKX', 'USDC', 3000000.0, 3000000.0, 1e6, 0.0, 1e6, 500]],
+                         'OKX tylko USDC (lista giełdy); wiersz USDT bez pola usd liczony wg amt; ETH w USD po kursie z pliku')
+        with mock.patch.object(zd, 'get_json', return_value=self._wh(ok_eth=False, ok_tr=False, px=None)):
+            r = self.a.src_wieloryby(today=d)
+        e = [x for x in r if x[2] == 'ETH'][0]; u = [x for x in r if x[2] == 'USDT'][0]
+        self.assertEqual(e[4:8], [None, None, None, None], 'bez kursu i bez części ETH: USD i przepływy puste, nie zero'); self.assertEqual(u[5:8], [None, None, None])
+        with mock.patch.object(zd, 'get_json', return_value={'at': 'x', 'salda': {}}):
+            with self.assertRaises(RuntimeError):
+                self.a.src_wieloryby(today=d)
+
+    def test_src_stable(self):
+        h = lambda v: '0x' + format(v, 'x').rjust(64, '0')
+        with mock.patch.object(zd, 'wh_rpc', return_value=[h(88304342264550000), h(50282984666730000)]) as rpc:
+            r = self.a.src_stable(today=datetime.date(2026, 9, 26))
+        self.assertEqual(r, [['2026-09-26', 'USDT', 88304342264.55], ['2026-09-26', 'USDC', 50282984666.73]])
+        self.assertEqual(rpc.call_args[0][0][0], ('eth_call', [{'to': zd.WH_USDT, 'data': '0x18160ddd'}, 'latest']), 'totalSupply() przez publiczny węzeł')
+        with mock.patch.object(zd, 'wh_rpc', return_value=[h(1), '0x']):
+            with self.assertRaises(RuntimeError) as cm:
+                self.a.src_stable(today=datetime.date(2026, 9, 26))
+        self.assertIn('USDC', str(cm.exception))
+
+    def test_run_writes_files_and_index(self):
+        import shutil
+        arch = os.path.join(self.tmp, 'run1'); shutil.rmtree(arch, ignore_errors=True)
+        src = {'rentownosci': lambda: [['2026-09-25', 4.2, 2.6, 1.6], ['2026-09-24', 4.1, None, None]], 'stablecoiny-eth': lambda: (_ for _ in ()).throw(RuntimeError('węzeł milczy TAJNE'))}
+        zd.SECRETS.append('TAJNE')
+        try:
+            idx = self.a.run(src, arch=arch)
+        finally:
+            zd.SECRETS.remove('TAJNE')
+        self.assertTrue(idx['files']['rentownosci']['ok']); self.assertEqual(idx['files']['rentownosci']['rows'], 2); self.assertEqual(idx['files']['rentownosci']['first'], '2026-09-24')
+        self.assertFalse(idx['files']['stablecoiny-eth']['ok']); self.assertEqual(idx['errors'], ['stablecoiny-eth: węzeł milczy ***'], 'klucz maskowany także tu')
+        self.assertEqual(open(os.path.join(arch, 'rentownosci.csv'), encoding='utf-8').read(), 'date,ust10y,bund10y,spread\n2026-09-24,4.1,,\n2026-09-25,4.2,2.6,1.6\n', 'posortowane, brak = puste, LF')
+        self.assertFalse(os.path.exists(os.path.join(arch, 'stablecoiny-eth.csv')), 'źródło z błędem nie tworzy pliku')
+        j = json.load(open(os.path.join(arch, 'indeks.json'), encoding='utf-8'))
+        self.assertEqual(j['files']['rentownosci']['cols'], self.a.FILES['rentownosci']['cols']); self.assertIn('Archiwum własne', j['credit'])
+        # drugi przebieg: rewizja jednej wartości, nowy dzień; licznik rewizji rośnie z poprzedniego indeksu; poprzedni plik z błędem nadal bez pliku
+        idx2 = self.a.run({'rentownosci': lambda: [['2026-09-25', 4.25, 2.6, 1.65], ['2026-09-26', 4.3, 2.7, 1.6]]}, arch=arch, prev_index=j)
+        r2 = idx2['files']['rentownosci']
+        self.assertEqual((r2['rows'], r2['added'], r2['revised'], r2['revisions_total'], r2['first'], r2['last']), (3, 1, 1, 1, '2026-09-24', '2026-09-26'))
+        idx3 = self.a.run({'rentownosci': lambda: [['2026-09-26', 4.3, 2.7, 1.6]]}, arch=arch, prev_index=idx2)
+        self.assertEqual((idx3['files']['rentownosci']['added'], idx3['files']['rentownosci']['revised'], idx3['files']['rentownosci']['revisions_total']), (0, 0, 1), 'ten sam dzień raz jeszcze = bez zmian')
+        # inny nagłówek w istniejącym pliku = plik od nowa, z uwagą
+        with open(os.path.join(arch, 'rentownosci.csv'), 'w', encoding='utf-8') as f:
+            f.write('date,inne\n2026-01-01,1\n')
+        idx4 = self.a.run({'rentownosci': lambda: [['2026-09-26', 4.3, 2.7, 1.6]]}, arch=arch)
+        self.assertEqual(idx4['files']['rentownosci']['rows'], 1); self.assertTrue(any('nagłówek' in n for n in idx4['notes']))
+
+    def test_workflow_and_build_step(self):
+        wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'archiwum.yml'), encoding='utf-8').read()
+        self.assertIn("cron: '20 0 * * *'", wf); self.assertIn('[skip ci]', wf); self.assertIn('FRED_KEY: ${{ secrets.FRED_KEY }}', wf)
+        self.assertIn('contents: write', wf); self.assertIn('git add archiwum', wf); self.assertIn('python3 narzedzia/archiwum.py', wf); self.assertIn('workflow_dispatch', wf)
+        self.assertNotIn('toJSON(secrets)', wf)
+        st = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertIn('cp -r archiwum _site/archiwum', st)
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
+        for n in self.a.FILES:
+            self.assertIn(f"'{n}'", src)
+        self.assertEqual(set(self.a.FILES), {'wieloryby', 'stablecoiny-eth', 'plynnosc', 'tic', 'cftc-krypto', 'rentownosci'})
+        for spec in self.a.FILES.values():
+            self.assertTrue(all(c.isascii() and c == c.lower() for c in spec['cols']), spec['cols']); self.assertTrue(set(spec['key']) <= set(spec['cols']))
+        self.assertIn('FRED_OBS', src)
+        for bad in ('api.coingecko.com', 'sosovalue.xyz', 'coinpaprika.com', 'finnhub.io', 'twelvedata.com', 'coinmarketcap.com', 'api.etherscan.io', 'cryptopanic.com', 'eodhd.com', 'tiingo.com', 'massive.com', 'polygon.io'):
+            self.assertNotIn(bad, src, 'archiwum publiczne tylko z domeny publicznej i obliczeń własnych')
