@@ -47,6 +47,11 @@ jobs:
           EIA_KEY: ${{ secrets.EIA_KEY }}               # v97: energia (EIA)
           BLS_KEY: ${{ secrets.BLS_KEY }}               # v97: makro USA (BLS)
           BEA_KEY: ${{ secrets.BEA_KEY }}               # v97: bilans płatniczy USA (BEA)
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}           # v106: indeksy świata
+          MASSIVE_KEY: ${{ secrets.MASSIVE_KEY }}       # v106: notowania ETF (dawniej Polygon)
+          TIINGO_KEY: ${{ secrets.TIINGO_KEY }}         # v106: notowania ETF (zapas)
+          FMP_KEY: ${{ secrets.FMP_KEY }}               # v106: skład sektorowy SPY (opcjonalnie)
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
           CACHE_DIR: pamiec-danych
           # strona użytkownika (repozytorium <konto>.github.io) ma adres bez ścieżki; inne — z nazwą repozytorium
           SITE_URL: ${{ endsWith(github.event.repository.name, '.github.io') && format('https://{0}', github.event.repository.name) || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}

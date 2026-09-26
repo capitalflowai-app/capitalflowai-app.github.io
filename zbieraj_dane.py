@@ -5408,6 +5408,311 @@ def build_wieloryby(prev=None):
     return out
 
 
+# ===================== v106: INDEKSY GIEŁDOWE ŚWIATA I NOTOWANIA ETF (klucze właściciela: EODHD, Massive, Tiingo) =====================
+# Decyzja właściciela 26.09.2026: wszystkie jego klucze pracują dla strony publicznej. Klucze wyłącznie z GitHub Secrets
+# (EODHD_KEY, MASSIVE_KEY, TIINGO_KEY; FMP_KEY i ALPHAVANTAGE_KEY są odczytywane i maskowane, ale jeszcze nieużywane — RAPORT v106).
+# Plan bezpłatny EODHD: 20 zapytań na dobę i rok historii — 25 indeksów odświeżanych rotacyjnie (najdłużej czekające najpierw),
+# każdy najwyżej raz po zamknięciu swojej sesji. Nazwy dostawców zostają w tym pliku i na stronie Źródła — nie w panelu.
+IX_URL = 'https://eodhd.com/api/eod/{sym}.INDX?api_token={key}&fmt=json&period=d&from={frm}'
+IX_SYMBOLS = (   # kod EODHD (giełda INDX), kraj (flaga), godzina UTC, po której zamknięcie sesji powinno już być u dostawcy
+    ('GSPC', 'us', 22), ('IXIC', 'us', 22), ('DJI', 'us', 22), ('GSPTSE', 'ca', 22), ('BVSP', 'br', 22), ('MXX', 'mx', 22),
+    ('GDAXI', 'de', 17), ('FCHI', 'fr', 17), ('FTSE', 'gb', 17), ('IBEX', 'es', 17), ('FTMIB', 'it', 17), ('AEX', 'nl', 17),
+    ('SSMI', 'ch', 17), ('OMXS30', 'se', 17), ('WIG20', 'pl', 17), ('TA125', 'il', 16), ('XU100', 'tr', 16), ('JTOPI', 'za', 16),
+    ('N225', 'jp', 7), ('KS11', 'kr', 7), ('HSI', 'hk', 9), ('SSEC', 'cn', 8), ('BSESN', 'in', 11), ('AXJO', 'au', 7), ('JKSE', 'id', 10))
+IX_KEYS = ('EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'FMP_KEY', 'ALPHAVANTAGE_KEY')
+IX_ACTIVE = ('EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY')   # klucze, które dziś coś pobierają
+IX_PARTS = ('ix', 'etf')
+IX_DAILY = 20        # limit planu bezpłatnego EODHD: zapytań na dobę (liczone według daty UTC)
+IX_PER_RUN = 4       # najwyżej tyle indeksów na przebieg — budżet dobowy rozłożony na cały dzień, nie zużyty o świcie
+IX_KEEP = 265        # sesji w pliku: ponad rok (zmiana od początku roku wymaga ostatniego zamknięcia poprzedniego roku)
+IX_EVERY = 55        # min — zbieracz zajmuje się indeksami najwyżej raz na godzinę
+IX_BAD_DAYS = 7      # najdłuższa przerwa po odrzuconym kodzie (HTTP 401/403/404); przerwa rośnie: 1, 2, 4, 7 dni (bad_n)
+IX_HIST_DAYS = 370   # pierwsze pobranie: rok wstecz; potem dopełnienie od ostatniej sesji (z zakładką IX_OVERLAP dni)
+IX_OVERLAP = 10
+IX_TIMEOUT = 12      # s na jedno zapytanie EODHD (kilkadziesiąt KB); Massive 15 s (ok. 1,5 MB), Tiingo 10 s
+ETF_TIMEOUT = 15
+TIINGO_TIMEOUT = 10
+IX_BUDGET_S = 40     # s na cały budowniczy: po tym czasie żadnego nowego zapytania (jedno w toku ≤ 15 s → zawsze < 60 s); zbieracz ma 15 min na wszystko
+IX_MISS_MAX = 2      # tyle braków odpowiedzi z rzędu (nie HTTP: przekroczony czas, zerwane połączenie, DNS) = dostawca nie odpowiada, koniec pętli
+ETF_URL = 'https://api.massive.com/v2/aggs/grouped/locale/us/market/stocks/{d}?adjusted=true&apiKey={key}'   # Massive (dawniej Polygon)
+TIINGO_URL = 'https://api.tiingo.com/tiingo/daily/{t}/prices?token={key}&startDate={frm}'
+ETF_EVERY = 6 * 60   # min — notowania dzienne: 4 zapytania Massive na dobę (limit planu: 5 na minutę)
+ETF_KEEP = 30        # sesji na fundusz
+ETF_TIINGO_MAX = 40  # zapas Tiingo: najwyżej tyle funduszy na przebieg (limit 50 zapytań na godzinę)
+ETF_TIINGO_SLEEP = 0.25
+IX_ETF = tuple(dict.fromkeys(list(DAY_SYMS) + list(FUND_SSGA) + list(FUND_ISH)))   # fundusze używane przez stronę (mapa GLOBAL, TRENDY)
+
+
+def _ix_dt(s):
+    """Czas ISO → datetime UTC; brak albo zepsuty = None."""
+    try:
+        d = datetime.datetime.fromisoformat(str(s))
+        return d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def ix_ready(h, now):
+    """Ostatni dzień roboczy o godzinie h (UTC) nie później niż teraz — po nim zamknięcie sesji powinno być u dostawcy."""
+    m = now.replace(hour=h, minute=0, second=0, microsecond=0)
+    if m > now:
+        m -= datetime.timedelta(days=1)
+    while m.weekday() >= 5:
+        m -= datetime.timedelta(days=1)
+    return m
+
+
+def _ix_pause(rec):
+    """Dni przerwy po odrzuconym kodzie: 1, 2, 4, potem IX_BAD_DAYS (według licznika bad_n) — poprawiony klucz wraca w dobę,
+    a zły kod nie marnuje zapytania co dzień."""
+    n = rec.get('bad_n')
+    n = n if isinstance(n, int) and n > 0 else 1
+    return min(IX_BAD_DAYS, 2 ** (n - 1))
+
+
+def _ix_bad(part, sym, code):
+    """Kod odrzucony przez dostawcę (HTTP 401/403/404): znacznik przerwy na wpisie symbolu, licznik odrzuceń rośnie.
+    Stara seria (jeśli była) zostaje — strona pokazuje ją z własną datą i wiekiem."""
+    rec = part.get(sym) if isinstance(part.get(sym), dict) else {}
+    n = rec.get('bad_n')
+    rec.update({'bad_at': NOW, 'bad_n': (n if isinstance(n, int) and n > 0 else 0) + 1, 'bad': code}); part[sym] = rec
+
+
+def ix_plan(part, now, budget):
+    """Indeksy do pobrania w tym przebiegu: „do odświeżenia” (nie pobrane od ostatniego zamknięcia swojej sesji), najdłużej
+    czekające najpierw; najwyżej IX_PER_RUN i nie więcej, niż zostało z dobowego limitu. Kod odrzucony — przerwa _ix_pause."""
+    due = []
+    for i, (sym, cc, h) in enumerate(IX_SYMBOLS):
+        rec = part.get(sym) if isinstance(part, dict) else None
+        rec = rec if isinstance(rec, dict) else {}
+        bad = _ix_dt(rec.get('bad_at'))
+        if bad and (now - bad).days < _ix_pause(rec):
+            continue
+        at = _ix_dt(rec.get('at'))
+        if at is None or at < ix_ready(h, now):
+            due.append((at or datetime.datetime.min.replace(tzinfo=datetime.timezone.utc), i, sym))   # nigdy nie pobrane: kolejność listy
+    due.sort()
+    return [s for _, _, s in due[:max(0, min(IX_PER_RUN, budget))]]
+
+
+def eod_parse(j):
+    """Odpowiedź EODHD (lista świec) → [[dzień, zamknięcie], …] rosnąco; świeca bez liczby = brak (nigdy 0);
+    słownik zamiast listy = komunikat błędu dostawcy."""
+    if isinstance(j, dict):
+        raise RuntimeError(str(j.get('message') or j.get('error') or j)[:140])
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict):
+            continue
+        d, v = str(r.get('date') or ''), _num(r.get('close'))
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', d) and v is not None and v == v and 0 < v < float('inf'):
+            out[d] = v
+    if not out:
+        raise ValueError('pusta odpowiedź')
+    return [[d, out[d]] for d in sorted(out)]
+
+
+def _ix_merge(old, new, keep):
+    """Stare i nowe pary [dzień, zamknięcie] → jedna seria rosnąco (nowsza wartość wygrywa), ostatnie `keep` sesji."""
+    m = {r[0]: r[1] for r in (old or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and isinstance(r[1], (int, float))}
+    m.update({r[0]: r[1] for r in new})
+    return [[d, m[d]] for d in sorted(m)][-keep:]
+
+
+def ix_fetch(sym, cc, key, rec, now):
+    """Jeden indeks: dopełnienie od ostatniej sesji (z zakładką) albo rok wstecz; zwraca nowy wpis symbolu."""
+    old = rec.get('d') if isinstance(rec, dict) and isinstance(rec.get('d'), list) else []
+    try:
+        frm = datetime.date.fromisoformat(old[-1][0]) - datetime.timedelta(days=IX_OVERLAP)
+    except (TypeError, ValueError, IndexError):
+        frm = now.date() - datetime.timedelta(days=IX_HIST_DAYS)
+    j = get_json(IX_URL.format(sym=sym, key=key, frm=frm.isoformat()), timeout=IX_TIMEOUT)
+    return {'cc': cc, 'at': NOW, 'd': _ix_merge(old, eod_parse(j), IX_KEEP)}
+
+
+def _ix_late(deadline):
+    """Budżet czasu budowniczego wyczerpany? (None = bez limitu, np. w testach jednostkowych)."""
+    return deadline is not None and time.monotonic() > deadline
+
+
+def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None):
+    """Część ix: plan (rotacja), pobranie, dobowy licznik zapytań i blokada po przekroczeniu limitu.
+    Kod odrzucony (401/403/404) dostaje przerwę i NIE zatrzymuje pozostałych — jeden zły kod nie może zablokować całej rotacji;
+    dopiero gdy każda próba w przebiegu została odrzucona, zgłaszamy „klucz odrzucony”. Dwa braki odpowiedzi z rzędu albo
+    przekroczony budżet czasu = koniec pętli (zbieracz ma 15 min na wszystkie źródła).
+    Zwraca (część, licznik, dzień blokady, czy bez błędów, ile odświeżono)."""
+    part = {s: dict(r) for s, r in prev_part.items() if isinstance(r, dict)} if isinstance(prev_part, dict) else {}
+    today = now.date().isoformat()
+    calls = dict(prev_calls) if isinstance(prev_calls, dict) and prev_calls.get('d') == today else {'d': today, 'n': 0}
+    quota = today if prev_quota == today else None
+    ok, got, tried, miss, rej = True, 0, 0, 0, []
+    if quota and ix_plan(part, now, IX_PER_RUN):   # blokada po przekroczeniu limitu: informacja, nie błąd (dane zostają z własnymi datami)
+        META['notes'].append(f'Indeksy: limit dobowy EODHD wyczerpany ({today}) — odświeżenie jutro')
+    for sym in ix_plan(part, now, 0 if quota else IX_DAILY - int(calls.get('n') or 0)):
+        if _ix_late(deadline):
+            ok = False; errors.append('EODHD: przekroczony budżet czasu — reszta indeksów za godzinę'); break
+        cc = next(c for s, c, _ in IX_SYMBOLS if s == sym)
+        calls['n'] = int(calls.get('n') or 0) + 1; tried += 1
+        try:
+            part[sym] = ix_fetch(sym, cc, key, part.get(sym), now); got += 1; miss = 0
+        except urllib.error.HTTPError as e:
+            ok = False
+            if e.code in (402, 429):      # dobowy limit planu wyczerpany — reszta jutro, poprzednie serie zostają
+                quota = today; errors.append(f'EODHD HTTP {e.code} — limit zapytań wyczerpany ({sym})'); break
+            if e.code in (401, 403):      # klucz albo plan bez tego indeksu — przerwa na tym kodzie, następny indeks
+                _ix_bad(part, sym, e.code); rej.append(sym); errors.append(f'EODHD HTTP {e.code} — odrzucony kod {sym}.INDX'); continue
+            if e.code == 404:             # nieznany kod indeksu — przerwa
+                _ix_bad(part, sym, 404); errors.append(f'EODHD HTTP 404 — nieznany kod {sym}.INDX'); continue
+            errors.append(f'EODHD HTTP {e.code} ({sym})')
+        except Exception as e:  # noqa — jeden indeks bez odpowiedzi nie zatrzymuje pozostałych; dwa z rzędu = dostawca nie odpowiada
+            ok = False; miss += 1; errors.append(mask(f'{sym}: {e}'))
+            if miss >= IX_MISS_MAX:
+                errors.append('EODHD: brak odpowiedzi — koniec przebiegu'); break
+    if tried and len(rej) == tried:   # każda próba odrzucona: najpewniej klucz (albo plan bez indeksów), nie pojedynczy kod —
+        for sym in rej:               # przerwa zostaje jednodniowa, żeby poprawiony klucz wrócił do pracy w dobę
+            part[sym]['bad_n'] = 1
+        errors.append('EODHD — klucz odrzucony albo plan bez indeksów (każda próba: HTTP 401/403)')
+    return part, calls, quota, ok, got
+
+
+def massive_parse(j, tickers):
+    """Odpowiedź Massive (notowania dzienne całego rynku USA) → {ticker: zamknięcie} tylko dla funduszy strony; brak liczby = brak wpisu."""
+    if not isinstance(j, dict):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    if str(j.get('status') or '').upper() not in ('OK', 'DELAYED'):
+        raise RuntimeError(str(j.get('error') or j.get('message') or j.get('status') or 'nieznany kształt odpowiedzi')[:140])
+    want, out = set(tickers), {}
+    for r in j.get('results') or []:
+        if isinstance(r, dict) and r.get('T') in want:
+            v = _num(r.get('c'))
+            if v is not None and v == v and 0 < v < float('inf'):
+                out[r['T']] = v
+    return out
+
+
+def tiingo_parse(j):
+    """Odpowiedź Tiingo (lista dni) → [[dzień, zamknięcie], …] rosnąco; słownik = komunikat błędu (np. „detail”)."""
+    if isinstance(j, dict):
+        raise RuntimeError(str(j.get('detail') or j.get('message') or j)[:140])
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict):
+            continue
+        d, v = str(r.get('date') or '')[:10], _num(r.get('close'))
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', d) and v is not None and v == v and 0 < v < float('inf'):
+            out[d] = v
+    return [[d, out[d]] for d in sorted(out)]
+
+
+def etf_prev_day(d):
+    """Poprzedni dzień roboczy (dla notowań USA: sesja już zamknięta)."""
+    d = d - datetime.timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= datetime.timedelta(days=1)
+    return d
+
+
+def etf_part(keys, prev_etf, now, errors, deadline=None):
+    """Część etf: jedno zapytanie Massive o cały rynek USA z poprzedniej sesji (święto → dzień wcześniej, do 4 prób);
+    gdy Massive zawiedzie — Tiingo fundusz po funduszu (najwyżej ETF_TIINGO_MAX). Historia: ostatnie ETF_KEEP sesji.
+    Budżet czasu (deadline) i dwa braki odpowiedzi z rzędu kończą pętlę — 40 funduszy × przekroczony czas nie może zjeść
+    limitu zbieracza; to, co już pobrano, zostaje (każda seria z własnymi datami)."""
+    q = {t: r for t, r in ((prev_etf or {}).get('q') or {}).items() if isinstance(r, list)} if isinstance(prev_etf, dict) else {}
+    fails = []
+    if keys.get('MASSIVE_KEY'):
+        d = etf_prev_day(now.date())
+        for _ in range(4):
+            if _ix_late(deadline):
+                fails.append('Massive: przekroczony budżet czasu'); break
+            try:
+                closes = massive_parse(get_json(ETF_URL.format(d=d.isoformat(), key=keys['MASSIVE_KEY']), timeout=ETF_TIMEOUT), IX_ETF)
+            except urllib.error.HTTPError as e:
+                fails.append(f'Massive HTTP {e.code}'); break
+            except Exception as e:  # noqa
+                fails.append(mask(f'Massive: {e}')); break
+            if closes:
+                for t, v in closes.items():
+                    q[t] = _ix_merge(q.get(t), [[d.isoformat(), v]], ETF_KEEP)
+                return {'date': d.isoformat(), 'src': 'massive', 'q': q}
+            fails.append(f'Massive {d.isoformat()}: brak notowań (dzień bez sesji?)'); d = etf_prev_day(d)
+    if keys.get('TIINGO_KEY'):
+        frm = (now.date() - datetime.timedelta(days=45)).isoformat()
+        got, last, miss = 0, '', 0
+        for i, t in enumerate(IX_ETF[:ETF_TIINGO_MAX]):
+            if _ix_late(deadline):
+                fails.append(f'Tiingo: przekroczony budżet czasu po {i} funduszach'); break
+            if i:
+                time.sleep(ETF_TIINGO_SLEEP)
+            try:
+                rows = tiingo_parse(get_json(TIINGO_URL.format(t=t, key=keys['TIINGO_KEY'], frm=frm), timeout=TIINGO_TIMEOUT))
+            except urllib.error.HTTPError as e:
+                fails.append(f'Tiingo HTTP {e.code} ({t})')
+                if e.code in (401, 403, 429):   # klucz odrzucony albo limit — dalsze fundusze bez sensu
+                    break
+                continue
+            except Exception as e:  # noqa — brak odpowiedzi: dwa z rzędu = dostawca nie odpowiada, koniec
+                fails.append(mask(f'Tiingo {t}: {e}')); miss += 1
+                if miss >= IX_MISS_MAX:
+                    fails.append('Tiingo: brak odpowiedzi — koniec'); break
+                continue
+            miss = 0
+            if rows:
+                q[t] = _ix_merge(q.get(t), rows, ETF_KEEP); got += 1; last = max(last, rows[-1][0])
+        if got:
+            errors.extend(fails[:3])   # Massive zawiódł, Tiingo zastąpił (może częściowo) — awaria widoczna na stronie Źródła
+            return {'date': last, 'src': 'tiingo', 'q': q}
+    raise RuntimeError('; '.join(fails[:4]) or 'brak klucza')
+
+
+def build_indeksy(keys, prev=None, now=None):
+    """data/indeksy.json — część ix: dzienne zamknięcia 25 indeksów świata (EODHD, rotacja 20 zapytań na dobę);
+    część etf: zamknięcia funduszy ETF używanych przez stronę (Massive; zapas Tiingo). Część bez klucza albo z błędem = poprzednia
+    wersja z własnym czasem (part_at), nigdy zera. Z kluczem plik powstaje zawsze — także gdy nic się nie udało (licznik dobowy,
+    blokada limitu i przerwy na kodach muszą przetrwać do następnej godziny); bez kluczy i bez poprzednich danych = wyjątek."""
+    now = now or _now_utc()
+    keys = keys if isinstance(keys, dict) else {}
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    deadline = time.monotonic() + IX_BUDGET_S   # cały budowniczy < 60 s: po tym czasie żadnego nowego zapytania
+    out, errors = {'at': NOW, 'ok': {}, 'part_at': {}}, []
+    if keys.get('EODHD_KEY'):
+        part, calls, quota, ok, got = ix_part(keys['EODHD_KEY'], prev.get('ix'), prev.get('ix_calls'), prev.get('ix_quota'), now, errors, deadline)
+        has = any(isinstance(r.get('d'), list) and r['d'] for r in part.values())
+        out['ix_calls'] = calls; out['ok']['ix'] = bool(ok and has)   # licznik zawsze w pliku — także po nieudanym pierwszym przebiegu
+        if quota:
+            out['ix_quota'] = quota
+        if part:   # serie i/lub znaczniki przerw; strona ukrywa panel, dopóki żaden indeks nie ma serii
+            out['ix'] = part
+            at = NOW if (ok or got) else (pat.get('ix') or prev.get('at'))
+            if at:
+                out['part_at']['ix'] = at
+    elif isinstance(prev.get('ix'), dict) and prev['ix']:   # klucz zniknął — stare serie zostają (strona pokazuje ich datę i wiek)
+        out['ix'] = prev['ix']; out['part_at']['ix'] = pat.get('ix') or prev.get('at')
+    pe = prev.get('etf') if isinstance(prev.get('etf'), dict) and isinstance(prev['etf'].get('q'), dict) and prev['etf']['q'] else None
+    if keys.get('MASSIVE_KEY') or keys.get('TIINGO_KEY'):
+        last = _ix_dt(pat.get('etf'))
+        if pe and last and (now - last).total_seconds() < ETF_EVERY * 60:   # notowania dzienne — co 6 h wystarczy
+            out['etf'] = pe; out['ok']['etf'] = True; out['part_at']['etf'] = pat['etf']
+        else:
+            try:
+                out['etf'] = etf_part(keys, pe, now, errors, deadline); out['ok']['etf'] = True; out['part_at']['etf'] = NOW
+            except Exception as e:  # noqa — część z błędem: poprzednia wersja z własnym czasem
+                errors.append(mask(f'ETF: {e}')); out['ok']['etf'] = False
+                if pe:
+                    out['etf'] = pe; out['part_at']['etf'] = pat.get('etf') or prev.get('at')
+    elif pe:
+        out['etf'] = pe; out['part_at']['etf'] = pat.get('etf') or prev.get('at')
+    if errors:
+        META['errors'].append(mask('Indeksy: ' + '; '.join(errors)[:400]))
+    if not any(k in out for k in IX_PARTS) and not any(keys.get(k) for k in IX_ACTIVE):
+        raise RuntimeError('brak kluczy i poprzednich danych')
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -5586,6 +5891,30 @@ def main():
     except Exception as e:
         META['errors'].append(mask(f'Wieloryby: {e}')); META['ok']['wieloryby'] = False
         if prev_wh: save('wieloryby', prev_wh)
+    # v106: indeksy świata (EODHD, rotacja 20 zapytań na dobę) i notowania ETF (Massive, zapas Tiingo) — klucze właściciela; co godzinę;
+    # brak klucza = informacja (notes), nie błąd; awaria = poprzedni plik
+    ix_keys = {k: os.environ.get(k, '').strip() for k in IX_KEYS}
+    SECRETS.extend(v for v in ix_keys.values() if v)
+    for k, what in (('EODHD_KEY', 'indeksy świata wyłączone'), ('MASSIVE_KEY', 'notowania ETF (Massive) wyłączone'), ('TIINGO_KEY', 'zapas notowań ETF (Tiingo) wyłączony')):
+        if not ix_keys[k]:
+            META['notes'].append(f'brak {k} — {what}')
+    ix_any = any(ix_keys[k] for k in ('EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY'))
+    prev_ix = previous('indeksy') if ix_any else None
+    if ix_any and prev_ix and fresh(prev_ix, IX_EVERY):
+        save('indeksy', prev_ix)
+        for k, st in (prev_ix.get('ok') or {}).items():
+            META['ok']['indeksy_' + k] = 'cached' if st is True else st
+    elif ix_any:
+        try:
+            ix = build_indeksy(ix_keys, prev_ix); save('indeksy', ix)
+            for k, st in ix['ok'].items():
+                META['ok']['indeksy_' + k] = st
+        except Exception as e:
+            META['errors'].append(mask(f'Indeksy: {e}'))
+            for k in IX_PARTS:
+                META['ok']['indeksy_' + k] = False
+            if prev_ix:
+                save('indeksy', prev_ix)
     # v99: OECD (bez klucza) — co 6 h; część z błędem ponawiana po godzinie
     prev_oe = previous('oecd')
     pok_oe = (prev_oe or {}).get('ok') or {}

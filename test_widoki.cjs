@@ -3850,3 +3850,95 @@ test('v105: wieloryby — dziesięć języków ma wszystkie klucze wh.*, bez naz
   assert.ok(keys.includes('wh.wew') && !v96src.tFor('pl')('wh.px.na').includes('aktualne') && !v96src.tFor('en')('wh.px.na').includes('current'), 'nota o braku kursu nie twierdzi, że salda są aktualne (mają własną datę)');
   assert.ok(v96src.tFor('pl')('wh.not2').includes('nieogłoszony portfel') && v96src.tFor('en')('wh.not2').includes('unpublished exchange wallet'), '„czego nie mówią”: para z nieogłoszonego portfela');
 });
+test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od początku roku), luki i święta, brak ≠ zero, kolejność, ukryte bez danych', () => {
+  const i0 = html.indexOf('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA'), i1 = html.indexOf('\nfunction ixLoad(', i0);
+  assert.ok(i0 > 0 && i1 > i0, 'blok v106 na stronie');
+  const mk = ($) => new Function('$', 't', 'nfmt', 'fPct', 'sg', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', html.slice(i0, i1) +
+    '\nreturn {IX, IX_META, ixRows, ixDerive, ixTone, ixPct, ixItems, ixSort, ixBody, ixCty, renderIx, ixApply, ixEtfClose, ixEtfSeries};')(
+    $ || (() => null), (k, o) => k + (o ? JSON.stringify(o) : ''), (v, d) => Number(v).toFixed(d), (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%',
+    v => v > 0 ? '+' : v < 0 ? '−' : '', s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])), d => ' · age(' + d + ')', iso => 'D(' + iso + ')', {pl: 'pl-PL', en: 'en-US'}, 'en');
+  const X = mk();
+  // 30 sesji: 8.12.2025 – 20.01.2026 bez weekendów, bez 25.12 i 1.01 (święta); zamknięcia 100, 101, 102, …
+  const days = []; for (let d = new Date(Date.UTC(2025, 11, 8)); days.length < 30; d.setUTCDate(d.getUTCDate() + 1)) { const iso = d.toISOString().slice(0, 10); if (d.getUTCDay() % 6 && iso !== '2025-12-25' && iso !== '2026-01-01') days.push(iso); }
+  const rows = days.map((d, i) => [d, 100 + i]);
+  assert.equal(days[16], '2025-12-31'); assert.equal(days[29], '2026-01-20');
+  const v = X.ixDerive(rows), near = (a, b, m) => assert.ok(Math.abs(a - b) < 1e-9, m + ': ' + a + ' vs ' + b);
+  assert.equal(v.date, '2026-01-20'); assert.equal(v.close, 129); assert.equal(v.n, 30);
+  near(v.d1, (129 / 128 - 1) * 100, '1 D = poprzednia sesja'); near(v.w1, (129 / 124 - 1) * 100, '1 T = 5 sesji'); near(v.m1, (129 / 108 - 1) * 100, '1 M = 21 sesji');
+  near(v.ytd, (129 / 116 - 1) * 100, 'od początku roku = ostatnie zamknięcie 2025 (31.12), nie 1.01');
+  const junk = rows.slice().reverse().concat([['2026-01-21', null], ['2026-01-22', 0], ['2026-01-23', -1], ['bad', 5], 'x', ['2026-01-26']]);
+  assert.deepEqual(X.ixDerive(junk), v, 'kolejność dowolna, wiersze bez liczby (null, 0, ujemne, zła data) odrzucone — nigdy zero');
+  const s = X.ixDerive(rows.slice(-10));
+  assert.ok(s.d1 !== null && s.w1 !== null && s.m1 === null && s.ytd === null, 'za krótka seria: 1 M i od początku roku = brak, nie 0');
+  assert.equal(X.ixDerive([]), null); assert.equal(X.ixDerive(null), null); assert.equal(X.ixDerive([['2026-01-20', 5]]).d1, null);
+  assert.equal(X.ixTone(0.04, 1), ''); assert.equal(X.ixTone(0.06, 1), 'pos'); assert.equal(X.ixTone(-0.06, 1), 'neg'); assert.equal(X.ixTone(null, 1), '');
+  assert.equal(X.ixPct(0.04), '<span class="cell mono">0.0%</span>', 'zero po zaokrągleniu — bez koloru i bez znaku');
+  assert.equal(X.ixPct(-0.06), '<span class="cell mono neg">−0.1%</span>'); assert.equal(X.ixPct(2.345), '<span class="cell mono pos">+2.3%</span>');
+  assert.equal(X.ixPct(null), '<span class="cell mono na">—</span>'); assert.equal(X.ixPct(NaN), '<span class="cell mono na">—</span>');
+  const it = X.ixItems({ix: {GSPC: {d: rows}, ZZZ: {d: rows}, DJI: {d: []}, FTSE: 'x', GDAXI: {d: rows.slice(-3)}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 1, bad: 403}}});
+  assert.equal(it.length, 25, 'część ix istnieje — wiersz dla każdego indeksu z listy (nieznany ZZZ pominięty)');
+  assert.deepEqual(it.filter(x => x.close !== null).map(x => x.sym), ['GSPC', 'GDAXI'], 'seria tylko dla znanych kodów z danymi');
+  const by = Object.fromEntries(it.map(x => [x.sym, x]));
+  assert.ok(by.DJI.close === null && by.DJI.m1 === null && by.DJI.why === 'none' && by.FTSE.why === 'none' && by.KS11.why === 'none', 'bez serii: brak (null) z powodem, nie zero');
+  assert.ok(by.N225.why === 'bad' && by.N225.bad_at === '2026-01-15T10:00:00+00:00' && by.N225.close === null, 'kod odrzucony — powód „bad” z datą');
+  assert.ok(!('ZZZ' in by));
+  assert.deepEqual(X.ixSort(it, 'm1').map(x => x.sym).slice(0, 2), ['GSPC', 'GDAXI'], 'z wartością najpierw, potem z zamknięciem bez 1 M, bez danych na końcu');
+  assert.ok(X.ixSort(it, 'm1').slice(2).every(x => x.close === null));
+  assert.equal(X.ixItems({ix: {}}).length, 0, 'część ix pusta — bez wierszy'); assert.equal(X.ixItems({}).length, 0);
+  const it2 = [{name: 'B', m1: 1}, {name: 'A', m1: null}, {name: 'C', m1: 5}, {name: 'Z', m1: NaN}];
+  assert.deepEqual(X.ixSort(it2, 'm1').map(x => x.name), ['C', 'B', 'A', 'Z']);
+  const D = {at: '2026-01-21T06:00:00+00:00', ix: {GSPC: {d: rows}, GDAXI: {d: rows.map((r, i) => [r[0], 300 - i])}}};
+  const body = X.ixBody(D);
+  assert.ok(body.includes('<table class="etft">') && (body.match(/<tr><td>/g) || []).length === 2 && (body.match(/<tr class="ix-na"><td>/g) || []).length === 23 && !/undefined|NaN|\[object/.test(body), body.slice(0, 300));
+  assert.equal((body.match(/ix\.nodata/g) || []).length, 23, 'każdy indeks bez serii: wiersz „—” z powodem „jeszcze nie pobrano”');
+  assert.equal((body.match(/<span class="cell mono na">—<\/span>/g) || []).length, 23 * 5, 'zamknięcie i cztery zmiany = „—”, nie zero');
+  assert.ok(body.indexOf('S&amp;P 500') < body.indexOf('DAX') && body.indexOf('DAX') < body.indexOf('ix.nodata'), 'kolejność wg 1 M: rosnący, spadający, potem bez danych');
+  assert.ok(body.includes('ix.k.upv{"n":"1","m":"2"}') && body.includes('ix.k.upn{"d":') && body.includes('age(2026-01-20)'), 'kafle: licznik, najnowsza sesja z wiekiem');
+  assert.ok(body.includes('<td><span class="cell mono">129.00</span></td>') && body.includes('class="cell mono pos">+19.4%') && body.includes('class="cell mono neg">'), 'zamknięcie z 2 miejscami, zmiany w kolorze');
+  assert.ok(body.includes('ix.k.best') && body.includes('ix.k.worst') && body.includes('ix.k.ybest') && body.includes('ix.k.yworst') && body.includes('ix.note'));
+  assert.ok(!body.includes('ix.c.date'), 'data i wiek w wierszu pod nazwą, nie w osobnej kolumnie');
+  const one = X.ixBody({at: 'x', ix: {GSPC: {d: rows}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 2, bad: 403}}});
+  assert.ok(one.includes('ix.k.best') && one.includes('ix.k.ybest') && !one.includes('ix.k.worst') && !one.includes('ix.k.yworst'), 'jeden indeks z wartością: bez kafli „najsłabszy” (nie ten sam indeks dwa razy)');
+  assert.ok(one.includes('ix.k.upv{"n":"1","m":"1"}') && one.includes('ix.bad{"d":"') && one.includes('2026') && (one.match(/ix\.nodata/g) || []).length === 23, 'kod odrzucony: powód z datą; reszta „jeszcze nie pobrano”');
+  assert.equal(X.ixBody({at: 'x', ix: {}}), ''); assert.equal(X.ixBody(null), '');
+  assert.equal(X.ixBody({at: 'x', ix: {GSPC: {bad_at: 'x', bad_n: 1, bad: 403}, IXIC: {d: []}}}), '', 'same znaczniki przerw, żadnej serii — panel ukryty');
+  const el = {hidden: false, innerHTML: 'x'}, Y = mk(q => q === '#g-indeksy' ? el : null);
+  Y.renderIx(); assert.ok(el.hidden === true && el.innerHTML === '', 'bez danych — sekcja ukryta, bez pustego panelu');
+  Y.ixApply({at: new Date().toISOString(), etf: {q: {SPY: [['2026-01-20', 1]]}}}); assert.equal(el.hidden, true, 'plik bez części ix (klucz jeszcze nie dodany) — ukryta');
+  Y.ixApply({at: new Date().toISOString(), ix: {GSPC: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 1, bad: 403}}}); assert.equal(el.hidden, true, 'plik z samymi znacznikami (klucz odrzucony) — ukryta');
+  const now = new Date().toISOString();
+  Y.ixApply({at: now, ix: D.ix, etf: {q: {SPY: [['2026-09-24', 690.12], ['2026-09-23', 688], ['2026-09-25', null]]}}});
+  assert.ok(el.hidden === false && el.innerHTML.includes('ix.t') && el.innerHTML.includes('inst.file{"t":"D(' + now + ')"}') && el.innerHTML.includes('eng.notsays') && el.innerHTML.includes('ix.not') && el.innerHTML.includes('eng.disclaimer'));
+  assert.deepEqual(Y.ixEtfClose('spy'), {date: '2026-09-24', close: 690.12}, 'zapas cen ETF: ostatnie zamknięcie z datą'); assert.equal(Y.ixEtfClose('QQQ'), null);
+  assert.deepEqual(Y.ixEtfSeries('SPY'), [['2026-09-23', 688], ['2026-09-24', 690.12]]);
+  Y.ixApply(null); assert.equal(el.hidden, false, 'chwilowy błąd pobrania nie zasłania danych');
+  const Z = mk(q => q === '#g-indeksy' ? el : null);
+  Z.ixApply({at: now, part_at: {ix: new Date(Date.now() - 40 * 864e5).toISOString()}, ix: D.ix}); assert.equal(el.hidden, true, 'część ix starsza niż 30 dni — ukryta');
+  Z.ixApply({at: new Date(Date.now() - 40 * 864e5).toISOString(), ix: D.ix}); assert.equal(el.hidden, true);
+  assert.equal(Object.keys(X.IX_META).length, 25);
+  for (const k in X.IX_META) assert.ok(/^[a-z]{2}$/.test(X.IX_META[k][0]) && X.IX_META[k][1], k);
+});
+test('v106: indeksy — słownik w 10 językach bez nazw dostawców; sekcja, styl i plik na miejscu', () => {
+  const KEYS = ['ix.t', 'ix.sub', 'ix.c.idx', 'ix.c.close', 'ix.c.1d', 'ix.c.1w', 'ix.c.1m', 'ix.c.ytd', 'ix.k.up', 'ix.k.upv', 'ix.k.upn', 'ix.k.best', 'ix.k.worst', 'ix.k.ybest', 'ix.k.yworst', 'ix.note', 'ix.not', 'ix.nodata', 'ix.bad', 'inst.file'];
+  const PROV = /EODHD|Massive|Polygon|Tiingo|Twelve|Finnhub|Alpha Vantage|FMP|Yahoo|Stooq/i;
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const tt = v96src.tFor(L);
+    assert.ok(v96src.I18N[L] && KEYS.every(k => typeof v96src.I18N[L][k] === 'string' && v96src.I18N[L][k].trim()), 'wszystkie klucze: ' + L);
+    for (const k of KEYS) assert.ok(!PROV.test(tt(k)) && !tt(k).includes('{v}'), L + ' ' + k);
+    const u = tt('ix.k.upv', {n: '7', m: '25'});
+    assert.ok(u.includes('7') && u.includes('25') && !u.includes('{'), L + ' ' + u);
+    assert.ok(tt('ix.k.upn', {d: 'XYZ'}).includes('XYZ') && !tt('ix.k.upn', {d: 'XYZ'}).includes('{'), L + ' upn');
+    assert.ok(tt('ix.bad', {d: 'XYZ'}).includes('XYZ') && !tt('ix.bad', {d: 'XYZ'}).includes('{'), L + ' bad');
+    assert.ok(v96src.I18N[L]['inst.file'].includes('{t}') && tt('inst.file', {t: 'QQ'}).includes('QQ'), L + ' inst.file w języku strony (nie po angielsku)');
+  }
+  assert.equal(v96src.I18N.pl['inst.file'], 'Plik z {t}'); assert.equal(v96src.I18N.en['inst.file'], 'File from {t}');
+  assert.ok(v96src.I18N.de['inst.file'] !== v96src.I18N.en['inst.file'] && v96src.I18N.ja['inst.file'] !== v96src.I18N.en['inst.file'], 'luka słownika „Plik z …” zamknięta');
+  assert.ok(v96src.tFor('pl')('ix.sub').includes('nie zmierzony przepływ') && v96src.tFor('en')('ix.sub').includes('not a measured flow'), 'zmiana indeksu ≠ przepływ');
+  assert.equal(html.split('<section class="panel pcard" id="g-indeksy" hidden></section>').length, 2, 'jedno miejsce sekcji');
+  const u = html.indexOf('<section class="panel pcard" id="g-usa" hidden></section>'), x = html.indexOf('<section class="panel pcard" id="g-indeksy" hidden></section>');
+  assert.ok(x > u && x < u + 300, 'zaraz po panelu USA (zakładka GLOBAL)');
+  assert.ok(html.includes("srvJSON('indeksy')") && html.includes('/* v106 indeksy */') && html.includes('#g-indeksy .etft{min-width:0;width:100%}'), 'plik, styl');
+  assert.ok(html.includes('const EXTRA100=') && html.includes('for(const l in EXTRA100)if(I18N[l])Object.assign(I18N[l],EXTRA100[l]);'), 'słownik EXTRA100 dołączony');
+  assert.ok(html.includes("if(!ok&&IX.data)return;") && html.includes("60*60*1000") && html.includes("attributeFilter:['lang']})") , 'odświeżanie co 60 min, zmiana języka');
+  assert.equal(html.split('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA').length, 2);
+});
