@@ -5062,6 +5062,352 @@ def build_dzwignia(prev=None, today=None, only=None):
     return out
 
 
+# ===================== v105: wieloryby — portfele giełd na Ethereum (publiczny łańcuch, bez klucza) =====================
+# Sami czytamy publiczny węzeł Ethereum (JSON-RPC): salda ETH/USDT/USDC portfeli, które giełdy same ogłosiły (źródło przy
+# każdym adresie), i zdarzenia Transfer USDT/USDC do tych portfeli i z nich. Brak odpowiedzi = poprzednia część z własnym
+# czasem, nigdy zera. Węzeł główny sprawdzony z runnera USA 26.09.2026 (zakres logów ≤ ~900 bloków; losowe 403 „archive” —
+# stąd ponowienia); węzły zapasowe sprawdzone tylko z Polski (ankr wymaga klucza, cloudflare odmawia, llamarpc 403/525).
+WH_RPC = 'https://ethereum-rpc.publicnode.com'
+WH_RPC_ZAPAS = {'wywolania': ('https://1rpc.io/eth', 25), 'logi': ('https://rpc.flashbots.net', 5)}   # (adres, limit paczki)
+WH_BATCH = 40           # paczka żądań do węzła głównego (sprawdzone 62 w jednym żądaniu)
+WH_PROBY = 3            # główny dwa razy (odstęp 0,5 s), potem zapas
+WH_USDT = '0xdac17f958d2ee523a2206206994597c13d831ec7'
+WH_USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+WH_TOKENY = {WH_USDT: 'USDT', WH_USDC: 'USDC'}   # oba po 6 miejsc
+WH_TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+WH_CHAINLINK = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419'   # ETH/USD: wyrocznia cenowa na łańcuchu (latestRoundData, 8 miejsc)
+WH_CG_PRICE = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'   # zapas kursu (bez klucza)
+WH_PROG = 1_000_000     # transfer ≥ 1 mln USD (USDT/USDC ≈ USD)
+WH_CHUNK, WH_CHUNKS, WH_START = 800, 6, 4800   # paczka logów, paczek na przebieg, pierwszy przebieg (≈ 16 h wstecz)
+WH_OKNO = 7200          # okno tabeli: ≈ 24 h w blokach (12 s/blok)
+WH_MAX = 60             # najwyżej tyle wierszy transferów
+WH_HIST_DNI = 120       # historia sald: jeden zrzut na dobę UTC
+WH_BUDZET = 12          # sekund na skanowanie logów w jednym przebiegu (cały przebieg < 20 s) — reszta w następnym
+WH_LIMIT = 40           # sekund na cały przebieg budowniczego: gdy węzeł milczy, nie czekamy dłużej (limit BRIEF: < 60 s)
+WH_PARA = 30            # ta sama kwota w obie strony tej samej giełdy w ≤ tylu blokach = najpewniej ruch wewnętrzny (oznaczenie)
+WH_GIELDY = {
+    'Binance': {'src': 'Binance — wpis „Our Commitment To Transparency” (blog giełdy, listopad 2022): portfele gorące i zimne na Ethereum',
+                'url': 'https://www.binance.com/en/blog/community/our-commitment-to-transparency-2895840147147652626', 'since': '2022-11',
+                'tokeny': ['USDT', 'USDC', 'ETH'],
+                'addr': ['0xbe0eb53f46cd790cd13851d5eff43d12404d33e8', '0xf977814e90da44bfa03b6295a0616a897441acec',
+                         '0x5a52e96bacdabb82fd05763e25335261b270efcb', '0x28c6c06298d514db089934071355e5743bf21d60',
+                         '0x9696f59e4d72e237be84ffd425dcad154bf96976', '0x21a31ee1afc51d94c2efccaa2092ad1028285549',
+                         '0xdfd5293d8e347dfe59e90efd55b2956a1343963d', '0x56eddb7aa87536c09ccc2793473599fd21a8b17f',
+                         '0x4976a4a02f38326660d17bf34b431dc6e2eb2327']},
+    # OKX ogłasza ~24 000 adresów na Ethereum (plik CSV dowodu rezerw, adresy podpisane „I am an OKX address”); ETH giełdy leży
+    # w tysiącach adresów stakingu — nie do odczytu co 20 min z publicznego węzła. USDC jest skupione: 10 największych = 98 %.
+    'OKX': {'src': 'OKX — Proof of Reserves, plik adresów por_csv_2026090800_V1 (8.09.2026): 10 największych portfeli USDC w sieci Ethereum (98 % USDC z tej listy)',
+            'url': 'https://www.okx.com/proof-of-reserves/download', 'since': '2026-09-08', 'tokeny': ['USDC'],
+            'addr': ['0xa073345811e360e9b66f24bc11f3a4bfa924f236', '0x08f619716db7c6245401b543e59acac1d25cb483',
+                     '0x6709383e211ab08a6e3270532e756220400424a6', '0xa09fe38187abecc2768b98b80ea30afbc2fbd774',
+                     '0x445f16314284b43dfa1fd3cd77b9dea4a1bebd97', '0x87d0d6c8cdd71a658ecf1566f13e4cbc562beaf9',
+                     '0x1dfc6bec8499fcb5e3151c7c6d27feb9d7eae1d4', '0xebf6c883a1d60ab38c8ed4780aadbfe4c805ed4f',
+                     '0x3425519651e4c42833633fe5c0e24ed89c1023a3', '0x7fea5b4568751533039179116e372e26b6b41b13']},
+}
+
+
+def wh_portfele():
+    """Lista portfeli z WH_GIELDY (małe litery) — do pliku (źródło przy każdym adresie) i do filtrów."""
+    return [{'addr': a.lower(), 'exch': g, 'src': c['src'], 'since': c['since']} for g, c in WH_GIELDY.items() for a in c['addr']]
+
+
+def wh_hex(v):
+    """'0x1a' → 26. None dla braku, dla '0x' (kontrakt bez odpowiedzi) i dla śmieci — brak nie jest zerem."""
+    if not isinstance(v, str) or not v.startswith('0x') or len(v) < 3:
+        return None
+    try:
+        return int(v, 16)
+    except ValueError:
+        return None
+
+
+def wh_topic(addr):
+    """Adres jako 32-bajtowy temat zdarzenia."""
+    return '0x' + '0' * 24 + addr[2:].lower()
+
+
+def wh_iso(s):
+    return datetime.datetime.fromtimestamp(int(s), datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+class WhTermin(RuntimeError):
+    """Budżet czasu przebiegu wyczerpany — bez dalszych prób i bez zapasu (część zachowuje poprzednią wersję)."""
+
+
+def wh_tmo(timeout, termin):
+    """Limit czasu jednego żądania: nie dłużej niż do terminu (czas monotoniczny). Poniżej sekundy = koniec prób."""
+    if termin is None:
+        return timeout
+    left = termin - time.monotonic()
+    if left < 1:
+        raise WhTermin(f'budżet czasu przebiegu ({WH_LIMIT} s) wyczerpany')
+    return min(timeout, left)
+
+
+def wh_rpc(calls, kind='wywolania', timeout=20, termin=None):
+    """Lista (metoda, parametry) → lista wyników w tej samej kolejności. Jedno żądanie zbiorcze na paczkę; węzeł główny dwa
+    razy (losowe 403 „archive”), potem zapas dla tego rodzaju żądań. Każdy element musi mieć wynik — inaczej próba nieudana.
+    termin: czas monotoniczny, po którym nie próbujemy dalej — milczący węzeł nie może zatrzymać przebiegu na minuty."""
+    zapas, zlimit = WH_RPC_ZAPAS[kind]
+    last = None
+    for proba in range(WH_PROBY):
+        url, lim = (WH_RPC, WH_BATCH) if proba < WH_PROBY - 1 else (zapas, zlimit)
+        try:
+            out = []
+            for i in range(0, len(calls), lim):
+                part = calls[i:i + lim]
+                body = [{'jsonrpc': '2.0', 'id': k, 'method': m, 'params': p} for k, (m, p) in enumerate(part)]
+                r = post_json(url, body, timeout=wh_tmo(timeout, termin))
+                if not isinstance(r, list) or len(r) != len(part):
+                    raise ValueError(f'odpowiedź {type(r).__name__} ({len(r) if isinstance(r, list) else "?"} z {len(part)})')
+                by = {x.get('id'): x for x in r if isinstance(x, dict)}
+                for k in range(len(part)):
+                    x = by.get(k)
+                    if not isinstance(x, dict) or 'result' not in x:
+                        err = x.get('error') if isinstance(x, dict) else None
+                        raise ValueError(str(err.get('message') if isinstance(err, dict) else err or 'brak wyniku')[:120])
+                    out.append(x['result'])
+            return out
+        except WhTermin as e:
+            raise RuntimeError(f'węzeł RPC: {e}' + (f'; ostatni błąd: {last}' if last else ''))
+        except Exception as e:  # noqa — następna próba (albo zapas)
+            last = e
+            if proba < WH_PROBY - 1:
+                time.sleep(0.5)
+    raise RuntimeError(f'węzeł RPC: {last}')
+
+
+def wh_zakres(head, ostatni, chunk=WH_CHUNK, chunks=WH_CHUNKS, start=WH_START):
+    """Paczki bloków do przeskanowania: od ostatniego zapisanego + 1 do głowicy, ≤ chunk bloków w paczce, ≤ chunks paczek.
+    Pierwszy przebieg albo zaległość większa niż start bloków → od head − start + 1 (luka = True: bez udawania ciągłości)."""
+    luka = not isinstance(ostatni, int) or head - ostatni > start
+    od = head - start + 1 if luka else ostatni + 1
+    out = []
+    while od <= head and len(out) < chunks:
+        do = min(od + chunk - 1, head)
+        out.append((od, do)); od = do + 1
+    return out, luka
+
+
+def wh_dekoduj(logs, wmap, prog=WH_PROG):
+    """Zdarzenia Transfer USDT/USDC → {klucz: wiersz}. Pomija inne kontrakty, kwoty < prog, zdarzenia bez kwoty i przelewy
+    między dwoma portfelami tej samej giełdy (wewnętrzne). Druga strona przelewu nigdy nie jest opisywana."""
+    out = {}
+    for l in logs if isinstance(logs, list) else []:
+        if not isinstance(l, dict):
+            continue
+        tok = WH_TOKENY.get(str(l.get('address', '')).lower())
+        tp = l.get('topics') or []
+        if not tok or not isinstance(tp, list) or len(tp) < 3:
+            continue
+        raw, blk = wh_hex(l.get('data')), wh_hex(l.get('blockNumber'))
+        if raw is None or blk is None:
+            continue
+        amt = raw / 1e6
+        if amt < prog:
+            continue
+        fr, to = '0x' + str(tp[1])[-40:].lower(), '0x' + str(tp[2])[-40:].lower()
+        gf, gt = wmap.get(fr), wmap.get(to)
+        if gf and gt and gf == gt:
+            continue
+        tx, li = str(l.get('transactionHash', '')), wh_hex(l.get('logIndex'))
+        for d, g in (('out', gf), ('in', gt)):
+            if g:
+                out[(tx, li, g, d)] = {'t': None, 'token': tok, 'amt': round(amt, 2), 'dir': d, 'exch': g, 'tx': tx, 'blk': blk, 'li': li}
+    return out
+
+
+def wh_hist(prev, salda, dzien, t, dni=WH_HIST_DNI):
+    """Historia sald: jeden zrzut na dobę UTC dla giełdy (pierwszy z dnia zostaje), najwyżej dni dni.
+    Wiersz: [dzień, czas bloku, eth, usdt, usdc]. Giełda bez świeżego salda zachowuje swoją historię bez nowego wiersza."""
+    prev = prev if isinstance(prev, dict) else {}
+    out = {}
+    for g, rows in prev.items():
+        if isinstance(rows, list):
+            out[g] = [r for r in rows if isinstance(r, list) and len(r) >= 5 and isinstance(r[0], str)]
+    for g, s in salda.items():
+        rows = out.setdefault(g, [])
+        if not any(r[0] == dzien for r in rows):
+            rows.append([dzien, t, s['eth'], s['usdt'], s['usdc']])
+        rows.sort(key=lambda r: r[0])
+    return {g: rows[-dni:] for g, rows in out.items()}
+
+
+def wh_cena(res, now_s):
+    """Wynik latestRoundData (5 słów po 32 bajty) → kurs ETH/USD, gdy odczyt jest z ostatniej doby; inaczej None."""
+    if not isinstance(res, str) or not res.startswith('0x') or len(res) < 2 + 64 * 5:
+        return None
+    try:
+        ans, upd = int(res[2 + 64:2 + 128], 16), int(res[2 + 64 * 3:2 + 64 * 4], 16)
+    except ValueError:
+        return None
+    if ans <= 0 or upd <= 0 or now_s - upd > 86400 or upd - now_s > 3600:
+        return None
+    return ans / 1e8
+
+
+def wh_polacz(prev_rows, new_rows, od, maks=WH_MAX):
+    """Wiersze poprzednie i nowe: tylko bloki ≥ od (okno), bez duplikatów, malejąco wg kwoty, najwyżej maks."""
+    seen = {}
+    for r in list(prev_rows or []) + list(new_rows or []):
+        if not isinstance(r, dict) or not isinstance(r.get('blk'), int) or r['blk'] < od or not isinstance(r.get('amt'), (int, float)):
+            continue
+        seen[(r.get('tx'), r.get('li'), r.get('exch'), r.get('dir'))] = r
+    return sorted(seen.values(), key=lambda r: (-r['amt'], -r['blk']))[:maks]
+
+
+def wh_pary(rows, bloki=WH_PARA):
+    """Ta sama kwota tego samego tokena w obie strony tej samej giełdy w odstępie ≤ bloki bloków = najpewniej ruch wewnętrzny
+    przez nieogłoszony portfel giełdy. Wiersze zostają (przejrzystość), ale dostają wew=True — strona pokazuje to przy kierunku.
+    Raz nadane oznaczenie zostaje, gdy druga strona pary wypadnie z okna. Zwraca tę samą listę."""
+    outs = [r for r in rows if isinstance(r, dict) and r.get('dir') == 'out']
+    for r in rows:
+        if not isinstance(r, dict) or r.get('dir') != 'in':
+            continue
+        for o in outs:
+            if (o.get('exch') == r.get('exch') and o.get('token') == r.get('token') and o.get('amt') == r.get('amt')
+                    and isinstance(o.get('blk'), int) and isinstance(r.get('blk'), int) and abs(o['blk'] - r['blk']) <= bloki):
+                r['wew'] = o['wew'] = True
+    return rows
+
+
+def build_wieloryby(prev=None):
+    """data/wieloryby.json — salda ETH/USDT/USDC ogłoszonych portfeli giełd (co przebieg, jedno żądanie zbiorcze), historia
+    dobowa i duże transfery USDT/USDC (skan zdarzeń od ostatniego zapisanego bloku). Każda część osobno: błąd = poprzednia
+    wersja tej części z własnym czasem; brak kursu ETH = suma w USD None, nigdy zero."""
+    t0 = time.monotonic(); termin = t0 + WH_LIMIT   # milczący węzeł: łącznie nie dłużej niż WH_LIMIT s, potem poprzednie części
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    W = wh_portfele(); wmap = {w['addr']: w['exch'] for w in W}
+    out = {'at': NOW, 'src': 'Publiczny łańcuch Ethereum (JSON-RPC, węzeł publiczny) — odczyt własny sald i zdarzeń Transfer; kurs ETH/USD z wyroczni na łańcuchu',
+           'rpc': WH_RPC, 'ok': {}, 'part_at': {}, 'wallets': W,
+           'gieldy': {g: {'n': len(c['addr']), 'src': c['src'], 'url': c['url'], 'since': c['since'], 'tokeny': c['tokeny']} for g, c in WH_GIELDY.items()},
+           'prog': WH_PROG, 'eth_usd': None, 'eth_usd_at': None}
+    errs = []
+
+    def keep(k):   # część z błędem: poprzednia wersja z własnym czasem
+        out['ok'][k] = False
+        if prev.get(k) is not None:
+            out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
+
+    head = head_t = None
+    # --- salda + blok „latest” + kurs ETH: jedno żądanie zbiorcze (2 + 3 × liczba portfeli wywołań)
+    try:
+        calls = [('eth_getBlockByNumber', ['latest', False]), ('eth_call', [{'to': WH_CHAINLINK, 'data': '0xfeaf968c'}, 'latest'])]
+        for w in W:
+            a = w['addr']
+            calls += [('eth_getBalance', [a, 'latest']), ('eth_call', [{'to': WH_USDT, 'data': '0x70a08231' + '0' * 24 + a[2:]}, 'latest']),
+                      ('eth_call', [{'to': WH_USDC, 'data': '0x70a08231' + '0' * 24 + a[2:]}, 'latest'])]
+        res = wh_rpc(calls, termin=termin)
+        blk = res[0] if isinstance(res[0], dict) else {}
+        head, head_t = wh_hex(blk.get('number')), wh_hex(blk.get('timestamp'))
+        if head is None or head_t is None:
+            raise ValueError('brak bloku „latest”')
+        out['blk'], out['blk_t'] = head, wh_iso(head_t)
+        px = wh_cena(res[1], head_t)
+        if px is None:   # zapas: kurs z publicznego API bez klucza; bez kursu suma w USD = None
+            try:
+                j = get_json(WH_CG_PRICE, timeout=min(10, max(1, termin - time.monotonic()))); px = float(j['ethereum']['usd'])
+                if not px > 0:
+                    raise ValueError('kurs ≤ 0')
+            except Exception as e:  # noqa
+                px = None; errs.append(f'kurs ETH/USD: {e}')
+        out['eth_usd'], out['eth_usd_at'] = px, (out['blk_t'] if px else None); out['ok']['cena'] = px is not None
+        salda, bad = {}, []
+        for g, c in WH_GIELDY.items():
+            s, ok = {'eth': 0.0, 'usdt': 0.0, 'usdc': 0.0}, True
+            for i, w in enumerate(W):
+                if w['exch'] != g:
+                    continue
+                e, u, d = wh_hex(res[2 + 3 * i]), wh_hex(res[3 + 3 * i]), wh_hex(res[4 + 3 * i])
+                if e is None or u is None or d is None:   # portfel bez odpowiedzi = giełda bez nowego salda (suma częściowa byłaby fałszem)
+                    ok = False; break
+                s['eth'] += e / 1e18; s['usdt'] += u / 1e6; s['usdc'] += d / 1e6
+            if not ok:
+                bad.append(g); continue
+            s = {'eth': round(s['eth'], 6), 'usdt': round(s['usdt'], 2), 'usdc': round(s['usdc'], 2)}
+            s['usd'] = round(s['eth'] * px + s['usdt'] + s['usdc'], 2) if px else None
+            s['blk'], s['t'], s['n'] = head, out['blk_t'], len(c['addr'])
+            salda[g] = s
+        if not salda:
+            raise ValueError('żaden portfel nie odpowiedział')
+        out['hist'] = wh_hist(prev.get('hist'), salda, out['blk_t'][:10], out['blk_t'])
+        ps = prev.get('salda') if isinstance(prev.get('salda'), dict) else {}
+        for g in bad:   # giełda bez odpowiedzi: poprzednie saldo z własnym czasem (pole t), nigdy zero
+            errs.append(f'salda {g}: brak odpowiedzi węzła')
+            if isinstance(ps.get(g), dict):
+                salda[g] = ps[g]
+        out['salda'] = salda; out['ok']['salda'] = not bad; out['part_at']['salda'] = NOW
+    except Exception as e:  # noqa
+        errs.append(f'salda: {e}'); keep('salda'); out['ok'].setdefault('cena', False)
+        if prev.get('hist') is not None:
+            out['hist'] = prev['hist']
+        if prev.get('salda') is not None:   # poprzednie sumy w USD liczono poprzednim kursem — jego wartość i data zostają przy nich
+            out['eth_usd'], out['eth_usd_at'] = prev.get('eth_usd'), prev.get('eth_usd_at')
+    # --- transfery: skan zdarzeń Transfer USDT/USDC od ostatniego zapisanego bloku (paczki ≤ 800 bloków, ≤ 6 na przebieg)
+    try:
+        if head is None:   # salda bez głowicy (np. 403 na paczce): jedno małe żądanie — w ramach tego samego terminu
+            b = wh_rpc([('eth_getBlockByNumber', ['latest', False])], termin=termin)[0]
+            head, head_t = wh_hex((b or {}).get('number') if isinstance(b, dict) else None), wh_hex((b or {}).get('timestamp') if isinstance(b, dict) else None)
+            if head is None or head_t is None:
+                raise ValueError('brak bloku „latest”')
+        ostatni = prev.get('ostatni_blok') if isinstance(prev.get('ostatni_blok'), int) else None
+        paczki, luka = wh_zakres(head, ostatni)
+        tw = [wh_topic(w['addr']) for w in W]
+        rows, done, err, n = {}, (None if luka else ostatni), None, 0
+        for a, b in paczki:
+            if n and time.monotonic() - t0 > WH_BUDZET:   # reszta w następnym przebiegu
+                break
+            try:
+                f = {'fromBlock': hex(a), 'toBlock': hex(b), 'address': [WH_USDT, WH_USDC]}
+                r = wh_rpc([('eth_getLogs', [dict(f, topics=[WH_TRANSFER, None, tw])]), ('eth_getLogs', [dict(f, topics=[WH_TRANSFER, tw])])], kind='logi', termin=termin)
+            except Exception as e:  # noqa — postęp do tej paczki zostaje, reszta w następnym przebiegu
+                err = str(e); break
+            if not (isinstance(r[0], list) and isinstance(r[1], list)):   # null zamiast listy = brak odpowiedzi, nie „brak zdarzeń” — paczka nieudana
+                err = f'logi bloków {a}–{b}: wynik nie jest listą'; break
+            rows.update(wh_dekoduj(r[0] + r[1], wmap))
+            done, n = b, n + 1
+        if done is None or (err and not n):   # nic nie zeskanowano — poprzednia część w całości, z własnym czasem
+            raise ValueError(err or 'brak zeskanowanych bloków')
+        pocz = prev['okno_od'] if (not luka and isinstance(prev.get('okno_od'), int)) else (paczki[0][0] if paczki else done - WH_OKNO + 1)
+        od = max(done - WH_OKNO + 1, pocz)
+        prev_rows = [r for r in (prev.get('transfery') or []) if isinstance(r, dict)]
+        znane = {r['blk']: r['t'] for r in prev_rows if isinstance(r.get('blk'), int) and isinstance(r.get('t'), str)}
+        znane[head] = wh_iso(head_t)
+        for k in ('ostatni', 'okno_od'):
+            if isinstance(prev.get(k + '_blok' if k == 'ostatni' else k), int) and isinstance(prev.get(k + '_t'), str):
+                znane[prev[k + '_blok' if k == 'ostatni' else k]] = prev[k + '_t']
+        need = sorted(({r['blk'] for r in rows.values()} | {done, od}) - set(znane))
+        if need:
+            bl = wh_rpc([('eth_getBlockByNumber', [hex(b), False]) for b in need], termin=termin)
+            for b, x in zip(need, bl):
+                ts = wh_hex(x.get('timestamp')) if isinstance(x, dict) else None
+                if ts is None:
+                    raise ValueError(f'brak czasu bloku {b}')
+                znane[b] = wh_iso(ts)
+        for r in rows.values():
+            r['t'] = znane[r['blk']]
+        out['transfery'] = wh_pary(wh_polacz(prev_rows, rows.values(), od))   # pary „ta sama kwota w obie strony” = oznaczenie wew
+        out['ostatni_blok'], out['ostatni_t'] = done, znane[done]
+        out['okno_od'], out['okno_od_t'], out['okno'] = od, znane[od], done - od + 1
+        out['luka'] = bool(luka and ostatni is not None)   # przerwa w obserwacji (zaległość pominięta)
+        out['part_at']['transfery'] = NOW; out['ok']['transfery'] = err is None
+        if err:
+            errs.append(f'transfery: {err} (zeskanowano do bloku {done})')
+        elif done < head:
+            META['notes'].append(f'Wieloryby: skan do bloku {done} z {head} (budżet czasu) — reszta w następnym przebiegu')
+    except Exception as e:  # noqa
+        errs.append(f'transfery: {e}'); keep('transfery')
+        for k in ('ostatni_blok', 'ostatni_t', 'okno_od', 'okno_od_t', 'okno', 'luka'):
+            if prev.get(k) is not None:
+                out[k] = prev[k]
+    if not any(out['ok'].get(k) for k in ('salda', 'transfery')):
+        raise RuntimeError('żadna część nie odpowiedziała' + (f' ({errs[0]})' if errs else ''))
+    if errs:
+        META['errors'].append(mask('Wieloryby: ' + '; '.join(errs)))
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -5233,6 +5579,13 @@ def main():
             META['errors'].append(mask(f'Dźwignia: {e}')); META['ok']['dzwignia'] = False
             for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = False
             if prev_lv: save('dzwignia', prev_lv)
+    # v105: wieloryby — portfele giełd na Ethereum (bez klucza): co przebieg (kilka żądań zbiorczych); awaria = poprzedni plik i błąd
+    prev_wh = previous('wieloryby')
+    try:
+        wh = build_wieloryby(prev_wh); save('wieloryby', wh); META['ok']['wieloryby'] = all(wh['ok'].get(k) for k in ('salda', 'transfery'))
+    except Exception as e:
+        META['errors'].append(mask(f'Wieloryby: {e}')); META['ok']['wieloryby'] = False
+        if prev_wh: save('wieloryby', prev_wh)
     # v99: OECD (bez klucza) — co 6 h; część z błędem ponawiana po godzinie
     prev_oe = previous('oecd')
     pok_oe = (prev_oe or {}).get('ok') or {}

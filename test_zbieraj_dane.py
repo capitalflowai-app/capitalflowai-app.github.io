@@ -144,7 +144,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -180,7 +180,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Rynki', 'Dźwignia'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Rynki', 'Wieloryby', 'Dźwignia'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -345,7 +345,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -532,7 +532,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -622,7 +622,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -755,7 +755,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1114,7 +1114,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                      for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1358,7 +1358,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1594,7 +1594,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1790,7 +1790,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2303,7 +2303,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -2602,7 +2602,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -2729,7 +2729,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -2764,7 +2764,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3140,7 +3140,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3326,7 +3326,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -4076,7 +4076,7 @@ class UsaV97(unittest.TestCase):
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in
                  ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_dzwignia')]
+                  'build_fundusze', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_dzwignia')]
         for s in stubs:
             s.start()
         try:
@@ -4481,3 +4481,315 @@ class DzwigniaV104(unittest.TestCase):
         self.assertIn("srvJSON('dzwignia')", html); self.assertIn('id="c-dzwignia"', html)
         self.assertEqual(zd.LEV_EVERY, 55); self.assertEqual(zd.LEV_TIMEOUT, 20)
         self.assertIn("levAsOf(levAt('hl'))", html); self.assertIn("levAsOf(o.t||levAt('dr'))", html)
+
+
+class WielorybyV105(unittest.TestCase):
+    """v105: portfele giełd na Ethereum — dekodowanie zdarzeń, salda (brak ≠ zero), historia dobowa, paczki bloków,
+    pełny przebieg na nagraniach, część z błędem = poprzednia wersja z własnym czasem."""
+    T = zd.WH_TRANSFER
+    B1, B2 = '0xbe0eb53f46cd790cd13851d5eff43d12404d33e8', '0xf977814e90da44bfa03b6295a0616a897441acec'
+    O1 = '0xa073345811e360e9b66f24bc11f3a4bfa924f236'
+    X = '0x1111111111111111111111111111111111111111'
+
+    @staticmethod
+    def _w(n):
+        return '0x' + '0' * 24 + n[2:]
+
+    @staticmethod
+    def _h(v, w=64):
+        return '0x' + format(int(v), 'x').rjust(w, '0')
+
+    def _log(self, tok, fr, to, amt, blk=100, tx='0x' + 'ab' * 32, li=1, data=None):
+        return {'address': tok, 'topics': [self.T, self._w(fr), self._w(to)], 'data': data if data is not None else self._h(amt * 10 ** 6),
+                'blockNumber': hex(blk), 'transactionHash': tx, 'logIndex': hex(li)}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        self.W = {w['addr']: w['exch'] for w in zd.wh_portfele()}
+
+    def test_hex_and_topic(self):
+        self.assertEqual(zd.wh_hex('0x1a'), 26); self.assertEqual(zd.wh_hex('0x0'), 0)
+        self.assertIsNone(zd.wh_hex('0x')); self.assertIsNone(zd.wh_hex(None)); self.assertIsNone(zd.wh_hex('zz')); self.assertIsNone(zd.wh_hex(12))
+        self.assertEqual(zd.wh_topic('0xBE0EB53F46CD790CD13851D5EFF43D12404D33E8'), '0x000000000000000000000000be0eb53f46cd790cd13851d5eff43d12404d33e8')
+        self.assertEqual(len(zd.wh_portfele()), 19); self.assertTrue(all(w['src'] and w['since'] and w['addr'] == w['addr'].lower() for w in zd.wh_portfele()))
+
+    def test_zakres(self):
+        p, luka = zd.wh_zakres(10000, None)
+        self.assertTrue(luka); self.assertEqual(p, [(5201, 6000), (6001, 6800), (6801, 7600), (7601, 8400), (8401, 9200), (9201, 10000)], 'pierwszy przebieg: 4800 bloków w 6 paczkach po 800')
+        p, luka = zd.wh_zakres(10000, 9900)
+        self.assertFalse(luka); self.assertEqual(p, [(9901, 10000)])
+        self.assertEqual(zd.wh_zakres(10000, 10000), ([], False)); self.assertEqual(zd.wh_zakres(10000, 10005), ([], False))
+        p, luka = zd.wh_zakres(10000, 1000)
+        self.assertTrue(luka); self.assertEqual(p[0], (5201, 6000), 'zaległość większa niż 4800 bloków — od nowa, z luką')
+        p, luka = zd.wh_zakres(10000, 5200)
+        self.assertTrue(luka is False and p[0] == (5201, 6000) and len(p) == 6)
+        p, luka = zd.wh_zakres(10000, 3000, start=10000)
+        self.assertTrue(luka is False and p[0] == (3001, 3800) and p[-1] == (7001, 7800) and len(p) == 6, 'najwyżej 6 paczek; reszta w następnym przebiegu')
+        p, luka = zd.wh_zakres(10000, 5100)
+        self.assertTrue(luka and p[0] == (5201, 6000), 'zaległość 4900 > 4800 bloków — z luką')
+
+    def test_dekoduj(self):
+        L = [self._log(zd.WH_USDT, self.X, self.B1, 2_000_000, tx='0x' + '01' * 32),           # na giełdę
+             self._log(zd.WH_USDC, self.B2, self.X, 1_000_000, tx='0x' + '02' * 32),           # z giełdy (dokładnie próg)
+             self._log(zd.WH_USDT, self.B1, self.B2, 9_000_000, tx='0x' + '03' * 32),          # wewnętrzny Binance → pominięty
+             self._log(zd.WH_USDT, self.X, self.B1, 999_999, tx='0x' + '04' * 32),             # poniżej progu
+             self._log('0x' + 'ee' * 20, self.X, self.B1, 5_000_000, tx='0x' + '05' * 32),      # inny kontrakt
+             self._log(zd.WH_USDT, self.X, self.B1, 0, tx='0x' + '06' * 32, data='0x'),        # bez kwoty — nie zero
+             self._log(zd.WH_USDC, self.B1, self.O1, 3_000_000, tx='0x' + '07' * 32),          # Binance → OKX: dwa wiersze
+             'śmieć', {'address': zd.WH_USDT, 'topics': [self.T]}]
+        R = zd.wh_dekoduj(L, self.W)
+        rows = sorted(R.values(), key=lambda r: (r['tx'], r['dir']))
+        self.assertEqual([(r['token'], r['amt'], r['dir'], r['exch']) for r in rows],
+                         [('USDT', 2000000.0, 'in', 'Binance'), ('USDC', 1000000.0, 'out', 'Binance'), ('USDC', 3000000.0, 'in', 'OKX'), ('USDC', 3000000.0, 'out', 'Binance')])
+        self.assertTrue(all(r['blk'] == 100 and r['li'] == 1 and r['t'] is None for r in rows))
+        self.assertEqual(zd.wh_dekoduj(None, self.W), {}); self.assertEqual(zd.wh_dekoduj([], self.W), {})
+
+    def test_cena(self):
+        now = 1_790_400_000
+        w = lambda ans, upd: '0x' + format(1, 'x').rjust(64, '0') + format(ans, 'x').rjust(64, '0') + format(now - 100, 'x').rjust(64, '0') + format(upd, 'x').rjust(64, '0') + format(1, 'x').rjust(64, '0')
+        self.assertAlmostEqual(zd.wh_cena(w(268886950310, now - 1000), now), 2688.8695031)
+        self.assertIsNone(zd.wh_cena(w(268886950310, now - 90000), now), 'odczyt starszy niż doba — brak')
+        self.assertIsNone(zd.wh_cena(w(0, now - 10), now)); self.assertIsNone(zd.wh_cena('0x12', now)); self.assertIsNone(zd.wh_cena(None, now))
+
+    def test_hist(self):
+        prev = {'Binance': [['2026-09-%02d' % d, '2026-09-%02dT00:05:00+00:00' % d, 1.0, 2.0, 3.0] for d in range(1, 26)] + ['x', [1]], 'Stara': [['2026-09-25', 't', 1, 1, 1]]}
+        h = zd.wh_hist(prev, {'Binance': {'eth': 5.0, 'usdt': 6.0, 'usdc': 7.0}, 'OKX': {'eth': 0.5, 'usdt': 0.0, 'usdc': 9.0}}, '2026-09-26', '2026-09-26T08:00:00+00:00')
+        self.assertEqual(h['Binance'][-1], ['2026-09-26', '2026-09-26T08:00:00+00:00', 5.0, 6.0, 7.0]); self.assertEqual(len(h['Binance']), 26)
+        self.assertEqual(h['OKX'], [['2026-09-26', '2026-09-26T08:00:00+00:00', 0.5, 0.0, 9.0]]); self.assertEqual(h['Stara'], [['2026-09-25', 't', 1, 1, 1]], 'giełda bez świeżego salda zachowuje historię')
+        h2 = zd.wh_hist(h, {'Binance': {'eth': 9.0, 'usdt': 9.0, 'usdc': 9.0}}, '2026-09-26', '2026-09-26T12:00:00+00:00')
+        self.assertEqual(h2['Binance'][-1][1], '2026-09-26T08:00:00+00:00', 'jeden zrzut na dobę — pierwszy zostaje')
+        big = {'Binance': [['2025-%02d-%02d' % (1 + i // 28, 1 + i % 28), 't', 1, 1, 1] for i in range(150)]}
+        self.assertEqual(len(zd.wh_hist(big, {'Binance': {'eth': 1, 'usdt': 1, 'usdc': 1}}, '2026-09-26', 't')['Binance']), 120)
+
+    def test_polacz(self):
+        a = {'tx': '0x1', 'li': 1, 'exch': 'Binance', 'dir': 'in', 'amt': 1e6, 'blk': 50}
+        b = {'tx': '0x2', 'li': 2, 'exch': 'Binance', 'dir': 'in', 'amt': 5e6, 'blk': 120}
+        c = dict(b, amt=5e6, t='nowy')
+        d = {'tx': '0x3', 'li': 0, 'exch': 'OKX', 'dir': 'out', 'amt': 2e6, 'blk': 130}
+        r = zd.wh_polacz([a, b], [c, d, 'x', {'blk': 'a', 'amt': 1}], 100)
+        self.assertEqual([(x['tx'], x['amt']) for x in r], [('0x2', 5e6), ('0x3', 2e6)], 'poza oknem odpada, duplikat raz, malejąco wg kwoty')
+        self.assertEqual(r[0].get('t'), 'nowy')
+        self.assertEqual(len(zd.wh_polacz([], [dict(d, tx=str(i), amt=i) for i in range(100)], 0, maks=60)), 60)
+
+    # ---- pełny przebieg na nagraniach: jedno żądanie zbiorcze sald, po dwa zapytania o logi na paczkę, czasy bloków
+    def _rpc(self, head=10000, fail=None, bal=None, price_ok=True):
+        calls = []
+        now = 1_790_400_000
+
+        def post(url, body, timeout=60):
+            calls.append((url, [b['method'] for b in body]))
+            if fail and fail(url, body):
+                raise zd.urllib.error.HTTPError(url, 403, 'Forbidden', {}, None)
+            out = []
+            for b in body:
+                m, p = b['method'], b['params']
+                if m == 'eth_getBlockByNumber':
+                    n = head if p[0] == 'latest' else int(p[0], 16)
+                    r = {'number': hex(n), 'timestamp': hex(now - (head - n) * 12)}
+                elif m == 'eth_getBalance':
+                    r = bal(p[0], 'eth') if bal else self._h(int(1.5e18), 1)
+                elif m == 'eth_call' and p[0]['to'] == zd.WH_CHAINLINK:
+                    r = ('0x' + '1'.rjust(64, '0') + format(268886950310, 'x').rjust(64, '0') + format(now - 200, 'x').rjust(64, '0')
+                         + format(now - 100 if price_ok else now - 100000, 'x').rjust(64, '0') + '1'.rjust(64, '0'))
+                elif m == 'eth_call':
+                    tok = 'usdt' if p[0]['to'] == zd.WH_USDT else 'usdc'
+                    r = bal('0x' + p[0]['data'][-40:], tok) if bal else self._h(2_000_000 * 10 ** 6)
+                elif m == 'eth_getLogs':
+                    a, z = int(p[0]['fromBlock'], 16), int(p[0]['toBlock'], 16)
+                    to_side = p[0]['topics'][1] is None
+                    r = []
+                    if a <= 9950 <= z and to_side:
+                        r.append(self._log(zd.WH_USDT, self.X, self.B1, 2_500_000, blk=9950, tx='0x' + 'aa' * 32, li=3))
+                    if a <= 9960 <= z and not to_side:
+                        r.append(self._log(zd.WH_USDC, self.O1, self.X, 1_200_000, blk=9960, tx='0x' + 'bb' * 32, li=7))
+                        r.append(self._log(zd.WH_USDT, self.B1, self.B2, 8_000_000, blk=9960, tx='0x' + 'cc' * 32, li=8))   # wewnętrzny
+                    if a <= 6000 <= z and to_side:
+                        r.append(self._log(zd.WH_USDT, self.X, self.B1, 700_000, blk=6000, tx='0x' + 'dd' * 32, li=1))   # poniżej progu
+                    if a <= 9970 <= z and not to_side:   # para: ta sama kwota z OKX (9970) i na OKX (9975) — ruch przez nieogłoszony portfel
+                        r.append(self._log(zd.WH_USDC, self.O1, self.X, 5_000_000, blk=9970, tx='0x' + 'ee' * 32, li=2))
+                    if a <= 9975 <= z and to_side:
+                        r.append(self._log(zd.WH_USDC, self.X, self.O1, 5_000_000, blk=9975, tx='0x' + 'ff' * 32, li=4))
+                else:
+                    raise AssertionError('nieznana metoda ' + m)
+                out.append({'jsonrpc': '2.0', 'id': b['id'], 'result': r})
+            return out
+        return post, calls
+
+    def test_build_happy_path(self):
+        post, calls = self._rpc()
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez zapasu kursu')):
+            o = zd.build_wieloryby(None)
+        self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': True}); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(sorted(o['part_at']), ['salda', 'transfery']); self.assertEqual(o['blk'], 10000)
+        self.assertEqual(len(calls), 2 + 6 + 1, 'dwie paczki sald (≤ 40 wywołań), sześć paczek logów, jedna o czasy bloków')
+        self.assertEqual(calls[0][1][:2], ['eth_getBlockByNumber', 'eth_call']); self.assertEqual(len(calls[0][1]) + len(calls[1][1]), 2 + 3 * 19); self.assertEqual(len(calls[0][1]), 40)
+        self.assertTrue(all(u == zd.WH_RPC for u, _ in calls))
+        self.assertAlmostEqual(o['eth_usd'], 2688.8695031); self.assertEqual(o['eth_usd_at'], o['blk_t'])
+        b = o['salda']['Binance']
+        self.assertAlmostEqual(b['eth'], 13.5); self.assertAlmostEqual(b['usdt'], 18_000_000); self.assertAlmostEqual(b['usdc'], 18_000_000)
+        self.assertAlmostEqual(b['usd'], 13.5 * 2688.8695031 + 36_000_000, places=2); self.assertEqual((b['blk'], b['n']), (10000, 9))
+        self.assertEqual(o['salda']['OKX']['n'], 10); self.assertAlmostEqual(o['salda']['OKX']['eth'], 15.0)
+        self.assertEqual(o['hist']['Binance'], [[o['blk_t'][:10], o['blk_t'], 13.5, 18000000.0, 18000000.0]])
+        self.assertEqual([(r['tx'][:4], r['amt'], r['dir'], r['exch'], r['blk']) for r in o['transfery']],
+                         [('0xff', 5000000.0, 'in', 'OKX', 9975), ('0xee', 5000000.0, 'out', 'OKX', 9970), ('0xaa', 2500000.0, 'in', 'Binance', 9950), ('0xbb', 1200000.0, 'out', 'OKX', 9960)],
+                         'wewnętrzny i poniżej progu pominięte; para zostaje')
+        self.assertEqual([r.get('wew') for r in o['transfery']], [True, True, None, None], 'para „ta sama kwota w obie strony w 5 bloków” oznaczona wew, pozostałe bez klucza')
+        self.assertTrue(all(r['t'].endswith('+00:00') for r in o['transfery']))
+        self.assertEqual((o['ostatni_blok'], o['okno_od'], o['okno'], o['luka']), (10000, 5201, 4800, False))
+        self.assertTrue(o['okno_od_t'] < o['ostatni_t'] == o['blk_t']); self.assertEqual(o['gieldy']['OKX']['tokeny'], ['USDC'])
+        self.assertEqual(len(o['wallets']), 19); self.assertTrue(all(w['src'] for w in o['wallets']))
+        # drugi przebieg: od ostatniego bloku, jedna paczka, historia bez drugiego zrzutu tego dnia, okno ≈ 24 h w blokach
+        post2, calls2 = self._rpc(head=10100)
+        with mock.patch.object(zd, 'post_json', side_effect=post2):
+            o2 = zd.build_wieloryby(o)
+        self.assertEqual(len(calls2), 3, 'salda (dwie paczki) + jedna paczka logów; czasy bloków znane z poprzedniego pliku')
+        self.assertEqual(calls2[2][1], ['eth_getLogs', 'eth_getLogs'])
+        self.assertEqual((o2['ostatni_blok'], o2['okno_od'], o2['okno']), (10100, 5201, 4900)); self.assertEqual(len(o2['hist']['Binance']), 1)
+        self.assertEqual([r['tx'][:4] for r in o2['transfery']], ['0xff', '0xee', '0xaa', '0xbb'], 'wiersze z poprzedniego pliku zostają w oknie')
+        self.assertEqual([r.get('wew') for r in o2['transfery']], [True, True, None, None], 'oznaczenie pary zostaje w kolejnym przebiegu')
+        with mock.patch.object(zd, 'post_json', side_effect=self._rpc(head=13000)[0]):
+            o3 = zd.build_wieloryby(o2)
+        self.assertEqual((o3['ostatni_blok'], o3['okno_od'], o3['okno'], o3['luka']), (13000, 5801, 7200, False), 'okno 7200 bloków przesuwa początek'); self.assertEqual(len(o3['transfery']), 4, 'wiersze w oknie zostają')
+        with mock.patch.object(zd, 'post_json', side_effect=self._rpc(head=18500)[0]):
+            o4 = zd.build_wieloryby(o3)
+        self.assertEqual((o4['ostatni_blok'], o4['okno_od'], o4['okno'], o4['luka']), (18500, 13701, 4800, True), 'zaległość 5500 > 4800 bloków: od nowa, z luką'); self.assertEqual(o4['transfery'], [], 'wiersze sprzed okna odpadają')
+
+    def test_build_partial_failures_keep_previous_part(self):
+        post, calls = self._rpc()
+        with mock.patch.object(zd, 'post_json', side_effect=post):
+            prev = zd.build_wieloryby(None)
+        prev['at'] = '2026-09-26T07:00:00+00:00'; prev['part_at'] = {'salda': '2026-09-26T07:00:00+00:00', 'transfery': '2026-09-26T06:40:00+00:00'}
+        # logi zawodzą (główny i zapas) — salda świeże, transfery poprzednie z własnym czasem; okno z poprzedniego pliku
+        post2, calls2 = self._rpc(head=10100, fail=lambda u, b: b[0]['method'] == 'eth_getLogs')
+        with mock.patch.object(zd, 'post_json', side_effect=post2), mock.patch.object(zd.time, 'sleep'):
+            o = zd.build_wieloryby(prev)
+        self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': False})
+        self.assertEqual(o['part_at']['transfery'], '2026-09-26T06:40:00+00:00'); self.assertIs(o['transfery'], prev['transfery'])
+        self.assertEqual((o['ostatni_blok'], o['okno'], o['okno_od_t']), (prev['ostatni_blok'], prev['okno'], prev['okno_od_t']))
+        self.assertEqual(o['salda']['Binance']['blk'], 10100); self.assertEqual(o['part_at']['salda'], zd.NOW)
+        self.assertEqual(len(zd.META['errors']), 1); self.assertTrue(zd.META['errors'][0].startswith('Wieloryby: transfery: węzeł RPC'))
+        self.assertEqual([u for u, _ in calls2 if 'flashbots' in u], ['https://rpc.flashbots.net'], 'zapas logów próbowany raz, po dwóch próbach głównego')
+        # salda zawodzą — poprzednie salda i historia z własnym czasem, transfery świeże
+        zd.META['errors'].clear()
+        post3, _ = self._rpc(head=10100, fail=lambda u, b: b[0]['method'] == 'eth_getBlockByNumber' and len(b) > 1)
+        with mock.patch.object(zd, 'post_json', side_effect=post3), mock.patch.object(zd.time, 'sleep'):
+            o = zd.build_wieloryby(prev)
+        self.assertEqual(o['ok'], {'cena': False, 'salda': False, 'transfery': True})
+        self.assertIs(o['salda'], prev['salda']); self.assertEqual(o['part_at']['salda'], '2026-09-26T07:00:00+00:00'); self.assertEqual(o['hist'], prev['hist'])
+        self.assertEqual((o['eth_usd'], o['eth_usd_at']), (prev['eth_usd'], prev['eth_usd_at']), 'poprzednie salda = poprzedni kurs z jego datą (sumy w USD liczono nim), nie None')
+        self.assertEqual(o['ostatni_blok'], 10100)
+        self.assertTrue(zd.META['errors'][0].startswith('Wieloryby: salda: węzeł RPC'))
+        # wszystko zawodzi — wyjątek (main zachowuje poprzedni plik)
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'post_json', side_effect=RuntimeError('offline')), mock.patch.object(zd.time, 'sleep'):
+            with self.assertRaises(RuntimeError):
+                zd.build_wieloryby(prev)
+
+    def test_missing_balance_is_not_zero_and_missing_price_is_none(self):
+        bad = lambda a, tok: '0x' if (a == self.O1 and tok == 'usdc') else self._h(10 ** 6)   # jeden portfel OKX bez odpowiedzi
+        post, _ = self._rpc(bal=bad, price_ok=False)
+        prev = {'at': '2026-09-25T00:00:00+00:00', 'salda': {'OKX': {'eth': 1.0, 'usdt': 2.0, 'usdc': 3.0, 'usd': 9.0, 'blk': 1, 't': '2026-09-25T00:00:00+00:00', 'n': 10}},
+                'hist': {'OKX': [['2026-09-25', '2026-09-25T00:00:00+00:00', 1.0, 2.0, 3.0]]}}
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=RuntimeError('brak zapasu')):
+            o = zd.build_wieloryby(prev)
+        self.assertEqual(o['salda']['OKX'], prev['salda']['OKX'], 'giełda z portfelem bez odpowiedzi: poprzednie saldo z własnym czasem, nie suma częściowa')
+        self.assertEqual(o['ok']['salda'], False); self.assertEqual(o['ok']['cena'], False); self.assertIsNone(o['eth_usd'])
+        self.assertIsNone(o['salda']['Binance']['usd'], 'bez kursu suma w USD = None'); self.assertAlmostEqual(o['salda']['Binance']['usdt'], 9.0)
+        self.assertEqual(len(o['hist']['OKX']), 1, 'bez świeżego salda — bez nowego zrzutu'); self.assertEqual(len(o['hist']['Binance']), 1)
+        self.assertEqual(len(zd.META['errors']), 1); self.assertIn('kurs ETH/USD', zd.META['errors'][0]); self.assertIn('salda OKX', zd.META['errors'][0])
+
+    def test_rpc_retries_then_fallback(self):
+        seen = []
+
+        def post(url, body, timeout=60):
+            seen.append(url)
+            if url == zd.WH_RPC:
+                raise zd.urllib.error.HTTPError(url, 403, 'Forbidden', {}, None)
+            return [{'jsonrpc': '2.0', 'id': b['id'], 'result': '0x1'} for b in body]
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd.time, 'sleep') as sl:
+            r = zd.wh_rpc([('eth_getBalance', ['0x1', 'latest'])] * 30)
+        self.assertEqual(r, ['0x1'] * 30); self.assertEqual(seen, [zd.WH_RPC, zd.WH_RPC, 'https://1rpc.io/eth', 'https://1rpc.io/eth'], 'zapas w paczkach po 25')
+        self.assertEqual(sl.call_count, 2)
+        with mock.patch.object(zd, 'post_json', return_value=[{'jsonrpc': '2.0', 'id': 0, 'error': {'code': -32602, 'message': 'Archive requests require a personal token'}}]), mock.patch.object(zd.time, 'sleep'):
+            with self.assertRaises(RuntimeError) as cm:
+                zd.wh_rpc([('eth_getLogs', [{}])], kind='logi')
+        self.assertIn('Archive', str(cm.exception))
+        with mock.patch.object(zd, 'post_json', return_value=[{'jsonrpc': '2.0', 'id': 0, 'result': None}, {'jsonrpc': '2.0', 'id': 1, 'result': '0x2'}]):
+            self.assertEqual(zd.wh_rpc([('a', []), ('b', [])]), [None, '0x2'], 'wyniki w kolejności żądań')
+
+    def test_timeout_budget_bounds_the_run(self):
+        """Milczący węzeł (każde żądanie kończy się przekroczeniem czasu): łącznie ≤ WH_LIMIT s i dwa żądania, nie 6 × 20 s;
+        obie części z poprzedniego pliku, wyjątek dla main() (poprzedni plik zostaje)."""
+        clock, calls = [1000.0], []
+
+        def post(url, body, timeout=60):
+            calls.append((url, body[0]['method'], timeout)); clock[0] += timeout; raise TimeoutError('timed out')
+        prev = {'at': '2026-09-26T07:00:00+00:00', 'part_at': {'salda': '2026-09-26T07:00:00+00:00', 'transfery': '2026-09-26T06:40:00+00:00'},
+                'salda': {'Binance': {'eth': 1.0, 'usdt': 2.0, 'usdc': 3.0, 'usd': 9.0, 'blk': 1, 't': '2026-09-26T07:00:00+00:00', 'n': 9}},
+                'transfery': [], 'ostatni_blok': 5000, 'okno': 10, 'eth_usd': 2500.0, 'eth_usd_at': '2026-09-26T07:00:00+00:00'}
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd.time, 'sleep'), mock.patch.object(zd.time, 'monotonic', lambda: clock[0]):
+            with self.assertRaises(RuntimeError) as cm:
+                zd.build_wieloryby(prev)
+        self.assertEqual(len(calls), 2, 'dwie próby paczki sald (20 s + 20 s), potem koniec — bez zapasu i bez ponownego pytania o głowicę')
+        self.assertLessEqual(clock[0] - 1000.0, zd.WH_LIMIT, 'cały przebieg w budżecie 40 s'); self.assertTrue(all(tm <= 20 for _, _, tm in calls))
+        self.assertIn('budżet czasu', str(cm.exception)); self.assertIn('timed out', str(cm.exception))
+        # wolny, ale odpowiadający węzeł: drugie żądanie paczki dostaje tylko resztę budżetu; po terminie — bez żadnego żądania
+        clock[0], seen = 1000.0, []
+
+        def slow(url, body, timeout=60):
+            seen.append(timeout); clock[0] += 15; return [{'jsonrpc': '2.0', 'id': b['id'], 'result': '0x1'} for b in body]
+        with mock.patch.object(zd, 'post_json', side_effect=slow), mock.patch.object(zd.time, 'monotonic', lambda: clock[0]):
+            r = zd.wh_rpc([('eth_getBalance', ['0x1', 'latest'])] * 50, termin=1025.0)
+            self.assertEqual(r, ['0x1'] * 50); self.assertEqual(seen, [20, 10], 'limit czasu żądania = min(20 s, reszta budżetu)')
+            with self.assertRaises(RuntimeError) as cm:
+                zd.wh_rpc([('eth_blockNumber', [])], termin=1025.0)
+        self.assertEqual(len(seen), 2, 'po terminie żadne żądanie nie wychodzi'); self.assertIn('budżet czasu', str(cm.exception))
+
+    def test_logs_result_not_list_is_a_failure_not_empty(self):
+        """„result: null” dla eth_getLogs to brak odpowiedzi, nie „brak zdarzeń”: paczka nieudana, ostatni_blok nie idzie dalej."""
+        post, _ = self._rpc()
+        with mock.patch.object(zd, 'post_json', side_effect=post):
+            prev = zd.build_wieloryby(None)
+        prev['at'] = '2026-09-26T07:00:00+00:00'; prev['part_at'] = {'salda': '2026-09-26T07:00:00+00:00', 'transfery': '2026-09-26T06:40:00+00:00'}
+        base, _ = self._rpc(head=10100)
+
+        def nul(url, body, timeout=60):
+            return [dict(x, result=None) if b['method'] == 'eth_getLogs' else x for x, b in zip(base(url, body, timeout), body)]
+        with mock.patch.object(zd, 'post_json', side_effect=nul), mock.patch.object(zd.time, 'sleep'):
+            o = zd.build_wieloryby(prev)
+        self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': False})
+        self.assertEqual(o['ostatni_blok'], 10000, 'blok „zeskanowany” nie przesuwa się po odpowiedzi null'); self.assertIs(o['transfery'], prev['transfery'])
+        self.assertEqual(o['part_at']['transfery'], '2026-09-26T06:40:00+00:00'); self.assertEqual(len(zd.META['errors']), 1)
+        self.assertIn('nie jest listą', zd.META['errors'][0]); self.assertTrue(zd.META['errors'][0].startswith('Wieloryby: transfery: logi bloków 10001–10100'))
+        # null dopiero w drugiej paczce: postęp do końca pierwszej zostaje, część oznaczona jako nieudana z błędem
+        zd.META['errors'].clear()
+        base2, _ = self._rpc(head=11700)
+
+        def nul2(url, body, timeout=60):
+            return [dict(x, result=None) if b['method'] == 'eth_getLogs' and int(b['params'][0]['fromBlock'], 16) >= 10801 else x for x, b in zip(base2(url, body, timeout), body)]
+        with mock.patch.object(zd, 'post_json', side_effect=nul2), mock.patch.object(zd.time, 'sleep'):
+            o = zd.build_wieloryby(prev)
+        self.assertEqual((o['ok']['transfery'], o['ostatni_blok']), (False, 10800), 'zeskanowano tylko pierwszą paczkę')
+        self.assertEqual(o['part_at']['transfery'], zd.NOW); self.assertIn('zeskanowano do bloku 10800', zd.META['errors'][0]); self.assertIn('10801–11600', zd.META['errors'][0])
+
+    def test_pary_wewnetrzne(self):
+        R = lambda tx, d, amt, blk, exch='OKX', tok='USDC': {'tx': tx, 'li': 1, 'exch': exch, 'dir': d, 'token': tok, 'amt': amt, 'blk': blk}
+        rows = [R('0x1', 'out', 37826063.2, 26058886), R('0x2', 'in', 37826063.2, 26058900),   # ta sama kwota, 14 bloków = para
+                R('0x3', 'in', 37826063.2, 26059000),                                            # 114 bloków — za daleko
+                R('0x4', 'in', 37826063.2, 26058890, exch='Binance'),                            # inna giełda
+                R('0x5', 'in', 37826063.2, 26058890, tok='USDT'),                                # inny token
+                R('0x6', 'in', 37826063.21, 26058890), 'śmieć', {'dir': 'in', 'blk': 'x'}]       # inna kwota, śmieci
+        self.assertIs(zd.wh_pary(rows), rows)
+        self.assertEqual([r.get('wew') for r in rows if isinstance(r, dict) and 'tx' in r], [True, True, None, None, None, None])
+        self.assertEqual(zd.wh_pary([]), [])
+        # raz nadane oznaczenie zostaje, gdy druga strona pary wypadnie z okna (wiersze idą z poprzedniego pliku)
+        solo = [rows[1]]
+        self.assertTrue(zd.wh_pary(solo)[0]['wew'])
+
+    def test_main_uses_previous_file_on_failure(self):
+        saved = {}
+        prev = {'at': '2026-09-26T07:00:00+00:00', 'salda': {'Binance': {'eth': 1.0}}}
+        with mock.patch.object(zd, 'build_wieloryby', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            src = open(zd.__file__, encoding='utf-8').read()
+            self.assertIn("prev_wh = previous('wieloryby')", src); self.assertIn("META['errors'].append(mask(f'Wieloryby: {e}')); META['ok']['wieloryby'] = False", src)
+            self.assertIn("if prev_wh: save('wieloryby', prev_wh)", src); self.assertIn("'build_rynki', 'build_wieloryby'", open(__file__, encoding='utf-8').read())

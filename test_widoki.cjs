@@ -3758,3 +3758,95 @@ test('v104-dzwignia: 10 języków z tymi samymi kluczami lev.*, po niemiecku bez
   assert.ok(!/publikuje|publish|veröffentlicht|publica|publie|pubblica|публикует|公布|公表/.test(Object.values(D).map(x => x['lev.np']).join(' ')) && D.pl['lev.np'].includes('źródle'), '„—” w tabeli giełd: brak w naszym źródle, nie „giełda nie publikuje”');
   assert.ok(D.pl['lev.k.taker'].includes('średnia dnia') && D.pl['lev.last5'].startsWith('ostatnie 5 min') && D.pl['lev.asof'] === 'stan na {t}', 'nowe podpisy: średnia dnia, ostatnie 5 min, stan na');
 });
+test('v105: wieloryby — pomocnicze: kształt pliku, kwoty, zmiana wobec zrzutu, skrót transakcji, zero bez koloru', () => {
+  const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whTile(', w0);
+  assert.ok(w0 > 0 && w1 > w0, 'blok v105 w stronie');
+  const T = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const W = new Function('t', 'nfmt', html.slice(w0, w1) + '\nreturn {whOk, whAmt, whChg, whDay, whShort, whDelta};')(T, (v, d) => Number(v).toFixed(d));
+  const now = new Date().toISOString();
+  assert.ok(W.whOk({at: now, salda: {Binance: {eth: 1}}}) && W.whOk({at: now, transfery: [], okno: 10}), 'plik z saldami albo z oknem transferów');
+  assert.ok(!W.whOk(null) && !W.whOk({at: 'x', salda: {Binance: {}}}) && !W.whOk({at: now, salda: {}}) && !W.whOk({at: now, transfery: []}) && !W.whOk('tekst'), 'bez czasu, bez sald, bez okna — nie');
+  assert.equal(W.whAmt(2345678901, 'USDT'), '2.35 wh.u.mld USDT'); assert.equal(W.whAmt(1500000), '1.5 wh.u.mln'); assert.equal(W.whAmt(462013.4, 'ETH'), '462013 ETH'); assert.equal(W.whAmt(-999600000), '−1.00 wh.u.mld');
+  assert.equal(W.whAmt(null), '—'); assert.equal(W.whAmt('1'), '—'); assert.equal(W.whAmt(NaN), '—');
+  assert.equal(W.whDay('2026-09-26', -1), '2026-09-25'); assert.equal(W.whDay('2026-03-01T10:00:00+00:00', -7), '2026-02-22'); assert.equal(W.whDay('x', -1), '');
+  const H = [['2026-09-19', '2026-09-19T00:05:00+00:00', 10, 100, 1000], ['2026-09-25', '2026-09-25T00:07:00+00:00', 12, 130, 900], ['2026-09-26', '2026-09-26T00:03:00+00:00', 13, 131, null]];
+  assert.deepEqual(W.whChg(H, '2026-09-26', 1, 3, 150), {d: 20, t: '2026-09-25T00:07:00+00:00'}, 'zmiana wobec zrzutu z poprzedniej doby');
+  assert.deepEqual(W.whChg(H, '2026-09-26', 7, 4, 900), {d: -100, t: '2026-09-19T00:05:00+00:00'}, 'zmiana wobec zrzutu sprzed 7 dni');
+  assert.equal(W.whChg(H, '2026-09-27', 1, 4, 900), null, 'zrzut bez liczby (null) — brak, nie zero');
+  assert.equal(W.whChg(H, '2026-09-28', 1, 3, 150), null, 'brak zrzutu z poprzedniej doby — brak');
+  assert.deepEqual(W.whChg(H, '2026-09-26', 1, 4, 900), {d: 0, t: '2026-09-25T00:07:00+00:00'}, 'równe salda: zmiana 0 (prawdziwe zero, bez koloru w whDelta)');
+  assert.equal(W.whChg(H, '2026-09-26', 1, 3, null), null); assert.equal(W.whChg(null, '2026-09-26', 1, 3, 1), null);
+  assert.equal(W.whShort('0x' + 'ab'.repeat(32)), '0xabab…abab'); assert.equal(W.whShort('0x12'), ''); assert.equal(W.whShort(null), '');
+  assert.deepEqual(W.whDelta(2500000), {txt: '▲ +2.5 wh.u.mln', cls: 'pos'}); assert.deepEqual(W.whDelta(-3), {txt: '▼ −3', cls: 'neg'});
+  assert.deepEqual(W.whDelta(0.4), {txt: '• 0', cls: ''}, 'zero po zaokrągleniu — bez strzałki i koloru'); assert.deepEqual(W.whDelta(-0.3), {txt: '• 0', cls: ''});
+});
+test('v105: wieloryby — panel z pliku: kafle z datą i wiekiem, tabela z linkiem, stan pusty, bez pliku ukryty, brak nie jest zerem', () => {
+  const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whApply(', w0);
+  const T = (k, v) => (k.startsWith('wh.n.') ? 'nota:' + k : k) + (v ? JSON.stringify(v) : '');   // nota giełdy tylko, gdy klucz istnieje
+  const run = D => {
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    new Function('$', 't', 'nfmt', 'escH', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'exchImg', 'netImg', 'D', html.slice(w0, w1) + '\nWH.data=D;renderWh();')(
+      q => q === '#c-wieloryby' ? el : null, T, (v, d) => Number(v).toFixed(d), v96src.escH, s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')',
+      x => `<span class="icos">${x}</span>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, D);
+    return el;
+  };
+  const now = new Date().toISOString(), tx = '0x' + '1a'.repeat(32);
+  const D = {at: now, eth_usd: 2688.87, eth_usd_at: now, okno: 4800, okno_od: 100, okno_od_t: '2026-09-25T16:00:00+00:00', ostatni_blok: 4899, ostatni_t: '2026-09-26T08:00:00+00:00',
+    gieldy: {Binance: {n: 9, since: '2022-11', tokeny: ['USDT', 'USDC', 'ETH']}, OKX: {n: 10, since: '2026-09-08', tokeny: ['USDC']}},
+    salda: {Binance: {eth: 462013.4, usdt: 2345678901, usdc: 1500000, usd: 3.6e9, blk: 4899, t: '2026-09-26T08:00:00+00:00', n: 9},
+      OKX: {eth: 12.5, usdt: 0, usdc: 1580000000, usd: null, blk: 4899, t: '2026-09-26T08:00:00+00:00', n: 10}},
+    hist: {Binance: [['2026-09-25', '2026-09-25T00:07:00+00:00', 462000, 2300000000, 1500000], ['2026-09-26', '2026-09-26T00:03:00+00:00', 462013.4, 2345678901, 1500000]]},
+    transfery: [{t: '2026-09-26T07:12:00+00:00', token: 'USDT', amt: 2000000, dir: 'in', exch: 'Binance', tx, blk: 4890},
+      {t: '2026-09-26T05:00:00+00:00', token: 'USDC', amt: 12500000.5, dir: 'out', exch: 'OKX', tx: 'zły-hash', blk: 4700}, {t: 'x', token: 'USDT', amt: 5e6, dir: 'in', exch: 'Binance', tx, blk: 1},
+      {t: '2026-09-26T06:00:00+00:00', token: 'USDC', amt: 3000000, dir: 'out', exch: 'OKX', tx, blk: 4850, wew: true}]};
+  const el = run(D), out = el.innerHTML;
+  assert.ok(!el.hidden && out.includes('wh.t') && out.includes('wh.sub') && out.includes('inst.file{"t":"[' + now + ']"}'), 'nagłówek i czas pliku');
+  assert.ok(out.includes('Binance · USDT') && out.includes('2.35 wh.u.mld USDT') && out.includes('462013 ETH') && out.includes('Binance · wh.k.usd') && out.includes('3.60 wh.u.mld USD'), 'kafle Binance: ' + out.slice(0, 300));
+  assert.ok(out.includes('<small class="pos">▲ +45.7 wh.u.mln · wh.vs{"t":"[2026-09-25T00:07:00+00:00]"}</small>'), 'zmiana USDT od zrzutu z poprzedniej doby, zielona');
+  assert.ok(out.includes('<small class="na">wh.d7: — · wh.short</small>'), '7 dni bez zrzutu — brak z powodem');
+  assert.ok(out.includes('OKX · USDC') && !out.includes('OKX · ETH') && !out.includes('OKX · USDT') && !out.includes('OKX · wh.k.usd'), 'OKX: tylko USDC (lista tokenów z pliku)');
+  assert.ok(out.includes('<small class="na">— · wh.nochg</small>'), 'OKX bez historii — brak wcześniejszego zrzutu, nie zero');
+  assert.ok(out.includes('wh.blk{"t":"[2026-09-26T08:00:00+00:00]","n":"4899"} · age(2026-09-26)'), 'data i wiek salda');
+  assert.ok(out.includes('wh.wal{"n":"9","d":"2022-11"}') && out.includes('<span class="whn">nota:wh.n.OKX</span>') && out.includes('nota:wh.n.Binance'), 'liczba portfeli, data listy, nota giełdy: ' + out.slice(out.indexOf('wh.wal'), out.indexOf('wh.wal') + 120));
+  assert.ok(out.includes('wh.tr.sub{"a":"[2026-09-25T16:00:00+00:00]","b":"[2026-09-26T08:00:00+00:00]","n":"4800"}'), 'okno transferów z czasami bloków');
+  const rows = out.split('<tr><td>').length - 1;
+  assert.equal(rows, 3, 'wiersz bez czasu odrzucony');
+  assert.ok(out.indexOf('12.5 wh.u.mln USDC') < out.indexOf('3.0 wh.u.mln USDC') && out.indexOf('3.0 wh.u.mln USDC') < out.indexOf('2.0 wh.u.mln USDT'), 'malejąco wg kwoty');
+  assert.ok(out.includes('<span class="cell neu wew">▼ wh.out · <span class="icos"><i class="ico sm">OKX</i></span>OKX<small class="whx">wh.wew</small></span>'), 'para „ta sama kwota w obie strony”: bursztyn (kierunek niejasny) i dopisek, wiersz zostaje');
+  assert.equal((out.match(/class="cell neu wew"/g) || []).length, 1, 'oznaczenie tylko przy wierszu z wew');
+  assert.ok(out.includes(`<a href="https://etherscan.io/tx/${tx}" target="_blank" rel="noopener" title="wh.tx.open">0x1a1a…1a1a</a>`), 'link do transakcji z krótkim hashem');
+  assert.ok(out.includes('<span class="cell pos">▲ wh.in · <span class="icos"><i class="ico sm">Binance</i></span>Binance</span>') && out.includes('<span class="cell neg">▼ wh.out · <span class="icos"><i class="ico sm">OKX</i></span>OKX</span>'), 'kierunek: strzałka, słowa, kolor, logo i nazwa giełdy');
+  assert.equal((out.match(/<th>/g) || []).length, 4, 'cztery kolumny');
+  assert.ok(out.includes('class="cell mono">—</span>'), 'zły hash — bez linku, kreska');
+  assert.ok(!/Etherscan|Chainlink|CoinGecko|PublicNode|publicnode/.test(out.replace(/href="[^"]*"/g, '')), 'bez nazw dostawców w tekście panelu (tylko w adresie linku)');
+  assert.ok(out.includes('wh.px{"p":"2689","t":"[' + now + ']"}') && out.includes('wh.not1') && out.includes('wh.not4') && out.includes('wh.foot') && out.includes('eng.disclaimer'), 'kurs, „czego nie mówią”, stopka');
+  const E = run(Object.assign({}, D, {transfery: [], eth_usd: null, salda: Object.assign({}, D.salda, {Binance: Object.assign({}, D.salda.Binance, {usd: null})})}));
+  assert.ok(E.innerHTML.includes('wh.tr.none{"a":') && E.innerHTML.includes('wh.px.na') && !E.innerHTML.includes('wh.px{') && !E.innerHTML.includes('<table'), 'pusty stan: brak dużych transferów w oknie, brak kursu i suma „—” = nota o braku kursu');
+  const E2 = run(Object.assign({}, D, {eth_usd: null}));
+  assert.ok(!E2.innerHTML.includes('wh.px.na') && !E2.innerHTML.includes('wh.px{') && E2.innerHTML.includes('3.60 wh.u.mld USD'), 'brak kursu w pliku, ale sumy w USD pokazane (poprzednie salda) — bez sprzecznej noty „brak kursu”');
+  const E3 = run(Object.assign({}, D, {eth_usd: null, salda: {OKX: D.salda.OKX}}));
+  assert.ok(!E3.innerHTML.includes('wh.px.na') && !E3.innerHTML.includes('wh.px{'), 'giełda bez kafla „razem w USD” (sama USDC) nie wywołuje noty o braku kursu');
+  const N = run(Object.assign({}, D, {salda: {Binance: {eth: null, usdt: 2e9, usdc: 1e6, usd: null, blk: 4899, t: '2026-09-26T08:00:00+00:00', n: 9}}, hist: {}}));
+  assert.ok(N.innerHTML.includes('Binance · ETH</span><b>—') && N.innerHTML.includes('— <small class="na">wh.usd.na</small>'), 'saldo bez liczby = „—”, suma bez kursu = „—” z powodem');
+  const Z = run(null);
+  assert.ok(Z.hidden && Z.innerHTML === '', 'bez pliku sekcja ukryta');
+  assert.equal(html.split('<section class="panel pcard" id="c-wieloryby" hidden></section>').length, 2, 'jedna sekcja');
+  const c0 = html.indexOf('<section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>');
+  assert.ok(html.indexOf('id="c-wieloryby"') > c0 && html.indexOf('id="c-wieloryby"') < c0 + 200, 'CRYPTO: zaraz po przepływach na giełdy');
+  assert.ok(html.includes("srvJSON('wieloryby').then(whApply)") && html.includes('20*60*1000') && html.includes("attributeFilter:['lang']});}catch(e){}   /* v105"), 'plik serwera, odświeżanie co 20 min, zmiana języka');
+});
+test('v105: wieloryby — dziesięć języków ma wszystkie klucze wh.*, bez nazw dostawców, z zastrzeżeniem „pomiar, nie kupno”', () => {
+  const keys = Object.keys(v96src.I18N.pl).filter(k => k.startsWith('wh.'));
+  assert.ok(keys.length >= 30 && keys.includes('wh.t') && keys.includes('wh.tr.none') && keys.includes('wh.n.OKX'), 'klucze: ' + keys.length);
+  const PROV = /Etherscan|Chainlink|CoinGecko|PublicNode|Allnodes|Coin Metrics/i;
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of keys) { assert.ok(v96src.I18N[L][k] && t(k) !== k, L + ' ' + k); assert.ok(!PROV.test(t(k)), 'dostawca: ' + L + ' ' + k); }
+    for (const [k, ph] of [['wh.wal', ['{n}', '{d}']], ['wh.vs', ['{t}']], ['wh.blk', ['{t}', '{n}']], ['wh.tr.sub', ['{a}', '{b}', '{n}']], ['wh.tr.none', ['{n}', '{a}', '{b}']], ['wh.px', ['{p}', '{t}']]])
+      for (const p of ph) assert.ok(v96src.I18N[L][k].includes(p), 'symbol ' + p + ' w ' + L + ' ' + k);
+  }
+  assert.ok(v96src.tFor('pl')('wh.sub').includes('nie kupna ani sprzedaży') && v96src.tFor('en')('wh.sub').includes('not buying or selling'), 'pomiar sald, nie kupno');
+  assert.ok(v96src.tFor('pl')('wh.tr.none').includes('nie jest zero') && v96src.tFor('en')('wh.tr.none').includes('not zero'), 'pusty stan nie jest zerem');
+  assert.ok(keys.includes('wh.wew') && !v96src.tFor('pl')('wh.px.na').includes('aktualne') && !v96src.tFor('en')('wh.px.na').includes('current'), 'nota o braku kursu nie twierdzi, że salda są aktualne (mają własną datę)');
+  assert.ok(v96src.tFor('pl')('wh.not2').includes('nieogłoszony portfel') && v96src.tFor('en')('wh.not2').includes('unpublished exchange wallet'), '„czego nie mówią”: para z nieogłoszonego portfela');
+});
