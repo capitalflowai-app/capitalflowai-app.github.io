@@ -5152,7 +5152,7 @@ class IndeksyV106(unittest.TestCase):
         self.assertEqual(len(zd.IX_ETF), len(set(zd.IX_ETF)))
         wf = open(os.path.join(here, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
         for k in zd.IX_KEYS:
-            self.assertIn(f'{k}: ${{{{ secrets.{k} }}}}', wf, k)
+            self.assertRegex(wf, r'\n\s+' + k + r': \$\{\{ secrets\.[A-Z_]+( \|\| secrets\.' + k + r')? \}\}', k)   # nazwa sekretu właściciela z zapasem *_KEY (26.09)
         self.assertNotIn('EODHD', html[html.index('const EXTRA100='):html.index('\n', html.index('const EXTRA100='))], 'nazwa dostawcy nie w słowniku panelu')
 
 
