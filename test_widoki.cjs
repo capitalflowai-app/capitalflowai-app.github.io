@@ -4114,3 +4114,57 @@ test('v108: wieloryby — nowe giełdy (Bybit, KuCoin, Bitfinex): kafle, noty z 
   assert.ok(v96src.tFor('en')('wh.n.Bitfinex').includes('not all of them') && v96src.tFor('pl')('wh.n.Bitfinex').includes('nie całość'), 'nota Bitfinex: część majątku, nie całość');
   assert.equal(v96src.tFor('pl')('wh.n.Binance'), 'Portfele gorące i zimne z wpisu giełdy o przejrzystości (listopad 2022) — część majątku giełdy, nie całość.', 'stara nota bez zmian');
 });
+
+// v110 (obszar „krypto3d”): BLOCKCHAIN 3D domyślnie, KULE 3D w tej samej scenie 3D, zdjęcia węzłów z img/wezly/, płaski widok bąbelków usunięty
+test('v110: domyślny widok zakładki CRYPTO to BLOCKCHAIN 3D (blocks); lista widoków bez zmian', () => {
+  assert.ok(html.includes("const st={mode:'crypto',trdv:'global',period:'24H',view:'blocks',"), 'view:blocks');
+  assert.ok(html.includes("items:[{v:'blocks',l:'view.blocks'},{v:'bubbles',l:'view.bubbles'},{v:'list',l:'view.list'}]"), 'trzy widoki w menu');
+  assert.ok(!html.includes("view:'bubbles',label:'pct'"), 'stary domyślny widok');
+});
+test('v110: zdjęcia węzłów gaming / giełdy / memecoiny z img/wezly/, stary base64 memecoinów usunięty', () => {
+  const a = html.indexOf('const LOGO_URLS={'), b = html.indexOf('\nconst logoSrc=', a);
+  assert.ok(a > 0 && b > a);
+  const U = new Function(html.slice(a, b) + '\nreturn {LOGO_URLS,LOGO_URLS_LIGHT};')();
+  assert.equal(U.LOGO_URLS.gaming, 'img/wezly/gaming.jpg'); assert.equal(U.LOGO_URLS.exch, 'img/wezly/gieldy.jpg'); assert.equal(U.LOGO_URLS.meme, 'img/wezly/memecoiny.jpg');
+  for (const id of ['btc', 'eth', 'stab', 'defi', 'depin']) assert.ok(/^data:image\//.test(U.LOGO_URLS[id]), 'pozostałe loga bez zmian: ' + id);
+  assert.ok(!U.LOGO_URLS_LIGHT.gaming && !U.LOGO_URLS_LIGHT.exch && !U.LOGO_URLS_LIGHT.meme, 'zdjęcia wspólne dla obu motywów');
+  assert.equal((html.match(/meme:'data:image/g) || []).length, 0);
+  assert.ok(html.includes("const LOGO_PHOTO=new Set(['exch','gaming','meme']);") && html.includes('if(LOGO_PHOTO.has(id)){c.lineWidth=Math.max(1,s*.09);'), 'obwódka zdjęć w drawIconOn');
+  assert.ok(/img-src 'self' data:/.test(html), 'CSP pozwala na obrazki z własnego folderu');
+  // pliki w repo (pod node; pod jsc fs.existsSync nie istnieje — sprawdza to test zbieracza)
+  if (typeof fs.existsSync === 'function' && __dirname) for (const f of ['gaming', 'gieldy', 'memecoiny']) assert.ok(fs.existsSync(path.join(__dirname, 'img', 'wezly', f + '.jpg')), 'brak pliku ' + f);
+});
+test('v110: render() rysuje oba widoki w scenie 3D — płaski renderer bąbelków (szary szkielet) usunięty', () => {
+  const r0 = html.indexOf('function render(time){'), r1 = html.indexOf('\n}', r0), R = html.slice(r0, r1);
+  assert.ok(!R.includes('drawBub') && R.includes('setCam();drawFloor();NODES.forEach(drawGroundGlow);') && R.includes('if(C[1]>FY+.3)drawScene(true,time);') && R.includes('drawScene(false,time);drawLabels();'), R);
+  for (const s of ['drawBub', 'pickBub', 'layoutBub', 'ensureBub', 'bubArc', 'bubBall', 'bubPt', 'drawSpace', 'FLATV', 'HINTK', 'OBkey', 'const flat=', 'flat.k', 'labelLead(', 'OB.SK', 'OB.HEX',
+    '.stage3d.orb', '.stage3d.flat', "classList.toggle('flat'", "classList.toggle('orb'"]) assert.equal(html.split(s).length, 1, 'martwy symbol: ' + s);
+  assert.equal((html.match(/\blabelSpot\(/g) || []).length, 0, 'labelSpot usunięty (labelSpotG mapy GLOBAL zostaje)');
+  assert.ok(html.includes('function labelSpotG(') && html.includes('function heart(time){') && html.includes('const hb=heart(time);') && html.includes('const qpt=('), 'heart, qpt i labelSpotG zostają dla mapy GLOBAL');
+  assert.ok(html.includes("if(!n._hull.length)return Math.hypot(x-n._c[0],y-n._c[1])<=n._c[2]+4;"), 'pick 3D trafia w kule po n._c');
+  assert.ok(html.includes("if(!mirror){n._c=[cp[0],cp[1],Rp];n._hull=[];"), 'kula zapisuje trafienie');
+  assert.ok(html.includes('const BUB_R=.72;') && html.includes("r=s*(style==='bubble'?BUB_R:.62)") && html.includes("st.view==='bubbles'?cur[n.id]*BUB_R:cur[n.id]*.58"), 'promień kul większy niż .62, linie zaczynają się na powierzchni kuli');
+  assert.ok(html.includes("drawSphere(n,mirror,ga,n.shape==='sphere'?'globe':'bubble')"), 'gałąź kul w drawScene');
+  assert.ok(html.includes("if(st.view!=='bubbles')LAT.forEach(([a,b])=>{") && (html.match(/LAT\.forEach\(/g) || []).length === 1, 'siatka LAT (szare linie między sąsiadami) tylko w widoku BLOCKCHAIN 3D — KULE 3D bez szarych linii');
+  assert.ok(html.includes("$('#z-reset').addEventListener('click',()=>{camTo(HOME(),800);});") && html.includes("cam.dist*=Math.exp(e.deltaY*.0011);clampCam();camTw=null;dirty=true;},{passive:false});"), 'zoom i reset zawsze kamerą 3D');
+  assert.ok(html.includes('.stage3d{position:relative;height:clamp(440px,54vw,680px);') && html.includes('.stage3d{height:clamp(380px,100vw,520px)}'), 'jedna wysokość sceny dla obu widoków');
+});
+test('v110: nazwy widoków i opisy w 10 językach — BLOCKCHAIN 3D / KULE 3D, bez „klocka” i „bąbelka”', () => {
+  const NAMES = {pl: 'KULE 3D', en: '3D SPHERES', de: '3D-KUGELN', es: 'ESFERAS 3D', fr: 'SPHÈRES 3D', it: 'SFERE 3D', pt: 'ESFERAS 3D', ru: '3D-СФЕРЫ', zh: '3D 球体', ja: '3D 球体'};
+  const BAD = {pl: /klock|klocek|bąbel/i, en: /bubble/i, de: /blase/i, es: /burbuja/i, fr: /bulle/i, it: /boll[ae]/i, pt: /bolha/i, ru: /пузыр/i, zh: /气泡/, ja: /バブル/};
+  const KEYS = ['view.blocks', 'view.bubbles', 'leg.areaB', 'howto.1b', 'scene.aria', 'why.empty'];
+  for (const L of Object.keys(NAMES)) {
+    const tt = v96src.tFor(L), d = v96src.I18N[L];
+    assert.equal(tt('view.blocks'), 'BLOCKCHAIN 3D', L); assert.equal(tt('view.bubbles'), NAMES[L], L); assert.equal(tt('view.list'), v96src.I18N[L]['view.list'], L);
+    for (const k of KEYS) assert.ok(typeof d[k] === 'string' && d[k].trim() && !BAD[L].test(d[k]), L + ' ' + k + ': ' + d[k]);
+    assert.ok(d['leg.areaB'].includes('{v}') && tt('leg.areaB', {v: 'QQ'}).includes('QQ'), L + ' {v}');
+    assert.ok(/blockchain|блокчейн|区块链|ブロックチェーン/i.test(d['howto.1b']) && /blockchain|блокчейн|区块链|ブロックチェーン/i.test(d['scene.aria']), L + ' opis mówi o blokach blockchain');
+  }
+  assert.ok(html.includes('const EXTRA104=') && html.includes('for(const l in EXTRA104)if(I18N[l])Object.assign(I18N[l],EXTRA104[l]);'), 'słownik EXTRA104 dołączony');
+  // EXTRA104 nadpisuje tylko klucze, które strona czyta: hint3 (dawne HINTK) i leg.area (legenda używa leg.areaB) zostają bez martwych nadpisań
+  const e0 = html.indexOf('const EXTRA104='), e1 = html.indexOf(';\nfor(const l in EXTRA104)', e0);
+  const E = JSON.parse(html.slice(e0 + 'const EXTRA104='.length, e1));
+  for (const L of Object.keys(NAMES)) assert.equal(Object.keys(E[L]).sort().join('|'), KEYS.slice().sort().join('|'), L + ': klucze EXTRA104');
+  assert.ok(!html.includes("t('hint3')") && !html.includes("t('leg.area'") && html.includes("t('leg.areaB'") && !html.includes('HINTK'), 'hint3 i leg.area nie są czytane przez stronę');
+  assert.ok(html.includes('<div class="hint" id="hint" data-i18n="hint"></div>'), 'podpowiedź pod sceną z klucza hint');
+});

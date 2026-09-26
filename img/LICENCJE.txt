@@ -7,6 +7,7 @@ img/sieci/  — web3icons @web3icons/core 4.0.56, licencja MIT.
 img/gieldy/ — web3icons @web3icons/core 4.0.56, licencja MIT.
               Copyright (c) 2024 0xa3k5
 img/glify/  — rysunki własne CapitalFlowAI.
+img/wezly/  — zdjęcia węzłów sceny CRYPTO (gaming, giełdy, memecoiny) dostarczone przez właściciela strony (26.09.2026); używane tylko na tej stronie.
 
 Loga projektów kryptowalutowych i giełd są znakami towarowymi ich właścicieli; pokazujemy je tylko po to,
 żeby wskazać, o którym aktywie lub giełdzie mowa — bez sugerowania współpracy.

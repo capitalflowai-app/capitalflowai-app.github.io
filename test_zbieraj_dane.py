@@ -5447,3 +5447,22 @@ class Wieloryby2V108(WielorybyV105):
 # klasa v108 dziedziczy tylko pomocnicze (_rpc, _log, _h, setUp) — testy v105 nie mają biegać drugi raz (loader pomija atrybuty niewywoływalne)
 for _n in [n for n in dir(WielorybyV105) if n.startswith('test_') and n not in Wieloryby2V108.__dict__]:
     setattr(Wieloryby2V108, _n, None)
+
+# ===================== v110: krypto3d — zdjęcia węzłów sceny CRYPTO (pliki w repo, nie sieć) =====================
+class V110ObrazyWezlow(unittest.TestCase):
+    """Zdjęcia gaming / giełdy / memecoiny leżą w img/wezly/, są prawdziwymi plikami JPEG i strona się do nich odwołuje."""
+
+    def test_pliki_jpeg_na_miejscu_i_uzyte_na_stronie(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, 'index.html'), encoding='utf-8') as f:
+            html = f.read()
+        for name in ('gaming', 'gieldy', 'memecoiny'):
+            p = os.path.join(here, 'img', 'wezly', name + '.jpg')
+            self.assertTrue(os.path.exists(p), p)
+            with open(p, 'rb') as f:
+                head = f.read(3)
+            self.assertEqual(head, b'\xff\xd8\xff', name + ': nie JPEG')
+            self.assertLess(os.path.getsize(p), 200_000, name + ': za duży plik')
+            self.assertIn("'img/wezly/%s.jpg'" % name, html)
+        with open(os.path.join(here, 'img', 'LICENCJE.txt'), encoding='utf-8') as f:
+            self.assertIn('img/wezly/', f.read())
