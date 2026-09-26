@@ -4,7 +4,7 @@ img/flagi/  — country-flag-icons 1.6.20 (catamphetamine), licencja MIT.
               Copyright (c) 2020 catamphetamine <purecatamphetamine@gmail.com>
 img/krypto/ — web3icons @web3icons/core 4.0.56 (0xa3k5), licencja MIT; doge.svg — cryptocurrency-icons 0.18.1 (CC0 1.0).
 img/sieci/  — web3icons @web3icons/core 4.0.56, licencja MIT.
-img/gieldy/ — web3icons @web3icons/core 4.0.56, licencja MIT.
+img/gieldy/ — web3icons @web3icons/core 4.0.56, licencja MIT (dydx.svg — ikona tokena DYDX z tej samej paczki).
               Copyright (c) 2024 0xa3k5
 img/glify/  — rysunki własne CapitalFlowAI.
 img/wezly/  — zdjęcia węzłów sceny CRYPTO (gaming, giełdy, memecoiny) dostarczone przez właściciela strony (26.09.2026); używane tylko na tej stronie.

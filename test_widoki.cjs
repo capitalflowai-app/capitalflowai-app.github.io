@@ -4002,7 +4002,7 @@ test('v109-dzwignia2: tabela giełd z Kraken, Coinbase i dYdX (loga, znaczek dYd
   const I = v96src.H; const f = lev104.mk({coinImg: I.coinImg, exchImg: I.exchImg, glyphImg: I.glyphImg}); const j = lev109.fix(); f.levApply(j); const h = f.el.innerHTML;
   const tab = h.slice(h.indexOf('lev.h.ven'), h.indexOf('lev.h.tab'));
   assert.ok(tab.includes('<th>lev.c.ls</th><th>lev.c.vol</th><th>lev.c.when</th>'), 'kolumna obrotu przed „stan na”');
-  assert.ok(tab.includes('img/gieldy/kraken.svg') && tab.includes('img/gieldy/coinbase.svg') && /class="iss sm"[^>]*title="dYdX"/.test(tab), 'loga Kraken i Coinbase, znaczek dYdX');
+  assert.ok(tab.includes('img/gieldy/kraken.svg') && tab.includes('img/gieldy/coinbase.svg') && tab.includes('img/gieldy/dydx.svg'), 'loga Kraken, Coinbase i dYdX (v109.2: logo z paczki ikon zamiast znaczka)');
   const kr = tab.slice(tab.indexOf('title="Kraken"'), tab.indexOf('title="Kraken"') + 800);
   assert.ok(kr.includes('<td><span class="cell mono neg">−2.6%</span></td><td><span class="cell mono">0.18</span></td><td><span class="cell mono na" title="lev.np">—</span></td><td><span class="cell mono">321</span></td><td><span class="cell mono">D:' + lev104.now), 'Kraken BTC: finansowanie ujemne czerwono, 0,18 mld, bez stosunku kont, obrót 321 mln, własny czas: ' + kr.slice(0, 500));
   assert.ok(tab.includes('<td><span class="cell mono pos">+7.0%</span></td><td><span class="cell mono">0.09</span></td>'), 'Coinbase BTC: +7,0 %, 0,09 mld');
@@ -4206,3 +4206,8 @@ test('v108.1: noty Bybit/KuCoin nie mówią „wszystkie portfele” (raport obe
   }
   assert.ok(v96src.tFor('pl')('wh.n.Bybit').startsWith('Portfele giełdy w sieci Ethereum wymienione w jej'));
 });
+test('v109.2: logo dYdX z tej samej paczki ikon (wpis EXCH_SVG; plik img/gieldy/dydx.svg kopiowany z obszarem)', () => {
+  assert.ok(html.includes("EXCH_SVG={dydx:'dydx',binance:'binance',"));
+  assert.ok(html.includes("if(k==='hyperliquid')") && html.includes("icoImg('img/gieldy/'+f+'.svg'"), 'exchImg mapuje nazwę giełdy na plik z img/gieldy');
+});
+
