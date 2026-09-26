@@ -2082,15 +2082,29 @@ function drawIconOn(c,id,x,y,s,alpha,bg){
 }
 const drawIcon=(id,x,y,s,alpha)=>drawIconOn(g,id,x,y,s,alpha);
 const urlCache={};
+/* v116: zdjęcia węzłów (gaming, memecoiny, giełdy) przy ≤ SMALL_PX są ciemnym krążkiem — próbowano ciaśniejszego kadru (55 % i 40 %) z podbitą jasnością
+   i kontrastem: przy 14–20 px nadal nieczytelne (zrzut porównawczy w checkpoints/). W pasku i chipach rysujemy więc własne proste piktogramy, białe na kolorze
+   węzła: pad do gier (zaokrąglony prostokąt, krzyżyk, dwa kółka), buźka (dwa oczy, szeroki uśmiech), giełdy (dwie strzałki wymiany). Liczone raz na rozmiar
+   i motyw (urlCache). Scena 3D bez zmian — tam zdjęcia (drawIconOn). */
+const SMALL_PX=24;
+const SMALL_PICTO={
+  gaming(c,px,col){const w=px*.66,hh=px*.38,a=px*.05;c.fillStyle='#fff';c.beginPath();c.roundRect(-w/2,-hh/2,w,hh,hh*.5);c.fill();
+    c.fillStyle=col;c.fillRect(-w*.33-a*.5,-a*1.5,a,a*3);c.fillRect(-w*.33-a*1.5,-a*.5,a*3,a);c.beginPath();c.arc(w*.28,-a*.9,a*.7,0,7);c.arc(w*.36,a*.9,a*.7,0,7);c.fill();},
+  meme(c,px,col){c.fillStyle='#fff';c.beginPath();c.arc(0,0,px*.34,0,Math.PI*2);c.fill();c.fillStyle=col;c.strokeStyle=col;c.beginPath();c.arc(-px*.12,-px*.09,px*.05,0,7);c.arc(px*.12,-px*.09,px*.05,0,7);c.fill();
+    c.lineWidth=px*.07;c.lineCap='round';c.beginPath();c.arc(0,px*.02,px*.2,Math.PI*.15,Math.PI*.85);c.stroke();},
+  exch(c,px){c.strokeStyle='#fff';c.lineWidth=px*.1;c.lineCap='round';c.lineJoin='round';const L=px*.3,d=px*.12;c.beginPath();c.moveTo(-L,-d);c.lineTo(L,-d);c.moveTo(L-d,-2*d);c.lineTo(L,-d);c.lineTo(L-d,0);
+    c.moveTo(L,d);c.lineTo(-L,d);c.moveTo(-L+d,0);c.lineTo(-L,d);c.lineTo(-L+d,2*d);c.stroke();}
+};
+function smallPicto(c,id,px){const r=px/2,col=`hsl(${hueOf(id)} 40% ${PAL.dark?38:42}%)`;c.fillStyle=col;c.beginPath();c.arc(r,r,r,0,Math.PI*2);c.fill();c.save();c.translate(r,r);SMALL_PICTO[id](c,px,col);c.restore();}
 function iconURL(id,px=56){
-  const src=logoSrc(id);if(src)return src;
+  const src=logoSrc(id);if(src&&!(px<=SMALL_PX&&SMALL_PICTO[id]))return src;
   const key=id+'|'+px+'|'+(PAL.dark?'d':'l');if(urlCache[key])return urlCache[key];
   const cv=document.createElement('canvas');cv.width=px*2;cv.height=px*2;const c=cv.getContext('2d');c.scale(2,2);
-  drawIconOn(c,id,px/2,px/2,px*.36,1,true);
+  if(src)smallPicto(c,id,px);else drawIconOn(c,id,px/2,px/2,px*.36,1,true);
   return urlCache[key]=cv.toDataURL('image/png');
 }
-const logoTag=(id,cls='logo-img')=>`<img class="${cls}" src="${iconURL(id)}" alt="" width="20" height="20">`;
-function refreshLogoImgs(){$$('img.logo-img[data-id]').forEach(im=>{im.src=iconURL(im.dataset.id);});}
+const logoTag=(id,cls='logo-img')=>`<img class="${cls}" src="${iconURL(id,20)}" alt="" width="20" height="20">`;
+function refreshLogoImgs(){$$('img.logo-img[data-id]').forEach(im=>{im.src=iconURL(im.dataset.id,+im.getAttribute('width')||+im.dataset.px||56);});}   /* v116: ten sam rozmiar co przy pierwszym rysowaniu */
 /* ===================== v96: FLAGI, LOGA, WALUTY, ZNACZKI WYDAWCÓW =====================
    Obrazki z folderu img/ tej samej strony — przeglądarka nie łączy się z obcymi serwerami:
    flagi — country-flag-icons (MIT); krypto, sieci i giełdy — web3icons (MIT) i cryptocurrency-icons (CC0); glify — własne.
@@ -2138,7 +2152,8 @@ const NET_SVG={ethereum:'ethereum',tron:'tron',bsc:'binance-smart-chain','bnb ch
 function netImg(name,cls){const k=String(name||'').trim().toLowerCase(),f=NET_SVG[k];return f?icoImg('img/sieci/'+f+'.svg',cls,name):monoBadge(String(name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'?',`hsl(${hueOf(k)} 30% 34%)`,cls,name);}
 /* giełdy krypto („Binance (Futures)” → Binance); Hyperliquid — logo sieci */
 const EXCH_SVG={dydx:'dydx',binance:'binance',bybit:'bybit',okx:'okx',okex:'okx',coinbase:'coinbase',kraken:'kraken',bitget:'bitget',gate:'gate-io','gate.io':'gate-io',kucoin:'kucoin',upbit:'upbit',bithumb:'bithumb',bitstamp:'bitstamp',gemini:'gemini','crypto.com':'crypto-com'};
-function exchImg(name,cls){const k=String(name||'').trim().toLowerCase().split(/[\s(]/)[0];if(k==='hyperliquid')return icoImg('img/sieci/hyper-evm.svg',cls,name);const f=EXCH_SVG[k];return f?icoImg('img/gieldy/'+f+'.svg',cls,name):monoBadge(k.slice(0,2).toUpperCase()||'?',`hsl(${hueOf(k)} 30% 34%)`,cls,name);}
+const EXCH_MONO={bitfinex:'BFX'};   /* v116: giełda bez logo w paczce ikon — powszechny skrót zamiast dwóch pierwszych liter */
+function exchImg(name,cls){const k=String(name||'').trim().toLowerCase().split(/[\s(]/)[0];if(k==='hyperliquid')return icoImg('img/sieci/hyper-evm.svg',cls,name);const f=EXCH_SVG[k];return f?icoImg('img/gieldy/'+f+'.svg',cls,name):monoBadge(EXCH_MONO[k]||k.slice(0,2).toUpperCase()||'?',`hsl(${hueOf(k)} 30% 34%)`,cls,name);}
 /* wydawcy funduszy — własne monogramy (nazwa w podpowiedzi); kolejność ważna: ARK przed 21Shares */
 const ISS={ishares:['iShares (BlackRock)','iS','#5A5A5E'],ssga:['SPDR (State Street)','SP','#0B4EA2'],fidelity:['Fidelity','F','#2F7D32'],grayscale:['Grayscale','G','#56565C'],bitwise:['Bitwise','BW','#5B34D6'],ark:['ARK Invest · 21Shares','A21','#4A4A52'],s21:['21Shares','21','#55555D'],vaneck:['VanEck','VE','#0A3D8F'],ms:['Morgan Stanley','MS','#0A2A4F'],valkyrie:['CoinShares Valkyrie','VK','#3B2C85'],coinshares:['CoinShares','CS','#3B2C85'],franklin:['Franklin Templeton','FT','#0E3A78'],invesco:['Invesco Galaxy','IG','#0A2E6E'],wisdomtree:['WisdomTree','WT','#C8402A'],canary:['Canary Capital','CC','#9C7A12'],vanguard:['Vanguard','V','#8F1D22'],globalx:['Global X','GX','#00355F'],hashdex:['Hashdex','H','#1D3F5E']};
 const ISS_BY_NAME=[[/ishares|blackrock/i,'ishares'],[/spdr|state street/i,'ssga'],[/fidelity/i,'fidelity'],[/grayscale/i,'grayscale'],[/bitwise/i,'bitwise'],[/\bark\b/i,'ark'],[/21shares/i,'s21'],[/vaneck/i,'vaneck'],[/morgan stanley/i,'ms'],[/valkyrie/i,'valkyrie'],[/coinshares/i,'coinshares'],[/franklin/i,'franklin'],[/invesco|galaxy/i,'invesco'],[/wisdomtree/i,'wisdomtree'],[/canary/i,'canary'],[/vanguard/i,'vanguard'],[/global x/i,'globalx'],[/hashdex/i,'hashdex']];
@@ -4701,7 +4716,7 @@ function gMemStats(){
 /* ===================== STRONY Z MENU ===================== */
 function gActive(){return st.mode!=='crypto';}   /* v89: w TRENDACH strony z menu pokazują dane GLOBAL */
 /* v96: ikony stron z menu — region z flagami, grupa krypto ze swoim logo, fundusz ETF z glifem i logo monety (nic bez flagi albo logo) */
-function pgLogo(id){return `<img class="ico logo-img" data-id="${escH(id)}" src="${escH(iconURL(id))}" alt="">`;}   /* data-id: nowy motyw podmienia obrazek (refreshLogoImgs) */
+function pgLogo(id){return `<img class="ico logo-img" data-id="${escH(id)}" data-px="18" src="${escH(iconURL(id,18))}" alt="">`;}   /* .ico = 18 px */   /* data-id: nowy motyw podmienia obrazek (refreshLogoImgs) */
 function pgIco(id){
   if(gActive()){
     if(id==='crypto')return icoWrap(coinImg('BTC'));
@@ -5717,9 +5732,10 @@ function renderTop10(id){
    przez refreshLogoImgs, stąd klasa logo-img i data-id). Bez pomocników (np. testy w piaskownicy) — bez ikony, tekst zostaje. */
 function cCoins(syms,cls){return (typeof coinImg==='function'&&typeof icoWrap==='function')?icoWrap((syms||[]).map(s=>coinImg(s,cls)).join('')):'';}
 function cGrp(id,cls,title){
-  if(typeof iconURL!=='function')return '';let u='';try{u=iconURL(id);}catch(e){u='';}if(!u)return '';
+  const px=cls==='sm'?14:cls==='lg'?24:18;   /* v116: rozmiar wg klasy .ico (14 / 18 / 24 px) — zdjęcia węzłów dostają piktogram */
+  if(typeof iconURL!=='function')return '';let u='';try{u=iconURL(id,px);}catch(e){u='';}if(!u)return '';
   const tt=title==null?nName(id):title;
-  return `<img class="ico logo-img${cls?' '+cls:''}" data-id="${escH(id)}" src="${escH(u)}" alt=""${tt?` title="${escH(tt)}"`:''} decoding="async">`;}
+  return `<img class="ico logo-img${cls?' '+cls:''}" data-id="${escH(id)}" data-px="${px}" src="${escH(u)}" alt=""${tt?` title="${escH(tt)}"`:''} decoding="async">`;}
 function cGrpW(id,cls,title){const h=cGrp(id,cls,title);return h&&typeof icoWrap==='function'?icoWrap(h):h;}
 const liveWhen=()=>LIVE.at?new Date(LIVE.at).toLocaleString(LOCALE[LANG]||'pl-PL',{dateStyle:'short',timeStyle:'short'}):'—';
 function renderDetails(){
@@ -5758,7 +5774,7 @@ function renderChips(){
   const D=DATA[st.period];
   $('#chips').innerHTML=`<span class="lbl">${t('chips')}</span>`+NODES.slice().sort((a,b)=>Math.abs(D[b.id][0])-Math.abs(D[a.id][0])).map(n=>{
     const [v,p]=D[n.id],on=isSel(n),dir=v>0?'in':v<0?'out':'eq';   /* v96: zero — „•” bez koloru */
-    return `<button class="chip-n ${dir}" data-n="${n.id}" aria-pressed="${!!on}"><img class="logo-img" data-id="${n.id}" src="${iconURL(n.id)}" alt="" width="18" height="18">${nName(n.id)}<span class="p">${dir==='in'?'▲':dir==='out'?'▼':'•'} ${fPct(p)}</span></button>`;}).join('');
+    return `<button class="chip-n ${dir}" data-n="${n.id}" aria-pressed="${!!on}"><img class="logo-img" data-id="${n.id}" src="${iconURL(n.id,18)}" alt="" width="18" height="18">${nName(n.id)}<span class="p">${dir==='in'?'▲':dir==='out'?'▼':'•'} ${fPct(p)}</span></button>`;}).join('');
   $$('#chips button').forEach(b=>b.addEventListener('click',()=>select({type:'node',id:b.dataset.n})));
 }
 function renderLegend(){
@@ -5829,7 +5845,7 @@ function renderList(){
   const D=DATA[st.period],mx=Math.max(...NODES.map(n=>Math.abs(D[n.id][0])));
   const rows=NODES.slice().sort((a,b)=>Math.abs(D[b.id][0])-Math.abs(D[a.id][0])).map(n=>{
     const [v,p]=D[n.id],cls=v>0?'pos':v<0?'neg':'',s=Math.max(10,26*Math.sqrt(Math.abs(v)/(mx||1))),on=isSel(n);   /* v96: zero bez koloru */
-    return `<tr class="${on?'sel':''}"><td><button class="cell" data-n="${n.id}" aria-pressed="${!!on}"><img class="logo-img" data-id="${n.id}" src="${iconURL(n.id)}" alt="" width="26" height="26"><b>${nName(n.id)}</b><span class="sz ${cls||'eq'}" style="width:${(s*1.6).toFixed(0)}px" aria-hidden="true"></span></button></td>
+    return `<tr class="${on?'sel':''}"><td><button class="cell" data-n="${n.id}" aria-pressed="${!!on}"><img class="logo-img" data-id="${n.id}" src="${iconURL(n.id,26)}" alt="" width="26" height="26"><b>${nName(n.id)}</b><span class="sz ${cls||'eq'}" style="width:${(s*1.6).toFixed(0)}px" aria-hidden="true"></span></button></td>
     <td><span class="cell ${cls}"><b>${v>0?'▲':v<0?'▼':'•'} ${fInt(v)}</b></span></td><td><span class="cell ${cls}">${fPct(p)}</span></td><td><span class="cell">${v>0?t('d.in'):v<0?t('d.out'):t('d.eq')}</span></td></tr>`;}).join('');
   wrap.innerHTML=`<table><caption style="position:absolute;left:-9999px">${t('list.cap',{p:t('per.'+st.period)})}</caption><thead><tr><th>${t('list.asset')}</th><th>${t('list.net')} (${t('u.m')})</th><th>${t('list.pct')}</th><th>${t('list.dir')}</th></tr></thead><tbody>${rows}</tbody></table>`;
   $$('button[data-n]',wrap).forEach(b=>b.addEventListener('click',()=>select({type:'node',id:b.dataset.n})));

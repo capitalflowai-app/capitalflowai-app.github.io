@@ -4271,3 +4271,15 @@ test('v114: archiwum własne na stronie — słownik EXTRA107 (10 języków), se
   assert.ok(svg.includes('<polyline class="arc-l l1"') && (svg.match(/<polyline/g) || []).length === 2 && svg.includes('2026-09-01') && svg.includes('2026-09-21'), 'dwa odcinki (luka), daty skrajne');
   assert.ok(env.arcChart([{d: [], cls: 'l1'}], '%', false).includes('arc-empty') && env.arcChart([{d: [['2026-09-26', 1]], cls: 'l1'}], '%', true).includes('<circle'), 'pusto = napis; jeden punkt = kropka');
 });
+
+test('v116: małe ikony — piktogramy własne dla zdjęć węzłów przy ≤ 24 px (pasek, chipy), scena 3D bez zmian, Bitfinex „BFX”', () => {
+  assert.ok(html.includes("const EXCH_MONO={bitfinex:'BFX'};") && html.includes("monoBadge(EXCH_MONO[k]||k.slice(0,2).toUpperCase()||'?'"), 'BFX zamiast BI');
+  assert.ok(html.includes('const SMALL_PX=24;') && html.includes('const SMALL_PICTO={') && /gaming\(c,px,col\)\{/.test(html) && /meme\(c,px,col\)\{/.test(html) && /exch\(c,px\)\{/.test(html), 'trzy piktogramy: pad, buźka, strzałki');
+  assert.ok(html.includes("const src=logoSrc(id);if(src&&!(px<=SMALL_PX&&SMALL_PICTO[id]))return src;") && html.includes('if(src)smallPicto(c,id,px);else drawIconOn('), 'zdjęcie tylko powyżej 24 px');
+  assert.ok(html.includes("src=\"${iconURL(id,20)}\" alt=\"\" width=\"20\"") && html.includes("src=\"${iconURL(n.id,18)}\" alt=\"\" width=\"18\"") && html.includes("src=\"${iconURL(n.id,26)}\" alt=\"\" width=\"26\"") && html.includes('data-px="18" src="${escH(iconURL(id,18))}"'), 'rozmiar przekazany do iconURL');
+  assert.ok(html.includes("im.src=iconURL(im.dataset.id,+im.getAttribute('width')||+im.dataset.px||56)"), 'zmiana motywu zachowuje rozmiar');
+  assert.ok(html.includes("const px=cls==='sm'?14:cls==='lg'?24:18;") && html.includes('u=iconURL(id,px);') && html.includes('data-px="${px}" src="${escH(u)}"'), 'chipy .ico wg klasy: 14 / 18 / 24 px');
+  const scene = html.slice(html.indexOf('function drawIconOn('), html.indexOf('const drawIcon=('));
+  assert.ok(scene.includes('const im=logoImg(id);') && !scene.includes('SMALL_PICTO') && scene.includes('LOGO_PHOTO.has(id)'), 'scena 3D rysuje zdjęcia jak dotąd');
+  assert.ok(!/emoji|😀|🎮/.test(html.slice(html.indexOf('const SMALL_PICTO='), html.indexOf('function iconURL('))), 'własne kształty, nie emoji');
+});
