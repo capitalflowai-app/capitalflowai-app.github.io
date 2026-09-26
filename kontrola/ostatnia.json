@@ -1,109 +1,127 @@
 {
- "at": "2026-09-26T13:11:11+00:00",
+ "at": "2026-09-26T13:31:11+00:00",
  "strona": {
   "http": 200,
-  "bajty": 1926229,
-  "ms": 457,
+  "bajty": 1933284,
+  "ms": 135,
   "ok": true
  },
  "meta": {
-  "at": "2026-09-26T13:08:58+00:00",
-  "wiek_min": 2,
+  "at": "2026-09-26T13:26:18+00:00",
+  "wiek_min": 4,
   "zrodla": 52,
-  "bez_odpowiedzi": [],
-  "errors": [],
+  "bez_odpowiedzi": [
+   "indeksy_ix"
+  ],
+  "errors": [
+   "Indeksy: FTSE: pusta odpowiedź; EODHD HTTP 404 — nieznany kod FTMIB.INDX"
+  ],
   "notes": []
  },
  "pliki": {
   "etf": {
    "http": 200,
    "bajty": 9493,
-   "wiek_min": 27,
+   "wiek_min": 47,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
    "http": 200,
    "bajty": 16777,
-   "wiek_min": 2,
+   "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "oecd": {
    "http": 200,
    "bajty": 20527,
-   "wiek_min": 147,
+   "wiek_min": 167,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
    "bajty": 16991,
-   "wiek_min": 27,
+   "wiek_min": 47,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
    "bajty": 5074,
-   "wiek_min": 8,
+   "wiek_min": 28,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 68196,
-   "wiek_min": 2,
+   "bajty": 68739,
+   "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
    "bajty": 8918,
-   "wiek_min": 27,
+   "wiek_min": 47,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 4852,
-   "wiek_min": 27,
+   "wiek_min": 47,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
    "bajty": 25684,
-   "wiek_min": 1108,
+   "wiek_min": 1128,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
    "bajty": 29333,
-   "wiek_min": 27,
+   "wiek_min": 47,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
    "bajty": 15212,
-   "wiek_min": 8,
+   "wiek_min": 28,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
    "http": 200,
    "bajty": 28118,
-   "wiek_min": 943,
+   "wiek_min": 963,
    "czesci_bez_odpowiedzi": []
   },
   "cm": {
    "http": 200,
    "bajty": 8786,
-   "wiek_min": 27,
+   "wiek_min": 47,
    "czesci_bez_odpowiedzi": []
   },
   "fred": {
    "http": 200,
    "bajty": 13047,
-   "wiek_min": 8,
+   "wiek_min": 28,
    "czesci_bez_odpowiedzi": []
   },
   "cftc": {
    "http": 200,
    "bajty": 19422,
-   "wiek_min": 188,
+   "wiek_min": 208,
    "czesci_bez_odpowiedzi": []
+  },
+  "ceny": {
+   "http": 200,
+   "bajty": 105222,
+   "wiek_min": 28,
+   "czesci_bez_odpowiedzi": []
+  },
+  "indeksy": {
+   "http": 200,
+   "bajty": 64416,
+   "wiek_min": 4,
+   "czesci_bez_odpowiedzi": [
+    "ix"
+   ]
   },
   "robots.txt": {
    "http": 200,
@@ -119,34 +137,35 @@
   }
  },
  "actions": {
-  "przebiegi_24h": 86,
+  "przebiegi_24h": 83,
   "wg_wyniku": {
-   "success": 84,
-   "failure": 1,
+   "in_progress": 1,
+   "success": 79,
+   "failure": 2,
    "cancelled": 1
   },
-  "ostatni": "2026-09-26T13:08:45Z",
-  "ostatnia_porazka": "2026-09-26T11:13:46Z"
+  "ostatni": "2026-09-26T13:31:03Z",
+  "ostatnia_porazka": "2026-09-26T13:25:48Z"
  },
  "swiezosc": [
   {
    "zrodlo": "rynki (kursy EBC, rentowności)",
    "status": "✅",
-   "wiek_min": 27,
+   "wiek_min": 47,
    "data": "2026-09-26T12:43:24+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "wieloryby (salda portfeli giełd)",
    "status": "✅",
-   "wiek_min": 2,
-   "data": "2026-09-26T13:08:58+00:00",
+   "wiek_min": 4,
+   "data": "2026-09-26T13:26:18+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "dźwignia (giełdy pochodnych)",
    "status": "✅",
-   "wiek_min": 8,
+   "wiek_min": 28,
    "data": "2026-09-26T13:02:12+00:00",
    "uwaga": ""
   },
@@ -174,42 +193,42 @@
   {
    "zrodlo": "EIA ceny dzienne (publikowane co tydzień)",
    "status": "✅",
-   "wiek_min": 5111,
+   "wiek_min": 5131,
    "data": "2026-09-22",
    "uwaga": ""
   },
   {
    "zrodlo": "CFTC (raport tygodniowy)",
    "status": "✅",
-   "wiek_min": 5111,
+   "wiek_min": 5131,
    "data": "2026-09-22",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED tygodniowe (WALCL)",
    "status": "✅",
-   "wiek_min": 3671,
+   "wiek_min": 3691,
    "data": "2026-09-23",
    "uwaga": ""
   },
   {
    "zrodlo": "TIC (miesięcznie)",
    "status": "✅",
-   "wiek_min": 81431,
+   "wiek_min": 81451,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "OECD (miesięcznie)",
    "status": "✅",
-   "wiek_min": 36791,
+   "wiek_min": 36811,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "BLS (miesięcznie)",
    "status": "✅",
-   "wiek_min": 36791,
+   "wiek_min": 36811,
    "data": "2026-08",
    "uwaga": ""
   }
@@ -217,21 +236,21 @@
  "zgodnosc": {
   "kapitalizacja": {
    "status": "ℹ️",
-   "dzis_pct": 4.15,
+   "dzis_pct": 4.451,
    "mediana_pct": null,
    "dni": 0,
    "opis": "historia 0 z 7 dni — bez oceny"
   },
   "ceny": {
    "bitcoin": {
-    "a": 84077.0,
-    "b": 84108.7398173336,
-    "roznica_pct": 0.038
+    "a": 83884.0,
+    "b": 83909.72424247176,
+    "roznica_pct": 0.031
    },
    "ethereum": {
-    "a": 2689.68,
-    "b": 2691.091687336084,
-    "roznica_pct": 0.052
+    "a": 2683.46,
+    "b": 2683.956401999054,
+    "roznica_pct": 0.018
    }
   },
   "tga": {
@@ -244,12 +263,19 @@
    "dni": 0,
    "opis": "historia 0 z 7 dni — bez oceny"
   },
+  "etf": {
+   "porownane": 14,
+   "roznice": []
+  },
   "wieloryby": null
  },
  "uwagi": [
-  "1 nieudany przebieg automatu w 24 h (ostatni: 26.09.2026, 13:13)"
+  "źródła bez odpowiedzi w ostatnim przebiegu: indeksy_ix",
+  "błąd zbieracza: Indeksy: FTSE: pusta odpowiedź; EODHD HTTP 404 — nieznany kod FTMIB.INDX",
+  "indeksy.json: części bez odpowiedzi: ix",
+  "2 nieudany przebieg automatu w 24 h (ostatni: 26.09.2026, 15:25)"
  ],
  "bledy": [],
- "historia_n": 2,
+ "historia_n": 3,
  "wynik": "UWAGA"
 }
