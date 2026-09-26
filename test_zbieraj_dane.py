@@ -5807,6 +5807,32 @@ class ArchiwumV113(unittest.TestCase):
         idx4 = self.a.run({'rentownosci': lambda: [['2026-09-26', 4.3, 2.7, 1.6]]}, arch=arch)
         self.assertEqual(idx4['files']['rentownosci']['rows'], 1); self.assertTrue(any('nagłówek' in n for n in idx4['notes']))
 
+    def test_seria_json(self):
+        import shutil
+        arch = os.path.join(self.tmp, 'seria'); shutil.rmtree(arch, ignore_errors=True)
+        idx = self.a.run({'rentownosci': lambda: [['2026-09-24', 4.1, None, None], ['2026-09-25', 4.2, 2.6, 1.6]],
+                          'wieloryby': lambda: [['2026-09-26', 'Binance', 'ETH', 10.0, 25000.0, 0.0, 0.0, 0.0, 5], ['2026-09-26', 'Binance', 'USDT', 100.0, 100.0, 0.0, 0.0, 0.0, 5],
+                                                ['2026-09-26', 'OKX', 'USDC', 7.0, 7.0, None, None, None, 5], ['2026-09-27', 'Binance', 'ETH', 10.0, None, None, None, None, 6], ['2026-09-27', 'Binance', 'USDT', 100.0, 100.0, 0.0, 0.0, 0.0, 6]],
+                          'tic': lambda: [['2026-06', 'All Countries', 100, 'slt1_for_lt_total_net'], ['2026-06', 'Japan', 5, 'slt1_for_lt_total_net'], ['2026-06', 'All Countries', -20, 'slt2_us_lt_total_net']],
+                          'cftc-krypto': lambda: [['2026-09-22', 'BTC', 'lev_funds', 10, 12, -2], ['2026-09-22', 'BTC', 'nonrept', 1, 1, 0]],
+                          'stablecoiny-eth': lambda: [['2026-09-26', 'USDT', 88.5]],
+                          'plynnosc': lambda: [['2026-09-25', 6600000.0, 800000.0, 120500.0, 5679500.0, 'walcl@2026-09-24,tga@2026-09-24']]}, arch=arch)
+        self.assertEqual(idx['errors'], [])
+        j = json.load(open(os.path.join(arch, 'seria.json'), encoding='utf-8'))
+        S = j['series']
+        self.assertEqual(S['rent.ust']['d'], [['2026-09-24', 4.1], ['2026-09-25', 4.2]]); self.assertEqual(S['rent.bund']['d'], [['2026-09-25', 2.6]], 'pusta komórka = brak punktu')
+        self.assertEqual((S['rent.spread']['unit'], S['rent.spread']['n'], S['rent.ust']['first'], S['rent.ust']['last']), ('pp', 1, '2026-09-24', '2026-09-25'))
+        self.assertEqual(S['wh.Binance']['d'], [['2026-09-26', 25100.0]], 'suma USD giełdy; dzień z ETH bez kursu = bez punktu (nie suma częściowa)'); self.assertEqual(S['wh.OKX']['d'], [['2026-09-26', 7.0]])
+        self.assertEqual((S['tic.in']['d'], S['tic.out']['d'], S['tic.in']['freq']), ([['2026-06', 100.0]], [['2026-06', -20.0]], 'M'), 'tylko „All Countries”')
+        self.assertEqual(S['cftc.btc.lev']['d'], [['2026-09-22', -2.0]]); self.assertEqual(S['cftc.eth.lev']['d'], []); self.assertNotIn('cftc.btc.nonrept', S)
+        self.assertEqual((S['stab.usdt']['d'], S['stab.usdc']['d']), ([['2026-09-26', 88.5]], []))
+        self.assertEqual(S['plyn.net']['d'], [['2026-09-25', 5679500.0]]); self.assertEqual(S['plyn.rrp']['unit'], 'mln USD')
+        self.assertEqual(idx['seria']['rent.ust'], 2); self.assertIn('credit', j)
+        big = os.path.join(self.tmp, 'seria-big'); shutil.rmtree(big, ignore_errors=True)
+        self.a.run({'rentownosci': lambda: [['2024-%02d-%02d' % (1 + i // 28, 1 + i % 28), 1.0 + i, None, None] for i in range(300)] + [['2025-%02d-%02d' % (1 + i // 28, 1 + i % 28), 2.0, None, None] for i in range(300)]}, arch=big)
+        j2 = json.load(open(os.path.join(big, 'seria.json'), encoding='utf-8'))
+        self.assertEqual(j2['series']['rent.ust']['n'], self.a.SERIA_N, 'najwyżej SERIA_N ostatnich punktów; pełna historia w CSV'); self.assertTrue(j2['series']['rent.ust']['first'].startswith('2024-'))
+
     def test_workflow_and_build_step(self):
         wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'archiwum.yml'), encoding='utf-8').read()
         self.assertIn("cron: '20 0 * * *'", wf); self.assertIn('[skip ci]', wf); self.assertIn('FRED_KEY: ${{ secrets.FRED_KEY }}', wf)

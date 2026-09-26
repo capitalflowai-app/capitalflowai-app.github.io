@@ -324,6 +324,75 @@ def src_rentownosci(today=None):
 
 NOTES = []   # informacje z przebiegu (część źródła bez odpowiedzi itp.) — do indeks.json, nie do kodu wyjścia
 
+SERIA_N = 400   # najwyżej tyle ostatnich punktów jednej serii w seria.json (365 dni + zapas); pełna historia zostaje w CSV
+
+
+def _f(s):
+    try:
+        v = float(s)
+    except (TypeError, ValueError):
+        return None
+    return v if v == v else None
+
+
+def seria(arch):
+    """archiwum/seria.json — widok archiwum dla strony (wykresy 30/90/365 dni): kilkanaście szeregów [[dzień, wartość]] z plików CSV
+    na dysku (także tych sprzed tego przebiegu). Pusta komórka = brak punktu (nigdy zero). Pełna historia i wszystkie kolumny są w CSV."""
+    out = {}
+
+    def add(sid, unit, freq, src_name, file):
+        out[sid] = {'d': [], 'unit': unit, 'freq': freq, 'src': src_name, 'file': file}
+
+    def put(sid, day, v):
+        if v is not None:
+            out[sid]['d'].append([day, v])
+
+    rows, _ = read_csv(os.path.join(arch, 'plynnosc.csv'), FILES['plynnosc']['cols'])
+    for sid, col in (('plyn.net', 4), ('plyn.walcl', 1), ('plyn.tga', 2), ('plyn.rrp', 3)):
+        add(sid, 'mln USD', 'D', 'fred', 'plynnosc.csv')
+    for r in rows.values():
+        for sid, col in (('plyn.net', 4), ('plyn.walcl', 1), ('plyn.tga', 2), ('plyn.rrp', 3)):
+            put(sid, r[0], _f(r[col]))
+    rows, _ = read_csv(os.path.join(arch, 'rentownosci.csv'), FILES['rentownosci']['cols'])
+    add('rent.ust', '%', 'D', 'rent', 'rentownosci.csv'); add('rent.bund', '%', 'D', 'rent', 'rentownosci.csv'); add('rent.spread', 'pp', 'D', 'rent', 'rentownosci.csv')
+    for r in rows.values():
+        put('rent.ust', r[0], _f(r[1])); put('rent.bund', r[0], _f(r[2])); put('rent.spread', r[0], _f(r[3]))
+    rows, _ = read_csv(os.path.join(arch, 'tic.csv'), FILES['tic']['cols'])
+    add('tic.in', 'mln USD', 'M', 'tic', 'tic.csv'); add('tic.out', 'mln USD', 'M', 'tic', 'tic.csv')
+    for r in rows.values():
+        if r[1] == 'All Countries':
+            put('tic.in' if r[3].startswith('slt1') else 'tic.out', r[0], _f(r[2]))
+    rows, _ = read_csv(os.path.join(arch, 'cftc-krypto.csv'), FILES['cftc-krypto']['cols'])
+    grp = {'lev_funds': 'lev', 'asset_mgr': 'am', 'dealer': 'dealer'}
+    for c in ('btc', 'eth'):
+        for g in grp.values():
+            add(f'cftc.{c}.{g}', 'kontrakty', 'W', 'cftc', 'cftc-krypto.csv')
+    for r in rows.values():
+        if r[2] in grp and r[1].lower() in ('btc', 'eth'):
+            put(f'cftc.{r[1].lower()}.{grp[r[2]]}', r[0], _f(r[5]))
+    rows, _ = read_csv(os.path.join(arch, 'stablecoiny-eth.csv'), FILES['stablecoiny-eth']['cols'])
+    add('stab.usdt', 'USDT', 'D', 'stab', 'stablecoiny-eth.csv'); add('stab.usdc', 'USDC', 'D', 'stab', 'stablecoiny-eth.csv')
+    for r in rows.values():
+        if r[1] in ('USDT', 'USDC'):
+            put('stab.' + r[1].lower(), r[0], _f(r[2]))
+    rows, _ = read_csv(os.path.join(arch, 'wieloryby.csv'), FILES['wieloryby']['cols'])
+    wh = {}
+    for r in rows.values():   # suma USD giełdy w dniu; aktywo bez wartości w USD (np. ETH bez kursu) = giełda bez sumy tego dnia (suma częściowa byłaby fałszem)
+        k, v = (r[1], r[0]), _f(r[4])
+        if k in wh and wh[k] is None:
+            continue
+        wh[k] = None if v is None else wh.get(k, 0.0) + v
+    for (g, day) in sorted(wh):
+        sid = 'wh.' + g
+        if sid not in out:
+            add(sid, 'USD', 'D', 'wh', 'wieloryby.csv')
+        put(sid, day, None if wh[(g, day)] is None else round(wh[(g, day)], 2))
+    for sid, s in out.items():
+        s['d'] = sorted(s['d'])[-SERIA_N:]
+        s['n'] = len(s['d']); s['first'] = s['d'][0][0] if s['d'] else None; s['last'] = s['d'][-1][0] if s['d'] else None
+    return {'at': NOW.isoformat(), 'credit': CREDIT, 'series': out}
+
+
 
 def run(sources, arch=None, prev_index=None):
     """sources: nazwa → funkcja zwracająca wiersze. Zapisuje CSV i indeks.json; zwraca indeks (z listą błędów)."""
@@ -356,6 +425,13 @@ def run(sources, arch=None, prev_index=None):
             idx['errors'].append(msg); print('BŁĄD', msg)
         idx['files'][name] = rec
     os.makedirs(arch, exist_ok=True)
+    try:   # widok dla strony z plików na dysku — także gdy część źródeł zawiodła (stare wiersze zostają)
+        sj = seria(arch)
+        with open(os.path.join(arch, 'seria.json'), 'w', encoding='utf-8') as f:
+            json.dump(sj, f, ensure_ascii=False, separators=(',', ':'))
+        idx['seria'] = {k: v['n'] for k, v in sj['series'].items()}
+    except Exception as e:  # noqa
+        idx['errors'].append(zd.mask(f'seria.json: {e}')[:300])
     with open(os.path.join(arch, 'indeks.json'), 'w', encoding='utf-8') as f:
         json.dump(idx, f, ensure_ascii=False, indent=1)
     return idx
