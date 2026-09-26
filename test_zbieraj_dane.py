@@ -5993,6 +5993,17 @@ class KontrolaV115(unittest.TestCase):
             f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n2026-09-26,Binance,USDT,100,1,0,0,0,1\n')
         self.assertIsNone(k.wieloryby_porownanie(p), 'jeden dzień = bez porównania')
 
+    def test_etf_porownanie(self):
+        k = self.k
+        ceny = {'q': {'SPY': {'d': [['2026-09-24', 767.18, 1], ['2026-09-25', 771.35, 2]]}, 'EWJ': {'d': [['2026-09-25', 97.93, 1]]}, 'TUR': {'d': [['2026-09-25', 40.0, 1]]}, 'ILF': {'d': [['2026-09-25', None, 1]]}}}
+        ix = {'etf': {'q': {'SPY': [['2026-09-25', 771.35]], 'EWJ': [['2026-09-24', 97.0], ['2026-09-25', 99.0]], 'ILF': [['2026-09-25', 30.0]], 'AGG': [['2026-09-25', 100.0]]}}}
+        e = k.etf_porownanie(ceny, ix)
+        self.assertEqual([(s, d, round(r, 3)) for s, d, a, b, r in e], [('SPY', '2026-09-25', 0.0), ('EWJ', '2026-09-25', round(abs(97.93 - 99.0) / 99.0 * 100, 3))], 'TUR bez drugiego źródła i ILF bez liczby pominięte; AGG spoza mapy')
+        self.assertIsNone(k.etf_porownanie({}, ix)); self.assertIsNone(k.etf_porownanie(ceny, {}))
+        R = {'zgodnosc': {'etf': {'porownane': 2, 'roznice': [{'symbol': 'EWJ', 'data': '2026-09-25', 'a': 97.93, 'b': 99.0, 'roznica_pct': 1.081}]}}, 'at': '2026-09-26T06:20:00+00:00', 'wynik': 'UWAGA', 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': ['x'], 'bledy': []}
+        self.assertIn('- ETF mapy (dwa źródła, ta sama data): porównane 2 symboli, różnice > 1%: 1 ⚠️ — EWJ.', k.raport_md(R))
+        self.assertIn('ceny', k.PLIKI); self.assertIn('indeksy', k.PLIKI)
+
     def test_historia_i_raport(self):
         k = self.k
         p = os.path.join(self.tmp, 'historia.json')

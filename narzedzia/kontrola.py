@@ -26,9 +26,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -49,6 +49,7 @@ ZG_DNI = 30          # mediana z ostatnich 30 dni różnicy kapitalizacji
 ZG_MIN = 7           # do zebrania tylu dni historii — tylko informacja, bez koloru
 ZG_ZOLTE, ZG_CZERWONE = 2.0, 5.0   # pkt proc. odchylenia od mediany
 CENA_PROG = 1.0      # % różnicy cen BTC/ETH między źródłami
+ETF_PROG = 1.0       # % różnicy zamknięcia ETF tej samej daty: Twelve Data (ceny.json, mapa) vs Massive/Tiingo (indeksy.json → etf) — v117.1
 TGA_PROG = 1.0       # pkt proc. — odchylenie dzisiejszej różnicy TGA (Fiscal Data vs FRED WTREGEN, ta sama data) od mediany 30 dni; różnica sama w sobie
                      # jest stała (~3%: H.4.1 liczy zobowiązanie Fed na środę, DTS — gotówkę operacyjną Skarbu), więc próg 1% na poziomach świeciłby codziennie
 WH_PROG = 5.0        # % — |zmiana salda − przelewy netto| wobec większej z tych liczb
@@ -265,6 +266,23 @@ def tga_porownanie(inst, fred):
     return d, a[d], b[d], procent(a[d], b[d])
 
 
+def etf_porownanie(ceny, ix):
+    """14 symboli ETF mapy: ostatnia wspólna data zamknięcia w ceny.json (Twelve Data, `q[SYM].d = [[data, close, wolumen]]`) i w indeksy.json
+    (`etf.q[SYM] = [[data, close]]`, Massive/Tiingo) → lista (symbol, data, a, b, różnica %); symbol bez wspólnej daty = pominięty. None = brak plików."""
+    try:
+        q1, q2 = ceny['q'], ix['etf']['q']
+    except Exception:
+        return None
+    out = []
+    for sym, rec in q1.items():
+        d1 = {str(r[0]): float(r[1]) for r in ((rec.get('d') if isinstance(rec, dict) else None) or []) if isinstance(r, list) and len(r) >= 2 and isinstance(r[1], (int, float))}
+        d2 = {str(r[0]): float(r[1]) for r in (q2.get(sym) or []) if isinstance(r, list) and len(r) >= 2 and isinstance(r[1], (int, float))}
+        wsp = sorted(set(d1) & set(d2))
+        if wsp:
+            d = wsp[-1]; out.append((sym, d, d1[d], d2[d], procent(d1[d], d2[d])))
+    return out
+
+
 def wieloryby_porownanie(path):
     """archiwum/wieloryby.csv: dla ostatniego dnia z poprzednim dniem — |zmiana salda − przelewy netto| na giełdę i aktywo; zmiana salda liczona
     w jednostkach aktywa po dzisiejszym kursie (saldo w USD zmienia się też przez kurs ETH, a to nie przelew). Pusta komórka przepływów (brak sum
@@ -456,6 +474,14 @@ def kontrola():
         zgodnosc_zapisz(zg_path, rows)
     except Exception as e:  # noqa
         R['uwagi'].append(f'zgodnosc.csv: nie zapisano ({str(e)[:80]})')
+    e = etf_porownanie(files.get('ceny') or {}, files.get('indeksy') or {})
+    if e:
+        zle = [x for x in e if x[4] is not None and x[4] > ETF_PROG]
+        Z['etf'] = {'porownane': len(e), 'roznice': [{'symbol': s, 'data': d, 'a': a, 'b': b, 'roznica_pct': round(r, 3)} for s, d, a, b, r in zle]}
+        if zle:
+            R['uwagi'].append('ETF (mapa): zamknięcia z dwóch źródeł różnią się > ' + f'{ETF_PROG:g}% dla ' + ', '.join(f'{s} ({d}: {a:g} vs {b:g})' for s, d, a, b, r in zle[:6]))
+    else:
+        Z['etf'] = None
     w = wieloryby_porownanie(os.path.join(ARCH_DIR, 'wieloryby.csv'))
     if w:
         d, p, zle, n = w
@@ -540,6 +566,11 @@ def raport_md(R):
                      if r is not None else f'- TGA {t["data"]}: brak porównania.')
         else:
             L.append('- TGA: brak wspólnej daty Fiscal Data i FRED.')
+        e = Z.get('etf')
+        if e:
+            L.append(f'- ETF mapy (dwa źródła, ta sama data): porównane {e["porownane"]} symboli, różnice > {ETF_PROG:g}%: {len(e["roznice"])} {"⚠️" if e["roznice"] else "✅"}' + (' — ' + ', '.join(x["symbol"] for x in e["roznice"][:6]) if e["roznice"] else '') + '.')
+        else:
+            L.append('- ETF mapy: brak wspólnej daty zamknięć w dwóch źródłach.')
         w = Z.get('wieloryby')
         if w:
             L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo, rozbieżności > 5%: {len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}.')
