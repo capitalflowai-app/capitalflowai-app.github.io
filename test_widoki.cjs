@@ -3942,3 +3942,15 @@ test('v106: indeksy — słownik w 10 językach bez nazw dostawców; sekcja, sty
   assert.ok(html.includes("if(!ok&&IX.data)return;") && html.includes("60*60*1000") && html.includes("attributeFilter:['lang']})") , 'odświeżanie co 60 min, zmiana języka');
   assert.equal(html.split('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA').length, 2);
 });
+test('v106.1: wspólne napisy paneli przetłumaczone w 10 językach (dotąd angielski zapas w 8)', () => {
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L), en = v96src.tFor('en');
+    for (const k of ['eng.notsays', 'eng.disclaimer', 'eng.gap', 'inst.exact', 'inst.asof']) {
+      assert.ok(t(k) !== k, L + ' ' + k);
+      if (!['pl', 'en'].includes(L)) assert.notEqual(t(k), en(k), 'przetłumaczone: ' + L + ' ' + k);
+    }
+    assert.ok(t('inst.exact').includes('{v}'), 'symbol {v} zachowany: ' + L);
+  }
+  assert.ok(html.includes('for(const l in EXTRA101)if(I18N[l])Object.assign(I18N[l],EXTRA101[l]);'));
+});
+
