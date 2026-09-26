@@ -1,0 +1,179 @@
+{
+ "at": "2026-09-26T12:14:49+00:00",
+ "credit": "Archiwum własne CapitalFlowAI",
+ "files": {
+  "wieloryby": {
+   "file": "wieloryby.csv",
+   "src": "Obliczenia własne z publicznego łańcucha Ethereum (salda ogłoszonych portfeli giełd; przepływy = przelewy ≥ 1 mln USD z tabeli wielorybów)",
+   "cols": [
+    "date",
+    "exchange",
+    "asset",
+    "balance",
+    "balance_usd",
+    "inflow_24h",
+    "outflow_24h",
+    "net_24h",
+    "block"
+   ],
+   "key": [
+    "date",
+    "exchange",
+    "asset"
+   ],
+   "ok": true,
+   "at": "2026-09-26T12:14:49+00:00",
+   "rows": 13,
+   "first": "2026-09-26",
+   "last": "2026-09-26",
+   "added": 13,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 13
+  },
+  "stablecoiny-eth": {
+   "file": "stablecoiny-eth.csv",
+   "src": "Odczyt własny totalSupply() USDT i USDC przez publiczny węzeł JSON-RPC — tylko sieć Ethereum",
+   "cols": [
+    "date",
+    "token",
+    "total_supply"
+   ],
+   "key": [
+    "date",
+    "token"
+   ],
+   "ok": true,
+   "at": "2026-09-26T12:14:49+00:00",
+   "rows": 2,
+   "first": "2026-09-26",
+   "last": "2026-09-26",
+   "added": 2,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 2
+  },
+  "plynnosc": {
+   "file": "plynnosc.csv",
+   "src": "Source: Federal Reserve, via FRED (WALCL, WTREGEN, RRPONTSYD); net = WALCL − TGA − RRP, obliczenie własne",
+   "cols": [
+    "date",
+    "walcl_musd",
+    "tga_musd",
+    "rrp_musd",
+    "net_liquidity_musd",
+    "method"
+   ],
+   "key": [
+    "date"
+   ],
+   "ok": true,
+   "at": "2026-09-26T12:14:49+00:00",
+   "rows": 749,
+   "first": "2023-09-26",
+   "last": "2026-09-25",
+   "added": 749,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 749
+  },
+  "tic": {
+   "file": "tic.csv",
+   "src": "U.S. Department of the Treasury — Treasury International Capital (TIC), SLT tabele 1 i 2 (domena publiczna)",
+   "cols": [
+    "month",
+    "country",
+    "net_flow_musd",
+    "table"
+   ],
+   "key": [
+    "month",
+    "country",
+    "table"
+   ],
+   "ok": true,
+   "at": "2026-09-26T12:14:49+00:00",
+   "rows": 8778,
+   "first": "2023-02",
+   "last": "2026-07",
+   "added": 8778,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 8778
+  },
+  "cftc-krypto": {
+   "file": "cftc-krypto.csv",
+   "src": "CFTC — Commitments of Traders, Traders in Financial Futures (futures-only), BTC i ETH na CME (domena publiczna)",
+   "cols": [
+    "date",
+    "contract",
+    "group",
+    "long",
+    "short",
+    "net"
+   ],
+   "key": [
+    "date",
+    "contract",
+    "group"
+   ],
+   "ok": true,
+   "at": "2026-09-26T12:14:49+00:00",
+   "rows": 1040,
+   "first": "2024-10-01",
+   "last": "2026-09-22",
+   "added": 1040,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 1040
+  },
+  "rentownosci": {
+   "file": "rentownosci.csv",
+   "src": "U.S. Department of the Treasury (krzywa rentowności, 10 lat) i Deutsche Bundesbank (rentowność 10-letnia, BBSIS)",
+   "cols": [
+    "date",
+    "ust10y",
+    "bund10y",
+    "spread"
+   ],
+   "key": [
+    "date"
+   ],
+   "ok": true,
+   "at": "2026-09-26T12:14:49+00:00",
+   "rows": 517,
+   "first": "2024-09-26",
+   "last": "2026-09-25",
+   "added": 517,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 517
+  }
+ },
+ "errors": [],
+ "notes": [],
+ "seria": {
+  "plyn.net": 400,
+  "plyn.walcl": 400,
+  "plyn.tga": 400,
+  "plyn.rrp": 400,
+  "rent.ust": 400,
+  "rent.bund": 400,
+  "rent.spread": 400,
+  "tic.in": 42,
+  "tic.out": 42,
+  "cftc.btc.lev": 104,
+  "cftc.btc.am": 104,
+  "cftc.btc.dealer": 104,
+  "cftc.eth.lev": 104,
+  "cftc.eth.am": 104,
+  "cftc.eth.dealer": 104,
+  "stab.usdt": 1,
+  "stab.usdc": 1,
+  "wh.Binance": 1,
+  "wh.Bitfinex": 1,
+  "wh.Bybit": 1,
+  "wh.KuCoin": 1,
+  "wh.OKX": 1
+ }
+}
