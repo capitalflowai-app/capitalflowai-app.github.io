@@ -1,10 +1,10 @@
 {
- "at": "2026-09-26T12:14:49+00:00",
+ "at": "2026-09-26T13:06:11+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
    "file": "wieloryby.csv",
-   "src": "Obliczenia własne z publicznego łańcucha Ethereum (salda ogłoszonych portfeli giełd; przepływy = przelewy ≥ 1 mln USD z tabeli wielorybów)",
+   "src": "Obliczenia własne z publicznego łańcucha Ethereum (salda ogłoszonych portfeli giełd; przepływy = suma przelewów ≥ 1 mln USD z pełnej doby UTC poprzedzającej datę wiersza)",
    "cols": [
     "date",
     "exchange",
@@ -22,13 +22,13 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-09-26T12:14:49+00:00",
+   "at": "2026-09-26T13:06:11+00:00",
    "rows": 13,
    "first": "2026-09-26",
    "last": "2026-09-26",
-   "added": 13,
-   "revised": 0,
-   "revisions_total": 0,
+   "added": 0,
+   "revised": 13,
+   "revisions_total": 13,
    "fetched": 13
   },
   "stablecoiny-eth": {
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-09-26T12:14:49+00:00",
+   "at": "2026-09-26T13:06:11+00:00",
    "rows": 2,
    "first": "2026-09-26",
    "last": "2026-09-26",
-   "added": 2,
-   "revised": 0,
-   "revisions_total": 0,
+   "added": 0,
+   "revised": 1,
+   "revisions_total": 1,
    "fetched": 2
   },
   "plynnosc": {
@@ -68,11 +68,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-09-26T12:14:49+00:00",
+   "at": "2026-09-26T13:06:11+00:00",
    "rows": 749,
    "first": "2023-09-26",
    "last": "2026-09-25",
-   "added": 749,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
    "fetched": 749
@@ -92,11 +92,11 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-09-26T12:14:49+00:00",
+   "at": "2026-09-26T13:06:11+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
-   "added": 8778,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
    "fetched": 8778
@@ -118,11 +118,11 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-09-26T12:14:49+00:00",
+   "at": "2026-09-26T13:06:11+00:00",
    "rows": 1040,
    "first": "2024-10-01",
    "last": "2026-09-22",
-   "added": 1040,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
    "fetched": 1040
@@ -140,18 +140,20 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-09-26T12:14:49+00:00",
+   "at": "2026-09-26T13:06:11+00:00",
    "rows": 517,
    "first": "2024-09-26",
    "last": "2026-09-25",
-   "added": 517,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
    "fetched": 517
   }
  },
  "errors": [],
- "notes": [],
+ "notes": [
+  "wieloryby: brak sum dobowych za 2026-09-25 — przepływy puste"
+ ],
  "seria": {
   "plyn.net": 400,
   "plyn.walcl": 400,
