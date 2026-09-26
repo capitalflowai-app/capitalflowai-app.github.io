@@ -1,15 +1,15 @@
 {
- "at": "2026-09-26T11:48:42+00:00",
+ "at": "2026-09-26T12:40:25+00:00",
  "strona": {
   "http": 200,
-  "bajty": 1881486,
-  "ms": 833,
+  "bajty": 1922144,
+  "ms": 280,
   "ok": true
  },
  "meta": {
-  "at": "2026-09-26T11:38:12+00:00",
-  "wiek_min": 10,
-  "zrodla": 51,
+  "at": "2026-09-26T12:35:28+00:00",
+  "wiek_min": 4,
+  "zrodla": 52,
   "bez_odpowiedzi": [],
   "errors": [],
   "notes": []
@@ -17,80 +17,92 @@
  "pliki": {
   "etf": {
    "http": 200,
-   "bajty": 8453,
-   "wiek_min": 64,
+   "bajty": 9492,
+   "wiek_min": 56,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
    "http": 200,
-   "bajty": 16774,
-   "wiek_min": 10,
+   "bajty": 16779,
+   "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "oecd": {
    "http": 200,
    "bajty": 20527,
-   "wiek_min": 64,
+   "wiek_min": 116,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
    "bajty": 16991,
-   "wiek_min": 64,
+   "wiek_min": 56,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
-   "bajty": 5065,
-   "wiek_min": 46,
+   "bajty": 5083,
+   "wiek_min": 37,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 58846,
-   "wiek_min": 10,
+   "bajty": 67506,
+   "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
    "bajty": 8918,
-   "wiek_min": 299,
+   "wiek_min": 351,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 4852,
-   "wiek_min": 299,
+   "wiek_min": 351,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
    "bajty": 25684,
-   "wiek_min": 1026,
+   "wiek_min": 1078,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
-   "bajty": 29309,
-   "wiek_min": 64,
+   "bajty": 29329,
+   "wiek_min": 56,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
    "bajty": 15212,
-   "wiek_min": 46,
+   "wiek_min": 37,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
    "http": 200,
    "bajty": 28118,
-   "wiek_min": 861,
+   "wiek_min": 913,
    "czesci_bez_odpowiedzi": []
   },
   "cm": {
    "http": 200,
    "bajty": 8786,
-   "wiek_min": 64,
+   "wiek_min": 56,
+   "czesci_bez_odpowiedzi": []
+  },
+  "fred": {
+   "http": 200,
+   "bajty": 13047,
+   "wiek_min": 37,
+   "czesci_bez_odpowiedzi": []
+  },
+  "cftc": {
+   "http": 200,
+   "bajty": 19422,
+   "wiek_min": 157,
    "czesci_bez_odpowiedzi": []
   },
   "robots.txt": {
@@ -107,20 +119,137 @@
   }
  },
  "actions": {
-  "przebiegi_24h": 92,
+  "przebiegi_24h": 89,
   "wg_wyniku": {
-   "pending": 1,
-   "in_progress": 1,
-   "success": 88,
+   "success": 87,
    "failure": 1,
    "cancelled": 1
   },
-  "ostatni": "2026-09-26T11:43:53Z",
+  "ostatni": "2026-09-26T12:35:18Z",
   "ostatnia_porazka": "2026-09-26T11:13:46Z"
+ },
+ "swiezosc": [
+  {
+   "zrodlo": "rynki (kursy EBC, rentowności)",
+   "status": "✅",
+   "wiek_min": 56,
+   "data": "2026-09-26T11:43:47+00:00",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "wieloryby (salda portfeli giełd)",
+   "status": "✅",
+   "wiek_min": 4,
+   "data": "2026-09-26T12:35:28+00:00",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "dźwignia (giełdy pochodnych)",
+   "status": "✅",
+   "wiek_min": 37,
+   "data": "2026-09-26T12:02:58+00:00",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "TGA (Fiscal Data, dziennie)",
+   "status": "✅",
+   "wiek_min": 1440,
+   "data": "2026-09-24",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "ETF krypto (SoSoValue, dziennie)",
+   "status": "✅",
+   "wiek_min": 0,
+   "data": "2026-09-25",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "FRED dzienne (RRPONTSYD)",
+   "status": "✅",
+   "wiek_min": 0,
+   "data": "2026-09-25",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "EIA ceny dzienne (publikowane co tydzień)",
+   "status": "✅",
+   "wiek_min": 5080,
+   "data": "2026-09-22",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "CFTC (raport tygodniowy)",
+   "status": "✅",
+   "wiek_min": 5080,
+   "data": "2026-09-22",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "FRED tygodniowe (WALCL)",
+   "status": "✅",
+   "wiek_min": 3640,
+   "data": "2026-09-23",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "TIC (miesięcznie)",
+   "status": "✅",
+   "wiek_min": 81400,
+   "data": "2026-07",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "OECD (miesięcznie)",
+   "status": "✅",
+   "wiek_min": 36760,
+   "data": "2026-08",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "BLS (miesięcznie)",
+   "status": "✅",
+   "wiek_min": 36760,
+   "data": "2026-08",
+   "uwaga": ""
+  }
+ ],
+ "zgodnosc": {
+  "kapitalizacja": {
+   "status": "ℹ️",
+   "dzis_pct": 4.302,
+   "mediana_pct": null,
+   "dni": 0,
+   "opis": "historia 0 z 7 dni — bez oceny"
+  },
+  "ceny": {
+   "bitcoin": {
+    "a": 84081.0,
+    "b": 84089.72192266137,
+    "roznica_pct": 0.01
+   },
+   "ethereum": {
+    "a": 2687.21,
+    "b": 2689.093340436241,
+    "roznica_pct": 0.07
+   }
+  },
+  "tga": {
+   "data": "2026-09-23",
+   "fiscal_mln": 947317.0,
+   "fred_mln": 977084.0,
+   "roznica_pct": 3.047,
+   "status": "ℹ️",
+   "mediana_pct": null,
+   "dni": 0,
+   "opis": "historia 0 z 7 dni — bez oceny"
+  },
+  "wieloryby": null
  },
  "uwagi": [
   "1 nieudany przebieg automatu w 24 h (ostatni: 26.09.2026, 13:13)"
  ],
  "bledy": [],
+ "historia_n": 1,
  "wynik": "UWAGA"
 }
