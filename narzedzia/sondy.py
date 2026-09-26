@@ -383,7 +383,9 @@ def g_eodhd():
         skipped("eodhd", "eod ETF + INDX")
         return
     frm = (_utc_today() - dt.timedelta(days=10)).isoformat()
-    for label, sym in (("eod_SPY.US", "SPY.US"), ("eod_GSPC.INDX", "GSPC.INDX"), ("eod_GDAXI.INDX", "GDAXI.INDX")):
+    # 26.09.2026: rotacja indeksów zgłosiła FTSE „pusta odpowiedź” i FTMIB HTTP 404 — sprawdzamy kody kandydatów (limit planu: 20 zapytań na dobę,
+    # dlatego tylko trzy; SPY/GSPC/GDAXI już potwierdzone). Wynik: HTTP + liczba elementów listy, nigdy treść.
+    for label, sym in (("eod_FTSE.INDX", "FTSE.INDX"), ("eod_UKX.INDX", "UKX.INDX"), ("eod_FTSEMIB.INDX", "FTSEMIB.INDX")):
         probe("eodhd", label, f"https://eodhd.com/api/eod/{sym}?fmt=json&from={frm}&api_token={key}", env_name=name)
         time.sleep(0.5)
 
