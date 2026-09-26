@@ -5145,7 +5145,7 @@ class IndeksyV106(unittest.TestCase):
         html = open(os.path.join(here, 'index.html'), encoding='utf-8').read()
         m = html[html.index('const IX_META={'):]
         m = m[:m.index('};')]
-        self.assertEqual(dict(_re_v106.findall(r"([A-Z0-9]+):\['([a-z]{2})'", m)), {s: c for s, c, _ in zd.IX_SYMBOLS}, 'te same kody i flagi na stronie i w zbieraczu')
+        self.assertEqual(dict(_re_v106.findall(r"([A-Z0-9]+):\['([a-z]{2})'", m)), {**{s: c for s, c, _ in zd.IX_SYMBOLS}, **{s: c for s, c, _, _ in zd.IX_FMP}}, 'te same kody i flagi na stronie i w zbieraczu (EODHD + FMP)')
         self.assertIn("srvJSON('indeksy')", html)
         self.assertEqual(len(set(s for s, _, _ in zd.IX_SYMBOLS)), len(zd.IX_SYMBOLS))
         self.assertTrue(all(0 <= h <= 23 for _, _, h in zd.IX_SYMBOLS))
@@ -6075,3 +6075,62 @@ class KontrolaV115(unittest.TestCase):
         self.assertIn('kontrola/zgodnosc.csv kontrola/historia.json', ky)
         src = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
         self.assertIn("f'# Kontrola strony — {czas_pl(R[\"at\"])} (czas polski)'", src); self.assertIn("f'**Wynik: {R[\"wynik\"]}**'", src)
+
+
+class IndeksyFmpV119(unittest.TestCase):
+    """v119: FTSE 100 z FMP (plan bezpłatny EODHD nie daje indeksów LSE) — parser, jedno zapytanie po sesji, dopełnienie, przerwa po 402, wpis w części ix."""
+    NOW = datetime.datetime(2026, 9, 26, 18, 0, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+
+    def test_parse(self):
+        j = [{'symbol': '^FTSE', 'date': '2026-09-25', 'price': 8300.5, 'volume': 1}, {'date': '2026-09-24', 'close': 8250.0}, {'date': 'x', 'price': 1}, {'date': '2026-09-23', 'price': None}, 'x']
+        self.assertEqual(zd.fmp_eod_parse(j), [['2026-09-24', 8250.0], ['2026-09-25', 8300.5]])
+        with self.assertRaises(zd.IxPusto):
+            zd.fmp_eod_parse([{'date': '2026-09-25', 'price': None}])
+        with self.assertRaises(RuntimeError):
+            zd.fmp_eod_parse({'Error Message': 'Limit'})
+
+    def test_fetch_once_after_session_and_backoff(self):
+        calls = []
+        def gj(url, headers=None, timeout=30):
+            calls.append(url); self.assertIn('symbol=%5EFTSE', url); self.assertIn('from=', url)
+            return [{'date': '2026-09-25', 'price': 8300.5}, {'date': '2026-09-24', 'price': 8250.0}]
+        part = {}
+        with mock.patch.object(zd, 'get_json', side_effect=gj):
+            self.assertEqual(zd.ix_fmp('K', part, self.NOW, []), 1)
+        self.assertEqual(part['FTSE']['d'], [['2026-09-24', 8250.0], ['2026-09-25', 8300.5]]); self.assertEqual((part['FTSE']['cc'], part['FTSE']['src']), ('gb', 'fmp'))
+        self.assertIn('from=2025-09-21', calls[0], 'pierwsze pobranie: rok wstecz (IX_HIST_DAYS)')
+        part['FTSE']['at'] = self.NOW.isoformat()
+        with mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez zapytania')):
+            self.assertEqual(zd.ix_fmp('K', part, self.NOW + datetime.timedelta(hours=2), []), 0, 'pobrane po dzisiejszej sesji — bez drugiego zapytania')
+        nxt = self.NOW + datetime.timedelta(days=3, hours=1)   # poniedziałek 19:00 — sesja piątkowa i poniedziałkowa
+        calls.clear()
+        with mock.patch.object(zd, 'get_json', side_effect=gj):
+            self.assertEqual(zd.ix_fmp('K', part, nxt, []), 1)
+        self.assertIn('from=2026-09-15', calls[0], 'dopełnienie: od ostatniej sesji minus zakładka 10 dni')
+        errs = []
+        with mock.patch.object(zd, 'get_json', side_effect=zd.urllib.error.HTTPError('u', 402, 'Payment', {}, None)):
+            self.assertEqual(zd.ix_fmp('K', {}, self.NOW, errs), 0)
+        self.assertEqual(errs, ['FMP HTTP 402 — FTSE (przerwa)'])
+        bad = {'FTSE': {'bad_at': self.NOW.isoformat(), 'bad_n': 1, 'bad': 402}}
+        with mock.patch.object(zd, 'get_json', side_effect=AssertionError('przerwa')):
+            self.assertEqual(zd.ix_fmp('K', bad, self.NOW + datetime.timedelta(hours=5), []), 0, 'doba przerwy po 402')
+
+    def test_build_adds_ftse_to_ix_part(self):
+        def gj(url, headers=None, timeout=30):
+            if 'financialmodelingprep' in url:
+                return [{'date': '2026-09-25', 'price': 8300.5}]
+            raise AssertionError('tylko FMP w tym teście')
+        prev = {'at': '2026-09-26T16:00:00+00:00', 'ok': {'ix': True}, 'part_at': {'ix': '2026-09-26T16:00:00+00:00'}, 'ix_calls': {'d': '2026-09-26', 'n': 20},
+                'ix': {'GSPC': {'cc': 'us', 'at': '2026-09-26T16:00:00+00:00', 'd': [['2026-09-25', 5.0]]}, 'FTMIB': {'bad': 404}}}
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', self.NOW.isoformat()):
+            o = zd.build_indeksy({'FMP_KEY': 'K'}, prev, now=self.NOW)
+        self.assertEqual(o['ix']['FTSE']['d'], [['2026-09-25', 8300.5]]); self.assertEqual(o['ix']['GSPC']['d'], [['2026-09-25', 5.0]], 'serie EODHD z poprzedniego pliku zostają')
+        self.assertEqual(o['part_at']['ix'], self.NOW.isoformat()); self.assertIn('FTMIB', o['ix'], 'bez klucza EODHD część ix nie jest przebudowywana — stary wpis zostaje do następnego przebiegu EODHD')
+        self.assertEqual(zd.META['errors'], [])
+        with mock.patch.object(zd, 'get_json', side_effect=zd.urllib.error.HTTPError('u', 402, 'Payment', {}, None)), mock.patch.object(zd, 'NOW', self.NOW.isoformat()):
+            o2 = zd.build_indeksy({'FMP_KEY': 'K'}, prev, now=self.NOW)
+        self.assertEqual(o2['ix']['FTSE']['bad'], 402); self.assertNotIn('d', o2['ix']['FTSE']); self.assertTrue(zd.META['errors'] and 'FMP HTTP 402' in zd.META['errors'][0])
+        self.assertIn('FMP_KEY', zd.IX_ACTIVE)

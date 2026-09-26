@@ -3868,7 +3868,7 @@ test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od począ
   assert.equal(X.ixPct(-0.06), '<span class="cell mono neg">−0.1%</span>'); assert.equal(X.ixPct(2.345), '<span class="cell mono pos">+2.3%</span>');
   assert.equal(X.ixPct(null), '<span class="cell mono na">—</span>'); assert.equal(X.ixPct(NaN), '<span class="cell mono na">—</span>');
   const it = X.ixItems({ix: {GSPC: {d: rows}, ZZZ: {d: rows}, DJI: {d: []}, FCHI: 'x', GDAXI: {d: rows.slice(-3)}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 1, bad: 403}}});
-  assert.equal(it.length, 23, 'część ix istnieje — wiersz dla każdego indeksu z listy (nieznany ZZZ pominięty); v118.2: 23 kody');
+  assert.equal(it.length, 24, 'część ix istnieje — wiersz dla każdego indeksu z listy (nieznany ZZZ pominięty); v119: 23 EODHD + FTSE z FMP');
   assert.deepEqual(it.filter(x => x.close !== null).map(x => x.sym), ['GSPC', 'GDAXI'], 'seria tylko dla znanych kodów z danymi');
   const by = Object.fromEntries(it.map(x => [x.sym, x]));
   assert.ok(by.DJI.close === null && by.DJI.m1 === null && by.DJI.why === 'none' && by.FCHI.why === 'none' && by.KS11.why === 'none', 'bez serii: brak (null) z powodem, nie zero');
@@ -3881,9 +3881,9 @@ test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od począ
   assert.deepEqual(X.ixSort(it2, 'm1').map(x => x.name), ['C', 'B', 'A', 'Z']);
   const D = {at: '2026-01-21T06:00:00+00:00', ix: {GSPC: {d: rows}, GDAXI: {d: rows.map((r, i) => [r[0], 300 - i])}}};
   const body = X.ixBody(D);
-  assert.ok(body.includes('<table class="etft">') && (body.match(/<tr><td>/g) || []).length === 2 && (body.match(/<tr class="ix-na"><td>/g) || []).length === 21 && !/undefined|NaN|\[object/.test(body), body.slice(0, 300));
-  assert.equal((body.match(/ix\.nodata/g) || []).length, 21, 'każdy indeks bez serii: wiersz „—” z powodem „jeszcze nie pobrano”');
-  assert.equal((body.match(/<span class="cell mono na">—<\/span>/g) || []).length, 21 * 5, 'zamknięcie i cztery zmiany = „—”, nie zero');
+  assert.ok(body.includes('<table class="etft">') && (body.match(/<tr><td>/g) || []).length === 2 && (body.match(/<tr class="ix-na"><td>/g) || []).length === 22 && !/undefined|NaN|\[object/.test(body), body.slice(0, 300));
+  assert.equal((body.match(/ix\.nodata/g) || []).length, 22, 'każdy indeks bez serii: wiersz „—” z powodem „jeszcze nie pobrano”');
+  assert.equal((body.match(/<span class="cell mono na">—<\/span>/g) || []).length, 22 * 5, 'zamknięcie i cztery zmiany = „—”, nie zero');
   assert.ok(body.indexOf('S&amp;P 500') < body.indexOf('DAX') && body.indexOf('DAX') < body.indexOf('ix.nodata'), 'kolejność wg 1 M: rosnący, spadający, potem bez danych');
   assert.ok(body.includes('ix.k.upv{"n":"1","m":"2"}') && body.includes('ix.k.upn{"d":') && body.includes('age(2026-01-20)'), 'kafle: licznik, najnowsza sesja z wiekiem');
   assert.ok(body.includes('<td><span class="cell mono">129.00</span></td>') && body.includes('class="cell mono pos">+19.4%') && body.includes('class="cell mono neg">'), 'zamknięcie z 2 miejscami, zmiany w kolorze');
@@ -3891,7 +3891,7 @@ test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od począ
   assert.ok(!body.includes('ix.c.date'), 'data i wiek w wierszu pod nazwą, nie w osobnej kolumnie');
   const one = X.ixBody({at: 'x', ix: {GSPC: {d: rows}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 2, bad: 403}}});
   assert.ok(one.includes('ix.k.best') && one.includes('ix.k.ybest') && !one.includes('ix.k.worst') && !one.includes('ix.k.yworst'), 'jeden indeks z wartością: bez kafli „najsłabszy” (nie ten sam indeks dwa razy)');
-  assert.ok(one.includes('ix.k.upv{"n":"1","m":"1"}') && one.includes('ix.bad{"d":"') && one.includes('2026') && (one.match(/ix\.nodata/g) || []).length === 21, 'kod odrzucony: powód z datą; reszta „jeszcze nie pobrano”');
+  assert.ok(one.includes('ix.k.upv{"n":"1","m":"1"}') && one.includes('ix.bad{"d":"') && one.includes('2026') && (one.match(/ix\.nodata/g) || []).length === 22, 'kod odrzucony: powód z datą; reszta „jeszcze nie pobrano”');
   assert.equal(X.ixBody({at: 'x', ix: {}}), ''); assert.equal(X.ixBody(null), '');
   assert.equal(X.ixBody({at: 'x', ix: {GSPC: {bad_at: 'x', bad_n: 1, bad: 403}, IXIC: {d: []}}}), '', 'same znaczniki przerw, żadnej serii — panel ukryty');
   const el = {hidden: false, innerHTML: 'x'}, Y = mk(q => q === '#g-indeksy' ? el : null);
@@ -3907,7 +3907,7 @@ test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od począ
   const Z = mk(q => q === '#g-indeksy' ? el : null);
   Z.ixApply({at: now, part_at: {ix: new Date(Date.now() - 40 * 864e5).toISOString()}, ix: D.ix}); assert.equal(el.hidden, true, 'część ix starsza niż 30 dni — ukryta');
   Z.ixApply({at: new Date(Date.now() - 40 * 864e5).toISOString(), ix: D.ix}); assert.equal(el.hidden, true);
-  assert.equal(Object.keys(X.IX_META).length, 23);
+  assert.equal(Object.keys(X.IX_META).length, 24);
   for (const k in X.IX_META) assert.ok(/^[a-z]{2}$/.test(X.IX_META[k][0]) && X.IX_META[k][1], k);
 });
 test('v106: indeksy — słownik w 10 językach bez nazw dostawców; sekcja, styl i plik na miejscu', () => {

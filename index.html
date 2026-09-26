@@ -6723,7 +6723,7 @@ whLoad();whAuto();try{new MutationObserver(()=>renderWh()).observe(document.docu
    Brak pliku albo części ix = sekcja ukryta; wiersz bez liczby = „—”, nigdy zero. Nazwy dostawców — tylko na stronie Źródła. */
 const IX={data:null,timer:null};
 const IX_META={GSPC:['us','S&P 500'],IXIC:['us','Nasdaq Composite'],DJI:['us','Dow Jones'],GSPTSE:['ca','S&P/TSX'],BVSP:['br','Bovespa'],MXX:['mx','IPC'],
-  GDAXI:['de','DAX'],FCHI:['fr','CAC 40'],IBEX:['es','IBEX 35'],AEX:['nl','AEX'],SSMI:['ch','SMI'],OMXS30:['se','OMXS30'],WIG20:['pl','WIG20'],
+  GDAXI:['de','DAX'],FCHI:['fr','CAC 40'],FTSE:['gb','FTSE 100'],IBEX:['es','IBEX 35'],AEX:['nl','AEX'],SSMI:['ch','SMI'],OMXS30:['se','OMXS30'],WIG20:['pl','WIG20'],
   TA125:['il','TA-125'],XU100:['tr','BIST 100'],JTOPI:['za','JSE Top 40'],N225:['jp','Nikkei 225'],KS11:['kr','KOSPI'],HSI:['hk','Hang Seng'],SSEC:['cn','Shanghai Composite'],BSESN:['in','Sensex'],AXJO:['au','S&P/ASX 200'],JKSE:['id','IDX Composite']};
 const IX_MAX_AGE=30;   /* dni: część ix starsza — sekcja ukryta (klucz wygasł?); każdy wiersz i tak nosi własną datę i wiek */
 const ixNum=v=>typeof v==='number'&&isFinite(v)&&v>0;

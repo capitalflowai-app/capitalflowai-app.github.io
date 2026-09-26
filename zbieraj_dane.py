@@ -5877,7 +5877,7 @@ IX_SYMBOLS = (   # kod EODHD (giełda INDX), kraj (flaga), godzina UTC, po któr
     ('SSMI', 'ch', 17), ('OMXS30', 'se', 17), ('WIG20', 'pl', 17), ('TA125', 'il', 16), ('XU100', 'tr', 16), ('JTOPI', 'za', 16),
     ('N225', 'jp', 7), ('KS11', 'kr', 7), ('HSI', 'hk', 9), ('SSEC', 'cn', 8), ('BSESN', 'in', 11), ('AXJO', 'au', 7), ('JKSE', 'id', 10))
 IX_KEYS = ('EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'FMP_KEY', 'ALPHAVANTAGE_KEY')
-IX_ACTIVE = ('EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY')   # klucze, które dziś coś pobierają
+IX_ACTIVE = ('EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'FMP_KEY')   # klucze, które dziś coś pobierają (v119: FMP — FTSE 100)
 IX_PARTS = ('ix', 'etf')
 IX_DAILY = 20        # limit planu bezpłatnego EODHD: zapytań na dobę (liczone według daty UTC)
 IX_PER_RUN = 4       # najwyżej tyle indeksów na przebieg — budżet dobowy rozłożony na cały dzień, nie zużyty o świcie
@@ -6004,7 +6004,7 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None):
     dopiero gdy każda próba w przebiegu została odrzucona, zgłaszamy „klucz odrzucony”. Dwa braki odpowiedzi z rzędu albo
     przekroczony budżet czasu = koniec pętli (zbieracz ma 15 min na wszystkie źródła).
     Zwraca (część, licznik, dzień blokady, czy bez błędów, ile odświeżono)."""
-    znane = {s for s, _, _ in IX_SYMBOLS}
+    znane = {s for s, _, _ in IX_SYMBOLS} | {s for s, _, _, _ in IX_FMP}
     part = {s: dict(r) for s, r in prev_part.items() if isinstance(r, dict) and s in znane} if isinstance(prev_part, dict) else {}   # v118.2: kod usunięty z listy wypada z pliku
     today = now.date().isoformat()
     calls = dict(prev_calls) if isinstance(prev_calls, dict) and prev_calls.get('d') == today else {'d': today, 'n': 0}
@@ -6132,6 +6132,62 @@ def etf_part(keys, prev_etf, now, errors, deadline=None):
     raise RuntimeError('; '.join(fails[:4]) or 'brak klucza')
 
 
+# v119: FTSE 100 z FMP — plan bezpłatny EODHD nie daje indeksów grupy LSE (pusta lista), a sonda 26.09 pokazała, że FMP (plan bezpłatny)
+# oddaje dzienne zamknięcia ^FTSE (FTSE MIB i ^GDAXI: HTTP 402 — poza planem). Jedno zapytanie po sesji, jak indeksy EODHD; ten sam wpis w części ix.
+IX_FMP = (('FTSE', 'gb', 17, '%5EFTSE'),)   # kod na stronie, flaga, godzina UTC po sesji, symbol FMP (zakodowany w adresie)
+FMP_EOD_URL = 'https://financialmodelingprep.com/stable/historical-price-eod/light?symbol={sym}&from={frm}&apikey={key}'
+
+
+def fmp_eod_parse(j):
+    """Odpowiedź FMP (lista {date, price|close, volume}) → [[dzień, zamknięcie], …] rosnąco; bez liczby = brak; słownik = komunikat dostawcy."""
+    if isinstance(j, dict):
+        raise RuntimeError(str(j.get('message') or j.get('Error Message') or j.get('error') or j)[:140])
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict):
+            continue
+        d = str(r.get('date') or '')[:10]; v = _num(r.get('price') if r.get('price') is not None else r.get('close'))
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', d) and v is not None and v == v and 0 < v < float('inf'):
+            out[d] = v
+    if not out:
+        raise IxPusto('pusta odpowiedź')
+    return [[d, out[d]] for d in sorted(out)]
+
+
+def ix_fmp(key, part, now, errors):
+    """Indeksy z FMP (IX_FMP): dopełnienie od ostatniej sesji (z zakładką) albo rok wstecz, raz po zamknięciu sesji (ix_ready);
+    kod odrzucony (401/402/403/404) i pusta lista dostają przerwę jak w EODHD (_ix_bad). Zwraca liczbę pobranych."""
+    got = 0
+    for sym, cc, h, fsym in IX_FMP:
+        rec = part.get(sym) if isinstance(part.get(sym), dict) else {}
+        bad = _ix_dt(rec.get('bad_at'))
+        if bad and (now - bad).days < _ix_pause(rec):
+            continue
+        at = _ix_dt(rec.get('at'))
+        if at is not None and at >= ix_ready(h, now):
+            continue
+        old = rec.get('d') if isinstance(rec.get('d'), list) else []
+        try:
+            frm = datetime.date.fromisoformat(old[-1][0]) - datetime.timedelta(days=IX_OVERLAP)
+        except (TypeError, ValueError, IndexError):
+            frm = now.date() - datetime.timedelta(days=IX_HIST_DAYS)
+        try:
+            j = get_json(FMP_EOD_URL.format(sym=fsym, frm=frm.isoformat(), key=key), timeout=IX_TIMEOUT)
+            part[sym] = {'cc': cc, 'at': NOW, 'src': 'fmp', 'd': _ix_merge(old, fmp_eod_parse(j), IX_KEEP)}; got += 1
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 402, 403, 404):
+                _ix_bad(part, sym, e.code); errors.append(f'FMP HTTP {e.code} — {sym} (przerwa)')
+            else:
+                errors.append(f'FMP HTTP {e.code} ({sym})')
+        except IxPusto:
+            _ix_bad(part, sym, 'pusto'); errors.append(f'FMP: pusta lista dla {sym} — przerwa')
+        except Exception as e:  # noqa
+            errors.append(mask(f'FMP {sym}: {e}'))
+    return got
+
+
 def build_indeksy(keys, prev=None, now=None):
     """data/indeksy.json — część ix: dzienne zamknięcia 23 indeksów świata (EODHD, rotacja 20 zapytań na dobę);
     część etf: zamknięcia funduszy ETF używanych przez stronę (Massive; zapas Tiingo). Część bez klucza albo z błędem = poprzednia
@@ -6156,6 +6212,14 @@ def build_indeksy(keys, prev=None, now=None):
                 out['part_at']['ix'] = at
     elif isinstance(prev.get('ix'), dict) and prev['ix']:   # klucz zniknął — stare serie zostają (strona pokazuje ich datę i wiek)
         out['ix'] = prev['ix']; out['part_at']['ix'] = pat.get('ix') or prev.get('at')
+    if keys.get('FMP_KEY') and not _ix_late(deadline):   # v119: FTSE 100 z FMP dopisany do tej samej części ix
+        src = out['ix'] if isinstance(out.get('ix'), dict) else (prev.get('ix') if isinstance(prev.get('ix'), dict) else {})
+        part = {s: dict(r) for s, r in src.items() if isinstance(r, dict)}   # kopia — poprzedni plik nie jest modyfikowany w miejscu
+        if ix_fmp(keys['FMP_KEY'], part, now, errors):
+            out['part_at']['ix'] = NOW
+        if part:
+            out['ix'] = part
+            out['part_at'].setdefault('ix', pat.get('ix') or prev.get('at') or NOW)
     pe = prev.get('etf') if isinstance(prev.get('etf'), dict) and isinstance(prev['etf'].get('q'), dict) and prev['etf']['q'] else None
     if keys.get('MASSIVE_KEY') or keys.get('TIINGO_KEY'):
         last = _ix_dt(pat.get('etf'))
