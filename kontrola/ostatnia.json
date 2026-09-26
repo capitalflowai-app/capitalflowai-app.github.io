@@ -1,14 +1,14 @@
 {
- "at": "2026-09-26T11:38:05+00:00",
+ "at": "2026-09-26T11:48:42+00:00",
  "strona": {
   "http": 200,
-  "bajty": 1875352,
-  "ms": 497,
+  "bajty": 1881486,
+  "ms": 833,
   "ok": true
  },
  "meta": {
-  "at": "2026-09-26T11:26:01+00:00",
-  "wiek_min": 12,
+  "at": "2026-09-26T11:38:12+00:00",
+  "wiek_min": 10,
   "zrodla": 51,
   "bez_odpowiedzi": [],
   "errors": [],
@@ -18,106 +18,107 @@
   "etf": {
    "http": 200,
    "bajty": 8453,
-   "wiek_min": 54,
+   "wiek_min": 64,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
    "http": 200,
    "bajty": 16774,
-   "wiek_min": 12,
+   "wiek_min": 10,
    "czesci_bez_odpowiedzi": []
   },
   "oecd": {
    "http": 200,
    "bajty": 20527,
-   "wiek_min": 54,
+   "wiek_min": 64,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
    "bajty": 16991,
-   "wiek_min": 54,
+   "wiek_min": 64,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
    "bajty": 5065,
-   "wiek_min": 35,
+   "wiek_min": 46,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 58844,
-   "wiek_min": 12,
+   "bajty": 58846,
+   "wiek_min": 10,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
    "bajty": 8918,
-   "wiek_min": 289,
+   "wiek_min": 299,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 4852,
-   "wiek_min": 289,
+   "wiek_min": 299,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
    "bajty": 25684,
-   "wiek_min": 1015,
+   "wiek_min": 1026,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
    "bajty": 29309,
-   "wiek_min": 54,
+   "wiek_min": 64,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
    "bajty": 15212,
-   "wiek_min": 35,
+   "wiek_min": 46,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
    "http": 200,
    "bajty": 28118,
-   "wiek_min": 850,
+   "wiek_min": 861,
    "czesci_bez_odpowiedzi": []
   },
   "cm": {
    "http": 200,
    "bajty": 8786,
-   "wiek_min": 54,
+   "wiek_min": 64,
    "czesci_bez_odpowiedzi": []
   },
   "robots.txt": {
-   "blad": "HTTP Error 404: Not Found"
+   "http": 200,
+   "bajty": 80
   },
   "sitemap.xml": {
-   "blad": "HTTP Error 404: Not Found"
+   "http": 200,
+   "bajty": 12605
   },
   "google433f7c24524100a9.html": {
-   "blad": "HTTP Error 404: Not Found"
+   "http": 200,
+   "bajty": 53
   }
  },
  "actions": {
-  "przebiegi_24h": 93,
+  "przebiegi_24h": 92,
   "wg_wyniku": {
+   "pending": 1,
    "in_progress": 1,
-   "success": 90,
+   "success": 88,
    "failure": 1,
    "cancelled": 1
   },
-  "ostatni": "2026-09-26T11:37:59Z",
+  "ostatni": "2026-09-26T11:43:53Z",
   "ostatnia_porazka": "2026-09-26T11:13:46Z"
  },
  "uwagi": [
-  "robots.txt: HTTP Error 404: Not Found",
-  "sitemap.xml: HTTP Error 404: Not Found",
-  "google433f7c24524100a9.html: HTTP Error 404: Not Found",
   "1 nieudany przebieg automatu w 24 h (ostatni: 26.09.2026, 13:13)"
  ],
  "bledy": [],
