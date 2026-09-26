@@ -396,12 +396,12 @@ def g_fmp():
         skipped("fmp", "stable quote/eod/etf")
         return
     b = "https://financialmodelingprep.com/stable"
+    # 26.09.2026: FTSE 100 i FTSE MIB poza planem EODHD — czy FMP (plan bezpłatny) daje ich dzienne zamknięcia? Tylko HTTP i liczba elementów.
     for label, path in (
-        ("stable_quote_SPY", "/quote?symbol=SPY"),
-        ("stable_eod_light_SPY", "/historical-price-eod/light?symbol=SPY"),
-        ("stable_quote_^GDAXI", "/quote?symbol=%5EGDAXI"),
-        ("stable_etf_sector-weightings_SPY", "/etf/sector-weightings?symbol=SPY"),
-        ("stable_etf_holdings_SPY", "/etf/holdings?symbol=SPY"),
+        ("stable_eod_light_^FTSE", "/historical-price-eod/light?symbol=%5EFTSE"),
+        ("stable_eod_light_FTSEMIB.MI", "/historical-price-eod/light?symbol=FTSEMIB.MI"),
+        ("stable_eod_light_^GDAXI", "/historical-price-eod/light?symbol=%5EGDAXI"),
+        ("stable_quote_^FTSE", "/quote?symbol=%5EFTSE"),
     ):
         probe("fmp", label, f"{b}{path}&apikey={key}", env_name=name)
         time.sleep(0.4)
