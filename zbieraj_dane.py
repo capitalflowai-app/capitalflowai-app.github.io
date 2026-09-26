@@ -5281,6 +5281,16 @@ WH_BUDZET = 12          # sekund na skanowanie logów w jednym przebiegu (cały 
 WH_LIMIT = 40           # sekund na cały przebieg budowniczego: gdy węzeł milczy, nie czekamy dłużej (limit BRIEF: < 60 s)
 WH_PARA = 30            # ta sama kwota w obie strony tej samej giełdy w ≤ tylu blokach = najpewniej ruch wewnętrzny (oznaczenie)
 WH_TOPICS = 200         # v108: najwyżej tyle portfeli w jednej tablicy tematów eth_getLogs (150 sprawdzone na obu węzłach 26.09.2026); więcej = grupy
+# v112: transfery ETH natywne (zwykłe transakcje) — publiczne API eksploratora łańcucha z kluczem właściciela (sekret ETHERSCAN). Węzeł RPC nie ma
+# filtra „przelewy ETH ≥ X w zakresie bloków”, więc pytamy portfel po portfelu (txlist) w rotacji: najdłużej niesprawdzane najpierw.
+WH_ETH_URL = 'https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address={addr}&startblock={od}&endblock={do}&page=1&offset={n}&sort=asc&apikey={key}'
+WH_ETH_PER_RUN = 40     # portfeli na przebieg (154 portfele z ETH ≈ co 4 przebiegi ≈ 80 min); dobowo ≤ 40 × 72 = 2 880 zapytań (limit dostawcy 100 000)
+WH_ETH_BUDZET = 12      # sekund na część ETH w jednym przebiegu (cały przebieg wielorybów < WH_LIMIT)
+WH_ETH_OFFSET = 10000   # najwyżej tyle transakcji w jednej odpowiedzi (limit dostawcy); pełna odpowiedź = ciąg dalszy od jej ostatniego bloku
+WH_ETH_TEMPO = 0.21     # sekund między zapytaniami (limit dostawcy: 5 zapytań na sekundę)
+WH_ETH_LAG = 5          # bloków za głowicą węzła RPC — indeks eksploratora bywa o chwilę w tyle; skan portfela kończy się na head − WH_ETH_LAG
+WH_ETH_BLEDY = 3        # tyle kolejnych błędów (limit, awaria) = koniec części ETH w tym przebiegu; pojedynczy błąd = portfel wraca na początek kolejki
+WH_ETH_START = WH_START   # pierwszy skan portfela albo zaległość większa niż tyle bloków: od head − WH_ETH_START + 1 (≈ 16 h), bez udawania ciągłości
 WH_GIELDY = {
     'Binance': {'src': 'Binance — wpis „Our Commitment To Transparency” (blog giełdy, listopad 2022): portfele gorące i zimne na Ethereum',
                 'url': 'https://www.binance.com/en/blog/community/our-commitment-to-transparency-2895840147147652626', 'since': '2022-11',
@@ -5496,7 +5506,7 @@ def wh_dekoduj(logs, wmap, prog=WH_PROG):
         tx, li = str(l.get('transactionHash', '')), wh_hex(l.get('logIndex'))
         for d, g in (('out', gf), ('in', gt)):
             if g:
-                out[(tx, li, g, d)] = {'t': None, 'token': tok, 'amt': round(amt, 2), 'dir': d, 'exch': g, 'tx': tx, 'blk': blk, 'li': li}
+                out[(tx, li, g, d)] = {'t': None, 'token': tok, 'amt': round(amt, 2), 'usd': round(amt, 2), 'dir': d, 'exch': g, 'tx': tx, 'blk': blk, 'li': li}
     return out
 
 
@@ -5530,13 +5540,14 @@ def wh_cena(res, now_s):
 
 
 def wh_polacz(prev_rows, new_rows, od, maks=WH_MAX):
-    """Wiersze poprzednie i nowe: tylko bloki ≥ od (okno), bez duplikatów, malejąco wg kwoty, najwyżej maks."""
+    """Wiersze poprzednie i nowe: tylko bloki ≥ od (okno), bez duplikatów, malejąco wg kwoty w USD (v112: ETH i stablecoiny w jednej
+    tabeli; wiersz bez pola usd — ze starszego pliku — wg amt), najwyżej maks."""
     seen = {}
     for r in list(prev_rows or []) + list(new_rows or []):
         if not isinstance(r, dict) or not isinstance(r.get('blk'), int) or r['blk'] < od or not isinstance(r.get('amt'), (int, float)):
             continue
         seen[(r.get('tx'), r.get('li'), r.get('exch'), r.get('dir'))] = r
-    return sorted(seen.values(), key=lambda r: (-r['amt'], -r['blk']))[:maks]
+    return sorted(seen.values(), key=lambda r: (-wh_usd(r), -r['blk']))[:maks]
 
 
 def wh_pary(rows, bloki=WH_PARA):
@@ -5565,15 +5576,111 @@ def wh_logi(f, tw, maks=None):
     return out
 
 
-def build_wieloryby(prev=None):
+def wh_usd(r):
+    """Kwota wiersza w USD: pole usd (v112), a bez niego amt (USDT/USDC ≈ USD w starszych plikach)."""
+    u = r.get('usd') if isinstance(r, dict) else None
+    return u if isinstance(u, (int, float)) and not isinstance(u, bool) else r['amt']
+
+
+def wh_eth_portfele(W):
+    """Portfele giełd, dla których lista giełdy obejmuje ETH (OKX — tylko USDC — pominięty)."""
+    return [w for w in W if 'ETH' in WH_GIELDY.get(w['exch'], {}).get('tokeny', ())]
+
+
+def wh_eth_kolejka(cands, scan, n=None):
+    """Kolejka rotacji: portfele bez odczytu najpierw, potem od najdawniej sprawdzanych (najniższy blok); stabilnie wg adresu."""
+    n = WH_ETH_PER_RUN if n is None else n
+    return sorted(cands, key=lambda w: (scan.get(w['addr'], -1), w['addr']))[:n]
+
+
+def wh_eth_dekoduj(txs, wmap, px, prog=WH_PROG):
+    """Zwykłe transakcje portfela (txlist) → {klucz: wiersz} dla ETH wartego ≥ prog USD po kursie px. Pomija transakcje nieudane,
+    bez kwoty i przelewy między dwoma portfelami tej samej giełdy; przelew między giełdami = dwa wiersze (out/in). Kwota w ETH
+    (4 miejsca) i w USD po kursie z chwili odczytu; czas z bloku (timeStamp). Druga strona przelewu nigdy nie jest opisywana."""
+    out = {}
+    if not isinstance(px, (int, float)) or px <= 0:
+        return out
+    for x in txs if isinstance(txs, list) else []:
+        if not isinstance(x, dict) or str(x.get('isError', '0')) != '0':
+            continue
+        try:
+            wei, blk, ts = int(x.get('value')), int(x.get('blockNumber')), int(x.get('timeStamp'))
+        except (TypeError, ValueError):
+            continue
+        eth = wei / 1e18
+        usd = eth * px
+        if usd < prog:
+            continue
+        fr, to = str(x.get('from', '')).lower(), str(x.get('to', '')).lower()
+        gf, gt = wmap.get(fr), wmap.get(to)
+        if gf and gt and gf == gt:
+            continue
+        tx = str(x.get('hash', ''))
+        for d, g in (('out', gf), ('in', gt)):
+            if g:
+                out[(tx, None, g, d)] = {'t': wh_iso(ts), 'token': 'ETH', 'amt': round(eth, 4), 'usd': round(usd, 2), 'dir': d, 'exch': g, 'tx': tx, 'blk': blk, 'li': None}
+    return out
+
+
+def wh_eth(key, W, wmap, head, px, prev, termin=None, budzet=None):
+    """Część ETH jednego przebiegu: ≤ WH_ETH_PER_RUN portfeli z kolejki rotacji, każdy od swojego ostatniego bloku + 1 (pierwszy raz albo
+    zaległość > WH_ETH_START bloków: od head − WH_ETH_START + 1) do head − WH_ETH_LAG. Zwraca (wiersze, stan skanu, sprawdzone, błędy, przerwane).
+    Pojedynczy błąd nie rusza stanu portfela (wraca na początek kolejki); WH_ETH_BLEDY kolejnych błędów = przerwane."""
+    t0 = time.monotonic()
+    ps = prev.get('eth_scan') if isinstance(prev, dict) else None
+    scan = {a: b for a, b in (ps.items() if isinstance(ps, dict) else ()) if isinstance(a, str) and isinstance(b, int) and not isinstance(b, bool)}
+    do = head - WH_ETH_LAG
+    rows, errs, n, zle, przerwane = {}, [], 0, 0, False
+    for w in wh_eth_kolejka(wh_eth_portfele(W), scan):
+        if time.monotonic() - t0 > (WH_ETH_BUDZET if budzet is None else budzet) or (termin is not None and termin - time.monotonic() < 2):
+            break
+        a, last = w['addr'], scan.get(w['addr'])
+        od = last + 1 if isinstance(last, int) and do - last <= WH_ETH_START else do - WH_ETH_START + 1
+        if od > do:   # sprawdzony przed chwilą — nic nowego
+            n += 1
+            continue
+        if n or errs:
+            time.sleep(WH_ETH_TEMPO)
+        try:
+            j = get_json(WH_ETH_URL.format(addr=a, od=od, do=do, n=WH_ETH_OFFSET, key=key), timeout=wh_tmo(10, termin))
+            st, res = (str(j.get('status')), j.get('result')) if isinstance(j, dict) else ('?', None)
+            if st == '1' and isinstance(res, list):
+                pass
+            elif st == '0' and (res == [] or str(j.get('message', '')).lower().startswith('no transactions')):
+                res = []
+            else:
+                raise ValueError(str(res if isinstance(res, str) else (j.get('message') if isinstance(j, dict) else None) or 'zła odpowiedź')[:100])
+        except WhTermin as e:
+            errs.append(f'{w["exch"]} {a[:10]}: {e}'); przerwane = True
+            break
+        except Exception as e:  # noqa — ten portfel bez zmiany stanu (najbliższy przebieg zaczyna od niego)
+            zle += 1; errs.append(f'{w["exch"]} {a[:10]}: {e}')
+            if zle >= WH_ETH_BLEDY:
+                przerwane = True
+                break
+            continue
+        zle = 0; n += 1
+        rows.update(wh_eth_dekoduj(res, wmap, px))
+        if len(res) >= WH_ETH_OFFSET:   # pełna odpowiedź = mogło być więcej: ciąg dalszy od ostatniego zwróconego bloku (ten blok raz jeszcze)
+            bl = [int(x['blockNumber']) for x in res if isinstance(x, dict) and str(x.get('blockNumber', '')).isdigit()]
+            scan[a] = max(bl) - 1 if bl else od - 1
+        else:
+            scan[a] = do
+    return rows, scan, n, errs, przerwane
+
+
+def build_wieloryby(prev=None, eth_key=None):
     """data/wieloryby.json — salda ETH/USDT/USDC ogłoszonych portfeli giełd (co przebieg, jedno żądanie zbiorcze), historia
     dobowa i duże transfery USDT/USDC (skan zdarzeń od ostatniego zapisanego bloku). Każda część osobno: błąd = poprzednia
-    wersja tej części z własnym czasem; brak kursu ETH = suma w USD None, nigdy zero."""
+    wersja tej części z własnym czasem; brak kursu ETH = suma w USD None, nigdy zero.
+    v112: z kluczem eth_key także transfery ETH natywne (część 'eth'): zwykłe transakcje portfeli z publicznego API eksploratora,
+    portfele w rotacji (stan eth_scan: adres → ostatni sprawdzony blok), w tej samej tabeli transfery (sortowanie wg USD)."""
     t0 = time.monotonic(); termin = t0 + WH_LIMIT   # milczący węzeł: łącznie nie dłużej niż WH_LIMIT s, potem poprzednie części
     prev = prev if isinstance(prev, dict) else {}
     pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
     W = wh_portfele(); wmap = {w['addr']: w['exch'] for w in W}
-    out = {'at': NOW, 'src': 'Publiczny łańcuch Ethereum (JSON-RPC, węzeł publiczny) — odczyt własny sald i zdarzeń Transfer; kurs ETH/USD z wyroczni na łańcuchu',
+    out = {'at': NOW, 'src': 'Publiczny łańcuch Ethereum (JSON-RPC, węzeł publiczny) — odczyt własny sald i zdarzeń Transfer; kurs ETH/USD z wyroczni na łańcuchu'
+                            + ('; transfery ETH natywne: publiczne API eksploratora łańcucha (klucz właściciela), portfele w rotacji' if eth_key else ''),
            'rpc': WH_RPC, 'ok': {}, 'part_at': {}, 'wallets': W,
            'gieldy': {g: {'n': len(c['addr']), 'src': c['src'], 'url': c['url'], 'since': c['since'], 'tokeny': c['tokeny']} for g, c in WH_GIELDY.items()},
            'prog': WH_PROG, 'eth_usd': None, 'eth_usd_at': None}
@@ -5695,6 +5802,34 @@ def build_wieloryby(prev=None):
         for k in ('ostatni_blok', 'ostatni_t', 'okno_od', 'okno_od_t', 'okno', 'luka'):
             if prev.get(k) is not None:
                 out[k] = prev[k]
+    # --- v112: transfery ETH natywne (zwykłe transakcje) z publicznego API eksploratora — klucz właściciela; portfele w rotacji; własna część
+    if eth_key:
+        cands = wh_eth_portfele(W)
+        try:
+            if head is None:
+                raise ValueError('brak bloku „latest”')
+            px = out.get('eth_usd')
+            if not isinstance(px, (int, float)) or not px > 0:
+                raise ValueError('brak kursu ETH — próg w USD nieprzeliczalny')
+            ers, scan, n, eerrs, przerwane = wh_eth(eth_key, W, wmap, head, px, prev, termin=termin)
+            if not n:   # nic nie sprawdzono w tym przebiegu — część bez nowego stanu, z własnym czasem
+                raise ValueError(eerrs[0] if eerrs else 'brak czasu na część ETH')
+            od = out['okno_od'] if isinstance(out.get('okno_od'), int) else head - WH_OKNO + 1
+            out['transfery'] = wh_pary(wh_polacz([r for r in (out.get('transfery') or []) if isinstance(r, dict)], ers.values(), od))
+            out['eth_scan'] = scan
+            done = [scan[w['addr']] for w in cands if w['addr'] in scan]
+            out['eth'] = {'n': len(done), 'total': len(cands), 'sprawdzono': n, 'wiersze': len(ers), 'per_run': WH_ETH_PER_RUN,
+                          'lag_min': int((head - min(done)) * 12 // 60) if done else None}   # ≈ 12 s na blok — orientacyjnie
+            out['part_at']['eth'] = NOW; out['ok']['eth'] = not przerwane
+            if eerrs:
+                (errs if przerwane else META['notes']).append(('ETH: ' if przerwane else 'Wieloryby ETH: ') + '; '.join(eerrs)[:240])
+        except Exception as e:  # noqa
+            errs.append(f'ETH: {e}'); out['ok']['eth'] = False
+            for k in ('eth_scan', 'eth'):
+                if prev.get(k) is not None:
+                    out[k] = prev[k]
+            if prev.get('eth') is not None:
+                out['part_at']['eth'] = pat.get('eth') or prev.get('at')
     if not any(out['ok'].get(k) for k in ('salda', 'transfery')):
         raise RuntimeError('żadna część nie odpowiedziała' + (f' ({errs[0]})' if errs else ''))
     if errs:
@@ -6179,9 +6314,17 @@ def main():
             for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = False
             if prev_lv: save('dzwignia', prev_lv)
     # v105: wieloryby — portfele giełd na Ethereum (bez klucza): co przebieg (kilka żądań zbiorczych); awaria = poprzedni plik i błąd
+    # v112: z kluczem ETHERSCAN_KEY (sekret właściciela ETHERSCAN) także transfery ETH natywne — klucz tylko w adresie zapytania, maskowany w błędach
+    eth_key = os.environ.get('ETHERSCAN_KEY', '').strip()
+    if eth_key:
+        SECRETS.append(eth_key)
+    else:
+        META['notes'].append('brak ETHERSCAN_KEY — transfery ETH natywne w wielorybach wyłączone')
     prev_wh = previous('wieloryby')
     try:
-        wh = build_wieloryby(prev_wh); save('wieloryby', wh); META['ok']['wieloryby'] = all(wh['ok'].get(k) for k in ('salda', 'transfery'))
+        wh = build_wieloryby(prev_wh, eth_key=eth_key or None); save('wieloryby', wh); META['ok']['wieloryby'] = all(wh['ok'].get(k) for k in ('salda', 'transfery'))
+        if eth_key:
+            META['ok']['wieloryby_eth'] = bool(wh['ok'].get('eth'))
     except Exception as e:
         META['errors'].append(mask(f'Wieloryby: {e}')); META['ok']['wieloryby'] = False
         if prev_wh: save('wieloryby', prev_wh)

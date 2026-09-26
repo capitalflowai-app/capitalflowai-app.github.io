@@ -5531,3 +5531,156 @@ class SeoV111(unittest.TestCase):
         k = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
         for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html'):
             self.assertIn(f, k)
+
+
+class WielorybyEthV112(WielorybyV105):
+    """v112: transfery ETH natywne z publicznego API eksploratora (klucz właściciela) — kolejka rotacji, dekodowanie txlist (próg w USD po kursie),
+    pełna odpowiedź = ciąg dalszy, błędy pojedyncze vs przerwanie, część 'eth' w pełnym przebiegu, sortowanie tabeli wg USD, klucz maskowany."""
+    KEY = 'TAJNY-KLUCZ-ETH'
+    BY1 = '0x695f7dea85bf8c0aaafef0a9484e74834e28ce8b'   # Bybit
+    BF1 = '0x742d35cc6634c0532925a3b844bc454e4438f44e'   # Bitfinex
+
+    def _tx(self, fr, to, eth, blk=9990, h='0x' + '77' * 32, err='0', ts=None):
+        return {'blockNumber': str(blk), 'timeStamp': str(ts if ts is not None else 1_790_400_000 - (10000 - blk) * 12), 'hash': h, 'from': fr, 'to': to,
+                'value': str(int(eth * 10 ** 18)), 'isError': err, 'txreceipt_status': '1' if err == '0' else '0'}
+
+    def test_portfele_i_kolejka(self):
+        W = zd.wh_portfele(); c = zd.wh_eth_portfele(W)
+        self.assertEqual(len(c), 154, '164 − 10 OKX (tylko USDC)'); self.assertTrue(all(w['exch'] != 'OKX' for w in c))
+        q = zd.wh_eth_kolejka(c, {})
+        self.assertEqual(len(q), zd.WH_ETH_PER_RUN); self.assertEqual([w['addr'] for w in q], sorted(w['addr'] for w in c)[:zd.WH_ETH_PER_RUN], 'bez stanu: stabilnie wg adresu')
+        scan = {w['addr']: 100 + i for i, w in enumerate(c)}; scan.pop(c[5]['addr'])
+        q = zd.wh_eth_kolejka(c, scan, 3)
+        self.assertEqual([w['addr'] for w in q], [c[5]['addr'], c[0]['addr'], c[1]['addr']], 'bez odczytu najpierw, potem najniższy blok')
+
+    def test_dekoduj_eth(self):
+        px = 2500.0
+        T = [self._tx(self.X, self.B1, 400.0, h='0x' + '01' * 32),               # 400 ETH × 2500 = dokładnie próg → na giełdę
+             self._tx(self.B2, self.X, 399.9, h='0x' + '02' * 32),               # poniżej progu
+             self._tx(self.B1, self.B2, 5000.0, h='0x' + '03' * 32),             # wewnętrzny Binance → pominięty
+             self._tx(self.BY1, self.BF1, 1000.0, h='0x' + '04' * 32, blk=9995),  # Bybit → Bitfinex: dwa wiersze
+             self._tx(self.X, self.B1, 900.0, h='0x' + '05' * 32, err='1'),      # nieudana
+             dict(self._tx(self.X, self.B1, 900.0, h='0x' + '06' * 32), value='x'),   # bez kwoty — nie zero
+             'śmieć', None]
+        R = zd.wh_eth_dekoduj(T, self.W, px)
+        rows = sorted(R.values(), key=lambda r: (r['tx'], r['dir']))
+        self.assertEqual([(r['tx'][:4], r['dir'], r['exch'], r['amt'], r['usd'], r['blk']) for r in rows],
+                         [('0x01', 'in', 'Binance', 400.0, 1000000.0, 9990), ('0x04', 'in', 'Bitfinex', 1000.0, 2500000.0, 9995), ('0x04', 'out', 'Bybit', 1000.0, 2500000.0, 9995)])
+        self.assertTrue(all(r['token'] == 'ETH' and r['li'] is None and r['t'].endswith('+00:00') for r in rows))
+        self.assertEqual(rows[0]['t'], zd.wh_iso(1_790_400_000 - 120))
+        self.assertEqual(zd.wh_eth_dekoduj(T, self.W, None), {}, 'bez kursu — nic (próg nieprzeliczalny)'); self.assertEqual(zd.wh_eth_dekoduj(None, self.W, px), {})
+
+    def _api(self, plan):
+        """plan: adres → odpowiedź (dict) albo wyjątek; zapisuje adresy zapytań."""
+        urls = []
+
+        def gj(url, headers=None, timeout=30):
+            urls.append(url)
+            self.assertIn('apikey=' + self.KEY, url); self.assertIn('chainid=1&module=account&action=txlist&address=0x', url)
+            a = url.split('address=')[1].split('&')[0]
+            r = plan.get(a, {'status': '0', 'message': 'No transactions found', 'result': []})
+            if isinstance(r, Exception):
+                raise r
+            return r
+        return gj, urls
+
+    def test_wh_eth_rotacja_bledy_i_pelna_odpowiedz(self):
+        W = zd.wh_portfele(); c = zd.wh_eth_portfele(W); head = 10000; do = head - zd.WH_ETH_LAG
+        first = sorted(w['addr'] for w in c)[:zd.WH_ETH_PER_RUN]
+        a0, a1, a2 = first[0], first[1], first[2]
+        full = [self._tx(self.X, a2, 0.001, blk=9000 + i // 100, h='0x%064x' % i) for i in range(zd.WH_ETH_OFFSET)]
+        plan = {a0: {'status': '1', 'message': 'OK', 'result': [self._tx(self.X, a0, 500.0, blk=9998, h='0x' + 'aa' * 32)]},
+                a1: {'status': '0', 'message': 'NOTOK', 'result': 'Max rate limit reached'},
+                a2: {'status': '1', 'message': 'OK', 'result': full}}
+        gj, urls = self._api(plan)
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd.time, 'sleep') as sl:
+            rows, scan, n, errs, prz = zd.wh_eth(self.KEY, W, self.W, head, 2500.0, {}, termin=None)
+        self.assertEqual(n, zd.WH_ETH_PER_RUN - 1); self.assertFalse(prz); self.assertEqual(len(errs), 1); self.assertIn('Max rate limit', errs[0])
+        self.assertNotIn(a1, scan, 'portfel z błędem bez stanu — wraca na początek kolejki'); self.assertEqual(scan[a0], do)
+        self.assertEqual(scan[a2], 9099 - 1, 'pełna odpowiedź: ciąg dalszy od ostatniego zwróconego bloku (ten blok raz jeszcze)')
+        self.assertEqual(len(urls), zd.WH_ETH_PER_RUN); self.assertIn(f'startblock={do - zd.WH_ETH_START + 1}&endblock={do}&', urls[0])
+        self.assertEqual(sl.call_count, zd.WH_ETH_PER_RUN - 1, 'odstęp między zapytaniami (limit dostawcy)')
+        self.assertEqual([(r['exch'], r['amt'], r['usd']) for r in rows.values()], [(self.W[a0], 500.0, 1250000.0)])
+        # drugi przebieg: od ostatniego bloku + 1; portfel z błędem pierwszy w kolejce
+        gj2, urls2 = self._api({a1: {'status': '1', 'message': 'OK', 'result': []}})
+        with mock.patch.object(zd, 'get_json', side_effect=gj2), mock.patch.object(zd.time, 'sleep'):
+            rows2, scan2, n2, errs2, prz2 = zd.wh_eth(self.KEY, W, self.W, 10100, 2500.0, {'eth_scan': scan}, termin=None)
+        self.assertTrue(urls2[0].split('address=')[1].startswith(a1)); self.assertEqual(errs2, []); self.assertEqual(scan2[a1], 10095)
+        nxt = [u for u in urls2 if a0 in u]
+        self.assertEqual(len(nxt), 0, 'a0 sprawdzony przed chwilą (blok 9995) nie jest w kolejce 40 najstarszych — 154 portfele bez odczytu mają pierwszeństwo')
+        # zaległość > WH_ETH_START: od nowa (bez udawania ciągłości)
+        gj3, urls3 = self._api({})
+        with mock.patch.object(zd, 'get_json', side_effect=gj3), mock.patch.object(zd.time, 'sleep'):
+            zd.wh_eth(self.KEY, W, self.W, 30000, 2500.0, {'eth_scan': {a: 100 for a in first}}, termin=None)
+        self.assertIn(f'startblock={30000 - zd.WH_ETH_LAG - zd.WH_ETH_START + 1}&', urls3[0])
+        # trzy kolejne błędy = przerwane
+        gj4, _ = self._api({a: zd.urllib.error.HTTPError('u', 429, 'Too Many Requests', {}, None) for a in first[:3]})
+        with mock.patch.object(zd, 'get_json', side_effect=gj4), mock.patch.object(zd.time, 'sleep'):
+            rows4, scan4, n4, errs4, prz4 = zd.wh_eth(self.KEY, W, self.W, head, 2500.0, {}, termin=None)
+        self.assertTrue(prz4); self.assertEqual((n4, len(errs4), scan4), (0, 3, {}))
+        # budżet czasu: 0 s = najwyżej jedno zapytanie… (pierwsze zawsze, sprawdzenie przed każdym następnym)
+        gj5, urls5 = self._api({})
+        with mock.patch.object(zd, 'get_json', side_effect=gj5), mock.patch.object(zd.time, 'sleep'):
+            zd.wh_eth(self.KEY, W, self.W, head, 2500.0, {}, termin=None, budzet=-1)
+        self.assertEqual(len(urls5), 0)
+
+    def test_build_z_kluczem(self):
+        post, calls = self._rpc()
+        W = zd.wh_portfele(); c = zd.wh_eth_portfele(W); first = sorted(w['addr'] for w in c)[:zd.WH_ETH_PER_RUN]; a0 = first[0]
+        plan = {a0: {'status': '1', 'message': 'OK', 'result': [self._tx(self.X, a0, 3000.0, blk=9990, h='0x' + '99' * 32), self._tx(a0, self.X, 1.0, blk=9991, h='0x' + '98' * 32)]}}
+        gj, urls = self._api(plan)
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd.time, 'sleep'):
+            o = zd.build_wieloryby(None, eth_key=self.KEY)
+        self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': True, 'eth': True}); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(o['part_at']['eth'], zd.NOW); self.assertIn('eksploratora', o['src'])
+        e = o['eth']; self.assertEqual((e['n'], e['total'], e['sprawdzono'], e['wiersze'], e['per_run']), (40, 154, 40, 1, zd.WH_ETH_PER_RUN)); self.assertEqual(e['lag_min'], 1)
+        self.assertEqual(len(o['eth_scan']), 40); self.assertTrue(all(v == 10000 - zd.WH_ETH_LAG for v in o['eth_scan'].values()))
+        r0 = o['transfery'][0]
+        self.assertEqual((r0['token'], r0['amt'], r0['usd'], r0['dir'], r0['exch'], r0['blk'], r0['li']), ('ETH', 3000.0, round(3000 * 2688.8695031, 2), 'in', self.W[a0], 9990, None))
+        self.assertEqual([r['tx'][:4] for r in o['transfery']], ['0x99', '0xff', '0xee', '0xaa', '0xbb'], 'ETH za 8 mln USD na czele — sortowanie wg USD, stablecoiny wg amt')
+        self.assertTrue(all(r.get('usd') == r['amt'] for r in o['transfery'][1:]), 'wiersze USDT/USDC dostają usd = amt')
+        # drugi przebieg: wiersz ETH zostaje w oknie, kolejne 40 portfeli, stan skanu rośnie; brak kursu = część ETH z poprzednim stanem
+        post2, _ = self._rpc(head=10100)
+        gj2, urls2 = self._api({})
+        with mock.patch.object(zd, 'post_json', side_effect=post2), mock.patch.object(zd, 'get_json', side_effect=gj2), mock.patch.object(zd.time, 'sleep'):
+            o2 = zd.build_wieloryby(o, eth_key=self.KEY)
+        self.assertEqual(len(o2['eth_scan']), 80); self.assertEqual(o2['transfery'][0]['tx'][:4], '0x99'); self.assertEqual(o2['eth']['n'], 80)
+        self.assertTrue(all(a0 not in u for u in urls2), 'rotacja: sprawdzone portfele czekają na resztę')
+        post3, _ = self._rpc(head=10200, price_ok=False)
+        with mock.patch.object(zd, 'post_json', side_effect=post3), mock.patch.object(zd, 'get_json', side_effect=RuntimeError('brak zapasu kursu')), mock.patch.object(zd.time, 'sleep'):
+            o3 = zd.build_wieloryby(o2, eth_key=self.KEY)
+        self.assertEqual(o3['ok']['eth'], False); self.assertEqual(o3['eth_scan'], o2['eth_scan']); self.assertEqual(o3['part_at']['eth'], zd.NOW if False else o2['part_at']['eth'])
+        self.assertTrue(any('ETH: brak kursu ETH' in x for x in zd.META['errors']))
+        # bez klucza: żadnej części eth (jak przed v112), żadnego zapytania do eksploratora
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez klucza — bez eksploratora')):
+            o4 = zd.build_wieloryby(None)
+        self.assertNotIn('eth', o4['ok']); self.assertNotIn('eth_scan', o4); self.assertNotIn('eksploratora', o4['src'])
+
+    def test_klucz_maskowany_i_przerwanie_to_blad(self):
+        post, _ = self._rpc()
+        zd.SECRETS.append(self.KEY)
+        try:
+            gj, _ = self._api({a: RuntimeError('odbito adres z ' + self.KEY) for a in sorted(w['addr'] for w in zd.wh_eth_portfele(zd.wh_portfele()))[:3]})
+            with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd.time, 'sleep'):
+                o = zd.build_wieloryby(None, eth_key=self.KEY)
+        finally:
+            zd.SECRETS.remove(self.KEY)
+        self.assertEqual(o['ok']['eth'], False); self.assertEqual(len(zd.META['errors']), 1)
+        self.assertNotIn(self.KEY, zd.META['errors'][0]); self.assertIn('***', zd.META['errors'][0]); self.assertTrue(zd.META['errors'][0].startswith('Wieloryby: ETH: '))
+        self.assertEqual(o['ok']['transfery'], True, 'część USDT/USDC niezależna od ETH')
+
+    def test_polacz_wg_usd(self):
+        a = {'tx': '0x1', 'li': 1, 'exch': 'Binance', 'dir': 'in', 'amt': 2e6, 'blk': 50}                       # stary wiersz bez usd
+        b = {'tx': '0x2', 'li': None, 'exch': 'Binance', 'dir': 'in', 'amt': 1500.0, 'usd': 4e6, 'blk': 40, 'token': 'ETH'}
+        c = {'tx': '0x3', 'li': 2, 'exch': 'OKX', 'dir': 'out', 'amt': 3e6, 'usd': 3e6, 'blk': 60}
+        self.assertEqual([r['tx'] for r in zd.wh_polacz([a], [b, c], 0)], ['0x2', '0x3', '0x1'])
+        self.assertEqual(zd.wh_usd(a), 2e6); self.assertEqual(zd.wh_usd(b), 4e6); self.assertEqual(zd.wh_usd({'amt': 5, 'usd': True}), 5)
+
+    def test_main_wiring(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        self.assertIn("eth_key = os.environ.get('ETHERSCAN_KEY', '').strip()", src); self.assertIn("SECRETS.append(eth_key)", src)
+        self.assertIn("wh = build_wieloryby(prev_wh, eth_key=eth_key or None)", src); self.assertIn("META['ok']['wieloryby_eth'] = bool(wh['ok'].get('eth'))", src)
+        self.assertIn("brak ETHERSCAN_KEY — transfery ETH natywne w wielorybach wyłączone", src)
+        wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertRegex(wf, r'ETHERSCAN_KEY: \$\{\{ secrets\.ETHERSCAN \|\| secrets\.ETHERSCAN_KEY \}\}')

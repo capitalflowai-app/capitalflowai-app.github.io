@@ -4227,3 +4227,19 @@ test('v111: wyszukiwarki — weryfikacja Google w <head>, opis, canonical, hrefl
     assert.ok(t('seo.title').startsWith('CapitalFlowAI — ') && t('seo.desc').length <= 155 && t('seo.desc').length > 30, L + ': ' + t('seo.desc').length);   // zh/ja: znaki CJK — krótsze napisy
   }
 });
+
+test('v112: transfery ETH natywne w tabeli wielorybów — słownik EXTRA106 (10 języków), sortowanie wg USD, nota o rotacji / braku odczytu, kwota ETH z ≈ USD', () => {
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
+  assert.equal(apl[apl.length - 1][1], 'EXTRA106', 'EXTRA106 nałożony jako ostatni (starszy słownik EXTRA99 nie może nadpisać nagłówka)');
+  assert.ok(v96src.tFor('pl')('wh.n.Bybit').includes('w jej miesięcznym raporcie dowodu rezerw') && v96src.tFor('ru')('wh.n.Bybit').includes('в её ежемесячном аудиторском отчёте'), 'noty v108.1 poprawione gramatycznie');
+  assert.ok(html.includes("function whUsd(r){return whNum(r.usd)?r.usd:r.amt;}") && html.includes(".sort((a,b)=>whUsd(b)-whUsd(a));}"), 'tabela malejąco wg USD');
+  assert.ok(html.includes("t(E||ethNa?'wh.h.tr':'wh.h.tr2')") && html.includes("t('wh.eth.na')") && html.includes("t('wh.eth.note',{n:") && html.includes("coinImg('ETH','sm'):''}${coinImg('USDT','sm')}"));
+  assert.ok(html.includes("whNum(r.usd)?`<small class=\"whx\"> ≈ ${whAmt(r.usd,'USD')}</small>`:''"), 'kwota ETH z przybliżeniem w USD');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    assert.ok(t('wh.h.tr').includes('ETH') && t('wh.h.tr').includes('USDT') && t('wh.h.tr').includes('USDC'), L + ' nagłówek');
+    assert.ok(t('wh.h.tr2').includes('USDT') && !t('wh.h.tr2').includes('ETH'), L + ' dawny nagłówek bez ETH');
+    assert.ok(t('wh.eth.note').includes('{n}') && t('wh.eth.note').includes('{m}') && t('wh.eth.note').includes('{l}') && t('wh.eth.note').length > 80, L + ' nota');
+    assert.ok(t('wh.eth.na').length > 30 && t('wh.eth.na').includes('USDT'), L + ' brak odczytu');
+  }
+});
