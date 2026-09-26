@@ -5285,7 +5285,7 @@ WH_TOPICS = 200         # v108: najwyżej tyle portfeli w jednej tablicy temató
 # filtra „przelewy ETH ≥ X w zakresie bloków”, więc pytamy portfel po portfelu (txlist) w rotacji: najdłużej niesprawdzane najpierw.
 WH_ETH_URL = 'https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address={addr}&startblock={od}&endblock={do}&page=1&offset={n}&sort=asc&apikey={key}'
 WH_ETH_PER_RUN = 40     # portfeli na przebieg (154 portfele z ETH ≈ co 4 przebiegi ≈ 80 min); dobowo ≤ 40 × 72 = 2 880 zapytań (limit dostawcy 100 000)
-WH_ETH_BUDZET = 12      # sekund na część ETH w jednym przebiegu (cały przebieg wielorybów < WH_LIMIT)
+WH_ETH_BUDZET = 18      # sekund na część ETH w jednym przebiegu (salda + logi zajmują ~10 s, całość < WH_LIMIT 40 s); przy 0,4 s odstępu = ~40 portfeli
 WH_ETH_OFFSET = 10000   # najwyżej tyle transakcji w jednej odpowiedzi (limit dostawcy); pełna odpowiedź = ciąg dalszy od jej ostatniego bloku
 WH_ETH_TEMPO = 0.4      # sekund między zapytaniami (limit planu bezpłatnego dostawcy: 3 zapytania na sekundę — 0,21 s dawało „rate limit reached (3/sec)” 26.09.2026)
 WH_ETH_LAG = 5          # bloków za głowicą węzła RPC — indeks eksploratora bywa o chwilę w tyle; skan portfela kończy się na head − WH_ETH_LAG
