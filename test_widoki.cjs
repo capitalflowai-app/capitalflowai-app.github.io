@@ -3620,3 +3620,141 @@ test('v103-zrodla: tickClock dopisuje datę i godzinę do #zr-clock (i nie wywra
   assert.ok(html.indexOf('/* v103 zrodla */') < html.indexOf('</style>') && html.indexOf('/* v103 zrodla */') > html.indexOf('<style>'), 'CSS w arkuszu strony');
   assert.ok(html.includes('<span data-i18n="foot.src"></span>'), 'przycisk stopki nadal ze słownika');
 });
+
+// ===== v104 — obszar dzwignia: panel „Dźwignia i pozycje w krypto” (plik data/dzwignia.json) =====
+const lev104 = (() => {
+  const b0 = html.indexOf('/* ===================== v104: dźwignia i pozycje w krypto'), b1 = html.indexOf('function levAuto(){', b0);
+  const blk = b0 > 0 && b1 > b0 ? html.slice(b0, html.indexOf('\n', b1)) : '';
+  const T = (k, o) => k + (o ? '{' + Object.keys(o).map(a => a + '=' + o[a]).join(',') + '}' : '');   // bez cudzysłowów — podpisy kafelków przechodzą przez escH
+  const escH = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const mk = (extra, tt) => {
+    const el = {innerHTML: '', hidden: true, querySelectorAll() { return []; }, querySelector() { return null; }};
+    const f = new Function('$', 't', 'escH', 'nfmt', 'fPct', 'sg', 'gAgeNote', 'LOCALE', 'LANG', 'srvJSON', 'engDate', ...Object.keys(extra),
+      blk + '\nreturn {LEV, renderLev, levApply, levHist, levPart};')(() => el, tt || T, escH, (v, d = 0) => v.toFixed(d), (v, d = 1) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%',
+      v => v > 0 ? '+' : v < 0 ? '−' : '', d => ' ·wiek(' + d + ')', {pl: 'pl-PL'}, 'pl', () => Promise.resolve(null), s => 'D:' + s, ...Object.values(extra));
+    f.el = el; return f;
+  };
+  const now = new Date().toISOString(), today = now.slice(0, 10), yest = new Date(Date.now() - 864e5).toISOString().slice(0, 10), d2 = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);
+  const fix = () => ({at: now, ok: {hl: true, bn: true, dr: true, okx: true}, part_at: {hl: now, bn: now, dr: now, okx: now},
+    hl: {n: 234, top: ['BTC', 'ETH', 'HYPE', 'SOL', 'XRP'], f7_y: {BTC: 8.2, ETH: null}, rows: {
+      BTC: {f_h: 0.0000125, f_y: 10.95, oi: 37688.3, oi_usd: 3162290812, px: 83895, d1: -0.337, vol_usd: 2577312373},
+      ETH: {f_h: -0.00001, f_y: -8.76, oi: 1104443.3, oi_usd: 2968019557, px: 2687.37, d1: 0.312, vol_usd: 839906068},
+      HYPE: {f_h: 0.0000125, f_y: 10.95, oi: 1, oi_usd: 1877000000, px: 40, d1: 0, vol_usd: null},
+      SOL: {f_h: null, f_y: null, oi: 5683459.5, oi_usd: 684000000, px: 120.39, d1: 3.39, vol_usd: 598530337},
+      XRP: {f_h: 0.0000125, f_y: 10.95, oi: 197101732, oi_usd: 305882000, px: 1.5519, d1: 1.33, vol_usd: 225105356}}},
+    bn: {day: d2, BTC: {t: d2 + ' 21:10:00', n: 254, last: {oi: 95949.275, oi_usd: 8088522776.3, ls: 1.2262, top_ls: 1.3198, top_pos: 1.9252, taker: 1.0832},
+      mean: {oi: 97000, oi_usd: 8200000000, ls: 1.19, top_ls: 1.31, top_pos: 1.91, taker: 1.3}},
+      ETH: {t: d2 + ' 23:15:00', n: 288, last: {oi: 2272548.5, oi_usd: 6104472058.4, ls: 0.7, top_ls: 1.5279, top_pos: 1.5613, taker: null}, mean: {oi: null, oi_usd: null, ls: 2.72, top_ls: null, top_pos: null, taker: null}}},
+    dr: {BTC: {dvol: {v: 34.67, v24: 35.2, d1: -1.506, t: now}, opt: {oi: 351282.7, oi_p: 120393.5, oi_c: 230889.2, pc: 0.5214, n: 998, px: 83914, exp: [[ '2026-12-25', 118793.6], ['2026-10-30', 117025.8], ['2027-03-26', 34480.3], ['2026-10-02', 25707.7]], t: now}},
+      ETH: {dvol: {v: 48.21, v24: 48.0, d1: 0.437, t: now}, opt: {oi: 1232994, oi_p: 700000, oi_c: 532994, pc: 1.3134, n: 856, px: 2687, exp: [['2026-12-25', 528141]], t: now}}},
+    okx: {BTC: {t: now, f: 0.0000210707, f_hours: 8, f_y: 2.307, oi_usd: 2395706135.5, oi: 28559.68, ls: 1.36, ls_t: yest + 'T16:00:00+00:00'}, ETH: {t: now, f: -0.0000041437, f_hours: 8, f_y: -0.454, oi_usd: 1601902860.3, oi: 596334.24, ls: 1.0, ls_t: yest + 'T16:00:00+00:00'}},
+    hist: [{d: d2, hl_btc: 3000000000, hl_eth: 3100000000, dvol_btc: 36, dvol_eth: 50, bn_btc: 8088522776.3, bn_eth: 6104472058.4},
+           {d: today, hl_btc: 3162290812, hl_eth: 2968019557, f_btc: 10.95, f_eth: -8.76, dvol_btc: 34.67, dvol_eth: 48.21}]});
+  return {blk, mk, fix, now, today, yest, d2, T};
+})();
+
+test('v104-dzwignia: panel — kafelki z kolorami wg kierunku, brak = „—” (nie zero), nazwy giełd dozwolone, bez nazw dostawców', () => {
+  assert.ok(lev104.blk.length > 1000, 'blok v104 w stronie');
+  const f = lev104.mk({});
+  f.levApply(null);
+  assert.ok(f.el.hidden && f.el.innerHTML === '', 'bez pliku — sekcja ukryta');
+  f.levApply(lev104.fix());
+  const h = f.el.innerHTML;
+  assert.ok(!f.el.hidden && h.includes('<h2>lev.t</h2>') && h.includes('lev.sub') && h.includes('inst.file{t=D:' + lev104.now + '}'), 'tytuł, podtytuł, czas pliku');
+  assert.ok(h.includes('lev.k.fund{c=BTC}</span><b class="pos">+10.9% <small class="pos">lev.f7{v=+8.2%}</small></b>'), 'finansowanie BTC dodatnie — zielone, ze średnią 7 dni: ' + h.slice(h.indexOf('lev.k.fund'), h.indexOf('lev.k.fund') + 200));
+  assert.ok(h.includes('lev.k.fund{c=ETH}</span><b class="neg">−8.8% <small>lev.f.h{v=−0.0010%}</small></b>'), 'finansowanie ETH ujemne — czerwone, bez średniej 7 dni → stawka godzinowa');
+  assert.ok(h.includes('lev.k.oi{c=BTC}</span><b>3.16 <small class="mtxt">lev.u.mld</small> <small><span class="pos">lev.dn{n=2,v=+5.4%}</span></small></b>'), 'otwarte pozycje BTC ze zmianą wobec wpisu sprzed 2 dni (prawdziwy odstęp): ' + h.slice(h.indexOf('lev.k.oi{c=BTC}'), h.indexOf('lev.k.oi{c=BTC}') + 220));
+  assert.ok(h.includes('lev.k.oi{c=ETH}</span><b>2.97 <small class="mtxt">lev.u.mld</small> <small><span class="neg">lev.dn{n=2,v=−4.3%}</span></small></b>'), 'otwarte pozycje ETH — spadek na czerwono');
+  assert.ok(h.includes('<b class="pos">1.23 <small class="pos">lev.more.long · lev.mean{v=1.19} · lev.top{v=1.93}</small></b><small class="mtxt">lev.bnday{d='), 'Binance BTC: więcej długich, średnia dnia, najwięksi gracze, dzień pliku');
+  assert.ok(h.includes('<b class="neg">0.70 <small class="neg">lev.more.short · lev.mean{v=2.72} · lev.top{v=1.56}</small></b>'), 'Binance ETH: więcej krótkich — czerwono');
+  assert.ok(h.includes('lev.k.taker{c=BTC}</span><b class="pos">1.30 <small class="pos">lev.more.buy · lev.last5{v=1.08}</small></b>'), 'kupno/sprzedaż BTC: nagłówek, kolor i słowa ze średniej dnia (1,30), ostatnie 5 min (1,08) tylko w dopisku: ' + h.slice(h.indexOf('lev.k.taker{c=BTC}'), h.indexOf('lev.k.taker{c=BTC}') + 160));
+  assert.ok(h.includes('lev.k.taker{c=ETH}</span><b class="na">— <small>eng.gap</small></b>'), 'brak stosunku kupno/sprzedaż ETH — „—” z powodem, nie zero');
+  const asof = 'lev.asof{t=D:' + lev104.now + ' ·wiek(' + lev104.today + ')}';
+  assert.ok(h.includes('lev.tab.sub{n=234} · ' + asof + '</p>'), 'tabela kontraktów ma własną datę części (stan na): ' + h.slice(h.indexOf('lev.tab.sub'), h.indexOf('lev.tab.sub') + 120));
+  assert.ok(h.includes('lev.k.oib{c=ETH}</span><b>6.10 <small class="mtxt">lev.u.mld</small></b>') && !h.includes('lev.mean{v=0.00'), 'otwarte pozycje ETH koniec dnia bez średniej (brak, nie zero)');
+  assert.ok(h.includes('lev.k.dvol{c=BTC}</span><b>34.7 <small class="neg">lev.dn{n=1,v=−1.5%}</small></b>'), 'DVOL BTC: spadek o 1,5 % — czerwono');
+  assert.ok(h.includes('lev.k.dvol{c=ETH}</span><b>48.2 <small class="neu">lev.dn{n=1,v=+0.4%}</small></b>'), 'DVOL ETH: zmiana w granicach ±1 % — żółto');
+  assert.ok(h.includes('lev.k.pc{c=BTC}</span><b class="pos">0.52 <small class="pos">lev.more.call</small></b>') && h.includes('lev.k.pc{c=ETH}</span><b class="neg">1.31 <small class="neg">lev.more.put</small></b>'), 'put/call: poniżej 1 zielono (więcej calli), powyżej 1 czerwono (więcej putów)');
+  assert.ok(h.includes('<td><span class="cell">OKX</span></td><td><span class="cell">ETH</span></td><td><span class="cell mono neg">−0.5%</span></td><td><span class="cell mono">1.60</span></td><td><span class="cell mono">1.00<small>'), 'tabela giełd: OKX ETH — finansowanie ujemne czerwono, stosunek 1,00 bez koloru');
+  assert.ok(h.includes('<td><span class="cell">Binance</span></td><td><span class="cell">BTC</span></td><td><span class="cell mono na" title="lev.np">—</span></td><td><span class="cell mono">8.09</span></td><td><span class="cell mono pos">1.23</span></td>'), 'tabela giełd: Binance nie publikuje finansowania — „—” z podpowiedzią');
+  assert.ok(h.includes('<td><span class="cell">Hyperliquid</span></td><td><span class="cell">BTC</span></td><td><span class="cell mono pos">+10.9%</span></td><td><span class="cell mono">3.16</span></td><td><span class="cell mono na" title="lev.np">—</span></td>'), 'tabela giełd: Hyperliquid bez stosunku kont');
+  const tab = h.slice(h.indexOf('lev.h.tab'), h.indexOf('lev-opt'));
+  assert.ok(tab.indexOf('>BTC<') < tab.indexOf('>ETH<') && tab.indexOf('>ETH<') < tab.indexOf('>HYPE<') && tab.indexOf('>HYPE<') < tab.indexOf('>SOL<'), 'tabela Hyperliquid w kolejności otwartych pozycji');
+  assert.ok(tab.includes('<td><span class="cell mono na">—</span></td>') && tab.includes('<span class="cell mono">0.0%</span>') && !tab.includes('cell mono pos">0.0%') && tab.includes('lev.tab.sub{n=234}'), 'SOL bez finansowania — „—”; zmiana 0,0 % bez koloru');
+  assert.ok(h.includes('lev.opt.tot{v=351283,c=BTC,u=29.48,pc=0.52} · ' + asof + '</p>') && h.includes('<span class="cell mono">33.8%</span>'), 'opcje wg terminu: razem, ≈ USD, put/call, data części, udział terminu');
+  assert.ok(!h.includes('·wiek(2026-12-25)') && !h.includes('·wiek(2026-10-30)'), 'termin wygaśnięcia nie dostaje „wieku danych”');
+  assert.ok(h.includes('<summary>eng.notsays</summary><p class="pnote">lev.not1</p>') && h.includes('lev.not4</p></details><p class="pfoot">inst.file{t=D:' + lev104.now + '} · eng.disclaimer</p>'), '„Czego te dane nie mówią” i stopka');
+  assert.ok(!/CoinGlass|Coinglass|Coin Metrics|Etherscan|EODHD|Tiingo|CryptoPanic|Alpha Vantage|Massive/.test(h), 'bez nazw dostawców');
+  assert.ok((h.match(/class="etfk"/g) || []).length === 14, '14 kafelków: 4 Hyperliquid, 6 Binance, 4 Deribit; jest ' + (h.match(/class="etfk"/g) || []).length);
+});
+
+test('v104-dzwignia: część nieaktualna albo brakująca = brak (nie stare liczby bez daty); zmiana z historii; chwilowy błąd nie kasuje danych', () => {
+  const f = lev104.mk({});
+  const j = lev104.fix();
+  j.part_at.bn = new Date(Date.now() - 5 * 864e5).toISOString();   // część Binance starsza niż 4 dni
+  delete j.okx;
+  f.levApply(j);
+  let h = f.el.innerHTML;
+  assert.ok(!h.includes('lev.h.bn') && !h.includes('lev.k.ls') && !h.includes('>Binance<'), 'stara część Binance pominięta w kafelkach i w tabeli giełd');
+  assert.ok(!h.includes('>OKX<') && h.includes('>Hyperliquid<'), 'bez części OKX zostają pozostałe giełdy');
+  assert.equal(f.levHist('hl_btc', 1).n, 2); assert.equal(f.levHist('hl_btc', 7), null, 'brak wpisu sprzed 7 dni — brak zmiany, nie zero');
+  assert.equal(f.levHist('dvol_eth', 1).pct.toFixed(2), '-3.58');
+  f.levApply({at: 'x'});
+  assert.ok(!f.el.hidden && f.el.innerHTML === h, 'zły plik po dobrym — poprzednie dane zostają');
+  const g = lev104.mk({});
+  const k = lev104.fix(); k.hist = [{d: lev104.today, hl_btc: 1}];
+  g.levApply(k);
+  assert.ok(g.el.innerHTML.includes('<b>3.16 <small class="mtxt">lev.u.mld</small> <small>lev.nohist</small></b>'), 'pierwszy dzień historii — bez porównania, z powodem');
+  const e = lev104.mk({}); e.levApply({at: lev104.now, ok: {}, part_at: {}});
+  assert.ok(e.el.hidden, 'plik bez części — sekcja ukryta');
+  // kupno/sprzedaż: średnia dnia poniżej 1 przy ostatnim oknie powyżej 1 — nagłówek, kolor i słowa ze średniej; bez średniej — „—”, ostatnie okno nie zastępuje nagłówka
+  const tk = lev104.mk({}); const jt = lev104.fix(); jt.bn.ETH.mean.taker = 0.66; jt.bn.ETH.last.taker = 1.2; jt.bn.BTC.mean.taker = null;
+  tk.levApply(jt); const ht = tk.el.innerHTML;
+  assert.ok(ht.includes('lev.k.taker{c=ETH}</span><b class="neg">0.66 <small class="neg">lev.more.sell · lev.last5{v=1.20}</small></b>'), 'średnia dnia 0,66 → „więcej sprzedaży” na czerwono, ostatnie 5 min 1,20 w dopisku: ' + ht.slice(ht.indexOf('lev.k.taker{c=ETH}'), ht.indexOf('lev.k.taker{c=ETH}') + 160));
+  assert.ok(ht.includes('lev.k.taker{c=BTC}</span><b class="na">— <small>eng.gap</small></b>') && !ht.includes('lev.last5{v=1.08}'), 'bez średniej dnia — „—”, nie ostatnie okno');
+  // część Deribit zachowana z wcześniejszego przebiegu: opcje pokazują własny czas części, nie czas pliku
+  const od = lev104.mk({}); const jd = lev104.fix(); const older = new Date(Date.now() - 864e5).toISOString(); jd.part_at.dr = older; jd.dr.BTC.opt.t = older; jd.dr.ETH.opt.t = older;
+  od.levApply(jd);
+  assert.ok(od.el.innerHTML.includes('lev.opt.tot{v=351283,c=BTC,u=29.48,pc=0.52} · lev.asof{t=D:' + older + ' ·wiek(' + lev104.yest + ')}'), 'opcje z zachowanej części — data tej części z wiekiem');
+});
+
+test('v104-dzwignia: ikony (loga monet i giełd, Hyperliquid = logo sieci, Deribit = znaczek), sekcja w CRYPTO, ładowanie i odświeżanie, CSS', () => {
+  const I = v96src.H;
+  const f = lev104.mk({coinImg: I.coinImg, exchImg: I.exchImg, glyphImg: I.glyphImg});
+  f.levApply(lev104.fix());
+  const h = f.el.innerHTML;
+  assert.ok(h.includes('<h2><span class="icos"><img class="ico" src="img/krypto/btc.svg" alt="" title="BTC" loading="lazy" decoding="async"><img class="ico" src="img/krypto/eth.svg"'), 'loga BTC i ETH w tytule');
+  assert.ok(h.includes('img/sieci/hyper-evm.svg') && h.includes('img/gieldy/binance.svg') && h.includes('img/gieldy/okx.svg') && /class="iss sm"[^>]*title="Deribit"/.test(h), 'Hyperliquid — logo sieci, Binance i OKX — loga, Deribit — znaczek z literami');
+  const tiles = h.split('<div class="etfk">').slice(1);
+  tiles.forEach((x, i) => assert.ok(/^<span><span class="icos">.+?<\/span>lev\./.test(x), 'kafelek ' + i + ' ma ikonę przed podpisem'));
+  assert.ok(h.includes('<span class="icos"><img class="ico sm" src="img/krypto/btc.svg"') && /title="HYPE"/.test(h), 'w tabeli logo BTC i znaczek dla HYPE');
+  assert.ok(html.includes('    <section class="panel pcard" id="eng-cftc-crypto" hidden></section>\n    <section class="panel pcard" id="c-dzwignia" hidden></section>'), 'sekcja tuż po panelu CFTC krypto (zakładka CRYPTO)');
+  assert.ok(html.includes("function levLoad(){srvJSON('dzwignia')") && html.includes('levLoad();levAuto();try{new MutationObserver(()=>renderLev())') && html.includes('LEV.timer=setInterval(()=>{if(!document.hidden)levLoad();},30*60*1000);'), 'plik automatu, odświeżanie co 30 min, zmiana języka');
+  assert.ok(html.includes('/* v104 dzwignia') && html.includes('#c-dzwignia .etfk span.icos{display:inline-flex') && html.includes('#c-dzwignia .etfk b small.neu{color:var(--yl-tx)}') && html.includes('#c-dzwignia .etfk b span{display:inline'), 'CSS tylko dla #c-dzwignia');
+});
+
+test('v104-dzwignia: 10 języków z tymi samymi kluczami lev.*, po niemiecku bez surowych kluczy, teksty nie nazywają pozycji przepływem', () => {
+  const a = 'const EXTRA98=', x0 = html.indexOf(a);
+  assert.ok(x0 > 0 && html.includes('for(const l in EXTRA98)if(I18N[l])Object.assign(I18N[l],EXTRA98[l]);'), 'słownik EXTRA98 podpięty');
+  const D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  const keys = Object.keys(D.pl).sort();
+  assert.ok(keys.length >= 50 && keys.every(k => k.startsWith('lev.')));
+  for (const L of Object.keys(D)) {
+    assert.deepEqual(Object.keys(D[L]).sort(), keys, L);
+    for (const k of keys) { const ph = (D.pl[k].match(/\{[a-z]+\}/g) || []).sort(); assert.deepEqual((D[L][k].match(/\{[a-z]+\}/g) || []).sort(), ph, L + ' ' + k); }
+  }
+  assert.ok(D.pl['lev.t'] === 'Dźwignia i pozycje w krypto' && D.en['lev.t'] === 'Leverage and positioning in crypto');
+  assert.ok(!/napływ|odpływ/i.test(Object.values(D.pl).join(' ')), 'pozycje to stan, nie przepływ — bez słów „napływ”/„odpływ”');
+  for (const L of ['de', 'ja']) {
+    const f = lev104.mk({}, v96src.tFor(L));
+    f.levApply(lev104.fix());
+    assert.ok(!/lev\.[a-z]/.test(f.el.innerHTML.replace(/id="lev-[a-z]+"/g, '').replace(/lev-opt/g, '')), L + ': bez surowych kluczy: ' + (f.el.innerHTML.match(/lev\.[a-z.]+/) || [])[0]);
+  }
+  const de = lev104.mk({}, v96src.tFor('de')); de.levApply(lev104.fix());
+  assert.ok(de.el.innerHTML.includes('Hebel und Positionierung in Krypto') && de.el.innerHTML.includes('mehr Longs'));
+  const ja = lev104.mk({}, v96src.tFor('ja')); ja.levApply(lev104.fix());
+  assert.ok(ja.el.innerHTML.includes('3.16 <small class="mtxt">十億ドル</small>') && !/10 億ドル|100 万ドル/.test(ja.el.innerHTML) && D.ja['lev.c.vol'].includes('百万ドル'), 'jednostki po japońsku jak w słowniku bazowym (十億ドル, 百万ドル)');
+  assert.ok(!/publikuje|publish|veröffentlicht|publica|publie|pubblica|публикует|公布|公表/.test(Object.values(D).map(x => x['lev.np']).join(' ')) && D.pl['lev.np'].includes('źródle'), '„—” w tabeli giełd: brak w naszym źródle, nie „giełda nie publikuje”');
+  assert.ok(D.pl['lev.k.taker'].includes('średnia dnia') && D.pl['lev.last5'].startsWith('ostatnie 5 min') && D.pl['lev.asof'] === 'stan na {t}', 'nowe podpisy: średnia dnia, ostatnie 5 min, stan na');
+});

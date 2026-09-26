@@ -4707,6 +4707,361 @@ def build_rynki(prev=None, today=None):
     return out
 
 
+# ===================== v104: dźwignia i pozycje w krypto (Hyperliquid, pliki dzienne Binance, Deribit, OKX — bez klucza) =====================
+# Plik data/dzwignia.json: cztery części (hl, bn, dr, okx) z własnym ok/part_at; część z błędem = poprzednia wersja tej części
+# z jej własnym czasem, nigdy zera. Z serwera GitHub (USA) API Binance i Bybit odpowiadają 451/403 — dlatego Binance tylko
+# z plików dziennych (data.binance.vision, poprzedni dzień UTC). Historia dzienna (hist) daje stronie zmianę 1 dn. / 7 dni.
+HL_URL = 'https://api.hyperliquid.xyz/info'
+BN_URL = 'https://data.binance.vision/data/futures/um/daily/metrics/{s}/{s}-metrics-{d}.zip'
+DR_URL = 'https://www.deribit.com/api/v2/public/'
+OKX_URL = 'https://www.okx.com/api/v5/'
+LEV_EVERY = 55            # minut — co godzinę (przebieg co 20 min); część z błędem ponawiana przy następnym przebiegu
+LEV_TIMEOUT = 20          # s na zapytanie (budżet czasu przebiegu)
+LEV_KEEP = ['BTC', 'ETH', 'SOL', 'XRP']
+LEV_TOP = 12              # + największe rynki wg otwartych pozycji w USD
+LEV_HIST = 90             # dni historii dziennej
+LEV_PX = {'hl': 'Hyperliquid', 'bn': 'Binance', 'dr': 'Deribit', 'okx': 'OKX'}   # początek komunikatu błędu (strona Źródła)
+BN_COLS = {'sum_open_interest': 'oi', 'sum_open_interest_value': 'oi_usd', 'count_long_short_ratio': 'ls',
+           'count_toptrader_long_short_ratio': 'top_ls', 'sum_toptrader_long_short_ratio': 'top_pos', 'sum_taker_long_short_vol_ratio': 'taker'}
+_LEV_MON = {'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6, 'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12}
+
+
+def lev_num(v):
+    """Liczba z tekstu albo liczby; bool, brak, NaN, nieskończoność → None (brak nigdy nie staje się zerem)."""
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return x if x == x and abs(x) != float('inf') else None
+
+
+def lev_r(v, n):
+    return None if v is None else round(v, n)
+
+
+def _dig(o, path):
+    for p in path:
+        o = o.get(p) if isinstance(o, dict) else None
+    return o if isinstance(o, (int, float)) and not isinstance(o, bool) else None
+
+
+def hl_post(body, timeout=LEV_TIMEOUT):
+    """Hyperliquid: jedno wejście POST /info z treścią JSON (w testach podmieniane)."""
+    req = urllib.request.Request(HL_URL, data=json.dumps(body).encode('utf-8'),
+                                 headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode('utf-8', 'replace'))
+
+
+def hl_parse(j, keep=LEV_KEEP, top=LEV_TOP):
+    """[meta, ctxs] → wiersze monet: zawsze `keep` + `top` największych wg otwartych pozycji w USD (kolejność malejąca).
+    Wiersz bez liczbowego openInterest albo ceny — odrzucony; brak stawki finansowania → None."""
+    if not (isinstance(j, list) and len(j) >= 2 and isinstance(j[0], dict) and isinstance(j[1], list)):
+        raise ValueError('nieoczekiwany kształt odpowiedzi')
+    uni = j[0].get('universe')
+    if not isinstance(uni, list) or len(uni) != len(j[1]):
+        raise ValueError('universe i ctxs różnej długości')
+    rows = {}
+    for u, c in zip(uni, j[1]):
+        if not (isinstance(u, dict) and isinstance(c, dict)) or u.get('isDelisted'):
+            continue
+        name, oi, px = u.get('name'), lev_num(c.get('openInterest')), lev_num(c.get('markPx'))
+        if not isinstance(name, str) or not name or oi is None or px is None or px <= 0:
+            continue
+        fh, prev = lev_num(c.get('funding')), lev_num(c.get('prevDayPx'))
+        rows[name] = {'f_h': fh, 'f_y': None if fh is None else lev_r(fh * 24 * 365 * 100, 3), 'oi': lev_r(oi, 4), 'oi_usd': lev_r(oi * px, 0),
+                      'px': px, 'd1': None if not prev or prev <= 0 else lev_r((px / prev - 1) * 100, 3), 'vol_usd': lev_r(lev_num(c.get('dayNtlVlm')), 0)}
+    if not rows:
+        raise ValueError('brak wierszy z liczbami')
+    order = sorted(rows, key=lambda k: -rows[k]['oi_usd'])
+    sel = [k for k in order if k in order[:top] or k in keep]
+    return {'rows': {k: rows[k] for k in sel}, 'top': sel, 'n': len(rows)}
+
+
+def hl_fund7(coin, now_ms=None):
+    """Średnia godzinowa stawka finansowania z 7 dni → % w skali roku; za mało wierszy (< 24) → None."""
+    now_ms = now_ms or int(time.time() * 1000)
+    j = hl_post({'type': 'fundingHistory', 'coin': coin, 'startTime': now_ms - 7 * 86400 * 1000})
+    vals = [lev_num(r.get('fundingRate')) for r in j if isinstance(r, dict)] if isinstance(j, list) else []
+    vals = [v for v in vals if v is not None]
+    return lev_r(sum(vals) / len(vals) * 24 * 365 * 100, 3) if len(vals) >= 24 else None
+
+
+def lev_hl():
+    out = hl_parse(hl_post({'type': 'metaAndAssetCtxs'}))
+    f7 = {}
+    for c in ('BTC', 'ETH'):
+        if c in out['rows']:
+            try:
+                f7[c] = hl_fund7(c)
+            except Exception as e:  # noqa — średnia 7 dni to dodatek; jej brak nie psuje części (None, nie zero)
+                f7[c] = None; META['notes'].append(mask(f'Dźwignia: Hyperliquid, historia finansowania {c}: {e}'))
+    out['f7_y'] = f7
+    return out
+
+
+def bn_parse(csv_text):
+    """CSV pliku dziennego (wiersze 5-minutowe) → ostatni wiersz dnia i średnia dnia; kolumna bez liczby → None."""
+    rows = [r for r in csv.DictReader(io.StringIO(csv_text)) if isinstance(r, dict) and r.get('create_time')]
+    if not rows:
+        raise ValueError('pusty plik')
+    rows.sort(key=lambda r: str(r['create_time']))
+    last = rows[-1]
+    out = {'t': str(last['create_time']), 'n': len(rows), 'last': {}, 'mean': {}}
+    for col, k in BN_COLS.items():
+        out['last'][k] = lev_r(lev_num(last.get(col)), 8)
+        vals = [v for v in (lev_num(r.get(col)) for r in rows) if v is not None]
+        out['mean'][k] = lev_r(sum(vals) / len(vals), 8) if vals else None
+    if out['last']['oi'] is None:
+        raise ValueError('brak otwartych pozycji w ostatnim wierszu')
+    return out
+
+
+def bn_fetch(sym, day):
+    """Plik dzienny (zip z jednym CSV) → wiersze; 404 = pliku jeszcze nie ma (HTTPError do decyzji wyżej)."""
+    import zipfile
+    data = get_bytes(BN_URL.format(s=sym, d=day), timeout=LEV_TIMEOUT)
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        names = [n for n in z.namelist() if n.lower().endswith('.csv')]
+        if not names:
+            raise ValueError('archiwum bez CSV')
+        return bn_parse(z.read(names[0]).decode('utf-8', 'replace'))
+
+
+def bn_retry_eth(prev, day):
+    """Ten sam dzień pliku, ale ETH wtedy zawiodło (None): ponawiamy tylko ETHUSDT; dalej brak → None (zostaje poprzednia część, nie zero)."""
+    try:
+        eth = bn_fetch('ETHUSDT', day)
+    except Exception as e:  # noqa — wciąż brak: poprzednia część, kolejna próba przy następnym przebiegu
+        META['errors'].append(mask(f'Dźwignia: Binance ETHUSDT {day}: {e}')); return None
+    return dict(prev, ETH=eth)
+
+
+def lev_bn(prev, today):
+    """Poprzedni dzień UTC; gdy pliku jeszcze nie ma (404) — dzień wcześniej (najwyżej 2 próby).
+    Dzień już w poprzednim pliku → None (zostaje poprzednia część, bez pobierania); sam brak ETH → ponowienie tylko ETH."""
+    prev = prev if isinstance(prev, dict) else {}
+    days = [(today - datetime.timedelta(days=i)).isoformat() for i in (1, 2)]
+    for day in days:
+        if prev.get('day') == day and isinstance(prev.get('BTC'), dict):
+            if isinstance(prev.get('ETH'), dict):
+                return None
+            return bn_retry_eth(prev, day)   # BTC z tego dnia już jest, ETH wtedy zawiodło — ponawiamy tylko ETH
+        try:
+            btc = bn_fetch('BTCUSDT', day)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                continue
+            raise
+        out = {'day': day, 'BTC': btc, 'ETH': None}
+        try:
+            out['ETH'] = bn_fetch('ETHUSDT', day)
+        except Exception as e:  # noqa — ETH bez pliku: None, nie zero
+            META['errors'].append(mask(f'Dźwignia: Binance ETHUSDT {day}: {e}'))
+        return out
+    raise ValueError(f'brak plików dziennych ({", ".join(days)}: 404)')
+
+
+def dr_dvol(cur, now_ms=None):
+    """Indeks zmienności DVOL: świece godzinowe z 3 dni → ostatnie zamknięcie i zamknięcie ~24 h wcześniej (±2 h), zmiana w %."""
+    now_ms = now_ms or int(time.time() * 1000)
+    j = get_json(DR_URL + f'get_volatility_index_data?currency={cur}&start_timestamp={now_ms - 3 * 86400 * 1000}&end_timestamp={now_ms}&resolution=3600', timeout=LEV_TIMEOUT)
+    data = (j.get('result') or {}).get('data') if isinstance(j, dict) else None
+    rows = [(int(r[0]), lev_num(r[4])) for r in (data or []) if isinstance(r, list) and len(r) >= 5 and isinstance(r[0], (int, float)) and lev_num(r[4]) is not None]
+    if not rows:
+        raise ValueError('brak wierszy')
+    rows.sort()
+    ts, v = rows[-1]
+    back = [r for r in rows if abs(r[0] - (ts - 86400000)) <= 2 * 3600000]
+    v24 = min(back, key=lambda r: abs(r[0] - (ts - 86400000)))[1] if back else None
+    return {'v': v, 'v24': v24, 'd1': lev_r((v / v24 - 1) * 100, 3) if v24 else None,
+            't': datetime.datetime.fromtimestamp(ts / 1000, datetime.timezone.utc).replace(microsecond=0).isoformat()}
+
+
+def dr_exp(name):
+    """'BTC-27MAR26-90000-P' → ('2026-03-27', 'P'); inny kształt → (None, None)."""
+    p = str(name or '').split('-')
+    if len(p) != 4:
+        return None, None
+    m = re.match(r'^(\d{1,2})([A-Z]{3})(\d{2})$', p[1])
+    if not m or m.group(2) not in _LEV_MON:
+        return None, None
+    try:
+        d = datetime.date(2000 + int(m.group(3)), _LEV_MON[m.group(2)], int(m.group(1))).isoformat()
+    except ValueError:
+        return None, None
+    return d, p[3]
+
+
+def dr_book(cur, top=4):
+    """Opcje: suma otwartych pozycji putów i calli (w monetach), put/call, terminy z największymi pozycjami, cena indeksu (mediana)."""
+    j = get_json(DR_URL + f'get_book_summary_by_currency?currency={cur}&kind=option', timeout=LEV_TIMEOUT)
+    R = j.get('result') if isinstance(j, dict) else None
+    if not isinstance(R, list) or not R:
+        raise ValueError('brak instrumentów')
+    puts = calls = 0.0; byexp = {}; n = 0; px = []
+    for r in R:
+        if not isinstance(r, dict):
+            continue
+        d, kind = dr_exp(r.get('instrument_name')); oi = lev_num(r.get('open_interest'))
+        if not d or kind not in ('P', 'C') or oi is None:
+            continue
+        n += 1
+        if kind == 'P':
+            puts += oi
+        else:
+            calls += oi
+        byexp[d] = byexp.get(d, 0.0) + oi
+        p = lev_num(r.get('estimated_delivery_price'))
+        if p:
+            px.append(p)
+    if not n:
+        raise ValueError('brak wierszy z liczbami')
+    exp = sorted(byexp.items(), key=lambda x: -x[1])[:top]
+    return {'oi': lev_r(puts + calls, 2), 'oi_p': lev_r(puts, 2), 'oi_c': lev_r(calls, 2), 'pc': lev_r(puts / calls, 4) if calls > 0 else None,
+            'n': n, 'px': sorted(px)[len(px) // 2] if px else None, 'exp': [[d, lev_r(v, 2)] for d, v in exp], 't': NOW}
+
+
+def lev_dr(prev=None):
+    prev = prev if isinstance(prev, dict) else {}
+    now_ms = int(time.time() * 1000)
+    out, fails, new = {}, [], 0
+    for cur in ('BTC', 'ETH'):
+        o = {}
+        try:
+            o['dvol'] = dr_dvol(cur, now_ms); new += 1
+        except Exception as e:  # noqa
+            fails.append(f'DVOL {cur}: {e}')
+        try:
+            o['opt'] = dr_book(cur); new += 1
+        except Exception as e:  # noqa
+            fails.append(f'opcje {cur}: {e}')
+        old = prev.get(cur) if isinstance(prev.get(cur), dict) else {}
+        for k in ('dvol', 'opt'):   # podczęść bez nowych danych → poprzednia (ma własny czas 't'), nigdy zera
+            if k not in o and isinstance(old.get(k), dict):
+                o[k] = old[k]
+        if o:
+            out[cur] = o
+    if not new:   # nic nowego — cała część nieudana (zostaje poprzednia z jej czasem)
+        raise ValueError('; '.join(fails) or 'brak danych')
+    if fails:
+        META['errors'].append(mask('Dźwignia: Deribit: ' + '; '.join(fails)))
+    return out
+
+
+def okx_get(path):
+    j = get_json(OKX_URL + path, timeout=LEV_TIMEOUT)
+    if not isinstance(j, dict) or str(j.get('code')) != '0' or not isinstance(j.get('data'), list) or not j['data']:
+        raise ValueError(f'{path.split("?")[0]}: {j.get("msg") or "pusta odpowiedź" if isinstance(j, dict) else "zły kształt"}')
+    return j['data']
+
+
+def lev_okx(prev=None):
+    """OKX (kontrakty USDT): stawka finansowania (okres z pola nextFundingTime), otwarte pozycje w USD, dzienny stosunek kont długich do krótkich."""
+    prev = prev if isinstance(prev, dict) else {}
+    out, fails, new = {}, [], 0
+    for cur in ('BTC', 'ETH'):
+        o = {'t': NOW}
+        try:
+            d = okx_get(f'public/funding-rate?instId={cur}-USDT-SWAP')[0]
+            f = lev_num(d.get('fundingRate'))
+            iv = (lev_num(d.get('nextFundingTime')) or 0) - (lev_num(d.get('fundingTime')) or 0)
+            hours = iv / 3600000 if 0 < iv <= 86400000 else 8
+            o['f'] = f; o['f_hours'] = hours; o['f_y'] = None if f is None else lev_r(f * (24 / hours) * 365 * 100, 3)
+        except Exception as e:  # noqa
+            fails.append(f'finansowanie {cur}: {e}')
+        try:
+            d = okx_get(f'public/open-interest?instType=SWAP&instId={cur}-USDT-SWAP')[0]
+            o['oi_usd'] = lev_r(lev_num(d.get('oiUsd')), 0); o['oi'] = lev_r(lev_num(d.get('oiCcy')), 4)
+        except Exception as e:  # noqa
+            fails.append(f'otwarte pozycje {cur}: {e}')
+        try:
+            d = okx_get(f'rubik/stat/contracts/long-short-account-ratio?ccy={cur}&period=1D')
+            rows = [(int(r[0]), lev_num(r[1])) for r in d if isinstance(r, list) and len(r) >= 2 and lev_num(r[1]) is not None and str(r[0]).isdigit()]
+            if not rows:
+                raise ValueError('brak wierszy')
+            ts, v = max(rows)   # najnowszy punkt dzienny; giełda stempluje go o 16:00 UTC (północ UTC+8) — pokazujemy pełny czas
+            o['ls'] = v; o['ls_t'] = datetime.datetime.fromtimestamp(ts / 1000, datetime.timezone.utc).replace(microsecond=0).isoformat()
+        except Exception as e:  # noqa
+            fails.append(f'długie/krótkie {cur}: {e}')
+        if len(o) > 1:
+            out[cur] = o; new += 1
+        elif isinstance(prev.get(cur), dict):
+            out[cur] = prev[cur]
+    if not new:   # nic nowego — cała część nieudana (zostaje poprzednia z jej czasem)
+        raise ValueError('; '.join(fails) or 'brak danych')
+    if fails:
+        META['errors'].append(mask('Dźwignia: OKX: ' + '; '.join(fails)))
+    return out
+
+
+def lev_hist(hist, out, today):
+    """Jeden wpis na dzień UTC (dzisiejszy nadpisywany w ciągu dnia). Do wpisu trafiają tylko części pobrane w tym przebiegu;
+    liczby Binance — do dnia pliku, nie do dnia przebiegu. Brak liczby → None; najwyżej LEV_HIST dni."""
+    H = {h['d']: h for h in (hist if isinstance(hist, list) else []) if isinstance(h, dict) and isinstance(h.get('d'), str)}
+    d = today.isoformat()
+    fresh_part = lambda k: out['ok'].get(k) is True and out['part_at'].get(k) == NOW
+    row = dict(H.get(d) or {'d': d})
+    if fresh_part('hl'):
+        for c in ('btc', 'eth'):
+            row['hl_' + c] = _dig(out, ('hl', 'rows', c.upper(), 'oi_usd')); row['f_' + c] = _dig(out, ('hl', 'rows', c.upper(), 'f_y'))
+    if fresh_part('dr'):
+        for c in ('btc', 'eth'):   # tylko świeca z dnia przebiegu (podczęść zachowana z wcześniej ma starszy czas 't')
+            dvo = out['dr'].get(c.upper()) if isinstance(out.get('dr'), dict) else None
+            dvo = dvo.get('dvol') if isinstance(dvo, dict) else None
+            if isinstance(dvo, dict) and _dig(dvo, ('v',)) is not None and str(dvo.get('t') or '')[:10] == d:
+                row['dvol_' + c] = dvo['v']
+    H[d] = row
+    bn = out.get('bn') if out['ok'].get('bn') else None
+    if isinstance(bn, dict) and isinstance(bn.get('day'), str):
+        r = dict(H.get(bn['day']) or {'d': bn['day']})
+        for c in ('btc', 'eth'):
+            v = _dig(bn, (c.upper(), 'last', 'oi_usd'))
+            if v is not None:
+                r['bn_' + c] = v
+        H[bn['day']] = r
+    keys = sorted(k for k in H if k <= d)
+    return [H[k] for k in keys[-LEV_HIST:]]
+
+
+def build_dzwignia(prev=None, today=None, only=None):
+    """only = zbiór części do pobrania (młody plik z częścią z błędem: zdrowe części zostają z własnym czasem); None = wszystkie.
+    full_at = czas ostatniej pełnej budowy — harmonogram w main() liczy godzinę od niego, nie od `at` (które odświeża też dobranie części)."""
+    today = today or datetime.datetime.now(datetime.timezone.utc).date()
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    pok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
+    out = {'at': NOW, 'ok': {}, 'part_at': {}, 'full_at': (prev.get('full_at') or prev.get('at') or NOW) if only is not None else NOW}
+
+    def keep(k):
+        if isinstance(prev.get(k), dict) and prev[k]:
+            out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
+
+    def part(k, fn):
+        if only is not None and k not in only:   # zdrowa część z młodego pliku — bez pobierania, z własnym czasem
+            keep(k); out['ok'][k] = bool(out.get(k)) and pok.get(k) is True; return
+        try:
+            v = fn()
+            if v is None:            # ta sama wersja co poprzednio (np. ten sam dzień pliku Binance) — bez pobierania
+                keep(k); out['ok'][k] = bool(out.get(k)); return
+            if not v:
+                raise ValueError('pusta odpowiedź')
+            out[k] = v; out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednia wersja z własnym czasem, nigdy zera
+            META['errors'].append(mask(f'Dźwignia: {LEV_PX[k]}: {e}')); out['ok'][k] = False; keep(k)
+
+    part('hl', lev_hl)
+    part('bn', lambda: lev_bn(prev.get('bn'), today))
+    part('dr', lambda: lev_dr(prev.get('dr')))
+    part('okx', lambda: lev_okx(prev.get('okx')))
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    out['hist'] = lev_hist(prev.get('hist'), out, today)
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -4862,6 +5217,22 @@ def main():
             META['errors'].append(mask(f'Rynki: {e}'))
             for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = False
             if prev_ry: save('rynki', prev_ry)
+    # v104: dźwignia i pozycje w krypto (bez klucza) — co godzinę od pełnej budowy; młody plik z częścią z błędem: dobieramy tylko tę część (strona Źródła: dzwignia)
+    prev_lv = previous('dzwignia')
+    lv_ok = prev_lv.get('ok') if isinstance(prev_lv, dict) and isinstance(prev_lv.get('ok'), dict) else {}
+    lv_bad = [k for k in LEV_PX if lv_ok.get(k) is not True]
+    lv_young = isinstance(prev_lv, dict) and fresh({'at': prev_lv.get('full_at') or prev_lv.get('at')}, LEV_EVERY)
+    if lv_young and not lv_bad:
+        save('dzwignia', prev_lv); META['ok']['dzwignia'] = 'cached'
+        for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = 'cached'
+    else:
+        try:
+            lv = build_dzwignia(prev_lv, only=set(lv_bad) if lv_young else None); save('dzwignia', lv); META['ok']['dzwignia'] = True
+            for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = lv['ok'].get(k, False)
+        except Exception as e:
+            META['errors'].append(mask(f'Dźwignia: {e}')); META['ok']['dzwignia'] = False
+            for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = False
+            if prev_lv: save('dzwignia', prev_lv)
     # v99: OECD (bez klucza) — co 6 h; część z błędem ponawiana po godzinie
     prev_oe = previous('oecd')
     pok_oe = (prev_oe or {}).get('ok') or {}
