@@ -1,0 +1,115 @@
+{
+ "at": "2026-09-26T08:18:26+00:00",
+ "strona": {
+  "http": 200,
+  "bajty": 1981262,
+  "ms": 517,
+  "ok": true
+ },
+ "meta": {
+  "at": "2026-09-26T08:03:27+00:00",
+  "wiek_min": 14,
+  "zrodla": 54,
+  "bez_odpowiedzi": [],
+  "errors": [],
+  "notes": [
+   "Twelve Data: świece spoza wspólnego kalendarza sesji pominięte: 3",
+   "brak EODHD_KEY — indeksy świata wyłączone",
+   "brak MASSIVE_KEY — notowania ETF (Massive) wyłączone",
+   "brak TIINGO_KEY — zapas notowań ETF (Tiingo) wyłączony"
+  ]
+ },
+ "pliki": {
+  "etf": {
+   "http": 200,
+   "bajty": 9510,
+   "wiek_min": 34,
+   "czesci_bez_odpowiedzi": []
+  },
+  "trendy": {
+   "http": 200,
+   "bajty": 16776,
+   "wiek_min": 14,
+   "czesci_bez_odpowiedzi": []
+  },
+  "oecd": {
+   "http": 200,
+   "bajty": 20527,
+   "wiek_min": 230,
+   "czesci_bez_odpowiedzi": []
+  },
+  "rynki": {
+   "http": 200,
+   "bajty": 16991,
+   "wiek_min": 34,
+   "czesci_bez_odpowiedzi": []
+  },
+  "dzwignia": {
+   "http": 200,
+   "bajty": 3634,
+   "wiek_min": 14,
+   "czesci_bez_odpowiedzi": []
+  },
+  "wieloryby": {
+   "http": 200,
+   "bajty": 17647,
+   "wiek_min": 14,
+   "czesci_bez_odpowiedzi": []
+  },
+  "energia": {
+   "http": 200,
+   "bajty": 8918,
+   "wiek_min": 89,
+   "czesci_bez_odpowiedzi": []
+  },
+  "usa-makro": {
+   "http": 200,
+   "bajty": 4852,
+   "wiek_min": 89,
+   "czesci_bez_odpowiedzi": []
+  },
+  "bilans-usa": {
+   "http": 200,
+   "bajty": 25684,
+   "wiek_min": 816,
+   "czesci_bez_odpowiedzi": []
+  },
+  "krypto": {
+   "http": 200,
+   "bajty": 29355,
+   "wiek_min": 34,
+   "czesci_bez_odpowiedzi": []
+  },
+  "instytucje": {
+   "http": 200,
+   "bajty": 15212,
+   "wiek_min": 14,
+   "czesci_bez_odpowiedzi": []
+  },
+  "tic": {
+   "http": 200,
+   "bajty": 28118,
+   "wiek_min": 651,
+   "czesci_bez_odpowiedzi": []
+  },
+  "cm": {
+   "http": 200,
+   "bajty": 8786,
+   "wiek_min": 34,
+   "czesci_bez_odpowiedzi": []
+  }
+ },
+ "actions": {
+  "przebiegi_24h": 95,
+  "wg_wyniku": {
+   "in_progress": 1,
+   "success": 93,
+   "cancelled": 1
+  },
+  "ostatni": "2026-09-26T08:18:20Z",
+  "ostatnia_porazka": null
+ },
+ "uwagi": [],
+ "bledy": [],
+ "wynik": "OK"
+}
