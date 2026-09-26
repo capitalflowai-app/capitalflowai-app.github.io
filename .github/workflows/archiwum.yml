@@ -46,4 +46,4 @@ jobs:
           fi
       - name: Wynik
         if: steps.archiwum.outcome == 'failure'
-        run: echo "Archiwum: co najmniej jedno źródło zawiodło — patrz podsumowanie" && exit 1
+        run: echo "Archiwum — co najmniej jedno źródło zawiodło, patrz podsumowanie" && exit 1   # bez dwukropka w tekście (YAML)
