@@ -113,6 +113,8 @@ def kontrola():
             R['pliki'][f] = {'http': st, 'bajty': len(body)}
             if st != 200 or len(body) < 20:
                 R['uwagi'].append(f'{f}: HTTP {st}, {len(body)} B')
+        except urllib.error.HTTPError as e:   # v111.1: kod HTTP w wierszu plików, nie „HTTP ?”
+            R['pliki'][f] = {'http': e.code}; R['uwagi'].append(f'{f}: HTTP {e.code}')
         except Exception as e:  # noqa
             R['pliki'][f] = {'blad': str(e)[:120]}; R['uwagi'].append(f'{f}: {str(e)[:80]}')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)

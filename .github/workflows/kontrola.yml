@@ -20,7 +20,7 @@ concurrency:
 jobs:
   kontrola:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 12
     permissions:
       contents: write          # zapis kontrola/ostatnia.* do repozytorium
       actions: read            # lista przebiegów
@@ -29,6 +29,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Po pushu poczekaj na publikację strony (budowa i wdrożenie trwają kilka minut; bez tego kontrola widzi stary stan)
+        if: github.event_name == 'push'
+        run: sleep 300
       - name: Kontrola (tylko odczyt strony i API GitHuba)
         id: kontrola
         continue-on-error: true
