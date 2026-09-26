@@ -24,11 +24,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Nazwy sekretów (tylko nazwy — wartości nigdy nie są wypisywane)
-        env:
-          SEKRETY_JSON: ${{ toJSON(secrets) }}
-        run: |
-          python3 -c "import json,os;d=json.loads(os.environ.get('SEKRETY_JSON') or '{}');n=sorted(k for k in d if k!='github_token');print('::notice title=nazwy-sekretow::'+', '.join(n))"
       - name: Sondy (tylko statusy)
         env:
           ETHERSCAN_KEY: ${{ secrets.ETHERSCAN_KEY }}
