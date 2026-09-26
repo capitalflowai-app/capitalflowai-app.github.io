@@ -4102,7 +4102,7 @@ test('v108: wieloryby — nowe giełdy (Bybit, KuCoin, Bitfinex): kafle, noty z 
     assert.ok(/2026/.test(t('wh.n.Bybit')) && /2026/.test(t('wh.n.KuCoin')) && /2022/.test(t('wh.n.Bitfinex')), 'data listy w nocie: ' + L);
     if (!['pl', 'en'].includes(L)) for (const k of keys) assert.notEqual(t(k), v96src.tFor('en')(k), 'przetłumaczone: ' + L + ' ' + k);
   }
-  assert.ok(v96src.tFor('pl')('wh.n.Bybit').includes('108') === false && v96src.tFor('pl')('wh.n.Bybit').includes('Wszystkie portfele'), 'nota Bybit: „wszystkie portfele” (liczba i data listy są w wh.wal z pliku)');
+  assert.ok(v96src.tFor('pl')('wh.n.Bybit').includes('108') === false && v96src.tFor('pl')('wh.n.Bybit').includes('Portfele giełdy w sieci Ethereum wymienione'), 'nota Bybit: portfele z raportu (liczba i data listy są w wh.wal z pliku)');
   assert.ok(v96src.tFor('en')('wh.n.Bitfinex').includes('not all of them') && v96src.tFor('pl')('wh.n.Bitfinex').includes('nie całość'), 'nota Bitfinex: część majątku, nie całość');
   assert.equal(v96src.tFor('pl')('wh.n.Binance'), 'Portfele gorące i zimne z wpisu giełdy o przejrzystości (listopad 2022) — część majątku giełdy, nie całość.', 'stara nota bez zmian');
 });
@@ -4197,4 +4197,12 @@ test('v107: strażnik — każdy literał t(\'klucz\') i data-i18n w stronie ma 
   const missing = [...keys].filter(k => !EXCLUDE.includes(k) && !(k in D.pl && k in D.en));
   assert.deepEqual(missing, [], 'literały bez wpisu w pl/en');
   for (const k of ['pg.sources', 'zr2.live', 'inst.file', 'eng.notsays', 'lev.t', 'wh.t', 'ix.t']) assert.ok(keys.has(k), 'literał widziany przez strażnika: ' + k);
+});
+
+test('v108.1: noty Bybit/KuCoin nie mówią „wszystkie portfele” (raport obejmuje portfele w jego zakresie)', () => {
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of ['wh.n.Bybit', 'wh.n.KuCoin']) assert.ok(!/^(Wszystkie|All of|Alle |Todas|Tous|Tutti|Все)/.test(t(k)) && !t(k).includes('全部钱包') && !t(k).includes('全ウォレット'), L + ' ' + k + ': ' + t(k).slice(0, 60));
+  }
+  assert.ok(v96src.tFor('pl')('wh.n.Bybit').startsWith('Portfele giełdy w sieci Ethereum wymienione w jej'));
 });

@@ -4728,7 +4728,20 @@ LEV_PX = {'hl': 'Hyperliquid', 'bn': 'Binance', 'dr': 'Deribit', 'okx': 'OKX', '
 LEV_HOURS = {'kr': 1, 'cb': 1, 'dy': 1}    # v109: okres finansowania wg dokumentacji giełd (godziny): Kraken, Coinbase i dYdX rozliczają co godzinę
 LEV_FMAX = 0.005                          # v109: |stawka godzinowa| ponad 0,5 % (4 380 % rocznie) = pomyłka jednostki → brak, nie liczba
 LEV_SUMAGE = 6 * 3600                     # v109: do sumy „wszystkie giełdy” wchodzą tylko wiersze młodsze niż 6 h
-LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'dy']   # v109: giełdy z bieżącym stanem (Binance = plik z poprzedniego dnia — poza sumą)
+LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'dy']
+LEV_LIMIT = 45                            # v109.1: sekund na cały przebieg budowniczego — milcząca giełda nie blokuje przebiegu (limit BRIEF < 60 s)
+_LEV_TERMIN = [None]                      # koniec budżetu (time.monotonic) ustawiany w build_dzwignia
+
+
+def lev_tmo():
+    """Limit jednego zapytania: nie dłużej niż zostało z budżetu przebiegu; brak czasu = wyjątek (część zostaje z poprzedniego przebiegu)."""
+    if _LEV_TERMIN[0] is None:
+        return LEV_TIMEOUT
+    left = _LEV_TERMIN[0] - time.monotonic()
+    if left < 1:
+        raise RuntimeError(f'limit czasu przebiegu ({LEV_LIMIT} s)')
+    return max(1, min(LEV_TIMEOUT, left))
+   # v109: giełdy z bieżącym stanem (Binance = plik z poprzedniego dnia — poza sumą)
 KR_SYM = {'BTC': 'PF_XBTUSD', 'ETH': 'PF_ETHUSD'}   # v109: kontrakty wieczyste multi-collateral Kraken (1 kontrakt = 1 moneta)
 BN_COLS = {'sum_open_interest': 'oi', 'sum_open_interest_value': 'oi_usd', 'count_long_short_ratio': 'ls',
            'count_toptrader_long_short_ratio': 'top_ls', 'sum_toptrader_long_short_ratio': 'top_pos', 'sum_taker_long_short_vol_ratio': 'taker'}
@@ -4756,11 +4769,11 @@ def _dig(o, path):
     return o if isinstance(o, (int, float)) and not isinstance(o, bool) else None
 
 
-def hl_post(body, timeout=LEV_TIMEOUT):
+def hl_post(body, timeout=None):
     """Hyperliquid: jedno wejście POST /info z treścią JSON (w testach podmieniane)."""
     req = urllib.request.Request(HL_URL, data=json.dumps(body).encode('utf-8'),
                                  headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Content-Type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with urllib.request.urlopen(req, timeout=(lev_tmo() if timeout is None else timeout)) as r:
         return json.loads(r.read().decode('utf-8', 'replace'))
 
 
@@ -4831,7 +4844,7 @@ def bn_parse(csv_text):
 def bn_fetch(sym, day):
     """Plik dzienny (zip z jednym CSV) → wiersze; 404 = pliku jeszcze nie ma (HTTPError do decyzji wyżej)."""
     import zipfile
-    data = get_bytes(BN_URL.format(s=sym, d=day), timeout=LEV_TIMEOUT)
+    data = get_bytes(BN_URL.format(s=sym, d=day), timeout=lev_tmo())
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         names = [n for n in z.namelist() if n.lower().endswith('.csv')]
         if not names:
@@ -4876,7 +4889,7 @@ def lev_bn(prev, today):
 def dr_dvol(cur, now_ms=None):
     """Indeks zmienności DVOL: świece godzinowe z 3 dni → ostatnie zamknięcie i zamknięcie ~24 h wcześniej (±2 h), zmiana w %."""
     now_ms = now_ms or int(time.time() * 1000)
-    j = get_json(DR_URL + f'get_volatility_index_data?currency={cur}&start_timestamp={now_ms - 3 * 86400 * 1000}&end_timestamp={now_ms}&resolution=3600', timeout=LEV_TIMEOUT)
+    j = get_json(DR_URL + f'get_volatility_index_data?currency={cur}&start_timestamp={now_ms - 3 * 86400 * 1000}&end_timestamp={now_ms}&resolution=3600', timeout=lev_tmo())
     data = (j.get('result') or {}).get('data') if isinstance(j, dict) else None
     rows = [(int(r[0]), lev_num(r[4])) for r in (data or []) if isinstance(r, list) and len(r) >= 5 and isinstance(r[0], (int, float)) and lev_num(r[4]) is not None]
     if not rows:
@@ -4906,7 +4919,7 @@ def dr_exp(name):
 
 def dr_book(cur, top=4):
     """Opcje: suma otwartych pozycji putów i calli (w monetach), put/call, terminy z największymi pozycjami, cena indeksu (mediana)."""
-    j = get_json(DR_URL + f'get_book_summary_by_currency?currency={cur}&kind=option', timeout=LEV_TIMEOUT)
+    j = get_json(DR_URL + f'get_book_summary_by_currency?currency={cur}&kind=option', timeout=lev_tmo())
     R = j.get('result') if isinstance(j, dict) else None
     if not isinstance(R, list) or not R:
         raise ValueError('brak instrumentów')
@@ -4961,7 +4974,7 @@ def lev_dr(prev=None):
 
 
 def okx_get(path):
-    j = get_json(OKX_URL + path, timeout=LEV_TIMEOUT)
+    j = get_json(OKX_URL + path, timeout=lev_tmo())
     if not isinstance(j, dict) or str(j.get('code')) != '0' or not isinstance(j.get('data'), list) or not j['data']:
         raise ValueError(f'{path.split("?")[0]}: {j.get("msg") or "pusta odpowiedź" if isinstance(j, dict) else "zły kształt"}')
     return j['data']
@@ -5061,7 +5074,7 @@ def kr_parse(j, syms=KR_SYM):
 def lev_kr(prev=None):
     """Kraken Futures: jedno zapytanie dla wszystkich rynków; moneta bez wiersza → poprzednia wersja tej monety (z własnym czasem t)."""
     prev = prev if isinstance(prev, dict) else {}
-    out = kr_parse(get_json(KR_URL, timeout=LEV_TIMEOUT))
+    out = kr_parse(get_json(KR_URL, timeout=lev_tmo()))
     for c, sym in KR_SYM.items():
         if c not in out and isinstance(prev.get(c), dict):
             out[c] = prev[c]; META['errors'].append(mask(f'Dźwignia: Kraken: brak wiersza {sym} — zostaje poprzedni'))
@@ -5090,9 +5103,9 @@ def lev_cb(prev=None):
     out, fails, new = {'t': NOW, 'f_hours': LEV_HOURS['cb']}, [], 0
     for c in ('BTC', 'ETH'):
         try:
-            j = get_json(CB_URL.format(c=c), timeout=LEV_TIMEOUT)
+            j = get_json(CB_URL.format(c=c), timeout=lev_tmo())
             if isinstance(j, dict) and not isinstance(j.get('quote'), dict):
-                j = dict(j, quote=get_json(CB_URL.format(c=c) + '/quote', timeout=LEV_TIMEOUT))
+                j = dict(j, quote=get_json(CB_URL.format(c=c) + '/quote', timeout=lev_tmo()))
             out[c] = cb_parse(j, c); new += 1
         except Exception as e:  # noqa
             fails.append(f'{c}: {e}')
@@ -5124,7 +5137,7 @@ def lev_dy(prev=None):
     out, fails, new = {'t': NOW, 'f_hours': LEV_HOURS['dy']}, [], 0
     for c in ('BTC', 'ETH'):
         try:
-            out[c] = dy_parse(get_json(DY_URL.format(c=c), timeout=LEV_TIMEOUT), c); new += 1
+            out[c] = dy_parse(get_json(DY_URL.format(c=c), timeout=lev_tmo()), c); new += 1
         except Exception as e:  # noqa
             fails.append(f'{c}: {e}')
             if isinstance(prev.get(c), dict):
@@ -5210,6 +5223,7 @@ def build_dzwignia(prev=None, today=None, only=None):
     pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
     pok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
     out = {'at': NOW, 'ok': {}, 'part_at': {}, 'full_at': (prev.get('full_at') or prev.get('at') or NOW) if only is not None else NOW}
+    _LEV_TERMIN[0] = time.monotonic() + LEV_LIMIT   # v109.1: budżet czasu całego budowniczego
 
     def keep(k):
         if isinstance(prev.get(k), dict) and prev[k]:
@@ -5219,6 +5233,8 @@ def build_dzwignia(prev=None, today=None, only=None):
         if only is not None and k not in only:   # zdrowa część z młodego pliku — bez pobierania, z własnym czasem
             keep(k); out['ok'][k] = bool(out.get(k)) and pok.get(k) is True; return
         try:
+            if _LEV_TERMIN[0] is not None and time.monotonic() >= _LEV_TERMIN[0]:
+                raise RuntimeError(f'limit czasu przebiegu ({LEV_LIMIT} s) — część pominięta')
             v = fn()
             if v is None:            # ta sama wersja co poprzednio (np. ten sam dzień pliku Binance) — bez pobierania
                 keep(k); out['ok'][k] = bool(out.get(k)); return

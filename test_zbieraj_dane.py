@@ -5466,3 +5466,38 @@ class V110ObrazyWezlow(unittest.TestCase):
             self.assertIn("'img/wezly/%s.jpg'" % name, html)
         with open(os.path.join(here, 'img', 'LICENCJE.txt'), encoding='utf-8') as f:
             self.assertIn('img/wezly/', f.read())
+
+
+class DzwigniaV109_1(unittest.TestCase):
+    """v109.1: budżet czasu budowniczego dźwigni — po jego wyczerpaniu pozostałe części zostają z poprzedniego przebiegu, nigdy zera."""
+    def test_deadline_keeps_previous_parts(self):
+        zd.META['errors'].clear()
+        clock = [1000.0]
+
+        def mono():
+            clock[0] += 12.0   # każde spojrzenie na zegar = 12 s (cztery spojrzenia = 48 s > LEV_LIMIT)
+            return clock[0]
+        prev = {'at': '2026-09-25T10:00:00+00:00', 'part_at': {k: '2026-09-25T10:00:00+00:00' for k in zd.LEV_PX},
+                'ok': {k: True for k in zd.LEV_PX}, 'hl': {'rows': {'BTC': {'oi': 1.0}}}, 'bn': {'day': '2026-09-24', 'BTC': {'x': 1}}, 'dr': {'BTC': {'dvol': 30.0}},
+                'okx': {'BTC': {'oi': 1.0}}, 'kr': {'BTC': {'oi': 1.0}}, 'cb': {'BTC': {'oi': 1.0}}, 'dy': {'BTC': {'oi': 1.0}}}
+        with mock.patch.object(zd.time, 'monotonic', side_effect=mono), mock.patch.object(zd, 'get_json', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'hl_post', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd.time, 'sleep'):
+            with self.assertRaises(RuntimeError):      # nic nie odpowiedziało → wyjątek, main() zachowuje poprzedni plik
+                zd.build_dzwignia(prev, today=datetime.date(2026, 9, 26))
+        errs = list(zd.META['errors'])
+        self.assertTrue(any('limit czasu przebiegu' in e for e in errs), errs)
+        self.assertTrue(any(e.startswith('Dźwignia: Hyperliquid') and 'offline' in e for e in errs), 'pierwsza część padła zwyczajnie: ' + str(errs))
+        self.assertLessEqual(clock[0] - 1000.0, 12.0 * 12, 'zegar nie biegnie bez końca')
+        zd.META['errors'].clear()
+
+    def test_tmo_shrinks_with_budget(self):
+        zd._LEV_TERMIN[0] = None
+        self.assertEqual(zd.lev_tmo(), zd.LEV_TIMEOUT)
+        with mock.patch.object(zd.time, 'monotonic', return_value=100.0):
+            zd._LEV_TERMIN[0] = 100.0 + 7.5
+            self.assertEqual(zd.lev_tmo(), 7.5)
+            zd._LEV_TERMIN[0] = 100.0 + 0.5
+            with self.assertRaises(RuntimeError):
+                zd.lev_tmo()
+        zd._LEV_TERMIN[0] = None
