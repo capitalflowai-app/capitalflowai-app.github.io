@@ -4286,8 +4286,28 @@ test('v116: małe ikony — piktogramy własne dla zdjęć węzłów przy ≤ 24
 
 test('v117: poprawki po przeglądzie — nota o starych wierszach ETH (EXTRA108), roundRect z zapasem dla starszych przeglądarek', () => {
   const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
-  assert.equal(apl[apl.length - 1][1], 'EXTRA108');
+  const ordr8 = apl.map(m => m[1]); assert.ok(ordr8.indexOf('EXTRA108') > ordr8.indexOf('EXTRA107'), 'EXTRA108 po EXTRA107');
   assert.ok(html.includes("ethOld=ethNa&&R.some(r=>r.token==='ETH')") && html.includes("ethOld?`<p class=\"pnote neu\">${t('wh.eth.old',{t:engDate(D.part_at&&D.part_at.eth)})}</p>`:ethNa?"), 'stare wiersze ETH ≠ „tylko USDT i USDC”');
   for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(v96src.tFor(L)('wh.eth.old').includes('{t}') && v96src.tFor(L)('wh.eth.old').includes('ETH'), L);
   assert.ok(html.includes('if(c.roundRect)c.roundRect(-w/2,-hh/2,w,hh,hh*.5);else c.rect(-w/2,-hh/2,w,hh);'), 'roundRect tylko gdy istnieje');
+});
+
+test('v118: sumy dobowe dużych przelewów w panelu wielorybów — blok whDob z D.dobowe, podpisy doby (w toku / liczone od / pełna), EXTRA109 ×10', () => {
+  assert.ok(html.includes("const body=whExch(D)+whDob(D)+whTable(D);") && html.includes("function whDob(D){const B=D&&D.dobowe&&typeof D.dobowe==='object'?D.dobowe:null;if(!B)return '';"));
+  assert.ok(html.includes(".sort().reverse().slice(0,3)") && html.includes("(od&&od.slice(0,10)>=d)?`<small class=\"whx\">${t('wh.dob.from',{t:engDate(od)})}</small>`"), '3 ostatnie doby; doba z początkiem liczenia = „liczone od”');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of ['wh.h.dob', 'wh.dob.sub', 'wh.dob.part', 'wh.dob.full', 'wh.c.day', 'wh.c.n', 'wh.c.net']) assert.ok(t(k) !== k && t(k).length > 0, L + ' ' + k);   // ja: „日”
+    assert.ok(t('wh.dob.from').includes('{t}') && /60/.test(t('wh.dob.sub')), L + ' sub mówi o 60 z tabeli');
+  }
+  // czysta funkcja: sumy per giełda i doba, sortowanie wg obrotu, brak bloku bez danych
+  const src = html.slice(html.indexOf('function whDob(D){'), html.indexOf('function whTable(D){'));
+  const env = new Function('t', 'engDate', 'escH', 'whNum', 'whAmt', 'nfmt', src + '\nreturn {whDob};')(
+    (k, v) => k + (v ? JSON.stringify(v) : ''), s => 'D(' + s + ')', s => String(s), v => typeof v === 'number' && isFinite(v), (v, u) => v.toFixed(0) + ' ' + u, v => String(v));
+  const today = new Date().toISOString().slice(0, 10);
+  const D = {dobowe: {'2026-09-25': {Binance: {USDT: {in: 5e6, out: 2e6, n: 2}, ETH: {in: 0, out: 1e6, n: 1}}, OKX: {USDC: {in: 1e6, out: 0, n: 1}}}, [today]: {Bybit: {ETH: {in: 3e6, out: 0, n: 1}}}, 'x': 1}, dobowe_od: '2026-09-25T13:00:00+00:00'};
+  const out = env.whDob(D);
+  assert.ok(out.includes('wh.h.dob') && out.includes('Binance') && out.includes('▲ 5000000 USD') && out.includes('▼ 3000000 USD') && out.includes('+2000000 USD'), 'Binance: in 5, out 3 (USDT 2 + ETH 1), netto +2');
+  assert.ok(out.indexOf('Binance') < out.indexOf('OKX'), 'większy obrót pierwszy'); assert.ok(out.includes('wh.dob.part') && out.includes('wh.dob.from{"t":"D(2026-09-25T13:00:00+00:00)"}'), 'dziś = w toku; 25.09 = liczone od');
+  assert.equal(env.whDob({dobowe: {}}), ''); assert.equal(env.whDob({}), '');
 });
