@@ -3589,3 +3589,13 @@ test('v101: kursy EBC i rentowności 10L najpierw z pliku serwera; prosto ze źr
   assert.ok(html.includes("due(15)?srvJSON('rynki').then(j=>{const S=rynkiSrv(j);if(S.fx&&GLIVE.fx){GLIVE.fx=S.fx;"), 'odświeżanie kursów co 15 min — też z pliku');
   assert.ok(html.includes("const MK={fx:'rynki_fx',ust:'rynki_ust',buba:'rynki_buba',") && html.includes("const PX={fx:'Frankfurter',ust:'Skarb USA 10L',buba:'Bundesbank 10L',"), 'Źródła: czas pliku i błąd z meta');
 });
+test('v102: tło — dwie warstwy ciągów, wolniejsze tempo, najwyżej jeden złoty ciąg naraz z przerwą; kolor złota z motywu', () => {
+  const h0 = html.indexOf('/* ---------- tło: znaki szesnastkowe ---------- */'), h1 = html.indexOf('/* ---------- zegar ---------- */', h0), B = html.slice(h0, h1);
+  assert.ok(B.includes('drops=Array.from({length:cols*2},(_,i)=>hNew(i<cols));'), 'dwa ciągi na kolumnę');
+  assert.ok(B.includes('v:.10+Math.random()*.26') && !B.includes('.25+Math.random()*.55'), 'wolniej niż dotąd');
+  assert.ok(B.includes('function hGoldPick(d,tm){if(!hGold&&d.on&&tm>=hGoldNext){d.gold=true;hGold=true;}}') && B.includes('if(d.gold){d.gold=false;hGold=false;hGoldNext=tm+8000+Math.random()*15000;}'), 'jeden złoty naraz, potem przerwa 8–23 s');
+  assert.ok(B.includes('const tail=d.gold?PAL.hexGoldTail:PAL.hexTail,head=d.gold?PAL.hexGold:PAL.hexHead;') && B.includes("x=(i%cols)*CS"), 'złoty kolor głowy i ogona; kolumna z indeksu');
+  assert.ok(html.includes('--hex-gold:255,214,10; --hex-gold-tail:214,178,48;') && html.includes('--hex-gold:176,124,0; --hex-gold-tail:168,136,40;') && html.includes("hexGold:g('--hex-gold')||'255,214,10'"), 'złoto w obu motywach');
+  assert.ok(B.includes('const gi=Math.floor(cols*.37);') && B.includes('col=i===gi?PAL.hexGoldTail:PAL.hexTail'), 'obraz bez animacji też ma złoty ciąg');
+});
+
