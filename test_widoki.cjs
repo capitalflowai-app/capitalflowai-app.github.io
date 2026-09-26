@@ -4294,7 +4294,7 @@ test('v117: poprawki po przeglądzie — nota o starych wierszach ETH (EXTRA108)
 
 test('v118: sumy dobowe dużych przelewów w panelu wielorybów — blok whDob z D.dobowe, podpisy doby (w toku / liczone od / pełna), EXTRA109 ×10', () => {
   assert.ok(html.includes("const body=whExch(D)+whDob(D)+whTable(D);") && html.includes("function whDob(D){const B=D&&D.dobowe&&typeof D.dobowe==='object'?D.dobowe:null;if(!B)return '';"));
-  assert.ok(html.includes(".sort().reverse().slice(0,3)") && html.includes("(od&&od.slice(0,10)>=d)?`<small class=\"whx\">${t('wh.dob.from',{t:engDate(od)})}</small>`"), '3 ostatnie doby; doba z początkiem liczenia = „liczone od”');
+  assert.ok(html.includes(".sort().reverse().slice(0,3)") && html.includes("const from=!!(od&&od.slice(0,10)>=d),p=[];if(from)p.push(t('wh.dob.from',{t:engDate(od)}));"), '3 ostatnie doby; doba z początkiem liczenia = „liczone od”');
   for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
     const t = v96src.tFor(L);
     for (const k of ['wh.h.dob', 'wh.dob.sub', 'wh.dob.part', 'wh.dob.full', 'wh.c.day', 'wh.c.n', 'wh.c.net']) assert.ok(t(k) !== k && t(k).length > 0, L + ' ' + k);   // ja: „日”
@@ -4309,5 +4309,7 @@ test('v118: sumy dobowe dużych przelewów w panelu wielorybów — blok whDob z
   const out = env.whDob(D);
   assert.ok(out.includes('wh.h.dob') && out.includes('Binance') && out.includes('▲ 5000000 USD') && out.includes('▼ 3000000 USD') && out.includes('+2000000 USD'), 'Binance: in 5, out 3 (USDT 2 + ETH 1), netto +2');
   assert.ok(out.indexOf('Binance') < out.indexOf('OKX'), 'większy obrót pierwszy'); assert.ok(out.includes('wh.dob.part') && out.includes('wh.dob.from{"t":"D(2026-09-25T13:00:00+00:00)"}'), 'dziś = w toku; 25.09 = liczone od');
+  const out2 = env.whDob({dobowe: {[today]: {Bybit: {ETH: {in: 3e6, out: 0, n: 1}}}}, dobowe_od: today + 'T15:00:00+00:00'});
+  assert.ok(out2.includes('wh.dob.from') && out2.includes('wh.dob.part') && !out2.includes('wh.dob.full'), 'pierwszy dzień liczenia = „liczone od” i „w toku” razem (v118.1)');
   assert.equal(env.whDob({dobowe: {}}), ''); assert.equal(env.whDob({}), '');
 });

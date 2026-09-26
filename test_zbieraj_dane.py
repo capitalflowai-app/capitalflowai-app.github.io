@@ -5268,6 +5268,7 @@ class DzwigniaV109(unittest.TestCase):
         self.assertEqual(zd.lev_all(out, now + datetime.timedelta(hours=7)), {}, 'siedem godzin później wszystko za stare')
 
     def test_build_seven_parts_history_total_and_only_new_parts(self):
+        self.enterContext(mock.patch.object(zd, 'NOW', '2026-09-26T07:30:00+00:00'))   # nagrania z 07:13 UTC: suma „wszystkie giełdy” bierze wiersze < 6 h — test nie może zależeć od zegara (26.09 po 13:13 UTC blokowałby budowę)
         V = self.V
         gb = lambda url, headers=None, timeout=60: V.zip_bytes(V.CSV.replace('BTCUSDT', 'ETHUSDT') if 'ETHUSDT' in url else V.CSV)
         with mock.patch.object(zd, 'hl_post', side_effect=V.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=gb), mock.patch.object(zd, 'get_json', side_effect=V.get_json):
@@ -5678,12 +5679,14 @@ class WielorybyEthV112(WielorybyV105):
                 {'tx': '0x3', 'exch': 'OKX', 'dir': 'in', 'token': 'USDC', 'amt': 2e6, 't': None}, 'x']
         dob, kl = zd.wh_dobowe(None, None, rows)
         self.assertEqual(dob, {'2026-09-25': {'Binance': {'USDT': {'in': 5e6, 'out': 0.0, 'n': 1}}}, '2026-09-26': {'Binance': {'ETH': {'in': 0.0, 'out': 1e6, 'n': 1}}, 'Bybit': {'ETH': {'in': 1e6, 'out': 0.0, 'n': 1}}}})
-        self.assertEqual(kl, {'0x1|Binance|in': '2026-09-25', '0x2|Binance|out': '2026-09-26', '0x2|Bybit|in': '2026-09-26'}, 'wiersz bez czasu pominięty; duplikat raz')
+        self.assertEqual(kl, {'0x1|None|Binance|in': '2026-09-25', '0x2|None|Binance|out': '2026-09-26', '0x2|None|Bybit|in': '2026-09-26'}, 'wiersz bez czasu pominięty; duplikat raz')
+        d2, k2 = zd.wh_dobowe(None, None, [dict(R('0x7', 'Binance', 'in', 'USDT', 2e6, 2e6, '2026-09-26T01:00:00+00:00'), li=1), dict(R('0x7', 'Binance', 'in', 'USDC', 5e6, 5e6, '2026-09-26T01:00:00+00:00'), li=2)])
+        self.assertEqual(d2['2026-09-26']['Binance'], {'USDT': {'in': 2e6, 'out': 0.0, 'n': 1}, 'USDC': {'in': 5e6, 'out': 0.0, 'n': 1}}, 'dwa zdarzenia w jednej transakcji = dwa przelewy (v118.1)')
         dob2, kl2 = zd.wh_dobowe(dob, kl, [R('0x2', 'Bybit', 'in', 'ETH', 400.0, 1e6, '2026-09-26T00:01:00+00:00'), R('0x9', 'OKX', 'in', 'USDC', 3e6, 3e6, '2026-09-29T01:00:00+00:00')])
         self.assertEqual(dob2['2026-09-26']['Bybit']['ETH']['n'], 1, 'ten sam przelew w następnym przebiegu nie liczy się drugi raz')
         self.assertEqual(sorted(dob2), ['2026-09-25', '2026-09-26', '2026-09-29'])
         dob3, kl3 = zd.wh_dobowe(dob2, kl2, [R('0x8', 'OKX', 'in', 'USDC', 3e6, 3e6, '2026-09-30T01:00:00+00:00')])
-        self.assertEqual(sorted(dob3), ['2026-09-26', '2026-09-29', '2026-09-30'], 'najwyżej WH_DOB_DNI dni'); self.assertNotIn('0x1|Binance|in', kl3, 'klucze z usuniętych dni odpadają')
+        self.assertEqual(sorted(dob3), ['2026-09-26', '2026-09-29', '2026-09-30'], 'najwyżej WH_DOB_DNI dni'); self.assertNotIn('0x1|None|Binance|in', kl3, 'klucze z usuniętych dni odpadają')
         # pełny przebieg: sumy z wierszy USDT/USDC (z czasem bloku) i z wierszy ETH; przy braku części — sumy z poprzedniego pliku zostają
         post, _ = self._rpc()
         with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez zapasu kursu')):
@@ -5793,7 +5796,7 @@ class ArchiwumV113(unittest.TestCase):
                 'gieldy': {'Binance': {'tokeny': ['USDT', 'USDC', 'ETH']}, 'OKX': {'tokeny': ['USDC']}},
                 'salda': {'Binance': {'eth': 10.5, 'usdt': 1000000.0, 'usdc': 2.0, 'blk': 500}, 'OKX': {'eth': 0.6, 'usdt': 29.0, 'usdc': 3000000.0, 'blk': 500}},
                 'transfery': [{'token': 'USDT', 'amt': 5e6, 'usd': 5e6, 'dir': 'in', 'exch': 'Binance'}, 'x'],   # tabela obcięta — nie służy do sum (v117)
-                'dobowe_od': '2026-09-20T10:00:00+00:00',
+                'dobowe_od': '2026-09-20T10:00:00+00:00', 'ostatni_t': '2026-09-26T00:12:00+00:00', 'luka': False, 'blk_t': '2026-09-26T00:15:00+00:00', 'eth': {'lag_min': 10},
                 'dobowe': ({'2026-09-25': {'Binance': {'USDT': {'in': 5e6, 'out': 2e6, 'n': 2}, 'ETH': {'in': 0.0, 'out': 1e6, 'n': 1}}, 'OKX': {'USDC': {'in': 1e6, 'out': 0.0, 'n': 1}}},
                             '2026-09-26': {'Binance': {'USDT': {'in': 9e9, 'out': 0.0, 'n': 1}}}} if dobowe else {})}
 
@@ -5812,6 +5815,14 @@ class ArchiwumV113(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', return_value=self._wh(dobowe=False)):
             r = self.a.src_wieloryby(today=d)
         self.assertTrue(all(x[5:8] == [None, None, None] for x in r), 'plik bez sum dobowych (sprzed v117): przepływy puste'); self.assertTrue(any('brak sum dobowych' in n for n in self.a.NOTES))
+        self.a.NOTES.clear(); fx = self._wh(); fx['ostatni_t'] = '2026-09-25T23:40:00+00:00'; fx['eth'] = {'lag_min': 90}
+        with mock.patch.object(zd, 'get_json', return_value=fx):
+            r = self.a.src_wieloryby(today=d)
+        self.assertTrue(all(x[5:8] == [None, None, None] for x in r), 'skan nie przekroczył północy (stablecoiny) i rotacja ETH nie objęła doby = puste'); self.assertEqual(sum('nie sięga północy' in n for n in self.a.NOTES), 1); self.assertEqual(sum('rotacja' in n for n in self.a.NOTES), 1)
+        self.a.NOTES.clear(); fx = self._wh(); fx['luka'] = True
+        with mock.patch.object(zd, 'get_json', return_value=fx):
+            r = self.a.src_wieloryby(today=d)
+        self.assertTrue(all(x[5:8] == [None, None, None] for x in r if x[2] != 'ETH') and any(x[5] is not None for x in r if x[2] == 'ETH'), 'luka w skanie logów = stablecoiny puste, ETH liczone')
         self.a.NOTES.clear(); fx = self._wh(); fx['dobowe_od'] = '2026-09-25T13:00:00+00:00'
         with mock.patch.object(zd, 'get_json', return_value=fx):
             r = self.a.src_wieloryby(today=d)
@@ -5886,7 +5897,7 @@ class ArchiwumV113(unittest.TestCase):
 
     def test_workflow_and_build_step(self):
         wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'archiwum.yml'), encoding='utf-8').read()
-        self.assertIn("cron: '20 0 * * *'", wf); self.assertIn('[skip ci]', wf); self.assertIn('FRED_KEY: ${{ secrets.FRED_KEY }}', wf)
+        self.assertIn("cron: '20 1 * * *'", wf); self.assertIn('[skip ci]', wf); self.assertIn('FRED_KEY: ${{ secrets.FRED_KEY }}', wf)
         self.assertIn('contents: write', wf); self.assertIn('git add archiwum', wf); self.assertIn('python3 narzedzia/archiwum.py', wf); self.assertIn('workflow_dispatch', wf)
         self.assertNotIn('toJSON(secrets)', wf)
         st = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
@@ -6018,7 +6029,6 @@ class KontrolaV115(unittest.TestCase):
         E = lambda at, b: {'at': at, 'bledy_zbieracza': b}
         self.assertTrue(k.czerwone_z_historii([E('2026-09-24T06:20:00+00:00', 1), E('2026-09-25T06:20:00+00:00', 2), E('2026-09-26T06:20:00+00:00', 1)]))
         self.assertFalse(k.czerwone_z_historii([E('2026-09-26T06:20:00+00:00', 1), E('2026-09-26T09:00:00+00:00', 1), E('2026-09-26T12:00:00+00:00', 1)]), 'trzy przebiegi jednego dnia (po pushu) to nie 3 dni')
-        self.assertFalse(k.czerwone_z_historii([E('2026-09-24T06:20:00+00:00', 1), E('2026-09-25T06:20:00+00:00', 0), E('2026-09-25T12:00:00+00:00', 1), E('2026-09-26T06:20:00+00:00', 1)]) is False and False)
         self.assertTrue(k.czerwone_z_historii([E('2026-09-24T06:20:00+00:00', 1), E('2026-09-25T06:20:00+00:00', 0), E('2026-09-25T12:00:00+00:00', 1), E('2026-09-26T06:20:00+00:00', 1)]), 'liczy się ostatni przebieg dnia')
         self.assertFalse(k.czerwone_z_historii([E('2026-09-25T06:20:00+00:00', 1), E('2026-09-26T06:20:00+00:00', 1)]), 'dwa dni to za mało')
         R = {'at': '2026-09-26T06:20:00+00:00', 'wynik': 'UWAGA', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-09-26T06:03:00+00:00', 'wiek_min': 17, 'zrodla': 55, 'bez_odpowiedzi': [], 'errors': [], 'notes': []},

@@ -145,7 +145,24 @@ def src_wieloryby(today=None):
         dob = None; NOTES.append(f'brak sum dobowych za {wczoraj} — przepływy puste')
     elif not od or od >= wczoraj:   # zbieranie sum zaczęło się w tej dobie (albo później) — doba niepełna, nie udajemy pełnej
         dob = None; NOTES.append(f'sumy dobowe zbierane od {od or "?"} — doba {wczoraj} niepełna, przepływy puste')
-    flows_ok = {'USDT': ok.get('transfery') is True, 'USDC': ok.get('transfery') is True, 'ETH': ok.get('eth') is True}
+    # v118.1: doba jest pełna tylko, gdy skan przekroczył północ UTC: stablecoiny — ostatni zeskanowany blok (ostatni_t) już dziś i bez luki;
+    # ETH — najstarszy odczyt portfela (czas głowicy − lag_min) też już dziś (portfele w rotacji ~80 min). Inaczej pola puste, z uwagą.
+    polnoc = datetime.datetime(today.year, today.month, today.day, tzinfo=datetime.timezone.utc)
+    try:
+        ost = datetime.datetime.fromisoformat(str(d.get('ostatni_t')))
+        cov_stab = ost >= polnoc and not d.get('luka')
+    except Exception:
+        cov_stab = False
+    try:
+        e = d.get('eth') or {}
+        cov_eth = datetime.datetime.fromisoformat(str(d.get('blk_t'))) - datetime.timedelta(minutes=float(e.get('lag_min'))) >= polnoc
+    except Exception:
+        cov_eth = False
+    if dob is not None and not cov_stab:
+        NOTES.append(f'doba {wczoraj}: skan USDT/USDC nie sięga północy (ostatni blok {str(d.get("ostatni_t"))[:16]}) — przepływy USDT/USDC puste')
+    if dob is not None and not cov_eth:
+        NOTES.append(f'doba {wczoraj}: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste')
+    flows_ok = {'USDT': ok.get('transfery') is True and cov_stab, 'USDC': ok.get('transfery') is True and cov_stab, 'ETH': ok.get('eth') is True and cov_eth}
     rows = []
     for g, s in salda.items():
         if not isinstance(s, dict):

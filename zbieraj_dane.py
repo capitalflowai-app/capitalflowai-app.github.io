@@ -5553,7 +5553,7 @@ def wh_polacz(prev_rows, new_rows, od, maks=WH_MAX):
 
 def wh_dobowe(prev, prev_klucze, rows):
     """v117: sumy dobowe (UTC) przelewów ≥ progu per giełda i aktywo, liczone z KAŻDEGO zdekodowanego wiersza zanim tabela zostanie obcięta
-    do WH_MAX: {dzień: {giełda: {token: {'in': USD, 'out': USD, 'n': liczba}}}}. Klucze (tx|giełda|kierunek → dzień) pilnują, by ten sam
+    do WH_MAX: {dzień: {giełda: {token: {'in': USD, 'out': USD, 'n': liczba}}}}. Klucze (tx|indeks zdarzenia|giełda|kierunek → dzień) pilnują, by ten sam
     przelew — znaleziony po raz drugi (druga strona przy rotacji portfeli ETH, ponownie zeskanowany blok) — nie był liczony dwa razy.
     Zwraca (sumy, klucze) z ostatnich WH_DOB_DNI dni; nic nie jest zerem z braku obserwacji — dzień bez wpisu = brak sum."""
     dob = {d: v for d, v in prev.items() if isinstance(d, str) and isinstance(v, dict)} if isinstance(prev, dict) else {}
@@ -5561,7 +5561,7 @@ def wh_dobowe(prev, prev_klucze, rows):
     for r in rows:
         if not isinstance(r, dict) or not isinstance(r.get('t'), str) or r.get('dir') not in ('in', 'out') or not isinstance(r.get('amt'), (int, float)):
             continue
-        k = f"{r.get('tx')}|{r.get('exch')}|{r['dir']}"
+        k = f"{r.get('tx')}|{r.get('li')}|{r.get('exch')}|{r['dir']}"   # v118.1: z indeksem zdarzenia — kilka przelewów w jednej transakcji to osobne wiersze
         if k in kl:
             continue
         d = r['t'][:10]; kl[k] = d

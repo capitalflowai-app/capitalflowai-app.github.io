@@ -5,7 +5,7 @@ name: Archiwum własne (codziennie)
 # planowa budowa (co 20 min) kopiuje archiwum/ na stronę. Nieudane źródło = kod wyjścia 1 = e-mail od GitHuba (pozostałe pliki zapisane).
 on:
   schedule:
-    - cron: '20 0 * * *'        # 00:20 UTC = 02:20 czasu polskiego (letniego)
+    - cron: '20 1 * * *'        # 01:20 UTC = 03:20 czasu polskiego (letniego); v118.1: godzinę po północy, bo rotacja portfeli ETH (~80 min) musi przekroczyć północ, by doba była pełna
   push:
     branches: [main]
     paths: ['narzedzia/archiwum.py', '.github/workflows/archiwum.yml']
@@ -42,7 +42,7 @@ jobs:
           git add archiwum
           if git diff --cached --quiet; then echo "bez zmian"; else
             git commit -q -m "Archiwum własne $(date -u +%Y-%m-%d) [skip ci]"
-            git push -q origin HEAD:main || (git pull -q --rebase origin main && git push -q origin HEAD:main)
+            git push -q origin HEAD:main || (git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main)   # pliki archiwum z tego przebiegu wygrywają przy konflikcie
           fi
       - name: Wynik
         if: steps.archiwum.outcome == 'failure'

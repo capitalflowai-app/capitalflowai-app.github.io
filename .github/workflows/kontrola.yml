@@ -46,7 +46,7 @@ jobs:
           git add kontrola/ostatnia.md kontrola/ostatnia.json kontrola/zgodnosc.csv kontrola/historia.json   # v115: historia różnic i przebiegów
           if git diff --cached --quiet; then echo "bez zmian"; else
             git commit -q -m "Kontrola strony $(date -u +%Y-%m-%d\ %H:%M) UTC [skip ci]"
-            git push -q origin HEAD:main || (git pull -q --rebase origin main && git push -q origin HEAD:main)
+            git push -q origin HEAD:main || (git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main)   # v118.1: pliki wynikowe z tego przebiegu wygrywają przy konflikcie (26.09: przebieg po pushu zderzył się z poprzednim)
           fi
       - name: Wynik
         if: steps.kontrola.outcome == 'failure'

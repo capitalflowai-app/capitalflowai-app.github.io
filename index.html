@@ -6679,7 +6679,7 @@ function whDob(D){const B=D&&D.dobowe&&typeof D.dobowe==='object'?D.dobowe:null;
   const days=Object.keys(B).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)&&B[d]&&typeof B[d]==='object').sort().reverse().slice(0,3);if(!days.length)return '';
   const I=typeof icoWrap==='function',ex=n=>I&&typeof exchImg==='function'?icoWrap(exchImg(n,'sm')):'';
   const today=new Date().toISOString().slice(0,10),od=typeof D.dobowe_od==='string'?D.dobowe_od:'';
-  const tag=d=>d===today?`<small class="whx">${t('wh.dob.part')}</small>`:(od&&od.slice(0,10)>=d)?`<small class="whx">${t('wh.dob.from',{t:engDate(od)})}</small>`:`<small class="whx">${t('wh.dob.full')}</small>`;
+  const tag=d=>{const from=!!(od&&od.slice(0,10)>=d),p=[];if(from)p.push(t('wh.dob.from',{t:engDate(od)}));if(d===today)p.push(t('wh.dob.part'));else if(!from)p.push(t('wh.dob.full'));return p.map(x=>`<small class="whx">${x}</small>`).join('');};   /* v118.1: „liczone od” zawsze, gdy liczenie zaczęło się w tej dobie */
   const sgn=v=>v>0?'pos':v<0?'neg':'';
   let rows='';
   for(const d of days){const ex_=Object.keys(B[d]).map(g=>{let i=0,o=0,n=0;for(const tk in B[d][g]){const s=B[d][g][tk];if(!s||typeof s!=='object')continue;if(whNum(s.in))i+=s.in;if(whNum(s.out))o+=s.out;if(whNum(s.n))n+=s.n;}return {g,i,o,n,net:i-o};}).sort((a,b)=>(b.i+b.o)-(a.i+a.o));
