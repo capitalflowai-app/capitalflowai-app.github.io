@@ -4708,19 +4708,28 @@ def build_rynki(prev=None, today=None):
 
 
 # ===================== v104: dźwignia i pozycje w krypto (Hyperliquid, pliki dzienne Binance, Deribit, OKX — bez klucza) =====================
-# Plik data/dzwignia.json: cztery części (hl, bn, dr, okx) z własnym ok/part_at; część z błędem = poprzednia wersja tej części
+# v109 (dzwignia2): trzy dalsze giełdy — Kraken Futures (kr), Coinbase International (cb), dYdX (dy) — na tych samych zasadach; suma giełd w historii.
+# Plik data/dzwignia.json: siedem części (hl, bn, dr, okx, kr, cb, dy) z własnym ok/part_at; część z błędem = poprzednia wersja tej części
 # z jej własnym czasem, nigdy zera. Z serwera GitHub (USA) API Binance i Bybit odpowiadają 451/403 — dlatego Binance tylko
 # z plików dziennych (data.binance.vision, poprzedni dzień UTC). Historia dzienna (hist) daje stronie zmianę 1 dn. / 7 dni.
 HL_URL = 'https://api.hyperliquid.xyz/info'
 BN_URL = 'https://data.binance.vision/data/futures/um/daily/metrics/{s}/{s}-metrics-{d}.zip'
 DR_URL = 'https://www.deribit.com/api/v2/public/'
 OKX_URL = 'https://www.okx.com/api/v5/'
+KR_URL = 'https://futures.kraken.com/derivatives/api/v3/tickers'                # v109: Kraken Futures — jedno zapytanie, wszystkie rynki
+CB_URL = 'https://api.international.coinbase.com/api/v1/instruments/{c}-PERP'   # v109: Coinbase International — szczegóły instrumentu (z notowaniem)
+DY_URL = 'https://indexer.dydx.trade/v4/perpetualMarkets?ticker={c}-USD'        # v109: dYdX v4 — indexer
 LEV_EVERY = 55            # minut — co godzinę (przebieg co 20 min); część z błędem ponawiana przy następnym przebiegu
 LEV_TIMEOUT = 20          # s na zapytanie (budżet czasu przebiegu)
 LEV_KEEP = ['BTC', 'ETH', 'SOL', 'XRP']
 LEV_TOP = 12              # + największe rynki wg otwartych pozycji w USD
 LEV_HIST = 90             # dni historii dziennej
-LEV_PX = {'hl': 'Hyperliquid', 'bn': 'Binance', 'dr': 'Deribit', 'okx': 'OKX'}   # początek komunikatu błędu (strona Źródła)
+LEV_PX = {'hl': 'Hyperliquid', 'bn': 'Binance', 'dr': 'Deribit', 'okx': 'OKX', 'kr': 'Kraken', 'cb': 'Coinbase', 'dy': 'dYdX'}   # początek komunikatu błędu (strona Źródła); v109: +kr, cb, dy
+LEV_HOURS = {'kr': 1, 'cb': 1, 'dy': 1}    # v109: okres finansowania wg dokumentacji giełd (godziny): Kraken, Coinbase i dYdX rozliczają co godzinę
+LEV_FMAX = 0.005                          # v109: |stawka godzinowa| ponad 0,5 % (4 380 % rocznie) = pomyłka jednostki → brak, nie liczba
+LEV_SUMAGE = 6 * 3600                     # v109: do sumy „wszystkie giełdy” wchodzą tylko wiersze młodsze niż 6 h
+LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'dy']   # v109: giełdy z bieżącym stanem (Binance = plik z poprzedniego dnia — poza sumą)
+KR_SYM = {'BTC': 'PF_XBTUSD', 'ETH': 'PF_ETHUSD'}   # v109: kontrakty wieczyste multi-collateral Kraken (1 kontrakt = 1 moneta)
 BN_COLS = {'sum_open_interest': 'oi', 'sum_open_interest_value': 'oi_usd', 'count_long_short_ratio': 'ls',
            'count_toptrader_long_short_ratio': 'top_ls', 'sum_toptrader_long_short_ratio': 'top_pos', 'sum_taker_long_short_vol_ratio': 'taker'}
 _LEV_MON = {'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6, 'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12}
@@ -4997,6 +5006,169 @@ def lev_okx(prev=None):
     return out
 
 
+# --- v109 (dzwignia2): Kraken Futures, Coinbase International, dYdX — te same zasady co wyżej (część z błędem = poprzednia z własnym czasem, brak ≠ zero).
+# Okresy finansowania wg dokumentacji giełd: Kraken co godzinę (stawka bezwzględna w USD za 1 kontrakt = 1 moneta; względna = bezwzględna / cena
+# znacznikowa), Coinbase co godzinę (pole funding_interval w nanosekundach: 3 600 s), dYdX co godzinę (nextFundingRate za godzinę). Wszystko
+# sprowadzone do stawki godzinowej f_h i rocznej f_y (× 24 × 365 × 100), jak Hyperliquid.
+def lev_iso(s):
+    """Czas ISO z odpowiedzi giełdy ('2026-09-26T07:13:30.453Z') → ISO UTC bez ułamków sekund; inny kształt → None."""
+    m = re.match(r'^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?(?:Z|\+00:00)?$', str(s or ''))
+    return f'{m.group(1)}T{m.group(2)}+00:00' if m else None
+
+
+def lev_row(f, hours, oi, px, vol=None, vol_usd=None, t=None):
+    """Wspólny wiersz giełdy: stawka `f` za okres `hours` godzin → f_h (godzinowa) i f_y (% w skali roku); oi (monety) × px → oi_usd.
+    Brak liczby → None, nigdy zero; zero pozycji albo obrotu = nie do odróżnienia od braku → None; stawka nieprawdopodobna (pomyłka jednostki,
+    |f_h| > LEV_FMAX) → None; wiersz bez pozycji i bez stawki → None (moneta pominięta)."""
+    fh = None if f is None or not hours or hours <= 0 else f / hours
+    if fh is not None and abs(fh) > LEV_FMAX:
+        fh = None
+    px = px if px is not None and px > 0 else None
+    oi = oi if oi is not None and oi > 0 else None
+    row = {'f_h': None if fh is None else round(fh, 12), 'f_y': None if fh is None else lev_r(fh * 24 * 365 * 100, 3), 'f_hours': hours,
+           'oi': lev_r(oi, 4), 'oi_usd': lev_r(oi * px, 0) if oi is not None and px else None, 'px': px,
+           'vol': lev_r(vol, 4) if vol is not None and vol > 0 else None, 'vol_usd': lev_r(vol_usd, 0) if vol_usd is not None and vol_usd > 0 else None, 't': t or NOW}
+    return row if row['oi'] is not None or row['f_h'] is not None else None
+
+
+def kr_parse(j, syms=KR_SYM):
+    """Kraken Futures: tickers → wiersze BTC/ETH z kontraktów PF_ (multi-collateral: 1 kontrakt = 1 moneta, otwarte pozycje w monetach).
+    fundingRate to stawka bezwzględna (USD za kontrakt za godzinę); godzinowa względna = relativeFundingRate, a gdy giełda go nie podaje — fundingRate / markPrice.
+    Rynek zawieszony, wiersz bez symbolu albo bez liczb — pominięty; brak obu monet → błąd części."""
+    tick = j.get('tickers') if isinstance(j, dict) else None
+    if not isinstance(tick, list) or not tick:
+        raise ValueError('brak wierszy tickers')
+    by = {r.get('symbol'): r for r in tick if isinstance(r, dict) and isinstance(r.get('symbol'), str)}
+    t = lev_iso(j.get('serverTime')) or NOW
+    out = {'t': t, 'f_hours': LEV_HOURS['kr']}
+    for c, sym in syms.items():
+        r = by.get(sym)
+        if not isinstance(r, dict) or r.get('suspended') is True:
+            continue
+        px = lev_num(r.get('markPrice'))
+        f = lev_num(r.get('relativeFundingRate'))
+        if f is None:
+            ab = lev_num(r.get('fundingRate'))
+            f = ab / px if ab is not None and px else None
+        row = lev_row(f, LEV_HOURS['kr'], lev_num(r.get('openInterest')), px, lev_num(r.get('vol24h')), lev_num(r.get('volumeQuote')), t)
+        if row:
+            row['sym'] = sym; out[c] = row
+    if len(out) <= 2:
+        raise ValueError('brak wierszy z liczbami (' + ', '.join(syms.values()) + ')')
+    return out
+
+
+def lev_kr(prev=None):
+    """Kraken Futures: jedno zapytanie dla wszystkich rynków; moneta bez wiersza → poprzednia wersja tej monety (z własnym czasem t)."""
+    prev = prev if isinstance(prev, dict) else {}
+    out = kr_parse(get_json(KR_URL, timeout=LEV_TIMEOUT))
+    for c, sym in KR_SYM.items():
+        if c not in out and isinstance(prev.get(c), dict):
+            out[c] = prev[c]; META['errors'].append(mask(f'Dźwignia: Kraken: brak wiersza {sym} — zostaje poprzedni'))
+    return out
+
+
+def cb_parse(j, c):
+    """Coinbase International: szczegóły instrumentu {c}-PERP z notowaniem `quote`: otwarte pozycje w monetach, przewidywane finansowanie za okres
+    funding_interval (nanosekundy; w dokumentacji i w odpowiedzi 3 600 s = 1 h — wartość poza 0–24 h albo jej brak → 1 h z dokumentacji)."""
+    if not isinstance(j, dict):
+        raise ValueError('zły kształt')
+    q = j.get('quote') if isinstance(j.get('quote'), dict) else {}
+    iv = lev_num(j.get('funding_interval'))
+    hours = iv / 3.6e12 if iv and 0 < iv / 3.6e12 <= 24 else LEV_HOURS['cb']
+    row = lev_row(lev_num(q.get('predicted_funding')), hours, lev_num(j.get('open_interest')), lev_num(q.get('mark_price')),
+                  lev_num(j.get('qty_24hr')), lev_num(j.get('notional_24hr')), lev_iso(q.get('timestamp')))
+    if not row:
+        raise ValueError('brak liczb')
+    return row
+
+
+def lev_cb(prev=None):
+    """Coinbase International: po jednym zapytaniu na monetę (szczegóły zawierają notowanie; gdyby nie — osobne zapytanie o notowanie).
+    Moneta z błędem → poprzednia wersja tej monety z własnym czasem; nic nowego → część nieudana."""
+    prev = prev if isinstance(prev, dict) else {}
+    out, fails, new = {'t': NOW, 'f_hours': LEV_HOURS['cb']}, [], 0
+    for c in ('BTC', 'ETH'):
+        try:
+            j = get_json(CB_URL.format(c=c), timeout=LEV_TIMEOUT)
+            if isinstance(j, dict) and not isinstance(j.get('quote'), dict):
+                j = dict(j, quote=get_json(CB_URL.format(c=c) + '/quote', timeout=LEV_TIMEOUT))
+            out[c] = cb_parse(j, c); new += 1
+        except Exception as e:  # noqa
+            fails.append(f'{c}: {e}')
+            if isinstance(prev.get(c), dict):
+                out[c] = prev[c]
+    if not new:
+        raise ValueError('; '.join(fails) or 'brak danych')
+    if fails:
+        META['errors'].append(mask('Dźwignia: Coinbase: ' + '; '.join(fails)))
+    return out
+
+
+def dy_parse(j, c):
+    """dYdX v4 (indexer): perpetualMarkets?ticker={c}-USD → nextFundingRate za godzinę, openInterest w monetach, oraclePrice (USD), volume24H (USD)."""
+    m = j.get('markets') if isinstance(j, dict) else None
+    r = m.get(f'{c}-USD') if isinstance(m, dict) else None
+    if not isinstance(r, dict):
+        raise ValueError('brak rynku')
+    if str(r.get('status') or 'ACTIVE') != 'ACTIVE':
+        raise ValueError(f'rynek {r.get("status")}')
+    row = lev_row(lev_num(r.get('nextFundingRate')), LEV_HOURS['dy'], lev_num(r.get('openInterest')), lev_num(r.get('oraclePrice')), None, lev_num(r.get('volume24H')), None)
+    if not row:
+        raise ValueError('brak liczb')
+    return row
+
+
+def lev_dy(prev=None):
+    prev = prev if isinstance(prev, dict) else {}
+    out, fails, new = {'t': NOW, 'f_hours': LEV_HOURS['dy']}, [], 0
+    for c in ('BTC', 'ETH'):
+        try:
+            out[c] = dy_parse(get_json(DY_URL.format(c=c), timeout=LEV_TIMEOUT), c); new += 1
+        except Exception as e:  # noqa
+            fails.append(f'{c}: {e}')
+            if isinstance(prev.get(c), dict):
+                out[c] = prev[c]
+    if not new:
+        raise ValueError('; '.join(fails) or 'brak danych')
+    if fails:
+        META['errors'].append(mask('Dźwignia: dYdX: ' + '; '.join(fails)))
+    return out
+
+
+def lev_all(out, now=None):
+    """Suma otwartych pozycji w USD z giełd z bieżącym stanem (wiersz młodszy niż LEV_SUMAGE wg własnego czasu `t`, a bez niego — czasu części);
+    Binance poza sumą (plik z poprzedniego dnia). Na monetę: usd i posortowana lista giełd — historia porównuje dzień do dnia tylko ten sam zestaw.
+    Brak giełdy z bieżącym stanem → moneta pominięta (nie zero)."""
+    now = now or datetime.datetime.fromisoformat(NOW)
+    pat = out.get('part_at') if isinstance(out.get('part_at'), dict) else {}
+    res = {}
+    for c in ('BTC', 'ETH'):
+        tot, ven = 0.0, []
+        for k in LEV_LIVE:
+            P = out.get(k)
+            if not isinstance(P, dict):
+                continue
+            r = (P.get('rows') or {}).get(c) if k == 'hl' else P.get(c)
+            if not isinstance(r, dict):
+                continue
+            v = r.get('oi_usd')
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or v <= 0:
+                continue
+            t = r.get('t') if k != 'hl' and isinstance(r.get('t'), str) else pat.get(k)
+            try:
+                age = (now - datetime.datetime.fromisoformat(str(t))).total_seconds()
+            except Exception:
+                continue
+            if age > LEV_SUMAGE:
+                continue
+            tot += v; ven.append(k)
+        if ven:
+            res[c] = {'usd': round(tot), 'v': ','.join(sorted(ven))}
+    return res
+
+
+
 def lev_hist(hist, out, today):
     """Jeden wpis na dzień UTC (dzisiejszy nadpisywany w ciągu dnia). Do wpisu trafiają tylko części pobrane w tym przebiegu;
     liczby Binance — do dnia pliku, nie do dnia przebiegu. Brak liczby → None; najwyżej LEV_HIST dni."""
@@ -5013,6 +5185,10 @@ def lev_hist(hist, out, today):
             dvo = dvo.get('dvol') if isinstance(dvo, dict) else None
             if isinstance(dvo, dict) and _dig(dvo, ('v',)) is not None and str(dvo.get('t') or '')[:10] == d:
                 row['dvol_' + c] = dvo['v']
+    tot = lev_all(out)   # v109: suma giełd z bieżącym stanem (do 6 h) — do zmiany dziennej; zestaw giełd zapisany, żeby porównywać to samo
+    for c in ('btc', 'eth'):
+        if c.upper() in tot:
+            row['all_' + c] = tot[c.upper()]['usd']; row['all_' + c + '_v'] = tot[c.upper()]['v']
     H[d] = row
     bn = out.get('bn') if out['ok'].get('bn') else None
     if isinstance(bn, dict) and isinstance(bn.get('day'), str):
@@ -5056,6 +5232,9 @@ def build_dzwignia(prev=None, today=None, only=None):
     part('bn', lambda: lev_bn(prev.get('bn'), today))
     part('dr', lambda: lev_dr(prev.get('dr')))
     part('okx', lambda: lev_okx(prev.get('okx')))
+    part('kr', lambda: lev_kr(prev.get('kr')))     # v109
+    part('cb', lambda: lev_cb(prev.get('cb')))
+    part('dy', lambda: lev_dy(prev.get('dy')))
     if not any(out['ok'].values()):
         raise RuntimeError('żadna część nie odpowiedziała')
     out['hist'] = lev_hist(prev.get('hist'), out, today)

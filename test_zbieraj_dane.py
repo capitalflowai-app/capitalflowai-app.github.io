@@ -4254,6 +4254,23 @@ class DzwigniaV104(unittest.TestCase):
     OKX_F = {'code': '0', 'data': [{'fundingRate': '0.0000210707400457', 'fundingTime': '1790409600000', 'nextFundingTime': '1790438400000', 'instId': 'BTC-USDT-SWAP'}]}
     OKX_OI = {'code': '0', 'data': [{'instId': 'BTC-USDT-SWAP', 'oi': '2855968.27', 'oiCcy': '28559.6827', 'oiUsd': '2395706135.54', 'ts': '1790400586675'}]}
     OKX_LS = {'code': '0', 'data': [['1790265600000', '1.33'], ['1790352000000', '1.36'], ['1790179200000', 'x']]}
+    KR = {'result': 'success', 'serverTime': '2026-09-26T07:13:30.453Z', 'tickers': [   # v109: nagranie 26.09 (skrócone) + wiersze zepsute
+        {'symbol': 'PI_XBTUSD', 'tag': 'perpetual', 'pair': 'XBT:USD', 'markPrice': 84017.82744462838, 'openInterest': 2301810.0, 'fundingRate': 2.03085217e-10, 'suspended': False},
+        {'symbol': 'PF_XBTUSD', 'last': 84002, 'lastTime': '2026-09-26T07:13:21.588672Z', 'tag': 'perpetual', 'pair': 'XBT:USD', 'markPrice': 84005.90053859816, 'vol24h': 3819.3305, 'volumeQuote': 321113985.4452,
+         'openInterest': 2175.3188, 'fundingRate': -0.2528880558106387, 'fundingRatePrediction': -0.17626672464625, 'suspended': False, 'indexPrice': 84004.17},
+        {'symbol': 'PF_ETHUSD', 'last': 2690.1, 'lastTime': '2026-09-26T07:13:01.505673Z', 'tag': 'perpetual', 'pair': 'ETH:USD', 'markPrice': 2690.15637870521, 'vol24h': 34005.321, 'volumeQuote': 91647373.6034,
+         'openInterest': 26150.793, 'fundingRate': 0.008750205298334228, 'fundingRatePrediction': 0.00999986457, 'suspended': False, 'indexPrice': 2690.03},
+        {'symbol': 'PF_SOLUSD', 'markPrice': 120.47, 'openInterest': 'abc', 'fundingRate': -0.00187}, {'markPrice': 1.0, 'openInterest': 5.0}, 'śmieć',
+        {'symbol': 'PF_XRPUSD', 'suspended': True, 'markPrice': 1.55, 'openInterest': 100.0, 'fundingRate': 0.0}]}
+    CB = {'BTC': {'symbol': 'BTC-PERP', 'type': 'PERP', 'base_asset_name': 'BTC', 'quote_asset_name': 'USDC', 'qty_24hr': '43932.0549', 'notional_24hr': '3692548262.26802', 'open_interest': '1075.7102',
+                  'funding_interval': '3600000000000', 'trading_state': 'TRADING', 'quote': {'best_bid_price': '84012.9', 'best_ask_price': '84013', 'trade_price': '84011.6', 'index_price': '84001.3', 'mark_price': '84012.9',
+                                                                                          'settlement_price': '83994.8', 'predicted_funding': '0.000008', 'timestamp': '2026-09-26T07:13:31.239Z'}},
+          'ETH': {'symbol': 'ETH-PERP', 'type': 'PERP', 'base_asset_name': 'ETH', 'quote_asset_name': 'USDC', 'qty_24hr': '948282.0212', 'notional_24hr': '2555737253.816879', 'open_interest': '17069.0224',
+                  'funding_interval': '3600000000000', 'trading_state': 'TRADING', 'quote': {'mark_price': '2690', 'index_price': '2689.96', 'predicted_funding': '0.000006', 'timestamp': '2026-09-26T07:13:33.270Z'}}}
+    DY = {'BTC': {'markets': {'BTC-USD': {'clobPairId': '0', 'ticker': 'BTC-USD', 'status': 'ACTIVE', 'oraclePrice': '83979.10208', 'priceChange24H': '200.39102', 'volume24H': '2793171.9686', 'trades24H': 1411,
+                                          'nextFundingRate': '-0.00000078846153846154', 'openInterest': '190.2829', 'atomicResolution': -10, 'marketType': 'CROSS', 'baseOpenInterest': '782.0931', 'defaultFundingRate1H': '0'}}},
+          'ETH': {'markets': {'ETH-USD': {'ticker': 'ETH-USD', 'status': 'ACTIVE', 'oraclePrice': '2688.871112', 'volume24H': '38816886.7794', 'nextFundingRate': '-0.00005016346153846154', 'openInterest': '6080.201',
+                                          'baseOpenInterest': '13993.985', 'marketType': 'CROSS'}}}}
     TODAY = datetime.date(2026, 9, 26)
 
     @classmethod
@@ -4274,6 +4291,9 @@ class DzwigniaV104(unittest.TestCase):
         if 'funding-rate' in url: return self.OKX_F
         if 'open-interest' in url: return self.OKX_OI
         if 'long-short-account-ratio' in url: return self.OKX_LS
+        if 'futures.kraken.com' in url: return self.KR   # v109
+        if 'international.coinbase.com' in url: return self.CB[url.split('/instruments/')[1][:3]]
+        if 'indexer.dydx.trade' in url: return self.DY[url.split('ticker=')[1][:3]]
         raise AssertionError('nieznany adres ' + url)
 
     def hl_post(self, body, timeout=20):
@@ -4380,7 +4400,7 @@ class DzwigniaV104(unittest.TestCase):
         gb = lambda url, headers=None, timeout=60: self.zip_bytes(self.CSV.replace('BTCUSDT', 'ETHUSDT') if 'ETHUSDT' in url else self.CSV)
         with mock.patch.object(zd, 'hl_post', side_effect=self.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=gb), mock.patch.object(zd, 'get_json', side_effect=self.get_json):
             o = zd.build_dzwignia(None, today=self.TODAY)
-        self.assertEqual(o['ok'], {'hl': True, 'bn': True, 'dr': True, 'okx': True}); self.assertEqual(o['part_at'], {k: zd.NOW for k in ('hl', 'bn', 'dr', 'okx')})
+        self.assertEqual(o['ok'], {k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy')}); self.assertEqual(o['part_at'], {k: zd.NOW for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy')})
         self.assertEqual(o['hl']['f7_y'], {'BTC': round(0.0000125 * 24 * 365 * 100, 3), 'ETH': round(0.0000125 * 24 * 365 * 100, 3)})
         self.assertEqual(o['bn']['day'], '2026-09-25'); self.assertEqual(o['dr']['ETH']['opt']['pc'], 1.05); self.assertEqual(o['okx']['ETH']['ls'], 1.36)
         self.assertEqual([h['d'] for h in o['hist']], ['2026-09-25', '2026-09-26'], 'liczby Binance w dniu pliku, reszta w dniu przebiegu')
@@ -4405,7 +4425,7 @@ class DzwigniaV104(unittest.TestCase):
             return self.get_json(url, headers, timeout)
         with mock.patch.object(zd, 'hl_post', side_effect=self.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('nie powinno pobierać')), mock.patch.object(zd, 'get_json', side_effect=gj):
             o = zd.build_dzwignia(prev, today=self.TODAY)
-        self.assertEqual(o['ok'], {'hl': True, 'bn': True, 'dr': False, 'okx': True})
+        self.assertEqual(o['ok'], {'hl': True, 'bn': True, 'dr': False, 'okx': True, 'kr': True, 'cb': True, 'dy': True})
         self.assertEqual(o['dr'], prev['dr']); self.assertEqual(o['part_at']['dr'], '2026-09-25T09:00:00+00:00', 'część z błędem — poprzednia, z własnym czasem')
         self.assertEqual(o['bn'], prev['bn']); self.assertEqual(o['part_at']['bn'], '2026-09-25T10:00:00+00:00', 'ten sam dzień pliku — poprzednia część, czas pliku (brak part_at) ')
         self.assertTrue(any(e.startswith('Dźwignia: Deribit: DVOL BTC: HTTP Error 503') for e in zd.META['errors']), zd.META['errors'])
@@ -4416,8 +4436,8 @@ class DzwigniaV104(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 zd.build_dzwignia(None, today=self.TODAY)
             o = zd.build_dzwignia(prev, today=self.TODAY)   # wszystko padło, ale jest poprzedni plik: części zachowane, bn z tym samym dniem
-        self.assertEqual(o['ok'], {'hl': False, 'bn': True, 'dr': False, 'okx': False}); self.assertEqual(o['okx'], prev['okx'])
-        self.assertEqual([e[:22] for e in zd.META['errors']][-3:], ['Dźwignia: Hyperliquid:', 'Dźwignia: Deribit: DVO', 'Dźwignia: OKX: finanso'])
+        self.assertEqual(o['ok'], {'hl': False, 'bn': True, 'dr': False, 'okx': False, 'kr': False, 'cb': False, 'dy': False}); self.assertEqual(o['okx'], prev['okx'])
+        self.assertEqual([e[:22] for e in zd.META['errors']][-6:], ['Dźwignia: Hyperliquid:', 'Dźwignia: Deribit: DVO', 'Dźwignia: OKX: finanso', 'Dźwignia: Kraken: offl', 'Dźwignia: Coinbase: BT', 'Dźwignia: dYdX: BTC: o'])
 
     def test_build_only_failed_parts_keeps_healthy_with_their_time(self):
         t0 = '2026-09-26T05:00:00+00:00'
@@ -4430,7 +4450,7 @@ class DzwigniaV104(unittest.TestCase):
         with mock.patch.object(zd, 'hl_post', side_effect=AssertionError('zdrowej części nie pobieramy')), mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('zdrowej części nie pobieramy')), \
              mock.patch.object(zd, 'get_json', side_effect=gj):
             o = zd.build_dzwignia(prev, today=self.TODAY, only={'dr'})
-        self.assertEqual(o['ok'], {'hl': True, 'bn': True, 'dr': True, 'okx': True})
+        self.assertEqual(o['ok'], {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': False, 'cb': False, 'dy': False}, 'plik sprzed v109: nowych części nie ma w poprzednim, a `only` ich nie obejmuje')
         self.assertEqual(o['part_at'], {'hl': t0, 'bn': '2026-09-25T06:00:00+00:00', 'okx': t0, 'dr': zd.NOW}, 'zdrowe części z własnym czasem, dobrana część z czasem przebiegu')
         self.assertEqual((o['hl'], o['okx'], o['bn']), (prev['hl'], prev['okx'], prev['bn'])); self.assertEqual(o['dr']['BTC']['dvol']['v'], 40.4)
         self.assertEqual(o['full_at'], t0, 'dobranie części nie odświeża czasu pełnej budowy'); self.assertEqual(o['at'], zd.NOW)
@@ -4441,15 +4461,15 @@ class DzwigniaV104(unittest.TestCase):
         self.assertEqual(f['full_at'], zd.NOW, 'pełna budowa ustawia full_at'); self.assertEqual(f['part_at']['hl'], zd.NOW)
         with mock.patch.object(zd, 'hl_post', side_effect=self.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'get_json', side_effect=self.get_json):
             g = zd.build_dzwignia(dict(prev, ok={'hl': True, 'bn': True, 'dr': False, 'okx': False}, okx=None), today=self.TODAY, only={'dr', 'okx'})
-        self.assertEqual(g['ok'], {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'dobierane obie brakujące części'); self.assertEqual(g['okx']['BTC']['ls'], 1.36)
+        self.assertEqual(g['ok'], {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': False, 'cb': False, 'dy': False}, 'dobierane obie brakujące części'); self.assertEqual(g['okx']['BTC']['ls'], 1.36)
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_indeksy')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
-        fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}
-        stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}
-        old_prev = {'at': _iso(10), 'full_at': _iso(70), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # dobierany co 20 min, pełna budowa sprzed godziny
+        fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
+        stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
+        old_prev = {'at': _iso(10), 'full_at': _iso(70), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}   # dobierany co 20 min, pełna budowa sprzed godziny
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': False, 'okx': True}}
         [p.start() for p in stubs]
         try:
@@ -5133,3 +5153,185 @@ class IndeksyV106(unittest.TestCase):
         for k in zd.IX_KEYS:
             self.assertIn(f'{k}: ${{{{ secrets.{k} }}}}', wf, k)
         self.assertNotIn('EODHD', html[html.index('const EXTRA100='):html.index('\n', html.index('const EXTRA100='))], 'nazwa dostawcy nie w słowniku panelu')
+
+
+class DzwigniaV109(unittest.TestCase):
+    # v109 (dzwignia2): Kraken Futures, Coinbase International, dYdX — okresy finansowania z dokumentacji (co godzinę), stawka bezwzględna Kraken → względna,
+    # wiersze zepsute → brak (nie zero), suma giełd z bieżącym stanem (do 6 h, bez Binance), dobieranie nowych części do pliku sprzed v109.
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.V = DzwigniaV104('test_num_never_zero_for_missing')   # nagrania i trasy odpowiedzi bloku v104 (z nowymi giełdami)
+
+    def test_iso_and_row_normalisation(self):
+        self.assertEqual(zd.lev_iso('2026-09-26T07:13:30.453Z'), '2026-09-26T07:13:30+00:00'); self.assertEqual(zd.lev_iso('2026-09-26T07:13:30+00:00'), '2026-09-26T07:13:30+00:00')
+        for v in (None, '', 'wczoraj', '2026-09-26', 1790400000):
+            self.assertIsNone(zd.lev_iso(v), repr(v))
+        r = zd.lev_row(0.0001, 8, 10.0, 100.0, 5.0, 500.0, 't1')   # stawka za 8 h → godzinowa / 8, rocznie × 24 × 365 × 100
+        self.assertEqual(r['f_h'], round(0.0001 / 8, 12)); self.assertEqual(r['f_y'], round(0.0001 / 8 * 24 * 365 * 100, 3)); self.assertEqual(r['f_hours'], 8)
+        self.assertEqual((r['oi'], r['oi_usd'], r['px'], r['vol'], r['vol_usd'], r['t']), (10.0, 1000, 100.0, 5.0, 500, 't1'))
+        r = zd.lev_row(None, 1, 10.0, None)
+        self.assertEqual((r['f_h'], r['f_y'], r['oi'], r['oi_usd'], r['px']), (None, None, 10.0, None, None), 'bez stawki i ceny: pozycje w monetach zostają, USD brak'); self.assertEqual(r['t'], zd.NOW)
+        self.assertIsNone(zd.lev_row(None, 1, None, 100.0), 'bez pozycji i bez stawki — brak wiersza')
+        self.assertIsNone(zd.lev_row(0.5, 1, 1.0, 100.0)['f_h'], 'stawka 50 %/h = pomyłka jednostki → brak, nie liczba')
+        self.assertIsNone(zd.lev_row(0.0001, 0, 1.0, 100.0)['f_h'], 'okres 0 → brak stawki')
+        self.assertIsNone(zd.lev_row(0.0001, 1, 0, 100.0)['oi'], 'zero pozycji = nie do odróżnienia od braku → brak')
+        self.assertIsNone(zd.lev_row(0.0001, 1, 1.0, 100.0, 0.0, 0.0)['vol_usd'])
+
+    def test_kraken_absolute_to_relative_hourly_and_bad_rows(self):
+        o = zd.kr_parse(self.V.KR)
+        self.assertEqual(o['t'], '2026-09-26T07:13:30+00:00'); self.assertEqual(o['f_hours'], 1); self.assertEqual(sorted(o), ['BTC', 'ETH', 'f_hours', 't'], 'PI_, SOL bez liczby, bez symbolu, śmieć, zawieszony — pominięte')
+        b = o['BTC']; fh = -0.2528880558106387 / 84005.90053859816
+        self.assertEqual(b['sym'], 'PF_XBTUSD'); self.assertEqual(b['f_h'], round(fh, 12), 'stawka bezwzględna (USD za kontrakt za godzinę) / cena znacznikowa = względna godzinowa')
+        self.assertEqual(b['f_y'], round(fh * 24 * 365 * 100, 3)); self.assertAlmostEqual(b['f_y'], -2.637, 2)
+        self.assertEqual(b['oi'], 2175.3188); self.assertEqual(b['oi_usd'], round(2175.3188 * 84005.90053859816)); self.assertEqual(b['px'], 84005.90053859816)
+        self.assertEqual((b['vol'], b['vol_usd'], b['t']), (3819.3305, 321113985, '2026-09-26T07:13:30+00:00'))
+        self.assertGreater(o['ETH']['f_y'], 0); self.assertEqual(o['ETH']['oi_usd'], round(26150.793 * 2690.15637870521))
+        j = {'serverTime': 'x', 'tickers': [{'symbol': 'PF_XBTUSD', 'markPrice': 80000.0, 'openInterest': 1.0, 'fundingRate': -0.25, 'relativeFundingRate': -2.5e-06}]}
+        r = zd.kr_parse(j, {'BTC': 'PF_XBTUSD'})
+        self.assertEqual(r['BTC']['f_h'], -2.5e-06, 'pole względne ma pierwszeństwo, gdy giełda je podaje'); self.assertEqual(r['t'], zd.NOW, 'zły czas serwera → czas przebiegu')
+        j = {'tickers': [{'symbol': 'PF_XBTUSD', 'markPrice': 80000.0, 'openInterest': 'abc', 'fundingRate': -0.25}, {'symbol': 'PF_ETHUSD', 'openInterest': 3.0, 'fundingRate': 0.01}]}
+        r = zd.kr_parse(j)
+        self.assertEqual((r['BTC']['oi'], r['BTC']['oi_usd'], r['BTC']['f_h']), (None, None, round(-0.25 / 80000.0, 12)), 'pozycje bez liczby → brak, stawka zostaje')
+        self.assertEqual((r['ETH']['oi'], r['ETH']['oi_usd'], r['ETH']['f_h'], r['ETH']['px']), (3.0, None, None, None), 'bez ceny znacznikowej: brak USD i brak stawki względnej (nie zero)')
+        for bad in ({'tickers': []}, {'tickers': [{'symbol': 'PF_SOLUSD', 'markPrice': 1.0, 'openInterest': 1.0}]}, [], {'tickers': [{'symbol': 'PF_XBTUSD', 'suspended': True, 'markPrice': 1.0, 'openInterest': 1.0}]}):
+            with self.assertRaises(ValueError):
+                zd.kr_parse(bad)
+        with mock.patch.object(zd, 'get_json', return_value={'serverTime': 'x', 'tickers': [{'symbol': 'PF_XBTUSD', 'markPrice': 80000.0, 'openInterest': 1.0, 'fundingRate': -0.25}]}):
+            r = zd.lev_kr({'ETH': {'oi': 9.0, 't': 'stary'}})
+        self.assertEqual(r['ETH'], {'oi': 9.0, 't': 'stary'}, 'brak wiersza ETH → poprzednia moneta z własnym czasem')
+        self.assertTrue(any(e.startswith('Dźwignia: Kraken: brak wiersza PF_ETHUSD') for e in zd.META['errors']), zd.META['errors'])
+
+    def test_coinbase_interval_from_field_and_quote_fallback(self):
+        r = zd.cb_parse(self.V.CB['BTC'], 'BTC')
+        self.assertEqual(r['f_hours'], 1.0, 'funding_interval 3 600 000 000 000 ns = 1 h'); self.assertEqual(r['f_h'], 8e-06); self.assertEqual(r['f_y'], round(8e-06 * 24 * 365 * 100, 3))
+        self.assertEqual((r['oi'], r['oi_usd'], r['px'], r['vol'], r['vol_usd'], r['t']), (1075.7102, round(1075.7102 * 84012.9), 84012.9, 43932.0549, 3692548262, '2026-09-26T07:13:31+00:00'))
+        j = dict(self.V.CB['ETH']); del j['funding_interval']
+        self.assertEqual(zd.cb_parse(j, 'ETH')['f_hours'], 1, 'brak pola → okres z dokumentacji (1 h)')
+        self.assertEqual(zd.cb_parse(dict(self.V.CB['ETH'], funding_interval='28800000000000'), 'ETH')['f_hours'], 8.0, 'pole 8 h → stawka dzielona przez 8')
+        self.assertEqual(zd.cb_parse(dict(self.V.CB['ETH'], funding_interval='-5'), 'ETH')['f_hours'], 1)
+        q = dict(self.V.CB['BTC']['quote'], predicted_funding=None)
+        r = zd.cb_parse(dict(self.V.CB['BTC'], quote=q), 'BTC'); self.assertIsNone(r['f_h']); self.assertEqual(r['oi'], 1075.7102, 'brak stawki → None, pozycje zostają')
+        r = zd.cb_parse(dict(self.V.CB['BTC'], open_interest='x'), 'BTC'); self.assertIsNone(r['oi']); self.assertIsNone(r['oi_usd']); self.assertEqual(r['f_h'], 8e-06)
+        with self.assertRaises(ValueError):
+            zd.cb_parse(dict(self.V.CB['BTC'], open_interest=None, quote=dict(q, predicted_funding='')), 'BTC')
+        with self.assertRaises(ValueError):
+            zd.cb_parse([], 'BTC')
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(url); self.assertLessEqual(timeout, 20)
+            if url.endswith('/quote'):
+                return self.V.CB['BTC']['quote']
+            if 'ETH-PERP' in url:
+                raise zd.urllib.error.HTTPError(url, 503, 'x', {}, None)
+            return {k: v for k, v in self.V.CB['BTC'].items() if k != 'quote'}
+        with mock.patch.object(zd, 'get_json', side_effect=gj):
+            o = zd.lev_cb({'ETH': {'oi': 1.0, 't': 'stary'}})
+        self.assertEqual([c.split('/instruments/')[1] for c in calls], ['BTC-PERP', 'BTC-PERP/quote', 'ETH-PERP'], 'szczegóły bez notowania → osobne zapytanie o notowanie')
+        self.assertEqual(o['BTC']['oi_usd'], round(1075.7102 * 84012.9)); self.assertEqual(o['ETH'], {'oi': 1.0, 't': 'stary'}, 'moneta z błędem → poprzednia z własnym czasem'); self.assertEqual(o['f_hours'], 1)
+        self.assertTrue(any(e.startswith('Dźwignia: Coinbase: ETH: HTTP Error 503') for e in zd.META['errors']), zd.META['errors'])
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('offline')):
+            with self.assertRaises(ValueError):
+                zd.lev_cb({'BTC': {'oi': 1.0}})   # nic nowego — część nieudana (zachowanie poprzedniej części zapada wyżej)
+
+    def test_dydx_hourly_rate_base_units_and_missing_market(self):
+        r = zd.dy_parse(self.V.DY['BTC'], 'BTC')
+        self.assertEqual(r['f_hours'], 1); self.assertEqual(r['f_h'], round(-0.00000078846153846154, 12)); self.assertEqual(r['f_y'], round(-0.00000078846153846154 * 24 * 365 * 100, 3))
+        self.assertEqual((r['oi'], r['oi_usd'], r['px'], r['vol'], r['vol_usd'], r['t']), (190.2829, round(190.2829 * 83979.10208), 83979.10208, None, 2793172, zd.NOW))
+        with self.assertRaises(ValueError):
+            zd.dy_parse(self.V.DY['ETH'], 'BTC')   # inny rynek niż proszony
+        with self.assertRaises(ValueError):
+            zd.dy_parse({'markets': {'BTC-USD': dict(self.V.DY['BTC']['markets']['BTC-USD'], status='PAUSED')}}, 'BTC')
+        with self.assertRaises(ValueError):
+            zd.dy_parse({'markets': {'BTC-USD': {'ticker': 'BTC-USD', 'oraclePrice': 'x', 'openInterest': None, 'nextFundingRate': 'nan'}}}, 'BTC')
+        r = zd.dy_parse({'markets': {'ETH-USD': {'oraclePrice': '2688.87', 'openInterest': 'abc', 'nextFundingRate': '0.00001'}}}, 'ETH')
+        self.assertEqual((r['oi'], r['oi_usd'], r['f_h']), (None, None, 1e-05), 'pozycje bez liczby → brak, stawka zostaje')
+
+        def gj(u, headers=None, timeout=30):
+            if 'BTC' in u:
+                return self.V.DY['BTC']
+            raise RuntimeError('offline')
+        with mock.patch.object(zd, 'get_json', side_effect=gj):
+            o = zd.lev_dy(None)
+        self.assertEqual(o['BTC']['oi'], 190.2829); self.assertNotIn('ETH', o); self.assertTrue(any(e.startswith('Dźwignia: dYdX: ETH: offline') for e in zd.META['errors']), zd.META['errors'])
+
+    def test_all_sum_excludes_stale_missing_zero_and_binance(self):
+        now = datetime.datetime.fromisoformat(zd.NOW); fresh = zd.NOW; old = (now - datetime.timedelta(hours=7)).isoformat()
+        out = {'ok': {'hl': True, 'okx': True, 'kr': False, 'cb': True, 'dy': True, 'bn': True}, 'part_at': {'hl': fresh, 'okx': old, 'kr': old, 'cb': fresh, 'dy': fresh, 'bn': fresh},
+               'hl': {'rows': {'BTC': {'oi_usd': 3e9}, 'ETH': {'oi_usd': None}}}, 'okx': {'BTC': {'oi_usd': 2e9, 't': fresh}, 'ETH': {'oi_usd': 1e9, 't': old}},   # wiersz ma własny czas: OKX BTC świeży mimo starej części
+               'kr': {'BTC': {'oi_usd': 1e8, 't': old}, 'ETH': {'oi_usd': 5e7}}, 'cb': {'BTC': {'oi_usd': 0, 't': fresh}, 'ETH': {'oi_usd': 4e7, 't': fresh}}, 'dy': {'BTC': {'oi_usd': 'x', 't': fresh}},
+               'bn': {'day': '2026-09-25', 'BTC': {'last': {'oi_usd': 8e9}}}}
+        self.assertEqual(zd.lev_all(out), {'BTC': {'usd': 5000000000, 'v': 'hl,okx'}, 'ETH': {'usd': 40000000, 'v': 'cb'}}, 'stare (> 6 h), brak, zero, tekst i Binance — poza sumą; lista giełd posortowana')
+        self.assertEqual(zd.lev_all({'ok': {}, 'part_at': {}, 'bn': out['bn']}), {}, 'bez giełd z bieżącym stanem — brak sumy, nie zero')
+        self.assertEqual(zd.lev_all(out, now + datetime.timedelta(hours=7)), {}, 'siedem godzin później wszystko za stare')
+
+    def test_build_seven_parts_history_total_and_only_new_parts(self):
+        V = self.V
+        gb = lambda url, headers=None, timeout=60: V.zip_bytes(V.CSV.replace('BTCUSDT', 'ETHUSDT') if 'ETHUSDT' in url else V.CSV)
+        with mock.patch.object(zd, 'hl_post', side_effect=V.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=gb), mock.patch.object(zd, 'get_json', side_effect=V.get_json):
+            o = zd.build_dzwignia(None, today=V.TODAY)
+        self.assertEqual(o['ok'], {k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy')}); self.assertEqual(sorted(o['part_at']), sorted(zd.LEV_PX)); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(o['kr']['BTC']['sym'], 'PF_XBTUSD'); self.assertEqual(o['cb']['ETH']['oi'], 17069.0224); self.assertEqual(o['dy']['ETH']['f_hours'], 1); self.assertEqual(o['cb']['t'], zd.NOW)
+        exp = round(37688.30372 * 83895.0) + 2395706136 + round(2175.3188 * 84005.90053859816) + round(1075.7102 * 84012.9) + round(190.2829 * 83979.10208)
+        self.assertEqual(o['hist'][-1]['all_btc'], exp, 'suma z pięciu giełd z bieżącym stanem (bez Binance)'); self.assertEqual(o['hist'][-1]['all_btc_v'], 'cb,dy,hl,kr,okx'); self.assertIn('all_eth', o['hist'][-1])
+        self.assertNotIn('all_btc', o['hist'][0], 'wiersz dnia pliku Binance bez sumy')
+        # plik sprzed v109 (cztery części, młody — sprzed 3 h): dobierane tylko nowe części, zdrowe zostają z własnym czasem i wchodzą do sumy w historii
+        t0 = (datetime.datetime.fromisoformat(zd.NOW) - datetime.timedelta(hours=3)).isoformat()
+        prev = {'at': t0, 'full_at': t0, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'part_at': {'hl': t0, 'bn': t0, 'dr': t0, 'okx': t0},
+                'hl': {'rows': {'BTC': {'oi_usd': 3e9}}, 'top': ['BTC']}, 'bn': {'day': '2026-09-25', 'BTC': {'last': {'oi_usd': 8e9}}}, 'dr': {'BTC': {'dvol': {'v': 30.0, 't': t0}}}, 'okx': {'BTC': {'t': t0, 'oi_usd': 2e9}},
+                'hist': [{'d': V.TODAY.isoformat(), 'hl_btc': 3e9}]}
+
+        def gj(u, headers=None, timeout=30):
+            self.assertTrue(any(h in u for h in ('kraken', 'coinbase', 'dydx')), 'zdrowej części nie pobieramy: ' + u); return V.get_json(u, headers, timeout)
+        with mock.patch.object(zd, 'hl_post', side_effect=AssertionError('zdrowej części nie pobieramy')), mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('nie')), mock.patch.object(zd, 'get_json', side_effect=gj):
+            o = zd.build_dzwignia(prev, today=V.TODAY, only={'kr', 'cb', 'dy'})
+        self.assertEqual(o['ok'], {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}); self.assertEqual(o['full_at'], t0, 'dobranie części nie odświeża pełnej budowy')
+        self.assertEqual({k: o['part_at'][k] for k in ('hl', 'okx')}, {'hl': t0, 'okx': t0}); self.assertEqual(o['part_at']['kr'], zd.NOW)
+        self.assertEqual(o['hist'][-1]['hl_btc'], 3e9); self.assertEqual(o['hist'][-1]['all_btc_v'], 'cb,dy,hl,kr,okx', 'części sprzed 3 h wciąż w sumie')
+        self.assertEqual(o['hist'][-1]['all_btc'], round(3e9 + 2e9 + round(2175.3188 * 84005.90053859816) + round(1075.7102 * 84012.9) + round(190.2829 * 83979.10208)))
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_new_part_failures_keep_previous_with_own_time(self):
+        V = self.V; t1 = '2026-09-26T06:00:00+00:00'
+        prev = {'at': t1, 'ok': {'kr': True, 'cb': True, 'dy': True}, 'part_at': {'kr': t1, 'cb': t1, 'dy': t1}, 'kr': {'t': t1, 'BTC': {'oi_usd': 1.0, 't': t1}},
+                'cb': {'t': t1, 'BTC': {'oi_usd': 2.0, 't': t1}, 'ETH': {'oi_usd': 3.0, 't': t1}}, 'dy': {'t': t1, 'BTC': {'oi_usd': 4.0, 't': t1}}}
+
+        def gj(u, headers=None, timeout=30):
+            if 'kraken' in u:
+                raise zd.urllib.error.HTTPError(u, 503, 'Service Unavailable', {}, None)
+            if 'ETH-PERP' in u:
+                raise TimeoutError('timed out')
+            if 'dydx' in u:
+                return {'markets': {}}
+            return V.get_json(u, headers, timeout)
+        with mock.patch.object(zd, 'hl_post', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'get_json', side_effect=gj):
+            o = zd.build_dzwignia(prev, today=V.TODAY)
+        self.assertEqual({k: o['ok'][k] for k in ('kr', 'cb', 'dy')}, {'kr': False, 'cb': True, 'dy': False})
+        self.assertEqual(o['kr'], prev['kr']); self.assertEqual(o['part_at']['kr'], t1, 'Kraken 503 → poprzednia część z własnym czasem')
+        self.assertEqual(o['cb']['BTC']['oi'], 1075.7102); self.assertEqual(o['cb']['ETH'], prev['cb']['ETH'], 'Coinbase: BTC nowe, ETH z poprzedniego przebiegu z własnym czasem'); self.assertEqual(o['part_at']['cb'], zd.NOW)
+        self.assertEqual(o['dy'], prev['dy']); self.assertEqual(o['part_at']['dy'], t1, 'dYdX bez rynków → część nieudana, poprzednia zostaje')
+        E = zd.META['errors']
+        self.assertTrue(any(e.startswith('Dźwignia: Kraken: HTTP Error 503') for e in E), E); self.assertTrue(any(e.startswith('Dźwignia: Coinbase: ETH: timed out') for e in E), E)
+        self.assertTrue(any(e == 'Dźwignia: dYdX: BTC: brak rynku; ETH: brak rynku' for e in E), E)
+
+    def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
+        saved, calls = {}, []
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_wieloryby', 'build_indeksy')]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
+        prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
+        built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
+        [p.start() for p in stubs]
+        try:
+            with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                 mock.patch.object(zd, 'previous', lambda name: prev if name == 'dzwignia' else None), mock.patch.object(zd, 'build_dzwignia', side_effect=lambda p, only=None: calls.append((p, only)) or built):
+                zd.main()
+            self.assertEqual(calls, [(prev, {'kr', 'cb', 'dy'})], 'młody plik bez nowych części — dobierane tylko one')
+            self.assertIs(saved['dzwignia'], built); self.assertIs(zd.META['ok']['dzwignia'], True); self.assertIs(zd.META['ok']['dzwignia_cb'], False); self.assertIs(zd.META['ok']['dzwignia_kr'], True); self.assertIs(zd.META['ok']['dzwignia_hl'], True)
+        finally:
+            [p.stop() for p in stubs]
+
+    def test_page_and_constants(self):
+        html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
+        self.assertIn("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']", html); self.assertIn("LEV_LIVE=['hl','okx','kr','cb','dy'],LEV_SUMAGE=6*3600e3", html); self.assertIn('function levAll(){', html)
+        self.assertEqual(zd.LEV_LIVE, ['hl', 'okx', 'kr', 'cb', 'dy']); self.assertEqual(zd.LEV_SUMAGE, 6 * 3600); self.assertEqual(zd.LEV_HOURS, {'kr': 1, 'cb': 1, 'dy': 1})
+        self.assertEqual(sorted(zd.LEV_PX), ['bn', 'cb', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_TIMEOUT, 20)

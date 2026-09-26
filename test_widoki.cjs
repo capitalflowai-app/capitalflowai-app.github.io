@@ -3665,8 +3665,8 @@ test('v104-dzwignia: panel — kafelki z kolorami wg kierunku, brak = „—” 
   assert.ok(h.includes('lev.k.fund{c=ETH}</span><b class="neg">−8.8% <small>lev.f.h{v=−0.0010%}</small></b>'), 'finansowanie ETH ujemne — czerwone, bez średniej 7 dni → stawka godzinowa');
   assert.ok(h.includes('lev.k.oi{c=BTC}</span><b>3.16 <small class="mtxt">lev.u.mld</small> <small><span class="pos">lev.dn{n=2,v=+5.4%}</span></small></b>'), 'otwarte pozycje BTC ze zmianą wobec wpisu sprzed 2 dni (prawdziwy odstęp): ' + h.slice(h.indexOf('lev.k.oi{c=BTC}'), h.indexOf('lev.k.oi{c=BTC}') + 220));
   assert.ok(h.includes('lev.k.oi{c=ETH}</span><b>2.97 <small class="mtxt">lev.u.mld</small> <small><span class="neg">lev.dn{n=2,v=−4.3%}</span></small></b>'), 'otwarte pozycje ETH — spadek na czerwono');
-  assert.ok(h.includes('<b class="pos">1.23 <small class="pos">lev.more.long · lev.mean{v=1.19} · lev.top{v=1.93}</small></b><small class="mtxt">lev.bnday{d='), 'Binance BTC: więcej długich, średnia dnia, najwięksi gracze, dzień pliku');
-  assert.ok(h.includes('<b class="neg">0.70 <small class="neg">lev.more.short · lev.mean{v=2.72} · lev.top{v=1.56}</small></b>'), 'Binance ETH: więcej krótkich — czerwono');
+  assert.ok(h.includes('<b class="pos">1.23 <small class="pos">lev.more.long · lev.mean{v=1.19} · lev.topacc{v=1.32} · lev.top{v=1.93}</small></b><small class="mtxt">lev.bnday{d='), 'Binance BTC: więcej długich, średnia dnia, najwięksi gracze, dzień pliku');
+  assert.ok(h.includes('<b class="neg">0.70 <small class="neg">lev.more.short · lev.mean{v=2.72} · lev.topacc{v=1.53} · lev.top{v=1.56}</small></b>'), 'Binance ETH: więcej krótkich — czerwono');
   assert.ok(h.includes('lev.k.taker{c=BTC}</span><b class="pos">1.30 <small class="pos">lev.more.buy · lev.last5{v=1.08}</small></b>'), 'kupno/sprzedaż BTC: nagłówek, kolor i słowa ze średniej dnia (1,30), ostatnie 5 min (1,08) tylko w dopisku: ' + h.slice(h.indexOf('lev.k.taker{c=BTC}'), h.indexOf('lev.k.taker{c=BTC}') + 160));
   assert.ok(h.includes('lev.k.taker{c=ETH}</span><b class="na">— <small>eng.gap</small></b>'), 'brak stosunku kupno/sprzedaż ETH — „—” z powodem, nie zero');
   const asof = 'lev.asof{t=D:' + lev104.now + ' ·wiek(' + lev104.today + ')}';
@@ -3683,9 +3683,9 @@ test('v104-dzwignia: panel — kafelki z kolorami wg kierunku, brak = „—” 
   assert.ok(tab.includes('<td><span class="cell mono na">—</span></td>') && tab.includes('<span class="cell mono">0.0%</span>') && !tab.includes('cell mono pos">0.0%') && tab.includes('lev.tab.sub{n=234}'), 'SOL bez finansowania — „—”; zmiana 0,0 % bez koloru');
   assert.ok(h.includes('lev.opt.tot{v=351283,c=BTC,u=29.48,pc=0.52} · ' + asof + '</p>') && h.includes('<span class="cell mono">33.8%</span>'), 'opcje wg terminu: razem, ≈ USD, put/call, data części, udział terminu');
   assert.ok(!h.includes('·wiek(2026-12-25)') && !h.includes('·wiek(2026-10-30)'), 'termin wygaśnięcia nie dostaje „wieku danych”');
-  assert.ok(h.includes('<summary>eng.notsays</summary><p class="pnote">lev.not1</p>') && h.includes('lev.not4</p></details><p class="pfoot">inst.file{t=D:' + lev104.now + '} · eng.disclaimer</p>'), '„Czego te dane nie mówią” i stopka');
+  assert.ok(h.includes('<summary>eng.notsays</summary><p class="pnote">lev.not1</p>') && h.includes('lev.not6</p></details><p class="pfoot">inst.file{t=D:' + lev104.now + '} · eng.disclaimer</p>'), '„Czego te dane nie mówią” i stopka');
   assert.ok(!/CoinGlass|Coinglass|Coin Metrics|Etherscan|EODHD|Tiingo|CryptoPanic|Alpha Vantage|Massive/.test(h), 'bez nazw dostawców');
-  assert.ok((h.match(/class="etfk"/g) || []).length === 14, '14 kafelków: 4 Hyperliquid, 6 Binance, 4 Deribit; jest ' + (h.match(/class="etfk"/g) || []).length);
+  assert.ok((h.match(/class="etfk"/g) || []).length === 18, '18 kafelków: 4 razem (v109), 4 Hyperliquid, 6 Binance, 4 Deribit; jest ' + (h.match(/class="etfk"/g) || []).length);
 });
 
 test('v104-dzwignia: część nieaktualna albo brakująca = brak (nie stare liczby bez daty); zmiana z historii; chwilowy błąd nie kasuje danych', () => {
@@ -3954,3 +3954,105 @@ test('v106.1: wspólne napisy paneli przetłumaczone w 10 językach (dotąd angi
   assert.ok(html.includes('for(const l in EXTRA101)if(I18N[l])Object.assign(I18N[l],EXTRA101[l]);'));
 });
 
+// ===== v109 — obszar dzwignia2: więcej giełd (Kraken Futures, Coinbase International, dYdX) i rząd „wszystkie giełdy razem” =====
+const lev109 = (() => {
+  const now = lev104.now, old7 = new Date(Date.now() - 7 * 3600e3).toISOString();
+  const row = (f_y, oi, px, vol_usd, t) => ({f_h: f_y / (24 * 365 * 100), f_y, f_hours: 1, oi, oi_usd: oi === null ? null : Math.round(oi * px), px, vol: null, vol_usd, t});
+  const fix = () => {   // plik v104 + trzy nowe części (liczby z nagrań 26.09) + wpis historii sprzed 2 dni z sumą tego samego zestawu giełd (BTC) i innego (ETH)
+    const j = lev104.fix();
+    Object.assign(j.ok, {kr: true, cb: true, dy: true}); Object.assign(j.part_at, {kr: now, cb: now, dy: now});
+    j.kr = {t: now, f_hours: 1, BTC: Object.assign(row(-2.637, 2175.3188, 84005.9, 321113985, now), {sym: 'PF_XBTUSD'}), ETH: Object.assign(row(2.85, 26150.793, 2690.16, 91647374, now), {sym: 'PF_ETHUSD'})};
+    j.cb = {t: now, f_hours: 1, BTC: row(7.008, 1075.7102, 84012.9, 3692548262, now), ETH: row(5.256, 17069.0224, 2690, 2555737254, now)};
+    j.dy = {t: now, f_hours: 1, BTC: row(-0.691, 190.2829, 83979.1, 2793172, now), ETH: row(-43.943, 6080.201, 2688.87, 38816887, now)};
+    j.hist[0].all_btc = 5.5e9; j.hist[0].all_btc_v = 'cb,dy,hl,kr,okx'; j.hist[0].all_eth = 4.5e9; j.hist[0].all_eth_v = 'cb,dy,hl,okx';
+    return j;
+  };
+  const fp = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + '%';
+  return {fix, old7, fp, VEN: 'Hyperliquid, OKX, Kraken, Coinbase, dYdX'};
+})();
+
+test('v109-dzwignia2: „wszystkie giełdy razem” — suma z giełd z bieżącym stanem, Binance poza sumą, średnia ważona pozycjami, zmiana dzienna tylko przy tym samym zestawie giełd', () => {
+  const f = lev104.mk({}); const j = lev109.fix(); f.levApply(j); const h = f.el.innerHTML;
+  const S = j.hl.rows.BTC.oi_usd + j.okx.BTC.oi_usd + j.kr.BTC.oi_usd + j.cb.BTC.oi_usd + j.dy.BTC.oi_usd, pct = (S / j.hist[0].all_btc - 1) * 100;
+  const i0 = h.indexOf('lev.h.all'); assert.ok(i0 > 0 && i0 < h.indexOf('lev.h.hl') && h.includes('lev.all.sub'), 'rząd „razem” przed Hyperliquid, z podtytułem');
+  const want = 'lev.k.oiall{c=BTC}</span><b>' + (S / 1e9).toFixed(2) + ' <small class="mtxt">lev.u.mld</small> <small>lev.sumof{n=5,v=' + lev109.VEN + '} · <span class="pos">lev.dn{n=2,v=' + lev109.fp(pct) + '}</span> · lev.bnout{v=8.09 lev.u.mld,d=';
+  assert.ok(h.includes(want), 'suma BTC z 5 giełd, zmiana wobec wpisu sprzed 2 dni, Binance poza sumą: ' + h.slice(h.indexOf('lev.k.oiall{c=BTC}'), h.indexOf('lev.k.oiall{c=BTC}') + 320));
+  assert.ok(h.includes('lev.k.oiall{c=ETH}</span><b>') && h.includes('lev.sumof{n=5,v=' + lev109.VEN + '} · lev.diffn · lev.bnout{v=6.10 lev.u.mld,d='), 'ETH: dzień wcześniej inny zestaw giełd — bez zmiany, z powodem');
+  const L = [[10.95, j.hl.rows.BTC.oi_usd], [2.307, j.okx.BTC.oi_usd], [j.kr.BTC.f_y, j.kr.BTC.oi_usd], [j.cb.BTC.f_y, j.cb.BTC.oi_usd], [j.dy.BTC.f_y, j.dy.BTC.oi_usd]];
+  const w = L.reduce((a, r) => a + r[1], 0), avg = L.reduce((a, r) => a + r[0] * r[1], 0) / w;
+  assert.ok(avg > 5 && avg < 10, 'średnia ważona między OKX a Hyperliquid: ' + avg);
+  assert.ok(h.includes('lev.k.fall{c=BTC}</span><b class="pos">' + lev109.fp(avg) + ' <small>lev.wof{n=5,v=' + lev109.VEN + '}</small></b><small class="mtxt">D:' + lev104.now + ' ·wiek(' + lev104.today + ')</small>'), 'średnia ważona, dodatnia — zielono, data najstarszego zdjęcia stanu: ' + h.slice(h.indexOf('lev.k.fall{c=BTC}'), h.indexOf('lev.k.fall{c=BTC}') + 300));
+  assert.ok(/lev\.k\.fall\{c=ETH\}<\/span><b class="neg">−/.test(h), 'ETH: średnia ujemna — czerwono');
+  assert.ok((h.match(/class="etfk"/g) || []).length === 18, '18 kafelków');
+  const k = lev104.mk({}); const jj = lev104.fix(); k.levApply(jj); const hh = k.el.innerHTML;   // plik sprzed v109: suma z dwóch giełd, historia bez sum → „historia dopiero się buduje”
+  assert.ok(hh.includes('lev.sumof{n=2,v=Hyperliquid, OKX} · lev.nohist · lev.bnout{v=8.09 lev.u.mld,d='), 'bez nowych części: suma z Hyperliquid i OKX, brak historii sum: ' + hh.slice(hh.indexOf('lev.k.oiall{c=BTC}'), hh.indexOf('lev.k.oiall{c=BTC}') + 260));
+});
+
+test('v109-dzwignia2: giełda bez bieżącego stanu (> 6 h) albo bez pozycji — poza sumą i średnią, liczba giełd to odzwierciedla; własny czas wiersza ważniejszy niż czas części; wszystkie stare → „—” z powodem', () => {
+  const f = lev104.mk({}); const j = lev109.fix();
+  j.part_at.kr = lev109.old7; j.kr.t = lev109.old7; j.kr.BTC.t = lev109.old7; j.kr.ETH.t = lev109.old7;   // Kraken sprzed 7 h — w tabeli (< 4 dni), poza sumą
+  j.cb.BTC.oi_usd = null; j.cb.BTC.oi = null;   // Coinbase BTC bez pozycji — stawka jest, ale bez wagi: poza sumą i poza średnią
+  j.part_at.dy = lev109.old7;   // część stara, ale wiersze mają własny świeży czas → wchodzą
+  f.levApply(j); const h = f.el.innerHTML;
+  assert.ok(h.includes('lev.sumof{n=3,v=Hyperliquid, OKX, dYdX}') && h.includes('lev.wof{n=3,v=Hyperliquid, OKX, dYdX}'), 'BTC: 3 giełdy w sumie i w średniej: ' + (h.match(/lev\.(sumof|wof)\{[^}]*\}/g) || []).join(' | '));
+  assert.ok(h.includes('lev.sumof{n=4,v=Hyperliquid, OKX, Coinbase, dYdX}') && h.includes('lev.wof{n=4,v=Hyperliquid, OKX, Coinbase, dYdX}'), 'ETH: Coinbase wciąż w sumie (ma pozycje)');
+  assert.ok(h.includes('<td><span class="cell">Kraken</span></td><td><span class="cell">BTC</span></td><td><span class="cell mono neg">−2.6%</span></td><td><span class="cell mono">0.18</span></td>'), 'Kraken nadal w tabeli giełd (własna data i wiek)');
+  assert.ok(h.includes('lev.sumof{n=3,v=Hyperliquid, OKX, dYdX} · lev.diffn'), 'zestaw inny niż w historii → brak zmiany, z powodem');
+  const g = lev104.mk({}); const k = lev109.fix(); for (const p of ['hl', 'okx', 'kr', 'cb', 'dy']) k.part_at[p] = lev109.old7; for (const p of ['okx', 'kr', 'cb', 'dy']) for (const c of ['BTC', 'ETH']) k[p][c].t = lev109.old7;
+  g.levApply(k); const hh = g.el.innerHTML;
+  assert.ok(hh.includes('lev.k.oiall{c=BTC}</span><b class="na">— <small>lev.nosum</small></b><small class="mtxt">D:' + lev104.now) && hh.includes('lev.k.fall{c=ETH}</span><b class="na">— <small>lev.nosum</small></b>'), 'żadna giełda z ostatnich 6 h — „—” z powodem i czasem pliku: ' + hh.slice(hh.indexOf('lev.k.oiall{c=BTC}'), hh.indexOf('lev.k.oiall{c=BTC}') + 200));
+  assert.ok(hh.includes('>Kraken<') && hh.includes('lev.h.hl') && !hh.includes('lev.bnout'), 'stare (< 4 dni) części nadal pokazane z własnymi datami; bez sumy nie ma dopisku o Binance');
+  const e = lev104.mk({}); const m = lev109.fix(); delete m.hl; delete m.okx; delete m.kr; delete m.cb; delete m.dy; e.levApply(m);
+  assert.ok(!e.el.innerHTML.includes('lev.h.all') && e.el.innerHTML.includes('lev.h.bn'), 'bez żadnej giełdy z bieżącym stanem — rząd „razem” pominięty (zostają Binance i Deribit)');
+});
+
+test('v109-dzwignia2: tabela giełd z Kraken, Coinbase i dYdX (loga, znaczek dYdX), kolumna obrotu, notka o okresach finansowania; dopisek „najwięksi gracze (konta)”; dwa nowe punkty „czego nie mówią”; bez nazw dostawców', () => {
+  const I = v96src.H; const f = lev104.mk({coinImg: I.coinImg, exchImg: I.exchImg, glyphImg: I.glyphImg}); const j = lev109.fix(); f.levApply(j); const h = f.el.innerHTML;
+  const tab = h.slice(h.indexOf('lev.h.ven'), h.indexOf('lev.h.tab'));
+  assert.ok(tab.includes('<th>lev.c.ls</th><th>lev.c.vol</th><th>lev.c.when</th>'), 'kolumna obrotu przed „stan na”');
+  assert.ok(tab.includes('img/gieldy/kraken.svg') && tab.includes('img/gieldy/coinbase.svg') && /class="iss sm"[^>]*title="dYdX"/.test(tab), 'loga Kraken i Coinbase, znaczek dYdX');
+  const kr = tab.slice(tab.indexOf('title="Kraken"'), tab.indexOf('title="Kraken"') + 800);
+  assert.ok(kr.includes('<td><span class="cell mono neg">−2.6%</span></td><td><span class="cell mono">0.18</span></td><td><span class="cell mono na" title="lev.np">—</span></td><td><span class="cell mono">321</span></td><td><span class="cell mono">D:' + lev104.now), 'Kraken BTC: finansowanie ujemne czerwono, 0,18 mld, bez stosunku kont, obrót 321 mln, własny czas: ' + kr.slice(0, 500));
+  assert.ok(tab.includes('<td><span class="cell mono pos">+7.0%</span></td><td><span class="cell mono">0.09</span></td>'), 'Coinbase BTC: +7,0 %, 0,09 mld');
+  assert.ok(tab.includes('<td><span class="cell mono neg">−0.7%</span></td><td><span class="cell mono">0.02</span></td><td><span class="cell mono na" title="lev.np">—</span></td><td><span class="cell mono">3</span></td>'), 'dYdX BTC: −0,7 %, 0,02 mld, obrót 3 mln');
+  const okx = tab.slice(tab.indexOf('title="OKX"'), tab.indexOf('title="OKX"') + 700);
+  assert.ok(okx.includes('</span></td><td><span class="cell mono na" title="lev.np">—</span></td><td><span class="cell mono">D:'), 'OKX bez obrotu w naszym źródle — „—” z podpowiedzią');
+  const hl = tab.slice(tab.indexOf('title="Hyperliquid"'), tab.indexOf('title="Hyperliquid"') + 700);
+  assert.ok(hl.includes('<td><span class="cell mono">2577</span></td>'), 'Hyperliquid BTC: obrót 2577 mln');
+  assert.ok(tab.includes('</table></div><p class="pnote">lev.ven.note</p>'), 'notka o okresach finansowania pod tabelą');
+  const order = ['>Hyperliquid<', '>OKX<', '>Binance<', '>Kraken<', '>Coinbase<', '>dYdX<'].map(s => tab.indexOf(s)); assert.ok(order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), 'kolejność giełd: ' + order.join(','));
+  assert.ok((tab.match(/<tr>/g) || []).length === 13, '12 wierszy (6 giełd × 2 monety) + nagłówek; jest ' + (tab.match(/<tr>/g) || []).length);
+  assert.ok(h.includes('lev.more.long · lev.mean{v=1.19} · lev.topacc{v=1.32} · lev.top{v=1.93}</small>'), 'stosunek kont najwięksi gracze w dopisku (top_ls), przed stosunkiem pozycji');
+  assert.ok(h.includes('<p class="pnote">lev.not4</p><p class="pnote">lev.not5</p><p class="pnote">lev.not6</p></details>'), 'dwa nowe punkty na końcu');
+  assert.ok(h.includes('<h3 class="mtxt"><span class="icos"><img class="ico sm" src="img/glify/globe.svg"') && h.includes('lev.k.oiall{c=BTC}'), 'glif świata w nagłówku i kafelkach rzędu „razem”');
+  const tiles = h.split('<div class="etfk">').slice(1);
+  tiles.forEach((x, i) => assert.ok(/^<span><span class="icos">.+?<\/span>lev\./.test(x), 'kafelek ' + i + ' ma ikonę przed podpisem'));
+  assert.ok(!/CoinGlass|Coinglass|Coin Metrics|Etherscan|EODHD|Tiingo|CryptoPanic|Alpha Vantage|Massive/.test(h), 'bez nazw dostawców');
+});
+
+test('v109-dzwignia2: EXTRA102 — 10 języków, te same klucze lev.* i miejsca na liczby, bez powtórzeń z EXTRA98, po niemiecku i japońsku bez surowych kluczy', () => {
+  const a = 'const EXTRA102=', x0 = html.indexOf(a);
+  assert.ok(x0 > 0 && html.includes('for(const l in EXTRA102)if(I18N[l])Object.assign(I18N[l],EXTRA102[l]);'), 'słownik EXTRA102 podpięty');
+  assert.ok(html.indexOf('for(const l in EXTRA101)if(I18N[l])') < x0 && html.indexOf('for(const l in EXTRA98)if(I18N[l])') > 0, 'po EXTRA101 (kotwica), EXTRA98 obecny');
+  const D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  const keys = Object.keys(D.pl).sort();
+  assert.ok(keys.length === 13 && keys.every(k => k.startsWith('lev.')), keys.join(','));
+  const b = 'const EXTRA98=', b0 = html.indexOf(b), OLD = JSON.parse(html.slice(b0 + b.length, html.indexOf(';\n', b0)));
+  assert.ok(keys.every(k => !(k in OLD.pl)), 'żaden klucz nie powtarza EXTRA98');
+  for (const L of Object.keys(D)) {
+    assert.deepEqual(Object.keys(D[L]).sort(), keys, L);
+    for (const k of keys) { const ph = (D.pl[k].match(/\{[a-z]+\}/g) || []).sort(); assert.deepEqual((D[L][k].match(/\{[a-z]+\}/g) || []).sort(), ph, L + ' ' + k); }
+  }
+  assert.ok(D.pl['lev.h.all'] === 'Wszystkie giełdy razem' && D.en['lev.h.all'] === 'All exchanges together');
+  assert.ok(!/napływ|odpływ/i.test(Object.values(D.pl).join(' ')), 'pozycje to stan, nie przepływ');
+  assert.ok(/6 godzin/.test(D.pl['lev.all.sub']) && /Bybit/.test(D.pl['lev.not6']) && /8 godzin/.test(D.pl['lev.ven.note']) && /przybliżon/.test(D.pl['lev.not5']), 'treść: 6 h, Bybit, okres 8 godzin, suma przybliżona');
+  for (const L of ['de', 'ja']) {
+    const f = lev104.mk({}, v96src.tFor(L)); f.levApply(lev109.fix());
+    assert.ok(!/lev\.[a-z]/.test(f.el.innerHTML.replace(/id="lev-[a-z]+"/g, '').replace(/lev-opt/g, '')), L + ': bez surowych kluczy: ' + (f.el.innerHTML.match(/lev\.[a-z.]+/) || [])[0]);
+  }
+  const de = lev104.mk({}, v96src.tFor('de')); de.levApply(lev109.fix());
+  assert.ok(de.el.innerHTML.includes('Alle Börsen zusammen') && de.el.innerHTML.includes('Börsen in der Summe (5): Hyperliquid, OKX, Kraken, Coinbase, dYdX') && de.el.innerHTML.includes('größte Händler (Konten): 1.32'), 'niemiecki: nagłówek, lista giełd, konta najwięksi gracze');
+  const ja = lev104.mk({}, v96src.tFor('ja')); ja.levApply(lev109.fix());
+  assert.ok(ja.el.innerHTML.includes('全取引所の合計') && ja.el.innerHTML.includes('十億ドル'), 'japoński: nagłówek i jednostka jak w słowniku bazowym');
+});
