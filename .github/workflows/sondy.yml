@@ -52,9 +52,12 @@ jobs:
           ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          COINALYZE_KEY: ${{ secrets.COINALYZE_KEY }}      # v126: bez sekretu COINALYZE (właściciel: pomijać)
+          BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
+          EVDS_KEY: ${{ secrets.EVDS_KEY }}
         run: |
           python3 narzedzia/sondy.py > sondy.txt 2>&1 || true
           cat sondy.txt
           # cały wynik jako jedna adnotacja (czytelna bez logowania); znaki specjalne kodowane jak wymaga GitHub
-          # adnotacja ma ok. 4 KB: najpierw podsumowanie, potem wiersze źródeł, które mają wejść do zbieracza
-          python3 -c "L=open('sondy.txt',encoding='utf-8').read().splitlines();A=[l for l in L if l.startswith('summary')];B=[l for l in L if l.split('|')[0].strip() in ('binance-vision','publicnode','llamarpc','hyperliquid','deribit') or 'env=' in l and 'SKIP' not in l and l.split('|')[0].strip() in ('etherscan','cryptopanic','tiingo','massive','eodhd','alphavantage','fmp')];B=sorted(B,key=lambda l:0 if l.split('|')[0].strip() in ('fmp','eodhd') else 1);t=chr(10).join(A+['--']+B);print('::notice title=sondy::'+t.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"
+          # adnotacja ma ok. 4 KB: najpierw podsumowanie, potem wiersze trzech nowych źródeł z kluczem (v126: Coinalyze, Banxico, EVDS)
+          python3 -c "L=open('sondy.txt',encoding='utf-8').read().splitlines();A=[l for l in L if l.startswith('summary')];B=[l for l in L if l.split('|')[0].strip() in ('coinalyze','banxico','evds')];t=chr(10).join(A+['--']+B);print('::notice title=sondy::'+t[:3900].replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"

@@ -50,6 +50,8 @@ KEY_CANDIDATES = {
     "eodhd":        ["EODHD_KEY", "EODHD_API_KEY", "EOD_KEY", "EODHD_TOKEN"],
     "fmp":          ["FMP_KEY", "FMP_API_KEY", "FINANCIALMODELINGPREP_KEY", "FINANCIALMODELINGPREP_API_KEY"],
     "alphavantage": ["ALPHAVANTAGE_KEY", "ALPHA_VANTAGE_KEY", "ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"],
+    "banxico":      ["BANXICO_TOKEN"],          # v126 (27.09): Banco de México SIE, nagłówek Bmx-Token
+    "evds":         ["EVDS_KEY"],               # v126 (27.09): TCMB EVDS3, nagłówek key
 }
 
 
@@ -418,9 +420,317 @@ def g_alphavantage():
     probe("alphavantage", "GLOBAL_QUOTE_SPY", f"{b}function=GLOBAL_QUOTE&symbol=SPY&apikey={key}", env_name=name)
 
 
+# =========================================================================== v126: trzy nowe sekrety właściciela (27.09.2026)
+
+# --------------------------------------------------------------------------- coinalyze (v126k)
+# Coinalyze API v1 (https://api.coinalyze.net/v1/doc/): key in header `api_key`; 40 API calls per minute per key and
+# every symbol in a request counts as one call (a request with 5 symbols = 5 calls). This group uses 17 API calls in total.
+# Prints only: HTTP status, sizes, key names, counts, dates, exchange codes, market-symbol codes (public metadata) and
+# derived unitless ratios — never key values, URLs, headers or raw bodies.
+# Secret COINALYZE (without _KEY) is deliberately NOT a candidate (owner: ignore it).
+KEY_CANDIDATES["coinalyze"] = ["COINALYZE_KEY", "COINALYZE_API_KEY"]
+
+CZ_BASE = "https://api.coinalyze.net/v1/"
+CZ_COINS = ("BTC", "ETH", "XRP", "BNB", "SOL", "DOGE", "ADA", "TRX", "LINK", "AVAX")
+CZ_QUOTES = ("USD", "USDT", "USDC")
+_CZ = {"ex": set(), "btc": {}}   # public market metadata remembered between probes of this group
+
+
+def _cz_json(raw):
+    return json.loads(raw)
+
+
+def _cz_ex(raw):
+    L = _cz_json(raw)
+    if not isinstance(L, list):
+        return "not-a-list " + shape(raw)
+    codes = sorted(str(e.get("code")) for e in L if isinstance(e, dict) and e.get("code") is not None)
+    _CZ["ex"] = set(codes)
+    return f"list n={len(L)} codes={''.join(codes)}"
+
+
+def _cz_fm(raw):
+    L = _cz_json(raw)
+    if not isinstance(L, list):
+        return "not-a-list " + shape(raw)
+    per, lsn, exn, den, unk = {}, {}, {}, {}, 0
+    for m in L:
+        if not isinstance(m, dict):
+            continue
+        e = str(m.get("exchange"))
+        if _CZ["ex"] and e not in _CZ["ex"]:
+            unk += 1
+        b, q = m.get("base_asset"), m.get("quote_asset")
+        if b not in CZ_COINS or q not in CZ_QUOTES or m.get("is_perpetual") is not True:
+            continue
+        per[b] = per.get(b, 0) + 1
+        exn[e] = exn.get(e, 0) + 1
+        d = str(m.get("oi_lq_vol_denominated_in") or "-")[:1]
+        den[d] = den.get(d, 0) + 1
+        if m.get("has_long_short_ratio_data") is True:
+            lsn[b] = lsn.get(b, 0) + 1
+        if b == "BTC" and isinstance(m.get("symbol"), str):
+            _CZ["btc"].setdefault((e, q), m["symbol"])
+    s = lambda e, q: _CZ["btc"].get((e, q), "-")
+    return (f"list n={len(L)} perps10={sum(per.values())} "
+            + " ".join(f"{c}={per.get(c, 0)}/ls{lsn.get(c, 0)}" for c in CZ_COINS)
+            + " ex=" + ",".join(f"{k}:{v}" for k, v in sorted(exn.items()))
+            + " den=" + ",".join(f"{k}:{v}" for k, v in sorted(den.items()))
+            + f" unknown_ex={unk} sym_A={s('A', 'USDT')} sym_6={s('6', 'USDT')} sym_3={s('3', 'USDT')} sym_H={s('H', 'USD')}")
+
+
+def _cz_cur(raw):
+    L = _cz_json(raw)
+    if not isinstance(L, list):
+        return "not-a-list " + shape(raw)
+    now = time.time() * 1000
+    ages = [int((now - x["update"]) / 1000) for x in L if isinstance(x, dict) and isinstance(x.get("update"), (int, float))]
+    pos = all(isinstance(x.get("value"), (int, float)) and not isinstance(x.get("value"), bool) and x["value"] > 0 for x in L if isinstance(x, dict))
+    keys = sorted(L[0].keys()) if L and isinstance(L[0], dict) else []
+    return f"list n={len(L)} keys={','.join(keys)} values_pos={pos} max_age_s={max(ages) if ages else '-'}"
+
+
+def _cz_hist(raw):
+    """Per symbol: rows, first date, last timestamp, keys of a row, ascending order, alignment to hour/day."""
+    L = _cz_json(raw)
+    if not isinstance(L, list):
+        return "not-a-list " + shape(raw)
+    out = []
+    for it in L:
+        h = it.get("history") if isinstance(it, dict) else None
+        sym = str(it.get("symbol")) if isinstance(it, dict) else "?"
+        if not isinstance(h, list):
+            out.append(f"{sym}:no-history")
+            continue
+        ts = [r["t"] for r in h if isinstance(r, dict) and isinstance(r.get("t"), (int, float))]
+        if not ts:
+            out.append(f"{sym}:rows=0")
+            continue
+        f = dt.datetime.fromtimestamp(min(ts), dt.timezone.utc).date().isoformat()
+        la = dt.datetime.fromtimestamp(max(ts), dt.timezone.utc).isoformat(timespec="minutes")
+        zero = sum(1 for r in h if isinstance(r, dict) and "c" not in r and "r" not in r and r.get("l") == 0 and r.get("s") == 0)   # liquidation rows only
+        out.append(f"{sym}:rows={len(ts)} first={f} last={la} keys={','.join(sorted(h[-1].keys()))} asc={ts == sorted(ts)}"
+                   f" h_aligned={all(t % 3600 == 0 for t in ts)} d_aligned={all(t % 86400 == 0 for t in ts)} zero_ls_rows={zero}")
+    return f"list n={len(L)} " + " ; ".join(out)
+
+
+def _hl_btc_funding():
+    """Hyperliquid (public): current hourly funding of BTC, as a fraction — for the unit cross-check only."""
+    st, raw, _, _ = http("https://api.hyperliquid.xyz/info", "POST", {"type": "metaAndAssetCtxs"})
+    try:
+        meta, ctx = json.loads(raw)
+        for u, c in zip(meta["universe"], ctx):
+            if u.get("name") == "BTC":
+                return float(c["funding"])
+    except Exception:
+        return None
+    return None
+
+
+def _cz_fr_ratio(hl_f):
+    def fn(raw):
+        L = _cz_json(raw)
+        base = _cz_cur(raw)
+        v = L[0].get("value") if isinstance(L, list) and L and isinstance(L[0], dict) else None
+        if not isinstance(v, (int, float)) or not hl_f:
+            return base + " hl_ratio=-"
+        r = (v / 100.0) / hl_f
+        verdict = "8h-normalised" if 6 <= r <= 10 else "native-1h" if 0.75 <= r <= 1.33 else "unclear"
+        return base + f" hl_ratio={r:.2f} ({verdict})"
+    return fn
+
+
+def g_coinalyze():
+    # keyless: documented error shape (seen 27.09.2026 from PL: HTTP 401 {"message":"Invalid/Missing API key"})
+    probe("coinalyze", "keyless_exchanges_expect401", CZ_BASE + "exchanges")
+    name, key = find_key("coinalyze")
+    if not key:
+        skipped("coinalyze", "exchanges/markets/oi/fr/lq/ls")
+        return
+    H = {"api_key": key}   # urllib sends it as "Api_key" (header names are case-insensitive) — this probe proves it works
+    P = lambda label, path, fn=None: (probe("coinalyze", label, CZ_BASE + path, env_name=name, headers=H, extra_fn=fn), time.sleep(0.3))[0]
+    now = int(time.time())
+    P("exchanges", "exchanges", _cz_ex)                                     # 1 call
+    P("future-markets", "future-markets", _cz_fm)                           # 1 call
+    a = _CZ["btc"].get(("A", "USDT"), "BTCUSDT_PERP.A")
+    b = _CZ["btc"].get(("6", "USDT"))
+    h = _CZ["btc"].get(("H", "USD"))
+    cur = ",".join(x for x in (a, b, h) if x)
+    P("open-interest_usd_A6H", f"open-interest?symbols={cur}&convert_to_usd=true", _cz_cur)            # 3 calls
+    if h:
+        hl_f = _hl_btc_funding()
+        P("funding-rate_H_vs_direct", f"funding-rate?symbols={h}", _cz_fr_ratio(hl_f))                 # 1 call
+        P("predicted-fr_H_vs_direct", f"predicted-funding-rate?symbols={h}", _cz_fr_ratio(hl_f))       # 1 call
+    P("funding-rate_A", f"funding-rate?symbols={a}", _cz_cur)                                           # 1 call
+    lq = ",".join(x for x in (a, b, h) if x)
+    P("liq-hist_1h_24h_A6H_usd", f"liquidation-history?symbols={lq}&interval=1hour&from={now - 86400}&to={now}&convert_to_usd=true", _cz_hist)   # 3 calls
+    P("ls-hist_daily_since2019_A", f"long-short-ratio-history?symbols={a}&interval=daily&from=1546300800&to={now}", _cz_hist)                      # 1 call
+    P("oi-hist_daily_since2019_A_usd", f"open-interest-history?symbols={a}&interval=daily&from=1546300800&to={now}&convert_to_usd=true", _cz_hist)  # 1 call
+    P("oi-hist_1h_120d_A_usd", f"open-interest-history?symbols={a}&interval=1hour&from={now - 120 * 86400}&to={now}&convert_to_usd=true", _cz_hist)  # 1 call
+    P("fr-hist_daily_400d_A", f"funding-rate-history?symbols={a}&interval=daily&from={now - 400 * 86400}&to={now}", _cz_hist)                     # 1 call
+    P("unknown_symbol_mix", f"open-interest?symbols={a},ZZZUSDT_PERP.A", _cz_cur)                                                               # 2 calls
+    # total: 1+1+3+1+1+1+3+1+1+1+1+2 = 17 API calls (< 40/min)
+
+
+# --- paste into narzedzia/sondy.py (v126k, label "banxico") ---------------------------------------------
+# 1) KEY_CANDIDATES: add   "banxico": ["BANXICO_TOKEN"],
+# 2) GROUPS: append g_banxico
+# 3) .github/workflows/sondy.yml: env  BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}  and add 'banxico' to the
+#    first provider tuple of the annotation filter (so both the keyless control line and the keyed lines reach the notice).
+# Prints only: HTTP status, byte length, series ids, counts, last data DATE per series (public calendar dates),
+# comma/N-E flags, a boolean sum check and unit names of odd series. Never the token, URLs, headers or values.
+
+BMX_BASE = "https://www.banxico.org.mx/SieAPIRest/service/v1/series/"
+BMX_IDS = "SF65218,SF65219,SF65137,SF65046,SF65107,SP68257"            # exactly what build_meksyk uses today
+BMX_EXTRA = "SF108390,SF341599,SF347164,SF355431,SF65077"              # optional: Udibonos in MXN, Bondes F, Bondes G, Bonos MS, Bondes D
+BMX_PARTS = ("SF65137", "SF65046", "SF108390", "SF341599", "SF347164", "SF355431", "SF65077")   # sum == SF65218 (checked on 178 days of 2026, max diff 0.03)
+
+
+def _bmx_series(raw):
+    obj = json.loads(raw)
+    return ((obj or {}).get("bmx") or {}).get("series") or []
+
+
+def _bmx_num(s):
+    s = str(s).strip()
+    if s in ("", "N/E"):
+        return None
+    try:
+        return float(s.replace(",", ""))
+    except ValueError:
+        return None
+
+
+def _bmx_data_shape(raw):
+    ser = _bmx_series(raw)
+    parts, comma, ne, cols = [], 0, 0, {}
+    for s in ser:
+        dat = s.get("datos") if isinstance(s.get("datos"), list) else []
+        num = [(str(o.get("fecha", "")), _bmx_num(o.get("dato"))) for o in dat if isinstance(o, dict)]
+        num = [(f, v) for f, v in num if v is not None]
+        comma += sum("," in str(o.get("dato", "")) for o in dat if isinstance(o, dict))
+        ne += sum(str(o.get("dato", "")).strip() == "N/E" for o in dat if isinstance(o, dict))
+        cols[s.get("idSerie")] = dict(num)
+        parts.append(f"{s.get('idSerie')}:{len(num)}/{len(dat)}@{num[-1][0] if num else '-'}" + ("" if "datos" in s else "(no datos)"))
+    out = f"series={len(ser)} commas={comma} NE={ne} " + " ".join(parts)
+    tot = cols.get("SF65218") or {}
+    days = [d for d in tot if all(d in (cols.get(p) or {}) for p in BMX_PARTS if p in cols)]
+    if days and all(p in cols for p in BMX_PARTS):
+        d = max(days, key=lambda x: x[6:] + x[3:5] + x[:2])        # dd/mm/yyyy -> latest
+        diff = abs(sum(cols[p][d] for p in BMX_PARTS) - tot[d])
+        out += f" sum_ok={diff < 0.1} on {d}"
+    return out
+
+
+def _bmx_meta_shape(raw):
+    ser = _bmx_series(raw)
+    odd = [f"{s.get('idSerie')}={s.get('unidad')}" for s in ser
+           if s.get("unidad") not in ("Millones de Pesos", "Millones de Unidades de Inversión", "Unidades de Inversión")]
+    per = sorted({str(s.get("periodicidad")) for s in ser})
+    return f"series={len(ser)} periodicidad={per} odd_units=[{', '.join(odd)}]"
+
+
+def g_banxico():
+    # keyless control: proves the US runner reaches the API host (expected HTTP 400, keys=[error], "Token inválido")
+    probe("banxico", "keyless_oportuno_SF65218", BMX_BASE + "SF65218/datos/oportuno")
+    name, key = find_key("banxico")
+    if not key:
+        skipped("banxico", "SIE API (metadatos/oportuno/rango)")
+        return
+    hdr = {"Bmx-Token": key, "Accept": "application/json"}             # header only; never the ?token= parameter
+    time.sleep(0.5)
+    probe("banxico", "metadatos_11", BMX_BASE + BMX_IDS + "," + BMX_EXTRA, env_name=name, headers=hdr, extra_fn=_bmx_meta_shape)
+    time.sleep(0.5)
+    probe("banxico", "oportuno_6", BMX_BASE + BMX_IDS + "/datos/oportuno", env_name=name, headers=hdr, extra_fn=_bmx_data_shape)
+    time.sleep(0.5)
+    end = _utc_today()
+    start = end - dt.timedelta(days=30)
+    probe("banxico", "rango_11_30d", f"{BMX_BASE}{BMX_IDS},{BMX_EXTRA}/datos/{start.isoformat()}/{end.isoformat()}",
+          env_name=name, headers=hdr, extra_fn=_bmx_data_shape)
+
+
+# Snippet for narzedzia/sondy.py (v126k, label "evds"). Paste the three parts where marked; nothing else in sondy.py changes
+# except (4) the optional rate-limit header whitelist. Also add EVDS_KEY to .github/workflows/sondy.yml and 'evds' to the
+# annotation filter there (see PLAN.md section 6). Prints only: status, ms, bytes, counts, first/last DATE, format flags —
+# never the key, the URL, response headers (except the three whitelisted integers) or any data value.
+
+# (1) KEY_CANDIDATES — add one entry:
+#     "evds":         ["EVDS_KEY"],
+
+# (2) the group (after g_alphavantage), and add g_evds to GROUPS:
+EVDS_B = "https://evds3.tcmb.gov.tr/igmevdsms-dis/"
+EVDS_CODES = ("TP.MKNETHAR.M20", "TP.MKNETHAR.M7", "TP.MKNETHAR.M8", "TP.MKNETHAR.M12", "TP.MKNETHAR.M22", "TP.MKNETHAR.M23")
+
+
+def _evds_tr_today():
+    return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=3)).date()     # Türkiye UTC+3
+
+
+def _evds_shape(raw):
+    """items / totalCount / first and last date / all Fridays / which of the 6 codes are present / all-null rows / Tarih format.
+    Dates are public calendar dates of the weekly release (no values are printed)."""
+    import re
+    obj = json.loads(raw)
+    if not isinstance(obj, dict) or not isinstance(obj.get("items"), list):
+        return shape(raw)
+    it = [x for x in obj["items"] if isinstance(x, dict)]
+    fm = {"dd-mm-yyyy": 0, "other": 0, "missing": 0}
+    ds = []
+    for x in it:
+        t = str(x.get("Tarih") or "")
+        m = re.match(r"^(\d{2})-(\d{2})-(\d{4})$", t)
+        fm["dd-mm-yyyy" if m else ("missing" if not t else "other")] += 1
+        if m and not all(x.get(c.replace(".", "_")) in (None, "") for c in EVDS_CODES):   # first/last = weeks WITH data
+            ds.append(dt.date(int(m.group(3)), int(m.group(2)), int(m.group(1))))
+    codes = sum(1 for c in EVDS_CODES if any(c.replace(".", "_") in x for x in it))
+    nulls = sum(1 for x in it if all(x.get(c.replace(".", "_")) in (None, "") for c in EVDS_CODES))
+    ux = sum(1 for x in it if isinstance(x.get("UNIXTIME"), dict))
+    vtype = sorted({type(x.get("TP_MKNETHAR_M20")).__name__ for x in it})
+    return (f"items={len(it)} total={obj.get('totalCount')} first={min(ds).isoformat() if ds else '-'} last={max(ds).isoformat() if ds else '-'} "
+            f"fri={all(d.weekday() == 4 for d in ds)} codes={codes}/6 nullrows={nulls} tarih={'/'.join(f'{k}:{v}' for k, v in fm.items())} "
+            f"unixtime={ux} vtype={','.join(vtype)} "
+            f"keys=[{','.join(sorted(obj.keys()))[:60]}]")
+
+
+def _evds_list(raw):
+    obj = json.loads(raw)
+    if not isinstance(obj, list):
+        return shape(raw)
+    m20 = next((x for x in obj if isinstance(x, dict) and str(x.get("SERIE_CODE") or x.get("Serie_Code")) == "TP.MKNETHAR.M20"), {})
+    return (f"list n={len(obj)} m20_fields=[{','.join(sorted(m20.keys()))[:120]}] "
+            f"m20_start={m20.get('START_DATE') or m20.get('Start_Date')} m20_end={m20.get('END_DATE') or m20.get('End_Date')}")
+
+
+def g_evds():
+    end = _evds_tr_today()
+    q = lambda a, b: (f"{EVDS_B}series={'-'.join(EVDS_CODES)}&startDate={a.strftime('%d-%m-%Y')}"
+                      f"&endDate={b.strftime('%d-%m-%Y')}&type=json")
+    # keyless: reachability of the API host from the US runner + the no-key error shape (expect HTTP 403 keys=[status,message])
+    probe("evds", "nokey_series_403", q(end - dt.timedelta(days=56), end))
+    name, key = find_key("evds")
+    if not key:
+        skipped("evds", "series/serieList (EVDS_KEY)")
+        return
+    hdr = {"key": key, "Accept": "application/json"}
+    # A: what the collector asks on every refresh (last ~8 weeks): expect 200, items 8-9, codes=6/6, fri=True, last = latest Friday
+    probe("evds", "series6_8w", q(end - dt.timedelta(days=56), end), env_name=name, headers=hdr, extra_fn=_evds_shape)
+    time.sleep(1.0)
+    # B: the whole history in ONE request (315+ Fridays x 6 series = 1890 values > WS_MAX_OBSERVATION 1000):
+    #    items ~315 & first=2020-09-11 -> cap counts dates;  items ~166 & first later -> cap counts values (chunking needed; plan chunks anyway)
+    probe("evds", "series6_full_cap_test", q(dt.date(2020, 9, 11), end), env_name=name, headers=hdr, extra_fn=_evds_shape)
+    time.sleep(1.0)
+    # C: documented metadata service: series list of the data group, with START/END dates of TP.MKNETHAR.M20
+    probe("evds", "serieList_bie_mknethar", f"{EVDS_B}serieList/type=json&code=bie_mknethar", env_name=name, headers=hdr, extra_fn=_evds_list)
+    # never probe evds2.tcmb.gov.tr with the key: every evds2 URL answers 302 -> https://evds3.tcmb.gov.tr/ (HTML) and urllib
+    # forwards custom headers to the redirect target.
+
+
+# (3) GROUPS = [..., g_fmp, g_alphavantage, g_evds]
+
+
 GROUPS = [g_deribit, g_binance_fapi, g_binance_mirrors, g_bybit, g_okx, g_hyperliquid,
           g_alternatives, g_onchain_public, g_etherscan, g_cryptopanic, g_tiingo,
-          g_massive, g_eodhd, g_fmp, g_alphavantage]
+          g_massive, g_eodhd, g_fmp, g_alphavantage, g_coinalyze, g_banxico, g_evds]
 
 
 # --------------------------------------------------------------------------- main
