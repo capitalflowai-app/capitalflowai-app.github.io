@@ -6987,7 +6987,7 @@ const SNB_ROWS=8;        /* tygodni w tabeli */
 const SNB_OKNO=52;       /* tygodni w tekście „najniżej / najwyżej” */
 const SNB_MAX_AGE=45;    /* dni: plik starszy — sekcja ukryta (automat stanął); każda liczba i tak nosi własną datę i wiek */
 const snbNum=v=>typeof v==='number'&&isFinite(v);
-const snbDateOk=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&isFinite(Date.parse(d+'T12:00:00Z'));
+const snbDateOk=d=>{if(typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d))return false;const ms=Date.parse(d+'T12:00:00Z');return isFinite(ms)&&new Date(ms).toISOString().slice(0,10)===d;};   /* v124.2: V8 (Chrome, Node) czyta 2026-02-30 jako 2 marca — data musi wrócić do siebie */
 /* historia [tydzień, krajowe, razem]: zła data odrzucona, nie-liczba → null (brak, nie zero); rosnąco wg tygodnia */
 function snbRows(D){const H=D&&Array.isArray(D.hist)?D.hist:[];
   return H.filter(r=>Array.isArray(r)&&snbDateOk(r[0])).map(r=>[r[0],snbNum(r[1])?r[1]:null,snbNum(r[2])?r[2]:null]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);}
