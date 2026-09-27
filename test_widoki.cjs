@@ -208,10 +208,18 @@ test('TradingView: bez kliknięcia w kodzie strony nie ma żadnego elementu ład
   assert.ok(html.includes("KEY:'cfai.tv.ok'"), 'klucz zgody w localStorage');
 });
 
-test('TradingView: cztery sekcje w istniejących klasach, pod mapą GLOBAL i CRYPTO, ukryte bez JS', () => {
-  const gd = html.indexOf('id="g-detail"'), ge = html.indexOf('id="g-etf"'), cd = html.indexOf('id="detail"'), cm = html.indexOf('id="eng-coinmetrics-exchange-flows"');
-  for (const id of ['tv-markets', 'tv-calendar']) { const i = html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`); assert.ok(i > gd && i < ge, id); }
-  for (const id of ['tv-heatmap', 'tv-chart']) { const i = html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`); assert.ok(i > cd && i < cm, id); }
+test('TradingView: sekcje w istniejących klasach, na samym dole GLOBAL i CRYPTO (v126.1: widgety TradingView na dole), ukryte bez JS', () => {
+  /* v126.1 (decyzja właściciela 27.09): widgety zostają, ale są ostatnimi sekcjami zakładek — po wszystkich panelach danych */
+  const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
+  const cEnd = html.indexOf('</main>', html.indexOf('id="crypto"')), gEnd = html.indexOf('<section class="global" id="trendy"');
+  const cLast = sec('krypto'), gLast = sec('inst');
+  for (const id of ['tv-heatmap', 'tv-chart', 'tv-dvol', 'tv-newsc']) { const i = sec(id); assert.ok(i > cLast && i < cEnd, 'CRYPTO na dole: ' + id); }
+  for (const id of ['tv-markets', 'tv-calendar', 'tv-news']) { const i = sec(id); assert.ok(i > gLast && i < gEnd, 'GLOBAL na dole: ' + id); }
+  assert.ok(sec('tv-heatmap') < sec('tv-chart') && sec('tv-chart') < sec('tv-dvol') && sec('tv-dvol') < sec('tv-newsc'), 'kolejność CRYPTO bez zmian');
+  assert.ok(sec('tv-markets') < sec('tv-calendar') && sec('tv-calendar') < sec('tv-news'), 'kolejność GLOBAL bez zmian');
+  const between = (a, b) => html.slice(a, b).match(/<section [^>]*id="([^"]+)"/g) || [];
+  assert.deepEqual(between(sec('tv-heatmap'), cEnd).map(s => s.match(/id="([^"]+)"/)[1]), ['tv-heatmap', 'tv-chart', 'tv-dvol', 'tv-newsc'], 'po widgetach nic w CRYPTO');
+  assert.deepEqual(between(sec('tv-markets'), gEnd).map(s => s.match(/id="([^"]+)"/)[1]), ['tv-markets', 'tv-calendar', 'tv-news'], 'po widgetach nic w GLOBAL');
 });
 
 test('TradingView: bez pamięci przeglądarki zgoda = brak; język i motyw strony trafiają do konfiguracji', () => {
