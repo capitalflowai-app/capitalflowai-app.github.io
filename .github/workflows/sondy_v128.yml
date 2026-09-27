@@ -1,0 +1,38 @@
+name: Sondy nowych źródeł v128 (jednorazowo)
+
+# Osiem nowych źródeł bez klucza z listy właściciela (27.09.2026). Wynik: tylko nazwa sondy, kod HTTP, czas, rozmiar, kształt,
+# liczniki i daty — nigdy treść odpowiedzi. Uruchamia się po zmianie tego pliku albo narzedzia/sondy_v128.py (lub ręcznie).
+on:
+  push:
+    branches: [main]
+    paths: ['narzedzia/sondy_v128.py', '.github/workflows/sondy_v128.yml']
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sondy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Sondy v128 (tylko statusy)
+        env:
+          SONDY_NO_KEYS: '1'
+        run: |
+          python3 narzedzia/sondy_v128.py > sondy.txt 2>&1 || true
+          cat sondy.txt
+          # najwyżej 8 adnotacji po ok. 3,9 KB: najpierw podsumowanie, potem wszystkie wiersze
+          python3 -c "L=open('sondy.txt',encoding='utf-8').read().splitlines();A=[l for l in L if l.startswith('summary')];B=[l[:300] for l in L if not l.startswith('summary')];C=[];cur=''
+          for l in A+['--']+B:
+              if len(cur)+len(l)+1>3800: C.append(cur); cur=''
+              cur+=l+chr(10)
+          C.append(cur)
+          [print('::notice title=sondy v128 '+str(i+1)+'::'+c.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A')) for i,c in enumerate(C[:8])]"
