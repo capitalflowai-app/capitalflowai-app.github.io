@@ -3787,6 +3787,33 @@ TD_EXCLUDED = ('br', 'mx', 'th', 'in_bd', 'jp', 'tr', 'cf', 'cs', 'cr', 'ix')   
 TD_VC = 1                     # wersja reguły krypto (strona: tytuł opisu metody w widoku krypto)
 TD_SINCE_CR = '2026-09-28'    # pierwsza doba UTC po wdrożeniu (wdrożenie później → następna doba po wdrożeniu)
 TD_RULES_CR = (('cr', 'p'),)  # 1 linia testu krypto, zawsze publikowana
+# v125: rodzina krypto — wersja reguły 2: pięć powodów (p, t, e, s, h) + dwie linie łączone (n2, all), okno 06:00 → 06:00 UTC.
+# Stałe v1 (TD_VC, TD_SINCE_CR, TD_RULES_CR) zostają — linia v1 jest publikowana dalej, a przed pełnym plikiem krypto-dzien (albo po awarii v2) cała wersja 1.
+import statistics                                   # v125: kwantyle rozkładu normalnego; ponowny import jest nieszkodliwy
+import math                                         # v125: math.sqrt w _td_pool_cr2 (zbieracz nie importował dotąd math)
+TD_VC2 = 2                      # wersja reguły krypto 2
+TD_SINCE_CR2 = '2026-09-28'     # data UTC dnia wdrożenia: pierwsza doba danych, której karta może trafić do dziennika (wdrożenie później → ta data)
+TD_CR_WH = 6                    # okno pomiaru: od 06:00 UTC doby po dacie danych, przez 24 h
+TD_CR_CUT = 330                 # min po północy UTC doby po dacie danych (05:30): zapisane/opublikowane od tej chwili = „po czasie”, bez głosu
+TD_CR_IN = (('p', 1), ('t', 1), ('e', -1), ('s', 1), ('h', -1))   # wejście, kierunek z założenia (−1: wzrost wejścia → w dół)
+TD_CR_FLOWS = ('BTC', 'ETH')    # przepływy na giełdy tylko dla tych dwóch (wersja bezpłatna dostawcy)
+TD_CR_HMIN = 20                 # premia kontraktów: doba liczy się przy co najmniej 20 godzinach
+TD_RULES_CR2 = tuple(('cr', k) for k, _ in TD_CR_IN) + (('cr', 'n2'), ('cr', 'all'))   # 7 linii, zawsze wszystkie
+TD_CR_M = len(TD_RULES_CR2)                                        # liczba testów naraz (poprawka Bonferroniego)
+TD_CR_ZM = statistics.NormalDist().inv_cdf(1 - 0.025 / TD_CR_M)    # 2,6901: zakres 99,3% zamiast 95% (ocena w próbie)
+TD_CR_CL = round(100 - 5 / TD_CR_M, 1)                             # 99.3
+TD_CR_ZP = statistics.NormalDist().inv_cdf(0.8)                    # 0,8416: moc 80% (przewaga łatwa do przeoczenia, pole mde)
+TD_CR_Y1 = 365                                                     # dni wyniku „ostatni rok” każdej linii (sam opis)
+TD_CR_LOOKS = (100, 200, 400)                                      # punkty kontrolne dziennika (dni z sygnałem linii): ocena „od wdrożenia” tylko tam
+TD_CR_ZL = statistics.NormalDist().inv_cdf(1 - 0.025 / (TD_CR_M * len(TD_CR_LOOKS)))   # 3,0381: 7 linii × 3 oceny
+TD_CR_CLL = round(100 - 5 / (TD_CR_M * len(TD_CR_LOOKS)), 1)                           # 99.8
+TD_CR_SETTLE = 5                # doba dziennika wchodzi do punktu kontrolnego, gdy ma ≥ 5 dni: wynik doby D potrzebuje świecy 06:00 doby D+2,
+                                # a brakujące pole tej doby budowniczy ponawia, dopóki doba ma < 48 h (do D+5 00:00) — dopiero wtedy wynik jest
+                                # ostateczny, więc punkt zamrożony w dzienniku = punkt policzony od nowa z kopii w archiwum (przegląd 27.09; było 4)
+TD_CR_JST = ('buy', 'sell', 'obs', 'x', 'quiet')                    # stany zapisywane w dzienniku
+TD_CR_DIG = {'p': 2, 't': 1, 'e': 0, 's': 0, 'h': 4}                # zaokrąglenie wartości w rs
+TD_CR_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'archiwum', 'krypto-dziennik.csv')   # dzienna kopia dziennika (narzedzia/archiwum.py)
+TD_CR_CSV_COLS = ['date', 'coin', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since']
 
 
 def _isnum(x):
@@ -4472,6 +4499,498 @@ def build_daily_cr(S):
     return (rows, bd) if rows else (None, None)
 
 
+# v125: sygnały dzienne krypto, wersja reguły 2 (rodzina „cr”) — pięć powodów z pliku data/krypto-dzien.json (tylko dla zbieracza),
+# dwie linie łączone, okno pomiaru od 06:00 UTC doby po dacie danych przez 24 h. Ocena w próbie: zakres 99,3% (7 linii naraz), porównanie
+# ze „zwykłą dobą” (b0), obie połowy historii. Licznik „od wdrożenia” wyłącznie z dziennika kart zapisanych tak, jak były na stronie
+# (data/krypto-dziennik.json), oceniany tylko w punktach kontrolnych 100/200/400 dób z sygnałem (zakres 99,8%), każda ocena zamrożona.
+# Brak = None, nigdy zero; bez zapytań do sieci. Wersja 1 (build_daily_cr) bez zmian — działa, dopóki plik dzienny nie jest pełny (ready).
+
+def _td_cut(day):
+    """Granica „na czas” doby danych `day`: 'YYYY-MM-DDTHH:MM:SS' doby następnej, TD_CR_CUT minut po północy UTC (05:30);
+    porównywalna z iso[:19]."""
+    t = datetime.datetime.combine(_d(day) + datetime.timedelta(days=1), datetime.time()) + datetime.timedelta(minutes=TD_CR_CUT)
+    return t.strftime('%Y-%m-%dT%H:%M:%S')
+
+
+def _td_early(iso, day):
+    """True, gdy czas `iso` (UTC, pierwsze 19 znaków) jest przed granicą doby danych `day`; None albo '' → False (nieznany czas = po czasie)."""
+    return isinstance(iso, str) and len(iso) >= 19 and iso[:19] < _td_cut(day)
+
+
+def _td_cal(first, last):
+    """Wszystkie doby kalendarzowe od first do last włącznie (ISO) — oś serii krypto (7 dni w tygodniu)."""
+    d0, d1 = _d(first), _d(last)
+    return [(d0 + datetime.timedelta(days=k)).isoformat() for k in range((d1 - d0).days + 1)]
+
+
+def _td_series_cr2(kd, sym, today):
+    """Para → seria kalendarzowa (doby UTC < today): zamknięcie, otwarcie świecy 06:00 i pięć wejść {p, t, e, s, h} (e tylko dla par
+    z TD_CR_FLOWS) oraz znaczniki „na czas”. Brak = None, nigdy 0. Daty w q muszą rosnąć, inaczej ValueError. `late` (stan karty) i znacznik
+    „na czas” premii kontraktów najnowszej doby są ŚCISŁE: na czas tylko wtedy, gdy `seen` części nazywa najnowszą dobę i jest przed granicą
+    (nieznany czas zapisu = po czasie). Premia: także `sp` — poprzednia para [doba, czas zapisu], którą budowniczy zachowuje, gdy zapisze
+    nowszą dobę premii (ok. 00:20 UTC premia doby D+1 jest już zapisana, a świece D+1 jeszcze nie — karta doby D nie traci wtedy głosu
+    premii, która przyszła na czas). Przepływy i stablecoiny najnowszej doby: także tło (TD_LB dób przed nią) musi być zapisane przed jej
+    granicą — wiersz tła zapisany później zmieniłby z po czasie (przegląd 27.09)."""
+    q = ((kd.get('q') or {}).get(sym) or {}) if isinstance(kd, dict) else {}
+    rows = [r for r in (q.get('d') or []) if isinstance(r, list) and len(r) == 5 and _d(r[0]) and _d(r[0]) < today
+            and _isnum(r[1]) and r[1] > 0]
+    if len(rows) < 2:
+        return None
+    days = [str(r[0])[:10] for r in rows]
+    if any(a >= b for a, b in zip(days, days[1:])):
+        raise ValueError('daty nie rosną')
+    by = {str(r[0])[:10]: r for r in rows}
+    dates = _td_cal(days[0], days[-1])
+
+    def col(k, pos):
+        return [(by[d][k] if d in by and _isnum(by[d][k]) and (by[d][k] > 0 if pos else by[d][k] >= 0) else None) for d in dates]
+    close, qv, tb, o6 = col(1, True), col(2, False), col(3, False), col(4, True)
+    p = [None] + [(close[i] / close[i - 1] - 1) * 100 if close[i] and close[i - 1] else None for i in range(1, len(dates))]
+    t = [100 * (2 * b / a - 1) if a and b is not None and b <= a else None for a, b in zip(qv, tb)]
+    hq = (kd.get('hl') or {}).get(sym) or {}
+    hd = {str(r[0])[:10]: r for r in (hq.get('d') or []) if isinstance(r, list) and len(r) == 3}
+    h = [hd[d][1] / 100 if d in hd and _isnum(hd[d][1]) and _isnum(hd[d][2]) and hd[d][2] >= TD_CR_HMIN else None for d in dates]
+    # stablecoiny: pierwsza opublikowana ZMIANA doby (kolumna 5, USD), wyliczona przez budowniczego z jednej odpowiedzi dostawcy — nigdy
+    # różnica dwóch zapisanych poziomów (przeliczona wstecz historia poziomów dałaby skok na dobie granicznej)
+    st = {str(r[0])[:10]: r for r in ((kd.get('st') or {}).get('d') or []) if isinstance(r, list) and len(r) == 6}
+    s, s_on = [], []
+    for d in dates:
+        b = st.get(d)
+        ok = bool(b) and _isnum(b[5])
+        s.append(b[5] / 1e6 if ok else None)
+        s_on.append(ok and (b[3] is None or _td_early(b[3], d)) and (b[4] is None or _td_early(b[4], d)))
+    inp = {'p': p, 't': t, 's': s, 'h': h}
+    on = {'s': s_on}
+    if sym in TD_CR_FLOWS:
+        cm = {str(r[0])[:10]: r for r in (((kd.get('cm') or {}).get(sym.lower()) or {}).get('d') or [])
+              if isinstance(r, list) and len(r) == 5 and _isnum(r[1]) and _isnum(r[2])}
+        inp['e'] = [cm[d][1] - cm[d][2] if d in cm else None for d in dates]
+        on['e'] = [d in cm and _td_early(cm[d][3], d) and (cm[d][4] is None or _td_early(cm[d][4], d)) for d in dates]
+    last = dates[-1]
+    bg0 = (_d(last) - datetime.timedelta(days=TD_LB)).isoformat()
+
+    def bg_ok(by_day):
+        """Tło najnowszej doby (wiersze z TD_LB dób przed nią) zapisane przed jej granicą: seen null (zasilenie) albo przed 05:30 doby po niej."""
+        return not any(bg0 <= d < last and r[4] is not None and not _td_early(r[4], last) for d, r in by_day.items())
+    s_on[-1] = s_on[-1] and bg_ok(st)
+    if 'e' in on:
+        on['e'][-1] = on['e'][-1] and bg_ok(cm)
+
+    def seen_ok(x, keys=('seen',)):
+        for k in keys:
+            sn = x.get(k) if isinstance(x.get(k), list) and len(x.get(k)) == 2 else None
+            if sn and sn[0] == last and _td_early(sn[1], last):
+                return True
+        return False
+    on['h'] = [True] * len(dates)                 # test wstecz: historyczne doby q i h liczymy jako na czas (tekst metody m.4)
+    on['h'][-1] = seen_ok(hq, ('seen', 'sp'))
+    return {'id': sym, 'sym': sym, 'dates': dates, 'close': close, 'o6': o6, 'in': inp, 'on': on, 'late': not seen_ok(q)}
+
+
+def _td_votes(s, i):
+    """→ ({k: (wartość, z, głos, na_czas)}, N). Głos = kierunek·znak(z), gdy |z| ≥ TD_Z1 i wejście dotarło na czas; inaczej 0."""
+    out, N = {}, 0
+    for k, dr in TD_CR_IN:
+        vals = s['in'].get(k)
+        if vals is None:
+            continue
+        z = _td_z(vals, i, demean=(k != 'p'))
+        on = s['on'][k][i] if k in s['on'] else True
+        v = dr * (1 if z > 0 else -1) if (z is not None and abs(z) >= TD_Z1 and on) else 0
+        out[k] = (vals[i] if 0 <= i < len(vals) else None, z, v, on)
+        N += v
+    return out, N
+
+
+def _td_win(s, i):
+    """Wynik doby danych i (%): otwarcie 06:00 UTC doby i+2 / otwarcie 06:00 UTC doby i+1 − 1; brak → None."""
+    o = s['o6']
+    if i + 2 >= len(o) or not o[i + 1] or not o[i + 2]:
+        return None
+    return (o[i + 2] / o[i + 1] - 1) * 100
+
+
+def _td_pairs_cr2(s, votes=None):
+    """→ [(doba, linia, głos, trafienie)]: linia k dla każdego wejścia, które strzela; 'n2' przy |N| ≥ 2; 'all' przy N ≠ 0.
+    Wynik None albo 0 → bez pary; doba sprzeczna (głosy za i przeciw po równo) daje tylko pary wejść."""
+    out = []
+    for i in range(len(s['dates'])):
+        V, N = votes[i] if votes is not None else _td_votes(s, i)
+        if not any(x[2] for x in V.values()):
+            continue
+        y = _td_win(s, i)
+        if y is None or y == 0:
+            continue
+        d = s['dates'][i]
+        for k, x in V.items():
+            if x[2]:
+                out.append((d, k, x[2], 1 if (y > 0) == (x[2] > 0) else 0))
+        if N:
+            g = 1 if N > 0 else -1
+            h = 1 if (y > 0) == (g > 0) else 0
+            if abs(N) >= 2:
+                out.append((d, 'n2', g, h))
+            out.append((d, 'all', g, h))
+    return out
+
+
+def _td_vd_cr2(k, n, days, h1, h2, bm, bn, z=None):
+    """short / edge / anti / none — zakres rodzinny (z = TD_CR_ZM w próbie, TD_CR_ZL w punkcie kontrolnym dziennika; n_eff = dni)
+    wobec max/min(50, b0); obie połowy historii po tej samej stronie progu."""
+    if days < TD_NEFF or not n:
+        return 'short'
+    la, ha = wilson(k, n, z=z or TD_CR_ZM, n_eff=days)
+    if la > bm and h1 is not None and h1 > bm and h2 is not None and h2 > bm:
+        return 'edge'
+    if ha < bn and h1 is not None and h1 < bn and h2 is not None and h2 < bn:
+        return 'anti'
+    return 'none'
+
+
+def _td_pct(hs):
+    """Odsetek trafień w % (1 miejsce po przecinku); pusta lista → None (nigdy 0)."""
+    return round(100 * sum(hs) / len(hs), 1) if hs else None
+
+
+def _td_stat(pr, ys, z=None):
+    """Jedna linia (albo jeden punkt kontrolny dziennika): pary [(doba, trafienie, moneta, głos)], ys {moneta: {doba: y}} → k, n, days,
+    from, to, p, ci (95%), ca (z), h1/h2 (podział na medianie dób sygnału), u (udział okien wzrostowych każdej monety wśród dób z [from, to]
+    z y ≠ 0), b0, bm, bn, vd."""
+    z = z or TD_CR_ZM
+    pr = sorted(pr, key=lambda x: x[0])
+    n = len(pr); k = sum(p[1] for p in pr)
+    ds = sorted({p[0] for p in pr}); days = len(ds)
+    mid = ds[days // 2] if days > 1 else None
+    h1 = _td_pct([p[1] for p in pr if mid and p[0] < mid]); h2 = _td_pct([p[1] for p in pr if mid and p[0] >= mid])
+    u = {}
+    for c in {p[2] for p in pr}:
+        yy = [v for d, v in (ys.get(c) or {}).items() if ds[0] <= d <= ds[-1] and v]
+        u[c] = sum(1 for v in yy if v > 0) / len(yy) if yy else 0.5
+    b0 = 100 * sum(u[p[2]] if p[3] > 0 else 1 - u[p[2]] for p in pr) / n if n else None
+    bm, bn = max(50.0, b0 if b0 is not None else 50.0), min(50.0, b0 if b0 is not None else 50.0)
+    lo, hi = wilson(k, n, n_eff=days) if n else (None, None)
+    la, ha = wilson(k, n, z=z, n_eff=days) if n else (None, None)
+    return {'k': k, 'n': n, 'days': days, 'from': ds[0] if ds else None, 'to': ds[-1] if ds else None, 'p': _td_pct([p[1] for p in pr]),
+            'ci': [lo, hi], 'ca': [la, ha], 'h1': h1, 'h2': h2, 'u': u, 'b0': b0, 'bm': bm, 'bn': bn,
+            'vd': _td_vd_cr2(k, n, days, h1, h2, bm, bn, z)}
+
+
+def _td_side(pr, u, g):
+    """Opisowy podział linii według strony głosu (g = +1 kupno, −1 sprzedaż) — nigdy nie oceniany: {k, n, days, p, b0 (zwykła doba
+    tej strony), ci}."""
+    q = [p for p in pr if p[3] == g]
+    n = len(q); k = sum(p[1] for p in q); days = len({p[0] for p in q})
+    b0 = 100 * sum(u[p[2]] if g > 0 else 1 - u[p[2]] for p in q) / n if n else None
+    lo, hi = wilson(k, n, n_eff=days) if n else (None, None)
+    return {'k': k, 'n': n, 'days': days, 'p': _td_pct([p[1] for p in q]), 'b0': None if b0 is None else round(b0, 1), 'ci': [lo, hi]}
+
+
+def _td_y1(pr, today):
+    """Pary linii z ostatnich TD_CR_Y1 dni (obie strony; sam opis, nigdy nie oceniany)."""
+    lo = (today - datetime.timedelta(days=TD_CR_Y1)).isoformat()
+    q = [p for p in pr if p[0] >= lo]
+    n = len(q); k = sum(p[1] for p in q); ds = sorted({p[0] for p in q})
+    a, b = wilson(k, n, n_eff=len(ds)) if n else (None, None)
+    return {'k': k, 'n': n, 'days': len(ds), 'p': _td_pct([p[1] for p in q]), 'ci': [a, b], 'from': ds[0] if ds else None,
+            'to': ds[-1] if ds else None}
+
+
+def _td_pool_cr2(lines, ys, since=None, log=None, today=None):
+    """7 linii (TD_RULES_CR2, zawsze wszystkie). lines: {(rodzina, k): [(doba, trafienie, id, głos)]}; ys: {id: {doba: y}} (każda doba
+    z wynikiem); log: dziennik (None = nieznany w tym przebiegu → lk/ln/ldays null, lvd 'wait'). Ocena dziennika (`lvd`, `lc`) istnieje tylko
+    w punktach kontrolnych zapisanych w dzienniku (`cp`) i nigdy nie jest liczona od nowa między nimi; lk/ln/ldays to bieżący licznik (bez oceny)."""
+    since = since or TD_SINCE_CR2
+    today = today or _now_utc().date()
+    JL, _ = _td_cr_pairs(log, since) if isinstance(log, dict) else (None, None)
+    out = []
+    for fam, rule in TD_RULES_CR2:
+        pr = sorted((lines or {}).get((fam, rule)) or [], key=lambda x: x[0])
+        S = _td_stat(pr, ys)
+        days, bm = S['days'], S['bm']
+        sq = math.sqrt(bm / 100 * (1 - bm / 100) / days) if days else None
+        L = sorted(JL[rule]) if JL is not None else None
+        cps = sorted(((log or {}).get('cp') or {}).get(rule) or [], key=lambda x: x[0]) if JL is not None else []
+        lc = None
+        if cps:
+            c = cps[-1]
+            lc = {'c': c[0], 'k': c[1], 'n': c[2], 'p': round(100 * c[1] / c[2], 1) if c[2] else None, 'b0': c[3], 'ca': [c[6], c[7]],
+                  'vd': c[8], 'to': c[9]}
+        nx = [c for c in TD_CR_LOOKS if not lc or c > lc['c']]
+        out.append({'fam': fam, 'rule': rule, 'k': S['k'], 'n': S['n'], 'days': days, 'from': S['from'], 'to': S['to'],
+                    'p': S['p'], 'ci': S['ci'], 'ca': S['ca'], 'cl': TD_CR_CL, 'M': TD_CR_M,
+                    'b0': None if S['b0'] is None else round(S['b0'], 1),
+                    'thr': round(bm + 100 * TD_CR_ZM * sq, 1) if days else None,
+                    'mde': round(bm + 100 * (TD_CR_ZM + TD_CR_ZP) * sq, 1) if days else None,
+                    'h1': S['h1'], 'h2': S['h2'],
+                    'sb': _td_side(pr, S['u'], 1), 'ss': _td_side(pr, S['u'], -1), 'y1': _td_y1(pr, today),
+                    'lk': sum(x[1] for x in L) if L is not None else None, 'ln': len(L) if L is not None else None,
+                    'ldays': len({x[0] for x in L}) if L is not None else None,
+                    'lvd': lc['vd'] if lc else 'wait', 'lc': lc, 'lnx': nx[0] if nx else None, 'cll': TD_CR_CLL,
+                    'm': len({p[2] for p in pr}), 'need': max(0, TD_NEFF - days), 'vd': S['vd'], 'v': TD_VC2, 'since': since, 'wh': TD_CR_WH,
+                    'cut': TD_CR_CUT})
+    return out
+
+
+def _td_live_cr2(date, now_utc):
+    """Karta doby danych `date` jest aktualna do końca swojego okna: now < 06:00 UTC doby date+2 (zegar bez strefy = UTC)."""
+    end = _d(date) + datetime.timedelta(days=2)
+    now = now_utc.astimezone(datetime.timezone.utc).replace(tzinfo=None) if getattr(now_utc, 'tzinfo', None) else now_utc
+    return now < datetime.datetime(end.year, end.month, end.day, TD_CR_WH)
+
+
+def _td_row_cr2(s, vd_by, own, today, now_utc):
+    """Karta najnowszej doby serii (SPEC-v125 §5.1 z dopiskiem SPEC-v125-ADDENDUM). Stany po kolei: nodata → short → stale → late → x → quiet
+    → buy/sell (kolor) → obs. Kolor tylko wtedy, gdy linia obejmująca kartę ma potwierdzoną przewagę (ek), żaden głosujący powód po drugiej
+    stronie jej nie ma, a linia połączenia karty (n2 przy |N| ≥ 2, inaczej all) nie wychodzi „odwrotnie” (anti).
+    Reguła wiersza v2: 'c' (N ≠ 0), 'cx' (są głosy, ale po równo — sprzeczne), 'c0' (żaden powód nie głosuje). Nigdy kody v1 ('x', 'none'):
+    strona sprzed v125 (karta przeglądarki otwarta przed wdrożeniem, TRD_DRL = f/p/fp/x/none) odrzuca wtedy KAŻDY wiersz v2 i pokazuje
+    swoją notę, zamiast opisywać kartę v2 zdaniami v1, które dla niej są nieprawdziwe (przegląd 27.09)."""
+    i = len(s['dates']) - 1
+    date = s['dates'][i]
+    V, N = _td_votes(s, i)
+    has_now = any(_isnum(x[0]) for x in V.values())
+    has_hist = any(sum(1 for x in s['in'][k][max(0, i - TD_LB):i] if _isnum(x)) >= TD_MIN for k in V)
+    live = _td_live_cr2(date, now_utc)
+    fired = {k: x[2] for k, x in V.items() if x[2]}
+    d = (1 if N > 0 else -1) if N else 0
+    rule = 'c' if d else ('cx' if fired else 'c0')    # kody tylko wersji 2 — stara strona ich nie zna (docstring)
+    lead = 'n2' if abs(N) >= 2 else 'all'
+    ek = ([k for k, g in fired.items() if g == d and vd_by.get(('cr', k)) == 'edge']
+          + (['n2'] if abs(N) >= 2 and vd_by.get(('cr', 'n2')) == 'edge' else [])
+          + (['all'] if vd_by.get(('cr', 'all')) == 'edge' else [])) if d else []
+    against = [k for k, g in fired.items() if g == -d and vd_by.get(('cr', k)) == 'edge'] if d else []
+    colour = bool(ek) and not against and vd_by.get(('cr', lead)) != 'anti'
+    if not has_now:
+        st = 'nodata'
+    elif not has_hist:
+        st = 'short'
+    elif not live:
+        st = 'stale'
+    elif s['late']:
+        st = 'late'
+    elif rule == 'cx':
+        st = 'x'
+    elif rule == 'c0':
+        st = 'quiet'
+    else:
+        st = ('buy' if d > 0 else 'sell') if colour else 'obs'
+    side = ('buy' if d > 0 else 'sell') if st in ('buy', 'sell', 'obs') else 'none'
+    agree = [k for k, g in fired.items() if g == d] if d else []
+    strong = any(V[k][1] is not None and abs(V[k][1]) >= TD_Z2 for k in agree)
+    sg = min(3, len(agree) + int(strong)) if d else 0
+    o = own.get(s['id'], (0, 0)) if d else (None, None)
+    lv = vd_by.get(('cr', lead))
+
+    def rnd(x, k):
+        return (round(x, k) if k else int(round(x))) if _isnum(x) else None
+    rs = [[k, rnd(50 + V[k][0] / 2 if k == 't' and _isnum(V[k][0]) else V[k][0], TD_CR_DIG[k]), rnd(V[k][1], 2), V[k][2]]
+          for k, _ in TD_CR_IN if k in V]
+    return {'id': s['id'], 'fam': 'cr', 'grp': None, 'iss': None, 'pub': 0, 'sym': s['sym'], 'date': date,
+            'nx': (_d(date) + datetime.timedelta(days=1)).isoformat(), 'live': live, 'age': (today - _d(date)).days,
+            'f': None, 'cur': None, 'fu': None, 'zf': None, 'r': rnd(V['p'][0], 2), 'zp': rnd(V['p'][1], 2),
+            'rule': rule, 'dir': d, 'side': side, 'str': sg, 'st': st,
+            'vd': ('edge' if colour else ('none' if lv == 'edge' else lv)) if d else None,
+            'ik': o[0], 'in': o[1], 'ici': list(wilson(o[0], o[1])) if d and o[1] else None,
+            'rs': rs, 'N': N, 'ek': ek if colour else [],
+            'lt': [k for k, _ in TD_CR_IN if k in V and _isnum(V[k][0]) and not V[k][3]]}
+
+
+# v125: dziennik (data/krypto-dziennik.json) — karty tak, jak były na stronie, zanim zaczęło się ich okno pomiaru
+
+def _td_vstr(row):
+    """Karta → kod głosów, np. 'p0t-e-s0h0' ('+'/'-' głos, '0' spokój, '.' bez z, brak albo po czasie; brak klucza = nie dotyczy)."""
+    lt = set(row.get('lt') or [])
+    return ''.join(k + ('.' if z is None or k in lt else '+' if g > 0 else '-' if g < 0 else '0') for k, _, z, g in row.get('rs') or [])
+
+
+def _td_vparse(vs):
+    """Kod głosów → {wejście: głos} (+1, −1 albo 0)."""
+    out = {}
+    for i in range(0, len(vs or '') - 1, 2):
+        out[vs[i]] = {'+': 1, '-': -1}.get(vs[i + 1], 0)
+    return out
+
+
+def _td_cr_pairs(log, since=None, upto=None):
+    """Dziennik → (linie {reguła: [(doba, trafienie, moneta, głos)]}, ys {moneta: {doba: y}}) z wierszy since ≤ D (≤ upto, gdy podane)
+    ze znanym wynikiem; para wymaga y ≠ 0. Te same kształty co linie w próbie, więc jedna funkcja (_td_stat) ocenia jedne i drugie."""
+    since = since or TD_SINCE_CR2
+    acc = {k: [] for _, k in TD_RULES_CR2}; ys = {}
+    for r in (log or {}).get('rows') or []:
+        if not (isinstance(r, list) and len(r) == 7):
+            continue
+        d, sym, N, st, vs, at, y = r
+        if not isinstance(d, str) or d < since or (upto and d > upto) or not _isnum(y):
+            continue
+        ys.setdefault(sym, {})[d] = y
+        if y == 0:
+            continue
+        for k, g in _td_vparse(vs).items():
+            if g and k in acc:
+                acc[k].append((d, 1 if (y > 0) == (g > 0) else 0, sym, g))
+        if isinstance(N, int) and not isinstance(N, bool) and N:
+            g = 1 if N > 0 else -1; h = 1 if (y > 0) == (g > 0) else 0
+            acc['all'].append((d, h, sym, g))
+            if abs(N) >= 2:
+                acc['n2'].append((d, h, sym, g))
+    return acc, ys
+
+
+def _td_cr_cp(log, today, iso):
+    """Punkty kontrolne oceny dziennika: dla każdej linii i każdego c z TD_CR_LOOKS, którego jeszcze nie ma, gdy linia ma c dób z sygnałem
+    wśród wierszy „dojrzałych” (doba ≤ today − TD_CR_SETTLE): test jej pierwszych c dób sygnału przy z = TD_CR_ZL wobec zwykłej doby samego
+    dziennika. Zapis raz: [c, k, n, b0, h1, h2, lo, hi, vd, doba c-tego sygnału, czas wyliczenia] — nigdy liczony od nowa."""
+    cp = {k: [list(x) for x in v if isinstance(x, list) and len(x) == 11] for k, v in ((log or {}).get('cp') or {}).items()}
+    upto = (today - datetime.timedelta(days=TD_CR_SETTLE)).isoformat()
+    L, Y = _td_cr_pairs(log, (log or {}).get('since'), upto)
+    for _, rule in TD_RULES_CR2:
+        pr = sorted(L[rule]); ds = sorted({p[0] for p in pr}); have = {x[0] for x in cp.get(rule, [])}
+        for c in TD_CR_LOOKS:
+            if c in have or len(ds) < c:
+                continue
+            S = _td_stat([p for p in pr if p[0] <= ds[c - 1]], Y, TD_CR_ZL)
+            cp.setdefault(rule, []).append([c, S['k'], S['n'], None if S['b0'] is None else round(S['b0'], 1), S['h1'], S['h2'],
+                                            S['ca'][0], S['ca'][1], S['vd'], ds[c - 1], iso])
+    return {k: sorted(v) for k, v in cp.items() if v}
+
+
+def _td_cr_valid(log):
+    """Czy to dziennik: słownik z listą rows oraz polami v i since (pusty obiekt albo inny plik — nie)."""
+    return isinstance(log, dict) and isinstance(log.get('rows'), list) and 'v' in log and 'since' in log
+
+
+def _td_cr_log(log, rows, series, now_utc):
+    """Aktualizacja dziennika: karta doby danych D zapisywana raz, w pierwszym przebiegu z D+1 TD_CR_WH:00 ≤ now < D+2 TD_CR_WH:00, gdy jej
+    stan należy do TD_CR_JST (karta „po czasie” nigdy); późniejsze przebiegi dopisują tylko wynik (%, 4 miejsca), gdy znane jest otwarcie
+    06:00 doby D+2. Wiersze nigdy nie są usuwane (licznik nie spada). Punkty kontrolne (cp) dopisywane raz i zamrożone. Inne v/since → nowy
+    dziennik, dawne sumy i punkty kontrolne w 'prev'. `log` musi być poprawnym dziennikiem albo None (o znaczeniu braku decyduje wywołujący)."""
+    log = log if _td_cr_valid(log) else {}
+    prev = log.get('prev')
+    if log and (log.get('v') != TD_VC2 or log.get('since') != TD_SINCE_CR2):
+        o, _ = _td_cr_pairs(log, log.get('since') or '0000')
+        prev = {'v': log.get('v'), 'since': log.get('since'),
+                'oos': {k: [sum(x[1] for x in v), len(v), len({x[0] for x in v})] for k, v in o.items()}, 'cp': log.get('cp') or {}}
+        log = {}
+    now = now_utc.astimezone(datetime.timezone.utc)
+    iso = now.replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
+    R = {(r[0], r[1]): list(r) for r in (log.get('rows') or []) if isinstance(r, list) and len(r) == 7}
+    for row in rows or []:
+        w0 = datetime.datetime.combine(_d(row['date']) + datetime.timedelta(days=1), datetime.time(TD_CR_WH), datetime.timezone.utc)
+        key = (row['date'], row['id'])
+        if key not in R and row['date'] >= TD_SINCE_CR2 and row['st'] in TD_CR_JST and w0 <= now < w0 + datetime.timedelta(days=1):
+            R[key] = [row['date'], row['id'], row['N'], row['st'], _td_vstr(row), iso, None]
+    by = {s['id']: s for s in series or []}
+    for key, r in R.items():
+        s = by.get(key[1])
+        if r[6] is None and s and key[0] in s['dates']:
+            y = _td_win(s, s['dates'].index(key[0]))
+            r[6] = round(y, 4) if y is not None else None
+    out = {'at': iso, 'v': TD_VC2, 'since': TD_SINCE_CR2, 'wh': TD_CR_WH, 'rows': [R[k] for k in sorted(R)], 'cp': {}}
+    out['cp'] = _td_cr_cp(dict(out, cp=log.get('cp') or {}), now.date(), iso)
+    if prev:
+        out['prev'] = prev
+    return out
+
+
+def _td_cr_from_csv(path=None):
+    """Dzienna kopia dziennika w repozytorium (archiwum/krypto-dziennik.csv, zapisywana przez narzedzia/archiwum.py) → (dziennik, 'ok')
+    z wierszami TEJ wersji reguły (punkty kontrolne policzy od nowa następny _td_cr_log); (None, 'none'), gdy pliku nie ma albo nie ma w nim
+    żadnego wiersza tej wersji (nic nie zarchiwizowano — nowy dziennik niczego nie traci); (None, 'bad'), gdy plik jest, ale nie da się go
+    odczytać (inny nagłówek, błąd odczytu albo CSV)."""
+    path = path or TD_CR_CSV
+    try:
+        with open(path, encoding='utf-8', newline='') as f:
+            rd = csv.reader(f)
+            if next(rd, None) != TD_CR_CSV_COLS:
+                return None, 'bad'
+            raw = list(rd)
+    except FileNotFoundError:
+        return None, 'none'
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return None, 'bad'
+    rows = []
+    for r in raw:
+        if len(r) != len(TD_CR_CSV_COLS):
+            continue
+        d = dict(zip(TD_CR_CSV_COLS, r))
+        try:
+            if int(d['v'] or 0) != TD_VC2 or d['since'] != TD_SINCE_CR2 or not _d(d['date']):
+                continue
+            rows.append([d['date'], d['coin'], int(d['n']), d['state'], d['votes'], d['saved_at'], float(d['y']) if d['y'] != '' else None])
+        except (TypeError, ValueError):
+            continue
+    if not rows:
+        return None, 'none'
+    return {'at': None, 'v': TD_VC2, 'since': TD_SINCE_CR2, 'wh': TD_CR_WH, 'rows': sorted(rows), 'cp': {}}, 'ok'
+
+
+_CR_LOG = [None, None]     # v125: [poprzedni dziennik (main, przed trendami), nowy dziennik (build_daily_cr2)]
+
+
+def build_daily_cr2(S):
+    """v125: sygnały dzienne krypto, wersja 2 → (wiersze, linie). Wejście: S['krypto-dzien'] (plik tylko dla zbieracza). Bez pliku albo bez
+    żadnej serii → (None, None). Zepsuta seria jednej monety → uwaga w meta, bez jej karty. Dziennik: _CR_LOG[0] (poprzedni) → _CR_LOG[1] (nowy);
+    licznik „od wdrożenia” (lk/ln/ldays) i ocena w punktach kontrolnych (lvd/lc) wyłącznie z dziennika. Brak poprzedniego dziennika (albo zły
+    plik): odtworzenie z archiwum/krypto-dziennik.csv; nowy, pusty dziennik tylko wtedy, gdy archiwum nie ma żadnego wiersza tej wersji reguły
+    (po 2 dobach od TD_SINCE_CR2 — z błędem w meta); nieczytelne archiwum — licznik wstrzymany (null), nic nie jest zapisywane. Nie zmienia S.
+    Zegar: _now_utc."""
+    S = S if isinstance(S, dict) else {}
+    kd = S.get('krypto-dzien') if isinstance(S.get('krypto-dzien'), dict) else None
+    if not kd:
+        return None, None
+    now_utc = _now_utc(); today = now_utc.date()
+    series = []
+    for sym in TR_CR_SYMS:
+        try:
+            s = _td_series_cr2(kd, sym, today)
+            if s:
+                series.append(s)
+        except Exception as e:
+            META['notes'].append(mask(f'trendy dziennie krypto {sym}: {e}'))
+    if not series:
+        return None, None
+    lines = {key: [] for key in TD_RULES_CR2}; own = {}; ys = {}; good = []
+    for s in series:
+        try:
+            pr = _td_pairs_cr2(s)
+            ys[s['id']] = {s['dates'][i]: y for i in range(len(s['dates'])) for y in [_td_win(s, i)] if y is not None}
+        except Exception as e:
+            META['notes'].append(mask(f"trendy dziennie krypto {s['id']}: {e}")); continue
+        good.append(s)
+        for dt, k, v, hit in pr:
+            lines[('cr', k)].append((dt, hit, s['id'], v))
+            if k == 'all':
+                o = own.setdefault(s['id'], [0, 0]); o[0] += hit; o[1] += 1
+    bd = _td_pool_cr2(lines, ys, today=today)              # pola dziennika null, dopóki dziennik nie jest znany
+    vd_by = {(b['fam'], b['rule']): b['vd'] for b in bd}
+    rows = []
+    for s in good:
+        try:
+            rows.append(_td_row_cr2(s, vd_by, own, today, now_utc))
+        except Exception as e:
+            META['notes'].append(mask(f"trendy dziennie krypto {s['id']}: {e}"))
+    if not rows:
+        return None, None
+    try:
+        log0 = _CR_LOG[0] if _td_cr_valid(_CR_LOG[0]) else None
+        if log0 is None:
+            log0, why = _td_cr_from_csv()
+            if why == 'bad':
+                META['errors'].append('Dziennik krypto: brak poprzedniego pliku, a kopia w archiwum jest nieczytelna — licznik „od wdrożenia” '
+                                      'wstrzymany, nic nie nadpisano')
+                return rows, bd
+            if log0 is not None:
+                META['notes'].append(f"Dziennik krypto: odtworzony z archiwum ({len(log0['rows'])} wierszy do {log0['rows'][-1][0]})")
+            elif today > _d(TD_SINCE_CR2) + datetime.timedelta(days=2):
+                META['errors'].append('Dziennik krypto: brak poprzedniego pliku i brak jego kopii w archiwum — nowy dziennik, licznik „od wdrożenia” od zera')
+        _CR_LOG[1] = _td_cr_log(log0, rows, good, now_utc)
+        bd = _td_pool_cr2(lines, ys, log=_CR_LOG[1], today=today)
+    except Exception as e:                                   # awaria dziennika: licznik null („—”), uwaga w meta, nic nie zapisujemy
+        _CR_LOG[1] = None
+        META['notes'].append(mask(f'trendy dziennie krypto, dziennik: {e}'))
+    return rows, bd
+
+
 def _tr_try(name, fn, out):
     """Jedno źródło TRENDÓW — błąd jednego źródła nie usuwa pozostałych (uwaga w meta zamiast pustej zakładki)."""
     try:
@@ -4786,7 +5305,19 @@ def build_trendy(S):
         daily['d'] = daily['bd'] = None     # awaria to nie „zero rynków”: null w pliku (strona ukrywa blok), nigdy pusta lista
         META['notes'].append(mask(f'trendy dziennie: {e}'))
     try:                                  # v123: rodzina krypto — dopisana na końcu d i bd; awaria nie rusza wierszy i linii świata
-        cd, cb = build_daily_cr(S)
+        try:
+            cd, cb = build_daily_cr(S)                       # v1 (sam ruch ceny, od zamknięcia do zamknięcia) — zawsze, bez sieci
+        except Exception as e1:
+            META['notes'].append(mask(f'trendy dziennie krypto: {e1}')); cd = cb = None
+        kd = S.get('krypto-dzien') if isinstance(S.get('krypto-dzien'), dict) else None
+        if kd and kd.get('ready') is True:                   # v125: wersja 2 dopiero po pełnym dopełnieniu pliku dziennego (flaga trwała)
+            try:
+                cd2, cb2 = build_daily_cr2(S)
+            except Exception as e2:
+                META['notes'].append(mask(f'trendy dziennie krypto v2: {e2}')); cd2 = cb2 = None
+            if cd2:                                          # karty v2 PO kartach v1, linie v2 po linii v1 (v: 1, tuż po liniach świata; jej licznik
+                cd, cb = (cd or []) + cd2, (cb or []) + cb2  # od TD_SINCE_CR liczy się dalej). Karta przeglądarki sprzed v125 odrzuca każdy wiersz v2
+                                                             # (reguły c/cx/c0) i pokazuje sekcję v1 jak dotąd; strona v125 bierze tylko karty v2
         if cd:
             daily['d'] = (daily['d'] or []) + cd
             daily['bd'] = (daily['bd'] or []) + cb
@@ -8468,6 +8999,509 @@ def build_snb(prev=None, now=None):
     return out
 
 
+# ===================== v125: DANE DZIENNE SYGNAŁÓW KRYPTO — data/krypto-dzien.json (plik tylko dla zbieracza; strona go nie wczytuje) =====================
+# Wejście sygnałów dziennych krypto w wersji 2 (build_daily_cr2), bez kluczy:
+#  - świece 1d i 1h rynku spot 10 par z USDT — publiczne pliki giełdy (miesięczne dla zamkniętych miesięcy, dzienne dla bieżącego):
+#    zamknięcie, obrót w USDT, obrót agresywnych kupujących w USDT, otwarcie świecy 06:00 UTC (początek mierzonego okna);
+#  - średnia godzinowa premia kontraktów wieczystych z doby UTC — publiczne API giełdy kontraktów (ten sam host co część dźwigni);
+#  - przepływy BTC i ETH na giełdy oraz podaż USDT i USDC z Coin Metrics Community (CC BY-NC 4.0) — archiwum PIERWSZEJ publikacji z czasem
+#    publikacji dostawcy (pub) i czasem zapisu (seen), nigdy nadpisywane; stablecoiny jako zmiana doby wyliczona z jednej odpowiedzi.
+# Jeden limit czasu na cały budowniczy (KD_T; spóźniony przebieg KD_T_LATE), każde zapytanie ≤ pozostały czas; części w kolejności pilności;
+# `seen` z zegara przebiegu (_now_utc), nigdy ze stałej NOW. Sieć tylko przez get_bytes / get_json / hl_post (testy łatają te trzy nazwy).
+# Zmiana budowniczego nie zmienia reguły sygnałów (TD_VC2); zmiana reguły — patrz stałe TD_CR_*.
+import concurrent.futures as _kd_cf   # v125: pula wątków dla plików świec (biblioteka standardowa)
+
+KD_KEEP = 1100        # dób historii kończącej się wczoraj (st: o jedną więcej — zmiana pierwszej doby potrzebuje poprzedniej)
+KD_MON_URL = 'https://data.binance.vision/data/spot/monthly/klines/{p}/{iv}/{p}-{iv}-{m}.zip'
+KD_DAY_URL = 'https://data.binance.vision/data/spot/daily/klines/{p}/{iv}/{p}-{iv}-{d}.zip'
+KD_T = 60             # s: cały budowniczy w jednym przebiegu (każde zapytanie ≤ pozostały czas; limit zadania 15 min, przebiegi trwają 9–11 min)
+KD_T_LATE = 20        # s: cały budowniczy, gdy przebieg trwa już dłużej niż KD_LATE (bez dopełniania wstecz; premia tylko za wczoraj, 1 zapytanie na parę)
+KD_LATE = 480         # s: jak INS_LATE
+KD_BUDGET = 40        # s: dopełnianie świec wstecz w ramach KD_T (historia dochodzi przez kilka przebiegów)
+KD_THREADS = 4
+KD_TIMEOUT = 20       # s: jeden plik świec / jedno zapytanie o premię kontraktów
+KD_CM_TIMEOUT = 30    # s: jedno zapytanie Coin Metrics
+KD_POLL_H = 2         # od 02:00 UTC: jedna próba wczorajszego pliku (mediana publikacji 02:10, p90 02:50), potem 20 plików
+KD_GAP_H = 48         # h: doba bez pliku dziennego tak długo po swoim końcu = potwierdzona luka (brak, nigdy zero, bez ponownych pytań)
+KD_HL_CALLS = 20      # zapytań o premię na przebieg (≈45 wagi na stronę 500 wierszy → ≈900 z 1200 na minutę razem z częścią dźwigni)
+KD_HL_SLEEP = 0.5     # s przerwy między stronami premii jednej pary
+KD_CM_POLL_H = 1      # od 01:00 UTC Coin Metrics, dopóki archiwum nie ma wczoraj (przepływy albo podaż)
+KD_CM_DAYS = 5        # zwykłe zapytanie: ostatnie 5 dób (nowe doby + sprawdzenie przeliczeń; zawsze zawiera D−1 do zmiany doby)
+KD_CM_DONE_M = 270    # bez znacznika końca doby dostawcy doba przepływów zapisywana dopiero od D+1 04:30
+KD_CM_F = (CM_API + 'timeseries/asset-metrics?assets=btc,eth&metrics=FlowInExNtv,FlowOutExNtv,AssetEODCompletionTime&frequency=1d'
+           '&start_time={s}&page_size=10000&ignore_unsupported_errors=true')
+KD_CM_S = (CM_API + 'timeseries/asset-metrics?assets=usdt,usdc&metrics=SplyCur,AssetEODCompletionTime&frequency=1d'
+           '&start_time={s}&page_size=10000&ignore_unsupported_errors=true')
+KD_LABEL = 'Krypto dziennie'
+KD_SRC = ('Publiczne pliki rynku spot giełdy (świece 1d i 1h, bez klucza), średnia godzinowa premia kontraktów wieczystych (publiczne API '
+          'giełdy kontraktów), przepływy BTC/ETH na giełdy i podaż USDT/USDC (Coin Metrics Community, CC BY-NC 4.0) — plik roboczy zbieracza')
+KD_LIC_KL = 'Binance Vision (data.binance.vision) — CC BY-NC-SA 4.0 (Binance Vision Dataset Terms v1.0)'
+_KD_TERMIN = [None]   # koniec budżetu budowniczego w tym przebiegu (time.monotonic)
+_KD_LIM = [KD_T]      # limit budowniczego w tym przebiegu (s): KD_T albo KD_T_LATE — do opisu uwagi o końcu czasu
+
+
+class KdBudget(RuntimeError):
+    """Czas budowniczego minął: część staje, jej poprzednie dane zostają, reszta w następnym przebiegu (uwaga, nie błąd)."""
+
+
+def _kd_iso_now():
+    """Czas zapisu (ISO UTC do sekundy) z zegara przebiegu _now_utc() — nigdy ze stałej procesu NOW."""
+    return _now_utc().astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _kd_stop_msg(termin=None):
+    """Opis końca czasu do uwagi w meta: termin całego budowniczego (KD_T albo KD_T_LATE) albo krótszy termin dopełniania świec (KD_BUDGET)."""
+    if termin is None or _KD_TERMIN[0] is None or termin >= _KD_TERMIN[0]:
+        return f'limit czasu budowniczego ({_KD_LIM[0]} s)'
+    return f'limit czasu dopełniania świec ({KD_BUDGET} s)'
+
+
+def kd_tmo(cap=KD_TIMEOUT):
+    """Limit jednego zapytania: ≤ cap i ≤ czas pozostały z budżetu budowniczego w tym przebiegu; mniej niż 1 s → KdBudget (wzór lev_tmo)."""
+    if _KD_TERMIN[0] is None:
+        return cap
+    left = _KD_TERMIN[0] - time.monotonic()
+    if left < 1:
+        raise KdBudget(_kd_stop_msg())
+    return max(1, min(cap, left))
+
+
+def _kd_cut(tmo, cap, e, termin=None):
+    """Przekroczenie limitu zapytania SKRÓCONEGO przez termin (tmo < cap) to koniec czasu budowniczego, nie awaria źródła → KdBudget
+    (jak KcCut w kc_get). Pełny limit przekroczony — zwykły błąd części (None: wywołujący zgłasza wyjątek dalej)."""
+    return KdBudget(_kd_stop_msg(termin)) if tmo < cap and kc_is_timeout(e) else None
+
+
+def kd_parse_1d(csv_text):
+    """CSV świec 1d rynku spot (bez nagłówka) → {doba UTC: (zamknięcie, obrót w USDT, obrót agresywnych kupujących w USDT)}. open_time w ms
+    albo µs. Zamknięcie ≤ 0 albo brak → wiersz pominięty; obrót bez liczby → None (nigdy 0); tbq > qv → tbq None."""
+    out = {}
+    for row in csv.reader(io.StringIO(csv_text)):
+        if len(row) < 11 or not str(row[0]).strip().isdigit():
+            continue
+        t = int(row[0]); t = t // 1000 if t > 10 ** 14 else t
+        c = kc_num(row[4])
+        if c is None or c <= 0:
+            continue
+        qv, tb = kc_num(row[7]), kc_num(row[10])
+        day = datetime.datetime.fromtimestamp(t / 1000, datetime.timezone.utc).date().isoformat()
+        out[day] = (c, None if qv is None else round(qv), None if tb is None or qv is None or tb > qv else round(tb))
+    return out
+
+
+def kd_parse_1h(csv_text):
+    """CSV świec 1h → {doba UTC: otwarcie świecy zaczynającej się o TD_CR_WH:00 UTC}. Bez takiej świecy = bez doby."""
+    out = {}
+    for row in csv.reader(io.StringIO(csv_text)):
+        if len(row) < 5 or not str(row[0]).strip().isdigit():
+            continue
+        t = int(row[0]); t = t // 1000 if t > 10 ** 14 else t
+        dt = datetime.datetime.fromtimestamp(t / 1000, datetime.timezone.utc)
+        if dt.hour == TD_CR_WH and dt.minute == 0:
+            o = kc_num(row[1])
+            if o is not None and o > 0:
+                out[dt.date().isoformat()] = o
+    return out
+
+
+def _kd_get(url, termin, cnt=None):
+    """Zip z jednym CSV → tekst; 404 → None; inny błąd → wyjątek. Limit ≤ KD_TIMEOUT, ≤ termin części i ≤ budżet budowniczego.
+    cnt = [n]: licznik zapytań NAPRAWDĘ wysłanych (koniec czasu przed wysłaniem nie jest zapytaniem — pole req pliku)."""
+    tb = kd_tmo(KD_TIMEOUT)                            # najpierw termin całego budowniczego (jego opis ma pierwszeństwo)
+    left = termin - time.monotonic()
+    if left < 1:
+        raise KdBudget(_kd_stop_msg(termin))
+    tmo = max(1, min(tb, left))
+    if cnt is not None:
+        cnt[0] += 1
+    try:
+        data = get_bytes(url, timeout=tmo)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+    except Exception as e:  # noqa — przekroczony skrócony limit = koniec czasu (uwaga), nie błąd pary
+        cut = _kd_cut(tmo, KD_TIMEOUT, e, termin if left <= tb else None)
+        if cut is not None:
+            raise cut from e
+        raise
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        names = [n for n in z.namelist() if n.lower().endswith('.csv')]
+        if not names:
+            raise ValueError('archiwum bez CSV')
+        return z.read(names[0]).decode('utf-8', 'replace')
+
+
+def _kd_prev_q(prev, sym):
+    """Poprzednie wiersze pary → {doba: [c, qv, tbq, o6]} (tylko poprawne: data, zamknięcie > 0; pozostałe pola liczba albo None)."""
+    q = (((prev or {}).get('q') or {}).get(sym) or {}) if isinstance(prev, dict) else {}
+    out = {}
+    for r in q.get('d') or []:
+        if isinstance(r, list) and len(r) == 5 and _d(r[0]) and _isnum(r[1]) and r[1] > 0:
+            out[r[0]] = [r[1]] + [x if _isnum(x) and x >= 0 else None for x in r[2:]]
+    return out
+
+
+def _kd_age_h(day, now):
+    """Godziny od końca doby `day` (północ UTC doby następnej) do chwili `now`."""
+    end = datetime.datetime.combine(_d(day) + datetime.timedelta(days=1), datetime.time(), datetime.timezone.utc)
+    return (now - end).total_seconds() / 3600
+
+
+def _kd_need(rows, miss, end, now):
+    """Doby okna KD_KEEP dób kończącego się `end` do pobrania: bez wiersza (i nie potwierdzona luka) albo wiersz z brakującym polem,
+    dopóki doba jest młodsza niż KD_GAP_H godzin."""
+    need = []
+    d = end - datetime.timedelta(days=KD_KEEP - 1)
+    while d <= end:
+        k = d.isoformat(); r = rows.get(k)
+        if k not in miss and (r is None or (None in r[1:] and _kd_age_h(k, now) < KD_GAP_H)):
+            need.append(k)
+        d += datetime.timedelta(days=1)
+    return need
+
+
+def _kd_tasks(days, today):
+    """Doby → zadania (rodzaj, okres, doby): miesiąc zamknięty przed bieżącym → pliki miesięczne 1d + 1h; bieżący miesiąc → pliki dzienne."""
+    months = {}
+    for k in days:
+        months.setdefault(k[:7], []).append(k)
+    cur = today.strftime('%Y-%m')
+    return [('m' if m < cur else 'd', m, ks) for m, ks in sorted(months.items())]
+
+
+def _kd_fetch(p, kind, period, days, termin):
+    """Jedno zadanie → (wiersze {doba: [c, qv, tbq, o6]}, doby bez dziennego pliku 1d, błąd albo None, liczba zapytań).
+    Miesięczny 404 → pliki dzienne. Koniec czasu → „błąd” typu KdBudget (wywołujący robi z niego uwagę w meta, nie wpis w bledy)."""
+    got, none, req = {}, [], [0]                        # req: zapytania wysłane (licznik w _kd_get)
+
+    def put(d1, h1):
+        for k, (c, qv, tb) in (d1 or {}).items():
+            got[k] = [c, qv, tb, (h1 or {}).get(k)]
+    try:
+        if kind == 'm':
+            t1 = _kd_get(KD_MON_URL.format(p=p, iv='1d', m=period), termin, req)
+            t2 = None
+            if t1 is not None:
+                t2 = _kd_get(KD_MON_URL.format(p=p, iv='1h', m=period), termin, req)
+            if t1 is not None and t2 is not None:
+                put(kd_parse_1d(t1), kd_parse_1h(t2))
+                return got, [k for k in days if k not in got], None, req[0]
+        for k in days:
+            t1 = _kd_get(KD_DAY_URL.format(p=p, iv='1d', d=k), termin, req)
+            if t1 is None:
+                none.append(k); continue
+            t2 = _kd_get(KD_DAY_URL.format(p=p, iv='1h', d=k), termin, req)
+            put(kd_parse_1d(t1), kd_parse_1h(t2) if t2 is not None else {})
+    except KdBudget as e:
+        return got, none, e, req[0]                      # koniec czasu — reszta w następnym przebiegu, to nie błąd (uwaga)
+    except Exception as e:  # noqa — wiersze pobrane wcześniej zostają; reszta w następnym przebiegu
+        if kc_is_timeout(e) and time.monotonic() > termin - KD_TIMEOUT:
+            return got, none, KdBudget(_kd_stop_msg(termin)), req[0]
+        return got, none, e, req[0]
+    return got, none, None, req[0]
+
+
+def _kd_run_q(tasks, termin, out, rows, miss, now, y, notes=None):
+    """Zadania świec w KD_THREADS wątkach; scalenie wierszy (tylko doby ≤ wczoraj); potwierdzone luki; błędy osobno dla każdej pary;
+    koniec czasu (KdBudget) — opis do `notes` (uwaga w meta), nie do bledy."""
+    if not tasks:
+        return
+    with _kd_cf.ThreadPoolExecutor(KD_THREADS) as ex:
+        futs = [(s, days, ex.submit(_kd_fetch, s + 'USDT', kind, period, days, termin)) for s, kind, period, days in tasks]
+        res = [(s, days) + f.result() for s, days, f in futs]
+    for s, days, got, none, err, req in res:
+        out['req'] += req
+        for k, v in got.items():
+            if k <= y:
+                rows[s][k] = v
+        for k in none:
+            if _kd_age_h(k, now) > KD_GAP_H:
+                miss[s].add(k)
+        if isinstance(err, KdBudget):
+            if notes is not None and str(err) not in notes:
+                notes.append(str(err))
+        elif err is not None:
+            out['bledy'][s] = mask(f'{s}: {err}')[:120]
+
+
+def kd_hl_coin(sym, old_rows, today, calls, only_y=False):
+    """Godzinowa premia kontraktów wieczystych → pełne doby UTC [doba, średnia premia w bp (4 miejsca), godziny]. Wiersz o hh:00 obejmuje
+    godzinę przed nim (doba czasu wiersza − 30 min). Do przodu od doby po ostatniej zapisanej (albo od today − KD_KEEP); najwyżej `calls`
+    zapytań po ≤ 500 wierszy, każde z limitem kd_tmo(). Doba zapisywana tylko wtedy, gdy dotarł wiersz o jej zamykającej północy (albo
+    późniejszy) i doba jest przed dziś; zapisanej doby nie nadpisujemy. Premia nie-liczba → pominięta (nigdy 0). only_y: nic, chyba że brakuje
+    tylko wczoraj. → (wiersze, użyte zapytania, gotowe). Wyjątek (sieć, budżet) przechodzi dalej: wywołujący zostawia poprzednie wiersze pary;
+    przekroczony limit skrócony przez termin → KdBudget; atrybut kd_req wyjątku = zapytania wysłane do tej chwili."""
+    got = {r[0]: r for r in (old_rows or []) if isinstance(r, list) and len(r) == 3 and _d(r[0])}
+    start = today - datetime.timedelta(days=KD_KEEP)
+    keep = lambda: [got[d] for d in sorted(got) if start.isoformat() <= d < today.isoformat()]
+    last = max(got) if got else None
+    d0 = (_d(last) + datetime.timedelta(days=1)) if last else start
+    if d0 >= today:                                     # wczoraj już zapisane: bez zapytania (stan ustalony = 1 zapytanie na parę na dobę)
+        return keep(), 0, True
+    if only_y and d0 < today - datetime.timedelta(days=1):
+        return keep(), 0, False
+    st = int(datetime.datetime.combine(d0, datetime.time(0, 30), datetime.timezone.utc).timestamp() * 1000)
+    stop = int(datetime.datetime.combine(today, datetime.time(0, 0), datetime.timezone.utc).timestamp() * 1000)
+    acc, used, maxt, done = {}, 0, 0, False
+    try:
+        while used < calls and not done:
+            tmo = kd_tmo(KD_TIMEOUT)
+            try:
+                j = hl_post({'type': 'fundingHistory', 'coin': sym, 'startTime': st}, timeout=tmo)
+            except Exception as e:  # noqa — przekroczony skrócony limit = koniec czasu (uwaga), inaczej błąd części
+                used += 1                                # zapytanie wysłane, choć przerwane
+                cut = _kd_cut(tmo, KD_TIMEOUT, e)
+                if cut is not None:
+                    raise cut from e
+                raise
+            used += 1
+            rs = [r for r in j if isinstance(r, dict) and isinstance(r.get('time'), int) and not isinstance(r.get('time'), bool)] if isinstance(j, list) else []
+            for r in rs:
+                v = lev_num(r.get('premium'))
+                if v is not None:
+                    day = datetime.datetime.fromtimestamp((r['time'] - 1800 * 1000) / 1000, datetime.timezone.utc).date().isoformat()
+                    acc.setdefault(day, {})[r['time']] = v
+            if rs:
+                maxt = max(maxt, max(r['time'] for r in rs))
+            done = not rs or len(rs) < 500 or maxt + 1 >= stop
+            st = maxt + 1
+            if not done and used < calls:
+                time.sleep(KD_HL_SLEEP)
+    except Exception as e:  # noqa — przerwanie (koniec czasu albo błąd): zapytania naprawdę wysłane do tej chwili (pole req pliku)
+        e.kd_req = used
+        raise
+    for day, hv in acc.items():
+        closing = int(datetime.datetime.combine(_d(day) + datetime.timedelta(days=1), datetime.time(0), datetime.timezone.utc).timestamp() * 1000)
+        if start.isoformat() <= day < today.isoformat() and day not in got and maxt >= closing - 1800 * 1000:
+            vals = list(hv.values())
+            got[day] = [day, round(sum(vals) / len(vals) * 1e4, 4), len(vals)]
+    return keep(), used, done or (bool(got) and max(got) >= (today - datetime.timedelta(days=1)).isoformat())
+
+
+def _kd_cm_rows(url, cnt=None):
+    """Jedno zapytanie Coin Metrics → lista wierszy `data`; pole error albo brak listy = wyjątek; przekroczony limit skrócony przez termin
+    budowniczego → KdBudget (uwaga, nie błąd). cnt = [n]: licznik zapytań naprawdę wysłanych."""
+    tmo = kd_tmo(KD_CM_TIMEOUT)
+    if cnt is not None:
+        cnt[0] += 1
+    try:
+        j = get_json(url, timeout=tmo)
+    except Exception as e:  # noqa
+        cut = _kd_cut(tmo, KD_CM_TIMEOUT, e)
+        if cut is not None:
+            raise cut from e
+        raise
+    if isinstance(j, dict) and isinstance(j.get('error'), dict):
+        raise RuntimeError(str(j['error'].get('message', j['error']))[:160])
+    rows = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(rows, list):
+        raise RuntimeError('brak pola data')
+    return rows
+
+
+def _kd_iso(s):
+    """'2026-09-27T02:01:13.400278000Z' albo sekundy epoki → ISO UTC do sekundy; zły zapis → None."""
+    try:
+        if isinstance(s, str) and s.strip().isdigit():
+            return datetime.datetime.fromtimestamp(int(s), datetime.timezone.utc).replace(microsecond=0).isoformat()
+        return datetime.datetime.fromisoformat(str(s)[:19] + '+00:00').isoformat()
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _kd_first_pub(day, iso):
+    """Czy zapis dostawcy z czasem `iso` to pierwsza publikacja doby `day` (przed 00:00 UTC doby day+2 — nie przepisana później)?"""
+    lim = (_d(day) + datetime.timedelta(days=2)).isoformat() + 'T00:00:00+00:00'
+    return iso is not None and iso < lim
+
+
+def _kd_cm_update(prev, today, now, seed_cm, seed_st, cnt=None):
+    """Archiwum Coin Metrics: przepływy BTC/ETH na giełdy (pierwsza publikacja) i podaż USDT+USDC. Zapisany wiersz nigdy nie jest nadpisywany
+    (archiwum = to, co widział czytelnik); późniejsza różnica liczy się jako przeliczenie (rv). Zasilanie osobno dla każdej części: zapytanie
+    zasilające obejmuje KD_KEEP + 2 dób i przyjmuje tylko pierwsze publikacje, z seen = null; zwykłe zapytanie — KD_CM_DAYS dób, seen = czas
+    zapisu (_now_utc). Wiersze st: [doba, usdt, usdc, pub | null, seen | null, zmiana doby w USD | null] — zmiana sumy z TEJ SAMEJ odpowiedzi
+    (D i D−1), nigdy liczona później z dwóch zapisanych wierszy (przeliczona historia poziomów nie może dać skoku). → (cm, st, rv)."""
+    old_cm = (prev or {}).get('cm') if isinstance((prev or {}).get('cm'), dict) else {}
+    cm = {a: {r[0]: r for r in ((old_cm.get(a) or {}).get('d') or []) if isinstance(r, list) and len(r) == 5 and _d(r[0])} for a in ('btc', 'eth')}
+    st = {r[0]: r for r in ((((prev or {}).get('st') or {}).get('d')) or []) if isinstance(r, list) and len(r) == 6 and _d(r[0])}
+    rv = {'btc': 0, 'eth': 0, 'st': 0}
+    s_cm = (today - datetime.timedelta(days=(KD_KEEP + 2) if seed_cm else KD_CM_DAYS)).isoformat()
+    for r in _kd_cm_rows(KD_CM_F.format(s=s_cm), cnt):
+        a, day = r.get('asset'), str(r.get('time', ''))[:10]
+        if a not in cm or not _d(day) or _d(day) >= today:
+            continue
+        i, o = kc_num(r.get('FlowInExNtv')), kc_num(r.get('FlowOutExNtv'))
+        if i is None or o is None or i < 0 or o < 0:
+            continue                                        # doba jeszcze niepełna (metryki dochodzą po jednej)
+        if _kd_iso(r.get('AssetEODCompletionTime')) is None and _kd_age_h(day, now) * 60 < KD_CM_DONE_M:
+            continue                                        # bez znacznika końca doby i przed D+1 04:30 — następny przebieg
+        pub = max(filter(None, (_kd_iso(r.get('FlowInExNtv-status-time')), _kd_iso(r.get('FlowOutExNtv-status-time')))), default=None)
+        if day in cm[a]:
+            x = cm[a][day]
+            if abs(x[1] - round(i, 2)) > 0.01 or abs(x[2] - round(o, 2)) > 0.01:
+                rv[a] += 1
+            continue
+        if not _kd_first_pub(day, pub):
+            continue                                        # przepisana później — to nie pierwsza publikacja
+        cm[a][day] = [day, round(i, 2), round(o, 2), pub, None if seed_cm else _kd_iso_now()]
+    s_st = (today - datetime.timedelta(days=(KD_KEEP + 2) if seed_st else KD_CM_DAYS)).isoformat()
+    by = {}
+    for r in _kd_cm_rows(KD_CM_S.format(s=s_st), cnt):
+        a, day = r.get('asset'), str(r.get('time', ''))[:10]
+        v, eod = kc_num(r.get('SplyCur')), _kd_iso(r.get('AssetEODCompletionTime'))
+        if a in ('usdt', 'usdc') and _d(day) and _d(day) < today and v is not None and v > 0:
+            by.setdefault(day, {})[a] = (v, eod)
+    for day in sorted(by):
+        x = by[day]
+        if 'usdt' not in x or 'usdc' not in x or x['usdt'][1] is None or x['usdc'][1] is None:
+            continue                                        # oba aktywa ze znacznikiem końca doby
+        if day in st:
+            if abs(st[day][1] - round(x['usdt'][0])) > 1e6 or abs(st[day][2] - round(x['usdc'][0])) > 1e6:
+                rv['st'] += 1
+            continue
+        p = by.get((_d(day) - datetime.timedelta(days=1)).isoformat()) or {}
+        ds = round((x['usdt'][0] + x['usdc'][0]) - (p['usdt'][0] + p['usdc'][0])) if 'usdt' in p and 'usdc' in p else None
+        pub = max(x['usdt'][1], x['usdc'][1])
+        st[day] = [day, round(x['usdt'][0]), round(x['usdc'][0]), pub if _kd_first_pub(day, pub) else None,
+                   None if seed_st else _kd_iso_now(), ds]
+    lo = (today - datetime.timedelta(days=KD_KEEP)).isoformat()
+    return ({a: {'d': [cm[a][k] for k in sorted(cm[a]) if k >= lo]} for a in cm},
+            {'d': [st[k] for k in sorted(st) if k >= (_d(lo) - datetime.timedelta(days=1)).isoformat()]}, rv)
+
+
+def _kd_hl_prev(ph, s):
+    """Część premii pary z poprzedniego pliku bez zmian: wiersze, seen i sp (poprzednia para seen — _td_series_cr2 uznaje premię doby, którą
+    nazywa którakolwiek z nich, jeśli zapisano ją przed granicą tej doby)."""
+    x = ph.get(s) if isinstance(ph.get(s), dict) else {}
+    return {'d': x.get('d') or [], 'seen': x.get('seen'), 'sp': x.get('sp')}
+
+
+def build_krypto_dzien(prev=None, today=None, run_t0=None):
+    """data/krypto-dzien.json (tylko dla zbieracza; strona go nie wczytuje). Części w kolejności pilności, jeden termin dla wszystkich (KD_T,
+    albo KD_T_LATE, gdy przebieg trwa dłużej niż KD_LATE): (1) wczorajsze świece — od KD_POLL_H jedna próba, potem 20 plików; (2) przepływy
+    i podaż Coin Metrics — gdy część wymaga zasilenia albo od KD_CM_POLL_H, dopóki brakuje wczoraj; (3) premia kontraktów — wspólna pula
+    KD_HL_CALLS zapytań (przebieg spóźniony: tylko wczoraj, 1 zapytanie na parę); (4) dopełnianie świec wstecz w min(KD_BUDGET, pozostały
+    czas), nie w spóźnionym przebiegu. Każda część pada osobno: jej poprzednie dane zostają, a `bledy` dostaje wpis (koniec czasu to uwaga
+    w meta, nie błąd). seen w q/hl = [najnowsza doba, _now_utc()] za każdym razem, gdy przebieg zapisze najnowszą dobę części albo zmieni jej
+    wejścia (close, qv, tbq), dowolną drogą; w q także wtedy, gdy zapisze albo zmieni wiersz tła karty (TD_LB + 1 dób przed najnowszą) —
+    tło ustalone po 05:30 = karta „po czasie”. hl: przy nowej najnowszej dobie poprzednia para seen przechodzi do sp (karta poprzedniej doby
+    zachowuje premię zapisaną na czas). Nic do zrobienia → bez zapytań. Brak nigdy nie jest zerem."""
+    t_start = time.monotonic()
+    now = _now_utc(); today = today or now.date(); end = today - datetime.timedelta(days=1); y = end.isoformat()
+    prev = prev if isinstance(prev, dict) else {}
+    late_run = run_t0 is not None and t_start - run_t0 > KD_LATE
+    _KD_LIM[0] = KD_T_LATE if late_run else KD_T
+    _KD_TERMIN[0] = t_start + _KD_LIM[0]
+    out = {'at': NOW, 'v': 1, 'src': KD_SRC, 'lic': {'kl': KD_LIC_KL, 'cm': CM_ATTR}, 'keep': KD_KEEP, 'wh': TD_CR_WH, 'cut': TD_CR_CUT,
+           'q': {}, 'hl': {}, 'cm': {}, 'st': {}, 'bf': {}, 'ready': False, 'rv': {'btc': 0, 'eth': 0, 'st': 0}, 'bledy': {}, 'req': 0}
+    pq = prev.get('q') if isinstance(prev.get('q'), dict) else {}
+    rows = {s: _kd_prev_q(prev, s) for s in TR_CR_SYMS}
+    before = {s: {k: v[:3] for k, v in rows[s].items()} for s in TR_CR_SYMS}
+    miss = {s: set(((pq.get(s) or {}).get('miss')) or []) for s in TR_CR_SYMS}
+    ph = prev.get('hl') if isinstance(prev.get('hl'), dict) else {}
+    pcm, pst = prev.get('cm') or {}, prev.get('st') or {}
+    out['cm'], out['st'] = pcm, pst
+    notes = []
+    try:
+        # (1) wczoraj: jedna próba, potem wszystkie pary bez wczorajszej doby
+        if now.hour >= KD_POLL_H and any(y not in rows[s] for s in TR_CR_SYMS):
+            termin = _KD_TERMIN[0]; sent = [0]
+            try:
+                probe = _kd_get(KD_DAY_URL.format(p='BTCUSDT', iv='1d', d=y), termin, sent)
+            except KdBudget:
+                raise
+            except Exception as e:  # noqa
+                probe = None; out['bledy']['_y'] = mask(f'plik {y}: {e}')[:120]
+            finally:
+                out['req'] += sent[0]                      # próba wysłana liczy się także wtedy, gdy przerwał ją termin
+            if probe is not None:
+                _kd_run_q([(s, 'd', y[:7], [y]) for s in TR_CR_SYMS if y not in rows[s]], termin, out, rows, miss, now, y, notes)
+        # (2) Coin Metrics
+        seed_cm = not all(((pcm.get(a) or {}).get('d')) for a in ('btc', 'eth'))
+        seed_st = not (pst.get('d') if isinstance(pst, dict) else None)
+        have_y = all(any(r[0] == y for r in ((pcm.get(a) or {}).get('d') or [])) for a in ('btc', 'eth')) and \
+            any(r[0] == y for r in ((pst or {}).get('d') or []))
+        if seed_cm or seed_st or (now.hour >= KD_CM_POLL_H and not have_y):
+            sent = [0]
+            try:
+                out['cm'], out['st'], out['rv'] = _kd_cm_update(prev, today, now, seed_cm, seed_st, sent)
+                if any(out['rv'].values()):
+                    META['notes'].append('Krypto dziennie: Coin Metrics przepisał dni już zapisane (w archiwum zostaje pierwsza publikacja): '
+                                         + ', '.join(f'{a} {n}' for a, n in out['rv'].items() if n))
+            except KdBudget:
+                raise
+            except Exception as e:  # noqa — poprzednie archiwum zostaje
+                out['bledy']['cm'] = mask(f'Coin Metrics: {e}')[:120]
+            finally:
+                out['req'] += sent[0]
+        # (3) premia kontraktów wieczystych (Hyperliquid)
+        pool = len(TR_CR_SYMS) if late_run else KD_HL_CALLS
+        done = {}
+        for s in TR_CR_SYMS:
+            out['hl'][s] = _kd_hl_prev(ph, s)
+            old = out['hl'][s]['d']
+            if pool <= 0:
+                done[s] = False; continue
+            try:
+                new, used, done[s] = kd_hl_coin(s, old, today, 1 if late_run else pool, only_y=late_run)
+            except KdBudget as e:
+                out['req'] += getattr(e, 'kd_req', 0)
+                raise
+            except Exception as e:  # noqa — pierwszy błąd kończy część: ta i pozostałe pary zachowują poprzednie wiersze
+                out['req'] += getattr(e, 'kd_req', 0)
+                out['bledy']['hl'] = mask(f'Hyperliquid {s}: {e}')[:120]
+                for s2 in TR_CR_SYMS[TR_CR_SYMS.index(s) + 1:]:
+                    out['hl'][s2] = _kd_hl_prev(ph, s2)
+                    done[s2] = False
+                done[s] = False
+                break
+            pool -= used; out['req'] += used
+            if new and (not old or new[-1][0] > old[-1][0]):   # najnowsza doba zapisana w tym przebiegu; poprzednia para seen → sp
+                out['hl'][s] = {'d': new, 'seen': [new[-1][0], _kd_iso_now()], 'sp': out['hl'][s]['seen']}
+            else:
+                out['hl'][s]['d'] = new
+        # (4) dopełnianie świec wstecz (nigdy wczoraj — wczoraj tylko przez (1))
+        if not late_run:
+            termin = min(_KD_TERMIN[0], time.monotonic() + KD_BUDGET)
+            tasks = []
+            for s in TR_CR_SYMS:
+                for kind, period, days in _kd_tasks([k for k in _kd_need(rows[s], miss[s], end, now) if k != y], today):
+                    tasks.append((s, kind, period, days))
+            _kd_run_q(tasks, termin, out, rows, miss, now, y, notes)
+    except KdBudget as e:
+        if str(e) not in notes:
+            notes.append(str(e))
+    for s in TR_CR_SYMS:                                       # premia par nieosiągniętych (budżet): poprzednie wiersze zostają
+        if s not in out['hl']:
+            out['hl'][s] = _kd_hl_prev(ph, s)
+    lo = (end - datetime.timedelta(days=KD_KEEP - 1)).isoformat()
+    y2 = (end - datetime.timedelta(days=1)).isoformat()
+    for s in TR_CR_SYMS:
+        ks = sorted(k for k in rows[s] if lo <= k <= y)
+        seen = (pq.get(s) or {}).get('seen')
+        if ks:
+            nk = ks[-1]
+            bg = (_d(nk) - datetime.timedelta(days=TD_LB + 1)).isoformat()   # tło karty doby nk: zamknięcia i obroty TD_LB + 1 dób przed nią
+            if any(before[s].get(k) != rows[s][k][:3] for k in ks if k >= bg):   # najnowsza doba albo jej tło zapisane/zmienione w tym przebiegu
+                seen = [nk, _kd_iso_now()]
+        out['q'][s] = {'d': [[k] + rows[s][k] for k in ks], 'seen': seen, 'miss': sorted(k for k in miss[s] if k >= lo)}
+    out['bf'] = {'q': all(not [k for k in _kd_need(rows[s], miss[s], end, now) if k < y2] for s in TR_CR_SYMS),
+                 'hl': all(bool(out['hl'][s]['d']) and out['hl'][s]['d'][-1][0] >= y2 for s in TR_CR_SYMS),
+                 'cm': all(bool(((out['cm'] or {}).get(a) or {}).get('d')) for a in ('btc', 'eth')),
+                 'st': bool(((out['st'] or {}).get('d')))}
+    out['ready'] = bool(prev.get('ready')) or all(out['bf'].values())
+    out['t'] = round(time.monotonic() - t_start, 1)
+    _KD_TERMIN[0] = None
+    if notes:
+        META['notes'].append(mask('Krypto dziennie: ' + '; '.join(notes) + ' — reszta w następnym przebiegu'))
+    if not any(out['q'][s]['d'] for s in TR_CR_SYMS):
+        raise RuntimeError('żadna para nie ma danych' + (': ' + '; '.join(out['bledy'].values())[:200] if out['bledy'] else ''))
+    if out['bledy']:
+        META['errors'].append(mask('Krypto dziennie: ' + '; '.join(out['bledy'].values())[:400]))
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -8669,6 +9703,14 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'{KC_LABEL}: {e}')); META['ok']['ceny-krypto'] = False
             if prev_kc: save('ceny-krypto', prev_kc)
+    # v125: dane dzienne sygnałów krypto (plik tylko dla zbieracza): świece 1d/1h, premia kontraktów, archiwum pierwszej publikacji
+    # przepływów BTC/ETH i zmiany podaży USDT/USDC; jeden limit czasu na całość; każda część osobno; awaria całości = poprzedni plik i błąd
+    prev_kd = previous('krypto-dzien')
+    try:
+        kd = build_krypto_dzien(prev_kd, run_t0=_RUN_T0[0]); save('krypto-dzien', kd); META['ok']['krypto-dzien'] = not kd.get('bledy')
+    except Exception as e:
+        META['errors'].append(mask(f'{KD_LABEL}: {e}')); META['ok']['krypto-dzien'] = False
+        if prev_kd: save('krypto-dzien', prev_kd)
     # v121: insiderzy spółek USA — zgłoszenia Form 4 (EDGAR, bez klucza): dzień zgłoszeń czytany raz, od 04:00 UTC dnia następnego,
     # kolejka na kilka przebiegów (budżet czasu); brak indeksu (weekend, święto) = dzień pusty, nie błąd; awaria = poprzedni plik i błąd.
     # Urząd wymaga adresu kontaktowego w User-Agent — tylko z sekretu SEC_CONTACT (maskowany w komunikatach, pilnowany przez straż kluczy);
@@ -8936,11 +9978,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'{label}: {e}')); META['ok'][label.lower()] = False
             if prev_x: save(name, prev_x)
+    _CR_LOG[0] = previous('krypto-dziennik'); _CR_LOG[1] = None   # v125: dziennik kart krypto — źródło licznika „od wdrożenia”
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
     except Exception as e:
         META['errors'].append(mask(f'trendy: {e}')); META['ok']['trendy'] = False
+    if _CR_LOG[1]:                                                 # v125: dziennik zbudowany w tym przebiegu
+        save('krypto-dziennik', _CR_LOG[1])
+    elif _td_cr_valid(_CR_LOG[0]):                                 # v2 nieaktywna albo bez dziennika w tym przebiegu: poprzedni bez zmian
+        save('krypto-dziennik', _CR_LOG[0])
     META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')

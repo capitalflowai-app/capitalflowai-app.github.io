@@ -13,6 +13,8 @@ Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez pol
   tic.csv              miesiąc × kraj — TIC SLT tabela 1 (zagranica kupuje papiery USA) i tabela 2 (USA kupują papiery zagraniczne), od 2020-01
   cftc-krypto.csv      tydzień × kontrakt × grupa — CFTC COT (TFF, futures-only) BTC i ETH na CME, 2 lata
   rentownosci.csv      dzień — rentowność 10-letnia USA (Skarb USA) i Niemiec (Bundesbank) oraz różnica, 2 lata
+  krypto-dziennik.csv  doba × moneta — dziennik kart sygnałów dziennych krypto (v125; obliczenie własne zbieracza: karta tak, jak była
+                       na stronie przed oknem pomiaru, i wynik okna 06:00 → 06:00 UTC); zbieracz odtwarza z niej zgubiony dziennik
 Zasady: operacja idempotentna (jeden wiersz na klucz; ponowne uruchomienie tego samego dnia nadpisuje ten sam dzień); brak danych
 danego dnia = brak wiersza, nigdy zero; rewizje (np. FRED) nadpisywane najnowszą wartością i zliczane w `archiwum/indeks.json`.
 Każde źródło osobno: awaria jednego nie blokuje pozostałych; kod wyjścia 1 gdy którekolwiek zawiodło (e-mail z GitHuba).
@@ -52,6 +54,9 @@ FILES = {
                     'src': 'CFTC — Commitments of Traders, Traders in Financial Futures (futures-only), BTC i ETH na CME (domena publiczna)'},
     'rentownosci': {'file': 'rentownosci.csv', 'cols': ['date', 'ust10y', 'bund10y', 'spread'], 'key': ['date'], 'back': 2,
                     'src': 'U.S. Department of the Treasury (krzywa rentowności, 10 lat) i Deutsche Bundesbank (rentowność 10-letnia, BBSIS)'},
+    'krypto-dziennik': {'file': 'krypto-dziennik.csv', 'cols': ['date', 'coin', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since'],
+                        'key': ['date', 'coin', 'v', 'since'], 'back': None,
+                        'src': 'Obliczenia własne CapitalFlowAI: dziennik kart sygnałów dziennych krypto zapisanych tak, jak były na stronie przed oknem pomiaru (n = suma głosów, votes = głosy powodów), y = zmiana ceny w oknie 06:00 → 06:00 UTC w %'},
 }
 TIC_OD = '2020-01'
 STABLE = {'USDT': zd.WH_USDT, 'USDC': zd.WH_USDC}   # oba po 6 miejsc
@@ -347,6 +352,32 @@ def src_rentownosci(today=None):
     return rent_rows(ust, buba, od.isoformat())
 
 
+def src_krypto_dziennik():
+    """v125: data/krypto-dziennik.json ze strony (obliczenie własne zbieracza: karty sygnałów dziennych krypto zapisane tak, jak były na
+    stronie przed oknem pomiaru, i wynik okna) → wiersze [doba, moneta, N, stan, głosy, zapisano, y, wersja, od]; y bez liczby = puste pole.
+    Pliku jeszcze nie ma (404: pierwsze godziny po wdrożeniu, zanim wersja 2 ruszy) albo dziennik jeszcze bez wierszy (pierwsza karta trafia
+    do niego dopiero o 06:00 UTC doby po dniu wdrożenia) → brak wierszy i uwaga, nie błąd (bez e-maila). Plik bez listy wierszy, wersji albo
+    daty wdrożenia, niepusta lista bez żadnego poprawnego wiersza albo inny błąd HTTP → wyjątek (to źródło pada osobno). Utratę dziennika
+    później zgłasza zbieracz (błąd „Dziennik krypto” w meta), a zbieracz odtwarza go z tej kopii (_td_cr_from_csv)."""
+    try:
+        d = zd.get_json(f'{SITE}/data/krypto-dziennik.json?t={int(time.time())}', timeout=60)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            NOTES.append('brak pliku dziennika na stronie (404) — nic do zapisania')
+            return []
+        raise
+    rows = d.get('rows') if isinstance(d, dict) else None
+    if not isinstance(rows, list) or not isinstance(d.get('v'), int) or isinstance(d.get('v'), bool) or not isinstance(d.get('since'), str):
+        raise RuntimeError('plik dziennika bez wierszy, wersji albo daty wdrożenia')
+    if not rows:
+        NOTES.append(f"dziennik wersji {d['v']} od {d['since']} jeszcze bez wierszy — nic do zapisania")
+        return []
+    out = [[r[0], r[1], r[2], r[3], r[4], r[5], r[6], d['v'], d['since']] for r in rows if isinstance(r, list) and len(r) == 7]
+    if not out:
+        raise RuntimeError('dziennik bez poprawnych wierszy')
+    return out
+
+
 NOTES = []   # informacje z przebiegu (część źródła bez odpowiedzi itp.) — do indeks.json, nie do kodu wyjścia
 
 SERIA_N = 400   # najwyżej tyle ostatnich punktów jednej serii w seria.json (365 dni + zapas); pełna historia zostaje w CSV
@@ -473,7 +504,8 @@ def main():
     except Exception:
         prev = None
     idx = run({'wieloryby': src_wieloryby, 'stablecoiny-eth': src_stable, 'plynnosc': lambda: src_plynnosc(key), 'tic': src_tic,
-               'cftc-krypto': src_cftc, 'rentownosci': src_rentownosci}, prev_index=prev)
+               'cftc-krypto': src_cftc, 'rentownosci': src_rentownosci,
+               'krypto-dziennik': src_krypto_dziennik}, prev_index=prev)
     summ = os.environ.get('GITHUB_STEP_SUMMARY')
     lines = [f'## Archiwum własne — {NOW.isoformat()}', '', '| plik | wiersze | od | do | nowe | rewizje | stan |', '|---|---|---|---|---|---|---|']
     for n, r in idx['files'].items():

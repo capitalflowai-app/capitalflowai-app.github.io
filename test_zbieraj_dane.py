@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -181,7 +181,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Rynki', 'Wieloryby', 'Dźwignia', 'Sieć Bitcoin', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Ceny krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Rynki', 'Wieloryby', 'Dźwignia', 'Sieć Bitcoin', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -533,7 +533,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -623,7 +623,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -756,7 +756,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1115,7 +1115,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1359,7 +1359,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1596,7 +1596,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1827,7 +1827,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2340,7 +2340,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -2639,7 +2639,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -2766,7 +2766,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -2801,7 +2801,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3177,7 +3177,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3363,7 +3363,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -4199,6 +4199,1481 @@ class TrendyDailyCrV123(unittest.TestCase):
         self.assertEqual([r['st'] for r in d], ['stale', 'stale'], 'koniec soboty UTC — karty z piątku nieaktualne')
 
 
+import math as _math_v125   # v125: deterministyczne świece i premia w zaślepkach budowniczego (moduł testów nie importował math)
+
+
+class TrendyDailyCrV125(unittest.TestCase):
+    """v125 (SPEC-v125, rewizja 2): sygnały dzienne krypto w wersji reguły 2 — pięć powodów (p, t, e, s, h) z pliku data/krypto-dzien.json,
+    dwie linie łączone (n2, all), okno 06:00 → 06:00 UTC, granica „na czas” 05:30 UTC, ocena w próbie zakresem 99,3% ze „zwykłą dobą” i obiema
+    połowami historii, dziennik kart (data/krypto-dziennik.json) z punktami kontrolnymi 100/200/400 (zakres 99,8%) i kopią w archiwum,
+    budowniczy pliku dziennego (świece, premia kontraktów, archiwum pierwszej publikacji przepływów i podaży stablecoinów) z jednym limitem
+    czasu, przebieg główny, archiwum i kontrola. Wersja 1 i świat bez zmian. Bez sieci (get_bytes / get_json / hl_post / urlopen zaślepione)
+    i bez prawdziwego zegara (_now_utc przypięty; NOW procesu nie służy do `seen`)."""
+
+    UTC = datetime.timezone.utc
+    NOW = datetime.datetime(2026, 9, 27, 9, 0, tzinfo=datetime.timezone.utc)
+    CSV0 = zd.TD_CR_CSV                                       # prawdziwa ścieżka kopii dziennika (w testach podmieniana na nieistniejącą)
+    ENV_EMPTY = ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY',
+                 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')
+    PROVIDERS = r'binance|coinbase|coin ?metrics|defillama|hyperliquid|sosovalue|coingecko|ishares|ssga'
+
+    def setUp(self):
+        import tempfile
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        self.tmp = tempfile.mkdtemp(prefix='kd-v125-')
+        net = AssertionError('sieć w teście')
+        ps = [mock.patch.object(zd, '_now_utc', return_value=self.NOW),
+              mock.patch.object(zd.urllib.request, 'urlopen', side_effect=net),
+              mock.patch.object(zd, 'get_bytes', side_effect=net), mock.patch.object(zd, 'get_json', side_effect=net),
+              mock.patch.object(zd, 'hl_post', side_effect=net),
+              mock.patch.object(zd, 'TD_CR_CSV', os.path.join(self.tmp, 'brak', 'krypto-dziennik.csv')),   # archiwum repozytorium nie wchodzi do testu
+              mock.patch.object(zd, 'KD_HL_SLEEP', 0)]
+        for p in ps:
+            p.start(); self.addCleanup(p.stop)
+        zd._CR_LOG[0] = zd._CR_LOG[1] = None
+        self.addCleanup(zd._CR_LOG.__setitem__, slice(None), [None, None])
+
+    # ---------------------------------------------------------------- pomocnicze
+    @staticmethod
+    def day(i, d0='2025-01-01'):
+        return (datetime.date.fromisoformat(d0) + datetime.timedelta(days=i)).isoformat()
+
+    @classmethod
+    def at(cls, d, hh=0, mm=0):
+        d = d if isinstance(d, datetime.date) else datetime.date.fromisoformat(d)
+        return datetime.datetime.combine(d, datetime.time(hh, mm), cls.UTC)
+
+    @classmethod
+    def kd_synth(cls, n=200, syms=('BTC', 'SOL'), seed=7, taker=None, net=None, pub_late=(), d0='2025-01-01'):
+        """Mały plik krypto-dzien (n dób od d0, 5 kolumn q, premia 24 h, przepływy BTC/ETH, podaż stablecoinów z kolumną zmiany doby).
+        Losowość tylko z random() (ten sam ciąg liczb na każdej platformie i wersji Pythona) — bez funkcji biblioteki matematycznej."""
+        import random
+        r = random.Random(seed).random
+
+        def nz():
+            return (r() + r() + r() + r() - 2.0) * 1.7        # ≈ rozkład normalny (0, 1), sama arytmetyka
+        kd = {'q': {}, 'hl': {}, 'cm': {}, 'st': {'d': []}, 'ready': True}
+        for s in syms:
+            c = 100.0; rows = []
+            for i in range(n):
+                c *= 1 + 0.02 * nz()
+                qv = 1_000_000; tb = int(qv * (taker(i) if taker else 0.5 + 0.02 * nz()))
+                rows.append([cls.day(i, d0), round(c, 4), qv, tb, round(c * (1 + 0.005 * nz()), 4)])
+            kd['q'][s] = {'d': rows, 'seen': [cls.day(n - 1, d0), cls.day(n, d0) + 'T02:40:00Z'], 'miss': []}
+            kd['hl'][s] = {'d': [[cls.day(i, d0), round(0.5 + 0.3 * nz(), 4), 24] for i in range(n)], 'seen': [cls.day(n - 1, d0), cls.day(n, d0) + 'T00:20:00Z']}
+        S = 1e11; prev = None
+        for i in range(n):
+            S += 1e8 + 2e8 * nz()
+            kd['st']['d'].append([cls.day(i, d0), int(S * 0.7), int(S * 0.3), None, None, None if prev is None else int(round(S - prev))]); prev = S
+        for a in ('btc', 'eth'):
+            kd['cm'][a] = {'d': [[cls.day(i, d0), 1000.0 + (net(i) if net else 100 * nz()), 1000.0,
+                                  cls.day(i + 1, d0) + ('T07:00:00Z' if i in pub_late else 'T02:30:00Z'), None] for i in range(n)]}
+        return kd
+
+    @staticmethod
+    def core(kd, now, log=None):
+        """build_daily_cr2 bez meta i bez dziennika (jak build_daily_cr2_core sędziego) → (karty, linie, serie, pary linii, ys)."""
+        today = now.date()
+        series = [x for x in (zd._td_series_cr2(kd, s, today) for s in zd.TR_CR_SYMS) if x]
+        lines = {k: [] for k in zd.TD_RULES_CR2}; own = {}; ys = {}
+        for s in series:
+            ys[s['id']] = {s['dates'][i]: y for i in range(len(s['dates'])) for y in [zd._td_win(s, i)] if y is not None}
+            for d, k, v, hit in zd._td_pairs_cr2(s):
+                lines[('cr', k)].append((d, hit, s['id'], v))
+                if k == 'all':
+                    o = own.setdefault(s['id'], [0, 0]); o[0] += hit; o[1] += 1
+        bd = zd._td_pool_cr2(lines, ys, log=log, today=today)
+        vd = {(b['fam'], b['rule']): b['vd'] for b in bd}
+        return [zd._td_row_cr2(s, vd, own, today, now) for s in series], bd, series, lines, ys
+
+    @classmethod
+    def mk_s(cls, last=None, n=61, sym='BTC', end='2026-09-26', late=False, on=None):
+        """Seria ręczna do kart: każde wejście na przemian +1 / −1 (średnia 0, rozrzut 1), ostatnia doba = last[k] (brak klucza: 0,5 —
+        w zwykłym zakresie). ±10 strzela, ±3 mocno. Wejście e tylko dla par z TD_CR_FLOWS."""
+        e0 = datetime.date.fromisoformat(end)
+        dates = [(e0 - datetime.timedelta(days=n - 1 - i)).isoformat() for i in range(n)]
+        keys = ('p', 't', 'e', 's', 'h') if sym in zd.TD_CR_FLOWS else ('p', 't', 's', 'h')
+        base = [(-1.0) ** i for i in range(n - 1)]
+        inp = {k: base + [(last or {}).get(k, 0.5)] for k in keys}
+        onf = {k: [True] * n for k in keys if k != 'p' and k != 't'}
+        for k, v in (on or {}).items():
+            onf[k][-1] = v
+        return {'id': sym, 'sym': sym, 'dates': dates, 'close': [100.0] * n, 'o6': [100.0] * n, 'in': inp, 'on': onf, 'late': late}
+
+    @staticmethod
+    def dump(x):
+        return json.dumps(x, ensure_ascii=False, separators=(',', ':'))   # jak save(): te same bajty co w pliku
+
+    class Zegar:
+        """Umowny zegar monotoniczny do testów terminu budowniczego (testy bez zegara): stoi w miejscu, dopóki atrapa źródła nie „odczeka”
+        opóźnienia odpowiedzi — sleep przesuwa go od razu, bez prawdziwego czekania. Podstawiany jako zd.time, czyli tylko w module zbieracza
+        (pozostałe funkcje modułu time bez zmian; wątki biblioteki standardowej mają własny zegar), więc wynik nie zależy od szybkości ani
+        obciążenia maszyny. Z KD_THREADS = 1 kolejność zapytań i wskazania zegara są za każdym razem te same."""
+
+        def __init__(self, t0=1000.0):
+            import threading as _th
+            self.t = float(t0); self._lock = _th.Lock()
+
+        def monotonic(self):
+            with self._lock:
+                return self.t
+
+        def sleep(self, s):
+            with self._lock:
+                self.t += max(0.0, float(s))
+
+        def __getattr__(self, name):
+            import time as _t
+            return getattr(_t, name)
+
+    class Fake:
+        """Źródła bez sieci (deterministyczne): plik świec doby D jest od D+1 02:10 (miesięczny — od 02:10 pierwszego dnia następnego
+        miesiąca), premia kontraktów do `now` (albo do hl_until), Coin Metrics do wczoraj z czasem statusu D+1 02:30. gap = doby bez pliku
+        (dziennego i w miesięcznym), no1h = doby bez dziennego pliku 1h, hl_bad = godziny z premią nie-liczbą, rewritten = doby przepisane
+        później (czas statusu po 200 dniach), no_eod = doby przepływów bez znacznika końca doby, usdc_no_eod = doby USDC bez znacznika,
+        st_shift = przeliczenie całej historii poziomów stablecoinów (USD), flow_shift = przeliczenie przepływów BTC/ETH (monety).
+        delay(rodzaj, adres) = opóźnienie odpowiedzi w s (rodzaj 'b' świece, 'j' Coin Metrics, 'h' premia); honor = limit zapytania jak
+        w urllib (odpowiedź wolniejsza niż limit → po limicie TimeoutError). tmo = [(rodzaj, limit, pozostały czas budowniczego, adres)]."""
+
+        def __init__(self, now, month_ok=True, hl_sleep=0.0, hl_fail=(), st_shift=0.0, rewritten=(), gap=(), no1h=(), hl_until=None,
+                     hl_bad=(), no_eod=(), usdc_no_eod=(), flow_shift=0.0, delay=None, honor=False):
+            self.now = now; self.month_ok = month_ok; self.hl_sleep = hl_sleep; self.hl_fail = set(hl_fail); self.st_shift = st_shift
+            self.rewritten = set(rewritten); self.gap = set(gap); self.no1h = set(no1h); self.hl_until = hl_until or now
+            self.hl_bad = set(hl_bad); self.no_eod = set(no_eod); self.usdc_no_eod = set(usdc_no_eod)
+            self.flow_shift = flow_shift; self.delay = delay; self.honor = honor
+            self.bytes = []; self.json = []; self.hl = []; self.tmo = []
+
+        def wait(self, kind, timeout, url=''):
+            clock = zd.time                          # moduł time zbieracza: prawdziwy albo umowny zegar testu (Zegar) — ten sam, który czyta termin
+            T = zd._KD_TERMIN[0]
+            self.tmo.append((kind, timeout, None if T is None else T - clock.monotonic(), url))
+            d = self.delay(kind, url) if self.delay else 0.0
+            if self.honor and timeout is not None and d > timeout:
+                clock.sleep(timeout); raise TimeoutError('timed out')
+            if d:
+                clock.sleep(d)
+
+        @staticmethod
+        def ms(dt):
+            return int(dt.timestamp() * 1000)
+
+        @staticmethod
+        def at(d, hh=0, mm=0):
+            return datetime.datetime.combine(d, datetime.time(hh, mm), datetime.timezone.utc)
+
+        @staticmethod
+        def close(sym, d):
+            return round(100 + 10 * _math_v125.sin(d.toordinal() / 7 + len(sym)) + sum(map(ord, sym)) % 7, 4)
+
+        def kl_rows(self, sym, days, iv):
+            import io as _io, zipfile as _zf
+            out = []
+            for d in days:
+                if iv == '1d':
+                    t = self.ms(self.at(d)) * (1000 if d.year >= 2025 else 1)       # µs od 2025 r., jak w prawdziwych plikach
+                    c = self.close(sym, d); qv = 1e9 + d.toordinal() % 97 * 1e6; tb = qv * (0.5 + 0.03 * _math_v125.sin(d.toordinal()))
+                    out.append([t, c, c, c, c, 1, t + 1, qv, 10, 1, tb, 0])
+                else:
+                    for hh in (5, 6, 7):
+                        t = self.ms(self.at(d, hh)) * (1000 if d.year >= 2025 else 1)
+                        o = self.close(sym, d) * (1 + hh / 1000)
+                        out.append([t, o, o, o, o, 1, t + 1, 1, 1, 1, 1, 0])
+            b = _io.BytesIO()
+            with _zf.ZipFile(b, 'w') as z:
+                z.writestr('x.csv', ''.join(','.join(str(x) for x in r) + '\n' for r in out))
+            return b.getvalue()
+
+        def get_bytes(self, url, headers=None, timeout=60):
+            import urllib.error as _ue
+            self.bytes.append(url); self.wait('b', timeout, url)
+            f = url.rsplit('/', 1)[1][:-4]                       # BTCUSDT-1d-2025-06-10 / BTCUSDT-1d-2025-05
+            p, iv, per = f.split('-', 2)
+            sym = p[:-4]
+            nf = _ue.HTTPError(url, 404, 'nf', {}, None)
+            if len(per) == 7:
+                y, m = map(int, per.split('-'))
+                first = datetime.date(y, m, 1); nxt = datetime.date(y + m // 12, m % 12 + 1, 1)
+                if not self.month_ok or self.at(nxt, 2, 10) > self.now:
+                    raise nf
+                return self.kl_rows(sym, [first + datetime.timedelta(days=i) for i in range((nxt - first).days)
+                                          if (first + datetime.timedelta(days=i)).isoformat() not in self.gap], iv)
+            d = datetime.date.fromisoformat(per)
+            if per in self.gap or self.at(d + datetime.timedelta(days=1), 2, 10) > self.now or (iv == '1h' and per in self.no1h):
+                raise nf
+            return self.kl_rows(sym, [d], iv)
+
+        def hl_post(self, body, timeout=None):
+            self.hl.append(body); self.wait('h', timeout, body['coin'])
+            if body['coin'] in self.hl_fail:
+                raise TimeoutError('timed out')
+            if self.hl_sleep:
+                zd.time.sleep(self.hl_sleep)
+            t0 = body['startTime']; out = []
+            t = (t0 // 3600000 + (1 if t0 % 3600000 else 0)) * 3600000
+            while t <= self.ms(min(self.now, self.hl_until)) and len(out) < 500:
+                prem = 'x' if t in self.hl_bad else '%.8f' % (0.0001 * _math_v125.sin(t / 3.6e6 / 5))
+                out.append({'coin': body['coin'], 'time': t, 'premium': prem, 'fundingRate': '0.0000125'})
+                t += 3600000
+            return out
+
+        def lv(self, d, a):
+            base = 1.5e11 if a == 'usdt' else 7e10
+            return base + 1e8 * (d.toordinal() % 400) + 3e7 * _math_v125.sin(d.toordinal()) + self.st_shift
+
+        def get_json(self, url, headers=None, timeout=30):
+            self.json.append(url); self.wait('j', timeout, url)
+            start = datetime.date.fromisoformat(url.split('start_time=')[1][:10])
+            y = self.now.date() - datetime.timedelta(days=1)
+            rows = []; d = start
+            while d <= y:
+                pub = self.at(d + datetime.timedelta(days=1), 2, 30)
+                if pub > self.now:
+                    break
+                iso = (pub if d.isoformat() not in self.rewritten else self.at(d + datetime.timedelta(days=200))).strftime('%Y-%m-%dT%H:%M:%S.000000000Z')
+                if 'FlowInExNtv' in url:
+                    for a in ('btc', 'eth'):
+                        r = {'asset': a, 'time': d.isoformat() + 'T00:00:00.000000000Z', 'FlowInExNtv': str(1000 + d.toordinal() % 50 + self.flow_shift),
+                             'FlowOutExNtv': '1000', 'FlowInExNtv-status-time': iso, 'FlowOutExNtv-status-time': iso}
+                        if d.isoformat() not in self.no_eod:
+                            r['AssetEODCompletionTime'] = iso
+                        rows.append(r)
+                else:
+                    for a in ('usdt', 'usdc'):
+                        r = {'asset': a, 'time': d.isoformat() + 'T00:00:00.000000000Z', 'SplyCur': str(self.lv(d, a))}
+                        if not (a == 'usdc' and d.isoformat() in self.usdc_no_eod):
+                            r['AssetEODCompletionTime'] = iso
+                        rows.append(r)
+                d += datetime.timedelta(days=1)
+            return {'data': rows}
+
+    def run_kd(self, fake, prev=None, run_t0=None):
+        with mock.patch.object(zd, 'get_bytes', fake.get_bytes), mock.patch.object(zd, 'get_json', fake.get_json), \
+                mock.patch.object(zd, 'hl_post', fake.hl_post), mock.patch.object(zd, '_now_utc', lambda: fake.now), \
+                mock.patch.object(zd, 'KD_KEEP', 90):
+            return zd.build_krypto_dzien(prev, run_t0=run_t0)
+
+    def seeded(self, d, hh=10):
+        """Pełny plik na dobę d, godz. hh (kilka przebiegów, aż ready) — okno KD_KEEP = 90 dób dla szybkości testu."""
+        kd = None
+        for i in range(12):
+            kd = self.run_kd(self.Fake(self.at(d, hh, i)), kd)
+            if kd['ready']:
+                return kd
+        self.fail('bez ready po 12 przebiegach: ' + json.dumps(kd['bf']))
+
+    # ---------------------------------------------------------------- 1–2: stałe i granica czasu
+    def test_constants(self):
+        import inspect
+        self.assertEqual(zd.TD_VC2, 2); self.assertEqual([k for _, k in zd.TD_RULES_CR2], ['p', 't', 'e', 's', 'h', 'n2', 'all'])
+        self.assertEqual({f for f, _ in zd.TD_RULES_CR2}, {'cr'}); self.assertEqual(zd.TD_CR_M, 7)
+        self.assertEqual(round(zd.TD_CR_ZM, 4), 2.6901); self.assertEqual(zd.TD_CR_CL, 99.3); self.assertEqual(zd.TD_CR_LOOKS, (100, 200, 400))
+        self.assertEqual(round(zd.TD_CR_ZL, 4), 3.0381); self.assertEqual(zd.TD_CR_CLL, 99.8); self.assertEqual(round(zd.TD_CR_ZP, 4), 0.8416)
+        self.assertEqual((zd.TD_CR_WH, zd.TD_CR_CUT, zd.TD_CR_HMIN, zd.TD_CR_Y1), (6, 330, 20, 365))
+        # punkt kontrolny dopiero wtedy, gdy wynik doby jest ostateczny: świeca 06:00 doby D+2 jest ponawiana, dopóki ta doba ma < KD_GAP_H
+        # godzin (do D+5 00:00) — TD_CR_SETTLE = 5 (przegląd 27.09; było 4)
+        self.assertEqual(zd.TD_CR_SETTLE, 5); self.assertGreaterEqual(zd.TD_CR_SETTLE * 24, 2 * 24 + 24 + zd.KD_GAP_H)
+        self.assertEqual(zd.TD_CR_IN, (('p', 1), ('t', 1), ('e', -1), ('s', 1), ('h', -1))); self.assertEqual(zd.TD_CR_FLOWS, ('BTC', 'ETH'))
+        self.assertEqual(zd.TD_CR_JST, ('buy', 'sell', 'obs', 'x', 'quiet')); self.assertEqual(zd.TD_CR_DIG, {'p': 2, 't': 1, 'e': 0, 's': 0, 'h': 4})
+        self.assertEqual(zd.TD_CR_CSV_COLS, ['date', 'coin', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since'])
+        self.assertEqual(self.CSV0, os.path.join(os.path.dirname(os.path.abspath(zd.__file__)), 'archiwum', 'krypto-dziennik.csv'))
+        self.assertIsNotNone(zd._d(zd.TD_SINCE_CR2)); self.assertGreaterEqual(zd.TD_SINCE_CR2, '2026-09-28', 'data wdrożenia wersji 2 (ustawiana przy wydaniu)')
+        self.assertFalse(hasattr(zd, 'TD_CR_LOG_KEEP'), 'wiersze dziennika nigdy nie są usuwane')
+        self.assertEqual((zd.KD_KEEP, zd.KD_T, zd.KD_T_LATE, zd.KD_LATE, zd.KD_BUDGET, zd.KD_THREADS, zd.KD_TIMEOUT, zd.KD_CM_TIMEOUT), (1100, 60, 20, 480, 40, 4, 20, 30))
+        self.assertEqual((zd.KD_POLL_H, zd.KD_GAP_H, zd.KD_HL_CALLS, zd.KD_CM_POLL_H, zd.KD_CM_DAYS, zd.KD_CM_DONE_M, zd.KD_LABEL), (2, 48, 20, 1, 5, 270, 'Krypto dziennie'))
+        self.assertTrue(zd.KD_CM_F.startswith(zd.CM_API) and zd.KD_CM_S.startswith(zd.CM_API)); self.assertNotIn('api_key', zd.KD_CM_F + zd.KD_CM_S, 'bez klucza')
+        # wersja 1 i świat bez zmian
+        self.assertEqual((zd.TD_VC, zd.TD_SINCE_CR, zd.TD_RULES_CR), (1, '2026-09-28', (('cr', 'p'),)))
+        self.assertEqual((zd.TD_V, zd.TD_SINCE, len(zd.TD_RULES)), (1, '2026-09-28', 7)); self.assertIn('cr', zd.TD_EXCLUDED)
+        self.assertEqual([(b['fam'], b['rule']) for b in zd._td_pool({})], list(zd.TD_RULES), '_td_pool({}) nadal 7 linii świata')
+        # żadnego progu ani wyjątku na parę w regułach wersji 2 (przepływy wyłącznie przez TD_CR_FLOWS)
+        src = ''.join(inspect.getsource(f) for f in (zd._td_series_cr2, zd._td_votes, zd._td_win, zd._td_pairs_cr2, zd._td_vd_cr2, zd._td_stat,
+                                                     zd._td_side, zd._td_y1, zd._td_pool_cr2, zd._td_row_cr2, zd._td_cr_pairs, zd._td_cr_cp,
+                                                     zd._td_cr_log, zd.build_daily_cr2))
+        for sym in zd.TR_CR_SYMS:
+            self.assertNotRegex(src, "'" + sym + "'", sym); self.assertNotRegex(src, "'" + sym.lower() + "'", sym)
+
+    def test_cut(self):
+        self.assertEqual(zd._td_cut('2026-09-26'), '2026-09-27T05:30:00'); self.assertEqual(zd._td_cut('2026-12-31'), '2027-01-01T05:30:00')
+        self.assertTrue(zd._td_early('2026-09-27T05:29:59Z', '2026-09-26')); self.assertTrue(zd._td_early('2026-09-27T05:29:59+00:00', '2026-09-26'))
+        self.assertFalse(zd._td_early('2026-09-27T05:30:00+00:00', '2026-09-26'), '05:30:00 to już po czasie')
+        self.assertFalse(zd._td_early(None, '2026-09-26')); self.assertFalse(zd._td_early('', '2026-09-26')); self.assertFalse(zd._td_early('2026-09-27', '2026-09-26'))
+        self.assertEqual(zd._td_cal('2026-02-27', '2026-03-02'), ['2026-02-27', '2026-02-28', '2026-03-01', '2026-03-02'])
+
+    # ---------------------------------------------------------------- 3–4: seria i „na czas”
+    def test_series(self):
+        import copy
+        d = self.day
+        kd = self.kd_synth(60, syms=('BTC', 'ETH', 'SOL')); kd0 = copy.deepcopy(kd)
+        s = zd._td_series_cr2(kd, 'SOL', datetime.date(2025, 3, 30))
+        self.assertEqual(kd, kd0, 'seria nie zmienia pliku')
+        self.assertEqual((s['id'], s['sym'], len(s['dates']), s['dates'][0], s['dates'][-1]), ('SOL', 'SOL', 60, d(0), d(59)))
+        self.assertNotIn('e', s['in'], 'przepływy tylko dla BTC i ETH'); self.assertNotIn('e', s['on'])
+        self.assertIn('e', zd._td_series_cr2(kd, 'BTC', datetime.date(2025, 3, 30))['in']); self.assertIn('e', zd._td_series_cr2(kd, 'ETH', datetime.date(2025, 3, 30))['in'])
+        del kd['q']['SOL']['d'][30]
+        s = zd._td_series_cr2(kd, 'SOL', datetime.date(2025, 3, 30))
+        i = s['dates'].index(d(30))
+        self.assertEqual(len(s['dates']), 60, 'oś kalendarzowa — luka zostaje dobą z brakiem')
+        for k in ('close', 'o6'):
+            self.assertIsNone(s[k][i], k)
+        self.assertIsNone(s['in']['p'][i]); self.assertIsNone(s['in']['p'][i + 1], 'zmiana przez lukę: brak po obu stronach, nigdy 0'); self.assertIsNone(s['in']['t'][i])
+        r = kd['q']['SOL']['d'][5]; self.assertAlmostEqual(s['in']['t'][5], 100 * (2 * r[3] / r[2] - 1))
+        self.assertAlmostEqual(s['in']['p'][5], (kd['q']['SOL']['d'][5][1] / kd['q']['SOL']['d'][4][1] - 1) * 100)
+        self.assertAlmostEqual(s['in']['h'][5], kd['hl']['SOL']['d'][5][1] / 100)
+        self.assertAlmostEqual(s['in']['s'][5], kd['st']['d'][5][5] / 1e6, msg='s = zapisana pierwsza zmiana doby')
+        self.assertIsNone(s['in']['s'][0], 'pierwsza zapisana doba: zmiana nieznana'); self.assertIsNone(s['in']['p'][0])
+        # t: None, gdy obrót brak / 0, obrót kupujących brak albo większy od obrotu
+        q = kd['q']['SOL']['d']
+        q[10][2] = None; q[11][2] = 0; q[12][3] = None; q[13][3] = q[13][2] + 1; q[14][3] = 0
+        kd['hl']['SOL']['d'][15][2] = 19; kd['hl']['SOL']['d'][16][2] = 20; kd['st']['d'][17][5] = None
+        s = zd._td_series_cr2(kd, 'SOL', datetime.date(2025, 3, 30))
+        self.assertEqual([s['in']['t'][k] for k in (10, 11, 12, 13)], [None] * 4); self.assertEqual(s['in']['t'][14], -100.0, 'zero kupujących to liczba')
+        self.assertIsNone(s['in']['h'][15], 'mniej niż 20 godzin premii'); self.assertIsNotNone(s['in']['h'][16])
+        self.assertIsNone(s['in']['s'][17], 'wiersz bez zapisanej zmiany = brak, nigdy różnica poziomów')
+        self.assertIsNotNone(s['in']['s'][18])
+        # dzisiejsza doba odrzucona; daty muszą rosnąć
+        kd = self.kd_synth(50)
+        self.assertEqual(zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(49)))['dates'][-1], d(48))
+        self.assertIsNone(zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(1))), 'jedna doba — bez serii')
+        self.assertIsNone(zd._td_series_cr2(kd, 'ETH', datetime.date(2026, 1, 1)), 'brak pary w pliku — bez serii')
+        self.assertIsNone(zd._td_series_cr2({}, 'BTC', datetime.date(2026, 1, 1))); self.assertIsNone(zd._td_series_cr2(None, 'BTC', datetime.date(2026, 1, 1)))
+        bad = copy.deepcopy(kd); bad['q']['BTC']['d'][10][0] = d(9)
+        with self.assertRaises(ValueError):
+            zd._td_series_cr2(bad, 'BTC', datetime.date(2026, 1, 1))
+        bad = copy.deepcopy(kd); bad['q']['BTC']['d'].insert(11, list(bad['q']['BTC']['d'][10]))
+        with self.assertRaises(ValueError):
+            zd._td_series_cr2(bad, 'BTC', datetime.date(2026, 1, 1))
+        bad = copy.deepcopy(kd); bad['q']['BTC']['d'][5] = bad['q']['BTC']['d'][5][:4]; bad['q']['BTC']['d'][6][1] = 0
+        self.assertEqual(len(zd._td_series_cr2(bad, 'BTC', datetime.date(2026, 1, 1))['dates']), 50, 'wiersz 4-kolumnowy i zamknięcie 0 — doby z brakiem')
+        self.assertIsNone(zd._td_series_cr2(bad, 'BTC', datetime.date(2026, 1, 1))['close'][6])
+        # przeliczenie całej historii poziomów stablecoinów nie zmienia s (zmiana doby zapisana z jednej odpowiedzi)
+        kd = self.kd_synth(120); s1 = zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(120)))
+        for r in kd['st']['d'][:100]:
+            r[1] -= 235_000_000
+        self.assertEqual(zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(120)))['in']['s'], s1['in']['s'])
+
+    def test_on_time(self):
+        d = self.day
+        kd = self.kd_synth(80, syms=('BTC',), pub_late=(70,))
+        kd['q']['BTC']['seen'] = [d(79), d(80) + 'T05:31:00Z']; kd['hl']['BTC']['seen'] = [d(79), d(80) + 'T06:10:00Z']
+        kd['st']['d'][75][3] = d(76) + 'T05:30:00Z'; kd['st']['d'][73][4] = d(74) + 'T05:30:00Z'
+        kd['cm']['btc']['d'][60][4] = d(61) + 'T05:30:00Z'; kd['cm']['btc']['d'][61][4] = d(62) + 'T05:29:00Z'
+        s = zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(80)))
+        self.assertFalse(s['on']['e'][70], 'publikacja dostawcy ≥ 05:30'); self.assertIsNotNone(s['in']['e'][70], 'wartość po czasie zostaje w tle')
+        self.assertTrue(s['on']['e'][69]); self.assertFalse(s['on']['e'][60], 'zapis ≥ 05:30'); self.assertTrue(s['on']['e'][61])
+        self.assertFalse(s['on']['s'][75], 'publikacja stablecoinów ≥ 05:30'); self.assertFalse(s['on']['s'][73], 'zapis stablecoinów ≥ 05:30')
+        self.assertTrue(s['on']['s'][74], 'nieznany czas publikacji = na czas (historia sprzed 28.04.2026)')
+        self.assertFalse(s['on']['h'][-1]); self.assertTrue(s['late']); self.assertTrue(all(s['on']['h'][:-1]), 'historia premii — na czas')
+        kd = self.kd_synth(80, syms=('BTC',)); t = datetime.date.fromisoformat(d(80))
+        s = zd._td_series_cr2(kd, 'BTC', t); self.assertFalse(s['late']); self.assertTrue(s['on']['h'][-1])
+        for seen in (None, [d(78), d(79) + 'T02:40:00Z'], [d(79)], 'x', [d(79), None], [d(79), '']):
+            kd['q']['BTC']['seen'] = seen; kd['hl']['BTC']['seen'] = seen
+            s = zd._td_series_cr2(kd, 'BTC', t)
+            self.assertTrue(s['late'], f'nieznany zapis najnowszej doby albo inna doba = po czasie ({seen})'); self.assertFalse(s['on']['h'][-1], seen)
+        kd['cm']['btc']['d'][79][3] = None
+        self.assertFalse(zd._td_series_cr2(kd, 'BTC', t)['on']['e'][-1], 'przepływ bez czasu publikacji — nie na czas')
+        # premia: noc po dobie danych — premia doby 80 zapisana 00:20 (seen), świece 80 jeszcze nie; premia doby 79 zapisana na czas (sp)
+        kd = self.kd_synth(80, syms=('BTC',)); kd['hl']['BTC']['d'].append([d(80), 1.0, 24])
+        kd['hl']['BTC']['seen'] = [d(80), d(81) + 'T00:20:00Z']; kd['hl']['BTC']['sp'] = [d(79), d(80) + 'T00:20:00Z']
+        s = zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(81)))
+        self.assertEqual(s['dates'][-1], d(79)); self.assertTrue(s['on']['h'][-1], 'premia doby 79 zapisana na czas (sp) — głos zostaje')
+        for sp in (None, [d(79), d(80) + 'T05:30:00Z'], [d(78), d(79) + 'T00:20:00Z'], [d(79)], 'x'):
+            kd['hl']['BTC']['sp'] = sp
+            self.assertFalse(zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(81)))['on']['h'][-1], f'sp nieznane, po czasie albo innej doby ({sp})')
+        kd['hl']['BTC']['sp'] = [d(79), d(80) + 'T00:20:00Z']; kd['q']['BTC']['seen'] = [d(79), d(80) + 'T05:31:00Z']
+        self.assertTrue(zd._td_series_cr2(kd, 'BTC', datetime.date.fromisoformat(d(81)))['late'], 'sp dotyczy tylko premii, nie świec')
+        # tło najnowszej doby (TD_LB dób przed nią) zapisane od jej granicy → wejście najnowszej doby po czasie (wartość i z zostają)
+        kd = self.kd_synth(80, syms=('BTC',)); t = datetime.date.fromisoformat(d(80)); cut = d(80) + 'T05:30:00Z'
+        s0 = zd._td_series_cr2(kd, 'BTC', t); self.assertTrue(s0['on']['e'][-1] and s0['on']['s'][-1])
+        for i, ok in ((70, False), (19, False), (18, True)):
+            k2 = json.loads(json.dumps(kd)); k2['cm']['btc']['d'][i][4] = cut; k2['st']['d'][i][4] = cut
+            s = zd._td_series_cr2(k2, 'BTC', t)
+            self.assertEqual((s['on']['e'][-1], s['on']['s'][-1]), (ok, ok), f'wiersz tła {i} zapisany {cut}')
+            self.assertEqual((s['in']['e'][-1], s['in']['s'][-1]), (s0['in']['e'][-1], s0['in']['s'][-1]))
+            self.assertEqual(s['on']['e'][:-1], s0['on']['e'][:-1][:i] + [False] + s0['on']['e'][i + 1:-1], 'historia: tylko sam wiersz')
+        k2 = json.loads(json.dumps(kd)); k2['cm']['btc']['d'][70][4] = d(80) + 'T05:29:59Z'; k2['st']['d'][70][4] = d(80) + 'T05:29:59Z'
+        s = zd._td_series_cr2(k2, 'BTC', t); self.assertTrue(s['on']['e'][-1] and s['on']['s'][-1], 'tło zapisane przed granicą — na czas')
+
+    # ---------------------------------------------------------------- 5–6: głosy, okno, pary
+    def test_votes(self):
+        up = self.mk_s({'p': 10, 't': 10, 'e': 10, 's': 10, 'h': 10}); dn = self.mk_s({k: -10 for k in 'ptesh'})
+        V, N = zd._td_votes(up, 60)
+        self.assertEqual({k: V[k][2] for k in V}, {'p': 1, 't': 1, 'e': -1, 's': 1, 'h': -1}, 'kierunki z założenia'); self.assertEqual(N, 1)
+        V, N = zd._td_votes(dn, 60)
+        self.assertEqual({k: V[k][2] for k in V}, {'p': -1, 't': -1, 'e': 1, 's': -1, 'h': 1}); self.assertEqual(N, -1)
+        self.assertEqual(list(V), ['p', 't', 'e', 's', 'h'])
+        V, N = zd._td_votes(self.mk_s(), 60)
+        self.assertEqual(({k: V[k][2] for k in V}, N), ({k: 0 for k in 'ptesh'}, 0), '|z| < 1 → bez głosu')
+        self.assertTrue(all(abs(V[k][1]) < 1 for k in V))
+        late = self.mk_s({'e': 10}, on={'e': False})
+        V, N = zd._td_votes(late, 60)
+        self.assertEqual(V['e'][2], 0); self.assertFalse(V['e'][3]); self.assertGreater(V['e'][1], 1, 'z zostaje do opisu'); self.assertEqual(V['e'][0], 10)
+        V, N = zd._td_votes(self.mk_s({'p': None, 't': 10}, sym='SOL'), 60)
+        self.assertNotIn('e', V); self.assertEqual((V['p'][1], V['p'][2]), (None, 0), 'brak liczby → bez z i bez głosu'); self.assertEqual(N, 1)
+
+    def test_window_and_pairs(self):
+        s = {'dates': [self.day(i) for i in range(7)], 'o6': [100.0, 100.0, 110.0, 110.0, 99.0, None, 120.0]}
+        self.assertAlmostEqual(zd._td_win(s, 0), 10.0, msg='O6(i+2) / O6(i+1) − 1'); self.assertEqual(zd._td_win(s, 1), 0.0)
+        self.assertAlmostEqual(zd._td_win(s, 2), -10.0); self.assertIsNone(zd._td_win(s, 3), 'brak otwarcia → brak'); self.assertIsNone(zd._td_win(s, 5))
+        self.assertIsNone(zd._td_win(s, 6))
+        V = lambda **kv: {k: (1.0, 1.5 * g if g else 0.2, g, True) for k, g in kv.items()}
+        votes = [(V(p=1, t=1, h=0), 2), (V(t=1), 1), (V(p=1, h=-1), 0), (V(e=-1, s=0), -1), (V(p=0), 0), (V(p=1), 1), (V(t=1), 1)]
+        pr = zd._td_pairs_cr2(s, votes=votes)
+        self.assertEqual(pr, [(self.day(0), 'p', 1, 1), (self.day(0), 't', 1, 1), (self.day(0), 'n2', 1, 1), (self.day(0), 'all', 1, 1),
+                              (self.day(2), 'p', 1, 0), (self.day(2), 'h', -1, 1)],
+                         '|N| ≥ 2 → n2 i all; y = 0 → bez pary; sprzeczność → tylko pary wejść; brak wyniku → bez pary')
+        s['o6'][5] = 90.0
+        pr = zd._td_pairs_cr2(s, votes=votes)
+        self.assertIn((self.day(3), 'e', -1, 1), pr); self.assertIn((self.day(3), 'all', -1, 1), pr); self.assertNotIn((self.day(3), 'n2', -1, 1), pr, 'N = −1: tylko all')
+        self.assertFalse([p for p in pr if p[0] == self.day(4)], 'bez głosów — bez par')
+
+    # ---------------------------------------------------------------- 7: linie
+    def _pool(self, hits, rule='t', vote=1, ys=None, today=None, log=None):
+        lines = {k: [] for k in zd.TD_RULES_CR2}
+        for dd, h in hits:
+            lines[('cr', rule)].append((dd, h, 'BTC', vote))
+        ys = ys or {'BTC': {self.day(i): (1 if i % 2 == 0 else -1) for i in range(2000)}}
+        return {b['rule']: b for b in zd._td_pool_cr2(lines, ys, log=log, today=today or datetime.date(2030, 1, 1))}
+
+    def test_pool(self):
+        H = [(self.day(i), 1 if i % 100 < 56 else 0) for i in range(400)]     # 56% w 400 dniach: 95% nad 50, 99,3% nie
+        b = self._pool(H)['t']
+        self.assertGreater(b['ci'][0], 50); self.assertLess(b['ca'][0], 50); self.assertEqual(b['vd'], 'none')
+        self.assertEqual((b['k'], b['n'], b['days'], b['p'], b['b0'], b['m'], b['cl'], b['M'], b['cll']), (224, 400, 400, 56.0, 50.0, 1, 99.3, 7, 99.8))
+        self.assertEqual(b['ca'], list(zd.wilson(224, 400, z=zd.TD_CR_ZM, n_eff=400))); self.assertEqual(b['ci'], list(zd.wilson(224, 400, n_eff=400)))
+        sq = _math_v125.sqrt(0.5 * 0.5 / 400)
+        self.assertEqual((b['thr'], b['mde']), (round(50 + 100 * zd.TD_CR_ZM * sq, 1), round(50 + 100 * (zd.TD_CR_ZM + zd.TD_CR_ZP) * sq, 1)))
+        H = [(self.day(i), 1 if i % 100 < 64 else 0) for i in range(400)]
+        b = self._pool(H)['t']; self.assertEqual(b['vd'], 'edge'); self.assertLessEqual(b['thr'], b['p']); self.assertGreater(b['mde'], b['thr'])
+        self.assertEqual((b['sb']['k'], b['sb']['n'], b['ss']['n'], b['ss']['p'], b['ss']['b0']), (b['k'], b['n'], 0, None, None), 'podział stron: same kupna')
+        self.assertEqual(b['sb']['k'] + b['ss']['k'], b['k'])
+        b = self._pool([(self.day(i), 1 if (i < 200 and i % 10 < 8) or (i >= 200 and i % 100 < 48) else 0) for i in range(400)])['t']
+        self.assertEqual((b['p'], b['h1'], b['h2']), (64.0, 80.0, 48.0)); self.assertGreater(b['ca'][0], 50); self.assertEqual(b['vd'], 'none', 'połowa pod progiem — weto')
+        b = self._pool([(self.day(i), 1 if i % 100 < 36 else 0) for i in range(400)])['t']
+        self.assertEqual(b['vd'], 'anti', 'odbicie lustrzane')
+        b = self._pool([(self.day(i), 1 if i % 100 < 70 else 0) for i in range(90)])['t']
+        self.assertEqual((b['vd'], b['need']), ('short', 10), 'mniej niż 100 dni — za krótko')
+        # „zawsze kupno” przy 60% okien wzrostowych: zwykła doba ≈ 60 — bez przewagi
+        import random
+        rnd = random.Random(1); ys = {'TRX': {}}; lines = {k: [] for k in zd.TD_RULES_CR2}
+        for i in range(1500):
+            yy = 1 if rnd.random() < 0.6 else -1; ys['TRX'][self.day(i)] = yy
+            lines[('cr', 'all')].append((self.day(i), 1 if yy > 0 else 0, 'TRX', 1))
+        b = {x['rule']: x for x in zd._td_pool_cr2(lines, ys, today=datetime.date(2030, 1, 1))}['all']
+        self.assertGreater(b['ca'][0], 50, 'dawna reguła uznałaby przewagę'); self.assertEqual(b['vd'], 'none'); self.assertGreater(b['b0'], 58)
+        self.assertEqual(b['sb']['b0'], b['b0']); self.assertGreater(b['thr'], b['b0'], 'próg liczony od zwykłej doby (bm = max(50, b0))')
+        # sprzedaż i kupno: podział stron = całość; ostatni rok
+        H = [(self.day(i), i % 3 == 0) for i in range(0, 800)]
+        lines = {k: [] for k in zd.TD_RULES_CR2}
+        for i, (dd, h) in enumerate(H):
+            lines[('cr', 'h')].append((dd, int(h), 'BTC', 1 if i % 2 else -1))
+        ys = {'BTC': {self.day(i): (1 if i % 2 == 0 else -1) for i in range(800)}}
+        b = {x['rule']: x for x in zd._td_pool_cr2(lines, ys, today=datetime.date.fromisoformat(self.day(800)))}['h']
+        self.assertEqual((b['sb']['k'] + b['ss']['k'], b['sb']['n'] + b['ss']['n']), (b['k'], b['n']))
+        self.assertEqual((b['sb']['b0'], b['ss']['b0'], b['b0']), (50.0, 50.0, 50.0), 'zwykła doba = udział okien wzrostowych monety w okresie linii')
+        y1 = [p for p in lines[('cr', 'h')] if p[0] >= self.day(800 - 365)]
+        self.assertEqual((b['y1']['n'], b['y1']['k'], b['y1']['from'], b['y1']['to'], b['y1']['days']), (len(y1), sum(p[1] for p in y1), self.day(435), self.day(799), 365))
+        self.assertEqual(b['y1']['ci'], list(zd.wilson(b['y1']['k'], b['y1']['n'], n_eff=365)))
+        # zawsze 7 linii; puste: brak liczb (None), za krótko; bez dziennika: licznik null, ocena „czekamy”
+        bd = zd._td_pool_cr2({}, {}, today=datetime.date(2026, 9, 27))
+        self.assertEqual([b['rule'] for b in bd], [k for _, k in zd.TD_RULES_CR2])
+        for b in bd:
+            self.assertEqual((b['fam'], b['n'], b['k'], b['days'], b['p'], b['b0'], b['thr'], b['mde'], b['vd'], b['need'], b['m']), ('cr', 0, 0, 0, None, None, None, None, 'short', 100, 0))
+            self.assertEqual((b['lk'], b['ln'], b['ldays'], b['lvd'], b['lc'], b['lnx'], b['v'], b['since'], b['wh'], b['cut']), (None, None, None, 'wait', None, 100, 2, zd.TD_SINCE_CR2, 6, 330))
+            self.assertEqual((b['ci'], b['ca'], b['h1'], b['h2']), ([None, None], [None, None], None, None))
+            self.assertEqual((b['sb']['n'], b['ss']['n'], b['y1']['n'], b['y1']['p'], b['y1']['from']), (0, 0, 0, None, None))
+        self.assertEqual(list(bd[0]), ['fam', 'rule', 'k', 'n', 'days', 'from', 'to', 'p', 'ci', 'ca', 'cl', 'M', 'b0', 'thr', 'mde', 'h1', 'h2', 'sb', 'ss', 'y1',
+                                       'lk', 'ln', 'ldays', 'lvd', 'lc', 'lnx', 'cll', 'm', 'need', 'vd', 'v', 'since', 'wh', 'cut'], 'kolejność pól (SPEC §5.1)')
+        self.assertTrue(all(b['lk'] == 0 and b['ln'] == 0 and b['ldays'] == 0 for b in zd._td_pool_cr2({}, {}, log={'rows': []}, today=datetime.date(2026, 9, 27))),
+                        'znany pusty dziennik — licznik 0, nie null')
+
+    # ---------------------------------------------------------------- 8: karta
+    def test_row(self):
+        D = '2026-09-26'; now = self.at('2026-09-27', 9); today = now.date()
+        base = {('cr', k): 'none' for _, k in zd.TD_RULES_CR2}
+        row = lambda s, vd=None, own=None, n=now: zd._td_row_cr2(s, {**base, **(vd or {})}, own or {}, n.date(), n)
+        t_up = self.mk_s({'t': 10})
+        r = row(t_up)
+        self.assertEqual((r['st'], r['side'], r['vd'], r['ek'], r['rule'], r['dir'], r['N'], r['str']), ('obs', 'buy', 'none', [], 'c', 1, 1, 2), 'jeden powód, mocno (z ≥ 2)')
+        self.assertEqual(row(self.mk_s({'t': 1.5}))['str'], 1, 'jeden powód, |z| < 2')
+        r = row(t_up, {('cr', 't'): 'edge'})
+        self.assertEqual((r['st'], r['side'], r['vd'], r['ek']), ('buy', 'buy', 'edge', ['t']), 'potwierdzona linia po stronie karty → kolor')
+        r = row(self.mk_s({'t': -10}), {('cr', 't'): 'edge'}); self.assertEqual((r['st'], r['side'], r['ek']), ('sell', 'sell', ['t']))
+        against = self.mk_s({'t': 10, 'p': 10, 'h': 10})                     # t +1, p +1, h −1 → N = +1
+        r = row(against, {('cr', 't'): 'edge', ('cr', 'h'): 'edge'})
+        self.assertEqual((r['st'], r['ek'], r['vd'], r['N']), ('obs', [], 'none', 1), 'potwierdzony powód przeciw — szara')
+        r = row(t_up, {('cr', 't'): 'edge', ('cr', 'all'): 'anti'}); self.assertEqual((r['st'], r['vd']), ('obs', 'anti'), 'linia połączenia „odwrotnie” — szara')
+        r = row(against, {('cr', 'all'): 'edge', ('cr', 'h'): 'edge'}); self.assertEqual((r['st'], r['vd']), ('obs', 'none'), 'linia prowadząca edge bez koloru — pokazana jako none')
+        two = self.mk_s({'t': 10, 'p': 3})                                    # dwa zgodne, p mocno → siła 3
+        r = row(two, {('cr', 'n2'): 'edge'})
+        self.assertEqual((r['st'], r['ek'], r['N'], r['str']), ('buy', ['n2'], 2, 3), '|N| ≥ 2 i n2 potwierdzona')
+        r = row(two, {('cr', 'n2'): 'anti', ('cr', 'all'): 'edge'}); self.assertEqual(r['st'], 'obs', 'przy |N| ≥ 2 prowadzi n2')
+        r = row(two, {('cr', 'all'): 'edge', ('cr', 'p'): 'edge'}); self.assertEqual(r['ek'], ['p', 'all'])
+        tie = self.mk_s({'t': 10, 'h': 10})
+        r = row(tie, {('cr', 't'): 'edge'})
+        self.assertEqual((r['st'], r['rule'], r['dir'], r['side'], r['vd'], r['ek'], r['str'], r['ik'], r['in'], r['ici']), ('x', 'cx', 0, 'none', None, [], 0, None, None, None),
+                         'sprzeczna: reguła cx (kod tylko v2 — dopisek do SPEC §5.1)')
+        r = row(self.mk_s()); self.assertEqual((r['st'], r['rule'], r['dir'], r['side'], r['vd']), ('quiet', 'c0', 0, 'none', None), 'spokojna: reguła c0')
+        # kolejność stanów: stale przed late, late przed x/quiet, short, nodata
+        self.assertEqual(row(self.mk_s({'t': 10, 'h': 10}, late=True))['st'], 'late'); self.assertEqual(row(self.mk_s(late=True))['st'], 'late')
+        r = row(self.mk_s({'t': 10}, late=True), {('cr', 't'): 'edge'}); self.assertEqual((r['st'], r['side'], r['dir']), ('late', 'none', 1), 'po czasie: sam opis, bez strony')
+        self.assertEqual(row(self.mk_s(late=True), n=self.at('2026-09-28', 6))['st'], 'stale')
+        self.assertEqual(row(self.mk_s({'t': 10}, n=40))['st'], 'short', '39 wcześniejszych dób — za mało historii')
+        self.assertEqual(row(self.mk_s({'t': 10}, n=41))['st'], 'obs')
+        self.assertEqual(row(self.mk_s({k: None for k in 'ptesh'}))['st'], 'nodata')
+        # aktualna do D+2 06:00 (UTC; zegar bez strefy = UTC)
+        self.assertTrue(zd._td_live_cr2(D, datetime.datetime(2026, 9, 28, 5, 59, 59, tzinfo=self.UTC)))
+        self.assertFalse(zd._td_live_cr2(D, datetime.datetime(2026, 9, 28, 6, 0, tzinfo=self.UTC)))
+        self.assertTrue(zd._td_live_cr2(D, datetime.datetime(2026, 9, 28, 7, 59, tzinfo=datetime.timezone(datetime.timedelta(hours=2)))))
+        self.assertFalse(zd._td_live_cr2(D, datetime.datetime(2026, 9, 28, 8, 0, tzinfo=datetime.timezone(datetime.timedelta(hours=2)))))
+        self.assertTrue(zd._td_live_cr2(D, datetime.datetime(2026, 9, 28, 5, 0))); self.assertFalse(zd._td_live_cr2(D, datetime.datetime(2026, 9, 28, 6, 0)))
+        r = row(t_up, n=self.at('2026-09-28', 5, 59)); self.assertEqual((r['live'], r['age'], r['nx'], r['date']), (True, 2, '2026-09-27', D))
+        # rs: kolejność p, t, e, s, h; zaokrąglenia; t = udział kupna w obrocie; lt; własne karty monety
+        s = self.mk_s({'p': 1.23456, 't': 10.04, 'e': 12345.6, 's': 157.6, 'h': -0.012345}, on={'e': False})
+        r = row(s, own={'BTC': [3, 5]})
+        self.assertEqual([x[0] for x in r['rs']], ['p', 't', 'e', 's', 'h'])
+        self.assertEqual([x[1] for x in r['rs']], [1.23, 55.0, 12346, 158, -0.0123], 't = 50 + ι/2 (1 miejsce); e i s całkowite; h 4 miejsca')
+        self.assertTrue(all(x[2] == round(x[2], 2) for x in r['rs']))
+        self.assertEqual(r['rs'][2][3], 0, 'po czasie — bez głosu'); self.assertEqual(r['lt'], ['e'])
+        self.assertEqual((r['ik'], r['in'], r['ici']), (3, 5, list(zd.wilson(3, 5))))
+        self.assertEqual((r['r'], r['zp']), (r['rs'][0][1], r['rs'][0][2]))
+        self.assertEqual([x[0] for x in row(self.mk_s({'t': 10}, sym='SOL'))['rs']], ['p', 't', 's', 'h'], 'bez przepływów dla pozostałych par')
+        r = row(t_up)
+        self.assertEqual((r['ik'], r['in'], r['ici']), (0, 0, None), 'karta z kierunkiem bez własnych par: 0 z 0, bez zakresu')
+        keys = ['id', 'fam', 'grp', 'iss', 'pub', 'sym', 'date', 'nx', 'live', 'age', 'f', 'cur', 'fu', 'zf', 'r', 'zp', 'rule', 'dir', 'side', 'str', 'st',
+                'vd', 'ik', 'in', 'ici', 'rs', 'N', 'ek', 'lt']
+        self.assertEqual(list(r), keys, 'wszystkie pola wiersza v123 + rs, N, ek, lt, ici')
+        self.assertEqual((r['fam'], r['grp'], r['iss'], r['pub'], r['f'], r['cur'], r['fu'], r['zf']), ('cr', None, None, 0, None, None, None, None))
+
+    # stała strony produkcyjnej (index.html v124.3): TRD_DRL — reguły, które przyjmuje trdDRow karty przeglądarki otwartej przed wdrożeniem v125
+    V1_TRD_DRL = ('f', 'p', 'fp', 'x', 'none')
+
+    def test_row_rule_codes_v2_only(self):
+        """Dopisek do SPEC §5.1 (SPEC-v125-ADDENDUM, 27.09): reguła wiersza v2 to 'c' / 'cx' / 'c0' — nigdy kod v1. Strona sprzed v125 (karta
+        przeglądarki otwarta przed wdrożeniem; bez przeładowania czyta nowy plik co 20 min) odrzuca więc KAŻDY wiersz v2, w każdym stanie, i nie
+        opisze karty v2 zdaniami v1. Reguła zgadza się z głosami: c ⇔ N ≠ 0, cx ⇔ N = 0 przy głosach, c0 ⇔ bez głosu; N = suma głosów w rs
+        (strona v125 sprawdza to samo i dopiero wtedy mapuje cx → x, c0 → none na kopii do kontroli v1)."""
+        now = self.at('2026-09-27', 9); after = self.at('2026-09-28', 6)
+        base = {('cr', k): 'none' for _, k in zd.TD_RULES_CR2}
+        cases = {'obs': (self.mk_s({'t': 10}), None, now), 'buy': (self.mk_s({'t': 10}), {('cr', 't'): 'edge'}, now),
+                 'sell': (self.mk_s({'t': -10}), {('cr', 't'): 'edge'}, now), 'x': (self.mk_s({'t': 10, 'h': 10}), None, now),
+                 'quiet': (self.mk_s(), None, now), 'late z kierunkiem': (self.mk_s({'t': 10}, late=True), None, now),
+                 'late sprzeczna': (self.mk_s({'t': 10, 'h': 10}, late=True), None, now), 'late spokojna': (self.mk_s(late=True), None, now),
+                 'stale sprzeczna': (self.mk_s({'t': 10, 'h': 10}), None, after), 'stale spokojna': (self.mk_s(), None, after),
+                 'stale z kierunkiem': (self.mk_s({'t': 10}), None, after), 'short': (self.mk_s({'t': 10}, n=40), None, now),
+                 'nodata': (self.mk_s({k: None for k in 'ptesh'}), None, now),
+                 'głos po czasie (lt)': (self.mk_s({'t': 10, 'e': 10}, on={'e': False}), None, now)}
+        got = {}
+        for name, (s, vd, n) in cases.items():
+            r = zd._td_row_cr2(s, {**base, **(vd or {})}, {}, n.date(), n)
+            votes = [x[3] for x in r['rs']]
+            got[name] = (r['st'], r['rule'], r['N'])
+            self.assertIn(r['rule'], ('c', 'cx', 'c0'), name)
+            self.assertNotIn(r['rule'], self.V1_TRD_DRL, name + ': strona sprzed v125 musi odrzucić wiersz v2')
+            self.assertEqual(r['N'], sum(votes), name + ': N = suma głosów w rs')
+            self.assertEqual(r['rule'], 'c' if r['N'] else ('cx' if any(votes) else 'c0'), name + ': reguła zgodna z głosami')
+        self.assertEqual(got, {'obs': ('obs', 'c', 1), 'buy': ('buy', 'c', 1), 'sell': ('sell', 'c', -1), 'x': ('x', 'cx', 0), 'quiet': ('quiet', 'c0', 0),
+                               'late z kierunkiem': ('late', 'c', 1), 'late sprzeczna': ('late', 'cx', 0), 'late spokojna': ('late', 'c0', 0),
+                               'stale sprzeczna': ('stale', 'cx', 0), 'stale spokojna': ('stale', 'c0', 0), 'stale z kierunkiem': ('stale', 'c', 1),
+                               'short': ('short', 'c0', 0), 'nodata': ('nodata', 'c0', 0), 'głos po czasie (lt)': ('obs', 'c', 1)})
+        # cały przebieg (10 par, dane syntetyczne, seed 5 — są karty sprzeczne i spokojne): wiersze RÓWNE wynikom referencji sędziego
+        # z dopiskiem do §5.1 (wbudowane niżej; odtwarzane skryptem ws5/fix3/regen/regen_exp_v125.py), każdy z kodem v2 zgodnym z głosami
+        kd = self.kd_synth(160, syms=zd.TR_CR_SYMS, seed=5)
+        with mock.patch.object(zd, '_now_utc', lambda: self.at(self.day(160), 9)), mock.patch.object(zd, 'TD_SINCE_CR2', '2026-09-28'):
+            rows, _ = zd.build_daily_cr2({'krypto-dzien': kd})
+        self.assertEqual(json.dumps(rows, sort_keys=True, separators=(',', ':'), ensure_ascii=False), self.EXP_V125_CX)
+        self.assertEqual(sorted({(r['st'], r['rule']) for r in rows}), [('obs', 'c'), ('quiet', 'c0'), ('x', 'cx')])
+        for r in rows:
+            v = [x[3] for x in r['rs']]
+            self.assertEqual((r['rule'], r['N']), ('c' if sum(v) else ('cx' if any(v) else 'c0'), sum(v)), r['id'])
+
+    EXP_V125_CX = (   # wiersze z implementacji referencyjnej sędziego z dopiskiem do §5.1 (reguła v2: cx/c0) dla kd_synth(160, 10 par, seed=5)
+        '[{"N":1,"age":1,"cur":null,"date":"2025-06-09","dir":1,"ek":[],"f":null,"fam":"cr","fu":null,"grp":null,"ici":[38.6,59.2],"id":"BTC","ik":42'
+        ',"in":86,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":-1.52,"rs":[["p",-1.52,-0.79,0],["t",50.1,0.23,0],["e",-156,-1.63,1],['
+        '"s",199,0.57,0],["h",0.007,0.68,0]],"rule":"c","side":"buy","st":"obs","str":1,"sym":"BTC","vd":"none","zf":null,"zp":-0.79},{"N":0,"age":1,'
+        '"cur":null,"date":"2025-06-09","dir":0,"ek":[],"f":null,"fam":"cr","fu":null,"grp":null,"ici":null,"id":"ETH","ik":null,"in":null,"iss":null'
+        ',"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":2.17,"rs":[["p",2.17,0.97,0],["t",49.2,-0.49,0],["e",-5,0.08,0],["s",199,0.57,0],["h",0.0'
+        '052,0.06,0]],"rule":"c0","side":"none","st":"quiet","str":0,"sym":"ETH","vd":null,"zf":null,"zp":0.97},{"N":-1,"age":1,"cur":null,"date":"20'
+        '25-06-09","dir":-1,"ek":[],"f":null,"fam":"cr","fu":null,"grp":null,"ici":[26.9,47.7],"id":"XRP","ik":29,"in":79,"iss":null,"live":true,"lt"'
+        ':[],"nx":"2025-06-10","pub":0,"r":-2.63,"rs":[["p",-2.63,-1.41,-1],["t",49.4,-0.28,0],["s",199,0.57,0],["h",0.005,-0.16,0]],"rule":"c","side'
+        '":"sell","st":"obs","str":1,"sym":"XRP","vd":"none","zf":null,"zp":-1.41},{"N":-2,"age":1,"cur":null,"date":"2025-06-09","dir":-1,"ek":[],"f'
+        '":null,"fam":"cr","fu":null,"grp":null,"ici":[50.2,71.9],"id":"BNB","ik":45,"in":73,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0'
+        ',"r":-2.32,"rs":[["p",-2.32,-1.28,-1],["t",48.5,-0.69,0],["s",199,0.57,0],["h",0.0111,2.04,-1]],"rule":"c","side":"sell","st":"obs","str":3,'
+        '"sym":"BNB","vd":"none","zf":null,"zp":-1.28},{"N":-1,"age":1,"cur":null,"date":"2025-06-09","dir":-1,"ek":[],"f":null,"fam":"cr","fu":null,'
+        '"grp":null,"ici":[42.9,64.3],"id":"SOL","ik":43,"in":80,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":-2.88,"rs":[["p",-2.88,'
+        '-1.4,-1],["t",49.7,-0.07,0],["s",199,0.57,0],["h",0.0065,0.71,0]],"rule":"c","side":"sell","st":"obs","str":1,"sym":"SOL","vd":"none","zf":n'
+        'ull,"zp":-1.4},{"N":0,"age":1,"cur":null,"date":"2025-06-09","dir":0,"ek":[],"f":null,"fam":"cr","fu":null,"grp":null,"ici":null,"id":"DOGE"'
+        ',"ik":null,"in":null,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":-1.92,"rs":[["p",-1.92,-1.1,-1],["t",50.4,0.46,0],["s",199'
+        ',0.57,0],["h",0.0022,-1.03,1]],"rule":"cx","side":"none","st":"x","str":0,"sym":"DOGE","vd":null,"zf":null,"zp":-1.1},{"N":-1,"age":1,"cur":'
+        'null,"date":"2025-06-09","dir":-1,"ek":[],"f":null,"fam":"cr","fu":null,"grp":null,"ici":[35.1,57.2],"id":"ADA","ik":34,"in":74,"iss":null,"'
+        'live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":-0.73,"rs":[["p",-0.73,-0.38,0],["t",46.9,-1.56,-1],["s",199,0.57,0],["h",0.005,0.06,0]],"r'
+        'ule":"c","side":"sell","st":"obs","str":1,"sym":"ADA","vd":"none","zf":null,"zp":-0.38},{"N":0,"age":1,"cur":null,"date":"2025-06-09","dir":'
+        '0,"ek":[],"f":null,"fam":"cr","fu":null,"grp":null,"ici":null,"id":"TRX","ik":null,"in":null,"iss":null,"live":true,"lt":[],"nx":"2025-06-10'
+        '","pub":0,"r":1.08,"rs":[["p",1.08,0.58,0],["t",48.2,-0.82,0],["s",199,0.57,0],["h",0.0064,0.32,0]],"rule":"c0","side":"none","st":"quiet","'
+        'str":0,"sym":"TRX","vd":null,"zf":null,"zp":0.58},{"N":2,"age":1,"cur":null,"date":"2025-06-09","dir":1,"ek":[],"f":null,"fam":"cr","fu":nul'
+        'l,"grp":null,"ici":[34.6,56.6],"id":"LINK","ik":34,"in":75,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":3.73,"rs":[["p",3.73'
+        ',1.85,1],["t",54.2,2.34,1],["s",199,0.57,0],["h",0.0072,0.67,0]],"rule":"c","side":"buy","st":"obs","str":3,"sym":"LINK","vd":"none","zf":nu'
+        'll,"zp":1.85},{"N":0,"age":1,"cur":null,"date":"2025-06-09","dir":0,"ek":[],"f":null,"fam":"cr","fu":null,"grp":null,"ici":null,"id":"AVAX",'
+        '"ik":null,"in":null,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":1.06,"rs":[["p",1.06,0.63,0],["t",49.3,-0.38,0],["s",199,0.'
+        '57,0],["h",0.0023,-0.94,0]],"rule":"c0","side":"none","st":"quiet","str":0,"sym":"AVAX","vd":null,"zf":null,"zp":0.63}]'
+    )
+
+    # ---------------------------------------------------------------- 9: dziennik
+    def test_journal(self):
+        d = self.day
+        kd = self.kd_synth(152); full = self.kd_synth(152)
+        for p in (kd['q'], kd['hl']):
+            for s in p:
+                p[s]['d'] = p[s]['d'][:150]; p[s]['seen'] = [d(149), d(150) + 'T02:40:00Z']
+        t0 = self.at(d(150), 6, 5)
+        with mock.patch.object(zd, 'TD_SINCE_CR2', d(100)):
+            rows, bd, series, _, _ = self.core(kd, t0)
+            self.assertTrue(all(r['date'] == d(149) and r['st'] in zd.TD_CR_JST for r in rows), [r['st'] for r in rows])
+            self.assertEqual(zd._td_cr_log(None, rows, series, t0 - datetime.timedelta(minutes=10))['rows'], [], 'przed 06:00 — nic')
+            log = zd._td_cr_log(None, rows, series, t0)
+            self.assertEqual([r[:4] for r in log['rows']], [[d(149), 'BTC', rows[0]['N'], rows[0]['st']], [d(149), 'SOL', rows[1]['N'], rows[1]['st']]])
+            self.assertEqual([r[4] for r in log['rows']], [zd._td_vstr(rows[0]), zd._td_vstr(rows[1])]); self.assertRegex(log['rows'][0][4], r'^p[-+0.]t[-+0.]e[-+0.]s[-+0.]h[-+0.]$')
+            self.assertEqual([r[5:] for r in log['rows']], [[log['at'], None]] * 2, 'czas zapisu = zegar przebiegu, wynik jeszcze nieznany')
+            self.assertEqual((log['v'], log['since'], log['wh'], log['cp'], log['at']), (2, d(100), 6, {}, t0.strftime('%Y-%m-%dT%H:%M:%SZ')))
+            self.assertNotIn('prev', log)
+            rows2 = [dict(r, N=9, st='obs') for r in rows]
+            log2 = zd._td_cr_log(log, rows2, series, t0 + datetime.timedelta(hours=5)); self.assertEqual(log2['rows'], log['rows'], 'zapisana karta zamrożona')
+            late = [dict(r, date=d(150), st='late') for r in rows]
+            self.assertEqual(len(zd._td_cr_log(log, late, series, t0 + datetime.timedelta(days=1))['rows']), 2, 'karta po czasie nigdy do dziennika')
+            for st in ('stale', 'short', 'nodata'):
+                self.assertEqual(len(zd._td_cr_log(log, [dict(r, date=d(150), st=st) for r in rows], series, t0 + datetime.timedelta(days=1))['rows']), 2, st)
+            later = zd._td_cr_log(log, [dict(r, date=d(150)) for r in rows], series, t0 + datetime.timedelta(days=1))
+            self.assertEqual(len(later['rows']), 4, 'następna doba w swoim oknie — dopisana')
+            self.assertEqual(len(zd._td_cr_log(log, [dict(r, date=d(150)) for r in rows], series, t0 + datetime.timedelta(days=2))['rows']), 2, 'okno minęło — karta już nie trafi')
+            # wynik okna dopisywany później (4 miejsca), gdy znane jest otwarcie 06:00 doby D+2
+            now2 = self.at(d(152), 7)
+            rows_f, _, series_f, _, _ = self.core(full, now2)
+            log3 = zd._td_cr_log(log, rows_f, series_f, now2)
+            s = [x for x in series_f if x['id'] == 'BTC'][0]; i = s['dates'].index(d(149))
+            self.assertEqual(log3['rows'][0][6], round((s['o6'][i + 2] / s['o6'][i + 1] - 1) * 100, 4))
+            self.assertEqual([r[:6] for r in log3['rows'][:2]], [r[:6] for r in log['rows']], 'dopisany tylko wynik')
+        with mock.patch.object(zd, 'TD_SINCE_CR2', d(150)):
+            self.assertEqual(zd._td_cr_log(None, rows, series, t0)['rows'], [], 'karta sprzed TD_SINCE_CR2 nigdy do dziennika')
+            log4 = zd._td_cr_log(dict(log, cp={'all': [[100, 60, 100, 50.0, 60.0, 60.0, 40.0, 70.0, 'none', d(120), 'x']]}), rows, series, t0)
+        self.assertEqual(log4['rows'], [], 'nowa data wdrożenia → nowy dziennik')
+        self.assertEqual((log4['prev']['v'], log4['prev']['since'], log4['since']), (2, d(100), d(150)))
+        self.assertEqual(log4['prev']['cp']['all'][0][0], 100); self.assertEqual(set(log4['prev']['oos']), {k for _, k in zd.TD_RULES_CR2})
+        with mock.patch.object(zd, 'TD_SINCE_CR2', d(100)):
+            log5 = zd._td_cr_log(dict(log, v=1), rows, series, t0)
+        self.assertEqual((log5['prev']['v'], log5['v'], len(log5['rows'])), (1, 2, 2), 'inna wersja reguły → nowy dziennik, dawne sumy w prev')
+        self.assertEqual(zd._td_vparse('p0t-e+s.h0'), {'p': 0, 't': -1, 'e': 1, 's': 0, 'h': 0})
+        self.assertEqual(zd._td_vstr({'rs': [['p', 1.0, 1.2, 1], ['t', 50.0, None, 0], ['e', 5, -1.3, 0], ['h', 0.1, 0.2, 0]], 'lt': ['e']}), 'p+t.e.h0')
+
+    def jrow(self, dd, sym, N, y, vs=None):
+        g = '+' if N > 0 else '-' if N < 0 else '0'
+        return [dd, sym, N, 'obs' if N else 'quiet', vs or ('p' + g + 't0s0h0'), dd + 'T06:10:00Z', y]
+
+    def log_of(self, days, hit_rate, coins=('BTC', 'SOL'), since='2025-01-01'):
+        import random
+        rnd = random.Random(3); rows = []
+        for i in range(days):
+            for c in coins:
+                N = 1 if rnd.random() < 0.5 else -1
+                hit = rnd.random() < hit_rate
+                y = (1.0 if N > 0 else -1.0) if hit else (-1.0 if N > 0 else 1.0)
+                rows.append(self.jrow(self.day(i), c, N, y))
+        return {'at': None, 'v': zd.TD_VC2, 'since': since, 'wh': 6, 'rows': rows, 'cp': {}}
+
+    def test_checkpoints(self):
+        with mock.patch.object(zd, 'TD_SINCE_CR2', '2025-01-01'):
+            log = self.log_of(260, 0.75)
+            t = self.at(self.day(265), 7)
+            L1 = zd._td_cr_log(log, [], [], t)
+            self.assertEqual([x[0] for x in L1['cp']['all']], [100, 200], 'dwa punkty kontrolne, 400 jeszcze nie')
+            c = L1['cp']['all'][1]
+            self.assertEqual((len(c), c[8], c[9], c[10]), (11, 'edge', self.day(199), t.strftime('%Y-%m-%dT%H:%M:%SZ')))
+            self.assertEqual(L1['cp']['all'][0][9], self.day(99), 'doba setnego sygnału')
+            S = zd._td_stat([x for x in zd._td_cr_pairs(L1)[0]['all'] if x[0] <= self.day(199)], zd._td_cr_pairs(L1)[1], zd.TD_CR_ZL)
+            self.assertEqual(c[1:9], [S['k'], S['n'], round(S['b0'], 1), S['h1'], S['h2'], S['ca'][0], S['ca'][1], S['vd']], 'zakres 99,8% (z = 3,0381)')
+            bd = {b['rule']: b for b in zd._td_pool_cr2({}, {}, log=L1, today=t.date())}
+            a = bd['all']
+            self.assertEqual((a['lvd'], a['lc']['c'], a['lnx'], a['ldays'], a['ln'], a['cll']), ('edge', 200, 400, 260, 520, 99.8))
+            self.assertEqual(a['lc'], {'c': 200, 'k': c[1], 'n': c[2], 'p': round(100 * c[1] / c[2], 1), 'b0': c[3], 'ca': [c[6], c[7]], 'vd': 'edge', 'to': self.day(199)})
+            self.assertEqual((bd['t']['lvd'], bd['t']['lc'], bd['t']['lnx'], bd['t']['ln']), ('wait', None, 100, 0), 'linia bez głosów — bez punktu kontrolnego')
+            self.assertEqual(bd['p']['lc']['c'], 200, 'głos p = kierunek karty w wierszach testowych')
+            L2 = dict(L1, rows=[r[:6] + [(-r[6] if r[0] <= self.day(150) else r[6])] for r in L1['rows']])   # wyniki zmienione później
+            L3 = zd._td_cr_log(L2, [], [], t + datetime.timedelta(days=1))
+            self.assertEqual(L3['cp']['all'], L1['cp']['all'], 'zapisany punkt kontrolny nigdy nie jest liczony od nowa')
+            # tylko doby ≥ 5 dni (TD_CR_SETTLE: wynik okna ostateczny)
+            log = self.log_of(103, 0.5, coins=('BTC',))
+            t = self.at(self.day(102), 7)
+            self.assertNotIn('all', zd._td_cr_log(log, [], [], t)['cp'], 'setny sygnał (doba 99) ma dopiero 3 dni')
+            self.assertNotIn('all', zd._td_cr_log(log, [], [], t + datetime.timedelta(days=1))['cp'], '4 dni — wynik świecy D+2 może jeszcze dojść')
+            self.assertEqual(zd._td_cr_log(log, [], [], t + datetime.timedelta(days=2))['cp']['all'][0][0], 100)
+            # wynik jednej monety z setnej doby sygnału brakuje w D+4 (świeca 06:00 doby D+2 ponawiana do D+5 00:00) i dochodzi w D+4 12:00:
+            # punkt kontrolny powstaje dopiero w D+5 — z tą parą — a odtworzenie z kopii w archiwum daje ten sam punkt (poza czasem wyliczenia)
+            log = self.log_of(100, 0.5, coins=('BTC', 'ETH')); D = self.day(99)
+            rb = [r for r in log['rows'] if r[0] == D and r[1] == 'BTC'][0]; y_true = rb[6]; rb[6] = None
+            t4 = self.at(self.day(103), 0, 20)
+            J1 = zd._td_cr_log(log, [], [], t4)
+            self.assertNotIn('all', J1['cp'], 'D+4: brak punktu kontrolnego (99 dób z wynikiem sygnału, a doba D jeszcze niedojrzała)')
+            [r for r in J1['rows'] if r[0] == D and r[1] == 'BTC'][0][6] = y_true
+            J2 = zd._td_cr_log(J1, [], [], t4 + datetime.timedelta(hours=12))
+            self.assertNotIn('all', J2['cp'])
+            J3 = zd._td_cr_log(J2, [], [], t4 + datetime.timedelta(days=1))
+            c3 = J3['cp']['all'][0]
+            self.assertEqual((c3[0], c3[2], c3[9]), (100, 200, D), 'D+5: setny sygnał z parą BTC (200 par)')
+            back = {'at': None, 'v': zd.TD_VC2, 'since': '2025-01-01', 'wh': 6, 'rows': [list(r) for r in J3['rows']], 'cp': {}}   # jak z CSV archiwum
+            J4 = zd._td_cr_log(back, [], [], t4 + datetime.timedelta(days=9))
+            self.assertEqual({k: [x[:10] for x in v] for k, v in J4['cp'].items()}, {k: [x[:10] for x in v] for k, v in J3['cp'].items()},
+                             'odtworzenie z archiwum: te same punkty kontrolne')
+            # „zawsze kupno” przy 70% okien w górę: zwykła doba dziennika blokuje przewagę
+            rows = [self.jrow(self.day(i), 'TRX', 1, 1.0 if (i * 7) % 10 < 7 else -1.0) for i in range(120)]
+            L = zd._td_cr_log({'at': None, 'v': zd.TD_VC2, 'since': '2025-01-01', 'wh': 6, 'rows': rows, 'cp': {}}, [], [], self.at('2026-01-01', 7))
+            c = L['cp']['all'][0]
+            self.assertEqual(c[0], 100); self.assertGreater(c[3], 65); self.assertEqual(c[8], 'none')
+            # wiersze nigdy nie znikają, licznik nie spada (600 dni później)
+            log = self.log_of(520, 0.5, coins=('BTC',))
+            t = self.at(self.day(530), 7)
+            L1 = zd._td_cr_log(log, [], [], t); L2 = zd._td_cr_log(L1, [], [], t + datetime.timedelta(days=600))
+            self.assertEqual(len(L2['rows']), 520)
+            b1 = {b['rule']: b for b in zd._td_pool_cr2({}, {}, log=L1, today=t.date())}['all']
+            b2 = {b['rule']: b for b in zd._td_pool_cr2({}, {}, log=L2, today=(t + datetime.timedelta(days=600)).date())}['all']
+            self.assertEqual((b1['ln'], b1['ldays'], b1['lk']), (b2['ln'], b2['ldays'], b2['lk'])); self.assertEqual([x[0] for x in L2['cp']['all']], [100, 200, 400])
+            self.assertIsNone(b2['lnx'], 'po 400 — bez następnego punktu')
+
+    def test_journal_replay(self):
+        """Powtórka 30 dób: dziennik budowany przebieg po przebiegu o 06:10 doby D+1 z pliku uciętego do tego, co wtedy było — zapisane
+        karty się nie zmieniają, a licznik dziennika daje dokładnie te same pary co test wstecz na pełnym pliku."""
+        d = self.day
+        full = self.kd_synth(130)
+        days = [d(95 + i) for i in range(30)]
+
+        def cut(D, now_iso):
+            k = json.loads(json.dumps(full))
+            for s in k['q']:
+                k['q'][s]['d'] = [r for r in k['q'][s]['d'] if r[0] <= D]; k['q'][s]['seen'] = [D, self.day(1, D) + 'T02:40:00Z']
+                k['hl'][s]['d'] = [r for r in k['hl'][s]['d'] if r[0] <= D]; k['hl'][s]['seen'] = [D, self.day(1, D) + 'T00:20:00Z']
+            for a in ('btc', 'eth'):
+                k['cm'][a]['d'] = [r for r in k['cm'][a]['d'] if r[0] <= D and r[3][:19] < now_iso]
+            k['st']['d'] = [r for r in k['st']['d'] if r[0] <= D]
+            return k
+        log = None; first = {}
+        with mock.patch.object(zd, 'TD_SINCE_CR2', days[0]):
+            for D in days:
+                now = self.at(self.day(1, D), 6, 10)
+                rows, _, series, _, _ = self.core(cut(D, now.strftime('%Y-%m-%dT%H:%M:%S')), now)
+                log = zd._td_cr_log(log, rows, series, now)
+                for r in log['rows']:
+                    first.setdefault((r[0], r[1]), r[:6])
+            fin = self.at(d(130), 9)
+            rows, _, series, lines, _ = self.core(full, fin)
+            log = zd._td_cr_log(log, rows, series, fin)
+            self.assertEqual(len(log['rows']), 62, '30 dób × 2 pary + karty doby 129 zapisane w ostatnim przebiegu (jej okno trwa)')
+            self.assertEqual([r[:2] for r in log['rows'] if r[6] is None], [[d(129), 'BTC'], [d(129), 'SOL']], 'wynik tylko po końcu okna')
+            self.assertEqual([k for k, v in first.items() if [r for r in log['rows'] if (r[0], r[1]) == k][0][:6] != v], [], 'zapisane karty bez zmian')
+            oos, _ = zd._td_cr_pairs(log, days[0])
+        tot = 0
+        for _, k in zd.TD_RULES_CR2:
+            bt = sorted((dd, h) for dd, h, i, v in lines[('cr', k)] if days[0] <= dd <= days[-1])
+            self.assertEqual(sorted((dd, h) for dd, h, c, g in oos[k]), bt, k); tot += len(bt)
+        self.assertGreater(tot, 30, 'powtórka ma pary')
+
+    def test_journal_recovery(self):
+        import csv as _csv
+        kd = self.kd_synth(150); now = self.at(self.day(150), 9)
+        bad = os.path.join(self.tmp, 'zly.csv')
+        with open(bad, 'w', encoding='utf-8') as fh:
+            fh.write('zły,nagłówek\n')
+        self.assertEqual(zd._td_cr_from_csv(bad), (None, 'bad')); self.assertEqual(zd._td_cr_from_csv(self.tmp), (None, 'bad'), 'katalog zamiast pliku — błąd odczytu')
+        self.assertEqual(zd._td_cr_from_csv(os.path.join(self.tmp, 'nie-ma.csv')), (None, 'none'))
+        with mock.patch.object(zd, '_now_utc', lambda: now):
+            for prev in (None, {}, {'rows': 'x', 'v': 2, 'since': '2025-01-01'}):
+                zd._CR_LOG[0] = prev; zd._CR_LOG[1] = None; zd.META['errors'].clear()
+                with mock.patch.object(zd, 'TD_CR_CSV', bad):
+                    rows, bd = zd.build_daily_cr2({'krypto-dzien': kd})
+                self.assertTrue(rows); self.assertIsNone(zd._CR_LOG[1], 'nic do zapisania — dziennik nigdy nie zostaje zastąpiony pustym')
+                self.assertTrue(all(b['lk'] is None and b['ln'] is None and b['ldays'] is None and b['lvd'] == 'wait' for b in bd), 'licznik nieznany, nie 0')
+                self.assertEqual([e for e in zd.META['errors'] if e.startswith('Dziennik krypto: ')], ['Dziennik krypto: brak poprzedniego pliku, a kopia w archiwum jest nieczytelna — licznik „od wdrożenia” wstrzymany, nic nie nadpisano'])
+            # brak kopii (albo kopia bez wiersza tej wersji) → nowy dziennik; błąd w meta dopiero po 2 dobach od wdrożenia
+            zd._CR_LOG[0] = None; zd.META['errors'].clear()
+            with mock.patch.object(zd, 'TD_SINCE_CR2', self.day(140)):
+                rows, bd = zd.build_daily_cr2({'krypto-dzien': kd})
+            self.assertIsNotNone(zd._CR_LOG[1]); self.assertTrue(all(b['lk'] == 0 and b['ln'] == 0 for b in bd))
+            self.assertTrue(any('nowy dziennik' in e for e in zd.META['errors']), 'start później niż since + 2 doby — błąd')
+            zd._CR_LOG[0] = None; zd.META['errors'].clear()
+            with mock.patch.object(zd, 'TD_SINCE_CR2', self.day(148)):
+                rows, bd = zd.build_daily_cr2({'krypto-dzien': kd})
+            self.assertEqual(zd._CR_LOG[1]['rows'][0][:4], [self.day(149), 'BTC', rows[0]['N'], rows[0]['st']])
+            self.assertFalse(any(e.startswith('Dziennik krypto') for e in zd.META['errors']), 'wdrożenie: nowy dziennik to norma')
+            # kopia z archiwum → odtworzenie (uwaga) i dopisanie bieżących kart
+            with mock.patch.object(zd, 'TD_SINCE_CR2', '2025-01-01'):
+                log = self.log_of(120, 0.5)
+                p = os.path.join(self.tmp, 'krypto-dziennik.csv')
+                with open(p, 'w', encoding='utf-8', newline='') as f:
+                    w = _csv.writer(f, lineterminator='\n'); w.writerow(zd.TD_CR_CSV_COLS)
+                    for r in log['rows']:
+                        w.writerow([r[0], r[1], r[2], r[3], r[4], r[5], '' if r[6] is None else repr(r[6]), zd.TD_VC2, zd.TD_SINCE_CR2])
+                    w.writerow(['2024-12-31', 'BTC', 1, 'obs', 'p+', 'x', '1.0', 1, '2024-01-01'])            # inna wersja: pomijana
+                    w.writerow(['2025-02-01', 'BTC', 'x', 'obs', 'p+', 'x', '1.0', 2, '2025-01-01'])          # zły wiersz: pomijany
+                back, why = zd._td_cr_from_csv(p)
+                self.assertEqual((why, back['rows'], back['cp'], back['v'], back['since']), ('ok', sorted(log['rows']), {}, 2, '2025-01-01'))
+                zd._CR_LOG[0] = None; zd.META['notes'].clear()
+                with mock.patch.object(zd, 'TD_CR_CSV', p):
+                    rows, bd = zd.build_daily_cr2({'krypto-dzien': kd})
+                self.assertEqual(len(zd._CR_LOG[1]['rows']), 240 + 2, 'odtworzone wiersze + dwie karty bieżącego okna')
+                self.assertEqual(zd.META['notes'], [f'Dziennik krypto: odtworzony z archiwum (240 wierszy do {self.day(119)})'])
+                self.assertEqual(sorted(zd._CR_LOG[1]['cp']), ['all', 'p'], 'punkty kontrolne policzone od nowa z odtworzonych wierszy')
+                zd._CR_LOG[0] = dict(log, rows=log['rows'][:10]); zd.META['notes'].clear()
+                with mock.patch.object(zd, 'TD_CR_CSV', p):
+                    zd.build_daily_cr2({'krypto-dzien': kd})
+                self.assertEqual(len(zd._CR_LOG[1]['rows']), 12, 'poprawny poprzedni dziennik ma pierwszeństwo przed archiwum'); self.assertEqual(zd.META['notes'], [])
+                with mock.patch.object(zd, 'TD_VC2', 3):
+                    self.assertEqual(zd._td_cr_from_csv(p), (None, 'none'), 'kopia bez wiersza tej wersji')
+
+    # ---------------------------------------------------------------- 11–13: build_daily_cr2, build_trendy, akceptacja
+    def test_build_daily_cr2(self):
+        import copy
+        for S in (None, {}, {'krypto-dzien': None}, {'krypto-dzien': []}, {'krypto-dzien': {}}, {'krypto-dzien': {'q': {}}},
+                  {'krypto-dzien': {'q': {'BTC': {'d': [['2026-09-26', 1.0, 1, 1, 1.0]]}}}}):
+            self.assertEqual(zd.build_daily_cr2(S), (None, None), S)
+        self.assertIsNone(zd._CR_LOG[1])
+        kd = self.kd_synth(150, syms=('BTC', 'ETH', 'SOL')); kd['q']['ETH']['d'][10][0] = self.day(9)
+        S = {'krypto-dzien': kd}; S0 = copy.deepcopy(S)
+        now = self.at(self.day(150), 9)
+        with mock.patch.object(zd, '_now_utc', lambda: now):
+            rows, bd = zd.build_daily_cr2(S)
+        self.assertEqual(S, S0, 'build_daily_cr2 nie zmienia wejścia')
+        self.assertEqual([r['id'] for r in rows], ['BTC', 'SOL'], 'zepsuta seria ETH: bez karty; pozostałe zostają (kolejność TR_CR_SYMS)')
+        self.assertEqual([n for n in zd.META['notes'] if n.startswith('trendy dziennie krypto')], ['trendy dziennie krypto ETH: daty nie rosną'])
+        self.assertEqual(len(bd), 7); self.assertTrue(all(b['lk'] == 0 for b in bd), 'nowy dziennik — licznik 0')
+        _, _, _, lines, _ = self.core(dict(kd, q={k: v for k, v in kd['q'].items() if k != 'ETH'}), now)
+        for r in rows:                                           # własne karty monety = jej pary linii all (każda karta z kierunkiem)
+            al = [x for x in lines[('cr', 'all')] if x[2] == r['id']]
+            self.assertEqual((r['ik'], r['in']), (sum(x[1] for x in al), len(al)) if r['N'] else (None, None), r['id'])
+        self.assertNotRegex(self.dump([rows, bd]).lower(), self.PROVIDERS, 'bez nazw dostawców')
+        zd.META['notes'].clear()
+        real = zd._td_row_cr2
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, '_td_row_cr2', side_effect=lambda s, *a: (_ for _ in ()).throw(ValueError('zły dzień')) if s['id'] == 'SOL' else real(s, *a)):
+            rows, bd = zd.build_daily_cr2(S)
+        self.assertEqual([r['id'] for r in rows], ['BTC']); self.assertIn('trendy dziennie krypto SOL: zły dzień', zd.META['notes'])
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, '_td_row_cr2', side_effect=RuntimeError('wszystko')):
+            self.assertEqual(zd.build_daily_cr2(S), (None, None), 'żadnej karty — (None, None), nie []')
+        zd.META['notes'].clear(); zd._CR_LOG[1] = 'x'
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, '_td_cr_log', side_effect=RuntimeError('dysk')):
+            rows, bd = zd.build_daily_cr2(S)
+        self.assertEqual(len(rows), 2); self.assertIsNone(zd._CR_LOG[1], 'awaria dziennika — nic do zapisania')
+        self.assertTrue(all(b['lk'] is None for b in bd)); self.assertIn('trendy dziennie krypto, dziennik: dysk', zd.META['notes'])
+
+    def test_build_trendy(self):
+        import copy
+        W = TrendyDailyCrV123
+        kc = W.kc(**{s: W.coin(80, end='2026-09-26', last_ret=3.0 if s == 'BTC' else 0.1) for s in ('BTC', 'ETH', 'SOL')})
+        kd = self.kd_synth(130, syms=zd.TR_CR_SYMS, d0='2026-05-20')          # ostatnia doba 26.09.2026 — jak plik cen krypto
+        now = self.NOW
+        S = dict(W.world(self), **{'ceny-krypto': kc, 'krypto-dzien': kd})
+        with mock.patch.object(zd, '_now_utc', lambda: now):
+            ref = zd.build_trendy({k: v for k, v in S.items() if k != 'krypto-dzien'})    # = produkcja (bez pliku dziennego kod v1 bez zmian)
+            # przed ready wersja 2 w ogóle nie jest wołana (zaślepka liczy wywołania — wyjątek z niej build_trendy i tak by połknął)
+            with mock.patch.object(zd, 'build_daily_cr2', return_value=(None, None)) as v2:
+                for rd in (False, None, 1, 'true', 'True', [True]):
+                    zd.META['notes'].clear()
+                    out = zd.build_trendy(dict(S, **{'krypto-dzien': dict(kd, ready=rd)}))
+                    self.assertEqual(self.dump(out), self.dump(ref), f'przed ready ({rd!r}) — plik bajt w bajt jak w produkcji')
+                    self.assertEqual(v2.call_count, 0, f'przed ready ({rd!r}) wersja 2 nie jest liczona')
+                    self.assertEqual([n for n in zd.META['notes'] if n.startswith('trendy dziennie krypto')], [], rd)
+                out = zd.build_trendy(dict(S, **{'krypto-dzien': dict(kd, ready=True)}))
+                self.assertEqual(v2.call_count, 1, 'ready: wersja 2 liczona (kontrola zaślepki)')
+            S0 = copy.deepcopy(S)
+            out = zd.build_trendy(S)
+            self.assertEqual(S, S0, 'build_trendy nie zmienia wejścia')
+        nw = len([r for r in ref['d'] if r['fam'] != 'cr'])
+        self.assertEqual(set(out), set(ref)); self.assertEqual(set(out), TrendyDailyCrV123.KEYS, 'bez nowych kluczy na górze pliku')
+        for k in ('at', 'v', 'src', 'rules', 'f', 'p', 'b', 'dv', 'dsince', 'dr'):
+            self.assertEqual(self.dump(out[k]), self.dump(ref[k]), k)
+        self.assertEqual(self.dump(out['d'][:nw]), self.dump(ref['d'][:nw]), 'wiersze świata bez zmian')
+        self.assertEqual(self.dump(out['bd'][:8]), self.dump(ref['bd'][:8]), '7 linii świata + linia v1 (v: 1) bajt w bajt, v1 tuż po świecie')
+        self.assertEqual([(b['fam'], b['rule'], b.get('v')) for b in out['bd'][7:]], [('cr', 'p', 1)] + [('cr', k, 2) for _, k in zd.TD_RULES_CR2])
+        # dopisek A1: karty v1 zostają w pliku (bajt w bajt jak w produkcji, przed kartami v2) — karta przeglądarki sprzed v125 odrzuca każdy
+        # wiersz v2 i pokazuje z tego samego pliku swoją sekcję v1 (karty v1 + linia v1), jak dotąd
+        n1 = len(ref['d']) - nw; self.assertEqual(n1, 3)
+        self.assertEqual(self.dump(out['d'][:nw + n1]), self.dump(ref['d']), 'świat i karty v1 bajt w bajt jak w produkcji, karty v1 przed kartami v2')
+        cr = out['d'][nw + n1:]
+        self.assertEqual([r['id'] for r in cr], list(zd.TR_CR_SYMS), '10 kart v2 po kartach v1')
+        self.assertTrue(all('rs' in r and r['fam'] == 'cr' for r in cr)); self.assertFalse(any('rs' in r for r in ref['d']), 'karty v1 bez rs')
+        self.assertTrue(all(r['rule'] in ('c', 'cx', 'c0') for r in cr), 'wiersze v2: tylko kody v2 (stara strona je odrzuca)')
+        self.assertTrue(all(r['rule'] in self.V1_TRD_DRL for r in ref['d'][nw:]), 'wiersze v1: kody v1 bez zmian')
+        self.assertEqual([r['id'] for r in out['d'][nw:] if r['rule'] in self.V1_TRD_DRL], [r['id'] for r in ref['d'][nw:]],
+                         'reguły, które zna strona produkcji (TRD_DRL), mają w pliku dokładnie karty v1')
+        v1 = dict(out, d=[r for r in out['d'] if 'rs' not in r], bd=[b for b in out['bd'] if b.get('v') != 2])
+        self.assertEqual(self.dump(v1), self.dump(ref), 'plik bez kart i linii v2 = plik produkcji bajt w bajt')
+        self.assertNotRegex(self.dump([cr, out['bd'][8:]]).lower(), self.PROVIDERS, 'bez nazw dostawców w danych strony')
+        # wersja 2 pada → plik jak w produkcji + uwaga
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'build_daily_cr2', side_effect=RuntimeError('test')):
+            out2 = zd.build_trendy(S)
+        self.assertEqual(self.dump(out2), self.dump(ref)); self.assertEqual([n for n in zd.META['notes'] if 'krypto' in n], ['trendy dziennie krypto v2: test'])
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'build_daily_cr2', return_value=(None, None)):
+            self.assertEqual(self.dump(zd.build_trendy(S)), self.dump(ref), 'v2 bez kart — wersja 1')
+        # wersja 1 pada → wersja 2 i tak (ready), bez linii v1
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'build_daily_cr', side_effect=RuntimeError('v1 test')):
+            out3 = zd.build_trendy(S)
+        self.assertEqual([(b['rule'], b.get('v')) for b in out3['bd'] if b['fam'] == 'cr'], [(k, 2) for _, k in zd.TD_RULES_CR2])
+        self.assertIn('trendy dziennie krypto: v1 test', zd.META['notes'])
+        self.assertEqual(self.dump(out3['d'][nw:]), self.dump(cr))
+
+    EXP_V125 = (   # oczekiwane wiersze i linie z implementacji referencyjnej sędziego (judge2/ref_v125.py) dla kd_synth(160, BTC + SOL, seed=11)
+        '{"lines":[{"M":7,"b0":52.1,"ca":[32.3,65.1],"ci":[36.4,60.9],"cl":99.3,"cll":99.8,"cut":330,"days":60,"fam":"cr","from":"2025-02-13","h1":45'
+        '.7,"h2":51.4,"k":34,"lc":null,"ldays":0,"lk":0,"ln":0,"lnx":100,"lvd":"wait","m":2,"mde":74.9,"n":70,"need":40,"p":48.6,"rule":"p","sb":{"b0'
+        '":42.9,"ci":[17.2,51.6],"days":25,"k":8,"n":25,"p":32.0},"since":"2026-09-28","ss":{"b0":57.2,"ci":[42.5,71.7],"days":40,"k":26,"n":45,"p":5'
+        '7.8},"thr":69.4,"to":"2025-06-06","v":2,"vd":"short","wh":6,"y1":{"ci":[36.4,60.9],"days":60,"from":"2025-02-13","k":34,"n":70,"p":48.6,"to"'
+        ':"2025-06-06"}},{"M":7,"b0":50.0,"ca":[30.6,62.6],"ci":[34.5,58.4],"cl":99.3,"cll":99.8,"cut":330,"days":63,"fam":"cr","from":"2025-02-10","'
+        'h1":34.2,"h2":57.1,"k":37,"lc":null,"ldays":0,"lk":0,"ln":0,"lnx":100,"lvd":"wait","m":2,"mde":72.2,"n":80,"need":37,"p":46.2,"rule":"t","sb'
+        '":{"b0":42.8,"ci":[25.6,56.4],"days":35,"k":16,"n":40,"p":40.0},"since":"2026-09-28","ss":{"b0":57.2,"ci":[36.5,68.0],"days":35,"k":21,"n":4'
+        '0,"p":52.5},"thr":66.9,"to":"2025-06-07","v":2,"vd":"short","wh":6,"y1":{"ci":[34.5,58.4],"days":63,"from":"2025-02-10","k":37,"n":80,"p":46'
+        '.2,"to":"2025-06-07"}},{"M":7,"b0":48.8,"ca":[37.1,75.1],"ci":[42.2,70.9],"cl":99.3,"cll":99.8,"cut":330,"days":42,"fam":"cr","from":"2025-0'
+        '2-11","h1":33.3,"h2":81.0,"k":24,"lc":null,"ldays":0,"lk":0,"ln":0,"lnx":100,"lvd":"wait","m":1,"mde":77.2,"n":42,"need":58,"p":57.1,"rule":'
+        '"e","sb":{"b0":41.9,"ci":[24.5,61.2],"days":24,"k":10,"n":24,"p":41.7},"since":"2026-09-28","ss":{"b0":58.1,"ci":[54.8,91.0],"days":18,"k":1'
+        '4,"n":18,"p":77.8},"thr":70.8,"to":"2025-06-07","v":2,"vd":"short","wh":6,"y1":{"ci":[42.2,70.9],"days":42,"from":"2025-02-11","k":24,"n":42'
+        ',"p":57.1,"to":"2025-06-07"}},{"M":7,"b0":50.2,"ca":[34.4,74.6],"ci":[39.6,70.2],"cl":99.3,"cll":99.8,"cut":330,"days":37,"fam":"cr","from":'
+        '"2025-02-13","h1":61.1,"h2":50.0,"k":41,"lc":null,"ldays":0,"lk":0,"ln":0,"lnx":100,"lvd":"wait","m":2,"mde":79.2,"n":74,"need":63,"p":55.4,'
+        '"rule":"s","sb":{"b0":42.9,"ci":[31.3,73.2],"days":18,"k":19,"n":36,"p":52.8},"since":"2026-09-28","ss":{"b0":57.1,"ci":[36.3,76.9],"days":1'
+        '9,"k":22,"n":38,"p":57.9},"thr":72.3,"to":"2025-06-04","v":2,"vd":"short","wh":6,"y1":{"ci":[39.6,70.2],"days":37,"from":"2025-02-13","k":41'
+        ',"n":74,"p":55.4,"to":"2025-06-04"}},{"M":7,"b0":50.0,"ca":[30.5,62.2],"ci":[34.3,58.0],"cl":99.3,"cll":99.8,"cut":330,"days":64,"fam":"cr",'
+        '"from":"2025-02-10","h1":39.5,"h2":52.8,"k":34,"lc":null,"ldays":0,"lk":0,"ln":0,"lnx":100,"lvd":"wait","m":2,"mde":72.1,"n":74,"need":36,"p'
+        '":45.9,"rule":"h","sb":{"b0":42.8,"ci":[25.8,57.2],"days":34,"k":15,"n":37,"p":40.5},"since":"2026-09-28","ss":{"b0":57.2,"ci":[35.1,67.4],"'
+        'days":33,"k":19,"n":37,"p":51.4},"thr":66.8,"to":"2025-06-07","v":2,"vd":"short","wh":6,"y1":{"ci":[34.3,58.0],"days":64,"from":"2025-02-10"'
+        ',"k":34,"n":74,"p":45.9,"to":"2025-06-07"}},{"M":7,"b0":50.2,"ca":[38.2,78.4],"ci":[43.8,74.3],"cl":99.3,"cll":99.8,"cut":330,"days":36,"fam'
+        '":"cr","from":"2025-02-10","h1":50.0,"h2":68.2,"k":24,"lc":null,"ldays":0,"lk":0,"ln":0,"lnx":100,"lvd":"wait","m":2,"mde":79.7,"n":40,"need'
+        '":64,"p":60.0,"rule":"n2","sb":{"b0":42.8,"ci":[22.3,64.8],"days":17,"k":8,"n":19,"p":42.1},"since":"2026-09-28","ss":{"b0":57.0,"ci":[54.9,'
+        '89.4],"days":21,"k":16,"n":21,"p":76.2},"thr":72.7,"to":"2025-05-31","v":2,"vd":"short","wh":6,"y1":{"ci":[43.8,74.3],"days":36,"from":"2025'
+        '-02-10","k":24,"n":40,"p":60.0,"to":"2025-05-31"}},{"M":7,"b0":50.8,"ca":[35.8,61.2],"ci":[39.1,57.9],"cl":99.3,"cll":99.8,"cut":330,"days":'
+        '105,"fam":"cr","from":"2025-02-10","h1":36.2,"h2":60.8,"k":77,"lc":null,"ldays":0,"lk":0,"ln":0,"lnx":100,"lvd":"wait","m":2,"mde":68.0,"n":'
+        '159,"need":0,"p":48.4,"rule":"all","sb":{"b0":42.7,"ci":[31.3,56.9],"days":54,"k":31,"n":71,"p":43.7},"since":"2026-09-28","ss":{"b0":57.2,"'
+        'ci":[40.8,63.5],"days":71,"k":46,"n":88,"p":52.3},"thr":63.9,"to":"2025-06-07","v":2,"vd":"none","wh":6,"y1":{"ci":[39.1,57.9],"days":105,"f'
+        'rom":"2025-02-10","k":77,"n":159,"p":48.4,"to":"2025-06-07"}}],"rows":[{"N":-2,"age":1,"cur":null,"date":"2025-06-09","dir":-1,"ek":[],"f":n'
+        'ull,"fam":"cr","fu":null,"grp":null,"ici":[43.6,63.9],"id":"BTC","ik":48,"in":89,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r'
+        '":-3.37,"rs":[["p",-3.37,-1.73,-1],["t",49.8,-0.01,0],["e",-107,-0.86,0],["s",-57,-1.04,-1],["h",0.0063,0.3,0]],"rule":"c","side":"sell","st'
+        '":"obs","str":2,"sym":"BTC","vd":"short","zf":null,"zp":-1.73},{"N":-1,"age":1,"cur":null,"date":"2025-06-09","dir":-1,"ek":[],"f":null,"fam'
+        '":"cr","fu":null,"grp":null,"ici":[30.6,53.1],"id":"SOL","ik":29,"in":70,"iss":null,"live":true,"lt":[],"nx":"2025-06-10","pub":0,"r":2.09,"'
+        'rs":[["p",2.09,1.17,1],["t",47.7,-1.03,-1],["s",-57,-1.04,-1],["h",0.0074,0.82,0]],"rule":"c","side":"sell","st":"obs","str":2,"sym":"SOL","'
+        'vd":"none","zf":null,"zp":1.17}]}'
+    )
+
+    def test_acceptance_synthetic(self):
+        """SPEC §10.13: mały syntetyczny plik (2 pary × 160 dób) → wiersze i linie RÓWNE wynikom referencji sędziego (wbudowane niżej, bez
+        pliku 944 kB). Zegar: doba 160, 09:00 UTC; bez poprzedniego dziennika i bez kopii w archiwum; data wdrożenia 2026-09-28."""
+        kd = self.kd_synth(160, syms=('BTC', 'SOL'), seed=11)
+        now = self.at(self.day(160), 9)
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'TD_SINCE_CR2', '2026-09-28'):
+            rows, bd = zd.build_daily_cr2({'krypto-dzien': kd})
+        exp = json.loads(self.EXP_V125)
+        self.assertEqual(json.dumps(rows, sort_keys=True), json.dumps(exp['rows'], sort_keys=True))
+        self.assertEqual(json.dumps(bd, sort_keys=True), json.dumps(exp['lines'], sort_keys=True))
+        self.assertEqual((zd._CR_LOG[1]['rows'], zd._CR_LOG[1]['since']), ([], '2026-09-28'), 'doba danych przed wdrożeniem — dziennik bez wierszy')
+
+    # ---------------------------------------------------------------- 14–18: budowniczy data/krypto-dzien.json
+    def test_parsers(self):
+        f = self.Fake(self.at(datetime.date(2026, 1, 3)))
+        import io as _io, zipfile as _zf
+        z1 = _zf.ZipFile(_io.BytesIO(f.kl_rows('BTC', [datetime.date(2024, 5, 1), datetime.date(2025, 5, 1)], '1d')))
+        d = zd.kd_parse_1d(z1.read('x.csv').decode())
+        self.assertEqual(sorted(d), ['2024-05-01', '2025-05-01'], 'ms (2024) i µs (2025)')
+        c, qv, tb = d['2025-05-01']; self.assertIsInstance(qv, int); self.assertIsInstance(tb, int); self.assertLessEqual(tb, qv)
+        self.assertEqual(zd.kd_parse_1d('1714521600000,1,1,1,2,1,1,100.4,1,1,150,0\n')['2024-05-01'], (2.0, 100, None), 'tbq > qv → None')
+        self.assertEqual(zd.kd_parse_1d('1714521600000,1,1,1,0,1,1,100,1,1,50,0\n'), {}, 'zamknięcie 0 → wiersz pominięty')
+        self.assertEqual(zd.kd_parse_1d('1714521600000,1,1,1,2,1,1,,1,1,50,0\n')['2024-05-01'], (2.0, None, None), 'obrót bez liczby → None, nigdy 0')
+        self.assertEqual(zd.kd_parse_1d('open_time,o,h,l,c,v,ct,qv,n,tb,tbq,x\n1714521600000,1,1,1,2,1\n'), {}, 'nagłówek i krótki wiersz pominięte')
+        z2 = _zf.ZipFile(_io.BytesIO(f.kl_rows('BTC', [datetime.date(2025, 5, 1)], '1h')))
+        h = zd.kd_parse_1h(z2.read('x.csv').decode())
+        self.assertEqual(list(h), ['2025-05-01']); self.assertAlmostEqual(h['2025-05-01'], self.Fake.close('BTC', datetime.date(2025, 5, 1)) * 1.006, msg='tylko świeca 06:00')
+        self.assertEqual(zd.kd_parse_1h('1714543200000,0,1,1,1\n'), {}, 'otwarcie 0 — bez doby')
+        self.assertEqual(zd._kd_iso('2026-09-27T02:01:13.400278000Z'), '2026-09-27T02:01:13+00:00'); self.assertEqual(zd._kd_iso('1790000000'), '2026-09-21T14:13:20+00:00')
+        self.assertIsNone(zd._kd_iso(None)); self.assertIsNone(zd._kd_iso('x'))
+        self.assertTrue(zd._kd_first_pub('2026-09-26', '2026-09-27T23:59:59+00:00')); self.assertFalse(zd._kd_first_pub('2026-09-26', '2026-09-28T00:00:00+00:00'))
+        self.assertFalse(zd._kd_first_pub('2026-09-26', None))
+        self.assertEqual(zd._kd_tasks(['2026-08-30', '2026-08-31', '2026-09-01'], datetime.date(2026, 9, 27)),
+                         [('m', '2026-08', ['2026-08-30', '2026-08-31']), ('d', '2026-09', ['2026-09-01'])], 'zamknięte miesiące — plik miesięczny, bieżący — dzienne')
+
+    def test_builder_schedule(self):
+        D = datetime.date(2025, 6, 20)
+        f0 = self.Fake(self.at(D, 10)); kd0 = self.run_kd(f0, None)
+        mon = sorted({u.split('-1d-')[-1][:-4] for u in f0.bytes if '/monthly/' in u and '-1d-' in u})
+        self.assertEqual(mon, ['2025-03', '2025-04', '2025-05'], 'zamknięte miesiące okna — pliki miesięczne')
+        self.assertTrue(all('/daily/' in u for u in f0.bytes if '2025-06-' in u), 'bieżący miesiąc — pliki dzienne')
+        self.assertEqual(len(f0.json), 2); self.assertTrue(all('start_time=2025-03-20' in u for u in f0.json), 'zasilenie: KD_KEEP + 2 doby wstecz')
+        self.assertLessEqual(len(f0.hl), zd.KD_HL_CALLS); self.assertFalse(kd0['ready']); self.assertFalse(kd0['bf']['hl'])
+        self.assertEqual(kd0['req'], len(f0.bytes) + len(f0.json) + len(f0.hl), 'req = zapytania naprawdę wysłane')
+        self.assertTrue(kd0['bf']['q'] and kd0['bf']['cm'] and kd0['bf']['st'])
+        kd = self.seeded(D)
+        self.assertTrue(kd['ready']); self.assertEqual(kd['q']['BTC']['d'][-1][0], '2025-06-19')
+        self.assertEqual(len(kd['q']['BTC']['d']), 90); self.assertEqual(kd['q']['BTC']['d'][0][0], '2025-03-22')
+        self.assertEqual((kd['v'], kd['keep'], kd['wh'], kd['cut'], kd['src'], kd['lic']['cm']), (1, 90, 6, 330, zd.KD_SRC, zd.CM_ATTR))
+        self.assertEqual(list(kd), ['at', 'v', 'src', 'lic', 'keep', 'wh', 'cut', 'q', 'hl', 'cm', 'st', 'bf', 'ready', 'rv', 'bledy', 'req', 't'])
+        self.assertTrue(all(len(r) == 5 and all(x is not None for x in r) for r in kd['q']['SOL']['d']))
+        f = self.Fake(self.at(D, 23, 0)); kd2 = self.run_kd(f, kd)
+        self.assertEqual((f.bytes, f.json, f.hl, kd2['req']), ([], [], [], 0), 'przebieg bezczynny = 0 zapytań')
+        self.assertTrue(kd2['ready']); self.assertEqual(kd2['q'], kd['q'])
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 1, 30)); kd3 = self.run_kd(f, kd2)
+        self.assertEqual(f.bytes, [], 'przed 02:00 — bez zapytań o świece'); self.assertEqual(len(f.json), 2, 'od 01:00 Coin Metrics, dopóki brakuje wczoraj')
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 2, 5)); kd4 = self.run_kd(f, kd3)
+        self.assertEqual(len(f.bytes), 1, 'jedna próba (404 przed publikacją)'); self.assertEqual(kd4['bledy'], {}, '404 próby to nie błąd')
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 2, 25)); kd5 = self.run_kd(f, kd4)
+        self.assertEqual(len(f.bytes), 1 + 20, 'próba + 10 par × (1d + 1h)'); self.assertEqual(len(f.json), 2, 'Coin Metrics co przebieg, dopóki brakuje wczoraj')
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 2, 40)); kd5b = self.run_kd(f, kd5)
+        self.assertEqual((f.bytes, len(f.json), f.hl), ([], 2, [])); self.assertEqual(kd5b['cm']['btc']['d'][-1][0], '2025-06-20')
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3, 0)); self.run_kd(f, kd5b)
+        self.assertEqual((f.bytes, f.json, f.hl), ([], [], []), 'wszystko za wczoraj — przebieg bezczynny')
+        self.assertEqual(kd5['q']['ETH']['seen'], ['2025-06-20', '2025-06-21T02:25:00+00:00'])
+        self.assertEqual(kd5['q']['ETH']['d'][-1][0], '2025-06-20'); self.assertEqual(kd5['q']['ETH']['d'][0][0], '2025-03-23', 'okno przesuwa się z dobą')
+        f = self.Fake(self.at(D, 10), month_ok=False); self.run_kd(f, None)
+        self.assertTrue(any('/daily/' in u and '2025-04' in u for u in f.bytes), 'zamknięty miesiąc bez pliku miesięcznego → pliki dzienne')
+        self.assertTrue(any('/monthly/' in u for u in f.bytes))
+        kd['q']['BTC']['d'] = kd['q']['BTC']['d'][:-30]     # utrata historii jednej pary
+        kd6 = self.run_kd(self.Fake(self.at(D, 23, 30)), kd)
+        self.assertTrue(kd6['ready'], 'ready trwałe'); self.assertEqual(kd6['q']['BTC']['d'][-1][0], '2025-06-19', 'dopełnione w następnym przebiegu')
+
+    def test_builder_gaps_budget_fields(self):
+        D = datetime.date(2025, 6, 20)
+        kd = None
+        for i in range(12):                                   # luka potwierdzona: doba bez pliku (także w miesięcznym)
+            kd = self.run_kd(self.Fake(self.at(D, 10, i), gap=('2025-05-10', '2025-06-05')), kd)
+            if kd['ready']:
+                break
+        self.assertTrue(kd['ready'])
+        self.assertEqual(kd['q']['BTC']['miss'], ['2025-05-10', '2025-06-05']); self.assertNotIn('2025-05-10', [r[0] for r in kd['q']['BTC']['d']])
+        f = self.Fake(self.at(D, 23)); kd2 = self.run_kd(f, kd)
+        self.assertEqual(f.bytes, [], 'potwierdzona luka — nigdy ponownie'); self.assertEqual(kd2['q']['BTC']['miss'], kd['q']['BTC']['miss'])
+        s = zd._td_series_cr2(kd2, 'BTC', D)
+        i = s['dates'].index('2025-05-10')
+        self.assertEqual((s['close'][i], s['in']['p'][i], s['in']['p'][i + 1], s['in']['t'][i]), (None, None, None, None), 'luka = brak, nigdy 0')
+        # doba bez pliku młodsza niż 48 h — pytana dalej, nie „luka”
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3), gap=('2025-06-20',)); kd3 = self.run_kd(f, kd2)
+        self.assertNotIn('2025-06-20', kd3['q']['BTC']['miss']); self.assertNotIn('2025-06-20', [r[0] for r in kd3['q']['BTC']['d']])
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 4), gap=('2025-06-20',)); self.run_kd(f, kd3)
+        self.assertEqual(len(f.bytes), 1, 'dalej jedna próba na przebieg')
+        # brakujące pole: ponawiane tylko w dobie młodszej niż 48 h (nie wczoraj — wczoraj tylko przez próbę)
+        kd = json.loads(json.dumps(kd2))
+        for s_ in zd.TR_CR_SYMS:
+            q = kd['q'][s_]['d']
+            q[-1][4] = None; q[-3][4] = None                   # 06-19 (24,5 h po końcu doby w chwili przebiegu) i 06-17 (72,5 h)
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 0, 30)); kd4 = self.run_kd(f, kd)
+        self.assertTrue(all('2025-06-19' in u for u in f.bytes) and len(f.bytes) == 20, 'tylko 06-19: 10 par × (1d + 1h)')
+        self.assertIsNotNone(kd4['q']['SOL']['d'][-1][4]); self.assertIsNone(kd4['q']['SOL']['d'][-3][4], 'doba starsza niż 48 h — brak zostaje')
+        self.assertEqual(kd4['q']['SOL']['seen'], kd['q']['SOL']['seen'], 'uzupełnione samo otwarcie starszej doby — seen bez zmian')
+        # koniec budżetu dopełniania: bez błędu (uwaga w meta), reszta w następnym przebiegu
+        kd = json.loads(json.dumps(kd2))
+        for s_ in zd.TR_CR_SYMS:
+            kd['q'][s_]['d'] = kd['q'][s_]['d'][:10] + kd['q'][s_]['d'][20:]      # doby sprzed tła najnowszej karty (70–79 dób przed nią)
+        gap = ('2025-05-10', '2025-06-05')
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, 'KD_BUDGET', 0):
+            f = self.Fake(self.at(D, 23, 10), gap=gap); kd5 = self.run_kd(f, kd)
+        self.assertEqual((f.bytes, kd5['bledy'], kd5['bf']['q'], kd5['req']), ([], {}, False, 0), 'budżet 0 — nic, bez błędu; plik nie jest pełny; '
+                         'zadania zatrzymane przed wysłaniem nie liczą się jako zapytania')
+        self.assertEqual(zd.META['notes'], ['Krypto dziennie: limit czasu dopełniania świec (0 s) — reszta w następnym przebiegu'], 'koniec czasu — uwaga')
+        self.assertTrue(kd5['ready'], 'ready trwałe mimo dziury')
+        kd6 = self.run_kd(self.Fake(self.at(D, 23, 20), gap=gap), kd5)
+        self.assertTrue(kd6['bf']['q']); self.assertEqual(len(kd6['q']['ADA']['d']), 90 - 2, 'następny przebieg dopełnia (bez 2 potwierdzonych luk)')
+        self.assertEqual(kd6['q']['ADA']['seen'], kd5['q']['ADA']['seen'], 'dopełnienie dób sprzed tła karty nie zmienia seen')
+        # dopełnienie doby z tła najnowszej karty (tu: 5 dób przed nią) po 05:30 → seen na nowo: karta „po czasie”, dziennik jej nie zapisze
+        kd = json.loads(json.dumps(kd2))
+        for s_ in zd.TR_CR_SYMS:
+            kd['q'][s_]['d'] = kd['q'][s_]['d'][:-6] + kd['q'][s_]['d'][-5:]
+        self.assertEqual(kd['q']['ADA']['d'][-1][0], '2025-06-19')
+        f = self.Fake(self.at(D, 5, 45)); kd7 = self.run_kd(f, kd)
+        self.assertEqual(len(kd7['q']['ADA']['d']), 90 - 2); self.assertEqual(kd7['q']['ADA']['seen'], ['2025-06-19', '2025-06-20T05:45:00+00:00'])
+        rows, bd, series, _, _ = self.core(kd7, self.at(D, 6, 5))
+        self.assertEqual({r['st'] for r in rows}, {'late'}, 'tło karty ustalone po 05:30')
+        with mock.patch.object(zd, 'TD_SINCE_CR2', '2025-06-01'):
+            self.assertEqual(zd._td_cr_log(None, rows, series, self.at(D, 6, 5))['rows'], [], 'karta z tłem po czasie nigdy do dziennika')
+        f = self.Fake(self.at(D, 5, 20)); kd8 = self.run_kd(f, kd)
+        self.assertEqual(kd8['q']['ADA']['seen'], ['2025-06-19', '2025-06-20T05:20:00+00:00'], 'to samo dopełnienie przed 05:30 — na czas')
+        self.assertFalse(zd._td_series_cr2(kd8, 'ADA', D)['late'])
+
+    def test_builder_seen_and_lateness(self):
+        D = datetime.date(2025, 6, 20); kd = self.seeded(D)          # wiersze do 06-19
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3, 0)); kd2 = self.run_kd(f, kd)
+        self.assertEqual(kd2['q']['BTC']['seen'], ['2025-06-20', '2025-06-21T03:00:00+00:00'], 'seen z zegara przebiegu (_now_utc)')
+        self.assertNotEqual(zd.NOW[:10], '2025-06-21', 'NOW procesu jest inny — seen go nie używa')
+        self.assertEqual(kd2['hl']['BTC']['seen'], ['2025-06-20', '2025-06-21T03:00:00+00:00'])
+        s = zd._td_series_cr2(kd2, 'BTC', D + datetime.timedelta(days=1))
+        self.assertFalse(s['late']); self.assertTrue(s['on']['h'][-1], 'premia zapisana 03:00 — na czas')
+        row = [r for r in kd2['cm']['btc']['d'] if r[0] == '2025-06-20'][0]
+        self.assertEqual(row[3:], ['2025-06-21T02:30:00+00:00', '2025-06-21T03:00:00+00:00'], 'cm: pub dostawcy i czas zapisu')
+        st = [r for r in kd2['st']['d'] if r[0] == '2025-06-20'][0]; self.assertEqual(st[4], '2025-06-21T03:00:00+00:00')
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 4, 0)); kd3 = self.run_kd(f, kd2)
+        self.assertEqual(kd3['q']['BTC']['seen'], kd2['q']['BTC']['seen'], 'bez zmiany najnowszej doby — seen zostaje')
+        self.assertEqual(kd3['hl']['BTC']['seen'], kd2['hl']['BTC']['seen'])
+        # zmiana wejść najnowszej doby (tu: dopełnione brakujące tbq przez dopełnianie) → seen na nowo (po czasie)
+        kd = json.loads(json.dumps(kd2))
+        for s_ in zd.TR_CR_SYMS:
+            kd['q'][s_]['d'][-1][3] = None
+        f = self.Fake(self.at(D + datetime.timedelta(days=2), 0, 20)); kd4 = self.run_kd(f, kd)
+        self.assertEqual(kd4['q']['XRP']['seen'], ['2025-06-20', '2025-06-22T00:20:00+00:00'], 'dopełnienie zmieniło wejścia najnowszej doby')
+        self.assertTrue(zd._td_series_cr2(kd4, 'XRP', D + datetime.timedelta(days=2))['late'])
+        # dopełnienie wstecz zapisuje najnowszą dobę po 05:30 → wszystkie karty „po czasie”, dziennik pusty
+        kd = self.seeded(D)
+        f = self.Fake(self.at(D + datetime.timedelta(days=2), 0, 20)); kd5 = self.run_kd(f, kd)
+        self.assertEqual(kd5['q']['SOL']['d'][-1][0], '2025-06-20', 'doba D przez dopełnianie (wczoraj 06-21 jeszcze bez próby)')
+        self.assertEqual(kd5['q']['SOL']['seen'], ['2025-06-20', '2025-06-22T00:20:00+00:00'])
+        now = f.now
+        rows, bd, series, _, _ = self.core(kd5, now)
+        self.assertEqual(len(rows), 10); self.assertTrue(all(r['date'] == '2025-06-20' and r['live'] for r in rows))
+        self.assertEqual({r['st'] for r in rows}, {'late'}, [r['st'] for r in rows])
+        with mock.patch.object(zd, 'TD_SINCE_CR2', '2025-06-01'):
+            self.assertEqual(zd._td_cr_log(None, rows, series, self.at(D + datetime.timedelta(days=2), 6, 10))['rows'], [], 'karta po czasie nigdy do dziennika')
+        kd['q']['BTC']['seen'] = None
+        self.assertTrue(zd._td_series_cr2(kd, 'BTC', D)['late'], 'nieznany czas zapisu najnowszej doby = po czasie')
+        # premia nocą: o 00:20 doby D+2 zapisana premia doby D+1 (seen), świece D+1 jeszcze nie — karta doby D (aktualna do D+2 06:00)
+        # zachowuje głos premii zapisanej na czas (sp = poprzednie seen) i jest tą samą kartą co przed zapisem nowej premii
+        D2 = D + datetime.timedelta(days=2)
+        kd9 = self.run_kd(self.Fake(self.at(D2, 0, 20)), kd2)
+        self.assertEqual((kd9['hl']['BTC']['seen'], kd9['hl']['BTC']['sp']), (['2025-06-21', '2025-06-22T00:20:00+00:00'], kd2['hl']['BTC']['seen']))
+        self.assertEqual(kd2['hl']['BTC']['seen'], ['2025-06-20', '2025-06-21T03:00:00+00:00']); self.assertEqual(kd9['q']['BTC']['d'][-1][0], '2025-06-20')
+        rows9, _, _, _, _ = self.core(kd9, self.at(D2, 1, 0)); rows2, _, _, _, _ = self.core(kd2, self.at(D2, 1, 0))
+        self.assertTrue(all(r['date'] == '2025-06-20' and r['live'] and r['lt'] == [] and r['st'] != 'late' for r in rows9), [(r['st'], r['lt']) for r in rows9])
+        core = lambda R: [{k: r[k] for k in ('id', 'date', 'rule', 'dir', 'side', 'str', 'st', 'rs', 'N', 'lt')} for r in R]   # okno KD_KEEP przesunęło się o dobę
+        self.assertEqual(self.dump(core(rows9)), self.dump(core(rows2)), 'ta sama karta przed i po zapisie premii następnej doby')
+        # premia D i D+1 zapisane jednym przebiegiem (nadrabianie) — premia doby D po czasie, bez głosu (sp nazywa D−1)
+        k3 = json.loads(json.dumps(kd2))
+        for s_ in zd.TR_CR_SYMS:
+            k3['hl'][s_]['d'] = k3['hl'][s_]['d'][:-1]; k3['hl'][s_]['seen'] = k3['hl'][s_]['sp']
+        kd10 = self.run_kd(self.Fake(self.at(D2, 0, 20)), k3)
+        self.assertEqual(kd10['hl']['BTC']['sp'][0], '2025-06-19'); self.assertEqual(kd10['hl']['BTC']['d'][-2][0], '2025-06-20')
+        rows10, _, _, _, _ = self.core(kd10, self.at(D2, 1, 0))
+        self.assertTrue(all('h' in r['lt'] and [x for x in r['rs'] if x[0] == 'h'][0][3] == 0 for r in rows10), 'premia doby D zapisana po czasie')
+        self.assertEqual(self.run_kd(self.Fake(self.at(D2, 2, 0)), kd9)['hl']['BTC']['sp'], kd9['hl']['BTC']['sp'], 'bez nowej doby premii — sp zostaje')
+
+    def test_builder_hl(self):
+        D = datetime.date(2025, 6, 20); kd = self.seeded(D)
+        hrs = {r[0]: r[2] for r in kd['hl']['ETH']['d']}
+        self.assertEqual(set(hrs.values()), {24}, 'strony do przodu bez powtórzonych godzin'); self.assertEqual(len(hrs), 90)
+        self.assertEqual(max(hrs), '2025-06-19'); self.assertEqual(min(hrs), '2025-03-22')
+        self.assertTrue(all(isinstance(r[1], float) and r[1] == round(r[1], 4) for r in kd['hl']['ETH']['d']), 'bp do 4 miejsc')
+        # doba zapisywana dopiero z wierszem o jej zamykającej północy
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3), hl_until=self.at(D, 23)); kd2 = self.run_kd(f, kd)
+        self.assertEqual(kd2['hl']['BTC']['d'][-1][0], '2025-06-19', 'bez wiersza 06-21 00:00 doba 06-20 czeka'); self.assertEqual(len(f.hl), 10)
+        self.assertEqual(kd2['hl']['BTC']['seen'], kd['hl']['BTC']['seen'])
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3), hl_bad={self.Fake.ms(self.at(D, 5))}); kd3 = self.run_kd(f, kd2)
+        r = kd3['hl']['BTC']['d'][-1]
+        self.assertEqual((r[0], r[2]), ('2025-06-20', 23), 'premia nie-liczba pominięta (nigdy 0)')
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 4)); self.run_kd(f, kd3)
+        self.assertEqual(f.hl, [], 'wczoraj zapisane — bez zapytania')
+        # pierwszy błąd kończy część
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 0, 20), hl_fail=('XRP',)); kd4 = self.run_kd(f, kd)
+        self.assertEqual([b['coin'] for b in f.hl], ['BTC', 'ETH', 'XRP'], 'bez zapytań po pierwszym błędzie')
+        self.assertIn('hl', kd4['bledy']); self.assertEqual(kd4['hl']['SOL'], kd['hl']['SOL']); self.assertEqual(kd4['hl']['XRP'], kd['hl']['XRP'])
+        self.assertEqual(kd4['hl']['BTC']['d'][-1][0], '2025-06-20')
+        self.assertEqual([e for e in zd.META['errors'] if e.startswith('Krypto dziennie: ')], ['Krypto dziennie: Hyperliquid XRP: timed out'])
+        # spóźniony przebieg: bez dopełniania świec, 1 zapytanie na parę, tylko pary, którym brakuje samego wczoraj
+        zd.META['errors'].clear()
+        kd['q']['ADA']['d'] = kd['q']['ADA']['d'][:40] + kd['q']['ADA']['d'][45:]
+        kd['hl']['LINK']['d'] = kd['hl']['LINK']['d'][:-3]
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 2, 30))
+        import time as _t
+        kd5 = self.run_kd(f, kd, run_t0=_t.monotonic() - zd.KD_LATE - 5)
+        self.assertEqual(len(f.bytes), 21, 'spóźniony: tylko wczoraj (próba + 20), bez dopełniania')
+        self.assertEqual(len(f.hl), 9, 'jedno zapytanie na parę, bez LINK (brakuje więcej niż wczoraj)')
+        self.assertEqual(len(kd5['q']['ADA']['d']), 90 - 5 + 1 - 1, 'dziura ADA zostaje na zwykły przebieg (okno przesunięte o dobę)')
+
+    def test_builder_deadline(self):
+        D = datetime.date(2025, 6, 20); kd = self.seeded(D)
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 0, 20), hl_sleep=1.2); zg = self.Zegar()
+        with mock.patch.object(zd, 'KD_T', 3), mock.patch.object(zd, 'time', zg):        # zegar umowny: czas płynie tylko w atrapie
+            t0 = zg.monotonic(); kd2 = self.run_kd(f, kd); dt = zg.monotonic() - t0
+        self.assertLess(dt, 4.5); self.assertLessEqual(len(f.hl), 3); self.assertEqual(kd2['req'], len(f.hl))
+        self.assertGreater(len(f.hl), 0, 'premia zaczęta przed terminem')
+        got = sum(1 for s in zd.TR_CR_SYMS if kd2['hl'][s]['d'][-1][0] == '2025-06-20')
+        self.assertLess(got, 10); self.assertTrue(all(kd2['hl'][s]['d'] for s in zd.TR_CR_SYMS), 'pary nieosiągnięte zachowują wiersze')
+        self.assertEqual(zd.META['errors'], [], 'koniec czasu to nie błąd')
+        self.assertEqual(zd.META['notes'], ['Krypto dziennie: limit czasu budowniczego (3 s) — reszta w następnym przebiegu'])
+        self.assertIsNone(zd._KD_TERMIN[0], 'termin wyczyszczony po przebiegu'); self.assertEqual(zd.kd_tmo(7), 7)
+
+    def test_builder_deadline_late_and_timeouts(self):
+        """Spóźniony przebieg: cały budowniczy w KD_T_LATE (nie KD_T); w każdym przebiegu limit każdego zapytania ≤ min(pułap części, czas
+        pozostały z terminu budowniczego), a zapytania dopełniania świec ≤ termin dopełniania (KD_BUDGET). Zegar umowny (Zegar) i jeden wątek
+        świec: opóźnienia odpowiedzi przesuwają tylko ten zegar, więc wynik nie zależy od szybkości ani obciążenia maszyny (przegląd 27.09 —
+        na zwolnionym procesie prawdziwy zegar dochodził do terminu przed premią)."""
+        D = datetime.date(2025, 6, 20); kd = self.seeded(D); D1 = D + datetime.timedelta(days=1)
+        caps = {'b': zd.KD_TIMEOUT, 'j': zd.KD_CM_TIMEOUT, 'h': zd.KD_TIMEOUT}
+        f = self.Fake(self.at(D1, 2, 30), delay=lambda k, u: {'b': 0.02, 'j': 0.1, 'h': 0.4}[k], honor=True); zg = self.Zegar()
+        with mock.patch.object(zd, 'KD_T', 30), mock.patch.object(zd, 'KD_T_LATE', 2), mock.patch.object(zd, 'KD_THREADS', 1), \
+                mock.patch.object(zd, 'time', zg):
+            t0 = zg.monotonic(); kd2 = self.run_kd(f, kd, run_t0=t0 - zd.KD_LATE - 5); dt = zg.monotonic() - t0
+        self.assertLessEqual(dt, 2, 'spóźniony przebieg kończy się w KD_T_LATE')
+        self.assertLess(len(f.hl), 10, 'premia przerwana terminem spóźnionego przebiegu'); self.assertGreater(len(f.hl), 0)
+        for kind, tmo, left, u in f.tmo:
+            self.assertLessEqual(tmo, caps[kind], (kind, u)); self.assertLessEqual(tmo, left + 0.05, (kind, tmo, left, u))
+        self.assertEqual((kd2['bledy'], zd.META['errors']), ({}, []), 'koniec czasu to nie błąd')
+        self.assertEqual(zd.META['notes'], ['Krypto dziennie: limit czasu budowniczego (2 s) — reszta w następnym przebiegu'])
+        self.assertEqual(kd2['req'], len(f.bytes) + len(f.json) + len(f.hl))
+        # zwykły przebieg z dopełnianiem: limity ≤ pułap i ≤ pozostały czas; dopełnianie ≤ KD_BUDGET
+        zd.META['notes'].clear()
+        k2 = json.loads(json.dumps(kd))
+        for s_ in zd.TR_CR_SYMS:
+            k2['q'][s_]['d'] = k2['q'][s_]['d'][:40] + k2['q'][s_]['d'][45:]
+        f = self.Fake(self.at(D1, 2, 30)); zg = self.Zegar()
+        with mock.patch.object(zd, 'KD_T', 25), mock.patch.object(zd, 'KD_BUDGET', 3), mock.patch.object(zd, 'time', zg):
+            kd3 = self.run_kd(f, k2)
+        self.assertEqual(len(kd3['q']['ADA']['d']), 90); self.assertEqual(kd3['bledy'], {})
+        back = [x for x in f.tmo if x[0] == 'b' and '2025-06-20' not in x[3]]
+        self.assertTrue(back and len(f.json) == 2 and f.hl)
+        for kind, tmo, left, u in f.tmo:
+            self.assertLessEqual(tmo, caps[kind], (kind, u)); self.assertLessEqual(tmo, left + 0.05, (kind, tmo, left, u))
+        for kind, tmo, left, u in back:
+            self.assertLessEqual(tmo, 3 + 0.05, ('dopełnianie ≤ KD_BUDGET', u))
+
+    def test_builder_cut_timeout_is_budget(self):
+        """Zapytanie z limitem SKRÓCONYM przez termin budowniczego, które go przekroczy (wolne źródło tuż przed terminem), to koniec czasu —
+        uwaga w meta, bez wpisu w bledy (Coin Metrics, premia, próba wczorajszego pliku, pliki świec); przekroczony pełny limit — błąd części.
+        Zegar umowny (Zegar) i jeden wątek świec, jak w testach terminu: wolne źródło „czeka” tylko na tym zegarze (bez prawdziwego czekania),
+        więc pierwsze zapytanie zawsze wychodzi przed terminem, niezależnie od szybkości i obciążenia maszyny (przegląd 27.09)."""
+        D = datetime.date(2025, 6, 20); kd = self.seeded(D); D1 = D + datetime.timedelta(days=1)
+        note = ['Krypto dziennie: limit czasu budowniczego (1.2 s) — reszta w następnym przebiegu']
+        for hh, mm, slow, what in ((1, 30, 'j', 'Coin Metrics'), (0, 20, 'h', 'premia'), (2, 30, 'probe', 'próba'), (2, 30, 'files', 'pliki świec')):
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+
+            def delay(k, u, slow=slow):
+                if slow == 'probe':
+                    return 5.0 if k == 'b' and 'BTCUSDT-1d-' in u else 0.0
+                if slow == 'files':
+                    return 5.0 if k == 'b' and 'BTCUSDT-1d-' not in u else 0.0
+                return 5.0 if k == slow else 0.0
+            f = self.Fake(self.at(D1, hh, mm), delay=delay, honor=True); zg = self.Zegar()
+            with mock.patch.object(zd, 'KD_T', 1.2), mock.patch.object(zd, 'KD_THREADS', 1), mock.patch.object(zd, 'time', zg):
+                kd2 = self.run_kd(f, kd)
+            self.assertTrue(any(x[1] < {'b': zd.KD_TIMEOUT, 'j': zd.KD_CM_TIMEOUT, 'h': zd.KD_TIMEOUT}[x[0]] for x in f.tmo), what + ': limit skrócony')
+            self.assertEqual((kd2['bledy'], zd.META['errors']), ({}, []), what + ': koniec czasu to nie błąd')
+            self.assertEqual(zd.META['notes'], note, what)
+            self.assertEqual(kd2['req'], len(f.bytes) + len(f.json) + len(f.hl), what + ': zapytania wysłane (także przerwane) w req')
+            self.assertEqual((kd2['cm'], kd2['st']), (kd['cm'], kd['st']), what)
+            self.assertEqual({s_: kd2['hl'][s_]['d'] for s_ in zd.TR_CR_SYMS}, {s_: kd['hl'][s_]['d'] for s_ in zd.TR_CR_SYMS}, what)
+        # ta część jako jedyna w przebiegu (reszta już zapisana): koniec czasu nadal widać jako uwagę — nie „znika” w następnej części
+        kd2 = self.run_kd(self.Fake(self.at(D1, 3, 0)), kd)
+        for what, cut in (('Coin Metrics — jedyna część', 'cm'), ('próba — jedyna część', 'q')):
+            k = json.loads(json.dumps(kd2))
+            if cut == 'cm':
+                for a in ('btc', 'eth'):
+                    k['cm'][a]['d'] = [r for r in k['cm'][a]['d'] if r[0] != '2025-06-20']
+                k['st']['d'] = [r for r in k['st']['d'] if r[0] != '2025-06-20']
+            else:
+                for s_ in zd.TR_CR_SYMS:
+                    k['q'][s_]['d'] = [r for r in k['q'][s_]['d'] if r[0] != '2025-06-20']
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+            f = self.Fake(self.at(D1, 4, 0), delay=lambda kk, u: 5.0, honor=True); zg = self.Zegar()
+            with mock.patch.object(zd, 'KD_T', 1.2), mock.patch.object(zd, 'KD_THREADS', 1), mock.patch.object(zd, 'time', zg):
+                k2 = self.run_kd(f, k)
+            self.assertEqual((len(f.bytes), len(f.json), len(f.hl)), (1, 0, 0) if cut == 'q' else (0, 1, 0), what)
+            self.assertEqual((k2['bledy'], zd.META['errors'], zd.META['notes']), ({}, [], note), what)
+        # pełny limit przekroczony (źródło naprawdę nie odpowiada) — błąd części, jak dotąd
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        f = self.Fake(self.at(D1, 1, 30)); f.get_json = lambda url, headers=None, timeout=30: (_ for _ in ()).throw(TimeoutError('timed out'))
+        kd3 = self.run_kd(f, kd)
+        self.assertEqual(kd3['bledy'].get('cm'), 'Coin Metrics: timed out'); self.assertEqual(zd.META['notes'], [])
+
+    def test_builder_cm_st(self):
+        D = datetime.date(2025, 6, 20)
+        f = self.Fake(self.at(D, 10), rewritten=('2025-06-01',)); kd = self.run_kd(f, None)
+        days = [r[0] for r in kd['cm']['btc']['d']]
+        self.assertNotIn('2025-06-01', days, 'przepisana później — to nie pierwsza publikacja'); self.assertIn('2025-06-02', days)
+        self.assertTrue(all(r[4] is None for r in kd['cm']['btc']['d'] + kd['st']['d']), 'wiersze zasilenia bez czasu zapisu')
+        self.assertEqual(days[0], '2025-03-22'); self.assertEqual(kd['st']['d'][0][0], '2025-03-21', 'st: o jedną dobę więcej')
+        self.assertIsNotNone(kd['st']['d'][0][5], 'zasilenie sięga 2 doby dalej — pierwsza zachowana doba ma poprzednią w tej samej odpowiedzi')
+        self.assertEqual([r[0] for r in kd['st']['d'] if r[3] is None], ['2025-06-01'], 'st: czas publikacji tylko, gdy pierwsza publikacja')
+        kd = self.seeded(D)
+        # kompletność: bez znacznika końca doby przepływy dopiero od D+1 04:30; stablecoiny tylko z oboma znacznikami
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3), no_eod=('2025-06-20',), usdc_no_eod=('2025-06-20',)); kd2 = self.run_kd(f, kd)
+        self.assertNotIn('2025-06-20', [r[0] for r in kd2['cm']['btc']['d']]); self.assertNotIn('2025-06-20', [r[0] for r in kd2['st']['d']])
+        self.assertEqual(kd2['bledy'], {})
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 4, 40), no_eod=('2025-06-20',), usdc_no_eod=('2025-06-20',)); kd3 = self.run_kd(f, kd2)
+        self.assertIn('2025-06-20', [r[0] for r in kd3['cm']['btc']['d']]); self.assertNotIn('2025-06-20', [r[0] for r in kd3['st']['d']])
+        self.assertEqual([r for r in kd3['cm']['eth']['d'] if r[0] == '2025-06-20'][0][4], '2025-06-21T04:40:00+00:00')
+        # przeliczenie całej historii poziomów stablecoinów (−235 mln USD): nowa doba = prawdziwa zmiana, stare wiersze nietknięte, rv
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3, 0), st_shift=-235e6); kd4 = self.run_kd(f, kd)
+        new = [r for r in kd4['st']['d'] if r[0] == '2025-06-20'][0]
+        g = self.Fake(self.at(D + datetime.timedelta(days=1), 3, 0))
+        true = sum(g.lv(D, a) for a in ('usdt', 'usdc')) - sum(g.lv(D - datetime.timedelta(days=1), a) for a in ('usdt', 'usdc'))
+        self.assertAlmostEqual(new[5], round(true), delta=1)
+        old = [r for r in kd['st']['d'] if r[0] == '2025-06-19'][0]
+        self.assertGreater(abs((new[1] + new[2]) - (old[1] + old[2]) - true), 2e8, 'same poziomy dałyby skok')
+        self.assertEqual(kd4['rv'], {'btc': 0, 'eth': 0, 'st': 4}, 'cztery ponownie odczytane doby różnią się o > 1 mln USD')
+        self.assertEqual([r for r in kd4['st']['d'] if r[0] == '2025-06-19'][0], old, 'nigdy nadpisane')
+        self.assertEqual(zd.META['notes'], ['Krypto dziennie: Coin Metrics przepisał dni już zapisane (w archiwum zostaje pierwsza publikacja): st 4'])
+        s = zd._td_series_cr2(kd4, 'BTC', D + datetime.timedelta(days=1))
+        self.assertAlmostEqual(s['in']['s'][-1], round(true) / 1e6, places=6)
+        # przeliczone przepływy BTC/ETH (+0,5 monety na każdej dobie): zapisane doby nigdy nadpisane (także pub i seen), przeliczenie w rv
+        zd.META['notes'].clear()
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3, 0), flow_shift=0.5); kd6 = self.run_kd(f, kd)
+        for a in ('btc', 'eth'):
+            old = {r[0]: r for r in kd['cm'][a]['d']}
+            self.assertEqual([r for r in kd6['cm'][a]['d'] if r[0] in old], [old[r[0]] for r in kd6['cm'][a]['d'] if r[0] in old], a + ': nigdy nadpisane')
+            new = [r for r in kd6['cm'][a]['d'] if r[0] == '2025-06-20'][0]
+            self.assertEqual((new[1], new[4]), (round(1000 + datetime.date(2025, 6, 20).toordinal() % 50 + 0.5, 2), '2025-06-21T03:00:00+00:00'),
+                             'nowa doba = pierwsza publikacja (już przeliczona)')
+        self.assertEqual(kd6['rv'], {'btc': 4, 'eth': 4, 'st': 0}, 'cztery ponownie odczytane doby różnią się o > 0,01')
+        self.assertEqual(zd.META['notes'], ['Krypto dziennie: Coin Metrics przepisał dni już zapisane (w archiwum zostaje pierwsza publikacja): btc 4, eth 4'])
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3, 0), flow_shift=0.004); kd6b = self.run_kd(f, kd)
+        self.assertEqual(kd6b['rv'], {'btc': 0, 'eth': 0, 'st': 0}, 'różnica ≤ 0,01 — bez przeliczenia')
+        # awaria Coin Metrics: poprzednie archiwum zostaje, błąd części
+        zd.META['errors'].clear()
+        f = self.Fake(self.at(D + datetime.timedelta(days=1), 3, 0))
+        f.get_json = lambda url, headers=None, timeout=30: {'error': {'message': 'Too Many Requests'}}
+        kd5 = self.run_kd(f, kd)
+        self.assertEqual((kd5['cm'], kd5['st']), (kd['cm'], kd['st'])); self.assertEqual(kd5['bledy']['cm'], 'Coin Metrics: Too Many Requests')
+        self.assertEqual(zd.META['errors'], ['Krypto dziennie: Coin Metrics: Too Many Requests']); self.assertTrue(kd5['ready'])
+
+    def test_builder_flags_and_failure(self):
+        D = datetime.date(2025, 6, 20)
+        f = self.Fake(self.at(D, 10)); f.get_json = lambda url, headers=None, timeout=30: {'x': 1}
+        kd = self.run_kd(f, None)
+        self.assertEqual((kd['bf']['cm'], kd['bf']['st'], kd['ready']), (False, False, False)); self.assertIn('cm', kd['bledy'])
+        f = self.Fake(self.at(D, 10)); f.get_bytes = lambda url, headers=None, timeout=60: (_ for _ in ()).throw(OSError('sieć'))
+        f.hl_post = lambda body, timeout=None: []
+        zd.META['errors'].clear()
+        with self.assertRaises(RuntimeError) as cm:
+            self.run_kd(f, None)
+        self.assertIn('żadna para nie ma danych', str(cm.exception)); self.assertIsNone(zd._KD_TERMIN[0])
+        kd = self.seeded(D)
+        self.assertEqual(kd['bf'], {'q': True, 'hl': True, 'cm': True, 'st': True}); self.assertEqual(kd['bledy'], {})
+        kd2 = self.run_kd(self.Fake(self.at(D, 23)), dict(kd, ready=False, hl={s: {'d': [], 'seen': None} for s in zd.TR_CR_SYMS}))
+        self.assertFalse(kd2['bf']['hl']); self.assertFalse(kd2['ready'], 'bez trwałej flagi — gotowość dopiero po dopełnieniu')
+
+    # ---------------------------------------------------------------- 19: przebieg główny
+    def _main(self, prev, build, keep=()):
+        """main() bez sieci: wszystkie pozostałe budowniczowie udają awarię; `build` zastępuje build_krypto_dzien; keep = prawdziwe funkcje
+        (np. trendy). save zapisuje także do SAVED (jak prawdziwy), previous czyta ze słownika prev."""
+        saved, order = {}, []
+        names = [n for n in dir(zd) if n.startswith('build_') and callable(getattr(zd, n)) and n not in keep and n != 'build_krypto_dzien']
+
+        def save(n, o):
+            saved[n] = o; order.append(n); zd.SAVED[n] = o
+        pats = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in names]
+        pats += [mock.patch.dict(os.environ, {k: '' for k in self.ENV_EMPTY}, clear=False), mock.patch.object(zd, 'save', save),
+                 mock.patch.object(zd, 'SAVED', {}), mock.patch.object(zd, 'previous', lambda name: prev.get(name)),
+                 mock.patch.object(zd, 'build_krypto_dzien', side_effect=build)]
+        [p.start() for p in pats]
+        try:
+            zd.main()
+        finally:
+            [p.stop() for p in reversed(pats)]
+        return saved, order
+
+    def test_main(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        m = src.index('def main():')
+        a = src.index("prev_kd = previous('krypto-dzien')"); self.assertGreater(a, src.index("if prev_kc: save('ceny-krypto', prev_kc)")); self.assertGreater(a, m)
+        self.assertIn("kd = build_krypto_dzien(prev_kd, run_t0=_RUN_T0[0]); save('krypto-dzien', kd); META['ok']['krypto-dzien'] = not kd.get('bledy')", src)
+        j0 = src.index("_CR_LOG[0] = previous('krypto-dziennik'); _CR_LOG[1] = None"); t0 = src.index("save('trendy', build_trendy(SAVED))")
+        j1 = src.index("save('krypto-dziennik', _CR_LOG[1])")
+        self.assertTrue(m < j0 < t0 < j1, 'dziennik: poprzedni przed trendami, zapis po trendach')
+        self.assertLess(src.index('def build_krypto_dzien('), m)
+        blk = src[src.index('# ===================== v125: DANE DZIENNE SYGNAŁÓW KRYPTO'):m]
+        self.assertNotIn('os.environ', blk); self.assertNotIn('KEY', blk.replace('KD_KEEP', ''), 'źródła bez klucza')
+        self.assertNotIn('NOW)', blk.replace("'at': NOW,", ''), 'seen tylko z _now_utc')
+        # awaria całego budowniczego → poprzedni plik, ok False, błąd „Krypto dziennie: …”
+        prev_kd = {'at': '2026-09-27T08:40:00+00:00', 'q': {}, 'ready': False}
+        saved, _ = self._main({'krypto-dzien': prev_kd}, RuntimeError('offline'))
+        self.assertIs(saved['krypto-dzien'], prev_kd); self.assertIs(zd.META['ok']['krypto-dzien'], False); self.assertIn('Krypto dziennie: offline', zd.META['errors'])
+        self.assertNotIn('krypto-dziennik', saved, 'bez poprzedniego dziennika nic nie jest zapisywane')
+        saved, _ = self._main({}, RuntimeError('offline')); self.assertNotIn('krypto-dzien', saved)
+        built = {'at': zd.NOW, 'bledy': {}, 'ready': False}
+        saved, _ = self._main({}, lambda p, run_t0=None: built)
+        self.assertIs(saved['krypto-dzien'], built); self.assertIs(zd.META['ok']['krypto-dzien'], True)
+        saved, _ = self._main({}, lambda p, run_t0=None: dict(built, bledy={'hl': 'x'})); self.assertIs(zd.META['ok']['krypto-dzien'], False)
+        calls = []
+        self._main({'krypto-dzien': prev_kd}, lambda p, run_t0=None: calls.append((p, run_t0)) or built)
+        self.assertIs(calls[0][0], prev_kd); self.assertIsInstance(calls[0][1], float, 'początek przebiegu przekazany (spóźniony przebieg)')
+        # dziennik: wersja 2 nieaktywna → poprzedni poprawny zapisany bez zmian; zły albo pusty — nigdy
+        log = {'at': '2026-09-27T08:40:00Z', 'v': 2, 'since': '2026-09-28', 'wh': 6, 'rows': [], 'cp': {}}
+        saved, _ = self._main({'krypto-dziennik': log}, lambda p, run_t0=None: built, keep=('build_trendy', 'build_daily', 'build_daily_cr', 'build_daily_cr2'))
+        self.assertIs(saved['krypto-dziennik'], log)
+        for bad in ({}, {'rows': []}, {'v': 2, 'since': 'x', 'rows': 'x'}):
+            saved, _ = self._main({'krypto-dziennik': bad}, lambda p, run_t0=None: built, keep=('build_trendy', 'build_daily', 'build_daily_cr', 'build_daily_cr2'))
+            self.assertNotIn('krypto-dziennik', saved, bad)
+        # wersja 2 aktywna → dziennik zbudowany w tym przebiegu, zapisany po trendach
+        kd = self.kd_synth(150); now = self.at(self.day(150), 6, 30)
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'TD_SINCE_CR2', self.day(148)):
+            saved, order = self._main({'krypto-dziennik': log}, lambda p, run_t0=None: kd, keep=('build_trendy', 'build_daily', 'build_daily_cr', 'build_daily_cr2'))
+        self.assertTrue(saved['trendy']['bd'] and all(b['v'] == 2 for b in saved['trendy']['bd'] if b['fam'] == 'cr'))
+        J = saved['krypto-dziennik']
+        self.assertEqual((J['since'], [r[:2] for r in J['rows']]), (self.day(148), [[self.day(149), 'BTC'], [self.day(149), 'SOL']]))
+        self.assertIn('prev', J, 'inna data wdrożenia niż w poprzednim — nowy dziennik z prev')
+        self.assertLess(order.index('trendy'), order.index('krypto-dziennik')); self.assertLess(order.index('krypto-dzien'), order.index('trendy'))
+        # wersja 2 aktywna, ale bez dziennika (nieczytelna kopia) → nic nie jest zapisywane
+        bad = os.path.join(self.tmp, 'zly.csv')
+        with open(bad, 'w', encoding='utf-8') as fh:
+            fh.write('x\n')
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'TD_SINCE_CR2', self.day(148)), mock.patch.object(zd, 'TD_CR_CSV', bad):
+            saved, _ = self._main({}, lambda p, run_t0=None: kd, keep=('build_trendy', 'build_daily', 'build_daily_cr', 'build_daily_cr2'))
+        self.assertNotIn('krypto-dziennik', saved); self.assertIn('trendy', saved)
+        self.assertTrue(any(e.startswith('Dziennik krypto: ') for e in saved['meta']['errors']))
+
+    def test_stub_tuples(self):
+        """Każda krotka zaślepek przebiegu głównego zna build_krypto_dzien (brak zaślepki = prawdziwe zapytania; blokada sieci zatrzyma testy)."""
+        me = open(__file__, encoding='utf-8').read()
+        tup = zd.re.compile(r"for (?:f|fn) in\s*\(\s*('build_\w+'(?:\s*,\s*'build_\w+')*)\s*\)", zd.re.S)
+        lists = [m.group(1) for m in tup.finditer(me) if "'build_wieloryby'" in m.group(1)]
+        self.assertGreaterEqual(len(lists), 18, 'krotki zaślepek przepływu głównego')
+        self.assertEqual([s[:60] for s in lists if "'build_krypto_dzien'" not in s], [], 'każda krotka zaślepek zawiera build_krypto_dzien')
+        i = me.index('def test_meta_is_always_written'); j = me.index('\n    def ', i + 1)
+        self.assertRegex(me[i:j], r"'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'\)\)", 'etykiety błędów meta')
+
+    # ---------------------------------------------------------------- 21: archiwum i kontrola
+    def test_archive_and_kontrola(self):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        env0 = os.environ.get('ARCHIWUM_DIR')
+        os.environ['ARCHIWUM_DIR'] = self.tmp
+        try:
+            spec = importlib.util.spec_from_file_location('archiwum_v125', os.path.join(root, 'narzedzia', 'archiwum.py'))
+            A = importlib.util.module_from_spec(spec); spec.loader.exec_module(A)
+        finally:
+            if env0 is None:
+                os.environ.pop('ARCHIWUM_DIR', None)
+            else:
+                os.environ['ARCHIWUM_DIR'] = env0
+        F = A.FILES['krypto-dziennik']
+        self.assertEqual((F['file'], F['cols'], F['key'], F['back']), ('krypto-dziennik.csv', zd.TD_CR_CSV_COLS, ['date', 'coin', 'v', 'since'], None))
+        self.assertTrue(F['src'].startswith('Obliczenia własne CapitalFlowAI'))
+        asrc = open(os.path.join(root, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
+        self.assertIn("'krypto-dziennik': src_krypto_dziennik", asrc[asrc.index('def main():'):], 'źródło w main() archiwum')
+        self.assertIn('krypto-dziennik.csv', A.__doc__)
+        with mock.patch.object(zd, 'TD_SINCE_CR2', '2025-01-01'):
+            log = self.log_of(30, 0.5)
+            log['rows'][-1][6] = None; log['rows'][0][6] = -1.2345; log['rows'][1][6] = 0.0
+            urls = []
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: urls.append(url) or log):
+                rows = A.src_krypto_dziennik()
+            self.assertTrue(urls[0].startswith(A.SITE + '/data/krypto-dziennik.json?t='))
+            self.assertEqual(rows[0], log['rows'][0] + [2, '2025-01-01']); self.assertEqual(len(rows), 60)
+            merged, added, revised = A.merge({}, rows, F['cols'], F['key'])
+            path = os.path.join(self.tmp, F['file']); A.write_csv(path, F['cols'], merged)
+            self.assertEqual(open(path, encoding='utf-8').read().split('\n')[1], '2025-01-01,BTC,%d,%s,%s,%s,-1.2345,2,2025-01-01' % tuple(log['rows'][0][2:6]))
+            back, why = zd._td_cr_from_csv(path)
+            self.assertEqual((why, back['rows']), ('ok', sorted(log['rows'])), 'dziennik → CSV archiwum → odtworzenie: te same wiersze')
+            log['rows'][-1][6] = 2.5                                     # wynik dopisany później → jedna rewizja, ten sam klucz
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: log):
+                m2, a2, r2 = A.merge(merged, A.src_krypto_dziennik(), F['cols'], F['key'])
+            self.assertEqual((a2, r2), (0, 1))
+            import urllib.error as _ue
+            A.NOTES.clear()
+            with mock.patch.object(zd, 'get_json', side_effect=_ue.HTTPError('u', 404, 'nf', {}, None)):
+                self.assertEqual(A.src_krypto_dziennik(), [])
+            self.assertEqual(len(A.NOTES), 1, 'brak dziennika na stronie (404) — uwaga, nie błąd')
+            A.NOTES.clear()
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: dict(log, rows=[])):
+                self.assertEqual(A.src_krypto_dziennik(), [])
+            self.assertEqual(len(A.NOTES), 1, 'dziennik jeszcze bez wierszy (doba wdrożenia) — uwaga, nie błąd')
+            for bad in ({'rows': [], 'v': 2}, {'rows': None, 'v': 2, 'since': 'x'}, {'rows': [], 'v': True, 'since': 'x'}, [], {'rows': [['x']], 'v': 2, 'since': 'x'}):
+                with mock.patch.object(zd, 'get_json', lambda url, timeout=60: bad):
+                    with self.assertRaises(RuntimeError):
+                        A.src_krypto_dziennik()
+            with mock.patch.object(zd, 'get_json', side_effect=_ue.HTTPError('u', 500, 'err', {}, None)):
+                with self.assertRaises(_ue.HTTPError):
+                    A.src_krypto_dziennik()
+            idx = A.run({'krypto-dziennik': lambda: rows}, arch=os.path.join(self.tmp, 'arch2'))
+            self.assertTrue(idx['files']['krypto-dziennik']['ok']); self.assertEqual(idx['files']['krypto-dziennik']['rows'], 60)
+        k = open(os.path.join(root, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        PL = eval(zd.re.search(r'^PLIKI = (\[.*\])$', k, zd.re.M).group(1)); LM = eval(zd.re.search(r'^LIMIT_MIN = (\{[^}]*\})', k, zd.re.M).group(1))
+        self.assertEqual(PL[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual((LM['krypto-dzien'], LM['krypto-dziennik']), (180, 180))
+
+
 class ObceV91(unittest.TestCase):
     """v91: Indie, Tajwan, Hongkong co godzinę; Brazylia, Turcja, ThaiBMA najwyżej co 3 h (bez zapytania, gdy część świeża i bez błędu)."""
 
@@ -4809,7 +6284,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_insider')]
+                  'build_fundusze', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         for s in stubs:
             s.start()
         try:
@@ -5198,7 +6673,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_insider')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -6051,7 +7526,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_insider')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -6637,7 +8112,7 @@ class ArchiwumV113(unittest.TestCase):
         src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
         for n in self.a.FILES:
             self.assertIn(f"'{n}'", src)
-        self.assertEqual(set(self.a.FILES), {'wieloryby', 'stablecoiny-eth', 'plynnosc', 'tic', 'cftc-krypto', 'rentownosci'})
+        self.assertEqual(set(self.a.FILES), {'wieloryby', 'stablecoiny-eth', 'plynnosc', 'tic', 'cftc-krypto', 'rentownosci', 'krypto-dziennik'})
         for spec in self.a.FILES.values():
             self.assertTrue(all(c.isascii() and c == c.lower() for c in spec['cols']), spec['cols']); self.assertTrue(set(spec['key']) <= set(spec['cols']))
         self.assertIn('FRED_OBS', src)
