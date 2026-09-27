@@ -630,6 +630,29 @@ def _bmx_meta_shape(raw):
     return f"series={len(ser)} periodicidad={per} odd_units=[{', '.join(odd)}]"
 
 
+def _bmx_err(raw):
+    """v126: publiczny komunikat błędu SIE ({"error":{"mensaje","detalle"}}) — bez tokenu (scrub w report), najwyżej 110 znaków."""
+    try:
+        e = (json.loads(raw) or {}).get("error") or {}
+        return f"mensaje={str(e.get('mensaje'))[:110]!r} detalle={str(e.get('detalle'))[:110]!r}"
+    except Exception as x:
+        return "not-json " + type(x).__name__
+
+
+def _bmx_diag(name, key):
+    """v126 (27.09): token odrzucany (HTTP 400). Tylko wartości logiczne o FORMACIE tokenu (nie długość, nie znaki) i treść błędu banku."""
+    import re
+    fmt = bool(re.fullmatch(r"[0-9a-f]{64}", key))
+    fmt_ci = bool(re.fullmatch(r"[0-9a-fA-F]{64}", key))
+    odd = any(c in key for c in " \t\r\n\"'<>:=")
+    st, raw, ms, err = http(BMX_BASE + "SF65218/datos/oportuno")
+    report("banxico", None, "diag_keyless_error", st, raw, ms, err, _bmx_err(raw) if raw else None)
+    time.sleep(0.5)
+    st, raw, ms, err = http(BMX_BASE + "SF65218/datos/oportuno", headers={"Bmx-Token": key, "Accept": "application/json"})
+    report("banxico", name, "diag_keyed_error", st, raw, ms, err,
+           (_bmx_err(raw) if st != 200 and raw else "ok") + f" token_hex64={fmt} hex64_any_case={fmt_ci} odd_chars={odd}")
+
+
 def g_banxico():
     # keyless control: proves the US runner reaches the API host (expected HTTP 400, keys=[error], "Token inválido")
     probe("banxico", "keyless_oportuno_SF65218", BMX_BASE + "SF65218/datos/oportuno")
@@ -637,6 +660,7 @@ def g_banxico():
     if not key:
         skipped("banxico", "SIE API (metadatos/oportuno/rango)")
         return
+    _bmx_diag(name, key)
     hdr = {"Bmx-Token": key, "Accept": "application/json"}             # header only; never the ?token= parameter
     time.sleep(0.5)
     probe("banxico", "metadatos_11", BMX_BASE + BMX_IDS + "," + BMX_EXTRA, env_name=name, headers=hdr, extra_fn=_bmx_meta_shape)
