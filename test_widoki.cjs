@@ -5091,3 +5091,392 @@ test('v123.1: TRENDY krypto — tytuł i podtytuł o następnej dobie w 10 języ
   }
   assert.equal(v96src.tFor('pl')('trd.h1c'), 'Krypto: następna doba i ostatni tydzień');
 });
+
+// v124: historia krypto — cm.json trzyma do 400 dni, krypto.stabh.dd do 400 punktów; strona pokazuje dokładnie to samo co wcześniej
+test('v124: cm.json z 400 dniami historii — panel i tabela identyczne jak przy 35 dniach (tabela = 14 najnowszych dni, nie 400)', () => {
+  const m = cmMake();
+  const day = i => new Date(Date.parse('2026-09-23T00:00:00Z') - i * 864e5).toISOString().slice(0, 10);
+  const row = i => [day(i), 10 + i, 12, -2 - i, 1000 + i, 1200, -200 - i, 900 + i, 90000 + i];
+  const D35 = cmSample(), D400 = cmSample();
+  D35.assets.btc.d = Array.from({ length: 35 }, (_, k) => row(34 - k));
+  D400.assets.btc.d = Array.from({ length: 400 }, (_, k) => row(399 - k));
+  Object.assign(D400, { keep: 400, fetch: 'backfill', bf: '2026-09-24T20:40:00+00:00' });
+  D400.assets.btc.h = { from: day(399), to: day(0), len: 400, n: 400, new: 400 };
+  assert.equal(m.api.cmPanel(D400), m.api.cmPanel(D35), 'dłuższa historia i nowe pola nie zmieniają panelu');
+  const tab = m.api.cmTable(D400);
+  assert.equal((tab.match(/<tr>/g) || []).length, 15, 'nagłówek + 14 dni');
+  assert.ok(tab.includes(day(0)) && tab.includes(day(13)) && !tab.includes(day(14)) && !tab.includes(day(399)), '14 najnowszych dni');
+  D400.assets.btc.missing = 1;   // zbieracz liczy missing z ostatnich 35 dni — strona pisze „w ostatnich 35 dniach”
+  assert.ok(m.api.cmPanel(D400).includes('cm.missing:{"n":"1"}'));
+});
+
+test('v124: krypto.stabh.dd do 400 punktów — strona nie czyta dd (panel stablecoinów bez zmian)', () => {
+  const a0 = html.indexOf('function stcPanel(S,H){'), a1 = html.indexOf("ENG_OVR['coinmetrics-exchange-flows']=el=>", a0);
+  assert.ok(a0 > 0 && a1 > a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const KR = { data: { at: '2026-09-26T10:00:00+00:00' } };
+  const f = new Function('t', 'gfmt', 'engDate', 'instRow', 'instFoot', 'engNum', 'escH', 'KR', 'krData', 'krStabh', 'ENG_OVR', html.slice(a0, a1) + '\nreturn {stcPanel};')(
+    T, v => v.toFixed(2) + ' mld', s => String(s), (a, b, c, d) => `[${a}|${b}|${d}]`, s => s, v => String(v), s => String(s), KR, () => KR.data, () => null, {});
+  const H = { asof: '2026-09-26', cur: 311e9, d: { '7': 1.47e9, '30': 2.46e9 }, pct: { '7': 0.5, '30': 0.8 } };
+  const dd = n => Array.from({ length: n }, (_, i) => [new Date(Date.parse('2026-09-26T00:00:00Z') - (n - 1 - i) * 864e5).toISOString().slice(0, 10), 3e11 + i]);
+  const S = { asof: '2026-09-26', n: 2, total: [313e9, 1e8, 2e9, 3.6e9], rows: [['Ethereum', 147.6e9, 0, -0.19e9, -0.19e9]] };
+  assert.equal(f.stcPanel(S, Object.assign({ dd: dd(400) }, H)), f.stcPanel(S, Object.assign({ dd: dd(71) }, H)));
+  const s0 = html.indexOf('<script>'), s1 = html.lastIndexOf('</script>'), js = html.slice(s0, s1);
+  assert.ok(!/[\w$\])]\.dd\b(?![-\w])/.test(js) && !/\[['"]dd['"]\]/.test(js), 'skrypt strony nie czyta pola dd');
+});
+
+test('v124: trd.dc.m.6 — „za krótka historia” już tylko dla funduszy ETF; przepływy na giełdy i podaż stablecoinów mają historię do 400 dni (10 języków)', () => {
+  const a = 'const EXTRA116=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const old = /nierosn|non-growing|nicht wachsend|que no crece|ne s’allonge pas|che non cresce|que não cresce|не растущ|不会增长|伸びていきません/;
+  for (const l of L10) {
+    const s = D[l]['trd.dc.m.6'];
+    assert.ok(typeof s === 'string' && s.includes('ETF') && s.includes('400') && !/\{\w+\}/.test(s), l + ': ETF, 400 dni, bez pól');
+    assert.doesNotMatch(s, old, l + ': bez „nierosnącej historii”');
+  }
+  const pl = D.pl['trd.dc.m.6'], en = D.en['trd.dc.m.6'];
+  assert.ok(pl.includes('Przepływy do funduszy ETF na krypto mają w plikach strony za krótką historię dzienną.'), 'pl: krótka historia tylko ETF');
+  assert.ok(pl.includes('Przepływy na giełdy i zmiana podaży stablecoinów mają już długą historię dzienną (do 400 dni)') && pl.includes('z własnym licznikiem „od wdrożenia”'), 'pl: giełdy i stablecoiny — długa historia, nowa wersja reguły');
+  assert.ok(en.includes('Flows into crypto ETFs have too short a daily history') && en.includes('now have a long daily history (up to 400 days)') && en.includes('its own “since going live” counter'), 'en');
+  for (const l of L10) assert.equal(v96src.I18N[l]['trd.dc.m.6'], D[l]['trd.dc.m.6'], 'scalony słownik = EXTRA116 (' + l + ')');
+});
+
+test('v124: widok „Trendy krypto” nie mówi już, że historia przepływów na giełdy i podaży stablecoinów jest krótka — trd.b.nocr i trd.discc (EXTRA92: pl, en; 8 języków bierze en)', () => {
+  const a = 'const EXTRA92=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.deepEqual(Object.keys(D), ['pl', 'en'], 'słownik jak przed v124: tylko pl i en');
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const oldClaim = /nie mamy jeszcze dość długiej historii|Historia danych krypto jest jeszcze krótka|do not yet have a long enough data history|crypto data history is still short/;
+  for (const l of L10) for (const k in v96src.I18N[l]) assert.doesNotMatch(String(v96src.I18N[l][k]), oldClaim, l + ' ' + k + ': bez dawnego „historia krypto za krótka”');
+  for (const l of L10) {
+    const tt = v96src.tFor(l);
+    for (const k of ['trd.b.nocr', 'trd.discc', 'trd.dc.m.6']) {
+      const s = tt(k);
+      assert.ok(s !== k && s.includes('400') && s.includes('ETF') && !/\{\w+\}/.test(s), l + ' ' + k + ': 400 dni, ETF, bez pól {…}');
+    }
+    if (l !== 'pl' && l !== 'en') for (const k of ['trd.b.nocr', 'trd.discc']) assert.equal(tt(k), D.en[k], l + ' ' + k + ': tekst en, jak przed v124');
+  }
+  const nb = D.pl['trd.b.nocr'], ne = D.en['trd.b.nocr'], cp = D.pl['trd.discc'], ce = D.en['trd.discc'];
+  assert.ok(nb.includes('Przepływy na giełdy i podaż stablecoinów mają już historię dzienną do 400 dni') && nb.includes('dla krypto jeszcze nie dodaliśmy')
+    && nb.includes('przepływy do funduszy ETF na krypto mają za krótką historię') && nb.endsWith('Wyniki dla świata są w widoku „Trendy global”.'), 'pl trd.b.nocr: ' + nb);
+  assert.ok(ne.includes('Flows to exchanges and stablecoin supply now have up to 400 days of daily history') && ne.includes('we have not yet added the check')
+    && ne.includes('flows into crypto ETFs still have too short a history') && ne.endsWith('Results for the world are in the “Global trends” view.'), 'en trd.b.nocr: ' + ne);
+  assert.ok(cp.startsWith('Tu widać, co już się stało:') && cp.includes('ani rekomendacja kupna lub sprzedaży, ani porada inwestycyjna, ani prognoza.')
+    && cp.includes('mają już historię dzienną do 400 dni, ale tego sprawdzenia dla krypto jeszcze nie dodaliśmy') && cp.includes('funduszy ETF na krypto mają za krótką historię'), 'pl trd.discc: ' + cp);
+  assert.ok(ce.startsWith('This shows what has already happened:') && ce.includes('It is not a recommendation to buy or sell, not investment advice and not a forecast.')
+    && ce.includes('we have not yet added that check for crypto') && ce.includes('crypto ETFs still have too short a history'), 'en trd.discc: ' + ce);
+});
+
+test('v124: sieć Bitcoin — pomocnicze: historia po datach, średnia 7 dób bez dziur, zmiana 30 dni, średnia krocząca, liczby, wiek części', () => {
+  const k0 = html.indexOf('/* ===================== v124: SIEĆ BITCOIN'), k1 = html.indexOf('\nfunction lnTile(', k0);
+  assert.ok(k0 > 0 && k1 > k0, 'blok v124 w stronie');
+  const T = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const K = new Function('t', 'nfmt', 'fPct', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', html.slice(k0, k1) + '\nreturn {LN, lnPart, lnAgo, lnWhen, lnDay, lnDayLag, lnHist, lnAvg, lnMa7, lnChg30, lnFee, lnEh, lnPct};')(
+    T, (v, d) => Number(v).toFixed(d), (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%', v96src.escH, {pl: 'pl-PL'}, 'pl', s => '[' + s + ']', d => ' · age(' + String(d).slice(0, 10) + ')');
+  const day = i => new Date(Date.UTC(2026, 8, 25) - i * 864e5).toISOString().slice(0, 10);   // 2026-09-25 minus i dób
+  const full = []; for (let i = 44; i >= 0; i--) full.push([day(i), 100 + (44 - i)]);
+  const gap = full.filter(r => r[0] !== day(33));   // brak doby 33 dni przed ostatnią
+  const r = K.lnHist(gap.concat([['zła', 5], [day(50), 0], [day(51), -3], [day(52), 'x'], 'tekst']));
+  assert.equal(r.length, 44, 'złe wiersze odrzucone'); assert.equal(r[0][0], day(44)); assert.equal(r[r.length - 1][0], '2026-09-25');
+  assert.equal(K.lnHist([[day(1), 5], [day(0), 7], [day(1), 6]]).map(x => x.join(':')).join(','), day(1) + ':6,' + day(0) + ':7', 'powtórzona doba — ostatnia wartość, rosnąco');
+  assert.equal(K.lnDay('2026-03-01', -1), '2026-02-28'); assert.equal(K.lnDay('x', -1), '');
+  const today = new Date().toISOString().slice(0, 10);
+  assert.equal(K.lnDayLag(today), 0); assert.equal(K.lnDayLag(K.lnDay(today, -2)), 2, 'doba 2 dni przed dziś (UTC)'); assert.equal(K.lnDayLag(K.lnDay(today, 1)), -1);
+  assert.equal(K.lnDayLag('x'), null); assert.equal(K.lnDayLag(null), null); assert.equal(K.lnDayLag(undefined), null); assert.equal(K.lnDayLag(today + 'T10:00'), null, 'tylko sama doba RRRR-MM-DD');
+  assert.equal(K.lnDayLag('2026-09-24', '2026-09-25T17:02:00+00:00'), 1, 'od doby UTC chwili pobrania, nie od dziś'); assert.equal(K.lnDayLag('2026-09-24', '2026-09-27T00:30:00Z'), 3);
+  assert.equal(K.lnDayLag('2026-09-24', '2026-09-25T23:30:00-02:00'), 2, 'doba UTC chwili (strefa w czasie przeliczona)');
+  assert.equal(K.lnDayLag('2026-09-24', 'x'), null); assert.equal(K.lnDayLag('2026-09-24', null), null, 'zły czas odniesienia = brak'); assert.equal(K.lnDayLag('x', '2026-09-25T17:02:00Z'), null);
+  assert.equal(K.lnAvg(full, '2026-09-25', 7), 141, 'średnia 7 dób: 144…138'); assert.equal(K.lnAvg(gap, day(30), 7), null, 'dziura w oknie = brak, nie średnia z dziurą');
+  const c = K.lnChg30(full); assert.ok(c && Math.abs(c.p - (141 / 111 - 1) * 100) < 1e-9 && c.b0 === day(30), '30 dni: średnia 7 dób wobec 7 dób sprzed 30 dni');
+  assert.equal(K.lnChg30(gap), null, 'brak doby w oknie porównania = „—”'); assert.equal(K.lnChg30([]), null); assert.equal(K.lnChg30(null), null);
+  assert.equal(K.lnMa7(full).length, 39, 'średnia krocząca tylko dla dób z kompletem 7'); assert.equal(K.lnMa7(gap).length, 32, 'luka wyłącza 7 średnich');
+  assert.equal(K.lnMa7(full)[0][0], day(38)); assert.equal(K.lnMa7(full)[0][1], (106 + 105 + 104 + 103 + 102 + 101 + 100) / 7);
+  assert.equal(K.lnFee(1.641), '1.64'); assert.equal(K.lnFee(0.2), '0.20'); assert.equal(K.lnFee(12.34), '12.3'); assert.equal(K.lnFee(150), '150'); assert.equal(K.lnFee(2, false), '2', 'opłaty zaokrąglone przez źródło — bez miejsc');
+  assert.equal(K.lnFee(null), '—'); assert.equal(K.lnFee(0), '—', 'zero opłaty = brak, nie „0”');
+  assert.equal(K.lnEh(939.2), '939'); assert.equal(K.lnEh(88.24), '88.2'); assert.equal(K.lnEh(0), '—'); assert.equal(K.lnPct(-2.4163, 1), '−2.4%'); assert.equal(K.lnPct(null, 1), '—');
+  const ago = m => new Date(Date.now() - m * 60e3).toISOString();
+  assert.equal(K.lnAgo(ago(5)), ' · ln.ago.m{"n":5}'); assert.equal(K.lnAgo(ago(185)), ' · ln.ago.h{"n":3}'); assert.equal(K.lnAgo(ago(3 * 1440 + 5)), ' · ln.ago.d{"n":3}');
+  assert.equal(K.lnAgo(ago(-10)), ' · ln.ago.now', 'czas bloku z przyszłości (zegar górnika) = „przed chwilą”'); assert.equal(K.lnAgo('x'), ''); assert.equal(K.lnWhen(''), '');
+  assert.ok(K.lnWhen(ago(5)).startsWith('[') && K.lnWhen(ago(5)).endsWith(' · ln.ago.m{"n":5}'), 'czas i wiek');
+  const D = {fees: {fast: 1, at: ago(10)}, mempool: {count: 1, at: ago(49 * 60)}, tip: 'x', check: {height: 1}};
+  assert.ok(K.lnPart(D, 'fees') === D.fees && K.lnPart(D, 'mempool') === null && K.lnPart(D, 'tip') === null && K.lnPart(D, 'check') === null && K.lnPart(null, 'fees') === null,
+    'część starsza niż 48 h, bez czasu albo nie obiekt = brak');
+});
+test('v124: sieć Bitcoin — panel z pliku: 7 kafli z czasem i wiekiem, dopisek przy nieudanym pobraniu, brak = „—” z powodem, porównanie eksploratorów, wykres doby i średniej 7 dób, bez nazw dostawców', () => {
+  const k0 = html.indexOf('/* ===================== v124: SIEĆ BITCOIN'), k1 = html.indexOf('\nfunction lnApply(', k0);
+  assert.ok(k0 > 0 && k1 > k0);
+  const T = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const run = (D, ok) => {
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    const r = new Function('$', 't', 'nfmt', 'fPct', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'glyphImg', 'D',
+      html.slice(k0, k1) + (ok ? '\nreturn lnOk(D);' : '\nLN.data=D;renderLn();return null;'))(
+      q => q === '#c-lancuch' ? el : null, T, (v, d) => Number(v).toFixed(d), (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%', v96src.escH, {pl: 'pl-PL'}, 'pl',
+      s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')', x => `<span class="icos">${x}</span>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (n, c) => `<i class="gl ${c}">${n}</i>`, D);
+    return ok ? r : el;
+  };
+  const now = Date.now(), iso = m => new Date(now - m * 60e3).toISOString(), dd = i => new Date(now - i * 864e5).toISOString().slice(0, 10);
+  const hist = []; for (let i = 60; i >= 1; i--) hist.push([dd(i), 900 + (i % 5)]);
+  const base = () => ({at: iso(5), ok: {fees: true, mempool: true, difficulty: true, tip: true, hashrate: true, hist: true, check: true},
+    fees: {fast: 1.641, half_hour: 1.006, hour: 0.532, economy: 0.2, minimum: 0.1, prec: true, at: iso(5)},
+    mempool: {count: 72910, vsize: 40383203, total_fee: 6343662, at: iso(5)},
+    difficulty: {progress: 52.38, change_est: -2.42, remaining_blocks: 960, eta: '2026-10-03T15:47:50+00:00', prev_change: 4.16, next_height: 969696, block_min: 10.26, at: iso(5)},
+    tip: {height: 968736, time: iso(9), tx_count: 6514, at: iso(5)},
+    hashrate: {current: 939.2, avg_3d: 883.3, day: dd(1), hist, hist_at: iso(300), at: iso(5)},
+    check: {height: 968736, count: 67394, vsize: 39204062, at: iso(4)}});
+  const el = run(base()), out = el.innerHTML;
+  assert.ok(!el.hidden && out.includes('ln.t') && out.includes('ln.sub') && out.includes('class="live on"') && out.includes('<i class="ico sm">BTC</i>'), 'nagłówek, logo monety, plik młody');
+  assert.equal((out.match(/<div class="etfk">/g) || []).length, 7, 'siedem kafli');
+  assert.ok(out.includes('1.64 sat/vB') && out.includes('ln.k.fee.tx{"s":"231","n":141}'), 'opłata na następny blok i ≈ sat za typowy przelew');
+  assert.ok(out.includes('0.20 sat/vB') && out.includes('ln.k.eco.l{"a":"1.01","b":"0.53","c":"0.10"}'), 'opłata oszczędna z drabinką');
+  assert.ok(out.includes('>72910<small>') && out.includes('ln.k.mp.vb{"v":"40.4","n":"41"}') && out.includes('ln.k.mp.fee{"v":"0.063"}'), 'kolejka: liczba, rozmiar ≈ bloki, opłaty w BTC');
+  assert.ok(out.includes('>968736<small>') && out.includes('ln.k.tip.tx{"n":"6514"}') && out.includes('ln.k.tip.at{"t":"[') && out.includes('ln.ago.m{\\"n\\":9}'), 'ostatni blok z czasem bloku i wiekiem');
+  assert.ok(out.includes('939 EH/s') && out.includes('ln.k.hr30{"p":"') && !out.includes('ln.k.hr30.na') && out.includes('ln.k.hr3{"v":"883"}'), 'moc: bieżąca, 30 dni, 3 doby');
+  assert.ok(out.includes('>−2.4%<small>') && out.includes('ln.k.diff.left{"n":"960","d":"') && out.includes('ln.k.diff.prog{"p":"52"}') && out.includes('ln.k.diff.prev{"p":"+4.2%"}') && out.includes('ln.k.diff.bt{"m":"10.3"}'), 'trudność');
+  assert.ok(out.includes('>ln.k.chk.same<small>') && out.includes('ln.k.chk.h{"h":"968736"}') && out.includes('ln.k.chk.mp{"n":"67394"} (ln.k.chk.mpd{"p":"−7.6%"})'), 'drugi eksplorator: ten sam blok, kolejka i różnica');
+  assert.equal((out.match(/<small class="mtxt">\[/g) || []).length, 6, 'sześć kafli z czasem pobrania części'); assert.ok(!out.includes('ln.stale') && !out.includes('ln.na'));
+  assert.ok(out.includes('<svg class="arc-svg"') && (out.match(/<polyline class="arc-l l1"/g) || []).length === 1 && (out.match(/<polyline class="arc-l l2"/g) || []).length === 1, 'wykres: doba i średnia 7 dób');
+  assert.ok(out.includes('ln.h.hist') && out.includes('ln.leg.day') && out.includes('ln.leg.ma') && out.includes('ln.hist.note{"d":') && out.includes(' · age(' + dd(1) + ')'), 'wykres z legendą, datą i wiekiem ostatniej doby');
+  assert.ok(out.includes('ln.note') && out.includes('ln.not1') && out.includes('ln.not3') && out.includes('eng.notsays') && out.includes('ln.foot') && out.includes('eng.disclaimer'), 'nota, „czego nie mówi”, stopka');
+  assert.ok(!/mempool\.space|blockstream|esplora|blockchain\.com|blockchair/i.test(out), 'bez nazw dostawców w panelu'); assert.ok(!/NaN|undefined|Infinity/.test(out), 'bez NaN');
+  const st = base(); st.ok.fees = false; const o2 = run(st).innerHTML;
+  assert.equal((o2.match(/<small class="ln-st">ln\.stale<\/small>/g) || []).length, 2, 'nieudane pobranie opłat — dopisek w obu kaflach opłat');
+  const old = base(); old.fees.at = iso(49 * 60); old.check = null; const o3 = run(old).innerHTML;
+  assert.equal((o3.match(/<b class="na">—<\/b><small class="mtxt">ln\.na<\/small>/g) || []).length, 3, 'opłaty starsze niż 48 h i brak drugiego eksploratora = „—” z powodem');
+  const ah = base(); ah.check.height = 968737; assert.ok(run(ah).innerHTML.includes('ln.k.chk.dh{"n":"+1"}'), 'różnica wysokości');
+  const far = base(); far.check.at = iso(125); const o4 = run(far).innerHTML;
+  assert.ok(o4.includes('>968736<small>ln.k.chk.mp{"n":"67394"}</small>') && !o4.includes('ln.k.chk.h{'), 'pobrania z różnych przebiegów — bez porównania, sama wysokość');
+  const rnd = base(); rnd.fees = {fast: 2, half_hour: 1, hour: 1, economy: 1, minimum: 1, prec: false, at: iso(5)}; const o5 = run(rnd).innerHTML;
+  assert.ok(o5.includes('2 sat/vB') && o5.includes('ln.prec') && o5.includes('ln.k.eco.l{"a":"1","b":"1","c":"1"}'), 'opłaty zaokrąglone przez źródło — oznaczone');
+  const nh = base(); nh.hashrate.hist = hist.slice(-20); const o6 = run(nh).innerHTML; assert.ok(o6.includes('ln.k.hr30.na'), 'za krótka historia — 30 dni „—”');
+  const sh = base(); sh.hashrate.hist = hist.slice(0, 30); assert.ok(!run(sh).innerHTML.includes('<svg'), 'historia zatrzymana ponad 14 dni temu — bez wykresu');
+  // przegląd v124 (1): liczby dobowe (30 dni, 3 doby) z datą ostatniej doby; doba starsza niż 2 dni przed dobą pobrania części = „—” z powodem,
+  // moc bieżąca zostaje (doby liczone od doby UTC czasu części — bez zależności od godziny przebiegu testu)
+  const sh1 = (d, k) => new Date(Date.parse(d + 'T00:00:00Z') + k * 864e5).toISOString().slice(0, 10), upTo = (h, d) => h.filter(x => x[0] <= d);
+  const aD = iso(5).slice(0, 10);   // doba UTC pobrania części w base()
+  assert.ok(out.includes('ln.k.hr3{"v":"883"}</small><small>ln.k.hr.d{"d":"'), 'liczby dobowe z datą swojej ostatniej doby');
+  const sd = base(); sd.hashrate.day = sh1(aD, -3); sd.hashrate.hist = upTo(hist, sd.hashrate.day); const o7 = run(sd).innerHTML;
+  assert.ok(o7.includes('939 EH/s<small>ln.k.hr.old{"d":"') && !o7.includes('ln.k.hr30{') && !o7.includes('ln.k.hr3{') && !o7.includes('ln.k.hr.d{'), 'historia stoi 3 dni — 30 dni i 3 doby „—” z powodem i datą doby');
+  assert.ok(!o7.includes('ln.na') && o7.includes('<svg class="arc-svg"'), 'kafel i wykres (z datą i wiekiem ostatniej doby) zostają');
+  const sd2 = base(); sd2.hashrate.day = sh1(aD, -2); sd2.hashrate.hist = upTo(hist, sd2.hashrate.day); const o8 = run(sd2).innerHTML;
+  assert.ok(o8.includes('ln.k.hr30{"p":"') && o8.includes('ln.k.hr3{"v":"883"}') && !o8.includes('ln.k.hr.old'), 'doba 2 dni przed pobraniem = jeszcze świeża (tuż po północy)');
+  const nd = base(); delete nd.hashrate.day; nd.hashrate.hist = upTo(hist, sh1(aD, -3)); assert.ok(run(nd).innerHTML.includes('ln.k.hr.old'), 'bez pola doby — ostatnia doba historii');
+  // przegląd v124 (runda 2): opóźnienie doby od doby pobrania części, nie od dziś — automat stoi ok. 40 h, źródło działało (doba = „wczoraj”
+  // wobec pobrania): liczby dobowe zostają z datą swojej doby, wiek pobrania pod kaflem, bez obwiniania źródła; tak samo, gdy nie wyszło pobranie mocy
+  const md = Date.parse(new Date(now).toISOString().slice(0, 10) + 'T00:00:00Z') - 864e5;   // północ UTC wczoraj
+  const X = new Date(Math.floor((now - 48 * 3600e3 + md) / 2)).toISOString(), xD = X.slice(0, 10);   // środek [teraz − 48 h, północ wczoraj): pobranie przedwczoraj
+  const stop = back => {
+    const s = base(); s.at = X; for (const k of ['fees', 'mempool', 'difficulty', 'tip', 'hashrate', 'check']) s[k].at = X;
+    s.tip.time = new Date(Date.parse(X) - 4 * 60e3).toISOString(); s.hashrate.hist_at = X; s.hashrate.hist = [];
+    for (let i = 61; i >= back; i--) s.hashrate.hist.push([sh1(xD, -i), 900 + (i % 5)]);
+    s.hashrate.day = sh1(xD, -back); return s;
+  };
+  const s1 = stop(1), lagNow = Math.round((Date.parse(new Date(now).toISOString().slice(0, 10) + 'T00:00:00Z') - Date.parse(s1.hashrate.day + 'T00:00:00Z')) / 864e5);
+  assert.equal(lagNow, 3, 'scenariusz przeglądu: doba 3 dni przed dziś, 1 dzień przed pobraniem'); assert.ok(now - Date.parse(X) >= 36 * 3600e3 && now - Date.parse(X) < 48 * 3600e3, 'pobranie 36–48 h temu');
+  const o13 = run(s1).innerHTML;
+  assert.ok(o13.includes('939 EH/s<small>ln.k.hr30{"p":"') && o13.includes('ln.k.hr3{"v":"883"}') && o13.includes('ln.k.hr.d{"d":"') && !o13.includes('ln.k.hr.old'),
+    'automat stoi — liczby dobowe z datą doby, bez „źródło nie dopisuje dób”');
+  assert.ok(o13.includes('class="live off"') && !o13.includes('ln.na') && !o13.includes('ln.stale') && /<small class="mtxt">\[[^\]]+\] · ln\.ago\.h\{"n":(3[6-9]|4[0-7])\}<\/small>/.test(o13), 'wiek pobrania (36–47 h) pod kaflami, plik oznaczony jako nieodświeżany');
+  const s2 = stop(1); s2.ok.hashrate = false; const o14 = run(s2).innerHTML;
+  assert.ok(o14.includes('ln.k.hr.d{"d":"') && o14.includes('<small class="ln-st">ln.stale</small>') && !o14.includes('ln.k.hr.old'), 'pobieranie mocy nie wychodzi — dopisek o nieudanym pobraniu, bez obwiniania źródła');
+  const o15 = run(stop(3)).innerHTML;
+  assert.ok(o15.includes('939 EH/s<small>ln.k.hr.old{"d":"') && !o15.includes('ln.k.hr.d{'), 'doba 3 dni przed samym pobraniem — źródło nie dopisywało wtedy dób (powód uzasadniony danymi)');
+  // przegląd v124 (2): moc bieżąca 0 u źródła — „—” z własnym powodem, liczby dobowe zostają; poprzednia liczba z własnym czasem i wiekiem
+  const cm = base(); cm.hashrate.current = null; cm.hashrate.cur_at = null; const o9 = run(cm).innerHTML;
+  assert.equal((o9.match(/<div class="etfk">/g) || []).length, 7, 'kafel mocy zostaje');
+  assert.ok(o9.includes('<b><span class="na">—</span><small>ln.k.hr.nocur</small><small>ln.k.hr30{"p":"') && o9.includes('ln.k.hr3{"v":"883"}') && o9.includes('ln.k.hr.d{'),
+    'brak mocy bieżącej: „—” z powodem, 30 dni i 3 doby zostają');
+  assert.ok(!o9.includes('ln.na') && !o9.includes('939 EH/s') && !/NaN|undefined/.test(o9), 'bez fałszywego powodu „brak świeżych danych” i bez zera');
+  const cc = base(); cc.hashrate.cur_at = iso(180); const o10 = run(cc).innerHTML;
+  assert.ok(o10.includes('939 EH/s<small>ln.k.hr.cold{"t":"[') && o10.includes('ln.ago.h{\\"n\\":3}') && o10.includes('ln.k.hr30{"p":"'), 'moc bieżąca z wcześniejszego pobrania — z własnym czasem i wiekiem');
+  const cc2 = base(); cc2.hashrate.cur_at = iso(49 * 60); const o11 = run(cc2).innerHTML;
+  assert.ok(o11.includes('<span class="na">—</span><small>ln.k.hr.nocur</small>') && !o11.includes('939 EH/s'), 'poprzednia moc bieżąca starsza niż 48 h = „—”');
+  const cn = base(); cn.hashrate.current = null; cn.hashrate.avg_3d = null; cn.hashrate.hist = []; const o12 = run(cn).innerHTML;
+  assert.equal((o12.match(/<b class="na">—<\/b><small class="mtxt">ln\.na<\/small>/g) || []).length, 1, 'ani mocy bieżącej, ani liczb dobowych = „—” z powodem ogólnym');
+  const offl = base(); offl.at = iso(90); assert.ok(run(offl).innerHTML.includes('class="live off"'), 'plik starszy niż godzina = wskaźnik wyłączony');
+  const Z = run(null); assert.ok(Z.hidden && Z.innerHTML === '', 'bez pliku sekcja ukryta');
+  const allOld = base(); for (const k of ['fees', 'mempool', 'difficulty', 'tip', 'hashrate', 'check']) allOld[k].at = iso(3 * 1440); allOld.hashrate.hist = [];
+  const E = run(allOld); assert.ok(E.hidden && E.innerHTML === '', 'wszystkie części starsze niż 48 h i bez historii = ukryta');
+  assert.ok(run(base(), true) === true && run(null, true) === false && run({at: 'x', fees: {}}, true) === false && run({at: iso(1)}, true) === false && run({at: iso(1), fees: []}, true) === false, 'plik ok: czas i choć jedna część');
+});
+test('v124: sieć Bitcoin — słownik EXTRA119 w 10 językach (te same klucze i miejsca na wartości), bez nazw dostawców; sekcja po cenach krypto, styl, blok JS, plik, odświeżanie co 10 min', () => {
+  const e0 = html.indexOf('const EXTRA119='), e1 = html.indexOf(';\nfor(const l in EXTRA119)', e0);
+  assert.ok(e0 > 0 && e1 > e0 && html.includes('for(const l in EXTRA119)if(I18N[l])Object.assign(I18N[l],EXTRA119[l]);\n'), 'słownik EXTRA119 podpięty');
+  const E = JSON.parse(html.slice(e0 + 'const EXTRA119='.length, e1)), KEYS = Object.keys(E.pl).sort(), PH = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  assert.ok(KEYS.length >= 40 && KEYS.every(k => k.startsWith('ln.')), 'klucze ln.*');
+  assert.ok(['ln.k.hr.d', 'ln.k.hr.old', 'ln.k.hr.nocur', 'ln.k.hr.cold'].every(k => KEYS.includes(k)), 'teksty przeglądu: data doby, historia stoi, brak mocy bieżącej, moc z wcześniejszego pobrania');
+  assert.ok(E.pl['ln.k.hr.nocur'].includes('nie zero') && E.en['ln.k.hr.nocur'].includes('not zero'), 'brak mocy bieżącej ≠ zero');
+  assert.ok(E.pl['ln.k.hr.old'].includes('przed ostatnim udanym pobraniem') && E.en['ln.k.hr.old'].includes('before the last successful fetch') && !/nie dopisuje|is not adding/.test(E.pl['ln.k.hr.old'] + E.en['ln.k.hr.old']),
+    'stojące źródło — opisane w chwili ostatniego udanego pobrania, nie „teraz”');
+  const PROV = /mempool\.space|blockstream|esplora|blockchain\.com|blockchair|coinmetrics|binance/i;
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    assert.equal(Object.keys(E[L]).sort().join('|'), KEYS.join('|'), L + ': klucze EXTRA119');
+    const t = v96src.tFor(L);
+    for (const k of KEYS) {
+      assert.ok(v96src.I18N[L][k] && t(k) !== k && t(k).trim(), L + ' ' + k); assert.ok(!PROV.test(t(k)), 'dostawca: ' + L + ' ' + k);
+      assert.equal(PH(E[L][k]), PH(E.pl[k]), L + ' ' + k + ': miejsca na wartości');
+    }
+    assert.ok(E[L]['ln.note'].includes('sat/vB') && E[L]['ln.note'].includes('EH/s') && E[L]['ln.h.hist'].includes('EH/s'), L + ': jednostki nazwane');
+    assert.ok(!t('ln.k.fee.tx', {s: '231', n: 141}).includes('{'), L + ': wartości podstawione');
+  }
+  assert.ok(v96src.tFor('pl')('ln.sub').includes('nigdy zero') && v96src.tFor('pl')('ln.sub').includes('nie przepływ kapitału'), 'pl: brak ≠ zero, stan ≠ przepływ');
+  assert.ok(v96src.tFor('en')('ln.sub').includes('never zero') && v96src.tFor('en')('ln.sub').includes('not a capital flow'), 'en: brak ≠ zero, stan ≠ przepływ');
+  for (const k of ['inst.file', 'eng.notsays', 'eng.disclaimer']) assert.ok(v96src.I18N.pl[k] && v96src.I18N.en[k], 'wspólny klucz używany przez panel: ' + k);
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.indexOf('EXTRA119') > apl.indexOf('EXTRA117') && apl.indexOf('EXTRA117') >= 0, 'EXTRA119 po EXTRA117');
+  const S = '<section class="panel pcard" id="c-lancuch" hidden></section>';
+  assert.equal(html.split(S).length, 2, 'jedna sekcja');
+  const a = html.indexOf('<section class="panel pcard" id="c-ceny-krypto" hidden></section>'), x = html.indexOf(S), cr = html.indexOf('id="crypto"');
+  assert.ok(a > 0 && x > a && x < a + 1500 && cr > 0 && cr < x, 'CRYPTO: po cenach krypto');
+  assert.ok(html.includes("function lnLoad(){srvJSON('lancuch').then(lnApply);}") && html.includes('LN.timer=setInterval(()=>{if(!document.hidden)lnLoad();},10*60*1000);')
+    && html.includes("lnLoad();lnAuto();try{new MutationObserver(()=>renderLn()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'plik serwera, odświeżanie co 10 min, zmiana języka');
+  assert.ok(html.includes('/* v124 sieć Bitcoin */') && html.includes('#c-lancuch .etfk b small.ln-st{color:var(--yl-tx)}') && html.includes('#c-lancuch .etfk b.na{color:var(--dim)}') && html.includes('#c-lancuch .etfk b>span.na{display:inline;font-size:inherit;line-height:inherit;font-weight:inherit;color:var(--dim)}') &&html.indexOf('/* v124 sieć Bitcoin */') < html.indexOf('/* v105 wieloryby */'), 'styl przed stylem wielorybów');
+  const j0 = html.indexOf('/* ===================== v124: SIEĆ BITCOIN'), j1 = html.indexOf('\n/* ===================== v98: USA');
+  assert.equal(html.split('/* ===================== v124: SIEĆ BITCOIN').length, 2, 'jeden blok JS'); assert.ok(j0 > 0 && j1 > j0, 'blok przed blokiem USA');
+  const blk = html.slice(j0, html.indexOf('/* v124: sieć Bitcoin; zmiana języka', j0));
+  assert.ok(!/mempool\.space|blockstream|esplora|blockchain\.com/i.test(blk), 'blok panelu bez nazw dostawców');
+});
+
+/* ===================== v124: SZWAJCARIA — depozyty banków w banku centralnym (data/snb.json), słownik EXTRA121, podpis na stronie Źródła ===================== */
+const snb124 = (() => {
+  const a0 = html.indexOf('/* ===================== v124: SZWAJCARIA'), a1 = html.indexOf('\nfunction snbLoad(', a0);
+  assert.ok(a0 > 0 && a1 > a0, 'blok v124 na stronie');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const mk = (o) => { o = o || {};
+    return new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', 'glyphImg', 'icoWrap', 'renderSources', html.slice(a0, a1) +
+      '\nreturn {SNB, SNB_ROWS, SNB_OKNO, SNB_MAX_AGE, snbRows, snbDiv, snbAmt, snbDelta, snbWk, snbMinMax, snbBody, renderSnb, snbApply, snbCredit, SNB_CREDIT, renderSources};')(
+      o.$ || (() => null), o.t || ((k, v) => k + (v ? JSON.stringify(v) : '')), o.nfmt || ((v, d) => Number(v).toFixed(d)), esc, d => ' · age(' + d + ')', iso => 'D(' + iso + ')',
+      {pl: 'pl-PL', en: 'en-US', zh: 'zh-CN'}, o.L || 'en', o.flagImg, o.glyphImg, o.icoWrap, o.renderSources); };
+  /* 10 tygodni (piątki) z luką 21.08 i brakiem krajowych 4.09; rezerwy z lipca */
+  const W = ['2026-07-17', '2026-07-24', '2026-07-31', '2026-08-07', '2026-08-14', '2026-08-28', '2026-09-04', '2026-09-11', '2026-09-18'];
+  const hist = W.map((d, i) => [d, d === '2026-09-04' ? null : 440000 - i * 1000, 470000 - i * 1000]);
+  const D = {at: new Date().toISOString(), ok: {gw: true, fx: true}, part_at: {}, week: '2026-09-18', domestic: 432000, total: 462000, other: 30000,
+    d1w: 790, d4w: -9077, d1w_total: 2391, d4w_total: null, hist: [['bad', 1, 2], 'x', null, ['2026-02-30', 1, 1]].concat(hist.slice().reverse()),
+    fx_res: {month: '2026-07', value: 802477.5, d1m: 16413.6, d12m: null, hist: [['2026-07', 802477.5]]}};
+  return {a0, a1, mk, D, W};
+})();
+
+test('v124: Szwajcaria — pomocnicze: historia po dacie, kwota w mld (zh/ja w 億), zmiana ze strzałką bez koloru, luka = brak zmiany, najniżej/najwyżej tylko z liczb', () => {
+  const X = snb124.mk(), R = X.snbRows(snb124.D);
+  assert.equal(R.length, 9, 'śmieci i data niemożliwa odrzucone'); assert.equal(R[0][0], '2026-07-17'); assert.equal(R[8][0], '2026-09-18');
+  assert.deepEqual(R.find(r => r[0] === '2026-09-04'), ['2026-09-04', null, 464000], 'brak krajowych = null, nie 0');
+  assert.equal(X.snbDiv(), 1000, 'bez słownika — mld'); assert.equal(X.snbAmt(null), '—'); assert.equal(X.snbAmt(428033), 'snb.bn{"v":"428.0"}');
+  assert.deepEqual(X.snbDelta(null, 'L'), {txt: '— L', cls: 'na'});
+  assert.deepEqual(X.snbDelta(790, 'L'), {txt: '▲ +snb.bn{"v":"0.8"} L', cls: ''}, 'wzrost bez koloru');
+  assert.deepEqual(X.snbDelta(-9077, ''), {txt: '▼ −snb.bn{"v":"9.1"}', cls: ''});
+  assert.deepEqual(X.snbDelta(20, ''), {txt: '• snb.bn{"v":"0.0"}', cls: ''}, 'zero po zaokrągleniu — kropka, bez strzałki');
+  const i11 = R.findIndex(r => r[0] === '2026-09-11'), i28 = R.findIndex(r => r[0] === '2026-08-28'), i04 = R.findIndex(r => r[0] === '2026-09-04');
+  assert.equal(X.snbWk(R, i11, 2), R[i11][2] - R[i04][2], 'razem: wobec tygodnia dokładnie 7 dni wcześniej');
+  assert.equal(X.snbWk(R, i11, 1), null, 'krajowe 4.09 brak — brak zmiany'); assert.equal(X.snbWk(R, i28, 1), null, 'luka 21.08 — brak zmiany, nie wobec 14.08');
+  assert.equal(X.snbWk(R, i04, 1), null, 'brak liczby w tym tygodniu');
+  const mm = X.snbMinMax(R, 1, 52); assert.deepEqual([mm.n, mm.min, mm.dmin, mm.max, mm.dmax], [8, 432000, '2026-09-18', 440000, '2026-07-17']);
+  assert.equal(X.snbMinMax([['2026-09-18', 1, 2]], 1, 52), null, 'jedna liczba — bez zakresu');
+  const Z = snb124.mk({t: (k, v) => k === 'snb.div' ? '100' : k + (v ? JSON.stringify(v) : '')});
+  assert.equal(Z.snbDiv(), 100); assert.equal(Z.snbAmt(428033), 'snb.bn{"v":"4280"}', 'zh/ja: w 億 (100 mln), bez miejsc po przecinku');
+  assert.deepEqual(Z.snbDelta(790, ''), {txt: '▲ +snb.bn{"v":"8"}', cls: ''});
+  assert.equal(X.SNB_ROWS, 8); assert.equal(X.SNB_OKNO, 52); assert.equal(X.SNB_MAX_AGE, 45);
+});
+
+test('v124: Szwajcaria — panel z pliku: 3 kafle z datą i wiekiem, ▲/▼ wobec tygodnia i 4 tygodni, tabela 8 tygodni od najnowszego, brak = „—”, część z błędem = nota, bez danych ukryty', () => {
+  const X = snb124.mk(), D = snb124.D, body = X.snbBody(D);
+  assert.ok(!/undefined|NaN|\[object|null/.test(body), body.slice(0, 300));
+  assert.equal((body.match(/<div class="etfk">/g) || []).length, 3, 'trzy kafle');
+  assert.ok(body.includes('snb.k.dom') && body.includes('snb.k.tot') && body.includes('snb.k.fx'));
+  assert.ok(body.includes('<small class="">▲ +snb.bn{"v":"0.8"} snb.k.d1w</small>') && body.includes('<small class="">▼ −snb.bn{"v":"9.1"} snb.k.d4w</small>'), 'krajowe: tydzień i 4 tygodnie');
+  assert.ok(body.includes('<small class="na">— snb.k.d4w</small>'), 'razem bez zmiany 4-tygodniowej — kreska, nie zero');
+  assert.ok(body.includes('snb.wk{"d":') && body.includes('age(2026-09-18)') && body.includes('snb.fxm{"m":') && body.includes('age(2026-07)'), 'data i wiek przy kaflach');
+  assert.ok(body.includes('snb.bn{"v":"802.5"}') && body.includes('▲ +snb.bn{"v":"16.4"} snb.k.d1m') && body.includes('— snb.k.d12m'), 'rezerwy: zmiana miesięczna, brak rocznej');
+  const trs = body.split('<tr><td>').slice(1); assert.equal(trs.length, 8, '8 tygodni z 9');
+  assert.ok(trs[0].includes('snb.bn{"v":"432.0"}') && trs[1].includes('snb.bn{"v":"433.0"}') && trs[3].includes('snb.bn{"v":"435.0"}') && trs[7].includes('snb.bn{"v":"439.0"}'), 'od najnowszego (18.09, 11.09, 4.09, 28.08 … 24.07)');
+  assert.ok(!trs.some(r => r.includes('snb.bn{"v":"440.0"}')), 'najstarszy tydzień (17.07) poza tabelą');
+  assert.ok(trs[0].includes('▲ +snb.bn{"v":"0.8"}') === false && trs[0].includes('▲ +snb.bn{"v":"1.0"}') === false && trs[0].includes('▼ −snb.bn{"v":"1.0"}'), 'zmiana w tabeli z historii: 432 wobec 433 tydzień wcześniej');
+  const r0904 = trs[2];
+  assert.equal((r0904.match(/<span class="cell mono na">—<\/span>/g) || []).length, 2, 'tydzień bez krajowych: kwota i zmiana — kreski');
+  assert.ok(body.includes('snb.mm{"n":"8","min":"snb.bn{\\"v\\":\\"432.0\\"}"'), 'najniżej / najwyżej z 8 liczb');
+  assert.ok(body.includes('snb.leg') && body.includes('snb.note') && body.includes('snb.h.wk') && body.includes('class="snb-w"'), 'noty i nagłówki');
+  assert.ok(!body.includes('pos') && !body.includes('neg'), 'bez kolorów kierunku');
+  assert.ok(!body.includes('snb.prev') && !body.includes('snb.gw.na') && !body.includes('snb.fx.na'));
+  // część z błędem z poprzednią wersją — nota z czasem części; brak części — nota
+  const P = Object.assign({}, D, {ok: {gw: true, fx: false}, part_at: {fx: '2026-09-20T10:00:00+00:00'}});
+  assert.ok(X.snbBody(P).includes('<p class="pnote neu">snb.prev{"t":"D(2026-09-20T10:00:00+00:00)"}</p>'));
+  const noFx = X.snbBody(Object.assign({}, D, {fx_res: null}));
+  assert.ok(noFx.includes('snb.fx.na') && (noFx.match(/<div class="etfk">/g) || []).length === 2);
+  const noGw = X.snbBody({at: D.at, fx_res: D.fx_res, hist: []});
+  assert.ok(noGw.includes('snb.gw.na') && (noGw.match(/<div class="etfk">/g) || []).length === 1 && !noGw.includes('<table'), 'same rezerwy');
+  assert.equal(X.snbBody({at: D.at, week: '2026-09-18', domestic: null, total: null, fx_res: {month: 'x', value: 1}}), '', 'bez liczb — pusto');
+  assert.equal(X.snbBody(null), ''); assert.equal(X.snbBody({week: 'bad', domestic: 1}), '');
+  // rysowanie i wczytanie
+  const el = {hidden: false, innerHTML: 'x'}, Y = snb124.mk({$: q => q === '#g-snb' ? el : null});
+  Y.renderSnb(); assert.ok(el.hidden === true && el.innerHTML === '', 'bez danych — sekcja ukryta');
+  Y.snbApply({at: new Date().toISOString(), hist: []}); assert.equal(el.hidden, true, 'plik bez liczb — ukryta');
+  Y.snbApply(D);
+  assert.ok(el.hidden === false && el.innerHTML.includes('snb.t') && el.innerHTML.includes('snb.sub') && el.innerHTML.includes('inst.file{"t":"D(' + D.at + ')"}') && el.innerHTML.includes('eng.notsays') && el.innerHTML.includes('snb.not') && el.innerHTML.includes('eng.disclaimer'));
+  Y.snbApply(null); assert.equal(el.hidden, false, 'chwilowy błąd pobrania nie zasłania danych');
+  const Z = snb124.mk({$: q => q === '#g-snb' ? el : null});
+  Z.snbApply(Object.assign({}, D, {at: new Date(Date.now() - 50 * 864e5).toISOString()})); assert.equal(el.hidden, true, 'plik starszy niż 45 dni — ukryta');
+  Z.snbApply(Object.assign({}, D, {at: 'kiedyś'})); assert.equal(el.hidden, true, 'plik bez daty — ukryta');
+});
+
+test('v124: Szwajcaria — prawdziwy słownik: pl w mld CHF, zh w 億; teksty bez surowych kluczy i bez nazwy banku; podpis źródła tylko na stronie Źródła', () => {
+  const PROV = /\bSNB\b|Swiss National Bank|Nationalbank|Banque nationale|Banca nazionale|Banco Nacional|Национальный банк|国家银行|国立銀行|data\.snb/i;
+  for (const L of ['pl', 'zh', 'ja', 'de']) {
+    const tt = v96src.tFor(L), el = {hidden: true, innerHTML: ''};
+    const X = snb124.mk({t: tt, L, $: q => q === '#g-snb' ? el : null, ...v96src.H});
+    X.snbApply(snb124.D);
+    const out = el.innerHTML;
+    assert.ok(el.hidden === false && !/snb\.[a-z]/.test(out.replace(/snb-(w|not)/g, '')) && !out.includes('{') && !out.includes('undefined'), L + ': bez surowych kluczy: ' + (out.match(/snb\.[a-z.]+/) || [''])[0]);
+    assert.ok(!PROV.test(out.replace(/snb-(w|not)/g, '')), L + ': panel bez nazwy banku / portalu');
+    assert.ok(out.includes('img/flagi/ch.svg'), L + ': flaga Szwajcarii');
+    if (L === 'pl') assert.ok(out.includes('432.0 mld CHF') && out.includes('▲ +0.8 mld CHF wobec poprzedniego tygodnia') && out.includes('Szwajcaria: depozyty banków w banku centralnym (tygodniowo)'), 'pl: ' + out.slice(0, 200));
+    if (L === 'zh') assert.ok(out.includes('4320亿瑞郎') && out.includes('▲ +8亿瑞郎 较前一周'), 'zh: 億 jednostki');
+    if (L === 'ja') assert.ok(out.includes('8025億スイスフラン'), 'ja: rezerwy w 億');
+  }
+  // podpis źródła: dopisany do akapitu wymaganych podpisów po narysowaniu strony Źródła — raz, bez błędu bez strony
+  const calls = [], p = {innerHTML: 'A'}, page = {querySelector: s => s === '.zr-attr2 p.mtxt' ? p : null};
+  const X = snb124.mk({$: q => q === '#page-sources' ? page : null, renderSources: function () { calls.push('rs'); return 7; }});
+  assert.equal(X.renderSources(), 7, 'opakowanie zwraca wynik oryginału'); assert.deepEqual(calls, ['rs']);
+  assert.equal(p.innerHTML, 'A · ' + X.SNB_CREDIT); X.renderSources(); assert.equal(p.innerHTML, 'A · ' + X.SNB_CREDIT, 'bez powtórzenia');
+  assert.ok(X.SNB_CREDIT.startsWith('<span class="zr-snb">Source: Swiss National Bank (SNB), <a href="https://data.snb.ch/en" target="_blank" rel="noopener">data.snb.ch</a>') && X.SNB_CREDIT.endsWith('</span>'));
+  X.snbCredit(null); X.snbCredit({}); X.snbCredit({querySelector: () => null});
+  const Y = snb124.mk({$: () => null, renderSources: () => 1}); assert.equal(Y.renderSources(), 1, 'bez strony — bez błędu');
+  assert.equal(snb124.mk().renderSources, undefined, 'bez funkcji strony Źródła — nic nie opakowujemy');
+  assert.equal((html.match(/Swiss National Bank/g) || []).length, 1, 'nazwa banku w stronie tylko w podpisie źródła');
+  const blok = html.slice(snb124.a0, html.indexOf('\n', html.indexOf('snbLoad();snbAuto();'))).split('\n').filter(l => !l.startsWith('const SNB_CREDIT=')).join('\n');
+  assert.ok(!/Swiss National Bank|Nationalbank|data\.snb\.ch/.test(blok), 'kod panelu bez nazwy banku (poza podpisem)');
+});
+
+test('v124: Szwajcaria — słownik EXTRA121 w 10 językach (te same klucze, pola {d} {m} {v} {n}…), sekcja po aukcjach (GLOBAL), styl, plik co 60 min, blok przed USA (v98)', () => {
+  const a = 'const EXTRA121=', x0 = html.indexOf(a); assert.ok(x0 > 0, 'słownik EXTRA121');
+  const E = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(E), L10, '10 języków, pl pierwszy');
+  const KEYS = Object.keys(E.pl).sort();
+  assert.ok(KEYS.length === 25 && KEYS.every(k => k.startsWith('snb.')), 'tylko klucze snb.*: ' + KEYS.length);
+  const PH = {'snb.wk': ['{d}'], 'snb.fxm': ['{m}'], 'snb.bn': ['{v}'], 'snb.mm': ['{n}', '{min}', '{dmin}', '{max}', '{dmax}'], 'snb.prev': ['{t}']};
+  const PROV = /\bSNB\b|Swiss National Bank|Nationalbank|Banque nationale|Banca nazionale|Banco Nacional|Национальный банк|国家银行|国立銀行|data\.snb/i;
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(E[L]).sort(), KEYS, L + ': te same klucze');
+    for (const k of KEYS) { assert.ok(typeof E[L][k] === 'string' && E[L][k].trim(), L + ' ' + k); assert.ok(!PROV.test(E[L][k]), 'nazwa banku: ' + L + ' ' + k); }
+    for (const k in PH) for (const p of PH[k]) assert.ok(E[L][k].includes(p), L + ' ' + k + ' ' + p);
+    for (const k of KEYS) if (!PH[k]) assert.ok(!/\{[a-z]+\}/.test(E[L][k]), L + ' ' + k + ': bez pól');
+    assert.ok(['1000', '100'].includes(E[L]['snb.div']), L + ': dzielnik');
+    assert.ok(E[L]['snb.leg'].includes('▲') && E[L]['snb.leg'].includes('▼') && E[L]['snb.sub'].includes('▲/▼'), L + ': legenda i ▲/▼ w opisie');
+    assert.equal(v96src.I18N[L]['snb.t'], E[L]['snb.t'], L + ': nałożony na słownik strony');
+  }
+  assert.equal(E.zh['snb.div'], '100'); assert.equal(E.ja['snb.div'], '100'); assert.equal(E.pl['snb.div'], '1000');
+  assert.equal(E.pl['snb.t'], 'Szwajcaria: depozyty banków w banku centralnym (tygodniowo)');
+  assert.ok(E.pl['snb.note'].includes('brak nie jest zerem') && E.en['snb.note'].includes('a gap is not a zero') && E.pl['snb.note'].includes('nie jest przepływem'), 'brak ≠ zero, stan ≠ przepływ');
+  assert.ok(E.pl['snb.sub'].includes('interwencji') && E.pl['snb.sub'].includes('bezpiecznej przystani') && E.pl['snb.sub'].includes('4 tygodni'), 'dlaczego to ważne');
+  assert.ok(E.pl['snb.not'].includes('raz na kwartał'), '„czego nie mówi”');
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.indexOf('EXTRA121') > apl.indexOf('EXTRA117') && apl.indexOf('EXTRA117') >= 0, 'EXTRA121 dołączony po EXTRA117');
+  assert.ok(html.indexOf('const EXTRA121=') < html.indexOf('/* ===================== STAN I DANE'), 'w bloku słowników');
+  assert.equal(html.split('<section class="panel pcard" id="g-snb" hidden></section>').length, 2, 'jedno miejsce sekcji');
+  const u = html.indexOf('<section class="panel pcard" id="g-aukcje" hidden></section>'), x = html.indexOf('<section class="panel pcard" id="g-snb" hidden></section>'), n = html.indexOf('<section class="panel pcard" id="inst" hidden></section>');
+  assert.ok(u > 0 && x > u && n > x, 'zakładka GLOBAL: po aukcjach, przed danymi urzędowymi');
+  assert.ok(html.includes("srvJSON('snb')") && html.includes('/* v124 szwajcaria: depozyty w banku centralnym */') && html.includes('#g-snb .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}'), 'plik, styl');
+  assert.ok(html.indexOf('/* v124 szwajcaria') < html.indexOf('/* v105 wieloryby */'), 'styl przed wielorybami');
+  assert.ok(html.includes("SNB.timer=setInterval(()=>{if(!document.hidden)snbLoad();},60*60*1000);") && html.includes('if(!ok&&SNB.data)return;'), 'odświeżanie co godzinę; chwilowy błąd nie zasłania danych');
+  assert.ok(html.includes("snbLoad();snbAuto();try{new MutationObserver(()=>renderSnb()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'zmiana języka');
+  assert.equal(html.split('/* ===================== v124: SZWAJCARIA').length, 2);
+  assert.ok(html.indexOf('/* ===================== v124: SZWAJCARIA') < html.indexOf('/* ===================== v98: USA'), 'blok przed blokiem USA (v98)');
+  assert.ok(html.indexOf('/* ===================== v124: SZWAJCARIA') > html.indexOf('function renderSources(){'), 'opakowanie po definicji strony Źródła');
+});

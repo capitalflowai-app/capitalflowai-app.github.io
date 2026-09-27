@@ -26,9 +26,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'insider', 'stres', 'aukcje']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'lancuch', 'insider', 'stres', 'aukcje']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'insider': 48 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'lancuch': 90, 'insider': 48 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -348,6 +348,70 @@ def historia(path, wpis):
     return hist
 
 
+def pl_przebiegi(n):
+    """Liczebnik: 1 nieudany przebieg / 2–4 nieudane przebiegi / 5+ (i 12–14) nieudanych przebiegów."""
+    if n == 1:
+        return '1 nieudany przebieg'
+    if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
+        return f'{n} nieudane przebiegi'
+    return f'{n} nieudanych przebiegów'
+
+
+def opis_kroku(zadanie, krok):
+    """Nazwa nieudanego kroku po ludzku: publikacja GitHub Pages to zwykle chwilowa awaria po stronie GitHuba; długie nazwy kroków
+    z workflow skrócone do części przed nawiasem / myślnikiem."""
+    if not krok:
+        return zadanie or None
+    if 'deploy-pages' in krok:
+        return 'publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)'
+    k = krok.split(' (')[0].split(' — ')[0].strip()
+    return f'{zadanie} / {k}' if zadanie else k
+
+
+def przebiegi_ocena(runs, now, kroki=None):
+    """v124.1: przebiegi automatu („Strona i dane”) z ostatnich 24 h → (actions, bledy, uwagi).
+    BŁĄD tylko, gdy automat NADAL nie działa: dwa ostatnie zakończone przebiegi nieudane albo ≥ 3 porażki w 24 h i ostatni zakończony
+    też nieudany. Jedna świeża porażka = uwaga („kolejny przebieg za ok. 20 min”). Porażki już naprawione (po ostatniej same udane) =
+    uwaga z godzinami, krokiem i liczbą udanych przebiegów od ostatniej porażki. Przebiegi w toku i anulowane nie liczą się do serii.
+    kroki: {id przebiegu: opis kroku} dla porażek (z API zadań; może brakować — wtedy sama godzina)."""
+    kroki = kroki or {}
+    od = now - dt.timedelta(hours=24)
+
+    def czas(r):
+        try:
+            t = dt.datetime.fromisoformat(str(r.get('run_started_at')).replace('Z', '+00:00'))
+            return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+        except Exception:
+            return None
+    ost = [r for r in runs if isinstance(r, dict) and str(r.get('name', '')).startswith('Strona') and czas(r) is not None and czas(r) >= od]
+    ost.sort(key=czas, reverse=True)
+    z = {}
+    for r in ost:
+        w = r.get('conclusion') or r.get('status')
+        z[w] = z.get(w, 0) + 1
+    zak = [r for r in ost if r.get('status') == 'completed' and r.get('conclusion') in ('success', 'failure')]
+    por = [r for r in ost if r.get('conclusion') == 'failure']
+    z_rzedu = next((i for i, r in enumerate(zak) if r.get('conclusion') != 'failure'), len(zak))
+    udane_po = next((i for i, r in enumerate(zak) if r.get('conclusion') == 'failure'), len(zak)) if por else None
+    A = {'przebiegi_24h': len(ost), 'wg_wyniku': z, 'ostatni': ost[0].get('run_started_at') if ost else None,
+         'ostatnia_porazka': por[0].get('run_started_at') if por else None, 'porazki_z_rzedu': z_rzedu, 'udane_po_porazce': udane_po,
+         'porazki': [{'at': r.get('run_started_at'), 'krok': kroki.get(r.get('id'))} for r in por[:10]]}
+    bledy, uwagi = [], []
+    if por:
+        c = [czas_pl(p['at']) for p in A['porazki'][:5]]
+        lista = ', '.join((x[:5] + ' ' + x[-5:] if x != '—' else x) + (f' ({p["krok"]})' if p.get('krok') else '') for x, p in zip(c, A['porazki']))
+        lista += f' i {len(por) - 5} wcześniejsze' if len(por) > 5 else ''
+        if z_rzedu >= 2 or (len(por) >= 3 and z_rzedu >= 1):
+            bledy.append(f'automat nie działa: {pl_przebiegi(len(por))} w 24 h, ostatnie {z_rzedu} z rzędu — strona nie odświeża danych ({lista})')
+        elif z_rzedu == 1:
+            uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 20 min; dwa nieudane z rzędu = błąd')
+        else:
+            uwagi.append(f'{pl_przebiegi(len(por))} automatu w 24 h — już naprawione: od ostatniej porażki {udane_po} udanych z rzędu ({lista})')
+    if len(ost) < 20:
+        uwagi.append(f'tylko {len(ost)} przebiegów w 24 h (harmonogram co 20 min ≈ 72; GitHub bywa opóźniony)')
+    return A, bledy, uwagi
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -498,20 +562,21 @@ def kontrola():
             hdr['Authorization'] = 'Bearer ' + TOKEN
         st, body, ms = get(f'https://api.github.com/repos/{REPO}/actions/runs?per_page=100', headers=hdr)
         runs = json.loads(body).get('workflow_runs', [])
-        od = NOW - dt.timedelta(hours=24)
-        ost = [r for r in runs if r.get('name', '').startswith('Strona') and wiek_min(r.get('run_started_at')) is not None
-               and dt.datetime.fromisoformat(r['run_started_at'].replace('Z', '+00:00')) >= od]
-        z = {}
-        for r in ost:
-            z[r.get('conclusion') or r.get('status')] = z.get(r.get('conclusion') or r.get('status'), 0) + 1
-        R['actions'] = {'przebiegi_24h': len(ost), 'wg_wyniku': z,
-                        'ostatni': (ost[0]['run_started_at'] if ost else None), 'ostatnia_porazka': next((r['run_started_at'] for r in ost if r.get('conclusion') == 'failure'), None)}
-        if z.get('failure', 0) >= 3:
-            R['bledy'].append(f'{z["failure"]} nieudanych przebiegów automatu w 24 h')
-        elif z.get('failure', 0):
-            R['uwagi'].append(f'{z["failure"]} nieudany przebieg automatu w 24 h (ostatni: {czas_pl(R["actions"]["ostatnia_porazka"])})')
-        if len(ost) < 20:
-            R['uwagi'].append(f'tylko {len(ost)} przebiegów w 24 h (harmonogram co 20 min ≈ 72; GitHub bywa opóźniony)')
+        # v124.1: nazwa nieudanego kroku dla najwyżej 5 porażek z 24 h (1 zapytanie na porażkę; błąd odczytu = sama godzina)
+        kroki = {}
+        for r in [r for r in runs if str(r.get('name', '')).startswith('Strona') and r.get('conclusion') == 'failure'
+                  and wiek_min(r.get('run_started_at')) is not None and wiek_min(r.get('run_started_at')) <= 24 * 60][:5]:
+            try:
+                _, b2, _ = get(f'https://api.github.com/repos/{REPO}/actions/runs/{r["id"]}/jobs', headers=hdr)
+                for j in json.loads(b2).get('jobs', []):
+                    if j.get('conclusion') == 'failure':
+                        kroki[r['id']] = opis_kroku(j.get('name'), next((s.get('name') for s in j.get('steps') or [] if s.get('conclusion') == 'failure'), None))
+                        break
+            except Exception:  # noqa
+                pass
+        R['actions'], b, u = przebiegi_ocena(runs, NOW, kroki)
+        R['bledy'] += b
+        R['uwagi'] += u
     except Exception as e:  # noqa
         R['actions'] = {'blad': str(e)[:160]}
         R['uwagi'].append('nie udało się odczytać listy przebiegów Actions: ' + str(e)[:100])
@@ -538,6 +603,9 @@ def raport_md(R):
     a = R.get('actions') or {}
     if 'przebiegi_24h' in a:
         L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).')
+        if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
+            L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
+                     + (f'. Od ostatniej porażki {a["udane_po_porazce"]} udanych przebiegów z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
     L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None else ("HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     if m.get('notes'):

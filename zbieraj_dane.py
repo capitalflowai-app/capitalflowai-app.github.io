@@ -930,7 +930,7 @@ def parse_stabh(j):
         prev = [v for t, v in pts if t <= target]
         if prev:
             out['d'][str(n)] = round(cur - prev[-1]); out['pct'][str(n)] = round((cur / prev[-1] - 1) * 100, 4)
-    out['dd'] = [[datetime.datetime.fromtimestamp(t, datetime.timezone.utc).date().isoformat(), round(v)] for t, v in pts[-71:]]   # v89: 70 dni do TRENDÓW
+    out['dd'] = _stabh_dd(pts)   # v89: dni do TRENDÓW; v124: do STABH_KEEP = 400 dni kalendarzowych (blok v124 przed main())
     return out
 
 
@@ -1434,6 +1434,9 @@ def build_surowce(fetch=None, today=None, prev=None):
 # Licencja danych: CC BY-NC 4.0 (docs.coinmetrics.io/api/v4 → „Available to the community under the Creative Commons
 # license” z linkiem do by-nc/4.0; github.com/coinmetrics/data/LICENSE). Limit Community: 10 zapytań / 6 s na IP.
 # Jedno zapytanie na przebieg: 2 aktywa × 6 metryk × 36 dni (limit_per_asset + paging_from=end → rosnąco po dacie).
+# v124: pierwszy przebieg (i historia krótsza niż CM_KEEP dni) pobiera 401 dni; kolejne 36 dni są dokładane do historii z poprzedniego
+# pliku (do 400 dni), a raz na dobę całe okno jest pobierane ponownie (dostawca poprawia dane wstecz) — stałe i funkcje pomocnicze
+# w bloku „v124: HISTORIA KRYPTO” przed def main().
 # 36, nie 35: limit liczy też najnowszy dzień, który Coin Metrics jeszcze publikuje (ok. 02–03 UTC). Gdy parser cofa się
 # wtedy do ostatniego pełnego dnia, okno 35 dni nadal jest pełne — inaczej najstarszy dzień okna byłby fałszywą „luką”.
 CM_ASSETS = ('btc', 'eth')
@@ -1485,11 +1488,18 @@ def _cm_net(rec, a, b):
     return rec[a] - rec[b] if rec.get(a) is not None and rec.get(b) is not None else None
 
 
-def parse_cm_asset(rows, asset):
-    """Wiersze jednego aktywa → {'sym','asof','status','pending','d','missing','last','sum7','sum30','sply_ch7','sply_ch30'};
-    None gdy brak dni. d: CM_DAYS dni kalendarzowych rosnąco kończących się na ostatnim dniu z danymi; dzień bez wiersza = same None.
-    Netto liczone z liczb niezaokrąglonych (dopiero wynik jest zaokrąglany)."""
-    by_day, status = {}, {}
+def parse_cm_asset(rows, asset, old=None):
+    """Wiersze jednego aktywa → {'sym','asof','status','pending','d','missing','last','sum7','sum30','sply_ch7','sply_ch30','h'};
+    None gdy brak dni. d: dni kalendarzowe rosnąco kończące się na ostatnim dniu z danymi; dzień bez wiersza = same None.
+    Netto liczone z liczb niezaokrąglonych (dopiero wynik jest zaokrąglany).
+    v124: old = historia tego aktywa z poprzedniego cm.json (_cm_old, blok v124 przed main()). Dla dnia z obu źródeł nowa liczba wygrywa,
+    a liczby, której nowa odpowiedź nie ma, nie kasujemy; dni tylko z poprzedniego pliku przechodzą bez zmian (bez ponownego liczenia).
+    d zaczyna się od pierwszego dnia z danymi: najwyżej CM_KEEP dni (starsze odpadają), najmniej CM_DAYS (jak przed v124).
+    missing = dni bez danych w ostatnich CM_DAYS dniach (tak opisuje je strona); h = cała historia w d: from/to, len (dni kalendarzowe),
+    n (dni z danymi), new (dni z tej odpowiedzi)."""
+    by_day, status, new = {}, {}, set()
+    for day, rec in ((old or {}).get('days') or {}).items():      # v124: najpierw historia z poprzedniego pliku
+        by_day[day] = dict(rec)
     for r in rows:
         if not isinstance(r, dict) or r.get('asset') != asset:
             continue
@@ -1503,9 +1513,12 @@ def parse_cm_asset(rows, asset):
         rec = {k: _cm_val(r.get(m)) for k, m in CM_METRICS}
         if all(v is None for v in rec.values()):
             continue
+        if day in by_day and day not in new:      # v124: dzień znany z poprzedniego pliku — nowa liczba wygrywa, brak nie kasuje znanej
+            rec = {k: v if v is not None else by_day[day].get(k) for k, v in rec.items()}
         rec['net'] = _cm_net(rec, 'in', 'out')
         rec['net_usd'] = _cm_net(rec, 'in_usd', 'out_usd')
         by_day[day] = rec
+        new.add(day)
         status[day] = {str(r.get(m + '-status')) for _, m in CM_METRICS if r.get(m) is not None and r.get(m + '-status')}
     if not by_day:
         return None
@@ -1513,20 +1526,26 @@ def parse_cm_asset(rows, asset):
     # Metryki nowego dnia pojawiają się po kolei (natywne od ok. 01:10 UTC, USD do ~70 min później). Gdy najnowszy dzień
     # jest jeszcze niepełny, a dzień wcześniej jest pełny — pokazujemy ten pełny (inaczej USD i sumy 7/30 dni = null
     # przez ~1 h dziennie, a BTC i ETH mogą mieć różne daty). Starsza luka niż 1 dzień = zmiana u dostawcy → bez cofania.
-    full = [day for day, rec in by_day.items() if all(rec[k] is not None for k, _ in CM_METRICS)]
+    full = [day for day, rec in by_day.items() if all(rec.get(k) is not None for k, _ in CM_METRICS)]
     pending = None
     if full and last not in full and (datetime.date.fromisoformat(last) - datetime.date.fromisoformat(max(full))).days == 1:
         pending, last = last, max(full)
     d0 = datetime.date.fromisoformat(last)
-    cal = [(d0 - datetime.timedelta(days=i)).isoformat() for i in range(CM_DAYS - 1, -1, -1)]
+    span = (d0 - datetime.date.fromisoformat(min(by_day))).days + 1     # v124: od pierwszego dnia z danymi
+    cal = [(d0 - datetime.timedelta(days=i)).isoformat() for i in range(min(CM_KEEP, max(CM_DAYS, span)) - 1, -1, -1)]
     d = [[day] + [_cm_round(k, by_day.get(day, {}).get(k)) for k in CM_COLS[1:]] for day in cal]
-    st = status.get(last, set())
+    st = status.get(last)
+    if st is None and old and old.get('asof') == last and old.get('status') in ('flash', 'reviewed'):
+        st = {old['status']}                      # v124: ostatni dzień tylko z poprzedniego pliku — jego stan z tamtego pliku
+    st = st or set()
     out = {'sym': asset.upper(), 'asof': last,
            # 'flash' = wstępne (Coin Metrics może je poprawić), 'reviewed' = po przeglądzie; mieszane → 'flash'
            'status': 'flash' if 'flash' in st else ('reviewed' if st == {'reviewed'} else None),
            'pending': pending,   # najnowszy dzień, który Coin Metrics jeszcze publikuje (pominięty), albo null
-           'd': d, 'missing': sum(1 for day in cal if day not in by_day),
-           'last': {k: _cm_round(k, by_day[last].get(k)) for k in CM_COLS[1:]}}
+           'd': d, 'missing': sum(1 for day in cal[-CM_DAYS:] if day not in by_day),
+           'last': {k: _cm_round(k, by_day[last].get(k)) for k in CM_COLS[1:]},
+           'h': {'from': cal[0], 'to': last, 'len': len(cal), 'n': sum(1 for day in cal if day in by_day),
+                 'new': sum(1 for day in cal if day in new)}}
     flow_keys = ('in', 'out', 'net', 'in_usd', 'out_usd', 'net_usd')
     for n in (7, 30):
         out[f'sum{n}'] = {k: _cm_round(k, _cm_sum(by_day, last, n, k)) for k in flow_keys}
@@ -1538,15 +1557,17 @@ def parse_cm_asset(rows, asset):
     return out
 
 
-def parse_cm(j):
-    """Coin Metrics /timeseries/asset-metrics → data/cm.json. Każde aktywo osobno: brak jednego nie kasuje drugiego."""
+def parse_cm(j, prev=None):
+    """Coin Metrics /timeseries/asset-metrics → data/cm.json. Każde aktywo osobno: brak jednego nie kasuje drugiego.
+    v124: prev = poprzedni cm.json — jego historia (do CM_KEEP dni) łączona z nową odpowiedzią (parse_cm_asset). Odpowiedź bez żadnego
+    nowego dnia → wyjątek: main() zostawia wtedy poprzedni plik w całości (stare liczby nie dostają nowego znacznika czasu)."""
     if isinstance(j, dict) and isinstance(j.get('error'), dict):
         raise RuntimeError('Coin Metrics: ' + str(j['error'].get('message', j['error']))[:200])
     rows = j.get('data') if isinstance(j, dict) else None
     if not isinstance(rows, list):
         raise RuntimeError('Coin Metrics: brak pola data')
     if j.get('next_page_token'):
-        META['errors'].append('Coin Metrics: odpowiedź podzielona na strony — użyto tylko pierwszej')
+        META['errors'].append('Coin Metrics: odpowiedź podzielona na strony — nie wszystkie pobrane (brakujące dni zostają puste)')
     seen = {m for r in rows if isinstance(r, dict) for _, m in CM_METRICS if r.get(m) is not None}
     for _, m in CM_METRICS:
         if m not in seen:
@@ -1556,21 +1577,94 @@ def parse_cm(j):
            'license': 'CC BY-NC 4.0', 'license_url': CM_LICENSE_URL, 'attribution': CM_ATTR,
            'unit': {'ntv': 'native units (BTC, ETH)', 'usd': 'USD'},
            'sign': 'net = in - out; positive = more coins sent to exchanges than withdrawn (excl. exchange-to-exchange)',
-           'cols': CM_COLS, 'asof': None, 'assets': {}}
+           'cols': CM_COLS, 'keep': CM_KEEP, 'asof': None, 'assets': {}}
+    old = _cm_old(prev)
     for a in CM_ASSETS:
-        out['assets'][a] = parse_cm_asset(rows, a)
-        if out['assets'][a] is None:
+        A = out['assets'][a] = parse_cm_asset(rows, a, old.get(a))
+        if A is None:
             META['errors'].append(f'Coin Metrics: brak dni dla {a}')
-    dates = sorted({v['asof'] for v in out['assets'].values() if v})
-    if not dates:
+        elif not A['h']['new']:
+            META['errors'].append(f'Coin Metrics: brak nowych dni dla {a} — zostaje historia z poprzedniego pliku')
+    if not any(A and A['h']['new'] for A in out['assets'].values()):
         raise RuntimeError('Coin Metrics: żadne aktywo nie ma danych')
+    dates = sorted({v['asof'] for v in out['assets'].values() if v})
     out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
     return out
 
 
-def build_cm():
-    """data/cm.json — jedno zapytanie bez klucza do Coin Metrics Community (limit 10 zapytań / 6 s na IP)."""
-    return parse_cm(get_json(CM_URL))
+def build_cm(prev=None):
+    """data/cm.json — bez klucza z Coin Metrics Community. Warunki (docs.coinmetrics.io/api/v4, sprawdzone ponownie 26.09.2026):
+    „Available to the community under the Creative Commons license.” — odnośnik prowadzi do CC BY-NC 4.0 (uznanie autorstwa, bez użytku
+    komercyjnego; strona jest bezpłatna, podpis i licencja w menu „Źródła”). Limit Community: 10 zapytań na 6 s na adres IP, page_size ≤ 10000.
+    v124 (stałe i pomocnicze w bloku v124 przed main()): pełne pobranie = jedno zapytanie o CM_KEEP + 1 dni (CM_BF_URL, 2 × 401 wierszy,
+    jedna strona) — bez poprzedniego pliku albo z za krótką historią (fetch 'backfill') oraz raz na CM_REFRESH_H h przy pełnej historii
+    (fetch 'refresh': dostawca poprawia dane wstecz, a „nowa liczba wygrywa” podmienia wtedy całe okno); _cm_need_backfill. Inaczej jak przed
+    v124 ostatnie CM_DAYS + 1 dni (CM_URL, fetch 'update') dołożone do historii z prev.
+    Pełne pobranie, które zawiedzie (wyjątek zapytania albo parsera, np. błąd tylko dla dużego zapytania), nie wstrzymuje aktualizacji: w tym
+    samym przebiegu idzie CM_URL; błędy nieudanej próby nie zostają w meta — zostaje notatka z powodem (dopisywana dopiero wtedy, gdy wiadomo,
+    czy zapytanie zapasowe się udało). Gdy zawiedzie też CM_URL, wyjątek idzie do main() jak przed v124 i niesie cm_bf_fail = NOW: main()
+    zachowuje poprzedni plik z tym bf_fail (_cm_kept), więc granica CM_BF_RETRY_H h działa także przy awarii całego API.
+    Pełne pobranie jest udane tylko wtedy, gdy przyszły wszystkie strony i każde aktywo dostało nowe liczby dla wszystkich dni z danymi w d
+    (najwyżej CM_BF_SLACK dni tylko z poprzedniego pliku) — odpowiedź krótsza niż okno albo stare dni bez liczb zostawiłyby resztę historii
+    w starym ujęciu (niezgłoszony skok poziomu). bf = czas ostatniego UDANEGO pełnego pobrania; bf_fail = czas ostatniej nieudanej albo
+    niepełnej próby (następna próba po CM_BF_RETRY_H h), po udanej None."""
+    full = _cm_need_backfill(prev)
+    kind = ('backfill' if _cm_short(prev) else 'refresh') if full else 'update'
+    p = prev if isinstance(prev, dict) else {}
+    out, fail = None, None
+    if full:
+        print(f'Coin Metrics: pobieram historię {CM_KEEP} dni' + (' (odświeżenie — dostawca poprawia dane wstecz)' if kind == 'refresh' else ''))
+        n0 = len(META['errors'])
+        try:
+            j = _cm_pages(CM_BF_URL)
+            out = parse_cm(j, prev)
+        except Exception as e:
+            del META['errors'][n0:]          # błędy nieudanej próby nie zostają — niżej zwykłe zapytanie, powód w notatce
+            msg = str(e)
+            fail = msg[len('Coin Metrics: '):] if msg.startswith('Coin Metrics: ') else msg
+        else:
+            A2 = {a: A for a, A in out['assets'].items() if A}
+            why = ['nie wszystkie strony'] if isinstance(j, dict) and j.get('next_page_token') else []
+            miss = [a for a in out['assets'] if not (A2.get(a) and A2[a]['h']['new'])]
+            if miss:
+                why.append('bez nowych dni: ' + ', '.join(miss))
+            # dni z danymi w d, których ta odpowiedź nie odświeżyła (zostały z poprzedniego pliku): więcej niż CM_BF_SLACK → niepełne
+            stale = [a for a, A in A2.items() if A['h']['new'] and A['h']['n'] - A['h']['new'] > CM_BF_SLACK]
+            if stale:
+                why.append('odświeżone dni: ' + ', '.join(f"{a} {A2[a]['h']['new']} z {A2[a]['h']['n']}" for a in stale))
+            if why:
+                fail = 'niepełne'            # dni, które przyszły, zostają (parse_cm zapisał błąd stron albo aktywa); bf bez zmian
+                META['notes'].append(f'Coin Metrics: pełne pobranie {CM_KEEP} dni niepełne ({"; ".join(why)}) — ponowimy za {CM_BF_RETRY_H} h')
+            elif kind == 'backfill':
+                META['notes'].append('Coin Metrics: pobrano historię (pierwszy przebieg albo za krótka historia w pliku) — dni z danymi: '
+                                     + ', '.join(f"{a} {A['h']['n']}" for a, A in A2.items()))
+            else:
+                ch = _cm_changed(prev, out)
+                META['notes'].append('Coin Metrics: odświeżono historię (dostawca poprawia dane wstecz) — odświeżone dni: '   # ≤ 160 znaków (kontrola)
+                                     + ', '.join(f"{a} {A['h']['new']} z {A['h']['n']}" for a, A in A2.items())
+                                     + '; z inną liczbą niż przedtem: ' + (', '.join(f'{a} {n}' for a, n in ch.items()) or 'brak'))
+    def nota(pocz, kon):                 # powód skracany tak, by cała notatka mieściła się w 160 znakach (raport kontroli obcina dłuższe)
+        r, m = str(fail), max(20, 160 - len(pocz) - len(kon) - 2)
+        return mask(pocz + '(' + (r if len(r) <= m else r[:m - 1] + '…') + ')' + kon)
+    if out is None:
+        kind = 'update'
+        try:
+            out = parse_cm(_cm_pages(CM_URL), prev)
+        except Exception as e:
+            if fail is not None:             # oba zapytania zawiodły: nic nie pobrano — notatka bez „ostatnich 36 dni”
+                e.cm_bf_fail = NOW           # main() zachowa poprzedni plik z bf_fail = NOW (_cm_kept) — granica ponowień działa i teraz
+                META['notes'].append(nota(f'Coin Metrics: pełne pobranie {CM_KEEP} dni nie powiodło się ',
+                                          f', zwykłe ({CM_DAYS + 1} dni) też — '
+                                          + (f'zostaje poprzedni plik; pełna próba za {CM_BF_RETRY_H} h' if p else 'bez nowych danych')))
+            raise
+        if fail is not None:
+            META['notes'].append(nota(f'Coin Metrics: pełne pobranie {CM_KEEP} dni nie powiodło się ',
+                                      f' — w tym przebiegu ostatnie {CM_DAYS + 1} dni; ponowimy za {CM_BF_RETRY_H} h'))
+    out['fetch'] = kind
+    done = kind != 'update' and fail is None
+    out['bf'] = NOW if done else p.get('bf')
+    out['bf_fail'] = NOW if fail is not None else (None if done else p.get('bf_fail'))
+    return out
 
 
 # --- v50: Fed H.4.1 — papiery w depozycie Fed dla zagranicznych instytucji oficjalnych i międzynarodowych (serie w FRED_SERIES) ---
@@ -7693,6 +7787,687 @@ def build_aukcje(prev=None, now=None):
     return out
 
 
+# ===================== v124: HISTORIA KRYPTO — przepływy BTC/ETH na giełdy i podaż stablecoinów do 400 dni =====================
+# Po co: sygnały dzienne krypto (TRENDY v123, rodzina „cr”) potrzebują dla przepływów co najmniej TD_MIN = 40 dni tła i TD_NEFF = 100 dni
+# z sygnałem do oceny. Przed v124 cm.json miał stałe okno 35 dni (40 nigdy), a krypto.stabh.dd 71 punktów (100 nigdy).
+# Coin Metrics (build_cm): pierwszy przebieg pobiera CM_KEEP + 1 dni; kolejne — jak przed v124 — ostatnie CM_DAYS + 1 dni i dokładają je do
+# historii z poprzedniego pliku (nowa liczba wygrywa). Świadomie 36 dni, nie ~10: to nadal jedno zapytanie, sumy 7 i 30 dni oraz zmiana
+# zapasu za 30 dni zostają liczone z liczb niezaokrąglonych, a wstępne dane („flash”) z ostatniego miesiąca są odświeżane poprawkami.
+# Odświeżenie całej historii raz na CM_REFRESH_H = 24 h (to samo zapytanie o CM_KEEP + 1 dni, jedna strona): Coin Metrics przelicza wstecz
+# całą historię przepływów giełdowych. Sprawdzone 27.09.2026 w odpowiedzi API na 401 dni: pole FlowOutExNtv-status-time pokazuje zbiorcze
+# przepisanie starszych dni (BTC: 234 dni 16–18.04.2026, ETH: 260 dni 07–09.05.2026); przegląd kodu z 27.09.2026 porównał archiwalny CSV
+# dostawcy z 21.04.2026 z API — różne w 230 z 244 wspólnych dni. Bez odświeżenia plik miałby dni 37–400 w starym ujęciu, a ostatnie 36
+# w nowym — niezgłoszony skok poziomu w tle TRENDÓW (typ/sd/dz) i przyszłych z-score.
+# Nieudane pełne pobranie nie wstrzymuje aktualizacji: w tym samym przebiegu idzie zwykłe zapytanie (CM_URL), bf zostaje bez zmian,
+# a bf_fail (czas nieudanej próby) wstrzymuje kolejną pełną próbę na CM_BF_RETRY_H godzin. Gdy zawiedzie też CM_URL (awaria całego API),
+# main() zachowuje poprzedni plik z nowym bf_fail (_cm_kept) — bez tego każdy przebieg przez całą awarię wysyłałby dwa zapytania.
+# Pełne pobranie liczy się jako udane tylko wtedy, gdy odświeżyło (prawie) wszystkie dni z danymi w d obu aktywów (najwyżej CM_BF_SLACK
+# dni tylko z poprzedniego pliku); odpowiedź krótsza niż okno → „niepełne”, bf bez zmian, bf_fail = teraz.
+# Plik zgodny wstecz: te same pola, dłuższe d (strona pokazuje 14 najnowszych dni, missing nadal za ostatnie 35 dni), nowe pola h, keep,
+# fetch, bf, bf_fail; TRENDY tygodniowe czytają d jak dotąd — dostają pełne 8 tygodni porównania zamiast 4.
+# Stablecoiny (parse_stabh → _stabh_dd): dostawca oddaje całą historię w jednym zapytaniu, więc dd ma 400 dni od pierwszego przebiegu.
+CM_KEEP = 400          # najwięcej dni kalendarzowych w d (przed v124: stałe CM_DAYS = 35)
+CM_BF_SLACK = 7        # historia krótsza niż CM_KEEP − 7 dni (np. plik sprzed v124) → pełne pobranie …; pełne pobranie, które nie odświeżyło
+                       # więcej niż 7 dni z danymi obu aktywów, jest niepełne
+CM_BF_RETRY_H = 6      # … najwyżej raz na 6 h (pole bf = czas ostatniego udanego pełnego pobrania; u dostawcy może nie być starszych dni);
+                       # po nieudanej próbie (pole bf_fail) następna pełna próba też dopiero po 6 h
+CM_REFRESH_H = 24      # pełna historia: całe okno pobierane ponownie raz na dobę (dostawca poprawia dane wstecz); w tym przebiegu jedno
+                       # zapytanie ~0,7 MB zamiast zwykłego ~60 kB, nadal jedna strona
+CM_API = 'https://community-api.coinmetrics.io/v4/'
+CM_PAGES = 5           # najwyżej tyle stron na przebieg (pełna historia 2 × 401 wierszy mieści się na jednej stronie page_size=1000)
+CM_PAGE_SLEEP = 0.7    # s przerwy przed kolejną stroną: limit Community to 10 zapytań na 6 s na IP (≥ 0,6 s na zapytanie)
+CM_BUDGET = 45         # s na wszystkie strony; potem zostaje to, co przyszło (paging_from=end: najpierw najnowsze dni)
+CM_BF_URL = (CM_API + 'timeseries/asset-metrics?assets=' + ','.join(CM_ASSETS)
+             + '&metrics=' + ','.join(m for _, m in CM_METRICS)
+             + f'&frequency=1d&limit_per_asset={CM_KEEP + 1}&paging_from=end&page_size=1000&ignore_unsupported_errors=true')
+STABH_KEEP = 400       # krypto.stabh.dd: najwyżej tyle ostatnich dni kalendarzowych (przed v124: 71 punktów)
+
+
+def _cm_day(s):
+    """Czy s to data RRRR-MM-DD, która istnieje w kalendarzu ('2026-02-30' — nie)."""
+    if not isinstance(s, str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', s):
+        return False
+    try:
+        datetime.date.fromisoformat(s)
+    except ValueError:
+        return False
+    return True
+
+
+def _cm_old(prev):
+    """v124: poprzedni cm.json → {aktywo: {'days': {dzień: {kolumna: liczba albo None}}, 'asof', 'status'}}. Tylko plik w układzie CM_COLS;
+    wiersz = lista długości CM_COLS z prawdziwą datą nie późniejszą niż asof aktywa; liczba musi być skończona i ≥ 0 (netto może być ujemne),
+    inaczej None; dzień bez żadnej liczby pomijany (brak zostaje brakiem, nigdy 0). Zły plik → pusta historia (jak bez pliku)."""
+    if not isinstance(prev, dict) or prev.get('cols') != CM_COLS or not isinstance(prev.get('assets'), dict):
+        return {}
+    out = {}
+    for a in CM_ASSETS:
+        A = prev['assets'].get(a)
+        if not isinstance(A, dict) or not isinstance(A.get('d'), list) or not _cm_day(A.get('asof')):
+            continue
+        days = {}
+        for r in A['d']:
+            if not isinstance(r, list) or len(r) != len(CM_COLS) or not _cm_day(r[0]) or r[0] > A['asof']:
+                continue
+            rec = {k: v if _isnum(v) and (v >= 0 or k in ('net', 'net_usd')) else None for k, v in zip(CM_COLS[1:], r[1:])}
+            if any(v is not None for v in rec.values()):
+                days[r[0]] = rec
+        out[a] = {'days': days, 'asof': A['asof'], 'status': A.get('status')}
+    return out
+
+
+def _cm_short(prev):
+    """v124: czy historia w poprzednim pliku jest za krótka: brak pliku (albo inny układ kolumn) lub któreś aktywo ma mniej niż
+    CM_KEEP − CM_BF_SLACK dni od pierwszego do ostatniego dnia z danymi (np. plik 35-dniowy sprzed v124)."""
+    old = _cm_old(prev)
+    for a in CM_ASSETS:
+        days = sorted((old.get(a) or {}).get('days') or {})
+        if not days or (datetime.date.fromisoformat(days[-1]) - datetime.date.fromisoformat(days[0])).days + 1 < CM_KEEP - CM_BF_SLACK:
+            return True
+    return False
+
+
+def _cm_age_h(prev, key):
+    """v124: wiek w godzinach znacznika czasu prev[key] (bf, bf_fail) według _now_utc(); None, gdy brak pliku, brak pola, zły zapis czasu
+    (także bez strefy) albo czas z przyszłości (zły zegar lub zły plik — nie może wstrzymać pobrania na zawsze)."""
+    try:
+        h = (_now_utc() - datetime.datetime.fromisoformat(prev.get(key))).total_seconds() / 3600
+    except (AttributeError, TypeError, ValueError):
+        return None
+    return h if h >= 0 else None
+
+
+def _cm_need_backfill(prev):
+    """v124: czy pobrać pełną historię (CM_BF_URL). Historia za krótka (_cm_short) → najwyżej raz na CM_BF_RETRY_H godzin; historia pełna →
+    odświeżenie całego okna raz na CM_REFRESH_H godzin (dostawca poprawia dane wstecz). Obie granice liczone od bf = czasu ostatniego
+    UDANEGO pełnego pobrania; brak bf (albo zły zapis) → tak. Po nieudanej próbie (bf_fail młodsze niż CM_BF_RETRY_H godzin) → nie:
+    nieudane duże zapytanie nie jest ponawiane co przebieg. Inaczej wystarczą ostatnie dni (CM_URL)."""
+    fail = _cm_age_h(prev, 'bf_fail')
+    if fail is not None and fail < CM_BF_RETRY_H:
+        return False
+    age = _cm_age_h(prev, 'bf')
+    return age is None or age >= (CM_BF_RETRY_H if _cm_short(prev) else CM_REFRESH_H)
+
+
+def _cm_kept(prev, e):
+    """v124: poprzedni cm.json, który main() zachowuje, gdy build_cm zawiódł (wyjątek e). Jeśli zawiodła też próba pełnego pobrania
+    (e.cm_bf_fail = czas tej próby, ustawia build_cm), kopia pliku dostaje bf_fail = ten czas: kolejna pełna próba dopiero po CM_BF_RETRY_H h,
+    a nie w każdym przebiegu przez całą awarię. Reszta pliku bez zmian — także 'at', więc świeżość i wiek danych na stronie się nie zmieniają.
+    Inaczej (zawiodło tylko zwykłe zapytanie) — ten sam obiekt, jak przed v124."""
+    t = getattr(e, 'cm_bf_fail', None)
+    return dict(prev, bf_fail=t) if isinstance(prev, dict) and isinstance(t, str) and t else prev
+
+
+def _cm_changed(prev, out):
+    """v124: {aktywo: liczba dni obecnych i w poprzednim pliku, i w nowym d, w których choć jedna liczba jest inna} — do notatki po
+    odświeżeniu (skala poprawek wstecz u dostawcy; dzień, który dostał liczbę w miejsce braku, też się liczy)."""
+    old, res = _cm_old(prev), {}
+    for a in CM_ASSETS:
+        A, days = (out.get('assets') or {}).get(a), (old.get(a) or {}).get('days') or {}
+        if A and days:
+            res[a] = sum(1 for r in A['d'] if r[0] in days and [days[r[0]][k] for k in CM_COLS[1:]] != r[1:])
+    return res
+
+
+def _cm_pages(url, pages=None, budget=None):
+    """v124: zapytanie Coin Metrics razem z kolejnymi stronami → {'data': wiersze}; gdy zostały niepobrane strony — także
+    'next_page_token' (parse_cm odnotowuje to w meta). Kolejna strona tylko z pola next_page_url (tak każe dokumentacja API) i tylko pod
+    adresem Community API; przed każdą następną stroną CM_PAGE_SLEEP s przerwy; najwyżej CM_PAGES stron i CM_BUDGET s (pierwsza strona ma
+    zwykły limit 30 s, dalsze tylko tyle, ile zostało) — potem zostaje to, co przyszło (paging_from=end: najpierw najnowsze dni). Pierwsza strona z błędem albo bez pola data wraca bez zmian (parse_cm zgłasza
+    ją jak przed v124); błąd dalszej strony → zapis w meta i dni z pobranych stron."""
+    pages = CM_PAGES if pages is None else pages
+    budget = CM_BUDGET if budget is None else budget
+    t0, rows = time.monotonic(), []
+    for i in range(pages):
+        if i:
+            left = budget - (time.monotonic() - t0) - CM_PAGE_SLEEP
+            if left < 5:
+                META['errors'].append(f'Coin Metrics: limit czasu {budget} s — pobrano stron: {i}')
+                break
+            time.sleep(CM_PAGE_SLEEP)
+        try:
+            j = get_json(url) if not i else get_json(url, timeout=min(30, int(left)))   # dalsze strony nie przekroczą CM_BUDGET
+        except Exception as e:
+            if not i:
+                raise
+            META['errors'].append(mask(f'Coin Metrics: strona {i + 1}: {e}'))
+            break
+        data = j.get('data') if isinstance(j, dict) else None
+        if not isinstance(data, list):
+            if not i:
+                return j
+            META['errors'].append(f'Coin Metrics: strona {i + 1} bez pola data')
+            break
+        rows.extend(data)
+        nxt = j.get('next_page_url')
+        if not nxt:
+            if j.get('next_page_token'):
+                break                           # znacznik bez adresu — adresu nie składamy sami
+            return {'data': rows}
+        if not isinstance(nxt, str) or not nxt.startswith(CM_API):
+            META['errors'].append('Coin Metrics: adres następnej strony spoza Community API — pominięty')
+            break
+        url = nxt
+    return {'data': rows, 'next_page_token': 'niepobrane'}
+
+
+def _stabh_dd(pts):
+    """v124: posortowane punkty (znacznik czasu UTC, podaż w USD) → dd = [[dzień, USD], …] z ostatnich STABH_KEEP dni kalendarzowych
+    (najwyżej tyle wierszy). Dzień bez punktu nie dostaje wiersza (brak, nigdy 0); ten sam dzień dwa razy → późniejszy punkt. Strona nie
+    czyta dd (panel i kafelki biorą cur, d, pct, asof) — tylko TRENDY (wiersz 'stab') i sygnały dzienne krypto.
+    Warunki (sprawdzone ponownie 27.09.2026): dokumentacja API api-docs.defillama.com — „DefiLlama provides free, open-source DeFi analytics
+    data.” Regulamin defillama.com/terms (obowiązuje od 24.06.2025) w pkt 1 zalicza do „Services” także oficjalne publiczne API, więc
+    obejmuje też dane pobrane przez API; pkt 8 zabrania ponownej publikacji danych w jakiejkolwiek formie bez zgody („republish the data in
+    any form without permission”) i dopuszcza dostęp programowy tylko przez oficjalne publiczne API — zbieracz korzysta wyłącznie z niego
+    (bez klucza). data/krypto.json jest publicznie do pobrania i od v124 ma w dd do 400 dni tych danych (wcześniej 71 punktów); to, podobnie
+    jak panel stablecoinów na stronie od v58, wygląda na ponowną publikację w rozumieniu pkt 8, a zgody dostawcy nie mamy. Decyzja należy do
+    właściciela (powiedział, że licencje są drugorzędne). v124 nie dodaje nic do wyświetlania, tylko dłuższą historię do obliczeń."""
+    by = {}
+    for t, v in pts:
+        by[datetime.datetime.fromtimestamp(t, datetime.timezone.utc).date().isoformat()] = round(v)
+    if not by:
+        return []
+    lo = (datetime.date.fromisoformat(max(by)) - datetime.timedelta(days=STABH_KEEP - 1)).isoformat()
+    return [[k, by[k]] for k in sorted(by) if k >= lo]
+
+
+# ===================== v124: SIEĆ BITCOIN — opłaty, kolejka transakcji, moc obliczeniowa (publiczne eksploratory łańcucha, bez klucza) =====================
+# Plik data/lancuch.json — stan sieci Bitcoin z pierwszej ręki (węzły publicznych eksploratorów łańcucha), bez klucza:
+#   fees       zalecane opłaty (sat/vB): następny blok, pół godziny, godzina, oszczędnie, minimum — co przebieg (20 min);
+#   mempool    kolejka niepotwierdzonych transakcji węzła: liczba, rozmiar (vB), suma opłat (sat) — co przebieg;
+#   difficulty bieżący okres trudności (2016 bloków): postęp, szacowana zmiana, bloki do końca, szacowana data, średni czas bloku — co przebieg;
+#   tip        ostatni blok: wysokość, czas z nagłówka bloku (podaje go górnik), liczba transakcji — co przebieg;
+#   hashrate   moc obliczeniowa: szacunek źródła z ostatnich 1008 bloków (≈ 7 dni) co przebieg, średnia 3 ostatnich dób i historia dobowa
+#              365 dób (pełna raz na dobę, 3 najnowsze doby co przebieg); doba w historii = doba UTC, z której bloków liczono (źródło
+#              znakuje punkt północą KOŃCZĄCĄ tę dobę — kod indeksera: hashrateTimestamp = toTimestamp, bloki z [toTimestamp − 24 h, toTimestamp]);
+#              `day` = ostatnia doba historii (data liczb dobowych); `cur_at` = czas pobrania mocy bieżącej — źródło podaje ją jako 0, gdy jego węzeł
+#              nie odpowiada („using zeroed value for current hashrate”): wtedy zostaje poprzednia liczba z jej własnym `cur_at` (+ notatka), nigdy zero;
+#              historia, której ostatnia doba jest starsza niż LN_DAY_MAX dni od dnia przebiegu (indeks dobowy źródła stanął — „Daily network hashrate
+#              indexing failed”, a odpowiedź „3 doby” przychodzi bez nowych punktów), = ok['hist'] False z wpisem w błędach;
+#   check      drugi, niezależny eksplorator: wysokość ostatniego bloku i kolejka jego węzła (kontrola zgodności; kolejki węzłów różnią się
+#              naturalnie — każdy węzeł ma własne zasady przyjmowania transakcji).
+# Każda część osobno: błąd = poprzednie dane tej części z jej własnym czasem (`at`) + ok False + wpis w błędach; brak liczby = None, nigdy zero
+# (doba bez bloków, którą źródło zapisuje jako moc 0, jest pomijana). Host, który nie odpowiada (połączenie, limit czasu, HTTP 429), jest w tym
+# przebiegu pomijany — kolejne części tego hosta od razu dostają błąd zamiast czekać na następne limity czasu. Żadna część nie odpowiedziała =
+# wyjątek (główny przebieg zostawia poprzedni plik z jego prawdziwym `at` — znacznik czasu przesuwa się tylko po udanym pobraniu).
+LN_API = 'https://mempool.space/api'          # eksplorator 1 (źródło główne; REST, bez klucza)
+LN_API2 = 'https://blockstream.info/api'      # eksplorator 2 (kontrola zgodności; ten sam kształt odpowiedzi co 1 — Esplora)
+LN_PARTS = ('fees', 'mempool', 'difficulty', 'tip', 'hashrate', 'hist', 'check')
+LN_CORE = ('fees', 'mempool', 'difficulty', 'tip', 'hashrate')   # META ok['lancuch']; 'check' → META ok['lancuch_2']
+LN_FEE_POLA = (('fast', 'fastestFee'), ('half_hour', 'halfHourFee'), ('hour', 'hourFee'), ('economy', 'economyFee'), ('minimum', 'minimumFee'))
+LN_EVERY = 15             # min: plik młodszy, z kompletem części = bez zapytań (automat co 20 min; ręczny przebieg nie dubluje zapytań)
+LN_HIST_EVERY = 24 * 60   # min: pełna historia mocy (365 dób, ~25 KB) raz na dobę; w pozostałych przebiegach tylko 3 ostatnie doby (~0,3 KB)
+LN_HIST_KEEP = 365        # dób historii w pliku
+LN_HIST_MIN = 30          # pełna historia krótsza niż tyle dób = błąd odpowiedzi (nie zastępuje zapisanej)
+LN_DAY_MAX = 2            # dni: ostatnia doba historii starsza niż tyle od dnia przebiegu (UTC) = historia stoi (ok['hist'] False); zwykle 1, tuż po północy 2
+LN_TIMEOUT = 15           # s na jedno zapytanie
+LN_EH = 1e18              # H/s → EH/s
+LN_LABEL = 'Sieć Bitcoin'   # początek komunikatu błędu (meta.json, strona Źródła)
+LN_SRC = ('Publiczne eksploratory sieci Bitcoin (dwa niezależne węzły, bez klucza): opłaty, kolejka transakcji, trudność i ostatni blok '
+          'co przebieg automatu; moc obliczeniowa — szacunek z ostatnich 1008 bloków i historia dobowa 365 dób')
+
+
+class LnHostDown(Exception):
+    """Host nie odpowiada w tym przebiegu (połączenie, limit czasu albo HTTP 429) — kolejne zapytania do niego są pomijane."""
+
+
+def ln_num(v, lo=None, hi=None, pos=False):
+    """Liczba z JSON; bool, None, tekst, NaN, nieskończoność, poza [lo, hi] albo ≤ 0 przy pos → None (brak nigdy nie staje się zerem)."""
+    if v is None or isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    x = float(v)
+    if x != x or x in (float('inf'), float('-inf')) or (pos and x <= 0) or (lo is not None and x < lo) or (hi is not None and x > hi):
+        return None
+    return x
+
+
+def ln_int(v):
+    """Liczba całkowita ≥ 0 z JSON albo z tekstu samych cyfr (odpowiedź tekstowa „wysokość bloku”); inaczej None."""
+    if isinstance(v, str):
+        s = v.strip()
+        return int(s) if s.isdigit() else None
+    x = ln_num(v, lo=0)
+    return int(x) if x is not None and x == int(x) else None
+
+
+def ln_iso(ts):
+    """Znacznik czasu (sekundy; milisekundy, gdy liczba > 1e11) → ISO UTC bez ułamków; zła albo nierealna liczba → None."""
+    x = ln_num(ts, pos=True)
+    if x is None:
+        return None
+    if x > 1e11:
+        x /= 1000
+    if not 1231006505 <= x <= 4102444800:   # od bloku genezy (3.01.2009) do 2100 r.
+        return None
+    return datetime.datetime.fromtimestamp(int(x), datetime.timezone.utc).isoformat()
+
+
+def ln_get(url, dead, text=False):
+    """GET z krótkim limitem czasu. Host z `dead` (nie odpowiadał wcześniej w tym przebiegu) → LnHostDown bez zapytania. Brak połączenia albo
+    limit czasu → host trafia do `dead`, wyjątek dalej; HTTP 429 → host do `dead` (szanujemy limit źródła), wyjątek; inny błąd HTTP → wyjątek
+    (inne adresy tego hosta mogą działać)."""
+    host = url.split('/')[2]
+    if host in dead:
+        raise LnHostDown(f'pominięte — {host} {dead[host]}')
+    try:
+        if text:
+            return get(url, timeout=LN_TIMEOUT)[1]
+        return get_json(url, timeout=LN_TIMEOUT)
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            dead[host] = 'odpowiedział HTTP 429 (limit zapytań)'
+        raise
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        dead[host] = f'nie odpowiada ({str(e)[:60]})'
+        raise
+
+
+def ln_fees(j):
+    """Zalecane opłaty (sat/vB) → {'fast', 'half_hour', 'hour', 'economy', 'minimum'}: liczba > 0 i ≤ 100 000 albo None.
+    Bez opłaty „następny blok” — wyjątek (część bez odpowiedzi)."""
+    if not isinstance(j, dict):
+        raise ValueError('opłaty: odpowiedź nie jest obiektem JSON')
+    out = {k: ln_num(j.get(src), hi=1e5, pos=True) for k, src in LN_FEE_POLA}
+    if out['fast'] is None:
+        raise ValueError('opłaty: brak opłaty na następny blok')
+    return out
+
+
+def ln_mempool(j):
+    """Kolejka węzła → {'count', 'vsize', 'total_fee'}: liczby całkowite ≥ 0 (pusta kolejka to prawdziwe zero, podane przez węzeł); bez liczby
+    transakcji albo rozmiaru — wyjątek; suma opłat bez liczby → None."""
+    if not isinstance(j, dict):
+        raise ValueError('kolejka: odpowiedź nie jest obiektem JSON')
+    c, v = ln_int(j.get('count')), ln_int(j.get('vsize'))
+    if c is None or v is None:
+        raise ValueError('kolejka: brak liczby transakcji albo rozmiaru')
+    return {'count': c, 'vsize': v, 'total_fee': ln_int(j.get('total_fee'))}
+
+
+def ln_diff(j):
+    """Okres trudności → {'progress' %, 'change_est' %, 'remaining_blocks', 'eta' ISO, 'prev_change' %, 'next_height', 'block_min' min};
+    bez postępu albo szacowanej zmiany — wyjątek; pozostałe pola bez liczby → None."""
+    if not isinstance(j, dict):
+        raise ValueError('trudność: odpowiedź nie jest obiektem JSON')
+    pr, ch = ln_num(j.get('progressPercent'), lo=0, hi=100), ln_num(j.get('difficultyChange'), lo=-100, hi=1000)
+    if pr is None or ch is None:
+        raise ValueError('trudność: brak postępu okresu albo szacowanej zmiany')
+    rb, nh = ln_int(j.get('remainingBlocks')), ln_int(j.get('nextRetargetHeight'))
+    pc, ta = ln_num(j.get('previousRetarget'), lo=-100, hi=1000), ln_num(j.get('timeAvg'), pos=True)
+    return {'progress': round(pr, 2), 'change_est': round(ch, 2), 'remaining_blocks': rb if rb is not None and rb <= 2016 else None,
+            'eta': ln_iso(j.get('estimatedRetargetDate')), 'prev_change': None if pc is None else round(pc, 2),
+            'next_height': nh or None, 'block_min': None if ta is None else round(ta / 60000, 2)}
+
+
+def ln_block(j):
+    """Blok → {'height', 'time' ISO (czas z nagłówka — podaje go górnik), 'tx_count'}; bez wysokości albo czasu — wyjątek."""
+    if not isinstance(j, dict):
+        raise ValueError('blok: odpowiedź nie jest obiektem JSON')
+    h, tm, n = ln_int(j.get('height')), ln_iso(j.get('timestamp')), ln_int(j.get('tx_count'))
+    if not h or tm is None:
+        raise ValueError('blok: brak wysokości albo czasu')
+    return {'height': h, 'time': tm, 'tx_count': n or None}
+
+
+def ln_hashrate(j):
+    """Moc obliczeniowa → (bieżąca w EH/s — szacunek źródła z ostatnich 1008 bloków | None, {doba UTC: EH/s}). Punkt źródła o znaczniku północy T
+    to szacunek z bloków doby przed T — zapisany pod tą dobą (T − 1 dzień); znacznik, który nie jest północą UTC, pominięty (nieznane znaczenie).
+    Moc ≤ 0 (doba bez bloków, brak węzła u źródła) = brak, nie zero. Żadnej liczby — wyjątek."""
+    if not isinstance(j, dict):
+        raise ValueError('moc: odpowiedź nie jest obiektem JSON')
+    cur = ln_num(j.get('currentHashrate'), pos=True)
+    pts = {}
+    for p in j.get('hashrates') if isinstance(j.get('hashrates'), list) else []:
+        if not isinstance(p, dict):
+            continue
+        t0, v = ln_int(p.get('timestamp')), ln_num(p.get('avgHashrate'), pos=True)
+        if not t0 or v is None or t0 % 86400 or ln_iso(t0) is None:
+            continue
+        day = (datetime.datetime.fromtimestamp(t0, datetime.timezone.utc) - datetime.timedelta(days=1)).date().isoformat()
+        pts[day] = round(v / LN_EH, 1)
+    if cur is None and not pts:
+        raise ValueError('moc: brak liczb w odpowiedzi')
+    return (None if cur is None else round(cur / LN_EH, 1)), pts
+
+
+def ln_hist(prev_rows, pts, replace=False):
+    """Historia dobowa [[doba, EH/s]] rosnąco: poprzednie wiersze (chyba że replace — pełna historia źródła je zastępuje) + nowe punkty
+    (nowsze wygrywają); tylko doby z ostatnich LN_HIST_KEEP dni od najnowszej; wiersz bez daty albo liczby > 0 pominięty."""
+    rows = {}
+    for r in ([] if replace else prev_rows if isinstance(prev_rows, list) else []):
+        if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and re.match(r'^\d{4}-\d{2}-\d{2}$', r[0]) and ln_num(r[1], pos=True) is not None:
+            rows[r[0]] = float(r[1])
+    rows.update(pts)
+    if not rows:
+        return []
+    first = (datetime.date.fromisoformat(max(rows)) - datetime.timedelta(days=LN_HIST_KEEP - 1)).isoformat()
+    return [[d, rows[d]] for d in sorted(rows) if d >= first]
+
+
+def ln_avg3(rows):
+    """Średnia 3 ostatnich dób historii, gdy to 3 kolejne doby; inaczej None (nigdy średnia z dziurą)."""
+    if len(rows) < 3:
+        return None
+    a, c = datetime.date.fromisoformat(rows[-3][0]), datetime.date.fromisoformat(rows[-1][0])
+    return round(sum(r[1] for r in rows[-3:]) / 3, 1) if (c - a).days == 2 else None
+
+
+def build_lancuch(prev=None):
+    """data/lancuch.json — stan sieci Bitcoin z publicznych eksploratorów łańcucha (bez klucza), części: fees, mempool, difficulty, tip, hashrate
+    (+ hist: historia dobowa mocy, raz na dobę) i check (drugi eksplorator). Każda część osobno; część z błędem = poprzednie dane z własnym czasem.
+
+    Licencje i warunki (sprawdzone 26.09.2026):
+    * eksplorator 1 — mempool.space (REST API bez klucza, dokumentacja: https://mempool.space/docs/api/rest). Terms of Service
+      (https://mempool.space/terms-of-service, wersja „Updated: July 10, 2024”) nie zabraniają pokazywania danych ani ich ponownego użycia; mówią,
+      że serwis i jego API są „PROVIDED ON AN "AS IS, AS AVAILABLE" BASIS” — bez gwarancji dokładności (sprawdzenie leży po stronie użytkownika:
+      stąd drugi eksplorator do kontroli zgodności). Dokumentacja API: „we enforce rate limits” — po przekroczeniu HTTP 429; dlatego 6 małych
+      zapytań na 20 min (+ zapas opłat tylko po błędzie), historia 365 dób raz na dobę, a po 429 host jest pomijany do końca przebiegu. Licencja AGPL dotyczy kodu projektu,
+      nie liczb. Warunki nie wymagają podpisu — nazwa dostawcy nie jest potrzebna w panelu (panel opisuje dane słowami).
+    * eksplorator 2 — blockstream.info (Esplora API, bez klucza). Blockstream Terms of Use (https://blockstream.com/terms/, „Version 1.0”) — jedyne
+      ograniczenie użycia: „you agree not to use Blockstream Properties for any purpose that is prohibited” (umową albo prawem); brak zakazu
+      wyświetlania danych na darmowej stronie publicznej, podpis nie jest wymagany.
+    Dane łańcucha (wysokości, czasy i liczby transakcji bloków) są publiczne; opłaty zalecane i moc obliczeniowa to szacunki eksploratora.
+
+    `prev` = poprzedni plik. Historia mocy pobierana, gdy jej brak albo `hashrate.hist_at` starsze niż LN_HIST_EVERY; inaczej 3 najnowsze doby
+    dopisywane do zapisanej historii; ostatnia doba historii starsza niż LN_DAY_MAX dni = ok['hist'] False (wpis w błędach). Moc bieżąca 0 u źródła
+    = poprzednia liczba z jej własnym `cur_at` (notatka). Żadna część nie odpowiedziała — wyjątek (bez nowego `at`). Brak nigdy nie jest zerem."""
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    out = {'at': NOW, 'src': LN_SRC, 'unit': {'fees': 'sat/vB', 'vsize': 'vB', 'total_fee': 'sat', 'hashrate': 'EH/s', 'progress': '%'},
+           'ok': {}, 'part_at': {}, 'bledy': {}, 'notes': []}
+    dead, errs = {}, []
+
+    def part(name, fn):
+        old = prev.get(name) if isinstance(prev.get(name), dict) else None
+        try:
+            val = fn()
+        except Exception as e:  # noqa — część z błędem: poprzednie dane tej części z jej własnym czasem, nigdy zero
+            msg = mask(f'{name}: {e}')[:160]
+            errs.append(msg); out['ok'][name] = False; out['bledy'][name] = msg
+            if old is not None:
+                out[name] = old; out['part_at'][name] = pat.get(name) or old.get('at') or prev.get('at')
+            return False
+        val['at'] = NOW
+        out[name] = val; out['ok'][name] = True; out['part_at'][name] = NOW
+        return True
+
+    def fees():
+        try:
+            f = ln_fees(ln_get(LN_API + '/v1/fees/precise', dead)); f['prec'] = True
+            return f
+        except LnHostDown:
+            raise
+        except Exception as e:  # noqa — opłaty dokładne (z ułamkami) niedostępne: zaokrąglone do pełnych sat/vB, z uwagą
+            try:
+                f = ln_fees(ln_get(LN_API + '/v1/fees/recommended', dead)); f['prec'] = False
+            except Exception as e2:  # noqa
+                raise RuntimeError(f'{e}; zapas: {e2}') from e2
+            out['notes'].append(mask(f'fees: opłaty dokładne niedostępne ({e}) — użyte zaokrąglone do pełnych sat/vB')[:200])
+            return f
+
+    def tip():
+        h = str(ln_get(LN_API + '/blocks/tip/hash', dead, text=True)).strip()
+        if not re.match(r'^[0-9a-f]{64}$', h):
+            raise ValueError('blok: zły identyfikator ostatniego bloku')
+        return ln_block(ln_get(LN_API + '/block/' + h, dead))
+
+    ph = prev.get('hashrate') if isinstance(prev.get('hashrate'), dict) else {}
+    due = not ph.get('hist') or not fresh({'at': ph.get('hist_at')}, LN_HIST_EVERY)
+    hist_err, hist_got = [], []
+
+    def hashrate():
+        got = None
+        if due:
+            try:
+                cur, pts = ln_hashrate(ln_get(LN_API + '/v1/mining/hashrate/1y', dead))
+                if len(pts) < LN_HIST_MIN:
+                    raise ValueError(f'historia mocy: tylko {len(pts)} dób w odpowiedzi')
+                got = (cur, ln_hist(None, pts, replace=True), NOW)
+                hist_got.append(True)
+            except LnHostDown:
+                raise
+            except Exception as e:  # noqa — historia z błędem: bieżąca moc z krótkiego zapytania, historia poprzednia (z jej czasem)
+                hist_err.append(mask(f'hist: {e}')[:160])
+        if got is None:
+            cur, pts = ln_hashrate(ln_get(LN_API + '/v1/mining/hashrate/3d', dead))
+            got = (cur, ln_hist(ph.get('hist'), pts), ph.get('hist_at'))
+        cur, rows, hat = got
+        cat = NOW
+        if cur is None:   # moc bieżąca 0 / brak u źródła (jego węzeł nie odpowiada) — poprzednia liczba z jej własnym czasem, nigdy zero
+            pc, pca = ln_num(ph.get('current'), pos=True), ph.get('cur_at') if 'cur_at' in ph else ph.get('at')   # stary plik bez cur_at: czas części
+            try:
+                datetime.datetime.fromisoformat(pca)
+            except (TypeError, ValueError):
+                pc = None
+            cur, cat = (pc, pca) if pc is not None else (None, None)
+            out['notes'].append('hashrate: moc bieżąca: brak u źródła — ' + (f'zostaje poprzednia ({pc} EH/s z {pca})' if pc is not None else 'bez poprzedniej liczby (brak, nie zero)'))
+        return {'current': cur, 'cur_at': cat, 'avg_3d': ln_avg3(rows), 'day': rows[-1][0] if rows else None, 'hist': rows, 'hist_at': hat}
+
+    def check():
+        h = ln_int(str(ln_get(LN_API2 + '/blocks/tip/height', dead, text=True)))
+        if not h:
+            raise ValueError('drugi eksplorator: zła wysokość ostatniego bloku')
+        m = ln_mempool(ln_get(LN_API2 + '/mempool', dead))
+        return {'height': h, 'count': m['count'], 'vsize': m['vsize']}
+
+    part('fees', fees)
+    part('mempool', lambda: ln_mempool(ln_get(LN_API + '/mempool', dead)))
+    part('difficulty', lambda: ln_diff(ln_get(LN_API + '/v1/difficulty-adjustment', dead)))
+    part('tip', tip)
+    hr_ok = part('hashrate', hashrate)
+    # historia: aktualna, gdy nie była należna albo pobrała się teraz; należna i niepobrana = ok False (poprzednia zostaje z jej czasem)
+    got_hist = hr_ok and bool(hist_got)
+    out['ok']['hist'] = (not due) or got_hist
+    if due and not got_hist:
+        msg = hist_err[0] if hist_err else mask(f"hist: {out['bledy'].get('hashrate', 'moc bez odpowiedzi')}")[:160]
+        errs.append(msg); out['bledy']['hist'] = msg
+    hh = out.get('hashrate') if isinstance(out.get('hashrate'), dict) else {}
+    if hh.get('hist_at'):
+        out['part_at']['hist'] = hh['hist_at']
+    # historia stoi: ostatnia doba starsza niż LN_DAY_MAX dni od dnia przebiegu (UTC) — źródło nie dopisuje nowych dób (średnia 3 dób i zmiana
+    # 30 dni byłyby liczbami sprzed dni pod świeżym czasem części) = ok False z wpisem w błędach; liczby zostają w pliku z datą doby (`day`)
+    if out['ok']['hist']:
+        try:
+            hd = hh['day'] if re.match(r'^\d{4}-\d{2}-\d{2}$', hh.get('day')) else None
+            lag = (datetime.datetime.fromisoformat(NOW).date() - datetime.date.fromisoformat(hd)).days
+        except (TypeError, ValueError):   # brak doby albo zła data = historia bez daty, traktowana jak stojąca
+            hd, lag = None, None
+        if lag is None or lag > LN_DAY_MAX:
+            msg = mask(f"hist: ostatnia doba historii mocy {hd or 'brak'}" + (f' — {lag} dni przed dniem przebiegu' if hd else '')
+                       + f' (więcej niż {LN_DAY_MAX}; źródło nie dopisuje nowych dób)')[:160]
+            errs.append(msg); out['bledy']['hist'] = msg; out['ok']['hist'] = False
+    part('check', check)
+    if not any(out['ok'].get(k) for k in LN_CORE + ('check',)):
+        raise RuntimeError('żaden eksplorator nie odpowiedział: ' + '; '.join(errs)[:300])
+    for n in out['notes']:
+        META['notes'].append(f'{LN_LABEL}: {n}')
+    if errs:
+        META['errors'].append(mask(f'{LN_LABEL}: ' + '; '.join(errs)[:400]))
+    return out
+
+
+# ===================== v124: SNB — depozyty banków w banku centralnym Szwajcarii (tygodniowo) i rezerwy walutowe (miesięcznie), bez klucza =====================
+# Źródło: portal danych Szwajcarskiego Banku Narodowego (data.snb.ch), interfejs bez klucza, odpowiedź JSON:
+#  - kostka snbgwdchfsgw („Sight deposits in Swiss francs at the SNB”): GI = depozyty na widoku banków krajowych, UEB = pozostałe depozyty
+#    na widoku we frankach (rząd federalny, banki i instytucje zagraniczne, inne), TG = razem; mln CHF; ŚREDNIA z tygodnia kończącego się
+#    w piątek (data wiersza = ten piątek; komunikat banku z 16.01.2017 „Average of sight deposits … for the week ending 13 January 2017”:
+#    464 147 — ta sama liczba jest w interfejsie pod 2017-01-13, sprawdzone 26.09.2026), publikacja w poniedziałek rano (czas publikacji
+#    tygodnia do 18.09.2026: 21.09.2026 10:00); od 2009 r. bez luk, zawsze piątek;
+#  - kostka snbbipo (bilans banku, koniec miesiąca), pozycja D = „Foreign currency investments” (inwestycje w walutach obcych — rezerwy
+#    walutowe banku), mln CHF, miesiąc publikowany z opóźnieniem ok. miesiąca (lipiec 2026 — 31.08.2026).
+# Dla czytelnika: wzrost depozytów banków krajowych to najszybszy publiczny ślad zakupów walut przez bank (płaci frankami, które lądują
+# na rachunkach banków) i napływu pieniędzy do franka; spadek — sprzedaży walut albo ściągania franków z rynku. To przybliżenie, nie pomiar
+# interwencji (kwoty interwencji bank podaje raz na kwartał). Nazwa banku i portalu — tutaj i na stronie Źródła; panel opisuje dane słowami.
+SNB_GW_URL = 'https://data.snb.ch/api/cube/snbgwdchfsgw/data/json/en?fromDate={od}'
+SNB_FX_URL = 'https://data.snb.ch/api/cube/snbbipo/data/json/en?fromDate={od}&dimSel=D0(D)'
+SNB_WEEKS = 260          # tygodni historii w pliku (5 lat)
+SNB_MONTHS = 60          # miesięcy historii rezerw (5 lat)
+SNB_EVERY = 12 * 60      # min — dane tygodniowe i miesięczne: co 12 h wystarczy …
+SNB_RETRY = 60           # min — … ale część z błędem albo spóźniony tydzień (patrz snb_odswiez) — ponowienie po godzinie
+SNB_PUB_H = 8            # godzina UTC w poniedziałek, od której czekamy na nowy tydzień (publikacja ok. 10:00 czasu Zurychu = 08:00–09:00 UTC)
+SNB_WAIT_H = 48          # najdłużej tyle godzin od poniedziałku SNB_PUB_H pytamy co godzinę (święto przesuwa publikację); potem znów co 12 h
+SNB_TIMEOUT = 40         # s — odpowiedź tygodniowa ≈ 35 KB, miesięczna ≈ 5 KB
+SNB_PARTS = ('gw', 'fx')
+SNB_SRC = ('Szwajcarski Bank Narodowy (SNB) — portal danych data.snb.ch: depozyty na widoku we frankach (kostka snbgwdchfsgw, średnie tygodniowe) '
+           'i inwestycje w walutach obcych z bilansu banku (kostka snbbipo, koniec miesiąca); użycie niekomercyjne z podaniem źródła')
+SNB_NOTES = ['depozyty: średnia z tygodnia kończącego się w piątek (week = ten piątek); bank publikuje ją w poniedziałek rano',
+             'domestic = depozyty na widoku banków krajowych; total = wszystkie depozyty na widoku we frankach (banki krajowe + rząd federalny, '
+             'banki i instytucje zagraniczne, inne); kwoty w mln CHF',
+             'd1w / d4w (banki krajowe) i d1w_total / d4w_total (razem) = zmiana wobec tygodnia dokładnie 7 i 28 dni wcześniej; brak tego tygodnia = None, nigdy zero',
+             'fx_res = inwestycje w walutach obcych z bilansu banku na koniec miesiąca (mln CHF): stan, nie przepływ — zmienia się też przez kursy walut i ceny papierów',
+             'brak liczby w źródle = None (panel „—”), nigdy zero']
+
+
+def _snb_num(v):
+    """Liczba z odpowiedzi: skończona i dodatnia (depozyty i rezerwy nie bywają ujemne ani zerowe — zero byłoby brakiem), inaczej None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    x = float(v)
+    return x if x == x and abs(x) != float('inf') and x > 0 else None
+
+
+def snb_serie(j, wzor):
+    """Odpowiedź kostki → {kod pozycji: {data: liczba}}. Kod z klucza metadanych („EPB@SNB.snbgwdchfsgw{GI}” → „GI”); data musi pasować do
+    wzoru (dni albo miesiące) i być prawdziwą datą; wartość nie-liczba albo ≤ 0 = pominięta (brak, nie zero). Bez listy timeseries = wyjątek."""
+    T = j.get('timeseries') if isinstance(j, dict) else None
+    if not isinstance(T, list):
+        raise ValueError('odpowiedź bez listy timeseries')
+    out = {}
+    for t in T:
+        if not isinstance(t, dict):
+            continue
+        m = re.search(r'\{([A-Za-z0-9_]+)\}\s*$', str((t.get('metadata') or {}).get('key') or ''))
+        if not m:
+            continue
+        ser = out.setdefault(m.group(1), {})
+        for r in t.get('values') if isinstance(t.get('values'), list) else []:
+            d = str(r.get('date') or '') if isinstance(r, dict) else ''
+            if not re.match(wzor, d):
+                continue
+            try:
+                datetime.date.fromisoformat(d if len(d) == 10 else d + '-01')
+            except ValueError:
+                continue
+            v = _snb_num(r.get('value'))
+            if v is not None:
+                ser[d] = v
+    return out
+
+
+def _snb_zm(ser, d, dni):
+    """Zmiana wartości dnia d wobec dnia dokładnie `dni` dni wcześniej — tylko z dwóch liczb; brak któregoś = None."""
+    a = ser.get(d)
+    b = ser.get((datetime.date.fromisoformat(d) - datetime.timedelta(days=dni)).isoformat())
+    return round(a - b) if a is not None and b is not None else None
+
+
+def snb_tyg(j, tygodni=None):
+    """Depozyty tygodniowe → {'week', 'domestic', 'other', 'total', 'd1w', 'd4w', 'd1w_total', 'd4w_total', 'hist': [[tydzień, krajowe, razem], …]}.
+    week = najnowszy piątek z liczbą banków krajowych albo razem; historia: ostatnie `tygodni` tygodni z którąkolwiek liczbą, brak = None.
+    Bez żadnej liczby = wyjątek."""
+    tygodni = SNB_WEEKS if tygodni is None else tygodni
+    S = snb_serie(j, r'^\d{4}-\d{2}-\d{2}$')
+    dom, oth, tot = (S.get(k, {}) for k in ('GI', 'UEB', 'TG'))
+    days = sorted(set(dom) | set(tot))
+    if not days:
+        raise ValueError('brak depozytów z liczbą')
+    days = days[-tygodni:]
+    w = days[-1]
+    r = lambda v: round(v) if v is not None else None   # noqa: E731 — tygodniowe kwoty są w pełnych mln CHF
+    return {'week': w, 'domestic': r(dom.get(w)), 'other': r(oth.get(w)), 'total': r(tot.get(w)),
+            'd1w': _snb_zm(dom, w, 7), 'd4w': _snb_zm(dom, w, 28), 'd1w_total': _snb_zm(tot, w, 7), 'd4w_total': _snb_zm(tot, w, 28),
+            'hist': [[d, r(dom.get(d)), r(tot.get(d))] for d in days]}
+
+
+def snb_mies(j, miesiecy=None):
+    """Inwestycje w walutach obcych (koniec miesiąca) → {'month', 'value', 'd1m', 'd12m', 'hist': [[miesiąc, wartość], …]}; zmiany tylko wobec
+    miesiąca dokładnie 1 i 12 wcześniej (luka = None). Bez liczby = wyjątek."""
+    miesiecy = SNB_MONTHS if miesiecy is None else miesiecy
+    ser = snb_serie(j, r'^\d{4}-\d{2}$').get('D', {})
+    months = sorted(ser)[-miesiecy:]
+    if not months:
+        raise ValueError('brak rezerw z liczbą')
+    m = months[-1]
+
+    def back(k):
+        y, mm = int(m[:4]), int(m[5:7]) - k
+        while mm < 1:
+            y, mm = y - 1, mm + 12
+        b = ser.get(f'{y:04d}-{mm:02d}')
+        return round(ser[m] - b, 1) if b is not None else None
+    return {'month': m, 'value': round(ser[m], 1), 'd1m': back(1), 'd12m': back(12), 'hist': [[x, round(ser[x], 1)] for x in months]}
+
+
+def snb_oczekiwany(now):
+    """(piątek, od kiedy) — najnowszy tydzień, który bank powinien już podać, i poniedziałkowa chwila publikacji (SNB_PUB_H UTC)."""
+    d = now.date()
+    pon = d - datetime.timedelta(days=d.weekday())
+    t = datetime.datetime.combine(pon, datetime.time(SNB_PUB_H), tzinfo=datetime.timezone.utc)
+    if now < t:
+        t -= datetime.timedelta(days=7)
+    return (t.date() - datetime.timedelta(days=3)).isoformat(), t
+
+
+def snb_odswiez(prev, now=None):
+    """Czy plik młodszy niż SNB_EVERY trzeba mimo to zbudować: część z błędem (brak ok) albo spóźniony tydzień (po poniedziałkowej publikacji,
+    najdłużej SNB_WAIT_H godzin) — w obu razach nie częściej niż co SNB_RETRY minut. Plik bez części = budowa."""
+    now = now or _now_utc()
+    if not isinstance(prev, dict):
+        return True
+    ok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
+    if fresh(prev, SNB_RETRY):
+        return False
+    if not all(ok.get(k) for k in SNB_PARTS):
+        return True
+    tydz, od = snb_oczekiwany(now)
+    return str(prev.get('week') or '') < tydz and now - od < datetime.timedelta(hours=SNB_WAIT_H)
+
+
+def build_snb(prev=None, now=None):
+    """data/snb.json — depozyty na widoku we frankach w banku centralnym Szwajcarii: najnowszy tydzień (średnia do piątku), banki krajowe
+    i razem, zmiana tydzień do tygodnia i wobec 4 tygodni, 260 tygodni historii; część fx: inwestycje w walutach obcych z bilansu banku
+    na koniec miesiąca (rezerwy walutowe, mln CHF), zmiana miesiąc do miesiąca i rok do roku, 60 miesięcy historii.
+    Każda część osobno: błąd = poprzednia wersja tej części z własnym czasem (part_at); brak liczby = None, nigdy zero; nic i bez
+    poprzedniego pliku = wyjątek (main zostawia poprzedni plik).
+    Licencja (sprawdzona 26.09.2026): portal danych banku odsyła w stopce do noty prawnej banku „Copyright” (snb.ch/en/srv/disclaimer_copyright):
+    „Such information and data may be saved, translated (with reference to the source), transmitted or used in other ways, for non-commercial
+    purposes, compatible with the purpose of such information or data.” — bezpłatny, publiczny panel z podaniem źródła jest dozwolony
+    (podpis „Source: Swiss National Bank (SNB)” na stronie Źródła); gdyby strona stała się płatna, ten warunek („non-commercial”) trzeba
+    sprawdzić ponownie albo poprosić bank o zgodę. Nota „Limitation of liability”: dane tylko w celach informacyjnych, nie jako podstawa
+    transakcji. Interfejs bez klucza i bez rejestracji; automat pyta co 12 h (w dzień publikacji co godzinę, najwyżej 2 doby)."""
+    now = now or _now_utc()
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    out = {'at': NOW, 'src': SNB_SRC, 'unit': 'mln CHF', 'ok': {}, 'part_at': {}, 'notes': list(SNB_NOTES)}
+    errs = []
+    od_w = (now.date() - datetime.timedelta(weeks=SNB_WEEKS + 6)).isoformat()
+    try:
+        g = snb_tyg(get_json(SNB_GW_URL.format(od=od_w), timeout=SNB_TIMEOUT))
+        out.update(g); out['ok']['gw'] = True; out['part_at']['gw'] = NOW
+    except Exception as e:  # noqa
+        errs.append(mask(f'depozyty: {e}')); out['ok']['gw'] = False
+        if prev.get('week') and isinstance(prev.get('hist'), list):   # poprzednia wersja części z jej czasem
+            for k in ('week', 'domestic', 'other', 'total', 'd1w', 'd4w', 'd1w_total', 'd4w_total', 'hist'):
+                out[k] = prev.get(k)
+            out['part_at']['gw'] = pat.get('gw') or prev.get('at')
+    y, m = now.year - SNB_MONTHS // 12 - 1, now.month
+    try:
+        out['fx_res'] = snb_mies(get_json(SNB_FX_URL.format(od=f'{y:04d}-{m:02d}'), timeout=SNB_TIMEOUT))
+        out['ok']['fx'] = True; out['part_at']['fx'] = NOW
+    except Exception as e:  # noqa
+        errs.append(mask(f'rezerwy walutowe: {e}')); out['ok']['fx'] = False
+        if isinstance(prev.get('fx_res'), dict):
+            out['fx_res'] = prev['fx_res']; out['part_at']['fx'] = pat.get('fx') or prev.get('at')
+    if errs:
+        META['errors'].append(mask('Szwajcaria: ' + '; '.join(errs)[:400]))
+    if not out.get('week') and not isinstance(out.get('fx_res'), dict):
+        raise RuntimeError('brak danych i poprzedniego pliku')
+    tydz, _od = snb_oczekiwany(now)
+    if out.get('week') and out['week'] < (datetime.date.fromisoformat(tydz) - datetime.timedelta(days=7)).isoformat():
+        META['notes'].append(f"Szwajcaria: najnowszy tydzień depozytów {out['week']} — starszy niż oczekiwany {tydz} o ponad tydzień")
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -7810,11 +8585,11 @@ def main():
         save('cm', prev_cm); META['ok']['cm'] = 'cached'; print('Coin Metrics: dane z', prev_cm.get('at'), '— młodsze niż 60 min')
     else:
         try:
-            save('cm', build_cm()); META['ok']['cm'] = True
+            save('cm', build_cm(prev=prev_cm)); META['ok']['cm'] = True   # v124: historia z poprzedniego pliku (do 400 dni)
         except Exception as e:
             msg = str(e)
             META['errors'].append(mask(msg if msg.startswith('Coin Metrics') else f'Coin Metrics: {msg}')); META['ok']['cm'] = False
-            if prev_cm: save('cm', prev_cm); print('Coin Metrics zawiódł — zachowano poprzedni cm.json z', prev_cm.get('at'))
+            if prev_cm: save('cm', _cm_kept(prev_cm, e)); print('Coin Metrics zawiódł — zachowano poprzedni cm.json z', prev_cm.get('at'))   # v124: po nieudanej próbie pełnego pobrania z bf_fail (granica 6 h)
     # MFW — rezerwy walutowe (International Liquidity, bez klucza): dane miesięczne, najwyżej raz na dobę; przy awarii poprzedni plik
     prev_res = previous('rezerwy')
     if prev_res and fresh(prev_res, 24 * 60):
@@ -7938,6 +8713,31 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'Aukcje: {e}')); META['ok']['aukcje'] = False
             if prev_au: save('aukcje', prev_au)
+    # v124: sieć Bitcoin — opłaty, kolejka, trudność i ostatni blok co przebieg (20 min), historia mocy obliczeniowej raz na dobę; dwa publiczne
+    # eksploratory bez klucza (drugi = kontrola zgodności); plik młodszy niż LN_EVERY min z kompletem części = bez zapytań; część z błędem =
+    # poprzednie dane tej części z własnym czasem; awaria całości = poprzedni plik i błąd (strona Źródła: lancuch, lancuch_2)
+    prev_ln = previous('lancuch')
+    pok_ln = prev_ln.get('ok') if isinstance(prev_ln, dict) and isinstance(prev_ln.get('ok'), dict) else {}
+    if isinstance(prev_ln, dict) and fresh(prev_ln, LN_EVERY) and all(pok_ln.get(k) is True for k in LN_PARTS):
+        save('lancuch', prev_ln); META['ok']['lancuch'] = 'cached'; META['ok']['lancuch_2'] = 'cached'
+    else:
+        try:
+            ln_ = build_lancuch(prev_ln); save('lancuch', ln_)
+            META['ok']['lancuch'] = all(ln_['ok'].get(k) is True for k in LN_CORE); META['ok']['lancuch_2'] = ln_['ok'].get('check') is True
+        except Exception as e:
+            META['errors'].append(mask(f'{LN_LABEL}: {e}')); META['ok']['lancuch'] = False; META['ok']['lancuch_2'] = False
+            if prev_ln: save('lancuch', prev_ln)
+    # v124: Szwajcaria — depozyty banków w banku centralnym (tygodniowo) i rezerwy walutowe (miesięcznie), bez klucza: co 12 h; część z błędem
+    # albo spóźniony tydzień (po poniedziałkowej publikacji, najwyżej 2 doby) — ponowienie co godzinę (snb_odswiez); awaria = poprzedni plik i błąd
+    prev_snb = previous('snb')
+    if prev_snb and fresh(prev_snb, SNB_EVERY) and not snb_odswiez(prev_snb):
+        save('snb', prev_snb); META['ok']['snb'] = 'cached'
+    else:
+        try:
+            sn = build_snb(prev_snb); save('snb', sn); META['ok']['snb'] = all(sn['ok'].get(k) for k in SNB_PARTS)
+        except Exception as e:
+            META['errors'].append(mask(f'Szwajcaria: {e}')); META['ok']['snb'] = False
+            if prev_snb: save('snb', prev_snb)
     # v106: indeksy świata (EODHD, rotacja 20 zapytań na dobę) i notowania ETF (Massive, zapas Tiingo) — klucze właściciela; co godzinę;
     # brak klucza = informacja (notes), nie błąd; awaria = poprzedni plik
     ix_keys = {k: os.environ.get(k, '').strip() for k in IX_KEYS}
