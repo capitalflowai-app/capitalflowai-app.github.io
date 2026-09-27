@@ -1,132 +1,144 @@
 {
- "at": "2026-09-27T06:37:56+00:00",
+ "at": "2026-09-27T10:52:57+00:00",
  "strona": {
   "http": 200,
-  "bajty": 2238696,
-  "ms": 202,
+  "bajty": 2337301,
+  "ms": 186,
   "ok": true
  },
  "meta": {
-  "at": "2026-09-27T06:33:07+00:00",
-  "wiek_min": 4,
-  "zrodla": 55,
+  "at": "2026-09-27T10:51:36+00:00",
+  "wiek_min": 1,
+  "zrodla": 58,
   "bez_odpowiedzi": [],
-  "errors": [
-   "BCB: 1 serie bez odpowiedzi, np. 13968: The read operation timed out"
-  ],
+  "errors": [],
   "notes": [
    "poprzedni insider.json: brak na stronie (404)",
    "brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni",
-   "Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta)"
+   "Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta)",
+   "poprzedni lancuch.json: brak na stronie (404)",
+   "poprzedni snb.json: brak na stronie (404)"
   ]
  },
  "pliki": {
   "etf": {
    "http": 200,
-   "bajty": 9492,
-   "wiek_min": 34,
+   "bajty": 9493,
+   "wiek_min": 50,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
    "http": 200,
-   "bajty": 34849,
-   "wiek_min": 4,
+   "bajty": 34855,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "oecd": {
    "http": 200,
    "bajty": 20527,
-   "wiek_min": 111,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
    "bajty": 16972,
-   "wiek_min": 34,
+   "wiek_min": 50,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
-   "bajty": 5291,
-   "wiek_min": 34,
+   "bajty": 5343,
+   "wiek_min": 50,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 84186,
-   "wiek_min": 4,
+   "bajty": 89038,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
    "bajty": 8918,
-   "wiek_min": 347,
+   "wiek_min": 229,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 4852,
-   "wiek_min": 347,
+   "wiek_min": 229,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
    "bajty": 25684,
-   "wiek_min": 710,
+   "wiek_min": 965,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
-   "bajty": 29381,
-   "wiek_min": 52,
+   "bajty": 29372,
+   "wiek_min": 7,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
    "bajty": 15212,
-   "wiek_min": 52,
+   "wiek_min": 7,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
    "http": 200,
    "bajty": 28118,
-   "wiek_min": 534,
+   "wiek_min": 789,
    "czesci_bez_odpowiedzi": []
   },
   "cm": {
    "http": 200,
    "bajty": 8781,
-   "wiek_min": 34,
+   "wiek_min": 50,
    "czesci_bez_odpowiedzi": []
   },
   "fred": {
    "http": 200,
    "bajty": 13047,
-   "wiek_min": 34,
+   "wiek_min": 50,
    "czesci_bez_odpowiedzi": []
   },
   "cftc": {
    "http": 200,
    "bajty": 19422,
-   "wiek_min": 129,
+   "wiek_min": 7,
    "czesci_bez_odpowiedzi": []
   },
   "ceny": {
    "http": 200,
    "bajty": 105222,
-   "wiek_min": 34,
+   "wiek_min": 50,
    "czesci_bez_odpowiedzi": []
   },
   "indeksy": {
    "http": 200,
    "bajty": 143156,
-   "wiek_min": 52,
+   "wiek_min": 7,
    "czesci_bez_odpowiedzi": []
   },
   "ceny-krypto": {
    "http": 200,
    "bajty": 196946,
-   "wiek_min": 34,
+   "wiek_min": 50,
+   "czesci_bez_odpowiedzi": []
+  },
+  "snb": {
+   "http": 200,
+   "bajty": 10147,
+   "wiek_min": 1,
+   "czesci_bez_odpowiedzi": []
+  },
+  "lancuch": {
+   "http": 200,
+   "bajty": 9384,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "insider": {
@@ -135,13 +147,13 @@
   "stres": {
    "http": 200,
    "bajty": 9321,
-   "wiek_min": 361,
+   "wiek_min": 242,
    "czesci_bez_odpowiedzi": []
   },
   "aukcje": {
    "http": 200,
    "bajty": 11673,
-   "wiek_min": 361,
+   "wiek_min": 242,
    "czesci_bez_odpowiedzi": []
   },
   "robots.txt": {
@@ -158,34 +170,54 @@
   }
  },
  "actions": {
-  "przebiegi_24h": 83,
+  "przebiegi_24h": 86,
   "wg_wyniku": {
-   "success": 79,
+   "success": 82,
    "failure": 4
   },
-  "ostatni": "2026-09-27T06:32:54Z",
-  "ostatnia_porazka": "2026-09-26T18:46:52Z"
+  "ostatni": "2026-09-27T10:51:21Z",
+  "ostatnia_porazka": "2026-09-27T10:47:51Z",
+  "porazki_z_rzedu": 0,
+  "udane_po_porazce": 1,
+  "porazki": [
+   {
+    "at": "2026-09-27T10:47:51Z",
+    "krok": "zbuduj / Test bramki strony dla plików widoków silnika"
+   },
+   {
+    "at": "2026-09-26T18:46:52Z",
+    "krok": "publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)"
+   },
+   {
+    "at": "2026-09-26T13:37:48Z",
+    "krok": "zbuduj / Test bramki strony dla plików widoków silnika"
+   },
+   {
+    "at": "2026-09-26T13:25:48Z",
+    "krok": "zbuduj / Testy zbieracza"
+   }
+  ]
  },
  "swiezosc": [
   {
    "zrodlo": "rynki (kursy EBC, rentowności)",
    "status": "✅",
-   "wiek_min": 34,
-   "data": "2026-09-27T06:03:23+00:00",
+   "wiek_min": 50,
+   "data": "2026-09-27T10:02:48+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "wieloryby (salda portfeli giełd)",
    "status": "✅",
-   "wiek_min": 4,
-   "data": "2026-09-27T06:33:07+00:00",
+   "wiek_min": 1,
+   "data": "2026-09-27T10:51:36+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "dźwignia (giełdy pochodnych)",
    "status": "✅",
-   "wiek_min": 34,
-   "data": "2026-09-27T06:03:23+00:00",
+   "wiek_min": 50,
+   "data": "2026-09-27T10:02:48+00:00",
    "uwaga": ""
   },
   {
@@ -212,42 +244,42 @@
   {
    "zrodlo": "EIA ceny dzienne (publikowane co tydzień)",
    "status": "✅",
-   "wiek_min": 6157,
+   "wiek_min": 6412,
    "data": "2026-09-22",
    "uwaga": ""
   },
   {
    "zrodlo": "CFTC (raport tygodniowy)",
    "status": "✅",
-   "wiek_min": 6157,
+   "wiek_min": 6412,
    "data": "2026-09-22",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED tygodniowe (WALCL)",
    "status": "✅",
-   "wiek_min": 4717,
+   "wiek_min": 4972,
    "data": "2026-09-23",
    "uwaga": ""
   },
   {
    "zrodlo": "TIC (miesięcznie)",
    "status": "✅",
-   "wiek_min": 82477,
+   "wiek_min": 82732,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "OECD (miesięcznie)",
    "status": "✅",
-   "wiek_min": 37837,
+   "wiek_min": 38092,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "BLS (miesięcznie)",
    "status": "✅",
-   "wiek_min": 37837,
+   "wiek_min": 38092,
    "data": "2026-08",
    "uwaga": ""
   }
@@ -255,21 +287,21 @@
  "zgodnosc": {
   "kapitalizacja": {
    "status": "ℹ️",
-   "dzis_pct": 4.138,
+   "dzis_pct": 5.081,
    "mediana_pct": 4.303,
    "dni": 1,
    "opis": "historia 1 z 7 dni — bez oceny"
   },
   "ceny": {
    "bitcoin": {
-    "a": 84521.0,
-    "b": 84512.81756891169,
-    "roznica_pct": 0.01
+    "a": 84824.0,
+    "b": 84832.04140208346,
+    "roznica_pct": 0.009
    },
    "ethereum": {
-    "a": 2707.05,
-    "b": 2707.3155547097244,
-    "roznica_pct": 0.01
+    "a": 2709.34,
+    "b": 2710.1682765660717,
+    "roznica_pct": 0.031
    }
   },
   "tga": {
@@ -294,12 +326,10 @@
   }
  },
  "uwagi": [
-  "błąd zbieracza: BCB: 1 serie bez odpowiedzi, np. 13968: The read operation timed out",
-  "insider.json: HTTP 404 (brak pliku)"
+  "insider.json: HTTP 404 (brak pliku)",
+  "4 nieudane przebiegi automatu w 24 h — już naprawione: od ostatniej porażki 1 udanych z rzędu (27.09 12:47 (zbuduj / Test bramki strony dla plików widoków silnika), 26.09 20:46 (publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)), 26.09 15:37 (zbuduj / Test bramki strony dla plików widoków silnika), 26.09 15:25 (zbuduj / Testy zbieracza))"
  ],
- "bledy": [
-  "4 nieudanych przebiegów automatu w 24 h"
- ],
- "historia_n": 5,
- "wynik": "BŁĄD"
+ "bledy": [],
+ "historia_n": 6,
+ "wynik": "UWAGA"
 }
