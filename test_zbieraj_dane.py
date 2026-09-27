@@ -9169,7 +9169,7 @@ class KontrolaPrzebiegiV124_1(unittest.TestCase):
         A, b, u = k.przebiegi_ocena(runs, self.NOW, {1000 + 36: 'opublikuj / publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)'})
         self.assertEqual(b, [], 'porażki sprzed godzin, potem same udane — bez czerwonego alarmu')
         self.assertEqual((A['przebiegi_24h'], A['wg_wyniku'], A['porazki_z_rzedu'], A['udane_po_porazce']), (72, {'success': 68, 'failure': 4}, 0, 36))
-        self.assertEqual(len(u), 1); self.assertIn('4 nieudane przebiegi automatu w 24 h — już naprawione: od ostatniej porażki 36 udanych z rzędu', u[0])
+        self.assertEqual(len(u), 1); self.assertIn('4 nieudane przebiegi automatu w 24 h — już naprawione: od ostatniej porażki 36 udanych przebiegów z rzędu', u[0])
         self.assertIn('26.09 20:32 (opublikuj / publikacja na GitHub Pages', u[0], 'godzina polska i krok najnowszej porażki')
         self.assertNotIn('Kontrola', str(A), 'liczy się tylko automat „Strona i dane”, nie sama kontrola')
 
@@ -9207,6 +9207,7 @@ class KontrolaPrzebiegiV124_1(unittest.TestCase):
         self.assertEqual(k.opis_kroku('zbuduj', 'Testy zbieracza (brak nie jest zerem, zakres dat, pamięć podręczna) — awaria blokuje publikację'), 'zbuduj / Testy zbieracza')
         self.assertIn('GitHub Pages', k.opis_kroku('opublikuj', 'Run actions/deploy-pages@v4'))
         self.assertEqual((k.opis_kroku('zbuduj', None), k.opis_kroku(None, None)), ('zbuduj', None))
+        self.assertEqual([k.pl_udane(n) for n in (1, 3, 5, 22, 42)], ['1 udany przebieg', '3 udane przebiegi', '5 udanych przebiegów', '22 udane przebiegi', '42 udane przebiegi'])
 
     def test_raport_md_wylicza_porazki(self):
         k = self.k

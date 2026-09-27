@@ -357,6 +357,15 @@ def pl_przebiegi(n):
     return f'{n} nieudanych przebiegów'
 
 
+def pl_udane(n):
+    """Liczebnik: 1 udany przebieg / 2–4 udane przebiegi / 0, 5+ (i 12–14) udanych przebiegów."""
+    if n == 1:
+        return '1 udany przebieg'
+    if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
+        return f'{n} udane przebiegi'
+    return f'{n} udanych przebiegów'
+
+
 def opis_kroku(zadanie, krok):
     """Nazwa nieudanego kroku po ludzku: publikacja GitHub Pages to zwykle chwilowa awaria po stronie GitHuba; długie nazwy kroków
     z workflow skrócone do części przed nawiasem / myślnikiem."""
@@ -406,7 +415,7 @@ def przebiegi_ocena(runs, now, kroki=None):
         elif z_rzedu == 1:
             uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 20 min; dwa nieudane z rzędu = błąd')
         else:
-            uwagi.append(f'{pl_przebiegi(len(por))} automatu w 24 h — już naprawione: od ostatniej porażki {udane_po} udanych z rzędu ({lista})')
+            uwagi.append(f'{pl_przebiegi(len(por))} automatu w 24 h — już naprawione: od ostatniej porażki {pl_udane(udane_po)} z rzędu ({lista})')
     if len(ost) < 20:
         uwagi.append(f'tylko {len(ost)} przebiegów w 24 h (harmonogram co 20 min ≈ 72; GitHub bywa opóźniony)')
     return A, bledy, uwagi
@@ -605,7 +614,7 @@ def raport_md(R):
         L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).')
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
-                     + (f'. Od ostatniej porażki {a["udane_po_porazce"]} udanych przebiegów z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
+                     + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
     L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None else ("HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     if m.get('notes'):
