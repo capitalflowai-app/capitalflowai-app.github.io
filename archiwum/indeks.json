@@ -1,5 +1,5 @@
 {
- "at": "2026-09-26T13:26:13+00:00",
+ "at": "2026-09-27T01:26:17+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,12 +22,12 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-09-26T13:26:13+00:00",
-   "rows": 13,
+   "at": "2026-09-27T01:26:17+00:00",
+   "rows": 26,
    "first": "2026-09-26",
-   "last": "2026-09-26",
-   "added": 0,
-   "revised": 13,
+   "last": "2026-09-27",
+   "added": 13,
+   "revised": 0,
    "revisions_total": 26,
    "fetched": 13
   },
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-09-26T13:26:13+00:00",
-   "rows": 2,
+   "at": "2026-09-27T01:26:17+00:00",
+   "rows": 4,
    "first": "2026-09-26",
-   "last": "2026-09-26",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-09-27",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 2,
    "fetched": 2
   },
@@ -68,14 +68,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-09-26T13:26:13+00:00",
+   "at": "2026-09-27T01:26:17+00:00",
    "rows": 749,
    "first": "2023-09-26",
    "last": "2026-09-25",
    "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 749
+   "fetched": 748
   },
   "tic": {
    "file": "tic.csv",
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-09-26T13:26:13+00:00",
+   "at": "2026-09-27T01:26:17+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-09-26T13:26:13+00:00",
+   "at": "2026-09-27T01:26:17+00:00",
    "rows": 1040,
    "first": "2024-10-01",
    "last": "2026-09-22",
@@ -140,19 +140,19 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-09-26T13:26:13+00:00",
+   "at": "2026-09-27T01:26:17+00:00",
    "rows": 517,
    "first": "2024-09-26",
    "last": "2026-09-25",
    "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 517
+   "fetched": 516
   }
  },
  "errors": [],
  "notes": [
-  "wieloryby: brak sum dobowych za 2026-09-25 — przepływy puste"
+  "wieloryby: sumy dobowe zbierane od 2026-09-26 — doba 2026-09-26 niepełna, przepływy puste"
  ],
  "seria": {
   "plyn.net": 400,
@@ -170,12 +170,12 @@
   "cftc.eth.lev": 104,
   "cftc.eth.am": 104,
   "cftc.eth.dealer": 104,
-  "stab.usdt": 1,
-  "stab.usdc": 1,
-  "wh.Binance": 1,
-  "wh.Bitfinex": 1,
-  "wh.Bybit": 1,
-  "wh.KuCoin": 1,
-  "wh.OKX": 1
+  "stab.usdt": 2,
+  "stab.usdc": 2,
+  "wh.Binance": 2,
+  "wh.Bitfinex": 2,
+  "wh.Bybit": 2,
+  "wh.KuCoin": 2,
+  "wh.OKX": 2
  }
 }
