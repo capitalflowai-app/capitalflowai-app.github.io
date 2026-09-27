@@ -2440,6 +2440,168 @@ TCMB_KEYS = (('tot', 'net transactions total'), ('eq', 'equity'), ('gdds', 'gdds
              ('corp', 'debt securities issued by other than general'), ('intl', 'b.2. international market total'),
              ('eurob', 'general government issuances'))
 
+# v126: Turcja przez API banku (EVDS3; grupa bie_mknethar — ta sama tabela co arkusz T1_En w pliku ZIP, 27.09.2026 wszystkie 30 liczb
+# z 5 tygodni zgodne): pełna historia tygodni od 11.09.2020. Klucz właściciela EVDS_KEY tylko w nagłówku 'key' — nigdy w adresie, w plikach
+# ani w komunikatach (mask); plik ZIP ze strony banku zostaje zapasem (brak klucza, klucz odrzucony, awaria API). Stary adres evds2 wyłączony
+# 20.02.2026 (302 → strona HTML): przekierowań nie wykonujemy, więc klucz nie trafi pod inny adres. Warunki EVDS: podpis źródła i zdanie,
+# że tłumaczenie nie jest oficjalne (strona Źródła), dane bez opłat dla użytkowników; przewodnik: pobierać raz dziennie, serie jednej grupy
+# jednym zapytaniem (tak robimy).
+EVDS_BASE = 'https://evds3.tcmb.gov.tr/igmevdsms-dis/'
+EVDS_PAGE = 'https://evds3.tcmb.gov.tr/'      # pole 'url' części — strona publiczna, nigdy adres API
+EVDS_SERIES = (('tot', 'TP.MKNETHAR.M20'), ('eq', 'TP.MKNETHAR.M7'), ('gdds', 'TP.MKNETHAR.M8'),
+               ('corp', 'TP.MKNETHAR.M12'), ('intl', 'TP.MKNETHAR.M22'), ('eurob', 'TP.MKNETHAR.M23'))   # kolejność = TCMB_KEYS
+EVDS_FIRST = datetime.date(2020, 9, 11)   # pierwszy tydzień serii w metodzie G20 (ogłoszenie banku 19.08.2021); starsze archiwum (bie_yymkpyuk)
+                                          # liczone inaczej (z repo, bez rynku zagranicznego) — nie sklejamy
+EVDS_CHUNK_W = 520     # tygodni w jednym zapytaniu: limit 1000 obserwacji liczy daty (sonda 27.09.2026: 315 tygodni × 6 serii w jednym
+                       # zapytaniu) — cała historia jednym zapytaniem do 2030, potem kawałki (najnowszy pierwszy)
+EVDS_RECENT_W = 13     # zwykłe odświeżenie: od najnowszego zapisanego piątku − 13 tygodni (bank poprawia ostatnie tygodnie — dane wstępne)
+EVDS_FULL_D = 28       # pełne pobranie od początku serii co 28 dni (rzadkie poprawki starszych tygodni) albo od razu, gdy w historii brak tygodnia
+EVDS_BUDGET = 120      # s na kolejne kawałki pełnego pobrania w jednym przebiegu (z _back_ok i BACK_LATE jak inne historie wstecz)
+EVDS_TIMEOUT = 45      # s na jedno zapytanie
+EVDS_TZ = datetime.timedelta(hours=3)     # Turcja: UTC+3 przez cały rok (bez zmiany czasu od 2016)
+TCMB_KEEP = 600        # tygodni w części 'tr' (ok. 11,5 roku) na obu drogach — zapas ZIP nie przycina historii z API do OBCE_KEEP
+TCMB_RELEASE_UTC = (3, 11, 30)   # publikacja: czwartek 14:30 w Stambule = 11:30 UTC (kalendarz banku), tydzień do piątku przed nim
+TCMB_DAY_MIN = 1440    # część z tygodniem z ostatniej publikacji — odświeżana raz na dobę; bez niego — co OBCE_SLOW['tr'] (jak dotąd)
+
+
+class _EvdsNoRedirect(urllib.request.HTTPRedirectHandler):
+    """v126: urllib przenosi własne nagłówki (także klucz) pod każdy adres przekierowania, również na inny serwer. Poprawne zapytanie
+    API nie jest przekierowywane — 3xx znaczy „adres przeniesiony” (evds2 → strona HTML), więc zamiast iść dalej: HTTPError."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def evds_get(url, key, timeout=EVDS_TIMEOUT):
+    """Jedno zapytanie EVDS: klucz tylko w nagłówku 'key', bez przekierowań; odpowiedź nie-JSON (np. strona HTML) = RuntimeError."""
+    req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Accept': 'application/json', 'key': key})
+    with urllib.request.build_opener(_EvdsNoRedirect).open(req, timeout=timeout) as r:
+        body = r.read()
+    try:
+        return json.loads(body.decode('utf-8-sig', 'replace'))
+    except ValueError:
+        raise RuntimeError('odpowiedź nie jest JSON (strona HTML zamiast danych?)') from None
+
+
+def evds_url(a, b):
+    """Adres zapytania w formie z przewodnika EVDS (parametry po '&' w ścieżce, bez '?'); daty dd-mm-rrrr; klucza w adresie nie ma."""
+    return (f"{EVDS_BASE}series={'-'.join(c for _, c in EVDS_SERIES)}"
+            f"&startDate={a.strftime('%d-%m-%Y')}&endDate={b.strftime('%d-%m-%Y')}&type=json")
+
+
+def _tcmb_today():
+    """Dzisiejsza data w Stambule (koniec zakresu zapytania i data pełnego pobrania); przez _now_utc — testy ustawiają czas."""
+    return (_now_utc() + EVDS_TZ).date()
+
+
+def _evds_day(it):
+    """Data pozycji odpowiedzi: 'Tarih' dd-mm-rrrr; bez niej UNIXTIME (sekundy = północ w Stambule, czyli 21:00 UTC w czwartek) + 3 h;
+    bez obu YEARWEEK (tydzień ISO → piątek). Zła data = None."""
+    m = re.match(r'^(\d{2})-(\d{2})-(\d{4})$', str(it.get('Tarih') or '').strip())
+    if m:
+        try:
+            return datetime.date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        except ValueError:
+            return None
+    u = it.get('UNIXTIME')
+    u = _num(u.get('$numberLong') if isinstance(u, dict) else u) if u is not None else None
+    if u is not None:
+        try:
+            return (datetime.datetime.fromtimestamp(int(u), datetime.timezone.utc) + EVDS_TZ).date()
+        except (OverflowError, OSError, ValueError):
+            return None
+    m = re.match(r'^(\d{4})-(\d{1,2})$', str(it.get('YEARWEEK') or '').strip())
+    if m:
+        try:
+            return datetime.date.fromisocalendar(int(m.group(1)), int(m.group(2)), 5)
+        except ValueError:
+            return None
+    return None
+
+
+def parse_evds(j, a=None, b=None, notes=None):
+    """Odpowiedź EVDS {totalCount, items: [{Tarih, TP_MKNETHAR_M20: '…', …}]} → wiersze jak parse_tcmb: [[piątek ISO, razem, akcje,
+    obligacje skarbowe, obligacje firm i banków, rynek zagraniczny razem, euroobligacje rządu]] rosnąco, mln USD, 2 miejsca po przecinku.
+    Brak / null / nie-liczba = None (nigdy 0); wiersz bez żadnej z 6 wartości pominięty (EVDS wypełnia siatkę dat przed początkiem serii
+    i po ostatniej publikacji wartościami null); data spoza [a, b] albo nie w piątek — pominięta z notatką (błędny zakres EVDS odpowiada
+    innym zakresem zamiast błędem). Inny kształt (np. treść błędu JSON) albo brak tygodni z danymi = RuntimeError."""
+    if not isinstance(j, dict) or not isinstance(j.get('items'), list):
+        # najpierw maska, potem cięcie: klucz odbity przez serwer na granicy 80 znaków nie zostawi swojego początku
+        msg = mask(str(j.get('message') or ''))[:80] if isinstance(j, dict) else ''
+        raise RuntimeError('nieznany kształt odpowiedzi' + (f' ({msg})' if msg else ''))
+    keys = [(c.replace('.', '_'), c) for _, c in EVDS_SERIES]
+    out, off = {}, []
+    for it in j['items']:
+        if not isinstance(it, dict):
+            continue
+        d = _evds_day(it)
+        if d is None:
+            continue
+        vals = []
+        for u, c in keys:
+            v = _num(it[u] if u in it else it.get(c))
+            vals.append(round(v, 2) if v is not None and v == v and abs(v) != float('inf') else None)
+        if all(v is None for v in vals):
+            continue
+        if d.weekday() != 4 or (a and d < a) or (b and d > b):
+            off.append(d.isoformat())
+            continue
+        out[d.isoformat()] = [d.isoformat()] + vals
+    if off and notes is not None:
+        notes.append('CBRT EVDS: pominięte daty spoza zakresu albo nie w piątek: ' + ', '.join(sorted(off)[-5:]))
+    if not out:
+        raise RuntimeError('brak tygodni z danymi')
+    return [out[k] for k in sorted(out)]
+
+
+def evds_plan(have, today, full=None, keep=TCMB_KEEP):
+    """→ [(od, do), …]. Pełne pobranie od EVDS_FIRST w kawałkach po najwyżej EVDS_CHUNK_W tygodni liczonych od dziś wstecz (najnowszy
+    kawałek pierwszy i zawsze pełnej długości — ma opublikowane tygodnie; przerwane pobranie i tak daje bieżące tygodnie; każdy kawałek
+    od piątku), gdy: historii nie ma albo nie sięga początku serii (i nie jest już przycięta do keep — bez pobierania
+    w kółko), w historii brakuje tygodnia, albo ostatnie pełne pobranie (full, data ISO) jest starsze niż EVDS_FULL_D dni lub go nie było.
+    Inaczej jedno okno: od najnowszego zapisanego piątku − EVDS_RECENT_W tygodni do dziś (piątek — pierwszy dzień tygodnia serii)."""
+    ds = sorted({d for d in (_d(x) for x in have) if d})
+    f = _d(full) if full else None
+    short = not ds or (ds[0] > EVDS_FIRST + datetime.timedelta(days=7) and len(ds) < keep)
+    gap = any((y - x).days > 7 for x, y in zip(ds, ds[1:]))
+    if short or gap or f is None or (today - f).days >= EVDS_FULL_D:
+        out, b = [], today
+        while b >= EVDS_FIRST:
+            a = b - datetime.timedelta(days=7 * EVDS_CHUNK_W - 1)
+            a = max(EVDS_FIRST, a + datetime.timedelta(days=(4 - a.weekday()) % 7))
+            out.append((a, b))
+            b = a - datetime.timedelta(days=1)
+        return out
+    return [(ds[-1] - datetime.timedelta(days=7 * EVDS_RECENT_W), today)]
+
+
+def evds_rows(key, have, full=None):
+    """Zapytania według evds_plan → (wiersze jak parse_tcmb rosnąco, True gdy pełne pobranie skończone w całości). Kolejny kawałek tylko
+    w budżecie czasu (EVDS_BUDGET, BACK_LATE), 1 s po poprzednim; awaria albo brak czasu na kolejny kawałek = notatka i wiersze
+    z wcześniejszych (resztę dokończy następne odświeżenie). Awaria pierwszego zapytania = wyjątek (wtedy plik ZIP). Odpowiedź, która
+    zaczyna się później niż tydzień po początku zakresu, to możliwe ucięcie najstarszych tygodni (limit obserwacji) — notatka."""
+    plan = evds_plan(have, _tcmb_today(), full)
+    t0, got, done = time.monotonic(), {}, plan[-1][0] == EVDS_FIRST
+    for i, (a, b) in enumerate(plan):
+        if i:
+            if not _back_ok(t0, EVDS_BUDGET, EVDS_TIMEOUT):
+                done = False
+                META['notes'].append(f'CBRT EVDS: starsze tygodnie do {b.isoformat()} — brak czasu w tym przebiegu, dokończymy przy następnym odświeżeniu')
+                break
+            time.sleep(1)
+        try:
+            rows = parse_evds(evds_get(evds_url(a, b), key), a, b, META['notes'])
+        except Exception as e:
+            if not i:
+                raise
+            done = False
+            META['notes'].append(mask(f'CBRT EVDS: starsze tygodnie {a.isoformat()}–{b.isoformat()}: {e} — dokończymy przy następnym odświeżeniu'))
+            break
+        if (_d(rows[0][0]) - a).days > 7:
+            done = False
+            META['notes'].append(f'CBRT EVDS: odpowiedź zaczyna się od {rows[0][0]}, pytaliśmy od {a.isoformat()} — możliwe ucięcie najstarszych tygodni')
+        got.update({r[0]: r for r in rows})
+    return [got[k] for k in sorted(got)], done
+
 
 def _tcmb_day(v):
     s = str(v or '').strip()
@@ -2476,7 +2638,9 @@ def parse_tcmb(rows):
     return [[d] + [(got.get(k) or {}).get(d) for k, _ in TCMB_KEYS] for d in days]
 
 
-def tcmb_part(prev_tr):
+def tcmb_zip_rows():
+    """v74: plik ZIP ze strony banku (arkusz T1_En, część B) → wiersze parse_tcmb (ok. 5 ostatnich tygodni); bez klucza. Od v126 zapas
+    dla API EVDS (brak klucza, klucz odrzucony, awaria API)."""
     import html as _h
     import zipfile
     page = get_bytes(TCMB_PAGE, timeout=60).decode('utf-8', 'replace')
@@ -2488,20 +2652,70 @@ def tcmb_part(prev_tr):
     name = next((n for n in z.namelist() if n.lower().endswith('.xlsx')), None)
     if not name:
         raise RuntimeError('brak pliku .xlsx w archiwum')
-    new = parse_tcmb(_xlsx_rows(z.read(name), 'T1_En'))
-    big = [r[0] for r in new if any(v is not None and abs(v) > 1e5 for v in r[1:])]   # v77: tydzień > 100 mld USD = zła skala
+    return parse_tcmb(_xlsx_rows(z.read(name), 'T1_En'))
+
+
+def _tcmb_scale(new):
+    """v77: tydzień > 100 mld USD = zła skala (np. tysiące zamiast milionów) — cała odpowiedź odrzucona (wyjątek)."""
+    big = [r[0] for r in new if any(v is not None and abs(v) > 1e5 for v in r[1:])]
     if big:
         raise RuntimeError(f'skala niezgodna ({big[-1]})')
+
+
+def tcmb_part(prev_tr, key=''):
+    """v74 + v126: Turcja — tygodniowe transakcje netto nierezydentów w papierach (mln USD). Z kluczem EVDS_KEY: API banku (EVDS3) — pełna
+    historia od 11.09.2020 (pierwszy raz i co EVDS_FULL_D dni), zwykle okno ostatnich 13 tygodni; bez klucza albo po awarii API: plik ZIP
+    ze strony banku (5 ostatnich tygodni) dopisany do zapisanej historii. Awaria API to notatka z przyczyną (dane i tak są — z pliku ZIP),
+    nie błąd; błąd tylko wtedy, gdy zawiodą obie drogi (build_obce zostawia wtedy poprzednią część). Nowsze dane poprawiają zapisane tygodnie
+    (dane wstępne). Pola dodane w v126 (poza nimi plik jak dotąd): via ('evds' / 'zip'), full (data ostatniego pełnego pobrania z API),
+    evds_err (przyczyna zapasu ZIP, gdy jest klucz)."""
+    prev_tr = prev_tr if isinstance(prev_tr, dict) else {}
+    have = {k: list(v) for k, v in _rows(prev_tr).items()}
+    new, via, full, why = None, 'zip', prev_tr.get('full'), None
+    if key and not re.fullmatch(r'[!-~]{4,256}', key):   # nagłówek z niedozwolonym znakiem — urllib odbiłby wartość klucza w komunikacie
+        why = 'klucz EVDS_KEY w złym formacie (niedozwolone znaki albo długość; popraw sekret)'
+        META['notes'].append(f'CBRT EVDS: {why} — Turcja z pliku ZIP banku')
+    elif key:
+        try:
+            rows, done = evds_rows(key, sorted(have), full)
+            _tcmb_scale(rows)
+            new, via = rows, 'evds'
+            if done:
+                full = _tcmb_today().isoformat()
+        except urllib.error.HTTPError as e:
+            why = ({401: 'klucz EVDS_KEY odrzucony', 403: 'klucz EVDS_KEY odrzucony', 429: 'limit zapytań'}.get(e.code)
+                   or ('adres API przeniesiony' if 300 <= e.code < 400 else 'błąd serwera' if e.code >= 500 else 'zapytanie odrzucone')) + f' (HTTP {e.code})'
+        except Exception as e:   # przekroczony czas, strona HTML, zły kształt, zła skala — dane z pliku ZIP
+            why = mask(str(e) or type(e).__name__)[:120]   # najpierw maska, potem cięcie — klucz na granicy 120 znaków nie zostawi początku
+        if why:
+            why = mask(why)
+            META['notes'].append(f'CBRT EVDS: {why} — Turcja z pliku ZIP banku')
+    zip_path = new is None
+    if zip_path:
+        new = tcmb_zip_rows()
+        _tcmb_scale(new)
     gap = [r[0] for r in new if None not in r[1:6] and abs(r[1] - r[2] - r[3] - r[4] - r[5]) > 1]
     if gap:
-        META['notes'].append('CBRT: razem ≠ suma składników w tygodniach: ' + ', '.join(gap))
-    have = {k: list(v) for k, v in _rows(prev_tr).items()}
-    have.update({r[0]: r for r in new})      # nowszy plik poprawia poprzedni tydzień (dane wstępne)
-    d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
-    return {'at': NOW, 'src': 'Central Bank of the Republic of Türkiye (CBRT) — Securities Statistics, Table 1, B. Net Transactions',
-            'url': TCMB_PAGE, 'unit': 'mln USD; transakcje netto nierezydentów oczyszczone ze zmian cen i kursów; bez repo, zabezpieczeń i pożyczek papierów',
-            'cols': ['tydzień do', 'razem', 'akcje', 'obligacje skarbowe (zakup bezwarunkowy)', 'obligacje firm i banków', 'rynek zagraniczny razem', 'euroobligacje rządu'],
-            'asof': d[-1][0], 'd': d}
+        META['notes'].append('CBRT: razem ≠ suma składników w tygodniach: ' + ', '.join(gap[-5:]) + (f' (i {len(gap) - 5} wcześniej)' if len(gap) > 5 else ''))
+    keep_cells = zip_path and (prev_tr.get('via') == 'evds' or bool(prev_tr.get('full')))
+    for r in new:      # nowsze dane poprawiają zapisany tydzień (dane wstępne)
+        o = have.get(r[0])
+        if keep_cells and o:   # plik ZIP na historii z API: „-” w pliku (None) nie kasuje liczby z API (np. obligacje firm 11.09.2026: ZIP „-”, EVDS −5,76)
+            r = [r[0]] + [n if n is not None else (o[i] if i < len(o) else None) for i, n in enumerate(r[1:], 1)]
+        have[r[0]] = r
+    d = [have[k] for k in sorted(have)][-TCMB_KEEP:]
+    out = {'at': NOW, 'via': via,
+           'src': ('Central Bank of the Republic of Türkiye (CBRT) — EVDS, Securities Portfolio Held By Non-Residents (bie_mknethar), 2. Net Transactions'
+                   if via == 'evds' else 'Central Bank of the Republic of Türkiye (CBRT) — Securities Statistics, Table 1, B. Net Transactions'),
+           'url': EVDS_PAGE if via == 'evds' else TCMB_PAGE,
+           'unit': 'mln USD; transakcje netto nierezydentów oczyszczone ze zmian cen i kursów; bez repo, zabezpieczeń i pożyczek papierów',
+           'cols': ['tydzień do', 'razem', 'akcje', 'obligacje skarbowe (zakup bezwarunkowy)', 'obligacje firm i banków', 'rynek zagraniczny razem', 'euroobligacje rządu'],
+           'asof': d[-1][0], 'd': d}
+    if full:
+        out['full'] = full
+    if why:
+        out['evds_err'] = why
+    return out
 
 
 # v86: Tajlandia — ThaiBMA „Non-resident Flows”: dzienne transakcje nierezydentów w tajskich obligacjach (mln THB), bez klucza;
@@ -2599,19 +2813,52 @@ def thbma_part(prev_th, key):
 OBCE_SLOW = {'br': 180, 'tr': 180, 'th': 180}   # v91: min — Brazylia i Turcja publikują raz w tygodniu, ThaiBMA raz dziennie (regulamin: umiar)
 
 
-def build_obce(key, prev=None):
+def tcmb_expected_friday(now_utc):
+    """v126: najnowszy piątek, który o `now_utc` powinien być już opublikowany: ostatnia publikacja (czwartek 11:30 UTC) minus 6 dni.
+    Publikacja przesunięta przez święto — część wygląda na spóźnioną i jest odświeżana co OBCE_SLOW['tr'] minut, jak dotąd."""
+    wd, hh, mm = TCMB_RELEASE_UTC
+    t = (now_utc - datetime.timedelta(days=(now_utc.weekday() - wd) % 7)).replace(hour=hh, minute=mm, second=0, microsecond=0)
+    if t > now_utc:
+        t -= datetime.timedelta(days=7)
+    return (t - datetime.timedelta(days=6)).date()
+
+
+def tcmb_fresh_min(pp, evds_key=''):
+    """v126: ile minut zapisana część 'tr' jest ważna. Ma tydzień z ostatniej publikacji — TCMB_DAY_MIN (raz na dobę; przewodnik EVDS:
+    raz dziennie wystarcza); nie ma (przed publikacją w czwartek, święto, opóźnienie) — OBCE_SLOW['tr'], jak dotąd. Z kluczem, gdy część
+    jeszcze nie przyszła z API (pierwsze wdrożenie) albo historia nie sięga początku serii — też OBCE_SLOW['tr'], żeby pełna historia
+    przyszła w ciągu ≤ 3 h, a nie po dobie (chyba że API zawiodło przy ostatnim odświeżeniu — wtedy następna próba po dobie)."""
+    ds = sorted(d for d in (_d(k) for k in _rows(pp)) if d)
+    if not ds or ds[-1] < tcmb_expected_friday(_now_utc()):
+        return OBCE_SLOW['tr']
+    if evds_key and not pp.get('evds_err') and (pp.get('via') != 'evds' or (ds[0] > EVDS_FIRST + datetime.timedelta(days=7) and len(ds) < TCMB_KEEP)):
+        return OBCE_SLOW['tr']
+    return TCMB_DAY_MIN
+
+
+def evds_note(pp, evds_key):
+    """v126: przyczyna zapasu ZIP z ostatniego odświeżenia części 'tr' — notatka także w przebiegach z pamięci (kontrola dzienna czyta
+    ostatni plik meta, a Turcja odświeża się zwykle raz na dobę)."""
+    if evds_key and isinstance(pp, dict) and pp.get('evds_err'):
+        META['notes'].append(mask(f"CBRT EVDS (odświeżenie {str(pp.get('at') or '—')[:16].replace('T', ' ')} UTC): {pp['evds_err']} — Turcja z pliku ZIP banku"))
+
+
+def build_obce(key, prev=None, evds_key=''):
     """data/obce.json — każda część osobno: awaria jednej zostawia jej poprzednią wersję (brak nie jest zerem)."""
     prev = prev if isinstance(prev, dict) else {}
     out = {'at': NOW, 'ok': {}, 'errs': {}}   # v77: stan i błędy części — widoczne także przy przebiegach z pamięci
     for part, fn in (('in', lambda: nsdl_part(prev.get('in'))), ('tw', lambda: twse_part(prev.get('tw'), key)),
                      ('hk', lambda: hkex_part(prev.get('hk'), key)),   # v67: Stock Connect southbound
                      ('br', lambda: bcb_part(prev.get('br'))),   # v71: Brazylia — rynek walutowy (BCB)
-                     ('tr', lambda: tcmb_part(prev.get('tr'))),   # v74: Turcja — nierezydenci w papierach (CBRT)
+                     ('tr', lambda: tcmb_part(prev.get('tr'), evds_key) if evds_key else tcmb_part(prev.get('tr'))),   # v74: Turcja — nierezydenci w papierach (CBRT); v126: z kluczem przez API EVDS
                      ('th', lambda: thbma_part(prev.get('th'), key))):   # v86: Tajlandia — nierezydenci w obligacjach (ThaiBMA)
         n0 = len(META['errors'])
         pp = prev.get(part)
-        if part in OBCE_SLOW and isinstance(pp, dict) and (prev.get('ok') or {}).get(part) is True and fresh(pp, OBCE_SLOW[part]):
+        if part in OBCE_SLOW and isinstance(pp, dict) and (prev.get('ok') or {}).get(part) is True and \
+                fresh(pp, tcmb_fresh_min(pp, evds_key) if part == 'tr' else OBCE_SLOW[part]):   # v126: Turcja z tygodniem z ostatniej publikacji — raz na dobę
             out[part] = pp; META['ok']['obce_' + part] = 'cached'; out['ok'][part] = True   # v91: źródło publikujące rzadziej — bez zapytania
+            if part == 'tr':
+                evds_note(pp, evds_key)
             continue
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
@@ -3224,6 +3471,11 @@ BMX_SER = (('ext', 'SF65218'), ('tot', 'SF65219'),    # Residentes en el Extranj
            ('bon', 'SF65137'), ('cet', 'SF65046'), ('udi', 'SF65107'), ('udv', 'SP68257'))   # v88.1: Bonos M, Cetes, Udibonos (mln UDI), wartość UDI
 MX_KEEP = 270      # ok. 13 miesięcy sesji
 MX_STALE = 21      # dni bez nowego dnia (zwykłe opóźnienie ok. 1,5 tygodnia) = błąd
+# v126: oficjalne API SIE (sekret BANXICO_TOKEN, tylko nagłówek Bmx-Token): te same serie co formularz, jedno zapytanie na odświeżenie
+# (kategoria „histórica”: 200 zapytań na 5 min, 10 000 na dobę — zbieracz pyta zwykle 4 razy na dobę, co 6 h; gdy odświeżenie Meksyku
+# się nie uda, ponawia w każdym przebiegu co 20 min — do ok. 72 na dobę, plus przebiegi ręczne); formularz zostaje jako zapas
+BMX_API = 'https://www.banxico.org.mx/SieAPIRest/service/v1/series/{ids}/datos/{a}/{b}'
+BMX_TOKEN_KSZTALT = re.compile(r'[A-Za-z0-9]{64}')   # token SIE: 64 litery/cyfry (strona banku „token”); inny kształt nie jest wysyłany
 
 
 def post_bytes(url, form, timeout=90):
@@ -3241,33 +3493,167 @@ def parse_bmx(text):
     head = next((r for r in rows if r and r[0].strip() == 'Fecha'), None)
     if not head:
         raise RuntimeError('brak wiersza z kodami serii')
-    col = {k: head.index(c) for k, c in BMX_SER if c in head}
-    if 'ext' not in col:
-        raise RuntimeError('brak serii SF65218 (nierezydenci)')
-    out = {}
+    col = {c: head.index(c) for _, c in BMX_SER if c in head}     # v126: wartości po kodach serii, wiersze składa _bmx_join (wspólne z API)
+    by = {c: {} for c in col}
     for r in rows:
         m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', r[0].strip()) if r else None
         if not m:
             continue
-        v = {k: (_num(r[i]) if i < len(r) and r[i].strip() not in ('', 'N/E') else None) for k, i in col.items()}
-        if v.get('ext') is None:
+        for c, i in col.items():
+            v = _num(r[i]) if i < len(r) and r[i].strip() not in ('', 'N/E') else None
+            if v is not None:
+                by[c][f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = v
+    return _bmx_join(by)
+
+
+def _bmx_join(by):
+    """v126: wiersze Meksyku — wspólne dla formularza (CSV) i API SIE (JSON), więc obie drogi dają te same liczby.
+    by = {kod serii: {RRRR-MM-DD: liczba}} (tylko liczby; brak = brak klucza) → [[data, nierezydenci, razem w obiegu, Bonos M, Cetes,
+    Udibonos w pesos]] rosnąco; dzień bez nierezydentów pominięty (np. dni z samą wartością UDI); Udibonos (mln UDI) × wartość UDI z tego
+    dnia = mln MXN; brak serii albo wartości = brak (None), nigdy zero."""
+    col = {k: by[c] for k, c in BMX_SER if c in by}
+    if 'ext' not in col:
+        raise RuntimeError('brak serii SF65218 (nierezydenci)')
+    out = {}
+    for day, ext in col['ext'].items():
+        if ext is None:
             continue
+        v = {k: col[k].get(day) for k in col}
         udi = round(v['udi'] * v['udv'], 2) if v.get('udi') is not None and v.get('udv') is not None else None
-        out[f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = [v.get('ext'), v.get('tot'), v.get('bon'), v.get('cet'), udi]
+        out[day] = [ext, v.get('tot'), v.get('bon'), v.get('cet'), udi]
     if not out:
         raise RuntimeError('brak dni')
     return [[k] + out[k] for k in sorted(out)]
 
 
-def build_meksyk(key):
+def parse_bmx_api(j, ids=()):
+    """v126: odpowiedź API SIE (JSON) → te same wiersze co parse_bmx. Kształt (dokumentacja SIE API v1, zapytanie o zakres dat):
+    {"bmx": {"series": [{"idSerie": "SF65218", "titulo": "…", "datos": [{"fecha": "dd/mm/rrrr", "dato": "1,787,788.99" | "N/E"}]}]}};
+    kolejność serii dowolna (po idSerie); przecinki tysięcy usuwa _num; „N/E” i puste = brak (nie zero); seria bez „datos” = brak danych
+    w zakresie (kolumna pusta); seria z listy ids nieobecna w odpowiedzi = błąd (wtedy formularz)."""
+    b = j.get('bmx') if isinstance(j, dict) else None
+    ser = b.get('series') if isinstance(b, dict) else None
+    if not isinstance(ser, list):
+        raise RuntimeError('odpowiedź bez bmx.series')
+    by = {}
+    for s in ser:
+        if not isinstance(s, dict) or not isinstance(s.get('idSerie'), str):
+            continue
+        vals = by.setdefault(s['idSerie'].strip(), {})
+        for o in s.get('datos') if isinstance(s.get('datos'), list) else []:
+            o = o if isinstance(o, dict) else {}
+            m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', str(o.get('fecha', '')).strip())
+            t = str(o.get('dato', '')).strip()
+            v = _num(t) if m and t not in ('', 'N/E') else None
+            if v is not None:
+                vals[f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = v
+    miss = [c for c in ids if c not in by]
+    if miss:
+        raise RuntimeError('brak serii w odpowiedzi: ' + ', '.join(miss))
+    return _bmx_join(by)
+
+
+class _BmxNoRedirect(urllib.request.HTTPRedirectHandler):
+    """v126: przekierowanie z API SIE = błąd (HTTPError 3xx), nie nowe zapytanie — urllib przy przekierowaniu kopiuje wszystkie
+    nagłówki zapytania (także Bmx-Token) na nowy adres, nawet na inny serwer."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+class BmxTokenOdrzucony(RuntimeError):
+    """v126: bank nie przyjął tokenu (obiekt błędu SIE z komunikatem o tokenie, bez pól limitu) — notatka dla właściciela, nie błąd źródła."""
+
+
+def bmx_fetch(url, token, timeout=60):
+    """v126: jedno GET do API SIE: token TYLKO w nagłówku Bmx-Token (nigdy ?token= w adresie), bez przekierowań, bez kompresji → JSON."""
+    req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Accept': 'application/json', 'Bmx-Token': token})
+    with urllib.request.build_opener(_BmxNoRedirect).open(req, timeout=timeout) as r:
+        return json.loads(r.read().decode('utf-8', 'replace'))
+
+
+def _bmx_txt(x, token=''):
+    """v126: tekst z odpowiedzi banku do komunikatu — NAJPIERW maskowanie całości (SECRETS i sam token, także gdy SECRETS jeszcze go nie ma),
+    potem każdy ciąg ≥ 20 liter/cyfr (np. urywek tokenu) = ***; skraca dopiero wołający (token ucięty w połowie nie pasowałby już
+    do SECRETS i przeszedłby przez końcowe maskowanie do meta.json)."""
+    t = mask(' '.join(str(x or '').split()))
+    if token:
+        t = t.replace(token, '***')
+    return re.sub(r'[A-Za-z0-9]{20,}', '***', t)
+
+
+def bmx_api(token, ids, a, b):
+    """v126: serie ids od a do b (RRRR-MM-DD) z API SIE — jedno zapytanie, bez ponawiania (blokada limitu trwa do końca okna).
+    Błąd SIE: {"error": {"mensaje", "detalle", "timeReset"?, "secondsToReset"?}} (bank nie odbija tokenu). Token odrzucony = obiekt błędu
+    SIE z komunikatem o tokenie i bez pól limitu (np. HTTP 400 „Token inválido”) → BmxTokenOdrzucony(komunikat banku); każda inna odmowa —
+    także 401/403 bez obiektu błędu SIE (strona zapory albo CDN to nie bank o tokenie) → RuntimeError('HTTP kod: komunikat'
+    + ' (blokada limitu jeszcze N s)' przy limicie). Komunikat: maskowany w całości, dopiero potem skrócony do 80 znaków."""
+    code, why = 200, 'odpowiedź z polem error'
+    try:
+        j = bmx_fetch(BMX_API.format(ids=','.join(ids), a=a, b=b), token)
+    except urllib.error.HTTPError as e:
+        code, why = e.code, e.reason
+        try:
+            j = json.loads(e.read().decode('utf-8', 'replace'))
+        except Exception:
+            j = None
+        finally:
+            e.close()
+        if not (isinstance(j, dict) and 'error' in j):
+            j = {'error': None}
+    if not (isinstance(j, dict) and 'error' in j):
+        return j
+    err = j['error'] if isinstance(j['error'], dict) else {}
+    full = _bmx_txt(err.get('mensaje'), token)
+    msg = full[:80]
+    if 'token' in full.lower() and not ('timeReset' in err or 'secondsToReset' in err):
+        raise BmxTokenOdrzucony(msg)
+    wait = str(err.get('secondsToReset', '')).strip()
+    raise RuntimeError(f'HTTP {code}: {msg or _bmx_txt(why, token)[:80]}' + (f' (blokada limitu jeszcze {wait} s)' if re.fullmatch(r'\d+', wait) else ''))
+
+
+def _mx_bad(d):
+    """Dni spoza skali (v126: wspólne dla formularza i API)."""
+    return [r[0] for r in d if not 1e5 < r[1] < 1e8 or (r[2] is not None and not r[1] < r[2] < 1e9)]   # 0,1–100 bln MXN; mniej niż całość
+
+
+def bmx_api_rows(token, now):
+    """v126: wiersze Meksyku z API SIE (te same serie i ten sam zakres lat co formularz) albo None = formularz jak dotąd.
+    Token w innym kształcie niż token SIE nie jest wysyłany; token odrzucony = JEDNA notatka (nazwa sekretu, nigdy wartość), nie błąd;
+    inna awaria (sieć, limit, odpowiedź, skala) = błąd „Banxico API (zapas: formularz)”."""
+    if not BMX_TOKEN_KSZTALT.fullmatch(token):
+        META['notes'].append('BANXICO_TOKEN odrzucony przed wysłaniem: to nie jest token Banxico (64 litery i cyfry) — Meksyk z formularza')
+        return None
+    ids = [c for _, c in BMX_SER]
+    b = (_now_utc() - datetime.timedelta(hours=6)).date()   # dzień w Meksyku (UTC−6, bez czasu letniego od 2022): koniec zakresu nie „jutro”
+    try:
+        d = parse_bmx_api(bmx_api(token, ids, f'{now.year - 2}-01-01', b.isoformat()), ids)[-MX_KEEP:]
+        bad = _mx_bad(d)
+        if bad:
+            raise RuntimeError(f'skala niezgodna ({bad[-1]})')
+    except BmxTokenOdrzucony as e:
+        META['notes'].append(mask(f'BANXICO_TOKEN odrzucony przez bank ({e}) — Meksyk z formularza'))
+        return None
+    except Exception as e:
+        META['errors'].append(mask(f'Banxico API (zapas: formularz): {e}'))
+        return None
+    print(f'MEKSYK: dane z API SIE (BANXICO_TOKEN), {len(d)} sesji do {d[-1][0]}')
+    return d
+
+
+def build_meksyk(key, token=''):
     """data/meksyk.json — d: [[data, nierezydenci, razem w obiegu, Bonos M, Cetes, Udibonos]] mln MXN nominalnie (270 sesji);
-    fx: [kurs MXN/USD, dzień kursu] (Fed, z dnia danych albo najbliższego wcześniejszego)."""
+    fx: [kurs MXN/USD, dzień kursu] (Fed, z dnia danych albo najbliższego wcześniejszego).
+    v126: z tokenem (sekret BANXICO_TOKEN) najpierw oficjalne API SIE — te same serie i ten sam zakres, więc te same wiersze; bez tokenu,
+    z tokenem odrzuconym albo po awarii API — formularz jak dotąd (bmx_api_rows). Plik ma te same pola co dotąd."""
     now = _now_utc().date()
-    form = {'locale': 'es', 'idCuadro': 'CA138', 'sector': '7', 'version': '3', 'series': [c for _, c in BMX_SER],
-            'anoInicial': str(now.year - 2), 'anoFinal': str(now.year),    # v88.1: w styczniu też jest koniec poprzedniego roku 'tipoInformacion': '4,1', 'formatoHorizontal': 'false',
-            'metadatosWeb': 'true', 'formatoCSV.x': '10', 'formatoCSV.y': '10'}
-    d = parse_bmx(post_bytes(BMX_URL, form).decode('latin-1'))[-MX_KEEP:]
-    bad = [r[0] for r in d if not 1e5 < r[1] < 1e8 or (r[2] is not None and not r[1] < r[2] < 1e9)]   # 0,1–100 bln MXN; mniej niż całość
+    d = bmx_api_rows(token, now) if token else None
+    if d is None:
+        form = {'locale': 'es', 'idCuadro': 'CA138', 'sector': '7', 'version': '3', 'series': [c for _, c in BMX_SER],
+                'anoInicial': str(now.year - 2), 'anoFinal': str(now.year),    # v88.1: w styczniu też jest koniec poprzedniego roku 'tipoInformacion': '4,1', 'formatoHorizontal': 'false',
+                'metadatosWeb': 'true', 'formatoCSV.x': '10', 'formatoCSV.y': '10'}
+        d = parse_bmx(post_bytes(BMX_URL, form).decode('latin-1'))[-MX_KEEP:]
+    bad = _mx_bad(d)
     if bad:
         raise RuntimeError(f'skala niezgodna ({bad[-1]})')
     over = [r[0] for r in d[-30:] if None not in r[3:6] and r[3] + r[4] + r[5] > r[1] + 1]
@@ -6252,7 +6638,527 @@ def lev_hist(hist, out, today):
     return [H[k] for k in keys[-LEV_HIST:]]
 
 
-def build_dzwignia(prev=None, today=None, only=None):
+# --- v126 (część `cz`): wszystkie duże giełdy kontraktów, 10 monet — Coinalyze (sekret COINALYZE_KEY, klucz WYŁĄCZNIE w nagłówku api_key) ---
+# Jeden pośrednik podaje otwarte pozycje, finansowanie, likwidacje i stosunek kont z wielu giełd naraz — także Binance i Bybit, których
+# własne API nie odpowiadają z serwera GitHub. Limit pośrednika: 40 wywołań na minutę, a każdy symbol w zapytaniu to jedno wywołanie —
+# stąd budżet CZ_PER_RUN na przebieg (przebiegi co 20 min, jedna seria < 1 min) i harmonogram zadań wg zaległości (cz_plan).
+# Rynki (symbole) zawsze z /future-markets, nigdy składane ręcznie (konwencje giełd są różne: BTCUSDT_PERP.A, BTCUSDT.6, BTC.H …).
+# Finansowanie: sonda z GitHub 27.09.2026 — stawka Hyperliquid u pośrednika = bezpośrednia stawka godzinowa giełdy, czyli stawka za WŁASNY
+# okres giełdy (nie znormalizowana do 8 h). Na rok przeliczamy więc tylko rynki z potwierdzonym okresem: giełdy z jednym okresem
+# godzinowym dla wszystkich rynków (CZ_FR_H, jak LEV_HOURS) — gdy stawka zgadza się z naszym bezpośrednim odczytem tej giełdy — oraz
+# rynki BTC/ETH w USDT na OKX (okres z naszego odczytu giełdy). Pozostałe giełdy: stawka za ich okres, bez przeliczania (okresu nie ma
+# w źródle). Brak liczby = None, nigdy zero; każda miara ma własny czas `t`. Awaria pośrednika nie rusza pozostałych części pliku.
+# Pomysł na później (nie budujemy teraz): dzienne sygnały z historii dziennej pośrednika (przechowywanej bez końca) w osobnym pliku.
+CZ_URL = 'https://api.coinalyze.net/v1/'
+CZ_PX = 'Coinalyze'                        # początek komunikatu błędu (jak LEV_PX; poza LEV_PX — część dodatkowa, tylko z kluczem)
+CZ_COINS = TR_CR_SYMS                      # 10 monet strony (BTC … AVAX)
+CZ_QUOTES = ('USDT', 'USD', 'USDC')        # kolejność = pierwszeństwo przy wyborze jednego rynku giełdy
+CZ_BATCH = 20                              # najwyżej 20 symboli w jednym zapytaniu (dokumentacja)
+CZ_PER_RUN = 32                            # wywołań (symboli) na przebieg — poniżej limitu 40/min, z zapasem na ręczną sondę; reszta w następnym
+CZ_RETRY_MAX = 10                          # s: najdłuższe Retry-After, na które czekamy (jeden raz)
+CZ_FAILS_MAX = 2                           # po tylu nieudanych zadaniach krok kończy się w tym przebiegu (reszta zostaje zaległa)
+CZ_MINSHARE = 0.01                         # rynek należy do „dużych giełd”, gdy ma ≥ 1 % otwartych pozycji monety (odkrywanie raz na dobę)
+CZ_AGE = {'mk': (1435, 1435), 'disc': (1435, 1435), 'oi': (55, 175), 'lq': (115, 355), 'ls': (115, 715), 'fr': (175, 355)}   # minut: (BTC/ETH, reszta)
+CZ_PRIO = ('mk', 'disc', 'oi', 'lq', 'ls', 'fr')
+CZ_FR_H = {'hl': 1, 'kr': 1, 'cb': 1, 'dy': 1}   # okres rozliczenia w godzinach, jeden dla wszystkich rynków giełdy (dokumentacja; jak LEV_HOURS + Hyperliquid)
+CZ_DIRECT = (('hyperliquid', 'hl'), ('kraken', 'kr'), ('coinbase', 'cb'), ('dydx', 'dy'), ('okx', 'okx'), ('okex', 'okx'))   # nazwa giełdy → nasza część
+CZ_CHK_AGE = 3600                          # s: bezpośredni odczyt do porównania stawki — nie starszy niż godzina
+CZ_CHK_KEEP = 7 * 86400                    # s: potwierdzenie okresu ważne 7 dni (odnawiane przy każdym odczycie finansowania BTC/ETH)
+CZ_CHK_MIN = 2e-6                          # |stawka godzinowa| poniżej — porównanie nierozstrzygające (szum wokół zera)
+CZ_CHK_BAND = (0.5, 2.0)                   # stawka pośrednika / nasza za okres z tabeli: poza pasmem = niezgodność (np. stawka przeliczona na 4 h albo 8 h → r ≈ 4 albo 8)
+CZ_LQ_RECHECK = 7                          # dni: rynek bez danych o likwidacjach pytany ponownie dopiero po tylu dniach
+CZ_LQ_LAG = 300                            # s: okno likwidacji kończy się na pełnej godzinie sprzed co najmniej 5 min (godzina już domknięta u pośrednika)
+_CZ_LEFT = [0]                             # budżet wywołań pozostały w tym przebiegu
+
+
+class CzStop(Exception):
+    """Koniec kroku w tym przebiegu (limit 429, zły klucz, blokada, brak łączności, budżet) — zaległe zadania w następnym przebiegu."""
+
+
+def cz_iso(s):
+    return datetime.datetime.fromtimestamp(int(s), datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def cz_age(iso, now):
+    """Wiek znacznika ISO w sekundach wobec `now`; brak albo zły kształt → nieskończoność (zadanie zaległe, potwierdzenie nieważne)."""
+    try:
+        return (now - datetime.datetime.fromisoformat(str(iso))).total_seconds() if iso else float('inf')
+    except (TypeError, ValueError):
+        return float('inf')
+
+
+def cz_get(path, key, cost=1):
+    """GET {CZ_URL}{path}; klucz tylko w nagłówku api_key (nigdy w adresie ani w pliku). `cost` = liczba symboli — schodzi z budżetu przebiegu
+    przed wysłaniem; brak budżetu = zapytanie niewysłane. 429: jedno ponowienie po Retry-After ≤ CZ_RETRY_MAX s (gdy starcza czasu), inaczej
+    CzStop. 401/403, brak łączności i odpowiedź nie-JSON = CzStop (kolejne zapytania skończyłyby się tak samo); inne kody HTTP = błąd zadania."""
+    try:
+        lev_tmo()
+    except RuntimeError as e:
+        raise CzStop(str(e))
+    if cost > _CZ_LEFT[0]:
+        raise CzStop(f'budżet {CZ_PER_RUN} wywołań na przebieg wyczerpany')
+    _CZ_LEFT[0] -= cost
+    for proba in (1, 2):
+        try:
+            j = get_json(CZ_URL + path, {'api_key': key}, lev_tmo())
+            break
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                h = e.headers.get('Retry-After') if e.headers is not None else None
+                ra = lev_num(h)
+                left = None if _LEV_TERMIN[0] is None else _LEV_TERMIN[0] - time.monotonic()
+                if proba == 1 and ra is not None and 0 <= ra <= CZ_RETRY_MAX and (left is None or left > ra + 2):
+                    time.sleep(ra)
+                    continue
+                raise CzStop(f'limit zapytań (HTTP 429, Retry-After {h if h is not None else "—"})')
+            if e.code in (401, 403):
+                raise CzStop(f'HTTP {e.code} — klucz odrzucony albo blokada')
+            raise
+        except RuntimeError as e:          # limit czasu przebiegu (lev_tmo)
+            raise CzStop(str(e))
+        except (urllib.error.URLError, OSError, ValueError) as e:   # brak łączności, przekroczony czas, odpowiedź nie-JSON (strona HTML)
+            raise CzStop(f'{type(e).__name__}: {e}')
+    if not isinstance(j, list):
+        raise ValueError('nieoczekiwany kształt odpowiedzi')
+    return j
+
+
+def cz_many(path, syms, key, params):
+    """Zapytanie z symbolami w paczkach po ≤ CZ_BATCH; każda paczka kosztuje tyle wywołań, ile ma symboli. Wynik = złączone listy."""
+    out = []
+    for i in range(0, len(syms), CZ_BATCH):
+        part = syms[i:i + CZ_BATCH]
+        qs = urllib.parse.urlencode(dict(params, symbols=','.join(part)), safe=',')
+        out += cz_get(f'{path}?{qs}', key, cost=len(part))
+    return out
+
+
+def cz_pick(ex, fm, coins=CZ_COINS, quotes=CZ_QUOTES):
+    """/exchanges + /future-markets → {'ex': {kod: nazwa}, 'all': {moneta: [[symbol, kod, notowanie, ls], …]}}: tylko kontrakty wieczyste
+    10 monet notowane w USD/USDT/USDC, na giełdach z listy /exchanges; symbol dokładnie jak u pośrednika; ls = 1, gdy rynek ma stosunek kont."""
+    if not isinstance(ex, list) or not isinstance(fm, list):
+        raise ValueError('nieoczekiwany kształt listy giełd albo rynków')
+    names = {e['code']: str(e.get('name') or e['code']) for e in ex if isinstance(e, dict) and isinstance(e.get('code'), str) and e['code']}
+    mk, seen = {}, set()
+    for m in fm:
+        if not isinstance(m, dict) or m.get('is_perpetual') is not True:
+            continue
+        c, q, code, sym = m.get('base_asset'), m.get('quote_asset'), m.get('exchange'), m.get('symbol')
+        if c not in coins or q not in quotes or code not in names or not isinstance(sym, str) or not sym.endswith('.' + code) or sym in seen:
+            continue
+        seen.add(sym)
+        mk.setdefault(c, []).append([sym, code, q, 1 if m.get('has_long_short_ratio_data') is True else 0])
+    if not mk:
+        raise ValueError('brak rynków wieczystych dla monet strony')
+    used = sorted({r[1] for rows in mk.values() for r in rows})
+    return {'ex': {k: names[k] for k in used}, 'all': {c: sorted(rows, key=lambda r: (r[1], quotes.index(r[2]), r[0])) for c, rows in mk.items()}}
+
+
+def cz_cur(j):
+    """Bieżąca stawka: [{symbol, value, update (ms)}] → {symbol: (wartość, update_ms)}; wiersz bez liczby pominięty (nigdy zero)."""
+    out = {}
+    for r in j:
+        if isinstance(r, dict) and isinstance(r.get('symbol'), str):
+            v, u = lev_num(r.get('value')), lev_num(r.get('update'))
+            if v is not None and u is not None:
+                out[r['symbol']] = (v, int(u))
+    return out
+
+
+def cz_hist(j):
+    """Historia: [{symbol, history: [{t (s, początek przedziału), …}]}] → {symbol: wiersze rosnąco wg t}. Symbolu brak = brak danych u pośrednika."""
+    out = {}
+    for it in j:
+        if isinstance(it, dict) and isinstance(it.get('symbol'), str) and isinstance(it.get('history'), list):
+            rows = [dict(r, t=int(lev_num(r.get('t')))) for r in it['history'] if isinstance(r, dict) and lev_num(r.get('t')) is not None]
+            out[it['symbol']] = sorted(rows, key=lambda r: r['t'])
+    return out
+
+
+def cz_oi(rows, hist, now_s):
+    """Otwarte pozycje w USD z historii godzinowej: na rynek ostatni wiersz (zamknięcie `c`; bieżąca godzina = stan teraz) i odczyt dokładnie
+    dobę wcześniej (otwarcie albo zamknięcie tamtej godziny — bliższe) → zmiana 24 h tylko z rynków z oboma odczytami (ten sam zestaw).
+    Rynek bez wiersza z ostatnich 2 godzin albo z liczbą ≤ 0 — pominięty (nie zero). → (agregat albo None, {symbol: [usd, czas]})."""
+    H = now_s // 3600 * 3600
+    by, per, cur, ago, n1, ts = {}, {}, 0.0, 0.0, 0, []
+    for sym, code, _q, _ls in rows:
+        R = hist.get(sym) or []
+        if not R:
+            continue
+        tl = R[-1]['t']
+        v = lev_num(R[-1].get('c'))
+        if v is None or v <= 0 or tl < H - 3600:
+            continue
+        vt = min(now_s, tl + 3600)
+        by[code] = by.get(code, 0.0) + v
+        ts.append(vt)
+        per[sym] = [round(v), cz_iso(vt)]
+        T = vt - 86400
+        old = next((r for r in R if r['t'] <= T < r['t'] + 3600), None)
+        o = lev_num(old.get('o' if T - old['t'] < 1800 else 'c')) if old else None
+        if o is not None and o > 0:
+            cur += v
+            ago += o
+            n1 += 1
+    if not per:
+        return None, per
+    return ({'usd': round(sum(by.values())), 'n': len(per), 'nex': len(by), 'v': ''.join(sorted(by)), 'd1': lev_r((cur / ago - 1) * 100, 3) if n1 else None,
+             'n1': n1, 't': cz_iso(min(ts))}, per)
+
+
+def cz_lq_win(now_s):
+    """Okno likwidacji: dokładnie 24 pełne godziny [h0, h1), h1 = ostatnia pełna godzina sprzed co najmniej CZ_LQ_LAG s (bieżąca,
+    niedomknięta godzina poza oknem). Data przy liczbie to h1 — koniec okna, więc wiek na stronie jest prawdziwy."""
+    h1 = (now_s - CZ_LQ_LAG) // 3600 * 3600
+    return h1 - 86400, h1
+
+
+def cz_lq(rows, hist, h0, h1):
+    """Likwidacje w USD (godzinowe, convert_to_usd) z okna [h0, h1) (cz_lq_win: 24 pełne godziny): suma długich (l) i krótkich (s).
+    Rynek bez żadnego wiersza w oknie nie jest liczony; żaden rynek z wierszami → None (nigdy zero)."""
+    by, n = {}, 0
+    for sym, code, _q, _ls in rows:
+        L = [(lev_num(r.get('l')), lev_num(r.get('s'))) for r in hist.get(sym, []) if h0 <= r['t'] < h1]
+        L = [(a if a is not None and a >= 0 else 0.0, b if b is not None and b >= 0 else 0.0) for a, b in L
+             if (a is not None and a >= 0) or (b is not None and b >= 0)]
+        if not L:
+            continue
+        e = by.setdefault(code, [0.0, 0.0])
+        e[0] += sum(a for a, _ in L)
+        e[1] += sum(b for _, b in L)
+        n += 1
+    if not n:
+        return None
+    return {'l': round(sum(v[0] for v in by.values())), 's': round(sum(v[1] for v in by.values())), 'n': n, 'nex': len(by), 'from': cz_iso(h0), 't': cz_iso(h1)}
+
+
+def cz_ls_rows(rows):
+    """Po jednym rynku na giełdę spośród rynków ze stosunkiem kont (USDT, potem USD, potem USDC)."""
+    pick = {}
+    for r in sorted(rows, key=lambda r: (r[1], CZ_QUOTES.index(r[2]) if r[2] in CZ_QUOTES else 9, r[0])):
+        if r[3] and r[1] not in pick:
+            pick[r[1]] = r
+    return [pick[k] for k in sorted(pick)]
+
+
+def cz_ls(rows, hist):
+    """Stosunek kont długich do krótkich (liczony przez giełdy): ostatni wiersz i wiersz dokładnie dobę wcześniej (r24) na giełdę;
+    stosunek ≤ 0 albo l + s różne od 100 (±1) — pominięty. → {kod: {r, l, s, t, r24}}."""
+    out = {}
+    for sym, code, _q, _ls in rows:
+        R = hist.get(sym) or []
+        if not R:
+            continue
+        x = R[-1]
+        v, lo, sh = lev_num(x.get('r')), lev_num(x.get('l')), lev_num(x.get('s'))
+        if v is None or v <= 0 or lo is None or sh is None or abs(lo + sh - 100) > 1:
+            continue
+        y = next((r for r in R if r['t'] == x['t'] - 86400), None)
+        r24 = lev_num(y.get('r')) if y else None
+        out[code] = {'r': round(v, 4), 'l': round(lo, 2), 's': round(sh, 2), 't': cz_iso(x['t']), 'r24': round(r24, 4) if r24 is not None and r24 > 0 else None}
+    return out
+
+
+def cz_part_of(name):
+    """Nazwa giełdy u pośrednika → nasza część z bezpośrednim odczytem (hl, kr, cb, dy, okx) albo None."""
+    n = re.sub(r'[\s\-_.]', '', str(name or '').lower())
+    return next((p for k, p in CZ_DIRECT if n.startswith(k)), None)
+
+
+def cz_direct(out, p, c, now):
+    """Nasz bezpośredni odczyt giełdy `p` dla monety c: (stawka za okres, godziny okresu, nazwy rynku u giełdy) albo None — brak części,
+    brak stawki albo odczyt starszy niż CZ_CHK_AGE (własny czas wiersza, a bez niego czas części)."""
+    P = out.get(p) if isinstance(out, dict) else None
+    if not isinstance(P, dict):
+        return None
+    r = (P.get('rows') or {}).get(c) if p == 'hl' else P.get(c)
+    if not isinstance(r, dict):
+        return None
+    pat = out.get('part_at') if isinstance(out.get('part_at'), dict) else {}
+    age = cz_age(r.get('t') if p != 'hl' and isinstance(r.get('t'), str) else pat.get(p), now)
+    if not -300 <= age <= CZ_CHK_AGE:
+        return None
+    if p == 'okx':
+        f, h, names = lev_num(r.get('f')), lev_num(r.get('f_hours')), {f'{c}USDT_PERP', f'{c}-USDT-SWAP'}
+    else:
+        fh, h = lev_num(r.get('f_h')), (1 if p == 'hl' else lev_num(r.get('f_hours')))
+        f = fh * h if fh is not None and h else None
+        names = {'hl': {c}, 'kr': {r.get('sym')}, 'cb': {f'{c}-PERP'}, 'dy': {f'{c}-USD'}}[p]
+    if f is None or not h or h <= 0:
+        return None
+    return f, h, names
+
+
+def cz_check(c, rates, cz, out, now):
+    """Zgodność stawki pośrednika z naszym odczytem tej samej giełdy (moneta c): r = stawka pośrednika / stawka giełdy za okres z tabeli
+    CZ_FR_H (OKX: okres z naszego odczytu). r w CZ_CHK_BAND [0,5; 2] = okres potwierdzony; poza = niezgodny (giełda nie jest przeliczana
+    na rok) — pośrednik podający stawkę przeliczoną na 4 h albo 8 h zamiast okresu giełdy daje r ≈ 4 albo 8 i nie przejdzie;
+    stawka bliska zera albo brak świeżego odczytu = nierozstrzygające (bez wpisu). → {'<część>:<moneta>': {r, ok, t (, h, sym)}}."""
+    res = {}
+    for code, name in (cz.get('ex') or {}).items():
+        p = cz_part_of(name)
+        d = cz_direct(out, p, c, now) if p else None
+        if not d:
+            continue
+        f, h, names = d
+        hh = h if p == 'okx' else CZ_FR_H.get(p)
+        sym = next((r[0] for r in ((cz.get('mk') or {}).get(c) or {}).get('all') or [] if r[1] == code and r[0].rsplit('.', 1)[0] in names), None)
+        v = rates.get(sym) if sym else None
+        if not hh or v is None or abs(f / h) < CZ_CHK_MIN:
+            continue
+        r = round((v[0] / 100) / (f / h * hh), 3)   # granice pasma na tej samej liczbie, która trafia do pliku
+        res[f'{p}:{c}'] = dict({'r': r, 'ok': CZ_CHK_BAND[0] <= r <= CZ_CHK_BAND[1], 't': NOW}, **({'h': hh, 'sym': sym} if p == 'okx' else {}))
+    return res
+
+
+def cz_hours(sym, code, c, cz, now):
+    """Okres rozliczenia rynku w godzinach, gdy potwierdzony; inaczej None (stawka zostaje za okres, bez przeliczania na rok).
+    Giełda z tabeli CZ_FR_H: najnowsze rozstrzygające porównania (BTC i ETH, ≤ 7 dni) muszą być zgodne — przy tym samym czasie (oba
+    z jednego przebiegu) wszystkie, niezależnie od kolejności w pliku. OKX: tylko rynek z porównania."""
+    p = cz_part_of((cz.get('ex') or {}).get(code))
+    chk = cz.get('chk') or {}
+    if p in CZ_FR_H:
+        L = [(cz_age(v.get('t'), now), v) for k, v in chk.items() if k.split(':')[0] == p and isinstance(v, dict)]
+        L = [(a, v) for a, v in L if a <= CZ_CHK_KEEP]
+        if not L:
+            return None
+        a0 = min(a for a, _v in L)
+        return CZ_FR_H[p] if all(v.get('ok') is True for a, v in L if a == a0) else None
+    if p == 'okx':
+        v = chk.get(f'okx:{c}')
+        if isinstance(v, dict) and v.get('ok') is True and v.get('sym') == sym and cz_age(v.get('t'), now) <= CZ_CHK_KEEP and lev_num(v.get('h')):
+            return v['h']
+    return None
+
+
+def cz_fr(rows, rates, s, hours_of, now):
+    """rates = {symbol: (stawka % za okres giełdy, update ms)}; s = {symbol: [usd, czas]} (wagi, ≤ 6 h). Średnia roczna ważona pozycjami
+    tylko z rynków z potwierdzonym okresem (hours_of → godziny albo None); `w` = udział pozycji w średniej wśród rynków ze stawką.
+    Na giełdę: stawka jej największego rynku (wg pozycji) — [stawka % za okres, okres h albo None, notowanie, % rocznie albo None].
+    Średniej brak → `yx` mówi dlaczego: 'h' = żaden rynek ze stawką nie ma potwierdzonego okresu, 'w' = są rynki z potwierdzonym okresem,
+    ale ich wagi (pozycje) są starsze niż LEV_SUMAGE — strona pokazuje wtedy inny powód niż „brak potwierdzonego okresu”.
+    Stawka nieprawdopodobna (godzinowa > LEV_FMAX przy znanym okresie, > 8 × LEV_FMAX za okres bez okresu) = pomyłka jednostki → pominięta."""
+    now_ms = int(now.timestamp() * 1000)
+    acc, wall, used, ts, best, conf = [0.0, 0.0], 0.0, set(), [], {}, False
+    for sym, code, q, _ls in rows:
+        x = rates.get(sym)
+        if not x or now_ms - x[1] > LEV_SUMAGE * 1000:
+            continue
+        v, h = x[0], hours_of(sym, code)
+        if abs(v / 100) > (LEV_FMAX * h if h else LEV_FMAX * 8):
+            continue
+        so = s.get(sym)
+        w = so[0] if isinstance(so, list) and len(so) == 2 and lev_num(so[0]) and so[0] > 0 and cz_age(so[1], now) <= LEV_SUMAGE else None
+        y = v / h * 24 * 365 if h else None
+        conf = conf or y is not None
+        ts.append(x[1])
+        if w:
+            wall += w
+            if y is not None:
+                acc[0] += y * w
+                acc[1] += w
+                used.add(code)
+        if code not in best or (w or 0) > best[code][0]:
+            best[code] = (w or 0, [round(v, 6), h, q, lev_r(y, 3)])
+    if not ts:
+        return None
+    return dict({'y': round(acc[0] / acc[1], 3) if acc[1] > 0 else None, 'w': round(acc[1] / wall, 4) if acc[1] > 0 and wall > 0 else None,
+                 'n': len(used), 'yv': ''.join(sorted(used)), 't': cz_iso(min(ts) // 1000), 'by': {k: best[k][1] for k in sorted(best)}},
+                **({} if acc[1] > 0 else {'yx': 'w' if conf else 'h'}))
+
+
+def cz_norm(prev):
+    """Poprzednia część `cz` → głęboka kopia z pewnymi słownikami (zły kształt = pusty, zadania wracają do kolejki)."""
+    P = json.loads(json.dumps(prev)) if isinstance(prev, dict) else {}
+    for k in ('ex', 'mk', 's', 'lqno', 'c', 'q', 'chk'):
+        if not isinstance(P.get(k), dict):
+            P[k] = {}
+    for c in list(P['mk']):
+        m = P['mk'][c]
+        if not isinstance(m, dict) or not isinstance(m.get('all'), list):
+            del P['mk'][c]
+            continue
+        m['all'] = [r for r in m['all'] if isinstance(r, list) and len(r) == 4 and isinstance(r[0], str) and isinstance(r[1], str)]
+        if not isinstance(m.get('big'), list):
+            m.pop('big', None)
+    return P
+
+
+def cz_big_rows(cz, c):
+    m = cz['mk'].get(c) or {}
+    big = set(m.get('big') or [])
+    return [r for r in m.get('all') or [] if r[0] in big]
+
+
+def cz_lq_rows(cz, c, now):
+    """Duże rynki monety bez tych, które niedawno (< CZ_LQ_RECHECK dni) nie miały u pośrednika danych o likwidacjach."""
+    d0 = (now.date() - datetime.timedelta(days=CZ_LQ_RECHECK)).isoformat()
+    return [r for r in cz_big_rows(cz, c) if str(cz['lqno'].get(r[0]) or '') <= d0]
+
+
+def cz_cost(cz, k, c, now):
+    if k == 'mk':
+        return 2
+    if k == 'disc':
+        return min(len((cz['mk'].get(c) or {}).get('all') or []), CZ_PER_RUN)
+    if k == 'lq':
+        return len(cz_lq_rows(cz, c, now))
+    if k == 'ls':
+        return len(cz_ls_rows(cz_big_rows(cz, c)))
+    return len(cz_big_rows(cz, c))
+
+
+def cz_plan(cz, now, budget=None):
+    """Zadania zaległe na ten przebieg: 'mk' (giełdy i rynki, raz na dobę), 'disc:<moneta>' (pozycje wszystkich rynków → zestaw dużych),
+    'oi' / 'lq' / 'ls' / 'fr' na dużych rynkach. Najpierw 'mk', potem wg zaległości względem celu (wiek / CZ_AGE), przy remisie wg rodzaju
+    i monety (BTC, ETH pierwsze); zachłannie do `budget` wywołań. Zadanie nieudane nie dostaje czasu sukcesu — zostaje zaległe."""
+    tasks = [('mk', 'mk', '')]
+    if cz.get('mk_at'):
+        for c in CZ_COINS:
+            m = cz['mk'].get(c) or {}
+            if not m.get('all'):
+                continue
+            tasks.append((f'disc:{c}', 'disc', c))
+            if m.get('big'):
+                tasks += [(f'{k}:{c}', k, c) for k in ('oi', 'lq', 'ls', 'fr')]
+    todo = []
+    for key, k, c in tasks:
+        tgt = CZ_AGE[k][0 if c in ('', 'BTC', 'ETH') else 1]
+        age = cz_age(cz['q'].get(key), now) / 60
+        if age < tgt:
+            continue
+        todo.append((0 if k == 'mk' else 1, -min(age / tgt, 1e6), CZ_PRIO.index(k), CZ_COINS.index(c) if c else -1, key, cz_cost(cz, k, c, now)))
+    todo.sort()
+    out, left = [], CZ_PER_RUN if budget is None else budget
+    for *_x, key, cost in todo:
+        if cost <= left:
+            out.append(key)
+            left -= cost
+    return out
+
+
+def cz_t_mk(cz, c, key, out, now):
+    u = cz_pick(cz_get('exchanges', key), cz_get('future-markets', key))
+    cz['ex'], cz['mk_at'] = u['ex'], NOW
+    alls = set()
+    for coin in CZ_COINS:
+        rows = u['all'].get(coin, [])
+        syms = {r[0] for r in rows}
+        alls |= syms
+        m = cz['mk'].setdefault(coin, {})
+        m['all'] = rows
+        if isinstance(m.get('big'), list):
+            m['big'] = [s for s in m['big'] if s in syms]
+    for k in ('s', 'lqno'):   # rynek zniknął z listy — przestaje się liczyć (bez zer)
+        cz[k] = {s: v for s, v in cz[k].items() if s in alls}
+
+
+def cz_t_disc(cz, c, key, out, now):
+    now_s = int(now.timestamp())
+    rows = sorted(cz['mk'][c]['all'], key=lambda r: -((cz['s'].get(r[0]) or [0])[0] or 0))[:CZ_PER_RUN]   # (limit tylko na wypadek > 32 rynków)
+    H = now_s // 3600 * 3600
+    hist = cz_hist(cz_many('open-interest-history', [r[0] for r in rows], key, {'interval': '1hour', 'from': H - 25 * 3600, 'to': now_s, 'convert_to_usd': 'true'}))
+    _agg, per = cz_oi(rows, hist, now_s)
+    tot = sum(v[0] for v in per.values())
+    if tot <= 0:
+        raise ValueError('brak otwartych pozycji z ostatnich 2 godzin')
+    big = sorted((s for s in per if per[s][0] >= CZ_MINSHARE * tot), key=lambda s: (-per[s][0], s))
+    cz['mk'][c]['big'], cz['mk'][c]['disc_at'] = big, NOW
+    for r in cz['mk'][c]['all']:
+        cz['s'].pop(r[0], None)
+    cz['s'].update({s: per[s] for s in big})
+    agg, _ = cz_oi([r for r in rows if r[0] in set(big)], hist, now_s)
+    cz['c'].setdefault(c, {})['oi'] = agg
+    cz['q'][f'oi:{c}'] = NOW   # pozycje dużych rynków właśnie odczytane
+
+
+def cz_t_oi(cz, c, key, out, now):
+    now_s = int(now.timestamp())
+    rows, H = cz_big_rows(cz, c), now_s // 3600 * 3600
+    hist = cz_hist(cz_many('open-interest-history', [r[0] for r in rows], key, {'interval': '1hour', 'from': H - 25 * 3600, 'to': now_s, 'convert_to_usd': 'true'}))
+    agg, per = cz_oi(rows, hist, now_s)
+    if agg is None:
+        raise ValueError('brak otwartych pozycji z ostatnich 2 godzin')
+    cz['s'].update(per)
+    cz['c'].setdefault(c, {})['oi'] = agg
+
+
+def cz_t_lq(cz, c, key, out, now):
+    now_s = int(now.timestamp())
+    h0, h1 = cz_lq_win(now_s)
+    rows = cz_lq_rows(cz, c, now)
+    hist = cz_hist(cz_many('liquidation-history', [r[0] for r in rows], key, {'interval': '1hour', 'from': h0, 'to': now_s, 'convert_to_usd': 'true'})) if rows else {}
+    for r in rows:   # symbolu nie ma w odpowiedzi = pośrednik nie ma likwidacji tego rynku (np. Hyperliquid) — ponownie za CZ_LQ_RECHECK dni
+        if r[0] in hist:
+            cz['lqno'].pop(r[0], None)
+        else:
+            cz['lqno'][r[0]] = now.date().isoformat()
+    cz['c'].setdefault(c, {})['lq'] = cz_lq(rows, hist, h0, h1) or {'l': None, 's': None, 'n': 0, 'nex': 0, 'from': cz_iso(h0), 't': cz_iso(h1)}
+
+
+def cz_t_ls(cz, c, key, out, now):
+    now_s = int(now.timestamp())
+    rows = cz_ls_rows(cz_big_rows(cz, c))
+    hist = cz_hist(cz_many('long-short-ratio-history', [r[0] for r in rows], key, {'interval': '1hour', 'from': now_s - 26 * 3600, 'to': now_s})) if rows else {}
+    cz['c'].setdefault(c, {})['ls'] = cz_ls(rows, hist)
+
+
+def cz_t_fr(cz, c, key, out, now):
+    rows = cz_big_rows(cz, c)
+    rates = cz_cur(cz_many('funding-rate', [r[0] for r in rows], key, {}))
+    if c in ('BTC', 'ETH') and isinstance(out, dict):
+        cz['chk'].update(cz_check(c, rates, cz, out, now))
+    agg = cz_fr(rows, rates, cz['s'], lambda sym, code: cz_hours(sym, code, c, cz, now), now)
+    if agg is None:
+        raise ValueError('brak stawek finansowania')
+    cz['c'].setdefault(c, {})['f'] = agg
+
+
+CZ_TASK = {'mk': cz_t_mk, 'disc': cz_t_disc, 'oi': cz_t_oi, 'lq': cz_t_lq, 'ls': cz_t_ls, 'fr': cz_t_fr}
+
+
+def lev_cz(prev, key, out=None, now=None):
+    """Część `cz`: zaległe zadania z cz_plan w kolejności planu, w budżecie CZ_PER_RUN wywołań. Każda miara monety z własnym czasem `t`;
+    zadanie nieudane zostawia poprzednią miarę i zostaje zaległe. Nic zaległego → None (część bez zmian); nic udanego → wyjątek
+    (część poprzednia z własnym czasem). `out` = pozostałe części tego przebiegu (porównanie stawek z odczytami bezpośrednimi)."""
+    now = now or datetime.datetime.fromisoformat(NOW)
+    cz = cz_norm(prev)
+    plan = cz_plan(cz, now)
+    if not plan:
+        return None
+    _CZ_LEFT[0] = CZ_PER_RUN
+    done, fails = [], []
+    for task in plan:
+        k, _, c = task.partition(':')
+        try:
+            if cz_cost(cz, k, c, now) > _CZ_LEFT[0]:
+                continue   # rynki zmieniły się w tym przebiegu — zadanie w następnym
+            CZ_TASK[k](cz, c, key, out, now)
+            cz['q'][task] = NOW
+            done.append(task)
+        except CzStop as e:
+            fails.append(f'{task}: {e}')
+            break
+        except Exception as e:  # noqa — zadanie nieudane: poprzednia miara zostaje, zadanie zaległe
+            fails.append(f'{task}: {e}')
+            if len(fails) >= CZ_FAILS_MAX:
+                break
+    if not done:
+        if fails:
+            raise ValueError('; '.join(fails))
+        return None
+    if fails:
+        META['errors'].append(mask(f'Dźwignia: {CZ_PX}: ' + '; '.join(fails)))
+    cz['t'] = NOW
+    return cz
+
+
+def cz_due(prev_cz, now=None):
+    """Czy część `cz` ma zaległe zadania (main(): młody zdrowy plik — dobierana tylko ta część)."""
+    return bool(cz_plan(cz_norm(prev_cz), now or datetime.datetime.fromisoformat(NOW)))
+
+
+def build_dzwignia(prev=None, today=None, only=None, cz_key=None):
     """only = zbiór części do pobrania (młody plik z częścią z błędem: zdrowe części zostają z własnym czasem); None = wszystkie.
     full_at = czas ostatniej pełnej budowy — harmonogram w main() liczy godzinę od niego, nie od `at` (które odświeża też dobranie części)."""
     today = today or datetime.datetime.now(datetime.timezone.utc).date()
@@ -6279,7 +7185,7 @@ def build_dzwignia(prev=None, today=None, only=None):
                 raise ValueError('pusta odpowiedź')
             out[k] = v; out['ok'][k] = True; out['part_at'][k] = NOW
         except Exception as e:  # noqa — część z błędem: poprzednia wersja z własnym czasem, nigdy zera
-            META['errors'].append(mask(f'Dźwignia: {LEV_PX[k]}: {e}')); out['ok'][k] = False; keep(k)
+            META['errors'].append(mask(f'Dźwignia: {LEV_PX.get(k, CZ_PX)}: {e}')); out['ok'][k] = False; keep(k)   # v126: część cz poza LEV_PX
 
     part('hl', lev_hl)
     part('bn', lambda: lev_bn(prev.get('bn'), today))
@@ -6288,8 +7194,10 @@ def build_dzwignia(prev=None, today=None, only=None):
     part('kr', lambda: lev_kr(prev.get('kr')))     # v109
     part('cb', lambda: lev_cb(prev.get('cb')))
     part('dy', lambda: lev_dy(prev.get('dy')))
-    if not any(out['ok'].values()):
-        raise RuntimeError('żadna część nie odpowiedziała')
+    if not any(out['ok'].get(k) for k in LEV_PX):   # v126: liczą się tylko odczyty bezpośrednie — sama część cz nie może odświeżyć pliku
+        raise RuntimeError('żadna część nie odpowiedziała')   # (wszystkie bezpośrednie padły: poprzedni plik zostaje, kontrola to widzi; bez zapytań cz)
+    if cz_key:   # v126: część dodatkowa tylko z kluczem — ostatnia, by porównać stawki z bieżącymi odczytami bezpośrednimi (hl, kr, cb, dy, okx)
+        part('cz', lambda: lev_cz(prev.get('cz'), cz_key, out))
     out['hist'] = lev_hist(prev.get('hist'), out, today)
     return out
 
@@ -9658,20 +10566,33 @@ def main():
             for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = False
             if prev_ry: save('rynki', prev_ry)
     # v104: dźwignia i pozycje w krypto (bez klucza) — co godzinę od pełnej budowy; młody plik z częścią z błędem: dobieramy tylko tę część (strona Źródła: dzwignia)
+    # v126: część `cz` (wszystkie duże giełdy, sekret COINALYZE_KEY — tylko nagłówek zapytań, maskowany w błędach). Bez klucza plik jak dotąd (notatka).
+    # Z kluczem: młody zdrowy plik z zaległymi zadaniami tej części = dobierana tylko ona (co przebieg, w budżecie wywołań); jej awaria nigdy nie
+    # wymusza pełnej budowy (lv_bad liczone po LEV_PX); META ok.dzwignia_cz tylko z kluczem (licznik strony Źródła)
+    cz_key = os.environ.get('COINALYZE_KEY', '').strip()
+    if cz_key:
+        SECRETS.append(cz_key)
+    else:
+        META['notes'].append('brak COINALYZE_KEY — dźwignia ze wszystkich dużych giełd wyłączona')
+    cz_kw = {'cz_key': cz_key} if cz_key else {}
     prev_lv = previous('dzwignia')
     lv_ok = prev_lv.get('ok') if isinstance(prev_lv, dict) and isinstance(prev_lv.get('ok'), dict) else {}
     lv_bad = [k for k in LEV_PX if lv_ok.get(k) is not True]
     lv_young = isinstance(prev_lv, dict) and fresh({'at': prev_lv.get('full_at') or prev_lv.get('at')}, LEV_EVERY)
-    if lv_young and not lv_bad:
+    lv_cz = bool(cz_key) and cz_due(prev_lv.get('cz') if isinstance(prev_lv, dict) else None)
+    if lv_young and not lv_bad and not lv_cz:
         save('dzwignia', prev_lv); META['ok']['dzwignia'] = 'cached'
         for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = 'cached'
+        if cz_key: META['ok']['dzwignia_cz'] = 'cached'
     else:
         try:
-            lv = build_dzwignia(prev_lv, only=set(lv_bad) if lv_young else None); save('dzwignia', lv); META['ok']['dzwignia'] = True
+            lv = build_dzwignia(prev_lv, only=(set(lv_bad) | ({'cz'} if lv_cz else set())) if lv_young else None, **cz_kw); save('dzwignia', lv); META['ok']['dzwignia'] = True
             for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = lv['ok'].get(k, False)
+            if cz_key: META['ok']['dzwignia_cz'] = lv['ok'].get('cz', False)
         except Exception as e:
             META['errors'].append(mask(f'Dźwignia: {e}')); META['ok']['dzwignia'] = False
             for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = False
+            if cz_key: META['ok']['dzwignia_cz'] = False
             if prev_lv: save('dzwignia', prev_lv)
     # v105: wieloryby — portfele giełd na Ethereum (bez klucza): co przebieg (kilka żądań zbiorczych); awaria = poprzedni plik i błąd
     # v112: z kluczem ETHERSCAN_KEY (sekret właściciela ETHERSCAN) także transfery ETH natywne — klucz tylko w adresie zapytania, maskowany w błędach
@@ -9825,6 +10746,13 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'EBC kursy: {e}')); META['ok']['kursy'] = False
             if prev_k: save('kursy', prev_k)
+    # v126: Turcja przez API banku (EVDS3) — klucz tylko w nagłówku zapytania, maskowany w komunikatach; brak klucza = plik ZIP jak dotąd
+    # (informacja, nie błąd)
+    evds_key = os.environ.get('EVDS_KEY', '').strip()
+    if evds_key:
+        SECRETS.append(evds_key)
+    else:
+        META['notes'].append('brak EVDS_KEY — Turcja tylko z pliku ZIP banku (ostatnie tygodnie, bez pełnej historii od 2020)')
     # OBCE — zmierzone dzienne przepływy inwestorów zagranicznych (NSDL Indie, TWSE Tajwan): najwyżej co 3 h
     prev_o = previous('obce')
     pok = (prev_o or {}).get('ok') or {}   # v80: brak oczekiwanej części = pobierz od nowa; część z błędem — ponów po 60 min
@@ -9837,9 +10765,10 @@ def main():
         for p, st in (prev_o.get('ok') or {}).items():   # v77: stan części z ostatniego pełnego pobrania (błąd zostaje widoczny)
             META['ok']['obce_' + p] = 'cached' if st is True else st
         META['errors'].extend(e for es in (prev_o.get('errs') or {}).values() for e in (es if isinstance(es, list) else []))
+        evds_note(prev_o.get('tr'), evds_key)   # v126: przyczyna zapasu ZIP Turcji widoczna także w przebiegu z pamięci
     else:
         try:
-            save('obce', build_obce(fred_key, prev_o)); META['ok']['obce'] = True
+            save('obce', build_obce(fred_key, prev_o, evds_key=evds_key)); META['ok']['obce'] = True
         except Exception as e:
             META['errors'].append(mask(f'obce: {e}')); META['ok']['obce'] = False
             if prev_o: save('obce', prev_o)
@@ -9924,13 +10853,18 @@ def main():
             META['errors'].append(mask(f'MF SPW: {e}')); META['ok']['spw'] = False
             if prev_sp: save('spw', prev_sp)
     # v88: Meksyk — Banxico (dziennie, z opóźnieniem ok. 1,5 tygodnia): najwyżej co 6 h; awaria = poprzedni plik i błąd
+    # v126: z sekretem BANXICO_TOKEN najpierw oficjalne API SIE (token tylko w nagłówku, maskowany w komunikatach); brak albo odrzucony
+    # = formularz jak dotąd; rytm 6 h i plik bez zmian
+    bmx_token = os.environ.get('BANXICO_TOKEN', '').strip()
+    if bmx_token:
+        SECRETS.append(bmx_token)
     prev_mx = previous('meksyk')
     old_mx = bool(prev_mx) and any(isinstance(r, list) and len(r) < 6 for r in (prev_mx.get('d') or [])[-1:])   # v88.2: plik sprzed podziału na rodzaje papierów
     if prev_mx and fresh(prev_mx, 360) and not old_mx:
         save('meksyk', prev_mx); META['ok']['meksyk'] = 'cached'
     else:
         try:
-            save('meksyk', build_meksyk(fred_key)); META['ok']['meksyk'] = True
+            save('meksyk', build_meksyk(fred_key, bmx_token)); META['ok']['meksyk'] = True
         except Exception as e:
             META['errors'].append(mask(f'Banxico: {e}')); META['ok']['meksyk'] = False
             if prev_mx: save('meksyk', prev_mx)

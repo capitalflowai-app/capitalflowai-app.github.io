@@ -116,6 +116,8 @@ def data_danych(name, j):
     try:
         if name in ('rynki', 'dzwignia'):
             pa = j.get('part_at') or {}
+            if name == 'dzwignia':   # v126: część `cz` (źródło zbiorcze, dobierana co przebieg) nie świadczy o świeżości odczytów bezpośrednich
+                pa = {k: x for k, x in pa.items() if k != 'cz'}
             v = max((x for x in pa.values() if isinstance(x, str)), default=None)
             return (v, 'ts') if v else None
         if name == 'wieloryby':

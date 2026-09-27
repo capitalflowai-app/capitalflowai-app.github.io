@@ -2559,6 +2559,459 @@ class TurcjaV74(unittest.TestCase):
             zd.parse_tcmb(zd._xlsx_rows(_xlsx({'T1_En': self.ROWS[:4]}), 'T1_En'))
 
 
+# v126: Turcja przez API banku (EVDS3) — pełna historia, klucz tylko w nagłówku, plik ZIP jako zapas, odświeżanie raz na dobę, TRENDY
+import email.message as _email_v126
+import io as _io_v126
+import math as _math_v126
+import socket as _socket_v126
+import urllib.error as _uerr_v126
+import urllib.request as _ureq_v126
+import urllib.response as _uresp_v126
+
+
+class TurcjaEvdsV126(unittest.TestCase):
+    """v126: Turcja przez API banku (EVDS3): pełna historia od 11.09.2020 jednym zapytaniem, klucz tylko w nagłówku 'key', plik ZIP jako
+    zapas (brak klucza, klucz odrzucony, strona HTML, przekroczony czas, zła skala), te same kolumny co droga ZIP, odświeżanie raz na dobę
+    po publikacji (czwartek 14:30 w Stambule), TRENDY z pełną oceną. Bez sieci: evds_get zaślepiony (odpowiedzi w kształcie EVDS z sond
+    27.09.2026 — liczby banku dla 11–18.09.2020 i 21.08–18.09.2026, pozostałe tygodnie wyliczone), czas przypięty."""
+    KEY = 'SEKRET-EVDS-v126'
+    NOW = datetime.datetime(2026, 9, 27, 17, 0, tzinfo=datetime.timezone.utc)
+    LAST = datetime.date(2026, 9, 18)            # ostatni opublikowany tydzień o NOW
+    REAL = {'2020-09-11': ('-32.1800', '-30.2400', '-10.5800', '7.2600', '1.3800', '-4.0000'),
+            '2020-09-18': ('-198.5200', '2.5700', '-90.4200', '-1.2800', '-109.3900', '-98.9800'),
+            '2026-08-21': ('430.0100', '150.1700', '-1.1600', '146.0300', '134.9700', '58.3400'),
+            '2026-08-28': ('73.5200', '328.9900', '-86.5900', '-116.8000', '-52.0800', '-148.7000'),
+            '2026-09-04': ('-510.8300', '-647.6300', '156.7200', '-23.8000', '3.8800', '-129.6700'),
+            '2026-09-11': ('393.8100', '277.6700', '151.1500', '-5.7600', '-29.2500', '-52.2800'),
+            '2026-09-18': ('-316.0100', '-109.8300', '-116.9000', '-331.6900', '242.4100', '-168.6900')}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        zd._RUN_T0[0] = None; zd._BACK_LATE_NOTE[0] = False
+        self._sec = list(zd.SECRETS); zd.SECRETS[:] = [self.KEY]
+
+    def herr(self, code, msg='x'):
+        """HTTPError jak z urllib (zamykany po teście — bez ostrzeżeń o niezamkniętym pliku)."""
+        e = _uerr_v126.HTTPError('https://evds3.tcmb.gov.tr/igmevdsms-dis/', code, msg, {}, _io_v126.BytesIO(b''))
+        self.addCleanup(e.close)
+        return e
+
+    def tearDown(self):
+        zd.SECRETS[:] = self._sec
+
+    @classmethod
+    def vals(cls, d):
+        """Sześć wartości tygodnia jako tekst z 4 miejscami (jak w odpowiedzi): liczby banku albo wyliczone; razem = suma składników."""
+        if d.isoformat() in cls.REAL:
+            return list(cls.REAL[d.isoformat()])
+        k = (d - zd.EVDS_FIRST).days // 7
+        eq, gd = round(120 * _math_v126.sin(k * 0.9) + 15 * _math_v126.cos(k * 2.3), 2), round(90 * _math_v126.cos(k * 1.3) - 10, 2)
+        co, it = round(40 * _math_v126.sin(k * 0.4), 2), round(60 * _math_v126.cos(k * 0.7) + 5, 2)
+        return ['%.4f' % x for x in (eq + gd + co + it, eq, gd, co, it, round(it * 0.6, 2))]
+
+    @classmethod
+    def items(cls, a, b, last=None, over=None):
+        """Pozycje odpowiedzi EVDS dla piątków od a do b: przed 11.09.2020 i po ostatniej publikacji — same null (jak w EVDS)."""
+        last, out = last or cls.LAST, []
+        d = a + datetime.timedelta(days=(4 - a.weekday()) % 7)
+        while d <= b:
+            v = [None] * 6 if d < zd.EVDS_FIRST or d > last else cls.vals(d)
+            for i, x in ((over or {}).get(d.isoformat()) or {}).items():
+                v[i] = x
+            y, w, _ = d.isocalendar()
+            it = {'Tarih': d.strftime('%d-%m-%Y'), 'YEARWEEK': f'{y}-{w}'}
+            it.update({c.replace('.', '_'): x for (_, c), x in zip(zd.EVDS_SERIES, v)})
+            it['UNIXTIME'] = {'$numberLong': str(int(datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc).timestamp()) - 3 * 3600)}
+            out.append(it)
+            d += datetime.timedelta(days=7)
+        return out
+
+    def fake(self, calls, last=None, over=None, fail=None):
+        """Zaślepka evds_get: zapisuje (adres, klucz) i odpowiada pozycjami dla zakresu z adresu; fail(n, a, b) → wyjątek do rzucenia."""
+        def g(url, key, timeout=45):
+            calls.append((url, key))
+            self.assertTrue(url.startswith(zd.EVDS_BASE))
+            q = dict(p.split('=', 1) for p in url[len(zd.EVDS_BASE):].split('&'))
+            a, b = (datetime.datetime.strptime(q[k], '%d-%m-%Y').date() for k in ('startDate', 'endDate'))
+            e = fail(len(calls), a, b) if fail else None
+            if e is not None:
+                raise e
+            it = self.items(a, b, last, over)
+            return {'totalCount': len(it), 'items': it}
+        return g
+
+    def hist(self, a=None, b=None):
+        """Zapisana historia z API: wiersze parse_evds dla piątków od a (domyślnie 11.09.2020) do b (domyślnie LAST)."""
+        return zd.parse_evds({'items': self.items(a or zd.EVDS_FIRST, b or self.LAST)})
+
+    def zip_get(self, rows=None, calls=None):
+        """Zaślepka get_bytes dla drogi ZIP (strona banku z odnośnikiem + archiwum z arkuszem T1_En, jak w TurcjaV74)."""
+        page = '<a href="/x/Securities+Statistics.zip?MOD=AJPERES">ZIP</a>'
+        z = TurcjaV74.zipped(None, rows or TurcjaV74.ROWS)
+
+        def gb(url, headers=None, timeout=60):
+            if calls is not None:
+                calls.append(url)
+            return page.encode() if url == zd.TCMB_PAGE else z
+        return gb
+
+    def test_series_constants_and_url(self):
+        self.assertEqual([k for k, _ in zd.EVDS_SERIES], [k for k, _ in zd.TCMB_KEYS], 'te same kolumny i kolejność co droga ZIP')
+        self.assertEqual([c for _, c in zd.EVDS_SERIES], ['TP.MKNETHAR.M20', 'TP.MKNETHAR.M7', 'TP.MKNETHAR.M8', 'TP.MKNETHAR.M12', 'TP.MKNETHAR.M22', 'TP.MKNETHAR.M23'])
+        self.assertLessEqual(zd.EVDS_CHUNK_W, 1000, 'limit 1000 obserwacji liczy daty (sonda 27.09: 315 tygodni × 6 serii w jednym zapytaniu)')
+        self.assertEqual((zd.EVDS_FIRST, zd.EVDS_FIRST.weekday()), (datetime.date(2020, 9, 11), 4), 'początek serii — piątek')
+        u = zd.evds_url(datetime.date(2020, 9, 11), datetime.date(2026, 9, 27))
+        self.assertEqual(u, 'https://evds3.tcmb.gov.tr/igmevdsms-dis/series=TP.MKNETHAR.M20-TP.MKNETHAR.M7-TP.MKNETHAR.M8-TP.MKNETHAR.M12-'
+                            'TP.MKNETHAR.M22-TP.MKNETHAR.M23&startDate=11-09-2020&endDate=27-09-2026&type=json')
+        self.assertLess(len(u), 512, 'limit długości adresu EVDS'); self.assertNotIn('?', u); self.assertNotIn('key', u.lower())
+        self.assertNotIn('evds2', zd.EVDS_BASE + zd.EVDS_PAGE, 'stary adres wyłączony 20.02.2026 — klucz nigdy tam')
+        self.assertGreater(zd.TCMB_KEEP, 315 + 52 * 5); self.assertEqual(zd.OBCE_KEEP, 300, 'inne części bez zmian')
+
+    def test_parse_equals_zip_rows(self):
+        rows = zd.parse_evds({'totalCount': 5, 'items': self.items(datetime.date(2026, 8, 21), self.LAST)}, datetime.date(2026, 8, 21), datetime.date(2026, 9, 27))
+        z = zd.parse_tcmb(zd._xlsx_rows(_xlsx({'T1_En': TurcjaV74.ROWS}), 'T1_En'))
+        self.assertEqual([r[0] for r in rows], ['2026-08-21', '2026-08-28', '2026-09-04', '2026-09-11', '2026-09-18'])
+        self.assertEqual(rows[-1], z[-1], 'te same liczby co plik ZIP')
+        self.assertEqual(rows[-2][:4] + rows[-2][5:], z[-2][:4] + z[-2][5:])
+        self.assertEqual((rows[-2][4], z[-2][4]), (-5.76, None), 'obligacje firm 11.09: w pliku ZIP „-”, w EVDS −5,76')
+        r = rows[-1]; self.assertAlmostEqual(r[2] + r[3] + r[4] + r[5], r[1], places=2)
+
+    def test_parse_nulls_numbers_and_dates(self):
+        it = self.items(datetime.date(2020, 8, 28), datetime.date(2020, 10, 16))
+        self.assertEqual([x['Tarih'] for x in it[:3]], ['28-08-2020', '04-09-2020', '11-09-2020'])
+        it[4]['TP_MKNETHAR_M12'] = None; it[5]['TP_MKNETHAR_M7'] = ''; it[6]['TP_MKNETHAR_M8'] = 'nan'; it[3]['TP_MKNETHAR_M22'] = -109.39
+        rows = zd.parse_evds({'items': it})
+        self.assertEqual(len(rows), 6, '28.08 i 04.09.2020 (same null przed początkiem serii) pominięte')
+        self.assertEqual(rows[0], ['2020-09-11', -32.18, -30.24, -10.58, 7.26, 1.38, -4.0], '„-32.1800” → −32,18')
+        self.assertIsNone(rows[2][4]); self.assertIsNone(rows[3][2]); self.assertIsNone(rows[4][3]); self.assertEqual(rows[1][5], -109.39)
+        x = dict(self.items(self.LAST, self.LAST)[0]); x.pop('Tarih')
+        self.assertEqual(x['UNIXTIME'], {'$numberLong': '1789678800'}, 'nagranie jak w odpowiedzi EVDS')
+        self.assertEqual(zd._evds_day(x), self.LAST, 'UNIXTIME = północ w Stambule (21:00 UTC w czwartek) + 3 h → piątek, nie czwartek')
+        x.pop('UNIXTIME'); self.assertEqual(zd._evds_day(x), self.LAST, 'YEARWEEK 2026-38 → piątek')
+        self.assertIsNone(zd._evds_day({'Tarih': '31-02-2026'})); self.assertIsNone(zd._evds_day({}))
+        notes = []
+        bad = self.items(datetime.date(2026, 9, 11), self.LAST); bad.append(dict(bad[0], Tarih='16-09-2026'))
+        rows = zd.parse_evds({'items': bad}, datetime.date(2026, 9, 12), datetime.date(2026, 9, 27), notes)
+        self.assertEqual([r[0] for r in rows], ['2026-09-18'])
+        self.assertEqual(notes, ['CBRT EVDS: pominięte daty spoza zakresu albo nie w piątek: 2026-09-11, 2026-09-16'])
+
+    def test_parse_rejects(self):
+        for bad in ({'status': '403', 'message': "Required request header 'key' is not present"}, {'items': []}, {'totalCount': 0},
+                    'Invalid API Key', '<html></html>', ['x'], None, {'items': [{'Tarih': '28-08-2020', 'TP_MKNETHAR_M20': None}]}):
+            with self.assertRaises(RuntimeError):
+                zd.parse_evds(bad)
+        with self.assertRaises(RuntimeError) as c:
+            zd.parse_evds({'status': '403', 'message': "Required request header 'key' is not present"})
+        self.assertIn("Required request header 'key' is not present", str(c.exception))
+
+    def test_backfill_one_request_key_in_header_only(self):
+        calls, zc = [], []
+        prev = {'at': '2026-09-27T15:02:40+00:00', 'd': zd.parse_tcmb(zd._xlsx_rows(_xlsx({'T1_En': TurcjaV74.ROWS}), 'T1_En'))}
+        with mock.patch.object(zd, 'evds_get', self.fake(calls)), mock.patch.object(zd, '_now_utc', lambda: self.NOW), \
+                mock.patch.object(zd, 'get_bytes', self.zip_get(calls=zc)), mock.patch.object(zd.time, 'sleep', lambda s: None):
+            out = zd.tcmb_part(prev, self.KEY)
+        self.assertEqual(len(calls), 1, 'cała historia jednym zapytaniem'); self.assertEqual(zc, [], 'bez pliku ZIP')
+        url, key = calls[0]
+        self.assertTrue(url.endswith('&startDate=11-09-2020&endDate=27-09-2026&type=json'), url)
+        self.assertEqual(key, self.KEY, 'klucz w nagłówku'); self.assertNotIn(self.KEY, url); self.assertNotIn('key=', url.lower())
+        d = out['d']
+        self.assertEqual((d[0][0], d[-1][0], len(d)), ('2020-09-11', '2026-09-18', 315), 'pełna historia: 315 tygodni')
+        self.assertTrue(all(r[0] == (zd.EVDS_FIRST + datetime.timedelta(days=7 * i)).isoformat() for i, r in enumerate(d)), 'kolejne piątki, bez luki')
+        self.assertEqual(d[-2], ['2026-09-11', 393.81, 277.67, 151.15, -5.76, -29.25, -52.28], 'API poprawia tydzień z pliku ZIP')
+        self.assertEqual((out['via'], out['full'], out['url'], out['asof']), ('evds', '2026-09-27', zd.EVDS_PAGE, '2026-09-18'))
+        self.assertNotIn('evds_err', out); self.assertIn('EVDS', out['src'])
+        with mock.patch.object(zd, 'get_bytes', self.zip_get()), mock.patch.object(zd, 'evds_get', side_effect=AssertionError('bez klucza — bez API')):
+            z = zd.tcmb_part(prev)
+        self.assertEqual((out['unit'], out['cols']), (z['unit'], z['cols']), 'te same kolumny i jednostka co droga ZIP')
+        self.assertEqual(set(z) - {'via'}, {'at', 'src', 'url', 'unit', 'cols', 'asof', 'd'}, 'droga ZIP: tylko dodane pole via')
+        self.assertEqual(set(out) - set(z), {'full'})
+        self.assertNotIn(self.KEY, json.dumps(out)); self.assertNotIn(self.KEY, json.dumps(zd.META)); self.assertEqual(zd.META['errors'], [])
+
+    def test_chunks_newest_first_budget_and_partial(self):
+        now = datetime.datetime(2031, 3, 9, 17, 0, tzinfo=datetime.timezone.utc)
+        self.assertEqual(zd.evds_plan([], datetime.date(2031, 3, 9)), [(datetime.date(2021, 3, 26), datetime.date(2031, 3, 9)),
+                                                                        (datetime.date(2020, 9, 11), datetime.date(2021, 3, 25))], 'od dziś wstecz, najnowszy pierwszy')
+        self.assertEqual(zd.evds_plan([], datetime.date(2026, 9, 27)), [(datetime.date(2020, 9, 11), datetime.date(2026, 9, 27))], 'dziś: jedno zapytanie')
+        for a, b in zd.evds_plan([], datetime.date(2031, 3, 9)):
+            self.assertLessEqual((b - a).days // 7 + 1, zd.EVDS_CHUNK_W); self.assertEqual(a.weekday(), 4, 'każdy kawałek od piątku')
+        last = datetime.date(2031, 2, 28)
+        calls = []
+        with mock.patch.object(zd, 'evds_get', self.fake(calls, last=last)), mock.patch.object(zd, '_now_utc', lambda: now), \
+                mock.patch.object(zd.time, 'sleep', lambda s: None), mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('bez ZIP')):
+            out = zd.tcmb_part(None, self.KEY)
+        self.assertEqual([u.split('&startDate=')[1][:21] for u, _ in calls], ['26-03-2021&endDate=09', '11-09-2020&endDate=25'], 'najnowszy kawałek pierwszy')
+        self.assertEqual((out['d'][0][0], out['d'][-1][0], out['full']), ('2020-09-11', '2031-02-28', '2031-03-09'))
+        self.assertTrue(all((zd._d(y[0]) - zd._d(x[0])).days == 7 for x, y in zip(out['d'], out['d'][1:])), 'kawałki sklejone bez luki')
+        calls.clear()
+        e503 = self.herr(503)
+        fail = lambda n, a, b: e503 if n == 2 else None
+        with mock.patch.object(zd, 'evds_get', self.fake(calls, last=last, fail=fail)), mock.patch.object(zd, '_now_utc', lambda: now), \
+                mock.patch.object(zd.time, 'sleep', lambda s: None):
+            part = zd.tcmb_part({'d': [], 'full': '2026-01-02'}, self.KEY)
+        self.assertEqual((part['via'], part['d'][0][0], part['d'][-1][0], part['full']), ('evds', '2021-03-26', '2031-02-28', '2026-01-02'),
+                         'starszy kawałek zawiódł: bieżące tygodnie są, pełne pobranie niedokończone (data bez zmian)')
+        self.assertTrue(any(n.startswith('CBRT EVDS: starsze tygodnie 2020-09-11–2021-03-25: HTTP Error 503') for n in zd.META['notes']), zd.META['notes'])
+        calls.clear(); zd.META['notes'].clear()
+        eK = RuntimeError('serwer odbił klucz: ' + self.KEY)   # awaria starszego kawałka z kluczem w treści — notatka maskowana
+        with mock.patch.object(zd, 'evds_get', self.fake(calls, last=last, fail=lambda n, a, b: eK if n == 2 else None)), \
+                mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd.time, 'sleep', lambda s: None):
+            part = zd.tcmb_part({'d': [], 'full': '2026-01-02'}, self.KEY)
+        self.assertEqual((part['via'], len(calls), part['full']), ('evds', 2, '2026-01-02'))
+        self.assertIn('CBRT EVDS: starsze tygodnie 2020-09-11–2021-03-25: serwer odbił klucz: *** — dokończymy przy następnym odświeżeniu', zd.META['notes'])
+        self.assertNotIn(self.KEY, json.dumps(zd.META) + json.dumps(part)); self.assertEqual(zd.META['errors'], [])
+        calls.clear(); zd.META['notes'].clear()
+        with mock.patch.object(zd, 'evds_get', self.fake(calls, last=last)), mock.patch.object(zd, '_now_utc', lambda: now), \
+                mock.patch.object(zd, '_back_ok', lambda t0, budget, cost: False), mock.patch.object(zd.time, 'sleep', lambda s: None):
+            part = zd.tcmb_part(None, self.KEY)
+        self.assertEqual((len(calls), part['d'][0][0]), (1, '2021-03-26')); self.assertNotIn('full', part)
+        self.assertEqual(zd.META['notes'], ['CBRT EVDS: starsze tygodnie do 2021-03-25 — brak czasu w tym przebiegu, dokończymy przy następnym odświeżeniu'])
+        calls.clear(); zd.META['notes'].clear()
+        with mock.patch.object(zd, 'evds_get', lambda url, key, timeout=45: {'items': self.items(datetime.date(2023, 7, 7), self.LAST)}), \
+                mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+            part = zd.tcmb_part(None, self.KEY)
+        self.assertNotIn('full', part, 'odpowiedź ucięta od najstarszej strony — pełne pobranie nie jest zaliczone')
+        self.assertTrue(any(n.startswith('CBRT EVDS: odpowiedź zaczyna się od 2023-07-07, pytaliśmy od 2020-09-11') for n in zd.META['notes']), zd.META['notes'])
+
+    def test_incremental_window_revision_and_resync(self):
+        H = self.hist()
+        prev = {'at': '2026-09-26T10:00:00+00:00', 'via': 'evds', 'full': '2026-09-20', 'd': [list(r) for r in H]}
+        calls = []
+        over = {'2026-09-18': {1: '-100.0000'}, '2026-09-11': {0: None, 1: None, 2: None, 3: None, 4: None, 5: None}}
+        with mock.patch.object(zd, 'evds_get', self.fake(calls, over=over)), mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+            out = zd.tcmb_part(prev, self.KEY)
+        self.assertEqual(len(calls), 1); self.assertTrue(calls[0][0].endswith('&startDate=19-06-2026&endDate=27-09-2026&type=json'), 'okno 13 tygodni od najnowszego piątku')
+        d = {r[0]: r for r in out['d']}
+        self.assertEqual(d['2026-09-18'][2], -100.0, 'poprawiony tydzień zastępuje zapisany'); self.assertEqual(len(out['d']), 315)
+        self.assertEqual(d['2026-09-11'], H[-2], 'wiersz z samymi null nic nie kasuje'); self.assertEqual(d['2020-09-11'], H[0], 'starsze tygodnie zostają')
+        self.assertEqual(out['full'], '2026-09-20', 'okno — data pełnego pobrania bez zmian')
+        for full, gap, n0 in (('2026-08-29', False, '11-09-2020'), ('2026-09-20', True, '11-09-2020'), (None, False, '11-09-2020')):
+            calls.clear()
+            p = dict(prev, full=full, d=[r for r in H if not (gap and r[0] == '2024-01-05')])
+            with mock.patch.object(zd, 'evds_get', self.fake(calls)), mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+                out = zd.tcmb_part(p, self.KEY)
+            self.assertEqual(len(calls), 1); self.assertIn('&startDate=' + n0 + '&', calls[0][0], (full, gap))
+            self.assertEqual((len(out['d']), out['full']), (315, '2026-09-27'), 'pełne pobranie co 28 dni, przy luce i bez daty — luka uzupełniona')
+        D = [(datetime.date(2021, 1, 1) + datetime.timedelta(days=7 * i)).isoformat() for i in range(zd.TCMB_KEEP)]   # ok. 2032: historia przycięta
+        self.assertEqual(zd.evds_plan(D, datetime.date(2032, 7, 2), '2032-06-25'), [(zd._d(D[-1]) - datetime.timedelta(days=91), datetime.date(2032, 7, 2))],
+                         'historia przycięta do TCMB_KEEP (nie sięga 2020) — okno, bez pełnego pobrania w kółko')
+        self.assertEqual(zd.evds_plan(D[-5:], datetime.date(2032, 7, 2), '2032-06-25')[-1][0], zd.EVDS_FIRST, 'krótka historia — pełne pobranie')
+
+    def test_fallback_zip_on_key_rejected_html_timeout(self):
+        H = self.hist()
+        prev = {'at': '2026-09-26T10:00:00+00:00', 'via': 'evds', 'full': '2026-09-20', 'd': [list(r) for r in H]}
+        zc = []
+        for exc, why in ((self.herr(401, 'Unauthorized'), 'klucz EVDS_KEY odrzucony (HTTP 401)'),
+                         (self.herr(403, 'Forbidden'), 'klucz EVDS_KEY odrzucony (HTTP 403)'),
+                         (self.herr(302, 'Found'), 'adres API przeniesiony (HTTP 302)'),
+                         (self.herr(500), 'błąd serwera (HTTP 500)'), (self.herr(429), 'limit zapytań (HTTP 429)'), (self.herr(404), 'zapytanie odrzucone (HTTP 404)'),
+                         (RuntimeError('odpowiedź nie jest JSON (strona HTML zamiast danych?)'), 'odpowiedź nie jest JSON (strona HTML zamiast danych?)'),
+                         (_socket_v126.timeout('timed out'), 'timed out'),
+                         (RuntimeError('echo ' + self.KEY), 'echo ***')):
+            zd.META['notes'].clear(); zc.clear()
+            with mock.patch.object(zd, 'evds_get', side_effect=exc), mock.patch.object(zd, 'get_bytes', self.zip_get(calls=zc)), \
+                    mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+                out = zd.tcmb_part(prev, self.KEY)
+            self.assertEqual(zd.META['notes'], [f'CBRT EVDS: {why} — Turcja z pliku ZIP banku'], why)
+            self.assertEqual(zd.META['errors'], [], 'dane są (z pliku ZIP) — notatka, nie błąd')
+            self.assertEqual((out['via'], out['evds_err'], out['full'], out['url']), ('zip', why, '2026-09-20', zd.TCMB_PAGE))
+            self.assertEqual(len(zc), 2, 'strona banku + plik ZIP')
+            d = {r[0]: r for r in out['d']}
+            self.assertEqual(len(out['d']), 315, 'historia z API zostaje (TCMB_KEEP, nie OBCE_KEEP)')
+            self.assertEqual(d['2026-09-11'][4], -5.76, '„-” w pliku ZIP nie kasuje liczby z API'); self.assertEqual(d['2026-09-18'][1], -316.01)
+            self.assertNotIn(self.KEY, json.dumps(out) + json.dumps(zd.META))
+        for bad in ('klucz ze spacją', 'K\nX', 'ą' * 10, 'abc'):
+            zd.META['notes'].clear()
+            with mock.patch.object(zd, 'evds_get', side_effect=AssertionError('zły format — bez zapytania')), mock.patch.object(zd, 'get_bytes', self.zip_get()):
+                out = zd.tcmb_part(prev, bad)
+            self.assertEqual((out['via'], zd.META['notes']), ('zip', ['CBRT EVDS: klucz EVDS_KEY w złym formacie (niedozwolone znaki albo długość; popraw sekret) — Turcja z pliku ZIP banku']))
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, 'evds_get', side_effect=self.herr(401)), \
+                mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('HTTP Error 503')), mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+            with self.assertRaises(RuntimeError):
+                zd.tcmb_part(prev, self.KEY)
+
+    def test_key_echo_masked_before_cut(self):
+        """Klucz odbity w treści błędu na granicy cięcia (120 znaków w tcmb_part, 80 znaków komunikatu serwera w parse_evds): najpierw maska,
+        potem cięcie — żaden 4-znakowy kawałek klucza nie trafia do części 'tr' (publiczny obce.json), do META ani do notatki z pamięci."""
+        K = 'Qz7Xw9Kp2Lm4Vb8N'
+        zd.SECRETS[:] = [K]
+        bits = sorted({K[i:i + 4] for i in range(len(K) - 3)})
+        prev = {'at': '2026-09-26T10:00:00+00:00', 'via': 'evds', 'full': '2026-09-20', 'd': [list(r) for r in self.hist()]}
+        cases = [RuntimeError('x' * n + K) for n in range(98, 124)]                                   # klucz przed, na i za granicą 120
+        cases += [{'status': '401', 'message': 'y' * n + K} for n in range(58, 84)]                   # klucz przed, na i za granicą 80
+        cases += [{'status': '401', 'message': 'Invalid API Key supplied for this web service request, value received: ' + K},
+                  RuntimeError('Invalid API Key supplied for this web service request, value received: ' + K + ' ' + 'z' * 40)]
+        for c in cases:
+            zd.META['notes'].clear(); zd.META['errors'].clear()
+            src = {'side_effect': c} if isinstance(c, Exception) else {'return_value': c}
+            with mock.patch.object(zd, 'evds_get', **src), mock.patch.object(zd, 'get_bytes', self.zip_get()), mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+                out = zd.tcmb_part(prev, K)
+            zd.evds_note(out, K)   # przebieg z pamięci powtarza przyczynę
+            txt = json.dumps(out) + json.dumps(zd.META)
+            self.assertEqual((out['via'], zd.META['errors'], len(zd.META['notes'])), ('zip', [], 2), c)
+            self.assertEqual([b for b in bits if b in txt], [], (c, out['evds_err']))
+            self.assertLessEqual(len(out['evds_err']), 120)
+        with self.assertRaises(RuntimeError) as e:
+            zd.parse_evds({'status': '401', 'message': 'y' * 70 + K})
+        self.assertEqual(str(e.exception), 'nieznany kształt odpowiedzi (' + 'y' * 70 + '***)', 'komunikat serwera: maska przed cięciem do 80 znaków')
+        zd.META['notes'].clear()
+        zd.evds_note({'at': '2026-09-27T10:00:00+00:00', 'evds_err': 'stary zapis: ' + K}, K)   # plik zapisany inaczej niż przez tcmb_part — i tak maska
+        self.assertEqual(zd.META['notes'], ['CBRT EVDS (odświeżenie 2026-09-27 10:00 UTC): stary zapis: *** — Turcja z pliku ZIP banku'])
+
+    def test_scale_guard_then_zip_and_both_fail(self):
+        calls = []
+        with mock.patch.object(zd, 'evds_get', self.fake(calls, over={'2026-09-18': {0: '316010000.0000'}})), \
+                mock.patch.object(zd, 'get_bytes', self.zip_get()), mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+            out = zd.tcmb_part(None, self.KEY)
+        self.assertEqual((out['via'], out['evds_err']), ('zip', 'skala niezgodna (2026-09-18)'))
+        self.assertEqual([r[0] for r in out['d']], ['2026-09-11', '2026-09-18'], 'zła skala z API — nic z tej odpowiedzi nie trafia do pliku')
+        bad = [r if r[1] != 'NET TRANSACTIONS TOTAL (**)' else [None, r[1], -316010000.0, 393.81] for r in TurcjaV74.ROWS]
+        mk = lambda name: (lambda *a, **k: {'at': zd.NOW, 'd': [['2026-09-24', 1.0]]})
+        prev = {'ok': {'tr': True}, 'tr': {'at': '2026-09-20T10:00:00+00:00', 'via': 'evds', 'd': [['2026-09-18', 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]]}}
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, 'evds_get', self.fake([], over={'2026-09-18': {0: '316010000.0000'}})), mock.patch.object(zd, 'get_bytes', self.zip_get(rows=bad)), \
+                mock.patch.object(zd, '_now_utc', lambda: self.NOW), mock.patch.object(zd, 'nsdl_part', mk('in')), mock.patch.object(zd, 'twse_part', mk('tw')), \
+                mock.patch.object(zd, 'hkex_part', mk('hk')), mock.patch.object(zd, 'bcb_part', mk('br')), mock.patch.object(zd, 'thbma_part', mk('th')):
+            o = zd.build_obce('', prev, evds_key=self.KEY)
+        self.assertIs(o['tr'], prev['tr'], 'obie drogi zawiodły — poprzednia część zostaje'); self.assertIs(o['ok']['tr'], False)
+        self.assertEqual(o['errs']['tr'], ['CBRT: skala niezgodna (2026-09-18)'])
+
+    def test_no_key_zip_path_unchanged(self):
+        prev = {'d': [['2026-09-04', 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], ['2026-09-11', 9.0, 9.0, 9.0, 9.0, 9.0, 9.0]]}
+        with mock.patch.object(zd, 'get_bytes', self.zip_get()), mock.patch.object(zd, 'evds_get', side_effect=AssertionError('bez klucza — bez API')):
+            out = zd.tcmb_part(prev)
+        self.assertEqual([r[0] for r in out['d']], ['2026-09-04', '2026-09-11', '2026-09-18'])
+        self.assertEqual(out['d'][1], ['2026-09-11', 393.81, 277.67, 151.15, None, -29.25, -52.28], 'bez historii z API „-” w pliku to brak — jak dotąd')
+        self.assertEqual((out['via'], out['url'], out['asof']), ('zip', zd.TCMB_PAGE, '2026-09-18'))
+        self.assertNotIn('full', out); self.assertNotIn('evds_err', out); self.assertEqual(zd.META['notes'], [])
+        self.assertEqual(out['src'], 'Central Bank of the Republic of Türkiye (CBRT) — Securities Statistics, Table 1, B. Net Transactions')
+
+    def test_build_obce_passes_key_and_release_gate(self):
+        U = datetime.timezone.utc
+        self.assertEqual(zd.tcmb_expected_friday(datetime.datetime(2026, 9, 27, 17, 0, tzinfo=U)), datetime.date(2026, 9, 18))
+        self.assertEqual(zd.tcmb_expected_friday(datetime.datetime(2026, 10, 1, 11, 29, tzinfo=U)), datetime.date(2026, 9, 18))
+        self.assertEqual(zd.tcmb_expected_friday(datetime.datetime(2026, 10, 1, 11, 30, tzinfo=U)), datetime.date(2026, 9, 25), 'czwartek 14:30 w Stambule')
+        self.assertEqual(zd.tcmb_expected_friday(datetime.datetime(2026, 10, 3, 0, 0, tzinfo=U)), datetime.date(2026, 9, 25))
+        H = [list(r) for r in self.hist()]
+        full = {'at': _iso(200), 'via': 'evds', 'full': '2026-09-20', 'd': H}
+        z5 = {'at': _iso(200), 'via': 'zip', 'd': H[-5:]}
+        thu = lambda h, m: (lambda: datetime.datetime(2026, 10, 1, h, m, tzinfo=U))
+        for now, pp, key, want in ((lambda: self.NOW, full, self.KEY, 1440), (thu(11, 29), full, self.KEY, 1440), (thu(11, 30), full, self.KEY, 180),
+                                   (lambda: self.NOW, z5, self.KEY, 180), (lambda: self.NOW, dict(z5, evds_err='klucz EVDS_KEY odrzucony (HTTP 401)'), self.KEY, 1440),
+                                   (lambda: self.NOW, z5, '', 1440), (lambda: self.NOW, dict(full, d=H[-100:]), self.KEY, 180), (lambda: self.NOW, dict(full, d=H[-100:]), '', 1440),
+                                   (lambda: self.NOW, {'at': _iso(1), 'd': []}, self.KEY, 180)):
+            with mock.patch.object(zd, '_now_utc', now):
+                self.assertEqual(zd.tcmb_fresh_min(pp, key), want, (now(), pp.get('via'), len(pp['d']), bool(key), pp.get('evds_err')))
+        seen = []
+        mk = lambda name: (lambda *a, **k: {'at': zd.NOW, 'd': [['2026-09-24', 1.0]]})
+
+        def tr(*a):
+            seen.append(a)
+            return {'at': zd.NOW, 'via': 'evds', 'd': [['2026-09-18', 1.0]]}
+        others = [mock.patch.object(zd, n, mk(n)) for n in ('nsdl_part', 'twse_part', 'hkex_part', 'bcb_part', 'thbma_part')]
+        for p in others:
+            p.start()
+        try:
+            with mock.patch.object(zd, 'tcmb_part', tr), mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+                zd.build_obce('', {'ok': {'tr': False}, 'tr': z5}, evds_key=self.KEY); zd.build_obce('', {'ok': {'tr': False}, 'tr': z5})
+                self.assertEqual(seen, [(z5, self.KEY), (z5,)], 'z kluczem — klucz do tcmb_part; bez klucza — wywołanie jak dotąd')
+                seen.clear(); zd.META['notes'].clear()
+                bad = dict(full, via='zip', evds_err='klucz EVDS_KEY odrzucony (HTTP 401)')
+                o = zd.build_obce('', {'ok': {'tr': True}, 'tr': full}, evds_key=self.KEY)
+                o2 = zd.build_obce('', {'ok': {'tr': True}, 'tr': bad}, evds_key=self.KEY)
+            self.assertEqual(seen, [], 'tydzień z ostatniej publikacji, pobrany 200 min temu — z pamięci (raz na dobę)')
+            self.assertIs(o['tr'], full); self.assertEqual(zd.META['ok']['obce_tr'], 'cached'); self.assertIs(o2['tr'], bad)
+            self.assertEqual(len(zd.META['notes']), 1); self.assertRegex(zd.META['notes'][0], r'^CBRT EVDS \(odświeżenie \d{4}-\d\d-\d\d \d\d:\d\d UTC\): klucz EVDS_KEY odrzucony \(HTTP 401\) — Turcja z pliku ZIP banku$')
+            with mock.patch.object(zd, 'tcmb_part', tr), mock.patch.object(zd, '_now_utc', thu(11, 30)):
+                zd.build_obce('', {'ok': {'tr': True}, 'tr': full}, evds_key=self.KEY)
+            self.assertEqual(seen, [(full, self.KEY)], 'po czwartkowej publikacji (11:30 UTC) część starsza niż 180 min — pobrana')
+        finally:
+            for p in others:
+                p.stop()
+
+    def test_no_redirect_key_only_in_header(self):
+        self.assertIsNone(zd._EvdsNoRedirect().redirect_request(None, None, 302, 'Found', {}, 'https://evil.example/'))
+        seen, real = [], _ureq_v126.build_opener
+
+        class FakeHTTPS(_ureq_v126.HTTPSHandler):
+            answer = (200, {}, b'{}')
+
+            def https_open(self, req):
+                seen.append((req.full_url, req.get_header('Key'), req.get_header('Accept')))
+                code, hdr, body = self.answer
+                m = _email_v126.Message()
+                for k, v in hdr.items():
+                    m[k] = v
+                r = _uresp_v126.addinfourl(_io_v126.BytesIO(body), m, req.full_url, code)
+                r.msg = 'x'
+                return r
+        url = zd.evds_url(datetime.date(2026, 6, 19), datetime.date(2026, 9, 27))
+        with mock.patch.object(zd.urllib.request, 'build_opener', lambda *h: real(*h, FakeHTTPS)):
+            FakeHTTPS.answer = (200, {'Content-Type': 'application/json'}, json.dumps({'totalCount': 0, 'items': []}).encode())
+            self.assertEqual(zd.evds_get(url, self.KEY), {'totalCount': 0, 'items': []})
+            self.assertEqual(seen, [(url, self.KEY, 'application/json')], 'klucz tylko w nagłówku'); self.assertNotIn(self.KEY, url)
+            FakeHTTPS.answer = (200, {'Content-Type': 'text/html'}, b'<!doctype html><html></html>')
+            with self.assertRaises(RuntimeError) as c:
+                zd.evds_get(url, self.KEY)
+            self.assertIn('HTML', str(c.exception))
+            seen.clear(); FakeHTTPS.answer = (302, {'Location': 'https://evil.example/'}, b'')
+            with self.assertRaises(_uerr_v126.HTTPError) as c:
+                zd.evds_get(url, self.KEY)
+            c.exception.close(); self.assertEqual(c.exception.code, 302); self.assertEqual(len(seen), 1, 'przekierowanie nie jest wykonywane — klucz nie idzie pod inny adres')
+            FakeHTTPS.answer = (401, {'Content-Type': 'text/plain'}, b'Invalid API Key')
+            with self.assertRaises(_uerr_v126.HTTPError) as c:
+                zd.evds_get(url, self.KEY)
+            c.exception.close(); self.assertEqual(c.exception.code, 401)
+
+    def test_main_wiring_note_and_secret(self):
+        names = sorted(n for n in dir(zd) if n.startswith('build_') and n != 'build_obce' and callable(getattr(zd, n)))
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in names]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
+                               'EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'FMP_KEY', 'ALPHAVANTAGE_KEY', 'ETHERSCAN_KEY', 'SEC_CONTACT', 'CRYPTOPANIC_KEY',
+                               'CENSUS_KEY', 'COINALYZE_KEY', 'BANXICO_TOKEN', 'EVDS_KEY')}
+        got, saved, prev = [], {}, {}
+
+        def bo(key, prev=None, evds_key=''):
+            got.append(evds_key)
+            raise RuntimeError('offline')
+        for s in stubs:
+            s.start()
+        try:
+            for val in (self.KEY, ''):
+                got.clear(); saved.clear(); zd.META['notes'].clear(); zd.META['errors'].clear()
+                with mock.patch.dict(os.environ, dict(env, EVDS_KEY=val), clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                        mock.patch.object(zd, 'previous', lambda n: prev.get(n)), mock.patch.object(zd, 'build_obce', bo):
+                    zd.main()
+                self.assertEqual(got, [val], 'klucz do build_obce')
+                self.assertEqual(any(n.startswith('brak EVDS_KEY — Turcja tylko z pliku ZIP banku') for n in zd.META['notes']), not val)
+                self.assertFalse(any('EVDS' in e for e in zd.META['errors']), 'brak klucza to informacja, nie błąd')
+                self.assertEqual(val in zd.SECRETS, bool(val), 'klucz maskowany w komunikatach')
+                self.assertNotIn(self.KEY, json.dumps(saved.get('meta')))
+            prev['obce'] = {'at': _iso(10), 'ok': {p: True for p in ('in', 'tw', 'hk', 'br', 'tr', 'th')}, **{p: {'at': _iso(100), 'd': []} for p in ('in', 'tw', 'hk', 'br', 'th')},
+                            'tr': {'at': _iso(100), 'via': 'zip', 'evds_err': 'klucz EVDS_KEY odrzucony (HTTP 401)', 'd': [['2026-09-18', 1.0]]}}
+            zd.META['notes'].clear()
+            with mock.patch.dict(os.environ, dict(env, EVDS_KEY=self.KEY), clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                    mock.patch.object(zd, 'previous', lambda n: prev.get(n)), mock.patch.object(zd, 'build_obce', side_effect=AssertionError('plik młodszy niż godzina')):
+                zd.main()
+            self.assertIs(saved['obce'], prev['obce'])
+            self.assertTrue(any(n.startswith('CBRT EVDS (odświeżenie ') and n.endswith('klucz EVDS_KEY odrzucony (HTTP 401) — Turcja z pliku ZIP banku') for n in zd.META['notes']),
+                            'przyczyna zapasu ZIP także w przebiegu z pamięci')
+        finally:
+            for s in stubs:
+                s.stop()
+            zd.SECRETS[:] = [self.KEY]
+
+    def test_trendy_turkey_full_evaluation(self):
+        H = self.hist()
+        with mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+            R = {r['id']: r for r in zd._tr_flows({'obce': {'tr': {'d': H}}}) if r}
+            R5 = {r['id']: r for r in zd._tr_flows({'obce': {'tr': {'d': H[-5:]}}}) if r}
+        for k in ('tr_eq', 'tr_bd'):
+            self.assertEqual((R[k]['n'], R[k]['lc'], R[k]['date']), (8, False, '2026-09-18'), k + ': pełna ocena (8 tygodni tła)')
+            self.assertNotIn(R[k]['st'], ('short', 'gap', 'stale', 'in_dir', 'out_dir'), k)
+            self.assertEqual((R5[k]['n'], R5[k]['lc']), (4, True), k + ': z 5 tygodni pliku ZIP — sam kierunek (jak dziś)')
+        self.assertEqual(R['tr_eq']['last'], -109.83); self.assertEqual(R['tr_bd']['last'], -116.9)
+
 class EurostatUE(unittest.TestCase):
     """Eurostat bop_c6_m — JSON-stat → mln EUR, ostatni miesiąc kraju, brak = brak (nie zero), straż skali."""
 
@@ -3188,6 +3641,305 @@ class MeksykFormatV882(unittest.TestCase):
             finally:
                 [p.stop() for p in offs]
             self.assertIs(saved['meksyk'], new if rebuilt else prev, 'stary format — od razu nowy plik' if rebuilt else 'nowy format — z pamięci')
+
+
+import io             # v126: nagrane odpowiedzi błędów HTTP (Banxico)
+import urllib.error   # v126
+
+
+class BanxicoApiV126(unittest.TestCase):
+    """v126: Meksyk — oficjalne API SIE z sekretem BANXICO_TOKEN (tylko nagłówek Bmx-Token, bez przekierowań), formularz jako zapas.
+    Nagrania: formularz = wiersze 7–18.09 dosłownie z eksportu CSV z 27.09.2026 (nagłówek skrócony; weekend i święto 16.09 jako N/E,
+    wartość UDI także na dni bez danych);
+    API = te same liczby w kształcie odpowiedzi z dokumentacji SIE v1 (przecinki tysięcy, N/E, inna kolejność serii); odmowa tokenu =
+    odpowiedź banku z 27.09 (HTTP 400, „Token inválido”, bez tokenu). Wynik z tokenem odrzuconym = wynik bez tokenu + jedna notatka.
+    Po przeglądzie: notatka tylko przy obiekcie błędu SIE z komunikatem o tokenie (401/403 ze strony zapory = błąd); tekst banku maskowany
+    w całości przed skróceniem do 80 znaków; ścieżka API przycina plik do MX_KEEP sesji jak formularz."""
+    TOKEN = 'e3980208bf01ec653aba9aee3c2d6f70f6ae8b066d2545e379b9e0ef92e9de25'   # przykładowy token z dokumentacji SIE (nie prawdziwy)
+    NOW = datetime.datetime(2026, 9, 27, 17, 0, tzinfo=datetime.timezone.utc)
+    IDS = ('SF65218', 'SF65219', 'SF65137', 'SF65046', 'SF65107', 'SP68257')
+    TAB = (('07/09/2026', '1801750.00', '16015048.76', '1522923.64', '208739.91', '4903.29', '8.814383'),
+           ('08/09/2026', '1794660.74', '16017421.99', '1516505.69', '207387.47', '4951.60', '8.814940'),
+           ('09/09/2026', '1793316.08', '16023123.46', '1511194.30', '208449.66', '5287.00', '8.815497'),
+           ('10/09/2026', '1802052.24', '16096935.16', '1519018.66', '209274.54', '5274.96', '8.816055'),
+           ('11/09/2026', '1789166.23', '16096101.67', '1515759.89', '200647.83', '5186.03', '8.816612'),
+           ('12/09/2026', 'N/E', 'N/E', 'N/E', 'N/E', 'N/E', '8.817170'),
+           ('13/09/2026', 'N/E', 'N/E', 'N/E', 'N/E', 'N/E', '8.817728'),
+           ('14/09/2026', '1788646.44', '16097115.95', '1512857.51', '202515.57', '5212.95', '8.818285'),
+           ('15/09/2026', '1787788.99', '16094082.56', '1512189.26', '201373.89', '5368.32', '8.818843'),
+           ('16/09/2026', 'N/E', 'N/E', 'N/E', 'N/E', 'N/E', '8.819401'),
+           ('17/09/2026', 'N/E', 'N/E', 'N/E', 'N/E', 'N/E', '8.819959'),
+           ('18/09/2026', 'N/E', 'N/E', 'N/E', 'N/E', 'N/E', '8.820517'))
+    LAST = ['2026-09-15', 1787788.99, 16094082.56, 1512189.26, 201373.89, 47342.37]   # = ostatni wiersz data/meksyk.json na stronie 27.09
+    REJECT = {'error': {'url': 'https://www.banxico.org.mx/SieAPIRest/service/v1/token', 'mensaje': 'Token inválido',
+                        'detalle': 'El token enviado no es válido, favor de verificar. Para obtener un token consultar la url adjunta.'}}
+    NOTE = 'BANXICO_TOKEN odrzucony przez bank (Token inválido) — Meksyk z formularza'
+    KEYS = {'at', 'src', 'url', 'unit', 'cols', 'asof', 'd', 'fx'}    # pola meksyk.json sprzed v126 — bez nowych
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        zd.SECRETS[:] = [self.TOKEN]
+
+    @classmethod
+    def csv(cls):
+        return ('\r\n"Banco de Mexico"\r\n\r\n"Valores en circulacion"\r\n\r\n"Titulo","GUBERNAMENTAL, Residentes en el Extranjero (II)",'
+                '"GUBERNAMENTAL, Total en Circulacion (I + II)","BONOS, Residentes en el Extranjero (II)","CETES, Residentes en el Extranjero (II)",'
+                '"UDIBONOS, Residentes en el Extranjero (II)","Valor de UDIS"\r\n"Periodicidad","Diaria","Diaria","Diaria","Diaria","Diaria","Diaria"\r\n'
+                '"Fecha","' + '","'.join(cls.IDS) + '"\r\n' + ''.join(','.join(r) + '\r\n' for r in cls.TAB))
+
+    @staticmethod
+    def _c(v):
+        """Przecinki tysięcy jak w odpowiedziach API (oficjalny klient R siebanxicor usuwa je przed zamianą na liczbę)."""
+        if v == 'N/E':
+            return v
+        a, b = v.split('.')
+        return f'{int(a):,}.{b}'
+
+    @classmethod
+    def api(cls, order=(3, 0, 5, 1, 4, 2)):
+        return {'bmx': {'series': [{'idSerie': cls.IDS[i], 'titulo': 't', 'datos': [{'fecha': r[0], 'dato': cls._c(r[i + 1])} for r in cls.TAB]}
+                                   for i in order]}}
+
+    @staticmethod
+    def http_error(code, body, reason='Bad Request'):
+        raw = body if isinstance(body, bytes) else json.dumps(body).encode()
+        return urllib.error.HTTPError('https://www.banxico.org.mx/SieAPIRest/service/v1/series/x', code, reason, {}, io.BytesIO(raw))
+
+    def run_(self, api=None, token=None, now=None):
+        """build_meksyk z nagraniami: api = odpowiedź API (dict) albo wyjątek; zwraca (plik, zapytania API, formularze)."""
+        calls, posts = [], []
+
+        def fetch(url, tok, timeout=60):
+            calls.append((url, tok))
+            if isinstance(api, Exception):
+                raise api
+            return api
+
+        def pb(url, form, timeout=90):
+            posts.append(form)
+            return self.csv().encode('latin-1')
+
+        def gj(url, headers=None, timeout=30):
+            assert 'DEXMXUS' in url, url
+            return {'observations': [{'date': '2026-09-18', 'value': '18.25'}, {'date': '2026-09-15', 'value': '17.1393'}, {'date': '2026-09-14', 'value': '.'}]}
+        with mock.patch.object(zd, 'bmx_fetch', fetch), mock.patch.object(zd, 'post_bytes', pb), mock.patch.object(zd, 'get_json', gj), \
+                mock.patch.object(zd, '_now_utc', lambda: now or self.NOW):
+            out = zd.build_meksyk('FREDKEY', self.TOKEN if token is None else token)
+        return out, calls, posts
+
+    def today(self):
+        """Wynik bez tokenu (jak przed v126) — wzorzec dla każdej drogi zapasowej."""
+        out, calls, posts = self.run_(token='')
+        self.assertEqual((calls, len(posts)), ([], 1))
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        return out
+
+    def test_api_rows_equal_form_rows(self):
+        form = zd.parse_bmx(self.csv())
+        self.assertEqual(zd.parse_bmx_api(self.api(), self.IDS), form, 'API i formularz: te same wiersze (przecinki, N/E, UDI naprzód, kolejność serii)')
+        self.assertEqual([r[0] for r in form], ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-14', '2026-09-15'])
+        self.assertEqual(form[-1], self.LAST, 'Udibonos = mln UDI × UDI z tego dnia, jak na stronie')
+
+    def test_api_shape_gaps_and_refusals(self):
+        j = self.api(order=(0, 1)); del j['bmx']['series'][1]['datos']      # seria bez „datos” = brak danych w zakresie
+        rows = zd.parse_bmx_api(j, ('SF65218', 'SF65219'))
+        self.assertEqual(rows[-1], ['2026-09-15', 1787788.99, None, None, None, None], 'brak = None, nigdy zero')
+        with self.assertRaisesRegex(RuntimeError, 'brak serii w odpowiedzi: SF65137'):
+            zd.parse_bmx_api(self.api(order=(0, 1)), ('SF65218', 'SF65219', 'SF65137'))
+        allne = {'bmx': {'series': [{'idSerie': 'SF65218', 'datos': [{'fecha': '12/09/2026', 'dato': 'N/E'}]}]}}
+        for bad in ({}, {'bmx': {}}, {'bmx': []}, {'bmx': {'series': {}}}, {'bmx': {'series': [{'idSerie': 'SF65219', 'datos': []}]}}, allne, [], None, 'x'):
+            with self.assertRaises(RuntimeError, msg=repr(bad)):
+                zd.parse_bmx_api(bad)
+
+    def test_api_path_same_file_header_only(self):
+        want = self.today()
+        out, calls, posts = self.run_(self.api())
+        self.assertEqual(calls, [('https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF65218,SF65219,SF65137,SF65046,SF65107,SP68257'
+                                  '/datos/2024-01-01/2026-09-27', self.TOKEN)], 'jedno zapytanie: 6 serii formularza, od stycznia sprzed 2 lat')
+        self.assertNotIn(self.TOKEN, calls[0][0]); self.assertNotIn('token', calls[0][0].lower())
+        self.assertEqual(posts, [], 'z działającym API formularz nie jest wołany')
+        self.assertEqual(out, want, 'ten sam plik co z formularza'); self.assertEqual(set(out), self.KEYS)
+        self.assertEqual(out['d'][-1], self.LAST); self.assertEqual(out['fx'], [17.1393, '2026-09-15'])
+        self.assertEqual((zd.META['errors'], zd.META['notes']), ([], []))
+        self.assertNotIn(self.TOKEN, json.dumps(out))
+
+    def test_api_path_trims_like_form(self):
+        """API zwraca cały zakres (od stycznia sprzed 2 lat — ok. 680 sesji); plik ma tyle sesji co z formularza (MX_KEEP), nie więcej."""
+        with mock.patch.object(zd, 'MX_KEEP', 3):
+            want = self.today()
+            out, calls, posts = self.run_(self.api())
+        self.assertEqual((len(calls), posts), (1, []), 'dane z API, formularz niewołany')
+        self.assertEqual(len(out['d']), 3); self.assertEqual(out, want, 'ten sam plik co z formularza')
+        self.assertEqual(out['d'], zd.parse_bmx(self.csv())[-3:]); self.assertEqual(out['d'][0][0], '2026-09-11')
+
+    def test_range_end_is_mexico_day(self):
+        out, calls, posts = self.run_(self.api(), now=datetime.datetime(2026, 9, 28, 3, 0, tzinfo=datetime.timezone.utc))
+        self.assertTrue(calls[0][0].endswith('/datos/2024-01-01/2026-09-27'), 'o 03:00 UTC w Meksyku jest jeszcze 27.09')
+        out, calls, posts = self.run_(self.api(), now=datetime.datetime(2027, 1, 1, 2, 0, tzinfo=datetime.timezone.utc))
+        self.assertTrue(calls[0][0].endswith('/datos/2025-01-01/2026-12-31'), 'początek jak w formularzu (rok UTC − 2), koniec = dzień w Meksyku')
+
+    def test_no_token_exactly_as_before(self):
+        out, calls, posts = self.run_(self.api(), token='')
+        self.assertEqual(calls, []); self.assertEqual(len(posts), 1)
+        self.assertEqual(posts[0]['series'], list(self.IDS)); self.assertEqual(posts[0]['anoInicial'], '2024')
+        self.assertEqual(set(out), self.KEYS); self.assertEqual(out['d'][-1], self.LAST)
+        self.assertEqual((zd.META['errors'], zd.META['notes']), ([], []))
+
+    def test_rejected_token_one_note_same_file(self):
+        want = self.today()
+        out, calls, posts = self.run_(self.http_error(400, self.REJECT))
+        self.assertEqual(out, want, 'token odrzucony = dokładnie dzisiejszy plik'); self.assertEqual(set(out), self.KEYS)
+        self.assertEqual((len(calls), len(posts)), (1, 1))
+        self.assertEqual(zd.META['notes'], [self.NOTE]); self.assertEqual(zd.META['errors'], [], 'notatka, nie błąd')
+        self.assertEqual(zd.META['ok'], {}, 'build_meksyk nie oznacza źródła jako niedziałającego')
+        self.assertNotIn(self.TOKEN, json.dumps([out, zd.META['notes']]))
+        for code, body, note in ((400, {'error': {'mensaje': 'Token no activo'}}, 'Token no activo'), (401, self.REJECT, 'Token inválido'),
+                                 (403, {'error': {'mensaje': 'El token fue revocado', 'detalle': 'x'}}, 'El token fue revocado')):
+            zd.META['notes'].clear()
+            out, calls, posts = self.run_(self.http_error(code, body, 'Unauthorized'))
+            self.assertEqual(out, want); self.assertEqual(zd.META['errors'], [], (code, body))
+            self.assertEqual(zd.META['notes'], [f'BANXICO_TOKEN odrzucony przez bank ({note}) — Meksyk z formularza'])
+        zd.META['notes'].clear()
+        out, calls, posts = self.run_(self.REJECT)                            # błąd w odpowiedzi 200 — to samo
+        self.assertEqual((out, zd.META['notes'], zd.META['errors']), (want, [self.NOTE], []))
+
+    def test_token_of_wrong_shape_not_sent(self):
+        want = self.today()
+        for tok in ('abc', self.TOKEN[:63], self.TOKEN + '0', self.TOKEN[:32] + ' ' + self.TOKEN[33:], 'ghp_' + 'x' * 60 + '"'):
+            zd.META['notes'].clear()
+            out, calls, posts = self.run_(self.api(), token=tok)
+            self.assertEqual(calls, [], 'wartość, która nie jest tokenem SIE, nie wychodzi do banku')
+            self.assertEqual(out, want); self.assertEqual(zd.META['errors'], [])
+            self.assertEqual(zd.META['notes'], ['BANXICO_TOKEN odrzucony przed wysłaniem: to nie jest token Banxico (64 litery i cyfry) — Meksyk z formularza'])
+            self.assertNotIn(tok, zd.META['notes'][0])
+
+    def test_other_api_failures_error_and_form(self):
+        want = self.today()
+        bad_scale = self.api(); bad_scale['bmx']['series'][1]['datos'][8]['dato'] = '1,787.99'   # 1,8 mld MXN zamiast 1,8 bln
+        cases = ((self.http_error(400, {'error': {'mensaje': 'Límite de consultas superado.', 'detalle': '…', 'timeReset': 1790000000, 'secondsToReset': 54}}),
+                  'Banxico API (zapas: formularz): HTTP 400: Límite de consultas superado. (blokada limitu jeszcze 54 s)'),
+                 (self.http_error(400, {'error': {'mensaje': 'Límite de consultas superado para este token.', 'timeReset': 1790000000, 'secondsToReset': 54}}),
+                  'Banxico API (zapas: formularz): HTTP 400: Límite de consultas superado para este token. (blokada limitu jeszcze 54 s)'),   # limit, nie odmowa
+                 (self.http_error(403, b'<html>Forbidden</html>', 'Forbidden'), 'Banxico API (zapas: formularz): HTTP 403: Forbidden'),   # zapora/CDN, nie bank
+                 (self.http_error(401, b'', 'Unauthorized'), 'Banxico API (zapas: formularz): HTTP 401: Unauthorized'),
+                 (self.http_error(401, {'error': {'mensaje': 'Acceso denegado'}}, 'Unauthorized'), 'Banxico API (zapas: formularz): HTTP 401: Acceso denegado'),
+                 (self.http_error(404, b'', 'Not Found'), 'Banxico API (zapas: formularz): HTTP 404: Not Found'),
+                 (self.http_error(302, b'', 'Found'), 'Banxico API (zapas: formularz): HTTP 302: Found'),
+                 (urllib.error.URLError('timed out'), 'Banxico API (zapas: formularz): <urlopen error timed out>'),
+                 (ValueError('Expecting value: line 1 column 1 (char 0)'), 'Banxico API (zapas: formularz): Expecting value: line 1 column 1 (char 0)'),
+                 ({'bmx': {'series': self.api()['bmx']['series'][:5]}}, 'Banxico API (zapas: formularz): brak serii w odpowiedzi: SF65137'),
+                 (bad_scale, 'Banxico API (zapas: formularz): skala niezgodna (2026-09-15)'))
+        for api, err in cases:
+            zd.META['errors'].clear()
+            out, calls, posts = self.run_(api)
+            self.assertEqual(len(calls), 1, 'bez ponawiania'); self.assertEqual(len(posts), 1, 'formularz jako zapas')
+            self.assertEqual(out, want); self.assertEqual(zd.META['errors'], [err]); self.assertEqual(zd.META['notes'], [])
+
+    def test_token_masked_if_echoed(self):
+        out, calls, posts = self.run_(RuntimeError(f'coś z {self.TOKEN} w treści'))
+        self.assertEqual(zd.META['errors'], ['Banxico API (zapas: formularz): coś z *** w treści'])
+        zd.META['notes'].clear()
+        self.run_(self.http_error(400, {'error': {'mensaje': f'Token inválido {self.TOKEN}'}}))
+        self.assertEqual(zd.META['notes'], ['BANXICO_TOKEN odrzucony przez bank (Token inválido ***) — Meksyk z formularza'])
+        # tekst banku dłuższy niż 80 znaków z tokenem po ok. 50 znakach: najpierw maskowanie całości, potem skrócenie — bez urywka tokenu
+        pre = 'El token enviado no es válido, favor de verificar: '
+        lim = {'timeReset': 1790000000, 'secondsToReset': 54}
+        cases = (({'mensaje': pre + self.TOKEN}, [self.TOKEN], 'notes', f'BANXICO_TOKEN odrzucony przez bank ({pre}***) — Meksyk z formularza'),
+                 ({'mensaje': pre + self.TOKEN}, [], 'notes', f'BANXICO_TOKEN odrzucony przez bank ({pre}***) — Meksyk z formularza'),   # bez SECRETS
+                 ({'mensaje': pre + self.TOKEN[:40] + '…'}, [self.TOKEN], 'notes', f'BANXICO_TOKEN odrzucony przez bank ({pre}***…) — Meksyk z formularza'),
+                 ({'mensaje': 'Error de validación del token de consulta, revise la configuración de su cliente: ' + self.TOKEN}, [self.TOKEN], 'notes',
+                  'BANXICO_TOKEN odrzucony przez bank (Error de validación del token de consulta, revise la configuración de su cliente) — Meksyk z formularza'),   # 80 znaków: token już zamaskowany, obcięty „: ***”
+                 ({'mensaje': 'Límite de consultas superado para el token ' + self.TOKEN + ' — espere', **lim}, [self.TOKEN], 'errors',
+                  'Banxico API (zapas: formularz): HTTP 400: Límite de consultas superado para el token *** — espere (blokada limitu jeszcze 54 s)'))
+        for err, secrets, where, want in cases:
+            zd.META['notes'].clear(); zd.META['errors'].clear(); zd.SECRETS[:] = secrets
+            self.run_(self.http_error(400, {'error': err}))
+            self.assertEqual(zd.META[where], [want]); self.assertEqual(len(zd.META['notes']) + len(zd.META['errors']), 1)
+            text = zd.mask(json.dumps([zd.META['notes'], zd.META['errors']], ensure_ascii=False))    # jak końcowe maskowanie w main()
+            self.assertEqual([self.TOKEN[i:i + 8] for i in range(57) if self.TOKEN[i:i + 8] in text], [], 'ani 8 znaków tokenu w meta.json')
+
+    def test_fetch_header_only_no_redirect(self):
+        seen = {}
+
+        class R(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        class Op:
+            def open(self, req, timeout=None):
+                seen['req'], seen['timeout'] = req, timeout
+                return R(json.dumps(self_api).encode())
+        self_api = self.api()
+
+        def bo(*handlers):
+            seen['handlers'] = handlers
+            return Op()
+        with mock.patch.object(zd.urllib.request, 'build_opener', bo):
+            j = zd.bmx_fetch('https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF65218/datos/2026-09-01/2026-09-27', self.TOKEN)
+        self.assertEqual(j, self_api); self.assertEqual(seen['handlers'], (zd._BmxNoRedirect,)); self.assertEqual(seen['timeout'], 60)
+        req = seen['req']
+        self.assertEqual(req.get_header('Bmx-token'), self.TOKEN); self.assertEqual(req.get_header('Accept'), 'application/json')
+        self.assertIsNone(req.get_header('Accept-encoding'), 'urllib nie rozpakowuje gzip'); self.assertNotIn(self.TOKEN, req.full_url)
+        self.assertEqual(req.get_method(), 'GET')
+        self.assertTrue(issubclass(zd._BmxNoRedirect, zd.urllib.request.HTTPRedirectHandler))
+        self.assertIsNone(zd._BmxNoRedirect().redirect_request(req, None, 302, 'Found', {}, 'https://example.com/'), 'nagłówek z tokenem nie idzie za przekierowaniem')
+
+    def test_main_reads_secret_registers_and_passes(self):
+        seen = []
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_meksyk']
+        [p.start() for p in stubs]
+        try:
+            for tok in (self.TOKEN, ''):
+                with mock.patch.dict(os.environ, {'BANXICO_TOKEN': ' ' + tok + '\n', 'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda name, obj: None), mock.patch.object(zd, 'previous', lambda name: None), \
+                        mock.patch.object(zd, 'build_meksyk', side_effect=lambda k, t='': seen.append(t) or {'at': zd.NOW, 'd': []}):
+                    zd.main()
+                self.assertEqual(tok in zd.SECRETS, bool(tok))
+        finally:
+            [p.stop() for p in stubs]
+        self.assertEqual(seen, [self.TOKEN, ''], 'sekret przycięty i przekazany; bez sekretu — pusty')
+
+    def test_main_rejected_token_end_to_end(self):
+        """Pełny main(): token odrzucony przez bank = ten sam meksyk.json i to samo „ok” co bez tokenu + jedna notatka; plik świeży = z pamięci."""
+        runs = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_meksyk']
+        [p.start() for p in stubs]
+        try:
+            for tok in ('', self.TOKEN):
+                saved, calls = {}, []
+                zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()   # main() nie czyści META — każdy przebieg od zera
+
+                def fetch(url, t, timeout=60):
+                    calls.append(url)
+                    raise self.http_error(400, self.REJECT)
+                with mock.patch.dict(os.environ, {'BANXICO_TOKEN': tok, 'FRED_KEY': '', 'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), mock.patch.object(zd, 'previous', lambda name: None), \
+                        mock.patch.object(zd, 'bmx_fetch', fetch), mock.patch.object(zd, 'post_bytes', lambda url, form, timeout=90: self.csv().encode('latin-1')), \
+                        mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+                    zd.main()
+                runs[tok] = (saved['meksyk'], zd.META['ok'].get('meksyk'), list(zd.META['errors']), list(zd.META['notes']), len(calls))
+            for tok, prev_at, rebuilt in ((self.TOKEN, zd.NOW, False), (self.TOKEN, _iso(400), True)):
+                saved, prev = {}, {'at': prev_at, 'd': [self.LAST]}
+                with mock.patch.dict(os.environ, {'BANXICO_TOKEN': tok, 'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), \
+                        mock.patch.object(zd, 'previous', lambda name: prev if name == 'meksyk' else None), \
+                        mock.patch.object(zd, 'build_meksyk', return_value={'at': zd.NOW, 'd': [self.LAST]}) as bm:
+                    zd.main()
+                self.assertEqual(bm.called, rebuilt, 'token nie wymusza przebudowy — rytm 6 h jak dotąd')
+                self.assertIs(saved['meksyk'] is prev, not rebuilt)
+        finally:
+            [p.stop() for p in stubs]
+        (f0, ok0, e0, n0, c0), (f1, ok1, e1, n1, c1) = runs[''], runs[self.TOKEN]
+        self.assertEqual((c0, c1), (0, 1))
+        self.assertEqual(f1, f0, 'ten sam meksyk.json'); self.assertEqual(f1['d'][-1], self.LAST)
+        self.assertEqual(set(f1), self.KEYS - {'fx'}, 'te same pola (bez klucza FRED — bez przeliczenia na USD, jak dotąd)')
+        self.assertEqual((ok0, ok1), (True, True), 'źródło działa (formularz)')
+        self.assertEqual(e1, e0, 'żadnego nowego błędu'); self.assertFalse([e for e in e1 if 'Banxico' in e or 'BANXICO' in e], e1)
+        self.assertEqual([n for n in n1 if n not in n0], [self.NOTE], 'jedna notatka więcej: nazwa sekretu, bez wartości')
+        self.assertNotIn(self.TOKEN, json.dumps([f1, e1, n1]))
 
 
 class TrendyV89(unittest.TestCase):
@@ -7710,6 +8462,543 @@ class DzwigniaV109_1(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 zd.lev_tmo()
         zd._LEV_TERMIN[0] = None
+
+
+class DzwigniaCoinalyzeV126(unittest.TestCase):
+    """v126: część `cz` pliku dzwignia.json — wszystkie duże giełdy kontraktów dla 10 monet przez jednego pośrednika (klucz COINALYZE_KEY
+    wyłącznie w nagłówku api_key). Nagrania w kształcie specyfikacji pośrednika i sondy z GitHub 27.09.2026 (symbole BTCUSDT_PERP.A, BTCUSDT.6,
+    BTCUSDT_PERP.3, BTC.H; historia godzinowa bez pustych godzin; Hyperliquid bez likwidacji; stawka Hyperliquid = bezpośrednia godzinowa).
+    Liczby zmyślone. Zegar przypięty (NOW), sieć zablokowana — każde zapytanie idzie do zaślepki."""
+    NOW = '2026-09-27T16:20:00+00:00'
+    KEY = 'test-cz-0123456789abcdef'          # wartość testowa, nie prawdziwy klucz
+    EX = [{'name': 'Binance', 'code': 'A'}, {'name': 'Bybit', 'code': '6'}, {'name': 'OKX', 'code': '3'}, {'name': 'Hyperliquid', 'code': 'H'},
+          {'name': 'Kraken', 'code': 'K'}, {'name': 'Coinbase', 'code': 'C'}, {'name': 'dYdX', 'code': '8'}, {'name': 'Bitstamp', 'code': 'B'}]
+    # symbol, giełda, moneta, notowanie, wieczysty, stosunek kont, pozycje USD teraz, pozycje dobę wcześniej, stawka % za okres
+    M = [('BTCUSDT_PERP.A', 'A', 'BTC', 'USDT', True, True, 8.0e9, 7.8e9, 0.01), ('BTCUSD_PERP.A', 'A', 'BTC', 'USD', True, True, 1.2e9, 1.2e9, 0.01),
+         ('BTCUSDC_PERP.A', 'A', 'BTC', 'USDC', True, True, 0.05e9, 0.05e9, 0.01), ('BTCUSDT.6', '6', 'BTC', 'USDT', True, True, 5.5e9, 5.0e9, 0.005),
+         ('BTCUSDT_PERP.3', '3', 'BTC', 'USDT', True, False, 2.3e9, 2.3e9, 0.00210707400457), ('BTC.H', 'H', 'BTC', 'USD', True, False, 3.2e9, 3.0e9, 0.00125),
+         ('PF_XBTUSD.K', 'K', 'BTC', 'USD', True, False, 0.18e9, 0.18e9, -0.00026), ('BTC-PERP.C', 'C', 'BTC', 'USDC', True, False, 0.09e9, 0.09e9, 0.0008),
+         ('BTC-USD.8', '8', 'BTC', 'USD', True, False, 0.02e9, 0.02e9, -0.0001),
+         ('ETHUSDT_PERP.A', 'A', 'ETH', 'USDT', True, True, 4.0e9, 4.4e9, 0.01), ('ETHUSDT.6', '6', 'ETH', 'USDT', True, True, 2.0e9, 2.0e9, 0.01),
+         ('ETH.H', 'H', 'ETH', 'USD', True, False, 1.5e9, 1.5e9, -0.001), ('ETHUSDT_PERP.3', '3', 'ETH', 'USDT', True, False, 1.0e9, 1.0e9, 0.008),
+         ('XRPUSDT_PERP.A', 'A', 'XRP', 'USDT', True, True, 1.0e9, 1.0e9, 0.01), ('XRP.H', 'H', 'XRP', 'USD', True, False, 0.3e9, 0.3e9, 0.00125)]
+    EXTRA_FM = [  # odrzucane: kontrakt terminowy, EUR, obca moneta, giełda spoza /exchanges, zły sufiks, duplikat
+        {'symbol': 'BTCUSD_261225.A', 'exchange': 'A', 'base_asset': 'BTC', 'quote_asset': 'USD', 'is_perpetual': False, 'expire_at': 1798156800000},
+        {'symbol': 'PF_XBTEUR.K', 'exchange': 'K', 'base_asset': 'BTC', 'quote_asset': 'EUR', 'is_perpetual': True},
+        {'symbol': 'PEPEUSDT_PERP.A', 'exchange': 'A', 'base_asset': 'PEPE', 'quote_asset': 'USDT', 'is_perpetual': True},
+        {'symbol': 'XBTUSD.Q', 'exchange': 'Q', 'base_asset': 'BTC', 'quote_asset': 'USD', 'is_perpetual': True},
+        {'symbol': 'BTCUSDT_PERP', 'exchange': 'A', 'base_asset': 'BTC', 'quote_asset': 'USDT', 'is_perpetual': True},
+        {'symbol': 'BTCUSDT.6', 'exchange': '6', 'base_asset': 'BTC', 'quote_asset': 'USDT', 'is_perpetual': True}, 'śmieć']
+
+    @classmethod
+    def now(cls, iso=None):
+        return datetime.datetime.fromisoformat(iso or cls.NOW)
+
+    @classmethod
+    def fm(cls):
+        return [{'symbol': s, 'exchange': e, 'symbol_on_exchange': s.rsplit('.', 1)[0], 'base_asset': c, 'quote_asset': q, 'is_perpetual': p,
+                 'margined': 'STABLE', 'expire_at': None, 'oi_lq_vol_denominated_in': 'BASE_ASSET', 'has_long_short_ratio_data': ls,
+                 'has_ohlcv_data': True, 'has_buy_sell_data': True} for s, e, c, q, p, ls, *_x in cls.M] + cls.EXTRA_FM
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW))
+        self.enterContext(mock.patch.object(zd, '_LEV_TERMIN', [None]))
+        self.calls = []
+
+    # --- zaślepka pośrednika: odpowiedzi w kształcie specyfikacji, tylko dla zapytanych symboli ---
+    def api(self, url, headers=None, timeout=30, now=None, over=None):
+        self.calls.append((url, dict(headers or {})))
+        self.assertLessEqual(timeout, 20, url)
+        self.assertTrue(url.startswith(zd.CZ_URL), url)
+        path, _, qs = url[len(zd.CZ_URL):].partition('?')
+        q = dict(zd.urllib.parse.parse_qsl(qs))
+        syms = q.get('symbols', '').split(',') if q.get('symbols') else []
+        self.assertLessEqual(len(syms), 20, 'najwyżej 20 symboli w zapytaniu')
+        now_s = int((now or self.now()).timestamp()); H = now_s // 3600 * 3600
+        by = {m[0]: m for m in self.M}
+        if over and path in over:
+            return over[path](syms, q)
+        if path == 'exchanges':
+            return self.EX
+        if path == 'future-markets':
+            return self.fm()
+        if path == 'open-interest-history':
+            self.assertEqual((q['interval'], q['convert_to_usd']), ('1hour', 'true'))
+            return [{'symbol': s, 'history': [{'t': t, 'o': by[s][7] if t < H else by[s][6], 'h': 1, 'l': 1, 'c': by[s][7] if t < H else by[s][6]}
+                                              for t in range(int(q['from']), H + 1, 3600)]} for s in syms if s in by]
+        if path == 'funding-rate':
+            return [{'symbol': s, 'value': by[s][8], 'update': now_s * 1000 - 5000} for s in syms if s in by]
+        if path == 'liquidation-history':
+            self.assertEqual((q['interval'], q['convert_to_usd']), ('1hour', 'true'))
+            out = []
+            for s in syms:
+                if s.endswith('.H'):
+                    continue   # Hyperliquid: pośrednik nie ma likwidacji — symbolu brak w odpowiedzi
+                if s.endswith('.3'):
+                    out.append({'symbol': s, 'history': []}); continue
+                rows = [{'t': t, 'l': 1e6, 's': 3e5 if (t // 3600) % 3 == 0 else 0} for t in range(int(q['from']) - 3600, H + 1, 3600) if (t // 3600) % 6 != 5]
+                out.append({'symbol': s, 'history': rows})
+            return out
+        if path == 'long-short-ratio-history':
+            return [{'symbol': s, 'history': [{'t': t, 'r': round(1.2 + (t - H + 86400) / 86400 * 0.09, 4), 'l': 55.0, 's': 45.0} for t in range(H - 25 * 3600, H + 1, 3600)]}
+                    for s in syms if s in by]
+        raise AssertionError('nieznana ścieżka ' + path)
+
+    def direct(self, iso=None):
+        """Nasze bezpośrednie odczyty (części hl, okx, kr) z tego samego przebiegu — do porównania stawek."""
+        t = iso or self.NOW
+        return {'part_at': {'hl': t, 'okx': t, 'kr': t}, 'ok': {'hl': True, 'okx': True, 'kr': True},
+                'hl': {'rows': {'BTC': {'f_h': 0.0000125, 'oi_usd': 3.1e9}, 'ETH': {'f_h': -0.00001, 'oi_usd': 1.5e9}}},
+                'okx': {'BTC': {'t': t, 'f': 0.0000210707400457, 'f_hours': 8.0, 'f_y': 2.307}, 'ETH': {'t': t, 'f': 0.00008, 'f_hours': 8.0}},
+                'kr': {'t': t, 'f_hours': 1, 'BTC': {'t': t, 'f_h': -0.0000026, 'f_hours': 1, 'sym': 'PF_XBTUSD'}}}
+
+    def run_cz(self, prev=None, iso=None, out=None, over=None):
+        with mock.patch.object(zd, 'NOW', iso or self.NOW), mock.patch.object(zd, 'get_json', side_effect=lambda u, h=None, timeout=30: self.api(u, h, timeout, self.now(iso), over)):
+            return zd.lev_cz(prev, self.KEY, self.direct(iso) if out is None else out)
+
+    def full(self, runs=12):
+        """Kolejne przebiegi co 20 min od pustej części — aż wszystko zostanie pobrane."""
+        cz, t0 = None, self.now()
+        for i in range(runs):
+            iso = (t0 + datetime.timedelta(minutes=20 * i)).isoformat()
+            n0 = len(self.calls)
+            v = self.run_cz(cz, iso)
+            cost = sum(max(1, len(dict(zd.urllib.parse.parse_qsl(u.partition('?')[2])).get('symbols', 'x').split(','))) for u, _h in self.calls[n0:])
+            self.assertLessEqual(cost, zd.CZ_PER_RUN, f'przebieg {i}: {cost} wywołań')
+            cz = v or cz
+        return cz, iso
+
+    def test_pick_universe_only_perpetuals_of_site_coins_as_listed(self):
+        u = zd.cz_pick(self.EX, self.fm())
+        self.assertEqual(sorted(u['all']), ['BTC', 'ETH', 'XRP'])
+        self.assertEqual([r[0] for r in u['all']['BTC']], ['BTCUSDT_PERP.3', 'BTCUSDT.6', 'BTC-USD.8', 'BTCUSDT_PERP.A', 'BTCUSD_PERP.A', 'BTCUSDC_PERP.A', 'BTC-PERP.C', 'BTC.H', 'PF_XBTUSD.K'],
+                         'kolejność: giełda, USDT, USD, USDC; bez kontraktu terminowego, EUR, obcej giełdy, złego sufiksu i duplikatu')
+        self.assertEqual(u['all']['BTC'][1], ['BTCUSDT.6', '6', 'USDT', 1], 'symbol Bybit dokładnie jak u pośrednika (bez _PERP)')
+        self.assertEqual(u['ex'], {'3': 'OKX', '6': 'Bybit', '8': 'dYdX', 'A': 'Binance', 'C': 'Coinbase', 'H': 'Hyperliquid', 'K': 'Kraken'}, 'tylko giełdy z rynkami (bez Bitstamp)')
+        for bad in ({'message': 'Invalid/Missing API key'}, None, '<html>'):
+            with self.assertRaises(ValueError):
+                zd.cz_pick(bad, self.fm())
+        with self.assertRaises(ValueError):
+            zd.cz_pick(self.EX, [m for m in self.fm() if isinstance(m, dict) and m.get('base_asset') == 'PEPE'])
+
+    def test_get_key_only_in_header_budget_and_429(self):
+        seen = []
+        def gj(url, headers=None, timeout=30):
+            seen.append((url, dict(headers or {}))); return [{'symbol': 'BTC.H', 'value': 1.0, 'update': 1}]
+        zd._CZ_LEFT[0] = 32
+        with mock.patch.object(zd, 'get_json', side_effect=gj):
+            zd.cz_many('open-interest', ['S%d' % i for i in range(25)], self.KEY, {'convert_to_usd': 'true'})
+        self.assertEqual(len(seen), 2, '25 symboli = paczki 20 + 5'); self.assertEqual(zd._CZ_LEFT[0], 7, 'koszt = liczba symboli')
+        for u, h in seen:
+            self.assertEqual(h, {'api_key': self.KEY}, 'klucz tylko w nagłówku api_key'); self.assertNotIn(self.KEY, u, 'klucz nigdy w adresie')
+        self.assertIn('symbols=S0,S1,', seen[0][0]); self.assertNotIn('api_key', seen[0][0])
+        with mock.patch.object(zd, 'get_json', side_effect=AssertionError('nie wysyłać')):
+            with self.assertRaises(zd.CzStop):
+                zd.cz_get('funding-rate?symbols=A,B,C,D,E,F,G,H', self.KEY, cost=8)   # zostało 7 — zapytanie niewysłane
+            with mock.patch.object(zd, '_LEV_TERMIN', [zd.time.monotonic() - 1]):
+                with self.assertRaises(zd.CzStop) as cm:
+                    zd.cz_get('exchanges', self.KEY)   # budżet czasu budowniczego wyczerpany — bez zapytania
+            self.assertIn('limit czasu przebiegu', str(cm.exception)); self.assertEqual(zd._CZ_LEFT[0], 7, 'budżet wywołań nietknięty')
+        err = lambda code, ra=None: zd.urllib.error.HTTPError(zd.CZ_URL + 'x', code, 'x', {'Retry-After': ra} if ra else {}, None)
+        seq = [err(429, '7'), [{'symbol': 'A', 'value': 1, 'update': 1}]]
+        def flaky(url, headers=None, timeout=30):
+            x = seq.pop(0)
+            if isinstance(x, Exception): raise x
+            return x
+        zd._CZ_LEFT[0] = 32
+        with mock.patch.object(zd, 'get_json', side_effect=flaky), mock.patch.object(zd.time, 'sleep') as sl:
+            self.assertEqual(zd.cz_get('funding-rate?symbols=A', self.KEY), [{'symbol': 'A', 'value': 1, 'update': 1}])
+        sl.assert_called_once_with(7.0)
+        with mock.patch.object(zd, 'get_json', side_effect=err(429, '60')), mock.patch.object(zd.time, 'sleep') as sl:
+            with self.assertRaises(zd.CzStop) as cm:
+                zd.cz_get('funding-rate?symbols=A', self.KEY)
+        sl.assert_not_called(); self.assertIn('429', str(cm.exception))
+        with mock.patch.object(zd, 'get_json', side_effect=[err(429, '5'), err(429, '5')]), mock.patch.object(zd.time, 'sleep') as sl:
+            with self.assertRaises(zd.CzStop):
+                zd.cz_get('funding-rate?symbols=A', self.KEY)
+        self.assertEqual(sl.call_count, 1, 'najwyżej jedno ponowienie')
+        for e in (err(401), err(403), zd.urllib.error.URLError('timed out'), TimeoutError('timed out'), ValueError('Expecting value')):
+            with mock.patch.object(zd, 'get_json', side_effect=e):
+                with self.assertRaises(zd.CzStop):
+                    zd.cz_get('exchanges', self.KEY)
+        with mock.patch.object(zd, 'get_json', side_effect=err(400)):
+            with self.assertRaises(zd.urllib.error.HTTPError):
+                zd.cz_get('exchanges', self.KEY)   # zły parametr — błąd tego zadania, nie całego kroku
+        with mock.patch.object(zd, 'get_json', return_value={'message': 'Invalid/Missing API key'}):
+            with self.assertRaises(ValueError):
+                zd.cz_get('exchanges', self.KEY)
+        zd.SECRETS.append(self.KEY)
+        try:
+            self.assertEqual(zd.mask(f'Dźwignia: {zd.CZ_PX}: {self.KEY} HTTP 401'), f'Dźwignia: {zd.CZ_PX}: *** HTTP 401')
+        finally:
+            zd.SECRETS.remove(self.KEY)
+
+    def test_open_interest_sum_by_exchange_and_24h_change_on_the_same_markets(self):
+        now_s = int(self.now().timestamp()); H = now_s // 3600 * 3600
+        rows = [['A1', 'A', 'USDT', 1], ['A2', 'A', 'USD', 1], ['B1', '6', 'USDT', 1], ['OLD', '3', 'USDT', 0], ['NEG', 'H', 'USD', 0], ['NEW', 'K', 'USD', 0], ['NONE', 'C', 'USDC', 0]]
+        hr = lambda s, e, ts: [{'t': t, 'o': s, 'c': s if t < H else e} for t in ts]
+        full = range(H - 25 * 3600, H + 1, 3600)
+        hist = {'A1': hr(100.0, 110.0, full), 'A2': hr(50.0, 40.0, full), 'B1': hr(80.0, 88.0, full),
+                'OLD': hr(10.0, 10.0, range(H - 25 * 3600, H - 2 * 3600, 3600)), 'NEG': hr(5.0, -5.0, full),
+                'NEW': hr(7.0, 7.0, range(H - 5 * 3600, H + 1, 3600)), 'NONE': [{'t': H, 'o': None, 'c': None}]}
+        agg, per = zd.cz_oi(rows, hist, now_s)
+        self.assertEqual(agg['usd'], 110 + 40 + 88 + 7); self.assertEqual(agg['v'], '6AK'); self.assertNotIn('by', agg, 'plik bez rozbicia na giełdy (strona go nie używa)')
+        self.assertEqual((agg['n'], agg['nex'], agg['n1']), (4, 3, 3), 'rynek bez stanu z 2 godzin, ujemny i pusty — pominięte; nowy rynek bez odczytu sprzed doby — poza zmianą')
+        self.assertAlmostEqual(agg['d1'], ((110 + 40 + 88) / (100 + 50 + 80) - 1) * 100, 3)
+        self.assertEqual(agg['t'], self.NOW, 'bieżąca godzina = stan na teraz'); self.assertEqual(per['A1'], [110, self.NOW])
+        self.assertNotIn('OLD', per); self.assertNotIn('NEG', per)
+        prevh = {'A1': [r for r in hist['A1'] if r['t'] < H]}   # brak świecy bieżącej godziny: stan z końca poprzedniej, doba wstecz = zamknięcie sprzed 25 h
+        agg2, _ = zd.cz_oi([rows[0]], prevh, now_s)
+        self.assertEqual(agg2['t'], datetime.datetime.fromtimestamp(H, datetime.timezone.utc).isoformat()); self.assertEqual(agg2['d1'], 0.0)
+        self.assertEqual(zd.cz_oi(rows, {}, now_s), (None, {}), 'nic — None, nie zero')
+
+    def test_funding_native_period_annualised_only_where_verified(self):
+        now = self.now(); cz = zd.cz_norm({}); cz['ex'] = zd.cz_pick(self.EX, self.fm())['ex']
+        cz['mk']['BTC'] = {'all': zd.cz_pick(self.EX, self.fm())['all']['BTC']}
+        now_ms = int(now.timestamp() * 1000)
+        rates = {m[0]: (m[8], now_ms - 5000) for m in self.M if m[2] == 'BTC'}
+        chk = zd.cz_check('BTC', rates, cz, self.direct(), now)
+        self.assertEqual(chk['hl:BTC'], {'r': 1.0, 'ok': True, 't': self.NOW}, 'Hyperliquid: stawka pośrednika = nasza godzinowa (okres natywny 1 h)')
+        self.assertEqual(chk['okx:BTC'], {'r': 1.0, 'ok': True, 't': self.NOW, 'h': 8.0, 'sym': 'BTCUSDT_PERP.3'}, 'OKX: okres z naszego odczytu giełdy')
+        self.assertEqual((chk['kr:BTC']['ok'], chk['kr:BTC']['r']), (True, 1.0))
+        self.assertNotIn('cb:BTC', chk, 'bez świeżego odczytu Coinbase — nierozstrzygające'); self.assertFalse(any(k.startswith(('A', '6')) for k in chk))
+        cz['chk'] = chk
+        big = [r for r in cz['mk']['BTC']['all'] if r[1] in 'A63H' and r[0] != 'BTCUSDC_PERP.A']
+        s = {m[0]: [m[6], self.NOW] for m in self.M}
+        f = zd.cz_fr(big, rates, s, lambda sym, code: zd.cz_hours(sym, code, 'BTC', cz, now), now)
+        yh, yo = 0.00125 * 24 * 365, 0.00210707400457 / 8 * 24 * 365
+        self.assertAlmostEqual(f['y'], round((yh * 3.2e9 + yo * 2.3e9) / 5.5e9, 3), 3); self.assertEqual((f['n'], f['yv']), (2, '3H'))
+        self.assertAlmostEqual(f['w'], round(5.5 / 20.2, 4), 4, 'udział pozycji objętych średnią')
+        self.assertEqual(f['by']['A'], [0.01, None, 'USDT', None], 'Binance: stawka za własny okres, bez okresu i bez przeliczenia na rok (największy rynek: USDT)')
+        self.assertEqual(f['by']['6'], [0.005, None, 'USDT', None]); self.assertEqual(f['by']['H'], [0.00125, 1, 'USD', round(yh, 3)])
+        self.assertEqual(f['by']['3'][:3], [0.002107, 8.0, 'USDT'])
+        # niezgodność (np. inna jednostka stawki Kraken u pośrednika) → giełda nieprzeliczana, nawet gdy wcześniej była zgodna
+        bad = dict(rates, **{'PF_XBTUSD.K': (-0.25, now_ms)})
+        cz['chk'].update(zd.cz_check('BTC', bad, cz, self.direct(), now))
+        self.assertFalse(cz['chk']['kr:BTC']['ok']); self.assertIsNone(zd.cz_hours('PF_XBTUSD.K', 'K', 'BTC', cz, now))
+        self.assertEqual(zd.cz_hours('BTC.H', 'H', 'BTC', cz, now), 1)
+        self.assertIsNone(zd.cz_hours('BTCUSD_PERP.3', '3', 'BTC', cz, now), 'OKX: tylko rynek z porównania')
+        old = self.now('2026-10-05T16:20:00+00:00')
+        self.assertIsNone(zd.cz_hours('BTC.H', 'H', 'BTC', cz, old), 'potwierdzenie starsze niż 7 dni — bez przeliczania')
+        stale = zd.cz_check('BTC', rates, cz, self.direct('2026-09-27T14:00:00+00:00'), now)
+        self.assertEqual(stale, {}, 'odczyt bezpośredni starszy niż godzina — nierozstrzygające')
+        tiny = self.direct(); tiny['hl']['rows']['BTC']['f_h'] = 1e-7
+        self.assertNotIn('hl:BTC', zd.cz_check('BTC', rates, cz, tiny, now), 'stawka bliska zera — nierozstrzygające')
+        # pomyłka jednostki i stara stawka → pominięte; nic → None
+        f2 = zd.cz_fr(big, dict(rates, **{'BTC.H': (0.9, now_ms), 'BTCUSDT.6': (0.005, now_ms - 7 * 3600e3)}), s, lambda sym, code: zd.cz_hours(sym, code, 'BTC', cz, now), now)
+        self.assertNotIn('H', f2['by']); self.assertNotIn('6', f2['by']); self.assertEqual(f2['yv'], '3')
+        self.assertIsNone(zd.cz_fr(big, {}, s, lambda *a: None, now))
+        f3 = zd.cz_fr(big, rates, s, lambda *a: None, now)
+        self.assertIsNone(f3['y']); self.assertIsNone(f3['w']); self.assertEqual(f3['n'], 0, 'bez potwierdzonego okresu — średniej nie ma (nie zero)')
+        self.assertEqual(f3['yx'], 'h', 'powód: brak potwierdzonego okresu'); self.assertNotIn('yx', f, 'średnia jest — bez powodu braku')
+        # wagi (pozycje) starsze niż 6 h, choć okres potwierdzony: średniej brak z INNEGO powodu — strona nie może pisać „brak potwierdzonego okresu”
+        s7 = {k: [v[0], '2026-09-27T09:00:00+00:00'] for k, v in s.items()}
+        f4 = zd.cz_fr(big, rates, s7, lambda sym, code: zd.cz_hours(sym, code, 'BTC', cz, now), now)
+        self.assertIsNone(f4['y']); self.assertEqual((f4['n'], f4['yx']), (0, 'w')); self.assertEqual(f4['by']['H'], [0.00125, 1, 'USD', round(yh, 3)], 'stawka giełdy z okresem zostaje w tabeli')
+
+    def test_liquidations_24h_window_and_markets_without_feed(self):
+        now_s = int(self.now().timestamp()); H = now_s // 3600 * 3600
+        h0, h1 = zd.cz_lq_win(now_s)
+        self.assertEqual((h0, h1), (H - 86400, H), '16:20 → okno 24 pełnych godzin do 16:00 (bieżąca godzina poza oknem)')
+        self.assertEqual(zd.cz_lq_win(H + 180), (H - 3600 - 86400, H - 3600), '16:03 — godzina 15–16 może być jeszcze niedomknięta u pośrednika: okno do 15:00')
+        iso = lambda x: datetime.datetime.fromtimestamp(x, datetime.timezone.utc).isoformat()
+        rows = [['L1', 'A', 'USDT', 1], ['L2', '6', 'USDT', 1], ['E', '3', 'USDT', 0], ['X', 'H', 'USD', 0]]
+        hist = {'L1': [{'t': h0 - 3600, 'l': 9e9, 's': 9e9}, {'t': h0, 'l': 1e6, 's': 2e5}, {'t': h1, 'l': 5e5, 's': 7e5}],
+                'L2': [{'t': h1 - 7200, 'l': 'x', 's': -3}, {'t': h1 - 3600, 'l': 1e5, 's': 4e6}], 'E': []}
+        q = zd.cz_lq(rows, hist, h0, h1)
+        self.assertEqual((q['l'], q['s'], q['n']), (1.1e6, 4.2e6, 2), 'okno [h0, h1); wiersz sprzed okna i bieżącej godziny, liczba zła i ujemna — pominięte; rynek z pustą historią nieliczony')
+        self.assertEqual(q['nex'], 2); self.assertEqual((q['from'], q['t']), (iso(h0), iso(h1)), 'data przy liczbie = koniec okna')
+        full = {'F': [{'t': t, 'l': 1.0, 's': 2.0} for t in range(h0 - 5 * 3600, h1 + 3600, 3600)]}
+        q24 = zd.cz_lq([['F', 'A', 'USDT', 1]], full, h0, h1)
+        self.assertEqual((q24['l'], q24['s']), (24, 48), 'dokładnie 24 godziny — ani 23, ani 25')
+        self.assertIsNone(zd.cz_lq(rows, {'E': []}, h0, h1), 'żaden rynek z wierszami — None, nie zero')
+
+    def test_long_short_one_market_per_exchange_usdt_first_with_value_a_day_ago(self):
+        H = 1790524800
+        rows = zd.cz_ls_rows([['BTCUSD_PERP.A', 'A', 'USD', 1], ['BTCUSDT_PERP.A', 'A', 'USDT', 1], ['BTCUSDT.6', '6', 'USDT', 1], ['BTC.H', 'H', 'USD', 0], ['BTCUSDC.6', '6', 'USDC', 1]])
+        self.assertEqual([r[0] for r in rows], ['BTCUSDT.6', 'BTCUSDT_PERP.A'])
+        hist = {'BTCUSDT_PERP.A': [{'t': H - 86400, 'r': 1.2811, 'l': 56.16, 's': 43.84}, {'t': H, 'r': 1.2903, 'l': 56.34, 's': 43.66}],
+                'BTCUSDT.6': [{'t': H, 'r': 1.85, 'l': 70.0, 's': 40.0}]}
+        ls = zd.cz_ls(rows, hist)
+        self.assertEqual(ls, {'A': {'r': 1.2903, 'l': 56.34, 's': 43.66, 't': '2026-09-27T16:00:00+00:00', 'r24': 1.2811}}, 'l + s ≠ 100 — pominięte')
+
+    def test_plan_mk_first_budget_overdue_and_failed_task_stays_due(self):
+        now = self.now(); cz = zd.cz_norm(None)
+        self.assertEqual(zd.cz_plan(cz, now), ['mk'], 'bez listy rynków — tylko ona')
+        u = zd.cz_pick(self.EX, self.fm()); cz['ex'], cz['mk_at'] = u['ex'], self.NOW; cz['q']['mk'] = self.NOW
+        for c, rows in u['all'].items():
+            cz['mk'][c] = {'all': rows}
+        self.assertEqual(zd.cz_plan(cz, now), ['disc:BTC', 'disc:ETH', 'disc:XRP'], 'odkrywanie: BTC, ETH, potem reszta')
+        for c in ('BTC', 'ETH', 'XRP'):
+            cz['mk'][c]['big'] = [r[0] for r in cz['mk'][c]['all']]; cz['q'][f'disc:{c}'] = self.NOW; cz['q'][f'oi:{c}'] = self.NOW
+        p = zd.cz_plan(cz, now)
+        self.assertEqual(p, ['lq:BTC', 'lq:ETH', 'lq:XRP', 'ls:BTC', 'ls:ETH', 'ls:XRP', 'fr:BTC', 'fr:XRP'], 'remis zaległości: rodzaj, potem moneta')
+        self.assertEqual(sum(zd.cz_cost(cz, k.split(':')[0], k.split(':')[1], now) for k in p), 9 + 4 + 2 + 2 + 2 + 1 + 9 + 2, 'koszty: rynki dużego zestawu, po jednym rynku ze stosunkiem kont na giełdę')
+        self.assertLessEqual(sum(zd.cz_cost(cz, k.split(':')[0], k.split(':')[1], now) for k in p), zd.CZ_PER_RUN, 'budżet przebiegu')
+        for k in p:
+            cz['q'][k] = self.NOW
+        rest = zd.cz_plan(cz, now)
+        self.assertEqual(rest, ['fr:ETH'], 'fr:ETH (4 wywołania) nie zmieściło się — zostało na następny przebieg')
+        for k in rest:
+            cz['q'][k] = self.NOW
+        self.assertEqual(zd.cz_plan(cz, now), [], 'po pełnym przebiegu nic zaległego')
+        later = self.now('2026-09-27T17:20:00+00:00')
+        self.assertEqual(zd.cz_plan(cz, later), ['oi:BTC', 'oi:ETH'], 'po godzinie: tylko pozycje BTC i ETH (cel 55 min)')
+        self.assertEqual(zd.cz_plan(dict(cz, q=dict(cz['q'], **{'oi:XRP': None})), now), ['oi:XRP'], 'zadanie bez czasu sukcesu (nieudane) — zaległe')
+        self.assertTrue(zd.cz_due(cz, later)); self.assertFalse(zd.cz_due(cz, now)); self.assertTrue(zd.cz_due(None, now))
+        cz['mk']['BTC']['all'] = cz['mk']['BTC']['all'] * 5
+        self.assertEqual(zd.cz_cost(cz, 'disc', 'BTC', now), zd.CZ_PER_RUN, 'odkrywanie mieści się w jednym przebiegu')
+
+    def test_lev_cz_runs_fill_all_coins_within_budget_and_key_never_in_urls(self):
+        cz, iso = self.full(12)
+        self.assertEqual(sorted(cz['c']), ['BTC', 'ETH', 'XRP'])
+        self.assertEqual(cz['mk']['BTC']['big'], ['BTCUSDT_PERP.A', 'BTCUSDT.6', 'BTC.H', 'BTCUSDT_PERP.3', 'BTCUSD_PERP.A'], 'rynki ≥ 1 % pozycji BTC, malejąco')
+        b = cz['c']['BTC']
+        self.assertEqual(b['oi']['usd'], round(8.0e9 + 1.2e9 + 5.5e9 + 2.3e9 + 3.2e9)); self.assertEqual(b['oi']['v'], '36AH'); self.assertEqual(b['oi']['nex'], 4)
+        self.assertAlmostEqual(b['oi']['d1'], (20.2e9 / (7.8e9 + 1.2e9 + 5.0e9 + 2.3e9 + 3.0e9) - 1) * 100, 3)
+        self.assertEqual(b['f']['yv'], '3H'); self.assertEqual(b['f']['by']['A'][1], None, 'Binance bez przeliczania na rok')
+        self.assertEqual(b['lq']['n'], 3, 'Binance ×2, Bybit (OKX z pustą historią, Hyperliquid bez likwidacji)'); self.assertIn('BTC.H', cz['lqno'])
+        self.assertEqual(sorted(b['ls']), ['6', 'A']); self.assertEqual(b['ls']['A']['r'], 1.29)
+        self.assertIs(cz['chk']['hl:BTC']['ok'], True); self.assertIs(cz['chk']['hl:ETH']['ok'], True, 'ETH: −0,001 % za godzinę u pośrednika = nasze −0,00001')
+        self.assertEqual(cz['c']['ETH']['f']['yv'], '3H'); self.assertEqual(cz['c']['XRP']['f']['yv'], 'H', 'XRP: Hyperliquid potwierdzony na BTC/ETH — cała giełda godzinowa')
+        self.assertTrue(all(isinstance(cz['q'].get(k), str) for k in ('mk', 'disc:BTC', 'oi:BTC', 'lq:BTC', 'ls:BTC', 'fr:BTC', 'fr:XRP')))
+        for u, h in self.calls:
+            self.assertEqual(h, {'api_key': self.KEY}); self.assertNotIn(self.KEY, u)
+        self.assertNotIn(self.KEY, json.dumps(cz), 'klucz nigdy w pliku')
+        self.assertEqual(zd.META['errors'], [])
+        n0 = len(self.calls)
+        self.assertIsNone(self.run_cz(cz, iso), 'nic zaległego — część bez zmian, bez zapytań'); self.assertEqual(len(self.calls), n0)
+
+    def test_lev_cz_failures_keep_previous_measures_and_stop_on_429(self):
+        cz, iso = self.full(12)
+        later = (self.now(iso) + datetime.timedelta(hours=7)).isoformat()
+        boom = {'funding-rate': lambda syms, q: (_ for _ in ()).throw(zd.urllib.error.HTTPError('u', 500, 'x', {}, None))}
+        v = self.run_cz(cz, later, over=boom)
+        self.assertEqual(v['c']['BTC']['f'], cz['c']['BTC']['f'], 'nieudane finansowanie — poprzednia miara z własnym czasem')
+        self.assertNotEqual(v['c']['BTC']['oi']['t'], cz['c']['BTC']['oi']['t'], 'pozostałe zadania przeszły')
+        self.assertEqual(v['q'].get('fr:BTC'), cz['q'].get('fr:BTC'), 'nieudane zadanie zostaje zaległe')
+        self.assertTrue(any(e.startswith(f'Dźwignia: {zd.CZ_PX}: ') and 'HTTP Error 500' in e for e in zd.META['errors']), zd.META['errors'])
+        zd.META['errors'].clear()
+        stop = {'open-interest-history': lambda syms, q: (_ for _ in ()).throw(zd.urllib.error.HTTPError('u', 429, 'x', {'Retry-After': '60'}, None))}
+        n0 = len(self.calls)
+        with self.assertRaises(ValueError) as cm:
+            self.run_cz(cz, later, over=stop)
+        self.assertIn('429', str(cm.exception)); self.assertEqual(len(self.calls) - n0, 1, 'po 429 bez dalszych zapytań w tym przebiegu')
+        with self.assertRaises(ValueError):
+            self.run_cz(None, later, over={'exchanges': lambda s, q: (_ for _ in ()).throw(zd.urllib.error.HTTPError('u', 401, 'x', {}, None))})
+
+    def test_funding_ratio_band_rejects_4h_8h_normalised_rates_and_same_run_disagreement(self):
+        """Pasmo zgodności [0,5; 2] — główne zabezpieczenie uczciwej skali rocznej: stawka pośrednika przeliczona na 8 h albo 4 h zamiast
+        okresu giełdy (r ≈ 8, 4) albo tuż poza pasmem — okres niepotwierdzony, bez skali rocznej; granice 0,5 i 2 — potwierdzony.
+        Dwa porównania z jednego przebiegu (BTC i ETH, ten sam czas): oba muszą być zgodne, niezależnie od kolejności w pliku."""
+        now = self.now(); u = zd.cz_pick(self.EX, self.fm()); now_ms = int(now.timestamp() * 1000)
+        base = zd.cz_norm({}); base['ex'] = u['ex']; base['mk'] = {c: {'all': u['all'][c]} for c in ('BTC', 'ETH')}
+        rows_h, s = [r for r in u['all']['BTC'] if r[0] == 'BTC.H'], {'BTC.H': [3.2e9, self.NOW]}
+        for mult, ok in ((8, False), (4, False), (0.49, False), (2.01, False), (2.0, True), (0.5, True), (1.0, True)):
+            cz = json.loads(json.dumps(base))
+            rates = {'BTC.H': (0.00125 * mult, now_ms - 5000)}   # nasza stawka Hyperliquid BTC: 0,00125 % za godzinę
+            cz['chk'] = zd.cz_check('BTC', rates, cz, self.direct(), now)
+            self.assertEqual((cz['chk']['hl:BTC']['r'], cz['chk']['hl:BTC']['ok']), (round(mult, 3), ok), mult)
+            self.assertEqual(zd.cz_hours('BTC.H', 'H', 'BTC', cz, now), 1 if ok else None, mult)
+            f = zd.cz_fr(rows_h, rates, s, lambda sym, code: zd.cz_hours(sym, code, 'BTC', cz, now), now)
+            if ok:
+                self.assertAlmostEqual(f['y'], 0.00125 * mult * 24 * 365, 3); self.assertEqual(f['by']['H'][1], 1)
+            else:
+                self.assertIsNone(f['y'], f'r={mult}: bez skali rocznej (8 × za dużo przy stawce 8-godzinnej)'); self.assertEqual(f['yx'], 'h')
+                self.assertEqual(f['by']['H'], [round(0.00125 * mult, 6), None, 'USD', None], 'stawka zostaje — za okres, bez okresu i roku')
+        cz = json.loads(json.dumps(base))
+        cz['chk'] = zd.cz_check('BTC', {'BTCUSDT_PERP.3': (0.00210707400457 * 4, now_ms)}, cz, self.direct(), now)
+        self.assertEqual((cz['chk']['okx:BTC']['r'], cz['chk']['okx:BTC']['ok']), (4.0, False)); self.assertIsNone(zd.cz_hours('BTCUSDT_PERP.3', '3', 'BTC', cz, now), 'OKX ×4 — niepotwierdzony')
+        T, T1 = self.NOW, '2026-09-27T15:20:00+00:00'
+        good, bad = {'r': 1.0, 'ok': True}, {'r': 8.0, 'ok': False}
+        for order in (('hl:BTC', 'hl:ETH'), ('hl:ETH', 'hl:BTC')):
+            cz['chk'] = {k: dict(good if k == 'hl:BTC' else bad, t=T) for k in order}
+            self.assertIsNone(zd.cz_hours('BTC.H', 'H', 'BTC', cz, now), f'ten sam przebieg, ETH ×8 — Hyperliquid niepotwierdzony (kolejność {order})')
+            self.assertIsNone(zd.cz_hours('XRP.H', 'H', 'XRP', cz, now))
+        cz['chk'] = {'hl:ETH': dict(bad, t=T1), 'hl:BTC': dict(good, t=T)}
+        self.assertEqual(zd.cz_hours('BTC.H', 'H', 'BTC', cz, now), 1, 'nowsze zgodne porównanie rozstrzyga')
+        cz['chk'] = {'hl:ETH': dict(good, t=T1), 'hl:BTC': dict(bad, t=T)}
+        self.assertIsNone(zd.cz_hours('BTC.H', 'H', 'BTC', cz, now), 'nowsze niezgodne porównanie rozstrzyga')
+
+    def test_lev_cz_guards_mask_fail_limit_lq_recheck_retry_time_and_discovery(self):
+        cz, iso = self.full(12)
+        later = (self.now(iso) + datetime.timedelta(hours=7)).isoformat()
+        # (1) klucz w treści błędu — maskowany w META (część udana) i w komunikacie części (wszystko nieudane)
+        zd.SECRETS.append(self.KEY)
+        try:
+            leak = {'funding-rate': lambda syms, q: (_ for _ in ()).throw(RuntimeError(f'echo nagłówka {self.KEY}'))}
+            v = self.run_cz(cz, later, over=leak)
+            self.assertNotEqual(v['c']['BTC']['oi']['t'], cz['c']['BTC']['oi']['t'], 'zadania przed błędem przeszły')
+            errs = ' | '.join(zd.META['errors']); self.assertNotIn(self.KEY, errs); self.assertIn('echo nagłówka ***', errs)
+            zd.META['errors'].clear()
+            b = self.build(None, cz_key=self.KEY, over={'exchanges': lambda q_, s_: (_ for _ in ()).throw(RuntimeError(f'echo {self.KEY}'))})
+            self.assertIs(b['ok']['cz'], False); errs = ' | '.join(zd.META['errors'])
+            self.assertNotIn(self.KEY, errs); self.assertIn(f'Dźwignia: {zd.CZ_PX}: mk: echo ***', errs)
+        finally:
+            zd.SECRETS.remove(self.KEY)
+        # (2) dwa nieudane zadania (błąd HTTP inny niż 401/403/429) — koniec kroku w tym przebiegu
+        boom = lambda syms, q: (_ for _ in ()).throw(zd.urllib.error.HTTPError('u', 500, 'x', {}, None))
+        n0 = len(self.calls)
+        with self.assertRaises(ValueError) as cm:
+            self.run_cz(cz, later, over={p: boom for p in ('open-interest-history', 'liquidation-history', 'long-short-ratio-history', 'funding-rate')})
+        self.assertEqual(len(self.calls) - n0, zd.CZ_FAILS_MAX, 'po CZ_FAILS_MAX nieudanych zadaniach bez dalszych zapytań'); self.assertEqual(str(cm.exception).count('HTTP Error 500'), 2)
+        # (3) rynek bez danych o likwidacjach (Hyperliquid) — pytany ponownie dopiero po 7 dniach
+        self.assertEqual(cz['lqno'].get('BTC.H'), '2026-09-27'); self.assertEqual(zd.cz_cost(cz, 'lq', 'BTC', self.now(iso)), 4)
+        def lq_syms(iso2):
+            c2, n1 = json.loads(json.dumps(cz)), len(self.calls)
+            with mock.patch.object(zd, 'NOW', iso2), mock.patch.object(zd, 'get_json', side_effect=lambda u, h=None, timeout=30: self.api(u, h, timeout, self.now(iso2))):
+                zd._CZ_LEFT[0] = zd.CZ_PER_RUN
+                zd.cz_t_lq(c2, 'BTC', self.KEY, None, self.now(iso2))
+            return [x for u, _h in self.calls[n1:] for x in dict(zd.urllib.parse.parse_qsl(u.partition('?')[2]))['symbols'].split(',')], c2
+        s6, _c = lq_syms('2026-10-03T23:40:00+00:00')
+        self.assertNotIn('BTC.H', s6, '6 dni — bez pytania'); self.assertIn('BTCUSDT_PERP.A', s6)
+        s7, c7 = lq_syms('2026-10-04T00:20:00+00:00')
+        self.assertIn('BTC.H', s7, 'po 7 dniach — pytany ponownie'); self.assertEqual(c7['lqno']['BTC.H'], '2026-10-04', 'nadal bez danych — kolejna przerwa')
+        # (4) 429 z Retry-After dłuższym niż pozostały czas budowniczego — bez czekania, koniec kroku
+        e429 = zd.urllib.error.HTTPError(zd.CZ_URL + 'x', 429, 'x', {'Retry-After': '7'}, None)
+        zd._CZ_LEFT[0] = zd.CZ_PER_RUN
+        with mock.patch.object(zd, '_LEV_TERMIN', [zd.time.monotonic() + 5]), mock.patch.object(zd, 'get_json', side_effect=e429), mock.patch.object(zd.time, 'sleep') as sl:
+            with self.assertRaises(zd.CzStop) as cm:
+                zd.cz_get('funding-rate?symbols=A', self.KEY)
+        sl.assert_not_called(); self.assertIn('429', str(cm.exception))
+        with mock.patch.object(zd, '_LEV_TERMIN', [zd.time.monotonic() + 30]), mock.patch.object(zd, 'get_json', side_effect=[e429, [{'symbol': 'A'}]]), mock.patch.object(zd.time, 'sleep') as sl:
+            self.assertEqual(zd.cz_get('funding-rate?symbols=A', self.KEY), [{'symbol': 'A'}])
+        sl.assert_called_once_with(7.0)
+        # (5) odkrywanie odczytuje pozycje dużych rynków — zadanie 'oi' tej monety nie jest od razu zaległe
+        c0 = self.run_cz(None)
+        self.assertEqual(c0['q'], {'mk': self.NOW}, 'pierwszy przebieg: tylko lista rynków')
+        t1 = '2026-09-27T16:40:00+00:00'
+        c1 = self.run_cz(c0, t1)
+        self.assertTrue(all(c1['q'].get(f'disc:{c}') == t1 and c1['q'].get(f'oi:{c}') == t1 for c in ('BTC', 'ETH', 'XRP')))
+        p = zd.cz_plan(c1, self.now(t1))
+        self.assertFalse(any(k.startswith(('oi:', 'disc:')) for k in p), p); self.assertIn('lq:BTC', p); self.assertEqual(c1['c']['BTC']['oi']['nex'], 4)
+
+    def test_direct_parts_decide_file_freshness_not_cz(self):
+        """Wszystkie odczyty bezpośrednie padły: plik nie może zostać odświeżony samą częścią cz (kontrola i znacznik „na żywo” widziałyby
+        świeży plik) — wyjątek, main() zostawia poprzedni plik; bez zapytań do pośrednika. Kontrola dzienna ocenia dźwignię bez części cz."""
+        k = self.build(cz_key=self.KEY)
+        down = {n: (lambda *a, **kw: (_ for _ in ()).throw(RuntimeError('offline'))) for n in self.fake_parts()}
+        n0 = len(self.calls)
+        with mock.patch.object(zd, 'NOW', '2026-09-27T18:20:00+00:00'):
+            with self.assertRaises(RuntimeError) as cm:
+                self.build(dict(k, cz=dict(k['cz'], q={})), parts=down, cz_key=self.KEY)   # zadania cz zaległe — mimo to bez zapytań
+        self.assertIn('żadna część nie odpowiedziała', str(cm.exception)); self.assertEqual(len(self.calls), n0, 'bez zapytań do pośrednika')
+        young = dict(k, full_at=self.NOW, ok=dict(k['ok'], dr=False))
+        with mock.patch.object(zd, 'NOW', '2026-09-27T16:40:00+00:00'):
+            g = self.build(young, parts=down, only={'dr', 'cz'}, cz_key=self.KEY)   # zdrowe części z pliku (ok) — dobranie jak dotąd
+        self.assertIs(g['ok']['hl'], True); self.assertIs(g['ok']['dr'], False)
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola-cz-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}, clear=False):
+            spec = importlib.util.spec_from_file_location('v126_kontrola', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            kt = importlib.util.module_from_spec(spec); spec.loader.exec_module(kt)
+        pa = {'hl': '2026-09-27T02:00:00+00:00', 'bn': '2026-09-26T23:00:00+00:00', 'cz': '2026-09-27T16:20:00+00:00'}
+        self.assertEqual(kt.data_danych('dzwignia', {'part_at': pa}), ('2026-09-27T02:00:00+00:00', 'ts'), 'świeża część cz nie ukrywa starych odczytów bezpośrednich')
+        self.assertIsNone(kt.data_danych('dzwignia', {'part_at': {'cz': pa['cz']}}))
+        self.assertEqual(kt.data_danych('rynki', {'part_at': {'fx': '2026-09-27T05:00:00+00:00', 'cz': '2026-09-27T06:00:00+00:00'}}), ('2026-09-27T06:00:00+00:00', 'ts'), 'inne pliki bez zmian')
+
+    def fake_parts(self):
+        t = self.NOW
+        return {'lev_hl': lambda: {'rows': {'BTC': {'f_h': 0.0000125, 'f_y': 10.95, 'oi_usd': 3.1e9}, 'ETH': {'f_h': -0.00001, 'f_y': -8.76, 'oi_usd': 1.5e9}}, 'top': ['BTC', 'ETH'], 'n': 2, 'f7_y': {}},
+                'lev_bn': lambda prev, today: {'day': '2026-09-26', 'BTC': {'last': {'oi_usd': 8e9}}, 'ETH': {'last': {'oi_usd': 6e9}}}, 'lev_dr': lambda prev: {'BTC': {'dvol': {'v': 40.0, 't': t}}},
+                'lev_okx': lambda prev: {'BTC': {'t': t, 'f': 0.0000210707400457, 'f_hours': 8.0, 'f_y': 2.307, 'oi_usd': 2.3e9}},
+                'lev_kr': lambda prev: {'t': t, 'f_hours': 1, 'BTC': {'t': t, 'f_h': -0.0000026, 'f_hours': 1, 'sym': 'PF_XBTUSD', 'oi_usd': 1.8e8}},
+                'lev_cb': lambda prev: {'t': t, 'f_hours': 1, 'BTC': {'t': t, 'f_h': 0.000008, 'f_hours': 1, 'oi_usd': 9e7}},
+                'lev_dy': lambda prev: {'t': t, 'f_hours': 1, 'BTC': {'t': t, 'f_h': -0.000001, 'f_hours': 1, 'oi_usd': 2e7}}}
+
+    def build(self, prev=None, over=None, parts=None, **kw):
+        import contextlib
+        ps = [mock.patch.object(zd, k, side_effect=v) for k, v in (parts or self.fake_parts()).items()]
+        with contextlib.ExitStack() as st:
+            for p in ps:
+                st.enter_context(p)
+            st.enter_context(mock.patch.object(zd, 'get_json', side_effect=lambda u, h=None, timeout=30: self.api(u, h, timeout, None, over)))
+            return zd.build_dzwignia(prev, today=datetime.date(2026, 9, 27), **kw)
+
+    def test_build_without_key_unchanged_with_key_extra_part_and_failure_isolated(self):
+        o = self.build()
+        self.assertEqual(sorted(o['ok']), sorted(zd.LEV_PX)); self.assertEqual(sorted(o['part_at']), sorted(zd.LEV_PX)); self.assertNotIn('cz', o)
+        self.assertEqual(self.calls, [], 'bez klucza — żadnego zapytania do pośrednika')
+        k = self.build(cz_key=self.KEY)
+        self.assertIs(k['ok']['cz'], True); self.assertEqual(k['part_at']['cz'], self.NOW); self.assertEqual(k['cz']['q']['mk'], self.NOW)
+        self.assertEqual({x: k['ok'][x] for x in zd.LEV_PX}, {x: o['ok'][x] for x in zd.LEV_PX}, 'pozostałe części jak bez klucza')
+        self.assertNotIn('cz', zd.LEV_PX, 'część dodatkowa poza LEV_PX (harmonogram pełnej budowy bez zmian)')
+        self.assertFalse(any(key.startswith('cz') for h in k['hist'] for key in h), 'historia dzienna bez nowych kluczy (pomysł na później)')
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'lev_cz', side_effect=zd.CzStop('HTTP 401 — klucz odrzucony albo blokada')):
+            f = self.build(k, cz_key=self.KEY)
+        self.assertIs(f['ok']['cz'], False); self.assertEqual(f['cz'], k['cz']); self.assertEqual(f['part_at']['cz'], self.NOW)
+        self.assertTrue(all(f['ok'][x] is k['ok'][x] for x in zd.LEV_PX), 'awaria pośrednika nie rusza pozostałych części')
+        self.assertIn(f'Dźwignia: {zd.CZ_PX}: HTTP 401 — klucz odrzucony albo blokada', zd.META['errors'])
+        young = dict(k, full_at='2026-09-27T16:00:00+00:00')
+        with mock.patch.object(zd, 'NOW', '2026-09-27T16:40:00+00:00'):
+            g = self.build(young, only={'cz'}, cz_key=self.KEY)
+        self.assertEqual(g['full_at'], '2026-09-27T16:00:00+00:00', 'dobranie części nie przesuwa pełnej budowy')
+        self.assertEqual({x: g['part_at'][x] for x in zd.LEV_PX}, {x: k['part_at'][x] for x in zd.LEV_PX}, 'zdrowe części z własnym czasem')
+        self.assertEqual(g['part_at']['cz'], '2026-09-27T16:40:00+00:00')
+
+    def test_main_key_paths(self):
+        saved, calls = {}, []
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in sorted(dir(zd)) if f.startswith('build_') and f != 'build_dzwignia' and callable(getattr(zd, f))]   # każdy budowniczy poza dźwignią (także dodany później) — bez sieci
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR', 'COINALYZE_KEY')}
+        ok7 = {k: True for k in zd.LEV_PX}
+        fresh_cz = {'mk_at': zd.NOW, 'q': {'mk': zd.NOW}}   # lista rynków bez monet — nic zaległego
+        young = {'at': _iso(10), 'full_at': _iso(10), 'ok': dict(ok7, cz=True), 'hl': {'rows': {}}, 'cz': fresh_cz}   # „młody” wg prawdziwego zegara (fresh), zadania cz wg NOW
+        built = {'at': zd.NOW, 'ok': dict(ok7, cz=True)}
+        [p.start() for p in stubs]
+        try:
+            def go(prev, key, build):
+                zd.SECRETS[:] = []
+                for x in ('errors', 'notes'): zd.META[x].clear()
+                zd.META['ok'].clear()
+                with mock.patch.dict(os.environ, dict(env, COINALYZE_KEY=key), clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                     mock.patch.object(zd, 'previous', lambda name: prev if name == 'dzwignia' else None), mock.patch.object(zd, 'build_dzwignia', side_effect=build):
+                    zd.main()
+            go(young, '', AssertionError('bez klucza i z młodym plikiem — bez budowy'))
+            self.assertIs(saved['dzwignia'], young); self.assertEqual(zd.META['ok']['dzwignia'], 'cached'); self.assertNotIn('dzwignia_cz', zd.META['ok'])
+            self.assertIn('brak COINALYZE_KEY — dźwignia ze wszystkich dużych giełd wyłączona', zd.META['notes'])
+            go(young, self.KEY, AssertionError('nic zaległego — bez budowy'))
+            self.assertEqual(zd.META['ok']['dzwignia_cz'], 'cached'); self.assertIn(self.KEY, zd.SECRETS, 'klucz maskowany w błędach')
+            due = dict(young, cz=None)
+            go(due, self.KEY, lambda p, only=None, cz_key=None: calls.append((p, only, cz_key)) or built)
+            self.assertEqual(calls, [(due, {'cz'}, self.KEY)], 'młody zdrowy plik + zaległe zadania — dobierana tylko część cz')
+            self.assertIs(zd.META['ok']['dzwignia_cz'], True); self.assertIs(saved['dzwignia'], built); self.assertIs(zd.META['ok']['dzwignia_hl'], True)
+            calls.clear(); bad = dict(due, ok=dict(ok7, dr=False))
+            go(bad, self.KEY, lambda p, only=None, cz_key=None: calls.append((p, only, cz_key)) or built)
+            self.assertEqual(calls, [(bad, {'dr', 'cz'}, self.KEY)])
+            calls.clear(); old = dict(due, full_at=_iso(70), at=_iso(10))
+            go(old, self.KEY, lambda p, only=None, cz_key=None: calls.append((p, only, cz_key)) or built)
+            self.assertEqual(calls, [(old, None, self.KEY)], 'pełna budowa co godzinę — z kluczem')
+            go(bad, self.KEY, RuntimeError('offline'))
+            self.assertIs(saved['dzwignia'], bad); self.assertIs(zd.META['ok']['dzwignia_cz'], False)
+            calls.clear(); fail_cz = dict(young, ok=dict(ok7, cz=False), cz=None)
+            go(fail_cz, '', AssertionError('część cz bez klucza nie wymusza budowy'))
+            self.assertEqual(zd.META['ok']['dzwignia'], 'cached', 'lv_bad liczone po LEV_PX — cz poza nim')
+        finally:
+            [p.stop() for p in stubs]
+            zd.SECRETS[:] = []
+
+    def test_workflow_guard_and_page(self):
+        import sys
+        here = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, os.path.join(here, 'narzedzia'))
+        try:
+            import straz_kluczy
+        finally:
+            sys.path.pop(0)
+        self.assertIn('COINALYZE_KEY', straz_kluczy.NAZWY); self.assertNotIn('COINALYZE', straz_kluczy.NAZWY)
+        with open(os.path.join(here, '.github', 'workflows', 'strona.yml'), encoding='utf-8') as fh:
+            wf = fh.read()
+        self.assertEqual(wf.count('COINALYZE_KEY: ${{ secrets.COINALYZE_KEY }}'), 2, 'krok zbieracza i straż kluczy'); self.assertNotIn('secrets.COINALYZE }}', wf)
+        self.assertEqual(zd.CZ_URL, 'https://api.coinalyze.net/v1/'); self.assertLessEqual(zd.CZ_PER_RUN, 38); self.assertEqual(zd.CZ_BATCH, 20)
+        self.assertEqual(zd.CZ_FR_H, {'hl': 1, 'kr': 1, 'cb': 1, 'dy': 1}); self.assertEqual(zd.CZ_COINS, zd.TR_CR_SYMS)
+        with open(os.path.join(here, 'zbieraj_dane.py'), encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertNotIn("api_key=", src.split('CZ_URL = ')[1].split('\ndef build_dzwignia(')[0], 'klucz nigdy w parametrach adresu')
+        with open(os.path.join(here, 'index.html'), encoding='utf-8') as fh:
+            html = fh.read()
+        self.assertIn('function levCz(){', html); self.assertEqual(html.count('>Coinalyze</a>'), 1, 'nazwa pośrednika tylko w podpisie na stronie Źródła')
 
 
 class SeoV111(unittest.TestCase):

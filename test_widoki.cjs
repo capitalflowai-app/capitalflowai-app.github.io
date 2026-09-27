@@ -3559,6 +3559,7 @@ test('v103-zrodla: bez nazw dostawców poza akapitem wymaganych podpisów; podpi
     'Source: European Central Bank, Eurostat, Deutsche Bundesbank and Bank for International Settlements — reproduction is permitted provided the source is acknowledged',
     'Source: OECD (share price indices, 10-year yields, CLI) and World Bank (World Development Indicators) — <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
     'Source: Ministry of Finance, Japan — International Transactions in Securities, Public Data License (PDL) v1.0',
+    'Source: Banco de México, Sistema de Información Económica (SIE), <a href="https://www.banxico.org.mx/" target="_blank" rel="noopener">www.banxico.org.mx</a> — government securities held by non-residents (daily)',
     'Adapted from Statistics Canada, Table 36-10-0028-01 International transactions in securities, portfolio transactions in Canadian and foreign securities, by type of instrument and issuer, monthly. This does not constitute an endorsement by Statistics Canada of this product.',
     'The reverse repo and SOMA data are subject to the Terms of Use posted at newyorkfed.org. The New York Fed is not responsible for publication of the data by CapitalFlowAI, does not sanction or endorse any particular republication, and has no liability for your use.',
     'Crypto Fear &amp; Greed Index: <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">Alternative.me</a>',
@@ -3582,7 +3583,8 @@ test('v103-zrodla: bez nazw dostawców poza akapitem wymaganych podpisów; podpi
   assert.ok(kanOut.includes('by type of instrument and issuer, monthly, 2026-07. This does not constitute an endorsement by Statistics Canada of this product.'), 'data odniesienia z danych: ' + kanOut.slice(kanOut.indexOf('monthly'), kanOut.indexOf('monthly') + 40));
   assert.ok(!v103zr.render('pl', {at: v103zr.FRESH, ok: {kanada: true}}, false, {data: {m: []}}).out.includes('monthly,'), 'puste dane — bez daty');
   assert.ok(!v103zr.render('pl', {at: v103zr.FRESH, ok: {kanada: true}}, false, {data: {m: 'x'}}).out.includes('monthly,'), 'zepsute dane — bez daty, bez błędu');
-  const R0 = v103zr.render('pl', null); assert.ok(R0.zrCredits().startsWith('Source: International Monetary Fund') && R0.zrCredits().split(' · ').length === CRED.length, 'osiem not');
+  const R0 = v103zr.render('pl', null); assert.ok(R0.zrCredits().startsWith('Source: International Monetary Fund') && R0.zrCredits().split(' · ').length === CRED.length, 'dziewięć not (v126: + Banco de México)');
+  assert.equal(html.split('https://www.banxico.org.mx/').length, 2, 'v126: adres Banxico w stronie tylko w podpisie (warunki banku)');
   assert.ok(!out.includes('sosovalue') && !out.includes('>fred'), 'klucze meta.ok (nazwy plików zbieracza) nie są wypisywane');
   const ni = v103zr.render('pl', {at: v103zr.FRESH, ok: {a: true}}, true).out;
   assert.ok(!ni.includes('class="icos"') && ni.includes('NA ŻYWO') && ni.includes('1 z 1') && ni.includes('Data by CoinGecko'), 'bez pomocników ikon — te same teksty');
@@ -4047,6 +4049,130 @@ test('v109-dzwignia2: EXTRA102 — 10 języków, te same klucze lev.* i miejsca 
   assert.ok(de.el.innerHTML.includes('Alle Börsen zusammen') && de.el.innerHTML.includes('Börsen in der Summe (5): Hyperliquid, OKX, Kraken, Coinbase, dYdX') && de.el.innerHTML.includes('größte Händler (Konten): 1.32'), 'niemiecki: nagłówek, lista giełd, konta najwięksi gracze');
   const ja = lev104.mk({}, v96src.tFor('ja')); ja.levApply(lev109.fix());
   assert.ok(ja.el.innerHTML.includes('全取引所の合計') && ja.el.innerHTML.includes('十億ドル'), 'japoński: nagłówek i jednostka jak w słowniku bazowym');
+});
+
+// ===== v126 — część `cz` panelu dźwigni: wszystkie duże giełdy, 10 monet (źródło zbiorcze; jego nazwa i link tylko na stronie Źródła) =====
+const lev126 = (() => {
+  const now = lev104.now, today = lev104.today, ago = h => new Date(Date.now() - h * 3600e3).toISOString(), old = ago(5 * 24), t2 = ago(2), t23 = ago(23), t03 = ago(0.3);
+  const cz = () => ({t: now, ex: {A: 'Binance', '6': 'Bybit', '3': 'OKX', H: 'Hyperliquid'}, mk_at: now, mk: {}, s: {}, lqno: {}, q: {}, chk: {},
+    c: {
+      BTC: {oi: {usd: 20.2e9, n: 5, nex: 4, v: '36AH', d1: 5.294, n1: 5, t: now},
+            f: {y: 7.336, w: 0.2723, n: 2, yv: '3H', t: now, by: {'3': [0.002107, 8, 'USDT', 2.307], '6': [0.005, null, 'USDT', 5.475], A: [0.01, null, 'USDT', null], H: [0.00125, 1, 'USD', 10.95]}},
+            lq: {l: 68.1e6, s: 16.6e6, n: 4, from: t23, t: now},
+            ls: {'6': {r: 0.85, l: 45.95, s: 54.05, t: t03, r24: null}, A: {r: 1.2903, l: 56.34, s: 43.66, t: t03, r24: 1.2811}}},
+      ETH: {oi: {usd: 8.5e9, n: 4, nex: 4, v: '36AH', d1: -2.1, n1: 4, t: now}, f: {y: -3.2, w: 0.294, n: 2, yv: '3H', t: now, by: {H: [-0.001, 1, 'USD', -8.76]}},
+            lq: {l: 10.0e6, s: 10.5e6, n: 3, from: t23, t: now}, ls: {A: {r: 1.0, l: 50, s: 50, t: t03, r24: null}}},
+      XRP: {oi: {usd: 1.3e9, n: 2, nex: 2, v: 'AH', d1: null, n1: 0, t: now}, f: {y: null, w: null, n: 0, yv: '', yx: 'h', t: now, by: {A: [0.01, null, 'USDT', null]}},
+            lq: {l: null, s: null, n: 0, from: t23, t: now}, ls: {}},
+      SOL: {oi: {usd: 2.9e9, n: 3, nex: 3, v: '6AH', d1: 0.04, n1: 3, t: t2}},
+      DOGE: {oi: {usd: 0.9e9, n: 2, nex: 2, v: 'A6', d1: 1, n1: 2, t: old}, ls: {A: {r: 2, l: 66.67, s: 33.33, t: old}}}}});
+  const fix = () => { const j = lev109.fix(); j.ok.cz = true; j.part_at.cz = now; j.cz = cz(); return j; };
+  return {now, today, old, t2, cz, fix, fp: lev109.fp, CRED: '<a href="https://coinalyze.net" target="_blank" rel="noopener">Coinalyze</a>'};
+})();
+
+test('v126-dzwignia-cz: sekcja „Wszystkie duże giełdy” — kafelki z datą, zmiana 24 h, likwidacje z kolorem przewagi, tabela 10 monet wg pozycji, brak = „—” z powodem', () => {
+  const f = lev104.mk({}); f.levApply(lev126.fix()); const h = f.el.innerHTML;
+  const i0 = h.indexOf('lev.h.all'), i1 = h.indexOf('lev.h.cz'), i2 = h.indexOf('lev.h.hl');
+  assert.ok(i0 > 0 && i1 > i0 && i2 > i1 && h.includes('<p class="pnote">lev.cz.sub</p>'), 'po „razem”, przed Hyperliquid, z podtytułem');
+  const when = '<small class="mtxt">D:' + lev126.now + ' ·wiek(' + lev126.today + ')</small>';
+  assert.ok(h.includes('lev.k.oicz{c=BTC}</span><b>20.20 <small class="mtxt">lev.u.mld</small> <small>lev.cz.nex{n=4,m=5} · <span class="pos">lev.cz.d24{v=+5.3%}</span></small></b>' + when), 'BTC: suma, liczba giełd i rynków, zmiana 24 h na zielono, data i wiek: ' + h.slice(h.indexOf('lev.k.oicz{c=BTC}'), h.indexOf('lev.k.oicz{c=BTC}') + 300));
+  assert.ok(h.includes('lev.k.oicz{c=ETH}</span><b>8.50 <small class="mtxt">lev.u.mld</small> <small>lev.cz.nex{n=4,m=4} · <span class="neg">lev.cz.d24{v=−2.1%}</span></small></b>'), 'ETH: spadek na czerwono');
+  assert.ok(h.includes('lev.k.lq{c=BTC}</span><b class="neg">84.7 <small class="mtxt">lev.u.mln</small> <small class="neg">lev.lq.sub{l=68.1,s=16.6}</small></b>' + when), 'BTC: więcej likwidacji długich — czerwono');
+  assert.ok(h.includes('lev.k.lq{c=ETH}</span><b>20.5 <small class="mtxt">lev.u.mln</small> <small>lev.lq.sub{l=10.0,s=10.5}</small></b>'), 'ETH: prawie po równo (±10 %) — bez koloru');
+  assert.equal((h.match(/class="etfk"/g) || []).length, 22, '18 dotychczasowych + 4 nowe kafelki');
+  const tab = h.slice(h.indexOf('<table class="etft lev-cz">'), h.indexOf('</table>', h.indexOf('<table class="etft lev-cz">')));
+  assert.ok(tab.includes('<th>lev.c.coin</th><th>lev.c.oi</th><th>lev.c.fundv</th><th>lev.c.lq</th><th>lev.c.lsx</th><th>lev.c.nex</th><th>lev.c.when</th>'), 'kolumny');
+  const order = ['>BTC<', '>ETH<', '>SOL<', '>XRP<'].map(s => tab.indexOf(s)); assert.ok(order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), 'kolejność wg pozycji: ' + order);
+  assert.equal((tab.match(/<tr>/g) || []).length, 5, '4 monety + nagłówek; DOGE (miary starsze niż 4 dni) pominięty'); assert.ok(!tab.includes('>DOGE<'));
+  assert.ok(tab.includes('<td><span class="cell mono">20.20<small><span class="pos">+5.3%</span></small></span></td><td><span class="cell mono pos" title="lev.cz.fwt{v=27,n=2}">+7.3%<small>lev.cz.fw{v=27}</small></span></td><td><span class="cell mono neg">68.1 / 16.6</span></td>'), 'BTC: pozycje ze zmianą, średnia z udziałem pozycji, likwidacje: ' + tab.slice(tab.indexOf('>BTC<'), tab.indexOf('>BTC<') + 500));
+  assert.ok(tab.includes('<span class="pos" title="Binance · lev.cz.r24{v=1.28}">Binance 1.29</span> · <span class="neg" title="Bybit">Bybit 0.85</span>'), 'stosunek kont wg giełdy, kolor i wartość sprzed doby w podpowiedzi');
+  assert.ok(tab.includes('<td><span class="cell mono" title="OKX, Bybit, Binance, Hyperliquid">4</span></td>'), 'liczba giełd z listą w podpowiedzi');
+  const xrp = tab.slice(tab.indexOf('>XRP<'));
+  assert.ok(xrp.includes('<td><span class="cell mono">1.30</span></td><td><span class="cell mono na" title="lev.cz.nofy">—</span></td><td><span class="cell mono na" title="lev.cz.nolq">—</span></td><td><span class="cell mono na" title="lev.cz.nols">—</span></td>'), 'XRP: bez zmiany (brak odczytu sprzed doby), bez potwierdzonego okresu, bez likwidacji i bez stosunku kont — „—” z powodem: ' + xrp.slice(0, 500));
+  const sol = tab.slice(tab.indexOf('>SOL<'), tab.indexOf('>XRP<'));
+  assert.ok(sol.includes('<small>+0.0%</small>') && sol.includes('title="lev.np">—</span>') && sol.includes('D:' + lev126.t2), 'SOL: zmiana 0,0 % bez koloru; bez finansowania w pliku; własna data');
+  assert.ok(!/>0(\.0+)?</.test(tab) && !/>0(\.0+)? \/ /.test(tab), 'brak nigdy nie jest zerem');
+  assert.ok(h.includes('</table></div><p class="pnote">lev.cz.fnote</p><details class="etfd" id="lev-czf">'), 'notka o okresach rozliczenia pod tabelą, potem finansowanie wg giełd');
+  assert.ok(h.includes('<p class="pnote">lev.not5</p><p class="pnote">lev.not6cz</p><p class="pnote">lev.not7</p></details>') && !h.includes('lev.not6</p>'), '„czego nie mówią”: not6 zastąpione, not7 dopisane');
+  assert.ok(!/Coinalyze|coinalyze/.test(h), 'nazwy źródła zbiorczego w panelu nie ma');
+  const w = lev104.mk({}); const jw = lev126.fix(); jw.cz.c.XRP.f.yx = 'w'; w.levApply(jw); const tw = w.el.innerHTML.slice(w.el.innerHTML.indexOf('>XRP<'));
+  assert.ok(tw.includes('<td><span class="cell mono na" title="lev.cz.nofw">—</span></td>') && !tw.slice(0, 400).includes('lev.cz.nofy'), 'brak średniej przez stare wagi — własny powód, nie „brak potwierdzonego okresu”: ' + tw.slice(0, 400));
+});
+
+test('v126-dzwignia-cz: finansowanie wg giełd — stawka za własny okres; okres i skala roczna tylko gdy potwierdzone, inaczej „—” z powodem', () => {
+  const f = lev104.mk({}); f.levApply(lev126.fix()); const h = f.el.innerHTML;
+  const d = h.slice(h.indexOf('<details class="etfd" id="lev-czf">'), h.indexOf('</details>', h.indexOf('id="lev-czf"')));
+  assert.ok(d.includes('<summary>lev.h.czf</summary>') && d.includes('<th>lev.c.ven</th><th>lev.c.coin</th><th>lev.c.rate</th><th>lev.c.per</th><th>lev.c.fy</th><th>lev.c.when</th>'), 'nagłówki');
+  const bn = d.slice(d.indexOf('Binance<small>USDT</small>'), d.indexOf('</tr>', d.indexOf('Binance<small>USDT</small>')));
+  assert.ok(bn.includes('<td><span class="cell mono pos">+0.0100%</span></td><td><span class="cell mono na" title="lev.cz.noh">—</span></td><td><span class="cell mono na" title="lev.cz.noy">—</span></td>'), 'Binance: stawka za okres, bez okresu i bez skali rocznej: ' + bn);
+  const by = d.slice(d.indexOf('Bybit<small>USDT</small>'), d.indexOf('</tr>', d.indexOf('Bybit<small>USDT</small>')));
+  assert.ok(by.includes('<td><span class="cell mono na" title="lev.cz.noh">—</span></td><td><span class="cell mono na" title="lev.cz.noy">—</span></td>') && !by.includes('+5.5%'), 'Bybit: liczba roczna w pliku bez okresu (zły wiersz) — nie pokazywana: ' + by);
+  const hl = d.slice(d.indexOf('Hyperliquid<small>USD</small>'), d.indexOf('</tr>', d.indexOf('Hyperliquid<small>USD</small>')));
+  assert.ok(hl.includes('<td><span class="cell mono pos">+0.0013%</span></td><td><span class="cell mono">lev.cz.hper{n=1}</span></td><td><span class="cell mono pos">' + lev126.fp(10.95) + '</span></td>'), 'Hyperliquid: okres 1 h i skala roczna: ' + hl);
+  assert.ok(d.includes('<td><span class="cell mono">lev.cz.hper{n=8}</span></td><td><span class="cell mono pos">+2.3%</span></td>'), 'OKX BTC: okres 8 h z odczytu giełdy');
+  assert.ok(d.includes('<span class="cell mono neg">−0.0010%</span></td><td><span class="cell mono">lev.cz.hper{n=1}</span></td><td><span class="cell mono neg">−8.8%</span></td>'), 'ujemna stawka — czerwono');
+  assert.equal((d.match(/<tr>/g) || []).length, 1 + 4 + 1 + 1, 'nagłówek + BTC (4 giełdy) + ETH (1) + XRP (1)');
+  const i = lev104.mk({coinImg: v96src.H.coinImg, exchImg: v96src.H.exchImg, glyphImg: v96src.H.glyphImg}); i.levApply(lev126.fix()); const hi = i.el.innerHTML;
+  assert.ok(hi.includes('img/gieldy/binance.svg') && hi.includes('img/gieldy/bybit.svg') && hi.includes('img/sieci/hyper-evm.svg') && hi.includes('img/krypto/xrp.svg') && hi.includes('img/glify/globe.svg'), 'loga giełd, monet i glif świata');
+  hi.split('<div class="etfk">').slice(1).forEach((x, n) => assert.ok(/^<span><span class="icos">.+?<\/span>lev\./.test(x), 'kafelek ' + n + ' ma ikonę przed podpisem'));
+});
+
+test('v126-dzwignia-cz: bez części `cz` (albo starszej niż 4 dni) panel jest dokładnie taki jak dotąd; plik z samą częścią `cz` też się pokazuje', () => {
+  const a = lev104.mk({}); a.levApply(lev109.fix()); const h0 = a.el.innerHTML;
+  const b = lev104.mk({}); const j = lev126.fix(); j.part_at.cz = lev126.old; b.levApply(j);
+  assert.equal(b.el.innerHTML, h0, 'część `cz` starsza niż LEV_MAXAGE — ten sam HTML co bez niej');
+  const c = lev104.mk({}); const k = lev126.fix(); k.cz.c = {}; c.levApply(k);
+  assert.equal(c.el.innerHTML, h0, 'część bez monet — ten sam HTML');
+  assert.ok(!h0.includes('lev.h.cz') && !h0.includes('lev-czf') && !h0.includes('lev.not7') && h0.includes('<p class="pnote">lev.not6</p></details>'), 'bez nowych elementów');
+  const o = lev104.mk({}); o.levApply({at: lev126.now, ok: {cz: true}, part_at: {cz: lev126.now}, cz: lev126.cz()});
+  assert.ok(!o.el.hidden && o.el.innerHTML.includes('lev.h.cz') && !o.el.innerHTML.includes('lev.h.all') && o.el.innerHTML.includes('lev.not7'), 'plik tylko z częścią `cz` — sekcja widoczna');
+  const e = lev104.mk({}); e.levApply({at: lev126.now, ok: {cz: true}, part_at: {cz: lev126.old}, cz: lev126.cz()});
+  assert.ok(e.el.hidden, 'sama stara część — panel ukryty');
+  const g = lev104.mk({}); const m = lev126.fix(); m.cz.c.BTC.oi = null; m.cz.c.BTC.lq = {l: null, s: null, n: 0, t: lev126.now}; g.levApply(m); const hg = g.el.innerHTML;
+  assert.ok(hg.includes('lev.k.oicz{c=BTC}</span><b class="na">— <small>lev.cz.nooi</small></b>') && hg.includes('lev.k.lq{c=BTC}</span><b class="na">— <small>lev.cz.nolq</small></b>'), 'BTC bez pozycji i likwidacji — „—” z powodem, nie zero');
+  assert.ok(html.includes("const D=LEV.data,CZ=D?levCz():'',body=D?levAll()+CZ+levHl()+") && html.includes('(LEV_PARTS.some(k=>levObj(j[k]))||levObj(j.cz))'), 'haki w renderLev i levApply');
+  assert.ok(!html.includes('api.coinalyze') && !/fetch\([^)]*coinalyze/.test(html), 'strona nie pyta źródła zbiorczego — tylko nasz plik');
+});
+
+test('v126-dzwignia-cz: EXTRA123 — 10 języków, te same klucze i pola, bez nazwy źródła; po niemiecku i japońsku bez surowych kluczy; podpis „Dane: …” z linkiem tylko na stronie Źródła', () => {
+  const a = 'const EXTRA123=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0), fl = 'for(const l in EXTRA123)if(I18N[l])Object.assign(I18N[l],EXTRA123[l]);\n';
+  assert.ok(x0 > 0 && html.split(a).length === 2 && html.slice(x1 + 2, x1 + 2 + fl.length) === fl, 'słownik i linia nakładania zaraz po nim');
+  assert.ok(x0 < html.indexOf('/* ===================== STAN I DANE'), 'w bloku słowników');
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.indexOf('EXTRA123') > apl.indexOf('EXTRA121') && apl.indexOf('EXTRA121') >= 0, 'po EXTRA121');
+  const D = JSON.parse(html.slice(x0 + a.length, x1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L10, 'kolejność języków');
+  const K = Object.keys(D.pl), ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  assert.equal(K.length, 31); assert.ok(K.includes('lev.cz.nofw')); assert.ok(K.every(k => k.startsWith('lev.') || k === 'zr2.cz'), K.join(','));
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]), K, 'te same klucze: ' + l);
+    for (const k of K) { assert.ok(typeof D[l][k] === 'string' && D[l][k].trim().length > 0, l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), 'pola ' + l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'nałożony: ' + l + ' ' + k); }
+    assert.ok(!/Coinalyze|CoinGlass|Coinglass|Coin Metrics|Etherscan|EODHD|Tiingo|CryptoPanic|Alpha Vantage|Massive/i.test(JSON.stringify(D[l])), l + ': bez nazw dostawców');
+    assert.ok(!/napływ|odpływ/i.test(JSON.stringify(D[l])), l + ': pozycje to stan, nie przepływ');
+  }
+  const b98 = 'const EXTRA98=', OLD = JSON.parse(html.slice(html.indexOf(b98) + b98.length, html.indexOf(';\n', html.indexOf(b98))));
+  const b102 = 'const EXTRA102=', OLD2 = JSON.parse(html.slice(html.indexOf(b102) + b102.length, html.indexOf(';\n', html.indexOf(b102))));
+  for (const k of K) assert.equal(html.split('"' + k + '":').length - 1, 10, 'klucz tylko w EXTRA123 (raz w każdym języku) — żaden wcześniejszy nie jest nadpisany: ' + k);
+  assert.ok(K.every(k => !(k in OLD.pl) && !(k in OLD2.pl)), 'nowe klucze obok EXTRA98 i EXTRA102');
+  assert.ok(D.pl['lev.h.cz'] === 'Wszystkie duże giełdy — 10 monet' && D.en['lev.h.cz'] === 'All large exchanges — 10 coins');
+  assert.ok(D.pl['zr2.cz'].startsWith('Dane: {a}') && D.en['zr2.cz'].startsWith('Data: {a}'), 'podpis „Dane: …”');
+  assert.ok(/potwierdzon/.test(D.pl['lev.cz.fnote']) && /dolna granica/.test(D.pl['lev.not7']) && /kont, nie kapitału/.test(D.pl['lev.not7']), 'treść: okres potwierdzony, likwidacje to dolna granica, konta a nie kapitał');
+  assert.ok(/24 pełne godziny/.test(D.pl['lev.not7']) && /koniec okna/.test(D.pl['lev.not7']) && /24 pełnych godzin/.test(D.pl['lev.cz.sub']) && /6 godzin/.test(D.pl['lev.cz.nofw']), 'okno likwidacji: 24 pełne godziny, data = koniec okna; powód braku średniej: wagi starsze niż 6 h');
+  for (const L of ['de', 'ja']) {
+    const f = lev104.mk({}, v96src.tFor(L)); f.levApply(lev126.fix());
+    assert.ok(!/lev\.[a-z]/.test(f.el.innerHTML.replace(/id="lev-[a-z]+"/g, '').replace(/lev-(opt|czf|cz)/g, '')), L + ': bez surowych kluczy: ' + (f.el.innerHTML.match(/lev\.[a-z.]+/) || [])[0]);
+  }
+  const de = lev104.mk({}, v96src.tFor('de')); de.levApply(lev126.fix());
+  assert.ok(de.el.innerHTML.includes('Alle großen Börsen — 10 Coins') && de.el.innerHTML.includes('Börsen: 4 · Märkte: 5'), 'niemiecki');
+  const ja = lev104.mk({}, v96src.tFor('ja')); ja.levApply(lev126.fix());
+  assert.ok(ja.el.innerHTML.includes('全大手取引所') && ja.el.innerHTML.includes('百万ドル'), 'japoński');
+  // podpis wymagany przez warunki źródła zbiorczego: tylko na stronie Źródła, w linii serwisów (przed ikonami i notami instytucji), z linkiem
+  assert.equal(html.split(lev126.CRED).length, 2, 'link z nazwą dokładnie raz w stronie'); assert.equal(html.split('Coinalyze').length, 2, 'nazwa tylko w podpisie');
+  const out = v103zr.render('pl', {at: v103zr.FRESH, ok: {a: true}}).out, at = out.indexOf('<section class="panel pgc zr-attr2">');
+  const cr = out.indexOf('Dane: ' + lev126.CRED + ' — otwarte pozycje, finansowanie, likwidacje i stosunek kont z dużych giełd kontraktów');
+  assert.ok(at > 0 && cr > at && cr < out.indexOf('Widgety TradingView') && cr < out.indexOf('<br>', at), 'Źródła (pl): „Dane: Coinalyze” z linkiem w linii serwisów: ' + out.slice(at, at + 200));
+  assert.ok(v103zr.render('en', {at: v103zr.FRESH, ok: {a: true}}).out.includes('Data: ' + lev126.CRED + ' — open interest'), 'Źródła (en)');
+  for (const L of v103zr.L10) assert.ok(v103zr.render(L, {at: v103zr.FRESH, ok: {a: true}}).out.includes(lev126.CRED) && !/zr2\./.test(v103zr.render(L, {at: v103zr.FRESH, ok: {a: true}}).out), L + ': podpis bez surowego klucza');
 });
 
 test('v108: wieloryby — nowe giełdy (Bybit, KuCoin, Bitfinex): kafle, noty z listą i datą, brak wcześniejszego zrzutu, przelew między giełdami, dziesięć języków', () => {
@@ -6047,4 +6173,76 @@ test('v125: podpis licencji danych krypto — świece dzienne i godzinowe (P5), 
   assert.ok(html.includes('Crypto spot candles (daily and hourly, USDT pairs) and futures long/short metrics: <a href="https://data.binance.vision/" target="_blank" rel="noopener">Binance Vision</a>'), 'nowy podpis');
   assert.ok(!html.includes('Crypto daily closes (spot, USDT pairs)'), 'stary podpis usunięty');
   assert.equal(html.split('Crypto spot candles (daily and hourly, USDT pairs)').length, 2, 'jeden podpis');
+});
+
+/* ===================== v126 (EVDS): Turcja — suma 52 tygodni z pełnej historii (słownik EXTRA124) i podpis banku na stronie Źródła ===================== */
+test('v126-evds: Turcja — suma 52 tygodni tylko z 52 kolejnych tygodni z liczbą; krótsza historia i luka — bez sumy (nie zero); 4 i 13 tygodni jak dotąd', () => {
+  const a0 = html.indexOf('const trDadd='), a1 = html.indexOf('/* v59: MFW COFER', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : ''), ZAG = {data: null};
+  const zagNum = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  const zagPart = k => { const p = ZAG.data && ZAG.data[k]; return (p && Array.isArray(p.d) && p.d.length) ? p : null; };
+  const f = new Function('t', 'ZAG', 'zagPart', 'zagNum', 'zagM', 'instRow', 'instFoot', 'engDate', html.slice(a0, a1) + '\nreturn {trBlock, trRegion, trSum, trDadd};')(
+    T, ZAG, zagPart, zagNum, v => v == null ? '—' : String(Math.round(v * 100) / 100), (l, v, x, n) => `[${l}|${v}|${n}]`, s => s, s => s);
+  const W = Array.from({length: 60}, (_, i) => [f.trDadd('2026-09-18', -7 * (59 - i)), 10, 1, 2, 3, 4, 5]);
+  ZAG.data = {at: 'x', tr: {at: 'y', d: W}};
+  const h = f.trBlock();
+  assert.ok(h.includes('[tr.tot|10 inst.mln.usd|tr.wk{"d":"2026-09-18"} · tr.s4{"v":"40"} · tr.s13{"v":"130"} · tr.s52{"v":"520"} · tr.split{"c":"3","x":"4"}]'), h.slice(0, 400));
+  assert.ok(h.includes('[tr.eq|1 inst.mln.usd|tr.wk{"d":"2026-09-18"} · tr.s4{"v":"4"} · tr.s13{"v":"13"} · tr.s52{"v":"52"}]') && h.includes('tr.s52{"v":"104"}]'), 'akcje i obligacje');
+  ZAG.data = {at: 'x', tr: {at: 'y', d: W.slice(-51)}};
+  assert.ok(!f.trBlock().includes('tr.s52') && f.trBlock().includes('tr.s13{"v":"130"}'), '51 tygodni — bez sumy 52 tygodni');
+  ZAG.data = {at: 'x', tr: {at: 'y', d: W.filter((_, i) => i !== 20)}};
+  assert.ok(!f.trBlock().includes('tr.s52') && f.trBlock().includes('tr.s13'), 'luka w tygodniach — bez sumy 52 tygodni (nie zero, nie sklejenie)');
+  ZAG.data = {at: 'x', tr: {at: 'y', d: W.map((r, i) => i === 30 ? [r[0], null, 1, 2, 3, 4, 5] : r)}};
+  const hn = f.trBlock();
+  assert.ok(!hn.includes('tr.s52{"v":"510"}') && !hn.includes('tr.s52{"v":"520"}') && hn.includes('tr.s52{"v":"52"}') && hn.includes('tr.s13{"v":"130"}'), 'tydzień bez liczby razem — bez sumy razem, reszta zostaje');
+  ZAG.data = {at: 'x', tr: {at: 'y', d: W.slice(-5)}};
+  assert.ok(!f.trBlock().includes('tr.s52') && !f.trBlock().includes('tr.s13') && f.trRegion('mea').includes('"t4":"40"'), '5 tygodni z pliku ZIP — jak dotąd');
+});
+
+test('v126-evds: słownik EXTRA124 — 10 języków, te same 4 klucze tr.* i miejsca na wartości, pl/en = EXTRA62, po ostatnim słowniku, bez nazw dostawców', () => {
+  const a = 'const EXTRA124=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0), fl = 'for(const l in EXTRA124)if(I18N[l])Object.assign(I18N[l],EXTRA124[l]);\n';
+  assert.ok(x0 > 0 && html.split(a).length === 2 && html.slice(x1 + 2, x1 + 2 + fl.length) === fl && html.split(fl).length === 2, 'słownik i linia nakładania zaraz po nim');
+  const D = JSON.parse(html.slice(x0 + a.length, x1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = ['tr.wk', 'tr.s4', 'tr.s13', 'tr.s52'];
+  const PH = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10, 'kolejność języków');
+  const e0 = html.indexOf('const EXTRA62='), E62 = JSON.parse(html.slice(e0 + 'const EXTRA62='.length, html.indexOf(';\n', e0)));
+  const PROV = /CBRT|TCMB|EVDS|Central Bank|Merkez|Türkiye Cumhuriyet/i;
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(D[L]), K, L + ': klucze');
+    const t = v96src.tFor(L);
+    for (const k of K) {
+      assert.ok(typeof D[L][k] === 'string' && D[L][k].trim() && !PROV.test(D[L][k]), L + ' ' + k);
+      assert.equal(PH(D[L][k]), PH(E62.pl[k] || D.pl[k]), L + ' ' + k + ': miejsca na wartości');
+      assert.equal(v96src.I18N[L][k], D[L][k], L + ' ' + k + ': nałożony');
+    }
+    assert.ok(t('tr.s52', {v: '−1 234'}).includes('52') && t('tr.s52', {v: '−1 234'}).includes('−1 234') && !t('tr.s52', {v: '1'}).includes('{'), L + ': wartość podstawiona');
+  }
+  for (const L of ['pl', 'en']) for (const k of ['tr.wk', 'tr.s4', 'tr.s13']) assert.equal(D[L][k], E62[L][k], 'pl/en bez zmian: ' + L + ' ' + k);
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.indexOf('EXTRA124') > apl.indexOf('EXTRA62') && apl.indexOf('EXTRA62') >= 0 && apl.indexOf('EXTRA124') > apl.indexOf('EXTRA121'), 'EXTRA124 nałożony po EXTRA62 i po słownikach v124');
+  assert.ok(html.includes("t('tr.s52',{v:w(y)})") && html.includes('y=trSum(T.d,i,52)'), 'klucz tr.s52 używany w trBlock');
+});
+
+test('v126-evds: podpis banku Turcji (warunki EVDS: źródło i nieoficjalne tłumaczenie) — raz w akapicie wymaganych podpisów strony Źródła, po podpisie v124; karta stanu i panel bez nazwy', () => {
+  const b0 = html.indexOf('/* ===================== v126: TURCJA'), b1 = html.indexOf('\n/* ===================== v98: USA', b0);
+  assert.ok(b0 > html.indexOf('function renderSources(){') && b1 > b0 && html.split('/* ===================== v126: TURCJA').length === 2, 'blok po definicji strony Źródła, przed blokiem USA');
+  assert.ok(b0 > html.indexOf('/* ===================== v124: SZWAJCARIA'), 'po bloku v124 (podpis SNB)');
+  const mk = ($, rs) => new Function('$', 'renderSources', html.slice(b0, b1) + '\nreturn {TR_CREDIT, trCredit, renderSources};')($, rs);
+  const p = {innerHTML: 'A'}, page = {querySelector: s => s === '.zr-attr2 p.mtxt' ? p : null}, calls = [];
+  const X = mk(q => q === '#page-sources' ? page : null, function () { calls.push('rs'); return 7; });
+  assert.equal(X.renderSources(), 7, 'opakowanie zwraca wynik oryginału'); assert.deepEqual(calls, ['rs']);
+  assert.equal(p.innerHTML, 'A · ' + X.TR_CREDIT); X.renderSources(); assert.equal(p.innerHTML, 'A · ' + X.TR_CREDIT, 'bez powtórzenia');
+  assert.equal(X.TR_CREDIT, '<span class="zr-tr">Source: Central Bank of the Republic of Türkiye (CBRT), <a href="https://evds3.tcmb.gov.tr/" target="_blank" rel="noopener">EVDS</a> and Securities Statistics — securities held by non-residents, weekly net transactions; translations of the data and series names on this site are not official CBRT translations</span>');
+  assert.ok(!X.TR_CREDIT.replace(/<[^>]+>/g, '').includes(' · '), 'bez separatora w środku podpisu');
+  X.trCredit(null); X.trCredit({}); X.trCredit({querySelector: () => null});
+  assert.equal(mk(() => null, undefined).renderSources, undefined, 'bez funkcji strony Źródła — nic nie opakowujemy');
+  assert.equal(mk(() => null, () => 1).renderSources(), 1, 'bez strony — bez błędu');
+  // kolejność na stronie: v124 opakowuje stronę Źródła pierwsza, v126 po niej — oba podpisy, każdy raz, po notach instytucji
+  const q = {innerHTML: 'N'}, pg = {querySelector: s => s === '.zr-attr2 p.mtxt' ? q : null}, $ = s => s === '#page-sources' ? pg : null;
+  const S = snb124.mk({$, renderSources: () => 5}), Y = mk($, S.renderSources);
+  assert.equal(Y.renderSources(), 5); Y.renderSources();
+  assert.equal(q.innerHTML, 'N · ' + S.SNB_CREDIT + ' · ' + X.TR_CREDIT, 'oba podpisy raz');
+  assert.equal((html.match(/evds3\.tcmb\.gov\.tr/g) || []).length, 1, 'adres EVDS na stronie tylko w podpisie');
+  const out = v103zr.render('pl', {at: v103zr.FRESH, ok: {obce: true}}).out;
+  assert.ok(!out.includes('Türkiye') && !out.includes('EVDS'), 'harness strony Źródła (bez opakowań) bez zmian — podpis dopisuje tylko opakowanie');
 });
