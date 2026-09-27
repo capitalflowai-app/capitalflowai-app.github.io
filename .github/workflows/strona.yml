@@ -56,6 +56,9 @@ jobs:
           ETHERSCAN_KEY: ${{ secrets.ETHERSCAN || secrets.ETHERSCAN_KEY }}           # wieloryby: transfery ETH natywne (w przygotowaniu)
           CRYPTOPANIC_KEY: ${{ secrets.CRYPTOPANIC || secrets.CRYPTOPANIC_KEY }}     # wiadomości (w przygotowaniu)
           CENSUS_KEY: ${{ secrets.CENSUS_KEY }}                                         # handel zagraniczny USA (w przygotowaniu)
+          COINALYZE_KEY: ${{ secrets.COINALYZE_KEY }}                                   # v126: dźwignia ze wszystkich dużych giełd (nagłówek api_key; sekret COINALYZE bez _KEY — pomijany)
+          BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}                                   # v126: Meksyk przez oficjalne API SIE (nagłówek Bmx-Token)
+          EVDS_KEY: ${{ secrets.EVDS_KEY }}                                             # v126: Turcja — pełna historia z EVDS (bank centralny)
           CACHE_DIR: pamiec-danych
           # strona użytkownika (repozytorium <konto>.github.io) ma adres bez ścieżki; inne — z nazwą repozytorium
           SITE_URL: ${{ endsWith(github.event.repository.name, '.github.io') && format('https://{0}', github.event.repository.name) || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
@@ -104,6 +107,9 @@ jobs:
           ETHERSCAN_KEY: ${{ secrets.ETHERSCAN || secrets.ETHERSCAN_KEY }}
           CRYPTOPANIC_KEY: ${{ secrets.CRYPTOPANIC || secrets.CRYPTOPANIC_KEY }}
           CENSUS_KEY: ${{ secrets.CENSUS_KEY }}
+          COINALYZE_KEY: ${{ secrets.COINALYZE_KEY }}
+          BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
+          EVDS_KEY: ${{ secrets.EVDS_KEY }}
         run: python3 narzedzia/straz_kluczy.py
       - uses: actions/upload-pages-artifact@v3
         with:
