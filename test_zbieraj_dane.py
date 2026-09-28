@@ -8998,7 +8998,7 @@ class DzwigniaCoinalyzeV126(unittest.TestCase):
         self.assertNotIn("api_key=", src.split('CZ_URL = ')[1].split('\ndef build_dzwignia(')[0], 'klucz nigdy w parametrach adresu')
         with open(os.path.join(here, 'index.html'), encoding='utf-8') as fh:
             html = fh.read()
-        self.assertIn('function levCz(){', html); self.assertEqual(html.count('>Coinalyze</a>'), 1, 'nazwa pośrednika tylko w podpisie na stronie Źródła')
+        self.assertIn('function levCz(){', html); self.assertEqual(html.replace(html.split('const GT_PROV=')[1].split('\n')[0], '').count('Coinalyze'), 0, 'v126.2: nazwy pośrednika nie ma na stronie (poza filtrem nazw GT_PROV; decyzja właściciela 27.09)')
 
 
 class SeoV111(unittest.TestCase):
