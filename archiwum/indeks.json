@@ -1,5 +1,5 @@
 {
- "at": "2026-09-29T01:26:32+00:00",
+ "at": "2026-09-30T01:28:30+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,10 +22,10 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-09-29T01:26:32+00:00",
-   "rows": 52,
+   "at": "2026-09-30T01:28:30+00:00",
+   "rows": 65,
    "first": "2026-09-26",
-   "last": "2026-09-29",
+   "last": "2026-09-30",
    "added": 13,
    "revised": 0,
    "revisions_total": 39,
@@ -44,10 +44,10 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-09-29T01:26:32+00:00",
-   "rows": 8,
+   "at": "2026-09-30T01:28:30+00:00",
+   "rows": 10,
    "first": "2026-09-26",
-   "last": "2026-09-29",
+   "last": "2026-09-30",
    "added": 2,
    "revised": 0,
    "revisions_total": 3,
@@ -68,10 +68,10 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-09-29T01:26:32+00:00",
-   "rows": 750,
+   "at": "2026-09-30T01:28:30+00:00",
+   "rows": 751,
    "first": "2023-09-26",
-   "last": "2026-09-28",
+   "last": "2026-09-29",
    "added": 1,
    "revised": 0,
    "revisions_total": 0,
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-09-29T01:26:32+00:00",
+   "at": "2026-09-30T01:28:30+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-09-29T01:26:32+00:00",
+   "at": "2026-09-30T01:28:30+00:00",
    "rows": 1040,
    "first": "2024-10-01",
    "last": "2026-09-22",
@@ -140,14 +140,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-09-29T01:26:32+00:00",
-   "rows": 518,
+   "at": "2026-09-30T01:28:30+00:00",
+   "rows": 519,
    "first": "2024-09-26",
-   "last": "2026-09-28",
+   "last": "2026-09-29",
    "added": 1,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 516
+   "fetched": 517
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -170,20 +170,19 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-09-29T01:26:32+00:00",
-   "rows": 0,
-   "first": null,
-   "last": null,
-   "added": 0,
+   "at": "2026-09-30T01:28:30+00:00",
+   "rows": 10,
+   "first": "2026-09-28",
+   "last": "2026-09-28",
+   "added": 10,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 10
   }
  },
  "errors": [],
  "notes": [
-  "wieloryby: doba 2026-09-28: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste",
-  "krypto-dziennik: dziennik wersji 2 od 2026-09-28 jeszcze bez wierszy — nic do zapisania"
+  "wieloryby: doba 2026-09-29: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste"
  ],
  "seria": {
   "plyn.net": 400,
@@ -201,12 +200,12 @@
   "cftc.eth.lev": 104,
   "cftc.eth.am": 104,
   "cftc.eth.dealer": 104,
-  "stab.usdt": 4,
-  "stab.usdc": 4,
-  "wh.Binance": 4,
-  "wh.Bitfinex": 4,
-  "wh.Bybit": 4,
-  "wh.KuCoin": 4,
-  "wh.OKX": 4
+  "stab.usdt": 5,
+  "stab.usdc": 5,
+  "wh.Binance": 5,
+  "wh.Bitfinex": 5,
+  "wh.Bybit": 5,
+  "wh.KuCoin": 5,
+  "wh.OKX": 5
  }
 }
