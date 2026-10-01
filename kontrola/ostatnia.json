@@ -1,19 +1,17 @@
 {
- "at": "2026-09-30T06:40:56+00:00",
+ "at": "2026-10-01T06:42:35+00:00",
  "strona": {
   "http": 200,
   "bajty": 2644935,
-  "ms": 280,
+  "ms": 103,
   "ok": true
  },
  "meta": {
-  "at": "2026-09-30T06:36:31+00:00",
+  "at": "2026-10-01T06:38:22+00:00",
   "wiek_min": 4,
   "zrodla": 60,
   "bez_odpowiedzi": [],
-  "errors": [
-   "BCB bilans płatniczy: 1 serie bez odpowiedzi, np. 23001: HTTP Error 502: Bad Gateway"
-  ],
+  "errors": [],
   "notes": [
    "poprzedni insider.json: brak na stronie (404)",
    "brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni",
@@ -23,68 +21,68 @@
  "pliki": {
   "etf": {
    "http": 200,
-   "bajty": 9634,
-   "wiek_min": 36,
+   "bajty": 9804,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
    "http": 200,
-   "bajty": 43173,
+   "bajty": 43049,
    "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "oecd": {
    "http": 200,
-   "bajty": 20527,
-   "wiek_min": 96,
+   "bajty": 19213,
+   "wiek_min": 72,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
-   "bajty": 16979,
-   "wiek_min": 36,
+   "bajty": 17033,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
-   "bajty": 27373,
+   "bajty": 27653,
    "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 214128,
+   "bajty": 188637,
    "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
-   "bajty": 8918,
-   "wiek_min": 333,
+   "bajty": 8913,
+   "wiek_min": 294,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 4852,
-   "wiek_min": 333,
+   "wiek_min": 294,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
-   "bajty": 25684,
-   "wiek_min": 708,
+   "bajty": 25683,
+   "wiek_min": 709,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
-   "bajty": 38747,
-   "wiek_min": 36,
+   "bajty": 38572,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
-   "bajty": 15214,
-   "wiek_min": 36,
+   "bajty": 15216,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
@@ -95,44 +93,44 @@
   },
   "cm": {
    "http": 200,
-   "bajty": 79974,
-   "wiek_min": 36,
+   "bajty": 79961,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "fred": {
    "http": 200,
-   "bajty": 13070,
-   "wiek_min": 36,
+   "bajty": 13071,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "cftc": {
    "http": 200,
    "bajty": 19422,
-   "wiek_min": 96,
+   "wiek_min": 72,
    "czesci_bez_odpowiedzi": []
   },
   "ceny": {
    "http": 200,
    "bajty": 105232,
-   "wiek_min": 36,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "indeksy": {
    "http": 200,
-   "bajty": 168898,
-   "wiek_min": 36,
+   "bajty": 169560,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "ceny-krypto": {
    "http": 200,
-   "bajty": 196944,
-   "wiek_min": 36,
+   "bajty": 196938,
+   "wiek_min": 53,
    "czesci_bez_odpowiedzi": []
   },
   "snb": {
    "http": 200,
    "bajty": 10145,
-   "wiek_min": 636,
+   "wiek_min": 612,
    "czesci_bez_odpowiedzi": []
   },
   "lancuch": {
@@ -146,25 +144,25 @@
   },
   "stres": {
    "http": 200,
-   "bajty": 9318,
-   "wiek_min": 333,
+   "bajty": 9319,
+   "wiek_min": 294,
    "czesci_bez_odpowiedzi": []
   },
   "aukcje": {
    "http": 200,
    "bajty": 11682,
-   "wiek_min": 333,
+   "wiek_min": 294,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-dzien": {
    "http": 200,
-   "bajty": 952017,
+   "bajty": 952217,
    "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-dziennik": {
    "http": 200,
-   "bajty": 1468,
+   "bajty": 2193,
    "wiek_min": 3,
    "czesci_bez_odpowiedzi": []
   },
@@ -186,7 +184,7 @@
   "wg_wyniku": {
    "success": 72
   },
-  "ostatni": "2026-09-30T06:35:59Z",
+  "ostatni": "2026-10-01T06:37:49Z",
   "ostatnia_porazka": null,
   "porazki_z_rzedu": 0,
   "udane_po_porazce": null,
@@ -196,84 +194,84 @@
   {
    "zrodlo": "rynki (kursy EBC, rentowności)",
    "status": "✅",
-   "wiek_min": 36,
-   "data": "2026-09-30T06:04:15+00:00",
+   "wiek_min": 53,
+   "data": "2026-10-01T05:48:44+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "wieloryby (salda portfeli giełd)",
    "status": "✅",
    "wiek_min": 4,
-   "data": "2026-09-30T06:36:31+00:00",
+   "data": "2026-10-01T06:38:22+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "dźwignia (giełdy pochodnych)",
    "status": "✅",
-   "wiek_min": 36,
-   "data": "2026-09-30T06:04:15+00:00",
+   "wiek_min": 53,
+   "data": "2026-10-01T05:48:44+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "TGA (Fiscal Data, dziennie)",
    "status": "✅",
-   "wiek_min": 1840,
-   "data": "2026-09-28",
+   "wiek_min": 1842,
+   "data": "2026-09-29",
    "uwaga": ""
   },
   {
    "zrodlo": "ETF krypto (SoSoValue, dziennie)",
    "status": "✅",
-   "wiek_min": 400,
-   "data": "2026-09-29",
+   "wiek_min": 402,
+   "data": "2026-09-30",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED dzienne (RRPONTSYD)",
    "status": "✅",
-   "wiek_min": 400,
-   "data": "2026-09-29",
+   "wiek_min": 402,
+   "data": "2026-09-30",
    "uwaga": ""
   },
   {
    "zrodlo": "EIA ceny dzienne (publikowane co tydzień)",
    "status": "✅",
-   "wiek_min": 10480,
-   "data": "2026-09-22",
+   "wiek_min": 1842,
+   "data": "2026-09-29",
    "uwaga": ""
   },
   {
    "zrodlo": "CFTC (raport tygodniowy)",
    "status": "✅",
-   "wiek_min": 10480,
+   "wiek_min": 11922,
    "data": "2026-09-22",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED tygodniowe (WALCL)",
    "status": "✅",
-   "wiek_min": 9040,
+   "wiek_min": 10482,
    "data": "2026-09-23",
    "uwaga": ""
   },
   {
    "zrodlo": "TIC (miesięcznie)",
    "status": "✅",
-   "wiek_min": 86800,
+   "wiek_min": 88242,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "OECD (miesięcznie)",
    "status": "✅",
-   "wiek_min": 42160,
+   "wiek_min": 43602,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "BLS (miesięcznie)",
    "status": "✅",
-   "wiek_min": 42160,
+   "wiek_min": 43602,
    "data": "2026-08",
    "uwaga": ""
   }
@@ -281,21 +279,21 @@
  "zgodnosc": {
   "kapitalizacja": {
    "status": "ℹ️",
-   "dzis_pct": 4.27,
-   "mediana_pct": 4.655,
-   "dni": 4,
-   "opis": "historia 4 z 7 dni — bez oceny"
+   "dzis_pct": 4.402,
+   "mediana_pct": 4.303,
+   "dni": 5,
+   "opis": "historia 5 z 7 dni — bez oceny"
   },
   "ceny": {
    "bitcoin": {
-    "a": 83062.0,
-    "b": 83030.91336437472,
-    "roznica_pct": 0.037
+    "a": 84119.0,
+    "b": 84114.94095593691,
+    "roznica_pct": 0.005
    },
    "ethereum": {
-    "a": 2662.56,
-    "b": 2662.579875878477,
-    "roznica_pct": 0.001
+    "a": 2713.53,
+    "b": 2714.1469499601058,
+    "roznica_pct": 0.023
    }
   },
   "tga": {
@@ -305,69 +303,75 @@
    "roznica_pct": 3.047,
    "status": "ℹ️",
    "mediana_pct": 3.047,
-   "dni": 4,
-   "opis": "historia 4 z 7 dni — bez oceny"
+   "dni": 5,
+   "opis": "historia 5 z 7 dni — bez oceny"
   },
   "etf": {
    "porownane": 14,
    "roznice": []
   },
   "wieloryby": {
-   "dzien": "2026-09-30",
-   "poprzedni": "2026-09-29",
+   "dzien": "2026-10-01",
+   "poprzedni": "2026-09-30",
    "porownane": 9,
    "rozbieznosci": [
     {
      "gielda": "Binance",
      "aktywo": "USDT",
-     "zmiana_usd": 49589518.54,
-     "netto_usd": 95096421.98,
-     "roznica_usd": 45506903.44
+     "zmiana_usd": 40429741.21,
+     "netto_usd": 83755855.53,
+     "roznica_usd": 43326114.32
+    },
+    {
+     "gielda": "Bitfinex",
+     "aktywo": "USDC",
+     "zmiana_usd": 299628.6,
+     "netto_usd": 1406646.0,
+     "roznica_usd": 1107017.4
     },
     {
      "gielda": "Bitfinex",
      "aktywo": "USDT",
-     "zmiana_usd": -25253397.74,
-     "netto_usd": -43232972.55,
-     "roznica_usd": 17979574.81
+     "zmiana_usd": 52807127.3,
+     "netto_usd": 57610962.72,
+     "roznica_usd": 4803835.42
     },
     {
      "gielda": "Bybit",
      "aktywo": "USDT",
-     "zmiana_usd": 68789296.6,
-     "netto_usd": 98200071.22,
-     "roznica_usd": 29410774.62
+     "zmiana_usd": 150527093.99,
+     "netto_usd": 133665980.53,
+     "roznica_usd": 16861113.46
     },
     {
      "gielda": "KuCoin",
      "aktywo": "USDC",
-     "zmiana_usd": -785838.43,
-     "netto_usd": 345678.0,
-     "roznica_usd": 1131516.43
+     "zmiana_usd": -1968685.61,
+     "netto_usd": 500000.0,
+     "roznica_usd": 2468685.61
     },
     {
      "gielda": "KuCoin",
      "aktywo": "USDT",
-     "zmiana_usd": 6169021.34,
-     "netto_usd": 3619351.2,
-     "roznica_usd": 2549670.14
+     "zmiana_usd": 2939407.42,
+     "netto_usd": -3009990.0,
+     "roznica_usd": 5949397.42
     },
     {
      "gielda": "OKX",
      "aktywo": "USDC",
-     "zmiana_usd": 16560097.52,
-     "netto_usd": 42154674.48,
-     "roznica_usd": 25594576.96
+     "zmiana_usd": 32653773.96,
+     "netto_usd": -495559.39,
+     "roznica_usd": 33149333.35
     }
    ]
   }
  },
  "uwagi": [
-  "błąd zbieracza: BCB bilans płatniczy: 1 serie bez odpowiedzi, np. 23001: HTTP Error 502: Bad Gateway",
   "insider.json: HTTP 404 (brak pliku)",
-  "wieloryby: zmiana salda ≠ przelewy netto (> 5%) dla Binance USDT, Bitfinex USDT, Bybit USDT, KuCoin USDC, KuCoin USDT, OKX USDC — możliwe przelewy spoza zakresu skanu (< 1 mln USD, ETH przez kontrakty)"
+  "wieloryby: zmiana salda ≠ przelewy netto (> 5%) dla Binance USDT, Bitfinex USDC, Bitfinex USDT, Bybit USDT, KuCoin USDC, KuCoin USDT — możliwe przelewy spoza zakresu skanu (< 1 mln USD, ETH przez kontrakty)"
  ],
  "bledy": [],
- "historia_n": 12,
+ "historia_n": 13,
  "wynik": "UWAGA"
 }
