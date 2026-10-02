@@ -1,5 +1,5 @@
 {
- "at": "2026-10-01T01:29:03+00:00",
+ "at": "2026-10-02T01:29:07+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,10 +22,10 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-01T01:29:03+00:00",
-   "rows": 78,
+   "at": "2026-10-02T01:29:07+00:00",
+   "rows": 91,
    "first": "2026-09-26",
-   "last": "2026-10-01",
+   "last": "2026-10-02",
    "added": 13,
    "revised": 0,
    "revisions_total": 39,
@@ -44,10 +44,10 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-01T01:29:03+00:00",
-   "rows": 12,
+   "at": "2026-10-02T01:29:07+00:00",
+   "rows": 14,
    "first": "2026-09-26",
-   "last": "2026-10-01",
+   "last": "2026-10-02",
    "added": 2,
    "revised": 0,
    "revisions_total": 3,
@@ -68,14 +68,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-01T01:29:03+00:00",
-   "rows": 752,
+   "at": "2026-10-02T01:29:07+00:00",
+   "rows": 753,
    "first": "2023-09-26",
-   "last": "2026-09-30",
+   "last": "2026-10-01",
    "added": 1,
-   "revised": 0,
-   "revisions_total": 0,
-   "fetched": 748
+   "revised": 1,
+   "revisions_total": 1,
+   "fetched": 749
   },
   "tic": {
    "file": "tic.csv",
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-01T01:29:03+00:00",
+   "at": "2026-10-02T01:29:07+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,14 +118,14 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-01T01:29:03+00:00",
+   "at": "2026-10-02T01:29:07+00:00",
    "rows": 1040,
    "first": "2024-10-01",
    "last": "2026-09-22",
    "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 1040
+   "fetched": 1030
   },
   "rentownosci": {
    "file": "rentownosci.csv",
@@ -140,10 +140,10 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-01T01:29:03+00:00",
-   "rows": 520,
+   "at": "2026-10-02T01:29:07+00:00",
+   "rows": 521,
    "first": "2024-09-26",
-   "last": "2026-09-30",
+   "last": "2026-10-01",
    "added": 1,
    "revised": 0,
    "revisions_total": 0,
@@ -170,19 +170,19 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-01T01:29:03+00:00",
-   "rows": 20,
+   "at": "2026-10-02T01:29:07+00:00",
+   "rows": 30,
    "first": "2026-09-28",
-   "last": "2026-09-29",
+   "last": "2026-09-30",
    "added": 10,
-   "revised": 0,
-   "revisions_total": 0,
-   "fetched": 20
+   "revised": 10,
+   "revisions_total": 10,
+   "fetched": 30
   }
  },
  "errors": [],
  "notes": [
-  "wieloryby: doba 2026-09-30: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste"
+  "wieloryby: doba 2026-10-01: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste"
  ],
  "seria": {
   "plyn.net": 400,
@@ -200,12 +200,12 @@
   "cftc.eth.lev": 104,
   "cftc.eth.am": 104,
   "cftc.eth.dealer": 104,
-  "stab.usdt": 6,
-  "stab.usdc": 6,
-  "wh.Binance": 6,
-  "wh.Bitfinex": 6,
-  "wh.Bybit": 6,
-  "wh.KuCoin": 6,
-  "wh.OKX": 6
+  "stab.usdt": 7,
+  "stab.usdc": 7,
+  "wh.Binance": 7,
+  "wh.Bitfinex": 7,
+  "wh.Bybit": 7,
+  "wh.KuCoin": 7,
+  "wh.OKX": 7
  }
 }
