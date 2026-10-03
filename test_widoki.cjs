@@ -6375,6 +6375,11 @@ const G126_DATA = {"data/wycena":{"at":"2026-09-27T21:20:00+00:00","ok":{"cm":tr
    w każdym języku bez nazw serwisów kursowych (pole src zostaje w pliku — strona go nie pokazuje) ===================== */
 const DL136_FILE = {"at":"2026-09-27T20:00:00+00:00","v":1,"src":"DolarApi.com (DolarHoy — Argentyna; Ámbito — tylko kontrola dzienna; Banco Central de Venezuela i Yadio — Wenezuela; Banco Central de Bolivia i Binance P2P USDT/BOB — Boliwia); zapas: te same pliki w repozytorium projektu na GitHubie; historia: ArgentinaDatos.com (Argentyna), DolarApi (Wenezuela), własne odczyty (Boliwia). Kod obu serwisów na licencji MIT; dane informacyjne, bez gwarancji dokładności","url":"https://dolarapi.com/docs/","ok":{"hist_ar":true,"ar":true,"amb":true,"hist_ve":true,"ve":true,"bo":true},"part_at":{"hist_ar":"2026-09-27T20:00:00+00:00","ar":"2026-09-27T20:00:00+00:00","amb":"2026-09-27T20:00:00+00:00","hist_ve":"2026-09-27T20:00:00+00:00","ve":"2026-09-27T20:00:00+00:00","bo":"2026-09-27T20:00:00+00:00"},"cols":{"ar":["date","oficial","mayorista","blue","bolsa","contadoconliqui","cripto"],"ve":["date","oficial","paralelo"],"bo":["date","oficial","usdt"]},"unit":{"ar":"ARS/USD","ve":"VES/USD","bo":"BOB/USD; usdt BOB/USDT"},"ar":{"via":"api","q":{"oficial":[1495,1545,"2026-09-25T18:55:00Z"],"blue":[1540,1560,"2026-09-27T17:57:00Z"],"bolsa":[1544.3,1557.3,"2026-09-27T17:57:00Z"],"contadoconliqui":[1615.3,1616.6,"2026-09-27T17:57:00Z"],"mayorista":[1516.5,1525.5,"2026-09-25T16:06:00Z"],"cripto":[1610.38,1612,"2026-09-27T17:57:00Z"]},"gap":{"oficial":1.28,"blue":2.26,"bolsa":2.08,"contadoconliqui":5.97,"cripto":5.67},"d":[["2026-07-30",1510,1485,1560,1522.1,1575.7,1573.02],["2026-07-31",1510,1485,1560,1522.1,1575.7,1573.02],["2026-08-01",1510,1485,1560,1522.1,1575.7,1573.55],["2026-08-02",1515,1495,1555,1529,1580.4,1569.73],["2026-08-03",1515,1496,1545,1524.5,1576.2,1572.76],["2026-08-04",1520,1496.5,1540,1523,1576.1,1567.5],["2026-08-05",1520,1496.5,1540,1523,1576.1,1567.5],["2026-08-06",1520,1498.5,1525,1528.1,1580.7,1567.2],["2026-08-07",1520,1498.5,1525,1528.1,1580.7,1570],["2026-08-08",1520,1498.5,1525,1528.1,1580.7,1574.68],["2026-08-09",1520,1496,1535,1526.1,1583.2,1571.88],["2026-08-10",1515,1490.5,1550,1526.3,1584.9,1579.7],["2026-08-11",1515,1491.5,1540,1529.2,1587.1,1580.85],["2026-08-12",1515,1492,1540,1526.4,1581.4,1580.7],["2026-08-13",1510,1487.5,1545,1521.6,1573.8,1575.22],["2026-08-14",1510,1487.5,1545,1521.6,1573.8,1577.84],["2026-08-15",1510,1487.5,1545,1521.6,1573.8,1583.19],["2026-08-16",1510,1487.5,1545,1521.6,1573.8,1581.4],["2026-08-17",1515,1495,1555,1521,1575.5,1582.73],["2026-08-18",1515,1497,1560,1523.9,1580.3,1587.85],["2026-08-19",1515,1497,1550,1530.8,1585.2,1582.9],["2026-08-20",1520,1499,1550,1545.3,1589.7,1585.3],["2026-08-21",1520,1499,1550,1545.3,1589.7,1584.73],["2026-08-22",1520,1499,1550,1545.3,1589.7,1586.08],["2026-08-23",1530,1510,1565,1543.4,1600.6,1595.24],["2026-08-24",1530,1511.5,1560,1543.6,1600.9,1597.33],["2026-08-25",1535,1514,1555,1548.3,1606.8,1597.45],["2026-08-26",1535,1512,1555,1542,1602.1,1598.18],["2026-08-27",1535,1512,1555,1544.1,1603.8,1597.41],["2026-08-28",1535,1512,1555,1544.1,1603.8,1597.41],["2026-08-29",1535,1512,1555,1544.1,1603.8,1595.96],["2026-08-30",1530,1508.5,1555,1538.8,1598.3,1597.34],["2026-08-31",1535,1512,1555,1544.1,1603.8,1596.36],["2026-09-01",1535,1513,1545,1533.9,1592.1,1586.98],["2026-09-02",1535,1511,1540,1535.2,1594.4,1586.34],["2026-09-03",1530,1508,1540,1525.3,1583.2,1574],["2026-09-04",1530,1508,1540,1525.3,1583.2,1575.15],["2026-09-05",1530,1508,1540,1525.3,1583.2,1577.99],["2026-09-06",1530,1508,1540,1525.3,1583.2,1577.99],["2026-09-07",1530,1511.5,1545,1533.7,1583.2,1583.85],["2026-09-08",1530,1512,1545,1530.4,1592.9,1583.32],["2026-09-09",1535,1514,1540,1533.1,1596.2,1588.27],["2026-09-10",1535,1512,1545,1537.9,1598.3,1590.51],["2026-09-11",1530,1508.5,1545,1539.9,1597.5,1594.25],["2026-09-12",1530,1508.5,1545,1539.9,1597.5,1594.25],["2026-09-13",1530,1508.5,1545,1539.9,1597.5,1600.06],["2026-09-14",1530,1507.5,1555,1536.7,1597.5,1593.47],["2026-09-15",1530,1506.5,1560,1533.2,1594.6,1593.7],["2026-09-16",1535,1513.5,1560,1542.1,1600.2,1592.47],["2026-09-17",1535,1510,1555,1534.7,1593.4,1593.58],["2026-09-18",1535,1514.5,1550,1540.1,1598.1,1596.23],["2026-09-19",1535,1514.5,1550,1540.1,1598.1,1593.73],["2026-09-20",1535,1514.5,1550,1540.1,1598.1,1593.87],["2026-09-21",1535,1514,1550,1536.5,1596.4,1594.83],["2026-09-22",1535,1515,1555,1536.6,1598.3,1593.58],["2026-09-23",1535,1516,1560,1542.9,1607.1,1604.45],["2026-09-24",1540,1519,1560,1545.6,1614.3,1610.04],["2026-09-25",1545,1525.5,1560,1557.3,1616.6,1612.51],["2026-09-26",1545,1525.5,1560,1557.3,1616.6,1613.92],["2026-09-27",1545,1525.5,1560,1557.3,1616.6,1612]],"bf":{"ok":["oficial","mayorista","blue","bolsa","contadoconliqui","cripto"],"at":"2026-09-27T20:00:00+00:00"},"ch":{"contadoconliqui":{"d7":0.45,"d30":-0.1},"blue":{"d7":-0.08,"d30":-0.58},"bolsa":{"d7":0.39,"d30":-0.04},"cripto":{"d7":0.43,"d30":0.02}},"mm":{"contadoconliqui":{"n":366,"min":1.48,"dmin":"2025-10-27","max":12.0,"dmax":"2025-09-29"},"blue":{"n":366,"min":-2.5,"dmin":"2025-11-02","max":8.6,"dmax":"2025-09-27"}},"amb":{"oficial":[1494.4,1545.12,"2026-09-25T16:04:00Z"],"blue":[1540,1560,"2026-09-25T18:55:00Z"],"bolsa":[1552.5,1552.5,"2026-09-25T19:55:00Z"],"contadoconliqui":[1599,1599,"2026-09-25T19:55:00Z"],"mayorista":[1516.5,1525.5,"2026-09-25T16:06:00Z"],"cripto":[1611.98,1611.98,"2026-09-27T15:00:00Z"]}},"ve":{"via":"api","q":{"oficial":[null,855.6625,"2026-09-25T04:00:00Z","2026-09-25"],"paralelo":[null,945.550431,"2026-09-27T18:01:01Z"]},"of":[["2026-09-15",842.2067],["2026-09-16",846.5131],["2026-09-17",847.4442],["2026-09-18",848.5458],["2026-09-21",849.564],["2026-09-22",852.4168],["2026-09-23",853.4993],["2026-09-24",854.4637],["2026-09-25",855.6625],["2026-09-28",857.0058]],"base":[null,855.6625,"2026-09-25T04:00:00Z","2026-09-25"],"gap":10.51,"d":[["2026-08-29",791.6667,922.235297],["2026-08-30",791.6667,922.972053],["2026-08-31",794.9917,922.377374],["2026-09-01",798.326,942.879236],["2026-09-02",801.1752,952.407387],["2026-09-03",804.8109,948.041568],["2026-09-04",807.3862,942.833409],["2026-09-05",807.3862,940.156683],["2026-09-06",807.3862,946.258745],["2026-09-07",813.7361,951.115633],["2026-09-08",814.6908,951.801472],["2026-09-09",820.1018,945.976898],["2026-09-10",827.7371,941.783983],["2026-09-11",832.4883,947.304673],["2026-09-12",832.4883,945.165346],["2026-09-13",832.4883,952.405674],["2026-09-14",832.4883,939.333765],["2026-09-15",842.2067,943.671817],["2026-09-16",846.5131,943.331726],["2026-09-17",847.4442,942.52951],["2026-09-18",848.5458,950.004053],["2026-09-19",848.5458,929.970575],["2026-09-20",848.5458,935.517495],["2026-09-21",849.564,949.776482],["2026-09-22",852.4168,953.247803],["2026-09-23",853.4993,945.853885],["2026-09-24",854.4637,956.954059],["2026-09-25",855.6625,954.333011],["2026-09-26",855.6625,958.333294],["2026-09-27",855.6625,945.550431]],"ch":{"d7":0.26,"d30":-5.98},"mm":{"n":45,"min":9.6,"dmin":"2026-09-19","max":18.88,"dmax":"2026-09-02"}},"bo":{"via":"api","q":{"oficial":[12.05,12.05,"2026-09-27T00:00:00Z"],"usdt":[12,12.04,"2026-09-27T18:01:06Z"]},"gap":-0.08,"d":[["2026-09-27",12.05,12.04]],"ch":{"d7":null,"d30":null},"mm":null},"notes":[]};
 G126_DATA['data/dolar'] = DL136_FILE;
+/* ===================== v134: plik data/ici.json do testów strony — zbudowany przez build_ici z dwóch SYNTETYCZNYCH plików .xls (liczby zmyślone,
+   sumy zgodne; drugie wydanie poprawia tydzień 02.09), zegar 27.09.2026 21:30 UTC; także dane wbudowane strażnika nazw źródeł: panel #g-fund
+   musi się narysować w każdym języku bez nazwy wydawcy (pole src zostaje w pliku — strona go nie pokazuje) ===================== */
+const ICI134_FILE = {"at":"2026-09-27T21:30:00+00:00","v":1,"src":"Investment Company Institute (ICI), www.ici.org — Combined Estimated Long-Term Flows and ETF Net Issuance (combined_flows_data_{rok}.xls; tygodnie: szacunek, miesiące: dane rzeczywiste); bez klucza","unit":"mln USD","ok":{"lt":true},"part_at":{"lt":"2026-09-27T21:30:00+00:00"},"lm":{"lt":"lm-lt-1"},"plik":{"lt":{"rok":2026}},"notes":["tydzień = środa (kalendarz USA); napływy: szacunek wydawcy z danych obejmujących ponad 98% aktywów funduszy; tygodnie z nowszego pliku zastępują wcześniejsze odczyty tej samej daty (rv = tygodnie poprawione)","fundusze wzajemne: nowe środki netto (wpłaty − wypłaty ± zamiany); ETF: emisja netto jednostek (zawiera reinwestowane dywidendy); bez funduszy inwestujących w inne fundusze","kolumny lt: total = eq + hyb + bd + com; eq = dom (akcje USA) + wld (akcje spoza USA); bd = tax (obligacje zwykłe) + muni (municypalne); com = surowce; kwoty w mln USD; m = miesiące, dane rzeczywiste (zbierane osobno — nie suma tygodni)","sum4 = suma 4 ostatnich tygodni tylko przy krokach dokładnie 7 dni; brak liczby = None (strona: „—”), nigdy zero"],"lt":{"week":"2026-09-16","cols":["total","eq","dom","wld","hyb","bd","tax","muni","com"],"w":[["2026-07-29",12300,4200,3000,1200,-900,8700,8000,700,300],["2026-08-05",4892,-2628,-3517,889,-860,7960,7350,610,420],["2026-08-12",11552,4612,4034,578,-820,7220,6700,520,540],["2026-08-19",2076,-4284,-4551,267,-780,6480,6050,430,660],["2026-08-26",10804,5024,5068,-44,-740,5740,5400,340,780],["2026-09-02",3180,-3200,-4100,900,-650,6520,6100,420,510],["2026-09-09",10056,5436,6102,-666,-660,4260,4100,160,1020],["2026-09-16",-3556,-7596,-6619,-977,-620,3520,3450,70,1140]],"rv":["2026-09-02"],"rev":{"week":"2026-09-02","old":-740,"new":3180},"month":"2026-07","m":[["2024-01",56900,17000,20000,-3000,-6000,45000,40000,5000,900],["2024-02",55920,15710,18300,-2590,-5910,45290,40350,4940,830],["2024-03",54940,14420,16600,-2180,-5820,45580,40700,4880,760],["2024-04",53960,13130,14900,-1770,-5730,45870,41050,4820,690],["2024-05",52980,11840,13200,-1360,-5640,46160,41400,4760,620],["2024-06",52000,10550,11500,-950,-5550,46450,41750,4700,550],["2024-07",51020,9260,9800,-540,-5460,46740,42100,4640,480],["2024-08",50040,7970,8100,-130,-5370,47030,42450,4580,410],["2024-09",49060,6680,6400,280,-5280,47320,42800,4520,340],["2024-10",48080,5390,4700,690,-5190,47610,43150,4460,270],["2024-11",47100,4100,3000,1100,-5100,47900,43500,4400,200],["2024-12",46120,2810,1300,1510,-5010,48190,43850,4340,130],["2025-01",45140,1520,-400,1920,-4920,48480,44200,4280,60],["2025-02",44160,230,-2100,2330,-4830,48770,44550,4220,-10],["2025-03",43180,-1060,-3800,2740,-4740,49060,44900,4160,-80],["2025-04",42200,-2350,-5500,3150,-4650,49350,45250,4100,-150],["2025-05",41220,-3640,-7200,3560,-4560,49640,45600,4040,-220],["2025-06",40240,-4930,-8900,3970,-4470,49930,45950,3980,-290],["2025-07",39260,-6220,-10600,4380,-4380,50220,46300,3920,-360],["2025-08",38280,-7510,-12300,4790,-4290,50510,46650,3860,-430],["2025-09",37300,-8800,-14000,5200,-4200,50800,47000,3800,-500],["2025-10",36320,-10090,-15700,5610,-4110,51090,47350,3740,-570],["2025-11",35340,-11380,-17400,6020,-4020,51380,47700,3680,-640],["2025-12",34360,-12670,-19100,6430,-3930,51670,48050,3620,-710],["2026-01",33380,-13960,-20800,6840,-3840,51960,48400,3560,-780],["2026-02",32400,-15250,-22500,7250,-3750,52250,48750,3500,-850],["2026-03",31420,-16540,-24200,7660,-3660,52540,49100,3440,-920],["2026-04",30440,-17830,-25900,8070,-3570,52830,49450,3380,-990],["2026-05",29460,-19120,-27600,8480,-3480,53120,49800,3320,-1060],["2026-06",28480,-20410,-29300,8890,-3390,53410,50150,3260,-1130],["2026-07",27500,-21700,-31000,9300,-3300,53700,50500,3200,-1200]],"sum4":{"to":"2026-09-16","v":[20484,-336,451,-787,-2670,20040,19050,990,3450]}}};
+G126_DATA['data/ici'] = ICI134_FILE;
 const G126 = (() => {
   const NOW = '2026-09-27T21:45:00Z', NOWMS = Date.parse(NOW);
   class FD extends Date { constructor(...a) { if (a.length === 0) super(NOWMS); else super(...a); } static now() { return NOWMS; } }
@@ -6624,6 +6629,7 @@ const G126_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
 const G126_PANELS = ['page-sources', 'page-method', 'page-flows', 'page-assets', 'page-sectors', 'trendy', 'g-detail', 'g-kpis', 'g-prob', 'gh-src', 'detail', 'kpis',
   'c-dzwignia', 'c-wieloryby', 'c-archiwum', 'g-archiwum', 'g-indeksy', 'g-snb', 'g-usa', 'g-insider', 'inst', 'tic', 'bis', 'krypto', 'cmc', 'c-ceny-krypto', 'c-lancuch', 'c-wycena',
   'eng-cftc-crypto', 'eng-cftc-euro-fx', 'eng-wdi-destinations', 'tv-markets', 'tv-markets-w', 'tv-chart', 'tv-chart-w', 'tv-dvol', 'tv-newsc'];
+G126_PANELS.push('g-fund');   /* v134: panel funduszy USA (dane wbudowane: ICI134_FILE) musi się narysować */
 G126_PANELS.push('g-dolar');   /* v136: panel kursów dolara Ameryki Łacińskiej (dane wbudowane: DL136_FILE) musi się narysować */
 
 test('v126.2-zrodla: lista nazw łapie podpisy, dostawców (każda wielkość liter, adresy), zdania o źródle w 10 językach i NIEZNANE nazwy po zwrocie podpisu, a przepuszcza nazwy-przedmioty (giełda, indeks, bank centralny jako decydent, emitent, kraj)', () => {
@@ -9231,4 +9237,222 @@ test('v140: zachowanie — etykieta modelu, na której stoją przyciski sceny, p
     const moved = f.text.find(t => t.s === lab.s); assert.ok(moved && moved.x < lab.x - 1, 'etykieta „Giełdy” przesunięta w lewo, obok przycisków');
     assert.ok(f.stroke.length > 0);
   } finally { zEl._rect = z0; A.T10.zk = null; }
+});
+
+
+/* ===================== v134: USA — napływy do funduszy (fundusze wzajemne i ETF razem; data/ici.json), słownik EXTRA143, sekcja #g-fund zaraz po #g-usa ===================== */
+/* Plik testowy ICI134_FILE (zbudowany przez build_ici z dwóch SYNTETYCZNYCH plików .xls — liczby zmyślone, sumy zgodne; drugie wydanie poprawia
+   tydzień 02.09) jest zdefiniowany przy danych strażnika nazw źródeł (G126_DATA). Zegar przypięty: do bloku wstrzykujemy Date z własnym now —
+   testy nie czytają prawdziwego zegara ani sieci. Słownik nie musi być ostatni (późniejsze wydania dopisują swoje po nim). */
+const fnd134 = (() => {
+  const a0 = html.indexOf('/* ===================== v134: USA — NAPŁYWY DO FUNDUSZY'), a1 = html.indexOf('\nfunction fndLoad(', a0);
+  assert.ok(a0 > 0 && a1 > a0, 'blok v134 na stronie');
+  const PIN = Date.parse('2026-09-27T21:45:00Z');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const tFake = (k, v) => (k === 'fund.div' ? '1000' : k === 'fund.bn' ? v.v + ' bn' : k + (v ? JSON.stringify(v) : ''));
+  const mk = (o) => { o = o || {};
+    const clk = o.clock || {ms: PIN};
+    class PD extends Date { constructor(...a) { if (a.length) super(...a); else super(clk.ms); } static now() { return clk.ms; } }
+    return new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', 'glyphImg', 'icoWrap', 'srvJSON', 'Date', html.slice(a0, a1) +
+      '\nreturn {FND, FND_MAX_AGE, FND_ROWS, FND_MONTHS, FND_STALE, FND_EXT, fndFlow, fndAmt, fndDateOk, fndRows, fndIdx, fndOld, fndDay, fndMon, fndBody, renderFnd, fndApply};')(
+      o.$ || (() => null), o.t || tFake, o.nfmt || ((v, d) => Number(v).toFixed(d)), esc, d => ' · age(' + d + ')', iso => 'D(' + iso + ')',
+      {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'}, o.L || 'en',
+      o.flagImg || ((c, cls) => '<img flag=' + c + '>'), o.glyphImg || ((n, cls) => '<img glyph=' + n + '>'), o.icoWrap || (x => '<span class="icos">' + x + '</span>'),
+      () => ({then: () => {}}), PD); };
+  const cp = x => JSON.parse(JSON.stringify(x));
+  const tiles = body => body.split('<div class="etfk">').slice(1).map(s => s.slice(0, s.indexOf('</div>')));
+  const el = () => { const e = {hidden: true, innerHTML: '', querySelectorAll: () => [], querySelector: () => null}; return e; };
+  const PROV = /\bICI\b|Investment Company|ici\.org|combined_flows|mm_summary/;
+  /* szacunek szerokości tabeli tygodni na telefonie 375 px (odpowiednik pomiaru w przeglądarce, której test nie ma): kolumny bez klasy fnd-w,
+     najmniejsza szerokość kolumny = najdłuższy tekst komórki (daty i liczby się nie łamią) + 8 px marginesu; nagłówki łamią się w dowolnym miejscu
+     (overflow-wrap:anywhere — sprawdzane w stylu), więc nie poszerzają kolumn. Stałe z pomiaru w Chrome 03.10.2026 (375 px): liczby (czcionka
+     o stałej szerokości 11 px) 6,7 px na znak, data 7,2 px na znak (CJK 13 px), znaczniki „*” / „†” 7,5 px; szerokość ramki tabeli 313 px. */
+  const PHONE = 313;
+  const tw = (s, mono) => [...s].reduce((a, c) => a + (c === '*' || c === '†' ? 7.5 : /[\u3000-\u9fff\uff00-\uffef]/.test(c) ? 13 : mono ? 6.7 : 7.2), 0);
+  const strip = h => h.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  const phone = body => {
+    const t0 = body.indexOf('<table class="etft">'), tb = body.slice(t0, body.indexOf('</table>', t0));
+    const rows = tb.slice(tb.indexOf('<tbody>')).split('<tr>').slice(1).map(r => r.split('<td').slice(1).filter(c => !c.startsWith(' class="fnd-w"')).map(c => strip(c.slice(c.indexOf('>') + 1))));
+    const n = rows.length ? rows[0].length : 0, cols = [];
+    for (let i = 0; i < n; i++) cols.push(Math.max(...rows.map(r => tw(r[i] || '', i > 0))) + 8);
+    return {cols, sum: cols.reduce((a, b) => a + b, 0), n};
+  };
+  return {a0, a1, mk, D: ICI134_FILE, cp, PIN, tiles, el, PROV, tFake, phone, PHONE, tw};
+})();
+
+test('v134: fundusze USA — sekcja #g-fund raz, zaraz po #g-usa (przed #g-indeksy i #inst; widgety zostają ostatnie), styl, blok, słownik i odświeżanie', () => {
+  const s = '<section class="panel pcard" id="g-fund" hidden></section>';
+  assert.equal(html.split(s).length, 2, 'sekcja dokładnie raz');
+  const i = id => html.indexOf('id="' + id + '"');
+  assert.ok(i('g-usa') < i('g-fund') && i('g-fund') < i('g-indeksy') && i('g-indeksy') < i('inst') && i('inst') < i('tv-markets'), 'kolejność GLOBAL');
+  assert.ok(html.includes('#g-fund .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}') && html.includes('#g-fund .etft th.fnd-w,#g-fund .etft td.fnd-w{display:none}'), 'styl: 3 kafle w rzędzie, telefon bez kolumn mieszane/surowce');
+  assert.ok(html.includes("function fndLoad(){srvJSON('ici').then(fndApply);}") && html.includes('fndLoad();fndAuto();try{new MutationObserver(()=>renderFnd())'), 'pobranie pliku automatu, odświeżanie co godzinę i przy zmianie języka');
+  assert.equal(html.split('const EXTRA143=').length, 2); assert.ok(/for\(const l in EXTRA143\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA143\[l\]\);\n/.test(html), 'linia nakładania słownika');
+  assert.ok(!fnd134.PROV.test(html.slice(fnd134.a0, html.indexOf('\n', html.indexOf('fndLoad();fndAuto();')))), 'blok strony bez nazwy wydawcy i nazw plików');
+  const R = v96src.render('pl', false, null), J = R.txtJakCzytac(), n = 'napływy do funduszy w USA (fundusze wzajemne i ETF)';
+  const row = J.split('<tr>').find(r => r.includes('<span>' + n + '</span>')) || '';
+  assert.ok(R.JAK_ICO[n] === 'us @etf' && row.includes('flagi/us.svg') && row.includes('glify/etf.svg') && row.includes('co tydzień (w środę, za tydzień do poprzedniej środy)'), 'Metodologia: wiersz z flagą i znakiem ETF');
+});
+
+test('v134: fundusze USA — pomocnicze: przepływ ze znakiem i kolorem po zaokrągleniu (zero bez koloru), brak = „—” (nigdy 0), data wraca do siebie, wiersze bez śmieci', () => {
+  const X = fnd134.mk();
+  assert.deepEqual(X.fndFlow(1234), {txt: '+1.2 bn', cls: 'pos'}); assert.deepEqual(X.fndFlow(-449), {txt: '−0.4 bn', cls: 'neg'});
+  assert.deepEqual(X.fndFlow(40), {txt: '0.0 bn', cls: ''}, 'zero po zaokrągleniu: bez znaku i bez koloru'); assert.deepEqual(X.fndFlow(-49), {txt: '0.0 bn', cls: ''});
+  assert.deepEqual(X.fndFlow(0), {txt: '0.0 bn', cls: ''}, 'prawdziwe zero to liczba'); assert.deepEqual(X.fndFlow(-10098, false), {txt: '−10.1', cls: 'neg'}, 'tabela: bez jednostki');
+  for (const v of [null, undefined, NaN, Infinity, '1234', true, {}]) assert.deepEqual(X.fndFlow(v), {txt: '—', cls: 'na'}, 'brak = kreska: ' + String(v));
+  assert.equal(X.fndAmt(7936481), '7936.5 bn'); assert.equal(X.fndAmt(null), '—');
+  const Z = fnd134.mk({t: (k, v) => (k === 'fund.div' ? '100' : k === 'fund.bn' ? v.v + '億' : k)});
+  assert.deepEqual(Z.fndFlow(-10098), {txt: '−101億', cls: 'neg'}, 'zh/ja: 億 = 100 mln, bez miejsc po przecinku'); assert.equal(Z.fndAmt(7936481), '79365億');
+  assert.deepEqual(Z.fndFlow(40), {txt: '0億', cls: ''}); assert.deepEqual(Z.fndFlow(60), {txt: '+1億', cls: 'pos'});
+  assert.equal(X.fndDateOk('2026-02-30'), false, 'V8 czyta 2026-02-30 jako 2 marca'); assert.equal(X.fndDateOk('2026-09-16'), true); assert.equal(X.fndDateOk('09/16/2026'), false);
+  assert.deepEqual(X.fndRows([['2026-09-16', 1, 'x', null], ['2026-02-30', 1, 2, 3], ['2026-09-09', 4, 5, 6], ['2026-09-02', 1], 'x', null], 3),
+    [['2026-09-09', 4, 5, 6], ['2026-09-16', 1, null, null]], 'zła data / długość odrzucona, nie-liczba = null, rosnąco');
+  assert.deepEqual(X.fndRows([['2026-07', 1], ['2026-13', 2], ['2026-06', 3]], 1, true), [['2026-06', 3], ['2026-07', 1]], 'miesiące RRRR-MM');
+  const L = ['total', 'eq', 'dom', 'wld', 'hyb', 'bd', 'tax', 'muni', 'com'];
+  assert.equal(X.fndIdx({cols: L.slice().reverse()}, 'dom', L), L.length - L.indexOf('dom'), 'kolumny z pliku (inna kolejność)'); assert.equal(X.fndIdx({}, 'com', L), 9);
+  assert.equal(X.fndIdx({cols: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']}, 'com', L), 9, 'nieznane nazwy kolumn — układ znany');
+  assert.equal(X.fndDay('2026-09-16'), 'Sep 16, 2026', 'data w UTC (nie przesuwa się o dzień)'); assert.equal(X.fndMon('2026-07'), 'Jul 2026');
+  assert.deepEqual([X.FND_MAX_AGE, X.FND_ROWS, X.FND_MONTHS, X.FND_STALE.lt], [30, 8, 12, 16]);
+  const Y = fnd134.mk({clock: {ms: Date.parse('2027-01-10T12:00:00Z')}}), D2 = fnd134.cp(fnd134.D);
+  D2.lt.w = [['2026-12-30', 1, 1, 0, 1, 0, 0, 0, 0, 0], ['2027-01-06', 1, 1, 1, 0, 0, 0, 0, 0, 0]]; D2.lt.week = '2027-01-06'; D2.lt.rv = []; D2.lt.sum4 = null;
+  const b2 = Y.fndBody(D2);
+  assert.ok(b2.includes('<span class="cell">1/6</span>') && b2.includes('<span class="cell">12/30/2026</span>'), 'przełom roku: rok przy starszym wierszu');
+});
+
+test('v134: fundusze USA — panel z pliku: 6 kafli (napływ tygodnia ze znakiem i kolorem, 4 tygodnie, obligacje z podziałem), data i wiek, tabela 8 tygodni z „popr.”, 12 miesięcy, noty', () => {
+  const X = fnd134.mk(), D = fnd134.D, body = X.fndBody(D), T = fnd134.tiles(body);
+  assert.equal(T.length, 6, '6 kafli');
+  const w = D.lt.w[D.lt.w.length - 1], s = D.lt.sum4.v, f = v => X.fndFlow(v);
+  const order = [['fund.k.dom', 3, 2], ['fund.k.wld', 4, 3], ['fund.k.bd', 6, 5], ['fund.k.hyb', 5, 4], ['fund.k.com', 9, 8], ['fund.k.tot', 1, 0]];
+  order.forEach(([k, i, j], n) => {
+    assert.ok(T[n].includes(k) && T[n].includes('<span class="fnd-v ' + f(w[i]).cls + '">' + f(w[i]).txt + '</span>'), n + ' ' + k + ': ' + T[n]);
+    assert.ok(T[n].includes('fund.s4{"v":"' + f(s[j]).txt + '"}'), k + ': suma 4 tygodni');
+    assert.ok(T[n].includes('<small class="mtxt">fund.wk{"d":"Sep 16, 2026"} · age(2026-09-16)</small>'), k + ': data tygodnia i wiek');
+  });
+  assert.ok(T[2].includes('fund.k.bd2{"tax":"' + X.fndFlow(w[7], false).txt + '","muni":"' + X.fndFlow(w[8], false).txt + '"}'), 'obligacje: zwykłe i municypalne');
+  assert.ok(T[0].includes('flag=us') && T[1].includes('glyph=globe') && T[3].includes('glyph=chart') && T[4].includes('glyph=gold') && T[5].includes('flag=us') && T[5].includes('glyph=etf'), 'ikony');
+  assert.ok(body.includes('<h3 class="mtxt">fund.h.lt</h3><p class="pnote">fund.wk{"d":"Sep 16, 2026"} · age(2026-09-16)</p>'));
+  const tb = body.slice(body.indexOf('fund.h.tab'), body.indexOf('</table>', body.indexOf('fund.h.tab')));
+  const trs = tb.split('<tr><td>').slice(1);
+  assert.equal(trs.length, 8, '8 tygodni'); assert.ok(trs[0].startsWith('<span class="cell">9/16</span>') && trs[7].startsWith('<span class="cell">7/29</span>'), 'od najnowszego; data krótka, liczbowa; rok tylko przy innym roku');
+  assert.ok(trs[2].startsWith('<span class="cell">9/2<small class="fnd-rv">*</small></span>') && body.includes('<p class="pnote">fund.rv.leg</p>'), 'tydzień poprawiony w późniejszym wydaniu: zwarty znacznik „*” i objaśnienie pod tabelą');
+  assert.ok(!fnd134.mk().fndBody(Object.assign(fnd134.cp(fnd134.D), {lt: Object.assign(fnd134.cp(fnd134.D).lt, {rv: []})})).includes('fund.rv.leg'), 'bez poprawek — bez objaśnienia');
+  assert.equal(trs.filter(r => r.includes('fnd-rv')).length, 1);
+  assert.equal((trs[0].match(/<td/g) || []).length, 6, 'tydzień + 6 kolumn'); assert.equal((trs[0].match(/class="fnd-w"/g) || []).length, 2, 'mieszane i surowce — znikają na telefonie');
+  assert.ok(trs[0].includes('<span class="cell mono ' + f(w[1]).cls + '">' + X.fndFlow(w[1], false).txt + '</span>'), 'razem w tabeli: liczba bez jednostki z kolorem');
+  assert.ok(body.includes('<details class="etfd" id="fund-m"><summary>fund.h.m</summary><p class="pnote">fund.m.last{"m":"Jul 2026"} · age(2026-07)</p>'), 'miesiące zwinięte, z datą i wiekiem');
+  const mt = body.slice(body.indexOf('id="fund-m"'), body.indexOf('</details>', body.indexOf('id="fund-m"')));
+  assert.equal(mt.split('<tr><td>').length - 1, 12, '12 miesięcy'); assert.ok(mt.includes('fund.m.note'));
+  for (const k of ['fund.what', 'fund.leg', 'fund.note']) assert.ok(body.includes('<p class="pnote">' + k + '</p>'), k);
+  assert.ok(!body.includes('fund.stale') && !body.includes('fund.prev') && !body.includes('fund.lt.na'), 'świeże, pobrane — bez not o braku');
+});
+
+test('v134: fundusze USA — brak liczby = „—” (klasa na), nigdy 0,0; suma 4 tygodni null = „—”; tydzień bez liczb nie udaje danych', () => {
+  const X = fnd134.mk(), D = fnd134.cp(fnd134.D);
+  const last = D.lt.w[D.lt.w.length - 1];
+  for (let i = 1; i < last.length; i++) last[i] = null;
+  D.lt.sum4 = null; D.lt.m = []; D.lt.rv = [];
+  const body = X.fndBody(D), T = fnd134.tiles(body);
+  assert.equal(T.length, 6);
+  for (const tl of T) { assert.ok(tl.includes('<span class="fnd-v na">—</span>') && tl.includes('fund.s4{"v":"—"}'), tl); assert.ok(!/[+−]?0\.0 bn/.test(tl), 'bez 0,0 za brak: ' + tl); }
+  assert.ok(T[2].includes('fund.k.bd2{"tax":"—","muni":"—"}'));
+  const row0 = body.slice(body.indexOf('<tbody>'), body.indexOf('</tr>', body.indexOf('<tbody>')));
+  assert.equal((row0.match(/<span class="cell mono na">—<\/span>/g) || []).length, 6, 'tabela: każdy brak to kreska'); assert.ok(!row0.includes('0.0'));
+  assert.ok(!body.includes('id="fund-m"'), 'bez miesięcy — bez rozwijanej tabeli');
+  const S = fnd134.cp(fnd134.D); S.lt.sum4.to = '2026-09-09';
+  assert.ok(fnd134.tiles(X.fndBody(S)).every(t => t.includes('fund.s4{"v":"—"}')), 'suma 4 tygodni z innego tygodnia nie jest pokazana');
+  const G = fnd134.cp(fnd134.D); G.lt.week = '2026-09-23';
+  assert.equal(X.fndBody(G), '', 'week bez wiersza z liczbami — brak panelu (bez dorabiania danych)');
+  for (const bad of [null, {}, {lt: null}, {lt: {week: '2026-02-30', w: [['2026-02-30', 1, 1, 1, 1, 1, 1, 1, 1, 1]]}}, {lt: {week: '2026-09-16', w: []}}, 'x'])
+    assert.equal(X.fndBody(bad), '', 'bez danych — pusto: ' + JSON.stringify(bad));
+});
+
+test('v134: fundusze USA — nota o starym tygodniu (16 dni od końca tygodnia), poprzedni odczyt przy błędzie, ukrycie po 30 dniach, chwilowy błąd nie zasłania danych', () => {
+  const D = fnd134.D, day = 864e5, t0 = Date.parse('2026-09-17T00:00:00Z');
+  assert.ok(!fnd134.mk({clock: {ms: t0 + 16 * day - 60e3}}).fndBody(D).includes('fund.stale'), '16 dni bez minuty — w normie');
+  assert.ok(fnd134.mk({clock: {ms: t0 + 16 * day + 60e3}}).fndBody(D).includes('<p class="pnote neu">fund.stale{"d":"Sep 16, 2026"}</p>'), 'ponad 16 dni — nota');
+  const B = fnd134.cp(D); B.ok.lt = false; B.part_at.lt = '2026-09-25T10:00:00+00:00';
+  assert.ok(fnd134.mk().fndBody(B).includes('<p class="pnote neu">fund.prev{"t":"D(2026-09-25T10:00:00+00:00)"}</p>'), 'część z błędem: poprzedni odczyt z czasem');
+  const e = fnd134.el(), clk = {ms: fnd134.PIN};
+  const X = fnd134.mk({$: q => (q === '#g-fund' ? e : null), clock: clk});
+  X.fndApply(D);
+  assert.equal(e.hidden, false); assert.ok(e.innerHTML.startsWith('<div class="etfh"><div><h2><span class="icos"><img flag=us><img glyph=etf></span>fund.t</h2><p class="pnote">fund.sub</p>'), e.innerHTML.slice(0, 200));
+  assert.ok(e.innerHTML.includes('<span class="live on"><i></i>inst.file{"t":"D(' + D.at + ')"}</span>') && e.innerHTML.includes('<p class="pfoot">inst.file{"t":"D(' + D.at + ')"} · eng.disclaimer</p>'));
+  assert.ok(e.innerHTML.includes('<details class="etfd" id="fund-not"><summary>eng.notsays</summary><p class="pnote">fund.not</p></details>'), 'czego liczba nie mówi');
+  assert.ok(!fnd134.PROV.test(e.innerHTML), 'panel bez nazwy wydawcy');
+  const html1 = e.innerHTML;
+  X.fndApply(null); X.fndApply({at: 'zepsute'}); X.fndApply({at: '2026-09-27T22:00:00+00:00', ok: {lt: false}, try_at: '2026-09-27T22:00:00+00:00'});
+  assert.equal(e.innerHTML, html1, 'chwilowy błąd albo pusty zapis próby nie zasłania wczytanych danych'); assert.equal(e.hidden, false);
+  const e2 = fnd134.el(), clk2 = {ms: Date.parse(D.at) + 31 * day};
+  const Y = fnd134.mk({$: q => (q === '#g-fund' ? e2 : null), clock: clk2});
+  Y.fndApply(D); assert.equal(e2.hidden, true, 'plik starszy niż 30 dni — sekcja ukryta'); assert.equal(Y.FND.data, null);
+  clk2.ms = Date.parse(D.at) + 29 * day; Y.fndApply(D); assert.equal(e2.hidden, false, '29 dni — widoczna');
+});
+
+test('v134: fundusze USA — kolejne części przez FND_EXT (kafle, kolumna tabeli po tygodniu, noty, podtytuł, „czego nie mówi”); sama część dodatkowa wystarcza', () => {
+  const X = fnd134.mk(), D = fnd134.cp(fnd134.D);
+  X.FND_EXT.push({ok: d => !!d.zz, tiles: () => '<div class="etfk">ZZ</div>', weeks: () => ['2026-09-23'], th: () => '<th>ZZ</th>', td: (d, w) => '<td>zz' + w + '</td>',
+    notes: () => '<p class="pnote">zz.note</p>', sub: () => 'zz.sub', not: () => 'zz.not'});
+  assert.equal(X.fndBody(D), fnd134.mk().fndBody(D), 'część bez danych (ok=false) nic nie zmienia');
+  D.zz = 1;
+  const body = X.fndBody(D), trs = body.slice(body.indexOf('<tbody>'), body.indexOf('</tbody>')).split('<tr><td>').slice(1);
+  assert.equal(fnd134.tiles(body).length, 7); assert.ok(body.includes('<th>ZZ</th>') && body.endsWith('<p class="pnote">zz.note</p>'));
+  assert.ok(trs[0].startsWith('<span class="cell">9/23</span>') && (trs[0].match(/cell mono na">—/g) || []).length === 6 && trs[0].includes('<td>zz2026-09-23</td>'), 'tydzień tylko z części dodatkowej: napływy „—”');
+  assert.equal(trs.length, 8, 'nadal 8 najnowszych tygodni');
+  const Q = fnd134.cp(fnd134.D); Q.zz = 1; Q.lt.w = Q.lt.w.slice(-3); Q.lt.sum4 = null; X.FND_EXT[0].weeks = () => ['2026-08-19', '2026-08-26', '2026-09-02', '2026-09-09', '2026-09-23'];
+  const bq = X.fndBody(Q), tq = bq.slice(bq.indexOf('<tbody>'), bq.indexOf('</tbody>'));
+  assert.equal(tq.split('<tr><td>').length - 1, 4, 'krótka historia napływów (3 tygodnie): tabela od jej pierwszego tygodnia (+ 23.09 z części dodatkowej)');
+  assert.ok(!tq.includes('>8/19<') && !tq.includes('>8/26<') && tq.includes('>9/2<') && tq.includes('>9/23<'), 'tygodnie części dodatkowej sprzed historii napływów — bez wierszy z samymi kreskami');
+  X.FND_EXT[0].rv = () => ['2026-09-23']; const br = X.fndBody(Q);
+  assert.ok(br.includes('<span class="cell">9/23<small class="fnd-rv">*</small></span>') && br.includes('fund.rv.leg'), 'poprawka w części dodatkowej też dostaje znacznik');
+  X.FND_EXT[0].rv = () => { throw new Error('x'); }; assert.ok(X.fndBody(Q).includes('>9/23<'), 'błąd części dodatkowej nie psuje tabeli');
+  const E = fnd134.cp(fnd134.D); E.lt = null; E.zz = 1;
+  const b2 = X.fndBody(E);
+  assert.ok(b2.startsWith('<p class="pnote neu">fund.lt.na</p><div class="etfk">ZZ</div>'), 'bez napływów: nota i część dodatkowa');
+  const e = fnd134.el(), Y = fnd134.mk({$: q => (q === '#g-fund' ? e : null)});
+  Y.FND_EXT.push(X.FND_EXT[0]); Y.fndApply(D);
+  assert.ok(e.innerHTML.includes('<p class="pnote">fund.sub zz.sub</p>') && e.innerHTML.includes('<p class="pnote">fund.not</p><p class="pnote">zz.not</p></details>'));
+});
+
+test('v134: fundusze USA — telefon 375 px: tabela tygodni mieści się w ramce w 10 językach (znacznik „*” przy każdym tygodniu, liczby po 6 znaków), nagłówki się łamią', () => {
+  assert.ok(html.includes('#g-fund .etft th{padding:6px 4px;white-space:normal;overflow-wrap:anywhere;'), 'telefon: nagłówki łamią się w dowolnym miejscu (nie poszerzają kolumn)');
+  assert.ok(html.includes('#g-fund .etft th.fnd-w,#g-fund .etft td.fnd-w{display:none}'), 'telefon: bez kolumn mieszane i surowce');
+  const E = g126I18N(), S = fnd134.cp(fnd134.D);
+  S.lt.rv = S.lt.w.map(r => r[0]); S.lt.w.forEach(r => { r.splice(1, 9, -299439, -285668, -299439, 13770, -3297, 63968, 57855, 6113, 2240); });
+  for (const l of G126_L10) {
+    const L = (k, v) => { let s = E[l][k] ?? E.en[k] ?? k; if (v) for (const n in v) s = s.split('{' + n + '}').join(v[n]); return s; };
+    const loc = {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'}[l];
+    const X = fnd134.mk({t: L, nfmt: (v, d) => new Intl.NumberFormat(loc, {minimumFractionDigits: d, maximumFractionDigits: d}).format(v), L: l});
+    const body = X.fndBody(S), P = fnd134.phone(body);
+    assert.equal(P.n, 5, l + ': tydzień + 4 kolumny na telefonie');
+    assert.ok(body.split('<small class="fnd-rv">*</small>').length - 1 >= 8, l + ': znacznik przy każdym tygodniu');
+    assert.ok(P.sum <= fnd134.PHONE, l + ': tabela szersza niż ramka na telefonie: ' + Math.round(P.sum) + ' px > ' + fnd134.PHONE + ' (' + P.cols.map(Math.round).join('+') + ')');
+  }
+  const old = fnd134.tw('23. Sept. popr.', false) + 8 + 4 * (fnd134.tw('−299,4', true) + 8) + fnd134.tw('▼ −234,8', true) + 8;
+  assert.ok(old > fnd134.PHONE, 'szacunek łapie dawny układ (długa data i znacznik „popr.” + 7. kolumna): ' + Math.round(old));
+});
+
+test('v134: fundusze USA — słownik EXTRA143: 10 języków, te same klucze i pola {..}, wartości skuteczne na stronie, 億 w zh/ja, bez nazw źródeł; panel w każdym języku bez wydawcy', () => {
+  const a = 'const EXTRA143=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.deepEqual(Object.keys(D), G126_L10, 'kolejność języków');
+  const K = Object.keys(D.pl), ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  assert.ok(K.length >= 34 && K.every(k => k.startsWith('fund.')), 'klucze fund.*');
+  const E = g126I18N();
+  for (const l of G126_L10) {
+    assert.deepEqual(Object.keys(D[l]), K, l + ': te same klucze');
+    for (const k of K) { assert.ok(typeof D[l][k] === 'string' && D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), 'pola ' + l + ' ' + k); assert.equal(E[l][k], D[l][k], 'nałożony: ' + l + ' ' + k);
+      assert.deepEqual(G126_NAMES.check(D[l][k], l), [], l + ' ' + k); assert.ok(!fnd134.PROV.test(D[l][k]), l + ' ' + k + ': bez wydawcy'); }
+    assert.equal(D[l]['fund.div'], l === 'zh' || l === 'ja' ? '100' : '1000', l + ': dzielnik jednostki');
+  }
+  assert.equal(D.pl['fund.wk'], 'tydzień do środy {d}'); assert.ok(D.pl['fund.not'].includes('nie jest sygnał kupna ani sprzedaży') && D.en['fund.not'].includes('not a buy or sell signal'), 'bez rady');
+  assert.ok(D.pl['fund.sub'].includes('szacunków branżowych') && !/stowarzysz|instytut|association|institute/i.test(D.pl['fund.sub'] + D.en['fund.sub']), 'źródło opisane ogólnie');
+  for (const l of ['pl', 'en', 'zh', 'ja']) {
+    const L = (k, v) => { let s = E[l][k] ?? E.en[k] ?? k; if (v) for (const n in v) s = s.split('{' + n + '}').join(v[n]); return s; };
+    const nf = (v, d) => new Intl.NumberFormat(({pl: 'pl-PL', en: 'en-US', zh: 'zh-CN', ja: 'ja-JP'})[l], {minimumFractionDigits: d, maximumFractionDigits: d}).format(v);
+    const e = fnd134.el(), X = fnd134.mk({$: q => (q === '#g-fund' ? e : null), t: L, nfmt: nf, L: l});
+    X.fndApply(fnd134.D);
+    assert.equal(e.hidden, false, l); assert.ok(!fnd134.PROV.test(e.innerHTML), l + ': bez wydawcy');
+    const tot = fnd134.D.lt.w[fnd134.D.lt.w.length - 1][1];
+    assert.ok(e.innerHTML.includes(l === 'zh' || l === 'ja' ? nf(Math.round(Math.abs(tot) / 100), 0) : nf(Math.round(Math.abs(tot) / 100) / 10, 1)), l + ': razem w jednostce języka');
+  }
 });

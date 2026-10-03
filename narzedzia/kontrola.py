@@ -11,7 +11,9 @@ Kod wyjścia 1 = BŁĄD (GitHub wysyła właścicielowi e-mail o nieudanym przeb
 Uwaga: komunikat commita bota zawiera „[skip ci]” — GitHub pomija wtedy przebiegi wyzwalane pushem (dlatego commit dodający ten plik
 nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśnie z tego powodu).
 v136: kursy dolara Ameryki Łacińskiej (data/dolar.json) — świeżość osobnym wierszem (najwyżej ⚠️), dwa odczyty kursów Argentyny z pliku i kurs hurtowy vs API banku centralnego Argentyny (1 zapytanie); tylko uwagi, nigdy BŁĄD.
-v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`."""
+v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`.
+v134: fundusze USA (data/ici.json) — świeżość części osobnymi wierszami (najwyżej ⚠️; lista SWIEZOSC bez zmian), tożsamości sum ostatniego
+tygodnia w pliku strony i poprawki wydawcy (informacja); bez sieci, nigdy BŁĄD."""
 import csv
 import datetime as dt
 import json
@@ -30,9 +32,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -1076,6 +1078,80 @@ def dolar_kontrola(dl, R):
     return Z
 
 
+# ---------------------------------------------------------------- v134: fundusze USA (data/ici.json) ----------------------------------------------------------------
+# Świeżość każdej części osobnym wierszem tabeli (lista SWIEZOSC bez zmian — test liczy jej wiersze) i tożsamości sum ostatniego tygodnia
+# w opublikowanym pliku. Wszystko najwyżej ⚠️ (uwaga), nigdy ❌ ani BŁĄD: tygodniowe dane wydawcy spóźniają się przez święta w USA, a zbieracz
+# i tak odrzuca pliki z niezgodnymi sumami — niezgodność w pliku strony to sygnał do sprawdzenia, nie awaria strony.
+ICI_ETYKIETA = {'lt': 'Fundusze USA: napływy (tydzień do środy, publ. w środę)'}
+ICI_KROTKO = {'lt': 'napływy'}
+# progi wieku danych (od końca dnia tygodnia danych): napływy w dniu publikacji mają już 7 dni, tuż przed następną 14 dni + ok. 14 h;
+# 16 dni = 1,5 doby zapasu na przesunięcie publikacji (święto w USA) i godzinne okno zbieracza
+ICI_PROG = {'lt': 16 * 24 * 60}
+ICI_TOL = (3, 5)     # mln USD: tolerancja zaokrągleń (składniki grupy, suma grup) — jak w zbieraczu
+ICI_SUMY = {'lt': (('eq', ('dom', 'wld'), 0), ('bd', ('tax', 'muni'), 0), ('total', ('eq', 'hyb', 'bd', 'com'), 1))}
+ICI_OPIS = {'lt': 'akcje = USA + spoza USA, obligacje = zwykłe + municypalne, razem = suma grup'}
+
+
+def ici_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku ici.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, tydzień, uwaga). Najwyżej ⚠️
+    (próg ICI_PROG), nigdy ❌; brak pliku = brak wierszy (brak pliku zgłasza pętla wieku plików); brak tygodnia części = „?”."""
+    if not isinstance(j, dict):
+        return []
+    rows = []
+    for k, label in ICI_ETYKIETA.items():
+        P = j.get(k) if isinstance(j.get(k), dict) else {}
+        w = P.get('week')
+        if not (isinstance(w, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', w)):
+            rows.append((label, '?', None, None, 'brak tygodnia w pliku')); continue
+        wiek, prog = wiek_danych(w, 'day', 'w', now), ICI_PROG[k]
+        st = '?' if wiek is None else ('⚠️' if wiek > prog else '✅')
+        note = '' if st == '✅' else (f'próg {fmt_wiek(prog)} (tydzień danych + publikacja + święta w USA) — najwyżej uwaga' if st == '⚠️' else 'zła data tygodnia')
+        rows.append((label, st, wiek, w, note))
+    return rows
+
+
+def ici_sumy(j):
+    """Tożsamości sum w ostatnim tygodniu każdej części (ten sam wzór co zbieracz) i zgodność sumy 4 tygodni z wierszami pliku.
+    → {część: {'tydzien', 'status' ✅/⚠️/?, 'opis'}}; brak liczby nie jest niezgodnością (sprawdzamy tylko pary z liczbami)."""
+    out = {}
+    for k, reguly in ICI_SUMY.items():
+        P = j.get(k) if isinstance(j, dict) and isinstance(j.get(k), dict) else None
+        cols, w = (P or {}).get('cols'), (P or {}).get('w')
+        if not (isinstance(cols, list) and isinstance(w, list) and w and isinstance(w[-1], list) and len(w[-1]) == len(cols) + 1):
+            out[k] = {'tydzien': None, 'status': '?', 'opis': 'brak wierszy w pliku'}; continue
+        r = dict(zip(cols, w[-1][1:]))
+        num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)   # noqa: E731
+        zle = []
+        for cel, czesci, t in reguly:
+            if num(r.get(cel)) and all(num(r.get(c)) for c in czesci) and abs(r[cel] - sum(r[c] for c in czesci)) > ICI_TOL[t]:
+                zle.append(f'{cel} {r[cel]:,.0f} ≠ {" + ".join(czesci)} {sum(r[c] for c in czesci):,.0f}'.replace(',', ' '))
+        s4 = P.get('sum4')
+        if isinstance(s4, dict) and isinstance(s4.get('v'), list) and len(w) >= 4 and s4.get('to') == w[-1][0]:
+            for i, c in enumerate(cols):
+                vals = [x[i + 1] if isinstance(x, list) and len(x) > i + 1 else None for x in w[-4:]]
+                if i < len(s4['v']) and num(s4['v'][i]) and all(num(v) for v in vals) and abs(s4['v'][i] - sum(vals)) > 0.5:
+                    zle.append(f'suma 4 tyg. {c}'); break
+        out[k] = {'tydzien': w[-1][0], 'status': '⚠️' if zle else '✅', 'opis': '; '.join(zle) if zle else ICI_OPIS.get(k, 'sumy grup')}
+    return out
+
+
+def ici_kontrola(j, R):
+    """Kontrola pliku ici.json bez sieci: tożsamości sum (⚠️ = uwaga) i informacja o dużej poprawce danych przez wydawcę (rev — bez koloru,
+    tylko w raporcie). Brak pliku = None (raport bez linii)."""
+    if not isinstance(j, dict):
+        return None
+    S = ici_sumy(j)
+    for k, s in S.items():
+        if s['status'] == '⚠️':
+            R['uwagi'].append(f'{ICI_ETYKIETA.get(k, k)}: sumy w pliku strony niezgodne w tygodniu {s["tydzien"]} ({s["opis"]})')
+    rev = []
+    for k in ICI_ETYKIETA:
+        r = (j.get(k) or {}).get('rev') if isinstance(j.get(k), dict) else None
+        if isinstance(r, dict) and all(isinstance(r.get(x), (int, float)) for x in ('old', 'new')):
+            rev.append(f'{ICI_KROTKO.get(k, k)}: wydawca poprawił tydzień {r.get("week")}: {r["old"]:,.0f} → {r["new"]:,.0f} mln USD'.replace(',', ' '))
+    return {'sumy': S, 'rev': rev}
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -1189,6 +1265,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c'''. v134: świeżość funduszy USA (data/ici.json) — osobne wiersze tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
+    for label, st, w, txt, note in ici_swiezosc(files.get('ici')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -1269,6 +1352,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['dolar'] = {'status': '?', 'blad': str(e)[:120]}
         R['uwagi'].append(f'kursy dolara (Argentyna): kontrola przerwana ({str(e)[:80]})')
+    # 3g. v134: fundusze USA — tożsamości sum ostatniego tygodnia w pliku strony (bez sieci) i informacja o poprawkach wydawcy; najwyżej ⚠️
+    try:
+        Z['ici'] = ici_kontrola(files.get('ici'), R)
+    except Exception as e:  # noqa
+        Z['ici'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'fundusze USA: kontrola sum przerwana ({str(e)[:80]})')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -1373,6 +1462,12 @@ def raport_md(R):
         dz = Z.get('dolar')   # v136: Argentyna — tylko różnice w % i daty (bez kursów); brak pliku = bez linii
         if dz:
             L.append('- Argentyna — dwa odczyty tych samych kursów: ' + (dz.get('opis') or (f'? kontrola przerwana ({dz["blad"]})' if dz.get('blad') else '—')) + '.')
+        fz = Z.get('ici')   # v134: fundusze USA — tożsamości sum ostatniego tygodnia i poprawki wydawcy (informacja, bez koloru); brak pliku = bez linii
+        if fz:
+            cz = [f'{ICI_KROTKO.get(k, k)} {s["tydzien"] or "—"}: {s["status"]} {s["opis"]}' for k, s in (fz.get('sumy') or {}).items()]
+            L.append('- Fundusze USA — sumy ostatniego tygodnia w pliku strony (tolerancja 3/5 mln USD): '
+                     + (' · '.join(cz) if cz else (f'? kontrola przerwana ({fz["blad"]})' if fz.get('blad') else '—')) + '.'
+                     + (' Poprawki wydawcy (informacja): ' + '; '.join(fz['rev']) + '.' if fz.get('rev') else ''))
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:

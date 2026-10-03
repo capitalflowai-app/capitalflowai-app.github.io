@@ -897,6 +897,50 @@ GROUPS = [g_deribit, g_binance_fapi, g_binance_mirrors, g_bybit, g_okx, g_hyperl
           g_massive, g_eodhd, g_fmp, g_alphavantage, g_coinalyze, g_banxico, g_evds, g_dolar, g_nasdaq]
 
 
+# v134 (etykieta „ici”): sondy bez klucza dla data/ici.json — pliki .xls wydawcy statystyk funduszy w USA: napływy do funduszy
+# długoterminowych (środy) i aktywa funduszy rynku pieniężnego (czwartki). Dokładnie te nagłówki, które wysyła zbieracz (ICI_HDR: identyfikator
+# automatu + Accept / Accept-Language / Accept-Encoding: identity — bez nich CDN odpowiada 403); 4 zapytania z przerwą 2 s. Wypisuje tylko: kod
+# HTTP, ms, bajty, czy jest sygnatura OLE2 (.xls), liczbę dat w pliku, pierwszą/ostatnią datę i liczbę śród — nigdy adresu, nagłówka ani treści.
+# Oczekiwane z serwera w USA (sonda 27.09.2026): lt_recipe 200, mm_recipe 200, mm_if_modified_since_now 304, lt_prev_year_alias 200
+# (stara nazwa roku = kopia bieżącego pliku). Przeglądarkowego zestawu nagłówków nie sprawdzamy — zbieracz go nie używa.
+import re as _ici_re
+
+ICI_B = "https://www.ici.org/"
+ICI_OK_HDR = {"User-Agent": "CapitalFlowAI-collector/1.0", "Accept": "application/vnd.ms-excel, */*", "Accept-Language": "en-US,en;q=0.9",
+              "Accept-Encoding": "identity"}
+_ICI_DATE = _ici_re.compile(rb"(?<![0-9/])(\d{1,2})/(\d{1,2})/(20\d\d)(?![0-9/])")
+
+
+def _ici_shape(raw):
+    """Sygnatura OLE2 i daty „MM/DD/RRRR” zapisane w pliku (tylko liczba dat, pierwsza/ostatnia i liczba śród — bez wartości)."""
+    ole = raw[:8] == bytes.fromhex("d0cf11e0a1b11ae1")
+    ds = set()
+    for m, d, y in _ICI_DATE.findall(raw):
+        try:
+            ds.add(dt.date(int(y), int(m), int(d)))
+        except ValueError:
+            pass
+    wed = sorted(x for x in ds if x.weekday() == 2)
+    return (f"ole2={ole} dates={len(ds)} first={min(ds).isoformat() if ds else '-'} last={max(ds).isoformat() if ds else '-'} "
+            f"wed={len(wed)} last_wed={wed[-1].isoformat() if wed else '-'}")
+
+
+def g_ici():
+    y = _utc_today().year
+    lt, mm = f"{ICI_B}combined_flows_data_{y}.xls", f"{ICI_B}mm_summary_data_{y}.xls"
+    probe("ici", "lt_recipe", lt, headers=ICI_OK_HDR, extra_fn=_ici_shape)                      # napływy: zapytanie zbieracza → 200
+    time.sleep(2.0)
+    probe("ici", "mm_recipe", mm, headers=ICI_OK_HDR, extra_fn=_ici_shape)                      # rynek pieniężny → 200
+    time.sleep(2.0)
+    import email.utils as _eu
+    probe("ici", "mm_if_modified_since_now", mm, headers={**ICI_OK_HDR, "If-Modified-Since": _eu.formatdate(time.time(), usegmt=True)})   # → 304
+    time.sleep(2.0)
+    probe("ici", "lt_prev_year_alias", f"{ICI_B}combined_flows_data_{y - 1}.xls", headers=ICI_OK_HDR, extra_fn=_ici_shape)            # → 200
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_ici)   # v134: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
+
+
 # --------------------------------------------------------------------------- main
 
 def main():

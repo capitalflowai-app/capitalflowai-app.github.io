@@ -12279,6 +12279,640 @@ def build_snb(prev=None, now=None):
     return out
 
 
+# ===================== v134: USA — napływy do funduszy długoterminowych (fundusze wzajemne i ETF razem; data/ici.json; bez klucza) =====================
+# Źródło: Investment Company Institute (www.ici.org) — plik „combined_flows_data_{rok}.xls” (szacunkowe tygodniowe napływy netto do
+# długoterminowych funduszy wzajemnych i ETF razem; publikacja w środę ok. 14:15 UTC za tydzień do POPRZEDNIEJ środy; w pliku 7 ostatnich
+# tygodni-szacunków i ok. 31 miesięcy danych rzeczywistych). Jednostka: mln USD. Daty w pliku to TEKST „MM/DD/RRRR” (miesiące ze spacją na końcu).
+# Format: stary Excel (.xls) — kontener OLE2 i rekordy BIFF8; czyta go ici_xls niżej (biblioteka standardowa, bez xlrd). Plik ma 1 arkusz;
+# kolumny szukamy po nazwach (nie po numerach) i sprawdzamy sumy (akcje = USA + świat, obligacje = zwykłe + municypalne, razem = suma grup) —
+# inny układ albo niezgodne sumy = błąd części i poprzednia wersja (nigdy liczby z nieznanego miejsca).
+# Historia: plik ma tylko 7 tygodni, więc tygodnie zbieramy sami w data/ici.json (pierwszy przebieg = to, co jest w pliku; potem nowe tygodnie
+# dopisywane, a tygodnie z nowszego pliku zastępują starsze odczyty tej samej daty — szacunki bywają poprawiane; takie tygodnie trafiają do „rv”).
+# Zapytania: CDN wydawcy odrzuca (403) zapytania bez nagłówków Accept / Accept-Language (sprawdzone 27.09 z Europy i z serwera GitHub w USA),
+# dlatego ICI_HDR — uczciwy identyfikator automatu i trzy nagłówki Accept*, bez udawania przeglądarki. If-Modified-Since = 304 bez treści,
+# gdy plik się nie zmienił (urllib zgłasza 304 jako HTTPError — to „bez zmian”, nie błąd). HEAD daje 403 — nie używamy. Plik roku {rok}
+# z błędem 404 (początek stycznia) = jedna próba nazwy z rokiem poprzednim (wydawca trzyma stare nazwy jako kopie bieżącego pliku).
+# Rytm: co 12 h; w dniu publikacji od 13:00 UTC co godzinę, aż pojawi się oczekiwany tydzień (najwyżej ICI_WAIT_H godzin — święta w USA
+# przesuwają publikację); część z błędem ponawiana po godzinie. Bez poprzedniego pliku (brak w pamięci Actions i na stronie) próba tylko
+# w pierwszym przebiegu każdej godziny — nieudana zapisuje sam czas próby (try_at), więc kolejna jest najwcześniej po ICI_RETRY min.
+# Na stronie bez nazwy wydawcy (decyzja właściciela 27.09: żadnych podpisów źródeł) — pole src zostaje w pliku, strona go nie pokazuje.
+import struct as _ici_struct   # v134: biblioteka standardowa (czytnik .xls); ponowny import jest nieszkodliwy
+
+ICI_URL = {'lt': 'https://www.ici.org/combined_flows_data_{y}.xls'}
+ICI_HDR = {'User-Agent': 'CapitalFlowAI-collector/1.0', 'Accept': 'application/vnd.ms-excel, */*', 'Accept-Language': 'en-US,en;q=0.9',
+           'Accept-Encoding': 'identity'}   # identity: bez kompresji (urllib jej nie rozpakowuje); bez Accept* CDN odpowiada 403
+ICI_TIMEOUT = 30         # s na plik (ok. 46 KB; zwykle poniżej 1 s)
+ICI_MAX_B = 2_000_000    # bajtów: więcej = to nie ten plik (np. strona błędu) — część z błędem
+ICI_EVERY = 12 * 60      # min — dane tygodniowe: co 12 h wystarczy …
+ICI_RETRY = 60           # min — … część z błędem, spóźniony tydzień albo nieudana próba: ponowienie najwcześniej po godzinie
+ICI_WAIT_H = 48          # h od chwili publikacji: tyle najdłużej pytamy co godzinę o oczekiwany tydzień; potem znów co 12 h i notatka
+ICI_BEZ_PLIKU_MIN = 20   # min — bez poprzedniego pliku próba tylko w przebiegu z minutą < 20 (raz na godzinę przy przebiegach co 20 min)
+ICI_ROK_H = 24           # h — początek roku: nazwa pliku z nowym rokiem sprawdzana najwyżej raz na dobę (do tego czasu znana nazwa z rokiem poprzednim)
+ICI_404_N = 2            # tyle prób z rzędu z 404 pod każdą znaną nazwą pliku (zmieniona nazwa u wydawcy) = przerwa: część pytana najwyżej co ICI_EVERY min
+ICI_TOL_D = 2            # dni — tydzień zakończony do 2 dni wcześniej niż oczekiwany (święto w USA: do wtorku zamiast do środy) = tydzień jest
+ICI_PUB = {'lt': (2, 13, 7)}   # część → (dzień publikacji: 0 = poniedziałek, godzina UTC, ile dni wcześniej kończy się tydzień danych)
+ICI_KEEP_W = 104         # tygodni historii w pliku (2 lata)
+ICI_KEEP_M = 36          # miesięcy danych rzeczywistych
+ICI_REV_MIN = 1000       # mln USD: większa poprawka sumy tygodnia trafia do „rev” (informacja dla kontroli dziennej)
+ICI_PARTS = ('lt',)      # części pliku (v135 dopisuje rynek pieniężny)
+ICI_NAZWA = {'lt': 'napływy'}
+ICI_LABEL = 'Fundusze USA'
+ICI_LT_COLS = ('total', 'eq', 'dom', 'wld', 'hyb', 'bd', 'tax', 'muni', 'com')
+ICI_SRC = ('Investment Company Institute (ICI), www.ici.org — Combined Estimated Long-Term Flows and ETF Net Issuance '
+           '(combined_flows_data_{rok}.xls; tygodnie: szacunek, miesiące: dane rzeczywiste); bez klucza')
+ICI_NOTES = ['tydzień = środa (kalendarz USA); napływy: szacunek wydawcy z danych obejmujących ponad 98% aktywów funduszy; '
+             'tygodnie z nowszego pliku zastępują wcześniejsze odczyty tej samej daty (rv = tygodnie poprawione)',
+             'fundusze wzajemne: nowe środki netto (wpłaty − wypłaty ± zamiany); ETF: emisja netto jednostek (zawiera reinwestowane dywidendy); '
+             'bez funduszy inwestujących w inne fundusze',
+             'kolumny lt: total = eq + hyb + bd + com; eq = dom (akcje USA) + wld (akcje spoza USA); bd = tax (obligacje zwykłe) + muni (municypalne); '
+             'com = surowce; kwoty w mln USD; m = miesiące, dane rzeczywiste (zbierane osobno — nie suma tygodni)',
+             'sum4 = suma 4 ostatnich tygodni tylko przy krokach dokładnie 7 dni; brak liczby = None (strona: „—”), nigdy zero']
+ICI_OLE = bytes.fromhex('d0cf11e0a1b11ae1')
+_ICI_DATA = re.compile(r'^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$')
+_ICI_DZIEN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def _ici_ole(raw):
+    """Strumień „Workbook” (albo „Book”) z kontenera OLE2: nagłówek, tablica FAT (z sektorów DIFAT), katalog; strumień krótszy niż próg
+    (4096 B) leży w małym strumieniu (mini-FAT). Zła sygnatura, brak strumienia albo pętla w łańcuchu sektorów = ValueError."""
+    if not isinstance(raw, (bytes, bytearray)) or bytes(raw[:8]) != ICI_OLE:
+        raise ValueError('to nie plik .xls (brak sygnatury OLE2)')
+    up = _ici_struct.unpack_from
+    ssz, mssz = 1 << up('<H', raw, 0x1E)[0], 1 << up('<H', raw, 0x20)[0]
+    if ssz not in (512, 4096) or mssz != 64:
+        raise ValueError('nieznany rozmiar sektora OLE2')
+    n_fat, dir_start = up('<I', raw, 0x2C)[0], up('<I', raw, 0x30)[0]
+    cutoff, mini_start, _n_mini, difat_start, n_difat = up('<IIIII', raw, 0x38)
+    koniec = (0xFFFFFFFE, 0xFFFFFFFF)
+    maxs = len(raw) // ssz + 2
+
+    def sect(n):
+        if n >= maxs:
+            raise ValueError('sektor poza plikiem')
+        return raw[(n + 1) * ssz:(n + 2) * ssz]
+    difat, s, ile = list(up('<109I', raw, 0x4C)), difat_start, 0
+    while s not in koniec and ile <= n_difat:
+        v = _ici_struct.unpack('<%dI' % (ssz // 4), sect(s))
+        difat.extend(v[:-1]); s, ile = v[-1], ile + 1
+    fat = []
+    for fs in difat[:n_fat]:
+        fat.extend(_ici_struct.unpack('<%dI' % (ssz // 4), sect(fs)))
+
+    def chain(start, table):
+        out, s = [], start
+        while s not in koniec:
+            if s >= len(table) or len(out) > len(table):
+                raise ValueError('uszkodzony łańcuch sektorów OLE2')
+            out.append(s); s = table[s]
+        return out
+    kat = b''.join(sect(s) for s in chain(dir_start, fat))
+    wpisy = []
+    for off in range(0, len(kat) - 127, 128):
+        e = kat[off:off + 128]
+        nlen = up('<H', e, 64)[0]
+        wpisy.append((e[:max(0, min(nlen, 64) - 2)].decode('utf-16-le', 'replace'), e[66], up('<I', e, 116)[0], up('<I', e, 120)[0]))
+    root = next((x for x in wpisy if x[1] == 5), None)
+    cel = next((x for x in wpisy if x[1] == 2 and x[0] in ('Workbook', 'Book')), None)
+    if cel is None:
+        raise ValueError('brak strumienia Workbook w pliku .xls')
+    _, _, start, size = cel
+    if size >= cutoff:
+        data = b''.join(sect(s) for s in chain(start, fat))
+    else:   # mały strumień: sektory po 64 B w strumieniu korzenia
+        if root is None:
+            raise ValueError('brak wpisu korzenia OLE2')
+        mfat = []
+        for s in chain(mini_start, fat):
+            mfat.extend(_ici_struct.unpack('<%dI' % (ssz // 4), sect(s)))
+        ms = b''.join(sect(s) for s in chain(root[2], fat))
+        data = b''.join(ms[m * mssz:(m + 1) * mssz] for m in chain(start, mfat))
+    if len(data) < size:
+        raise ValueError('strumień Workbook krótszy niż w katalogu')
+    return data[:size]
+
+
+def _ici_rk(v):
+    """Liczba RK (4 bajty): bit 1 = liczba całkowita (30 bitów ze znakiem), inaczej 30 górnych bitów double; bit 0 = wartość × 100."""
+    if v & 2:
+        x = v >> 2
+        x = float(x - (1 << 30) if x & (1 << 29) else x)
+    else:
+        x = _ici_struct.unpack('<d', _ici_struct.pack('<Q', (v & 0xFFFFFFFC) << 32))[0]
+    return x / 100.0 if v & 1 else x
+
+
+def _ici_uni(buf, pos, cch_size=2):
+    """Napis XLUnicodeString w jednym rekordzie → (tekst, nowa pozycja). Bajt opcji: 1 = znaki 2-bajtowe, 4 = dane rozszerzone, 8 = formatowanie."""
+    cch = buf[pos] if cch_size == 1 else _ici_struct.unpack_from('<H', buf, pos)[0]
+    pos += cch_size
+    fl = buf[pos]; pos += 1
+    rich = _ici_struct.unpack_from('<H', buf, pos)[0] if fl & 8 else 0
+    pos += 2 if fl & 8 else 0
+    ext = _ici_struct.unpack_from('<i', buf, pos)[0] if fl & 4 else 0
+    pos += 4 if fl & 4 else 0
+    n = cch * (2 if fl & 1 else 1)
+    s = buf[pos:pos + n].decode('utf-16-le' if fl & 1 else 'latin-1', 'replace')
+    return s, pos + n + 4 * rich + max(0, ext)
+
+
+def _ici_sst(parts):
+    """Tablica napisów współdzielonych: rekord SST i rekordy CONTINUE. Napis może przejść do następnego rekordu w środku znaków — wtedy
+    rekord CONTINUE zaczyna się nowym bajtem opcji (znaki 1- albo 2-bajtowe mogą się tam zmienić); nagłówek napisu nigdy nie jest dzielony."""
+    out = []
+    total = _ici_struct.unpack_from('<I', parts[0], 4)[0]
+    pi, buf, pos = 0, parts[0], 8
+    while len(out) < total:
+        if pos >= len(buf):
+            pi += 1
+            if pi >= len(parts):
+                break
+            buf, pos = parts[pi], 0
+        if pos + 3 > len(buf):
+            break
+        cch, fl = _ici_struct.unpack_from('<H', buf, pos)[0], buf[pos + 2]
+        pos += 3
+        rich = ext = 0
+        if fl & 8:
+            rich = _ici_struct.unpack_from('<H', buf, pos)[0]; pos += 2
+        if fl & 4:
+            ext = _ici_struct.unpack_from('<i', buf, pos)[0]; pos += 4
+        znaki, wide, left = [], fl & 1, cch
+        while left > 0:
+            if pos >= len(buf):
+                pi += 1
+                if pi >= len(parts):
+                    raise ValueError('napis SST urwany')
+                buf = parts[pi]; wide, pos = buf[0] & 1, 1   # CONTINUE w środku napisu: nowy bajt opcji
+            w = 2 if wide else 1
+            take = min(left, (len(buf) - pos) // w)
+            if take <= 0:
+                raise ValueError('napis SST urwany w środku znaku')
+            znaki.append(buf[pos:pos + take * w].decode('utf-16-le' if wide else 'latin-1', 'replace'))
+            pos += take * w; left -= take
+        skip = 4 * rich + max(0, ext)
+        while skip > 0:   # formatowanie i dane rozszerzone mogą przejść do kolejnego CONTINUE (bez bajtu opcji)
+            av = len(buf) - pos
+            if av >= skip:
+                pos += skip; skip = 0
+            else:
+                skip -= av; pi += 1
+                if pi >= len(parts):
+                    break
+                buf, pos = parts[pi], 0
+        out.append(''.join(znaki))
+    return out
+
+
+def ici_xls(raw):
+    """Plik .xls (OLE2 + BIFF8) → {nazwa arkusza: {(wiersz, kolumna): wartość}} — tylko wartości: liczby (NUMBER, RK, MULRK), napisy (LABELSST
+    z tablicy SST z CONTINUE, LABEL), wynik formuły (liczba albo napis z następnego rekordu STRING), wartość logiczna. Bez formatów i bez
+    przeliczania dat (daty w plikach wydawcy są tekstem). Plik nie-.xls, nie-BIFF8 albo uszkodzony = ValueError."""
+    try:
+        wb = _ici_ole(raw)
+        recs, pos = [], 0
+        while pos + 4 <= len(wb):
+            rid, ln = _ici_struct.unpack_from('<HH', wb, pos)
+            recs.append((pos, rid, wb[pos + 4:pos + 4 + ln])); pos += 4 + ln
+        if not recs or recs[0][1] != 0x0809 or _ici_struct.unpack_from('<H', recs[0][2], 0)[0] != 0x0600:
+            raise ValueError('to nie skoroszyt BIFF8')
+        meta, sst_parts, w_sst = [], [], False
+        for pos, rid, d in recs:
+            if rid == 0x00FC:   # SST
+                sst_parts, w_sst = [d], True; continue
+            if rid == 0x003C and w_sst:   # CONTINUE tablicy SST
+                sst_parts.append(d); continue
+            w_sst = False
+            if rid == 0x0085:   # BOUNDSHEET: przesunięcie BOF arkusza, typ (0 = arkusz), nazwa
+                meta.append((_ici_uni(d, 6, 1)[0], _ici_struct.unpack_from('<I', d, 0)[0], d[5]))
+        sst = _ici_sst(sst_parts) if sst_parts else []
+        po_poz = {p: i for i, (p, _, _) in enumerate(recs)}
+        out = {}
+        for name, off, typ in meta:
+            if typ != 0 or off not in po_poz:
+                continue
+            cells, czeka = {}, None
+            for _p, rid, d in recs[po_poz[off] + 1:]:
+                if rid == 0x000A:   # EOF arkusza
+                    break
+                if rid == 0x0203:   # NUMBER
+                    r, c = _ici_struct.unpack_from('<HH', d, 0); cells[(r, c)] = _ici_struct.unpack_from('<d', d, 6)[0]
+                elif rid == 0x027E:   # RK
+                    r, c = _ici_struct.unpack_from('<HH', d, 0); cells[(r, c)] = _ici_rk(_ici_struct.unpack_from('<I', d, 6)[0])
+                elif rid == 0x00BD:   # MULRK: kolejne komórki wiersza (XF + RK po 6 bajtów), na końcu numer ostatniej kolumny
+                    r, c0 = _ici_struct.unpack_from('<HH', d, 0)
+                    for i in range((len(d) - 6) // 6):
+                        cells[(r, c0 + i)] = _ici_rk(_ici_struct.unpack_from('<I', d, 4 + 6 * i + 2)[0])
+                elif rid == 0x00FD:   # LABELSST
+                    r, c, _xf, i = _ici_struct.unpack_from('<HHHI', d, 0); cells[(r, c)] = sst[i] if i < len(sst) else None
+                elif rid == 0x0204:   # LABEL (napis w rekordzie)
+                    r, c = _ici_struct.unpack_from('<HH', d, 0); cells[(r, c)] = _ici_uni(d, 6)[0]
+                elif rid == 0x0006:   # FORMULA: zapisany wynik
+                    r, c = _ici_struct.unpack_from('<HH', d, 0); res = d[6:14]
+                    if res[6:8] == b'\xff\xff':
+                        if res[0] == 0:
+                            czeka = (r, c)   # napis w następnym rekordzie STRING
+                        elif res[0] == 1:
+                            cells[(r, c)] = bool(res[2])
+                    else:
+                        cells[(r, c)] = _ici_struct.unpack('<d', res)[0]
+                elif rid == 0x0207 and czeka:   # STRING (wynik formuły tekstowej)
+                    cells[czeka] = _ici_uni(d, 0)[0]; czeka = None
+                elif rid == 0x0205:   # BOOLERR (tylko wartość logiczna; błąd = pusta komórka)
+                    r, c = _ici_struct.unpack_from('<HH', d, 0)
+                    if d[7] == 0:
+                        cells[(r, c)] = bool(d[6])
+            out[name] = cells
+        return out
+    except (_ici_struct.error, IndexError, TypeError) as e:
+        raise ValueError(f'uszkodzony plik .xls ({type(e).__name__})')
+
+
+def ici_grid(cells):
+    """Komórki → lista wierszy (puste komórki = None)."""
+    if not cells:
+        return []
+    g = [[None] * (max(c for _, c in cells) + 1) for _ in range(max(r for r, _ in cells) + 1)]
+    for (r, c), v in cells.items():
+        g[r][c] = v
+    return g
+
+
+def ici_arkusz(raw):
+    """Pierwszy arkusz z komórkami (pliki wydawcy mają jeden) jako siatka; pusty plik = ValueError."""
+    for cells in ici_xls(raw).values():
+        if cells:
+            return ici_grid(cells)
+    raise ValueError('plik .xls bez arkusza z danymi')
+
+
+def ici_data(v):
+    """Data z komórki: tekst „09/16/2026 ” (ze spacją albo bez) albo liczba seryjna Excela → „2026-09-16”; inaczej None."""
+    if isinstance(v, float) and 30000 < v < 80000:
+        return (datetime.date(1899, 12, 30) + datetime.timedelta(days=int(v))).isoformat()
+    m = _ICI_DATA.match(str(v if v is not None else ''))
+    if not m:
+        return None
+    try:
+        return datetime.date(int(m.group(3)), int(m.group(1)), int(m.group(2))).isoformat()
+    except ValueError:
+        return None
+
+
+def ici_liczba(v):
+    """Liczba z komórki (w pliku napływów liczby są tekstem, np. „-10098”): skończona albo None. Pusta komórka = None, nigdy zero."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, (int, float)):
+        x = float(v)
+        return x if x == x and abs(x) != float('inf') else None
+    s = str(v).strip().replace(',', '')
+    return float(s) if re.fullmatch(r'-?\d+(?:\.\d+)?', s) else None
+
+
+def _ici_norm(v):
+    return re.sub(r'\s+', ' ', str(v if v is not None else '')).strip().lower()
+
+
+def _ici_zgodne(a, b, tol):
+    return a is None or b is None or abs(a - b) <= tol
+
+
+def _ici_jednostka(g, do):
+    """Wydawca podaje kwoty w milionach USD („Millions, U.S. dollars”, „(millions of dollars)”) — inna jednostka = ValueError."""
+    if not any('million' in _ici_norm(v) for r in g[:do] for v in r):
+        raise ValueError('brak jednostki „millions” nad nagłówkiem')
+
+
+def parse_ici_lt(g):
+    """Arkusz napływów (fundusze wzajemne + ETF razem) → {'weeks': [[dzień, total, eq, dom, wld, hyb, bd, tax, muni, com], …],
+    'months': [['RRRR-MM', …], …]} w mln USD, rosnąco; pusta komórka = None. Nagłówek „Date” w pierwszych 15 wierszach, kolumny po nazwach
+    (wiersz pod nim: „Total / Domestic / World” i „Total / Taxable / Municipal”), sekcje „Monthly …” i „Estimated weekly …”. Brak kolumny,
+    brak tygodni albo niezgodne sumy (±3 / ±5 mln USD — zaokrąglenia) = ValueError."""
+    hr = next((r for r in range(min(len(g), 15)) if any(_ici_norm(v) == 'date' for v in g[r])), None)
+    if hr is None:
+        raise ValueError('napływy: brak nagłówka Date')
+    _ici_jednostka(g, hr)
+    top = [_ici_norm(v) for v in g[hr]]
+    sub = [_ici_norm(v) for v in g[hr + 1]] if hr + 1 < len(g) else []
+
+    def col(label, sublabel=None):
+        c0 = next((i for i, s in enumerate(top) if s.startswith(label)), None)
+        if c0 is None:
+            raise ValueError('napływy: brak kolumny ' + label)
+        if sublabel is None:
+            return c0
+        nxt = next((i for i in range(c0 + 1, len(top)) if top[i]), len(top))
+        c = next((i for i in range(c0, nxt) if i < len(sub) and sub[i] == sublabel), None)
+        if c is None:
+            raise ValueError(f'napływy: brak kolumny {label}/{sublabel}')
+        return c
+    cols = [col('total lt'), col('equity', 'total'), col('equity', 'domestic'), col('equity', 'world'), col('hybrid'),
+            col('bond', 'total'), col('bond', 'taxable'), col('bond', 'municipal'), col('commodity')]
+    sec, weeks, months = None, {}, {}
+    for r in range(hr + 2, len(g)):
+        head = _ici_norm(g[r][0])
+        if head.startswith('monthly'):
+            sec = 'm'; continue
+        if head.startswith('estimated weekly') or head.startswith('weekly'):
+            sec = 'w'; continue
+        d = ici_data(g[r][0])
+        if not d or not sec:
+            continue
+        v = [ici_liczba(g[r][c]) if c < len(g[r]) else None for c in cols]
+        if all(x is None for x in v):
+            continue
+        v = [round(x) if x is not None else None for x in v]
+        tot, eq, dom, wld, hyb, bd, tax, muni, com = v
+        if not (_ici_zgodne(eq, dom + wld if None not in (dom, wld) else None, 3)
+                and _ici_zgodne(bd, tax + muni if None not in (tax, muni) else None, 3)
+                and _ici_zgodne(tot, eq + hyb + bd + com if None not in (eq, hyb, bd, com) else None, 5)):
+            raise ValueError(f'napływy: części nie sumują się ({d})')
+        if sec == 'w':
+            weeks[d] = v
+        else:
+            months[d[:7]] = v
+    if not weeks:
+        raise ValueError('napływy: brak tygodni')
+    return {'weeks': [[d] + weeks[d] for d in sorted(weeks)], 'months': [[m] + months[m] for m in sorted(months)]}
+
+
+def ici_wiersze(rows, n, wzor=_ICI_DZIEN):
+    """Wiersze z poprzedniego pliku: [data, n liczb albo None]; zła data albo długość = pominięty; nie-liczba = None (brak, nie zero); rosnąco."""
+    out = {}
+    for r in rows if isinstance(rows, list) else []:
+        if not (isinstance(r, list) and len(r) == n + 1 and isinstance(r[0], str) and wzor.match(r[0])):
+            continue
+        try:
+            datetime.date.fromisoformat(r[0] if len(r[0]) == 10 else r[0] + '-01')
+        except ValueError:
+            continue
+        out[r[0]] = [r[0]] + [x if isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) != float('inf') else None
+                              for x in r[1:]]
+    return [out[d] for d in sorted(out)]
+
+
+def ici_merge(old_rows, new_rows, keep):
+    """Historia: wiersze z nowego pliku zastępują wiersze tej samej daty (nowszy plik wygrywa — szacunki bywają poprawiane), starsze daty
+    zostają; rosnąco, najwyżej `keep` ostatnich. → (wiersze, zmienione: [(data, stary wiersz, nowy wiersz), …] — tylko daty, które już były
+    i mają inne liczby)."""
+    stare = {r[0]: r for r in old_rows}
+    out, zm = dict(stare), []
+    for r in new_rows:
+        o = stare.get(r[0])
+        if o is not None and list(o[1:]) != list(r[1:]):
+            zm.append((r[0], o, r))
+        out[r[0]] = list(r)
+    return [out[d] for d in sorted(out)][-keep:], zm
+
+
+def ici_sum4(w):
+    """Suma 4 ostatnich tygodni w każdej kolumnie — tylko gdy 4 daty idą dokładnie co 7 dni (luka = None); kolumna z brakiem = None, nigdy 0."""
+    if len(w) < 4:
+        return None
+    ost = w[-4:]
+    ds = [datetime.date.fromisoformat(r[0]) for r in ost]
+    if any((b - a).days != 7 for a, b in zip(ds, ds[1:])):
+        return None
+    return {'to': ost[-1][0], 'v': [sum(r[i] for r in ost) if all(r[i] is not None for r in ost) else None for i in range(1, len(ost[-1]))]}
+
+
+def ici_tygodnie(nowe, old, cols):
+    """Wspólna część budowy: tygodnie z nowego pliku + poprzednia wersja części → {'week', 'cols', 'w', 'rv', 'rev'} albo None, gdy plik jest
+    starszy niż zapisany (najnowszy tydzień pliku < zapisany tydzień — np. stara kopia z CDN: nie nadpisujemy nowszych odczytów starszymi).
+    rv = tygodnie poprawione przez nowszy plik (z poprzednich wersji też, w obrębie historii); rev = największa poprawka sumy tego pliku > ICI_REV_MIN."""
+    old = old if isinstance(old, dict) else {}
+    ow = ici_wiersze(old.get('w'), len(cols))
+    if ow and nowe[-1][0] < ow[-1][0]:
+        return None
+    w, zm = ici_merge(ow, nowe, ICI_KEEP_W)
+    dni = {r[0] for r in w}
+    rv = sorted((({x for x in old.get('rv') if isinstance(x, str)} if isinstance(old.get('rv'), list) else set()) | {d for d, _, _ in zm}) & dni)
+    duze = [(d, o[1], n[1]) for d, o, n in zm if o[1] is not None and n[1] is not None and abs(n[1] - o[1]) > ICI_REV_MIN]
+    big = max(duze, key=lambda x: abs(x[2] - x[1]), default=None)
+    return {'week': w[-1][0], 'cols': list(cols), 'w': w, 'rv': rv, 'rev': {'week': big[0], 'old': big[1], 'new': big[2]} if big else None}
+
+
+def ici_lt(raw, old=None):
+    """Część „lt” z pliku napływów: tygodnie (historia z poprzedniej wersji części), suma 4 tygodni, 36 miesięcy danych rzeczywistych.
+    Plik starszy niż zapisany = None (zostaje poprzednia wersja)."""
+    p = parse_ici_lt(ici_arkusz(raw))
+    o = ici_tygodnie(p['weeks'], old, ICI_LT_COLS)
+    if o is None:
+        return None
+    om = ici_wiersze((old or {}).get('m'), len(ICI_LT_COLS), re.compile(r'^\d{4}-\d{2}$'))
+    m, _zm = ici_merge(om, p['months'], ICI_KEEP_M)
+    o.update({'month': m[-1][0] if m else None, 'm': m, 'sum4': ici_sum4(o['w'])})
+    return o
+
+
+ICI_BUDUJ = {'lt': ici_lt}   # część → budowa z treści pliku i poprzedniej wersji części
+
+
+def ici_ma_dane(j):
+    """Czy plik ma choć jedną część z tygodniem i wierszami (pusty zapis próby — nie)."""
+    return isinstance(j, dict) and any(isinstance(j.get(k), dict) and isinstance(j[k].get('week'), str) and j[k].get('w') for k in ICI_PARTS)
+
+
+def ici_oczekiwany(now, k):
+    """(tydzień, od kiedy) — najnowszy tydzień części `k`, który wydawca powinien już podać, i chwila jego publikacji (ICI_PUB: dzień i godzina
+    UTC; latem czas USA to UTC−4, zimą UTC−5 — godzinne okno pokrywa obie pory). Napływy: środa 13:00 UTC → tydzień do środy 7 dni wcześniej."""
+    dzien, godz, wstecz = ICI_PUB[k]
+    d = now.date()
+    t = datetime.datetime.combine(d - datetime.timedelta(days=(d.weekday() - dzien) % 7), datetime.time(godz), tzinfo=datetime.timezone.utc)
+    if now < t:
+        t -= datetime.timedelta(days=7)
+    return (t.date() - datetime.timedelta(days=wstecz)).isoformat(), t
+
+
+def _ici_wiek_min(iso, now):
+    try:
+        t = datetime.datetime.fromisoformat(str(iso))
+        t = t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+        return (now - t).total_seconds() / 60
+    except (TypeError, ValueError):
+        return float('inf')
+
+
+def _ici_tydz_jest(w, tydz):
+    """Tydzień części „jest” — także gdy wydawca zakończył go do ICI_TOL_D dni wcześniej niż zwykle (święto w USA: tydzień do wtorku zamiast środy)."""
+    return isinstance(w, str) and w >= (datetime.date.fromisoformat(tydz) - datetime.timedelta(days=ICI_TOL_D)).isoformat()
+
+
+def _ici_404_czeka(st, now):
+    """Część w przerwie po powtarzanych 404 (plik nie istnieje pod żadną znaną nazwą): kolejna próba dopiero po ICI_EVERY min od ostatniej."""
+    st = st if isinstance(st, dict) else {}
+    return isinstance(st.get('n404'), int) and st['n404'] >= ICI_404_N and _ici_wiek_min(st.get('proba_404'), now) < ICI_EVERY
+
+
+def ici_odswiez(prev, now=None):
+    """Czy pytać wydawcę w tym przebiegu. Bez poprzedniego pliku — tylko w pierwszym przebiegu godziny (minuta < ICI_BEZ_PLIKU_MIN; bramka
+    na wypadek braku pamięci Actions i pliku na stronie). Z plikiem: nigdy częściej niż co ICI_RETRY min od ostatniej budowy albo próby (try_at);
+    plik starszy niż ICI_EVERY = budowa; część z błędem albo bez danych = budowa (część w przerwie po powtarzanych 404 — dopiero po ICI_EVERY);
+    tydzień starszy niż oczekiwany (o więcej niż ICI_TOL_D dni) w ciągu ICI_WAIT_H godzin od publikacji = budowa (co godzinę w dniu publikacji)."""
+    now = now or _now_utc()
+    if not isinstance(prev, dict):
+        return now.minute < ICI_BEZ_PLIKU_MIN
+    if min(_ici_wiek_min(prev.get('at'), now), _ici_wiek_min(prev.get('try_at'), now)) < ICI_RETRY:
+        return False
+    if _ici_wiek_min(prev.get('at'), now) >= ICI_EVERY:
+        return True
+    ok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
+    pl = prev.get('plik') if isinstance(prev.get('plik'), dict) else {}
+    for k in ICI_PARTS:
+        P = prev.get(k) if isinstance(prev.get(k), dict) else {}
+        if ok.get(k) is not True or not isinstance(P.get('week'), str):
+            if _ici_404_czeka(pl.get(k), now):
+                continue
+            return True
+        tydz, od = ici_oczekiwany(now, k)
+        if not _ici_tydz_jest(P['week'], tydz) and now - od < datetime.timedelta(hours=ICI_WAIT_H):
+            return True
+    return False
+
+
+def ici_http(url, lm=None):
+    """Jedno zapytanie GET (jedyne miejsce sieci tej części — testy je łatają) → (status, treść, Last-Modified). If-Modified-Since, gdy znamy
+    datę pliku; 304 (urllib: HTTPError) = (304, b'', lm) — plik bez zmian. Inne kody HTTP = wyjątek. Treść ponad ICI_MAX_B = ValueError."""
+    h = dict(ICI_HDR)
+    if lm:
+        h['If-Modified-Since'] = lm
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=ICI_TIMEOUT) as r:
+            body = r.read(ICI_MAX_B + 1)
+            if len(body) > ICI_MAX_B:
+                raise ValueError('odpowiedź większa niż oczekiwany plik')
+            return r.status, body, r.headers.get('Last-Modified')
+    except urllib.error.HTTPError as e:
+        if e.code == 304:
+            return 304, b'', lm
+        raise
+
+
+def ici_lata(now, st):
+    """Lata w nazwie pliku do sprawdzenia, po kolei → (lata, czy to próba nowego roku). st['rok'] = rok nazwy, która zadziałała ostatnio.
+    Rok nieznany (pierwszy przebieg) albo sprzed ponad roku: rok bieżący, a po 404 poprzedni. Rok bieżący działa: tylko on. Początek roku
+    (działa nazwa z rokiem poprzednim — wydawca trzyma ją jako kopię bieżącego pliku): nowa nazwa najwyżej raz na ICI_ROK_H godzin, potem znana."""
+    rok = st.get('rok') if isinstance(st, dict) else None
+    if not isinstance(rok, int) or isinstance(rok, bool) or rok > now.year or rok < now.year - 1:
+        return [now.year, now.year - 1], False
+    if rok == now.year:
+        return [rok], False
+    if _ici_wiek_min(st.get('proba_roku'), now) >= ICI_ROK_H * 60:
+        return [now.year, rok], True
+    return [rok], False
+
+
+def ici_pobierz(k, now, lm=None, st=None):
+    """Plik części `k`: kolejne nazwy z ici_lata, 404 = następna nazwa, inny błąd = wyjątek; 404 na ostatniej nazwie = wyjątek (HTTPError 404).
+    st (słownik stanu nazw części, zmieniany w miejscu): rok nazwy, która odpowiedziała; czas próby nowego roku. → (status, treść, Last-Modified)."""
+    st = st if isinstance(st, dict) else {}
+    lata, _nowy = ici_lata(now, st)
+    for i, y in enumerate(lata):
+        try:
+            r = ici_http(ICI_URL[k].format(y=y), lm)
+        except urllib.error.HTTPError as e:
+            if e.code == 404 and y == now.year:
+                st['proba_roku'] = NOW   # nowej nazwy jeszcze nie ma — następna próba za ICI_ROK_H godzin
+            if e.code != 404 or i == len(lata) - 1:
+                raise
+            continue
+        st['rok'] = y
+        if y == now.year:
+            st.pop('proba_roku', None)
+        return r
+    raise RuntimeError('brak nazwy pliku do sprawdzenia')
+
+
+class IciBrak(RuntimeError):
+    """Żadna część bez danych (ani nowych, ani z poprzedniego pliku); plik = stan nazw plików do zapisania w pustym zapisie próby."""
+    def __init__(self, msg, plik=None):
+        super().__init__(msg)
+        self.plik = plik or {}
+
+
+def ici_proba(prev, plik=None):
+    """Plik po nieudanej budowie: poprzedni (dane i czas „at” bez zmian) albo — bez poprzedniego — pusty zapis próby; try_at = czas tej
+    próby, więc ici_odswiez nie pyta znów wcześniej niż po ICI_RETRY min (także gdy pliku z danymi jeszcze nie ma). plik = stan nazw plików
+    z tej próby (rok, powtarzane 404) — żeby przerwa po 404 działała także bez danych."""
+    out = dict(prev) if isinstance(prev, dict) else {'at': NOW, 'v': 1, 'src': ICI_SRC, 'unit': 'mln USD', 'ok': {k: False for k in ICI_PARTS},
+                                                       'part_at': {}, 'lm': {}, 'notes': list(ICI_NOTES)}
+    if plik:
+        out['plik'] = plik
+    out['try_at'] = NOW
+    return out
+
+
+def build_ici(prev=None, now=None):
+    """data/ici.json — USA: tygodniowe napływy netto do długoterminowych funduszy wzajemnych i ETF razem (część lt; v135: rynek pieniężny).
+    Każda część osobno: 200 = sygnatura .xls, odczyt, sprawdzenie sum, scalenie z historią poprzedniej wersji części (ok True, part_at = teraz,
+    lm = Last-Modified); 304 = poprzednia wersja części bez zmian (ok True, part_at = teraz — sprawdzenie się udało); plik starszy niż zapisany
+    = poprzednia wersja i notatka; błąd = ok False, poprzednia wersja części z jej czasem i NOTATKA w meta (nie błąd — błąd zbieracza przez
+    3 dni czerwieni kontrolę dzienną). 404 pod każdą znaną nazwą pliku ICI_404_N razy z rzędu = przerwa: część pytana najwyżej co ICI_EVERY min
+    (notatka). Stan nazw plików (rok, który działa; próba nowego roku najwyżej raz na ICI_ROK_H godzin) w polu „plik”. Żadna część bez danych
+    (ani nowych, ani z poprzedniego pliku) = IciBrak (main: notatka i pusty zapis próby). Brak liczby = None, nigdy zero.
+    Warunki wydawcy (strona „Copyright and Linking Policies”, ici.org, przeczytane 27.09.2026): cytowanie i powoływanie się na dane dozwolone
+    z podaniem „Investment Company Institute” i adresu www.ici.org; poza krótkimi, podpisanymi fragmentami bez zgody nie wolno powielać ani
+    rozpowszechniać, ani publikować danych na własnym serwerze („mirroring”); zgodę można uzyskać formularzem (ici.org/permissions). Ryzyko
+    średnie — wdrożone na wyraźną decyzję właściciela (27.09: licencje drugorzędne; na stronie bez podpisu źródła); łagodzenie: historia publiczna
+    tylko 104 tygodnie i 36 miesięcy, w repozytorium żadnych plików wydawcy (testy budują własne pliki .xls), zalecana prośba o zgodę."""
+    now = now or _now_utc()
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    plm = prev.get('lm') if isinstance(prev.get('lm'), dict) else {}
+    ppl = prev.get('plik') if isinstance(prev.get('plik'), dict) else {}
+    out = {'at': NOW, 'v': 1, 'src': ICI_SRC, 'unit': 'mln USD', 'ok': {}, 'part_at': {}, 'lm': {}, 'plik': {}, 'notes': list(ICI_NOTES)}
+    notes = []
+    for k in ICI_PARTS:
+        old = prev.get(k) if ici_ma_dane({k: prev.get(k)}) else None
+        lm = plm.get(k) if old is not None and isinstance(plm.get(k), str) else None   # If-Modified-Since tylko przy danych do zachowania
+        st = {x: v for x, v in (ppl.get(k) or {}).items() if x in ('rok', 'proba_roku', 'n404', 'proba_404')} if isinstance(ppl.get(k), dict) else {}
+        out['plik'][k] = st
+        try:
+            if _ici_404_czeka(st, now):
+                raise RuntimeError(f'plik niedostępny (404) w {st["n404"]} próbach z rzędu — następna próba po {ICI_EVERY // 60} h od ostatniej')
+            try:
+                code, raw, lm2 = ici_pobierz(k, now, lm, st)
+            except urllib.error.HTTPError as e:
+                if e.code == 404:   # żadna znana nazwa pliku nie istnieje — po ICI_404_N takich próbach z rzędu przerwa ICI_EVERY min
+                    st['n404'] = (st.get('n404') if isinstance(st.get('n404'), int) else 0) + 1; st['proba_404'] = NOW
+                    raise RuntimeError(f'{e} pod każdą znaną nazwą pliku' + (f' ({st["n404"]}. raz z rzędu) — kolejne próby co {ICI_EVERY // 60} h'
+                                                                          if st['n404'] >= ICI_404_N else ''))
+                raise
+            st.pop('n404', None); st.pop('proba_404', None)
+            if code == 304:
+                if old is None:
+                    raise ValueError('304 bez poprzednich danych')
+                out[k], lm2 = old, lm
+            else:
+                cz = ICI_BUDUJ[k](raw, old)
+                if cz is None:
+                    if old is None:
+                        raise ValueError('plik bez nowych tygodni')
+                    notes.append(f'{ICI_NAZWA[k]}: plik starszy niż zapisany — bez zmian')
+                    cz, lm2 = old, lm
+                out[k] = cz
+            out['ok'][k] = True; out['part_at'][k] = NOW
+            if isinstance(lm2, str) and lm2:
+                out['lm'][k] = lm2
+        except Exception as e:  # noqa
+            out['ok'][k] = False
+            if old is not None:   # poprzednia wersja części z jej czasem
+                out[k] = old; out['part_at'][k] = pat.get(k) or prev.get('at')
+                if isinstance(plm.get(k), str):
+                    out['lm'][k] = plm[k]
+            notes.append(f'{ICI_NAZWA[k]}: {e}' + (' — zostają poprzednie dane' if old is not None else ''))
+    if not ici_ma_dane(out):
+        raise IciBrak('brak danych i poprzedniego pliku (' + '; '.join(notes)[:300] + ')', out['plik'])
+    for k in ICI_PARTS:   # oczekiwany tydzień nadal brak po ICI_WAIT_H godzinach od publikacji (święto w USA albo zmiana harmonogramu)
+        tydz, od = ici_oczekiwany(now, k)
+        w = out[k].get('week') if isinstance(out.get(k), dict) else None
+        if isinstance(w, str) and not _ici_tydz_jest(w, tydz) and now - od >= datetime.timedelta(hours=ICI_WAIT_H):
+            notes.append(f'{ICI_NAZWA[k]}: najnowszy tydzień {w}, oczekiwany {tydz} — publikacja spóźniona o ponad {ICI_WAIT_H} h')
+    if notes:
+        META['notes'].append(mask(f'{ICI_LABEL}: ' + '; '.join(notes))[:500])
+    return out
+
+
 # ===================== v131: FED — szanse decyzji na najbliższych posiedzeniach z rynku zakładów w USA (data/fed.json; publiczne API bez klucza) =====================
 # Regulowana w USA giełda kontraktów zdarzeniowych (Kalshi) ma publiczne API z cenami zakładów na decyzję Rezerwy Federalnej: seria KXFEDDECISION,
 # jedno zdarzenie na posiedzenie FOMC, 5 wykluczających się kontraktów tak/nie (obniżka o więcej niż 0,25 / o 0,25 pkt proc., bez zmian,
@@ -14729,6 +15363,28 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'Szwajcaria: {e}')); META['ok']['snb'] = False
             if prev_snb: save('snb', prev_snb)
+    # v134: USA — napływy do funduszy (fundusze wzajemne i ETF razem; bez klucza): co 12 h, w dniu publikacji co godzinę, aż pojawi się
+    # oczekiwany tydzień (najwyżej 2 doby), z If-Modified-Since (zwykle 304 bez treści); część z błędem = notatka i jej poprzednia wersja;
+    # brak jakichkolwiek danych (IciBrak) = notatka, nie błąd (kontrola dzienna i tak pokazuje ⚠️ „brak danych”), i pusty zapis próby; inna awaria
+    # = błąd i poprzedni plik z czasem tej próby (try_at — następna najwcześniej po godzinie); bez poprzedniego pliku (pamięć Actions i strona)
+    # próba tylko w pierwszym przebiegu godziny — nigdy co 20 minut (ici_odswiez)
+    prev_ici = previous('ici')
+    if not ici_odswiez(prev_ici):
+        if isinstance(prev_ici, dict):
+            save('ici', prev_ici); META['ok']['ici'] = 'cached' if ici_ma_dane(prev_ici) else False
+            if not ici_ma_dane(prev_ici):
+                META['notes'].append(f"{ICI_LABEL}: brak danych — ostatnia próba {prev_ici.get('try_at') or prev_ici.get('at')}, następna najwcześniej po {ICI_RETRY} min")
+        else:
+            META['notes'].append(f'{ICI_LABEL}: brak poprzedniego pliku — próba w pierwszym przebiegu pełnej godziny')
+    else:
+        try:
+            ic = build_ici(prev_ici); save('ici', ic); META['ok']['ici'] = all(ic['ok'].get(k) is True for k in ICI_PARTS)
+        except IciBrak as e:
+            META['notes'].append(mask(f'{ICI_LABEL}: {e}')[:500]); META['ok']['ici'] = False
+            save('ici', ici_proba(prev_ici, e.plik))
+        except Exception as e:
+            META['errors'].append(mask(f'{ICI_LABEL}: {e}')); META['ok']['ici'] = False
+            save('ici', ici_proba(prev_ici))
     # v131: Fed — szanse decyzji na dwóch najbliższych posiedzeniach z rynku zakładów w USA (publiczne API bez klucza): co przebieg ceny
     # wszystkich otwartych posiedzeń (1 zapytanie) i ostatnia transakcja każdego wyniku (10), raz na dobę świece dzienne i ostatnie rozstrzygnięte
     # posiedzenie; plik młodszy niż FED_EVERY min z kompletem części = bez zapytań; wyłącznik KALSHI_OFF (zmienna repozytorium, nie sekret) =
