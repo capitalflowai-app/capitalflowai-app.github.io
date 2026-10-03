@@ -208,6 +208,9 @@ BOP_FA_KEYS = {   # klucze sprawdzone 24.09.2026 (U2 = strefa euro w zmiennym sk
 }
 ECB_SLEEP = 1.2      # EBC blokuje serie szybkich zapytań („access blocked”): odstęp między zapytaniami do EBC
 _ECB_LAST = -1e9
+ECB_PONOW_S = 5        # v148: s przerwy przed jednym ponowieniem zapytania do EBC (przekroczony czas, HTTP 502/503/504)
+ECB_PONOW_MAX = 3      # v148: najwyżej tyle ponowień do EBC w przebiegu (każde to do ~35 s)
+_ECB_PONOW = [0, True]   # v148: [ponowienia w tym przebiegu, ponawiać?] — nieudane ponowienie = False do końca przebiegu
 MOF_URL = 'https://www.mof.go.jp/policy/international_policy/reference/itn_transactions_in_securities/week.csv'
 MOF_WEEKS = 26
 _FULLWIDTH = str.maketrans({'．': '.', '～': '~', '　': ' '})
@@ -344,16 +347,35 @@ def parse_mof(raw):
             'd': out}
 
 
+def _ecb_przejsciowy(e):
+    """v148: błąd, który zwykle mija po chwili — przekroczony czas (gniazdo albo TLS; urllib czasem owija go w URLError) albo HTTP 502/503/504."""
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code in (502, 503, 504)
+    return isinstance(e, TimeoutError) or (isinstance(e, urllib.error.URLError) and isinstance(getattr(e, 'reason', None), TimeoutError))
+
+
 def _ecb_json(url):
-    """EBC blokuje serie szybkich zapytań: odstęp ECB_SLEEP od poprzedniego zapytania do EBC (User-Agent ustawia get)."""
+    """EBC blokuje serie szybkich zapytań: odstęp ECB_SLEEP od poprzedniego zapytania do EBC (User-Agent ustawia get).
+    v148: błąd przejściowy (_ecb_przejsciowy) → jedno ponowienie po ECB_PONOW_S s; najwyżej ECB_PONOW_MAX ponowień w przebiegu, nieudane
+    ponowienie wyłącza dalsze (EBC wtedy naprawdę nie odpowiada — przebieg się nie wydłuża). W logu tylko rodzaj błędu."""
     global _ECB_LAST
-    wait = ECB_SLEEP - (time.monotonic() - _ECB_LAST)
-    if wait > 0:
-        time.sleep(wait)
-    try:
-        return get_json(url)
-    finally:
-        _ECB_LAST = time.monotonic()
+    for proba in (0, 1):
+        wait = ECB_SLEEP - (time.monotonic() - _ECB_LAST)
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return get_json(url)
+        except Exception as e:
+            if proba:
+                _ECB_PONOW[1] = False
+                raise
+            if not (_ECB_PONOW[1] and _ECB_PONOW[0] < ECB_PONOW_MAX and _ecb_przejsciowy(e)):
+                raise
+            _ECB_PONOW[0] += 1
+            print(f'EBC: {type(e).__name__} — ponawiam raz za {ECB_PONOW_S} s')
+        finally:
+            _ECB_LAST = time.monotonic()
+        time.sleep(ECB_PONOW_S)
 
 
 def _ecb_try(url, label):
@@ -14658,8 +14680,12 @@ def _pr_build(prev, now, late):
     out['req'] = cnt[0]
     # v128.1: awaria samej historii (h_cb, h_kr) za pierwszym razem to notatka — historia ponawia się sama w następnym przebiegu, wiersze
     # z poprzedniego pliku zostają; ta sama część historii z błędem drugi przebieg z rzędu = błąd (trwała awaria widoczna w kontroli)
+    # v148: tak samo kurs wymiany (fx), gdy zapas kursu jest świeży (≤ PR_FX_MAX_D dni) — premia Korei policzona, kurs z datą w pliku;
+    # bez świeżego zapasu (premia Korei pusta) awaria kursu od razu jest błędem
     pbl = prev.get('bledy') if isinstance(prev.get('bledy'), dict) else {}
-    raz = {k: v for k, v in out['bledy'].items() if k in ('h_cb', 'h_kr') and k not in pbl}
+    fxz = out.get('fx') if isinstance(out.get('fx'), dict) else None
+    fx_ok = bool(fxz and isinstance(fxz.get('d'), str) and _d(fxz['d']) and (now.date() - _d(fxz['d'])).days <= PR_FX_MAX_D)
+    raz = {k: v for k, v in out['bledy'].items() if (k in ('h_cb', 'h_kr') or (k == 'fx' and fx_ok)) and k not in pbl}
     err = {k: v for k, v in out['bledy'].items() if k not in raz}
     if err:
         META['errors'].append(mask(f'{PR_LABEL}: ' + '; '.join(err.values()))[:400])

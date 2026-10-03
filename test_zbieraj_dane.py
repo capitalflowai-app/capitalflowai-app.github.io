@@ -20684,3 +20684,142 @@ class ZegarV145(unittest.TestCase):
         rc, log, slept, out = self._run('prowadz', [stale, nowy], now_seq=[self.NOW, later])
         self.assertEqual(slept, [15 * 60 + 5], 'brak doczekania przy 3 min braku'); self.assertEqual([p for p, d in log if d is not None], [])
         self.assertNotIn('doczekuję', out)
+
+
+class EbcPonowienieV148(unittest.TestCase):
+    """v148: zapytanie do EBC — błąd przejściowy (przekroczony czas, HTTP 502/503/504) → jedno ponowienie po ECB_PONOW_S s; inne błędy bez
+    ponowienia; najwyżej ECB_PONOW_MAX ponowień w przebiegu, nieudane ponowienie wyłącza dalsze. Bez sieci, bez czekania."""
+
+    def setUp(self):
+        self.sl = []
+        self.p = [mock.patch.object(zd, 'ECB_SLEEP', 0), mock.patch.object(zd, '_ECB_LAST', -1e9), mock.patch.object(zd, '_ECB_PONOW', [0, True]),
+                  mock.patch.object(zd.time, 'sleep', self.sl.append), mock.patch('sys.stdout', io.StringIO())]
+        [p.start() for p in self.p]
+        zd.META['errors'].clear()
+
+    def tearDown(self):
+        [p.stop() for p in reversed(self.p)]
+        zd.META['errors'].clear()
+
+    @staticmethod
+    def seq(*res):
+        it, calls = iter(res), []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(url)
+            r = next(it)
+            if isinstance(r, BaseException):
+                raise r
+            return r
+        return gj, calls
+
+    def test_przejsciowe_ponowione_raz(self):
+        import urllib.error as _ue
+        for e in (TimeoutError('The read operation timed out'), _ue.URLError(TimeoutError('timed out')), _ue.HTTPError('u', 503, 'x', {}, None),
+                  _ue.HTTPError('u', 502, 'x', {}, None), _ue.HTTPError('u', 504, 'x', {}, None)):
+            zd._ECB_PONOW[:] = [0, True]; self.sl.clear()
+            gj, calls = self.seq(e, {'ok': 1})
+            with mock.patch.object(zd, 'get_json', gj):
+                self.assertEqual(zd._ecb_json('https://ebc/x'), {'ok': 1}, repr(e))
+            self.assertEqual(calls, ['https://ebc/x'] * 2, repr(e)); self.assertEqual(self.sl, [zd.ECB_PONOW_S], repr(e))
+            self.assertEqual(zd._ECB_PONOW, [1, True])
+
+    def test_inne_bledy_bez_ponowienia(self):
+        import urllib.error as _ue
+        for e in (_ue.HTTPError('u', 404, 'x', {}, None), _ue.HTTPError('u', 500, 'x', {}, None), _ue.HTTPError('u', 429, 'x', {}, None),
+                  ValueError('zły JSON'), _ue.URLError('Name or service not known'), ConnectionResetError('reset')):
+            gj, calls = self.seq(e, {'ok': 1})
+            with mock.patch.object(zd, 'get_json', gj), self.assertRaises(type(e)):
+                zd._ecb_json('https://ebc/x')
+            self.assertEqual(len(calls), 1, repr(e))
+        self.assertEqual((zd._ECB_PONOW, self.sl), ([0, True], []), 'bez ponowień i bez czekania')
+
+    def test_nieudane_ponowienie_wylacza_dalsze(self):
+        T = TimeoutError('The read operation timed out')
+        gj, calls = self.seq(T, T, T, {'ok': 1})
+        with mock.patch.object(zd, 'get_json', gj):
+            with self.assertRaises(TimeoutError):
+                zd._ecb_json('https://ebc/a')
+            self.assertEqual(len(calls), 2); self.assertIs(zd._ECB_PONOW[1], False)
+            with self.assertRaises(TimeoutError):
+                zd._ecb_json('https://ebc/b')
+            self.assertEqual(zd._ecb_json('https://ebc/c'), {'ok': 1}, 'kolejne zapytania nadal idą — tylko bez ponowień')
+        self.assertEqual(len(calls), 4, 'po nieudanym ponowieniu — bez ponowień do końca przebiegu'); self.assertEqual(self.sl, [zd.ECB_PONOW_S])
+
+    def test_limit_ponowien_w_przebiegu(self):
+        T = TimeoutError('t')
+        n = zd.ECB_PONOW_MAX
+        self.assertTrue(1 <= n <= 5 and 1 <= zd.ECB_PONOW_S <= 10, 'ponowienia nie wydłużają przebiegu o więcej niż kilka minut')
+        gj, calls = self.seq(*([T, {'ok': 1}] * n + [T, {'ok': 1}]))
+        with mock.patch.object(zd, 'get_json', gj):
+            for i in range(n):
+                self.assertEqual(zd._ecb_json(f'https://ebc/{i}'), {'ok': 1})
+            with self.assertRaises(TimeoutError):
+                zd._ecb_json('https://ebc/z')
+        self.assertEqual(len(calls), 2 * n + 1); self.assertEqual(self.sl, [zd.ECB_PONOW_S] * n)
+
+    def test_ecb_try_meta(self):
+        T = TimeoutError('The read operation timed out')
+        gj, _ = self.seq(T, {'ok': 1}, T, T)
+        with mock.patch.object(zd, 'get_json', gj):
+            self.assertEqual(zd._ecb_try('https://ebc/a', 'ilm'), {'ok': 1})
+            self.assertEqual(zd.META['errors'], [], 'udane ponowienie — bez błędu')
+            self.assertIsNone(zd._ecb_try('https://ebc/b', 'm3'))
+        self.assertEqual(zd.META['errors'], ['m3: The read operation timed out'], 'porażka po ponowieniu — jeden wpis, format bez zmian')
+
+    def test_log_bez_adresu(self):
+        out = io.StringIO()
+        gj, _ = self.seq(TimeoutError('timed out https://ebc/tajne?x=1'), {'ok': 1})
+        with mock.patch.object(zd, 'get_json', gj), mock.patch('sys.stdout', out):
+            zd._ecb_json('https://ebc/tajne?x=1')
+        self.assertIn('TimeoutError', out.getvalue()); self.assertNotIn('tajne', out.getvalue(), 'w logu tylko rodzaj błędu')
+
+
+class PremieFxV148(unittest.TestCase):
+    """v148: kurs wymiany premii krypto — pierwsza awaria przy świeżym zapasie kursu = notatka, druga z rzędu = błąd; bez świeżego zapasu =
+    błąd od razu. Pomocnicze z PremieKoreaV129 (bez sieci, zegar przypięty)."""
+    NOW = PremieKoreaV129.NOW
+    FX = PremieKoreaV129.FX
+    setUp, tearDown = PremieKoreaV129.setUp, PremieKoreaV129.tearDown
+    bdays, px = staticmethod(PremieKoreaV129.bdays), staticmethod(PremieKoreaV129.px)
+    kr_full, prev_full, bp, rk, ebc = (PremieKoreaV129.kr_full, PremieKoreaV129.prev_full, PremieKoreaV129.bp, PremieKoreaV129.rk,
+                                       PremieKoreaV129.ebc)
+
+    def ebc_to(self):
+        ok = self.ebc()
+
+        def f(url, headers=None, timeout=60):
+            if 'lastNObservations' in url:
+                raise TimeoutError('The read operation timed out')
+            return ok(url)
+        return f
+
+    def test_fx_notatka_potem_blad(self):
+        prev = self.bp(self.rk(), self.ebc(), self.prev_full())   # kurs wprost z 2026-09-25
+        self.assertEqual((prev['fx']['d'], prev['fx']['src']), ('2026-09-25', 'ecb'))
+        later = self.NOW + datetime.timedelta(minutes=70)
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out = self.bp(self.rk(), self.ebc_to(), prev, now=later)
+        self.assertIn('fx', out['bledy']); self.assertEqual(out['fx']['d'], '2026-09-25', 'zapas kursu z datą')
+        self.assertEqual(zd.META['errors'], [], 'pierwsza awaria kursu przy świeżym zapasie to nie błąd')
+        self.assertTrue(any('EBC' in n and 'ponowienie w następnym przebiegu' in n for n in zd.META['notes']))
+        self.assertTrue(any('kurs wymiany z poprzedniego odczytu (2026-09-25)' in n for n in zd.META['notes']))
+        self.assertIsNotNone(out['now']['kr']['btc'], 'premia Korei policzona zapasem kursu')
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out2 = self.bp(self.rk(), self.ebc_to(), out, now=later + datetime.timedelta(minutes=70))
+        self.assertIn('fx', out2['bledy']); self.assertEqual(len(zd.META['errors']), 1, 'ta sama awaria drugi raz z rzędu = błąd')
+        self.assertIn('EBC', zd.META['errors'][0])
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out3 = self.bp(self.rk(), self.ebc(), out2, now=later + datetime.timedelta(minutes=140))
+        self.assertNotIn('fx', out3['bledy']); self.assertEqual(zd.META['errors'], [], 'po naprawie — bez błędu')
+
+    def test_fx_bez_swiezego_zapasu_od_razu_blad(self):
+        later = self.NOW + datetime.timedelta(minutes=70)
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out = self.bp(self.rk(), self.ebc_to(), self.prev_full(), now=later)
+        self.assertIsNone(out['fx']); self.assertEqual(len(zd.META['errors']), 1, 'bez zapasu kursu — błąd od razu')
+        prev = self.bp(self.rk(), self.ebc(), self.prev_full())
+        stary = dict(prev, fx=dict(prev['fx'], d='2026-09-21', last=[['2026-09-21', self.FX]]))
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out = self.bp(self.rk(), self.ebc_to(), stary, now=later)
+        self.assertEqual(out['now']['kr']['why'], 'fx_stale'); self.assertEqual(len(zd.META['errors']), 1, 'zapas starszy niż PR_FX_MAX_D — błąd od razu')
