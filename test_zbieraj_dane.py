@@ -21413,8 +21413,9 @@ class RwaV133(unittest.TestCase):
         F = lambda **kw: dict({'at': at(1), 'seg': {}, 'hist': [], 'ok': {'list': True, 'hidden': True}}, **kw)  # noqa: E731
         O, bad = zd.rwa_odswiez, {'list': True, 'hidden': False}
         self.assertTrue(O(None, datetime.datetime(2026, 9, 27, 20, 5, tzinfo=U)), 'bez pliku: pierwszy przebieg godziny')
-        self.assertFalse(O(None, datetime.datetime(2026, 9, 27, 20, 25, tzinfo=U)), 'bez pliku: nie co 20 minut (2,35 MB)')
-        self.assertFalse(O({'at': at(9)}, datetime.datetime(2026, 9, 27, 20, 25, tzinfo=U)), 'plik w innym kształcie = jak brak pliku')
+        self.assertTrue(O(None, datetime.datetime(2026, 9, 27, 20, 25, tzinfo=U)), 'v133.2: bez pliku — każdy przebieg (harmonogram spóźnia się > 20 min)')
+        self.assertTrue(O(None, datetime.datetime(2026, 9, 27, 20, 59, tzinfo=U)))
+        self.assertTrue(O({'at': at(9)}, datetime.datetime(2026, 9, 27, 20, 25, tzinfo=U)), 'plik w innym kształcie = jak brak pliku (v133.2: każdy przebieg)')
         self.assertFalse(O(F(at=at(2)))); self.assertFalse(O(F(at=at(5.9)))); self.assertTrue(O(F(at=at(6.1))))
         self.assertFalse(O(F(at=at(0.5), ok=bad)), 'część z błędem: najwcześniej po godzinie')
         self.assertTrue(O(F(at=at(1.1), ok=bad))); self.assertTrue(O(F(at=at(1.1), ok=bad, retry_n=1)))
@@ -21472,9 +21473,9 @@ class RwaV133(unittest.TestCase):
         s, c = self._main(None, RuntimeError('lista: HTTP Error 502'), now=datetime.datetime(2026, 9, 27, 20, 3, tzinfo=U))
         self.assertEqual(len(c), 1); self.assertNotIn('rwa', s); self.assertEqual([e for e in zd.META['errors'] if 'RWA' in e], [], 'pierwsza próba bez danych — notatka, nie błąd')
         self.assertTrue(any('brak danych — pierwsza próba nieudana' in n for n in zd.META['notes']))
-        s, c = self._main(None, AssertionError('nie wolno pytać'), now=datetime.datetime(2026, 9, 27, 20, 23, tzinfo=U))
-        self.assertEqual(c, [], 'bez pliku poza pierwszym przebiegiem godziny — bez 2,35 MB'); self.assertNotIn('rwa', s); self.assertNotIn('rwa', zd.META['ok'])
-        self.assertTrue(any('brak poprzedniego pliku' in n for n in zd.META['notes']))
+        good0 = dict(old, at=self.NOW.isoformat(), notes=[])
+        s, c = self._main(None, good0, now=datetime.datetime(2026, 9, 27, 20, 23, tzinfo=U))
+        self.assertEqual(len(c), 1, 'v133.2: bez pliku — próba także o :23 (harmonogram spóźniony)'); self.assertIs(s['rwa'], good0)
         good = dict(old, at=self.NOW.isoformat(), notes=[])
         s, c = self._main(None, good, now=datetime.datetime(2026, 9, 27, 20, 3, tzinfo=U))
         self.assertIs(s['rwa'], good); self.assertIs(zd.META['ok']['rwa'], True)
@@ -21488,7 +21489,7 @@ class RwaV133(unittest.TestCase):
         i0 = src.index("previous('rwa')", m)   # v133.1: z wyłącznikiem RWA_OFF — „None if rw_off else previous('rwa')”
         self.assertLess(src.index("prev_t10, prev_t10l = previous('krypto-top10')", m), i0); self.assertLess(i0, src.index("prev_inst = previous('instytucje')", m))
         self.assertEqual((zd.RWA_LATE, zd.RWA_BUDGET, zd.RWA_EVERY, zd.RWA_RETRY, zd.RWA_BEZ_PLIKU_MIN, zd.RWA_THREADS, zd.RWA_HID_MAX, zd.RWA_PH_DAYS, zd.RWA_HIST_KEEP),
-                         (zd.BACK_LATE, 45, 360, 60, 20, 4, 80, 31, 400))
+                         (zd.BACK_LATE, 45, 360, 60, 60, 4, 80, 31, 400))   # v133.2: RWA_BEZ_PLIKU_MIN 20 → 60
         self.assertEqual((zd.RWA_SRC_BD, zd.RWA_SRC_SHARE, zd.RWA_SRC_MIN_N, zd.RWA_PROD_BD, zd.RWA_GOLD_MOVE, zd.RWA_GONE_D, zd.RWA_GAP, zd.RWA_KEEP_D),
                          (2, 0.7, 5, 4, 0.2, 31, 0.2, 2))
         self.assertEqual([zd._rwa_wd('2026-09-25', d) for d in ('2026-09-26', '2026-09-28', '2026-09-29', '2026-10-02', '2026-10-05')], [0, 0, 1, 4, 5], 'pełne dni robocze ściśle między')

@@ -16217,7 +16217,8 @@ RWA_SRC = ('DefiLlama — api.llama.fi/protocols (kategoria RWA) i /tvl/{produkt
            'udziały i zmiany 7/30 dni (te same produkty w obu dniach) — obliczenia CapitalFlowAI z własnych dziennych zapisów')
 RWA_EVERY = 360           # min — pełne odświeżenie co 6 h (lista odświeża się u źródła mniej więcej co godzinę) …
 RWA_RETRY = 60            # min — … część z błędem albo nieudana próba (try_at): ponowienie najwcześniej po godzinie (dalej RWA_RETRY_STEPS)
-RWA_BEZ_PLIKU_MIN = 20    # min — bez poprzedniego pliku próba tylko w przebiegu z minutą < 20: raz na godzinę (przebiegi o :07, :27, :47 — ten o :07, też z opóźnieniem do 12 min)
+RWA_BEZ_PLIKU_MIN = 60    # min — v133.2: bez poprzedniego pliku próba w KAŻDYM przebiegu (minuta < 60), do pierwszego pliku; było 20 (raz na godzinę) —
+                          #       03.10 harmonogram GitHub spóźniał się ponad 20 min i stał, pierwszego pliku nie było godzinę po publikacji
 RWA_LATE = BACK_LATE      # s — przebieg trwa dłużej (ciężki przebieg godzinowy) = krok pominięty, poprzedni plik bez zmian
 RWA_BUDGET = 45           # s na cały krok (lista + produkty ukryte); każde zapytanie najwyżej tyle, ile zostało
 RWA_LIST_TIMEOUT = 40     # s — najdłużej lista (2,35 MB gzip; z Polski 2–5 s)
@@ -16707,7 +16708,7 @@ def _rwa_age_min(iso, now):
 
 
 def rwa_odswiez(prev, now=None):
-    """Czy pytać źródło w tym przebiegu. Bez poprzedniego pliku — tylko w pierwszym przebiegu godziny (minuta < RWA_BEZ_PLIKU_MIN). Z plikiem:
+    """Czy pytać źródło w tym przebiegu. Bez poprzedniego pliku — gdy minuta < RWA_BEZ_PLIKU_MIN (v133.2: 60 = każdy przebieg). Z plikiem:
     plik starszy niż RWA_EVERY = budowa (nie częściej niż co RWA_RETRY min od nieudanej próby try_at); część z błędem albo nieudana próba —
     ponowienie z odstępem RWA_RETRY_STEPS według liczby kolejnych niepowodzeń retry_n (1 h, 2 h, potem 6 h) — trwała awaria części nie robi
     z rytmu 6 h odświeżania co godzinę (2,35 MB każde)."""
@@ -17354,7 +17355,7 @@ def main():
         if rw_late and rw_due:
             META['notes'].append(f'{RWA_LABEL}: pominięte w tym przebiegu — trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {RWA_LATE} s)')
         elif not prev_rw:
-            META['notes'].append(f'{RWA_LABEL}: brak poprzedniego pliku — próba w pierwszym przebiegu pełnej godziny')
+            META['notes'].append(f'{RWA_LABEL}: brak poprzedniego pliku — próba w następnym przebiegu')
     else:
         try:
             rw = build_rwa(prev_rw, S=SAVED); save('rwa', rw); META['ok']['rwa'] = all(rw['ok'].get(k) is True for k in RWA_PARTS)
@@ -17364,7 +17365,7 @@ def main():
             if prev_rw:
                 META['errors'].append(mask(f'{RWA_LABEL}: {e}')[:200]); save('rwa', rwa_proba(prev_rw))
             else:
-                META['notes'].append(mask(f'{RWA_LABEL}: brak danych — pierwsza próba nieudana ({e}); następna w pierwszym przebiegu pełnej godziny')[:300])
+                META['notes'].append(mask(f'{RWA_LABEL}: brak danych — pierwsza próba nieudana ({e}); następna w następnym przebiegu')[:300])
     # INSTYTUCJE (bez klucza): najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_inst = previous('instytucje')
     if prev_inst and fresh(prev_inst, 55):
