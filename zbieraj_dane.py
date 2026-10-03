@@ -12374,6 +12374,641 @@ def build_krypto_dzien(prev=None, today=None, run_t0=None):
     return out
 
 
+# ===================== v128: PREMIE CENOWE KRYPTO — data/premie.json (bez klucza; strona: panel #c-premie w CRYPTO) =====================
+# Premia USA: o ile BTC i ETH na giełdzie Coinbase (USD) są droższe (+) albo tańsze (−) niż na giełdzie Binance (USDT) — w tych samych
+# zamkniętych minutach UTC. USDT to nie dolar: cena z Binance (USDT) jest przeliczana na USD ceną USDT-USD z Coinbase z TEJ SAMEJ minuty
+# (ostatnia cena USDT-USD przenoszona najwyżej PR_FFILL_USDT minut — stablecoin bywa bez transakcji w spokojnej minucie). Wartość = mediana
+# z ostatnich PR_USE minut obecnych we wszystkich nogach (co najmniej PR_MIN); inaczej brak (None, nigdy 0). Obok: premia bez przeliczenia
+# USDT (surowa) i — tylko w pliku, do kontroli — BTC wobec pary z USDC. Giełda z błędem = cały poprzedni odczyt pary z jego oknem i czasem
+# (stale: true), nigdy noga z innej minuty. HTTP 429/418 = giełda wstrzymana: do końca przebiegu żadne zapytanie do niej nie wychodzi (PrBlok
+# bez wysyłania) i przez max(PR_BLOK min, Retry-After), najwyżej PR_BLOK_MAX_H h (pole blok). Koniec budżetu czasu (zapytanie nie startuje przy
+# zapasie < PR_LEFT_MIN s; przekroczenie limitu uciętego przez budżet) to uwaga PrBudget, nie awaria giełdy.
+# Historia h_cb: doba UTC = średnia premii godzinowych (świece 1 h obu giełd i USDT-USD), co najmniej PR_HMIN godzin, bez dzisiejszej doby;
+# wiersz zapisany raz. Jeden limit czasu na budowniczego (PR_T; przebieg dłuższy niż PR_LATE — PR_T_LATE i tylko odczyt na żywo).
+# Czas tylko z _now_utc(); sieć tylko przez get_json (testy łatają tę nazwę). Warunki giełd: patrz plan v128 (premie), decyzja właściciela 26.09.
+import math, statistics, email.utils   # v128: math.isfinite, mediana, data w Retry-After; ponowny import jest nieszkodliwy
+
+PR_CB = 'https://api.exchange.coinbase.com/products/{p}/candles?granularity={g}&start={a}&end={b}'      # [czas (s), low, high, open, close, vol]
+PR_BN = 'https://data-api.binance.vision/api/v3/klines?symbol={s}&interval={i}&startTime={a}&limit={n}'   # [openTime ms, o, h, l, close (tekst), …]
+PR_CB_P = {'btc': 'BTC-USD', 'eth': 'ETH-USD', 'usdt': 'USDT-USD'}
+PR_BN_S = {'btc': 'BTCUSDT', 'eth': 'ETHUSDT', 'usdc': 'BTCUSDC'}
+PR_COINS = ('btc', 'eth')
+PR_PARTS = ('cb', 'bn', 'up', 'fx')   # części pliku (META ok: premie_cb, premie_bn, premie_up, premie_fx) — v129: Korea i kurs wymiany
+PR_VENUE = {'cb': 'Coinbase', 'bn': 'Binance', 'up': 'Upbit', 'fx': 'EBC'}   # nazwy w komunikatach meta (strona ich nie pokazuje)
+PR_WIN = 10            # min: okno zapytania na żywo (zamknięte minuty przed bieżącą; bieżąca, otwarta minuta zawsze odrzucona)
+PR_USE = 5             # ostatnich wspólnych minut do mediany
+PR_MIN = 3             # najmniej wspólnych minut — mniej = brak (nigdy 0)
+PR_FFILL_USDT = 5      # min: najdłuższe przeniesienie ceny USDT-USD
+PR_KEEP_CB = 400       # dób historii h_cb
+PR_BACK_CB = 3         # paczek historii na przebieg (3 zapytania na paczkę)
+PR_CHUNK_D = 12        # dób w paczce: 288 świec 1 h ≤ 300 (limit zapytania z zakresem u Coinbase; więcej = HTTP 400)
+PR_HMIN = 20           # godzin doby z premią — mniej = doba bez wartości (jak TD_CR_HMIN)
+PR_HIST_M = 10         # min po północy UTC: dopiero wtedy wczorajsza doba (ostatnia świeca 1 h zamknięta o 00:00)
+PR_T = 20              # s: cały budowniczy w jednym przebiegu
+PR_T_LATE = 10         # s: przebieg trwa już dłużej niż PR_LATE — tylko odczyt na żywo, bez historii (start zapytania wymaga PR_LEFT_MIN s zapasu)
+PR_LATE = 480          # s: jak KD_LATE
+PR_TIMEOUT = 10        # s: jedno zapytanie (≤ czas pozostały z budżetu)
+PR_LEFT_MIN = 3        # s: mniej czasu w budżecie — zapytanie nie startuje (PrBudget: uwaga, nie błąd giełdy)
+PR_SLEEP = 0.12        # s: odstęp między zapytaniami do jednej giełdy (limity 10/s)
+PR_BLOK = 40           # min: najkrótsza przerwa dla giełdy po HTTP 429/418 (dłuższa, gdy giełda poda Retry-After)
+PR_BLOK_MAX_H = 24     # h: najdłuższa przerwa (dłuższy Retry-After jest ucinany)
+PR_LABEL = 'Premie krypto'
+_PR_TERMIN = [None]    # koniec budżetu budowniczego w tym przebiegu (time.monotonic)
+_PR_LIM = [PR_T]       # limit budowniczego w tym przebiegu (s): PR_T albo PR_T_LATE — do opisu uwagi o końcu czasu
+_PR_LAST = {}          # giełda → time.monotonic() ostatniego zapytania
+_PR_PAUSED = set()     # giełdy wstrzymane w tym przebiegu (aktywne pole blok z poprzedniego pliku i każde HTTP 429/418 teraz): pr_get nie wysyła
+
+
+class PrBudget(RuntimeError):
+    """Czas budowniczego minął: część staje, jej poprzednie dane zostają (uwaga w meta, nie błąd)."""
+
+
+class PrBlok(RuntimeError):
+    """Giełda wstrzymana (limit zapytań): HTTP 429 albo 418 w tym zapytaniu (fresh=True; retry = surowy nagłówek Retry-After) albo wcześniej
+    w tym przebiegu lub w aktywnym polu blok — wtedy zapytanie w ogóle nie wychodzi (fresh=False). venue = część pliku."""
+    def __init__(self, msg, venue, fresh=True, retry=None):
+        super().__init__(msg)
+        self.venue, self.fresh, self.retry = venue, fresh, retry
+
+
+def pr_tmo():
+    """Limit jednego zapytania: ≤ PR_TIMEOUT i ≤ czas pozostały z budżetu budowniczego; zapas mniejszy niż PR_LEFT_MIN s → PrBudget
+    (zapytanie nie startuje — koniec czasu budowniczego, nie awaria giełdy)."""
+    if _PR_TERMIN[0] is None:
+        return PR_TIMEOUT
+    left = _PR_TERMIN[0] - time.monotonic()
+    if left < PR_LEFT_MIN:
+        raise PrBudget('limit czasu budowniczego')
+    return min(PR_TIMEOUT, left)
+
+
+def _pr_is_timeout(e):
+    """Przekroczony czas zapytania (gniazdo albo TLS; urllib czasem owija go w URLError)."""
+    return isinstance(e, TimeoutError) or (isinstance(e, urllib.error.URLError) and isinstance(getattr(e, 'reason', None), TimeoutError))
+
+
+def _pr_send(fn, url, cnt):
+    """fn(url, timeout=pr_tmo()) — jedno zapytanie w budżecie; cnt = [n]: licznik zapytań naprawdę wysłanych (pole req pliku). Przekroczenie
+    czasu, gdy limit uciął budżet (mniej niż PR_TIMEOUT), → PrBudget: to koniec czasu budowniczego, nie awaria giełdy."""
+    tmo = pr_tmo()
+    cnt[0] += 1
+    try:
+        return fn(url, timeout=tmo)
+    except OSError as e:   # TimeoutError, URLError (też HTTPError) — reszta bez zmian
+        if tmo < PR_TIMEOUT and _pr_is_timeout(e):
+            raise PrBudget('limit czasu budowniczego (zapytanie przerwane)') from e
+        raise
+
+
+def pr_get(venue, url, cnt):
+    """Jedno zapytanie GET JSON do giełdy `venue` (odstęp PR_SLEEP od jej poprzedniego zapytania; limit pr_tmo()). Giełda wstrzymana w tym
+    przebiegu → PrBlok bez wysyłania; HTTP 429/418 → giełda wstrzymana do końca przebiegu i PrBlok z nagłówkiem Retry-After."""
+    if venue in _PR_PAUSED:
+        raise PrBlok('wstrzymana po HTTP 429/418 — zapytanie nie wysłane', venue, fresh=False)
+    wait = PR_SLEEP - (time.monotonic() - _PR_LAST.get(venue, -1e9))
+    if wait > 0:
+        time.sleep(wait)
+    try:
+        return _pr_send(get_json, url, cnt)
+    except urllib.error.HTTPError as e:
+        if e.code in (429, 418):
+            _PR_PAUSED.add(venue)
+            raise PrBlok(f'HTTP {e.code}', venue, retry=e.headers.get('Retry-After') if e.headers is not None else None) from e
+        raise
+    finally:
+        _PR_LAST[venue] = time.monotonic()
+
+
+def _pr_px(v, text=False):
+    """Cena > 0 jako float; bool, 0, ujemna, NaN, nieskończoność, None → None (nigdy 0). text=True: także liczba zapisana tekstem."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        x = float(v)
+    elif text and isinstance(v, str):
+        try:
+            x = float(v.strip())
+        except ValueError:
+            return None
+    else:
+        return None
+    return x if math.isfinite(x) and x > 0 else None
+
+
+def _pr_mstr(sec):
+    """Sekundy epoki → minuta UTC 'RRRR-MM-DDTHH:MM' (początek)."""
+    return datetime.datetime.fromtimestamp(sec, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M')
+
+
+def _pr_list(j):
+    if not isinstance(j, list):
+        raise ValueError('odpowiedź bez listy świec')
+    return j
+
+
+def pr_cb_rows(j, hour=False):
+    """Świece Coinbase [czas początku (s), low, high, open, CLOSE, volume] → {minuta (albo godzina 'RRRR-MM-DDTHH') UTC: zamknięcie}.
+    Zamknięcie to indeks 4 (nie 1). Zła świeca pominięta; odpowiedź bez listy → ValueError (awaria giełdy, nie brak minut)."""
+    out = {}
+    for r in _pr_list(j):
+        if isinstance(r, list) and len(r) >= 5 and isinstance(r[0], (int, float)) and not isinstance(r[0], bool):
+            c = _pr_px(r[4])
+            if c is not None:
+                out[_pr_mstr(r[0])[:13 if hour else 16]] = c
+    return out
+
+
+def pr_bn_rows(j, hour=False):
+    """Świece Binance [openTime ms, open, high, low, CLOSE (tekst), …] → {minuta (albo godzina) UTC: zamknięcie jako float}."""
+    out = {}
+    for r in _pr_list(j):
+        if isinstance(r, list) and len(r) >= 5 and isinstance(r[0], (int, float)) and not isinstance(r[0], bool):
+            c = _pr_px(r[4], text=True)
+            if c is not None:
+                out[_pr_mstr(r[0] // 1000)[:13 if hour else 16]] = c
+    return out
+
+
+def pr_closed(m, now):
+    """Czy minuta `m` ('RRRR-MM-DDTHH:MM', początek) jest zamknięta w chwili `now`: ściśle przed bieżącą minutą (wszystkie giełdy
+    zwracają też minutę otwartą — ta nigdy nie wchodzi do premii)."""
+    return isinstance(m, str) and m < now.astimezone(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M')
+
+
+def _pr_shift(m, k):
+    return (datetime.datetime.strptime(m, '%Y-%m-%dT%H:%M') + datetime.timedelta(minutes=k)).strftime('%Y-%m-%dT%H:%M')
+
+
+def _pr_ffill(adj, m, k=None):
+    """Cena z minuty m albo z najbliższej wcześniejszej, najwyżej k (PR_FFILL_USDT) minut wstecz; brak → None."""
+    for i in range((PR_FFILL_USDT if k is None else k) + 1):
+        v = adj.get(_pr_shift(m, -i))
+        if v is not None:
+            return v
+    return None
+
+
+def pr_prem(a, b, fx=None, adj=None, before=None, use=None, need=None):
+    """Premia nogi a wobec nogi b w %: (a / (b × fx × adj) − 1) × 100 w każdej minucie obecnej w a i w b (adj = cena USDT-USD tej samej minuty,
+    przeniesiona najwyżej PR_FFILL_USDT minut), ściśle przed minutą `before`; mediana z ostatnich `use` takich minut. → (p, [minuty rosnąco])
+    albo None, gdy minut < need, noga pusta albo fx ≤ 0 (brak, nigdy 0)."""
+    use = PR_USE if use is None else use
+    need = PR_MIN if need is None else need
+    if not a or not b or (fx is not None and not (isinstance(fx, (int, float)) and fx > 0)):
+        return None
+    vals, used = [], []
+    for m in sorted((m for m in a if m in b and (before is None or m < before)), reverse=True):
+        k = 1.0
+        if adj is not None:
+            k = _pr_ffill(adj, m)
+            if k is None:
+                continue
+        vals.append((a[m] / (b[m] * (fx or 1.0) * k) - 1) * 100)
+        used.append(m)
+        if len(used) >= use:
+            break
+    if len(used) < need:
+        return None
+    return statistics.median(vals), sorted(used)
+
+
+def _pr_r(x, d=3):
+    return None if x is None else round(x, d)
+
+
+def _pr_keep(b, why, coins, until=None):
+    """Giełda z błędem: poprzedni odczyt pary w całości (z jego oknem i czasem) oznaczony stale; bez poprzedniego — brak z powodem
+    (why = blocked: until = koniec przerwy giełdy, ISO — strona pokazuje czas kolejnej próby)."""
+    if isinstance(b, dict) and b.get('win'):
+        return dict(b, stale=True)
+    out = dict({'win': None, 'seen': None, 'stale': True, 'why': why}, **{c: None for c in coins})
+    if why == 'blocked' and until:
+        out['until'] = until
+    return out
+
+
+def _pr_until(blok, venues):
+    """Najpóźniejszy koniec przerwy wśród giełd `venues` (ISO z pola blok) albo None."""
+    return max((blok[v] for v in venues if isinstance(blok.get(v), str)), default=None)
+
+
+def _pr_cb_now(L, before, seen):
+    """Blok now.cb z nóg jednego przebiegu: BTC i ETH — premia poprawiona (USDT→USD), surowa i (BTC) wobec pary z USDC; każda moneta
+    z własnym oknem minut `w`; ceny z ostatniej minuty okna (m)."""
+    cb, bn = L['cb'], L['bn']
+    out = {'win': None, 'seen': seen, 'stale': False, 'why': None}
+    ws = []
+    for c in PR_COINS:
+        r = pr_prem(cb[c], bn[c], adj=cb['usdt'], before=before)
+        if r is None:
+            out[c] = {'p': None, 'n': len([m for m in cb[c] if m in bn[c] and m < before]), 'why': 'few_minutes'}
+            continue
+        p, used = r
+        sub = {m: cb[c][m] for m in used}
+        raw = pr_prem(sub, bn[c], before=before)
+        m = used[-1]
+        o = {'p': _pr_r(p), 'raw': _pr_r(raw[0]) if raw else None, 'n': len(used), 'w': [used[0], m], 'm': m,
+             'cb': round(cb[c][m], 2), 'bn': round(bn[c][m], 2), 'usdt': round(_pr_ffill(cb['usdt'], m), 5)}
+        if c == 'btc':
+            u = pr_prem(sub, bn.get('usdc') or {}, before=before)
+            o['usdc'] = _pr_r(u[0]) if u else None
+        out[c] = o
+        ws += [used[0], m]
+    if ws:
+        out['win'] = [min(ws), max(ws)]
+    else:
+        out['why'] = 'few_minutes'
+    return out
+
+
+def _pr_live_cb(now, cnt):
+    """Świece 1 min Coinbase z ostatnich PR_WIN minut (i minuty bieżącej) → {'btc', 'eth', 'usdt': {minuta: zamknięcie}}."""
+    e = int(now.timestamp()) // 60 * 60
+    return {c: pr_cb_rows(pr_get('cb', PR_CB.format(p=p, g=60, a=e - PR_WIN * 60, b=e), cnt)) for c, p in PR_CB_P.items()}
+
+
+def _pr_live_bn(now, cnt):
+    """Świece 1 min Binance (BTCUSDT, ETHUSDT, BTCUSDC) z ostatnich PR_WIN minut → {'btc', 'eth', 'usdc': {minuta: zamknięcie}}."""
+    e = int(now.timestamp()) // 60 * 60
+    return {c: pr_bn_rows(pr_get('bn', PR_BN.format(s=s, i='1m', a=(e - PR_WIN * 60) * 1000, n=PR_WIN + 1), cnt)) for c, s in PR_BN_S.items()}
+
+
+def _pr_hist_prev(rows, today, keep, width):
+    """Poprzednie wiersze historii: [doba, …] (długość `width`) z poprawną datą w oknie `keep` dób przed dziś (bez dziś), bez powtórzeń,
+    rosnąco; pola liczbowe: liczba albo None (nigdy 0 w miejsce braku)."""
+    first = (today - datetime.timedelta(days=keep)).isoformat()
+    out = {}
+    for r in rows if isinstance(rows, list) else []:
+        if isinstance(r, list) and len(r) == width and isinstance(r[0], str) and _d(r[0]) and first <= r[0][:10] < today.isoformat():
+            out[r[0][:10]] = [r[0][:10]] + [x if (isinstance(x, (int, float)) and not isinstance(x, bool)) or isinstance(x, str) else None for x in r[1:]]
+    return [out[k] for k in sorted(out)]
+
+
+def _pr_cb_day(day, cb, bn, us):
+    """Wiersz h_cb doby UTC `day`: [doba, średnia premii poprawionych, średnia surowych, godzin] z godzin obecnych we wszystkich trzech
+    nogach; mniej niż PR_HMIN godzin → [doba, None, None, godzin]."""
+    ps, rs = [], []
+    for h in range(24):
+        k = f'{day}T{h:02d}'
+        if k in cb and k in bn and k in us:
+            ps.append((cb[k] / (bn[k] * us[k]) - 1) * 100)
+            rs.append((cb[k] / bn[k] - 1) * 100)
+    if len(ps) < PR_HMIN:
+        return [day, None, None, len(ps)]
+    return [day, round(sum(ps) / len(ps), 3), round(sum(rs) / len(rs), 3), len(ps)]
+
+
+def _pr_hist_cb(rows, now, cnt, notes):
+    """Dopełnia historię h_cb (lista wierszy, zmieniana w miejscu) od najnowszej brakującej doby wstecz, paczkami PR_CHUNK_D dób (świece 1 h:
+    Coinbase BTC-USD i USDT-USD, Binance BTCUSDT), najwyżej PR_BACK_CB paczek. Istniejące wiersze nie są nadpisywane. Koniec czasu → uwaga,
+    zrobione paczki zostają. Pusta odpowiedź którejś nogi = błąd paczki (nic nie zapisane, ponowienie w następnym przebiegu)."""
+    today = now.date()
+    first = today - datetime.timedelta(days=PR_KEEP_CB)
+    y0 = 1 if now.hour * 60 + now.minute >= PR_HIST_M else 2
+    have = {r[0] for r in rows}
+    miss = [d for d in (today - datetime.timedelta(days=i) for i in range(y0, PR_KEEP_CB + 1)) if d >= first and d.isoformat() not in have]
+    done = 0
+    try:
+        while miss and done < PR_BACK_CB:
+            d1 = miss[0]
+            span = [d for d in miss if d > d1 - datetime.timedelta(days=PR_CHUNK_D)]
+            d0 = span[-1]
+            s = int(datetime.datetime.combine(d0, datetime.time(), datetime.timezone.utc).timestamp())
+            e = int(datetime.datetime.combine(d1 + datetime.timedelta(days=1), datetime.time(), datetime.timezone.utc).timestamp())
+            n = (e - s) // 3600
+            cb = pr_cb_rows(pr_get('cb', PR_CB.format(p=PR_CB_P['btc'], g=3600, a=s, b=e - 3600), cnt), hour=True)
+            us = pr_cb_rows(pr_get('cb', PR_CB.format(p=PR_CB_P['usdt'], g=3600, a=s, b=e - 3600), cnt), hour=True)
+            bn = pr_bn_rows(pr_get('bn', PR_BN.format(s=PR_BN_S['btc'], i='1h', a=s * 1000, n=n), cnt), hour=True)
+            if not cb or not us or not bn:
+                raise ValueError(f'historia {d0.isoformat()}…{d1.isoformat()}: pusta odpowiedź')
+            rows.extend(_pr_cb_day(d.isoformat(), cb, bn, us) for d in span)
+            miss = [d for d in miss if d not in span]
+            done += 1
+    except PrBudget:
+        notes.append(f'{PR_LABEL}: historia USA przerwana — limit czasu ({_PR_LIM[0]} s); reszta w następnym przebiegu')
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
+def _pr_ts(v):
+    try:
+        t = datetime.datetime.fromisoformat(str(v))
+        return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return None
+
+
+def _pr_retry_s(v, now):
+    """Nagłówek Retry-After → sekundy: liczba sekund albo data HTTP (liczona od `now`, nie od zegara); brak albo zły → None."""
+    if v is None:
+        return None
+    s = str(v).strip()
+    if re.fullmatch(r'\d{1,9}', s):
+        return int(s)
+    try:
+        t = email.utils.parsedate_to_datetime(s)
+    except Exception:  # noqa — zły nagłówek = brak
+        return None
+    if t is None:
+        return None
+    t = t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+    return max(0, int((t - now).total_seconds()))
+
+
+def _pr_blok(e, now, blok):
+    """HTTP 429/418 giełdy w tym zapytaniu → przerwa max(PR_BLOK min, Retry-After), najwyżej PR_BLOK_MAX_H h (pole blok; następne przebiegi
+    bez zapytań do niej). Zapytanie niewysłane do giełdy już wstrzymanej (fresh=False) przerwy nie zmienia."""
+    if isinstance(e, PrBlok) and e.fresh and e.venue in PR_PARTS:
+        s = min(max(PR_BLOK * 60, _pr_retry_s(e.retry, now) or 0), PR_BLOK_MAX_H * 3600)
+        blok[e.venue] = (now + datetime.timedelta(seconds=s)).replace(microsecond=0).isoformat()
+
+
+def _pr_fail(out, part, e, now, blok):
+    """Błąd części (giełdy): ok False, wpis w `bledy`; 429/418 — przerwa (_pr_blok)."""
+    out['ok'][part] = False
+    _pr_blok(e, now, blok)
+    out['bledy'][part] = mask(f'{PR_VENUE.get(part, part)}: {e}')[:160]
+
+
+# v129: KOREA — premia BTC i ETH na giełdzie Upbit (KRW) wobec Coinbase (USD) × kurs KRW za 1 USD oraz USDT w Korei wobec samego kursu.
+# Kurs: KRW/EUR ÷ USD/EUR z tego samego dnia roboczego z kursów referencyjnych EBC (pobierany wprost, najwyżej co PR_FX_EVERY min; zapas —
+# ten sam kurs z pliku rynki tego przebiegu, liczony od USD). Kurs starszy niż PR_FX_MAX_D dni kalendarzowych = premia Korei None (fx_stale),
+# nigdy liczona starym kursem po cichu. Historia h_kr: każdy dzień roboczy z kursem — 5 minut przed ustaleniem kursu (14:10 we Frankfurcie =
+# 12:10 UTC latem, 13:10 UTC zimą), wszystkie nogi i kurs z tej samej chwili; wiersz zapisany raz; pusta odpowiedź nogi = ponowienie (najwyżej
+# PR_KR_TRIES prób, potem brak). Upbit: bez nagłówka Origin (inaczej 1 zapytanie na 10 s).
+PR_UP = 'https://api.upbit.com/v1/candles/minutes/1?market={m}&count={n}'       # od najnowszej; candle_date_time_utc = początek minuty
+PR_UP_M = {'btc': 'KRW-BTC', 'eth': 'KRW-ETH', 'usdt': 'KRW-USDT'}
+PR_KR_COINS = ('btc', 'eth', 'usdt')
+PR_ECB = 'https://data-api.ecb.europa.eu/service/data/EXR/D.KRW+USD.EUR.SP00.A?format=csvdata&{q}'
+PR_FX_OBS = 5          # ostatnich dni roboczych w odczycie kursu na żywo (weekend i święta w oknie)
+PR_FX_EVERY = 60       # min: kurs EBC wprost najwyżej co godzinę (zmienia się raz na dzień roboczy)
+PR_FX_MAX_D = 5        # dni kalendarzowych: starszy kurs = brak premii Korei (Wielkanoc, Boże Narodzenie mieszczą się)
+PR_KEEP_KR = 400       # dób historii h_kr (≈ 280 dni roboczych)
+PR_BACK_KR = 8         # dni historii Korei na przebieg (3 zapytania na dzień)
+PR_KR_TRIES = 3        # pustych odpowiedzi nogi w historii Korei (kolejne przebiegi, licznik w pliku: try_kr) — dopiero potem wiersz z brakiem
+PR_NOD_D = 3           # dni: dzień roboczy bez kursu starszy niż tyle = dzień bez ustalania kursu (święto), bez ponownych pytań
+
+
+def pr_up_rows(j):
+    """Świece 1 min Upbit (od najnowszej) → {minuta UTC: trade_price = zamknięcie w KRW}. candle_date_time_utc to początek minuty UTC bez strefy.
+    Zła świeca (0, None, tekst, bool) pominięta; odpowiedź bez listy → ValueError."""
+    out = {}
+    for x in _pr_list(j):
+        if isinstance(x, dict) and isinstance(x.get('candle_date_time_utc'), str) and re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}', x['candle_date_time_utc']):
+            c = _pr_px(x.get('trade_price'))
+            if c is not None:
+                out[x['candle_date_time_utc'][:16]] = c
+    return out
+
+
+def parse_exr_daily_csv(raw):
+    """CSV EBC (EXR D.KRW+USD.EUR.SP00.A) → {dzień: KRW za 1 USD} = KRW/EUR ÷ USD/EUR z TEGO SAMEGO TIME_PERIOD; tylko dni z oboma kursami;
+    puste, NaN albo ≤ 0 OBS_VALUE pominięte (nigdy 0). Kolejność wierszy dowolna."""
+    text = raw.decode('utf-8', 'replace') if isinstance(raw, (bytes, bytearray)) else str(raw or '')
+    d = {'KRW': {}, 'USD': {}}
+    for r in csv.DictReader(io.StringIO(text)):
+        cur, day, v = r.get('CURRENCY'), r.get('TIME_PERIOD'), _pr_px(r.get('OBS_VALUE'), text=True)
+        if cur in d and isinstance(day, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', day) and v is not None:
+            d[cur][day] = v
+    return {k: d['KRW'][k] / d['USD'][k] for k in sorted(set(d['KRW']) & set(d['USD']))}
+
+
+def pr_fixing_utc(day):
+    """Minuta ustalania kursów referencyjnych dnia `day` (ok. 14:10 czasu Frankfurtu) → datetime UTC. Czas letni UE od ostatniej niedzieli marca
+    do ostatniej niedzieli października (zmiana o 01:00 UTC, więc o 14:10 już obowiązuje): latem 12:10 UTC, zimą 13:10 UTC."""
+    def last_sun(y, m):
+        d = datetime.date(y, m, 31)
+        return d - datetime.timedelta(days=(d.weekday() + 1) % 7)
+    summer = last_sun(day.year, 3) <= day < last_sun(day.year, 10)
+    return datetime.datetime(day.year, day.month, day.day, 12 if summer else 13, 10, tzinfo=datetime.timezone.utc)
+
+
+def _pr_ecb_csv(url, cnt):
+    """Zapytanie CSV do EBC: odstęp ECB_SLEEP od poprzedniego zapytania do EBC (wspólny z resztą zbieracza), limit i koniec budżetu jak
+    w pr_get (_pr_send: przekroczenie czasu uciętego przez budżet = PrBudget, nie awaria)."""
+    global _ECB_LAST
+    wait = ECB_SLEEP - (time.monotonic() - _ECB_LAST)
+    if wait > 0:
+        time.sleep(wait)
+    try:
+        return _pr_send(get_bytes, url, cnt)
+    finally:
+        _ECB_LAST = time.monotonic()
+
+
+def _pr_live_up(now, cnt):
+    """Świece 1 min Upbit (KRW-BTC, KRW-ETH, KRW-USDT): ostatnie PR_WIN minut i minuta bieżąca → {'btc', 'eth', 'usdt': {minuta: zamknięcie}}."""
+    return {c: pr_up_rows(pr_get('up', PR_UP.format(m=m, n=PR_WIN + 1), cnt)) for c, m in PR_UP_M.items()}
+
+
+def _pr_fx(out, prev, now, cnt, notes, blok):
+    """Kurs KRW za 1 USD (część fx): (1) poprzedni odczyt z EBC młodszy niż PR_FX_EVERY min — bez zapytania ('cached'); (2) EBC wprost (ostatnie
+    PR_FX_OBS dni roboczych); (3) awaria — NOWSZY z dwóch zapasów: ten sam kurs z pliku rynki tego przebiegu (SAVED, liczony od USD) z jego datą
+    albo poprzedni odczyt z własną datą i czasem (równe daty — poprzedni odczyt wprost). Nigdy kurs bez daty. → (fx: {d, v, src, seen, last} albo None, {dzień: kurs} znanych dni)."""
+    today, seen = now.date(), now.replace(microsecond=0).isoformat()
+    p = prev.get('fx') if isinstance(prev.get('fx'), dict) else None
+    p = p if p and isinstance(p.get('d'), str) and _d(p['d']) and _pr_px(p.get('v')) and isinstance(p.get('seen'), str) and _pr_ts(p['seen']) else None
+    last = {r[0]: r[1] for r in ((p or {}).get('last') or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and _d(r[0]) and _pr_px(r[1])}
+    if p and p.get('src') == 'ecb' and now - _pr_ts(p['seen']) < datetime.timedelta(minutes=PR_FX_EVERY):
+        out['ok']['fx'] = 'cached'
+        return dict(p, last=[[k, last[k]] for k in sorted(last)]), last
+    try:
+        rates = {k: v for k, v in parse_exr_daily_csv(_pr_ecb_csv(PR_ECB.format(q=f'lastNObservations={PR_FX_OBS}'), cnt)).items() if k <= today.isoformat()}
+        if not rates:
+            raise ValueError('brak kursów KRW i USD z tego samego dnia')
+        d = max(rates)
+        last = {k: round(v, 3) for k, v in rates.items()}
+        out['ok']['fx'] = True; out['part_at']['fx'] = seen
+        return {'d': d, 'v': last[d], 'src': 'ecb', 'seen': seen, 'last': [[k, last[k]] for k in sorted(last)]}, last
+    except PrBudget:
+        out['ok']['fx'] = False
+        notes.append(f'{PR_LABEL}: kurs wymiany pominięty — limit czasu ({_PR_LIM[0]} s)')
+    except Exception as e:  # noqa — zapas niżej; brak kursu nigdy nie jest zerem
+        _pr_fail(out, 'fx', e, now, blok)
+    ry = SAVED.get('rynki') if isinstance(SAVED.get('rynki'), dict) else {}
+    fn = ((ry.get('fx') or {}).get('now') or {}) if isinstance(ry.get('fx'), dict) else {}
+    v, d = _pr_px(((fn.get('rates') or {}) if isinstance(fn.get('rates'), dict) else {}).get('KRW')), fn.get('date')
+    if v and isinstance(d, str) and _d(d) and d <= today.isoformat() and fn.get('base') in (None, 'USD') and (not p or d > p['d']):
+        notes.append(f'{PR_LABEL}: kurs wymiany z pliku rynki ({d}) — kurs EBC wprost niedostępny')
+        return {'d': d, 'v': round(v, 3), 'src': 'rynki', 'seen': seen, 'last': [[d, round(v, 3)]]}, dict(last, **{d: round(v, 3)})
+    if p:
+        notes.append(f'{PR_LABEL}: kurs wymiany z poprzedniego odczytu ({p["d"]}) — kurs EBC wprost niedostępny')
+    return (dict(p) if p else None), last
+
+
+def _pr_kr_now(L, fx, before, seen, now):
+    """Blok now.kr z nóg jednego przebiegu (Upbit, Coinbase) i kursu: BTC i ETH — (Upbit KRW / (Coinbase USD × kurs) − 1) × 100; USDT —
+    (Upbit KRW za 1 USDT / kurs − 1) × 100. Kurs z datą (fx_d) i wartością (fx) w bloku; kurs starszy niż PR_FX_MAX_D dni = brak (fx_stale)."""
+    out = {'win': None, 'seen': seen, 'stale': False, 'why': None, 'fx_d': fx['d'] if fx else None, 'fx': fx['v'] if fx else None}
+    if not fx:
+        return dict(out, why='no_fx', **{c: None for c in PR_KR_COINS})
+    if (now.date() - _d(fx['d'])).days > PR_FX_MAX_D:
+        return dict(out, why='fx_stale', **{c: None for c in PR_KR_COINS})
+    up, cb = L['up'], L['cb']
+    ws = []
+    for c in PR_KR_COINS:
+        b = cb[c] if c != 'usdt' else {m: 1.0 for m in up['usdt']}
+        r = pr_prem(up[c], b, fx=fx['v'], before=before)
+        if r is None:
+            out[c] = {'p': None, 'n': len([m for m in up[c] if m in b and m < before]), 'why': 'few_minutes'}
+            continue
+        p, used = r
+        m = used[-1]
+        out[c] = {'p': _pr_r(p), 'n': len(used), 'w': [used[0], m], 'm': m, 'up': round(up[c][m], 2)}
+        if c != 'usdt':
+            out[c]['cb'] = round(cb[c][m], 2)
+        ws += [used[0], m]
+    if ws:
+        out['win'] = [min(ws), max(ws)]
+    else:
+        out['why'] = 'few_minutes'
+    return out
+
+
+def _pr_hist_kr(rows, nod, rates, now, cnt, notes, tries=None):
+    """Dopełnia historię Korei (h_kr; lista zmieniana w miejscu): dzień roboczy D z kursem — 5 minut przed ustaleniem kursu (pr_fixing_utc):
+    Upbit KRW-BTC i KRW-USDT (count=5, to = minuta ustalenia, bez niej) i Coinbase BTC-USD (zakres do minuty ustalenia — ona i późniejsze
+    odrzucone); premia z kursem tego samego dnia. Najnowsze najpierw, najwyżej PR_BACK_KR dni na przebieg; wiersz zapisany raz ([dzień, BTC,
+    USDT albo None, kurs, 'HH:MM' UTC, minut BTC]); null zostaje nullem. Pusta odpowiedź którejś nogi (giełda zwróciła []) = dzień pominięty
+    w tym przebiegu i ponowiony w następnym (licznik prób `tries` = pole try_kr pliku); dopiero po PR_KR_TRIES pustych próbach wiersz z brakiem
+    (None) tej nogi. Kursy starszych dni — jedno zapytanie EBC o zakres; dzień roboczy bez kursu starszy niż PR_NOD_D dni = dzień bez ustalania
+    (nod, bez ponownych pytań) tylko po HTTP 404 (w zakresie nie ma żadnego kursu) albo po odpowiedzi z co najmniej jednym dniem; odpowiedź,
+    z której nie da się odczytać żadnego dnia (HTML, pusta) = błąd, ponowienie w następnym przebiegu. Koniec czasu = uwaga."""
+    tries = {} if tries is None else tries
+    today = now.date()
+    first = today - datetime.timedelta(days=PR_KEEP_KR)
+    have = {r[0] for r in rows}
+    cands = [d for d in (today - datetime.timedelta(days=i) for i in range(PR_KEEP_KR + 1))
+             if d >= first and d.weekday() < 5 and d.isoformat() not in have and d.isoformat() not in nod]
+    batch = cands[:PR_BACK_KR * 2]            # ok. 3 tygodnie dni roboczych: starczy na PR_BACK_KR dni z kursem mimo świąt
+    R = dict(rates)
+    try:
+        need = [d for d in batch if d.isoformat() not in R and d <= today - datetime.timedelta(days=1)]
+        if need:
+            try:
+                got = parse_exr_daily_csv(_pr_ecb_csv(PR_ECB.format(q=f'startPeriod={min(need).isoformat()}&endPeriod={max(need).isoformat()}'), cnt))
+            except urllib.error.HTTPError as e:
+                if e.code != 404:             # 404 = w zakresie nie ma żadnego kursu (same święta)
+                    raise
+                got = None
+            if got == {}:                     # 200 bez żadnego dnia (HTML, pusta odpowiedź) — nie wiadomo, czy to święta: błąd, nic do nod
+                raise ValueError(f'kursy {min(need).isoformat()}…{max(need).isoformat()}: odpowiedź bez kursów — ponowienie w następnym przebiegu')
+            got = got or {}
+            R.update(got)
+            nod.update(d.isoformat() for d in need if d.isoformat() not in got and d <= today - datetime.timedelta(days=PR_NOD_D))
+        done = 0
+        for d in batch:
+            k = d.isoformat()
+            if done >= PR_BACK_KR or k not in R:
+                continue
+            fix = pr_fixing_utc(d)
+            if fix > now:
+                continue
+            e = int(fix.timestamp()); lim = fix.strftime('%Y-%m-%dT%H:%M'); to = fix.strftime('%Y-%m-%dT%H:%M:%SZ')
+            up = pr_up_rows(pr_get('up', PR_UP.format(m=PR_UP_M['btc'], n=PR_USE) + f'&to={to}', cnt))
+            ut = pr_up_rows(pr_get('up', PR_UP.format(m=PR_UP_M['usdt'], n=PR_USE) + f'&to={to}', cnt))
+            cb = pr_cb_rows(pr_get('cb', PR_CB.format(p=PR_CB_P['btc'], g=60, a=e - PR_USE * 60, b=e), cnt))
+            done += 1
+            empty = [n for n, x in (('KRW-BTC', up), ('KRW-USDT', ut), ('BTC-USD', cb)) if not x]
+            if empty:
+                tries[k] = tries.get(k, 0) + 1
+                if tries[k] < PR_KR_TRIES:     # pusta noga — dzień pominięty, ponowienie w następnym przebiegu (nigdy od razu brak na zawsze)
+                    notes.append(f'{PR_LABEL}: historia Korei {k}: pusta odpowiedź ({", ".join(empty)}) — próba {tries[k]} z {PR_KR_TRIES}, ponowienie później')
+                    continue
+            tries.pop(k, None)
+            pb = pr_prem(up, cb, fx=R[k], before=lim)
+            pu = pr_prem(ut, {m: 1.0 for m in ut}, fx=R[k], before=lim)
+            rows.append([k, _pr_r(pb[0]) if pb else None, _pr_r(pu[0]) if pu else None, round(R[k], 3), fix.strftime('%H:%M'),
+                         len(pb[1]) if pb else len([m for m in up if m in cb and m < lim])])
+    except PrBudget:
+        notes.append(f'{PR_LABEL}: historia Korei przerwana — limit czasu ({_PR_LIM[0]} s); reszta w następnym przebiegu')
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
+def build_premie(prev=None, run_t0=None):
+    """data/premie.json — premie cenowe krypto (v128: USA — Coinbase wobec Binance; v129: Korea — Upbit wobec Coinbase × kurs KRW/USD,
+    kurs wymiany, blok now.kr i historia h_kr w minucie ustalania kursu). Kolejność: (1) odczyt na żywo każdej giełdy (3 zapytania),
+    giełda wstrzymana po 429/418 (pole blok, max(PR_BLOK min, Retry-After)) — bez zapytań; (2) blok now.cb: gdy obie giełdy odpowiedziały — nowy odczyt, inaczej
+    poprzedni odczyt w całości ze stale: true (nigdy noga z innej minuty); (3) historia h_cb (nie w spóźnionym przebiegu). Wszystko w jednym
+    limicie czasu (PR_T albo PR_T_LATE). Brak nigdy nie jest zerem; seen z _now_utc()."""
+    t0 = time.monotonic()
+    late = run_t0 is not None and t0 - run_t0 > PR_LATE
+    _PR_LIM[0] = PR_T_LATE if late else PR_T
+    _PR_TERMIN[0] = t0 + _PR_LIM[0]
+    try:
+        return _pr_build(prev, _now_utc().astimezone(datetime.timezone.utc), late)
+    finally:
+        _PR_TERMIN[0] = None
+        _PR_PAUSED.clear()
+
+
+def _pr_build(prev, now, late):
+    """Ciało build_premie (termin budżetu ustawiony i czyszczony przez build_premie)."""
+    prev = prev if isinstance(prev, dict) else {}
+    seen = now.replace(microsecond=0).isoformat()
+    before = now.strftime('%Y-%m-%dT%H:%M')
+    ppa = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    pnow = prev.get('now') if isinstance(prev.get('now'), dict) else {}
+    blok = {k: v for k, v in (prev.get('blok') if isinstance(prev.get('blok'), dict) else {}).items()
+            if k in PR_PARTS and isinstance(v, str) and _pr_ts(v) and _pr_ts(v) > now}
+    _PR_PAUSED.clear(); _PR_PAUSED.update(blok)   # przerwy z poprzednich przebiegów; każde 429/418 teraz dopisuje giełdę (pr_get)
+    out = {'at': NOW, 'v': 1, 'ok': {}, 'part_at': {}, 'bledy': {}, 'blok': blok, 'now': {}, 'keep': PR_KEEP_CB, 'req': 0}
+    cnt, notes, L = [0], [], {}
+    for part, fn in (('cb', _pr_live_cb), ('bn', _pr_live_bn), ('up', _pr_live_up)):   # v129: + Korea
+        if part not in PR_PARTS:
+            continue
+        if part in blok:
+            out['ok'][part] = False
+            notes.append(f'{PR_LABEL}: {PR_VENUE[part]} wstrzymany do {blok[part]} (wcześniej HTTP 429/418) — bez zapytań')
+            continue
+        try:
+            L[part] = fn(now, cnt)
+            out['ok'][part] = True; out['part_at'][part] = seen
+        except PrBudget:
+            out['ok'][part] = False
+            notes.append(f'{PR_LABEL}: {PR_VENUE[part]} pominięty — limit czasu ({_PR_LIM[0]} s)')
+        except Exception as e:  # noqa — giełda z błędem: jej poprzedni odczyt zostaje (stale)
+            _pr_fail(out, part, e, now, blok)
+    for part in PR_PARTS:
+        if part not in out['part_at'] and isinstance(ppa.get(part), str):
+            out['part_at'][part] = ppa[part]
+    why = 'blocked' if any(k in blok for k in ('cb', 'bn')) else 'leg_failed'
+    out['now']['cb'] = _pr_cb_now(L, before, seen) if ('cb' in L and 'bn' in L) else _pr_keep(pnow.get('cb'), why, PR_COINS, _pr_until(blok, ('cb', 'bn')))
+    if 'up' in PR_PARTS:   # v129: Korea — kurs wymiany (część fx) i blok now.kr (Upbit i Coinbase z tego samego przebiegu, nigdy nogi z innej minuty)
+        fx, fx_last = _pr_fx(out, prev, now, cnt, notes, blok)
+        out['fx'] = fx
+        why = 'blocked' if any(k in blok for k in ('up', 'cb')) else 'leg_failed'
+        out['now']['kr'] = _pr_kr_now(L, fx, before, seen, now) if ('up' in L and 'cb' in L) else _pr_keep(pnow.get('kr'), why, PR_KR_COINS, _pr_until(blok, ('up', 'cb')))
+    out['h_cb'] = _pr_hist_prev(prev.get('h_cb'), now.date(), PR_KEEP_CB, 4)
+    if not late and 'cb' in L and 'bn' in L and not _PR_PAUSED & {'cb', 'bn'}:   # giełda wstrzymana w tym przebiegu — bez dalszych zapytań
+        try:
+            _pr_hist_cb(out['h_cb'], now, cnt, notes)
+        except Exception as e:  # noqa — historia z błędem: dotychczasowe wiersze zostają, ponowienie w następnym przebiegu
+            _pr_blok(e, now, blok)
+            out['bledy']['h_cb'] = mask(f'historia USA: {PR_VENUE.get(getattr(e, "venue", ""), "")}{" " if isinstance(e, PrBlok) else ""}{e}')[:160]
+    if 'up' in PR_PARTS:   # v129: historia Korei w minucie ustalania kursu (nie w spóźnionym przebiegu; dzisiejszy dzień roboczy wchodzi po publikacji kursu)
+        out['h_kr'] = _pr_hist_prev(prev.get('h_kr'), now.date() + datetime.timedelta(days=1), PR_KEEP_KR + 1, 6)
+        first = (now.date() - datetime.timedelta(days=PR_KEEP_KR)).isoformat()
+        nod = {x for x in (prev.get('nod') if isinstance(prev.get('nod'), list) else []) if isinstance(x, str) and _d(x) and x >= first}
+        tries = {k: v for k, v in (prev.get('try_kr') if isinstance(prev.get('try_kr'), dict) else {}).items()
+                 if isinstance(k, str) and _d(k) and k >= first and isinstance(v, int) and not isinstance(v, bool) and 0 < v < PR_KR_TRIES}
+        if not late and 'up' in L and 'cb' in L and not _PR_PAUSED & {'up', 'cb'}:   # giełda wstrzymana w tym przebiegu — bez dalszych zapytań
+            try:
+                _pr_hist_kr(out['h_kr'], nod, fx_last, now, cnt, notes, tries)
+            except Exception as e:  # noqa — historia z błędem: dotychczasowe wiersze zostają, ponowienie w następnym przebiegu
+                _pr_blok(e, now, blok)
+                out['bledy']['h_kr'] = mask(f'historia Korei: {PR_VENUE.get(getattr(e, "venue", ""), "")}{" " if isinstance(e, PrBlok) else ""}{e}')[:160]
+        out['nod'] = sorted(nod)
+        have = {r[0] for r in out['h_kr']}
+        out['try_kr'] = {k: tries[k] for k in sorted(tries) if k not in have}   # pustych prób dni jeszcze bez wiersza (ponowienie)
+    out['req'] = cnt[0]
+    if out['bledy']:
+        META['errors'].append(mask(f'{PR_LABEL}: ' + '; '.join(out['bledy'].values()))[:400])
+    META['notes'].extend(notes)
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -12558,6 +13193,16 @@ def main():
             for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = False
             if cz_key: META['ok']['dzwignia_cz'] = False
             if prev_lv: save('dzwignia', prev_lv)
+    # v128: premie cenowe krypto (bez klucza) — co przebieg, bez pamięci (wartość na żywo jest celem): giełda z błędem = jej poprzedni odczyt
+    # w całości (stale), 429/418 = giełda wstrzymana na PR_BLOK min; awaria całości = poprzedni plik i błąd (strona Źródła: premie_*)
+    prev_pr = previous('premie')
+    try:
+        pr = build_premie(prev_pr, run_t0=_RUN_T0[0]); save('premie', pr)
+        for k in PR_PARTS: META['ok'][f'premie_{k}'] = pr['ok'].get(k) if pr['ok'].get(k) in (True, 'cached') else False
+    except Exception as e:
+        META['errors'].append(mask(f'{PR_LABEL}: {e}'))
+        for k in PR_PARTS: META['ok'][f'premie_{k}'] = False
+        if prev_pr: save('premie', prev_pr)
     # v105: wieloryby — portfele giełd na Ethereum (bez klucza): co przebieg (kilka żądań zbiorczych); awaria = poprzedni plik i błąd
     # v112: z kluczem ETHERSCAN_KEY (sekret właściciela ETHERSCAN) także transfery ETH natywne — klucz tylko w adresie zapytania, maskowany w błędach
     eth_key = os.environ.get('ETHERSCAN_KEY', '').strip()

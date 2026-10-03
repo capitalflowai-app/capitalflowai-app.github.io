@@ -29,9 +29,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'fed', 'lancuch', 'insider', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'fed', 'lancuch', 'insider', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'fed': 90, 'lancuch': 90, 'insider': 48 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'fed': 90, 'lancuch': 90, 'insider': 48 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -39,6 +39,7 @@ LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 18
 # EIA: ceny dzienne ropy są publikowane raz w tygodniu (środa, za poprzedni tydzień) — próg tygodniowy 9 dni, nie 36 h (26.09: dane z wtorku w sobotę = 3 dni).
 SWIEZOSC = [
     ('rynki (kursy EBC, rentowności)', 'rynki', 'h', 180), ('wieloryby (salda portfeli giełd)', 'wieloryby', 'h', 180), ('dźwignia (giełdy pochodnych)', 'dzwignia', 'h', 180),
+    ('premie krypto (minuty giełd)', 'premie', 'h', 180),
     ('TGA (Fiscal Data, dziennie)', 'instytucje', 'd', 36 * 60), ('ETF krypto (SoSoValue, dziennie)', 'etf', 'd', 36 * 60),
     ('FRED dzienne (RRPONTSYD)', 'fred', 'd', 36 * 60), ('EIA ceny dzienne (publikowane co tydzień)', 'energia', 'w', 9 * 24 * 60),
     ('CFTC (raport tygodniowy)', 'cftc', 'w', (9 + 3) * 24 * 60), ('FRED tygodniowe (WALCL)', 'fred', 'w', 9 * 24 * 60),
@@ -143,6 +144,11 @@ def data_danych(name, j):
             if name == 'dzwignia':   # v126: część `cz` (źródło zbiorcze, dobierana co przebieg) nie świadczy o świeżości odczytów bezpośrednich
                 pa = {k: x for k, x in pa.items() if k != 'cz'}
             v = max((x for x in pa.values() if isinstance(x, str)), default=None)
+            return (v, 'ts') if v else None
+        if name == 'premie':   # v128: najnowsza minuta odczytu na żywo (koniec okna) spośród bloków now.*
+            N = j.get('now') or {}
+            v = max((B['win'][1] for B in N.values() if isinstance(B, dict) and isinstance(B.get('win'), list) and len(B['win']) == 2
+                     and isinstance(B['win'][1], str)), default=None)
             return (v, 'ts') if v else None
         if name == 'wieloryby':
             v = (j.get('part_at') or {}).get('salda') or j.get('at')
@@ -383,6 +389,65 @@ def wieloryby_porownanie(path):
         if roz > WH_MIN_USD and roz > WH_PROG / 100 * max(abs(delta), abs(net), WH_MIN_USD):
             zle.append((k[0], k[1], delta, net, roz))
     return d, p, zle, n
+
+
+PR_USDC_PP = 0.10    # v128: pkt proc. — premia USA przez USDT (poprawiona) vs przez parę z USDC; większa różnica = uwaga (kurs USDT albo USDC odbiega od dolara?)
+PR_CB_MAX = 2.0      # % — |premia USA| ponad to = możliwy zły odczyt (uwaga)
+PR_STARE_H = 3       # h — ostatnia minuta odczytu starsza, choć plik młody = giełdy nie odpowiadają (uwaga)
+PR_KR_MAX, PR_USDT_MAX = 10.0, 5.0   # v129: % — |premia Korei BTC/ETH| i |USDT w Korei| ponad to = możliwy zły odczyt (uwaga)
+PR_FX_PCT = 0.01     # v129: % — kurs KRW/USD wprost vs ten sam kurs w pliku rynki (ta sama data); większa różnica = uwaga
+
+
+def premie_porownanie(prem, rynki=None, now=None):
+    """v128: zgodność premii krypto bez sieci (plik premie.json; v129 także rynki.json) → {'opis', 'uwagi', 'cb_usdc_pp'}.
+    Tylko uwagi (⚠️), nigdy błąd: dziwny rynek to nie awaria strony."""
+    now = now or NOW
+    out = {'opis': '', 'uwagi': [], 'cb_usdc_pp': None}
+    if not isinstance(prem, dict):
+        out['opis'] = 'plik nie wczytany'
+        return out
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)   # noqa: E731
+    N = prem.get('now') if isinstance(prem.get('now'), dict) else {}
+    cb = N.get('cb') if isinstance(N.get('cb'), dict) else {}
+    txt = []
+    b = cb.get('btc') if isinstance(cb.get('btc'), dict) else {}
+    p, u = b.get('p'), b.get('usdc')
+    if num(p) and num(u):
+        g = round(abs(p - u), 3); out['cb_usdc_pp'] = g
+        txt.append(f'USA BTC {p:+.2f}% (przez USDC {u:+.2f}%, różnica {g:.2f} pkt proc.)')
+        if g > PR_USDC_PP:
+            out['uwagi'].append(f'premia USA: przeliczenie przez USDT i przez USDC różni się o {g:.2f} pkt proc. (próg {PR_USDC_PP:g}) — kurs USDT albo USDC odbiega od dolara?')
+    for c in ('btc', 'eth'):
+        x = (cb.get(c) or {}).get('p') if isinstance(cb.get(c), dict) else None
+        if num(x) and abs(x) > PR_CB_MAX:
+            out['uwagi'].append(f'premia USA {c.upper()} {x:+.2f}% (ponad ±{PR_CB_MAX:g}%) — możliwy zły odczyt')
+    last = max((B['win'][1] for B in N.values() if isinstance(B, dict) and isinstance(B.get('win'), list) and len(B['win']) == 2
+                and isinstance(B['win'][1], str)), default=None)
+    wp = wiek_danych(prem.get('at'), 'ts', 'h', now) if isinstance(prem.get('at'), str) else None
+    wm = wiek_danych(last, 'ts', 'h', now) if last else None
+    if wp is not None and wp <= LIMIT_MIN['premie'] and (wm is None or wm > PR_STARE_H * 60):
+        out['uwagi'].append('premie krypto: giełdy nie odpowiadają — ' + (f'ostatnia minuta odczytu {last} UTC ({fmt_wiek(wm)} temu)' if last else 'brak odczytu') + ', choć plik jest świeży')
+    # v129: Korea — (c) |premia BTC/ETH| > PR_KR_MAX %, |USDT| > PR_USDT_MAX % = możliwy zły odczyt; (b) kurs EBC wprost vs ten sam kurs
+    # w pliku rynki (ta sama data): różnica > PR_FX_PCT % = uwaga (plik rynki zmienił metodę kursu?)
+    kr = N.get('kr') if isinstance(N.get('kr'), dict) else {}
+    for c, lim in (('btc', PR_KR_MAX), ('eth', PR_KR_MAX), ('usdt', PR_USDT_MAX)):
+        x = (kr.get(c) or {}).get('p') if isinstance(kr.get(c), dict) else None
+        if num(x):
+            if c == 'btc':
+                txt.append(f'Korea BTC {x:+.2f}% (kurs z {kr.get("fx_d") or "—"})')
+            if abs(x) > lim:
+                out['uwagi'].append(f'premia Korei {c.upper()} {x:+.2f}% (ponad ±{lim:g}%) — możliwy zły odczyt')
+    fx = prem.get('fx') if isinstance(prem.get('fx'), dict) else {}
+    fr = ((rynki.get('fx') or {}).get('now') or {}) if isinstance(rynki, dict) and isinstance(rynki.get('fx'), dict) else {}
+    a, b2 = fx.get('v'), (fr.get('rates') or {}).get('KRW') if isinstance(fr.get('rates'), dict) else None
+    out['fx_gap_pct'] = None
+    if fx.get('src') == 'ecb' and num(a) and num(b2) and b2 > 0 and fx.get('d') == fr.get('date'):
+        g = abs(a / b2 - 1) * 100; out['fx_gap_pct'] = round(g, 4)
+        txt.append(f'kurs KRW/USD {fx["d"]}: wprost {a:.3f}, w pliku rynki {b2:.3f} (różnica {g:.3f}%)')
+        if g > PR_FX_PCT:
+            out['uwagi'].append(f'kurs KRW/USD {fx["d"]}: kurs wprost {a:.3f} i kurs z pliku rynki {b2:.3f} różnią się o {g:.3f}% (próg {PR_FX_PCT:g}%) — plik rynki zmienił metodę kursu?')
+    out['opis'] = '; '.join(txt) or 'brak odczytu'
+    return out
 
 
 def czerwone_z_historii(hist, n=None):
@@ -894,6 +959,9 @@ def kontrola():
     except Exception as e:  # noqa
         Z['etf_emitent'] = {'status': '?', 'blad': str(e)[:120], 'fundusze': {}}
         R['uwagi'].append(f'ETF u źródła (pliki emitenta): kontrola przerwana ({str(e)[:80]})')
+    # 3e. v128: zgodność premii krypto (bez sieci: plik premie i wczytany rynki) — tylko uwagi, nigdy błąd (dziwny rynek to nie awaria strony)
+    Z['premie'] = premie_porownanie(files.get('premie'), files.get('rynki'))
+    R['uwagi'] += Z['premie']['uwagi']
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -983,6 +1051,9 @@ def raport_md(R):
             L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo, rozbieżności > 5%: {len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}.')
         else:
             L.append('- Wieloryby: archiwum ma mniej niż dwa dni — porównanie od jutra.')
+        pz = Z.get('premie')
+        if pz:
+            L.append(f'- Premie krypto: {pz.get("opis") or "—"} ' + ('⚠️' if pz.get('uwagi') else '✅') + '.')
         em = Z.get('etf_emitent') or {}   # v130: ETF krypto u źródła — tylko różnice i daty (+ koniec pliku emitenta i jego zaległość); brak = „—”
         cz = [emitent_linia(t, F) for t, F in (em.get('fundusze') or {}).items()]
         L.append(f'- ETF krypto u źródła — przepływy funduszy na stronie vs wyliczenie z plików emitenta (dzień D = zmiana liczby jednostek D → D+1 × NAV z D; '

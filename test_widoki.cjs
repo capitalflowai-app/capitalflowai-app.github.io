@@ -7498,3 +7498,290 @@ test('v131: Fed — zero kontraktów to brak („—”), nie 0: kafel otwartych
   for (const r of trs) assert.ok(r.includes('</td><td class="fed-w"><span class="cell mono na">—</span></td><td class="fed-w">'), 'otwarte kontrakty wyniku 0 — kreska z klasą braku: ' + r.slice(0, 160));
   assert.ok(!/<b>0<small|"v":"0"\}|>0<\/span>/.test(b), 'nigdzie zera zamiast braku');
 });
+
+/* ===================== v128: PREMIE CENOWE KRYPTO — USA (data/premie.json), słownik EXTRA129, sekcja #c-premie w CRYPTO ===================== */
+const prm128 = (() => {
+  const a0 = html.indexOf('/* ===================== v128: PREMIE CENOWE KRYPTO'), a1 = html.indexOf('\nfunction prmApply(', a0);
+  assert.ok(a0 > 0 && a1 > a0, 'blok v128 na stronie');
+  const r0 = html.indexOf('function arcMs('), r1 = html.indexOf('function arcBlock(', r0);
+  assert.ok(r0 > 0 && r1 > r0, 'funkcje wykresu archiwum');
+  const T = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const NF = (v, d) => Number(v).toFixed(d);
+  const now = Date.parse('2026-09-27T20:06:30Z');   // zegar przypięty: blok strony dostaje Date z tą chwilą jako „teraz” (wynik nie zależy od godziny testu)
+  class FD extends Date { constructor(...a) { if (a.length) super(...a); else super(now); } static now() { return now; } }
+  const mk = (o = {}) => {
+    const t = o.t || T, nfmt = o.nfmt || NF;
+    const A = new Function('t', 'nfmt', 'escH', html.slice(r0, r1) + '\nreturn {arcChart, arcWin};')(t, nfmt, v96src.escH);
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    const X = new Function('$', 't', 'nfmt', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'flagImg', 'glyphImg', 'arcChart', 'arcWin', 'Date',
+      html.slice(a0, a1) + '\nreturn {PRM, PRM_TXT, PRM_WHY, prmTxt, PRM_COINS, PRM_NOISE, PRM_OLD, PRM_DEAD, prmPct, prmTone, prmMs, prmHM, prmAge, prmAgo, prmCoin, prmWhy, prmCard, prmUs, prmTiles, prmHist, prmLines, prmChart, renderPrm, prmOk};')(
+      q => q === '#c-premie' ? el : null, t, nfmt, v96src.escH,
+      {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'}, o.LANG || 'pl',
+      s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')', x => `<span class="icos">${x}</span>`,
+      (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="fl ${c}">${s}</i>`, (n, c) => `<i class="gl ${c}">${n}</i>`, A.arcChart, A.arcWin, FD);
+    X.el = el; X.show = D => { X.PRM.data = D; X.renderPrm(); return el; };
+    return X;
+  };
+  const mm = k => new Date(Math.floor(now / 60000) * 60000 - k * 60000).toISOString().slice(0, 16);   // minuta sprzed k minut (UTC)
+  const day = k => new Date(now - k * 864e5).toISOString().slice(0, 10);
+  const coin = (p, k, x) => Object.assign({p, raw: -0.019, n: 5, w: [mm(k + 4), mm(k)], m: mm(k), cb: 84731.2, bn: 84748, usdt: 0.99975}, x || {});
+  const file = (o = {}) => Object.assign({at: new Date(now - 5 * 60e3).toISOString(), v: 1, ok: {cb: true, bn: true},
+    now: {cb: {win: [mm(7), mm(3)], seen: new Date(now - 5 * 60e3).toISOString(), stale: false, why: null, btc: coin(0.061, 3, {usdc: -0.008}), eth: coin(-0.081, 3, {cb: 2702.3, bn: 2703})}},
+    h_cb: Array.from({length: 60}, (_, i) => [day(60 - i), 0.01 * (i % 7) - 0.02, -0.03, 24])}, o);
+  return {mk, T, mm, day, coin, file, now, FD};
+})();
+
+test('v128: premie — pomocnicze: procent ze znakiem z pokazanej liczby, kolor tylko poza szumem, minuty i wiek, historia bez zer w miejsce braków', () => {
+  const X = prm128.mk();
+  assert.equal(X.prmPct(0.061), '+0.06 %'); assert.equal(X.prmPct(-0.081), '−0.08 %', 'minus U+2212'); assert.equal(X.prmPct(0.004), '0.00 %', '0,00 bez znaku');
+  assert.equal(X.prmPct(-0.004), '0.00 %'); assert.equal(X.prmPct(null), '—'); assert.equal(X.prmPct(NaN), '—'); assert.equal(X.prmPct('1'), '—');
+  assert.deepEqual([0.06, 0.05, 0.049, 0, -0.04, -0.05, -0.08, null].map(X.prmTone), ['pos', 'pos', '', '', '', 'neg', 'neg', ''], 'szum ±0,05 bez koloru');
+  assert.equal(X.PRM_NOISE, 0.05); assert.equal(X.PRM_OLD, 60); assert.equal(X.PRM_DEAD, 180); assert.deepEqual(X.PRM.ok, [30, 90, 400]); assert.equal(X.PRM.per, 90);
+  assert.equal(X.prmMs('2026-09-27T20:05'), Date.parse('2026-09-27T20:05:00Z')); assert.ok(isNaN(X.prmMs('2026-09-27 20:05'))); assert.ok(isNaN(X.prmMs(null)));
+  assert.equal(X.prmAge(prm128.mm(3)), 2, 'wiek od końca minuty'); assert.equal(X.prmAge('x'), null);
+  assert.equal(X.prmAgo(0), 'prm.ago.now'); assert.equal(X.prmAgo(5), 'prm.ago.m{"n":5}'); assert.equal(X.prmAgo(185), 'prm.ago.h{"n":3}'); assert.equal(X.prmAgo(3000), 'prm.ago.d{"n":2}'); assert.equal(X.prmAgo(null), '');
+  assert.deepEqual(X.prmHist([['2026-09-02', 0.1], ['2026-09-01', null], ['2026-09-01', 0.2], ['zła', 1], ['2026-09-03', 'x'], 'x', ['2026-09-04', true], ['2026-09-03', -0.3]], 1),
+    [['2026-09-01', 0.2], ['2026-09-02', 0.1], ['2026-09-03', -0.3]], 'null, tekst, bool i zła data odrzucone (luka, nie zero); rosnąco; powtórzona doba — ostatnia liczba');
+  assert.deepEqual(X.prmHist(null, 1), []);
+  assert.equal(X.prmCoin({btc: {p: 0.1, w: ['x', 'y']}}, 'btc'), null, 'zła minuta okna = brak'); assert.equal(X.prmCoin(null, 'btc'), null);
+  assert.equal(X.prmWhy({btc: {p: null, why: 'few_minutes'}}, 'btc'), 'prm.na.min'); assert.equal(X.prmWhy({why: 'leg_failed', btc: null}, 'btc'), 'prm.na.leg');
+  assert.equal(X.prmWhy({why: 'blocked'}, 'eth'), 'prm.na.blk'); assert.equal(X.prmWhy({}, 'eth'), 'eng.gap', 'nieznany powód — ogólne „brak danych, nie zero”');
+});
+
+test('v128: premie — panel z pliku: dwa kafle USA z minutami, wiekiem, cenami i wartością bez przeliczenia USDT; szum bez koloru; stary odczyt „—”; wykres dzienny 30/90/400', () => {
+  const X = prm128.mk(), el = X.show(prm128.file()), out = el.innerHTML;
+  assert.ok(!el.hidden && out.includes('<h2><span class="icos"><i class="ico sm">BTC</i><i class="ico sm">ETH</i></span>prm.t</h2>') && out.includes('prm.sub') && out.includes('class="live on"'), 'nagłówek, logo monet, plik młody');
+  assert.equal((out.match(/<div class="etfk">/g) || []).length, 2, 'dwa kafle (BTC, ETH)');
+  assert.ok(out.includes('<div class="etfk"><span><span class="icos"><i class="fl sm">us</i><i class="ico sm">BTC</i></span>prm.k.cb{&quot;c&quot;:&quot;BTC&quot;}</span>'), 'flaga USA i logo monety w etykiecie');
+  assert.ok(out.includes('<b class="pos">+0.06 %<small>prm.k.cb.d{"cb":"84731.20","bn":"84748.00","u":"0.99975","m":"'), 'BTC +0,06 % zielone, ceny z ostatniej minuty');
+  assert.ok(out.includes('<small>prm.k.cb.raw{"v":"−0.02 %"}</small>'), 'wartość bez przeliczenia USDT');
+  assert.ok(out.includes('<b class="neg">−0.08 %'), 'ETH −0,08 % czerwone');
+  assert.equal((out.match(/<small class="mtxt">prm\.win\{"n":5,"a":"\d\d:\d\d","b":"\d\d:\d\d"\} · prm\.ago\.m\{"n":2\}<\/small>/g) || []).length, 2, 'minuty okna (czas czytelnika) i wiek pod każdym kaflem');
+  assert.ok(!out.includes('prm.stale') && !out.includes('prm.na.'), 'świeży odczyt bez dopisków');
+  assert.ok(out.split('<svg').length === 2 && out.includes('<svg class="arc-svg sm"') && (out.match(/<polyline class="arc-l l2"/g) || []).length === 1 && !out.includes('arc-l l1'), 'wykres: jeden mały wykres, jedna linia USA');
+  assert.ok(out.includes('<b>prm.h</b>') && out.includes('<i class="l2"></i>prm.h.cb') && out.includes(`prm.h.note{"d":"${prm128.day(1)}"} · age(${prm128.day(1)})`), 'legenda, data i wiek ostatniej doby');
+  assert.ok(out.includes('data-prm-per="30" aria-pressed="false"') && out.includes('data-prm-per="90" aria-pressed="true"') && out.includes('data-prm-per="400" aria-pressed="false"'), 'przełącznik 30/90/400 dni');
+  assert.ok(['prm.not1', 'prm.not2', 'prm.not3', 'prm.not4', 'eng.notsays', 'prm.foot', 'eng.disclaimer', 'id="prm-not"'].every(k => out.includes(k)), '„czego nie mówi”, stopka');
+  assert.ok(!/NaN|undefined|Infinity|null/.test(out), 'bez NaN i „null”');
+  assert.ok(!/Binance Vision|CC BY|Creative Commons|Frankfurter|EBC|ECB|data-api|https?:\/\//.test(out), 'bez podpisów źródeł i licencji w panelu');
+  // szum i zero: bez koloru, z podpowiedzią
+  const z = prm128.file(); z.now.cb.btc.p = 0.04; z.now.cb.eth.p = 0.004;
+  const oz = X.show(z).innerHTML;
+  assert.ok(oz.includes('<b title="prm.noise">+0.04 %') && oz.includes('<b title="prm.noise">0.00 %'), '±0,04 i 0,00 — bez koloru, podpowiedź szumu');
+  // brak: „—” z powodem, nigdy 0
+  const n = prm128.file(); n.now.cb.btc = {p: null, n: 2, why: 'few_minutes'}; n.now.cb.eth = null; n.now.cb.why = null;
+  const on = X.show(n).innerHTML;
+  assert.ok(on.includes('<b class="na">—<small>prm.na.min</small></b>') && on.includes('<b class="na">—<small>eng.gap</small></b>'), 'brak z powodem');
+  assert.ok(on.includes('prm.seen{"t":"['), 'czas próby odczytu'); assert.ok(!/>0\.00 %/.test(on), 'brak to nie zero');
+  const lf = prm128.file(); lf.now.cb = {win: null, seen: null, stale: true, why: 'leg_failed', btc: null, eth: null};
+  assert.equal((X.show(lf).innerHTML.match(/prm\.na\.leg/g) || []).length, 2, 'giełda padła bez poprzedniego odczytu');
+  // v2: przerwa giełdy (429/418, Retry-After) — czas kolejnej próby z pliku; bez czasu — tekst ogólny
+  const bl = prm128.file(); bl.now.cb = {win: null, seen: null, stale: true, why: 'blocked', until: '2026-09-27T22:06:30+00:00', btc: null, eth: null};
+  assert.equal((X.show(bl).innerHTML.match(/prm\.na\.blk\.t\{"t":"\[2026-09-27T22:06:30\+00:00\]"\}/g) || []).length, 2, 'czas kolejnej próby');
+  bl.now.cb.until = 'zły'; assert.equal((X.show(bl).innerHTML.match(/prm\.na\.blk</g) || []).length, 2, 'bez poprawnego czasu — tekst ogólny');
+  // poprzedni odczyt (giełda bez odpowiedzi) — wartość z dopiskiem; wiek > 60 min na żółto; > 3 h — „—” z czasem ostatniego odczytu
+  const st = prm128.file(); st.now.cb.stale = true;
+  assert.equal((X.show(st).innerHTML.match(/<small class="neu">prm\.stale<\/small>/g) || []).length, 2, 'dopisek o poprzednim odczycie');
+  const old = prm128.file(); old.now.cb.btc = prm128.coin(0.2, 130); old.now.cb.eth = prm128.coin(0.2, 185);
+  const oo = X.show(old).innerHTML;
+  assert.ok(/<small class="mtxt neu">prm\.win\{[^<]*prm\.ago\.h\{"n":2\}<\/small>/.test(oo), 'odczyt sprzed ponad 60 min — wiek na żółto');
+  assert.ok(oo.includes('<b class="na">—<small>prm.na.old{"t":"[' + prm128.mm(185) + ':00Z]"}</small></b>'), 'odczyt sprzed ponad 3 h — „—” z czasem ostatniego odczytu, nie liczba');
+  const offl = prm128.file({at: new Date(prm128.now - 4 * 3600e3).toISOString()});
+  assert.ok(X.show(offl).innerHTML.includes('class="live off"'), 'plik starszy niż 3 h — wskaźnik wyłączony');
+  // wykres: mniej niż 2 punkty — bez wykresu; luka ponad 7 kroków przerywa linię, krótsza (weekend) nie; okno 30 dni
+  assert.ok(!X.show(prm128.file({h_cb: [[prm128.day(1), 0.1, 0, 24]]})).innerHTML.includes('<svg'), 'jeden punkt — bez wykresu');
+  assert.ok(!X.show(prm128.file({h_cb: [[prm128.day(2), null, null, 10], [prm128.day(1), 0.1, 0, 24]]})).innerHTML.includes('<svg'), 'doba bez wartości nie jest punktem');
+  const g3 = prm128.file(); g3.h_cb = g3.h_cb.filter((r, i) => i < 30 || i > 32);
+  assert.equal((X.show(g3).innerHTML.match(/<polyline class="arc-l l2"/g) || []).length, 1, 'luka 3 dni — linia ciągła');
+  const g10 = prm128.file(); g10.h_cb = g10.h_cb.filter((r, i) => i < 20 || i > 30);
+  assert.equal((X.show(g10).innerHTML.match(/<polyline class="arc-l l2"/g) || []).length, 2, 'luka 11 dni — przerwa w linii');
+  X.PRM.per = 30; const pts = (X.show(prm128.file()).innerHTML.match(/<polyline class="arc-l l2" points="([^"]+)"/) || ['', ''])[1].split(' ').length;
+  assert.equal(pts, 31, 'okno 30 dni od ostatniej doby'); X.PRM.per = 90;
+  // bez pliku — ukryta
+  const E = X.show(null); assert.ok(E.hidden && E.innerHTML === '');
+});
+
+test('v128: premie — plik przyjęty tylko z czasem i odczytem albo historią; każdy język bez surowych kluczy i miejsc na wartości', () => {
+  const X = prm128.mk(), f = prm128.file();
+  assert.equal(X.prmOk(f), true); assert.equal(X.prmOk({at: f.at, h_cb: [['2026-09-01', 0.1, 0, 24]]}), true, 'sama historia');
+  assert.equal(X.prmOk({now: f.now}), false, 'bez czasu'); assert.equal(X.prmOk({at: 'wczoraj', now: f.now}), false); assert.equal(X.prmOk({at: f.at, now: {}}), false, 'ani odczytu, ani historii');
+  assert.equal(X.prmOk({at: f.at, now: {cb: null}, h_cb: []}), false); assert.equal(X.prmOk(null), false); assert.equal(X.prmOk('x'), false);
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const Y = prm128.mk({t: v96src.tFor(L), LANG: L}), o = Y.show(prm128.file()).innerHTML;
+    assert.ok(!/\bprm\.[a-z]/.test(o) && !/\{[a-z]+\}/.test(o), L + ': brak klucza albo niepodstawiona wartość: ' + (o.match(/\bprm\.[a-z.]+|\{[a-z]+\}/) || [''])[0]);
+    const n = prm128.file(); n.now.cb = {win: null, seen: null, stale: true, why: 'blocked', btc: null, eth: null};
+    assert.ok(!/\bprm\.[a-z]/.test(Y.show(n).innerHTML), L + ': teksty braków');
+  }
+});
+
+test('v128: premie — słownik EXTRA129: 10 języków, te same klucze i miejsca na wartości, nałożony po wcześniejszych, każdy klucz panelu, bez nazw źródeł i licencji', () => {
+  const a = 'const EXTRA129=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0), fl = 'for(const l in EXTRA129)if(I18N[l])Object.assign(I18N[l],EXTRA129[l]);\n';
+  assert.ok(x0 > 0 && html.split(a).length === 2 && html.slice(x1 + 2, x1 + 2 + fl.length) === fl && html.split(fl).length === 2, 'słownik i linia nakładania zaraz po nim');
+  const D = JSON.parse(html.slice(x0 + a.length, x1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = Object.keys(D.pl);
+  const PH = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10, 'kolejność języków'); assert.ok(K.length >= 25 && K.every(k => k.startsWith('prm.')), 'klucze prm.*');
+  const PROV = /Frankfurter|Binance ?Vision|CC BY|Creative Commons|\b(ECB|EBC|EZB|BCE)\b|ЕЦБ|欧洲央行|欧州中央銀行|European Central Bank|Europejski\w* Bank|Coin ?Metrics|Coin ?Gecko|data-api|https?:|\.(com|org|net)\b/;
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(D[L]), K, L + ': klucze');
+    for (const k of K) {
+      assert.ok(typeof D[L][k] === 'string' && D[L][k].trim() && !PROV.test(D[L][k]), L + ' ' + k + ': ' + D[L][k]);
+      assert.equal(PH(D[L][k]), PH(D.pl[k]), L + ' ' + k + ': miejsca na wartości');
+      assert.equal(v96src.I18N[L][k], D[L][k], L + ' ' + k + ': nałożony');
+    }
+  }
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.indexOf('EXTRA129') > apl.indexOf('EXTRA124') && apl.indexOf('EXTRA124') >= 0, 'EXTRA129 po słownikach v126');
+  const b0 = html.indexOf('/* ===================== v128: PREMIE CENOWE KRYPTO'), b1 = html.indexOf('/* v128: premie cenowe krypto; zmiana języka', b0), blk = html.slice(b0, b1);
+  assert.ok(!/binance|coinbase|upbit/i.test(blk), 'kod panelu bez nazw giełd (etykiety tylko ze słownika)');
+  const used = [...blk.matchAll(/t\('(prm\.[a-z0-9.]+)'/g)].map(m => m[1]).concat([...blk.matchAll(/'(prm\.[a-z0-9.]+)'/g)].map(m => m[1]));
+  const ALL = {}; for (const m of html.matchAll(/const (EXTRA1\d\d)=/g)) { const x = html.indexOf(m[0]); Object.assign(ALL, JSON.parse(html.slice(x + m[0].length, html.indexOf(';\n', x))).pl || {}); }
+  for (const k of new Set(used)) assert.ok(ALL[k], 'klucz używany w panelu bez tekstu: ' + k);
+  assert.ok(D.pl['prm.sub'].includes('nigdy zero') && D.pl['prm.sub'].includes('nie przepływ pieniędzy') && D.en['prm.sub'].includes('never zero') && D.en['prm.sub'].includes('not a flow of money'), 'brak ≠ zero, cena ≠ przepływ');
+  assert.ok(D.pl['prm.not2'].includes('tej samej minuty') && D.en['prm.not2'].includes('same minute'), 'USDT ≠ USD: przeliczenie ceną z tej samej minuty');
+  assert.ok(D.pl['prm.k.cb.d'].includes('Coinbase {cb} USD') && D.pl['prm.k.cb.d'].includes('Binance {bn} USDT × {u} USD'), 'które nogi i przeliczenie USDT');
+});
+
+test('v128: premie — sekcja tuż po dźwigni i przed archiwum (CRYPTO, przed widgetami na dole), styl, blok JS, plik serwera, odświeżanie, Metodologia z flagą i logami', () => {
+  const S = '<section class="panel pcard" id="c-premie" hidden></section>';
+  assert.equal(html.split(S).length, 2, 'jedna sekcja');
+  assert.ok(html.includes('    <section class="panel pcard" id="c-dzwignia" hidden></section>\n    ' + S + '\n    <section class="panel pcard" id="c-archiwum" hidden></section>'), 'zaraz po dźwigni, przed archiwum');
+  const x = html.indexOf(S), cr = html.indexOf('id="crypto"'), tv = html.indexOf('<section class="panel pcard" id="tv-heatmap" hidden></section>');
+  assert.ok(cr > 0 && cr < x && tv > x, 'CRYPTO, przed widgetami (które zostają na dole)');
+  assert.equal(html.split('/* v128 premie cenowe krypto */').length, 2, 'jeden blok stylu');
+  assert.ok(html.includes('#c-premie .etfkpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}') && html.includes('#c-premie .etfk b small.neu,#c-premie .etfk>small.mtxt.neu{color:var(--yl-tx)}'), 'styl tylko dla #c-premie');
+  assert.ok(html.indexOf('/* v128 premie cenowe krypto */') < html.indexOf('/* v124 szwajcaria'), 'styl przed stylem Szwajcarii');
+  assert.equal(html.split('/* ===================== v128: PREMIE CENOWE KRYPTO').length, 2, 'jeden blok JS');
+  assert.ok(html.indexOf('/* ===================== v128: PREMIE CENOWE KRYPTO') > html.indexOf("lnLoad();lnAuto();"), 'blok po bloku sieci Bitcoin');
+  assert.ok(html.includes("function prmLoad(){srvJSON('premie').then(prmApply);}") && html.includes('PRM.timer=setInterval(()=>{if(!document.hidden)prmLoad();},10*60*1000);')
+    && html.includes("prmLoad();prmAuto();try{new MutationObserver(()=>renderPrm()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'plik serwera, co 10 min, zmiana języka');
+  assert.ok(html.includes('function prmApply(j){const ok=prmOk(j);if(!ok&&PRM.data)return;'), 'chwilowy błąd pobrania nie zasłania danych');
+  assert.ok(html.includes("closest('button[data-prm-per]')") && html.includes("localStorage.setItem('cfai.prm.per',String(p))"), 'przełącznik okna wykresu');
+  const R = v96src.render('pl', false, null), J = R.txtJakCzytac(), n = Object.keys(R.JAK_ICO).find(k => /^premi[ae] cenow[ae] BTC i ETH/.test(k)) || '';   // v129 rozszerza nazwę wiersza o Koreę
+  const row = J.slice(J.indexOf('<span>' + n + '</span>') - 500, J.indexOf('<span>' + n + '</span>'));
+  assert.ok(n && J.includes('<span>' + n + '</span>') && / us \$BTC \$ETH$|^us \$BTC \$ETH$/.test(R.JAK_ICO[n]) && row.includes('flagi/us.svg') && row.includes('krypto/btc.svg') && row.includes('krypto/eth.svg'), 'Metodologia: wiersz z flagą i logami');
+  assert.ok(html.includes('<tr><td><span class="cell">' + n + '</span></td><td><span class="cell">co 20 minut (notowania minutowe giełd)</span></td>'), 'częstotliwość');
+});
+
+/* ===================== v129: PREMIA KOREI (data/premie.json: now.kr, fx, h_kr), słownik EXTRA130 ===================== */
+const prm129 = (() => {
+  const a0 = html.indexOf('/* ===================== v128: PREMIE CENOWE KRYPTO'), a1 = html.indexOf('\nfunction prmApply(', a0), k0 = html.indexOf('/* ===================== v129: PREMIA KOREI');
+  assert.ok(a0 > 0 && a1 > a0 && k0 > a0 && k0 < a1, 'blok v129 w bloku panelu premii');
+  const r0 = html.indexOf('function arcMs('), r1 = html.indexOf('function arcBlock(', r0);
+  const mk = (o = {}) => {
+    const t = o.t || prm128.T, nfmt = o.nfmt || ((v, d) => Number(v).toFixed(d));
+    const A = new Function('t', 'nfmt', 'escH', html.slice(r0, r1) + '\nreturn {arcChart, arcWin};')(t, nfmt, v96src.escH);
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    const X = new Function('$', 't', 'nfmt', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'flagImg', 'glyphImg', 'arcChart', 'arcWin', 'Date',
+      html.slice(a0, a1) + '\nreturn {PRM, PRM_TXT, PRM_TXT_KR, PRM_WHY, PRM_KR, prmTxt, prmHasKr, prmDay, prmFxLine, prmKr, prmWhy, prmTiles, prmLines, renderPrm};')(
+      q => q === '#c-premie' ? el : null, t, nfmt, v96src.escH,
+      {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'}, o.LANG || 'pl',
+      s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')', x => `<span class="icos">${x}</span>`,
+      (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="fl ${c}">${s}</i>`, (n, c) => `<i class="gl ${c}">${n}</i>`, A.arcChart, A.arcWin, prm128.FD);
+    X.el = el; X.show = D => { X.PRM.data = D; X.renderPrm(); return el; };
+    return X;
+  };
+  const {mm, day, coin} = prm128;
+  const kr = (x = {}) => Object.assign({win: [mm(7), mm(3)], seen: new Date(prm128.now - 5 * 60e3).toISOString(), stale: false, why: null, fx_d: day(2), fx: 1250,
+    btc: coin(0.093, 3, {up: 106009000, cb: 84790}), eth: coin(-0.061, 3, {up: 3380000, cb: 2700}), usdt: Object.assign(coin(0.08, 3, {up: 1251}), {cb: undefined})}, x);
+  const bd = n => { const out = []; for (let i = 1; out.length < n; i++) { const d = new Date(prm128.now - i * 864e5); if (d.getUTCDay() % 6) out.unshift([d.toISOString().slice(0, 10), 0.3 - 0.01 * (i % 9), 0.25, 1250, '12:10', 5]); } return out; };
+  const file = (x = {}) => { const f = prm128.file(); f.now.kr = kr(); f.fx = {d: day(2), v: 1250, src: 'ecb', seen: f.at}; f.h_kr = bd(60); return Object.assign(f, x); };
+  return {mk, kr, bd, file};
+})();
+
+test('v129: premie — panel z Koreą: trzy kafle Korei (flaga, ceny w KRW i USD, kurs z datą i wiekiem, USDT z objaśnieniem) przed dwoma USA, tytuł i uwagi Korei, dwie linie historii', () => {
+  const X = prm129.mk(), el = X.show(prm129.file()), out = el.innerHTML;
+  assert.equal((out.match(/<div class="etfk">/g) || []).length, 5, 'pięć kafli: Korea BTC, ETH, USDT; USA BTC, ETH');
+  const i = s => out.indexOf(s);
+  assert.ok(i('prm.k.kr{&quot;c&quot;:&quot;BTC&quot;}') < i('prm.k.kr{&quot;c&quot;:&quot;ETH&quot;}') && i('prm.k.kr{&quot;c&quot;:&quot;ETH&quot;}') < i('prm.k.usdt</span>') && i('prm.k.usdt</span>') < i('prm.k.cb{&quot;c&quot;:&quot;BTC&quot;}'), 'kolejność kafli');
+  assert.ok(out.includes('<span class="icos"><i class="fl sm">kr</i><i class="ico sm">BTC</i></span>') && out.includes('<i class="fl sm">kr</i><i class="ico sm">USDT</i>'), 'flaga Korei i logo monety');
+  assert.ok(out.includes('<b title="prm.kr.noise">+0.09 %<small>prm.k.kr.d{"up":"106009000","cb":"84790.00","fx":"1250.00","m":"'), 'Korea BTC: ceny obu giełd i kurs; +0,09 — w paśmie niepewności kursu, bez koloru');
+  const fxl = `prm.fx{"d":"${X.prmDay(prm128.day(2))}"} · age(${prm128.day(2)})`;
+  assert.equal(out.split(fxl).length - 1, 3, 'data i wiek kursu pod każdym kaflem Korei'); assert.ok(X.prmDay(prm128.day(2)).length > 5);
+  assert.ok(out.includes('<b title="prm.kr.noise">−0.06 %') && out.includes('<b title="prm.kr.noise">+0.08 %<small>prm.k.usdt.d{"up":"1251.00","fx":"1250.00","m":"') && out.includes('<small>prm.k.usdt.n</small>'), 'ETH, USDT z objaśnieniem');
+  assert.ok(out.includes('prm.kr.t</h2>') && out.includes('prm.kr.sub') && out.includes('prm.not5') && out.includes('prm.kr.foot'), 'tytuł, opis, uwaga o kursie, stopka Korei');
+  // v2: kafle Korei na żywo — kolor dopiero poza ±0,5 pkt proc. (niepewność kursu dziennego); kafle USA — szum ±0,05 bez zmian
+  const pb = prm129.file(); pb.now.kr.btc.p = 0.6; pb.now.kr.eth.p = -0.5; pb.now.kr.usdt.p = 0.49; pb.now.cb.btc.p = 0.06; pb.now.cb.eth.p = 0.049;
+  const ob = X.show(pb).innerHTML;
+  assert.ok(ob.includes('<b class="pos">+0.60 %<small>prm.k.kr.d') && ob.includes('<b class="neg">−0.50 %<small>prm.k.kr.d') && ob.includes('<b title="prm.kr.noise">+0.49 %<small>prm.k.usdt.d'), 'Korea: ±0,5 pkt proc.');
+  assert.ok(ob.includes('<b class="pos">+0.06 %<small>prm.k.cb.d') && ob.includes('<b title="prm.noise">+0.05 %<small>prm.k.cb.d'), 'USA: szum ±0,05 jak dotąd');
+  const f2 = prm129.file(); f2.now.kr.fx = 1300; f2.fx = {d: prm128.day(2), v: 1250, src: 'ecb', seen: f2.at};
+  assert.ok(X.show(f2).innerHTML.includes('"fx":"1300.00"') && !X.show(f2).innerHTML.includes('"fx":"1250.00"'), 'kurs z bloku Korei — ten, którym liczono premię');
+  // v2: osobne małe wykresy z własną osią — Korea (kolumna BTC, nie USDT) i USA, każdy z jedną linią
+  const svgs = out.split('<svg').slice(1);
+  assert.equal(svgs.length, 2, 'dwa wykresy'); assert.ok(svgs.every(v => v.startsWith(' class="arc-svg sm"') && (v.match(/<polyline /g) || []).length === 1), 'każdy wykres: jedna linia, mały');
+  assert.ok(svgs[0].includes('arc-l l1') && !svgs[0].includes('arc-l l2') && svgs[1].includes('arc-l l2') && !svgs[1].includes('arc-l l1'), 'Korea nad USA, bez wspólnej osi');
+  const hk = out.slice(out.indexOf('prm.h.kr'), out.indexOf('<svg'));
+  const lk = prm129.bd(60).slice(-1)[0];   // ostatni dzień roboczy: [dzień, BTC, USDT = 0,25, …]
+  assert.ok(lk[1] !== lk[2] && hk.includes('<b>+' + lk[1].toFixed(2) + ' %</b>') && !hk.includes('+0.25 %'), 'Korea: ostatnia wartość z kolumny BTC, nie USDT (0,25)');
+  assert.equal((out.match(/<polyline class="arc-l l1"/g) || []).length, 1, 'Korea: dni robocze bez weekendów — linia ciągła');
+  assert.equal((out.match(/<polyline class="arc-l l2"/g) || []).length, 1); assert.ok(out.includes('<i class="l1"></i>prm.h.kr') && out.includes('<i class="l2"></i>prm.h.cb') && out.includes('prm.kr.hn{"d":"'), 'legenda obu linii');
+  assert.ok(!/NaN|undefined|Infinity|null/.test(out), 'bez NaN');
+  // kurs starszy niż 5 dni / brak kursu — „—” z powodem (i datą kursu, gdy jest); USA bez zmian
+  const st = prm129.file(); st.now.kr = prm129.kr({why: 'fx_stale', fx_d: prm128.day(7), win: null, btc: null, eth: null, usdt: null});
+  const os = X.show(st).innerHTML;
+  assert.equal((os.match(/<b class="na">—<small>prm\.na\.fx<\/small><small>prm\.fx\{"d":"[^"]+"\} · age\(/g) || []).length, 3, 'kurs za stary: powód i data kursu');
+  assert.ok(os.includes('<b class="pos">+0.06 %'), 'USA liczone dalej');
+  const nf = prm129.file(); nf.now.kr = prm129.kr({why: 'no_fx', fx_d: null, fx: null, win: null, btc: null, eth: null, usdt: null});
+  const on = X.show(nf).innerHTML;
+  assert.equal((on.match(/<b class="na">—<small>prm\.na\.nofx<\/small><\/b>/g) || []).length, 3, 'brak kursu — powód, bez daty'); assert.ok(!on.includes('prm.fx{'));
+  // plik bez danych Korei (zbieracz v128) — jak dotąd: dwa kafle USA i ich teksty
+  const us = prm128.file(), ou = X.show(us).innerHTML;
+  assert.equal((ou.match(/<div class="etfk">/g) || []).length, 2); assert.ok(ou.includes('prm.t</h2>') && !ou.includes('prm.kr.') && !ou.includes('prm.not5'));
+  assert.ok(X.prmHasKr({h_kr: [[prm128.day(3), 0.1, null, 1250, '12:10', 5]]}) && !X.prmHasKr({h_kr: [[prm128.day(3), null, null, 1250, '12:10', 0]]}) && !X.prmHasKr(null), 'Korea: blok albo choć jeden dzień z liczbą');
+  assert.equal(X.prmFxLine({fx: 1250, fx_d: 'zła'}), null, 'kurs bez poprawnej daty nie jest pokazywany'); assert.equal(X.prmFxLine({fx: 0, fx_d: prm128.day(1)}), null);
+  assert.deepEqual(X.PRM_KR, ['btc', 'eth', 'usdt']); assert.equal(X.PRM_WHY.fx_stale, 'prm.na.fx'); assert.equal(X.PRM_WHY.no_fx, 'prm.na.nofx');
+  // stary odczyt Korei — „—” z czasem, poprzedni odczyt (giełda bez odpowiedzi) z dopiskiem
+  const old = prm129.file(); old.now.kr.stale = true; old.now.kr.btc = prm128.coin(0.2, 200, {up: 1, cb: 1});
+  const oo = X.show(old).innerHTML;
+  assert.ok(oo.includes('<b class="na">—<small>prm.na.old{"t":"[') && (oo.match(/<small class="neu">prm\.stale<\/small>/g) || []).length === 2, 'Korea: stary odczyt i poprzedni odczyt');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const Y = prm129.mk({t: v96src.tFor(L), LANG: L});
+    for (const f of [prm129.file(), st, nf]) { const o = Y.show(f).innerHTML; assert.ok(!/\bprm\.[a-z]/.test(o) && !/\{[a-z]+\}/.test(o), L + ': ' + (o.match(/\bprm\.[a-z.]+|\{[a-z]+\}/) || [''])[0]); }
+  }
+});
+
+test('v129: premie — słownik EXTRA130: 10 języków, te same klucze i miejsca na wartości, nałożony po słowniku v128, klucze kodu Korei, bez nazw źródeł', () => {
+  const a = 'const EXTRA130=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0), fl = 'for(const l in EXTRA130)if(I18N[l])Object.assign(I18N[l],EXTRA130[l]);\n';
+  assert.ok(x0 > 0 && html.split(a).length === 2 && html.slice(x1 + 2, x1 + 2 + fl.length) === fl && html.split(fl).length === 2, 'słownik i linia nakładania zaraz po nim');
+  const D = JSON.parse(html.slice(x0 + a.length, x1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = Object.keys(D.pl);
+  const PH = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  const PROV = /Frankfurter|Binance ?Vision|CC BY|Creative Commons|\b(ECB|EBC|EZB|BCE)\b|ЕЦБ|欧洲央行|欧州中央銀行|European Central Bank|Europejski\w* Bank|data-api|https?:|\.(com|org|net)\b/;
+  assert.deepEqual(Object.keys(D), L10); assert.ok(K.length >= 14 && K.every(k => k.startsWith('prm.')));
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(D[L]), K, L + ': klucze');
+    for (const k of K) {
+      assert.ok(typeof D[L][k] === 'string' && D[L][k].trim() && !PROV.test(D[L][k]), L + ' ' + k + ': ' + D[L][k]);
+      assert.equal(PH(D[L][k]), PH(D.pl[k]), L + ' ' + k + ': miejsca na wartości'); assert.equal(v96src.I18N[L][k], D[L][k], L + ' ' + k + ': nałożony');
+    }
+  }
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  const v128 = apl.find(n => { const x = html.indexOf('const ' + n + '='); return x > 0 && html.slice(x, html.indexOf(';\n', x)).includes('"prm.t":'); });
+  assert.ok(v128 && apl.indexOf('EXTRA130') > apl.indexOf(v128), 'EXTRA130 po słowniku v128 (' + v128 + ')');
+  const b0 = html.indexOf('/* ===================== v128: PREMIE CENOWE KRYPTO'), b1 = html.indexOf('/* v128: premie cenowe krypto; zmiana języka', b0), blk = html.slice(b0, b1);
+  const used = [...blk.matchAll(/'(prm\.[a-z0-9.]+)'/g)].map(m => m[1]);
+  const ALL = {}; for (const m of html.matchAll(/const (EXTRA1\d\d)=/g)) { const x = html.indexOf(m[0]); Object.assign(ALL, JSON.parse(html.slice(x + m[0].length, html.indexOf(';\n', x))).pl || {}); }
+  for (const k of new Set(used)) assert.ok(ALL[k], 'klucz bez tekstu: ' + k);
+  assert.ok(!/binance|coinbase|upbit/i.test(blk), 'kod panelu bez nazw giełd');
+  assert.ok(D.pl['prm.not5'].includes('dwóch oficjalnych kursów referencyjnych euro') && D.pl['prm.not5'].includes('przybliżona') && D.en['prm.not5'].includes('approximate'), 'kurs krzyżowy i przybliżenie w weekend');
+  // v2: premia Korei na żywo ZAWSZE przybliżona, zmiana kursu ok. 0,4 % dziennie wchodzi wprost; 1–5 dni; historia z 5 minut przed ustaleniem; czas w UTC
+  assert.ok(D.pl['prm.not5'].includes('zawsze przybliżona') && D.pl['prm.not5'].includes('0,4 %') && D.pl['prm.not5'].includes('1–5 dni') && D.pl['prm.not5'].includes('5 minut przed ustaleniem'), 'pl not5');
+  assert.ok(D.en['prm.not5'].includes('always approximate') && D.en['prm.not5'].includes('0.4%') && D.en['prm.not5'].includes('1–5 days') && D.en['prm.not5'].includes('5 minutes before'), 'en not5');
+  assert.ok(D.pl['prm.kr.sub'].includes('zawsze przybliżona') && D.pl['prm.kr.sub'].includes('0,4 %') && D.en['prm.kr.sub'].includes('always approximate') && D.en['prm.kr.sub'].includes('0.4%'), 'opis panelu: zawsze przybliżona');
+  assert.ok(!/dokładnie|exactly|1–4/.test(D.pl['prm.not5'] + D.en['prm.not5']), 'bez „dokładnie” i „1–4”');
+  const CET = /środkowoeuropejsk|Central European|mitteleuropäisch|Europa Central|Europe centrale|Europa centrale|центральноевропейск|中欧时间|中央ヨーロッパ時間/;
+  for (const L of L10) { for (const k of K) assert.ok(!CET.test(D[L][k]), L + ' ' + k + ': bez niejednoznacznego „czasu środkowoeuropejskiego”'); assert.ok(D[L]['prm.not5'].includes('UTC') && D[L]['prm.kr.hn'].includes('UTC'), L + ': czas w UTC'); }
+  assert.ok(D.pl['prm.kr.noise'].includes('±0,5') && D.en['prm.kr.noise'].includes('±0.5'), 'podpowiedź pasma Korei');
+  assert.ok(D.pl['prm.k.kr.d'].includes('Upbit {up} KRW') && D.pl['prm.k.kr.d'].includes('Coinbase {cb} USD × {fx} KRW/USD'), 'które nogi');
+  assert.ok(D.pl['prm.na.fx'].includes('5 dni') && D.pl['prm.na.fx'].includes('nie zero'), 'kurs starszy niż 5 dni — brak, nie zero');
+});
+
+test('v129: premie — Metodologia: wiersz premii z flagami Korei i USA oraz logami; plan kodu v129 w bloku panelu', () => {
+  const R = v96src.render('pl', false, null), J = R.txtJakCzytac(), n = 'premie cenowe BTC i ETH: Korea i USA';
+  const row = J.slice(J.indexOf('<span>' + n + '</span>') - 500, J.indexOf('<span>' + n + '</span>'));
+  assert.ok(J.includes('<span>' + n + '</span>') && R.JAK_ICO[n] === 'kr us $BTC $ETH' && row.includes('flagi/kr.svg') && row.includes('flagi/us.svg') && row.includes('krypto/btc.svg'), 'wiersz z flagami i logami');
+  assert.ok(!J.includes('<span>premia cenowa BTC i ETH w USA</span>') && !('premia cenowa BTC i ETH w USA' in R.JAK_ICO), 'dawny wiersz v128 zastąpiony');
+  assert.ok(html.includes('kurs wymiany raz dziennie w dni robocze (publikacja około 14:00 UTC latem, 15:00 UTC zimą), w weekend — z piątku, więc premia Korei na żywo jest zawsze przybliżona'), 'częstotliwość kursu (UTC), zawsze przybliżona');
+  assert.ok(!/<tr><td><span class="cell">premie cenowe BTC i ETH: Korea i USA[^\n]*środkowoeuropejsk/.test(html), 'wiersz bez „czasu środkowoeuropejskiego”');
+  assert.equal(html.split('/* ===================== v129: PREMIA KOREI').length, 2, 'jeden blok v129');
+  assert.ok(html.includes("function prmTxt(D){return prmHasKr(D)?PRM_TXT_KR:PRM_TXT;}"), 'teksty Korei tylko z danymi Korei');
+});
