@@ -2349,6 +2349,78 @@ BCB_SERIES = (('fin', 13970), ('fin_buy', 13968), ('fin_sell', 13969), ('com', 1
 BCB_DAYS = 400    # dni kalendarzowe wstecz (v95: ok. 275 dni roboczych — pełna historia dla TRENDÓW od pierwszego przebiegu)
 
 
+# v127.2: zapas — oficjalna usługa SOAP SGS tego samego banku (03.10.2026: host api.bcb.gov.br zniknął z DNS, NXDOMAIN)
+BCB_WS = 'https://www3.bcb.gov.br/wssgs/services/FachadaWSSGS'
+_BCB_WS = {'on': False}   # w tym przebiegu API JSON już zawiodło na poziomie połączenia → kolejne serie od razu z SOAP
+
+
+def _bcb_conn_err(e):
+    """Awaria połączenia (DNS, brak trasy, czas, TLS, zerwane połączenie) — nie odpowiedź HTTP z kodem błędu."""
+    if isinstance(e, urllib.error.HTTPError):
+        return False
+    return isinstance(e, (urllib.error.URLError, OSError, TimeoutError))
+
+
+def _bcb_ws_post(xml, timeout=60):
+    req = urllib.request.Request(BCB_WS, data=xml.encode('utf-8'),
+                                 headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""'})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def _bcb_ws_rows(raw):
+    """Odpowiedź getValoresSeriesXML → [{'data': 'dd/mm/yyyy', 'valor': '…'}] jak z API JSON. Daty usługi: dzienne 'd/m/yyyy',
+    miesięczne 'm/yyyy' (→ pierwszy dzień miesiąca). Wiersz zablokowany albo bez daty/wartości — pominięty (nigdy 0)."""
+    s = raw.decode('utf-8', 'replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    m = re.search(r'<getValoresSeriesXMLReturn[^>]*>(.*?)</getValoresSeriesXMLReturn>', s, re.S)
+    if not m:
+        f = re.search(r'<faultstring>(.*?)</faultstring>', s, re.S)
+        raise RuntimeError('SOAP: ' + (_html.unescape(f.group(1)).strip()[:120] if f else 'nieznany kształt odpowiedzi'))
+    inner = _html.unescape(m.group(1))
+    out = []
+    for it in re.findall(r'<ITEM>(.*?)</ITEM>', inner, re.S):
+        dm = re.search(r'<DATA>\s*([^<]*?)\s*</DATA>', it)
+        vm = re.search(r'<VALOR>\s*([^<]*?)\s*</VALOR>', it)
+        if not dm or not vm or re.search(r'<BLOQUEADO>\s*true\s*</BLOQUEADO>', it, re.I):
+            continue
+        p = dm.group(1).split('/')
+        try:
+            if len(p) == 3:
+                d = f'{int(p[0]):02d}/{int(p[1]):02d}/{int(p[2]):04d}'
+            elif len(p) == 2:
+                d = f'01/{int(p[0]):02d}/{int(p[1]):04d}'
+            else:
+                continue
+        except ValueError:
+            continue
+        if vm.group(1) != '':
+            out.append({'data': d, 'valor': vm.group(1)})
+    return out
+
+
+def _bcb_ws(sid, a, b):
+    """Jedna seria SGS z usługi SOAP (daty a, b jak w API JSON: 'dd/mm/yyyy')."""
+    xml = ('<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
+           'xmlns:pub="http://publico.ws.casosdeuso.sgs.pec.bcb.gov.br" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" '
+           'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"><soapenv:Body>'
+           f'<pub:getValoresSeriesXML><in0 soapenc:arrayType="xsd:long[1]" xsi:type="soapenc:Array"><item>{int(sid)}</item></in0>'
+           f'<in1>{a}</in1><in2>{b}</in2></pub:getValoresSeriesXML></soapenv:Body></soapenv:Envelope>')
+    return _bcb_ws_rows(_bcb_ws_post(xml))
+
+
+def _bcb_get(sid, a, b):
+    """v127.2: seria SGS — API JSON, a przy awarii połączenia usługa SOAP banku (jedna notatka na przebieg; dalsze serie od razu z SOAP)."""
+    if not _BCB_WS['on']:
+        try:
+            return get_json(BCB_URL.format(id=sid, a=a, b=b))
+        except Exception as e:
+            if not _bcb_conn_err(e):
+                raise
+            _BCB_WS['on'] = True
+            META['notes'].append(mask(f'BCB: API JSON nie odpowiada ({str(e)[:90]}) — serie z usługi SOAP tego samego banku'))
+    return _bcb_ws(sid, a, b)
+
+
 def _bcb_date(s):
     m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', str(s or '').strip())
     return f'{m.group(3)}-{m.group(2)}-{m.group(1)}' if m else None
@@ -2367,7 +2439,7 @@ def bcb_bop(prev_m):
     got, fails = {}, []
     for name, sid in BCB_BOP:
         try:
-            j = get_json(BCB_URL.format(id=sid, a=a, b=b))
+            j = _bcb_get(sid, a, b)   # v127.2: z zapasem SOAP przy awarii połączenia
             if not isinstance(j, list):
                 raise RuntimeError('nieznany kształt odpowiedzi')
             for r in j:
@@ -2402,7 +2474,7 @@ def bcb_part(prev_br):
     a, b = (now_br - datetime.timedelta(days=BCB_DAYS)).strftime('%d/%m/%Y'), now_br.strftime('%d/%m/%Y')
     for name, sid in BCB_SERIES:
         try:
-            j = get_json(BCB_URL.format(id=sid, a=a, b=b))
+            j = _bcb_get(sid, a, b)   # v127.2: z zapasem SOAP przy awarii połączenia
             if not isinstance(j, list):
                 raise RuntimeError('nieznany kształt odpowiedzi')
             for r in j:

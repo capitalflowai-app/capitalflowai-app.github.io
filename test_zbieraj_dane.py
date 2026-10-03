@@ -13710,3 +13710,93 @@ class KontrolaPrzebiegiV124_1(unittest.TestCase):
         i = src.index('# 4. przebiegi Actions'); j = src.index('# 5. v115', i)
         self.assertIn('przebiegi_ocena(runs, NOW, kroki)', src[i:j]); self.assertNotIn("R['bledy'].append", src[i:j])
         self.assertIn('/jobs', src[i:j]); self.assertIn('[:5]', src[i:j], 'najwyżej 5 dodatkowych zapytań')
+
+
+import urllib.error as _urlerr_v127_2   # noqa: E402,F401 — v127.2: urllib.error w testach zapasu BCB
+
+
+class BcbZapasV127_2(unittest.TestCase):
+    """v127.2: Brazylia — przy awarii połączenia z API JSON (03.10.2026: api.bcb.gov.br NXDOMAIN) te same serie z usługi SOAP banku;
+    odpowiedź HTTP z błędem nie uruchamia zapasu; jedna notatka na przebieg; daty dzienne i miesięczne; wiersze zablokowane pominięte."""
+
+    XML_D = ('<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body>'
+             '<ns1:getValoresSeriesXMLResponse xmlns:ns1="x"><getValoresSeriesXMLReturn xsi:type="soapenc:string">'
+             "&lt;?xml version='1.0' encoding='ISO-8859-1'?&gt;\n&lt;SERIES&gt;\n&lt;SERIE ID='13970'&gt;\n"
+             '&lt;ITEM&gt;&lt;DATA&gt;17/9/2026&lt;/DATA&gt;&lt;VALOR&gt;-1346.2711&lt;/VALOR&gt;&lt;BLOQUEADO&gt;false&lt;/BLOQUEADO&gt;&lt;/ITEM&gt;\n'
+             '&lt;ITEM&gt;&lt;DATA&gt;18/9/2026&lt;/DATA&gt;&lt;VALOR&gt;-330.4&lt;/VALOR&gt;&lt;BLOQUEADO&gt;true&lt;/BLOQUEADO&gt;&lt;/ITEM&gt;\n'
+             '&lt;ITEM&gt;&lt;DATA&gt;19/9/2026&lt;/DATA&gt;&lt;VALOR&gt;&lt;/VALOR&gt;&lt;BLOQUEADO&gt;false&lt;/BLOQUEADO&gt;&lt;/ITEM&gt;\n'
+             '&lt;ITEM&gt;&lt;DATA&gt;5/10/2026&lt;/DATA&gt;&lt;VALOR&gt;12.5&lt;/VALOR&gt;&lt;BLOQUEADO&gt;false&lt;/BLOQUEADO&gt;&lt;/ITEM&gt;\n'
+             '&lt;/SERIE&gt;\n&lt;/SERIES&gt;</getValoresSeriesXMLReturn></ns1:getValoresSeriesXMLResponse></soapenv:Body></soapenv:Envelope>').encode()
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear(); zd._BCB_WS['on'] = False
+
+    def tearDown(self):
+        zd._BCB_WS['on'] = False
+
+    def test_parse_daily_monthly_blocked_and_empty(self):
+        self.assertEqual(zd._bcb_ws_rows(self.XML_D), [{'data': '17/09/2026', 'valor': '-1346.2711'}, {'data': '05/10/2026', 'valor': '12.5'}],
+                         'zablokowany i pusty wiersz pominięte; daty dopełnione zerami jak w API JSON')
+        mon = self.XML_D.replace(b'17/9/2026', b'7/2026').replace(b'5/10/2026', b'8/2026')
+        self.assertEqual([r['data'] for r in zd._bcb_ws_rows(mon)], ['01/07/2026', '01/08/2026'], 'miesięczne m/yyyy → pierwszy dzień miesiąca')
+        with self.assertRaises(RuntimeError) as c:
+            zd._bcb_ws_rows(b'<soapenv:Fault><faultstring>Serie inexistente</faultstring></soapenv:Fault>')
+        self.assertIn('Serie inexistente', str(c.exception))
+
+    def test_connection_failure_switches_to_soap_once(self):
+        calls = {'json': 0, 'soap': []}
+
+        def gj(url, headers=None):
+            calls['json'] += 1
+            raise urllib.error.URLError(OSError(-2, 'Name or service not known'))
+
+        def post(xml, timeout=60):
+            calls['soap'].append(re.search(r'<item>(\d+)</item>', xml).group(1))
+            return self.XML_D
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', post):
+            a = zd._bcb_get(13970, '01/09/2026', '03/10/2026')
+            b = zd._bcb_get(13961, '01/09/2026', '03/10/2026')
+        self.assertEqual((calls['json'], calls['soap']), (1, ['13970', '13961']), 'po pierwszej awarii połączenia reszta serii od razu z SOAP')
+        self.assertEqual(a, b); self.assertEqual(a[0], {'data': '17/09/2026', 'valor': '-1346.2711'})
+        self.assertEqual(len(zd.META['notes']), 1); self.assertIn('usługi SOAP', zd.META['notes'][0]); self.assertEqual(zd.META['errors'], [])
+
+    def test_http_error_does_not_switch(self):
+        def gj(url, headers=None):
+            raise urllib.error.HTTPError(url, 503, 'Service Unavailable', {}, None)
+
+        def post(xml, timeout=60):
+            raise AssertionError('zapas SOAP nie przy odpowiedzi HTTP z błędem')
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', post):
+            with self.assertRaises(urllib.error.HTTPError):
+                zd._bcb_get(13970, '01/09/2026', '03/10/2026')
+        self.assertFalse(zd._BCB_WS['on']); self.assertEqual(zd.META['notes'], [])
+
+    def test_bcb_part_end_to_end_via_soap(self):
+        def gj(url, headers=None):
+            raise urllib.error.URLError(OSError(-2, 'Name or service not known'))
+
+        def post(xml, timeout=60):
+            sid = int(re.search(r'<item>(\d+)</item>', xml).group(1))
+            if sid > 20000:
+                return self.XML_D.replace(b'17/9/2026', b'7/2026').replace(b'5/10/2026', b'8/2026')
+            return self.XML_D
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', post), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 6, 9, 0, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part(None)
+        self.assertEqual([r[0] for r in out['d']], ['2026-09-17', '2026-10-05'])
+        self.assertEqual(out['d'][0][1:], [-1346.27] * 5, 'wszystkie pięć serii z tej samej odpowiedzi testowej')
+        self.assertEqual([r[0] for r in out['m']], ['2026-07', '2026-08']); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(len([n for n in zd.META['notes'] if 'SOAP' in n]), 1)
+
+    def test_soap_failure_raises_like_before(self):
+        def gj(url, headers=None):
+            raise urllib.error.URLError(OSError(-2, 'Name or service not known'))
+
+        def post(xml, timeout=60):
+            raise urllib.error.URLError(OSError(-2, 'Name or service not known'))
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', post):
+            with self.assertRaises(RuntimeError) as c:
+                zd.bcb_part({'d': [['2026-09-17', -1.0, 1.0, 2.0, 9.9, 8.9]]})   # żadnego nowego dnia → main() zostawi poprzednią część
+        self.assertTrue(str(c.exception).startswith('brak dni (13970:'), str(c.exception))
+        self.assertEqual(len([n for n in zd.META['notes'] if 'SOAP' in n]), 1, 'notatka o przejściu na zapas — raz')
+
