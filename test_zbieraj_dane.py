@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -181,7 +181,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Ameryka Łacińska', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -533,7 +533,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -623,7 +623,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -756,7 +756,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1115,7 +1115,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1359,7 +1359,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1596,7 +1596,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1827,7 +1827,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2340,7 +2340,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3092,7 +3092,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3219,7 +3219,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3254,7 +3254,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3630,7 +3630,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4115,7 +4115,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8758,7 +8758,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9147,7 +9147,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10000,7 +10000,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -16827,3 +16827,637 @@ class WycenaV132(unittest.TestCase):
         i = src.index("    # 3c''. v132"); self.assertTrue(src.index('def swiezosc(') < i < src.index('    # 3d. v115: zgodność liczb'), 'po świeżości, przed zgodnością liczb')
         blk = src[i:src.index('    # 3d. v115: zgodność liczb')]
         self.assertNotIn("R['bledy'].append(f'MVRV", blk); self.assertNotRegex(blk, r'(?<![.\w])get(?:_json)?\(', 'kontrola wyceny bez zapytań (drugie źródło czyta zbieracz)')
+# ===================== v136: AMERYKA ŁACIŃSKA — kurs oficjalny a równoległy dolara (data/dolar.json) =====================
+# Nagrania odpowiedzi z 27.09.2026 ok. 19:30 UTC (plan v128/dolar, katalog fixtures), przycięte: bieżące pliki krajów w całości (Argentyna 7 kursów,
+# drugi odczyt 8, Wenezuela 2, Boliwia 2), historia Argentyny 12 dni (skrajne luki z 365 dni, dni porównań po 7 i 30 dniach, ostatnie dni), historia
+# Wenezueli 7 + 6 wierszy, odpowiedź banku centralnego Argentyny 3 dni; kształt i liczby dosłownie (surowych plików dostawców w repozytorium nie ma).
+DL_AR_J = [{'moneda': 'USD', 'casa': 'oficial', 'nombre': 'Oficial', 'compra': 1495, 'venta': 1545, 'fechaActualizacion': '2026-09-25T18:55:00.000Z'}, {'moneda': 'USD', 'casa': 'blue', 'nombre': 'Blue', 'compra': 1540, 'venta': 1560, 'fechaActualizacion': '2026-09-27T17:57:00.000Z'}, {'moneda': 'USD', 'casa': 'bolsa', 'nombre': 'Bolsa', 'compra': 1544.3, 'venta': 1557.3, 'fechaActualizacion': '2026-09-27T17:57:00.000Z'}, {'moneda': 'USD', 'casa': 'contadoconliqui', 'nombre': 'Contado con liquidación', 'compra': 1615.3, 'venta': 1616.6, 'fechaActualizacion': '2026-09-27T17:57:00.000Z'}, {'moneda': 'USD', 'casa': 'mayorista', 'nombre': 'Mayorista', 'compra': 1516.5, 'venta': 1525.5, 'fechaActualizacion': '2026-09-25T16:06:00.000Z'}, {'moneda': 'USD', 'casa': 'cripto', 'nombre': 'Cripto', 'compra': 1610.38, 'venta': 1612, 'fechaActualizacion': '2026-09-27T17:57:00.000Z'}, {'moneda': 'USD', 'casa': 'tarjeta', 'nombre': 'Tarjeta', 'compra': 1943.5, 'venta': 2008.5, 'fechaActualizacion': '2026-09-25T18:55:00.000Z'}]
+DL_AMB_J = [{'moneda': 'USD', 'casa': 'oficial', 'nombre': 'Oficial', 'compra': 1494.4, 'venta': 1545.12, 'fechaActualizacion': '2026-09-25T16:04:00.000Z', 'variacion': 0.44}, {'moneda': 'USD', 'casa': 'blue', 'nombre': 'Blue', 'compra': 1540, 'venta': 1560, 'fechaActualizacion': '2026-09-25T18:55:00.000Z', 'variacion': 0}, {'moneda': 'USD', 'casa': 'bolsa', 'nombre': 'Bolsa', 'compra': 1552.5, 'venta': 1552.5, 'fechaActualizacion': '2026-09-25T19:55:00.000Z', 'variacion': 0.5}, {'moneda': 'USD', 'casa': 'contadoconliqui', 'nombre': 'Contado con liquidación', 'compra': 1599, 'venta': 1599, 'fechaActualizacion': '2026-09-25T19:55:00.000Z', 'variacion': -0.94}, {'moneda': 'USD', 'casa': 'mayorista', 'nombre': 'Mayorista', 'compra': 1516.5, 'venta': 1525.5, 'fechaActualizacion': '2026-09-25T16:06:00.000Z', 'variacion': 0.39}, {'moneda': 'USD', 'casa': 'cripto', 'nombre': 'Cripto', 'compra': 1611.98, 'venta': 1611.98, 'fechaActualizacion': '2026-09-27T15:00:00.000Z', 'variacion': 0.04}, {'moneda': 'USD', 'casa': 'tarjeta', 'nombre': 'Tarjeta', 'compra': 1495, 'venta': 2008.5, 'fechaActualizacion': '2026-09-25T18:55:00.000Z', 'variacion': 0.32}, {'moneda': 'USD', 'casa': 'bna', 'nombre': 'BNA', 'compra': 1495, 'venta': 1545, 'variacion': 0.32, 'fechaActualizacion': '2026-09-25T18:55:00.000Z'}]
+DL_VE_J = [{'moneda': 'USD', 'fuente': 'oficial', 'nombre': 'Dólar', 'compra': None, 'venta': None, 'promedio': 855.6625, 'fechaActualizacion': '2026-09-25T00:00:00-04:00'}, {'moneda': 'USD', 'fuente': 'paralelo', 'nombre': 'Paralelo', 'compra': None, 'venta': None, 'promedio': 945.550431, 'fechaActualizacion': '2026-09-27T18:01:01.134Z'}]
+DL_BO_J = [{'moneda': 'USD', 'casa': 'oficial', 'nombre': 'Oficial', 'compra': 12.05, 'venta': 12.05, 'fechaActualizacion': '2026-09-27T00:00:00.000Z'}, {'moneda': 'USD', 'casa': 'binance', 'nombre': 'Binance', 'compra': 12, 'venta': 12.04, 'fechaActualizacion': '2026-09-27T18:01:06.411Z'}]
+DL_AD = {   # dzień serwisu historii → [kupno, sprzedaż] dla oficial, mayorista, blue, bolsa, contadoconliqui, cripto (6 serii historii Argentyny);
+            # w pliku pod dniem wcześniej (umowa „stan na koniec dnia”, dl_ad_rows)
+    '2025-09-27': [[1300, 1350], [1317, 1326], [1420, 1440], [1425.6, 1440.2], [1460.3, 1470.2], [1462.61, 1465]],
+    '2025-09-28': [[1300, 1350], [1317, 1326], [1420, 1440], [1425.6, 1440.2], [1460.3, 1470.2], [1454.91, 1462.9]],
+    '2025-09-30': [[1350, 1400], [1371, 1380], [1425, 1445], [1494, 1503.2], [1526.8, 1545.6], [1496.18, 1502.95]],
+    '2025-10-28': [[1445, 1495], [1461, 1470], [1450, 1470], [1474.6, 1485.7], [1490, 1491.8], [1514, 1520]],
+    '2025-11-03': [[1450, 1500], [1473, 1482], [1425, 1445], [1485, 1501.7], [1518.6, 1522.2], [1514, 1520]],
+    '2026-08-28': [[1485, 1535], [1503, 1512], [1535, 1555], [1534.9, 1544.1], [1602.3, 1603.8], [1594.68, 1597.41]],
+    '2026-08-29': [[1485, 1535], [1503, 1512], [1535, 1555], [1534.9, 1544.1], [1602.3, 1603.8], [1594.68, 1597.41]],
+    '2026-09-20': [[1485, 1535], [1505.5, 1514.5], [1530, 1550], [1530.2, 1540.1], [1596.5, 1598.1], [1588.68, 1593.73]],
+    '2026-09-21': [[1485, 1535], [1505.5, 1514.5], [1530, 1550], [1530.2, 1540.1], [1596.5, 1598.1], [1588.97, 1593.87]],
+    '2026-09-25': [[1490, 1540], [1510, 1519], [1540, 1560], [1539, 1545.6], [1612.5, 1614.3], [1605.68, 1610.04]],
+    '2026-09-26': [[1495, 1545], [1516.5, 1525.5], [1540, 1560], [1544.3, 1557.3], [1615.3, 1616.6], [1609.84, 1612.51]],
+    '2026-09-27': [[1495, 1545], [1516.5, 1525.5], [1540, 1560], [1544.3, 1557.3], [1615.3, 1616.6], [1607.69, 1613.92]],
+}
+DL_VE_OF = [['2026-08-27', 791.3248], ['2026-08-28', 791.6667], ['2026-09-18', 848.5458], ['2026-09-21', 849.564], ['2026-09-24', 854.4637], ['2026-09-25', 855.6625], ['2026-09-28', 857.0058]]
+DL_VE_PA = [['2026-08-27', 927.670021], ['2026-08-28', 922.19393], ['2026-09-19', 929.970575], ['2026-09-20', 935.517495], ['2026-09-26', 958.333294], ['2026-09-27', 945.550431]]
+DL_BCRA_J = {'status': 200, 'metadata': {'resultset': {'count': 3, 'offset': 0, 'limit': 1000}}, 'results': [{'fecha': '2026-09-25', 'detalle': [{'codigoMoneda': 'USD', 'descripcion': 'DOLAR E.E.U.U.', 'tipoPase': 0.0, 'tipoCotizacion': 1525.5}]}, {'fecha': '2026-09-24', 'detalle': [{'codigoMoneda': 'USD', 'descripcion': 'DOLAR E.E.U.U.', 'tipoPase': 0.0, 'tipoCotizacion': 1519.5}]}, {'fecha': '2026-09-23', 'detalle': [{'codigoMoneda': 'USD', 'descripcion': 'DOLAR E.E.U.U.', 'tipoPase': 0.0, 'tipoCotizacion': 1516.0}]}]}
+
+
+def _dl_ad_series(c):
+    """Seria historii Argentyny dla jednej casy w kształcie odpowiedzi (lista {casa, compra, venta, fecha}, rosnąco) — z DL_AD."""
+    i = zd.DL_AR_CASAS.index(c)
+    return [{'casa': c, 'compra': v[i][0], 'venta': v[i][1], 'fecha': d} for d, v in sorted(DL_AD.items())]
+
+
+def _dl_ve_hist(rows, f):
+    return [{'fuente': f, 'compra': None, 'venta': None, 'promedio': p, 'fecha': d} for d, p in rows]
+
+
+class DolarV136(unittest.TestCase):
+    """v136: Ameryka Łacińska — luka między kursem równoległym a oficjalnym dolara (Argentyna: CCL, blue, MEP, krypto wobec kursu hurtowego;
+    Wenezuela: kurs równoległy wobec kursu banku centralnego OBOWIĄZUJĄCEGO danego dnia; Boliwia: USDT z ogłoszeń P2P wobec kursu oficjalnego).
+    Parsowanie nagrań, odrzucanie złych kursów, brak ≠ zero, kraj ze starym kursem, zapas (kopia plików) przy błędzie i przy blokadzie 403
+    domyślnego identyfikatora Pythona, jednorazowe uzupełnienie historii Argentyny, przebieg główny, kontrola dzienna (najwyżej ⚠️), sonda,
+    straże kodu. Bez sieci: get_json / urlopen zaślepione; zegar przypięty (now=, _now_utc, NOW kontroli)."""
+    NOW = datetime.datetime(2026, 9, 27, 20, 0, tzinfo=datetime.timezone.utc)   # nagrania z 27.09 ok. 19:30 UTC
+    EXTRA = 'EXTRA145'
+    UA = 'CapitalFlowAI-collector/1.0'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [None]))   # przebieg „nie spóźniony” niezależnie od wcześniejszych testów main()
+
+    def _map(self, **over):
+        """adres → odpowiedź (kopia); over: nazwa → wyjątek albo inna odpowiedź (ar, amb, ve, bo, gh_ar, gh_ve, gh_bo, vo, vp, ad_<casa>)."""
+        M = {'ar': (zd.DL_AR, DL_AR_J), 'amb': (zd.DL_AR_AMB, DL_AMB_J), 've': (zd.DL_VE, DL_VE_J), 'bo': (zd.DL_BO, DL_BO_J),
+             'gh_ar': (zd.DL_GH.format(r=''), DL_AR_J), 'gh_ve': (zd.DL_GH.format(r='ve/'), DL_VE_J), 'gh_bo': (zd.DL_GH.format(r='bo/'), DL_BO_J),
+             'vo': (zd.DL_VE_HIST.format(f='oficial'), _dl_ve_hist(DL_VE_OF, 'oficial')), 'vp': (zd.DL_VE_HIST.format(f='paralelo'), _dl_ve_hist(DL_VE_PA, 'paralelo'))}
+        M.update({'ad_' + c: (zd.AD_HIST.format(c=c), _dl_ad_series(c)) for c in zd.DL_AR_CASAS})
+        return {u: over.get(k, r) for k, (u, r) in M.items()}
+
+    def _fetch(self, **over):
+        by, asked = self._map(**over), []
+
+        def f(url):
+            asked.append(url)
+            if url not in by:
+                raise AssertionError('nieoczekiwany adres: ' + url)
+            r = by[url]
+            if isinstance(r, Exception):
+                raise r
+            return copy.deepcopy(r)
+        return f, asked
+
+    def _build(self, prev=None, now=None, **over):
+        f, asked = self._fetch(**over)
+        return zd.build_dolar(prev, now=now or self.NOW, fetch=f), asked
+
+    # ---------------------------------------------------------------- 1. parsowanie i odrzucanie
+    def test_parse_argentyna_i_odrzucone_kursy(self):
+        n = []
+        q = zd.dl_parse_ar(copy.deepcopy(DL_AR_J), self.NOW, n)
+        self.assertEqual(sorted(q), sorted(zd.DL_AR_CASAS), '6 rynków; „tarjeta” (oficjalny + podatki) pominięta'); self.assertEqual(n, [])
+        self.assertEqual(q['contadoconliqui'], [1615.3, 1616.6, '2026-09-27T17:57:00Z']); self.assertEqual(q['mayorista'], [1516.5, 1525.5, '2026-09-25T16:06:00Z'])
+        self.assertEqual(q['oficial'], [1495, 1545, '2026-09-25T18:55:00Z'])
+        bad = [{'casa': 'blue', 'venta': 1560, 'compra': 9999, 'fechaActualizacion': '2026-09-27T17:57:00Z'},     # kupno > sprzedaż × 1,02 → None
+               {'casa': 'mayorista', 'venta': '1525', 'fechaActualizacion': '2026-09-27T17:57:00Z'},              # tekst
+               {'casa': 'bolsa', 'venta': 0, 'fechaActualizacion': '2026-09-27T17:57:00Z'},                       # zero
+               {'casa': 'contadoconliqui', 'venta': True, 'fechaActualizacion': '2026-09-27T17:57:00Z'},          # bool
+               {'casa': 'cripto', 'venta': 1600, 'fechaActualizacion': None},                                     # brak znacznika
+               {'casa': 'oficial', 'venta': 1550, 'fechaActualizacion': '2026-09-27T20:30:00Z'},                  # 30 min w przyszłości
+               {'casa': 'oficial', 'venta': 1550, 'fechaActualizacion': '2026-09-13T19:59:00Z'},                  # starszy niż 14 dni
+               {'casa': 'bolsa', 'venta': float('nan'), 'fechaActualizacion': '2026-09-27T17:57:00Z'},
+               {'casa': 'tarjeta', 'venta': 2008.5, 'fechaActualizacion': '2026-09-27T17:57:00Z'}, {'casa': 'blue', 'moneda': 'EUR', 'venta': 1, 'fechaActualizacion': '2026-09-27T17:57:00Z'}, 'x', None]
+        n = []
+        q = zd.dl_parse_ar(bad, self.NOW, n)
+        self.assertEqual(q, {'blue': [None, 1560, '2026-09-27T17:57:00Z']}, 'zostaje tylko blue — z kupnem jako brak'); self.assertEqual(len(n), 7, n)
+        self.assertTrue(any('przyszłości' in x for x in n) and any('starszy niż 14 dni' in x for x in n) and any('brak ceny albo daty' in x for x in n))
+        self.assertEqual(zd.dl_parse_ar([{'casa': 'blue', 'venta': 1, 'fechaActualizacion': '2026-09-27T17:57:00'}], self.NOW, []), {}, 'znacznik bez strefy = zły')
+        for j in ({}, 'x', None):
+            with self.assertRaises(ValueError):
+                zd.dl_parse_ar(j, self.NOW, [])
+        v = zd.dl_parse_ve(copy.deepcopy(DL_VE_J), self.NOW, [])
+        self.assertEqual(v, {'oficial': [None, 855.6625, '2026-09-25T04:00:00Z', '2026-09-25'], 'paralelo': [None, 945.550431, '2026-09-27T18:01:01Z']})
+        ahead = [{'fuente': 'oficial', 'promedio': 857.0058, 'fechaActualizacion': '2026-09-28T00:00:00-04:00'}]
+        self.assertEqual(zd.dl_parse_ve(ahead, self.NOW, [])['oficial'][3], '2026-09-28', 'data obowiązywania naprzód (do 4 dni) jest poprawna')
+        vd = lambda st: zd.dl_parse_ve([{'fuente': 'oficial', 'promedio': 857.0058, 'fechaActualizacion': st}], self.NOW, [])['oficial'][3]   # noqa: E731
+        self.assertEqual(vd('2026-09-28T00:00:00.000Z'), '2026-09-28', 'przegląd: „…T00:00:00.000Z” = sama data w Caracas, nie chwila dzień wcześniej')
+        self.assertEqual((vd('2026-09-28T04:00:00Z'), vd('2026-09-28T00:00:00-04:00'), vd('2026-09-27T18:00:00Z')), ('2026-09-28', '2026-09-28', '2026-09-27'))
+        n = []
+        self.assertEqual(zd.dl_parse_ve([{'fuente': 'oficial', 'promedio': 857.0, 'fechaActualizacion': '2026-10-05T00:00:00-04:00'}], self.NOW, n), {}); self.assertEqual(len(n), 1)
+        self.assertEqual(zd.dl_parse_bo(copy.deepcopy(DL_BO_J), self.NOW, []), {'oficial': [12.05, 12.05, '2026-09-27T00:00:00Z'], 'usdt': [12, 12.04, '2026-09-27T18:01:06Z']},
+                         'kurs P2P pod kluczem przedmiotu danych (usdt), nie nazwą giełdy')
+
+    # ---------------------------------------------------------------- 2. luki: wzór, znak, zero, skala, brak bazy
+    def test_luki_z_nagrania_i_zasady(self):
+        q = zd.dl_parse_ar(copy.deepcopy(DL_AR_J), self.NOW, [])
+        self.assertEqual(zd.dl_ar_gaps(q, self.NOW), {'oficial': 1.28, 'blue': 2.26, 'bolsa': 2.08, 'contadoconliqui': 5.97, 'cripto': 5.67})
+        self.assertEqual(zd.dl_gap(1445, 1482, 'ar'), -2.5, 'luka ujemna zostaje (blue taniej niż hurtowy, 3.11.2025)')
+        g0 = zd.dl_gap(1525.5, 1525.5, 'ar'); self.assertIsNotNone(g0); self.assertEqual(g0, 0.0); self.assertEqual(str(g0), '0.0', 'zero to liczba, nie brak; bez „-0.0”')
+        self.assertEqual(str(zd.dl_gap(1525.49999, 1525.5, 'ar')), '0.0', 'ujemne zero po zaokrągleniu = 0.0')
+        self.assertIsNone(zd.dl_gap(185265, 185.4, 'ar'), 'błąd skali (×1000) = brak')
+        self.assertIsNone(zd.dl_gap(None, 1525.5, 'ar')); self.assertIsNone(zd.dl_gap(1525.5, 0, 'ar')); self.assertIsNone(zd.dl_gap(True, 1, 'bo'))
+        self.assertEqual(zd.dl_gap(4.9, 1, 've'), 390.0); self.assertIsNone(zd.dl_gap(4.9, 1, 'ar'), 'zakres Argentyny 0,5–4')
+        no_base = {k: v for k, v in q.items() if k != 'mayorista'}
+        self.assertEqual(zd.dl_ar_gaps(no_base, self.NOW), {c: None for c in zd.DL_AR_CASAS if c != 'mayorista'}, 'bez kursu hurtowego każda luka None, nigdy 0')
+
+    def test_kurs_stary_nie_daje_luki(self):
+        q = zd.dl_parse_ar(copy.deepcopy(DL_AR_J), self.NOW, [])
+        late = datetime.datetime(2026, 9, 29, 17, 6, tzinfo=datetime.timezone.utc)        # hurtowy z 25.09 16:06 → 4 dni i 1 h
+        g = zd.dl_ar_gaps(q, late)
+        self.assertEqual(set(g.values()), {None}, 'hurtowy sprzed 4 dni i 1 h — żadnej luki (próg 4 dni, nie 5)'); self.assertIn('mayorista', q, 'kurs zostaje w pliku (z wiekiem)')
+        # kurs „sama data” (północ UTC, Boliwia): wiek od końca dnia w La Paz (28.09 04:00 UTC), nie od 27.09 00:00 UTC
+        o = [12.05, 12.05, '2026-09-27T00:00:00Z']
+        self.assertEqual(zd.dl_qtime(o, 'bo'), datetime.datetime(2026, 9, 28, 4, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(zd.dl_qtime([1, 2, '2026-09-27T17:57:00Z'], 'bo'), datetime.datetime(2026, 9, 27, 17, 57, tzinfo=datetime.timezone.utc), 'kurs z godziną — jego chwila')
+        self.assertTrue(zd.dl_usable(o, datetime.datetime(2026, 10, 2, 3, 0, tzinfo=datetime.timezone.utc), 'bo'), '3 dni 23 h od końca dnia — jeszcze użyteczny')
+        self.assertFalse(zd.dl_usable(o, datetime.datetime(2026, 10, 2, 5, 0, tzinfo=datetime.timezone.utc), 'bo'))
+        self.assertEqual(zd.dl_qtime(o, 'ar'), datetime.datetime(2026, 9, 28, 3, 0, tzinfo=datetime.timezone.utc), 'Argentyna: koniec dnia w UTC−3')
+        weekend = datetime.datetime(2026, 9, 29, 13, 40, tzinfo=datetime.timezone.utc)   # 3,9 dnia po 25.09 16:06
+        self.assertEqual(zd.dl_ar_gaps(q, weekend)['contadoconliqui'], 5.97, 'weekend i święto (3,9 dnia) — luka liczona')
+
+    # ---------------------------------------------------------------- 3. Wenezuela: kurs obowiązujący danego dnia
+    def test_wenezuela_kurs_obowiazujacy(self):
+        D, asked = self._build()
+        V = D['ve']
+        self.assertEqual(V['gap'], 10.51); self.assertEqual(V['base'], [None, 855.6625, '2026-09-25T04:00:00Z', '2026-09-25'])
+        self.assertEqual(V['d'][-1], ['2026-09-27', 855.6625, 945.550431], 'niedziela 27.09: kurs na poniedziałek 28.09 jeszcze nie obowiązuje')
+        self.assertEqual(V['of'][-1], ['2026-09-28', 857.0058], 'zapowiedziany kurs zapisany')
+        self.assertEqual((V['ch']['d7'], V['ch']['d30']), (0.26, -5.98)); self.assertEqual(V['via'], 'api')
+        D2, _ = self._build(D, now=datetime.datetime(2026, 9, 28, 14, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(D2['ve']['base'], [None, 857.0058, None, '2026-09-28'], 'poniedziałek 28.09: obowiązuje 857,0058 (z historii)')
+        self.assertEqual(D2['ve']['d'][-1], ['2026-09-28', 857.0058, 945.550431]); self.assertEqual(D2['ve']['gap'], zd.dl_gap(945.550431, 857.0058, 've'))
+        # 28.09 02:00 UTC to jeszcze niedziela 27.09 w Caracas — kurs na poniedziałek jeszcze nie obowiązuje (dzień w UTC dałby 857,0058)
+        D1, a1 = self._build(D, now=datetime.datetime(2026, 9, 28, 2, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(D1['ve']['base'][3], '2026-09-25'); self.assertEqual(D1['ve']['gap'], 10.51); self.assertEqual(D1['ve']['d'][-1][0], '2026-09-27')
+        self.assertFalse([u for u in a1 if 'historicos' in u], 'historia VE raz na dobę — po 6 h bez zapytań')
+        D2b, a2b = self._build(D, now=self.NOW + datetime.timedelta(hours=23, minutes=50))
+        self.assertFalse([u for u in a2b if 'historicos' in u], 'po 23 h 50 min nadal bez historii')
+        D2c, a2c = self._build(D, now=self.NOW + datetime.timedelta(hours=24))
+        self.assertEqual(sum('historicos' in u for u in a2c), 2, 'po dobie — 2 zapytania o historię'); self.assertIs(D2c['ok']['hist_ve'], True)
+        old = {'ve': {'q': {}, 'of': [['2026-09-01', 800.0]], 'd': []}, 'part_at': {'hist_ve': D['part_at']['hist_ve'], 'hist_ar': D['part_at']['hist_ar']}}
+        f, _ = self._fetch(ve=[{'fuente': 'paralelo', 'promedio': 945.5, 'fechaActualizacion': '2026-09-27T18:00:00Z'}], vo=OSError('x'), vp=OSError('x'))
+        D3 = zd.build_dolar(old, now=self.NOW, fetch=f)
+        self.assertIsNone(D3['ve']['gap'], 'kurs oficjalny sprzed ponad 14 dni — bez luki'); self.assertIsNone(D3['ve']['base']); self.assertTrue(D3['ok']['ve'])
+
+    # ---------------------------------------------------------------- 4. Boliwia: data w La Paz, luka ujemna, historia własna
+    def test_boliwia_dzien_lokalny_i_wlasna_historia(self):
+        D, _ = self._build()
+        B = D['bo']
+        self.assertEqual(B['gap'], -0.08); self.assertEqual(B['d'], [['2026-09-27', 12.05, 12.04]]); self.assertEqual(B['ch'], {'d7': None, 'd30': None}); self.assertIsNone(B['mm'])
+        night = datetime.datetime(2026, 9, 28, 2, 0, tzinfo=datetime.timezone.utc)
+        self.assertEqual(zd.dl_local_day(night, 'bo'), '2026-09-27', '02:00 UTC to jeszcze 27.09 w La Paz'); self.assertEqual(zd.dl_local_day(night, 'ar'), '2026-09-27')
+        D2, _ = self._build(D, now=night)
+        self.assertEqual([r[0] for r in D2['bo']['d']], ['2026-09-27'], 'ten sam dzień lokalny — jeden wiersz (nowszy odczyt)')
+        self.assertEqual(D2['ar']['d'][-1][0], '2026-09-27', 'Argentyna 02:00 UTC = 23:00 27.09 (nie dzień UTC)')
+        D3, _ = self._build(D, now=datetime.datetime(2026, 9, 28, 3, 30, tzinfo=datetime.timezone.utc))
+        self.assertEqual(D3['ar']['d'][-1][0], '2026-09-28', 'Argentyna 03:30 UTC = 00:30 28.09 (UTC−3, nie UTC−4)')
+        self.assertEqual(D3['bo']['d'][-1][0], '2026-09-27', 'Boliwia 03:30 UTC = 23:30 27.09')
+
+    # ---------------------------------------------------------------- 5. historia: łączenie i zmiany
+    def test_historia_laczenie(self):
+        m = zd.dl_hist_merge([['2026-09-26', 1, None, 3]], [['2026-09-26', None, 2, 4], ['2026-02-30', 5, 5, 5], ['bad', 1, 1, 1], 'x', ['2026-09-25', 0, -1, float('inf')]])
+        self.assertEqual(m, [['2026-09-25', None, None, None], ['2026-09-26', 1, 2, 4]], 'nowsza liczba wygrywa, None nie kasuje, zła data i zero/ujemne/∞ = brak')
+        rows = [[(datetime.date(2025, 1, 1) + datetime.timedelta(days=i)).isoformat(), 1.0] for i in range(450)]
+        k = zd.dl_hist_merge(list(reversed(rows)), [])
+        self.assertEqual((len(k), k[0][0], k[-1][0]), (400, rows[50][0], rows[-1][0]), 'rosnąco, ostatnie 400 dni')
+
+    def test_zmiany_najblizszy_wczesniejszy_dzien_i_okno_365(self):
+        rows = [['2026-09-17', 100, 110], ['2026-09-27', 100, 120]]           # brak 20.09 → najbliższy wcześniejszy w 3 dniach: 17.09
+        self.assertEqual(zd.dl_change(rows, 2, 1, 've', 7), 10.0)
+        self.assertIsNone(zd.dl_change([['2026-09-16', 100, 110], ['2026-09-27', 100, 120]], 2, 1, 've', 7), '4 dni wcześniej — None')
+        self.assertIsNone(zd.dl_change([['2026-09-20', None, 110], ['2026-09-27', 100, 120]], 2, 1, 've', 7), 'brak luki w wierszu porównania')
+        self.assertIsNone(zd.dl_change([], 2, 1, 've', 7)); self.assertIsNone(zd.dl_minmax([['2026-09-27', 100, 120]], 2, 1, 've'), 'jedna luka — bez zakresu')
+
+    # ---------------------------------------------------------------- 6. historia Argentyny: uzupełnienie, umowa dat, ponowienia
+    def test_historia_argentyny_umowa_dat_i_jedno_uzupelnienie(self):
+        D, asked = self._build()
+        self.assertEqual(len(asked), 12, 'pierwsza budowa: AR, 6 serii historii, drugi odczyt, VE, 2 × historia VE, BO')
+        self.assertEqual(sum(u.startswith('https://api.argentinadatos.com/') for u in asked), 6)
+        A = D['ar']
+        self.assertEqual(D['ok'], {'ar': True, 'hist_ar': True, 'amb': True, 've': True, 'hist_ve': True, 'bo': True}); self.assertEqual(D['part_at']['hist_ar'], D['at'])
+        self.assertEqual(A['bf'], {'ok': list(zd.DL_AR_CASAS), 'at': D['at']})
+        # umowa dat: wiersz serwisu z dnia D = stan na koniec D−1 → zapisany pod D−1 (jak własne odczyty: stan na koniec dnia)
+        keys = sorted((datetime.date.fromisoformat(d) - datetime.timedelta(days=1)).isoformat() for d in DL_AD)
+        self.assertEqual([r[0] for r in A['d']], keys + ['2026-09-27'], 'dni serwisu przesunięte o dzień + dzisiejszy własny odczyt')
+        R = {r[0]: r for r in A['d']}
+        bcra = {x['fecha']: x['detalle'][0]['tipoCotizacion'] for x in DL_BCRA_J['results']}
+        self.assertEqual(R['2026-09-25'][2], bcra['2026-09-25'], 'wiersz 25.09 (z odczytu serwisu z soboty 26.09) = zamknięcie banku centralnego z 25.09')
+        self.assertNotIn('2026-09-24', [d for d in R if d not in keys], 'żaden wiersz serwisu nie zostaje pod własną datą D')
+        self.assertEqual(A['d'][-1], ['2026-09-27', 1545, 1525.5, 1560, 1557.3, 1616.6, 1612], 'dzisiaj: własny odczyt')
+        self.assertEqual(A['ch']['contadoconliqui'], {'d7': 0.45, 'd30': -0.1}); self.assertEqual(A['ch']['blue'], {'d7': -0.08, 'd30': -0.58})
+        self.assertEqual(A['mm']['contadoconliqui'], {'n': 12, 'min': 1.48, 'dmin': '2025-10-27', 'max': 12.0, 'dmax': '2025-09-29'})
+        self.assertEqual((A['mm']['blue']['min'], A['mm']['blue']['dmin'], A['mm']['blue']['max'], A['mm']['blue']['dmax']), (-2.5, '2025-11-02', 8.6, '2025-09-27'),
+                         'wiersz 26.09.2025 (też 8,6) poza oknem 365 dni')
+        # druga budowa 30 min później: 4 zapytania, bez historii; historia i jej czas bez zmian
+        D2, asked2 = self._build(D, now=self.NOW + datetime.timedelta(minutes=30))
+        self.assertEqual(sorted(asked2), sorted([zd.DL_AR, zd.DL_AR_AMB, zd.DL_VE, zd.DL_BO])); self.assertNotIn('hist_ar', D2['ok']); self.assertNotIn('hist_ve', D2['ok'])
+        self.assertEqual(D2['ar']['d'], A['d']); self.assertEqual(D2['part_at']['hist_ar'], D['part_at']['hist_ar'])
+        # własne odczyty wygrywają z wierszami serwisu na te same dni (uzupełnienie nie nadpisuje)
+        own = {'ar': {'d': [['2026-09-25', 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]]}}
+        Do, _ = self._build(own)
+        self.assertEqual({r[0]: r for r in Do['ar']['d']}['2026-09-25'][1:], [1500.0] * 6, 'własny wiersz 25.09 zostaje')
+        # przebieg spóźniony (BACK_LATE): bez zapytań o historię i bez liczenia próby; notatka
+        with mock.patch.object(zd, '_RUN_T0', [zd.time.monotonic() - zd.BACK_LATE - 5]), mock.patch.object(zd, '_BACK_LATE_NOTE', [False]):
+            D5, asked5 = self._build()
+        self.assertFalse([u for u in asked5 if 'argentinadatos' in u or 'historicos' in u]); self.assertNotIn('hist_ar', D5['ok']); self.assertNotIn('hist_ve', D5['ok'])
+        self.assertEqual(D5['ar']['bf'], {'ok': []}, 'przerwa z braku czasu nie jest nieudaną próbą'); self.assertTrue(any('limit czasu' in n for n in D5['notes']))
+        self.assertTrue(D5['ok']['ar'] and D5['ok']['ve'] and D5['ok']['bo'])
+
+    def test_historia_argentyny_czesciowa_awaria_jedna_proba_na_dobe_najwyzej_trzy(self):
+        e404 = zd.urllib.error.HTTPError('u', 404, 'Not Found', {}, None)
+        D, asked = self._build(None, ad_cripto=e404)
+        self.assertEqual(sum('argentinadatos' in u for u in asked), 6, 'pierwsza próba: wszystkie 6 serii')
+        self.assertIs(D['ok']['hist_ar'], False); self.assertIs(D['ok']['ar'], True); self.assertNotIn('hist_ar', D['part_at'])
+        self.assertEqual(D['ar']['bf'], {'ok': ['oficial', 'mayorista', 'blue', 'bolsa', 'contadoconliqui'], 'at': D['at'], 'n': 1}, 'udane serie zostają, czas i liczba prób')
+        self.assertEqual(len(D['ar']['d']), 13, 'historia z 5 udanych serii już w pliku'); self.assertIsNone(D['ar']['d'][0][6], 'kolumna cripto bez historii — brak, nie zero')
+        self.assertEqual(D['ar']['ch']['contadoconliqui'], {'d7': 0.45, 'd30': -0.1}, 'zmiany CCL od razu z udanych serii')
+        self.assertTrue(any('ponowienie najwcześniej za 24 h' in n for n in D['notes']), D['notes'])
+        f = lambda prev, h, **o: self._build(prev, now=self.NOW + datetime.timedelta(hours=h), **o)   # noqa: E731
+        D1, a1 = f(D, 2, ad_cripto=e404); self.assertFalse([u for u in a1 if 'argentinadatos' in u], 'w ciągu doby bez ponowienia'); self.assertNotIn('hist_ar', D1['ok'])
+        D2, a2 = f(D1, 24, ad_cripto=e404)
+        self.assertEqual([u for u in a2 if 'argentinadatos' in u], [zd.AD_HIST.format(c='cripto')], 'po dobie — tylko brakująca seria'); self.assertEqual(D2['ar']['bf']['n'], 2)
+        D3, a3 = f(D2, 48, ad_cripto=e404); self.assertEqual(D3['ar']['bf']['n'], 3)
+        self.assertTrue(any('po 3 próbach tylko własne odczyty' in n for n in D3['notes']), D3['notes'])
+        D4, a4 = f(D3, 96, ad_cripto=e404); self.assertFalse([u for u in a4 if 'argentinadatos' in u], 'po 3 próbach koniec — tylko własne odczyty')
+        Dok, aok = f(D1, 24)
+        self.assertIs(Dok['ok']['hist_ar'], True); self.assertEqual(Dok['ar']['bf']['ok'], list(zd.DL_AR_CASAS)); self.assertEqual(Dok['part_at']['hist_ar'], Dok['at'])
+        self.assertIsNotNone({r[0]: r for r in Dok['ar']['d']}['2026-09-24'][6], 'udana ponowiona seria uzupełnia kolumnę')
+
+    def test_doba_co_20_min_seria_404_i_kraj_z_bledem_jedna_proba(self):
+        """Symulacja doby automatu (72 przebiegi co 20 min, logika main(): plik młodszy niż 55 min z kompletem krajów = bez budowy). Jedna seria
+        historii 404, Boliwia pada (kraj z błędem = budowa co przebieg): historia Argentyny pobrana najwyżej raz — 6 zapytań w pierwszej budowie."""
+        e = zd.urllib.error.HTTPError('u', 404, 'Not Found', {}, None)
+        f, asked = self._fetch(ad_cripto=e, bo=OSError('HTTP 503'), gh_bo=OSError('HTTP 503'))
+        prev, builds = {'bo': {'q': {'oficial': [12.05, 12.05, '2026-09-27T00:00:00Z'], 'usdt': [12, 12.04, '2026-09-27T18:01:06Z']}}}, 0
+        start = self.NOW
+        for i in range(72):
+            now = start + datetime.timedelta(minutes=20 * i)
+            pok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
+            fresh_ = prev.get('at') and now - datetime.datetime.fromisoformat(prev['at']) < datetime.timedelta(minutes=zd.DL_EVERY)
+            if fresh_ and all(pok.get(k) is True for k in zd.DL_PARTS):
+                continue
+            prev = zd.build_dolar(prev, now=now, fetch=f); builds += 1
+        ad = [u for u in asked if 'argentinadatos' in u]
+        self.assertEqual(builds, 72, 'kraj z błędem — budowa co przebieg'); self.assertEqual(len(ad), 6, 'historia Argentyny: jedna próba na dobę')
+        self.assertLessEqual(len(asked), 72 * 6 + 6 + 4, 'bez wielokrotnych pobrań historii'); self.assertEqual(prev['ar']['bf']['n'], 1)
+
+    # ---------------------------------------------------------------- 7. zapas: kopia plików przy błędzie, blokada 403 domyślnego identyfikatora
+    def test_zapas_kopia_plikow_i_brak_obu(self):
+        cf = zd.urllib.error.HTTPError('u', 403, 'Forbidden', {}, None)
+        A, _ = self._build()
+        B, asked = self._build(ar=cf, amb=cf, ve=cf, bo=cf, vo=cf, vp=cf)
+        self.assertEqual((B['ar']['via'], B['ve']['via'], B['bo']['via']), ('gh', 'gh', 'gh'))
+        for k in ('gap', 'ch', 'mm', 'd'):
+            self.assertEqual(B['ar'][k], A['ar'][k], 'te same liczby z kopii: ' + k)
+        self.assertEqual((B['ve']['gap'], B['bo']['gap']), (A['ve']['gap'], A['bo']['gap']))
+        self.assertEqual(B['ok'], {'ar': True, 'hist_ar': True, 'amb': False, 've': True, 'hist_ve': False, 'bo': True}, 'drugi odczyt i historia VE bez kopii')
+        self.assertTrue(any('kopia zapasowa' in n for n in B['notes']))
+        self.assertEqual(sum(u.startswith('https://raw.githubusercontent.com/') for u in asked), 3)
+        for err in (zd.urllib.error.HTTPError('u', 503, 'Service Unavailable', {}, None), TimeoutError('timed out'), zd.urllib.error.URLError('connection reset')):
+            Bx, ax = self._build(ar=err, ve=err, bo=err)
+            self.assertEqual((Bx['ar']['via'], Bx['ve']['via'], Bx['bo']['via']), ('gh', 'gh', 'gh'), 'kopia przy każdym błędzie: ' + type(err).__name__)
+            self.assertEqual(Bx['ar']['gap'], A['ar']['gap'])
+        bad = self._build(ar=[], gh_ar=[{'casa': 'blue', 'venta': 1, 'fechaActualizacion': '2026-09-27T17:57:00Z', 'moneda': 'USD'}])[0]
+        self.assertEqual(bad['ar']['via'], 'gh', 'pusta odpowiedź serwisu = kopia')
+        # Boliwia: serwis i kopia zawodzą — poprzednia część z jej czasem, ok False, notatka (nie błąd zbieracza)
+        prev = A
+        C, _ = self._build(prev, now=self.NOW + datetime.timedelta(minutes=60), bo=OSError('HTTP 503'), gh_bo=OSError('HTTP 503'))
+        self.assertIs(C['ok']['bo'], False); self.assertEqual(C['bo'], prev['bo']); self.assertEqual(C['part_at']['bo'], prev['part_at']['bo'])
+        self.assertEqual(zd.META['errors'], []); self.assertTrue(any(n.startswith('Ameryka Łacińska (kursy dolara): Boliwia — brak nowych kursów') for n in zd.META['notes']))
+        # wszystkie kraje zawodzą — wyjątek (main zostawia poprzedni plik)
+        e = OSError('HTTP 503')
+        with self.assertRaises(RuntimeError):
+            self._build(prev, ar=e, gh_ar=e, ve=e, gh_ve=e, bo=e, gh_bo=e)
+
+    def test_budzet_czasu_ogranicza_kazde_zapytanie(self):
+        """Przegląd: jeden budżet czasu budowy (DL_BUDGET = 60 s) — każde zapytanie, także o bieżące pliki krajów, dostaje najwyżej pozostały czas
+        (i nie więcej niż DL_TIMEOUT); bez czasu — bez zapytań (kraje z błędem, wyjątek bez poprzedniego pliku)."""
+        by, seen = self._map(), []
+
+        def gj(url, headers=None, timeout=30):
+            seen.append((url, timeout))
+            return copy.deepcopy(by[url])
+        with mock.patch.object(zd, 'get_json', gj):
+            D = zd.build_dolar(None, now=self.NOW)
+            self.assertEqual(len(seen), 12); self.assertTrue(all(t == zd.DL_TIMEOUT for _, t in seen), seen[:3])
+            seen.clear(); zd.build_dolar(None, now=self.NOW, budget=8)
+            self.assertTrue(seen and all(0 < t <= 8 for _, t in seen), 'budżet 8 s: każde zapytanie najwyżej 8 s')
+            self.assertFalse([u for u, _ in seen if 'argentinadatos' in u or 'historicos' in u], 'historia (koszt 20 s) nie mieści się w 8 s')
+            seen.clear()
+            with self.assertRaises(RuntimeError):
+                zd.build_dolar(None, now=self.NOW, budget=0.5)
+            self.assertEqual(seen, [], 'bez czasu — żadnego zapytania')
+        self.assertEqual(D['ok']['ar'], True)
+
+    def test_identyfikator_zbieracza_przechodzi_python_dostaje_403(self):
+        """Cloudflare przed serwisem (reguła 1010) odrzuca domyślny identyfikator urllib; zbieracz wysyła własny przez get/get_json."""
+        import io as _io
+        by, seen = self._map(), []
+
+        class R:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def urlopen(req, timeout=None, **k):
+            url = req.full_url if hasattr(req, 'full_url') else str(req)
+            ua = req.get_header('User-agent') if hasattr(req, 'get_header') else None
+            seen.append((url, ua))
+            if ua != self.UA and ('dolarapi.com' in url or 'argentinadatos.com' in url):
+                raise zd.urllib.error.HTTPError(url, 403, 'Forbidden', {}, _io.BytesIO(b'error code: 1010'))
+            if url not in by:
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, _io.BytesIO(b''))
+            return R(json.dumps(by[url]).encode())
+        with mock.patch.object(zd.urllib.request, 'urlopen', urlopen):
+            D = zd.build_dolar(None, now=self.NOW)
+            with self.assertRaises(zd.urllib.error.HTTPError) as c:
+                zd.urllib.request.urlopen(zd.urllib.request.Request(zd.DL_AR))   # bez identyfikatora (domyślny Python-urllib)
+        self.assertEqual(c.exception.code, 403)
+        self.assertEqual(D['ok'], {'ar': True, 'hist_ar': True, 'amb': True, 've': True, 'hist_ve': True, 'bo': True}); self.assertEqual(D['ar']['via'], 'api')
+        self.assertEqual(D['ar']['gap']['contadoconliqui'], 5.97); self.assertEqual(len(seen), 13)
+        self.assertTrue(all(ua == self.UA for u, ua in seen[:-1]), 'każde zapytanie zbieracza z jego identyfikatorem'); self.assertIsNone(seen[-1][1])
+
+    # ---------------------------------------------------------------- 8. kraj ze starym kursem, poprzedni kurs zostaje z własnym znacznikiem
+    def test_kraj_ze_starym_kursem(self):
+        A, _ = self._build()
+        bo = copy.deepcopy(DL_BO_J); bo[1]['fechaActualizacion'] = '2026-09-22T18:00:00.000Z'     # USDT sprzed 5 dni
+        ve = copy.deepcopy(DL_VE_J); ve[1]['fechaActualizacion'] = '2026-09-22T18:00:00.000Z'     # równoległy sprzed 5 dni
+        D, _ = self._build(A, now=self.NOW + datetime.timedelta(minutes=60), bo=bo, ve=ve)
+        self.assertIsNone(D['bo']['gap']); self.assertEqual(D['bo']['q']['usdt'][2], '2026-09-22T18:00:00Z', 'kurs zostaje z wiekiem'); self.assertTrue(D['ok']['bo'])
+        self.assertEqual(D['bo']['d'], [['2026-09-27', 12.05, 12.04]], 'stary kurs nie nadpisuje dzisiejszego wiersza (None nie kasuje liczby)')
+        self.assertIsNone(D['ve']['gap']); self.assertTrue(D['ok']['ve']); self.assertEqual(D['ve']['d'][-1], ['2026-09-27', 855.6625, 945.550431])
+        ar = [x for x in copy.deepcopy(DL_AR_J) if x['casa'] != 'blue']
+        E, _ = self._build(A, now=self.NOW + datetime.timedelta(minutes=60), ar=ar)
+        self.assertEqual(E['ar']['q']['blue'], A['ar']['q']['blue'], 'brak blue w odpowiedzi — poprzedni kurs z własnym znacznikiem'); self.assertEqual(E['ar']['gap']['blue'], 2.26)
+        self.assertTrue(any(n.startswith('AR blue: poprzedni kurs z 2026-09-27T17:57:00Z') for n in E['notes']))
+        F, _ = self._build({'ar': {'q': {'blue': [None, 1500, '2026-09-12T19:00:00Z']}}}, ar=ar)
+        self.assertNotIn('blue', F['ar']['q'], 'poprzedni kurs sprzed 15 dni nie wraca (próg 14 dni)'); self.assertIsNone(F['ar']['gap']['blue'])
+        # przeniesiony kurs sprzed 5 dni (młodszy niż 14) zostaje w kursach, ale NIE trafia do dzisiejszego wiersza historii i nie daje luki
+        G, _ = self._build({'ar': {'q': {'blue': [None, 1500, '2026-09-22T17:57:00Z']}, 'd': []}}, ar=ar)
+        self.assertEqual(G['ar']['q']['blue'][1], 1500); self.assertIsNone(G['ar']['gap']['blue']); self.assertIsNone(G['ar']['d'][-1][3], 'stary kurs nie wchodzi do dzisiejszego wiersza')
+        bo2 = copy.deepcopy(DL_BO_J); bo2[1]['fechaActualizacion'] = '2026-09-22T18:00:00.000Z'; bo2[1]['venta'] = 13.0
+        H, _ = self._build({'bo': {'d': []}}, bo=bo2)
+        self.assertEqual(H['bo']['d'], [['2026-09-27', 12.05, None]], 'stary kurs USDT (13,0) nie wchodzi do wiersza dnia'); self.assertIsNone(H['bo']['gap'])
+
+    def test_kraj_z_bledem_stara_luka_znika_po_4_dniach(self):
+        """Przegląd: kraj bez nowych kursów (serwis i kopia zawodzą) nie może zostawić starej luki jako głównej liczby — po 4 dniach od daty kursów
+        luka i jej zmiany = None (kursy, historia, najniżej/najwyżej i czas części zostają)."""
+        A, _ = self._build()
+        e = OSError('HTTP 503')
+        f1, _ = self._fetch(ar=e, gh_ar=e, bo=e, gh_bo=e)
+        D1 = zd.build_dolar(A, now=self.NOW + datetime.timedelta(days=1), fetch=f1)
+        self.assertIs(D1['ok']['ar'], False); self.assertEqual(D1['ar']['gap'], A['ar']['gap'], 'kursy sprzed 1–3 dni — luka zostaje')
+        self.assertEqual(D1['ar']['ch'], A['ar']['ch']); self.assertEqual(D1['bo']['gap'], -0.08)
+        now5 = self.NOW + datetime.timedelta(days=5)
+        f, _ = self._fetch(ar=e, gh_ar=e, bo=e, gh_bo=e)
+        D5 = zd.build_dolar(A, now=now5, fetch=f)
+        self.assertIs(D5['ok']['ar'], False); self.assertIs(D5['ok']['bo'], False); self.assertIs(D5['ok']['ve'], True)
+        self.assertEqual(set(D5['ar']['gap'].values()), {None}, 'kraj z błędem, kursy sprzed ponad 4 dni — żadnej luki')
+        self.assertEqual(D5['ar']['ch']['contadoconliqui'], {'d7': None, 'd30': None}); self.assertEqual(D5['ar']['ch']['blue'], {'d7': None, 'd30': None})
+        self.assertEqual(D5['ar']['q'], A['ar']['q'], 'kursy zostają z własną datą'); self.assertEqual(D5['part_at']['ar'], A['part_at']['ar']); self.assertEqual(D5['ar']['mm'], A['ar']['mm'])
+        self.assertIsNone(D5['bo']['gap']); self.assertEqual(D5['bo']['ch'], {'d7': None, 'd30': None})
+        V5 = zd.dl_stale_part('ve', A['ve'], now5)
+        self.assertIsNone(V5['gap']); self.assertEqual(V5['ch'], {'d7': None, 'd30': None}); self.assertEqual(zd.dl_stale_part('ve', A['ve'], self.NOW)['gap'], 10.51)
+        self.assertIsNone(zd.dl_stale_part('ar', None, now5)); self.assertEqual(zd.dl_stale_part('bo', {'x': 1}, now5), {'x': 1})
+
+    # ---------------------------------------------------------------- 9. plik: klucze, rozmiar, nazwy tylko w src
+    def test_ksztalt_pliku(self):
+        D, _ = self._build()
+        for k in ('at', 'v', 'src', 'url', 'ok', 'part_at', 'cols', 'unit', 'ar', 've', 'bo', 'notes'):
+            self.assertIn(k, D)
+        self.assertEqual(D['cols'], {'ar': ['date', 'oficial', 'mayorista', 'blue', 'bolsa', 'contadoconliqui', 'cripto'], 've': ['date', 'oficial', 'paralelo'], 'bo': ['date', 'oficial', 'usdt']})
+        self.assertEqual(D['at'], '2026-09-27T20:00:00+00:00'); self.assertEqual(set(D['part_at']), {'ar', 'hist_ar', 'amb', 've', 'hist_ve', 'bo'})
+        self.assertEqual(D['ar']['amb']['contadoconliqui'], [1599, 1599, '2026-09-25T19:55:00Z'], 'drugi odczyt do kontroli dziennej')
+        self.assertEqual(sorted(D['ar']), ['amb', 'bf', 'ch', 'd', 'gap', 'mm', 'q', 'via']); self.assertEqual(sorted(D['ve']), ['base', 'ch', 'd', 'gap', 'mm', 'of', 'q', 'via'])
+        s = json.dumps(D, ensure_ascii=False, separators=(',', ':'))
+        self.assertLess(len(s.encode()), 40_000); self.assertNotIn('NaN', s); self.assertNotIn('Infinity', s); self.assertEqual(D['notes'], [])
+        self.assertIn('DolarApi.com', D['src']); self.assertIn('ArgentinaDatos.com', D['src'])
+        for p in ('ar', 've', 'bo', 'cols', 'unit'):
+            self.assertFalse(_re_v124.search(r'(?i)dolarapi|argentinadatos|dolarhoy|binance|yadio', json.dumps(D[p])), 'nazwy dostawców tylko w polu src: ' + p)
+        self.assertEqual((zd.DL_EVERY, zd.DL_KEEP, zd.DL_TIMEOUT, zd.DL_BUDGET, zd.DL_HIST_H, zd.DL_AD_TRIES, zd.DL_AD_RETRY_H, zd.DL_STALE_D, zd.DL_DROP_D), (55, 400, 20, 60, 24, 3, 24, 4, 14))
+        self.assertEqual(zd.DL_RATIO, {'ar': (0.5, 4.0), 've': (0.5, 5.0), 'bo': (0.5, 5.0)})
+
+    # ---------------------------------------------------------------- 10. przebieg główny
+    def test_main_cache_ponowienie_i_awaria(self):
+        saved = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_dolar' and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
+        ok = {'ar': True, 've': True, 'bo': True, 'amb': True}
+        young, young_bad = {'at': _iso(10), 'ok': ok}, {'at': _iso(30), 'ok': dict(ok, bo=False)}
+        mid = {'at': _iso(40), 'ok': ok}
+        young_amb = {'at': _iso(10), 'ok': dict(ok, amb=False, hist_ar=False)}
+        old = {'at': _iso(70), 'ok': ok}
+        built = {'at': zd.NOW, 'ok': dict(ok)}
+        [p.start() for p in stubs]
+        try:
+            def run(prev, build):
+                calls = []
+                zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+                with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                     mock.patch.object(zd, 'previous', lambda name: prev if name == 'dolar' else None), \
+                     mock.patch.object(zd, 'build_dolar', side_effect=(lambda p, now=None, fetch=None: calls.append(p) or build) if not isinstance(build, Exception) else build):
+                    zd.main()
+                return calls
+            self.assertEqual(run(young, AssertionError('nie powinien budować')), []); self.assertIs(saved['dolar'], young); self.assertEqual(zd.META['ok']['dolar'], 'cached')
+            self.assertEqual(run(young_amb, AssertionError('nie powinien budować')), [], 'drugi odczyt i historia nie wymuszają budowy')
+            self.assertEqual(run(mid, AssertionError('nie powinien budować')), [], 'plik sprzed 40 min z kompletem — z pamięci (okno 55 min)'); self.assertEqual(zd.META['ok']['dolar'], 'cached')
+            self.assertEqual(run(young_bad, built), [young_bad], 'kraj z błędem sprzed 30 min — ponowienie'); self.assertIs(zd.META['ok']['dolar'], True)
+            self.assertEqual(run(old, built), [old], 'plik sprzed 70 min — budowa'); self.assertIs(saved['dolar'], built)
+            run(old, dict(built, ok=dict(ok, ve=False))); self.assertIs(zd.META['ok']['dolar'], False, 'kraj z błędem = źródło bez pełnej odpowiedzi')
+            saved.clear()
+            run(old, RuntimeError('Argentyna: HTTP Error 503')); self.assertIs(saved['dolar'], old, 'awaria całości — zostaje poprzedni plik')
+            self.assertIs(zd.META['ok']['dolar'], False); self.assertIn('Ameryka Łacińska (kursy dolara): Argentyna: HTTP Error 503', zd.META['errors'])
+            saved.clear()
+            run(None, RuntimeError('offline')); self.assertNotIn('dolar', saved, 'bez poprzedniego pliku i bez danych — nic nie zapisujemy'); self.assertIs(zd.META['ok']['dolar'], False)
+        finally:
+            [p.stop() for p in stubs]
+
+    # ---------------------------------------------------------------- 11. straże kodu: blok, main(), kontrola, strona, workflow, zaślepki, składnia
+    def test_kod_kontrola_strona_i_zaslepki(self):
+        import ast as _ast
+        root = os.path.dirname(os.path.abspath(__file__))
+        src = open(zd.__file__, encoding='utf-8').read()
+        a = src.index('# ===================== v136: AMERYKA ŁACIŃSKA')
+        b = min(i for i in (src.find('\n# =====', a + 1), src.find('\n# --- v', a + 1), src.find('\ndef main():', a + 1)) if i > 0)
+        blok = src[a:b]
+        self.assertIn('def build_dolar(', blok); self.assertNotIn('KEY', blok); self.assertNotIn('os.environ', blok, 'źródło bez klucza')
+        self.assertLess(src.index('def build_dolar('), src.index('def main():'))
+        m0 = src.index("prev_dl = previous('dolar')")
+        self.assertGreater(m0, src.index("prev_snb = previous('snb')"), 'po bloku Szwajcarii'); self.assertLess(m0, src.index("# v106: indeksy świata (EODHD"))
+        self.assertIn("META['errors'].append(mask(f'{DL_LABEL}: {e}')); META['ok']['dolar'] = False", src); self.assertIn("if prev_dl: save('dolar', prev_dl)", src)
+        for f in ('zbieraj_dane.py', os.path.join('narzedzia', 'kontrola.py'), os.path.join('narzedzia', 'sondy.py')):
+            _ast.parse(open(os.path.join(root, f), encoding='utf-8').read(), feature_version=(3, 12))   # składnia Pythona 3.12 (GitHub Actions)
+        k = open(os.path.join(root, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        PL = eval(_re_v124.search(r'^PLIKI = (\[.*\])$', k, _re_v124.M).group(1)); LM = eval(_re_v124.search(r'^LIMIT_MIN = (\{[^}]*\})', k, _re_v124.M).group(1))
+        self.assertIn('dolar', PL); self.assertEqual(LM['dolar'], 180); self.assertEqual(PL[-2:], ['krypto-dzien', 'krypto-dziennik'])
+        h = open(os.path.join(root, 'index.html'), encoding='utf-8').read()
+        self.assertEqual(h.count('<section class="panel pcard" id="g-dolar" hidden></section>'), 1); self.assertIn("srvJSON('dolar')", h)
+        self.assertEqual(h.count('const ' + self.EXTRA + '='), 1)
+        self.assertLess(h.index('id="g-insider"'), h.index('id="g-dolar"')); self.assertLess(h.index('id="g-dolar"'), h.index('id="inst"'))
+        wf = open(os.path.join(root, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertNotIn('DOLAR', wf.upper().replace('DOLAR.JSON', ''), 'żadnego sekretu — źródło publiczne')
+        me = open(__file__, encoding='utf-8').read(); a = me.index('class DolarV136(')
+        b = min([i for i in (me.find('\nclass ', a + 1), me.find('\nif __name__', a + 1), me.find('\n# =====', a + 1)) if i > 0] or [len(me)])
+        tups = [m.group(0) for m in _re_v124.finditer(r"\('build_\w+'(?:,\s*'build_\w+')+\)", me[:a] + me[b:]) if "'build_wieloryby'" in m.group(0)]
+        self.assertTrue(len(tups) >= 18 and all("'build_dolar'" in x for x in tups), 'każda lista zaślepek przebiegu głównego (z build_wieloryby) zna build_dolar')
+        i = me.index('def test_meta_is_always_written'); j = me.index('\n    def ', i + 1)
+        self.assertIn("'Ameryka Łacińska'", me[i:j], 'etykieta błędów w filtrze meta')
+
+    # ---------------------------------------------------------------- 12. kontrola dzienna: świeżość i dwa odczyty (najwyżej ⚠️)
+    @classmethod
+    def _k(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v136_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        return mod
+
+    def test_kontrola_porownanie_i_swiezosc(self):
+        k = self._k()
+        D, _ = self._build()
+        T0 = datetime.datetime(2026, 9, 27, 21, 0, tzinfo=datetime.timezone.utc)   # zegar przypięty (godzinę po nagraniu)
+        Z = k.dolar_porownanie(D, copy.deepcopy(DL_BCRA_J), datetime.datetime(2026, 9, 27, 21, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(Z['status'], '✅'); self.assertEqual(Z['uwagi'], [])
+        st = {P['kurs']: (P['status'], P['roznica_pct']) for P in Z['pary']}
+        self.assertEqual(st, {'blue': ('✅', 0.0), 'hurtowy': ('✅', 0.0), 'oficjalny w banku': ('✅', 0.01), 'MEP': ('✅', 0.31), 'CCL': ('✅', 1.1)})
+        self.assertEqual(Z['bcra'], {'status': '✅', 'data': '2026-09-25', 'roznica_pct': 0.0})
+        self.assertIn('CCL ✅ 1.10%', Z['opis']); self.assertIn('hurtowy vs bank centralny (2026-09-25) ✅ 0.00%', Z['opis'])
+        for v in ('1525.5', '1616.6', '1599'):
+            self.assertNotIn(v, Z['opis'], 'do raportu tylko różnice w % i daty')
+        E = copy.deepcopy(D); E['ar']['amb']['blue'][1] = 1560 * 1.05; E['ar']['q']['mayorista'][1] = 1525.5 * 1.02
+        Z2 = k.dolar_porownanie(E, copy.deepcopy(DL_BCRA_J), T0)
+        self.assertEqual(Z2['status'], '⚠️'); self.assertNotIn('❌', json.dumps(Z2, ensure_ascii=False), 'najwyżej ⚠️, nigdy ❌')
+        st2 = {P['kurs']: P['status'] for P in Z2['pary']}
+        self.assertEqual((st2['blue'], st2['hurtowy'], st2['CCL'], Z2['bcra']['status']), ('⚠️', '⚠️', '✅', '⚠️'), 'ocena każdej pary osobno')
+        self.assertTrue(any('kurs blue: dwa odczyty różnią się o 4.76%' in u and 'duża różnica' in u for u in Z2['uwagi']), Z2['uwagi'])
+        self.assertTrue(any('kurs hurtowy w pliku ≠ kurs banku centralnego o 2.00%' in u for u in Z2['uwagi']), Z2['uwagi'])
+        F = copy.deepcopy(D); F['ar']['amb']['contadoconliqui'][2] = '2026-09-21T19:55:00Z'
+        self.assertEqual(next(P for P in k.dolar_porownanie(F, None, T0)['pary'] if P['kurs'] == 'CCL')['status'], '?', 'odczyty 4+ dni od siebie — bez oceny')
+        G = copy.deepcopy(D); del G['ar']['amb']
+        Zg = k.dolar_porownanie(G, None, T0)
+        self.assertEqual({P['status'] for P in Zg['pary']}, {'?'}); self.assertEqual(Zg['bcra']['status'], '?'); self.assertEqual(Zg['status'], '?')
+        self.assertEqual(k.dolar_porownanie(None)['status'], '?'); self.assertEqual(k.dolar_porownanie({'ar': 'x', 've': 5}, None, T0)['status'], '⚠️', 'plik bez części — główne luki bez wartości')
+        H = copy.deepcopy(D); H['ar']['gap']['blue'] = 75.0
+        self.assertTrue(any('możliwy błąd skali' in u for u in k.dolar_porownanie(H, copy.deepcopy(DL_BCRA_J), T0)['uwagi']))
+        # główne luki (przegląd): ⚠️ gdy luki brak albo najstarszy jej kurs ma ponad 4 dni W CHWILI KONTROLI — z dat kursów, nie z part_at
+        t0 = datetime.datetime(2026, 9, 27, 21, 0, tzinfo=datetime.timezone.utc)
+        L, uw = k.dolar_luki(D, t0)
+        self.assertEqual({c: x['status'] for c, x in L.items()}, {'ar': '✅', 've': '✅', 'bo': '✅'}); self.assertEqual(uw, [])
+        self.assertEqual((L['ar']['wiek_dni'], L['bo']['wiek_dni']), (2.2, 0.1), 'AR: od hurtowego 25.09 16:06; BO: oficjalny „sama data” od końca 27.09 w La Paz, USDT 18:01')
+        L, uw = k.dolar_luki(D, datetime.datetime(2026, 9, 29, 17, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(L['ar']['status'], '⚠️'); self.assertIn('najstarszy kurs głównej luki sprzed 4.0 dni', L['ar']['uwaga']); self.assertEqual(L['bo']['status'], '✅')
+        self.assertEqual(uw, ['kursy dolara — Argentyna: najstarszy kurs głównej luki sprzed 4.0 dni (próg 4)'])
+        Bq = copy.deepcopy(D); Bq['bo']['q']['usdt'][2] = '2026-10-01T23:00:00Z'
+        self.assertEqual(k.dolar_luki(Bq, datetime.datetime(2026, 10, 2, 3, 0, tzinfo=datetime.timezone.utc))[0]['bo']['status'], '✅', 'BO: kurs oficjalny „sama data” — 3,96 dnia od końca dnia')
+        self.assertEqual(k.dolar_luki(Bq, datetime.datetime(2026, 10, 2, 5, 0, tzinfo=datetime.timezone.utc))[0]['bo']['status'], '⚠️', 'BO: 4,04 dnia od końca dnia')
+        N = copy.deepcopy(D); N['ve']['gap'] = None; N['part_at'] = {p: '2026-09-27T21:00:00+00:00' for p in ('ar', 've', 'bo')}
+        Ln, uwn = k.dolar_luki(N, t0)
+        self.assertEqual(Ln['ve'], {'status': '⚠️', 'wiek_dni': 1.7, 'uwaga': 'główna luka bez wartości (na stronie „—”)'}); self.assertEqual(len(uwn), 1)
+        Zn = k.dolar_porownanie(N, copy.deepcopy(DL_BCRA_J), t0)
+        self.assertEqual(Zn['status'], '⚠️'); self.assertIn('główne luki: AR ✅, VE ⚠️ (główna luka bez wartości (na stronie „—”)), BO ✅', Zn['opis'])
+        self.assertNotIn('❌', json.dumps(Zn, ensure_ascii=False))
+        self.assertTrue(any(u.startswith('kursy dolara — Wenezuela: główna luka bez wartości') for u in Zn['uwagi']))
+        now = datetime.datetime(2026, 9, 27, 21, 0, tzinfo=datetime.timezone.utc)
+        self.assertEqual(k.dolar_swiezosc(D, now)[:4], ('kursy dolara Ameryki Łacińskiej (co godzinę)', '✅', 60, '2026-09-27T20:00:00+00:00'))
+        r = k.dolar_swiezosc(D, now + datetime.timedelta(hours=3)); self.assertEqual((r[1], r[2]), ('⚠️', 240)); self.assertEqual(r[4], 'próg 3 h 00 min')
+        r = k.dolar_swiezosc(D, now + datetime.timedelta(days=3)); self.assertEqual(r[1], '⚠️', 'po 2× progu nadal tylko ⚠️'); self.assertIn('tylko uwaga', r[4])
+        self.assertIsNone(k.dolar_swiezosc(None)); self.assertEqual(k.dolar_swiezosc({'at': 'x'})[1], '?')
+        self.assertIn('dolar', k.PLIKI); self.assertEqual(k.LIMIT_MIN['dolar'], 180); self.assertNotIn('dolar', [x[1] for x in k.SWIEZOSC], 'lista SWIEZOSC bez zmian')
+
+    def test_kontrola_calosc_naglowek_wynik_i_jedno_zapytanie(self):
+        import io as _io, tempfile
+        k = self._k()
+        D, _ = self._build()
+        NOW = datetime.datetime(2026, 9, 27, 20, 20, tzinfo=datetime.timezone.utc)
+        old = copy.deepcopy(D); old['at'] = '2026-09-26T08:00:00+00:00'; old['part_at'] = {p: old['at'] for p in ('ar', 've', 'bo')}   # 36 h — ⚠️, nigdy ❌
+        calls = []
+
+        class Resp:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self, n=-1):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def siec(dl):
+            def urlopen(req, timeout=None, **kw):
+                url = req.full_url; calls.append((url, req.get_header('User-agent')))
+                J = lambda o: Resp(json.dumps(o).encode())   # noqa: E731
+                if '/index.html?' in url:
+                    return Resp(b'<html>const EXTRA1={};' + b' ' * 1_000_100)
+                if '/data/meta.json?' in url:
+                    return J({'at': (NOW - datetime.timedelta(minutes=17)).isoformat(), 'ok': {'dolar': True}, 'errors': [], 'notes': []})
+                if '/data/dolar.json?' in url:
+                    return J(dl)
+                if '/data/' in url:
+                    return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
+                if url.startswith('https://api.bcra.gob.ar/'):
+                    return J(DL_BCRA_J)
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                    return Resp(b'x' * 100)
+                if url.startswith('https://api.github.com/'):
+                    return J({'workflow_runs': []})
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, _io.BytesIO(b''))   # inne kontrole (spoza tego wydania): brak odpowiedzi
+            return urlopen
+        for dl, fresh in ((D, True), (old, False)):
+            calls.clear()
+            d = tempfile.mkdtemp(prefix='k136-')
+            with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                    mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', siec(dl)):
+                R = k.kontrola()
+                md = k.raport_md(R)
+            b = [(u, ua) for u, ua in calls if 'bcra' in u]
+            self.assertEqual(b, [('https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde=2026-09-15&fechahasta=2026-09-25', 'CapitalFlowAI-kontrola/1.0')],
+                             'jedno zapytanie do banku centralnego, 10 dni do dnia kursu hurtowego')
+            L = md.splitlines()
+            self.assertRegex(L[0], r'^# Kontrola strony — \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} \(czas polski\)$'); self.assertRegex(L[2], r'^\*\*Wynik: (OK|UWAGA)\*\*$')
+            self.assertFalse([x for x in R['bledy'] if 'dolar' in x or 'Argentyn' in x or 'Ameryki' in x], 'kursy dolara nigdy nie są błędem kontroli')
+            self.assertNotEqual(R['wynik'], 'BŁĄD')
+            line = next(x for x in L if x.startswith('- Argentyna — dwa odczyty tych samych kursów:'))
+            self.assertIn('hurtowy vs bank centralny (2026-09-25) ✅ 0.00%', line)
+            row = next(s for s in R['swiezosc'] if s['zrodlo'] == 'kursy dolara Ameryki Łacińskiej (co godzinę)')
+            self.assertEqual(row['status'], '✅' if fresh else '⚠️'); self.assertIn('| kursy dolara Ameryki Łacińskiej (co godzinę) |', md)
+            self.assertEqual(any(u.startswith('kursy dolara Ameryki Łacińskiej (co godzinę): dane z') for u in R['uwagi']), not fresh)
+            self.assertIn('dolar', R['pliki'])
+
+    # ---------------------------------------------------------------- 13. sonda (narzedzia/sondy.py): tylko statusy i kształty
+    def test_sonda_grupa_dolar(self):
+        import contextlib, importlib.util, io as _io
+        spec = importlib.util.spec_from_file_location('v136_sondy', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        self.assertIn(S.g_dolar, S.GROUPS); self.assertIs(S.GROUPS[-1], S.g_nasdaq, 'g_nasdaq zostaje ostatnia'); self.assertEqual(S.GROUPS.count(S.g_dolar), 1)
+        by = {u: json.dumps(r).encode() for u, r in self._map().items()}
+        by[zd.AD_HIST.format(c='contadoconliqui')] = json.dumps(_dl_ad_series('contadoconliqui')).encode()
+        calls = []
+
+        def http(url, method='GET', body=None, headers=None):
+            ua = (headers or {}).get('User-Agent', S.UA); calls.append((url.split('?')[0], ua))
+            if 'Python-urllib' in ua and 'dolarapi.com' in url:
+                return 403, b'error code: 1010', 5, None
+            if url.startswith('https://api.bcra.gob.ar/'):
+                return 200, json.dumps(DL_BCRA_J).encode(), 7, None
+            if '/dolares/blue/' in url:
+                return 200, b'{"casa":"blue","compra":1540,"venta":1560,"fecha":"2026-09-25"}', 7, None
+            return (200, by[url], 7, None) if url in by else (404, b'', 1, None)
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: None), mock.patch.object(S, '_utc_today', lambda: datetime.date(2026, 9, 27)), \
+                contextlib.redirect_stdout(out):
+            S.g_dolar()
+        txt = out.getvalue(); lines = [x for x in txt.splitlines() if x.strip()]
+        self.assertEqual(len(lines), 12, txt)
+        self.assertTrue(all('HTTP 200' in x for x in lines if 'exp403' not in x), txt); self.assertIn('HTTP 403', next(x for x in lines if 'exp403' in x))
+        self.assertIn('ratio_sane=True', lines[0]); self.assertIn("fuentes=['oficial', 'paralelo']", txt); self.assertIn('future_dated=1', txt)
+        for v in ('1616.6', '1525.5', '945.55', '855.66', '12.05', '12.04', '1545', '1560', '1599'):
+            self.assertNotIn(v, txt, 'żadnej wartości kursu w wyniku sondy: ' + v)
+        self.assertNotIn('http', txt.lower().replace('http 200', '').replace('http 403', ''), 'żadnego adresu')
+        self.assertEqual(sum(1 for _, ua in calls if ua == self.UA), 10); self.assertFalse([u for u, _ in calls if 'b3.com.br' in u], 'opcjonalna sonda B3 — osobne wydanie')

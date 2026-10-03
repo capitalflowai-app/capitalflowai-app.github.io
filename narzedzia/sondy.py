@@ -752,6 +752,118 @@ def g_evds():
 # (3) GROUPS = [..., g_fmp, g_alphavantage, g_evds]
 
 
+# v136 (etykieta „dolar”): sondy bez klucza dla data/dolar.json — serwis kursów Argentyny, Wenezueli i Boliwii (przed nim Cloudflare), jego kopia
+# plików na GitHubie (zapas), serwis historii Argentyny (jednorazowe uzupełnienie) i API banku centralnego Argentyny (tylko kontrola dzienna).
+# Wypisuje tylko: kod HTTP, ms, bajty, liczniki, identyfikatory casa/fuente, nazwy pól, znaczniki aktualizacji i daty oraz wartości logiczne —
+# nigdy kursu, adresu, nagłówka ani treści. Oczekiwane z serwera w USA (27.09.2026): wszędzie HTTP 200 poza „ar_dolares_pythonUA_exp403” = 403
+# (Cloudflare „error code: 1010” odrzuca domyślny identyfikator Python-urllib; zbieracz wysyła własny) — dlatego podsumowanie „dolarapi” pokazuje
+# „likely geo/CDN block on 1”: to ta zamierzona sonda. Opcjonalna sonda biuletynu B3 z planu pominięta (osobne, przyszłe wydanie).
+DOLAR_UA = {"User-Agent": "CapitalFlowAI-collector/1.0"}      # dokładnie to, co wysyłają zbieraj_dane.get() / get_json()
+DOLAR_AR_CASAS = ("oficial", "blue", "bolsa", "contadoconliqui", "mayorista", "cripto", "tarjeta")
+
+
+def _dl_num(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x > 0
+
+
+def _dl_ar(raw):
+    """Kursy Argentyny (odczyt główny albo drugi): obecne casy, ile ma dodatnią sprzedaż, czy każdy stosunek do kursu hurtowego jest rozsądny
+    (0,5..4,0; bez „tarjeta” — to wyliczenie z podatkami), pierwszy/ostatni znacznik aktualizacji, nazwy pól."""
+    obj = json.loads(raw)
+    if not isinstance(obj, list):
+        return shape(raw)
+    it = [x for x in obj if isinstance(x, dict)]
+    casas = {str(x.get("casa")) for x in it}
+    ok = sum(1 for x in it if _dl_num(x.get("venta")))
+    ts = sorted(str(x.get("fechaActualizacion"))[:16] for x in it if x.get("fechaActualizacion"))
+    base = next((x.get("venta") for x in it if x.get("casa") == "mayorista"), None)
+    sane = _dl_num(base) and all(0.5 <= x["venta"] / base <= 4.0 for x in it if _dl_num(x.get("venta")) and x.get("casa") != "tarjeta")
+    cmp_ok = all(not _dl_num(x.get("compra")) or x["compra"] <= x["venta"] * 1.02 for x in it if _dl_num(x.get("venta")))
+    keys = sorted({str(k) for x in it for k in x})
+    return (f"list n={len(it)} venta_ok={ok} missing={sorted(set(DOLAR_AR_CASAS) - casas) or '-'} "
+            f"new={sorted(casas - set(DOLAR_AR_CASAS)) or '-'} ratio_sane={bool(sane)} compra_le_venta={cmp_ok} "
+            f"t_min={ts[0] if ts else '-'} t_max={ts[-1] if ts else '-'} keys=[{','.join(keys)[:90]}]")
+
+
+def _dl_ve(raw):
+    """Wenezuela: obecne źródła (fuente), dodatnia średnia, rozsądny stosunek równoległy/oficjalny (0,5..5,0), oba znaczniki aktualizacji."""
+    obj = json.loads(raw)
+    if not isinstance(obj, list):
+        return shape(raw)
+    it = {str(x.get("fuente")): x for x in obj if isinstance(x, dict)}
+    of, pa = it.get("oficial") or {}, it.get("paralelo") or {}
+    sane = _dl_num(of.get("promedio")) and _dl_num(pa.get("promedio")) and 0.5 <= pa["promedio"] / of["promedio"] <= 5.0
+    return (f"list n={len(obj)} fuentes={sorted(it)} promedio_ok={sum(1 for x in it.values() if _dl_num(x.get('promedio')))} "
+            f"ratio_sane={bool(sane)} t_oficial={str(of.get('fechaActualizacion'))[:25]} t_paralelo={str(pa.get('fechaActualizacion'))[:16]}")
+
+
+def _dl_bo(raw):
+    """Boliwia: obecne casy, dodatnia sprzedaż, rozsądny stosunek P2P/oficjalny (0,5..5,0), oba znaczniki aktualizacji."""
+    obj = json.loads(raw)
+    if not isinstance(obj, list):
+        return shape(raw)
+    it = {str(x.get("casa")): x for x in obj if isinstance(x, dict)}
+    of, bn = it.get("oficial") or {}, it.get("binance") or {}
+    sane = _dl_num(of.get("venta")) and _dl_num(bn.get("venta")) and 0.5 <= bn["venta"] / of["venta"] <= 5.0
+    return (f"list n={len(obj)} casas={sorted(it)} venta_ok={sum(1 for x in it.values() if _dl_num(x.get('venta')))} "
+            f"ratio_sane={bool(sane)} t_oficial={str(of.get('fechaActualizacion'))[:16]} t_p2p={str(bn.get('fechaActualizacion'))[:16]}")
+
+
+def _dl_hist(raw):
+    """Lista historii (Wenezuela, Argentyna): wiersze z dodatnią liczbą, pierwsza/ostatnia data, wiersze z datą po dzisiejszej (UTC), powtórzone daty."""
+    obj = json.loads(raw)
+    if not isinstance(obj, list):
+        return shape(raw)
+    ds = sorted(str(x.get("fecha")) for x in obj if isinstance(x, dict) and (_dl_num(x.get("promedio")) or _dl_num(x.get("venta"))))
+    today = _utc_today().isoformat()
+    return (f"list n={len(obj)} num={len(ds)} first={ds[0] if ds else '-'} last={ds[-1] if ds else '-'} "
+            f"future_dated={sum(1 for d in ds if d > today)} dup={len(ds) - len(set(ds))}")
+
+
+def _dl_bcra(raw):
+    """API kursów banku centralnego Argentyny (Cotizaciones/USD): dni z dodatnim kursem, ostatnia data, status."""
+    obj = json.loads(raw)
+    r = obj.get("results") if isinstance(obj, dict) else None
+    if not isinstance(r, list):
+        return shape(raw)
+    ds = sorted(str(x.get("fecha")) for x in r if isinstance(x, dict)
+                and any(isinstance(y, dict) and _dl_num(y.get("tipoCotizacion")) for y in (x.get("detalle") or [])))
+    return f"results={len(r)} num={len(ds)} last={ds[-1] if ds else '-'} status={obj.get('status')}"
+
+
+def g_dolar():
+    ar = "https://dolarapi.com/v1/dolares"
+    # A: to, o co zbieracz pyta przy każdej budowie (jego identyfikator), potem to samo z identyfikatorem sond i z domyślnym Pythona (oczekiwane 403)
+    probe("dolarapi", "ar_dolares_collectorUA", ar, headers=DOLAR_UA, extra_fn=_dl_ar)
+    time.sleep(0.3)
+    probe("dolarapi", "ar_dolares_sondyUA", ar, extra_fn=_dl_ar)
+    time.sleep(0.3)
+    probe("dolarapi", "ar_dolares_pythonUA_exp403", ar, headers={"User-Agent": "Python-urllib/3.12"})
+    time.sleep(0.3)
+    # B: drugi odczyt tych samych kursów Argentyny — tylko dla kontroli dziennej
+    probe("dolarapi", "ar_ambito_collectorUA", "https://dolarapi.com/v1/ambito/dolares", headers=DOLAR_UA, extra_fn=_dl_ar)
+    time.sleep(0.3)
+    probe("dolarapi", "ve_dolares", "https://ve.dolarapi.com/v1/dolares", headers=DOLAR_UA, extra_fn=_dl_ve)
+    time.sleep(0.3)
+    probe("dolarapi", "bo_dolares", "https://bo.dolarapi.com/v1/dolares", headers=DOLAR_UA, extra_fn=_dl_bo)
+    for f in ("oficial", "paralelo"):
+        time.sleep(0.3)
+        probe("dolarapi", f"ve_hist_{f}", f"https://ve.dolarapi.com/v1/historicos/dolares/{f}", headers=DOLAR_UA, extra_fn=_dl_hist)
+    # C: zapas — ten sam plik w publicznym repozytorium projektu (27.09 bajt w bajt jak w API)
+    probe("dolarapi-gh", "raw_ar_dolares", "https://raw.githubusercontent.com/enzonotario/dolarapi.com/main/datos/v1/dolares/index.json",
+          headers=DOLAR_UA, extra_fn=_dl_ar)
+    # D: historia Argentyny (jedna pełna seria ok. 0,54 MB; zbieracz potrzebuje sześciu serii tylko raz) i jeden wiersz jednego dnia
+    probe("argdatos", "hist_contadoconliqui", "https://api.argentinadatos.com/v1/cotizaciones/dolares/contadoconliqui",
+          headers=DOLAR_UA, extra_fn=_dl_hist)
+    d = _utc_today() - dt.timedelta(days=2)
+    probe("argdatos", "day_blue_D-2", f"https://api.argentinadatos.com/v1/cotizaciones/dolares/blue/{d:%Y/%m/%d}", headers=DOLAR_UA)
+    # E: oficjalny kurs hurtowy (API banku centralnego Argentyny, bez klucza) — tylko porównanie w kontroli dziennej
+    a, b = _utc_today() - dt.timedelta(days=10), _utc_today()
+    probe("bcra", "cotizaciones_USD_10d",
+          f"https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde={a.isoformat()}&fechahasta={b.isoformat()}",
+          headers=DOLAR_UA, extra_fn=_dl_bcra)
+
+
 def g_nasdaq():
     """v127, krok 0 wydania: Nasdaq quote API bez klucza — DOKŁADNIE ta prośba, którą wyśle zbieracz (sam nagłówek User-Agent zbieracza, bez
     Accept); wypisuje tylko kod HTTP, liczbę wierszy i najnowszą datę (bez adresu i treści). Wiersz „summary nasdaq-rows” trafia do adnotacji."""
@@ -782,7 +894,7 @@ def g_nasdaq():
 
 GROUPS = [g_deribit, g_binance_fapi, g_binance_mirrors, g_bybit, g_okx, g_hyperliquid,
           g_alternatives, g_onchain_public, g_etherscan, g_cryptopanic, g_tiingo,
-          g_massive, g_eodhd, g_fmp, g_alphavantage, g_coinalyze, g_banxico, g_evds, g_nasdaq]
+          g_massive, g_eodhd, g_fmp, g_alphavantage, g_coinalyze, g_banxico, g_evds, g_dolar, g_nasdaq]
 
 
 # --------------------------------------------------------------------------- main

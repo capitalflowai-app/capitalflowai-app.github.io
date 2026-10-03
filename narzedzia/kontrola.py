@@ -10,6 +10,7 @@ Zapisuje `kontrola/ostatnia.md` (po polsku: nagłówek i linia „Wynik:” w st
 Kod wyjścia 1 = BŁĄD (GitHub wysyła właścicielowi e-mail o nieudanym przebiegu). Bez kluczy, tylko odczyt. Python 3.12, sama biblioteka standardowa.
 Uwaga: komunikat commita bota zawiera „[skip ci]” — GitHub pomija wtedy przebiegi wyzwalane pushem (dlatego commit dodający ten plik
 nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśnie z tego powodu).
+v136: kursy dolara Ameryki Łacińskiej (data/dolar.json) — świeżość osobnym wierszem (najwyżej ⚠️), dwa odczyty kursów Argentyny z pliku i kurs hurtowy vs API banku centralnego Argentyny (1 zapytanie); tylko uwagi, nigdy BŁĄD.
 v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`."""
 import csv
 import datetime as dt
@@ -29,9 +30,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -891,6 +892,190 @@ def etf_emitent(files, R):
     return E
 
 
+# ---------------------------------------------------------------- v136: kursy dolara Ameryki Łacińskiej (data/dolar.json) ----------------------------------------------------------------
+DL_ETYKIETA = 'kursy dolara Ameryki Łacińskiej (co godzinę)'
+DL_PROG = 180              # min — wiek najnowszej części pliku (part_at.ar/ve/bo; automat co 55 min): po progu ⚠️, nigdy ❌ — osobny wiersz, lista SWIEZOSC bez zmian
+DL_PARY = (('blue', 'blue', 0.5), ('mayorista', 'hurtowy', 0.5), ('oficial', 'oficjalny w banku', 0.5), ('bolsa', 'MEP', 2.0), ('contadoconliqui', 'CCL', 2.0))
+DL_DUZA = {0.5: 1.5, 2.0: 4.0}   # % — ponad to różnica dwóch odczytów jest „duża” (dopisek przy ⚠️; nigdy ❌ ani BŁĄD)
+DL_DNI = 3                 # dni — znaczniki dwóch odczytów dalej od siebie = „?” (bez oceny: porównanie różnych sesji)
+DL_BCRA = 'https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde={a}&fechahasta={b}'   # bez klucza, dni robocze
+DL_BCRA_PROG = 0.3         # % — kurs hurtowy z pliku vs kurs banku centralnego Argentyny z tego samego dnia (27.09: 1525,5 = 1525,5)
+DL_LUKA_MAX = {'ar': 60.0, 've': 300.0}   # % — większa luka = możliwy błąd skali, który przeszedł przez zakres stosunku kursów (uwaga)
+DL_LUKA_DNI = 4            # dni — najstarszy kurs głównej luki (AR: CCL i hurtowy, VE: równoległy i data kursu banku, BO: USDT i oficjalny) starszy = ⚠️
+DL_KRAJE = (('ar', 'Argentyna'), ('ve', 'Wenezuela'), ('bo', 'Boliwia'))
+DL_TZ_K = {'ar': -3, 've': -4, 'bo': -4}   # jak w zbieraczu: kurs „sama data” (północ UTC) liczony od końca tego dnia w kraju
+
+
+def _dl_kurs(q):
+    """Kurs z pliku: [kupno | None, sprzedaż > 0, znacznik, …]."""
+    return isinstance(q, list) and len(q) >= 3 and isinstance(q[1], (int, float)) and not isinstance(q[1], bool) and q[1] > 0
+
+
+def _dl_czas(s):
+    try:
+        t = dt.datetime.fromisoformat(str(s).replace('Z', '+00:00'))
+        return t if t.tzinfo else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _dl_od(stamp, cc):
+    """Chwila, od której liczymy wiek kursu (jak dl_qtime w zbieraczu): znacznik; „sama data” (północ UTC albo RRRR-MM-DD) — koniec tego dnia w kraju."""
+    s = str(stamp or '')
+    if len(s) == 10:
+        s += 'T00:00:00Z'
+    t = _dl_czas(s)
+    if t is not None and t.utcoffset() == dt.timedelta(0) and (t.hour, t.minute, t.second, t.microsecond) == (0, 0, 0, 0):
+        return t + dt.timedelta(days=1) - dt.timedelta(hours=DL_TZ_K[cc])
+    return t
+
+
+def dolar_luki(dl, now=None):
+    """v136, przegląd: główne luki strony (AR: CCL wobec hurtowego, VE, BO) — ⚠️, gdy luki brak (strona pokazuje „—”) albo gdy najstarszy z jej
+    kursów jest starszy niż DL_LUKA_DNI dni W CHWILI KONTROLI (wiek z dat samych kursów, nie z part_at — kraj z błędem ma stary part_at, ale też
+    kraj bez błędu może mieć zatrzymane kursy). Tylko uwagi, nigdy ❌. → ({kraj: {'status', 'wiek_dni', 'uwaga'}}, [uwagi])"""
+    now = now or NOW
+    out, uw = {}, []
+    for cc, nm in DL_KRAJE:
+        P = dl.get(cc) if isinstance(dl, dict) and isinstance(dl.get(cc), dict) else {}
+        q = P.get('q') if isinstance(P.get('q'), dict) else {}
+        if cc == 'ar':
+            g = (P.get('gap') or {}).get('contadoconliqui') if isinstance(P.get('gap'), dict) else None
+            st = [x[2] for x in (q.get('contadoconliqui'), q.get('mayorista')) if _dl_kurs(x)]
+            need = 2
+        elif cc == 've':
+            g = P.get('gap'); b = P.get('base') if isinstance(P.get('base'), list) and len(P.get('base')) >= 4 else None
+            st = ([q['paralelo'][2]] if _dl_kurs(q.get('paralelo')) else []) + ([b[3]] if b and b[3] else [])
+            need = 2
+        else:
+            g = P.get('gap')
+            st = [x[2] for x in (q.get('usdt'), q.get('oficial')) if _dl_kurs(x)]
+            need = 2
+        ts = [_dl_od(x, cc) for x in st]
+        dni = (now - min(ts)).total_seconds() / 86400 if ts and None not in ts else None
+        wiek = round(dni, 1) if dni is not None else None
+        num = isinstance(g, (int, float)) and not isinstance(g, bool)
+        if not num:
+            K = {'status': '⚠️', 'wiek_dni': wiek, 'uwaga': 'główna luka bez wartości (na stronie „—”)'}
+        elif len(ts) < need or None in ts:
+            K = {'status': '⚠️', 'wiek_dni': wiek, 'uwaga': 'brak daty któregoś kursu głównej luki'}
+        elif dni > DL_LUKA_DNI:
+            K = {'status': '⚠️', 'wiek_dni': wiek, 'uwaga': f'najstarszy kurs głównej luki sprzed {wiek:.1f} dni (próg {DL_LUKA_DNI})'}
+        else:
+            K = {'status': '✅', 'wiek_dni': wiek}
+        out[cc] = K
+        if K['status'] == '⚠️':
+            uw.append(f'kursy dolara — {nm}: {K["uwaga"]}')
+    return out, uw
+
+
+def _dl_bcra_kurs(j, d):
+    """Odpowiedź API banku centralnego Argentyny (Cotizaciones/USD) → kurs dnia d (RRRR-MM-DD) albo None."""
+    for x in ((j.get('results') if isinstance(j, dict) else None) or []):
+        if isinstance(x, dict) and x.get('fecha') == d:
+            for y in x.get('detalle') or []:
+                v = y.get('tipoCotizacion') if isinstance(y, dict) else None
+                if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 and (y.get('codigoMoneda') or 'USD') == 'USD':
+                    return float(v)
+    return None
+
+
+def dolar_swiezosc(j, now=None):
+    """Wiersz świeżości kursów dolara (data/dolar.json → najnowsza z part_at.ar/ve/bo) w kształcie wierszy swiezosc(): (etykieta, status, wiek min,
+    data, uwaga); brak pliku = None (brak pliku zgłasza pętla wieku plików). Najwyżej ⚠️ — nieoficjalny serwis kursów to nie awaria strony."""
+    if not isinstance(j, dict):
+        return None
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    v = max((pa[k] for k in ('ar', 've', 'bo') if isinstance(pa.get(k), str)), default=None)
+    if not v:
+        return (DL_ETYKIETA, '?', None, None, 'brak czasu części w pliku')
+    w = wiek_danych(v, 'ts', 'h', now)
+    if w is None:
+        return (DL_ETYKIETA, '?', None, v, 'zły zapis czasu części')
+    st = '✅' if w <= DL_PROG else '⚠️'
+    note = '' if st == '✅' else f'próg {fmt_wiek(DL_PROG)}' + (', ponad 2× progu — tylko uwaga' if w > 2 * DL_PROG else '')
+    return (DL_ETYKIETA, st, w, v, note)
+
+
+def dolar_porownanie(dl, bcra=None, now=None):
+    """v136: Argentyna — dwa odczyty tych samych kursów z pliku dolar.json (ar.q vs ar.amb, sprzedaż) i kurs hurtowy vs kurs banku centralnego
+    z tego samego dnia w Argentynie (UTC−3; bcra = odpowiedź API banku albo None) → {'status', 'pary', 'bcra', 'uwagi', 'opis'}. Para: ✅ w progu,
+    ⚠️ ponad próg (nigdy ❌), „?” = brak któregoś odczytu albo znaczniki dalej niż DL_DNI dni. Do raportu tylko różnice w % i daty (bez kursów)."""
+    out = {'status': '?', 'pary': [], 'bcra': None, 'uwagi': [], 'opis': ''}
+    A = dl.get('ar') if isinstance(dl, dict) and isinstance(dl.get('ar'), dict) else {}
+    q = A.get('q') if isinstance(A.get('q'), dict) else {}
+    amb = A.get('amb') if isinstance(A.get('amb'), dict) else {}
+    txt = []
+    for k, nm, prog in DL_PARY:
+        a, b = q.get(k), amb.get(k)
+        P = {'kurs': nm, 'status': '?', 'roznica_pct': None, 'prog': prog}
+        ta, tb = (_dl_czas(a[2]) if _dl_kurs(a) else None), (_dl_czas(b[2]) if _dl_kurs(b) else None)
+        if ta is None or tb is None:
+            P['uwaga'] = 'brak odczytu'
+        elif abs(ta - tb) > dt.timedelta(days=DL_DNI):
+            P['uwaga'] = f'odczyty dalej niż {DL_DNI} dni od siebie'
+        else:
+            r = abs(a[1] - b[1]) / b[1] * 100
+            P['roznica_pct'] = round(r, 2) + 0.0
+            P['status'] = '✅' if r <= prog else '⚠️'
+            if r > prog:
+                out['uwagi'].append(f'Argentyna, kurs {nm}: dwa odczyty różnią się o {r:.2f}% (próg {prog:g}%'
+                                    + (f'; ponad {DL_DUZA[prog]:g}% — duża różnica' if r > DL_DUZA[prog] else '') + ')')
+        out['pary'].append(P)
+        txt.append(f'{nm} {P["status"]} ' + (f'{P["roznica_pct"]:.2f}%' if P['roznica_pct'] is not None else f'({P["uwaga"]})'))
+    m = q.get('mayorista')
+    B = {'status': '?', 'data': None, 'roznica_pct': None}
+    t = _dl_czas(m[2]) if _dl_kurs(m) else None
+    if t is None:
+        B['uwaga'] = 'brak kursu hurtowego w pliku'
+    else:
+        B['data'] = (t - dt.timedelta(hours=3)).date().isoformat()
+        v = _dl_bcra_kurs(bcra, B['data'])
+        if v is None:
+            B['uwaga'] = 'brak tego dnia w odpowiedzi banku' if isinstance(bcra, dict) else 'brak odczytu banku'
+        else:
+            r = abs(m[1] - v) / v * 100
+            B['roznica_pct'] = round(r, 2) + 0.0; B['status'] = '✅' if r <= DL_BCRA_PROG else '⚠️'
+            if r > DL_BCRA_PROG:
+                out['uwagi'].append(f'Argentyna {B["data"]}: kurs hurtowy w pliku ≠ kurs banku centralnego o {r:.2f}% (próg {DL_BCRA_PROG:g}%)')
+    out['bcra'] = B
+    txt_b = f'hurtowy vs bank centralny ({B["data"] or "—"}) {B["status"]} ' + (f'{B["roznica_pct"]:.2f}%' if B['roznica_pct'] is not None else f'({B["uwaga"]})')
+    gaps = {('ar', k): v for k, v in (A.get('gap') or {}).items()} if isinstance(A.get('gap'), dict) else {}
+    V = dl.get('ve') if isinstance(dl, dict) and isinstance(dl.get('ve'), dict) else {}
+    gaps[('ve', 'paralelo')] = V.get('gap')
+    for (cc, k), g in gaps.items():
+        if isinstance(g, (int, float)) and not isinstance(g, bool) and g > DL_LUKA_MAX[cc]:
+            out['uwagi'].append(f'kursy dolara: luka {cc.upper()} {k} {g:+.1f}% ponad {DL_LUKA_MAX[cc]:g}% — możliwy błąd skali kursu')
+    if isinstance(dl, dict):   # główne luki strony: brak albo stare kursy (wiek z dat kursów) = ⚠️
+        out['luki'], uw = dolar_luki(dl, now)
+        out['uwagi'] += uw
+        txt_b += '; główne luki: ' + ', '.join(f'{cc.upper()} {K["status"]}' + (f' ({K["uwaga"]})' if K.get('uwaga') else '') for cc, K in out['luki'].items())
+    sts = [P['status'] for P in out['pary']] + [B['status']]
+    out['status'] = '⚠️' if '⚠️' in sts or out['uwagi'] else ('✅' if '✅' in sts else '?')
+    out['opis'] = ', '.join(txt) + '; ' + txt_b
+    return out
+
+
+def dolar_kontrola(dl, R):
+    """Krok 3f kontroli: 1 zapytanie do API banku centralnego Argentyny (10 dni do dnia kursu hurtowego; tylko gdy plik ma ten kurs z datą)
+    i porównanie dolar_porownanie; uwagi dopisane do R['uwagi'] (nigdy do listy błędów). Brak pliku = None."""
+    if not isinstance(dl, dict):
+        return None
+    A = dl.get('ar') if isinstance(dl.get('ar'), dict) else {}
+    m = (A.get('q') or {}).get('mayorista') if isinstance(A.get('q'), dict) else None
+    t = _dl_czas(m[2]) if _dl_kurs(m) else None
+    bcra = None
+    if t is not None:
+        d = (t - dt.timedelta(hours=3)).date()
+        try:
+            bcra = get_json(DL_BCRA.format(a=(d - dt.timedelta(days=10)).isoformat(), b=d.isoformat()))
+        except Exception as e:  # noqa
+            R['uwagi'].append(f'kurs hurtowy Argentyny vs bank centralny: brak odczytu ({str(e)[:80]})')
+    Z = dolar_porownanie(dl, bcra)
+    R['uwagi'].extend(Z['uwagi'])
+    return Z
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -995,6 +1180,15 @@ def kontrola():
     if isinstance(files.get('wycena'), dict):
         R['zgodnosc']['wycena'] = wycena_mvrv(files.get('wycena'))
         R['uwagi'] += R['zgodnosc']['wycena']['uwagi']
+    # 3c''. v136: świeżość kursów dolara Ameryki Łacińskiej — osobny wiersz tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
+    dr = dolar_swiezosc(files.get('dolar'))
+    if dr:
+        label, st, w, txt, note = dr
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -1068,6 +1262,13 @@ def kontrola():
     # 3e. v128: zgodność premii krypto (bez sieci: plik premie i wczytany rynki) — tylko uwagi, nigdy błąd (dziwny rynek to nie awaria strony)
     Z['premie'] = premie_porownanie(files.get('premie'), files.get('rynki'))
     R['uwagi'] += Z['premie']['uwagi']
+    # 3f. v136: Argentyna — dwa odczyty tych samych kursów (plik dolar.json) i kurs hurtowy vs bank centralny (1 zapytanie); najwyżej ⚠️ (nigdy ❌
+    # ani BŁĄD): kurs z nieoficjalnego serwisu to nie awaria strony
+    try:
+        Z['dolar'] = dolar_kontrola(files.get('dolar'), R)
+    except Exception as e:  # noqa
+        Z['dolar'] = {'status': '?', 'blad': str(e)[:120]}
+        R['uwagi'].append(f'kursy dolara (Argentyna): kontrola przerwana ({str(e)[:80]})')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -1169,6 +1370,9 @@ def raport_md(R):
         cz = [emitent_linia(t, F) for t, F in (em.get('fundusze') or {}).items()]
         L.append(f'- ETF krypto u źródła — przepływy funduszy na stronie vs wyliczenie z plików emitenta (dzień D = zmiana liczby jednostek D → D+1 × NAV z D; '
                  f'próg max {EM_TOL_MLN:g} mln USD / {EM_TOL_PCT:g}%): ' + (' · '.join(cz) if cz else (f'? kontrola przerwana ({em["blad"]})' if em.get('blad') else '—')) + '.')
+        dz = Z.get('dolar')   # v136: Argentyna — tylko różnice w % i daty (bez kursów); brak pliku = bez linii
+        if dz:
+            L.append('- Argentyna — dwa odczyty tych samych kursów: ' + (dz.get('opis') or (f'? kontrola przerwana ({dz["blad"]})' if dz.get('blad') else '—')) + '.')
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:

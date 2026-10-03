@@ -13661,6 +13661,504 @@ def _pr_build(prev, now, late):
     return out
 
 
+# ===================== v136: AMERYKA ŁACIŃSKA — kurs oficjalny a równoległy dolara (data/dolar.json; bez klucza) =====================
+# Luka kursowa w Argentynie, Wenezueli i Boliwii: o ile procent drożej kosztuje dolar poza kursem oficjalnym. Serwis kursów DolarApi.com
+# (projekt otwarty, kod na licencji MIT; Argentyna — kursy z portalu DolarHoy, drugi odczyt z Ámbito tylko do kontroli dziennej; Wenezuela —
+# kurs banku centralnego i średnia rynkowa Yadio; Boliwia — kurs banku centralnego i ogłoszenia P2P USDT/BOB z Binance): pliki JSON bez klucza,
+# zapas — te same pliki w publicznym repozytorium projektu (raw.githubusercontent.com, bez Cloudflare). Historia: Argentyna — ArgentinaDatos.com
+# jeden raz (6 serii, ostatnie 400 dni), potem własne odczyty; Wenezuela — historia serwisu raz na dobę; Boliwia — tylko własne odczyty.
+# Cloudflare przed serwisem odrzuca domyślny identyfikator Pythona (HTTP 403, „error code: 1010”) — get_json wysyła identyfikator zbieracza.
+# Nazwy serwisów tylko tutaj, w polu src pliku i w strona/GLOBAL-zrodla.md; na stronie żadnych (decyzja właściciela 27.09 ok. 21:40).
+# Brak liczby = None (na stronie „—”), nigdy 0; każdy kurs z własnym znacznikiem czasu; część z błędem = poprzednia wersja tej części z jej czasem.
+import math as _dl_math   # v136: isfinite (ponowny import jest nieszkodliwy)
+
+DL_AR = 'https://dolarapi.com/v1/dolares'
+DL_AR_AMB = 'https://dolarapi.com/v1/ambito/dolares'      # drugi odczyt tych samych kursów Argentyny — tylko kontrola dzienna (nie na stronie)
+DL_VE = 'https://ve.dolarapi.com/v1/dolares'
+DL_BO = 'https://bo.dolarapi.com/v1/dolares'
+DL_VE_HIST = 'https://ve.dolarapi.com/v1/historicos/dolares/{f}'                    # f = oficial | paralelo
+DL_GH = 'https://raw.githubusercontent.com/enzonotario/dolarapi.com/main/datos/{r}v1/dolares/index.json'   # r = '' | 've/' | 'bo/'
+AD_HIST = 'https://api.argentinadatos.com/v1/cotizaciones/dolares/{c}'              # c = jedna z DL_AR_CASAS (cała historia, ok. 0,5 MB)
+DL_PAGE = 'https://dolarapi.com/docs/'    # pole 'url' pliku — strona publiczna dokumentacji (strona go nie pokazuje)
+DL_EVERY = 55          # min — plik młodszy, z kompletem części = bez zapytań (serwis zmienia się najwyżej co godzinę)
+DL_PARTS = ('ar', 've', 'bo')
+DL_KEEP = 400          # dni historii na kraj
+DL_TIMEOUT = 20        # s — najdłużej jedno zapytanie (i nie dłużej, niż zostało z budżetu budowy)
+DL_BUDGET = 60         # s na całą budowę: każde zapytanie (także bieżące pliki krajów) dostaje najwyżej pozostały czas; historie wstecz przez
+                       # _back_ok (koszt = DL_TIMEOUT), a w przebiegu spóźnionym (BACK_LATE) bez historii — jak inne historie
+DL_LEFT_MIN = 1.0      # s — mniej zostało z budżetu = zapytanie pominięte (część kraju z błędem, ponowienie w następnym przebiegu)
+DL_HIST_H = 24         # h — historia Wenezueli raz na dobę
+DL_AD_TRIES = 3        # historia Argentyny: najwyżej 3 nieudane próby uzupełnienia (każda brakujących serii), potem tylko własne odczyty (plan §6)
+DL_AD_RETRY_H = 24     # h — najwyżej jedna próba uzupełnienia na dobę (czas próby zapisany w ar.bf.at); udane serie zostają w historii
+DL_STALE_D = 4         # dni — kurs starszy w chwili odczytu jest pokazany z wiekiem, ale nie daje luki (weekend i 3-dniowe święta przechodzą)
+DL_DROP_D = 14         # dni — kurs starszy jest odrzucony (zostaje poprzedni z własnym znacznikiem)
+DL_FUTURE_MIN = 10     # min — znacznik dalej w przyszłości = zły zapis
+DL_VE_AHEAD_D = 4      # dni — kurs banku centralnego Wenezueli bywa ogłaszany z datą obowiązywania naprzód (piątek → poniedziałek)
+DL_NEAR_D = 3          # zmiana po 7/30 dniach: dokładny dzień, a gdy go brak — najbliższy wcześniejszy w ciągu 3 dni; inaczej None
+DL_OF_KEEP = 10        # tyle ostatnich kursów oficjalnych Wenezueli (data obowiązywania → kurs) trzyma plik
+DL_NOTES = 12
+DL_RATIO = {'ar': (0.5, 4.0), 've': (0.5, 5.0), 'bo': (0.5, 5.0)}   # rozsądny stosunek równoległy/oficjalny; poza nim = błąd skali, luka None
+DL_TZ = {'ar': -3, 've': -4, 'bo': -4}    # przesunięcia UTC (żaden z trzech krajów nie zmienia czasu)
+DL_AR_CASAS = ('oficial', 'mayorista', 'blue', 'bolsa', 'contadoconliqui', 'cripto')   # „tarjeta” = oficjalny + podatki (wyliczenie, nie rynek)
+DL_AR_BASE = 'mayorista'
+DL_CH_AR = ('contadoconliqui', 'blue', 'bolsa', 'cripto')    # luki Argentyny ze zmianą po 7 i 30 dniach
+DL_MM_AR = ('contadoconliqui', 'blue')                      # luki Argentyny z najniższą i najwyższą wartością z 365 dni
+DL_LABEL = 'Ameryka Łacińska (kursy dolara)'
+DL_SRC = ('DolarApi.com (DolarHoy — Argentyna; Ámbito — tylko kontrola dzienna; Banco Central de Venezuela i Yadio — Wenezuela; Banco Central de Bolivia '
+          'i Binance P2P USDT/BOB — Boliwia); zapas: te same pliki w repozytorium projektu na GitHubie; historia: ArgentinaDatos.com (Argentyna), '
+          'DolarApi (Wenezuela), własne odczyty (Boliwia). Kod obu serwisów na licencji MIT; dane informacyjne, bez gwarancji dokładności')
+
+
+def dl_num(x):
+    """Liczba skończona większa od zera; bool, tekst, NaN, ∞, zero i ujemne = brak."""
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and _dl_math.isfinite(x) and x > 0
+
+
+def dl_ts(s):
+    """Znacznik ISO („Z” albo ±hh:mm) → datetime ze strefą; bez strefy albo zły zapis = None (nie zgadujemy strefy)."""
+    try:
+        t = datetime.datetime.fromisoformat(str(s).replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        return None
+    return t if t.tzinfo is not None else None
+
+
+def dl_iso(t, z=True):
+    """datetime → ISO UTC z sekundami: znaczniki kursów z „Z”, czasy pliku (at, part_at) z „+00:00” jak w innych plikach."""
+    s = t.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    return s.replace('+00:00', 'Z') if z else s
+
+
+def dl_day_ok(d):
+    """Prawdziwa data RRRR-MM-DD (2026-02-30 odrzucona)."""
+    try:
+        return isinstance(d, str) and len(d) == 10 and datetime.date.fromisoformat(d).isoformat() == d
+    except ValueError:
+        return False
+
+
+def dl_local_day(now, cc):
+    """Dzień kalendarzowy w kraju cc w chwili now."""
+    return (now + datetime.timedelta(hours=DL_TZ[cc])).date().isoformat()
+
+
+def dl_quote(x, now, notes, label, price='venta'):
+    """Jeden kurs → [kupno | None, sprzedaż, znacznik UTC] albo None z notatką. Wenezuela podaje tylko średnią (promedio) — zapisana jako sprzedaż.
+    Odrzucony: sprzedaż nie jest liczbą > 0, brak albo zły znacznik, znacznik ponad 10 min w przyszłości, kurs starszy niż DL_DROP_D dni.
+    Kupno powyżej sprzedaży o ponad 2% = niewiarygodne (None)."""
+    v, c, t = x.get(price), x.get('compra'), dl_ts(x.get('fechaActualizacion'))
+    if not dl_num(v) or t is None:
+        notes.append(f'{label}: brak ceny albo daty'); return None
+    if t > now + datetime.timedelta(minutes=DL_FUTURE_MIN):
+        notes.append(f'{label}: data z przyszłości'); return None
+    if now - t >= datetime.timedelta(days=DL_DROP_D):
+        notes.append(f'{label}: kurs starszy niż {DL_DROP_D} dni'); return None
+    return [c if dl_num(c) and c <= v * 1.02 else None, v, dl_iso(t)]
+
+
+def dl_parse_ar(j, now, notes):
+    """Lista kursów Argentyny → {casa: [kupno, sprzedaż, znacznik]} tylko dla DL_AR_CASAS (w dolarach)."""
+    if not isinstance(j, list):
+        raise ValueError('Argentyna: odpowiedź nie jest listą')
+    out = {}
+    for x in j:
+        if isinstance(x, dict) and x.get('casa') in DL_AR_CASAS and x.get('moneda', 'USD') == 'USD':
+            q = dl_quote(x, now, notes, 'AR ' + x['casa'])
+            if q:
+                out[x['casa']] = q
+    return out
+
+
+def dl_parse_ve(j, now, notes):
+    """Lista Wenezueli → {'oficial': [None, kurs, znacznik, data obowiązywania], 'paralelo': [None, średnia, znacznik]}. Znacznik kursu banku
+    centralnego to DATA OBOWIĄZYWANIA (00:00 w Caracas); bank ogłasza kurs następnego dnia roboczego naprzód, więc data do DL_VE_AHEAD_D dni
+    w przyszłości jest poprawna — zapisana, ale do luki użyta dopiero od tego dnia."""
+    if not isinstance(j, list):
+        raise ValueError('Wenezuela: odpowiedź nie jest listą')
+    out = {}
+    for x in j:
+        if not isinstance(x, dict) or x.get('moneda', 'USD') != 'USD':
+            continue
+        f = x.get('fuente')
+        if f == 'oficial':
+            t = dl_ts(x.get('fechaActualizacion'))
+            if dl_num(x.get('promedio')) and t is not None and t <= now + datetime.timedelta(days=DL_VE_AHEAD_D) and now - t < datetime.timedelta(days=DL_DROP_D):
+                utc0 = t.utcoffset() == datetime.timedelta(0)
+                midnight = (t.hour, t.minute, t.second, t.microsecond) == (0, 0, 0, 0)
+                # „…-04:00” = data w Caracas; „…T04:00:00Z” = północ w Caracas zapisana w UTC; „…T00:00:00.000Z” = sama data (nie chwila dzień wcześniej)
+                vd = (t + datetime.timedelta(hours=DL_TZ['ve'])).date().isoformat() if utc0 and not midnight else t.date().isoformat()
+                out['oficial'] = [None, x['promedio'], dl_iso(t), vd]
+            else:
+                notes.append('VE oficial: brak kursu albo zła data')
+        elif f == 'paralelo':
+            q = dl_quote(x, now, notes, 'VE paralelo', price='promedio')
+            if q:
+                out['paralelo'] = q
+    return out
+
+
+def dl_parse_bo(j, now, notes):
+    """Lista Boliwii → {'oficial': [...], 'usdt': [...]}; kurs P2P (w odpowiedzi casa „binance”) to bolivianos za 1 USDT (stablecoin, nie gotówka) —
+    w pliku pod kluczem przedmiotu danych „usdt”, nie nazwą giełdy (na stronie żadnych nazw dostawców)."""
+    if not isinstance(j, list):
+        raise ValueError('Boliwia: odpowiedź nie jest listą')
+    out = {}
+    for x in j:
+        if isinstance(x, dict) and x.get('casa') in ('oficial', 'binance') and x.get('moneda', 'USD') == 'USD':
+            k = 'usdt' if x['casa'] == 'binance' else 'oficial'
+            q = dl_quote(x, now, notes, 'BO ' + k)
+            if q:
+                out[k] = q
+    return out
+
+
+def dl_gap(x, base, cc):
+    """Luka (x ÷ base − 1) × 100, 2 miejsca; None, gdy brak strony albo stosunek poza DL_RATIO[cc] (błąd skali). 0.0 zostaje 0.0."""
+    if not (dl_num(x) and dl_num(base)):
+        return None
+    r = x / base
+    lo, hi = DL_RATIO[cc]
+    return round((r - 1) * 100, 2) + 0.0 if lo <= r <= hi else None
+
+
+def dl_qtime(q, cc):
+    """Chwila, od której liczymy wiek kursu: jego znacznik; znacznik o północy UTC to SAMA DATA (kurs dzienny z datą strony banku, np. Boliwia) —
+    wtedy wiek liczymy od KOŃCA tego dnia w kraju cc (dla Boliwii: następny dzień 04:00 UTC), nie od 00:00 UTC. Zły zapis = None."""
+    t = dl_ts(q[2]) if isinstance(q, list) and len(q) >= 3 else None
+    if t is not None and t.utcoffset() == datetime.timedelta(0) and (t.hour, t.minute, t.second, t.microsecond) == (0, 0, 0, 0):
+        return t + datetime.timedelta(days=1) - datetime.timedelta(hours=DL_TZ[cc])
+    return t
+
+
+def dl_usable(q, now, cc):
+    """Kurs daje lukę tylko, gdy jest młodszy niż DL_STALE_D dni (weekend i 3-dniowe święta przechodzą); kurs „sama data” od końca dnia."""
+    t = dl_qtime(q, cc)
+    return t is not None and now - t < datetime.timedelta(days=DL_STALE_D)
+
+
+def dl_ar_gaps(q, now):
+    """Luki Argentyny wobec kursu hurtowego; bez użytecznego kursu hurtowego każda luka None (nigdy 0)."""
+    b = q.get(DL_AR_BASE)
+    ok_b = dl_usable(b, now, 'ar')
+    return {c: (dl_gap(q[c][1], b[1], 'ar') if ok_b and dl_usable(q.get(c), now, 'ar') else None) for c in DL_AR_CASAS if c != DL_AR_BASE}
+
+
+def dl_keep_prev(q, old, names, now, notes, label):
+    """Kurs, którego nie ma w nowej odpowiedzi (odrzucony albo brak), zostaje z poprzedniego pliku z własnym znacznikiem — gdy młodszy niż
+    DL_DROP_D dni; poprzedni znacznik nie jest odświeżany."""
+    old = old if isinstance(old, dict) else {}
+    out = dict(q)
+    for k in names:
+        p = old.get(k)
+        if k in out or not (isinstance(p, list) and len(p) >= 3 and dl_num(p[1])):
+            continue
+        t = dl_ts(p[2])
+        if t is not None and now - t < datetime.timedelta(days=DL_DROP_D):
+            out[k] = list(p); notes.append(f'{label} {k}: poprzedni kurs z {p[2]}')
+    return out
+
+
+def dl_hist_merge(old, new, keep=DL_KEEP):
+    """Wiersze [data, v1, v2, …]: na tę samą datę wygrywa nowsza liczba, ale None nigdy nie kasuje liczby; zła data odrzucona; rosnąco; ostatnie keep."""
+    by = {}
+    for src, newer in ((old, False), (new, True)):
+        for r in src or []:
+            if not (isinstance(r, list) and r and dl_day_ok(r[0])):
+                continue
+            vals = [x if dl_num(x) else None for x in r[1:]]
+            cur = by.get(r[0])
+            if cur is None:
+                by[r[0]] = vals
+            else:
+                n = max(len(cur), len(vals))
+                cur, vals = cur + [None] * (n - len(cur)), vals + [None] * (n - len(vals))
+                by[r[0]] = [a if a is not None else b for a, b in zip(vals, cur)] if newer else [b if b is not None else a for a, b in zip(vals, cur)]
+    return [[d] + by[d] for d in sorted(by)][-keep:]
+
+
+def dl_ad_rows(series):
+    """Serie ArgentinaDatos {casa: [{'casa', 'compra', 'venta', 'fecha'}]} → wiersze [data, oficial, mayorista, blue, bolsa, ccl, cripto] (sprzedaż).
+    Umowa dat jak we własnych odczytach: wiersz dnia X = stan na KONIEC dnia X (w Argentynie). Serwis zapisuje dzień D odczytem z rana dnia D,
+    więc jego wiersz D to stan na koniec dnia D−1: kurs hurtowy wiersza D = zamknięcie banku centralnego z poprzedniego dnia roboczego (wrzesień
+    2026: 22 z 27 dni; tego samego dnia — 2), a sobota, niedziela i poniedziałek trzymają zamknięcie z piątku. Dlatego wiersz serwisu z datą D
+    zapisujemy pod D−1 (dzień kalendarzowy): zmiany po 7 i 30 dniach porównują te same dni sesji co własne odczyty."""
+    by = {}
+    for i, c in enumerate(DL_AR_CASAS):
+        for x in series.get(c) or []:
+            if isinstance(x, dict) and dl_day_ok(x.get('fecha')) and dl_num(x.get('venta')):
+                d = (datetime.date.fromisoformat(x['fecha']) - datetime.timedelta(days=1)).isoformat()
+                by.setdefault(d, [None] * len(DL_AR_CASAS))[i] = x['venta']
+    return [[d] + by[d] for d in sorted(by)]
+
+
+def dl_ve_rows(of_hist, pa_hist):
+    """Historia Wenezueli → wiersze [data, kurs oficjalny obowiązujący tego dnia, kurs równoległy]: kurs oficjalny wg daty obowiązywania
+    przeniesiony na kolejne dni (weekendy, święta), równoległy wg dnia odczytu; tylko dni z kursem równoległym."""
+    of = sorted((x['fecha'], x['promedio']) for x in of_hist if isinstance(x, dict) and dl_day_ok(x.get('fecha')) and dl_num(x.get('promedio')))
+    pa = sorted((x['fecha'], x['promedio']) for x in pa_hist if isinstance(x, dict) and dl_day_ok(x.get('fecha')) and dl_num(x.get('promedio')))
+    rows, i, cur = [], 0, None
+    for d, v in pa:
+        while i < len(of) and of[i][0] <= d:
+            cur = of[i][1]; i += 1
+        rows.append([d, cur, v])
+    return rows
+
+
+def dl_of_merge(old, new):
+    """Kursy oficjalne Wenezueli [[data obowiązywania, kurs], …]: nowszy odczyt wygrywa; rosnąco; ostatnie DL_OF_KEEP."""
+    by = {}
+    for src in (old, new):
+        for r in src or []:
+            if isinstance(r, list) and len(r) >= 2 and dl_day_ok(r[0]) and dl_num(r[1]):
+                by[r[0]] = r[1]
+    return [[d, by[d]] for d in sorted(by)][-DL_OF_KEEP:]
+
+
+def dl_in_force(of, day):
+    """Kurs oficjalny obowiązujący w dniu day: ostatni z datą obowiązywania ≤ day (kurs zapowiedziany na później jeszcze nie obowiązuje)."""
+    xs = [r for r in of if r[0] <= day]
+    return xs[-1] if xs else None
+
+
+def dl_row_gap(rows, i, a, b, cc):
+    r = rows[i]
+    return dl_gap(r[a], r[b], cc) if len(r) > max(a, b) else None
+
+
+def dl_change(rows, a, b, cc, days):
+    """Luka z ostatniego wiersza − luka z wiersza sprzed `days` dni (dokładny dzień, a gdy go brak — najbliższy wcześniejszy w ciągu DL_NEAR_D dni)
+    w punktach procentowych; brak którejś luki albo wiersza = None."""
+    if not rows:
+        return None
+    g1 = dl_row_gap(rows, len(rows) - 1, a, b, cc)
+    d0 = datetime.date.fromisoformat(rows[-1][0]) - datetime.timedelta(days=days)
+    idx = {r[0]: i for i, r in enumerate(rows)}
+    for k in range(DL_NEAR_D + 1):
+        i = idx.get((d0 - datetime.timedelta(days=k)).isoformat())
+        if i is not None:
+            g0 = dl_row_gap(rows, i, a, b, cc)
+            return round(g1 - g0, 2) + 0.0 if g1 is not None and g0 is not None else None
+    return None
+
+
+def dl_minmax(rows, a, b, cc, days=365):
+    """Najniższa i najwyższa luka z `days` dni przed ostatnim wierszem (z datami); mniej niż 2 luki = None."""
+    if not rows:
+        return None
+    lo = (datetime.date.fromisoformat(rows[-1][0]) - datetime.timedelta(days=days)).isoformat()
+    xs = [(r[0], dl_row_gap(rows, i, a, b, cc)) for i, r in enumerate(rows) if r[0] >= lo]
+    xs = [x for x in xs if x[1] is not None]
+    if len(xs) < 2:
+        return None
+    mn, mx = min(xs, key=lambda x: x[1]), max(xs, key=lambda x: x[1])
+    return {'n': len(xs), 'min': mn[1], 'dmin': mn[0], 'max': mx[1], 'dmax': mx[0]}
+
+
+def dl_current(url, r, parse, now, notes, fetch, label):
+    """Bieżący plik kraju: najpierw serwis; przy KAŻDYM błędzie (403, 5xx, limit czasu, zła treść) albo odpowiedzi bez żadnego kursu — ta sama
+    treść z kopii w repozytorium projektu. → (kursy, 'api' | 'gh'); błąd kopii idzie wyżej (część kraju z błędem)."""
+    try:
+        q = parse(fetch(url), now, notes)
+        if q:
+            return q, 'api'
+        notes.append(f'{label}: odpowiedź bez kursów — kopia zapasowa')
+    except Exception as e:  # noqa
+        notes.append(f'{label}: {(str(e) or type(e).__name__)[:60]} — kopia zapasowa')
+    return parse(fetch(DL_GH.format(r=r)), now, notes), 'gh'
+
+
+def dl_ad_backfill(rows, bf, fetch, t0, budget, now, notes):
+    """Uzupełnienie historii Argentyny z 6 serii (po ok. 0,5 MB; z serii ostatnie DL_KEEP dni). Pobieramy tylko serie, których jeszcze nie ma
+    (bf['ok']); udane od razu trafiają do historii i zostają między budowami. Próba z nieudaną serią = bf['n'] + 1 i czas próby bf['at'] —
+    następna najwcześniej po DL_AD_RETRY_H godzinach, po DL_AD_TRIES nieudanych próbach koniec (tylko własne odczyty; strona pokazuje „historia
+    od”). Własne odczyty wygrywają z wierszami serii na te same dni. Limit czasu jak przy innych historiach (_back_ok, BACK_LATE): przerwa z braku
+    czasu nie jest nieudaną próbą. → (wiersze, bf, wynik: True = komplet, False = nieudana próba, None = bez próby)"""
+    have = [c for c in DL_AR_CASAS if c in (bf.get('ok') or [])]
+    todo = [c for c in DL_AR_CASAS if c not in have]
+    bad = []
+    for c in todo:
+        if not _back_ok(t0, budget, DL_TIMEOUT):
+            notes.append('historia Argentyny: przerwana (limit czasu przebiegu) — ponowienie w następnej budowie')
+            return rows, dict(bf, ok=have), None
+        try:
+            j = fetch(AD_HIST.format(c=c))
+            if not (isinstance(j, list) and j):
+                raise ValueError('pusta seria')
+            rows = dl_hist_merge(dl_ad_rows({c: j}), rows); have.append(c)
+        except Exception as e:  # noqa
+            bad.append(c); notes.append(f'historia Argentyny ({c}): {(str(e) or type(e).__name__)[:60]}')
+    bf = dict(bf, ok=[c for c in DL_AR_CASAS if c in have], at=dl_iso(now, z=False))
+    if not bad:
+        return rows, bf, True
+    bf['n'] = int(bf.get('n') or 0) + 1
+    notes.append(f'historia Argentyny: brak serii {", ".join(bad)} — ' + (f'ponowienie najwcześniej za {DL_AD_RETRY_H} h' if bf['n'] < DL_AD_TRIES
+                                                                          else f'po {DL_AD_TRIES} próbach tylko własne odczyty'))
+    return rows, bf, False
+
+
+def dl_ad_due(bf, now):
+    """Czy w tej budowie próbować uzupełnienia historii Argentyny: nie wszystkie serie, mniej niż DL_AD_TRIES nieudanych prób i od ostatniej
+    próby minęło co najmniej DL_AD_RETRY_H godzin (pierwsza próba od razu)."""
+    if all(c in (bf.get('ok') or []) for c in DL_AR_CASAS) or int(bf.get('n') or 0) >= DL_AD_TRIES:
+        return False
+    t = dl_ts(bf.get('at'))
+    return t is None or now - t >= datetime.timedelta(hours=DL_AD_RETRY_H)
+
+
+def dl_stale_part(cc, P, now):
+    """Kraj bez nowych kursów (część z błędem): zostaje poprzednia wersja części z jej czasem, ale luka z kursów starszych niż DL_STALE_D dni
+    (liczone od TERAZ, nie od zapisu części) = None, a jej zmiany po 7 i 30 dniach też None — stara luka nie może wisieć jako główna liczba."""
+    if not isinstance(P, dict) or not isinstance(P.get('q'), dict):
+        return P
+    P, q = dict(P), P['q']
+    if cc == 'ar':
+        g = dict(P.get('gap') or {}); ch = dict(P.get('ch') or {})
+        for c in list(g):
+            if not (dl_usable(q.get(c), now, 'ar') and dl_usable(q.get(DL_AR_BASE), now, 'ar')):
+                g[c] = None
+                if c in ch:
+                    ch[c] = {'d7': None, 'd30': None}
+        P['gap'], P['ch'] = g, ch
+    else:
+        x, b = (q.get('paralelo'), None) if cc == 've' else (q.get('usdt'), q.get('oficial'))
+        fresh_ = dl_usable(x, now, cc) and (cc == 've' or dl_usable(b, now, cc))
+        if cc == 've' and isinstance(P.get('base'), list) and len(P['base']) >= 4 and dl_day_ok(P['base'][3]):
+            fresh_ = fresh_ and (now - datetime.datetime.fromisoformat(P['base'][3] + 'T00:00:00+00:00')).days < DL_DROP_D
+        if not fresh_:
+            P['gap'] = None; P['ch'] = {'d7': None, 'd30': None}
+    return P
+
+
+def build_dolar(prev=None, now=None, fetch=None, budget=None):
+    """data/dolar.json — luka między kursem równoległym a oficjalnym dolara w Argentynie (CCL, „blue”, MEP i kurs kryptowalutowy wobec kursu
+    hurtowego; oficjalny w banku jako wiersz tabeli), Wenezueli (kurs równoległy wobec kursu banku centralnego OBOWIĄZUJĄCEGO danego dnia) i Boliwii
+    (USDT z ogłoszeń P2P wobec kursu oficjalnego); zmiany luki po 7 i 30 dniach, najniżej / najwyżej z 365 dni, historia do 400 dni.
+    Zwykła budowa = 4 zapytania (Argentyna, drugi odczyt Argentyny do kontroli, Wenezuela, Boliwia); historia Wenezueli 2 zapytania raz na dobę;
+    historia Argentyny: 6 serii przy pierwszej budowie, brakujące serie najwyżej raz na dobę i najwyżej DL_AD_TRIES razy (stan w ar.bf).
+    Budżet czasu DL_BUDGET s (albo `budget`) na całą budowę: każde zapytanie dostaje najwyżej pozostały czas (i nie więcej niż DL_TIMEOUT).
+    Każdy kraj osobno: błąd = poprzednia wersja części z jej czasem (part_at) i ok[kraj] = False, ale luka z kursów starszych niż DL_STALE_D dni
+    (od teraz) = None (dl_stale_part); bez żadnego kraju = wyjątek (main zostawia poprzedni plik).
+    Warunki (sprawdzone 27.09.2026): kod serwisu kursów i serwisu historii na licencji MIT; „Aviso Legal” obu serwisów — dane informacyjne, bez
+    gwarancji dokładności i aktualności, serwis może się zmienić albo zniknąć bez uprzedzenia; brak licencji na dane i brak wymogu podpisu;
+    część kursów to treść portali zbierana automatycznie przez serwis. Właściciel 27.09: licencje drugorzędne, na stronie bez podpisu."""
+    now = now or _now_utc()
+    t0 = time.monotonic()
+    budget = DL_BUDGET if budget is None else budget
+
+    def call(url):   # każde zapytanie w budżecie czasu budowy
+        left = t0 + budget - time.monotonic()
+        if left < DL_LEFT_MIN:
+            raise TimeoutError(f'limit czasu budowy ({budget:g} s)')
+        return fetch(url) if fetch else get_json(url, timeout=min(DL_TIMEOUT, left))
+    prev = prev if isinstance(prev, dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    stamp = dl_iso(now, z=False)
+    notes = []
+    out = {'at': stamp, 'v': 1, 'src': DL_SRC, 'url': DL_PAGE, 'ok': {}, 'part_at': dict(pat),
+           'cols': {'ar': ['date'] + list(DL_AR_CASAS), 've': ['date', 'oficial', 'paralelo'], 'bo': ['date', 'oficial', 'usdt']},
+           'unit': {'ar': 'ARS/USD', 've': 'VES/USD', 'bo': 'BOB/USD; usdt BOB/USDT'}}
+    I = {c: i + 1 for i, c in enumerate(DL_AR_CASAS)}
+    # Argentyna — bieżące kursy (zapas: kopia plików), historia (uzupełnienie z serwisu historii, potem własne odczyty)
+    ar = dict(prev.get('ar') or {}) if isinstance(prev.get('ar'), dict) else {}
+    try:
+        q, via = dl_current(DL_AR, '', dl_parse_ar, now, notes, call, 'Argentyna')
+        if not q:
+            raise ValueError('brak kursów')
+        q = dl_keep_prev(q, ar.get('q'), DL_AR_CASAS, now, notes, 'AR')
+        if not dl_usable(q.get(DL_AR_BASE), now, 'ar'):
+            notes.append('Argentyna: brak aktualnego kursu hurtowego — bez luk')
+        rows = dl_hist_merge(ar.get('d'), [])
+        bf = dict(ar['bf']) if isinstance(ar.get('bf'), dict) else {}
+        if dl_ad_due(bf, now):
+            rows, bf, okh = dl_ad_backfill(rows, bf, call, t0, budget, now, notes)
+            if okh is not None:
+                out['ok']['hist_ar'] = okh
+                if okh:
+                    out['part_at']['hist_ar'] = stamp
+        today = [dl_local_day(now, 'ar')] + [q[c][1] if dl_usable(q.get(c), now, 'ar') else None for c in DL_AR_CASAS]
+        d = dl_hist_merge(rows, [today])
+        ar.update({'via': via, 'q': q, 'gap': dl_ar_gaps(q, now), 'd': d, 'bf': bf,
+                   'ch': {c: {'d7': dl_change(d, I[c], I[DL_AR_BASE], 'ar', 7), 'd30': dl_change(d, I[c], I[DL_AR_BASE], 'ar', 30)} for c in DL_CH_AR},
+                   'mm': {c: dl_minmax(d, I[c], I[DL_AR_BASE], 'ar') for c in DL_MM_AR}})
+        out['ok']['ar'] = True; out['part_at']['ar'] = stamp
+    except Exception as e:  # noqa
+        notes.append(f'Argentyna: {(str(e) or type(e).__name__)[:80]}'); out['ok']['ar'] = False
+        ar = dl_stale_part('ar', ar, now)
+    try:   # drugi odczyt tych samych kursów — tylko do kontroli dziennej (strona go nie pokazuje); bez kopii zapasowej
+        ar['amb'] = dl_parse_ar(call(DL_AR_AMB), now, [])
+        out['ok']['amb'] = True; out['part_at']['amb'] = stamp
+    except Exception as e:  # noqa
+        notes.append(f'Argentyna, drugi odczyt (kontrola): {(str(e) or type(e).__name__)[:60]}'); out['ok']['amb'] = False
+    out['ar'] = ar or None
+    # Wenezuela — kurs równoległy wobec kursu banku centralnego obowiązującego w dniu odczytu (data w Caracas)
+    ve = dict(prev.get('ve') or {}) if isinstance(prev.get('ve'), dict) else {}
+    try:
+        q, via = dl_current(DL_VE, 've/', dl_parse_ve, now, notes, call, 'Wenezuela')
+        q = dl_keep_prev(q, ve.get('q'), ('oficial', 'paralelo'), now, notes, 'VE')
+        if 'paralelo' not in q:
+            raise ValueError('brak kursu równoległego')
+        rows, of = dl_hist_merge(ve.get('d'), []), dl_of_merge(ve.get('of'), [])
+        hday = dl_ts(pat.get('hist_ve'))
+        if not rows or hday is None or now - hday >= datetime.timedelta(hours=DL_HIST_H):
+            if _back_ok(t0, budget, 2 * DL_TIMEOUT):
+                try:
+                    ho, hp = call(DL_VE_HIST.format(f='oficial')), call(DL_VE_HIST.format(f='paralelo'))
+                    if not (isinstance(ho, list) and ho and isinstance(hp, list) and hp):
+                        raise ValueError('pusta historia')
+                    rows = dl_hist_merge(rows, dl_ve_rows(ho, hp))
+                    of = dl_of_merge(of, [[x.get('fecha'), x.get('promedio')] for x in ho if isinstance(x, dict)])
+                    out['ok']['hist_ve'] = True; out['part_at']['hist_ve'] = stamp
+                except Exception as e:  # noqa
+                    notes.append(f'historia Wenezueli: {(str(e) or type(e).__name__)[:60]}'); out['ok']['hist_ve'] = False
+            else:
+                notes.append('historia Wenezueli: pominięta (limit czasu przebiegu) — ponowienie w następnej budowie')
+        if 'oficial' in q:
+            of = dl_of_merge(of, [[q['oficial'][3], q['oficial'][1]]])
+        day = dl_local_day(now, 've')
+        f = dl_in_force(of, day)
+        if f and (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(f[0])).days >= DL_DROP_D:
+            notes.append(f'Wenezuela: kurs oficjalny obowiązuje od {f[0]} — starszy niż {DL_DROP_D} dni, bez luki'); f = None
+        cur = q.get('oficial')
+        pa = q['paralelo']
+        ok_p = dl_usable(pa, now, 've')
+        ve.update({'via': via, 'q': q, 'of': of,
+                   'base': [None, f[1], cur[2] if cur and cur[3] == f[0] and cur[1] == f[1] else None, f[0]] if f else None,
+                   'gap': dl_gap(pa[1], f[1], 've') if f and ok_p else None})
+        ve['d'] = dl_hist_merge(rows, [[day, f[1] if f else None, pa[1] if ok_p else None]])
+        ve['ch'] = {'d7': dl_change(ve['d'], 2, 1, 've', 7), 'd30': dl_change(ve['d'], 2, 1, 've', 30)}
+        ve['mm'] = dl_minmax(ve['d'], 2, 1, 've')
+        out['ok']['ve'] = True; out['part_at']['ve'] = stamp
+    except Exception as e:  # noqa
+        notes.append(f'Wenezuela: {(str(e) or type(e).__name__)[:80]}'); out['ok']['ve'] = False
+        ve = dl_stale_part('ve', ve, now)
+    out['ve'] = ve or None
+    # Boliwia — USDT z ogłoszeń P2P wobec kursu oficjalnego; historii u źródła nie ma — tylko własne odczyty od pierwszego dnia
+    bo = dict(prev.get('bo') or {}) if isinstance(prev.get('bo'), dict) else {}
+    try:
+        q, via = dl_current(DL_BO, 'bo/', dl_parse_bo, now, notes, call, 'Boliwia')
+        q = dl_keep_prev(q, bo.get('q'), ('oficial', 'usdt'), now, notes, 'BO')
+        if not q:
+            raise ValueError('brak kursów')
+        o, b = q.get('oficial'), q.get('usdt')
+        ok_o, ok_b = dl_usable(o, now, 'bo'), dl_usable(b, now, 'bo')
+        d = dl_hist_merge(bo.get('d'), [[dl_local_day(now, 'bo'), o[1] if ok_o else None, b[1] if ok_b else None]])
+        bo.update({'via': via, 'q': q, 'gap': dl_gap(b[1], o[1], 'bo') if ok_o and ok_b else None, 'd': d,
+                   'ch': {'d7': dl_change(d, 2, 1, 'bo', 7), 'd30': dl_change(d, 2, 1, 'bo', 30)}, 'mm': dl_minmax(d, 2, 1, 'bo')})
+        out['ok']['bo'] = True; out['part_at']['bo'] = stamp
+    except Exception as e:  # noqa
+        notes.append(f'Boliwia: {(str(e) or type(e).__name__)[:80]}'); out['ok']['bo'] = False
+        bo = dl_stale_part('bo', bo, now)
+    out['bo'] = bo or None
+    notes = list(dict.fromkeys(notes))
+    if not any(out['ok'].get(k) is True for k in DL_PARTS):
+        raise RuntimeError('; '.join(notes[-3:])[:300] or 'brak danych')
+    for k, n in (('ar', 'Argentyna'), ('ve', 'Wenezuela'), ('bo', 'Boliwia')):   # kraj z błędem = notatka (nie błąd zbieracza): poprzednie liczby z wiekiem
+        if out['ok'].get(k) is False:
+            META['notes'].append(f'{DL_LABEL}: {n} — brak nowych kursów' + (f', na stronie odczyt z {out["part_at"][k]}' if out['part_at'].get(k) else ''))
+    out['notes'] = notes[:DL_NOTES]
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -13989,6 +14487,18 @@ def main():
             except Exception as e:
                 META['errors'].append(mask(f'{FED_LABEL}: {e}')); META['ok']['fed'] = False
                 if prev_fed: save('fed', prev_fed)
+    # v136: Ameryka Łacińska — kurs oficjalny a równoległy dolara (bez klucza): plik młodszy niż DL_EVERY min z kompletem krajów = bez zapytań;
+    # kraj z błędem = ponowienie w następnym przebiegu (20 min); awaria całości = poprzedni plik i błąd
+    prev_dl = previous('dolar')
+    pok_dl = prev_dl.get('ok') if isinstance(prev_dl, dict) and isinstance(prev_dl.get('ok'), dict) else {}
+    if isinstance(prev_dl, dict) and fresh(prev_dl, DL_EVERY) and all(pok_dl.get(k) is True for k in DL_PARTS):
+        save('dolar', prev_dl); META['ok']['dolar'] = 'cached'
+    else:
+        try:
+            dl = build_dolar(prev_dl); save('dolar', dl); META['ok']['dolar'] = all(dl['ok'].get(k) is True for k in DL_PARTS)
+        except Exception as e:
+            META['errors'].append(mask(f'{DL_LABEL}: {e}')); META['ok']['dolar'] = False
+            if prev_dl: save('dolar', prev_dl)
     # v106: indeksy świata (EODHD, rotacja 20 zapytań na dobę) i notowania ETF (Massive, zapas Tiingo) — klucze właściciela; co godzinę;
     # brak klucza = informacja (notes), nie błąd; awaria = poprzedni plik
     ix_keys = {k: os.environ.get(k, '').strip() for k in IX_KEYS}
