@@ -143,3 +143,26 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # v145: zapasowy zegar — gdy harmonogram tego workflow stoi (03.10.2026: brak przebiegów z harmonogramu od 11:05 UTC), budzi workflow
+  # „Zegar zapasowy” (zegar.yml), który ok. 20 min po starcie tego przebiegu uruchamia następny; gdy harmonogram działa — nic nie robi.
+  # Zawsze (także po nieudanej publikacji), krótko; błąd zegara nigdy nie psuje przebiegu (kod 0). Wyłącznik: zmienna repozytorium ZEGAR_OFF=1.
+  zegar:
+    needs: [zbuduj, opublikuj]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: narzedzia/zegar.py
+          sparse-checkout-cone-mode: false
+      - name: Zegar zapasowy — obudź, gdy harmonogram stoi (token przebiegu tylko w nagłówku)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}
+        run: python3 narzedzia/zegar.py zbudz || echo "zegar nieudany — bez wpływu na stronę"

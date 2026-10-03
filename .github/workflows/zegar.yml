@@ -1,0 +1,35 @@
+name: Zegar zapasowy (gdy harmonogram stoi)
+
+# v145 (03.10.2026): harmonogram „Strona i dane” potrafi stanąć na godziny (GitHub: „All Systems Operational”). Ten workflow uruchamia
+# „Strona i dane” zdarzeniem workflow_dispatch ok. 20 min po starcie ostatniego przebiegu — TYLKO gdy przebiegów z harmonogramu nie było
+# od ponad 45 min. Budzony na końcu każdego przebiegu strony (gdy harmonogram stoi) i własnym harmonogramem (gdyby ten działał).
+# Token: token przebiegu (actions: write), tylko w nagłówku. Wyłącznik: zmienna repozytorium ZEGAR_OFF=1.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13,33,53 * * * *'   # niezależne wyzwalanie (gdy harmonogram strony stoi, a ten działa); przy działającym — kilka sekund i koniec
+
+permissions: {}
+
+concurrency:
+  group: zegar
+  cancel-in-progress: true
+
+jobs:
+  prowadz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: narzedzia/zegar.py
+          sparse-checkout-cone-mode: false
+      - name: Zegar — uruchom „Strona i dane”, gdy harmonogram stoi (token przebiegu tylko w nagłówku)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}
+        run: python3 narzedzia/zegar.py prowadz
