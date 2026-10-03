@@ -8560,3 +8560,675 @@ test('v136 (przegląd): kraj bez nowych kursów — po 4 dniach od daty kursów 
   const th = dl136.tiles(dl136.mk().dlBody(H));
   assert.ok(th[0].includes('dl.hist{"d":') && !th[0].includes('dl.d7') && th[1].includes('dl.hist{"d":') && !th[1].includes('dl.d7'), 'AR i VE: historia od pierwszego dnia');
 });
+
+/* ===================== v140: TOP 10 MONET W SEKTORACH — grupy w scenie CRYPTO (data/krypto-top10.json), przyciski „Top 10” i pełny ekran, słownik EXTRA137 ===================== */
+const t10v140 = (() => {
+  const a0 = html.indexOf('/* ===================== v140: TOP 10 MONET W SEKTORACH'), a1 = html.indexOf('/* v140: koniec części liczącej */', a0);
+  assert.ok(a0 > 0 && a1 > a0, 'blok v140 na stronie (część licząca)');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const mk = (o) => { o = o || {};
+    const L = o.L || 'en', LOC = {pl: 'pl-PL', en: 'en-US'}, NF = {};
+    const nfmt = (v, d = 0) => { const k = L + d; if (!NF[k]) NF[k] = new Intl.NumberFormat(LOC[L], {minimumFractionDigits: d, maximumFractionDigits: d}); return NF[k].format(v); };
+    const sg = v => v > 0 ? '+' : v < 0 ? '−' : '', fPct = (v, d = 1) => sg(v) + nfmt(Math.abs(v), d) + '%';
+    const big = v => v >= 1e12 ? [v / 1e12, 'u.t', 2] : v >= 1e9 ? [v / 1e9, 'u.b', 1] : [v / 1e6, 'u.m', 0];
+    return new Function('t', 'nName', 'nfmt', 'LOCALE', 'LANG', 'big', 'fPct', 'engDate', 'escH', html.slice(a0, a1) +
+      '\nreturn {T10_G, T10_N, T10_NP, T10_NARROW, T10_FIT, T10_R, T10_RP, T10_Y, T10_GAP, T10_SMIN, T10_SMAX, T10_FOOT, T10_PAD, T10_RG, T10_RGP, T10_COL, T10_URI, t10ColFor, t10Iso, t10Norm, t10LogoNorm, t10Angles, t10Sizes, t10Cluster, t10Group, t10Ring, t10Px, t10Mc, t10Ago, t10When, t10TipHtml, t10LabSpots};')(
+      o.t || ((k, v) => k + (v ? JSON.stringify(v) : '')), id => 'N(' + id + ')', nfmt, LOC, L, big, fPct, iso => 'D(' + iso + ')', esc); };
+  const n0 = html.indexOf('const NODES=['), n1 = html.indexOf('];', n0);
+  const NODES = new Function('return ' + html.slice(n0 + 'const NODES='.length, n1 + 1) + ';')();
+  const COLS = ['id', 'sym', 'name', 'px', 'mc', 'ch', 'upd'];
+  /* skrót nagrania 27.09.2026 (L1 i memecoiny) */
+  const L1 = [['bitcoin', 'BTC', 'Bitcoin', 84650, 1700630245661, 0.63639, '2026-09-27T21:22:20Z'], ['ethereum', 'ETH', 'Ethereum', 2688.99, 328287349189, 0.27084, '2026-09-27T21:22:20Z'],
+    ['binancecoin', 'BNB', 'BNB', 777.95, 103593539949, 0.87807, '2026-09-27T21:22:20Z'], ['ripple', 'XRP', 'XRP', 1.53, 95933487688, 0.37906, '2026-09-27T21:22:20Z'],
+    ['solana', 'SOL', 'Solana', 122.95, 72269724764, 1.59675, '2026-09-27T21:22:20Z'], ['tron', 'TRX', 'TRON', 0.333677, 31691105350, -0.42989, '2026-09-27T21:22:20Z'],
+    ['zcash', 'ZEC', 'Zcash', 1605.81, 27226735867, -2.42516, '2026-09-27T21:22:20Z'], ['hyperliquid', 'HYPE', 'Hyperliquid', 91.78, 20418182756, -0.16728, '2026-09-27T21:22:20Z'],
+    ['monero', 'XMR', 'Monero', 548.62, 10319190173, -1.03908, '2026-09-27T21:22:20Z'], ['cardano', 'ADA', 'Cardano', 0.256119, 9613184164, 1.58721, '2026-09-27T21:22:20Z']];
+  const MEME = [['dogecoin', 'DOGE', 'Dogecoin', 0.097393, 15205375016, 0.9043, '2026-09-27T21:23:20Z'], ['shiba-inu', 'SHIB', 'Shiba Inu', 5.93e-6, 3495674485, 0.31582, '2026-09-27T21:23:20Z'],
+    ['bianrensheng', '币安人生', '币安人生 (BinanceLife)', 0.493772, 494040482, -0.50428, '2026-09-27T21:23:20Z']];
+  const FILE = () => ({at: '2026-09-27T21:30:00+00:00', cols: COLS.slice(), n: 10, g: {l1: {cat: 'layer-1', sk: '2026-09-27T21:30:00+00:00', c: JSON.parse(JSON.stringify(L1))},
+    meme: {cat: 'meme-token', sk: '2026-09-27T18:00:00+00:00', c: JSON.parse(JSON.stringify(MEME))}}, ok: {l1: true, meme: true}});
+  return {a0, a1, mk, NODES, COLS, L1, MEME, FILE};
+})();
+
+test('v140: t10Norm — plik → grupy wg kapitalizacji (najwyżej 10), zły wiersz odrzucony, brak ceny i zmiany = null (nie 0), data niemożliwa = brak czasu', () => {
+  const X = t10v140.mk(), F = t10v140.FILE();
+  F.g.l1.c = [F.g.l1.c[3], ...F.g.l1.c.filter((_, i) => i !== 3), ['litecoin', 'LTC', 'Litecoin', 71.48, 5551131301, -0.42942, '2026-09-27T21:22:20Z']];   /* 11 monet, pomieszane */
+  F.g.meme.c.push(['Bad Id', 'X', 'X', 1, 5e9, 1, null], ['zero-cap', 'Z', 'Z', 1, 0, 1, null], ['str-cap', 'S', 'S', 1, '5e9', 1, null], ['bool-cap', 'B', 'B', 1, true, 1, null],
+    ['dogecoin', 'DOGE', 'dup', 1, 9e12, 1, null], ['no-price', 'NP', '', 0, 2e8, 'x', '2026-02-30T10:00:00Z'], 'x', null);
+  const D = X.t10Norm(F);
+  assert.equal(D.at, '2026-09-27T21:30:00+00:00');
+  assert.deepEqual(D.g.l1.c.map(c => c.id), ['bitcoin', 'ethereum', 'binancecoin', 'ripple', 'solana', 'tron', 'zcash', 'hyperliquid', 'monero', 'cardano'], 'kolejność wg kapitalizacji, 10 z 11');
+  assert.deepEqual(D.g.l1.c[0], {id: 'bitcoin', sym: 'BTC', name: 'Bitcoin', px: 84650, mc: 1700630245661, ch: 0.63639, upd: '2026-09-27T21:22:20Z'});
+  assert.deepEqual(D.g.meme.c.map(c => c.id), ['dogecoin', 'shiba-inu', 'bianrensheng', 'no-price'], 'zły id, kapitalizacja 0 / tekst / bool i powtórzony id odrzucone');
+  const np = D.g.meme.c[3];
+  assert.ok(np.px === null && np.ch === null && np.upd === null && np.name === 'NP', 'cena 0 = brak, zmiana nie-liczba = brak, 30 lutego = brak czasu, pusta nazwa = symbol');
+  assert.equal(D.g.meme.sk, '2026-09-27T18:00:00+00:00');
+  for (const k of ['l2', 'ai', 'defi', 'rwa', 'depin', 'gaming']) assert.deepEqual(D.g[k], {c: [], sk: null}, k + ': brak grupy = pusta (strona: „brak danych”)');
+  assert.equal(X.t10Norm({...t10v140.FILE(), cols: ['id', 'sym', 'name', 'px', 'ch', 'upd']}), null, 'bez kolumny mc — plik odrzucony');
+  assert.equal(X.t10Norm({at: 'x', cols: t10v140.COLS, g: {l1: {c: [['a', 'A', 'A', 1, 0, 1, null]]}}}), null, 'żadnej monety = null');
+  for (const bad of [null, 'x', 5, {}, {g: {}}, {cols: t10v140.COLS}]) assert.equal(X.t10Norm(bad), null, JSON.stringify(bad));
+  assert.equal(X.t10Iso('2026-02-30T12:00:00Z'), null); assert.equal(X.t10Iso('2026-09-27T21:22:20Z'), '2026-09-27T21:22:20Z'); assert.equal(X.t10Iso('27.09.2026'), null);
+  const LG = X.t10LogoNorm({logo: {bitcoin: 'data:image/png;base64,iVBORw0KGgo=', ethereum: 'data:image/svg+xml;base64,PHN2Zz4=', ripple: 'javascript:alert(1)', 'Bad Id': 'data:image/png;base64,AAAA',
+    solana: 'data:image/webp;base64,' + 'A'.repeat(40001), tron: 'data:image/jpeg;base64,/9j/4AAQ'}});
+  assert.deepEqual(Object.keys(LG).sort(), ['bitcoin', 'tron'], 'tylko obrazki rastrowe z poprawnym id i rozmiarem');
+  assert.deepEqual(X.t10LogoNorm(null), {}); assert.deepEqual(X.t10LogoNorm({logo: 'x'}), {});
+});
+
+test('v140: układ — grupy na zewnętrznym kręgu po stronie swojego sektora, na jednej wysokości, co najmniej T10_GAP od siebie; wielkość: pole ∝ kapitalizacji, najmniejsze do minimum', () => {
+  const X = t10v140.mk(), NB = Object.fromEntries(t10v140.NODES.map(n => [n.id, n]));
+  assert.deepEqual(X.T10_G.map(g => g[0]), ['l1', 'l2', 'ai', 'defi', 'rwa', 'meme', 'depin', 'gaming'], 'osiem grup; giełdy bez grupy');
+  assert.ok(X.T10_G.every(([, id]) => NB[id]) && !X.T10_G.some(([, id]) => id === 'exch'), 'każda grupa przy istniejącym elemencie');
+  const TAU = 2 * Math.PI, ang = a => ((a % TAU) + TAU) % TAU, dA = (a, b) => { const d = Math.abs(ang(a) - ang(b)); return Math.min(d, TAU - d); };
+  const model = Math.max(...t10v140.NODES.map(n => Math.hypot(n.p[0], n.p[2])));   /* najdalszy środek elementu modelu */
+  for (const [narrow, RR, rg, clear] of [[false, X.T10_R, X.T10_RG, 6], [true, X.T10_RP, X.T10_RGP, .9]]) {
+    const P = X.t10Ring(t10v140.NODES, narrow), ks = Object.keys(P), rMax = X.t10Group(Array(narrow ? X.T10_NP : X.T10_N).fill(1e9), rg).r;
+    for (const [k, id] of X.T10_G) {
+      const G = P[k], n = NB[id];
+      assert.ok(Math.abs(Math.hypot(G.p[0], G.p[2]) - RR) < 1e-9 && G.p[1] === X.T10_Y, k + ': na kręgu ' + RR + ', wszystkie grupy na jednej wysokości');
+      assert.ok(dA(G.a, Math.atan2(n.p[2], n.p[0])) <= 40 * Math.PI / 180 + 1e-9, k + ': po stronie swojego sektora (≤ 40°)');
+      assert.ok(RR - rMax - model >= clear, k + ': z dala od modelu (' + (RR - rMax - model).toFixed(2) + ')');
+    }
+    for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
+      const a = P[ks[i]].p, b = P[ks[j]].p, d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      assert.ok(d > 2 * rMax + 2, ks[i] + '/' + ks[j] + ': grupy nie nachodzą (' + d.toFixed(2) + ')');
+      assert.ok(dA(P[ks[i]].a, P[ks[j]].a) >= X.T10_GAP - 1e-6, ks[i] + '/' + ks[j] + ': odstęp kątowy');
+    }
+  }
+  assert.ok(X.T10_GAP >= 40 * Math.PI / 180 - 1e-9 && X.T10_RG <= 2.6 && X.T10_NP === 5 && X.T10_N === 10, 'tylna część kręgu rozsunięta, grupy mniejsze; telefon — 5 największych');
+  /* t10Angles ogólnie: kolejność zachowana, odstęp spełniony (deterministyczne losowanie) */
+  let seed = 7; const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (let r = 0; r < 60; r++) {
+    const n = 2 + (r % 9), tg = Array.from({length: n}, () => (rnd() - .5) * 4 * Math.PI), gap = (1.8 * Math.PI / n) * (.3 + .7 * rnd()), a = X.t10Angles(tg, gap);
+    const o = tg.map((x, i) => [ang(x), i]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map(x => x[1]);
+    for (let k = 0; k < n; k++) { const i = o[k], j = o[(k + 1) % n], d = a[j] - a[i] + (k === n - 1 ? TAU : 0); assert.ok(d >= gap - 1e-6, 'odstęp ' + r + '/' + k + ': ' + d); }
+  }
+  assert.deepEqual(X.t10Angles([1], .5), [1]);
+  /* wielkość: pole ∝ kapitalizacji (bok ∝ √), największa = SMAX, mniejsze niż SMIN — powiększone do SMIN */
+  const mc = t10v140.L1.map(r => r[4]), S = X.t10Sizes(mc);
+  assert.equal(S[0], X.T10_SMAX); assert.ok(S.every((s, i) => s >= X.T10_SMIN && s <= X.T10_SMAX && (!i || s <= S[i - 1])), 'malejąco w granicach');
+  for (let i = 0; i < S.length; i++) { const tru = X.T10_SMAX * Math.sqrt(mc[i] / mc[0]);
+    assert.ok(Math.abs(S[i] - Math.max(X.T10_SMIN, tru)) < 1e-12, i + ': pole ∝ kapitalizacji (' + S[i] + ' / ' + tru + ')'); }
+  assert.ok(Math.abs((S[1] / S[0]) ** 2 - mc[1] / mc[0]) < 1e-12, 'ETH / BTC: stosunek pól = stosunek kapitalizacji');
+  assert.ok(S.slice(2).every(s => s === X.T10_SMIN), 'najmniejsze powiększone do minimum');
+  assert.deepEqual(X.t10Sizes([5, 0, -1]), [X.T10_SMAX, X.T10_SMIN, X.T10_SMIN]);
+  for (const sz of [S, Array(10).fill(X.T10_SMAX), Array(10).fill(X.T10_SMIN), [X.T10_SMAX, ...Array(9).fill(X.T10_SMIN)], S.slice(0, 2), S.slice(0, 3), S.slice(0, 1), S.slice(0, 5)]) {
+    const C = X.t10Cluster(sz), f = sz.map(s => s * X.T10_FOOT);
+    assert.deepEqual(C.o[0], [0, 0], 'największa w środku'); assert.equal(C.o.length, sz.length);
+    for (let i = 0; i < sz.length; i++) {
+      assert.ok(Math.hypot(...C.o[i]) + f[i] <= C.r + 1e-9, 'w promieniu grupy');
+      for (let j = i + 1; j < sz.length; j++) assert.ok(Math.hypot(C.o[i][0] - C.o[j][0], C.o[i][1] - C.o[j][1]) >= f[i] + f[j] + X.T10_PAD * .99, 'bez nachodzenia ' + i + '/' + j);
+    }
+  }
+  assert.deepEqual(X.t10Cluster([]), {o: [], r: 0});
+  for (const [n, rg] of [[10, X.T10_RG], [5, X.T10_RGP]]) {
+    const g = X.t10Group(mc.slice(0, n), rg), s0 = X.t10Sizes(mc.slice(0, n));
+    assert.ok(g.r <= rg + 1e-9 && g.s.every((v, i) => Math.abs(v / g.s[0] - s0[i] / s0[0]) < 1e-9), n + ': w promieniu ' + rg + ', proporcje bez zmian');
+    assert.ok(X.t10Group(Array(n).fill(1e9), rg).r <= rg + 1e-9, n + ': najgorszy przypadek');
+  }
+});
+
+test('v140: kamera startowa obejmuje model i wszystkie grupy przy każdym obrocie — komputer (oddalona o T10_FIT) i telefon (skala modelu bez zmian, mniejszy krąg)', () => {
+  const X = t10v140.mk();
+  const s0 = html.indexOf('const sub=(a,b)=>'), s1 = html.indexOf('\n', html.indexOf('function pr(p){', s0));
+  const h0 = html.indexOf('const homeBase=()=>'), h1 = html.indexOf('\n', h0);
+  assert.ok(s0 > 0 && s1 > s0 && h0 > 0, 'setCam, pr, homeBase');
+  assert.ok(html.includes("function t10Fit(){return st&&st.t10!==false&&!t10Narrow()&&t10Any()?T10_FIT:1;}") && html.includes('function t10Narrow(){return CW<T10_NARROW;}'),
+    't10Fit: oddalenie tylko na komputerze, gdy grupy pokazane i jest choć jedna moneta');
+  for (const [W, H] of [[1100, 680], [1280, 680], [900, 520], [700, 520], [600, 460], [343, 380], [390, 390], [375, 420], [500, 420]]) {
+    const narrow = W < X.T10_NARROW, fit = narrow ? 1 : X.T10_FIT, P = X.t10Ring(t10v140.NODES, narrow);
+    const rMax = X.t10Group(Array(narrow ? X.T10_NP : X.T10_N).fill(1e9), narrow ? X.T10_RGP : X.T10_RG).r;
+    const E = new Function('CW', 'CH', html.slice(h0, h1) + '\nreturn homeBase();')(W, H);
+    for (let yaw = 0; yaw < 2 * Math.PI; yaw += .15) {
+      const cam = {yaw, pitch: .36, dist: E * fit, tx: 0, ty: .3, tz: 0, fov: 40 * Math.PI / 180};
+      const S = new Function('cam', 'CW', 'CH', html.slice(s0, s1) + '\nsetCam();return {pr, R, U};')(cam, W, H);
+      const pts = [];
+      for (const k in P) { const g = P[k].p; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) pts.push(g.map((v, i) => v + (S.R[i] * a + S.U[i] * b) * rMax)); }
+      for (const n of t10v140.NODES) for (const d of [[1.9, 0, 0], [-1.9, 0, 0], [0, 1.9, 0], [0, -1.9, 0], [0, 0, 1.9], [0, 0, -1.9]]) pts.push(n.p.map((v, i) => v + d[i]));
+      for (const p of pts) { const q = S.pr(p); assert.ok(q && q[0] >= 2 && q[0] <= W - 2 && q[1] >= 2 && q[1] <= H - 2, W + '×' + H + ' obrót ' + yaw.toFixed(2) + ': punkt poza kadrem ' + JSON.stringify(q && q.map(v => +v.toFixed(1)))); }
+    }
+  }
+});
+
+test('v140: kolory grup — każda grupa własny kolor (L1 ≠ L2), oba motywy, kontrast z tłem ≥ 3:1, kolory wyraźnie różne', () => {
+  const X = t10v140.mk(), K = X.T10_G.map(g => g[0]);
+  const lum = c => { const [r, g, b] = c.split(',').map(v => +v / 255).map(v => (v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)); return .2126 * r + .7152 * g + .0722 * b; };
+  const con = (a, b) => { const x = Math.max(a, b), y = Math.min(a, b); return (x + .05) / (y + .05); };
+  for (const [th, bg] of [['dark', 0], ['light', 1]]) {
+    const P = X.T10_COL[th];
+    assert.deepEqual(Object.keys(P), K, th + ': kolor każdej grupy');
+    for (const k of K) {
+      assert.ok(/^\d{1,3},\d{1,3},\d{1,3}$/.test(P[k]), th + ' ' + k + ': r,g,b');
+      assert.ok(con(lum(P[k]), bg) >= 3, th + ' ' + k + ': kontrast ' + con(lum(P[k]), bg).toFixed(2));
+      assert.equal(X.t10ColFor(k, th === 'dark'), P[k]);
+    }
+    const rgb = k => P[k].split(',').map(Number);
+    for (let i = 0; i < K.length; i++) for (let j = i + 1; j < K.length; j++) {
+      const a = rgb(K[i]), b = rgb(K[j]), d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      assert.ok(d >= 45, th + ' ' + K[i] + '/' + K[j] + ': kolory wyraźnie różne (' + d.toFixed(1) + ')');
+    }
+  }
+  assert.notEqual(X.T10_COL.dark.l1, X.T10_COL.dark.l2); assert.notEqual(X.T10_COL.light.l1, X.T10_COL.light.l2);
+  assert.equal(X.t10ColFor('l2', undefined), X.T10_COL.dark.l2, 'paleta jeszcze nieczytana — ciemny motyw');
+});
+
+test('v140: podpowiedź monety — nazwa i symbol (escH), miejsce w sektorze, cena z sensownymi miejscami, kapitalizacja, zmiana z kierunkiem, czas i wiek; brak = „—”, nigdy 0', () => {
+  const X = t10v140.mk(), NOW = Date.parse('2026-09-27T23:22:20Z');
+  const c = {id: 'bitcoin', sym: 'BTC', name: 'Bit<b>coin</b>', px: 84650, mc: 1700630245661, ch: 0.63639, upd: '2026-09-27T21:22:20Z'};
+  const h = X.t10TipHtml('l1', c, 1, 10, 'data:image/png;base64,iVBORw0KGgo=', '2026-09-27T21:30:00+00:00', NOW);
+  assert.ok(h.includes('Bit&lt;b&gt;coin&lt;/b&gt; <small>BTC</small>') && !h.includes('<b>coin'), 'nazwa z pliku przez escH');
+  assert.ok(h.includes('c10.rank{&quot;s&quot;:&quot;L1&quot;,&quot;r&quot;:1,&quot;n&quot;:10}'), 'L1: miejsce 1 z 10');
+  assert.ok(h.includes('84,650 USD') && h.includes('1.70 u.t') && h.includes('<dd class="up">▲ +0.64%</dd>'), h);
+  assert.ok(h.includes('c10.at{&quot;t&quot;:&quot;D(2026-09-27T21:22:20Z) · ln.ago.h{\\&quot;n\\&quot;:2}&quot;}'), 'czas notowania z wiekiem');
+  assert.ok(h.includes('c10.sk{') && h.includes('c10.meth') && h.includes('<img src="data:image/png;base64,iVBORw0KGgo="'), 'skład, metoda, logo');
+  const e = X.t10TipHtml('meme', {id: 'x', sym: '币安人生', name: 'B', px: null, mc: 494040482, ch: null, upd: null}, 3, 3, 'javascript:alert(1)', null, NOW);
+  assert.ok(e.includes('<dd>—</dd>') && !e.includes('▲') && !e.includes('0.00%') && !e.includes('<img') && e.includes('N(meme)'), 'brak ceny i zmiany = „—”; złe logo — bez obrazka; nazwa sektora ze słownika');
+  assert.ok(e.includes('494 u.m') && e.includes('c10.at{&quot;t&quot;:&quot;—&quot;}'), 'kapitalizacja w mln; brak czasu = „—”');
+  assert.ok(X.t10TipHtml('ai', {...c, ch: -2.4}, 2, 10, '', null, NOW).includes('<dd class="dn">▼ −2.40%</dd>'));
+  assert.ok(X.t10TipHtml('ai', {...c, ch: 0}, 2, 10, '', null, NOW).includes('<dd class="">• 0.00%</dd>'), 'zero z pliku — bez koloru');
+  assert.deepEqual([84650, 1.53, 0.0125697, 5.93e-6, 0, -1, null, NaN].map(X.t10Px), ['84,650', '1.53', '0.0126', '0.00000593', '—', '—', '—', '—']);
+  assert.deepEqual([1.7e12, 3.2e9, 4.9e8, 0, null].map(X.t10Mc), ['1.70 u.t', '3.2 u.b', '490 u.m', '—', '—']);
+  assert.deepEqual(['2026-09-27T23:10:20Z', '2026-09-27T21:22:20Z', '2026-09-24T23:22:20Z', 'x'].map(s => X.t10Ago(s, NOW)), ['ln.ago.m{"n":12}', 'ln.ago.h{"n":2}', 'ln.ago.d{"n":3}', '']);
+  const pl = t10v140.mk({L: 'pl'});
+  assert.equal(pl.t10Px(84650).replace(/\s/g, ' '), '84 650'); assert.equal(pl.t10Px(1.53), '1,53');
+});
+
+test('v140: słownik EXTRA137 — 10 języków, te same klucze c10.* i miejsca na wartości, nałożony po wcześniejszych, bez nazw dostawców; klucze wspólne istnieją', () => {
+  const a = 'const EXTRA137=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0), fl = 'for(const l in EXTRA137)if(I18N[l])Object.assign(I18N[l],EXTRA137[l]);\n';
+  assert.ok(x0 > 0 && html.split(a).length === 2 && html.slice(x1 + 2, x1 + 2 + fl.length) === fl && html.split(fl).length === 2, 'słownik i linia nakładania zaraz po nim');
+  const D = JSON.parse(html.slice(x0 + a.length, x1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = Object.keys(D.pl);
+  const PH = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10, 'kolejność języków');
+  assert.deepEqual(K, ['c10.btn', 'c10.g', 'c10.none', 'c10.load', 'c10.rank', 'c10.px', 'c10.mc', 'c10.ch', 'c10.at', 'c10.sk', 'c10.meth', 'c10.full', 'c10.exit']);
+  const PROV = /gecko|alternative|paprika|llama|coinmarketcap|coin ?metrics|binance|coinbase|kraken|fred|messari|tradingview|data by|dane:|data:/i;
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(D[L]), K, L + ': klucze');
+    const t = v96src.tFor(L);
+    for (const k of K) {
+      assert.ok(typeof D[L][k] === 'string' && D[L][k].trim() && !PROV.test(D[L][k]), L + ' ' + k);
+      assert.equal(PH(D[L][k]), PH(D.pl[k]), L + ' ' + k + ': miejsca na wartości');
+      assert.equal(v96src.I18N[L][k], D[L][k], L + ' ' + k + ': nałożony');
+    }
+    assert.ok(!t('c10.rank', {s: 'L1', r: 3, n: 10}).includes('{') && t('c10.rank', {s: 'L1', r: 3, n: 10}).includes('3'), L + ': wartości podstawione');
+    for (const k of ['ln.ago.m', 'ln.ago.h', 'ln.ago.d', 'n.l12', 'n.meme', 'u.t', 'u.b', 'u.m']) assert.ok(t(k) !== k && t(k).trim(), L + ': wspólny klucz ' + k);
+  }
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  for (const e of ['EXTRA124', 'EXTRA135', 'EXTRA136']) if (apl.includes(e)) assert.ok(apl.indexOf('EXTRA137') > apl.indexOf(e), 'EXTRA137 po ' + e);
+  assert.equal(v96src.tFor('pl')('c10.g', {s: 'L1'}), 'L1 · top 10'); assert.equal(v96src.tFor('pl')('c10.none'), 'brak danych');
+  assert.equal(v96src.tFor('pl')('c10.full'), 'Pełny ekran'); assert.equal(v96src.tFor('en')('c10.exit'), 'Exit full screen');
+  for (const L of L10) assert.ok(!/map|karte|mapa|carte|mappa|карта|地图|地図/i.test(D[L]['c10.full'] + D[L]['c10.exit']), L + ': pełny ekran sceny, nie „mapy” (GLOBAL ma swoje zoom.full)');
+  for (const L of L10) assert.ok(D[L]['c10.meth'].includes('∝') && /5/.test(D[L]['c10.meth']) && /6/.test(D[L]['c10.meth']), L + ': metoda — pole ∝ kapitalizacji, najmniejsze do minimum, wąski ekran: 5 największych, skład co 6 h');
+  assert.ok(D.pl['c10.meth'].includes('najmniejsze powiększone do minimum') && D.en['c10.meth'].includes('enlarged to a minimum'), 'uczciwy opis wielkości');
+});
+test('v140: etykiety grup — miejsca nad, pod, po zewnętrznej i wewnętrznej stronie, wyżej; zawsze w całości w kadrze; strona zewnętrzna dalej od środka modelu', () => {
+  const X = t10v140.mk(), b = {x0: 300, y0: 200, x1: 360, y1: 250}, w = 80, h = 17;
+  const S = X.t10LabSpots(b, w, h, 100, 1000, 600);
+  assert.deepEqual(S.map(q => [q.x, q.y]), [[290, 179], [290, 254], [366, 216.5], [214, 216.5], [290, 160]], 'grupa na prawo od środka modelu: zewnętrzna = prawa');
+  assert.ok(S.every(q => q.w === w && q.h === h));
+  const Lf = X.t10LabSpots(b, w, h, 900, 1000, 600);
+  assert.deepEqual([Lf[2].x, Lf[3].x], [214, 366], 'grupa na lewo od środka modelu: zewnętrzna = lewa');
+  const E = X.t10LabSpots({x0: 950, y0: 3, x1: 998, y1: 40}, w, h, 100, 1000, 600);
+  assert.ok(E.every(q => q.x >= 2 && q.x + w <= 998 && q.y >= 2 && q.y + h <= 598), 'w kadrze: ' + JSON.stringify(E));
+  assert.ok(!E.some(q => q.y < 2), 'nad grupą przy górnej krawędzi — pominięte, nie ucięte');
+  assert.equal(E[0].y, 44, 'pierwsze miejsce: pod grupą');
+});
+test('v140: strona — przyciski „Top 10” i pełny ekran obok przybliż / oddal / widok domyślny (komputer: druga kolumna, telefon: rząd na dole), ten sam znak co GLOBAL; zaczepy w silniku sceny; plik serwera', () => {
+  const z0 = html.indexOf('<button id="z-in"'), zr = html.indexOf('<button id="z-reset"'), zt = html.indexOf('<button id="z-t10"'), zf = html.indexOf('<button id="z-full"'), zc = html.indexOf('</div>', z0);
+  assert.ok(z0 > 0 && zr > z0 && zt > zr && zf > zt && zc > zf, 'kolejność w .zoom sceny CRYPTO: +, −, ⟲, Top 10, pełny ekran');
+  assert.equal(html.split('id="z-t10"').length, 2); assert.equal(html.split('id="z-full"').length, 2);
+  assert.ok(html.includes('<button id="z-t10" data-i18n-aria="c10.btn" data-i18n-title="c10.btn" aria-pressed="true">'), 'Top 10 domyślnie pokazane, opis w języku strony');
+  assert.ok(html.includes('<button id="z-full" data-i18n-aria="c10.full" data-i18n-title="c10.full" aria-pressed="false">'), 'pełny ekran sceny: własny opis');
+  const svg = id => { const i = html.indexOf('<button id="' + id + '"'); return html.slice(html.indexOf('<svg', i), html.indexOf('</svg>', i) + 6); };
+  assert.ok(svg('z-full').length > 100 && svg('z-full') === svg('gz-full'), 'znak pełnego ekranu jak w GLOBAL');
+  for (const s of ['#stage .zoom{direction:rtl;display:grid;grid-template-rows:repeat(3,34px);grid-auto-flow:column;grid-auto-columns:34px;gap:6px}', '#stage .zoom button{direction:ltr}', '@media (max-width:620px){#stage .zoom{top:auto;bottom:12px;direction:ltr;grid-template-rows:34px;grid-auto-flow:column}.stage3d.full #why{max-height:48%;bottom:58px}}',
+    '#z-full[aria-pressed="true"] .ic-close{display:block}', '#z-t10[aria-pressed="true"]{color:var(--bl);', '.stage3d.full,.stage3d:fullscreen{position:fixed;inset:0;z-index:50;height:auto!important;',
+    '.stage3d.full #why{position:absolute;', 'body.cfull{overflow:hidden}', '.t10-tip{position:absolute;', '.t10-tip dd.dn{color:var(--rd-tx)}'])
+    assert.equal(html.split(s).length, 2, 'styl: ' + s);
+  assert.ok(!/--c10-/.test(html), 'kolory grup w skrypcie (T10_COL), nie w zmiennych CSS');
+  const X = [['const homeBase=()=>{const a=CW/CH;return 41*Math.max(1,1.3/a)*(CW<560?1.05:1);};', 'dawna kamera startowa bez zmian (homeBase)'],
+    ["const homeDist=()=>homeBase()*(typeof t10Fit==='function'?t10Fit():1);", 'kamera startowa obejmuje grupy'],
+    ["if(!mirror&&typeof t10Items==='function')t10Items(items);items.sort((a,b)=>b.z-a.z);items.forEach(i=>i.fn());", 'grupy w sortowaniu głębokości sceny (bez odbicia)'],
+    ["drawScene(false,time);drawLabels();if(typeof t10After==='function')t10After();", 'podpisy grup po etykietach modelu'],
+    ["  const m=pickModel(x,y),c=typeof t10Pick==='function'?t10Pick(x,y):null;\n  return c&&(!m||c.z<m.z)?null:(m?{type:m.type,id:m.id}:null);\n}\nfunction pickModel(x,y){", 'pick: moneta tylko bliżej kamery niż element modelu'],
+    ["  if(ns.length)return{type:'node',id:ns[0].id,z:ns[0]._d};", 'pickModel: głębokość węzła'], ['best.z=q?q[2]:Infinity;', 'pickModel: głębokość linii'],
+    ["else if(st.sel&&!(typeof t10PickTop==='function'&&t10PickTop(downPos[0],downPos[1])))select(st.sel);", 'dotknięcie monety nie zdejmuje zaznaczenia'],
+    ["cam.dist=Math.max(10,Math.min(typeof t10DistMax==='function'?t10DistMax():95,cam.dist));", 'oddalanie do całości'],
+    ["camTo({dist:Math.min(typeof t10DistOut==='function'?t10DistOut():80,cam.dist/.8)},300);", 'przycisk „−” przy dalekiej kamerze startowej'],
+    ['dist:Math.min(cam.dist,homeBase()*.6)},800);}', 'zaznaczenie elementu przybliża jak dotąd'], ['dist:Math.min(cam.dist,homeBase()*.66)},800);}', 'zaznaczenie linii przybliża jak dotąd'],
+    ["  if(typeof cFull!=='undefined'&&cFull&&!(ov&&st.mode==='crypto'))cSetFull(false);", 'zmiana zakładki / strony zamyka pełny ekran sceny'],
+    ["if(typeof t10Keep==='function')t10Keep(r);", 'etykiety modelu omijają przyciski sceny'], ['const lx=l.r.x+l.r.w/2,sh=Math.abs(lx-l.cx)>.5;', 'etykieta przesunięta — tekst w swoim prostokącie'],
+    ["srvJSON('krypto-top10').then(", 'plik serwera'], ["srvJSON('krypto-top10-logo').then(", 'plik logo'], ['T10.timer=setInterval(()=>{if(!document.hidden)t10Load();},20*60*1000);', 'odświeżanie co 20 min'],
+    ['t10Load();t10Auto();', 'start'], ["if(!T10.seen){T10.seen=true;t10LogoLoad();}", 'plik logo dopiero przy pierwszym rysowaniu grup'],
+    ["  if(typeof t10NodeLab==='function')t10NodeLab(L);   /* v140: etykiety grup top 10 omijają etykiety modelu */\n  L.slice().reverse().forEach(l=>{", 'podpisy grup omijają etykiety modelu']];
+  for (const [s, m] of X) assert.equal(html.split(s).length, 2, m + ': ' + s);
+  const b0 = html.indexOf('/* ===================== v140: TOP 10 MONET W SEKTORACH'), b1 = html.indexOf('t10Load();t10Auto();', b0);
+  assert.ok(b0 > html.indexOf("$('#z-reset').addEventListener('click'") && b1 > b0 && b1 < html.indexOf('/* ---------- zaznaczenie i panele ---------- */') && b1 < html.indexOf('/* ---------- start ---------- */'),
+    'blok po obsłudze sceny (kolejność zdarzeń), przed startem strony');
+  const blk = html.slice(b0, b1);
+  assert.ok(!/gecko|paprika|llama|alternative|coinmarketcap/i.test(blk), 'blok bez nazw dostawców');
+  assert.ok(!/fetch\(|https?:\/\//.test(blk), 'przeglądarka nie łączy się z obcym serwerem (tylko pliki strony)');
+});
+
+
+const t10H = (() => {
+  const NOW = '2026-09-27T21:45:00Z', CLK = {ms: Date.parse(NOW)};   /* zegar strony przypięty (testy bez zegara); test może go przesunąć */
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(CLK.ms); else super(...a); } static now() { return CLK.ms; } }
+  const s0 = html.indexOf("<script>\n(function(){\n'use strict';\n"), s1 = html.lastIndexOf('})();\n</script>');
+  assert.ok(s0 > 0 && s1 > s0, 'skrypt strony: (function(){ … })();');
+  const BODY = html.slice(s0 + '<script>\n(function(){\n'.length, s1);
+  const MARK = html.slice(0, s0).replace(/<!--[\s\S]*?-->/g, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  const TAGS = [];
+  { const re = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[^\s=>\/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>/g, ar = /([^\s=>\/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+    const VOID = /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr|path|circle|rect|line|polyline|polygon|ellipse|stop|use)$/, stk = [], stn = []; let m;
+    while ((m = re.exec(MARK))) { const tg = m[2].toLowerCase();
+      if (m[1]) { const i = stn.lastIndexOf(tg); if (i >= 0) { stk.length = i; stn.length = i; } continue; }   /* znacznik zamykający: rodzic = otwarty element o tej nazwie */
+      const a = {}; let q; ar.lastIndex = 0; while ((q = ar.exec(m[3]))) a[q[1].toLowerCase()] = q[2] ?? q[3] ?? q[4] ?? '';
+      TAGS.push([tg, a, stk.length ? stk[stk.length - 1] : -1]); if (!m[4] && !VOID.test(tg)) { stk.push(TAGS.length - 1); stn.push(tg); } } }
+  const INTERNAL = ['st', 'cam', 'NODES', 'NB', 'EB', 'EDGES', 'T10', 'PAL', 'CW', 'CH', 'cFull', 'hover', 'cur', 'select', 'setMode', 'setPage', 'setView', 'applyTheme', 'readPalette', 'renderAll',
+    'render', 'resize', 'homeDist', 'homeBase', 'pick', 'pickModel', 'pr', 'setCam', 't', 'nName', 't10Items', 't10After', 't10Pick', 't10PickTop', 't10TipShow', 't10TipHide', 't10Set', 't10Fit',
+    't10Load', 't10LogoLoad', 't10Col', 'cSetFull', 'T10_COL', 'T10_G', 'T10_N', 'T10_NP'];
+  const RET = '\n;return {' + INTERNAL.map(n => `get ${n}(){try{return ${n};}catch(e){return undefined;}}`).join(',') + '};';
+  const GLOBALS = ['window', 'document', 'navigator', 'location', 'history', 'localStorage', 'sessionStorage', 'fetch', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
+    'requestAnimationFrame', 'cancelAnimationFrame', 'MutationObserver', 'ResizeObserver', 'IntersectionObserver', 'Path2D', 'Image', 'DOMParser', 'Event', 'CustomEvent',
+    'AbortController', 'AbortSignal', 'Promise', 'Date', 'getComputedStyle', 'matchMedia', 'performance', 'devicePixelRatio', 'innerWidth', 'innerHeight', 'alert', 'confirm',
+    'console', 'URL', 'screen', 'open', 'queueMicrotask', 'Blob', 'FileReader', 'atob', 'btoa', 'URLSearchParams'];
+  const PAGE = new Function(...GLOBALS, BODY + RET);
+  const FIXS = {}; for (const k in G126_DATA) FIXS[k] = JSON.stringify(G126_DATA[k]);
+  const VIS = new Set(['title', 'aria-label', 'alt', 'placeholder', 'aria-description', 'aria-roledescription', 'aria-valuetext']);
+  const FATAL = e => e && (e instanceof TypeError || e instanceof ReferenceError || e instanceof SyntaxError || e instanceof RangeError);
+
+  /* jedno uruchomienie strony w atrapie; zwraca API przejść i zebrane wpisy do DOM */
+  function run(lang, opt) {
+    opt = opt || {};
+    const CAP = [], ERR = [], NET = [], TIM = [], MOS = [], SEEN = new Set(), NETLOG = [], noop = () => {};
+    const rec = (k, v, el) => { if (v === null || v === undefined) return; v = String(v); if (!v || SEEN.has(k + '\u0001' + v)) return; SEEN.add(k + '\u0001' + v); CAP.push({k, v, id: el && el._a ? (el._a.id || el.tagName) : ''}); };
+    const noteErr = (e, w) => { if (FATAL(e)) ERR.push((w || '') + ': ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : String(e))); };
+    /* obietnice rozstrzygane od razu (sieć i timery rozładowywane ręcznie w settle) */
+    class SP {
+      constructor(ex) { this._s = 0; this._v = undefined; this._cb = []; this._lk = false; try { ex(v => this._set(1, v), e => this._set(2, e)); } catch (e) { this._set(2, e); } }
+      _set(s, v) {
+        if (this._s || this._lk) return;
+        if (s === 1 && v && (typeof v === 'object' || typeof v === 'function')) { let th; try { th = v.then; } catch (e) { return this._set(2, e); }
+          if (typeof th === 'function') { this._lk = true; let done = false;
+            const ok = x => { if (done) return; done = true; this._lk = false; this._set(1, x); }, no = e => { if (done) return; done = true; this._lk = false; this._set(2, e); };
+            try { th.call(v, ok, no); } catch (e) { no(e); } return; } }
+        if (s === 2) noteErr(v, 'obietnica');
+        this._s = s; this._v = v; const cb = this._cb; this._cb = []; cb.forEach(f => f());
+      }
+      then(f, r) { return new SP((res, rej) => { const go = () => { const h = this._s === 1 ? f : r; if (typeof h === 'function') { try { res(h(this._v)); } catch (e) { rej(e); } } else (this._s === 1 ? res : rej)(this._v); }; if (this._s) go(); else this._cb.push(go); }); }
+      catch(r) { return this.then(undefined, r); }
+      finally(f) { return this.then(v => { if (f) f(); return v; }, e => { if (f) f(); throw e; }); }
+      static resolve(v) { return v instanceof SP ? v : new SP(r => r(v)); }
+      static reject(e) { return new SP((_, j) => j(e)); }
+      static all(a) { a = Array.from(a); return new SP((res, rej) => { const o = new Array(a.length); let n = a.length; if (!n) return res(o); a.forEach((p, i) => SP.resolve(p).then(v => { o[i] = v; if (--n === 0) res(o); }, rej)); }); }
+      static allSettled(a) { return SP.all(Array.from(a).map(p => SP.resolve(p).then(value => ({status: 'fulfilled', value}), reason => ({status: 'rejected', reason})))); }
+      static race(a) { return new SP((res, rej) => Array.from(a).forEach(p => SP.resolve(p).then(res, rej))); }
+      static any(a) { a = Array.from(a); return new SP((res, rej) => { let n = a.length; if (!n) return rej(new Error('any')); a.forEach(p => SP.resolve(p).then(res, () => { if (--n === 0) rej(new Error('any')); })); }); }
+    }
+    /* atrapa DOM: elementy ze znaczników strony (id, klasy, atrybuty, rodzic) + elementy tworzone w locie; zapis treści = wpis do CAP */
+    const byId = new Map(), statics = [];
+    /* kontekst rysowania płótna: zapis napisów (położenie, czcionka, przezroczystość, kolor) i linii (kolor, grubość, kreskowanie); stan z save / restore */
+    const mkCtx = () => {
+      const S = {globalAlpha: 1, font: '10px sans-serif', textAlign: 'start', textBaseline: 'alphabetic', fillStyle: '#000', strokeStyle: '#000', lineWidth: 1, dash: []}, stack = [];
+      const log = {text: [], stroke: [], img: 0}, size = () => +((/(\d+(?:\.\d+)?)px/.exec(S.font) || [0, 10])[1]);
+      const o = {log,
+        save() { stack.push(Object.assign({}, S, {dash: S.dash.slice()})); }, restore() { const x = stack.pop(); if (x) Object.assign(S, x); },
+        measureText: s => ({width: String(s).length * size() * .56, actualBoundingBoxAscent: size() * .72, actualBoundingBoxDescent: size() * .2}),
+        fillText(s, x, y) { log.text.push({s: String(s), x, y, size: size(), font: S.font, align: S.textAlign, base: S.textBaseline, alpha: S.globalAlpha, fill: String(S.fillStyle)}); },
+        strokeText() {}, setLineDash(d) { S.dash = (d || []).slice(); }, getLineDash() { return S.dash.slice(); },
+        stroke() { log.stroke.push({style: String(S.strokeStyle), lw: S.lineWidth, alpha: S.globalAlpha, dash: S.dash.length}); }, drawImage() { log.img++; },
+        createLinearGradient: () => ({addColorStop: noop}), createRadialGradient: () => ({addColorStop: noop}), createConicGradient: () => ({addColorStop: noop}), createPattern: () => ({}),
+        getImageData: () => ({data: new Uint8ClampedArray(4), width: 1, height: 1}), createImageData: () => ({data: new Uint8ClampedArray(4)}), getTransform: () => ({a: 1, b: 0, c: 0, d: 1, e: 0, f: 0}),
+        isPointInPath: () => false};
+      return new Proxy(o, {get: (t, k) => (k in t ? t[k] : (k in S ? S[k] : (typeof k === 'string' ? noop : undefined))),
+        set: (t, k, v) => { if (k in t && typeof t[k] !== 'function') t[k] = v; else S[k] = v; return true; }});
+    };
+    const styleObj = () => new Proxy({setProperty: noop, removeProperty: noop, getPropertyValue: () => ''}, {get: (o, k) => (k in o ? o[k] : ''), set: (o, k, v) => { o[k] = v; return true; }});
+    let docEl = null, HEAD = null, BODYEL = null;
+    const dsKey = k => k.slice(5).replace(/-([a-z])/g, (m, c) => c.toUpperCase());
+    class El {
+      constructor(tag, a) {
+        this.tagName = String(tag || 'div').toUpperCase(); this.nodeName = this.tagName; this.nodeType = 1; this.localName = this.tagName.toLowerCase();
+        this._a = Object.assign({}, a || {}); this._h = ''; this._t = null; this.style = styleObj();
+        const cl = new Set(String(this._a.class || '').split(/\s+/).filter(Boolean)); this._cl = cl;
+        this.classList = {add: (...c) => c.forEach(x => cl.add(x)), remove: (...c) => c.forEach(x => cl.delete(x)), contains: c => cl.has(c), replace: noop, item: i => [...cl][i] || null,
+          toggle: (c, f) => { const on = f === undefined ? !cl.has(c) : !!f; if (on) cl.add(c); else cl.delete(c); return on; }, get length() { return cl.size; }};
+        this.dataset = {}; for (const k in this._a) if (k.startsWith('data-')) this.dataset[dsKey(k)] = this._a[k];
+        this.hidden = 'hidden' in this._a; this.children = []; this.childNodes = []; this.parentElement = null; this.parentNode = null;
+        this.value = this._a.value || ''; this.checked = 'checked' in this._a; this.disabled = 'disabled' in this._a; this.open = 'open' in this._a;
+        this.scrollTop = 0; this.scrollLeft = 0; this.tabIndex = 0; this.width = 300; this.height = 150; this.files = []; this.options = []; this.selectedIndex = 0;
+      }
+      get id() { return this._a.id || ''; } set id(v) { this._a.id = String(v); }
+      get className() { return [...this._cl].join(' '); } set className(v) { this._cl.clear(); String(v).split(/\s+/).filter(Boolean).forEach(x => this._cl.add(x)); }
+      get innerHTML() { return this._h; } set innerHTML(v) { this._h = String(v); this._t = null; this._q = null; rec('html', v, this); }
+      get outerHTML() { return this._h; }
+      get textContent() { return this._t !== null ? this._t : this._h.replace(/<[^>]*>/g, ''); } set textContent(v) { this._t = String(v); this._h = ''; rec('text', v, this); }
+      get innerText() { return this.textContent; } set innerText(v) { this.textContent = v; }
+      get title() { return this._a.title || ''; } set title(v) { this._a.title = String(v); rec('attr', v, this); }
+      get placeholder() { return this._a.placeholder || ''; } set placeholder(v) { this._a.placeholder = String(v); rec('attr', v, this); }
+      get alt() { return this._a.alt || ''; } set alt(v) { this._a.alt = String(v); rec('attr', v, this); }
+      get ariaLabel() { return this._a['aria-label'] || null; } set ariaLabel(v) { this._a['aria-label'] = String(v); rec('attr', v, this); }
+      get lang() { return this._a.lang || ''; } set lang(v) { this._a.lang = String(v); if (this === docEl) fireMO(); }
+      get src() { return this._a.src || ''; } set src(v) { this._a.src = String(v); }
+      get href() { return this._a.href || ''; } set href(v) { this._a.href = String(v); }
+      get type() { return this._a.type || ''; } set type(v) { this._a.type = String(v); }
+      get text() { return this._t || ''; } set text(v) { this._t = String(v); }
+      get complete() { return true; } get naturalWidth() { return 0; } get naturalHeight() { return 0; } get isConnected() { return true; }
+      get offsetWidth() { return 1200; } get offsetHeight() { return 800; } get clientWidth() { return 1200; } get clientHeight() { return 800; }
+      get scrollHeight() { return 800; } get scrollWidth() { return 1200; } get offsetTop() { return 0; } get offsetLeft() { return 0; } get offsetParent() { return null; }
+      get firstChild() { return this.children[0] || null; } get firstElementChild() { return this.children[0] || null; } get lastChild() { return this.children[this.children.length - 1] || null; }
+      get lastElementChild() { return this.lastChild; } get nextSibling() { return null; } get nextElementSibling() { return null; } get previousSibling() { return null; } get previousElementSibling() { return null; }
+      get childElementCount() { return this.children.length; }
+      setAttribute(k, v) { k = String(k).toLowerCase(); v = String(v); this._a[k] = v; if (k.startsWith('data-')) this.dataset[dsKey(k)] = v;
+        if (k === 'class') this.className = v; if (k === 'hidden') this.hidden = true; if (VIS.has(k)) rec('attr', v, this); if (k === 'content' && this.tagName === 'META') rec('meta', v, this); if (k === 'lang' && this === docEl) fireMO(); }
+      getAttribute(k) { k = String(k).toLowerCase(); return k in this._a ? this._a[k] : null; } hasAttribute(k) { return String(k).toLowerCase() in this._a; }
+      removeAttribute(k) { k = String(k).toLowerCase(); delete this._a[k]; if (k === 'hidden') this.hidden = false; }
+      toggleAttribute(k, f) { const on = f === undefined ? !this.hasAttribute(k) : !!f; if (on) this._a[k] = ''; else delete this._a[k]; return on; }
+      addEventListener(ty, f) { this._L = this._L || {}; (this._L[ty] = this._L[ty] || []).push(f); } removeEventListener() {}
+      dispatchEvent(e) { for (const f of ((this._L || {})[e.type] || []).slice()) f(e); return true; }
+      querySelector(s) { return (this === docEl || this === HEAD || this === BODYEL) ? qs(s) : inner(this, s); }
+      querySelectorAll(s) { if (this === docEl || this === HEAD || this === BODYEL) return qsa(s); const k = inner(this, s); return k ? [k] : []; }
+      getElementsByTagName() { return []; } getElementsByClassName() { return []; }
+      closest() { return null; } matches() { return false; } contains(x) { return x === this; }
+      appendChild(c) { if (c && typeof c === 'object') { this.children.push(c); c.parentElement = this; c.parentNode = this; } return c; }
+      append(...cs) { cs.forEach(c => { if (typeof c === 'string') rec('text', c, this); else this.appendChild(c); }); } prepend(...cs) { this.append(...cs); }
+      insertBefore(c) { return this.appendChild(c); } insertAdjacentHTML(p, s) { this._h += String(s); rec('html', s, this); } insertAdjacentElement(p, c) { return this.appendChild(c); }
+      insertAdjacentText(p, s) { rec('text', s, this); }
+      removeChild(c) { return c; } replaceChildren(...cs) { this.children = []; this.append(...cs); } replaceWith() {} remove() {} before() {} after() {}
+      cloneNode() { return new El(this.tagName, this._a); }
+      getBoundingClientRect() { return this._rect ? Object.assign({}, this._rect) : {x: 0, y: 0, left: 0, top: 0, right: 1200, bottom: 800, width: 1200, height: 800}; } getClientRects() { return []; }
+      focus() {} blur() {} click() {} scrollIntoView() {} scrollTo() {} scrollBy() {} setPointerCapture() {} releasePointerCapture() {} hasPointerCapture() { return false; }
+      requestFullscreen() { return SP.resolve(); } showModal() {} show() {} close() {} select() {} setSelectionRange() {} reset() {} submit() {} checkValidity() { return true; }
+      getContext() { return this._ctx || (this._ctx = mkCtx()); } toDataURL() { return 'data:,'; } toBlob() {} animate() { return {finished: SP.resolve(), cancel: noop, onfinish: null}; } getAnimations() { return []; }
+    }
+    for (const [tg, a, par] of TAGS) { const e = new El(tg, a); if (e._a.id && !byId.has(e._a.id)) byId.set(e._a.id, e); statics.push(e); if (par >= 0) { const P = statics[par]; e.parentElement = P; e.parentNode = P; P.children.push(e); } }
+    docEl = statics.find(e => e.tagName === 'HTML') || new El('html'); HEAD = statics.find(e => e.tagName === 'HEAD') || new El('head'); BODYEL = statics.find(e => e.tagName === 'BODY') || new El('body');
+    /* selektory: ostatni człon (znacznik, #id, .klasa, [atrybut]) dopasowany do znaczników strony; #id nieznany = element tworzony w locie */
+    const parseSel = s => { s = s.replace(/:[\w-]+(\((?:[^()]|\([^()]*\))*\))?/g, ''); const tg = /^([a-zA-Z][\w-]*|\*)/.exec(s);
+      return {tag: tg && tg[1] !== '*' ? tg[1].toUpperCase() : null, ids: [...s.matchAll(/#([\w-]+)/g)].map(m => m[1]), cls: [...s.matchAll(/\.([\w-]+)/g)].map(m => m[1]),
+        at: [...s.matchAll(/\[\s*([\w-]+)\s*(?:([~|^$*]?=)\s*["']?([^"'\]]*)["']?)?\s*\]/g)].map(m => [m[1].toLowerCase(), m[2], m[3]])}; };
+    const last = s => { const p = String(s).trim().split(/\s*[>+~]\s*|\s+(?![^\[]*\])/); return p[p.length - 1]; };
+    const matchC = (e, c) => (!c.tag || e.tagName === c.tag) && c.ids.every(i => e._a.id === i) && c.cls.every(x => e._cl.has(x)) &&
+      c.at.every(([k, op, v]) => { if (!(k in e._a)) return false; const x = e._a[k]; return !op ? true : op === '=' ? x === v : op === '^=' ? x.startsWith(v) : op === '$=' ? x.endsWith(v) : op === '*=' ? x.includes(v) : op === '~=' ? x.split(/\s+/).includes(v) : x === v || x.startsWith(v + '-'); });
+    function qsa(sel) { const out = []; for (const part of String(sel).split(',')) { const c = parseSel(last(part)); for (const e of statics) if (matchC(e, c) && !out.includes(e)) out.push(e); } return out; }
+    function qs(sel) { sel = String(sel).trim(); if (/^#[\w-]+$/.test(sel)) { const id = sel.slice(1); if (!byId.has(id)) { const e = new El('div', {id}); e.parentElement = BODYEL; e.parentNode = BODYEL; byId.set(id, e); } return byId.get(id); }
+      const r = qsa(sel); if (r.length) return r[0]; const c = parseSel(last(sel.split(',')[0])); return c.ids.length ? qs('#' + c.ids[0]) : null; }
+    /* element w treści wpisanej przez innerHTML: zgrubnie po tekście (znacznik, id, klasa, atrybut) — jeden stały potomek na selektor */
+    const inner = (el, sel) => { const h = el._h || ''; if (!h) return null; const c = parseSel(last(String(sel).split(',')[0]));
+      const ok = (!c.tag || new RegExp('<' + c.tag.toLowerCase() + '\\b').test(h)) && c.ids.every(i => h.includes('id="' + i + '"')) &&
+        c.cls.every(x => new RegExp('class="[^"]*\\b' + x.replace(/-/g, '\\-') + '\\b').test(h)) && c.at.every(([k]) => new RegExp('\\s' + k + '[=\\s>]').test(h));
+      if (!ok) return null; el._q = el._q || {}; if (!el._q[sel]) { const e = new El(c.tag || 'div', {}); e.parentElement = el; e.parentNode = el; el._q[sel] = e; } return el._q[sel]; };
+    /* zegary, sieć, obserwatory */
+    let tid = 0, perf = 0;
+    const setTimeout_ = (f, ms, ...a) => { const id = ++tid; if (typeof f === 'function') TIM.push({id, f, a}); return id; };
+    const clearTimeout_ = id => { const i = TIM.findIndex(x => x.id === id); if (i >= 0) TIM.splice(i, 1); };
+    function fireMO() { for (const f of MOS) { try { f([{type: 'attributes', attributeName: 'lang'}], null); } catch (e) { noteErr(e, 'MutationObserver'); } } }
+    class MO { constructor(f) { this.f = f; } observe() { if (!MOS.includes(this.f)) MOS.push(this.f); } disconnect() {} takeRecords() { return []; } }
+    class RO { observe() {} unobserve() {} disconnect() {} }
+    class IO { constructor(f) { this.f = f; } observe(el) { try { this.f([{isIntersecting: true, target: el}]); } catch (e) { noteErr(e, 'IntersectionObserver'); } } unobserve() {} disconnect() {} }
+    class P2 {} for (const m of ['moveTo', 'lineTo', 'arc', 'arcTo', 'closePath', 'rect', 'roundRect', 'bezierCurveTo', 'quadraticCurveTo', 'addPath', 'ellipse']) P2.prototype[m] = noop;
+    class Img { constructor() { this.complete = false; this.naturalWidth = 0; this.onload = null; this.onerror = null; this._s = ''; } get src() { return this._s; } set src(v) { this._s = String(v); } decode() { return SP.resolve(); } }
+    class Ev { constructor(type, o) { this.type = type; Object.assign(this, o || {}); } preventDefault() {} stopPropagation() {} }
+    class AC { constructor() { this.signal = {aborted: false, addEventListener: noop, removeEventListener: noop}; } abort() { this.signal.aborted = true; } }
+    class USP { constructor(q) { this.m = {}; String(q || '').replace(/^\?/, '').split('&').filter(Boolean).forEach(p => { const i = p.indexOf('='), k = decodeURIComponent(i < 0 ? p : p.slice(0, i)); if (!(k in this.m)) this.m[k] = decodeURIComponent(i < 0 ? '' : p.slice(i + 1)); }); } get(k) { return k in this.m ? this.m[k] : null; } has(k) { return k in this.m; } }
+    class DP { parseFromString() { return {querySelector: () => null, querySelectorAll: () => [], getElementsByTagName: () => [], documentElement: null}; } }
+    const AS = {timeout: () => ({aborted: false, addEventListener: noop, removeEventListener: noop}), abort: () => ({aborted: true})};
+    const store = init => { const m = new Map(Object.entries(init || {})); return {getItem: k => (m.has(String(k)) ? m.get(String(k)) : null), setItem: (k, v) => { m.set(String(k), String(v)); },
+      removeItem: k => { m.delete(String(k)); }, clear: () => m.clear(), key: i => [...m.keys()][i] ?? null, get length() { return m.size; }}; };
+    const LS = store(Object.assign({'cfai.lang': lang}, opt.ls || {}));
+    const resp = (st, body) => ({ok: st >= 200 && st < 300, status: st, statusText: String(st), headers: {get: () => null},
+      json: () => (body === undefined ? SP.reject(new Error('JSON')) : SP.resolve(JSON.parse(body))), text: () => SP.resolve(body === undefined ? '' : body), clone() { return this; }});
+    /* pobranie = odpowiedź z danych wbudowanych (data/<plik>.json, archiwum/seria.json, adresy serwisów bez parametrów); reszta = 404. Odpowiedź przychodzi dopiero w settle — jak w przeglądarce, po skrypcie */
+    const fetch_ = url => new SP(res => { NET.push(() => { const u = String(url).split('?')[0], m = /^(data\/.+|archiwum\/.+)\.json$/.exec(u), k = m ? m[1] : u; NETLOG.push(k);
+      const own = opt.files && Object.prototype.hasOwnProperty.call(opt.files, k), body = own ? opt.files[k] : FIXS[k];
+      res(body !== undefined && body !== null ? resp(200, typeof body === 'string' ? body : JSON.stringify(body)) : resp(404)); }); });
+    const settle = () => { for (let i = 0; i < 400 && (NET.length || TIM.length); i++) { while (NET.length) { const f = NET.shift(); try { f(); } catch (e) { noteErr(e, 'sieć'); } }
+      for (const x of TIM.splice(0, TIM.length)) { try { x.f(...x.a); } catch (e) { noteErr(e, 'setTimeout'); } } } };
+    const docL = {};
+    const document_ = {documentElement: docEl, head: HEAD, body: BODYEL, hidden: false, visibilityState: 'visible', activeElement: BODYEL, fullscreenElement: null, cookie: '', readyState: 'complete',
+      fonts: {ready: SP.resolve(), load: () => SP.resolve([]), check: () => true, addEventListener: noop},
+      exitFullscreen: () => SP.resolve(), createElement: t => new El(t), createElementNS: (ns, t) => new El(t), createTextNode: s => ({nodeType: 3, textContent: String(s)}),
+      createDocumentFragment: () => new El('fragment'), querySelector: qs, querySelectorAll: qsa, getElementById: id => qs('#' + id), getElementsByTagName: () => [], getElementsByClassName: () => [],
+      addEventListener: (ev, fn) => { (docL[ev] = docL[ev] || []).push(fn); }, removeEventListener: noop,
+      dispatchEvent: e => { for (const f of (docL[e && e.type] || []).slice()) { try { f(e); } catch (x) { noteErr(x, 'zdarzenie ' + e.type); } } return true; }};
+    let title = '';
+    Object.defineProperty(document_, 'title', {get: () => title, set: v => { title = String(v); rec('title', v, null); }});
+    const mm = q => ({matches: false, media: String(q), addEventListener: noop, removeEventListener: noop, addListener: noop, removeListener: noop, onchange: null});
+    const loc = {protocol: 'https:', search: '', hash: '', href: 'https://capitalflowai-app.github.io/', pathname: '/', host: 'capitalflowai-app.github.io', hostname: 'capitalflowai-app.github.io',
+      origin: 'https://capitalflowai-app.github.io', reload: noop, replace: noop, assign: noop};
+    const win = {document: document_, location: loc, localStorage: LS, sessionStorage: store(), navigator: {language: 'pl-PL', languages: ['pl-PL'], userAgent: 'g126', onLine: true, maxTouchPoints: 0, hardwareConcurrency: 4, clipboard: {writeText: () => SP.resolve()}},
+      history: {replaceState: noop, pushState: noop, state: null, back: noop}, performance: {now: () => (perf += 16)}, matchMedia: mm, getComputedStyle: () => styleObj(),
+      requestAnimationFrame: () => ++tid, cancelAnimationFrame: noop, setTimeout: setTimeout_, clearTimeout: clearTimeout_, setInterval: () => ++tid, clearInterval: noop,
+      addEventListener: noop, removeEventListener: noop, dispatchEvent: () => true, scrollTo: noop, scrollBy: noop, open: () => null,
+      innerWidth: 1280, innerHeight: 900, devicePixelRatio: 1, ResizeObserver: RO, MutationObserver: MO, IntersectionObserver: IO, screen: {width: 1280, height: 900}, getSelection: () => null, CSS: {supports: () => true}};
+    const console_ = {log: noop, info: noop, debug: noop, warn: noop, error: (...a) => ERR.push('console.error: ' + a.map(String).join(' ').slice(0, 200)), table: noop, group: noop, groupEnd: noop};
+    const args = [win, document_, win.navigator, loc, win.history, LS, win.sessionStorage, fetch_, setTimeout_, clearTimeout_, win.setInterval, noop,
+      win.requestAnimationFrame, noop, MO, RO, IO, P2, Img, DP, Ev, Ev, AC, AS, SP, FD, win.getComputedStyle, mm, win.performance, 1, 1280, 900, noop, () => true,
+      console_, {createObjectURL: () => 'blob:x', revokeObjectURL: noop}, win.screen, () => null, f => f(), class {}, class {}, s => s, s => s, USP];
+    let api;
+    try { api = PAGE(...args); } catch (e) { throw new Error('strona nie uruchomiła się w atrapie (G126.run): ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : e)); }
+    settle();
+    const act = (w, f) => { try { f(); } catch (e) { noteErr(e, w); if (!FATAL(e)) ERR.push(w + ': ' + String(e)); } settle(); };
+    return {api, ERR, act, settle, el: id => byId.get(id), doc: document_, body: BODYEL, NETLOG, qs};
+  }
+  return {run, CLK};
+})();
+
+/* v140: zachowanie strony — scena CRYPTO uruchomiona w atrapie DOM (t10H) z zapisującym płótnem: render, podpisy, wskazanie, podpowiedź, przyciski, pełny ekran,
+   braki danych, loga; układ na telefonie (343×380) i komputerze przy każdym obrocie. Blok przycisków sceny liczony z CSS strony (12 px od prawej i od góry). */
+const t10B = (() => {
+  const COLS = ['id', 'sym', 'name', 'px', 'mc', 'ch', 'upd'], AT = '2026-09-27T21:30:00+00:00', UPD = '2026-09-27T21:22:20Z';
+  /* plik: 8 grup × 10 monet — L1 z nagrania, reszta syntetyczna (malejąca kapitalizacja); empty — grupy bez monet; extra — dodatkowa moneta w AI */
+  const file = (empty, extra) => { const g = {};
+    for (const k of ['l1', 'l2', 'ai', 'defi', 'rwa', 'meme', 'depin', 'gaming']) {
+      let c = k === 'l1' ? JSON.parse(JSON.stringify(t10v140.L1)) : Array.from({length: 10}, (_, i) => [k + '-c' + i, (k + i).toUpperCase().slice(0, 5), 'Moneta ' + k + ' ' + (i + 1), 2.5 / (i + 1), 8e9 / Math.pow(i + 1, 1.2), i % 3 - 1, UPD]);
+      if ((empty || []).includes(k)) c = [];
+      g[k] = {cat: k, sk: c.length ? AT : null, c};
+    }
+    if (extra) g.ai.c.push(extra);
+    return {at: AT, cols: COLS, n: 10, g, ok: {}}; };
+  const z0 = html.indexOf('<div class="zoom">', html.indexOf('id="stage"')), nb = (html.slice(z0, html.indexOf('</div>', z0)).match(/<button/g) || []).length;
+  /* blok przycisków z CSS strony: komputer — kolumny (12 px od prawej i od góry); telefon (okno ≤ 620 px, płótno o ok. 32 px węższe) — reguła z @media, jeśli jest */
+  const zr = /#stage \.zoom\{[^}]*grid-template-rows:repeat\((\d+),34px\)[^}]*\}/.exec(html), rows = zr ? +zr[1] : nb, cols = Math.ceil(nb / rows);
+  const ph = /@media \(max-width:620px\)\{#stage \.zoom\{top:auto;bottom:12px;[^}]*grid-template-rows:34px;grid-auto-flow:column\}/.test(html);
+  const ZB = {nb, rows, cols, w: cols * 34 + (cols - 1) * 6, h: rows * 34 + (rows - 1) * 6, phoneRow: ph};
+  const zbox = (W, H) => ph && W + 32 <= 620 ? {x0: W - 12 - (nb * 34 + (nb - 1) * 6), y0: H - 12 - 34, x1: W - 12, y1: H - 12} : {x0: W - 12 - ZB.w, y0: 12, x1: W - 12, y1: 12 + ZB.h};
+  const rect = (x, y, w, h) => ({x, y, left: x, top: y, width: w, height: h, right: x + w, bottom: y + h});
+  function size(R, W, H) { const z = zbox(W, H); R.el('stage')._rect = rect(0, 0, W, H); R.el('c3d')._rect = rect(0, 0, W, H); R.qs('#stage .zoom')._rect = rect(z.x0, z.y0, z.x1 - z.x0, z.y1 - z.y0);
+    R.act('rozmiar', () => R.api.resize()); R.W = W; R.H = H; return (R.zb = z); }
+  function open(W, H, o) { o = o || {};
+    const files = Object.assign({'data/krypto-top10': file(), 'data/krypto-top10-logo': {at: AT, logo: {}}}, o.files || {});
+    const R = t10H.run('pl', {files}); R.files = files; const A = R.api;
+    assert.deepEqual(R.ERR, [], 'strona w atrapie bez błędów');
+    A.st.anim = false; A.st.rot = false; R.act('CRYPTO', () => A.setMode('crypto')); size(R, W, H);
+    return R; }
+  /* jedna klatka: kamera startowa (albo podana odległość) przy obrocie yaw; zapis napisów i linii */
+  function frame(R, yaw, o) { o = o || {}; const A = R.api, c = A.cam, g = R.el('c3d').getContext('2d');
+    Object.assign(c, {yaw, pitch: o.pitch === undefined ? .36 : o.pitch, tx: 0, ty: .3, tz: 0}); c.dist = o.dist || A.homeDist();
+    g.log.text.length = 0; g.log.stroke.length = 0; R.act('klatka', () => A.render(0)); assert.deepEqual(R.ERR, [], 'klatka bez błędów');
+    return {text: g.log.text.slice(), stroke: g.log.stroke.slice(), dist: c.dist}; }
+  /* prostokąt napisu (ta sama szerokość co measureText atrapy) */
+  const box = t => { const w = t.s.length * t.size * .56, x0 = t.align === 'center' ? t.x - w / 2 : (t.align === 'right' || t.align === 'end') ? t.x - w : t.x,
+    y0 = t.base === 'middle' ? t.y - t.size / 2 : t.base === 'top' ? t.y : t.y - t.size * .72; return {s: t.s, x0, x1: x0 + w, y0, y1: y0 + t.size * .92}; };
+  const hit = (a, b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 1 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 1;
+  /* napisy podpisów grup (z księgi T10.labs, sprawdzone z zapisem płótna), znaczki monet (700) i reszta = etykiety modelu */
+  function split(R, fr) { const A = R.api, G = [];
+    for (const l of A.T10.labs || []) for (const [s, dy] of [[l.a, 13], [l.b, l.a ? 27 : 13]]) { if (!s) continue;
+      const t = fr.text.find(x => x.s === s && Math.abs(x.x - (l.x + l.w / 2)) < .01 && Math.abs(x.y - (l.y + dy)) < .01);
+      assert.ok(t, 'podpis grupy narysowany: ' + s); G.push(t); }
+    const model = fr.text.filter(t => !G.includes(t) && !/^700 /.test(t.font));
+    const cs = new Set(Object.values(A.T10_COL.dark).concat(Object.values(A.T10_COL.light)).map(c => 'rgb(' + c + ')'));
+    assert.deepEqual(model.filter(t => cs.has(t.fill)).map(t => t.s), [], 'każdy napis w kolorze grupy jest w księdze podpisów');
+    return {G, model}; }
+  const pairs = L => { let n = 0; const B = L.map(box); for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) if (hit(B[i], B[j])) n++; return n; };
+  const inB = (x, y, b) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
+  /* punkt w obrysie elementu modelu (kula: koło _c, blok: wypukły obrys _hull) */
+  const onNode = (n, x, y) => { if (n._cx === undefined) return false; if (!n._hull.length) return Math.hypot(x - n._c[0], y - n._c[1]) <= n._c[2];
+    let s = 0; for (let i = 0; i < n._hull.length; i++) { const a = n._hull[i], b = n._hull[(i + 1) % n._hull.length], c = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]);
+      if (Math.abs(c) < 1e-9) continue; if (!s) s = Math.sign(c); else if (Math.sign(c) !== s) return false; } return true; };
+  const ev = (type, x, y, o) => Object.assign({type, clientX: x, clientY: y, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0, preventDefault() {}, stopPropagation() {}}, o || {});
+  const YAWS = Array.from({length: 24}, (_, i) => i * Math.PI / 12);
+  /* kolory grup w bieżącym motywie i linie / znaki rysowane w tych kolorach */
+  const gcols = A => Object.values(A.T10_COL[A.PAL.dark === false ? 'light' : 'dark']), mine = (A, s) => gcols(A).some(c => String(s.style).startsWith('rgba(' + c + ','));
+  const lines = (A, fr) => fr.stroke.filter(s => s.lw === 1.3 && mine(A, s)), glyphs = (A, fr) => fr.stroke.filter(s => s.lw === 1.6 && !s.dash && mine(A, s));
+  /* klik przycisku sceny: tylko słuchacz z bloku v140 (atrapa dopasowuje selektory zgrubnie — inne przyciski strony dokładają swoich słuchaczy) */
+  const click = (R, el, needle) => { const fs = ((el._L || {}).click || []).filter(f => String(f).includes(needle)); assert.equal(fs.length, 1, 'słuchacz ' + needle);
+    R.act('klik ' + needle, () => fs[0]({type: 'click', target: el, preventDefault() {}})); };
+  return {file, open, size, frame, box, hit, split, pairs, inB, onNode, ev, ZB, YAWS, gcols, mine, lines, glyphs, click};
+})();
+
+test('v140: zachowanie — Top 10 domyślnie pokazane; przycisk ukrywa i pokazuje grupy, linie, podpisy i stan przycisku; kamera startowa (komputer: obejmuje grupy, telefon: skala modelu)', () => {
+  const X = t10v140.mk(), R = t10B.open(1100, 680), A = R.api, b = R.el('z-t10');
+  assert.equal(A.st.t10, true); assert.equal(b.getAttribute('aria-pressed'), 'true'); assert.equal(A.T10.st, 'ok');
+  assert.ok(Math.abs(A.homeDist() - A.homeBase() * X.T10_FIT) < 1e-9, 'komputer: kamera startowa obejmuje grupy');
+  let f = t10B.frame(R, .78);
+  assert.equal(A.T10.box.length, 80, '8 grup × 10 monet'); assert.ok(A.T10.hit.length >= 60 && A.T10.hit.every(h => h.r > 2), 'monety z podpowiedzią, pole trafienia > 0');
+  assert.ok(A.T10.labs.length >= 6, 'podpisy grup: ' + A.T10.labs.length); assert.equal(t10B.lines(A, f).length, 8, 'linia do każdej grupy');
+  t10B.click(R, b, 't10Set(!st.t10)');
+  assert.equal(A.st.t10, false); assert.equal(b.getAttribute('aria-pressed'), 'false'); assert.equal(A.homeDist(), A.homeBase(), 'bez grup — kamera jak dotąd');
+  f = t10B.frame(R, .78);
+  assert.deepEqual([A.T10.box.length, A.T10.hit.length, A.T10.labs.length, t10B.lines(A, f).length], [0, 0, 0, 0], 'grupy ukryte');
+  assert.equal(A.t10Pick(R.W / 2, R.H / 2), null);
+  t10B.click(R, b, 't10Set(!st.t10)');
+  assert.equal(A.st.t10, true); assert.equal(b.getAttribute('aria-pressed'), 'true'); t10B.frame(R, .78); assert.equal(A.T10.box.length, 80);
+  const P = t10B.open(343, 380); t10B.frame(P, .78);
+  assert.equal(P.api.homeDist(), P.api.homeBase(), 'telefon: skala modelu bez zmian'); assert.equal(P.api.T10.box.length, 8 * X.T10_NP, 'telefon: 5 największych w grupie');
+});
+
+test('v140: zachowanie — brak pliku albo pustej grupy: przerywany okrąg z kreską („—”) i „brak danych”, nigdy zero; bez monet kamera jak dotąd', () => {
+  const X = t10v140.mk(), R = t10B.open(1100, 680, {files: {'data/krypto-top10': null}}), A = R.api;
+  assert.equal(A.T10.st, 'err'); assert.equal(A.homeDist(), A.homeBase(), 'brak monet — kamera bez oddalenia');
+  const f = t10B.frame(R, .78);
+  assert.ok(f.stroke.filter(s => s.dash > 0 && t10B.mine(A, s)).length >= 16, 'przerywane linie i okręgi wszystkich 8 grup');
+  assert.equal(t10B.glyphs(A, f).length, 8, 'kreska („—”) w okręgu każdej grupy');
+  const {G} = t10B.split(R, f);
+  assert.ok(G.some(t => t.s === A.t('c10.none')), 'podpis „brak danych”'); assert.equal(A.T10.box.length, 0);
+  assert.ok(!f.text.some(t => /^[0.,\s]+$/.test(t.s)), 'nigdy zero');
+  const P = t10B.open(1100, 680, {files: {'data/krypto-top10': t10B.file(['meme', 'gaming'])}}), B = P.api, g = t10B.frame(P, .78);
+  assert.equal(B.T10.box.length, 60); assert.equal(t10B.glyphs(B, g).length, 2, 'kreska w obu pustych grupach');
+  assert.ok(Math.abs(B.homeDist() - B.homeBase() * X.T10_FIT) < 1e-9, 'są monety — kamera obejmuje grupy');
+});
+
+test('v140: zachowanie — podpowiedź monety po najechaniu (mysz) i dotknięciu (telefon); pole trafienia to cały obrys; dotknięcie nie zaznacza modelu', () => {
+  const R = t10B.open(1100, 680), A = R.api, cv = R.el('c3d'); t10B.frame(R, .78);
+  const h = A.T10.hit.find(x => A.t10PickTop(x.x, x.y) === x && !A.pickModel(x.x, x.y) && A.t10Pick(x.x + x.r - 1, x.y) === x); assert.ok(h, 'moneta na wolnym miejscu');
+  R.act('najechanie', () => cv.dispatchEvent(t10B.ev('pointermove', h.x, h.y)));
+  const tip = A.T10.tip, c = A.T10.data.g[h.k].c[h.i], gr = A.T10_G.find(g => g[0] === h.k), sec = gr[2] || A.nName(gr[1]);
+  assert.ok(tip && !tip.hidden, 'podpowiedź widoczna');
+  for (const s of [c.sym, A.t('c10.rank', {s: sec, r: h.i + 1, n: 10}), A.t('c10.mc'), A.t('c10.meth')]) assert.ok(tip.innerHTML.includes(s), 'podpowiedź: ' + s);
+  assert.equal(A.hover, null, 'element modelu bez najechania (moneta ma podpowiedź)');
+  R.act('zjechanie', () => cv.dispatchEvent({type: 'pointerleave'})); assert.ok(tip.hidden, 'podpowiedź schowana');
+  const tap = (x, y) => { cv.dispatchEvent(t10B.ev('pointerdown', x, y, {pointerType: 'touch', pointerId: 7})); cv.dispatchEvent(t10B.ev('pointerup', x, y, {pointerType: 'touch', pointerId: 7})); };
+  R.act('dotknięcie', () => tap(h.x + 3, h.y + 3));
+  assert.ok(A.T10.pin && A.T10.pin.id === c.id && !tip.hidden, 'podpowiedź przypięta'); assert.equal(A.st.sel, null, 'dotknięcie monety nie zaznacza modelu');
+  R.act('dotknięcie 2', () => tap(h.x, h.y)); assert.equal(A.T10.pin, null); assert.ok(tip.hidden);
+  /* moneta pod przyciskami sceny — bez podpowiedzi (przycisk przejmuje dotknięcie); widok listy — bez wskazywania monet */
+  const zEl = R.qs('#stage .zoom'), z0 = zEl._rect; zEl._rect = {x: h.x - 10, y: h.y - 10, left: h.x - 10, top: h.y - 10, width: 20, height: 20, right: h.x + 10, bottom: h.y + 10}; A.T10.zk = null;
+  t10B.frame(R, .78); assert.ok(!A.T10.hit.some(x => x.id === h.id && x.k === h.k) && A.T10.box.some(x => Math.abs(x.x - h.x) < .01 && Math.abs(x.y - h.y) < .01), 'moneta pod przyciskami — narysowana, bez podpowiedzi');
+  zEl._rect = z0; A.T10.zk = null; t10B.frame(R, .78); assert.ok(A.t10Pick(h.x, h.y));
+  A.st.view = 'list'; assert.equal(A.t10Pick(h.x, h.y), null, 'widok listy — bez wskazywania monet'); A.st.view = 'blocks';
+});
+
+test('v140: zachowanie — moneta wygrywa wskazanie tylko bliżej kamery niż element modelu; element przed monetą (albo nad przygaszoną monetą) zaznacza się, „Giełdy” mają swoją podpowiedź', () => {
+  const R = t10B.open(1100, 680), A = R.api, cv = R.el('c3d'); let behind = 0, faded = 0, exch = 0, free = 0;
+  for (const view of ['blocks', 'bubbles']) { A.st.view = view;
+    for (const pitch of [.2, .36, .55]) for (const yaw of t10B.YAWS) { t10B.frame(R, yaw, {pitch});
+      for (const b of A.T10.box) { const m = A.pickModel(b.x, b.y), c = A.t10Pick(b.x, b.y), p = A.pick(b.x, b.y), tag = view + ' ' + pitch + '/' + yaw.toFixed(2) + ': ';
+        const exp = c && (!m || c.z < m.z) ? null : (m ? {type: m.type, id: m.id} : null);
+        assert.deepEqual(p, exp, tag + 'pick');
+        if (m && m.type === 'node') { if (c && c.z > m.z) behind++; if (!A.T10.hit.some(x => x.x === b.x && x.y === b.y)) faded++;
+          if (!exp || exp.id !== m.id) continue;
+          assert.equal(A.t10PickTop(b.x, b.y), null, tag + 'element modelu przed monetą — bez podpowiedzi monety');
+          if (m.id === 'exch') { R.act('najechanie Giełdy', () => cv.dispatchEvent(t10B.ev('pointermove', b.x, b.y)));
+            assert.equal(cv.title, A.t('exch.tip'), tag + 'podpowiedź „Giełdy” mimo monety pod spodem'); exch++; } }
+        if (c && !m) { assert.equal(A.t10PickTop(b.x, b.y), c); free++; } } } }
+  assert.ok(behind > 0 && faded > 0 && exch > 0 && free > 0, 'przypadki sprawdzone: ' + JSON.stringify({behind, faded, exch, free}));
+});
+
+test('v140: zachowanie — pełny ekran sceny: wejście i wyjście (scena i panel szczegółów na swoje miejsce), stan przycisku, Escape, wyjście z trybu przeglądarki, zmiana zakładki i strony zamyka', () => {
+  const R = t10B.open(1100, 680), A = R.api, stg = R.el('stage'), why = R.el('why'), zf = R.el('z-full'), home = stg.parentElement, whyP = why.parentElement;
+  assert.ok(home && whyP && home !== R.body && whyP !== stg);
+  const on = () => { t10B.click(R, zf, 'cSetFull(!cFull)'); assert.equal(A.cFull, true); assert.ok(stg.parentElement === R.body, 'scena w <body>');
+    assert.ok(stg.classList.contains('full') && R.body.classList.contains('cfull')); assert.ok(why.parentElement === stg, 'panel szczegółów nad sceną');
+    assert.equal(zf.getAttribute('aria-pressed'), 'true'); assert.equal(zf.getAttribute('aria-label'), A.t('c10.exit')); };
+  const off = w => { assert.equal(A.cFull, false, w); assert.ok(stg.parentElement === home, w + ': scena na miejscu (' + (stg.parentElement && (stg.parentElement.id || stg.parentElement.tagName)) + ')'); assert.ok(why.parentElement === whyP, w + ': panel szczegółów na miejscu (' + (why.parentElement && (why.parentElement.id || why.parentElement.className || why.parentElement.tagName)) + ' zamiast ' + (whyP.id || whyP.className || whyP.tagName) + ')');
+    assert.ok(!stg.classList.contains('full') && !R.body.classList.contains('cfull'), w); assert.equal(zf.getAttribute('aria-pressed'), 'false'); assert.equal(zf.getAttribute('aria-label'), A.t('c10.full')); };
+  on(); t10B.click(R, zf, 'cSetFull(!cFull)'); off('przycisk');
+  on(); R.doc.fullscreenElement = stg; R.act('tryb przeglądarki trwa', () => R.doc.dispatchEvent({type: 'fullscreenchange', target: stg}));
+  assert.equal(A.cFull, true, 'tryb przeglądarki trwa — pełny ekran zostaje');
+  R.doc.fullscreenElement = null; R.act('wyjście z trybu przeglądarki', () => R.doc.dispatchEvent({type: 'fullscreenchange', target: stg})); off('fullscreenchange');
+  on(); R.act('Escape', () => R.doc.dispatchEvent({type: 'keydown', key: 'Escape', target: R.body, preventDefault() {}, stopPropagation() {}})); off('Escape');
+  on(); R.act('zakładka TRENDY', () => A.setMode('trendy')); off('zmiana zakładki'); R.act('CRYPTO', () => A.setMode('crypto'));
+  on(); R.act('strona Przepływy', () => A.setPage('flows')); off('zmiana strony'); R.act('Przegląd', () => A.setPage('overview'));
+  assert.deepEqual(R.ERR, []);
+});
+
+test('v140: zachowanie — linie i podpisy grup w kolorze swojej grupy (L1 ≠ L2), w obu motywach', () => {
+  const R = t10B.open(1100, 680), A = R.api;
+  for (const th of ['dark', 'light']) { A.st.theme = th; R.act('motyw ' + th, () => A.applyTheme()); assert.equal(A.PAL.dark, th === 'dark', th);
+    const f = t10B.frame(R, .78), C = A.T10_COL[th];
+    const ln = t10B.lines(A, f).map(s => (/^rgba\((\d+,\d+,\d+),/.exec(s.style) || [])[1]);
+    assert.deepEqual(ln.slice().sort(), A.T10_G.map(g => C[g[0]]).sort(), th + ': linia każdej grupy w jej kolorze');
+    const {G} = t10B.split(R, f);
+    for (const l of A.T10.labs) if (l.a) assert.ok(G.some(t => t.s === l.a && t.fill === 'rgb(' + C[l.k] + ')'), th + ' ' + l.k + ': podpis w kolorze grupy');
+  }
+});
+
+test('v140: telefon 343×380 — przy każdym obrocie (oba widoki): kamera i etykiety modelu takie jak bez grup, nic pod przyciskami sceny (etykiety modelu, środki monet, podpisy grup), podpisy grup na niczym', () => {
+  const R = t10B.open(343, 380), A = R.api, Z = R.zb;
+  for (const view of ['blocks', 'bubbles']) { A.st.view = view;
+    for (const yaw of t10B.YAWS) {
+      A.st.t10 = false; const fa = t10B.frame(R, yaw), ma = fa.text.filter(t => !/^700 /.test(t.font));
+      A.st.t10 = true; const fb = t10B.frame(R, yaw), tag = view + ' ' + yaw.toFixed(2) + ': ';
+      assert.equal(fb.dist, fa.dist, tag + 'kamera startowa jak bez grup (skala modelu)');
+      for (const b of A.T10.box) assert.ok(!t10B.inB(b.x, b.y, Z), tag + 'środek monety pod przyciskami sceny (' + b.k + ')');
+      const sp = t10B.split(R, fb);
+      assert.equal(t10B.pairs(sp.model), t10B.pairs(ma), tag + 'nachodzące etykiety modelu: z grupami ' + t10B.pairs(sp.model) + ', bez grup ' + t10B.pairs(ma));
+      const key = t => t.s + '@' + t.x.toFixed(1) + ',' + t.y.toFixed(1);
+      assert.deepEqual(sp.model.map(key), ma.map(key), tag + 'etykiety modelu bez zmian');
+      for (const t of sp.model.concat(sp.G)) assert.ok(!t10B.hit(t10B.box(t), Z), tag + 'napis pod przyciskami sceny: ' + t.s);
+      for (const t of sp.G) for (const u of fb.text) if (u !== t) assert.ok(!t10B.hit(t10B.box(t), t10B.box(u)), tag + 'podpis „' + t.s + '” na „' + u.s + '”');
+    } }
+});
+
+test('v140: komputer — przy każdym obrocie (oba widoki, 1100×680 i 900×520): podpisy grup na niczym, monety różnych grup nie nachodzą, moneta z podpowiedzią nigdy przed elementem modelu, który zasłania; nic pod przyciskami', () => {
+  for (const [W, H] of [[1100, 680], [900, 520]]) { const R = t10B.open(W, H), A = R.api, Z = R.zb;
+    for (const view of ['blocks', 'bubbles']) { A.st.view = view;
+      for (const yaw of t10B.YAWS) { const f = t10B.frame(R, yaw), sp = t10B.split(R, f), tag = W + ' ' + view + ' ' + yaw.toFixed(2) + ': ';
+        for (const t of sp.G) for (const u of f.text) if (u !== t) assert.ok(!t10B.hit(t10B.box(t), t10B.box(u)), tag + 'podpis „' + t.s + '” na „' + u.s + '”');
+        for (const t of sp.model.concat(sp.G)) assert.ok(!t10B.hit(t10B.box(t), Z), tag + 'napis pod przyciskami: ' + t.s);
+        const B = A.T10.box;
+        for (let i = 0; i < B.length; i++) {
+          assert.ok(B[i].x - B[i].r >= 0 && B[i].x + B[i].r <= W && B[i].y - B[i].r >= 0 && B[i].y + B[i].r <= H, tag + 'moneta w kadrze');
+          assert.ok(!t10B.inB(B[i].x, B[i].y, Z), tag + 'moneta pod przyciskami');
+          for (let j = i + 1; j < B.length; j++) if (B[i].k !== B[j].k)
+            assert.ok(Math.hypot(B[i].x - B[j].x, B[i].y - B[j].y) >= B[i].r + B[j].r - 1, tag + B[i].k + '/' + B[j].k + ': monety różnych grup na sobie');
+        }
+        for (const h of A.T10.hit) for (const n of A.NODES) if (t10B.onNode(n, h.x, h.y)) assert.ok(h.z > n._d, tag + h.k + ' przed elementem ' + n.id + ' i na nim — powinna być przygaszona');
+      } } }
+});
+
+test('v140: zachowanie — plik logo pobierany przy pierwszym pokazaniu grup, a ponownie tylko, gdy w grupach jest nowa moneta (brak logo w pliku zapamiętany)', () => {
+  const R = t10B.open(1100, 680, {files: {'data/krypto-top10-logo': {at: 'x', logo: {bitcoin: 'data:image/png;base64,iVBORw0KGgo='}}}}), A = R.api;
+  const n = () => R.NETLOG.filter(k => k === 'data/krypto-top10-logo').length, c0 = t10H.CLK.ms;
+  try {
+    assert.equal(n(), 0, 'przed pierwszym pokazaniem grup — bez pliku logo'); t10B.frame(R, .78); R.settle(); assert.equal(n(), 1);
+    assert.equal(A.T10.logo.bitcoin, 'data:image/png;base64,iVBORw0KGgo=');
+    for (let i = 0; i < 3; i++) { t10H.CLK.ms += 20 * 60 * 1000; R.act('odświeżenie', () => A.t10Load()); t10B.frame(R, .78); R.settle(); }
+    assert.equal(n(), 1, 'te same monety — brakujących logo nie pobiera ponownie co 20 min');
+    R.files['data/krypto-top10'] = t10B.file(null, ['nowa-moneta', 'NEW', 'Nowa', 1, 9e10, 1, '2026-09-27T21:22:20Z']); t10H.CLK.ms += 20 * 60 * 1000;
+    R.act('nowy skład', () => A.t10Load()); t10B.frame(R, .78); R.settle(); assert.equal(n(), 2, 'nowa moneta w grupie — plik logo ponownie');
+  } finally { t10H.CLK.ms = c0; }
+});
+
+test('v140: zachowanie — etykieta modelu, na której stoją przyciski sceny, przesunięta obok nich (nigdy pod nimi), z kreską do bryły', () => {
+  const R = t10B.open(1100, 680), A = R.api, zEl = R.qs('#stage .zoom'), z0 = zEl._rect; A.st.t10 = false;
+  let f = t10B.frame(R, .78); const lab = f.text.find(t => t.s === A.nName('exch')); assert.ok(lab, 'etykieta „Giełdy”');
+  const b = t10B.box(lab), z = {x0: b.x0 - 4, y0: b.y0 - 4, x1: b.x1 + 4, y1: b.y1 + 40};
+  zEl._rect = {x: z.x0, y: z.y0, left: z.x0, top: z.y0, width: z.x1 - z.x0, height: z.y1 - z.y0, right: z.x1, bottom: z.y1}; A.T10.zk = null;
+  try {
+    f = t10B.frame(R, .78);
+    for (const t of f.text.filter(t => !/^700 /.test(t.font))) assert.ok(!t10B.hit(t10B.box(t), z), 'etykieta pod przyciskami: ' + t.s);
+    const moved = f.text.find(t => t.s === lab.s); assert.ok(moved && moved.x < lab.x - 1, 'etykieta „Giełdy” przesunięta w lewo, obok przycisków');
+    assert.ok(f.stroke.length > 0);
+  } finally { zEl._rect = z0; A.T10.zk = null; }
+});

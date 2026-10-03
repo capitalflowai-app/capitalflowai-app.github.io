@@ -4097,6 +4097,265 @@ def build_krypto(cg_key):
     return out
 
 
+# ===================== v140: TOP 10 MONET W SEKTORACH — data/krypto-top10.json i data/krypto-top10-logo.json (strona: grupy w scenie CRYPTO) =====================
+# Grupy sceny CRYPTO (BLOCKCHAIN 3D: małe bloki, KULE 3D: małe kule): 10 największych monet wg kapitalizacji w każdej z 8 kategorii rynku — L1, L2, AI,
+# DeFi, RWA, memecoiny, DePIN, gaming (giełdy — bez grupy). CoinGecko /coins/markets z kluczem właściciela w nagłówku (jak build_krypto); bez klucza —
+# zapytania publiczne (mniejszy limit). Skład kategorii (do T10_POOL kandydatów) pobierany co T10_SKLAD min — 8 zapytań; w pozostałych przebiegach
+# JEDNO zapytanie ids=… o ceny i kapitalizacje wszystkich kandydatów naraz, a kolejność liczona od nowa (skład top 10 zmienia się sam także między
+# pobraniami kategorii). Budżet planu Demo (10 000 zapytań/mies.): 8 × 4 + 1 × 20 ≈ 52 zapytania na dobę (≈ 1 600/mies.) obok ok. 120 na dobę
+# pozostałych części krypto. Tylko monety z własnym miejscem w rankingu kapitalizacji: tokeny pochodne (stakowane, opakowane, „peg”) miejsca nie mają
+# i powtarzają kapitał monety bazowej — pomijane. Loga: obrazki 50 px z serwera obrazów (nie API, bez limitu zapytań), pobierane raz na monetę
+# i wbudowane jako data: w osobny plik logo (przeglądarka widza nie łączy się z obcym serwerem; strona wczytuje plik logo raz na wizytę, plik danych
+# co 20 min). Brak kategorii = grupa bez monet (strona: „brak danych”) i błąd „krypto top 10: …” w meta, nigdy zero ani cicha podmiana; poprzednie
+# wiersze grupy (z ich czasem notowania) najwyżej T10_MAX_AGE min; każda moneta ma czas notowania, grupa — czas składu.
+# Czas: cały budowniczy najwyżej T10_BUDGET s (zapytania API i loga; każde zapytanie z limitem czasu nie dłuższym niż czas, który został — zbieracz ma 15 min
+# na wszystko, przebiegi godzinne trwają 10–11 min); przebieg już długi (> T10_LATE s od startu) — bez pobierania składu kategorii i bez nowych logo (ceny
+# kandydatów jednym zapytaniem; reszta w następnym przebiegu). Zegar i czekanie przez _t10_mono / _t10_sleep (testy podmieniają je — bez prawdziwego zegara).
+import base64   # v140: loga monet wbudowane w plik (biblioteka standardowa)
+
+T10_CATS = (('l1', 'layer-1'), ('l2', 'layer-2'), ('ai', 'artificial-intelligence'), ('defi', 'decentralized-finance-defi'),
+            ('rwa', 'real-world-assets-rwa'), ('meme', 'meme-token'), ('depin', 'depin'), ('gaming', 'gaming'))   # grupa strony → kategoria (sprawdzone 27.09)
+T10_COLS = ('id', 'sym', 'name', 'px', 'mc', 'ch', 'upd')   # cena USD, kapitalizacja USD, zmiana 24 h %, czas notowania (UTC)
+T10_N = 10               # monet w grupie
+T10_POOL = 20            # kandydatów z jednej kategorii (jedno zapytanie; zapas na tokeny pochodne i zmianę kolejności między pobraniami składu)
+T10_EVERY = 55           # min — ceny i kapitalizacje (jak krypto.json)
+T10_SKLAD = 360          # min — skład kategorii na nowo; kategoria z błędem albo z mniej niż T10_N kandydatami — w następnym przebiegu
+T10_MAX_AGE = 72 * 60    # min — najstarsze poprzednie wiersze grupy, gdy ceny nie przyszły (potem „brak danych”)
+T10_SLEEP = 2.5          # s między zapytaniami do API (limit Demo 30/min; w tym samym przebiegu pyta też część krypto)
+T10_WAIT_429 = 20        # s — jedno ponowienie po 429 w całym przebiegu
+T10_IMG_SLEEP = 0.15     # s między obrazkami
+T10_BUDGET = 45          # s — cały budowniczy w przebiegu (jak inne budowniczowie: < 60 s); po nim żadnego nowego zapytania
+T10_LATE = 480           # s — przebieg zbieracza dłuższy (jak INS_LATE / KD_LATE): bez składu kategorii i bez nowych logo (w następnym przebiegu)
+T10_TIMEOUT = 30         # s — najdłuższe jedno zapytanie API (krócej, gdy budżetu zostało mniej)
+T10_IMG_TIMEOUT = 20     # s — najdłuższe pobranie jednego logo (krócej, gdy budżetu zostało mniej)
+T10_LOGO_MAX = 16000     # B — największe logo (50 px ma zwykle 1–4 kB); większe albo nie-obraz = bez logo (strona rysuje znaczek z symbolem)
+T10_LOGO_NEW = 90        # najwięcej nowych logo w jednym przebiegu (pierwszy przebieg: ok. 75; zwykle 0–3; reszta w następnym)
+T10_LOGO_HOSTS = ('https://coin-images.coingecko.com/', 'https://assets.coingecko.com/')
+T10_ID = re.compile(r'^[a-z0-9][a-z0-9-]{0,99}$')
+T10_ISO = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')
+T10_DATA = re.compile(r'^data:image/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$')
+
+
+def _t10_num(v):
+    """Liczba skończona albo None (bool, tekst, NaN i nieskończoność = brak)."""
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def t10_row(x):
+    """Wiersz odpowiedzi /coins/markets → [id, SYMBOL, nazwa, cena USD, kapitalizacja USD, zmiana 24 h %, czas notowania] albo None: bez poprawnego id,
+    bez miejsca w rankingu kapitalizacji (token pochodny) albo bez dodatniej kapitalizacji. Cena ≤ 0 i brak zmiany = None, nigdy 0."""
+    if not isinstance(x, dict):
+        return None
+    cid, rk, mc = x.get('id'), x.get('market_cap_rank'), _t10_num(x.get('market_cap'))
+    if not (isinstance(cid, str) and T10_ID.match(cid)) or not (isinstance(rk, int) and not isinstance(rk, bool) and rk > 0) or not (mc and mc > 0):
+        return None
+    px, ch = _t10_num(x.get('current_price')), _t10_num(x.get('price_change_percentage_24h'))
+    sym = re.sub(r'\s+', ' ', str(x.get('symbol') or '')).strip().upper()[:16] or cid[:8].upper()
+    name = re.sub(r'\s+', ' ', str(x.get('name') or '')).strip()[:60] or sym
+    upd = x.get('last_updated')
+    try:
+        upd = datetime.datetime.fromisoformat(upd[:19]).isoformat() + 'Z' if isinstance(upd, str) and T10_ISO.match(upd) else None
+    except ValueError:                                     # data niemożliwa (np. 30 lutego) = brak czasu, nie zgadywanie
+        upd = None
+    return [cid, sym, name, px if px and px > 0 else None, mc, ch, upd]
+
+
+def t10_img(x):
+    """Adres małego obrazka monety (50 px) — tylko z serwera obrazów; inny adres = bez logo."""
+    u = x.get('image') if isinstance(x, dict) else None
+    if not isinstance(u, str) or not u.startswith(T10_LOGO_HOSTS) or len(u) > 400 or any(c in u for c in ' "\'<>\\'):
+        return None
+    return u.replace('/large/', '/small/', 1)
+
+
+def _t10_mime(b):
+    """Rodzaj obrazka z pierwszych bajtów (PNG, JPEG, WebP, GIF) albo None — SVG i HTML nie są logo."""
+    if not isinstance(b, (bytes, bytearray)):
+        return None
+    if b[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'image/png'
+    if b[:3] == b'\xff\xd8\xff':
+        return 'image/jpeg'
+    if b[:4] == b'RIFF' and b[8:12] == b'WEBP':
+        return 'image/webp'
+    if b[:6] in (b'GIF87a', b'GIF89a'):
+        return 'image/gif'
+    return None
+
+
+def _t10_age(iso, now):
+    """Wiek znacznika czasu w minutach (None = brak albo zły format)."""
+    try:
+        t = datetime.datetime.fromisoformat(str(iso).replace('Z', '+00:00'))
+        return (now - t).total_seconds() / 60 if t.tzinfo else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _t10_ok_row(r):
+    return (isinstance(r, list) and len(r) == len(T10_COLS) and isinstance(r[0], str) and bool(T10_ID.match(r[0]))
+            and _t10_num(r[4]) is not None and r[4] > 0)
+
+
+def _t10_mono():
+    """Zegar budowniczego (monotoniczny) — w testach podmieniony."""
+    return time.monotonic()
+
+
+def _t10_sleep(s):
+    """Czekanie budowniczego — w testach podmienione (zapisuje odstępy, przesuwa zegar)."""
+    time.sleep(s)
+
+
+def _t10_left(st):
+    """Sekundy, które zostały z budżetu budowniczego."""
+    return st['end'] - _t10_mono()
+
+
+def _t10_get(url, hdr, st):
+    """Jedno zapytanie do API z odstępem T10_SLEEP (limit minutowy) i limitem czasu ≤ tego, co zostało z budżetu; 429 = jedno ponowienie po T10_WAIT_429 s
+    w całym przebiegu (gdy budżet na nie wystarcza). Budżet wyczerpany = wyjątek „limit czasu” (część w następnym przebiegu)."""
+    if st['n']:
+        if _t10_left(st) < T10_SLEEP + 2:
+            raise RuntimeError(f'limit czasu ({T10_BUDGET} s)')
+        _t10_sleep(T10_SLEEP)
+    left = _t10_left(st)
+    if left < 2:
+        raise RuntimeError(f'limit czasu ({T10_BUDGET} s)')
+    st['n'] += 1
+    try:
+        return get_json(url, hdr, timeout=max(1, min(T10_TIMEOUT, left)))
+    except urllib.error.HTTPError as e:
+        if e.code != 429 or st['retry'] or _t10_left(st) < T10_WAIT_429 + 3:
+            raise
+        st['retry'] = True
+        _t10_sleep(T10_WAIT_429)
+        st['n'] += 1
+        return get_json(url, hdr, timeout=max(1, min(T10_TIMEOUT, _t10_left(st))))
+
+
+def t10_logos(top, imgs, prev_logo=None, at=None, end=None, late=False):
+    """data/krypto-top10-logo.json: {id monety: data:image/…} tylko dla monet obecnych w grupach. Logo z poprzedniego pliku zostaje (bez pobierania);
+    nowe — z adresu z odpowiedzi API tego przebiegu (najwyżej T10_LOGO_NEW; każde z limitem czasu ≤ T10_IMG_TIMEOUT i ≤ tego, co zostało do end). Przebieg długi
+    (late) albo budżet wyczerpany — bez nowych logo (w następnym przebiegu). Nie-obraz, za duże albo awaria = bez logo (notatka, nie błąd)."""
+    old = prev_logo.get('logo') if isinstance(prev_logo, dict) and isinstance(prev_logo.get('logo'), dict) else {}
+    need = []
+    for k, _ in T10_CATS:
+        for r in (((top or {}).get('g') or {}).get(k) or {}).get('c') or []:
+            if _t10_ok_row(r) and r[0] not in need:
+                need.append(r[0])
+    logo, new, bad = {}, 0, []
+    for cid in need:
+        v = old.get(cid)
+        if isinstance(v, str) and len(v) <= T10_LOGO_MAX * 4 // 3 + 40 and T10_DATA.match(v):
+            logo[cid] = v
+            continue
+        u = (imgs or {}).get(cid)
+        left = None if end is None else end - _t10_mono()
+        if not u or new >= T10_LOGO_NEW or late or (left is not None and left < 2 + (T10_IMG_SLEEP if new else 0)):
+            continue
+        if new:
+            _t10_sleep(T10_IMG_SLEEP)
+            left = None if end is None else end - _t10_mono()
+        new += 1
+        try:
+            b = get_bytes(u, timeout=max(1, min(T10_IMG_TIMEOUT, left)) if left is not None else T10_IMG_TIMEOUT)
+            m = _t10_mime(b)
+            if not m or len(b) > T10_LOGO_MAX:
+                bad.append(f'{cid}: {"za duże" if m else "nie obraz"}')
+                continue
+            logo[cid] = f'data:{m};base64,' + base64.b64encode(bytes(b)).decode('ascii')
+        except Exception as e:  # noqa — jedno logo nie psuje pliku
+            bad.append(f'{cid}: {e}')
+    nxt = sum(1 for cid in need if cid not in logo and (imgs or {}).get(cid))
+    if bad or nxt:
+        META['notes'].append(mask(f'krypto top 10 — loga: {len(bad)} bez obrazka (strona: znaczek z symbolem)'
+                                  + (f', np. {bad[0]}' if bad else '') + (f'; {nxt} w następnym przebiegu' if nxt > len(bad) else ''))[:300])
+    return {'at': at or _now_utc().replace(microsecond=0).isoformat(), 'n': len(logo), 'logo': logo}
+
+
+def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None):
+    """(data/krypto-top10.json, data/krypto-top10-logo.json): grupy top 10 w 8 kategoriach. Kategoria bez składu młodszego niż T10_SKLAD albo z mniej
+    niż T10_N kandydatami — pobranie kategorii; pozostałe (i kategorie z błędem, które mają poprzednich kandydatów) — ceny kandydatów jednym zapytaniem
+    ids=…; wiersze bez nowych cen = poprzednie z ich czasem notowania (plik młodszy niż T10_MAX_AGE), inaczej grupa pusta. Każda awaria części = błąd
+    „krypto top 10: …” w meta; żadnej monety w żadnej grupie = wyjątek (przebieg główny zostawia poprzednie pliki). Cały budowniczy ≤ T10_BUDGET s; przebieg
+    zbieracza dłuższy niż T10_LATE s (run_t0 — start przebiegu, domyślnie _RUN_T0) — bez składu kategorii i bez nowych logo (notatka; w następnym przebiegu)."""
+    now = now or _now_utc()
+    at = now.replace(microsecond=0).isoformat()
+    hdr = {'x-cg-demo-api-key': cg_key} if cg_key else None   # klucz tylko w nagłówku, nigdy w adresie ani w pliku
+    pg = prev.get('g') if isinstance(prev, dict) and isinstance(prev.get('g'), dict) else {}
+    prev_age = _t10_age(prev.get('at'), now) if isinstance(prev, dict) else None
+    t0 = _t10_mono()
+    run_t0 = _RUN_T0[0] if run_t0 is None else run_t0
+    late = run_t0 is not None and t0 - run_t0 > T10_LATE
+    st, errs, imgs, G = {'n': 0, 'retry': False, 'end': t0 + T10_BUDGET}, [], {}, {}
+    for k, cat in T10_CATS:
+        p = pg.get(k) if isinstance(pg.get(k), dict) else {}
+        pool = [i for i in (p.get('pool') or []) if isinstance(i, str) and T10_ID.match(i)][:T10_POOL]
+        age = _t10_age(p.get('sk'), now)
+        G[k] = {'cat': cat, 'sk': p.get('sk') if age is not None else None, 'pool': pool, 'rows': None,
+                'prev': [r for r in (p.get('c') or []) if _t10_ok_row(r)], 'todo': age is None or age >= T10_SKLAD or len(pool) < T10_N}
+
+    def take(j, what):
+        if not isinstance(j, list):
+            raise RuntimeError(f'{what}: zła odpowiedź')
+        rows = []
+        for x in j:
+            r = t10_row(x)
+            if r:
+                rows.append(r)
+                u = t10_img(x)
+                if u:
+                    imgs.setdefault(r[0], u)
+        return rows
+
+    if late and any(G[k]['todo'] for k, _ in T10_CATS):
+        META['notes'].append(f'krypto top 10: przebieg długi (> {T10_LATE} s) — skład kategorii i nowe loga w następnym przebiegu')
+    for k, cat in T10_CATS:                                   # 1) skład kategorii na nowo (nie w długim przebiegu)
+        if not G[k]['todo'] or late:
+            continue
+        try:
+            rows = take(_t10_get(CG + f'/coins/markets?vs_currency=usd&category={cat}&order=market_cap_desc&per_page={T10_POOL}&page=1'
+                                 '&price_change_percentage=24h', hdr, st), cat)
+            if not rows:
+                raise RuntimeError(f'{cat}: brak monet z miejscem w rankingu')
+            rows.sort(key=lambda r: -r[4])
+            G[k].update(rows=rows, sk=at, pool=[r[0] for r in rows[:T10_POOL]])
+        except Exception as e:  # noqa — jedna kategoria nie kasuje pozostałych
+            errs.append(f'{k}: {e}')
+    rest = [k for k, _ in T10_CATS if G[k]['rows'] is None and G[k]['pool']]
+    ids = sorted({i for k in rest for i in G[k]['pool']})
+    if ids:                                                   # 2) ceny i kapitalizacje kandydatów — jedno zapytanie
+        try:
+            by = {r[0]: r for r in take(_t10_get(CG + '/coins/markets?vs_currency=usd&ids=' + ','.join(ids)
+                                                 + '&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h', hdr, st), 'ceny')}
+            for k in rest:
+                rows = sorted((by[i] for i in G[k]['pool'] if i in by), key=lambda r: -r[4])
+                if rows:
+                    G[k].update(rows=rows, pool=[r[0] for r in rows])
+                else:
+                    errs.append(f'{k}: żaden kandydat bez ceny')
+        except Exception as e:  # noqa
+            errs.append(f'ceny ({len(ids)} monet): {e}')
+    out = {'at': at, 'cols': list(T10_COLS), 'n': T10_N, 'g': {}, 'ok': {}}
+    for k, cat in T10_CATS:                                   # 3) plik: top 10 wg kapitalizacji
+        g = G[k]
+        rows = g['rows']
+        if rows is None:
+            rows = g['prev'] if g['prev'] and prev_age is not None and prev_age < T10_MAX_AGE else []
+            if not any(e.startswith(k + ':') for e in errs):
+                errs.append(f'{k}: ' + ('poprzednie ceny' if rows else 'brak danych'))
+        rows = sorted(rows, key=lambda r: -r[4])[:T10_N]
+        out['g'][k] = {'cat': cat, 'sk': g['sk'] if rows else None, 'pool': g['pool'] if rows else [], 'c': rows}
+        out['ok'][k] = g['rows'] is not None
+    if not any(out['g'][k]['c'] for k, _ in T10_CATS):
+        raise RuntimeError('żadna grupa nie ma monet' + (f' ({"; ".join(errs)[:300]})' if errs else ''))
+    if errs:
+        META['errors'].append(mask('krypto top 10: ' + '; '.join(errs))[:500])
+    out['calls'] = st['n']
+    return out, t10_logos(out, imgs, prev_logo, at, st['end'], late)
+
+
 ETF_KEEP_DAYS = 300  # v55: tyle dni trzyma etf.json (SoSoValue oddaje tylko ok. 21 ostatnich — reszta z poprzedniego pliku); v89: 300 (TRENDY)
 
 
@@ -14676,6 +14935,20 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'krypto: {e}')); META['ok']['krypto'] = False
             if prev_kr: save('krypto', prev_kr); print('rynek krypto zawiódł — zachowano poprzedni krypto.json z', prev_kr.get('at'))
+    # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
+    # o ceny); oba pliki zapisywane w każdym przebiegu (strona składana od zera); awaria = poprzednie pliki i błąd „krypto top 10: …” (brak ≠ zero)
+    prev_t10, prev_t10l = previous('krypto-top10'), previous('krypto-top10-logo')
+    if prev_t10 and fresh(prev_t10, T10_EVERY):
+        save('krypto-top10', prev_t10); META['ok']['krypto-top10'] = 'cached'
+        if prev_t10l: save('krypto-top10-logo', prev_t10l)
+    else:
+        try:
+            t10, t10l = build_krypto_top10(cg_key, prev_t10, prev_t10l)
+            save('krypto-top10', t10); save('krypto-top10-logo', t10l); META['ok']['krypto-top10'] = all(t10['ok'].values())
+        except Exception as e:
+            META['errors'].append(mask(f'krypto top 10: {e}')); META['ok']['krypto-top10'] = False
+            if prev_t10: save('krypto-top10', prev_t10)
+            if prev_t10l: save('krypto-top10-logo', prev_t10l)
     # INSTYTUCJE (bez klucza): najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_inst = previous('instytucje')
     if prev_inst and fresh(prev_inst, 55):

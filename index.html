@@ -208,6 +208,41 @@ td .cell .logo-img{width:34px;height:34px}
 .zoom button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--tx);font-size:18px;line-height:1;display:grid;place-items:center}
 .zoom button:hover{border-color:var(--bl)}
 .zoom button svg{width:18px;height:18px}
+/* v140: grupy top 10 w scenie CRYPTO — przyciski „Top 10” i pełny ekran (jak mapa GLOBAL): komputer — druga kolumna po lewej (dotychczasowe trzy przyciski bez
+   zmiany miejsca); telefon (≤ 620 px) — wszystkie pięć w rzędzie na dole sceny, gdzie nie ma etykiet ani monet (podpowiedź sceny jest tam ukryta); panel szczegółów
+   w pełnym ekranie nad rzędem; podpowiedź monety; kolory grup w skrypcie (T10_COL, oba motywy) */
+#stage .zoom{direction:rtl;display:grid;grid-template-rows:repeat(3,34px);grid-auto-flow:column;grid-auto-columns:34px;gap:6px}
+#stage .zoom button{direction:ltr}
+#z-t10 .t10-ic{display:flex;flex-direction:column;align-items:center;line-height:1;font-family:"Sora",sans-serif;font-weight:700;font-size:12px}
+#z-t10 .t10-ic small{font-size:7.5px;font-weight:600;letter-spacing:.6px;margin-bottom:1px}
+#z-t10[aria-pressed="true"]{color:var(--bl);border-color:rgba(var(--bl-rgb),.55)}
+#z-full .ic-close{display:none}
+#z-full[aria-pressed="true"] .ic-open{display:none}
+#z-full[aria-pressed="true"] .ic-close{display:block}
+.stage3d.full,.stage3d:fullscreen{position:fixed;inset:0;z-index:50;height:auto!important;border-radius:0;background:radial-gradient(ellipse at 50% 38%,var(--scene-bg1),transparent 62%),var(--bg)}
+.stage3d.full .hint{bottom:14px}
+.stage3d.full #why{position:absolute;left:12px;bottom:44px;z-index:3;width:min(440px,calc(100% - 24px));max-height:56%;overflow:auto;margin:0;
+  background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line-2);box-shadow:0 18px 44px rgba(0,0,0,.45)}
+.stage3d.full #why .detail{margin-bottom:0}
+.stage3d.full #why .d-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.stage3d.full #why .d-grid .wide{grid-column:span 2}
+.stage3d.full #why h2{font-size:14px;margin-bottom:8px}
+body.cfull{overflow:hidden}
+@media (max-width:620px){#stage .zoom{top:auto;bottom:12px;direction:ltr;grid-template-rows:34px;grid-auto-flow:column}.stage3d.full #why{max-height:48%;bottom:58px}}
+.t10-tip{position:absolute;z-index:4;pointer-events:none;width:max-content;max-width:min(270px,calc(100% - 12px));padding:9px 11px;border-radius:10px;
+  background:var(--panel-2);border:1px solid var(--line-2);box-shadow:0 12px 32px rgba(0,0,0,.35);color:var(--tx);font-size:12px;line-height:1.45}
+.t10-tip[hidden]{display:none}
+.t10-tip .t10-h{display:flex;align-items:center;gap:7px;font-family:"Sora",sans-serif;font-weight:600;font-size:13px}
+.t10-tip .t10-h img{width:20px;height:20px;border-radius:50%;flex:none}
+.t10-tip .t10-h small{color:var(--mut);font-weight:500;font-size:11px}
+.t10-tip .t10-r{color:var(--mut);font-size:11.5px;margin:2px 0 6px}
+.t10-tip dl{display:grid;grid-template-columns:auto auto;gap:2px 12px;margin:0}
+.t10-tip dt{color:var(--mut)}
+.t10-tip dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t10-tip dd.up{color:var(--gr-tx)}
+.t10-tip dd.dn{color:var(--rd-tx)}
+.t10-tip .t10-f{margin-top:6px;color:var(--mut);font-size:11px}
+.t10-tip .t10-m{margin-top:5px;color:var(--dim);font-size:10.5px;line-height:1.4;white-space:normal;max-width:248px}
 #gz-full .ic-close{display:none}
 #gz-full[aria-pressed="true"] .ic-open{display:none}
 #gz-full[aria-pressed="true"] .ic-close{display:block}
@@ -1093,6 +1128,8 @@ td .cell .logo-img{width:34px;height:34px}
             <button id="z-in" data-i18n-aria="zoom.in">+</button>
             <button id="z-out" data-i18n-aria="zoom.out">−</button>
             <button id="z-reset" data-i18n-aria="zoom.reset">⟲</button>
+            <button id="z-t10" data-i18n-aria="c10.btn" data-i18n-title="c10.btn" aria-pressed="true"><span class="t10-ic" aria-hidden="true"><small>TOP</small>10</span></button>
+            <button id="z-full" data-i18n-aria="c10.full" data-i18n-title="c10.full" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path class="ic-open" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="ic-close" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
           </div>
         </div>
         <div class="chips" id="chips"></div>
@@ -1720,6 +1757,9 @@ for(const l in EXTRA141)if(I18N[l])Object.assign(I18N[l],EXTRA141[l]);
 /* v136: Ameryka Łacińska — kurs oficjalny a równoległy dolara (klucze dl.*; panel #g-dolar); bez nazw serwisów kursowych i bez podpisu źródła */
 const EXTRA145={"pl":{"dl.t":"Ameryka Łacińska: ile więcej kosztuje dolar poza kursem oficjalnym","dl.sub":"Gdy ludzie i firmy nie mogą swobodnie kupić dolarów po kursie oficjalnym, płacą więcej na rynkach równoległych. Luka w procentach pokazuje nacisk na kontrolę kapitału i popyt na ucieczkę z waluty krajowej. ▲/▼ to zmiana luki w punktach procentowych — bez koloru, bo żaden kierunek nie jest z góry dobry ani zły.","dl.k.ar":"Argentyna: CCL wobec kursu hurtowego","dl.k.ve":"Wenezuela: kurs równoległy wobec kursu banku centralnego","dl.k.bo":"Boliwia: USDT z ogłoszeń P2P wobec kursu oficjalnego","dl.cn.ar":"Argentyna","dl.cn.ve":"Wenezuela","dl.cn.bo":"Boliwia","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"krypto","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"hurtowy (międzybankowy)","dl.c.oficial":"oficjalny w bankach (detaliczny)","dl.c.blue":"„blue” (nieformalny, gotówka)","dl.c.bolsa":"MEP (przez papiery wartościowe w kraju)","dl.c.contadoconliqui":"CCL (wyjście przez papiery wartościowe za granicę)","dl.c.cripto":"kryptowalutowy (stablecoiny)","dl.c.ve.of":"oficjalny banku centralnego — obowiązujący","dl.c.ve.next":"oficjalny banku centralnego — zapowiedziany","dl.c.ve.pa":"równoległy (średnia rynkowa)","dl.c.bo.of":"oficjalny banku centralnego","dl.c.bo.usdt":"USDT z ogłoszeń P2P","dl.h.rate":"kurs","dl.h.buy":"kupno","dl.h.sell":"sprzedaż","dl.h.gap":"luka","dl.h.when":"stan","dl.h.tab":"Kursy i luki — tabela","dl.base":"baza","dl.next":"obowiązuje od {d}","dl.u.ar":"ARS za 1 USD.","dl.u.ve":"VES za 1 USD; Wenezuela podaje jeden kurs (średni), bez osobnego kupna.","dl.u.bo":"BOB za 1 USD; wiersz USDT: BOB za 1 USDT.","dl.d7":"{v} pp w 7 dni","dl.d30":"{v} pp w 30 dni","dl.asof":"stan z {d}","dl.ve.valid":"kurs banku centralnego obowiązujący od {d}","dl.bo.usdt":"kurs stablecoina USDT, nie gotówki","dl.hist":"historia od {d} — zmiany po 7 i 30 dniach pojawią się później","dl.mm":"{n} — 365 dni: najniżej {min} ({dmin}), najwyżej {max} ({dmax})","dl.na.base":"brak aktualnego kursu oficjalnego — luki nie liczymy","dl.na.stale":"kurs równoległy starszy niż 4 dni — luki nie liczymy","dl.na.miss":"brak kursu równoległego — luki nie liczymy","dl.na.old":"najnowsze kursy mają ponad 4 dni — luki nie pokazujemy","dl.na.chk":"stosunek kursów poza rozsądnym zakresem (błąd skali?) — luki nie pokazujemy","dl.na.src":"brak nowych kursów — widać ostatnie odczytane, z ich wiekiem","dl.prev":"{c}: ostatni odczyt się nie udał — pokazujemy stan z {t}","dl.ch.ar":"Argentyna: luka CCL i „blue” wobec kursu hurtowego (365 dni)","dl.ch.ve":"Wenezuela: luka kursu równoległego","dl.leg":"Luka = (kurs równoległy sprzedaży ÷ kurs oficjalny − 1) × 100. Plus znaczy, że poza oficjalnym rynkiem dolar kosztuje więcej; minus — że mniej. Każdy kurs ma czas odczytu i wiek; brak liczby to „—”, nigdy zero.","dl.we":"W weekendy i święta kursy giełdowe i oficjalne (hurtowy, w bankach, MEP, CCL) pochodzą z ostatniej sesji. Pokazany czas to chwila odczytu, nie chwila transakcji.","dl.not1":"Luka nie jest przepływem pieniędzy ani prognozą kursu. To sygnał ceny: pokazuje, jak mocno ludzie i firmy chcą zamienić walutę krajową na dolary poza oficjalnym kanałem — czyli jak silny jest nacisk na kontrolę kapitału i na kurs waluty. Mała luka nie znaczy, że kontrole zniesiono, a duża — że dewaluacja jest pewna.","dl.not2":"MEP i CCL różne serwisy liczą trochę inaczej (różnice rzędu 1–2% są normalne); strona trzyma się jednego sposobu liczenia. Kursy to notowania publikowane codziennie przez serwisy kursowe i banki centralne.","dl.not3":"Boliwijski kurs P2P dotyczy stablecoina USDT, nie gotówki, i opiera się na najczęstszej cenie wśród pierwszych ogłoszeń — bywa rzadki i chwiejny. Wenezuelski kurs równoległy to średnia publikowana przez serwis zbierający notowania. To nie jest porada inwestycyjna."},"en":{"dl.t":"Latin America: how much more the dollar costs outside the official rate","dl.sub":"When people and firms cannot freely buy dollars at the official rate, they pay more in parallel markets. The gap in per cent shows pressure on capital controls and demand to flee the local currency. ▲/▼ is the change of the gap in percentage points — no colour, because neither direction is good or bad by itself.","dl.k.ar":"Argentina: CCL vs the wholesale rate","dl.k.ve":"Venezuela: parallel rate vs the central bank rate","dl.k.bo":"Bolivia: USDT from P2P ads vs the official rate","dl.cn.ar":"Argentina","dl.cn.ve":"Venezuela","dl.cn.bo":"Bolivia","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"crypto","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"wholesale (interbank)","dl.c.oficial":"official at banks (retail)","dl.c.blue":"“blue” (informal, cash)","dl.c.bolsa":"MEP (via securities at home)","dl.c.contadoconliqui":"CCL (exit via securities abroad)","dl.c.cripto":"crypto (stablecoins)","dl.c.ve.of":"central bank official — in force","dl.c.ve.next":"central bank official — announced","dl.c.ve.pa":"parallel (market average)","dl.c.bo.of":"central bank official","dl.c.bo.usdt":"USDT from P2P ads","dl.h.rate":"rate","dl.h.buy":"buy","dl.h.sell":"sell","dl.h.gap":"gap","dl.h.when":"as of","dl.h.tab":"Rates and gaps — table","dl.base":"base","dl.next":"in force from {d}","dl.u.ar":"ARS per 1 USD.","dl.u.ve":"VES per 1 USD; Venezuela publishes one (average) rate, with no separate buy price.","dl.u.bo":"BOB per 1 USD; USDT row: BOB per 1 USDT.","dl.d7":"{v} pp in 7 days","dl.d30":"{v} pp in 30 days","dl.asof":"as of {d}","dl.ve.valid":"central bank rate in force since {d}","dl.bo.usdt":"rate of the USDT stablecoin, not cash","dl.hist":"history since {d} — 7- and 30-day changes will follow","dl.mm":"{n} — 365 days: low {min} ({dmin}), high {max} ({dmax})","dl.na.base":"no current official rate — gap not computed","dl.na.stale":"parallel rate older than 4 days — gap not computed","dl.na.miss":"no parallel rate — gap not computed","dl.na.old":"the latest rates are more than 4 days old — gap not shown","dl.na.chk":"rate ratio outside a sensible range (scale error?) — gap not shown","dl.na.src":"no new rates — showing the last ones read, with their age","dl.prev":"{c}: the last reading failed — showing the state as of {t}","dl.ch.ar":"Argentina: CCL and “blue” gap vs the wholesale rate (365 days)","dl.ch.ve":"Venezuela: parallel-rate gap","dl.leg":"Gap = (parallel selling rate ÷ official rate − 1) × 100. Plus means the dollar costs more outside the official market; minus means less. Every rate carries its reading time and age; a missing number is “—”, never zero.","dl.we":"On weekends and holidays the exchange-traded and official rates (wholesale, banks, MEP, CCL) are from the last session. The time shown is when the rate was read, not when it was traded.","dl.not1":"The gap is not a flow of money and not a forecast. It is a price signal: it shows how strongly people and firms want to swap the local currency for dollars outside the official channel — that is, how much pressure there is on capital controls and on the currency. A small gap does not mean controls are gone; a large one does not mean a devaluation is certain.","dl.not2":"Different publishers compute MEP and CCL slightly differently (differences of 1–2% are normal); the page sticks to one method. The rates are quotes published daily by exchange-rate services and central banks.","dl.not3":"The Bolivian P2P rate is for the USDT stablecoin, not cash, and uses the most common price among the first ads — it can be thin and noisy. The Venezuelan parallel rate is an average published by a quote aggregator. This is not investment advice."},"de":{"dl.t":"Lateinamerika: wie viel mehr der Dollar außerhalb des offiziellen Kurses kostet","dl.sub":"Wenn Menschen und Firmen Dollar nicht frei zum offiziellen Kurs kaufen können, zahlen sie auf Parallelmärkten mehr. Die Lücke in Prozent zeigt den Druck auf die Kapitalverkehrskontrollen und die Nachfrage nach einer Flucht aus der Landeswährung. ▲/▼ ist die Veränderung der Lücke in Prozentpunkten — ohne Farbe, denn keine Richtung ist an sich gut oder schlecht.","dl.k.ar":"Argentinien: CCL gegenüber dem Großhandelskurs","dl.k.ve":"Venezuela: Parallelkurs gegenüber dem Kurs der Zentralbank","dl.k.bo":"Bolivien: USDT aus P2P-Anzeigen gegenüber dem offiziellen Kurs","dl.cn.ar":"Argentinien","dl.cn.ve":"Venezuela","dl.cn.bo":"Bolivien","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"Krypto","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"Großhandel (Interbanken)","dl.c.oficial":"offiziell bei Banken (Endkunden)","dl.c.blue":"„blue“ (informell, Bargeld)","dl.c.bolsa":"MEP (über Wertpapiere im Inland)","dl.c.contadoconliqui":"CCL (Ausgang über Wertpapiere im Ausland)","dl.c.cripto":"Krypto (Stablecoins)","dl.c.ve.of":"offiziell, Zentralbank — gültig","dl.c.ve.next":"offiziell, Zentralbank — angekündigt","dl.c.ve.pa":"parallel (Marktdurchschnitt)","dl.c.bo.of":"offiziell, Zentralbank","dl.c.bo.usdt":"USDT aus P2P-Anzeigen","dl.h.rate":"Kurs","dl.h.buy":"Ankauf","dl.h.sell":"Verkauf","dl.h.gap":"Lücke","dl.h.when":"Stand","dl.h.tab":"Kurse und Lücken — Tabelle","dl.base":"Basis","dl.next":"gültig ab {d}","dl.u.ar":"ARS je 1 USD.","dl.u.ve":"VES je 1 USD; Venezuela meldet einen (Durchschnitts-)Kurs ohne gesonderten Ankauf.","dl.u.bo":"BOB je 1 USD; Zeile USDT: BOB je 1 USDT.","dl.d7":"{v} Pp. in 7 Tagen","dl.d30":"{v} Pp. in 30 Tagen","dl.asof":"Stand {d}","dl.ve.valid":"Zentralbankkurs gültig seit {d}","dl.bo.usdt":"Kurs des Stablecoins USDT, nicht von Bargeld","dl.hist":"Verlauf seit {d} — Veränderungen nach 7 und 30 Tagen folgen","dl.mm":"{n} — 365 Tage: Tief {min} ({dmin}), Hoch {max} ({dmax})","dl.na.base":"kein aktueller offizieller Kurs — Lücke nicht berechnet","dl.na.stale":"Parallelkurs älter als 4 Tage — Lücke nicht berechnet","dl.na.miss":"kein Parallelkurs — Lücke nicht berechnet","dl.na.old":"die neuesten Kurse sind älter als 4 Tage — Lücke nicht gezeigt","dl.na.chk":"Kursverhältnis außerhalb eines sinnvollen Bereichs (Skalenfehler?) — Lücke nicht gezeigt","dl.na.src":"keine neuen Kurse — gezeigt werden die zuletzt gelesenen mit ihrem Alter","dl.prev":"{c}: die letzte Abfrage ist fehlgeschlagen — gezeigt wird der Stand {t}","dl.ch.ar":"Argentinien: Lücke von CCL und „blue“ gegenüber dem Großhandelskurs (365 Tage)","dl.ch.ve":"Venezuela: Lücke des Parallelkurses","dl.leg":"Lücke = (Parallel-Verkaufskurs ÷ offizieller Kurs − 1) × 100. Plus heißt, dass der Dollar außerhalb des offiziellen Marktes mehr kostet; Minus, dass er weniger kostet. Jeder Kurs hat Abfragezeit und Alter; eine fehlende Zahl ist „—“, nie null.","dl.we":"An Wochenenden und Feiertagen stammen die Börsen- und offiziellen Kurse (Großhandel, Banken, MEP, CCL) aus der letzten Sitzung. Die gezeigte Zeit ist der Abfragezeitpunkt, nicht der Handelszeitpunkt.","dl.not1":"Die Lücke ist kein Geldfluss und keine Prognose. Sie ist ein Preissignal: Sie zeigt, wie stark Menschen und Firmen die Landeswährung außerhalb des offiziellen Kanals in Dollar tauschen wollen — also wie groß der Druck auf Kapitalverkehrskontrollen und Währung ist. Eine kleine Lücke heißt nicht, dass die Kontrollen aufgehoben sind; eine große nicht, dass eine Abwertung sicher ist.","dl.not2":"MEP und CCL werden von verschiedenen Diensten etwas unterschiedlich berechnet (Abweichungen von 1–2 % sind normal); die Seite bleibt bei einer Methode. Die Kurse sind Notierungen, die Kursdienste und Zentralbanken täglich veröffentlichen.","dl.not3":"Der bolivianische P2P-Kurs gilt für den Stablecoin USDT, nicht für Bargeld, und beruht auf dem häufigsten Preis unter den ersten Anzeigen — er kann dünn und schwankend sein. Der venezolanische Parallelkurs ist ein Durchschnitt, den ein Kursaggregator veröffentlicht. Keine Anlageberatung."},"es":{"dl.t":"América Latina: cuánto más cuesta el dólar fuera del tipo de cambio oficial","dl.sub":"Cuando personas y empresas no pueden comprar dólares libremente al tipo oficial, pagan más en mercados paralelos. La brecha en porcentaje muestra la presión sobre el control de capitales y la demanda para salir de la moneda local. ▲/▼ es el cambio de la brecha en puntos porcentuales — sin color, porque ninguna dirección es buena o mala en sí misma.","dl.k.ar":"Argentina: CCL frente al tipo mayorista","dl.k.ve":"Venezuela: tasa paralela frente a la tasa del banco central","dl.k.bo":"Bolivia: USDT en anuncios P2P frente al tipo oficial","dl.cn.ar":"Argentina","dl.cn.ve":"Venezuela","dl.cn.bo":"Bolivia","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"cripto","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"mayorista (interbancario)","dl.c.oficial":"oficial en bancos (minorista)","dl.c.blue":"«blue» (informal, efectivo)","dl.c.bolsa":"MEP (vía títulos en el país)","dl.c.contadoconliqui":"CCL (salida vía títulos en el exterior)","dl.c.cripto":"cripto (stablecoins)","dl.c.ve.of":"oficial del banco central — vigente","dl.c.ve.next":"oficial del banco central — anunciado","dl.c.ve.pa":"paralelo (promedio de mercado)","dl.c.bo.of":"oficial del banco central","dl.c.bo.usdt":"USDT en anuncios P2P","dl.h.rate":"tipo","dl.h.buy":"compra","dl.h.sell":"venta","dl.h.gap":"brecha","dl.h.when":"lectura","dl.h.tab":"Cotizaciones y brechas — tabla","dl.base":"base","dl.next":"vigente desde {d}","dl.u.ar":"ARS por 1 USD.","dl.u.ve":"VES por 1 USD; Venezuela publica una sola tasa (promedio), sin precio de compra aparte.","dl.u.bo":"BOB por 1 USD; fila USDT: BOB por 1 USDT.","dl.d7":"{v} pp en 7 días","dl.d30":"{v} pp en 30 días","dl.asof":"leído el {d}","dl.ve.valid":"tasa del banco central vigente desde {d}","dl.bo.usdt":"tasa de la stablecoin USDT, no de efectivo","dl.hist":"historia desde {d} — los cambios a 7 y 30 días llegarán después","dl.mm":"{n} — 365 días: mínimo {min} ({dmin}), máximo {max} ({dmax})","dl.na.base":"sin tipo oficial actual — brecha no calculada","dl.na.stale":"tasa paralela con más de 4 días — brecha no calculada","dl.na.miss":"sin tasa paralela — brecha no calculada","dl.na.old":"las últimas tasas tienen más de 4 días — brecha no mostrada","dl.na.chk":"relación entre tasas fuera de un rango razonable (¿error de escala?) — brecha no mostrada","dl.na.src":"sin cotizaciones nuevas — se muestran las últimas leídas, con su antigüedad","dl.prev":"{c}: la última lectura falló — se muestra el estado al {t}","dl.ch.ar":"Argentina: brecha del CCL y del «blue» frente al mayorista (365 días)","dl.ch.ve":"Venezuela: brecha de la tasa paralela","dl.leg":"Brecha = (tipo paralelo de venta ÷ tipo oficial − 1) × 100. Más significa que fuera del mercado oficial el dólar cuesta más; menos, que cuesta menos. Cada tasa lleva su hora de lectura y su antigüedad; un dato ausente es «—», nunca cero.","dl.we":"Los fines de semana y feriados, las tasas bursátiles y oficiales (mayorista, bancos, MEP, CCL) son las de la última rueda. La hora indicada es la de lectura, no la de la operación.","dl.not1":"La brecha no es un flujo de dinero ni un pronóstico. Es una señal de precio: muestra cuánto quieren personas y empresas cambiar la moneda local por dólares fuera del canal oficial, es decir, cuánta presión hay sobre el control de capitales y sobre la moneda. Una brecha pequeña no significa que se levantaron los controles; una grande no significa que una devaluación sea segura.","dl.not2":"Distintos servicios calculan el MEP y el CCL de forma algo diferente (diferencias del 1–2 % son normales); la página mantiene un único método. Las tasas son cotizaciones que publican a diario servicios cambiarios y bancos centrales.","dl.not3":"La tasa P2P boliviana corresponde a la stablecoin USDT, no a efectivo, y usa el precio más frecuente entre los primeros anuncios: puede ser escasa y volátil. La tasa paralela venezolana es un promedio publicado por un agregador de cotizaciones. No es asesoramiento de inversión."},"fr":{"dl.t":"Amérique latine : combien le dollar coûte de plus hors du taux officiel","dl.sub":"Quand les particuliers et les entreprises ne peuvent pas acheter librement des dollars au taux officiel, ils paient plus cher sur les marchés parallèles. L’écart en pourcentage montre la pression sur le contrôle des capitaux et la demande de sortie de la monnaie locale. ▲/▼ est la variation de l’écart en points de pourcentage — sans couleur, car aucune direction n’est bonne ou mauvaise en soi.","dl.k.ar":"Argentine : CCL face au taux de gros","dl.k.ve":"Venezuela : taux parallèle face au taux de la banque centrale","dl.k.bo":"Bolivie : USDT des annonces P2P face au taux officiel","dl.cn.ar":"Argentine","dl.cn.ve":"Venezuela","dl.cn.bo":"Bolivie","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"crypto","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"de gros (interbancaire)","dl.c.oficial":"officiel en banque (de détail)","dl.c.blue":"« blue » (informel, espèces)","dl.c.bolsa":"MEP (via des titres dans le pays)","dl.c.contadoconliqui":"CCL (sortie via des titres à l’étranger)","dl.c.cripto":"crypto (stablecoins)","dl.c.ve.of":"officiel de la banque centrale — en vigueur","dl.c.ve.next":"officiel de la banque centrale — annoncé","dl.c.ve.pa":"parallèle (moyenne du marché)","dl.c.bo.of":"officiel de la banque centrale","dl.c.bo.usdt":"USDT des annonces P2P","dl.h.rate":"taux","dl.h.buy":"achat","dl.h.sell":"vente","dl.h.gap":"écart","dl.h.when":"relevé","dl.h.tab":"Taux et écarts — tableau","dl.base":"base","dl.next":"en vigueur dès le {d}","dl.u.ar":"ARS pour 1 USD.","dl.u.ve":"VES pour 1 USD ; le Venezuela publie un seul taux (moyen), sans prix d’achat distinct.","dl.u.bo":"BOB pour 1 USD ; ligne USDT : BOB pour 1 USDT.","dl.d7":"{v} pt en 7 jours","dl.d30":"{v} pt en 30 jours","dl.asof":"relevé du {d}","dl.ve.valid":"taux de la banque centrale en vigueur depuis le {d}","dl.bo.usdt":"taux du stablecoin USDT, pas des espèces","dl.hist":"historique depuis le {d} — les variations sur 7 et 30 jours suivront","dl.mm":"{n} — 365 jours : plus bas {min} ({dmin}), plus haut {max} ({dmax})","dl.na.base":"pas de taux officiel actuel — écart non calculé","dl.na.stale":"taux parallèle de plus de 4 jours — écart non calculé","dl.na.miss":"pas de taux parallèle — écart non calculé","dl.na.old":"les derniers taux ont plus de 4 jours — écart non affiché","dl.na.chk":"rapport des taux hors d’une plage raisonnable (erreur d’échelle ?) — écart non affiché","dl.na.src":"pas de nouveaux taux — les derniers relevés sont affichés avec leur âge","dl.prev":"{c} : le dernier relevé a échoué — état affiché au {t}","dl.ch.ar":"Argentine : écart du CCL et du « blue » face au taux de gros (365 jours)","dl.ch.ve":"Venezuela : écart du taux parallèle","dl.leg":"Écart = (taux parallèle de vente ÷ taux officiel − 1) × 100. Plus signifie que hors du marché officiel le dollar coûte plus cher ; moins, qu’il coûte moins cher. Chaque taux porte son heure de relevé et son âge ; un chiffre manquant est « — », jamais zéro.","dl.we":"Les week-ends et jours fériés, les taux de marché et officiels (de gros, banques, MEP, CCL) sont ceux de la dernière séance. L’heure affichée est celle du relevé, pas celle de la transaction.","dl.not1":"L’écart n’est ni un flux d’argent ni une prévision. C’est un signal de prix : il montre à quel point particuliers et entreprises veulent échanger la monnaie locale contre des dollars hors du circuit officiel, donc la pression sur le contrôle des capitaux et sur la monnaie. Un petit écart ne veut pas dire que les contrôles ont disparu ; un grand ne veut pas dire qu’une dévaluation est certaine.","dl.not2":"Le MEP et le CCL sont calculés un peu différemment d’un service à l’autre (des écarts de 1–2 % sont normaux) ; la page s’en tient à une seule méthode. Les taux sont des cotations publiées chaque jour par des services de change et des banques centrales.","dl.not3":"Le taux P2P bolivien concerne le stablecoin USDT, pas les espèces, et repose sur le prix le plus fréquent parmi les premières annonces : il peut être maigre et volatil. Le taux parallèle vénézuélien est une moyenne publiée par un agrégateur de cotations. Ceci n’est pas un conseil en investissement."},"it":{"dl.t":"America Latina: quanto costa in più il dollaro fuori dal cambio ufficiale","dl.sub":"Quando persone e imprese non possono comprare liberamente dollari al cambio ufficiale, pagano di più sui mercati paralleli. Il divario in percentuale mostra la pressione sui controlli dei capitali e la domanda di uscire dalla valuta locale. ▲/▼ è la variazione del divario in punti percentuali — senza colore, perché nessuna direzione è di per sé buona o cattiva.","dl.k.ar":"Argentina: CCL rispetto al cambio all’ingrosso","dl.k.ve":"Venezuela: cambio parallelo rispetto al cambio della banca centrale","dl.k.bo":"Bolivia: USDT dagli annunci P2P rispetto al cambio ufficiale","dl.cn.ar":"Argentina","dl.cn.ve":"Venezuela","dl.cn.bo":"Bolivia","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"cripto","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"all’ingrosso (interbancario)","dl.c.oficial":"ufficiale in banca (al dettaglio)","dl.c.blue":"«blue» (informale, contanti)","dl.c.bolsa":"MEP (tramite titoli in patria)","dl.c.contadoconliqui":"CCL (uscita tramite titoli all’estero)","dl.c.cripto":"cripto (stablecoin)","dl.c.ve.of":"ufficiale della banca centrale — in vigore","dl.c.ve.next":"ufficiale della banca centrale — annunciato","dl.c.ve.pa":"parallelo (media di mercato)","dl.c.bo.of":"ufficiale della banca centrale","dl.c.bo.usdt":"USDT dagli annunci P2P","dl.h.rate":"cambio","dl.h.buy":"acquisto","dl.h.sell":"vendita","dl.h.gap":"divario","dl.h.when":"rilevato","dl.h.tab":"Cambi e divari — tabella","dl.base":"base","dl.next":"in vigore dal {d}","dl.u.ar":"ARS per 1 USD.","dl.u.ve":"VES per 1 USD; il Venezuela pubblica un solo cambio (medio), senza prezzo d’acquisto separato.","dl.u.bo":"BOB per 1 USD; riga USDT: BOB per 1 USDT.","dl.d7":"{v} pp in 7 giorni","dl.d30":"{v} pp in 30 giorni","dl.asof":"rilevato il {d}","dl.ve.valid":"cambio della banca centrale in vigore dal {d}","dl.bo.usdt":"cambio della stablecoin USDT, non dei contanti","dl.hist":"storico dal {d} — le variazioni a 7 e 30 giorni arriveranno dopo","dl.mm":"{n} — 365 giorni: minimo {min} ({dmin}), massimo {max} ({dmax})","dl.na.base":"nessun cambio ufficiale attuale — divario non calcolato","dl.na.stale":"cambio parallelo più vecchio di 4 giorni — divario non calcolato","dl.na.miss":"nessun cambio parallelo — divario non calcolato","dl.na.old":"gli ultimi cambi hanno più di 4 giorni — divario non mostrato","dl.na.chk":"rapporto tra i cambi fuori da un intervallo ragionevole (errore di scala?) — divario non mostrato","dl.na.src":"nessun cambio nuovo — mostriamo gli ultimi rilevati, con la loro età","dl.prev":"{c}: l’ultima rilevazione non è riuscita — mostriamo lo stato al {t}","dl.ch.ar":"Argentina: divario del CCL e del «blue» rispetto all’ingrosso (365 giorni)","dl.ch.ve":"Venezuela: divario del cambio parallelo","dl.leg":"Divario = (cambio parallelo di vendita ÷ cambio ufficiale − 1) × 100. Più significa che fuori dal mercato ufficiale il dollaro costa di più; meno, che costa di meno. Ogni cambio ha l’ora di rilevazione e l’età; un numero mancante è «—», mai zero.","dl.we":"Nei fine settimana e nei festivi i cambi di borsa e ufficiali (all’ingrosso, banche, MEP, CCL) sono quelli dell’ultima seduta. L’ora indicata è quella della rilevazione, non della transazione.","dl.not1":"Il divario non è un flusso di denaro né una previsione. È un segnale di prezzo: mostra quanto persone e imprese vogliono cambiare la valuta locale in dollari fuori dal canale ufficiale, cioè quanta pressione c’è sui controlli dei capitali e sulla valuta. Un divario piccolo non significa che i controlli siano stati tolti; uno grande non significa che una svalutazione sia certa.","dl.not2":"MEP e CCL sono calcolati in modo un po’ diverso da servizi diversi (differenze dell’1–2% sono normali); la pagina segue un solo metodo. I cambi sono quotazioni pubblicate ogni giorno da servizi di cambio e banche centrali.","dl.not3":"Il cambio P2P boliviano riguarda la stablecoin USDT, non i contanti, e si basa sul prezzo più frequente tra i primi annunci: può essere scarso e instabile. Il cambio parallelo venezuelano è una media pubblicata da un aggregatore di quotazioni. Non è una consulenza d’investimento."},"pt":{"dl.t":"América Latina: quanto o dólar custa a mais fora da cotação oficial","dl.sub":"Quando pessoas e empresas não podem comprar dólares livremente pela cotação oficial, pagam mais nos mercados paralelos. A diferença em porcentagem mostra a pressão sobre o controle de capitais e a demanda para sair da moeda local. ▲/▼ é a variação da diferença em pontos percentuais — sem cor, porque nenhuma direção é boa ou ruim por si só.","dl.k.ar":"Argentina: CCL frente ao câmbio atacadista","dl.k.ve":"Venezuela: câmbio paralelo frente à cotação do banco central","dl.k.bo":"Bolívia: USDT de anúncios P2P frente à cotação oficial","dl.cn.ar":"Argentina","dl.cn.ve":"Venezuela","dl.cn.bo":"Bolívia","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"cripto","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"atacadista (interbancário)","dl.c.oficial":"oficial nos bancos (varejo)","dl.c.blue":"“blue” (informal, em espécie)","dl.c.bolsa":"MEP (via títulos no país)","dl.c.contadoconliqui":"CCL (saída via títulos no exterior)","dl.c.cripto":"cripto (stablecoins)","dl.c.ve.of":"oficial do banco central — em vigor","dl.c.ve.next":"oficial do banco central — anunciado","dl.c.ve.pa":"paralelo (média de mercado)","dl.c.bo.of":"oficial do banco central","dl.c.bo.usdt":"USDT de anúncios P2P","dl.h.rate":"cotação","dl.h.buy":"compra","dl.h.sell":"venda","dl.h.gap":"diferença","dl.h.when":"leitura","dl.h.tab":"Cotações e diferenças — tabela","dl.base":"base","dl.next":"em vigor a partir de {d}","dl.u.ar":"ARS por 1 USD.","dl.u.ve":"VES por 1 USD; a Venezuela publica uma só cotação (média), sem preço de compra separado.","dl.u.bo":"BOB por 1 USD; linha USDT: BOB por 1 USDT.","dl.d7":"{v} pp em 7 dias","dl.d30":"{v} pp em 30 dias","dl.asof":"leitura de {d}","dl.ve.valid":"cotação do banco central em vigor desde {d}","dl.bo.usdt":"cotação da stablecoin USDT, não de dinheiro em espécie","dl.hist":"histórico desde {d} — as variações de 7 e 30 dias virão depois","dl.mm":"{n} — 365 dias: mínima {min} ({dmin}), máxima {max} ({dmax})","dl.na.base":"sem cotação oficial atual — diferença não calculada","dl.na.stale":"câmbio paralelo com mais de 4 dias — diferença não calculada","dl.na.miss":"sem câmbio paralelo — diferença não calculada","dl.na.old":"as últimas cotações têm mais de 4 dias — diferença não exibida","dl.na.chk":"relação entre cotações fora de uma faixa razoável (erro de escala?) — diferença não exibida","dl.na.src":"sem cotações novas — mostramos as últimas lidas, com a idade","dl.prev":"{c}: a última leitura falhou — mostramos a situação em {t}","dl.ch.ar":"Argentina: diferença do CCL e do “blue” frente ao atacadista (365 dias)","dl.ch.ve":"Venezuela: diferença do câmbio paralelo","dl.leg":"Diferença = (câmbio paralelo de venda ÷ cotação oficial − 1) × 100. Mais significa que fora do mercado oficial o dólar custa mais; menos, que custa menos. Cada cotação tem hora de leitura e idade; um número ausente é “—”, nunca zero.","dl.we":"Nos fins de semana e feriados, as cotações de bolsa e oficiais (atacadista, bancos, MEP, CCL) são as do último pregão. A hora mostrada é a da leitura, não a da operação.","dl.not1":"A diferença não é um fluxo de dinheiro nem uma previsão. É um sinal de preço: mostra o quanto pessoas e empresas querem trocar a moeda local por dólares fora do canal oficial — ou seja, quanta pressão há sobre o controle de capitais e sobre a moeda. Uma diferença pequena não significa que os controles acabaram; uma grande não significa que uma desvalorização seja certa.","dl.not2":"Serviços diferentes calculam o MEP e o CCL de forma um pouco diferente (diferenças de 1–2% são normais); a página segue um único método. As cotações são publicadas diariamente por serviços de câmbio e bancos centrais.","dl.not3":"A cotação P2P boliviana refere-se à stablecoin USDT, não a dinheiro em espécie, e usa o preço mais frequente entre os primeiros anúncios — pode ser escassa e instável. O câmbio paralelo venezuelano é uma média publicada por um agregador de cotações. Isto não é recomendação de investimento."},"ru":{"dl.t":"Латинская Америка: насколько дороже доллар вне официального курса","dl.sub":"Когда люди и компании не могут свободно купить доллары по официальному курсу, они платят больше на параллельных рынках. Разрыв в процентах показывает давление на валютный контроль и спрос на бегство из национальной валюты. ▲/▼ — изменение разрыва в процентных пунктах, без цвета: ни одно направление само по себе не хорошее и не плохое.","dl.k.ar":"Аргентина: CCL к оптовому курсу","dl.k.ve":"Венесуэла: параллельный курс к курсу центрального банка","dl.k.bo":"Боливия: USDT по P2P-объявлениям к официальному курсу","dl.cn.ar":"Аргентина","dl.cn.ve":"Венесуэла","dl.cn.bo":"Боливия","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"крипто","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"оптовый (межбанковский)","dl.c.oficial":"официальный в банках (розничный)","dl.c.blue":"«blue» (неформальный, наличные)","dl.c.bolsa":"MEP (через ценные бумаги внутри страны)","dl.c.contadoconliqui":"CCL (вывод через ценные бумаги за рубежом)","dl.c.cripto":"криптовалютный (стейблкоины)","dl.c.ve.of":"официальный курс центрального банка — действующий","dl.c.ve.next":"официальный курс центрального банка — объявленный","dl.c.ve.pa":"параллельный (средний по рынку)","dl.c.bo.of":"официальный курс центрального банка","dl.c.bo.usdt":"USDT по P2P-объявлениям","dl.h.rate":"курс","dl.h.buy":"покупка","dl.h.sell":"продажа","dl.h.gap":"разрыв","dl.h.when":"на момент","dl.h.tab":"Курсы и разрывы — таблица","dl.base":"база","dl.next":"действует с {d}","dl.u.ar":"ARS за 1 USD.","dl.u.ve":"VES за 1 USD; Венесуэла публикует один (средний) курс, без отдельной цены покупки.","dl.u.bo":"BOB за 1 USD; строка USDT: BOB за 1 USDT.","dl.d7":"{v} п.п. за 7 дней","dl.d30":"{v} п.п. за 30 дней","dl.asof":"на {d}","dl.ve.valid":"курс центрального банка действует с {d}","dl.bo.usdt":"курс стейблкоина USDT, а не наличных","dl.hist":"история с {d} — изменения за 7 и 30 дней появятся позже","dl.mm":"{n} — 365 дней: минимум {min} ({dmin}), максимум {max} ({dmax})","dl.na.base":"нет актуального официального курса — разрыв не считается","dl.na.stale":"параллельный курс старше 4 дней — разрыв не считается","dl.na.miss":"нет параллельного курса — разрыв не считается","dl.na.old":"последние курсы старше 4 дней — разрыв не показан","dl.na.chk":"соотношение курсов вне разумного диапазона (ошибка масштаба?) — разрыв не показан","dl.na.src":"новых курсов нет — показаны последние полученные, с их возрастом","dl.prev":"{c}: последнее чтение не удалось — показано состояние на {t}","dl.ch.ar":"Аргентина: разрыв CCL и «blue» к оптовому курсу (365 дней)","dl.ch.ve":"Венесуэла: разрыв параллельного курса","dl.leg":"Разрыв = (параллельный курс продажи ÷ официальный курс − 1) × 100. Плюс означает, что вне официального рынка доллар дороже; минус — что дешевле. У каждого курса есть время получения и возраст; отсутствующее число — «—», никогда не ноль.","dl.we":"В выходные и праздники биржевые и официальные курсы (оптовый, в банках, MEP, CCL) — с последней сессии. Показанное время — момент получения курса, а не сделки.","dl.not1":"Разрыв — это не денежный поток и не прогноз. Это ценовой сигнал: он показывает, насколько сильно люди и компании хотят обменять национальную валюту на доллары вне официального канала, то есть насколько велико давление на валютный контроль и на курс. Маленький разрыв не значит, что ограничения сняты; большой — что девальвация неизбежна.","dl.not2":"Разные сервисы считают MEP и CCL немного по-разному (расхождения в 1–2 % нормальны); страница придерживается одного метода. Курсы — это котировки, которые ежедневно публикуют валютные сервисы и центральные банки.","dl.not3":"Боливийский P2P-курс относится к стейблкоину USDT, а не к наличным, и опирается на самую частую цену среди первых объявлений — он бывает редким и неустойчивым. Параллельный курс Венесуэлы — среднее, публикуемое агрегатором котировок. Это не инвестиционная рекомендация."},"zh":{"dl.t":"拉丁美洲：官方汇率之外美元贵多少","dl.sub":"当个人和企业无法按官方汇率自由购买美元时，他们会在平行市场付出更高价格。以百分比表示的价差反映资本管制承受的压力以及逃离本国货币的需求。▲/▼ 为价差的百分点变化——不着色，因为任何方向本身都无所谓好坏。","dl.k.ar":"阿根廷：CCL 相对批发汇率","dl.k.ve":"委内瑞拉：平行汇率相对央行汇率","dl.k.bo":"玻利维亚：P2P 广告中的 USDT 相对官方汇率","dl.cn.ar":"阿根廷","dl.cn.ve":"委内瑞拉","dl.cn.bo":"玻利维亚","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"加密","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"批发（银行间）","dl.c.oficial":"银行官方（零售）","dl.c.blue":"“blue”（非正式，现金）","dl.c.bolsa":"MEP（经境内证券）","dl.c.contadoconliqui":"CCL（经境外证券流出）","dl.c.cripto":"加密（稳定币）","dl.c.ve.of":"央行官方汇率——现行","dl.c.ve.next":"央行官方汇率——已公布","dl.c.ve.pa":"平行汇率（市场均价）","dl.c.bo.of":"央行官方汇率","dl.c.bo.usdt":"P2P 广告中的 USDT","dl.h.rate":"汇率","dl.h.buy":"买入","dl.h.sell":"卖出","dl.h.gap":"价差","dl.h.when":"读取时间","dl.h.tab":"汇率与价差——表格","dl.base":"基准","dl.next":"自 {d} 起生效","dl.u.ar":"每 1 美元合多少阿根廷比索（ARS）。","dl.u.ve":"每 1 美元合多少玻利瓦尔（VES）；委内瑞拉只公布一个（平均）汇率，没有单独的买入价。","dl.u.bo":"每 1 美元合多少玻利维亚诺（BOB）；USDT 一行为每 1 USDT 合多少 BOB。","dl.d7":"7 天 {v} 个百分点","dl.d30":"30 天 {v} 个百分点","dl.asof":"读取于 {d}","dl.ve.valid":"央行汇率自 {d} 起生效","dl.bo.usdt":"稳定币 USDT 的价格，而非现金","dl.hist":"自 {d} 起有记录——7 天和 30 天变化稍后显示","dl.mm":"{n}——365 天：最低 {min}（{dmin}），最高 {max}（{dmax}）","dl.na.base":"没有当前官方汇率——不计算价差","dl.na.stale":"平行汇率超过 4 天——不计算价差","dl.na.miss":"没有平行汇率——不计算价差","dl.na.old":"最新汇率已超过 4 天——不显示价差","dl.na.chk":"汇率比值超出合理范围（单位错误？）——不显示价差","dl.na.src":"没有新汇率——显示最近一次读取的数值及其时长","dl.prev":"{c}：最近一次读取失败——显示 {t} 的状态","dl.ch.ar":"阿根廷：CCL 与“blue”相对批发汇率的价差（365 天）","dl.ch.ve":"委内瑞拉：平行汇率价差","dl.leg":"价差 =（平行市场卖出价 ÷ 官方汇率 − 1）× 100。正值表示官方市场之外美元更贵；负值表示更便宜。每个汇率都标有读取时间和时长；缺失的数字显示为“—”，绝不是零。","dl.we":"周末和节假日，交易所汇率和官方汇率（批发、银行、MEP、CCL）为最近一个交易日的数值。显示的时间是读取时间，而非成交时间。","dl.not1":"价差不是资金流动，也不是汇率预测。它是一个价格信号：显示个人和企业在官方渠道之外把本币换成美元的意愿有多强，也就是资本管制和汇率承受的压力有多大。价差小不代表管制已取消；价差大也不代表必然贬值。","dl.not2":"不同服务对 MEP 和 CCL 的计算方法略有不同（相差 1–2% 属正常）；本页始终采用同一种方法。这些汇率是汇率服务和各国央行每日公布的报价。","dl.not3":"玻利维亚的 P2P 汇率针对稳定币 USDT 而非现金，取前几条广告中最常见的价格——可能稀少且波动大。委内瑞拉平行汇率是报价汇总服务公布的平均值。本页不构成投资建议。"},"ja":{"dl.t":"中南米：公式レート以外でドルはどれだけ高いか","dl.sub":"個人や企業が公式レートで自由にドルを買えないと、並行市場でより高い価格を払います。乖離率（％）は資本規制への圧力と自国通貨から逃れたい需要を示します。▲/▼ は乖離率の変化（％ポイント）で、色は付けません。どちらの方向もそれ自体で良い・悪いとは言えないためです。","dl.k.ar":"アルゼンチン：卸売レートに対する CCL","dl.k.ve":"ベネズエラ：中央銀行レートに対する並行レート","dl.k.bo":"ボリビア：公式レートに対する P2P 広告の USDT","dl.cn.ar":"アルゼンチン","dl.cn.ve":"ベネズエラ","dl.cn.bo":"ボリビア","dl.n.blue":"blue","dl.n.bolsa":"MEP","dl.n.cripto":"暗号資産","dl.n.contadoconliqui":"CCL","dl.c.mayorista":"卸売（銀行間）","dl.c.oficial":"銀行の公式（小口）","dl.c.blue":"「blue」（非公式・現金）","dl.c.bolsa":"MEP（国内の証券経由）","dl.c.contadoconliqui":"CCL（国外の証券経由の資金流出）","dl.c.cripto":"暗号資産（ステーブルコイン）","dl.c.ve.of":"中央銀行の公式レート（適用中）","dl.c.ve.next":"中央銀行の公式レート（発表済み）","dl.c.ve.pa":"並行レート（市場平均）","dl.c.bo.of":"中央銀行の公式レート","dl.c.bo.usdt":"P2P 広告の USDT","dl.h.rate":"レート","dl.h.buy":"買い","dl.h.sell":"売り","dl.h.gap":"乖離率","dl.h.when":"取得時点","dl.h.tab":"レートと乖離率（表）","dl.base":"基準","dl.next":"{d} から適用","dl.u.ar":"1 USD あたりの ARS。","dl.u.ve":"1 USD あたりの VES。ベネズエラは平均レートを一つだけ公表し、買値は別にありません。","dl.u.bo":"1 USD あたりの BOB。USDT の行は 1 USDT あたりの BOB。","dl.d7":"7日間で {v} ポイント","dl.d30":"30日間で {v} ポイント","dl.asof":"{d} 時点","dl.ve.valid":"{d} から適用の中央銀行レート","dl.bo.usdt":"現金ではなくステーブルコイン USDT のレート","dl.hist":"{d} から記録 — 7日・30日の変化は後日表示","dl.mm":"{n} — 365日：最低 {min}（{dmin}）、最高 {max}（{dmax}）","dl.na.base":"現在の公式レートがないため乖離率は計算しません","dl.na.stale":"並行レートが4日より古いため乖離率は計算しません","dl.na.miss":"並行レートがないため乖離率は計算しません","dl.na.old":"最新のレートが4日より古いため乖離率は表示しません","dl.na.chk":"レートの比率が妥当な範囲外（単位の誤り？）のため乖離率は表示しません","dl.na.src":"新しいレートがありません — 最後に取得した値を経過時間とともに表示","dl.prev":"{c}：最新の取得に失敗 — {t} 時点の状態を表示","dl.ch.ar":"アルゼンチン：卸売レートに対する CCL と「blue」の乖離率（365日）","dl.ch.ve":"ベネズエラ：並行レートの乖離率","dl.leg":"乖離率 =（並行市場の売りレート ÷ 公式レート − 1）× 100。プラスは公式市場の外でドルが高いこと、マイナスは安いことを示します。各レートには取得時刻と経過時間があり、欠けている数字は「—」で、ゼロではありません。","dl.we":"週末と祝日は、取引所レートと公式レート（卸売、銀行、MEP、CCL）は直近の取引日の値です。表示時刻は取得した時刻で、取引の時刻ではありません。","dl.not1":"乖離率は資金の流れでも為替予測でもありません。価格のシグナルであり、個人や企業が公式ルートの外で自国通貨をドルに替えたい気持ちの強さ、つまり資本規制と通貨にかかる圧力の大きさを示します。乖離が小さくても規制がなくなったとは限らず、大きくても切り下げが確実とは限りません。","dl.not2":"MEP と CCL はサービスによって計算方法が少し異なります（1〜2％の差は普通）。このページは一つの方法を使い続けます。レートは為替情報サービスと中央銀行が毎日公表する相場です。","dl.not3":"ボリビアの P2P レートは現金ではなくステーブルコイン USDT のもので、最初の広告の中で最も多い価格を使います。取引が少なく変動しやすいことがあります。ベネズエラの並行レートは相場集計サービスが公表する平均値です。投資助言ではありません。"}};
 for(const l in EXTRA145)if(I18N[l])Object.assign(I18N[l],EXTRA145[l]);
+/* v140: grupy top 10 w scenie CRYPTO — przyciski, etykiety grup, podpowiedź monety (miejsce w sektorze, cena, kapitalizacja, zmiana 24 h, czas i wiek), opis metody; bez nazw dostawców */
+const EXTRA137={"pl":{"c10.btn":"Top 10 monet w każdym sektorze — pokaż lub ukryj","c10.g":"{s} · top 10","c10.none":"brak danych","c10.load":"wczytywanie…","c10.rank":"{s}: miejsce {r} z {n} wg kapitalizacji","c10.px":"Cena","c10.mc":"Kapitalizacja","c10.ch":"Zmiana 24 h","c10.at":"Notowanie: {t}","c10.sk":"Skład grupy: {t}","c10.meth":"10 największych monet kategorii wg kapitalizacji rynkowej, bez tokenów pochodnych (np. stakowanych i opakowanych), które powtarzają kapitał monety bazowej. Wielkość według kapitalizacji: pole bloku lub kuli ∝ kapitalizacja w grupie; najmniejsze powiększone do minimum, żeby były widoczne. Na wąskim ekranie — 5 największych. Skład co 6 h, ceny co godzinę.","c10.full":"Pełny ekran","c10.exit":"Zamknij pełny ekran"},"en":{"c10.btn":"Top 10 coins in each sector — show or hide","c10.g":"{s} · top 10","c10.none":"no data","c10.load":"loading…","c10.rank":"{s}: #{r} of {n} by market cap","c10.px":"Price","c10.mc":"Market cap","c10.ch":"24 h change","c10.at":"Quote: {t}","c10.sk":"Group composition: {t}","c10.meth":"The 10 largest coins in the category by market capitalisation, excluding derivative tokens (e.g. staked or wrapped) that repeat the capital of the underlying coin. Size by market cap: block or sphere area ∝ market cap within the group; the smallest are enlarged to a minimum so they stay visible. On narrow screens — the top 5. Composition every 6 h, prices every hour.","c10.full":"Full screen","c10.exit":"Exit full screen"},"de":{"c10.btn":"Top 10 Coins je Sektor — ein- oder ausblenden","c10.g":"{s} · Top 10","c10.none":"keine Daten","c10.load":"wird geladen…","c10.rank":"{s}: Platz {r} von {n} nach Marktkapitalisierung","c10.px":"Preis","c10.mc":"Marktkapitalisierung","c10.ch":"Änderung 24 h","c10.at":"Kurs: {t}","c10.sk":"Zusammensetzung der Gruppe: {t}","c10.meth":"Die 10 größten Coins der Kategorie nach Marktkapitalisierung, ohne abgeleitete Token (z. B. gestakt oder gewrappt), die das Kapital des Basis-Coins wiederholen. Größe nach Marktkapitalisierung: Fläche von Block oder Kugel ∝ Marktkapitalisierung in der Gruppe; die kleinsten auf eine Mindestgröße vergrößert, damit sie sichtbar bleiben. Auf schmalen Bildschirmen — die 5 größten. Zusammensetzung alle 6 h, Preise stündlich.","c10.full":"Vollbild","c10.exit":"Vollbild beenden"},"es":{"c10.btn":"Top 10 monedas de cada sector — mostrar u ocultar","c10.g":"{s} · top 10","c10.none":"sin datos","c10.load":"cargando…","c10.rank":"{s}: puesto {r} de {n} por capitalización","c10.px":"Precio","c10.mc":"Capitalización","c10.ch":"Cambio 24 h","c10.at":"Cotización: {t}","c10.sk":"Composición del grupo: {t}","c10.meth":"Las 10 mayores monedas de la categoría por capitalización de mercado, sin tokens derivados (p. ej. en staking o envueltos) que repiten el capital de la moneda base. Tamaño según capitalización: área del bloque o de la esfera ∝ capitalización dentro del grupo; las más pequeñas, ampliadas a un tamaño mínimo para que se vean. En pantallas estrechas — las 5 mayores. Composición cada 6 h, precios cada hora.","c10.full":"Pantalla completa","c10.exit":"Salir de pantalla completa"},"fr":{"c10.btn":"Top 10 des cryptos de chaque secteur — afficher ou masquer","c10.g":"{s} · top 10","c10.none":"pas de données","c10.load":"chargement…","c10.rank":"{s} : rang {r} sur {n} par capitalisation","c10.px":"Prix","c10.mc":"Capitalisation","c10.ch":"Variation 24 h","c10.at":"Cours : {t}","c10.sk":"Composition du groupe : {t}","c10.meth":"Les 10 plus grandes cryptomonnaies de la catégorie par capitalisation boursière, hors jetons dérivés (p. ex. stakés ou enveloppés) qui répètent le capital de la monnaie de base. Taille selon la capitalisation : surface du bloc ou de la sphère ∝ capitalisation au sein du groupe ; les plus petites sont agrandies à une taille minimale pour rester visibles. Sur écran étroit — les 5 plus grandes. Composition toutes les 6 h, prix toutes les heures.","c10.full":"Plein écran","c10.exit":"Quitter le plein écran"},"it":{"c10.btn":"Top 10 monete di ogni settore — mostra o nascondi","c10.g":"{s} · top 10","c10.none":"nessun dato","c10.load":"caricamento…","c10.rank":"{s}: {r}° posto su {n} per capitalizzazione","c10.px":"Prezzo","c10.mc":"Capitalizzazione","c10.ch":"Variazione 24 h","c10.at":"Quotazione: {t}","c10.sk":"Composizione del gruppo: {t}","c10.meth":"Le 10 maggiori monete della categoria per capitalizzazione di mercato, esclusi i token derivati (ad es. in staking o wrapped) che ripetono il capitale della moneta di base. Dimensione secondo la capitalizzazione: area del blocco o della sfera ∝ capitalizzazione nel gruppo; le più piccole sono ingrandite a una dimensione minima per restare visibili. Su schermi stretti — le 5 maggiori. Composizione ogni 6 h, prezzi ogni ora.","c10.full":"Schermo intero","c10.exit":"Esci da schermo intero"},"pt":{"c10.btn":"Top 10 moedas de cada setor — mostrar ou ocultar","c10.g":"{s} · top 10","c10.none":"sem dados","c10.load":"carregando…","c10.rank":"{s}: {r}º lugar de {n} por capitalização","c10.px":"Preço","c10.mc":"Capitalização","c10.ch":"Variação 24 h","c10.at":"Cotação: {t}","c10.sk":"Composição do grupo: {t}","c10.meth":"As 10 maiores moedas da categoria por capitalização de mercado, sem tokens derivados (p. ex. em staking ou encapsulados) que repetem o capital da moeda base. Tamanho conforme a capitalização: área do bloco ou da esfera ∝ capitalização dentro do grupo; as menores são ampliadas até um tamanho mínimo para continuarem visíveis. Em ecrãs estreitos — as 5 maiores. Composição a cada 6 h, preços a cada hora.","c10.full":"Ecrã inteiro","c10.exit":"Sair do ecrã inteiro"},"ru":{"c10.btn":"Топ-10 монет в каждом секторе — показать или скрыть","c10.g":"{s} · топ-10","c10.none":"нет данных","c10.load":"загрузка…","c10.rank":"{s}: {r}-е место из {n} по капитализации","c10.px":"Цена","c10.mc":"Капитализация","c10.ch":"Изменение за 24 ч","c10.at":"Котировка: {t}","c10.sk":"Состав группы: {t}","c10.meth":"10 крупнейших монет категории по рыночной капитализации, без производных токенов (например, застейканных или обёрнутых), которые повторяют капитал базовой монеты. Размер по капитализации: площадь блока или шара ∝ капитализации внутри группы; самые маленькие увеличены до минимального размера, чтобы их было видно. На узком экране — 5 крупнейших. Состав каждые 6 ч, цены каждый час.","c10.full":"Полный экран","c10.exit":"Выйти из полноэкранного режима"},"zh":{"c10.btn":"各板块市值前 10 名币种 — 显示或隐藏","c10.g":"{s} · 前 10","c10.none":"暂无数据","c10.load":"加载中…","c10.rank":"{s}：按市值第 {r} 名（共 {n} 个）","c10.px":"价格","c10.mc":"市值","c10.ch":"24 小时涨跌","c10.at":"报价时间：{t}","c10.sk":"组成更新：{t}","c10.meth":"该类别按市值排名前 10 的币种，不含重复基础币资本的衍生代币（如质押或封装代币）。大小按市值：方块或球体的面积 ∝ 组内市值；最小的放大到最小尺寸以便看清。窄屏上仅显示前 5 名。成分每 6 小时更新，价格每小时更新。","c10.full":"全屏","c10.exit":"退出全屏"},"ja":{"c10.btn":"セクター別の時価総額トップ10銘柄 — 表示/非表示","c10.g":"{s} · トップ10","c10.none":"データなし","c10.load":"読み込み中…","c10.rank":"{s}：時価総額 {n} 銘柄中 {r} 位","c10.px":"価格","c10.mc":"時価総額","c10.ch":"24時間の変化","c10.at":"相場：{t}","c10.sk":"グループ構成：{t}","c10.meth":"カテゴリー内の時価総額上位10銘柄（基礎となるコインの資本を重複させる派生トークン、例：ステーキング済みやラップ済みは除く）。大きさは時価総額に基づく：ブロックや球の面積 ∝ グループ内の時価総額。最小のものは見えるよう最小サイズまで拡大。狭い画面では上位5銘柄。構成は6時間ごと、価格は1時間ごとに更新。","c10.full":"全画面表示","c10.exit":"全画面を終了"}};
+for(const l in EXTRA137)if(I18N[l])Object.assign(I18N[l],EXTRA137[l]);
 
 /* ===================== STAN I DANE ===================== */
 const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2115,7 +2155,8 @@ let CW=1,CH=1,DPR=1,dirty=true;
 const FY=-7.6;
 const cam={yaw:.78,pitch:.36,dist:41,tx:0,ty:.3,tz:0,fov:40*Math.PI/180};
 const PRE={iso:{yaw:.78,pitch:.36},top:{yaw:0,pitch:1.45},side:{yaw:0,pitch:.06}};
-const homeDist=()=>{const a=CW/CH;return 41*Math.max(1,1.3/a)*(CW<560?1.05:1);};
+const homeBase=()=>{const a=CW/CH;return 41*Math.max(1,1.3/a)*(CW<560?1.05:1);};
+const homeDist=()=>homeBase()*(typeof t10Fit==='function'?t10Fit():1);   /* v140: grupy top 10 na zewnętrznym kręgu — kamera startowa obejmuje całość */
 const HOME=()=>({yaw:.78,pitch:.36,dist:homeDist(),tx:0,ty:.3,tz:0});
 
 const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
@@ -2677,7 +2718,7 @@ function drawScene(mirror,time){
     const q0=pr(M(p0)),q1=pr(M(p1)),m=pr(M(mid(p0,p1)));
     if(q0&&q1&&m)items.push({z:m[2]+1e3,fn:()=>{g.save();g.globalAlpha=ga*(st.sel?.4:1);g.beginPath();g.moveTo(q0[0],q0[1]);g.lineTo(q1[0],q1[1]);g.strokeStyle=PAL.skel;g.lineWidth=1;g.stroke();g.restore();}});
   });
-  items.sort((a,b)=>b.z-a.z);items.forEach(i=>i.fn());
+  if(!mirror&&typeof t10Items==='function')t10Items(items);items.sort((a,b)=>b.z-a.z);items.forEach(i=>i.fn());   /* v140: grupy top 10 w tej samej kolejności głębokości (bez odbicia) */
 }
 function txt(s,x,y,font,fill){g.font=font;g.textAlign='center';g.textBaseline='alphabetic';g.lineJoin='round';g.lineWidth=4;g.strokeStyle=PAL.stroke;g.strokeText(s,x,y);g.fillStyle=fill;g.fillText(s,x,y);}
 const lab=(v,p)=>(v>0?'▲ ':'▼ ')+(st.label==='val'?compact(v):fPct(p));
@@ -2697,15 +2738,17 @@ function drawLabels(){
   const placed=[],hit=(r,q)=>r.x<q.x+q.w&&r.x+r.w>q.x&&r.y<q.y+q.h&&r.y+r.h>q.y;
   L.forEach(l=>{
     let best=null;
-    for(let k=0;k<4&&!best;k++){const r={x:l.cx-l.w/2,y:l.top-6-l.h-k*(l.h+2),w:l.w,h:l.h};if(r.y<2&&k>0)break;r.y=Math.max(2,r.y);if(!placed.some(q=>hit(r,q))){best=r;l.k=k;}}
-    if(!best){best={x:l.cx-l.w/2,y:Math.max(2,l.top-6-l.h),w:l.w,h:l.h};l.ov=true;}
+    for(let k=0;k<4&&!best;k++){const r={x:l.cx-l.w/2,y:l.top-6-l.h-k*(l.h+2),w:l.w,h:l.h};if(r.y<2&&k>0)break;r.y=Math.max(2,r.y);if(typeof t10Keep==='function')t10Keep(r);if(!placed.some(q=>hit(r,q))){best=r;l.k=k;}}
+    if(!best){best={x:l.cx-l.w/2,y:Math.max(2,l.top-6-l.h),w:l.w,h:l.h};if(typeof t10Keep==='function')t10Keep(best);l.ov=true;}   /* v140: etykiety modelu nigdy pod przyciskami sceny (przesunięte w lewo) */
     l.r=best;placed.push(best);
   });
+  if(typeof t10NodeLab==='function')t10NodeLab(L);   /* v140: etykiety grup top 10 omijają etykiety modelu */
   L.slice().reverse().forEach(l=>{
     const dim=!relNode(l.n);g.save();g.globalAlpha=(dim?.35:1)*(l.ov?.55:1);const tint=l.v>=0?PAL.gr:PAL.rd;
-    if(l.k>0){g.beginPath();g.moveTo(l.cx,l.r.y+l.r.h);g.lineTo(l.cx,l.top);g.strokeStyle=`rgba(${tint},.45)`;g.lineWidth=1;g.stroke();}
-    txt(nName(l.n.id),l.cx,l.r.y+13,f1,PAL.text);
-    if(l.l2)txt(l.l2,l.cx,l.r.y+28,f2,`rgb(${tint})`);
+    const lx=l.r.x+l.r.w/2,sh=Math.abs(lx-l.cx)>.5;   /* v140: etykieta przesunięta spod przycisków — tekst w swoim prostokącie, kreska do bryły */
+    if(l.k>0||sh){g.beginPath();g.moveTo(lx,l.r.y+l.r.h);g.lineTo(l.cx,l.top);g.strokeStyle=`rgba(${tint},.45)`;g.lineWidth=1;g.stroke();}
+    txt(nName(l.n.id),lx,l.r.y+13,f1,PAL.text);
+    if(l.l2)txt(l.l2,lx,l.r.y+28,f2,`rgb(${tint})`);
     g.restore();
   });
   EDGES.forEach(e=>{
@@ -2718,7 +2761,7 @@ function render(time){   /* v110: bloki i kule w tej samej scenie — podłoga, 
   g.setTransform(DPR,0,0,DPR,0,0);g.clearRect(0,0,CW,CH);
   setCam();drawFloor();NODES.forEach(drawGroundGlow);
   if(C[1]>FY+.3)drawScene(true,time);
-  drawScene(false,time);drawLabels();
+  drawScene(false,time);drawLabels();if(typeof t10After==='function')t10After();
 }
 let lastT=0,lastInteract=0,dragging=false;
 function loop(tm){
@@ -6102,7 +6145,7 @@ function cgPing(cb){
 
 /* ---------- interakcje ---------- */
 const ptrs=new Map();let downPos=null,pinch0=0,moved=0,panMode=false;
-const clampCam=()=>{cam.pitch=Math.max(-1.2,Math.min(1.5,cam.pitch));cam.dist=Math.max(10,Math.min(95,cam.dist));cam.tx=Math.max(-24,Math.min(24,cam.tx));cam.ty=Math.max(-9,Math.min(18,cam.ty));cam.tz=Math.max(-24,Math.min(24,cam.tz));};
+const clampCam=()=>{cam.pitch=Math.max(-1.2,Math.min(1.5,cam.pitch));cam.dist=Math.max(10,Math.min(typeof t10DistMax==='function'?t10DistMax():95,cam.dist));cam.tx=Math.max(-24,Math.min(24,cam.tx));cam.ty=Math.max(-9,Math.min(18,cam.ty));cam.tz=Math.max(-24,Math.min(24,cam.tz));};
 const pos=e=>{const r=cvs.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};
 cvs.addEventListener('contextmenu',e=>e.preventDefault());
 cvs.addEventListener('pointerdown',e=>{
@@ -6123,7 +6166,7 @@ cvs.addEventListener('pointermove',e=>{
 function endPtr(e){
   const was=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch0=0;
   if(!ptrs.size){dragging=false;cvs.classList.remove('drag');
-    if(was&&e.type==='pointerup'&&moved<5&&downPos){const h=pick(downPos[0],downPos[1]);if(h)select(h);else if(st.sel)select(st.sel);}}
+    if(was&&e.type==='pointerup'&&moved<5&&downPos){const h=pick(downPos[0],downPos[1]);if(h)select(h);else if(st.sel&&!(typeof t10PickTop==='function'&&t10PickTop(downPos[0],downPos[1])))select(st.sel);}}
 }
 cvs.addEventListener('pointerup',endPtr);cvs.addEventListener('pointercancel',endPtr);
 cvs.addEventListener('pointerleave',()=>{if(hover){hover=null;cvs.classList.remove('hov');dirty=true;}});
@@ -6139,29 +6182,309 @@ cvs.addEventListener('keydown',e=>{
   else if(k==='+'||k==='=')cam.dist*=.9;else if(k==='-'||k==='_')cam.dist/=.9;else if(k==='0')camTo(HOME(),500);else h=false;
   if(h){e.preventDefault();camTw=null;clampCam();lastInteract=performance.now();dirty=true;}
 });
-function pick(x,y){   /* v110: kule mają n._c=[x,y,R] (pusty _hull), bloki — obrys _hull */
+function pick(x,y){   /* v140: moneta grupy top 10 wygrywa tylko, gdy jest bliżej kamery niż element modelu pod punktem (wtedy podpowiedź, nie zaznaczenie) */
+  const m=pickModel(x,y),c=typeof t10Pick==='function'?t10Pick(x,y):null;
+  return c&&(!m||c.z<m.z)?null:(m?{type:m.type,id:m.id}:null);
+}
+function pickModel(x,y){   /* v110: kule mają n._c=[x,y,R] (pusty _hull), bloki — obrys _hull; v140: z głębokością z */
   const ns=NODES.filter(n=>{
     if(n._cx===undefined)return false;
     if(!n._hull.length)return Math.hypot(x-n._c[0],y-n._c[1])<=n._c[2]+4;
     return inHull(n._hull,x,y)||Math.hypot(x-n._cx,y-n._cy)<=14;
   }).sort((a,b)=>a._d-b._d);
-  if(ns.length)return{type:'node',id:ns[0].id};
+  if(ns.length)return{type:'node',id:ns[0].id,z:ns[0]._d};
   let best=null,bd=9;
   EDGES.forEach(e=>{if(!e._scr)return;const a=e._scr[0],b=e._scr[1],vx=b[0]-a[0],vy=b[1]-a[1],l2=vx*vx+vy*vy||1;
     let tt=((x-a[0])*vx+(y-a[1])*vy)/l2;tt=Math.max(0,Math.min(1,tt));const d=Math.hypot(x-(a[0]+vx*tt),y-(a[1]+vy*tt));if(d<bd){bd=d;best={type:'edge',id:e.id};}});
+  if(best){const r=routeOf(EB[best.id]),q=pr(mid(r.pts[0],r.pts[1]));best.z=q?q[2]:Infinity;}   /* v140: głębokość linii pod punktem */
   return best;
 }
 $('#z-in').addEventListener('click',()=>{camTo({dist:Math.max(10,cam.dist*.8)},300);});
-$('#z-out').addEventListener('click',()=>{camTo({dist:Math.min(80,cam.dist/.8)},300);});
+$('#z-out').addEventListener('click',()=>{camTo({dist:Math.min(typeof t10DistOut==='function'?t10DistOut():80,cam.dist/.8)},300);});
 $('#z-reset').addEventListener('click',()=>{camTo(HOME(),800);});
 function camPreset(v){const p=PRE[v];st.camPreset=v;camTo({yaw:p.yaw,pitch:p.pitch,dist:homeDist()*(v==='top'?1.18:1),tx:0,ty:.3,tz:0},900);lastInteract=performance.now();}
 
+/* ===================== v140: TOP 10 MONET W SEKTORACH — grupy w scenie CRYPTO (BLOCKCHAIN 3D: małe bloki, KULE 3D: małe kule), plik data/krypto-top10.json =====================
+   Każdy sektor — L1 i L2 (przy elemencie L1/L2), AI, DeFi, RWA, memecoiny, DePIN, gaming; giełdy bez grupy — ma grupę największych monet wg kapitalizacji
+   na zewnętrznym kręgu po stronie swojego sektora, wszystkie grupy na jednej wysokości i co najmniej T10_GAP od siebie (na ekranie nie zachodzą na siebie przy żadnym
+   obrocie), połączoną cienką linią w kolorze grupy (T10_COL — każda grupa własny kolor, L1 i L2 różne; oba motywy, kontrast ≥ 3:1 z tłem).
+   Wielkość monety: pole ∝ kapitalizacji w grupie, najmniejsze powiększone do minimum (T10_SMIN). Grupa zwrócona do kamery. Logo z pliku data/krypto-top10-logo.json
+   (obrazki wbudowane w plik strony — przeglądarka nie łączy się z obcym serwerem), tekstura liczona raz na monetę; bez logo — znaczek z symbolem.
+   Komputer (płótno ≥ T10_NARROW): 10 monet, krąg T10_R, kamera startowa oddalona o T10_FIT, gdy jest choć jedna moneta. Telefon: skala modelu bez zmian
+   (kamera jak dotąd), 5 największych monet na mniejszym kręgu T10_RP, krótkie podpisy. Moneta przed elementem modelu, która go zasłania na ekranie — przygaszona
+   i bez podpowiedzi (element modelu widoczny i klikalny); moneta wygrywa wskazanie tylko, gdy jest bliżej kamery niż element modelu pod kursorem.
+   Podpisy grup nigdy nie nachodzą na inne napisy, bryły ani przyciski: pełny („L1 · top 10”), krótki („L1”) albo żaden. Brak grupy = przerywany okrąg z kreską
+   i „brak danych” (gdy jest miejsce), nigdy zero ani cicha podmiana. Podpowiedź monety (najechanie; na telefonie dotknięcie): nazwa, miejsce w sektorze, cena,
+   kapitalizacja, zmiana 24 h, czas notowania z wiekiem, czas składu i opis metody — bez nazw dostawców. Przyciski obok przybliż / oddal / widok domyślny (komputer:
+   druga kolumna po lewej, dotychczasowe trzy bez zmian miejsca; telefon: pięć w rzędzie na dole sceny): „Top 10” (pokaż / ukryj, domyślnie pokazane) i pełny ekran
+   (ten sam mechanizm i znak co mapa GLOBAL). Etykiety modelu, monety i podpisy grup nigdy pod przyciskami (t10Keep, t10ZoomRect). */
+const T10_G=[['l1','l12','L1'],['l2','l12','L2'],['ai','ai'],['defi','defi'],['rwa','rwa'],['meme','meme'],['depin','depin'],['gaming','gaming']];   /* grupa → element sceny (krótki podpis) */
+const T10_N=10,T10_NP=5,T10_NARROW=560,T10_FIT=1.5,T10_R=24,T10_RP=17.5,T10_Y=.5,T10_GAP=40*Math.PI/180,T10_SMIN=.5,T10_SMAX=1.6,T10_FOOT=.8,T10_PAD=.18,T10_RG=2.6,T10_RGP=1.25;
+/* kolory grup (r,g,b): ciemny i jasny motyw; kontrast z tłem (#000 / #fff) ≥ 3:1, L1 ≠ L2 (test v140) */
+const T10_COL={dark:{l1:'10,132,255',l2:'172,142,104',ai:'191,90,242',defi:'94,92,230',rwa:'255,214,10',meme:'255,159,10',depin:'99,230,226',gaming:'255,100,200'},
+  light:{l1:'0,122,255',l2:'162,132,94',ai:'175,82,222',defi:'88,86,214',rwa:'178,134,0',meme:'220,100,0',depin:'0,160,152',gaming:'200,40,140'}};
+const T10_ID=/^[a-z0-9][a-z0-9-]{0,99}$/,T10_URI=/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+\/]+=*$/;
+function t10ColFor(k,dark){const P=T10_COL[dark===false?'light':'dark'];return P[k]||P.l1;}
+/* czas z pliku: dzień musi wrócić do siebie (2026-02-30 to nie 2 marca) */
+function t10Iso(s){if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s))return null;const ms=Date.parse(s);return isFinite(ms)&&new Date(ms).toISOString().slice(0,10)===s.slice(0,10)?s:null;}
+/* plik → {at, g:{grupa:{c:[{id,sym,name,px,mc,ch,upd}], sk}}}; wiersz bez id albo bez dodatniej kapitalizacji odrzucony; cena ≤ 0 i brak zmiany = null (nie 0);
+   kolejność wg kapitalizacji (miejsce w sektorze), najwyżej 10; żadnej monety = null (strona: „brak danych”) */
+function t10Norm(j){
+  if(!j||typeof j!=='object'||!j.g||typeof j.g!=='object'||!Array.isArray(j.cols))return null;
+  const I={};for(const n of ['id','sym','name','px','mc','ch','upd']){I[n]=j.cols.indexOf(n);if(I[n]<0)return null;}
+  const num=v=>typeof v==='number'&&isFinite(v)?v:null,str=(v,m)=>typeof v==='string'&&v.trim()?v.trim().replace(/\s+/g,' ').slice(0,m):'';
+  const out={at:t10Iso(j.at),g:{}};let n=0;
+  T10_G.forEach(([k])=>{const G=j.g[k],seen=new Set(),rows=[];
+    (G&&Array.isArray(G.c)?G.c:[]).forEach(r=>{if(!Array.isArray(r))return;const id=r[I.id],mc=num(r[I.mc]);
+      if(typeof id!=='string'||!T10_ID.test(id)||seen.has(id)||!(mc>0))return;seen.add(id);
+      const sym=str(r[I.sym],16)||id.slice(0,8).toUpperCase(),px=num(r[I.px]);
+      rows.push({id,sym,name:str(r[I.name],60)||sym,px:px>0?px:null,mc,ch:num(r[I.ch]),upd:t10Iso(r[I.upd])});});
+    rows.sort((a,b)=>b.mc-a.mc);out.g[k]={c:rows.slice(0,T10_N),sk:G?t10Iso(G.sk):null};n+=out.g[k].c.length;});
+  return n?out:null;
+}
+/* plik logo → {id: data:image/…} (tylko obrazki rastrowe, najwyżej 40 000 znaków) */
+function t10LogoNorm(j){const o={};if(j&&typeof j==='object'&&j.logo&&typeof j.logo==='object')for(const id in j.logo){const u=j.logo[id];if(T10_ID.test(id)&&typeof u==='string'&&u.length<=40000&&T10_URI.test(u))o[id]=u;}return o;}
+/* kąty grup na kręgu: jak najbliżej kąta sektora, sąsiednie grupy co najmniej o gap (kolejność wokół kręgu zachowana; ta sama wartość — kolejność grup) */
+function t10Angles(tg,gap){
+  const TAU=Math.PI*2,n=tg.length;if(n<2)return tg.slice();gap=Math.min(gap,TAU/n);
+  const ord=tg.map((a,i)=>[((a%TAU)+TAU)%TAU,i]).sort((x,y)=>x[0]-y[0]||x[1]-y[1]),a=ord.map(x=>x[0]);
+  for(let it=0;it<5000;it++){let bad=0;
+    for(let k=0;k<n;k++){const j=(k+1)%n,d=a[j]-a[k]+(j===0?TAU:0);if(d<gap-1e-9){const p=(gap-d)/2+1e-9;a[k]-=p;a[j]+=p;bad++;}}
+    if(!bad)break;}
+  const out=new Array(n);ord.forEach(([,i],k)=>{out[i]=a[k];});return out;
+}
+/* bok bloku / średnica kuli: pole ∝ kapitalizacji w grupie (największa = T10_SMAX); mniejsze niż T10_SMIN powiększone do T10_SMIN, żeby były widoczne */
+function t10Sizes(mcs){const mx=Math.max(0,...mcs.filter(v=>v>0));return mcs.map(v=>mx>0&&v>0?Math.max(T10_SMIN,T10_SMAX*Math.sqrt(v/mx)):T10_SMIN);}
+/* układ grupy w płaszczyźnie zwróconej do kamery: największa moneta w środku, pozostałe na okręgu (od góry, zgodnie z ruchem wskazówek), kąt wg szerokości;
+   promień okręgu tak duży, że żadne dwie monety nie nachodzą na siebie (cięciwa ≥ suma obrysów + odstęp); r = promień całej grupy */
+function t10Cluster(sz){
+  const f=sz.map(s=>s*T10_FOOT),n=f.length;if(!n)return{o:[],r:0};if(n===1)return{o:[[0,0]],r:f[0]};
+  const rest=f.slice(1),w=rest.map(x=>2*x+T10_PAD),need=w.reduce((x,y)=>x+y,0),m=rest.length;
+  const th=[];let acc=0;w.forEach(x=>{th.push((acc+x/2)/need*2*Math.PI);acc+=x;});
+  let rc=Math.max(f[0]+Math.max(...rest)+T10_PAD,need/(2*Math.PI));
+  for(let it=0;it<200;it++){let ok=true;
+    for(let i=0;i<m&&m>1;i++){const j=(i+1)%m;let d=th[j]-th[i];if(j===0)d+=2*Math.PI;if(2*rc*Math.sin(Math.min(Math.PI,d)/2)<rest[i]+rest[j]+T10_PAD-1e-9){ok=false;break;}}
+    if(ok)break;rc*=1.03;}
+  const o=[[0,0]];th.forEach(a=>{const b=Math.PI/2-(a-th[0]);o.push([rc*Math.cos(b),rc*Math.sin(b)]);});
+  return{o,r:rc+Math.max(...rest)};
+}
+/* grupa: wielkości wg kapitalizacji i układ; grupa większa niż rg zmniejszona w całości do promienia rg — proporcje w grupie zostają */
+function t10Group(mcs,rg){rg=rg||T10_RG;let s=t10Sizes(mcs),C=t10Cluster(s);
+  for(let i=0;i<8&&C.r>rg;i++){const k=rg/C.r*.995;s=s.map(x=>x*k);C=t10Cluster(s);}
+  return{s,o:C.o,r:C.r};}
+/* środki grup: kąt po stronie sektora na kręgu (komputer T10_R, telefon T10_RP), wszystkie na wysokości T10_Y — różne wysokości zbliżały grupy na ekranie */
+function t10Ring(nodes,narrow){
+  const nb={};nodes.forEach(n=>{nb[n.id]=n;});const R=narrow?T10_RP:T10_R;
+  const tg=T10_G.map(([,id])=>Math.atan2(nb[id].p[2],nb[id].p[0])),an=t10Angles(tg,T10_GAP),out={};
+  T10_G.forEach(([k],i)=>{out[k]={a:an[i],t:tg[i],p:[R*Math.cos(an[i]),T10_Y,R*Math.sin(an[i])]};});
+  return out;
+}
+/* liczby podpowiedzi: brak = „—”, nigdy 0 */
+function t10Px(v){if(!(typeof v==='number'&&isFinite(v)&&v>0))return '—';if(v>=1000)return nfmt(v,0);if(v>=1)return nfmt(v,2);if(v>=.01)return nfmt(v,4);
+  try{return new Intl.NumberFormat(LOCALE[LANG],{maximumSignificantDigits:3}).format(v);}catch(e){return String(+v.toPrecision(3));}}
+function t10Mc(v){if(!(typeof v==='number'&&isFinite(v)&&v>0))return '—';const x=big(v);return nfmt(x[0],x[2])+' '+t(x[1]);}
+function t10Ago(iso,now){const ms=Date.parse(iso||'');if(!isFinite(ms))return '';const m=Math.max(0,Math.round(((now||Date.now())-ms)/60000));
+  return m<60?t('ln.ago.m',{n:m}):m<48*60?t('ln.ago.h',{n:Math.round(m/60)}):t('ln.ago.d',{n:Math.floor(m/1440)});}
+function t10When(iso,now){if(!iso)return '—';const a=t10Ago(iso,now);return engDate(iso)+(a?' · '+a:'');}
+/* podpowiedź monety (HTML; wszystkie teksty z pliku przez escH) */
+function t10TipHtml(k,c,rank,n,logo,sk,now){
+  const G=T10_G.find(x=>x[0]===k),sec=G?(G[2]||nName(G[1])):k,ch=typeof c.ch==='number'&&isFinite(c.ch)?c.ch:null;
+  const img=logo&&T10_URI.test(logo)?`<img src="${escH(logo)}" alt="" width="20" height="20">`:'';
+  return `<div class="t10-h">${img}<span>${escH(c.name)} <small>${escH(c.sym)}</small></span></div>`
+    +`<div class="t10-r">${escH(t('c10.rank',{s:sec,r:rank,n}))}</div>`
+    +`<dl><dt>${escH(t('c10.px'))}</dt><dd>${c.px==null?'—':escH(t10Px(c.px))+' USD'}</dd>`
+    +`<dt>${escH(t('c10.mc'))}</dt><dd>${escH(t10Mc(c.mc))}</dd>`
+    +`<dt>${escH(t('c10.ch'))}</dt><dd class="${ch>0?'up':ch<0?'dn':''}">${ch===null?'—':(ch>0?'▲':ch<0?'▼':'•')+' '+escH(fPct(ch,2))}</dd></dl>`
+    +`<div class="t10-f">${escH(t('c10.at',{t:t10When(c.upd,now)}))}<br>${escH(t('c10.sk',{t:t10When(sk,now)}))}</div>`
+    +`<div class="t10-m">${escH(t('c10.meth'))}</div>`;
+}
+/* miejsca na podpis grupy (obrys grupy b na ekranie, podpis w×h, kadr W×H), w kolejności: nad grupą, pod nią, po zewnętrznej stronie (dalej od środka
+   modelu mx), po wewnętrznej, wyżej; każde w całości w kadrze (przesunięte w poziomie, pionowo poza kadrem — pominięte) */
+function t10LabSpots(b,w,h,mx,W,H){const cx=(b.x0+b.x1)/2,cy=(b.y0+b.y1)/2,R=[b.x1+6,cy-h/2],Lf=[b.x0-6-w,cy-h/2],out=cx>=mx;
+  return[[cx-w/2,b.y0-4-h],[cx-w/2,b.y1+4],out?R:Lf,out?Lf:R,[cx-w/2,b.y0-6-2*h]].map(([x,y])=>({x:Math.max(2,Math.min(W-w-2,x)),y,w,h})).filter(q=>q.y>=2&&q.y+h<=H-2);}
+/* v140: koniec części liczącej */
+var T10={data:null,logo:{},tried:new Set(),st:'idle',seen:false,tex:{},img:{},pos:{},lay:{w:{},n:{}},hit:[],box:[],labs:[],nlab:[],hov:null,pin:null,mp:null,down:null,tip:null,logoAt:0,timer:null};   /* var: kamera (homeDist) może pytać przed tym miejscem skryptu */
+if(st.t10===undefined)st.t10=true;
+function t10Narrow(){return CW<T10_NARROW;}
+function t10Any(){const D=T10&&T10.data;if(!D)return false;for(const k in D.g)if(D.g[k].c.length)return true;return false;}
+/* kamera startowa: oddalona tylko na komputerze, gdy grupy są pokazane i jest choć jedna moneta (telefon — skala modelu jak dotąd) */
+function t10Fit(){return st&&st.t10!==false&&!t10Narrow()&&t10Any()?T10_FIT:1;}
+function t10DistMax(){return Math.max(95,homeDist()*1.45);}   /* oddalanie: bez grup jak dotąd (95 / 80) */
+function t10DistOut(){return Math.max(80,homeDist()*1.25);}
+function t10Col(k){return t10ColFor(k,PAL.dark);}
+function t10Pos(){const nw=t10Narrow()?'n':'w';return T10.pos[nw]||(T10.pos[nw]=t10Ring(NODES,nw==='n'));}
+function t10L(k){return T10.lay[t10Narrow()?'n':'w'][k]||null;}
+function t10Coins(k){const D=T10.data;return D&&D.g[k]?D.g[k].c.slice(0,t10Narrow()?T10_NP:T10_N):[];}
+/* kamera stała w miejscu startowym — po zmianie miejsca startowego (dane przyszły / zniknęły, grupy pokazane / ukryte) jedzie do nowego */
+function t10Rehome(was){const h=homeDist();if(Math.abs(h-was)<1e-9)return;const at=Math.abs(cam.dist-was)<.6&&!st.sel;cam._home=h;if(at)camTo({dist:h},700);dirty=true;}
+function t10SetData(d){const was=homeDist();T10.data=d;T10.st='ok';T10.lay={w:{},n:{}};
+  for(const k in d.g){const c=d.g[k].c;if(c.length){T10.lay.w[k]=t10Group(c.slice(0,T10_N).map(x=>x.mc),T10_RG);T10.lay.n[k]=t10Group(c.slice(0,T10_NP).map(x=>x.mc),T10_RGP);}}
+  t10Rehome(was);}
+function t10Load(){if(!T10.data)T10.st='load';
+  srvJSON('krypto-top10').then(j=>{const d=t10Norm(j);if(d){t10SetData(d);if(T10.seen)t10LogoLoad();}else if(!T10.data)T10.st='err';
+    if(T10.pin&&!t10Find(T10.pin.k,T10.pin.id)){T10.pin=null;t10TipHide();}dirty=true;});}
+function t10Ids(){const D=T10.data,o=[];if(D)for(const k in D.g)D.g[k].c.forEach(c=>{if(!o.includes(c.id))o.push(c.id);});return o;}
+/* plik logo: tylko gdy w grupach jest moneta, o którą jeszcze nie pytano (brak logo w pliku zapamiętany — bez ponownego pobierania co 20 min);
+   nieudane pobranie — ponownie najwcześniej po 15 min */
+function t10LogoLoad(){const ids=t10Ids();if(!ids.some(id=>!T10.logo[id]&&!T10.tried.has(id)))return;
+  if(T10.logoAt&&Date.now()-T10.logoAt<15*60*1000)return;T10.logoAt=Date.now();
+  srvJSON('krypto-top10-logo').then(j=>{if(!j)return;ids.forEach(id=>T10.tried.add(id));const L=t10LogoNorm(j);
+    for(const id in L)if(T10.logo[id]!==L[id]){T10.logo[id]=L[id];delete T10.tex[id];delete T10.img[id];}dirty=true;});}
+function t10Auto(){if(T10.timer)return;T10.timer=setInterval(()=>{if(!document.hidden)t10Load();},20*60*1000);}   /* plik co 55 min — strona pyta co 20 min */
+function t10Find(k,id){const D=T10.data;if(!D||!D.g[k])return null;const i=D.g[k].c.findIndex(c=>c.id===id);return i<0?null:{c:D.g[k].c[i],i};}
+/* tekstura logo: liczona raz na monetę (koło 64 px), potem tylko drawImage */
+function t10Tex(id){const u=T10.logo[id];if(!u)return null;if(T10.tex[id])return T10.tex[id];
+  if(!T10.img[id]){const im=new Image();im.onload=()=>{try{const cv=document.createElement('canvas');cv.width=cv.height=64;const c=cv.getContext('2d');c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.clip();c.drawImage(im,0,0,64,64);T10.tex[id]=cv;}catch(e){}dirty=true;};im.src=u;T10.img[id]=im;}
+  return null;}
+function t10Logo(c,x,y,r,col){if(r<2.2)return;const tx=t10Tex(c.id);
+  if(tx){g.drawImage(tx,x-r,y-r,2*r,2*r);return;}
+  g.fillStyle=`rgba(${col},.92)`;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();   /* bez logo: znaczek z symbolem */
+  if(r>=6){const s=Array.from(String(c.sym)).slice(0,r>=11?4:3).join('');g.fillStyle='#fff';g.font=`700 ${Math.max(6,r*(s.length>3?.62:.8)).toFixed(1)}px ${FF}`;g.textAlign='center';g.textBaseline='middle';g.fillText(s,x,y+r*.04);}}
+function t10Line(a,b,col,dim,empty){g.save();g.globalAlpha=dim?.25:1;g.lineCap='round';g.setLineDash(empty?[4,5]:[]);g.lineWidth=1.3;g.strokeStyle=`rgba(${col},${PAL.dark?.55:.7})`;
+  g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();g.setLineDash([]);g.fillStyle=`rgba(${col},${PAL.dark?.7:.85})`;g.beginPath();g.arc(b[0],b[1],2,0,Math.PI*2);g.fill();g.restore();}
+/* pusta grupa: przerywany okrąg z kreską w środku („—”) — widać brak także wtedy, gdy na podpis „brak danych” nie ma miejsca */
+function t10Empty(p,col,dim){const r=Math.max(6,1.3*FP/p[2]);g.save();g.globalAlpha=dim?.25:.9;g.setLineDash([3,4]);g.lineWidth=1.2;g.strokeStyle=`rgba(${col},.6)`;g.beginPath();g.arc(p[0],p[1],r,0,Math.PI*2);g.stroke();
+  g.setLineDash([]);g.lineWidth=1.6;g.strokeStyle=`rgba(${col},.85)`;g.beginPath();g.moveTo(p[0]-r*.45,p[1]);g.lineTo(p[0]+r*.45,p[1]);g.stroke();g.restore();}
+/* moneta: fade = przed elementem modelu i na nim (przygaszona, bez podpowiedzi), off = pod przyciskami sceny (bez podpowiedzi) */
+function t10Coin(k,i,c,w,s,q,col,dim,fade,off){
+  const hot=(T10.hov&&T10.hov.k===k&&T10.hov.i===i)||(T10.pin&&T10.pin.k===k&&T10.pin.id===c.id),px=s*FP/q[2];
+  g.save();g.globalAlpha=fade?.16:dim?.3:1;
+  let rr;
+  if(st.view==='bubbles'){const r=Math.max(1.5,px*.55);rr=r;
+    g.fillStyle=PAL.glass;g.beginPath();g.arc(q[0],q[1],r,0,Math.PI*2);g.fill();
+    if(r>=7){const gr=g.createRadialGradient(q[0]-r*.35,q[1]-r*.4,r*.05,q[0],q[1],r);gr.addColorStop(0,`rgba(255,255,255,${PAL.dark?.28:.6})`);gr.addColorStop(.6,`rgba(${col},${PAL.dark?.16:.14})`);gr.addColorStop(1,`rgba(${col},.42)`);g.fillStyle=gr;}
+    else g.fillStyle=`rgba(${col},.3)`;   /* mała kula (telefon, oddalenie): bez gradientu */
+    g.fill();
+    g.lineWidth=hot?2.2:1.2;g.strokeStyle=`rgba(${col},${hot?1:.85})`;g.stroke();
+    t10Logo(c,q[0],q[1],r*.7,col);
+  }else{const h=s/2,V=CORN.map(kk=>pr([w[0]+kk[0]*h,w[1]+kk[1]*h,w[2]+kk[2]*h]));if(V.some(v=>!v)){g.restore();return;}
+    const E=sub(C,w);
+    FACES.forEach((f,fi)=>{const nm=FNRM[fi];if(dot(nm,E)<=0)return;const lt=Math.max(0,dot(nm,LIGHT));
+      g.beginPath();f.forEach((kk,j)=>{const v=V[kk];j?g.lineTo(v[0],v[1]):g.moveTo(v[0],v[1]);});g.closePath();
+      g.fillStyle=PAL.glass;g.fill();g.fillStyle=`rgba(${col},${(.08+.2*lt+(hot?.1:0)).toFixed(3)})`;g.fill();
+      g.lineWidth=hot?2:1;g.strokeStyle=`rgba(${col},${hot?1:.8})`;g.stroke();});
+    const xs=V.map(v=>v[0]),ys=V.map(v=>v[1]);rr=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))/2;
+    t10Logo(c,q[0],q[1],px*.42,col);}
+  T10.box.push({k,x:q[0],y:q[1],r:rr});
+  if(!fade&&!off)T10.hit.push({k,i,id:c.id,x:q[0],y:q[1],r:rr+2,z:q[2]});
+  g.restore();
+}
+/* do listy rysowania sceny (sortowanie po głębokości razem z elementami modelu): linie sektor → grupa, monety, puste grupy */
+function t10Items(items){
+  T10.hit=[];T10.box=[];if(!st.t10||st.mode!=='crypto')return;
+  if(!T10.seen){T10.seen=true;t10LogoLoad();}   /* plik logo dopiero, gdy grupy są pierwszy raz na ekranie — widz samego GLOBAL go nie pobiera */
+  const P=t10Pos(),zr=t10ZoomRect(),NS=[];
+  NODES.forEach(n=>{const q=pr(n.p);if(q)NS.push({x:q[0],y:q[1],r:rad(n)*FP/q[2]*1.15+3,z:q[2]});});   /* elementy modelu na ekranie (zasłanianie) */
+  T10_G.forEach(([k,sec])=>{const n=NB[sec];if(!n||!P[k])return;const G=P[k],col=t10Col(k),L=t10L(k),c=L?t10Coins(k):[],dim=!relNode(n);
+    const gr=c.length?L.r:1.3,d=nrm(sub(G.p,n.p)),ra=rad(n)+.25,a=[n.p[0]+d[0]*ra,n.p[1]+d[1]*ra,n.p[2]+d[2]*ra],b=[G.p[0]-d[0]*(gr+.2),G.p[1]-d[1]*(gr+.2),G.p[2]-d[2]*(gr+.2)];
+    const pa=pr(a),pb=pr(b),pm=pr(mid(a,b));
+    if(pa&&pb&&pm)items.push({z:pm[2],fn:()=>t10Line(pa,pb,col,dim,!c.length)});
+    if(!c.length){const pc=pr(G.p);if(pc)items.push({z:pc[2],fn:()=>t10Empty(pc,col,dim)});return;}
+    c.forEach((x,i)=>{const o=L.o[i],s=L.s[i],w=[G.p[0]+R[0]*o[0]+U[0]*o[1],G.p[1]+R[1]*o[0]+U[1]*o[1],G.p[2]+R[2]*o[0]+U[2]*o[1]],q=pr(w);if(!q)return;
+      const rr=s*FP/q[2]*(st.view==='bubbles'?.55:.75),fade=NS.some(m=>q[2]<m.z&&Math.hypot(q[0]-m.x,q[1]-m.y)<m.r+rr);
+      const off=!!zr&&q[0]>=zr.x&&q[0]<=zr.x+zr.w&&q[1]>=zr.y&&q[1]<=zr.y+zr.h;
+      items.push({z:q[2],fn:()=>t10Coin(k,i,x,w,s,q,col,dim,fade,off)});});
+  });
+}
+/* etykieta modelu pod przyciskami sceny (drawLabels) — przesunięta w lewo, obok przycisków; dotychczasowe miejsce bez zmian, gdy przyciski nie zasłaniają */
+function t10Keep(r){const z=typeof T10==='object'&&T10?t10ZoomRect():null;if(z&&r.x<z.x+z.w&&r.x+r.w>z.x&&r.y<z.y+z.h&&r.y+r.h>z.y)r.x=Math.max(2,z.x-r.w-2);return r;}
+/* etykiety modelu (drawLabels) — prostokąty, których podpisy grup unikają */
+function t10NodeLab(L){T10.nlab=L.filter(l=>l.r).map(l=>l.r);}
+/* przyciski sceny (przybliż / oddal / … / pełny ekran) — prostokąt na płótnie, liczony tylko po zmianie rozmiaru albo trybu pełnego ekranu */
+function t10ZoomRect(){const z=$('#stage .zoom'),s=$('#stage');if(!z||!s)return null;const key=CW+'x'+CH+(s.classList.contains('full')?'f':'');
+  if(T10.zk!==key){const a=z.getBoundingClientRect(),c=cvs.getBoundingClientRect();T10.zr=a.width&&a.height?{x:a.left-c.left-6,y:a.top-c.top-6,w:a.width+12,h:a.height+12}:null;T10.zk=key;}
+  return T10.zr;}
+/* przeszkody podpisów grup: etykiety i bryły modelu, monety wszystkich grup (obrys grupy B[k]) i przyciski sceny */
+function t10Obst(){const O=(T10.nlab||[]).slice(),B={};
+  NODES.forEach(n=>{if(n._cx===undefined)return;const H=n._hull||[];let x0,x1,y0,y1;
+    if(H.length){const xs=H.map(q=>q[0]),ys=H.map(q=>q[1]);x0=Math.min(...xs);x1=Math.max(...xs);y0=Math.min(...ys);y1=Math.max(...ys);}
+    else if(n._c){x0=n._c[0]-n._c[2];x1=n._c[0]+n._c[2];y0=n._c[1]-n._c[2];y1=n._c[1]+n._c[2];}else return;
+    O.push({x:x0,y:y0,w:x1-x0,h:y1-y0});});
+  T10.box.forEach(h=>{const b=B[h.k]||(B[h.k]={x0:1e9,y0:1e9,x1:-1e9,y1:-1e9});b.x0=Math.min(b.x0,h.x-h.r);b.y0=Math.min(b.y0,h.y-h.r);b.x1=Math.max(b.x1,h.x+h.r);b.y1=Math.max(b.y1,h.y+h.r);});
+  for(const k in B){const b=B[k];O.push({x:b.x0,y:b.y0,w:b.x1-b.x0,h:b.y1-b.y0});}
+  const z=t10ZoomRect();if(z)O.push(z);
+  return{O,B};}
+/* po etykietach modelu: podpisy grup w pierwszym wolnym miejscu (t10LabSpots) — pełny („L1 · top 10”), krótki („L1”) albo żaden; nigdy na innym napisie,
+   bryle, monecie ani przycisku. Telefon: tylko krótki. Pusta grupa: podpis z „brak danych” albo samo „brak danych” (kreska w okręgu widać zawsze); na końcu podpowiedź */
+function t10After(){
+  T10.labs=[];
+  if(!st.t10||st.mode!=='crypto'){t10TipHide();return;}
+  const P=t10Pos(),narrow=t10Narrow(),f1='600 '+(narrow?11:12)+'px '+FF,f2='500 '+(narrow?10.5:11)+'px '+FF;
+  const {O,B}=t10Obst(),placed=O,hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y,m0=pr([0,0,0]),mx=m0?m0[0]:CW/2;
+  T10_G.forEach(([k,sec,lb])=>{const n=NB[sec];if(!n||!P[k])return;const p=pr(P[k].p);if(!p)return;const L=t10L(k),c=L?t10Coins(k):[];
+    const r=(c.length?L.r:1.3)*FP/p[2],col=t10Col(k),nm=lb||nName(sec),s2=c.length?'':t(T10.st==='load'||T10.st==='idle'?'c10.load':'c10.none');
+    const opts=(narrow?[[nm,s2]]:[[t('c10.g',{s:nm}),s2],[nm,s2]]).concat(s2?[['',s2]]:[]);
+    const bb=c.length&&B[k]?B[k]:{x0:p[0]-r,y0:p[1]-r,x1:p[0]+r,y1:p[1]+r};
+    for(const [a,b] of opts){let w=0;if(a){g.font=f1;w=g.measureText(a).width;}if(b){g.font=f2;w=Math.max(w,g.measureText(b).width);}w+=8;const h=a&&b?31:17;
+      const q=t10LabSpots(bb,w,h,mx,CW,CH).find(s=>!placed.some(o=>hit(s,o)));if(!q)continue;
+      placed.push(q);T10.labs.push({k,a,b,x:q.x,y:q.y,w,h});
+      g.save();g.globalAlpha=relNode(n)?1:.35;
+      if(a)txt(a,q.x+w/2,q.y+13,f1,`rgb(${col})`);if(b)txt(b,q.x+w/2,q.y+(a?27:13),f2,PAL.text);
+      g.restore();break;}
+  });
+  t10TipFollow();
+}
+/* moneta pod punktem (najbliższa kamerze; dotyk — z zapasem slop, najbliższa palcowi); tylko monety z podpowiedzią (bez przygaszonych i schowanych pod przyciskami) */
+function t10Pick(x,y,slop){if(!st.t10||st.mode!=='crypto'||st.view==='list')return null;let b=null,bd=1e9;
+  for(const h of T10.hit){const d=Math.hypot(x-h.x,y-h.y);if(d>h.r+(slop||0))continue;if(slop?d<bd:(!b||h.z<b.z)){b=h;bd=d;}}return b;}
+/* moneta wygrywa wskazanie tylko, gdy jest bliżej kamery niż element modelu pod tym samym punktem */
+function t10PickTop(x,y,slop){const c=t10Pick(x,y,slop);if(!c)return null;const m=typeof pickModel==='function'?pickModel(x,y):null;return !m||c.z<m.z?c:null;}
+function t10TipEl(){if(T10.tip)return T10.tip;const s=$('#stage');if(!s)return null;const el=document.createElement('div');el.className='t10-tip';el.hidden=true;el.setAttribute('role','tooltip');s.appendChild(el);return T10.tip=el;}
+function t10TipShow(h,x,y){const el=t10TipEl();if(!el)return;const f=t10Find(h.k,h.id);if(!f){t10TipHide();return;}const c=f.c;
+  const key=[h.k,c.id,LANG,T10.data.at,Math.floor(Date.now()/60000)].join('|');
+  if(el.dataset.key!==key){el.innerHTML=t10TipHtml(h.k,c,f.i+1,T10.data.g[h.k].c.length,T10.logo[c.id]||'',T10.data.g[h.k].sk,Date.now());el.dataset.key=key;}
+  el.hidden=false;const W=el.offsetWidth||240,H=el.offsetHeight||150;let lx=x+14,ly=y+14;
+  if(lx+W>CW-6)lx=x-W-14;if(lx<6)lx=6;if(ly+H>CH-6)ly=y-H-14;if(ly<6)ly=6;
+  el.style.left=Math.round(lx)+'px';el.style.top=Math.round(ly)+'px';}
+function t10TipHide(){if(T10.tip&&!T10.tip.hidden){T10.tip.hidden=true;T10.tip.dataset.key='';}}
+function t10TipFollow(){
+  if(T10.pin){const h=T10.hit.find(x=>x.k===T10.pin.k&&x.id===T10.pin.id);if(h)t10TipShow(h,h.x,h.y);else{T10.pin=null;t10TipHide();}return;}
+  if(!T10.hov||!T10.mp)return;const h=t10PickTop(T10.mp[0],T10.mp[1]);
+  if(!h){T10.hov=null;t10TipHide();cvs.classList.toggle('hov',!!hover);return;}
+  lastInteract=performance.now();   /* moneta pod kursorem: obrót automatyczny czeka */
+  if(h.k!==T10.hov.k||h.i!==T10.hov.i){T10.hov={k:h.k,i:h.i};dirty=true;}t10TipShow(h,T10.mp[0],T10.mp[1]);}
+function t10HovAt(p){const h=t10PickTop(p[0],p[1]),was=T10.hov;T10.hov=h?{k:h.k,i:h.i}:null;
+  if(h){cvs.classList.add('hov');lastInteract=performance.now();t10TipShow(h,p[0],p[1]);}
+  else if(was){cvs.classList.toggle('hov',!!hover);if(!T10.pin)t10TipHide();}
+  if(!!was!==!!h||(was&&h&&(was.k!==h.k||was.i!==h.i)))dirty=true;}
+function t10Set(on){const was=homeDist();st.t10=!!on;const b=$('#z-t10');if(b)b.setAttribute('aria-pressed',st.t10?'true':'false');
+  T10.pin=null;T10.hov=null;t10TipHide();t10Rehome(was);dirty=true;}
+/* pełny ekran sceny CRYPTO — jak mapa GLOBAL: najpierw tryb pełnoekranowy przeglądarki, bez niego scena przypięta do całego okna; panel szczegółów pływa nad sceną;
+   zmiana zakładki albo strony zamyka go (applyVis), jak w GLOBAL */
+var cFull=false;let cStageHome=null,cStageNext=null;
+function cSetFull(on){
+  on=!!on;if(on===cFull)return;const stg=$('#stage'),why=$('#why'),zf=$('#z-full');if(!stg)return;cFull=on;
+  if(on){cStageHome=stg.parentElement;cStageNext=stg.nextSibling;document.body.appendChild(stg);stg.classList.add('full');document.body.classList.add('cfull');
+    if(why)stg.appendChild(why);if(stg.requestFullscreen)stg.requestFullscreen().catch(()=>{});}
+  else{stg.classList.remove('full');document.body.classList.remove('cfull');
+    if(why){const mp=$('#crypto .map-panel');if(mp&&mp.parentElement)mp.parentElement.insertBefore(why,mp.nextSibling);}
+    if(cStageHome)cStageHome.insertBefore(stg,cStageNext&&cStageNext.parentNode===cStageHome?cStageNext:null);
+    if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});}
+  if(zf){zf.setAttribute('aria-pressed',on?'true':'false');zf.setAttribute('aria-label',t(on?'c10.exit':'c10.full'));zf.title=t(on?'c10.exit':'c10.full');}
+  T10.pin=null;T10.hov=null;t10TipHide();resize();dirty=true;
+}
+(function(){
+  const b=$('#z-t10'),f=$('#z-full');
+  if(b){b.setAttribute('aria-pressed',st.t10?'true':'false');b.addEventListener('click',()=>t10Set(!st.t10));}
+  if(f)f.addEventListener('click',()=>cSetFull(!cFull));
+  document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&cFull)cSetFull(false);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&cFull)cSetFull(false);});
+  /* monety: podpowiedź po najechaniu (mysz) albo dotknięciu (telefon) — po obsłudze sceny, więc kursor i zaznaczenie modelu działają jak dotąd */
+  cvs.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||e.buttons)return;const p=pos(e);T10.mp=p;t10HovAt(p);});
+  cvs.addEventListener('pointerleave',()=>{T10.mp=null;if(T10.hov){T10.hov=null;dirty=true;}if(!T10.pin)t10TipHide();});
+  cvs.addEventListener('pointerdown',e=>{T10.down=pos(e);});
+  setTimeout(()=>{try{if(window.__cf)window.__cf.t10=T10;}catch(e){}},0);   /* uchwyt diagnostyczny w window.__cf (tworzony na końcu skryptu) — zrzuty, kontrola ręczna */
+  cvs.addEventListener('pointerup',e=>{const d=T10.down,p=pos(e);T10.down=null;if(!d||Math.hypot(p[0]-d[0],p[1]-d[1])>6)return;const h=t10PickTop(p[0],p[1],e.pointerType==='touch'?10:0);
+    if(h){T10.pin=(T10.pin&&T10.pin.k===h.k&&T10.pin.id===h.id)?null:{k:h.k,id:h.id};if(T10.pin)t10TipShow(h,h.x,h.y);else t10TipHide();dirty=true;}
+    else if(T10.pin){T10.pin=null;t10TipHide();dirty=true;}});
+})();
+t10Load();t10Auto();
 /* ---------- zaznaczenie i panele ---------- */
 function select(s){
   st.sel=(st.sel&&s&&st.sel.type===s.type&&st.sel.id===s.id)?null:s;
   if(st.sel&&st.view!=='list'){
-    if(st.sel.type==='node'){const n=NB[st.sel.id];camTo({tx:n.p[0],ty:n.p[1],tz:n.p[2],dist:Math.min(cam.dist,homeDist()*.6)},800);}
-    else{const r=routeOf(EB[st.sel.id]),m=mid(r.pts[0],r.pts[1]);camTo({tx:m[0],ty:m[1],tz:m[2],dist:Math.min(cam.dist,homeDist()*.66)},800);}
+    if(st.sel.type==='node'){const n=NB[st.sel.id];camTo({tx:n.p[0],ty:n.p[1],tz:n.p[2],dist:Math.min(cam.dist,homeBase()*.6)},800);}
+    else{const r=routeOf(EB[st.sel.id]),m=mid(r.pts[0],r.pts[1]);camTo({tx:m[0],ty:m[1],tz:m[2],dist:Math.min(cam.dist,homeBase()*.66)},800);}
   }else if(!st.sel&&st.view!=='list'){const h=HOME();camTo({tx:h.tx,ty:h.ty,tz:h.tz,dist:homeDist()},800);}
   dirty=true;renderDetails();renderRail();renderList();renderChips();
 }
@@ -7185,6 +7508,7 @@ const PAGES=['flows','assets','sectors','sources','method'];
 function applyVis(){
   const ov=page==='overview';
   if(gFull&&!(ov&&st.mode==='global')&&window.gSetFull)gSetFull(false);   /* pełny ekran tylko na mapie */
+  if(typeof cFull!=='undefined'&&cFull&&!(ov&&st.mode==='crypto'))cSetFull(false);   /* v140: pełny ekran sceny CRYPTO tylko na scenie (jak GLOBAL) */
   applySetMode();
   $('#settings').hidden=page!=='settings';
   $('#crypto').hidden=!(ov&&st.mode==='crypto');

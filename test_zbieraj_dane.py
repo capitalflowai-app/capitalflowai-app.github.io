@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -533,7 +533,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -623,7 +623,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -756,7 +756,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1115,7 +1115,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1359,7 +1359,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1596,7 +1596,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1827,7 +1827,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2340,7 +2340,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3092,7 +3092,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3219,7 +3219,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3254,7 +3254,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3630,7 +3630,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4115,7 +4115,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8758,7 +8758,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9147,7 +9147,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10000,7 +10000,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -17461,3 +17461,333 @@ class DolarV136(unittest.TestCase):
             self.assertNotIn(v, txt, 'żadnej wartości kursu w wyniku sondy: ' + v)
         self.assertNotIn('http', txt.lower().replace('http 200', '').replace('http 403', ''), 'żadnego adresu')
         self.assertEqual(sum(1 for _, ua in calls if ua == self.UA), 10); self.assertFalse([u for u, _ in calls if 'b3.com.br' in u], 'opcjonalna sonda B3 — osobne wydanie')
+
+
+# ===================== v140: TOP 10 MONET W SEKTORACH — data/krypto-top10.json i data/krypto-top10-logo.json =====================
+import copy as _t10_copy
+import urllib.error as _t10_ue
+import urllib.parse as _t10_up
+
+# nagranie 27.09.2026 ok. 21:23 UTC: /coins/markets dla 8 kategorii (per_page=15), skrócone do pól używanych przez zbieracz; w nagraniu są tokeny
+# pochodne bez miejsca w rankingu (Lido Staked Ether, Wrapped stETH, Staked TAO, Binance-Peg Dogecoin) — zbieracz je pomija
+T10_FIX = json.loads(r'''{"layer-1":[{"id":"bitcoin","symbol":"btc","name":"Bitcoin","image":"https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400","current_price":84650,"market_cap":1700630245661,"market_cap_rank":1,"price_change_percentage_24h":0.63639,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"ethereum","symbol":"eth","name":"Ethereum","image":"https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628","current_price":2688.99,"market_cap":328287349189,"market_cap_rank":2,"price_change_percentage_24h":0.27084,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"binancecoin","symbol":"bnb","name":"BNB","image":"https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970","current_price":777.95,"market_cap":103593539949,"market_cap_rank":4,"price_change_percentage_24h":0.87807,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"ripple","symbol":"xrp","name":"XRP","image":"https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442","current_price":1.53,"market_cap":95933487688,"market_cap_rank":5,"price_change_percentage_24h":0.37906,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"solana","symbol":"sol","name":"Solana","image":"https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756","current_price":122.95,"market_cap":72269724764,"market_cap_rank":7,"price_change_percentage_24h":1.59675,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"tron","symbol":"trx","name":"TRON","image":"https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311","current_price":0.333677,"market_cap":31691105350,"market_cap_rank":8,"price_change_percentage_24h":-0.42989,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"zcash","symbol":"zec","name":"Zcash","image":"https://coin-images.coingecko.com/coins/images/486/large/Brandmark-Yellow_%281%29.png?1785810558","current_price":1605.81,"market_cap":27226735867,"market_cap_rank":9,"price_change_percentage_24h":-2.42516,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"hyperliquid","symbol":"hype","name":"Hyperliquid","image":"https://coin-images.coingecko.com/coins/images/50882/large/hyperliquid.jpg?1729431300","current_price":91.78,"market_cap":20418182756,"market_cap_rank":11,"price_change_percentage_24h":-0.16728,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"monero","symbol":"xmr","name":"Monero","image":"https://coin-images.coingecko.com/coins/images/69/large/monero_logo.png?1696501460","current_price":548.62,"market_cap":10319190173,"market_cap_rank":14,"price_change_percentage_24h":-1.03908,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"cardano","symbol":"ada","name":"Cardano","image":"https://coin-images.coingecko.com/coins/images/975/large/cardano.png?1696502090","current_price":0.256119,"market_cap":9613184164,"market_cap_rank":17,"price_change_percentage_24h":1.58721,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"stellar","symbol":"xlm","name":"Stellar","image":"https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350","current_price":0.217203,"market_cap":7595698820,"market_cap_rank":20,"price_change_percentage_24h":0.39087,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"near","symbol":"near","name":"NEAR Protocol","image":"https://coin-images.coingecko.com/coins/images/10365/large/near.jpg?1696510367","current_price":5.53,"market_cap":7229071427,"market_cap_rank":21,"price_change_percentage_24h":14.08691,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"bitcoin-cash","symbol":"bch","name":"Bitcoin Cash","image":"https://coin-images.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png?1696501932","current_price":334.57,"market_cap":6724619754,"market_cap_rank":22,"price_change_percentage_24h":-0.19241,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"litecoin","symbol":"ltc","name":"Litecoin","image":"https://coin-images.coingecko.com/coins/images/2/large/litecoin.png?1696501400","current_price":71.48,"market_cap":5551131301,"market_cap_rank":24,"price_change_percentage_24h":-0.42942,"last_updated":"2026-09-27T21:22:20.000Z"},{"id":"canton-network","symbol":"cc","name":"Canton","image":"https://coin-images.coingecko.com/coins/images/70468/large/Canton-Ticker_%281%29.png?1762826299","current_price":0.138041,"market_cap":5482063893,"market_cap_rank":25,"price_change_percentage_24h":2.66333,"last_updated":"2026-09-27T21:22:20.000Z"}],"layer-2":[{"id":"okb","symbol":"okb","name":"OKB","image":"https://coin-images.coingecko.com/coins/images/4463/large/WeChat_Image_20220118095654.png?1696505053","current_price":121.53,"market_cap":2552686991,"market_cap_rank":44,"price_change_percentage_24h":0.88283,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"mantle","symbol":"mnt","name":"Mantle","image":"https://coin-images.coingecko.com/coins/images/30980/large/MNT_Token_Logo.png?1765516974","current_price":0.674546,"market_cap":2227855002,"market_cap_rank":51,"price_change_percentage_24h":-1.97508,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"arbitrum","symbol":"arb","name":"Arbitrum","image":"https://coin-images.coingecko.com/coins/images/16547/large/arb.jpg?1721358242","current_price":0.228765,"market_cap":1552152643,"market_cap_rank":61,"price_change_percentage_24h":3.02825,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"polygon-ecosystem-token","symbol":"pol","name":"POL (ex-MATIC)","image":"https://coin-images.coingecko.com/coins/images/32440/large/pol.png?1759114181","current_price":0.122966,"market_cap":1305989769,"market_cap_rank":73,"price_change_percentage_24h":3.88877,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"blockstack","symbol":"stx","name":"Stacks","image":"https://coin-images.coingecko.com/coins/images/2069/large/Stacks_Logo_png.png?1709979332","current_price":0.339802,"market_cap":635816296,"market_cap_rank":101,"price_change_percentage_24h":1.18775,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"derive","symbol":"drv","name":"Derive","image":"https://coin-images.coingecko.com/coins/images/52889/large/Token_Logo.png?1734601695","current_price":0.431035,"market_cap":430845851,"market_cap_rank":125,"price_change_percentage_24h":2.44323,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"optimism","symbol":"op","name":"Optimism","image":"https://coin-images.coingecko.com/coins/images/25244/large/Token.png?1774456081","current_price":0.146843,"market_cap":337669916,"market_cap_rank":138,"price_change_percentage_24h":2.48153,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"starknet","symbol":"strk","name":"Starknet","image":"https://coin-images.coingecko.com/coins/images/26433/large/starknet.png?1696525507","current_price":0.04177668,"market_cap":306632968,"market_cap_rank":153,"price_change_percentage_24h":3.07353,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"immutable-x","symbol":"imx","name":"Immutable","image":"https://coin-images.coingecko.com/coins/images/17233/large/immutableX-symbol-BLK-RGB.png?1696516787","current_price":0.178009,"market_cap":156467387,"market_cap_rank":223,"price_change_percentage_24h":8.21229,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"zksync","symbol":"zk","name":"ZKsync","image":"https://coin-images.coingecko.com/coins/images/38043/large/ZKTokenBlack.png?1718614502","current_price":0.01327057,"market_cap":143523609,"market_cap_rank":238,"price_change_percentage_24h":3.12193,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"prometeus","symbol":"prom","name":"Prom","image":"https://coin-images.coingecko.com/coins/images/8825/large/Ticker.png?1696508978","current_price":6.3,"market_cap":115003953,"market_cap_rank":267,"price_change_percentage_24h":0.39383,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"soon-2","symbol":"soon","name":"SOON","image":"https://coin-images.coingecko.com/coins/images/55124/large/red_2.PNG?1743843131","current_price":0.327272,"market_cap":110975436,"market_cap_rank":272,"price_change_percentage_24h":42.50306,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"adi-token","symbol":"adi","name":"ADI","image":"https://coin-images.coingecko.com/coins/images/68846/large/ADI_Token-min.png?1765296433","current_price":8.34,"market_cap":78674207,"market_cap_rank":353,"price_change_percentage_24h":-0.53845,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"lisk","symbol":"lsk","name":"Lisk","image":"https://coin-images.coingecko.com/coins/images/385/large/LSK-logo.png?1788508326","current_price":0.320439,"market_cap":76320443,"market_cap_rank":359,"price_change_percentage_24h":-10.57889,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"linea","symbol":"linea","name":"Linea","image":"https://coin-images.coingecko.com/coins/images/68507/large/linea-logo.jpeg?1756025484","current_price":0.00295241,"market_cap":72413095,"market_cap_rank":382,"price_change_percentage_24h":1.67608,"last_updated":"2026-09-27T21:23:20.000Z"}],"artificial-intelligence":[{"id":"near","symbol":"near","name":"NEAR Protocol","image":"https://coin-images.coingecko.com/coins/images/10365/large/near.jpg?1696510367","current_price":5.54,"market_cap":7243717724,"market_cap_rank":21,"price_change_percentage_24h":14.09965,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"bittensor","symbol":"tao","name":"Bittensor","image":"https://coin-images.coingecko.com/coins/images/28452/large/ARUsPeNQ_400x400.jpeg?1696527447","current_price":328.15,"market_cap":3719401397,"market_cap_rank":33,"price_change_percentage_24h":3.43669,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"staked-tao-root","symbol":"sn0","name":"Staked TAO (Root)","image":"https://coin-images.coingecko.com/coins/images/66305/large/bittensor.jpg?1749177388","current_price":325.64,"market_cap":2235165269,"market_cap_rank":null,"price_change_percentage_24h":3.01578,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"internet-computer","symbol":"icp","name":"Internet Computer","image":"https://coin-images.coingecko.com/coins/images/14495/large/Internet_Computer_logo.png?1696514180","current_price":3.15,"market_cap":1755689618,"market_cap_rank":60,"price_change_percentage_24h":-1.00335,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"venice-token","symbol":"vvv","name":"Venice Token","image":"https://coin-images.coingecko.com/coins/images/54023/large/VVV_Token_Transparent.png?1741856877","current_price":29.89,"market_cap":1440173928,"market_cap_rank":67,"price_change_percentage_24h":1.08287,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"render-token","symbol":"render","name":"Render","image":"https://coin-images.coingecko.com/coins/images/11636/large/rndr.png?1696511529","current_price":2.04,"market_cap":1057297518,"market_cap_rank":78,"price_change_percentage_24h":3.56998,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"akedo","symbol":"ake","name":"Akedo","image":"https://coin-images.coingecko.com/coins/images/68410/large/akedo.png?1755678461","current_price":0.03153595,"market_cap":718461443,"market_cap_rank":95,"price_change_percentage_24h":-6.73777,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"fetch-ai","symbol":"fet","name":"Artificial Superintelligence Alliance","image":"https://coin-images.coingecko.com/coins/images/5681/large/ASI.png?1719827289","current_price":0.246572,"market_cap":569959545,"market_cap_rank":108,"price_change_percentage_24h":1.495,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"virtual-protocol","symbol":"virtual","name":"Virtuals Protocol","image":"https://coin-images.coingecko.com/coins/images/34057/large/LOGOMARK.png?1708356054","current_price":0.817697,"market_cap":538081785,"market_cap_rank":111,"price_change_percentage_24h":3.82057,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"grass","symbol":"grass","name":"Grass","image":"https://coin-images.coingecko.com/coins/images/40094/large/Grass.jpg?1725697048","current_price":0.643635,"market_cap":435667689,"market_cap_rank":124,"price_change_percentage_24h":11.09589,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"pieverse","symbol":"pieverse","name":"Pieverse","image":"https://coin-images.coingecko.com/coins/images/68773/large/pieverse.png?1756546685","current_price":1.54,"market_cap":422259560,"market_cap_rank":126,"price_change_percentage_24h":-0.29169,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"unibase","symbol":"ub","name":"Unibase","image":"https://coin-images.coingecko.com/coins/images/69108/large/unibase.png?1757501820","current_price":0.148576,"market_cap":371440068,"market_cap_rank":133,"price_change_percentage_24h":5.49848,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"the-graph","symbol":"grt","name":"The Graph","image":"https://coin-images.coingecko.com/coins/images/13397/large/Graph_Token.png?1696513159","current_price":0.03356946,"market_cap":367326778,"market_cap_rank":134,"price_change_percentage_24h":21.92955,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"kite-2","symbol":"kite","name":"Kite","image":"https://coin-images.coingecko.com/coins/images/70426/large/KITE-ICON.png?1762328605","current_price":0.151696,"market_cap":362790466,"market_cap_rank":135,"price_change_percentage_24h":2.96193,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"arweave","symbol":"ar","name":"Arweave","image":"https://coin-images.coingecko.com/coins/images/4343/large/oRt6SiEN_400x400.jpg?1696504946","current_price":4.83,"market_cap":316875343,"market_cap_rank":148,"price_change_percentage_24h":3.29307,"last_updated":"2026-09-27T21:23:20.000Z"}],"decentralized-finance-defi":[{"id":"staked-ether","symbol":"steth","name":"Lido Staked Ether","image":"https://coin-images.coingecko.com/coins/images/13442/large/steth_logo.png?1696513206","current_price":2689.27,"market_cap":26348034835,"market_cap_rank":null,"price_change_percentage_24h":0.28566,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"hyperliquid","symbol":"hype","name":"Hyperliquid","image":"https://coin-images.coingecko.com/coins/images/50882/large/hyperliquid.jpg?1729431300","current_price":91.8,"market_cap":20420824658,"market_cap_rank":11,"price_change_percentage_24h":-0.16801,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"wrapped-steth","symbol":"wsteth","name":"Wrapped stETH","image":"https://coin-images.coingecko.com/coins/images/18834/large/wstETH.png?1696518295","current_price":3347.85,"market_cap":12419686139,"market_cap_rank":null,"price_change_percentage_24h":0.27913,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"chainlink","symbol":"link","name":"Chainlink","image":"https://coin-images.coingecko.com/coins/images/877/large/Chainlink_Logo_500.png?1760023405","current_price":14.04,"market_cap":10505835637,"market_cap_rank":13,"price_change_percentage_24h":-0.0952,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"rain","symbol":"rain","name":"Rain","image":"https://coin-images.coingecko.com/coins/images/69134/large/Rain_logo_1_.png?1762952191","current_price":0.0125697,"market_cap":8915719896,"market_cap_rank":18,"price_change_percentage_24h":-2.37355,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"uniswap","symbol":"uni","name":"Uniswap","image":"https://coin-images.coingecko.com/coins/images/12504/large/uniswap-logo.png?1720676669","current_price":9.73,"market_cap":6035408666,"market_cap_rank":23,"price_change_percentage_24h":1.08861,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"dai","symbol":"dai","name":"Dai","image":"https://coin-images.coingecko.com/coins/images/9956/large/Badge_Dai.png?1696509996","current_price":0.999766,"market_cap":4594162571,"market_cap_rank":30,"price_change_percentage_24h":-0.00227,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"bitway","symbol":"btw","name":"Bitway","image":"https://coin-images.coingecko.com/coins/images/71205/large/BTW_Token_200x200.png?1786291907","current_price":1.22,"market_cap":3304549590,"market_cap_rank":36,"price_change_percentage_24h":18.07964,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"ethena","symbol":"ena","name":"Ethena","image":"https://coin-images.coingecko.com/coins/images/36530/large/ethena.png?1711701436","current_price":0.279669,"market_cap":2822837174,"market_cap_rank":39,"price_change_percentage_24h":3.57893,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"ondo-finance","symbol":"ondo","name":"Ondo","image":"https://coin-images.coingecko.com/coins/images/26580/large/ONDO.png?1696525656","current_price":0.554422,"market_cap":2699843147,"market_cap_rank":42,"price_change_percentage_24h":3.87743,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"aave","symbol":"aave","name":"Aave","image":"https://coin-images.coingecko.com/coins/images/12645/large/aave-token-round.png?1720472354","current_price":154.77,"market_cap":2387665305,"market_cap_rank":47,"price_change_percentage_24h":-0.13875,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"pump-fun","symbol":"pump","name":"Pump.fun","image":"https://coin-images.coingecko.com/coins/images/67164/large/pump.jpg?1751949376","current_price":0.00504353,"market_cap":2349793792,"market_cap_rank":48,"price_change_percentage_24h":14.91747,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"aster-2","symbol":"aster","name":"Aster","image":"https://coin-images.coingecko.com/coins/images/69040/large/_ASTER.png?1757326782","current_price":0.730158,"market_cap":1978925658,"market_cap_rank":54,"price_change_percentage_24h":-0.79306,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"morpho","symbol":"morpho","name":"Morpho","image":"https://coin-images.coingecko.com/coins/images/29837/large/Morpho-token-icon.png?1726771230","current_price":2.72,"market_cap":1900634097,"market_cap_rank":55,"price_change_percentage_24h":1.28203,"last_updated":"2026-09-27T21:23:20.000Z"},{"id":"sky","symbol":"sky","name":"Sky","image":"https://coin-images.coingecko.com/coins/images/39925/large/sky.jpg?1724827980","current_price":0.080064,"market_cap":1875871245,"market_cap_rank":56,"price_change_percentage_24h":4.20774,"last_updated":"2026-09-27T21:23:20.000Z"}],"real-world-assets-rwa":[{"id":"figure-heloc","symbol":"figr_heloc","name":"Figure Heloc","image":"https://coin-images.coingecko.com/coins/images/68480/large/figure.png?1755863954","current_price":1.058,"market_cap":24516003984,"market_cap_rank":10,"price_change_percentage_24h":2.86616,"last_updated":"2026-09-27T13:11:40.000Z"},{"id":"chainlink","symbol":"link","name":"Chainlink","image":"https://coin-images.coingecko.com/coins/images/877/large/Chainlink_Logo_500.png?1760023405","current_price":14.03,"market_cap":10502122380,"market_cap_rank":13,"price_change_percentage_24h":-0.29266,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"stellar","symbol":"xlm","name":"Stellar","image":"https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350","current_price":0.217598,"market_cap":7611143876,"market_cap_rank":20,"price_change_percentage_24h":0.49524,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"quant-network","symbol":"qnt","name":"Quant","image":"https://coin-images.coingecko.com/coins/images/3370/large/5ZOu7brX_400x400.jpg?1696504070","current_price":218.62,"market_cap":3163962160,"market_cap_rank":38,"price_change_percentage_24h":77.17136,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"ondo-finance","symbol":"ondo","name":"Ondo","image":"https://coin-images.coingecko.com/coins/images/26580/large/ONDO.png?1696525656","current_price":0.553732,"market_cap":2698145783,"market_cap_rank":42,"price_change_percentage_24h":3.65812,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"tether-gold","symbol":"xaut","name":"Tether Gold","image":"https://coin-images.coingecko.com/coins/images/10481/large/logo.png?1774627372","current_price":4278.56,"market_cap":2664673040,"market_cap_rank":43,"price_change_percentage_24h":-0.02495,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"hashnote-usyc","symbol":"usyc","name":"Circle USYC","image":"https://coin-images.coingecko.com/coins/images/51054/large/Hashnote_SDYC_200x200.png?1730370965","current_price":1.14,"market_cap":2405269933,"market_cap_rank":46,"price_change_percentage_24h":0.0,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"blackrock-usd-institutional-digital-liquidity-fund","symbol":"buidl","name":"BlackRock USD Institutional Digital Liquidity Fund","image":"https://coin-images.coingecko.com/coins/images/36291/large/blackrock.png?1711013223","current_price":1.0,"market_cap":2290130495,"market_cap_rank":49,"price_change_percentage_24h":0.0,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"ondo-us-dollar-yield","symbol":"usdy","name":"Ondo US Dollar Yield","image":"https://coin-images.coingecko.com/coins/images/31700/large/usdy_%281%29.png?1696530524","current_price":1.15,"market_cap":2272766304,"market_cap_rank":50,"price_change_percentage_24h":-0.06291,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"pax-gold","symbol":"paxg","name":"PAX Gold","image":"https://coin-images.coingecko.com/coins/images/9519/large/asset-paxg.png?1785284785","current_price":4275.5,"market_cap":1859408436,"market_cap_rank":57,"price_change_percentage_24h":-0.0612,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"spiko-amundi-overnight-swap-fund-eur","symbol":"eursafo","name":"Spiko Amundi Overnight Swap Fund (EUR)","image":"https://coin-images.coingecko.com/coins/images/102172591/large/Fund_eurSAF0.png?1774104814","current_price":1.15,"market_cap":1487871263,"market_cap_rank":65,"price_change_percentage_24h":-0.06807,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"algorand","symbol":"algo","name":"Algorand","image":"https://coin-images.coingecko.com/coins/images/4380/large/download.png?1696504978","current_price":0.119043,"market_cap":1079036119,"market_cap_rank":77,"price_change_percentage_24h":1.11474,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"blockchain-capital","symbol":"bcap","name":"Blockchain Capital","image":"https://coin-images.coingecko.com/coins/images/56040/large/bcap_logo_200.png?1748088291","current_price":107.53,"market_cap":979825296,"market_cap_rank":83,"price_change_percentage_24h":0.0,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"injective-protocol","symbol":"inj","name":"Injective","image":"https://coin-images.coingecko.com/coins/images/12882/large/Other_200x200.png?1738782212","current_price":7.82,"market_cap":782786408,"market_cap_rank":90,"price_change_percentage_24h":2.01347,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"superstate-short-duration-us-government-securities-fund-ustb","symbol":"ustb","name":"Invesco Short Duration US Government Securities Fund","image":"https://coin-images.coingecko.com/coins/images/35012/large/Invesco_icon_lg.png?1780816895","current_price":11.22,"market_cap":756035701,"market_cap_rank":91,"price_change_percentage_24h":0.0,"last_updated":"2026-09-27T21:25:20.000Z"}],"meme-token":[{"id":"dogecoin","symbol":"doge","name":"Dogecoin","image":"https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409","current_price":0.097393,"market_cap":15205375016,"market_cap_rank":12,"price_change_percentage_24h":0.9043,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"shiba-inu","symbol":"shib","name":"Shiba Inu","image":"https://coin-images.coingecko.com/coins/images/11939/large/shiba.png?1696511800","current_price":5.93e-06,"market_cap":3495674485,"market_cap_rank":34,"price_change_percentage_24h":0.31582,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"memecore","symbol":"m","name":"MemeCore","image":"https://coin-images.coingecko.com/coins/images/53247/large/square-bg-transparent.png?1752637478","current_price":1.19,"market_cap":2710688128,"market_cap_rank":41,"price_change_percentage_24h":-1.83802,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"pump-fun","symbol":"pump","name":"Pump.fun","image":"https://coin-images.coingecko.com/coins/images/67164/large/pump.jpg?1751949376","current_price":0.00505313,"market_cap":2354020362,"market_cap_rank":48,"price_change_percentage_24h":15.03897,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"pepe","symbol":"pepe","name":"Pepe","image":"https://coin-images.coingecko.com/coins/images/29850/large/pepe-token.jpeg?1696528776","current_price":4.39e-06,"market_cap":1846973432,"market_cap_rank":59,"price_change_percentage_24h":1.04084,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"pudgy-penguins","symbol":"pengu","name":"Pudgy Penguins","image":"https://coin-images.coingecko.com/coins/images/52622/large/PUDGY_PENGUINS_PENGU_PFP.png?1733809110","current_price":0.01017812,"market_cap":640159307,"market_cap_rank":100,"price_change_percentage_24h":3.56779,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"official-trump","symbol":"trump","name":"Official Trump","image":"https://coin-images.coingecko.com/coins/images/53746/large/trump.png?1737171561","current_price":2.13,"market_cap":601019351,"market_cap_rank":103,"price_change_percentage_24h":1.216,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"bianrensheng","symbol":"币安人生","name":"币安人生 (BinanceLife)","image":"https://coin-images.coingecko.com/coins/images/69848/large/%E5%B8%81%E5%AE%89%E4%BA%BA%E7%94%9F.png?1759839225","current_price":0.493772,"market_cap":494040482,"market_cap_rank":115,"price_change_percentage_24h":-0.50428,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"spx6900","symbol":"spx","name":"SPX6900","image":"https://coin-images.coingecko.com/coins/images/31401/large/centeredcoin_%281%29.png?1737048493","current_price":0.44672,"market_cap":415853855,"market_cap_rank":128,"price_change_percentage_24h":-1.39169,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"bonk","symbol":"bonk","name":"Bonk","image":"https://coin-images.coingecko.com/coins/images/28600/large/bonk.jpg?1696527587","current_price":3.75e-06,"market_cap":329984377,"market_cap_rank":141,"price_change_percentage_24h":2.76535,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"useless-3","symbol":"useless","name":"Useless Coin","image":"https://coin-images.coingecko.com/coins/images/55684/large/coingeckoupdate.png?1755203747","current_price":0.290743,"market_cap":290728214,"market_cap_rank":158,"price_change_percentage_24h":2.62928,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"ribbita-by-virtuals","symbol":"tibbir","name":"Ribbita by Virtuals","image":"https://coin-images.coingecko.com/coins/images/54970/large/Untitled_design.png?1742941268","current_price":0.288767,"market_cap":288716387,"market_cap_rank":159,"price_change_percentage_24h":4.48884,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"floki","symbol":"floki","name":"FLOKI","image":"https://coin-images.coingecko.com/coins/images/16746/large/PNG_image.png?1696516318","current_price":2.865e-05,"market_cap":276300337,"market_cap_rank":161,"price_change_percentage_24h":-0.32962,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"ape-and-pepe","symbol":"apepe","name":"Ape and Pepe","image":"https://coin-images.coingecko.com/coins/images/39614/large/APEPE_200.png?1723142351","current_price":1.3e-06,"market_cap":273960773,"market_cap_rank":162,"price_change_percentage_24h":-0.37535,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"binance-peg-dogecoin","symbol":"doge","name":"Binance-Peg Dogecoin","image":"https://coin-images.coingecko.com/coins/images/15768/large/dogecoin.png?1696515392","current_price":0.097167,"market_cap":249150221,"market_cap_rank":null,"price_change_percentage_24h":0.87114,"last_updated":"2026-09-27T21:25:20.000Z"}],"depin":[{"id":"bittensor","symbol":"tao","name":"Bittensor","image":"https://coin-images.coingecko.com/coins/images/28452/large/ARUsPeNQ_400x400.jpeg?1696527447","current_price":329.11,"market_cap":3731683627,"market_cap_rank":33,"price_change_percentage_24h":3.29744,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"render-token","symbol":"render","name":"Render","image":"https://coin-images.coingecko.com/coins/images/11636/large/rndr.png?1696511529","current_price":2.04,"market_cap":1060804241,"market_cap_rank":78,"price_change_percentage_24h":3.69605,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"filecoin","symbol":"fil","name":"Filecoin","image":"https://coin-images.coingecko.com/coins/images/12817/large/filecoin.png?1696512609","current_price":1.14,"market_cap":950415525,"market_cap_rank":84,"price_change_percentage_24h":1.82665,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"beldex","symbol":"bdx","name":"Beldex","image":"https://coin-images.coingecko.com/coins/images/5111/large/Beldex.png?1696505631","current_price":0.076279,"market_cap":600394336,"market_cap_rank":104,"price_change_percentage_24h":-1.02827,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"grass","symbol":"grass","name":"Grass","image":"https://coin-images.coingecko.com/coins/images/40094/large/Grass.jpg?1725697048","current_price":0.648983,"market_cap":439520489,"market_cap_rank":124,"price_change_percentage_24h":11.93636,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"bittorrent","symbol":"btt","name":"BitTorrent","image":"https://coin-images.coingecko.com/coins/images/22457/large/btt_logo.png?1696521780","current_price":3.76664e-07,"market_cap":372092705,"market_cap_rank":132,"price_change_percentage_24h":2.34533,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"the-graph","symbol":"grt","name":"The Graph","image":"https://coin-images.coingecko.com/coins/images/13397/large/Graph_Token.png?1696513159","current_price":0.03413865,"market_cap":371257687,"market_cap_rank":134,"price_change_percentage_24h":24.41171,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"arweave","symbol":"ar","name":"Arweave","image":"https://coin-images.coingecko.com/coins/images/4343/large/oRt6SiEN_400x400.jpg?1696504946","current_price":4.82,"market_cap":316501783,"market_cap_rank":148,"price_change_percentage_24h":3.05023,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"jasmycoin","symbol":"jasmy","name":"JasmyCoin","image":"https://coin-images.coingecko.com/coins/images/13876/large/JASMY200x200.jpg?1696513620","current_price":0.00535279,"market_cap":264776215,"market_cap_rank":164,"price_change_percentage_24h":12.68709,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"iota","symbol":"iota","name":"IOTA","image":"https://coin-images.coingecko.com/coins/images/692/large/IOTA_Thumbnail_%281%29.png?1743772896","current_price":0.050909,"market_cap":237216509,"market_cap_rank":173,"price_change_percentage_24h":0.86784,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"theta-token","symbol":"theta","name":"Theta Network","image":"https://coin-images.coingecko.com/coins/images/2538/large/theta-token-logo.png?1696503349","current_price":0.233491,"market_cap":233445520,"market_cap_rank":176,"price_change_percentage_24h":1.41555,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"zebec-network","symbol":"zbcn","name":"Zebec Network","image":"https://coin-images.coingecko.com/coins/images/37052/large/zbcn.jpeg?1713168241","current_price":0.00210291,"market_cap":210312727,"market_cap_rank":187,"price_change_percentage_24h":-0.59924,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"akash-network","symbol":"akt","name":"Akash Network","image":"https://coin-images.coingecko.com/coins/images/12785/large/akash-logo.png?1696512580","current_price":0.687101,"market_cap":205070462,"market_cap_rank":191,"price_change_percentage_24h":-1.85261,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"aioz-network","symbol":"aioz","name":"AIOZ Network","image":"https://coin-images.coingecko.com/coins/images/14631/large/aioz-logo-200.png?1696514309","current_price":0.132764,"market_cap":170938043,"market_cap_rank":211,"price_change_percentage_24h":10.38431,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"origintrail","symbol":"trac","name":"OriginTrail","image":"https://coin-images.coingecko.com/coins/images/1877/large/TRAC.jpg?1696502873","current_price":0.375395,"market_cap":167891942,"market_cap_rank":216,"price_change_percentage_24h":3.97686,"last_updated":"2026-09-27T21:25:20.000Z"}],"gaming":[{"id":"floki","symbol":"floki","name":"FLOKI","image":"https://coin-images.coingecko.com/coins/images/16746/large/PNG_image.png?1696516318","current_price":2.865e-05,"market_cap":276300337,"market_cap_rank":161,"price_change_percentage_24h":-0.36929,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"axie-infinity","symbol":"axs","name":"Axie Infinity","image":"https://coin-images.coingecko.com/coins/images/13029/large/axie_infinity_logo.png?1696512817","current_price":1.17,"market_cap":204931451,"market_cap_rank":192,"price_change_percentage_24h":-0.10268,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"decentraland","symbol":"mana","name":"Decentraland","image":"https://coin-images.coingecko.com/coins/images/878/large/decentraland-mana.png?1696502010","current_price":0.091897,"market_cap":179790394,"market_cap_rank":204,"price_change_percentage_24h":1.25347,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"apecoin","symbol":"ape","name":"ApeCoin","image":"https://coin-images.coingecko.com/coins/images/24383/large/APECOIN.png?1756551529","current_price":0.165997,"market_cap":165931267,"market_cap_rank":217,"price_change_percentage_24h":7.5684,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"immutable-x","symbol":"imx","name":"Immutable","image":"https://coin-images.coingecko.com/coins/images/17233/large/immutableX-symbol-BLK-RGB.png?1696516787","current_price":0.179584,"market_cap":157639929,"market_cap_rank":222,"price_change_percentage_24h":9.0711,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"gmt-token","symbol":"gomining","name":"GoMining Token","image":"https://coin-images.coingecko.com/coins/images/15662/large/GoMining_Logo.webp?1769225542","current_price":0.374423,"market_cap":150898428,"market_cap_rank":228,"price_change_percentage_24h":0.12042,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"the-sandbox","symbol":"sand","name":"The Sandbox","image":"https://coin-images.coingecko.com/coins/images/12129/large/sandbox_logo.jpg?1696511971","current_price":0.04520492,"market_cap":132776342,"market_cap_rank":246,"price_change_percentage_24h":0.71603,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"superfarm","symbol":"super","name":"SuperVerse","image":"https://coin-images.coingecko.com/coins/images/14040/large/SV-Logo-200x200.png?1706880312","current_price":0.200072,"market_cap":128108163,"market_cap_rank":250,"price_change_percentage_24h":-0.19264,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"rollbit-coin","symbol":"rlb","name":"Rollbit Coin","image":"https://coin-images.coingecko.com/coins/images/24552/large/unziL6wO_400x400.jpg?1696523729","current_price":0.080019,"market_cap":125258268,"market_cap_rank":254,"price_change_percentage_24h":-0.62495,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"geodnet","symbol":"geod","name":"Geodnet","image":"https://coin-images.coingecko.com/coins/images/31608/large/Circular_White.png?1696530424","current_price":0.26916,"market_cap":124478436,"market_cap_rank":256,"price_change_percentage_24h":4.01416,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"four","symbol":"form","name":"Four","image":"https://coin-images.coingecko.com/coins/images/54912/large/four.jpg?1742461445","current_price":0.315199,"market_cap":120350806,"market_cap_rank":262,"price_change_percentage_24h":-2.71251,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"gala","symbol":"gala","name":"GALA","image":"https://coin-images.coingecko.com/coins/images/12493/large/GALA_token_image_-_200PNG.png?1709725869","current_price":0.00232215,"market_cap":116740215,"market_cap_rank":265,"price_change_percentage_24h":3.05768,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"beam-2","symbol":"beam","name":"Beam","image":"https://coin-images.coingecko.com/coins/images/32417/large/cgicon.png?1747892021","current_price":0.00214412,"market_cap":109950968,"market_cap_rank":274,"price_change_percentage_24h":-0.274,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"wemix-token","symbol":"wemix","name":"WEMIX","image":"https://coin-images.coingecko.com/coins/images/12998/large/wemixcoin_color_200.png?1696512788","current_price":0.19674,"market_cap":98274594,"market_cap_rank":298,"price_change_percentage_24h":0.4044,"last_updated":"2026-09-27T21:25:20.000Z"},{"id":"cross-2","symbol":"one","name":"ONEchain","image":"https://coin-images.coingecko.com/coins/images/67058/large/ONE_logo_200x200.png?1787648216","current_price":0.151803,"market_cap":79144924,"market_cap_rank":351,"price_change_percentage_24h":-1.1493,"last_updated":"2026-09-27T21:25:20.000Z"}]}''')
+T10_NOW = datetime.datetime(2026, 9, 27, 21, 30, tzinfo=datetime.timezone.utc)
+T10_PNG = b'\x89PNG\r\n\x1a\n' + bytes(range(40))
+
+
+class KryptoTop10V140(unittest.TestCase):
+    """v140: grupy top 10 w scenie CRYPTO — wiersze (tokeny pochodne i brak kapitalizacji odrzucone, brak ceny = None), skład z 8 kategorii (klucz
+    tylko w nagłówku), ceny jednym zapytaniem między pobraniami składu (kolejność liczona od nowa), kategoria po 6 h na nowo, awarie (poprzednie wiersze
+    z ich czasem najwyżej 72 h, błąd w meta, żadnej monety = wyjątek), jedno ponowienie po 429, loga (z poprzedniego pliku bez pobierania, tylko obrazy
+    z serwera obrazów, limit na przebieg, przycięcie do monet w grupach), przebieg główny (co 55 min, poprzednie pliki po awarii), krotki zaślepek,
+    kontrola; czas budowniczego (budżet T10_BUDGET, odstępy, czekanie po 429, limity czasu zapytań i logo, przebieg długi). Bez sieci: get_json i get_bytes
+    zaślepione, czas przypięty (now=), zegar i czekanie budowniczego podmienione (_t10_mono, _t10_sleep) — bez prawdziwego zegara."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.clock, self.sleeps, self.tmo, self.itmo = [1000.0], [], [], []
+        self.enterContext(mock.patch.object(zd, '_t10_mono', lambda: self.clock[0]))
+        self.enterContext(mock.patch.object(zd, '_t10_sleep', lambda s: (self.sleeps.append(s), self.clock.__setitem__(0, self.clock[0] + s))))
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [None]))   # przebieg główny w innych testach ustawia start — tu bez prawdziwego zegara
+        self.calls, self.imgs = [], []
+        sec = list(zd.SECRETS); self.addCleanup(lambda: zd.SECRETS.__setitem__(slice(None), sec))   # main() ustawia listę kluczy do maskowania — po teście jak przed nim
+
+    def _api(self, fail=(), mut=None, e429=0, cost=0):
+        n429 = [e429]
+
+        def get_json(url, headers=None, timeout=30):
+            self.calls.append((url, headers)); self.tmo.append((timeout, zd.T10_BUDGET - (self.clock[0] - 1000.0)))
+            self.clock[0] += cost
+            if n429[0]:
+                n429[0] -= 1
+                raise _t10_ue.HTTPError(url, 429, 'Too Many Requests', None, None)
+            q = _t10_up.parse_qs(_t10_up.urlsplit(url).query)
+            if 'category' in q:
+                cat = q['category'][0]
+                if cat in fail:
+                    raise RuntimeError('HTTP 500' + (' ' + (headers or {}).get('x-cg-demo-api-key', '') if 'echo' in fail else ''))
+                self.assertEqual(q['per_page'], [str(zd.T10_POOL)]); self.assertEqual(q['order'], ['market_cap_desc'])
+                return _t10_copy.deepcopy(T10_FIX[cat])
+            if 'ids' in q:
+                if 'ids' in fail:
+                    raise RuntimeError('HTTP 503')
+                want, seen = set(q['ids'][0].split(',')), {}
+                for rows in T10_FIX.values():
+                    for x in rows:
+                        if x['id'] in want and x['id'] not in seen:
+                            seen[x['id']] = _t10_copy.deepcopy(x)
+                out = list(seen.values())
+                if mut:
+                    mut(out)
+                return out
+            raise AssertionError('nieznane zapytanie: ' + url)
+        return get_json
+
+    def _bytes(self, body=None, cost=0):
+        def get_bytes(url, headers=None, timeout=60):
+            self.imgs.append(url); self.itmo.append(timeout); self.clock[0] += cost
+            return body(url) if body else T10_PNG
+        return get_bytes
+
+    def _build(self, prev=None, prev_logo=None, now=T10_NOW, key='TAJNY-CG-KLUCZ', run_t0=None, **kw):
+        with mock.patch.object(zd, 'get_json', self._api(**{k: v for k, v in kw.items() if k in ('fail', 'mut', 'e429', 'cost')})), \
+             mock.patch.object(zd, 'get_bytes', self._bytes(kw.get('body'), kw.get('icost', 0))):
+            return zd.build_krypto_top10(key, prev, prev_logo, now=now, run_t0=run_t0)
+
+    @staticmethod
+    def _aged(out, minutes, groups=None):
+        """Kopia pliku „sprzed minutes minut” (czas pliku; czas składu tylko w wybranych grupach albo we wszystkich)."""
+        p = _t10_copy.deepcopy(out)
+        old = (T10_NOW - datetime.timedelta(minutes=minutes)).isoformat()
+        p['at'] = old
+        for k in (p['g'] if groups is None else groups):
+            p['g'][k]['sk'] = old
+        return p
+
+    def test_row(self):
+        x = T10_FIX['layer-1'][0]
+        self.assertEqual(zd.t10_row(x), ['bitcoin', 'BTC', 'Bitcoin', 84650.0, 1700630245661.0, 0.63639, '2026-09-27T21:22:20Z'])
+        stake = next(r for r in T10_FIX['decentralized-finance-defi'] if r['id'] == 'staked-ether')
+        self.assertIsNone(stake['market_cap_rank']); self.assertIsNone(zd.t10_row(stake), 'token pochodny bez miejsca w rankingu')
+        for bad in ({**x, 'market_cap': 0}, {**x, 'market_cap': None}, {**x, 'market_cap': '1e12'}, {**x, 'market_cap': True},
+                    {**x, 'market_cap': float('nan')}, {**x, 'id': 'Bit Coin'}, {**x, 'id': ''}, {**x, 'market_cap_rank': True},
+                    {**x, 'market_cap_rank': 0}, 'x', None):
+            self.assertIsNone(zd.t10_row(bad), repr(bad)[:60])
+        r = zd.t10_row({**x, 'current_price': 0, 'price_change_percentage_24h': None, 'last_updated': '2026-02-30T10:00:00.000Z', 'symbol': ' b tc ', 'name': ''})
+        self.assertEqual(r[1:4], ['B TC', 'B TC', None]); self.assertIsNone(r[5], 'brak zmiany = None, nie 0'); self.assertIsNone(r[6], 'data niemożliwa = brak czasu')
+        self.assertEqual(zd.t10_img(x), 'https://coin-images.coingecko.com/coins/images/1/small/bitcoin.png?1696501400')
+        for u in ('https://evil.example/coins/images/1/large/x.png', 'http://coin-images.coingecko.com/x.png', 'https://coin-images.coingecko.com/a"b.png', None, 5):
+            self.assertIsNone(zd.t10_img({'image': u}), u)
+        self.assertEqual([zd._t10_mime(b) for b in (T10_PNG, b'\xff\xd8\xff\xe0', b'RIFF\x00\x00\x00\x00WEBPVP8 ', b'GIF89a', b'<svg ', b'', None)],
+                         ['image/png', 'image/jpeg', 'image/webp', 'image/gif', None, None, None])
+
+    def test_full_build_from_categories(self):
+        out, logo = self._build()
+        cats = [_t10_up.parse_qs(_t10_up.urlsplit(u).query).get('category', [None])[0] for u, _ in self.calls]
+        self.assertEqual(cats, [c for _, c in zd.T10_CATS], 'osiem kategorii, po jednym zapytaniu')
+        self.assertTrue(all(h == {'x-cg-demo-api-key': 'TAJNY-CG-KLUCZ'} for _, h in self.calls), 'klucz tylko w nagłówku')
+        self.assertFalse(any('TAJNY' in u for u, _ in self.calls)); self.assertNotIn('TAJNY', json.dumps([out, logo, zd.META]))
+        self.assertEqual(out['at'], T10_NOW.isoformat()); self.assertEqual(out['cols'], list(zd.T10_COLS)); self.assertEqual(out['calls'], 8)
+        self.assertEqual(list(out['g']), [k for k, _ in zd.T10_CATS]); self.assertTrue(all(out['ok'].values()))
+        ids = lambda k: [r[0] for r in out['g'][k]['c']]   # noqa: E731
+        self.assertEqual(ids('l1'), ['bitcoin', 'ethereum', 'binancecoin', 'ripple', 'solana', 'tron', 'zcash', 'hyperliquid', 'monero', 'cardano'])
+        self.assertEqual(ids('meme')[:3], ['dogecoin', 'shiba-inu', 'memecore']); self.assertNotIn('binance-peg-dogecoin', ids('meme'))
+        self.assertEqual(ids('defi')[:3], ['hyperliquid', 'chainlink', 'rain'], 'Lido Staked Ether i Wrapped stETH pominięte (bez miejsca w rankingu)')
+        self.assertNotIn('staked-tao-root', ids('ai')); self.assertEqual(ids('gaming')[0], 'floki')
+        for k, _ in zd.T10_CATS:
+            g = out['g'][k]
+            self.assertEqual(len(g['c']), 10, k); self.assertEqual(g['sk'], out['at'], k)
+            mc = [r[4] for r in g['c']]; self.assertEqual(mc, sorted(mc, reverse=True), k + ': kolejność wg kapitalizacji')
+            self.assertTrue(10 <= len(g['pool']) <= zd.T10_POOL and g['pool'][:10] == ids(k), k)
+            self.assertTrue(all(r[3] is None or r[3] > 0 for r in g['c']) and all(r[4] > 0 for r in g['c']), k)
+        need = {r[0] for g in out['g'].values() for r in g['c']}
+        self.assertEqual(set(logo['logo']), need, 'logo każdej monety z grup (i tylko ich)'); self.assertEqual(logo['n'], len(need))
+        self.assertTrue(all(v.startswith('data:image/png;base64,') for v in logo['logo'].values()))
+        self.assertEqual(len(self.imgs), len(need)); self.assertTrue(all('/small/' in u and u.startswith('https://coin-images.coingecko.com/') for u in self.imgs))
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_prices_between_category_refreshes_one_call_and_new_order(self):
+        base, logo = self._build()
+        self.calls.clear(); self.imgs.clear()
+
+        def mut(rows):
+            for x in rows:
+                if x['id'] == 'litecoin':              # 14. w L1 w nagraniu — teraz przed Cardano (10.)
+                    x['market_cap'], x['current_price'], x['last_updated'] = 9.9e9, 127.5, '2026-09-27T22:25:00.000Z'
+        out, logo2 = self._build(self._aged(base, 60), logo, now=T10_NOW + datetime.timedelta(minutes=60), mut=mut)
+        self.assertEqual(len(self.calls), 1, 'jedno zapytanie o ceny'); u = self.calls[0][0]
+        self.assertIn('ids=', u); self.assertNotIn('category=', u); self.assertEqual(out['calls'], 1)
+        ids = [r[0] for r in out['g']['l1']['c']]
+        self.assertIn('litecoin', ids); self.assertNotIn('cardano', ids, 'skład top 10 zmienia się sam — ranking od nowa')
+        lt = next(r for r in out['g']['l1']['c'] if r[0] == 'litecoin'); self.assertEqual((lt[3], lt[6]), (127.5, '2026-09-27T22:25:00Z'))
+        self.assertEqual(out['g']['l1']['sk'], (T10_NOW - datetime.timedelta(minutes=60)).isoformat(), 'czas składu bez zmian')
+        self.assertEqual(self.imgs, ['https://coin-images.coingecko.com/coins/images/2/small/litecoin.png?1696501400'], 'tylko nowe logo')
+        self.assertIn('litecoin', logo2['logo']); self.assertNotIn('cardano', logo2['logo'], 'loga przycięte do monet w grupach')
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_category_again_after_6_hours_rest_by_prices(self):
+        base, logo = self._build()
+        self.calls.clear()
+        prev = self._aged(base, 60); prev['g']['ai']['sk'] = (T10_NOW - datetime.timedelta(minutes=zd.T10_SKLAD + 1)).isoformat()
+        prev['g']['rwa']['pool'] = prev['g']['rwa']['pool'][:9]   # mniej niż 10 kandydatów — też na nowo
+        out, _ = self._build(prev, logo)
+        qs = [_t10_up.parse_qs(_t10_up.urlsplit(u).query) for u, _ in self.calls]
+        self.assertEqual([q['category'][0] for q in qs if 'category' in q], ['artificial-intelligence', 'real-world-assets-rwa'])
+        self.assertEqual(sum(1 for q in qs if 'ids' in q), 1)
+        self.assertEqual(out['g']['ai']['sk'], T10_NOW.isoformat()); self.assertEqual(out['g']['l1']['sk'], prev['g']['l1']['sk'])
+
+    def test_failures_previous_rows_errors_and_exception(self):
+        out, _ = self._build(fail=('gaming',))
+        self.assertEqual(out['g']['gaming']['c'], []); self.assertIsNone(out['g']['gaming']['sk']); self.assertIs(out['ok']['gaming'], False)
+        self.assertEqual(len(zd.META['errors']), 1); self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: gaming: '), zd.META['errors'])
+        zd.META['errors'].clear()
+        with self.assertRaisesRegex(RuntimeError, 'żadna grupa nie ma monet'):
+            self._build(fail=tuple(c for _, c in zd.T10_CATS))
+        base, logo = self._build()
+        zd.META['errors'].clear(); self.calls.clear()
+        out, _ = self._build(self._aged(base, 120), logo, fail=('ids',))       # ceny nie przyszły: poprzednie wiersze z ich czasem notowania
+        self.assertEqual(out['g']['l1']['c'], base['g']['l1']['c']); self.assertFalse(any(out['ok'].values()))
+        self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: ceny ('), zd.META['errors'])
+        zd.META['errors'].clear()
+        with self.assertRaisesRegex(RuntimeError, 'żadna grupa'):
+            self._build(self._aged(base, zd.T10_MAX_AGE + 1, groups=()), logo, fail=('ids',))   # plik starszy niż 3 doby — bez podmiany
+        zd.META['errors'].clear()
+        prev = self._aged(base, 60, groups=()); prev['g']['depin']['sk'] = (T10_NOW - datetime.timedelta(minutes=400)).isoformat()
+        out, _ = self._build(prev, logo, fail=('depin',))                   # kategoria zawiodła — kandydaci z poprzedniego składu dostają nowe ceny
+        self.assertEqual(len(out['g']['depin']['c']), 10); self.assertIs(out['ok']['depin'], True); self.assertEqual(out['g']['depin']['sk'], prev['g']['depin']['sk'])
+        self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: depin: '))
+
+    def test_key_masked_in_errors(self):
+        """Serwer odbija klucz w komunikacie błędu — w meta tylko ***."""
+        self.enterContext(mock.patch.object(zd, 'SECRETS', ['TAJNY-CG-KLUCZ']))
+        out, _ = self._build(fail=('gaming', 'echo'))
+        self.assertTrue(zd.META['errors'] and 'TAJNY' not in json.dumps(zd.META) and '***' in zd.META['errors'][0], zd.META['errors'])
+
+    def test_429_one_retry(self):
+        out, _ = self._build(e429=1)
+        self.assertEqual(len(self.calls), 9); self.assertEqual(out['calls'], 9); self.assertEqual(zd.META['errors'], [])
+        self.calls.clear()
+        out, _ = self._build(e429=2)                                          # drugie 429 w tym samym przebiegu = błąd kategorii
+        self.assertEqual(out['g']['l1']['c'], []); self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: l1: HTTP Error 429'), zd.META['errors'])
+
+    def test_spacing_timeouts_and_429_wait(self):
+        """Odstęp T10_SLEEP między zapytaniami API (nie przed pierwszym), T10_IMG_SLEEP między logo, jedno czekanie T10_WAIT_429 po 429; limit czasu każdego
+        zapytania ≤ T10_TIMEOUT i ≤ tego, co zostało z budżetu; logo ≤ T10_IMG_TIMEOUT."""
+        out, logo = self._build()
+        api = len(self.calls); self.assertEqual(api, 8)
+        self.assertEqual(self.sleeps[:api - 1], [zd.T10_SLEEP] * (api - 1), 'odstęp między zapytaniami API, nie przed pierwszym')
+        self.assertEqual(self.sleeps[api - 1:], [zd.T10_IMG_SLEEP] * (len(self.imgs) - 1), 'odstęp między logo')
+        self.assertTrue(all(0 < t <= min(zd.T10_TIMEOUT, left) + 1e-9 for t, left in self.tmo), self.tmo)
+        self.assertEqual(self.tmo[0][0], zd.T10_TIMEOUT); self.assertTrue(all(0 < t <= zd.T10_IMG_TIMEOUT for t in self.itmo) and len(self.itmo) == len(self.imgs), self.itmo)
+        self.assertLess(self.clock[0] - 1000.0, zd.T10_BUDGET, 'cały budowniczy w budżecie')
+        self.sleeps.clear(); self.calls.clear(); self.tmo.clear(); self.clock[0] = 2000.0
+        out, _ = self._build(e429=1)
+        self.assertEqual(self.sleeps[0], zd.T10_WAIT_429, 'po 429 jedno czekanie, potem ponowienie'); self.assertEqual(self.sleeps.count(zd.T10_WAIT_429), 1)
+        self.assertEqual(len(self.calls), 9); self.assertTrue(all(out['ok'].values()))
+        self.sleeps.clear(); self.calls.clear(); zd.META['errors'].clear()
+        with mock.patch.object(zd, 'T10_BUDGET', zd.T10_WAIT_429 + 2):          # budżet za mały na czekanie po 429 — bez czekania, błąd kategorii
+            out, _ = self._build(e429=1)
+        self.assertNotIn(zd.T10_WAIT_429, self.sleeps); self.assertEqual(out['g']['l1']['c'], [])
+        self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: l1: HTTP Error 429'), zd.META['errors'])
+
+    def test_budget_and_late_run(self):
+        """Cały budowniczy ≤ T10_BUDGET: po nim żadnego zapytania ani logo (błąd „limit czasu”, notatka „w następnym przebiegu”); przebieg długi (> T10_LATE s
+        od startu) — bez składu kategorii i bez nowych logo, ceny kandydatów jednym zapytaniem."""
+        out, logo = self._build(cost=8, icost=1)
+        n = len(self.calls); self.assertTrue(3 <= n <= 5, n)
+        self.assertTrue(all(t <= left + 1e-9 for t, left in self.tmo), self.tmo)
+        self.assertLessEqual(self.clock[0] - 1000.0, zd.T10_BUDGET + 8 + 1e-9, 'po budżecie żadnego nowego zapytania')
+        self.assertIn('limit czasu', zd.META['errors'][0]); self.assertEqual(self.imgs, [], 'budżet wyczerpany — loga w następnym przebiegu')
+        self.assertTrue(any('w następnym przebiegu' in x for x in zd.META['notes']), zd.META['notes'])
+        base, blogo = self._build()                                          # pełny przebieg — kandydaci w pliku
+        zd.META['errors'].clear(); zd.META['notes'].clear(); self.calls.clear(); self.imgs.clear()
+        prev = self._aged(base, 60); prev['g']['ai']['sk'] = (T10_NOW - datetime.timedelta(minutes=zd.T10_SKLAD + 1)).isoformat()
+        out, logo2 = self._build(prev, {'at': 'x', 'logo': {}}, run_t0=self.clock[0] - zd.T10_LATE - 1)
+        qs = [_t10_up.parse_qs(_t10_up.urlsplit(u).query) for u, _ in self.calls]
+        self.assertEqual([q for q in qs if 'category' in q], [], 'przebieg długi — bez składu kategorii'); self.assertEqual(sum(1 for q in qs if 'ids' in q), 1)
+        self.assertEqual(len(out['g']['ai']['c']), 10, 'AI: ceny kandydatów mimo przeterminowanego składu'); self.assertEqual(self.imgs, [], 'bez nowych logo')
+        self.assertTrue(any('przebieg długi' in x for x in zd.META['notes']), zd.META['notes'])
+        self.calls.clear(); zd.META['notes'].clear()
+        out, _ = self._build(prev, blogo, run_t0=self.clock[0] - zd.T10_LATE + 30)   # jeszcze nie długi — skład AI pobrany
+        self.assertEqual([_t10_up.parse_qs(_t10_up.urlsplit(u).query).get('category') for u, _ in self.calls if 'category=' in u], [['artificial-intelligence']])
+
+    def test_logo_timeouts(self):
+        base, _ = self._build()
+        need = list(dict.fromkeys(r[0] for g in base['g'].values() for r in g['c']))
+        url = {i: f'https://coin-images.coingecko.com/coins/images/{i}/small/x.png' for i in need}
+        self.imgs.clear(); self.itmo.clear(); self.sleeps.clear(); zd.META['notes'].clear(); self.clock[0] = 5000.0
+        with mock.patch.object(zd, 'get_bytes', self._bytes(cost=3)):
+            logo = zd.t10_logos(base, url, None, 'T', end=self.clock[0] + 10)
+        self.assertTrue(0 < len(self.imgs) < len(need), len(self.imgs))
+        self.assertTrue(all(0 < t <= zd.T10_IMG_TIMEOUT for t in self.itmo) and self.itmo[0] == 10 and self.itmo == sorted(self.itmo, reverse=True), self.itmo)
+        self.assertTrue(any('w następnym przebiegu' in x for x in zd.META['notes']), zd.META['notes'])
+        self.imgs.clear()
+        with mock.patch.object(zd, 'get_bytes', self._bytes()):
+            zd.t10_logos(base, url, None, 'T', end=self.clock[0] + 100, late=True)
+        self.assertEqual(self.imgs, [], 'przebieg długi — bez nowych logo')
+
+    def test_logos(self):
+        base, _ = self._build()
+        need = list(dict.fromkeys(r[0] for g in base['g'].values() for r in g['c']))
+        url = {i: f'https://coin-images.coingecko.com/coins/images/{i}/small/x.png' for i in need}
+        keep = {i: 'data:image/png;base64,AAAA' for i in need[:30]}
+        prev_logo = {'at': 'x', 'logo': {**keep, 'stara-moneta': 'data:image/png;base64,BBBB', need[30]: 'javascript:alert(1)'}}
+        self.imgs.clear()
+        with mock.patch.object(zd, 'get_bytes', self._bytes()), mock.patch.object(zd, 'T10_LOGO_NEW', 25):
+            logo = zd.t10_logos(base, url, prev_logo, 'T')
+        self.assertEqual(len(self.imgs), 25, 'najwyżej T10_LOGO_NEW nowych w przebiegu')
+        self.assertFalse(set(self.imgs) & {url[i] for i in keep}, 'logo z poprzedniego pliku bez pobierania')
+        self.assertEqual(self.imgs[0], url[need[30]], 'zły wpis poprzedniego pliku — pobrany na nowo')
+        for i in keep:
+            self.assertEqual(logo['logo'][i], keep[i])
+        self.assertNotIn('stara-moneta', logo['logo'], 'przycięte do monet w grupach'); self.assertEqual(logo['n'], len(keep) + 25); self.assertEqual(logo['at'], 'T')
+        self.assertTrue(any('w następnym przebiegu' in n for n in zd.META['notes']), zd.META['notes'])
+        zd.META['notes'].clear(); self.imgs.clear()
+        big = b'\x89PNG\r\n\x1a\n' + b'0' * zd.T10_LOGO_MAX
+
+        def body(u):
+            if '/dogecoin/' in u:
+                return b'<svg xmlns="http://www.w3.org/2000/svg"/>'
+            if '/shiba-inu/' in u:
+                return big
+            if '/pepe/' in u:
+                raise OSError('timeout')
+            return T10_PNG
+        with mock.patch.object(zd, 'get_bytes', self._bytes(body)):
+            logo = zd.t10_logos(base, url, None)
+        self.assertEqual(len(self.imgs), len(need)); self.assertEqual(set(logo['logo']), set(need) - {'dogecoin', 'shiba-inu', 'pepe'}, 'SVG, za duże i awaria — bez logo')
+        self.assertEqual(zd.META['errors'], [], 'brak logo to notatka, nie błąd'); self.assertTrue(zd.META['notes'][0].startswith('krypto top 10 — loga: 3 bez obrazka'), zd.META['notes'])
+
+    def test_main_flow(self):
+        saved = {}
+        prev, prevl = {'at': _iso(10), 'g': {}}, {'at': _iso(10), 'logo': {}}
+        prv = lambda n: prev if n == 'krypto-top10' else (prevl if n == 'krypto-top10-logo' else None)   # noqa: E731
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_krypto_top10' and callable(getattr(zd, n))]
+        with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': 'CG-KLUCZ-TESTOWY'}, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+             mock.patch.object(zd, 'previous', prv), mock.patch.object(zd, 'build_krypto_top10', side_effect=AssertionError('bez zapytań')):
+            for s in stubs: s.start()
+            try:
+                zd.main()
+            finally:
+                for s in stubs: s.stop()
+        self.assertIs(saved['krypto-top10'], prev); self.assertIs(saved['krypto-top10-logo'], prevl); self.assertEqual(zd.META['ok']['krypto-top10'], 'cached')
+        for build, ok in ((lambda k, p, pl: ({'ok': {'l1': True, 'l2': False}}, {'logo': {}}), False), (lambda k, p, pl: ({'ok': {'l1': True}}, {'logo': {}}), True)):
+            saved.clear(); zd.META['errors'].clear(); prev['at'] = _iso(70); calls = []
+            with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': 'CG-KLUCZ-TESTOWY'}, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                 mock.patch.object(zd, 'previous', prv), mock.patch.object(zd, 'build_krypto_top10', lambda k, p, pl: calls.append((k, p, pl)) or build(k, p, pl)):
+                for s in stubs: s.start()
+                try:
+                    zd.main()
+                finally:
+                    for s in stubs: s.stop()
+            self.assertEqual(calls, [('CG-KLUCZ-TESTOWY', prev, prevl)]); self.assertIs(zd.META['ok']['krypto-top10'], ok)
+            self.assertIn('krypto-top10', saved); self.assertIn('krypto-top10-logo', saved)
+        saved.clear(); zd.META['errors'].clear()
+        with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': 'CG-KLUCZ-TESTOWY'}, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+             mock.patch.object(zd, 'previous', prv), mock.patch.object(zd, 'build_krypto_top10', side_effect=RuntimeError('żadna grupa nie ma monet')):
+            for s in stubs: s.start()
+            try:
+                zd.main()
+            finally:
+                for s in stubs: s.stop()
+        self.assertIs(saved['krypto-top10'], prev); self.assertIs(saved['krypto-top10-logo'], prevl); self.assertIs(zd.META['ok']['krypto-top10'], False)
+        self.assertIn('krypto top 10: żadna grupa nie ma monet', saved['meta']['errors'])
+
+    def test_code_stub_tuples_and_kontrola(self):
+        def rd(p):
+            with open(p, encoding='utf-8') as f:
+                return f.read()
+        me = rd(__file__)
+        tup = zd.re.compile(r"for (?:f|fn) in\s*\(\s*('build_\w+'(?:\s*,\s*'build_\w+')*)\s*\)", zd.re.S)
+        lists = [m.group(1) for m in tup.finditer(me) if "'build_wieloryby'" in m.group(1)]
+        self.assertGreaterEqual(len(lists), 18)
+        self.assertEqual([s[:60] for s in lists if "'build_krypto_top10'" not in s], [], 'każda krotka zaślepek przebiegu głównego zna build_krypto_top10')
+        src = rd(zd.__file__)
+        a = src.index('# ===================== v140: TOP 10 MONET'); b = src.index('\nETF_KEEP_DAYS = ', a)
+        self.assertLess(src.index('def build_krypto(cg_key):'), a); blok = src[a:b]
+        self.assertNotIn('os.environ', blok, 'klucz tylko z main()'); self.assertEqual(blok.count("'x-cg-demo-api-key'"), 1)
+        m0 = src.index("prev_t10, prev_t10l = previous('krypto-top10'), previous('krypto-top10-logo')")
+        self.assertLess(src.index("save('krypto', build_krypto(cg_key))"), m0); self.assertLess(m0, src.index('    # INSTYTUCJE (bez klucza)'))
+        k = rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        PL = eval(zd.re.search(r'^PLIKI = (\[.*\])$', k, zd.re.M).group(1)); LM = eval(zd.re.search(r'^LIMIT_MIN = (\{[^}]*\})', k, zd.re.M).group(1))
+        self.assertIn('krypto-top10', PL); self.assertEqual(LM['krypto-top10'], 180)
