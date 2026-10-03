@@ -4960,9 +4960,10 @@ function gLabels(W,H,ids,F,CN,taken,fz,lh,ms,ov){
   C.t=[[t('g.n.crypto'),CN.x,CN.y+CN.r+fz2+6,`600 ${fz2.toFixed(0)}px Sora,sans-serif`,PAL.text]].concat(C.vl?[[C.vl,CN.x,CN.y+CN.r+fz2*2+9,
     `600 ${(fz2-.5).toFixed(0)}px Sora,sans-serif`,v[0]>=0?`rgb(${PAL.gr})`:`rgb(${PAL.rd})`]]:[]);
   /* ten sam układ co w poprzedniej klatce (te same napisy, węzły, płótno i elementy nad nim) — wynik z pamięci, bez ponownego liczenia */
-  const N=Object.keys(GLAY.N).map(k=>GLAY.N[k]),key=JSON.stringify([W,H,fz,ov,R.map(x=>x.t),C.t,N.map(m=>[m.x,m.y,m._sr])]);
+  const N=Object.keys(GLAY.N).map(k=>GLAY.N[k]),key=JSON.stringify([W,H,fz,ov,R.map(x=>x.t),C.t,N.map(m=>[m.x,m.y,m._sr,m.r]),[CN.x,CN.y,CN.r]]);
   if(gLabels.k===key)return gLabels.v;
-  if(gLabBad(R.map(x=>x.t).concat([C.t]),W,H,ov||[],ms))gLabFit(R,C,CN,W,H,fz,ms,ov||[],N);
+  /* v149.2: koła węzłów (regiony i krypto; promień r — bez powiększenia po najechaniu, żeby układ nie skakał) — napis na tarczy to też kolizja */
+  if(gLabBad(R.map(x=>x.t).concat([C.t]),W,H,ov||[],ms,gLabDiscs(N,CN)))gLabFit(R,C,CN,W,H,fz,ms,ov||[],N);
   gLabels.k=key;gLabels.v={r:[].concat(...R.map(x=>x.t)),c:C.t};
   return gLabels.v;
 }
@@ -4970,27 +4971,52 @@ function gLabels(W,H,ids,F,CN,taken,fz,lh,ms,ov){
 function gLabBox(a,ms){const m=ms(a[0],a[3]),px=parseFloat((/([\d.]+)px/.exec(a[3])||[0,10])[1]),as=m.actualBoundingBoxAscent,de=m.actualBoundingBoxDescent;
   return [a[1]-m.width/2,a[2]-(as>=0?as:px*.8),a[1]+m.width/2,a[2]+(de>=0?de:px*.25)];}
 function gOvl(a,b){const w=Math.min(a[2],b[2])-Math.max(a[0],b[0]),h=Math.min(a[3],b[3])-Math.max(a[1],b[1]);return w>0&&h>0?w*h:0;}
-/* czy napisy (grupy: nazwa + wartość jednego podpisu) wychodzą poza płótno W×H, nachodzą na napis innej grupy albo na prostokąt ov */
-function gLabBad(G,W,H,ov,ms){
+/* v149.2: o ile pudełko b wchodzi w koło o środku c = [x, y] i promieniu R (0 — nie dotyka; środek w pudełku — R) */
+function gCirc(b,c,R){const qx=Math.max(b[0],Math.min(c[0],b[2])),qy=Math.max(b[1],Math.min(c[1],b[3]));return Math.max(0,R-Math.hypot(qx-c[0],qy-c[1]));}
+/* v149.2: tarcze węzłów [x, y, r, węzeł]: regiony (r bez powiększenia po najechaniu) i krąg krypto (węzeł null) */
+function gLabDiscs(N,CN){return N.map(m=>[m.x,m.y,m.r,m]).concat([[CN.x,CN.y,CN.r,null]]);}
+/* czy napisy (grupy: nazwa + wartość jednego podpisu) wychodzą poza płótno W×H, nachodzą na napis innej grupy albo na prostokąt ov;
+   v149.2: także na tarczę koła z listy O (bez marginesu — tylko prawdziwe nachodzenie; bez O — jak w v149) */
+function gLabBad(G,W,H,ov,ms,O){
   const B=G.map(g=>g.map(a=>gLabBox(a,ms)));
   for(let i=0;i<B.length;i++)for(const b of B[i]){
     if(b[0]<0||b[1]<0||b[2]>W||b[3]>H)return true;
     for(const o of ov)if(gOvl(b,o)>0)return true;
+    for(const c of O||[])if(gCirc(b,c,c[2])>0)return true;
     for(let j=i+1;j<B.length;j++)for(const c of B[j])if(gOvl(b,c)>0)return true;}
   return false;}
 /* Układ na ciasnym płótnie. Krypto: napisy przesunięte w lewo tak, by mieściły się w płótnie z marginesem 4 px (za szerokie — krój
-   mniejszy, najmniej 8 px). Regiony po kolei (od największego węzła, jak dotąd): pierwsze miejsce przy węźle, w którym podpis mieści
-   się w płótnie i nie dotyka innych podpisów, elementów nad płótnem ani węzłów — w jednej linii pełnym krojem, w dwóch liniach (nazwa
-   nad wartością), potem krojem mniejszym o 1 i o 2 px. Bez takiego miejsca: bez innych podpisów i elementów (może zasłonić węzeł),
-   najbliżej węzła; w ostateczności najmniejsza kolizja. Zmienia R[i].t i C.t. */
+   mniejszy, najmniej 8 px); v149.2: gdy leżą na tarczy węzła — najbliższe miejsce bez niej (niżej o 2–40 px, w bok o 6–60 px, z lewej
+   strony koła, nad kołem).
+   Regiony po kolei (od największego węzła, jak dotąd): pierwsze miejsce przy węźle (do r + 46 px), w którym podpis mieści się w płótnie
+   i nie dotyka innych podpisów, elementów nad płótnem ani tarcz węzłów (+ 3 px), a od cudzych tarcz jest co najmniej 8 px — w jednej
+   linii pełnym krojem, w dwóch liniach (nazwa nad wartością), potem krojem mniejszym o 1 i o 2 px. Bez takiego miejsca: bez twardych
+   przeszkód, najmniej blisko cudzych kół; potem to samo dalej od węzła (do r + 90 px); w ostateczności najmniejsza kolizja.
+   Zmienia R[i].t i C.t. */
 function gLabFit(R,C,CN,W,H,fz,ms,ov,nodes){
-  const hard=ov.map(o=>[o[0]-3,o[1]-3,o[2]+3,o[3]+3]),sum=(b,L)=>L.reduce((s,o)=>s+gOvl(b,o),0);
+  const hard=ov.map(o=>[o[0]-3,o[1]-3,o[2]+3,o[3]+3]),sum=(b,L)=>L.reduce((s,o)=>s+gOvl(b,o),0),D=gLabDiscs(nodes,CN);
+  /* v149.2: tarcza + 3 px (twarde, każdy węzeł) i odstęp do 8 px od tarczy innego węzła (miękkie); wynik w jednostkach zbliżonych do pola */
+  const dh=b=>D.reduce((s,c)=>s+gCirc(b,c,c[2]+3)*10,0),ds=(b,own)=>D.reduce((s,c)=>s+(c[3]===own?0:gCirc(b,c,c[2]+8)*4),0);
   if(C.t.length){
     let k=0,F2,w;
     for(;;k++){F2=C.t.map(a=>k?`600 ${Math.max(8,parseFloat(/([\d.]+)px/.exec(a[3])[1])-k)}px Sora,sans-serif`:a[3]);
       w=Math.max(...C.t.map((a,i)=>ms(a[0],F2[i]).width));if(w+8<=W||k>=6)break;}
-    const cx=Math.max(w/2+4,Math.min(W-w/2-4,CN.x));
-    C.t=C.t.map((a,i)=>[a[0],cx,a[2],F2[i],a[4]]);
+    /* v149.2: miejsca napisów krypto (nazwa i wartość razem): pod kołem jak dotąd, niżej o 2–40 px i w bok o 6–60 px; z lewej strony koła;
+       nad kołem; wybór: bez elementów nad płótnem i tarcz (+ 3 px), możliwie 8 px od tarcz regionów, możliwie blisko dawnego miejsca */
+    const cx=Math.max(w/2+4,Math.min(W-w/2-4,CN.x)),y0=C.t[0][2],gy=C.t.length>1?C.t[1][2]-y0:0,f2=parseFloat(/([\d.]+)px/.exec(F2[0])[1]),P=[];
+    for(let dy=0;dy<=40;dy+=2)for(let dx=0;dx<=60;dx+=6)for(const sx of dx?[-1,1]:[1])P.push([cx+sx*dx,y0+dy,dy+dx*.6]);
+    const lx=CN.x-CN.r-6-w/2,ly=CN.y-gy/2+f2*.35;
+    for(let dy=-30;dy<=30;dy+=3)for(const dx of [0,-6,-12,-18])P.push([lx+dx,ly+dy,30+Math.abs(dy)*.6-dx*.6]);
+    const ay=CN.y-CN.r-6-gy;
+    for(let dy=0;dy<=12;dy+=3)for(const dx of [0,-12,-24,-40,-60])P.push([cx+dx,ay-dy,45+dy-dx*.6]);
+    P.sort((a,b)=>a[2]-b[2]);
+    let T0=null,bs=Infinity;
+    for(const [x,y,e] of P){const T=C.t.map((a,i)=>[a[0],x,y+(i?gy:0),F2[i],a[4]]),B=T.map(a=>gLabBox(a,ms));
+      if(B.some(b=>b[0]<2||b[1]<2||b[2]>W-2||b[3]>H-2))continue;
+      /* elementy nad płótnem i tarcze + 3 px — twarde; do 8 px od tarczy regionu — miękkie; bliżej dawnego miejsca — lepiej */
+      const sc=B.reduce((s,b)=>s+ov.reduce((q,o)=>q+gOvl(b,o)*1000,0)+D.reduce((q,c)=>q+gCirc(b,c,c[2]+3)*1000+(c[3]===null?0:gCirc(b,c,c[2]+8)*4),0),0)+e*.5;
+      if(sc<bs){bs=sc;T0=T;}}
+    C.t=T0||C.t.map((a,i)=>[a[0],cx,a[2],F2[i],a[4]]);
     C.t.forEach(a=>{const b=gLabBox(a,ms);hard.push([b[0]-4,b[1]-1,b[2]+4,b[3]+1]);});
   }
   /* podpis L krojem fz−d w jednej albo dwóch liniach: wymiary pudełka (z odstępem 4 px po bokach) i napisy dla lewego górnego rogu x, y */
@@ -5000,29 +5026,28 @@ function gLabFit(R,C,CN,W,H,fz,ms,ov,nodes){
     const bw=(two?Math.max(wN,wV):wN+gap+wV)+8,bh=asc+dsc+(two?lg:0);
     return {bw,bh,at:(x,y)=>two?[[L.nm,x+bw/2,y+asc,fN,PAL.text],[L.vl,x+bw/2,y+asc+lg,fV,L.vc]]
       :[[L.nm,x+4+wN/2,y+asc,fN,PAL.text]].concat(L.vl?[[L.vl,x+4+wN+gap+wV/2,y+asc,fV,L.vc]]:[])};};
-  /* miejsca pudełka bw×bh wokół węzła (x, y, r): pod i nad (przesunięte w bok, 1–3 rzędy), z boków (przesunięte w pionie, 1–4 odstępy);
-     od najbliższego węzłowi (odległość najbliższego punktu pudełka od środka węzła; przy równej — pod, nad, z boku), najwyżej r + 46 px */
-  const cand=(x,y,r,bw,bh)=>{const g=3,P=[],add=(px,py,pr)=>{const qx=Math.max(px,Math.min(x,px+bw)),qy=Math.max(py,Math.min(y,py+bh)),
-      e=Math.hypot(qx-x,qy-y);if(e<=r+46)P.push([px,py,e+pr]);};
-    for(const e of [0,bh+2,2*bh+4])for(const s of [0,.25,-.25,.5,-.5,.75,-.75,1,-1]){add(x-bw/2+bw*s,y+r+g+e,0);add(x-bw/2+bw*s,y-r-g-bh-e,.5);}
-    for(const e of [0,12,26,42])for(const s of [0,.6,-.6,1.2,-1.2,1.8,-1.8]){add(x+r+g+e,y-bh/2+bh*s,1);add(x-r-g-bw-e,y-bh/2+bh*s,1);}
+  /* miejsca pudełka bw×bh wokół węzła (x, y, r) w odstępie 5 px (v149.2; było 3 — podpis bliżej własnego koła niż na komputerze): pod i nad
+     (przesunięte w bok, 1–5 rzędów), z boków (przesunięte w pionie, 1–6 odstępów); od najbliższego węzłowi (odległość najbliższego punktu
+     pudełka od środka węzła; przy równej — pod, nad, z boku), najwyżej r + cap px */
+  const cand=(x,y,r,bw,bh,cap)=>{const g=5,P=[],add=(px,py,pr)=>{const qx=Math.max(px,Math.min(x,px+bw)),qy=Math.max(py,Math.min(y,py+bh)),
+      e=Math.hypot(qx-x,qy-y);if(e<=r+cap)P.push([px,py,e+pr]);};
+    for(const e of [0,bh+2,2*bh+4,3*bh+6,4*bh+8])for(const s of [0,.25,-.25,.5,-.5,.75,-.75,1,-1]){add(x-bw/2+bw*s,y+r+g+e,0);add(x-bw/2+bw*s,y-r-g-bh-e,.5);}
+    for(const e of [0,12,26,42,60,80])for(const s of [0,.6,-.6,1.2,-1.2,1.8,-1.8]){add(x+r+g+e,y-bh/2+bh*s,1);add(x-r-g-bw-e,y-bh/2+bh*s,1);}
     return P.sort((a,b)=>a[2]-b[2]);};
   const S=[];for(const d of [0,1,2])for(const two of [false,true])S.push([d,two]);
   R.forEach(L=>{
-    const n=L.n,soft=nodes.filter(m=>m!==n).map(m=>[m.x-m._sr-2,m.y-m._sr-2,m.x+m._sr+2,m.y+m._sr+2])
-      .concat([[CN.x-CN.r-3,CN.y-CN.r-3,CN.x+CN.r+3,CN.y+CN.r+3]]);
+    const n=L.n;
     let best=null;
-    for(let tier=0;tier<3&&!best;tier++){let bs=Infinity;
-      for(const [d,two] of S){if(two&&!L.vl)continue;const Y=lay(L,d,two);
-        for(const p of cand(n.x,n.y,n._sr,Y.bw,Y.bh)){
+    for(let tier=0;tier<4&&!best;tier++){let bs=Infinity;
+      S.forEach(([d,two],si)=>{if(best&&tier===0)return;if(two&&!L.vl)return;const Y=lay(L,d,two);
+        for(const p of cand(n.x,n.y,n._sr,Y.bw,Y.bh,tier===2?90:46)){
           let x=p[0],y=p[1];
-          if(tier===2){x=Math.max(2,Math.min(W-2-Y.bw,x));y=Math.max(2,Math.min(H-2-Y.bh,y));}
+          if(tier===3){x=Math.max(2,Math.min(W-2-Y.bw,x));y=Math.max(2,Math.min(H-2-Y.bh,y));}
           else if(x<2||y<2||x+Y.bw>W-2||y+Y.bh>H-2)continue;
-          const b=[x,y,x+Y.bw,y+Y.bh],h=sum(b,hard),s=sum(b,soft),dist=p[2];
+          const b=[x,y,x+Y.bw,y+Y.bh],h=sum(b,hard)+dh(b),s=ds(b,n),dist=p[2];
           if(tier===0){if(h===0&&s===0){best={Y,x,y,b};break;}continue;}
-          const sc=tier===1?(h>0?Infinity:s+dist*.35):h*1000+s+dist*.35;
-          if(sc<bs){bs=sc;best={Y,x,y,b};}}
-        if(tier===0&&best)break;}}
+          const sc=tier<3?(h>0?Infinity:s+dist*.35+si*4):h*1000+s+dist*.35;
+          if(sc<bs){bs=sc;best={Y,x,y,b};}}});}
     L.t=best.Y.at(best.x,best.y);hard.push(best.b);
   });
 }

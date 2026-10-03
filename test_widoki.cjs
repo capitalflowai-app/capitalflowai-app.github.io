@@ -10923,7 +10923,7 @@ function v149Map(L, W, H, F, label) {
   const podp = cut('  /* --- podpisy --- */\n', "  if(gst.label==='off')return;"), ordL = cut('  const ord=GREG.slice().sort(', '\n');
   const I = v143Final(html), t = (k, o) => { let s = (I[L] && I[L][k]) ?? I.en[k] ?? k; if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
   const S = new Function('GCW', 'GCH', 'GDATA', 'gst', 'gv', 't', 'PAL', 'LANG', 'LOCALE', 'gKey', 'let GLAY=null,GKEY="";\n' + src + '\ngLayout();\nconst W=GCW,H=GCH,CN=GLAY.crypto,taken=[];\n' +
-    'GREG.forEach(r=>{GLAY.N[r.id]._sr=GLAY.N[r.id].r;});\n' + ordL + '\n' + podp + '\nreturn {GLAY,ord,taken,fz,lh,CN,F:GDATA[gst.period],labelSpotG,gLabels,gLabBad,gLabFit,gLabBox,gOvl,gfmt,gpct};')(
+    'GREG.forEach(r=>{GLAY.N[r.id]._sr=GLAY.N[r.id].r;});\n' + ordL + '\n' + podp + '\nreturn {GLAY,ord,taken,fz,lh,CN,F:GDATA[gst.period],labelSpotG,gLabels,gLabBad,gLabFit,gLabBox,gOvl,gCirc,gLabDiscs,gfmt,gpct};')(
     W, H, {'1M': F}, {period: '1M', label: label || 'both'}, {x: 0, y: 0, k: 1}, t, V149_PAL, L, V149_LOC, () => 'k');
   S.t = t; S.W = W; S.H = H; S.ov = v149Ov(W, H); S.T0 = S.taken.slice(); S.label = label || 'both';
   S.run = () => S.gLabels(W, H, S.ord.map(r => r.id), F, S.CN, S.T0.slice(), S.fz, S.lh, v149Ms, S.ov);
@@ -10980,8 +10980,8 @@ test('v149: mapa — przypadki z przeglądu: ru „Криптовалюты” i
     assert.ok(bad, L + ' ' + vw + ': kod sprzed v149 — napis poza płótnem albo nachodzenie (jak w Chrome)');
     v149Check(S, R, L + ' ' + vw);
     const [n0, v0] = cry(S, O), [n1, v1] = R.c;
-    assert.equal(n1[0], S.t('g.n.crypto')); assert.equal(n1[2], n0[2], 'nazwa krypto na tej samej wysokości'); assert.equal(v1[2], v0[2], 'wartość krypto na tej samej wysokości');
-    assert.ok(n1[1] <= n0[1] && n1[1] === v1[1], L + ': środek napisów krypto przesunięty w lewo (wspólny)');
+    assert.equal(n1[0], S.t('g.n.crypto')); assert.ok(Math.abs((v1[2] - n1[2]) - (v0[2] - n0[2])) < 1e-9, 'napisy krypto razem (v149.2: przy tarczy węzła schodzą niżej, na lewo od koła albo nad nie)');
+    assert.ok(n1[1] === v1[1], L + ': wspólny środek napisów krypto');
   }
   /* ru 375: dotąd „Криптовалюты” wychodziło poza prawą krawędź */
   const S = v149Map('ru', 345, 300, V149_F), O = S.old(), b = S.gLabBox(O[O.length - 2], v149Ms);
@@ -10992,14 +10992,14 @@ test('v149: mapa — przypadki z przeglądu: ru „Криптовалюты” i
 test('v149: mapa — komputer (1440 px: płótno 1186 × 576) i szerokie płótna w 10 językach: wynik dokładnie jak kod sprzed v149 (V149_OLD); gdy dotychczasowy układ jest poprawny, gLabels go nie zmienia', () => {
   for (const L of V149_L10) for (const [W, H] of [[1186, 576], [1400, 600], [1100, 520]]) {
     const S = v149Map(L, W, H, V149_F), O = S.old(), R = S.run();
-    assert.equal(S.gLabBad(v149Groups(S, O, 2), W, H, S.ov, v149Ms), false, L + ' ' + W + ': dotychczasowy układ poprawny');
+    assert.equal(S.gLabBad(v149Groups(S, O, 2), W, H, S.ov, v149Ms, v149Discs(S)), false, L + ' ' + W + ': dotychczasowy układ poprawny (v149.2: także bez napisu na tarczy)');
     assert.deepEqual(R.r.concat(R.c), O, L + ' ' + W + '×' + H + ': ten sam układ i napisy co przed v149');
   }
   /* zasada ogólna: jeśli dotychczasowy układ nie ma błędu (żaden napis poza płótnem, na innym podpisie ani pod elementem) — wynik bajt w bajt ten sam */
   let same = 0;
   for (const [W, H] of [[1186, 576], [738, 460], [570, 460], [450, 384], [345, 300]]) for (const L of V149_L10) for (const seed of [11, 12, 13]) {
     const S = v149Map(L, W, H, v149Rand(seed)), O = S.old(), R = S.run();
-    if (!S.gLabBad(v149Groups(S, O, R.c.length), W, H, S.ov, v149Ms)) { assert.deepEqual(R.r.concat(R.c), O, L + ' ' + W + ' ' + seed + ': poprawny układ bez zmian'); same++; }
+    if (!S.gLabBad(v149Groups(S, O, R.c.length), W, H, S.ov, v149Ms, v149Discs(S)))   /* v149.2: kolizja to także napis na tarczy węzła */ { assert.deepEqual(R.r.concat(R.c), O, L + ' ' + W + ' ' + seed + ': poprawny układ bez zmian'); same++; }
     else v149Check(S, R, L + ' ' + W + ' ' + seed);
   }
   assert.ok(same > 40, 'przypadki bez zmian: ' + same);
@@ -11022,7 +11022,7 @@ test('v149: mapa — gLabBad / gLabFit / pamięć wyniku: napis poza płótnem, 
   assert.ok(D.includes("const LB=gLabels(W,H,ord.map(r=>r.id),F,CN,taken,fz,lh,(s,f)=>{g2.font=f;return g2.measureText(s);},gLabOv());") && D.includes('LB.r.forEach(a=>gtxt(a[0],a[1],a[2],a[3],a[4]));')
     && D.indexOf('LB.r.forEach') < D.indexOf('/* --- kolumna krypto --- */') && D.indexOf("drawIconOn(g2,'btc'") < D.indexOf('LB.c.forEach(a=>gtxt(a[0],a[1],a[2],a[3],a[4]));'), 'gDraw: kolejność rysowania jak dotąd');
   assert.ok(!D.includes("gtxt(t('g.n.crypto')") && !D.includes('labelSpotG(') && !/gtxt\(nm,/.test(D), 'gDraw: bez dawnych napisów');
-  for (const f of ['function gLabels(W,H,ids,F,CN,taken,fz,lh,ms,ov){', 'function gLabBad(G,W,H,ov,ms){', 'function gLabFit(R,C,CN,W,H,fz,ms,ov,nodes){', 'function gLabOv(){', 'function gLabBox(a,ms){'])
+  for (const f of ['function gLabels(W,H,ids,F,CN,taken,fz,lh,ms,ov){', 'function gLabBad(G,W,H,ov,ms,O){', 'function gLabFit(R,C,CN,W,H,fz,ms,ov,nodes){', 'function gLabOv(){', 'function gLabBox(a,ms){'])
     assert.equal(html.split(f).length, 2, f);
   /* gLabOv: elementy nad płótnem (.zoom, .refresh, .hint), ukryte pominięte; bez DOM — pusto, bez błędu */
   const o0 = html.indexOf('function gLabOv(){'), o1 = html.indexOf('\n/* ===================== v149: koniec podpisów mapy', o0);
@@ -11198,3 +11198,117 @@ test('v149.1: CFTC — zdanie o bitcoinie po polsku i angielsku z liczbą z rapo
   }
   assert.equal(v149Cftc('pl').f('eur', '(CONTRACTS OF EUR 125,000)'), v149Cftc('pl').t('cftc.u.eur', {u: gtEsc('(CONTRACTS OF EUR 125,000)')}), 'euro po polsku bez zmian');
 });
+
+/* ===================== v149.2: mapa — koła węzłów jako przeszkody dla podpisów =====================
+   Po v149 podpis na telefonie mógł leżeć na kole węzła: napisy krypto na węźle Azji Płd.-Wsch., en 320 „Japan & Korea” na Bliskim Wschodzie,
+   ja / zh 414 „+4.14%” na Indiach (w Chrome); ru 375 „−4,16%” Kanady tuż przy kole Europy. Teraz gLabBad liczy napis na tarczy (promień r,
+   bez marginesu) jako kolizję, a gLabFit traktuje tarczę + 3 px jak przeszkodę, a odstęp do 8 px od cudzej tarczy — jako miejsce gorsze.
+   Testy w piaskownicy v149Map (prawdziwe gLayout, labelSpotG, blok podpisów, słownik strony; atrapa measureText v149Ms). */
+/* tarcze węzłów piaskownicy v149Map (gLabDiscs strony: regiony z r, krąg krypto) — używane też przez testy v149 */
+function v149Discs(S) { return S.gLabDiscs(Object.keys(S.GLAY.N).map(k => S.GLAY.N[k]), S.CN); }
+/* odległość pudełka b od tarczy c (ujemna — napis na tarczy) */
+const v1492Gap = (b, c) => { const qx = Math.max(b[0], Math.min(c[0], b[2])), qy = Math.max(b[1], Math.min(c[1], b[3])); return Math.hypot(qx - c[0], qy - c[1]) - c[2]; };
+
+test('v149.2: mapa — telefon 320 / 375 / 414 px w 10 językach: wartości z 03.10 — żaden napis na tarczy węzła ani kręgu krypto, poprawiony układ co najmniej 3 px od każdej tarczy; 8 zbiorów losowych (także z wielkimi węzłami) — napisów na tarczach wyraźnie mniej niż przed v149.2, w płótnie i bez nakładania', () => {
+  const sets = [V149_F].concat([1, 2, 3, 4, 5, 6, 7, 8].map(v149Rand));
+  let fit = 0, glow = 0, n = 0, on = 0, on0 = 0, f3 = 0, own8 = 0, ownN = 0;
+  for (const [vw, W, H] of V149_PHONE) for (const L of V149_L10) sets.forEach((F, si) => {
+    const S = v149Map(L, W, H, F), O = S.old(), R = S.run(), Dk = v149Discs(S), tag = L + ' ' + vw + ' zbiór ' + si;
+    v149Check(S, R, tag);
+    const all = R.r.concat(R.c), fitted = JSON.stringify(all) !== JSON.stringify(O), G = v149Groups(S, all, R.c.length);
+    assert.equal(G.length, S.ord.length + 1, tag + ': podpis każdego węzła');
+    const own = new Map(); G.forEach((g, i) => g.forEach(a => own.set(a, i < S.ord.length ? S.GLAY.N[S.ord[i].id] : null)));
+    for (const a of all) {
+      const b = S.gLabBox(a, v149Ms);
+      for (const c of Dk) {
+        const g = v1492Gap(b, c);
+        if (si === 0) {
+          assert.ok(g >= 0, tag + ': „' + a[0] + '” na tarczy węzła (' + c[0].toFixed(0) + ', ' + c[1].toFixed(0) + ', r ' + c[2].toFixed(1) + '): ' + g.toFixed(1) + ' px');
+          if (fitted && !(c[3] === null && R.c.includes(a))) assert.ok(g >= 3 - 1e-9, tag + ': „' + a[0] + '” bliżej niż 3 px od tarczy: ' + g.toFixed(1));
+        }
+        if (g < 0) on++;
+        if (fitted && c[3] !== own.get(a) && g < 8) glow++;   /* cudza tarcza bliżej niż 8 px */
+        if (fitted && c[3] !== own.get(a) && c[3] !== null && !R.c.includes(a) && g < 3) f3++;   /* podpis regionu bliżej niż 3 px od cudzej tarczy */
+      }
+      n++;
+    }
+    /* ten sam zbiór w układzie v149 (gLabFit bez kół): napisy na tarczach — do porównania */
+    for (const a of S.old()) for (const c of Dk) if (v1492Gap(S.gLabBox(a, v149Ms), c) < 0) on0++;
+    if (fitted) fit++;
+    /* podpis przy swoim węźle: w poprawionym układzie z danymi z 03.10 — tusz liter zwykle do 8 px od własnej tarczy */
+    if (fitted && si === 0) G.slice(0, -1).forEach((g, i) => { const c = Dk.find(c => c[3] === S.GLAY.N[S.ord[i].id]); ownN++; if (Math.min(...g.map(a => v1492Gap(S.gLabBox(a, v149Ms), c))) < 8) own8++; });
+  });
+  assert.equal(f3, 0, 'podpis regionu bliżej niż 3 px od cudzej tarczy (także w zbiorach losowych)');
+  assert.ok(own8 > ownN * .4, 'podpisy przy własnych węzłach: ' + own8 + ' z ' + ownN + ' do 8 px');
+  assert.ok(fit > 60, 'układ poprawiany: ' + fit);
+  assert.ok(on <= on0 / 20 && on < n * .002, 'napisy na tarczach: ' + on + ' (dotychczasowy układ: ' + on0 + ') z ' + n);
+  assert.ok(glow < n * .03, 'napisy bliżej niż 8 px od cudzej tarczy — rzadko: ' + glow + ' z ' + n);
+});
+
+test('v149.2: mapa — przypadki z przeglądu: napisy krypto zeszły z tarczy Azji Płd.-Wsch. (zostają pod swoim kołem), podpis nie leży na cudzym węźle; dotychczasowy układ z napisem na tarczy jest wykrywany', () => {
+  for (const [L, W, H] of [['ru', 345, 300], ['pl', 290, 300], ['en', 345, 300], ['ja', 384, 331], ['zh', 384, 331], ['de', 345, 300]]) {
+    const S = v149Map(L, W, H, V149_F), O = S.old(), R = S.run(), Dk = v149Discs(S);
+    const onDisc = A => A.filter(a => Dk.some(c => v1492Gap(S.gLabBox(a, v149Ms), c) < 0)).map(a => a[0]);
+    const noDisc = S.gLabBad(v149Groups(S, O, 2), W, H, S.ov, v149Ms), withDisc = S.gLabBad(v149Groups(S, O, 2), W, H, S.ov, v149Ms, Dk);
+    if (onDisc(O).length) assert.ok(withDisc, L + ' ' + W + ': napis na tarczy w dotychczasowym układzie wykryty: ' + onDisc(O));
+    assert.ok(withDisc || !noDisc, L + ' ' + W + ': koła tylko dokładają kolizje');
+    assert.deepEqual(onDisc(R.r.concat(R.c)), [], L + ' ' + W + ': bez napisów na tarczach');
+    /* krypto: przy swoim kole — pod nim (niżej najwyżej o 40 px niż w v149), z lewej strony albo nad nim; wartość pod nazwą, wspólny środek */
+    const [n0] = O.slice(-2), [n1, v1] = R.c, k = S.CN, dy = n1[2] - n0[2], bx = S.gLabBox(n1, v149Ms);
+    assert.ok((dy >= 0 && dy <= 40 + 1e-9) || bx[2] <= k.x - k.r || v1[2] < k.y - k.r, L + ' ' + W + ': napisy krypto przy kole: ' + dy.toFixed(1));
+    assert.ok(Math.hypot((bx[0] + bx[2]) / 2 - k.x, (bx[1] + bx[3]) / 2 - k.y) < k.r + 110, L + ' ' + W + ': napisy krypto blisko koła');
+    assert.ok(Math.abs(v1[1] - n1[1]) < 1e-9 && v1[2] > n1[2], L + ' ' + W + ': wartość krypto pod nazwą, ten sam środek');
+  }
+  /* przegląd v149 (Chrome, ru 375): wartość Kanady przy kole Europy — w piaskownicy odstęp od cudzych tarcz w poprawionym układzie ≥ 3 px, zwykle ≥ 8 px */
+  const S = v149Map('ru', 345, 300, V149_F), R = S.run(), Dk = v149Discs(S), eur = Dk.find(c => c[3] === S.GLAY.N.eur);
+  for (const a of R.r) assert.ok(v1492Gap(S.gLabBox(a, v149Ms), eur) >= 3, 'ru 375: „' + a[0] + '” przy kole Europy');
+});
+
+test('v149.2: mapa — komputer (1186 × 576, 1400 × 600, 1100 × 520) w 10 językach: dotychczasowy układ bez napisu na tarczy, więc wynik dokładnie jak przed v149 (V149_OLD); najechanie na węzeł (większe koło) nie przełącza układu', () => {
+  for (const L of V149_L10) for (const [W, H] of [[1186, 576], [1400, 600], [1100, 520]]) {
+    const S = v149Map(L, W, H, V149_F), O = S.old(), Dk = v149Discs(S);
+    assert.equal(S.gLabBad(v149Groups(S, O, 2), W, H, S.ov, v149Ms, Dk), false, L + ' ' + W + ': bez kolizji, także z kołami');
+    assert.deepEqual(S.run().r.concat(S.run().c), O, L + ' ' + W + ': układ jak przed v149');
+  }
+  /* najechanie: _sr = 1,22 r — tarcze liczone z r, więc sprawdzenie bez zmian */
+  const S = v149Map('pl', 1186, 576, V149_F), N = Object.keys(S.GLAY.N).map(k => S.GLAY.N[k]);
+  const D0 = S.gLabDiscs(N, S.CN); N.forEach(m => { m._sr = m.r * 1.22; }); const D1 = S.gLabDiscs(N, S.CN);
+  assert.deepEqual(D1.map(c => c.slice(0, 3)), D0.map(c => c.slice(0, 3)), 'tarcze z r, nie z _sr');
+});
+
+test('v149.2: gCirc, gLabDiscs i gLabBad z kołami — głębokość wejścia w koło, tarcze regionów i krypto, kolizja tylko przy prawdziwym nachodzeniu; kod: jedno wywołanie z kołami w gLabels', () => {
+  const S = v149Map('pl', 345, 300, V149_F), A = ['Abc', 100, 50, '600 10.0px Sora,sans-serif', '#fff'], b = S.gLabBox(A, v149Ms);
+  assert.equal(S.gCirc([0, 0, 10, 10], [20, 5], 5), 0, 'daleko'); assert.equal(S.gCirc([0, 0, 10, 10], [13, 5], 5), 2, 'bok: 2 px');
+  assert.equal(S.gCirc([0, 0, 10, 10], [5, 5], 4), 4, 'środek w pudełku — cały promień'); assert.equal(S.gCirc([0, 0, 10, 10], [13, 14], 5), 0, 'róg: odległość 5');
+  assert.ok(Math.abs(S.gCirc([0, 0, 10, 10], [13, 13], 5) - (5 - Math.hypot(3, 3))) < 1e-9, 'róg: odległość √18');
+  const N = [{x: 10, y: 20, r: 7, _sr: 9}, {x: 40, y: 50, r: 8, _sr: 8}], D = S.gLabDiscs(N, {x: 300, y: 160, r: 15});
+  assert.deepEqual(D.map(c => c.slice(0, 3)), [[10, 20, 7], [40, 50, 8], [300, 160, 15]]); assert.equal(D[0][3], N[0]); assert.equal(D[2][3], null);
+  const cx = (b[0] + b[2]) / 2;
+  assert.equal(S.gLabBad([[A]], 345, 300, [], v149Ms, [[cx, b[3] + 6, 5]]), false, 'koło 1 px pod napisem — bez kolizji (bez marginesu)');
+  assert.equal(S.gLabBad([[A]], 345, 300, [], v149Ms, [[cx, b[3] + 4, 5]]), true, 'koło wchodzi w napis');
+  assert.equal(S.gLabBad([[A]], 345, 300, [], v149Ms), false, 'bez kół — jak w v149');
+  assert.equal(html.split('if(gLabBad(R.map(x=>x.t).concat([C.t]),W,H,ov||[],ms,gLabDiscs(N,CN)))gLabFit(R,C,CN,W,H,fz,ms,ov||[],N);').length, 2, 'gLabels: sprawdzenie z kołami');
+  for (const f of ['function gCirc(b,c,R){', 'function gLabDiscs(N,CN){', 'function gLabBad(G,W,H,ov,ms,O){']) assert.equal(html.split(f).length, 2, f);
+  /* gLabFit: tarcze twarde (+3 px) i miękkie (do 8 px od cudzej tarczy); krypto schodzi z cudzej tarczy */
+  const f0 = html.indexOf('function gLabFit(R,C,CN,W,H,fz,ms,ov,nodes){'), F = html.slice(f0, html.indexOf('\n/* prostokąty elementów nad płótnem', f0));
+  assert.ok(F.includes('gCirc(b,c,c[2]+3)*10') && F.includes('gCirc(b,c,c[2]+8)*4') && F.includes('D.reduce((q,c)=>q+gCirc(b,c,c[2]+3)*1000+(c[3]===null?0:gCirc(b,c,c[2]+8)*4),0)') && F.includes('tier===2?90:46'), 'gLabFit: koła jako przeszkody');
+});
+
+test('v149.2: gLabFit — napisy krypto schodzą z tarczy niżej, gdy wystarczy (ten sam środek); pamięć wyniku uwzględnia promień węzła', () => {
+  const S = v149Map('pl', 345, 300, V149_F), CN = {x: 313, y: 168, r: 15.6}, f1 = '600 11px Sora,sans-serif', f2 = '600 10px Sora,sans-serif';
+  const mk = () => ({vl: '+4,3 mld USD', t: [['Krypto', 313, 200.1, f1, '#fff'], ['+4,3 mld USD', 313, 213.6, f2, '#0f0']]});
+  const w = Math.max(v149Ms('Krypto', f1).width, v149Ms('+4,3 mld USD', f2).width), cx = Math.min(313, 345 - w / 2 - 4);
+  /* bez węzła pod napisami — jak w v149 (tylko przesunięcie do płótna) */
+  const C0 = mk(); S.gLabFit([], C0, CN, 345, 300, S.fz, v149Ms, [], []);
+  assert.deepEqual(C0.t.map(a => [a[1], a[2]]), [[cx, 200.1], [cx, 213.6]], 'bez kolizji — miejsce v149');
+  /* mały węzeł tuż pod kołem krypto: napisy niżej o 2–14 px, ten sam środek */
+  const C1 = mk(), nd = {x: cx, y: 187, r: 6, _sr: 6};
+  S.gLabFit([], C1, CN, 345, 300, S.fz, v149Ms, [], [nd]);
+  const dy = C1.t[0][2] - 200.1;
+  assert.ok(C1.t[0][1] === cx && C1.t[1][1] === cx && dy >= 2 && dy <= 14 && Math.abs(C1.t[1][2] - 213.6 - dy) < 1e-9, 'niżej, ten sam środek: ' + JSON.stringify(C1.t.map(a => [a[1], a[2]])));
+  for (const a of C1.t) assert.ok(v1492Gap(S.gLabBox(a, v149Ms), [nd.x, nd.y, nd.r]) >= 3, 'co najmniej 3 px od tarczy');
+  /* pamięć: zmiana samego promienia r (bez _sr i położenia) — liczone od nowa */
+  const r1 = S.run(), N = S.GLAY.N.asean, r0 = N.r; N.r = r0 * 1.5; const r2 = S.run(); N.r = r0;
+  assert.notEqual(r2, r1, 'inny promień węzła — nowy wynik, nie z pamięci');
+});
+
