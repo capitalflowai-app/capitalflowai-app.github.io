@@ -1,49 +1,51 @@
-# Kontrola strony — 03.10.2026, 13:59 (czas polski)
+# Kontrola strony — 03.10.2026, 15:24 (czas polski)
 
 **Wynik: UWAGA**
 
 ⚠️ Uwag: 4 — nic nie wymaga natychmiastowej reakcji.
 
-- Strona główna: działa (HTTP 200, 308 ms).
-- Ostatni przebieg automatu: 03.10.2026, 13:55 — sprzed 4 min; źródeł: 70, bez odpowiedzi: żadne; błędów zbieracza: 0.
-- Przebiegi Actions w 24 h: 79 (success: 79).
-- Pliki danych (wiek): etf 0h53, trendy 0h04, oecd 5h58, rynki 0h53, dzwignia 0h04, wieloryby 0h04, energia 3h55, usa-makro 3h55, bilans-usa 16h54, krypto 0h53, krypto-top10 0h43, instytucje 0h53, tic 13h56, cm 0h53, fred 0h53, cftc 5h58, ceny 0h53, indeksy 0h53, ceny-krypto 0h53, snb 3h07, ici HTTP 404, fed 0h04, lancuch 0h04, wycena 3h36, insider HTTP 404, nastroj 4h50, stres 3h55, aukcje 3h55, swiat-dzien 0h04, swiat-dziennik 0h03, premie 0h04, dolar 0h43, krypto-dzien 0h04, krypto-dziennik 0h03, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200.
-- Notatki automatu: Premie krypto: historia Korei przerwana — limit czasu (20 s); reszta w następnym przebiegu · poprzedni insider.json: brak na stronie (404) · brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni · Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta) · poprzedni ici.json: brak na stronie (404) · Fundusze USA: brak poprzedniego pliku — próba w pierwszym przebiegu pełnej godziny.
+- Strona główna: działa (HTTP 200, 174 ms).
+- Ostatni przebieg automatu: 03.10.2026, 15:20 — sprzed 4 min; źródeł: 71, bez odpowiedzi: żadne; błędów zbieracza: 0.
+- Przebiegi Actions w 24 h: 77 (success: 77).
+- Pliki danych (wiek): etf 0h54, trendy 0h04, oecd 0h54, rynki 0h54, dzwignia 0h04, wieloryby 0h04, energia 5h20, usa-makro 5h20, bilans-usa 18h19, krypto 0h54, krypto-top10 0h44, instytucje 0h54, tic 15h21, cm 0h54, fred 0h54, cftc 0h54, ceny 0h54, indeksy 0h54, ceny-krypto 0h54, snb 4h33, ici HTTP 404, fed 0h04, lancuch 0h04, wycena 5h02, insider HTTP 404, nastroj 0h04, stres 5h20, aukcje 5h20, swiat-dzien 0h04, swiat-dziennik 0h02, premie 0h04, dolar 0h44, jpx 0h03, krypto-dzien 0h04, krypto-dziennik 0h02, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200.
+- Notatki automatu: Premie krypto: historia Korei: The read operation timed out — ponowienie w następnym przebiegu · poprzedni insider.json: brak na stronie (404) · brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni · Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta) · poprzedni ici.json: brak na stronie (404) · Fundusze USA: brak poprzedniego pliku — próba w pierwszym przebiegu pełnej godziny · poprzedni jpx.json: brak na stronie (404).
 
 ## Świeżość źródeł
 
 | Źródło | Status | Wiek danych | Data danych | Uwaga |
 |---|---|---|---|---|
-| rynki (kursy EBC, rentowności) | ✅ | 0 h 53 min | 2026-10-03T11:06:08+00:00 | — |
-| wieloryby (salda portfeli giełd) | ✅ | 0 h 04 min | 2026-10-03T11:55:27+00:00 | — |
-| dźwignia (giełdy pochodnych) | ✅ | 0 h 53 min | 2026-10-03T11:06:08+00:00 | — |
-| premie krypto (minuty giełd) | ✅ | 0 h 05 min | 2026-10-03T11:54 | — |
+| rynki (kursy EBC, rentowności) | ✅ | 0 h 54 min | 2026-10-03T12:30:39+00:00 | — |
+| wieloryby (salda portfeli giełd) | ✅ | 0 h 04 min | 2026-10-03T13:20:58+00:00 | — |
+| dźwignia (giełdy pochodnych) | ✅ | 0 h 54 min | 2026-10-03T12:30:39+00:00 | — |
+| premie krypto (minuty giełd) | ✅ | 0 h 04 min | 2026-10-03T13:20 | — |
 | TGA (Fiscal Data, dziennie) | ✅ | 24 h 00 min | 2026-10-01 | — |
 | ETF krypto (SoSoValue, dziennie) | ✅ | 24 h 00 min | 2026-10-01 – 2026-10-02 | — |
 | FRED dzienne (RRPONTSYD) | ✅ | 0 h 00 min | 2026-10-02 | — |
-| EIA ceny dzienne (publikowane co tydzień) | ✅ | 3 d 11 h | 2026-09-29 | — |
-| CFTC (raport tygodniowy) | ✅ | 3 d 11 h | 2026-09-29 | — |
-| FRED tygodniowe (WALCL) | ✅ | 2 d 11 h | 2026-09-30 | — |
-| TIC (miesięcznie) | ✅ | 63 d 11 h | 2026-07 | — |
-| OECD (miesięcznie) | ✅ | 32 d 11 h | 2026-08 | — |
-| BLS (miesięcznie) | ✅ | 32 d 11 h | 2026-08 | — |
-| szanse decyzji Fed (rynek zakładów) | ✅ | 0 h 03 min | 2026-10-03T11:56:16+00:00 | — |
-| wycena BTC — MVRV, średnia cena zakupu (dziennie) | ✅ | 11 h 59 min | 2026-10-02 | — |
+| EIA ceny dzienne (publikowane co tydzień) | ✅ | 3 d 13 h | 2026-09-29 | — |
+| CFTC (raport tygodniowy) | ✅ | 3 d 13 h | 2026-09-29 | — |
+| FRED tygodniowe (WALCL) | ✅ | 2 d 13 h | 2026-09-30 | — |
+| TIC (miesięcznie) | ✅ | 63 d 13 h | 2026-07 | — |
+| OECD (miesięcznie) | ✅ | 32 d 13 h | 2026-08 | — |
+| BLS (miesięcznie) | ✅ | 32 d 13 h | 2026-08 | — |
+| szanse decyzji Fed (rynek zakładów) | ✅ | 0 h 03 min | 2026-10-03T13:21:41+00:00 | — |
+| wycena BTC — MVRV, średnia cena zakupu (dziennie) | ✅ | 13 h 24 min | 2026-10-02 | — |
 | SOPR BTC (źródło opóźnia 7 dni) | ? | — | — | brak dnia danych SOPR w pliku |
-| kursy dolara Ameryki Łacińskiej (co godzinę) | ✅ | 0 h 43 min | 2026-10-03T11:16:01+00:00 | — |
+| kursy dolara Ameryki Łacińskiej (co godzinę) | ✅ | 0 h 44 min | 2026-10-03T12:40:31+00:00 | — |
+| Japonia: kto handluje akcjami na giełdzie (tydzień) | ✅ | 7 d 13 h | 2026-09-25 | — |
 
 ## Zgodność liczb (porównania krzyżowe)
 
-- Kapitalizacja krypto, dwa źródła: różnica dziś 5.05%, norma (mediana 7 dni) 4.35% — ✅ odchylenie od mediany 0.70 pkt proc. (progi 2 / 5).
-- Cena BTC: 84,668 vs 84,665 USD — różnica 0.00% ✅.
-- Cena ETH: 2,685 vs 2,686 USD — różnica 0.05% ✅.
+- Kapitalizacja krypto, dwa źródła: różnica dziś 4.09%, norma (mediana 7 dni) 4.35% — ✅ odchylenie od mediany 0.26 pkt proc. (progi 2 / 5).
+- Cena BTC: 84,780 vs 84,777 USD — różnica 0.00% ✅.
+- Cena ETH: 2,678 vs 2,680 USD — różnica 0.09% ✅.
 - TGA 2026-09-30: Fiscal Data 984,046 vs FRED 948,674 mln USD — różnica 3.73%, norma (mediana 7 dni) 3.05% — ✅ odchylenie od mediany 0.68 pkt proc. (progi 1).
 - ETF mapy (dwa źródła, ta sama data): porównane 14 symboli, różnice > 1%: 0 ✅.
 - Wieloryby 2026-10-03 vs 2026-10-02: 13 par giełda/aktywo, rozbieżności > 5%: 9 ⚠️.
 - MVRV BTC, dwa źródła: różnica najnowszego wspólnego dnia —, norma (mediana 0 dni) — — ℹ️ wspólnych dni 0 z 20 — bez oceny.
-- Premie krypto: USA BTC +0.01% (przez USDC -0.00%, różnica 0.01 pkt proc.); Korea BTC +0.93% (kurs z 2026-10-02); kurs KRW/USD 2026-10-02: wprost 1348.276, w pliku rynki 1348.280 (różnica 0.000%) ✅.
+- Premie krypto: USA BTC +0.01% (przez USDC -0.00%, różnica 0.01 pkt proc.); Korea BTC +0.98% (kurs z 2026-10-02); kurs KRW/USD 2026-10-02: wprost 1348.276, w pliku rynki 1348.280 (różnica 0.000%) ✅.
 - ETF krypto u źródła — przepływy funduszy na stronie vs wyliczenie z plików emitenta (dzień D = zmiana liczby jednostek D → D+1 × NAV z D; próg max 0.5 mln USD / 2%): IBIT ✅ porównane sesje: 1 (2026-10-01), różnic ponad próg: 0, największa różnica 0.0 mln USD; plik emitenta do 2026-10-02, nowszych sesji na stronie: 0; czeka na porównanie: 0 · ETHA ✅ porównane sesje: 1 (2026-10-01), różnic ponad próg: 0, największa różnica 0.0 mln USD; plik emitenta do 2026-10-02, nowszych sesji na stronie: 0; czeka na porównanie: 0.
 - Argentyna — dwa odczyty tych samych kursów: blue ✅ 0.00%, hurtowy ✅ 0.00%, oficjalny w banku ✅ 0.21%, MEP ✅ 0.17%, CCL ✅ 0.08%; hurtowy vs bank centralny (2026-10-02) ✅ 0.00%; główne luki: AR ✅, VE ✅, BO ✅.
+- Japonia: giełda (tylko handel akcjami na giełdzie) vs MOF (wszystkie akcje i fundusze, także poza giełdą), zagranica netto: ? za mało wspólnych tygodni (1, potrzeba 8).
 
 ## Uwagi
 - ici.json: HTTP 404 (brak pliku)
