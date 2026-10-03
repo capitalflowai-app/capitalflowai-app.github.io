@@ -157,7 +157,9 @@ def previous(name):
     cands = [c for c in (_prev_cache(name), _prev_site(name)) if isinstance(c, dict)]
     if not cands:
         return None
-    return max(cands, key=lambda c: str(c.get('at') or ''))
+    # v132: remis pola at (plik bez nowych danych, np. sama zmiana licznika prób SOPR) rozstrzyga czas przebiegu run.at — stara kopia z pamięci
+    # Actions nie cofa licznika; pliki bez run.at jak dotąd (przy remisie pierwsza: pamięć Actions)
+    return max(cands, key=lambda c: (str(c.get('at') or ''), str(c['run'].get('at') or '') if isinstance(c.get('run'), dict) else ''))
 
 
 def fresh(prev, minutes):
@@ -11418,6 +11420,424 @@ def build_lancuch(prev=None):
     return out
 
 
+# ===================== v132: WYCENA BTC Z ŁAŃCUCHA BLOKÓW — MVRV, NUPL, średnia cena zakupu, SOPR (data/wycena.json; bez klucza) =====================
+# Dzienne wskaźniki wyceny Bitcoina z publicznych danych łańcucha bloków (panel #c-wycena w CRYPTO, zaraz po „Sieci Bitcoin”). Dwie części:
+#   cm  część główna — Community API, z którego korzysta już build_cm (to samo CM_API, ten sam styl zapytania): jedno zapytanie ~75 KB o 401 dni
+#       metryk CapMVRVCur (MVRV — gotowy wskaźnik dostawcy), PriceUSD (cena z końca dnia UTC), SplyCur (podaż) i AssetEODCompletionTime (znacznik
+#       zamknięcia dnia u dostawcy — jak w krypto-dzien). Średnia cena zakupu (realized price) = PriceUSD / CapMVRVCur i NUPL = 1 − 1/MVRV liczymy
+#       tutaj (dostawca ich nie podaje w Community; tożsamość CapMrktCurUSD = PriceUSD × SplyCur sprawdzona 27.09.2026 na 1 500 dniach z dokładnością
+#       2e-16). Dzień D jest pełny u źródła w D+1 ok. 02:20–04:30 UTC (mediana ≈ 03:00; pomiar 13–26.09.2026, n = 14), więc strona ma dane z wczoraj.
+#       Dzień „gotowy” = jest MVRV i cena, dzień wcześniejszy niż dziś (UTC) i ma znacznik zamknięcia (bez znacznika — dopiero od D+1 04:30, jak
+#       KD_CM_DONE_M). Wszystkie późniejsze dni (np. sama cena bez MVRV przez kilka dni) = pending: asof to ostatni dzień gotowy, a dobre starsze
+#       liczby nigdy nie są nadpisywane brakami (luka w nowej odpowiedzi bierze liczbę z poprzedniego pliku). Liczby w pliku z 6 miejscami —
+#       zaokrąglenie dopiero na stronie (jedno zaokrąglenie: NUPL 0,36497 to „0,36”, nie „0,37”).
+#       Kiedy pytamy (wy_cm_due): brak części; wczorajszego dnia jeszcze nie ma, jest ≥ 02:00 UTC i ostatnia próba ≥ WY_CM_RETRY min temu; albo
+#       ostatnie udane pobranie starsze niż WY_CM_REFRESH_H h (dostawca poprawia dane wstecz) — typowo 4–8 zapytań na dobę.
+#   bg  SOPR (czy monety przeniesione danego dnia zmieniły właściciela z zyskiem, czy ze stratą) — gotowy wskaźnik drugiego serwisu, jedyne darmowe
+#       API bez klucza z SOPR. Darmowy plan: dane z opóźnieniem 7 dni, limit 10 zapytań na godzinę i 15 na dobę na adres IP (liczy się KAŻDE
+#       zapytanie, także 404). Najwyżej 2 zapytania na próbę (SOPR za 400 dni + MVRV za 60 dni tylko do kontroli dziennej — strona go nie pokazuje),
+#       najwyżej WY_BG_TRIES próby na dobę UTC, co ≥ WY_BG_GAP min, od 03:00 UTC (źródło aktualizuje ok. 02:30 UTC) — twardy limit WY_BG_REQ_MAX
+#       zapytań na dobę. Runnery GitHub mają różne adresy IP, więc limit dobowy źródła pilnujemy sami — licznikiem prób i zapytań w pliku; dlatego
+#       BEZ poprzedniego pliku (pamięć Actions i strona niedostępne) nie ma żadnego zapytania do tego źródła, a zapisany plik uznaje limit tej doby
+#       UTC za wyczerpany (licznik był nieznany — przegląd v132: inaczej do 126 zapytań na dobę, a przy braku pliku co drugi przebieg — 44); następna
+#       próba dopiero następnej doby UTC od 03:00. Pusta lista ([]) to błąd — zły parametr daje HTTP 200 z [] (pomiar 27.09.2026) — nigdy „brak
+#       danych = 0”. Udana próba zastępuje całe okno (źródło oddaje je w jednej odpowiedzi).
+#       Nieudana próba to notatka w meta.json, nie błąd: SOPR to dodatek z darmowego planu — kilka dni HTTP 429 nie może czerwienić kontroli dziennej.
+# Każda część osobno: błąd = poprzednie dane tej części z jej własnym czasem (at) + ok False + wpis w bledy; at pliku = najnowszy czas udanej
+# części (przesuwa się tylko po udanym pobraniu), run.at = czas przebiegu (previous() rozstrzyga nim remis at pamięci i strony — stara kopia nie cofa
+# licznika). Brak liczby = None (strona „—”), nigdy zero. Wyłącznik części bg: zmienna repozytorium WYCENA_BG_OFF=1 (czyta ją main()) — zero
+# zapytań do tego źródła i plik bez danych SOPR (licznik prób zostaje). Sieć tylko przez get_json (testy ją łatają).
+# Nazwy dostawców są tylko tu i w polach src / url / license pliku — strona ich nie pokazuje (decyzja właściciela 27.09.2026).
+WY_KEEP = 400            # dni kalendarzowe w cm.d i bg.sopr.d
+WY_CM_METRICS = ('CapMVRVCur', 'PriceUSD', 'SplyCur', 'AssetEODCompletionTime')
+WY_CM_URL = (CM_API + 'timeseries/asset-metrics?assets=btc&metrics=' + ','.join(WY_CM_METRICS)
+             + f'&frequency=1d&limit_per_asset={WY_KEEP + 1}&paging_from=end&page_size=1000&ignore_unsupported_errors=true')
+WY_CM_COLS = ['date', 'mvrv', 'price']   # mvrv = CapMVRVCur (6 miejsc), price = PriceUSD (USD, 2 miejsca)
+WY_CM_HOUR = 2           # od tej godziny UTC czekamy na wczorajszy dzień
+WY_CM_DONE_M = 270       # min po końcu dnia UTC: bez znacznika zamknięcia dzień jest gotowy dopiero od D+1 04:30 (jak KD_CM_DONE_M)
+WY_CM_RETRY = 60         # min między próbami części cm (wczorajszego dnia jeszcze nie ma albo ostatnia próba zawiodła)
+WY_CM_REFRESH_H = 6      # h — całe okno pobierane ponownie (poprawki wstecz); at pliku przesuwa się więc co najmniej co 6 h
+WY_CM_TIMEOUT = 30       # s
+WY_DP = 6                # miejsca po przecinku liczb w pliku (MVRV, NUPL, średnia SOPR) — zaokrąglenie do pokazania dopiero na stronie
+WY_BG_API = 'https://api.bitcoin-data.com/v1/'
+WY_BG_HOUR = 3           # od 03:00 UTC (źródło aktualizuje wskaźniki ok. 02:30 UTC)
+WY_BG_TRIES = 3          # prób na dobę UTC
+WY_BG_GAP = 120          # min między próbami
+WY_BG_REQ_MAX = 6        # twardy limit zapytań na dobę UTC (źródło: 15 na dobę na IP — zostaje zapas)
+WY_BG_TIMEOUT = 20       # s na zapytanie (cała część ≤ 2 × 20 s + 1 s)
+WY_BG_SLEEP = 1.0        # s przerwy przed zapytaniem 2
+WY_BG_SOPR_DAYS = 400    # zapytanie 1: SOPR od dziś − 400 dni (≈ 393 wiersze, ≈ 21 KB — jedno zapytanie niezależnie od długości)
+WY_BG_MVRV_DAYS = 60     # zapytanie 2: MVRV od dziś − 60 dni (≈ 53 wiersze) — tylko kontrola dzienna
+WY_BG_MVRV_KEEP = 60     # dni MVRV drugiego źródła w pliku
+WY_BG_MIN_ROWS = 300     # odpowiedź SOPR krótsza = historia się skurczyła → błąd części (zapisana zostaje)
+WY_BG_DELAY = 7          # dni — opóźnienie darmowego planu (pomiar 27.09.2026); inne = notatka (i uwaga w kontroli dziennej)
+WY_BG_DELAY_MAX = 30     # dni — większe opóźnienie ostatniego dnia SOPR = błąd części (zmiana planu darmowego)
+WY_LABEL = 'Wycena BTC'  # początek komunikatów w meta.json
+WY_SRC = {'cm': 'Coin Metrics Community Network Data — API v4 asset-metrics (CapMVRVCur, PriceUSD, SplyCur, AssetEODCompletionTime)',
+          'bg': 'BGeometrics Bitcoin Data API (free tier, keyless; SOPR and MVRV delayed 7 days)'}
+WY_URL = {'cm': 'https://docs.coinmetrics.io/api/v4/', 'bg': 'https://api.bitcoin-data.com/scalar.html'}
+WY_LICENSE = {'cm': 'CC BY-NC 4.0', 'bg': 'BGeometrics Terms and Conditions (Feb 24, 2026)'}
+WY_ATTR = ('Source: Coin Metrics Community Network Data (CC BY-NC 4.0) — MVRV (CapMVRVCur) and price as published; realized price and NUPL computed '
+           'by CapitalFlowAI from CapMVRVCur and PriceUSD. SOPR: BGeometrics (bgeometrics.com), free tier, 7-day delay, as published; the 7-day '
+           'mean computed by CapitalFlowAI. Not shown on the site (owner decision 27.09.2026).')
+WY_METHOD = {'rp': 'PriceUSD / CapMVRVCur', 'nupl': '1 - 1/CapMVRVCur', 'gap_pct': '(CapMVRVCur - 1) * 100 = price above realized price, %',
+             'mvrv_30': 'value on exactly asof - 30 days, else null', 'lo365_hi365': 'min / max over the last 365 calendar days with data',
+             'asof': 'last day with MVRV and price, before today (UTC), with the provider end-of-day mark (or from D+1 04:30 UTC); later days = pending',
+             'sopr_ma7': 'mean of 7 calendar days ending asof; any day missing = null', 'precision': '6 decimals in the file, rounded only for display',
+             'missing': 'null, never 0'}
+
+
+def _wy_iso(now):
+    """Czas zapisu (ISO UTC do sekundy)."""
+    return now.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _wy_age_min(iso, now):
+    """Wiek znacznika czasu w minutach wobec `now`; brak, zły zapis albo czas bez strefy = None; czas z przyszłości = liczba ujemna."""
+    try:
+        t = datetime.datetime.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return None
+    if t.tzinfo is None:
+        return None
+    return (now - t).total_seconds() / 60
+
+
+def _wy_r(x, n=WY_DP):
+    return None if x is None else round(x, n)
+
+
+def wy_num(v):
+    """Liczba z tekstu (Community API podaje liczby jako teksty) albo z liczby JSON; bool, brak, nie-liczba, NaN, nieskończoność albo ≤ 0
+    → None (MVRV, cena i podaż nie bywają ≤ 0 — taka liczba to błąd, nie pomiar; brak nigdy nie jest zerem)."""
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, str):
+        try:
+            x = float(v.strip())
+        except ValueError:
+            return None
+    elif isinstance(v, (int, float)):
+        x = float(v)
+    else:
+        return None
+    if x != x or x in (float('inf'), float('-inf')) or x <= 0:
+        return None
+    return x
+
+
+def wy_err(e):
+    """Krótki opis błędu zapytania bez adresu i bez treści odpowiedzi (do meta.json i pola bledy)."""
+    if isinstance(e, urllib.error.HTTPError):
+        return f'HTTP {e.code}' + (' (limit zapytań na IP)' if e.code == 429 else '')
+    if isinstance(e, TimeoutError) or 'timed out' in str(e):
+        return 'limit czasu'
+    if isinstance(e, urllib.error.URLError):
+        return 'brak połączenia (' + str(getattr(e, 'reason', e))[:60] + ')'
+    if isinstance(e, json.JSONDecodeError):
+        return 'odpowiedź nie jest JSON'
+    return (str(e) or type(e).__name__)[:120]
+
+
+def _wy_prev_cm(prev):
+    """Liczby z poprzedniej części cm: {dzień: (MVRV, cena)} — tylko prawdziwe daty i liczby > 0 (do uzupełniania luk nowej odpowiedzi)."""
+    out = {}
+    for r in (prev or {}).get('d') or [] if isinstance(prev, dict) else []:
+        if isinstance(r, list) and len(r) >= 3 and _cm_day(r[0]):
+            mv, px = wy_num(r[1]) if not isinstance(r[1], str) else None, wy_num(r[2]) if not isinstance(r[2], str) else None
+            if mv is not None or px is not None:
+                out[r[0]] = (mv, px)
+    return out
+
+
+def wy_parse_cm(j, now, prev=None):
+    """Odpowiedź Community API (WY_CM_URL) → część cm: {'asof', 'pending', 'pending_n', 'cols', 'd', 'last', 'sply', 'h'}. asof = ostatni dzień
+    gotowy: jest MVRV i cena, dzień wcześniejszy niż dziś (UTC), a znacznik zamknięcia dnia u dostawcy jest (bez niego — dopiero od D+1 04:30,
+    WY_CM_DONE_M). Dni późniejsze niż asof z jakąkolwiek liczbą (np. sama cena bez MVRV przez kilka dni) = pending (najnowszy z nich) i pending_n
+    (ile ich) — nie trafiają do d ani do last, więc świeżość i kafle opierają się na ostatnim dniu z MVRV. d = dni kalendarzowe rosnąco (najwyżej
+    WY_KEEP) do asof: [dzień, MVRV, cena]; dzień bez liczby w odpowiedzi bierze liczbę z poprzedniej części (prev — dobre starsze liczby nigdy nie
+    są nadpisywane brakami); bez obu = [dzień, None, None], nigdy zero. last z liczb niezaokrąglonych, zapis z WY_DP miejscami: mvrv, nupl, rp
+    (średnia cena zakupu, pełne USD), price (2 miejsca), gap_pct = (MVRV − 1) × 100 (o ile procent cena jest powyżej średniej ceny zakupu),
+    mvrv_30 = [dzień, MVRV] dokładnie 30 dni przed asof (brak tego dnia = None — nigdy najbliższy dzień), lo365 / hi365 = [dzień, MVRV] najniżej /
+    najwyżej w 365 dniach kalendarzowych kończących się na asof. Wyjątek: odpowiedź z błędem, bez pola data, bez metryki CapMVRVCur albo PriceUSD
+    (np. przeniesionej do planu płatnego), bez dnia gotowego albo z ostatnim dniem gotowym starszym niż zapisany (dane nie mogą się cofać)."""
+    if isinstance(j, dict) and isinstance(j.get('error'), dict):
+        raise RuntimeError('odpowiedź z błędem: ' + str(j['error'].get('message', j['error']))[:120])
+    rows = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(rows, list):
+        raise RuntimeError('brak pola data')
+    today = now.date().isoformat()
+    by, seen, done = {}, set(), set()
+    for r in rows:
+        if not isinstance(r, dict) or r.get('asset') != 'btc':
+            continue
+        day = str(r.get('time', ''))[:10]
+        if not _cm_day(day) or day >= today:          # dzień dzisiejszy (i późniejszy) nigdy nie jest pełny
+            continue
+        seen.update(m for m in WY_CM_METRICS[:3] if r.get(m) is not None)
+        mv, px, sp = (wy_num(r.get(m)) for m in WY_CM_METRICS[:3])
+        if mv is None and px is None:
+            continue
+        by[day] = (mv, px, sp)
+        end = datetime.datetime.combine(datetime.date.fromisoformat(day) + datetime.timedelta(days=1), datetime.time(), datetime.timezone.utc)
+        if _kd_iso(r.get('AssetEODCompletionTime')) is not None or (now - end).total_seconds() / 60 >= WY_CM_DONE_M:
+            done.add(day)                              # znacznik zamknięcia dnia albo D+1 04:30 bez znacznika (jak krypto-dzien)
+    for m in WY_CM_METRICS[:2]:
+        if m not in seen:
+            raise RuntimeError(f'brak metryki {m} w odpowiedzi')
+    full = sorted(d for d, v in by.items() if v[0] is not None and v[1] is not None and d in done)
+    if not full:
+        raise RuntimeError('żaden dzień nie ma gotowych obu liczb (MVRV i cena)')
+    last = full[-1]
+    later = sorted(d for d in by if d > last)
+    if isinstance(prev, dict) and _cm_day(prev.get('asof')) and last < prev['asof']:
+        raise RuntimeError(f'ostatni dzień {last} starszy niż zapisany {prev["asof"]}')
+    old = _wy_prev_cm(prev)
+    for day, (omv, opx) in old.items():                # luka w nowej odpowiedzi = liczba z poprzedniego pliku (nigdy brak w miejsce liczby)
+        if day <= last:
+            mv, px, sp = by.get(day, (None, None, None))
+            if mv is None or px is None:
+                by[day] = (mv if mv is not None else omv, px if px is not None else opx, sp)
+    d0 = datetime.date.fromisoformat(last)
+    first = max(datetime.date.fromisoformat(min(by)), d0 - datetime.timedelta(days=WY_KEEP - 1))
+    cal = [(first + datetime.timedelta(days=i)).isoformat() for i in range((d0 - first).days + 1)]
+    E = (None, None, None)
+    d = [[day, _wy_r(by.get(day, E)[0]), _wy_r(by.get(day, E)[1], 2)] for day in cal]
+    mv, px, sp = by[last]
+    d30 = (d0 - datetime.timedelta(days=30)).isoformat()
+    v30 = by.get(d30, E)[0]
+    y0 = (d0 - datetime.timedelta(days=364)).isoformat()
+    yr = [(day, by[day][0]) for day in cal if day >= y0 and day in by and by[day][0] is not None]
+    lo = min(yr, key=lambda x: x[1]) if yr else None
+    hi = max(yr, key=lambda x: x[1]) if yr else None
+    last_d = {'mvrv': _wy_r(mv), 'nupl': _wy_r(1 - 1 / mv), 'rp': int(round(px / mv)), 'price': _wy_r(px, 2), 'gap_pct': _wy_r((mv - 1) * 100, 4),
+              'mvrv_30': None if v30 is None else [d30, _wy_r(v30)],
+              'lo365': None if lo is None else [lo[0], _wy_r(lo[1])], 'hi365': None if hi is None else [hi[0], _wy_r(hi[1])]}
+    return {'asof': last, 'pending': later[-1] if later else None, 'pending_n': len(later), 'cols': WY_CM_COLS, 'd': d, 'last': last_d,
+            'sply': _wy_r(sp, 2), 'h': {'from': cal[0], 'to': last, 'len': len(cal),
+                                        'n': sum(1 for day in cal if day in by and by[day][0] is not None and by[day][1] is not None)}}
+
+
+def wy_bg_rows(j, field, today):
+    """Lista {'d': 'RRRR-MM-DD', 'unixTs': …, field: liczba} → {dzień: liczba}. Pusta lista albo nie lista = wyjątek (zły parametr daje HTTP 200
+    z []); wiersz bez prawdziwej daty, z datą z przyszłości, z liczbą ≤ 0, NaN, tekstem albo bool — pominięty; ten sam dzień dwa razy — późniejszy
+    wiersz wygrywa. Żadnego dobrego wiersza = wyjątek. Treści odpowiedzi (np. komunikatu planu płatnego) nie przepisujemy do błędów."""
+    if not isinstance(j, list):
+        raise ValueError('odpowiedź nie jest listą')
+    if not j:
+        raise ValueError('pusta lista (tak źródło odpowiada na zły parametr)')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict) or not _cm_day(r.get('d')) or r['d'] > today:
+            continue
+        v = r.get(field)
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            continue
+        x = float(v)
+        if x != x or x in (float('inf'), float('-inf')) or x <= 0:
+            continue
+        out[r['d']] = x
+    if not out:
+        raise ValueError(f'brak poprawnych wierszy {field}')
+    return out
+
+
+def wy_bg_sopr(rows, today, prev_asof=None):
+    """{dzień: SOPR} → (część sopr: {'asof', 'cols', 'd', 'ma7', 'last'}, opóźnienie w dniach = dziś (UTC) − ostatni dzień). d = dni kalendarzowe
+    rosnąco (najwyżej WY_KEEP) do asof, brak dnia = [dzień, None]; ma7 = średnia 7 dni kalendarzowych kończących się na asof (WY_DP miejsc), tylko
+    gdy są wszystkie 7 (inaczej None — nigdy średnia z dziurą). Wyjątek: ostatni dzień starszy niż zapisany prev_asof, mniej niż WY_BG_MIN_ROWS
+    dni (historia się skurczyła) albo opóźnienie ponad WY_BG_DELAY_MAX dni — wtedy zostaje poprzednia część."""
+    asof = max(rows)
+    delay = (datetime.date.fromisoformat(today) - datetime.date.fromisoformat(asof)).days
+    if _cm_day(prev_asof) and asof < prev_asof:
+        raise ValueError(f'ostatni dzień {asof} starszy niż zapisany {prev_asof}')
+    if len(rows) < WY_BG_MIN_ROWS:
+        raise ValueError(f'tylko {len(rows)} dni w odpowiedzi (oczekiwane co najmniej {WY_BG_MIN_ROWS}) — historia się skurczyła')
+    if delay > WY_BG_DELAY_MAX:
+        raise ValueError(f'ostatni dzień {asof} — {delay} dni opóźnienia (więcej niż {WY_BG_DELAY_MAX})')
+    d0 = datetime.date.fromisoformat(asof)
+    first = max(datetime.date.fromisoformat(min(rows)), d0 - datetime.timedelta(days=WY_KEEP - 1))
+    cal = [(first + datetime.timedelta(days=i)).isoformat() for i in range((d0 - first).days + 1)]
+    w = [rows.get((d0 - datetime.timedelta(days=i)).isoformat()) for i in range(7)]
+    ma7 = _wy_r(sum(w) / 7) if all(x is not None for x in w) else None
+    return {'asof': asof, 'cols': ['date', 'sopr'], 'd': [[day, None if day not in rows else _wy_r(rows[day])] for day in cal],
+            'ma7': ma7, 'last': _wy_r(rows[asof])}, delay
+
+
+def wy_bg_mvrv(rows):
+    """{dzień: MVRV drugiego źródła} → {'asof', 'd': [[dzień, MVRV]]} — ostatnie WY_BG_MVRV_KEEP dni do asof (tylko kontrola dzienna)."""
+    asof = max(rows)
+    lo = (datetime.date.fromisoformat(asof) - datetime.timedelta(days=WY_BG_MVRV_KEEP - 1)).isoformat()
+    return {'asof': asof, 'd': [[day, _wy_r(rows[day])] for day in sorted(rows) if day >= lo]}
+
+
+def wy_cm_due(prev, now):
+    """Czy pytać o część cm teraz. Brak części (albo bez dnia danych) — tak, ale po nieudanej próbie dopiero po WY_CM_RETRY min; wczorajszego
+    dnia (UTC) jeszcze nie ma, jest ≥ WY_CM_HOUR:00 UTC i ostatnia próba ≥ WY_CM_RETRY min temu — tak; ostatnie udane pobranie starsze niż
+    WY_CM_REFRESH_H h (albo brak / zły czas) i ostatnia próba ≥ WY_CM_RETRY min temu — tak; inaczej nie."""
+    C = prev.get('cm') if isinstance(prev, dict) and isinstance(prev.get('cm'), dict) else None
+    tried = _wy_age_min(C.get('tried'), now) if C else None
+    gap_ok = tried is None or tried < 0 or tried >= WY_CM_RETRY
+    if not C or not _cm_day(C.get('asof')):
+        return gap_ok
+    yday = (now.date() - datetime.timedelta(days=1)).isoformat()
+    if C['asof'] < yday and now.hour >= WY_CM_HOUR and gap_ok:
+        return True
+    at = _wy_age_min(C.get('at'), now)
+    return (at is None or at < 0 or at >= WY_CM_REFRESH_H * 60) and gap_ok
+
+
+def _wy_tries(B, today):
+    """Licznik części bg na dobę UTC `today` → (próby, zapytania, czas ostatniej próby). Inna doba = (0, 0, None). Zły zapis licznika z tej doby
+    = limit wyczerpany (ostrożnie: limit dobowy źródła ważniejszy niż jedna próba)."""
+    T = B.get('tries') if isinstance(B, dict) and isinstance(B.get('tries'), dict) else {}
+    if T.get('day') != today:
+        return 0, 0, None
+    n, req = T.get('n'), T.get('req')
+    if not all(isinstance(x, int) and not isinstance(x, bool) and x >= 0 for x in (n, req)):
+        return WY_BG_TRIES, WY_BG_REQ_MAX, T.get('last')
+    return n, req, T.get('last')
+
+
+def wy_bg_due(prev, now):
+    """(czy pytać o SOPR teraz, powód). Nie: brak poprzedniego pliku z tego budowniczego (bez pola run — licznik prób nieznany: pamięć Actions
+    i strona niedostępne; build_wycena zapisuje wtedy limit tej doby jako wyczerpany); SOPR pobrany już tej doby UTC; przed WY_BG_HOUR:00 UTC; WY_BG_TRIES prób tej doby;
+    zapytania tej doby + 2 > WY_BG_REQ_MAX; ostatnia próba mniej niż WY_BG_GAP min temu (czas z przyszłości też — zegar runnera mógł się różnić).
+    Nowa doba UTC zeruje licznik."""
+    if not isinstance(prev, dict) or not isinstance(prev.get('run'), dict):
+        return False, 'brak poprzedniego pliku — licznik prób nieznany: limit tej doby uznany za wyczerpany, SOPR od następnej doby UTC'
+    B = prev.get('bg') if isinstance(prev.get('bg'), dict) else {}
+    today = now.date().isoformat()
+    if B.get('day') == today:
+        return False, 'SOPR pobrany tej doby'
+    if now.hour < WY_BG_HOUR:
+        return False, f'przed {WY_BG_HOUR:02d}:00 UTC'
+    n, req, last = _wy_tries(B, today)
+    if n >= WY_BG_TRIES:
+        return False, f'{n} prób tej doby (limit {WY_BG_TRIES})'
+    if req + 2 > WY_BG_REQ_MAX:
+        return False, f'{req} zapytań tej doby (limit {WY_BG_REQ_MAX})'
+    age = _wy_age_min(last, now) if last else None
+    if last and age is not None and age < WY_BG_GAP:
+        return False, f'ostatnia próba {max(0, int(age))} min temu (odstęp {WY_BG_GAP} min)'
+    return True, 'należne'
+
+
+def build_wycena(prev=None, now=None, bg_off=False):
+    """data/wycena.json — wycena BTC z łańcucha bloków: część cm (MVRV, średnia cena zakupu, NUPL; dane dzienne z wczoraj) i część bg (SOPR,
+    7 dni opóźnienia; MVRV drugiego źródła tylko do kontroli dziennej). Każda część pytana tylko, gdy należna (wy_cm_due, wy_bg_due); część
+    z błędem = poprzednie dane z jej własnym at, ok False i wpis w bledy (cm → META['errors']; bg → META['notes'], bo SOPR to dodatek z darmowego
+    planu); nic należnego = poprzedni plik z run 'skip' (bez zapytań, at bez zmian). bg_off (zmienna WYCENA_BG_OFF=1, czyta main) = zero zapytań
+    do drugiego źródła i plik bez danych SOPR — licznik prób i dzień ostatniego pobrania zostają (wyłączenie i włączenie nie zeruje limitu doby).
+    Bez poprzedniego pliku (prev None albo bez pola run): zero zapytań SOPR, a plik zapisuje limit tej doby UTC jako wyczerpany (licznik nieznany).
+    Nie rzuca wyjątku z powodu źródeł (licznik prób SOPR musi trafić do pliku — od niego zależy limit dobowy źródła); `now` — testy
+    (domyślnie _now_utc()).
+
+    Warunki (sprawdzone 27.09.2026; cytaty w planie v128/bgeometrics/PLAN.md §3):
+    * Community API (cm) — dokumentacja https://docs.coinmetrics.io/api/v4: „Available to the community under the Creative Commons license.”
+      (odnośnik do CC BY-NC 4.0: użycie niekomercyjne z uznaniem autorstwa; średnia cena zakupu i NUPL to nasze przeliczenie — pola attribution
+      i method w pliku). Limit Community: 10 zapytań na 6 s na IP — przed zapytaniem CM_PAGE_SLEEP s przerwy (build_cm pyta w tym samym przebiegu).
+    * Drugie źródło (bg) — Terms and Conditions https://charts.bgeometrics.com/terms.html („Last updated: February 24, 2026”):
+      „Free tier: 8 requests per hour · 15 requests per day · No payment required”;
+      „Free-tier access is intended for personal projects, research, and evaluation.”;
+      „Any platform, application, or service that delivers BGeometrics API data to end users … is classified as commercial redistribution and
+      requires the Professional plan.”; zakaz „Attempt to bypass, circumvent, or abuse API rate limits by any means.”
+      Dokumentacja API: „Most indicators are updated daily 02:30 UTC.”; „Free plan: up to 10 requests per hour and 15 requests per day.”
+      Wdrożone na wyraźną decyzję właściciela (26.09 i 27.09.2026: licencje drugorzędne, ryzyko przyjęte): na stronie tylko SOPR, bez nazwy
+      źródła; własny limit 2 zapytania na dobę (najwyżej WY_BG_REQ_MAX) — żeby rotacja adresów IP runnerów nie omijała limitu dobowego;
+      wyłącznik WYCENA_BG_OFF."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc)
+    iso, today = _wy_iso(now), now.date().isoformat()
+    prev_ok = isinstance(prev, dict)
+    prev = prev if prev_ok else {}
+    C0 = prev.get('cm') if isinstance(prev.get('cm'), dict) else None
+    B0 = prev.get('bg') if isinstance(prev.get('bg'), dict) else None
+    ok0 = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
+    cm_due = wy_cm_due(prev, now)
+    bg_due, why = (False, 'wyłączone (WYCENA_BG_OFF=1)') if bg_off else wy_bg_due(prev if prev_ok else None, now)
+    out = {'at': None, 'ok': {'cm': ok0.get('cm'), 'bg': ok0.get('bg')}, 'run': {'at': iso, 'cm': 'skip', 'bg': 'off' if bg_off else 'skip', 'bg_why': why},
+           'cm': C0, 'bg': B0, 'bledy': dict(prev['bledy']) if isinstance(prev.get('bledy'), dict) else {},
+           'src': WY_SRC, 'url': WY_URL, 'license': WY_LICENSE, 'attribution': WY_ATTR, 'method': WY_METHOD,
+           'unit': {'mvrv': 'ratio', 'nupl': 'ratio', 'rp': 'USD', 'price': 'USD', 'gap_pct': '%', 'sopr': 'ratio'}}
+    errs, notes = [], []
+    if cm_due:
+        out['run']['cm'] = 'fail'
+        time.sleep(CM_PAGE_SLEEP)      # Community API: 10 zapytań na 6 s na IP (build_cm i krypto-dzien pytają w tym samym przebiegu)
+        try:
+            C = wy_parse_cm(get_json(WY_CM_URL, timeout=WY_CM_TIMEOUT), now, C0)
+        except Exception as e:  # noqa — część z błędem: poprzednie liczby z ich własnym at, nigdy zero
+            msg = mask(f'MVRV: {wy_err(e)}')[:140]
+            errs.append(msg); out['bledy']['cm'] = msg; out['ok']['cm'] = False
+            out['cm'] = dict(C0, tried=iso) if C0 else {'tried': iso}
+        else:
+            C.update(at=iso, tried=iso)
+            out['cm'] = C; out['ok']['cm'] = True; out['run']['cm'] = 'ok'; out['bledy'].pop('cm', None)
+    blind = not isinstance(prev.get('run'), dict)      # brak poprzedniego pliku z tego budowniczego — licznik prób tej doby nieznany
+    keep = ({'tries': {'day': today, 'n': WY_BG_TRIES, 'req': WY_BG_REQ_MAX, 'last': iso, 'nieznany': True}} if blind     # limit doby = wyczerpany
+            else {k: B0[k] for k in ('day', 'tries') if B0 and k in B0})   # licznik doby i dzień pobrania przeżywają wyłączenie
+    if bg_off:
+        out['bg'] = dict(keep, off=True); out['ok']['bg'] = 'off'
+        for k in ('bg', 'bg_mvrv'):
+            out['bledy'].pop(k, None)
+        notes.append('SOPR wyłączony (WYCENA_BG_OFF=1) — bez zapytań i bez danych SOPR w pliku')
+    elif bg_due:
+        out['run']['bg'] = 'fail'
+        n, req, _ = _wy_tries(B0 or {}, today)
+        tries = {'day': today, 'n': n + 1, 'req': req, 'last': iso}
+        base = dict(B0) if B0 and not B0.get('off') else dict(keep)
+        old_s = base.get('sopr') if isinstance(base.get('sopr'), dict) else {}
+        start = (now.date() - datetime.timedelta(days=WY_BG_SOPR_DAYS)).isoformat()
+        try:
+            tries['req'] += 1          # liczy się każde wysłane zapytanie (także nieudane)
+            S, delay = wy_bg_sopr(wy_bg_rows(get_json(f'{WY_BG_API}sopr?startday={start}', timeout=WY_BG_TIMEOUT), 'sopr', today), today, old_s.get('asof'))
+        except Exception as e:  # noqa — bez zapytania 2; poprzednia część z własnym at, licznik prób zapisany; notatka, nie błąd (dodatek)
+            msg = mask(f'SOPR: {wy_err(e)} — próba {tries["n"]} z {WY_BG_TRIES} tej doby')[:140]
+            notes.append(msg); out['bledy']['bg'] = msg; out['ok']['bg'] = False
+            out['bg'] = dict(base, tries=tries)
+            out['bg'].pop('off', None)
+        else:
+            M = base.get('mvrv') if isinstance(base.get('mvrv'), dict) else None
+            time.sleep(WY_BG_SLEEP)
+            start2 = (now.date() - datetime.timedelta(days=WY_BG_MVRV_DAYS)).isoformat()
+            try:
+                tries['req'] += 1
+                M = wy_bg_mvrv(wy_bg_rows(get_json(f'{WY_BG_API}mvrv?startday={start2}', timeout=WY_BG_TIMEOUT), 'mvrv', today))
+                out['bledy'].pop('bg_mvrv', None)
+            except Exception as e:  # noqa — tylko kontrola dzienna: zostaje poprzednie MVRV (z własnym asof), SOPR i tak zapisany
+                msg = mask(f'MVRV do kontroli: {wy_err(e)} — zostaje poprzednie')[:140]
+                notes.append(msg); out['bledy']['bg_mvrv'] = msg
+            out['bg'] = {'at': iso, 'day': today, 'tries': tries, 'delay_d': delay, 'sopr': S, 'mvrv': M}
+            out['ok']['bg'] = True; out['run']['bg'] = 'ok'; out['bledy'].pop('bg', None)
+            if delay != WY_BG_DELAY:
+                notes.append(f'SOPR: opóźnienie źródła {delay} dni (zwykle {WY_BG_DELAY})')
+    elif blind:
+        out['bg'] = keep
+    ats = [P['at'] for P in (out['cm'], out['bg']) if isinstance(P, dict) and isinstance(P.get('at'), str)]
+    out['at'] = max(ats) if ats else None
+    for x in notes:
+        META['notes'].append(f'{WY_LABEL}: {x}'[:160])
+    for x in errs:
+        META['errors'].append(mask(f'{WY_LABEL}: {x}')[:160])
+    return out
+
+
+def wy_meta(out):
+    """META['ok'] z wyniku przebiegu: część pytana teraz → True / False; niepytana → 'cached' po udanej ostatniej próbie, False gdy ostatnia
+    zawiodła (ponowienie czeka — błąd zostaje widoczny bez nowego zapytania); SOPR wyłączony albo jeszcze nigdy niepytany → bez klucza."""
+    res = {}
+    for part, key in (('cm', 'wycena'), ('bg', 'wycena_bg')):
+        r, o = (out.get('run') or {}).get(part), (out.get('ok') or {}).get(part)
+        if r == 'ok':
+            res[key] = True
+        elif r == 'fail':
+            res[key] = False
+        elif r == 'off' or o is None or o == 'off':
+            continue
+        else:
+            res[key] = 'cached' if o is True else False
+    return res
+
+
 # ===================== v124: SNB — depozyty banków w banku centralnym Szwajcarii (tygodniowo) i rezerwy walutowe (miesięcznie), bez klucza =====================
 # Źródło: portal danych Szwajcarskiego Banku Narodowego (data.snb.ch), interfejs bez klucza, odpowiedź JSON:
 #  - kostka snbgwdchfsgw („Sight deposits in Swiss francs at the SNB”): GI = depozyty na widoku banków krajowych, UEB = pozostałe depozyty
@@ -13524,6 +13944,16 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'{LN_LABEL}: {e}')); META['ok']['lancuch'] = False; META['ok']['lancuch_2'] = False
             if prev_ln: save('lancuch', prev_ln)
+    # v132: wycena BTC z łańcucha bloków — MVRV, NUPL i średnia cena zakupu (Community API jak build_cm: wczorajszy dzień od ok. 02–04 UTC,
+    # ponowienie co godzinę, całe okno co 6 h) oraz SOPR (darmowy plan źródła: 7 dni opóźnienia, limit 15 zapytań na dobę na IP — najwyżej
+    # 2 zapytania na próbę, 3 próby na dobę UTC od 03:00 co ≥ 2 h); każda część osobno, nic należnego = poprzedni plik bez zapytań; wyłącznik
+    # części SOPR: zmienna repozytorium WYCENA_BG_OFF=1; awaria całości = poprzedni plik i błąd (strona Źródła: wycena, wycena_bg)
+    prev_wy = previous('wycena')
+    try:
+        wy = build_wycena(prev_wy, bg_off=os.environ.get('WYCENA_BG_OFF', '').strip() == '1'); save('wycena', wy); META['ok'].update(wy_meta(wy))
+    except Exception as e:
+        META['errors'].append(mask(f'{WY_LABEL}: {e}')[:160]); META['ok']['wycena'] = False; META['ok']['wycena_bg'] = False
+        if prev_wy: save('wycena', prev_wy)
     # v124: Szwajcaria — depozyty banków w banku centralnym (tygodniowo) i rezerwy walutowe (miesięcznie), bez klucza: co 12 h; część z błędem
     # albo spóźniony tydzień (po poniedziałkowej publikacji, najwyżej 2 doby) — ponowienie co godzinę (snb_odswiez); awaria = poprzedni plik i błąd
     prev_snb = previous('snb')

@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -181,7 +181,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -533,7 +533,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -623,7 +623,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -756,7 +756,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1115,7 +1115,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1359,7 +1359,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1596,7 +1596,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1827,7 +1827,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2340,7 +2340,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3092,7 +3092,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3219,7 +3219,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3254,7 +3254,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3630,7 +3630,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4115,7 +4115,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8758,7 +8758,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9147,7 +9147,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10000,7 +10000,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_wieloryby', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -15970,3 +15970,837 @@ class NastrojV139(unittest.TestCase):
         self.assertIn("srvJSON('nastroj')", h); self.assertIn('const EXTRA136=', h)
         wf = open(os.path.join(root, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
         self.assertIn('FRED_KEY: ${{ secrets.FRED_KEY }}', wf, 'ten sam sekret — bez nowego')
+
+
+# ===================== v132: WYCENA BTC Z ŁAŃCUCHA BLOKÓW — testy (MVRV, NUPL, średnia cena zakupu; SOPR z limitem zapytań; kontrola) =====================
+import importlib.util as _ilu_v132
+import re as _re_v132
+import urllib.error as _uerr_v132
+
+# nagrania z 27.09.2026 (plan v128/bgeometrics, katalog fixtures): odpowiedź Community API za 10 dni — dosłownie; 401 dni — wiersze
+# [dzień, CapMVRVCur, PriceUSD, SplyCur] z tekstami liczb dosłownie (odpowiedź odtwarza _wy_cm_body); SOPR od 2025-08-23 i MVRV od 2026-07-29
+# drugiego źródła — [dzień, liczba] (odpowiedź odtwarza _wy_bg_body z unixTs); SOPR 12–20.09 — dosłownie
+WY_T_CM10 = '{"data":[{"asset":"btc","time":"2026-09-17T00:00:00.000000000Z","CapMVRVCur":"1.435849433216295172","CapMrktCurUSD":"1534289255564.704520800167829696","PriceUSD":"76386.9018813968","SplyCur":"20085763.62930572"},{"asset":"btc","time":"2026-09-18T00:00:00.000000000Z","CapMVRVCur":"1.520148108509720923","CapMrktCurUSD":"1625863616660.61927381602884806","PriceUSD":"80944.1551838106","SplyCur":"20086238.6291951"},{"asset":"btc","time":"2026-09-19T00:00:00.000000000Z","CapMVRVCur":"1.525664629301577927","CapMrktCurUSD":"1632287115291.476715055739714986","PriceUSD":"81262.3455507422","SplyCur":"20086635.50416763"},{"asset":"btc","time":"2026-09-20T00:00:00.000000000Z","CapMVRVCur":"1.524189665451471584","CapMrktCurUSD":"1630968303348.060758424196826436","PriceUSD":"81194.7440397662","SplyCur":"20087116.75412478"},{"asset":"btc","time":"2026-09-21T00:00:00.000000000Z","CapMVRVCur":"1.620960799754175229","CapMrktCurUSD":"1737682294733.7460087072235072","PriceUSD":"86505.297748235","SplyCur":"20087582.37895552"},{"asset":"btc","time":"2026-09-22T00:00:00.000000000Z","CapMVRVCur":"1.612151310687801884","CapMrktCurUSD":"1731692944156.58697582855492501","PriceUSD":"86205.2717985915","SplyCur":"20088016.75380694"},{"asset":"btc","time":"2026-09-23T00:00:00.000000000Z","CapMVRVCur":"1.578596055163793323","CapMrktCurUSD":"1696152049521.83131927596196846","PriceUSD":"84434.3188651724","SplyCur":"20088419.87853665"},{"asset":"btc","time":"2026-09-24T00:00:00.000000000Z","CapMVRVCur":"1.577304652515512133","CapMrktCurUSD":"1695229926223.292544884356064115","PriceUSD":"84386.5778094565","SplyCur":"20088857.37790071"},{"asset":"btc","time":"2026-09-25T00:00:00.000000000Z","CapMVRVCur":"1.570499752456380261","CapMrktCurUSD":"1688747861588.438290616023518289","PriceUSD":"84062.1558929047","SplyCur":"20089276.12729687"},{"asset":"btc","time":"2026-09-26T00:00:00.000000000Z","CapMVRVCur":"1.576264564735581773","CapMrktCurUSD":"1695304232913.60089035532701582","PriceUSD":"84386.4961173115","SplyCur":"20089757.37725668"}]}'
+WY_T_CM401 = [
+    ["2025-08-22", "2.230960318170926611", "116800.977035073", "19910038.31327144"], ["2025-08-23", "2.201272176719621556", "115280.444723834", "19910513.31266958"], ["2025-08-24", "2.167328504514983747", "113516.122474401", "19911016.8124341"],
+    ["2025-08-25", "2.101608862718138035", "110089.533314144", "19911457.43728359"], ["2025-08-26", "2.134898566000887235", "111895.295495307", "19911926.18644571"], ["2025-08-27", "2.121825120237447203", "111252.307236061", "19912394.93570583"],
+    ["2025-08-28", "2.142789122023942771", "112481.152904109", "19912891.81040165"], ["2025-08-29", "2.058523970791205386", "108473.330441642", "19913407.43506369"], ["2025-08-30", "2.063022252855390766", "108746.150824851", "19913901.18485216"],
+    ["2025-08-31", "2.054653984489100874", "108316.44689481", "19914313.68392839"], ["2025-09-01", "2.066472278033613368", "108992.324614863", "19914816.80858685"], ["2025-09-02", "2.106133166120609526", "111140.947159836", "19915326.18210888"],
+    ["2025-09-03", "2.117352868701102179", "111780.743587376", "19915754.30613677"], ["2025-09-04", "2.098839967151200262", "110900.633412981", "19916191.80554179"], ["2025-09-05", "2.090991089631539186", "110711.229484804", "19916638.6799903"],
+    ["2025-09-06", "2.081547548704114145", "110243.650741672", "19917076.17954741"], ["2025-09-07", "2.100795508587897917", "111307.784421087", "19917557.42915028"], ["2025-09-08", "2.114485395928852172", "112112.311575102", "19918057.42893734"],
+    ["2025-09-09", "2.1019000165432097", "111486.396779836", "19918579.3031611"], ["2025-09-10", "2.145924375428193636", "113930.748423437", "19919110.55137479"], ["2025-09-11", "2.171828406012249028", "115445.812932648", "19919579.30121742"],
+    ["2025-09-12", "2.183452405812582547", "116149.174031958", "19919954.30107904"], ["2025-09-13", "2.178678922337634079", "115965.627551268", "19920394.92564128"], ["2025-09-14", "2.167360117920092304", "115395.933423437", "19920873.04963312"],
+    ["2025-09-15", "2.165666508561501785", "115420.931814144", "19921382.42404674"], ["2025-09-16", "2.188879724135061631", "116798.874620164", "19921882.4236011"], ["2025-09-17", "2.181807025941311271", "116575.777628866", "19922282.42355741"],
+    ["2025-09-18", "2.188425256780357314", "117014.426762174", "19922776.17312867"], ["2025-09-19", "2.158451596872666252", "115612.372541695", "19923301.17200279"], ["2025-09-20", "2.160082452031499425", "115753.165960549", "19923779.29684702"],
+    ["2025-09-21", "2.15119924230539356", "115320.858829047", "19924285.54658358"], ["2025-09-22", "2.103084329011381624", "112727.70773813", "19924754.29597328"], ["2025-09-23", "2.088420752528868364", "112052.393282022", "19925204.29540892"],
+    ["2025-09-24", "2.109843805004124317", "113324.623592192", "19925682.41991233"], ["2025-09-25", "2.031242470311527129", "109166.347974874", "19926123.0442022"], ["2025-09-26", "2.039297742066763314", "109669.102166861", "19926535.54393123"],
+    ["2025-09-27", "2.038409725859388585", "109644.73069287", "19927019.91856265"], ["2025-09-28", "2.084398213626927358", "112170.00778609", "19927535.54322349"], ["2025-09-29", "2.122720877587773029", "114341.141435418", "19927973.04269274"],
+    ["2025-09-30", "2.112807213335253183", "113971.742796902", "19928476.16734086"], ["2025-10-01", "2.186155026712076994", "118393.270386324", "19928948.04210659"], ["2025-10-02", "2.221772196583207903", "120558.594007013", "19929373.04168753"],
+    ["2025-10-03", "2.249202943238195893", "122348.127640269", "19929741.79167985"], ["2025-10-04", "2.247639041410610962", "122379.744317651", "19930160.5415677"], ["2025-10-05", "2.266766621760194845", "123523.768313852", "19930626.16644049"],
+    ["2025-10-06", "2.287145426879909089", "124824.453666861", "19931010.54125385"], ["2025-10-07", "2.219347428097427608", "121587.699236704", "19931441.79109844"], ["2025-10-08", "2.248606081441407271", "123390.353094682", "19931904.2908611"],
+    ["2025-10-09", "2.212553431308937524", "121603.33278609", "19932279.29077496"], ["2025-10-10", "2.070562788244426797", "113754.852328171", "19932691.79049044"], ["2025-10-11", "2.019478996261418895", "110940.113648159", "19933151.16535648"],
+    ["2025-10-12", "2.095125745165171101", "115152.917045003", "19933604.29034837"], ["2025-10-13", "2.097463177575280065", "115332.252929573", "19934079.29024129"], ["2025-10-14", "2.056829337301677015", "113327.079410286", "19934607.41507201"],
+    ["2025-10-15", "2.005891025806165235", "110862.872485389", "19935057.41501474"], ["2025-10-16", "1.957856817817029721", "108135.049605786", "19935535.53996235"], ["2025-10-17", "1.929283031577620274", "106625.668651373", "19936032.41491048"],
+    ["2025-10-18", "1.938149518377999421", "107143.913935126", "19936548.03977609"], ["2025-10-19", "1.965929731213063898", "108706.663763881", "19936982.41471914"], ["2025-10-20", "2.000241242040893522", "110640.249515488", "19937448.03964951"],
+    ["2025-10-21", "1.96425526932419361", "108700.382071888", "19937916.78957591"], ["2025-10-22", "1.94226939381305091", "107667.630188486", "19938394.91454782"], ["2025-10-23", "1.983850582920295439", "110060.936797195", "19938838.66452939"],
+    ["2025-10-24", "2.000239970364218405", "111024.94314699", "19939398.03947926"], ["2025-10-25", "2.010123020095332038", "111614.535857686", "19939898.03943167"], ["2025-10-26", "2.061141989497095024", "114557.100460549", "19940357.41441729"],
+    ["2025-10-27", "2.050648698304158512", "114087.773805085", "19940816.78928169"], ["2025-10-28", "2.026985285422002442", "112980.685846289", "19941323.0392265"], ["2025-10-29", "1.974857071418471488", "110206.347983051", "19941707.41421538"],
+    ["2025-10-30", "1.932524832732004399", "108019.723841905", "19942207.41410432"], ["2025-10-31", "1.959627406916377287", "109554.239627703", "19942644.91409829"], ["2025-11-01", "1.966344070183569606", "110005.295855348", "19943076.16409725"],
+    ["2025-11-02", "1.9727764696344197", "110389.168627119", "19943560.53907935"], ["2025-11-03", "1.90208825321448168", "106495.802789889", "19944004.28904138"], ["2025-11-04", "1.811685588621834272", "101349.73723232", "19944413.66403078"],
+    ["2025-11-05", "1.857055734420491882", "103915.88479135", "19944844.91391502"], ["2025-11-06", "1.809720163168965406", "101241.573677966", "19945282.41386627"], ["2025-11-07", "1.842846505333191295", "103428.471746932", "19945726.16384477"],
+    ["2025-11-08", "1.822758385602604646", "102335.021439217", "19946101.16382464"], ["2025-11-09", "1.864165176146262594", "104685.54544097", "19946541.78875368"], ["2025-11-10", "1.887544360073252985", "106082.478156926", "19946979.2887473"],
+    ["2025-11-11", "1.831888197421843099", "102974.405611631", "19947457.41372336"], ["2025-11-12", "1.808509903130079032", "101682.126652835", "19947898.03856002"], ["2025-11-13", "1.780012643410584541", "100035.310145237", "19948366.78854092"],
+    ["2025-11-14", "1.684260697265532358", "94503.2576025716", "19948816.78847541"], ["2025-11-15", "1.702509965261634598", "95541.3158389831", "19949263.66339631"], ["2025-11-16", "1.678552581264202543", "94182.3130996493", "19949760.53816872"],
+    ["2025-11-17", "1.639286711443771614", "91911.4713471654", "19950148.03807872"], ["2025-11-18", "1.654516965238705052", "92836.4419111631", "19950563.66261439"], ["2025-11-19", "1.628739580213074072", "91320.4811332554", "19950991.78748284"],
+    ["2025-11-20", "1.551561997819494713", "86911.2980590298", "19951401.16243033"], ["2025-11-21", "1.520247367252210785", "84948.0463205727", "19951873.03735691"], ["2025-11-22", "1.506320225015678732", "84775.0015452952", "19952319.912294"],
+    ["2025-11-23", "1.540812901640595729", "86872.4546630625", "19952763.66192388"], ["2025-11-24", "1.567403592740589338", "88377.6024421391", "19953210.53683846"], ["2025-11-25", "1.550709768072390865", "87434.550610754", "19953569.91131734"],
+    ["2025-11-26", "1.60191795961373538", "90449.2770675044", "19954082.41129558"], ["2025-11-27", "1.618011024602580804", "91336.2000452952", "19954529.28628108"], ["2025-11-28", "1.612404365357879284", "90990.1266104617", "19954998.03620112"],
+    ["2025-11-29", "1.609812435967487024", "90842.0738243717", "19955426.16117954"], ["2025-11-30", "1.605936798624271017", "90607.7021513735", "19955948.03609673"], ["2025-12-01", "1.533958697259218037", "86504.6368156049", "19956363.66107464"],
+    ["2025-12-02", "1.623386616483569194", "91528.0245809468", "19956760.53600458"], ["2025-12-03", "1.659439770773658819", "93609.0938658679", "19957173.03598707"], ["2025-12-04", "1.634686076820270397", "92205.5929544126", "19957585.53596111"],
+    ["2025-12-05", "1.584551095422328599", "89279.8344634717", "19957957.4108358"], ["2025-12-06", "1.582597477652467208", "89169.5570610754", "19958466.7857961"], ["2025-12-07", "1.598500461378138632", "90067.847399474", "19958966.78578562"],
+    ["2025-12-08", "1.609617738643143677", "90673.1444436003", "19959429.28575096"], ["2025-12-09", "1.64698945121268091", "92808.8518477498", "19959832.41070624"], ["2025-12-10", "1.632577087050128323", "92102.9300917592", "19960316.78567065"],
+    ["2025-12-11", "1.641645398724975683", "92623.7198708358", "19960816.78562884"], ["2025-12-12", "1.602002659782639266", "90331.6083091759", "19961269.91062201"], ["2025-12-13", "1.600407122792779431", "90245.267264173", "19961716.78557605"],
+    ["2025-12-14", "1.56259929379314562", "88096.3826142607", "19962116.78553285"], ["2025-12-15", "1.533450783443856259", "86352.5802565751", "19962535.53551883"], ["2025-12-16", "1.558300066009001642", "87752.4290336061", "19962994.91048135"],
+    ["2025-12-17", "1.529104503632706962", "86059.5522241379", "19963426.16047563"], ["2025-12-18", "1.51839512120937372", "85434.1928673291", "19963876.16040556"], ["2025-12-19", "1.56693934461553295", "88168.0738325541", "19964329.28534992"],
+    ["2025-12-20", "1.569933139591107187", "88292.4536373466", "19964788.66034185"], ["2025-12-21", "1.574032913105105205", "88533.4309830508", "19965219.91033828"], ["2025-12-22", "1.573037724446317484", "88474.4622331969", "19965654.28529741"],
+    ["2025-12-23", "1.553492672050859745", "87365.9937872589", "19966107.41028888"], ["2025-12-24", "1.558626380619409761", "87625.6707895967", "19966604.28526302"], ["2025-12-25", "1.551577942876588988", "87231.3047685564", "19967035.53525139"],
+    ["2025-12-26", "1.55479991226822753", "87334.8077808299", "19967523.03524805"], ["2025-12-27", "1.561130488616241901", "87695.4159076564", "19967948.03524033"], ["2025-12-28", "1.562371381365593766", "87747.6491548802", "19968432.41022443"],
+    ["2025-12-29", "1.551843732811980112", "87133.5103991818", "19968913.66011527"], ["2025-12-30", "1.575194732866138022", "88428.4922735243", "19969285.53502561"], ["2025-12-31", "1.559936864000081502", "87516.9780376972", "19969701.1599654"],
+    ["2026-01-01", "1.580566683878713845", "88684.2178474576", "19970173.03489761"], ["2026-01-02", "1.602833534605485711", "89940.1801671537", "19970623.03484367"], ["2026-01-03", "1.614442834571443502", "90598.1301832262", "19971107.40983355"],
+    ["2026-01-04", "1.627823371832260863", "91359.7636823495", "19971560.53482149"], ["2026-01-05", "1.672965606192001107", "93948.5821794272", "19971973.03481877"], ["2026-01-06", "1.665698184722737546", "93574.2871122151", "19972379.28453587"],
+    ["2026-01-07", "1.623473602551265525", "91208.9562606663", "19972838.65935909"], ["2026-01-08", "1.62169483717787714", "91096.9161554647", "19973251.15920587"], ["2026-01-09", "1.61240742980171578", "90539.6032288136", "19973694.90915693"],
+    ["2026-01-10", "1.610013212387903185", "90406.1424114553", "19974201.15842725"], ["2026-01-11", "1.61585640170226006", "90717.2063153127", "19974582.40835316"], ["2026-01-12", "1.623511736951167245", "91141.1498489188", "19975026.15828822"],
+    ["2026-01-13", "1.695645710218362588", "95304.4982942724", "19975448.03313325"], ["2026-01-14", "1.725258285011507848", "97043.9927258913", "19975835.5330804"], ["2026-01-15", "1.698251329285831995", "95546.1397381648", "19976269.90793874"],
+    ["2026-01-16", "1.696750116346635341", "95489.1299602572", "19976676.15787012"], ["2026-01-17", "1.689559939774011307", "95106.980462595", "19977141.78280853"], ["2026-01-18", "1.67439228016665098", "94261.3294313267", "19977579.28273045"],
+    ["2026-01-19", "1.643686879800847704", "92526.2419643483", "19978048.03263225"], ["2026-01-20", "1.568922361489576793", "88236.5631922852", "19978463.65753988"], ["2026-01-21", "1.593366434791271748", "89599.361874927", "19978891.78248334"],
+    ["2026-01-22", "1.590055742443400378", "89395.700735827", "19979394.90737819"], ["2026-01-23", "1.597227656500747914", "89439.7718909994", "19979832.40734676"], ["2026-01-24", "1.592705531232262332", "89185.0386990064", "19980138.6573255"],
+    ["2026-01-25", "1.544168167275462367", "86445.6705926359", "19980476.15727396"], ["2026-01-26", "1.577978170566202727", "88337.4545511397", "19980863.65723296"], ["2026-01-27", "1.594258404220791934", "89260.3805397429", "19981244.90720207"],
+    ["2026-01-28", "1.592968287196268319", "89177.7892507306", "19981588.65719592"], ["2026-01-29", "1.510846374451050571", "84520.3973106371", "19981988.65718699"], ["2026-01-30", "1.502794123367734197", "84017.0340292227", "19982398.03218206"],
+    ["2026-01-31", "1.409206961565977084", "78702.38550263", "19982829.28216426"], ["2026-02-01", "1.377937528210173492", "76911.0523772648", "19983201.15715195"], ["2026-02-02", "1.411272421681784931", "78716.6018088837", "19983569.90713928"],
+    ["2026-02-03", "1.359790639701243353", "75684.7660277616", "19983982.40709518"], ["2026-02-04", "1.315930750700471022", "73095.1914646406", "19984426.1570621"], ["2026-02-05", "1.149795147328867693", "63494.6884456458", "19984823.0320605"],
+    ["2026-02-06", "1.279488580391782923", "70647.6982188778", "19985276.15703973"], ["2026-02-07", "1.254286499838438346", "69166.2594424313", "19985794.90702132"], ["2026-02-08", "1.278752679408799173", "70522.5892393337", "19986326.15697003"],
+    ["2026-02-09", "1.274890122985871914", "70244.1017773232", "19986835.53196145"], ["2026-02-10", "1.248103301241876232", "68688.793113384", "19987285.53194323"], ["2026-02-11", "1.218238778849088581", "66989.7165920514", "19987776.15693549"],
+    ["2026-02-12", "1.205655751536307314", "66221.5443115137", "19988329.28192297"], ["2026-02-13", "1.254381712792263234", "68860.8411633548", "19988801.15689779"], ["2026-02-14", "1.271428434942343999", "69798.0791253653", "19989319.90687007"],
+    ["2026-02-15", "1.25035201564347092", "68629.9599760374", "19989935.53185801"], ["2026-02-16", "1.25299188050397577", "68747.4380286383", "19990482.40684522"], ["2026-02-17", "1.230359595565078076", "67471.0508465809", "19990998.03180826"],
+    ["2026-02-18", "1.211463714662580192", "66380.7069611339", "19991476.15677497"], ["2026-02-19", "1.221844787848528018", "66932.3522118644", "19991973.03175161"], ["2026-02-20", "1.241947410607623191", "67977.3092612507", "19992401.15670826"],
+    ["2026-02-21", "1.242772738890891497", "68020.6677612507", "19992773.03170125"], ["2026-02-22", "1.234286313377275049", "67550.0240768556", "19993285.53166242"], ["2026-02-23", "1.183184297247023484", "64689.9123308007", "19993748.03163321"],
+    ["2026-02-24", "1.174331993793702261", "64123.7510780245", "19994263.65658282"], ["2026-02-25", "1.246122994172741683", "68038.5221794272", "19994751.15653541"], ["2026-02-26", "1.236811391586416288", "67519.2645292227", "19995188.65651923"],
+    ["2026-02-27", "1.207325470552061755", "65864.1358170661", "19995629.28146219"], ["2026-02-28", "1.227561261998226748", "66965.6353091759", "19996076.15645449"], ["2026-03-01", "1.205248174799524999", "65733.5212597896", "19996541.78136143"],
+    ["2026-03-02", "1.263760682233651997", "68922.6242974869", "19996966.78083916"], ["2026-03-03", "1.254890753252481821", "68431.1740306838", "19997385.53083797"], ["2026-03-04", "1.332459933264621132", "72667.4630575687", "19997791.78083047"],
+    ["2026-03-05", "1.302099873489965357", "70987.427176505", "19998310.530821"], ["2026-03-06", "1.252787494903745093", "68226.7053927528", "19998766.78080593"], ["2026-03-07", "1.236301300128931018", "67315.5529135009", "19999179.28076545"],
+    ["2026-03-08", "1.216000425764657274", "66202.6978731736", "19999598.03076505"], ["2026-03-09", "1.258828872642114119", "68528.5384699007", "20000029.2807458"], ["2026-03-10", "1.283892198721693304", "69891.8238576856", "20000460.5307284"],
+    ["2026-03-11", "1.292630560496042243", "70298.5753530099", "20000894.90572402"], ["2026-03-12", "1.297352966463531066", "70538.1074623027", "20001298.0306968"], ["2026-03-13", "1.304541264897919925", "70930.0132793688", "20001676.15569067"],
+    ["2026-03-14", "1.308561126940238857", "71136.2179199299", "20002076.1556846"], ["2026-03-15", "1.337286306516293248", "72712.1461957919", "20002466.78068161"], ["2026-03-16", "1.373664782035470618", "74723.9575534775", "20002857.40566783"],
+    ["2026-03-17", "1.362039221724130213", "74086.013609585", "20003254.28066414"], ["2026-03-18", "1.310827120703242271", "71253.9579275278", "20003688.65566121"], ["2026-03-19", "1.287323353044124525", "69948.9048267095", "20004107.40558936"],
+    ["2026-03-20", "1.297913457955359212", "70510.4196797194", "20004526.15545956"], ["2026-03-21", "1.283228639468927586", "69707.285009059", "20004957.40545461"], ["2026-03-22", "1.251662159669346332", "68018.1534815897", "20005463.65542135"],
+    ["2026-03-23", "1.301409408329921882", "70726.2110461718", "20005963.65541698"], ["2026-03-24", "1.300277748972673678", "70610.0187121566", "20006354.28035915"], ["2026-03-25", "1.312918792312330166", "71281.2973921683", "20006832.40533844"],
+    ["2026-03-26", "1.266407225667918744", "68722.9718366452", "20007348.03032055"], ["2026-03-27", "1.221391534843413818", "66214.1715134424", "20007823.03030771"], ["2026-03-28", "1.224282130242580979", "66351.0725251315", "20008366.78029517"],
+    ["2026-03-29", "1.217346516021097581", "65966.7523939217", "20008816.7802818"], ["2026-03-30", "1.230767788536540454", "66651.2320037989", "20009241.78028136"], ["2026-03-31", "1.259461592624951898", "68214.8680388662", "20009666.78024669"],
+    ["2026-04-01", "1.257800435787088238", "68116.8167933957", "20010173.03024329"], ["2026-04-02", "1.236157058152968281", "66908.3179918177", "20010626.15523187"], ["2026-04-03", "1.236095290145613828", "66891.7422279369", "20011038.65521455"],
+    ["2026-04-04", "1.243587958303051475", "67295.1309137931", "20011413.65521417"], ["2026-04-05", "1.273186006504800766", "68921.8060911748", "20011910.53021379"], ["2026-04-06", "1.270093812424762186", "68742.9133085915", "20012310.53020889"],
+    ["2026-04-07", "1.330703341528385252", "72057.1243614845", "20012741.78019458"], ["2026-04-08", "1.312922033874206474", "71085.0583702513", "20013204.28014687"], ["2026-04-09", "1.325828946125455227", "71788.6797825833", "20013654.28012088"],
+    ["2026-04-10", "1.346842656266018729", "72945.0707241379", "20014044.90508795"], ["2026-04-11", "1.349740683017782451", "73119.1091168907", "20014429.28008618"], ["2026-04-12", "1.304967334797095608", "70685.3697019287", "20014913.65498828"],
+    ["2026-04-13", "1.377048239840282899", "74632.7455856224", "20015376.1549035"], ["2026-04-14", "1.368752904018341818", "74173.5083603156", "20015888.65486228"], ["2026-04-15", "1.379626388688391797", "74761.964654588", "20016279.279847"],
+    ["2026-04-16", "1.385625861215399589", "75095.7442159556", "20016754.27884235"], ["2026-04-17", "1.422323515387898392", "77114.481438048", "20017194.90372694"], ["2026-04-18", "1.398004736839902213", "75792.0637510228", "20017673.0286331"],
+    ["2026-04-19", "1.363465675295210693", "73905.2041016949", "20018166.77860258"], ["2026-04-20", "1.398730554650119404", "75814.1453237873", "20018573.02855363"], ["2026-04-21", "1.404039174989212456", "76107.4432977791", "20018994.90352539"],
+    ["2026-04-22", "1.445181688088130365", "78317.7422720631", "20019404.27851069"], ["2026-04-23", "1.443518010298724995", "78233.6837492694", "20019782.40348588"], ["2026-04-24", "1.431305408695868633", "77444.269277031", "20020248.02845462"],
+    ["2026-04-25", "1.434574147564593222", "77624.7114821742", "20020685.52844961"], ["2026-04-26", "1.451239910737168666", "78538.7733573933", "20021151.15344954"], ["2026-04-27", "1.427496644438278874", "77256.297159848", "20021582.40341843"],
+    ["2026-04-28", "1.409896812228441536", "76295.531117183", "20022016.77838466"], ["2026-04-29", "1.401295058848076788", "75795.0098530099", "20022413.65333073"], ["2026-04-30", "1.410908716177076356", "76299.6161285798", "20022851.15332902"],
+    ["2026-05-01", "1.444110941062606203", "78132.6437852133", "20023344.90332184"], ["2026-05-02", "1.454678771992814357", "78712.5387317358", "20023769.90330144"], ["2026-05-03", "1.453212899139303528", "78649.1732893045", "20024244.90329587"],
+    ["2026-05-04", "1.473413962523283872", "79826.107817066", "20024710.52824333"], ["2026-05-05", "1.493264882736319985", "80936.7548252484", "20025179.27821603"], ["2026-05-06", "1.500728934715564584", "81364.6201285798", "20025619.90321582"],
+    ["2026-05-07", "1.475407732707148625", "79988.9987343659", "20026063.65321411"], ["2026-05-08", "1.478806937707672454", "80179.6922957335", "20026523.02819749"], ["2026-05-09", "1.487556461969192842", "80663.6296519579", "20027057.40312911"],
+    ["2026-05-10", "1.516576299979984875", "82256.781137931", "20027526.1531051"], ["2026-05-11", "1.506279731410384391", "81714.7420499708", "20028041.77804923"], ["2026-05-12", "1.484343417679068369", "80525.563024547", "20028460.52804619"],
+    ["2026-05-13", "1.461697921959849683", "79291.9110017534", "20028894.90299488"], ["2026-05-14", "1.496291810555882964", "81175.8271116306", "20029366.7779783"], ["2026-05-15", "1.457648207597749705", "79063.4145756868", "20029819.90297231"],
+    ["2026-05-16", "1.441120732074192594", "78164.4952711864", "20030291.77794765"], ["2026-05-17", "1.428878571951693625", "77497.697113384", "20030729.27792107"], ["2026-05-18", "1.419569255459985016", "76975.9111998831", "20031166.77770786"],
+    ["2026-05-19", "1.417036826307527267", "76807.460956166", "20031610.52770125"], ["2026-05-20", "1.428247432039944376", "77408.1722089421", "20032085.52765776"], ["2026-05-21", "1.431839863663851524", "77595.3861717446", "20032482.40264502"],
+    ["2026-05-22", "1.39519779572178037", "75567.5430431093", "20032969.90261312"], ["2026-05-23", "1.414564660605659749", "76619.8666090415", "20033482.40261292"], ["2026-05-24", "1.42069214819065929", "76950.9896316365", "20033891.77761272"],
+    ["2026-05-25", "1.425980680386381003", "77244.5722896786", "20034407.40261258"], ["2026-05-26", "1.40007607102657649", "75816.0412797019", "20034841.77760875"], ["2026-05-27", "1.372069898974952594", "74268.7756418995", "20035279.2775421"],
+    ["2026-05-28", "1.359302863594601974", "73500.5305338925", "20035785.52747168"], ["2026-05-29", "1.357030041234058887", "73322.8951406751", "20036223.0273888"], ["2026-05-30", "1.364802034577215145", "73731.4811337376", "20036666.77734781"],
+    ["2026-05-31", "1.362399461307008605", "73599.5607413209", "20037116.7773178"], ["2026-06-01", "1.321374781897173082", "71328.7312172998", "20037538.65217847"], ["2026-06-02", "1.236014994910390095", "66540.6926785798", "20037882.40206787"],
+    ["2026-06-03", "1.195632053440426534", "64232.5802701052", "20038219.90199146"], ["2026-06-04", "1.185893287874848421", "63639.2504696786", "20038663.65185009"], ["2026-06-05", "1.136797041094218514", "60907.6055536879", "20039085.52672356"],
+    ["2026-06-06", "1.134645827440571164", "60771.611314325", "20039466.77671468"], ["2026-06-07", "1.178976675309288158", "63158.25397737", "20039832.40168165"], ["2026-06-08", "1.17851325983647987", "63109.6166975745", "20040229.27553298"],
+    ["2026-06-09", "1.151756616739635859", "61640.4602024664", "20040616.7754601"], ["2026-06-10", "1.14883584470393795", "61435.0773408358", "20041010.51994462"], ["2026-06-11", "1.187544970760875101", "63475.3191592987", "20041432.39174345"],
+    ["2026-06-12", "1.187785521246668894", "63475.6376139684", "20041891.76497128"], ["2026-06-13", "1.205481911068105974", "64423.5445433314", "20042279.26496518"], ["2026-06-14", "1.227631547666529724", "65615.3266107481", "20042735.51493958"],
+    ["2026-06-15", "1.239354616703815531", "66222.5866309585", "20043204.26489031"], ["2026-06-16", "1.228732676085615156", "65638.1446884863", "20043710.51489026"], ["2026-06-17", "1.205907276289851683", "64400.725126242", "20044123.0148902"],
+    ["2026-06-18", "1.177225383776006809", "62835.2224827586", "20044638.63989016"], ["2026-06-19", "1.186374409712871999", "63307.2784012274", "20045110.51488848"], ["2026-06-20", "1.203461027144566386", "64220.5363933372", "20045594.88988525"],
+    ["2026-06-21", "1.186796520860484124", "63365.4368950906", "20046013.63988521"], ["2026-06-22", "1.197421605598320775", "63923.5748693746", "20046501.13988518"], ["2026-06-23", "1.173197665183300212", "62593.34893045", "20047041.7646701"],
+    ["2026-06-24", "1.142325325044979809", "60908.1877729398", "20047526.13967006"], ["2026-06-25", "1.124079576294929975", "59863.4211537113", "20048057.38966005"], ["2026-06-26", "1.127046938441016787", "59961.5113755114", "20048541.76463909"],
+    ["2026-06-27", "1.127011418515148159", "59955.5660201637", "20049066.76463361"], ["2026-06-28", "1.118931820253925698", "59516.6736531268", "20049469.88961839"], ["2026-06-29", "1.132283845718637403", "60175.460563121", "20049860.51461828"],
+    ["2026-06-30", "1.102780568200886763", "58525.0753614845", "20050326.13961277"], ["2026-07-01", "1.132110872036322331", "60065.5999105786", "20050773.01461212"], ["2026-07-02", "1.158185562495804863", "61438.1894114553", "20051182.3895992"],
+    ["2026-07-03", "1.179298708831683854", "62564.6141320865", "20051654.26448121"], ["2026-07-04", "1.189157218935094333", "63090.4092688486", "20052135.51448118"], ["2026-07-05", "1.199064763645006313", "63619.8810414962", "20052535.51434563"],
+    ["2026-07-06", "1.207395461812444448", "64063.0612583285", "20052898.01434561"], ["2026-07-07", "1.196288648174336025", "63458.1205143191", "20053335.51091219"], ["2026-07-08", "1.173170745233848663", "62214.0424511981", "20053751.13589914"],
+    ["2026-07-09", "1.191659572443617123", "63189.3864307423", "20054141.76088755"], ["2026-07-10", "1.209740085039800304", "64118.6200949737", "20054548.01088748"], ["2026-07-11", "1.205498450094525462", "63892.7086899474", "20054982.38588737"],
+    ["2026-07-12", "1.202836434530210917", "63752.2716569258", "20055432.38588731"], ["2026-07-13", "1.174318418220533999", "62126.5323722969", "20055891.7608873"], ["2026-07-14", "1.227626773164521771", "64934.4426034483", "20056373.01087634"],
+    ["2026-07-15", "1.224568215372696308", "64765.0553211572", "20056810.51085184"], ["2026-07-16", "1.206420895907576759", "63780.1417434249", "20057188.63584605"], ["2026-07-17", "1.20912709966866849", "63915.9181496201", "20057585.51083886"],
+    ["2026-07-18", "1.225397192666522099", "64777.6617481005", "20058104.26073642"], ["2026-07-19", "1.222993031235803428", "64653.0497457627", "20058619.88571881"], ["2026-07-20", "1.232747388312375434", "65181.9241548802", "20059076.13571372"],
+    ["2026-07-21", "1.255379142347312554", "66403.0964649328", "20059507.38569737"], ["2026-07-22", "1.247604270212369309", "65983.1860485096", "20059866.76067674"], ["2026-07-23", "1.230958318826041024", "65094.4103909994", "20060279.2606458"],
+    ["2026-07-24", "1.212571621545137281", "64100.1140327294", "20060760.5105907"], ["2026-07-25", "1.216416341558775665", "64331.3274596727", "20061191.76057864"], ["2026-07-26", "1.235215660677629527", "65328.7891218585", "20061648.01057611"],
+    ["2026-07-27", "1.205201344423760715", "63718.2437025132", "20062079.26057608"], ["2026-07-28", "1.205490199335648179", "63728.4501987142", "20062476.13557513"], ["2026-07-29", "1.208854436429852679", "63904.6444991233", "20062923.0105751"],
+    ["2026-07-30", "1.226279963554553827", "64827.5701659848", "20063401.13557501"], ["2026-07-31", "1.189970381191086102", "62875.1789333723", "20063891.76057344"], ["2026-08-01", "1.188728646019947622", "62751.8791487434", "20064404.26057322"],
+    ["2026-08-02", "1.201895276659115266", "63445.6829658095", "20064854.26057193"], ["2026-08-03", "1.202801204686642675", "63460.0481116306", "20065323.01042797"], ["2026-08-04", "1.21621443137356142", "64161.470880187", "20065763.63533705"],
+    ["2026-08-05", "1.225105983240153169", "64610.3074430158", "20066207.38531704"], ["2026-08-06", "1.217578013626705301", "64212.2673161894", "20066607.38530307"], ["2026-08-07", "1.230203869945236391", "64869.1683985973", "20067101.13530302"],
+    ["2026-08-08", "1.230809722123391248", "64906.9568167738", "20067548.01030297"], ["2026-08-09", "1.23011357466144887", "64864.9272893045", "20067994.88530293"], ["2026-08-10", "1.21221435616935527", "63907.7478731736", "20068429.26030288"],
+    ["2026-08-11", "1.205667143462434842", "63547.4365920514", "20068832.38530277"], ["2026-08-12", "1.202557884236982369", "63359.3968950906", "20069273.00982767"], ["2026-08-13", "1.203434943276686953", "63395.0080067212", "20069729.25982763"],
+    ["2026-08-14", "1.194702960097774507", "62924.7014248977", "20070194.88481754"], ["2026-08-15", "1.196810631016528477", "63034.4329655173", "20070648.00979752"], ["2026-08-16", "1.193031493800086394", "62818.4112106955", "20071151.13479503"],
+    ["2026-08-17", "1.223669994665651365", "64434.1397083577", "20071644.88479494"], ["2026-08-18", "1.228933725106216254", "64696.1814053185", "20072110.50979492"], ["2026-08-19", "1.315336680281195286", "69267.8268869083", "20072494.88479491"],
+    ["2026-08-20", "1.386071625027332987", "73070.9310248627", "20072891.75977268"], ["2026-08-21", "1.483722221375724402", "78359.170712256", "20073319.88473265"], ["2026-08-22", "1.457789242610116096", "77020.1308082058", "20073782.38473258"],
+    ["2026-08-23", "1.468270768531389904", "77593.0280291116", "20074207.38472614"], ["2026-08-24", "1.490624130060475475", "78894.4979810754", "20074651.13462591"], ["2026-08-25", "1.484141488925958997", "78601.4032035769", "20075094.88452588"],
+    ["2026-08-26", "1.489768033817081487", "78955.0443928229", "20075569.88442254"], ["2026-08-27", "1.514130238816194911", "80297.3961619871", "20076026.13431531"], ["2026-08-28", "1.465137108320893492", "77716.5892479486", "20076438.63410514"],
+    ["2026-08-29", "1.474997033379146334", "78243.9320870076", "20076894.88407684"], ["2026-08-30", "1.464432979869225742", "77689.1906069491", "20077404.25898649"], ["2026-08-31", "1.479640956492489684", "78533.8892895967", "20077879.25887522"],
+    ["2026-09-01", "1.458291528064497333", "77407.7011547107", "20078323.00877076"], ["2026-09-02", "1.454004726441035645", "77188.7006046172", "20078751.13363044"], ["2026-09-03", "1.529084095903799471", "81243.2439279778", "20079251.13348922"],
+    ["2026-09-04", "1.499477260228351857", "79681.5555543542", "20079698.00835777"], ["2026-09-05", "1.501487387152957333", "79817.3237329047", "20080160.50823296"], ["2026-09-06", "1.510496045367411941", "80319.9731380596", "20080676.1329252"],
+    ["2026-09-07", "1.486935906918573925", "79073.0209832028", "20081110.50766161"], ["2026-09-08", "1.474939712377904829", "78445.6833851549", "20081526.13249449"], ["2026-09-09", "1.470283096022392008", "78207.4846148861", "20082029.25725197"],
+    ["2026-09-10", "1.441273877895907411", "76675.7738575336", "20082448.0066299"], ["2026-09-11", "1.450646104253557987", "77176.8177780772", "20082951.13102305"], ["2026-09-12", "1.451919484146061062", "77252.4105082525", "20083441.75554077"],
+    ["2026-09-13", "1.442596968843287156", "76759.2585653887", "20083913.63013637"], ["2026-09-14", "1.470872089762808878", "78278.7924649912", "20084382.37988698"], ["2026-09-15", "1.421741711415347312", "75650.4287918118", "20084891.75466317"],
+    ["2026-09-16", "1.429928640799474409", "76082.3769918527", "20085316.75434279"], ["2026-09-17", "1.435849433216295172", "76386.9018813968", "20085763.62930572"], ["2026-09-18", "1.520148108509720923", "80944.1551838106", "20086238.6291951"],
+    ["2026-09-19", "1.525664629301577927", "81262.3455507422", "20086635.50416763"], ["2026-09-20", "1.524189665451471584", "81194.7440397662", "20087116.75412478"], ["2026-09-21", "1.620960799754175229", "86505.297748235", "20087582.37895552"],
+    ["2026-09-22", "1.612151310687801884", "86205.2717985915", "20088016.75380694"], ["2026-09-23", "1.578596055163793323", "84434.3188651724", "20088419.87853665"], ["2026-09-24", "1.577304652515512133", "84386.5778094565", "20088857.37790071"],
+    ["2026-09-25", "1.570499752456380261", "84062.1558929047", "20089276.12729687"], ["2026-09-26", "1.576264564735581773", "84386.4961173115", "20089757.37725668"],
+]
+WY_T_SOPR = [
+    ["2025-08-23", 1.0051], ["2025-08-24", 1.0031], ["2025-08-25", 1.0035], ["2025-08-26", 1.0036], ["2025-08-27", 1.0068], ["2025-08-28", 1.0166], ["2025-08-29", 1.0484], ["2025-08-30", 1.0044],
+    ["2025-08-31", 1.003], ["2025-09-01", 1.0064], ["2025-09-02", 1.0069], ["2025-09-03", 1.0061], ["2025-09-04", 1.0105], ["2025-09-05", 1.0257], ["2025-09-06", 1.0053], ["2025-09-07", 1.0066],
+    ["2025-09-08", 1.0089], ["2025-09-09", 1.0051], ["2025-09-10", 1.0105], ["2025-09-11", 1.0153], ["2025-09-12", 1.0115], ["2025-09-13", 1.011], ["2025-09-14", 1.0065], ["2025-09-15", 1.0119],
+    ["2025-09-16", 1.0148], ["2025-09-17", 1.0206], ["2025-09-18", 1.0105], ["2025-09-19", 1.0227], ["2025-09-20", 1.0073], ["2025-09-21", 1.0078], ["2025-09-22", 0.998], ["2025-09-23", 1.0141],
+    ["2025-09-24", 1.0142], ["2025-09-25", 1.0096], ["2025-09-26", 1.0043], ["2025-09-27", 1.0034], ["2025-09-28", 1.0067], ["2025-09-29", 1.0117], ["2025-09-30", 1.0177], ["2025-10-01", 1.0393],
+    ["2025-10-02", 1.0196], ["2025-10-03", 1.0209], ["2025-10-04", 1.0148], ["2025-10-05", 1.012], ["2025-10-06", 1.0175], ["2025-10-07", 1.0426], ["2025-10-08", 1.0181], ["2025-10-09", 1.0233],
+    ["2025-10-10", 1.0039], ["2025-10-11", 0.9982], ["2025-10-12", 1.0036], ["2025-10-13", 1.0029], ["2025-10-14", 1.0119], ["2025-10-15", 1.0422], ["2025-10-16", 0.9956], ["2025-10-17", 1.0042],
+    ["2025-10-18", 1.0042], ["2025-10-19", 1.0013], ["2025-10-20", 1.0047], ["2025-10-21", 1.0093], ["2025-10-22", 1.0226], ["2025-10-23", 1.0104], ["2025-10-24", 1.0074], ["2025-10-25", 1.0071],
+    ["2025-10-26", 1.0139], ["2025-10-27", 1.0156], ["2025-10-28", 1.0266], ["2025-10-29", 1.0196], ["2025-10-30", 1.0171], ["2025-10-31", 1.0054], ["2025-11-01", 1.0115], ["2025-11-02", 1.0033],
+    ["2025-11-03", 1.0056], ["2025-11-04", 0.9952], ["2025-11-05", 0.9979], ["2025-11-06", 0.9999], ["2025-11-07", 1.0322], ["2025-11-08", 1.006], ["2025-11-09", 1.0037], ["2025-11-10", 1.0108],
+    ["2025-11-11", 1.0041], ["2025-11-12", 1.0048], ["2025-11-13", 0.9964], ["2025-11-14", 0.9893], ["2025-11-15", 1.0011], ["2025-11-16", 0.9969], ["2025-11-17", 0.9947], ["2025-11-18", 1.0041],
+    ["2025-11-19", 0.9899], ["2025-11-20", 0.9949], ["2025-11-21", 0.9754], ["2025-11-22", 1.0253], ["2025-11-23", 1.0981], ["2025-11-24", 0.999], ["2025-11-25", 0.9972], ["2025-11-26", 1.0178],
+    ["2025-11-27", 0.9984], ["2025-11-28", 0.9961], ["2025-11-29", 0.9992], ["2025-11-30", 0.9976], ["2025-12-01", 0.9898], ["2025-12-02", 0.9927], ["2025-12-03", 1.005], ["2025-12-04", 1.0015],
+    ["2025-12-05", 0.9845], ["2025-12-06", 1.0002], ["2025-12-07", 0.9979], ["2025-12-08", 0.9969], ["2025-12-09", 1.0026], ["2025-12-10", 1.0177], ["2025-12-11", 0.998], ["2025-12-12", 0.9949],
+    ["2025-12-13", 0.9995], ["2025-12-14", 0.9978], ["2025-12-15", 0.9816], ["2025-12-16", 0.9965], ["2025-12-17", 0.994], ["2025-12-18", 0.9999], ["2025-12-19", 0.9984], ["2025-12-20", 0.9892],
+    ["2025-12-21", 1.0021], ["2025-12-22", 1.0013], ["2025-12-23", 0.9984], ["2025-12-24", 0.9935], ["2025-12-25", 1.0022], ["2025-12-26", 0.9869], ["2025-12-27", 0.9999], ["2025-12-28", 0.9951],
+    ["2025-12-29", 0.9993], ["2025-12-30", 0.9941], ["2025-12-31", 0.9935], ["2026-01-01", 0.9984], ["2026-01-02", 1.0003], ["2026-01-03", 1.0008], ["2026-01-04", 1.0022], ["2026-01-05", 1.0078],
+    ["2026-01-06", 1.0047], ["2026-01-07", 1.0032], ["2026-01-08", 0.9955], ["2026-01-09", 0.9949], ["2026-01-10", 1.0004], ["2026-01-11", 0.9946], ["2026-01-12", 0.9986], ["2026-01-13", 1.0081],
+    ["2026-01-14", 1.0089], ["2026-01-15", 1.0051], ["2026-01-16", 1.0024], ["2026-01-17", 1.0059], ["2026-01-18", 1.0033], ["2026-01-19", 0.9991], ["2026-01-20", 0.9912], ["2026-01-21", 0.9928],
+    ["2026-01-22", 1.0011], ["2026-01-23", 0.9501], ["2026-01-24", 0.9984], ["2026-01-25", 0.9961], ["2026-01-26", 0.9971], ["2026-01-27", 1.0006], ["2026-01-28", 0.9995], ["2026-01-29", 0.9907],
+    ["2026-01-30", 0.9889], ["2026-01-31", 0.9878], ["2026-02-01", 0.9917], ["2026-02-02", 0.9891], ["2026-02-03", 0.9793], ["2026-02-04", 0.9772], ["2026-02-05", 0.9625], ["2026-02-06", 0.9852],
+    ["2026-02-07", 0.9825], ["2026-02-08", 1.0023], ["2026-02-09", 0.9871], ["2026-02-10", 0.9864], ["2026-02-11", 0.9795], ["2026-02-12", 0.9792], ["2026-02-13", 0.9849], ["2026-02-14", 1.0015],
+    ["2026-02-15", 0.9986], ["2026-02-16", 0.9871], ["2026-02-17", 0.9902], ["2026-02-18", 0.984], ["2026-02-19", 0.9919], ["2026-02-20", 0.9819], ["2026-02-21", 1.0005], ["2026-02-22", 0.9967],
+    ["2026-02-23", 0.9806], ["2026-02-24", 0.978], ["2026-02-25", 0.9965], ["2026-02-26", 0.9977], ["2026-02-27", 0.9879], ["2026-02-28", 0.9943], ["2026-03-01", 0.9958], ["2026-03-02", 0.9978],
+    ["2026-03-03", 0.9959], ["2026-03-04", 1.0024], ["2026-03-05", 0.9954], ["2026-03-06", 0.9825], ["2026-03-07", 0.9933], ["2026-03-08", 0.9963], ["2026-03-09", 0.9959], ["2026-03-10", 0.9999],
+    ["2026-03-11", 0.977], ["2026-03-12", 0.9934], ["2026-03-13", 1.0028], ["2026-03-14", 0.9904], ["2026-03-15", 1.0027], ["2026-03-16", 1.0056], ["2026-03-17", 1.0001], ["2026-03-18", 0.9906],
+    ["2026-03-19", 0.9896], ["2026-03-20", 0.9941], ["2026-03-21", 1.0001], ["2026-03-22", 1.0124], ["2026-03-23", 0.999], ["2026-03-24", 0.9836], ["2026-03-25", 0.9946], ["2026-03-26", 0.9943],
+    ["2026-03-27", 0.9816], ["2026-03-28", 0.955], ["2026-03-29", 1.1992], ["2026-03-30", 0.9974], ["2026-03-31", 0.9991], ["2026-04-01", 1.0027], ["2026-04-02", 0.9897], ["2026-04-03", 0.9962],
+    ["2026-04-04", 1.0003], ["2026-04-05", 1.0082], ["2026-04-06", 1.003], ["2026-04-07", 0.9963], ["2026-04-08", 1.0078], ["2026-04-09", 0.9995], ["2026-04-10", 1.0047], ["2026-04-11", 1.006],
+    ["2026-04-12", 0.9978], ["2026-04-13", 1.0028], ["2026-04-14", 1.0029], ["2026-04-15", 0.999], ["2026-04-16", 1.0025], ["2026-04-17", 1.0067], ["2026-04-18", 0.9999], ["2026-04-19", 0.9981],
+    ["2026-04-20", 0.997], ["2026-04-21", 1.0016], ["2026-04-22", 0.9979], ["2026-04-23", 0.9998], ["2026-04-24", 0.9822], ["2026-04-25", 0.9999], ["2026-04-26", 1.0032], ["2026-04-27", 1.0009],
+    ["2026-04-28", 0.9988], ["2026-04-29", 0.9929], ["2026-04-30", 0.9964], ["2026-05-01", 1.0071], ["2026-05-02", 1.0027], ["2026-05-03", 1.0047], ["2026-05-04", 1.0158], ["2026-05-05", 1.0073],
+    ["2026-05-06", 1.0049], ["2026-05-07", 1.0002], ["2026-05-08", 1.0004], ["2026-05-09", 1.0034], ["2026-05-10", 1.0038], ["2026-05-11", 1.0033], ["2026-05-12", 1.0013], ["2026-05-13", 0.999],
+    ["2026-05-14", 1.0004], ["2026-05-15", 0.9988], ["2026-05-16", 0.9981], ["2026-05-17", 1.0], ["2026-05-18", 0.9942], ["2026-05-19", 0.9926], ["2026-05-20", 0.9982], ["2026-05-21", 0.9978],
+    ["2026-05-22", 0.9931], ["2026-05-23", 0.9974], ["2026-05-24", 1.0003], ["2026-05-25", 1.0021], ["2026-05-26", 0.9988], ["2026-05-27", 0.9959], ["2026-05-28", 0.9829], ["2026-05-29", 0.9876],
+    ["2026-05-30", 0.9972], ["2026-05-31", 0.9992], ["2026-06-01", 0.9881], ["2026-06-02", 0.9741], ["2026-06-03", 0.9728], ["2026-06-04", 0.9781], ["2026-06-05", 0.9778], ["2026-06-06", 0.9863],
+    ["2026-06-07", 1.0028], ["2026-06-08", 0.9942], ["2026-06-09", 0.9867], ["2026-06-10", 0.9808], ["2026-06-11", 0.9885], ["2026-06-12", 0.9962], ["2026-06-13", 0.9997], ["2026-06-14", 1.001],
+    ["2026-06-15", 0.9964], ["2026-06-16", 0.9949], ["2026-06-17", 0.9948], ["2026-06-18", 0.9878], ["2026-06-19", 0.9904], ["2026-06-20", 0.9999], ["2026-06-21", 1.0196], ["2026-06-22", 0.9986],
+    ["2026-06-23", 0.9859], ["2026-06-24", 0.988], ["2026-06-25", 0.9792], ["2026-06-26", 0.9849], ["2026-06-27", 0.9996], ["2026-06-28", 0.9946], ["2026-06-29", 0.9834], ["2026-06-30", 0.9794],
+    ["2026-07-01", 0.9933], ["2026-07-02", 0.9949], ["2026-07-03", 0.9998], ["2026-07-04", 1.0011], ["2026-07-05", 1.0008], ["2026-07-06", 0.9985], ["2026-07-07", 0.9987], ["2026-07-08", 0.9929],
+    ["2026-07-09", 0.9979], ["2026-07-10", 0.9832], ["2026-07-11", 1.0007], ["2026-07-12", 1.0002], ["2026-07-13", 0.9722], ["2026-07-14", 0.991], ["2026-07-15", 0.9942], ["2026-07-16", 0.9946],
+    ["2026-07-17", 0.9958], ["2026-07-18", 0.998], ["2026-07-19", 1.0022], ["2026-07-20", 1.004], ["2026-07-21", 1.0067], ["2026-07-22", 0.9983], ["2026-07-23", 0.9977], ["2026-07-24", 0.9941],
+    ["2026-07-25", 1.0084], ["2026-07-26", 1.0001], ["2026-07-27", 0.9976], ["2026-07-28", 0.9967], ["2026-07-29", 0.9993], ["2026-07-30", 0.9991], ["2026-07-31", 0.9947], ["2026-08-01", 0.9795],
+    ["2026-08-02", 0.9989], ["2026-08-03", 0.9966], ["2026-08-04", 0.9975], ["2026-08-05", 0.9961], ["2026-08-06", 1.0014], ["2026-08-07", 0.996], ["2026-08-08", 1.0027], ["2026-08-09", 0.9975],
+    ["2026-08-10", 0.9969], ["2026-08-11", 0.9956], ["2026-08-12", 0.9947], ["2026-08-13", 0.9975], ["2026-08-14", 0.9969], ["2026-08-15", 0.9994], ["2026-08-16", 0.9934], ["2026-08-17", 0.999],
+    ["2026-08-18", 0.996], ["2026-08-19", 1.0012], ["2026-08-20", 1.0125], ["2026-08-21", 1.0181], ["2026-08-22", 1.0076], ["2026-08-23", 1.0048], ["2026-08-24", 1.0194], ["2026-08-25", 1.0103],
+    ["2026-08-26", 1.0126], ["2026-08-27", 1.0087], ["2026-08-28", 1.0054], ["2026-08-29", 1.0], ["2026-08-30", 1.0029], ["2026-08-31", 1.0046], ["2026-09-01", 1.0024], ["2026-09-02", 1.0009],
+    ["2026-09-03", 1.0082], ["2026-09-04", 1.004], ["2026-09-05", 1.0069], ["2026-09-06", 1.005], ["2026-09-07", 1.0019], ["2026-09-08", 1.0022], ["2026-09-09", 1.0034], ["2026-09-10", 1.0018],
+    ["2026-09-11", 1.0069], ["2026-09-12", 1.0015], ["2026-09-13", 1.0005], ["2026-09-14", 1.003], ["2026-09-15", 1.001], ["2026-09-16", 0.9971], ["2026-09-17", 0.9994], ["2026-09-18", 1.0076],
+    ["2026-09-19", 1.0062], ["2026-09-20", 1.0019],
+]
+WY_T_MVRV = [
+    ["2026-07-29", 1.2201], ["2026-07-30", 1.2348], ["2026-07-31", 1.1995], ["2026-08-01", 1.1992], ["2026-08-02", 1.2131], ["2026-08-03", 1.2134], ["2026-08-04", 1.2254], ["2026-08-05", 1.2359],
+    ["2026-08-06", 1.229], ["2026-08-07", 1.2406], ["2026-08-08", 1.2417], ["2026-08-09", 1.2405], ["2026-08-10", 1.2228], ["2026-08-11", 1.2171], ["2026-08-12", 1.213], ["2026-08-13", 1.2132],
+    ["2026-08-14", 1.2062], ["2026-08-15", 1.2069], ["2026-08-16", 1.204], ["2026-08-17", 1.2349], ["2026-08-18", 1.2393], ["2026-08-19", 1.3248], ["2026-08-20", 1.3977], ["2026-08-21", 1.4957],
+    ["2026-08-22", 1.4681], ["2026-08-23", 1.4792], ["2026-08-24", 1.5027], ["2026-08-25", 1.493], ["2026-08-26", 1.5013], ["2026-08-27", 1.5249], ["2026-08-28", 1.4753], ["2026-08-29", 1.4864],
+    ["2026-08-30", 1.4883], ["2026-08-31", 1.4914], ["2026-09-01", 1.4706], ["2026-09-02", 1.464], ["2026-09-03", 1.5417], ["2026-09-04", 1.5122], ["2026-09-05", 1.5136], ["2026-09-06", 1.5218],
+    ["2026-09-07", 1.4997], ["2026-09-08", 1.4873], ["2026-09-09", 1.4808], ["2026-09-10", 1.4527], ["2026-09-11", 1.4618], ["2026-09-12", 1.4633], ["2026-09-13", 1.4541], ["2026-09-14", 1.4835],
+    ["2026-09-15", 1.4324], ["2026-09-16", 1.4415], ["2026-09-17", 1.4478], ["2026-09-18", 1.5305], ["2026-09-19", 1.5369], ["2026-09-20", 1.5349],
+]
+WY_T_SOPR9 = '[{"d":"2026-09-12","unixTs":1789171200,"sopr":1.0015},{"d":"2026-09-13","unixTs":1789257600,"sopr":1.0005},{"d":"2026-09-14","unixTs":1789344000,"sopr":1.003},{"d":"2026-09-15","unixTs":1789430400,"sopr":1.001},{"d":"2026-09-16","unixTs":1789516800,"sopr":0.9971},{"d":"2026-09-17","unixTs":1789603200,"sopr":0.9994},{"d":"2026-09-18","unixTs":1789689600,"sopr":1.0076},{"d":"2026-09-19","unixTs":1789776000,"sopr":1.0062},{"d":"2026-09-20","unixTs":1789862400,"sopr":1.0019}]'
+# odpowiedź Community API na żywo z 03.10.2026 (przegląd v132, ws12/rev132/cmlive/cm_call1.json; 4 ostatnie dni z AssetEODCompletionTime) — dosłownie;
+# 02.10: MVRV 1,574737…, prawdziwy NUPL 0,364973 (przed poprawką plik miał 0,365 i strona pokazywała 0,37 / 37%)
+WY_T_CMLIVE4 = '{"data":[{"asset":"btc","time":"2026-09-29T00:00:00.000000000Z","AssetEODCompletionTime":"1790738828","CapMVRVCur":"1.561016184202416182","CapMrktCurUSD":"1681126454579.74805854264103133","PriceUSD":"83674.6569854062","SplyCur":"20091226.12684215"},{"asset":"btc","time":"2026-09-30T00:00:00.000000000Z","AssetEODCompletionTime":"1790826251","CapMVRVCur":"1.55898418366023022","CapMrktCurUSD":"1679254955567.01583147477202788","PriceUSD":"83579.6739176914","SplyCur":"20091666.7516642"},{"asset":"btc","time":"2026-10-01T00:00:00.000000000Z","AssetEODCompletionTime":"1790909476","CapMVRVCur":"1.580581704523888007","CapMrktCurUSD":"1703352109574.792869770992055908","PriceUSD":"84777.2412468031","SplyCur":"20092091.75155868"},{"asset":"btc","time":"2026-10-02T00:00:00.000000000Z","AssetEODCompletionTime":"1790999651","CapMVRVCur":"1.574737386059323847","CapMrktCurUSD":"1698170984511.18570898817412951","PriceUSD":"84517.5188820339","SplyCur":"20092532.3764109"}]}'
+
+
+def _wy_cm_body(rows):
+    """Odpowiedź Community API (paging_from=end → rosnąco po dniu) z wierszy [dzień, CapMVRVCur, PriceUSD, SplyCur] (teksty liczb dosłownie)."""
+    return {'data': [{'asset': 'btc', 'time': d + 'T00:00:00.000000000Z', 'CapMVRVCur': m, 'PriceUSD': p, 'SplyCur': s} for d, m, p, s in rows]}
+
+
+def _wy_bg_body(rows, field):
+    """Odpowiedź drugiego źródła: lista {'d', 'unixTs' (północ UTC dnia), field} jak w nagraniu."""
+    return [{'d': d, 'unixTs': int(datetime.datetime.fromisoformat(d + 'T00:00:00+00:00').timestamp()), field: v} for d, v in rows]
+
+
+def _wy_dt(s):
+    return datetime.datetime.fromisoformat(s if '+' in s else s + '+00:00')
+
+
+class WycenaV132(unittest.TestCase):
+    """v132: data/wycena.json — część cm (MVRV, NUPL, średnia cena zakupu z Community API, dane za wczoraj) i część bg (SOPR, 7 dni opóźnienia;
+    MVRV drugiego źródła tylko do kontroli). Nagrania z 27.09.2026 i 03.10.2026; zegar przypięty (NOW i _now_utc); sieć tylko przez zaślepione `get`.
+    Poprawki po przeglądzie: bez poprzedniego pliku zero zapytań SOPR; remis at rozstrzyga run.at; liczby z 6 miejscami; asof = ostatni dzień
+    z MVRV i znacznikiem zamknięcia; nieudana próba SOPR = notatka, nie błąd."""
+    T0 = datetime.datetime(2026, 9, 27, 20, 0, 11, tzinfo=datetime.timezone.utc)
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def setUp(self):
+        self.enterContext(mock.patch.object(zd, 'NOW', '2026-09-27T20:00:11+00:00'))
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.T0))
+        self.ev = []
+        self.enterContext(mock.patch.object(zd.time, 'sleep', lambda s: self.ev.append(('sleep', s))))
+        self.enterContext(mock.patch.dict(zd.META, {'ok': {}, 'errors': [], 'notes': []}))
+
+    def _srv(self, cm=None, sopr=None, mvrv=None, fail=None):
+        """Udawane źródła: cm (odpowiedź), sopr / mvrv (wiersze [dzień, liczba]; zapytanie filtrowane po startday jak u źródła); fail = {'cm'|'sopr'|'mvrv':
+        wyjątek, kod HTTP albo gotowa treść}. Każde zapytanie trafia do self.ev jako ('get', adres)."""
+        cm = _wy_cm_body(WY_T_CM401) if cm is None else cm
+        sopr, mvrv, fail = WY_T_SOPR if sopr is None else sopr, WY_T_MVRV if mvrv is None else mvrv, fail or {}
+
+        def get(url, headers=None, timeout=30):
+            self.ev.append(('get', url))
+            part = 'cm' if url.startswith(zd.CM_API) else 'sopr' if '/v1/sopr?' in url else 'mvrv' if '/v1/mvrv?' in url else None
+            self.assertIsNotNone(part, 'nieznany adres: ' + url)
+            f = fail.get(part)
+            if isinstance(f, int):
+                raise _uerr_v132.HTTPError(url, f, 'Too Many Requests' if f == 429 else 'err', {}, None)
+            if isinstance(f, Exception):
+                raise f
+            if f is not None:
+                return 200, f if isinstance(f, str) else json.dumps(f)
+            if part == 'cm':
+                return 200, cm if isinstance(cm, str) else json.dumps(cm)
+            st = url.split('startday=')[1]
+            return 200, json.dumps(_wy_bg_body([r for r in (sopr if part == 'sopr' else mvrv) if r[0] >= st], part))
+        return get
+
+    def _gets(self):
+        return [u for k, u in self.ev if k == 'get']
+
+    def _build(self, prev=None, now=None, **kw):
+        with mock.patch.object(zd, 'get', self._srv(**{k: v for k, v in kw.items() if k in ('cm', 'sopr', 'mvrv', 'fail')})):
+            return zd.build_wycena(prev, now=now, bg_off=kw.get('bg_off', False))
+
+    P0 = datetime.datetime(2026, 9, 26, 23, 40, 11, tzinfo=datetime.timezone.utc)
+
+    def _full(self, **kw):
+        """Plik po dwóch przebiegach: 26.09 23:40 bez poprzedniego pliku (tylko Community; limit SOPR tej doby uznany za wyczerpany), 27.09 20:00:11
+        (T0) — Community (odświeżenie po 6 h) oraz SOPR i MVRV drugiego źródła."""
+        p = self._build(None, now=self.P0, **kw)
+        out = self._build(p, **kw)
+        self.ev.clear(); zd.META['errors'].clear(); zd.META['notes'].clear()
+        return out
+
+    # ---------------------------------------------------------------- część cm
+    def test_cm_parser_recorded_401_days_six_decimals(self):
+        C = zd.wy_parse_cm(_wy_cm_body(WY_T_CM401), self.T0)
+        m, p = 1.576264564735581773, 84386.4961173115
+        self.assertEqual((C['asof'], C['pending'], C['pending_n'], C['cols']), ('2026-09-26', None, 0, ['date', 'mvrv', 'price']))
+        self.assertEqual({k: C['last'][k] for k in ('mvrv', 'nupl', 'rp', 'price', 'gap_pct')},
+                         {'mvrv': round(m, 6), 'nupl': round(1 - 1 / m, 6), 'rp': 53536, 'price': 84386.5, 'gap_pct': round((m - 1) * 100, 4)}, 'z 6 miejscami (jedno zaokrąglenie — na stronie)')
+        self.assertEqual((C['last']['lo365'][0], C['last']['hi365'][0]), ('2026-06-30', '2025-10-06'))
+        self.assertEqual(C['last']['rp'], round(p / m)); self.assertEqual(C['last']['gap_pct'], 57.6265)
+        self.assertEqual([round(C['last'][k], 4) for k in ('mvrv', 'nupl')], [1.5763, 0.3656], 'liczby z planu (26.09.2026) po zaokrągleniu do 4 miejsc')
+        R = {r[0]: r for r in WY_T_CM401}
+        self.assertEqual(C['last']['mvrv_30'], ['2026-08-27', round(float(R['2026-08-27'][1]), 6)])
+        self.assertEqual((C['last']['lo365'][1], C['last']['hi365'][1]), (round(float(R['2026-06-30'][1]), 6), round(float(R['2025-10-06'][1]), 6)))
+        self.assertEqual((len(C['d']), C['d'][0][0], C['d'][-1]), (400, '2025-08-23', ['2026-09-26', round(m, 6), 84386.5]), 'najwyżej 400 dni (401 w odpowiedzi)')
+        self.assertEqual(C['h'], {'from': '2025-08-23', 'to': '2026-09-26', 'len': 400, 'n': 400}); self.assertEqual(C['sply'], 20089757.38)
+        self.assertIn('AssetEODCompletionTime', zd.WY_CM_URL.split('metrics=')[1].split('&')[0], 'znacznik zamknięcia dnia w tym samym jednym zapytaniu')
+
+    def test_cm_live_sample_nupl_single_rounding(self):
+        """Nagranie na żywo z 03.10.2026 (przegląd): prawdziwy NUPL 0,364973 — w pliku 6 miejsc (strona pokaże 0,36 / 36%, nie 0,37 / 37%)."""
+        C = zd.wy_parse_cm(json.loads(WY_T_CMLIVE4), _wy_dt('2026-10-03T06:43:25'))
+        m = 1.574737386059323847
+        self.assertEqual((C['asof'], C['pending'], len(C['d'])), ('2026-10-02', None, 4))
+        self.assertEqual((C['last']['mvrv'], C['last']['nupl'], C['last']['rp']), (round(m, 6), round(1 - 1 / m, 6), round(84517.5188820339 / m)))
+        self.assertEqual(C['last']['nupl'], 0.364973); self.assertEqual(f"{C['last']['nupl']:.2f}", '0.36'); self.assertEqual(f"{C['last']['nupl'] * 100:.0f}", '36')
+
+    def test_cm_parser_missing_is_none_never_zero(self):
+        j = json.loads(WY_T_CM10)
+        R = {r['time'][:10]: r for r in j['data']}
+        R['2026-09-19']['CapMVRVCur'] = 'NaN'; R['2026-09-20']['PriceUSD'] = '-1'; R['2026-09-21']['CapMVRVCur'] = '0'
+        R['2026-09-22']['PriceUSD'] = True; R['2026-09-22']['CapMVRVCur'] = 'Infinity'
+        j['data'] = [r for r in j['data'] if r['time'][:10] != '2026-09-23']
+        j['data'].append({'asset': 'btc', 'time': '2026-02-30T00:00:00.000000000Z', 'CapMVRVCur': '9', 'PriceUSD': '9'})
+        j['data'].append({'asset': 'eth', 'time': '2026-09-26T00:00:00.000000000Z', 'CapMVRVCur': '9', 'PriceUSD': '9'})
+        C = zd.wy_parse_cm(j, self.T0)
+        D = {r[0]: r[1:] for r in C['d']}
+        self.assertEqual((D['2026-09-19'][0], D['2026-09-20'][1], D['2026-09-21'][0]), (None, None, None), 'NaN, ≤ 0 → None')
+        self.assertEqual(D['2026-09-22'], [None, None], 'bool i nieskończoność → None; dzień bez liczb = przerwa')
+        self.assertEqual(D['2026-09-23'], [None, None], 'brak dnia w odpowiedzi = [dzień, None, None], nigdy zero')
+        self.assertEqual(D['2026-09-18'], [1.520148, 80944.16], 'teksty liczb → liczby (6 miejsc MVRV)'); self.assertEqual(C['d'][0][0], '2026-09-17'); self.assertEqual(len(C['d']), 10)
+        self.assertFalse(any(v == 0 for r in C['d'] for v in r[1:]), 'żadnego zera'); self.assertEqual(C['last']['mvrv'], 1.576265)
+
+    def test_cm_trailing_price_only_days_are_pending(self):
+        """Przegląd v132 (4): cena dochodzi bez MVRV przez 2 dni — asof = ostatni dzień z MVRV, oba dni pending; świeżość i kafle od tego dnia."""
+        j = json.loads(WY_T_CM10)
+        for r in j['data']:
+            if r['time'][:10] >= '2026-09-25':
+                r.pop('CapMVRVCur')
+        C = zd.wy_parse_cm(j, self.T0)
+        self.assertEqual((C['asof'], C['pending'], C['pending_n'], C['d'][-1][0]), ('2026-09-24', '2026-09-26', 2, '2026-09-24'), 'dni bez MVRV = pending, nie asof')
+        self.assertEqual((C['last']['mvrv'], C['last']['price']), (1.577305, 84386.58), 'liczby ostatniego dnia z MVRV, nie braki')
+        k = self._k()
+        rows = k.wycena_swiezosc({'cm': C, 'bg': {'off': True}}, _wy_dt('2026-09-27T06:20:00'))
+        self.assertEqual((rows[0][1], rows[0][3]), ('⚠️', '2026-09-24'), 'kontrola: wiek od ostatniego dnia z MVRV (54 h > 36 h), nie ✅')
+        j2 = json.loads(WY_T_CM10)
+        j2['data'].append({'asset': 'btc', 'time': '2026-09-27T00:00:00.000000000Z', 'PriceUSD': '85000.1'})   # dzień jeszcze publikowany
+        C2 = zd.wy_parse_cm(j2, _wy_dt('2026-09-28T03:00:00'))
+        self.assertEqual((C2['asof'], C2['pending'], C2['pending_n'], C2['last']['mvrv']), ('2026-09-26', '2026-09-27', 1, 1.576265))
+
+    def test_cm_end_of_day_mark_and_today(self):
+        """Przegląd v132 (5): dzień gotowy tylko ze znacznikiem zamknięcia u dostawcy (bez niego — od D+1 04:30, jak krypto-dzien); dziś — nigdy."""
+        j = json.loads(WY_T_CM10)
+        early = _wy_dt('2026-09-27T03:00:00')
+        self.assertEqual(zd.wy_parse_cm(j, early)['asof'], '2026-09-25', '03:00 bez znacznika — 26.09 jeszcze niegotowy (pending)')
+        self.assertEqual(zd.wy_parse_cm(j, early)['pending'], '2026-09-26')
+        self.assertEqual(zd.wy_parse_cm(j, _wy_dt('2026-09-27T04:30:00'))['asof'], '2026-09-26', 'od D+1 04:30 bez znacznika')
+        j['data'][-1]['AssetEODCompletionTime'] = '1790383500'
+        self.assertEqual(zd.wy_parse_cm(j, early)['asof'], '2026-09-26', 'znacznik zamknięcia = dzień gotowy od razu')
+        j['data'][-1]['AssetEODCompletionTime'] = 'zły'
+        self.assertEqual(zd.wy_parse_cm(j, early)['asof'], '2026-09-25', 'zły znacznik = brak znacznika')
+        j3 = json.loads(WY_T_CM10)
+        j3['data'].append({'asset': 'btc', 'time': '2026-09-27T00:00:00.000000000Z', 'CapMVRVCur': '1.6', 'PriceUSD': '90000', 'AssetEODCompletionTime': '1790469000'})
+        C3 = zd.wy_parse_cm(j3, self.T0)
+        self.assertEqual((C3['asof'], C3['pending']), ('2026-09-26', None), 'dzień dzisiejszy (UTC) nigdy nie jest przyjmowany')
+        j3['data'].append({'asset': 'btc', 'time': '2026-09-28T00:00:00.000000000Z', 'CapMVRVCur': '1.6', 'PriceUSD': '90000'})
+        self.assertEqual(zd.wy_parse_cm(j3, self.T0)['asof'], '2026-09-26', 'dzień z przyszłości pominięty')
+
+    def test_cm_gap_in_new_response_keeps_old_number(self):
+        """Dobre starsze liczby nigdy nie są nadpisywane brakami: luka w nowej odpowiedzi bierze liczbę z poprzedniej części."""
+        old = zd.wy_parse_cm(json.loads(WY_T_CM10), self.T0)
+        j = json.loads(WY_T_CM10)
+        for r in j['data']:
+            if r['time'][:10] == '2026-09-20':
+                r.pop('CapMVRVCur')
+            if r['time'][:10] == '2026-09-21':
+                r['PriceUSD'] = None
+        j['data'] = [r for r in j['data'] if r['time'][:10] != '2026-09-22']
+        C = zd.wy_parse_cm(j, self.T0, old)
+        D = {r[0]: r[1:] for r in C['d']}
+        self.assertEqual((D['2026-09-20'], D['2026-09-21'], D['2026-09-22']), ([1.52419, 81194.74], [1.620961, 86505.3], [1.612151, 86205.27]))
+        self.assertEqual({r[0]: r[1:] for r in zd.wy_parse_cm(j, self.T0)['d']}['2026-09-22'], [None, None], 'bez poprzedniej części — brak zostaje brakiem')
+
+    def test_cm_parser_errors(self):
+        j = json.loads(WY_T_CM10)
+        for r in j['data']:
+            r.pop('CapMVRVCur')
+        with self.assertRaisesRegex(RuntimeError, 'brak metryki CapMVRVCur'):
+            zd.wy_parse_cm(j, self.T0)
+        with self.assertRaisesRegex(RuntimeError, 'odpowiedź z błędem'):
+            zd.wy_parse_cm({'error': {'type': 'forbidden', 'message': 'Requested metric is not available'}}, self.T0)
+        for bad in ({}, [], {'data': 'x'}, None):
+            with self.assertRaisesRegex(RuntimeError, 'brak pola data'):
+                zd.wy_parse_cm(bad, self.T0)
+        with self.assertRaisesRegex(RuntimeError, 'starszy niż zapisany'):
+            zd.wy_parse_cm(json.loads(WY_T_CM10), _wy_dt('2026-09-28T12:00:00'), {'asof': '2026-09-27'})
+        j4 = json.loads(WY_T_CM10)
+        for r in j4['data']:
+            r['PriceUSD'] = None if r['time'] < '2026-09-22' else r['PriceUSD']
+            r['CapMVRVCur'] = None if r['time'] >= '2026-09-22' else r['CapMVRVCur']
+        with self.assertRaisesRegex(RuntimeError, 'żaden dzień nie ma gotowych obu liczb'):
+            zd.wy_parse_cm(j4, self.T0)
+
+    def test_mvrv_30_exact_day_and_365_day_window(self):
+        rows = [r for r in WY_T_CM401 if r[0] != '2026-08-27']
+        C = zd.wy_parse_cm(_wy_cm_body(rows), self.T0)
+        self.assertIsNone(C['last']['mvrv_30'], 'brak dnia −30 = None (nigdy najbliższy dzień)')
+        self.assertEqual([r for r in C['d'] if r[0] == '2026-08-27'], [['2026-08-27', None, None]])
+        win = [[r[0], '0.5' if r[0] == '2025-09-26' else '0.6' if r[0] == '2025-09-27' else '9.9' if r[0] == '2025-09-28' else r[1]] + r[2:] for r in WY_T_CM401]
+        W = zd.wy_parse_cm(_wy_cm_body(win), self.T0)['last']
+        self.assertEqual((W['lo365'], W['hi365']), (['2025-09-27', 0.6], ['2025-09-28', 9.9]), 'okno 365 dni: 27.09.2025 – 26.09.2026 (26.09.2025 już poza oknem)')
+        short = zd.wy_parse_cm(_wy_cm_body(WY_T_CM401[-20:]), self.T0)
+        self.assertIsNone(short['last']['mvrv_30']); self.assertEqual(len(short['d']), 20); self.assertEqual(short['last']['lo365'][0], min(WY_T_CM401[-20:], key=lambda r: float(r[1]))[0])
+
+    def test_cm_due(self):
+        D = lambda h, m=0, day=27: datetime.datetime(2026, 9, day, h, m, tzinfo=datetime.timezone.utc)   # noqa: E731
+        P = lambda asof, at, tried=None: {'cm': {'asof': asof, 'at': at, 'tried': tried or at, 'd': [[asof, 1.5, 1.0]]}}   # noqa: E731
+        self.assertTrue(zd.wy_cm_due(None, D(10)), 'bez pliku — pytamy'); self.assertTrue(zd.wy_cm_due({'cm': None}, D(10)))
+        self.assertFalse(zd.wy_cm_due({'cm': {'tried': '2026-09-27T09:30:00+00:00'}}, D(10)), 'nieudana pierwsza próba — ponowienie po 60 min')
+        self.assertTrue(zd.wy_cm_due({'cm': {'tried': '2026-09-27T08:59:00+00:00'}}, D(10)))
+        self.assertFalse(zd.wy_cm_due(P('2026-09-25', '2026-09-26T23:00:00+00:00'), D(1, 30)), 'przed 02:00 UTC wczorajszego dnia jeszcze nie ma (próba 2,5 h temu)')
+        self.assertFalse(zd.wy_cm_due(P('2026-09-25', '2026-09-26T21:00:00+00:00'), D(1, 59)), 'przed 02:00 — także długo po ostatniej próbie')
+        self.assertTrue(zd.wy_cm_due(P('2026-09-25', '2026-09-27T01:00:00+00:00'), D(2, 5)), 'od 02:00 — wczorajszy dzień należny')
+        self.assertFalse(zd.wy_cm_due(P('2026-09-25', '2026-09-27T02:05:00+00:00'), D(3, 0)), 'ponowienie najwcześniej po 60 min')
+        self.assertTrue(zd.wy_cm_due(P('2026-09-25', '2026-09-27T02:05:00+00:00'), D(3, 5)), 'co godzinę, dopóki dnia nie ma')
+        self.assertFalse(zd.wy_cm_due(P('2026-09-26', '2026-09-27T03:10:00+00:00'), D(9, 5)), 'wczorajszy jest — odświeżenie dopiero po 6 h')
+        self.assertTrue(zd.wy_cm_due(P('2026-09-26', '2026-09-27T03:10:00+00:00'), D(9, 10)), 'po 6 h całe okno (poprawki wstecz)')
+        self.assertFalse(zd.wy_cm_due(P('2026-09-26', '2026-09-27T03:10:00+00:00', '2026-09-27T08:50:00+00:00'), D(9, 20)), 'nieudane odświeżenie — 60 min przerwy')
+        self.assertTrue(zd.wy_cm_due(P('2026-09-26', 'zły czas'), D(9)), 'zły czas pobrania = pytamy')
+
+    # ---------------------------------------------------------------- część bg
+    def test_bg_parser_recorded(self):
+        rows = zd.wy_bg_rows(_wy_bg_body(WY_T_SOPR, 'sopr'), 'sopr', '2026-09-27')
+        S, delay = zd.wy_bg_sopr(rows, '2026-09-27')
+        self.assertEqual((S['asof'], delay, S['last'], len(S['d']), S['d'][0][0]), ('2026-09-20', 7, 1.0019, 394, '2025-08-23'))
+        self.assertEqual(S['ma7'], round(sum(v for d, v in WY_T_SOPR if d >= '2026-09-14') / 7, 6), 'średnia 14–20.09 z 6 miejscami')
+        self.assertEqual(round(S['ma7'], 4), 1.0023)
+        nine = zd.wy_bg_rows(json.loads(WY_T_SOPR9), 'sopr', '2026-09-27')
+        self.assertEqual((len(nine), nine['2026-09-12'], max(nine)), (9, 1.0015, '2026-09-20'), 'nagranie 9 dni dosłownie')
+        M = zd.wy_bg_mvrv(zd.wy_bg_rows(_wy_bg_body(WY_T_MVRV, 'mvrv'), 'mvrv', '2026-09-27'))
+        self.assertEqual((M['asof'], len(M['d']), M['d'][-1]), ('2026-09-20', 54, ['2026-09-20', 1.5349]))
+
+    def test_bg_rows_rules(self):
+        for bad, msg in (([], 'pusta lista'), ({'error': 'x'}, 'nie jest listą'), ('[]', 'nie jest listą'), (None, 'nie jest listą')):
+            with self.assertRaisesRegex(ValueError, msg):
+                zd.wy_bg_rows(bad, 'sopr', '2026-09-27')
+        with self.assertRaisesRegex(ValueError, 'pusta lista'):
+            zd.wy_bg_rows(json.loads('[]'), 'sopr', '2026-09-27')     # nagranie: zły parametr = HTTP 200 z []
+        rows = [{'d': '2026-02-30', 'sopr': 1.1}, {'d': '2026-09-28', 'sopr': 1.1}, {'d': '2026-09-01', 'sopr': 0}, {'d': '2026-09-02', 'sopr': -1.0},
+                {'d': '2026-09-03', 'sopr': float('nan')}, {'d': '2026-09-04', 'sopr': '1.01'}, {'d': '2026-09-05', 'sopr': True}, {'d': 20260906, 'sopr': 1.0},
+                {'d': '2026-09-07', 'sopr': 1.002}, {'d': '2026-09-07', 'sopr': 1.003}, 'x', {'d': '2026-09-08'}]
+        self.assertEqual(zd.wy_bg_rows(rows, 'sopr', '2026-09-27'), {'2026-09-07': 1.003}, 'złe wiersze pominięte; ten sam dzień — późniejszy wygrywa')
+        with self.assertRaisesRegex(ValueError, 'brak poprawnych wierszy'):
+            zd.wy_bg_rows(rows[:7], 'sopr', '2026-09-27')
+
+    def test_bg_ma7_needs_all_seven_days_and_sanity(self):
+        rows = {d: v for d, v in WY_T_SOPR}
+        rows.pop('2026-09-16')
+        S, _ = zd.wy_bg_sopr(rows, '2026-09-27')
+        self.assertIsNone(S['ma7'], '6 z 7 dni — bez średniej'); self.assertIn(['2026-09-16', None], S['d'], 'brak dnia = None')
+        with self.assertRaisesRegex(ValueError, 'starszy niż zapisany'):
+            zd.wy_bg_sopr({d: v for d, v in WY_T_SOPR}, '2026-09-27', '2026-09-21')
+        with self.assertRaisesRegex(ValueError, 'historia się skurczyła'):
+            zd.wy_bg_sopr({d: v for d, v in WY_T_SOPR[-299:]}, '2026-09-27')
+        with self.assertRaisesRegex(ValueError, '31 dni opóźnienia'):
+            zd.wy_bg_sopr({d: v for d, v in WY_T_SOPR}, '2026-10-21')
+        S2, d2 = zd.wy_bg_sopr({d: v for d, v in WY_T_SOPR}, '2026-10-20')
+        self.assertEqual((d2, S2['asof']), (30, '2026-09-20'), '30 dni — jeszcze przyjęte')
+
+    def test_bg_due_schedule(self):
+        D = lambda h, m=0, day=27: datetime.datetime(2026, 9, day, h, m, tzinfo=datetime.timezone.utc)   # noqa: E731
+        RUN = {'at': '2026-09-27T00:00:00+00:00'}
+        T = lambda n, req, last, day='2026-09-27': {'run': RUN, 'bg': {'day': '2026-09-26', 'tries': {'day': day, 'n': n, 'req': req, 'last': last}}}   # noqa: E731
+        self.assertEqual(zd.wy_bg_due(None, D(12))[0], False, 'bez poprzedniego pliku — licznik nieznany, żadnego zapytania')
+        self.assertIn('brak poprzedniego pliku', zd.wy_bg_due(None, D(12))[1])
+        self.assertFalse(zd.wy_bg_due({'bg': {'day': '2026-09-26'}}, D(12))[0], 'plik bez run (nie z tego budowniczego) — jak brak pliku')
+        self.assertEqual(zd.wy_bg_due({'run': RUN}, D(2, 59)), (False, 'przed 03:00 UTC')); self.assertTrue(zd.wy_bg_due({'run': RUN}, D(3, 0))[0], 'od 03:00 UTC')
+        self.assertFalse(zd.wy_bg_due({'run': RUN, 'bg': {'day': '2026-09-27'}}, D(12))[0], 'pobrany tej doby — nie')
+        self.assertTrue(zd.wy_bg_due({'run': RUN, 'bg': {'day': '2026-09-26'}}, D(3, 20))[0], 'nowa doba')
+        self.assertFalse(zd.wy_bg_due(T(1, 1, '2026-09-27T03:20:00+00:00'), D(5, 19))[0], 'mniej niż 120 min od ostatniej próby')
+        self.assertTrue(zd.wy_bg_due(T(1, 1, '2026-09-27T03:20:00+00:00'), D(5, 20))[0], '120 min — druga próba')
+        self.assertFalse(zd.wy_bg_due(T(3, 3, '2026-09-27T07:20:00+00:00'), D(20))[0], '3 próby tej doby — koniec')
+        self.assertFalse(zd.wy_bg_due(T(2, 5, '2026-09-27T07:20:00+00:00'), D(20))[0], 'limit zapytań (5 + 2 > 6)')
+        self.assertTrue(zd.wy_bg_due(T(3, 6, '2026-09-26T23:40:00+00:00', day='2026-09-26'), D(3, 0))[0], 'nowa doba UTC zeruje licznik')
+        self.assertFalse(zd.wy_bg_due(T(1, 1, '2026-09-27T09:00:00+00:00'), D(8))[0], 'czas próby z przyszłości — ostrożnie nie')
+        self.assertFalse(zd.wy_bg_due(T('x', 1, '2026-09-27T03:20:00+00:00'), D(12))[0], 'zły licznik tej doby = limit wyczerpany')
+        self.assertTrue(zd.wy_bg_due(T(1, 1, 'zły czas'), D(12))[0], 'zły czas ostatniej próby — licznik nadal pilnuje doby')
+        self.assertEqual((zd.WY_BG_TRIES, zd.WY_BG_GAP, zd.WY_BG_REQ_MAX, zd.WY_BG_HOUR), (3, 120, 6, 3))
+        self.assertLessEqual(zd.WY_BG_TRIES * 2, zd.WY_BG_REQ_MAX); self.assertLess(zd.WY_BG_REQ_MAX, 15, 'limit dobowy źródła: 15 zapytań na IP')
+
+    # ---------------------------------------------------------------- budowniczy
+    def test_build_two_runs_requests_order_and_file(self):
+        p1 = self._build(None, now=self.P0)
+        self.assertEqual([e[0] if e[0] == 'get' else e for e in self.ev], [('sleep', zd.CM_PAGE_SLEEP), 'get'], 'przerwa CM_PAGE_SLEEP przed zapytaniem Community')
+        self.assertEqual(self._gets(), [zd.WY_CM_URL], 'bez poprzedniego pliku: tylko Community, zero zapytań SOPR (licznik prób nieznany)')
+        self.assertEqual((p1['run']['bg'], p1['ok'], p1['cm']['asof']), ('skip', {'cm': True, 'bg': None}, '2026-09-25'), 'dzień dzisiejszy (26.09) nie jest przyjmowany')
+        self.assertEqual(p1['bg'], {'tries': {'day': '2026-09-26', 'n': 3, 'req': 6, 'last': '2026-09-26T23:40:11+00:00', 'nieznany': True}}, 'limit tej doby uznany za wyczerpany')
+        self.assertIn('brak poprzedniego pliku', p1['run']['bg_why']); self.assertEqual(zd.wy_meta(p1), {'wycena': True}, 'SOPR jeszcze nigdy niepytany — bez klucza')
+        self.ev.clear()
+        p2 = self._build(p1, now=self.P0 + datetime.timedelta(minutes=20))
+        self.assertEqual(self._gets(), [], 'ta sama doba UTC — nic (Community świeże, limit SOPR wyczerpany)')
+        self.ev.clear()
+        out = self._build(p2)
+        self.assertEqual(self._gets(), [zd.WY_CM_URL, 'https://api.bitcoin-data.com/v1/sopr?startday=2025-08-23', 'https://api.bitcoin-data.com/v1/mvrv?startday=2026-07-29'],
+                         'nowa doba: Community (po 6 h) i 2 zapytania drugiego źródła (SOPR 400 dni, potem MVRV 60 dni)')
+        self.assertEqual([e[0] if e[0] == 'get' else e for e in self.ev], [('sleep', zd.CM_PAGE_SLEEP), 'get', 'get', ('sleep', zd.WY_BG_SLEEP), 'get'], 'przerwy przed zapytaniami')
+        self.assertIn('assets=btc&metrics=CapMVRVCur,PriceUSD,SplyCur,AssetEODCompletionTime&frequency=1d&limit_per_asset=401&paging_from=end', zd.WY_CM_URL)
+        self.assertEqual((out['at'], out['ok'], out['run']['cm'], out['run']['bg'], out['cm']['asof']), ('2026-09-27T20:00:11+00:00', {'cm': True, 'bg': True}, 'ok', 'ok', '2026-09-26'))
+        self.assertEqual((out['cm']['at'], out['bg']['at'], out['bg']['day'], out['run']['at']), ('2026-09-27T20:00:11+00:00',) * 2 + ('2026-09-27', '2026-09-27T20:00:11+00:00'))
+        self.assertEqual(out['bg']['tries'], {'day': '2026-09-27', 'n': 1, 'req': 2, 'last': '2026-09-27T20:00:11+00:00'})
+        self.assertEqual((out['bg']['delay_d'], round(out['bg']['sopr']['ma7'], 4), out['bg']['mvrv']['asof']), (7, 1.0023, '2026-09-20'))
+        self.assertEqual(out['bledy'], {}); self.assertEqual((zd.META['errors'], zd.META['notes']), ([], [])); self.assertEqual(zd.wy_meta(out), {'wycena': True, 'wycena_bg': True})
+        self.assertIn('Coin Metrics', out['src']['cm']); self.assertEqual(out['license']['cm'], 'CC BY-NC 4.0'); self.assertIn('NUPL', out['attribution'])
+        self.assertLess(len(json.dumps(out, separators=(',', ':'))), 40000, 'plik ~25 KB')
+        self.ev.clear()
+        o2 = self._build(out, now=self.T0 + datetime.timedelta(minutes=20))
+        self.assertEqual(self._gets(), [], 'nic należnego — zero zapytań'); self.assertEqual((o2['at'], o2['run']['cm'], o2['run']['bg']), (out['at'], 'skip', 'skip'))
+        self.assertEqual(zd.wy_meta(o2), {'wycena': 'cached', 'wycena_bg': 'cached'}); self.assertIs(o2['cm'], out['cm'])
+
+    def test_previous_file_missing_every_run_means_no_bg_requests(self):
+        """Przegląd v132 (1): pamięć Actions i strona niedostępne w każdym przebiegu (previous() = None) — przez dobę ZERO zapytań SOPR (wcześniej do 126)."""
+        for i in range(72):
+            self._build(None, now=datetime.datetime(2026, 9, 27, tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=20 * i))
+        self.assertEqual([u for u in self._gets() if 'bitcoin-data' in u], [], 'bez licznika prób — żadnego zapytania do źródła z limitem dobowym')
+        self.assertEqual(len([u for u in self._gets() if u.startswith(zd.CM_API)]), 72, 'Community co przebieg (bez limitu dobowego) — dane główne nadal są')
+
+    def test_previous_file_missing_every_other_run_stays_within_limit(self):
+        """Przegląd v132 (symulacja „previous() = None co drugi przebieg”: 44 zapytania na dobę przy samym pomijaniu pierwszej próby): plik bez
+        poprzedniego uznaje limit doby za wyczerpany, więc przebieg z takim plikiem też nie pyta — przez 2 doby zero zapytań SOPR."""
+        p = None
+        for i in range(2 * 72):
+            t = datetime.datetime(2026, 9, 27, tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=20 * i)
+            p = self._build(None if i % 2 == 0 else p, now=t)
+        self.assertEqual([u for u in self._gets() if 'bitcoin-data' in u], [])
+        p = self._build(p, now=datetime.datetime(2026, 9, 29, 3, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(p['ok']['bg'], True, 'pierwszy przebieg nowej doby z widocznym plikiem — SOPR')
+
+    def test_previous_breaks_at_tie_on_run_at(self):
+        """Przegląd v132 (1): pamięć i strona z tym samym at (próba SOPR bez nowych danych), ale różnym licznikiem — wygrywa nowszy run.at, w obu
+        kolejnościach; pliki bez run — jak dotąd (przy remisie pamięć)."""
+        old = {'at': '2026-09-27T19:40:11+00:00', 'run': {'at': '2026-09-28T05:00:00+00:00'}, 'bg': {'tries': {'day': '2026-09-28', 'n': 1}}}
+        new = {'at': '2026-09-27T19:40:11+00:00', 'run': {'at': '2026-09-28T07:00:00+00:00'}, 'bg': {'tries': {'day': '2026-09-28', 'n': 2}}}
+        for cache, site in ((old, new), (new, old)):
+            with mock.patch.object(zd, '_prev_cache', lambda n: cache), mock.patch.object(zd, '_prev_site', lambda n: site):
+                self.assertIs(zd.previous('wycena'), new, 'stara kopia nie cofa licznika prób')
+        a, b = {'at': 'x', 'src': 'pamięć'}, {'at': 'x', 'src': 'strona'}
+        with mock.patch.object(zd, '_prev_cache', lambda n: a), mock.patch.object(zd, '_prev_site', lambda n: b):
+            self.assertIs(zd.previous('ceny'), a, 'bez run.at — remis jak przed v132 (pamięć)')
+        newer = dict(old, at='2026-09-28T05:00:00+00:00')
+        with mock.patch.object(zd, '_prev_cache', lambda n: newer), mock.patch.object(zd, '_prev_site', lambda n: new):
+            self.assertIs(zd.previous('wycena'), newer, 'nowszy at nadal wygrywa przed run.at')
+
+    def test_stale_cache_tie_does_not_reset_the_counter(self):
+        """Pamięć Actions z kopią sprzed dwóch przebiegów, strona z najnowszą (ten sam at): previous() wybiera stronę, więc trzecia próba nie staje się pierwszą."""
+        base = self._full()
+        T1 = datetime.datetime(2026, 9, 28, 3, 10, tzinfo=datetime.timezone.utc)
+        f1 = self._build(base, now=T1, fail={'sopr': 429, 'cm': 500})
+        f2 = self._build(f1, now=T1 + datetime.timedelta(hours=2), fail={'sopr': 429, 'cm': 500})
+        self.assertEqual((f1['at'], f2['at']), (base['at'], base['at']), 'bez nowych danych — at bez zmian (remis)')
+        with mock.patch.object(zd, '_prev_cache', lambda n: f1), mock.patch.object(zd, '_prev_site', lambda n: f2):
+            p = zd.previous('wycena')
+        self.assertEqual(p['bg']['tries']['n'], 2, 'licznik z nowszego przebiegu')
+        self.ev.clear()
+        f3 = self._build(p, now=T1 + datetime.timedelta(hours=4), fail={'sopr': 429, 'cm': 500})
+        self.ev.clear()
+        self._build(f3, now=T1 + datetime.timedelta(hours=6), fail={'sopr': 429, 'cm': 500})
+        self.assertEqual([u for u in self._gets() if 'bitcoin-data' in u], [], 'po 3 próbach tej doby — koniec')
+
+    def test_part_failures_keep_previous_with_own_time(self):
+        prev = self._full()
+        T1 = datetime.datetime(2026, 9, 28, 3, 10, tzinfo=datetime.timezone.utc)
+        out = self._build(prev, now=T1, fail={'sopr': 429})
+        self.assertEqual([u.split('/')[2] for u in self._gets()], ['community-api.coinmetrics.io', 'api.bitcoin-data.com'], 'po błędzie zapytania 1 bez zapytania 2')
+        self.assertEqual((out['ok'], out['bg']['at'], out['bg']['sopr'], out['bg']['day']), ({'cm': True, 'bg': False}, prev['bg']['at'], prev['bg']['sopr'], '2026-09-27'))
+        self.assertEqual(out['bg']['tries'], {'day': '2026-09-28', 'n': 1, 'req': 1, 'last': '2026-09-28T03:10:00+00:00'})
+        self.assertEqual(out['at'], '2026-09-28T03:10:00+00:00', 'część cm pobrana teraz — at pliku = jej czas')
+        self.assertEqual(out['bledy']['bg'], 'SOPR: HTTP 429 (limit zapytań na IP) — próba 1 z 3 tej doby')
+        self.assertEqual(zd.META['errors'], [], 'przegląd v132 (6): nieudana próba SOPR nie jest błędem zbieracza (dodatek z darmowego planu)')
+        self.assertEqual(zd.META['notes'], ['Wycena BTC: SOPR: HTTP 429 (limit zapytań na IP) — próba 1 z 3 tej doby'])
+        self.assertEqual(zd.wy_meta(out), {'wycena': True, 'wycena_bg': False})
+        self.ev.clear(); zd.META['errors'].clear(); zd.META['notes'].clear()
+        T2 = T1 + datetime.timedelta(hours=1)
+        o2 = self._build(out, now=T2, fail={'cm': _uerr_v132.URLError('timed out')})
+        self.assertEqual(self._gets(), [zd.WY_CM_URL], 'wczorajszego dnia nadal brak — Community co godzinę; SOPR — 120 min odstępu')
+        self.assertEqual((o2['at'], o2['cm']['at'], o2['cm']['tried'], o2['ok']['cm']), (out['at'], out['cm']['at'], '2026-09-28T04:10:00+00:00', False))
+        self.assertEqual(zd.META['errors'], ['Wycena BTC: MVRV: limit czasu'], 'błąd części głównej — błąd zbieracza')
+        o3 = self._build(o2, now=T1 + datetime.timedelta(hours=6, minutes=1), fail={'cm': _uerr_v132.URLError('timed out'), 'sopr': 503})
+        self.assertEqual(o3['at'], out['at'], 'obie części zawiodły — at pliku bez zmian'); self.assertEqual(o3['cm']['at'], out['cm']['at'])
+        self.assertEqual(o3['cm']['tried'], '2026-09-28T09:11:00+00:00', 'czas próby zapisany (ponowienie po 60 min)'); self.assertEqual(o3['cm']['d'], out['cm']['d'])
+        self.assertEqual((o3['bledy']['cm'], o3['bledy']['bg']), ('MVRV: limit czasu', 'SOPR: HTTP 503 — próba 2 z 3 tej doby'))
+        self.assertEqual(zd.wy_meta(o3), {'wycena': False, 'wycena_bg': False}); self.assertIs(o2['ok']['bg'], False)
+        self.ev.clear()
+        o4 = self._build(o3, now=T1 + datetime.timedelta(hours=8, minutes=5), fail={'sopr': '[]'})
+        self.assertEqual(o4['bledy']['bg'], 'SOPR: pusta lista (tak źródło odpowiada na zły parametr) — próba 3 z 3 tej doby', '[] to błąd, nie „brak = 0”')
+        self.assertNotIn('cm', o4['bledy'], 'udana część cm kasuje swój błąd'); self.assertEqual(o4['ok'], {'cm': True, 'bg': False})
+        self.ev.clear()
+        o5 = self._build(o4, now=T1 + datetime.timedelta(hours=20))
+        self.assertEqual([u for u in self._gets() if 'bitcoin-data' in u], [], '3 próby tej doby — koniec (limit dobowy)')
+        for m in zd.META['errors'] + zd.META['notes'] + list(o4['bledy'].values()):
+            self.assertNotRegex(m, r'(?i)bitcoin-data|bgeometrics|coin ?metrics|https?://', 'komunikat bez nazwy i adresu źródła')
+        self.assertEqual(zd.wy_meta(o5)['wycena_bg'], False, 'ostatnia próba zawiodła — stan widoczny bez nowego zapytania')
+
+    def test_three_days_of_429_never_reach_collector_errors(self):
+        """Przegląd v132 (6): trzy doby HTTP 429 drugiego źródła — żaden komunikat w META['errors'] (kontrola dzienna czerwieni po 3 dniach błędów)."""
+        p = self._full()
+        errs = []
+        for i in range(3 * 72):
+            zd.META['errors'].clear()
+            p = self._build(p, now=datetime.datetime(2026, 9, 28, tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=20 * i), fail={'sopr': 429})
+            errs += zd.META['errors']
+        self.assertEqual([e for e in errs if e.startswith('Wycena BTC')], []); self.assertEqual(len([u for u in self._gets() if '/v1/sopr?' in u]), 9, '3 próby na dobę')
+        self.assertEqual(sum('SOPR: HTTP 429' in n for n in zd.META['notes']), 9, 'każda próba — notatka')
+        k = self._k()
+        self.assertFalse(k.czerwone_z_historii([{'at': f'2026-09-{28 + i}T06:20:00+00:00', 'bledy_zbieracza': 0} for i in range(3)]), 'kontrola: bez błędów zbieracza — nie czerwone')
+
+    def test_mvrv_request_failure_is_a_note_and_delay_change_note(self):
+        prev = self._full()
+        out = self._build(prev, now=datetime.datetime(2026, 9, 28, 4, 0, tzinfo=datetime.timezone.utc), fail={'mvrv': 500},
+                          sopr=WY_T_SOPR + [['2026-09-21', 1.004]])
+        self.assertEqual((out['ok']['bg'], out['bg']['sopr']['asof'], out['bg']['mvrv'], out['bg']['tries']['req']), (True, '2026-09-21', prev['bg']['mvrv'], 2))
+        self.assertEqual(out['bledy']['bg_mvrv'], 'MVRV do kontroli: HTTP 500 — zostaje poprzednie'); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(zd.META['notes'], ['Wycena BTC: MVRV do kontroli: HTTP 500 — zostaje poprzednie'], '7 dni opóźnienia — bez notatki o opóźnieniu')
+        zd.META['notes'].clear()
+        o2 = self._build(out, now=datetime.datetime(2026, 9, 30, 4, 0, tzinfo=datetime.timezone.utc), sopr=WY_T_SOPR + [['2026-09-21', 1.004], ['2026-09-22', 1.001]])
+        self.assertEqual((o2['bg']['delay_d'], o2['ok']['bg']), (8, True))
+        self.assertIn('Wycena BTC: SOPR: opóźnienie źródła 8 dni (zwykle 7)', zd.META['notes'], 'zmiana opóźnienia darmowego planu — notatka')
+        S2 = self._build(o2, now=datetime.datetime(2026, 10, 1, 4, 0, tzinfo=datetime.timezone.utc), sopr=WY_T_SOPR[:-2])
+        self.assertEqual((S2['ok']['bg'], S2['bg']['sopr']['asof']), (False, '2026-09-22'), 'odpowiedź z ostatnim dniem starszym niż zapisany = błąd, dane się nie cofają')
+
+    def test_budget_72_runs_in_one_utc_day(self):
+        """Automat co 20 min przez dobę UTC: źródło zawsze odpowiada 429 → najwyżej 3 zapytania (żadne zapytanie 2); zawsze działa → dokładnie 2."""
+        for fail, want in (({'sopr': 429}, 3), (None, 2)):
+            prev = {'cm': {'asof': '2026-09-26', 'at': '2026-09-26T23:50:00+00:00', 'tried': '2026-09-26T23:50:00+00:00', 'd': [['2026-09-26', 1.5, 1.0]]},
+                    'bg': {'day': '2026-09-26', 'at': '2026-09-26T03:00:00+00:00'}, 'ok': {'cm': True, 'bg': True}, 'run': {'at': '2026-09-26T23:50:00+00:00'}}
+            self.ev.clear()
+            for i in range(72):
+                prev = self._build(prev, now=datetime.datetime(2026, 9, 27, tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=20 * i), fail=fail)
+            bg = [u for u in self._gets() if 'bitcoin-data' in u]
+            self.assertEqual(len(bg), want, f'{fail}: {bg}'); self.assertLessEqual(len(bg), zd.WY_BG_REQ_MAX)
+            if fail:
+                self.assertFalse([u for u in bg if '/mvrv?' in u], 'po nieudanym zapytaniu 1 nigdy zapytanie 2')
+                self.assertEqual(prev['bg']['tries'], {'day': '2026-09-27', 'n': 3, 'req': 3, 'last': '2026-09-27T07:00:00+00:00'}, '03:00, 05:00, 07:00')
+            cm = [u for u in self._gets() if u.startswith(zd.CM_API)]
+            self.assertTrue(3 <= len(cm) <= 8, f'Community: {len(cm)} zapytań na dobę')
+
+    def test_bg_off_switch_keeps_counter(self):
+        prev = self._full()
+        T1 = datetime.datetime(2026, 9, 28, 3, 10, tzinfo=datetime.timezone.utc)
+        f1 = self._build(prev, now=T1, fail={'sopr': 429})
+        self.ev.clear(); zd.META['notes'].clear()
+        out = self._build(f1, now=T1 + datetime.timedelta(minutes=50), bg_off=True)
+        self.assertEqual([u for u in self._gets() if 'bitcoin-data' in u], [], 'wyłącznik — zero zapytań do drugiego źródła')
+        self.assertEqual((out['ok']['bg'], out['run']['bg'], out['bg'].get('sopr'), out['bg'].get('mvrv')), ('off', 'off', None, None), 'plik bez danych SOPR')
+        self.assertEqual(out['bg'], {'off': True, 'day': '2026-09-27', 'tries': f1['bg']['tries']}, 'licznik doby i dzień pobrania zostają')
+        self.assertEqual(zd.wy_meta(out), {'wycena': 'cached'}, 'wyłączona część nie liczy się do źródeł')
+        self.assertIn('Wycena BTC: SOPR wyłączony (WYCENA_BG_OFF=1) — bez zapytań i bez danych SOPR w pliku', zd.META['notes'])
+        self.ev.clear()
+        back = self._build(out, now=T1 + datetime.timedelta(minutes=130), fail={'sopr': 429})
+        self.assertEqual((back['bg']['tries']['n'], back['bg']['tries']['req']), (2, 2), 'wyłączenie i włączenie nie zeruje licznika prób tej doby')
+        ok = self._build(back, now=T1 + datetime.timedelta(minutes=250))
+        self.assertEqual((ok['ok']['bg'], ok['bg']['sopr']['asof'], ok['bg']['tries']['n']), (True, '2026-09-20', 3), 'po włączeniu — całe okno od nowa')
+        self.assertNotIn('off', ok['bg'])
+
+    # ---------------------------------------------------------------- main()
+    ENV0 = ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL',
+            'CACHE_DIR', 'ETHERSCAN_KEY', 'SEC_CONTACT', 'EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'WYCENA_BG_OFF')
+
+    def _main(self, prev, build=None, env=None):
+        """main() bez sieci: wszyscy pozostali budowniczowie (wg nazw z modułu) udają awarię; `build` zastępuje build_wycena (None = prawdziwy
+        z nagranymi odpowiedziami)."""
+        names = [n for n in dir(zd) if n.startswith('build_') and n != 'build_wycena' and callable(getattr(zd, n))]
+        saved = {}
+        pats = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in names]
+        pats += [mock.patch.dict(os.environ, dict({k: '' for k in self.ENV0}, **(env or {})), clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)),
+                 mock.patch.object(zd, 'previous', lambda name: prev if name == 'wycena' else None), mock.patch.object(zd, 'get', self._srv())]
+        if build is not None:
+            pats.append(mock.patch.object(zd, 'build_wycena', side_effect=build))
+        [p.start() for p in pats]
+        try:
+            zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+            zd.main()
+        finally:
+            [p.stop() for p in reversed(pats)]
+        return saved
+
+    def test_main_wiring(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        m = src.index('def main():'); a = src.index("prev_wy = previous('wycena')")
+        self.assertTrue(m < src.index("prev_cm = previous('cm')") < src.index("if prev_ln: save('lancuch', prev_ln)") < a < src.index("prev_snb = previous('snb')"),
+                        'po build_cm i po sieci Bitcoin (przerwa CM_PAGE_SLEEP przed drugim zapytaniem Community), przed Szwajcarią')
+        self.assertIn("if prev_wy: save('wycena', prev_wy)", src)
+        saved = self._main(None)
+        self.assertEqual((saved['wycena']['ok'], zd.META['ok']['wycena'], zd.META['ok'].get('wycena_bg')), ({'cm': True, 'bg': None}, True, None), 'prawdziwy budowniczy bez poprzedniego pliku: bez SOPR')
+        self.assertFalse([e for e in zd.META['errors'] if e.startswith('Wycena BTC')], zd.META['errors']); self.assertIn('meta', saved)
+        self.assertFalse([u for u in self._gets() if 'bitcoin-data' in u]); self.assertTrue(saved['wycena']['bg']['tries']['nieznany'])
+        s1 = self._main(saved['wycena'])
+        self.assertEqual((s1['wycena']['ok'], zd.META['ok']['wycena'], zd.META.get('ok').get('wycena_bg')), ({'cm': True, 'bg': None}, 'cached', None), 'ta sama doba — nadal bez SOPR')
+        old = self._full()
+        s2 = self._main(old, RuntimeError('offline'))
+        self.assertIs(s2['wycena'], old, 'awaria = poprzedni plik'); self.assertEqual((zd.META['ok']['wycena'], zd.META['ok']['wycena_bg']), (False, False))
+        self.assertIn('Wycena BTC: offline', zd.META['errors'])
+        s3 = self._main(None, RuntimeError('offline'))
+        self.assertNotIn('wycena', s3, 'bez poprzedniego pliku i bez danych — nic nie zapisujemy')
+        calls, real = [], zd.build_wycena
+        s4 = self._main(old, lambda p, bg_off=False: calls.append(bg_off) or real(p, now=self.T0 + datetime.timedelta(minutes=20), bg_off=bg_off))
+        self.assertEqual((calls, s4['wycena']['run']['cm'], zd.META['ok']['wycena'], zd.META['ok']['wycena_bg']), ([False], 'skip', 'cached', 'cached'))
+        self.ev.clear()
+        s5 = self._main(old, lambda p, bg_off=False: calls.append(bg_off) or real(p, now=self.T0 + datetime.timedelta(hours=7), bg_off=bg_off), env={'WYCENA_BG_OFF': '1'})
+        self.assertEqual((calls[-1], s5['wycena']['bg']['off'], 'sopr' in s5['wycena']['bg'], zd.META['ok'].get('wycena_bg')), (True, True, False, None), 'WYCENA_BG_OFF=1 — część SOPR wyłączona')
+        self.assertFalse([u for u in self._gets() if 'bitcoin-data' in u]); self.assertTrue(any('WYCENA_BG_OFF=1' in n for n in zd.META['notes']))
+
+    def test_source_rules_stubs_and_terms(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        a = src.index('# ===================== v132: WYCENA BTC'); b = src.index('\n# =====', a + 1)
+        blk = src[a:b]
+        self.assertIn('def build_wycena(', blk); self.assertNotIn('KEY', blk, 'źródła bez klucza'); self.assertNotIn('os.environ', blk, 'wyłącznik czyta main()')
+        self.assertLess(b, src.index('\ndef main():')); self.assertTrue(src.index('def build_lancuch(') < a < src.index('def build_snb('), 'między siecią Bitcoin a Szwajcarią')
+        self.assertIn("str(c['run'].get('at') or '') if isinstance(c.get('run'), dict) else ''", src[src.index('def previous('):src.index('def fresh(')], 'remis at — run.at')
+        doc = zd.build_wycena.__doc__
+        for w in ('Available to the community under the Creative Commons license.', 'Last updated: February 24, 2026', 'Free tier: 8 requests per hour',
+                  'is classified as commercial redistribution', 'Attempt to bypass, circumvent, or abuse API rate limits', 'Most indicators are updated daily 02:30 UTC.'):
+            self.assertIn(w, doc, 'warunki źródeł przytoczone: ' + w)
+        me = open(__file__, encoding='utf-8').read()
+        tups = [x.group(0) for x in _re_v132.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*\)", me) if "'build_lancuch'" in x.group(0)]
+        self.assertGreaterEqual(len(tups), 18, 'krotki zaślepek przepływu głównego')
+        self.assertEqual([t[:60] for t in tups if "'build_wycena'" not in t], [], 'każda krotka zaślepek zna build_wycena (brak = prawdziwe zapytania)')
+        i = me.index('def test_meta_is_always_written')
+        self.assertIn("'Sieć Bitcoin', 'Wycena BTC', ", me[i:i + 2500], 'etykieta błędów wyceny na liście przebiegu bez sieci')
+        wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertEqual(wf.count('WYCENA_BG_OFF: ${{ vars.WYCENA_BG_OFF }}'), 1, 'wyłącznik = zmienna repozytorium, nie sekret'); self.assertNotIn('secrets.WYCENA', wf)
+        self.assertLess(wf.index('WYCENA_BG_OFF'), wf.index('run: python3 zbieraj_dane.py')); self.assertGreater(wf.index('WYCENA_BG_OFF'), wf.index('- name: Zbierz dane'))
+        html = open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8').read()
+        self.assertEqual(html.count('<section class="panel pcard" id="c-wycena" hidden></section>'), 1); self.assertIn("srvJSON('wycena')", html); self.assertIn('const EXTRA141=', html)
+
+    # ---------------------------------------------------------------- kontrola dzienna
+    @classmethod
+    def _k(cls):
+        if not hasattr(cls, '_kmod'):
+            spec = _ilu_v132.spec_from_file_location('v132_kontrola', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+            cls._kmod = _ilu_v132.module_from_spec(spec); spec.loader.exec_module(cls._kmod)
+        return cls._kmod
+
+    def test_kontrola_files_and_freshness(self):
+        k = self._k()
+        self.assertIn('wycena', k.PLIKI); self.assertEqual(k.PLIKI.index('wycena'), k.PLIKI.index('lancuch') + 1); self.assertEqual(k.LIMIT_MIN['wycena'], 8 * 60)
+        self.assertNotIn('wycena', [x[1] for x in k.SWIEZOSC], 'lista SWIEZOSC bez zmian (osobne wiersze)')
+        out = self._full()
+        now = datetime.datetime(2026, 9, 28, 6, 20, tzinfo=datetime.timezone.utc)
+        rows = k.wycena_swiezosc(out, now)
+        self.assertEqual([(r[0], r[1], r[3]) for r in rows], [(k.WY_ETYKIETA_CM, '✅', '2026-09-26'), (k.WY_ETYKIETA_BG, '✅', '2026-09-20')])
+        self.assertEqual(rows[0][2], 30 * 60 + 20, 'od końca dnia danych (27.09 00:00) do 28.09 06:20')
+        late = k.wycena_swiezosc(out, now + datetime.timedelta(days=4))
+        self.assertEqual([r[1] for r in late], ['❌', '⚠️'], 'część główna 5 d 6 h > 2 × 36 h = ❌; SOPR 11 d 6 h > 9 dni = tylko ⚠️')
+
+    def test_kontrola_freshness_rules_and_thresholds(self):
+        k = self._k()
+        now = datetime.datetime(2026, 9, 28, 6, 20, tzinfo=datetime.timezone.utc)
+        F = lambda cm, sopr, **x: dict({'cm': {'asof': cm}, 'bg': {'sopr': {'asof': sopr}}}, **x)   # noqa: E731
+        st = lambda j, t=now: [(r[1], r[4]) for r in k.wycena_swiezosc(j, t)]   # noqa: E731
+        self.assertEqual([s for s, _ in st(F('2026-09-26', '2026-09-20'))], ['✅', '✅'])
+        self.assertEqual([s for s, _ in st(F('2026-09-25', '2026-09-17'))], ['⚠️', '⚠️'], '2 dni / 10 dni')
+        r = st(F('2026-09-20', '2026-08-20'))
+        self.assertEqual([s for s, _ in r], ['❌', '⚠️'], 'SOPR nigdy ❌ (dodatek z darmowego planu)'); self.assertIn('najwyżej uwaga', r[1][1]); self.assertIn('ponad 2× progu', r[0][1])
+        self.assertEqual(st(F(None, None)), [('?', 'brak dnia danych w pliku'), ('?', 'brak dnia danych SOPR w pliku')])
+        self.assertEqual(st({'cm': {'asof': '2026-09-26'}, 'bg': {'off': True}, 'ok': {'bg': 'off'}})[1], ('—', 'wyłączone (WYCENA_BG_OFF)'))
+        self.assertEqual(k.wycena_swiezosc(None, now), [], 'brak pliku zgłasza pętla wieku plików')
+        self.assertEqual((k.WY_PROG_CM, k.WY_PROG_BG), (36 * 60, 9 * 24 * 60))
+        e = lambda d: datetime.datetime.fromisoformat(d + 'T00:00:00+00:00') + datetime.timedelta(days=1)   # noqa: E731 — koniec dnia danych
+        J = F('2026-09-26', '2026-09-20')
+        self.assertEqual([s for s, _ in st(J, e('2026-09-26') + datetime.timedelta(hours=36))], ['✅', '✅'], 'cm: dokładnie 36 h — jeszcze ✅')
+        self.assertEqual(st(J, e('2026-09-26') + datetime.timedelta(hours=36, minutes=1))[0][0], '⚠️', 'cm: 36 h + 1 min — ⚠️')
+        self.assertEqual(st(J, e('2026-09-26') + datetime.timedelta(hours=72, minutes=1))[0][0], '❌', 'cm: ponad 2 × 36 h — ❌')
+        self.assertEqual(st(J, e('2026-09-20') + datetime.timedelta(days=9))[1][0], '✅', 'SOPR: dokładnie 9 dni — ✅')
+        self.assertEqual(st(J, e('2026-09-20') + datetime.timedelta(days=9, minutes=1))[1][0], '⚠️', 'SOPR: 9 dni + 1 min — ⚠️')
+
+    def test_kontrola_mvrv_two_sources(self):
+        k = self._k()
+        out = self._full()
+        Z = k.wycena_mvrv(out)
+        self.assertEqual((Z['status'], Z['n'], Z['dzien'], Z['przesuniecie'], Z['uwagi'], Z['opoznienie_d']), ('✅', 54, '2026-09-20', False, [], 7), Z['opis'])
+        a = {r[0]: r[1] for r in out['cm']['d']}
+        self.assertAlmostEqual(Z['roznica_pct'], round((1.5349 / a['2026-09-20'] - 1) * 100, 3), places=6); self.assertTrue(0.6 <= Z['mediana_pct'] <= 1.7, Z['mediana_pct'])
+
+        def bg(f, days=54, shift=0):
+            j = json.loads(json.dumps(out))
+            j['bg']['mvrv']['d'] = [[d, round(a[(datetime.date.fromisoformat(d) + datetime.timedelta(days=shift)).isoformat()] * f(d), 4)]
+                                    for d in sorted(a)[-days - 6:-6] if (datetime.date.fromisoformat(d) + datetime.timedelta(days=shift)).isoformat() in a]
+            return j
+        Z2 = k.wycena_mvrv(bg(lambda d: 1.05))
+        self.assertEqual(Z2['status'], '⚠️', 'norma +5% > 3%'); self.assertTrue(any(u.startswith('MVRV: dwa źródła różnią się o +5.00%') for u in Z2['uwagi']), Z2['uwagi'])
+        Z3 = k.wycena_mvrv(bg(lambda d: 1.008 if d < '2026-09-20' else 1.03))
+        self.assertEqual(Z3['status'], '⚠️', 'najnowszy dzień odbiega od normy o 2,2 pkt proc.'); self.assertIn('wobec normy +0.80%', Z3['uwagi'][0])
+        Z4 = k.wycena_mvrv(bg(lambda d: 1.0, shift=1))
+        self.assertEqual((Z4['status'], Z4['przesuniecie']), ('⚠️', True), 'dzień d drugiego = dzień d+1 głównego (jak 2023-10…2025-08)')
+        self.assertIn('MVRV: możliwe przesunięcie dat o 1 dzień u jednego ze źródeł (po przesunięciu różnice wyraźnie mniejsze)', Z4['uwagi'])
+        Z5 = k.wycena_mvrv(bg(lambda d: 1.008, days=19))
+        self.assertEqual((Z5['status'], Z5['n'], Z5['uwagi']), ('ℹ️', 19, []), 'mniej niż 20 wspólnych dni — bez oceny')
+        j6 = json.loads(json.dumps(out)); j6['bg']['delay_d'] = 9
+        self.assertIn('SOPR BTC: źródło zmieniło opóźnienie planu darmowego: 9 dni (było 7)', k.wycena_mvrv(j6)['uwagi'])
+        self.assertEqual(k.wycena_mvrv({'cm': out['cm'], 'bg': {'off': True}})['status'], '—'); self.assertEqual(k.wycena_mvrv(None)['status'], '?')
+
+    def test_kontrola_full_run_mvrv_gap_is_only_a_warning(self):
+        """Przegląd v132 (8, K3): cała kontrola() z rozjechanym MVRV (+10%) i zmienionym opóźnieniem SOPR — wynik najwyżej uwagi, nigdy błąd z wyceny."""
+        import tempfile
+        k = self._k()
+        out = self._full()
+        a = {r[0]: r[1] for r in out['cm']['d']}
+        out['bg']['mvrv']['d'] = [[d, round(a[(datetime.date.fromisoformat(d) + datetime.timedelta(days=1)).isoformat()] * 1.10, 4)] for d in sorted(a)[-60:-6]]
+        out['bg']['delay_d'] = 9
+        now = datetime.datetime(2026, 9, 28, 6, 20, tzinfo=datetime.timezone.utc)
+        meta = {'at': '2026-09-28T06:00:00+00:00', 'ok': {'wycena': True, 'wycena_bg': True}, 'errors': [], 'notes': []}
+
+        def get(url, timeout=25, headers=None):
+            if '/data/wycena.json' in url:
+                return 200, json.dumps(out).encode(), 5
+            if '/data/meta.json' in url:
+                return 200, json.dumps(meta).encode(), 5
+            raise _uerr_v132.HTTPError(url, 404, 'Not Found', {}, None)
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.object(k, 'get', get), mock.patch.object(k, 'NOW', now), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', d), \
+                    mock.patch.object(k.time, 'sleep', lambda s: None):
+                R = k.kontrola()
+                md = k.raport_md(R)
+        wy = [b for b in R['bledy'] if 'MVRV' in b or 'SOPR' in b or 'wycena' in b.lower()]
+        self.assertEqual(wy, [], 'porównanie MVRV i opóźnienie SOPR nigdy nie trafiają do błędów')
+        self.assertTrue(any(u.startswith('MVRV: dwa źródła różnią się o') for u in R['uwagi']) and any('opóźnienie planu darmowego: 9 dni' in u for u in R['uwagi']), R['uwagi'])
+        self.assertEqual(R['zgodnosc']['wycena']['status'], '⚠️'); self.assertIn('- MVRV BTC, dwa źródła:', md)
+        self.assertTrue(md.startswith('# Kontrola strony — 28.09.2026, 08:20 (czas polski)\n\n**Wynik: '), 'nagłówek i „Wynik:” w stałym formacie')
+
+    def test_kontrola_report_header_unchanged(self):
+        k = self._k()
+        out = self._full()
+        R = {'at': '2026-09-28T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 300}, 'meta': {}, 'pliki': {}, 'actions': {},
+             'swiezosc': [{'zrodlo': lab, 'status': s, 'wiek_min': w, 'data': d, 'uwaga': u} for lab, s, w, d, u in k.wycena_swiezosc(out, datetime.datetime(2026, 9, 28, 6, 20, tzinfo=datetime.timezone.utc))],
+             'zgodnosc': {'wycena': k.wycena_mvrv(out)}, 'uwagi': [], 'bledy': []}
+        md = k.raport_md(R)
+        self.assertTrue(md.startswith('# Kontrola strony — 28.09.2026, 08:20 (czas polski)\n\n**Wynik: OK**'), 'nagłówek i „Wynik:” bez zmian')
+        self.assertRegex(md, r'- MVRV BTC, dwa źródła: różnica najnowszego wspólnego dnia \+0\.70% \(2026-09-20\), norma \(mediana 54 dni\) \+\d\.\d\d% — ✅ ')
+        self.assertIn('| SOPR BTC (źródło opóźnia 7 dni) | ✅ |', md); self.assertNotRegex(md, r'(?i)bgeometrics|bitcoin-data')
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        i = src.index("    # 3c''. v132"); self.assertTrue(src.index('def swiezosc(') < i < src.index('    # 3d. v115: zgodność liczb'), 'po świeżości, przed zgodnością liczb')
+        blk = src[i:src.index('    # 3d. v115: zgodność liczb')]
+        self.assertNotIn("R['bledy'].append(f'MVRV", blk); self.assertNotRegex(blk, r'(?<![.\w])get(?:_json)?\(', 'kontrola wyceny bez zapytań (drugie źródło czyta zbieracz)')
