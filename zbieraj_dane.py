@@ -52,7 +52,9 @@ TIC_REGIONS = {   # region strony → wiersze TIC (kraje i sumy urzędowe); 'usa
 CG = 'https://api.coingecko.com/api/v3'      # plan Demo: klucz w nagłówku, atrybucja „Data by CoinGecko” wymagana
 FNG_URL = 'https://api.alternative.me/fng/?limit=31'   # 31 dni: dziś + wartość sprzed 30 dni   # wskaźnik nastroju (model), podać źródło z linkiem
 # FRED (Federal Reserve Bank of St. Louis) — tylko serie Rady Gubernatorów Fed: domena publiczna, „citation requested”.
-# Serie firm trzecich na FRED (SP500, VIXCLS, BAMLH0A0HYM2 …) wymagają zgody właściciela — nie pobieramy.
+# Serie firm trzecich na FRED (SP500, VIXCLS, BAMLH0A0HYM2 …) wymagają zgody właściciela — tutaj (fred.json) nie pobieramy.
+# v139 (tylko wskaźnik nastroju GLOBAL: build_nastroj, data/nastroj.json): VIXCLS i BAMLH0A0HYM2 — wskazane wprost w zadaniu właściciela
+# 27.09 (pkt 4); SP500 — do potwierdzenia przez właściciela (zadanie: „S&P 500 (np. SPY z już podpiętych źródeł)”; opis przy NS_SERIES).
 FRED = 'https://api.stlouisfed.org/fred/series/observations'
 FRED_SERIES = {
     'WALCL': {'unit': 'mln USD', 'freq': 'W', 'name': 'Fed: aktywa razem (H.4.1), środa'},
@@ -677,6 +679,229 @@ def build_fred(key):
         out['custody'] = custody_summary(out['series'])
     except Exception as e:
         out['custody'] = None; META['errors'].append(mask(f'FRED custody: {e}'))
+    return out
+
+
+# ===================== v139: NASTROJE RYNKÓW — wskaźnik własny „strach i chciwość” dla GLOBAL (data/nastroj.json) =====================
+# Wskaźnik własny CapitalFlowAI (nie pomiar) o tym samym wyglądzie co wskaźnik krypto na stronie (krypto.json → fng). Cztery składniki z publicznych
+# serii dziennych; każdy przeliczony na 0–100 jako percentyl z 12 miesięcy (NS_WIN = 252 własnych obserwacji składnika do dnia wyniku włącznie —
+# bez zaglądania w przyszłość), wynik dnia = średnia składników; co najmniej NS_MIN z 4, brakujący składnik jest nazwany w pliku (miss, why),
+# nigdy zastępowany inną liczbą ani zerem:
+#   vix — zmienność: VIX (FRED VIXCLS, zamknięcie dnia) / średnia z 50 obserwacji − 1; wysoko = strach (wynik = 100 − percentyl)
+#   hy  — ryzyko kredytowe: spread opcyjny indeksu obligacji wysokodochodowych USA wobec skarbowych (FRED BAMLH0A0HYM2, pkt proc.);
+#         wysoko = strach (100 − percentyl)
+#   spx — momentum: S&P 500 (FRED SP500, zamknięcie) / średnia ze 125 obserwacji − 1; wysoko = chciwość (percentyl)
+#   sb  — bezpieczne aktywa: zwrot z 20 wspólnych sesji funduszu ETF na S&P 500 (SPY) minus zwrot funduszu obligacji skarbowych USA 7–10 lat (IEF),
+#         oba z NAV w pliku fundusze tego przebiegu (bez nowych zapytań); wysoko = chciwość (percentyl). NAV to cena bez dywidend i odsetek.
+# Historia: wynik dla każdego dnia roboczego z obserwacją któregoś składnika z ostatnich NS_HIST_D dni; składnik wchodzi do wyniku dnia swoją
+# ostatnią obserwacją nie starszą niż NS_STALE_D dni kalendarzowych (starsza = brak z powodem „stale”). Stan (skrajny strach … skrajna
+# chciwość) liczy strona z pokazanej, zaokrąglonej liczby — plik niesie tylko liczby.
+# Opcjonalny piąty składnik z zadania — tygodniowe napływy do funduszy akcji według cotygodniowego badania stowarzyszenia funduszy USA (ICI,
+# wszystkie fundusze akcji) — nie jest zbierany. Zbierane są za to dzienne zmiany liczby jednostek kilku funduszy ETF akcji (plik fundusze: SPY,
+# IVV, fundusze sektorowe; przepływ = zmiana jednostek × NAV — fund_flows / fund_group, zakładka TRENDY), więc bez nowych zapytań dałoby się
+# z nich zrobić piąty składnik. Nie wchodzi w v139: na danych z 27.09 suma 5 sesji SPY + IVV skacze od −36 mld USD (14.09) do +65 mld USD
+# (24.09), wokół kwartalnego wygasania kontraktów 18.09 (percentyl 12 miesięcy: z 3 na 99 w 8 sesji), a sumy tygodni rozłącznych nie
+# zależą od poprzedniego tygodnia (autokorelacja od −0,22 do −0,01 zależnie od dnia startu tygodnia) — to głównie tworzenie i umarzanie
+# jednostek przez animatorów rynku, nie nastrój; jako jeden z pięciu składników sam przesunąłby wynik o ok. 19 punktów. Do decyzji
+# w kolejnym wydaniu (np. dłuższe okno albo przepływ jako udział w aktywach).
+# Dlaczego S&P 500 z FRED, a nie z plików strony: momentum potrzebuje 125 + 252 + 22 sesji (≈ 400), a pliki strony mają 251–300 sesji
+# (ceny: 260, fundusze: 300, indeksy: 251). 10-letnia rentowność z pliku rynki nie jest potrzebna — składnik sb liczy zwrot z cen funduszu
+# obligacji (pomiar), nie przybliżenie przez rentowność.
+# Klucz FRED_KEY tylko w adresie zapytania (jak build_fred), maskowany w błędach; seria z błędem = składnik z powodem „fetch”.
+# Serie firm trzecich na FRED — tylko tutaj, do wskaźnika; fred.json nadal niesie wyłącznie serie Fed (FRED_SERIES):
+#   VIXCLS i BAMLH0A0HYM2 — wskazane wprost w zadaniu właściciela 27.09 (strona/ZADANIE-CLAUDE-CODE-krypto-top10-fear-greed.md, pkt 4);
+#   SP500 — w zadaniu nie ma tej serii (jest „S&P 500 (np. SPY z już podpiętych źródeł)”); pobierana na podstawie ogólnej decyzji właściciela
+#   27.09 „licencje są drugorzędne” (nie odrzucać źródła z powodu licencji), bo pliki strony mają za krótką historię — DO POTWIERDZENIA przez
+#   właściciela. Bez zgody: usunąć ('spx', 'SP500') z NS_SERIES — składnik spx dostaje powód „nodata”, wynik liczy się z pozostałych trzech.
+# Na stronie żadnych nazw dostawców — opis metody ogólnymi słowami.
+import bisect   # v139: ostatnia obserwacja ≤ dzień (ponowny import jest nieszkodliwy)
+
+NS_SERIES = (('vix', 'VIXCLS'), ('hy', 'BAMLH0A0HYM2'), ('spx', 'SP500'))
+NS_KEYS = ('vix', 'hy', 'spx', 'sb')
+NS_DIR = {'vix': -1, 'hy': -1, 'spx': 1, 'sb': 1}   # −1: wysoka wartość = strach (wynik = 100 − percentyl)
+NS_MA = {'vix': 50, 'spx': 125}                     # obserwacji w średniej (z bieżącą)
+NS_RET = 20            # wspólnych sesji: zwrot akcji i obligacji (składnik sb)
+NS_FUNDS = ('SPY', 'IEF')
+NS_WIN = 252           # okno percentyla: 12 miesięcy własnych obserwacji składnika
+NS_WIN_MIN = 240       # mniej obserwacji w oknie = składnik bez wyniku („short”), nie percentyl z połowy roku
+NS_MIN = 3             # składników potrzebnych do wyniku dnia
+NS_STALE_D = 5         # dni kalendarzowych: starsza obserwacja składnika nie wchodzi do wyniku dnia
+NS_HIST_D = 45         # dni kalendarzowych historii wyniku w pliku (miesiąc temu + zapas)
+NS_LIMIT = 460         # obserwacji na serię FRED (z dniami „.”): 252 + 125 + 22 + zapas na święta
+NS_EVERY = 6 * 60      # min — serie dzienne; młodszy plik bez zapytań
+NS_RETRY = 60          # min — plik z brakującym składnikiem (albo po błędzie) ponawiany po godzinie
+NS_KEEP_H = 36         # h — przy błędzie pobrania młodszy poprzedni plik z większą liczbą składników zostaje w całości
+NS_LABEL = 'Nastroje'
+NS_SRC = ('CapitalFlowAI — wskaźnik własny (nie pomiar): percentyle 12 miesięcy czterech publicznych serii dziennych — indeks zmienności opcji '
+          'na S&P 500, spread obligacji wysokodochodowych USA, S&P 500, zwrot funduszu akcji S&P 500 wobec funduszu obligacji skarbowych USA 7–10 lat')
+
+
+def ns_rows(j, sid):
+    """Odpowiedź FRED observations → [[dzień, wartość > 0]] rosnąco; „.”, pusta, zero, ujemna albo zła data = pominięta (brak, nie zero)."""
+    if not isinstance(j, dict) or not isinstance(j.get('observations'), list):
+        raise RuntimeError(f'{sid}: odpowiedź bez observations' + (f" ({j.get('error_message')})" if isinstance(j, dict) and j.get('error_message') else ''))
+    out = {}
+    for o in j['observations']:
+        if not isinstance(o, dict):
+            continue
+        d = str(o.get('date', ''))[:10]
+        v = _num(o.get('value')) if str(o.get('value', '')).strip() != '.' else None
+        if _isnum(v) and v > 0 and re.match(r'^\d{4}-\d{2}-\d{2}$', d) and _d(d):
+            out[d] = float(v)
+    if not out:
+        raise RuntimeError(f'{sid}: brak obserwacji z wartością')
+    return [[d, out[d]] for d in sorted(out)]
+
+
+def ns_ma(rows, n):
+    """[[dzień, v]] rosnąco → [[dzień, x = v / średnia − 1, v, średnia z n ostatnich (z bieżącą)]] od n-tej obserwacji."""
+    out, s = [], 0.0
+    for i, (d, v) in enumerate(rows):
+        s += v
+        if i >= n:
+            s -= rows[i - n][1]
+        if i >= n - 1:
+            m = s / n
+            out.append([d, v / m - 1, v, m])
+    return out
+
+
+def ns_sb(spy, ief, n=NS_RET):
+    """Historie NAV dwóch funduszy [[dzień, NAV, jednostki]] → [[dzień, x = zwrot akcji − zwrot obligacji, zwrot akcji, zwrot obligacji]]
+    na wspólnych dniach; zwrot z n wspólnych sesji wstecz. Iloraz NAV poza 0,5–2 (podział jednostek, błąd pliku) = dzień pominięty."""
+    a = {r[0]: r[1] for r in _fund_rows(spy)}
+    b = {r[0]: r[1] for r in _fund_rows(ief)}
+    ds = sorted(set(a) & set(b))
+    out = []
+    for i in range(n, len(ds)):
+        d, d0 = ds[i], ds[i - n]
+        qa, qb = a[d] / a[d0], b[d] / b[d0]
+        if 0.5 < qa < 2 and 0.5 < qb < 2:
+            out.append([d, (qa - 1) - (qb - 1), qa - 1, qb - 1])
+    return out
+
+
+def ns_pct(win, x):
+    """Percentyl x w oknie (lista liczb razem z x): 100 × (liczba mniejszych + ½ równych) / n."""
+    lo = sum(1 for v in win if v < x)
+    eq = sum(1 for v in win if v == x)
+    return 100.0 * (lo + 0.5 * eq) / len(win)
+
+
+def ns_comp(ser, key, day):
+    """Składnik key w dniu day; ser = [[dzień, x, a, b]] rosnąco (x = miara składnika; a, b = liczby do opisu). Ostatnia obserwacja ≤ day:
+    brak → ('nodata', None); starsza niż NS_STALE_D dni → ('stale', None); okno NS_WIN obserwacji do niej włącznie krótsze niż NS_WIN_MIN →
+    ('short', None). Inaczej (None, {'date', 'x', 'pct', 'score', 'n', …}) — score 0–100: strach nisko, chciwość wysoko."""
+    ds = [r[0] for r in ser]
+    i = bisect.bisect_right(ds, day) - 1
+    if i < 0:
+        return 'nodata', None
+    if (_d(day) - _d(ds[i])).days > NS_STALE_D:
+        return 'stale', None
+    win = [r[1] for r in ser[max(0, i - NS_WIN + 1):i + 1]]
+    if len(win) < NS_WIN_MIN:
+        return 'short', None
+    r = ser[i]
+    p = ns_pct(win, r[1])
+    c = {'date': r[0], 'x': round(r[1], 6), 'pct': round(p, 1), 'score': round(p if NS_DIR[key] > 0 else 100 - p, 1), 'n': len(win)}
+    if key in ('vix', 'spx'):
+        c['v'], c['ma'] = round(r[2], 2), round(r[3], 2)
+    elif key == 'hy':
+        c['v'] = round(r[2], 2)
+    else:
+        c['rs'], c['rb'] = round(r[2], 6), round(r[3], 6)
+    return None, c
+
+
+def ns_series(raw, fu):
+    """Surowe serie → serie składników [[dzień, x, a, b]] i powody braku: raw = {'vix'|'hy'|'spx': [[dzień, v]] albo None}; fu = plik fundusze."""
+    ser, why = {}, {}
+    for k in ('vix', 'spx'):
+        if raw.get(k):
+            ser[k] = ns_ma(raw[k], NS_MA[k])
+    if raw.get('hy'):
+        ser['hy'] = [[d, v, v, None] for d, v in raw['hy']]
+    F = fu.get('f') if isinstance(fu, dict) and isinstance(fu.get('f'), dict) else {}
+    h = [(F.get(t) or {}).get('h') if isinstance(F.get(t), dict) else None for t in NS_FUNDS]
+    if all(isinstance(x, list) and x for x in h):
+        ser['sb'] = ns_sb(h[0], h[1])
+    else:
+        why['sb'] = 'nodata'
+    for k in NS_KEYS:
+        if k in ser and not ser[k]:
+            del ser[k]; why[k] = 'short'
+    return ser, why
+
+
+def ns_index(ser, day):
+    """Wynik dnia: (wartość 0–100 z 1 miejscem po przecinku albo None, liczba składników, {klucz: składnik}, {klucz: powód braku})."""
+    comps, why = {}, {}
+    for k in NS_KEYS:
+        if k not in ser:
+            continue
+        w, c = ns_comp(ser[k], k, day)
+        if c:
+            comps[k] = c
+        else:
+            why[k] = w
+    n = len(comps)
+    v = round(sum(c['score'] for c in comps.values()) / n, 1) if n >= NS_MIN else None
+    return v, n, comps, why
+
+
+def ns_days(ser):
+    """Dni wyniku: dni robocze z obserwacją któregoś składnika, z ostatnich NS_HIST_D dni przed najnowszą obserwacją (rosnąco)."""
+    ds = sorted({r[0] for s in ser.values() for r in s if _d(r[0]).weekday() < 5})
+    if not ds:
+        return []
+    od = (_d(ds[-1]) - datetime.timedelta(days=NS_HIST_D)).isoformat()
+    return [d for d in ds if d > od]
+
+
+def ns_rank(o):
+    """Liczba składników w najnowszym wyniku pliku (0 = brak wyniku albo zły plik)."""
+    now = o.get('now') if isinstance(o, dict) else None
+    return now['n'] if isinstance(now, dict) and isinstance(now.get('n'), int) and _isnum(now.get('v')) else 0
+
+
+def build_nastroj(key, S=None, prev=None):
+    """data/nastroj.json — wskaźnik własny „strach i chciwość” dla GLOBAL: 'now' {date, v, n} (najnowszy dzień z wynikiem), 'd' [[dzień,
+    wynik, liczba składników]] z ostatnich NS_HIST_D dni (tylko dni z wynikiem), 'c' składniki najnowszego dnia z danymi (z własnymi
+    dniami i liczbami do opisu), 'miss' + 'why' — składniki bez liczby i powód (fetch / nodata / short / stale), 'ok' — składnik jest
+    w najnowszym dniu. Trzy serie FRED (klucz key; brak klucza = składniki bez danych, bez zapytań) i fundusze SPY / IEF z przebiegu (S).
+    Błąd pobrania przy młodszym (≤ NS_KEEP_H) poprzednim pliku z większą liczbą składników = wyjątek (przebieg główny zostawia poprzedni
+    plik w całości — jego „at” mówi, jak stary); bez żadnego składnika = wyjątek. Brak liczby nigdy nie jest zerem."""
+    S = S if isinstance(S, dict) else {}
+    raw, why0, errs = {}, {}, []
+    for i, (k, sid) in enumerate(NS_SERIES):
+        if not key:
+            why0[k] = 'nodata'
+            continue
+        if i:
+            time.sleep(FRED_SLEEP)
+        try:
+            raw[k] = ns_rows(get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit={NS_LIMIT}'), sid)
+        except Exception as e:  # noqa — seria z błędem: składnik bez liczby z powodem, pozostałe liczone dalej
+            errs.append(mask(f'{sid}: {e}')); why0[k] = 'fetch'
+    ser, why1 = ns_series(raw, S.get('fundusze'))
+    days = ns_days(ser)
+    d = []
+    for day in days:
+        v, n, _c, _w = ns_index(ser, day)
+        if v is not None:
+            d.append([day, v, n])
+    last = days[-1] if days else None
+    _v, _n, comps, why2 = ns_index(ser, d[-1][0]) if d else ns_index(ser, last) if last else (None, 0, {}, {})
+    why = {k: why0.get(k) or why1.get(k) or why2.get(k) or 'nodata' for k in NS_KEYS if k not in comps}
+    out = {'at': NOW, 'v': 1, 'src': NS_SRC, 'min': NS_MIN, 'win': NS_WIN, 'ok': {k: k in comps for k in NS_KEYS},
+           'now': {'date': d[-1][0], 'v': d[-1][1], 'n': d[-1][2]} if d else None, 'd': d, 'c': comps,
+           'miss': [k for k in NS_KEYS if k not in comps], 'why': why}
+    if errs and isinstance(prev, dict) and ns_rank(prev) > ns_rank(out) and fresh(prev, NS_KEEP_H * 60):
+        raise RuntimeError('; '.join(errs)[:300] + ' — zostaje poprzedni plik (więcej składników)')
+    if not comps:
+        raise RuntimeError('brak składników' + (': ' + '; '.join(errs)[:300] if errs else ''))
+    if errs:
+        META['errors'].append(mask(f'{NS_LABEL}: ' + '; '.join(errs)[:400]))
     return out
 
 
@@ -13550,6 +13775,18 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'{label}: {e}')); META['ok'][label.lower()] = False
             if prev_x: save(name, prev_x)
+    # v139: nastroje rynków — wskaźnik własny „strach i chciwość” dla GLOBAL (trzy serie dzienne z kluczem FRED_KEY + fundusze SPY / IEF
+    # z tego przebiegu, więc po pliku fundusze): co 6 h; plik z brakującym składnikiem ponawiany po godzinie; awaria = poprzedni plik i błąd
+    prev_ns = previous('nastroj')
+    pok_ns = prev_ns.get('ok') if isinstance(prev_ns, dict) and isinstance(prev_ns.get('ok'), dict) else {}
+    if isinstance(prev_ns, dict) and fresh(prev_ns, NS_EVERY) and (all(pok_ns.get(k) is True for k in NS_KEYS) or fresh(prev_ns, NS_RETRY)):
+        save('nastroj', prev_ns); META['ok']['nastroj'] = 'cached'
+    else:
+        try:
+            ns_ = build_nastroj(fred_key, SAVED, prev_ns); save('nastroj', ns_); META['ok']['nastroj'] = all(ns_['ok'].get(k) is True for k in NS_KEYS)
+        except Exception as e:
+            META['errors'].append(mask(f'{NS_LABEL}: {e}')); META['ok']['nastroj'] = False
+            if prev_ns: save('nastroj', prev_ns)
     _CR_LOG[0] = previous('krypto-dziennik'); _CR_LOG[1] = None   # v125: dziennik kart krypto — źródło licznika „od wdrożenia”
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:

@@ -7785,3 +7785,355 @@ test('v129: premie — Metodologia: wiersz premii z flagami Korei i USA oraz log
   assert.equal(html.split('/* ===================== v129: PREMIA KOREI').length, 2, 'jeden blok v129');
   assert.ok(html.includes("function prmTxt(D){return prmHasKr(D)?PRM_TXT_KR:PRM_TXT;}"), 'teksty Korei tylko z danymi Korei');
 });
+
+/* ===================== v138 (CRYPTO): memecoiny w „Elementy:” (logo właściciela) i w „Aktywność sektorów”; „Giełdy” bez „(model)” =====================
+   Zadanie właściciela 27.09.2026, punkty 2 i 3. Testy bez przeglądarki: słownik (wartość skuteczna w 10 językach), panel sektorów w atrapie, wariant małego
+   zdjęcia (czysta funkcja tonów + atrapa płótna), podpowiedzi „Giełd” (chip, lista, legenda, scena). */
+const v138 = (() => {
+  const a = 'const EXTRA135=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0);
+  assert.ok(x0 > 0 && x1 > x0, 'v138: słownik EXTRA135');
+  return {D: JSON.parse(html.slice(x0 + a.length, x1)), x1, L10: ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'],
+    PROV: /Coin ?Gecko|Coin ?Paprika|Coin ?Market ?Cap|De[Ff]i ?Llama|Alternative\.me|FRED|Trading ?View|Coin ?Metrics|Coinalyze|Etherscan/};
+})();
+
+test('v138: słownik EXTRA135 — 10 języków, te same klucze i miejsca na wartości, nałożony po EXTRA38; „Giełdy” bez „(model)” w każdym języku', () => {
+  const {D, x1, L10, PROV} = v138, K = ['n.exch', 'exch.tip', 'sect.tip'], fl = 'for(const l in EXTRA135)if(I18N[l])Object.assign(I18N[l],EXTRA135[l]);\n';
+  assert.ok(html.split('const EXTRA135=').length === 2 && html.slice(x1 + 2, x1 + 2 + fl.length) === fl && html.split(fl).length === 2, 'słownik i linia nakładania zaraz po nim');
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.indexOf('EXTRA135') > apl.indexOf('EXTRA38') && apl.indexOf('EXTRA38') >= 0, 'po słowniku v49 z „(model)”');
+  assert.deepEqual(Object.keys(D), L10, 'kolejność języków');
+  const PH = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  const NAME = {pl: 'Giełdy', en: 'Exchanges', de: 'Börsen', es: 'Exchanges', fr: 'Plateformes', it: 'Exchange', pt: 'Exchanges', ru: 'Биржи', zh: '交易所', ja: '取引所'};
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(D[L]), K, L + ': klucze');
+    for (const k of K) {
+      assert.ok(typeof D[L][k] === 'string' && D[L][k].trim() && !PROV.test(D[L][k]), L + ' ' + k + ': tekst bez nazwy dostawcy');
+      assert.equal(PH(D[L][k]), PH(D.pl[k]), L + ' ' + k + ': miejsca na wartości');
+      assert.equal(v96src.I18N[L][k], D[L][k], L + ' ' + k + ': wartość skuteczna');
+    }
+    const t = v96src.tFor(L);
+    assert.equal(t('n.exch'), NAME[L], L + ': sama nazwa');
+    assert.ok(!/[(（]/.test(t('n.exch')) && !/model|Modell|modèle|modelo|modello|модель|模型|モデル/.test(t('n.exch')), L + ': bez „(model)”');
+    assert.ok(t('exch.tip').startsWith(NAME[L]) && !/["<>&]/.test(t('exch.tip')), L + ': podpowiedź zaczyna się nazwą, bez znaków HTML (idzie w atrybut title)');
+    assert.ok(t('sect.tip', {n: 'X', t: 'T'}).includes('X') && t('sect.tip', {n: 'X', t: 'T'}).includes('T') && t('sect.tip', {n: 'X', t: 'T'}).includes('24'), L + ': podpowiedź sektora z nazwą, datą i 24 h');
+    assert.ok(D[L]['sect.tip'].startsWith('{n}'), L + ': podpowiedź sektora zaczyna się pełną nazwą (nazwa w wierszu może skończyć się wielokropkiem)');
+    assert.ok(t('eng.gap').trim() && t('live.off').trim() && t('n.meme').trim(), L + ': teksty użyte w panelu sektorów');
+  }
+  assert.ok(/reszta bilansu/.test(D.pl['exch.tip']) && /nie pomiar/.test(D.pl['exch.tip']) && /balance remainder/.test(D.en['exch.tip']) && /not a measurement/.test(D.en['exch.tip']), 'wyjaśnienie: reszta bilansu, nie pomiar');
+});
+
+test('v138: panel „Aktywność sektorów” — memecoiny jak pozostałe sektory; brak danych = „—” bez paska, nigdy liczba zastępcza; podpowiedź z datą', () => {
+  const s0 = html.indexOf('const SEC_IDS='), s1 = html.indexOf('\nfunction renderGauge(', s0);
+  assert.ok(s0 > 0 && s1 > s0 && html.split('const SEC_IDS=').length === 2 && html.split('function renderSectors(){').length === 2, 'jedna definicja panelu');
+  const el = {innerHTML: ''}, st = {period: '24H'}, LIVE = {st: 'ok', C: {}};
+  const SEC_SYM = {defi: ['AAVE'], ai: ['TAO'], rwa: ['ONDO'], l12: ['SOL'], gaming: ['IMX'], meme: ['DOGE', 'PEPE']};
+  const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const F = new Function('$', 'st', 'LIVE', 'isLive', 'SEC_SYM', 'nName', 'cGrpW', 't', 'escH', 'liveWhen', html.slice(s0, s1) + '\nreturn {SEC_IDS, SECT_SAMPLE, secAct, renderSectors};')(
+    q => (q === '#sectors' ? el : null), st, LIVE, () => LIVE.st === 'ok', SEC_SYM, id => 'n.' + id, (id, c) => `<i data-g="${id}|${c}"></i>`, tt, v96src.escH, () => '27.09.2026, 23:25');
+  assert.deepEqual(F.SEC_IDS, ['defi', 'ai', 'rwa', 'l12', 'gaming', 'meme'], 'memecoiny na końcu, reszta bez zmian');
+  const rows = () => el.innerHTML.split('<div class="sec-row"').slice(1), on = r => (r.match(/<i class="on"/g) || []).length;
+  // na żywo, dane wszystkich koszyków: memecoiny liczone jak inne (obrót 24 h / kapitalizacja, 1 punkt ≈ 4%)
+  Object.assign(LIVE.C, {AAVE: {vol: 1e8, mcap: 5e9}, TAO: {vol: 4e8, mcap: 4e9}, ONDO: {vol: 1e8, mcap: 2e9}, SOL: {vol: 4e9, mcap: 8e10}, IMX: {vol: 5e7, mcap: 1e9},
+    DOGE: {vol: 2e9, mcap: 2e10}, PEPE: {vol: 1e9, mcap: 5e9}});
+  F.renderSectors();
+  let R = rows(), m = R[5];
+  assert.equal(R.length, 6, 'sześć wierszy');
+  assert.equal(F.secAct('meme'), 3, '(2+1) mld / (20+5) mld = 12% → 3');
+  assert.ok(m.includes('data-g="meme|sm"') && m.includes('n.meme') && m.includes('<span>3/10</span>') && on(m) === 3, 'memecoiny: logo, nazwa, 3/10, trzy segmenty');
+  assert.ok(m.startsWith(' title="') && m.includes('"><span><i data-g="meme|sm"></i><span class="snm">n.meme</span></span><div class="segs"'), 'nazwa we własnym elemencie (wielokropek), po ikonie');
+  assert.ok(m.includes('title="sect.tip{&quot;n&quot;:&quot;n.meme&quot;,&quot;t&quot;:&quot;27.09.2026, 23:25&quot;}"'), 'podpowiedź z datą danych');
+  assert.ok(m.includes('aria-label="rail.sectAria{"n":"n.meme","v":3}"'), 'opis dla czytnika jak w innych sektorach');
+  assert.ok(R[0].includes('data-g="defi|sm"') && R[0].includes('<span>1/10</span>'), 'DeFi bez zmian (2% → 1, minimum 1)');
+  // na żywo bez danych koszyka: „—”, pusty pasek — nie liczba przykładowa (dawniej SECT_SAMPLE po cichu)
+  delete LIVE.C.DOGE; delete LIVE.C.PEPE; delete LIVE.C.TAO;
+  F.renderSectors(); R = rows();
+  for (const r of [R[1], R[5]]) {
+    assert.ok(r.includes('<span>—</span>') && on(r) === 0 && !r.includes('/10</span>'), 'brak = „—”, bez paska');
+    assert.ok(r.includes('eng.gap') && !r.includes('rail.sectAria'), 'podpowiedź i opis: brak danych');
+  }
+  assert.ok(!R[1].includes('<span>6/10</span>') && R[0].includes('<span>1/10</span>'), 'AI bez danych nie dostaje liczby przykładowej (6), DeFi zostaje');
+  // bez połączenia: wartości przykładowe tylko tam, gdzie były (plakietka „Makieta”); memecoiny ich nie mają
+  LIVE.st = 'err'; F.renderSectors(); R = rows();
+  assert.ok(R[0].includes('<span>7/10</span>') && on(R[0]) === 7 && R[0].includes('title="n.defi: live.off"'), 'DeFi: przykład jak dotąd, podpisany');
+  assert.ok(R[5].includes('<span>—</span>') && on(R[5]) === 0 && R[5].includes('eng.gap'), 'memecoiny bez przykładu — „—”');
+  st.period = '1R'; F.renderSectors(); R = rows();
+  assert.ok(R[4].includes('<span>4/10</span>') && R[5].includes('<span>—</span>'), 'okres 1R: gaming z przykładu, memecoiny „—”');
+  const sec = html.slice(html.indexOf('function renderSectors(){'), s1);
+  assert.ok(!sec.includes('hsl(') && sec.includes("cGrpW(id,'sm')"), 'panel: logo przez cGrpW, bez własnych kolorów');
+  // CSS: kolumna nazw 96 px w panelu, nazwa z wielokropkiem; liczba po prawej („.sec-row span:last-child”) nie przejmuje wyglądu nazwy
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  const colM = css.match(/\n#sectors \.sec-row\{grid-template-columns:(\d+)px 1fr 34px\}\n/), fsM = css.match(/\n\.sec-row\{display:grid;grid-template-columns:88px 1fr 34px;[^}]*font-size:([\d.]+)px/);
+  const icM = css.match(/\n\.ico\.sm\{width:(\d+)px;/), mgM = css.match(/\n#sectors \.sec-row \.icos\{margin-right:(\d+)px\}\n/);
+  assert.ok(colM && fsM && icM && mgM && css.indexOf(colM[0]) > css.indexOf(fsM[0]) && css.indexOf(colM[0]) > css.indexOf(mgM[0]), 'reguła kolumny po bazowej (88 px) i po regule ikon panelu');
+  assert.equal(+colM[1], 96, 'kolumna nazw 96 px');
+  assert.ok(css.includes('\n#sectors .sec-row .snm{min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:left;color:inherit;font-weight:inherit}\n'), 'nazwa: wielokropek, wygląd jak dotąd (bez pogrubienia i wyrównania liczby)');
+  assert.ok(css.includes('\n#sectors .sec-row>span:first-child{display:flex;align-items:center;min-width:0;white-space:nowrap;overflow:hidden;'), 'komórka nazwy: jedna linia (bazowa reguła bez zmian)');
+  // nazwy z samych znaków pełnej szerokości (zh, ja) mają szerokość znaną bez czcionki: znaki × rozmiar czcionki + ikona + odstęp ≤ kolumna — w każdym języku
+  const FW = /^[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFF60]+$/;
+  let fw = 0;
+  for (const L of v138.L10) for (const id of F.SEC_IDS) {
+    const nm = v96src.tFor(L)('n.' + id);
+    assert.ok(nm && nm !== 'n.' + id, L + ' ' + id + ': nazwa w słowniku');
+    if (FW.test(nm)) { fw++; assert.ok([...nm].length * +fsM[1] + +icM[1] + +mgM[1] <= +colM[1], L + ' ' + id + ': „' + nm + '” mieści się w kolumnie'); }
+  }
+  assert.ok(fw >= 4 && FW.test(v96src.tFor('ja')('n.meme')), 'sprawdzone nazwy pełnej szerokości, w tym ja „ミームコイン”');
+});
+
+test('v138: małe logo memecoinów — zdjęcie właściciela (wariant ≤ 24 px liczony raz), nie buźka; zanim się wczyta — samo zdjęcie; gaming i giełdy bez zmian', () => {
+  const c0 = html.indexOf('const SMALL_PX=24;'), c1 = html.indexOf('\nconst logoTag=', c0);
+  assert.ok(c0 > 0 && c1 > c0 && html.indexOf('const SMALL_PHOTO=') > c0 && html.indexOf('const SMALL_PHOTO=') < html.indexOf('function iconURL('), 'blok między piktogramami a iconURL');
+  assert.ok(html.includes("function iconURL(id,px=56){\n  if(px<=SMALL_PX&&SMALL_PHOTO[id]&&logoSrc(id))return smallPhotoURL(id,px);"), 'pierwsza linia iconURL');
+  const SRC = {meme: 'img/wezly/memecoiny.jpg', gaming: 'img/wezly/gaming.jpg', exch: 'img/wezly/gieldy.jpg'};
+  let img = null, made = 0, fail = false;
+  const calls = [];
+  const mkCtx = () => new Proxy({
+    getImageData: (x, y, w, h) => { if (fail) throw new Error('SecurityError'); const d = new Uint8ClampedArray(w * h * 4); d[0] = 0; d[1] = 0; d[2] = 0; d[3] = 255; calls.push(['get', w, h]); return {data: d}; },
+    putImageData: D => calls.push(['put', D.data[0], D.data[1], D.data[2], D.data[3]]),
+    drawImage: (...a) => calls.push(['draw', ...a]),
+  }, {get: (o, k) => (k in o ? o[k] : (typeof k === 'string' ? () => {} : undefined)), set: (o, k, v) => { o[k] = v; if (k === 'strokeStyle') calls.push(['stroke', v]); return true; }});
+  const doc = {createElement: () => { made++; const cv = {width: 0, height: 0, getContext: () => mkCtx(), toDataURL: () => 'data:image/png;base64,V' + made}; return cv; }};
+  const urlCache = {}, PAL = {dark: true};
+  const F = new Function('logoSrc', 'logoImg', 'urlCache', 'PAL', 'hueOf', 'drawIconOn', 'document', html.slice(c0, c1) + '\nreturn {SMALL_PHOTO, SMALL_PICTO, smallTone, smallPhotoURL, iconURL};')(
+    id => SRC[id] || '', id => (id === 'meme' ? img : null), urlCache, PAL, () => 120, () => {}, doc);
+  // czysta funkcja tonów: czarny → granat (podniesienie), szary jaśniej, czerwony żywszy; przezroczystość bez zmian
+  const d = [0, 0, 0, 255, 128, 128, 128, 200, 255, 0, 0, 255];
+  assert.deepEqual(F.smallTone(d, F.SMALL_PHOTO.meme), [30, 42, 82, 255, 203, 203, 203, 200, 255, 42, 82, 255]);
+  assert.deepEqual(Object.keys(F.SMALL_PHOTO), ['meme'], 'tylko memecoiny');
+  // zdjęcie jeszcze się wczytuje: samo zdjęcie (logo właściciela), nie piktogram, bez zapisu w pamięci
+  assert.equal(F.iconURL('meme', 18), SRC.meme);
+  assert.equal(F.iconURL('meme', 14), SRC.meme);
+  assert.equal(made, 0, 'bez płótna — ani buźki, ani wariantu');
+  assert.deepEqual(Object.keys(urlCache), []);
+  // wczytane: wariant liczony raz na rozmiar i motyw — kadr 80% środka, tony, maska koła, obwódka w kolorze węzła
+  img = {naturalWidth: 512, naturalHeight: 512};
+  const u18 = F.iconURL('meme', 18);
+  assert.equal(u18, 'data:image/png;base64,V1');
+  assert.deepEqual(calls.find(c => c[0] === 'draw'), ['draw', img, 51.19999999999999, 51.19999999999999, 409.6, 409.6, 0, 0, 36, 36], 'kadr 80% środka, płótno 2× (ostre na ekranach Retina)');
+  assert.deepEqual(calls.find(c => c[0] === 'get'), ['get', 36, 36]);
+  assert.deepEqual(calls.find(c => c[0] === 'put'), ['put', 30, 42, 82, 255], 'tony nałożone przed maską');
+  assert.deepEqual(calls.filter(c => c[0] === 'stroke'), [['stroke', 'hsl(120 40% 38%)']], 'obwódka w kolorze węzła (jak piktogram)');
+  assert.equal(F.iconURL('meme', 18), u18); assert.equal(made, 1, 'drugi raz z pamięci');
+  assert.deepEqual(Object.keys(urlCache), ['ph|meme|18|d']);
+  PAL.dark = false; assert.equal(F.iconURL('meme', 18), 'data:image/png;base64,V2'); assert.ok(urlCache['ph|meme|18|l'], 'jasny motyw osobno');
+  assert.equal(F.iconURL('meme', 24), 'data:image/png;base64,V3', '24 px też wariant');
+  assert.equal(F.iconURL('meme', 25), SRC.meme, 'powyżej 24 px — samo zdjęcie jak dotąd');
+  assert.equal(F.iconURL('meme', 56), SRC.meme);
+  // piksele niedostępne (np. plik z dysku): samo zdjęcie, zapamiętane (bez powtarzania błędu)
+  fail = true; PAL.dark = true; const n0 = made;
+  assert.equal(F.iconURL('meme', 20), SRC.meme); assert.equal(urlCache['ph|meme|20|d'], SRC.meme); F.iconURL('meme', 20); assert.equal(made, n0 + 1);
+  // gaming i giełdy: piktogramy v116 bez zmian (klucz bez „ph|”), duże — zdjęcia
+  fail = false;
+  assert.ok(/^data:image\/png;base64,V\d+$/.test(F.iconURL('gaming', 18)) && urlCache['gaming|18|d'] && !urlCache['ph|gaming|18|d'], 'gaming — piktogram');
+  assert.ok(/^data:image\/png;base64,V\d+$/.test(F.iconURL('exch', 14)) && urlCache['exch|14|d'], 'giełdy — piktogram');
+  assert.equal(F.iconURL('gaming', 56), SRC.gaming);
+  assert.ok(typeof F.SMALL_PICTO.meme === 'function', 'piktogram memecoinów zostaje w kodzie (nieużywany)');
+  const scene = html.slice(html.indexOf('function drawIconOn('), html.indexOf('const drawIcon=('));
+  assert.ok(!scene.includes('SMALL_PHOTO') && !scene.includes('smallPhotoURL'), 'scena 3D bez zmian');
+  assert.ok(html.includes("const LOGO_PHOTO=new Set(['exch','gaming','meme']);") && html.includes("meme:'img/wezly/memecoiny.jpg'"), 'to samo zdjęcie co w kuli i w bloku');
+});
+
+test('v138: „Giełdy” — wyjaśnienie „wartość wyliczona, nie pomiar” w podpowiedzi (chip, lista, scena po najechaniu) i w legendzie okna pomocy', () => {
+  const NODES = [{id: 'exch'}, {id: 'btc'}, {id: 'meme'}], DATA = {'24H': {exch: [-5, -0.4], btc: [3, 0.5], meme: [2, 0.7]}}, st = {period: '24H', view: 'list', sel: null};
+  const ch = {innerHTML: ''}, wrap = {innerHTML: ''}, leg = {innerHTML: ''};
+  const c0 = html.indexOf('function renderChips(){'), c1 = html.indexOf('\nfunction renderLegend(', c0), c2 = html.indexOf('\nfunction renderRail(', c1);
+  new Function('$', '$$', 'DATA', 'st', 'NODES', 'isSel', 'iconURL', 'nName', 'fPct', 't', 'select', html.slice(c0, c1) + '\nrenderChips();')(
+    () => ch, () => [], DATA, st, NODES, () => false, (id, px) => 'u:' + id + ':' + px, id => 'n.' + id, v => String(v), k => k, () => {});
+  assert.ok(ch.innerHTML.includes('<button class="chip-n out" data-n="exch" title="exch.tip" aria-pressed="false">'), 'chip „Giełdy”: podpowiedź');
+  assert.ok(ch.innerHTML.includes('<button class="chip-n in" data-n="btc" aria-pressed="false">') && ch.innerHTML.includes('<button class="chip-n in" data-n="meme" aria-pressed="false">'), 'inne chipy bez zmian');
+  assert.ok(ch.innerHTML.includes('src="u:meme:18" alt="" width="18"'), 'memecoiny: logo przez iconURL w rozmiarze chipu (18 px)');
+  const l0 = html.indexOf('function renderList(){'), l1 = html.indexOf('\n/* ---------- sterowanie', l0);
+  new Function('$', '$$', 'DATA', 'st', 'NODES', 'isSel', 'iconURL', 'nName', 'fInt', 'fPct', 't', 'select', html.slice(l0, l1) + '\nrenderList();')(
+    () => wrap, () => [], DATA, st, NODES, () => false, id => 'u:' + id, id => 'n.' + id, v => String(v), v => String(v), k => k, () => {});
+  assert.ok(wrap.innerHTML.includes('<b title="exch.tip">n.exch</b>') && wrap.innerHTML.includes('<b>n.btc</b>'), 'lista: podpowiedź tylko przy „Giełdach”');
+  new Function('$', 'DATA', 'st', 'NODES', 'nfmt', 't', 'sigSvg', 'cGrp', 'cGrpW', html.slice(c1 + 1, c2) + '\nrenderLegend();')(
+    () => leg, DATA, st, NODES, v => String(v), k => k, (a, b) => `<svg ${a}|${b}>`, (id, c, ti) => `<img ${id}|${c}|${ti}>`, (id, c, ti) => `<span class="icos">[${id}|${c}|${ti}]</span>`);
+  assert.ok(leg.innerHTML.includes('<span class="lg"><img exch|sm|>exch.tip</span>') && leg.innerHTML.indexOf('exch.tip') > leg.innerHTML.indexOf('leg.unc') && leg.innerHTML.indexOf('exch.tip') < leg.innerHTML.indexOf('leg.current'), 'legenda: logo giełd i wyjaśnienie');
+  assert.ok(!leg.innerHTML.includes('icos'), 'ikona bez otoczki .icos (jej margines 7 px dodawałby się do odstępu 7 px wiersza legendy)');
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>')), icoR = css.match(/\n\.ico\{[^}]*\}/), lgR = css.match(/\n\.lg\{display:inline-flex;align-items:center;gap:(\d+)px\}/);
+  assert.ok(icoR && !/margin/.test(icoR[0]) && lgR && +lgR[1] === 7, 'odstęp ikony od tekstu = odstęp wiersza legendy (7 px), jak przy liniach sygnałów');
+  // scena: tytuł płótna tylko na czas najechania na kulę „Giełdy”; cudzego tytułu nie zabiera
+  const f0 = html.indexOf('function sceneExchTip(){'), f1 = html.indexOf('\n', f0);
+  assert.ok(f0 > html.indexOf("cvs.addEventListener('pointermove',e=>{") && html.includes("cvs.addEventListener('pointermove',sceneExchTip);cvs.addEventListener('pointerleave',sceneExchTip);"), 'słuchacze po słuchaczach sceny');
+  const cvs = {title: ''};
+  const S = new Function('cvs', 't', 'let hover=null;\n' + html.slice(f0, f1) + '\nreturn {h: v => { hover = v; }, f: sceneExchTip};')(cvs, k => (k === 'exch.tip' ? 'TIP' : k));
+  S.h({type: 'node', id: 'exch'}); S.f(); assert.equal(cvs.title, 'TIP');
+  S.h({type: 'node', id: 'btc'}); S.f(); assert.equal(cvs.title, '');
+  S.h({type: 'edge', id: 'exch'}); S.f(); assert.equal(cvs.title, '', 'przepływ z giełd to nie kula');
+  cvs.title = 'inny'; S.h(null); S.f(); assert.equal(cvs.title, 'inny', 'cudzy tytuł zostaje');
+  S.h({type: 'node', id: 'exch'}); S.f(); assert.equal(cvs.title, 'TIP'); S.h(null); S.f(); assert.equal(cvs.title, '', 'po zejściu — pusto');
+  for (const L of v138.L10) assert.ok(!/\(|（/.test(v96src.tFor(L)('n.exch')), L);
+});
+
+// ===== v139 — strach i chciwość: CRYPTO (krypto.json → fng, pasek pod „Pokryciem danych”) i GLOBAL (data/nastroj.json — wskaźnik własny, pod kartami jakości danych), słownik EXTRA136 =====
+const fg139 = (() => {
+  const i0 = html.indexOf('/* ===================== v139: STRACH I CHCIWOŚĆ'), i1 = html.indexOf('\nfunction fgLoadG(', i0);
+  const mk = (o = {}) => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'KR', 'icoWrap', 'flagImg', 'glyphImg', html.slice(i0, i1) +
+    '\nreturn {FG, FG_CLS, FG_KEYS, fgState, fgBack, fgRows, fgAt, fgHist, fgShort, fgLong, fgInt, fgPct, fgGauge, fgItem, fgBlock, fgCrypto, fgGlobal, fgRaw, fgComps, fgHead, fgHowOpen, fgHowClick, fgRenderC, fgRenderG, fgApplyG};')(
+    o.$ || (() => null), (k, v) => k + (v ? JSON.stringify(v) : ''), (v, d) => Number(v).toFixed(d), v96src.escH, d => ' · age(' + d + ')', iso => 'D(' + iso + ')',
+    {pl: 'pl-PL', en: 'en-US'}, 'en', o.KR === undefined ? {data: null} : o.KR, o.icoWrap, o.flagImg, o.glyphImg);
+  // nagranie 27.09.2026: plik nastroj.json policzony przez build_nastroj z nagranych serii (ten sam, co w teście Pythona NastrojV139) — skrót historii
+  const N = {at: '2026-09-27T23:30:00+00:00', v: 1, src: 'x', min: 3, win: 252, ok: {vix: true, hy: true, spx: true, sb: true},
+    now: {date: '2026-09-25', v: 62.2, n: 4},
+    d: [['2026-08-26', 70.1, 4], ['2026-08-27', 71.5, 4], ['2026-09-17', 66.0, 4], ['2026-09-18', 67.4, 4], ['2026-09-21', 68.9, 4], ['2026-09-22', 72.1, 4], ['2026-09-23', 64.9, 4], ['2026-09-24', 60.1, 4], ['2026-09-25', 62.2, 4]],
+    c: {vix: {date: '2026-09-22', x: -0.116425, pct: 27.6, score: 72.4, n: 252, v: 14.21, ma: 16.08}, hy: {date: '2026-09-24', x: 2.8, pct: 44.6, score: 55.4, n: 252, v: 2.8},
+      spx: {date: '2026-09-25', x: 0.042743, pct: 38.3, score: 38.3, n: 252, v: 7743.41, ma: 7426.0}, sb: {date: '2026-09-24', x: 0.041125, pct: 82.7, score: 82.7, n: 252, rs: 0.002179, rb: -0.038946}},
+    miss: [], why: {}};
+  // nagranie 27.09.2026: część fng pliku krypto.json (31 dni, skrót: 5 dni)
+  const F = {src: 'x', kind: 'indicator', asof: '2026-09-27', d: [['2026-08-28', 73, 'Greed'], ['2026-09-20', 71, 'Greed'], ['2026-09-22', 78, 'Extreme Greed'], ['2026-09-26', 74, 'Greed'], ['2026-09-27', 70, 'Greed']]};
+  return {i0, i1, mk, N, F};
+})();
+
+test('v139: strach i chciwość — stany z liczby, wiersze, historia (krypto: dokładny dzień; GLOBAL: poprzednia sesja, 7 i 30 dni z tolerancją 4 dni), liczby i procenty', () => {
+  assert.ok(fg139.i0 > 0 && fg139.i1 > fg139.i0, 'blok v139 na stronie'); const X = fg139.mk();
+  assert.deepEqual([0, 24.4, 24.5, 44.4, 44.5, 55.4, 55.5, 75.4, 75.5, 100].map(X.fgState), ['xf', 'xf', 'f', 'f', 'n', 'n', 'g', 'g', 'xg', 'xg'], 'progi 25 / 45 / 56 / 76 na liczbie po zaokrągleniu');
+  assert.deepEqual([-1, 100.1, NaN, null, '50', undefined].map(X.fgState), [null, null, null, null, null, null], 'poza skalą albo nie-liczba = brak stanu');
+  assert.deepEqual(X.fgRows([['2026-09-25', 62.2, 4], ['2026-09-24', 60.1], ['zła', 5], ['2026-02-30', 5], ['2026-09-23', null], ['2026-09-22', 101], ['2026-09-21', -1], 'x', ['2026-09-24', 99]]),
+    [['2026-09-24', 60.1], ['2026-09-25', 62.2, 4]], 'zła data, brak, poza 0–100 odrzucone; rosnąco; powtórzony dzień raz');
+  assert.deepEqual(X.fgRows(null), []); assert.equal(X.fgBack('2026-03-01', 1), '2026-02-28'); assert.equal(X.fgBack('2026-09-25', 30), '2026-08-26');
+  const C = X.fgRows(fg139.F.d), hc = X.fgHist(C, 'c');
+  assert.deepEqual(hc.map(h => h[0]), ['fg.h.now', 'fg.h.d1', 'fg.h.w1', 'fg.h.m1']);
+  assert.deepEqual(hc.map(h => h[1] && h[1][0]), ['2026-09-27', '2026-09-26', '2026-09-20', '2026-08-28'], 'krypto: wczoraj, 7 i 30 dni — dokładnie te dni');
+  const C2 = C.filter(r => r[0] !== '2026-09-20'); assert.equal(X.fgHist(C2, 'c')[2][1], null, 'krypto: brak dnia sprzed tygodnia = „—”, nie inny dzień');
+  const G = X.fgRows(fg139.N.d), hg = X.fgHist(G, 'g');
+  assert.deepEqual(hg.map(h => h[0]), ['fg.h.now', 'fg.h.s1', 'fg.h.w1', 'fg.h.m1']);
+  assert.deepEqual(hg.map(h => h[1] && h[1][0]), ['2026-09-25', '2026-09-24', '2026-09-18', '2026-08-26'], 'GLOBAL: poprzednia sesja; ostatnia sesja ≤ 18.09 i ≤ 26.08');
+  assert.equal(X.fgHist(G.filter(r => r[0] !== '2026-09-18' && r[0] !== '2026-09-17'), 'g')[2][1], null, 'GLOBAL: ostatnia sesja starsza niż 4 dni przed celem = „—”');
+  assert.deepEqual(X.fgHist([], 'g').map(h => h[1]), [null, null, null, null], 'bez wierszy — cztery „—”');
+  assert.equal(X.fgInt(62.5), '63'); assert.equal(X.fgInt(null), '—'); assert.equal(X.fgPct(0.042743), '+4.3%'); assert.equal(X.fgPct(-0.038946), '−3.9%'); assert.equal(X.fgPct(0.0004), '0.0%'); assert.equal(X.fgPct(NaN), '—');
+  assert.equal(X.fgShort('2026-09-25'), 'Sep 25'); assert.equal(X.fgLong('2026-09-25'), 'Sep 25, 2026'); assert.equal(X.fgShort('x'), '—');
+});
+
+test('v139: strach i chciwość — skala (gradient czerwień→żółć→zieleń, wskazówka tylko przy liczbie), blok z liczbą, stanem i historią w kolorach stanów, składniki GLOBAL z brakami nazwanymi', () => {
+  const X = fg139.mk();
+  const g0 = X.fgGauge(0, 'gid', 'a"b'), g50 = X.fgGauge(50, 'gid', 'x'), g100 = X.fgGauge(100, 'gid', 'x'), gN = X.fgGauge(null, 'gid', 'x');
+  assert.ok(g0.includes('x2="40.0" y2="100.0"') && g50.includes('x2="100.0" y2="40.0"') && g100.includes('x2="160.0" y2="100.0"'), 'wskazówka: 0 w lewo, 50 w górę, 100 w prawo');
+  assert.ok(X.fgGauge(250, 'gid', 'x').includes('x2="160.0" y2="100.0"'), 'poza skalą — przycięte do 100');
+  assert.ok(!gN.includes('class="fg-nd"') && g0.includes('class="fg-nd"'), 'bez liczby — bez wskazówki');
+  assert.ok(g0.includes('aria-label="a&quot;b"') && g0.includes('<linearGradient id="gid"') && g0.includes('stroke="url(#gid)"'), 'etykieta dostępności, własny gradient');
+  for (const v of ['--rd', '--or', '--yl', '--gr']) assert.ok(g0.includes(`style="stop-color:var(${v})"`), 'kolor ze zmiennej strony: ' + v);
+  assert.ok(g0.indexOf('var(--rd)') < g0.indexOf('var(--yl)') && g0.indexOf('var(--yl)') < g0.indexOf('var(--gr)'), 'czerwień → żółć → zieleń');
+  const G = X.fgGlobal(fg139.N), b = X.fgBlock(Object.assign({}, G, {gid: 'g1', title: 'T'}));
+  assert.equal(G.v, 62.2); assert.equal(G.s, 'g');
+  assert.ok(b.includes('<div class="fg-num">62</div>') && b.includes('<div class="fg-st"><i class="fg-dot fg-g"></i>fg.s.g</div>'), 'duża liczba i stan');
+  assert.ok(b.includes('aria-label="fg.aria{&quot;t&quot;:&quot;T&quot;,&quot;v&quot;:&quot;62&quot;,&quot;s&quot;:&quot;fg.s.g&quot;}"'), 'opis dla czytników');
+  assert.equal((b.match(/<div class="fg-h">/g) || []).length, 4, 'cztery punkty historii');
+  assert.ok(b.includes('<div class="fg-upd">fg.upd{"d":"Sep 25, 2026 · age(2026-09-25)"}</div></div><div class="fg-hist">'), 'dzień danych z wiekiem pod stanem');
+  assert.ok(b.includes('<span class="fg-hl">fg.h.now</span><b class="fg-c fg-g">62</b><span class="fg-hs">fg.s.g</span><small>Sep 25</small>'), 'teraz: liczba w kółku w kolorze stanu, stan, dzień');
+  assert.ok(b.includes('<span class="fg-hl">fg.h.w1</span><b class="fg-c fg-g">67</b><span class="fg-hs">fg.s.g</span><small>Sep 18</small>') && b.includes('<span class="fg-hl">fg.h.m1</span><b class="fg-c fg-g">70</b>'));
+  const bN = X.fgBlock({v: null, s: null, hist: X.fgHist([], 'g'), stOf: () => null, gid: 'g2', title: 'T'});
+  assert.ok(bN.includes('<div class="fg-num">—</div>') && bN.includes('<div class="fg-st">fg.na</div>') && (bN.match(/<b class="fg-c fg-na">—<\/b><span class="fg-hs">fg.na<\/span>/g) || []).length === 4, 'bez danych: „—” i „brak danych”, nigdy zero');
+  assert.ok(!/undefined|NaN|\[object/.test(b + bN));
+  const K = X.fgCrypto(fg139.F), bk = X.fgBlock(Object.assign({}, K, {gid: 'c1', title: 'T'}));
+  assert.equal(K.v, 70); assert.equal(K.s, 'g'); assert.ok(bk.includes('<b class="fg-c fg-g">74</b>') && bk.includes('<b class="fg-c fg-g">71</b>') && bk.includes('<b class="fg-c fg-g">73</b>'), 'krypto: stan z klasy pliku');
+  const K2 = X.fgCrypto({d: [['2026-09-27', 50, 'Unknown']]}); assert.equal(K2.s, null, 'nieznana klasa — bez stanu (nie zgadujemy)');
+  assert.ok(X.fgBlock(Object.assign({}, K2, {gid: 'c2', title: 'T'})).includes('<div class="fg-st">—</div>'));
+  assert.equal(X.fgCrypto({d: []}), null); assert.equal(X.fgCrypto(null), null);
+  const cp = X.fgComps(fg139.N, true);
+  assert.equal((cp.rows.match(/<tr>/g) || []).length, 4); assert.deepEqual(cp.miss, []); assert.equal(cp.note, '');
+  assert.ok(cp.rows.includes('fg.raw.vix{"v":"14.21","m":"16.08"}') && cp.rows.includes('fg.raw.hy{"v":"2.80"}') && cp.rows.includes('fg.raw.spx{"v":"7743","p":"+4.3%"}') && cp.rows.includes('fg.raw.sb{"a":"+0.2%","b":"−3.9%"}'), 'liczby składników z pliku');
+  assert.ok(cp.rows.includes('<i class="fg-dot fg-g"></i>72</span></td><td><span class="cell fg-dd">Sep 22</span>') && cp.rows.includes('<i class="fg-dot fg-f"></i>38</span>'), 'wynik składnika w kolorze stanu, własny dzień');
+  assert.ok(cp.rows.includes('<span class="fg-cn"><b>fg.comp.vix</b><small>fg.raw.vix{"v":"14.21","m":"16.08"}</small></span>'), 'liczby składnika pod nazwą');
+  const N2 = Object.assign({}, fg139.N, {c: {hy: fg139.N.c.hy, spx: fg139.N.c.spx, sb: Object.assign({}, fg139.N.c.sb, {score: 'x'})}, why: {vix: 'fetch', sb: 'zzz'}});
+  const cp2 = X.fgComps(N2, false);
+  assert.deepEqual(cp2.miss, ['vix', 'sb']); assert.equal((cp2.rows.match(/<tr class="fg-miss">/g) || []).length, 2);
+  assert.ok(cp2.rows.includes('<span class="cell fg-dd na">fg.why.fetch</span>') && cp2.rows.includes('<span class="cell fg-dd na">fg.why.nodata</span>') && cp2.rows.includes('<b>fg.comp.vix</b></span>'), 'powód braku w miejscu dnia; nieznany powód = „brak danych”');
+  assert.equal(cp2.note, '<p class="pnote neu">fg.none{"n":2,"c":"fg.comp.vix (fg.why.fetch); fg.comp.sb (fg.why.nodata)"}</p>', 'mniej niż 3 składniki — brak wyniku z nazwami braków');
+  assert.ok(X.fgComps(N2, true).note.startsWith('<p class="pnote neu">fg.part{"n":2,'), 'wynik jest — nota „z n z 4”');
+  assert.equal(X.fgRaw('vix', {v: 1}), '—'); assert.equal(X.fgRaw('zzz', {}), '—');
+});
+
+test('v139: strach i chciwość — panele: CRYPTO w pasku (bez pliku krypto ukryty, bez części nastrojów „brak danych”, „Jak liczymy” pod podpisem), GLOBAL z podpisem wskaźnika własnego, przyciskiem (i) i „Jak liczymy”, składnikami i datą; chwilowy błąd nie zasłania danych', () => {
+  const elC = {hidden: true, innerHTML: 'x', querySelector: q => q === '#fg-how-c[open]' && /id="fg-how-c" open/.test(elC.innerHTML) ? {} : null};
+  const elG = {hidden: true, innerHTML: 'x'}, $ = q => q === '#c-fg' ? elC : q === '#g-fg' ? elG : null;
+  const KR = {data: null}, I = v96src.H, X = fg139.mk({$, KR, icoWrap: I.icoWrap, flagImg: I.flagImg, glyphImg: I.glyphImg});
+  X.fgRenderC(); assert.ok(elC.hidden === true && elC.innerHTML === '', 'bez pliku krypto — ukryta');
+  KR.data = {at: '2026-09-27T20:00:00+00:00'}; X.fgRenderC();
+  assert.ok(elC.hidden === false && elC.innerHTML.includes('<div class="fg-num">—</div>') && elC.innerHTML.includes('fg.na') && !elC.innerHTML.includes('fg.upd') && !elC.innerHTML.includes('class="fg-nd"'), 'plik bez nastrojów — „brak danych”, bez wskazówki i daty');
+  KR.data = {at: '2026-09-27T20:00:00+00:00', fng: fg139.F}; X.fgRenderC(); const c = elC.innerHTML;
+  assert.ok(c.startsWith('<h2><span>fg.t.c</span><button type="button" class="mini-i fg-i" data-fg-how="fg-how-c" aria-controls="fg-how-c" title="fg.meth.c" aria-label="fg.how">i</button></h2><div class="fg-box">'), c.slice(0, 200));
+  assert.ok(c.includes('<div class="fg-num">70</div>') && c.includes('id="fg-gr-c"') && c.includes('<div class="fg-upd">fg.upd{"d":"Sep 27, 2026 · age(2026-09-27)"}</div></div><div class="fg-hist">'), 'liczba, gradient, dzień z wiekiem pod stanem');
+  assert.ok(c.endsWith('</div></div><p class="fg-cap">fg.c.cap</p><details class="etfd" id="fg-how-c"><summary>fg.how</summary><p class="pnote">fg.meth.c</p><p class="pnote">fg.not</p></details>'), 'podpis ogólny, pod nim „Jak liczymy” z metodą — czytelne bez najechania myszą (telefon, klawiatura)');
+  elC.innerHTML = elC.innerHTML.replace('id="fg-how-c"', 'id="fg-how-c" open'); X.fgRenderC();
+  assert.ok(elC.innerHTML.includes('<details class="etfd" id="fg-how-c" open><summary>fg.how</summary>') && elC.innerHTML.split('id="fg-how-c"').length === 2, 'rozwinięty opis zostaje rozwinięty po odświeżeniu');
+  elC.innerHTML = c;
+  X.fgRenderG(); assert.ok(elG.hidden === true && elG.innerHTML === '', 'GLOBAL bez pliku — ukryta');
+  X.fgApplyG({at: 'zły', d: []}); assert.equal(elG.hidden, true); X.fgApplyG({at: '2026-09-27T23:30:00+00:00'}); assert.equal(elG.hidden, true, 'plik bez listy d — odrzucony');
+  X.fgApplyG(fg139.N); const g = elG.innerHTML;
+  assert.ok(elG.hidden === false && g.startsWith('<div class="etfh"><div><h2><span class="icos">') && g.includes('fg.t.g<button type="button" class="mini-i fg-i" data-fg-how="fg-how-g" aria-controls="fg-how-g" title="fg.meth.g" aria-label="fg.how">i</button></h2>'), 'tytuł z ikonami i przyciskiem (i) do „Jak liczymy”');
+  assert.ok(g.includes('<p class="pnote">fg.g.sub</p>') && g.includes('<p class="fg-cap fg-own">fg.g.cap</p>') && g.includes('inst.file{"t":"D(2026-09-27T23:30:00+00:00)"}'), 'opis, podpis „wskaźnik własny (nie pomiar)”, czas pliku');
+  assert.ok(g.includes('<div class="fg-num">62</div>') && g.includes('id="fg-gr-g"') && g.includes('fg.upd{"d":"Sep 25, 2026 · age(2026-09-25)"}') && g.includes('fg.h.s1'), 'wynik, dzień z wiekiem, poprzednia sesja');
+  assert.ok(g.includes('<h3 class="mtxt">fg.h.parts</h3>') && g.includes('<th>fg.col.c</th><th>fg.col.s</th><th>fg.col.d</th>') && g.includes('<details class="etfd" id="fg-how-g"><summary>fg.how</summary><p class="pnote">fg.meth.g</p><p class="pnote">fg.not</p></details>'), 'tabela składników i „Jak liczymy”');
+  assert.ok(g.endsWith('eng.disclaimer</p>') && !g.includes('pnote neu'), 'komplet składników — bez noty o brakach');
+  assert.ok(!/undefined|NaN|\[object/.test(c + g));
+  X.fgApplyG(null); assert.ok(elG.hidden === false && elG.innerHTML === g, 'chwilowy błąd pobrania nie zasłania wczytanych danych');
+  const N3 = Object.assign({}, fg139.N, {now: null, d: [], c: {hy: fg139.N.c.hy}, miss: ['vix', 'spx', 'sb'], why: {vix: 'fetch', spx: 'fetch', sb: 'short'}});
+  X.fgApplyG(N3); const g3 = elG.innerHTML;
+  assert.ok(g3.includes('<div class="fg-num">—</div>') && g3.includes('fg.none{"n":1,"c":"fg.comp.vix (fg.why.fetch); fg.comp.spx (fg.why.fetch); fg.comp.sb (fg.why.short)"}') && !g3.includes('fg.upd'), 'mniej niż 3 składniki: „—”, nazwane braki, bez daty wyniku');
+});
+
+test('v139: strach i chciwość — (i) przy tytule to przycisk: dotknięcie, klawiatura albo mysz rozwija „Jak liczymy” swojego panelu (CRYPTO i GLOBAL), przewija do niego i daje mu fokus; kliknięcie gdzie indziej bez reakcji', () => {
+  const log = [], mkD = id => ({id, open: false, scrollIntoView: o => log.push(['scroll', id, o.block]), querySelector: q => q === 'summary' ? {focus: o => log.push(['focus', id, !!(o && o.preventScroll)])} : null});
+  const D = {'#fg-how-c': mkD('fg-how-c'), '#fg-how-g': mkD('fg-how-g'), '#gauge': mkD('gauge')}, X = fg139.mk({$: q => D[q] || null});
+  assert.equal(X.fgHead('M"x', 'fg-how-g'), '<button type="button" class="mini-i fg-i" data-fg-how="fg-how-g" aria-controls="fg-how-g" title="M&quot;x" aria-label="fg.how">i</button>', 'prawdziwy przycisk (fokus z klawiatury, Enter i spacja), nazwa „Jak liczymy”, wskazuje swój opis');
+  assert.equal(X.fgHowOpen('fg-how-c'), true); assert.equal(D['#fg-how-c'].open, true);
+  assert.deepEqual(log, [['scroll', 'fg-how-c', 'nearest'], ['focus', 'fg-how-c', true]], 'rozwinięty, przewinięty do widoku, fokus na nagłówku bez drugiego skoku');
+  assert.equal(X.fgHowOpen('gauge'), false, 'tylko własne „Jak liczymy” (fg-how-c, fg-how-g)'); assert.equal(D['#gauge'].open, false);
+  assert.equal(X.fgHowOpen(null), false); assert.equal(X.fgHowOpen('fg-how-x'), false);
+  let prevented = 0; const btn = {getAttribute: a => a === 'data-fg-how' ? 'fg-how-g' : null};
+  const ev = tgt => ({target: {closest: s => s === 'button.fg-i[data-fg-how]' ? tgt : null}, preventDefault: () => prevented++});
+  assert.equal(X.fgHowClick(ev(btn)), true); assert.equal(D['#fg-how-g'].open, true); assert.equal(prevented, 1, 'przycisk (i) GLOBAL → „Jak liczymy” GLOBAL');
+  assert.equal(X.fgHowClick(ev(null)), false, 'kliknięcie poza przyciskiem (i) — bez reakcji'); assert.equal(prevented, 1);
+  assert.equal(X.fgHowClick({target: {}}), false); assert.equal(X.fgHowClick(null), false);
+  const X2 = fg139.mk({$: () => null}); assert.equal(X2.fgHowClick(ev(btn)), false, 'bez opisu na stronie — nic (bez błędu)');
+});
+
+test('v139: strach i chciwość — miejsca na stronie (CRYPTO zaraz pod „Pokryciem danych”, GLOBAL zaraz pod kartami jakości danych, widgety nadal na końcu obu zakładek), plik, odświeżanie, zaczep w renderKr, kolejność bloku, styl w obu motywach; EXTRA136 ×10 bez nazw dostawców', () => {
+  assert.ok(html.includes('<section class="panel gauge"><h2 data-i18n="rail.rel"></h2><div id="gauge"></div></section>\n    <section class="panel fg" id="c-fg" hidden></section>\n'), 'CRYPTO: pasek, zaraz pod „Pokryciem danych”');
+  assert.ok(html.includes('<section class="q-grid gq" id="g-q"></section>\n    <section class="panel pcard fg" id="g-fg" hidden></section>\n'), 'GLOBAL: zaraz pod kartami jakości danych');
+  assert.equal(html.split('id="c-fg"').length, 2); assert.equal(html.split('id="g-fg"').length, 2);
+  const secs = (a, b) => [...html.slice(html.indexOf(a), html.indexOf(b, html.indexOf(a))).matchAll(/<section [^>]*id="([^"]+)"/g)].map(m => m[1]);
+  const gl = secs('<section class="global" id="global"', '<section class="global" id="trendy"'), cr = secs('<main class="center" id="crypto"', '</main>');
+  assert.ok(gl.length > 10 && gl.slice(-3).every(s => s.startsWith('tv-')) && !gl.slice(0, -3).some(s => s.startsWith('tv-')), 'GLOBAL: widgety na samym dole: ' + gl.slice(-4).join(','));
+  assert.ok(cr.length > 10 && cr.slice(-4).every(s => s.startsWith('tv-')) && !cr.slice(0, -4).some(s => s.startsWith('tv-')), 'CRYPTO: widgety na samym dole: ' + cr.slice(-5).join(','));
+  assert.ok(gl.indexOf('g-fg') === gl.indexOf('g-q') + 1, 'g-fg zaraz po g-q');
+  assert.ok(html.includes("function renderKr(){if(typeof cBal==='function')cBal();if(typeof renderEng==='function')renderEng();   /* v58: panel stablecoinów per sieć z krypto.json */\n  if(typeof fgRenderC==='function')fgRenderC();   /* v139:"), 'zaczep: pasek krypto odświeżany razem z plikiem krypto i zmianą języka');
+  const b0 = html.indexOf('/* ===================== v139: STRACH I CHCIWOŚĆ');
+  assert.equal(html.split('/* ===================== v139: STRACH I CHCIWOŚĆ').length, 2);
+  assert.ok(html.indexOf('/* v41: TradingView — koniec */') < b0 && b0 < html.indexOf('/* v44: rynek krypto z pliku automatu (krypto.json): ') && b0 < html.indexOf('applyTheme();applyLang();'), 'blok przed pierwszym applyLang (bez martwej strefy stałych), przed blokiem krypto');
+  const kr = html.slice(html.indexOf('function renderKr(){'), html.indexOf('\n/* v39:')); assert.ok(!kr.includes('v139: STRACH'), 'poza zakresem renderKr…v39 (testy v96)');
+  assert.ok(html.includes("function fgLoadG(){srvJSON('nastroj').then(fgApplyG);}") && html.includes('FG.timer=setInterval(()=>{if(!document.hidden)fgLoadG();},60*60*1000);'), 'plik GLOBAL co godzinę (automat co 6 h)');
+  assert.ok(html.includes("fgLoadG();fgAutoG();document.addEventListener('click',fgHowClick);try{new MutationObserver(()=>{fgRenderC();fgRenderG();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'przycisk (i) i zmiana języka');
+  assert.equal(html.split("document.addEventListener('click',fgHowClick);").length, 2, 'jeden słuchacz przycisków (i) na dokumencie');
+  const css0 = html.indexOf('/* v139 strach i chciwość'), css1 = html.indexOf('</style>', css0), css = html.slice(css0, css1);
+  assert.ok(css0 > 0 && css1 > css0 && css1 === html.indexOf('</style>'), 'styl w arkuszu strony');
+  for (const s of ['.mini-i.fg-i{cursor:pointer;', '#c-fg .etfd{', '.fg-xf{--fgc:var(--rd)', '.fg-f{--fgc:var(--or)', '.fg-n{--fgc:var(--yl)', '.fg-g{--fgc:var(--gr)', '.fg-xg{--fgc:var(--gr)', '.fg-svg .fg-nd{stroke:var(--tx)}', '.fg-c{']) assert.ok(css.includes(s), 'styl: ' + s);
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko zmienne strony — działa w obu motywach');
+  const e0 = html.indexOf('const EXTRA136='), e1 = html.indexOf(';\n', e0); assert.ok(e0 > 0 && e1 > e0, 'słownik EXTRA136');
+  const E = JSON.parse(html.slice(e0 + 'const EXTRA136='.length, e1)), LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.includes('EXTRA136') && apl.indexOf('EXTRA136') > apl.indexOf('EXTRA124'), 'EXTRA136 nakładany po wcześniejszych słownikach');
+  assert.deepEqual(Object.keys(E), LANGS, 'polski pierwszy, dziesięć języków');
+  const KEYS = Object.keys(E.pl), pola = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  assert.equal(KEYS.length, 40);
+  for (const k of ['fg.t.c', 'fg.t.g', 'fg.g.cap', 'fg.c.cap', 'fg.s.xf', 'fg.s.f', 'fg.s.n', 'fg.s.g', 'fg.s.xg', 'fg.h.now', 'fg.h.d1', 'fg.h.s1', 'fg.h.w1', 'fg.h.m1', 'fg.meth.g', 'fg.meth.c', 'fg.not', 'fg.why.fetch', 'fg.why.nodata', 'fg.why.short', 'fg.why.stale']) assert.ok(KEYS.includes(k), k);
+  const PROV = /Alternative\.me|alternative\.me|FRED|St\.? ?Louis|Cboe|CBOE|ICE|BofA|Bank of America|SPDR|iShares|State Street|BlackRock|CoinGecko|Twelve ?Data|Finnhub|CNN|Trading ?View/;
+  for (const L of LANGS) {
+    assert.deepEqual(Object.keys(E[L]), KEYS, 'te same klucze w tej samej kolejności: ' + L);
+    for (const k of KEYS) {
+      const s = v96src.I18N[L][k];
+      assert.ok(typeof s === 'string' && s.trim() && s === E[L][k], L + ' ' + k + ' dołączony do I18N');
+      assert.equal(pola(s), pola(E.pl[k]), L + ' ' + k + ': te same pola');
+      assert.ok(!PROV.test(s), 'bez nazw dostawców: ' + L + ' ' + k);
+    }
+    if (L !== 'en') for (const k of ['fg.t.g', 'fg.g.sub', 'fg.g.cap', 'fg.meth.g', 'fg.meth.c', 'fg.not', 'fg.s.xf', 'fg.h.m1']) assert.notEqual(E[L][k], E.en[k], 'przetłumaczone: ' + L + ' ' + k);
+    for (const n of ['0–24', '25–44', '45–55', '56–75', '76–100', '252', '50', '125', '20', '7–10']) assert.ok(E[L]['fg.meth.g'].includes(n), L + ': metoda podaje ' + n);
+    assert.ok(E[L]['fg.meth.g'].includes('VIX') && E[L]['fg.meth.g'].includes('S&P 500') && E[L]['fg.comp.vix'].includes('VIX') && E[L]['fg.comp.spx'].includes('S&P 500'), L + ': przedmioty danych nazwane (indeksy), bez dostawców');
+    assert.ok(E[L]['fg.g.cap'].includes('CapitalFlowAI'), L + ': wskaźnik własny strony');
+  }
+  assert.equal(E.pl['fg.g.cap'], 'Wskaźnik własny CapitalFlowAI (nie pomiar)');
+  assert.deepEqual([E.pl['fg.s.xf'], E.pl['fg.s.f'], E.pl['fg.s.n'], E.pl['fg.s.g'], E.pl['fg.s.xg']], ['Skrajny strach', 'Strach', 'Neutralnie', 'Chciwość', 'Skrajna chciwość']);
+  assert.deepEqual([E.pl['fg.h.now'], E.pl['fg.h.d1'], E.pl['fg.h.w1'], E.pl['fg.h.m1']], ['Teraz', 'Wczoraj', 'Tydzień temu', 'Miesiąc temu']);
+  assert.ok(E.pl['fg.not'].includes('nie jest sygnałem kupna ani sprzedaży') && E.en['fg.not'].includes('not a buy or sell signal'), 'bez „kupuj/sprzedawaj”');
+  const blok = html.slice(b0, html.indexOf('\n', html.indexOf('fgLoadG();fgAutoG();', b0)));
+  assert.ok(!PROV.test(blok.replace(/\/\*[\s\S]*?\*\//g, '')), 'kod bloku (bez komentarzy) bez nazw dostawców');
+});
