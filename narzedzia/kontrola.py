@@ -9,16 +9,19 @@ Zapisuje `kontrola/ostatnia.md` (po polsku: nagłówek i linia „Wynik:” w st
 ✅/⚠️/❌ i tabela źródło → status → wiek danych → uwaga), `kontrola/ostatnia.json`, `kontrola/zgodnosc.csv`, `kontrola/historia.json`.
 Kod wyjścia 1 = BŁĄD (GitHub wysyła właścicielowi e-mail o nieudanym przebiegu). Bez kluczy, tylko odczyt. Python 3.12, sama biblioteka standardowa.
 Uwaga: komunikat commita bota zawiera „[skip ci]” — GitHub pomija wtedy przebiegi wyzwalane pushem (dlatego commit dodający ten plik
-nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśnie z tego powodu)."""
+nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśnie z tego powodu).
+v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`."""
 import csv
 import datetime as dt
 import json
 import os
+import re
 import statistics
 import sys
 import time
 import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 
 SITE = os.environ.get('SITE_URL', 'https://capitalflowai-app.github.io').rstrip('/')
 REPO = os.environ.get('GITHUB_REPOSITORY', 'capitalflowai-app/capitalflowai-app.github.io')
@@ -56,6 +59,27 @@ WH_PROG = 5.0        # % — |zmiana salda − przelewy netto| wobec większej z
 WH_MIN_USD = 1e6     # poniżej miliona USD rozbieżność nie jest uwagą (przelewy < 1 mln nie są skanowane)
 HIST_N = 30          # przechowywane przebiegi w historia.json
 HIST_CZERWONE = 3    # tyle kolejnych przebiegów z błędami zbieracza = czerwone
+# v130: ETF krypto u źródła (bez klucza). Pliki funduszy emitenta IBIT i ETHA (Excel 2003 XML, arkusz „Historical”: As Of, NAV per Share,
+# Shares Outstanding) → przepływ dnia D = (jednostki z wiersza D+1 − jednostki z wiersza D) × NAV z dnia D: wiersz „As Of” D+1 zawiera
+# jednostki utworzone w sesji D (sprawdzone 27.09 na 7 sesjach IBIT i 2 ETHA). Strona pokazuje przepływ funduszu tylko dla ostatniej sesji
+# (data/etf.json → assets[btc|eth].funds[].d1 dla `asof`), więc każdy przebieg zapisuje go w kontrola/etf-emitent.csv, a porównanie dnia D
+# rusza, gdy plik emitenta ma już wiersz następnej sesji (przy kontroli o 06:20 UTC zwykle dzień po zapisie). Wynik najwyżej ⚠️ (nigdy ❌
+# ani BŁĄD); do raportu idą tylko różnice i daty. Zestawienie niezależnego serwisu z planu v128 odrzucone: sonda z serwera GitHub w USA
+# (27.09) dostała 403 (wyzwanie Cloudflare) dla każdego identyfikatora — z Actions nie da się go odczytać, a zabezpieczeń nie obchodzimy.
+EM_DOC = ('https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appType=PRODUCT_PAGE'
+          '&appSubType=ISHARES&targetSite=us-ishares&locale=en_US&portfolioId={pid}&component=fundDownload&userType=individual')
+EM_FUNDS = (('IBIT', 'btc', '333011'), ('ETHA', 'eth', '337614'))   # symbol, aktywo w etf.json, numer pliku funduszu (jak w zbieraczu, v90)
+EM_CSV = 'etf-emitent.csv'
+EM_KOL = ['date', 'ticker', 'site_flow_musd', 'read_at']   # tylko liczby ze strony (pusta komórka = brak, nigdy 0) i czas ich odczytu
+EM_DNI = 60            # tyle ostatnich dat trzyma zapis
+EM_SESJE = 5           # okno porównania: ostatnie zapisane sesje, które plik emitenta już rozlicza (różnica w oknie = ⚠️ przez ok. tydzień)
+EM_TOL_MLN, EM_TOL_PCT = 0.5, 2.0    # zgodne, gdy |strona − emitent| ≤ max(0,5 mln USD; 2% |emitent|)
+EM_NAV_SKOK = 30.0     # % — większy skok NAV między sąsiednimi wierszami = podział jednostek albo błąd pliku: dzień pominięty
+EM_PRZERWA = 5         # dni — następny wiersz pliku dalej niż to = dzień pominięty (brak wierszy w pliku)
+EM_ZALEGLOSC = 2       # sesje — strona ma więcej sesji nowszych niż ostatni wiersz pliku emitenta = plik nieaktualny (zwykle 0; 1 = wiersz jeszcze
+                       # nieopublikowany): status „?” i uwaga, bo porównanie obejmuje wtedy tylko stare sesje, a nowsze czekają bez sprawdzenia
+EM_TIMEOUT = 45        # s na plik (ok. 250 KB; z USA ok. 0,6 s)
+EM_PAUZA = 1.0         # s przerwy między dwoma zapytaniami do tego samego serwera
 
 
 def get(url, timeout=25, headers=None):
@@ -423,6 +447,253 @@ def przebiegi_ocena(runs, now, kroki=None):
     return A, bledy, uwagi
 
 
+# ---------------------------------------------------------------- v130: ETF krypto u źródła (pliki emitenta) ----------------------------------------------------------------
+def _em_liczba(s):
+    """'1,234.56' → 1234.56; '--', '', 'N/A', zero, ujemne, nieskończone → None (brak, nie zero)."""
+    try:
+        v = float(str(s).replace(',', '').strip())
+    except ValueError:
+        return None
+    return v if 0 < v < float('inf') else None
+
+
+def _em_skonczona(v):
+    """Liczba skończona (bez bool, NaN, ∞) albo None."""
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def emitent_historia(raw):
+    """Plik funduszu emitenta (Excel 2003 XML, bajty) → {data ISO: (NAV, liczba jednostek)} z arkusza „Historical”. Wiersze z „--”, pustą
+    komórką albo złą datą pominięte; komórki z ss:Index (przerwa w wierszu) na właściwym miejscu. Wyjątek, gdy brak arkusza albo nagłówka."""
+    ns = '{urn:schemas-microsoft-com:office:spreadsheet}'
+    txt = raw.decode('utf-8-sig', 'replace') if isinstance(raw, bytes) else str(raw)
+    txt = re.sub(r'&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)', '&amp;', txt)   # gołe „&” w nazwach spółek (jak w zbieraczu)
+    ws = next((w for w in ET.fromstring(txt).iter(ns + 'Worksheet') if w.get(ns + 'Name') == 'Historical'), None)
+    if ws is None:
+        raise ValueError('brak arkusza Historical')
+    head, out = None, {}
+    for row in ws.iter(ns + 'Row'):
+        c = []
+        for x in row.iter(ns + 'Cell'):
+            ix = x.get(ns + 'Index')
+            if ix and ix.isdigit():
+                c += [''] * max(0, int(ix) - 1 - len(c))
+            d = x.find(ns + 'Data')
+            c.append(((d.text if d is not None else '') or '').strip())
+        if head is None:
+            if 'As Of' in c and 'NAV per Share' in c and 'Shares Outstanding' in c:
+                head = (c.index('As Of'), c.index('NAV per Share'), c.index('Shares Outstanding'))
+            continue
+        try:
+            d = dt.datetime.strptime(c[head[0]], '%b %d, %Y').date().isoformat()
+        except (ValueError, IndexError):
+            continue
+        nav = _em_liczba(c[head[1]]) if len(c) > head[1] else None
+        sh = _em_liczba(c[head[2]]) if len(c) > head[2] else None
+        if nav and sh:
+            out[d] = (nav, sh)
+    if head is None:
+        raise ValueError('arkusz Historical bez nagłówka As Of / NAV per Share / Shares Outstanding')
+    return out
+
+
+def emitent_sesje(etf, a):
+    """Daty sesji z data/etf.json (assets[a].day = [[znacznik północy UTC, mln]]) — kalendarz do wykrycia braku wiersza w pliku emitenta."""
+    out = set()
+    A = ((etf.get('assets') if isinstance(etf, dict) else None) or {})
+    A = A.get(a) if isinstance(A, dict) else None
+    for r in ((A.get('day') if isinstance(A, dict) else None) or []):
+        try:
+            out.add(dt.datetime.fromtimestamp(r[0], dt.timezone.utc).date().isoformat())
+        except (TypeError, ValueError, OverflowError, OSError, IndexError, KeyError):
+            pass
+    return out
+
+
+def emitent_przeplywy(hist, sesje=()):
+    """{data: (NAV, jednostki)} → ({dzień D: przepływ w mln USD}, {dzień D: powód pominięcia}); D = (S[D+1] − S[D]) × NAV[D] / 1e6, gdzie D+1
+    to następny wiersz pliku. Wiersz identyczny z poprzednim (dzień wolny w USA) usunięty; ostatni wiersz bez przepływu (jeszcze go nie ma).
+    Pominięty dzień, gdy następny wiersz jest dalej niż EM_PRZERWA dni albo między nimi jest sesja z `sesje` (brak wiersza w pliku), albo gdy
+    NAV skacze o więcej niż EM_NAV_SKOK % (podział jednostek?)."""
+    rows = sorted(hist.items())
+    rows = rows[:1] + [b for a, b in zip(rows, rows[1:]) if b[1] != a[1]]
+    ss = sorted(sesje)
+    out, pom = {}, {}
+    for (d, (nav, sh)), (n, (nav2, sh2)) in zip(rows, rows[1:]):
+        if (dt.date.fromisoformat(n) - dt.date.fromisoformat(d)).days > EM_PRZERWA or any(d < s < n for s in ss):
+            pom[d] = f'w pliku emitenta brak sesji po {d}'
+        elif abs(nav2 / nav - 1) * 100 > EM_NAV_SKOK:
+            pom[d] = 'skok NAV (podział jednostek?)'
+        else:
+            out[d] = (sh2 - sh) * nav / 1e6
+    return out, pom
+
+
+def emitent_zapis(path):
+    """kontrola/etf-emitent.csv → {(data, symbol): [liczba ze strony | None, czas odczytu | None]}; pusta komórka = brak (nie zero).
+    Inny nagłówek = zapis od nowa (bez mieszania kolumn)."""
+    rows = {}
+    if not os.path.exists(path):
+        return rows
+    with open(path, encoding='utf-8', newline='') as f:
+        r = csv.reader(f)
+        if next(r, None) != EM_KOL:
+            return rows
+        for row in r:
+            if len(row) < 4 or not row[1]:
+                continue
+            try:
+                d = dt.date.fromisoformat(row[0]).isoformat()
+                v = _em_skonczona(float(row[2])) if row[2] != '' else None
+            except ValueError:
+                continue
+            rows[(d, row[1])] = [v, row[3] or None]
+    return rows
+
+
+def emitent_zapis_zapisz(path, rows):
+    """Zapis ostatnich EM_DNI dat, rosnąco po dacie i symbolu; brak = pusta komórka."""
+    daty = set(sorted({d for d, _ in rows})[-EM_DNI:])
+    with open(path, 'w', encoding='utf-8', newline='') as f:
+        w = csv.writer(f, lineterminator='\n'); w.writerow(EM_KOL)
+        for d, t in sorted(k for k in rows if k[0] in daty):
+            v, at = rows[(d, t)]
+            w.writerow([d, t, (('%.6f' % (round(v, 6) + 0.0)).rstrip('0').rstrip('.') if v is not None else ''), at or ''])
+
+
+def emitent_odczyt(rows, etf):
+    """Dopisuje do zapisu przepływy funduszy EM_FUNDS pokazane na stronie (etf.json, `asof` aktywa). Ta sama data i symbol = nadpisanie
+    (wygrywa najpóźniejszy odczyt), ale brak (None) nie kasuje liczby zapisanej wcześniej. Zwraca symbole, których nie ma na liście funduszy strony."""
+    brak = []
+    if not isinstance(etf, dict):
+        return brak
+    at = etf.get('at') if isinstance(etf.get('at'), str) else None
+    assets = etf.get('assets') if isinstance(etf.get('assets'), dict) else {}
+    for t, a, _ in EM_FUNDS:
+        A = assets.get(a)
+        if not isinstance(A, dict) or not isinstance(A.get('asof'), str):
+            continue
+        try:
+            d = dt.date.fromisoformat(A['asof'][:10]).isoformat()
+        except ValueError:
+            continue
+        funds = [f for f in (A.get('funds') if isinstance(A.get('funds'), list) else []) if isinstance(f, dict)]
+        f = next((f for f in funds if f.get('t') == t), None)
+        if f is None and funds:
+            brak.append(t)
+        v = _em_skonczona(f.get('d1')) if f else None
+        old = rows.get((d, t))
+        if v is not None or old is None or old[0] is None:
+            rows[(d, t)] = [v, at]
+    return brak
+
+
+def emitent_porownanie(zap, przep, pom, plik_do, sesje=()):
+    """zap: {data: [liczba ze strony | None, czas odczytu]} jednego funduszu; przep, pom: z emitent_przeplywy; plik_do: ostatni dzień pliku;
+    sesje: kalendarz sesji strony (emitent_sesje). Okno = ostatnie EM_SESJE zapisanych dat sprzed plik_do (późniejsze czekają na następny wiersz
+    pliku). Brak liczby na stronie albo dzień bez wyliczenia = pominięty z powodem (nigdy 0). Zaległość = sesje strony (kalendarz i zapis) nowsze
+    niż plik_do; ponad EM_ZALEGLOSC = plik nieaktualny (np. stara kopia pliku z kodem 200) — wtedy okno to tylko stare sesje, a nowsze czekają.
+    Status: ✅ zgodne; ⚠️ różnica ponad próg w oknie; ℹ️ jeszcze nic do porównania; ? są daty w oknie, ale żadnej nie da się porównać, albo plik
+    nieaktualny (różnica ⚠️ ma pierwszeństwo). Tylko różnice i daty (bez liczb emitenta)."""
+    okno = sorted(d for d in zap if d < plik_do)[-EM_SESJE:]
+    daty, pomin, roz, maxr = [], [], [], None
+    for d in okno:
+        a = zap[d][0]
+        if a is None:
+            pomin.append({'data': d, 'powod': 'brak liczby na stronie'}); continue
+        if d not in przep:
+            pomin.append({'data': d, 'powod': pom.get(d, 'brak tej sesji w pliku emitenta')}); continue
+        b = przep[d]; r = a - b
+        daty.append(d); maxr = abs(r) if maxr is None else max(maxr, abs(r))
+        if abs(r) > max(EM_TOL_MLN, EM_TOL_PCT / 100 * abs(b)):
+            roz.append({'data': d, 'roznica_mln': round(r, 1) + 0.0, 'roznica_pct': (round(r / abs(b) * 100, 1) + 0.0) if b else None,
+                        'strona_zero': a == 0})
+    po = sorted({d for d in zap if d > plik_do} | {s for s in sesje if s > plik_do})   # sesje strony, których plik emitenta jeszcze nie ma
+    stary = len(po) > EM_ZALEGLOSC
+    st = ('⚠️' if roz else '✅') if daty else ('?' if pomin else 'ℹ️')
+    if stary and st != '⚠️':
+        st = '?'
+    return {'status': st, 'porownane': len(daty), 'od': daty[0] if daty else None, 'do': daty[-1] if daty else None,
+            'max_roznica_mln': (round(maxr, 2) + 0.0) if maxr is not None else None, 'roznice': roz, 'pominiete': pomin,
+            'czeka': sorted(d for d in zap if d >= plik_do), 'plik_do': plik_do, 'zaleglosc': len(po), 'strona_do': po[-1] if po else None,
+            'nieaktualny': stary}
+
+
+def _em_roznica(x):
+    return (f'{x["data"]}: {x["roznica_mln"]:+.1f} mln USD' + (f' ({x["roznica_pct"]:+.1f}%)' if x.get('roznica_pct') is not None else '')
+            + (' — strona pokazywała 0.0 (możliwe opóźnienie publikacji funduszu)' if x.get('strona_zero') else ''))
+
+
+def emitent_linia(t, F):
+    """Fragment linii raportu dla jednego funduszu: status, porównane sesje, różnice i pominięte daty, a zawsze też ostatni dzień pliku emitenta,
+    liczba nowszych sesji strony (zaległość pliku) i zapisane sesje czekające na porównanie. Brak = „—”; bez liczb emitenta."""
+    if F.get('blad'):
+        return f'{t} ? brak odczytu pliku ({F["blad"]})'
+    st, pom, cz = F.get('status') or '?', F.get('pominiete') or [], F.get('czeka') or []
+    if F.get('porownane'):
+        mx = f'{F["max_roznica_mln"]:.1f} mln USD' if F.get('max_roznica_mln') is not None else '—'
+        okr = F['od'] if F.get('od') == F.get('do') else f'{F["od"]} – {F["do"]}'
+        s = (f'{t} {st} porównane sesje: {F["porownane"]} ({okr}), różnic ponad próg: {len(F["roznice"])}, największa różnica {mx}'
+             + (' — ' + '; '.join(_em_roznica(x) for x in F['roznice'][-EM_SESJE:]) if F['roznice'] else ''))
+        if pom:
+            s += '; pominięte: ' + ', '.join(f'{x["data"]} ({x["powod"]})' for x in pom[-3:])
+    elif pom:
+        s = f'{t} {st} zapisane sesje bez porównania: ' + ', '.join(f'{x["data"]} ({x["powod"]})' for x in pom[-3:])
+    else:
+        s = f'{t} {st} jeszcze bez porównania'
+    s += f'; plik emitenta do {F.get("plik_do") or "—"}, nowszych sesji na stronie: ' + (str(F['zaleglosc']) if F.get('zaleglosc') is not None else '—')
+    if F.get('nieaktualny'):
+        s += f' — plik nieaktualny (próg {EM_ZALEGLOSC}), te sesje bez porównania'
+    return s + f'; czeka na porównanie: {len(cz)}' + (' (' + ('…, ' if len(cz) > 3 else '') + ', '.join(cz[-3:]) + ')' if cz else '')
+
+
+def etf_emitent(files, R):
+    """Krok 3e kontroli: zapis przepływów IBIT i ETHA ze strony, 2 zapytania o pliki emitenta (bez ponawiania), porównanie → słownik do
+    R['zgodnosc']['etf_emitent']; uwagi dopisane do R['uwagi'] (nigdy do listy błędów)."""
+    path = os.path.join(OUT_DIR, EM_CSV)
+    zap = emitent_zapis(path)
+    for t in emitent_odczyt(zap, files.get('etf')):
+        R['uwagi'].append(f'ETF {t}: funduszu nie ma na liście funduszy strony (etf.json) — lista ucięta albo zmiana symbolu')
+    try:
+        emitent_zapis_zapisz(path, zap)
+    except Exception as e:  # noqa
+        R['uwagi'].append(f'{EM_CSV}: nie zapisano ({str(e)[:80]})')
+    E = {'fundusze': {}, 'zapis_dni': len({d for d, _ in zap})}
+    for i, (t, a, pid) in enumerate(EM_FUNDS):
+        if i:
+            time.sleep(EM_PAUZA)
+        try:
+            st, body, ms = get(EM_DOC.format(pid=pid), timeout=EM_TIMEOUT)
+            hist = emitent_historia(body)
+            if not hist:
+                raise ValueError('arkusz Historical bez wierszy z liczbami')
+        except urllib.error.HTTPError as e:
+            F = {'status': '?', 'blad': f'HTTP {e.code}'}
+        except Exception as e:  # noqa
+            F = {'status': '?', 'blad': (str(e) or type(e).__name__)[:120]}
+        else:
+            ses = emitent_sesje(files.get('etf'), a)
+            przep, pom = emitent_przeplywy(hist, ses)
+            F = emitent_porownanie({d: v for (d, tt), v in zap.items() if tt == t}, przep, pom, max(hist), ses)
+            F['ms'] = ms
+        E['fundusze'][t] = F
+        if F.get('blad'):
+            R['uwagi'].append(f'ETF {t}: plik emitenta — brak odczytu ({F["blad"]}); porównanie przepływów pominięte')
+            continue
+        if F['status'] == '⚠️':
+            R['uwagi'].append(f'ETF {t}: przepływ na stronie ≠ wyliczenie z pliku emitenta (próg max {EM_TOL_MLN:g} mln USD / {EM_TOL_PCT:g}%) — '
+                              + '; '.join(_em_roznica(x) for x in F['roznice'][-3:]))
+        elif F['pominiete'] and not F['porownane']:
+            R['uwagi'].append(f'ETF {t}: zapisanych sesji nie da się porównać z plikiem emitenta — '
+                              + ', '.join(f'{x["data"]} ({x["powod"]})' for x in F['pominiete'][-3:]))
+        if F['nieaktualny']:   # stara kopia pliku (kod 200) nie może dawać wiecznego ✅ na starych sesjach
+            R['uwagi'].append(f'ETF {t}: plik emitenta kończy się na {F["plik_do"]}, a strona ma już {F["zaleglosc"]} nowszych sesji (do {F["strona_do"]}) — '
+                              f'plik nieaktualny (próg {EM_ZALEGLOSC}), te sesje bez porównania')
+    sts = [F['status'] for F in E['fundusze'].values()]
+    E['status'] = next((s for s in ('⚠️', '?', '✅') if s in sts), 'ℹ️')
+    return E
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -566,6 +837,12 @@ def kontrola():
                               + ' — możliwe przelewy spoza zakresu skanu (< 1 mln USD, ETH przez kontrakty)')
     else:
         Z['wieloryby'] = None
+    # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
+    try:
+        Z['etf_emitent'] = etf_emitent(files, R)
+    except Exception as e:  # noqa
+        Z['etf_emitent'] = {'status': '?', 'blad': str(e)[:120], 'fundusze': {}}
+        R['uwagi'].append(f'ETF u źródła (pliki emitenta): kontrola przerwana ({str(e)[:80]})')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -655,6 +932,10 @@ def raport_md(R):
             L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo, rozbieżności > 5%: {len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}.')
         else:
             L.append('- Wieloryby: archiwum ma mniej niż dwa dni — porównanie od jutra.')
+        em = Z.get('etf_emitent') or {}   # v130: ETF krypto u źródła — tylko różnice i daty (+ koniec pliku emitenta i jego zaległość); brak = „—”
+        cz = [emitent_linia(t, F) for t, F in (em.get('fundusze') or {}).items()]
+        L.append(f'- ETF krypto u źródła — przepływy funduszy na stronie vs wyliczenie z plików emitenta (dzień D = zmiana liczby jednostek D → D+1 × NAV z D; '
+                 f'próg max {EM_TOL_MLN:g} mln USD / {EM_TOL_PCT:g}%): ' + (' · '.join(cz) if cz else (f'? kontrola przerwana ({em["blad"]})' if em.get('blad') else '—')) + '.')
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:

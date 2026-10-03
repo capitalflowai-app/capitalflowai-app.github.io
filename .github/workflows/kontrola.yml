@@ -44,6 +44,7 @@ jobs:
           git config user.name 'kontrola-strony'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add kontrola/ostatnia.md kontrola/ostatnia.json kontrola/zgodnosc.csv kontrola/historia.json   # v115: historia różnic i przebiegów
+          if [ -f kontrola/etf-emitent.csv ]; then git add kontrola/etf-emitent.csv; fi   # v130: zapis przepływów IBIT i ETHA ze strony (porównanie z plikami emitenta)
           if git diff --cached --quiet; then echo "bez zmian"; else
             git commit -q -m "Kontrola strony $(date -u +%Y-%m-%d\ %H:%M) UTC [skip ci]"
             git push -q origin HEAD:main || (git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main)   # v118.1: pliki wynikowe z tego przebiegu wygrywają przy konflikcie (26.09: przebieg po pushu zderzył się z poprzednim)

@@ -13627,6 +13627,377 @@ class SnbV124(unittest.TestCase):
         self.assertTrue(len(tups) >= 18 and all("'build_snb'" in x for x in tups), 'każda lista zaślepek przebiegu głównego (z build_wieloryby) zna build_snb')
 
 
+class KontrolaEmitentV130(unittest.TestCase):
+    """v130: kontrola ETF krypto u źródła (tylko narzedzia/kontrola.py) — przepływ funduszu IBIT/ETHA pokazany na stronie (data/etf.json) vs
+    wyliczenie z pliku emitenta: dzień D = (jednostki D+1 − jednostki D) × NAV z D. Dane nagrane 27.09.2026 ok. 20:57 UTC: arkusz „Historical”
+    (przycięty do kilku sesji, ten sam kształt XML; tekst zastrzeżeń pominięty) i etf.json ze strony (20:03 UTC) + wcześniejszy odczyt strony
+    (24.09 15:29 UTC, asof 23.09). Zegar przypięty; sieć zaślepiona na poziomie urlopen — działa prawdziwe get() z identyfikatorem kontroli.
+    Wynik najwyżej ⚠️ w uwagach, nigdy błąd; w raporcie tylko różnice i daty oraz koniec pliku emitenta i jego zaległość (stara kopia pliku z kodem
+    200 nie może dawać wiecznego ✅ na starych sesjach)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    NOW = datetime.datetime(2026, 9, 28, 6, 20, tzinfo=datetime.timezone.utc)   # poniedziałek, pora kontroli; plik emitenta kończy się na piątku
+    IBIT = [('Sep 25, 2026', '47.544616', '1410680000'), ('Sep 24, 2026', '47.832214', '1407280000'), ('Sep 23, 2026', '47.784861', '1403800000'),
+            ('Sep 22, 2026', '48.931242', '1396640000'), ('Sep 21, 2026', '48.894387', '1388840000'), ('Sep 18, 2026', '45.950314', '1386480000'),
+            ('Sep 17, 2026', '43.316911', '1382240000'), ('Sep 16, 2026', '42.889046', '1385600000'), ('Sep 15, 2026', '43.003079', '1389360000')]
+    ETHA = [('Sep 25, 2026', '20.310513', '484480000'), ('Sep 24, 2026', '20.307558', '483160000'), ('Sep 23, 2026', '20.158565', '480640000'),
+            ('Sep 22, 2026', '20.785479', '476400000'), ('Sep 21, 2026', '20.845515', '471120000')]
+    DAY_BTC = [[1789689600, 433.02740235000005], [1789948800, 998.952286985], [1790035200, 714.748985505], [1790121600, 346.97721616999996],
+               [1790208000, 190.646110255], [1790294400, 134.465169155]]
+    DAY_ETH = [[1789689600, 143.80427633000002], [1789948800, 269.98216374000003], [1790035200, 162.30939616999999], [1790121600, 104.633618265],
+               [1790208000, 66.01134156], [1790294400, 86.94690118999999]]
+    ETF = {'at': '2026-09-27T20:03:15+00:00', 'asof': '2026-09-25', 'assets': {
+        'btc': {'asof': '2026-09-25', 'day': DAY_BTC, 'funds': [{'t': 'IBIT', 'd1': 96.9918}, {'t': 'FBTC', 'd1': 49.321167975}, {'t': 'GBTC', 'd1': 0.0},
+                                                                {'t': 'BITB', 'd1': -11.84779882}]},
+        'eth': {'asof': '2026-09-25', 'day': DAY_ETH, 'funds': [{'t': 'ETHA', 'd1': 50.37007224}, {'t': 'FETH', 'd1': 4.692338350000001},
+                                                                {'t': 'ETHB', 'd1': 31.884490600000003}]}}}
+    ETF_0923 = {'at': '2026-09-24T15:29:34+00:00', 'asof': '2026-09-23', 'assets': {
+        'btc': {'asof': '2026-09-23', 'day': DAY_BTC[:4], 'funds': [{'t': 'IBIT', 'd1': 166.2918}, {'t': 'FBTC', 'd1': 143.24253255}]},
+        'eth': {'asof': '2026-09-23', 'day': DAY_ETH[:4], 'funds': [{'t': 'ETHA', 'd1': 50.79958379999999}, {'t': 'ETH', 'd1': -4.090128000000001}]}}}
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='kontrola130-')
+        os.environ['KONTROLA_DIR'] = os.path.join(cls.tmp, 'kontrola'); os.environ['KONTROLA_ARCH'] = os.path.join(cls.tmp, 'archiwum')
+        spec = importlib.util.spec_from_file_location('v130_k', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    @staticmethod
+    def xml(rows, extra='', sheet='Historical'):
+        """Plik funduszu w kształcie nagranym 27.09 (Excel 2003 XML z prefiksem ss:, 4 arkusze); „Ex-Dividends” = „--” jak w pliku."""
+        c = lambda st, ty, v: f'<ss:Cell ss:StyleID="{st}">\n<ss:Data ss:Type="{ty}">{v}</ss:Data>\n</ss:Cell>\n'
+        head = '<ss:Row>\n' + ''.join(c('headerstyle', 'String', h) for h in ('As Of', 'NAV per Share', 'Ex-Dividends', 'Shares Outstanding')) + '</ss:Row>\n'
+        body = ''.join('<ss:Row>\n' + c('Left', 'String', d) + c('Right', 'Number', n) + c('Left', 'String', '--') + c('Right', 'Number', s) + '</ss:Row>\n'
+                       for d, n, s in rows)
+        return ('<?xml version="1.0"?>\n<ss:Workbook xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<ss:Styles>\n'
+                '<ss:Style ss:ID="Default">\n<ss:Alignment ss:Horizontal="Left"/>\n</ss:Style>\n</ss:Styles>\n'
+                '<ss:Worksheet ss:Name="Disclaimers">\n<ss:Table>\n<ss:Row ss:Height="80">\n' + c('disclaimer', 'String', 'zastrzeżenia (tekst pominięty); S&P — gołe „&” jak w pliku')
+                + '</ss:Row>\n</ss:Table>\n</ss:Worksheet>\n<ss:Worksheet ss:Name="Holdings">\n<ss:Table>\n<ss:Row>\n' + c('Left', 'String', 'Shares Outstanding')
+                + c('Right', 'String', '1,410,680,000.00') + '</ss:Row>\n</ss:Table>\n</ss:Worksheet>\n'
+                f'<ss:Worksheet ss:Name="{sheet}">\n<ss:Table>\n' + head + body + extra + '</ss:Table>\n</ss:Worksheet>\n'
+                '<ss:Worksheet ss:Name="Performance">\n<ss:Table>\n<ss:Row>\n' + c('Left', 'String', 'Aug 31, 2026') + c('Right', 'Number', '25.539')
+                + '</ss:Row>\n</ss:Table>\n</ss:Worksheet> \n</ss:Workbook>\n').encode()
+
+    def test_historia_z_pliku(self):
+        k = self.k
+        h = k.emitent_historia(self.xml(self.IBIT))
+        self.assertEqual((len(h), min(h), max(h)), (9, '2026-09-15', '2026-09-25')); self.assertEqual(h['2026-09-23'], (47.784861, 1403800000.0))
+        self.assertEqual(k.emitent_historia(b'\xef\xbb\xbf' + self.xml(self.IBIT)), h, 'znak BOM na początku pliku')
+        extra = ('<ss:Row><ss:Cell><ss:Data ss:Type="String">Sep 14, 2026</ss:Data></ss:Cell><ss:Cell><ss:Data ss:Type="String">--</ss:Data></ss:Cell>'
+                 '<ss:Cell/><ss:Cell><ss:Data ss:Type="Number">1386360000</ss:Data></ss:Cell></ss:Row>\n'
+                 '<ss:Row><ss:Cell><ss:Data ss:Type="String">Sep 11, 2026</ss:Data></ss:Cell><ss:Cell><ss:Data ss:Type="Number">43.71244</ss:Data></ss:Cell>'
+                 '<ss:Cell ss:Index="4"><ss:Data ss:Type="Number">1386800000</ss:Data></ss:Cell></ss:Row>\n'
+                 '<ss:Row><ss:Cell><ss:Data ss:Type="String">zła data</ss:Data></ss:Cell><ss:Cell><ss:Data ss:Type="Number">1</ss:Data></ss:Cell></ss:Row>\n'
+                 '<ss:Row><ss:Cell><ss:Data ss:Type="String">Sep 10, 2026</ss:Data></ss:Cell><ss:Cell><ss:Data ss:Type="Number">43.674034</ss:Data></ss:Cell></ss:Row>\n')
+        h2 = k.emitent_historia(self.xml(self.IBIT, extra))
+        self.assertNotIn('2026-09-14', h2, 'NAV „--” = wiersz pominięty (brak, nie zero)')
+        self.assertEqual(h2['2026-09-11'], (43.71244, 1386800000.0), 'ss:Index — komórka trafia do właściwej kolumny')
+        self.assertNotIn('2026-09-10', h2, 'wiersz bez liczby jednostek pominięty'); self.assertEqual(len(h2), 10)
+        self.assertNotIn('2026-08-31', h2, 'inne arkusze (Performance, Holdings) nie są czytane')
+        with self.assertRaises(ValueError):
+            k.emitent_historia(self.xml(self.IBIT, sheet='Inny'))
+        with self.assertRaises(ValueError):
+            k.emitent_historia(self.xml(self.IBIT).replace(b'NAV per Share', b'NAV'))
+        self.assertEqual([k._em_liczba(x) for x in ('1,234.5', '--', '', '0', '-3', 'nan', 'inf', 'N/A')], [1234.5, None, None, None, None, None, None, None])
+
+    def test_przeplyw_dnia_z_nastepnego_wiersza(self):
+        k = self.k
+        h = k.emitent_historia(self.xml(self.IBIT))
+        ses = k.emitent_sesje(self.ETF, 'btc')
+        self.assertEqual(sorted(ses), ['2026-09-18', '2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25'])
+        self.assertEqual((k.emitent_sesje(None, 'btc'), k.emitent_sesje({'assets': {'btc': {'day': [['x', 1], None, [1790294400, 1]]}}}, 'btc')), (set(), {'2026-09-25'}))
+        p, pom = k.emitent_przeplywy(h, ses)
+        self.assertAlmostEqual(p['2026-09-23'], (1407280000 - 1403800000) * 47.784861 / 1e6, places=9)
+        self.assertEqual((round(p['2026-09-23'], 2), round(p['2026-09-18'], 2)), (166.29, 108.44), 'piątek: jednostki z poniedziałku × NAV z piątku')
+        self.assertNotIn('2026-09-25', p, 'ostatni wiersz — przepływ dopiero po następnej sesji'); self.assertEqual((len(p), pom), (8, {}))
+        e = k.emitent_przeplywy(k.emitent_historia(self.xml(self.ETHA)), k.emitent_sesje(self.ETF, 'eth'))[0]
+        self.assertEqual(round(e['2026-09-23'], 4), round((483160000 - 480640000) * 20.158565 / 1e6, 4))
+        # dzień wolny w USA: wiersz identyczny z poprzednim usunięty — przepływ środy z wiersza piątku
+        p2, pom2 = k.emitent_przeplywy({'2026-11-25': (50.0, 1e9), '2026-11-26': (50.0, 1e9), '2026-11-27': (51.0, 1.002e9)})
+        self.assertEqual((p2, pom2), ({'2026-11-25': 100.0}, {}))
+        # brak wiersza w pliku: sesja z kalendarza strony pomiędzy = dzień pominięty (bez kalendarza liczyłby się przepływ dwóch sesji)
+        h3 = {d: v for d, v in h.items() if d != '2026-09-22'}
+        p3, pom3 = k.emitent_przeplywy(h3, ses)
+        self.assertNotIn('2026-09-21', p3); self.assertIn('brak sesji po 2026-09-21', pom3['2026-09-21'])
+        self.assertIn('2026-09-21', k.emitent_przeplywy(h3)[0])
+        self.assertIn('2026-06-01', k.emitent_przeplywy({'2026-06-01': (40.0, 1e9), '2026-06-10': (40.0, 1.1e9)})[1], 'przerwa > 5 dni')
+        self.assertEqual(k.emitent_przeplywy({'2026-06-01': (40.0, 1e9), '2026-06-02': (20.0, 2e9)}), ({}, {'2026-06-01': 'skok NAV (podział jednostek?)'}))
+
+    def test_zapis_przeplywow_ze_strony(self):
+        k = self.k
+        p = os.path.join(self.tmp, 'zapis.csv')
+        self.assertEqual(k.emitent_zapis(p), {}, 'brak pliku = pusty zapis')
+        rows = {}
+        self.assertEqual((k.emitent_odczyt(rows, self.ETF_0923), k.emitent_odczyt(rows, self.ETF)), ([], []))
+        self.assertEqual(rows[('2026-09-23', 'IBIT')], [166.2918, '2026-09-24T15:29:34+00:00']); self.assertEqual(rows[('2026-09-25', 'ETHA')], [50.37007224, '2026-09-27T20:03:15+00:00'])
+        k.emitent_zapis_zapisz(p, rows)
+        with open(p, encoding='utf-8') as f:
+            self.assertEqual(f.read(), 'date,ticker,site_flow_musd,read_at\n2026-09-23,ETHA,50.799584,2026-09-24T15:29:34+00:00\n2026-09-23,IBIT,166.2918,2026-09-24T15:29:34+00:00\n'
+                                       '2026-09-25,ETHA,50.370072,2026-09-27T20:03:15+00:00\n2026-09-25,IBIT,96.9918,2026-09-27T20:03:15+00:00\n')
+        self.assertEqual(k.emitent_zapis(p)[('2026-09-23', 'IBIT')], [166.2918, '2026-09-24T15:29:34+00:00'])
+        later = json.loads(json.dumps(self.ETF)); later['at'] = '2026-09-28T06:20:00+00:00'
+        later['assets']['btc']['funds'][0]['d1'] = 0.0; later['assets']['eth']['funds'][0]['d1'] = None
+        k.emitent_odczyt(rows, later)
+        self.assertEqual(rows[('2026-09-25', 'IBIT')], [0.0, '2026-09-28T06:20:00+00:00'], 'późniejszy odczyt tej samej sesji wygrywa; zero to liczba')
+        self.assertEqual(rows[('2026-09-25', 'ETHA')], [50.37007224, '2026-09-27T20:03:15+00:00'], 'brak (None) nie kasuje zapisanej liczby')
+        later['assets']['eth']['funds'][0]['d1'] = True; later['assets']['btc']['funds'][0]['d1'] = float('nan'); later['assets']['btc']['asof'] = '2026-09-28'
+        k.emitent_odczyt(rows, later)
+        self.assertEqual((rows[('2026-09-28', 'IBIT')], rows[('2026-09-25', 'ETHA')][0]), ([None, '2026-09-28T06:20:00+00:00'], 50.37007224), 'NaN i bool = brak')
+        later['assets']['btc']['funds'] = later['assets']['btc']['funds'][1:]; later['assets']['eth']['funds'] = []
+        self.assertEqual(k.emitent_odczyt(rows, later), ['IBIT'], 'fundusz zniknął z listy strony (pusta lista = brak danych, nie zniknięcie)')
+        self.assertEqual((k.emitent_odczyt(rows, None), k.emitent_odczyt(rows, {'assets': []})), ([], []))
+        many = {(f'2026-{7 + i // 28:02d}-{1 + i % 28:02d}', 'IBIT'): [float(i), None] for i in range(70)}
+        many[('2026-09-14', 'ETHA')] = [-1e-9, None]
+        k.emitent_zapis_zapisz(p, many)
+        got = k.emitent_zapis(p)
+        self.assertEqual(len({d for d, _ in got}), k.EM_DNI); self.assertEqual(min(got)[0], sorted({d for d, _ in many})[-k.EM_DNI])
+        self.assertEqual(got[('2026-09-14', 'ETHA')], [0.0, None])
+        with open(p, encoding='utf-8') as f:
+            txt = f.read()
+        self.assertIn('\n2026-09-14,ETHA,0,\n', txt, 'bez „-0” w pliku'); self.assertNotIn(',-0,', txt)
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,ticker,site_flow_musd,read_at\n2026-09-24,IBIT,,x\n2026-13-01,IBIT,1,\nzle,IBIT,1,\n2026-09-24,ETHA,abc,\n2026-09-23,,1,\n2026-09-22,IBIT,nan,\n')
+        self.assertEqual(k.emitent_zapis(p), {('2026-09-24', 'IBIT'): [None, 'x'], ('2026-09-22', 'IBIT'): [None, None]}, 'pusta komórka = brak; złe wiersze pominięte')
+        for head in ('date,ticker,value\n2026-09-24,IBIT,1\n', 'date,ticker,value,x\n2026-09-24,IBIT,1,\n', 'date,ticker,site_flow_usd,read_at\n2026-09-24,IBIT,1,\n'):
+            with open(p, 'w', encoding='utf-8') as f:
+                f.write(head)
+            self.assertEqual(k.emitent_zapis(p), {}, 'inny nagłówek = zapis od nowa: ' + head.split('\n')[0])
+
+    def test_porownanie_progi_okno_braki(self):
+        k = self.k
+        h = k.emitent_historia(self.xml(self.IBIT)); p, pom = k.emitent_przeplywy(h, k.emitent_sesje(self.ETF, 'btc'))
+        F = k.emitent_porownanie({'2026-09-23': [166.2918, 'a'], '2026-09-25': [96.9918, 'b']}, p, pom, max(h))
+        self.assertEqual(F, {'status': '✅', 'porownane': 1, 'od': '2026-09-23', 'do': '2026-09-23', 'max_roznica_mln': 0.0, 'roznice': [], 'pominiete': [],
+                             'czeka': ['2026-09-25'], 'plik_do': '2026-09-25', 'zaleglosc': 0, 'strona_do': None, 'nieaktualny': False},
+                         'nagrane: strona 23.09 = wyliczenie z pliku emitenta')
+        self.assertEqual(k.emitent_linia('IBIT', F), 'IBIT ✅ porównane sesje: 1 (2026-09-23), różnic ponad próg: 0, największa różnica 0.0 mln USD; '
+                                                     'plik emitenta do 2026-09-25, nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-09-25)')
+        zap = {'2026-09-15': [0.0, ''], '2026-09-16': [0.0, ''], '2026-09-17': [0.0, ''], '2026-09-18': [108.44, ''], '2026-09-21': [381.4, ''],
+               '2026-09-22': [0.0, ''], '2026-09-23': [150.0, ''], '2026-09-24': [None, ''], '2026-09-25': [96.9918, '']}
+        F = k.emitent_porownanie(zap, p, pom, '2026-09-25')
+        self.assertEqual((F['status'], F['porownane'], F['od'], F['do']), ('⚠️', 4, '2026-09-18', '2026-09-23'), 'okno 5 ostatnich zapisanych sesji sprzed końca pliku')
+        self.assertEqual(F['roznice'], [{'data': '2026-09-22', 'roznica_mln': -350.3, 'roznica_pct': -100.0, 'strona_zero': True},
+                                        {'data': '2026-09-23', 'roznica_mln': -16.3, 'roznica_pct': -9.8, 'strona_zero': False}])
+        self.assertEqual(F['pominiete'], [{'data': '2026-09-24', 'powod': 'brak liczby na stronie'}], 'brak na stronie pominięty, nie liczony jako 0')
+        self.assertIn('strona pokazywała 0.0 (możliwe opóźnienie publikacji funduszu)', k._em_roznica(F['roznice'][0]))
+        P = {'2026-09-01': 100.0, '2026-09-02': 10.0, '2026-09-03': 0.0}
+        ok = k.emitent_porownanie({'2026-09-01': [101.9, ''], '2026-09-02': [10.45, ''], '2026-09-03': [-0.5, '']}, P, {}, '2026-09-04')
+        self.assertEqual((ok['status'], ok['max_roznica_mln']), ('✅', 1.9), 'progi: 2% z 100 i 0,5 mln USD')
+        zle = k.emitent_porownanie({'2026-09-01': [102.1, ''], '2026-09-03': [0.6, '']}, P, {}, '2026-09-04')
+        self.assertEqual(zle['roznice'], [{'data': '2026-09-01', 'roznica_mln': 2.1, 'roznica_pct': 2.1, 'strona_zero': False},
+                                          {'data': '2026-09-03', 'roznica_mln': 0.6, 'roznica_pct': None, 'strona_zero': False}])
+        wait = k.emitent_porownanie({'2026-09-25': [96.9918, '']}, p, pom, '2026-09-25')
+        self.assertEqual((wait['status'], wait['porownane'], wait['czeka'], wait['max_roznica_mln']), ('ℹ️', 0, ['2026-09-25'], None), 'jeszcze nic do porównania')
+        self.assertEqual(k.emitent_porownanie({}, p, pom, '2026-09-25')['status'], 'ℹ️')
+        q = k.emitent_porownanie({'2026-09-20': [1.0, ''], '2026-09-24': [None, '']}, p, pom, '2026-09-25')
+        self.assertEqual((q['status'], [x['powod'] for x in q['pominiete']]), ('?', ['brak tej sesji w pliku emitenta', 'brak liczby na stronie']))
+        self.assertEqual(k.emitent_porownanie({'2026-09-24': [1.0, '']}, {}, {'2026-09-24': 'skok NAV (podział jednostek?)'}, '2026-09-25')['pominiete'][0]['powod'],
+                         'skok NAV (podział jednostek?)')
+        self.assertNotIn('-0.0', json.dumps(k.emitent_porownanie({'2026-09-23': [166.2913, '']}, p, pom, '2026-09-25')))
+
+    def test_plik_emitenta_nieaktualny(self):
+        """Stara kopia pliku emitenta (kod 200, ostatni wiersz stoi w miejscu): gdy strona ma więcej niż EM_ZALEGLOSC nowszych sesji (kalendarz
+        strony + zapis), status „?” i uwaga — porównanie starych sesji nie może dawać wiecznego ✅, a nowsze sesje czekają bez sprawdzenia."""
+        k = self.k
+        h = k.emitent_historia(self.xml(self.IBIT[5:]))   # plik zatrzymany na piątku 18.09
+        ses = k.emitent_sesje(self.ETF, 'btc')            # kalendarz strony: 18.09 i 21–25.09
+        p, pom = k.emitent_przeplywy(h, ses)
+        self.assertEqual((max(h), sorted(p)), ('2026-09-18', ['2026-09-15', '2026-09-16', '2026-09-17']))
+        zap = {d: [round(v, 4), ''] for d, v in p.items()}   # strona = wyliczenie emitenta
+        ok2 = k.emitent_porownanie(zap, p, pom, '2026-09-18', {'2026-09-21', '2026-09-22'})
+        self.assertEqual((ok2['status'], ok2['zaleglosc'], ok2['nieaktualny']), ('✅', 2, False), 'plik 2 sesje za stroną = jeszcze w normie (wiersz spóźniony)')
+        st3 = k.emitent_porownanie(zap, p, pom, '2026-09-18', {'2026-09-21', '2026-09-22', '2026-09-23'})
+        self.assertEqual((st3['status'], st3['porownane'], st3['zaleglosc'], st3['strona_do'], st3['nieaktualny']), ('?', 3, 3, '2026-09-23', True))
+        zap['2026-09-25'] = [96.9918, '']
+        self.assertEqual(k.emitent_porownanie(zap, p, pom, '2026-09-18')['zaleglosc'], 1, 'bez kalendarza strony tylko zapis')
+        F = k.emitent_porownanie(zap, p, pom, '2026-09-18', ses)
+        self.assertEqual((F['status'], F['porownane'], F['zaleglosc'], F['strona_do'], F['czeka']), ('?', 3, 5, '2026-09-25', ['2026-09-25']), 'kalendarz strony liczy się też bez zapisu')
+        zle = k.emitent_porownanie(dict(zap, **{'2026-09-17': [0.0, '']}), p, pom, '2026-09-18', ses)
+        self.assertEqual((zle['status'], zle['nieaktualny']), ('⚠️', True), 'różnica ma pierwszeństwo przed „?”')
+        self.assertEqual(k.emitent_porownanie({'2026-09-25': [96.9918, '']}, p, pom, '2026-09-18', ses)['status'], '?', 'bez porównań, ale plik nieaktualny = „?”, nie ℹ️')
+        self.assertEqual(k.emitent_linia('IBIT', dict(F, czeka=['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25'])),
+                         'IBIT ? porównane sesje: 3 (2026-09-15 – 2026-09-17), różnic ponad próg: 0, największa różnica 0.0 mln USD; plik emitenta do 2026-09-18, '
+                         'nowszych sesji na stronie: 5 — plik nieaktualny (próg 2), te sesje bez porównania; czeka na porównanie: 5 (…, 2026-09-23, 2026-09-24, 2026-09-25)')
+        # cała kontrola: IBIT ze starą kopią pliku, ETHA w normie (pierwszy zapis)
+        rows = {(d, 'IBIT'): [round(v, 4), (datetime.date.fromisoformat(d) + datetime.timedelta(days=1)).isoformat() + 'T06:20:00+00:00'] for d, v in p.items()}
+        R, md, calls, _ = self._kontrola({'333011': self.xml(self.IBIT[5:]), '337614': self.xml(self.ETHA)}, rows)
+        E = R['zgodnosc']['etf_emitent']; F = E['fundusze']['IBIT']
+        self.assertEqual((E['status'], F['status'], F['porownane'], F['zaleglosc'], F['nieaktualny'], E['fundusze']['ETHA']['status']), ('?', '?', 3, 5, True, 'ℹ️'))
+        self.assertEqual(R['bledy'], [])
+        self.assertIn('ETF IBIT: plik emitenta kończy się na 2026-09-18, a strona ma już 5 nowszych sesji (do 2026-09-25) — plik nieaktualny (próg 2), te sesje bez porównania',
+                      R['uwagi'])
+        self.assertFalse([u for u in R['uwagi'] if u.startswith('ETF ETHA')], 'ETHA w normie — bez uwagi')
+        line = next(x for x in md.splitlines() if x.startswith('- ETF krypto u źródła'))
+        self.assertIn('IBIT ? porównane sesje: 3 (2026-09-15 – 2026-09-17), różnic ponad próg: 0, największa różnica 0.0 mln USD; plik emitenta do 2026-09-18, '
+                      'nowszych sesji na stronie: 5 — plik nieaktualny (próg 2), te sesje bez porównania; czeka na porównanie: 1 (2026-09-25) · '
+                      'ETHA ℹ️ jeszcze bez porównania; plik emitenta do 2026-09-25, nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-09-25).', line)
+
+    def _siec(self, emitent, etf=None):
+        """Zaślepka urllib.request.urlopen dla całej kontroli: strona (index, meta, pliki danych, pliki dla wyszukiwarek), dwa źródła porównań,
+        API GitHuba i pliki emitenta (numer pliku → bajty albo kod HTTP). Nieznany adres = błąd testu."""
+        import io
+        calls, NOW, ETF = [], self.NOW, (etf or self.ETF)
+
+        class Resp:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        J = lambda o: Resp(json.dumps(o).encode())
+
+        def urlopen(req, timeout=None):
+            url = req.full_url; calls.append((url, req.get_header('User-agent'), timeout))
+            if 'get-fund-document' in url:
+                v = emitent[url.split('portfolioId=')[1].split('&')[0]]
+                if isinstance(v, int):
+                    raise self.k.urllib.error.HTTPError(url, v, 'Forbidden', {'cf-mitigated': 'challenge'}, io.BytesIO(b'Just a moment...'))
+                return Resp(v)
+            if '/index.html?' in url:
+                return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
+            if '/data/meta.json?' in url:
+                return J({'at': (NOW - datetime.timedelta(minutes=17)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []})
+            if '/data/etf.json?' in url:
+                return J(ETF)
+            if '/data/' in url:
+                return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                return Resp(b'x' * 100)
+            if url == self.k.CG_GLOBAL:
+                return J({'data': {'total_market_cap': {'usd': 4.0e12}}})
+            if url == self.k.CP_GLOBAL:
+                return J({'market_cap_usd': 4.1e12})
+            if url == self.k.CG_PRICE:
+                return J({'bitcoin': {'usd': 110000.0}, 'ethereum': {'usd': 4000.0}})
+            if url.startswith('https://api.coinpaprika.com/v1/tickers/'):
+                return J({'quotes': {'USD': {'price': 110010.0 if 'btc' in url else 4000.5}}})
+            if url.startswith('https://api.github.com/'):
+                return J({'workflow_runs': []})
+            raise AssertionError('nieoczekiwany adres w teście: ' + url)
+        return urlopen, calls
+
+    def _kontrola(self, emitent, zasiew=None, etf=None):
+        """Cała kontrola na zaślepionej sieci; pauza między plikami emitenta zapisana w `calls` jako ('sleep', s, None), bez czekania."""
+        import tempfile
+        k, d = self.k, tempfile.mkdtemp(prefix='k130-', dir=self.tmp)
+        if zasiew:
+            k.emitent_zapis_zapisz(os.path.join(d, k.EM_CSV), zasiew)
+        urlopen, calls = self._siec(emitent, etf)
+        with mock.patch.object(k, 'NOW', self.NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                mock.patch.object(k.time, 'sleep', lambda s: calls.append(('sleep', s, None))), mock.patch.object(k.urllib.request, 'urlopen', urlopen):
+            R = k.kontrola()
+        return R, k.raport_md(R), calls, d
+
+    def test_kontrola_calosc_na_nagranych(self):
+        k = self.k
+        rows = {}
+        k.emitent_odczyt(rows, self.ETF_0923)
+        R, md, calls, d = self._kontrola({'333011': self.xml(self.IBIT), '337614': self.xml(self.ETHA)}, rows)
+        em = [(u, ua, t) for u, ua, t in calls if 'get-fund-document' in u]
+        self.assertEqual([u.split('portfolioId=')[1].split('&')[0] for u, _, _ in em], ['333011', '337614'], 'dokładnie 2 zapytania, bez ponawiania')
+        self.assertTrue(all(u.startswith('https://') and ua == 'CapitalFlowAI-kontrola/1.0' and t == k.EM_TIMEOUT for u, ua, t in em), 'HTTPS, jawny identyfikator kontroli')
+        i1, i2 = [i for i, c in enumerate(calls) if 'get-fund-document' in c[0]]
+        self.assertGreater(k.EM_PAUZA, 0); self.assertIn(('sleep', k.EM_PAUZA, None), calls[i1 + 1:i2], 'przerwa między dwoma zapytaniami do tego samego serwera')
+        E = R['zgodnosc']['etf_emitent']
+        self.assertEqual(E['status'], '✅'); self.assertEqual(E['zapis_dni'], 2)
+        for t in ('IBIT', 'ETHA'):
+            F = E['fundusze'][t]
+            self.assertEqual((F['status'], F['porownane'], F['od'], F['max_roznica_mln'], F['czeka'], F['plik_do'], F['zaleglosc'], F['nieaktualny']),
+                             ('✅', 1, '2026-09-23', 0.0, ['2026-09-25'], '2026-09-25', 0, False))
+        self.assertEqual(R['bledy'], []); self.assertEqual(R['wynik'], 'UWAGA', 'inne uwagi z zaślepionej strony (np. 0 przebiegów Actions) — ETF bez uwag')
+        self.assertFalse([u for u in R['uwagi'] if 'ETF' in u and ('emitent' in u or 'IBIT' in u or 'ETHA' in u)])
+        with open(os.path.join(d, k.EM_CSV), encoding='utf-8') as f:
+            self.assertEqual(f.read().splitlines()[3:], ['2026-09-25,ETHA,50.370072,2026-09-27T20:03:15+00:00', '2026-09-25,IBIT,96.9918,2026-09-27T20:03:15+00:00'])
+        L = md.splitlines()
+        self.assertRegex(L[0], r'^# Kontrola strony — \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} \(czas polski\)$'); self.assertEqual(L[2], '**Wynik: UWAGA**')
+        line = next(x for x in L if x.startswith('- ETF krypto u źródła'))
+        self.assertIn('IBIT ✅ porównane sesje: 1 (2026-09-23), różnic ponad próg: 0, największa różnica 0.0 mln USD; plik emitenta do 2026-09-25, '
+                      'nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-09-25) · ETHA ✅ porównane sesje: 1 (2026-09-23)', line)
+        self.assertLess(md.index('- Wieloryby:'), md.index('- ETF krypto u źródła'), 'linia po wielorybach, w sekcji „Zgodność liczb”')
+        J = json.dumps(R, ensure_ascii=False)
+        for v in ('166.29', '47.784861', '1403800000', '20.158565', '108.44'):
+            self.assertNotIn(v, md); self.assertNotIn(v, json.dumps(E), 'do raportu tylko różnice i daty — bez liczb emitenta')
+        for w in ('SoSoValue', 'BlackRock', 'iShares', 'Farside', 'blackrock.com'):
+            self.assertNotIn(w, line); self.assertNotIn(w, J[J.index('"etf_emitent"'):J.index('"etf_emitent"') + 3000])
+
+    def test_kontrola_blad_odczytu_i_roznica_to_uwagi(self):
+        k = self.k
+        rows = {}
+        k.emitent_odczyt(rows, self.ETF_0923)
+        rows[('2026-09-23', 'ETHA')] = [0.0, '2026-09-24T06:20:00+00:00']
+        R, md, calls, _ = self._kontrola({'333011': 403, '337614': self.xml(self.ETHA)}, rows)
+        self.assertEqual(sum('get-fund-document' in u for u, _, _ in calls), 2, 'po 403 bez ponawiania')
+        E = R['zgodnosc']['etf_emitent']
+        self.assertEqual((E['status'], E['fundusze']['IBIT'], E['fundusze']['ETHA']['status']), ('⚠️', {'status': '?', 'blad': 'HTTP 403'}, '⚠️'))
+        self.assertEqual(R['bledy'], [], 'porównanie z plikiem emitenta nigdy nie jest błędem (bez e-maila)'); self.assertNotEqual(R['wynik'], 'BŁĄD')
+        self.assertIn('ETF IBIT: plik emitenta — brak odczytu (HTTP 403); porównanie przepływów pominięte', R['uwagi'])
+        u = next(x for x in R['uwagi'] if x.startswith('ETF ETHA:'))
+        self.assertEqual(u, 'ETF ETHA: przepływ na stronie ≠ wyliczenie z pliku emitenta (próg max 0.5 mln USD / 2%) — 2026-09-23: -50.8 mln USD (-100.0%)'
+                            ' — strona pokazywała 0.0 (możliwe opóźnienie publikacji funduszu)')
+        line = next(x for x in md.splitlines() if x.startswith('- ETF krypto u źródła'))
+        self.assertIn('IBIT ? brak odczytu pliku (HTTP 403) · ETHA ⚠️ porównane sesje: 1 (2026-09-23), różnic ponad próg: 1, największa różnica 50.8 mln USD — 2026-09-23: -50.8 mln USD', line)
+        R2, md2, _, _ = self._kontrola({'333011': self.xml(self.IBIT, sheet='Inny'), '337614': b'<html>zmiana strony</html>'})
+        E2 = R2['zgodnosc']['etf_emitent']
+        self.assertEqual((E2['fundusze']['IBIT'], E2['fundusze']['ETHA']['status'], R2['bledy']), ({'status': '?', 'blad': 'brak arkusza Historical'}, '?', []))
+        self.assertIn('ETF ETHA: plik emitenta — brak odczytu (', ' '.join(R2['uwagi']))
+        R3, md3, _, d3 = self._kontrola({'333011': self.xml(self.IBIT), '337614': self.xml(self.ETHA)})
+        self.assertEqual(R3['zgodnosc']['etf_emitent']['status'], 'ℹ️', 'pierwszy przebieg: zapis bez porównania, bez uwagi')
+        self.assertIn('IBIT ℹ️ jeszcze bez porównania; plik emitenta do 2026-09-25, nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-09-25)', md3)
+        self.assertFalse([x for x in R3['uwagi'] if x.startswith('ETF IBIT') or x.startswith('ETF ETHA')])
+        R5, _, _, _ = self._kontrola({'333011': self.xml([]), '337614': self.xml(self.ETHA)})
+        self.assertEqual(R5['zgodnosc']['etf_emitent']['fundusze']['IBIT'], {'status': '?', 'blad': 'arkusz Historical bez wierszy z liczbami'}, 'nagłówek bez wierszy')
+        etf4 = json.loads(json.dumps(self.ETF)); etf4['assets']['btc']['funds'] = [f for f in etf4['assets']['btc']['funds'] if f['t'] != 'IBIT']
+        rows4 = {('2026-09-23', 'IBIT'): [166.2918, '2026-09-24T15:29:34+00:00'], ('2026-09-24', 'IBIT'): [None, '2026-09-25T06:20:00+00:00'],
+                 ('2026-09-23', 'ETHA'): [None, '2026-09-24T06:20:00+00:00']}
+        R4, md4, _, d4 = self._kontrola({'333011': self.xml(self.IBIT), '337614': self.xml(self.ETHA)}, rows4, etf4)
+        E4 = R4['zgodnosc']['etf_emitent']
+        self.assertEqual((E4['status'], E4['fundusze']['IBIT']['status'], E4['fundusze']['ETHA']['status'], R4['bledy']), ('?', '✅', '?', []))
+        self.assertIn('ETF IBIT: funduszu nie ma na liście funduszy strony (etf.json) — lista ucięta albo zmiana symbolu', R4['uwagi'])
+        self.assertIn('ETF ETHA: zapisanych sesji nie da się porównać z plikiem emitenta — 2026-09-23 (brak liczby na stronie)', R4['uwagi'])
+        self.assertEqual(len([u for u in R4['uwagi'] if u.startswith('ETF ')]), 2)
+        line4 = next(x for x in md4.splitlines() if x.startswith('- ETF krypto u źródła'))
+        self.assertIn('IBIT ✅ porównane sesje: 1 (2026-09-23), różnic ponad próg: 0, największa różnica 0.0 mln USD; pominięte: 2026-09-24 (brak liczby na stronie); '
+                      'plik emitenta do 2026-09-25, nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-09-25) · ETHA ? zapisane sesje bez porównania: '
+                      '2026-09-23 (brak liczby na stronie); plik emitenta do 2026-09-25, nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-09-25).', line4)
+        with open(os.path.join(d4, k.EM_CSV), encoding='utf-8') as f:
+            self.assertIn('\n2026-09-25,IBIT,,2026-09-27T20:03:15+00:00\n', f.read(), 'fundusz spoza listy strony = pusta komórka (brak), nie 0')
+        R0 = {'at': '2026-09-28T06:20:00+00:00', 'wynik': 'OK', 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': [], 'bledy': [],
+              'zgodnosc': {'wieloryby': None}}
+        self.assertIn('- ETF krypto u źródła — przepływy funduszy na stronie vs wyliczenie z plików emitenta (dzień D = zmiana liczby jednostek D → D+1 × NAV z D; '
+                      'próg max 0.5 mln USD / 2%): —.', k.raport_md(R0), 'brak wyniku = „—”')
+        R0['zgodnosc']['etf_emitent'] = {'status': '?', 'blad': 'x', 'fundusze': {}}
+        self.assertIn('2%): ? kontrola przerwana (x).', k.raport_md(R0))
+
+    def test_straz_zrodla_i_workflow(self):
+        with open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertNotIn('farside', src.lower(), 'serwis za wyzwaniem Cloudflare nie jest używany — z serwera GitHub w USA zawsze 403 (sonda 27.09)')
+        self.assertTrue(self.k.EM_DOC.startswith('https://')); self.assertNotIn('http://', src[src.index('EM_DOC = '):src.index('def kontrola():')])
+        self.assertIn("'User-Agent': 'CapitalFlowAI-kontrola/1.0'", src)
+        i = src.index('# 3e. v130'); j = src.index('# 4. przebiegi Actions', i)
+        self.assertIn('etf_emitent(files, R)', src[i:j]); self.assertNotIn("R['bledy']", src[i:j])
+        self.assertGreater(i, src.index("Z['wieloryby'] = None"), 'krok po wielorybach')
+        a = src.index('def etf_emitent('); b = src.index('\ndef ', a + 1)
+        self.assertNotIn("R['bledy']", src[a:b]); self.assertEqual(src[a:b].count(' get('), 1, 'jedno miejsce zapytania (pętla po 2 funduszach), bez ponawiania')
+        self.assertEqual([t for t, _, _ in self.k.EM_FUNDS], ['IBIT', 'ETHA'])
+        with open(os.path.join(self.ROOT, '.github', 'workflows', 'kontrola.yml'), encoding='utf-8') as f:
+            ky = f.read()
+        self.assertIn('kontrola/zgodnosc.csv kontrola/historia.json', ky)
+        self.assertIn('if [ -f kontrola/etf-emitent.csv ]; then git add kontrola/etf-emitent.csv; fi', ky)
+        self.assertLess(ky.index('git add kontrola/ostatnia.md'), ky.index('git add kontrola/etf-emitent.csv')); self.assertLess(ky.index('git add kontrola/etf-emitent.csv'), ky.index('git diff --cached --quiet'))
+        with open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8') as f:
+            self.assertFalse([x for x in f.read().splitlines() if '_site' in x and 'kontrola' in x], 'katalog kontroli nie trafia na stronę')
+
+
 class KontrolaPrzebiegiV124_1(unittest.TestCase):
     """v124.1: kontrola dzienna — BŁĄD tylko, gdy automat nadal nie działa; porażki naprawione = uwaga z godziną i krokiem (27.09: 4 porażki
     z 26.09 dały rano czerwony alarm, choć od wieczora wszystkie przebiegi były udane)."""
