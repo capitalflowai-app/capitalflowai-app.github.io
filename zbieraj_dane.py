@@ -12913,6 +12913,121 @@ def build_ici(prev=None, now=None):
     return out
 
 
+# ===================== v135: USA — fundusze rynku pieniężnego: aktywa co tydzień (ta sama data/ici.json, część „mm”; bez klucza) =====================
+# Źródło: Investment Company Institute (www.ici.org) — plik „mm_summary_data_{rok}.xls” (aktywa netto TNA funduszy rynku pieniężnego w USA,
+# mln USD; publikacja w czwartek ok. 19:40 UTC za tydzień do środy dzień wcześniej; w pliku 20 ostatnich tygodni). Ten sam czytnik .xls,
+# te same nagłówki zapytania, If-Modified-Since, rok poprzedni po 404 i historia budowana w pliku (104 tygodnie) co część „lt” z v134.
+# Układ arkusza: nagłówek „DATE | TOTAL - ALL MONEY MARKET FUNDS | INSTITUTIONAL … | RETAIL …”, pod nim typy „TOTAL / TAX-EXEMPT / GOVERNMENT /
+# PRIME”, potem pary „# Classes | TNA” — bierzemy tylko TNA; kolumny po nazwach, sumy sprawdzane (razem = rządowe + prime + zwolnione z podatku
+# = instytucjonalne + detaliczne; w każdej grupie instytucjonalne/detaliczne też). Aktywa nie bywają ujemne ani zerowe — taka komórka = brak.
+# Zmiana aktywów (d1w, d4w) to zmiana STANU wobec tygodnia 7 i 28 dni wcześniej (tydzień przesunięty przez święto w USA, np. do wtorku — wobec
+# najbliższego tygodnia w ±2 dni, z datą bazy w d1w_od / d4w_od) — nie przepływ: zawiera dopisane odsetki i zmiany wyceny; brak bazy = None.
+ICI_URL['mm'] = 'https://www.ici.org/mm_summary_data_{y}.xls'
+ICI_PUB['mm'] = (3, 18, 1)      # czwartek 18:00 UTC (publikacja ok. 19:40 UTC latem; zimą godzinę później — okno godzinne) → tydzień do środy dzień wcześniej
+ICI_PARTS = ICI_PARTS + ('mm',)
+ICI_NAZWA['mm'] = 'rynek pieniężny'
+ICI_MM_COLS = ('tot', 'gov', 'prime', 'te', 'inst', 'ret', 'gov_i', 'prime_i', 'te_i', 'gov_r', 'prime_r', 'te_r')
+ICI_SRC = ICI_SRC + '; Money Market Fund Assets (mm_summary_data_{rok}.xls; aktywa netto TNA funduszy rynku pieniężnego co tydzień)'
+ICI_NOTES = ICI_NOTES + ['kolumny mm (aktywa netto TNA, mln USD — stan, nie przepływ): tot = gov (rządowe) + prime + te (zwolnione z podatku) = inst '
+                         '(instytucjonalne) + ret (detaliczne); *_i / *_r = typ w grupie instytucjonalnej / detalicznej; asof = tydzień z tytułu arkusza',
+                         'd1w / d4w (mm) = zmiana aktywów wobec tygodnia 7 i 28 dni wcześniej (gdy święto w USA przesunęło dzień końca tygodnia — '
+                         'wobec najbliższego tygodnia do 2 dni dalej; jego data w d1w_od / d4w_od) — zawiera dopisane odsetki i zmiany wyceny, '
+                         'więc to nie czysty przepływ; brak takiego tygodnia = None']
+
+
+def parse_ici_mm(g):
+    """Arkusz aktywów funduszy rynku pieniężnego → {'asof': tydzień z tytułu albo None, 'weeks': [[dzień, tot, gov, prime, te, inst, ret, gov_i,
+    prime_i, te_i, gov_r, prime_r, te_r], …]} (mln USD, rosnąco). Nagłówek „DATE”, grupy po nazwach, wiersz typów (z „GOVERNMENT”) i wiersz
+    „TNA” pod nim; brak grupy, typu albo TNA, brak tygodni albo niezgodne sumy (±3 mln USD) = ValueError. Komórka pusta, ujemna albo zero = None."""
+    hr = next((r for r in range(min(len(g), 15)) if any(_ici_norm(v) == 'date' for v in g[r])), None)
+    if hr is None:
+        raise ValueError('rynek pieniężny: brak nagłówka DATE')
+    _ici_jednostka(g, hr)
+    top = [_ici_norm(v) for v in g[hr]]
+    grp = {}
+    for key, lab in (('all', 'total - all money market funds'), ('inst', 'institutional money market funds'), ('ret', 'retail money market funds')):
+        c = next((i for i, s in enumerate(top) if s.startswith(lab)), None)
+        if c is None:
+            raise ValueError('rynek pieniężny: brak grupy ' + lab)
+        grp[key] = c
+    trow = next((r for r in range(hr + 1, min(hr + 5, len(g))) if 'government' in [_ici_norm(v) for v in g[r]]), None)
+    nrow = next((r for r in range(hr + 1, min(hr + 6, len(g))) if 'tna' in [_ici_norm(v) for v in g[r]]), None)
+    if trow is None or nrow is None or nrow <= trow:
+        raise ValueError('rynek pieniężny: brak wiersza typów albo TNA')
+    types, tna = [_ici_norm(v) for v in g[trow]], [_ici_norm(v) for v in g[nrow]]
+    granice = sorted(grp.values()) + [max(len(types), len(tna))]
+    span = {k: (c, next(b for b in granice if b > c)) for k, c in grp.items()}
+
+    def tcol(k, label):
+        g0, g1 = span[k]
+        c = next((i for i in range(g0, g1) if i < len(types) and types[i] == label), None)
+        if c is None:
+            raise ValueError(f'rynek pieniężny: brak typu {label} ({k})')
+        c2 = next((i for i in range(c, min(c + 2, len(tna))) if tna[i] == 'tna'), None)
+        if c2 is None:
+            raise ValueError(f'rynek pieniężny: brak TNA dla {label} ({k})')
+        return c2
+    cols = [tcol('all', 'total'), tcol('all', 'government'), tcol('all', 'prime'), tcol('all', 'tax-exempt'), tcol('inst', 'total'), tcol('ret', 'total'),
+            tcol('inst', 'government'), tcol('inst', 'prime'), tcol('inst', 'tax-exempt'), tcol('ret', 'government'), tcol('ret', 'prime'), tcol('ret', 'tax-exempt')]
+    asof = next((ici_data(g[r][0]) for r in range(0, hr) if g[r] and ici_data(g[r][0])), None)
+    weeks = {}
+    for r in range(nrow + 1, len(g)):
+        d = ici_data(g[r][0]) if g[r] else None
+        if not d:
+            continue
+        v = [ici_liczba(g[r][c]) if c < len(g[r]) else None for c in cols]
+        v = [round(x) if x is not None and x > 0 else None for x in v]
+        if v[0] is None:
+            continue
+        tot, gov, prime, te, inst, ret, gi, pi, ti, gr, pr, tr = v
+        s3 = lambda a, b, c: a + b + c if None not in (a, b, c) else None   # noqa: E731
+        if not (_ici_zgodne(tot, s3(gov, prime, te), 3) and _ici_zgodne(tot, inst + ret if None not in (inst, ret) else None, 3)
+                and _ici_zgodne(inst, s3(gi, pi, ti), 3) and _ici_zgodne(ret, s3(gr, pr, tr), 3)):
+            raise ValueError(f'rynek pieniężny: części nie sumują się ({d})')
+        weeks[d] = v
+    if not weeks:
+        raise ValueError('rynek pieniężny: brak tygodni')
+    return {'asof': asof, 'weeks': [[d] + weeks[d] for d in sorted(weeks)]}
+
+
+def ici_baza(w, days):
+    """Wiersz bazowy zmiany: tydzień dokładnie `days` dni przed ostatnim, a gdy go nie ma — najbliższy w odległości do ICI_TOL_D dni (święto w USA
+    przesunęło dzień końca tygodnia: wtorek zamiast środy); bliżej `days` wygrywa, przy remisie wcześniejszy. Brak = None."""
+    if not w:
+        return None
+    d1 = datetime.date.fromisoformat(w[-1][0])
+    best = None
+    for r in w[:-1]:
+        off = abs((d1 - datetime.date.fromisoformat(r[0])).days - days)
+        if off <= ICI_TOL_D and (best is None or off < best[0]):
+            best = (off, r)
+    return best[1] if best else None
+
+
+def ici_chg(w, days):
+    """Zmiana każdej kolumny: ostatni wiersz minus wiersz bazowy (ici_baza: dokładnie `days` dni wcześniej — 7 albo 28 — a w tygodniach
+    przesuniętych przez święto najbliższy w ±ICI_TOL_D dni; jego datę zapisuje pole d1w_od / d4w_od). Brak bazy = None (cała zmiana), brak
+    liczby w kolumnie = None — nigdy zero."""
+    p = ici_baza(w, days)
+    if p is None:
+        return None
+    return [a - b if a is not None and b is not None else None for a, b in zip(w[-1][1:], p[1:])]
+
+
+def ici_mm(raw, old=None):
+    """Część „mm” z pliku aktywów funduszy rynku pieniężnego: tygodnie (historia z poprzedniej wersji części), zmiana wobec 1 i 4 tygodni,
+    tydzień z tytułu arkusza. Plik starszy niż zapisany = None (zostaje poprzednia wersja)."""
+    p = parse_ici_mm(ici_arkusz(raw))
+    o = ici_tygodnie(p['weeks'], old, ICI_MM_COLS)
+    if o is None:
+        return None
+    b1, b4 = ici_baza(o['w'], 7), ici_baza(o['w'], 28)
+    o.update({'asof': p['asof'], 'd1w': ici_chg(o['w'], 7), 'd4w': ici_chg(o['w'], 28), 'd1w_od': b1[0] if b1 else None, 'd4w_od': b4[0] if b4 else None})
+    return o
+
+
+ICI_BUDUJ['mm'] = ici_mm
+
 # ===================== v131: FED — szanse decyzji na najbliższych posiedzeniach z rynku zakładów w USA (data/fed.json; publiczne API bez klucza) =====================
 # Regulowana w USA giełda kontraktów zdarzeniowych (Kalshi) ma publiczne API z cenami zakładów na decyzję Rezerwy Federalnej: seria KXFEDDECISION,
 # jedno zdarzenie na posiedzenie FOMC, 5 wykluczających się kontraktów tak/nie (obniżka o więcej niż 0,25 / o 0,25 pkt proc., bez zmian,

@@ -13,7 +13,8 @@ nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśni
 v136: kursy dolara Ameryki Łacińskiej (data/dolar.json) — świeżość osobnym wierszem (najwyżej ⚠️), dwa odczyty kursów Argentyny z pliku i kurs hurtowy vs API banku centralnego Argentyny (1 zapytanie); tylko uwagi, nigdy BŁĄD.
 v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`.
 v134: fundusze USA (data/ici.json) — świeżość części osobnymi wierszami (najwyżej ⚠️; lista SWIEZOSC bez zmian), tożsamości sum ostatniego
-tygodnia w pliku strony i poprawki wydawcy (informacja); bez sieci, nigdy BŁĄD."""
+tygodnia w pliku strony i poprawki wydawcy (informacja); bez sieci, nigdy BŁĄD.
+v135: fundusze rynku pieniężnego (ta sama data/ici.json, część mm) — osobny wiersz świeżości (próg 10 dni, najwyżej ⚠️) i sumy ostatniego tygodnia."""
 import csv
 import datetime as dt
 import json
@@ -1090,6 +1091,14 @@ ICI_PROG = {'lt': 16 * 24 * 60}
 ICI_TOL = (3, 5)     # mln USD: tolerancja zaokrągleń (składniki grupy, suma grup) — jak w zbieraczu
 ICI_SUMY = {'lt': (('eq', ('dom', 'wld'), 0), ('bd', ('tax', 'muni'), 0), ('total', ('eq', 'hyb', 'bd', 'com'), 1))}
 ICI_OPIS = {'lt': 'akcje = USA + spoza USA, obligacje = zwykłe + municypalne, razem = suma grup'}
+# v135: rynek pieniężny (część „mm” pliku ici.json; publikacja w czwartek za tydzień do środy): w dniu publikacji dane mają 1 dzień, tuż przed
+# następną — 7 dni i ok. 20 h; próg 10 dni = ok. 2 doby zapasu na przesunięcie publikacji (czwartki świąteczne w USA: Święto Dziękczynienia,
+# Wigilia, Sylwester) i godzinne okno zbieracza. Najwyżej ⚠️, nigdy ❌ — jak napływy.
+ICI_ETYKIETA['mm'] = 'Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek)'
+ICI_KROTKO['mm'] = 'rynek pieniężny'
+ICI_PROG['mm'] = 10 * 24 * 60
+ICI_SUMY['mm'] = (('tot', ('gov', 'prime', 'te'), 0), ('tot', ('inst', 'ret'), 0), ('inst', ('gov_i', 'prime_i', 'te_i'), 0), ('ret', ('gov_r', 'prime_r', 'te_r'), 0))
+ICI_OPIS['mm'] = 'razem = rządowe + prime + zwolnione z podatku = instytucjonalne + detaliczne (także w każdej grupie)'
 
 
 def ici_swiezosc(j, now=None):

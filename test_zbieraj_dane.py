@@ -18522,3 +18522,291 @@ class IciV134(unittest.TestCase):
         self.assertEqual(len(seen), 4); self.assertTrue(all(h['User-Agent'] == 'CapitalFlowAI-collector/1.0' and h['Accept-Encoding'] == 'identity' for _, h in seen))
         txt = out.getvalue()
         self.assertNotIn('ici.org', txt); self.assertNotIn('http', txt.replace('HTTP', '')); self.assertIn('ole2=True dates=38', txt); self.assertIn('last_wed=2026-09-16', txt)
+# ===================== v135: USA — fundusze rynku pieniężnego (część „mm” pliku data/ici.json) =====================
+# Arkusz aktywów jak u wydawcy (sprawdzony na pliku z 27.09.2026), liczby zmyślone (sumy zgodne): tytuły, tydzień wydania w 4. wierszu
+# („9/23/2026”, bez zer wiodących), nagłówek „DATE | TOTAL - ALL MONEY MARKET FUNDS (kol. 1) | INSTITUTIONAL … (kol. 13) | RETAIL … (kol. 25)”,
+# wiersz typów TOTAL / TAX-EXEMPT / GOVERNMENT / PRIME, pod GOVERNMENT podtypy, wiersz par „# Classes | TNA”, tygodnie (daty-teksty ze spacją),
+# liczba klas jako tekst, TNA jako liczba.
+
+
+def _ici_mm_tydzien(gi, pi, ti, gr, pr, tr):
+    """Wiersz [tot, gov, prime, te, inst, ret, gov_i, prime_i, te_i, gov_r, prime_r, te_r] z sześciu składników — sumy zgodne jak u wydawcy."""
+    inst, ret = gi + pi + ti, gr + pr + tr
+    return [inst + ret, gi + gr, pi + pr, ti + tr, inst, ret, gi, pi, ti, gr, pr, tr]
+
+
+def _ici_mm_rows(weeks, asof=None, jednostka='(millions of dollars)', bez_tna=False, wstaw_kolumne=False):
+    """weeks = [(data ISO, wiersz 12 liczb albo None w komórce)]; asof = tydzień w tytule (domyślnie ostatni)."""
+    asof = asof or weeks[-1][0]
+    n = 37
+    hdr = [None] * n; hdr[0] = 'DATE'; hdr[1] = 'TOTAL - ALL MONEY MARKET FUNDS'; hdr[13] = 'INSTITUTIONAL MONEY MARKET FUNDS'; hdr[25] = 'RETAIL MONEY MARKET FUNDS'
+    typ, sub = [None] * n, [None] * n
+    for b in (1, 13, 25):
+        typ[b], typ[b + 2], typ[b + 4], typ[b + 10] = 'TOTAL', 'TAX-EXEMPT', 'GOVERNMENT', 'PRIME'
+        sub[b + 4], sub[b + 6], sub[b + 8] = 'TOTAL', 'TREASURY & REPO', 'TREASURY & AGENCY'
+    pary = [None] + (['# Classes', 'TNA'] * 18)
+    if bez_tna:
+        pary = [None] + ['# Classes', 'Assets'] * 18
+    y, m, d = asof.split('-')
+    rows = [['Synthetic test sheet: money market fund assets'], ['Weekly total net assets (test data)'], [jednostka], [f'{int(m)}/{int(d)}/{y}'], hdr, [], typ, sub, pary]
+    for dt_, v in weeks:
+        tot, gov, prime, te, inst, ret, gi, pi, ti, gr, pr, tr = v
+        r = [_ici_us(dt_, ' ')]
+        for grp in ((tot, te, gov, prime), (inst, ti, gi, pi), (ret, tr, gr, pr)):
+            t_, te_, g_, p_ = grp
+            tr_ = None if g_ is None else round(g_ * 0.37)
+            ta_ = None if g_ is None else g_ - tr_
+            for x in (t_, te_, g_, tr_, ta_, p_):
+                r += ['%d' % (100 + len(r)), None if x is None else float(x)]
+        rows.append(r)
+    if wstaw_kolumne:
+        rows = [r[:1] + [None] + r[1:] if r else r for r in rows]
+    return rows
+
+
+def _ici_mm_weeks(end='2026-09-23', n=20, seed=0):
+    e = datetime.date.fromisoformat(end)
+    out = []
+    for i in range(n):
+        d = (e - datetime.timedelta(days=7 * (n - 1 - i))).isoformat()
+        k = i + seed
+        out.append((d, _ici_mm_tydzien(gi=4400000 + 9000 * k, pi=240000 + 1300 * k, ti=13000 + 90 * (k % 5), gr=1950000 + 2100 * k, pr=980000 - 700 * k, tr=136000 + 250 * (k % 7))))
+    return out
+
+
+def _ici_mm_file(end='2026-09-23', n=20, seed=0, **kw):
+    return _ici_xls(_ici_mm_rows(_ici_mm_weeks(end, n, seed), **kw), sheet='Public Report')
+
+
+class IciMmV135(unittest.TestCase):
+    """v135: USA — aktywa funduszy rynku pieniężnego (część „mm” tego samego data/ici.json): parser po nazwach grup i typów (tylko TNA) z kontrolą
+    sum, zmiana wobec tygodnia dokładnie 7 i 28 dni wcześniej (luka = None), budowa razem z napływami (każda część osobno: 200 / 304 / 403 /
+    404 rok poprzedni / plik starszy), okno czwartkowe (18:00 UTC, co godzinę najwyżej 48 h), plik z v134 bez części „mm” = budowa po godzinie,
+    przebieg główny, kontrola dzienna (próg 10 dni, najwyżej ⚠️, sumy w grupach) i strona. Bez sieci: ici_http zaślepione; zegar przypięty."""
+    NOW = datetime.datetime(2026, 9, 27, 19, 40, tzinfo=datetime.timezone.utc)
+    NOWS = '2026-09-27T19:40:00+00:00'
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOWS))
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+
+    @staticmethod
+    def _lt(end='2026-09-16'):
+        return _ici_xls(_ici_lt_rows(_ici_weeks(end), _ici_months()))
+
+    def _http(self, odp):
+        calls = []
+
+        def f(url, lm=None):
+            calls.append((url, lm))
+            for frag, r in odp.items():
+                if frag in url:
+                    if isinstance(r, Exception):
+                        raise r
+                    return r
+            raise AssertionError('nieznany adres: ' + url)
+        return f, calls
+
+    @staticmethod
+    def _he(code):
+        return zd.urllib.error.HTTPError('https://www.ici.org/x.xls', code, 'x', {}, None)
+
+    def test_parser_aktywa_po_nazwach_sumy_i_luki(self):
+        W = _ici_mm_weeks()
+        p = zd.parse_ici_mm(zd.ici_arkusz(_ici_mm_file()))
+        self.assertEqual(p['weeks'], [[d] + v for d, v in W], 'dokładnie TNA z pliku (bez liczby klas i podtypów rządowych)')
+        self.assertEqual(p['asof'], '2026-09-23', 'tydzień z tytułu „9/23/2026”')
+        self.assertEqual(zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(W, wstaw_kolumne=True)))), p, 'dodatkowa kolumna — ten sam wynik')
+        L = list(W); L[5] = (L[5][0], L[5][1][:3] + [None] + L[5][1][4:8] + [None] + L[5][1][9:])   # brak zwolnionych z podatku (razem i instytucjonalne)
+        q = zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(L))))
+        self.assertEqual((q['weeks'][5][4], q['weeks'][5][9]), (None, None), 'pusta komórka = None, nigdy 0')
+        Z = list(W); Z[6] = (Z[6][0], Z[6][1][:11] + [0] + Z[6][1][12:])
+        self.assertIsNone(zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(Z))))['weeks'][6][12], 'zero aktywów = brak, nie zero')
+        with self.assertRaisesRegex(ValueError, 'TNA'):
+            zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(W, bez_tna=True))))
+        zle = list(W); v = list(zle[3][1]); v[5] += 40; v[0] += 40; v[1] += 40; zle[3] = (zle[3][0], v)   # detaliczne +40 bez zmiany typów w grupie detalicznej
+        with self.assertRaisesRegex(ValueError, 'nie sumują'):
+            zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(zle))))
+        zle2 = list(W); v = list(zle2[2][1]); v[0] += 50; zle2[2] = (zle2[2][0], v)   # razem ≠ instytucjonalne + detaliczne
+        with self.assertRaisesRegex(ValueError, 'nie sumują'):
+            zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(zle2))))
+        # każda tożsamość osobno (pozostałe spełnione): razem ≠ rządowe + prime + zwolnione; razem ≠ instytucjonalne + detaliczne (o 4 mln — ponad tolerancję 3)
+        z1 = list(W); v = list(z1[4][1]); v[1] += 50; z1[4] = (z1[4][0], v)
+        with self.assertRaisesRegex(ValueError, 'nie sumują'):
+            zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(z1))))
+        z2 = list(W); v = list(z2[4][1]); v[4] += 4; v[6] += 4; z2[4] = (z2[4][0], v)
+        with self.assertRaisesRegex(ValueError, 'nie sumują'):
+            zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(z2))))
+        z3 = list(W); v = list(z3[4][1]); v[4] += 3; v[6] += 3; v[0] += 0; z3[4] = (z3[4][0], v)
+        self.assertEqual(zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(z3))))['weeks'][4][5], v[4], 'różnica 3 mln (zaokrąglenia) przechodzi')
+        with self.assertRaisesRegex(ValueError, 'millions'):
+            zd.parse_ici_mm(zd.ici_arkusz(_ici_xls(_ici_mm_rows(W, jednostka='(billions of dollars)'))))
+        with self.assertRaisesRegex(ValueError, 'grupy'):
+            zd.parse_ici_mm(zd.ici_arkusz(_ici_xls([r if i != 4 else [x if x != 'RETAIL MONEY MARKET FUNDS' else None for x in r] for i, r in enumerate(_ici_mm_rows(W))])))
+        with self.assertRaisesRegex(ValueError, 'grupy'):
+            zd.parse_ici_mm(zd.ici_arkusz(self._lt()))
+        with self.assertRaisesRegex(ValueError, 'DATE'):
+            zd.parse_ici_mm([['x'], ['y']])
+
+    def test_zmiana_tylko_wobec_tygodnia_7_i_28_dni(self):
+        w = [['2026-08-26', 10, None], ['2026-09-02', 20, 5], ['2026-09-16', 40, 7], ['2026-09-23', 45, 9]]
+        self.assertEqual(zd.ici_chg(w, 7), [5, 2]); self.assertEqual(zd.ici_chg(w, 28), [35, None], 'kolumna z brakiem = None')
+        self.assertIsNone(zd.ici_chg(w[:-1], 7), 'luka (09.09) — brak zmiany, nie zmiana wobec dalszego tygodnia'); self.assertIsNone(zd.ici_chg([], 7))
+        o = zd.ici_mm(_ici_mm_file(), None)
+        self.assertEqual(o['d1w'], [a - b for a, b in zip(o['w'][-1][1:], o['w'][-2][1:])]); self.assertEqual(o['d4w'][0], o['w'][-1][1] - o['w'][-5][1])
+        self.assertEqual((o['week'], o['asof'], len(o['w']), o['cols']), ('2026-09-23', '2026-09-23', 20, list(zd.ICI_MM_COLS)))
+
+    @unittest.skipUnless(os.environ.get('ICI_PROBE_DIR') and os.path.isfile(os.path.join(os.environ.get('ICI_PROBE_DIR', ''), 'mm_summary_data_2026.xls')),
+                         'prawdziwe pliki wydawcy tylko lokalnie (ICI_PROBE_DIR poza repozytorium)')
+    def test_prawdziwy_plik_lokalnie(self):
+        with open(os.path.join(os.environ['ICI_PROBE_DIR'], 'mm_summary_data_2026.xls'), 'rb') as fh:
+            o = zd.ici_mm(fh.read(), None)
+        self.assertEqual(o['w'][-1][:7], ['2026-09-23', 7936481, 6530983, 1251420, 154078, 4823830, 3112650])
+        self.assertEqual(o['d1w'][:6], [15000, 390, 10950, 3661, 15256, -256], 'tekst wydania: +15,00 mld razem, +389 mln rządowe (zaokrąglenie), −256 mln detaliczne')
+        self.assertEqual(o['d4w'][:3], [1888, -16481, 14174]); self.assertEqual((len(o['w']), o['asof']), (20, '2026-09-23'))
+
+    def test_build_obie_czesci_i_czesc_z_bledem(self):
+        self.assertEqual(zd.ICI_PARTS, ('lt', 'mm')); self.assertEqual(zd.ICI_PUB['mm'], (3, 18, 1))
+        f, calls = self._http({'combined_flows_data_2026': (200, self._lt(), 'lm-lt'), 'mm_summary_data_2026': (200, _ici_mm_file(), 'lm-mm')})
+        with mock.patch.object(zd, 'ici_http', side_effect=f):
+            o = zd.build_ici(None, now=self.NOW)
+        self.assertEqual([c[0] for c in calls], ['https://www.ici.org/combined_flows_data_2026.xls', 'https://www.ici.org/mm_summary_data_2026.xls'])
+        self.assertEqual((o['ok'], o['lm'], o['part_at']), ({'lt': True, 'mm': True}, {'lt': 'lm-lt', 'mm': 'lm-mm'}, {'lt': self.NOWS, 'mm': self.NOWS}))
+        self.assertEqual((o['lt']['week'], o['mm']['week']), ('2026-09-16', '2026-09-23')); self.assertIn('mm_summary_data', o['src'])
+        self.assertEqual(zd.META['notes'], []); json.dumps(o)
+        # rynek pieniężny 403 — napływy dalej, poprzednia część mm z jej czasem, notatka (nie błąd)
+        prev = dict(o, part_at={'lt': '2026-09-27T10:00:00+00:00', 'mm': '2026-09-26T10:00:00+00:00'})
+        f, calls = self._http({'combined_flows_data_2026': (304, b'', 'lm-lt'), 'mm_summary_data_2026': self._he(403)})
+        with mock.patch.object(zd, 'ici_http', side_effect=f):
+            o2 = zd.build_ici(prev, now=self.NOW)
+        self.assertEqual(calls, [('https://www.ici.org/combined_flows_data_2026.xls', 'lm-lt'), ('https://www.ici.org/mm_summary_data_2026.xls', 'lm-mm')])
+        self.assertEqual(o2['ok'], {'lt': True, 'mm': False}); self.assertIs(o2['mm'], prev['mm']); self.assertEqual(o2['part_at']['mm'], '2026-09-26T10:00:00+00:00')
+        self.assertEqual(zd.META['errors'], []); self.assertTrue(zd.META['notes'][0].startswith('Fundusze USA: rynek pieniężny: HTTP Error 403'), zd.META['notes'])
+        # tylko rynek pieniężny bez poprzedniego pliku — plik powstaje (napływy z błędem), oba zawodzą — wyjątek
+        zd.META['notes'].clear()
+        f, _ = self._http({'combined_flows_data_2026': self._he(403), 'mm_summary_data_2026': (200, _ici_mm_file(), 'lm-mm')})
+        with mock.patch.object(zd, 'ici_http', side_effect=f):
+            o3 = zd.build_ici(None, now=self.NOW)
+        self.assertEqual(o3['ok'], {'lt': False, 'mm': True}); self.assertNotIn('lt', o3); self.assertTrue(zd.ici_ma_dane(o3))
+        f, _ = self._http({'combined_flows_data_2026': self._he(403), 'mm_summary_data_2026': (200, b'<html>x</html>', 'x')})
+        with mock.patch.object(zd, 'ici_http', side_effect=f), self.assertRaisesRegex(RuntimeError, 'rynek pieniężny: to nie plik .xls'):
+            zd.build_ici(None, now=self.NOW)
+        # rok poprzedni po 404 i stary plik rynku pieniężnego
+        f, calls = self._http({'combined_flows_data_2027': self._he(404), 'combined_flows_data_2026': (200, self._lt('2026-12-30'), 'a'),
+                               'mm_summary_data_2027': self._he(404), 'mm_summary_data_2026': (200, _ici_mm_file('2026-12-30'), 'b')})
+        with mock.patch.object(zd, 'ici_http', side_effect=f):
+            o4 = zd.build_ici(None, now=datetime.datetime(2027, 1, 7, 20, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual([c[0].rsplit('/', 1)[1] for c in calls], ['combined_flows_data_2027.xls', 'combined_flows_data_2026.xls', 'mm_summary_data_2027.xls', 'mm_summary_data_2026.xls']); self.assertEqual(o4['mm']['week'], '2026-12-30')
+        f, _ = self._http({'combined_flows_data_2026': (304, b'', 'lm-lt'), 'mm_summary_data_2026': (200, _ici_mm_file('2026-09-16'), 'stary')})
+        with mock.patch.object(zd, 'ici_http', side_effect=f):
+            o5 = zd.build_ici(o, now=self.NOW)
+        self.assertIs(o5['mm'], o['mm']); self.assertEqual(o5['lm']['mm'], 'lm-mm'); self.assertTrue(any('rynek pieniężny: plik starszy niż zapisany' in n for n in zd.META['notes']))
+
+    def test_poprawka_aktywow_i_historia(self):
+        a = zd.ici_mm(_ici_mm_file('2026-09-16'), None)
+        W = _ici_mm_weeks('2026-09-23')
+        d0 = dict(_ici_mm_weeks('2026-09-16'))
+        W = [(d, d0.get(d, v)) for d, v in W]
+        v = list(W[-2][1]); v[0] += 2500; v[4] += 2500; v[6] += 2500; v[1] += 2500; W[-2] = (W[-2][0], v)   # 16.09: rządowe instytucjonalne +2,5 mld
+        b = zd.ici_mm(_ici_xls(_ici_mm_rows(W)), a)
+        self.assertEqual((b['week'], len(b['w']), b['rv']), ('2026-09-23', 21, ['2026-09-16'])); self.assertEqual(b['w'][0], a['w'][0], 'najstarszy tydzień zostaje')
+        self.assertEqual(b['rev'], {'week': '2026-09-16', 'old': a['w'][-1][1], 'new': a['w'][-1][1] + 2500})
+        self.assertEqual(b['d1w'][0], b['w'][-1][1] - b['w'][-2][1], 'zmiana tygodnia liczona z poprawionego tygodnia')
+
+    def test_tydzien_przesuniety_przez_swieto(self):
+        # Święto Dziękczynienia (czw. 26.11.2026): wydawca podaje tydzień do wtorku 24.11 (w środę); następny tydzień znów do środy 2.12
+        U = datetime.timezone.utc
+        T = lambda *a: datetime.datetime(*a, tzinfo=U)   # noqa: E731
+        W = _ici_mm_weeks('2026-11-18', 12)
+        W = W + [('2026-11-24', _ici_mm_tydzien(4600000, 255000, 13300, 1990000, 960000, 137000))]
+        f, _ = self._http({'combined_flows_data_2026': (200, self._lt('2026-11-18'), 'a'), 'mm_summary_data_2026': (200, _ici_xls(_ici_mm_rows(W)), 'b')})
+        now = T(2026, 11, 26, 19, 0)
+        with mock.patch.object(zd, 'ici_http', side_effect=f), mock.patch.object(zd, 'NOW', now.isoformat()):
+            o = zd.build_ici(None, now=now)
+        m = o['mm']
+        self.assertEqual((m['week'], m['d1w_od'], m['d4w_od']), ('2026-11-24', '2026-11-18', '2026-10-28'), 'zmiana wobec rzeczywistego poprzedniego tygodnia (6 dni) i 4 tygodni (27 dni)')
+        self.assertEqual(m['d1w'][0], W[-1][1][0] - W[-2][1][0]); self.assertEqual(m['d4w'][0], W[-1][1][0] - dict(W)['2026-10-28'][0])
+        self.assertEqual(zd.META['notes'], [], 'tydzień do wtorku = tydzień jest — bez notatki o spóźnieniu')
+        self.assertFalse(zd.ici_odswiez(o, T(2026, 11, 26, 20, 30)), 'bez godzinnego pytania o „brakujący” tydzień 25.11')
+        with mock.patch.object(zd, 'ici_http', side_effect=f), mock.patch.object(zd, 'NOW', '2026-11-28T19:30:00+00:00'):
+            zd.build_ici(dict(o, at='2026-11-28T06:00:00+00:00'), now=T(2026, 11, 28, 19, 30))   # po 48 h — nadal bez notatki o spóźnieniu
+        self.assertFalse(any('spóźniona' in n for n in zd.META['notes']), zd.META['notes'])
+        nxt = W + [('2026-12-02', _ici_mm_tydzien(4610000, 256000, 13310, 1991000, 961000, 137100))]
+        p = zd.ici_mm(_ici_xls(_ici_mm_rows(nxt)), m)
+        self.assertEqual((p['d1w_od'], p['d1w'][0]), ('2026-11-24', nxt[-1][1][0] - nxt[-2][1][0]), 'następny tydzień: krok 8 dni, z datą bazy')
+        self.assertEqual(p['d4w_od'], '2026-11-04')
+        self.assertIsNone(zd.ici_chg([['2026-11-14', 1], ['2026-11-24', 2]], 7), '10 dni — poza tolerancją 2 dni: brak zmiany')
+        self.assertEqual(zd.ici_chg([['2026-11-16', 1], ['2026-11-18', 5], ['2026-11-25', 9]], 7), [4], 'dokładnie 7 dni wygrywa z 9')
+        self.assertEqual(zd.ici_chg([['2026-11-17', 1], ['2026-11-19', 5], ['2026-11-25', 9]], 7), [8], 'remis (6 i 8 dni) — wcześniejszy tydzień')
+
+    def test_harmonogram_czwartek_i_plik_bez_czesci(self):
+        U = datetime.timezone.utc
+        T = lambda *a: datetime.datetime(*a, tzinfo=U)   # noqa: E731
+        self.assertEqual(zd.ici_oczekiwany(T(2026, 10, 1, 17, 59), 'mm'), ('2026-09-23', T(2026, 9, 24, 18)), 'czwartek przed 18:00 UTC')
+        self.assertEqual(zd.ici_oczekiwany(T(2026, 10, 1, 18, 1), 'mm'), ('2026-09-30', T(2026, 10, 1, 18)), 'czwartek po 18:00 UTC')
+        self.assertEqual(zd.ici_oczekiwany(T(2026, 11, 26, 19, 0), 'mm')[0], '2026-11-25', 'Święto Dziękczynienia: oczekiwany ten sam tydzień — okno 48 h')
+        row_lt = ['2026-09-23', 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        P = lambda at, mm_week, ok_mm=True: {'at': at, 'ok': {'lt': True, 'mm': ok_mm}, 'lt': {'week': '2026-09-23', 'w': [row_lt]},   # noqa: E731
+                                             'mm': {'week': mm_week, 'w': [[mm_week] + [1] * 12]}}
+        thu = T(2026, 10, 1, 20, 30)
+        self.assertTrue(zd.ici_odswiez(P('2026-10-01T19:00:00+00:00', '2026-09-23'), thu), 'czwartek po publikacji, stary tydzień rynku pieniężnego — co godzinę')
+        self.assertFalse(zd.ici_odswiez(P('2026-10-01T19:00:00+00:00', '2026-09-30'), thu), 'nowy tydzień już jest')
+        self.assertFalse(zd.ici_odswiez(P('2026-10-03T17:00:00+00:00', '2026-09-23'), T(2026, 10, 3, 18, 30)), 'po 48 h znów co 12 h')
+        self.assertTrue(zd.ici_odswiez(P('2026-10-01T19:00:00+00:00', '2026-09-30', ok_mm=False), thu), 'część z błędem — po godzinie')
+        v134 = {'at': '2026-10-01T19:00:00+00:00', 'ok': {'lt': True}, 'lt': {'week': '2026-09-23', 'w': [row_lt]}}
+        self.assertTrue(zd.ici_odswiez(v134, thu), 'plik z v134 (bez części mm) — budowa najwcześniej po godzinie')
+        self.assertFalse(zd.ici_odswiez(v134, T(2026, 10, 1, 19, 30)))
+
+    def test_main_ok_tylko_z_obiema_czesciami(self):
+        saved = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_ici' and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
+        old = {'at': '2026-09-27T06:00:00+00:00', 'ok': {'lt': True}, 'lt': {'week': '2026-09-16', 'w': [['2026-09-16'] + [1] * 9]}}
+        [p.start() for p in stubs]
+        try:
+            for built, want in (({'ok': {'lt': True, 'mm': True}}, True), ({'ok': {'lt': True, 'mm': False}}, False), ({'ok': {'lt': True}}, False)):
+                with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                     mock.patch.object(zd, 'previous', lambda name: old if name == 'ici' else None), mock.patch.object(zd, 'build_ici', return_value=built):
+                    zd.main()
+                self.assertIs(zd.META['ok']['ici'], want, built)
+        finally:
+            [p.stop() for p in stubs]
+
+    def test_kontrola_rynek_pieniezny(self):
+        spec = importlib.util.spec_from_file_location('v135_k', os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        j = {'at': self.NOWS, 'ok': {'lt': True, 'mm': True}, 'lt': zd.ici_lt(self._lt(), None), 'mm': zd.ici_mm(_ici_mm_file(), None)}
+        lab = 'Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek)'
+        R = lambda now: dict((r[0], r) for r in K.ici_swiezosc(j, now))[lab]   # noqa: E731
+        self.assertEqual(R(datetime.datetime(2026, 10, 1, 6, 20, tzinfo=datetime.timezone.utc))[1:4], ('✅', 7 * 1440 + 6 * 60 + 20, '2026-09-23'))
+        self.assertEqual(R(datetime.datetime(2026, 10, 3, 6, 20, tzinfo=datetime.timezone.utc))[1], '✅', 'publikacja spóźniona o dobę — w normie')
+        self.assertEqual(R(datetime.datetime(2026, 10, 5, 6, 20, tzinfo=datetime.timezone.utc))[1], '⚠️', 'ponad 10 dni — uwaga')
+        self.assertEqual(R(datetime.datetime(2027, 1, 5, tzinfo=datetime.timezone.utc))[1], '⚠️', 'nigdy ❌')
+        self.assertEqual(len(K.ici_swiezosc(j, self.NOW)), 2); self.assertEqual(K.ICI_PROG['mm'], 10 * 24 * 60)
+        self.assertEqual({k: s['status'] for k, s in K.ici_sumy(j).items()}, {'lt': '✅', 'mm': '✅'})
+        tylko_inst = json.loads(json.dumps(j)); tylko_inst['mm']['w'][-1][8] += 40   # rządowe instytucjonalne +40 (grupa nie sumuje się; reszta reguł spełniona)
+        self.assertEqual(K.ici_sumy(tylko_inst)['mm']['status'], '⚠️', 'tylko reguła „instytucjonalne = suma typów” niespełniona')
+        tylko_ret = json.loads(json.dumps(j)); tylko_ret['mm']['w'][-1][11] += 40
+        self.assertEqual(K.ici_sumy(tylko_ret)['mm']['status'], '⚠️', 'tylko reguła „detaliczne = suma typów” niespełniona')
+        zly = json.loads(json.dumps(j)); zly['mm']['w'][-1][5] += 40   # inst ≠ suma typów instytucjonalnych i razem ≠ inst + ret
+        Ru = {'uwagi': []}; z = K.ici_kontrola(zly, Ru)
+        self.assertEqual(z['sumy']['mm']['status'], '⚠️'); self.assertEqual(len(Ru['uwagi']), 1); self.assertIn('rynek pieniężny', Ru['uwagi'][0])
+        RR = {'at': '2026-09-28T06:20:00+00:00', 'wynik': 'UWAGA', 'uwagi': ['x'], 'bledy': [], 'meta': {}, 'strona': {}, 'actions': {}, 'pliki': {}, 'swiezosc': [], 'zgodnosc': {'ici': z}}
+        md = K.raport_md(RR)
+        self.assertTrue(md.startswith('# Kontrola strony — 28.09.2026, 08:20 (czas polski)\n\n**Wynik: UWAGA**\n'))
+        self.assertIn('napływy 2026-09-16: ✅', md); self.assertIn('rynek pieniężny 2026-09-23: ⚠️', md)
+        k = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertLess(k.index("ICI_OPIS = {'lt':"), k.index("ICI_ETYKIETA['mm'] ="))
+
+    def test_kod_i_strona(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        a = src.index('# ===================== v135: USA — fundusze rynku pieniężnego')
+        b = min(i for i in (src.find('\n# =====', a + 1), src.find('\ndef main():', a + 1)) if i > 0)
+        blk = src[a:b]
+        self.assertIn('def parse_ici_mm(', blk); self.assertNotIn('KEY', blk); self.assertNotIn('os.environ', blk)
+        self.assertTrue(src.index('def build_ici(') < a < src.index('# ===================== v131: FED'), 'zaraz po bloku v134')
+        h = open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8').read()
+        self.assertIn('const EXTRA144=', h); self.assertEqual(h.count('id="g-fund"'), 1, 'ten sam panel')
+        self.assertTrue(h.index('function fndBody(') < h.index('FND_EXT.push(') < h.index('/* ===================== v98: USA — energia'))
