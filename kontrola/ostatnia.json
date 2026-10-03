@@ -1,21 +1,22 @@
 {
- "at": "2026-10-03T06:49:16+00:00",
+ "at": "2026-10-03T06:59:26+00:00",
  "strona": {
   "http": 200,
-  "bajty": 2901142,
-  "ms": 87,
+  "bajty": 2945627,
+  "ms": 903,
   "ok": true
  },
  "meta": {
-  "at": "2026-10-03T06:44:47+00:00",
+  "at": "2026-10-03T06:54:53+00:00",
   "wiek_min": 4,
-  "zrodla": 61,
+  "zrodla": 62,
   "bez_odpowiedzi": [],
   "errors": [],
   "notes": [
    "poprzedni insider.json: brak na stronie (404)",
    "brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni",
    "Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta)",
+   "poprzedni fed.json: brak na stronie (404)",
    "poprzedni swiat-dziennik.json: brak na stronie (404)"
   ]
  },
@@ -23,7 +24,7 @@
   "etf": {
    "http": 200,
    "bajty": 9834,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
@@ -35,109 +36,115 @@
   "oecd": {
    "http": 200,
    "bajty": 19213,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
    "bajty": 17053,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
-   "bajty": 28585,
+   "bajty": 28657,
    "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 181149,
+   "bajty": 181259,
    "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
    "bajty": 8913,
-   "wiek_min": 286,
+   "wiek_min": 296,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 4941,
-   "wiek_min": 286,
+   "wiek_min": 296,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
    "bajty": 25683,
-   "wiek_min": 704,
+   "wiek_min": 714,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
    "bajty": 38837,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
    "bajty": 12698,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
    "http": 200,
    "bajty": 28118,
-   "wiek_min": 526,
+   "wiek_min": 536,
    "czesci_bez_odpowiedzi": []
   },
   "cm": {
    "http": 200,
    "bajty": 79927,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "fred": {
    "http": 200,
    "bajty": 13070,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "cftc": {
    "http": 200,
    "bajty": 19411,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "ceny": {
    "http": 200,
    "bajty": 105245,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "indeksy": {
    "http": 200,
    "bajty": 170783,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "ceny-krypto": {
    "http": 200,
    "bajty": 196931,
-   "wiek_min": 47,
+   "wiek_min": 57,
    "czesci_bez_odpowiedzi": []
   },
   "snb": {
    "http": 200,
    "bajty": 10145,
-   "wiek_min": 600,
+   "wiek_min": 610,
+   "czesci_bez_odpowiedzi": []
+  },
+  "fed": {
+   "http": 200,
+   "bajty": 14453,
+   "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
   "lancuch": {
    "http": 200,
    "bajty": 9379,
-   "wiek_min": 4,
+   "wiek_min": 14,
    "czesci_bez_odpowiedzi": []
   },
   "insider": {
@@ -146,18 +153,18 @@
   "stres": {
    "http": 200,
    "bajty": 9326,
-   "wiek_min": 286,
+   "wiek_min": 296,
    "czesci_bez_odpowiedzi": []
   },
   "aukcje": {
    "http": 200,
    "bajty": 11680,
-   "wiek_min": 286,
+   "wiek_min": 296,
    "czesci_bez_odpowiedzi": []
   },
   "swiat-dzien": {
    "http": 200,
-   "bajty": 6342123,
+   "bajty": 6519019,
    "wiek_min": 4,
    "czesci_bez_odpowiedzi": []
   },
@@ -194,7 +201,7 @@
   "wg_wyniku": {
    "success": 76
   },
-  "ostatni": "2026-10-03T06:44:09Z",
+  "ostatni": "2026-10-03T06:54:19Z",
   "ostatnia_porazka": null,
   "porazki_z_rzedu": 0,
   "udane_po_porazce": null,
@@ -204,7 +211,7 @@
   {
    "zrodlo": "rynki (kursy EBC, rentowności)",
    "status": "✅",
-   "wiek_min": 47,
+   "wiek_min": 57,
    "data": "2026-10-03T06:01:28+00:00",
    "uwaga": ""
   },
@@ -212,13 +219,13 @@
    "zrodlo": "wieloryby (salda portfeli giełd)",
    "status": "✅",
    "wiek_min": 4,
-   "data": "2026-10-03T06:44:47+00:00",
+   "data": "2026-10-03T06:54:53+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "dźwignia (giełdy pochodnych)",
    "status": "✅",
-   "wiek_min": 47,
+   "wiek_min": 57,
    "data": "2026-10-03T06:01:28+00:00",
    "uwaga": ""
   },
@@ -246,64 +253,71 @@
   {
    "zrodlo": "EIA ceny dzienne (publikowane co tydzień)",
    "status": "✅",
-   "wiek_min": 4729,
+   "wiek_min": 4739,
    "data": "2026-09-29",
    "uwaga": ""
   },
   {
    "zrodlo": "CFTC (raport tygodniowy)",
    "status": "✅",
-   "wiek_min": 4729,
+   "wiek_min": 4739,
    "data": "2026-09-29",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED tygodniowe (WALCL)",
    "status": "✅",
-   "wiek_min": 3289,
+   "wiek_min": 3299,
    "data": "2026-09-30",
    "uwaga": ""
   },
   {
    "zrodlo": "TIC (miesięcznie)",
    "status": "✅",
-   "wiek_min": 91129,
+   "wiek_min": 91139,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "OECD (miesięcznie)",
    "status": "✅",
-   "wiek_min": 46489,
+   "wiek_min": 46499,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "BLS (miesięcznie)",
    "status": "✅",
-   "wiek_min": 46489,
+   "wiek_min": 46499,
    "data": "2026-08",
+   "uwaga": ""
+  },
+  {
+   "zrodlo": "szanse decyzji Fed (rynek zakładów)",
+   "status": "✅",
+   "wiek_min": 4,
+   "data": "2026-10-03T06:55:20+00:00",
    "uwaga": ""
   }
  ],
  "zgodnosc": {
   "kapitalizacja": {
    "status": "✅",
-   "dzis_pct": 4.185,
+   "dzis_pct": 4.15,
    "mediana_pct": 4.35,
    "dni": 7,
-   "opis": "odchylenie od mediany 0.17 pkt proc. (progi 2 / 5)"
+   "opis": "odchylenie od mediany 0.20 pkt proc. (progi 2 / 5)"
   },
   "ceny": {
    "bitcoin": {
-    "a": 84622.0,
-    "b": 84619.91231078006,
-    "roznica_pct": 0.002
+    "a": 84562.0,
+    "b": 84571.30941533735,
+    "roznica_pct": 0.011
    },
    "ethereum": {
-    "a": 2678.21,
-    "b": 2678.607788022775,
-    "roznica_pct": 0.015
+    "a": 2678.98,
+    "b": 2680.692982913771,
+    "roznica_pct": 0.064
    }
   },
   "tga": {
@@ -405,7 +419,7 @@
      "zaleglosc": 0,
      "strona_do": null,
      "nieaktualny": false,
-     "ms": 701
+     "ms": 542
     },
     "ETHA": {
      "status": "✅",
@@ -420,7 +434,7 @@
      "zaleglosc": 0,
      "strona_do": null,
      "nieaktualny": false,
-     "ms": 323
+     "ms": 618
     }
    },
    "zapis_dni": 1,
@@ -433,6 +447,6 @@
   "wieloryby: zmiana salda ≠ przelewy netto (> 5%) dla Binance ETH, Bitfinex ETH, Bitfinex USDT, Bybit ETH, Bybit USDC, Bybit USDT — możliwe przelewy spoza zakresu skanu (< 1 mln USD, ETH przez kontrakty)"
  ],
  "bledy": [],
- "historia_n": 17,
+ "historia_n": 18,
  "wynik": "UWAGA"
 }
