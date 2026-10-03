@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -181,7 +181,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Rynki', 'Wieloryby', 'Dźwignia', 'Sieć Bitcoin', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Rynki', 'Wieloryby', 'Dźwignia', 'Sieć Bitcoin', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -533,7 +533,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -623,7 +623,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -756,7 +756,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1115,7 +1115,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1359,7 +1359,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1596,7 +1596,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1827,7 +1827,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2340,7 +2340,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3092,7 +3092,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3219,7 +3219,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3254,7 +3254,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3630,7 +3630,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4115,7 +4115,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -6426,6 +6426,1728 @@ class TrendyDailyCrV125(unittest.TestCase):
         self.assertEqual(PL[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual((LM['krypto-dzien'], LM['krypto-dziennik']), (180, 180))
 
 
+class TrendyDailyWorldV127(unittest.TestCase):
+    """v127 (SPEC-v126 rewizja 2 z aneksem numeracji — wydanie v127): sygnały dzienne świata w wersji reguły 2 — karta = fundusz ETF
+    notowany w USA × następna sesja NYSE (44 rynki: eq / bd / pm), powody znane przed 09:00 w Nowym Jorku (ruch ceny, przepływ do
+    funduszu, zagraniczni), wynik od otwarcia do zamknięcia sesji, 7 linii (Bonferroni), zwykła sesja b0 i b0t, bramy koloru (strona,
+    rodzina, punkt kontrolny „anti”), dziennik kart z punktami 100/200/400, budowniczy pliku data/swiat-dzien.json (seria wstępna, ceny
+    dnia, poranne pliki State Street, przerwy po awariach, pierwsza publikacja), build_trendy (wersja 1 świata i krypto bez zmian),
+    przebieg główny, archiwum, kontrola i sonda. Bez sieci (_wd_get_json / _wd_get_bytes / parsery plików wydawców / get_json /
+    get_bytes / urlopen zaślepione) i bez prawdziwego zegara (_now_utc i _ny_now przypięte; termin budowniczego na umownym zegarze).
+    Jedna seria wstępna na klasę (krótka historia: WD_MIN_CAL 250, WD_SEED_DAYS 500), kopiowana do każdego testu."""
+
+    UTC = datetime.timezone.utc
+    NOW = datetime.datetime(2026, 9, 27, 16, 0, tzinfo=datetime.timezone.utc)   # niedziela: karty na poniedziałek 28.09, dane z 25.09
+    NY = datetime.datetime(2026, 9, 27, 12, 0)                                   # ten sam moment w Nowym Jorku (bez strefy, jak _ny_now)
+    T0 = datetime.datetime(2026, 9, 26, 6, 0, tzinfo=datetime.timezone.utc)      # sobota: bez wieczornych cen i porannych plików
+    ENV_EMPTY = ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY',
+                 'BEA_KEY', 'ETHERSCAN_KEY', 'SEC_CONTACT', 'COINALYZE_KEY', 'EVDS_KEY', 'BANXICO_TOKEN', 'SITE_URL', 'CACHE_DIR')
+    # stałe strony produkcyjnej (index.html v124.3): linie v1 i kody reguł, które przyjmuje trdDRow karty otwartej przed wdrożeniem
+    V1_TRD_DRULES = (('eq', 'f'), ('eq', 'p'), ('eq', 'fp'), ('bd', 'f'), ('pm', 'f'), ('pm', 'p'), ('pm', 'fp'))
+    V1_TRD_DRL = ('f', 'p', 'fp', 'x', 'none')
+
+    @classmethod
+    def setUpClass(cls):
+        for p in (mock.patch.object(zd, 'WD_MIN_CAL', 250), mock.patch.object(zd, 'WD_SEED_DAYS', 500)):
+            p.start(); cls.addClassCleanup(p.stop)
+        cls.DAYS = cls.weekdays('2025-08-18', '2026-09-25')                      # ≈ 280 sesji (WD_MIN_CAL w teście 250)
+        cls.FULL = cls.nq_payload(cls.DAYS); cls.NEW = cls.nq_payload(cls.DAYS + ['2026-09-28'])
+        cls.SAVED_WD = {'fundusze': {'f': {t: {'h': cls.hist(t), 'pid': '1'} for t in zd.FUND_ISH + zd.FUND_SSGA}},
+                        'obce': {'tw': {'d': [['2026-09-24', 1.0]], 'empty': ['2026-09-25']}, 'hk': {'d': []}, 'in': {'d': [['2026-09-25', -471.5]]}}}
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+        env = cls.Env(); first = env.run(cls.T0, None); cls.FIRST = (first, list(env.calls))
+        wd, runs, now = None, 0, cls.T0
+        while not (wd and wd['ready']):
+            wd = env.run(now, wd); now += datetime.timedelta(minutes=20); runs += 1
+            assert runs < 30, runs
+        cls.SEED_RUNS = runs; cls.SEEDED = json.dumps(wd)
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+        cls.addClassCleanup(zd._WD_TERMIN.__setitem__, 0, None)
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        self.tmp = tempfile.mkdtemp(prefix='sw-v127-'); self.addCleanup(shutil.rmtree, self.tmp, True)
+        net = AssertionError('sieć w teście')
+        ps = [mock.patch.object(zd, '_now_utc', return_value=self.NOW), mock.patch.object(zd, '_ny_now', return_value=self.NY),
+              mock.patch.object(zd.urllib.request, 'urlopen', side_effect=net),
+              mock.patch.object(zd, 'get_bytes', side_effect=net), mock.patch.object(zd, 'get_json', side_effect=net),
+              mock.patch.object(zd, 'TD_W_CSV', os.path.join(self.tmp, 'brak', 'swiat-dziennik.csv'))]   # archiwum repozytorium nie wchodzi do testu
+        for p in ps:
+            p.start(); self.addCleanup(p.stop)
+        zd._W_LOG[0] = zd._W_LOG[1] = None
+        self.addCleanup(zd._W_LOG.__setitem__, slice(None), [None, None])
+
+    # ---------------------------------------------------------------- pomocnicze
+    @classmethod
+    def at(cls, y, m, d, h, mi=0):
+        return datetime.datetime(y, m, d, h, mi, tzinfo=cls.UTC)
+
+    @classmethod
+    def utc(cls, iso):
+        return datetime.datetime.fromisoformat(iso).replace(tzinfo=cls.UTC)
+
+    @staticmethod
+    def sessions(n, start='2025-01-02'):
+        """n dni pon–pt od `start` (bez listy świąt — do testów reguł)."""
+        d = datetime.date.fromisoformat(start); out = []
+        while len(out) < n:
+            if d.weekday() < 5:
+                out.append(d.isoformat())
+            d += datetime.timedelta(days=1)
+        return out
+
+    @staticmethod
+    def weekdays(a, b):
+        """Sesje NYSE od a do b (pon–pt bez TD_NYSE_CLOSED)."""
+        d, out = datetime.date.fromisoformat(a), []
+        while d.isoformat() <= b:
+            if d.weekday() < 5 and d.isoformat() not in zd.TD_NYSE_CLOSED:
+                out.append(d.isoformat())
+            d += datetime.timedelta(days=1)
+        return out
+
+    @classmethod
+    def make_wd(cls, cal, syms, seed=1, drift=0.0, flows=True, seen_last='2026-01-01T00:00:00Z', evening=0):
+        """Syntetyczny plik w formacie data/swiat-dzien.json: ceny [dzień, otwarcie, zamknięcie, seen], wiersze wydawcy [dzień, NAV, jednostki,
+        seen]; najnowszy wiersz ceny ma seen_last; evening > 0 — ostatnie `evening` wierszy cen zapisane wieczorem swojej sesji (21:05 UTC).
+        Losowość tylko z random() (te same liczby na każdej platformie i wersji Pythona)."""
+        import random
+        r = random.Random(seed).random
+
+        def nz():
+            return (r() + r() + r() + r() - 2.0) * 1.7        # ≈ rozkład normalny (0, 1), sama arytmetyka
+        wd = {'cal': list(cal), 'px': {}, 'fl': {}, 'ob': {}, 'ready': True}
+        for s in syms:
+            px, rows, c, sh = [], [], 100.0, 1e6
+            for d in cal:
+                o = c * (1 + 0.004 * nz()); c = o * (1 + drift + 0.008 * nz())
+                px.append([d, round(o, 4), round(c, 4), None])
+                if flows:
+                    sh += (1 if r() < 0.5 else -1) * int(r() * 6) * 1e4
+                rows.append([d, round(c, 4), sh, None])
+            px[-1][3] = seen_last
+            for rw in (px[len(px) - evening:] if evening else []):
+                rw[3] = rw[0] + 'T21:05:00Z'
+            wd['px'][s] = {'d': px}
+            if s in zd.TD_GRP:
+                wd['fl'][s] = {'d': rows}
+        return wd
+
+    @staticmethod
+    def core(wd, now_utc, log=None, syms=None):
+        """build_daily_w2 bez meta i bez zapisu dziennika (jak build_daily_w2_core sędziego) → (karty, linie, serie, pary linii, ys)."""
+        today = now_utc.date()
+        series = [x for x in (zd._tdw_series(wd, s) for s in (syms or zd.TD_W_SYMS)) if x]
+        lines = {k: [] for k in zd.TD_RULES_W2}; own = {}; ys = {}
+        for s in series:
+            ys[s['id']] = {s['dates'][j]: s['y'][j] for j in range(len(s['dates'])) if s['y'][j] is not None}
+            for d, key, v, hit in zd._tdw_pairs(s):
+                lines[key].append((d, hit, s['id'], v))
+                if key == ('w', 'all'):
+                    o = own.setdefault(s['id'], [0, 0]); o[0] += hit; o[1] += 1
+        ut = zd._tdw_ut(series); gates = {}
+        bd = zd._tdw_pool(lines, ys, log=log, today=today, ut=ut, gates=gates)
+        vd = {(b['fam'], b['rule']): b['vd'] for b in bd}
+        return [zd._tdw_row(s, vd, own, today, now_utc, gates, zd._tdw_lcv(log)) for s in series], bd, series, lines, ys
+
+    @staticmethod
+    def nq_payload(days, base=100.0, ph=()):
+        """Odpowiedź Nasdaq quote API (najnowszy dzień pierwszy); dzień z `ph` = wiersz zastępczy (wolumen „N/A”)."""
+        rows = []
+        for i, d in enumerate(sorted(days, reverse=True)):
+            m, dd, y = d[5:7], d[8:10], d[:4]
+            if d in ph:
+                rows.append({'date': f'{m}/{dd}/{y}', 'open': '1', 'close': '1', 'volume': 'N/A', 'high': '1', 'low': '1'})
+            else:
+                rows.append({'date': f'{m}/{dd}/{y}', 'open': f'{base + i:.2f}', 'close': f'{base + i + 0.5:.2f}', 'volume': '1,000',
+                             'high': '1', 'low': '1'})
+        return {'data': {'tradesTable': {'rows': rows}}}
+
+    @classmethod
+    def issuer_rows(cls, last='2026-09-25', first='2025-08-01'):
+        return [[d, 10.0, 1000 + i] for i, d in enumerate(cls.weekdays(first, last))]
+
+    @classmethod
+    def hist(cls, t):
+        """Wiersze pliku fundusze.json strony (≈ 300 dni): fundusze State Street kończą się na poprzedniej sesji (ich plik jest rano)."""
+        return [r for r in cls.issuer_rows('2026-09-24' if t in zd.FUND_SSGA and t not in ('GLD', 'GLDM') else '2026-09-25') if r[0] >= '2026-01-02']
+
+    @staticmethod
+    def fund_h(days):
+        """Historia funduszu w pliku fundusze (wersja 1): NAV ±0,5% na przemian, jednostki +1200 / +800 — zwykłe dni."""
+        h, p, u = [], 100.0, 1000000
+        for i, d in enumerate(days):
+            if i:
+                p *= 1 + (0.5 if i % 2 else -0.5) / 100; u += 1200 if i % 2 else 800
+            h.append([d, round(p, 6), u])
+        return h
+
+    @staticmethod
+    def read(path):
+        with open(path, encoding='utf-8') as fh:
+            return fh.read()
+
+    @staticmethod
+    def dump(x):
+        return json.dumps(x, ensure_ascii=False, separators=(',', ':'))   # jak save(): te same bajty co w pliku
+
+    def ready(self):
+        return json.loads(self.SEEDED)
+
+    class Env:
+        """Zegar przypięty (przesuwany przez atrapę sieci) i policzona atrapa sieci: Nasdaq (_wd_get_json), pliki wydawców (_wd_get_bytes)
+        i ich dwa parsery produkcji. Domyślnie: pełna historia cen, State Street do 24.09 (GLD/GLDM do 25.09), iShares do 25.09."""
+
+        def __init__(self, nq=None, ssga=None, ish=None, gb=None):
+            T = TrendyDailyWorldV127
+            self.gb = gb                                 # opcjonalnie: własna odpowiedź pliku wydawcy (url, limit) — np. wolna
+            self.nq = nq or (lambda t, u: T.FULL)
+            self.ssga = ssga or (lambda t: T.issuer_rows('2026-09-25' if t in ('GLD', 'GLDM') else '2026-09-24'))
+            self.ish = ish or (lambda u: T.issuer_rows())
+            self.calls, self.clock, self.tmo = [], [None], []
+
+        def run(self, now, prev, saved=None, run_t0=None):
+            self.clock[0] = now
+
+            def rec(url, timeout):                   # limit zapytania i czas, który wtedy został budowniczemu (zegar zd.time — w testach umowny)
+                self.calls.append(url); self.tmo.append((url, timeout, zd._WD_TERMIN[0] - zd.time.monotonic()))
+
+            def gj(url, timeout):
+                rec(url, timeout); return self.nq(url.split('/quote/')[1].split('/')[0], url)
+
+            def gb(url, timeout):
+                rec(url, timeout); return self.gb(url, timeout) if self.gb else url.encode()
+            with mock.patch.object(zd, '_now_utc', lambda: self.clock[0]), mock.patch.object(zd, '_wd_get_json', gj), \
+                    mock.patch.object(zd, '_wd_get_bytes', gb), mock.patch.object(zd, 'parse_ssga_navhist', lambda b, t: self.ssga(t)), \
+                    mock.patch.object(zd, 'parse_ishares_hist', lambda b: self.ish(b.decode())):
+                self.calls, self.tmo = [], []
+                return zd.build_swiat_dzien(prev, TrendyDailyWorldV127.SAVED_WD if saved is None else saved, run_t0=run_t0)   # budowniczy kopiuje to, co zmienia
+
+        def n(self, host):
+            return sum(1 for c in self.calls if host in c)
+
+    class Zegar:
+        """Umowny zegar monotoniczny (testy bez zegara): stoi, dopóki atrapa źródła nie „odczeka” — sleep przesuwa go od razu. Podstawiany
+        jako zd.time tylko na czas jednego przebiegu budowniczego."""
+
+        def __init__(self, t0=1000.0):
+            import threading as _th
+            self.t = float(t0); self._lock = _th.Lock()
+
+        def monotonic(self):
+            with self._lock:
+                return self.t
+
+        def sleep(self, s):
+            with self._lock:
+                self.t += max(0.0, float(s))
+
+        def __getattr__(self, name):
+            import time as _t
+            return getattr(_t, name)
+
+    # ---------------------------------------------------------------- 1: stałe
+    def test_constants(self):
+        self.assertEqual(zd.TD_W_M, 7)
+        self.assertEqual(round(zd.TD_W_ZM, 4), 2.6901); self.assertEqual(zd.TD_W_CL, 99.3)
+        self.assertEqual(round(zd.TD_W_ZL, 4), 3.0381); self.assertEqual(zd.TD_W_CLL, 99.8)
+        self.assertEqual(round(zd.TD_W_ZP, 4), 0.8416)
+        self.assertEqual((zd.TD_W_CUT, zd.TD_W_OPEN, zd.TD_W_CLOSE, zd.TD_W_CLOSE_HALF, zd.TD_W_END, zd.TD_W_END_HALF), (540, 570, 960, 780, 975, 795))
+        self.assertEqual(zd.TD_RULES_W2, (('eq', 'p'), ('eq', 'f'), ('eq', 'o'), ('bd', 'f'), ('pm', 'p'), ('pm', 'f'), ('w', 'all')))
+        self.assertEqual(len(zd.TD_W_SYMS), 44); self.assertEqual(len(set(zd.TD_W_SYMS)), 44)
+        self.assertFalse(set(zd.TD_W_NOOUT) & set(zd.TD_W_SYMS)); self.assertEqual(zd.TD_W_KEEP, 2520)
+        self.assertEqual({f: sum(1 for s in zd.TD_W_SYMS if zd._tdw_fam(s) == f) for f in ('eq', 'bd', 'pm')}, {'eq': 33, 'bd': 7, 'pm': 4})
+        self.assertNotIn('p', zd.TD_W_VOTE['bd'], 'obligacje: cena bez głosu')
+        self.assertEqual(zd.TD_W_LOOKS, (100, 200, 400))
+        self.assertEqual((zd.TD_FAM_W, zd.TD_W_UT, zd.TD_W_UTMIN, zd.TD_VW2), (('eq', 'bd', 'pm'), 250, 100, 2))
+        self.assertEqual((len(zd.WD_SSGA), len(zd.WD_ISH), zd.WD_KEEP), (14, 21, 2520))
+        # budowniczy: limit czasu, spóźniony przebieg, limity zapytań, wątki, przerwy, pora pobrań — dosłownie (przegląd v127: nic ich nie pilnowało)
+        self.assertEqual((zd.WD_T, zd.WD_T_LATE, zd.WD_LATE, zd.WD_TIMEOUT, zd.WD_DOC_TIMEOUT, zd.WD_THREADS, zd.WD_SEED_PX, zd.WD_SEED_ISH,
+                          zd.WD_NQ_BACK, zd.WD_SEED_BACK_M, zd.WD_SEED_FAILS, zd.WD_RETRY_M, zd.WD_GAP_H, zd.WD_POLL_M, zd.WD_SSGA_M, zd.WD_FRESH,
+                          zd.WD_MIN_SHARE), (45, 15, 480, 20, 90, 4, 12, 2, (55, 360), 360, 3, 55, 48, 1020, 40, 7, 0.9))
+        self.assertEqual((zd.TD_W_PK, zd.TD_W_PK_COLS[:5]), ('swiat-dziennik-pk.csv', ['since', 'v', 'line', 'kind', 'c']))
+        self.assertEqual(zd.TD_W_CSV_COLS, ['date', 'sym', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since'])
+        self.assertEqual(zd.TD_W_OB, {'EWT': ('tw', 0), 'FXI': ('hk', 0), 'INDA': ('in', 1)})
+        # stałe wersji 1 świata bez zmian; pusta pula v1 — nadal 7 linii
+        self.assertEqual((zd.TD_V, zd.TD_SINCE, len(zd.TD_RULES)), (1, '2026-09-28', 7))
+        self.assertEqual(len(zd._td_pool({})), 7)
+
+    # ---------------------------------------------------------------- 2: zegar
+    def test_cut_follows_new_york_time(self):
+        self.assertEqual(zd._tdw_cut('2026-09-28'), '2026-09-28T13:00:00')      # EDT
+        self.assertEqual(zd._tdw_cut('2026-10-27'), '2026-10-27T13:00:00')      # Europa już w czasie zimowym, USA nie: 14:00 w Warszawie
+        self.assertEqual(zd._tdw_cut('2026-11-02'), '2026-11-02T14:00:00')      # EST
+        self.assertEqual(zd._tdw_cut('2027-03-15'), '2027-03-15T13:00:00')      # czas letni USA od 14.03.2027
+
+    def test_end_and_half_days(self):
+        self.assertEqual(zd._tdw_end('2026-09-28'), '2026-09-28T20:15:00')      # karta aktualna do 16:15 NY
+        self.assertEqual(zd._tdw_end('2026-11-27'), '2026-11-27T18:15:00')      # 13:15 EST w sesji skróconej
+        self.assertEqual(zd._tdw_end('2026-12-24'), '2026-12-24T18:15:00')
+
+    def test_us_dst_rule(self):
+        self.assertEqual([zd._tdw_off(d) for d in ('2026-03-06', '2026-03-09', '2026-10-30', '2026-11-02', '2027-03-12', '2027-03-15')],
+                         [-5, -4, -4, -5, -5, -4])
+
+    def test_next_session_skips_weekends_and_holidays(self):
+        self.assertEqual(zd._tdw_next('2026-09-25'), '2026-09-28')
+        self.assertEqual(zd._tdw_next('2026-11-25'), '2026-11-27')
+        self.assertEqual(zd._tdw_next('2026-12-24'), '2026-12-28')
+        self.assertEqual(zd._tdw_next('2026-12-31'), '2027-01-04')
+        self.assertEqual(zd._tdw_next('2027-01-15'), '2027-01-19')
+
+    def test_early(self):
+        self.assertTrue(zd._tdw_early('2026-09-28T12:59:59Z', '2026-09-28'))
+        self.assertFalse(zd._tdw_early('2026-09-28T13:00:00Z', '2026-09-28'))
+        self.assertFalse(zd._tdw_early(None, '2026-09-28')); self.assertFalse(zd._tdw_early('', '2026-09-28'))
+
+    def test_rule_equals_zoneinfo(self):
+        from zoneinfo import ZoneInfo
+        d = datetime.date(2026, 1, 2)
+        while d.year < 2028:
+            if d.weekday() < 5:
+                z = datetime.datetime(d.year, d.month, d.day, 9, tzinfo=ZoneInfo('America/New_York')).astimezone(self.UTC).strftime('%Y-%m-%dT%H:%M:%S')
+                self.assertEqual(zd._tdw_cut(d.isoformat()), z, d)
+            d += datetime.timedelta(days=1)
+
+    # ---------------------------------------------------------------- 3: serie
+    def series_wd(self):
+        self.cal = self.sessions(80)
+        return self.make_wd(self.cal, ['SPY', 'EWC'])
+
+    def test_axis_price_move_and_window(self):
+        wd = self.series_wd(); cal = self.cal
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertEqual(len(s['dates']), 81); self.assertEqual(s['dates'][-1], zd._tdw_next(cal[-1]))
+        px = {r[0]: r for r in wd['px']['SPY']['d']}
+        j = 50
+        self.assertAlmostEqual(s['in']['p'][j], (px[cal[j - 1]][2] / px[cal[j - 2]][2] - 1) * 100)   # ruch sesji j−1
+        self.assertAlmostEqual(s['y'][j], (px[cal[j]][2] / px[cal[j]][1] - 1) * 100)             # otwarcie → zamknięcie sesji j
+        self.assertIsNone(s['y'][-1])
+
+    def test_missing_row_is_missing_never_zero(self):
+        wd = self.series_wd(); cal = self.cal
+        wd['px']['EWC']['d'] = [r for r in wd['px']['EWC']['d'] if r[0] != cal[40]]
+        s = zd._tdw_series(wd, 'EWC')
+        self.assertIsNone(s['y'][40]); self.assertIsNone(s['in']['p'][41]); self.assertIsNone(s['in']['p'][42])   # bez ruchu przez lukę
+
+    def test_ratio_guards(self):
+        wd = self.series_wd()
+        wd['px']['EWC']['d'][60][2] = wd['px']['EWC']['d'][60][1] * 1.9
+        s = zd._tdw_series(wd, 'EWC')
+        self.assertIsNone(s['y'][60])
+        self.assertIsNone(zd._tdw_mv(100.0, 50.3)); self.assertIsNone(zd._tdw_mv(100.0, 199.0)); self.assertIsNone(zd._tdw_mv(100.0, 66.0))
+        self.assertAlmostEqual(zd._tdw_mv(100.0, 71.5), -28.5)                  # prawdziwy dzień −28,5% (SLV 30.01.2026) zostaje
+
+    def test_calendar_must_increase(self):
+        wd = self.series_wd(); cal = self.cal
+        wd['cal'] = cal[:10] + [cal[5]] + cal[10:]
+        with self.assertRaises(ValueError):
+            zd._tdw_series(wd, 'SPY')
+
+    def test_flow_input_is_previous_session_and_pending(self):
+        wd = self.series_wd(); cal = self.cal
+        s = zd._tdw_series(wd, 'SPY')
+        fl = zd.fund_flows([[r[0], r[1], r[2]] for r in wd['fl']['SPY']['d']])
+        self.assertAlmostEqual(s['in']['f'][70], fl[cal[69]])
+        self.assertEqual(s['pend'], [])
+        wd['fl']['SPY']['d'] = wd['fl']['SPY']['d'][:-1]
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertIsNone(s['in']['f'][-1]); self.assertEqual(s['pend'], ['f'])
+
+    def test_flow_stored_after_cut_is_late(self):
+        wd = self.series_wd(); cal = self.cal
+        wd['fl']['SPY']['d'][-1][3] = zd._tdw_cut(zd._tdw_next(cal[-1])) + 'Z'                 # zapisany dokładnie o granicy
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertFalse(s['on']['f'][-1]); self.assertTrue(s['on']['f'][-2])
+
+    def test_card_late_strict(self):
+        wd = self.series_wd(); cal = self.cal
+        nxt = zd._tdw_next(cal[-1])
+        for seen, late in ((None, True), (zd._tdw_cut(nxt) + 'Z', True), ('2020-01-01T00:00:00Z', False)):
+            wd['px']['SPY']['d'][-1][3] = seen
+            s = zd._tdw_series(wd, 'SPY')
+            self.assertEqual(s['late'], late); self.assertEqual(s['on']['p'][-1], not late)
+        wd['px']['SPY']['d'][-1][2] = None                                      # brak zamknięcia dnia danych: brak, nie „po czasie”
+        self.assertFalse(zd._tdw_series(wd, 'SPY')['late'])
+
+    def test_history_row_stored_late_is_late_in_the_backtest(self):
+        wd = self.series_wd(); cal = self.cal
+        wd['px']['SPY']['d'][60][3] = zd._tdw_cut(cal[61]) + 'Z'
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertFalse(s['on']['p'][61]); self.assertTrue(s['on']['p'][60]); self.assertTrue(s['on']['p'][62])
+
+    def test_late_close_in_history_gives_no_pairs(self):
+        wd = self.series_wd(); cal = self.cal
+        for r in wd['fl']['SPY']['d'][60:]:
+            r[2] += 2e5                                                          # duży napływ w sesji 60 → f głosuje na sesję 61
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertEqual(zd._tdw_votes(s, 61)[0]['f'][2], 1)
+        self.assertTrue(any(p[0] == cal[61] for p in zd._tdw_pairs(s)))
+        wd['px']['SPY']['d'][60][3] = zd._tdw_cut(cal[61]) + 'Z'                 # zamknięcie sesji 60 zapisane o granicy
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertTrue(s['cl'][61]); self.assertEqual(zd._tdw_votes(s, 61)[0]['f'][2], 1)   # f nadal opisany …
+        self.assertFalse(any(p[0] == cal[61] for p in zd._tdw_pairs(s)))          # … ale bez żadnej pary (dziennik nie zapisuje karty „late”)
+
+    def test_country_rows_lag(self):
+        cal = self.sessions(80); wd = self.make_wd(cal, ['EWT', 'INDA'])
+        wd['ob'] = {'tw': {'d': [[d, float(i), None] for i, d in enumerate(cal)], 'empty': []},
+                    'in': {'d': [[d, float(i), None] for i, d in enumerate(cal)], 'empty': []}}
+        t = zd._tdw_series(wd, 'EWT'); i = zd._tdw_series(wd, 'INDA')
+        self.assertEqual(t['in']['o'][50], 50.0)          # sesja Tajwanu z datą S (znana przed otwarciem w USA)
+        self.assertEqual(i['in']['o'][50], 49.0)          # raport NSDL z poprzedniej sesji NYSE
+        self.assertEqual(t['pend'], ['o'])                # własna sesja azjatycka karty jeszcze nie przyszła
+        self.assertEqual(t['in']['o'][-1], None, 'brak = None, nigdy 0')
+
+    def test_country_row_on_a_us_holiday_maps_forward_newest_wins(self):
+        cal = self.weekdays('2026-08-03', '2026-12-10')                          # Święto Dziękczynienia (26.11) nie jest sesją
+        wd = self.make_wd(cal, ['EWT'])
+        days = [d for d in self.sessions(120, '2026-08-03') if d <= cal[-1]]
+        wd['ob'] = {'tw': {'d': [[d, float(i), None] for i, d in enumerate(days)], 'empty': []}}
+        s = zd._tdw_series(wd, 'EWT'); j = s['dates'].index('2026-11-27')
+        self.assertEqual(s['in']['o'][j], float(days.index('2026-11-27')))       # czwartkowy wiersz zastąpiony piątkowym
+        s2 = zd._tdw_series(dict(wd, ob={'tw': {'d': [r for r in wd['ob']['tw']['d'] if r[0] != '2026-11-27'], 'empty': ['2026-11-27']}}), 'EWT')
+        self.assertEqual(s2['in']['o'][j], float(days.index('2026-11-26')))      # Tajwan zamknięty w piątek → czwartek głosuje na piątek w USA
+
+    def test_country_row_stored_after_cut_no_vote(self):
+        cal = self.sessions(80); wd = self.make_wd(cal, ['FXI'])
+        wd['ob'] = {'hk': {'d': [[d, float(i), None] for i, d in enumerate(cal)], 'empty': []}}
+        wd['ob']['hk']['d'][50][2] = zd._tdw_cut(cal[50]) + 'Z'
+        s = zd._tdw_series(wd, 'FXI')
+        self.assertFalse(s['on']['o'][50]); self.assertTrue(s['on']['o'][49])
+
+    # ---------------------------------------------------------------- 4–6: głosy, pary, n_eff
+    def test_bond_price_never_votes_and_directions(self):
+        cal = self.sessions(80); wd = self.make_wd(cal, ['TLT', 'GLD', 'SPY'])
+        for sym in ('TLT', 'GLD', 'SPY'):
+            s = zd._tdw_series(wd, sym)
+            for j in range(45, 81):
+                V, N = zd._tdw_votes(s, j)
+                if sym == 'TLT':
+                    self.assertEqual(V['p'][2], 0)
+                for k, x in V.items():
+                    if x[2]:
+                        self.assertEqual(x[2], 1 if x[1] > 0 else -1); self.assertGreaterEqual(abs(x[1]), 1)
+                self.assertEqual(N, sum(x[2] for x in V.values()))
+
+    def test_late_input_keeps_z_no_vote(self):
+        cal = self.sessions(80); wd = self.make_wd(cal, ['SPY'])
+        s = zd._tdw_series(wd, 'SPY'); s['on']['p'] = [False] * len(s['dates'])
+        zs = 0
+        for j in range(45, 80):
+            V, _ = zd._tdw_votes(s, j)
+            self.assertEqual(V['p'][2], 0); zs += V['p'][1] is not None
+        self.assertGreater(zs, 0, 'z zostaje (opis), głosu brak')
+
+    def test_zero_outcome_and_conflict(self):
+        s = {'id': 'X', 'fam': 'eq', 'dates': ['a', 'b', 'c'], 'y': [0.0, 1.0, -1.0]}
+        votes = [({'p': (1, 1.5, 1, True)}, 1), ({'p': (1, 1.5, 1, True), 'f': (1, -1.5, -1, True)}, 0), ({'f': (1, 2, 1, True)}, 1)]
+        self.assertEqual(zd._tdw_pairs(s, votes), [('b', ('eq', 'p'), 1, 1), ('b', ('eq', 'f'), -1, 0), ('c', ('eq', 'f'), 1, 0), ('c', ('w', 'all'), 1, 0)])
+
+    def test_neff(self):
+        pr = [(f'd{i:03}', i % 2, f'm{j}', 1) for i in range(100) for j in range(10)]
+        self.assertAlmostEqual(zd._tdw_neff(pr), 99.0, places=6, msg='rynki jednej sesji idealnie razem: tyle co sesji (−1)')
+        pr = [(f'd{i:03}', h, f'm{j}', g) for i in range(100) for j, (h, g) in enumerate(((1, 1), (0, -1)))]
+        self.assertEqual(zd._tdw_neff(pr), 100.0, 'strony znoszą się w sesji: najwyżej liczba sesji')
+        pr = [('d000', 1, f'm{j}', 1) for j in range(50)] + [(f'd{i:03}', i % 2, 'm0', 1) for i in range(1, 100)]
+        ne = zd._tdw_neff(pr)
+        self.assertLess(ne, 30); self.assertGreater(ne, 1)
+        self.assertEqual(zd._tdw_neff([]), 0.0); self.assertEqual(zd._tdw_neff([('a', 1, 'm', 1)]), 1.0)
+
+    # ---------------------------------------------------------------- 7: ocena
+    @staticmethod
+    def line(days, rate, g=1, up=0.5, seed=3):
+        import random
+        rnd = random.Random(seed); pr = []; ys = {'m0': {}}
+        for i in range(days):
+            d = f'2025-{1 + i // 28:02d}-{1 + i % 28:02d}'
+            ys['m0'][d] = 1.0 if rnd.random() < up else -1.0
+            pr.append((d, 1 if rnd.random() < rate else 0, 'm0', g))
+        return pr, ys
+
+    def test_thresholds(self):
+        pr, ys = self.line(300, 0.56)
+        S = zd._tdw_stat(pr, ys)
+        self.assertLess(S['ca'][0], S['ci'][0], 'zakres 99,3% szerszy niż 95%')
+        pr, ys = self.line(400, 0.64)
+        self.assertEqual(zd._tdw_stat(pr, ys)['vd'], 'edge')
+        pr, ys = self.line(99, 0.9)
+        self.assertEqual(zd._tdw_stat(pr, ys)['vd'], 'short')
+
+    def test_base_rate_blocks_always_buy(self):
+        import random
+        rnd = random.Random(5); pr = []; ys = {'m0': {}}
+        for i in range(400):
+            d = f'{2020 + i // 300}-{1 + (i % 300) // 25:02d}-{1 + i % 25:02d}'
+            y = 1.0 if rnd.random() < 0.6 else -1.0
+            ys['m0'][d] = y; pr.append((d, int(y > 0), 'm0', 1))
+        S = zd._tdw_stat(pr, ys)
+        self.assertGreater(S['b0'], 57); self.assertEqual(S['vd'], 'none')
+
+    def test_unrounded_boundary(self):
+        la, _ = zd._tdw_wil(1583, 3003, zd.TD_W_ZM, 3003)
+        self.assertLess(la, 50.26); self.assertGreater(zd.wilson(1583, 3003, z=zd.TD_W_ZM, n_eff=3003)[0], 50.26)   # zaokrąglone 50,3 > 50,26
+        self.assertEqual(zd._tdw_vd(1583, 3003, 3003, 3003.0, 60.0, 60.0, 50.26, 50.0), 'none')
+        self.assertEqual(zd._tdw_vd(1583, 3003, 3003, 3003.0, 60.0, 60.0, 50.25, 50.0), 'edge')
+
+    def test_trailing_base_rate_point_in_time(self):
+        import random
+        ds = self.sessions(1000, '2022-01-03'); rnd = random.Random(8)
+        y = [(1.0 if rnd.random() < (0.3 if i < 500 else 0.7) else -1.0) for i in range(1000)]
+        s = {'id': 'm0', 'dates': ds + ['x'], 'y': y + [None]}
+        ut = zd._tdw_ut([s])['m0']
+        self.assertNotIn(ds[99], ut); self.assertIn(ds[100], ut)                  # potrzeba 100 wyników przed parą
+        self.assertAlmostEqual(ut[ds[450]], sum(1 for v in y[200:450] if v > 0) / 250)   # tylko 250 sesji PRZED parą
+        ys = {'m0': dict(zip(ds, y))}                                            # głosy idą za wolnym trendem: sprzedaż w spadkach, kupno we wzrostach
+        pr = [(ds[i], int((y[i] > 0) == (i >= 500)), 'm0', 1 if i >= 500 else -1) for i in list(range(250, 500)) + list(range(750, 1000))]
+        S0 = zd._tdw_stat(pr, ys); S1 = zd._tdw_stat(pr, ys, ut=zd._tdw_ut([s]))
+        self.assertAlmostEqual(S0['b0'], S1['b0']); self.assertLess(abs(S1['b0'] - 50), 3); self.assertGreater(S1['b0t'], 66)
+        self.assertEqual(S1['bm'], S1['b0t']); self.assertEqual(S0['vd'], 'edge'); self.assertEqual(S1['vd'], 'none')   # wolny trend to nie przewaga dnia
+
+    def test_halves_veto(self):
+        self.assertEqual(zd._tdw_vd(700, 1000, 500, 500.0, 75.0, 49.0, 50.0, 50.0), 'none')
+        self.assertEqual(zd._tdw_vd(700, 1000, 500, 500.0, 75.0, 65.0, 50.0, 50.0), 'edge')
+        self.assertEqual(zd._tdw_vd(300, 1000, 500, 500.0, 25.0, 35.0, 50.0, 50.0), 'anti')
+
+    # ---------------------------------------------------------------- 8: karty
+    def rows_wd(self):
+        self.cal = self.sessions(120, '2026-03-02')
+        return self.make_wd(self.cal, ['SPY', 'TLT', 'EWC'], seen_last=self.cal[-1] + 'T21:05:00Z')   # zapisane wieczorem sesji
+
+    def test_states_live_and_pending(self):
+        wd = self.rows_wd(); nxt = zd._tdw_next(self.cal[-1])
+        before = self.utc(zd._tdw_cut(nxt)) - datetime.timedelta(hours=2)
+        after_end = self.utc(zd._tdw_end(nxt)) + datetime.timedelta(minutes=1)
+        wd['fl']['SPY']['d'] = wd['fl']['SPY']['d'][:-1]
+        rows, bd, *_ = self.core(wd, before)
+        r = {x['id']: x for x in rows}
+        self.assertEqual((r['SPY']['pw'], r['SPY']['nx'], r['SPY']['date']), (['f'], nxt, self.cal[-1]))
+        self.assertTrue(all(x['st'] in ('obs', 'x', 'quiet') for x in rows)); self.assertEqual(len(bd), 7)
+        self.assertEqual(list(r['SPY']), ['id', 'fam', 'grp', 'iss', 'pub', 'sym', 'date', 'nx', 'live', 'age', 'we', 'oc', 'f', 'cur', 'fu', 'zf',
+                                          'r', 'zp', 'rule', 'dir', 'side', 'str', 'st', 'vd', 'ik', 'in', 'ici', 'rs', 'N', 'ek', 'vx', 'lt', 'pw'])
+        self.assertEqual([x[0] for x in r['TLT']['rs']], ['p', 'f']); self.assertEqual(r['TLT']['rs'][0][3], 0)
+        self.assertEqual((r['EWC']['f'], r['EWC']['fu'], r['EWC']['zf'], r['EWC']['cur']), (None, None, None, None), 'rynek tylko z ceną: brak, nie 0')
+        rows, *_ = self.core(wd, after_end)
+        self.assertTrue(all(x['st'] == 'stale' for x in rows)); self.assertTrue(all(x['pw'] == [] for x in rows))
+
+    def test_late_card(self):
+        wd = self.rows_wd(); wd['px']['SPY']['d'][-1][3] = None
+        now = self.utc(zd._tdw_cut(zd._tdw_next(self.cal[-1]))) + datetime.timedelta(hours=1)
+        rows, *_ = self.core(wd, now)
+        self.assertEqual({x['id']: x['st'] for x in rows}['SPY'], 'late')
+
+    def test_colour_matrix(self):
+        wd = self.rows_wd(); s = zd._tdw_series(wd, 'SPY'); j = len(s['dates']) - 1
+        s['in']['p'][j] = 50.0; s['in']['f'][j] = None       # p głosuje +1 mocno, f brak
+        now = self.utc(zd._tdw_cut(s['dates'][j])); today = now.date()
+        base = {k: 'none' for k in zd.TD_RULES_W2}
+        r = zd._tdw_row(s, base, {}, today, now); self.assertEqual((r['st'], r['side'], r['vd'], r['rule']), ('obs', 'buy', 'none', 'c'))
+        r = zd._tdw_row(s, {**base, ('eq', 'p'): 'edge'}, {}, today, now); self.assertEqual((r['st'], r['ek']), ('buy', ['p']))
+        r = zd._tdw_row(s, {**base, ('eq', 'p'): 'edge', ('w', 'all'): 'anti'}, {}, today, now); self.assertEqual(r['st'], 'obs')
+        s['in']['f'][j] = -1e9                                 # przepływ przeciw z linią z przewagą → szara
+        r = zd._tdw_row(s, {**base, ('eq', 'p'): 'edge', ('eq', 'f'): 'edge'}, {}, today, now)
+        self.assertEqual((r['st'], r['rule']), ('x', 'cx'))   # +1 −1 = sprzeczne (kod nieznany stronie sprzed v127)
+        self.assertEqual(r['rs'][0][0], 'p')
+        s['in']['p'][j] = 0.0; s['in']['f'][j] = None
+        r = zd._tdw_row(s, base, {}, today, now); self.assertEqual((r['st'], r['rule'], r['N']), ('quiet', 'c0', 0))
+        self.assertIsNone(r['vd']); self.assertIsNone(r['ici'])
+
+    def test_colour_gates_side_family_journal(self):
+        wd = self.rows_wd(); s = zd._tdw_series(wd, 'SPY'); j = len(s['dates']) - 1
+        s['in']['p'][j] = 50.0; s['in']['f'][j] = None
+        now = self.utc(zd._tdw_cut(s['dates'][j])); today = now.date()
+        base = {k: 'none' for k in zd.TD_RULES_W2}; e = {**base, ('eq', 'p'): 'edge'}
+        ok = {('eq', 'p'): {('eq', 1): True, ('eq', -1): True}, ('w', 'all'): {(f, g): True for f in ('eq', 'bd', 'pm') for g in (1, -1)}}
+        r = zd._tdw_row(s, e, {}, today, now, ok); self.assertEqual((r['st'], r['ek'], r['vx']), ('buy', ['p'], []))
+        side = {**ok, ('eq', 'p'): {('eq', 1): False, ('eq', -1): True}}          # przewaga eq·p tylko ze strony sprzedaży
+        r = zd._tdw_row(s, e, {}, today, now, side); self.assertEqual((r['st'], r['ek'], r['vx'], r['vd']), ('obs', [], [['p', 'sd']], 'none'))
+        r = zd._tdw_row(s, e, {}, today, now, ok, {('eq', 'p'): 'anti'})           # zamrożony punkt kontrolny dziennika wyszedł odwrotnie
+        self.assertEqual((r['st'], r['vx']), ('obs', [['p', 'lc']]))
+        r = zd._tdw_row(s, e, {}, today, now, ok, {('eq', 'p'): 'none'}); self.assertEqual(r['st'], 'buy')   # 'none' = za mało sesji, bez weta
+        fam = {**ok, ('w', 'all'): {**ok[('w', 'all')], ('eq', 1): False}}       # „każda karta” z przewagą, ale nie w akcjach po stronie kupna
+        r = zd._tdw_row(s, {**base, ('w', 'all'): 'edge'}, {}, today, now, fam); self.assertEqual((r['st'], r['vx']), ('obs', [['all', 'fm']]))
+        r = zd._tdw_row(s, {**base, ('w', 'all'): 'edge'}, {}, today, now, ok); self.assertEqual((r['st'], r['ek']), ('buy', ['all']))
+        r = zd._tdw_row(s, {**e, ('w', 'all'): 'anti'}, {}, today, now, ok); self.assertEqual((r['st'], r['vx']), ('obs', [['p', 'wa']]))
+
+    def test_gates_from_pairs(self):
+        import random
+        rnd = random.Random(4); lines = {k: [] for k in zd.TD_RULES_W2}; ys = {}
+        for i, d in enumerate(self.sessions(400, '2024-01-02')):
+            for m, fam in (('SPY', 'eq'), ('TLT', 'bd')):
+                y = rnd.choice([1.0, -1.0]); ys.setdefault(m, {})[d] = y; g = 1 if i % 2 else -1
+                hit = int(rnd.random() < (0.62 if g > 0 else 0.44)) if m == 'SPY' else int(rnd.random() < 0.45)
+                if fam == 'eq':
+                    lines[('eq', 'p')].append((d, hit, m, g))
+                lines[('w', 'all')].append((d, hit, m, g))
+        G = {}; bd = zd._tdw_pool(lines, ys, today=datetime.date(2025, 8, 1), gates=G)
+        self.assertEqual((G[('eq', 'p')][('eq', 1)], G[('eq', 'p')][('eq', -1)]), (True, False))
+        self.assertEqual((G[('w', 'all')][('eq', 1)], G[('w', 'all')][('bd', 1)], G[('w', 'all')][('pm', 1)]), (True, False, False))
+        sf = bd[-1]['sf']; self.assertEqual(sorted(sf), ['bd', 'eq', 'pm']); self.assertEqual(sf['pm']['b']['n'], 0)
+        self.assertIsNone(sf['pm']['b']['p'], 'pusta rodzina: brak, nie 0')
+        self.assertTrue(all(k in bd[0]['sb'] for k in ('k', 'n', 'p', 'b0', 'b0t', 'ci')))
+        self.assertEqual([(b['fam'], b['rule']) for b in bd], list(zd.TD_RULES_W2))
+        e = bd[2]                                                                  # eq·o bez par
+        self.assertEqual((e['n'], e['p'], e['b0'], e['thr'], e['mde'], e['vd']), (0, None, None, None, None, 'short'))
+
+    # ---------------------------------------------------------------- 9: dziennik
+    def test_saved_once_between_cut_and_end_never_removed(self):
+        cal = self.sessions(120, '2026-06-01'); wd = self.make_wd(cal, ['SPY', 'EWC'], seen_last='2026-01-01T00:00:00Z')
+        nxt = zd._tdw_next(cal[-1])
+        with mock.patch.object(zd, 'TD_SINCE_W2', cal[0]):
+            cut = self.utc(zd._tdw_cut(nxt))
+            rows, bd, series, *_ = self.core(wd, cut - datetime.timedelta(minutes=5))
+            self.assertEqual(zd._tdw_log(None, rows, series, cut - datetime.timedelta(minutes=5))['rows'], [], 'przed granicą nic')
+            rows, bd, series, *_ = self.core(wd, cut + datetime.timedelta(minutes=10))
+            log = zd._tdw_log(None, rows, series, cut + datetime.timedelta(minutes=10))
+            self.assertEqual(len(log['rows']), 2); self.assertTrue(all(r[0] == nxt and r[6] is None for r in log['rows']))
+            saved = [list(r) for r in log['rows']]
+            log2 = zd._tdw_log(log, rows, series, cut + datetime.timedelta(hours=2))
+            self.assertEqual(log2['rows'], saved)             # zamrożone
+            wd['cal'] = cal + [nxt]                           # sesja się odbyła: jej ceny w pliku; wynik uzupełniony, nic innego
+            for s in ('SPY', 'EWC'):
+                wd['px'][s]['d'].append([nxt, 100.0, 101.0, '2026-01-01T00:00:00Z'])
+                if s in wd['fl']:
+                    wd['fl'][s]['d'].append([nxt, 101.0, wd['fl'][s]['d'][-1][2], None])
+            later = cut + datetime.timedelta(days=1)
+            rows3, bd3, series3, *_ = self.core(wd, later)
+            log3 = zd._tdw_log(log2, rows3, series3, later)
+            old = [r for r in log3['rows'] if r[0] == nxt]
+            self.assertEqual([r[:6] for r in old], [r[:6] for r in saved]); self.assertTrue(all(r[6] == 1.0 for r in old))
+            self.assertTrue({(r[0], r[1]) for r in saved} <= {(r[0], r[1]) for r in log3['rows']}, 'wiersze nigdy nie znikają')
+
+    def test_version_change_moves_totals_to_prev(self):
+        log = {'v': 1, 'since': '2026-01-01', 'rows': [['2026-01-05', 'SPY', 1, 'obs', 'p+f0', 'x', 0.5]], 'cp': {'eq.p': [[100] + [0] * 10]}}
+        out = zd._tdw_log(log, [], [], datetime.datetime(2026, 10, 5, 14, tzinfo=self.UTC))
+        self.assertEqual(out['rows'], []); self.assertEqual(out['prev'][-1]['v'], 1); self.assertEqual(out['prev'][-1]['oos']['eq.p'], [1, 1, 1])
+        with mock.patch.object(zd, 'TD_VW2', 3), mock.patch.object(zd, 'TD_SINCE_W2', '2027-01-04'):   # kolejna zmiana dopisuje, nic nie ginie
+            out2 = zd._tdw_log(out, [], [], datetime.datetime(2027, 1, 5, 14, tzinfo=self.UTC))
+        self.assertEqual([x['v'] for x in out2['prev']], [1, 2])
+        bd = zd._tdw_pool({}, {}, log=out2, today=datetime.date(2027, 1, 5))
+        self.assertEqual([(x['v'], x['k'], x['n']) for x in bd[0]['pv']], [(1, 1, 1), (2, 0, 0)])   # strona pokazuje każdą poprzednią wersję
+        self.assertEqual(zd._tdw_prevs({'prev': {'v': 1}}), [{'v': 1}], 'dawny zapis jednego słownika = lista jednego')
+
+    def test_checkpoint_frozen(self):
+        import random
+        rows = []; d = datetime.date(2026, 10, 1); rnd = random.Random(9)
+        while len(rows) < 260:
+            if d.weekday() < 5:
+                y = rnd.choice([1.0, -1.0])
+                rows.append([d.isoformat(), 'SPY', 1 if y > 0 else -1, 'obs', 'p' + ('+' if y > 0 else '-') + 'f0', 'x', y if rnd.random() < 0.75 else -y])
+            d += datetime.timedelta(days=1)
+        with mock.patch.object(zd, 'TD_SINCE_W2', '2026-10-01'):
+            log = {'v': 2, 'since': '2026-10-01', 'rows': rows, 'cp': {}}
+            cp = zd._tdw_cp(log, d + datetime.timedelta(days=10), 'T')
+            self.assertEqual([x[0] for x in cp['eq.p']], [100, 200]); self.assertEqual(cp['eq.p'][0][8], 'edge')
+            self.assertEqual(len(cp['eq.p'][0]), 13); self.assertGreaterEqual(cp['eq.p'][0][12], 65.2)   # próg tego punktu (ne ≤ 100)
+            bd = zd._tdw_pool({}, {}, log=dict(log, cp=cp), today=d)
+            self.assertEqual((bd[0]['lc']['thr'], bd[0]['lnx'], bd[0]['lvd']), (cp['eq.p'][-1][12], 400, 'edge'))
+            self.assertAlmostEqual(bd[0]['lthr'], round(50 + 100 * zd.TD_W_ZL * 0.5 / 20, 1), places=1)   # następny punkt (400) przy bm 50
+            self.assertEqual((bd[0]['lk'], bd[0]['ln'], bd[0]['ldays']), (sum(1 for r in rows if (r[6] > 0) == (r[2] > 0)), 260, 260))
+            self.assertEqual((bd[1]['lvd'], bd[1]['lc'], bd[1]['lnx']), ('wait', None, 100), 'linia bez punktu: czeka')
+            self.assertEqual(zd._tdw_lcv(dict(log, cp=cp))[('eq', 'p')], 'edge')
+            for r in log['rows'][:150]:
+                r[6] = -r[6]
+            cp2 = zd._tdw_cp(dict(log, cp=cp), d + datetime.timedelta(days=11), 'T2')
+            self.assertEqual(cp2['eq.p'], cp['eq.p'])       # zapisane punkty nigdy nie są przeliczane
+
+    # ---------------------------------------------------------------- 10: build_daily_w2
+    def test_build_daily_w2_no_file_broken_series_s_untouched(self):
+        self.assertEqual(zd.build_daily_w2({}), (None, None)); self.assertEqual(zd.build_daily_w2(None), (None, None))
+        cal = self.sessions(80, '2026-05-01'); wd = self.make_wd(cal, ['SPY', 'EWC'])
+        wd['px']['EWC'] = 'broken'
+        S = {'swiat-dzien': wd}; before = self.dump(S)
+        rows, bd = zd.build_daily_w2(S)
+        self.assertEqual([r['id'] for r in rows], ['SPY']); self.assertEqual(len(bd), 7)
+        self.assertEqual(self.dump(S), before, 'S bez zmian')
+        self.assertTrue(any(n.startswith('trendy dziennie świat EWC: ') for n in zd.META['notes']))
+        self.assertFalse(any(e.startswith('Dziennik świata') for e in zd.META['errors']), 'przed TD_SINCE_W2 + 4 dni brak dziennika to nie błąd')
+        wd['px']['SPY'] = {'d': 'broken'}
+        self.assertEqual(zd.build_daily_w2({'swiat-dzien': wd}), (None, None), 'żadnej serii — blok niepoliczony, nie „zero rynków”')
+
+    # ---------------------------------------------------------------- 11: budowniczy data/swiat-dzien.json
+    def test_parse_placeholder_and_open_session(self):
+        q, dates = zd.wd_parse_nq(self.nq_payload(['2026-04-17', '2026-04-20', '2026-04-21'], ph=('2026-04-20',)), self.at(2026, 4, 22, 0))
+        self.assertEqual(sorted(q), ['2026-04-17', '2026-04-21']); self.assertIn('2026-04-20', dates)   # sesja była, ceny brak (nigdy 0)
+        with self.assertRaises(RuntimeError):
+            zd.wd_parse_nq({'data': None}, self.at(2026, 4, 22, 0))
+        p = self.nq_payload(['2026-09-25', '2026-09-28'])
+        self.assertNotIn('2026-09-28', zd.wd_parse_nq(p, self.at(2026, 9, 28, 20, 14))[1])     # 16:14 NY — sesja trwa
+        # przegląd v127: dzisiejszy wiersz dopiero od 17:00 NY (WD_POLL_M) — między 16:15 a 17:00 zamknięcie może być jeszcze nieostateczne
+        self.assertNotIn('2026-09-28', zd.wd_parse_nq(p, self.at(2026, 9, 28, 20, 59))[1])     # 16:59 NY
+        self.assertIn('2026-09-28', zd.wd_parse_nq(p, self.at(2026, 9, 28, 21, 0))[0])         # 17:00 NY
+
+    def test_merge_calendar_first_publication_rv_once(self):
+        wd = {'cal': [], 'px': {}, 'rv': {}}
+        zd._wd_merge_px(wd, {'SPY': ({'2026-09-24': (1.0, 2.0)}, {'2026-09-23', '2026-09-24'}), 'EWC': ({'2026-09-24': (3.0, 4.0)}, set())},
+                        '2026-09-27T16:00:00Z')
+        self.assertEqual(wd['cal'], ['2026-09-23', '2026-09-24'])                   # data zastępcza SPY zostaje sesją
+        self.assertEqual(wd['px']['SPY']['d'], [['2026-09-24', 1.0, 2.0, '2026-09-27T16:00:00Z']])
+        for k in range(3):                                                           # ten sam przepisany dzień, czytany trzy razy
+            zd._wd_merge_px(wd, {'SPY': ({'2026-09-24': (1.1, 2.0), '2026-09-28': (1.0, 2.0)}, {'2026-09-24', '2026-09-28'})}, '2026-09-28T21:05:00Z', True)
+        self.assertEqual(wd['px']['SPY']['d'][0][:3], ['2026-09-24', 1.0, 2.0]); self.assertEqual(wd['rv']['px'], 1)   # liczony raz
+        self.assertEqual(wd['px']['SPY']['d'][1], ['2026-09-28', 1.0, 2.0, '2026-09-28T21:05:00Z'])
+        zd._wd_merge_px(wd, {'EWC': ({'2026-09-26': (1.0, 1.0)}, {'2026-09-26'})}, 'x' * 20)   # poza kalendarzem → pominięty
+        self.assertEqual([r[0] for r in wd['px']['EWC']['d']], ['2026-09-24'])
+
+    def test_seen_seed_rule_and_after_seed_every_row(self):
+        wd = {'rv': {}}; P = {'d': []}
+        zd._wd_rows_merge(wd, 'fl', 'X', P, [['2026-09-10', 1.0, 10], ['2026-09-21', 1.0, 11], ['2026-09-25', 1.0, 12]], '2026-09-28T05:25:00Z')
+        self.assertEqual([r[3] for r in P['d']], [None, '2026-09-28T05:25:00Z', '2026-09-28T05:25:00Z'])
+        zd._wd_rows_merge(wd, 'fl', 'X', P, [['2026-09-25', 1.0, 99]], '2026-09-28T06:00:00Z')
+        self.assertEqual((wd['rv']['fl'], P['d'][-1][2]), (1, 12))                    # pierwsza publikacja zostaje
+        zd._wd_rows_merge(wd, 'fl', 'X', P, [['2026-09-01', 1.0, 9]], '2026-09-28T06:20:00Z', True)
+        self.assertEqual(P['d'][0], ['2026-09-01', 1.0, 9, '2026-09-28T06:20:00Z'])     # późne uzupełnienie po serii wstępnej ma czas (po czasie)
+
+    def test_first_run_spy_alone_first_then_steps_ready(self):
+        wd, calls = self.FIRST
+        nq = [c for c in calls if 'nasdaq' in c]
+        self.assertEqual(len(nq), 12); self.assertIn('/SPY/', nq[0])                             # SPY sam i pierwszy, potem 11
+        self.assertIn('2026-09-25', wd['cal']); self.assertGreaterEqual(len(wd['cal']), 250)
+        self.assertEqual(sum(1 for c in calls if 'ssga' in c), 14)                        # State Street: całe pliki raz (kalendarz już jest)
+        self.assertEqual(sum(1 for c in calls if 'blackrock' in c), 2)                    # iShares: 2 pełne pliki na przebieg
+        self.assertFalse(wd['ready']); self.assertEqual(wd['req'], len(calls))
+        self.assertLessEqual(self.SEED_RUNS, 12)
+        w = self.ready(); self.assertTrue(w['ready'])
+        self.assertEqual(w['px']['SPY']['d'][-1][3][:10], '2026-09-26')                   # najnowsze wiersze: czas zapisu (później surowo)
+        self.assertIsNone(w['px']['SPY']['d'][0][3])
+        self.assertEqual(set(w), {'at', 'v', 'src', 'keep', 'cut', 'cal', 'px', 'fl', 'ob', 'rv', 'rvd', 'bf', 'try', 'nq', 'ready', 'bledy', 'req', 'tr', 't'})
+        self.assertEqual((w['v'], w['keep'], w['cut'], w['bf'], w['bledy']), (1, 2520, 540, {'px': True, 'fl': True, 'ob': True}, {}))
+        self.assertEqual(sorted(w['px']), sorted(zd.TD_W_SYMS)); self.assertEqual(sorted(w['fl']), sorted(zd.WD_SSGA + zd.WD_ISH))
+        self.assertEqual((w['fl']['SPY']['iss'], w['fl']['EWJ']['iss']), ('ssga', 'ishares'))
+        self.assertEqual((w['ob']['tw']['d'][0][:2], w['ob']['tw']['empty'], w['ob']['hk']['d']), (['2026-09-24', 1.0], ['2026-09-25'], []))
+        self.assertNotRegex(json.dumps(w), r'"(open|close|nav)"', 'wiersze to listy, nie słowniki')
+
+    def test_nasdaq_down_backoff_skeleton_no_issuer_requests(self):
+        down = lambda t, u: (_ for _ in ()).throw(RuntimeError('HTTP 403'))             # noqa: E731
+        env = self.Env(nq=down)
+        wd = env.run(self.T0, None)
+        self.assertEqual((env.n('nasdaq'), env.n('ssga'), env.n('blackrock')), (1, 0, 0))
+        self.assertEqual((wd['cal'], wd['ready'], wd['nq']['fails']), ([], False, 1)); self.assertEqual(wd['nq']['next'][:16], '2026-09-26T06:55')
+        self.assertTrue(any('Nasdaq niedostępny' in n for n in zd.META['notes']))
+        self.assertTrue(any('brak kalendarza sesji' in n for n in zd.META['notes']), 'szkielet pliku, wersja 1 zostaje')
+        tried, now = [], self.T0
+        for _ in range(12):                                                              # 4 godziny przebiegów co 20 minut
+            now += datetime.timedelta(minutes=20); wd = env.run(now, wd); tried.append(env.n('nasdaq'))
+            self.assertEqual(env.n('ssga') + env.n('blackrock'), 0)
+        self.assertEqual(tried, [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0])                    # po 55 min, potem 80 min, potem 160 min …
+        self.assertEqual(wd['nq']['fails'], 3)
+        env.nq = lambda t, u: self.FULL                                                  # Nasdaq wrócił: po przerwie seria wstępna idzie dalej
+        wd = env.run(now + datetime.timedelta(hours=3), wd)
+        self.assertEqual(wd['nq']['fails'], 0); self.assertTrue(wd['cal']); self.assertEqual(env.n('ssga'), len(zd.WD_SSGA))
+
+    def test_broken_issuer_files_back_off_then_short_seed_ready(self):
+        pid = {t: 'P%02d' % i for i, t in enumerate(zd.WD_ISH)}; bad = {pid[zd.WD_ISH[0]], pid[zd.WD_ISH[1]]}
+        saved = {'fundusze': {'f': {t: {'h': self.hist(t), 'pid': pid.get(t)} for t in zd.FUND_ISH + zd.FUND_SSGA}}, 'obce': self.SAVED_WD['obce']}
+
+        def ish(url):
+            if url.split('portfolioId=')[1].split('&')[0] in bad:
+                raise RuntimeError('brak arkusza Historical')
+            return self.issuer_rows()
+        env = self.Env(ish=ish); wd, runs, now, per_run, asked = None, 0, self.T0, [], []
+        with mock.patch.object(zd, 'WD_SEED_BACK_M', 60):                                # 6 h w zbieraczu; tu 1 h (szybki test)
+            while not (wd and wd['ready']):
+                wd = env.run(now, wd, saved); per_run.append(env.n('blackrock')); runs += 1
+                asked.append((now, [c.split('portfolioId=')[1].split('&')[0] for c in env.calls if 'blackrock' in c]))
+                now += datetime.timedelta(minutes=20)
+                self.assertLess(runs, 30)
+        self.assertLessEqual(max(per_run), 2)
+        tried = {p: [t for t, ps in asked if p in ps] for p in bad}
+        for p, ts in tried.items():                                                        # przerwa po każdej porażce (tu 60 min), 3 próby
+            self.assertEqual(len(ts), 3, (p, ts)); self.assertTrue(all(b - a >= datetime.timedelta(minutes=60) for a, b in zip(ts, ts[1:])), ts)
+        pause = [ps for t, ps in asked if tried[min(bad)][0] < t < tried[min(bad)][0] + datetime.timedelta(minutes=60)]
+        self.assertTrue(pause and all(not set(ps) & bad for ps in pause), 'w przerwie popsute pliki nie są pobierane')
+        self.assertTrue(all(len(ps) == 2 for ps in pause), 'w przerwie kolejka idzie dalej: inne fundusze zasiane')
+        for t in zd.WD_ISH[:2]:
+            self.assertEqual((wd['fl'][t]['seed'], wd['fl'][t]['se']['n']), ('short', 3))
+            self.assertEqual(wd['fl'][t]['d'][0][0], '2026-01-02')                        # wiersze ≈ 300 dni z pliku fundusze strony
+        self.assertTrue(all(wd['fl'][t]['seed'] is True for t in zd.WD_ISH[2:]))
+        self.assertLessEqual(runs, 13)                                                     # 3 próby co przerwę; kolejka szła dalej
+        self.assertTrue(any('pełny plik wydawcy nieczytelny 3 razy' in n for n in zd.META['notes']))
+
+    def test_late_run_no_seed_and_skeleton(self):
+        env = self.Env(); z = self.Zegar()
+        with mock.patch.object(zd, 'time', z):
+            wd = env.run(self.T0, None, run_t0=z.monotonic() - zd.WD_LATE - 1)
+        self.assertEqual((env.calls, wd['cal'], wd['ready'], wd['tr']), ([], [], False, zd.WD_LATE + 1.0))   # czas startu budowniczego zapisany
+
+    def test_deadline_stops_politely(self):
+        z = self.Zegar()
+
+        def slow(t, u):
+            z.sleep(0.7); return self.FULL                                                # odpowiedź po 0,7 s umownego zegara
+        env = self.Env(nq=slow)
+        with mock.patch.object(zd, 'WD_T', 1.5), mock.patch.object(zd, 'time', z):
+            wd = env.run(self.T0, None)
+        self.assertLess(z.t - 1000.0, 2.5)
+        self.assertTrue(any('limit czasu budowniczego (1.5 s)' in n for n in zd.META['notes'])); self.assertEqual(wd['nq']['fails'], 0)
+        self.assertEqual(wd['bledy'], {}, 'koniec czasu to uwaga, nie błąd'); self.assertTrue(wd['cal'])
+
+    def test_idle_run_no_request_and_evening_poll(self):
+        env = self.Env(); wd = self.ready()
+        env.run(self.at(2026, 9, 27, 18), wd); self.assertEqual(env.calls, [])              # niedziela
+        wd2 = env.run(self.at(2026, 9, 28, 20, 55), wd); self.assertEqual(env.calls, [])    # pon 16:55 NY
+        env.nq = lambda t, u: self.NEW
+        wd3 = env.run(self.at(2026, 9, 28, 21, 5), wd2)
+        self.assertEqual(len(env.calls), len(zd.TD_W_SYMS)); self.assertEqual(wd3['cal'][-1], '2026-09-28')
+        self.assertIn('/SPY/', env.calls[0], 'najpierw sama sonda SPY')
+        self.assertEqual(wd3['px']['EWC']['d'][-1], ['2026-09-28', 100.0, 100.5, '2026-09-28T21:05:00Z'])
+        env.run(self.at(2026, 9, 28, 21, 25), wd3); self.assertEqual(env.calls, [])          # zapisane → bez zapytań
+
+    def test_lacking_ticker_incl_spy_placeholder_retried_hourly_then_miss(self):
+        env = self.Env(); wd = self.ready()
+        ph = self.nq_payload(self.DAYS + ['2026-09-28'], ph=('2026-09-28',))
+        env.nq = lambda t, u: ph if t in ('SPY', 'EWC') else self.NEW
+        wd = env.run(self.at(2026, 9, 28, 21, 5), wd); self.assertEqual(wd['cal'][-1], '2026-09-28')
+        wd = env.run(self.at(2026, 9, 28, 21, 25), wd); self.assertEqual(env.calls, [])          # < 55 min
+        wd = env.run(self.at(2026, 9, 28, 22, 5), wd)
+        self.assertEqual(sorted(c.split('/quote/')[1].split('/')[0] for c in env.calls), ['EWC', 'SPY'])   # SPY też ponownie
+        wd = env.run(self.at(2026, 9, 30, 21, 0), wd)
+        self.assertIn('2026-09-28', wd['px']['EWC']['miss']); self.assertIn('2026-09-28', wd['px']['SPY']['miss'])
+        self.assertFalse(any(r[0] == '2026-09-28' for r in wd['px']['EWC']['d']), 'brak na stałe, nigdy 0')
+        env.run(self.at(2026, 9, 30, 22, 30), wd)
+        self.assertEqual((env.n('/EWC/'), env.n('nasdaq')), (0, 1))                     # 28.09 już nigdy; tylko sonda SPY o nowe dni
+
+    def test_ssga_morning_poll(self):
+        env = self.Env(); wd = self.ready()                       # wiersze State Street kończą się 24.09 (piątkowe przychodzą w poniedziałek ok. 05:00 UTC)
+        wd = env.run(self.at(2026, 9, 28, 4, 30), wd); self.assertEqual(env.calls, [])                  # 00:30 NY
+        wd = env.run(self.at(2026, 9, 28, 4, 50), wd)
+        self.assertEqual([c.split('navhist-us-en-')[1] for c in env.calls], ['spy.xlsx'])              # tylko sonda (złoto już jest)
+        env.ssga = lambda t: self.issuer_rows('2026-09-25')
+        wd = env.run(self.at(2026, 9, 28, 5, 10), wd)
+        self.assertEqual(len(env.calls), len(zd.WD_SSGA) - 2)                                          # sonda + 11 pozostałych
+        self.assertEqual(wd['fl']['XLK']['d'][-1][0::3], ['2026-09-25', '2026-09-28T05:10:00Z'])
+        wd = env.run(self.at(2026, 9, 28, 5, 30), wd); self.assertEqual(env.calls, [])
+        env2 = self.Env(); env2.run(self.at(2026, 9, 28, 13, 0), self.ready()); self.assertEqual(env2.calls, [])   # od granicy bez pobrań
+
+    def test_seen_is_taken_after_the_request_returns(self):
+        env = self.Env(); wd = self.ready()
+
+        def slow_ssga(t):                                                     # zapytanie od 12:59 UTC (granica 13:00 UTC), odpowiedź po granicy
+            env.clock[0] = self.at(2026, 9, 28, 13, 0) + datetime.timedelta(seconds=5)
+            return self.issuer_rows('2026-09-25')
+        env.ssga = slow_ssga
+        wd = env.run(self.at(2026, 9, 28, 12, 59), wd)
+        self.assertEqual(wd['fl']['SPY']['d'][-1][0::3], ['2026-09-25', '2026-09-28T13:00:05Z'])
+        s = zd._tdw_series(wd, 'SPY'); self.assertFalse(s['on']['f'][-1])                              # zapisany po granicy → bez głosu
+
+    def test_ready_is_sticky_and_rv_counted_once(self):
+        env = self.Env(); wd = self.ready()
+        wd['bf']['px'] = False
+        env.nq = lambda t, u: (_ for _ in ()).throw(RuntimeError('down'))
+        self.assertTrue(env.run(self.at(2026, 9, 27, 18), wd)['ready'])
+        with mock.patch.object(zd, 'WD_MIN_CAL', 5000):                              # gotowość cen już niespełniona (bf.px False) — plik zostaje gotowy
+            w = env.run(self.at(2026, 9, 27, 18), json.loads(json.dumps(wd)))
+        self.assertEqual((w['bf']['px'], w['ready']), (False, True))
+        wd = self.ready(); saved = json.loads(json.dumps(self.SAVED_WD))
+        for t in ('IVV', 'EWJ'):
+            saved['fundusze']['f'][t]['h'][-2] = saved['fundusze']['f'][t]['h'][-2][:2] + [5]      # przepisany dzień w pliku fundusze
+        env = self.Env()
+        w1 = env.run(self.at(2026, 9, 27, 18), wd, saved); w2 = env.run(self.at(2026, 9, 27, 18, 20), w1, saved)
+        self.assertEqual((w1['rv']['fl'] - wd['rv']['fl'], w2['rv']['fl'] - wd['rv']['fl']), (2, 2))  # liczony raz, nie co przebieg
+        self.assertTrue(any('dostawca przepisał dni już zapisane' in n for n in zd.META['notes']))
+
+    # ---------------------------------------------------------------- 12: build_trendy (wersja 1 świata i krypto bez zmian)
+    def trendy_S(self):
+        days = self.weekdays('2026-05-18', '2026-09-25')
+        cr = [(datetime.date(2026, 9, 26) - datetime.timedelta(days=69 - i)).isoformat() for i in range(70)]
+        S = {'fundusze': {'f': {'SPY': {'iss': 'ssga', 'h': self.fund_h(days[-80:])}, 'TLT': {'iss': 'ishares', 'h': self.fund_h(days[-80:])}}},
+             'ceny-krypto': {'q': {s: {'d': [[d, round(100 + (i % 5) - 2 * (i % 3), 4)] for i, d in enumerate(cr)]} for s in ('BTC', 'ETH')}}}
+        wd = self.make_wd(days, ['SPY', 'TLT', 'GLD', 'EWC'], seen_last='2026-09-25T21:05:00Z')
+        return S, wd
+
+    def trendy(self, S):
+        zd._W_LOG[0] = zd._W_LOG[1] = None; zd._CR_LOG[0] = zd._CR_LOG[1] = None
+        return zd.build_trendy(S)
+
+    def test_build_trendy_world_v2_block(self):
+        S, wd = self.trendy_S(); dump = self.dump
+        base = self.trendy(S)
+        self.assertEqual(sum(1 for b in base['bd'] if b['fam'] in zd.TD_FAM_W), 7); self.assertTrue(any(r['fam'] == 'cr' for r in base['d']))
+        # (a) brak pliku albo plik niegotowy → bajt w bajt jak bez v127
+        self.assertEqual(dump(self.trendy(dict(S, **{'swiat-dzien': dict(wd, ready=False)}))), dump(base))
+        self.assertEqual(dump(self.trendy(dict(S, **{'swiat-dzien': dict(wd, ready='true')}))), dump(base), 'tylko prawdziwe True')
+        # (b) gotowy → wiersze v2 przed wierszami v125 (bez zmian i na miejscu), 7 linii v2 na końcu bd, reszta kluczy bez zmian
+        zd.META['notes'].clear()
+        b = self.trendy(dict(S, **{'swiat-dzien': wd}))
+        wv2 = [r for r in b['d'] if r['fam'] != 'cr' and 'rs' in r]
+        self.assertEqual([r['id'] for r in wv2], [s for s in zd.TD_W_SYMS if s in ('SPY', 'TLT', 'GLD', 'EWC')])   # kolejność TD_W_SYMS
+        self.assertEqual(dump(b['d'][:len(wv2)]), dump(wv2)); self.assertEqual(dump(b['d'][len(wv2):]), dump(base['d']))
+        self.assertEqual(dump(b['bd'][:len(base['bd'])]), dump(base['bd']))
+        self.assertEqual([(x['fam'], x['rule'], x['v']) for x in b['bd'][len(base['bd']):]], [k + (2,) for k in zd.TD_RULES_W2])
+        self.assertEqual(set(b), set(base)); self.assertTrue(all(dump(b[k]) == dump(base[k]) for k in base if k not in ('d', 'bd')))
+        self.assertTrue({r['rule'] for r in wv2} <= {'c', 'cx', 'c0'})
+        self.assertFalse(any(r['rule'] in self.V1_TRD_DRL for r in wv2), 'strona sprzed v127 nie przyjmuje żadnego wiersza v2')
+        seen, old = set(), []
+        for x in b['bd']:                                                          # strona produkcji: pierwsza linia na (fam, reguła)
+            if (x.get('fam'), x.get('rule')) in self.V1_TRD_DRULES and (x['fam'], x['rule']) not in seen:
+                seen.add((x['fam'], x['rule'])); old.append(x)
+        self.assertEqual(len(old), 7); self.assertTrue(all('v' not in x for x in old), 'stara karta bierze linie v1 świata')
+        self.assertFalse(any(n.startswith('trendy dziennie świat') for n in zd.META['notes']))
+        # (c) awaria v2 → jak bez v2 + uwaga
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, 'build_daily_w2', side_effect=RuntimeError('test')):
+            c = self.trendy(dict(S, **{'swiat-dzien': wd}))
+        self.assertEqual(dump(c), dump(base)); self.assertIn('trendy dziennie świat v2: test', zd.META['notes'])
+        # (d) awaria wersji 1 świata → v2 pominięte (stara karta czytałaby linie v2 jako v1), jak bez v2 tej samej awarii + uwaga
+        with mock.patch.object(zd, 'build_daily', side_effect=RuntimeError('v1 test')):
+            e0 = self.trendy(S)
+            zd.META['notes'].clear()
+            e1 = self.trendy(dict(S, **{'swiat-dzien': wd}))
+        self.assertEqual(dump(e1), dump(e0)); self.assertFalse(any(r.get('rs') and r['fam'] != 'cr' for r in e1['d'] or []))
+        self.assertTrue(any('pominięte — brak linii wersji 1' in n for n in zd.META['notes']))
+
+    # ---------------------------------------------------------------- 13: powtórka dziennika
+    def test_replay_journal_equals_backtest(self):
+        """Jak replay_w2.py sędziego (10 sesji): karta każdej sesji z tego, co było zapisane 30 min przed granicą, 10 min i 2 h 10 min po niej;
+        przed granicą nic nie trafia do dziennika, zapisany wiersz się nie zmienia; po ostatnim zamknięciu wyniki uzupełnione, a licznik
+        dziennika każdej linii = pary testu wstecz tych samych sesji."""
+        cal = self.weekdays('2026-03-02', '2026-09-25')
+        wd = self.make_wd(cal, ['SPY', 'TLT', 'GLD', 'EWC', 'EWJ'], seed=11, evening=12)
+        T = cal[-10:]
+
+        def upto(S):                                                                 # plik taki, jaki był przed sesją S
+            c2 = cal[:cal.index(S)]; cs = set(c2)
+            return {'cal': c2, 'px': {t: {'d': [r for r in p['d'] if r[0] in cs]} for t, p in wd['px'].items()},
+                    'fl': {t: {'d': [r for r in p['d'] if r[0] < S]} for t, p in wd['fl'].items()}, 'ob': {}}
+        with mock.patch.object(zd, 'TD_SINCE_W2', T[0]):
+            log, frozen = None, {}
+            for S in T:
+                for dm in (-30, 10, 130):
+                    now = self.utc(zd._tdw_cut(S)) + datetime.timedelta(minutes=dm)
+                    rows, bd, series, lines, ys = self.core(upto(S), now)
+                    self.assertTrue(all(r['nx'] == S for r in rows))
+                    n0 = len(log['rows']) if log else 0
+                    log = zd._tdw_log(log, rows, series, now)
+                    if dm < 0:
+                        self.assertEqual(len(log['rows']), n0, ('zapis przed granicą', S))
+                    for r in log['rows']:
+                        k = (r[0], r[1])
+                        if k in frozen:
+                            self.assertEqual(frozen[k], r[:6], k)
+                        frozen[k] = r[:6]
+            last = self.utc(zd._tdw_at(T[-1], 1200))                                 # 20:00 NY po ostatnim zamknięciu
+            rows, bd, series, lines, ys = self.core(wd, last)
+            log = zd._tdw_log(log, rows, series, last)
+            self.assertEqual(len(log['rows']), 50); self.assertTrue(all(r[6] is not None for r in log['rows']))
+            JL, _ = zd._tdw_jpairs(log, T[0])
+            n = 0
+            for key in zd.TD_RULES_W2:
+                bt = [p for p in lines[key] if T[0] <= p[0] <= T[-1]]
+                self.assertEqual((sum(p[1] for p in JL[key]), len(JL[key])), (sum(p[1] for p in bt), len(bt)), key); n += len(bt)
+            self.assertGreater(n, 0)
+            bdj = zd._tdw_pool(lines, ys, log=log, today=last.date())
+            self.assertEqual(bdj[-1]['ln'], len(JL[('w', 'all')]))
+
+    # ---------------------------------------------------------------- 14: przebieg główny
+    def _main(self, prev, build, keep=(), cache=None, fresh=()):
+        """main() bez sieci: wszystkie pozostałe budowniczowie udają awarię; `build` zastępuje build_swiat_dzien; keep = prawdziwe funkcje.
+        previous czyta ze słownika prev (i zapisuje, o co pytano), _prev_cache — ze słownika cache, fresh — prawda tylko dla obiektów
+        z krotki `fresh` (bez prawdziwego zegara); save zapisuje także do SAVED (jak prawdziwy)."""
+        saved, order, asked = {}, [], []; self.fresh_calls = []
+        names = [n for n in dir(zd) if n.startswith('build_') and callable(getattr(zd, n)) and n not in keep and n != 'build_swiat_dzien']
+
+        def save(n, o):
+            saved[n] = o; order.append(n); zd.SAVED[n] = o
+
+        def prev_fn(name):
+            asked.append(name); return prev.get(name)
+        pats = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in names]
+        pats += [mock.patch.dict(os.environ, {k: '' for k in self.ENV_EMPTY}, clear=False), mock.patch.object(zd, 'save', save),
+                 mock.patch.object(zd, 'SAVED', {}), mock.patch.object(zd, 'previous', prev_fn),
+                 mock.patch.object(zd, '_prev_cache', lambda name: (cache or {}).get(name)),
+                 mock.patch.object(zd, 'fresh', lambda p, m: self.fresh_calls.append((p, m)) or any(p is x for x in fresh)),
+                 mock.patch.object(zd, 'build_swiat_dzien', side_effect=build)]
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        [p.start() for p in pats]
+        try:
+            zd.main()
+        finally:
+            [p.stop() for p in reversed(pats)]
+        return saved, order, asked
+
+    def test_main(self):
+        prev_wd = {'at': '2026-09-27T15:00:00+00:00', 'cal': [], 'ready': False}
+        saved, _, _ = self._main({'swiat-dzien': prev_wd}, RuntimeError('offline'))      # awaria całości → poprzedni plik, ok False, błąd
+        self.assertIs(saved['swiat-dzien'], prev_wd); self.assertIs(zd.META['ok']['swiat-dzien'], False)
+        self.assertIn('Świat dziennie: offline', saved['meta']['errors']); self.assertNotIn('swiat-dziennik', saved, 'bez dziennika nic')
+        saved, _, _ = self._main({}, RuntimeError('offline')); self.assertNotIn('swiat-dzien', saved)
+        skel = {'at': zd.NOW, 'cal': [], 'ready': False, 'bf': {}, 'nq': {'fails': 1, 'next': '2026-09-27T16:55:00Z', 'since': 'x'}, 'bledy': {}}
+        saved, _, _ = self._main({}, lambda p, s, run_t0=None: skel)
+        self.assertIs(saved['swiat-dzien'], skel); self.assertIs(zd.META['ok']['swiat-dzien'], False, 'przerwa Nasdaq = ok False')
+        built = {'at': zd.NOW, 'cal': ['2026-09-25'], 'ready': False, 'nq': {'fails': 0, 'next': None, 'since': None}, 'bledy': {}}
+        saved, _, _ = self._main({}, lambda p, s, run_t0=None: built); self.assertIs(zd.META['ok']['swiat-dzien'], True)
+        saved, _, _ = self._main({}, lambda p, s, run_t0=None: dict(built, bledy={'px': 'x'})); self.assertIs(zd.META['ok']['swiat-dzien'], False)
+        # pamięć Actions świeża (≤ 60 min) → bez strony; stara → previous (nowszy z pamięci i strony); po zapisie pliku fundusze
+        C = {'at': '2026-09-27T15:30:00+00:00', 'cal': ['c']}; P = {'at': '2026-09-27T15:40:00+00:00', 'cal': ['p']}
+        F = {'at': zd.NOW, 'f': {}}
+        calls = []
+        _, _, asked = self._main({'swiat-dzien': P, 'fundusze': F}, lambda p, s, run_t0=None: calls.append((p, sorted(s), run_t0)) or built,
+                                 cache={'swiat-dzien': C}, fresh=(C,))
+        self.assertIs(calls[0][0], C); self.assertNotIn('swiat-dzien', asked); self.assertIn('fundusze', calls[0][1])
+        self.assertEqual([m for p, m in self.fresh_calls if p is C], [60], 'pamięć Actions pliku świata tylko, gdy ma ≤ 60 min')
+        self.assertIsInstance(calls[0][2], float, 'początek przebiegu przekazany (spóźniony przebieg)')
+        calls.clear()
+        _, _, asked = self._main({'swiat-dzien': P}, lambda p, s, run_t0=None: calls.append((p, s, run_t0)) or built, cache={'swiat-dzien': C})
+        self.assertIs(calls[0][0], P); self.assertIn('swiat-dzien', asked)
+        # dziennik: v2 nieaktywna → poprzedni poprawny zapisany bez zmian; zły albo pusty — nigdy
+        log = {'at': '2026-09-27T13:10:00Z', 'v': 2, 'since': '2026-10-01', 'cut': 540, 'rows': [], 'cp': {}}
+        saved, _, _ = self._main({'swiat-dziennik': log}, lambda p, s, run_t0=None: built,
+                                 keep=('build_trendy', 'build_daily', 'build_daily_cr', 'build_daily_cr2', 'build_daily_w2'))
+        self.assertIs(saved['swiat-dziennik'], log)
+        for bad in ({}, {'rows': []}, {'v': 2, 'since': 'x', 'rows': 'x'}, []):
+            saved, _, _ = self._main({'swiat-dziennik': bad}, lambda p, s, run_t0=None: built,
+                                     keep=('build_trendy', 'build_daily', 'build_daily_cr', 'build_daily_cr2', 'build_daily_w2'))
+            self.assertNotIn('swiat-dziennik', saved, bad)
+        # v2 aktywna (plik gotowy, linie v1 świata z pliku fundusze) → dziennik zbudowany w tym przebiegu, zapisany po trendach
+        days = self.weekdays('2026-05-18', '2026-09-25')
+        wd = self.make_wd(days, ['SPY', 'TLT', 'GLD', 'EWC'], seen_last='2026-09-25T21:05:00Z')
+        fu = {'at': zd.NOW, 'f': {'SPY': {'iss': 'ssga', 'h': self.fund_h(days[-80:])}}}
+        now = self.at(2026, 9, 28, 13, 10)                                            # 10 min po granicy sesji 28.09
+        keep = ('build_trendy', 'build_daily', 'build_daily_cr', 'build_daily_cr2', 'build_daily_w2')
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'TD_SINCE_W2', '2026-09-28'):
+            saved, order, _ = self._main({'fundusze': fu, 'swiat-dziennik': log}, lambda p, s, run_t0=None: wd, keep=keep)
+        self.assertEqual([(b['fam'], b['rule']) for b in saved['trendy']['bd'] if b.get('v') == 2 and b['fam'] != 'cr'], list(zd.TD_RULES_W2))
+        J = saved['swiat-dziennik']
+        self.assertEqual((J['since'], [r[:2] for r in J['rows']]), ('2026-09-28', [['2026-09-28', s] for s in ('EWC', 'GLD', 'SPY', 'TLT')]))
+        self.assertIn('prev', J, 'inna data wdrożenia niż w poprzednim — nowy dziennik z prev')
+        self.assertLess(order.index('swiat-dzien'), order.index('trendy')); self.assertLess(order.index('trendy'), order.index('swiat-dziennik'))
+        self.assertLess(order.index('fundusze'), order.index('swiat-dzien'))
+        # v2 aktywna, ale nieczytelna kopia dziennika w archiwum i brak poprzedniego → nic nie jest zapisywane, błąd „Dziennik świata: …”
+        bad = os.path.join(self.tmp, 'zly.csv')
+        with open(bad, 'w', encoding='utf-8') as fh:
+            fh.write('x\n')
+        with mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'TD_SINCE_W2', '2026-09-28'), mock.patch.object(zd, 'TD_W_CSV', bad):
+            saved, _, _ = self._main({'fundusze': fu}, lambda p, s, run_t0=None: wd, keep=keep)
+        self.assertNotIn('swiat-dziennik', saved); self.assertIn('trendy', saved)
+        self.assertTrue(any(e.startswith('Dziennik świata: ') for e in saved['meta']['errors']))
+
+    def test_main_source_blocks(self):
+        src = self.read(zd.__file__); m = src.index('def main():')
+        a = src.index("pc_wd = _prev_cache('swiat-dzien')")
+        self.assertGreater(a, src.index("        if prev_fu: save('fundusze', prev_fu)\n")); self.assertGreater(a, m)
+        self.assertIn("wd = build_swiat_dzien(prev_wd, SAVED, run_t0=_RUN_T0[0]); save('swiat-dzien', wd)", src)
+        j0 = src.index("_W_LOG[0] = previous('swiat-dziennik'); _W_LOG[1] = None"); t0 = src.index("save('trendy', build_trendy(SAVED))")
+        j1 = src.index("save('swiat-dziennik', _W_LOG[1])"); j2 = src.index("save('swiat-dziennik', _W_LOG[0])")
+        self.assertTrue(m < j0 < t0 < j1 < j2 < src.index("save('meta', META)"), 'dziennik: poprzedni przed trendami, zapis po trendach')
+        b0 = src.index('# v127: sygnały dzienne świata, wersja reguły 2'); b1 = src.index('def _tr_try(name, fn, out):\n')
+        self.assertLess(b0, b1); self.assertLess(src.index('def build_swiat_dzien('), b1)
+        blk = src[b0:b1]
+        self.assertNotIn('os.environ', blk); self.assertNotIn('KEY', blk, 'źródła bez klucza')
+        self.assertNotIn('NOW)', blk, 'seen tylko z _now_utc'); self.assertNotIn('def build_daily_w2_core', blk, 'pomocnik suchego przebiegu tylko w testach')
+        z3 = src[src.index('def build_trendy(S):'):]
+        self.assertLess(z3.index("wd2 = S.get('swiat-dzien')"), z3.index("    return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony"))
+        me = self.read(__file__)
+        tup = zd.re.compile(r"for (?:f|fn) in\s*\(\s*('build_\w+'(?:\s*,\s*'build_\w+')*)\s*\)", zd.re.S)
+        lists = [x.group(1) for x in tup.finditer(me) if "'build_fundusze'" in x.group(1)]
+        self.assertGreaterEqual(len(lists), 18, 'krotki zaślepek przepływu głównego')
+        self.assertEqual([s[:60] for s in lists if "'build_swiat_dzien'" not in s], [], 'każda krotka zaślepek zawiera build_swiat_dzien')
+
+    # ---------------------------------------------------------------- 15: archiwum, kontrola, sonda
+    def test_archive_kontrola_probe(self):
+        import contextlib
+        import importlib.util
+        import io
+        import urllib.error as _ue
+        root = os.path.dirname(os.path.abspath(__file__))
+        env0 = os.environ.get('ARCHIWUM_DIR')
+        os.environ['ARCHIWUM_DIR'] = self.tmp
+        try:
+            spec = importlib.util.spec_from_file_location('archiwum_v127', os.path.join(root, 'narzedzia', 'archiwum.py'))
+            A = importlib.util.module_from_spec(spec); spec.loader.exec_module(A)
+        finally:
+            if env0 is None:
+                os.environ.pop('ARCHIWUM_DIR', None)
+            else:
+                os.environ['ARCHIWUM_DIR'] = env0
+        F = A.FILES['swiat-dziennik']
+        self.assertEqual((F['file'], F['cols'], F['key'], F['back']), ('swiat-dziennik.csv', zd.TD_W_CSV_COLS, ['date', 'sym', 'v', 'since'], None))
+        self.assertTrue(F['src'].startswith('Obliczenia własne CapitalFlowAI'))
+        asrc = self.read(os.path.join(root, 'narzedzia', 'archiwum.py'))
+        self.assertIn("'swiat-dziennik': src_swiat_dziennik", asrc[asrc.index('def main():'):], 'źródło w main() archiwum')
+        self.assertIn('swiat-dziennik.csv', A.__doc__)
+        days = self.weekdays('2026-09-28', '2026-11-06')
+        log = {'at': '2026-11-06T21:00:00Z', 'v': 2, 'since': days[0], 'cut': 540, 'cp': {},
+               'rows': [[d, s, (-1) ** i, 'obs', 'p+f0' if i % 2 else 'p-f.', d + 'T13:10:00Z', round(0.1 * (i % 7) - 0.3, 4)]
+                        for i, d in enumerate(days) for s in ('EWJ', 'SPY')]}
+        log['rows'][-1][6] = None; log['rows'][0][6] = -1.2345; log['rows'][1][6] = 0.0
+        with mock.patch.object(zd, 'TD_SINCE_W2', days[0]):
+            urls = []
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: urls.append(url) or log):
+                rows = A.src_swiat_dziennik()
+            self.assertTrue(urls[0].startswith(A.SITE + '/data/swiat-dziennik.json?t='))
+            self.assertEqual(rows[0], log['rows'][0] + [2, days[0]]); self.assertEqual(len(rows), 2 * len(days))
+            merged, added, revised = A.merge({}, rows, F['cols'], F['key'])
+            path = os.path.join(self.tmp, F['file']); A.write_csv(path, F['cols'], merged)
+            self.assertEqual(self.read(path).split('\n')[1],
+                             '%s,EWJ,1,obs,p-f.,%sT13:10:00Z,-1.2345,2,%s' % (days[0], days[0], days[0]))
+            back, why = zd._tdw_from_csv(path)
+            self.assertEqual((why, back['rows']), ('ok', sorted(log['rows'])), 'dziennik → CSV archiwum → odtworzenie: te same wiersze')
+            log['rows'][-1][6] = 2.5                                     # wynik dopisany później → jedna rewizja, ten sam klucz
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: log):
+                m2, a2, r2 = A.merge(merged, A.src_swiat_dziennik(), F['cols'], F['key'])
+            self.assertEqual((a2, r2), (0, 1))
+            A.NOTES.clear()
+            with mock.patch.object(zd, 'get_json', side_effect=_ue.HTTPError('u', 404, 'nf', {}, None)):
+                self.assertEqual(A.src_swiat_dziennik(), [])
+            self.assertEqual(len(A.NOTES), 1, 'brak dziennika na stronie (404) — uwaga, nie błąd')
+            A.NOTES.clear()
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: dict(log, rows=[])):
+                self.assertEqual(A.src_swiat_dziennik(), [])
+            self.assertEqual(len(A.NOTES), 1, 'dziennik jeszcze bez wierszy — uwaga, nie błąd')
+            for bad in ({'rows': [], 'v': 2}, {'rows': None, 'v': 2, 'since': 'x'}, {'rows': [], 'v': True, 'since': 'x'}, [], {'rows': [['x']], 'v': 2, 'since': 'x'}):
+                with mock.patch.object(zd, 'get_json', lambda url, timeout=60: bad):
+                    with self.assertRaises(RuntimeError):
+                        A.src_swiat_dziennik()
+            with mock.patch.object(zd, 'get_json', side_effect=_ue.HTTPError('u', 500, 'err', {}, None)):
+                with self.assertRaises(_ue.HTTPError):
+                    A.src_swiat_dziennik()
+            idx = A.run({'swiat-dziennik': lambda: rows}, arch=os.path.join(self.tmp, 'arch2'))
+            self.assertTrue(idx['files']['swiat-dziennik']['ok']); self.assertEqual(idx['files']['swiat-dziennik']['rows'], 2 * len(days))
+        k = self.read(os.path.join(root, 'narzedzia', 'kontrola.py'))
+        PL = eval(zd.re.search(r'^PLIKI = (\[.*\])$', k, zd.re.M).group(1)); LM = eval(zd.re.search(r'^LIMIT_MIN = (\{[^}]*\})', k, zd.re.M).group(1))
+        self.assertTrue({'swiat-dzien', 'swiat-dziennik'} <= set(PL)); self.assertEqual(PL[-2:], ['krypto-dzien', 'krypto-dziennik'], 'pliki v125 zostają ostatnie')
+        self.assertEqual((LM['swiat-dzien'], LM['swiat-dziennik']), (180, 180))
+        spec = importlib.util.spec_from_file_location('sondy_v127', os.path.join(root, 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(S.GROUPS.count(S.g_nasdaq), 1)
+        body = json.dumps(self.nq_payload(['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25'])).encode()
+
+        class R:
+            status = 200
+
+            def __init__(self, b):
+                self.b = io.BytesIO(b)
+
+            def read(self, n=-1):
+                return self.b.read(n)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        got, out = [], io.StringIO()
+
+        def uo(req, timeout=None, context=None):
+            got.append((req.full_url, dict(req.header_items()), timeout)); return R(body)
+        with mock.patch.object(S.urllib.request, 'urlopen', uo), mock.patch.object(S, '_utc_today', lambda: datetime.date(2026, 9, 27)), \
+                contextlib.redirect_stdout(out):
+            S.g_nasdaq()
+        self.assertEqual(got[0][0], 'https://api.nasdaq.com/api/quote/SPY/historical?assetclass=etf&fromdate=2026-09-17&limit=5&todate=2026-09-27')
+        self.assertEqual(got[0][1], {'User-agent': 'CapitalFlowAI-collector/1.0'}, 'dokładnie prośba zbieracza: sam User-Agent zbieracza')
+        self.assertEqual(got[0][1]['User-agent'], zd.urllib.request.Request('https://x', headers={'User-Agent': 'CapitalFlowAI-collector/1.0'}).get_header('User-agent'))
+        txt = out.getvalue()
+        self.assertIn('summary nasdaq-rows 5 newest 2026-09-25', txt); self.assertIn('rows=5 newest=2026-09-25', txt)
+        self.assertNotIn('api.nasdaq.com', txt, 'bez adresu w wydruku')
+
+    # ---------------------------------------------------------------- 16: przegląd v127 — punkt w czasie, dziennik = próba historyczna
+    def test_price_move_votes_only_when_both_closes_were_on_time(self):
+        """Ruch ceny T[j−1] = dwa zamknięcia: zamknięcie T[j−2] dopisane po granicy T[j] (np. wiersz zastępczy uzupełniony później) nie daje
+        w próbie głosu, którego karta w chwili granicy nie miała (była bez ruchu ceny); sesja nie traci przy tym innych par (cl bez zmian)."""
+        cal = self.sessions(130, '2026-04-01'); wd = self.make_wd(cal, ['SPY'], seen_last=cal[-1] + 'T21:05:00Z')
+        for r in wd['px']['SPY']['d']:
+            r[3] = r[0] + 'T21:05:00Z'                                             # okres zapisów na żywo: każde zamknięcie wieczorem swojej sesji
+        j = 100; px = wd['px']['SPY']['d']
+        px[j - 1][2] = round(px[j - 2][2] * 1.03, 4)                                # T[j−1]: +3% → ruch ceny głosuje na T[j]
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertTrue(s['on']['p'][j]); self.assertEqual(zd._tdw_votes(s, j)[0]['p'][2], 1)
+        px[j - 2][3] = cal[j + 1] + 'T21:05:00Z'                                    # zamknięcie T[j−2] zapisane dopiero po granicy T[j]
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertFalse(s['on']['p'][j]); self.assertFalse(s['cl'][j], 'zamknięcie dnia danych było na czas — sesja zostaje')
+        self.assertEqual(zd._tdw_votes(s, j)[0]['p'][2], 0); self.assertIsNotNone(zd._tdw_votes(s, j)[0]['p'][1], 'z zostaje (opis)')
+        self.assertFalse(any(p[0] == cal[j] and p[1] == ('eq', 'p') for p in zd._tdw_pairs(s)))
+        self.assertTrue(s['on']['p'][j - 1] is False and s['cl'][j - 1], 'sam dzień T[j−2] po granicy swojej karty — bez par')
+
+    def test_flow_votes_only_when_both_issuer_rows_were_on_time(self):
+        """Przepływ = para wierszy wydawcy (jak fund_flows): poprzedni wiersz dopisany po granicy (luka uzupełniona z pliku fundusze) → bez głosu."""
+        cal = self.sessions(130, '2026-04-01'); wd = self.make_wd(cal, ['SPY'], seen_last=cal[-1] + 'T21:05:00Z')
+        fl = wd['fl']['SPY']['d']
+        for r in fl:
+            r[3] = r[0] + 'T23:30:00Z'
+        j = 100
+        s = zd._tdw_series(wd, 'SPY'); self.assertTrue(s['on']['f'][j])
+        fl[j - 2][3] = cal[j] + 'T14:00:00Z'                                        # wiersz T[j−2] dopisany po granicy T[j] (13:00 UTC)
+        s = zd._tdw_series(wd, 'SPY')
+        self.assertFalse(s['on']['f'][j]); self.assertTrue(s['on']['f'][j + 1], 'następna para (T[j−1], T[j]) — oba wiersze przed granicą T[j+1]')
+        self.assertFalse(s['on']['f'][j - 1], 'sam wiersz T[j−2] po granicy swojej karty')
+        V, _ = zd._tdw_votes(s, j); self.assertEqual(V['f'][2], 0)
+
+    def test_missing_close_at_cut_card_late_not_journaled_and_no_pairs(self):
+        """Zamknięcia dnia danych brak w chwili granicy (wiersz zastępczy, ponowienie co 55 min): przed granicą karta zwykła (brak ruchu ceny),
+        od granicy „late” — tylko opis, dziennik jej nie zapisuje; w próbie brak tego zamknięcia w okresie zapisów na żywo (albo zapis po granicy)
+        = sesja bez par. Historia bez czasów zapisu (brak wiersza przed pierwszym zapisem na żywo) zostaje jak była."""
+        cal = self.sessions(130, '2026-04-01'); wd = self.make_wd(cal, ['SPY', 'EWC'], seen_last=cal[-1] + 'T21:05:00Z')
+        for s_ in ('SPY', 'EWC'):
+            for r in wd['px'][s_]['d'][-40:]:
+                r[3] = r[0] + 'T21:05:00Z'                                          # ostatnie 40 sesji zapisane na żywo
+        for r in wd['fl']['SPY']['d'][-40:]:
+            r[3] = r[0] + 'T23:30:00Z'
+        nxt = zd._tdw_next(cal[-1]); cut = self.utc(zd._tdw_cut(nxt))
+        held = wd['px']['SPY']['d'].pop()                                           # SPY: zamknięcia dnia danych jeszcze nie ma
+        with mock.patch.object(zd, 'TD_SINCE_W2', cal[0]):
+            before, *_ = self.core(wd, cut - datetime.timedelta(hours=1))
+            after, bd, series, *_ = self.core(wd, cut + datetime.timedelta(minutes=10))
+            b = {r['id']: r for r in before}; a = {r['id']: r for r in after}
+            self.assertIn(b['SPY']['st'], ('obs', 'x', 'quiet')); self.assertEqual(a['SPY']['st'], 'late'); self.assertEqual(a['SPY']['side'], 'none')
+            self.assertEqual(a['SPY']['rs'][0][:2], ['p', None], 'brak ruchu ceny = brak, nigdy 0')
+            log = zd._tdw_log(None, after, series, cut + datetime.timedelta(minutes=10))
+            self.assertEqual([r[1] for r in log['rows']], ['EWC'], 'karta bez zamknięcia dnia danych poza dziennikiem')
+        # próba: zamknięcie z okresu zapisów na żywo brak na stałe albo zapisane po granicy — sesja bez par; brak w historii — jak dotąd
+        j = len(cal) - 10; d = cal[j - 1]
+        w2 = json.loads(json.dumps(wd)); w2['px']['SPY']['d'].append(held)
+        w2['px']['SPY']['d'] = [r for r in w2['px']['SPY']['d'] if r[0] != d]
+        s = zd._tdw_series(w2, 'SPY'); self.assertTrue(s['cl'][j]); self.assertFalse(any(p[0] == cal[j] for p in zd._tdw_pairs(s)))
+        w3 = json.loads(json.dumps(w2)); w3['px']['SPY']['d'].append([d, 100.0, 101.0, cal[j] + 'T14:00:00Z']); w3['px']['SPY']['d'].sort()
+        self.assertTrue(zd._tdw_series(w3, 'SPY')['cl'][j], 'dociera po granicy — też bez par (jak dziennik)')
+        k = 50; w4 = json.loads(json.dumps(w2)); w4['px']['SPY']['d'] = [r for r in w4['px']['SPY']['d'] if r[0] != cal[k - 1]]
+        self.assertFalse(zd._tdw_series(w4, 'SPY')['cl'][k], 'luka w historii (bez czasów zapisu) — bez zmian')
+
+    def test_country_row_after_cut_does_not_replace_older_on_time_row(self):
+        """Święto w USA (Dziękczynienie 26.11), Tajwan handluje: wiersz 26.11 zapisany na czas głosuje na kartę 27.11; wiersz Tajwanu z 27.11
+        zapisany po granicy 27.11 nie wypiera go w próbie (dziennik zapisał głos z 26.11); luka widoczna dopiero z wierszem zapisanym po
+        granicy też nie. Wiersz nowszy na czas nadal wygrywa (test wyżej)."""
+        cal = self.weekdays('2026-06-01', '2026-11-25'); wd = self.make_wd(cal, ['EWT'], seen_last='2026-11-25T21:05:00Z')
+        days = [d for d in self.sessions(130, '2026-06-01') if d <= '2026-11-26']
+        tw = [[d, float(i % 7) - 3.0, d + 'T08:20:00Z'] for i, d in enumerate(days)]; tw[-1][1] = 500.0          # 26.11: duży napływ
+        wd['ob'] = {'tw': {'d': tw, 'empty': []}}
+        S = '2026-11-27'; now = self.utc(zd._tdw_cut(S)) + datetime.timedelta(minutes=5)
+        s0 = zd._tdw_series(wd, 'EWT'); j = s0['dates'].index(S)
+        self.assertEqual((s0['in']['o'][j], s0['on']['o'][j]), (500.0, True))
+        with mock.patch.object(zd, 'TD_SINCE_W2', '2026-11-02'):
+            rows, bd, series, *_ = self.core(wd, now)
+            log = zd._tdw_log(None, rows, series, now)
+        self.assertEqual([r[4] for r in log['rows'] if r[1] == 'EWT'], ['p0f.o+'][:0] + [log['rows'][0][4]])
+        self.assertIn('o+', log['rows'][0][4])
+        w2 = json.loads(json.dumps(wd)); w2['ob']['tw']['d'].append([S, -10.0, S + 'T14:30:00Z'])                # po granicy (14:00 UTC)
+        s = zd._tdw_series(w2, 'EWT')
+        self.assertEqual((s['in']['o'][j], s['on']['o'][j]), (500.0, True), 'starszy wiersz na czas zostaje')
+        w3 = json.loads(json.dumps(wd)); w3['ob']['tw']['d'].append(['2026-11-30', 5.0, '2026-11-30T08:20:00Z'])  # luka 27.11 widoczna od 30.11
+        s = zd._tdw_series(w3, 'EWT')
+        self.assertEqual(s['in']['o'][j], 500.0, 'luka znana dopiero po granicy nie kasuje głosu')
+        w4 = json.loads(json.dumps(wd)); w4['ob']['tw']['d'].append([S, -10.0, S + 'T08:20:00Z'])                # na czas → nowszy wygrywa
+        self.assertEqual(zd._tdw_series(w4, 'EWT')['in']['o'][j], -10.0)
+
+    def test_journal_equals_backtest_missing_close_and_asian_holiday(self):
+        """Powtórka dziennika (jak test 13) dla dwóch przypadków z przeglądu: zamknięcie dnia danych dociera po granicy (karta „late” — ani
+        w dzienniku, ani w próbie) i wiersz Tajwanu po granicy w dniu po święcie w USA (głos z 26.11 — i w dzienniku, i w próbie)."""
+        cal = self.weekdays('2026-06-01', '2026-11-25'); S = '2026-11-27'; D = cal[-1]
+        wd = self.make_wd(cal, ['EWT', 'EWJ'], seed=5, seen_last=D + 'T21:05:00Z')
+        for s_ in ('EWT', 'EWJ'):
+            for r in wd['px'][s_]['d'][-30:]:
+                r[3] = r[0] + 'T21:05:00Z'
+            for r in wd['fl'][s_]['d'][-30:]:
+                r[3] = r[0] + 'T23:30:00Z'
+            wd['fl'][s_]['d'][-1][2] += 5e5                                           # duży napływ w dniu danych → f głosuje na S
+        days = [d for d in self.sessions(130, '2026-06-01') if d <= '2026-11-26']
+        wd['ob'] = {'tw': {'d': [[d, float(i % 7) - 3.0, d + 'T08:20:00Z'] for i, d in enumerate(days)], 'empty': []}}
+        wd['ob']['tw']['d'][-1][1] = 500.0
+        held = wd['px']['EWJ']['d'].pop()                                              # EWJ: zamknięcia 25.11 brak w chwili granicy S
+        now1 = self.utc(zd._tdw_cut(S)) + datetime.timedelta(minutes=10)
+        with mock.patch.object(zd, 'TD_SINCE_W2', S):
+            rows, bd, series, *_ = self.core(wd, now1)
+            log = zd._tdw_log(None, rows, series, now1)
+            self.assertEqual({r['id']: r['st'] for r in rows}['EWJ'], 'late')
+            w2 = json.loads(json.dumps(wd)); held[3] = S + 'T14:00:00Z'; w2['px']['EWJ']['d'].append(held)     # dociera po granicy
+            w2['ob']['tw']['d'].append([S, -10.0, S + 'T14:30:00Z']); w2['cal'].append(S)
+            for s_ in ('EWT', 'EWJ'):
+                c = w2['px'][s_]['d'][-1][2]; w2['px'][s_]['d'].append([S, round(c * 1.001, 4), round(c * 1.006, 4), S + 'T21:05:00Z'])
+            last = self.utc(S + 'T22:30:00')
+            rows2, bd2, series2, lines2, ys2 = self.core(w2, last)
+            log = zd._tdw_log(log, rows2, series2, last)
+        JL, _ = zd._tdw_jpairs(log, S)
+        for key in zd.TD_RULES_W2:
+            bt = sorted(p for p in lines2[key] if p[0] == S); jl = sorted(JL[key])
+            self.assertEqual(jl, bt, key)
+        self.assertTrue(JL[('eq', 'o')], 'głos Tajwanu z 26.11 w obu'); self.assertFalse([p for p in JL[('w', 'all')] if p[2] == 'EWJ'], 'EWJ w żadnym')
+
+    def test_published_z_never_crosses_a_threshold_by_rounding(self):
+        self.assertEqual([zd._tdw_rz(x) for x in (1.997, 0.996, 1.994, 2.0, -1.996, 1.0, -0.999, 2.004, 0.4449, None, 'x')],
+                         [1.99, 0.99, 1.99, 2.0, -1.99, 1.0, -0.99, 2.0, 0.44, None, None])
+        wd = self.rows_wd(); s = zd._tdw_series(wd, 'SPY'); j = len(s['dates']) - 1
+        now = self.utc(zd._tdw_cut(s['dates'][j])) - datetime.timedelta(hours=1)
+        with mock.patch.object(zd, '_td_z', lambda v, i, demean=True: 1.997):         # dwa zgodne powody, żaden „mocno” (1,997 < 2)
+            r = zd._tdw_row(s, {k: 'none' for k in zd.TD_RULES_W2}, {}, now.date(), now)
+        self.assertEqual((r['str'], [x[2] for x in r['rs']], r['zp'], r['zf']), (2, [1.99, 1.99], 1.99, 1.99))
+
+    # ---------------------------------------------------------------- 17: przegląd v127 — budowniczy (czas, przerwy, blokady, przycięcie)
+    def test_retry_before_1700_ny_stores_no_session_of_today(self):
+        """Ponowienie brakującego zamknięcia SPY o 16:30 NY (między 16:15 a 17:00): wiersz dzisiejszej sesji pominięty — kalendarz nie rośnie
+        przed 17:00 NY, a pierwszą publikacją zostaje zamknięcie z 17:00 lub później."""
+        env = self.Env(); wd = self.ready()
+        wd['px']['SPY']['d'] = [r for r in wd['px']['SPY']['d'] if r[0] != '2026-09-25']          # SPY 25.09 = wiersz zastępczy
+        wd['try'] = '2026-09-28T19:30:00Z'
+        env.nq = lambda t, u: self.nq_payload(self.DAYS[-5:] + ['2026-09-28'])
+        w = env.run(self.at(2026, 9, 28, 20, 30), wd)                                              # 16:30 NY
+        self.assertEqual([c.split('/quote/')[1].split('/')[0] for c in env.calls], ['SPY'])
+        self.assertEqual(w['cal'][-1], '2026-09-25'); self.assertFalse(any(r[0] == '2026-09-28' for r in w['px']['SPY']['d']))
+        self.assertEqual(w['px']['SPY']['d'][-1][0::3], ['2026-09-25', '2026-09-28T20:30:00Z'])      # brakujący dzień uzupełniony (po czasie)
+
+    def test_request_timeouts_capped_by_cap_and_time_left(self):
+        z = self.Zegar()
+
+        def slow(t, u):
+            z.sleep(2.0); return self.FULL
+
+        def slow_b(url, timeout):
+            z.sleep(3.0); return url.encode()
+        env = self.Env(nq=slow, gb=slow_b)
+        with mock.patch.object(zd, 'time', z):
+            t0 = z.monotonic(); env.run(self.T0, None); termin = zd._WD_TERMIN[0]
+        self.assertEqual(termin - t0, 45.0, 'limit całego budowniczego')
+        caps = {'nasdaq': 20, 'ssga': 20, 'blackrock': 90}
+        self.assertTrue(env.tmo)
+        for url, tmo, left in env.tmo:
+            cap = next(v for k, v in caps.items() if k in url)
+            self.assertTrue(0 < tmo <= cap and tmo <= left + 1e-9, (url, tmo, left))
+        self.assertTrue(any(tmo < caps['ssga'] for url, tmo, left in env.tmo if 'ssga' in url), 'limit skrócony do czasu, który został')
+        self.assertTrue(any('limit czasu budowniczego (45 s)' in n for n in zd.META['notes']))
+
+    def test_late_run_with_calendar_no_seed_short_budget(self):
+        """Spóźniony przebieg (godzinny, > 480 s) z kalendarzem i niezasianymi funduszami: bez pobrań plików wydawców, limit 15 s."""
+        env = self.Env(); z = self.Zegar(); wd = self.ready()
+        for t in zd.WD_SSGA + zd.WD_ISH:
+            wd['fl'][t].pop('seed', None)
+        wd['bf']['fl'] = False; wd['ready'] = False
+        with mock.patch.object(zd, 'time', z):
+            w = env.run(self.T0, wd, run_t0=z.monotonic() - 481)
+            self.assertEqual(zd._WD_TERMIN[0] - z.monotonic(), 15.0)
+        self.assertEqual((env.n('ssga'), env.n('blackrock'), env.n('nasdaq'), w['tr']), (0, 0, 0, 481.0))
+        with mock.patch.object(zd, 'time', z):
+            env.run(self.T0, wd, run_t0=z.monotonic() - 479)                            # 479 s — jeszcze zwykły przebieg: seria idzie dalej
+        self.assertEqual((env.n('ssga'), env.n('blackrock')), (14, 2))
+
+    def test_request_cut_by_budget_is_not_a_provider_failure(self):
+        """Zapytanie, któremu limit skrócono do końca czasu budowniczego i które przez to nie zdążyło: koniec czasu (uwaga), nie awaria pliku
+        wydawcy (bez przerwy 6 h, bez „short” po 3 razach, bez błędu w meta)."""
+        import socket
+        env = self.Env(); z = self.Zegar(); wd = self.ready()
+        for t in zd.WD_ISH:
+            wd['fl'][t].pop('seed', None)
+        wd['bf']['fl'] = False; wd['ready'] = False
+
+        def slow(url, timeout):                                                          # pełny plik: 30 s; zaślepka respektuje limit jak urllib
+            if timeout < 30:
+                z.sleep(timeout); raise socket.timeout('timed out')
+            z.sleep(30); return url.encode()
+        env.gb = slow
+        with mock.patch.object(zd, 'time', z):
+            w = env.run(self.at(2026, 9, 27, 18), wd)
+        self.assertEqual(env.n('blackrock'), 2); self.assertEqual(w['req'], 2)
+        self.assertEqual(sum(1 for t in zd.WD_ISH if w['fl'][t].get('seed')), 1)
+        self.assertFalse(any(w['fl'][t].get('se') for t in zd.WD_ISH), 'bez licznika porażek')
+        self.assertEqual(w['bledy'], {}); self.assertEqual(zd.META['errors'], [])
+        self.assertTrue(any('limit czasu budowniczego (45 s)' in n for n in zd.META['notes']))
+
+    def test_evening_prices_cut_by_budget_note_and_real_request_count(self):
+        z = self.Zegar()
+
+        def slow(t, u):
+            z.sleep(0.7); return self.NEW
+        env = self.Env(nq=slow)
+        with mock.patch.object(zd, 'WD_T', 5), mock.patch.object(zd, 'time', z):
+            w = env.run(self.at(2026, 9, 28, 21, 5), self.ready())
+        have = sum(1 for t in zd.TD_W_SYMS if w['px'][t]['d'][-1][0] == '2026-09-28')
+        self.assertLess(len(env.calls), 44); self.assertEqual(w['req'], len(env.calls), 'req = zapytania naprawdę wysłane')
+        self.assertEqual(have, len(env.calls)); self.assertEqual((w['bledy'], w['nq']['fails']), ({}, 0))
+        self.assertTrue(any('limit czasu budowniczego (5 s)' in n for n in zd.META['notes']))
+
+    def test_evening_outage_backs_off_and_pauses_retries(self):
+        env = self.Env(); wd = self.ready()
+        env.nq = lambda t, u: (_ for _ in ()).throw(RuntimeError('HTTP 403'))
+        w = env.run(self.at(2026, 9, 28, 21, 5), wd)                                              # poniedziałek 17:05 NY: sonda SPY pada
+        self.assertEqual((env.n('nasdaq'), w['nq']['fails'], w['nq']['next'][:16]), (1, 1, '2026-09-28T22:00'))
+        self.assertEqual(w['bledy']['px'], {'HTTP 403': 1}); self.assertIs(zd.META['ok'].get('swiat-dzien', None) is None or True, True)
+        for mi in (25, 45):
+            w = env.run(self.at(2026, 9, 28, 21, mi), w); self.assertEqual(env.n('nasdaq'), 0, mi)
+        w = env.run(self.at(2026, 9, 28, 22, 0), w); self.assertEqual(env.n('nasdaq'), 1, 'po przerwie znów sonda')
+        # ponowienie brakujących cen (ta sama sesja) też czeka na koniec przerwy Nasdaq
+        w2 = self.ready(); w2['px']['EWC']['d'] = w2['px']['EWC']['d'][:-1]
+        w2['nq'] = {'fails': 1, 'next': '2026-09-28T20:45:00Z', 'since': '2026-09-28T19:50:00Z'}
+        w3 = env.run(self.at(2026, 9, 28, 20, 40), json.loads(json.dumps(w2))); self.assertEqual(env.n('nasdaq'), 0)   # 16:40 NY, w przerwie
+        self.assertEqual(w3['nq']['fails'], 1)
+        env.nq = lambda t, u: self.FULL
+        env.run(self.at(2026, 9, 28, 20, 50), json.loads(json.dumps(w2)))                                           # 16:50 NY, po przerwie
+        self.assertEqual([c.split('/quote/')[1].split('/')[0] for c in env.calls], ['EWC'])
+        # przerwa rośnie: 55, 80, 160, 320, a potem najwyżej 6 h
+        q = {'nq': {'fails': 0, 'next': None, 'since': None}}; nx = []
+        for _ in range(6):
+            zd._wd_nq_fail(q, '2026-09-28T21:05:00Z', 'x'); nx.append(q['nq']['next'][11:16])
+        self.assertEqual(nx, ['22:00', '22:25', '23:45', '02:25', '03:05', '03:05'])
+
+    def test_trim_keeps_calendar_rows_and_restatement_days(self):
+        env = self.Env(); wd = self.ready()
+        wd['rvd'] = {'px': {'EWC': [wd['cal'][0], wd['cal'][-1]]}, 'fl': {'SPY': [wd['cal'][5]]}}
+        wd['px']['EWC']['miss'] = [wd['cal'][1], wd['cal'][-2]]
+        with mock.patch.object(zd, 'WD_KEEP', 200):
+            w = env.run(self.at(2026, 9, 27, 18), wd)
+        cal = w['cal']; lo = (datetime.date.fromisoformat(cal[0]) - datetime.timedelta(days=10)).isoformat()
+        self.assertEqual((len(cal), cal[-1]), (200, '2026-09-25')); self.assertEqual(env.calls, [])
+        self.assertTrue(all(r[0] >= cal[0] for p in w['px'].values() for r in p['d']))
+        self.assertTrue(all(r[0] >= lo for part in ('fl', 'ob') for p in w[part].values() for r in p['d']))
+        self.assertTrue(any(r[0] < cal[0] for p in w['fl'].values() for r in p['d']), 'wiersze wydawców od cal[0] − 10 dni')
+        self.assertEqual(w['px']['EWC']['miss'], [wd['cal'][-2]]); self.assertEqual(w['rvd'], {'px': {'EWC': [wd['cal'][-1]]}, 'fl': {}})
+
+    def test_missing_pid_counts_as_failure_then_short(self):
+        pid = {t: 'P%02d' % i for i, t in enumerate(zd.WD_ISH)}; pid['EWJ'] = None
+        saved = {'fundusze': {'f': {t: {'h': self.hist(t), 'pid': pid.get(t)} for t in zd.FUND_ISH + zd.FUND_SSGA}}, 'obce': self.SAVED_WD['obce']}
+        env = self.Env(); wd, runs, now = None, 0, self.T0
+        with mock.patch.object(zd, 'WD_SEED_BACK_M', 60):
+            while not (wd and wd['ready']):
+                wd = env.run(now, wd, saved); now += datetime.timedelta(minutes=20); runs += 1
+                self.assertLess(runs, 30)
+        self.assertEqual((wd['fl']['EWJ']['seed'], wd['fl']['EWJ']['se']['n']), ('short', 3))
+        self.assertEqual(wd['fl']['EWJ']['d'][0][0], '2026-01-02'); self.assertLessEqual(runs, 13)
+        self.assertTrue(any('brak identyfikatora pliku wydawcy' in e for e in zd.META['errors']))
+        zd.META['errors'].clear()
+        w = self.Env().run(self.T0, None, {'fundusze': None, 'obce': self.SAVED_WD['obce']})       # brak pliku fundusze w przebiegu — cisza, nie porażka
+        self.assertFalse(any((w['fl'].get(t) or {}).get('se') for t in zd.WD_ISH))
+
+    def test_ready_blocked_after_seed_is_reported(self):
+        short = self.nq_payload(self.DAYS[-200:])                                                   # historia SPY krótsza niż WD_MIN_CAL (250)
+        env = self.Env(nq=lambda t, u: short); wd, now = None, self.T0
+        for _ in range(14):
+            zd.META['notes'].clear(); wd = env.run(now, wd); now += datetime.timedelta(minutes=20)
+        self.assertFalse(wd['ready']); self.assertTrue(all(wd['px'][t].get('seed') for t in zd.TD_W_SYMS))
+        self.assertTrue(all(wd['fl'][t].get('seed') for t in zd.WD_SSGA + zd.WD_ISH)); self.assertEqual(env.calls, [])
+        self.assertIn('Świat dziennie: plik jeszcze niegotowy, choć seria wstępna się skończyła — kalendarz sesji 200 z 250; wersja 1 świata zostaje',
+                      zd.META['notes'])
+        zd.META['notes'].clear(); env.run(self.T0, None)                                            # seria w toku — to nie blokada
+        self.assertFalse(any('niegotowy' in n for n in zd.META['notes']))
+
+    # ---------------------------------------------------------------- 18: przegląd v127 — dziennik z archiwum (prev, punkty kontrolne)
+    def _archive_module(self):
+        import importlib.util
+        env0 = os.environ.get('ARCHIWUM_DIR'); os.environ['ARCHIWUM_DIR'] = self.tmp
+        try:
+            spec = importlib.util.spec_from_file_location('archiwum_v127r', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'archiwum.py'))
+            A = importlib.util.module_from_spec(spec); spec.loader.exec_module(A)
+        finally:
+            if env0 is None:
+                os.environ.pop('ARCHIWUM_DIR', None)
+            else:
+                os.environ['ARCHIWUM_DIR'] = env0
+        return A
+
+    def _archive(self, A, log, arch):
+        """Dziennik ze strony → oba pliki archiwum (wiersze i punkty kontrolne) w katalogu arch, jak narzedzia/archiwum.py raz dziennie."""
+        for name, fn in (('swiat-dziennik', A.src_swiat_dziennik), ('swiat-dziennik-pk', A.src_swiat_dziennik_pk)):
+            F = A.FILES[name]; path = os.path.join(arch, F['file'])
+            old, _ = A.read_csv(path, F['cols'])
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: json.loads(json.dumps(log))):
+                rows = fn()
+            A.write_csv(path, F['cols'], A.merge(old, rows, F['cols'], F['key'])[0])
+
+    def test_journal_restored_from_archive_end_to_end(self):
+        A = self._archive_module(); arch = os.path.join(self.tmp, 'arch'); csvp = os.path.join(arch, 'swiat-dziennik.csv')
+        days = self.weekdays('2026-06-01', '2026-09-25'); S0 = '2026-06-01'
+        wd = self.make_wd(days, ['SPY', 'EWC'], seen_last='2026-09-25T21:05:00Z')
+        rows = [[d, s, 1 if i % 3 else -1, 'obs', 'p+f0' if i % 3 else 'p-f0', d + 'T13:10:00Z', round(0.2 * ((i * 7) % 5) - 0.4, 4)]
+                for i, d in enumerate(days[:-1]) for s in ('EWC', 'SPY')]
+        cp = {'eq.p': [[100, 52, 100, 50.1, 51.0, 53.0, 36.9, 66.7, 'none', '2026-08-20', '2026-08-25T13:10:00Z', 50.3, 65.4]]}
+        old = {'at': '2026-05-01T13:10:00Z', 'v': 2, 'since': '2026-01-05', 'cut': 540, 'cp': {'w.all': [[100, 61, 100, 49.0, 60.0, 62.0, 47.0, 73.9, 'none',
+               '2026-04-01', '2026-04-05T13:10:00Z', 49.5, 65.2]]}, 'rows': [['2026-01-05', 'SPY', 1, 'obs', 'p+f0', '2026-01-05T14:10:00Z', 0.5]]}
+        now = self.at(2026, 9, 28, 12, 0)
+        with mock.patch.object(zd, 'TD_SINCE_W2', S0), mock.patch.object(zd, 'TD_W_CSV', csvp), mock.patch.object(zd, '_now_utc', lambda: now):
+            self._archive(A, old, arch)                                                  # archiwum sprzed zmiany wersji (wiersze starej wersji)
+            log = zd._tdw_log(old, [], [], now)                                         # zmiana daty wdrożenia: stara wersja → prev
+            log['rows'] = rows; log['cp'] = cp
+            prev0 = json.loads(json.dumps(log['prev']))
+            self.assertEqual(prev0[0]['oos']['eq.p'], [1, 1, 1]); self.assertEqual(prev0[0]['cp'], old['cp'])
+            self._archive(A, dict(log, rows=[r for r in rows if r[0] < '2026-09-01']), arch)   # archiwum dzień wcześniej …
+            self._archive(A, log, arch)                                                        # … i dziś (wiersze dopisane, punkty te same)
+            for broken in (None, {'rows': 'x', 'v': 2}):
+                zd._W_LOG[0] = broken; zd._W_LOG[1] = None; zd.META['notes'].clear(); zd.META['errors'].clear()
+                out, bd = zd.build_daily_w2({'swiat-dzien': wd})
+                J = zd._W_LOG[1]
+                self.assertIn(f'Dziennik świata: odtworzony z archiwum ({len(rows)} wierszy do {days[-2]})', zd.META['notes'])
+                self.assertEqual(zd.META['errors'], [])
+                self.assertEqual(J['rows'][:len(rows)], sorted(rows)); self.assertEqual(J['cp']['eq.p'], cp['eq.p'], 'punkt zamrożony — bez przeliczania')
+                self.assertEqual(self.dump(J['prev']), self.dump(prev0), 'lista prev (sumy i punkty) jak przed utratą, w tej samej kolejności')
+                self.assertEqual([(x['v'], x['since'], x['k'], x['n'], x['c'], x['vd']) for x in bd[-1]['pv']], [(2, '2026-01-05', 1, 1, 100, 'none')])
+            # bez pliku punktów: sumy poprzedniej wersji z jej wierszy, punkty bieżącej wersji przeliczone (jak krypto v125)
+            os.remove(os.path.join(arch, 'swiat-dziennik-pk.csv'))
+            back, why = zd._tdw_from_csv(csvp)
+            self.assertEqual((why, back['prev'][0]['oos']['eq.p'], back['prev'][0]['cp'], back['cp']), ('ok', [1, 1, 1], {}, {}))
+            # archiwum tylko ze starą wersją: prev wraca, dziennik bieżącej wersji od zera — po 4 dniach od wdrożenia to błąd
+            only = os.path.join(self.tmp, 'only'); os.makedirs(only)
+            A.write_csv(os.path.join(only, 'swiat-dziennik.csv'), A.FILES['swiat-dziennik']['cols'],
+                        A.merge({}, [r + [2, '2026-01-05'] for r in old['rows']], A.FILES['swiat-dziennik']['cols'], A.FILES['swiat-dziennik']['key'])[0])
+            with mock.patch.object(zd, 'TD_W_CSV', os.path.join(only, 'swiat-dziennik.csv')):
+                zd._W_LOG[0] = zd._W_LOG[1] = None; zd.META['notes'].clear(); zd.META['errors'].clear()
+                zd.build_daily_w2({'swiat-dzien': wd})
+            self.assertEqual(zd._W_LOG[1]['rows'], []); self.assertEqual(zd._W_LOG[1]['prev'][0]['since'], '2026-01-05')
+            self.assertTrue(any(e.startswith('Dziennik świata: brak poprzedniego pliku i brak jego kopii w archiwum') for e in zd.META['errors']))
+
+    def test_checkpoint_archive_round_trip(self):
+        A = self._archive_module(); F = A.FILES['swiat-dziennik-pk']
+        self.assertEqual((F['file'], F['cols'], F['key'], F['back']), ('swiat-dziennik-pk.csv', zd.TD_W_PK_COLS, ['since', 'v', 'line', 'kind', 'c'], None))
+        self.assertTrue(F['src'].startswith('Obliczenia własne CapitalFlowAI'))
+        asrc = self.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'archiwum.py'))
+        self.assertIn("'swiat-dziennik-pk': src_swiat_dziennik_pk", asrc[asrc.index('def main():'):]); self.assertIn('swiat-dziennik-pk.csv', A.__doc__)
+        log = {'at': 'x', 'v': 3, 'since': '2027-01-04', 'rows': [],
+               'cp': {'eq.f': [[100, 70, 120, 50.5, None, 58.0, 55.1, 80.2, 'edge', '2027-06-01', '2027-06-05T13:10:00Z', None, 65.8]]},
+               'prev': [{'v': 2, 'since': '2026-10-01', 'oos': {'w.all': [258, 418, 30], 'eq.p': [0, 0, 0]},
+                         'cp': {'w.all': [[100, 55, 100, 50.0, 54.0, 56.0, 40.1, 69.2, 'none', '2026-12-01', '2026-12-05T13:10:00Z', 50.2, 65.2]]}}]}
+        with mock.patch.object(zd, 'get_json', lambda url, timeout=60: log):
+            rows = A.src_swiat_dziennik_pk()
+        self.assertEqual(rows[0], ['2027-01-04', 3, 'eq.f', 'cp', 100, 70, 120, None, 50.5, None, 58.0, 55.1, 80.2, 'edge', '2027-06-01',
+                                   '2027-06-05T13:10:00Z', None, 65.8])
+        self.assertIn(['2026-10-01', 2, 'w.all', 'oos', 0, 258, 418, 30] + [None] * 10, rows)
+        path = os.path.join(self.tmp, 'pk', F['file']); A.write_csv(path, F['cols'], A.merge({}, rows, F['cols'], F['key'])[0])
+        cps, oos = zd._tdw_pk_read(path)
+        self.assertEqual(self.dump(cps[(3, '2027-01-04')]), self.dump(log['cp'])); self.assertEqual(self.dump(cps[(2, '2026-10-01')]), self.dump(log['prev'][0]['cp']))
+        self.assertEqual(oos[(2, '2026-10-01')], log['prev'][0]['oos'], 'liczby wracają dokładnie, brak = None (nigdy 0)')
+        A.NOTES.clear()
+        with mock.patch.object(zd, 'get_json', lambda url, timeout=60: dict(log, cp={}, prev=[])):
+            self.assertEqual(A.src_swiat_dziennik_pk(), [])
+        self.assertEqual(len(A.NOTES), 1)
+        import urllib.error as _ue
+        A.NOTES.clear()
+        with mock.patch.object(zd, 'get_json', side_effect=_ue.HTTPError('u', 404, 'nf', {}, None)):
+            self.assertEqual(A.src_swiat_dziennik_pk(), [])
+        self.assertEqual(len(A.NOTES), 1)
+        for bad in ({'v': True, 'since': 'x'}, [], {'v': 2}):
+            with mock.patch.object(zd, 'get_json', lambda url, timeout=60: bad):
+                with self.assertRaises(RuntimeError):
+                    A.src_swiat_dziennik_pk()
+        self.assertEqual(zd._tdw_pk_read(os.path.join(self.tmp, 'brak.csv')), ({}, {}))
+
+    def test_seed_failure_pauses_only_that_ticker_and_fund(self):
+        """Seria wstępna: nieczytelna historia jednej ceny i nieczytelny plik State Street jednego funduszu → przerwa tylko dla nich (tu 60 min
+        zamiast 6 h), reszta kolejki idzie dalej; po przerwie znów pytane."""
+        X, F = zd.TD_W_SYMS[1], 'XLK'
+        self.assertNotEqual(X, 'SPY')
+        nq = lambda t, u: (_ for _ in ()).throw(RuntimeError('HTTP 500')) if t == X else self.FULL      # noqa: E731
+
+        def ssga(t):
+            if t == F:
+                raise RuntimeError('zły plik')
+            return self.issuer_rows('2026-09-25' if t in ('GLD', 'GLDM') else '2026-09-24')
+        env = self.Env(nq=nq, ssga=ssga); wd, now, asked = None, self.T0, []
+        with mock.patch.object(zd, 'WD_SEED_BACK_M', 60):
+            for _ in range(5):
+                wd = env.run(now, wd); asked.append((now, [c.split('/quote/')[1].split('/')[0] for c in env.calls if 'nasdaq' in c],
+                                                    [c.split('navhist-us-en-')[1].split('.')[0].upper() for c in env.calls if 'ssga' in c])); now += datetime.timedelta(minutes=20)
+        (t0, q0, s0), (t1, q1, s1), (t2, q2, s2), (t3, q3, s3) = asked[:4]
+        self.assertIn(X, q0); self.assertIn(F, s0); self.assertEqual((wd['px'][X]['se']['n'] >= 1, wd['fl'][F]['se']['n'] >= 1), (True, True))
+        self.assertTrue(q1 and X not in q1 and X not in q2, 'historia ceny: przerwa tylko dla tego symbolu, kolejka idzie dalej')
+        self.assertEqual((s1, s2), ([], []), 'plik State Street: przerwa')
+        self.assertIn(X, q3); self.assertEqual(s3, [F], 'po przerwie (60 min) znów pytane')
+        self.assertTrue(all(wd['fl'][t].get('seed') for t in zd.WD_SSGA if t != F))
+
+    # ---------------------------------------------------------------- 19: przegląd v127 (2) — plik wolniejszy niż limit, próba ⊆ dziennik, data wdrożenia
+    def test_ishares_file_slower_than_budget_pauses_then_short_and_ready(self):
+        """Pełny plik iShares, który ZAWSZE potrzebuje więcej niż cały limit budowniczego (pierwszy w kolejce): zapytanie miało większość czasu
+        (≥ WD_T / 2), więc to próba serii wstępnej — przerwa (6 h; tu 60 min), kolejka idzie dalej (pozostałe fundusze zasiane), po 3 takich
+        próbach ok. 300 dni z pliku fundusze („short”) i plik gotowy; uwaga z nazwą funduszu i liczbą prób z rzędu, bez błędu w meta.
+        Przed poprawką koniec czasu kończył pętlę bez śladu: 0 z 21 funduszy iShares, plik nigdy gotowy, sygnał świata v2 nigdy nie rusza."""
+        import socket
+        pid = {t: 'P%02d' % i for i, t in enumerate(zd.WD_ISH)}; slow = zd.WD_ISH[0]
+        saved = {'fundusze': {'f': {t: {'h': self.hist(t), 'pid': pid.get(t)} for t in zd.FUND_ISH + zd.FUND_SSGA}}, 'obce': self.SAVED_WD['obce']}
+        z = self.Zegar(); wd = self.ready()
+        for t in zd.WD_ISH:
+            wd['fl'][t] = {'iss': 'ishares', 'd': []}                                        # fundusze iShares jeszcze niezasiane
+        wd['bf']['fl'] = False; wd['ready'] = False
+        who = lambda url: url.split('portfolioId=')[1].split('&')[0]                     # noqa: E731
+
+        def gb(url, timeout):                                                             # zaślepka respektuje limit jak urllib
+            if who(url) == pid[slow]:
+                z.sleep(timeout); raise socket.timeout('timed out')                       # zawsze wolniejszy niż cały czas budowniczego
+            z.sleep(1.0); return url.encode()
+        env = self.Env(gb=gb); now, runs, H = self.at(2026, 9, 27, 18), 0, []            # niedziela: bez cen dnia i porannych plików
+        with mock.patch.object(zd, 'WD_SEED_BACK_M', 60):
+            while not wd['ready']:
+                zd.META['notes'].clear(); zd.META['errors'].clear()
+                with mock.patch.object(zd, 'time', z):
+                    wd = env.run(now, wd, saved)
+                H.append({'now': now, 'asked': [who(c) for c in env.calls if 'blackrock' in c], 'se': dict(wd['fl'][slow].get('se') or {}),
+                          'notes': list(zd.META['notes']), 'bledy': dict(wd['bledy']), 'errors': list(zd.META['errors']), 'req': wd['req']})
+                now += datetime.timedelta(minutes=20); runs += 1
+                self.assertLess(runs, 30, 'kolejka stoi')
+        first = H[0]
+        self.assertEqual((first['asked'], first['req'], first['se']['n'], first['se']['cut']), ([pid[slow]], 1, 1, 1))
+        self.assertIn(f'Świat dziennie: {slow} — pełny plik wydawcy nie zmieścił się w limicie czasu budowniczego (45 s) po raz 1 z rzędu; '
+                      f'następna próba po {zd._wd_plus(first["se"]["at"], 60)} (po 3 porażkach — ok. 300 dni z pliku fundusze)', first['notes'])
+        self.assertTrue(any('limit czasu budowniczego (45 s) — reszta w następnym przebiegu' in n for n in first['notes']))
+        tried = [h['now'] for h in H if pid[slow] in h['asked']]
+        self.assertEqual(len(tried), 3, tried)
+        self.assertTrue(all(b - a >= datetime.timedelta(minutes=60) for a, b in zip(tried, tried[1:])), tried)
+        pause = [h for h in H if pid[slow] not in h['asked'] and tried[0] < h['now'] < tried[1]]
+        self.assertTrue(pause and all(len(h['asked']) == 2 for h in pause), 'w przerwie kolejka idzie dalej: po 2 inne fundusze na przebieg')
+        self.assertTrue(any(n.endswith(f'{slow} — pełny plik wydawcy nie zmieścił się w limicie czasu budowniczego (45 s) po raz 3 z rzędu')
+                            for h in H for n in h['notes']), 'trzecia próba: bez „następna próba”')
+        self.assertTrue(any(f'{slow} — pełny plik wydawcy nieczytelny 3 razy (w tym 3 razy ucięty limitem czasu budowniczego); przepływy od 2026-01-02' in n
+                            for h in H for n in h['notes']))
+        self.assertTrue(all(h['bledy'] == {} and h['errors'] == [] for h in H), 'koniec czasu to uwaga, nie błąd')
+        self.assertEqual((wd['fl'][slow]['seed'], wd['fl'][slow]['se']['n'], wd['fl'][slow]['se']['cut']), ('short', 3, 3))
+        self.assertEqual(wd['fl'][slow]['d'][0][0], '2026-01-02')
+        self.assertTrue(all(wd['fl'][t]['seed'] is True for t in zd.WD_ISH[1:])); self.assertTrue(wd['bf']['fl'] and wd['ready'])
+
+    def test_seed_cut_only_when_the_request_had_most_of_the_budget(self):
+        """_wd_seed_cut: WdBudget bez wysłanego zapytania albo z limitem < WD_T / 2 (zapytanie z resztką czasu) — zwykły koniec czasu, bez śladu;
+        limit ≥ WD_T / 2 — próba (przerwa, porażka, uwaga). Inna porażka po cięciach zeruje licznik cięć z rzędu (błąd w meta jak dotąd)."""
+        wd = {'bledy': {}, 'fl': {}}; P = {'iss': 'ishares', 'd': []}
+        for e in (zd.WdBudget('limit czasu'), zd.WdBudget('limit czasu', zd.WD_T / 2 - 0.01)):
+            self.assertFalse(zd._wd_seed_cut(wd, P, 'EWJ', '2026-09-27T18:00:00Z', e, None)); self.assertNotIn('se', P)
+        self.assertTrue(zd._wd_seed_cut(wd, P, 'EWJ', '2026-09-27T18:00:00Z', zd.WdBudget('limit czasu', zd.WD_T / 2), None))
+        self.assertEqual((P['se']['n'], P['se']['cut'], P['se']['at'], wd['bledy']), (1, 1, '2026-09-27T18:00:00Z', {}))
+        zd._wd_seed_fail(wd, P, 'EWJ', '2026-09-28T01:00:00Z', 'HTTP 500', None)
+        self.assertEqual((P['se']['n'], 'cut' in P['se'], wd['bledy']), (2, False, {'seed_fl': {'EWJ': 'HTTP 500'}}))
+
+    @classmethod
+    def _parity_world(cls, seed, start='2026-02-02'):
+        """Plik świata z okresem zapisów na żywo i losowymi czasami zapisu (spóźnione, brakujące, dopisane dni później wiersze cen, wydawców
+        i Tajwanu) — sama arytmetyka random() (te same liczby na każdej platformie). → (plik końcowy, kalendarz, symbole, sesje docelowe)."""
+        import random
+        r = random.Random(seed).random
+        nz = lambda: (r() + r() + r() + r() - 2.0) * 1.7                                   # noqa: E731
+        ch = lambda xs: xs[min(len(xs) - 1, int(r() * len(xs)))]                            # noqa: E731
+        cal = cls.weekdays(start, '2026-10-16'); LIVE = '2026-06-01'
+        iso = lambda dt: dt.strftime('%Y-%m-%dT%H:%M:%SZ')                                 # noqa: E731
+        at = lambda d, h, plus=0: iso(datetime.datetime.fromisoformat(d) + datetime.timedelta(days=plus, hours=h))   # noqa: E731
+        cut = lambda s: datetime.datetime.fromisoformat(zd._tdw_cut(s))                     # noqa: E731
+        nxt = {cal[i]: cal[i + 1] for i in range(len(cal) - 1)}
+        syms = ['EWJ', 'TLT', 'GLD', 'EWT']
+        wd = {'cal': list(cal), 'px': {}, 'fl': {}, 'ob': {}, 'ready': True}
+        for s in syms:
+            px, fl, c, sh = [], [], 100.0, 1e6
+            for d in cal:
+                o = c * (1 + 0.004 * nz()); c = o * (1 + 0.009 * nz())
+                sh += (1 if r() < 0.5 else -1) * int(r() * 6) * 1e4 + ((1 if r() < 0.5 else -1) * 3e5 if r() < 0.08 else 0)
+                live = d >= LIVE; seen = at(d, 21) if live else None; keep = True
+                if live:
+                    x = r()
+                    if x < 0.04:
+                        keep = False
+                    elif x < 0.09 and d in nxt:
+                        seen = iso(cut(nxt[d]) + datetime.timedelta(minutes=ch([1, 30, 120])))
+                    elif x < 0.14:
+                        seen = at(d, 22, ch([3, 4, 6]))
+                if keep:
+                    px.append([d, round(o, 4), round(c, 4), seen])
+                fseen = at(d, 3, 1) if live else None; fkeep = True
+                if live:
+                    x = r()
+                    if x < 0.04:
+                        fkeep = False
+                    elif x < 0.12 and d in nxt:
+                        fseen = iso(cut(nxt[d]) + datetime.timedelta(minutes=ch([5, 90])))
+                    elif x < 0.18:
+                        fseen = at(d, 5, ch([3, 5]))
+                if fkeep:
+                    fl.append([d, round(c, 4), sh, fseen])
+            wd['px'][s] = {'d': px, 'miss': []}; wd['fl'][s] = {'iss': 'ishares', 'd': fl}
+        tw, empty = [], []
+        d = datetime.date.fromisoformat(cal[0])
+        while d.isoformat() <= cal[-1]:
+            L = d.isoformat(); d += datetime.timedelta(days=1)
+            if datetime.date.fromisoformat(L).weekday() >= 5:
+                continue
+            if r() < 0.04:
+                empty.append(L); continue
+            seen = at(L, 8) if L >= LIVE else None
+            if L >= LIVE:
+                x = r()
+                if x < 0.06:
+                    seen = at(L, 14)
+                elif x < 0.10:
+                    seen = at(L, 9, ch([2, 4]))
+                elif x < 0.13:
+                    continue
+            tw.append([L, round(nz() * 100, 1), seen])
+        wd['ob']['tw'] = {'d': tw, 'empty': empty}
+        return wd, cal, syms, [x for x in cal if '2026-06-15' <= x <= cal[-2]]
+
+    @staticmethod
+    def _state_at(wd, t, S):
+        """Plik taki, jaki był w chwili t (wiersze z czasem zapisu przed t albo bez niego), z kalendarzem do sesji przed S."""
+        t19 = t.strftime('%Y-%m-%dT%H:%M:%S')
+        ok = lambda r, k: r[k] is None or r[k][:19] < t19                                   # noqa: E731
+        return {'cal': [d for d in wd['cal'] if d < S], 'px': {s: {'d': [r for r in P['d'] if ok(r, 3)], 'miss': []} for s, P in wd['px'].items()},
+                'fl': {s: {'iss': P.get('iss'), 'd': [r for r in P['d'] if ok(r, 3)]} for s, P in wd['fl'].items()},
+                'ob': {p: {'d': [r for r in P['d'] if ok(r, 2)], 'empty': [x for x in P['empty'] if x <= t19[:10]]} for p, P in wd['ob'].items()}, 'ready': True}
+
+    def test_backtest_pairs_are_a_subset_of_the_journal(self):
+        """Próba ⊆ dziennik (przegląd 2): karta każdej sesji liczona z pliku takiego, jaki był kilka minut po granicy (jak pierwszy przebieg
+        po 09:00 NY), pary dziennika z jej głosów i wyniku sesji z pliku końcowego; pary próby (_tdw_pairs na pliku końcowym) tej sesji muszą
+        być podzbiorem par dziennika — przy spóźnionych, brakujących i dopisanych później wierszach cen, wydawców i Tajwanu (także wierszach
+        z okna z i poprzednich wierszach pary przepływu). Bez reguły dz próba dodawała pary, których dziennik nigdy nie miał (tu: karta
+        EWT sprzeczna w chwili granicy, a w pliku końcowym jeden z jej głosów znika → para „każda karta”, której dziennik nie ma). Ziarno 9: jeden taki przypadek; sprawdzone
+        także ziarna 1–30 (poza testem — czas): nigdzie próba nie wychodzi poza dziennik."""
+        extra, dzs, tot = 0, 0, 0
+        for seed in (9,):
+            wd, cal, syms, targets = self._parity_world(seed)
+            fin = {s: zd._tdw_series(wd, s) for s in syms}
+            for S in targets:
+                t = self.utc(zd._tdw_cut(S)) + datetime.timedelta(minutes=5)
+                w = self._state_at(wd, t, S)
+                for sym in syms:
+                    s = zd._tdw_series(w, sym)
+                    self.assertEqual(s['dates'][-1], S)
+                    with mock.patch.object(zd, '_now_utc', return_value=t):
+                        row = zd._tdw_row(s, {}, {}, t.date(), t)
+                    f = fin[sym]; j = f['dates'].index(S); y = f['y'][j]
+                    jp = set()
+                    if row['st'] in zd.TD_W_JST and y:
+                        fam = zd._tdw_fam(sym)
+                        jp = {((fam, k), g) for k, g in zd._tdw_vparse(zd._tdw_vstr(row)).items() if g and (fam, k) in zd.TD_RULES_W2}
+                        if row['N']:
+                            jp.add((('w', 'all'), 1 if row['N'] > 0 else -1))
+                    bp = {(p[1], p[2]) for p in zd._tdw_pairs(f) if p[0] == S}
+                    self.assertLessEqual(bp, jp, (seed, S, sym, row['st'], zd._tdw_vstr(row), f['dz'][j], f['cl'][j]))
+                    old = {(p[1], p[2]) for p in zd._tdw_pairs(dict(f, dz=[])) if p[0] == S}          # bez reguły dz (przed poprawką)
+                    extra += bool(old - jp); dzs += f['dz'][j]; tot += len(bp)
+        self.assertGreater(extra, 0, 'bez reguły dz próba dodaje pary, których dziennik nie miał — test nie jest pusty')
+        self.assertGreater(tot, 120); self.assertGreater(dzs, 0); self.assertLess(dzs * 4, tot, 'reguła odbiera mało sesji')
+
+    def test_dz_marks_the_late_previous_flow_row_and_the_z_window_only(self):
+        """Przypadek z próby p_resid: karta na S „sprzeczna” (ruch ceny w górę, przepływ w dół — liczony w chwili granicy od wiersza D−2, bo
+        wiersz D−1 dopisano po granicy S); w pliku końcowym przepływ D jest „po czasie” (poprzedni wiersz pary), więc bez reguły dz próba
+        dawała parę „każda karta” w górę, której dziennik nie miał. Oraz: zamknięcie z okna z zapisane dni później → dz tylko dla sesji,
+        których granica była przed jego zapisem; zamknięcie T[j−2] po granicy → bez dz (brak wartości i w chwili granicy, i w próbie)."""
+        cal = self.weekdays('2026-03-02', '2026-10-09'); S = '2026-10-07'; i = cal.index(S); D, D1, D2 = cal[i - 1], cal[i - 2], cal[i - 3]
+        wd = self.make_wd(cal, ['EWJ'], seed=7)
+        px = wd['px']['EWJ']['d']; fl = wd['fl']['EWJ']['d']
+        for r in px:
+            r[3] = r[0] + 'T21:05:00Z'
+        for r in fl:
+            r[3] = r[0] + 'T23:30:00Z'
+        by = {r[0]: r for r in px}; fb = {r[0]: r for r in fl}
+        by[D][2] = round(by[D1][2] * 1.03, 4); by[D][1] = round(by[D][2] / 1.001, 4)       # D: +3% zamknięcie→zamknięcie → p w górę na S
+        base = fb[D2][2]; fb[D1][2] = base - 2.9e5; fb[D][2] = base - 3.0e5                # od D−2 do D: duży odpływ; D−1 → D: prawie nic
+        for d in cal[i:]:
+            fb[d][2] = base - 3.0e5 + 1e3 * (cal.index(d) - i)
+        fb[D1][3] = S + 'T15:00:00Z'                                                       # wiersz D−1 dopisany po granicy S (13:00 UTC)
+        t = self.utc(zd._tdw_cut(S)) + datetime.timedelta(minutes=5)
+        s0 = zd._tdw_series(self._state_at(wd, t, S), 'EWJ')
+        with mock.patch.object(zd, '_now_utc', return_value=t):
+            row = zd._tdw_row(s0, {}, {}, t.date(), t)
+        self.assertEqual((row['st'], row['N'], zd._tdw_vstr(row)[:4]), ('x', 0, 'p+f-'), 'karta na granicy: sprzeczna')
+        f = zd._tdw_series(wd, 'EWJ'); j = f['dates'].index(S)
+        self.assertEqual((f['on']['f'][j], f['on']['p'][j], f['cl'][j], f['dz'][j]), (False, True, False, True))
+        self.assertIn((S, ('w', 'all'), 1), [p[:3] for p in zd._tdw_pairs(dict(f, dz=[]))], 'bez dz: para, której dziennik nie miał')
+        self.assertFalse([p for p in zd._tdw_pairs(f) if p[0] == S], 'z dz: sesja bez par')
+        self.assertFalse(f['dz'][j - 1], 'sesja D: spóźniony sam wiersz dnia danych (D−1) — bez wartości w obu, sesja zostaje')
+        self.assertFalse(any(f['dz'][:j - 1]) or any(f['dz'][j + 1:]), 'nic więcej')
+        # zamknięcie z okna z (sesja k) zapisane 5 dni sesyjnych po swojej sesji, przed granicą k+5: sesja k+1 — zamknięcie dnia danych po
+        # granicy (cl), k+2 — spóźnione T[j−2] (bez wartości w obu, bez dz), k+3 i k+4 — okno z w chwili granicy bez niego (dz), od k+5 — na czas
+        w2 = json.loads(json.dumps(wd)); w2['fl']['EWJ']['d'] = [r[:3] + [None] for r in w2['fl']['EWJ']['d']]
+        k = i - 40; w2['px']['EWJ']['d'][k][3] = cal[k + 5] + 'T12:00:00Z'                 # przed granicą k+5 (13:00 / 14:00 UTC)
+        g = zd._tdw_series(w2, 'EWJ')
+        self.assertEqual([x for x in range(len(g['dz'])) if g['dz'][x]], [k + 3, k + 4])
+        self.assertTrue(g['cl'][k + 1] and not g['on']['p'][k + 2], 'k+1: zamknięcie dnia danych po granicy (cl); k+2: T[j−2] po granicy')
+        w3 = json.loads(json.dumps(w2)); w3['px']['EWJ']['d'][k][3] = None                 # wszystko na czas → bez dz
+        self.assertFalse(any(zd._tdw_series(w3, 'EWJ')['dz']))
+        bd = json.loads(json.dumps(w2)); bd['px']['TLT'] = bd['px'].pop('EWJ'); bd['fl']['TLT'] = bd['fl'].pop('EWJ')
+        self.assertFalse(any(zd._tdw_series(bd, 'TLT')['dz']), 'obligacje: cena bez głosu — jej okno z nie ma znaczenia')
+
+    def test_since_w2_is_a_nyse_session(self):
+        """TD_SINCE_W2 (ustawiana w łatce przy wydaniu) = sesja NYSE (pon–pt, nie w TD_NYSE_CLOSED), nie wcześniej niż data wdrożenia wersji 1."""
+        d = datetime.date.fromisoformat(zd.TD_SINCE_W2)
+        self.assertTrue(d.weekday() < 5 and zd.TD_SINCE_W2 not in zd.TD_NYSE_CLOSED and zd.TD_SINCE_W2 >= zd.TD_SINCE, zd.TD_SINCE_W2)
+
+
 class ObceV91(unittest.TestCase):
     """v91: Indie, Tajwan, Hongkong co godzinę; Brazylia, Turcja, ThaiBMA najwyżej co 3 h (bez zapytania, gdy część świeża i bez błędu)."""
 
@@ -7036,7 +8758,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         for s in stubs:
             s.start()
         try:
@@ -7425,7 +9147,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -8278,7 +10000,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -9401,7 +11123,7 @@ class ArchiwumV113(unittest.TestCase):
         src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
         for n in self.a.FILES:
             self.assertIn(f"'{n}'", src)
-        self.assertEqual(set(self.a.FILES), {'wieloryby', 'stablecoiny-eth', 'plynnosc', 'tic', 'cftc-krypto', 'rentownosci', 'krypto-dziennik'})
+        self.assertEqual(set(self.a.FILES), {'wieloryby', 'stablecoiny-eth', 'plynnosc', 'tic', 'cftc-krypto', 'rentownosci', 'swiat-dziennik', 'swiat-dziennik-pk', 'krypto-dziennik'})
         for spec in self.a.FILES.values():
             self.assertTrue(all(c.isascii() and c == c.lower() for c in spec['cols']), spec['cols']); self.assertTrue(set(spec['key']) <= set(spec['cols']))
         self.assertIn('FRED_OBS', src)

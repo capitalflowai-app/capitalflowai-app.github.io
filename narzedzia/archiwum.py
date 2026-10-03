@@ -15,6 +15,10 @@ Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez pol
   rentownosci.csv      dzień — rentowność 10-letnia USA (Skarb USA) i Niemiec (Bundesbank) oraz różnica, 2 lata
   krypto-dziennik.csv  doba × moneta — dziennik kart sygnałów dziennych krypto (v125; obliczenie własne zbieracza: karta tak, jak była
                        na stronie przed oknem pomiaru, i wynik okna 06:00 → 06:00 UTC); zbieracz odtwarza z niej zgubiony dziennik
+  swiat-dziennik.csv   sesja × fundusz — dziennik kart sygnałów dziennych świata (v127; obliczenie własne zbieracza: karta tak, jak była
+                       na stronie o 9:00 w Nowym Jorku, i wynik sesji od otwarcia do zamknięcia); zbieracz odtwarza z niej zgubiony dziennik
+  swiat-dziennik-pk.csv wersja reguły × linia — zamrożone punkty kontrolne tego dziennika i sumy poprzednich wersji reguły (v127);
+                       z nimi odtworzony dziennik zachowuje punkty kontrolne i listę poprzednich wersji
 Zasady: operacja idempotentna (jeden wiersz na klucz; ponowne uruchomienie tego samego dnia nadpisuje ten sam dzień); brak danych
 danego dnia = brak wiersza, nigdy zero; rewizje (np. FRED) nadpisywane najnowszą wartością i zliczane w `archiwum/indeks.json`.
 Każde źródło osobno: awaria jednego nie blokuje pozostałych; kod wyjścia 1 gdy którekolwiek zawiodło (e-mail z GitHuba).
@@ -57,6 +61,13 @@ FILES = {
     'krypto-dziennik': {'file': 'krypto-dziennik.csv', 'cols': ['date', 'coin', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since'],
                         'key': ['date', 'coin', 'v', 'since'], 'back': None,
                         'src': 'Obliczenia własne CapitalFlowAI: dziennik kart sygnałów dziennych krypto zapisanych tak, jak były na stronie przed oknem pomiaru (n = suma głosów, votes = głosy powodów), y = zmiana ceny w oknie 06:00 → 06:00 UTC w %'},
+    'swiat-dziennik': {'file': 'swiat-dziennik.csv', 'cols': ['date', 'sym', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since'],
+                       'key': ['date', 'sym', 'v', 'since'], 'back': None,
+                       'src': 'Obliczenia własne CapitalFlowAI: dziennik kart sygnałów dziennych świata zapisanych tak, jak były na stronie o 9:00 w Nowym Jorku, przed otwarciem sesji (n = suma głosów, votes = głosy powodów), y = zmiana ceny funduszu od otwarcia do zamknięcia sesji w %'},
+    'swiat-dziennik-pk': {'file': 'swiat-dziennik-pk.csv',
+                          'cols': ['since', 'v', 'line', 'kind', 'c', 'k', 'n', 'days', 'b0', 'h1', 'h2', 'lo', 'hi', 'vd', 'date_c', 'at', 'b0t', 'thr'],
+                          'key': ['since', 'v', 'line', 'kind', 'c'], 'back': None,
+                          'src': 'Obliczenia własne CapitalFlowAI: zamrożone punkty kontrolne licznika „od wdrożenia” sygnałów dziennych świata (kind cp: po c = 100, 200 i 400 sesjach z sygnałem — k z n, zwykła sesja b0 i b0t, połowy h1 i h2, zakres lo–hi, ocena vd, próg thr) i sumy poprzednich wersji reguły (kind oos: k z n w days sesjach); każda wersja reguły (v, since) osobno'},
 }
 TIC_OD = '2020-01'
 STABLE = {'USDT': zd.WH_USDT, 'USDC': zd.WH_USDC}   # oba po 6 miejsc
@@ -378,6 +389,67 @@ def src_krypto_dziennik():
     return out
 
 
+def src_swiat_dziennik():
+    """v127: data/swiat-dziennik.json ze strony (obliczenie własne zbieracza: karty sygnałów dziennych świata zapisane tak, jak były na
+    stronie o 9:00 w Nowym Jorku, i wynik sesji od otwarcia do zamknięcia) → wiersze [sesja, fundusz, N, stan, głosy, zapisano, y, wersja, od];
+    y bez liczby = puste pole. 404 (pierwsze godziny po wdrożeniu) albo dziennik bez wierszy → brak wierszy i uwaga, nie błąd. Plik bez listy
+    wierszy, wersji albo daty wdrożenia, niepusta lista bez poprawnego wiersza albo inny błąd HTTP → wyjątek (to źródło pada osobno).
+    Zbieracz odtwarza z tej kopii zgubiony dziennik (_tdw_from_csv)."""
+    try:
+        d = zd.get_json(f'{SITE}/data/swiat-dziennik.json?t={int(time.time())}', timeout=60)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            NOTES.append('brak pliku dziennika świata na stronie (404) — nic do zapisania')
+            return []
+        raise
+    rows = d.get('rows') if isinstance(d, dict) else None
+    if not isinstance(rows, list) or not isinstance(d.get('v'), int) or isinstance(d.get('v'), bool) or not isinstance(d.get('since'), str):
+        raise RuntimeError('plik dziennika świata bez wierszy, wersji albo daty wdrożenia')
+    if not rows:
+        NOTES.append(f"dziennik świata wersji {d['v']} od {d['since']} jeszcze bez wierszy — nic do zapisania")
+        return []
+    out = [[r[0], r[1], r[2], r[3], r[4], r[5], r[6], d['v'], d['since']] for r in rows if isinstance(r, list) and len(r) == 7]
+    if not out:
+        raise RuntimeError('dziennik świata bez poprawnych wierszy')
+    return out
+
+
+def src_swiat_dziennik_pk():
+    """v127 (przegląd): data/swiat-dziennik.json ze strony → zamrożone punkty kontrolne licznika „od wdrożenia” każdej wersji reguły
+    (kind cp) i sumy poprzednich wersji (kind oos, c = 0) — wiersze [od, wersja, linia, rodzaj, c, k, n, sesje, b0, h1, h2, lo, hi, ocena,
+    dzień c, zapisano, b0t, próg]; brak liczby = puste pole. Zbieracz odtwarza z nich punkty i listę prev zgubionego dziennika bez
+    przeliczania (_tdw_from_csv). 404 albo dziennik bez punktów i bez poprzednich wersji → brak wierszy i uwaga, nie błąd; plik bez wersji
+    albo daty wdrożenia albo inny błąd HTTP → wyjątek (to źródło pada osobno)."""
+    try:
+        d = zd.get_json(f'{SITE}/data/swiat-dziennik.json?t={int(time.time())}', timeout=60)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            NOTES.append('brak pliku dziennika świata na stronie (404) — punktów kontrolnych nie zapisano')
+            return []
+        raise
+    if not isinstance(d, dict) or not isinstance(d.get('v'), int) or isinstance(d.get('v'), bool) or not isinstance(d.get('since'), str):
+        raise RuntimeError('plik dziennika świata bez wersji albo daty wdrożenia')
+    out = []
+
+    def cps(v, since, cp):
+        for line, L in (cp.items() if isinstance(cp, dict) else ()):
+            for c in (L if isinstance(L, list) else ()):
+                if isinstance(c, list) and len(c) == 13:
+                    out.append([since, v, line, 'cp', c[0], c[1], c[2], None, c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11], c[12]])
+    cps(d['v'], d['since'], d.get('cp'))
+    for P in zd._tdw_prevs(d):
+        v, since, oos = P.get('v'), P.get('since'), P.get('oos')
+        if not (isinstance(v, int) and not isinstance(v, bool) and isinstance(since, str)):
+            continue
+        for line, o in (oos.items() if isinstance(oos, dict) else ()):
+            if isinstance(o, list) and len(o) == 3:
+                out.append([since, v, line, 'oos', 0, o[0], o[1], o[2]] + [None] * 10)
+        cps(v, since, P.get('cp'))
+    if not out:
+        NOTES.append(f"dziennik świata wersji {d['v']} od {d['since']} jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania")
+    return out
+
+
 NOTES = []   # informacje z przebiegu (część źródła bez odpowiedzi itp.) — do indeks.json, nie do kodu wyjścia
 
 SERIA_N = 400   # najwyżej tyle ostatnich punktów jednej serii w seria.json (365 dni + zapas); pełna historia zostaje w CSV
@@ -505,7 +577,7 @@ def main():
         prev = None
     idx = run({'wieloryby': src_wieloryby, 'stablecoiny-eth': src_stable, 'plynnosc': lambda: src_plynnosc(key), 'tic': src_tic,
                'cftc-krypto': src_cftc, 'rentownosci': src_rentownosci,
-               'krypto-dziennik': src_krypto_dziennik}, prev_index=prev)
+               'krypto-dziennik': src_krypto_dziennik, 'swiat-dziennik': src_swiat_dziennik, 'swiat-dziennik-pk': src_swiat_dziennik_pk}, prev_index=prev)
     summ = os.environ.get('GITHUB_STEP_SUMMARY')
     lines = [f'## Archiwum własne — {NOW.isoformat()}', '', '| plik | wiersze | od | do | nowe | rewizje | stan |', '|---|---|---|---|---|---|---|']
     for n, r in idx['files'].items():

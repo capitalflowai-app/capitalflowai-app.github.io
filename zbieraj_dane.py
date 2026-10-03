@@ -4173,6 +4173,52 @@ TD_EXCLUDED = ('br', 'mx', 'th', 'in_bd', 'jp', 'tr', 'cf', 'cs', 'cr', 'ix')   
 TD_VC = 1                     # wersja reguły krypto (strona: tytuł opisu metody w widoku krypto)
 TD_SINCE_CR = '2026-09-28'    # pierwsza doba UTC po wdrożeniu (wdrożenie później → następna doba po wdrożeniu)
 TD_RULES_CR = (('cr', 'p'),)  # 1 linia testu krypto, zawsze publikowana
+# v127: świat — wersja reguły 2: następna sesja NYSE od otwarcia do zamknięcia, karty ustalane o 09:00 w Nowym Jorku, 7 linii (Bonferroni),
+# zwykła sesja (b0 z całego okresu i b0t z 250 sesji przed parą — próg bierze wyższą), n_eff = min(sesje, grupy sesji), ocena na liczbach
+# niezaokrąglonych, kolor tylko ze stroną i rodziną karty, dziennik kart z punktami kontrolnymi. Stałe v1 świata (TD_V, TD_SINCE, TD_RULES, TD_PUB …)
+# zostają: 7 linii i karty v1 są publikowane dalej (licznik v1 od TD_SINCE), a przed gotowym plikiem swiat-dzien (albo po awarii v2) — cała wersja 1.
+import bisect, math, statistics   # v127: bisect (daty lokalne → sesja), math.sqrt, kwantyle rozkładu normalnego; ponowny import jest nieszkodliwy
+TD_VW2 = 2                        # wersja reguły świata 2
+TD_SINCE_W2 = '2026-10-05'        # data wdrożenia wersji 2 (stała wydania na początku łatki v127) — pierwsza sesja NYSE ≥ dnia wdrożenia: najwcześniejsza sesja docelowa karty w dzienniku
+TD_W_KEEP = 2520                  # sesji w pliku swiat-dzien (≈ 10 lat); test w próbie liczy wszystkie
+TD_W_CUT = 540                    # 09:00 czasu Nowego Jorku w dniu sesji S: zapisane od tej chwili = „po czasie”, bez głosu
+TD_W_OPEN = 570                   # 09:30 NY — początek mierzonego okna (otwarcie)
+TD_W_CLOSE = 960                  # 16:00 NY — koniec okna (zamknięcie) …
+TD_W_CLOSE_HALF = 780             # … 13:00 NY w sesji skróconej
+TD_W_END = 975                    # 16:15 NY — karta aktualna do tej chwili (jak _td_live v1) …
+TD_W_END_HALF = 795               # … 13:15 NY w sesji skróconej
+TD_W_IN = (('p', 1), ('f', 1), ('o', 1))                           # ruch ceny, przepływ do funduszu, zagraniczni — kierunki z v1 (dalszy ciąg)
+TD_W_VOTE = {'eq': ('p', 'f', 'o'), 'bd': ('f',), 'pm': ('p', 'f')}   # obligacje: cena bez głosu (wypłata odsetek obniża cenę)
+TD_W_OB = {'EWT': ('tw', 0), 'FXI': ('hk', 0), 'INDA': ('in', 1)}     # część pliku obce; 0 = dzień lokalny L głosuje na pierwszą sesję NYSE ≥ L
+                                                                     # (Azja kończy przed otwarciem USA), 1 = raport z datą L na pierwszą sesję > L
+TD_W_NOOUT = ('BIL', 'SHY')       # bez karty: mediana |zamknięcie − otwarcie| < 5 pb ceny (1,1 i 2,4 pb; następny AGG 10,4 pb) — wynik byłby szumem notowań
+TD_W_SYMS = tuple(s for s in tuple(TD_GRP) + tuple(TD_PX) if s not in TD_W_NOOUT)   # 35 funduszy (kolejność TR_FE) + 9 rynków tylko z ceną = 44
+TD_FAM_W = ('eq', 'bd', 'pm')    # rodziny świata (linie v1 i v2); bez linii v1 w pliku nie publikujemy v2 (stara strona wzięłaby linie v2 za v1)
+TD_RULES_W2 = (('eq', 'p'), ('eq', 'f'), ('eq', 'o'), ('bd', 'f'), ('pm', 'p'), ('pm', 'f'), ('w', 'all'))   # 7 linii, zawsze wszystkie
+TD_W_M = len(TD_RULES_W2)
+TD_W_ZM = statistics.NormalDist().inv_cdf(1 - 0.025 / TD_W_M)        # 2,6901: zakres 99,3% (7 linii naraz) — te same liczby co w krypto (v125)
+TD_W_CL = round(100 - 5 / TD_W_M, 1)                               # 99.3
+TD_W_ZP = statistics.NormalDist().inv_cdf(0.8)                     # 0,8416: moc 80% (pole mde)
+TD_W_Y1 = 365
+TD_W_UT = 250                     # b0t: udział sesji wzrostowych rynku w 250 sesjach przed parą (w chwili pary, bez zaglądania w przyszłość) …
+TD_W_UTMIN = 100                  # … gdy jest ich co najmniej 100 (y ≠ 0); inaczej udział z całego okresu linii
+TD_W_LOOKS = (100, 200, 400)
+TD_W_ZL = statistics.NormalDist().inv_cdf(1 - 0.025 / (TD_W_M * len(TD_W_LOOKS)))   # 3,0381
+TD_W_CLL = round(100 - 5 / (TD_W_M * len(TD_W_LOOKS)), 1)                           # 99.8
+TD_W_SETTLE = 4                   # wiersz dziennika wchodzi do punktu kontrolnego, gdy ma ≥ 4 dni
+TD_W_JST = ('buy', 'sell', 'obs', 'x', 'quiet')
+TD_W_DIG = {'p': 2, 'f': 1, 'o': 1}
+TD_W_SPLIT = (1.5, 2, 3, 4, 5, 10)   # iloraz zamknięć w 2% od k albo 1/k = niepoprawiony podział jednostek → brak (nigdy 0)
+TD_W_YR = (2 / 3, 1.5)            # otwarcie→zamknięcie poza tym zakresem = błąd danych → brak
+TD_NYSE_CLOSED = ('2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07',
+                  '2026-11-26', '2026-12-25', '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18',
+                  '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24')   # nyse.com (27.09.2026)
+TD_NYSE_HALF = ('2026-11-27', '2026-12-24', '2027-11-26')                   # zamknięcie 13:00 NY
+TD_NYSE_LAST = '2027-12-31'       # po 2027-12-01 uwaga w meta: dopisać następny rok
+TD_W_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'archiwum', 'swiat-dziennik.csv')
+TD_W_CSV_COLS = ['date', 'sym', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since']
+TD_W_PK = 'swiat-dziennik-pk.csv'   # v127: obok TD_W_CSV — zamrożone punkty kontrolne (każda wersja reguły) i sumy poprzednich wersji (prev)
+TD_W_PK_COLS = ['since', 'v', 'line', 'kind', 'c', 'k', 'n', 'days', 'b0', 'h1', 'h2', 'lo', 'hi', 'vd', 'date_c', 'at', 'b0t', 'thr']
 # v125: rodzina krypto — wersja reguły 2: pięć powodów (p, t, e, s, h) + dwie linie łączone (n2, all), okno 06:00 → 06:00 UTC.
 # Stałe v1 (TD_VC, TD_SINCE_CR, TD_RULES_CR) zostają — linia v1 jest publikowana dalej, a przed pełnym plikiem krypto-dzien (albo po awarii v2) cała wersja 1.
 import statistics                                   # v125: kwantyle rozkładu normalnego; ponowny import jest nieszkodliwy
@@ -5377,6 +5423,1345 @@ def build_daily_cr2(S):
     return rows, bd
 
 
+# v127: sygnały dzienne świata, wersja reguły 2 (rodziny eq / bd / pm) — reguły, linie, ocena, dziennik (Zw2) i budowniczy pliku data/swiat-dzien.json (Zw4)
+def _tdw_fam(sym):
+    return next((f for f, ms in TD_FAM.items() if sym in ms), 'eq')
+
+
+def _tdw_off(day):
+    """Przesunięcie Nowego Jorku względem UTC w godzinach: −4 od 2. niedzieli marca do 1. niedzieli listopada, inaczej −5 (reguła USA od 2007).
+    Bez bazy stref — zbieracz, testy i strona liczą tak samo."""
+    d = _d(day) if isinstance(day, str) else day
+    m2 = datetime.date(d.year, 3, 8); m2 += datetime.timedelta(days=(6 - m2.weekday()) % 7)
+    n1 = datetime.date(d.year, 11, 1); n1 += datetime.timedelta(days=(6 - n1.weekday()) % 7)
+    return -4 if m2 <= d < n1 else -5
+
+
+def _tdw_at(day, minutes):
+    """Dzień sesji + minuty po północy czasu Nowego Jorku → 'YYYY-MM-DDTHH:MM:SS' (UTC), porównywalne z iso[:19]."""
+    d = _d(day)
+    return (datetime.datetime(d.year, d.month, d.day) + datetime.timedelta(minutes=minutes, hours=-_tdw_off(d))).strftime('%Y-%m-%dT%H:%M:%S')
+
+
+def _tdw_cut(s):
+    return _tdw_at(s, TD_W_CUT)
+
+
+def _tdw_end(s):
+    return _tdw_at(s, TD_W_END_HALF if s in TD_NYSE_HALF else TD_W_END)
+
+
+def _tdw_early(iso, s):
+    """True, gdy czas `iso` (UTC, ≥ 19 znaków) jest przed granicą sesji s; None/'' → False."""
+    return isinstance(iso, str) and len(iso) >= 19 and iso[:19] < _tdw_cut(s)
+
+
+def _tdw_next(day):
+    """Następna sesja NYSE po dniu `day`: pon–pt bez dni z TD_NYSE_CLOSED (po TD_NYSE_LAST — sam pon–pt)."""
+    d = _d(day) + datetime.timedelta(days=1)
+    while d.weekday() >= 5 or d.isoformat() in TD_NYSE_CLOSED:
+        d += datetime.timedelta(days=1)
+    return d.isoformat()
+
+
+def _tdw_mv(a, b):
+    """Ruch zamknięcie→zamknięcie (b / a − 1)·100; brak liczby, ≤ 0 albo iloraz w 2% od podziału jednostek (TD_W_SPLIT) → None."""
+    if not (_isnum(a) and _isnum(b)) or a <= 0 or b <= 0:
+        return None
+    q = b / a
+    if any(abs(q / k - 1) < 0.02 or abs(q * k - 1) < 0.02 for k in TD_W_SPLIT):
+        return None
+    return (q - 1) * 100
+
+
+def _tdw_oc(o, c):
+    """Wynik sesji otwarcie→zamknięcie (%); brak, ≤ 0 albo iloraz poza TD_W_YR → None."""
+    if not (_isnum(o) and _isnum(c)) or o <= 0 or c <= 0:
+        return None
+    q = c / o
+    return (q - 1) * 100 if TD_W_YR[0] < q < TD_W_YR[1] else None
+
+
+def _tdw_seen(r, k):
+    x = r[k] if isinstance(r, list) and len(r) > k else None
+    return x if isinstance(x, str) and len(x) >= 19 else None
+
+
+def _tdw_series(wd, sym):
+    """ETF → seria na osi sesji docelowych T = kalendarz pliku + następna sesja (karta). Dla sesji docelowej j (dzień danych = T[j−1]):
+    in.p[j] = ruch zamknięcie→zamknięcie sesji T[j−1]; in.f[j] = przepływ funduszu z wiersza z datą T[j−1]; in.o[j] = zagraniczni (TD_W_OB,
+    z liczony na osi lokalnej); y[j] = otwarcie→zamknięcie sesji T[j] (None dla karty). on[k][j] = wiersz zapisany przed granicą sesji T[j]
+    (wiersz bez czasu zapisu = seria wstępna, na czas). cl[j] = zamknięcie dnia danych zapisane po granicy (karta „late”: na stronie tylko opis,
+    w dzienniku brak) — ta sesja nie daje par także w próbie. `late` = to samo dla karty, surowo (nieznany czas najnowszego zamknięcia = po
+    czasie); `nopx` = brak zamknięcia dnia danych (od granicy karta też „late” — v127, przegląd); `pend` = wejścia jeszcze oczekiwane.
+    `dz` (v127, przegląd 2: próba ⊆ dziennik) = sesja bez par, bo wejście z głosem w rodzinie miało w chwili granicy T[j] inną wartość albo
+    inne z niż w pliku końcowym, choć jego własny wiersz dnia danych był na czas: wiersz w oknie z tego wejścia albo poprzedni wiersz pary
+    przepływu zapisany od granicy T[j] — karta dziennika mogła wtedy mieć głos, którego próba nie ma (albo odwrotnie), a z nim inną sumę N
+    („każda karta”); próba nie dodaje par, których dziennik nigdy nie miał.
+    Brak = None, nigdy 0. Daty kalendarza muszą rosnąć (ValueError)."""
+    cal = [c for c in (wd.get('cal') or []) if isinstance(c, str) and _d(c)]
+    if len(cal) < 2:
+        return None
+    if any(a >= b for a, b in zip(cal, cal[1:])):
+        raise ValueError('kalendarz sesji nie rośnie')
+    px = ((wd.get('px') or {}).get(sym) or {})
+    by = {str(r[0])[:10]: r for r in (px.get('d') or []) if isinstance(r, list) and len(r) >= 3}
+    if not by:
+        return None
+    n = len(cal); nxt = _tdw_next(cal[-1]); T = cal + [nxt]
+    o = [by[d][1] if d in by and _isnum(by[d][1]) and by[d][1] > 0 else None for d in cal]
+    c = [by[d][2] if d in by and _isnum(by[d][2]) and by[d][2] > 0 else None for d in cal]
+    ps = [_tdw_seen(by.get(d), 3) for d in cal]
+    mv = [None] + [_tdw_mv(c[i - 1], c[i]) for i in range(1, n)]             # ruch sesji i
+    y = [_tdw_oc(o[i], c[i]) for i in range(n)] + [None]                     # wynik sesji docelowej j
+    fam = _tdw_fam(sym)
+    inp = {'p': [None] + mv}
+    ok = lambda x, s: x is None or _tdw_early(x, s)                          # noqa: E731 — wiersz bez czasu zapisu (historia) = na czas
+    onc = [True] + [ok(ps[i], T[i + 1]) for i in range(n)]                   # zamknięcie dnia danych T[j−1] zapisane przed granicą T[j]
+    newest = by.get(cal[-1])
+    late = bool(newest) and c[-1] is not None and not _tdw_early(ps[-1], nxt)   # surowo: nieznany czas najnowszego zamknięcia = po czasie
+    if late:
+        onc[n] = False
+    # v127 (przegląd): ruch ceny T[j−1] to dwa zamknięcia — głos tylko, gdy OBA były zapisane przed granicą T[j] (zamknięcie T[j−2] dopisane
+    # później nie daje w próbie głosu, którego karta w chwili granicy nie miała)
+    on = {'p': [onc[j] and (j < 2 or ok(ps[j - 2], T[j])) for j in range(n + 1)]}
+    # zamknięcie dnia danych po granicy → sesja bez par (jak dziennik); v127 (przegląd): także BRAK tego zamknięcia w okresie zapisów na żywo
+    # (od pierwszego wiersza z czasem zapisu) — w chwili granicy go nie było, karta była tylko opisem („late”), dziennik jej nie zapisał
+    f0 = next((cal[i] for i in range(n) if ps[i]), None)
+    cl = [not onc[j] or (j >= 1 and f0 is not None and cal[j - 1] >= f0 and c[j - 1] is None) for j in range(n + 1)]
+    # v127 (przegląd 2): próba ⊆ dziennik — dz[j] = sesja j bez par (opis w docstringu); tylko wejścia z głosem w rodzinie karty
+    dz = [False] * (n + 1)
+    allowed = TD_W_VOTE.get(fam, ())
+
+    def k_on(x):
+        """Najmniejsze j, dla którego wiersz zapisany o x był przed granicą T[j] (granica = 09:00 NY dnia T[j], ten sam dzień w UTC); dla
+        mniejszych j wiersz był „po czasie”. Wiersz bez czasu zapisu (historia) → 0."""
+        if not x:
+            return 0
+        k = bisect.bisect_left(T, x[:10])
+        if k < len(T) and T[k] == x[:10]:
+            hm = x[11:19]                                                   # granica 13:00 UTC (EDT) albo 14:00 UTC (EST)
+            if hm >= '14:00:00' or (hm >= '13:00:00' and not _tdw_early(x, T[k])):
+                k += 1
+        return k
+    # (p) z ruchu ceny = najwyżej TD_LB poprzednich ruchów; zamknięcie z tego okna zapisane od granicy T[j] → w chwili granicy ruchów obok
+    # niego nie było (inne z). Spóźnione zamknięcie T[j−2] (poprzednie wartości) → brak wartości i w chwili granicy, i w próbie (on['p']
+    # fałsz, bez głosu w obu) — sesja zostaje; zamknięcie T[j−1] po granicy → cl.
+    if 'p' in allowed:
+        for i in range(n):
+            if c[i] is None or not ps[i]:
+                continue
+            for j in range(i + 2, min(i + TD_LB + 2, k_on(ps[i]) - 1, n) + 1):
+                if on['p'][j] and inp['p'][j] is not None:
+                    dz[j] = True
+    pend = []
+    zo = None
+    if sym in TD_GRP:
+        rows = [r for r in (((wd.get('fl') or {}).get(sym) or {}).get('d') or []) if isinstance(r, list) and len(r) >= 3]
+        fl = fund_flows([[r[0], r[1], r[2]] for r in rows])
+        fs = {r[0]: _tdw_seen(r, 3) for r in rows}
+        kept = [r[0] for r in _fund_rows([[r[0], r[1], r[2]] for r in rows])]
+        fpv = dict(zip(kept[1:], kept))                                       # dzień → poprzedni wiersz tej samej pary przepływu (jak fund_flows)
+        inp['f'] = [None] + [fl.get(d) for d in cal]
+        # v127 (przegląd): przepływ to para wierszy wydawcy — głos tylko, gdy OBA były zapisane przed granicą (dopisany później poprzedni
+        # wiersz zmienia przepływ, którego karta w chwili granicy nie widziała)
+        on['f'] = [True] + [ok(fs.get(d), T[j + 1]) and ok(fs.get(fpv.get(d)), T[j + 1]) for j, d in enumerate(cal)]
+        # v127 (przegląd 2): wiersz wydawcy zapisany od granicy T[j] zmienia przepływ swojego dnia i przepływ następnego wiersza (jego
+        # poprzednika) — w chwili granicy ten przepływ liczono od starszego wiersza. Gdy taki przepływ jest wartością sesji j (spóźniony
+        # poprzedni wiersz pary, choć wiersz dnia danych był na czas) albo leży w jej oknie z → dz[j]. Spóźniony sam wiersz dnia danych →
+        # brak wartości w obu (on['f'] fałsz) — sesja zostaje.
+        if 'f' in allowed:
+            ks = sorted({d for d in kept if isinstance(d, str)})
+            for r in rows:
+                x = _tdw_seen(r, 3)
+                if not x or not isinstance(r[0], str):
+                    continue
+                kl = k_on(x); q_lo = bisect.bisect_left(cal, r[0]); b = bisect.bisect_right(ks, r[0])
+                q_hi = bisect.bisect_right(cal, ks[b] if b < len(ks) else r[0]) - 1
+                for j in range(q_lo + 1, min(q_hi + TD_LB + 1, kl - 1, n) + 1):
+                    d = cal[j - 1]
+                    if d in fs and ok(fs[d], T[j]):
+                        dz[j] = True
+        if max((r[0] for r in rows), default='') < cal[-1]:
+            pend.append('f')
+    if sym in TD_W_OB:
+        part, lag = TD_W_OB[sym]
+        P = (wd.get('ob') or {}).get(part) or {}
+        prt = {'d': [[r[0], r[1]] for r in (P.get('d') or []) if isinstance(r, list) and len(r) >= 2], 'empty': P.get('empty') or []}
+        cols = (_tr_sessions if part in ('tw', 'hk') else _tr_cols)(prt, 1)
+        ld, lv = cols[0], cols[1]
+        ls = {str(r[0])[:10]: _tdw_seen(r, 2) for r in (P.get('d') or []) if isinstance(r, list)}
+        vo = [None] * (n + 1); zo = [None] * (n + 1); oo = [True] * (n + 1); src = [None] * (n + 1); srci = [None] * (n + 1)
+        for i, L in enumerate(ld):                                            # daty lokalne rosną: najnowszy dzień L danej sesji wygrywa …
+            j = bisect.bisect_left(T, L) if lag == 0 else bisect.bisect_right(T, L)
+            if j > n:
+                continue
+            # … v127 (przegląd): chyba że był znany dopiero od granicy T[j] (wiersz zapisany po niej albo luka widoczna dopiero z wierszem
+            # zapisanym po niej) — wtedy starszy wiersz na czas zostaje, jak na karcie w chwili granicy (np. Tajwan w Święto Dziękczynienia)
+            if src[j] is not None and vo[j] is not None and oo[j]:
+                kn = ls.get(L) if L in ls else next((ls.get(x) for x in ld[i + 1:] if x in ls), None)
+                if kn is not None and not _tdw_early(kn, T[j]):
+                    continue
+            src[j] = L; srci[j] = i
+            if lv[i] is None:
+                vo[j] = zo[j] = None; oo[j] = True; continue
+            vo[j] = lv[i]; zo[j] = _td_z(lv, i); sn = ls.get(L)
+            oo[j] = sn is None or _tdw_early(sn, T[j])
+        inp['o'] = vo; on['o'] = oo
+        # v127 (przegląd 2): z zagranicznych = najwyżej TD_LB poprzednich wierszy na osi lokalnej; wiersz z tego okna zapisany od granicy
+        # T[j] → w chwili granicy okno było inne (inne z) → dz[j]. Spóźniony sam wiersz wartości → brak głosu w obu (on['o'] fałsz).
+        if 'o' in allowed:
+            js = [j for j in range(n + 1) if srci[j] is not None]; iv = [srci[j] for j in js]   # rosną razem (nowszy dzień lokalny → późniejsza sesja)
+            for x, L in enumerate(ld):
+                kx = k_on(ls.get(L))
+                for q in range(bisect.bisect_right(iv, x), bisect.bisect_right(iv, x + TD_LB)):   # sesje, w których oknie z jest wiersz x
+                    j = js[q]
+                    if j >= kx:
+                        break
+                    if oo[j] and vo[j] is not None:
+                        dz[j] = True
+        exp = nxt if lag == 0 else cal[-1]                                     # dzień lokalny, na który karta jeszcze czeka
+        empty = set(prt['empty'])
+        if src[n] is None and exp not in empty and (not ld or ld[-1] < exp):
+            pend.append('o')
+    iss = (((wd.get('fl') or {}).get(sym) or {}).get('iss'))
+    return {'id': sym, 'sym': sym, 'fam': fam, 'iss': iss if iss in ('ssga', 'ishares') else None, 'dates': T, 'cal': cal, 'y': y,
+            'in': inp, 'zo': zo, 'on': on, 'cl': cl, 'dz': dz, 'late': late, 'nopx': c[-1] is None, 'pend': pend, 'close': c}
+
+
+def _tdw_votes(s, j):
+    """→ ({k: (wartość, z, głos, na_czas)}, N). Głos = kierunek·znak(z) przy |z| ≥ TD_Z1, na czas i tylko dla wejść z głosem w rodzinie."""
+    out, N = {}, 0
+    allowed = TD_W_VOTE.get(s['fam'], ())
+    for k, dr in TD_W_IN:
+        vals = s['in'].get(k)
+        if vals is None:
+            continue
+        z = s['zo'][j] if k == 'o' else _td_z(vals, j, demean=(k != 'p'))
+        on = s['on'][k][j]
+        v = dr * (1 if z > 0 else -1) if (k in allowed and z is not None and abs(z) >= TD_Z1 and on) else 0
+        out[k] = (vals[j] if 0 <= j < len(vals) else None, z, v, on)
+        N += v
+    return out, N
+
+
+def _tdw_pairs(s, votes=None):
+    """→ [(sesja, (rodzina, wejście) | ('w', 'all'), głos, trafienie)]; wynik None albo 0 → bez pary; sprzeczna karta → tylko pary wejść;
+    sesja, której zamknięcie dnia danych zapisano po granicy (cl), nie daje par — jak karta „late”, której dziennik nie zapisuje; v127
+    (przegląd 2): także sesja, w której wejście z głosem miało w chwili granicy inną wartość albo inne z (dz) — próba ⊆ dziennik."""
+    out = []
+    cl = s.get('cl') or []; dz = s.get('dz') or []
+    for j in range(len(s['dates'])):
+        if (j < len(cl) and cl[j]) or (j < len(dz) and dz[j]):
+            continue
+        V, N = votes[j] if votes is not None else _tdw_votes(s, j)
+        if not any(x[2] for x in V.values()):
+            continue
+        y = s['y'][j]
+        if y is None or y == 0:
+            continue
+        d = s['dates'][j]
+        for k, x in V.items():
+            if x[2]:
+                out.append((d, (s['fam'], k), x[2], 1 if (y > 0) == (x[2] > 0) else 0))
+        if N:
+            g = 1 if N > 0 else -1
+            out.append((d, ('w', 'all'), g, 1 if (y > 0) == (g > 0) else 0))
+    return out
+
+
+def _tdw_pct(hs):
+    return round(100 * sum(hs) / len(hs), 1) if hs else None
+
+
+def _tdw_neff(pr):
+    """Liczba niezależnych obserwacji linii = min(sesje z sygnałem, n_eff grup sesji), gdzie n_eff grup = p(1−p)·n² / [D/(D−1)·Σ_d (k_d − p·n_d)²]
+    (wariancja ilorazu z grupowaniem po sesji — pary tej samej sesji są zależne). Pusta linia → 0; jedna sesja albo zerowa wariancja → sesje."""
+    by = {}
+    for p in pr:
+        a = by.setdefault(p[0], [0, 0]); a[0] += p[1]; a[1] += 1
+    D = len(by); n = len(pr)
+    if D < 2:
+        return float(D)
+    k = sum(a[0] for a in by.values()); ph = k / n
+    ss = sum((a[0] - ph * a[1]) ** 2 for a in by.values()) * D / (D - 1)
+    if ss <= 0 or ph <= 0 or ph >= 1:
+        return float(D)
+    return min(float(D), ph * (1 - ph) * n * n / ss)
+
+
+def _tdw_wil(k, n, z, ne=None):
+    """Zakres Wilsona w % BEZ zaokrąglenia — wyłącznie do werdyktu (publikowane liczby: produkcyjny wilson, do 0,1)."""
+    if not n:
+        return None, None
+    p = k / n; m = ne or n; den = 1 + z * z / m
+    c = (p + z * z / (2 * m)) / den; h = z * ((p * (1 - p) / m + z * z / (4 * m * m)) ** 0.5) / den
+    return 100 * (c - h), 100 * (c + h)
+
+
+def _tdw_vd(k, n, days, ne, h1, h2, bm, bn, z=None):
+    """short / edge / anti / none: zakres Wilsona przy z (TD_W_ZM w próbie, TD_W_ZL w punkcie kontrolnym) i n_eff = ne, wobec bm/bn
+    (zwykła sesja); obie połowy po tej samej stronie progu. Wszystko na liczbach niezaokrąglonych (h1, h2 w % bez zaokrąglenia)."""
+    if days < TD_NEFF or not n:
+        return 'short'
+    la, ha = _tdw_wil(k, n, z or TD_W_ZM, ne)
+    if la > bm and h1 is not None and h1 > bm and h2 is not None and h2 > bm:
+        return 'edge'
+    if ha < bn and h1 is not None and h1 < bn and h2 is not None and h2 < bn:
+        return 'anti'
+    return 'none'
+
+
+def _tdw_ut(series):
+    """b0t: udział sesji wzrostowych rynku (y ≠ 0) w TD_W_UT sesjach PRZED daną sesją, gdy jest ich co najmniej TD_W_UTMIN → {rynek: {sesja: u}}
+    (w chwili pary — bez zaglądania w przyszłość); mniej → brak wpisu (b0t bierze wtedy udział z całego okresu linii)."""
+    out = {}
+    for s in series or []:
+        up = [0]; nz = [0]
+        for v in s['y']:
+            up.append(up[-1] + (1 if v is not None and v > 0 else 0)); nz.append(nz[-1] + (1 if v else 0))
+        m = {}
+        for j, d in enumerate(s['dates']):
+            a = max(0, j - TD_W_UT); cnt = nz[j] - nz[a]
+            if cnt >= TD_W_UTMIN:
+                m[d] = (up[j] - up[a]) / cnt
+        out[s['id']] = m
+    return out
+
+
+def _tdw_b0(pr, u, ut=None):
+    """Zwykła sesja par [(sesja, trafienie, rynek, głos)] w %: (b0 — udział rynku z całego okresu linii u, b0t — z 250 sesji przed parą ut)."""
+    if not pr:
+        return None, None
+    a = b = 0.0
+    for d, h, m, g in pr:
+        um = u.get(m, 0.5); tm = ((ut or {}).get(m) or {}).get(d, um)
+        a += um if g > 0 else 1 - um; b += tm if g > 0 else 1 - tm
+    return 100 * a / len(pr), 100 * b / len(pr)
+
+
+def _tdw_stat(pr, ys, z=None, ut=None):
+    """Jedna linia (albo punkt kontrolny): pary [(sesja, trafienie, rynek, głos)], ys {rynek: {sesja: y}} → k, n, days, ne, from, to, p,
+    ci (95%, ne), ca (z, ne), h1/h2 (podział w medianie sesji z sygnałem), u (udział sesji wzrostowych rynku w [from, to], y ≠ 0), b0, b0t,
+    bm = max(50, b0, b0t), bn = min(50, b0, b0t), vd (liczby niezaokrąglone)."""
+    z = z or TD_W_ZM
+    pr = sorted(pr, key=lambda x: x[0])
+    n = len(pr); k = sum(p[1] for p in pr)
+    ds = sorted({p[0] for p in pr}); days = len(ds)
+    ne = _tdw_neff(pr)
+    mid = ds[days // 2] if days > 1 else None
+    a1 = [p[1] for p in pr if mid and p[0] < mid]; a2 = [p[1] for p in pr if mid and p[0] >= mid]
+    h1u = 100 * sum(a1) / len(a1) if a1 else None; h2u = 100 * sum(a2) / len(a2) if a2 else None
+    u = {}
+    for c in {p[2] for p in pr}:
+        yy = [v for d, v in (ys.get(c) or {}).items() if ds[0] <= d <= ds[-1] and v]
+        u[c] = sum(1 for v in yy if v > 0) / len(yy) if yy else 0.5
+    b0, b0t = _tdw_b0(pr, u, ut)
+    bm = max(50.0, b0, b0t) if n else 50.0
+    bn = min(50.0, b0, b0t) if n else 50.0
+    lo, hi = wilson(k, n, n_eff=ne) if n else (None, None)
+    la, ha = wilson(k, n, z=z, n_eff=ne) if n else (None, None)
+    return {'k': k, 'n': n, 'days': days, 'ne': ne, 'from': ds[0] if ds else None, 'to': ds[-1] if ds else None,
+            'p': _tdw_pct([p[1] for p in pr]), 'ci': [lo, hi], 'ca': [la, ha], 'h1': _tdw_pct(a1), 'h2': _tdw_pct(a2), 'u': u,
+            'b0': b0, 'b0t': b0t, 'bm': bm, 'bn': bn, 'vd': _tdw_vd(k, n, days, ne, h1u, h2u, bm, bn, z)}
+
+
+def _tdw_ok(q, u, ut=None):
+    """Brama koloru (może tylko odebrać kolor): pary linii po stronie karty (dla linii „każda karta” — w rodzinie karty) trafiały częściej
+    niż max(50, zwykła sesja tych par) — na liczbach niezaokrąglonych."""
+    if not q:
+        return False
+    b0, b0t = _tdw_b0(q, u, ut)
+    return 100 * sum(p[1] for p in q) / len(q) > max(50.0, b0, b0t)
+
+
+def _tdw_side(q, u, ut=None, ci=True):
+    """Opis podzbioru par (strona, rodzina): k, n, sesje, %, zwykła sesja (b0, b0t), zakres 95% (n_eff) — sam opis, bez oceny."""
+    n = len(q); k = sum(p[1] for p in q)
+    b0, b0t = _tdw_b0(q, u, ut)
+    out = {'k': k, 'n': n, 'days': len({p[0] for p in q}), 'p': _tdw_pct([p[1] for p in q]),
+           'b0': None if b0 is None else round(b0, 1), 'b0t': None if b0t is None else round(b0t, 1)}
+    if ci:
+        lo, hi = wilson(k, n, n_eff=_tdw_neff(q)) if n else (None, None)
+        out['ci'] = [lo, hi]
+    return out
+
+
+def _tdw_y1(pr, today):
+    lo = (today - datetime.timedelta(days=TD_W_Y1)).isoformat()
+    q = [p for p in pr if p[0] >= lo]
+    n = len(q); k = sum(p[1] for p in q); ds = sorted({p[0] for p in q})
+    a, b = wilson(k, n, n_eff=_tdw_neff(q)) if n else (None, None)
+    return {'k': k, 'n': n, 'days': len(ds), 'p': _tdw_pct([p[1] for p in q]), 'ci': [a, b], 'from': ds[0] if ds else None,
+            'to': ds[-1] if ds else None}
+
+
+def _tdw_prevs(log):
+    """Poprzednie wersje reguły w dzienniku (lista, najstarsza pierwsza; dawny zapis jednego słownika też)."""
+    p = (log or {}).get('prev') if isinstance(log, dict) else None
+    p = [p] if isinstance(p, dict) else p if isinstance(p, list) else []
+    return [x for x in p if isinstance(x, dict)]
+
+
+def _tdw_cpl(v):
+    return sorted(x for x in (v or []) if isinstance(x, list) and len(x) == 13)
+
+
+def _tdw_pool(lines, ys, since=None, log=None, today=None, ut=None, gates=None):
+    """7 linii (TD_RULES_W2, zawsze wszystkie). lines: {(rodzina, wejście): [(sesja, trafienie, rynek, głos)]}; log: dziennik (None = nieznany
+    w tym przebiegu → lk/ln/ldays null, lvd 'wait'). Ocena „od wdrożenia” wyłącznie w punktach kontrolnych dziennika (cp). gates (słownik) →
+    wypełniany bramą koloru {(rodzina, reguła): {(rodzina rynku, strona): bool}}."""
+    since = since or TD_SINCE_W2
+    today = today or _now_utc().date()
+    JL, _ = _tdw_jpairs(log, since) if isinstance(log, dict) else (None, None)
+    prevs = _tdw_prevs(log)
+    fm = {}
+    out = []
+    for fam, rule in TD_RULES_W2:
+        pr = sorted((lines or {}).get((fam, rule)) or [], key=lambda x: x[0])
+        S = _tdw_stat(pr, ys, ut=ut)
+        days, bm, ne = S['days'], S['bm'], S['ne']
+        sq = math.sqrt(bm / 100 * (1 - bm / 100) / ne) if ne else None
+        sub = {}
+        for fc in (('eq', 'bd', 'pm') if fam == 'w' else (fam,)):
+            for g in (1, -1):
+                sub[(fc, g)] = [p for p in pr if p[3] == g and (fam != 'w' or fm.setdefault(p[2], _tdw_fam(p[2])) == fc)]
+                if gates is not None:
+                    gates.setdefault((fam, rule), {})[(fc, g)] = _tdw_ok(sub[(fc, g)], S['u'], ut)
+        L = sorted(JL[(fam, rule)]) if JL is not None else None
+        cps = _tdw_cpl(((log or {}).get('cp') or {}).get(fam + '.' + rule)) if JL is not None else []
+        lc = None
+        if cps:
+            c = cps[-1]
+            lc = {'c': c[0], 'k': c[1], 'n': c[2], 'p': round(100 * c[1] / c[2], 1) if c[2] else None, 'b0': c[3], 'b0t': c[11],
+                  'ca': [c[6], c[7]], 'vd': c[8], 'to': c[9], 'thr': c[12]}
+        nx = [c for c in TD_W_LOOKS if not lc or c > lc['c']]
+        pv = []
+        for P in prevs:
+            o = ((P.get('oos') or {}).get(fam + '.' + rule)) or [0, 0, 0]
+            pc = _tdw_cpl((P.get('cp') or {}).get(fam + '.' + rule))
+            pv.append({'v': P.get('v'), 'since': P.get('since'), 'k': o[0], 'n': o[1], 'days': o[2],
+                       'c': pc[-1][0] if pc else None, 'vd': pc[-1][8] if pc else None})
+        line = {'fam': fam, 'rule': rule, 'k': S['k'], 'n': S['n'], 'days': days, 'ne': round(ne, 1), 'from': S['from'], 'to': S['to'],
+                'p': S['p'], 'ci': S['ci'], 'ca': S['ca'], 'cl': TD_W_CL, 'M': TD_W_M,
+                'b0': None if S['b0'] is None else round(S['b0'], 1), 'b0t': None if S['b0t'] is None else round(S['b0t'], 1),
+                'thr': round(bm + 100 * TD_W_ZM * sq, 1) if ne else None,
+                'mde': round(bm + 100 * (TD_W_ZM + TD_W_ZP) * sq, 1) if ne else None,
+                'h1': S['h1'], 'h2': S['h2'],
+                'sb': _tdw_side([p for p in pr if p[3] == 1], S['u'], ut), 'ss': _tdw_side([p for p in pr if p[3] == -1], S['u'], ut),
+                'y1': _tdw_y1(pr, today),
+                'lk': sum(x[1] for x in L) if L is not None else None, 'ln': len(L) if L is not None else None,
+                'ldays': len({x[0] for x in L}) if L is not None else None,
+                'lvd': lc['vd'] if lc else 'wait', 'lc': lc, 'lnx': nx[0] if nx else None, 'cll': TD_W_CLL,
+                'lthr': round(bm + 100 * TD_W_ZL * math.sqrt(bm / 100 * (1 - bm / 100) / nx[0]), 1) if nx else None,
+                'm': len({p[2] for p in pr}), 'need': max(0, TD_NEFF - days), 'vd': S['vd'], 'v': TD_VW2, 'since': since,
+                'cut': TD_W_CUT, 'ws': TD_W_OPEN, 'we': TD_W_CLOSE, 'win': 'oc', 'pv': pv}
+        if fam == 'w':
+            line['sf'] = {fc: {'b': _tdw_side(sub[(fc, 1)], S['u'], ut, ci=False), 's': _tdw_side(sub[(fc, -1)], S['u'], ut, ci=False)}
+                          for fc in ('eq', 'bd', 'pm')}
+        out.append(line)
+    return out
+
+
+def _tdw_live(s_day, now_utc):
+    """Karta sesji S aktualna do 16:15 NY (sesja skrócona 13:15); zegar bez strefy = UTC."""
+    now = now_utc.astimezone(datetime.timezone.utc).replace(tzinfo=None) if getattr(now_utc, 'tzinfo', None) else now_utc
+    return now.strftime('%Y-%m-%dT%H:%M:%S') < _tdw_end(s_day)
+
+
+def _tdw_rz(z):
+    """z do publikacji (2 miejsca) bez przeskoku progu (v127, przegląd): |z| < 1 albo < 2 nigdy nie wychodzi jako 1,00 albo 2,00 — strona
+    czyta „strzela” i „mocno” z opublikowanej liczby tak samo, jak zbieracz liczy głos i siłę dnia z liczby niezaokrąglonej."""
+    if not _isnum(z):
+        return None
+    r = round(z, 2)
+    for t in (TD_Z2, TD_Z1):
+        if abs(r) >= t > abs(z):
+            return math.copysign(round(t - 0.01, 2), z)
+    return r
+
+
+def _tdw_row(s, vd_by, own, today, now_utc, gates=None, lcv=None):
+    """Karta (wiersz `d`). Reguła wiersza v2: c (N ≠ 0), cx (głosy się znoszą), c0 (bez głosu) — kody nieznane stronie sprzed v127 (jak
+    krypto v125, dopisek A1). Kolor: linia pokrywająca kartę (jej zgodny powód albo „każda karta”) ma przewagę w próbie ORAZ przechodzi bramę
+    strony (i rodziny dla „każda karta”) ORAZ jej ostatni punkt kontrolny dziennika nie jest „anti”; żaden powód przeciw nie ma przewagi;
+    „każda karta” nie jest „anti”. vx = linie z przewagą, które koloru nie dały, z powodem: sd (strona), fm (rodzina), lc (licznik),
+    vs (powód przeciw z przewagą), wa („każda karta” odwrotnie)."""
+    j = len(s['dates']) - 1
+    S = s['dates'][j]; date = s['cal'][-1]
+    V, N = _tdw_votes(s, j)
+    has_now = any(_isnum(x[0]) for x in V.values())
+    has_hist = any(sum(1 for x in s['in'][k][max(0, j - TD_LB):j] if _isnum(x)) >= TD_MIN for k in V)
+    live = _tdw_live(S, now_utc)
+    now_iso = (now_utc.astimezone(datetime.timezone.utc) if getattr(now_utc, 'tzinfo', None) else now_utc).strftime('%Y-%m-%dT%H:%M:%S')
+    before = now_iso < _tdw_cut(S)
+    fired = {k: x[2] for k, x in V.items() if x[2]}
+    d = (1 if N > 0 else -1) if N else 0
+    rule = 'c' if d else ('cx' if fired else 'c0')
+    fam = s['fam']
+    cand = ([k for k, g in fired.items() if g == d and vd_by.get((fam, k)) == 'edge']
+            + (['all'] if vd_by.get(('w', 'all')) == 'edge' else [])) if d else []
+    ek, vx = [], []
+    for L in cand:
+        key = ('w', 'all') if L == 'all' else (fam, L)
+        if gates is not None and not (gates.get(key) or {}).get((fam, d), False):
+            vx.append([L, 'fm' if L == 'all' else 'sd'])
+        elif (lcv or {}).get(key) == 'anti':
+            vx.append([L, 'lc'])
+        else:
+            ek.append(L)
+    against = [k for k, g in fired.items() if g == -d and vd_by.get((fam, k)) == 'edge'] if d else []
+    wa = vd_by.get(('w', 'all')) == 'anti'
+    colour = bool(ek) and not against and not wa
+    if ek and not colour:
+        vx += [[L, 'vs' if against else 'wa'] for L in ek]
+    if not has_now:
+        st = 'nodata'
+    elif not has_hist:
+        st = 'short'
+    elif not live:
+        st = 'stale'
+    elif s['late'] or (s.get('nopx') and not before):                    # v127 (przegląd): bez zamknięcia dnia danych w chwili granicy —
+        st = 'late'                                                      # karta tylko opisem i poza dziennikiem (w próbie: cl, bez par)
+    elif rule == 'cx':
+        st = 'x'
+    elif rule == 'c0':
+        st = 'quiet'
+    else:
+        st = ('buy' if d > 0 else 'sell') if colour else 'obs'
+    side = ('buy' if d > 0 else 'sell') if st in ('buy', 'sell', 'obs') else 'none'
+    agree = [k for k, g in fired.items() if g == d] if d else []
+    strong = any(V[k][1] is not None and abs(V[k][1]) >= TD_Z2 for k in agree)
+    sg = min(3, len(agree) + int(strong)) if d else 0
+    o = own.get(s['id'], (0, 0)) if d else (None, None)
+    lv = vd_by.get(('w', 'all'))
+
+    def rnd(x, k):
+        return round(x, k) if _isnum(x) else None
+    rs = [[k, rnd(V[k][0], TD_W_DIG[k]), _tdw_rz(V[k][1]), V[k][2]] for k, _ in TD_W_IN if k in V]
+    fx = V.get('f', (None, None))
+    return {'id': s['id'], 'fam': fam, 'grp': TD_GRP.get(s['id']), 'iss': s.get('iss'), 'pub': 0, 'sym': s['sym'], 'date': date, 'nx': S,
+            'live': live, 'age': (today - _d(date)).days, 'we': TD_W_CLOSE_HALF if S in TD_NYSE_HALF else TD_W_CLOSE,
+            'oc': {'tw': 'TWD', 'hk': 'HKD', 'in': 'USD'}[TD_W_OB[s['id']][0]] if s['id'] in TD_W_OB else None,
+            'f': rnd(fx[0], 1), 'cur': 'USD' if 'f' in V else None, 'fu': rnd(fx[0], 1), 'zf': _tdw_rz(fx[1]),
+            'r': rnd(V['p'][0], 2), 'zp': _tdw_rz(V['p'][1]),
+            'rule': rule, 'dir': d, 'side': side, 'str': sg, 'st': st,
+            'vd': ('edge' if colour else ('none' if lv == 'edge' else lv)) if d else None,
+            'ik': o[0], 'in': o[1], 'ici': list(wilson(o[0], o[1])) if d and o[1] else None,
+            'rs': rs, 'N': N, 'ek': ek if colour else [], 'vx': vx,
+            'lt': [k for k, _ in TD_W_IN if k in V and _isnum(V[k][0]) and not V[k][3]],
+            'pw': [k for k in s['pend'] if before and k in V and not _isnum(V[k][0])]}
+
+
+# ---- dziennik (data/swiat-dziennik.json): karty takie, jakie były na granicy (09:00 NY sesji docelowej) ----
+
+def _tdw_vstr(row):
+    lt = set(row.get('lt') or [])
+    return ''.join(k + ('.' if z is None or k in lt else '+' if g > 0 else '-' if g < 0 else '0') for k, _, z, g in row.get('rs') or [])
+
+
+def _tdw_vparse(vs):
+    out = {}
+    for i in range(0, len(vs or '') - 1, 2):
+        out[vs[i]] = {'+': 1, '-': -1}.get(vs[i + 1], 0)
+    return out
+
+
+def _tdw_jpairs(log, since=None, upto=None):
+    """Dziennik → (lines {(rodzina, wejście): [(sesja, trafienie, rynek, głos)]}, ys {rynek: {sesja: y}}) z wierszy since ≤ S (≤ upto) ze
+    znanym wynikiem; para wymaga y ≠ 0. Te same kształty co w próbie — jedna funkcja (_tdw_stat) ocenia oba."""
+    since = since or TD_SINCE_W2
+    acc = {key: [] for key in TD_RULES_W2}; ys = {}
+    for r in (log or {}).get('rows') or []:
+        if not (isinstance(r, list) and len(r) == 7):
+            continue
+        d, sym, N, st, vs, at, y = r
+        if not isinstance(d, str) or d < since or (upto and d > upto) or not _isnum(y):
+            continue
+        ys.setdefault(sym, {})[d] = y
+        if y == 0:
+            continue
+        fam = _tdw_fam(sym)
+        for k, g in _tdw_vparse(vs).items():
+            if g and (fam, k) in acc:
+                acc[(fam, k)].append((d, 1 if (y > 0) == (g > 0) else 0, sym, g))
+        if isinstance(N, int) and not isinstance(N, bool) and N:
+            g = 1 if N > 0 else -1
+            acc[('w', 'all')].append((d, 1 if (y > 0) == (g > 0) else 0, sym, g))
+    return acc, ys
+
+
+def _tdw_cp(log, today, iso, ut=None):
+    """Punkty kontrolne 100/200/400 sesji z sygnałem (wiersze ≥ TD_W_SETTLE dni): [c, k, n, b0, h1, h2, lo, hi, vd, dzień c, zapisano, b0t, próg]
+    przy z = TD_W_ZL, zwykła sesja z własnych wyników dziennika (b0) i z 250 sesji rynku przed parą (b0t, ut); zapisane — nigdy przeliczane."""
+    cp = {k: _tdw_cpl(v) for k, v in ((log or {}).get('cp') or {}).items()}
+    upto = (today - datetime.timedelta(days=TD_W_SETTLE)).isoformat()
+    L, Y = _tdw_jpairs(log, (log or {}).get('since'), upto)
+    for key in TD_RULES_W2:
+        name = key[0] + '.' + key[1]
+        pr = sorted(L[key]); ds = sorted({p[0] for p in pr}); have = {x[0] for x in cp.get(name, [])}
+        for c in TD_W_LOOKS:
+            if c in have or len(ds) < c:
+                continue
+            S = _tdw_stat([p for p in pr if p[0] <= ds[c - 1]], Y, TD_W_ZL, ut)
+            bm = S['bm']; thr = round(bm + 100 * TD_W_ZL * math.sqrt(bm / 100 * (1 - bm / 100) / S['ne']), 1) if S['ne'] else None
+            cp.setdefault(name, []).append([c, S['k'], S['n'], None if S['b0'] is None else round(S['b0'], 1), S['h1'], S['h2'],
+                                            S['ca'][0], S['ca'][1], S['vd'], ds[c - 1], iso,
+                                            None if S['b0t'] is None else round(S['b0t'], 1), thr])
+    return {k: sorted(v) for k, v in cp.items() if v}
+
+
+def _tdw_lcv(log):
+    """Werdykt ostatniego zapisanego punktu kontrolnego każdej linii → {(rodzina, reguła): vd} (weto koloru przy „anti”)."""
+    out = {}
+    for name, v in (((log or {}).get('cp') or {}) if isinstance(log, dict) else {}).items():
+        v = _tdw_cpl(v)
+        if v and '.' in name:
+            f, r = name.split('.', 1); out[(f, r)] = v[-1][8]
+    return out
+
+
+def _tdw_valid(log):
+    return isinstance(log, dict) and isinstance(log.get('rows'), list) and 'v' in log and 'since' in log
+
+
+def _tdw_log(log, rows, series, now_utc, ut=None):
+    """Karta sesji S (S ≥ TD_SINCE_W2, stan z TD_W_JST) zapisywana raz — w pierwszym przebiegu z granicą(S) ≤ teraz < końcem karty S;
+    później tylko wynik (%, 4 miejsca), gdy znane są otwarcie i zamknięcie S. Wiersze nigdy nie są usuwane; punkty kontrolne raz i na zawsze.
+    Inne v/since → nowy dziennik; sumy i punkty kontrolne starej wersji dopisane do listy 'prev' (nic nie ginie)."""
+    log = log if _tdw_valid(log) else {}
+    prevs = _tdw_prevs(log)
+    if log and (log.get('v') != TD_VW2 or log.get('since') != TD_SINCE_W2):
+        o, _ = _tdw_jpairs(log, log.get('since') or '0000')
+        prevs = prevs + [{'v': log.get('v'), 'since': log.get('since'),
+                          'oos': {k[0] + '.' + k[1]: [sum(x[1] for x in v), len(v), len({x[0] for x in v})] for k, v in o.items()},
+                          'cp': log.get('cp') or {}}]
+        log = {}
+    now = now_utc.astimezone(datetime.timezone.utc)
+    iso = now.replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ'); n19 = iso[:19]
+    R = {(r[0], r[1]): list(r) for r in (log.get('rows') or []) if isinstance(r, list) and len(r) == 7}
+    for row in rows or []:
+        S = row['nx']; key = (S, row['id'])
+        if key not in R and S >= TD_SINCE_W2 and row['st'] in TD_W_JST and _tdw_cut(S) <= n19 < _tdw_end(S):
+            R[key] = [S, row['id'], row['N'], row['st'], _tdw_vstr(row), iso, None]
+    by = {s['id']: s for s in series or []}
+    for key, r in R.items():
+        s = by.get(key[1])
+        if r[6] is None and s and key[0] in s['dates']:
+            y = s['y'][s['dates'].index(key[0])]
+            r[6] = round(y, 4) if y is not None else None
+    out = {'at': iso, 'v': TD_VW2, 'since': TD_SINCE_W2, 'cut': TD_W_CUT, 'rows': [R[k] for k in sorted(R)], 'cp': {}}
+    out['cp'] = _tdw_cp(dict(out, cp=log.get('cp') or {}), now.date(), iso, ut)
+    if prevs:
+        out['prev'] = prevs
+    return out
+
+
+def _tdw_pk_read(path):
+    """v127 (przegląd): plik punktów kontrolnych obok kopii dziennika (TD_W_PK) → ({(v, since): {linia: [13 pól punktu]}},
+    {(v, since): {linia: [trafienia, pary, sesje]}}); brak albo nieczytelny plik → dwa puste słowniki (punkty bieżącej wersji przeliczy
+    wtedy _tdw_cp, jak w krypto v125, a sumy poprzednich wersji wracają z ich wierszy)."""
+    try:
+        with open(path, encoding='utf-8', newline='') as f:
+            rd = csv.reader(f)
+            if next(rd, None) != TD_W_PK_COLS:
+                return {}, {}
+            raw = list(rd)
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return {}, {}
+    cps, oos = {}, {}
+    num = lambda x: float(x) if x != '' else None                         # noqa: E731 — puste pole = brak, nigdy 0
+    for r in raw:
+        if len(r) != len(TD_W_PK_COLS):
+            continue
+        d = dict(zip(TD_W_PK_COLS, r))
+        try:
+            key = (int(d['v']), d['since'])
+            if not d['since'] or '.' not in d['line']:
+                continue
+            if d['kind'] == 'cp':
+                cps.setdefault(key, {}).setdefault(d['line'], []).append(
+                    [int(d['c']), int(d['k']), int(d['n']), num(d['b0']), num(d['h1']), num(d['h2']), num(d['lo']), num(d['hi']), d['vd'],
+                     d['date_c'], d['at'], num(d['b0t']), num(d['thr'])])
+            elif d['kind'] == 'oos':
+                oos.setdefault(key, {})[d['line']] = [int(d['k']), int(d['n']), int(d['days'])]
+        except (TypeError, ValueError):
+            continue
+    order = {k[0] + '.' + k[1]: i for i, k in enumerate(TD_RULES_W2)}
+    srt = lambda o: {n: o[n] for n in sorted(o, key=lambda x: (order.get(x, len(order)), x))}   # noqa: E731 — linie w kolejności TD_RULES_W2
+    return ({k: srt({n: sorted(v, key=lambda x: x[0]) for n, v in c.items()}) for k, c in cps.items()},
+            {k: srt(o) for k, o in oos.items()})
+
+
+def _tdw_from_csv(path=None):
+    """Kopia dziennika w archiwum → (dziennik, 'ok' | 'none' | 'bad'): wiersze bieżącej wersji (v, since) wracają do dziennika. v127 (przegląd):
+    wiersze innych wersji i plik punktów kontrolnych obok (TD_W_PK: zamrożone punkty każdej wersji, sumy poprzednich wersji) odtwarzają listę
+    prev (najstarsza pierwsza) i zamrożone punkty bez przeliczania — nic ze starszych wersji nie ginie; bez pliku punktów sumy poprzednich
+    wersji liczymy z ich wierszy, a punkty bieżącej wersji przelicza _tdw_cp."""
+    path = path or TD_W_CSV
+    try:
+        with open(path, encoding='utf-8', newline='') as f:
+            rd = csv.reader(f)
+            if next(rd, None) != TD_W_CSV_COLS:
+                return None, 'bad'
+            raw = list(rd)
+    except FileNotFoundError:
+        return None, 'none'
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return None, 'bad'
+    by = {}
+    for r in raw:
+        if len(r) != len(TD_W_CSV_COLS):
+            continue
+        d = dict(zip(TD_W_CSV_COLS, r))
+        try:
+            if not d['since'] or not _d(d['date']):
+                continue
+            by.setdefault((int(d['v']), d['since']), []).append(
+                [d['date'], d['sym'], int(d['n']), d['state'], d['votes'], d['saved_at'], float(d['y']) if d['y'] != '' else None])
+        except (TypeError, ValueError):
+            continue
+    cps, oos = _tdw_pk_read(os.path.join(os.path.dirname(path), TD_W_PK))
+    cur = (TD_VW2, TD_SINCE_W2)
+    prev = []
+    for key in sorted((set(by) | set(cps) | set(oos)) - {cur}, key=lambda x: (x[1], x[0])):
+        o = oos.get(key)
+        if o is None:                                                        # bez pliku punktów: suma z wierszy tej wersji (jak _tdw_log)
+            L, _ = _tdw_jpairs({'rows': by.get(key) or []}, key[1])
+            o = {k[0] + '.' + k[1]: [sum(x[1] for x in q), len(q), len({x[0] for x in q})] for k, q in L.items()}
+        prev.append({'v': key[0], 'since': key[1], 'oos': o, 'cp': cps.get(key) or {}})
+    rows = by.get(cur) or []
+    if not rows and not prev:
+        return None, 'none'
+    out = {'at': None, 'v': TD_VW2, 'since': TD_SINCE_W2, 'cut': TD_W_CUT, 'rows': sorted(rows), 'cp': cps.get(cur) or {}}
+    if prev:
+        out['prev'] = prev
+    return out, 'ok'
+
+
+_W_LOG = [None, None]     # [poprzedni dziennik (main, przed trendami), nowy dziennik (build_daily_w2)]
+
+
+def build_daily_w2(S):
+    """v127: sygnały dzienne świata, wersja 2 → (wiersze, linie). Wejście: S['swiat-dzien'] (plik tylko dla zbieracza). Bez pliku albo bez
+    żadnej serii → (None, None). Zepsuta seria jednego rynku → uwaga w meta, bez jego karty. Dziennik jak w krypto (v125): _W_LOG[0] → _W_LOG[1];
+    brak → odtworzenie z archiwum/swiat-dziennik.csv; nieczytelne archiwum → licznik wstrzymany, nic nie zapisujemy. Kolejność: najpierw
+    dziennik bez nowych kart (wyniki zapisanych kart, punkty kontrolne), potem karty (weto „anti” z punktu kontrolnego), potem zapis kart,
+    które właśnie minęły granicę. Nie zmienia S."""
+    S = S if isinstance(S, dict) else {}
+    wd = S.get('swiat-dzien') if isinstance(S.get('swiat-dzien'), dict) else None
+    if not wd:
+        return None, None
+    now_utc = _now_utc(); today = now_utc.date()
+    if today.isoformat() > '2027-12-01':
+        META['notes'].append('trendy dziennie świat: lista dni bez sesji NYSE kończy się na 2027 — dopisać następny rok')
+    series = []
+    for sym in TD_W_SYMS:
+        try:
+            s = _tdw_series(wd, sym)
+            if s:
+                series.append(s)
+        except Exception as e:
+            META['notes'].append(mask(f'trendy dziennie świat {sym}: {e}'))
+    if not series:
+        return None, None
+    lines = {key: [] for key in TD_RULES_W2}; own = {}; ys = {}; good = []
+    for s in series:
+        try:
+            pr = _tdw_pairs(s)
+            ys[s['id']] = {s['dates'][j]: s['y'][j] for j in range(len(s['dates'])) if s['y'][j] is not None}
+        except Exception as e:
+            META['notes'].append(mask(f"trendy dziennie świat {s['id']}: {e}")); continue
+        good.append(s)
+        for dt_, key, v, hit in pr:
+            lines[key].append((dt_, hit, s['id'], v))
+            if key == ('w', 'all'):
+                o = own.setdefault(s['id'], [0, 0]); o[0] += hit; o[1] += 1
+    ut = _tdw_ut(good); gates = {}
+    bd = _tdw_pool(lines, ys, today=today, ut=ut, gates=gates)
+    vd_by = {(b['fam'], b['rule']): b['vd'] for b in bd}
+    logA = None
+    try:
+        log0 = _W_LOG[0] if _tdw_valid(_W_LOG[0]) else None
+        why = 'ok'
+        if log0 is None:
+            log0, why = _tdw_from_csv()
+            if why == 'bad':
+                META['errors'].append('Dziennik świata: brak poprzedniego pliku, a kopia w archiwum jest nieczytelna — licznik „od wdrożenia” '
+                                      'wstrzymany, nic nie nadpisano')
+            elif log0 is not None and log0['rows']:
+                META['notes'].append(f"Dziennik świata: odtworzony z archiwum ({len(log0['rows'])} wierszy do {log0['rows'][-1][0]})")
+            else:
+                if log0 is not None:                         # v127 (przegląd): z archiwum wróciły tylko poprzednie wersje reguły (prev)
+                    META['notes'].append(f"Dziennik świata: z archiwum odtworzone tylko poprzednie wersje reguły ({len(_tdw_prevs(log0))})")
+                if today > _d(TD_SINCE_W2) + datetime.timedelta(days=4):
+                    META['errors'].append('Dziennik świata: brak poprzedniego pliku i brak jego kopii w archiwum — nowy dziennik, licznik „od wdrożenia” od zera')
+        if why != 'bad':
+            logA = _tdw_log(log0, [], good, now_utc, ut)
+    except Exception as e:
+        logA = None
+        META['notes'].append(mask(f'trendy dziennie świat, dziennik: {e}'))
+    lcv = _tdw_lcv(logA)
+    rows = []
+    for s in good:
+        try:
+            rows.append(_tdw_row(s, vd_by, own, today, now_utc, gates, lcv))
+        except Exception as e:
+            META['notes'].append(mask(f"trendy dziennie świat {s['id']}: {e}"))
+    if not rows:
+        return None, None
+    if logA is not None:
+        try:
+            _W_LOG[1] = _tdw_log(logA, rows, good, now_utc, ut)
+            bd = _tdw_pool(lines, ys, log=_W_LOG[1], today=today, ut=ut)
+        except Exception as e:
+            _W_LOG[1] = None
+            META['notes'].append(mask(f'trendy dziennie świat, dziennik: {e}'))
+    return rows, bd
+
+
+# ---- budowniczy pliku data/swiat-dzien.json (tylko dla zbieracza; strona go nie czyta) — stałe ----
+import concurrent.futures as _wd_cf   # v127: równoległe zapytania budowniczego świata (biblioteka standardowa)
+WD_KEEP = TD_W_KEEP                   # sesji w pliku (≈ 10 lat)
+WD_FRESH = 7                            # dni: przy serii wstępnej wiersz młodszy dostaje czas zapisu (`seen`), starszy — null (historia)
+WD_SEED_DAYS = 3700                     # dni kalendarzowych serii wstępnej cen (≈ 2 540 sesji)
+WD_NQ_URL = 'https://api.nasdaq.com/api/quote/{t}/historical?assetclass=etf&fromdate={a}&limit={n}&todate={b}'
+WD_T = 45                               # s — limit całego budowniczego w przebiegu (każde zapytanie: min(własny limit, czas, który został))
+WD_T_LATE = 15                          # s — gdy przebieg jest starszy niż WD_LATE: tylko ceny dnia i poranne pliki, bez serii wstępnej
+WD_LATE = 480                           # s — jak KD_LATE (v125) i INS_LATE: przebiegi godzinne trwają 10–11 min, pozostałe ok. 1 min
+WD_TIMEOUT = 20
+WD_DOC_TIMEOUT = 90
+WD_THREADS = 4
+WD_POLL_M = 1020                        # 17:00 czasu Nowego Jorku: od tej chwili w dniu sesji szukamy jej otwarcia i zamknięcia
+WD_SSGA_M = 40                          # 00:40 NY w dniu sesji S: poranne pobranie plików State Street (do granicy S)
+WD_SEED_PX = 12                         # historii cen na przebieg (SPY pierwszy — jego daty to kalendarz sesji)
+WD_SEED_ISH = 2                         # pełnych plików iShares na przebieg (do 28 MB)
+WD_GAP_H = 48                           # brak wiersza ceny 48 h po sesji → „miss” (brak na stałe, nigdy 0, nie pytamy ponownie)
+WD_RETRY_M = 55                         # min — brakujące ceny dnia: najwyżej raz na tyle
+WD_NQ_BACK = (55, 360)                  # min — po awarii Nasdaq: następna próba po max(55, 20·2^n), najwyżej 6 h
+WD_SEED_BACK_M = 360                    # min — plik wydawcy albo historia ceny nieczytelne: następna próba za 6 h …
+WD_SEED_FAILS = 3                       # … a po 3 porażkach fundusz dostaje historię z pliku fundusze (300 dni, seed 'short')
+WD_MIN_CAL = 2400                       # gotowość: co najmniej tyle sesji w kalendarzu …
+WD_MIN_SHARE = 0.9                      # … i każdy z 44 rynków z ceną w ≥ 90% sesji od swojego pierwszego wiersza
+WD_LABEL = 'Świat dziennie'
+WD_SSGA = tuple(t for t in FUND_SSGA if t in TD_W_SYMS)     # 14 (bez BIL)
+WD_ISH = tuple(t for t in FUND_ISH if t in TD_W_SYMS)       # 21 (bez SHY)
+WD_SRC = ('ceny: otwarcie i zamknięcie sesji w USA (Nasdaq, bez klucza); przepływy: pliki wydawców (State Street, iShares); '
+          'zagraniczni: TWSE, HKEX, NSDL (z pliku obce)')
+_WD_TERMIN = [None]
+_WD_SENT = []                           # v127 (przegląd): zapytania naprawdę wysłane w tym przebiegu (pole req) …
+_WD_CUT = [False]                       # … i czy któreś zapytanie trafiło na koniec czasu budowniczego (uwaga w meta, bez przerwy i bez błędu)
+
+
+class WdBudget(RuntimeError):
+    """Koniec czasu budowniczego. `tmo` = limit (s) zapytania, które przez to nie zdążyło; None — zapytania nie wysłano (v127, przegląd 2)."""
+
+    def __init__(self, msg='limit czasu', tmo=None):
+        super().__init__(msg)
+        self.tmo = tmo
+
+
+def wd_tmo(cap):
+    """Limit jednego zapytania = min(cap, czas, który został budowniczemu); < 1 s → WdBudget (wzór lev_tmo)."""
+    left = _WD_TERMIN[0] - time.monotonic() if _WD_TERMIN[0] else cap
+    if left < 1:
+        _WD_CUT[0] = True
+        raise WdBudget('limit czasu')
+    return min(cap, left)
+
+
+def _wd_req(get, url, cap):
+    """v127 (przegląd): jedno zapytanie budowniczego — limit wd_tmo(cap), liczone jako wysłane (req). Porażka zapytania, któremu limit
+    skrócono do końca czasu budowniczego (limit < cap i czasu już brak), to koniec czasu (WdBudget: uwaga, bez przerwy i bez wpisu
+    w bledy), nie awaria dostawcy; WdBudget niesie limit tego zapytania (tmo — przegląd 2: seria wstępna iShares rozróżnia plik, który
+    miał większość czasu budowniczego, od zapytania wysłanego z resztką czasu)."""
+    tmo = wd_tmo(cap)
+    _WD_SENT.append(1)
+    try:
+        return get(url, timeout=tmo)
+    except Exception:
+        if tmo < cap and _WD_TERMIN[0] and _WD_TERMIN[0] - time.monotonic() < 1:
+            _WD_CUT[0] = True
+            raise WdBudget('limit czasu', tmo)
+        raise
+
+
+def _wd_get_json(url, timeout):
+    return get_json(url, timeout=timeout)
+
+
+def _wd_get_bytes(url, timeout):
+    return get_bytes(url, timeout=timeout)
+
+
+def wd_num(x):
+    try:
+        v = float(str(x).replace(',', '').replace('$', '').strip())
+    except ValueError:
+        return None
+    return v if _isnum(v) and v > 0 else None
+
+
+def _wd_ny(now_utc):
+    """Czas Nowego Jorku (naiwny) z reguły USA (_tdw_off) — bez bazy stref."""
+    u = now_utc.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+    return u + datetime.timedelta(hours=_tdw_off(u.date()))
+
+
+def wd_parse_nq(j, now_utc):
+    """Nasdaq quote API → ({dzień: (otwarcie, zamknięcie)}, {wszystkie daty}). Wiersz z wolumenem „N/A” albo bez liczby = wiersz zastępczy:
+    cena brak (nigdy 0), data zostaje (kalendarz sesji). Wiersz z dzisiejszą datą (NY) przed WD_POLL_M (17:00 NY) → pominięty: trwająca
+    sesja albo zamknięcie jeszcze nieostateczne (v127, przegląd: ponowienie brakujących cen między 16:15 a 17:00 NY nie zapisze
+    wcześniejszego zamknięcia jako pierwszej publikacji i nie przesunie kalendarza przed 17:00)."""
+    rows = (((j or {}).get('data') or {}).get('tradesTable') or {}).get('rows')
+    if not isinstance(rows, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    ny = _wd_ny(now_utc); today = ny.date().isoformat(); open_s = ny.hour * 60 + ny.minute < WD_POLL_M
+    out, dates = {}, set()
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        try:
+            d = datetime.datetime.strptime(str(r.get('date')), '%m/%d/%Y').date().isoformat()
+        except ValueError:
+            continue
+        if d > today or (d == today and open_s):
+            continue
+        dates.add(d)
+        o, c, v = wd_num(r.get('open')), wd_num(r.get('close')), wd_num(r.get('volume'))
+        if o and c and v:
+            out[d] = (round(o, 4), round(c, 4))
+    return out, dates
+
+
+def _wd_iso():
+    return _now_utc().astimezone(datetime.timezone.utc).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def _wd_plus(iso, minutes):
+    return (datetime.datetime.strptime(iso[:19], '%Y-%m-%dT%H:%M:%S') + datetime.timedelta(minutes=minutes)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def _wd_seen(day, iso, stamp_all=False):
+    """Czas zapisu dla wiersza z datą `day`: po serii wstępnej swojej części (stamp_all) — zawsze iso; w serii wstępnej iso tylko dla wiersza
+    najwyżej WD_FRESH dni starszego od chwili zapisu, starszy — null (historia, „na czas” z założenia)."""
+    if stamp_all:
+        return iso
+    return iso if day >= (_d(iso[:10]) - datetime.timedelta(days=WD_FRESH)).isoformat() else None
+
+
+def _wd_rv(wd, part, key, day):
+    """Różnica przy ponownym odczycie dnia już zapisanego: liczona raz na (seria, dzień) → True, gdy nowa."""
+    seen = wd.setdefault('rvd', {}).setdefault(part, {}).setdefault(key, [])
+    if day in seen:
+        return False
+    seen.append(day); wd['rv'][part] = wd['rv'].get(part, 0) + 1
+    return True
+
+
+def _wd_esum(err):
+    """{ticker: błąd} → {błąd: liczba tickerów} (krótko w meta)."""
+    out = {}
+    for e in err.values():
+        out[e] = out.get(e, 0) + 1
+    return out
+
+
+def _wd_fetch_px(syms, a, b, n, now):
+    """Równolegle (WD_THREADS) ceny tickerów z Nasdaq → ({ticker: ({dzień: (o, c)}, {daty})}, {ticker: błąd})."""
+    got, err = {}, {}
+
+    def one(t):
+        return t, wd_parse_nq(_wd_req(_wd_get_json, WD_NQ_URL.format(t=t, a=a, b=b, n=n), WD_TIMEOUT), now)
+    with _wd_cf.ThreadPoolExecutor(WD_THREADS) as ex:
+        futs = [(t, ex.submit(one, t)) for t in syms]
+        for t0, f in futs:
+            try:
+                t, q = f.result()
+                got[t] = q
+            except WdBudget:
+                pass
+            except Exception as e:  # noqa
+                err[t0] = mask(str(e))[:60]
+    return got, err
+
+
+def _wd_merge_px(wd, got, iso, stamp_all=False):
+    """Nowe dni cen. Kalendarz rośnie tylko o daty SPY (także wiersze zastępcze — sesja była, ceny brak); wiersz raz zapisany nie jest
+    nadpisywany (różnica > 0,05% → rv.px raz na dzień); nowy wiersz [dzień, otwarcie, zamknięcie, seen]."""
+    cal = wd['cal']
+    if 'SPY' in got:
+        new = sorted(d for d in got['SPY'][1] if not cal or d > cal[-1])
+        cal.extend(new)
+    cs = set(cal)
+    for t, (q, _) in got.items():
+        p = wd['px'].setdefault(t, {'d': [], 'miss': []})
+        have = {r[0]: r for r in p['d']}
+        add = []
+        for d, (o, c) in sorted(q.items()):
+            if d in have:
+                r = have[d]
+                if abs(r[1] / o - 1) > 5e-4 or abs(r[2] / c - 1) > 5e-4:
+                    _wd_rv(wd, 'px', t, d)
+                continue
+            if d in cs:
+                add.append([d, o, c, _wd_seen(d, iso, stamp_all)])
+        if add:
+            p['d'] = sorted(p['d'] + add)
+
+
+def _wd_rows_merge(wd, part, key, P, rows, iso, stamp_all=False):
+    """Wiersze wydawcy [dzień, NAV, jednostki] → P['d'] [dzień, NAV, jednostki, seen]; tylko nowe dni (pierwsza publikacja); różnica
+    przy ponownym odczycie → rv (raz na dzień)."""
+    have = {r[0]: r for r in P['d']}
+    for r in rows or []:
+        if not (isinstance(r, list) and len(r) >= 3 and isinstance(r[0], str) and _d(r[0]) and _isnum(r[1]) and _isnum(r[2])):
+            continue
+        if r[0] in have:
+            o = have[r[0]]
+            if abs(o[1] - r[1]) > 1e-6 * max(1, r[1]) or abs(o[2] - r[2]) > max(1, 1e-6 * r[2]):
+                _wd_rv(wd, part, key, r[0])
+            continue
+        have[r[0]] = [r[0], r[1], r[2], _wd_seen(r[0], iso, stamp_all)]
+    P['d'] = [have[k] for k in sorted(have)]
+
+
+def _wd_fl_from_saved(wd, fundusze, iso):
+    f = (fundusze or {}).get('f') if isinstance(fundusze, dict) else None
+    for t in WD_SSGA + WD_ISH:
+        P = wd['fl'].setdefault(t, {'iss': 'ssga' if t in FUND_SSGA else 'ishares', 'd': []})
+        _wd_rows_merge(wd, 'fl', t, P, ((f or {}).get(t) or {}).get('h'), iso, bool(wd['bf'].get('fl')))
+
+
+def _wd_ob_from_saved(wd, obce, iso):
+    for part in ('tw', 'hk', 'in'):
+        src = ((obce or {}).get(part) or {}) if isinstance(obce, dict) else {}
+        P = wd['ob'].setdefault(part, {'d': [], 'empty': []})
+        if isinstance(src.get('empty'), list):
+            P['empty'] = [x for x in src['empty'] if isinstance(x, str)]
+        have = {r[0]: r for r in P['d']}
+        for r in src.get('d') or []:
+            if not (isinstance(r, list) and len(r) > 1 and isinstance(r[0], str) and _d(r[0]) and _isnum(r[1])):
+                continue
+            if r[0] in have:
+                if abs(have[r[0]][1] - r[1]) > 0.05:
+                    _wd_rv(wd, 'ob', part, r[0])
+                continue
+            have[r[0]] = [r[0], r[1], _wd_seen(r[0], iso, bool(wd['bf'].get('ob')))]
+        P['d'] = [have[k] for k in sorted(have)]
+
+
+def _wd_ssga_fetch(tickers):
+    """Pliki State Street (cała historia w jednym pliku) → ({ticker: wiersze}, {ticker: błąd}). Parser produkcji (parse_ssga_navhist)."""
+    got, err = {}, {}
+
+    def one(t):
+        return t, parse_ssga_navhist(_wd_req(_wd_get_bytes, FUND_SSGA_URL.format(t=t.lower()), WD_TIMEOUT), t)
+    with _wd_cf.ThreadPoolExecutor(WD_THREADS) as ex:
+        for t0, f in [(t, ex.submit(one, t)) for t in tickers]:
+            try:
+                t, h = f.result(); got[t] = h
+            except WdBudget:
+                pass
+            except Exception as e:  # noqa
+                err[t0] = mask(str(e))[:60]
+    return got, err
+
+
+def _wd_prev_session(day):
+    """Ostatnia zaplanowana sesja NYSE przed dniem `day` (pon–pt bez TD_NYSE_CLOSED)."""
+    d = _d(day) - datetime.timedelta(days=1)
+    while d.weekday() >= 5 or d.isoformat() in TD_NYSE_CLOSED:
+        d -= datetime.timedelta(days=1)
+    return d.isoformat()
+
+
+def _wd_trim(wd):
+    cal = wd['cal'][-WD_KEEP:]; wd['cal'] = cal
+    if not cal:
+        return
+    lo = cal[0]; lo_fl = (_d(lo) - datetime.timedelta(days=10)).isoformat()
+    for p in wd['px'].values():
+        p['d'] = [r for r in p['d'] if r[0] >= lo]
+        p['miss'] = [d for d in p.get('miss') or [] if d >= lo]
+    for p in wd['fl'].values():
+        p['d'] = [r for r in p['d'] if r[0] >= lo_fl]
+    for p in wd['ob'].values():
+        p['d'] = [r for r in p['d'] if r[0] >= lo_fl]
+    for part in (wd.get('rvd') or {}).values():
+        for k in list(part):
+            part[k] = [d for d in part[k] if d >= lo_fl]
+            if not part[k]:
+                del part[k]
+
+
+def _wd_px_ok(wd):
+    cal = wd['cal']
+    if len(cal) < WD_MIN_CAL:
+        return False
+    for t in TD_W_SYMS:
+        rows = (wd['px'].get(t) or {}).get('d') or []
+        if not rows:
+            return False
+        span = [d for d in cal if d >= rows[0][0]]
+        if len(rows) < WD_MIN_SHARE * len(span):
+            return False
+    return True
+
+
+def _wd_nq_ok(wd, iso):
+    """Czy wolno pytać Nasdaq (poza oknem przerwy po awarii)."""
+    nx = (wd.get('nq') or {}).get('next')
+    return not nx or iso[:19] >= nx[:19]
+
+
+def _wd_nq_fail(wd, iso, why):
+    q = wd.setdefault('nq', {'fails': 0, 'next': None, 'since': None})
+    q['fails'] = q.get('fails', 0) + 1; q['since'] = q.get('since') or iso
+    q['next'] = _wd_plus(iso, min(WD_NQ_BACK[1], max(WD_NQ_BACK[0], 20 * 2 ** q['fails'])))
+    q['why'] = why
+
+
+def _wd_seed_skip(P, iso):
+    se = P.get('se') or {}
+    return bool(se.get('at')) and iso[:19] < _wd_plus(se['at'], WD_SEED_BACK_M)[:19]
+
+
+def _wd_seed_fail(wd, P, t, iso, why, fundusze, cut=False):
+    """Porażka serii wstępnej jednego funduszu: przerwa 6 h; po WD_SEED_FAILS — historia z pliku fundusze (300 dni) i seed 'short'.
+    v127 (przegląd 2): cut=True — pełny plik ucięty limitem czasu budowniczego (_wd_seed_cut): licznik `se.cut` (takie próby z rzędu)
+    i uwaga w meta z nazwą funduszu zamiast wpisu w bledy (koniec czasu to uwaga, nie błąd); inna porażka zeruje `se.cut`."""
+    se = P.setdefault('se', {'n': 0, 'at': None}); se['n'] += 1; se['at'] = iso; se['why'] = why
+    if cut:
+        se['cut'] = se.get('cut', 0) + 1
+        nx = (f"; następna próba po {_wd_plus(iso, WD_SEED_BACK_M)} (po {WD_SEED_FAILS} porażkach — ok. 300 dni z pliku fundusze)"
+              if se['n'] < WD_SEED_FAILS else '')
+        META['notes'].append(f"{WD_LABEL}: {t} — pełny plik wydawcy nie zmieścił się w limicie czasu budowniczego ({WD_T} s) "
+                             f"po raz {se['cut']} z rzędu{nx}")
+    else:
+        se.pop('cut', None)
+        wd['bledy'].setdefault('seed_fl', {})[t] = why
+    if se['n'] >= WD_SEED_FAILS:
+        h = ((((fundusze or {}).get('f') or {}).get(t) or {}).get('h')) if isinstance(fundusze, dict) else None
+        _wd_rows_merge(wd, 'fl', t, P, h, iso)
+        P['seed'] = 'short'
+        cz = f" (w tym {se['cut']} razy ucięty limitem czasu budowniczego)" if se.get('cut') else ''
+        META['notes'].append(f"{WD_LABEL}: {t} — pełny plik wydawcy nieczytelny {se['n']} razy{cz}; przepływy od "
+                             f"{P['d'][0][0] if P['d'] else '—'} (z pliku fundusze, ok. 300 dni) — krótsza historia tego funduszu")
+
+
+def _wd_seed_cut(wd, P, t, iso, e, fundusze):
+    """v127 (przegląd 2): pełny plik iShares ucięty końcem czasu budowniczego (WdBudget z zapytania o plik). Zapytanie wysłane z co najmniej
+    połową limitu budowniczego (tmo ≥ WD_T / 2) — plik nie mieści się w czasie całego przebiegu: to próba serii wstępnej (se.at → przerwa
+    6 h, kolejka idzie dalej; porażka liczona do WD_SEED_FAILS, po 3 — ok. 300 dni z pliku fundusze, seed 'short'; uwaga z nazwą funduszu
+    i liczbą takich prób z rzędu). Zapytanie wysłane z resztką czasu (tmo < WD_T / 2) albo niewysłane — zwykły koniec czasu, bez zmian
+    (następny przebieg zaczyna od tego funduszu z pełnym czasem). Inaczej jeden zawsze wolny plik blokowałby wszystkie fundusze iShares
+    (koniec czasu kończy pętlę), a plik świata nigdy nie byłby gotowy. → True, gdy próba zapisana."""
+    tmo = getattr(e, 'tmo', None)
+    if tmo is None or tmo < WD_T / 2:
+        return False
+    _wd_seed_fail(wd, P, t, iso, f'limit czasu budowniczego ({WD_T} s)', fundusze, cut=True)
+    return True
+
+
+def _wd_blockers(wd):
+    """v127 (przegląd): powody, dla których plik z kalendarzem nie jest gotowy, choć nic już nie czeka (wszystkie ceny i fundusze zasiane
+    albo „short”) → lista tekstów; seria jeszcze w toku (także w przerwie po awarii) → [] (to nie blokada)."""
+    if not all((wd['px'].get(t) or {}).get('seed') for t in TD_W_SYMS) or \
+            not all((wd['fl'].get(t) or {}).get('seed') for t in WD_SSGA + WD_ISH):
+        return []
+    out = []
+    cal = wd['cal'][-WD_KEEP:]
+    if len(cal) < WD_MIN_CAL:
+        out.append(f'kalendarz sesji {len(cal)} z {WD_MIN_CAL}')
+    low = []
+    for t in TD_W_SYMS:
+        rows = (wd['px'].get(t) or {}).get('d') or []
+        span = [d for d in cal if rows and d >= rows[0][0]]
+        if not rows or len(rows) < WD_MIN_SHARE * len(span):
+            low.append(t)
+    if low:
+        out.append(f'ceny w mniej niż {round(100 * WD_MIN_SHARE)}% sesji: {", ".join(low)}')
+    if not wd['bf'].get('ob'):
+        out.append('brak danych inwestorów zagranicznych (plik obce)')
+    return out
+
+
+def build_swiat_dzien(prev=None, saved=None, run_t0=None):
+    """v127: plik dzienny świata. Części w kolejności pilności, jeden limit czasu (WD_T; WD_T_LATE i bez serii wstępnej w spóźnionym przebiegu):
+    (1) ceny dnia (od 17:00 NY: sonda SPY, potem pozostałe 43; brakujące — także SPY — najwyżej co 55 min, po 48 h „miss”; po awarii Nasdaq
+    przerwa 55 min → 6 h), (2) wiersze wydawców i zagranicznych z plików zapisanych w tym przebiegu (bez zapytań), (3) poranne pliki State Street
+    (od 00:40 NY dnia sesji do jej granicy: sonda SPY, potem brakujące; GLD i GLDM bez sondy), (4) seria wstępna: najpierw ceny (SPY pierwszy —
+    bez niego nic), pliki wydawców dopiero z kalendarzem (State Street raz, iShares po WD_SEED_ISH; porażka → przerwa 6 h, po 3 — 300 dni z
+    pliku fundusze), (5) przycięcie, flagi, `ready` (trwała). Czas zapisu (`seen`) brany po powrocie zapytania. Bez kalendarza — szkielet pliku
+    (cal [], ready false) z danymi przerw. Awaria części = poprzednie dane + wpis w `bledy`; koniec czasu = uwaga, nie błąd."""
+    now = _now_utc(); iso = _wd_iso(); ny = _wd_ny(now)
+    tr = round(time.monotonic() - run_t0, 1) if run_t0 is not None else None
+    late = tr is not None and tr > WD_LATE
+    t0 = time.monotonic(); _WD_TERMIN[0] = t0 + (WD_T_LATE if late else WD_T); _WD_SENT.clear(); _WD_CUT[0] = False
+    prev = prev if isinstance(prev, dict) else {}
+    cp = lambda k: json.loads(json.dumps(prev.get(k) or {}))  # noqa: E731
+    wd = {'at': NOW, 'v': 1, 'src': WD_SRC, 'keep': WD_KEEP, 'cut': TD_W_CUT,
+          'cal': list(prev.get('cal') or []), 'px': cp('px'), 'fl': cp('fl'), 'ob': cp('ob'), 'rv': {}, 'rvd': cp('rvd'),
+          'bf': dict(prev.get('bf') or {}), 'try': prev.get('try'), 'nq': cp('nq') or {'fails': 0, 'next': None, 'since': None},
+          'ready': prev.get('ready') is True, 'bledy': {}, 'req': 0, 'tr': tr}
+    saved = saved if isinstance(saved, dict) else {}
+    stop = False
+    today_ny = ny.date().isoformat(); mins = ny.hour * 60 + ny.minute
+    # (1) ceny dnia
+    try:
+        if wd['bf'].get('px') and wd['cal']:
+            is_s = ny.weekday() < 5 and today_ny not in TD_NYSE_CLOSED
+            want = today_ny if (is_s and mins >= WD_POLL_M) else _wd_prev_session(today_ny)
+            a = (_d(today_ny) - datetime.timedelta(days=20)).isoformat()
+            lack = [t for t in TD_W_SYMS if not any(r[0] == wd['cal'][-1] for r in (wd['px'].get(t) or {}).get('d', [])[-3:])
+                    and wd['cal'][-1] not in ((wd['px'].get(t) or {}).get('miss') or [])]
+            err = {}
+            if wd['cal'][-1] < want and _wd_nq_ok(wd, iso):
+                got, err = _wd_fetch_px(['SPY'], a, today_ny, 15, now)
+                if 'SPY' in err:
+                    _wd_nq_fail(wd, _wd_iso(), err['SPY']); got = {}
+                elif 'SPY' in got:
+                    wd['nq'] = {'fails': 0, 'next': None, 'since': None}
+                if got.get('SPY') and max(got['SPY'][1], default='') > wd['cal'][-1]:
+                    rest, err2 = _wd_fetch_px([t for t in TD_W_SYMS if t != 'SPY'], a, today_ny, 15, now)
+                    got.update(rest); err.update(err2); wd['try'] = _wd_iso()
+                _wd_merge_px(wd, got, _wd_iso(), True)
+            elif wd['cal'][-1] >= want and lack and _wd_nq_ok(wd, iso) and \
+                    (not wd.get('try') or wd['try'][:19] <= _wd_plus(iso, -WD_RETRY_M)[:19]):
+                got, err = _wd_fetch_px(lack, a, today_ny, 15, now); wd['try'] = _wd_iso()   # najwyżej co godzinę, do 48 h
+                _wd_merge_px(wd, got, _wd_iso(), True)
+            end = datetime.datetime.fromisoformat(_tdw_at(wd['cal'][-1], TD_W_CLOSE))
+            if (now.astimezone(datetime.timezone.utc).replace(tzinfo=None) - end).total_seconds() > WD_GAP_H * 3600:
+                for t in lack:
+                    P = wd['px'].setdefault(t, {'d': [], 'miss': []})
+                    if not any(r[0] == wd['cal'][-1] for r in P['d']) and wd['cal'][-1] not in P.setdefault('miss', []):
+                        P['miss'].append(wd['cal'][-1])
+            if err:
+                wd['bledy']['px'] = _wd_esum(err)
+    except WdBudget:
+        stop = True
+    except Exception as e:
+        wd['bledy']['px'] = mask(str(e))[:140]
+    stop = stop or _WD_CUT[0]                             # v127 (przegląd): pula wątków połyka koniec czasu pojedynczego zapytania
+    # (2) wiersze wydawców i zagranicznych z plików zapisanych w tym przebiegu (bez zapytań)
+    try:
+        if wd['cal']:
+            _wd_fl_from_saved(wd, saved.get('fundusze'), iso)
+            _wd_ob_from_saved(wd, saved.get('obce'), iso)
+            wd['bf']['ob'] = any(((wd['ob'].get(p) or {}).get('d')) for p in ('tw', 'hk', 'in'))
+    except Exception as e:
+        wd['bledy']['fl'] = mask(str(e))[:140]
+    # (3) poranne pliki State Street (dla sesji S = następnej po najnowszym zapisanym zamknięciu)
+    try:
+        if not stop and wd['bf'].get('fl') and wd['cal']:
+            D = wd['cal'][-1]; S = _tdw_next(D)
+            lack = [t for t in WD_SSGA if not any(r[0] >= D for r in ((wd['fl'].get(t) or {}).get('d') or [])[-3:])]
+            if lack and today_ny == S and mins >= WD_SSGA_M and iso[:19] < _tdw_cut(S):
+                gold = [t for t in lack if t in ('GLD', 'GLDM')]
+                rest = [t for t in lack if t not in gold]
+                probe = ['SPY'] if 'SPY' in rest else rest[:1]
+                got, err = _wd_ssga_fetch(gold + probe); at = _wd_iso()
+                for t, h in got.items():
+                    _wd_rows_merge(wd, 'fl', t, wd['fl'].setdefault(t, {'iss': 'ssga', 'd': []}), h, at, True)
+                if probe and any(r[0] >= D for r in got.get(probe[0]) or []):
+                    more = [t for t in rest if t not in probe]
+                    g2, e2 = _wd_ssga_fetch(more); at = _wd_iso(); err.update(e2)
+                    for t, h in g2.items():
+                        _wd_rows_merge(wd, 'fl', t, wd['fl'].setdefault(t, {'iss': 'ssga', 'd': []}), h, at, True)
+                if err:
+                    wd['bledy']['ssga'] = _wd_esum(err)
+    except WdBudget:
+        stop = True
+    except Exception as e:
+        wd['bledy']['ssga'] = mask(str(e))[:140]
+    stop = stop or _WD_CUT[0]
+    # (4) seria wstępna: najpierw ceny (SPY = kalendarz sesji), pliki wydawców dopiero z kalendarzem
+    try:
+        if not stop and not late and not wd['bf'].get('px') and _wd_nq_ok(wd, iso):
+            a = (now.date() - datetime.timedelta(days=WD_SEED_DAYS)).isoformat(); b = now.date().isoformat()
+            pend = [t for t in TD_W_SYMS if not (wd['px'].get(t) or {}).get('seed') and not _wd_seed_skip(wd['px'].get(t) or {}, iso)]
+            rest = pend[:WD_SEED_PX]
+            if not (wd['px'].get('SPY') or {}).get('seed'):              # SPY sam i pierwszy: jego daty to kalendarz; bez niego nic więcej
+                got, err = _wd_fetch_px(['SPY'], a, b, 9999, now); at = _wd_iso(); rest = []
+                if 'SPY' in got:
+                    wd['nq'] = {'fails': 0, 'next': None, 'since': None}
+                    _wd_merge_px(wd, got, at); wd['px']['SPY']['seed'] = True
+                    rest = [t for t in pend if t != 'SPY'][:WD_SEED_PX - 1]
+                elif 'SPY' in err:
+                    _wd_nq_fail(wd, at, err['SPY']); wd['bledy']['seed_px'] = _wd_esum(err)
+            if rest:
+                got, err = _wd_fetch_px(rest, a, b, 9999, now); at = _wd_iso()
+                _wd_merge_px(wd, got, at)
+                for t in got:
+                    wd['px'][t]['seed'] = True; wd['px'][t].pop('se', None)
+                for t, e in err.items():
+                    P = wd['px'].setdefault(t, {'d': [], 'miss': []}); se = P.setdefault('se', {'n': 0, 'at': None})
+                    se['n'] += 1; se['at'] = at; se['why'] = e
+                if err:
+                    wd['bledy']['seed_px'] = _wd_esum(err)
+            wd['bf']['px'] = all((wd['px'].get(t) or {}).get('seed') for t in TD_W_SYMS) and _wd_px_ok(dict(wd, cal=wd['cal'][-WD_KEEP:]))
+        if not stop and not late and not wd['bf'].get('fl') and wd['cal']:
+            fu = saved.get('fundusze')
+            todo = [t for t in WD_SSGA if not (wd['fl'].get(t) or {}).get('seed') and not _wd_seed_skip(wd['fl'].get(t) or {}, iso)]
+            if todo:
+                got, err = _wd_ssga_fetch(todo); at = _wd_iso()
+                for t in todo:
+                    P = wd['fl'].setdefault(t, {'iss': 'ssga', 'd': []})
+                    if t in got:
+                        _wd_rows_merge(wd, 'fl', t, P, got[t], at); P['seed'] = True; P.pop('se', None)
+                    elif t in err:
+                        _wd_seed_fail(wd, P, t, at, err[t], fu)
+            f = ((fu or {}).get('f') or {}) if isinstance(fu, dict) else {}
+            n = 0
+            for t in WD_ISH:
+                P = wd['fl'].setdefault(t, {'iss': 'ishares', 'd': []})
+                if P.get('seed') or n >= WD_SEED_ISH or _wd_seed_skip(P, iso):
+                    continue
+                pid = (f.get(t) or {}).get('pid')
+                if not pid:                                  # v127 (przegląd): plik fundusze jest, a fundusz bez identyfikatora pliku wydawcy —
+                    if f:                                    # jak nieczytelny plik (przerwa 6 h, po 3 razach 300 dni z pliku fundusze), nie cisza
+                        _wd_seed_fail(wd, P, t, iso, 'brak identyfikatora pliku wydawcy (pid) w pliku fundusze', fu)
+                    continue
+                n += 1
+                try:
+                    h = parse_ishares_hist(_wd_req(_wd_get_bytes, FUND_ISH_DOC.format(pid=pid), WD_DOC_TIMEOUT))
+                    _wd_rows_merge(wd, 'fl', t, P, h, _wd_iso()); P['seed'] = True; P.pop('se', None)
+                except WdBudget as e:                        # v127 (przegląd 2): plik, który miał większość czasu budowniczego, a nie zdążył —
+                    _wd_seed_cut(wd, P, t, _wd_iso(), e, fu)  # próba zapisana (przerwa 6 h, porażka); potem koniec czasu jak dotąd
+                    raise
+                except Exception as e:  # noqa
+                    _wd_seed_fail(wd, P, t, _wd_iso(), mask(str(e))[:60], fu)
+            wd['bf']['fl'] = all((wd['fl'].get(t) or {}).get('seed') for t in WD_SSGA + WD_ISH)
+    except WdBudget:
+        stop = True
+    except Exception as e:
+        wd['bledy']['seed'] = mask(str(e))[:140]
+    stop = stop or _WD_CUT[0]
+    # (5) przycięcie, flagi, błędy
+    _wd_trim(wd)
+    wd['ready'] = bool(wd['cal']) and (wd['ready'] or all(wd['bf'].get(k) for k in ('px', 'fl', 'ob')))
+    run_rv = {k: v for k, v in wd['rv'].items() if v}
+    wd['rv'] = {k: (prev.get('rv') or {}).get(k, 0) + wd['rv'].get(k, 0) for k in ('px', 'fl', 'ob')}   # licznik narastający
+    q = wd['nq']
+    if q.get('fails'):
+        META['notes'].append(f"{WD_LABEL}: Nasdaq niedostępny od {q.get('since')} ({q.get('fails')} prób) — następna próba po {q.get('next')}")
+    if not wd['cal']:
+        META['notes'].append(f'{WD_LABEL}: brak kalendarza sesji (seria wstępna cen jeszcze niepobrana) — plik bez danych, wersja 1 świata zostaje')
+    if stop:
+        META['notes'].append(f'{WD_LABEL}: limit czasu budowniczego ({WD_T_LATE if late else WD_T} s) — reszta w następnym przebiegu')
+    why = _wd_blockers(wd) if wd['cal'] and not wd['ready'] else []
+    if why:                                               # v127 (przegląd): gotowość zablokowana na stałe — powód w meta, nie cisza
+        META['notes'].append(f"{WD_LABEL}: plik jeszcze niegotowy, choć seria wstępna się skończyła — {'; '.join(why)}; wersja 1 świata zostaje")
+    if run_rv:
+        META['notes'].append(f"{WD_LABEL}: dostawca przepisał dni już zapisane (w pliku zostaje pierwsza publikacja): {run_rv}")
+    if wd['bledy']:
+        META['errors'].append(mask(f"{WD_LABEL}: {wd['bledy']}"))
+    wd['req'] = len(_WD_SENT)                             # v127 (przegląd): zapytania naprawdę wysłane
+    wd['t'] = round(time.monotonic() - t0, 2)
+    return wd
+
+
 def _tr_try(name, fn, out):
     """Jedno źródło TRENDÓW — błąd jednego źródła nie usuwa pozostałych (uwaga w meta zamiast pustej zakładki)."""
     try:
@@ -5709,6 +7094,17 @@ def build_trendy(S):
             daily['bd'] = (daily['bd'] or []) + cb
     except Exception as e:
         META['notes'].append(mask(f'trendy dziennie krypto: {e}'))
+    wd2 = S.get('swiat-dzien') if isinstance(S.get('swiat-dzien'), dict) else None
+    if wd2 and wd2.get('ready') is True and not any(isinstance(b, dict) and b.get('fam') in TD_FAM_W for b in (daily['bd'] or [])):
+        META['notes'].append('trendy dziennie świat v2: pominięte — brak linii wersji 1 (stara karta czytałaby linie v2 jako linie v1)')
+    elif wd2 and wd2.get('ready') is True:                   # v127: świat — wersja 2 dopiero po dopełnieniu pliku dziennego (flaga trwała)
+        try:
+            wr2, wl2 = build_daily_w2(S)
+        except Exception as e:
+            META['notes'].append(mask(f'trendy dziennie świat v2: {e}')); wr2 = wl2 = None
+        if wr2:                                              # karty v2 (reguły c / cx / c0 — strona sprzed v127 ich nie przyjmuje) przed kartami v1
+            daily['d'] = wr2 + (daily['d'] or [])            # świata i krypto, które zostają bez zmian (stara karta przeglądarki czyta wersję 1);
+            daily['bd'] = (daily['bd'] or []) + wl2          # 7 linii v1 świata na początku bd (licznik od TD_SINCE liczy się dalej), linie v2 na końcu
     return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (fundusze, obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, surowce, ceny)',
             'rules': {'base_min': TR_BASE_MIN, 'base_max': TR_BASE_MAX, 'dir': TR_DIR, 'all': TR_ALL, 'floor': TR_FLOOR, 'strong': TR_STRONG,
                       'exc': TR_EXC, 'day_z': TR_DAY_Z, 'span': TR_SPAN, 'px_min': TR_PX_MIN, 'cr_typ': TR_CR_TYP},
@@ -10895,6 +12291,18 @@ def main():
     except Exception as e:
         META['errors'].append(mask(f'fundusze ETF: {e}')); META['ok']['fundusze'] = False
         if prev_fu: save('fundusze', prev_fu)
+    # v127: plik dzienny świata (tylko dla zbieracza): otwarcia i zamknięcia 44 ETF, NAV i jednostki 35 funduszy, zagraniczni — pierwsza
+    # publikacja z chwilą zapisu; poranne pliki State Street; jeden limit czasu; awaria = poprzedni plik i błąd. ~7 MB: pamięć Actions, gdy
+    # świeża (≤ 60 min); inaczej nowszy z pamięci i strony (previous) — stara pamięć nie może cofnąć zapisanych dni
+    pc_wd = _prev_cache('swiat-dzien')
+    prev_wd = pc_wd if isinstance(pc_wd, dict) and fresh(pc_wd, 60) else previous('swiat-dzien')
+    try:
+        wd = build_swiat_dzien(prev_wd, SAVED, run_t0=_RUN_T0[0]); save('swiat-dzien', wd)
+        META['ok']['swiat-dzien'] = not wd.get('bledy') and not (wd.get('nq') or {}).get('fails')
+    except Exception as e:
+        META['errors'].append(mask(f'{WD_LABEL}: {e}')); META['ok']['swiat-dzien'] = False
+        if prev_wd: save('swiat-dzien', prev_wd)
+    _W_LOG[0] = previous('swiat-dziennik'); _W_LOG[1] = None   # v127: dziennik kart świata — nowszy (pole at) z pamięci Actions i ze strony
     # v97: dane rządu USA — EIA (energia, co 6 h), BLS (makro, co 6 h; bez klucza — mniejszy limit), BEA (bilans płatniczy, raz na dobę);
     # każde źródło osobno, awaria zostawia poprzedni plik (brak nie jest zerem)
     for name, fn, key, mins, label, need in (('energia', build_energia, eia_key, 6 * 60, 'EIA', True),
@@ -10922,6 +12330,10 @@ def main():
         save('krypto-dziennik', _CR_LOG[1])
     elif _td_cr_valid(_CR_LOG[0]):                                 # v2 nieaktywna albo bez dziennika w tym przebiegu: poprzedni bez zmian
         save('krypto-dziennik', _CR_LOG[0])
+    if _W_LOG[1]:                                                  # v127: dziennik kart świata zbudowany w tym przebiegu
+        save('swiat-dziennik', _W_LOG[1])
+    elif _tdw_valid(_W_LOG[0]):                                    # świat v2 nieaktywny albo bez dziennika w tym przebiegu: poprzedni bez zmian
+        save('swiat-dziennik', _W_LOG[0])
     META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')

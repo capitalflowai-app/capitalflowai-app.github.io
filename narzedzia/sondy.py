@@ -752,9 +752,37 @@ def g_evds():
 # (3) GROUPS = [..., g_fmp, g_alphavantage, g_evds]
 
 
+def g_nasdaq():
+    """v127, krok 0 wydania: Nasdaq quote API bez klucza — DOKŁADNIE ta prośba, którą wyśle zbieracz (sam nagłówek User-Agent zbieracza, bez
+    Accept); wypisuje tylko kod HTTP, liczbę wierszy i najnowszą datę (bez adresu i treści). Wiersz „summary nasdaq-rows” trafia do adnotacji."""
+    d = _utc_today()
+    url = (f"https://api.nasdaq.com/api/quote/SPY/historical?assetclass=etf&fromdate={(d - dt.timedelta(days=10)).isoformat()}"
+           f"&limit=5&todate={d.isoformat()}")
+    req = urllib.request.Request(url, headers={"User-Agent": "CapitalFlowAI-collector/1.0"})
+    t = time.monotonic(); status = raw = err = None
+    try:
+        with urllib.request.urlopen(req, timeout=min(REQ_TIMEOUT, max(1.0, _remaining())), context=SSL_CTX) as r:
+            status = r.status; raw = _read_capped(r, t + REQ_TIMEOUT)
+    except urllib.error.HTTPError as e:
+        status = e.code
+    except Exception as e:  # noqa
+        err = type(e).__name__
+    rows = newest = None
+    if status == 200 and raw:
+        try:
+            rr = ((json.loads(raw).get("data") or {}).get("tradesTable") or {}).get("rows") or []
+            rows = len(rr); newest = max((dt.datetime.strptime(x["date"], "%m/%d/%Y").date() for x in rr), default=None)
+        except Exception as e:  # noqa
+            err = type(e).__name__
+    report("nasdaq", None, "SPY_historical_5 (collector UA)", status, raw, int((time.monotonic() - t) * 1000), err,
+           f"rows={rows} newest={newest}" if rows is not None else None)
+    with _print_lock:
+        print(f"summary nasdaq-rows {rows} newest {newest}", flush=True)
+
+
 GROUPS = [g_deribit, g_binance_fapi, g_binance_mirrors, g_bybit, g_okx, g_hyperliquid,
           g_alternatives, g_onchain_public, g_etherscan, g_cryptopanic, g_tiingo,
-          g_massive, g_eodhd, g_fmp, g_alphavantage, g_coinalyze, g_banxico, g_evds]
+          g_massive, g_eodhd, g_fmp, g_alphavantage, g_coinalyze, g_banxico, g_evds, g_nasdaq]
 
 
 # --------------------------------------------------------------------------- main
