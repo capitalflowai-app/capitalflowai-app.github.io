@@ -8,6 +8,7 @@
      i loader TradingView; ramki tylko TradingView (po kliknięciu widza); bez wtyczek; obrazy z danych źródeł przez https -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self'; frame-src https://www.tradingview-widget.com https://www.tradingview.com; connect-src 'self' https://api.coingecko.com https://api.coinpaprika.com https://sdmx.oecd.org https://stablecoins.llama.fi https://api.llama.fi https://home.treasury.gov https://stats.bis.org https://openapi.sosovalue.com https://api.twelvedata.com https://api.statistiken.bundesbank.de https://api.frankfurter.dev https://finnhub.io">
 <meta name="referrer" content="no-referrer">
+<!-- v141: miejsce ładowarki słownika języka — przy publikacji narzedzia/odchudz_strone.py wstawia tu skrypt, który przed skryptem strony wczytuje i18n/<język>.<skrót>.js (języki spoza pl i en) -->
 <title>CapitalFlowAI — Gdzie płynie kapitał?</title>
 <!-- v111: wyszukiwarki — weryfikacja Google (nigdy nie usuwać), opis, adres kanoniczny, wersje językowe, Open Graph; teksty zmienia applyLang() -->
 <meta name="google-site-verification" content="ZdWOjrS6sSu-8eNCUvoFlkLmzqCpRlTcOmZpoomXvAQ" />
@@ -1388,6 +1389,9 @@ function seoApply(){try{localStorage.setItem('cfai.lang',LANG);}catch(e){}
   set('meta[property="og:title"]','content',ti);set('meta[property="og:description"]','content',de);
   set('meta[property="og:locale"]','content',({pl:'pl_PL',en:'en_US',de:'de_DE',es:'es_ES',fr:'fr_FR',it:'it_IT',pt:'pt_BR',ru:'ru_RU',zh:'zh_CN',ja:'ja_JP'})[LANG]||'pl_PL');}
 const t=(k,vars)=>{let s=(I18N[LANG]&&I18N[LANG][k])??I18N.en[k]??k;if(vars)for(const v in vars)s=s.split('{'+v+'}').join(vars[v]);return s;};
+/* v141: zmiana języka — czy słownik języka l jest gotowy. W tym pliku zawsze tak (wszystkie 10 języków w stronie); przy publikacji
+   narzedzia/odchudz_strone.py podmienia tę linię w lżejszej kopii: język spoza pl/en doczytywany z i18n/<język>.<skrót>.js, go() po wczytaniu */
+function cfLangReady(l,go){return true;}
 const nName=id=>t('n.'+id);
 const NF={};
 const nfmt=(v,d=0)=>{const k=LANG+d;if(!NF[k])NF[k]=new Intl.NumberFormat(LOCALE[LANG],{minimumFractionDigits:d,maximumFractionDigits:d});return NF[k].format(v);};
@@ -7623,7 +7627,7 @@ const LANG_NAMES={pl:'Polski',en:'English',de:'Deutsch',es:'Español',fr:'Franç
 /* v96: flaga przy każdym języku (angielski — Wielka Brytania, portugalski — Portugalia, chiński — Chiny, japoński — Japonia); pliki z img/flagi tej strony */
 const LANG_FLAG={pl:'pl',en:'gb',de:'de',es:'es',fr:'fr',it:'it',pt:'pt',ru:'ru',zh:'cn',ja:'jp'};
 const langIcon=v=>{const k=flagCode(LANG_FLAG[v]);return k?'img/flagi/'+k+'.svg':'img/glify/globe.svg';};
-dropdown($('#dd-lang'),{right:true,groups:[{key:'lang',items:Object.keys(LANG_NAMES).map(v=>({v,raw:LANG_NAMES[v],icon:()=>langIcon(v)})),get:()=>LANG,set:v=>{LANG=v;applyLang();}}]});
+dropdown($('#dd-lang'),{right:true,groups:[{key:'lang',items:Object.keys(LANG_NAMES).map(v=>({v,raw:LANG_NAMES[v],icon:()=>langIcon(v)})),get:()=>LANG,set:v=>{const go=()=>{LANG=v;applyLang();};if(cfLangReady(v,go))go();}}]});
 dropdown($('#dd-theme'),{right:true,groups:[{key:'theme',items:[{v:'system',l:'theme.system'},{v:'light',l:'theme.light'},{v:'dark',l:'theme.dark'},{v:'custom',l:'theme.custom'}],get:()=>st.theme,set:v=>{st.theme=v;applyTheme();}}]});
 dropdown($('#dd-bg'),{right:true,groups:[
   {key:'bg',items:[{v:'off',l:'bg.off'},{v:'soft',l:'bg.soft'},{v:'strong',l:'bg.strong'}],get:()=>st.bg,set:v=>{st.bg=v;document.body.dataset.bg=v;applyHexOp();hSync();}},
@@ -9437,7 +9441,7 @@ function fedAuto(){if(FED.timer)return;FED.timer=setInterval(()=>{if(!document.h
 fedLoad();fedAuto();try{new MutationObserver(()=>renderFed()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* v131: Fed — szanse decyzji; zmiana języka = nowe etykiety */
 /* GLOBAL jest oknem startowym projektu */
 setMode('global');
-window.__cf={cam,st,select,camTo,applyTheme,LIVE,loadAll,afterLive,setLang:l=>{LANG=l;applyLang();},setTheme:v=>{st.theme=v;applyTheme();},setView:v=>{st.view=v;setView();DD.forEach(d=>d.refresh());},setPage,openHelp,closeHelp,camPreset,setMode,ETF,etfLoad,renderEtf};
+window.__cf={cam,st,select,camTo,applyTheme,LIVE,loadAll,afterLive,setLang:l=>{const go=()=>{LANG=l;applyLang();};if(cfLangReady(l,go))go();},setTheme:v=>{st.theme=v;applyTheme();},setView:v=>{st.view=v;setView();DD.forEach(d=>d.refresh());},setPage,openHelp,closeHelp,camPreset,setMode,ETF,etfLoad,renderEtf};
 })();
 </script>
 </body>

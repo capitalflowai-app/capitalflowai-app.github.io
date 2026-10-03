@@ -20029,3 +20029,520 @@ class JpxV137(unittest.TestCase):
         self.assertGreaterEqual(len(tup), 18); self.assertTrue(all("'build_jpx'" in m.group(0) for m in tup), 'build_jpx w każdej krotce zaślepek przebiegu głównego')
         self.assertEqual(zd.JPX_COLS[:4], ['from', 'to', 'for_s', 'for_b']); self.assertEqual(len(zd.JPX_COLS), 22)
         self.assertEqual((zd.JPX_WEEKS, zd.JPX_BF_FILES, zd.JPX_BACK_BUDGET, zd.JPX_IDLE_MIN, zd.JPX_DUE_MIN), (156, 10, 45, 720, 55))
+
+
+# ===================== v141: lżejsza strona — słowniki 8 języków (poza pl i en) w osobnych plikach przy publikacji (narzedzia/odchudz_strone.py) =====================
+# Wymóg twardy: dla każdego z 10 języków końcowy I18N[język] w lżejszej stronie (z plikiem tego języka) = końcowy I18N[język] w pełnej stronie —
+# sprawdzane w prawdziwym silniku JS (node; lokalnie także jsc z macOS) na prawdziwej index.html; do tego ładowarka (?lang=, pamięć przeglądarki,
+# pl/en bez pliku), brak pliku (zapas angielski, nie awaria), zaczep zmiany języka, odmowy przy nieznanym układzie słowników, skrót w nazwie pliku,
+# pliki poprzedniej wersji (bez sieci: atrapa pobierania), krok publikacji i straż kluczy nad _site/i18n.
+import ast as _ast_v141            # noqa: E402 — v141: składnia narzędzia publikacji
+import contextlib as _ctx_v141     # noqa: E402 — v141: wyjście narzędzia nie zaśmieca wyniku testów
+import hashlib as _hashlib_v141    # noqa: E402 — v141: skrót w nazwie pliku słownika
+import io as _io_v141              # noqa: E402
+import re as _re_v141              # noqa: E402
+import threading as _thr_v141      # noqa: E402 — v141: serwer HTTP w wątku (pliki poprzedniej wersji, prawdziwa ścieżka sieci)
+
+
+class LzejszaStronaV141(unittest.TestCase):
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    LANGS = ('pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja')
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        import tempfile
+        spec = importlib.util.spec_from_file_location('v141_odchudz', os.path.join(cls.ROOT, 'narzedzia', 'odchudz_strone.py'))
+        cls.O = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.O)
+        cls.tmp = tempfile.mkdtemp(prefix='v141-')
+        cls.src = os.path.join(cls.ROOT, 'index.html')
+        with open(cls.src, 'rb') as f:
+            cls.src_bytes = f.read()
+        cls.silniki = cls.O.silniki()
+        cls.site = os.path.join(cls.tmp, 'site'); os.makedirs(cls.site)
+        cls.opis = cls.O.zbuduj(cls.src, cls.site)              # prawdziwa strona, sprawdzenie w każdym znalezionym silniku JS
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    @staticmethod
+    def rd(p):
+        with open(p, encoding='utf-8') as f:
+            return f.read()
+
+    @staticmethod
+    def rb(p):
+        with open(p, 'rb') as f:
+            return f.read()
+
+    def katalog(self, nazwa):
+        d = os.path.join(self.tmp, nazwa); os.makedirs(d, exist_ok=True); return d
+
+    # ---------------------------------------------------------------- strona syntetyczna (mała, ten sam układ co index.html)
+    def strona(self, bloki, zmien=None):
+        O = self.O
+        I18N = ("const I18N={\npl:{'a':'A-pl','b':'B-pl'},\nen:{'a':'A-en','b':'B-en','c':'C-en','d':'D-en','e':'E-en'},\nde:{'a':'A-de'},\n"
+                "es:{'a':'A-es'},fr:{},it:{},pt:{},ru:{},zh:{},ja:{'a':'A-ja'}\n};\n")
+        h = ('<!doctype html>\n<html lang="pl">\n<head>\n<meta charset="utf-8">\n<meta name="referrer" content="no-referrer">\n' + O.ZNACZNIK + '\n'
+             '<title>x</title>\n</head>\n<body>\n<p data-i18n="a"></p>\n' + O.POCZATEK + "const LOCALE={pl:'pl-PL'};\n" + I18N + "let LANG='pl';\n"
+             "const SEO_SITE='https://x.test/',SEO_LANGS=['pl','en','de','es','fr','it','pt','ru','zh','ja'];\n" + O.LINIA_JEZYKA + '\n'
+             "const t=(k,vars)=>{let s=(I18N[LANG]&&I18N[LANG][k])??I18N.en[k]??k;if(vars)for(const v in vars)s=s.split('{'+v+'}').join(vars[v]);return s;};\n"
+             + O.ZACZEP + '\n' + bloki + "\n/* ===================== STAN I DANE ===================== */\nfunction applyLang(){document.title=t('a');}\n})();\n</script>\n</body>\n</html>\n")
+        for a, b in (zmien or {}).items():
+            self.assertEqual(h.count(a), 1, a); h = h.replace(a, b)
+        return h
+
+    BLOKI = ("const EXTRA={de:{'b':'B-de-js','x':'X-de-js'}};\nfor(const l in EXTRA)Object.assign(I18N[l],EXTRA[l]);\n"
+             '/* v1: słownik JSON nadpisuje klucz słownika nie-JSON (b) */\n'
+             'const EXTRA3={"pl":{"c":"C-pl"},"en":{"c":"C-en2"},"de":{"b":"B-de-json","d":"D-de"},"ja":{"d":"D-ja"}};\n'
+             'for(const l in EXTRA3)if(I18N[l])Object.assign(I18N[l],EXTRA3[l]);\n'
+             'const EXTRA4={"de":{"d":"D-de-2"},"fr":{"e":"E-fr"},"it":{"e":"E-it"},"pt":{"e":"E-pt"},"ru":{"e":"Е-ru"},"zh":{"e":"E-zh"},"es":{"e":"E-es"}};\n'
+             'for(const l in EXTRA4)if(I18N[l])Object.assign(I18N[l],EXTRA4[l]);\n')
+
+    def zbuduj(self, html, nazwa, sprawdzac=False):
+        d = self.katalog(nazwa); p = os.path.join(d, 'src.html'); s = os.path.join(d, '_site'); os.makedirs(s, exist_ok=True)
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write(html)
+        with _ctx_v141.redirect_stdout(_io_v141.StringIO()), _ctx_v141.redirect_stderr(_io_v141.StringIO()):
+            rc = self.O.main([p, s] + ([] if sprawdzac else ['--bez-sprawdzenia']))
+        return rc, s
+
+    def main_cicho(self, args):
+        with _ctx_v141.redirect_stdout(_io_v141.StringIO()), _ctx_v141.redirect_stderr(_io_v141.StringIO()):
+            return self.O.main(args)
+
+    def plik(self, site, j):
+        fs = [f for f in os.listdir(os.path.join(site, 'i18n')) if f.startswith(j + '.')]
+        self.assertEqual(len(fs), 1, fs)
+        t = self.rd(os.path.join(site, 'i18n', fs[0]))
+        m = _re_v141.fullmatch(r'window\.CF_I18N_X=\{"lang":"(\w+)","h":"([0-9a-f]{8})","d":(.*)\};\n', t, _re_v141.S)
+        self.assertTrue(m, t[:120])
+        return fs[0], m.group(1), m.group(2), json.loads(m.group(3)), m.group(3)
+
+    # ---------------------------------------------------------------- 1. prawdziwa strona: równoważność 10 języków w silniku JS
+    def test_prawdziwa_strona_rownowaznosc_10_jezykow(self):
+        self.assertTrue(self.silniki, 'brak silnika JS (node / jsc) — sprawdzenie nie może przejść na pusto')
+        R = self.opis['raporty']
+        self.assertEqual(len(R), len(self.silniki))
+        for r in R:
+            self.assertTrue(r['ok'], (r['engine'], r['errors']))
+            self.assertEqual(sorted(r['langs']), sorted(self.LANGS))
+            for j in self.LANGS:
+                v = r['langs'][j]
+                self.assertTrue(v['ok'] and v['diff'] == [] and v['LANG'] == j, (r['engine'], j, v))
+                self.assertGreater(v['keys'], 1400, (j, v['keys']))
+                self.assertEqual(v['writes'], 0 if j in ('pl', 'en') else 1, j)
+        with open(self.src, 'rb') as f:
+            self.assertEqual(f.read(), self.src_bytes, 'index.html w repozytorium bez zmian')
+
+    def test_prawdziwa_strona_pliki_i_rozmiar(self):
+        lek = self.rd(os.path.join(self.site, 'index.html'))
+        (a, ag), (b, bg) = self.opis['przed'], self.opis['po']
+        self.assertEqual(a, len(self.src_bytes)); self.assertEqual(b, len(lek.encode('utf-8')))
+        self.assertLess(b, 0.7 * a, 'lżejsza strona co najmniej o 30% mniejsza'); self.assertLess(bg, 0.75 * ag)
+        self.assertEqual(sorted(os.listdir(os.path.join(self.site, 'i18n'))), sorted(n for n, _, _ in self.opis['pliki'].values()))
+        for j in self.O.DZIELONE:
+            n, lang, h, d, dj = self.plik(self.site, j)
+            self.assertEqual((lang, n), (j, f'{j}.{h}.js'))
+            self.assertEqual(h, _hashlib_v141.sha256((j + '\n' + dj).encode('utf-8')).hexdigest()[:8], 'skrót = sha256 treści')
+            self.assertGreater(len(d), 1000)
+            self.assertNotIn(f'"{j}":{{', lek, f'język {j} wycięty ze wszystkich słowników JSON')
+            self.assertIn(f'"{j}":"{h}"', lek)
+        self.assertEqual(self.opis['nie_json'], ['I18N', 'EXTRA', 'EXTRA2'], 'słowniki nie-JSON zostają nietknięte')
+        src = self.src_bytes.decode('utf-8')
+        for nazwa in self.opis['nie_json']:
+            i, j = src.index(f'const {nazwa}={{'), lek.index(f'const {nazwa}={{')
+            a, b = self.O.koniec_obiektu(src, i + len(nazwa) + 7), self.O.koniec_obiektu(lek, j + len(nazwa) + 7)
+            self.assertEqual(lek[j:b + 2], src[i:a + 2], nazwa)
+        h0, h1 = lek.index('<head>'), lek.index('</head>')
+        self.assertTrue(h0 < lek.index('<script>/* v141:') < lek.index('<link href="fonts/fonts.css"') < h1, 'ładowarka w <head> przed arkuszem stylów')
+        self.assertIn("k.rel='preload';k.as='script'", lek[h0:h1], 'plik języka pobierany w tle od <head> (bez blokowania rysowania)')
+        p = lek.index(self.O.POCZATEK)
+        self.assertTrue(lek[:p].endswith(self.O.PISARZ), 'blokujący <script src> pliku tuż przed skryptem strony')
+        self.assertEqual(lek.count('<script>/* v141:'), 2); self.assertEqual(lek.count(self.O.POCZATEK), 1)
+        self.assertNotIn(self.O.ZNACZNIK, lek); self.assertNotIn(self.O.ZACZEP, lek); self.assertEqual(lek.count('function cfLangReady('), 1)
+
+    # ---------------------------------------------------------------- 2. ładowarka, brak pliku, zaczep (raporty silników na prawdziwej stronie)
+    def test_ladowarka_wybiera_wlasciwy_plik(self):
+        for r in self.opis['raporty']:
+            C = {(c['q'], c['ls'], c['lsThrows']): c for c in r['loader']}
+            self.assertEqual(len(C), 10)
+            self.assertTrue(all(c['ok'] for c in C.values()), (r['engine'], [c for c in C.values() if not c['ok']]))
+            hs = self.opis['skroty']
+            self.assertEqual(C[('?lang=de', '{}', False)]['src'], f"i18n/de.{hs['de']}.js")
+            self.assertEqual(C[('', '{"cfai.lang":"ja"}', False)]['src'], f"i18n/ja.{hs['ja']}.js", 'język z pamięci przeglądarki')
+            self.assertEqual(C[('?lang=pl', '{"cfai.lang":"de"}', False)]['src'], None, 'adres ma pierwszeństwo; pl bez pliku')
+            self.assertEqual(C[('?lang=en', '{}', False)]['src'], None, 'en bez pliku')
+            self.assertEqual(C[('', '{}', False)]['LANG'], 'pl')
+            self.assertEqual(C[('?lang=de', '{}', True)]['LANG'], 'pl', 'pamięć zablokowana: jak strona (pl), bez pliku')
+
+    def test_brak_pliku_zaczep_wczesne_t_i_oslona(self):
+        for r in self.opis['raporty']:
+            m, h, e, g, p = r['missing'], r['hook'], r['early'], r['guard'], r['reload']
+            self.assertTrue(m['ok'] and m['braki'] > 1000 and m['zly_zapas'] == [] and m['proba'] and m['blad'] and m['wczytanie'] and m['wyjatek'], (r['engine'], m))
+            self.assertTrue(h['ok'] and all(h[k] for k in ('now', 'pend', 'ja', 'race', 'cancel', 'podwojne')), (r['engine'], h))
+            self.assertTrue(p['ok'] and all(p[k] for k in ('raz', 'drugi', 'czysty', 'offline', 'head', 'siec', 'pamiec')), (r['engine'], 'jedno przeładowanie po porażce', p))
+            self.assertTrue(e['ok'] and all(e[j] for j in self.O.DZIELONE), (r['engine'], 'wczesne t() — pierwsze nałożenie', e))
+            self.assertTrue(g['ok'] and g['zlySkrot'] and g['pl'] and g['napis'] and g['proto'], (r['engine'], 'zły plik nie jest nakładany', g))
+
+    def test_bez_pliku_nigdy_starszy_tekst(self):
+        """Przegląd v141: bez pliku języka (404, blokada, brak sieci) strona pokazywała starsze teksty ze słowników nie-JSON (np. „Quellenqualität
+        4,2 / 5”). Teraz każdy tekst = pełna strona w tym języku albo angielski ze strony — w każdym z 8 języków, w każdym silniku."""
+        lek = self.rd(os.path.join(self.site, 'index.html'))
+        S = json.loads(lek[lek.index(',CF_I18N_S=') + 11:lek.index(';function cfI18nX')])
+        self.assertEqual(sorted(S), sorted(self.O.DZIELONE))
+        for j in self.O.DZIELONE:
+            self.assertGreater(len(S[j]), 20, j); self.assertIn('view.bubbles', S[j]); self.assertEqual(self.opis['stare'][j], len(S[j]))
+        for r in self.opis['raporty']:
+            st = r['stale']
+            self.assertTrue(st['ok'], (r['engine'], {j: st[j] for j in self.O.DZIELONE if not st[j]['ok']}))
+            for j in self.O.DZIELONE:
+                self.assertEqual(st[j]['zle'], [], (r['engine'], j)); self.assertGreater(st[j]['pelny'], 1000); self.assertGreater(st[j]['ang'], 100)
+                self.assertEqual(st[j]['klucze'], st[j]['pelny'] + st[j]['ang'])
+
+    # ---------------------------------------------------------------- 3. strona syntetyczna: kolejność, drugie nałożenie, wycięcie bez zmian pl/en
+    def test_syntetyczna_drugie_nalozenie_i_wyciecie(self):
+        rc, s = self.zbuduj(self.strona(self.BLOKI), 'syn', sprawdzac=True)
+        self.assertEqual(rc, 0)
+        lek = self.rd(os.path.join(s, 'index.html'))
+        self.assertIn('const EXTRA3={"pl":{"c":"C-pl"},"en":{"c":"C-en2"}};\n', lek, 'pl i en dosłownie')
+        self.assertIn('const EXTRA4={};\n', lek)
+        self.assertIn("const EXTRA={de:{'b':'B-de-js','x':'X-de-js'}};\n", lek, 'słownik nie-JSON nietknięty')
+        self.assertEqual(self.plik(s, 'de')[3], {'b': 'B-de-json', 'd': 'D-de-2'}, 'kolejność nakładania: późniejszy wygrywa')
+        self.assertEqual(self.plik(s, 'ja')[3], {'d': 'D-ja'}); self.assertEqual(self.plik(s, 'ru')[3], {'e': 'Е-ru'})
+        S = json.loads(lek[lek.index(',CF_I18N_S=') + 11:lek.index(';function cfI18nX')])
+        self.assertEqual(S['de'], ['b'], 'b: słownik nie-JSON ma starszy tekst, plik go nadpisuje — bez pliku usuwany')
+        self.assertEqual([S[j] for j in ('es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja')], [[]] * 7, 'x (tylko nie-JSON) i a (tylko I18N) zostają')
+        i = lek.index('for(const l in EXTRA4)if(I18N[l])Object.assign(I18N[l],EXTRA4[l]);\n') + len('for(const l in EXTRA4)if(I18N[l])Object.assign(I18N[l],EXTRA4[l]);\n')
+        self.assertTrue(lek.startswith('cfI18nX();', i), 'drugie nałożenie zaraz po ostatniej linii nakładania')
+        i = lek.index("es:{'a':'A-es'},fr:{},it:{},pt:{},ru:{},zh:{},ja:{'a':'A-ja'}\n};\n") + len("es:{'a':'A-es'},fr:{},it:{},pt:{},ru:{},zh:{},ja:{'a':'A-ja'}\n};\n")
+        self.assertTrue(lek.startswith('/* v141', i) and 'cfI18nX.ok={};cfI18nX();\n' in lek[i:i + 2500], 'pierwsze nałożenie zaraz po const I18N={…};')
+
+    def test_nowe_slowniki_innych_wydan_ogolnie(self):
+        """Słowniki dopisane po ostatniej linii nakładania (jak robią to łatki innych wydań) — dowolna liczba, dowolne nazwy, bez wyjątków po numerach."""
+        h = self.src_bytes.decode('utf-8')
+        ost = list(self.O.RX_FOR.finditer(h))[-1]
+        nowe = ('/* test v141: trzy nowe słowniki */\n'
+                'const EXTRA9001={"pl":{"v141.t":"Test"},"en":{"v141.t":"Test"},"de":{"v141.t":"Prüfung","nav.settings":"EINSTELLUNGEN-NEU"},"ja":{"v141.t":"テスト"}};\n'
+                'for(const l in EXTRA9001)if(I18N[l])Object.assign(I18N[l],EXTRA9001[l]);\n'
+                'const EXTRA_V141B={"pl":{"v141.u":"U"},"en":{"v141.u":"U"}};\nfor(const l in EXTRA_V141B)if(I18N[l])Object.assign(I18N[l],EXTRA_V141B[l]);\n'
+                'const EXTRA9002={"de":{"v141.t":"Prüfung 2"},"zh":{"v141.t":"测试"}};\nfor(const l in EXTRA9002)if(I18N[l])Object.assign(I18N[l],EXTRA9002[l]);\n')
+        rc, s = self.zbuduj(h[:ost.end() + 1] + nowe + h[ost.end() + 1:], 'nowe', sprawdzac=True)
+        self.assertEqual(rc, 0)
+        d = self.plik(s, 'de')[3]
+        self.assertEqual((d['v141.t'], d['nav.settings']), ('Prüfung 2', 'EINSTELLUNGEN-NEU'))
+        self.assertEqual(self.plik(s, 'zh')[3]['v141.t'], '测试')
+        lek = self.rd(os.path.join(s, 'index.html'))
+        self.assertTrue(lek.index('for(const l in EXTRA9002)') < lek.index('\ncfI18nX();for(') and lek.count('\ncfI18nX();for(') == 1, 'drugie nałożenie po nowym ostatnim słowniku')
+        self.assertNotEqual(self.plik(s, 'de')[2], self.opis['skroty']['de']); self.assertEqual(self.plik(s, 'es')[2], self.opis['skroty']['es'])
+
+    def test_kolejnosc_nakladania_nie_definicji_i_ucieczka(self):
+        """Pierwszeństwo daje kolejność linii for(…), nie kolejność definicji; „</” w tekście jako „<\\/” (plik bezpieczny także w <script>)."""
+        bl = ('const EXTRA3={"pl":{"k":"K-pl"},"en":{"k":"K-en"},"de":{"k":"pierwszy </b>"}};\nconst EXTRA4={"de":{"k":"drugi"}};\n'
+              'for(const l in EXTRA4)if(I18N[l])Object.assign(I18N[l],EXTRA4[l]);\nfor(const l in EXTRA3)if(I18N[l])Object.assign(I18N[l],EXTRA3[l]);\n')
+        rc, s = self.zbuduj(self.strona(bl), 'kol', sprawdzac=True)
+        self.assertEqual(rc, 0)
+        n, lang, h, d, dj = self.plik(s, 'de')
+        self.assertEqual(d, {'k': 'pierwszy </b>'}, 'EXTRA3 nakładany jako ostatni wygrywa')
+        self.assertIn('pierwszy <\\/b>', dj); self.assertNotIn('</', dj)
+
+    def test_klucze_slownikow_nie_json(self):
+        O = self.O
+        t = "{\npl:{'a':'A','b.c':'x',\"d\":'y'+'z'},\n/* k */ de:{'a':'Ä\\'s', e : 1 === 1 ? 'p' : 'q', \"f\":\"g\"}\n}"
+        self.assertEqual(O.klucze_nie_json(t, 0, len(t) - 1), {'pl': {'a', 'b.c', 'd'}, 'de': {'a', 'e', 'f'}})
+        self.assertRaises(O.Odmowa, O.klucze_nie_json, "{pl:'x'}", 0, 7)
+        self.assertRaises(O.Odmowa, O.klucze_nie_json, "{pl:{1+2:'x'}}", 0, 13)
+
+    def test_odmowa_przy_zepsutym_wycieciu(self):
+        """Samosprawdzenie po wycięciu języków: gdyby wycięcie zgubiło pl/en, narzędzie odmawia (nie publikuje zepsutej strony)."""
+        O = self.O
+        prawdziwe = O.czlony
+        try:
+            O.czlony = lambda s, a, b: [c for c in prawdziwe(s, a, b) if c[0] != 'en']
+            self.assertRaises(O.Odmowa, O.podziel, self.strona(self.BLOKI))
+        finally:
+            O.czlony = prawdziwe
+
+    def test_sprawdzenie_odrzuca_rozne_strony(self):
+        """Siatka bezpieczeństwa: ręczna zmiana I18N.de, inna wartość tylko w pliku de (ta sama liczba kluczy), inna wartość pl w stronie,
+        brak silnika — za każdym razem odmowa (przegląd v141: sprawdzenie dało się wyłączyć bez czerwonego testu)."""
+        O = self.O
+        lek, pliki, _ = O.podziel(self.src_bytes.decode('utf-8'))
+        silnik = self.silniki[:1]
+
+        def proba(nazwa, zmien_lek=None, zmien_de=None):
+            d = self.katalog('neg-' + nazwa); os.makedirs(os.path.join(d, 'i18n'), exist_ok=True)
+            for j, (n, t) in pliki.items():
+                with open(os.path.join(d, 'i18n', n), 'w', encoding='utf-8') as f:
+                    f.write(zmien_de(t) if (zmien_de and j == 'de') else t)
+            with open(os.path.join(d, 'index.html'), 'w', encoding='utf-8') as f:
+                f.write(zmien_lek(lek) if zmien_lek else lek)
+            return O.sprawdz(self.src, os.path.join(d, 'index.html'), d, silnik)
+        self.assertTrue(proba('ok')[0]['ok'], 'niezmieniona kopia przechodzi')
+        i = lek.index('\ncfI18nX();for(') + 1
+        with self.assertRaises(O.Odmowa) as e:
+            proba('reczna', zmien_lek=lambda h: h[:i] + "I18N.de['nav.method']='Methodik!';" + h[i:])
+        self.assertIn("języki {'de'", str(e.exception), 'odmowa z porównania języka de')
+        with self.assertRaises(O.Odmowa) as e:
+            proba('wartosc-de', zmien_de=lambda t: t[:t.index('":"', t.index('"d":{')) + 3] + '?' + t[t.index('":"', t.index('"d":{')) + 3:])   # ta sama liczba kluczy
+        self.assertIn("języki {'de'", str(e.exception), 'inna wartość przy tej samej liczbie kluczy — odmowa z porównania wartości, nie liczby kluczy')
+        with self.assertRaises(O.Odmowa) as e:
+            proba('pl', zmien_lek=lambda h: h.replace('"pl":{"', '"pl":{"v141.zly":"x","', 1))
+        self.assertIn("'pl':", str(e.exception))
+        with self.assertRaises(O.Odmowa) as e:                        # en zmienione tylko przy języku z pliku — widać tylko w porównaniu pl/en przy de
+            proba('en-przy-de', zmien_lek=lambda h: h[:i] + "if(LANG==='de')I18N.en['nav.method']='X';" + h[i:])
+        self.assertIn("'en:nav.method'", str(e.exception))
+        with self.assertRaises(O.Odmowa):
+            O.sprawdz(self.src, os.path.join(self.site, 'index.html'), self.site, [])
+
+    # ---------------------------------------------------------------- 4. odmowy: nic nie zapisane (krok publikacji da wtedy pełną stronę)
+    def test_odmowy_przy_nieznanym_ukladzie(self):
+        B = self.BLOKI
+        nj_po = B + "const EXTRA5={de:{'z':'Z'}};\nfor(const l in EXTRA5)Object.assign(I18N[l],EXTRA5[l]);\n"
+        przyp = {
+            'słownik nie-JSON po słownikach JSON': self.strona(nj_po),
+            'słownik nie-JSON bez linii nakładania po słownikach JSON': self.strona(B + "const EXTRA5={de:{'z':'Z'}};\n"),
+            'słownik nie-JSON nakładany po JSON': self.strona(B.replace("for(const l in EXTRA)Object.assign(I18N[l],EXTRA[l]);\n", '')
+                                                             + "for(const l in EXTRA)Object.assign(I18N[l],EXTRA[l]);\n"),
+            'słownik JSON bez linii nakładania': self.strona(B.replace('for(const l in EXTRA4)if(I18N[l])Object.assign(I18N[l],EXTRA4[l]);\n', '')),
+            'dwie linie nakładania': self.strona(B + 'for(const l in EXTRA4)if(I18N[l])Object.assign(I18N[l],EXTRA4[l]);\n'),
+            'użycie słownika w kodzie': self.strona(B + 'const Q=EXTRA3.de;\n'),
+            'klucz __proto__': self.strona(B.replace('"ja":{"d":"D-ja"}', '"ja":{"__proto__":{"d":"x"}}')),
+            'brak znacznika ładowarki': self.strona(B, {self.O.ZNACZNIK + '\n': ''}),
+            'dwa znaczniki': self.strona(B, {'<title>x</title>': self.O.ZNACZNIK + '<title>x</title>'}),
+            'inna linia wyboru języka': self.strona(B, {"SEO_LANGS.includes(m)?m:'pl'": "SEO_LANGS.includes(m)?m:'en'"}),
+            'inne SEO_LANGS': self.strona(B, {"'zh','ja'];": "'zh','ja','ko'];"}),
+            'brak zaczepu': self.strona(B, {self.O.ZACZEP + '\n': ''}),
+            'strona już podzielona': self.strona(B + 'const CF_I18N_H={};\n'),
+            'napis bez końca w słowniku nie-JSON': self.strona(B.replace("'X-de-js'}};", "'X-de-js}};")),
+            'dwa słowniki o tej samej nazwie': self.strona(B + 'const EXTRA4={"de":{"z":"Z"}};\nfor(const l in EXTRA4)if(I18N[l])Object.assign(I18N[l],EXTRA4[l]);\n'),
+        }
+        oczek = {'dwa słowniki o tej samej nazwie': 'dwa słowniki o tej samej nazwie', 'użycie słownika w kodzie': 'nazwa użyta w kodzie',
+                 'słownik nie-JSON po słownikach JSON': 'stoi po słownikach JSON', 'słownik JSON bez linii nakładania': 'linii nakładania jest 0',
+                 'dwie linie nakładania': 'linii nakładania jest 2', 'klucz __proto__': '__proto__', 'słownik nie-JSON nakładany po JSON': 'nakładany po słownikach JSON'}
+        for n, (co, html) in enumerate(przyp.items()):
+            rc, s = self.zbuduj(html, f'odm-{n}')
+            self.assertEqual(rc, 1, co)
+            self.assertEqual(os.listdir(s), [], co + ': nic nie zapisane')
+            try:
+                self.O.podziel(html)
+            except self.O.Odmowa as e:
+                self.assertIn('Zasada:', str(e), co + ': komunikat odmowy podaje zasadę dla autora łatki')
+                self.assertIn(oczek.get(co, ''), str(e), co + ': właściwa przyczyna odmowy')
+            except Exception as e:  # noqa
+                self.fail(f'{co}: inny wyjątek niż Odmowa: {e!r}')
+            else:
+                self.fail(co + ': brak odmowy')
+        src = self.rd(os.path.join(self.ROOT, 'narzedzia', 'odchudz_strone.py'))
+        a = src.index('# ================================ ZASADY DLA AUTORÓW ŁATEK'); b = src.index('import gzip')
+        for z in ('czysty JSON', 'dokładnie jedna linia', 'PO ostatniej takiej linii', 'komentarzu /* … */', 'I18N, EXTRA, EXTRA2', 'cfLangReady(l,go)'):
+            self.assertIn(z, src[a:b], z)
+        self.assertEqual(self.zbuduj(self.strona(B), 'ok-bez-spr')[0], 0, 'ta sama strona bez błędu przechodzi')
+        self.assertEqual(self.main_cicho([]), 2); self.assertEqual(self.main_cicho(['tylko-jeden']), 2)
+        self.assertEqual(self.main_cicho([self.src, os.path.join(self.tmp, 'nie-ma')]), 2)
+        self.assertEqual(self.main_cicho(['--poprzednie', 'nie-adres', self.tmp]), 2)
+        self.assertEqual(self.main_cicho([self.src, self.tmp, '--nieznana']), 2)
+
+    def test_skrot_zmienia_sie_z_trescia(self):
+        rc1, s1 = self.zbuduj(self.strona(self.BLOKI), 'h1')
+        rc2, s2 = self.zbuduj(self.strona(self.BLOKI), 'h2')
+        rc3, s3 = self.zbuduj(self.strona(self.BLOKI.replace('"D-de-2"', '"D-de-3"')), 'h3')
+        self.assertEqual((rc1, rc2, rc3), (0, 0, 0))
+        self.assertEqual(self.plik(s1, 'de')[:3], self.plik(s2, 'de')[:3], 'ta sama treść = ta sama nazwa (powtarzalne)')
+        self.assertNotEqual(self.plik(s1, 'de')[2], self.plik(s3, 'de')[2], 'inna treść = inny skrót = inna nazwa pliku')
+        self.assertEqual(self.plik(s1, 'es')[:3], self.plik(s3, 'es')[:3], 'inne języki bez zmian')
+        l1, l3 = self.rd(os.path.join(s1, 'index.html')), self.rd(os.path.join(s3, 'index.html'))
+        self.assertIn('"de":"' + self.plik(s3, 'de')[2] + '"', l3); self.assertNotIn('"de":"' + self.plik(s1, 'de')[2] + '"', l3)
+        self.assertEqual(l3.count('"de":"' + self.plik(s3, 'de')[2] + '"'), 2, 'ta sama mapa w ładowarce i w skrypcie strony')
+
+    # ---------------------------------------------------------------- 5. pliki poprzedniej wersji z żywej strony (atrapa pobierania, bez sieci)
+    def test_poprzednie_pliki_najlepsza_proba(self):
+        O = self.O
+        d_ok = {'k': 'wartość </b>', 'l': 'x y'}; dj = O.js_json(d_ok); h_ok = O.skrot('de', dj)
+        f_ok = f'window.CF_I18N_X={{"lang":"de","h":"{h_ok}","d":{dj}}};\n'
+        f_zly = 'window.CF_I18N_X={"lang":"es","h":"00000000","d":{"k":"v"}};\n'
+        zywa = '<html><script>const CF_I18N_H={"de":"%s","es":"00000000","xx":"11111111","fr":"zz"};</script>' % h_ok
+        adresy = []
+
+        def pobierz(u, **kw):
+            adresy.append(u)
+            return {'https://s.test/': zywa, f'https://s.test/i18n/de.{h_ok}.js': f_ok, 'https://s.test/i18n/es.00000000.js': f_zly}[u]
+        s = self.katalog('pop')
+        n, uwagi = O.poprzednie('https://s.test', s, pobierz)
+        self.assertEqual(n, 1)
+        self.assertEqual(os.listdir(os.path.join(s, 'i18n')), [f'de.{h_ok}.js'])
+        self.assertEqual(self.rd(os.path.join(s, 'i18n', f'de.{h_ok}.js')), f_ok)
+        self.assertEqual(len(uwagi), 3, uwagi)                   # es: skrót ≠ treść; xx: nie nasz język; fr: zły skrót
+        self.assertNotIn('https://s.test/i18n/xx.11111111.js', adresy)
+        self.assertEqual(O.poprzednie('https://s.test/', s, pobierz)[0], 0, 'plik już jest — bez ponownego pobrania')
+
+        def pada(u, **kw):
+            raise OSError('brak sieci')
+        self.assertEqual(O.poprzednie('https://s.test', self.katalog('pop2'), pada)[0], 0)
+        self.assertEqual(O.poprzednie('https://s.test', self.katalog('pop3'), lambda u, **kw: '<html>pełna strona</html>')[0], 0)
+
+    # serwer HTTP w wątku na 127.0.0.1 — prawdziwa ścieżka sieci narzędzia (gzip, limit rozmiaru, limit czasu operacji, budżet całości,
+    # początek/koniec pliku); w testach sieć jest zablokowana (narzedzia/bez_sieci), więc połączenie wolno tylko do tego jednego portu
+    def _serwer(self, trasy, zadania):
+        import http.server
+        import socket
+        import _socket
+
+        class Hd(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                zadania.append(self.requestline)
+                tr = trasy.get(self.path)
+                if tr is None:
+                    self.send_response(404); self.send_header('Content-Length', '0'); self.end_headers(); return
+                tryb, body = tr
+                if tryb == 'stoi':
+                    time.sleep(8); return
+                gz = tryb == 'gzip' and 'gzip' in self.headers.get('Accept-Encoding', '')
+                b = gzip.compress(body, 6) if gz else body
+                self.send_response(200); self.send_header('Content-Type', 'application/javascript; charset=utf-8')
+                if gz:
+                    self.send_header('Content-Encoding', 'gzip')
+                self.send_header('Content-Length', str(len(b))); self.end_headers()
+                if tryb == 'kapie':
+                    for i in range(len(b)):
+                        self.wfile.write(b[i:i + 1]); self.wfile.flush(); time.sleep(0.4)
+                else:
+                    self.wfile.write(b)
+        import gzip
+        import time
+        srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Hd); srv.daemon_threads = True; srv.handle_error = lambda *a: None
+        port = srv.server_address[1]
+        _thr_v141.Thread(target=srv.serve_forever, daemon=True).start()
+
+        def polacz(adres, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None, **kw):
+            if tuple(adres) != ('127.0.0.1', port):
+                raise OSError('test v141: tylko serwer testowy na 127.0.0.1')
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                s.settimeout(timeout)
+            _socket.socket.connect(s, ('127.0.0.1', port))       # metoda bazowa — blokada sieci w testach zostaje dla wszystkich innych adresów
+            return s
+        return srv, port, mock.patch.object(socket, 'create_connection', polacz)
+
+    def test_poprzednie_przez_prawdziwy_serwer_http(self):
+        import time
+        O = self.O
+        d = {'k': 'wartość', 'l': 'ü' * 10}; dj = O.js_json(d); h = O.skrot('de', dj)
+        dobry = f'window.CF_I18N_X={{"lang":"de","h":"{h}","d":{dj}}};\n'.encode()
+        es = {'k': 'x'}; ej = O.js_json(es); he = O.skrot('es', ej)
+        pre_es = f'window.CF_I18N_X={{"lang":"es","h":"{he}","d":'
+        obcy = ('evil(' + ' ' * (len(pre_es) - 5) + ej + '};\n').encode()          # ta sama długość początku, ten sam JSON i skrót — zły początek
+        duza = b'<html>' + b'x' * (2_500_000) + f'const CF_I18N_H={{"de":"{h}","es":"{he}"}},CF_I18N_S={{}};'.encode() + b'</html>'
+        trasy = {'/': ('gzip', duza), f'/i18n/de.{h}.js': ('gzip', dobry), f'/i18n/es.{he}.js': ('plain', obcy)}
+        zadania = []
+        srv, port, pt = self._serwer(trasy, zadania)
+        try:
+            with pt:
+                s = self.katalog('http1')
+                n, uw = O.poprzednie(f'http://127.0.0.1:{port}/', s)        # ukośnik na końcu adresu — bez podwójnego „//”
+                self.assertEqual(n, 1, uw)
+                self.assertEqual([z for z in zadania if ' //' in z or '//i18n' in z], [], 'adresy bez podwójnego ukośnika (serwer by go znormalizował)')
+                self.assertEqual(sorted(z.split()[1] for z in zadania), sorted(['/', f'/i18n/de.{h}.js', f'/i18n/es.{he}.js']))
+                self.assertEqual(self.rb(os.path.join(s, 'i18n', f'de.{h}.js')), dobry, 'gzip rozpakowany, treść bez zmian')
+                self.assertEqual([u for u in uw if u.startswith(f'es.{he}.js')], [f'es.{he}.js: ValueError: nieoczekiwana treść (początek albo koniec pliku)'])
+                self.assertGreaterEqual(O.limit_pobrania(s), 6 * 1024 * 1024, 'limit nie mniejszy niż 6 MB (żywa strona ma 2,5 MB w teście)')
+                # limit rozmiaru (także po rozpakowaniu)
+                s2 = self.katalog('http2')
+                n2, uw2 = O.poprzednie(f'http://127.0.0.1:{port}', s2, limit=1_000_000)
+                self.assertEqual((n2, uw2), (0, ['żywa strona niedostępna: ValueError']))
+                # limit czasu operacji: serwer milczy 8 s, operacja najwyżej 0,5 s (bez limitu byłoby ≥ 8 s)
+                trasy['/'] = ('stoi', b''); t0 = time.monotonic()
+                n3, uw3 = O.poprzednie(f'http://127.0.0.1:{port}', self.katalog('http3'), timeout=0.5)
+                self.assertEqual(n3, 0); self.assertLess(time.monotonic() - t0, 4.0, 'limit czasu operacji')
+                self.assertIn(uw3[0], ('żywa strona niedostępna: TimeoutError', 'żywa strona niedostępna: URLError'))
+                # budżet całości: serwer „kapie” po bajcie co 0,4 s (każda operacja mieści się w limicie), budżet 1,5 s (bez budżetu ≥ 16 s)
+                trasy['/'] = ('kapie', duza[:40]); t0 = time.monotonic()
+                n4, uw4 = O.poprzednie(f'http://127.0.0.1:{port}', self.katalog('http4'), budzet=1.5, timeout=1.0)
+                self.assertEqual((n4, uw4), (0, ['żywa strona niedostępna: TimeoutError'])); self.assertLess(time.monotonic() - t0, 6.0, 'budżet całości')
+        finally:
+            srv.shutdown(); srv.server_close()
+
+    # ---------------------------------------------------------------- 6. strona źródłowa, krok publikacji, straż kluczy
+    def test_strona_zrodlowa_zaczep_i_znacznik(self):
+        h = self.src_bytes.decode('utf-8')
+        O = self.O
+        self.assertEqual(h.count(O.ZNACZNIK), 1); self.assertEqual(h.count(O.ZACZEP), 1); self.assertEqual(h.count(O.LINIA_JEZYKA), 1)
+        self.assertLess(h.index('<meta name="referrer" content="no-referrer">'), h.index(O.ZNACZNIK)); self.assertLess(h.index(O.ZNACZNIK), h.index('<link href="fonts/fonts.css"'))
+        self.assertIn(";return s;};\n/* v141: zmiana języka", h, 'zaczep zaraz po t()')
+        self.assertIn("set:v=>{const go=()=>{LANG=v;applyLang();};if(cfLangReady(v,go))go();}", h)
+        self.assertIn("setLang:l=>{const go=()=>{LANG=l;applyLang();};if(cfLangReady(l,go))go();}", h)
+        self.assertNotIn('LANG=v;applyLang();}}', h.replace("const go=()=>{LANG=v;applyLang();};", ''), 'żadnej zmiany języka z pominięciem zaczepu')
+        self.assertNotIn('CF_I18N', h); self.assertNotIn('cfI18nX', h)
+
+    def test_krok_publikacji_i_straz_kluczy(self):
+        wf = self.rd(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'))
+        z0 = wf.index('- name: Złóż stronę'); z1 = wf.index('- name: Straż kluczy', z0); krok = wf[z0:z1]
+        i_cp = krok.index('cp index.html _site/\n'); i_od = krok.index('if python3 narzedzia/odchudz_strone.py index.html _site; then')
+        i_else = krok.index('else\n', i_od); i_full = krok.index('cp index.html _site/index.html; rm -rf _site/i18n', i_else)
+        i_fi = krok.index('fi\n', i_full); i_pop = krok.index('python3 narzedzia/odchudz_strone.py --poprzednie "$SITE_URL" _site || true')
+        self.assertTrue(i_cp < i_od < i_else < i_full < krok.index('::warning title=lżejsza strona::', i_full) < i_fi < i_pop < krok.index('ls -la _site'),
+                        'pliki poprzedniej wersji dokładane w OBU gałęziach (po fi), także gdy publikujemy pełną stronę')
+        self.assertEqual(krok.count('--poprzednie'), 1)
+        self.assertIn("SITE_URL: ${{ endsWith(github.event.repository.name, '.github.io')", krok)
+        self.assertLess(wf.index('python3 narzedzia/odchudz_strone.py index.html _site'), wf.index('python3 narzedzia/straz_kluczy.py'))
+        self.assertLess(wf.index('python3 narzedzia/straz_kluczy.py'), wf.index('actions/upload-pages-artifact'))
+        # straż chodzi po całym _site (os.walk) — pliki słowników też są sprawdzane
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v141_straz', os.path.join(self.ROOT, 'narzedzia', 'straz_kluczy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        root = self.katalog('straz'); os.makedirs(os.path.join(root, '_site', 'i18n'), exist_ok=True)
+        with open(os.path.join(root, '_site', 'i18n', 'de.0123abcd.js'), 'w', encoding='utf-8') as f:
+            f.write('window.CF_I18N_X={"lang":"de","h":"0123abcd","d":{"k":"SEKRET-v141-testowy"}};\n')
+        tr, n = S.skanuj({'FRED_KEY': b'SEKRET-v141-testowy'}, root)
+        self.assertEqual(n, 1); self.assertEqual([(a, b) for a, b, _ in tr], [('FRED_KEY', os.path.join('_site', 'i18n', 'de.0123abcd.js'))])
+        for f in (os.path.join('narzedzia', 'odchudz_strone.py'),):
+            _ast_v141.parse(self.rd(os.path.join(self.ROOT, f)), feature_version=(3, 12))
+
+    # ---------------------------------------------------------------- 7. codzienna kontrola: pliki słowników na żywo, pełna strona = uwaga
+    def test_kontrola_pliki_slownikow(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v141_kontrola', os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        self.assertEqual(K.i18n_skrot('de', '{"a":"b"}'), self.O.skrot('de', '{"a":"b"}'), 'ten sam wzór skrótu co narzędzie publikacji')
+        lek = self.rb(os.path.join(self.site, 'index.html'))
+        pliki = {f'{K.SITE}/i18n/{n}': self.rb(os.path.join(self.site, 'i18n', n)) for n, _, _ in self.opis['pliki'].values()}
+        adresy = []
+
+        def pobierz(u):
+            adresy.append(u)
+            if u in pliki:
+                return 200, pliki[u], 5
+            raise K.urllib.error.HTTPError(u, 404, 'Not Found', {}, _io_v141.BytesIO(b''))
+        R = {'strona': {'ok': True}, 'uwagi': [], 'bledy': []}
+        z = K.i18n_kontrola(lek, R, pobierz)
+        self.assertEqual((z['ok'], z['zle'], R['uwagi'], R['bledy']), (8, [], [], []))
+        self.assertEqual(sorted(adresy), sorted(pliki))
+        # jeden plik 404, jeden z treścią niezgodną ze skrótem = dwie informacje w JEDNEJ uwadze (nigdy błąd)
+        u_de = next(u for u in pliki if '/i18n/de.' in u); u_ja = next(u for u in pliki if '/i18n/ja.' in u)
+        zle = dict(pliki); del zle[u_de]; zle[u_ja] = zle[u_ja].replace(b'"d":{"', b'"d":{"x', 1)
+        R = {'strona': {'ok': True}, 'uwagi': [], 'bledy': []}
+        z = K.i18n_kontrola(lek, R, lambda u: (200, zle[u], 1) if u in zle else (_ for _ in ()).throw(K.urllib.error.HTTPError(u, 404, 'Not Found', {}, _io_v141.BytesIO(b''))))
+        self.assertEqual(z['ok'], 6); self.assertEqual(len(R['uwagi']), 1); self.assertEqual(R['bledy'], [])
+        self.assertIn('HTTP 404', R['uwagi'][0]); self.assertIn('treść nie zgadza się ze skrótem', R['uwagi'][0])
+        # pełna strona na żywo (narzędzie odmówiło) = uwaga, bez zapytań o pliki
+        adresy.clear(); R = {'strona': {'ok': True}, 'uwagi': [], 'bledy': []}
+        z = K.i18n_kontrola(self.src_bytes, R, pobierz)
+        self.assertTrue(z['pelna']); self.assertEqual(adresy, []); self.assertEqual(len(R['uwagi']), 1); self.assertIn('PEŁNA wersja', R['uwagi'][0])
+        self.assertIsNone(K.i18n_kontrola(None, {'strona': {}, 'uwagi': []}))
+        # raport: nagłówek i „Wynik:” bez zmian; linia słowników pod „Strona główna”
+        R = {'at': '2026-10-03T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 300, 'i18n': z}, 'meta': {}, 'pliki': {},
+             'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
+        L = K.raport_md(R).splitlines()
+        self.assertEqual(L[0], '# Kontrola strony — 03.10.2026, 08:20 (czas polski)'); self.assertEqual(L[2], '**Wynik: OK**')
+        i = next(n for n, x in enumerate(L) if x.startswith('- Strona główna:'))
+        self.assertTrue(any(x.startswith('- Słowniki języków de–ja (osobne pliki strony): pełna strona') for x in L[i:i + 4]), L[i:i + 4])
+        src = self.rd(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
+        k0 = src.index('def kontrola():'); a = src.index('    # 1. strona główna', k0); b = src.index('i18n_kontrola(body if', k0); c = src.index('    # 2. plik stanu automatu', k0)
+        self.assertTrue(a < b < c, 'kontrola plików słowników zaraz po stronie głównej')
+        blk = src[src.index('def i18n_kontrola('):src.index('\n\n\n', src.index('def i18n_kontrola('))]
+        self.assertNotIn("R['bledy']", blk, 'pliki słowników nigdy nie są błędem kontroli (najwyżej uwaga)')

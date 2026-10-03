@@ -9931,3 +9931,43 @@ test('v142: listy strażnika aktualne — martwe klucze nadal bez użycia w kodz
   assert.ok(E.de['gmap.plain.edge'].includes('im letzten {p}') && E.zh['gmap.plain.edge'].includes('过去一{p}') && E.ja['gmap.plain.edge'].includes('直近の{p}で'), 'zdania z {p} jak przy tłumaczeniu');
   assert.ok(!/[぀-ヿ]/.test(E.zh['g.cf.m'] + E.zh['etf.m']) && /[぀-ヿ]/.test(E.ja['g.cf.m'] + E.ja['etf.m']), 'zh bez kany, ja z kaną');
 });
+
+
+/* ===================== v141: lżejsza strona — słowniki 8 języków w osobnych plikach przy publikacji (narzedzia/odchudz_strone.py) ===================== */
+/* Strona w repozytorium ma wszystkie 10 języków i zaczep cfLangReady, który tu zawsze mówi „gotowe”; lżejszą kopię buduje i sprawdza (równoważność
+   słowników w node/jsc) narzędzie publikacji — testy Pythona LzejszaStronaV141. Tu: strona źródłowa zachowuje się dokładnie jak przed v141. */
+test('v141: zaczep cfLangReady w stronie źródłowej — zawsze true; Ustawienia → Język i __cf.setLang przełączają przez zaczep (od razu, gdy true; po go(), gdy false)', () => {
+  const z0 = html.indexOf('\nfunction cfLangReady(l,go){'), z1 = html.indexOf('\n', z0 + 1);
+  assert.ok(z0 > html.indexOf('const t=(k,vars)=>{') && z0 < html.indexOf('const EXTRA='), 'zaczep zaraz po t(), przed słownikami');
+  assert.equal(html.slice(z0 + 1, z1), 'function cfLangReady(l,go){return true;}');
+  const ready = new Function(html.slice(z0, z1) + '\nreturn cfLangReady;')();
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.equal(ready(l, () => { throw new Error('go'); }), true, l);
+  const SET = 'set:v=>{const go=()=>{LANG=v;applyLang();};if(cfLangReady(v,go))go();}', SETL = 'setLang:l=>{const go=()=>{LANG=l;applyLang();};if(cfLangReady(l,go))go();}';
+  assert.equal(html.split(SET).length, 2, 'przełącznik w Ustawieniach'); assert.equal(html.split(SETL).length, 2, '__cf.setLang');
+  assert.ok(html.indexOf(SET) > html.indexOf("dropdown($('#dd-lang')") && html.indexOf(SET) < html.indexOf("dropdown($('#dd-theme')"));
+  assert.ok(!/LANG=[lv];applyLang\(\);\}[,}]/.test(html.split(SET).join('').split(SETL).join('')), 'żadnej zmiany języka z pominięciem zaczepu');
+  for (const [src, arg] of [[SET.slice(4), 'v'], [SETL.slice(8), 'l']]) {
+    const mk = gotowe => { const S = {LANG: 'pl', n: 0, go: null};
+      const f = new Function('S', 'cfLangReady', 'let LANG=S.LANG;const applyLang=()=>{S.n++;S.LANG=LANG;};return ' + src + ';')(S, (l, go) => { S.go = go; return gotowe; }); return {S, f}; };
+    const a = mk(true); a.f('de'); assert.deepEqual([a.S.LANG, a.S.n], ['de', 1], arg + ': gotowe = przełączenie od razu (jak przed v141)');
+    const b = mk(false); b.f('ja'); assert.deepEqual([b.S.LANG, b.S.n], ['pl', 0], arg + ': niegotowe = czeka'); b.S.go(); assert.deepEqual([b.S.LANG, b.S.n], ['ja', 1], arg + ': go() po wczytaniu');
+  }
+});
+
+test('v141: znacznik ładowarki w <head> (po CSP i referrer, przed arkuszem stylów); jeden skrypt strony; strona źródłowa bez nazw z podziału', () => {
+  const Z = '<!-- v141: miejsce ładowarki słownika języka — przy publikacji narzedzia/odchudz_strone.py wstawia tu skrypt, który przed skryptem strony wczytuje i18n/<język>.<skrót>.js (języki spoza pl i en) -->';
+  assert.equal(html.split(Z).length, 2);
+  const i = html.indexOf(Z);
+  assert.ok(html.indexOf('<head>') < html.indexOf('http-equiv="Content-Security-Policy"') && html.indexOf('<meta name="referrer" content="no-referrer">') < i && i < html.indexOf('<link href="fonts/fonts.css"') && i < html.indexOf('</head>'));
+  assert.equal(html.split("<script>\n(function(){\n'use strict';\n").length, 2, 'skrypt strony jeden (ładowarkę w <head> dokłada dopiero publikacja)');
+  assert.ok(!html.includes('CF_I18N') && !html.includes('cfI18nX'), 'nazwy z lżejszej kopii nie występują w stronie źródłowej');
+  assert.ok(/script-src 'self' 'unsafe-inline'/.test(html), 'CSP: skrypt z tego samego serwera (i18n/…) i skrypt w stronie dozwolone');
+});
+
+test('v141: kolejność kluczy słowników nie jest częścią umowy — kod strony nie wylicza kluczy I18N[…] (lżejsza kopia nakłada plik w innej kolejności)', () => {
+  const s0 = html.indexOf('<script>'), s1 = html.lastIndexOf('</script>'), js = html.slice(s0, s1);
+  assert.ok(!/(Object\.(keys|values|entries|getOwnPropertyNames)|JSON\.stringify)\(\s*I18N\b/.test(js), 'Object.keys/values/entries/JSON.stringify na I18N');
+  assert.ok(!/Object\.assign\(\s*\{\s*\}\s*,\s*I18N\b/.test(js), 'kopia słownika przez Object.assign({},I18N…)');
+  assert.ok(!/for\s*\(\s*(const|let|var)\s+\w+\s+(in|of)\s+I18N\s*(\[|\.)/.test(js), 'for…in / for…of po słowniku języka');
+  assert.ok(!/\.\.\.\s*I18N\b/.test(js), 'rozwinięcie ...I18N');
+});
