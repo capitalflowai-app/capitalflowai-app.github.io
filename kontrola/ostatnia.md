@@ -1,22 +1,22 @@
-# Kontrola strony — 03.10.2026, 08:32 (czas polski)
+# Kontrola strony — 03.10.2026, 08:49 (czas polski)
 
 **Wynik: UWAGA**
 
 ⚠️ Uwag: 3 — nic nie wymaga natychmiastowej reakcji.
 
-- Strona główna: działa (HTTP 200, 111 ms).
-- Ostatni przebieg automatu: 03.10.2026, 08:28 — sprzed 4 min; źródeł: 61, bez odpowiedzi: żadne; błędów zbieracza: 0.
+- Strona główna: działa (HTTP 200, 87 ms).
+- Ostatni przebieg automatu: 03.10.2026, 08:44 — sprzed 4 min; źródeł: 61, bez odpowiedzi: żadne; błędów zbieracza: 0.
 - Przebiegi Actions w 24 h: 76 (success: 76).
-- Pliki danych (wiek): etf 0h31, trendy 0h04, oecd 0h31, rynki 0h31, dzwignia 0h18, wieloryby 0h04, energia 4h30, usa-makro 4h30, bilans-usa 11h27, krypto 0h31, instytucje 0h31, tic 8h29, cm 0h31, fred 0h31, cftc 0h31, ceny 0h31, indeksy 0h31, ceny-krypto 0h31, snb 9h43, lancuch 0h04, insider HTTP 404, stres 4h30, aukcje 4h30, swiat-dzien 0h04, swiat-dziennik HTTP 404, krypto-dzien 0h04, krypto-dziennik 0h04, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200.
+- Pliki danych (wiek): etf 0h47, trendy 0h04, oecd 0h47, rynki 0h47, dzwignia 0h04, wieloryby 0h04, energia 4h46, usa-makro 4h46, bilans-usa 11h44, krypto 0h47, instytucje 0h47, tic 8h46, cm 0h47, fred 0h47, cftc 0h47, ceny 0h47, indeksy 0h47, ceny-krypto 0h47, snb 10h00, lancuch 0h04, insider HTTP 404, stres 4h46, aukcje 4h46, swiat-dzien 0h04, swiat-dziennik HTTP 404, krypto-dzien 0h04, krypto-dziennik 0h03, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200.
 - Notatki automatu: poprzedni insider.json: brak na stronie (404) · brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni · Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta) · poprzedni swiat-dziennik.json: brak na stronie (404).
 
 ## Świeżość źródeł
 
 | Źródło | Status | Wiek danych | Data danych | Uwaga |
 |---|---|---|---|---|
-| rynki (kursy EBC, rentowności) | ✅ | 0 h 31 min | 2026-10-03T06:01:28+00:00 | — |
-| wieloryby (salda portfeli giełd) | ✅ | 0 h 04 min | 2026-10-03T06:28:15+00:00 | — |
-| dźwignia (giełdy pochodnych) | ✅ | 0 h 31 min | 2026-10-03T06:01:28+00:00 | — |
+| rynki (kursy EBC, rentowności) | ✅ | 0 h 47 min | 2026-10-03T06:01:28+00:00 | — |
+| wieloryby (salda portfeli giełd) | ✅ | 0 h 04 min | 2026-10-03T06:44:47+00:00 | — |
+| dźwignia (giełdy pochodnych) | ✅ | 0 h 47 min | 2026-10-03T06:01:28+00:00 | — |
 | TGA (Fiscal Data, dziennie) | ✅ | 24 h 00 min | 2026-10-01 | — |
 | ETF krypto (SoSoValue, dziennie) | ✅ | 24 h 00 min | 2026-10-01 – 2026-10-02 | — |
 | FRED dzienne (RRPONTSYD) | ✅ | 0 h 00 min | 2026-10-02 | — |
@@ -29,9 +29,9 @@
 
 ## Zgodność liczb (porównania krzyżowe)
 
-- Kapitalizacja krypto, dwa źródła: różnica dziś 4.22%, norma (mediana 7 dni) 4.35% — ✅ odchylenie od mediany 0.13 pkt proc. (progi 2 / 5).
-- Cena BTC: 84,638 vs 84,649 USD — różnica 0.01% ✅.
-- Cena ETH: 2,678 vs 2,677 USD — różnica 0.01% ✅.
+- Kapitalizacja krypto, dwa źródła: różnica dziś 4.18%, norma (mediana 7 dni) 4.35% — ✅ odchylenie od mediany 0.17 pkt proc. (progi 2 / 5).
+- Cena BTC: 84,622 vs 84,620 USD — różnica 0.00% ✅.
+- Cena ETH: 2,678 vs 2,679 USD — różnica 0.01% ✅.
 - TGA 2026-09-30: Fiscal Data 984,046 vs FRED 948,674 mln USD — różnica 3.73%, norma (mediana 7 dni) 3.05% — ✅ odchylenie od mediany 0.68 pkt proc. (progi 1).
 - ETF mapy (dwa źródła, ta sama data): porównane 14 symboli, różnice > 1%: 0 ✅.
 - Wieloryby 2026-10-03 vs 2026-10-02: 13 par giełda/aktywo, rozbieżności > 5%: 9 ⚠️.
