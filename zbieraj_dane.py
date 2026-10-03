@@ -17339,11 +17339,16 @@ def main():
     # przebieg spóźniony (> RWA_LATE s — ciężki przebieg godzinowy) = poprzedni plik bez zapytań; bez poprzedniego pliku (pamięć Actions i strona)
     # próba tylko w pierwszym przebiegu godziny, a nieudana = notatka (nie błąd — kontrola dzienna i tak pokazuje ⚠️ „brak pliku”); awaria
     # z poprzednim plikiem = błąd i poprzedni plik z czasem próby; część z błędem = notatka (strona Źródła: rwa)
-    prev_rw = previous('rwa')
+    # v133.1: wyłącznik RWA_OFF (zmienna repozytorium, nie sekret; jak KALSHI_OFF) = zero zapytań, poprzedni plik nie czytany i bez zapisu
+    # (strona chowa panel); notatka, bez wpisu w stanie źródeł
+    rw_off = os.environ.get('RWA_OFF', '').strip().lower() in KS_OFF_ON
+    prev_rw = None if rw_off else previous('rwa')
     prev_rw = prev_rw if rwa_plik_ok(prev_rw) else None
     rw_late = _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > RWA_LATE
     rw_due = rwa_odswiez(prev_rw)
-    if rw_late or not rw_due:
+    if rw_off:
+        META['notes'].append(f'{RWA_LABEL}: wyłączone zmienną RWA_OFF — bez zapytań i bez pliku')
+    elif rw_late or not rw_due:
         if prev_rw:
             save('rwa', prev_rw); META['ok']['rwa'] = 'cached'
         if rw_late and rw_due:

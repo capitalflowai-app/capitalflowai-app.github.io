@@ -21485,7 +21485,7 @@ class RwaV133(unittest.TestCase):
         blok = src[a:b]
         self.assertIn('def build_rwa(', blok); self.assertNotIn('KEY', blok); self.assertNotIn('os.environ', blok, 'źródło bez klucza'); self.assertNotIn('print(', blok)
         m = src.index('\ndef main():')
-        i0 = src.index("prev_rw = previous('rwa')", m)
+        i0 = src.index("previous('rwa')", m)   # v133.1: z wyłącznikiem RWA_OFF — „None if rw_off else previous('rwa')”
         self.assertLess(src.index("prev_t10, prev_t10l = previous('krypto-top10')", m), i0); self.assertLess(i0, src.index("prev_inst = previous('instytucje')", m))
         self.assertEqual((zd.RWA_LATE, zd.RWA_BUDGET, zd.RWA_EVERY, zd.RWA_RETRY, zd.RWA_BEZ_PLIKU_MIN, zd.RWA_THREADS, zd.RWA_HID_MAX, zd.RWA_PH_DAYS, zd.RWA_HIST_KEEP),
                          (zd.BACK_LATE, 45, 360, 60, 20, 4, 80, 31, 400))
@@ -21621,3 +21621,45 @@ class RwaV133(unittest.TestCase):
             self._build(dict(A, hv=H), get=_rwa133_get(calls), now=self._at('2026-09-27T20:00:00'))
         order = [u.rsplit('/', 1)[1] for u, _ in calls]
         self.assertEqual(order[:2], ['spiko', 'tether-gold'], 'kolejność wg ostatnio znanej wartości (zapis hv)'); self.assertEqual(order[8], 'blackrock-buidl')
+
+
+class RwaOffV133_1(unittest.TestCase):
+    """v133.1: wyłącznik RWA_OFF (zmienna repozytorium, nie sekret; jak KALSHI_OFF) — zero zapytań, poprzedni plik nie czytany, bez pliku
+    (strona chowa panel), notatka, bez wpisu w stanie źródeł; bez wyłącznika krok jak w v133; zmienna tylko w kroku zbieracza workflow."""
+
+    def test_main_wylacznik(self):
+        saved = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd)
+                 if n.startswith('build_') and n != 'build_rwa' and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY',
+                               'BEA_KEY', 'SITE_URL', 'CACHE_DIR', 'KALSHI_OFF', 'RWA_OFF')}
+        prev = {'at': '2026-10-03T00:00:00+00:00'}
+        rw = {'ok': {k: True for k in zd.RWA_PARTS}, 'notes': []}
+        [p.start() for p in stubs]
+        try:
+            def run(off):
+                calls, read = [], []
+                saved.clear(); zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+                with mock.patch.dict(os.environ, dict(env, RWA_OFF=off), clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                        mock.patch.object(zd, 'previous', lambda name: read.append(name) or (prev if name == 'rwa' else None)), \
+                        mock.patch.object(zd, 'rwa_plik_ok', lambda p: p is not None), mock.patch.object(zd, 'rwa_odswiez', lambda p, now=None: True), \
+                        mock.patch.object(zd, 'build_rwa', side_effect=lambda p, S=None: calls.append(p) or rw):
+                    zd.main()
+                return calls, read
+            for off in ('1', 'true', ' TAK ', 'on', 'YES'):
+                calls, read = run(off)
+                self.assertEqual(calls, [], off); self.assertNotIn('rwa', saved, 'bez pliku — strona chowa panel')
+                self.assertNotIn('rwa', read, 'poprzedni plik nie czytany'); self.assertNotIn('rwa', zd.META['ok'], 'wyłączone ≠ źródło bez odpowiedzi')
+                self.assertIn('Tokenizowane aktywa (RWA): wyłączone zmienną RWA_OFF — bez zapytań i bez pliku', zd.META['notes'])
+            for off in ('', '0', 'nie'):
+                calls, read = run(off)
+                self.assertEqual(calls, [prev], off); self.assertIs(saved['rwa'], rw); self.assertIs(zd.META['ok']['rwa'], True)
+                self.assertFalse(any('RWA_OFF' in n for n in zd.META['notes']))
+        finally:
+            [p.stop() for p in stubs]
+
+    def test_workflow(self):
+        wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertEqual(wf.count('RWA_OFF: ${{ vars.RWA_OFF }}'), 1, 'zmienna repozytorium (nie sekret), raz')
+        self.assertTrue(wf.index('KALSHI_OFF:') < wf.index('RWA_OFF:') < wf.index('run: python3 zbieraj_dane.py'), 'w kroku zbieracza')
+        self.assertNotIn('secrets.RWA', wf)

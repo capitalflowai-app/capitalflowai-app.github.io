@@ -61,6 +61,7 @@ jobs:
           EVDS_KEY: ${{ secrets.EVDS_KEY }}                                             # v126: Turcja — pełna historia z EVDS (bank centralny)
           KALSHI_OFF: ${{ vars.KALSHI_OFF }}                                            # v131: wyłącznik szans Fed (zmienna repozytorium, nie sekret): 1 = bez zapytań
           WYCENA_BG_OFF: ${{ vars.WYCENA_BG_OFF }}                                      # v132: wyłącznik SOPR (zmienna repozytorium, nie sekret): 1 = bez zapytań do drugiego źródła
+          RWA_OFF: ${{ vars.RWA_OFF }}                                                  # v133.1: wyłącznik tokenizowanych aktywów (zmienna repozytorium, nie sekret): 1 = bez zapytań i bez pliku
           CACHE_DIR: pamiec-danych
           # strona użytkownika (repozytorium <konto>.github.io) ma adres bez ścieżki; inne — z nazwą repozytorium
           SITE_URL: ${{ endsWith(github.event.repository.name, '.github.io') && format('https://{0}', github.event.repository.name) || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
