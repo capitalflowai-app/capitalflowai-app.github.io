@@ -11375,6 +11375,502 @@ def build_snb(prev=None, now=None):
     return out
 
 
+# ===================== v131: FED — szanse decyzji na najbliższych posiedzeniach z rynku zakładów w USA (data/fed.json; publiczne API bez klucza) =====================
+# Regulowana w USA giełda kontraktów zdarzeniowych (Kalshi) ma publiczne API z cenami zakładów na decyzję Rezerwy Federalnej: seria KXFEDDECISION,
+# jedno zdarzenie na posiedzenie FOMC, 5 wykluczających się kontraktów tak/nie (obniżka o więcej niż 0,25 / o 0,25 pkt proc., bez zmian,
+# podwyżka o 0,25 / o więcej niż 0,25). Kontrakt wypłaca 1 USD, gdy wynik się sprawdzi — cena w dolarach (0..1) = szansa w oczach rynku
+# (z prowizjami i premią za ryzyko). Co przebieg (20 min): 1 zapytanie o wszystkie otwarte posiedzenia z kontraktami + 10 zapytań o ostatnią
+# transakcję (5 wyników × 2 posiedzenia); raz na dobę, w pierwszym przebiegu od 05:00 UTC (świeca dzienna zamknięta o północy w Nowym Jorku),
+# świece dzienne 10 kontraktów (1 zapytanie) i ostatnie rozstrzygnięte posiedzenie (1 zapytanie); po decyzji wynik co przebieg, aż się pojawi.
+# Liczby przychodzą jako teksty stałoprzecinkowe (ceny w dolarach „*_dollars”, sztuki kontraktów „*_fp”) — parsowane przez ks_num; brak albo
+# zła wartość = None (strona: „—”), nigdy zero.
+# Wyłącznik: zmienna repozytorium KALSHI_OFF (czyta ją main) = zero zapytań i plik ze stanem „off”. Sieć tylko przez get_json (testy ją łatają).
+# Warunki (sprawdzone 27.09.2026; kopie i cytaty w planie v128/kalshi): Developer Agreement v1.1 §3 i §3.1 (dane tylko do własnego handlu na
+# giełdzie, bez przekazywania osobom trzecim bez pisemnej zgody) oraz Data Terms of Use cz. II (bez publicznego wyświetlania bez pisemnej zgody) —
+# wdrożone na wyraźną decyzję właściciela (27.09: licencje drugorzędne, ryzyko przyjęte); na stronie bez podpisu źródła, nazwa rynku raz jako
+# miejsce, gdzie zawierane są zakłady; tylko wielkości pochodne (szanse, sumy kontraktów, czasy), nigdy arkusz zleceń ani lista transakcji.
+import copy as _ks_copy, math as _ks_math, urllib.parse as _ks_parse   # v131: biblioteka standardowa; ponowny import jest nieszkodliwy
+
+KS_BASE = 'https://external-api.kalshi.com/trade-api/v2'       # dokumentacja: „Production Trade API server” (AWS us-east-2, bez CDN)
+KS_BASE2 = 'https://api.elections.kalshi.com/trade-api/v2'     # dokumentacja: „Production shared API server, also supported” — zapas dla zapytania o ceny
+KS_SERIES = 'KXFEDDECISION'                                     # „Fed meeting”: jedno zdarzenie na posiedzenie FOMC, 5 wykluczających się wyników
+KS_EVENTS = '/events?series_ticker={s}&status=open&with_nested_markets=true&limit=200'
+KS_TRADES = '/markets/trades?ticker={t}&limit=1'                # parametr event_ticker jest tu ignorowany (sonda 27.09) — pytamy o każdy kontrakt
+KS_CANDLES = '/markets/candlesticks?market_tickers={ts}&start_ts={a}&end_ts={b}&period_interval=1440'
+KS_SETTLED = '/markets?series_ticker={s}&status=settled&min_settled_ts={a}&limit=100'
+KS_VENUE = 'Kalshi'       # nazwa rynku (miejsce handlu) — w pliku; strona ma własną stałą i pokazuje ją raz
+KS_MEETINGS = 2           # dwa najbliższe posiedzenia na stronie
+KS_SPREAD = 0.05          # USD: środek oferty kupna i sprzedaży tylko przy różnicy do 5 centów; inaczej cena ostatniej transakcji
+KS_SUM_MIN, KS_SUM_MAX = 0.85, 1.15   # przeliczenie do 100% tylko w tym paśmie sumy surowych cen i gdy każdy wynik ma cenę
+KS_HIST_DAYS = 120        # dób historii dziennej na wynik (dwa pokazane posiedzenia)
+KS_H_FROM_UTC = 5         # świece raz na dobę: pierwszy przebieg od 05:00 UTC, gdy ostatnie pobranie było przed tą godziną (świeca doby zamyka się
+                          # o 00:00 w Nowym Jorku = 04:00 UTC latem, 05:00 UTC zimą — o 05:00 nowa świeca jest zamknięta w obu porach roku) …
+KS_H_EVERY_H = 26         # … a po 26 h także bez progu (zapas dłuższy niż doba: próg 05:00 jest głównym wyzwalaczem, bez drugiego pobrania
+                          # ok. 01:00 UTC, kiedy nowej świecy jeszcze nie ma — przegląd 28.09)
+KS_LAST_EVERY_H = 26      # h: ostatnie rozstrzygnięte posiedzenie — ten sam próg 05:00 UTC i zapas 26 h (razem ze świecami: 13 zapytań raz na dobę)
+KS_LAST_DAYS = 75         # posiedzenia FOMC są najwyżej ~8 tygodni od siebie
+KS_TIMEOUT = 20           # s na jedno zapytanie
+KS_BUDGET = 30            # s na całą część w jednym przebiegu (każde zapytanie ≤ pozostały czas)
+KS_TR_MAX = 10            # najwyżej 10 zapytań o ostatnią transakcję w przebiegu (5 wyników × 2 posiedzenia); wyniki ponad to (np. nowy szósty
+                          # wynik) — czas z poprzedniego pliku i uwaga, bez błędu; świece i ostatnie posiedzenie mają wtedy nadal swoje miejsce
+KS_MAX_CALLS = 13         # twardy limit: 1 ceny + 10 transakcji + 1 świece + 1 rozstrzygnięte (zapas hosta i ponowienie 429 liczone osobno)
+KS_RETRY_S = 2            # s: jedno ponowienie po 429 (odpowiedź bez Retry-After; dokumentacja prosi o przerwę) — potem rezygnacja
+KS_PAUSE = 0.1            # s przerwy między zapytaniami
+KS_LATE = 480             # s: przebieg dłuższy (jak KD_LATE / INS_LATE) — tylko zapytanie o ceny, reszta z poprzedniego pliku
+KS_PARTS = ('ks', 'ks_tr', 'ks_h', 'ks_last')
+KS_TICKER = re.compile(r'^[A-Z0-9][A-Z0-9._-]{0,63}$')
+KS_OFF_ON = ('1', 'true', 'tak', 'yes', 'on')   # wartości KALSHI_OFF, które wyłączają część
+FED_EVERY = 15            # min: plik młodszy z kompletem części = bez zapytań (przebieg co 20 min — zwykle budowa co przebieg)
+FED_LABEL = 'Fed (rynek zakładów)'
+FED_SRC = ('rynek kontraktów zdarzeniowych w USA — publiczne API bez klucza, seria KXFEDDECISION (ceny, ostatnie transakcje, świece dzienne, '
+           'rozstrzygnięte posiedzenia); pole nie jest pokazywane na stronie')
+FED_NOTES = ['szansa = środek najlepszej oferty kupna i sprzedaży (różnica ≤ 5 centów), inaczej ostatnia transakcja, inaczej brak (nigdy 0)',
+             'pn = szansa przeliczona do 100% tylko, gdy każdy wynik ma cenę, brak nieznanych wyników i suma surowych cen 0,85–1,15',
+             'p1d = ta sama reguła na cenach sprzed doby podanych przez rynek; p7d / p30d = zamknięcie najnowszej świecy dziennej sprzed 7 / 30 dni',
+             'vol, vol24, oi = sztuki kontraktów (1 kontrakt wypłaca 1 USD), nie dolary; suma 0 = brak',
+             'part_at = czas ostatniego udanego pobrania części; część z błędem = poprzednie dane z własnym czasem']
+
+
+class KsBudget(RuntimeError):
+    """Czas części Fed w tym przebiegu minął — pozostałe zapytania pominięte, poprzednie dane zostają (uwaga, nie błąd)."""
+
+
+def ks_num(v, lo=None, hi=None):
+    """'0.6600' / 0.66 → 0.66; None, '', bool, NaN, inf, tekst, poza [lo, hi] → None."""
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    if not _ks_math.isfinite(x) or (lo is not None and x < lo) or (hi is not None and x > hi):
+        return None
+    return x
+
+
+def ks_iso(s):
+    """Czas ISO z API ('2026-09-27T18:52:51.142363Z') → '2026-09-27T18:52:51Z'; zły albo bez strefy → None."""
+    if not isinstance(s, str) or not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', s):
+        return None
+    try:
+        t = datetime.datetime.fromisoformat(s.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if t.tzinfo is None:
+        return None
+    return t.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+
+
+def ks_outcome(m):
+    """Wynik jednego kontraktu z custom_strike: {'Hike': '0'} → ('hold', 0); {'Cut': '25'} → ('cut25', -25); {'Cut': '>25'} → ('cutgt25', -25.5);
+    {'Hike': '>25'} → ('hikegt25', 25.5). Cokolwiek innego → None (wynik nieznany — blokuje przeliczenie do 100%)."""
+    cs = m.get('custom_strike') if isinstance(m, dict) else None
+    if not isinstance(cs, dict) or len(cs) != 1:
+        return None
+    (k, v), = cs.items()
+    k, v = str(k).strip().lower(), str(v).strip()
+    if k not in ('hike', 'cut') or not re.fullmatch(r'>?\d{1,3}', v):
+        return None
+    gt, mag = v.startswith('>'), int(v.lstrip('>'))
+    if mag == 0 and not gt:
+        return ('hold', 0)
+    sign = 1 if k == 'hike' else -1
+    return (('hike' if sign > 0 else 'cut') + ('gt' if gt else '') + str(mag), sign * (mag + (0.5 if gt else 0)))
+
+
+def ks_prob(bid, ask, last):
+    """Szansa w oczach rynku (0..1) i jej pochodzenie: środek najlepszej oferty kupna/sprzedaży TAK przy różnicy ≤ KS_SPREAD (brak oferty kupna
+    = 0: nikt nie płaci więcej niż 0), inaczej cena ostatniej transakcji, gdy > 0, inaczej (None, None). Zwraca (p, 'mid'|'last'|None)."""
+    b, a, l = ks_num(bid, 0, 1), ks_num(ask, 0, 1), ks_num(last, 0, 1)
+    if a is not None and a > 0:
+        b0 = b if b is not None else 0.0
+        if a >= b0 and a - b0 <= KS_SPREAD + 1e-9:
+            return round((a + b0) / 2, 4), 'mid'
+    if l is not None and l > 0:
+        return round(l, 4), 'last'
+    return None, None
+
+
+def ks_sum(xs):
+    """Suma znanych wartości; brak wartości albo suma 0 → None (zerowy obrót nie różni się od braku danych)."""
+    v = [x for x in xs if x is not None]
+    s = sum(v) if v else None
+    return round(s, 2) if s else None
+
+
+def ks_event(e, now):
+    """Jedno zdarzenie z kontraktami → posiedzenie (dict) albo None, gdy to nie jest otwarte posiedzenie do pokazania
+    (zła data, handel już zamknięty, żaden kontrakt z wynikiem)."""
+    if not isinstance(e, dict):
+        return None
+    dec = ks_iso(e.get('strike_date'))
+    M = e.get('markets') if isinstance(e.get('markets'), list) else []
+    closes = [ks_iso(m.get('close_time')) for m in M if isinstance(m, dict)]
+    closes = [c for c in closes if c]
+    if not dec or not closes:
+        return None
+    close = min(closes)
+    if datetime.datetime.fromisoformat(close.replace('Z', '+00:00')) <= now:
+        return None
+    out, unknown = [], []
+    for m in M:
+        if not isinstance(m, dict):
+            continue
+        oc = ks_outcome(m)
+        if oc is None or str(m.get('status') or '') not in ('active', 'open'):
+            unknown.append(str(m.get('ticker') or '?')[:40])
+            continue
+        p, how = ks_prob(m.get('yes_bid_dollars'), m.get('yes_ask_dollars'), m.get('last_price_dollars'))
+        p1, _ = ks_prob(m.get('previous_yes_bid_dollars'), m.get('previous_yes_ask_dollars'), m.get('previous_price_dollars'))
+        out.append({'k': oc[0], 'o': oc[1], 't': str(m.get('ticker') or ''), 'lab': str(m.get('yes_sub_title') or '')[:40],
+                    'p': p, 'how': how, 'p1d': p1,
+                    'bid': ks_num(m.get('yes_bid_dollars'), 0, 1), 'ask': ks_num(m.get('yes_ask_dollars'), 0, 1),
+                    'last': ks_num(m.get('last_price_dollars'), 0, 1),
+                    'vol': ks_num(m.get('volume_fp'), 0), 'vol24': ks_num(m.get('volume_24h_fp'), 0), 'oi': ks_num(m.get('open_interest_fp'), 0),
+                    'lt': None, 'p7d': None, 'p30d': None})
+    if not out:
+        return None
+    out.sort(key=lambda r: r['o'])
+    ps = [r['p'] for r in out]
+    raw = round(sum(ps), 4) if all(p is not None for p in ps) else None
+    norm = raw is not None and not unknown and KS_SUM_MIN <= raw <= KS_SUM_MAX
+    for r in out:
+        r['pn'] = round(r['p'] / raw, 4) if norm else None
+    known = [r for r in out if r['p'] is not None]
+    top = max(known, key=lambda r: r['p'])['k'] if known else None
+    return {'event': str(e.get('event_ticker') or ''), 'date': dec[:10], 'decision_at': dec, 'close_at': close,
+            'sum_raw': raw, 'norm': norm, 'top': top, 'unknown': unknown,
+            'vol': ks_sum(r['vol'] for r in out), 'vol24': ks_sum(r['vol24'] for r in out), 'oi': ks_sum(r['oi'] for r in out),
+            'last_trade': None, 'out': out}
+
+
+def ks_meetings(j, now, n=KS_MEETINGS):
+    """Odpowiedź /events → n najbliższych posiedzeń do pokazania, wg czasu decyzji."""
+    E = j.get('events') if isinstance(j, dict) else None
+    if not isinstance(E, list):
+        raise ValueError('odpowiedź bez listy events')
+    ms = [x for x in (ks_event(e, now) for e in E) if x]
+    ms.sort(key=lambda x: x['decision_at'])
+    return ms[:n]
+
+
+def ks_trade_time(j):
+    """/markets/trades?limit=1 → czas ISO najnowszej transakcji albo None (brak transakcji, zły kształt)."""
+    T = j.get('trades') if isinstance(j, dict) else None
+    if not isinstance(T, list) or not T or not isinstance(T[0], dict):
+        return None
+    return ks_iso(T[0].get('created_time'))
+
+
+def ks_candle_date(end_ts):
+    """Świeca dzienna kończy się o północy w Nowym Jorku (04:00 UTC latem, 05:00 UTC zimą) i obejmuje dobę nowojorską przed tą chwilą:
+    data UTC chwili (koniec − 12 h) to ta doba w obu porach roku, bez bazy stref czasowych."""
+    return (datetime.datetime.fromtimestamp(int(end_ts), datetime.timezone.utc) - datetime.timedelta(hours=12)).date().isoformat()
+
+
+def ks_candle_p(c):
+    """Szansa na zamknięciu świecy dziennej: środek zamknięć oferty kupna/sprzedaży (ta sama reguła różnicy), inaczej ostatnia transakcja
+    tej doby; doba bez transakcji i z szeroką różnicą → None (nigdy nieaktualna cena „previous”)."""
+    if not isinstance(c, dict):
+        return None
+    p, _ = ks_prob((c.get('yes_bid') or {}).get('close_dollars'), (c.get('yes_ask') or {}).get('close_dollars'),
+                   (c.get('price') or {}).get('close_dollars'))
+    return p
+
+
+def ks_candles(j):
+    """Świece wielu kontraktów → {kontrakt: [(koniec_ts, data, p), …] rosnąco}. Nieznany kształt → ValueError."""
+    M = j.get('markets') if isinstance(j, dict) else None
+    if not isinstance(M, list):
+        raise ValueError('odpowiedź bez listy markets')
+    out = {}
+    for m in M:
+        if not isinstance(m, dict) or not isinstance(m.get('candlesticks'), list):
+            continue
+        rows = []
+        for c in m['candlesticks']:
+            ts = ks_num(c.get('end_period_ts'), 1e9, 1e10) if isinstance(c, dict) else None
+            if ts is None:
+                continue
+            rows.append((int(ts), ks_candle_date(ts), ks_candle_p(c)))
+        rows.sort()
+        out[str(m.get('market_ticker') or '')] = rows
+    return out
+
+
+def ks_back(rows, now_s, days):
+    """Zamknięcie najnowszej świecy dziennej, która skończyła się co najmniej `days` × 24 h przed teraz; brak → None."""
+    lim = now_s - days * 86400
+    old = [r for r in rows if r[0] <= lim]
+    return old[-1][2] if old else None
+
+
+def ks_last(j):
+    """Rozstrzygnięte kontrakty → ostatnie rozstrzygnięte posiedzenie {'event','date','close_at','result','p_last'} albo None.
+    p_last = cena ostatniej transakcji zwycięskiego wyniku przed zamknięciem handlu (bez przeliczenia)."""
+    M = j.get('markets') if isinstance(j, dict) else None
+    if not isinstance(M, list):
+        raise ValueError('odpowiedź bez listy markets')
+    by = {}
+    for m in M:
+        if isinstance(m, dict) and m.get('event_ticker'):
+            by.setdefault(m['event_ticker'], []).append(m)
+    best = None
+    for ev, ms in by.items():
+        close = max((ks_iso(m.get('close_time')) or '' for m in ms), default='')
+        win = [m for m in ms if str(m.get('result') or '') == 'yes']
+        if not close or len(win) != 1 or ks_outcome(win[0]) is None:
+            continue
+        if best is None or close > best['close_at']:
+            best = {'event': str(ev)[:40], 'date': close[:10], 'close_at': close, 'result': ks_outcome(win[0])[0],
+                    'p_last': ks_num(win[0].get('last_price_dollars'), 0, 1)}
+    return best
+
+
+def ks_hist(meetings, cand, keep=KS_HIST_DAYS):
+    """Historia dla strony i zmian 7/30 dni: {zdarzenie: {'d': [daty], wynik: [p|None, …]}} z ostatnich `keep` dat świec posiedzenia.
+    Rynek nie publikuje świecy kontraktu za dobę bez żadnego ruchu — taka doba dostaje zamknięcie poprzedniej świecy tego kontraktu (cena się
+    nie zmieniła; jak „najnowsza świeca sprzed N dni” w ks_back); świeca bez ceny (doba bez transakcji i z szeroką różnicą) = None, bez
+    przenoszenia; przed pierwszą świecą kontraktu = None (przegląd 03.10: wcześniej doba bez świecy była None tylko w historii, więc przebieg
+    ze świecami i przebieg z zapisanej historii dawały różne zmiany 7/30 dni)."""
+    H = {}
+    for mt in meetings:
+        dates = sorted({r[1] for o in mt['out'] for r in cand.get(o['t'], [])})[-keep:]
+        h = {'d': dates}   # także pusty wpis: „pytane, jeszcze bez świec” — nowe posiedzenie nie wymusza pobierania świec co przebieg
+        for o in mt['out']:
+            rows, vals, i, cur = sorted(cand.get(o['t'], [])), [], 0, None
+            for d in dates:
+                while i < len(rows) and rows[i][1] <= d:   # świece kontraktu do tej daty włącznie: ostatnia wyznacza wartość doby
+                    cur = rows[i][2]; i += 1
+                vals.append(cur)
+            h[o['k']] = vals
+        H[mt['event']] = h
+    return H
+
+
+def ks_hist_rows(h, k):
+    """Wiersze (koniec_ts, data, p) jednego wyniku z historii posiedzenia dla ks_back: data świecy → jej koniec następnego dnia o 04:00 UTC
+    (północ w Nowym Jorku latem; zimą świeca kończy się o 05:00 — przez godzinę przed pobraniem nowej świecy granica 7/30 dni jest o godzinę
+    wcześniej, w każdym przebiegu tak samo)."""
+    h = h if isinstance(h, dict) else {}
+    return [(int(datetime.datetime.fromisoformat(d + 'T00:00:00+00:00').timestamp()) + 28 * 3600, d, v)
+            for d, v in zip(h.get('d') or [], h.get(k) or []) if isinstance(d, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', d)]
+
+
+def ks_due(prev_at, now, every_h, from_hour=None):
+    """Czy wolna część jest do pobrania? prev_at = czas ISO jej ostatniego sukcesu (None/zły = nigdy). Tak, gdy ma co najmniej every_h godzin,
+    albo (z from_hour) gdy dzisiejsza godzina from_hour UTC minęła, a ostatni sukces był przed nią."""
+    t = ks_iso(prev_at) if prev_at else None
+    if not t:
+        return True
+    last = datetime.datetime.fromisoformat(t.replace('Z', '+00:00'))
+    if from_hour is not None:
+        edge = now.replace(hour=from_hour, minute=0, second=0, microsecond=0)
+        if now >= edge > last:
+            return True
+    return (now - last).total_seconds() >= every_h * 3600
+
+
+def _ks_err(e):
+    """Krótki opis błędu bez adresu (HTTP kod albo nazwa wyjątku) — do META i notatek."""
+    if isinstance(e, urllib.error.HTTPError):
+        return f'HTTP {e.code}'
+    return f'{type(e).__name__}: {str(e)[:80]}' if str(e) else type(e).__name__
+
+
+def build_ks(fetch, prev=None, now=None, late=False):
+    """Część `ks` pliku data/fed.json. fetch(ścieżka, timeout) → JSON (wyjątek przy błędzie HTTP/sieci; KsBudget = koniec czasu części).
+    Części: 'ks' (ceny, co przebieg; błąd bez poprzedniego pliku = wyjątek), 'ks_tr' (ostatnia transakcja każdego wyniku), 'ks_h' (świece
+    dzienne, raz na dobę od 05:00 UTC), 'ks_last' (ostatnie rozstrzygnięte posiedzenie, raz na dobę od 05:00 UTC; po decyzji co przebieg).
+    Część z błędem = poprzednie dane z własnym czasem (part_at); świece i ostatnie posiedzenie są pobierane ponownie tylko, gdy w poprzednim
+    pliku były błędem (False), nie mają jeszcze czasu sukcesu albo ks_due mówi, że są do pobrania (stan 'skip' = dane z wcześniejszego
+    sukcesu, nie wymusza pobrania — przegląd 03.10). late = przebieg spóźniony: tylko ceny, reszta z poprzedniego pliku (stan 'skip'); tak
+    samo, gdy ceny nie odpowiedziały. Zmiany 7 i 30 dni zawsze z historii (ks_hist) — ten sam wynik w przebiegu ze świecami i bez nich.
+    Zwraca (część, ok, part_at, błędy, uwagi, ścieżki)."""
+    now = now or _now_utc()
+    now_iso = now.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    now_s = int(now.timestamp())
+    prev = prev if isinstance(prev, dict) else {}
+    pk = prev.get('ks') if isinstance(prev.get('ks'), dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    pok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
+    ok, part_at, errs, notes, calls = {}, {}, [], [], []
+
+    def get(path):
+        if len(calls) >= KS_MAX_CALLS:
+            raise RuntimeError('limit zapytań w przebiegu')
+        calls.append(path)
+        return fetch(path, KS_TIMEOUT)
+
+    def keep(part):   # część pominięta w tym przebiegu: poprzednie dane zostają z własnym czasem; stan 'skip' (ani sukces, ani błąd źródła)
+        ok[part] = 'skip'; part_at[part] = pat.get(part)
+
+    # 1) ceny: jedno zapytanie o wszystkie otwarte posiedzenia z kontraktami
+    try:
+        meetings = ks_meetings(get(KS_EVENTS.format(s=KS_SERIES)), now)
+        if not meetings:
+            raise ValueError('brak otwartych posiedzeń')
+        ok['ks'] = True; part_at['ks'] = now_iso
+    except Exception as e:  # noqa
+        errs.append(f'ceny: {_ks_err(e)}'); ok['ks'] = False
+        meetings = [m for m in _ks_copy.deepcopy(pk.get('meetings') or []) if isinstance(m, dict) and isinstance(m.get('out'), list)
+                    and str(ks_iso(m.get('close_at')) or '') > now_iso.replace('+00:00', 'Z')]
+        if not meetings:
+            raise RuntimeError('brak cen i poprzedniego pliku z posiedzeniem przed decyzją')
+        part_at['ks'] = pat.get('ks') or prev.get('at')
+    slow = late or ok['ks'] is False   # spóźniony przebieg albo ceny bez odpowiedzi — pozostałe części z poprzedniego pliku (bez straty czasu)
+    if ok['ks'] is False and not late:
+        notes.append('ceny bez odpowiedzi — transakcje, świece i ostatnie posiedzenie z poprzedniego pliku')
+    prev_lt = {o.get('t'): o.get('lt') for mt in (pk.get('meetings') or []) if isinstance(mt, dict)
+               for o in (mt.get('out') or []) if isinstance(o, dict)}
+    # 2) ostatnia transakcja każdego wyniku (limit=1): 5 zapytań na posiedzenie
+    if slow:
+        for mt in meetings:
+            for o in mt['out']:
+                o['lt'] = prev_lt.get(o['t'])
+        keep('ks_tr')
+    else:
+        tr, stop, n_tr, cap = True, False, 0, 0
+        for mt in meetings:
+            for o in mt['out']:
+                if stop or not KS_TICKER.match(o['t']):
+                    o['lt'] = prev_lt.get(o['t']); continue
+                if n_tr >= KS_TR_MAX:   # limit zapytań o transakcje — czas z poprzedniego pliku (świece i ostatnie posiedzenie zachowują miejsce)
+                    cap += 1; o['lt'] = prev_lt.get(o['t']); continue
+                n_tr += 1
+                try:
+                    o['lt'] = ks_trade_time(get(KS_TRADES.format(t=_ks_parse.quote(o['t'], safe=''))))
+                except KsBudget:
+                    stop = True; o['lt'] = prev_lt.get(o['t'])
+                except Exception as e:  # noqa
+                    tr = False; o['lt'] = prev_lt.get(o['t']); errs.append(f'transakcje {o["k"]}: {_ks_err(e)}')
+        if stop:
+            notes.append('koniec czasu części — ostatnie transakcje części wyników z poprzedniego przebiegu')
+        if cap:
+            notes.append(f'limit {KS_TR_MAX} zapytań o transakcje — czas ostatniej transakcji {cap} wyników z poprzedniego pliku')
+        ok['ks_tr'] = tr if not stop or not tr else 'skip'
+        part_at['ks_tr'] = now_iso if ok['ks_tr'] is True else (pat.get('ks_tr') or prev.get('at'))
+    for mt in meetings:
+        lts = [o['lt'] for o in mt['out'] if o.get('lt')]
+        mt['last_trade'] = max(lts) if lts else None
+    # 3) świece dzienne pokazanych posiedzeń (jedno zapytanie, ≤ 100 kontraktów, ≤ 10 000 świec)
+    hist = pk.get('hist') if isinstance(pk.get('hist'), dict) else {}
+    cand = {}
+    if slow:
+        keep('ks_h')
+    elif (pok.get('ks_h') is False or not pat.get('ks_h') or ks_due(pat.get('ks_h'), now, KS_H_EVERY_H, KS_H_FROM_UTC)
+          or any(mt['event'] not in hist for mt in meetings)):
+        ts = [o['t'] for mt in meetings for o in mt['out'] if KS_TICKER.match(o['t'])]
+        try:
+            cand = ks_candles(get(KS_CANDLES.format(ts=','.join(_ks_parse.quote(x, safe='') for x in ts),
+                                                    a=now_s - (KS_HIST_DAYS + 2) * 86400, b=now_s)))
+            hist = ks_hist(meetings, cand); ok['ks_h'] = True; part_at['ks_h'] = now_iso
+        except KsBudget:
+            keep('ks_h'); notes.append('koniec czasu części — świece dzienne w następnym przebiegu')
+        except Exception as e:  # noqa
+            errs.append(f'historia: {_ks_err(e)}'); ok['ks_h'] = False; part_at['ks_h'] = pat.get('ks_h')
+    else:   # świece aktualne (sukces albo pominięcie po sukcesie w poprzednim pliku, nie minęła doba) — bez zapytania
+        ok['ks_h'] = True; part_at['ks_h'] = pat.get('ks_h')
+    # zmiany 7 i 30 dni: jedna droga — z historii (świeżej albo zapisanej), więc przebieg ze świecami i następne dają te same liczby
+    for mt in meetings:
+        h = hist.get(mt['event'])
+        for o in mt['out']:
+            rows = ks_hist_rows(h, o['k'])
+            o['p7d'], o['p30d'] = ks_back(rows, now_s, 7), ks_back(rows, now_s, 30)
+    # 4) ostatnie rozstrzygnięte posiedzenie; pend = zamknięcie handlu najnowszego posiedzenia, które już się odbyło (z poprzednich plików) —
+    #    dopóki jego wyniku nie ma (rozstrzygnięcie ok. 8 min po decyzji), pytamy co przebieg, nie raz na dobę
+    last = pk.get('last') if isinstance(pk.get('last'), dict) else None
+    now_z = now_iso.replace('+00:00', 'Z')
+    pend = ks_iso(pk.get('pend')) if pk.get('pend') else None
+    for m in pk.get('meetings') or []:
+        c = ks_iso(m.get('close_at')) if isinstance(m, dict) else None
+        if c and c <= now_z and (pend is None or c > pend):
+            pend = c
+    waiting = bool(pend) and (not last or str(last.get('close_at') or '') < pend)
+    if slow:
+        keep('ks_last')
+    elif pok.get('ks_last') is False or not pat.get('ks_last') or ks_due(pat.get('ks_last'), now, KS_LAST_EVERY_H, KS_H_FROM_UTC) or not last or waiting:
+        try:
+            last = ks_last(get(KS_SETTLED.format(s=KS_SERIES, a=now_s - KS_LAST_DAYS * 86400))) or last
+            ok['ks_last'] = True; part_at['ks_last'] = now_iso
+        except KsBudget:
+            keep('ks_last'); notes.append('koniec czasu części — ostatnie posiedzenie w następnym przebiegu')
+        except Exception as e:  # noqa
+            errs.append(f'ostatnie posiedzenie: {_ks_err(e)}'); ok['ks_last'] = False; part_at['ks_last'] = pat.get('ks_last')
+    else:   # ostatnie posiedzenie aktualne (sukces albo pominięcie po sukcesie) — bez zapytania
+        ok['ks_last'] = True; part_at['ks_last'] = pat.get('ks_last')
+    shown = {m['event'] for m in meetings}
+    part = {'venue': KS_VENUE, 'series': KS_SERIES, 'spread_max': KS_SPREAD, 'meetings': meetings,
+            'hist': {k: v for k, v in hist.items() if k in shown}, 'last': last, 'pend': pend}
+    return part, ok, part_at, errs, notes, calls
+
+
+def _ks_fetcher(t_end, log):
+    """fetch(ścieżka, timeout) dla build_ks: get_json z limitem czasu części (KsBudget, gdy zostało < 1 s), przerwą KS_PAUSE między zapytaniami,
+    jednym ponowieniem po 429 (po KS_RETRY_S s) i — tylko dla zapytania o ceny — jedną próbą na hoście zapasowym po błędzie sieci albo 5xx.
+    log dostaje każdy host zapytania (liczba prawdziwych zapytań HTTP w przebiegu)."""
+    def one(base, path, timeout):
+        left = t_end - time.monotonic()
+        if left < 1:
+            raise KsBudget('limit czasu części')
+        if log:
+            time.sleep(KS_PAUSE)
+        log.append(base)
+        return get_json(base + path, timeout=max(1, min(timeout, int(left))))
+
+    def fetch(path, timeout):
+        try:
+            try:
+                return one(KS_BASE, path, timeout)
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or time.monotonic() + KS_RETRY_S + 1 >= t_end:
+                    raise
+                time.sleep(KS_RETRY_S)
+                return one(KS_BASE, path, timeout)
+        except KsBudget:
+            raise
+        except Exception as e:  # noqa
+            srv = isinstance(e, urllib.error.HTTPError) and e.code >= 500
+            net = isinstance(e, (urllib.error.URLError, TimeoutError, ConnectionError)) and not isinstance(e, urllib.error.HTTPError)
+            if path.startswith('/events?') and (srv or net):
+                return one(KS_BASE2, path, timeout)
+            raise
+    return fetch
+
+
+def fed_off():
+    """Plik przy wyłączniku KALSHI_OFF: bez zapytań, stan części „off” (strona chowa panel), bez danych."""
+    return {'at': NOW, 'src': FED_SRC, 'ok': {'ks': 'off'}, 'part_at': {}, 'notes': ['część wyłączona zmienną KALSHI_OFF — bez zapytań'], 'ks': None}
+
+
+def build_fed(prev=None, now=None, run_t0=None):
+    """data/fed.json — szanse decyzji Fed na dwóch najbliższych posiedzeniach z rynku zakładów w USA (seria KXFEDDECISION, publiczne API
+    bez klucza): pięć wyników na posiedzenie, szansa (środek oferty albo ostatnia transakcja; przeliczenie do 100% tylko przy komplecie cen),
+    zmiana od wczoraj / 7 / 30 dni w pkt proc. z surowych cen, sztuki kontraktów (obrót, obrót 24 h, otwarte), czas ostatniej transakcji,
+    historia dzienna 120 dób i ostatnie rozstrzygnięte posiedzenie. Każda część osobno: błąd = poprzednia wersja z własnym czasem (part_at);
+    brak liczby = None, nigdy zero; brak cen i poprzedniego pliku = wyjątek (main zostawia poprzedni plik). Budżet: KS_BUDGET s na część,
+    11 zapytań na przebieg (13 raz na dobę — pierwszy przebieg od 05:00 UTC; po decyzji +1 co przebieg, aż wynik się pojawi; transakcje
+    najwyżej KS_TR_MAX, wszystkie zapytania najwyżej KS_MAX_CALLS); przebieg dłuższy niż KS_LATE s — tylko ceny.
+    Warunki (sprawdzone 27.09.2026): Developer Agreement v1.1 §3 „Use of Kalshi APIs is expressly limited to facilitating a members own trading
+    on the Exchange”, §3.1 zakaz przekazywania danych osobom trzecim „without prior written authorization from Kalshi”; Data Terms of Use cz. II
+    zakaz „publicly displaying” bez pisemnej zgody. Podpis źródła tego nie naprawia — wdrożone na decyzję właściciela (27.09: licencje
+    drugorzędne), z wyłącznikiem KALSHI_OFF (zmienna repozytorium) i prośbą o zgodę do wysłania przez właściciela; gdyby strona stała się
+    płatna, wyłączyć do czasu zgody."""
+    now = now or _now_utc()
+    t0 = time.monotonic()
+    late = run_t0 is not None and t0 - run_t0 > KS_LATE
+    log = []
+    part, ok, part_at, errs, notes, calls = build_ks(_ks_fetcher(t0 + KS_BUDGET, log), prev, now, late=late)
+    if errs:
+        META['errors'].append(mask(f'{FED_LABEL}: ' + '; '.join(errs)[:400]))
+    if late:
+        notes.insert(0, f'przebieg dłuższy niż {KS_LATE} s — tylko ceny, reszta z poprzedniego pliku')
+    for n in notes:
+        META['notes'].append(f'{FED_LABEL}: {n}')
+    return {'at': NOW, 'src': FED_SRC, 'ok': ok, 'part_at': part_at, 'notes': list(FED_NOTES),
+            'stat': {'req': len(log), 'paths': len(calls), 's': round(time.monotonic() - t0, 1)}, 'ks': part}
+
+
 # ===================== v125: DANE DZIENNE SYGNAŁÓW KRYPTO — data/krypto-dzien.json (plik tylko dla zbieracza; strona go nie wczytuje) =====================
 # Wejście sygnałów dziennych krypto w wersji 2 (build_daily_cr2), bez kluczy:
 #  - świece 1d i 1h rynku spot 10 par z USDT — publiczne pliki giełdy (miesięczne dla zamkniętych miesięcy, dzienne dla bieżącego):
@@ -12169,6 +12665,23 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'Szwajcaria: {e}')); META['ok']['snb'] = False
             if prev_snb: save('snb', prev_snb)
+    # v131: Fed — szanse decyzji na dwóch najbliższych posiedzeniach z rynku zakładów w USA (publiczne API bez klucza): co przebieg ceny
+    # wszystkich otwartych posiedzeń (1 zapytanie) i ostatnia transakcja każdego wyniku (10), raz na dobę świece dzienne i ostatnie rozstrzygnięte
+    # posiedzenie; plik młodszy niż FED_EVERY min z kompletem części = bez zapytań; wyłącznik KALSHI_OFF (zmienna repozytorium, nie sekret) =
+    # zero zapytań i plik ze stanem „off” (strona chowa panel), bez wpisu w stanie źródeł; awaria = poprzedni plik i błąd
+    if os.environ.get('KALSHI_OFF', '').strip().lower() in KS_OFF_ON:
+        save('fed', fed_off()); META['notes'].append(f'{FED_LABEL}: wyłączone zmienną KALSHI_OFF — bez zapytań')
+    else:
+        prev_fed = previous('fed')
+        pok_fed = prev_fed.get('ok') if isinstance(prev_fed, dict) and isinstance(prev_fed.get('ok'), dict) else {}
+        if isinstance(prev_fed, dict) and fresh(prev_fed, FED_EVERY) and all(pok_fed.get(k) is True for k in KS_PARTS):
+            save('fed', prev_fed); META['ok']['fed'] = 'cached'
+        else:
+            try:
+                fd = build_fed(prev_fed, run_t0=_RUN_T0[0]); save('fed', fd); META['ok']['fed'] = fd['ok'].get('ks') is True
+            except Exception as e:
+                META['errors'].append(mask(f'{FED_LABEL}: {e}')); META['ok']['fed'] = False
+                if prev_fed: save('fed', prev_fed)
     # v106: indeksy świata (EODHD, rotacja 20 zapytań na dobę) i notowania ETF (Massive, zapas Tiingo) — klucze właściciela; co godzinę;
     # brak klucza = informacja (notes), nie błąd; awaria = poprzedni plik
     ix_keys = {k: os.environ.get(k, '').strip() for k in IX_KEYS}

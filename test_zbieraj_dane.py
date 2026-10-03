@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -181,7 +181,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Rynki', 'Wieloryby', 'Dźwignia', 'Sieć Bitcoin', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Rynki', 'Wieloryby', 'Dźwignia', 'Sieć Bitcoin', 'Aukcje', 'Insiderzy', 'Szwajcaria', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -533,7 +533,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -623,7 +623,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -756,7 +756,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1115,7 +1115,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1359,7 +1359,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1596,7 +1596,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1827,7 +1827,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2340,7 +2340,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3092,7 +3092,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3219,7 +3219,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3254,7 +3254,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3630,7 +3630,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4115,7 +4115,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8758,7 +8758,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         for s in stubs:
             s.start()
         try:
@@ -9147,7 +9147,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10000,7 +10000,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_snb', 'build_fed', 'build_wieloryby', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_insider')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -14171,3 +14171,699 @@ class BcbZapasV127_2(unittest.TestCase):
         self.assertTrue(str(c.exception).startswith('brak dni (13970:'), str(c.exception))
         self.assertEqual(len([n for n in zd.META['notes'] if 'SOAP' in n]), 1, 'notatka o przejściu na zapas — raz')
 
+
+
+# ===================== v131: FED — szanse decyzji na posiedzeniach z rynku zakładów w USA (data/fed.json) — testy =====================
+import copy as _copy_v131
+import re as _re_v131
+import urllib.error as _uerr_v131
+
+# Prawdziwe odpowiedzi publicznego API bez klucza z 27.09.2026 ok. 19:35–19:45 UTC (host główny), przycięte do pól, które czyta zbieracz:
+# 3 z 11 otwartych posiedzeń (paź i gru 2026, sty 2027) po 5 kontraktów, 1 transakcja, świece dzienne 35 dób dwóch kontraktów października,
+# 10 rozstrzygniętych kontraktów (lipiec i wrzesień 2026). Wartości bez zmian (teksty stałoprzecinkowe jak w API).
+FED_PROBKA = {
+    'events': {'cursor': '', 'milestones': [], 'events': [
+        {'event_ticker': 'KXFEDDECISION-26OCT', 'strike_date': '2026-10-28T18:00:00Z', 'markets': [
+            {"ticker": "KXFEDDECISION-26OCT-C26", "status": "active", "custom_strike": {"Cut": ">25"}, "yes_sub_title": "Cut >25bps", "close_time": "2026-10-28T17:59:00Z", "last_price_dollars": "0.0100", "yes_bid_dollars": "0.0000", "yes_ask_dollars": "0.0100", "previous_price_dollars": "0.0100", "previous_yes_bid_dollars": "0.0000", "previous_yes_ask_dollars": "0.0100", "volume_fp": "202622.37", "volume_24h_fp": "0.00", "open_interest_fp": "189168.92"},
+            {"ticker": "KXFEDDECISION-26OCT-C25", "status": "active", "custom_strike": {"Cut": "25"}, "yes_sub_title": "Cut 25bps", "close_time": "2026-10-28T17:59:00Z", "last_price_dollars": "0.0100", "yes_bid_dollars": "0.0000", "yes_ask_dollars": "0.0100", "previous_price_dollars": "0.0100", "previous_yes_bid_dollars": "0.0000", "previous_yes_ask_dollars": "0.0100", "volume_fp": "556275.36", "volume_24h_fp": "1122.21", "open_interest_fp": "437435.10"},
+            {"ticker": "KXFEDDECISION-26OCT-H0", "status": "active", "custom_strike": {"Hike": "0"}, "yes_sub_title": "Fed maintains rate", "close_time": "2026-10-28T17:59:00Z", "last_price_dollars": "0.3500", "yes_bid_dollars": "0.3400", "yes_ask_dollars": "0.3500", "previous_price_dollars": "0.3600", "previous_yes_bid_dollars": "0.3500", "previous_yes_ask_dollars": "0.3600", "volume_fp": "1254442.27", "volume_24h_fp": "9773.36", "open_interest_fp": "767999.19"},
+            {"ticker": "KXFEDDECISION-26OCT-H25", "status": "active", "custom_strike": {"Hike": "25"}, "yes_sub_title": "Hike 25bps", "close_time": "2026-10-28T17:59:00Z", "last_price_dollars": "0.6600", "yes_bid_dollars": "0.6500", "yes_ask_dollars": "0.6600", "previous_price_dollars": "0.6400", "previous_yes_bid_dollars": "0.6300", "previous_yes_ask_dollars": "0.6400", "volume_fp": "1015081.97", "volume_24h_fp": "13369.51", "open_interest_fp": "548342.05"},
+            {"ticker": "KXFEDDECISION-26OCT-H26", "status": "active", "custom_strike": {"Hike": ">25"}, "yes_sub_title": "Hike >25bps", "close_time": "2026-10-28T17:59:00Z", "last_price_dollars": "0.0100", "yes_bid_dollars": "0.0100", "yes_ask_dollars": "0.0200", "previous_price_dollars": "0.0200", "previous_yes_bid_dollars": "0.0100", "previous_yes_ask_dollars": "0.0200", "volume_fp": "522395.41", "volume_24h_fp": "106365.08", "open_interest_fp": "500084.62"},
+        ]},
+        {'event_ticker': 'KXFEDDECISION-26DEC', 'strike_date': '2026-12-09T19:00:00Z', 'markets': [
+            {"ticker": "KXFEDDECISION-26DEC-C26", "status": "active", "custom_strike": {"Cut": ">25"}, "yes_sub_title": "Cut >25bps", "close_time": "2026-12-09T18:59:00Z", "last_price_dollars": "0.0100", "yes_bid_dollars": "0.0000", "yes_ask_dollars": "0.0100", "previous_price_dollars": "0.0100", "previous_yes_bid_dollars": "0.0000", "previous_yes_ask_dollars": "0.0100", "volume_fp": "55120.25", "volume_24h_fp": "0.00", "open_interest_fp": "46781.95"},
+            {"ticker": "KXFEDDECISION-26DEC-C25", "status": "active", "custom_strike": {"Cut": "25"}, "yes_sub_title": "Cut 25bps", "close_time": "2026-12-09T18:59:00Z", "last_price_dollars": "0.0200", "yes_bid_dollars": "0.0100", "yes_ask_dollars": "0.0200", "previous_price_dollars": "0.0200", "previous_yes_bid_dollars": "0.0100", "previous_yes_ask_dollars": "0.0200", "volume_fp": "92247.74", "volume_24h_fp": "0.00", "open_interest_fp": "70118.15"},
+            {"ticker": "KXFEDDECISION-26DEC-H0", "status": "active", "custom_strike": {"Hike": "0"}, "yes_sub_title": "Fed maintains rate", "close_time": "2026-12-09T18:59:00Z", "last_price_dollars": "0.3200", "yes_bid_dollars": "0.2800", "yes_ask_dollars": "0.3200", "previous_price_dollars": "0.2400", "previous_yes_bid_dollars": "0.2300", "previous_yes_ask_dollars": "0.2400", "volume_fp": "151754.11", "volume_24h_fp": "14952.52", "open_interest_fp": "111855.37"},
+            {"ticker": "KXFEDDECISION-26DEC-H25", "status": "active", "custom_strike": {"Hike": "25"}, "yes_sub_title": "Hike 25bps", "close_time": "2026-12-09T18:59:00Z", "last_price_dollars": "0.6900", "yes_bid_dollars": "0.6800", "yes_ask_dollars": "0.6900", "previous_price_dollars": "0.6900", "previous_yes_bid_dollars": "0.6900", "previous_yes_ask_dollars": "0.7000", "volume_fp": "136145.21", "volume_24h_fp": "3778.86", "open_interest_fp": "94670.78"},
+            {"ticker": "KXFEDDECISION-26DEC-H26", "status": "active", "custom_strike": {"Hike": ">25"}, "yes_sub_title": "Hike >25bps", "close_time": "2026-12-09T18:59:00Z", "last_price_dollars": "0.0200", "yes_bid_dollars": "0.0200", "yes_ask_dollars": "0.0300", "previous_price_dollars": "0.0100", "previous_yes_bid_dollars": "0.0100", "previous_yes_ask_dollars": "0.0200", "volume_fp": "147746.42", "volume_24h_fp": "27503.16", "open_interest_fp": "108077.60"},
+        ]},
+        {'event_ticker': 'KXFEDDECISION-27JAN', 'strike_date': '2027-01-27T19:00:00Z', 'markets': [
+            {"ticker": "KXFEDDECISION-27JAN-C26", "status": "active", "custom_strike": {"Cut": ">25"}, "yes_sub_title": "Cut >25bps", "close_time": "2027-01-27T18:59:00Z", "last_price_dollars": "0.0100", "yes_bid_dollars": "0.0000", "yes_ask_dollars": "0.0100", "previous_price_dollars": "0.0100", "previous_yes_bid_dollars": "0.0000", "previous_yes_ask_dollars": "0.0100", "volume_fp": "15813.39", "volume_24h_fp": "0.00", "open_interest_fp": "13284.86"},
+            {"ticker": "KXFEDDECISION-27JAN-C25", "status": "active", "custom_strike": {"Cut": "25"}, "yes_sub_title": "Cut 25bps", "close_time": "2027-01-27T18:59:00Z", "last_price_dollars": "0.0300", "yes_bid_dollars": "0.0200", "yes_ask_dollars": "0.0400", "previous_price_dollars": "0.0300", "previous_yes_bid_dollars": "0.0200", "previous_yes_ask_dollars": "0.0500", "volume_fp": "17696.50", "volume_24h_fp": "0.00", "open_interest_fp": "14538.68"},
+            {"ticker": "KXFEDDECISION-27JAN-H0", "status": "active", "custom_strike": {"Hike": "0"}, "yes_sub_title": "Fed maintains rate", "close_time": "2027-01-27T18:59:00Z", "last_price_dollars": "0.5400", "yes_bid_dollars": "0.5100", "yes_ask_dollars": "0.5300", "previous_price_dollars": "0.5500", "previous_yes_bid_dollars": "0.5400", "previous_yes_ask_dollars": "0.5500", "volume_fp": "38950.17", "volume_24h_fp": "151.68", "open_interest_fp": "21026.30"},
+            {"ticker": "KXFEDDECISION-27JAN-H25", "status": "active", "custom_strike": {"Hike": "25"}, "yes_sub_title": "Hike 25bps", "close_time": "2027-01-27T18:59:00Z", "last_price_dollars": "0.3600", "yes_bid_dollars": "0.3500", "yes_ask_dollars": "0.4000", "previous_price_dollars": "0.3300", "previous_yes_bid_dollars": "0.3500", "previous_yes_ask_dollars": "0.3700", "volume_fp": "42861.12", "volume_24h_fp": "25.00", "open_interest_fp": "34142.92"},
+            {"ticker": "KXFEDDECISION-27JAN-H26", "status": "active", "custom_strike": {"Hike": ">25"}, "yes_sub_title": "Hike >25bps", "close_time": "2027-01-27T18:59:00Z", "last_price_dollars": "0.0200", "yes_bid_dollars": "0.0100", "yes_ask_dollars": "0.0200", "previous_price_dollars": "0.0200", "previous_yes_bid_dollars": "0.0100", "previous_yes_ask_dollars": "0.0200", "volume_fp": "6918.62", "volume_24h_fp": "0.00", "open_interest_fp": "6067.43"},
+        ]},
+    ]},
+    'trades': {"cursor": "", "trades": [{"created_time": "2026-09-27T18:52:51.142363Z", "ticker": "KXFEDDECISION-26OCT-H25", "yes_price_dollars": "0.6600", "count_fp": "7.39"}]},
+    'candles': {'markets': [
+        {'market_ticker': 'KXFEDDECISION-26OCT-H0', 'candlesticks': [
+            {"end_period_ts": 1787544000, "price": {"close_dollars": "0.7300"}, "yes_bid": {"close_dollars": "0.7100"}, "yes_ask": {"close_dollars": "0.7300"}}, {"end_period_ts": 1787630400, "price": {"close_dollars": "0.7300"}, "yes_bid": {"close_dollars": "0.7200"}, "yes_ask": {"close_dollars": "0.7300"}}, {"end_period_ts": 1787716800, "price": {"close_dollars": "0.7200"}, "yes_bid": {"close_dollars": "0.7200"}, "yes_ask": {"close_dollars": "0.7300"}},
+            {"end_period_ts": 1787803200, "price": {"close_dollars": "0.7100"}, "yes_bid": {"close_dollars": "0.7100"}, "yes_ask": {"close_dollars": "0.7200"}}, {"end_period_ts": 1787889600, "price": {"close_dollars": "0.7200"}, "yes_bid": {"close_dollars": "0.7100"}, "yes_ask": {"close_dollars": "0.7200"}}, {"end_period_ts": 1787976000, "price": {"close_dollars": "0.7000"}, "yes_bid": {"close_dollars": "0.7000"}, "yes_ask": {"close_dollars": "0.7100"}},
+            {"end_period_ts": 1788062400, "price": {"close_dollars": "0.7000"}, "yes_bid": {"close_dollars": "0.7000"}, "yes_ask": {"close_dollars": "0.7100"}}, {"end_period_ts": 1788148800, "price": {"close_dollars": "0.7100"}, "yes_bid": {"close_dollars": "0.7000"}, "yes_ask": {"close_dollars": "0.7100"}}, {"end_period_ts": 1788235200, "price": {"close_dollars": "0.7100"}, "yes_bid": {"close_dollars": "0.6600"}, "yes_ask": {"close_dollars": "0.7100"}},
+            {"end_period_ts": 1788321600, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}}, {"end_period_ts": 1788408000, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}}, {"end_period_ts": 1788494400, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}},
+            {"end_period_ts": 1788580800, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}}, {"end_period_ts": 1788667200, "price": {"close_dollars": "0.6800"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}}, {"end_period_ts": 1788753600, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}},
+            {"end_period_ts": 1788840000, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}}, {"end_period_ts": 1788926400, "price": {"close_dollars": "0.6800"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}}, {"end_period_ts": 1789012800, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}},
+            {"end_period_ts": 1789099200, "price": {"close_dollars": "0.6900"}, "yes_bid": {"close_dollars": "0.6800"}, "yes_ask": {"close_dollars": "0.6900"}}, {"end_period_ts": 1789185600, "price": {"close_dollars": "0.6200"}, "yes_bid": {"close_dollars": "0.6100"}, "yes_ask": {"close_dollars": "0.6200"}}, {"end_period_ts": 1789272000, "price": {"close_dollars": "0.6100"}, "yes_bid": {"close_dollars": "0.6100"}, "yes_ask": {"close_dollars": "0.6200"}},
+            {"end_period_ts": 1789358400, "price": {"close_dollars": "0.6100"}, "yes_bid": {"close_dollars": "0.6000"}, "yes_ask": {"close_dollars": "0.6100"}}, {"end_period_ts": 1789444800, "price": {"close_dollars": "0.6000"}, "yes_bid": {"close_dollars": "0.6000"}, "yes_ask": {"close_dollars": "0.6100"}}, {"end_period_ts": 1789531200, "price": {"close_dollars": "0.6300"}, "yes_bid": {"close_dollars": "0.6200"}, "yes_ask": {"close_dollars": "0.6400"}},
+            {"end_period_ts": 1789617600, "price": {"close_dollars": "0.5600"}, "yes_bid": {"close_dollars": "0.5500"}, "yes_ask": {"close_dollars": "0.5600"}}, {"end_period_ts": 1789704000, "price": {"close_dollars": "0.5100"}, "yes_bid": {"close_dollars": "0.5000"}, "yes_ask": {"close_dollars": "0.5100"}}, {"end_period_ts": 1789790400, "price": {"close_dollars": "0.4500"}, "yes_bid": {"close_dollars": "0.4400"}, "yes_ask": {"close_dollars": "0.4500"}},
+            {"end_period_ts": 1789876800, "price": {"close_dollars": "0.4500"}, "yes_bid": {"close_dollars": "0.4400"}, "yes_ask": {"close_dollars": "0.4500"}}, {"end_period_ts": 1789963200, "price": {"close_dollars": "0.4500"}, "yes_bid": {"close_dollars": "0.4400"}, "yes_ask": {"close_dollars": "0.4500"}}, {"end_period_ts": 1790049600, "price": {"close_dollars": "0.4700"}, "yes_bid": {"close_dollars": "0.4600"}, "yes_ask": {"close_dollars": "0.4700"}},
+            {"end_period_ts": 1790136000, "price": {"close_dollars": "0.4800"}, "yes_bid": {"close_dollars": "0.4700"}, "yes_ask": {"close_dollars": "0.4800"}}, {"end_period_ts": 1790222400, "price": {"close_dollars": "0.3400"}, "yes_bid": {"close_dollars": "0.3200"}, "yes_ask": {"close_dollars": "0.3400"}}, {"end_period_ts": 1790308800, "price": {"close_dollars": "0.3300"}, "yes_bid": {"close_dollars": "0.3100"}, "yes_ask": {"close_dollars": "0.3200"}},
+            {"end_period_ts": 1790395200, "price": {"close_dollars": "0.3600"}, "yes_bid": {"close_dollars": "0.3500"}, "yes_ask": {"close_dollars": "0.3600"}}, {"end_period_ts": 1790481600, "price": {"close_dollars": "0.3600"}, "yes_bid": {"close_dollars": "0.3500"}, "yes_ask": {"close_dollars": "0.3600"}},
+        ]},
+        {'market_ticker': 'KXFEDDECISION-26OCT-H25', 'candlesticks': [
+            {"end_period_ts": 1787544000, "price": {"close_dollars": "0.2300"}, "yes_bid": {"close_dollars": "0.2200"}, "yes_ask": {"close_dollars": "0.2300"}}, {"end_period_ts": 1787630400, "price": {"close_dollars": "0.2200"}, "yes_bid": {"close_dollars": "0.2200"}, "yes_ask": {"close_dollars": "0.2300"}}, {"end_period_ts": 1787716800, "price": {"close_dollars": "0.2200"}, "yes_bid": {"close_dollars": "0.2200"}, "yes_ask": {"close_dollars": "0.2300"}},
+            {"end_period_ts": 1787803200, "price": {"close_dollars": "0.2400"}, "yes_bid": {"close_dollars": "0.2300"}, "yes_ask": {"close_dollars": "0.2400"}}, {"end_period_ts": 1787889600, "price": {"close_dollars": "0.2400"}, "yes_bid": {"close_dollars": "0.2300"}, "yes_ask": {"close_dollars": "0.2400"}}, {"end_period_ts": 1787976000, "price": {"close_dollars": "0.2600"}, "yes_bid": {"close_dollars": "0.2500"}, "yes_ask": {"close_dollars": "0.2600"}},
+            {"end_period_ts": 1788062400, "price": {"close_dollars": "0.2800"}, "yes_bid": {"close_dollars": "0.2500"}, "yes_ask": {"close_dollars": "0.2700"}}, {"end_period_ts": 1788148800, "price": {"close_dollars": "0.2500"}, "yes_bid": {"close_dollars": "0.2500"}, "yes_ask": {"close_dollars": "0.2700"}}, {"end_period_ts": 1788235200, "price": {"close_dollars": "0.2700"}, "yes_bid": {"close_dollars": "0.2600"}, "yes_ask": {"close_dollars": "0.2700"}},
+            {"end_period_ts": 1788321600, "price": {"close_dollars": "0.2800"}, "yes_bid": {"close_dollars": "0.2700"}, "yes_ask": {"close_dollars": "0.2800"}}, {"end_period_ts": 1788408000, "price": {"close_dollars": "0.2800"}, "yes_bid": {"close_dollars": "0.2700"}, "yes_ask": {"close_dollars": "0.2800"}}, {"end_period_ts": 1788494400, "price": {"close_dollars": "0.2600"}, "yes_bid": {"close_dollars": "0.2700"}, "yes_ask": {"close_dollars": "0.2800"}},
+            {"end_period_ts": 1788580800, "price": {"close_dollars": "0.2700"}, "yes_bid": {"close_dollars": "0.2600"}, "yes_ask": {"close_dollars": "0.2700"}}, {"end_period_ts": 1788667200, "price": {"close_dollars": "0.2700"}, "yes_bid": {"close_dollars": "0.2600"}, "yes_ask": {"close_dollars": "0.2700"}}, {"end_period_ts": 1788753600, "price": {"close_dollars": "0.2700"}, "yes_bid": {"close_dollars": "0.2600"}, "yes_ask": {"close_dollars": "0.2700"}},
+            {"end_period_ts": 1788840000, "price": {"close_dollars": "0.2800"}, "yes_bid": {"close_dollars": "0.2700"}, "yes_ask": {"close_dollars": "0.2800"}}, {"end_period_ts": 1788926400, "price": {"close_dollars": "0.2800"}, "yes_bid": {"close_dollars": "0.2700"}, "yes_ask": {"close_dollars": "0.2800"}}, {"end_period_ts": 1789012800, "price": {"close_dollars": "0.2800"}, "yes_bid": {"close_dollars": "0.2700"}, "yes_ask": {"close_dollars": "0.2800"}},
+            {"end_period_ts": 1789099200, "price": {"close_dollars": "0.3100"}, "yes_bid": {"close_dollars": "0.3000"}, "yes_ask": {"close_dollars": "0.3100"}}, {"end_period_ts": 1789185600, "price": {"close_dollars": "0.4000"}, "yes_bid": {"close_dollars": "0.3800"}, "yes_ask": {"close_dollars": "0.3900"}}, {"end_period_ts": 1789272000, "price": {"close_dollars": "0.3800"}, "yes_bid": {"close_dollars": "0.3700"}, "yes_ask": {"close_dollars": "0.3800"}},
+            {"end_period_ts": 1789358400, "price": {"close_dollars": "0.3800"}, "yes_bid": {"close_dollars": "0.3600"}, "yes_ask": {"close_dollars": "0.3800"}}, {"end_period_ts": 1789444800, "price": {"close_dollars": "0.3800"}, "yes_bid": {"close_dollars": "0.3400"}, "yes_ask": {"close_dollars": "0.3700"}}, {"end_period_ts": 1789531200, "price": {"close_dollars": "0.3700"}, "yes_bid": {"close_dollars": "0.3700"}, "yes_ask": {"close_dollars": "0.3800"}},
+            {"end_period_ts": 1789617600, "price": {"close_dollars": "0.4500"}, "yes_bid": {"close_dollars": "0.4500"}, "yes_ask": {"close_dollars": "0.4600"}}, {"end_period_ts": 1789704000, "price": {"close_dollars": "0.5000"}, "yes_bid": {"close_dollars": "0.4900"}, "yes_ask": {"close_dollars": "0.5000"}}, {"end_period_ts": 1789790400, "price": {"close_dollars": "0.5400"}, "yes_bid": {"close_dollars": "0.5300"}, "yes_ask": {"close_dollars": "0.5400"}},
+            {"end_period_ts": 1789876800, "price": {"close_dollars": "0.5500"}, "yes_bid": {"close_dollars": "0.5400"}, "yes_ask": {"close_dollars": "0.5500"}}, {"end_period_ts": 1789963200, "price": {"close_dollars": "0.5600"}, "yes_bid": {"close_dollars": "0.5500"}, "yes_ask": {"close_dollars": "0.5600"}}, {"end_period_ts": 1790049600, "price": {"close_dollars": "0.5200"}, "yes_bid": {"close_dollars": "0.5100"}, "yes_ask": {"close_dollars": "0.5200"}},
+            {"end_period_ts": 1790136000, "price": {"close_dollars": "0.5000"}, "yes_bid": {"close_dollars": "0.5000"}, "yes_ask": {"close_dollars": "0.5100"}}, {"end_period_ts": 1790222400, "price": {"close_dollars": "0.6600"}, "yes_bid": {"close_dollars": "0.6500"}, "yes_ask": {"close_dollars": "0.6600"}}, {"end_period_ts": 1790308800, "price": {"close_dollars": "0.6800"}, "yes_bid": {"close_dollars": "0.6700"}, "yes_ask": {"close_dollars": "0.6800"}},
+            {"end_period_ts": 1790395200, "price": {"close_dollars": "0.6400"}, "yes_bid": {"close_dollars": "0.6300"}, "yes_ask": {"close_dollars": "0.6400"}}, {"end_period_ts": 1790481600, "price": {"close_dollars": "0.6300"}, "yes_bid": {"close_dollars": "0.6300"}, "yes_ask": {"close_dollars": "0.6400"}},
+        ]},
+    ]},
+    'settled': {'cursor': '', 'markets': [
+        {"ticker": "KXFEDDECISION-26SEP-H26", "event_ticker": "KXFEDDECISION-26SEP", "status": "finalized", "custom_strike": {"Hike": ">25"}, "close_time": "2026-09-16T17:59:00Z", "last_price_dollars": "0.0100", "result": "no"},
+        {"ticker": "KXFEDDECISION-26SEP-H25", "event_ticker": "KXFEDDECISION-26SEP", "status": "finalized", "custom_strike": {"Hike": "25"}, "close_time": "2026-09-16T17:59:00Z", "last_price_dollars": "0.8800", "result": "yes"},
+        {"ticker": "KXFEDDECISION-26SEP-H0", "event_ticker": "KXFEDDECISION-26SEP", "status": "finalized", "custom_strike": {"Hike": "0"}, "close_time": "2026-09-16T17:59:00Z", "last_price_dollars": "0.1200", "result": "no"},
+        {"ticker": "KXFEDDECISION-26SEP-C26", "event_ticker": "KXFEDDECISION-26SEP", "status": "finalized", "custom_strike": {"Cut": ">25"}, "close_time": "2026-09-16T17:59:00Z", "last_price_dollars": "0.0100", "result": "no"},
+        {"ticker": "KXFEDDECISION-26SEP-C25", "event_ticker": "KXFEDDECISION-26SEP", "status": "finalized", "custom_strike": {"Cut": "25"}, "close_time": "2026-09-16T17:59:00Z", "last_price_dollars": "0.0100", "result": "no"},
+        {"ticker": "KXFEDDECISION-26JUL-H26", "event_ticker": "KXFEDDECISION-26JUL", "status": "finalized", "custom_strike": {"Hike": ">25"}, "close_time": "2026-07-29T17:59:00Z", "last_price_dollars": "0.0100", "result": "no"},
+        {"ticker": "KXFEDDECISION-26JUL-H25", "event_ticker": "KXFEDDECISION-26JUL", "status": "finalized", "custom_strike": {"Hike": "25"}, "close_time": "2026-07-29T17:59:00Z", "last_price_dollars": "0.1800", "result": "no"},
+        {"ticker": "KXFEDDECISION-26JUL-H0", "event_ticker": "KXFEDDECISION-26JUL", "status": "finalized", "custom_strike": {"Hike": "0"}, "close_time": "2026-07-29T17:59:00Z", "last_price_dollars": "0.8200", "result": "yes"},
+        {"ticker": "KXFEDDECISION-26JUL-C26", "event_ticker": "KXFEDDECISION-26JUL", "status": "finalized", "custom_strike": {"Cut": ">25"}, "close_time": "2026-07-29T17:59:00Z", "last_price_dollars": "0.0100", "result": "no"},
+        {"ticker": "KXFEDDECISION-26JUL-C25", "event_ticker": "KXFEDDECISION-26JUL", "status": "finalized", "custom_strike": {"Cut": "25"}, "close_time": "2026-07-29T17:59:00Z", "last_price_dollars": "0.0100", "result": "no"},
+    ]},
+}
+
+
+class FedV131(unittest.TestCase):
+    """v131: szanse decyzji Fed z rynku zakładów w USA (seria KXFEDDECISION, publiczne API bez klucza): parsowanie prawdziwych odpowiedzi,
+    reguła szansy (środek oferty przy różnicy ≤ 5 c, inaczej ostatnia transakcja, inaczej brak — nigdy 0), przeliczenie do 100% tylko przy
+    komplecie, zmiany 1/7/30 dni, sumy zero = brak, części osobno z poprzednią wersją i własnym czasem, budżet zapytań (13 raz na dobę, 11 co
+    przebieg), host zapasowy, 429, koniec czasu części, spóźniony przebieg, wyłącznik KALSHI_OFF, przebieg główny, kontrola i strona.
+    Bez sieci: get_json zaślepione; zegar przypięty (now=)."""
+    NOW = datetime.datetime(2026, 9, 27, 19, 40, tzinfo=datetime.timezone.utc)   # chwila nagrania odpowiedzi
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.sleeps = []
+        self.p_sleep = mock.patch.object(zd.time, 'sleep', lambda s: self.sleeps.append(s))
+        self.p_sleep.start()
+
+    def tearDown(self):
+        self.p_sleep.stop()
+
+    def _get(self, fail=None):
+        """get_json z nagrań; fail(url) → wyjątek do rzucenia albo None. Zwraca (funkcja, lista adresów)."""
+        urls = []
+
+        def get_json(url, headers=None, timeout=30):
+            urls.append(url)
+            self.assertLessEqual(timeout, zd.KS_TIMEOUT)
+            e = fail(url) if fail else None
+            if e is not None:
+                raise e
+            if '/events?' in url:
+                return _copy_v131.deepcopy(FED_PROBKA['events'])
+            if '/markets/trades?' in url:
+                return _copy_v131.deepcopy(FED_PROBKA['trades'])
+            if '/markets/candlesticks?' in url:
+                return _copy_v131.deepcopy(FED_PROBKA['candles'])
+            if 'status=settled' in url:
+                return _copy_v131.deepcopy(FED_PROBKA['settled'])
+            raise AssertionError('nieznany adres: ' + url)
+        return get_json, urls
+
+    def _build(self, prev=None, now=None, fail=None, run_t0=None):
+        get_json, urls = self._get(fail)
+        with mock.patch.object(zd, 'get_json', side_effect=get_json):
+            o = zd.build_fed(prev, now=now or self.NOW, run_t0=run_t0)
+        return o, urls
+
+    @staticmethod
+    def _o(m, k):
+        return [o for o in m['out'] if o['k'] == k][0]
+
+    # ---------------------------------------------------------------- pomocnicze
+    def test_liczby_wyniki_szansa_czas(self):
+        self.assertEqual(zd.ks_num('0.6600', 0, 1), 0.66)
+        for bad in (None, '', 'x', True, float('nan'), float('inf'), '1.5', '-0.1'):
+            self.assertIsNone(zd.ks_num(bad, 0, 1), bad)
+        f = lambda cs: zd.ks_outcome({'custom_strike': cs})  # noqa: E731
+        self.assertEqual([f({'Cut': '>25'}), f({'Cut': '25'}), f({'Hike': '0'}), f({'Hike': '25'}), f({'Hike': '>25'}), f({'Hike': '50'})],
+                         [('cutgt25', -25.5), ('cut25', -25), ('hold', 0), ('hike25', 25), ('hikegt25', 25.5), ('hike50', 50)])
+        for bad in (None, {}, {'Hike': 'abc'}, {'Pause': '0'}, {'Hike': '25', 'Cut': '25'}, {'Cut': '1000'}):
+            self.assertIsNone(f(bad), bad)
+        self.assertEqual(zd.ks_prob('0.6500', '0.6600', '0.6600'), (0.655, 'mid'))
+        self.assertEqual(zd.ks_prob('0.0000', '0.0100', '0.0100'), (0.005, 'mid'), 'brak kupujących = 0; mała szansa, ale nie zero')
+        self.assertEqual(zd.ks_prob(None, '0.0100', None), (0.005, 'mid'), 'brak oferty kupna liczy się jak 0')
+        self.assertEqual(zd.ks_prob('0.2800', '0.3200', '0.3200'), (0.3, 'mid'), 'różnica 4 c')
+        self.assertEqual(zd.ks_prob('0.2500', '0.3000', '0.2900'), (0.275, 'mid'), 'różnica dokładnie 5 c — jeszcze środek')
+        self.assertEqual(zd.ks_prob('0.0100', '0.0900', '0.0200'), (0.02, 'last'), 'różnica 8 c → ostatnia transakcja')
+        self.assertEqual(zd.ks_prob('0.0100', '0.0900', '0.0000'), (None, None), 'szeroko i bez transakcji → brak, nie 0')
+        self.assertEqual(zd.ks_prob('0.7', '0.6', '0.65'), (0.65, 'last'), 'odwrócony arkusz → ostatnia transakcja')
+        self.assertEqual(zd.ks_prob(None, None, None), (None, None)); self.assertEqual(zd.ks_prob('x', '0', 'y'), (None, None))
+        self.assertEqual(zd.ks_iso('2026-09-27T18:52:51.142363Z'), '2026-09-27T18:52:51Z')
+        self.assertEqual(zd.ks_iso('2026-09-27T20:52:51+02:00'), '2026-09-27T18:52:51Z')
+        for bad in ('2026-09-27', '2026-09-27T18:52:51', 'x', None, 5):
+            self.assertIsNone(zd.ks_iso(bad), bad)
+        self.assertEqual(zd.ks_candle_date(1790481600), '2026-09-26', '04:00 UTC (północ EDT) → poprzednia doba w Nowym Jorku')
+        zima = int(datetime.datetime(2026, 12, 2, 5, 0, tzinfo=datetime.timezone.utc).timestamp())
+        self.assertEqual(zd.ks_candle_date(zima), '2026-12-01', '05:00 UTC (północ EST) → poprzednia doba')
+        self.assertIsNone(zd.ks_sum([0.0, 0.0]), 'zerowy obrót = brak'); self.assertIsNone(zd.ks_sum([None])); self.assertEqual(zd.ks_sum([1.5, None]), 1.5)
+
+    def test_posiedzenia_z_prawdziwej_odpowiedzi(self):
+        ms = zd.ks_meetings(FED_PROBKA['events'], self.NOW)
+        self.assertEqual([m['event'] for m in ms], ['KXFEDDECISION-26OCT', 'KXFEDDECISION-26DEC'], 'dwa najbliższe z trzech')
+        o = ms[0]
+        self.assertEqual((o['date'], o['decision_at'], o['close_at']), ('2026-10-28', '2026-10-28T18:00:00Z', '2026-10-28T17:59:00Z'))
+        self.assertEqual([x['k'] for x in o['out']], ['cutgt25', 'cut25', 'hold', 'hike25', 'hikegt25'], 'od obniżki do podwyżki')
+        self.assertEqual([x['p'] for x in o['out']], [0.005, 0.005, 0.345, 0.655, 0.015])
+        self.assertEqual([x['how'] for x in o['out']], ['mid'] * 5)
+        self.assertEqual((o['top'], o['sum_raw'], o['norm'], o['unknown']), ('hike25', 1.025, True, []))
+        self.assertAlmostEqual(sum(x['pn'] for x in o['out']), 1.0, places=3); self.assertEqual(self._o(o, 'hike25')['pn'], round(0.655 / 1.025, 4))
+        self.assertEqual(self._o(o, 'hike25')['p1d'], 0.635, 'cena sprzed doby: środek 0,63/0,64')
+        self.assertEqual((o['oi'], o['vol']), (round(189168.92 + 437435.10 + 767999.19 + 548342.05 + 500084.62, 2), o['vol']))
+        self.assertGreater(o['vol'], 3e6); self.assertIsNone(o['last_trade'], 'czas transakcji dopiero z drugiego zapytania')
+        d = ms[1]
+        self.assertEqual((d['date'], d['decision_at'], d['top'], d['sum_raw']), ('2026-12-09', '2026-12-09T19:00:00Z', 'hike25', 1.03))
+        self.assertEqual(self._o(d, 'hold')['p'], 0.3, 'grudzień: bez zmian 0,28/0,32 — środek przy różnicy 4 c')
+        later = datetime.datetime(2026, 10, 28, 17, 59, tzinfo=datetime.timezone.utc)
+        self.assertEqual([m['event'] for m in zd.ks_meetings(FED_PROBKA['events'], later)], ['KXFEDDECISION-26DEC', 'KXFEDDECISION-27JAN'],
+                         'handel październikiem zamknięty o 17:59 UTC — następne dwa')
+        with self.assertRaises(ValueError):
+            zd.ks_meetings({'cursor': ''}, self.NOW)
+        self.assertEqual(zd.ks_meetings({'events': ['x', None, {'event_ticker': 'A', 'strike_date': 'zła', 'markets': []}]}, self.NOW), [])
+
+    def test_kolejnosc_posiedzen_wg_czasu_decyzji(self):
+        # odpowiedź w innej kolejności (np. od najdalszego posiedzenia) — nadal dwa najbliższe wg czasu decyzji, od najbliższego (przegląd 03.10)
+        j = _copy_v131.deepcopy(FED_PROBKA['events']); j['events'].reverse()
+        self.assertEqual([e['event_ticker'] for e in j['events']], ['KXFEDDECISION-27JAN', 'KXFEDDECISION-26DEC', 'KXFEDDECISION-26OCT'])
+        self.assertEqual([m['event'] for m in zd.ks_meetings(j, self.NOW)], ['KXFEDDECISION-26OCT', 'KXFEDDECISION-26DEC'])
+        self.assertEqual([m['event'] for m in zd.ks_meetings(j, self.NOW, n=3)], ['KXFEDDECISION-26OCT', 'KXFEDDECISION-26DEC', 'KXFEDDECISION-27JAN'])
+        get_json, urls = self._get()
+        rev = lambda u, headers=None, timeout=30: (urls.append(u), _copy_v131.deepcopy(j))[1] if '/events?' in u else get_json(u, headers, timeout)  # noqa: E731
+        with mock.patch.object(zd, 'get_json', side_effect=rev):
+            o = zd.build_fed(None, now=self.NOW)
+        self.assertEqual([m['event'] for m in o['ks']['meetings']], ['KXFEDDECISION-26OCT', 'KXFEDDECISION-26DEC'], 'plik: najbliższe posiedzenie pierwsze')
+        self.assertTrue(urls[1].endswith('ticker=KXFEDDECISION-26OCT-C26&limit=1'), 'transakcje najpierw najbliższego posiedzenia')
+
+    def test_nieznany_wynik_brak_ceny_i_zero_blokuja_przeliczenie(self):
+        j = _copy_v131.deepcopy(FED_PROBKA['events'])
+        j['events'][0]['markets'][0]['custom_strike'] = {'Pause': 'x'}
+        m = zd.ks_meetings(j, self.NOW)[0]
+        self.assertFalse(m['norm']); self.assertTrue(all(o['pn'] is None for o in m['out'])); self.assertEqual(m['unknown'], ['KXFEDDECISION-26OCT-C26'])
+        self.assertEqual(len(m['out']), 4, 'nieznany wynik nie ma wiersza')
+        j = _copy_v131.deepcopy(FED_PROBKA['events'])
+        for k in ('yes_bid_dollars', 'yes_ask_dollars', 'last_price_dollars'):
+            j['events'][0]['markets'][1][k] = None
+        j['events'][0]['markets'][4]['status'] = 'closed'
+        m = zd.ks_meetings(j, self.NOW)[0]
+        self.assertIsNone(self._o(m, 'cut25')['p'], 'brak ceny = None, nie 0'); self.assertIsNone(m['sum_raw']); self.assertFalse(m['norm'])
+        self.assertEqual(m['unknown'], ['KXFEDDECISION-26OCT-H26'], 'kontrakt nieaktywny = nieznany')
+        j = _copy_v131.deepcopy(FED_PROBKA['events'])
+        for mk in j['events'][0]['markets']:
+            mk['volume_24h_fp'] = '0.00'; mk['open_interest_fp'] = 'x'
+        m = zd.ks_meetings(j, self.NOW)[0]
+        self.assertIsNone(m['vol24'], 'zero kontraktów w 24 h = brak'); self.assertIsNone(m['oi'], 'nie-liczby = brak')
+        self.assertEqual(self._o(m, 'hold')['vol24'], 0.0, 'pojedynczy kontrakt: zero z odpowiedzi zostaje zerem, suma posiedzenia — brak')
+        j = _copy_v131.deepcopy(FED_PROBKA['events'])
+        for mk in j['events'][0]['markets']:
+            mk['yes_bid_dollars'] = mk['yes_ask_dollars'] = '0.1000'; mk['last_price_dollars'] = '0.1000'
+        m = zd.ks_meetings(j, self.NOW)[0]
+        self.assertEqual(m['sum_raw'], 0.5); self.assertFalse(m['norm'], 'suma 0,5 poza pasmem 0,85–1,15 — bez przeliczenia')
+
+    def test_transakcja_swiece_zmiany_i_ostatnie_posiedzenie(self):
+        self.assertEqual(zd.ks_trade_time(FED_PROBKA['trades']), '2026-09-27T18:52:51Z')
+        for bad in ({'trades': []}, {}, None, {'trades': ['x']}, {'trades': [{'created_time': 'zły'}]}):
+            self.assertIsNone(zd.ks_trade_time(bad), bad)
+        c = zd.ks_candles(FED_PROBKA['candles'])
+        self.assertEqual(sorted(c), ['KXFEDDECISION-26OCT-H0', 'KXFEDDECISION-26OCT-H25'])
+        rows = c['KXFEDDECISION-26OCT-H25']
+        self.assertEqual(len(rows), 35); self.assertEqual(rows[-1][1], '2026-09-26'); self.assertEqual(rows[-1][0], 1790481600)
+        now_s = int(self.NOW.timestamp())
+        self.assertEqual(zd.ks_back(rows, now_s, 7), [r for r in rows if r[0] <= now_s - 7 * 86400][-1][2])
+        self.assertEqual(zd.ks_back(rows, now_s, 7), rows[-8][2], 'świeca z 19.09 (koniec 20.09 04:00 UTC ≤ teraz − 7 dób)')
+        self.assertIsNone(zd.ks_back(rows, now_s, 400), 'tak starej świecy nie ma — brak')
+        self.assertIsNone(zd.ks_candle_p({'end_period_ts': 1780200000, 'price': {'previous_dollars': '0.0100'}, 'yes_ask': {'close_dollars': '0.0900'},
+                                           'yes_bid': {'close_dollars': '0.0100'}}), 'doba bez transakcji i szeroko — brak, nigdy nieaktualne previous')
+        with self.assertRaises(ValueError):
+            zd.ks_candles({'cursor': ''})
+        L = zd.ks_last(FED_PROBKA['settled'])
+        self.assertEqual(L, {'event': 'KXFEDDECISION-26SEP', 'date': '2026-09-16', 'close_at': '2026-09-16T17:59:00Z', 'result': 'hike25', 'p_last': 0.88})
+        s = _copy_v131.deepcopy(FED_PROBKA['settled'])
+        for m in s['markets']:
+            if m['event_ticker'] == 'KXFEDDECISION-26SEP':
+                m['result'] = 'yes'
+        self.assertEqual(zd.ks_last(s)['event'], 'KXFEDDECISION-26JUL', 'posiedzenie bez jednego zwycięzcy pominięte — wcześniejsze')
+        self.assertIsNone(zd.ks_last({'markets': []}))
+        with self.assertRaises(ValueError):
+            zd.ks_last({})
+
+    def test_harmonogram_czesci_wolnych(self):
+        U = datetime.timezone.utc
+        H, F = zd.KS_H_EVERY_H, zd.KS_H_FROM_UTC
+        self.assertTrue(zd.ks_due('2026-09-27T03:00:00+00:00', datetime.datetime(2026, 9, 27, 5, 20, tzinfo=U), H, F), 'nowa świeca po 05:00 UTC')
+        self.assertFalse(zd.ks_due('2026-09-27T05:10:00+00:00', datetime.datetime(2026, 9, 27, 19, 0, tzinfo=U), H, F), 'już pobrane dziś po 05:00')
+        self.assertFalse(zd.ks_due('2026-09-27T05:00:00+00:00', datetime.datetime(2026, 9, 28, 1, 0, tzinfo=U), H, F),
+                         '20 h po pobraniu, przed 05:00 UTC — nowej świecy jeszcze nie ma, bez drugiego pobrania (przegląd 28.09)')
+        self.assertTrue(zd.ks_due('2026-09-27T05:00:00+00:00', datetime.datetime(2026, 9, 28, 5, 0, tzinfo=U), H, F), 'następnego dnia o 05:00')
+        self.assertFalse(zd.ks_due('2026-09-27T04:59:00+00:00', datetime.datetime(2026, 9, 27, 4, 59, tzinfo=U), H, F), 'przed progiem tej doby')
+        self.assertTrue(zd.ks_due('2026-09-26T02:00:00Z', datetime.datetime(2026, 9, 27, 4, 20, tzinfo=U), H, F), 'zapas: 26 h minęło także bez progu')
+        self.assertTrue(zd.ks_due(None, self.NOW, H)); self.assertTrue(zd.ks_due('zły', self.NOW, H))
+        self.assertEqual((zd.KS_MEETINGS, zd.KS_SPREAD, zd.KS_SUM_MIN, zd.KS_SUM_MAX, zd.KS_HIST_DAYS, zd.KS_BUDGET, zd.KS_MAX_CALLS, zd.FED_EVERY,
+                          zd.KS_H_FROM_UTC, zd.KS_H_EVERY_H, zd.KS_LAST_EVERY_H, zd.KS_TR_MAX),
+                         (2, 0.05, 0.85, 1.15, 120, 30, 13, 15, 5, 26, 26, 10))
+
+    def test_dwie_doby_swiece_i_wynik_raz_na_dobe_od_0500_utc(self):
+        # przebiegi co 20 min przez dwie doby od nagrania (27.09 19:40 → 29.09 19:40 UTC): świece i ostatnie posiedzenie w pierwszym przebiegu
+        # i potem dokładnie raz na dobę — w pierwszym przebiegu od 05:00 UTC (nowa świeca dzienna zamknięta także zimą); pozostałe przebiegi po 11
+        prev, t, runs = None, self.NOW, {}
+        while t <= self.NOW + datetime.timedelta(days=2):
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+            o, urls = self._build(prev, t)
+            self.assertEqual(zd.META['errors'], [], t)
+            runs[t] = urls; prev = json.loads(json.dumps(o)); t += datetime.timedelta(minutes=20)
+        cand = [k.strftime('%d %H:%M') for k, u in runs.items() if any('/candlesticks?' in x for x in u)]
+        sett = [k.strftime('%d %H:%M') for k, u in runs.items() if any('status=settled' in x for x in u)]
+        self.assertEqual(cand, ['27 19:40', '28 05:00', '29 05:00'], 'świece raz na dobę od 05:00 UTC (bez drugiego pobrania ok. 01:00)')
+        self.assertEqual(sett, cand, 'ostatnie posiedzenie razem ze świecami')
+        self.assertEqual(sorted({len(u) for k, u in runs.items() if k.strftime('%d %H:%M') not in cand}), [11], 'pozostałe przebiegi: 11 zapytań')
+        self.assertEqual([len(runs[k]) for k in runs if k.strftime('%d %H:%M') in cand], [13, 13, 13])
+
+    def test_limit_transakcji_i_twardy_limit_zapytan(self):
+        # szósty wynik na obu posiedzeniach (np. podwyżka o 0,50): transakcje najwyżej KS_TR_MAX, świece i ostatnie posiedzenie zachowują miejsce
+        j = _copy_v131.deepcopy(FED_PROBKA['events'])
+        for e in j['events'][:2]:
+            m = _copy_v131.deepcopy([x for x in e['markets'] if x['custom_strike'] == {'Hike': '25'}][0])
+            m['custom_strike'] = {'Hike': '50'}; m['ticker'] = m['ticker'].replace('-H25', '-H50'); e['markets'].append(m)
+        get_json, urls = self._get()
+        six = lambda u, headers=None, timeout=30: (urls.append(u), _copy_v131.deepcopy(j))[1] if '/events?' in u else get_json(u, headers, timeout)  # noqa: E731
+        with mock.patch.object(zd, 'get_json', side_effect=six):
+            o = zd.build_fed(None, now=self.NOW)
+        self.assertEqual(len(urls), 13, 'ceny + 10 transakcji + świece + ostatnie posiedzenie'); self.assertEqual(o['stat']['paths'], 13)
+        self.assertEqual(sum('/markets/trades?' in u for u in urls), zd.KS_TR_MAX)
+        self.assertEqual(o['ok'], {'ks': True, 'ks_tr': True, 'ks_h': True, 'ks_last': True}); self.assertEqual(zd.META['errors'], [])
+        self.assertIn('Fed (rynek zakładów): limit 10 zapytań o transakcje — czas ostatniej transakcji 2 wyników z poprzedniego pliku', zd.META['notes'])
+        dec = o['ks']['meetings'][1]
+        self.assertEqual([x['k'] for x in dec['out']][-2:], ['hikegt25', 'hike50']); self.assertEqual([x['lt'] for x in dec['out']][-2:], [None, None], 'bez poprzedniego pliku — brak')
+        # twardy limit KS_MAX_CALLS (gdyby limit transakcji zawiódł): 13. zapytanie jest ostatnim, dalsze części — błąd „limit zapytań”
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        get_json, urls = self._get()
+        six = lambda u, headers=None, timeout=30: (urls.append(u), _copy_v131.deepcopy(j))[1] if '/events?' in u else get_json(u, headers, timeout)  # noqa: E731
+        with mock.patch.object(zd, 'KS_TR_MAX', 99), mock.patch.object(zd, 'get_json', side_effect=six):
+            o = zd.build_fed(None, now=self.NOW)
+        self.assertEqual(len(urls), 13, '1 ceny + 12 transakcji — potem limit'); self.assertEqual(o['stat']['paths'], 13)
+        self.assertEqual(zd.META['errors'], ['Fed (rynek zakładów): historia: RuntimeError: limit zapytań w przebiegu; ostatnie posiedzenie: RuntimeError: limit zapytań w przebiegu'])
+        self.assertEqual((o['ok']['ks_h'], o['ok']['ks_last']), (False, False))
+
+    # ---------------------------------------------------------------- budowniczy
+    def test_pierwszy_przebieg_13_zapytan_i_ksztalt_pliku(self):
+        o, urls = self._build()
+        self.assertEqual(zd.META['errors'], []); self.assertEqual(zd.META['notes'], [])
+        self.assertEqual(o['ok'], {'ks': True, 'ks_tr': True, 'ks_h': True, 'ks_last': True})
+        self.assertEqual(o['part_at'], {k: '2026-09-27T19:40:00+00:00' for k in zd.KS_PARTS}, 'czas części z zegara przebiegu (+00:00)')
+        self.assertEqual(len(urls), 13); self.assertEqual(o['stat']['req'], 13); self.assertEqual(o['stat']['paths'], 13)
+        self.assertTrue(all(u.startswith(zd.KS_BASE + '/') for u in urls), 'tylko host główny')
+        self.assertEqual(urls[0], zd.KS_BASE + '/events?series_ticker=KXFEDDECISION&status=open&with_nested_markets=true&limit=200')
+        self.assertEqual(urls[1], zd.KS_BASE + '/markets/trades?ticker=KXFEDDECISION-26OCT-C26&limit=1')
+        self.assertEqual(sum('/markets/trades?' in u for u in urls), 10)
+        cu = [u for u in urls if '/candlesticks?' in u][0]
+        self.assertIn('market_tickers=KXFEDDECISION-26OCT-C26,KXFEDDECISION-26OCT-C25,', cu); self.assertEqual(cu.count('KXFEDDECISION-'), 10)
+        a = int(cu.split('start_ts=')[1].split('&')[0]); b = int(cu.split('end_ts=')[1].split('&')[0])
+        self.assertEqual((b, b - a), (int(self.NOW.timestamp()), 122 * 86400)); self.assertTrue(cu.endswith('&period_interval=1440'))
+        su = [u for u in urls if 'status=settled' in u][0]
+        self.assertEqual(int(su.split('min_settled_ts=')[1].split('&')[0]), int(self.NOW.timestamp()) - 75 * 86400)
+        self.assertEqual(self.sleeps, [zd.KS_PAUSE] * 12, 'przerwa między zapytaniami, bez ponowień')
+        K = o['ks']
+        self.assertEqual((K['venue'], K['series'], K['spread_max']), ('Kalshi', 'KXFEDDECISION', 0.05))
+        m0 = K['meetings'][0]
+        self.assertEqual(m0['last_trade'], '2026-09-27T18:52:51Z'); self.assertTrue(all(x['lt'] == '2026-09-27T18:52:51Z' for x in m0['out']))
+        h25, h0, c25 = self._o(m0, 'hike25'), self._o(m0, 'hold'), self._o(m0, 'cut25')
+        c = zd.ks_candles(FED_PROBKA['candles']); now_s = int(self.NOW.timestamp())
+        self.assertEqual((h25['p7d'], h25['p30d']), (zd.ks_back(c['KXFEDDECISION-26OCT-H25'], now_s, 7), zd.ks_back(c['KXFEDDECISION-26OCT-H25'], now_s, 30)))
+        self.assertIsNotNone(h25['p7d']); self.assertIsNotNone(h0['p30d'])
+        self.assertEqual((c25['p7d'], c25['p30d']), (None, None), 'kontrakt bez świec w odpowiedzi — brak zmiany, nie 0')
+        H = K['hist']
+        self.assertEqual(sorted(H), ['KXFEDDECISION-26DEC', 'KXFEDDECISION-26OCT'])
+        self.assertEqual(len(H['KXFEDDECISION-26OCT']['d']), 35); self.assertEqual(H['KXFEDDECISION-26OCT']['d'][-1], '2026-09-26')
+        self.assertEqual(H['KXFEDDECISION-26OCT']['cut25'], [None] * 35); self.assertEqual(H['KXFEDDECISION-26DEC'], {'d': [], 'cutgt25': [], 'cut25': [], 'hold': [], 'hike25': [], 'hikegt25': []})
+        self.assertEqual(K['last']['result'], 'hike25'); self.assertEqual(o['at'], zd.NOW)
+        self.assertNotIn('Kalshi', o['src'] + ' '.join(o['notes']), 'opis pliku bez nazwy rynku (nazwa tylko w polu venue)')
+        s = json.dumps(o, ensure_ascii=False); self.assertNotIn('NaN', s); self.assertLess(len(s), 60000)
+
+    def test_drugi_przebieg_11_zapytan_zmiany_z_zapisanej_historii(self):
+        o1, _ = self._build()
+        prev = json.loads(json.dumps(o1))
+        later = self.NOW + datetime.timedelta(minutes=20)
+        o2, urls = self._build(prev, later)
+        self.assertEqual(len(urls), 11, 'ceny + 10 transakcji; świece i ostatnie posiedzenie niepotrzebne')
+        self.assertEqual(o2['ok'], {'ks': True, 'ks_tr': True, 'ks_h': True, 'ks_last': True})
+        self.assertEqual((o2['part_at']['ks'], o2['part_at']['ks_h'], o2['part_at']['ks_last']), ('2026-09-27T20:00:00+00:00', o1['part_at']['ks_h'], o1['part_at']['ks_last']))
+        h1, h2 = self._o(o1['ks']['meetings'][0], 'hike25'), self._o(o2['ks']['meetings'][0], 'hike25')
+        self.assertEqual((h2['p7d'], h2['p30d']), (h1['p7d'], h1['p30d']), 'zmiany 7/30 dni z historii zapisanej w pliku')
+        self.assertEqual(o2['ks']['hist'], o1['ks']['hist']); self.assertEqual(o2['ks']['last'], o1['ks']['last'])
+        # następnego dnia po 05:00 UTC — świece i ostatnie posiedzenie znowu (nowa świeca dzienna zamknięta), potem do jutra bez nich
+        o3, urls3 = self._build(json.loads(json.dumps(o2)), datetime.datetime(2026, 9, 28, 5, 20, tzinfo=datetime.timezone.utc))
+        self.assertEqual(len(urls3), 13, 'ceny + 10 + świece + ostatnie posiedzenie (pierwszy przebieg od 05:00 UTC)')
+        o4, urls4 = self._build(json.loads(json.dumps(o3)), datetime.datetime(2026, 9, 28, 16, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(len(urls4), 11, 'ceny + 10; świece i ostatnie posiedzenie już dziś po 05:00')
+        o5, urls5 = self._build(json.loads(json.dumps(o4)), datetime.datetime(2026, 9, 29, 1, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(len(urls5), 11, '01:00 UTC (ok. 20 h po pobraniu) — nowej świecy jeszcze nie ma, bez pobrania')
+
+    def test_po_decyzji_wynik_pobierany_co_przebieg_az_sie_pojawi(self):
+        o1, _ = self._build(); prev = json.loads(json.dumps(o1))
+        self.assertIsNone(o1['ks']['pend'], 'żadne pokazane posiedzenie jeszcze się nie odbyło')
+        po = datetime.datetime(2026, 10, 28, 18, 20, tzinfo=datetime.timezone.utc)   # 21 min po zamknięciu handlu październikiem
+        o2, urls = self._build(prev, po)
+        self.assertEqual([m['event'] for m in o2['ks']['meetings']], ['KXFEDDECISION-26DEC', 'KXFEDDECISION-27JAN'])
+        self.assertEqual(o2['ks']['pend'], '2026-10-28T17:59:00Z'); self.assertEqual(o2['ks']['last']['event'], 'KXFEDDECISION-26SEP', 'wyniku jeszcze nie ma')
+        self.assertTrue(any('status=settled' in u for u in urls))
+        o3, urls3 = self._build(json.loads(json.dumps(o2)), po + datetime.timedelta(minutes=20))
+        self.assertTrue(any('status=settled' in u for u in urls3), 'nadal czekamy na wynik — pytamy w każdym przebiegu')
+        self.assertEqual(o3['ks']['pend'], '2026-10-28T17:59:00Z', 'oczekiwanie zapamiętane, choć październik zniknął z pliku')
+        paz = _copy_v131.deepcopy(FED_PROBKA['settled'])
+        for m in paz['markets']:
+            if m['event_ticker'] == 'KXFEDDECISION-26SEP':
+                m['event_ticker'] = 'KXFEDDECISION-26OCT'; m['close_time'] = '2026-10-28T17:59:00Z'
+        get_json, urls4 = self._get()
+        with mock.patch.object(zd, 'get_json', side_effect=lambda u, headers=None, timeout=30: _copy_v131.deepcopy(paz) if 'status=settled' in u else get_json(u, headers, timeout)):
+            o4 = zd.build_fed(json.loads(json.dumps(o3)), now=po + datetime.timedelta(minutes=40))
+        self.assertEqual((o4['ks']['last']['event'], o4['ks']['last']['date']), ('KXFEDDECISION-26OCT', '2026-10-28'))
+        o5, urls5 = self._build(json.loads(json.dumps(o4)), po + datetime.timedelta(minutes=60))
+        self.assertFalse(any('status=settled' in u for u in urls5), 'wynik jest — znowu raz na dobę')
+
+    def test_czesc_z_bledem_ponawiana_w_nastepnym_przebiegu(self):
+        o1, _ = self._build(fail=lambda u: _uerr_v131.HTTPError(u, 500, 'x', {}, None) if '/candlesticks?' in u else None)
+        self.assertIs(o1['ok']['ks_h'], False); self.assertIsNone(o1['part_at']['ks_h']); self.assertEqual(o1['ks']['hist'], {})
+        self.assertEqual(zd.META['errors'], ['Fed (rynek zakładów): historia: HTTP 500'])
+        h = self._o(o1['ks']['meetings'][0], 'hike25'); self.assertEqual((h['p7d'], h['p30d']), (None, None), 'bez świec — brak zmian, nie 0')
+        o2, urls = self._build(json.loads(json.dumps(o1)), self.NOW + datetime.timedelta(minutes=20))
+        self.assertTrue(any('/candlesticks?' in u for u in urls), 'część z błędem ponowiona po 20 min'); self.assertIs(o2['ok']['ks_h'], True)
+
+    def test_ceny_zawodza_bez_poprzedniego_pliku_wyjatek_z_poprzednim_dane_i_czas(self):
+        down = lambda u: _uerr_v131.URLError('timed out')  # noqa: E731
+        with self.assertRaises(RuntimeError):
+            self._build(fail=down)
+        o1, _ = self._build()
+        prev = json.loads(json.dumps(o1)); zd.META['errors'].clear()
+        o2, urls = self._build(prev, self.NOW + datetime.timedelta(minutes=20), fail=down)
+        self.assertEqual(urls, [zd.KS_BASE + zd.KS_EVENTS.format(s='KXFEDDECISION'), zd.KS_BASE2 + zd.KS_EVENTS.format(s='KXFEDDECISION')],
+                         'błąd sieci — jedna próba na hoście zapasowym, potem bez dalszych zapytań')
+        self.assertEqual(o2['ok'], {'ks': False, 'ks_tr': 'skip', 'ks_h': 'skip', 'ks_last': 'skip'})
+        self.assertEqual(o2['part_at'], o1['part_at'], 'każda część z własnym czasem z poprzedniego pliku')
+        self.assertEqual(o2['ks']['meetings'], prev['ks']['meetings'], 'poprzednie ceny bez zmian')
+        self.assertEqual(zd.META['errors'], ['Fed (rynek zakładów): ceny: URLError: <urlopen error timed out>'])
+        self.assertIn('Fed (rynek zakładów): ceny bez odpowiedzi — transakcje, świece i ostatnie posiedzenie z poprzedniego pliku', zd.META['notes'])
+        # poprzedni plik z posiedzeniem już zamkniętym (po 28.10 17:59) i bez następnego — wyjątek (main zostawi poprzedni plik)
+        with self.assertRaises(RuntimeError):
+            self._build({'at': '2026-09-27T19:40:00+00:00', 'ks': {'meetings': [prev['ks']['meetings'][0]]}},
+                        datetime.datetime(2026, 10, 28, 18, 0, tzinfo=datetime.timezone.utc), fail=down)
+
+    def test_host_zapasowy_tylko_dla_cen_i_ponowienie_po_429(self):
+        seen = {'429': 0}
+
+        def fail(u):
+            if u.startswith(zd.KS_BASE + '/events?'):
+                return _uerr_v131.HTTPError(u, 503, 'x', {}, None)
+            if u.endswith('ticker=KXFEDDECISION-26OCT-H25&limit=1') and not seen['429']:
+                seen['429'] += 1; return _uerr_v131.HTTPError(u, 429, 'too many requests', {}, None)
+            if u.endswith('ticker=KXFEDDECISION-26DEC-H25&limit=1'):
+                return _uerr_v131.HTTPError(u, 503, 'x', {}, None)
+            return None
+        o, urls = self._build(fail=fail)
+        self.assertEqual(urls[:2], [zd.KS_BASE + zd.KS_EVENTS.format(s='KXFEDDECISION'), zd.KS_BASE2 + zd.KS_EVENTS.format(s='KXFEDDECISION')])
+        self.assertEqual(sum(u.startswith(zd.KS_BASE2) for u in urls), 1, 'transakcje z błędem 5xx nie idą na host zapasowy')
+        self.assertEqual(len(urls), 15, '2 ceny + 11 transakcji (jedno ponowienie po 429) + świece + ostatnie posiedzenie')
+        self.assertIn(zd.KS_RETRY_S, self.sleeps); self.assertEqual(o['stat']['req'], 15)
+        self.assertIs(o['ok']['ks'], True); self.assertIs(o['ok']['ks_tr'], False)
+        dec = o['ks']['meetings'][1]
+        self.assertIsNone(self._o(dec, 'hike25')['lt'], 'transakcja z błędem, bez poprzedniego pliku — brak'); self.assertEqual(dec['last_trade'], '2026-09-27T18:52:51Z')
+        self.assertEqual(zd.META['errors'], ['Fed (rynek zakładów): transakcje hike25: HTTP 503'])
+        self.assertNotIn('kalshi', ' '.join(zd.META['errors']).lower(), 'komunikat bez adresu')
+
+    def test_transakcje_zawodza_poprzedni_czas_zostaje(self):
+        o1, _ = self._build(); prev = json.loads(json.dumps(o1))
+        o2, _ = self._build(prev, self.NOW + datetime.timedelta(minutes=20), fail=lambda u: TimeoutError('timed out') if '/trades?' in u else None)
+        self.assertIs(o2['ok']['ks'], True); self.assertIs(o2['ok']['ks_tr'], False); self.assertEqual(o2['part_at']['ks_tr'], o1['part_at']['ks_tr'])
+        self.assertEqual(o2['ks']['meetings'][0]['last_trade'], '2026-09-27T18:52:51Z', 'czas ostatniej transakcji z poprzedniego pliku')
+
+    def test_koniec_czasu_czesci_to_uwaga_nie_blad(self):
+        clock = [1000.0]
+
+        def fail(u):
+            clock[0] += 4.0   # każde zapytanie „trwa” 4 s: po ~7 zapytaniach zostaje < 1 s z 30 s
+            return None
+        with mock.patch.object(zd.time, 'monotonic', lambda: clock[0]):
+            o, urls = self._build(fail=fail)
+        self.assertEqual(len(urls), 8, 'ceny + 7 transakcji, potem koniec czasu części')
+        self.assertEqual(o['ok'], {'ks': True, 'ks_tr': 'skip', 'ks_h': 'skip', 'ks_last': 'skip'})
+        self.assertEqual(zd.META['errors'], [], 'koniec czasu to nie błąd źródła')
+        self.assertTrue(any(n.startswith('Fed (rynek zakładów): koniec czasu części') for n in zd.META['notes']), zd.META['notes'])
+        dec = o['ks']['meetings'][1]
+        self.assertEqual([x['lt'] for x in dec['out']], ['2026-09-27T18:52:51Z'] * 2 + [None] * 3, 'pominięte — brak (bez poprzedniego pliku)')
+        self.assertTrue(all(x['lt'] == '2026-09-27T18:52:51Z' for x in o['ks']['meetings'][0]['out']))
+
+    def test_spozniony_przebieg_tylko_ceny(self):
+        o1, _ = self._build(); prev = json.loads(json.dumps(o1))
+        o2, urls = self._build(prev, self.NOW + datetime.timedelta(minutes=20), run_t0=zd.time.monotonic() - 600)
+        self.assertEqual(len(urls), 1, 'przebieg trwa 10 min — tylko ceny')
+        self.assertEqual(o2['ok'], {'ks': True, 'ks_tr': 'skip', 'ks_h': 'skip', 'ks_last': 'skip'})
+        self.assertEqual(o2['ks']['meetings'][0]['last_trade'], '2026-09-27T18:52:51Z'); self.assertEqual(o2['ks']['last'], o1['ks']['last'])
+        self.assertTrue(any('przebieg dłuższy niż 480 s' in n for n in zd.META['notes']))
+        o3, urls3 = self._build(json.loads(json.dumps(o2)), self.NOW + datetime.timedelta(minutes=40))
+        self.assertEqual(len(urls3), 11, 'części pominięte w spóźnionym przebiegu mają dane z wcześniejszego sukcesu — w następnym bez dodatkowego '
+                                         'pobrania świec i ostatniego posiedzenia (przegląd 03.10)')
+        self.assertEqual(o3['ok'], {'ks': True, 'ks_tr': True, 'ks_h': True, 'ks_last': True})
+        self.assertEqual((o3['part_at']['ks_h'], o3['part_at']['ks_last']), (o1['part_at']['ks_h'], o1['part_at']['ks_last']), 'czas części — z ostatniego pobrania')
+
+    def test_doba_bez_swiecy_przeniesiona_swieca_bez_ceny_brak_jedna_droga(self):
+        # Rynek nie publikuje świecy kontraktu za dobę bez żadnego ruchu (03.10 na żywo: 26DEC-C26 — 92 świece na 122 doby). Doba bez świecy =
+        # zamknięcie poprzedniej świecy tego kontraktu (przeniesione); świeca bez ceny (bez transakcji, szeroka różnica) = brak, bez przenoszenia.
+        # Zmiany 7/30 dni jedną drogą (z historii): przebieg ze świecami i przebieg z zapisanej historii dają te same liczby (przegląd 03.10:
+        # wcześniej przebieg o 05:00 dawał liczbę, a pozostałe 71 przebiegów doby — „—”).
+        U = datetime.timezone.utc
+        C = _copy_v131.deepcopy(FED_PROBKA['candles'])
+        by = {m['market_ticker']: m for m in C['markets']}
+        H25, H0 = by['KXFEDDECISION-26OCT-H25'], by['KXFEDDECISION-26OCT-H0']
+        day = lambda c: zd.ks_candle_date(c['end_period_ts'])  # noqa: E731
+        H25['candlesticks'] = [c for c in H25['candlesticks'] if day(c) not in ('2026-09-19', '2026-08-27')]   # granice 7 i 30 dni przy NOW
+        for c in H0['candlesticks']:
+            if day(c) == '2026-09-19':
+                c['price'] = {}; c['yes_bid'] = {'close_dollars': '0.3000'}; c['yes_ask'] = {'close_dollars': '0.4000'}
+        full = {r[1]: r[2] for r in zd.ks_candles(FED_PROBKA['candles'])['KXFEDDECISION-26OCT-H25']}
+        cand = zd.ks_candles(C)
+        self.assertEqual(len(cand['KXFEDDECISION-26OCT-H25']), 33); self.assertIsNone([r for r in cand['KXFEDDECISION-26OCT-H0'] if r[1] == '2026-09-19'][0][2])
+        # historia: doba bez świecy H25 — zamknięcie z 18.09 (i 26.08); świeca H0 bez ceny — brak; kontrakt bez żadnej świecy — brak
+        mts = zd.ks_meetings(FED_PROBKA['events'], self.NOW)
+        H = zd.ks_hist(mts, cand)['KXFEDDECISION-26OCT']
+        self.assertEqual(len(H['d']), 35, 'daty posiedzenia ze wszystkich jego kontraktów')
+        i19, i27 = H['d'].index('2026-09-19'), H['d'].index('2026-08-27')
+        self.assertEqual((H['hike25'][i19], H['hike25'][i27]), (full['2026-09-18'], full['2026-08-26']), 'doba bez świecy — poprzednie zamknięcie')
+        self.assertNotEqual(full['2026-09-18'], full['2026-09-19'], 'nagranie rozróżnia przeniesienie od prawdziwej świecy')
+        self.assertIsNone(H['hold'][i19], 'świeca bez ceny — brak, nie poprzednia cena'); self.assertIsNotNone(H['hold'][i19 - 1])
+        self.assertEqual(H['cut25'], [None] * 35, 'kontrakt bez świec — brak, nigdy 0')
+        self.assertEqual(zd.ks_hist(mts, {'KXFEDDECISION-26OCT-H25': [(1, '2026-09-10', 0.5)], 'KXFEDDECISION-26OCT-H0': [(2, '2026-09-08', 0.4)]})
+                         ['KXFEDDECISION-26OCT']['hike25'], [None, 0.5], 'przed pierwszą świecą kontraktu — brak')
+        get_json, _ = self._get()
+
+        def run(prev, t):
+            urls = []
+            g = lambda u, headers=None, timeout=30: (urls.append(u), _copy_v131.deepcopy(C))[1] if '/candlesticks?' in u else (urls.append(u), get_json(u, headers, timeout))[1]  # noqa: E731
+            with mock.patch.object(zd, 'get_json', side_effect=g):
+                return zd.build_fed(prev, now=t), urls
+        zch = lambda o: [(m['event'], x['k'], x['p7d'], x['p30d']) for m in o['ks']['meetings'] for x in m['out']]  # noqa: E731
+        o1, u1 = run(None, self.NOW)
+        h25, h0 = self._o(o1['ks']['meetings'][0], 'hike25'), self._o(o1['ks']['meetings'][0], 'hold')
+        self.assertEqual((h25['p7d'], h25['p30d']), (full['2026-09-18'], full['2026-08-26']), 'przebieg ze świecami: najnowsza istniejąca świeca sprzed 7/30 dni')
+        self.assertIsNone(h0['p7d'], 'świeca bez ceny na granicy 7 dni — brak')
+        now_s = int(self.NOW.timestamp())
+        self.assertEqual((h25['p7d'], h25['p30d']), (zd.ks_back(cand['KXFEDDECISION-26OCT-H25'], now_s, 7), zd.ks_back(cand['KXFEDDECISION-26OCT-H25'], now_s, 30)))
+        # przebiegi bez świec (z zapisanej historii) do 05:00 następnego dnia — te same liczby co przebieg ze świecami w tej samej chwili
+        prev, cached = json.loads(json.dumps(o1)), {}
+        for t in (self.NOW + datetime.timedelta(minutes=20), datetime.datetime(2026, 9, 28, 3, 0, tzinfo=U), datetime.datetime(2026, 9, 28, 4, 40, tzinfo=U)):
+            o2, u2 = run(prev, t)
+            self.assertFalse(any('/candlesticks?' in u for u in u2), t)
+            f2, uf = run(None, t)
+            self.assertTrue(any('/candlesticks?' in u for u in uf), t)
+            self.assertEqual(zch(o2), zch(f2), f'{t}: przebieg z historii = przebieg ze świecami')
+            cached[t.strftime('%d %H:%M')] = self._o(o2['ks']['meetings'][0], 'hike25')['p7d']; prev = json.loads(json.dumps(o2))
+        self.assertEqual(cached['28 03:00'], full['2026-09-18'], '28.09 03:00 z historii — granica 7 dni nadal 19.09 (doba bez świecy): poprzednie zamknięcie, nie „—”')
+        self.assertEqual(cached['28 04:40'], full['2026-09-20'], '28.09 04:40 — granica przesunięta na 20.09 (świeca do 21.09 04:00 UTC)')
+        # ta sama zgodność w każdej chwili przez 10 dni: najnowsza istniejąca świeca (świeże świece) = wartość z historii po zapisie do pliku
+        hist = json.loads(json.dumps(o1['ks']['hist']))['KXFEDDECISION-26OCT']
+        for h in range(0, 240, 3):
+            ts = now_s + h * 3600
+            for k, t in (('hike25', 'KXFEDDECISION-26OCT-H25'), ('hold', 'KXFEDDECISION-26OCT-H0')):
+                for days in (7, 30):
+                    self.assertEqual(zd.ks_back(zd.ks_hist_rows(hist, k), ts, days), zd.ks_back(cand[t], ts, days), (h, k, days))
+
+    def test_zima_przebieg_ze_swiecami_i_z_historii_te_same_zmiany(self):
+        # Zimą świeca dzienna kończy się o 05:00 UTC. O 04:30 UTC przebieg ze świecami (np. po błędzie albo pierwszy) i przebieg z zapisanej
+        # historii liczą zmiany 7/30 dni tą samą drogą (z historii, granica doby 04:00 UTC) — ta sama liczba w obu (przegląd 03.10: jedna droga).
+        U = datetime.timezone.utc
+        T, rows = 'KXFEDDECISION-26DEC-H25', []
+        for i in range(29):   # doby nowojorskie 02.11–30.11.2026 (po zmianie czasu 01.11), świeca do 05:00 UTC następnego dnia
+            d = datetime.date(2026, 11, 2) + datetime.timedelta(days=i); v = 0.40 + 0.01 * i
+            end = datetime.datetime(d.year, d.month, d.day, 5, 0, tzinfo=U) + datetime.timedelta(days=1)
+            rows.append({'end_period_ts': int(end.timestamp()), 'price': {'close_dollars': f'{v:.4f}'},
+                         'yes_bid': {'close_dollars': f'{v - 0.01:.4f}'}, 'yes_ask': {'close_dollars': f'{v + 0.01:.4f}'}})
+        C = {'markets': [{'market_ticker': T, 'candlesticks': rows}]}
+        self.assertEqual((zd.ks_candle_date(rows[0]['end_period_ts']), zd.ks_candle_date(rows[-1]['end_period_ts'])), ('2026-11-02', '2026-11-30'))
+        get_json, _ = self._get()
+
+        def run(prev, t):
+            urls = []
+            g = lambda u, headers=None, timeout=30: (urls.append(u), _copy_v131.deepcopy(C))[1] if '/candlesticks?' in u else (urls.append(u), get_json(u, headers, timeout))[1]  # noqa: E731
+            with mock.patch.object(zd, 'get_json', side_effect=g):
+                return zd.build_fed(prev, now=t), urls
+        h = lambda o: self._o(o['ks']['meetings'][0], 'hike25')  # noqa: E731
+        o0, u0 = run(None, datetime.datetime(2026, 12, 1, 5, 20, tzinfo=U))
+        self.assertEqual(o0['ks']['meetings'][0]['event'], 'KXFEDDECISION-26DEC'); self.assertTrue(any('/candlesticks?' in u for u in u0))
+        t = datetime.datetime(2026, 12, 2, 4, 30, tzinfo=U)   # następnego dnia przed 05:00 UTC — świeca z 01.12 jeszcze otwarta
+        oc, uc = run(json.loads(json.dumps(o0)), t)
+        self.assertFalse(any('/candlesticks?' in u for u in uc), 'przebieg z zapisanej historii (świece pobrane o 05:20, nie minęła doba)')
+        of, uf = run(None, t)
+        self.assertTrue(any('/candlesticks?' in u for u in uf), 'przebieg ze świecami w tej samej chwili')
+        self.assertEqual((h(oc)['p7d'], h(oc)['p30d']), (h(of)['p7d'], h(of)['p30d']), 'ta sama zmiana 7/30 dni w obu przebiegach')
+        self.assertEqual(h(oc)['p7d'], round(0.40 + 0.01 * 22, 4), 'granica 7 dni: doba 24.11 (koniec doby liczony jak latem — 04:00 UTC)')
+
+    def test_pominiecie_czesci_nie_wymusza_pobrania(self):
+        # Doba przebiegów co 20 min (27.09 19:40 → 28.09 19:40 UTC). Spóźnione przebiegi 28.09 10:00 i 15:00 (tylko ceny, części 'skip') oraz
+        # brak odpowiedzi cen 28.09 12:00 (dane z poprzedniego pliku, części 'skip') nie wymuszają pobrania świec ani ostatniego posiedzenia
+        # w następnym przebiegu — tylko 27.09 19:40 (pierwszy) i 28.09 05:00 (nowa świeca dzienna). Przegląd 03.10: wcześniej dodatkowo 10:20,
+        # 12:20 i 15:20. Ponownie: część z błędem (False) i część bez czasu sukcesu.
+        U = datetime.timezone.utc
+        late = {datetime.datetime(2026, 9, 28, 10, 0, tzinfo=U), datetime.datetime(2026, 9, 28, 15, 0, tzinfo=U)}
+        down = datetime.datetime(2026, 9, 28, 12, 0, tzinfo=U)
+        prev, t, runs, oks, pats = None, self.NOW, {}, {}, {}
+        while t <= self.NOW + datetime.timedelta(days=1):
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+            fail = (lambda u: _uerr_v131.URLError('timed out') if '/events?' in u else None) if t == down else None
+            o, urls = self._build(prev, t, fail=fail, run_t0=zd.time.monotonic() - 600 if t in late else None)
+            k = t.strftime('%d %H:%M'); runs[k], oks[k], pats[k] = urls, o['ok'], o['part_at']
+            prev = json.loads(json.dumps(o)); t += datetime.timedelta(minutes=20)
+        cand = [k for k, u in runs.items() if any('/candlesticks?' in x for x in u)]
+        sett = [k for k, u in runs.items() if any('status=settled' in x for x in u)]
+        self.assertEqual(cand, ['27 19:40', '28 05:00'], 'świece: pierwszy przebieg i nowa świeca dzienna — bez dodatkowych pobrań po pominięciu')
+        self.assertEqual(sett, cand, 'ostatnie posiedzenie tak samo')
+        for k in ('28 10:00', '28 15:00'):
+            self.assertEqual(len(runs[k]), 1, k); self.assertEqual(oks[k], {'ks': True, 'ks_tr': 'skip', 'ks_h': 'skip', 'ks_last': 'skip'}, k)
+        self.assertEqual(len(runs['28 12:00']), 2, 'ceny: host główny i zapasowy'); self.assertEqual((oks['28 12:00']['ks'], oks['28 12:00']['ks_h']), (False, 'skip'))
+        for k in ('28 10:20', '28 12:20', '28 15:20'):
+            self.assertEqual(len(runs[k]), 11, k + ': ceny + 10 transakcji, bez świec i ostatniego posiedzenia')
+            self.assertEqual(oks[k], {'ks': True, 'ks_tr': True, 'ks_h': True, 'ks_last': True}, k)
+            self.assertEqual((pats[k]['ks_h'], pats[k]['ks_last']), ('2026-09-28T05:00:00+00:00', '2026-09-28T05:00:00+00:00'), k)
+        self.assertEqual(sorted({len(u) for k, u in runs.items() if k not in cand + ['28 10:00', '28 12:00', '28 15:00']}), [11])
+        # część z błędem w poprzednim pliku (False) — ponowiona, choć jej czas sukcesu jest świeży
+        o1, _ = self._build(); p = json.loads(json.dumps(o1)); p['ok']['ks_h'] = False; p['ok']['ks_last'] = False
+        _, u2 = self._build(p, self.NOW + datetime.timedelta(minutes=20))
+        self.assertTrue(any('/candlesticks?' in u for u in u2) and any('status=settled' in u for u in u2), 'stan False — ponowienie')
+        # pierwszy przebieg w ogóle spóźniony: części bez czasu sukcesu — pobrane w następnym przebiegu
+        o3, u3 = self._build(None, self.NOW, run_t0=zd.time.monotonic() - 600)
+        self.assertEqual(len(u3), 1); self.assertEqual((o3['part_at']['ks_h'], o3['part_at']['ks_last']), (None, None))
+        _, u4 = self._build(json.loads(json.dumps(o3)), self.NOW + datetime.timedelta(minutes=20))
+        self.assertEqual(len(u4), 13, 'części bez czasu sukcesu — pobrane')
+        # nowe posiedzenie wśród pokazanych (po decyzji październikowej) — świece od razu, choć dzisiejsze już pobrane o 05:20
+        a, _ = self._build(None, datetime.datetime(2026, 10, 28, 5, 20, tzinfo=U))
+        b, ub = self._build(json.loads(json.dumps(a)), datetime.datetime(2026, 10, 28, 18, 20, tzinfo=U))
+        self.assertEqual([m['event'] for m in b['ks']['meetings']], ['KXFEDDECISION-26DEC', 'KXFEDDECISION-27JAN'])
+        self.assertTrue(any('/candlesticks?' in u for u in ub), 'nowe posiedzenie — świece od razu'); self.assertIn('KXFEDDECISION-27JAN', b['ks']['hist'])
+
+    def test_wylacznik_bez_zapytan(self):
+        o = zd.fed_off()
+        self.assertEqual((o['ok'], o['ks'], o['part_at']), ({'ks': 'off'}, None, {})); self.assertEqual(o['at'], zd.NOW)
+        self.assertEqual(zd.KS_OFF_ON, ('1', 'true', 'tak', 'yes', 'on'))
+
+    # ---------------------------------------------------------------- przebieg główny
+    def test_main_cache_budowa_awaria_i_wylacznik(self):
+        saved, built = {}, []
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_fed' and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
+                               'SITE_URL', 'CACHE_DIR', 'KALSHI_OFF')}
+        ok = {k: True for k in zd.KS_PARTS}
+        young, young_bad = {'at': _iso(10), 'ok': ok}, {'at': _iso(10), 'ok': dict(ok, ks_h=False)}
+        old = {'at': _iso(25), 'ok': ok}
+        fd = {'at': zd.NOW, 'ok': dict(ok), 'ks': {}}
+        [p.start() for p in stubs]
+        try:
+            def run(prev, build, off=''):
+                calls = []
+                zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+                with mock.patch.dict(os.environ, dict(env, KALSHI_OFF=off), clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                     mock.patch.object(zd, 'previous', lambda name: prev if name == 'fed' else None), \
+                     mock.patch.object(zd, 'build_fed', side_effect=(lambda p, now=None, run_t0=None: calls.append((p, run_t0)) or build) if not isinstance(build, Exception) else build):
+                    zd.main()
+                return calls
+            self.assertEqual(run(young, AssertionError('nie powinien budować')), []); self.assertIs(saved['fed'], young); self.assertEqual(zd.META['ok']['fed'], 'cached')
+            c = run(young_bad, fd); self.assertEqual(len(c), 1, 'część z błędem — budowa mimo młodego pliku'); self.assertIs(c[0][0], young_bad)
+            self.assertIsInstance(c[0][1], float, 'początek przebiegu przekazany (spóźniony przebieg = tylko ceny)'); self.assertIs(zd.META['ok']['fed'], True)
+            self.assertEqual(len(run(old, fd)), 1); self.assertIs(saved['fed'], fd)
+            run(old, dict(fd, ok=dict(ok, ks=False))); self.assertIs(zd.META['ok']['fed'], False, 'ceny bez odpowiedzi = źródło bez odpowiedzi')
+            run(old, dict(fd, ok=dict(ok, ks_tr=False))); self.assertIs(zd.META['ok']['fed'], True, 'o stanie źródła decydują ceny')
+            saved.clear()
+            run(old, RuntimeError('brak cen')); self.assertIs(saved['fed'], old, 'awaria — zostaje poprzedni plik'); self.assertIs(zd.META['ok']['fed'], False)
+            self.assertIn('Fed (rynek zakładów): brak cen', zd.META['errors'])
+            saved.clear()
+            run(None, RuntimeError('brak cen')); self.assertNotIn('fed', saved, 'bez poprzedniego pliku i bez danych — nic nie zapisujemy')
+            saved.clear()
+            for off in ('1', 'true', ' TAK ', 'on'):
+                self.assertEqual(run(old, AssertionError('wyłącznik — bez budowy'), off=off), [], off)
+                self.assertEqual(saved['fed']['ok'], {'ks': 'off'}); self.assertIsNone(saved['fed']['ks']); self.assertNotIn('fed', zd.META['ok'], 'wyłączone ≠ źródło bez odpowiedzi')
+                self.assertIn('Fed (rynek zakładów): wyłączone zmienną KALSHI_OFF — bez zapytań', zd.META['notes'])
+            self.assertEqual(len(run(old, fd, off='0')), 1, 'KALSHI_OFF=0 — część działa')
+        finally:
+            [p.stop() for p in stubs]
+
+    def test_kod_kontrola_workflow_strona_i_zaslepki(self):
+        root = os.path.dirname(os.path.abspath(__file__))
+        src = open(zd.__file__, encoding='utf-8').read()
+        a = src.index('# ===================== v131: FED')
+        b = min(i for i in (src.find('\n# =====', a + 1), src.find('\n# --- v', a + 1), src.find('\ndef main():', a + 1)) if i > 0)
+        blok = src[a:b]
+        self.assertIn('def build_fed(', blok); self.assertNotIn('KEY', blok); self.assertNotIn('os.environ', blok, 'źródło bez klucza; wyłącznik czyta main')
+        self.assertNotIn('urlopen', blok, 'sieć tylko przez get_json')
+        self.assertLess(src.index('def build_fed('), src.index('def main():'))
+        m0 = src.index("prev_fed = previous('fed')")
+        self.assertTrue(src.index("prev_snb = previous('snb')") < m0 < src.index('# v106: indeksy świata (EODHD'), 'po Szwajcarii, przed indeksami')
+        self.assertIn("if os.environ.get('KALSHI_OFF', '').strip().lower() in KS_OFF_ON:", src)
+        self.assertIn("META['errors'].append(mask(f'{FED_LABEL}: {e}')); META['ok']['fed'] = False", src); self.assertIn("if prev_fed: save('fed', prev_fed)", src)
+        self.assertIn('Developer Agreement', zd.build_fed.__doc__); self.assertIn('publicly displaying', zd.build_fed.__doc__); self.assertIn('KALSHI_OFF', zd.build_fed.__doc__)
+        wf = open(os.path.join(root, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        self.assertEqual(wf.count('KALSHI_OFF: ${{ vars.KALSHI_OFF }}'), 1, 'zmienna repozytorium (nie sekret) tylko w kroku zbieracza')
+        i_z, i_s = wf.index('- name: Zbierz dane'), wf.index('- name: Straż kluczy')
+        self.assertTrue(i_z < wf.index('KALSHI_OFF:') < wf.index('run: python3 zbieraj_dane.py') < i_s); self.assertNotIn('secrets.KALSHI', wf)
+        k = open(os.path.join(root, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        PL = eval(_re_v131.search(r'^PLIKI = (\[.*\])$', k, _re_v131.M).group(1)); LM = eval(_re_v131.search(r'^LIMIT_MIN = (\{[^}]*\})', k, _re_v131.M).group(1))
+        self.assertIn('fed', PL); self.assertEqual(LM['fed'], 90, 'plik co 20 min: półtorej godziny bez nowego pliku = uwaga')
+        self.assertEqual(PL[-2:], ['krypto-dzien', 'krypto-dziennik'], 'pliki v125 zostają ostatnie')
+        self.assertIn("fr = fed_swiezosc(files.get('fed'))", k); self.assertLess(k.index("fr = fed_swiezosc(files.get('fed'))"), k.index('# 3d. v115: zgodność liczb'))
+        h = open(os.path.join(root, 'index.html'), encoding='utf-8').read()
+        self.assertEqual(h.count('<section class="panel pcard" id="g-fed" hidden></section>'), 1); self.assertIn("srvJSON('fed')", h)
+        self.assertTrue(h.index('<section id="g-prob"></section>') < h.index('id="g-fed"') < h.index('id="g-q"') < h.index('id="tv-markets"'), 'zaraz po g-prob, przed widgetami')
+        self.assertEqual(h.count('Kalshi'), 1, 'nazwa rynku na stronie jeden raz (stała FED_VENUE)'); self.assertIn("const FED_VENUE={ks:'Kalshi'};", h)
+        self.assertEqual(h.count('const EXTRA128='), 1); self.assertNotIn('KXFEDDECISION', h, 'kod serii tylko w pliku danych')
+        me = open(__file__, encoding='utf-8').read(); a = me.index('class FedV131(')
+        b = min([i for i in (me.find('\nclass ', a + 1), me.find('\nif __name__', a + 1), me.find('\n# =====', a + 1)) if i > 0] or [len(me)])
+        tups = [m.group(0) for m in _re_v131.finditer(r"\('build_\w+'(?:,\s*'build_\w+')+\)", me[:a] + me[b:]) if "'build_wieloryby'" in m.group(0)]
+        self.assertTrue(len(tups) >= 18 and all("'build_fed'" in x for x in tups), 'każda lista zaślepek przebiegu głównego (z build_wieloryby) zna build_fed')
+        i = me.index('def test_meta_is_always_written'); j = me.index('\n    def ', i + 1)
+        self.assertIn("startswith(('instytucje', 'Stres', 'Fed', ", me[i:j], 'etykieta błędów Fed na liście przebiegu bez sieci')
+
+    def test_kontrola_swiezosc_i_uwagi(self):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola131-')
+        env = {'KONTROLA_DIR': os.path.join(tmp, 'kontrola'), 'KONTROLA_ARCH': os.path.join(tmp, 'archiwum')}
+        with mock.patch.dict(os.environ, env, clear=False):
+            spec = importlib.util.spec_from_file_location('v131_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        now = self.NOW
+        f = lambda pa, **x: dict({'at': pa, 'ok': {'ks': True}, 'part_at': {'ks': pa}}, **x)  # noqa: E731
+        self.assertEqual(k.fed_swiezosc(f('2026-09-27T19:00:00+00:00'), now), ('szanse decyzji Fed (rynek zakładów)', '✅', 40, '2026-09-27T19:00:00+00:00', ''))
+        self.assertEqual(k.fed_swiezosc(f('2026-09-27T17:40:00+00:00'), now)[1:3], ('⚠️', 120))
+        r = k.fed_swiezosc(f('2026-09-27T12:00:00+00:00'), now); self.assertEqual(r[1], '❌'); self.assertIn('ponad 2× progu', r[4])
+        self.assertEqual(k.fed_swiezosc({'at': 'x', 'ok': {'ks': 'off'}, 'ks': None}, now), ('szanse decyzji Fed (rynek zakładów)', '—', None, None, 'wyłączone (KALSHI_OFF)'))
+        self.assertEqual(k.fed_swiezosc({'at': 'x'}, now)[1], '?'); self.assertIsNone(k.fed_swiezosc(None, now))
+        o, _ = self._build()
+        self.assertEqual(k.fed_uwagi(o), [], 'prawdziwe ceny: sumy 1,025 i 1,03 w paśmie')
+        o['ks']['meetings'][0]['sum_raw'] = 1.2; o['ks']['meetings'][1]['sum_raw'] = None; o['ks']['meetings'][1]['unknown'] = ['X']
+        self.assertEqual(k.fed_uwagi(o), ['Fed 2026-10-28: suma surowych cen 1.200 poza pasmem 0.90–1.10',
+                                          'Fed 2026-12-09: nieznane wyniki (1) — szanse bez przeliczenia do 100%',
+                                          'Fed 2026-12-09: nie każdy wynik ma cenę — surowe ceny bez przeliczenia do 100%'])
+        self.assertEqual(k.fed_uwagi({'ks': None}), []); self.assertEqual(k.fed_uwagi(None), [])
+        self.assertIn('fed', k.PLIKI); self.assertEqual(k.LIMIT_MIN['fed'], 90); self.assertNotIn('fed', [x[1] for x in k.SWIEZOSC], 'lista SWIEZOSC bez zmian')

@@ -29,9 +29,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'lancuch', 'insider', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'fed', 'lancuch', 'insider', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'lancuch': 90, 'insider': 48 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'fed': 90, 'lancuch': 90, 'insider': 48 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -222,6 +222,45 @@ def swiezosc(files, now=None):
         note = '' if st == '✅' else (f'próg {fmt_wiek(prog)}' + (' (godziny robocze)' if kat == 'd' else '') + (', ponad 2× progu' if st == '❌' else ''))
         rows.append((label, st, w, txt, note))
     return rows
+
+
+# ---------------------------------------------------------------- v131: szanse decyzji Fed (rynek zakładów) ----------------------------------------------------------------
+FED_ETYKIETA = 'szanse decyzji Fed (rynek zakładów)'
+FED_PROG = 90              # min — wiek cen (part_at.ks; automat co 20 min): żółte po progu, czerwone po 2× — osobny wiersz, lista SWIEZOSC bez zmian
+FED_SUMA = (0.90, 1.10)    # suma surowych cen wyników posiedzenia poza tym pasmem = uwaga (informacja o jakości cen, bez koloru)
+
+
+def fed_swiezosc(j, now=None):
+    """Wiersz świeżości szans Fed (data/fed.json → part_at.ks) w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data, uwaga);
+    brak pliku = None (wiersz pominięty; brak pliku zgłasza pętla wieku plików); wyłącznik KALSHI_OFF = status „—” z opisem (bez uwagi)."""
+    if not isinstance(j, dict):
+        return None
+    if (j.get('ok') or {}).get('ks') == 'off':
+        return (FED_ETYKIETA, '—', None, None, 'wyłączone (KALSHI_OFF)')
+    v = (j.get('part_at') or {}).get('ks')
+    if not isinstance(v, str):
+        return (FED_ETYKIETA, '?', None, None, 'brak czasu cen w pliku')
+    w = wiek_danych(v, 'ts', 'h', now)
+    st = ocena(w, FED_PROG)
+    note = '' if st == '✅' else (f'próg {fmt_wiek(FED_PROG)}' + (', ponad 2× progu' if st == '❌' else ''))
+    return (FED_ETYKIETA, st, w, v, note)
+
+
+def fed_uwagi(j):
+    """Uwagi o jakości cen Fed (informacja): nieznane wyniki, brak ceny któregoś wyniku albo suma surowych cen posiedzenia poza FED_SUMA."""
+    K = j.get('ks') if isinstance(j, dict) and isinstance(j.get('ks'), dict) else {}
+    out = []
+    for m in K.get('meetings') or []:
+        if not isinstance(m, dict):
+            continue
+        d, s = str(m.get('date') or '?'), m.get('sum_raw')
+        if m.get('unknown'):
+            out.append(f'Fed {d}: nieznane wyniki ({len(m["unknown"])}) — szanse bez przeliczenia do 100%')
+        if s is None:
+            out.append(f'Fed {d}: nie każdy wynik ma cenę — surowe ceny bez przeliczenia do 100%')
+        elif isinstance(s, (int, float)) and not FED_SUMA[0] <= s <= FED_SUMA[1]:
+            out.append(f'Fed {d}: suma surowych cen {s:.3f} poza pasmem {FED_SUMA[0]:.2f}–{FED_SUMA[1]:.2f}')
+    return out
 
 
 # ---------------------------------------------------------------- v115: zgodność liczb ----------------------------------------------------------------
@@ -773,6 +812,18 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c'. v131: świeżość szans Fed (osobny wiersz tabeli — lista SWIEZOSC bez zmian) i uwagi o jakości cen (informacja)
+    fr = fed_swiezosc(files.get('fed'))
+    if fr:
+        label, st, w, txt, note = fr
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '❌':
+            R['bledy'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    R['uwagi'].extend(fed_uwagi(files.get('fed')))
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()

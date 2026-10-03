@@ -7231,3 +7231,270 @@ test('v127 (przegląd): EXTRA127 — de, es, fr, it, pt, ru, zh, ja dla kluczy p
     }
   }
 });
+
+/* ===================== v131: FED — szanse decyzji na posiedzeniach z rynku zakładów w USA (data/fed.json), słownik EXTRA128, sekcja zaraz po #g-prob ===================== */
+const fed131 = (() => {
+  const a0 = html.indexOf('/* ===================== v131: FED'), a1 = html.indexOf('\nfunction fedLoad(', a0);
+  assert.ok(a0 > 0 && a1 > a0, 'blok v131 na stronie');
+  const PIN = Date.parse('2026-09-27T19:45:00Z');   /* zegar przypięty: 5 min po zapisie pliku (testy bez zegara) */
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  /* o.clock = {ms} — zegar do przestawiania w teście; o.tz — stała strefa czasu zamiast strefy przeglądarki (domyślnie Warszawa: wynik nie zależy
+     od strefy maszyny z testami; null = strefa procesu, jak w przeglądarce) */
+  const mk = (o) => { o = o || {};
+    const clk = o.clock || {ms: PIN};
+    class PD extends Date { constructor(...a) { if (a.length) super(...a); else super(clk.ms); } static now() { return clk.ms; } }
+    const tz = o.tz === undefined ? 'Europe/Warsaw' : o.tz;
+    let code = html.slice(a0, a1);
+    if (o.venueOff) code = code.replace('const FED_VENUE_SHOW=true;', 'const FED_VENUE_SHOW=false;');
+    if (tz) { assert.equal(code.split('const FED_TZ=null;').length, 2, 'stała strefy'); code = code.replace('const FED_TZ=null;', 'const FED_TZ=' + JSON.stringify(tz) + ';'); }
+    return new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', 'glyphImg', 'icoWrap', 'lnAgo', 'Date', code +
+      '\nreturn {FED, FED_MAX_AGE_H, FED_VENUE, FED_VENUE_SHOW, FED_ORDER, FED_TZ, fedPct, fedPp, fedLeft, fedLocDay, fedTime, fedMeet, fedNorm, fedRows, fedTop, fedVenue, fedBody, fedOk, renderFed, fedApply};')(
+      o.$ || (() => null), o.t || ((k, v) => k + (v ? JSON.stringify(v) : '')), o.nfmt || ((v, d) => Number(v).toFixed(d)), esc, d => ' · age(' + d + ')', iso => 'D(' + iso + ')',
+      {pl: 'pl-PL', en: 'en-US', de: 'de-DE', zh: 'zh-CN'}, o.L || 'en', o.flagImg, o.glyphImg, o.icoWrap, o.lnAgo || (iso => ' · ago(' + iso + ')'), PD); };
+  /* plik zbudowany przez build_fed z nagranych odpowiedzi z 27.09.2026 (test Pythona FedV131, zegar 19:40 UTC) */
+  const D = {"at":"2026-09-27T19:40:05+00:00","src":"rynek kontraktów zdarzeniowych w USA — publiczne API bez klucza, seria KXFEDDECISION (ceny, ostatnie transakcje, świece dzienne, rozstrzygnięte posiedzenia); pole nie jest pokazywane na stronie","ok":{"ks":true,"ks_tr":true,"ks_h":true,"ks_last":true},"part_at":{"ks":"2026-09-27T19:40:00+00:00","ks_tr":"2026-09-27T19:40:00+00:00","ks_h":"2026-09-27T19:40:00+00:00","ks_last":"2026-09-27T19:40:00+00:00"},"notes":["szansa = środek najlepszej oferty kupna i sprzedaży (różnica ≤ 5 centów), inaczej ostatnia transakcja, inaczej brak (nigdy 0)","pn = szansa przeliczona do 100% tylko, gdy każdy wynik ma cenę, brak nieznanych wyników i suma surowych cen 0,85–1,15","p1d = ta sama reguła na cenach sprzed doby podanych przez rynek; p7d / p30d = zamknięcie najnowszej świecy dziennej sprzed 7 / 30 dni","vol, vol24, oi = sztuki kontraktów (1 kontrakt wypłaca 1 USD), nie dolary; suma 0 = brak","part_at = czas ostatniego udanego pobrania części; część z błędem = poprzednie dane z własnym czasem"],"stat":{"req":13,"paths":13,"s":0.4},"ks":{"venue":"Kalshi","series":"KXFEDDECISION","spread_max":0.05,"meetings":[{"event":"KXFEDDECISION-26OCT","date":"2026-10-28","decision_at":"2026-10-28T18:00:00Z","close_at":"2026-10-28T17:59:00Z","sum_raw":1.025,"norm":true,"top":"hike25","unknown":[],"vol":3550817.38,"vol24":130630.16,"oi":2443029.88,"last_trade":"2026-09-27T18:52:51Z","out":[{"k":"cutgt25","o":-25.5,"t":"KXFEDDECISION-26OCT-C26","lab":"Cut >25bps","p":0.005,"how":"mid","p1d":0.005,"bid":0.0,"ask":0.01,"last":0.01,"vol":202622.37,"vol24":0.0,"oi":189168.92,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.0049},{"k":"cut25","o":-25,"t":"KXFEDDECISION-26OCT-C25","lab":"Cut 25bps","p":0.005,"how":"mid","p1d":0.005,"bid":0.0,"ask":0.01,"last":0.01,"vol":556275.36,"vol24":1122.21,"oi":437435.1,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.0049},{"k":"hold","o":0,"t":"KXFEDDECISION-26OCT-H0","lab":"Fed maintains rate","p":0.345,"how":"mid","p1d":0.355,"bid":0.34,"ask":0.35,"last":0.35,"vol":1254442.27,"vol24":9773.36,"oi":767999.19,"lt":"2026-09-27T18:52:51Z","p7d":0.445,"p30d":0.715,"pn":0.3366},{"k":"hike25","o":25,"t":"KXFEDDECISION-26OCT-H25","lab":"Hike 25bps","p":0.655,"how":"mid","p1d":0.635,"bid":0.65,"ask":0.66,"last":0.66,"vol":1015081.97,"vol24":13369.51,"oi":548342.05,"lt":"2026-09-27T18:52:51Z","p7d":0.545,"p30d":0.235,"pn":0.639},{"k":"hikegt25","o":25.5,"t":"KXFEDDECISION-26OCT-H26","lab":"Hike >25bps","p":0.015,"how":"mid","p1d":0.015,"bid":0.01,"ask":0.02,"last":0.01,"vol":522395.41,"vol24":106365.08,"oi":500084.62,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.0146}]},{"event":"KXFEDDECISION-26DEC","date":"2026-12-09","decision_at":"2026-12-09T19:00:00Z","close_at":"2026-12-09T18:59:00Z","sum_raw":1.03,"norm":true,"top":"hike25","unknown":[],"vol":583013.73,"vol24":46234.54,"oi":431503.85,"last_trade":"2026-09-27T18:52:51Z","out":[{"k":"cutgt25","o":-25.5,"t":"KXFEDDECISION-26DEC-C26","lab":"Cut >25bps","p":0.005,"how":"mid","p1d":0.005,"bid":0.0,"ask":0.01,"last":0.01,"vol":55120.25,"vol24":0.0,"oi":46781.95,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.0049},{"k":"cut25","o":-25,"t":"KXFEDDECISION-26DEC-C25","lab":"Cut 25bps","p":0.015,"how":"mid","p1d":0.015,"bid":0.01,"ask":0.02,"last":0.02,"vol":92247.74,"vol24":0.0,"oi":70118.15,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.0146},{"k":"hold","o":0,"t":"KXFEDDECISION-26DEC-H0","lab":"Fed maintains rate","p":0.3,"how":"mid","p1d":0.235,"bid":0.28,"ask":0.32,"last":0.32,"vol":151754.11,"vol24":14952.52,"oi":111855.37,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.2913},{"k":"hike25","o":25,"t":"KXFEDDECISION-26DEC-H25","lab":"Hike 25bps","p":0.685,"how":"mid","p1d":0.695,"bid":0.68,"ask":0.69,"last":0.69,"vol":136145.21,"vol24":3778.86,"oi":94670.78,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.665},{"k":"hikegt25","o":25.5,"t":"KXFEDDECISION-26DEC-H26","lab":"Hike >25bps","p":0.025,"how":"mid","p1d":0.015,"bid":0.02,"ask":0.03,"last":0.02,"vol":147746.42,"vol24":27503.16,"oi":108077.6,"lt":"2026-09-27T18:52:51Z","p7d":null,"p30d":null,"pn":0.0243}]}],"hist":{"KXFEDDECISION-26OCT":{"d":["2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18","2026-09-19","2026-09-20","2026-09-21","2026-09-22","2026-09-23","2026-09-24","2026-09-25","2026-09-26"],"cutgt25":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"cut25":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"hold":[0.72,0.725,0.725,0.715,0.715,0.705,0.705,0.705,0.685,0.685,0.685,0.685,0.685,0.685,0.685,0.685,0.685,0.685,0.685,0.615,0.615,0.605,0.605,0.63,0.555,0.505,0.445,0.445,0.445,0.465,0.475,0.33,0.315,0.355,0.355],"hike25":[0.225,0.225,0.225,0.235,0.235,0.255,0.26,0.26,0.265,0.275,0.275,0.275,0.265,0.265,0.265,0.275,0.275,0.275,0.305,0.385,0.375,0.37,0.355,0.375,0.455,0.495,0.535,0.545,0.555,0.515,0.505,0.655,0.675,0.635,0.635],"hikegt25":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]},"KXFEDDECISION-26DEC":{"d":[],"cutgt25":[],"cut25":[],"hold":[],"hike25":[],"hikegt25":[]}},"last":{"event":"KXFEDDECISION-26SEP","date":"2026-09-16","close_at":"2026-09-16T17:59:00Z","result":"hike25","p_last":0.88},"pend":null}};
+  const cp = x => JSON.parse(JSON.stringify(x));
+  /* wzorzec zmiany w tabeli (sama liczba, jednostka w nagłówku) — ta sama reguła co fedPp z liczbami testowymi (toFixed) */
+  const ppb = d => { const x = Math.round(d * 1e6) / 1e4, a = Math.abs(x), dec = a < 1 ? 1 : 0; return a < 0.5 ? '• 0' : (x > 0 ? '▲ +' : '▼ −') + (Math.round(a * 10 ** dec) / 10 ** dec).toFixed(dec); };
+  /* data kalendarzowa bez strefy (wzorzec dla fedLocDay): dzień dd października 2026 w formacie pl-PL */
+  const dayPl = (m, dd) => new Date(Date.UTC(2026, m, dd, 12)).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  return {a0, a1, mk, D, cp, PIN, ppb, dayPl};
+})();
+
+test('v131: Fed — pomocnicze: szansa w %, zmiana w pkt proc. bez koloru, dni do posiedzenia, posiedzenia przed zamknięciem handlu, kolejność wyników, przeliczenie tylko przy komplecie', () => {
+  const X = fed131.mk();
+  assert.equal(X.fedPct(null), '—'); assert.equal(X.fedPct(undefined), '—'); assert.equal(X.fedPct(NaN), '—');
+  assert.equal(X.fedPct(0.005), 'fed.lt1', 'poniżej 1% — „<1%”, nie zero'); assert.equal(X.fedPct(0), 'fed.lt1');
+  assert.equal(X.fedPct(0.995), 'fed.gt99'); assert.equal(X.fedPct(0.639), 'fed.pct{"v":"64"}'); assert.equal(X.fedPct(0.01), 'fed.pct{"v":"1"}'); assert.equal(X.fedPct(0.99), 'fed.pct{"v":"99"}');
+  assert.deepEqual(X.fedPp(null), {txt: '—', cls: 'na'}); assert.deepEqual(X.fedPp(undefined), {txt: '—', cls: 'na'});
+  assert.deepEqual(X.fedPp(0.004), {txt: '• fed.pp{"v":"0"}', cls: ''}, 'mniej niż pół punktu — kropka');
+  assert.deepEqual(X.fedPp(0.655 - 0.55), {txt: '▲ +fed.pp{"v":"11"}', cls: ''}, 'bez szumu liczb zmiennoprzecinkowych');
+  assert.deepEqual(X.fedPp(-0.006), {txt: '▼ −fed.pp{"v":"0.6"}', cls: ''}, 'poniżej 1 pkt — jedno miejsce po przecinku');
+  assert.deepEqual(X.fedPp(-0.23), {txt: '▼ −fed.pp{"v":"23"}', cls: ''});
+  assert.deepEqual(X.fedPp(0.105, 1), {txt: '▲ +11', cls: ''}, 'w tabeli sama liczba (jednostka w nagłówku)'); assert.deepEqual(X.fedPp(0.001, 1), {txt: '• 0', cls: ''});
+  assert.deepEqual(X.fedPp(-0.006, 1), {txt: '▼ −0.6', cls: ''}); assert.deepEqual(X.fedPp(null, 1), {txt: '—', cls: 'na'});
+  /* odliczanie: doba decyzji wobec dzisiejszej doby, obie w strefie przeglądarki (tu Warszawa; zegar 27.09 21:45 czasu letniego) */
+  assert.equal(X.FED_TZ, 'Europe/Warsaw');
+  assert.equal(X.fedLeft('2026-10-28T18:00:00Z'), 'fed.left{"n":"31"}'); assert.equal(X.fedLeft('2026-09-27T21:00:00Z'), 'fed.left0', '23:00 tego samego dnia');
+  assert.equal(X.fedLeft('2026-09-27T22:30:00Z'), 'fed.left1', '00:30 następnego dnia w Warszawie — jutro');
+  assert.equal(fed131.mk({tz: 'UTC'}).fedLeft('2026-09-27T22:30:00Z'), 'fed.left0', 'ta sama chwila w UTC — jeszcze dziś');
+  assert.equal(X.fedLeft('2026-09-26T18:00:00Z'), '', 'decyzja miniona — bez odliczania'); assert.equal(X.fedLeft('x'), ''); assert.equal(X.fedLeft(null), '');
+  assert.equal(fed131.mk({tz: 'Asia/Kolkata'}).fedLeft('2026-10-28T18:00:00Z'), 'fed.left{"n":"30"}', 'Indie: teraz 28.09 01:15, decyzja 28.10 23:30');
+  assert.equal(fed131.mk({tz: 'Asia/Tokyo'}).fedLeft('2026-10-28T18:00:00Z'), 'fed.left{"n":"31"}', 'Tokio: teraz 28.09 04:45, decyzja 29.10 03:00');
+  assert.equal(fed131.mk({tz: 'Europe/Warsaw', clock: {ms: Date.parse('2026-10-27T23:30:00Z')}}).fedLeft('2026-10-28T18:00:00Z'), 'fed.left0',
+    'Warszawa 28.10 00:30 — decyzja tego dnia o 19:00: „dziś”, nie „jutro” (przegląd 28.09)');
+  const n0 = fed131.mk({tz: null}).fedLeft('2026-10-28T18:00:00Z');
+  assert.ok(/^fed\.left\{"n":"(30|31|32)"\}$/.test(n0), 'strefa procesu (jak w przeglądarce): ' + n0);
+  const D = fed131.cp(fed131.D), M = D.ks.meetings;
+  assert.deepEqual(X.fedMeet(D).map(m => m.event), ['KXFEDDECISION-26OCT', 'KXFEDDECISION-26DEC']);
+  const past = Object.assign(fed131.cp(M[0]), {event: 'P', date: '2026-09-16', close_at: '2026-09-16T17:59:00Z', decision_at: '2026-09-16T18:00:00Z'});
+  const late = Object.assign(fed131.cp(M[1]), {event: 'J', date: '2027-01-27', close_at: '2027-01-27T18:59:00Z', decision_at: '2027-01-27T19:00:00Z'});
+  const E = Object.assign(fed131.cp(D), {ks: Object.assign(fed131.cp(D.ks), {meetings: [late, M[1], 'x', null, {date: 'zła', out: []}, past, M[0]]})});
+  assert.deepEqual(X.fedMeet(E).map(m => m.event), ['KXFEDDECISION-26OCT', 'KXFEDDECISION-26DEC'], 'posiedzenie po decyzji i śmieci pominięte; dwa najbliższe wg czasu decyzji');
+  assert.deepEqual(X.fedMeet({ks: {meetings: [past]}}), []); assert.deepEqual(X.fedMeet(null), []); assert.deepEqual(X.fedMeet({ks: null}), []);
+  assert.deepEqual(X.fedMeet({ks: {meetings: [Object.assign(fed131.cp(M[0]), {decision_at: 'zły'})]}}), [], 'bez czasu decyzji — nie pokazujemy');
+  const R = X.fedRows(M[0]);
+  assert.deepEqual(R.map(r => r.k), ['cutgt25', 'cut25', 'hold', 'hike25', 'hikegt25']);
+  assert.ok(X.fedNorm(M[0]), 'październik przeliczony do 100%'); assert.equal(R[3].show, M[0].out[3].pn, 'pokazujemy szansę po przeliczeniu'); assert.equal(R[3].p, 0.655, 'zmiany z surowej ceny');
+  const U = fed131.cp(M[0]); U.out.reverse(); U.out.push({k: 'hike50', o: 50, lab: 'Hike 50bps', p: 0.01, pn: null}); U.out[0].pn = null;
+  const RU = X.fedRows(U);
+  assert.deepEqual(RU.map(r => r.k), ['cutgt25', 'cut25', 'hold', 'hike25', 'hikegt25', 'hike50'], 'nieznany wynik na końcu');
+  assert.equal(X.fedNorm(U), false, 'brak pn przy którymś wyniku — surowe ceny'); assert.equal(RU[3].show, 0.655);
+  assert.equal(X.fedTop(M[0], R).k, 'hike25'); assert.equal(X.fedTop({top: 'zzz'}, R).k, 'hike25', 'bez pola top — najwyższa cena');
+  assert.equal(X.fedTop({}, [{k: 'a', p: null}]), null);
+  assert.equal(X.FED_MAX_AGE_H, 6); assert.deepEqual(X.FED_ORDER, ['cutgt25', 'cut25', 'hold', 'hike25', 'hikegt25']);
+});
+
+test('v131: Fed — panel z pliku: 3 kafle z czasem i wiekiem, tabela decyzji dla dwóch posiedzeń, nazwa rynku raz nad kolumnami, noty; brak = „—”; ukryty bez danych, po wyłączniku i przy starych cenach; chwilowy błąd nie zasłania', () => {
+  const X = fed131.mk(), D = fed131.cp(fed131.D), body = X.fedBody(D);
+  assert.ok(!/undefined|NaN|\[object|null/.test(body), body.slice(0, 300));
+  assert.equal((body.match(/<div class="etfk">/g) || []).length, 3, 'trzy kafle');
+  assert.ok(body.includes('fed.k.top') && body.includes('fed.o.hike25 — fed.pct{"v":"64"}'), 'najbardziej prawdopodobna: podwyżka 0,25 — 64% po przeliczeniu');
+  assert.ok(body.includes('fed.mtg{"d":') && body.includes('fed.left{"n":"31"}'), 'data posiedzenia i odliczanie');
+  assert.ok(body.includes('fed.k.chg{"o":"fed.o.hike25"}'), 'zmiana szansy tej decyzji');
+  const h25 = D.ks.meetings[0].out.find(o => o.k === 'hike25');
+  const pp = d => { const x = Math.round(d * 1e6) / 1e4, a = Math.abs(x), dec = a < 1 ? 1 : 0; return a < 0.5 ? '• fed.pp{"v":"0"}' : (x > 0 ? '▲ +' : '▼ −') + 'fed.pp{"v":"' + (Math.round(a * 10 ** dec) / 10 ** dec).toFixed(dec) + '"}'; };
+  assert.ok(body.includes('<b>' + pp(h25.p - h25.p7d) + ' fed.d7<small'), '7 dni w wartości kafla: ' + pp(h25.p - h25.p7d));
+  assert.ok(body.includes(pp(h25.p - h25.p1d) + ' fed.d1') && body.includes(pp(h25.p - h25.p30d) + ' fed.d30'), 'od wczoraj i 30 dni w podpisach');
+  assert.ok(body.includes('</div></div><p class="pnote">fed.at{"t":"D(' + D.part_at.ks + ') · ago(' + D.part_at.ks + ')"}</p>'), 'pod kaflami jeden wiersz: czas cen z wiekiem');
+  assert.equal((body.match(/fed\.at/g) || []).length, 1, 'czas cen raz (nie w każdym kaflu)');
+  assert.ok(body.includes('fed.k.act') && body.includes('fed.vol24{"v":"') && body.includes('fed.lt{"t":"D(2026-09-27T18:52:51Z) · ago(2026-09-27T18:52:51Z)"}'), 'aktywność: otwarte, 24 h, ostatnia transakcja z wiekiem');
+  const m1 = D.ks.meetings[0];
+  assert.ok(m1.vol24 > 0 && Math.round(m1.vol24) !== Math.round(m1.vol) && Math.round(m1.oi) !== Math.round(m1.vol), 'nagranie rozróżnia obrót 24 h, łączny obrót i otwarte');
+  assert.ok(body.includes('fed.k.act</span><b>' + Math.round(m1.oi).toFixed(0) + '<small'), 'kafel: otwarte kontrakty najbliższego posiedzenia (oi, nie obrót)');
+  assert.ok(body.includes('<small class="">fed.vol24{"v":"' + Math.round(m1.vol24).toFixed(0) + '"}</small>'), 'kafel: zawarte w 24 h = vol24 (nie łączny obrót vol)');
+  assert.ok(!/class="[^"]*\b(pos|neg)\b/.test(body), 'bez kolorów kierunku');
+  const trs0 = b => b.split('<tr').slice(2), trs = trs0(body);   /* bez wiersza nagłówka */
+  assert.ok(trs.some(r => r.includes('>▲ +') || r.includes('>▼ −')) && !trs.some(r => r.includes('fed.pp')), 'zmiana w tabeli bez jednostki (jest w nagłówku)');
+  assert.equal(trs.length, 5, 'pięć decyzji'); assert.ok(trs[3].startsWith(' class="fed-top">'), 'wiersz najbardziej prawdopodobnej decyzji wyróżniony');
+  assert.ok(['fed.o.cutgt25', 'fed.o.cut25', 'fed.o.hold', 'fed.o.hike25', 'fed.o.hikegt25'].every((k, i) => trs[i].includes(k)), 'kolejność od obniżki do podwyżki');
+  assert.equal((trs[0].match(/fed\.lt1/g) || []).length, 2, 'obniżka > 0,25: <1% w obu posiedzeniach');
+  assert.ok(trs[3].includes('<span class="fedbar" aria-hidden="true"><i style="width:64%"></i></span>fed.pct{"v":"64"}'), 'pasek szansy najbliższego posiedzenia');
+  assert.equal((body.match(/class="fedbar"/g) || []).length, 5, 'pasek tylko w kolumnie najbliższego posiedzenia');
+  assert.ok(trs[1].includes('<span class="cell mono na">—</span>'), 'brak zmiany 7 dni (kontrakt bez świec) — kreska, nie zero');
+  /* zmiana 7 dni w tabeli z surowej ceny (jak mówi fed.how), nie z szansy po przeliczeniu — nagranie rozróżnia obie wartości */
+  for (const [i, k] of [[2, 'hold'], [3, 'hike25']]) {
+    const o = m1.out.find(x => x.k === k), raw = fed131.ppb(o.p - o.p7d);
+    assert.notEqual(raw, fed131.ppb(o.pn - o.p7d), k + ': przeliczona dałaby inną liczbę');
+    assert.ok(trs[i].includes('</span></td><td><span class="cell mono">' + raw + '</span></td>'), k + ': zmiana 7 dni w tabeli ' + raw);
+  }
+  assert.ok(body.includes('<th>fed.c.p{"d":') && (body.match(/<th>fed\.c\.p/g) || []).length === 2 && (body.match(/class="fed-w"/g) || []).length === 3 + 5 * 3, 'kolumny dwóch posiedzeń; węższe ukrywane na telefonie');
+  assert.ok(body.includes('title="D(2026-09-27T18:52:51Z)"') && body.includes('>ago(2026-09-27T18:52:51Z)</span>'), 'ostatnia transakcja: wiek, pełny czas w podpowiedzi');
+  assert.equal((body.match(/fed\.venue\.cap/g) || []).length, 1, 'nazwa rynku jeden raz'); assert.ok(body.includes('<p class="pnote fed-venue">fed.venue.cap{"v":"Kalshi"}</p><div class="list-wrap"><table'), 'nad kolumnami tabeli');
+  assert.ok(body.includes('fed.last{"d":') && body.includes('age(2026-09-16)') && body.includes('"r":"fed.o.hike25","p":"fed.pct{\\"v\\":\\"88\\"}"'), 'ostatnie posiedzenie: data, wiek, decyzja, cena przed decyzją');
+  assert.ok(body.includes('<p class="pnote">fed.norm{"s":"1.025 / 1.030"}</p>') && !body.includes('fed.nonorm') && !body.includes('fed.norm1'), 'oba posiedzenia przeliczone — jedna nota z sumami');
+  assert.ok(body.includes('fed.how') && body.includes('fed.contract') && !body.includes('fed.prev'));
+  // surowe ceny, gdy posiedzenie nie jest przeliczone; część cen z błędem — nota z czasem; nieznany wynik — etykieta z pliku, zabezpieczona
+  const N = fed131.cp(D); N.ks.meetings[1].norm = false; N.ks.meetings[1].sum_raw = null; N.ok.ks = false;
+  N.ks.meetings[0].out.push({k: 'x<img src=x onerror=alert(1)>', o: 99, lab: '<img src=x onerror=alert(1)>', p: 0.02, pn: 0.02});
+  const nb = X.fedBody(N);
+  assert.ok(nb.includes('<p class="pnote neu">fed.nonorm{"d":') && nb.includes('"s":"—"}'), 'grudzień: surowe ceny z brakiem sumy');
+  assert.ok(/<p class="pnote">fed\.norm1\{"d":"[^"]+","s":"1\.025"\}<\/p>/.test(nb) && !nb.includes('fed.norm{'),
+    'mieszanka: przeliczenie z datą posiedzenia (nie „na każdym posiedzeniu” obok noty o surowych cenach — przegląd 28.09)');
+  assert.ok(nb.includes('<p class="pnote neu">fed.prev{"t":"D(' + D.part_at.ks + ') · ago(' + D.part_at.ks + ')"}</p>') && !nb.includes('fed.at'), 'ceny z poprzedniego pobrania — nota z czasem i wiekiem zamiast zwykłego wiersza');
+  assert.ok(!nb.includes('<img') && nb.includes('&lt;img src=x onerror=alert(1)&gt;'), 'etykieta nieznanego wyniku zabezpieczona');
+  const G = fed131.cp(D); G.ks.meetings = [G.ks.meetings[0]]; G.ks.last = null;
+  const gb = X.fedBody(G);
+  assert.equal((gb.match(/<th>fed\.c\.p/g) || []).length, 1, 'jedno posiedzenie — jedna grupa kolumn'); assert.ok(!gb.includes('fed.last'));
+  const T = fed131.cp(D); T.ks.meetings[0].last_trade = null; T.ks.meetings[0].oi = null; T.ks.meetings[0].out.forEach(o => { o.lt = null; o.oi = null; });
+  const tb = X.fedBody(T);
+  assert.ok(tb.includes('<small class="na">fed.lt{"t":"—"}</small>') && tb.includes('fed.k.act</span><b>—'), 'brak czasu i liczby kontraktów — kreski');
+  assert.equal(X.fedBody(null), ''); assert.equal(X.fedBody({}), ''); assert.equal(X.fedBody({ks: {meetings: []}}), '');
+  // widoczność: fedOk — plik, wyłącznik, część ks, wiek cen
+  assert.equal(X.fedOk(D), true);
+  assert.equal(X.fedOk(Object.assign(fed131.cp(D), {ok: {ks: 'off'}})), false, 'wyłącznik KALSHI_OFF');
+  assert.equal(X.fedOk({at: D.at, ok: {ks: 'off'}, part_at: {}, ks: null}), false, 'plik wyłącznika');
+  assert.equal(X.fedOk(Object.assign(fed131.cp(D), {ks: null})), false);
+  assert.equal(X.fedOk(Object.assign(fed131.cp(D), {part_at: {ks: '2026-09-27T13:40:00+00:00'}})), false, 'ceny sprzed 6 h 5 min — ukryte');
+  assert.equal(X.fedOk(Object.assign(fed131.cp(D), {part_at: {ks: '2026-09-27T14:00:00+00:00'}})), true, 'ceny sprzed 5 h 45 min — widoczne');
+  assert.equal(X.fedOk(Object.assign(fed131.cp(D), {at: 'kiedyś'})), false); assert.equal(X.fedOk(null), false);
+  // rysowanie i wczytanie
+  const el = {hidden: false, innerHTML: 'x'}, Y = fed131.mk({$: q => q === '#g-fed' ? el : null});
+  Y.renderFed(); assert.ok(el.hidden === true && el.innerHTML === '', 'bez danych — sekcja ukryta');
+  Y.fedApply(D);
+  assert.ok(el.hidden === false && el.innerHTML.includes('<h2>fed.t</h2>') && el.innerHTML.includes('fed.sub') && el.innerHTML.includes('inst.file{"t":"D(' + D.at + ')"}') &&
+    el.innerHTML.includes('eng.disclaimer') && el.innerHTML.includes('<details class="etfd" id="fed-not"><summary>eng.notsays</summary><p class="pnote">fed.not</p></details>'));
+  Y.fedApply(null); assert.equal(el.hidden, false, 'chwilowy błąd pobrania nie zasłania danych');
+  Y.fedApply({at: D.at, ok: {ks: 'off'}, part_at: {}, ks: null}); assert.ok(el.hidden === true && el.innerHTML === '', 'nowy plik z wyłącznikiem — sekcja znika');
+  Y.fedApply(D); assert.equal(el.hidden, false);
+  Y.fedApply(Object.assign(fed131.cp(D), {part_at: {ks: '2026-09-27T10:00:00+00:00'}})); assert.equal(el.hidden, true, 'stare ceny — sekcja znika');
+  Y.fedApply(null); assert.equal(el.hidden, true, 'bez danych i bez pliku — nadal ukryta');
+});
+
+test('v131: Fed — moment decyzji w strefie przeglądarki: data i godzina z tej samej chwili (na wschód od ok. UTC+6 już następnego dnia), odliczanie z tych samych dób; nagłówek kolumny = data posiedzenia w USA', () => {
+  const D = fed131.cp(fed131.D), dec = D.ks.meetings[0].decision_at;
+  assert.equal(dec, '2026-10-28T18:00:00Z', 'decyzja 28.10 o 14:00 w Nowym Jorku (czas letni do 1.11)');
+  const CASES = [['Asia/Tokyo', 29, '03:00', '31'], ['Asia/Shanghai', 29, '02:00', '31'], ['Australia/Sydney', 29, '05:00', '31'],
+    ['Europe/Warsaw', 28, '19:00', '31'], ['UTC', 28, '18:00', '31'], ['America/New_York', 28, '14:00', '31'], ['America/Los_Angeles', 28, '11:00', '31'],
+    ['Asia/Kolkata', 28, '23:30', '30']];
+  for (const [tz, dd, hm, n] of CASES) {
+    const X = fed131.mk({tz, L: 'pl'}), body = X.fedBody(D);
+    const want = 'fed.mtg' + JSON.stringify({d: fed131.dayPl(9, dd), t: hm});
+    assert.ok(body.includes('<small class="">' + want + '</small><small class="">fed.left{"n":"' + n + '"}</small>'), tz + ': ' + want + ' / ' + (body.match(/fed\.mtg\{[^}]*\}/) || [''])[0]);
+    assert.ok(body.includes('<th>fed.c.p{"d":"' + new Date(Date.UTC(2026, 9, 28, 12)).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', timeZone: 'UTC'}) + '"}</th>'),
+      tz + ': nagłówek kolumny — data posiedzenia w USA (28.10), niezależnie od strefy');
+  }
+  const J = fed131.mk({tz: 'Asia/Tokyo', L: 'pl'});
+  assert.equal(J.fedTime('zły'), '—'); assert.equal(J.fedLocDay(null), '—');
+  const Z = fed131.cp(D); Z.ks.meetings[1].decision_at = null;
+  assert.equal((fed131.mk().fedBody(Z).match(/<th>fed\.c\.p/g) || []).length, 1, 'posiedzenie bez czasu decyzji pominięte');
+});
+
+test('v131: Fed — nieudane pobrania i powrót do karty: panel rysowany od nowa z bieżącym zegarem (wiek się odświeża, ceny starsze niż 6 h znikają, posiedzenie po zamknięciu handlu znika)', () => {
+  const clk = {ms: fed131.PIN}, el = {hidden: true, innerHTML: ''};
+  const lnAgo = iso => ' · ' + Math.floor((clk.ms - Date.parse(iso)) / 60000) + ' min';
+  const Y = fed131.mk({clock: clk, lnAgo, L: 'pl', $: q => q === '#g-fed' ? el : null}), D = fed131.cp(fed131.D), at = D.part_at.ks;
+  const age = () => (el.innerHTML.match(/fed\.at\{"t":"D\([^)]*\) · (\d+) min"\}/) || [])[1];
+  Y.fedApply(D); assert.equal(el.hidden, false); assert.equal(age(), String(Math.floor((fed131.PIN - Date.parse(at)) / 60000)));
+  clk.ms += 40 * 60e3; Y.fedApply(null);
+  assert.ok(el.hidden === false && age() === String(Math.floor((clk.ms - Date.parse(at)) / 60000)), 'nieudane pobranie po 40 min: dane zostają, wiek odświeżony: ' + age());
+  clk.ms = Date.parse(at) + 6 * 3600e3 + 60e3; Y.fedApply(null);
+  assert.ok(el.hidden === true && el.innerHTML === '', 'ceny starsze niż 6 h — sekcja znika mimo braku nowego pliku');
+  Y.fedApply(null); assert.equal(el.hidden, true);
+  /* plik świeży tuż przed zamknięciem handlu październikiem; potem pobrania zawodzą — październik znika, grudzień staje się najbliższym */
+  const F = fed131.cp(fed131.D); F.at = F.part_at.ks = '2026-10-28T17:50:00+00:00';
+  clk.ms = Date.parse('2026-10-28T17:55:00Z'); Y.fedApply(F);
+  assert.ok(el.hidden === false && (el.innerHTML.match(/<th>fed\.c\.p/g) || []).length === 2 && el.innerHTML.includes('fed.left0'), 'przed zamknięciem: dwa posiedzenia, październik „dziś”');
+  clk.ms = Date.parse('2026-10-28T18:30:00Z'); Y.fedApply(null);
+  assert.ok(el.hidden === false && (el.innerHTML.match(/<th>fed\.c\.p/g) || []).length === 1 && el.innerHTML.includes('fed.mtg{"d":"' + fed131.dayPl(11, 9) + '"'),
+    'po zamknięciu handlu i nieudanym pobraniu: tylko grudzień (9.12): ' + (el.innerHTML.match(/fed\.mtg\{[^}]*\}/) || [''])[0]);
+  assert.ok(html.includes("if(!(j&&typeof j==='object')&&FED.data){renderFed();return;}"), 'nieudane pobranie — przerysowanie z bieżącym zegarem');
+  assert.ok(html.includes("document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(Date.now()-FED.ms>60*1000)fedLoad();else renderFed();});") &&
+    html.includes('function fedLoad(){FED.ms=Date.now();srvJSON(\'fed\').then(fedApply);}'), 'powrót do karty: pobranie (albo przerysowanie, gdy pobrane przed chwilą)');
+});
+
+test('v131: Fed — prawdziwy słownik: pl, en, de, zh bez surowych kluczy i pól; flaga USA; nazwa rynku raz (nad kolumnami), bez nazw dostawców i podpisu źródła; przełącznik FED_VENUE_SHOW', () => {
+  const BAD = /Polymarket|\bCME\b|FedWatch|CoinGecko|\bFRED\b|Bloomberg|Reuters|KXFED|\bAPI\b|Źródło|Source:|Quelle|来源|Data by|Powered by/i;
+  for (const L of ['pl', 'en', 'de', 'zh', 'ja', 'ru']) {
+    const tt = v96src.tFor(L), el = {hidden: true, innerHTML: ''};
+    const X = fed131.mk({t: tt, L, $: q => q === '#g-fed' ? el : null, ...v96src.H});
+    X.fedApply(fed131.D);
+    const out = el.innerHTML, txt = out.replace(/<[^>]+>/g, ' ');
+    assert.ok(el.hidden === false && !/fed\.[a-z]/.test(out.replace(/fed-(w|top|venue|not)|fedbar/g, '')) && !/\{[a-z]+\}/.test(out) && !out.includes('undefined') && !out.includes('NaN'),
+      L + ': bez surowych kluczy: ' + (out.match(/fed\.[a-z.0-9]+|\{[a-z]+\}/) || [''])[0]);
+    assert.ok(out.includes('img/flagi/us.svg'), L + ': flaga USA');
+    assert.equal((txt.match(/Kalshi/g) || []).length, 1, L + ': nazwa rynku jeden raz');
+    assert.ok(!BAD.test(txt), L + ': bez nazw dostawców i podpisu źródła: ' + (txt.match(BAD) || [''])[0]);
+    if (L === 'pl') assert.ok(txt.includes('Fed: czego spodziewa się rynek zakładów') && txt.includes('Podwyżka o 0,25 pkt proc. — 64%') && txt.includes('Rynek: Kalshi (USA)') &&
+      txt.includes('za 31 dni') && txt.includes('ogłoszenie decyzji: ' + fed131.dayPl(9, 28) + ', 19:00 (czas lokalny)') && txt.includes('&lt;1%') && !txt.includes('<1%') && txt.includes('Podwyżka o 0,25 pkt proc. — cena tego wyniku tuż przed decyzją: 88%.') &&
+      txt.includes('Zmiana 7 dni (pkt proc.)') && !txt.includes('..'), 'pl: ' + txt.slice(0, 300));
+    if (L === 'en') assert.ok(txt.includes('Hike of 0.25 pp — 64%') && txt.includes('Market: Kalshi (USA)'), 'en');
+    /* nagłówek kolumny: data posiedzenia w USA z dopiskiem kraju — nie myli się z kaflem w czasie lokalnym (przegląd 03.10) */
+    const usd = new Date(Date.UTC(2026, 9, 28, 12)).toLocaleDateString({pl: 'pl-PL', en: 'en-US'}[L] || 'en-US', {day: 'numeric', month: 'short', timeZone: 'UTC'});
+    if (L === 'pl') assert.ok(out.includes('<th>Szansa · ' + usd + ' (USA)</th>'), 'pl: nagłówek z (USA): ' + (out.match(/<th>Szansa[^<]*<\/th>/) || [''])[0]);
+    if (L === 'en') assert.ok(out.includes('<th>Chance · ' + usd + ' (USA)</th>'), 'en: nagłówek z (USA)');
+    if (L === 'zh') assert.ok(txt.includes('加息 0.25 个百分点 — 64%') && txt.includes('31 天后'), 'zh');
+  }
+  const el = {hidden: true, innerHTML: ''}, X = fed131.mk({venueOff: true, t: v96src.tFor('pl'), L: 'pl', $: q => q === '#g-fed' ? el : null, ...v96src.H});
+  assert.equal(X.FED_VENUE_SHOW, false); X.fedApply(fed131.D);
+  assert.ok(el.hidden === false && !el.innerHTML.includes('Kalshi') && el.innerHTML.includes('<p class="pnote fed-venue">Rynek zakładów w USA</p>'), 'bez nazwy rynku — opis ogólny');
+});
+
+test('v131: Fed — słownik EXTRA128 w 10 językach (te same klucze i pola), sekcja zaraz po #g-prob przed #g-q (TradingView dalej na dole GLOBAL), styl, odświeżanie co 20 min, nazwa rynku w stronie jeden raz', () => {
+  const a = 'const EXTRA128=', x0 = html.indexOf(a); assert.ok(x0 > 0, 'słownik EXTRA128');
+  const E = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(E), L10, '10 języków, pl pierwszy');
+  const KEYS = Object.keys(E.pl).sort();
+  assert.ok(KEYS.length === 39 && KEYS.every(k => k.startsWith('fed.')), 'tylko klucze fed.*: ' + KEYS.length);
+  const pola = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(E[L]).sort(), KEYS, L + ': te same klucze');
+    for (const k of KEYS) {
+      assert.ok(typeof E[L][k] === 'string' && E[L][k].trim(), L + ' ' + k); assert.equal(pola(E[L][k]), pola(E.pl[k]), L + ' ' + k + ': pola');
+      assert.ok(!/Kalshi|Polymarket|KXFED|\bAPI\b/i.test(E[L][k]), 'nazwa w słowniku: ' + L + ' ' + k);
+    }
+    assert.equal(v96src.I18N[L]['fed.t'], E[L]['fed.t'], L + ': nałożony na słownik strony');
+    assert.ok(E[L]['fed.venue.cap'].includes('{v}') && E[L]['fed.how'].includes('▲/▼') && E[L]['fed.sub'].includes('65'), L + ': podpis kolumn z polem, legenda, przykład ceny');
+    const USA = {pl: ' (USA)', en: ' (USA)', de: ' (USA)', es: ' (EE. UU.)', fr: ' (É.-U.)', it: ' (USA)', pt: ' (EUA)', ru: ' (США)', zh: '（美国）', ja: '（米国）'};
+    assert.ok(E[L]['fed.c.p'].endsWith('{d}' + USA[L]), L + ': data posiedzenia w nagłówku kolumny z dopiskiem kraju: ' + E[L]['fed.c.p']);
+  }
+  assert.equal(E.pl['fed.t'], 'Fed: czego spodziewa się rynek zakładów'); assert.equal(E.pl['fed.venue.cap'], 'Rynek: {v} (USA)');
+  assert.ok(E.pl['fed.not'].includes('nie prognoza Fed') && E.pl['fed.contract'].includes('sztuki, nie dolary') && E.pl['fed.how'].includes('nigdy zero'), 'uczciwe noty');
+  const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(apl.indexOf('EXTRA128') > apl.indexOf('EXTRA124') && apl.indexOf('EXTRA124') >= 0, 'EXTRA128 nałożony po EXTRA124');
+  assert.ok(html.indexOf('const EXTRA128=') < html.indexOf('/* ===================== STAN I DANE'), 'w bloku słowników');
+  const s = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
+  assert.equal(html.split('<section class="panel pcard" id="g-fed" hidden></section>').length, 2, 'jedno miejsce sekcji');
+  assert.ok(html.indexOf('<section id="g-prob"></section>\n    <section class="panel pcard" id="g-fed" hidden></section>\n') > 0, 'zaraz po #g-prob');
+  assert.ok(s('g-fed') < html.indexOf('<section class="q-grid gq" id="g-q"></section>') && s('g-fed') < s('inst') && s('inst') < s('tv-markets'), 'przed #g-q; widgety TradingView dalej ostatnie');
+  assert.ok(html.includes("srvJSON('fed')") && html.includes('/* v131 fed: szanse decyzji na posiedzeniach (rynek zakładów) */') && html.includes('#g-fed .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}'), 'plik, styl');
+  assert.ok(html.indexOf('/* v131 fed') < html.indexOf('</style>') && html.indexOf('/* v124 szwajcaria') < html.indexOf('/* v131 fed'), 'styl w arkuszu, po stylu v124');
+  assert.ok(html.includes("FED.timer=setInterval(()=>{if(!document.hidden)fedLoad();},20*60*1000);"), 'odświeżanie co 20 min (automat co 20 min)');
+  assert.ok(html.includes("fedLoad();fedAuto();try{new MutationObserver(()=>renderFed()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'zmiana języka');
+  assert.equal(html.split('/* ===================== v131: FED').length, 2);
+  assert.ok(html.indexOf('/* ===================== v131: FED') < html.indexOf("/* GLOBAL jest oknem startowym projektu */\nsetMode('global');"), 'blok przed startem GLOBAL');
+  assert.equal((html.match(/Kalshi/g) || []).length, 1, 'nazwa rynku w całej stronie tylko w stałej FED_VENUE'); assert.ok(html.includes("const FED_VENUE={ks:'Kalshi'};"));
+});
+
+test('v131: Fed — zero kontraktów to brak („—”), nie 0: kafel otwartych kontraktów, zawarte w 24 h i kolumna otwartych kontraktów (przegląd 03.10)', () => {
+  const X = fed131.mk(), Z = fed131.cp(fed131.D), m = Z.ks.meetings[0];
+  m.oi = 0; m.vol24 = 0; m.out.forEach(o => { o.oi = 0; });
+  const b = X.fedBody(Z);
+  assert.ok(b.includes('fed.k.act</span><b>—<small'), 'kafel: suma otwartych 0 — kreska: ' + (b.match(/fed\.k\.act<\/span><b>[^<]*/) || [''])[0]);
+  assert.ok(b.includes('<small class="">fed.vol24{"v":"—"}</small>'), 'zawarte w 24 h: 0 — kreska');
+  const trs = b.split('<tr').slice(2);
+  assert.equal(trs.length, 5);
+  for (const r of trs) assert.ok(r.includes('</td><td class="fed-w"><span class="cell mono na">—</span></td><td class="fed-w">'), 'otwarte kontrakty wyniku 0 — kreska z klasą braku: ' + r.slice(0, 160));
+  assert.ok(!/<b>0<small|"v":"0"\}|>0<\/span>/.test(b), 'nigdzie zera zamiast braku');
+});
