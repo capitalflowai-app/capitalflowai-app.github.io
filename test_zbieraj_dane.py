@@ -20648,8 +20648,39 @@ class ZegarV145(unittest.TestCase):
         for frag in ('needs: [zbuduj, opublikuj]', 'if: always()', 'actions: write', 'GH_TOKEN: ${{ github.token }}',
                      'python3 narzedzia/zegar.py zbudz || echo'):
             self.assertIn(frag, j, frag)
-        for frag in ('workflow_dispatch:', 'group: zegar', 'cancel-in-progress: true', 'timeout-minutes: 20', 'actions: write',
+        for frag in ('workflow_dispatch:', 'group: zegar', 'cancel-in-progress: true', 'timeout-minutes: 25', 'actions: write',
                      'python3 narzedzia/zegar.py prowadz', 'ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}'):
             self.assertIn(frag, z, frag)
         self.assertNotIn('secrets.', z, 'zegar bez sekretów — tylko token przebiegu')
-        self.assertGreaterEqual(self.Z.MAX_CZEKAJ + 120, 0); self.assertLess(self.Z.MAX_CZEKAJ, 20 * 60 - 60, 'czekanie mieści się w limicie zadania')
+        self.assertGreaterEqual(self.Z.MAX_CZEKAJ, self.Z.ODSTEP_MIN * 60 + 5, 'v145.1: czekanie pokrywa pełny odstęp (+5 s)')
+        self.assertLess(self.Z.MAX_CZEKAJ + self.Z.DOCZEKAJ_S, 25 * 60 - 60, 'czekanie z doczekaniem mieści się w limicie zadania (25 min)')
+
+    def test_v145_1_szybki_przebieg_nie_zrywa_lancucha(self):
+        # 03.10.2026: start strony 17:12:42, zegar 17:15:35 → trzeba czekać 17 min 12 s (+5 s); przy MAX 17 min łańcuch stawał
+        Z = self.Z
+        start = datetime.datetime(2026, 10, 3, 17, 12, 42, tzinfo=datetime.timezone.utc)
+        t0 = datetime.datetime(2026, 10, 3, 17, 15, 35, tzinfo=datetime.timezone.utc)
+        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')
+        runs = [{'event': 'workflow_dispatch', 'created_at': f(start), 'run_started_at': f(start), 'status': 'completed', 'conclusion': 'success'},
+                {'event': 'schedule', 'created_at': '2026-10-03T11:05:11Z', 'run_started_at': '2026-10-03T11:05:11Z', 'status': 'completed'}]
+        po = t0 + datetime.timedelta(seconds=17 * 60 + 12)
+        rc, log, slept, _ = self._run('prowadz', [runs, runs], now_seq=[t0, po])
+        self.assertEqual(rc, 0); self.assertEqual(slept, [17 * 60 + 12], 'pełne czekanie, bez ucięcia do 17 min')
+        self.assertTrue(log[-1][0].endswith('/actions/workflows/strona.yml/dispatches'), 'uruchamia następny przebieg')
+        # stary limit (17 min) odtworzony: obudzenie 7 s przed 20 min → doczekanie 12 s i uruchomienie (wcześniej: koniec bez uruchomienia)
+        with mock.patch.object(Z, 'MAX_CZEKAJ', 17 * 60):
+            wcz = t0 + datetime.timedelta(seconds=17 * 60)
+            rc, log, slept, out = self._run('prowadz', [runs, runs, runs], now_seq=[t0, wcz, wcz + datetime.timedelta(seconds=12)])
+        self.assertEqual(slept, [17 * 60, 12], 'doczekanie brakujących sekund (7 s + 5 s)'); self.assertIn('doczekuję 12 s', out)
+        self.assertTrue(log[-1][0].endswith('/actions/workflows/strona.yml/dispatches'))
+        self.assertEqual(sum(1 for p, d in log if d is not None), 1, 'dokładnie jedno uruchomienie')
+
+    def test_v145_1_doczekanie_tylko_krotkie(self):
+        # brakuje więcej niż DOCZEKAJ_S (np. w międzyczasie nowy przebieg) — bez doczekiwania i bez uruchamiania (nowy przebieg sam obudzi zegar)
+        later = self.NOW + datetime.timedelta(minutes=15, seconds=10)
+        stale = [self.r('schedule', 270), self.r('push', 5)]
+        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')
+        nowy = [{**self.r('push', 1), 'created_at': f(later - datetime.timedelta(minutes=17)), 'run_started_at': f(later - datetime.timedelta(minutes=17))}] + stale
+        rc, log, slept, out = self._run('prowadz', [stale, nowy], now_seq=[self.NOW, later])
+        self.assertEqual(slept, [15 * 60 + 5], 'brak doczekania przy 3 min braku'); self.assertEqual([p for p, d in log if d is not None], [])
+        self.assertNotIn('doczekuję', out)

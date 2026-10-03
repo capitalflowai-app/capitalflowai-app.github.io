@@ -21,7 +21,9 @@ API = 'https://api.github.com'
 WF_STRONA, WF_ZEGAR = 'strona.yml', 'zegar.yml'
 STOI_MIN = 45       # brak przebiegu z harmonogramu dłużej = harmonogram stoi (zwykle co 20 min, opóźnienia GitHub do ~15 min)
 ODSTEP_MIN = 20     # docelowy odstęp między przebiegami (jak w harmonogramie)
-MAX_CZEKAJ = 17 * 60   # s — zadanie zegara ma limit 20 min
+MAX_CZEKAJ = 21 * 60   # s — v145.1: pełne ODSTEP_MIN + zapas (było 17 min: 03.10 17:32 zegar obudził się 12 s za wcześnie i łańcuch stanął);
+                       #     zadanie zegara ma limit 25 min
+DOCZEKAJ_S = 120       # v145.1: po czekaniu brakuje najwyżej tylu sekund (różnice zegarów GitHub i maszyny) → doczekaj raz, nie zrywaj łańcucha
 AKTYWNE = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
 
 
@@ -118,6 +120,10 @@ def _main(argv, now_fn, sleep):
             print(f'zegar: czekam {czekaj} s (do {ODSTEP_MIN} min od startu ostatniego przebiegu)'); sleep(czekaj)
     runs = przebiegi(token)
     d = decyzja(runs, now_fn())
+    if d[0] == 'czekaj' and d[1] <= DOCZEKAJ_S:   # v145.1: kilka sekund za wcześnie — doczekaj raz i sprawdź ponownie
+        print(f'zegar: doczekuję {d[1]} s'); sleep(d[1])
+        runs = przebiegi(token)
+        d = decyzja(runs, now_fn())
     if d[0] == 'uruchom':
         st = uruchom(WF_STRONA, token)
         print(f'zegar: {d[1]} — uruchomiony „Strona i dane” (HTTP {st})')

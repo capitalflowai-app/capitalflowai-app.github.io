@@ -18,7 +18,7 @@ concurrency:
 jobs:
   prowadz:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25   # v145.1: czekanie do 21 min + doczekanie do 2 min
     permissions:
       actions: write
       contents: read
