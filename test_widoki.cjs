@@ -9616,3 +9616,22 @@ test('v135: rynek pieniężny — słownik EXTRA144 (10 języków, te same klucz
   assert.ok(R.JAK_ICO[n] === 'us' && row.includes('flagi/us.svg') && row.includes('co tydzień (w czwartek, za tydzień do środy)'), 'Metodologia: wiersz z flagą');
   assert.ok(html.indexOf('fndLoad();fndAuto();try{new MutationObserver(()=>renderFnd())') < mm135.b0, 'blok v135 po bloku v134');
 });
+
+test('v140.1: kafel stablecoinów — data z historii serwera bez pobranej serii (bez wyjątku), z serii tylko, gdy liczby są z serii', () => {
+  const a0 = html.indexOf('function gStabFresh('), a1 = html.indexOf('function gKpis(){', a0);
+  assert.ok(a0 > 0 && a1 > a0, 'gStabFresh przed gKpis');
+  const k0 = html.indexOf('function gKpis(){'), k1 = html.indexOf('\n}\n', k0);
+  const body = html.slice(k0, k1);
+  assert.ok(body.includes('fresh:gStabFresh(st,per)}'), 'gKpis bierze datę z gStabFresh');
+  assert.ok(!/GLIVE\.stab\[/.test(body), 'gKpis nie indeksuje GLIVE.stab bezpośrednio');
+  const mk = (H, S) => new Function('krStabh', 'GLIVE', html.slice(a0, a1) + '\nreturn gStabFresh;')(() => H, { stab: S });
+  const H = { asof: '2026-10-03', cur: 3.1e11, d: { '1': 1e8, '7': 2e9, '30': 4e9, '91': 9e9, '365': 4e10 }, pct: { '1': 0.03, '7': 0.6, '30': 1.3, '91': 3, '365': 14 } };
+  const S = [{ date: '1758844800' }, { date: String(Date.UTC(2026, 8, 30) / 1000) }];
+  assert.equal(mk(H, null)([0.1, 0.03, 311], '1D'), '2026-10-03', 'liczby z historii serwera, seria niepobrana (null) — data z historii, bez wyjątku');
+  assert.equal(mk(H, S)([0.1, 0.03, 311], '1T'), '2026-10-03', 'liczby z historii serwera — data z historii, nie z serii');
+  assert.equal(mk(null, S)([2, 0.6, 311], '1T'), '2026-09-30', 'bez historii serwera — data z ostatniego punktu serii');
+  assert.equal(mk({ ...H, d: { '1': 1e8 } }, S)([2, 0.6, 311], '1R'), '2026-09-30', 'historia bez okresu — liczby z serii, data z serii');
+  assert.equal(mk(null, null)(null, '1D'), '', 'brak liczb — brak daty');
+  assert.equal(mk(null, [])([1, 1, 1], '1D'), '', 'pusta seria — brak daty, bez wyjątku');
+  assert.equal(mk({ ...H, asof: 'zła' }, null)([0.1, 0.03, 311], '1D'), '', 'zła data w historii — brak daty, nie śmieci');
+});

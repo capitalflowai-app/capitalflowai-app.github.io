@@ -4411,6 +4411,15 @@ function gDxy(per){
 }
 /* dzień (RRRR-MM-DD, UTC) ze znacznika czasu źródła w sekundach; brak = pusty tekst */
 const gUnixDay=s=>{const n=Number(s);return n>0&&isFinite(n)?new Date(n*1000).toISOString().slice(0,10):'';};
+/* v140.1: data kafla stablecoinów z tego samego źródła co liczby (reguła jak w gStabDelta): historia serwera → stabh.asof; seria → ostatni punkt.
+   Dawniej przy liczbach z historii serwera i niepobranej serii (GLIVE.stab = null) — TypeError i brak wszystkich kafli GLOBAL (wolne łącze) */
+function gStabFresh(st,per){
+  if(!st)return '';
+  const H=krStabh(),hk={'1D':'1','1T':'7','1M':'30','1Q':'91','1R':'365'}[per];
+  if(H&&typeof H.d[hk]==='number'&&typeof H.pct[hk]==='number'&&typeof H.cur==='number')return (typeof H.asof==='string'&&/^\d{4}-\d{2}-\d{2}/.test(H.asof))?H.asof.slice(0,10):'';
+  const S=GLIVE.stab;if(!Array.isArray(S)||!S.length||!S[S.length-1])return '';
+  const d=+S[S.length-1].date;return (isFinite(d)&&d>0)?new Date(d*1000).toISOString().slice(0,10):'';
+}
 function gKpis(){
   const per=gst.period,F=GDATA[per];
   /* F15: suma i zmiana tylko z regionów z danymi (brak nie jest zerem); pokrycie „z N z 12” w podpisie kafelka; zero regionów = brak (NaN → „—”), nie 0 */
@@ -4434,7 +4443,7 @@ function gKpis(){
    ((M=>(M&&typeof M.total_mcap==='number'&&M.total_mcap>0)   /* v66: jedna liczba z jednego źródła — ten sam plik CoinMarketCap co panel CRYPTO; CoinGecko tylko zapas */
      ?{k:'g.k.cry',v:M.total_mcap/1e9,u:'u.b',d:(typeof M.mcap_chg24_pct==='number'&&isFinite(M.mcap_chg24_pct))?M.mcap_chg24_pct:null,d24:1,src:'CoinMarketCap',fresh:String(M.asof||'').slice(0,10)}
      :{k:'g.k.cry',v:cy?cy.total_market_cap.usd/1e9:null,u:'u.b',d:cy?cy.market_cap_change_percentage_24h_usd:null,d24:1,src:'CoinGecko',fresh:(cy&&isFinite(+cy.updated_at)&&+cy.updated_at>0)?new Date(+cy.updated_at*1000).toISOString().slice(0,10):''})(typeof CMC!=='undefined'?CMC.data:null)),
-   {k:'g.k.stab',v:st?st[2]:null,u:'u.b',d:st?st[1]:null,src:'DefiLlama',fresh:(st&&isFinite(+GLIVE.stab[GLIVE.stab.length-1].date)&&+GLIVE.stab[GLIVE.stab.length-1].date>0)?new Date(+GLIVE.stab[GLIVE.stab.length-1].date*1000).toISOString().slice(0,10):''}
+   {k:'g.k.stab',v:st?st[2]:null,u:'u.b',d:st?st[1]:null,src:'DefiLlama',fresh:gStabFresh(st,per)}
   ];
 }
 
