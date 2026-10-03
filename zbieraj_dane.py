@@ -16545,14 +16545,17 @@ def rwa_gold_moved(series, since, day):
     return abs(b[-1] / a[-1] - 1) * 100 >= RWA_GOLD_MOVE
 
 
-def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=None):
+def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=None, oc=None):
     """Plik data/rwa.json z listy (rwa_parse_list), wartości produktów ukrytych ({produkt: wartość|None}; brak klucza = bez odpowiedzi w tym
     odświeżeniu) i poprzedniego pliku: migawka dnia UTC, okno produktów 31 dni, sumy 400 dni, zmiany 7/30 dni (like-for-like), 10 największych.
     Produkt ukryty bez odpowiedzi: wartość z wcześniejszego dobrego odczytu dziś, z D−1 albo D−2 (via 'k', n.kept); inaczej brak wartości. Produkt ukryty
     niezmieniony (zamrożenie źródła albo okno produktu, warunek złota — zob. komentarz bloku) albo bez wartości od dnia X: pole stale (liczby nf / ng,
     ostatnio znana suma, dni, src = zamrożenie źródła, unk = bez tagów (w „oth”), seg = sumy według rodzaju, największe produkty z rodzajem stanu
     'min' / 'od' / 'g'); pierwszy odczyt: pole wait (liczba, suma, dzień) — nigdy w sumach rodzajów, w historii ani w zmianach 7/30 dni. `gold` = dzienne
-    zamknięcia GLD (rwa_gold_series) albo None."""
+    zamknięcia GLD (rwa_gold_series) albo None.
+    v150: `oc` = blok onchain (odczyt własny z łańcucha, rwc_blok) — produkt ukryty bez bieżącej wyceny (niezmieniony albo „brak wartości od”)
+    z PEŁNYM odczytem (rwc_uzyj) liczy się wartością z łańcucha (via 'o'), nigdy obiema; plik dostaje blok onchain z polami used / seg / hd.
+    Bez `oc` (None) wynik jest taki sam jak w v133."""
     now = now or _now_utc()
     now = now.astimezone(datetime.timezone.utc).replace(microsecond=0)
     day = now.date().isoformat()
@@ -16601,9 +16604,15 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
         return f
     stale, wait = [], []
     kept, kept_s, live_hid = 0, [], 0
+    ocv = rwc_uzyj(oc, now) if oc is not None else {}                 # v150: pełne odczyty własne z łańcucha {produkt: USD}
+    oc_used = []
     for s in parsed['hidden']:                                        # 3. klasyfikacja: bieżąca (w sumach), niezmieniona, brak wartości, pierwszy odczyt, przeniesiona
         r, v = hv.get(s), None
-        if r and r[4]:
+        if r and s in ocv and (r[4] or (not first(r) and frozen(s, r))):   # v150: zamiast ostatnio znanej wartości — odczyt własny (nigdy obie)
+            v = ocv[s]
+            rows[s]['via'] = 'o'
+            oc_used.append(s)
+        elif r and r[4]:
             stale.append((s, r, 'g'))
         elif r and first(r):
             wait.append((s, r))
@@ -16683,10 +16692,13 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
                   for x, r, kd in sorted(stale, key=lambda q: (-q[1][0], q[0]))[:RWA_STALE_TOP]]}
     wt = {'n': len(wait), 'v': round(sum(r[0] for _, r in wait)) if wait else None, 'day': min((r[1] for _, r in wait), default=None)}
     stamp = now.isoformat()
-    return {'at': stamp, 'v': 1, 'day': day, 'part_at': {'list': stamp, 'hidden': stamp}, 'src': RWA_SRC, 'unit': 'USD',
+    out = {'at': stamp, 'v': 1, 'day': day, 'part_at': {'list': stamp, 'hidden': stamp}, 'src': RWA_SRC, 'unit': 'USD',
             'ok': {'list': True, 'hidden': bool(hidden_ok)}, 'n': n, 'seg': segs, 'top': top_rows,
             'hist_cols': ['day', 'all'] + list(RWA_SEGS), 'hist': hist, 'ph': ph, 'stale': st, 'wait': wt, 'hv': dict(sorted(hv.items())),
             'chk': {'c7_api_listed': parsed['c7_api'], 'c7_own_listed': own7['p'] if own7 else None}, 'notes': []}
+    if isinstance(oc, dict):                                          # v150: blok odczytu własnego z łańcucha (tylko gdy podany)
+        out['onchain'] = rwc_wynik(oc, {s: val[s] for s in oc_used}, rows, day, prev)
+    return out
 
 
 def rwa_plik_ok(j):
@@ -16734,12 +16746,14 @@ def rwa_proba(prev, now=None):
     return dict(prev, try_at=now.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat(), retry_n=max(rn, 0) + 1)
 
 
-def build_rwa(prev=None, now=None, budget=None, clock=None, sleep=None, S=None):
+def build_rwa(prev=None, now=None, budget=None, clock=None, sleep=None, S=None, oc_fn=None):
     """data/rwa.json — wartość tokenizowanych aktywów ze świata realnego: suma, rodzaje (obligacje skarbowe i fundusze rynku pieniężnego, inne
     obligacje, kredyt prywatny, złoto i surowce, akcje, nieruchomości, inne), zmiany 7 i 30 dni z własnych zapisów, 10 największych produktów.
     Jedno zapytanie o listę (gzip) + najwyżej RWA_HID_MAX zapytań /tvl o produkty ukryte na liście (od największych wg poprzedniego pliku), wszystko
     w budżecie RWA_BUDGET s (albo `budget`). Lista nieudana albo niepełna = wyjątek (main: poprzedni plik). Część produktów ukrytych przerwana
-    (429/403, połączenie, czas, budżet) albo 5xx = ok.hidden False, notatka i wartości z D−1/D−2. Brak liczby = None, nigdy 0."""
+    (429/403, połączenie, czas, budżet) albo 5xx = ok.hidden False, notatka i wartości z D−1/D−2. Brak liczby = None, nigdy 0.
+    v150: oc_fn(poprzedni blok onchain, now) → blok onchain (main: rwc_krok — odczyt własny z łańcucha w osobnym budżecie RWC_BUDGET s, albo
+    rwc_wylaczony przy RWA_CHAIN_OFF); błąd = poprzedni blok (odczyty z ich czasem) i notatka. Bez oc_fn — wynik jak w v133."""
     now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
     clock = clock or time.monotonic
     budget = RWA_BUDGET if budget is None else budget
@@ -16773,12 +16787,524 @@ def build_rwa(prev=None, now=None, budget=None, clock=None, sleep=None, S=None):
         notes.append(f"produkty spoza głównej listy: {len(info['err5'])} bez odpowiedzi (HTTP 5xx) — ich wartości z poprzedniego dnia")
     if len(order) > RWA_HID_MAX:
         notes.append(f'produkty spoza głównej listy: {len(order)}, pytamy o {RWA_HID_MAX} największych')
-    out = rwa_build(parsed, vals, prev, now, hidden_ok=not info['stop'] and not info['err5'], gold=rwa_gold_series(S or {}))
+    oc = None
+    if oc_fn is not None:                                             # v150: odczyt własny z łańcucha (po części źródła v133)
+        poc = (prev or {}).get('onchain') if isinstance((prev or {}).get('onchain'), dict) else None
+        try:
+            oc = oc_fn(poc, now)
+            notes += [f'odczyt własny z łańcucha: {x}' for x in (oc.get('notes') or []) if isinstance(x, str)][:RWC_NOTES]
+        except Exception as e:  # noqa — błąd kroku nie psuje części v133: poprzedni blok (odczyty z ich czasem) albo brak bloku
+            oc = poc if poc and not poc.get('off') else None
+            notes.append(f'odczyt własny z łańcucha: {type(e).__name__}: {e}'[:200] + (' — poprzedni odczyt z jego czasem' if oc else ''))
+    out = rwa_build(parsed, vals, prev, now, hidden_ok=not info['stop'] and not info['err5'], gold=rwa_gold_series(S or {}), oc=oc)
     rn = (prev or {}).get('retry_n') if isinstance((prev or {}).get('retry_n'), int) else 0
     out['retry_n'] = 0 if all(out['ok'].get(k) is True for k in RWA_PARTS) else max(rn or 0, 0) + 1   # kolejne częściowe odświeżenia (odstęp ponowień)
     out['notes'] = notes[:RWA_NOTES]
     out['run'] = {'req': 1 + info['asked'], 's': round(clock() - t0, 1)}
     return out
+
+
+# ===================== v150: TOKENIZOWANE AKTYWA — ODCZYT WŁASNY Z ŁAŃCUCHA BLOKÓW (blok onchain w data/rwa.json; bez klucza) =====================
+# Źródło v133 od co najmniej 27.09.2026 nie odświeża największych produktów spoza głównej listy (03.10: 23,2 mld USD, ok. 83% wartości w grupie
+# „bez bieżącej wyceny”). Dla części z nich liczymy wartość SAMI z publicznych łańcuchów bloków: liczba tokenów (totalSupply() kontraktu
+# przez eth_call; Solana — konto emisji przez getMultipleAccounts; Aptos — 0x1::fungible_asset::supply przez /view) × jawna reguła ceny:
+#   * 'nav1'  — fundusz o stałej wartości 1 USD za token (deklaracja emitenta; dywidenda = nowe tokeny) — BlackRock BUIDL;
+#   * 'zloto' — 1 token = 1 uncja trojańska złota; cena złota z wyroczni cenowej XAU/USD na Ethereum (to samo żądanie zbiorcze) — Paxos Gold;
+#   * 'usyc'  — fundusz z rosnącą wartością jednostki; cena z wyroczni funduszu na Ethereum (adres z dokumentacji emitenta) — Circle USYC.
+# Adresy kontraktów — z dokumentacji emitenta, potwierdzone drugim niezależnym źródłem (ws28/v150/BADANIE.md). Tokeny-kopie (mosty, opakowania:
+# XAUt0, sBUIDL, rUSDY…) NIE są na liście — liczylibyśmy te same jednostki dwa razy.
+# Decyzje koordynatora (03.10.2026, po badaniu):
+#   * BUIDL — trzy kontrakty bez strony emitenta z adresem (BUIDL-I na Ethereum, BNB Chain, Tempo) przyjęte: owner() każdego z nich to ten sam
+#     adres 0xe01605f6b6dc593b7d2917f4a0940db2a625b09e co kontraktów z komunikatów emitenta (Ethereum, Arbitrum, Optimism, Polygon, Avalanche),
+#     a suma 10 kontraktów (2 262 224 431,73 BUIDL 03.10) równa się podaży w obiegu podawanej przez CoinGecko co do ostatniej cyfry. Strażnik:
+#     w KAŻDYM odczycie owner() tych trzech kontraktów porównujemy z owner() kontraktu wzorcowego (Ethereum 0x7712…, z komunikatu emitenta) —
+#     inny właściciel = kontrakt pominięty (bez poprzedniego odczytu), produkt częściowy, więc zostaje w grupie „bez bieżącej wyceny”;
+#   * USYC — „sieci z listy” = sieci z OPUBLIKOWANYM adresem kontraktu (Ethereum, BNB, Solana, Arc); Canton i NEAR emitent wymienia bez adresu —
+#     opisane w pliku i na stronie jako nieczytane (03.10 ok. 0,06% jednostek wg API emitenta), nigdy jako zero;
+#   * Tether Gold — tylko podaż w obiegu (totalSupply() minus saldo rezerwy emitenta „authorized but not issued”) i tylko, gdy oficjalne źródło
+#     Tethera wskaże adres rezerwy; takiego źródła nie znaleźliśmy (BADANIE.md §2.2) — Tether Gold NIE jest liczony (zostaje niezmieniony);
+#   * cena złota świeża do 36 h od updatedAt wyroczni, potem nieświeża — tokeny złota wracają do „bez bieżącej wyceny”.
+# Zasady (zlecenie v150):
+#   * produkt liczy się w sumach z odczytem własnym TYLKO, gdy odczytano WSZYSTKIE jego tokeny z listy (każdy odczyt nie starszy niż
+#     RWC_CH_MAX_MIN) i cena jest świeża (wiek ≤ limit reguły); inaczej zostaje w grupie „bez bieżącej wyceny” (odczyt częściowy opisany wprost);
+#   * nigdy podwójnie: odczyt własny zastępuje WYŁĄCZNIE ostatnio znaną (niezmienioną albo „brak wartości od”) wartość produktu ukrytego —
+#     produkt z bieżącą wartością źródła v133 (lista albo zmieniona /tvl) liczy się wartością źródła, a odczyt własny jest tylko w pliku;
+#   * nieudany odczyt tokenu = poprzedni odczyt z własnym czasem (najwyżej RWC_KEEP_MIN), nigdy zero; prawdziwe 0 tokenów na sieci to odczyt;
+#   * miejsca dziesiętne z łańcucha ≠ z konfiguracji = token nieodczytany (zły adres albo zmiana kontraktu — nigdy cicha zła liczba);
+#   * bez bloku onchain (rwa_build(..., oc=None), build_rwa bez oc_fn) wynik jest taki sam jak w v133 (test).
+# Sieć: publiczne węzły bez klucza (RWC_SIECI; jak wieloryby: węzeł główny dwa razy z odstępem 0,5 s, potem zapas), jedno żądanie zbiorcze na sieć
+# (Aptos: dwa zapytania /view na token), sieci równolegle, jeden budżet RWC_BUDGET s na cały odczyt. Wyłączniki: RWA_OFF (cały krok RWA, także ten
+# odczyt) i osobny RWA_CHAIN_OFF (zmienna repozytorium, nie sekret: 1 = bez zapytań do łańcuchów; plik ma onchain {'off': True}, sumy jak v133).
+# Nazw węzłów i wyroczni na stronie nie ma — tylko w polu src pliku (jak v133).
+RWC_LABEL = 'Tokenizowane aktywa — odczyt własny z łańcucha'   # przedrostek komunikatów w META
+RWC_BUDGET = 20           # s na cały odczyt (wszystkie sieci równolegle; 03.10.2026 z Polski: ok. 1–2 s)
+RWC_TIMEOUT = 8           # s — najdłużej jedno żądanie (zwykle 0,2–1 s)
+RWC_MIN_TMO = 1.0         # s — mniej zostało z budżetu = bez kolejnej próby (sieć bez odpowiedzi — poprzedni odczyt z czasem)
+RWC_PROBY = 3             # jak wieloryby: węzeł główny dwa razy (odstęp RWC_PRZERWA s), potem zapas (gdy jest; bez zapasu — trzeci raz główny)
+RWC_PRZERWA = 0.5         # s między próbami
+RWC_CH_MAX_MIN = 12 * 60  # min — odczyt tokenu starszy = nie liczy się jako odczytany (dwa odświeżenia co 6 h); produkt wraca do „bez bieżącej wyceny”
+RWC_KEEP_MIN = 7 * 24 * 60   # min — najstarszy poprzedni odczyt trzymany w pliku (z czasem); starszy = brak
+RWC_HS_DAYS = 8           # dni dziennych zapisów podaży (kontrola dzienna: zmiana 24 h)
+RWC_HD_DAYS = 31          # dni zapisu „co liczyliśmy z odczytu własnego” (kontrola: skok sumy przy zmianie zbioru)
+RWC_MAX_SUPPLY = 1e13     # tokenów — więcej na jednym kontrakcie = błąd odczytu (brak, nie wartość)
+RWC_NOTES = 8
+RWC_SIECI = {   # sieć → (węzeł główny, zapas albo None, rodzaj odczytu); wszystkie publiczne, bez klucza — sprawdzone 03.10.2026
+    'eth': ('https://ethereum-rpc.publicnode.com', 'https://1rpc.io/eth', 'evm'),
+    'arb': ('https://arbitrum-one-rpc.publicnode.com', 'https://1rpc.io/arb', 'evm'),
+    'op': ('https://optimism-rpc.publicnode.com', 'https://1rpc.io/op', 'evm'),
+    'pol': ('https://polygon-bor-rpc.publicnode.com', 'https://1rpc.io/matic', 'evm'),
+    'avax': ('https://avalanche-c-chain-rpc.publicnode.com', 'https://1rpc.io/avax/c', 'evm'),
+    'bsc': ('https://bsc-rpc.publicnode.com', 'https://1rpc.io/bnb', 'evm'),
+    'tempo': ('https://rpc.tempo.xyz', None, 'evm'),                  # węzeł z dokumentacji sieci (bez klucza); identyfikator sieci 4217
+    'arc': ('https://rpc.mainnet.arc.io', None, 'evm'),               # węzeł z dokumentacji sieci (docs.arc.io); identyfikator sieci 5042
+    'sol': ('https://api.mainnet-beta.solana.com', None, 'sol'),      # zapas publicnode wymaga tokenu dla odczytów kont — bez zapasu
+    'apt': ('https://api.mainnet.aptoslabs.com/v1', 'https://fullnode.mainnet.aptoslabs.com/v1', 'apt'),   # REST /view (jedno zapytanie = jedna funkcja)
+}
+# Produkty (identyfikator = produkt źródła v133): nazwa, rodzaj (RWA_SEGS), reguła ceny, tokeny (sieć, adres / mint / obiekt metadanych, miejsca,
+# symbol, wl = sprawdzać owner() względem kontraktu wzorcowego 'wzor'), sieci bez opublikowanego adresu ('bez_adresu': nazwy, udział jednostek
+# poza listą wg emitenta i dzień pomiaru — tylko opis, nigdy zero). Źródła adresów i drugie potwierdzenia — BADANIE.md (03.10.2026); sumy
+# z 03.10 ok. 20:40 UTC w komentarzach (do kontroli rzędu wielkości).
+RWC_PRODUKTY = {
+    'blackrock-buidl': {'name': 'BlackRock BUIDL', 'seg': 'tb', 'cena': 'nav1',   # 03.10: 2 262 224 431,73 tokenów = 2,26 mld USD (10 kontraktów)
+                        'wzor': ('eth', '0x7712c34205737192402172409a8f7ccef8aa2aec'), 'tokeny': (
+        ('eth', '0x7712c34205737192402172409a8f7ccef8aa2aec', 6, 'BUIDL', False),     # komunikat Securitize 13.11.2024
+        ('eth', '0x6a9da2d710bb9b700acde7cb81f10f1ff8c89041', 6, 'BUIDL-I', True),    # bez strony emitenta — strażnik owner()
+        ('arb', '0xa6525ae43edcd03dc08e775774dcabd3bb925872', 6, 'BUIDL', False),
+        ('op', '0xa1cdab15bba75a80df4089cafba013e376957cf5', 6, 'BUIDL', False),
+        ('pol', '0x2893ef551b6dd69f661ac00f11d93e5dc5dc0e99', 6, 'BUIDL', False),
+        ('avax', '0x53fc82f14f009009b440a706e31c9021e1196a2f', 6, 'BUIDL', False),
+        ('bsc', '0x2d5bdc96d9c8aabbdb38c9a27398513e7e5ef84f', 6, 'BUIDL', True),      # bez strony emitenta — strażnik owner()
+        ('tempo', '0xb5ff12bd8010baef823d1bfa2ce6bdc0109cbb24', 6, 'BUIDL', True),    # bez strony emitenta — strażnik owner()
+        ('sol', 'GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr', 6, 'BUIDL', False),   # komunikat Securitize 25.03.2025
+        ('apt', '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89', 6, 'BUIDL', False))},   # obiekt metadanych modułu 0x4de58…808a
+    'paxos-gold': {'name': 'Paxos Gold', 'seg': 'cm', 'cena': 'zloto', 'tokeny': (   # 03.10: 432 501,57 + 2 559,61 uncji (most spala i bije — oba liczone)
+        ('eth', '0x45804880de22913dafe09f4980848ece6ecbaf78', 18, 'PAXG', False),
+        ('sol', '5GgRAEmv8ZxF2PR5hY72Qs5x1bnQ6UK2RbTPoqJ3wSwW', 6, 'PAXG', False))},
+    'circle-usyc': {'name': 'Circle USYC', 'seg': 'tb', 'cena': 'usyc',            # 03.10: 2,111 mld jednostek × 1,139 USD = 2,40 mld USD
+                    'bez_adresu': {'sieci': ['Canton', 'NEAR'], 'pct': 0.057, 'dzien': '2026-10-03'}, 'tokeny': (
+        ('eth', '0x136471a34f6ef19fe571effc1ca711fdb8e49f2b', 6, 'USYC', False),
+        ('bsc', '0x8d0fa28f221eb5735bc71d3a0da67ee5bc821311', 6, 'USYC', False),
+        ('sol', '7LWanZteUKtvFjv4MHYgKXXdAuCQYFPJysL9pxxdRQGn', 6, 'USYC', False),
+        ('arc', '0x8a5d989bbb96929f689b0200f435f53da42bf490', 6, 'USYC', False))},
+}
+# Ceny z wyroczni na łańcuchu: latestRoundData() (roundId, answer, startedAt, updatedAt, answeredInRound); dec — miejsca odpowiedzi; lo / hi —
+# granice rozsądku (poza = brak ceny); max_min — najstarsza cena uznana za świeżą (wiek liczony od updatedAt).
+RWC_CENY = {
+    'zloto': {'siec': 'eth', 'adres': '0x214ed9da11d2fbe465a6fc601a91e62ebec1a0d6', 'dec': 8, 'lo': 500.0, 'hi': 50000.0,
+              'max_min': 36 * 60,          # decyzja koordynatora: 36 h (aktualizacja co 24 h także w weekend — 03.10 sobota 15:25 UTC — albo przy zmianie ≥ 0,3%)
+              'src': 'XAU/USD — wyrocznia cenowa na Ethereum (EACAggregatorProxy 0x214e…0D6, 8 miejsc; docs.chain.link)'},
+    'usyc': {'siec': 'eth', 'adres': '0x74f2199aeb743f68f05943e5715a33eaf2b61f53', 'dec': 18, 'lo': 0.9, 'hi': 2.0,
+             'max_min': 102 * 60,          # wycena raz na dzień roboczy (03.10: piątek 02.10 12:31 UTC) — weekend + święto + zapas
+             'src': 'USYC / USD — wyrocznia funduszu na Ethereum (0x74f2…1f53, 18 miejsc; developers.circle.com/tokenized/usyc/smart-contracts)'},
+}
+RWC_SRC = ('Odczyt własny z publicznych łańcuchów bloków (węzły bez klucza: *.publicnode.com, zapas 1rpc.io; rpc.tempo.xyz; rpc.mainnet.arc.io; '
+           'api.mainnet-beta.solana.com; api.mainnet.aptoslabs.com) — liczba tokenów (totalSupply / konto emisji / fungible_asset::supply) × cena: '
+           '1 USD (BUIDL), XAU/USD z wyroczni na Ethereum (Paxos Gold), wyrocznia funduszu USYC; obliczenia CapitalFlowAI')
+RWC_SEL_SUPPLY, RWC_SEL_DEC, RWC_SEL_ROUND, RWC_SEL_OWNER = '0x18160ddd', '0x313ce567', '0xfeaf968c', '0x8da5cb5b'   # totalSupply(), decimals(), latestRoundData(), owner()
+RWC_SOL_PROG = ('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb')   # programy tokenów Solany (SPL, Token-2022)
+_RWC_HEX = re.compile(r'^0x[0-9a-fA-F]*$')
+
+
+def rwc_words(res):
+    """Wynik eth_call ('0x' + słowa po 32 bajty) → lista liczb (bez znaku) albo None (pusty '0x', śmieci, niepełne słowo)."""
+    if not isinstance(res, str) or not _RWC_HEX.match(res) or len(res) <= 2 or (len(res) - 2) % 64:
+        return None
+    return [int(res[2 + 64 * i:66 + 64 * i], 16) for i in range((len(res) - 2) // 64)]
+
+
+def rwc_iso(ts):
+    """Sekundy uniksowe → ISO UTC; zły zapis = None."""
+    try:
+        return datetime.datetime.fromtimestamp(int(ts), datetime.timezone.utc).replace(microsecond=0).isoformat()
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def _rwc_age_min(iso, now):
+    """Minuty od znacznika ISO do `now`; brak, zły zapis albo czas z przyszłości (> 10 min) = nieskończoność (nieświeże)."""
+    return _rwa_age_min(iso, now)
+
+
+def _rwc_proby(sid, wyslij, n, termin, sleep=None):
+    """Wspólna polityka prób (jak wieloryby): węzeł główny dwa razy z odstępem RWC_PRZERWA s, potem zapas (bez zapasu — główny trzeci raz).
+    wyslij(url, timeout) → lista n wyników (None = element bez wyniku) i opis błędu elementu albo None. Element bez wyniku = ponowienie całości;
+    po ostatniej próbie zostaje najlepsza odpowiedź (najwięcej wyników). Każda próba najwyżej do `termin` (time.monotonic).
+    → (wyniki, liczba żądań HTTP, błąd albo None)."""
+    sleep = sleep or time.sleep
+    url, zapas, _k = RWC_SIECI[sid]
+    best, last, req = None, None, 0
+    urls = [url] * (RWC_PROBY - 1) + [zapas or url]
+    for i, u in enumerate(urls):
+        left = termin - time.monotonic()
+        if left < RWC_MIN_TMO:
+            last = last or 'brak czasu w budżecie odczytu'
+            break
+        req += 1
+        try:
+            out, bad = wyslij(u, min(RWC_TIMEOUT, left))
+            if best is None or sum(v is not None for v in out) > sum(v is not None for v in best):
+                best = out
+            if bad is None:
+                return out, req, None
+            last = bad
+        except Exception as e:  # noqa — sieć: następna próba (albo zapas)
+            last = f'{type(e).__name__}: {e}'[:120]
+        if i < len(urls) - 1:
+            sleep(RWC_PRZERWA)
+    return (best or [None] * n), req, last
+
+
+def rwc_rpc(sid, calls, termin, post=None, sleep=None):
+    """JSON-RPC do sieci `sid`: kilka wywołań = jedno żądanie zbiorcze, jedno wywołanie = zwykłe żądanie (publiczny węzeł Solany bywa niechętny
+    paczkom). → (wyniki w kolejności wywołań, żądania HTTP, błąd albo None); brak wyniku elementu = None (brak, nigdy zero)."""
+    post = post or post_json
+
+    def wyslij(u, tmo):
+        body = [{'jsonrpc': '2.0', 'id': k, 'method': m, 'params': p} for k, (m, p) in enumerate(calls)]
+        r = post(u, body if len(body) > 1 else body[0], timeout=tmo)
+        r = [r] if len(body) == 1 and isinstance(r, dict) else r
+        if not isinstance(r, list):
+            raise ValueError(f'odpowiedź {type(r).__name__}, nie lista')
+        by = {x.get('id'): x for x in r if isinstance(x, dict)}
+        out, bad = [], None
+        for k in range(len(calls)):
+            x = by.get(k)
+            if isinstance(x, dict) and 'result' in x and x['result'] is not None:
+                out.append(x['result'])
+            else:
+                out.append(None)
+                err = x.get('error') if isinstance(x, dict) else None
+                bad = bad or str(err.get('message') if isinstance(err, dict) else err or 'brak wyniku')[:100]
+        return out, bad
+    return _rwc_proby(sid, wyslij, len(calls), termin, sleep=sleep)
+
+
+def rwc_apt(sid, toks, termin, post=None, sleep=None):
+    """Aptos (REST /view, bez klucza): dla każdego obiektu metadanych 0x1::fungible_asset::supply (Option<u128> → {"vec": ["liczba"]}) i ::decimals.
+    → (wyniki [podaż surowa|None, miejsca|None, …], żądania, błąd)."""
+    post = post or post_json
+
+    def wyslij(u, tmo):
+        out, bad = [], None
+        for a, _d in toks:
+            for fn in ('supply', 'decimals'):
+                try:
+                    r = post(u + '/view', {'function': f'0x1::fungible_asset::{fn}', 'type_arguments': ['0x1::fungible_asset::Metadata'], 'arguments': [a]},
+                             timeout=tmo)
+                    v = r[0] if isinstance(r, list) and len(r) == 1 else None
+                    if fn == 'supply':
+                        v = v.get('vec') if isinstance(v, dict) else None
+                        v = int(v[0]) if isinstance(v, list) and len(v) == 1 and isinstance(v[0], str) and v[0].isdigit() else None
+                    elif not (isinstance(v, int) and not isinstance(v, bool)):
+                        v = None
+                except Exception as e:  # noqa — ten element bez wyniku (ponowienie całości)
+                    v, bad = None, bad or f'{type(e).__name__}: {e}'[:100]
+                if v is None:
+                    bad = bad or f'{fn}: brak wyniku'
+                out.append(v)
+        return out, bad
+    return _rwc_proby(sid, wyslij, 2 * len(toks), termin, sleep=sleep)
+
+
+def rwc_siec(sid, toks, oracles, termin, post=None, sleep=None, owners=()):
+    """Odczyt jednej sieci: tokeny [(adres, miejsca)], wyrocznie [(id, adres)] i kontrakty do sprawdzenia właściciela `owners` [adres] →
+    {'sup': {adres: liczba tokenów|None}, 'dec': {adres: miejsca z łańcucha|None}, 'px': {id: (odpowiedź surowa, updatedAt ISO)|None},
+    'own': {adres: owner() małymi literami|None}, 'blk': numer bloku / slot|None, 'req': żądania, 'err': błąd|None}.
+    EVM: eth_blockNumber + totalSupply() i decimals() każdego tokenu + latestRoundData() wyroczni + owner() (jedno żądanie zbiorcze); Solana: jedno
+    getMultipleAccounts (jsonParsed) — konto emisji programu tokenów: supply i decimals; Aptos: /view supply i decimals.
+    Miejsca z łańcucha ≠ miejsca z konfiguracji = token nieodczytany (zły adres albo zmiana kontraktu — nigdy cicha zła liczba)."""
+    kind = RWC_SIECI[sid][2]
+    out = {'sup': {}, 'dec': {}, 'px': {}, 'own': {}, 'blk': None, 'req': 0, 'err': None}
+    if kind == 'apt':
+        res, out['req'], out['err'] = rwc_apt(sid, toks, termin, post=post, sleep=sleep)
+        for k, (a, d) in enumerate(toks):
+            s, dd = res[2 * k], res[2 * k + 1]
+            out['dec'][a] = dd
+            out['sup'][a] = s / 10 ** d if s is not None and dd == d else None
+        return out
+    if kind == 'sol':
+        res, out['req'], out['err'] = rwc_rpc(sid, [('getMultipleAccounts', [[a for a, _d in toks], {'encoding': 'jsonParsed'}])], termin, post=post, sleep=sleep)
+        r = res[0] if isinstance(res[0], dict) else {}
+        V = r.get('value') if isinstance(r.get('value'), list) and len(r['value']) == len(toks) else [None] * len(toks)
+        out['blk'] = (r.get('context') or {}).get('slot') if isinstance(r.get('context'), dict) else None
+        for (a, d), v in zip(toks, V):
+            dt_ = v.get('data') if isinstance(v, dict) else None
+            pi = dt_.get('parsed') if isinstance(dt_, dict) and isinstance(dt_.get('parsed'), dict) else {}
+            info = pi.get('info') if pi.get('type') == 'mint' and isinstance(pi.get('info'), dict) else {}
+            amt, dd = info.get('supply'), info.get('decimals')
+            ok = (isinstance(v, dict) and v.get('owner') in RWC_SOL_PROG and isinstance(amt, str) and amt.isdigit() and isinstance(dd, int)
+                  and not isinstance(dd, bool))
+            out['dec'][a] = dd if ok else None
+            out['sup'][a] = int(amt) / 10 ** d if ok and dd == d else None
+        if out['err'] is None and any(out['sup'][a] is None for a, _d in toks):
+            out['err'] = 'konto emisji bez liczby albo inne miejsca dziesiętne'
+        return out
+    calls = [('eth_blockNumber', [])]
+    for a, _d in toks:
+        calls += [('eth_call', [{'to': a, 'data': RWC_SEL_SUPPLY}, 'latest']), ('eth_call', [{'to': a, 'data': RWC_SEL_DEC}, 'latest'])]
+    for _i, a in oracles:
+        calls.append(('eth_call', [{'to': a, 'data': RWC_SEL_ROUND}, 'latest']))
+    for a in owners:
+        calls.append(('eth_call', [{'to': a, 'data': RWC_SEL_OWNER}, 'latest']))
+    res, out['req'], out['err'] = rwc_rpc(sid, calls, termin, post=post, sleep=sleep)
+    out['blk'] = wh_hex(res[0]) if isinstance(res[0], str) else None
+    for k, (a, d) in enumerate(toks):
+        s, dd = rwc_words(res[1 + 2 * k]), rwc_words(res[2 + 2 * k])
+        out['dec'][a] = dd[0] if dd and len(dd) == 1 else None
+        out['sup'][a] = s[0] / 10 ** d if s and len(s) == 1 and out['dec'][a] == d else None
+    base = 1 + 2 * len(toks)
+    for k, (i, _a) in enumerate(oracles):
+        w = rwc_words(res[base + k])
+        out['px'][i] = None
+        if w and len(w) == 5:
+            ans = w[1] - (1 << 256) if w[1] >= 1 << 255 else w[1]
+            out['px'][i] = (ans, rwc_iso(w[3]))
+    base += len(oracles)
+    for k, a in enumerate(owners):
+        w = rwc_words(res[base + k])
+        out['own'][a] = '0x' + format(w[0], '040x') if w and len(w) == 1 and w[0] < 1 << 160 else None
+    if out['err'] is None and (any(out['sup'][a] is None for a, _d in toks) or any(out['px'][i] is None for i, _a in oracles)
+                               or any(out['own'][a] is None for a in owners)):
+        out['err'] = 'wynik bez liczby albo inne miejsca dziesiętne'
+    return out
+
+
+def rwc_tokeny():
+    """Z konfiguracji: tokeny do odczytu {sieć: [(adres, miejsca)]} (tylko sieci z RWC_SIECI, bez powtórzeń), wyrocznie {sieć: [(id, adres)]}
+    i kontrakty do sprawdzenia właściciela {sieć: [adres]} (tokeny z wl = True i kontrakty wzorcowe 'wzor')."""
+    T, O, W = {}, {}, {}
+    for slug, p in RWC_PRODUKTY.items():
+        for sid, a, d, _sym, wl in p['tokeny']:
+            if sid in RWC_SIECI and a and (a, d) not in T.setdefault(sid, []):
+                T[sid].append((a, d))
+            if wl and sid in RWC_SIECI and a not in W.setdefault(sid, []):
+                W[sid].append(a)
+        if p.get('wzor') and p['wzor'][1] not in W.setdefault(p['wzor'][0], []):
+            W[p['wzor'][0]].append(p['wzor'][1])
+    for i, c in RWC_CENY.items():
+        O.setdefault(c['siec'], []).append((i, c['adres']))
+        T.setdefault(c['siec'], [])
+    return T, O, W
+
+
+def rwc_odczyt(now=None, budget=None, clock=None, post=None, sleep=None, threads=None):
+    """Sieć: wszystkie sieci z tokenami równolegle (jedno żądanie zbiorcze na sieć), jeden budżet `budget` s (RWC_BUDGET). Nigdy nie podnosi wyjątku
+    sieci — sieć bez odpowiedzi ma err i puste odczyty. → {'at': ISO, 'r': {sieć: wynik rwc_siec}, 'req': żądania HTTP, 's': sekundy}."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
+    clock = clock or time.monotonic
+    budget = RWC_BUDGET if budget is None else budget
+    t0 = clock()
+    termin = time.monotonic() + budget
+    T, O, W = rwc_tokeny()
+    sids = sorted(set(T) | set(O) | set(W))
+
+    def one(sid):
+        try:
+            return sid, rwc_siec(sid, T.get(sid, []), O.get(sid, []), termin, post=post, sleep=sleep, owners=W.get(sid, []))
+        except Exception as e:  # noqa — błąd kodu albo odpowiedzi: ta sieć bez odczytu, reszta dalej
+            return sid, {'sup': {}, 'dec': {}, 'px': {}, 'own': {}, 'blk': None, 'req': 0, 'err': f'{type(e).__name__}: {e}'[:120]}
+    with _rwa_cf.ThreadPoolExecutor(max(1, min(threads or len(sids), len(sids) or 1))) as ex:
+        R = dict(ex.map(one, sids))
+    return {'at': now.isoformat(), 'r': R, 'req': sum(r['req'] for r in R.values()), 's': round(clock() - t0, 1)}
+
+
+def _rwc_prev_tok(prev_oc):
+    """Poprzednie odczyty tokenów z pliku: {(produkt, sieć, adres): (podaż, czas)} — tylko poprawne zapisy."""
+    out = {}
+    P = prev_oc.get('p') if isinstance(prev_oc, dict) and isinstance(prev_oc.get('p'), dict) else {}
+    for slug, p in P.items():
+        for t in (p.get('t') if isinstance(p, dict) and isinstance(p.get('t'), list) else []):
+            if (isinstance(t, list) and len(t) == 5 and isinstance(t[0], str) and isinstance(t[4], str) and rwa_num(t[2], pos=False) is not None
+                    and t[2] >= 0 and isinstance(t[3], str)):
+                out[(slug, t[0], t[4].lower())] = (float(t[2]), t[3])
+    return out
+
+
+def _rwc_prev_px(prev_oc):
+    """Poprzednie ceny wyroczni z pliku: {id: (cena, czas ceny)}."""
+    X = prev_oc.get('px') if isinstance(prev_oc, dict) and isinstance(prev_oc.get('px'), dict) else {}
+    return {i: (float(c['v']), c['at']) for i, c in X.items() if isinstance(c, dict) and rwa_num(c.get('v')) is not None and isinstance(c.get('at'), str)}
+
+
+def rwc_cena_ok(rule, px, px_at, now):
+    """Czy cena produktu jest świeża: 'nav1' — zawsze (stała z deklaracji emitenta); wyrocznia — liczba w granicach reguły i wiek ≤ limit reguły."""
+    if rule == 'nav1':
+        return px == 1.0
+    c = RWC_CENY.get(rule)
+    if not c or rwa_num(px) is None or not (c['lo'] <= px <= c['hi']):
+        return False
+    return _rwc_age_min(px_at, now) <= c['max_min']
+
+
+def rwc_blok(rd, prev_oc=None, now=None):
+    """Blok onchain pliku z odczytu `rd` (rwc_odczyt) i poprzedniego bloku: każdy produkt z RWC_PRODUKTY — tokeny [sieć, symbol, podaż|None,
+    czas odczytu|None, adres] (nieodczytany token = poprzedni odczyt z jego czasem, najwyżej RWC_KEEP_MIN; sieć „nie do odczytu” = None), reguła
+    ceny, cena i jej czas, n (tokenów na liście), nr (z liczbą), un (sieci bez liczby), vp (suma odczytanych × cena — częściowa, gdy nr < n),
+    v (pełna wartość, tylko gdy wszystkie tokeny mają liczbę), full (v i wszystkie odczyty ≤ RWC_CH_MAX_MIN i świeża cena). Ceny wyroczni: bieżący
+    odczyt albo poprzedni z czasem ceny. hs: dzienne sumy podaży (tylko gdy wszystkie tokeny odczytane w tym odczycie). Brak liczby = None.
+    Strażnik właściciela (produkt z 'wzor', BUIDL): token z wl — owner() inny niż kontraktu wzorcowego = pominięty razem z poprzednim odczytem
+    (wl.bad), właściciela nie odczytano = jak nieodczytany (wl.nv; poprzedni sprawdzony odczyt z czasem). 'bez_adresu' z konfiguracji — do pliku."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
+    prev_oc = prev_oc if isinstance(prev_oc, dict) and not prev_oc.get('off') else {}
+    stamp, day = rd['at'], now.date().isoformat()
+    R = rd.get('r') if isinstance(rd.get('r'), dict) else {}
+    pt, ppx = _rwc_prev_tok(prev_oc), _rwc_prev_px(prev_oc)
+    notes = []
+    for sid in sorted(R):
+        if R[sid].get('err'):
+            notes.append(f"sieć {sid}: {R[sid]['err']} — tokeny tej sieci z poprzedniego odczytu (z jego czasem)")
+    PX = {}
+    for i, c in RWC_CENY.items():
+        r = (R.get(c['siec']) or {}).get('px', {}).get(i)
+        v = r[0] / 10 ** c['dec'] if r and isinstance(r[0], int) else None
+        if v is not None and c['lo'] <= v <= c['hi'] and r[1]:
+            PX[i] = {'v': round(v, 9), 'at': r[1], 'src': c['src'], 'odczyt': stamp}
+        elif i in ppx:
+            PX[i] = {'v': ppx[i][0], 'at': ppx[i][1], 'src': c['src'], 'odczyt': (prev_oc.get('px') or {}).get(i, {}).get('odczyt'), 'k': 1}
+            notes.append(f'cena {i}: bez nowego odczytu — poprzednia z {ppx[i][1]}')
+        else:
+            notes.append(f'cena {i}: brak odczytu')
+        if i in PX and _rwc_age_min(PX[i]['at'], now) > c['max_min']:
+            notes.append(f"cena {i}: starsza niż {c['max_min'] // 60} h ({PX[i]['at']}) — produkty z tą ceną poza sumami")
+    P, ok = {}, True
+    phs = prev_oc.get('hs') if isinstance(prev_oc.get('hs'), dict) else {}
+    hs = {}
+    for slug, p in RWC_PRODUKTY.items():
+        rule = p['cena']
+        px, px_at = (1.0, None) if rule == 'nav1' else ((PX[rule]['v'], PX[rule]['at']) if rule in PX else (None, None))
+        toks, tot, fresh_all, now_all, un = [], 0.0, True, True, []
+        wz = p.get('wzor')
+        ref = (R.get(wz[0]) or {}).get('own', {}).get(wz[1]) if wz else None   # owner() kontraktu wzorcowego (z dokumentacji emitenta) w tym odczycie
+        wl_bad, wl_nv = [], []
+        for sid, a, d, sym, wl in p['tokeny']:
+            s = at = None
+            if sid in RWC_SIECI and a:
+                own = (R.get(sid) or {}).get('own', {}).get(a) if wl else None
+                if wl and own and ref and own != ref:
+                    # strażnik: inny właściciel niż kontraktu wzorcowego — kontrakt pominięty razem z poprzednim odczytem; produkt częściowy
+                    wl_bad.append(sid)
+                    ok = now_all = False
+                    notes.append(f"{p['name']}: kontrakt w sieci {sid} ({a[:10]}…) ma właściciela {own}, inny niż kontrakt wzorcowy ({ref}) — pominięty")
+                    un.append(sid)
+                    toks.append([sid, sym, None, None, a])
+                    continue
+                s = (R.get(sid) or {}).get('sup', {}).get(a)
+                if s is not None and not (0 <= s <= RWC_MAX_SUPPLY):
+                    s = None
+                if s is not None and wl and not (own and ref):
+                    s = None                                          # właściciela nie sprawdzono w tym odczycie — jak nieodczytany (poprzedni z czasem)
+                    wl_nv.append(sid)
+                if s is not None:
+                    at = stamp
+                else:
+                    now_all = False
+                    ok = False
+                    k = pt.get((slug, sid, a.lower()))
+                    if k and _rwc_age_min(k[1], now) <= RWC_KEEP_MIN:
+                        s, at = k
+            if s is None:
+                un.append(sid)
+            else:
+                tot += s
+                if _rwc_age_min(at, now) > RWC_CH_MAX_MIN:
+                    fresh_all = False
+            toks.append([sid, sym, round(s, 6) if s is not None else None, at, a or None])
+        n, nr = len(toks), sum(1 for t in toks if t[2] is not None)
+        nrd = sum(1 for t in toks if t[0] in RWC_SIECI and t[2] is not None)   # odczytane w sieciach, które czytamy (dzienny zapis podaży)
+        pok = rwc_cena_ok(rule, px, px_at, now)
+        o = {'name': p['name'], 'seg': p['seg'], 'rule': rule, 'px': px, 'px_at': px_at, 'px_ok': pok, 't': toks, 'n': n, 'nr': nr,
+             'un': sorted(set(un)), 'sup': round(tot, 6) if nr == n else None,
+             'v': round(tot * px, 2) if nr == n and px is not None else None,
+             'vp': round(tot * px, 2) if 0 < nr < n and px is not None else None}
+        o['full'] = bool(o['v'] is not None and fresh_all and pok)
+        if wz:
+            o['wl'] = {'ref': ref, 'bad': wl_bad, 'nv': sorted(set(wl_nv))}   # strażnik właściciela (BUIDL): wzorzec, inny właściciel, niesprawdzone
+        if p.get('bez_adresu'):
+            o['bez_adresu'] = dict(p['bez_adresu'])                   # sieci bez opublikowanego adresu — opis, nigdy zero
+        P[slug] = o
+        old = [x for x in (phs.get(slug) or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and _RWA_DAY.match(x[0])
+               and x[0] < day and rwa_num(x[1], pos=False) is not None]
+        if now_all and nrd == sum(1 for t in toks if t[0] in RWC_SIECI):
+            old.append([day, round(sum(t[2] for t in toks if t[0] in RWC_SIECI), 6)])
+        elif isinstance(phs.get(slug), list):
+            old += [x for x in phs[slug] if isinstance(x, list) and len(x) == 2 and x[0] == day and rwa_num(x[1], pos=False) is not None]
+        lo = _rwa_day_add(day, -(RWC_HS_DAYS - 1))
+        old = [x for x in old if x[0] >= lo]
+        if old:
+            hs[slug] = old
+    return {'v': 1, 'at': stamp, 'ok': bool(ok and all(i in PX and 'k' not in PX[i] for i in RWC_CENY)), 'src': RWC_SRC, 'px': PX, 'p': P, 'hs': hs,
+            'run': {'req': rd.get('req', 0), 's': rd.get('s', 0)}, 'notes': notes[:RWC_NOTES]}
+
+
+def rwc_uzyj(oc, now=None):
+    """Produkty do sum z odczytu własnego: {produkt: wartość USD} — tylko pełny odczyt: wszystkie tokeny z listy z liczbą, każdy odczyt nie starszy
+    niż RWC_CH_MAX_MIN, świeża cena (rwc_cena_ok); liczone od nowa z pól pliku (wiek względem `now`). Brak bloku albo wyłączony = {}."""
+    if not isinstance(oc, dict) or oc.get('off') or not isinstance(oc.get('p'), dict):
+        return {}
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc)
+    out = {}
+    for slug, o in oc['p'].items():
+        if not isinstance(o, dict) or slug not in RWC_PRODUKTY or o.get('rule') != RWC_PRODUKTY[slug]['cena']:
+            continue
+        T = o.get('t') if isinstance(o.get('t'), list) else []
+        if len(T) != len(RWC_PRODUKTY[slug]['tokeny']) or not T:
+            continue
+        sup = 0.0
+        for t, c in zip(T, RWC_PRODUKTY[slug]['tokeny']):
+            if not (isinstance(t, list) and len(t) == 5 and t[0] == c[0] and str(t[4] or '').lower() == str(c[1] or '').lower()
+                    and rwa_num(t[2], pos=False) is not None and t[2] >= 0
+                    and _rwc_age_min(t[3], now) <= RWC_CH_MAX_MIN):
+                break
+            sup += t[2]
+        else:
+            if rwc_cena_ok(o['rule'], o.get('px'), o.get('px_at'), now):
+                v = rwa_num(sup * o['px'])
+                if v is not None:
+                    out[slug] = v
+    return out
+
+
+def rwc_wynik(oc, used, rows, day, prev=None):
+    """Blok onchain do pliku: odczyt (rwc_blok) + co z niego weszło do sum — used {produkt: USD}, seg {rodzaj: {v, n}} (i 'all') i hd: dzienny
+    zapis [mln USD, [produkty]] z ostatnich RWC_HD_DAYS dni (kontrola dzienna: skok sumy przy zmianie zbioru produktów z odczytu własnego)."""
+    o = dict(oc)
+    o['used'] = {s: round(v, 2) for s, v in sorted(used.items())}
+    seg = {}
+    for s, v in used.items():
+        for k in ((rows[s]['seg'] if rows[s]['seg'] in RWA_SEGS else 'oth'), 'all'):
+            x = seg.setdefault(k, {'v': 0.0, 'n': 0})
+            x['v'] += v
+            x['n'] += 1
+    o['seg'] = {k: {'v': round(x['v']), 'n': x['n']} for k, x in seg.items()}
+    poc = (prev or {}).get('onchain') if isinstance(prev, dict) else None
+    phd = poc.get('hd') if isinstance(poc, dict) and isinstance(poc.get('hd'), dict) else {}
+    lo = _rwa_day_add(day, -(RWC_HD_DAYS - 1))
+    hd = {d: x for d, x in phd.items() if isinstance(d, str) and _RWA_DAY.match(d) and lo <= d < day and isinstance(x, list) and len(x) == 2
+          and rwa_num(x[0], pos=False) is not None and isinstance(x[1], list)}
+    hd[day] = [round(sum(used.values()) / 1e6, 1), sorted(used)]
+    o['hd'] = dict(sorted(hd.items()))
+    return o
+
+
+def rwc_krok(prev_oc, now):
+    """Krok main(): odczyt własny z łańcucha (sieć) i blok onchain z poprzednim blokiem (nieodczytane tokeny i ceny — z poprzedniego odczytu z czasem)."""
+    return rwc_blok(rwc_odczyt(now), prev_oc, now)
+
+
+def rwc_wylaczony(prev_oc, now):
+    """RWA_CHAIN_OFF: bez zapytań do łańcuchów; blok {'off': True} — nic z odczytu własnego nie wchodzi do sum (jak v133)."""
+    return {'v': 1, 'off': True, 'at': now.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()}
+
+
+def rwc_meta(rw, off, cached=False):
+    """Stan źródła w META (strona Źródła = stan na żywo): 'rwa-lancuch' = 'cached' (plik z pamięci / poprzedni plik) albo ok bloku (False — sieć bez
+    odpowiedzi albo cena bez nowego odczytu); wyłączony = notatka, bez wpisu stanu; plik bez bloku onchain = bez wpisu."""
+    if off:
+        META['notes'].append(f'{RWC_LABEL}: wyłączone zmienną RWA_CHAIN_OFF — bez zapytań do łańcuchów; sumy bez odczytu własnego (jak w v133)')
+        return
+    oc = rw.get('onchain') if isinstance(rw, dict) else None
+    if isinstance(oc, dict) and not oc.get('off'):
+        META['ok']['rwa-lancuch'] = 'cached' if cached else oc.get('ok') is True
 
 
 def main():
@@ -17343,27 +17869,31 @@ def main():
     # v133.1: wyłącznik RWA_OFF (zmienna repozytorium, nie sekret; jak KALSHI_OFF) = zero zapytań, poprzedni plik nie czytany i bez zapisu
     # (strona chowa panel); notatka, bez wpisu w stanie źródeł
     rw_off = os.environ.get('RWA_OFF', '').strip().lower() in KS_OFF_ON
+    rwc_off = os.environ.get('RWA_CHAIN_OFF', '').strip().lower() in KS_OFF_ON   # v150: wyłącznik samego odczytu własnego z łańcucha (zmienna repozytorium)
     prev_rw = None if rw_off else previous('rwa')
     prev_rw = prev_rw if rwa_plik_ok(prev_rw) else None
     rw_late = _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > RWA_LATE
     rw_due = rwa_odswiez(prev_rw)
+    if rwc_off and isinstance((prev_rw or {}).get('onchain'), dict) and not prev_rw['onchain'].get('off'):
+        rw_due = True                                                 # v150: RWA_CHAIN_OFF działa od razu — jedna przebudowa sum bez odczytu własnego
     if rw_off:
         META['notes'].append(f'{RWA_LABEL}: wyłączone zmienną RWA_OFF — bez zapytań i bez pliku')
     elif rw_late or not rw_due:
         if prev_rw:
-            save('rwa', prev_rw); META['ok']['rwa'] = 'cached'
+            save('rwa', prev_rw); META['ok']['rwa'] = 'cached'; rwc_meta(prev_rw, rwc_off, cached=True)
         if rw_late and rw_due:
             META['notes'].append(f'{RWA_LABEL}: pominięte w tym przebiegu — trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {RWA_LATE} s)')
         elif not prev_rw:
             META['notes'].append(f'{RWA_LABEL}: brak poprzedniego pliku — próba w następnym przebiegu')
     else:
         try:
-            rw = build_rwa(prev_rw, S=SAVED); save('rwa', rw); META['ok']['rwa'] = all(rw['ok'].get(k) is True for k in RWA_PARTS)
+            rw = build_rwa(prev_rw, S=SAVED, oc_fn=rwc_wylaczony if rwc_off else rwc_krok); save('rwa', rw)
+            META['ok']['rwa'] = all(rw['ok'].get(k) is True for k in RWA_PARTS); rwc_meta(rw, rwc_off)
             META['notes'].extend(mask(f'{RWA_LABEL}: {x}')[:300] for x in rw.get('notes') or [])
         except Exception as e:
             META['ok']['rwa'] = False
             if prev_rw:
-                META['errors'].append(mask(f'{RWA_LABEL}: {e}')[:200]); save('rwa', rwa_proba(prev_rw))
+                META['errors'].append(mask(f'{RWA_LABEL}: {e}')[:200]); save('rwa', rwa_proba(prev_rw)); rwc_meta(prev_rw, rwc_off, cached=True)
             else:
                 META['notes'].append(mask(f'{RWA_LABEL}: brak danych — pierwsza próba nieudana ({e}); następna w następnym przebiegu')[:300])
     # INSTYTUCJE (bez klucza): najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)

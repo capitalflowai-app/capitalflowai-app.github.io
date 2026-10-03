@@ -1088,6 +1088,99 @@ def g_rwa():
 GROUPS.insert(GROUPS.index(g_nasdaq), g_rwa)   # v133: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
 
 
+# v150 (etykieta „rwa-chain”): sondy bez klucza dla odczytu własnego z łańcucha (blok onchain w data/rwa.json) — po jednym żądaniu na sieć do tych
+# samych węzłów co zbieracz (przerwa 0,3 s): EVM — paczka eth_blockNumber + totalSupply() jednego tokenu (na Ethereum także latestRoundData() obu
+# wyroczni i owner() kontraktów BUIDL; na BNB i Tempo owner() BUIDL); Solana — getMultipleAccounts trzech kont emisji (jedno zwykłe żądanie);
+# Aptos — /view 0x1::fungible_asset::supply. Wypisuje tylko: kod HTTP, ms, bajty, liczbę wyników, czy wyniki są liczbami, wiek cen w godzinach
+# i zgodność właściciela trzech kontraktów BUIDL bez strony emitenta (tak / nie) — nigdy kwot, cen ani adresów. Wiersz „summary rwa-chain …”
+# trafia do adnotacji (filtr adnotacji w sondy.yml przepuszcza wiersze summary — workflow bez zmian).
+RWC_S_SUP, RWC_S_RND, RWC_S_OWN = "0x18160ddd", "0xfeaf968c", "0x8da5cb5b"
+RWC_S_BUIDL = "0x7712c34205737192402172409a8f7ccef8aa2aec"   # kontrakt wzorcowy (komunikat emitenta) — owner() porównujemy z trzema poniżej
+RWC_S = [   # (sieć, węzeł, rodzaj, token do totalSupply(), dodatkowe wywołania eth_call [(adres, selektor, znaczenie)])
+    ("eth", "https://ethereum-rpc.publicnode.com", "evm", RWC_S_BUIDL,
+     [("0x214ed9da11d2fbe465a6fc601a91e62ebec1a0d6", RWC_S_RND, "px"), ("0x74f2199aeb743f68f05943e5715a33eaf2b61f53", RWC_S_RND, "px"),
+      (RWC_S_BUIDL, RWC_S_OWN, "ref"), ("0x6a9da2d710bb9b700acde7cb81f10f1ff8c89041", RWC_S_OWN, "own")]),
+    ("arb", "https://arbitrum-one-rpc.publicnode.com", "evm", "0xa6525ae43edcd03dc08e775774dcabd3bb925872", []),
+    ("op", "https://optimism-rpc.publicnode.com", "evm", "0xa1cdab15bba75a80df4089cafba013e376957cf5", []),
+    ("pol", "https://polygon-bor-rpc.publicnode.com", "evm", "0x2893ef551b6dd69f661ac00f11d93e5dc5dc0e99", []),
+    ("avax", "https://avalanche-c-chain-rpc.publicnode.com", "evm", "0x53fc82f14f009009b440a706e31c9021e1196a2f", []),
+    ("bsc", "https://bsc-rpc.publicnode.com", "evm", "0x8d0fa28f221eb5735bc71d3a0da67ee5bc821311",
+     [("0x2d5bdc96d9c8aabbdb38c9a27398513e7e5ef84f", RWC_S_OWN, "own")]),
+    ("tempo", "https://rpc.tempo.xyz", "evm", "0xb5ff12bd8010baef823d1bfa2ce6bdc0109cbb24", [("0xb5ff12bd8010baef823d1bfa2ce6bdc0109cbb24", RWC_S_OWN, "own")]),
+    ("arc", "https://rpc.mainnet.arc.io", "evm", "0x8a5d989bbb96929f689b0200f435f53da42bf490", []),
+    ("sol", "https://api.mainnet-beta.solana.com", "sol", ["GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr", "5GgRAEmv8ZxF2PR5hY72Qs5x1bnQ6UK2RbTPoqJ3wSwW",
+                                                         "7LWanZteUKtvFjv4MHYgKXXdAuCQYFPJysL9pxxdRQGn"], []),
+    ("apt", "https://api.mainnet.aptoslabs.com/v1/view", "apt", "0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89", []),
+]
+_RWC_S = {"ok": 0, "own": [], "ref": None}
+
+
+def _rwc_s_word(r):
+    return isinstance(r, str) and r.startswith("0x") and len(r) >= 66 and all(c in "0123456789abcdefABCDEF" for c in r[2:])
+
+
+def _rwc_s_evm(extra):
+    def fn(raw):
+        r = json.loads(raw)
+        if not isinstance(r, list):
+            return "not-a-batch " + shape(raw)
+        by = {x.get("id"): x.get("result") for x in r if isinstance(x, dict)}
+        num = sum(1 for k in range(2) if isinstance(by.get(k), str) and by[k].startswith("0x"))
+        ages, own = [], []
+        for k, (_a, _sel, kind) in enumerate(extra, start=2):
+            v = by.get(k)
+            if kind == "px" and _rwc_s_word(v) and len(v) == 2 + 5 * 64:
+                ages.append(round((time.time() - int(v[2 + 3 * 64:2 + 4 * 64], 16)) / 3600, 1))
+            elif kind in ("ref", "own") and _rwc_s_word(v):
+                o = v[-40:].lower()
+                if kind == "ref":
+                    _RWC_S["ref"] = o
+                else:
+                    own.append(o)
+        _RWC_S["own"] += own
+        ok = num == 2 and all(by.get(k) is not None for k in range(2, 2 + len(extra)))
+        _RWC_S["ok"] += ok
+        return f"results={len(r)} supply_and_block_hex={num == 2}" + (f" price_age_h={ages}" if ages else "") + (f" owner_reads={len(own)}" if own else "")
+    return fn
+
+
+def _rwc_s_sol(raw):
+    r = json.loads(raw)
+    V = ((r.get("result") or {}).get("value") if isinstance(r, dict) else None) or []
+    n = sum(1 for v in V if isinstance(v, dict) and str((((v.get("data") or {}).get("parsed") or {}).get("info") or {}).get("supply", "")).isdigit())
+    _RWC_S["ok"] += n == 3
+    return f"mint_accounts={len(V)} supply_numbers={n}/3"
+
+
+def _rwc_s_apt(raw):
+    r = json.loads(raw)
+    ok = isinstance(r, list) and len(r) == 1 and isinstance(r[0], dict) and str((r[0].get("vec") or [""])[0]).isdigit()
+    _RWC_S["ok"] += ok
+    return f"view_supply_number={ok}"
+
+
+def g_rwa_lancuch():
+    for sid, url, kind, tok, extra in RWC_S:
+        if kind == "sol":
+            probe("rwa-chain", "sol_getMultipleAccounts_3mints", url, method="POST", extra_fn=_rwc_s_sol,
+                  body={"jsonrpc": "2.0", "id": 0, "method": "getMultipleAccounts", "params": [tok, {"encoding": "jsonParsed"}]})
+        elif kind == "apt":
+            probe("rwa-chain", "apt_view_fa_supply", url, method="POST", extra_fn=_rwc_s_apt,
+                  body={"function": "0x1::fungible_asset::supply", "type_arguments": ["0x1::fungible_asset::Metadata"], "arguments": [tok]})
+        else:
+            body = [{"jsonrpc": "2.0", "id": 0, "method": "eth_blockNumber", "params": []},
+                    {"jsonrpc": "2.0", "id": 1, "method": "eth_call", "params": [{"to": tok, "data": RWC_S_SUP}, "latest"]}]
+            body += [{"jsonrpc": "2.0", "id": k, "method": "eth_call", "params": [{"to": a, "data": sel}, "latest"]} for k, (a, sel, _x) in enumerate(extra, start=2)]
+            probe("rwa-chain", f"{sid}_batch_{len(body)}calls", url, method="POST", extra_fn=_rwc_s_evm(extra), body=body)
+        time.sleep(0.3)
+    ref = _RWC_S["ref"]
+    with _print_lock:
+        print(f"summary rwa-chain chains_ok={_RWC_S['ok']}/{len(RWC_S)} owner_match={sum(1 for o in _RWC_S['own'] if ref and o == ref)}/3", flush=True)
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_rwa_lancuch)   # v150: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
+
+
 # --------------------------------------------------------------------------- main
 
 def main():

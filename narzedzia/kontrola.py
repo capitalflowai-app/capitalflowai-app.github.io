@@ -16,7 +16,11 @@ v136: kursy dolara Ameryki Łacińskiej (data/dolar.json) — świeżość osobn
 v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`.
 v134: fundusze USA (data/ici.json) — świeżość części osobnymi wierszami (najwyżej ⚠️; lista SWIEZOSC bez zmian), tożsamości sum ostatniego
 tygodnia w pliku strony i poprawki wydawcy (informacja); bez sieci, nigdy BŁĄD.
-v135: fundusze rynku pieniężnego (ta sama data/ici.json, część mm) — osobny wiersz świeżości (próg 10 dni, najwyżej ⚠️) i sumy ostatniego tygodnia."""
+v135: fundusze rynku pieniężnego (ta sama data/ici.json, część mm) — osobny wiersz świeżości (próg 10 dni, najwyżej ⚠️) i sumy ostatniego tygodnia.
+v150: tokenizowane aktywa — odczyt własny z łańcucha (blok onchain w data/rwa.json): wiersz świeżości (próg 12 h, najwyżej ⚠️; wyłącznik
+RWA_CHAIN_OFF = „—”) i porównania bez sieci — podaż produktu dzień do dnia (> 50% = ⚠️), wartość z łańcucha vs ostatnio znana wartość
+źródła v133 (poza 1/3–3× = ⚠️), produkty bez pełnego odczytu, odczyt niepełny; skok sumy RWA w dniu zmiany zbioru produktów z odczytu
+własnego liczony bez nich (zmiana zakresu, nie rynku)."""
 import csv
 import datetime as dt
 import json
@@ -1485,9 +1489,15 @@ def rwa_porownanie(j, now=None):
         cz.append(f'produkty spoza listy: z bieżącą wartością {hv}, bez bieżącej wyceny 0 ✅')
     lo = (now.date() - dt.timedelta(days=7)).isoformat()
     skoki = []
+    hd = rwc_hd(j)   # v150: dzień zmiany zbioru produktów z odczytu własnego — skok liczony bez nich (zmiana zakresu danych, nie rynku)
     for (d0, v0), (d1, v1) in zip(H, H[1:]):
         if d1 >= lo and (dt.date.fromisoformat(d1) - dt.date.fromisoformat(d0)).days == 1:
-            p = (v1 / v0 - 1) * 100
+            a0, a1 = hd.get(d0, (0.0, frozenset())), hd.get(d1, (0.0, frozenset()))
+            if a0[1] != a1[1] and v0 - a0[0] > 0:
+                p = ((v1 - a1[0]) / (v0 - a0[0]) - 1) * 100
+                cz.append(f'ℹ️ {d1}: zmiana zbioru produktów z odczytu własnego ({a0[0] / 1e3:.1f} → {a1[0] / 1e3:.1f} mld USD) — skok sumy liczony bez nich')
+            else:
+                p = (v1 / v0 - 1) * 100
             if abs(p) > RWA_SKOK:
                 skoki.append(f'{d0} → {d1}: {p:+.1f}%')
     Z['skoki'] = skoki
@@ -1504,6 +1514,133 @@ def rwa_porownanie(j, now=None):
 def rwa_kontrola(files, R):
     """Wynik porównań RWA do raportu (zgodność) i uwag; brak pliku = None (wiersz świeżości i tak mówi „brak pliku”)."""
     Z = rwa_porownanie(files.get('rwa'))
+    if Z:
+        R['uwagi'].extend(Z['uwagi'])
+    return Z
+
+
+# ---------------------------------------------------------------- v150: tokenizowane aktywa — odczyt własny z łańcucha (blok onchain w data/rwa.json) ----------------------------------------------------------------
+RWC_ETYKIETA = 'tokenizowane aktywa — odczyt własny z łańcucha (co 6 h)'
+RWC_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 6 h) = ⚠️; nigdy ❌ ani BŁĄD (zbieracz i tak nie liczy odczytów starszych niż 12 h)
+RWC_SKOK_POD = 50.0        # % — zmiana podaży produktu między dwoma kolejnymi dniami zapisów (24 h) większa = ⚠️ (zły kontrakt albo zmiana emisji)
+RWC_RAZY = 3.0             # wartość z łańcucha vs ostatnio znana wartość źródła v133 tego produktu: więcej niż 3× albo mniej niż 1/3 = ⚠️
+
+
+def rwc_swiezosc(j, now=None):
+    """Wiersz świeżości odczytu własnego (etykieta, status, wiek min, data, uwaga) — czas bloku onchain (at). Brak pliku = None (wiersz RWA mówi
+    „brak pliku”); plik bez bloku (przed pierwszym odczytem po wdrożeniu v150) albo wyłącznik RWA_CHAIN_OFF = status „—” z opisem, bez uwagi;
+    starszy niż RWC_SWIEZ_MIN = ⚠️, nigdy ❌."""
+    if not isinstance(j, dict):
+        return None
+    oc = j.get('onchain')
+    if not isinstance(oc, dict):
+        return (RWC_ETYKIETA, '—', None, None, 'brak odczytu własnego w pliku (przed pierwszym odczytem po wdrożeniu v150)')
+    if oc.get('off'):
+        return (RWC_ETYKIETA, '—', None, None, 'wyłączone (RWA_CHAIN_OFF)')
+    ts = oc.get('at')
+    w = wiek_danych(ts, 'ts', 'h', now or NOW) if isinstance(ts, str) else None
+    if w is None:
+        return (RWC_ETYKIETA, '?', None, None, 'brak czasu odczytu w pliku')
+    if w <= RWC_SWIEZ_MIN:
+        return (RWC_ETYKIETA, '✅', w, ts, '')
+    return (RWC_ETYKIETA, '⚠️', w, ts, f'odczyt starszy niż {RWC_SWIEZ_MIN // 60} h (plik co 6 h) — produkty z odczytu własnego wracają do „bez bieżącej wyceny”')
+
+
+def rwc_hd(j):
+    """Dzienny zapis odczytu własnego z pliku: {dzień: (mln USD w sumach, zbiór produktów)} — tylko poprawne wiersze."""
+    oc = j.get('onchain') if isinstance(j, dict) else None
+    hd = oc.get('hd') if isinstance(oc, dict) and isinstance(oc.get('hd'), dict) else {}
+    out = {}
+    for d, x in hd.items():
+        if (isinstance(d, str) and isinstance(x, list) and len(x) == 2 and isinstance(x[0], (int, float)) and not isinstance(x[0], bool)
+                and x[0] >= 0 and isinstance(x[1], list)):
+            out[d] = (float(x[0]), frozenset(s for s in x[1] if isinstance(s, str)))
+    return out
+
+
+def rwc_porownanie(j, now=None):
+    """Kontrola odczytu własnego bez sieci (najwyżej ⚠️): (1) podaż produktu — zmiana między dwoma kolejnymi dniami zapisów (24 h) ponad
+    RWC_SKOK_POD % = ⚠️; (2) wartość z łańcucha vs ostatnio znana wartość źródła v133 (zapis hv) — poza [1/RWC_RAZY, RWC_RAZY] = ⚠️ (zły
+    adres, zła reguła ceny albo miejsca dziesiętne); (3) produkty z listy bez pełnego odczytu (sieci bez liczby albo cena nieświeża) — ⚠️ gdy
+    wypadły z sum, ℹ️ gdy to stały brak sieci, której nie czytamy; (4) sieci bez odpowiedzi w ostatnim odczycie (ok False) = ⚠️.
+    Brak pliku albo bloku = None; wyłącznik = opis „wyłączone”. → {'status', 'opis', 'uwagi', …}."""
+    if not isinstance(j, dict) or not isinstance(j.get('onchain'), dict):
+        return None
+    oc = j['onchain']
+    Z = {'status': '✅', 'opis': '', 'uwagi': []}
+    if oc.get('off'):
+        Z['opis'] = 'wyłączone (RWA_CHAIN_OFF) — sumy bez odczytu własnego'
+        return Z
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
+    P = oc.get('p') if isinstance(oc.get('p'), dict) else {}
+    used = oc.get('used') if isinstance(oc.get('used'), dict) else {}
+    hv = j.get('hv') if isinstance(j.get('hv'), dict) else {}
+    cz, skoki, razy, braki = [], [], [], []
+    for s, p in sorted(P.items()):
+        if not isinstance(p, dict):
+            continue
+        nm = p.get('name') if isinstance(p.get('name'), str) else s
+        H = sorted((x for x in ((oc.get('hs') or {}).get(s) or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and num(x[1])),
+                   key=lambda x: x[0])
+        if len(H) >= 2:
+            (d0, a), (d1, b) = H[-2], H[-1]
+            try:
+                kol = (dt.date.fromisoformat(d1) - dt.date.fromisoformat(d0)).days == 1
+            except ValueError:
+                kol = False
+            if kol and a > 0 and abs(b / a - 1) * 100 > RWC_SKOK_POD:
+                skoki.append(f'{nm} {d0} → {d1}: {(b / a - 1) * 100:+.0f}%')
+        v = p.get('v') if num(p.get('v')) else None
+        r = hv.get(s)
+        if v and isinstance(r, list) and r and num(r[0]) and r[0] > 0 and not (1 / RWC_RAZY <= v / r[0] <= RWC_RAZY):
+            razy.append(f'{nm}: z łańcucha {v / 1e9:.2f} mld USD vs ostatnio znana {r[0] / 1e9:.2f} mld USD ({v / r[0]:.1f}×)')
+        if s not in used:
+            n, nr = p.get('n'), p.get('nr')
+            if num(n) and num(nr) and nr < n:
+                braki.append(f'{nm}: {nr} z {n} kontraktów' + (f' (bez liczby: {", ".join(p.get("un") or [])})' if p.get('un') else ''))
+            elif p.get('px_ok') is False:
+                braki.append(f'{nm}: cena nieświeża ({p.get("px_at") or "—"})')
+    if skoki:
+        Z['status'] = '⚠️'
+        Z['uwagi'].append('tokenizowane aktywa (odczyt własny): podaż zmieniła się w ciągu doby o ponad ' + f'{RWC_SKOK_POD:g}%: ' + '; '.join(skoki[:3])
+                          + ' — sprawdzić kontrakt i emisję')
+        cz.append('podaż 24 h: ' + '; '.join(skoki[:3]) + ' ⚠️')
+    else:
+        cz.append(f'podaż 24 h: zmian ponad {RWC_SKOK_POD:g}% brak ✅')
+    if razy:
+        Z['status'] = '⚠️'
+        Z['uwagi'].append('tokenizowane aktywa (odczyt własny): wartość z łańcucha daleko od ostatnio znanej: ' + '; '.join(razy[:3]) + ' — sprawdzić adresy i regułę ceny')
+        cz.append('wartość vs ostatnio znana: ' + '; '.join(razy[:3]) + ' ⚠️')
+    elif P:
+        cz.append(f'wartość vs ostatnio znana: w paśmie 1/{RWC_RAZY:g}–{RWC_RAZY:g}× ✅')
+    tot = sum(x for x in used.values() if num(x))
+    cz.append(f'w sumach z odczytu własnego: {len(used)} z {len(P)} produktów, {tot / 1e9:.1f} mld USD')
+    if braki:
+        cz.append('bez pełnego odczytu (poza sumami): ' + '; '.join(braki[:4]) + ' ℹ️')
+    hd = rwc_hd(j)
+    dzis = (oc.get('at') or '')[:10]
+    wcz = [d for d in sorted(hd) if d < dzis]
+    wyp = sorted(s for s in (hd[wcz[-1]][1] if wcz else ()) if s not in used)
+    if wyp:
+        Z['status'] = '⚠️'
+        nm = lambda s: (P.get(s) or {}).get('name') if isinstance(P.get(s), dict) and isinstance((P.get(s) or {}).get('name'), str) else s  # noqa: E731
+        Z['uwagi'].append('tokenizowane aktywa (odczyt własny): po ' + wcz[-1] + ' już nie liczone z łańcucha: ' + ', '.join(nm(s) for s in wyp)
+                          + ' — odczyt niepełny, cena nieświeża albo źródło v133 znów podaje bieżącą wartość (tylko uwaga)')
+        cz.append('już nie z łańcucha: ' + ', '.join(nm(s) for s in wyp) + ' ⚠️')
+    if oc.get('ok') is False:
+        Z['status'] = '⚠️'
+        nt = [x for x in (oc.get('notes') or []) if isinstance(x, str)]
+        Z['uwagi'].append('tokenizowane aktywa (odczyt własny): ostatni odczyt niepełny — ' + ('; '.join(nt[:2]) if nt else 'brak szczegółów')
+                          + ' (wartości z poprzedniego odczytu najwyżej 12 h; tylko uwaga)')
+        cz.append('ostatni odczyt niepełny ⚠️')
+    Z['skoki_podazy'], Z['razy'], Z['braki'], Z['wypadly'] = skoki, razy, braki, wyp
+    Z['opis'] = '; '.join(cz)
+    return Z
+
+
+def rwc_kontrola(files, R):
+    """Wynik porównań odczytu własnego do raportu (zgodność) i uwag; brak pliku albo bloku = None."""
+    Z = rwc_porownanie(files.get('rwa'))
     if Z:
         R['uwagi'].extend(Z['uwagi'])
     return Z
@@ -1657,6 +1794,16 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c'''. v150: tokenizowane aktywa — odczyt własny z łańcucha (blok onchain w data/rwa.json) — osobny wiersz (lista SWIEZOSC bez zmian);
+    # najwyżej ⚠️; brak bloku albo wyłącznik RWA_CHAIN_OFF = „—” bez uwagi
+    rc = rwc_swiezosc(files.get('rwa'))
+    if rc:
+        label, st, w, txt, note = rc
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -1757,6 +1904,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['rwa'] = {'status': '?', 'blad': str(e)[:120]}
         R['uwagi'].append(f'tokenizowane aktywa: kontrola przerwana ({str(e)[:80]})')
+    # 3h. v150: odczyt własny z łańcucha — podaż 24 h, wartość vs ostatnio znana, produkty bez pełnego odczytu (z pliku strony, bez zapytań; najwyżej ⚠️)
+    try:
+        Z['rwa-lancuch'] = rwc_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['rwa-lancuch'] = {'status': '?', 'blad': str(e)[:120]}
+        R['uwagi'].append(f'tokenizowane aktywa (odczyt własny): kontrola przerwana ({str(e)[:80]})')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -1878,6 +2031,9 @@ def raport_md(R):
         rz = Z.get('rwa')   # v133: tokenizowane aktywa — zmiana 7 dni (własna vs źródło), produkty spoza listy, skoki sumy; brak pliku = bez linii
         if rz:
             L.append('- Tokenizowane aktywa (RWA): ' + (rz.get('opis') or (f'? kontrola przerwana ({rz["blad"]})' if rz.get('blad') else '—')) + '.')
+        oz = Z.get('rwa-lancuch')   # v150: odczyt własny z łańcucha — podaż 24 h, wartość vs ostatnio znana, braki; brak bloku = bez linii
+        if oz:
+            L.append('- Tokenizowane aktywa — odczyt własny z łańcucha: ' + (oz.get('opis') or (f'? kontrola przerwana ({oz["blad"]})' if oz.get('blad') else '—')) + '.')
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:

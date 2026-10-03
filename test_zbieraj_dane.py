@@ -21644,7 +21644,7 @@ class RwaOffV133_1(unittest.TestCase):
                 with mock.patch.dict(os.environ, dict(env, RWA_OFF=off), clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
                         mock.patch.object(zd, 'previous', lambda name: read.append(name) or (prev if name == 'rwa' else None)), \
                         mock.patch.object(zd, 'rwa_plik_ok', lambda p: p is not None), mock.patch.object(zd, 'rwa_odswiez', lambda p, now=None: True), \
-                        mock.patch.object(zd, 'build_rwa', side_effect=lambda p, S=None: calls.append(p) or rw):
+                        mock.patch.object(zd, 'build_rwa', side_effect=lambda p, S=None, **kw: calls.append(p) or rw):   # v150: main() podaje też oc_fn
                     zd.main()
                 return calls, read
             for off in ('1', 'true', ' TAK ', 'on', 'YES'):
@@ -21664,3 +21664,466 @@ class RwaOffV133_1(unittest.TestCase):
         self.assertEqual(wf.count('RWA_OFF: ${{ vars.RWA_OFF }}'), 1, 'zmienna repozytorium (nie sekret), raz')
         self.assertTrue(wf.index('KALSHI_OFF:') < wf.index('RWA_OFF:') < wf.index('run: python3 zbieraj_dane.py'), 'w kroku zbieracza')
         self.assertNotIn('secrets.RWA', wf)
+
+
+# ===================== v150: tokenizowane aktywa — odczyt własny z łańcucha bloków (blok onchain w data/rwa.json) =====================
+# Zegar przypięty (NOW = 03.10.2026 21:00 UTC); sieci nie ma — udawany węzeł _rwc150_post odpowiada jak publiczne węzły (wartości z odczytu
+# na żywo 03.10.2026 ok. 20:45 UTC: BUIDL 10 kontraktów, Paxos Gold 2, Circle USYC 4, wyrocznie XAU/USD i USYC/USD, owner() BUIDL).
+import hashlib as _hash_v150
+import socket as _socket_v150
+
+_RWC150_NOW = datetime.datetime(2026, 10, 3, 21, 0, tzinfo=datetime.timezone.utc)
+_RWC150_OWN = 0xe01605f6b6dc593b7d2917f4a0940db2a625b09e
+_RWC150_SUP = {   # (sieć, adres) → podaż w najmniejszych jednostkach (03.10.2026)
+    ('eth', '0x7712c34205737192402172409a8f7ccef8aa2aec'): 203427155767549, ('eth', '0x6a9da2d710bb9b700acde7cb81f10f1ff8c89041'): 239893645770100,
+    ('arb', '0xa6525ae43edcd03dc08e775774dcabd3bb925872'): 8579023730000, ('op', '0xa1cdab15bba75a80df4089cafba013e376957cf5'): 26477496610000,
+    ('pol', '0x2893ef551b6dd69f661ac00f11d93e5dc5dc0e99'): 7541722680000, ('avax', '0x53fc82f14f009009b440a706e31c9021e1196a2f'): 483182513970000,
+    ('bsc', '0x2d5bdc96d9c8aabbdb38c9a27398513e7e5ef84f'): 146649433430000, ('tempo', '0xb5ff12bd8010baef823d1bfa2ce6bdc0109cbb24'): 17105771710000,
+    ('sol', 'GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr'): 967580546910000,
+    ('apt', '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'): 161787121150000,
+    ('eth', '0x45804880de22913dafe09f4980848ece6ecbaf78'): 432501570293000000000000, ('sol', '5GgRAEmv8ZxF2PR5hY72Qs5x1bnQ6UK2RbTPoqJ3wSwW'): 2559612389,
+    ('eth', '0x136471a34f6ef19fe571effc1ca711fdb8e49f2b'): 36817540453462, ('bsc', '0x8d0fa28f221eb5735bc71d3a0da67ee5bc821311'): 2073937727947452,
+    ('sol', '7LWanZteUKtvFjv4MHYgKXXdAuCQYFPJysL9pxxdRQGn'): 120728897, ('arc', '0x8a5d989bbb96929f689b0200f435f53da42bf490'): 0}
+_RWC150_DEC = {('eth', '0x45804880de22913dafe09f4980848ece6ecbaf78'): 18}
+_RWC150_PX = {'0x214ed9da11d2fbe465a6fc601a91e62ebec1a0d6': (413956000000, 1791041159),        # 4 139,56 USD/oz, 03.10 15:25:59 UTC
+              '0x74f2199aeb743f68f05943e5715a33eaf2b61f53': (1139002815309548578, 1790944319)}  # 1,139002815 USD, 02.10 12:31:59 UTC
+
+
+def _rwc150_sid(url):
+    for sid, (u, z, _k) in zd.RWC_SIECI.items():
+        if url.startswith(u):
+            return sid, 'main'
+        if z and url.startswith(z):
+            return sid, 'zapas'
+    raise AssertionError('nieznany węzeł: ' + url)
+
+
+def _rwc150_post(calls=None, down=(), sup=None, dec=None, px=None, own=None, err=(), shape=None):
+    """Udawany publiczny węzeł: post(url, body, timeout) → odpowiedź jak węzeł danej sieci. down = {sieć} albo {(sieć, 'main')} — błąd połączenia;
+    sup / dec / px / own — nadpisania wartości; err = {(sieć, adres)} — element z błędem JSON-RPC; shape = {sieć: odpowiedź} — inny kształt."""
+    S = {**_RWC150_SUP, **(sup or {})}
+    D, X, O = {**_RWC150_DEC, **(dec or {})}, {**_RWC150_PX, **(px or {})}, dict(own or {})
+    w = lambda v: '0x' + format(v % (1 << 256), '064x')  # noqa: E731
+
+    def post(url, body, timeout=60):
+        sid, kind = _rwc150_sid(url)
+        if calls is not None:
+            calls.append((sid, kind, url, body, timeout))
+        if sid in down or (sid, kind) in down:
+            raise _socket_v150.timeout('timed out')
+        if shape and sid in shape:
+            return shape[sid]
+        k = zd.RWC_SIECI[sid][2]
+        if k == 'apt':
+            a = body['arguments'][0]
+            if (sid, a) in err:
+                raise urllib.error.URLError('HTTP 500')
+            return [{'vec': [str(S[(sid, a)])]}] if body['function'].endswith('::supply') else [D.get((sid, a), 6)]
+        if k == 'sol':
+            assert isinstance(body, dict) and body['method'] == 'getMultipleAccounts', 'Solana: jedno zwykłe żądanie getMultipleAccounts'
+            V = [None if (sid, a) in err else {'owner': 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', 'data': {'program': 'spl-token-2022', 'parsed': {
+                'type': 'mint', 'info': {'supply': str(S[(sid, a)]), 'decimals': D.get((sid, a), 6), 'isInitialized': True}}}} for a in body['params'][0]]
+            return {'jsonrpc': '2.0', 'id': body['id'], 'result': {'context': {'slot': 453048106}, 'value': V}}
+        assert isinstance(body, list), 'EVM: jedno żądanie zbiorcze na sieć'
+        out = []
+        for x in body:
+            if x['method'] == 'eth_blockNumber':
+                out.append({'jsonrpc': '2.0', 'id': x['id'], 'result': '0x18e78d9'})
+                continue
+            a, sel = x['params'][0]['to'], x['params'][0]['data']
+            if (sid, a) in err:
+                out.append({'jsonrpc': '2.0', 'id': x['id'], 'error': {'code': -32000, 'message': 'execution reverted'}})
+            elif sel == zd.RWC_SEL_SUPPLY:
+                out.append({'jsonrpc': '2.0', 'id': x['id'], 'result': w(S[(sid, a)])})
+            elif sel == zd.RWC_SEL_DEC:
+                out.append({'jsonrpc': '2.0', 'id': x['id'], 'result': w(D.get((sid, a), 6))})
+            elif sel == zd.RWC_SEL_ROUND:
+                v, t = X[a]
+                out.append({'jsonrpc': '2.0', 'id': x['id'], 'result': '0x' + ''.join(format(q % (1 << 256), '064x') for q in (92233720368547768543, v, t, t, 1))})
+            elif sel == zd.RWC_SEL_OWNER:
+                out.append({'jsonrpc': '2.0', 'id': x['id'], 'result': w(O.get((sid, a), _RWC150_OWN))})
+            else:
+                raise AssertionError('nieznane wywołanie ' + sel)
+        return list(reversed(out))   # kolejność odpowiedzi w paczce bywa inna — liczy się id
+    return post
+
+
+def _rwc150_scen(t):
+    """Scenariusze v133 (te same co w narzędziu wzorca ws28/v150/tools/golden.py na kodzie BAZY): dzień 1, 9 dni z żywymi produktami, zamrożenie."""
+    P = t._parsed(); H = t._hid()
+    J1 = zd.rwa_build(P, H, None, t.NOW)
+    J2 = t._sim(9)
+    fz = {'at': '2026-10-03T19:40:00+00:00', 'seg': {}, 'hist': [], 'ok': {'list': True, 'hidden': True}, 'ph': {},
+          'hv': {s: [v, '2026-09-27', 0, 2, None] for s, v in H.items() if v}}
+    J3 = zd.rwa_build(P, H, fz, datetime.datetime(2026, 10, 4, 19, 40, tzinfo=datetime.timezone.utc))
+    return [J1, J2, J3]
+
+
+def _rwc150_txt(path):
+    with open(path, encoding='utf-8') as f:
+        return f.read()
+
+
+_RWC150_V133 = ['b3db5800deeaed20af98dec1', '2366f1e1e6c81f11279b8787', '3161bd9c496bf0511ebdcb6e']   # sha256 wyników v133 (kod bazy 9512751)
+
+
+class RwaLancuchV150(unittest.TestCase):
+    """v150: odczyt własny z łańcucha (BUIDL, Paxos Gold, USYC): odczyt sieci (paczki, Solana, Aptos), ponowienia i zapas, budżet, miejsca
+    dziesiętne, strażnik właściciela BUIDL, świeżość ceny (złoto 36 h), poprzedni odczyt z wiekiem, sumy bez podwójnego liczenia, v133 bez zmian
+    bez bloku, wyłączniki, kontrola dzienna, sonda, workflow."""
+    NOW = _RWC150_NOW
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
+
+    def _rd(self, now=None, budget=None, **kw):
+        calls, sl = [], []
+        rd = zd.rwc_odczyt(now or self.NOW, budget=budget, post=_rwc150_post(calls=calls, **kw), sleep=sl.append)
+        return rd, calls, sl
+
+    def _oc(self, now=None, prev=None, **kw):
+        now = now or self.NOW
+        rd, calls, sl = self._rd(now, **kw)
+        return zd.rwc_blok(rd, prev, now), calls, sl
+
+    def _t(self):
+        return RwaV133('test_bramka_odswiezenia_i_proby')
+
+    def _frozen(self, day='2026-10-03'):
+        """Poprzedni plik: wszystkie produkty ukryte z wartością niezmienioną od 27.09 (źródło stoi) — jak 03.10."""
+        H = self._t()._hid()
+        return {'at': day + 'T15:00:00+00:00', 'seg': {}, 'hist': [], 'ok': {'list': True, 'hidden': True}, 'ph': {},
+                'hv': {s: [v, '2026-09-27', 0, 2, None] for s, v in H.items() if v}}
+
+    # ---------------------------------------------------------------- konfiguracja
+    def test_konfiguracja_produkty_adresy_ceny(self):
+        P = zd.RWC_PRODUKTY
+        self.assertEqual(sorted(P), ['blackrock-buidl', 'circle-usyc', 'paxos-gold'], 'decyzja: trzy produkty; Tether Gold bez oficjalnego adresu rezerwy — poza')
+        self.assertEqual([len(P[s]['tokeny']) for s in ('blackrock-buidl', 'paxos-gold', 'circle-usyc')], [10, 2, 4])
+        hexa, b58 = zd.re.compile(r'^0x[0-9a-f]{40}$'), zd.re.compile(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$')
+        for s, p in P.items():
+            self.assertIn(p['seg'], zd.RWA_SEGS); self.assertIn(p['cena'], ('nav1',) + tuple(zd.RWC_CENY))
+            for sid, a, d, sym, wl in p['tokeny']:
+                self.assertIn(sid, zd.RWC_SIECI, s)
+                k = zd.RWC_SIECI[sid][2]
+                self.assertTrue(b58.match(a) if k == 'sol' else (zd.re.match(r'^0x[0-9a-f]{64}$', a) if k == 'apt' else hexa.match(a)), (s, sid, a))
+                self.assertIn(d, (6, 18)); self.assertIsInstance(wl, bool)
+        wl = [(t[0], t[1]) for t in P['blackrock-buidl']['tokeny'] if t[4]]
+        self.assertEqual(wl, [('eth', '0x6a9da2d710bb9b700acde7cb81f10f1ff8c89041'), ('bsc', '0x2d5bdc96d9c8aabbdb38c9a27398513e7e5ef84f'),
+                              ('tempo', '0xb5ff12bd8010baef823d1bfa2ce6bdc0109cbb24')], 'strażnik owner() tylko na trzech kontraktach bez strony emitenta')
+        self.assertEqual(P['blackrock-buidl']['wzor'], ('eth', '0x7712c34205737192402172409a8f7ccef8aa2aec'))
+        self.assertEqual(P['circle-usyc']['bez_adresu'], {'sieci': ['Canton', 'NEAR'], 'pct': 0.057, 'dzien': '2026-10-03'})
+        txt = repr(P).lower()
+        for kopia in ('0x21caef8a43163eea865baee23b9c2e327696a3bf', '0x68749665ff8d2d112fa859aa293f07a622782f38', 'aymatz4tcl9swneev9kvyz45chvhdz6kugjtjpzlpu9p'):
+            self.assertNotIn(kopia, txt, 'XAUt / XAUt0 (kopie i Tether Gold) poza listą')
+        self.assertEqual((zd.RWC_CENY['zloto']['max_min'], zd.RWC_CENY['zloto']['dec'], zd.RWC_CENY['usyc']['dec']), (36 * 60, 8, 18))
+        self.assertEqual((zd.RWC_BUDGET, zd.RWC_CH_MAX_MIN, zd.RWC_PROBY, zd.RWC_PRZERWA), (20, 12 * 60, 3, 0.5))
+        self.assertTrue(all(u.startswith('https://') and (z is None or z.startswith('https://')) for u, z, _k in zd.RWC_SIECI.values()))
+
+    # ---------------------------------------------------------------- odczyt
+    def test_odczyt_pelny_paczki_i_wartosci(self):
+        oc, calls, sl = self._oc()
+        self.assertEqual(sl, []); self.assertTrue(oc['ok']); self.assertEqual(oc['notes'], [])
+        per = {}
+        for sid, kind, url, body, tmo in calls:
+            per[sid] = per.get(sid, 0) + 1
+            self.assertEqual(kind, 'main'); self.assertLessEqual(tmo, zd.RWC_TIMEOUT)
+        self.assertEqual(per, {'eth': 1, 'arb': 1, 'op': 1, 'pol': 1, 'avax': 1, 'bsc': 1, 'tempo': 1, 'arc': 1, 'sol': 1, 'apt': 2}, 'jedno żądanie na sieć (Aptos: 2 × /view)')
+        eth = [b for s, k, u, b, t in calls if s == 'eth'][0]
+        self.assertEqual(len(eth), 1 + 2 * 4 + 2 + 2, 'Ethereum: blok + 4 tokeny × (podaż, miejsca) + 2 wyrocznie + owner() BUIDL-I i wzorca')
+        P = oc['p']
+        self.assertEqual((P['blackrock-buidl']['sup'], P['blackrock-buidl']['v'], P['blackrock-buidl']['full']), (2262224431.727649, 2262224431.73, True))
+        self.assertEqual((P['paxos-gold']['sup'], P['paxos-gold']['px'], P['paxos-gold']['px_at'], P['paxos-gold']['v']),
+                         (435061.182682, 4139.56, '2026-10-03T15:25:59+00:00', round(435061.182682 * 4139.56, 2)))
+        self.assertEqual(P['circle-usyc']['px'], 1.139002815); self.assertAlmostEqual(P['circle-usyc']['v'], 2110755389.129811 * 1.139002815, delta=0.01)
+        self.assertEqual([t[2] for t in P['circle-usyc']['t']], [36817540.453462, 2073937727.947452, 120.728897, 0.0], 'prawdziwe 0 na Arc to odczyt')
+        self.assertEqual(P['circle-usyc']['bez_adresu']['sieci'], ['Canton', 'NEAR'])
+        self.assertEqual(P['blackrock-buidl']['wl'], {'ref': '0xe01605f6b6dc593b7d2917f4a0940db2a625b09e', 'bad': [], 'nv': []})
+        self.assertEqual(set(zd.rwc_uzyj(oc, self.NOW)), {'blackrock-buidl', 'paxos-gold', 'circle-usyc'})
+        self.assertEqual(oc['hs']['blackrock-buidl'], [['2026-10-03', 2262224431.727649]])
+        self.assertEqual(oc['px']['zloto']['v'], 4139.56); self.assertNotIn('k', oc['px']['zloto'])
+
+    def test_ponowienia_zapas_i_budzet(self):
+        oc, calls, sl = self._oc(down={('eth', 'main')})
+        eth = [(k, u) for s, k, u, b, t in calls if s == 'eth']
+        self.assertEqual([k for k, u in eth], ['main', 'main', 'zapas'], 'jak wieloryby: główny dwa razy, potem zapas'); self.assertEqual(eth[2][1], 'https://1rpc.io/eth')
+        self.assertEqual(sl, [0.5, 0.5]); self.assertTrue(oc['ok'], 'zapas odpowiedział — odczyt pełny')
+        oc, calls, sl = self._oc(down={'tempo'})
+        self.assertEqual([k for s, k, u, b, t in calls if s == 'tempo'], ['main', 'main', 'main'], 'bez zapasu — główny trzy razy')
+        self.assertFalse(oc['ok']); self.assertIn('tempo', oc['p']['blackrock-buidl']['un']); self.assertFalse(oc['p']['blackrock-buidl']['full'])
+        self.assertIsNone(oc['p']['blackrock-buidl']['v'], 'brak jednej sieci = brak pełnej wartości, nigdy zero')
+        self.assertEqual(oc['p']['blackrock-buidl']['vp'], round(2262224431.727649 - 17105771.71, 2), 'wartość częściowa opisana osobno')
+        self.assertTrue(any(n.startswith('sieć tempo: TimeoutError: timed out') for n in oc['notes']), oc['notes'])
+        self.assertNotIn('blackrock-buidl', zd.rwc_uzyj(oc, self.NOW), 'częściowy odczyt nie wchodzi do sum')
+        rd, calls, sl = self._rd(budget=0)
+        self.assertEqual(calls, [], 'budżet wyczerpany — żadnego zapytania'); self.assertTrue(all(r['err'] for r in rd['r'].values()))
+        oc = zd.rwc_blok(rd, None, self.NOW)
+        self.assertEqual(zd.rwc_uzyj(oc, self.NOW), {}); self.assertTrue(all(p['nr'] == 0 and p['v'] is None for p in oc['p'].values()))
+        rd, calls, sl = self._rd(shape={'arb': {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': 'upstream overloaded'}, 'id': 0}})
+        self.assertEqual([k for s, k, u, b, t in calls if s == 'arb'], ['main', 'main', 'zapas'], 'odpowiedź-błąd zamiast paczki = ponowienie')
+        self.assertIsNone(rd['r']['arb']['sup']['0xa6525ae43edcd03dc08e775774dcabd3bb925872']); self.assertIn('odpowiedź dict, nie lista', rd['r']['arb']['err'])
+
+    def test_element_z_bledem_i_miejsca_dziesietne(self):
+        a = '0x6a9da2d710bb9b700acde7cb81f10f1ff8c89041'
+        oc, calls, sl = self._oc(err={('eth', a)})
+        self.assertEqual([k for s, k, u, b, t in calls if s == 'eth'], ['main', 'main', 'zapas'], 'element z błędem = ponowienie całej paczki')
+        B = oc['p']['blackrock-buidl']
+        self.assertEqual((B['nr'], B['n'], B['un'], B['v']), (9, 10, ['eth'], None)); self.assertIsNotNone(oc['p']['paxos-gold']['v'], 'inne tokeny z tej paczki zostają')
+        oc, _c, _s = self._oc(dec={('sol', '5GgRAEmv8ZxF2PR5hY72Qs5x1bnQ6UK2RbTPoqJ3wSwW'): 9})
+        G = oc['p']['paxos-gold']
+        self.assertEqual((G['nr'], G['v'], G['full']), (1, None, False), 'inne miejsca dziesiętne na łańcuchu = token nieodczytany, nigdy cicha zła liczba')
+        self.assertEqual(G['vp'], round(432501.570293 * 4139.56, 2))
+        oc, _c, _s = self._oc(dec={('eth', '0x45804880de22913dafe09f4980848ece6ecbaf78'): 6})
+        self.assertIsNone(oc['p']['paxos-gold']['t'][0][2])
+        oc, _c, _s = self._oc(err={('apt', '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89')})
+        self.assertEqual(oc['p']['blackrock-buidl']['un'], ['apt'])
+        oc, _c, _s = self._oc(dec={('apt', '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'): 8})
+        self.assertEqual((oc['p']['blackrock-buidl']['un'], oc['p']['blackrock-buidl']['v']), (['apt'], None), 'Aptos: inne miejsca dziesiętne = nieodczytany')
+        oc, _c, _s = self._oc(sup={('eth', '0x136471a34f6ef19fe571effc1ca711fdb8e49f2b'): 10 ** 30})
+        self.assertIsNone(oc['p']['circle-usyc']['t'][0][2], 'podaż ponad granicę rozsądku = brak')
+
+    def test_poprzedni_odczyt_z_wiekiem(self):
+        t0 = self.NOW - datetime.timedelta(hours=6)
+        prev, _c, _s = self._oc(now=t0)
+        oc, _c, _s = self._oc(prev=prev, down={'sol'})
+        B = oc['p']['blackrock-buidl']
+        sol = [t for t in B['t'] if t[0] == 'sol'][0]
+        self.assertEqual((sol[2], sol[3]), (967580546.91, t0.isoformat()), 'nieudany odczyt = poprzedni z jego czasem')
+        self.assertFalse(oc['ok']); self.assertEqual(B['v'], 2262224431.73)
+        self.assertIn('blackrock-buidl', zd.rwc_uzyj(oc, self.NOW), 'poprzedni odczyt ≤ 12 h — produkt dalej w sumach')
+        self.assertNotIn('blackrock-buidl', zd.rwc_uzyj(oc, self.NOW + datetime.timedelta(hours=6, minutes=1)), '> 12 h — wraca do bez bieżącej wyceny')
+        old, _c, _s = self._oc(now=self.NOW - datetime.timedelta(days=8))
+        oc, _c, _s = self._oc(prev=old, down={'sol'})
+        self.assertIsNone([t for t in oc['p']['blackrock-buidl']['t'] if t[0] == 'sol'][0][2], 'starszy niż 7 dni — brak (nigdy zero)')
+        self.assertNotIn('blackrock-buidl', zd.rwc_uzyj(oc, self.NOW))
+        oc2, _c, _s = self._oc(prev=prev, px={'0x214ed9da11d2fbe465a6fc601a91e62ebec1a0d6': (0, 1791041159)})
+        self.assertEqual((oc2['px']['zloto']['v'], oc2['px']['zloto'].get('k')), (4139.56, 1), 'cena bez nowego odczytu = poprzednia z jej czasem')
+        self.assertFalse(oc2['ok'])
+
+    def test_straznik_wlasciciela_buidl(self):
+        bsc = '0x2d5bdc96d9c8aabbdb38c9a27398513e7e5ef84f'
+        prev, _c, _s = self._oc(now=self.NOW - datetime.timedelta(hours=6))
+        oc, _c, _s = self._oc(prev=prev, own={('bsc', bsc): 0xdead})
+        B = oc['p']['blackrock-buidl']
+        self.assertEqual(B['wl']['bad'], ['bsc']); self.assertEqual([t[2] for t in B['t'] if t[0] == 'bsc'], [None], 'inny właściciel — bez poprzedniego odczytu')
+        self.assertEqual((B['nr'], B['v'], B['full']), (9, None, False)); self.assertFalse(oc['ok'])
+        self.assertTrue(any('właściciela 0x000000000000000000000000000000000000dead' in n for n in oc['notes']))
+        self.assertNotIn('blackrock-buidl', zd.rwc_uzyj(oc, self.NOW), 'produkt częściowy zostaje w grupie bez bieżącej wyceny')
+        oc, _c, _s = self._oc(prev=prev, own={('eth', '0x7712c34205737192402172409a8f7ccef8aa2aec'): 0xbeef})
+        self.assertEqual(sorted(oc['p']['blackrock-buidl']['wl']['bad']), ['bsc', 'eth', 'tempo'], 'zmiana wzorca: żaden z trzech nie pasuje')
+        oc, _c, _s = self._oc(prev=prev, err={('eth', '0x7712c34205737192402172409a8f7ccef8aa2aec')})
+        B = oc['p']['blackrock-buidl']
+        self.assertEqual((B['wl']['ref'], B['wl']['nv']), (None, ['bsc', 'eth', 'tempo']), 'wzorca nie odczytano — trzy kontrakty niesprawdzone')
+        self.assertEqual([t[3] for t in B['t'] if t[0] in ('bsc', 'tempo')], [prev['at']] * 2, 'niesprawdzone = poprzedni sprawdzony odczyt z czasem')
+        oc, _c, _s = self._oc(own={('tempo', '0xb5ff12bd8010baef823d1bfa2ce6bdc0109cbb24'): 0xe01605f6b6dc593b7d2917f4a0940db2a625b09e})
+        self.assertEqual(oc['p']['blackrock-buidl']['wl']['bad'], []); self.assertTrue(oc['p']['blackrock-buidl']['full'])
+
+    def test_swiezosc_ceny_zloto_36h_usyc_102h_i_granice(self):
+        Z, U = '0x214ed9da11d2fbe465a6fc601a91e62ebec1a0d6', '0x74f2199aeb743f68f05943e5715a33eaf2b61f53'
+        ts = lambda h: int((self.NOW - datetime.timedelta(hours=h)).timestamp())  # noqa: E731
+        oc, _c, _s = self._oc(px={Z: (413956000000, ts(35.9))})
+        self.assertIn('paxos-gold', zd.rwc_uzyj(oc, self.NOW))
+        oc, _c, _s = self._oc(px={Z: (413956000000, ts(36.1))})
+        self.assertNotIn('paxos-gold', zd.rwc_uzyj(oc, self.NOW), 'cena złota starsza niż 36 h — nieświeża'); self.assertFalse(oc['p']['paxos-gold']['px_ok'])
+        self.assertTrue(any('cena zloto: starsza niż 36 h' in n for n in oc['notes']))
+        oc, _c, _s = self._oc(px={Z: (4000000, ts(1))})
+        self.assertIsNone(oc['p']['paxos-gold']['px'], 'cena poza granicami rozsądku = brak'); self.assertNotIn('paxos-gold', zd.rwc_uzyj(oc, self.NOW))
+        oc, _c, _s = self._oc(px={U: (1139002815309548578, ts(101))})
+        self.assertIn('circle-usyc', zd.rwc_uzyj(oc, self.NOW))
+        oc, _c, _s = self._oc(px={U: (1139002815309548578, ts(103))})
+        self.assertNotIn('circle-usyc', zd.rwc_uzyj(oc, self.NOW))
+        oc, _c, _s = self._oc(px={Z: (413956000000, int((self.NOW + datetime.timedelta(hours=2)).timestamp()))})
+        self.assertNotIn('paxos-gold', zd.rwc_uzyj(oc, self.NOW), 'czas ceny z przyszłości = nieświeża')
+        self.assertTrue(zd.rwc_cena_ok('nav1', 1.0, None, self.NOW)); self.assertFalse(zd.rwc_cena_ok('nav1', 1.01, None, self.NOW))
+        oc, _c, _s = self._oc()
+        F = dict(oc, p=dict(oc['p'], **{'paxos-gold': dict(oc['p']['paxos-gold'], rule='nav1')}))
+        self.assertNotIn('paxos-gold', zd.rwc_uzyj(F, self.NOW), 'reguła w pliku inna niż w konfiguracji = poza sumami')
+
+    # ---------------------------------------------------------------- sumy
+    def test_bez_bloku_wynik_jak_v133(self):
+        t = self._t()
+        got = [_hash_v150.sha256(json.dumps(J, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:24] for J in _rwc150_scen(t)]
+        self.assertEqual(got, _RWC150_V133, 'rwa_build bez bloku onchain = wynik kodu v133 co do bajtu (skróty z kodu bazy)')
+        P, H = t._parsed(), t._hid()
+        fz = self._frozen(); now = datetime.datetime(2026, 10, 4, 19, 40, tzinfo=datetime.timezone.utc)
+        J0 = zd.rwa_build(P, H, fz, now)
+        Joff = zd.rwa_build(P, H, fz, now, oc=zd.rwc_wylaczony(None, now))
+        self.assertEqual(Joff['onchain']['used'], {}); self.assertEqual({k: v for k, v in Joff.items() if k != 'onchain'}, J0, 'wyłączony odczyt = sumy v133')
+
+    def test_odczyt_zastepuje_tylko_zamrozone_nigdy_dwa_razy(self):
+        t = self._t(); P, H = t._parsed(), t._hid()
+        now = datetime.datetime(2026, 10, 4, 19, 40, tzinfo=datetime.timezone.utc)
+        fz = self._frozen()
+        oc, _c, _s = self._oc(now=now)
+        J0, J1 = zd.rwa_build(P, H, fz, now), zd.rwa_build(P, H, fz, now, oc=oc)
+        used = {s: oc['p'][s]['v'] for s in ('blackrock-buidl', 'paxos-gold', 'circle-usyc')}
+        self.assertEqual(J1['onchain']['used'], used)
+        self.assertEqual(J1['seg']['all']['v'], round(J0['seg']['all']['v'] + sum(used.values())), 'suma = v133 + odczyt własny (nic dwa razy)')
+        self.assertEqual(J1['seg']['tb']['v'], round(J0['seg']['tb']['v'] + used['blackrock-buidl'] + used['circle-usyc']))
+        self.assertEqual(J1['seg']['cm']['v'], round(J0['seg']['cm']['v'] + used['paxos-gold']), 'złoto: tylko Paxos Gold z łańcucha (Tether Gold dalej zamrożony)')
+        self.assertEqual(J1['stale']['n'], J0['stale']['n'] - 3); self.assertEqual(J1['stale']['v'], J0['stale']['v'] - sum(H[s] for s in used))
+        self.assertIn('tether-gold', [r[0] for r in J1['stale']['top']])
+        self.assertEqual({r[0]: r[6] for r in J1['top'] if r[0] in used}, {s: 'o' for s in used}, 'w tabeli produktów znak odczytu własnego')
+        self.assertEqual(J1['onchain']['seg'], {'tb': {'v': round(used['blackrock-buidl'] + used['circle-usyc']), 'n': 2}, 'cm': {'v': round(used['paxos-gold']), 'n': 1},
+                                                'all': {'v': round(sum(used.values())), 'n': 3}})
+        self.assertEqual(J1['onchain']['hd'], {'2026-10-04': [round(sum(used.values()) / 1e6, 1), sorted(used)]})
+        self.assertEqual(J1['ph']['v']['blackrock-buidl'], [round(used['blackrock-buidl'] / 1e6, 3)], 'wartość z łańcucha w oknie produktów (zmiany 7/30 dni)')
+        live = dict(fz, hv=dict(fz['hv'], **{'circle-usyc': [2_500_000_000.0, '2026-10-03', 1, 1, None]}))
+        J2 = zd.rwa_build(P, H, live, now, oc=oc)
+        self.assertNotIn('circle-usyc', J2['onchain']['used'], 'produkt z bieżącą wartością źródła v133 — wartość źródła, odczyt tylko w pliku')
+        self.assertEqual([r[6] for r in J2['top'] if r[0] == 'circle-usyc'], ['p']); self.assertEqual(J2['seg']['all']['v'] - J0['seg']['all']['v'],
+                                                                                                    round(used['blackrock-buidl'] + used['paxos-gold'] + H['circle-usyc']))
+        part, _c, _s = self._oc(now=now, down={'apt'})
+        J3 = zd.rwa_build(P, H, fz, now, oc=part)
+        self.assertNotIn('blackrock-buidl', J3['onchain']['used'], 'odczyt częściowy nie jako pełny'); self.assertIn('blackrock-buidl', [r[0] for r in J3['stale']['top']])
+        gone = dict(fz, hv=dict(fz['hv'], **{'paxos-gold': [H['paxos-gold'], '2026-09-27', 0, 2, '2026-10-01']}))
+        J4 = zd.rwa_build(P, dict(H, **{'paxos-gold': None}), gone, now, oc=oc)
+        self.assertIn('paxos-gold', J4['onchain']['used'], '„brak wartości od” też zastępujemy pełnym odczytem')
+        J5 = zd.rwa_build(P, H, None, now, oc=oc)
+        self.assertEqual(J5['onchain']['used'], {}, 'pierwszy odczyt źródła (bez porównania) — nie zamrożony, nie zastępujemy'); self.assertEqual(J5['wait']['n'], 9)
+
+    def test_zmiany_7_dni_i_zapisy_dzienne(self):
+        t = self._t(); P, H = t._parsed(), t._hid()
+        prev = self._frozen('2026-09-28')
+        for k in range(9):
+            now = datetime.datetime(2026, 9, 29, 19, 40, tzinfo=datetime.timezone.utc) + datetime.timedelta(days=k)
+            oc, _c, _s = self._oc(now=now, prev=(prev.get('onchain') if prev else None), sup={('avax', '0x53fc82f14f009009b440a706e31c9021e1196a2f'): 483182513970000 + k * 10 ** 13})
+            prev = zd.rwa_build(P, H, prev, now, oc=oc)
+        hs = prev['onchain']['hs']['blackrock-buidl']
+        self.assertEqual(len(hs), zd.RWC_HS_DAYS, 'podaż dzienna: 8 dni'); self.assertEqual(hs[-1][0], '2026-10-07')
+        self.assertEqual(sorted(prev['onchain']['hd']), ['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07'])
+        c7 = zd.rwa_change(prev['ph'], ['blackrock-buidl'], '2026-10-07', 7)
+        self.assertAlmostEqual(c7['p'], ((2262224431.727649 + 8e7) / (2262224431.727649 + 1e7) - 1) * 100, places=2)
+
+    def test_build_rwa_krok_odczytu_wlasnego(self):
+        t = RwaV133('test_bramka_odswiezenia_i_proby')
+        with mock.patch.object(zd, '_now_utc', lambda: t.NOW):
+            J = t._build()
+        self.assertNotIn('onchain', J, 'build_rwa bez oc_fn — plik jak v133')
+        seen = []
+
+        def fn(poc, now):
+            seen.append((poc, now)); return zd.rwc_blok(zd.rwc_odczyt(now, post=_rwc150_post(), sleep=lambda s: None), poc, now)
+        L = _rwa133_list(); raw = json.dumps(L).encode()
+        with mock.patch.object(zd, 'rwa_get_gz', lambda url, timeout, deadline=None: zd.rwa_gunzip(raw)), mock.patch.object(zd, 'get', _rwa133_get()):
+            J = zd.build_rwa(self._frozen(), now=self.NOW, sleep=lambda s: None, oc_fn=fn)
+            self.assertEqual(seen, [(None, self.NOW)]); self.assertTrue(J['onchain']['ok']); self.assertEqual(J['notes'], [])
+            prev = J
+            J = zd.build_rwa(prev, now=self.NOW + datetime.timedelta(hours=6), sleep=lambda s: None, oc_fn=lambda poc, now: (_ for _ in ()).throw(RuntimeError('awaria')))
+            self.assertEqual(J['onchain']['at'], prev['onchain']['at'], 'awaria kroku — poprzedni blok z jego czasem')
+            self.assertTrue(any(n.startswith('odczyt własny z łańcucha: RuntimeError: awaria — poprzedni odczyt') for n in J['notes']))
+            J = zd.build_rwa(prev, now=self.NOW, sleep=lambda s: None, oc_fn=zd.rwc_wylaczony)
+            self.assertEqual((J['onchain']['off'], J['onchain']['used']), (True, {}))
+            J = zd.build_rwa(prev, now=self.NOW, sleep=lambda s: None,
+                             oc_fn=lambda poc, now: zd.rwc_blok(zd.rwc_odczyt(now, post=_rwc150_post(down={'sol'}), sleep=lambda s: None), poc, now))
+            self.assertTrue(any(n.startswith('odczyt własny z łańcucha: sieć sol:') for n in J['notes']), 'notatki odczytu w notatkach kroku')
+
+    # ---------------------------------------------------------------- main(), wyłączniki
+    def _main(self, prev, env=None):
+        saved, kw = {}, []
+
+        def fake(p, **k):
+            kw.append(k)
+            return dict(p or {}, at=self.NOW.isoformat(), ok={'list': True, 'hidden': True}, seg={'all': {}}, hist=[], notes=[],
+                        onchain=k['oc_fn']((p or {}).get('onchain'), self.NOW))
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_rwa' and callable(getattr(zd, n))]
+        e = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR', 'RWA_OFF', 'RWA_CHAIN_OFF')}
+        e.update(env or {})
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        with mock.patch.dict(os.environ, e, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                mock.patch.object(zd, 'previous', lambda name: prev if name == 'rwa' else None), mock.patch.object(zd, 'build_rwa', side_effect=fake), \
+                mock.patch.object(zd, '_RUN_T0', [None]), mock.patch.object(zd, 'rwc_odczyt', lambda now: {'at': now.isoformat(), 'r': {}, 'req': 0, 's': 0}):
+            [p.start() for p in stubs]
+            try:
+                zd.main()
+            finally:
+                [p.stop() for p in stubs]
+        return saved, kw
+
+    def test_main_wylaczniki_i_stan_zrodla(self):
+        old = {'at': (self.NOW - datetime.timedelta(hours=7)).isoformat(), 'seg': {'all': {}}, 'hist': [], 'ok': {'list': True, 'hidden': True}}
+        s, kw = self._main(old)
+        self.assertEqual(len(kw), 1); self.assertIs(kw[0]['oc_fn'], zd.rwc_krok); self.assertIs(zd.META['ok']['rwa-lancuch'], False, 'odczyt bez sieci = niepełny')
+        s, kw = self._main(old, {'RWA_CHAIN_OFF': '1'})
+        self.assertIs(kw[0]['oc_fn'], zd.rwc_wylaczony); self.assertTrue(s['rwa']['onchain']['off']); self.assertNotIn('rwa-lancuch', zd.META['ok'])
+        self.assertIn('Tokenizowane aktywa — odczyt własny z łańcucha: wyłączone zmienną RWA_CHAIN_OFF — bez zapytań do łańcuchów; sumy bez odczytu własnego (jak w v133)', zd.META['notes'])
+        s, kw = self._main(old, {'RWA_OFF': '1', 'RWA_CHAIN_OFF': ''})
+        self.assertEqual(kw, [], 'RWA_OFF zatrzymuje też odczyt z łańcucha'); self.assertNotIn('rwa', s); self.assertNotIn('rwa-lancuch', zd.META['ok'])
+        young = dict(old, at=(self.NOW - datetime.timedelta(hours=1)).isoformat(), onchain={'v': 1, 'at': self.NOW.isoformat(), 'ok': True, 'p': {}})
+        s, kw = self._main(young)
+        self.assertEqual(kw, []); self.assertEqual(zd.META['ok']['rwa-lancuch'], 'cached')
+        s, kw = self._main(young, {'RWA_CHAIN_OFF': '1'})
+        self.assertEqual(len(kw), 1, 'wyłącznik od razu: jedna przebudowa sum bez odczytu własnego, choć plik młody'); self.assertIs(kw[0]['oc_fn'], zd.rwc_wylaczony)
+        s, kw = self._main(dict(young, onchain={'v': 1, 'off': True, 'at': self.NOW.isoformat()}), {'RWA_CHAIN_OFF': '1'})
+        self.assertEqual(kw, [], 'już wyłączony w pliku — zwykły rytm 6 h')
+        src = _rwc150_txt(zd.__file__); m = src.index('\ndef main():')
+        self.assertLess(src.index("rw_off = os.environ.get('RWA_OFF'", m), src.index("rwc_off = os.environ.get('RWA_CHAIN_OFF'", m))
+
+    # ---------------------------------------------------------------- kontrola dzienna
+    def test_kontrola_swiezosc_porownania_i_skok(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v150', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        t = self._t(); P, H = t._parsed(), t._hid()
+        now = datetime.datetime(2026, 10, 4, 19, 40, tzinfo=datetime.timezone.utc)
+        oc, _c, _s = self._oc(now=now)
+        J = zd.rwa_build(P, H, self._frozen(), now, oc=oc)
+        self.assertEqual(K.rwc_swiezosc(J, now + datetime.timedelta(hours=1))[1:4], ('✅', 60, now.isoformat()))
+        self.assertEqual(K.rwc_swiezosc(J, now + datetime.timedelta(hours=13))[1], '⚠️')
+        self.assertEqual(K.rwc_swiezosc({'at': 'x'})[1], '—'); self.assertEqual(K.rwc_swiezosc(dict(J, onchain={'off': True}))[1:], ('—', None, None, 'wyłączone (RWA_CHAIN_OFF)'))
+        self.assertIsNone(K.rwc_swiezosc(None))
+        Z = K.rwc_porownanie(J, now)
+        self.assertEqual(Z['status'], '✅', Z); self.assertIn('w sumach z odczytu własnego: 3 z 3 produktów', Z['opis'])
+        J2 = json.loads(json.dumps(J)); J2['onchain']['hs']['circle-usyc'] = [['2026-10-03', 1e9], ['2026-10-04', 2.11e9]]
+        J2['hv']['blackrock-buidl'][0] = 2.262e8
+        Z = K.rwc_porownanie(J2, now)
+        self.assertEqual(Z['status'], '⚠️'); self.assertEqual(len(Z['skoki_podazy']), 1); self.assertEqual(len(Z['razy']), 1, 'BUIDL 10× ostatnio znanej')
+        J3 = json.loads(json.dumps(J)); J3['onchain']['ok'] = False; J3['onchain']['hd']['2026-10-03'] = [5000.0, ['blackrock-buidl', 'circle-usyc', 'paxos-gold', 'tether-gold']]
+        Z = K.rwc_porownanie(J3, now)
+        self.assertEqual(Z['wypadly'], ['tether-gold']); self.assertTrue(any('ostatni odczyt niepełny' in u for u in Z['uwagi']))
+        J4 = json.loads(json.dumps(J)); J4['onchain']['p']['blackrock-buidl']['nr'] = 9; J4['onchain']['used'].pop('blackrock-buidl')
+        self.assertIn('BlackRock BUIDL: 9 z 10 kontraktów', K.rwc_porownanie(J4, now)['opis'])
+        self.assertEqual(K.rwc_porownanie(dict(J, onchain={'off': True}), now)['opis'], 'wyłączone (RWA_CHAIN_OFF) — sumy bez odczytu własnego')
+        self.assertIsNone(K.rwc_porownanie({'at': 'x'}, now))
+        J5 = json.loads(json.dumps(J)); J5['hist'] = [['2026-10-03', 4672.4] + [None] * 7, ['2026-10-04', 4672.4 + J['onchain']['hd']['2026-10-04'][0]] + [None] * 7]
+        R = K.rwa_porownanie(J5, now)
+        self.assertEqual(R['skoki'], [], 'skok sumy w dniu włączenia odczytu własnego liczony bez niego'); self.assertIn('zmiana zbioru produktów z odczytu własnego', R['opis'])
+        J5['hist'][1][1] += 2000
+        self.assertEqual(len(K.rwa_porownanie(J5, now)['skoki']), 1, 'prawdziwy skok poza odczytem własnym nadal ⚠️')
+        R0 = {'uwagi': []}; self.assertIsNotNone(K.rwc_kontrola({'rwa': J}, R0)); self.assertIsNone(K.rwc_kontrola({}, R0))
+        src = _rwc150_txt(spec.origin)
+        self.assertIn("Z['rwa-lancuch'] = rwc_kontrola(files, R)", src); self.assertIn("rc = rwc_swiezosc(files.get('rwa'))", src)
+        self.assertIn("L.append('- Tokenizowane aktywa — odczyt własny z łańcucha: '", src)
+        self.assertIn("f'**Wynik: {R[\"wynik\"]}**'", src, 'linia „Wynik:” bez zmian')
+
+    # ---------------------------------------------------------------- sonda, workflow, kod
+    def test_sonda_rwa_lancuch(self):
+        import importlib.util, io as _io, contextlib
+        spec = importlib.util.spec_from_file_location('sondy_v150', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        self.assertLess(S.GROUPS.index(S.g_rwa_lancuch), S.GROUPS.index(S.g_nasdaq)); self.assertIs(S.GROUPS[-1], S.g_nasdaq)
+        post = _rwc150_post()
+
+        def http(url, method='GET', body=None, headers=None):
+            r = post(url, body)
+            return 200, json.dumps(r).encode(), 12, None
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: None), contextlib.redirect_stdout(out):
+            S.g_rwa_lancuch()
+        txt = out.getvalue()
+        self.assertIn('summary rwa-chain chains_ok=10/10', txt); self.assertIn('owner_match=3/3', txt)
+        for x in ('203427155', '413956', '4139', '1139002815', 'e01605f6'):
+            self.assertNotIn(x, txt, 'sonda nie wypisuje kwot, cen ani adresów')
+
+    def test_workflow_kod_i_miejsce_bloku(self):
+        h = os.path.dirname(os.path.abspath(__file__))
+        y = _rwc150_txt(os.path.join(h, '.github', 'workflows', 'strona.yml'))
+        self.assertEqual(y.count('RWA_CHAIN_OFF: ${{ vars.RWA_CHAIN_OFF }}'), 1); self.assertLess(y.index('RWA_OFF: ${{ vars.RWA_OFF }}'), y.index('RWA_CHAIN_OFF:'))
+        src = _rwc150_txt(zd.__file__)
+        a = src.index('# ===================== v150: TOKENIZOWANE AKTYWA — ODCZYT WŁASNY'); b = src.index('\n\n\ndef main():', a)
+        blok = src[a:b]
+        self.assertLess(src.index('# ===================== v133: TOKENIZOWANE AKTYWA'), a); self.assertNotIn('KEY', blok); self.assertNotIn('os.environ', blok); self.assertNotIn('print(', blok)
+        self.assertIn('0xe01605f6b6dc593b7d2917f4a0940db2a625b09e', blok, 'dowód z łańcucha w komentarzu (decyzja koordynatora)')
+        self.assertNotIn("'build_rwa_lancuch'", src, 'bez nowego budowniczego — krok w build_rwa (krotki zaślepek bez zmian)')
