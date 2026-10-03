@@ -1,5 +1,5 @@
 {
- "at": "2026-10-03T01:27:11+00:00",
+ "at": "2026-10-03T05:48:55+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,13 +22,13 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-03T01:27:11+00:00",
+   "at": "2026-10-03T05:48:55+00:00",
    "rows": 104,
    "first": "2026-09-26",
    "last": "2026-10-03",
-   "added": 13,
-   "revised": 0,
-   "revisions_total": 39,
+   "added": 0,
+   "revised": 13,
+   "revisions_total": 52,
    "fetched": 13
   },
   "stablecoiny-eth": {
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-03T01:27:11+00:00",
+   "at": "2026-10-03T05:48:55+00:00",
    "rows": 16,
    "first": "2026-09-26",
    "last": "2026-10-03",
-   "added": 2,
-   "revised": 0,
-   "revisions_total": 3,
+   "added": 0,
+   "revised": 1,
+   "revisions_total": 4,
    "fetched": 2
   },
   "plynnosc": {
@@ -68,11 +68,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-03T01:27:11+00:00",
+   "at": "2026-10-03T05:48:55+00:00",
    "rows": 754,
    "first": "2023-09-26",
    "last": "2026-10-02",
-   "added": 1,
+   "added": 0,
    "revised": 0,
    "revisions_total": 1,
    "fetched": 749
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-03T01:27:11+00:00",
+   "at": "2026-10-03T05:48:55+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,11 +118,11 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-03T01:27:11+00:00",
+   "at": "2026-10-03T05:48:55+00:00",
    "rows": 1050,
    "first": "2024-10-01",
    "last": "2026-09-29",
-   "added": 10,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
    "fetched": 1040
@@ -140,11 +140,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-03T01:27:11+00:00",
+   "at": "2026-10-03T05:48:55+00:00",
    "rows": 522,
    "first": "2024-09-26",
    "last": "2026-10-02",
-   "added": 1,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
    "fetched": 517
@@ -170,19 +170,90 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-03T01:27:11+00:00",
+   "at": "2026-10-03T05:48:55+00:00",
    "rows": 40,
    "first": "2026-09-28",
    "last": "2026-10-01",
-   "added": 10,
+   "added": 0,
    "revised": 10,
-   "revisions_total": 20,
+   "revisions_total": 30,
    "fetched": 40
+  },
+  "swiat-dziennik": {
+   "file": "swiat-dziennik.csv",
+   "src": "Obliczenia własne CapitalFlowAI: dziennik kart sygnałów dziennych świata zapisanych tak, jak były na stronie o 9:00 w Nowym Jorku, przed otwarciem sesji (n = suma głosów, votes = głosy powodów), y = zmiana ceny funduszu od otwarcia do zamknięcia sesji w %",
+   "cols": [
+    "date",
+    "sym",
+    "n",
+    "state",
+    "votes",
+    "saved_at",
+    "y",
+    "v",
+    "since"
+   ],
+   "key": [
+    "date",
+    "sym",
+    "v",
+    "since"
+   ],
+   "ok": true,
+   "at": "2026-10-03T05:48:55+00:00",
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "added": 0,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 0
+  },
+  "swiat-dziennik-pk": {
+   "file": "swiat-dziennik-pk.csv",
+   "src": "Obliczenia własne CapitalFlowAI: zamrożone punkty kontrolne licznika „od wdrożenia” sygnałów dziennych świata (kind cp: po c = 100, 200 i 400 sesjach z sygnałem — k z n, zwykła sesja b0 i b0t, połowy h1 i h2, zakres lo–hi, ocena vd, próg thr) i sumy poprzednich wersji reguły (kind oos: k z n w days sesjach); każda wersja reguły (v, since) osobno",
+   "cols": [
+    "since",
+    "v",
+    "line",
+    "kind",
+    "c",
+    "k",
+    "n",
+    "days",
+    "b0",
+    "h1",
+    "h2",
+    "lo",
+    "hi",
+    "vd",
+    "date_c",
+    "at",
+    "b0t",
+    "thr"
+   ],
+   "key": [
+    "since",
+    "v",
+    "line",
+    "kind",
+    "c"
+   ],
+   "ok": true,
+   "at": "2026-10-03T05:48:55+00:00",
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "added": 0,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 0
   }
  },
  "errors": [],
  "notes": [
-  "wieloryby: doba 2026-10-02: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste"
+  "swiat-dziennik: brak pliku dziennika świata na stronie (404) — nic do zapisania",
+  "swiat-dziennik-pk: brak pliku dziennika świata na stronie (404) — punktów kontrolnych nie zapisano"
  ],
  "seria": {
   "plyn.net": 400,
