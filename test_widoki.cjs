@@ -7201,7 +7201,9 @@ test('v127 (przegląd): EXTRA127 — de, es, fr, it, pt, ru, zh, ja dla kluczy p
   assert.ok(gap.startsWith('/* v127') && gap.split('\n').length === 2, 'zaraz po linii EXTRA125: jeden wiersz komentarza');
   assert.equal(html.slice(x1 + 2, x1 + 2 + fl.length), fl, 'linia nakładania zaraz po słowniku');
   const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
-  assert.deepEqual(mm.slice(-2), ['EXTRA125', 'EXTRA127'], 'ostatnie dwa słowniki');
+  /* v127.1: kolejne wydania dopisują słowniki po EXTRA127 — wymóg to sąsiedztwo (EXTRA127 nakładany zaraz po EXTRA125); że nic późniejszego
+     nie nadpisuje jego tekstów, sprawdzają niżej asercje na wartościach skutecznych (v96src.I18N) */
+  assert.ok(mm.includes('EXTRA125') && mm.indexOf('EXTRA127') === mm.indexOf('EXTRA125') + 1, 'EXTRA127 zaraz po EXTRA125: ' + mm.slice(-4).join(','));
   const D = JSON.parse(html.slice(x0 + a.length, x1)), L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], I = v96src.I18N;
   assert.deepEqual(Object.keys(D), L8, 'tylko 8 języków (pl i en bez zmian)');
   const K = Object.keys(D.de), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
