@@ -627,7 +627,7 @@ test('v50 CFTC: panel krypto — jeden rynek wystarczy, brak drugiego opisany (n
   assert.ok(h.includes('<b>cftc.mkt.btc</b>') && h.includes('<b>cftc.mkt.eth</b>'));
   assert.ok(h.includes('eng.r.MARKET_MISSING'), 'brak ETH opisany');
   assert.ok(h.includes('cftc.kept'), 'stan z poprzedniego pobrania oznaczony');
-  assert.ok(h.includes('cftc.u.btc:{"u":"(5 Bitcoins)"}'));
+  assert.ok(h.includes('cftc.u.btc:{"n":"5"}'), 'v149.1: liczba bitcoinów z opisu raportu (dotąd {u} — w zdaniu zostawało „{n}”)');
 });
 
 test('v50 CFTC: plik w gLoad po TIC, zegar, wiersze Źródła (GLOBAL i CRYPTO), prawa, słownik PL/EN', () => {
@@ -11041,7 +11041,7 @@ function v149Cftc(L) {
 }
 test('v149: CFTC — jednostka kontraktu: pl i en jak dotąd (zdanie z opisem z raportu); de–ja bez angielskiego opisu raportu, bitcoin z liczbą z raportu zamiast „{n}”', () => {
   const U = {eur: '(CONTRACTS OF EUR 125,000)', eth: '(50 Index Points)', btc: '(5 Bitcoins)'};
-  for (const L of ['pl', 'en']) { const {f, t} = v149Cftc(L); for (const k in U) assert.equal(f(k, U[k]), t('cftc.u.' + k, {u: gtEsc(U[k])}), L + ' ' + k + ': jak przed v149'); assert.equal(f('eur', null), t('cftc.u.eur', {u: '—'})); }
+  for (const L of ['pl', 'en']) { const {f, t} = v149Cftc(L); for (const k in U) assert.equal(f(k, U[k]), k === 'btc' ? t('cftc.u.btc', {n: '5'}) : t('cftc.u.' + k, {u: gtEsc(U[k])}), L + ' ' + k + ': jak przed v149 (v149.1: bitcoin z liczbą zamiast „{n}”)'); assert.equal(f('eur', null), t('cftc.u.eur', {u: '—'})); }
   assert.equal(v149Cftc('en').f('eur', U.eur), '1 contract = 125,000 euro (in the report: (CONTRACTS OF EUR 125,000)).');
   for (const L of V149_L8) {
     const {f, t, I} = v149Cftc(L);
@@ -11185,4 +11185,16 @@ test('v149: słownik — czysty JSON, 10 języków, tylko cftc.ux.eur i cftc.ux.
   assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(V149_DICT + ' ')), [], 'v142: bez kopii angielskiego');
   assert.deepEqual(v143Bad(html).filter(x => x.startsWith('cftc.')), [], 'v143: komplet języków');
   const U = v143Usage(v143Code(html)); for (const k of K) assert.ok(U.used(k), 'klucz używany w kodzie: ' + k);
+});
+
+/* ---------- v149.1: zdanie o bitcoinie po polsku i angielsku ---------- */
+test('v149.1: CFTC — zdanie o bitcoinie po polsku i angielsku z liczbą z raportu (było „{n}”); 10 języków bez pól {…}', () => {
+  assert.equal(v149Cftc('pl').f('btc', '(5 Bitcoins)'), '1 kontrakt to 5 bitcoinów.');
+  assert.equal(v149Cftc('en').f('btc', '(5 Bitcoins)'), '1 contract = 5 bitcoins.');
+  for (const L of ['pl', 'en', ...V149_L8]) {
+    const {f} = v149Cftc(L), s = f('btc', '(5 Bitcoins)');
+    assert.ok(s && !/\{[a-z]+\}/.test(s) && s.includes('5'), L + ': ' + s);
+    assert.equal(f('btc', 'cos innego'), '', L + ': opis nierozpoznany — pusto'); assert.equal(f('btc', null), '', L + ': brak opisu — pusto');
+  }
+  assert.equal(v149Cftc('pl').f('eur', '(CONTRACTS OF EUR 125,000)'), v149Cftc('pl').t('cftc.u.eur', {u: gtEsc('(CONTRACTS OF EUR 125,000)')}), 'euro po polsku bez zmian');
 });

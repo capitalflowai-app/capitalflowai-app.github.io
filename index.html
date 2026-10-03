@@ -5771,8 +5771,8 @@ function cftcUnit(s){if(typeof s!=='string'||!s)return '';const b=/\((\d+)\s*Bit
    de, es, fr, it, pt, ru, zh, ja — bez angielskiego opisu z raportu („(CONTRACTS OF EUR 125,000)”): euro i ether — zdanie ze słownika
    (cftc.ux.*), bitcoin — liczba bitcoinów z opisu raportu w zdaniu cftc.u.btc (dotąd „{n}” zostawało w tekście); opis nierozpoznany — pusto. */
 function cftcUN(k,u){
+  if(k==='btc'){const b=/\((\d+)\s*Bitcoins?\)/i.exec(String(u||''));return b?t('cftc.u.btc',{n:b[1]}):'';}   /* v149.1: także pl i en (dotąd „{n}” w tekście) */
   if(typeof LANG==='undefined'||LANG==='pl'||LANG==='en')return t('cftc.u.'+k,{u:escH(u||'—')});
-  if(k==='btc'){const b=/\((\d+)\s*Bitcoins?\)/i.exec(String(u||''));return b?t('cftc.u.btc',{n:b[1]}):'';}
   return t('cftc.ux.'+k);}
 const cftcFri=iso=>{const ms=Date.parse(iso+'T00:00:00Z');return new Date(ms+((12-new Date(ms).getUTCDay())%7||7)*864e5).toISOString().slice(0,10);};   /* najbliższy piątek po dniu stanu (wtorek → +3, poniedziałek w tygodniu ze świętem → +4) */
 const cftcD=iso=>escH(engPeriod({kind:'DAY',value:iso}));
