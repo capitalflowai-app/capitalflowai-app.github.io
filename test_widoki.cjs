@@ -5694,7 +5694,7 @@ test('v125: EXTRA118 — 10 języków w kolejności, te same 83 klucze trd.dc2.*
   /* „po czasie” we wszystkich 10 językach mówi o dniach porównania (61 / 60 dni wstecz), nie tylko o samej dobie */
   for (const l of L10) { for (const k of ['trd.dc2.why.late', 'trd.dc2.m.4']) assert.ok(D[l][k].includes('61'), l + ' ' + k + ': 61 dni'); assert.ok(D[l]['trd.dc2.m.4'].includes('60'), l + ' m.4: 60 dni'); }
   const L6 = Object.fromEntries(L10.map(l => [l, LATE.concat(['trd.dc2.ans.qlate']).map(k => D[l][k] || DP[l][k])]));
-  assert.equal(fnv(JSON.stringify(L6)), 'ae3b07e0', 'teksty „po czasie” (5 kluczy EXTRA118 + ans.qlate) w 10 językach = dopisek SPEC-v125-ADDENDUM (suma FNV-1a)');
+  assert.equal(fnv(JSON.stringify(L6)), '7e5e526', 'teksty „po czasie” (5 kluczy EXTRA118 + ans.qlate) w 10 językach = dopisek SPEC-v125-ADDENDUM (suma FNV-1a; v147: po japońsku bez spacji między liczbą a 日 — „61日前”, „60日前”; przed v147: ae3b07e0)');
   assert.equal(D.pl['trd.dc2.ev1'], '{name} {p}% ({k} z {n})'); assert.equal(D.en['trd.dc2.y1'], '{p}% ({k} of {n})'); assert.equal(D.pl['trd.dc2.n.t.s'], 'agresywna sprzedaż');
   assert.equal(D.pl['trd.dc2.b.lvd.wait'], 'ocena „od wdrożenia” tylko po 100, 200 i 400 dniach z sygnałem (zakres {cll}%) — teraz {d} z {c}');
   /* literały i klucze składane w kodzie — w pl i en */
@@ -10305,7 +10305,7 @@ test('v146: słownik — czysty JSON, 10 języków, ses.* (pl i ru one/few/many/
   }
   /* ostatni w kolejności nakładania, nic go nie zasłania; strażnicy v142 (kopie angielskiego) i v143 (komplet języków) bez zgłoszeń dla nowych kluczy */
   const fors = [...html.matchAll(/for\(const l in (EXTRA\w*)\)/g)].map(m => m[1]);
-  assert.equal(fors[fors.length - 1], V146_DICT, 'słownik v146 nakładany jako ostatni');
+  assert.ok(fors.indexOf(V146_DICT) > fors.indexOf(V143_DICT), 'słownik v146 nakładany po v143 (v147: później już tylko słowniki bez kluczy v146 — sprawdza pętla „nałożony” niżej)');
   const I = v143Final(html);
   for (const L of V146_L10) for (const k in D[L]) assert.equal(I[L][k], D[L][k], L + ' ' + k + ': nałożony');
   assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(V146_DICT + ' ')), [], 'v142: bez kopii angielskiego');
@@ -10324,4 +10324,328 @@ test('v146: słownik — czysty JSON, 10 języków, ses.* (pl i ru one/few/many/
   const code = v143Code(html);
   assert.equal([...code.matchAll(/'sessions?'/g)].length, 2, "'session' / 'sessions' tylko w zapasie zagSesW (bez I18N)");
   assert.ok(code.includes("return (D&&(w(D[L])??w(D.en)))??(n===1?'session':'sessions');"));
+});
+
+/* ===================== v147: zapis liczb i nazwy krajów w języku widza; japoński bez spacji między liczbą a licznikiem =====================
+   Do v147 kilka funkcji składało zapis liczby ręcznie po angielsku dla każdego języka poza polskim: instMld (panele instytucji, bopMld),
+   engMln i engBld (panele silnika), etfM i engPairs („<0.1”) — Niemiec widział „+1,754.4 Mrd.” obok „1.103,9”. Nazwy krajów z plików danych
+   (TIC: posiadacze obligacji USA i skład regionów, MF: posiadacze SPW, MFW: rezerwy) szły po angielsku. Teraz de, es, fr, it, pt, ru, zh, ja —
+   nfmt (Intl.NumberFormat(LOCALE[LANG]), jak reszta strony) i ctyName (Intl.DisplayNames po kodzie ISO albo rozpoznanej nazwie; wiersze
+   zbiorcze ze słownika cty.x.*). pl i en — bajt w bajt jak przed v147 (porównanie z kodem sprzed v147: V147_PAIRS cofnięte w wycinku). */
+const V147_DICT = 'EXTRA149';
+/* [kod sprzed v147, kod v147] — wszystkie zmiany v147 w kodzie strony (poza słownikiem i japońskimi tekstami) */
+const V147_PAIRS = [["  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n", "  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n  if(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')return (neg?'−':'')+nfmt(w+'.'+t,1);   /* v147: de–ja — zapis języka widza (nfmt = Intl.NumberFormat(LOCALE[LANG]): de 1.234,5 · fr 1 234,5 · ja 1,234.5); pl i en — linia niżej bez zmian */\n"], ["  const isZero=!/[1-9]/.test(body);const text=grouped+(LANG==='pl'?',':'.')+tenth;\n", "  const isZero=!/[1-9]/.test(body),L8=LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function';const text=L8?nfmt(wholeN+'.'+tenth,1):grouped+(LANG==='pl'?',':'.')+tenth;   /* v147: de–ja — te same cyfry w zapisie języka widza (nfmt dostaje napis; nowsze silniki formatują go dokładnie); pl i en bez zmian */\n"], ["  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(LANG==='pl'?'0,1':'0.1');\n", "  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(L8?nfmt('0.1',1):(LANG==='pl'?'0,1':'0.1'));\n"], ["  const a=Math.abs(v),text=String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr */\n", "  const a=Math.abs(v),text=(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?nfmt(Math.floor(a/10)+'.'+(a%10),1):String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr (pl, en); v147: de–ja — zapis języka widza (nfmt) */\n"], ["chg=(r.change_sign>0?'+':'−')+(LANG==='pl'?'<0,1':'<0.1');", "chg=(r.change_sign>0?'+':'−')+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1):(LANG==='pl'?'<0,1':'<0.1'));"], ["  if(a<.05)return sg+(LANG==='pl'?'<0,1 ':'<0.1 ')+t('u.m');   /* v48: mały przepływ nie jest zerem */\n", "  if(a<.05)return sg+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1)+' ':(LANG==='pl'?'<0,1 ':'<0.1 '))+t('u.m');   /* v48: mały przepływ nie jest zerem; v147: „<0,1” w zapisie języka widza (de–ja) */\n"], ["  return en||c3||pl||'';}\nconst engGen=", "  return (typeof ctyName==='function'&&ctyName(null,en,pl))||en||c3||pl||'';}   /* v147: kod spoza ISO — nazwa rozpoznana po angielskiej albo polskiej (de–ja); dopiero potem angielska u źródła */\n/* v147: nazwy krajów z plików danych (TIC: posiadacze obligacji USA i skład regionów; MF: posiadacze SPW; MFW: rezerwy; zapas engCty) w języku widza.\n   de, es, fr, it, pt, ru, zh, ja: kod ISO (3 albo 2 litery) albo rozpoznana nazwa angielska / polska (gtNm: Intl.DisplayNames en i pl + lista wyjątków)\n   → Intl.DisplayNames(LOCALE[LANG]) jak w engCty; wiersze zbiorcze bez jednego kraju („All Other”, „Total Caribbean”, „Caribbean Banking Centers” …) → słownik cty.x.*.\n   pl i en — null: wywołujący pokazuje dawny tekst bajt w bajt; nazwa nierozpoznana — null (zapas: nazwa z pliku). Wycinki kodu w testach bez gtNm / ISO32 — bez błędu. */\nconst CTY_AGG={'all other':'cty.x.oth','all others':'cty.x.oth','others':'cty.x.oth','other countries':'cty.x.oth','pozostale kraje':'cty.x.oth',\n  'caribbean banking centers':'cty.x.cbc','caribbean banking centres':'cty.x.cbc','international and regional orgs':'cty.x.iro','international and regional organizations':'cty.x.iro',\n  'grand total':'cty.x.tot','total latin america':'cty.x.lat','total africa':'cty.x.afr','total caribbean':'cty.x.car'};\nfunction ctyName(code,...names){\n  try{\n    if(typeof LANG==='undefined'||LANG==='pl'||LANG==='en')return null;\n    const dn=c=>{try{const k=LOCALE[LANG]||'en',D=ENG_DN[k]||(ENG_DN[k]=new Intl.DisplayNames([k],{type:'region'})),n=D.of(c);return n&&n!==c?n:null;}catch(e){return null;}};\n    const c=String(code||'').toUpperCase(),i2=c.length===3?(typeof ISO32!=='undefined'?ISO32[c]:null):(/^[A-Z]{2}$/.test(c)?c:null);\n    if(i2){const n=dn(i2);if(n)return n;}\n    for(const x of names){if(typeof x!=='string'||!x.trim())continue;\n      const a=typeof gtKey==='function'?CTY_AGG[gtKey(x).replace(/ \\d+$/,'')]:null;   /* „Caribbean Banking Centers 4/” — przypis źródła na końcu */\n      if(a){const v=t(a);if(v&&v!==a)return v;}\n      const f=typeof gtNm==='function'?gtNm(x):[];if(f.length===1){const n=dn(f[0].toUpperCase());if(n)return n;}}\n  }catch(e){}\n  return null;}\nconst engGen="], ["  const nm=(c,x)=>escH((LANG==='pl'?x.pl:x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle */\n", "  const nm=(c,x)=>escH((LANG==='pl'?x.pl:(typeof ctyName==='function'&&ctyName(c,x.en,x.pl))||x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle; v147: de–ja — nazwa kraju w języku widza (ctyName) */\n"], ["  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory */\n", "  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'',cn=n=>escH((typeof ctyName==='function'&&ctyName(null,n))||n);   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory; v147: cn — nazwa z pliku w języku widza (de–ja), pl i en bez zmian */\n"], ["(D.regions[id].members||[]).map(n=>I('n',n,'sm')+escH(n)).join(', ')}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>: Total Caribbean<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>: Taiwan</p></details>`;", "(D.regions[id].members||[]).map(n=>I('n',n,'sm')+cn(n)).join(', ')}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>: ${cn('Total Caribbean')}<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>: ${cn('Taiwan')}</p></details>`;"], ["<td><span class=\"cell\">${I('n',r[0])}${escH(r[0])}</span></td>", "<td><span class=\"cell\">${I('n',r[0])}${cn(r[0])}</span></td>"], ["    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'(');\n", "    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:((typeof ctyName==='function'&&ctyName(null,r[1],r[0]))||String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'('));   /* v147: de–ja — nazwa kraju w języku widza (ctyName), „Pozostałe kraje” ze słownika; en bez zmian */\n"]];
+/* [słownik, klucz] — japońskie teksty bez spacji między liczbą / {polem} a licznikiem (zmienione w miejscu) */
+const V147_JA = [["EXTRA36", "q.src.v"], ["EXTRA43", "etf.k.m"], ["EXTRA43", "etf.c.m"], ["EXTRA99", "wh.bal.sub"], ["EXTRA99", "wh.n.Binance"], ["EXTRA99", "wh.d7"], ["EXTRA99", "wh.not4"], ["EXTRA98", "lev.f7"], ["EXTRA98", "lev.dn"], ["EXTRA98", "lev.dr.sub"], ["EXTRA107", "arc.sub"], ["EXTRA107", "arc.since"], ["EXTRA107", "arc.per"], ["EXTRA107", "arc.month"], ["EXTRA107", "arc.k.yld"], ["EXTRA107", "arc.since1"], ["EXTRA109", "wh.dob.sub"], ["EXTRA110", "trd.d.nocr"], ["EXTRA110", "trd.d.k.edge"], ["EXTRA110", "trd.d.k.oos"], ["EXTRA110", "trd.d.k.of"], ["EXTRA110", "trd.d.ev"], ["EXTRA110", "trd.d.own"], ["EXTRA110", "trd.d.v.short"], ["EXTRA110", "trd.d.why.short"], ["EXTRA110", "trd.d.b.sub"], ["EXTRA110", "trd.d.b.days"], ["EXTRA110", "trd.d.b.oos"], ["EXTRA110", "trd.d.b.short"], ["EXTRA110", "trd.d.m.1"], ["EXTRA110", "trd.d.m.3"], ["EXTRA110", "trd.d.m.4"], ["EXTRA110", "trd.d.m.6"], ["EXTRA111", "kc.note"], ["EXTRA112", "ins.k.rep"], ["EXTRA112", "ins.k.nv"], ["EXTRA112", "ins.cap"], ["EXTRA113", "st.mm.fsi"], ["EXTRA114", "auk.k.abovev"], ["EXTRA114", "auk.k.aboven"], ["EXTRA114", "auk.n"], ["EXTRA116", "trd.dc.k.of"], ["EXTRA116", "trd.dc.b.sub"], ["EXTRA116", "trd.dc.b.short"], ["EXTRA116", "trd.dc.m.2"], ["EXTRA116", "trd.dc.m.3"], ["EXTRA116", "trd.dc.m.4"], ["EXTRA116", "trd.dc.m.6"], ["EXTRA116", "trd.d.m.6"], ["EXTRA117", "trd.subc"], ["EXTRA118", "trd.dc2.ans.best"], ["EXTRA118", "trd.dc2.y1"], ["EXTRA118", "trd.dc2.ans.need"], ["EXTRA118", "trd.dc2.ev1"], ["EXTRA118", "trd.dc2.own"], ["EXTRA118", "trd.dc2.why.late"], ["EXTRA118", "trd.dc2.b.sub"], ["EXTRA118", "trd.dc2.b.side"], ["EXTRA118", "trd.dc2.b.y1"], ["EXTRA118", "trd.dc2.b.y10"], ["EXTRA118", "trd.dc2.b.lvd.wait"], ["EXTRA118", "trd.dc2.b.lvd"], ["EXTRA118", "trd.dc2.b.lvd.nx"], ["EXTRA118", "trd.dc2.b.note"], ["EXTRA118", "trd.dc2.m.3"], ["EXTRA118", "trd.dc2.m.4"], ["EXTRA118", "trd.dc2.m.5"], ["EXTRA118", "trd.dc2.m.7"], ["EXTRA118", "trd.dc2.m.8"], ["EXTRA119", "ln.k.tip.tx"], ["EXTRA119", "ln.k.chk.mp"], ["EXTRA119", "ln.ago.d"], ["EXTRA123", "lev.h.cz"], ["EXTRA123", "lev.cz.r24"], ["EXTRA123", "lev.not7"], ["EXTRA125", "trd.dw2.ans.best"], ["EXTRA125", "trd.dw2.y1"], ["EXTRA125", "trd.dw2.ev1"], ["EXTRA125", "trd.dw2.own"], ["EXTRA125", "trd.dw2.b.side"], ["EXTRA125", "trd.dw2.b.y1"], ["EXTRA125", "trd.dw2.b.y10"], ["EXTRA125", "trd.dw2.b.lvd"], ["EXTRA125", "trd.dw2.b.note"], ["EXTRA125", "trd.dw2.b.v1i"], ["EXTRA125", "trd.dw2.m.6"], ["EXTRA125", "trd.dw2.m.7"], ["EXTRA125", "trd.dw2.m.8"], ["EXTRA127", "trd.b.kn"], ["EXTRA127", "trd.s.fe_ustl"], ["EXTRA127", "trd.s.fe_ustm"], ["EXTRA127", "trd.s.fe_usts"], ["EXTRA129", "prm.ago.d"], ["EXTRA129", "prm.not3"], ["EXTRA130", "prm.kr.sub"], ["EXTRA130", "prm.na.fx"], ["EXTRA130", "prm.not5"], ["EXTRA137", "c10.rank"], ["EXTRA147", "eng.x.imf-portfolio-pairs.age"], ["EXTRA147", "eng.x.wdi-destinations.age"], ["EXTRA147", "trd.k.coin"], ["EXTRA147", "trd.k.more"], ["EXTRA147", "trd.k.less"]];
+const V147_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], V147_L8 = V147_L10.slice(2);
+const V147_LOC = new Function(html.slice(html.indexOf('const LOCALE='), html.indexOf('\n', html.indexOf('const LOCALE='))) + '\nreturn LOCALE;')();
+const v147Old = s => V147_PAIRS.reduce((a, [o, n]) => a.split(n).join(o), s);
+/* prawdziwe nfmt strony (NF i nfmt wycięte ze strony) dla języka L */
+function v147Nf(L) {
+  const a = html.indexOf('const NF={};\nconst nfmt='), b = html.indexOf('\nconst sg=', a);
+  assert.ok(a > 0 && b > a, 'NF i nfmt w stronie');
+  return new Function('LANG', 'LOCALE', html.slice(a, b) + '\nreturn nfmt;')(L, V147_LOC);
+}
+const v147Int = (L, d) => new Intl.NumberFormat(V147_LOC[L], {minimumFractionDigits: d, maximumFractionDigits: d});
+/* instMld, engInc + engMln, engBld, etfM wycięte ze strony (old: kod sprzed v147); nf = false — piaskownica bez nfmt (stare testy) */
+function v147Fns(L, old, nf = true) {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, a); const s = html.slice(i, j); return old ? v147Old(s) : s; };
+  const src = cut('function instMld(mln,dec){', '\nconst instSign=') + '\n' + cut('function engInc(', '\nconst engK=') + '\n' + cut('function engBld(v,signed){', '\nfunction engHalf(') +
+    '\n' + cut('const etfM=v=>{', '\nconst etfA=');
+  const args = ['LANG', 'LOCALE', 't'].concat(nf ? ['nfmt'] : []);
+  return new Function(...args, src + '\nreturn {instMld, engMln, engBld, etfM};')(L, V147_LOC, k => k, ...(nf ? [v147Nf(L)] : []));
+}
+const V147_MLN = [0, -0, 1, 49, 50, -50, 99, 100, 949, 950, 999, 1000, 1049, 1050, 1234.5, -1234.5, 9999.9, 12345, 99950, 999949, 999950, 1e6, -1234567.8, 1e9, 0.04, -0.04, 1e12,
+  NaN, null, undefined, '1000', Infinity];
+const V147_TOK = ['0', '0.0', '-0', '-0.00', '0.04', '0.05', '0.0500001', '0.15', '-0.04', '999', '-999.94', '999.95', '1234.5', '1234.55', '1234.65', '1234.45', '1000000',
+  '999999.95', '-12345678901.25', '00012.3', '1e6', 'abc', '', ' 1', null, 123, undefined];
+const V147_BLD = [0, 1, -1, 5, 9, 10, 99, 100, 9999, 10000, -10000, 12345, 1234567, 123456789012, 1.5, NaN, null, '10', undefined];
+const V147_ETF = [0, -0, 0.03, -0.03, 0.049, 0.05, 1, 9.95, 12.3, 999, 1234.5, -1234.5, 12345.6, 1e6, NaN, null, undefined];
+
+test('v147: liczby — instMld, engMln, engBld, etfM: pl i en bajt w bajt jak przed v147; de, es, fr, it, pt, ru, zh, ja — te same cyfry w zapisie Intl.NumberFormat języka; brak = brak (null / „—”), nigdy 0', () => {
+  for (const L of ['pl', 'en']) {
+    const N = v147Fns(L, false), O = v147Fns(L, true);
+    for (const v of V147_MLN) assert.equal(N.instMld(v), O.instMld(v), L + ' instMld ' + String(v));
+    for (const v of V147_TOK) for (const z of [false, true]) assert.equal(N.engMln(v, z), O.engMln(v, z), L + ' engMln ' + String(v) + ' ' + z);
+    for (const v of V147_BLD) for (const s of [false, true]) assert.equal(N.engBld(v, s), O.engBld(v, s), L + ' engBld ' + String(v) + ' ' + s);
+    for (const v of V147_ETF) assert.equal(N.etfM(v), O.etfM(v), L + ' etfM ' + String(v));
+  }
+  const E = v147Fns('en', true);
+  for (const L of V147_L8) {
+    const N = v147Fns(L, false), O = v147Fns(L, true), F1 = v147Int(L, 1);
+    /* instMld: znak i cyfry z dawnego zapisu angielskiego, zapis języka z Intl */
+    for (const v of V147_MLN) {
+      const e = E.instMld(v), n = N.instMld(v);
+      if (e === null) { assert.equal(n, null, L + ' instMld brak ' + String(v)); continue; }
+      const m = /^(−?)([\d,]+)\.(\d)$/.exec(e); assert.ok(m, 'en ' + e);
+      assert.equal(n, m[1] + F1.format(m[2].replace(/,/g, '') + '.' + m[3]), L + ' instMld ' + v);
+      if (Math.abs(v) >= 1e6 && !['zh', 'ja'].includes(L)) assert.notEqual(n, e, L + ': inny zapis niż angielski ' + v);
+    }
+    /* engMln: dokładne cyfry (zaokrąglenie do parzystej) jak w angielskim, zapis języka */
+    for (const v of V147_TOK) for (const z of [false, true]) {
+      const e = E.engMln(v, z), n = N.engMln(v, z);
+      if (e === null) { assert.equal(n, null, L + ' engMln brak ' + String(v)); continue; }
+      const m = /^([+−]?)(<?)([\d ]+)\.(\d)$/.exec(e); assert.ok(m, 'en ' + e);
+      assert.equal(n, m[1] + m[2] + F1.format(m[3].replace(/ /g, '') + '.' + m[4]), L + ' engMln ' + v + ' ' + z);
+    }
+    for (const v of V147_BLD) for (const s of [false, true]) {
+      const e = E.engBld(v, s), n = N.engBld(v, s);
+      if (e === null) { assert.equal(n, null, L + ' engBld brak ' + String(v)); continue; }
+      const m = /^([+−]?)([\d,]+)\.(\d)$/.exec(e); assert.ok(m, 'en ' + e);
+      assert.equal(n, m[1] + F1.format(m[2].replace(/,/g, '') + '.' + m[3]), L + ' engBld ' + v + ' ' + s);
+    }
+    /* etfM: tylko „<0,1” było po angielsku; reszta już przez toLocaleString — bez zmian */
+    for (const v of V147_ETF) {
+      const small = typeof v === 'number' && v !== 0 && Math.abs(v) < 0.05;
+      assert.equal(N.etfM(v), small ? (v < 0 ? '−' : '+') + '<' + F1.format(0.1) + ' u.m' : O.etfM(v), L + ' etfM ' + String(v));
+    }
+    for (const x of [N.instMld(NaN), N.instMld(null), N.engMln(null), N.engMln('abc'), N.engBld(null), N.engBld(1.5)]) assert.equal(x, null, L + ': brak = null');
+    for (const x of [N.etfM(NaN), N.etfM(null), N.etfM(undefined)]) assert.equal(x, '—', L + ': brak = „—”');
+    /* piaskownica bez nfmt (stare wycinki kodu) — dawny zapis, bez błędu */
+    const B = v147Fns(L, false, false);
+    for (const v of V147_MLN) assert.equal(B.instMld(v), O.instMld(v), L + ' bez nfmt: instMld ' + String(v));
+    for (const v of V147_TOK) assert.equal(B.engMln(v), O.engMln(v), L + ' bez nfmt: engMln ' + String(v));
+    for (const v of V147_BLD) assert.equal(B.engBld(v, true), O.engBld(v, true), L + ' bez nfmt: engBld ' + String(v));
+    for (const v of V147_ETF) assert.equal(B.etfM(v), O.etfM(v), L + ' bez nfmt: etfM ' + String(v));
+  }
+  /* przykłady z opisu wydania (de: kropka tysięcy, przecinek dziesiętny; ja: jak angielski); fr / ru / es — zapis Intl tego języka */
+  const de = v147Fns('de', false), ja = v147Fns('ja', false), fr = v147Fns('fr', false), ru = v147Fns('ru', false), es = v147Fns('es', false), pl = v147Fns('pl', false), en = v147Fns('en', false);
+  assert.equal(de.instMld(1754400), '1.754,4'); assert.equal(de.instMld(-27900), '−27,9'); assert.equal(de.instMld(100), '0,1');
+  assert.equal(ja.instMld(1754400), '1,754.4'); assert.equal(en.instMld(1754400), '1,754.4'); assert.equal(pl.instMld(1754400), '1 754,4');
+  const T1 = '382049612345.67';   /* USD → mln USD: 382 049,6 */
+  assert.equal(de.engMln(T1), '+382.049,6'); assert.equal(en.engMln(T1), '+382 049.6'); assert.equal(pl.engMln(T1), '+382 049,6');
+  assert.equal(ja.engMln(T1), '+382,049.6'); assert.equal(de.engMln('0.04'), '+<0,1'); assert.equal(de.engMln('-0'), '0,0'); assert.equal(de.engMln('-0', true), '−0,0');
+  assert.equal(de.engBld(45133), '4.513,3'); assert.equal(de.engBld(1211, true), '+121,1'); assert.equal(en.engBld(45133), '4,513.3'); assert.equal(pl.engBld(45133), '4 513,3');
+  assert.equal(de.etfM(0.03), '+<0,1 u.m'); assert.equal(en.etfM(0.03), '+<0.1 u.m'); assert.equal(pl.etfM(-0.03), '−<0,1 u.m');
+  assert.equal(fr.instMld(1754400), v147Int('fr', 1).format(1754.4)); assert.equal(ru.instMld(1754400), v147Int('ru', 1).format(1754.4)); assert.equal(es.instMld(1754400), v147Int('es', 1).format(1754.4));
+  assert.ok(/^1\D754,4$/.test(fr.instMld(1754400)) && /^1\D754,4$/.test(ru.instMld(1754400)), 'fr / ru: odstęp tysięcy i przecinek dziesiętny');
+  /* engMln: zaokrąglenie z cyfr pliku i liczba dłuższa niż 15 cyfr — cyfry dokładne (nfmt dostaje napis, nie liczbę zmiennoprzecinkową) */
+  assert.equal(de.engMln('-12345678901.25'), '−12.345,7'); assert.equal(en.engMln('-12345678901.25'), '−12 345.7');
+  assert.equal(de.engMln('98765432109876543210123456.0'), '+98.765.432.109.876.543.210,1'); assert.equal(en.engMln('98765432109876543210123456.0'), '+98 765 432 109 876 543 210.1');
+});
+
+test('v147: „<0,1” w tabeli par krajów (engPairs) i panelach — zapis języka widza; pl i en bez zmian; bopMld przez instMld', () => {
+  const p0 = html.indexOf('function engPairs(rec){'), p1 = html.indexOf('\nfunction engDestRows(', p0);
+  assert.ok(p0 > 0 && p1 > p0);
+  const rec = {engine_panel: {data: {latest_period: '2025-S2', previous_period: '2025-S1', counts: {economy_pairs: 1200},
+    pairs: [{investor: 'JPN', issuer: 'USA', position_tenths: 23426, change_tenths: 0, change_sign: 1}, {investor: 'CYM', issuer: 'USA', position_tenths: 45133, change_tenths: 0, change_sign: -1},
+      {investor: 'IRL', issuer: 'USA', position_tenths: 25830, change_tenths: 1973}]}}};
+  const run = (L, old) => {
+    const F = v147Fns(L, false), src = old ? v147Old(html.slice(p0, p1)) : html.slice(p0, p1);
+    return new Function('t', 'escH', 'engCty', 'engHalf', 'engBld', 'engNum', 'LANG', 'nfmt', src + '\nreturn engPairs;')((k, o) => k + (o ? JSON.stringify(o) : ''), gtEsc,
+      (c, n) => c, (p, of) => p, F.engBld, v => String(v), L, v147Nf(L))(rec);
+  };
+  for (const L of ['pl', 'en']) assert.equal(run(L, false), run(L, true), L + ': engPairs bajt w bajt');
+  assert.ok(run('pl', false).includes('>+&lt;0,1<') && run('en', false).includes('>−&lt;0.1<'));
+  for (const L of V147_L8) {
+    const h = run(L, false), lt = gtEsc('<' + v147Int(L, 1).format(0.1));
+    assert.ok(h.includes('>+' + lt + '<') && h.includes('>−' + lt + '<'), L + ': „<0,1” w zapisie języka: ' + lt);
+    assert.ok(h.includes('>' + v147Int(L, 1).format(4513.3) + '<') && h.includes('>+' + v147Int(L, 1).format(197.3) + '<'), L + ': pozycja i zmiana w zapisie języka');
+  }
+  assert.ok(run('de', false).includes('>+&lt;0,1<') && run('de', false).includes('>4.513,3<') && run('ja', false).includes('>4,513.3<'));
+  /* bopMld (panele instytucji, TIC, SPW, Meksyk …) bierze zapis z instMld — „<0,1” i liczby w języku widza */
+  const b0 = html.indexOf('const bopMld='), b1 = html.indexOf('\n', b0);
+  for (const L of V147_L10) {
+    const F = v147Fns(L, false), bop = new Function('instSign', 'instMld', html.slice(b0, b1) + '\nreturn bopMld;')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), F.instMld);
+    const lt = L === 'pl' ? '0,1' : L === 'en' ? '0.1' : v147Int(L, 1).format(0.1);
+    assert.equal(bop(30), '+&lt;' + lt, L); assert.equal(bop(-1754400), '−' + F.instMld(1754400), L); assert.equal(bop(null), '—', L);
+  }
+});
+
+/* ctyName (+ engCty, ENG_DN, CTY_AGG) z gtKey / gtNm / FLAGS_OK / ISO32 strony dla języka L (t — prawdziwy słownik strony) */
+function v147Cty(L) {
+  const I = v143Final(html), t = (k, o) => { let s = (I[L] && I[L][k]) ?? I.en[k] ?? k; if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
+  const h0 = html.indexOf('/* ===================== v96: FLAGI, LOGA, WALUTY, ZNACZKI WYDAWCÓW'), h1 = html.indexOf('\nfunction fundIco(', h0);
+  const g0 = html.indexOf('/* v96-gt: ikony w tabelach GLOBAL — początek'), g1 = html.indexOf('/* v96-gt: ikony w tabelach GLOBAL — koniec */', g0);
+  const i0 = html.indexOf('const ISO32='), i1 = html.indexOf('\n', i0), c0 = html.indexOf('const ENG_DN={};'), c1 = html.indexOf('\nconst engGen=', c0);
+  assert.ok(h0 > 0 && h1 > h0 && g0 > 0 && g1 > g0 && i0 > 0 && c0 > i0 && c1 > c0 && html.slice(c0, c1).includes('function ctyName(code,...names){'), 'bloki: ISO32, flagi, gtNm, engCty + ctyName');
+  return new Function('escH', 'COIN_LOGO', 'LANG', 'LOCALE', 't', html.slice(i0, i1) + '\n' + html.slice(h0, html.indexOf('\n', h1 + 1)) + '\n' + html.slice(g0, g1) + '\n' + html.slice(c0, c1) +
+    '\nreturn {ctyName, engCty, gtI, gtNm, CTY_AGG};')(gtEsc, {}, L, V147_LOC, t);
+}
+const v147Dn = (L, c) => new Intl.DisplayNames([V147_LOC[L]], {type: 'region'}).of(c);
+/* nazwy z plików danych (TIC tabela 5 i skład regionów; MF) → kod ISO2 albo klucz słownika wiersza zbiorczego */
+const V147_NM = {'Japan': 'JP', 'United Kingdom': 'GB', 'China, Mainland': 'CN', 'Belgium': 'BE', 'Cayman Islands': 'KY', 'Luxembourg': 'LU', 'Canada': 'CA', 'Ireland': 'IE',
+  'France': 'FR', 'Taiwan': 'TW', 'Switzerland': 'CH', 'Singapore': 'SG', 'Hong Kong': 'HK', 'Norway': 'NO', 'India': 'IN', 'Korea, South': 'KR', 'Saudi Arabia': 'SA',
+  'United Arab Emirates': 'AE', 'Kuwait': 'KW', 'Israel': 'IL', 'Turkey': 'TR', 'Russia': 'RU', 'Malaysia': 'MY', 'Thailand': 'TH', 'Indonesia': 'ID', 'Philippines': 'PH',
+  'Australia': 'AU', 'New Zealand': 'NZ', 'Brazil': 'BR', 'Memo: European Union': 'EU', 'Netherlands (the)': 'NL', 'United States (the)': 'US', 'United States': 'US',
+  'Germany': 'DE', 'Austria': 'AT', 'Italy': 'IT', 'Korea (the Republic of)': 'KR',
+  'All Other': 'cty.x.oth', 'Others': 'cty.x.oth', 'Caribbean Banking Centers': 'cty.x.cbc', 'Caribbean Banking Centers 4/': 'cty.x.cbc', 'International and Regional Orgs': 'cty.x.iro',
+  'Grand Total': 'cty.x.tot', 'Total Latin America': 'cty.x.lat', 'Total Africa': 'cty.x.afr', 'Total Caribbean': 'cty.x.car'};
+
+test('v147: nazwy krajów z plików danych — de, es, fr, it, pt, ru, zh, ja przez Intl.DisplayNames (kod ISO albo rozpoznana nazwa), wiersze zbiorcze ze słownika; pl i en — null (tekst z pliku bez zmian)', () => {
+  const I = v143Final(html);
+  for (const L of ['pl', 'en']) {
+    const C = v147Cty(L);
+    for (const n in V147_NM) assert.equal(C.ctyName(null, n), null, L + ' ' + n);
+    assert.equal(C.ctyName('CHN', 'China'), null); assert.equal(C.engCty('ZZZ', 'Nieznany', 'Unknown'), L === 'pl' ? 'Nieznany' : 'Unknown');
+  }
+  for (const L of V147_L8) {
+    const C = v147Cty(L);
+    for (const [n, c] of Object.entries(V147_NM)) {
+      const want = c.startsWith('cty.') ? I[L][c] : v147Dn(L, c);
+      assert.ok(typeof want === 'string' && want && want !== c, L + ' ' + n + ': oczekiwana nazwa');
+      assert.equal(C.ctyName(null, n), want, L + ' ' + n);
+    }
+    /* kody ISO3 (rezerwy MFW, panele silnika) i ISO2; nieznane — null (zapas: nazwa z pliku) */
+    for (const [c3, c2] of [['CHN', 'CN'], ['JPN', 'JP'], ['CHE', 'CH'], ['TWN', 'TW'], ['SAU', 'SA'], ['KOR', 'KR'], ['BRA', 'BR'], ['IND', 'IN']]) {
+      assert.equal(C.ctyName(c3, 'English name'), v147Dn(L, c2), L + ' ' + c3); assert.equal(C.ctyName(c2), v147Dn(L, c2), L + ' ' + c2);
+    }
+    assert.equal(C.ctyName(null, 'Atlantis'), null); assert.equal(C.ctyName('ZZZ'), null); assert.equal(C.ctyName(null, ''), null); assert.equal(C.ctyName(), null);
+    assert.equal(C.ctyName(null, 'Nowhere', 'Holandia'), v147Dn(L, 'NL'), L + ': druga nazwa (polska), gdy pierwsza nieznana');
+    /* engCty: kod spoza ISO — nazwa rozpoznana po angielskiej, dopiero potem angielska u źródła */
+    assert.equal(C.engCty('XXA', 'Japonia', 'Japan'), v147Dn(L, 'JP'), L + ' engCty zapas'); assert.equal(C.engCty('ZZZ', 'Nieznany', 'Unknown'), 'Unknown');
+    assert.equal(C.engCty('IRL', 'Irlandia', 'Ireland'), v147Dn(L, 'IE'), L + ' engCty z kodu bez zmian');
+  }
+  /* każdy klucz cty.x.* z CTY_AGG jest w słowniku w 10 językach; w de–ja to nie angielski */
+  const C = v147Cty('de'), keys = [...new Set(Object.values(C.CTY_AGG))].sort();
+  assert.deepEqual(keys, ['cty.x.afr', 'cty.x.car', 'cty.x.cbc', 'cty.x.iro', 'cty.x.lat', 'cty.x.oth', 'cty.x.tot']);
+  for (const k of keys) for (const L of V147_L10) { assert.ok(typeof I[L][k] === 'string' && I[L][k].trim(), L + ' ' + k); if (L !== 'en') assert.notEqual(I[L][k], I.en[k], L + ' ' + k + ': kopia angielskiego'); }
+  /* gtNm i flagi bez zmian (ctyName tylko czyta) */
+  assert.deepEqual(C.gtNm('China, Mainland'), ['cn']); assert.ok(C.gtI('n', 'All Other').includes('img/glify/globe.svg'));
+});
+
+/* panele z nazwami z plików: renderTic (posiadacze obligacji USA, skład regionów), spwHtml (posiadacze SPW), rezHtml (rezerwy) — z ctyName języka L */
+const V147_TIC = {at: '2026-09-20T12:00:00Z', asof: '2026-07', months: ['2026-07'], regions: {chn: {members: ['China, Mainland', 'Hong Kong'], n: 2, in: [['2026-07', 1000, 2]], out: [['2026-07', 400, 2]], net: [['2026-07', 600, 2]], hold_in: 1e6},
+  jpn: {members: ['Japan', 'Korea, South'], n: 2, in: [['2026-07', 2000, 2]], out: [['2026-07', 30, 2]], net: [['2026-07', 1970, 2]], hold_in: 2e6},
+  lat: {members: ['Total Latin America'], n: 1, in: [['2026-07', 50, 1]], out: [['2026-07', 20, 1]], net: [['2026-07', 30, 1]], hold_in: 3e5},
+  eur: {members: ['Memo: European Union', 'United Kingdom', 'Switzerland', 'Norway'], n: 4, in: [['2026-07', 40600, 4]], out: [['2026-07', 1, 4]], net: [['2026-07', 40599, 4]], hold_in: 9e6}},
+  world: {in: [['2026-07', 40600]], out: [['2026-07', 68500]], hold_in: [['2026-07', 1e7]], hold_out: [['2026-07', 5e6]]},
+  carib: {members: ['Total Caribbean'], n: 1, in: [['2026-07', 10, 1]], out: [['2026-07', 5, 1]], net: [['2026-07', 5, 1]]}, twn: {members: ['Taiwan'], n: 1, in: [['2026-07', 1, 1]], out: [['2026-07', 1, 1]], net: [['2026-07', 0, 1]]},
+  holders: {asof: '2026-07', unit: 'mld USD', top: [['Japan', 1103.9, -12.8, -51.5], ['United Kingdom', 998.3, 58.4, 102.4], ['China, Mainland', 618, -15.4, -77.6], ['Cayman Islands', 460.1, 7, 23.3],
+    ['Hong Kong', 258.3, 2.5, 10.8], ['Caribbean Banking Centers', 300, 1, 2], ['International and Regional Orgs', 20, 0, 1], ['All Other', 1500, 3, 4]], total: 9100.5, total_d12: 300.2}};
+function v147Tic(L, old) {
+  const a = html.indexOf('function renderTic(){'), b = html.indexOf('/* v50 (fedimf) początek', a), src = old ? v147Old(html.slice(a, b)) : html.slice(a, b);
+  const C = v147Cty(L), el = {innerHTML: '', hidden: true}, F = v147Fns(L, false), tf = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const GB_ = {chn: 1, jpn: 1, lat: 1, eur: 1};
+  const sum = (rows, n) => { if (!Array.isArray(rows) || rows.length < n) return null; let s = 0; for (const r of rows.slice(-n)) { if (typeof r[1] !== 'number') return null; s += r[1]; } return s; };
+  const tic = new Function('bopSum', 't', html.slice(html.indexOf('const ticLast=rows=>'), html.indexOf('\nfunction renderTic(){')) + '\nreturn {ticLast, ticVal, ticNet, ticPartial};')(sum, tf);
+  const bop = new Function('instSign', 'instMld', html.slice(html.indexOf('const bopMld='), html.indexOf('\n', html.indexOf('const bopMld='))) + '\nreturn bopMld;')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), F.instMld);
+  new Function('$', 'TIC', 'gfmt', 't', 'instRow', 'bopMld', 'engNum', 'instFoot', 'engDate', 'ticLast', 'bopSum', 'ticNet', 'ticVal', 'ticPartial', 'GB_', 'escH', 'nfmt', 'instSign', 'ctyName', 'gtI',
+    src + '\nrenderTic();')(q => q === '#tic' ? el : null, {data: V147_TIC}, v => 'G' + v, tf, (l, v, e, n) => `[${l}|${v}|${n}]`, bop, v => String(v), d => d, d => d, tic.ticLast, sum, tic.ticNet, tic.ticVal,
+    tic.ticPartial, GB_, gtEsc, v147Nf(L), v => v > 0 ? '+' : (v < 0 ? '−' : ''), C.ctyName, C.gtI);
+  return el.innerHTML;
+}
+function v147Spw(L, old) {
+  const a = html.indexOf('/* v87: Polska — Ministerstwo Finansów'), b = html.indexOf('/* v88: Meksyk — Banco de México', a), src = old ? v147Old(html.slice(a, b)) : html.slice(a, b);
+  const C = v147Cty(L), F = v147Fns(L, false), tf = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const bop = new Function('instSign', 'instMld', html.slice(html.indexOf('const bopMld='), html.indexOf('\n', html.indexOf('const bopMld='))) + '\nreturn bopMld;')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), F.instMld);
+  const f = new Function('t', 'gOk', 'renderInst', 'instRow', 'instFoot', 'nfmt', 'escH', 'engDate', 'bopMld', 'LANG', 'instMld', 'ctyName', 'gtI', src + '\nreturn spwHtml;')(
+    tf, () => {}, () => {}, (l, v, e, n) => `[${l}|${v}|${n}]`, d => d, v147Nf(L), gtEsc, d => d, bop, L, F.instMld, C.ctyName, C.gtI);
+  return f({at: '2026-09-20T12:00:00Z', m: [['2026-07', 90000, 80000, 10000], ['2026-08', 92000, 81000, 11000]],
+    kr: [{m: '2026-08', c: [['Japonia', 'Japan', 18031.64, 19.59], ['Holandia', 'Netherlands (the)', 7678.98, 8.34], ['Stany Zjednoczone', 'United States', 30, 0.03], ['Pozostałe kraje', 'Others', 1, 1]]},
+      {m: '2026-07', c: [['Japonia', 'Japan', 17382.46, 19.71]]}]});
+}
+function v147Rez(L, old) {
+  const a = html.indexOf('/* v50 (fedimf) początek: Fed H.4.1'), b = html.indexOf('/* v50 koniec (fedimf) */', a), src = old ? v147Old(html.slice(a, b)) : html.slice(a, b);
+  const C = v147Cty(L), F = v147Fns(L, false), nf = v147Nf(L);
+  const f = new Function('t', 'escH', 'engDate', 'engNum', 'nfmt', 'instRow', 'instFoot', 'instMld', 'instSign', 'gOk', 'renderInst', 'LANG', 'gtI', 'ctyName', src + '\nreturn {rezHtml};')(
+    (k, o) => k + (o ? JSON.stringify(o) : ''), gtEsc, d => d, v => String(v), nf, (l, v, e, n) => `[${l}|${v}|${n}]`, d => d, F.instMld, v => v > 0 ? '+' : (v < 0 ? '−' : ''), () => {}, () => {}, L, C.gtI, C.ctyName);
+  return f.rezHtml({at: 'x', order: ['CHN', 'JPN', 'CHE', 'TWN', 'KOR', 'XXK'], missing: [], countries: {CHN: {pl: 'Chiny', en: 'China', total: 3786.1, fx: 3416.3, gold: 303.7, d1m: -64.1, d12m: 158.5, p12m: 4.4, asof: '2026-06'},
+    JPN: {pl: 'Japonia', en: 'Japan', total: 1207.5, fx: 1010.8, gold: 80, d1m: 0, d12m: 1, p12m: 0.1, asof: '2026-08'}, CHE: {pl: 'Szwajcaria', en: 'Switzerland', total: 1120.1, fx: 952.5, gold: 152.6, d1m: 1, d12m: 2, p12m: 0.2, asof: '2026-08'},
+    TWN: {pl: 'Tajwan', en: 'Taiwan', total: 600, fx: 560, gold: 40, d1m: 1, d12m: 2, p12m: 0.3, asof: '2026-08'}, KOR: {pl: 'Korea Płd.', en: 'Korea', total: 420, fx: 400, gold: 20, d1m: 1, d12m: 2, p12m: 0.4, asof: '2026-08'},
+    XXK: {pl: 'Kraj X', en: 'Country X', total: 1, fx: 1, gold: 0, d1m: 0, d12m: 0, p12m: 0, asof: '2026-08'}}});
+}
+
+test('v147: tabele z nazwami z plików (TIC: posiadacze obligacji USA i skład regionów; MF: posiadacze SPW; MFW: rezerwy) — pl i en bajt w bajt; de–ja bez angielskich nazw', () => {
+  const I = v143Final(html), txt = s => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  for (const L of ['pl', 'en']) {
+    assert.equal(v147Tic(L, false), v147Tic(L, true), L + ': TIC bajt w bajt'); assert.equal(v147Spw(L, false), v147Spw(L, true), L + ': SPW bajt w bajt');
+    assert.equal(v147Rez(L, false), v147Rez(L, true), L + ': rezerwy bajt w bajt');
+  }
+  assert.ok(v147Tic('en', false).includes('China, Mainland') && v147Tic('pl', false).includes(': Total Caribbean<br>') && v147Spw('pl', false).includes('Holandia') && v147Spw('en', false).includes('Netherlands<'), 'pl i en jak dawniej');
+  const ENG = ['China, Mainland', 'Korea, South', 'Cayman Islands', 'United Kingdom', 'Hong Kong', 'Memo: European Union', 'Total Latin America', 'Total Caribbean', 'Caribbean Banking Centers',
+    'International and Regional Orgs', 'All Other', 'Switzerland', 'Norway', 'Netherlands', 'United States', 'Others', 'Japan', 'China', 'Taiwan', 'Korea'];
+  for (const L of V147_L8) {
+    const tic = v147Tic(L, false), spw = v147Spw(L, false), rez = v147Rez(L, false), T = txt(tic + ' ' + spw + ' ' + rez);
+    for (const [n, c] of [['Japan', 'JP'], ['United Kingdom', 'GB'], ['China, Mainland', 'CN'], ['Cayman Islands', 'KY'], ['Hong Kong', 'HK']]) assert.ok(tic.includes('</span>' + gtEsc(v147Dn(L, c)) + '</span></td>'), L + ' TIC posiadacz: ' + n);
+    for (const k of ['cty.x.cbc', 'cty.x.iro', 'cty.x.oth']) assert.ok(tic.includes('</span>' + gtEsc(I[L][k]) + '</span></td>'), L + ' TIC wiersz zbiorczy: ' + k);
+    for (const c of ['KR', 'EU', 'CH', 'NO']) assert.ok(tic.includes(gtEsc(v147Dn(L, c))), L + ' TIC skład: ' + c);
+    assert.ok(tic.includes(': ' + gtEsc(I[L]['cty.x.car']) + '<br>') && tic.includes(': ' + gtEsc(v147Dn(L, 'TW')) + '</p>') && tic.includes(gtEsc(I[L]['cty.x.lat'])), L + ' TIC: Karaiby, Tajwan, Ameryka Łacińska');
+    for (const c of ['JP', 'NL', 'US']) assert.ok(spw.includes(gtEsc(v147Dn(L, c)) + '</span></td>'), L + ' SPW: ' + c);
+    assert.ok(spw.includes(gtEsc(I[L]['cty.x.oth']) + '</span></td>'), L + ' SPW: pozostałe kraje');
+    for (const c of ['CN', 'JP', 'CH', 'TW', 'KR']) assert.ok(rez.includes(gtEsc(v147Dn(L, c)) + ' <span class="cell mono">'), L + ' rezerwy: ' + c);
+    assert.ok(rez.includes('Country X <span class="cell mono">XXK'), L + ' rezerwy: kod spoza ISO — nazwa z pliku');
+    for (const n of ENG) {
+      if (Object.values(V147_NM).filter(c => !c.startsWith('cty.')).some(c => v147Dn(L, c).includes(n))) continue;   /* nazwa w tym języku pisana tak samo (np. de „Japan”, pt „Taiwan”) */
+      assert.ok(!new RegExp('(^|[^A-Za-z])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^A-Za-z]|$)').test(T), L + ': angielska nazwa „' + n + '” w tabelach: ' + T.slice(0, 300));
+    }
+    /* liczby w tych tabelach w zapisie języka (bez angielskiego „1,103.9” w de / fr / ru) */
+    if (['de', 'es', 'fr', 'it', 'pt', 'ru'].includes(L)) assert.ok(!/\d\.\d(?!\d)/.test(T.replace(/\d{4}-\d{2}(-\d{2})?/g, '')) && !/\d,\d{3}\.\d/.test(T), L + ': angielski zapis liczby: ' + T.slice(0, 400));
+  }
+});
+
+test('v147: japoński — bez spacji między liczbą albo {polem} a licznikiem 日 / 営業日 / 日間 / 銘柄 / 件 / か月 / 年 (także w datach); inne języki bez zmian; wyjątek lev.bnout ({d} to data)', () => {
+  const I = v143Final(html), {D} = v142Bad(html);
+  const RX = /(\d|\})[ \u00a0\u3000]+(営業日|日間|日|銘柄|件|か月|年)|\d年[ \u00a0]+\d{1,2}[ \u00a0]*月|\d年\d{1,2}月[ \u00a0]+\d{1,2}日/;
+  const OK = ['lev.bnout'];
+  const bad = Object.keys(I.ja).filter(k => typeof I.ja[k] === 'string' && RX.test(I.ja[k]) && !OK.includes(k));
+  assert.deepEqual(bad, [], 'ja: spacja przed licznikiem: ' + bad.map(k => k + ' „' + I.ja[k].slice(0, 50) + '”').join(' | '));
+  /* także teksty zasłonięte przez późniejsze słowniki (wszystkie słowniki JSON) */
+  for (const d of D) for (const k in (d.obj.ja || {})) assert.ok(!RX.test(d.obj.ja[k]) || OK.includes(k), d.name + ' ja ' + k + ': ' + d.obj.ja[k].slice(0, 60));
+  /* wyjątek: {d} w lev.bnout to data (levDay), nie liczba dni */
+  assert.ok(html.includes("t('lev.bnout',{v:nfmt(bv/1e9,2)+' '+t('lev.u.mld'),d:levDay(B.day)})") && /\{d\} 日終/.test(I.ja['lev.bnout']), 'lev.bnout: {d} = data');
+  /* przykłady: nagłówek tabeli ETF (obok „5営業日”), liczniki w zdaniach, data */
+  assert.equal(I.ja['etf.k.m'], '22営業日（約1か月）'); assert.equal(I.ja['etf.c.m'], '22営業日'); assert.equal(I.ja['etf.c.w'], '5営業日', 'ten sam nagłówek tabeli ETF');
+  assert.equal(I.ja['q.src.v'], '{n}件中 {k}件'); assert.equal(I.ja['arc.per'], '{n}日'); assert.equal(I.ja['wh.d7'], '7日'); assert.equal(I.ja['arc.k.yld'], '10年国債利回り');
+  assert.equal(I.ja['c10.rank'], '{s}：時価総額 {n}銘柄中 {r} 位'); assert.equal(I.ja['eng.x.wdi-destinations.age'], '年次データで、遅れて公表されます。取得時点で {n}か月前のものでした。');
+  assert.ok(I.ja['wh.n.Binance'].includes('（2022年11月）') && I.ja['trd.dc2.m.7'].includes('2026年4月28日以降'), 'daty bez spacji');
+  /* tylko spacje: pola {x} jak po angielsku, spacje przed łacińskimi słowami, %, USD, UTC zostają */
+  const ph = s => (String(s).match(/\{[a-z0-9_]+\}/g) || []).sort().join(',');
+  assert.ok(V147_JA.length >= 100, 'zmienione teksty: ' + V147_JA.length);
+  for (const [d, k] of V147_JA) {
+    const o = D.find(x => x.name === d); assert.ok(o && typeof o.obj.ja[k] === 'string', d + ' ' + k);
+    assert.equal(ph(o.obj.ja[k]), ph(o.obj.en && o.obj.en[k] !== undefined ? o.obj.en[k] : I.en[k]), d + ' ' + k + ': pola {x}');
+  }
+  assert.ok(I.ja['trd.subc'].includes(' · UTC 日') && I.ja['prm.not5'].includes('UTC 12:10ごろ') && I.ja['prm.not5'].includes('約 0.4％'), 'spacje przed UTC i liczbą zostają');
+  /* inne języki bez zmian (zh pisze „22 个交易日”) */
+  assert.equal(I.zh['etf.k.m'], '22 个交易日（约 1 个月）'); assert.equal(I.zh['etf.c.m'], '22 个交易日'); assert.equal(I.en['etf.c.m'], '22 sessions');
+});
+
+test('v147: słownik — czysty JSON, 10 języków, tylko cty.x.* (prawdziwe tłumaczenia, bez pól {x}); po słowniku v146; nazwa tylko w definicji i linii; strażnicy v107 / v142 / v143 bez zgłoszeń; kod: jedna funkcja ctyName', () => {
+  const a = 'const ' + V147_DICT + '=', x0 = html.indexOf(a), fl = 'for(const l in ' + V147_DICT + ')if(I18N[l])Object.assign(I18N[l],' + V147_DICT + '[l]);\n';
+  assert.ok(x0 > 0 && html.indexOf(a, x0 + 1) < 0, 'słownik v147 zadeklarowany dokładnie raz');
+  const x1 = html.indexOf(';\n' + fl, x0);
+  assert.ok(x1 > x0 && html.split(fl).length === 2, 'zaraz po słowniku dokładnie jedna linia nakładania');
+  assert.equal(html.split(V147_DICT).length - 1, 3, 'nazwa słownika tylko w definicji i linii nakładania');
+  assert.ok(html.slice(html.lastIndexOf('\n', x0 - 2) + 1, x0).startsWith('/* v147:'), 'jeden wiersz komentarza przed słownikiem');
+  const D = JSON.parse(html.slice(x0 + a.length, x1));
+  assert.deepEqual(Object.keys(D), V147_L10, 'języki w kolejności strony');
+  const K = ['cty.x.afr', 'cty.x.car', 'cty.x.cbc', 'cty.x.iro', 'cty.x.lat', 'cty.x.oth', 'cty.x.tot'];
+  for (const L of V147_L10) {
+    assert.deepEqual(Object.keys(D[L]).sort(), K, L + ': klucze');
+    for (const k of K) { assert.ok(typeof D[L][k] === 'string' && D[L][k].trim() && !/[{}<>`]/.test(D[L][k]), L + ' ' + k); if (L !== 'en') assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': kopia angielskiego'); }
+    if (L === 'ru') for (const k of K) assert.ok(/[А-Яа-я]/.test(D[L][k]), 'ru ' + k);
+    if (L === 'zh' || L === 'ja') for (const k of K) assert.ok(/[一-鿿぀-ヿ]/.test(D[L][k]) && !/[A-Za-z]/.test(D[L][k]), L + ' ' + k);
+    if (L === 'zh') for (const k of K) assert.ok(!/[぀-ヿ]/.test(D[L][k]), 'zh ' + k + ': bez kany');
+  }
+  const fors = [...html.matchAll(/for\(const l in (EXTRA\w*)\)/g)].map(m => m[1]);
+  assert.ok(fors.indexOf(V147_DICT) > fors.indexOf(V146_DICT) && fors.indexOf(V146_DICT) > fors.indexOf(V143_DICT), 'kolejność nakładania: v143 → v146 → v147');
+  const I = v143Final(html);
+  for (const L of V147_L10) for (const k in D[L]) assert.equal(I[L][k], D[L][k], L + ' ' + k + ': nałożony (nic go nie zasłania)');
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(V147_DICT + ' ')), [], 'v142: bez kopii angielskiego');
+  assert.deepEqual(v143Bad(html).filter(x => x.startsWith('cty.')), [], 'v143: komplet języków');
+  const U = v143Usage(v143Code(html));
+  for (const k of K) assert.ok(U.used(k), 'klucz używany w kodzie (CTY_AGG): ' + k);
+  /* kod: ctyName raz; każda zmiana v147 w kodzie raz; po cofnięciu zmian — kod sprzed v147 (bez ctyName i bez nfmt w zmienionych liniach) */
+  for (const s of ['function ctyName(code,...names){', 'const CTY_AGG={']) assert.equal(html.split(s).length, 2, s);
+  for (const [o, n] of V147_PAIRS) { assert.equal(html.split(n).length, 2, 'zmiana v147 dokładnie raz: ' + n.slice(0, 80)); assert.equal(html.split(o).length - 1, n.includes(o) ? 1 : 0, 'kod sprzed v147 nie wraca: ' + o.slice(0, 80)); }
+  const back = v147Old(html);
+  assert.ok(!/ctyName\(/.test(back) && !back.includes('CTY_AGG') && !back.includes('function ctyName'), 'po cofnięciu: bez ctyName (nazwa zostaje tylko w komentarzu słownika)');
+  assert.equal((html.match(/typeof ctyName==='function'&&ctyName\(/g) || []).length, 4, 'ctyName wołane w 4 miejscach: engCty, rezerwy, TIC (cn), SPW (zawsze przez typeof — wycinki kodu w testach)');
+  assert.equal((html.match(/LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function'/g) || []).length, 5, 'warunek de–ja w 5 funkcjach liczb: instMld, engMln, engBld, engPairs, etfM');
+});
+
+test('v147: strona w atrapie (dane wbudowane strażnika) — panel instytucji i TIC w de, fr, ru, es, it, pt bez angielskiego zapisu liczb z instMld i bez angielskich nazw z TIC; pl i en jak dawniej', () => {
+  for (const L of ['de', 'fr', 'ru', 'es', 'it', 'pt', 'ja', 'zh']) {
+    const R = G126.run(L);
+    assert.deepEqual(R.ERR, [], L + ': bez błędów strony');
+    const tic = R.el('tic'), inst = R.el('inst');
+    assert.ok(tic && !tic.hidden && inst && !inst.hidden, L + ': #tic i #inst narysowane');
+    const T = (tic.innerHTML + ' ' + inst.innerHTML).replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ').replace(/\d{4}-\d{2}(-\d{2})?/g, ' ');
+    for (const n of ['China, Mainland', 'Korea, South', 'Total Caribbean', 'Total Latin America', 'Total Africa', 'Memo: European Union', 'Cayman Islands']) assert.ok(!T.includes(n), L + ': „' + n + '”');
+    if (!['ja', 'zh'].includes(L)) {
+      const m = T.match(/[+−]\d{1,3}(,\d{3})*\.\d(?!\d)/g) || [];
+      assert.deepEqual(m, [], L + ': angielski zapis liczby ze znakiem (instMld / bopMld)');
+    }
+  }
 });
