@@ -10130,3 +10130,198 @@ test('v143: listy aktualne i tłumaczenia — słownik v143 (8 języków, bez pl
   assert.equal(E.de['g.per.1T'], 'Wochenzeitraum (5 Handelstage)'); assert.equal(E.zh['g.per.1T'], '周（5 个交易日）'); assert.equal(E.ja['g.per.1T'], '1週間（5営業日）');
   assert.ok(E.ru['g.help.regtds'] !== E.en['g.help.regtds'] && /[А-Яа-я]/.test(E.ru['g.help.regtds']), 'Metodologia: akapit o okresach 1W–1Y po rosyjsku');
 });
+
+/* ===================== v146: bez angielskiego wpisanego w kod — słowo „sesja” (zagSes) i nota Metodologii „Jak czytać liczby” w 10 językach =====================
+   Do v146 zagSes(n) zwracało „session(s)” we wszystkich językach poza polskim (np. „5 sessions bis …” na kartach TRENDY i w panelach instytucji),
+   a Metodologia pokazywała w de–ja angielską notę TXT_JAK_EN. Teraz: słowo z kategorii liczby Intl.PluralRules → klucz ses.<kategoria> słownika
+   v146 (polski bez zmian, bajt w bajt), nota ze słownika (jak.h / jak.p / jak.b) w układzie TXT_JAK_EN; po angielsku wynik = TXT_JAK_EN. */
+const V146_DICT = 'EXTRA148';
+const V146_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], V146_L8 = V146_L10.slice(2);
+/* linia zagSes sprzed v146 (v69) — wzorzec dla polskiego i angielskiego */
+const V146_OLD_SES = "const zagSes=n=>(typeof LANG!=='undefined'&&LANG==='pl')?(n===1?'sesja':((n%10>=2&&n%10<=4&&(n%100<12||n%100>14))?'sesje':'sesji')):(n===1?'session':'sessions');";
+/* zagSes i zagSesW wycięte ze strony (od const zagSes= do const zagPart=) z danym językiem i słownikiem (I = undefined: piaskownica bez słowników) */
+function v146Ses(L, I) {
+  const a = html.indexOf('const zagSes='), b = html.indexOf('\nconst zagPart=', a);
+  assert.ok(a > 0 && b > a && html.slice(a, b).includes('function zagSesW(n){'), 'zagSes i zagSesW tuż przed zagPart');
+  return new Function('LANG', 'I18N', html.slice(a, b) + '\nreturn {zagSes, zagSesW};')(L, I);
+}
+const v146Old = L => new Function('LANG', V146_OLD_SES + '\nreturn zagSes;')(L);
+const V146_N = [1, 2, 5, 21, 22];
+const V146_SES = {
+  pl: ['sesja', 'sesje', 'sesji', 'sesji', 'sesje'], en: ['session', 'sessions', 'sessions', 'sessions', 'sessions'],
+  de: ['Handelstag', 'Handelstage', 'Handelstage', 'Handelstage', 'Handelstage'], es: ['sesión', 'sesiones', 'sesiones', 'sesiones', 'sesiones'],
+  fr: ['séance', 'séances', 'séances', 'séances', 'séances'], it: ['seduta', 'sedute', 'sedute', 'sedute', 'sedute'],
+  pt: ['pregão', 'pregões', 'pregões', 'pregões', 'pregões'], ru: ['сессия', 'сессии', 'сессий', 'сессия', 'сессии'],
+  zh: ['个交易日', '个交易日', '个交易日', '个交易日', '个交易日'], ja: ['営業日', '営業日', '営業日', '営業日', '営業日']};
+/* klucze zdań, do których trafia zagSes (pole w / x) — wszystkie wywołania w kodzie strony */
+const V146_KEYS = ['ob.sns', 'ob.snh', 'ob.reg.hk.v', 'br.sn', 'br.reg.v', 'th.sum', 'th.sy', 'th.reg.v', 'mx.c.dn', 'mx.d', 'mx.reg.v', 'fo.s', 'trd.n.sp', 'trd.n.sm'];
+
+test('v146: zagSes — „sesja” w 10 językach dla n = 1, 2, 5, 21, 22 (pl i ru z odmianą, zh i ja bez liczby mnogiej); polski bajt w bajt i angielski jak przed v146', () => {
+  const I = v143Final(html);
+  for (const L of V146_L10) {
+    const S = v146Ses(L, I);
+    assert.deepEqual(V146_N.map(n => S.zagSes(n)), V146_SES[L], L + ': n = ' + V146_N.join(', '));
+  }
+  /* dalsze formy rosyjskie i polskie (11–14 i 111–114 to „many”, 101 i 121 — „one” / zwykła forma) */
+  const ru = v146Ses('ru', I).zagSes, pl = v146Ses('pl', I).zagSes;
+  assert.deepEqual([3, 4, 11, 12, 14, 101, 111, 112, 121, 124, 125].map(ru), ['сессии', 'сессии', 'сессий', 'сессий', 'сессий', 'сессия', 'сессий', 'сессий', 'сессия', 'сессии', 'сессий']);
+  assert.deepEqual([3, 4, 11, 12, 14, 101, 111, 112, 121, 124, 125].map(pl), ['sesje', 'sesje', 'sesji', 'sesji', 'sesji', 'sesji', 'sesji', 'sesji', 'sesji', 'sesje', 'sesji']);
+  /* polski: ta sama funkcja co w v69 dla każdej wartości (także dziwnych); angielski: to samo dla liczb 0…1000; słownik pl = reguła v69 */
+  const oldPl = v146Old('pl'), oldEn = v146Old('en'), en = v146Ses('en', I).zagSes, plW = v146Ses('pl', I).zagSesW;
+  const odd = [0, null, undefined, NaN, 1.5, 2.5, -1, -2, -22, '3', '22', 1e6, Infinity];
+  for (const n of odd) assert.equal(pl(n), oldPl(n), 'pl ' + String(n));
+  for (let n = 0; n <= 1000; n++) {
+    assert.equal(pl(n), oldPl(n), 'pl ' + n); assert.equal(en(n), oldEn(n), 'en ' + n); assert.equal(plW(n), oldPl(n), 'słownik pl (ses.*) ' + n);
+  }
+  assert.ok(html.includes(V146_OLD_SES.replace(":(n===1?'session':'sessions');", ':zagSesW(n);')), 'polska gałąź linii v69 bez zmian');
+  /* kategoria, której język nie ma w słowniku → ses.other (fr / es / it / pt: many dla miliona) */
+  for (const [L, w] of [['fr', 'séances'], ['es', 'sesiones'], ['it', 'sedute'], ['pt', 'pregões'], ['de', 'Handelstage']]) assert.equal(v146Ses(L, I).zagSes(1e6), w, L + ' 1 000 000');
+  /* lżejsza strona bez pliku języka (klucze ses.* usunięte z I18N[język]) → angielski ze słownika; piaskownica bez I18N → dawny angielski */
+  const cut = o => { const c = Object.assign({}, o); for (const k of ['ses.one', 'ses.few', 'ses.many', 'ses.other']) delete c[k]; return c; };
+  assert.deepEqual([1, 2, 5].map(v146Ses('ru', {en: I.en, ru: cut(I.ru)}).zagSes), ['session', 'sessions', 'sessions'], 'ru bez pliku języka');
+  assert.deepEqual([1, 5].map(v146Ses('de', {en: I.en, de: cut(I.de)}).zagSes), ['session', 'sessions'], 'de bez pliku języka');
+  assert.deepEqual([1, 5].map(v146Ses(undefined, undefined).zagSes), ['session', 'sessions'], 'bez LANG i I18N (stare piaskownice testów)');
+  assert.deepEqual([1, 5].map(v146Ses('ja', undefined).zagSes), ['session', 'sessions'], 'bez I18N');
+});
+
+test('v146: każde wywołanie zagSes trafia w zdanie ze słownika z „{n} {słowo}” we wszystkich 10 językach — panele instytucji, przegląd przepływów, karty TRENDY; bez „session” poza en', () => {
+  const code = v143Code(html), I = v143Final(html);
+  /* wywołania: tylko w t('klucz',{…w|x:zagSes(…)…}) albo w trdUnit (karty TRENDY: fo.s i trd.n.sp / trd.n.sm przez x:trdUnit) */
+  const all = [...code.matchAll(/zagSes\(/g)].length, def = [...code.matchAll(/const zagSes=/g)].length;
+  const inT = [...code.matchAll(/t\('([a-z.]+)',\{[^{}]*?\b[wx]:zagSes\(/g)].map(m => m[1]);
+  const inTrd = [...code.matchAll(/function trdUnit\(r,n\)\{return r\.sz===1\?t\('trd\.u\.wk'\):r\.sz===7\?t\('trd\.u\.days'\):zagSes\(n\);\}/g)].length;
+  assert.equal(def, 1); assert.equal(inTrd, 1, 'trdUnit bez zmian');
+  assert.equal(all, inT.length + inTrd, 'wywołanie zagSes poza zdaniem ze słownika: ' + all + ' ≠ ' + (inT.length + inTrd));
+  assert.equal(all, 14, 'liczba wywołań zagSes (13 zdań + trdUnit)');
+  const used = [...new Set(inT.concat(['trd.n.sp', 'trd.n.sm', 'fo.s']))].sort();
+  assert.deepEqual(used, V146_KEYS.slice().sort(), 'klucze zdań z zagSes');
+  assert.ok([...code.matchAll(/t\(r\.sg>0\?'trd\.n\.sp':'trd\.n\.sm',\{n:r\.s,x:trdUnit\(r,r\.s\)\}\)/g)].length === 1 && code.includes("t('fo.s',{n:r.sz,x:trdUnit(r,r.sz),d:trdDay(r.date)})"), 'karty TRENDY: seria i okno przez trdUnit');
+  const tFor = L => (k, vars) => { let s = (I[L] && I[L][k]) ?? I.en[k] ?? k; if (vars) for (const v in vars) s = s.split('{' + v + '}').join(vars[v]); return s; };
+  for (const L of V146_L10) {
+    const S = v146Ses(L, I), T = tFor(L), sp = L === 'ja' ? '' : ' ';   /* japoński: liczba i 営業日 bez spacji (jak „5営業日” w ob.s5s i trd.n.pw) */
+    for (const k of V146_KEYS) {
+      const tpl = T(k);
+      assert.ok(tpl.includes('{n}' + sp + '{w}') || tpl.includes('{n}' + sp + '{x}'), L + ' ' + k + ': liczba tuż przed słowem („{n}' + sp + '{w}”): ' + tpl);
+      if (L === 'ja') assert.ok(!/\{n\} \{[wx]\}/.test(tpl), 'ja ' + k + ': bez spacji po liczbie: ' + tpl);
+      for (const n of V146_N) {
+        const o = {n, w: S.zagSes(n), x: S.zagSes(n)}, out = T(k, o);
+        assert.ok(out.includes(n + sp + S.zagSes(n)), L + ' ' + k + ' ' + n + ': ' + out);
+        if (L !== 'en') assert.ok(!/\bsessions?\b/i.test(out), L + ' ' + k + ': angielskie „session”: ' + out);
+      }
+    }
+  }
+  /* karty TRENDY prawdziwymi funkcjami strony (trdUnit, trdWin) */
+  const u0 = html.indexOf('function trdUnit(r,n){'), u1 = html.indexOf('\nfunction trdSn(', u0);
+  const card = L => new Function('t', 'zagSes', 'trdDay', html.slice(u0, u1) + '\nreturn {trdUnit, trdWin};')(tFor(L), v146Ses(L, I).zagSes, () => '01.10.2026');
+  const win = L => card(L).trdWin({sz: 5, date: '2026-10-01'}), run = (L, n) => tFor(L)('trd.n.sp', {n, x: card(L).trdUnit({sz: 5}, n)});
+  assert.equal(win('pl'), '5 sesji do 01.10.2026'); assert.equal(win('en'), '5 sessions to 01.10.2026');
+  assert.equal(win('de'), '5 Handelstage bis 01.10.2026'); assert.equal(win('ru'), '5 сессий по 01.10.2026');
+  assert.equal(win('ja'), '01.10.2026までの5営業日'); assert.equal(win('zh'), '截至 01.10.2026 的 5 个交易日'); assert.equal(win('es'), '5 sesiones hasta el 01.10.2026');
+  for (const L of V146_L10) assert.equal(win(L), tFor(L)('trd.n.pw', {d: '01.10.2026'}), L + ': okno karty = gotowe zdanie „5 sesji do …” (trd.n.pw) w tym języku');
+  assert.equal(run('de', 6), '6 Handelstage in Folge im Plus'); assert.equal(run('ru', 21), '21 сессия подряд в плюсе'); assert.equal(run('ru', 22), '22 сессии подряд в плюсе');
+  assert.equal(run('ja', 6), '6営業日連続でプラス'); assert.equal(tFor('ja')('trd.n.sp', {n: 3, x: card('ja').trdUnit({sz: 1}, 3)}), '3週連続でプラス'); assert.equal(run('fr', 5), '5 séances d’affilée en positif'); assert.equal(run('pl', 5), '5 sesji z rzędu na plus');
+  assert.equal(card('de').trdUnit({sz: 1}, 3), I.de['trd.u.wk'], 'tydzień — bez zmian'); assert.equal(card('de').trdUnit({sz: 7}, 7), I.de['trd.u.days'], 'krypto 7 dni — bez zmian');
+  /* panele instytucji: przykład z opisu wydania („5 sessions bis …” → „5 Handelstage bis …”) i rosyjska odmiana w zdaniu */
+  assert.equal(tFor('de')('fo.s', {n: 5, x: v146Ses('de', I).zagSes(5), d: '01.10.2026'}), '5 Handelstage bis 01.10.2026');
+  assert.equal(tFor('ru')('ob.sns', {n: 21, w: v146Ses('ru', I).zagSes(21), v: '+1,2'}), '21 сессия: +1,2 млрд TWD');
+  assert.equal(tFor('ru')('th.reg.v', {d: 'D', v: '1', n: 20, w: v146Ses('ru', I).zagSes(20), s: '2', h: '3'}), 'D: чистый поток 1 млрд THB · 20 сессий: 2 млрд THB · вложения 3 млрд THB');
+  assert.equal(tFor('ja')('ob.sns', {n: 20, w: v146Ses('ja', I).zagSes(20), v: '+45.6'}), '20営業日：+45.6 十億台湾ドル', 'ja: jak „5営業日：” obok (ob.s5s)');
+  assert.equal(tFor('ja')('ob.s5s', {v: '−42.0'}), '5営業日：−42.0 十億台湾ドル');
+  /* br.sn (Brazylia): własny zapis w fr / zh / ja, reszta — wspólny „{n} {w}: {v}” */
+  const br = L => tFor(L)('br.sn', {n: 20, w: v146Ses(L, I).zagSes(20), v: 'V'});
+  assert.deepEqual(V146_L10.map(br), ['20 sesji: V', '20 sessions: V', '20 Handelstage: V', '20 sesiones: V', '20 séances : V', '20 sedute: V', '20 pregões: V', '20 сессий: V', '20 个交易日：V', '20営業日：V']);
+});
+
+/* wycięta funkcja renderMethod (cała strona Metodologii) z t danego języka; gMemStats = null (bez pamięci przeglądarki) */
+function v146Method(L) {
+  const a = html.indexOf('function renderMethod(){'), b = html.indexOf('\nfunction renderPage(){', a);
+  assert.ok(a > 0 && b > a, 'renderMethod w stronie');
+  const w = {innerHTML: ''}, R = v96src.render(L, false, null);
+  new Function('$', 'gMemStats', 't', 'txtJakCzytac', html.slice(a, b) + '\nrenderMethod();')(q => q === '#page-method' ? w : null, () => null, v96src.tFor(L), R.txtJakCzytac);
+  return w.innerHTML;
+}
+const v146Txt = s => s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+
+test('v146: Metodologia „Jak czytać liczby” — de, es, fr, it, pt, ru, zh, ja we własnym języku (żadnego fragmentu wersji angielskiej), ten sam układ; en bajt w bajt = TXT_JAK_EN; pl bez zmian', () => {
+  const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); };
+  const a = 'const TXT_JAK_EN=`', x0 = html.indexOf(a), EN = html.slice(x0 + a.length, html.indexOf('`;', x0));
+  assert.equal(fnv(EN), 'f0211ddd', 'TXT_JAK_EN bez zmian (suma sprzed v146)'); assert.equal(EN.length, 571);
+  const j0 = html.indexOf('const TXT_JAK_PL=`'), lit = html.slice(j0, html.indexOf('`;', j0) + 2);
+  assert.equal(fnv(lit) + ' ' + lit.length, '73afe758 17818', 'TXT_JAK_PL bez zmian (suma sprzed v146)');
+  const out = {}, I = v143Final(html);
+  for (const L of V146_L10) out[L] = v96src.render(L, false, null).txtJakCzytac();
+  assert.equal(fnv(out.pl) + ' ' + out.pl.length, '9d55bed 23766', 'pl: Metodologia z ikonami bajt w bajt jak przed v146');
+  assert.equal(out.en, EN, 'en: bajt w bajt TXT_JAK_EN');
+  const tags = s => (s.match(/<[^>]+>/g) || []).join('');
+  const enT = v146Txt(EN), enW = enT.toLowerCase().match(/[a-z]+/g), tri = new Set();
+  for (let i = 0; i + 3 <= enW.length; i++) tri.add(enW.slice(i, i + 3).join(' '));
+  const ENG = ['this', 'available', 'polish', 'switch', 'language', 'settings', 'explains', 'rules', 'gap', 'never', 'flow', 'every', 'number',
+    'carries', 'only', 'publicly', 'guess', 'advise', 'labels', 'beside', 'numbers', 'often', 'published', 'glossary', 'live', 'refresh', 'status', 'the', 'and', 'we', 'how', 'read'];
+  for (const L of V146_L8) {
+    const s = out[L], T = v146Txt(s);
+    assert.equal(tags(s), tags(EN), L + ': ten sam układ znaczników co po angielsku');
+    assert.ok(s.startsWith('<section class="panel pgc"><h2>' + I[L]['jak.h'] + '</h2><p class="mtxt">') && s.endsWith('</p></section>'), L + ': nagłówek i akapit');
+    assert.equal(s.split('<button type="button" class="lnk" data-go="sources">').length, 2, L + ': jeden przycisk do strony Źródła');
+    assert.ok(s.includes('data-go="sources">' + I[L]['jak.b'] + '</button>') && I[L]['jak.b'].includes(I[L]['nav.sources']), L + ': przycisk z nazwą strony „Źródła” w tym języku');
+    assert.ok(T.includes(I[L]['nav.settings']) && T.includes('Polski'), L + ': nazwa Ustawień w tym języku i nazwa języka jak w menu');
+    assert.notEqual(I[L]['jak.h'], I.en['jak.h']);
+    const w = T.toLowerCase().match(/[a-z]+/g) || [];
+    for (let i = 0; i + 3 <= w.length; i++) assert.ok(!tri.has(w.slice(i, i + 3).join(' ')), L + ': fragment wersji angielskiej „' + w.slice(i, i + 3).join(' ') + '”');
+    for (const x of ENG) assert.ok(!new RegExp('(^|[^a-zà-ÿ])' + x + '([^a-zà-ÿ]|$)', 'i').test(T), L + ': angielskie słowo „' + x + '”: ' + T);
+    if (L === 'zh' || L === 'ja' || L === 'ru') assert.ok(!/[A-Za-z]/.test(T.replace(/Polski/g, '')), L + ': litery łacińskie tylko w nazwie „Polski”');
+    if (L === 'ru') assert.ok((T.match(/[А-Яа-яЁё]/g) || []).length > 200, 'ru: cyrylica');
+    if (L === 'zh') assert.ok(!/[぀-ヿ]/.test(T) && /[一-鿿]/.test(T), 'zh: bez kany');
+    if (L === 'ja') assert.ok(/[぀-ヿ]/.test(T), 'ja: z kaną');
+  }
+  /* cała strona Metodologii: żadne zdanie wersji angielskiej (≥ 4 słowa) nie zostaje w de–ja; sekcja „Jak czytać liczby” na końcu */
+  const M = {}; for (const L of V146_L10) M[L] = v146Method(L);
+  assert.ok(M.en.endsWith(EN) && M.pl.endsWith(out.pl), 'Metodologia kończy się sekcją „Jak czytać liczby”');
+  const sent = v146Txt(M.en).split(/(?<=[.!?:;)])\s+|\s+·\s+|\s+—\s+/).map(x => x.trim()).filter(x => (x.match(/[A-Za-z]{2,}/g) || []).length >= 4);
+  assert.ok(sent.length >= 20, 'zdania angielskiej Metodologii: ' + sent.length);
+  for (const L of V146_L8) {
+    const T = v146Txt(M[L]);
+    const bad = sent.filter(x => T.includes(x));
+    assert.deepEqual(bad, [], L + ': zdania po angielsku na stronie Metodologii');
+    assert.ok(T.includes(v146Txt(out[L])), L + ': sekcja „Jak czytać liczby” w tym języku na stronie');
+  }
+});
+
+test('v146: słownik — czysty JSON, 10 języków, ses.* (pl i ru one/few/many/other, reszta one/other), jak.* z polem {b}, br.sn (fr, zh, ja); po ostatniej linii nakładania; nazwa tylko w definicji i linii; japoński bez spacji po liczbie', () => {
+  const a = 'const ' + V146_DICT + '=', x0 = html.indexOf(a), fl = 'for(const l in ' + V146_DICT + ')if(I18N[l])Object.assign(I18N[l],' + V146_DICT + '[l]);\n';
+  assert.ok(x0 > 0 && html.indexOf(a, x0 + 1) < 0, 'słownik v146 zadeklarowany dokładnie raz');
+  const x1 = html.indexOf(';\n' + fl, x0);
+  assert.ok(x1 > x0 && html.split(fl).length === 2, 'zaraz po słowniku dokładnie jedna linia nakładania');
+  assert.equal(html.split(V146_DICT).length - 1, 3, 'nazwa słownika tylko w definicji i linii nakładania');
+  assert.ok(html.slice(html.lastIndexOf('\n', x0 - 2) + 1, x0).startsWith('/* v146:'), 'jeden wiersz komentarza przed słownikiem');
+  const D = JSON.parse(html.slice(x0 + a.length, x1));
+  assert.deepEqual(Object.keys(D), V146_L10, 'języki w kolejności strony');
+  for (const L of V146_L10) {
+    const ses = Object.keys(D[L]).filter(k => k.startsWith('ses.')).sort();
+    assert.deepEqual(ses, L === 'pl' || L === 'ru' ? ['ses.few', 'ses.many', 'ses.one', 'ses.other'] : ['ses.one', 'ses.other'], L + ': klucze ses.*');
+    const jak = Object.keys(D[L]).filter(k => k.startsWith('jak.')).sort();
+    assert.deepEqual(jak, ['jak.b', 'jak.h', 'jak.p'], L + ': klucze jak.* (pl — strażnik v107; po polsku strona pokazuje TXT_JAK_PL)');
+    assert.equal(D[L]['jak.p'].split('{b}').length, 2, L + ': jedno pole {b}');
+    assert.deepEqual(Object.keys(D[L]).filter(k => !/^(ses|jak)\./.test(k)), ['fr', 'zh', 'ja'].includes(L) ? ['br.sn'] : [], L + ': tylko ses.*, jak.* (i br.sn w fr, zh, ja)');
+  }
+  /* ostatni w kolejności nakładania, nic go nie zasłania; strażnicy v142 (kopie angielskiego) i v143 (komplet języków) bez zgłoszeń dla nowych kluczy */
+  const fors = [...html.matchAll(/for\(const l in (EXTRA\w*)\)/g)].map(m => m[1]);
+  assert.equal(fors[fors.length - 1], V146_DICT, 'słownik v146 nakładany jako ostatni');
+  const I = v143Final(html);
+  for (const L of V146_L10) for (const k in D[L]) assert.equal(I[L][k], D[L][k], L + ' ' + k + ': nałożony');
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(V146_DICT + ' ')), [], 'v142: bez kopii angielskiego');
+  assert.deepEqual(v143Bad(html).filter(x => /^(ses|jak)\./.test(x)), [], 'v143: komplet języków');
+  /* japoński: 13 zdań z liczbą sesji bez spacji po {n} — pola {x} jak po angielsku, reszta tekstu bez zmian (tylko usunięta spacja) */
+  const JA = {'ob.sns': '{n}{w}：{v} 十億台湾ドル', 'ob.snh': '{n}{w}：{v} 十億香港ドル', 'th.sum': '純フロー — {n}{w}の合計', 'th.sy': '{n}{w}（約12か月）：{v} 十億バーツ',
+    'mx.c.dn': '変化（{n}{w}）', 'mx.d': '保有残高の変化 — {n}{w}（額面）', 'fo.s': '{d}までの{n}{x}', 'trd.n.sp': '{n}{x}連続でプラス', 'trd.n.sm': '{n}{x}連続でマイナス'};
+  for (const k in JA) assert.equal(I.ja[k], JA[k], 'ja ' + k);
+  const ph = s => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const k of V146_KEYS.filter(k => k !== 'br.sn')) { assert.ok(!I.ja[k].includes('{n} {'), 'ja ' + k + ': bez spacji po liczbie'); assert.equal(ph(I.ja[k]), ph(I.en[k]), 'ja ' + k + ': pola {x}'); }
+  for (const k of ['ob.reg.hk.v', 'br.reg.v', 'th.reg.v', 'mx.reg.v']) assert.ok(/ · \{n\}\{w\}(：|の変化：)/.test(I.ja[k]), 'ja ' + k + ': ' + I.ja[k]);
+  const U = v143Usage(v143Code(html));
+  for (const k of ['ses.one', 'ses.few', 'ses.many', 'ses.other', 'jak.h', 'jak.p', 'jak.b']) assert.ok(U.used(k), 'klucz używany w kodzie: ' + k);
+  /* kod strony: zagSesW i txtJakInne raz; TXT_JAK_EN zostaje (zapas); angielskie „session(s)” tylko w zapasie bez słowników */
+  for (const s of ['function zagSesW(n){', 'function txtJakInne(){', 'const TXT_JAK_EN=`']) assert.equal(html.split(s).length, 2, s);
+  const code = v143Code(html);
+  assert.equal([...code.matchAll(/'sessions?'/g)].length, 2, "'session' / 'sessions' tylko w zapasie zagSesW (bez I18N)");
+  assert.ok(code.includes("return (D&&(w(D[L])??w(D.en)))??(n===1?'session':'sessions');"));
+});
