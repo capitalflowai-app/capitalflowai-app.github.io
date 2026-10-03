@@ -5694,7 +5694,7 @@ test('v125: EXTRA118 — 10 języków w kolejności, te same 83 klucze trd.dc2.*
   /* „po czasie” we wszystkich 10 językach mówi o dniach porównania (61 / 60 dni wstecz), nie tylko o samej dobie */
   for (const l of L10) { for (const k of ['trd.dc2.why.late', 'trd.dc2.m.4']) assert.ok(D[l][k].includes('61'), l + ' ' + k + ': 61 dni'); assert.ok(D[l]['trd.dc2.m.4'].includes('60'), l + ' m.4: 60 dni'); }
   const L6 = Object.fromEntries(L10.map(l => [l, LATE.concat(['trd.dc2.ans.qlate']).map(k => D[l][k] || DP[l][k])]));
-  assert.equal(fnv(JSON.stringify(L6)), '7e5e526', 'teksty „po czasie” (5 kluczy EXTRA118 + ans.qlate) w 10 językach = dopisek SPEC-v125-ADDENDUM (suma FNV-1a; v147: po japońsku bez spacji między liczbą a 日 — „61日前”, „60日前”; przed v147: ae3b07e0)');
+  assert.equal(fnv(JSON.stringify(L6)), 'b34109d6', 'teksty „po czasie” (5 kluczy EXTRA118 + ans.qlate) w 10 językach = dopisek SPEC-v125-ADDENDUM (suma FNV-1a; v147: po japońsku bez spacji między liczbą a 日 — „61日前”, „60日前”; przed v147: ae3b07e0; v149: po japońsku także bez spacji przed 時間 — „24時間”; przed v149: 7e5e526)');
   assert.equal(D.pl['trd.dc2.ev1'], '{name} {p}% ({k} z {n})'); assert.equal(D.en['trd.dc2.y1'], '{p}% ({k} of {n})'); assert.equal(D.pl['trd.dc2.n.t.s'], 'agresywna sprzedaż');
   assert.equal(D.pl['trd.dc2.b.lvd.wait'], 'ocena „od wdrożenia” tylko po 100, 200 i 400 dniach z sygnałem (zakres {cll}%) — teraz {d} z {c}');
   /* literały i klucze składane w kodzie — w pl i en */
@@ -5814,7 +5814,7 @@ test('v125: widok krypto (en) i wszystkie 10 języków — ans.best, karta ETH p
   assert.ok(c && !raw(T), 'en: bez undefined/NaN/surowych kluczy');
   assert.ok(T.includes('Highest: flow to exchanges — 57.1% over 167 days (both sides together; in the last year: 44.2% (23 of 52)). 99.3% range: 46.8–66.9%. To count as an edge with this many days, the result would have to exceed about 60.6%, and even a real edge smaller than about 63.8% is easy to miss here'), 'en: ans.best');
   const E = txt(card(c, 'ETH'));
-  assert.ok(E.includes('(+47,592 ETH)') && E.includes('aggressive selling 50.5% (829 of 1642) · flow to exchanges 48.7% (37 of 76) · at least 2 reasons agreeing 47.0% (337 of 717) (ordinary day 49.6%)') && E.includes('verdict (both sides together):') && E.includes('this coin, all its cards: 338 of 643 (95% range: 48.7–56.4%'), 'en: ETH: ' + E);
+  assert.ok(E.includes('(+47,592 ETH)') && E.includes('aggressive selling 50.5% (829 of 1,642) · flow to exchanges 48.7% (37 of 76) · at least 2 reasons agreeing 47.0% (337 of 717) (ordinary day 49.6%)') && E.includes('verdict (both sides together):') && E.includes('this coin, all its cards: 338 of 643 (95% range: 48.7–56.4%'), 'en: ETH: ' + E);
   assert.ok(c.includes('<div class="k-val">0 of 7</div>'), 'en: „0 of 7”');
   for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
     const tt = v96src.tFor(L), s = sec(view(L, file())), S = txt(s);
@@ -6106,7 +6106,7 @@ test('v125: kod strony — P1 pierwsza linia trdDRow (linia v1 dosłownie bez zm
   assert.ok(blk.includes("const TRD_DST=['buy','sell','obs','x','quiet','stale','short','nodata'];") && blk.includes("const TRD_DRULESC=[['cr','p']];"), 'TRD_DST, TRD_DRULESC bez zmian');
   assert.ok(blk.includes("s=cnt('stale')+cnt('late'),o=cnt('short')+cnt('nodata');") && blk.includes("BO=V&&V.n?BD.filter(b=>b.rule==='all'):BD,lk=BO.reduce(") && blk.includes("BD.length===(V?(V.n||TRD_DRULESC.length):TRD_DRULES.length)||e>0?(V?t('trd.dc.k.of',{e,n:V.n||TRD_DRULESC.length})"), 'P2');
   assert.ok(!blk.includes("s=cnt('stale'),o=") && !blk.includes('lk=BD.reduce(') && !blk.includes("n:TRD_DRULESC.length})"), 'P2: stare wersje usunięte');
-  assert.ok(blk.includes("lu=!!(V&&V.n)&&!(BO.length&&BO.every(b=>trdNum(b.lk)&&trdNum(b.ln))),") && blk.includes("!lu&&ln>0?t('trd.d.k.oos',{d:ds,k:lk,n:ln}):t(lu?'trd.d.k.oos':'trd.d.k.oos0',lu?{d:ds,k:'—',n:'—'}:{d:ds})")
+  assert.ok(blk.includes("lu=!!(V&&V.n)&&!(BO.length&&BO.every(b=>trdNum(b.lk)&&trdNum(b.ln))),") && blk.includes("!lu&&ln>0?t('trd.d.k.oos',{d:ds,k:trdC(lk),n:trdC(ln)}):t(lu?'trd.d.k.oos':'trd.d.k.oos0',lu?{d:ds,k:'—',n:'—'}:{d:ds})")
     && !blk.includes("ln>0?t('trd.d.k.oos',{d:ds,k:lk,n:ln}):t('trd.d.k.oos0',{d:ds})"), 'P2: licznik linii all nieznany → „—”');
   assert.ok(blk.includes("const trdDStale=(R,dir)=>R.filter(r=>(r.st==='stale'||r.st==='late')&&r.dir===dir).length;") && !blk.includes("r.st==='stale'&&r.dir===dir"), 'P2b: trdDStale liczy „late”');
   const iC = blk.indexOf('function trdDailyC(D){\n'), i2 = blk.indexOf('/* v125: TRENDY krypto — sygnały dzienne'), code = blk.slice(i2, iC);
@@ -6925,10 +6925,10 @@ test('v127: świat v2 z prawdziwego pliku 27.09 (niedziela 16:00 UTC, karty na p
     ps: n1(100 * aAll.sf[fm].s.k / aAll.sf[fm].s.n), bs: n1(B0(aAll.sf[fm].s))})).join(' · ')});
   assert.ok(s.includes(sfTxt), 'rodziny linii „każda karta”');
   /* EWJ: każdy powód z własną zwykłą sesją swojej strony (R1) — dosłownie jak SPEC §8 */
-  const ev1 = (name, o) => tp('trd.dw2.ev1', {name, p: n1(100 * o.k / o.n), k: o.k, n: o.n, b0: n1(B0(o))});
+  const ev1 = (name, o) => tp('trd.dw2.ev1', {name, p: n1(100 * o.k / o.n), k: new Intl.NumberFormat('pl-PL').format(o.k), n: new Intl.NumberFormat('pl-PL').format(o.n), b0: n1(B0(o))});   /* v149: liczniki przez nfmt (pl: 12 082) */
   const cE = card(s, 'pl', 'EWJ'), tE = trdV125.txt(cE);
   assert.ok(cE.includes(tp('trd.dw2.ev', {l: [ev1(tp('trd.dw2.n.p'), line(WL, 'eq', 'p').sb), ev1(tp('trd.dw2.n.f'), line(WL, 'eq', 'f').sb), ev1(tp('trd.dw2.n.allf', {f: tp('trd.d.fam.eq')}), aAll.sf.eq.b)].join(' · ')})), 'EWJ: dowody');
-  assert.ok(tE.includes('ruch ceny 51,9% (6269 z 12082; zwykła sesja 53,3%) · przepływ do funduszu 54,1% (2610 z 4823; zwykła sesja 53,6%) · każda karta (akcje) 52,6% (7801 z 14820; zwykła sesja 53,3%) · ocena (obie strony razem): brak przewagi — w granicach przypadku · ten fundusz, wszystkie jego karty: 436 z 883 (zakres 95%: 46,1–52,7%;'), 'EWJ jak w SPEC §8: ' + tE);
+  assert.ok(tE.includes('ruch ceny 51,9% (6269 z 12 082; zwykła sesja 53,3%) · przepływ do funduszu 54,1% (2610 z 4823; zwykła sesja 53,6%) · każda karta (akcje) 52,6% (7801 z 14 820; zwykła sesja 53,3%) · ocena (obie strony razem): brak przewagi — w granicach przypadku · ten fundusz, wszystkie jego karty: 436 z 883 (zakres 95%: 46,1–52,7%;'), 'EWJ jak w SPEC §8: ' + tE);
   assert.ok(cE.includes('<b class="na">▲ ●●○') && tE.includes(tp('trd.dw2.n.p')) && cE.includes(win), 'EWJ: szara strona kupna, siła 2, okno');
   assert.ok(card(s, 'pl', 'INDA').includes(ev1(tp('trd.dw2.n.o'), line(WL, 'eq', 'o').ss)), 'INDA: inwestorzy zagraniczni, strona sprzedaży eq·o');
   assert.ok(card(s, 'pl', 'TLT').includes(ev1(tp('trd.dw2.n.allf', {f: tp('trd.d.fam.bd')}), aAll.sf.bd.b)) && card(s, 'pl', 'TLT').includes(tp('trd.dw2.bd', {p: F.fPct(-0.13, 2)})), 'TLT: każda karta (obligacje) + cena obligacji jako opis');
@@ -7240,7 +7240,7 @@ test('v127 (przegląd): EXTRA127 — de, es, fr, it, pt, ru, zh, ja dla kluczy p
     assert.deepEqual(Object.keys(D[l]), K, l);
     for (const k of K) { assert.ok(I.en[k] && I.pl[k], 'klucz produkcji ' + k); assert.equal(ph(D[l][k]), ph(I.en[k]), 'pola ' + l + ' ' + k);
       assert.equal(I[l][k], D[l][k], 'scalony słownik: ' + l + ' ' + k); assert.doesNotMatch(D[l][k], prov);
-      if (k.startsWith('trd.s.fe_')) assert.match(D[l][k], /\s*\([A-Z0-9, ]+\)\s*$/, 'nawias symboli: ' + l + ' ' + k); }
+      if (k.startsWith('trd.s.fe_')) assert.match(D[l][k], l === 'ja' ? /\s*\([A-Z0-9、]+\)\s*$/ : /\s*\([A-Z0-9, ]+\)\s*$/, 'nawias symboli: ' + l + ' ' + k); }   /* v149: ja — symbole rozdziela „、” */
     assert.ok(K.filter(k => D[l][k] === I.en[k]).length <= 8, l + ': własne teksty (tak samo tylko nazwy jak ASEAN)');
   }
   assert.equal(I.pl['trd.b.kn'], '{k} z {n} przypadków'); assert.equal(I.en['trd.b.kn'], '{k} of {n} cases');
@@ -7248,7 +7248,8 @@ test('v127 (przegląd): EXTRA127 — de, es, fr, it, pt, ru, zh, ja dla kluczy p
   for (const r of W2) assert.ok(K.includes(r.grp ? 'trd.s.' + r.grp : 'trd.px.' + r.id), 'nazwa rynku ' + r.id);
   for (const l of L8) {
     const tt = v96src.tFor(l), s = sec(view(l, FILE)), b = WL[0];
-    assert.ok(s && !bad(s) && s.includes(tt('trd.b.kn', {k: b.k, n: b.n})) && !s.includes(en('trd.b.kn', {k: b.k, n: b.n})), l + ': k z n po swojemu');
+    const nf = (L, v) => new Intl.NumberFormat(V147_LOC[L]).format(v);   /* v149: liczniki przez nfmt (de 1.014, en 1,014) */
+    assert.ok(s && !bad(s) && s.includes(tt('trd.b.kn', {k: nf(l, b.k), n: nf(l, b.n)})) && !s.includes(en('trd.b.kn', {k: nf('en', b.k), n: nf('en', b.n)})), l + ': k z n po swojemu');
     assert.ok(!s.includes(' cases') && !s.includes('likely range') && !s.includes('Japanese shares') && (D[l]['trd.px.EWC'] === 'Canada (EWC)' || !s.includes('Canada (EWC)')), l + ': bez angielskiego zapasu');
     /* każdy klucz, którego sekcja świata v2 używa, ma tekst w tym języku (tFor spadłby na angielski — tu brak = znacznik ⟦klucz⟧) */
     const mark = (k, o) => (Object.prototype.hasOwnProperty.call(I[l], k) ? tt(k, o) : '⟦' + k + '⟧');
@@ -10340,7 +10341,7 @@ test('v146: słownik — czysty JSON, 10 języków, ses.* (pl i ru one/few/many/
    zbiorcze ze słownika cty.x.*). pl i en — bajt w bajt jak przed v147 (porównanie z kodem sprzed v147: V147_PAIRS cofnięte w wycinku). */
 const V147_DICT = 'EXTRA149';
 /* [kod sprzed v147, kod v147] — wszystkie zmiany v147 w kodzie strony (poza słownikiem i japońskimi tekstami) */
-const V147_PAIRS = [["  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n", "  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n  if(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')return (neg?'−':'')+nfmt(w+'.'+t,1);   /* v147: de–ja — zapis języka widza (nfmt = Intl.NumberFormat(LOCALE[LANG]): de 1.234,5 · fr 1 234,5 · ja 1,234.5); pl i en — linia niżej bez zmian */\n"], ["  const isZero=!/[1-9]/.test(body);const text=grouped+(LANG==='pl'?',':'.')+tenth;\n", "  const isZero=!/[1-9]/.test(body),L8=LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function';const text=L8?nfmt(wholeN+'.'+tenth,1):grouped+(LANG==='pl'?',':'.')+tenth;   /* v147: de–ja — te same cyfry w zapisie języka widza (nfmt dostaje napis; nowsze silniki formatują go dokładnie); pl i en bez zmian */\n"], ["  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(LANG==='pl'?'0,1':'0.1');\n", "  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(L8?nfmt('0.1',1):(LANG==='pl'?'0,1':'0.1'));\n"], ["  const a=Math.abs(v),text=String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr */\n", "  const a=Math.abs(v),text=(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?nfmt(Math.floor(a/10)+'.'+(a%10),1):String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr (pl, en); v147: de–ja — zapis języka widza (nfmt) */\n"], ["chg=(r.change_sign>0?'+':'−')+(LANG==='pl'?'<0,1':'<0.1');", "chg=(r.change_sign>0?'+':'−')+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1):(LANG==='pl'?'<0,1':'<0.1'));"], ["  if(a<.05)return sg+(LANG==='pl'?'<0,1 ':'<0.1 ')+t('u.m');   /* v48: mały przepływ nie jest zerem */\n", "  if(a<.05)return sg+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1)+' ':(LANG==='pl'?'<0,1 ':'<0.1 '))+t('u.m');   /* v48: mały przepływ nie jest zerem; v147: „<0,1” w zapisie języka widza (de–ja) */\n"], ["  return en||c3||pl||'';}\nconst engGen=", "  return (typeof ctyName==='function'&&ctyName(null,en,pl))||en||c3||pl||'';}   /* v147: kod spoza ISO — nazwa rozpoznana po angielskiej albo polskiej (de–ja); dopiero potem angielska u źródła */\n/* v147: nazwy krajów z plików danych (TIC: posiadacze obligacji USA i skład regionów; MF: posiadacze SPW; MFW: rezerwy; zapas engCty) w języku widza.\n   de, es, fr, it, pt, ru, zh, ja: kod ISO (3 albo 2 litery) albo rozpoznana nazwa angielska / polska (gtNm: Intl.DisplayNames en i pl + lista wyjątków)\n   → Intl.DisplayNames(LOCALE[LANG]) jak w engCty; wiersze zbiorcze bez jednego kraju („All Other”, „Total Caribbean”, „Caribbean Banking Centers” …) → słownik cty.x.*.\n   pl i en — null: wywołujący pokazuje dawny tekst bajt w bajt; nazwa nierozpoznana — null (zapas: nazwa z pliku). Wycinki kodu w testach bez gtNm / ISO32 — bez błędu. */\nconst CTY_AGG={'all other':'cty.x.oth','all others':'cty.x.oth','others':'cty.x.oth','other countries':'cty.x.oth','pozostale kraje':'cty.x.oth',\n  'caribbean banking centers':'cty.x.cbc','caribbean banking centres':'cty.x.cbc','international and regional orgs':'cty.x.iro','international and regional organizations':'cty.x.iro',\n  'grand total':'cty.x.tot','total latin america':'cty.x.lat','total africa':'cty.x.afr','total caribbean':'cty.x.car'};\nfunction ctyName(code,...names){\n  try{\n    if(typeof LANG==='undefined'||LANG==='pl'||LANG==='en')return null;\n    const dn=c=>{try{const k=LOCALE[LANG]||'en',D=ENG_DN[k]||(ENG_DN[k]=new Intl.DisplayNames([k],{type:'region'})),n=D.of(c);return n&&n!==c?n:null;}catch(e){return null;}};\n    const c=String(code||'').toUpperCase(),i2=c.length===3?(typeof ISO32!=='undefined'?ISO32[c]:null):(/^[A-Z]{2}$/.test(c)?c:null);\n    if(i2){const n=dn(i2);if(n)return n;}\n    for(const x of names){if(typeof x!=='string'||!x.trim())continue;\n      const a=typeof gtKey==='function'?CTY_AGG[gtKey(x).replace(/ \\d+$/,'')]:null;   /* „Caribbean Banking Centers 4/” — przypis źródła na końcu */\n      if(a){const v=t(a);if(v&&v!==a)return v;}\n      const f=typeof gtNm==='function'?gtNm(x):[];if(f.length===1){const n=dn(f[0].toUpperCase());if(n)return n;}}\n  }catch(e){}\n  return null;}\nconst engGen="], ["  const nm=(c,x)=>escH((LANG==='pl'?x.pl:x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle */\n", "  const nm=(c,x)=>escH((LANG==='pl'?x.pl:(typeof ctyName==='function'&&ctyName(c,x.en,x.pl))||x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle; v147: de–ja — nazwa kraju w języku widza (ctyName) */\n"], ["  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory */\n", "  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'',cn=n=>escH((typeof ctyName==='function'&&ctyName(null,n))||n);   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory; v147: cn — nazwa z pliku w języku widza (de–ja), pl i en bez zmian */\n"], ["(D.regions[id].members||[]).map(n=>I('n',n,'sm')+escH(n)).join(', ')}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>: Total Caribbean<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>: Taiwan</p></details>`;", "(D.regions[id].members||[]).map(n=>I('n',n,'sm')+cn(n)).join(', ')}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>: ${cn('Total Caribbean')}<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>: ${cn('Taiwan')}</p></details>`;"], ["<td><span class=\"cell\">${I('n',r[0])}${escH(r[0])}</span></td>", "<td><span class=\"cell\">${I('n',r[0])}${cn(r[0])}</span></td>"], ["    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'(');\n", "    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:((typeof ctyName==='function'&&ctyName(null,r[1],r[0]))||String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'('));   /* v147: de–ja — nazwa kraju w języku widza (ctyName), „Pozostałe kraje” ze słownika; en bez zmian */\n"]];
+const V147_PAIRS = [["  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n", "  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n  if(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')return (neg?'−':'')+nfmt(w+'.'+t,1);   /* v147: de–ja — zapis języka widza (nfmt = Intl.NumberFormat(LOCALE[LANG]): de 1.234,5 · fr 1 234,5 · ja 1,234.5); pl i en — linia niżej bez zmian */\n"], ["  const isZero=!/[1-9]/.test(body);const text=grouped+(LANG==='pl'?',':'.')+tenth;\n", "  const isZero=!/[1-9]/.test(body),L8=LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function';const text=L8?nfmt(wholeN+'.'+tenth,1):grouped+(LANG==='pl'?',':'.')+tenth;   /* v147: de–ja — te same cyfry w zapisie języka widza (nfmt dostaje napis; nowsze silniki formatują go dokładnie); pl i en bez zmian */\n"], ["  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(LANG==='pl'?'0,1':'0.1');\n", "  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(L8?nfmt('0.1',1):(LANG==='pl'?'0,1':'0.1'));\n"], ["  const a=Math.abs(v),text=String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr */\n", "  const a=Math.abs(v),text=(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?nfmt(Math.floor(a/10)+'.'+(a%10),1):String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr (pl, en); v147: de–ja — zapis języka widza (nfmt) */\n"], ["chg=(r.change_sign>0?'+':'−')+(LANG==='pl'?'<0,1':'<0.1');", "chg=(r.change_sign>0?'+':'−')+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1):(LANG==='pl'?'<0,1':'<0.1'));"], ["  if(a<.05)return sg+(LANG==='pl'?'<0,1 ':'<0.1 ')+t('u.m');   /* v48: mały przepływ nie jest zerem */\n", "  if(a<.05)return sg+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1)+' ':(LANG==='pl'?'<0,1 ':'<0.1 '))+t('u.m');   /* v48: mały przepływ nie jest zerem; v147: „<0,1” w zapisie języka widza (de–ja) */\n"], ["  return en||c3||pl||'';}\nconst engGen=", "  return (typeof ctyName==='function'&&ctyName(null,en,pl))||en||c3||pl||'';}   /* v147: kod spoza ISO — nazwa rozpoznana po angielskiej albo polskiej (de–ja); dopiero potem angielska u źródła */\n/* v147: nazwy krajów z plików danych (TIC: posiadacze obligacji USA i skład regionów; MF: posiadacze SPW; MFW: rezerwy; zapas engCty) w języku widza.\n   de, es, fr, it, pt, ru, zh, ja: kod ISO (3 albo 2 litery) albo rozpoznana nazwa angielska / polska (gtNm: Intl.DisplayNames en i pl + lista wyjątków)\n   → Intl.DisplayNames(LOCALE[LANG]) jak w engCty; wiersze zbiorcze bez jednego kraju („All Other”, „Total Caribbean”, „Caribbean Banking Centers” …) → słownik cty.x.*.\n   pl i en — null: wywołujący pokazuje dawny tekst bajt w bajt; nazwa nierozpoznana — null (zapas: nazwa z pliku). Wycinki kodu w testach bez gtNm / ISO32 — bez błędu. */\nconst CTY_AGG={'all other':'cty.x.oth','all others':'cty.x.oth','others':'cty.x.oth','other countries':'cty.x.oth','pozostale kraje':'cty.x.oth',\n  'caribbean banking centers':'cty.x.cbc','caribbean banking centres':'cty.x.cbc','international and regional orgs':'cty.x.iro','international and regional organizations':'cty.x.iro',\n  'grand total':'cty.x.tot','total latin america':'cty.x.lat','total africa':'cty.x.afr','total caribbean':'cty.x.car'};\nfunction ctyName(code,...names){\n  try{\n    if(typeof LANG==='undefined'||LANG==='pl'||LANG==='en')return null;\n    const dn=c=>{try{const k=LOCALE[LANG]||'en',D=ENG_DN[k]||(ENG_DN[k]=new Intl.DisplayNames([k],{type:'region'})),n=D.of(c);return n&&n!==c?n:null;}catch(e){return null;}};\n    const c=String(code||'').toUpperCase(),i2=c.length===3?(typeof ISO32!=='undefined'?ISO32[c]:null):(/^[A-Z]{2}$/.test(c)?c:null);\n    if(i2){const n=dn(i2);if(n)return n;}\n    for(const x of names){if(typeof x!=='string'||!x.trim())continue;\n      const a=typeof gtKey==='function'?CTY_AGG[gtKey(x).replace(/ \\d+$/,'')]:null;   /* „Caribbean Banking Centers 4/” — przypis źródła na końcu */\n      if(a){const v=t(a);if(v&&v!==a)return v;}\n      const f=typeof gtNm==='function'?gtNm(x):[];if(f.length===1){const n=dn(f[0].toUpperCase());if(n)return n;}}\n  }catch(e){}\n  return null;}\nconst engGen="], ["  const nm=(c,x)=>escH((LANG==='pl'?x.pl:x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle */\n", "  const nm=(c,x)=>escH((LANG==='pl'?x.pl:(typeof ctyName==='function'&&ctyName(c,x.en,x.pl))||x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle; v147: de–ja — nazwa kraju w języku widza (ctyName) */\n"], ["  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory */\n", "  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'',cn=n=>escH((typeof ctyName==='function'&&ctyName(null,n))||n);   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory; v147: cn — nazwa z pliku w języku widza (de–ja), pl i en bez zmian */\n"], ["(D.regions[id].members||[]).map(n=>I('n',n,'sm')+escH(n)).join(', ')}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>: Total Caribbean<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>: Taiwan</p></details>`;", "(D.regions[id].members||[]).map(n=>I('n',n,'sm')+cn(n)).join((typeof sepL==='function'?sepL():', '))}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>${typeof sepK==='function'?sepK():': '}${cn('Total Caribbean')}<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>${typeof sepK==='function'?sepK():': '}${cn('Taiwan')}</p></details>`;"], ["<td><span class=\"cell\">${I('n',r[0])}${escH(r[0])}</span></td>", "<td><span class=\"cell\">${I('n',r[0])}${cn(r[0])}</span></td>"], ["    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'(');\n", "    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:((typeof ctyName==='function'&&ctyName(null,r[1],r[0]))||String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'('));   /* v147: de–ja — nazwa kraju w języku widza (ctyName), „Pozostałe kraje” ze słownika; en bez zmian */\n"]];
 /* [słownik, klucz] — japońskie teksty bez spacji między liczbą / {polem} a licznikiem (zmienione w miejscu) */
 const V147_JA = [["EXTRA36", "q.src.v"], ["EXTRA43", "etf.k.m"], ["EXTRA43", "etf.c.m"], ["EXTRA99", "wh.bal.sub"], ["EXTRA99", "wh.n.Binance"], ["EXTRA99", "wh.d7"], ["EXTRA99", "wh.not4"], ["EXTRA98", "lev.f7"], ["EXTRA98", "lev.dn"], ["EXTRA98", "lev.dr.sub"], ["EXTRA107", "arc.sub"], ["EXTRA107", "arc.since"], ["EXTRA107", "arc.per"], ["EXTRA107", "arc.month"], ["EXTRA107", "arc.k.yld"], ["EXTRA107", "arc.since1"], ["EXTRA109", "wh.dob.sub"], ["EXTRA110", "trd.d.nocr"], ["EXTRA110", "trd.d.k.edge"], ["EXTRA110", "trd.d.k.oos"], ["EXTRA110", "trd.d.k.of"], ["EXTRA110", "trd.d.ev"], ["EXTRA110", "trd.d.own"], ["EXTRA110", "trd.d.v.short"], ["EXTRA110", "trd.d.why.short"], ["EXTRA110", "trd.d.b.sub"], ["EXTRA110", "trd.d.b.days"], ["EXTRA110", "trd.d.b.oos"], ["EXTRA110", "trd.d.b.short"], ["EXTRA110", "trd.d.m.1"], ["EXTRA110", "trd.d.m.3"], ["EXTRA110", "trd.d.m.4"], ["EXTRA110", "trd.d.m.6"], ["EXTRA111", "kc.note"], ["EXTRA112", "ins.k.rep"], ["EXTRA112", "ins.k.nv"], ["EXTRA112", "ins.cap"], ["EXTRA113", "st.mm.fsi"], ["EXTRA114", "auk.k.abovev"], ["EXTRA114", "auk.k.aboven"], ["EXTRA114", "auk.n"], ["EXTRA116", "trd.dc.k.of"], ["EXTRA116", "trd.dc.b.sub"], ["EXTRA116", "trd.dc.b.short"], ["EXTRA116", "trd.dc.m.2"], ["EXTRA116", "trd.dc.m.3"], ["EXTRA116", "trd.dc.m.4"], ["EXTRA116", "trd.dc.m.6"], ["EXTRA116", "trd.d.m.6"], ["EXTRA117", "trd.subc"], ["EXTRA118", "trd.dc2.ans.best"], ["EXTRA118", "trd.dc2.y1"], ["EXTRA118", "trd.dc2.ans.need"], ["EXTRA118", "trd.dc2.ev1"], ["EXTRA118", "trd.dc2.own"], ["EXTRA118", "trd.dc2.why.late"], ["EXTRA118", "trd.dc2.b.sub"], ["EXTRA118", "trd.dc2.b.side"], ["EXTRA118", "trd.dc2.b.y1"], ["EXTRA118", "trd.dc2.b.y10"], ["EXTRA118", "trd.dc2.b.lvd.wait"], ["EXTRA118", "trd.dc2.b.lvd"], ["EXTRA118", "trd.dc2.b.lvd.nx"], ["EXTRA118", "trd.dc2.b.note"], ["EXTRA118", "trd.dc2.m.3"], ["EXTRA118", "trd.dc2.m.4"], ["EXTRA118", "trd.dc2.m.5"], ["EXTRA118", "trd.dc2.m.7"], ["EXTRA118", "trd.dc2.m.8"], ["EXTRA119", "ln.k.tip.tx"], ["EXTRA119", "ln.k.chk.mp"], ["EXTRA119", "ln.ago.d"], ["EXTRA123", "lev.h.cz"], ["EXTRA123", "lev.cz.r24"], ["EXTRA123", "lev.not7"], ["EXTRA125", "trd.dw2.ans.best"], ["EXTRA125", "trd.dw2.y1"], ["EXTRA125", "trd.dw2.ev1"], ["EXTRA125", "trd.dw2.own"], ["EXTRA125", "trd.dw2.b.side"], ["EXTRA125", "trd.dw2.b.y1"], ["EXTRA125", "trd.dw2.b.y10"], ["EXTRA125", "trd.dw2.b.lvd"], ["EXTRA125", "trd.dw2.b.note"], ["EXTRA125", "trd.dw2.b.v1i"], ["EXTRA125", "trd.dw2.m.6"], ["EXTRA125", "trd.dw2.m.7"], ["EXTRA125", "trd.dw2.m.8"], ["EXTRA127", "trd.b.kn"], ["EXTRA127", "trd.s.fe_ustl"], ["EXTRA127", "trd.s.fe_ustm"], ["EXTRA127", "trd.s.fe_usts"], ["EXTRA129", "prm.ago.d"], ["EXTRA129", "prm.not3"], ["EXTRA130", "prm.kr.sub"], ["EXTRA130", "prm.na.fx"], ["EXTRA130", "prm.not5"], ["EXTRA137", "c10.rank"], ["EXTRA147", "eng.x.imf-portfolio-pairs.age"], ["EXTRA147", "eng.x.wdi-destinations.age"], ["EXTRA147", "trd.k.coin"], ["EXTRA147", "trd.k.more"], ["EXTRA147", "trd.k.less"]];
 const V147_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], V147_L8 = V147_L10.slice(2);
@@ -10582,7 +10583,8 @@ test('v147: tabele z nazwami z plików (TIC: posiadacze obligacji USA i skład r
 
 test('v147: japoński — bez spacji między liczbą albo {polem} a licznikiem 日 / 営業日 / 日間 / 銘柄 / 件 / か月 / 年 (także w datach); inne języki bez zmian; wyjątek lev.bnout ({d} to data)', () => {
   const I = v143Final(html), {D} = v142Bad(html);
-  const RX = /(\d|\})[ \u00a0\u3000]+(営業日|日間|日|銘柄|件|か月|年)|\d年[ \u00a0]+\d{1,2}[ \u00a0]*月|\d年\d{1,2}月[ \u00a0]+\d{1,2}日/;
+  /* v149: także 回 本 分 時間 週 つ 位 組 枚 取引日 ブロック 市場 契約 (przegląd v147) */
+  const RX = /(\d|\})[ \u00a0\u3000]+(営業日|日間|日|銘柄|件|か月|年|回|本|分|時間|週|つ|位|組|枚|取引日|ブロック|市場|契約)|\d年[ \u00a0]+\d{1,2}[ \u00a0]*月|\d年\d{1,2}月[ \u00a0]+\d{1,2}日/;
   const OK = ['lev.bnout'];
   const bad = Object.keys(I.ja).filter(k => typeof I.ja[k] === 'string' && RX.test(I.ja[k]) && !OK.includes(k));
   assert.deepEqual(bad, [], 'ja: spacja przed licznikiem: ' + bad.map(k => k + ' „' + I.ja[k].slice(0, 50) + '”').join(' | '));
@@ -10593,7 +10595,7 @@ test('v147: japoński — bez spacji między liczbą albo {polem} a licznikiem �
   /* przykłady: nagłówek tabeli ETF (obok „5営業日”), liczniki w zdaniach, data */
   assert.equal(I.ja['etf.k.m'], '22営業日（約1か月）'); assert.equal(I.ja['etf.c.m'], '22営業日'); assert.equal(I.ja['etf.c.w'], '5営業日', 'ten sam nagłówek tabeli ETF');
   assert.equal(I.ja['q.src.v'], '{n}件中 {k}件'); assert.equal(I.ja['arc.per'], '{n}日'); assert.equal(I.ja['wh.d7'], '7日'); assert.equal(I.ja['arc.k.yld'], '10年国債利回り');
-  assert.equal(I.ja['c10.rank'], '{s}：時価総額 {n}銘柄中 {r} 位'); assert.equal(I.ja['eng.x.wdi-destinations.age'], '年次データで、遅れて公表されます。取得時点で {n}か月前のものでした。');
+  assert.equal(I.ja['c10.rank'], '{s}：時価総額 {n}銘柄中 {r}位');   /* v149: 位 bez spacji */ assert.equal(I.ja['eng.x.wdi-destinations.age'], '年次データで、遅れて公表されます。取得時点で {n}か月前のものでした。');
   assert.ok(I.ja['wh.n.Binance'].includes('（2022年11月）') && I.ja['trd.dc2.m.7'].includes('2026年4月28日以降'), 'daty bez spacji');
   /* tylko spacje: pola {x} jak po angielsku, spacje przed łacińskimi słowami, %, USD, UTC zostają */
   const ph = s => (String(s).match(/\{[a-z0-9_]+\}/g) || []).sort().join(',');
@@ -10877,4 +10879,310 @@ test('v133: panel w 10 językach bez nazwy źródła i bez podpisu (strażnik na
   }
   const de = rw133.run(RWA133_FILE, {real: true, lang: 'de'}).el.innerHTML;
   assert.ok(de.includes('Staatsanleihen und Geldmarktfonds') && de.includes('2,2 Mrd. USD') && de.includes('32 Produkte') && de.includes('Nicht in den Summen: 32 Produkte'), 'de: etykiety i liczby po niemiecku');
+});
+
+/* ===================== v149: mapa GLOBAL na telefonie (podpisy) i drobne poprawki tłumaczeń z przeglądu v147 =====================
+   A. Na telefonie (320–414 px) podpisy mapy GLOBAL wychodziły poza płótno (ru „Криптовалюты” i wartość krypto przy prawej krawędzi) albo
+      nachodziły na siebie (ja / zh / de — podpis regionu na wartości krypto). Teraz gLabels: dotychczasowy układ (labelSpotG), a gdy coś się
+      nie mieści — gLabFit. Testy liczą podpisy w piaskownicy: prawdziwe gLayout, labelSpotG i słownik strony, atrapa measureText (szerokość
+      z rodzaju znaku). Komputer: dotychczasowy układ jest poprawny, więc wynik = kod sprzed v149 (V149_OLD — pętla podpisów i napisy krypto
+      dosłownie sprzed v149).
+   B. CFTC (jednostka kontraktu bez angielskiego opisu z raportu w de–ja), TRENDY (liczniki przez nfmt, miesiąc kursu słownie w de–ja),
+      separatory (ja „、” / „：”, fr wąska twarda spacja przed „:”), de st.mm.pc, japońskie liczniki bez spacji. pl i en bez zmian — poza
+      licznikami TRENDY (en 6,257; pl jak reszta polskich liczb strony: 6257, 12 067). */
+const V149_DICT = 'EXTRA150';
+const V149_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], V149_L8 = V149_L10.slice(2);
+const V149_LOC = new Function(html.slice(html.indexOf('const LOCALE='), html.indexOf('\n', html.indexOf('const LOCALE='))) + '\nreturn LOCALE;')();
+const V149_OLD = "  ord.forEach(r=>{\n    const n=GLAY.N[r.id],v=F[r.id];\n    /* wezel poza kadrem (po zoomie) — bez podpisu */\n    if(n.x<-n._sr||n.x>W+n._sr||n.y<-n._sr||n.y>H+n._sr)return;\n    const nm=t('g.n.'+r.id),vl=gst.label==='name'?'':(v[2]?gpct(v[1]):t('g.nodata'));\n    const vc=v[2]?(v[0]>=0?`rgb(${PAL.gr})`:`rgb(${PAL.rd})`):PAL.dim;\n    const fN=`600 ${fz.toFixed(1)}px Sora,sans-serif`,fV=`600 ${(fz-.5).toFixed(1)}px Sora,sans-serif`;\n    g2.font=fN;const wN=g2.measureText(nm).width;g2.font=fV;const wV=vl?g2.measureText(vl).width:0;\n    const gap=vl?8:0,w=wN+wV+gap+16;\n    const sp=labelSpotG(taken,n.x,n.y,n._sr,w,lh,fz,W,H);\n    const x0=sp.lx-(wN+wV+gap)/2;\n    gtxt(nm,x0+wN/2,sp.ly,fN,PAL.text);\n    if(vl)gtxt(vl,x0+wN+gap+wV/2,sp.ly,fV,vc);\n  });\n    const fz2=Math.max(10.5,Math.min(13,CN.r*.34));\n    gtxt(t('g.n.crypto'),CN.x,CN.y+CN.r+fz2+6,`600 ${fz2.toFixed(0)}px Sora,sans-serif`,PAL.text);\n    if(v[2])gtxt((v[0]>=0?'+':'−')+gfmt(Math.abs(v[0])),CN.x,CN.y+CN.r+fz2*2+9,\n      `600 ${(fz2-.5).toFixed(0)}px Sora,sans-serif`,v[0]>=0?`rgb(${PAL.gr})`:`rgb(${PAL.rd})`);\n";
+const V149_PAL = {gr: '48,209,88', rd: '255,69,58', bl: '10,132,255', dim: '#8e8e93', text: '#f5f5f7'};
+/* atrapa measureText: pismo CJK i kana — 1 krój, wielkie litery, cyfry, %, znaki ± — 0,66, interpunkcja — 0,3, spacja — 0,28, reszta 0,56
+   (Sora 600 w Chrome: „Криптовалюты” 11 px = 83,7 px, „暗号資産” 11 px = 44 px — atrapa daje 75 i 44) */
+function v149Ms(s, f) {
+  const px = parseFloat(/([\d.]+)px/.exec(f)[1]); let w = 0;
+  for (const ch of String(s)) { const c = ch.codePointAt(0); w += px * (c >= 0x2E80 ? 1 : ch === ' ' ? .28 : /[A-ZА-ЯЁ0-9%+−]/.test(ch) ? .66 : /[.,:;·()\-]/.test(ch) ? .3 : .56); }
+  return {width: w, actualBoundingBoxAscent: px * .8, actualBoundingBoxDescent: px * .24};
+}
+/* elementy nad płótnem jak w Chrome: przyciski powiększenia (prawy górny róg, 4 × 34 px), pasek odświeżania; podpowiedź — tylko na szerszym ekranie */
+const v149Ov = (W, H) => [[W - 46, 12, W - 12, 166], [W - 140, H - 27, W - 8, H - 8]].concat(W > 600 ? [[12, H - 27, 478, H - 10]] : []);
+/* wartości okresu jak 03.10.2026 (zmiana wartości rynku w mld USD, %, czy są dane) */
+const V149_F = {usa: [412, .59, true], can: [-118, -4.16, true], lat: [-71, -3.42, true], eur: [-845, -5.04, true], rus: [0, 0, false], mea: [-262, -6.25, true],
+  afr: [-150, -9.72, true], ind: [-354, -6.90, true], chn: [-1306, -6.05, true], jpn: [431, 4.14, true], asean: [-116, -3.50, true], oce: [-122, -5.69, true], crypto: [4.3, 1.1, true]};
+/* zbiory losowe (stałe ziarno): wielkości węzłów i znaki zmian, brak danych w części regionów */
+function v149Rand(seed) {
+  let x = seed >>> 0; const r = () => { x = (Math.imul(x ^ (x >>> 15), 2246822507) + 0x9e3779b9) >>> 0; return (x % 100000) / 100000; };
+  const F = {};
+  for (const id of Object.keys(V149_F)) { const has = r() > .12, v = (r() - .45) * (id === 'crypto' ? 300 : 3000); F[id] = [has ? v : 0, has ? (r() - .5) * 30 : 0, has]; }
+  return F;
+}
+/* piaskownica mapy: prawdziwe GREG, gproj, gLayout, labelSpotG, blok v149 (gLabels …), gfmt, gpct; „taken” jak w gDraw (wycinek strony) */
+function v149Map(L, W, H, F, label) {
+  const cut = (a, b, inc) => { const i = html.indexOf(a), j = html.indexOf(b, i + 1); assert.ok(i > 0 && j > i, 'wycinek strony: ' + a.slice(0, 50)); return html.slice(i, inc ? j + b.length : j); };
+  const src = [cut('const GW=432,', '\n'), cut('const GREG=[', '\n];\n', true), cut('function gproj(lon,lat,R){', '\n}\n', true), cut('function gLayout(){', '\nfunction gKey(){'),
+    cut('function labelSpotG(', '/* ===================== v149: podpisy mapy GLOBAL'), cut('/* ===================== v149: podpisy mapy GLOBAL', '/* ===================== v149: koniec podpisów mapy'),
+    cut('const gfmt=v=>{', '\nconst gpct='), cut('const gpct=', '\n')].join('\n');
+  const podp = cut('  /* --- podpisy --- */\n', "  if(gst.label==='off')return;"), ordL = cut('  const ord=GREG.slice().sort(', '\n');
+  const I = v143Final(html), t = (k, o) => { let s = (I[L] && I[L][k]) ?? I.en[k] ?? k; if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
+  const S = new Function('GCW', 'GCH', 'GDATA', 'gst', 'gv', 't', 'PAL', 'LANG', 'LOCALE', 'gKey', 'let GLAY=null,GKEY="";\n' + src + '\ngLayout();\nconst W=GCW,H=GCH,CN=GLAY.crypto,taken=[];\n' +
+    'GREG.forEach(r=>{GLAY.N[r.id]._sr=GLAY.N[r.id].r;});\n' + ordL + '\n' + podp + '\nreturn {GLAY,ord,taken,fz,lh,CN,F:GDATA[gst.period],labelSpotG,gLabels,gLabBad,gLabFit,gLabBox,gOvl,gfmt,gpct};')(
+    W, H, {'1M': F}, {period: '1M', label: label || 'both'}, {x: 0, y: 0, k: 1}, t, V149_PAL, L, V149_LOC, () => 'k');
+  S.t = t; S.W = W; S.H = H; S.ov = v149Ov(W, H); S.T0 = S.taken.slice(); S.label = label || 'both';
+  S.run = () => S.gLabels(W, H, S.ord.map(r => r.id), F, S.CN, S.T0.slice(), S.fz, S.lh, v149Ms, S.ov);
+  /* kod sprzed v149: ta sama pętla i te same napisy krypto, rysowanie zapisane do tablicy */
+  S.old = () => { const out = [], g2 = {font: '', measureText(s) { return v149Ms(s, this.font); }};
+    new Function('W', 'H', 'ord', 'GLAY', 'F', 'taken', 'fz', 'lh', 'labelSpotG', 't', 'gst', 'gpct', 'gfmt', 'PAL', 'CN', 'g2', 'gtxt', 'const v=F.crypto;\n' + V149_OLD)(
+      W, H, S.ord, S.GLAY, F, S.T0.slice(), S.fz, S.lh, S.labelSpotG, t, {label: S.label}, S.gpct, S.gfmt, V149_PAL, S.CN, g2, (s, x, y, f, c) => out.push([s, x, y, f, c]));
+    return out; };
+  return S;
+}
+/* napisy → grupy (podpis regionu = nazwa + wartość; ostatnie nC napisów — krypto) */
+function v149Groups(S, A, nC) {
+  const names = S.ord.map(r => S.t('g.n.' + r.id)), G = [];
+  A.slice(0, A.length - nC).forEach(a => { if (names.includes(a[0]) || !G.length) G.push([]); G[G.length - 1].push(a); });
+  G.push(A.slice(A.length - nC)); return G;
+}
+/* wynik gLabels: każdy napis w płótnie, poza elementami nad płótnem, krój ≥ 7,5 px, bez nachodzenia na napisy innych podpisów */
+function v149Check(S, R, tag) {
+  const all = R.r.concat(R.c), B = all.map(a => S.gLabBox(a, v149Ms));
+  for (let i = 0; i < B.length; i++) {
+    const b = B[i];
+    assert.ok(b[0] >= 0 && b[1] >= 0 && b[2] <= S.W && b[3] <= S.H, tag + ': „' + all[i][0] + '” w płótnie ' + S.W + '×' + S.H + ': ' + b.map(v => v.toFixed(1)));
+    for (const o of S.ov) assert.equal(S.gOvl(b, o), 0, tag + ': „' + all[i][0] + '” pod elementem nad płótnem');
+    assert.ok(parseFloat(/([\d.]+)px/.exec(all[i][3])[1]) >= 7.5, tag + ': krój co najmniej 8 px (wartość 7,5)');
+  }
+  /* grupy: kolejne pary nazwa + wartość mają ten sam podpis — sprawdzamy nachodzenie każdego napisu na napisy innych podpisów */
+  const grp = [], names = S.ord.map(r => S.t('g.n.' + r.id));
+  let g = -1; R.r.forEach(a => { if (names.includes(a[0])) g++; grp.push(g); }); R.c.forEach(() => grp.push(-2));
+  for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) assert.equal(S.gOvl(B[i], B[j]), 0, tag + ': „' + all[i][0] + '” na „' + all[j][0] + '”' + (grp[i] === grp[j] ? ' (ten sam podpis: nazwa i wartość obok albo pod sobą)' : ''));
+  assert.equal(S.gLabBad(v149Groups(S, all, R.c.length), S.W, S.H, S.ov, v149Ms), false, tag + ': gLabBad bez zgłoszeń');
+}
+const V149_PHONE = [[320, 290, 300], [375, 345, 300], [414, 384, 331]];   /* [szerokość ekranu, płótno W, H] jak w Chrome */
+
+test('v149: mapa GLOBAL — telefon 320 / 375 / 414 px w 10 językach (wartości z 03.10 i 8 zbiorów losowych): każdy podpis w płótnie, poza przyciskami i paskiem, bez nakładania na inne podpisy; krój ≥ 8 px', () => {
+  const sets = [V149_F].concat([1, 2, 3, 4, 5, 6, 7, 8].map(v149Rand));
+  let fit = 0;
+  for (const [vw, W, H] of V149_PHONE) for (const L of V149_L10) sets.forEach((F, si) => {
+    const S = v149Map(L, W, H, F), O = S.old(), R = S.run();
+    assert.equal(R.r.length + R.c.length, O.length, L + ' ' + vw + ': te same napisy');
+    assert.deepEqual(R.r.concat(R.c).map(a => a[0]).sort(), O.map(a => a[0]).sort(), L + ' ' + vw + ': te same teksty');
+    v149Check(S, R, L + ' ' + vw + ' zbiór ' + si);
+    if (JSON.stringify(R.r.concat(R.c)) !== JSON.stringify(O)) fit++;
+  });
+  assert.ok(fit > 50, 'na telefonie układ poprawiany w wielu przypadkach: ' + fit);
+  /* tylko nazwy (Ustawienia: „Tylko nazwa”) — też w płótnie i bez nakładania */
+  for (const L of ['ru', 'ja', 'de']) { const S = v149Map(L, 290, 300, V149_F, 'name'), R = S.run(); assert.ok(R.r.every(a => !/%/.test(a[0])), L + ': bez wartości'); v149Check(S, R, L + ' 320 nazwy'); }
+});
+
+test('v149: mapa — przypadki z przeglądu: ru „Криптовалюты” i wartość krypto w płótnie (dotąd ucięte), ja / zh / de bez podpisu regionu na wartości krypto; kod sprzed v149 je miał', () => {
+  const cry = (S, A) => A.slice(-2);
+  for (const [L, vw, W, H] of [['ru', 375, 345, 300], ['ru', 320, 290, 300], ['ru', 414, 384, 331], ['ja', 375, 345, 300], ['zh', 320, 290, 300], ['de', 375, 345, 300]]) {
+    const S = v149Map(L, W, H, V149_F), O = S.old(), R = S.run();
+    const bad = S.gLabBad(v149Groups(S, O, 2), W, H, S.ov, v149Ms);
+    assert.ok(bad, L + ' ' + vw + ': kod sprzed v149 — napis poza płótnem albo nachodzenie (jak w Chrome)');
+    v149Check(S, R, L + ' ' + vw);
+    const [n0, v0] = cry(S, O), [n1, v1] = R.c;
+    assert.equal(n1[0], S.t('g.n.crypto')); assert.equal(n1[2], n0[2], 'nazwa krypto na tej samej wysokości'); assert.equal(v1[2], v0[2], 'wartość krypto na tej samej wysokości');
+    assert.ok(n1[1] <= n0[1] && n1[1] === v1[1], L + ': środek napisów krypto przesunięty w lewo (wspólny)');
+  }
+  /* ru 375: dotąd „Криптовалюты” wychodziło poza prawą krawędź */
+  const S = v149Map('ru', 345, 300, V149_F), O = S.old(), b = S.gLabBox(O[O.length - 2], v149Ms);
+  assert.equal(O[O.length - 2][0], 'Криптовалюты'); assert.ok(b[2] > 345, 'przed v149: „Криптовалюты” za prawą krawędzią: ' + b[2].toFixed(1));
+  assert.ok(S.gLabBox(S.run().c[0], v149Ms)[2] <= 345 - 4, 'v149: z marginesem 4 px');
+});
+
+test('v149: mapa — komputer (1440 px: płótno 1186 × 576) i szerokie płótna w 10 językach: wynik dokładnie jak kod sprzed v149 (V149_OLD); gdy dotychczasowy układ jest poprawny, gLabels go nie zmienia', () => {
+  for (const L of V149_L10) for (const [W, H] of [[1186, 576], [1400, 600], [1100, 520]]) {
+    const S = v149Map(L, W, H, V149_F), O = S.old(), R = S.run();
+    assert.equal(S.gLabBad(v149Groups(S, O, 2), W, H, S.ov, v149Ms), false, L + ' ' + W + ': dotychczasowy układ poprawny');
+    assert.deepEqual(R.r.concat(R.c), O, L + ' ' + W + '×' + H + ': ten sam układ i napisy co przed v149');
+  }
+  /* zasada ogólna: jeśli dotychczasowy układ nie ma błędu (żaden napis poza płótnem, na innym podpisie ani pod elementem) — wynik bajt w bajt ten sam */
+  let same = 0;
+  for (const [W, H] of [[1186, 576], [738, 460], [570, 460], [450, 384], [345, 300]]) for (const L of V149_L10) for (const seed of [11, 12, 13]) {
+    const S = v149Map(L, W, H, v149Rand(seed)), O = S.old(), R = S.run();
+    if (!S.gLabBad(v149Groups(S, O, R.c.length), W, H, S.ov, v149Ms)) { assert.deepEqual(R.r.concat(R.c), O, L + ' ' + W + ' ' + seed + ': poprawny układ bez zmian'); same++; }
+    else v149Check(S, R, L + ' ' + W + ' ' + seed);
+  }
+  assert.ok(same > 40, 'przypadki bez zmian: ' + same);
+});
+
+test('v149: mapa — gLabBad / gLabFit / pamięć wyniku: napis poza płótnem, nachodzenie i element nad płótnem wykrywane; ta sama klatka liczona raz; gDraw rysuje napisy z gLabels w dawnej kolejności', () => {
+  const S = v149Map('pl', 345, 300, V149_F), A = ['Abc', 100, 50, '600 10.0px Sora,sans-serif', '#fff'];
+  assert.equal(S.gLabBad([[A]], 345, 300, [], v149Ms), false);
+  assert.equal(S.gLabBad([[['Abc', 344, 50, A[3], '']]], 345, 300, [], v149Ms), true, 'poza prawą krawędzią');
+  assert.equal(S.gLabBad([[['Abc', 2, 50, A[3], '']]], 345, 300, [], v149Ms), true, 'poza lewą krawędzią');
+  assert.equal(S.gLabBad([[['Abc', 100, 5, A[3], '']]], 345, 300, [], v149Ms), true, 'nad górną krawędzią');
+  assert.equal(S.gLabBad([[A], [['Xyz', 110, 52, A[3], '']]], 345, 300, [], v149Ms), true, 'na innym podpisie');
+  assert.equal(S.gLabBad([[A, ['Xyz', 110, 52, A[3], '']]], 345, 300, [], v149Ms), false, 'nazwa i wartość tego samego podpisu się nie liczą');
+  assert.equal(S.gLabBad([[A]], 345, 300, [[95, 40, 120, 60]], v149Ms), true, 'pod elementem nad płótnem');
+  /* pamięć: drugi przebieg z tymi samymi danymi zwraca ten sam obiekt; inne płótno — liczy od nowa */
+  const r1 = S.run(), r2 = S.run(); assert.equal(r1, r2, 'ta sama klatka — wynik z pamięci');
+  const r3 = S.gLabels(345, 300, S.ord.map(r => r.id), S.F, S.CN, S.T0.slice(), S.fz, S.lh, v149Ms, [[0, 0, 1, 1]]); assert.notEqual(r3, r1, 'inne elementy nad płótnem — liczone od nowa');
+  /* kod gDraw: napisy z gLabels, krypto po kole (bez dawnych wywołań gtxt z napisami) */
+  const d0 = html.indexOf('function gDraw(time){'), d1 = html.indexOf('\nfunction gwrap(', d0), D = html.slice(d0, d1);
+  assert.ok(D.includes("const LB=gLabels(W,H,ord.map(r=>r.id),F,CN,taken,fz,lh,(s,f)=>{g2.font=f;return g2.measureText(s);},gLabOv());") && D.includes('LB.r.forEach(a=>gtxt(a[0],a[1],a[2],a[3],a[4]));')
+    && D.indexOf('LB.r.forEach') < D.indexOf('/* --- kolumna krypto --- */') && D.indexOf("drawIconOn(g2,'btc'") < D.indexOf('LB.c.forEach(a=>gtxt(a[0],a[1],a[2],a[3],a[4]));'), 'gDraw: kolejność rysowania jak dotąd');
+  assert.ok(!D.includes("gtxt(t('g.n.crypto')") && !D.includes('labelSpotG(') && !/gtxt\(nm,/.test(D), 'gDraw: bez dawnych napisów');
+  for (const f of ['function gLabels(W,H,ids,F,CN,taken,fz,lh,ms,ov){', 'function gLabBad(G,W,H,ov,ms){', 'function gLabFit(R,C,CN,W,H,fz,ms,ov,nodes){', 'function gLabOv(){', 'function gLabBox(a,ms){'])
+    assert.equal(html.split(f).length, 2, f);
+  /* gLabOv: elementy nad płótnem (.zoom, .refresh, .hint), ukryte pominięte; bez DOM — pusto, bez błędu */
+  const o0 = html.indexOf('function gLabOv(){'), o1 = html.indexOf('\n/* ===================== v149: koniec podpisów mapy', o0);
+  const rect = (l, tp, r, b) => ({left: l, top: tp, right: r, bottom: b, width: r - l, height: b - tp});
+  const cv = {getBoundingClientRect: () => rect(10, 100, 355, 400), parentElement: {querySelectorAll: q => (assert.equal(q, '.zoom,.refresh,.hint'), [{getBoundingClientRect: () => rect(309, 112, 343, 266)}, {getBoundingClientRect: () => rect(0, 0, 0, 0)}])}};
+  assert.deepEqual(new Function('gcvs', html.slice(o0, o1) + '\nreturn gLabOv();')(cv), [[299, 12, 333, 166]]);
+  assert.deepEqual(new Function('gcvs', html.slice(o0, o1) + '\nreturn gLabOv();')(null), []);
+});
+
+/* ---------- B1: jednostka kontraktu CFTC ---------- */
+function v149Cftc(L) {
+  const a = html.indexOf('/* v149: jednostka kontraktu pod tabelą rynku'), b = html.indexOf('const cftcFri=', a);
+  assert.ok(a > 0 && b > a, 'cftcUN w stronie');
+  const I = v143Final(html), t = (k, o) => { let s = (I[L] && I[L][k]) ?? I.en[k] ?? k; if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
+  return {f: new Function('LANG', 't', 'escH', html.slice(a, b) + '\nreturn cftcUN;')(L, t, gtEsc), t, I};
+}
+test('v149: CFTC — jednostka kontraktu: pl i en jak dotąd (zdanie z opisem z raportu); de–ja bez angielskiego opisu raportu, bitcoin z liczbą z raportu zamiast „{n}”', () => {
+  const U = {eur: '(CONTRACTS OF EUR 125,000)', eth: '(50 Index Points)', btc: '(5 Bitcoins)'};
+  for (const L of ['pl', 'en']) { const {f, t} = v149Cftc(L); for (const k in U) assert.equal(f(k, U[k]), t('cftc.u.' + k, {u: gtEsc(U[k])}), L + ' ' + k + ': jak przed v149'); assert.equal(f('eur', null), t('cftc.u.eur', {u: '—'})); }
+  assert.equal(v149Cftc('en').f('eur', U.eur), '1 contract = 125,000 euro (in the report: (CONTRACTS OF EUR 125,000)).');
+  for (const L of V149_L8) {
+    const {f, t, I} = v149Cftc(L);
+    for (const k in U) { const s = f(k, U[k]); assert.ok(s && !/CONTRACTS|Index Points|\(\d+ Bitcoins?\)|\{[a-z]+\}/.test(s), L + ' ' + k + ': ' + s); }
+    assert.equal(f('eur', U.eur), I[L]['cftc.ux.eur']); assert.equal(f('eth', U.eth), I[L]['cftc.ux.eth']);
+    assert.equal(f('btc', U.btc), t('cftc.u.btc', {n: '5'})); assert.ok(f('btc', U.btc).includes('5'), L + ': 5 bitcoinów');
+    assert.equal(f('btc', 'cos innego'), '', L + ': opis nierozpoznany — pusto'); assert.equal(f('btc', null), '');
+  }
+  assert.equal(v149Cftc('de').f('eur', U.eur), '1 Kontrakt = 125.000 Euro.'); assert.equal(v149Cftc('de').f('btc', U.btc), '1 Kontrakt = 5 Bitcoins.');
+  assert.equal(v149Cftc('ja').f('eth', U.eth), '1契約 = 50 ETH、現金決済 — イーサリアムの受け渡しはありません。');
+  /* oba miejsca w kodzie (panel euro, panel krypto) przez cftcUN; dawne wywołania z {u:escH(m.units…)} poza cftcUN nie zostały */
+  assert.equal(html.split("${cftcUN('eur',m.units)} ${t('cftc.nsp')}").length, 2); assert.equal(html.split('${cftcUN(k,m.units)} ${t(\'cftc.nsp\')}').length, 2);
+  assert.equal((html.match(/\{u:escH\(m\.units/g) || []).length, 0, 'bez dawnych wywołań');
+});
+
+/* ---------- B2 / B6: TRENDY — liczniki i miesiąc kursu ---------- */
+function v149Trd(L, nf = true) {
+  const a = html.indexOf('/* v149: liczniki w zdaniach TRENDY'), b = html.indexOf('catch(e){return d;}};\n', a) + 'catch(e){return d;}};'.length;
+  assert.ok(a > 0 && b > a && a > html.indexOf('/* v89: TRENDY — początek') && b < html.indexOf('/* v89: TRENDY — koniec */'), 'trdC i trdFxM w bloku TRENDY');
+  return new Function('LANG', 'LOCALE', ...(nf ? ['nfmt'] : []), html.slice(a, b) + '\nreturn {trdC, trdFxM};')(L, V149_LOC, ...(nf ? [v147Nf(L)] : []));
+}
+test('v149: TRENDY — liczniki trafień i dni przez nfmt (en 6,257 z 12,067; pl 6257 i 12 067 jak reszta polskich liczb; de 6.257; fr / ru odstęp); liczba bez zmiany zapisu zostaje liczbą; „—” bez zmian; każde zdanie z licznikiem przez trdC', () => {
+  const N = (L, v) => new Intl.NumberFormat(V149_LOC[L]).format(v);
+  for (const L of V149_L10) {
+    const {trdC} = v149Trd(L);
+    for (const v of [6257, 12067, 1014, 999, 14, 0, 1234567]) { const s = trdC(v); assert.equal(String(s), N(L, v), L + ' ' + v); if (N(L, v) === String(v)) assert.equal(s, v, L + ' ' + v + ': nadal liczba'); }
+    for (const v of ['—', null, undefined, 1.5, NaN, '12067']) assert.ok(Object.is(trdC(v), v), L + ' bez zmian: ' + String(v));
+  }
+  assert.equal(v149Trd('en').trdC(6257), '6,257'); assert.equal(v149Trd('en').trdC(12067), '12,067'); assert.equal(v149Trd('pl').trdC(6257), 6257);
+  assert.equal(v149Trd('pl').trdC(12067), '12\u00a0067'); assert.equal(v149Trd('de').trdC(6257), '6.257'); assert.equal(v149Trd('ja').trdC(12067), '12,067');
+  assert.equal(v149Trd('fr').trdC(6257).replace(/\s/g, ' '), '6 257'); assert.equal(v149Trd('en', false).trdC(6257), 6257, 'bez nfmt (stare wycinki) — liczba bez zmian');
+  /* każde wywołanie zdań z licznikiem trafień w bloku TRENDY: k, n, kb, nb, ks, ns przez trdC (albo „—”) */
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), blk = html.slice(b0, b1);
+  const KEYS = ['trd.k.', 'trd.b.kn', 'trd.d.ev', 'trd.d.own', 'trd.d.b.oos', 'trd.d.k.oos', 'trd.dc2.ev1', 'trd.dc2.own', 'trd.dc2.y1', 'trd.dc2.b.side', 'trd.dc2.b.y1', 'trd.dc2.b.lvd',
+    'trd.dw2.ev1', 'trd.dw2.own', 'trd.dw2.y1', 'trd.dw2.b.side', 'trd.dw2.b.y1', 'trd.dw2.b.lvd', 'trd.dw2.b.v1i'];
+  let calls = 0;
+  for (const m of blk.matchAll(/t\('(trd\.[a-z0-9.]*)'(\+[^,]*)?,\{/g)) {
+    if (!KEYS.includes(m[1])) continue;
+    let i = m.index + m[0].length - 1, d = 0, j = i;
+    for (; j < blk.length; j++) { const c = blk[j]; if ('{(['.includes(c)) d++; else if ('})]'.includes(c)) { d--; if (!d) break; } }
+    const arg = blk.slice(i + 1, j), parts = []; let cur = '', dd = 0;
+    for (const c of arg) { if ('{(['.includes(c)) dd++; if ('})]'.includes(c)) dd--; if (c === ',' && !dd) { parts.push(cur); cur = ''; } else cur += c; }
+    parts.push(cur);
+    for (const p of parts) { const mm = /^(k|n|kb|nb|ks|ns):(.*)$/s.exec(p.trim()); if (mm && !(m[1] === 'trd.d.k.oos' && mm[2] === "'—'")) assert.ok(mm[2].includes('trdC('), m[1] + ' ' + mm[1] + ': ' + mm[2]); }
+    calls++;
+  }
+  assert.equal(calls, 25, 'zdania z licznikiem trafień w bloku TRENDY (trd.b.kn ×4, trd.d.b.oos ×3, trd.dw2.b.v1i ×2, reszta po 1)');
+  for (const k of ["days:trdNum(b.days)?trdC(b.days):'—',lo:", "{d:trdNum(b.days)?trdC(b.days):'—'}", "d:trdNum(b.y1.days)?trdC(b.y1.days):'—'", "days:trdNum(best.days)?trdC(best.days):'—'"])
+    assert.ok(blk.includes(k), 'dni przez trdC: ' + k);
+  /* widok krypto z prawdziwego pliku (v125): en 1,642, de 1.642, ja 1,642, pl 1642 (4 cyfry bez odstępu, jak nfmt dla pl) */
+  const {file, view, sec, card, txt} = trdV125;
+  const E = L => txt(card(sec(view(L, file())), 'ETH'));
+  assert.ok(E('en').includes('(829 of 1,642)'), 'en'); assert.ok(E('de').includes('829 von 1.642'), 'de: ' + E('de').slice(0, 300)); assert.ok(E('ja').includes('1,642'), 'ja');
+  assert.ok(E('pl').includes('829 z 1642'), 'pl');
+});
+
+test('v149: trd.n.fxm — miesiąc średniego kursu: pl i en MM.RRRR jak dotąd; de–ja słownie (Intl.DateTimeFormat języka, UTC); fr „en …”, it „di …”; zły miesiąc — MM.RRRR', () => {
+  for (const L of ['pl', 'en']) assert.equal(v149Trd(L).trdFxM('2026-08'), '08.2026', L);
+  assert.equal(v149Trd(undefined).trdFxM('2026-08'), '08.2026', 'bez LANG (stare wycinki)');
+  for (const L of V149_L8) {
+    const s = v149Trd(L).trdFxM('2026-08'), w = new Intl.DateTimeFormat(V149_LOC[L], {month: 'long', year: 'numeric', timeZone: 'UTC'}).format(new Date(Date.UTC(2026, 7, 15)));
+    assert.equal(s, w, L); assert.ok(!/^\d\d\.\d{4}$/.test(s) && s.includes('2026'), L + ': ' + s);
+    assert.equal(v149Trd(L).trdFxM('2026-13'), '13.2026', L + ': zły miesiąc'); assert.equal(v149Trd(L).trdFxM('2026-01'), new Intl.DateTimeFormat(V149_LOC[L], {month: 'long', year: 'numeric', timeZone: 'UTC'}).format(new Date(Date.UTC(2026, 0, 15))));
+  }
+  assert.equal(v149Trd('de').trdFxM('2026-08'), 'August 2026'); assert.equal(v149Trd('ja').trdFxM('2026-08'), '2026年8月');
+  const I = v143Final(html);
+  assert.equal(I.fr['trd.n.fxm'], 'taux moyen en {m}'); assert.equal(I.it['trd.n.fxm'], 'cambio medio di {m}'); assert.equal(I.pl['trd.n.fxm'], 'średni kurs z {m}'); assert.equal(I.en['trd.n.fxm'], 'average rate for {m}');
+  assert.equal(html.split("t('trd.n.fxm',{m:trdFxM(r.fxm)})").length, 2, 'karta TRENDY przez trdFxM');
+});
+
+/* ---------- B3 / B4: separatory ---------- */
+test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąska twarda spacja przed „:”, pl / en / de / es / it / pt / ru / zh bez zmian; każde miejsce przez sepK / sepL (z typeof); TIC w atrapie strony', () => {
+  const a = html.indexOf('/* v149: separatory składane w kodzie'), b = html.indexOf('const NF={};', a);
+  const F = L => new Function('LANG', html.slice(a, b) + '\nreturn {sepK, sepL};')(L);
+  assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
+  for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
+  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 30, 'etykiety składane w kodzie: 30 miejsc');
+  assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 29, 'listy składane w kodzie: 29 miejsc');
+  for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
+    assert.ok(!html.includes(s), 'dawny separator: ' + s);
+  /* atrapa strony (dane strażnika): TIC — skład regionów i etykiety */
+  const tic = L => G126.run(L).el('tic').innerHTML;
+  const ja = tic('ja'), fr = tic('fr'), pl = tic('pl');
+  assert.ok(/<\/b>：/.test(ja) && !/<\/b>: /.test(ja), 'ja: „：” po nazwie regionu');
+  assert.ok(/[^\x00-\x7f]、/.test(ja) && !/[^\x00-\x7f>], [^\x00-\x7f<]/.test(ja.replace(/<[^>]+>/g, '')), 'ja: skład regionów przez „、”');
+  assert.ok(fr.includes('</b>\u202f: ') && !fr.includes('</b>: '), 'fr: wąska twarda spacja przed dwukropkiem');
+  assert.ok(pl.includes('</b>: ') && !pl.includes('</b>：') && !pl.includes('\u202f'), 'pl bez zmian');
+});
+
+test('v149: japońskie słowniki — listy „、” i etykiety „：” (nazwy funduszy z symbolami, „正確には：”, „{fam}：{rule}”); w końcowym ja żadnego „, ” ani „: ” po japońskim tekście (poza martwymi kluczami po angielsku)', () => {
+  const I = v143Final(html);
+  assert.equal(I.ja['trd.s.fe_us'], '米国株 (SPY、IVV)'); assert.equal(I.ja['trd.s.fe_gold'], '金 (GLD、IAU、GLDM)'); assert.equal(I.ja['inst.exact'], '正確には：{v}');
+  assert.equal(I.ja['eng.exact'], '正確には：{v} ドル'); assert.equal(I.ja['eng.exact.t'], '正確には：{v} 億ドル'); assert.equal(I.ja['trd.d.b.name'], '{fam}：{rule}');
+  const DEAD = ['g.src.reg1d', 'g.leg.cry', 'etf.s.err', 'key.fh.err', 'key.cg.err'];
+  const bad = Object.keys(I.ja).filter(k => typeof I.ja[k] === 'string' && !DEAD.includes(k) && (/[^\x00-\x7f\s][,:] |\}: \{|\((?:[A-Z0-9]+, )+[A-Z0-9]+\)/.test(I.ja[k])));
+  assert.deepEqual(bad, [], 'ja: ASCII „, ” / „: ” jako separator: ' + bad.map(k => k + ' „' + I.ja[k].slice(0, 40) + '”').join(' | '));
+  for (const k of DEAD) assert.ok(/[a-z]{4}/.test(I.ja[k] || 'xxxx'), k + ': martwy klucz po angielsku (niewidoczny)');
+  /* pozostałe języki tych kluczy bez zmian (pl i en) */
+  assert.ok(/, /.test(I.en['trd.s.fe_dev']) && /, /.test(I.pl['trd.s.fe_dev']), 'pl i en z przecinkiem');
+});
+
+/* ---------- B5, B7 ---------- */
+test('v149: de st.mm.pc „Handelstagen” (jak reszta strony, nie „Sitzungen”); japońskie liczniki 回 本 分 時間 週 つ 位 組 枚 取引日 ブロック 市場 契約 bez spacji po liczbie / {polu}; spacje przed łacińskimi słowami, %, walutą i UTC zostają', () => {
+  const I = v143Final(html), {D} = v142Bad(html);
+  assert.equal(I.de['st.mm.pc'], 'Put/Call gesamt in den letzten {n} Handelstagen: Tiefstwert {min} ({dmin}), Höchstwert {max} ({dmax}).');
+  assert.ok(!/Sitzung/.test(I.de['st.mm.pc']), 'de st.mm.pc');
+  const RX = /(\d|\})[ \u00a0\u3000]+(回|本|分|時間|週|つ|位|組|枚|取引日|ブロック|市場|契約)/;
+  for (const d of D) for (const k in (d.obj.ja || {})) assert.ok(!RX.test(d.obj.ja[k]), d.name + ' ja ' + k + ': ' + d.obj.ja[k].slice(0, 60));
+  const E = {'c10.rank': '{s}：時価総額 {n}銘柄中 {r}位', 'st.mm.pc': '直近 {n}取引日のプット/コール合計：最低 {min}（{dmin}）、最高 {max}（{dmax}）。', 'wh.not4': '残高の変化は私たち自身のスナップショット（1日 1回）から計算します。履歴は最初の読み取りから始まります。',
+    'eng.d.pairs': '最大の保有残高：国・地域のペア {t}組のうち {n}組', 'cb.cme.v': 'BTC {b} · ETH {e}枚', 'trd.sn.short': '比較するには履歴が不足（4週中 {n}週）', 'ln.ago.m': '{n}分前', 'ln.ago.h': '{n}時間前',
+    'cftc.u.btc': '1契約 = {n} ビットコイン。', 'lev.k.lq': '{c} 24時間の清算'};
+  for (const k in E) assert.equal(I.ja[k], E[k], 'ja ' + k);
+  assert.ok(I.ja['trd.dw2.ans.best'].includes('{days}取引日で') && I.ja['trd.dw2.sub'].includes('ETF 1本（44市場'), 'ja: 取引日, 本, 市場');
+  if (I.ja['rwa.old'] !== undefined) assert.ok(I.ja['rwa.old'].startsWith('48時間'), 'ja rwa.old (panel #c-rwa, v133)');
+  /* tylko spacje usunięte: pola {x} jak po angielsku; spacje przed UTC, %, walutą, łacińskim słowem zostają */
+  const ph = s => (String(s).match(/\{[a-z0-9_]+\}/g) || []).sort().join(',');
+  for (const k of Object.keys(E)) assert.equal(ph(I.ja[k]), ph(I.en[k]), 'ja ' + k + ': pola {x}');
+  assert.ok(I.ja['prm.not5'].includes('UTC 12:10ごろ') && I.ja['prm.not5'].includes('1日1回') === false && I.ja['prm.not5'].includes('1日 1回'), 'UTC i „1日 1回”');
+  assert.ok(I.ja['cftc.u.eur'].includes('125,000 ユーロ') && I.ja['q.src.v'] === '{n}件中 {k}件', 'spacja przed walutą zostaje');
+  assert.equal(I.zh['etf.k.m'], '22 个交易日（约 1 个月）', 'zh bez zmian'); assert.ok(I.en['st.mm.pc'].includes('sessions') && I.pl['st.mm.pc'].includes('sesjach'), 'pl i en st.mm.pc bez zmian');
+});
+
+test('v149: słownik — czysty JSON, 10 języków, tylko cftc.ux.eur i cftc.ux.eth (prawdziwe tłumaczenia); nazwa tylko w definicji i linii nakładania; jeden wiersz komentarza; strażnicy v142 / v143 bez zgłoszeń; nic go nie zasłania', () => {
+  const a = 'const ' + V149_DICT + '=', x0 = html.indexOf(a), fl = 'for(const l in ' + V149_DICT + ')if(I18N[l])Object.assign(I18N[l],' + V149_DICT + '[l]);\n';
+  assert.ok(x0 > 0 && html.indexOf(a, x0 + 1) < 0, 'słownik v149 zadeklarowany dokładnie raz');
+  const x1 = html.indexOf(';\n' + fl, x0);
+  assert.ok(x1 > x0 && html.split(fl).length === 2, 'zaraz po słowniku dokładnie jedna linia nakładania');
+  assert.equal(html.split(V149_DICT).length - 1, 3, 'nazwa słownika tylko w definicji i linii nakładania');
+  assert.ok(html.slice(html.lastIndexOf('\n', x0 - 2) + 1, x0).startsWith('/* v149:'), 'jeden wiersz komentarza przed słownikiem');
+  const D = JSON.parse(html.slice(x0 + a.length, x1));
+  assert.deepEqual(Object.keys(D), V149_L10, 'języki w kolejności strony');
+  const fors = [...html.matchAll(/for\(const l in (EXTRA\w*)\)/g)].map(m => m[1]);
+  assert.ok(fors.indexOf(V149_DICT) > fors.indexOf(V147_DICT), 'nakładany po słowniku v147');
+  const I = v143Final(html), K = ['cftc.ux.eth', 'cftc.ux.eur'];
+  for (const L of V149_L10) {
+    assert.deepEqual(Object.keys(D[L]).sort(), K, L + ': klucze');
+    for (const k of K) { assert.ok(typeof D[L][k] === 'string' && D[L][k].trim() && !/[{}<>`]/.test(D[L][k]), L + ' ' + k); assert.equal(I[L][k], D[L][k], L + ' ' + k + ': nałożony'); if (L !== 'en') assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': kopia angielskiego'); }
+    assert.ok(!/CONTRACTS|Index Points|CFTC|CME/.test(D[L]['cftc.ux.eur'] + D[L]['cftc.ux.eth']), L + ': bez opisu z raportu i nazw');
+  }
+  for (const k of K) { assert.ok(/[А-Яа-я]/.test(D.ru[k]), 'ru ' + k); assert.ok(/[一-鿿]/.test(D.zh[k]) && !/[぀-ヿ]/.test(D.zh[k]), 'zh ' + k); assert.ok(/[぀-ヿ一-鿿]/.test(D.ja[k]), 'ja ' + k); }
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(V149_DICT + ' ')), [], 'v142: bez kopii angielskiego');
+  assert.deepEqual(v143Bad(html).filter(x => x.startsWith('cftc.')), [], 'v143: komplet języków');
+  const U = v143Usage(v143Code(html)); for (const k of K) assert.ok(U.used(k), 'klucz używany w kodzie: ' + k);
 });
