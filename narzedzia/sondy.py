@@ -941,6 +941,84 @@ def g_ici():
 GROUPS.insert(GROUPS.index(g_nasdaq), g_ici)   # v134: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
 
 
+# v137 (etykieta „jpx”): sondy bez klucza dla data/jpx.json — tygodniowe zestawienie giełdy w Tokio (kto kupuje i sprzedaje akcje). Cztery
+# zapytania z przerwą 1,5 s i identyfikatorem zbieracza: lista (strona angielska), ta sama lista z If-Modified-Since „teraz” (oczekiwane 304),
+# najnowszy plik .xlsx z listy, strona archiwum bieżącego roku. Wypisuje tylko: kod HTTP, ms, bajty, liczby linków, daty tygodni z nazw plików,
+# sygnaturę pliku (zip / OLE2), liczbę kart i rząd wielkości największej liczby (13 = jeny, 10 = tys. jenów) — nigdy adresu, strony, pliku ani
+# wartości. Wiersz „summary jpx-files …” trafia do adnotacji (filtr adnotacji w sondy.yml przepuszcza wiersze summary — workflow bez zmian).
+JPX_SB = "https://www.jpx.co.jp"
+JPX_SEN = JPX_SB + "/english/markets/statistics-equities/investor-type/"
+JPX_S_HDR = {"User-Agent": "CapitalFlowAI-collector/1.0"}
+_JPX_S = {"new": [], "arch": None}
+
+
+def _jpx_s_links(raw):
+    """Lista albo archiwum: liczba plików obu formatów, najnowszy tydzień z nazwy pliku, lata archiwów (bez treści strony)."""
+    import re as _re
+    s = raw.decode("utf-8", "replace")
+    pre = r'href="(?:https?://www\.jpx\.co\.jp)?'
+    new = sorted(set(_re.findall(pre + r'(/[^"]*/stock_1_w_(\d{8})_(\d{8})\.xlsx)"', s)), key=lambda x: x[2])
+    old = set(_re.findall(pre + r'/[^"]*/stock_val_1_(\d{6})\.xls"', s))
+    arch = dict((y, n) for n, y in _re.findall(r'<option[^>]*value="[^"]*00-00-archives-(\d{2})\.html"[^>]*>\s*(\d{4})', s))
+    if new and not _JPX_S["new"]:
+        _JPX_S["new"] = new
+    if arch and _JPX_S["arch"] is None:
+        _JPX_S["arch"] = arch
+    return (f"new_xlsx={len(new)}({new[-1][1] + '-' + new[-1][2] if new else '-'}) old_xls={len(old)} "
+            f"arch_years={len(arch)}({min(arch) if arch else '-'}..{max(arch) if arch else '-'})")
+
+
+def _jpx_s_file(raw):
+    """Plik danych: sygnatura, liczba kart, „Tokyo & Nagoya” w napisach, rząd wielkości największej liczby (bez wartości)."""
+    import io as _io
+    import re as _re
+    import zipfile as _zf
+    if raw[:4] != b"PK\x03\x04":
+        return f"zip=False ole2={raw[:8] == bytes.fromhex('d0cf11e0a1b11ae1')} html={raw[:200].lstrip().lower().startswith(b'<')}"
+    z = _zf.ZipFile(_io.BytesIO(raw))
+    names = z.namelist()
+    wb = z.read("xl/workbook.xml").decode("utf-8", "replace") if "xl/workbook.xml" in names else ""
+    ss = z.read("xl/sharedStrings.xml").decode("utf-8", "replace") if "xl/sharedStrings.xml" in names else ""
+    mx = 0.0
+    for n in names:
+        if n.startswith("xl/worksheets/sheet"):
+            for attrs, v in _re.findall(r"<c ([^>]*)>\s*<v>([^<]*)</v>", z.read(n).decode("utf-8", "replace")):
+                if not _re.search(r'\bt="(s|str|b|e|inlineStr)"', attrs):
+                    try:
+                        mx = max(mx, abs(float(v)))
+                    except ValueError:
+                        pass
+    e = len(str(int(mx))) - 1 if mx >= 1 else -1
+    _JPX_S["unit"] = "JPY" if e >= 12 else ("kJPY" if e >= 0 else "-")
+    return f"zip=True sheets={wb.count('<sheet ')} tokyo_nagoya={'Tokyo &amp; Nagoya' in ss} maxexp={e if e >= 0 else '-'}"
+
+
+def g_jpx():
+    import email.utils as _eu
+    probe("jpx", "listing_en", JPX_SEN + "index.html", headers=JPX_S_HDR, extra_fn=_jpx_s_links)                     # → 200
+    time.sleep(1.5)
+    probe("jpx", "listing_if_modified_since_now", JPX_SEN + "index.html",
+          headers={**JPX_S_HDR, "If-Modified-Since": _eu.formatdate(time.time(), usegmt=True)})                     # → 304
+    time.sleep(1.5)
+    new = _JPX_S["new"]
+    if new:
+        probe("jpx", "newest_xlsx", JPX_SB + new[-1][0], headers=JPX_S_HDR, extra_fn=_jpx_s_file)                    # → 200, zip
+    else:
+        skipped("jpx", "newest_xlsx", "no .xlsx link on the listing")
+    time.sleep(1.5)
+    arch = _JPX_S["arch"] or {}
+    if arch:
+        probe("jpx", "archive_current_year", JPX_SEN + f"00-00-archives-{arch[max(arch)]}.html", headers=JPX_S_HDR, extra_fn=_jpx_s_links)   # → 200
+    else:
+        skipped("jpx", "archive_current_year", "no archive map on the listing")
+    with _print_lock:
+        print(f"summary jpx-files new_xlsx={len(new)} newest={new[-1][1] + '-' + new[-1][2] if new else '-'} unit={_JPX_S.get('unit', '-')} "
+              f"arch_years={len(arch)}", flush=True)
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_jpx)   # v137: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
+
+
 # --------------------------------------------------------------------------- main
 
 def main():

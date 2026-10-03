@@ -10,6 +10,7 @@ Zapisuje `kontrola/ostatnia.md` (po polsku: nagłówek i linia „Wynik:” w st
 Kod wyjścia 1 = BŁĄD (GitHub wysyła właścicielowi e-mail o nieudanym przebiegu). Bez kluczy, tylko odczyt. Python 3.12, sama biblioteka standardowa.
 Uwaga: komunikat commita bota zawiera „[skip ci]” — GitHub pomija wtedy przebiegi wyzwalane pushem (dlatego commit dodający ten plik
 nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśnie z tego powodu).
+v137: Japonia — kto handluje akcjami na giełdzie (data/jpx.json): świeżość wg kalendarza publikacji źródła (4. dzień roboczy następnego tygodnia, święta w Japonii; najwyżej ⚠️) i zgodność kierunku zagranicy z danymi tygodniowymi MOF (z plików strony, bez zapytań; najwyżej ⚠️).
 v136: kursy dolara Ameryki Łacińskiej (data/dolar.json) — świeżość osobnym wierszem (najwyżej ⚠️), dwa odczyty kursów Argentyny z pliku i kurs hurtowy vs API banku centralnego Argentyny (1 zapytanie); tylko uwagi, nigdy BŁĄD.
 v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`.
 v134: fundusze USA (data/ici.json) — świeżość części osobnymi wierszami (najwyżej ⚠️; lista SWIEZOSC bez zmian), tożsamości sum ostatniego
@@ -33,9 +34,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'jpx', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -1161,6 +1162,169 @@ def ici_kontrola(j, R):
     return {'sumy': S, 'rev': rev}
 
 
+# ---------------------------------------------------------------- v137: Japonia — kto handluje akcjami na giełdzie (data/jpx.json) ----------------------------------------------------------------
+JPX_ETYKIETA = 'Japonia: kto handluje akcjami na giełdzie (tydzień)'
+JPX_ZWLOKA_H = 26          # h po spodziewanej publikacji następnego tygodnia (06:30 UTC) bez nowego tygodnia w pliku = ⚠️ (nigdy ❌ ani BŁĄD)
+JPX_PARY = 26              # tyle ostatnich par tygodni porównujemy z danymi tygodniowymi MOF (plik instytucje trzyma 26 tygodni)
+JPX_MIN_N = 8              # mniej par = „?” (za mało do oceny)
+JPX_R_MIN = 0.6            # korelacja netto zagranicy (giełda vs MOF) poniżej progu = ⚠️; stan 27.09.2026: 0,909 z 26 par, kierunek 34 z 36 tygodni 2026
+JPX_DUZE = 300.0           # mld JPY — w ostatnich 4 parach oba |netto| ≥ próg i przeciwne znaki = ⚠️
+JPX_ZNAK = 50.0            # mld JPY — zgodność znaków liczona dla par, w których oba |netto| ≥ próg
+JPX_KOREKTA_DNI = 7        # informacja o korekcie danych źródła z pliku jpx.json — uwaga w raporcie przez 7 dni
+# dni bez sesji w Tokio poza weekendem — ta sama tabela co JPX_SWIETA w zbieraj_dane.py (test pilnuje zgodności); 31.12 i 1–3.01 — reguła.
+# Po JPX_SWIETA_DO święta nie są znane: spodziewana publikacja wychodzi za wcześnie i świeżość może pokazać fałszywe ⚠️ (Złoty Tydzień: ok. 4 dni)
+# — dlatego od 1 grudnia ostatniego roku tabeli raport ma uwagę „dopisać święta”.
+JPX_SWIETA = frozenset((
+    '2026-01-12', '2026-02-11', '2026-02-23', '2026-03-20', '2026-04-29', '2026-05-04', '2026-05-05', '2026-05-06', '2026-07-20',
+    '2026-08-11', '2026-09-21', '2026-09-22', '2026-09-23', '2026-10-12', '2026-11-03', '2026-11-23',
+    '2027-01-11', '2027-02-11', '2027-02-23', '2027-03-22', '2027-04-29', '2027-05-03', '2027-05-04', '2027-05-05', '2027-07-19',
+    '2027-08-11', '2027-09-20', '2027-09-23', '2027-10-11', '2027-11-03', '2027-11-23',
+    '2028-01-10', '2028-02-11', '2028-02-23', '2028-03-20', '2028-05-03', '2028-05-04', '2028-05-05', '2028-07-17', '2028-08-11',
+    '2028-09-18', '2028-09-22', '2028-10-09', '2028-11-03', '2028-11-23',
+    '2029-01-08', '2029-02-12', '2029-02-23', '2029-03-20', '2029-04-30', '2029-05-03', '2029-05-04', '2029-07-16', '2029-09-17',
+    '2029-09-24', '2029-10-08', '2029-11-23',
+    '2030-01-14', '2030-02-11', '2030-03-20', '2030-04-29', '2030-05-03', '2030-05-06', '2030-07-15', '2030-08-12', '2030-09-16',
+    '2030-09-23', '2030-10-14', '2030-11-04'))
+JPX_SWIETA_DO = 2030       # ostatni rok tabeli świąt
+
+
+def jpx_swieta_uwaga(now=None):
+    """Uwaga od 1 grudnia ostatniego roku tabeli świąt (i później): bez nowego roku kalendarz publikacji liczy święta jak dni sesji."""
+    now = now or NOW
+    if now.date() >= dt.date(JPX_SWIETA_DO, 12, 1):
+        return (f'Japonia — tabela świąt giełdy w Tokio (JPX_SWIETA w zbieraj_dane.py i narzedzia/kontrola.py) kończy się na {JPX_SWIETA_DO} r. — '
+                'dopisać kolejny rok, inaczej kalendarz publikacji liczy święta jak dni sesji (fałszywe ⚠️ świeżości)')
+    return None
+
+
+def jpx_bday(d):
+    return d.weekday() < 5 and d.isoformat() not in JPX_SWIETA and not ((d.month == 12 and d.day == 31) or (d.month == 1 and d.day <= 3))
+
+
+def jpx_release(day):
+    """Publikacja danych tygodnia zawierającego `day`: 4. dzień roboczy od poniedziałku następnego tygodnia (jak w zbieraczu)."""
+    d, n = day - dt.timedelta(days=day.weekday()) + dt.timedelta(days=7), 0
+    for _ in range(40):
+        if jpx_bday(d):
+            n += 1
+            if n == 4:
+                return d
+        d += dt.timedelta(days=1)
+    return d
+
+
+def jpx_next_release(asof):
+    """Spodziewana publikacja następnego tygodnia z sesjami po tygodniu kończącym się `asof`."""
+    m = asof - dt.timedelta(days=asof.weekday()) + dt.timedelta(days=7)
+    for k in range(6):
+        w0 = m + dt.timedelta(days=7 * k)
+        if any(jpx_bday(w0 + dt.timedelta(days=i)) for i in range(5)):
+            return jpx_release(w0)
+    return jpx_release(m)
+
+
+def jpx_swiezosc(j, now=None):
+    """Wiersz świeżości (etykieta, status, wiek min, data, uwaga) wg kalendarza publikacji: ⚠️ dopiero JPX_ZWLOKA_H h po spodziewanej publikacji
+    następnego tygodnia (4. dzień roboczy, ok. 06:30 UTC; święta w Japonii przesuwają termin); nigdy ❌. Brak pliku = ⚠️ „brak danych”
+    (zbieracz bez poprzedniego pliku i bez danych nie zapisuje pliku — notatka w META, nie błąd)."""
+    if not isinstance(j, dict):
+        return (JPX_ETYKIETA, '⚠️', None, None, 'brak pliku data/jpx.json — brak danych, blok na stronie ukryty (tylko uwaga)')
+    a = str(j.get('asof') or '')
+    try:
+        d = dt.date.fromisoformat(a[:10])
+    except ValueError:
+        return (JPX_ETYKIETA, '?', None, None, 'brak daty danych w pliku')
+    now = now or NOW
+    w = wiek_danych(a, 'day', 'w', now)
+    nx = jpx_next_release(d)
+    pub = dt.datetime(nx.year, nx.month, nx.day, 6, 30, tzinfo=dt.timezone.utc)
+    if now <= pub + dt.timedelta(hours=JPX_ZWLOKA_H):
+        return (JPX_ETYKIETA, '✅', w, a, '')
+    late = int((now - pub).total_seconds() // 60)
+    return (JPX_ETYKIETA, '⚠️', w, a, f'następny tydzień spodziewany {nx.isoformat()} ok. 06:30 UTC, brak od {fmt_wiek(late)} (kalendarz świąt w Japonii) — tylko uwaga')
+
+
+def jpx_mof_porownanie(inst, jx):
+    """Zagranica w japońskich akcjach: giełda (data/jpx.json, tylko handel na giełdzie, pon–pt) vs MOF (instytucje.json → mof, wszystkie akcje
+    i fundusze, także poza giełdą, nd–sob). Para tygodni: sobota MOF = koniec tygodnia giełdy + (5 − dzień tygodnia). Netto w mld JPY: giełda
+    (for_b − for_s) / 1000, MOF liabilities.equity_net / 10. Ostatnie ≤ JPX_PARY par: korelacja Pearsona, zgodność znaków (oba |netto| ≥ JPX_ZNAK),
+    ostatnia para. ✅: n ≥ JPX_MIN_N, r ≥ JPX_R_MIN i w ostatnich 4 parach żadnej dużej (oba ≥ JPX_DUZE) z przeciwnym znakiem; „?”: n < JPX_MIN_N;
+    inaczej ⚠️. Nigdy ❌ — to różne miary, a różnica to nie awaria strony."""
+    Z = {'status': '?', 'n': 0, 'r': None, 'znak': None, 'ostatnia': None, 'opis': '', 'uwagi': []}
+    if not isinstance(jx, dict):
+        return None
+    cols = jx.get('cols') if isinstance(jx.get('cols'), list) else []
+    if not all(c in cols for c in ('to', 'for_s', 'for_b')):
+        Z['opis'] = '? plik giełdy bez kolumn'; return Z
+    i_t, i_s, i_b = cols.index('to'), cols.index('for_s'), cols.index('for_b')
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v   # noqa: E731
+    G = {}
+    for r in jx.get('d') or []:
+        try:
+            t = dt.date.fromisoformat(str(r[i_t])[:10])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if num(r[i_s]) and num(r[i_b]):
+            G[(t + dt.timedelta(days=5 - t.weekday())).isoformat()] = (str(r[i_t]), (r[i_b] - r[i_s]) / 1000)
+    M = {}
+    mof = ((inst or {}).get('mof') or {}).get('d') if isinstance(inst, dict) else None
+    for w in mof or []:
+        v = ((w or {}).get('liabilities') or {}).get('equity_net') if isinstance(w, dict) else None
+        if isinstance(w, dict) and num(v) and isinstance(w.get('to'), str):
+            M[w['to'][:10]] = v / 10
+    pary = [(G[k][0], G[k][1], M[k]) for k in sorted(set(G) & set(M))][-JPX_PARY:]
+    Z['n'] = n = len(pary)
+    if pary:
+        Z['ostatnia'] = {'tydzien': pary[-1][0], 'gielda_mld': round(pary[-1][1], 1), 'mof_mld': round(pary[-1][2], 1)}
+    if n < JPX_MIN_N:
+        Z['opis'] = f'? za mało wspólnych tygodni ({n}, potrzeba {JPX_MIN_N})'; return Z
+    a, b = [p[1] for p in pary], [p[2] for p in pary]
+    try:
+        Z['r'] = round(statistics.correlation(a, b), 3)
+    except (statistics.StatisticsError, ValueError, ZeroDivisionError):
+        Z['r'] = None
+    big = [(x, y) for _, x, y in pary if abs(x) >= JPX_ZNAK and abs(y) >= JPX_ZNAK]
+    Z['znak'] = [sum(1 for x, y in big if x * y > 0), len(big)]
+    zle = [p for p in pary[-4:] if abs(p[1]) >= JPX_DUZE and abs(p[2]) >= JPX_DUZE and p[1] * p[2] < 0]
+    Z['status'] = '✅' if Z['r'] is not None and Z['r'] >= JPX_R_MIN and not zle else '⚠️'
+    o = Z['ostatnia']
+    Z['opis'] = (f'{Z["status"]} r = {Z["r"] if Z["r"] is not None else "—"} z {n} tygodni, ten sam kierunek w {Z["znak"][0]} z {Z["znak"][1]} '
+                 f'(oba ≥ {JPX_ZNAK:g} mld JPY); ostatni tydzień {o["tydzien"]}: giełda {o["gielda_mld"]:+.1f} vs MOF {o["mof_mld"]:+.1f} mld JPY')
+    if Z['status'] == '⚠️':
+        Z['uwagi'].append('Japonia — zagranica w akcjach, giełda vs MOF: ' + Z['opis'][3:]
+                          + ('; przeciwny kierunek w dużym tygodniu ' + ', '.join(p[0] for p in zle) if zle else '') + ' — różne miary, tylko uwaga')
+    return Z
+
+
+def jpx_korekty(jx, now=None):
+    """Informacje o korekcie danych źródła zapisane przez zbieracz (jpx.json → korekty: [czas, tekst]) z ostatnich JPX_KOREKTA_DNI dni → uwagi.
+    Zbieracz nie poprawia jeszcze zapisanych tygodni na ich podstawie (następna wersja) — uwaga mówi, że trzeba sprawdzić ręcznie."""
+    now = now or NOW
+    out = []
+    for k in (jx.get('korekty') or []) if isinstance(jx, dict) and isinstance(jx.get('korekty'), list) else []:
+        if not (isinstance(k, list) and len(k) == 2 and isinstance(k[1], str)):
+            continue
+        try:
+            t = dt.datetime.fromisoformat(str(k[0]))
+        except ValueError:
+            continue
+        t = t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+        if now - t < dt.timedelta(days=JPX_KOREKTA_DNI):
+            out.append(f'Japonia — giełda ({czas_pl(k[0])}): {k[1][:200]}')
+    return out
+
+
+def jpx_kontrola(files, R):
+    """Krok kontroli v137 (bez sieci): porównanie giełda vs MOF i informacje o korektach źródła; uwagi do R['uwagi'] (nigdy do błędów).
+    Brak pliku jpx = None."""
+    Z = jpx_mof_porownanie(files.get('instytucje'), files.get('jpx'))
+    if Z:
+        R['uwagi'].extend(Z['uwagi'])
+        Z['korekty'] = jpx_korekty(files.get('jpx'))
+        R['uwagi'].extend(Z['korekty'])
+    return Z
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -1281,6 +1445,19 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c''. v137: Japonia — kto handluje akcjami na giełdzie: świeżość wg kalendarza publikacji (4. dzień roboczy następnego tygodnia, święta
+    # w Japonii) — osobny wiersz tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
+    jr = jpx_swiezosc(files.get('jpx'))
+    if jr:
+        label, st, w, txt, note = jr
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    ju = jpx_swieta_uwaga()
+    if ju:
+        R['uwagi'].append(ju)
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -1367,6 +1544,13 @@ def kontrola():
     except Exception as e:  # noqa
         Z['ici'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'fundusze USA: kontrola sum przerwana ({str(e)[:80]})')
+    # 3g. v137: Japonia — zagranica w akcjach: giełda (tylko handel na giełdzie) vs MOF (wszystkie akcje i fundusze) — kierunek i korelacja
+    # z plików strony, bez zapytań; najwyżej ⚠️ (różne miary, nigdy ❌ ani BŁĄD)
+    try:
+        Z['jpx'] = jpx_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['jpx'] = {'status': '?', 'blad': str(e)[:120]}
+        R['uwagi'].append(f'Japonia — giełda vs MOF: kontrola przerwana ({str(e)[:80]})')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -1477,6 +1661,11 @@ def raport_md(R):
             L.append('- Fundusze USA — sumy ostatniego tygodnia w pliku strony (tolerancja 3/5 mln USD): '
                      + (' · '.join(cz) if cz else (f'? kontrola przerwana ({fz["blad"]})' if fz.get('blad') else '—')) + '.'
                      + (' Poprawki wydawcy (informacja): ' + '; '.join(fz['rev']) + '.' if fz.get('rev') else ''))
+        jz = Z.get('jpx')   # v137: Japonia — giełda vs MOF (kierunek i korelacja netto zagranicy); brak pliku = bez linii
+        if jz:
+            L.append('- Japonia: giełda (tylko handel akcjami na giełdzie) vs MOF (wszystkie akcje i fundusze, także poza giełdą), zagranica netto: '
+                     + (jz.get('opis') or (f'? kontrola przerwana ({jz["blad"]})' if jz.get('blad') else '—')) + '.'
+                     + (f' Korekty źródła z 7 dni: {len(jz["korekty"])} (sprawdzić ręcznie).' if jz.get('korekty') else ''))
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:

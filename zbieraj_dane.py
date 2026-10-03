@@ -7470,7 +7470,7 @@ def _tr_flows(S):
                 out.append(r)
         return out
 
-    for name, fn in (('fundusze', funds), ('in', india), ('tw/hk', twhk), ('th', thai), ('br', brazil), ('tr', turkey), ('jp', japan), ('mx', mexico),
+    for name, fn in (('fundusze', funds), ('in', india), ('tw/hk', twhk), ('th', thai), ('br', brazil), ('tr', turkey), ('jp', japan), ('jpx', lambda: _jpx_tr_rows(S)), ('mx', mexico),
                      ('etf', etfs), ('cm', coinmetrics), ('stab', stable), ('cftc', cftc)):
         _tr_try(name, fn, rows)
     return rows
@@ -15167,6 +15167,982 @@ def build_dolar(prev=None, now=None, fetch=None, budget=None):
     return out
 
 
+# ===================== v137: JAPONIA — KTO KUPUJE I SPRZEDAJE AKCJE NA GIEŁDZIE (tydzień; plik data/jpx.json; bez klucza) =====================
+# Giełda w Tokio co tydzień (4. dzień roboczy następnego tygodnia, ok. 06:30 UTC; po świętach później — np. 29.09 i 01.10.2026) publikuje
+# zakupy i sprzedaże akcji spółek japońskich na giełdach w Tokio i Nagoi według rodzaju inwestora: zagranica, osoby prywatne, banki powiernicze
+# (m.in. pieniądze emerytalne), firmy (głównie skup własnych akcji), fundusze inwestycyjne, domy maklerskie na własny rachunek.
+# Dwa formaty pliku (oba czytane biblioteką standardową):
+#   * do 17.09.2026: stock_val_1_YYMMWW.xls — OLE2 + BIFF8, karta „Tokyo & Nagoya”, DWA tygodnie w pliku (poprzedni + ostatni), liczby jako
+#     tekst „29,712,203,050”, tys. JPY; saldo stoi w wierszu sprzedaży (ujemne) albo zakupów (dodatnie);
+#   * od 29.09.2026: stock_1_w_YYYYMMDD_YYYYMMDD.xlsx — jedna karta, rynki w wierszach (Shares + Value), 14 grup inwestorów w kolumnach po 4
+#     (Sales, Purchases, Balance, Total), JEDEN tydzień, bez sum i bez udziałów. Sprawdzone 03.10.2026 na dwóch pierwszych prawdziwych
+#     plikach (14–18.09 i 24–25.09.2026): wartości w tys. JPY zgodnie z nagłówkiem „1,000 yen” (próbka formatu z 07.2026 miała jeny × 1000)
+#     — jednostka rozpoznawana po wielkości i zapisana (raw_unit); każda grupa: saldo = kupno − sprzedaż i suma = kupno + sprzedaż co do
+#     jednostki; wiersz „Tokio i Nagoja” ≥ suma trzech rynków Tokio (różnica = Nagoja; zaokrąglenia do 1 tys. JPY).
+# Adresy plików zmienne (identyfikator w ścieżce) — czytane z listy (5 tygodni) i z archiwów rocznych. Zły plik = tydzień odrzucony (notatka),
+# poprzednie dane zostają z własną datą; brak tygodnia to luka, nigdy zero. Warunki źródła: wszystkie prawa zastrzeżone, zakaz użytku
+# komercyjnego bez zgody — strona bezpłatna; nazwa źródła nie pojawia się na stronie (decyzja właściciela 27.09). Pliki źródła nigdy nie
+# trafiają do repozytorium (testy budują syntetyczne pliki w tym samym układzie).
+JPX_LABEL = 'Japonia giełda'      # przedrostek komunikatów w META (bez nazwy wydawcy)
+JPX_B = 'https://www.jpx.co.jp'
+JPX_EN = JPX_B + '/english/markets/statistics-equities/investor-type/'
+JPX_JA = JPX_B + '/markets/statistics-equities/investor-type/'
+JPX_REV = JPX_EN + 'tvdivq00000014fy-att/revision_information_e.xls'   # rejestr korekt danych (raz na dobę, If-Modified-Since)
+JPX_WEEKS = 156           # tygodni historii w pliku (3 lata; archiwum źródła sięga 2016 r.)
+JPX_NEW_MAX = 3           # najwyżej tyle nowych plików z listy na przebieg (najstarsze najpierw)
+JPX_NEW_COLD = 1          # bez poprzedniego pliku: tylko najnowszy plik (lista + 1 plik na przebieg; resztę dobierze historia wstecz)
+JPX_BF_FILES = 10         # historia wstecz: najwyżej tyle plików na przebieg (stary plik niesie 2 tygodnie, więc co drugi wystarcza)
+JPX_BACK_BUDGET = 45      # s na historię wstecz w jednym przebiegu (każde zapytanie liczone z limitem czasu)
+JPX_RUN_BUDGET = 60       # s na cały krok (lista, nowe pliki, rejestr korekt, historia wstecz) — także gdy serwer źródła nie odpowiada
+JPX_TIMEOUT = 20          # s — limit jednego zapytania (przycinany do reszty budżetu)
+JPX_MIN_TMO = 6           # s — mniej czasu w budżecie = bez kolejnego zapytania
+JPX_SLEEP = 1.5           # s przerwy między zapytaniami do serwera giełdy
+JPX_IDLE_MIN = 12 * 60    # lista sprawdzana co 12 h, gdy publikacja jeszcze nie należna …
+JPX_DUE_MIN = 55          # … i co godzinę od spodziewanej publikacji (4. dzień roboczy, 06:25 UTC) do pojawienia się pliku
+JPX_REV_MIN = 24 * 60     # rejestr korekt — raz na dobę …
+JPX_REV_RETRY = 6 * 60    # … a po nieudanej próbie najwcześniej po 6 h (nie co przebieg)
+JPX_KOREKTA_DNI = 7       # informacja o korekcie danych źródła zostaje w pliku 7 dni (kontrola dzienna ją widzi)
+JPX_BF_WAIT = 60          # min przerwy w historii wstecz po błędzie sieci
+JPX_MAX_BYTES = 12_000_000
+JPX_UNZIP_MAX = 20_000_000
+JPX_KYEN_MAX = 1e12       # suma sprzedaży 14 grup w tygodniu: 2016–2026 od 4,1e9 do 7,1e10 tys. JPY — powyżej 1e12 komórki są w jenach
+JPX_GROSS = (3e9, 5e11)   # tys. JPY — obrót brutto (kupno + sprzedaż) zleceń maklerskich w tygodniu: dopuszczalny zakres (2016–2026: 7,4e9 … 1,27e11)
+JPX_FROM_MIN = '2016-01-01'
+JPX_COLS = ['from', 'to', 'for_s', 'for_b', 'ind_s', 'ind_b', 'it_s', 'it_b', 'bus_s', 'bus_b', 'trb_s', 'trb_b',
+            'prop_s', 'prop_b', 'brk_s', 'brk_b', 'sec_s', 'sec_b', 'oth_s', 'oth_b', 'fin_s', 'fin_b']   # wartości: mln JPY (całkowite)
+JPX_CATS = ('for', 'ind', 'it', 'bus', 'trb', 'prop', 'brk', 'sec', 'oth', 'fin')
+# dni bez sesji giełdy w Tokio poza sobotami i niedzielami: święta państwowe w dni robocze (z dniami zastępczymi i dniem między świętami)
+# 2026–2030 — sprawdzone regułami ustawy o świętach (test liczy je niezależnie, równonoc ze wzoru astronomicznego); 31.12 i 1–3.01 — reguła
+# w jpx_bday. Po JPX_SWIETA_DO święta nie są znane: każde liczy się jak dzień sesji, więc spodziewana publikacja wychodzi ZA WCZEŚNIE —
+# lista sprawdzana częściej (bez szkody), a kontrola dzienna może pokazać fałszywe ⚠️ (np. Złoty Tydzień: ok. 4 dni). Dlatego kontrola
+# ostrzega od 1 grudnia ostatniego roku tabeli. Ta sama tabela w narzedzia/kontrola.py (test pilnuje zgodności).
+JPX_SWIETA = frozenset((
+    '2026-01-12', '2026-02-11', '2026-02-23', '2026-03-20', '2026-04-29', '2026-05-04', '2026-05-05', '2026-05-06', '2026-07-20',
+    '2026-08-11', '2026-09-21', '2026-09-22', '2026-09-23', '2026-10-12', '2026-11-03', '2026-11-23',
+    '2027-01-11', '2027-02-11', '2027-02-23', '2027-03-22', '2027-04-29', '2027-05-03', '2027-05-04', '2027-05-05', '2027-07-19',
+    '2027-08-11', '2027-09-20', '2027-09-23', '2027-10-11', '2027-11-03', '2027-11-23',
+    '2028-01-10', '2028-02-11', '2028-02-23', '2028-03-20', '2028-05-03', '2028-05-04', '2028-05-05', '2028-07-17', '2028-08-11',
+    '2028-09-18', '2028-09-22', '2028-10-09', '2028-11-03', '2028-11-23',
+    '2029-01-08', '2029-02-12', '2029-02-23', '2029-03-20', '2029-04-30', '2029-05-03', '2029-05-04', '2029-07-16', '2029-09-17',
+    '2029-09-24', '2029-10-08', '2029-11-23',
+    '2030-01-14', '2030-02-11', '2030-03-20', '2030-04-29', '2030-05-03', '2030-05-06', '2030-07-15', '2030-08-12', '2030-09-16',
+    '2030-09-23', '2030-10-14', '2030-11-04'))
+JPX_SWIETA_DO = 2030      # ostatni rok tabeli świąt
+_JPX_LAST = [0.0]         # chwila (monotonic) ostatniego zapytania do serwera giełdy — odstęp JPX_SLEEP
+
+
+# ---------------------------------------------------------------- czytnik .xls (OLE2 + BIFF8) i .xlsx (zip + XML)
+def _jpx_cfb_stream(raw, name='Workbook'):
+    """Jeden strumień pliku OLE2 (wersje 3 i 4). Wszystko nieoczekiwane → ValueError (nigdy pętla bez końca)."""
+    import struct
+    if raw[:8] != b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1':
+        raise ValueError('to nie jest plik OLE2')
+    if len(raw) < 512:
+        raise ValueError('plik OLE2 ucięty')
+    major, = struct.unpack_from('<H', raw, 26)
+    ssz = 1 << struct.unpack_from('<H', raw, 30)[0]
+    mssz = 1 << struct.unpack_from('<H', raw, 32)[0]
+    n_fat, dir_start, _, cutoff, mfat_start, n_mfat, difat_start, n_difat = struct.unpack_from('<IIIIIIII', raw, 44)
+    if major not in (3, 4) or ssz not in (512, 4096) or mssz != 64:
+        raise ValueError('nieobsługiwana wersja OLE2')
+    base, END, FREE = ssz, 0xFFFFFFFE, 0xFFFFFFFF
+
+    def sect(i):
+        o = base + i * ssz
+        if o >= len(raw):
+            raise ValueError('sektor poza plikiem')
+        return raw[o:o + ssz]
+
+    difat = list(struct.unpack_from('<109I', raw, 76))
+    d, guard = difat_start, 0
+    while n_difat and d not in (FREE, END):
+        guard += 1
+        if guard > 4096:
+            raise ValueError('pętla DIFAT')
+        vals = struct.unpack_from(f'<{ssz // 4}I', sect(d))
+        difat.extend(vals[:-1]); d = vals[-1]
+    fat = []
+    for fs in [x for x in difat if x not in (FREE, END)][:n_fat]:
+        fat.extend(struct.unpack_from(f'<{ssz // 4}I', sect(fs)))
+
+    def chain(start, table):
+        out, i, seen = [], start, set()
+        while i not in (END, FREE):
+            if i >= len(table) or i in seen:
+                raise ValueError('uszkodzony łańcuch FAT')
+            seen.add(i); out.append(i); i = table[i]
+        return out
+
+    def read(start, size=None):
+        data = b''.join(sect(i) for i in chain(start, fat))
+        return data if size is None else data[:size]
+
+    dirs = read(dir_start)
+    entries = []
+    for o in range(0, len(dirs) - 127, 128):
+        nlen, = struct.unpack_from('<H', dirs, o + 64)
+        nm = dirs[o:o + max(0, min(nlen, 64) - 2)].decode('utf-16-le', 'replace')
+        start, = struct.unpack_from('<I', dirs, o + 116)
+        size, = struct.unpack_from('<Q', dirs, o + 120)
+        entries.append((nm, dirs[o + 66], start, size & 0xFFFFFFFF if major == 3 else size))
+    root = next((e for e in entries if e[1] == 5), None)
+    ent = next((e for e in entries if e[1] == 2 and e[0] == name), None)
+    if ent is None or root is None:
+        raise ValueError(f'brak strumienia {name}')
+    if ent[3] > len(raw):
+        raise ValueError('strumień dłuższy niż plik')
+    if ent[3] >= cutoff:
+        data = read(ent[2], ent[3])
+    else:                                        # mały strumień: w strumieniu korzenia, łańcuch mini-FAT
+        mfat = []
+        for i in chain(mfat_start, fat) if n_mfat else []:
+            mfat.extend(struct.unpack_from(f'<{ssz // 4}I', sect(i)))
+        ms = read(root[2], root[3])
+        data = b''.join(ms[i * mssz:(i + 1) * mssz] for i in chain(ent[2], mfat))[:ent[3]]
+    if len(data) < ent[3]:
+        raise ValueError('strumień ucięty')
+    return data
+
+
+def _jpx_rk(v):
+    import struct
+    if v & 2:
+        x = float(v >> 2) if not (v & 0x80000000) else float((v >> 2) - (1 << 30))
+    else:
+        x, = struct.unpack('<d', struct.pack('<Q', (v & 0xFFFFFFFC) << 32))
+    return x / 100.0 if v & 1 else x
+
+
+class _JpxCont:
+    """Napisy BIFF8 z tablicy SST, która może ciągnąć się przez rekordy CONTINUE (nowy rekord w środku znaków zaczyna się bajtem opcji)."""
+
+    def __init__(self, chunks):
+        self.c, self.i, self.o = chunks, 0, 0
+
+    def take(self, k):
+        out = b''
+        while k:
+            while self.o >= len(self.c[self.i]):
+                self.i += 1; self.o = 0
+            part = self.c[self.i][self.o:self.o + k]
+            out += part; self.o += len(part); k -= len(part)
+        return out
+
+    def string(self):
+        import struct
+        cch, = struct.unpack('<H', self.take(2))
+        flags = self.take(1)[0]
+        wide, ext, rich = flags & 1, flags & 4, flags & 8
+        runs = struct.unpack('<H', self.take(2))[0] if rich else 0
+        extlen = struct.unpack('<I', self.take(4))[0] if ext else 0
+        chars, left = [], cch
+        while left:
+            if self.o >= len(self.c[self.i]):
+                self.i += 1; self.o = 0
+                wide = self.take(1)[0] & 1
+                continue
+            per = 2 if wide else 1
+            n = min(left, (len(self.c[self.i]) - self.o) // per)
+            if n == 0:
+                raise ValueError('SST: podział w środku znaku UTF-16')
+            b = self.c[self.i][self.o:self.o + n * per]
+            self.o += n * per
+            chars.append(b.decode('utf-16-le') if wide else b.decode('latin-1'))
+            left -= n
+        self.take(4 * runs); self.take(extlen)
+        return ''.join(chars)
+
+
+def _jpx_short_str(data, off):
+    """Rekord LABEL / STRING: długość (2 B), bajt opcji, znaki."""
+    import struct
+    cch, fl = struct.unpack_from('<HB', data, off)
+    off += 3 + (2 if fl & 8 else 0) + (4 if fl & 4 else 0)
+    return data[off:off + cch * 2].decode('utf-16-le') if fl & 1 else data[off:off + cch].decode('latin-1')
+
+
+def _jpx_biff(wb):
+    """[(nazwa karty, {(wiersz, kolumna): wartość})] ze strumienia BIFF8. Tylko rekordy z wartościami komórek."""
+    import struct
+    recs, pos = [], 0
+    while pos + 4 <= len(wb):
+        typ, ln = struct.unpack_from('<HH', wb, pos)
+        recs.append((typ, wb[pos + 4:pos + 4 + ln])); pos += 4 + ln
+    if not recs or recs[0][0] != 0x0809:
+        raise ValueError('brak rekordu BOF')
+    sst, sheets, i = [], [], 0
+    while i < len(recs):
+        typ, data = recs[i]
+        if typ == 0x0085:                                  # BOUNDSHEET
+            off, = struct.unpack_from('<I', data, 0)
+            cch, fl = data[6], data[7]
+            nm = data[8:8 + cch * 2].decode('utf-16-le') if fl & 1 else data[8:8 + cch].decode('latin-1')
+            if data[5] == 0:
+                sheets.append((nm, off))
+        elif typ == 0x00FC:                                # SST + CONTINUE
+            chunks, j = [data[8:]], i + 1
+            while j < len(recs) and recs[j][0] == 0x003C:
+                chunks.append(recs[j][1]); j += 1
+            rd = _JpxCont(chunks)
+            sst = [rd.string() for _ in range(struct.unpack_from('<I', data, 4)[0])]
+            i = j; continue
+        elif typ == 0x000A:
+            break
+        i += 1
+    out = []
+    for nm, off in sheets:
+        cells, pend, pos = {}, None, off
+        while pos + 4 <= len(wb):
+            typ, ln = struct.unpack_from('<HH', wb, pos)
+            data = wb[pos + 4:pos + 4 + ln]; pos += 4 + ln
+            if typ == 0x000A:
+                break
+            if typ in (0x00FD, 0x0203, 0x027E, 0x0204, 0x0006, 0x0205):
+                r, c = struct.unpack_from('<HH', data, 0)
+            if typ == 0x00FD:                              # LABELSST
+                k, = struct.unpack_from('<I', data, 6); cells[(r, c)] = sst[k] if k < len(sst) else None
+            elif typ == 0x0203:                            # NUMBER
+                cells[(r, c)] = struct.unpack_from('<d', data, 6)[0]
+            elif typ == 0x027E:                            # RK
+                cells[(r, c)] = _jpx_rk(struct.unpack_from('<I', data, 6)[0])
+            elif typ == 0x00BD:                            # MULRK
+                r, c0 = struct.unpack_from('<HH', data, 0)
+                for k in range((len(data) - 6) // 6):
+                    cells[(r, c0 + k)] = _jpx_rk(struct.unpack_from('<I', data, 4 + 6 * k + 2)[0])
+            elif typ == 0x0204:                            # LABEL
+                cells[(r, c)] = _jpx_short_str(data, 6)
+            elif typ == 0x0205:                            # BOOLERR
+                cells[(r, c)] = bool(data[6]) if data[7] == 0 else None
+            elif typ == 0x0006:                            # FORMULA (wynik liczbowy albo tekst w następnym rekordzie STRING)
+                res = data[6:14]
+                if res[6:8] == b'\xff\xff':
+                    pend = (r, c) if res[0] == 0 else None
+                    cells[(r, c)] = bool(res[2]) if res[0] == 1 else None
+                else:
+                    cells[(r, c)] = struct.unpack('<d', res)[0]
+            elif typ == 0x0207 and pend:                   # STRING po FORMULA
+                cells[pend] = _jpx_short_str(data, 0); pend = None
+        out.append((nm, cells))
+    return out
+
+
+def _jpx_ref(ref):
+    import re as _re
+    m = _re.match(r'([A-Z]{1,3})(\d+)$', ref or '')
+    if not m:
+        raise ValueError(f'zły adres komórki {ref!r}')
+    c = 0
+    for ch in m.group(1):
+        c = c * 26 + ord(ch) - 64
+    return int(m.group(2)) - 1, c - 1
+
+
+def _jpx_xlsx(raw):
+    """[(nazwa karty, {(wiersz, kolumna): wartość})] z .xlsx; czytane tylko części wskazane przez workbook.xml; limit rozpakowania (bomba zip).
+    Napisy z wymową (<rPh>, częste w plikach japońskich) — bez wymowy."""
+    import xml.etree.ElementTree as ET
+    import zipfile
+    z = zipfile.ZipFile(io.BytesIO(raw))
+    if sum(i.file_size for i in z.infolist()) > JPX_UNZIP_MAX:
+        raise ValueError('xlsx za duży po rozpakowaniu')
+    ns = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+    rns = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
+    sst = []
+    if 'xl/sharedStrings.xml' in z.namelist():
+        for si in ET.fromstring(z.read('xl/sharedStrings.xml')).iter(ns + 'si'):
+            t0 = si.find(ns + 't')
+            parts = [t0] if t0 is not None else [r.find(ns + 't') for r in si.findall(ns + 'r')]
+            sst.append(''.join((t.text or '') for t in parts if t is not None))
+    rels = {r.get('Id'): r.get('Target') or '' for r in ET.fromstring(z.read('xl/_rels/workbook.xml.rels'))}
+    out = []
+    for sh in ET.fromstring(z.read('xl/workbook.xml')).iter(ns + 'sheet'):
+        tgt = rels.get(sh.get(rns + 'id'), '')
+        cells = {}
+        for row in ET.fromstring(z.read(tgt.lstrip('/') if tgt.startswith('/') else 'xl/' + tgt)).iter(ns + 'row'):
+            rr = int(row.get('r')) - 1 if row.get('r') else None
+            for kk, c in enumerate(row.findall(ns + 'c')):
+                r, k = _jpx_ref(c.get('r')) if c.get('r') else (rr, kk)
+                t, v = c.get('t'), c.find(ns + 'v')
+                if t == 's' and v is not None:
+                    i = int(v.text); cells[(r, k)] = sst[i] if 0 <= i < len(sst) else None
+                elif t == 'inlineStr':
+                    cells[(r, k)] = ''.join(x.text or '' for x in c.iter(ns + 't'))
+                elif t == 'str' and v is not None:
+                    cells[(r, k)] = v.text
+                elif t == 'b' and v is not None:
+                    cells[(r, k)] = v.text == '1'
+                elif t == 'e':
+                    cells[(r, k)] = None
+                elif v is not None and v.text is not None:
+                    cells[(r, k)] = float(v.text)
+        out.append((sh.get('name'), cells))
+    return out
+
+
+def jpx_sheets(raw):
+    """Karty pliku .xls (OLE2) albo .xlsx (zip) — po pierwszych bajtach. Uszkodzony / ucięty / obcy plik (np. strona HTML 404) → ValueError."""
+    import struct
+    import xml.etree.ElementTree as ET
+    import zipfile
+    try:
+        if raw[:4] == b'PK\x03\x04':
+            return _jpx_xlsx(raw)
+        try:
+            wb = _jpx_cfb_stream(raw, 'Workbook')
+        except ValueError as e:
+            if 'brak strumienia' not in str(e):
+                raise
+            wb = _jpx_cfb_stream(raw, 'Book')
+        return _jpx_biff(wb)
+    except (struct.error, IndexError, KeyError, UnicodeDecodeError, OverflowError, zipfile.BadZipFile, ET.ParseError, TypeError, AttributeError) as e:
+        raise ValueError(f'uszkodzony plik ({type(e).__name__})') from None
+
+
+# ---------------------------------------------------------------- odczyt tygodni z obu formatów (tys. JPY, liczby całkowite)
+JPX_OLD_ROWS = {'自己計': 'prop', '委託計': 'brk', '総計': 'tot', '法人': 'inst', '個人': 'ind', '海外投資家': 'for', '証券会社': 'sec',
+                '投資信託': 'it', '事業法人': 'bus', 'その他法人等': 'oth', '金融機関': 'fin', '生保・損保': 'life', '都銀・地銀等': 'bank',
+                '信託銀行': 'trb', 'その他金融機関': 'ofin'}
+JPX_NEW_GR = ('prop_cash', 'prop_margin', 'ind_cash', 'ind_margin', 'for_inst', 'for_ind', 'sec', 'it', 'bus', 'oth', 'life', 'bank', 'trb', 'ofin')
+
+
+def _jpx_num(x):
+    if isinstance(x, bool):
+        return None
+    if isinstance(x, (int, float)):
+        return float(x) if x == x and abs(x) != float('inf') else None
+    s = str(x if x is not None else '').replace(',', '').replace('△', '-').strip()
+    if s in ('', '-', '－'):
+        return None
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    return v if v == v and abs(v) != float('inf') else None
+
+
+def _jpx_clean(s):
+    return re.sub(r'[\s　 ]+', '', str(s if s is not None else ''))
+
+
+def _jpx_check(cond, msg):
+    if not cond:
+        raise ValueError(msg)
+
+
+def _jpx_int(v):
+    _jpx_check(v is not None and v == int(v), f'liczba niecałkowita {v!r}')
+    return int(v)
+
+
+def _jpx_old_dates(title, lab_prev, lab_cur):
+    """'2026年9月第2週 2026/9 week2  ( 9/7 - 9/11 )' + '08/31～09/04' + '09/07～09/11' → ((od, do) poprzedni, (od, do) ostatni)."""
+    m = re.search(r'(\d{4})/(\d{1,2})\s*week\s*(\d)\s*\(\s*(\d{1,2})/(\d{1,2})\s*-\s*(\d{1,2})/(\d{1,2})\s*\)', title)
+    _jpx_check(m, f'tytuł bez dat tygodnia: {title[:60]!r}')
+    y, mo, _, m1, d1, m2, d2 = map(int, m.groups())
+    y_end = y - 1 if (mo == 1 and m2 == 12) else (y + 1 if (mo == 12 and m2 == 1) else y)
+    end = datetime.date(y_end, m2, d2)
+    start = datetime.date(end.year - (1 if m1 > m2 else 0), m1, d1)
+
+    def lab(s, before):
+        mm = re.match(r'^(\d{2})/(\d{2})～(\d{2})/(\d{2})$', _jpx_clean(s))
+        _jpx_check(mm, f'etykieta tygodnia {s!r}')
+        a1, b1, a2, b2 = map(int, mm.groups())
+        e = datetime.date(before.year, a2, b2)
+        if e > before:
+            e = datetime.date(before.year - 1, a2, b2)
+        return datetime.date(e.year - (1 if a1 > a2 else 0), a1, b1), e
+
+    cur = lab(lab_cur, end)
+    _jpx_check(cur == (start, end), f'tytuł {start}..{end} ≠ etykieta {cur}')
+    prev = lab(lab_prev, start - datetime.timedelta(days=1))
+    _jpx_check(prev[1] < start and (start - prev[1]).days <= 11, 'poprzedni tydzień nie przylega')
+    return prev, cur
+
+
+def jpx_parse_old(raw):
+    """stock_val_1_YYMMWW.xls → [poprzedni tydzień, ostatni tydzień], każdy {'from','to','k':{kategoria:[sprzedaż, kupno]},'fmt','raw_unit'} (tys. JPY).
+    Tożsamości: saldo = kupno − sprzedaż (saldo w wierszu sprzedaży albo zakupów; zero = brak salda), maklerskie = osoby + zagranica + domy
+    maklerskie + instytucje, instytucje = fundusze + firmy + inne firmy + finansowe, finansowe = ubezpieczyciele + banki + banki powiernicze +
+    inne, razem = własny rachunek + maklerskie. Cokolwiek się nie zgadza → ValueError."""
+    sh = jpx_sheets(raw)
+    nm, c = next(((n, x) for n, x in sh if 'Nagoya' in str(n)), (None, None))
+    _jpx_check(c is not None, 'brak karty „Tokyo & Nagoya”')
+    unit = _jpx_clean(c.get((4, 10)) or next((v for v in c.values() if isinstance(v, str) and '1,000yen' in _jpx_clean(v)), ''))
+    _jpx_check('1,000yen' in unit or '千円' in unit, f'jednostka {unit!r}')
+    labs = sorted((k, v) for (r, k), v in c.items() if isinstance(v, str) and re.match(r'^\d{2}/\d{2}～\d{2}/\d{2}$', _jpx_clean(v)))
+    _jpx_check(len(labs) == 2, f'{len(labs)} etykiet tygodni')
+    (kp, vp), (kc, vc) = labs
+    title = str(c.get((3, 0)) or next((v for v in c.values() if isinstance(v, str) and 'week' in v and '(' in v), ''))
+    (pf, pt), (cf, ct) = _jpx_old_dates(title, vp, vc)
+    rows = {}
+    for (r, k), v in c.items():
+        if k == 0 and isinstance(v, str) and _jpx_clean(c.get((r, 2))) == 'Sales' and _jpx_clean(v) in JPX_OLD_ROWS:
+            key = JPX_OLD_ROWS[_jpx_clean(v)]
+            _jpx_check(key not in rows, f'powtórzony wiersz {key}')
+            rows[key] = r
+    _jpx_check(set(rows) == set(JPX_OLD_ROWS.values()), f'brak wierszy {sorted(set(JPX_OLD_ROWS.values()) - set(rows))}')
+    weeks = []
+    for f, t, col in ((pf, pt, kp + 1), (cf, ct, kc + 1)):     # kolumna wartości = kolumna etykiety + 1; saldo + 3 (w jednym z dwóch wierszy)
+        K = {}
+        for key, r in rows.items():
+            s, b = _jpx_num(c.get((r, col))), _jpx_num(c.get((r + 1, col)))
+            _jpx_check(s is not None and b is not None and s >= 0 and b >= 0, f'{key}: pusta albo ujemna komórka')
+            bal = [x for x in (_jpx_num(c.get((r, col + 2))), _jpx_num(c.get((r + 1, col + 2)))) if x is not None]
+            _jpx_check(len(bal) <= 1 and (bal[0] == b - s if bal else b == s), f'{key}: saldo ≠ kupno − sprzedaż')
+            K[key] = [_jpx_int(s), _jpx_int(b)]
+        for i in (0, 1):
+            _jpx_check(K['brk'][i] == sum(K[x][i] for x in ('ind', 'for', 'sec', 'inst')), 'maklerskie ≠ suma części')
+            _jpx_check(K['inst'][i] == sum(K[x][i] for x in ('it', 'bus', 'oth', 'fin')), 'instytucje ≠ suma części')
+            _jpx_check(K['fin'][i] == sum(K[x][i] for x in ('life', 'bank', 'trb', 'ofin')), 'finansowe ≠ suma części')
+            _jpx_check(K['tot'][i] == K['prop'][i] + K['brk'][i], 'razem ≠ własny rachunek + maklerskie')
+        weeks.append({'from': f.isoformat(), 'to': t.isoformat(), 'k': {x: K[x] for x in JPX_CATS}, 'fmt': 'xls', 'raw_unit': 'kJPY'})
+    return weeks
+
+
+def _jpx_new_key(l3, l5):
+    l3, l5 = _jpx_clean(l3), _jpx_clean(l5)
+    if 'Proprietary' in l3:
+        return 'prop_cash' if 'Cash' in l5 else 'prop_margin' if 'Margin' in l5 else None
+    if 'Individuals' in l3:
+        return 'ind_cash' if 'Cash' in l5 else 'ind_margin' if 'Margin' in l5 else None
+    if 'Foreigners' in l3:
+        return 'for_inst' if 'Institutions' in l5 else 'for_ind' if 'Individuals' in l5 else None
+    if 'Securities' in l3:
+        return 'sec' if 'Securities' in l5 else None
+    if 'Institutions' in l3:
+        for word, key in (('InvestmentTrusts', 'it'), ('BusinessCos', 'bus'), ('OtherCos', 'oth'), ('Life&Non-Life', 'life'),
+                          ('City&Regional', 'bank'), ('TrustBK', 'trb'), ('OtherFinancial', 'ofin')):
+            if word in l5:
+                return key
+    return None
+
+
+def jpx_parse_new(raw, fname):
+    """stock_1_w_YYYYMMDD_YYYYMMDD.xlsx → [tydzień] (tys. JPY). Daty z nazwy pliku (sprawdzane kodem tygodnia RRRRMMT w pliku), 14 grup po
+    etykietach (nieznana, brakująca albo powtórzona grupa → odmowa, nigdy zgadywanie pozycji), wiersz wartości rynku „Tokyo & Nagoya”;
+    w każdej grupie saldo = kupno − sprzedaż i suma = kupno + sprzedaż; „Tokio i Nagoja” ≥ suma trzech rynków Tokio (z tolerancją zaokrągleń).
+    Jednostka po wielkości: suma sprzedaży 14 grup > JPX_KYEN_MAX → jeny (÷ 1000), inaczej tys. JPY (raw_unit)."""
+    m = re.search(r'stock_1_w_(\d{8})_(\d{8})\.xlsx$', fname or '')
+    _jpx_check(m, f'nazwa pliku {fname!r}')
+    try:
+        f = datetime.datetime.strptime(m.group(1), '%Y%m%d').date(); t = datetime.datetime.strptime(m.group(2), '%Y%m%d').date()
+    except ValueError:
+        raise ValueError(f'zła data w nazwie {fname!r}') from None
+    _jpx_check(0 <= (t - f).days <= 6, 'tydzień dłuższy niż 7 dni')
+    sh = jpx_sheets(raw)
+    _jpx_check(len(sh) >= 1, 'brak karty')
+    c = sh[0][1]
+    hdrs = sorted({r for (r, k), v in c.items() if k == 3 and _jpx_clean(v).endswith('Sales')})
+    _jpx_check(len(hdrs) == 1 and hdrs[0] >= 3, f'wiersz nagłówka „Sales”: {hdrs}')
+    hdr = hdrs[0]
+    starts = sorted(k for (r, k), v in c.items() if r == hdr and _jpx_clean(v).endswith('Sales'))
+
+    def left(row, col):                      # scalony nagłówek: wartość w najbardziej lewej komórce grupy
+        ks = [k for (r, k), v in c.items() if r == row and k <= col and _jpx_clean(v)]
+        return c.get((row, max(ks))) if ks else ''
+    groups = {}
+    for k in starts:
+        h = [_jpx_clean(c.get((hdr, k + i))) for i in range(4)]
+        _jpx_check(h[1].endswith('Purchases') and h[2].endswith('Balance') and h[3].endswith('Total'), f'grupa w kolumnie {k}: {h}')
+        key = _jpx_new_key(left(hdr - 3, k), c.get((hdr - 1, k)) or left(hdr - 2, k))
+        _jpx_check(key and key not in groups, f'nieznana albo powtórzona grupa w kolumnie {k}: {key}')
+        groups[key] = k
+    _jpx_check(set(groups) == set(JPX_NEW_GR), f'brak grup {sorted(set(JPX_NEW_GR) - set(groups))}')
+    mk = {}
+    for (r, k), v in c.items():
+        if k == 1 and isinstance(v, str) and r > hdr:
+            x = _jpx_clean(v)
+            name = 'tn' if 'Tokyo&Nagoya' in x else 'pr' if 'Prime' in x else 'st' if 'Standard' in x else 'gr' if 'Growth' in x else None
+            if name:
+                _jpx_check(name not in mk, f'powtórzony rynek {name}')
+                vr = next((rr for rr in (r, r + 1) if 'Value' in _jpx_clean(c.get((rr, 2)))), None)
+                mk[name] = vr
+    _jpx_check(mk.get('tn') is not None, 'brak wiersza wartości rynku „Tokyo & Nagoya”')
+    codes = {re.sub(r'\.0$', '', str(v).strip()) for (r, k), v in c.items() if k == 0 and r > hdr and re.match(r'^\d{7}(\.0)?$', str(v).strip())}
+    _jpx_check(len(codes) == 1, f'kody tygodnia {sorted(codes)}')
+    code = codes.pop()
+    _jpx_check(code[:6] in (f.strftime('%Y%m'), t.strftime('%Y%m')) and 1 <= int(code[6]) <= 6, f'kod tygodnia {code!r} ≠ {f}..{t}')
+    vr = mk['tn']
+    G = {}
+    for key, k in groups.items():
+        s, b, bal, tot = (_jpx_num(c.get((vr, k + i))) for i in range(4))
+        _jpx_check(None not in (s, b, bal, tot) and s >= 0 and b >= 0, f'{key}: pusta albo ujemna komórka')
+        _jpx_check(abs(bal - (b - s)) < 0.5 and abs(tot - (s + b)) < 0.5, f'{key}: saldo albo suma niezgodne')
+        G[key] = [s, b]
+    total = sum(G[x][0] for x in JPX_NEW_GR)
+    raw_unit = 'JPY' if total > JPX_KYEN_MAX else 'kJPY'
+    div = 1000 if raw_unit == 'JPY' else 1
+    if all(mk.get(x) is not None for x in ('pr', 'st', 'gr')):      # „Tokio i Nagoja” zawiera trzy rynki Tokio (+ Nagoja ≥ 0)
+        for key, k in groups.items():
+            for i in (0, 1, 3):
+                tn = _jpx_num(c.get((vr, k + i))); part = [_jpx_num(c.get((mk[x], k + i))) for x in ('pr', 'st', 'gr')]
+                _jpx_check(tn is not None and None not in part and tn >= sum(part) - 5 * div, f'{key}: „Tokio i Nagoja” mniejsze niż rynki Tokio')
+    for key in G:
+        for i in (0, 1):
+            _jpx_check(G[key][i] == int(G[key][i]), f'{key}: liczba niecałkowita')
+    kk = lambda *names: [int((sum(int(G[x][i]) for x in names) + div // 2) // div) for i in (0, 1)]   # noqa: E731 — jeny → tys. JPY (połówka w górę)
+    K = {'prop': kk('prop_cash', 'prop_margin'), 'ind': kk('ind_cash', 'ind_margin'), 'for': kk('for_inst', 'for_ind'),
+         'sec': kk('sec'), 'it': kk('it'), 'bus': kk('bus'), 'oth': kk('oth'), 'trb': kk('trb'), 'fin': kk('life', 'bank', 'trb', 'ofin'),
+         'brk': kk('ind_cash', 'ind_margin', 'for_inst', 'for_ind', 'sec', 'it', 'bus', 'oth', 'life', 'bank', 'trb', 'ofin')}
+    return [{'from': f.isoformat(), 'to': t.isoformat(), 'k': {x: K[x] for x in JPX_CATS}, 'fmt': 'xlsx', 'raw_unit': raw_unit, 'code': code}]
+
+
+def jpx_parse(raw, fname):
+    return jpx_parse_new(raw, fname) if str(fname).endswith('.xlsx') else jpx_parse_old(raw)
+
+
+def jpx_week_ok(w, today):
+    """Tydzień przed scaleniem: daty (od ≤ do, najwyżej 7 dni, od 2016 r., nie z przyszłości — dzień w Japonii), wiarygodna skala
+    (obrót brutto zleceń maklerskich 3–500 bln JPY tygodniowo — błąd jednostki × 1000 nie przejdzie), zagranica ≤ maklerskie. Zły → ValueError."""
+    f, t = _d(w.get('from')), _d(w.get('to'))
+    _jpx_check(f and t and f <= t and (t - f).days <= 6, f'daty tygodnia {w.get("from")}..{w.get("to")}')
+    _jpx_check(w['from'] >= JPX_FROM_MIN and t <= today, f'tydzień {w["to"]} poza zakresem (od {JPX_FROM_MIN} do {today})')
+    K = w.get('k') or {}
+    _jpx_check(all(isinstance(K.get(x), list) and len(K[x]) == 2 and all(isinstance(v, int) and not isinstance(v, bool) and v >= 0 for v in K[x])
+                   for x in JPX_CATS), 'brak kategorii albo zła liczba')
+    g = K['brk'][0] + K['brk'][1]
+    _jpx_check(JPX_GROSS[0] <= g <= JPX_GROSS[1], f'obrót maklerski {g:.3g} tys. JPY poza zakresem — błąd jednostki?')
+    _jpx_check(K['for'][0] + K['for'][1] <= g, 'zagranica większa niż obrót maklerski')
+    return True
+
+
+def jpx_row(w):
+    """Tydzień (tys. JPY) → wiersz pliku w kolejności JPX_COLS, mln JPY całkowite (połówka w górę; błąd ≤ 0,5 mln)."""
+    row = [w['from'], w['to']]
+    for col in JPX_COLS[2:]:
+        cat, side = col.rsplit('_', 1)
+        row.append((w['k'][cat][0 if side == 's' else 1] + 500) // 1000)
+    return row
+
+
+def _jpx_row_ok(r):
+    return (isinstance(r, list) and len(r) == len(JPX_COLS) and _d(r[0]) is not None and _d(r[1]) is not None and r[0] <= r[1]
+            and all(isinstance(v, int) and not isinstance(v, bool) and v >= 0 for v in r[2:]))
+
+
+# ---------------------------------------------------------------- lista i archiwa (adresy plików zmienne — tylko z tych stron)
+JPX_MON = {m: i + 1 for i, m in enumerate(('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'))}
+
+
+def _jpx_label(s):
+    """'Sep 2026, Week4（9/24 - 9/25）' → (od, do) albo None. Rok końca z miesiąca etykiety (tydzień na przełomie roku)."""
+    m = re.search(r'([A-Z][a-z]{2})\.?\s+(\d{4}),\s*Week\s*(\d)\s*[（(]\s*(\d{1,2})/(\d{1,2})\s*-\s*(\d{1,2})/(\d{1,2})\s*[）)]', s)
+    if not m or m.group(1) not in JPX_MON:
+        return None
+    mo, y = JPX_MON[m.group(1)], int(m.group(2))
+    m1, d1, m2, d2 = (int(x) for x in m.groups()[3:])
+    y2 = y - 1 if (mo == 1 and m2 == 12) else (y + 1 if (mo == 12 and m2 == 1) else y)
+    try:
+        t = datetime.date(y2, m2, d2); f = datetime.date(y2 - (1 if m1 > m2 else 0), m1, d1)
+    except ValueError:
+        return None
+    return (f.isoformat(), t.isoformat()) if f <= t and (t - f).days <= 6 else None
+
+
+def jpx_links(html):
+    """Strona listy albo archiwum → {'new': [(od, do, ścieżka)], 'old': [(kod, ścieżka, (od, do) | None)], 'arch': {rok: 'NN'}, 'upd': tekst | None}.
+    Pliki .pdf i stock_vol (liczba akcji) pomijane; daty nowego formatu z nazwy pliku, starego — z etykiety wiersza tabeli (strona angielska)."""
+    s = html.decode('utf-8', 'replace') if isinstance(html, (bytes, bytearray)) else str(html)
+    new, old, seen = [], [], set()
+    for chunk in re.split(r'<tr[\s>]', s):
+        lab = _jpx_label(re.sub(r'<[^>]+>', ' ', chunk))
+        for p, a, b in re.findall(r'href="(?:https?://www\.jpx\.co\.jp)?(/[^"]*/stock_1_w_(\d{8})_(\d{8})\.xlsx)"', chunk):   # względne albo bezwzględne
+            if p not in seen:
+                seen.add(p); new.append((f'{a[:4]}-{a[4:6]}-{a[6:]}', f'{b[:4]}-{b[4:6]}-{b[6:]}', p))
+        for p, code in re.findall(r'href="(?:https?://www\.jpx\.co\.jp)?(/[^"]*/stock_val_1_(\d{6})\.xls)"', chunk):
+            if p not in seen:
+                seen.add(p); old.append((code, p, lab))
+    arch = {y: n for n, y in re.findall(r'<option[^>]*value="[^"]*00-00-archives-(\d{2})\.html"[^>]*>\s*(\d{4})\s*年?\s*<', s)}
+    upd = re.search(r'Update\s*:\s*([A-Z][a-z]{2}\.?\s*\d{1,2},\s*\d{4})', s)
+    return {'new': sorted(new, key=lambda x: x[1]), 'old': sorted(old, key=lambda x: (x[2] or ('', ''))[1] or x[0]), 'arch': arch,
+            'upd': upd.group(1) if upd else None}
+
+
+# ---------------------------------------------------------------- kalendarz publikacji (4. dzień roboczy następnego tygodnia)
+def jpx_bday(d):
+    """Dzień sesji w Tokio: pon–pt, bez świąt z JPX_SWIETA i bez 31.12 oraz 1–3.01."""
+    return d.weekday() < 5 and d.isoformat() not in JPX_SWIETA and not ((d.month == 12 and d.day == 31) or (d.month == 1 and d.day <= 3))
+
+
+def jpx_release(day):
+    """Dzień publikacji danych tygodnia zawierającego `day`: 4. dzień roboczy, licząc od poniedziałku następnego tygodnia."""
+    d, n = day - datetime.timedelta(days=day.weekday()) + datetime.timedelta(days=7), 0
+    for _ in range(40):
+        if jpx_bday(d):
+            n += 1
+            if n == 4:
+                return d
+        d += datetime.timedelta(days=1)
+    return d
+
+
+def jpx_next_release(asof):
+    """Spodziewana publikacja NASTĘPNEGO tygodnia po tygodniu z ostatnim dniem `asof` (pierwszy następny tydzień z co najmniej jedną sesją)."""
+    m = asof - datetime.timedelta(days=asof.weekday()) + datetime.timedelta(days=7)
+    for k in range(6):
+        w0 = m + datetime.timedelta(days=7 * k)
+        if any(jpx_bday(w0 + datetime.timedelta(days=i)) for i in range(5)):
+            return jpx_release(w0)
+    return jpx_release(m)
+
+
+def jpx_due(asof):
+    """Chwila (UTC), od której lista jest sprawdzana co godzinę: 06:25 UTC w dniu spodziewanej publikacji (publikacja ok. 06:30 UTC)."""
+    r = jpx_next_release(asof)
+    return datetime.datetime(r.year, r.month, r.day, 6, 25, tzinfo=datetime.timezone.utc)
+
+
+# ---------------------------------------------------------------- pobieranie
+def _jpx_get(url, ims=None, timeout=JPX_TIMEOUT):
+    """GET bez klucza z odstępem JPX_SLEEP od poprzedniego zapytania do serwera giełdy → (status, treść, Last-Modified). 304 → (304, b'', None).
+    Limit rozmiaru JPX_MAX_BYTES; inne błędy HTTP i sieci — wyjątek."""
+    wait = JPX_SLEEP - (time.monotonic() - _JPX_LAST[0])
+    if wait > 0:
+        time.sleep(wait)
+    h = {'User-Agent': 'CapitalFlowAI-collector/1.0'}
+    if ims:
+        h['If-Modified-Since'] = ims
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=timeout) as r:
+            body = r.read(JPX_MAX_BYTES + 1)
+            if len(body) > JPX_MAX_BYTES:
+                raise ValueError('odpowiedź większa niż limit')
+            return r.status, body, r.headers.get('Last-Modified')
+    except urllib.error.HTTPError as e:
+        if e.code == 304:
+            return 304, b'', None
+        raise
+    finally:
+        _JPX_LAST[0] = time.monotonic()
+
+
+def _jpx_iso(t):
+    return t.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _jpx_ts(s):
+    try:
+        t = datetime.datetime.fromisoformat(str(s))
+        return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _jpx_lm_iso(lm):
+    try:
+        import email.utils
+        return _jpx_iso(email.utils.parsedate_to_datetime(lm))
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+class _JpxBudget(Exception):
+    pass
+
+
+def _jpx_merge(rows, weeks, mode, notes, kor=None):
+    """Scalenie tygodni (już sprawdzonych) z {do: wiersz}. mode 'fwd' (lista: nowsza publikacja) — ten sam tydzień z innymi liczbami zastępuje
+    stary i daje notatkę o korekcie; 'back' (historia wstecz: starsza publikacja) — tylko brakujące tygodnie, zapisane nigdy nie są nadpisywane
+    (tydzień z nowszego pliku wygrywa — to reguła szwu obu formatów). Tydzień nachodzący na inny zapisany tydzień (inne `do`) → odrzucony.
+    → liczba zmienionych wierszy."""
+    n = 0
+    for w in weeks:
+        r = jpx_row(w)
+        old = rows.get(r[1])
+        if old is None:
+            hit = next((x for x in rows.values() if x[0] <= r[1] and r[0] <= x[1]), None)
+            if hit:
+                notes.append(f'{JPX_LABEL}: tydzień {r[0]}–{r[1]} nachodzi na zapisany {hit[0]}–{hit[1]} — odrzucony')
+                continue
+            rows[r[1]] = r; n += 1
+        elif old != r and mode == 'fwd':
+            rows[r[1]] = r; n += 1
+            notes.append(f'{JPX_LABEL}: korekta tygodnia {r[0]}–{r[1]} (nowsza publikacja zastąpiła liczby)')
+            if kor is not None:
+                kor.append(f'korekta tygodnia {r[0]}–{r[1]}: nowsza publikacja zastąpiła liczby w pliku')
+    return n
+
+
+def _jpx_tr_rows(S):
+    """TRENDY: wiersz jpx_for — zakupy netto inwestorów zagranicznych na giełdzie (mld JPY tygodniowo; ≈ mln USD po średnim kursie miesiąca),
+    jak wiersze jp_eq / jp_bd. Kolumny po nazwach z `cols`; brak pliku = brak wiersza; brakujący tydzień = None (luka, nie zero)."""
+    J = S.get('jpx') if isinstance(S.get('jpx'), dict) else {}
+    cols = J.get('cols') if isinstance(J.get('cols'), list) else []
+    if not ('for_s' in cols and 'for_b' in cols and 'to' in cols):
+        return []
+    i_s, i_b, i_t = cols.index('for_s'), cols.index('for_b'), cols.index('to')
+    d = [r for r in J.get('d') or [] if isinstance(r, list) and len(r) == len(cols) and _d(r[i_t])]
+    if not d:
+        return []
+    ds = [r[i_t] for r in d]
+    vals = [(r[i_b] - r[i_s]) / 1000 if _isnum(r[i_s]) and _isnum(r[i_b]) else None for r in d]   # mln → mld JPY
+    wd, wv = _tr_weeks(ds, vals)
+    fx = [_rate_for(_jpy_per_usd(S), x[:7]) for x in wd]
+    usd = [v * 1000 / rt if _isnum(v) and rt else None for v, (_, rt) in zip(wv, fx)]
+    r = _tr_row('jpx_for', 'eq', 'flow', 1, wd, wv, usd=usd, weekly_days=20, cur='JPY')
+    if r and fx and fx[-1][0]:
+        r['fxm'] = fx[-1][0]
+    return [r]
+
+
+def build_jpx(prev=None, S=None, now=None, get=None):
+    """data/jpx.json — tydzień po tygodniu: kupno i sprzedaż akcji na giełdach w Tokio i Nagoi według rodzaju inwestora (mln JPY).
+    Kroki (każdy osobno; błąd części = notatka w META i poprzednie dane, nigdy zero):
+    1. lista: co JPX_IDLE_MIN, a od spodziewanej publikacji (jpx_due) albo przy zaległym tygodniu (`pend`) co JPX_DUE_MIN; strona angielska,
+       zapasowo japońska. If-Modified-Since tylko bez zaległości, a Last-Modified listy zapisywany DOPIERO, gdy wszystkie tygodnie z listy
+       nowsze niż ostatni zapisany są w pliku — chwilowy błąd pliku (sieć, 5xx, 404, zły plik, budżet czasu) albo lista bez plików (zmiana
+       układu strony) nigdy nie zamienia się w 304 bez ponowienia;
+    2. nowe tygodnie z listy (do > asof): najwyżej JPX_NEW_MAX plików, najstarsze najpierw; scalenie 'fwd' (nowsza publikacja zastępuje liczby,
+       korekta zostaje w pliku JPX_KOREKTA_DNI dni); tygodnie ≤ asof z listy (starsze publikacje) nigdy nie są pobierane w tym kroku;
+    3. rejestr korekt źródła raz na dobę (If-Modified-Since), po błędzie najwcześniej po JPX_REV_RETRY min — zmiana = informacja w pliku
+       (poprawianie zapisanych tygodni na jej podstawie to następna wersja; dziś tylko informacja);
+    4. historia wstecz do JPX_WEEKS tygodni: archiwum roczne (rok po roku), co drugi stary plik (niesie 2 tygodnie), najwyżej JPX_BF_FILES
+       plików i JPX_BACK_BUDGET s na przebieg (_back_ok: także granica BACK_LATE całego przebiegu); błąd sieci = przerwa JPX_BF_WAIT min.
+    BEZ poprzedniego pliku (pamięć Actions i strona puste) tylko lista i NAJNOWSZY plik (2 zapytania) — bez historii wstecz i rejestru korekt;
+    gdy źródło nie odpowiada albo plik jest zły: notatka (nie błąd) i None (nic do zapisania; kontrola dzienna: ⚠️ „brak pliku”).
+    Ustawia META['ok']['jpx']: 'cached' (bez zapytań i bez zaległości), True, False (lista albo plik z błędem, zaległy tydzień — także w przebiegu
+    bez zapytań, z notatką). `get` (testy) zastępuje _jpx_get; `now` — testy."""
+    S = S if isinstance(S, dict) else {}
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc)
+    get = get or _jpx_get
+    iso, today = _jpx_iso(now), (now + datetime.timedelta(hours=9)).date()
+    P = prev if isinstance(prev, dict) and prev.get('cols') == JPX_COLS and isinstance(prev.get('d'), list) else {}
+    rows = {r[1]: r for r in P.get('d') or [] if _jpx_row_ok(r)}
+    cold = not rows
+    out = {k: P[k] for k in ('at', 'chk', 'tried', 'lm', 'pub', 'fmt', 'raw_unit', 'rev_lm', 'rev_chk', 'rev_try', 'arch', 'arch_y') if k in P}
+    bf = dict(P['bf']) if isinstance(P.get('bf'), dict) else {}
+    ok = {k: v for k, v in (P.get('ok') or {}).items() if k in ('listing', 'file', 'backfill', 'revision')} if isinstance(P.get('ok'), dict) else {}
+    pend0 = [x for x in P.get('pend') or [] if isinstance(x, str)] if isinstance(P.get('pend'), list) else []
+    kor0 = [k for k in P.get('korekty') or [] if isinstance(k, list) and len(k) == 2 and isinstance(k[1], str) and _jpx_ts(k[0])
+            and now - _jpx_ts(k[0]) < datetime.timedelta(days=JPX_KOREKTA_DNI)] if isinstance(P.get('korekty'), list) else []
+    kor = []
+    notes, st = [], {'req': 0, 'kb': 0.0}
+    t0 = time.monotonic()
+    changed, problem = 0, False
+
+    def req(url, ims=None, end=None):
+        left = min(t0 + JPX_RUN_BUDGET, end or float('inf')) - time.monotonic() - JPX_SLEEP
+        if left < JPX_MIN_TMO:
+            raise _JpxBudget('budżet czasu kroku wyczerpany')
+        st['req'] += 1
+        code, body, lm = get(url, ims=ims, timeout=min(JPX_TIMEOUT, left))
+        st['kb'] += len(body or b'') / 1024
+        return code, body, lm
+
+    def fetch_weeks(path, label=None):
+        """Pobranie i odczyt jednego pliku → sprawdzone tygodnie (zły tydzień → ValueError)."""
+        code, body, lm = req(JPX_B + path)
+        _jpx_check(code == 200, f'HTTP {code}')
+        ws = jpx_parse(body, path.rsplit('/', 1)[-1])
+        for w in ws:
+            jpx_week_ok(w, today)
+        if label and label[1] != ws[-1]['to']:
+            raise ValueError(f'plik ma tydzień {ws[-1]["to"]}, lista podaje {label[1]}')
+        return ws, lm
+
+    asof = _d(max(rows)) if rows else None
+    last_try = _jpx_ts(P.get('tried'))
+    due = jpx_due(asof) if asof else None
+    arch_stale = not cold and not bf.get('done') and (not isinstance(P.get('arch'), dict) or not P['arch'] or P.get('arch_y') != now.year)
+    gap = JPX_DUE_MIN if (cold or arch_stale or pend0 or ok.get('listing') is False or (due and now >= due)) else JPX_IDLE_MIN
+    poll = cold or last_try is None or (now - last_try).total_seconds() >= gap * 60
+    bf0 = json.dumps(bf, sort_keys=True)
+    pend = list(pend0)
+    # 1–2. lista i nowe tygodnie
+    if poll:
+        out['tried'] = iso
+        L, via, lm_list = None, 'en', None
+        try:
+            code, body, lm_list = req(JPX_EN + 'index.html', ims=None if (cold or arch_stale or pend0) else P.get('lm'))
+            if code == 304:
+                ok['listing'] = True; out['chk'] = iso
+            else:
+                _jpx_check(code == 200, f'HTTP {code}')
+                L = jpx_links(body)
+        except Exception as e:  # noqa — strona angielska bywa spóźniona albo niedostępna (także budżet czasu): raz strona japońska (te same pliki)
+            notes.append(mask(f'{JPX_LABEL}: lista (strona angielska): {e}')[:160])
+            try:
+                code, body, _ = req(JPX_JA + 'index.html')
+                _jpx_check(code == 200, f'HTTP {code}')
+                L, via = jpx_links(body), 'ja'
+            except Exception as e2:  # noqa
+                notes.append(mask(f'{JPX_LABEL}: lista (strona japońska): {e2}')[:160])
+                ok['listing'] = False; problem = True
+        if L is not None:
+            ok['listing'] = True; out['chk'] = iso
+            if via == 'en' and L['arch']:
+                out['arch'], out['arch_y'] = L['arch'], now.year
+            cand = [(a, b, p, None) for a, b, p in L['new'] if b not in rows and (asof is None or b > asof.isoformat())]
+            if via == 'en' and not cold:             # stary format na liście: tylko tydzień nowszy niż ostatni zapisany (do 17.09.2026)
+                cand += [(lab[0], lab[1], p, lab) for _, p, lab in L['old'] if lab and lab[1] not in rows and lab[1] > asof.isoformat()]
+            cand.sort(key=lambda x: x[1])
+            want = cand[-JPX_NEW_COLD:] if cold else cand           # tygodnie, które muszą trafić do pliku, zanim zapiszemy Last-Modified listy
+            todo = want if cold else cand[:JPX_NEW_MAX]
+            if not L['new'] and not L['old']:
+                notes.append(f'{JPX_LABEL}: lista bez plików danych (zmiana układu strony?) — ponowienie przy następnym sprawdzeniu')
+                problem = True; ok['listing'] = False
+            for i, (a, b, p, lab) in enumerate(todo):
+                try:
+                    ws, lm = fetch_weeks(p, lab)
+                except _JpxBudget:
+                    notes.append(f'{JPX_LABEL}: budżet czasu — tygodnie ' + ', '.join(f'{x[0]}–{x[1]}' for x in todo[i:])
+                                 + f' przy następnym sprawdzeniu listy (najwcześniej za {JPX_DUE_MIN} min)')
+                    problem = True
+                    break
+                except Exception as e:  # noqa — zły plik albo sieć: tydzień nie wchodzi, poprzednie dane zostają; ponowienie przy następnym sprawdzeniu
+                    notes.append(mask(f'{JPX_LABEL}: plik tygodnia {a}–{b} odrzucony: {e} — ponowienie przy następnym sprawdzeniu listy')[:220])
+                    ok['file'] = False; problem = True
+                    continue
+                changed += _jpx_merge(rows, ws, 'fwd', notes, kor)
+                ok['file'] = True
+                if ws[-1]['to'] >= max(rows):
+                    out['pub'] = _jpx_lm_iso(lm) or out.get('pub'); out['fmt'] = ws[-1]['fmt']; out['raw_unit'] = ws[-1]['raw_unit']
+            pend = [b for a, b, p, lab in want if b not in rows]
+            if ok['listing'] is True and not pend and via == 'en' and lm_list:
+                out['lm'] = lm_list                          # wszystko z listy w pliku — od teraz If-Modified-Since
+    if cold:
+        if not rows:                                         # źródło nie odpowiada albo zły plik: notatka, nic do zapisania (bez błędu co przebieg)
+            META['notes'].extend(notes or [f'{JPX_LABEL}: lista bez nowego pliku'])
+            META['notes'].append(f'{JPX_LABEL}: brak poprzedniego pliku i brak danych z tego przebiegu — plik niezapisany, ponowienie w następnym przebiegu')
+            META['ok']['jpx'] = False
+            return None
+        bf = {'done': False, 'files': 0, 'pages': 0}
+    # 3. rejestr korekt źródła (raz na dobę; po błędzie najwcześniej po JPX_REV_RETRY min; pierwszy odczyt tylko zapamiętuje datę)
+    rc, rt = _jpx_ts(out.get('rev_chk')), _jpx_ts(out.get('rev_try'))
+    if not cold and (rc is None or (now - rc).total_seconds() >= JPX_REV_MIN * 60) and (rt is None or (now - rt).total_seconds() >= JPX_REV_RETRY * 60):
+        try:
+            code, body, lm = req(JPX_REV, ims=out.get('rev_lm'))
+        except _JpxBudget:
+            pass                                             # bez zapytania — próba w następnym przebiegu
+        except Exception as e:  # noqa — błąd: następna próba najwcześniej po JPX_REV_RETRY min (nie co przebieg)
+            out['rev_try'] = iso; ok['revision'] = False
+            notes.append(mask(f'{JPX_LABEL}: rejestr korekt: {e} — ponowienie najwcześniej za {JPX_REV_RETRY // 60} h')[:160])
+        else:
+            out['rev_try'] = out['rev_chk'] = iso; ok['revision'] = True
+            if code == 200 and lm:
+                if out.get('rev_lm') and lm != out['rev_lm']:
+                    msg = (f'źródło opublikowało nową informację o korekcie danych ({lm}) — zapisane tygodnie NIE są poprawiane automatycznie '
+                           '(to następna wersja); sprawdzić ręcznie')
+                    notes.append(f'{JPX_LABEL}: {msg}'); kor.append(msg)
+                out['rev_lm'] = lm
+    # 4. historia wstecz (tylko z poprzednim plikiem; budżet przebiegu)
+    if not cold and not bf.get('done'):
+        wait = _jpx_ts(bf.get('wait'))
+        if wait and now < wait:
+            ok['backfill'] = 'wait'
+        else:
+            bf.pop('wait', None)
+            r0, snap = st['req'], json.dumps(bf, sort_keys=True)
+            n = _jpx_backfill(rows, bf, out, now, today, req, notes)
+            changed += n
+            if st['req'] == r0 and not n and not bf.get('done'):
+                bf = json.loads(snap)                 # nic nie zrobiono (spóźniony przebieg, budżet, brak mapy archiwów) — stan bez zmian
+            else:
+                ok['backfill'] = True if bf.get('done') else ('wait' if bf.get('wait') else 'partial')
+    # wynik
+    d = [rows[k] for k in sorted(rows)][-JPX_WEEKS:]
+    if bf.get('done'):
+        bf = {k: bf[k] for k in ('done', 'files', 'pages', 'bad') if k in bf}
+        out.pop('arch', None); out.pop('arch_y', None)
+    if st['req'] == 0 and not changed and json.dumps(bf, sort_keys=True) == bf0 and len(kor0) == len(P.get('korekty') or []):
+        if ok.get('listing') is False or pend0:      # ostatnie sprawdzenie listy nieudane albo tydzień czeka — nie „w pamięci, wszystko dobrze”
+            META['notes'].append(f'{JPX_LABEL}: ostatnie sprawdzenie listy ({P.get("tried") or "—"}) '
+                                 + ('nieudane' if ok.get('listing') is False else 'zostawiło tygodnie ' + ', '.join(pend0))
+                                 + f' — ponowienie najwcześniej za {JPX_DUE_MIN} min od tamtej próby')
+            META['ok']['jpx'] = False
+        else:
+            META['ok']['jpx'] = 'cached'
+        return prev
+    last = d[-1]
+    rates = _jpy_per_usd(S)
+    m, rt = _rate_for(rates, last[1][:7]) if rates else (None, None)
+    fx = [m, round(rt, 3)] if m and _isnum(rt) and rt > 0 else (P.get('fx') if isinstance(P.get('fx'), list) else None)
+    if changed or ok.get('listing') is True and out.get('chk') == iso:
+        out['at'] = iso
+    out.update({'v': 1, 'src': 'jpx', 'unit': 'mln JPY', 'asof': last[1], 'week': last[:2], 'next': jpx_next_release(_d(last[1])).isoformat(),
+                'cols': JPX_COLS, 'd': d, 'fx': fx, 'bf': bf, 'ok': ok, 'notes': notes[-5:],
+                'run': {'at': iso, 'req': st['req'], 'kb': round(st['kb'], 1), 's': round(time.monotonic() - t0, 1)}})
+    if pend:
+        out['pend'] = sorted(pend)
+    kk = kor0 + [[iso, x] for x in kor]
+    if kk:
+        out['korekty'] = kk[-10:]
+    out.setdefault('at', iso)
+    META['notes'].extend(notes)
+    META['ok']['jpx'] = not problem and not pend and ok.get('listing') is not False
+    return out
+
+
+def _jpx_backfill(rows, bf, out, now, today, req, notes):
+    """Historia wstecz w budżecie przebiegu → liczba dopisanych tygodni. Archiwum roczne (mapa rok → numer strony z listy, odświeżana
+    w styczniu), w nim wiersze z datami tygodni; kolejka roku od najnowszego tygodnia; tydzień już zapisany (np. jako „poprzedni” w nowszym
+    starym pliku) jest pomijany — więc pobierany jest co drugi stary plik. Zły plik → `bad` (bez ponawiania), błąd sieci → przerwa JPX_BF_WAIT min."""
+    tb, n, files = time.monotonic(), 0, 0
+    newest = _d(max(rows))
+    lo = newest - datetime.timedelta(days=7 * (JPX_WEEKS - 1))
+    arch = out.get('arch') if isinstance(out.get('arch'), dict) else {}
+    bad = list(bf.get('bad') or [])
+    bf.setdefault('files', 0); bf.setdefault('pages', 0)
+    if bf.get('y') is None:
+        bf['y'] = newest.year
+    while files < JPX_BF_FILES:
+        if _d(min(rows)) <= lo + datetime.timedelta(days=3):
+            bf['done'] = True; break
+        if not _back_ok(tb, JPX_BACK_BUDGET, JPX_MIN_TMO + JPX_SLEEP):
+            break
+        end = tb + JPX_BACK_BUDGET
+        if bf.get('q') is None:                                   # rok jeszcze nieczytany: strona archiwum
+            y = bf['y']
+            if not arch:                                          # mapa archiwów nieznana (lista nie odpowiedziała) — bez końca historii
+                break
+            if y < max(lo.year, int(JPX_FROM_MIN[:4])) or str(y) not in arch:
+                bf['done'] = True; break
+            try:
+                code, body, _ = req(JPX_EN + f'00-00-archives-{arch[str(y)]}.html', end=end)
+                _jpx_check(code == 200, f'HTTP {code}')
+            except _JpxBudget:
+                break
+            except Exception as e:  # noqa
+                notes.append(mask(f'{JPX_LABEL}: archiwum {y}: {e}')[:160])
+                bf['wait'] = _jpx_iso(now + datetime.timedelta(minutes=JPX_BF_WAIT)); break
+            bf['pages'] += 1
+            L = jpx_links(body)
+            q = [[lab[1], p] for _, p, lab in L['old'] if lab and lab[1] >= lo.isoformat()]
+            q += [[b, p] for a, b, p in L['new'] if b >= lo.isoformat()]
+            yrs = [lab[1][:4] for _, _, lab in L['old'] if lab] + [b[:4] for _, b, _ in L['new']]
+            if yrs and 2 * yrs.count(str(y)) < len(yrs):          # strona innego roku (numeracja archiwów przesuwa się w styczniu)
+                notes.append(f'{JPX_LABEL}: archiwum {y} nie pasuje do roku — mapa archiwów odświeżona przy następnym sprawdzeniu listy')
+                out.pop('arch', None); break
+            bf['q'] = sorted(q, key=lambda x: x[0], reverse=True)
+        q = bf['q']
+        while q and (q[0][0] in rows or q[0][1] in bad):
+            q.pop(0)
+        if not q:
+            bf['q'] = None; bf['y'] -= 1
+            continue
+        to, path = q[0]
+        try:
+            code, body, _ = req(JPX_B + path, end=end)
+            _jpx_check(code == 200, f'HTTP {code}')
+        except _JpxBudget:
+            break
+        except Exception as e:  # noqa — sieć: przerwa, kolejka zostaje
+            notes.append(mask(f'{JPX_LABEL}: historia wstecz ({to}): {e}')[:160])
+            bf['wait'] = _jpx_iso(now + datetime.timedelta(minutes=JPX_BF_WAIT)); break
+        q.pop(0); files += 1; bf['files'] += 1
+        try:
+            ws = jpx_parse(body, path.rsplit('/', 1)[-1])
+            for w in ws:
+                jpx_week_ok(w, today)
+            _jpx_check(ws[-1]['to'] == to, f'plik ma tydzień {ws[-1]["to"]}, archiwum podaje {to}')
+        except Exception as e:  # noqa — zły plik: bez ponawiania; jego tygodnie zostają luką (nigdy zero)
+            notes.append(mask(f'{JPX_LABEL}: plik z archiwum ({to}) odrzucony: {e}')[:200])
+            bad.append(path); bf['bad'] = bad[-20:]
+            continue
+        n += _jpx_merge(rows, ws, 'back', notes)
+    return n
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -15730,6 +16706,19 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'instytucje: {e}')); META['ok']['instytucje'] = False
             if prev_inst: save('instytucje', prev_inst); print('źródła urzędowe zawiodły — zachowano poprzedni instytucje.json z', prev_inst.get('at'))
+    # v137: Japonia — kto kupuje i sprzedaje akcje na giełdzie (tydzień, bez klucza): lista sprawdzana z If-Modified-Since — co godzinę od
+    # spodziewanej publikacji (4. dzień roboczy następnego tygodnia, ok. 06:30 UTC; kalendarz świąt) albo przy zaległym tygodniu, poza tym co 12 h;
+    # najwyżej 3 nowe pliki; historia wstecz (156 tygodni) po kilka plików na przebieg w budżecie 45 s — tylko z poprzednim plikiem i nie
+    # w spóźnionym przebiegu; część z błędem = notatka i poprzednie dane; bez poprzedniego pliku i bez danych = notatka i brak pliku (None);
+    # nieoczekiwana awaria całości = poprzedni plik i błąd (META ustawia build_jpx; po plikach kursy i instytucje)
+    prev_jx = previous('jpx')
+    try:
+        jx = build_jpx(prev_jx, SAVED)
+        if jx:
+            save('jpx', jx)
+    except Exception as e:
+        META['errors'].append(mask(f'{JPX_LABEL}: {e}')[:200]); META['ok']['jpx'] = False
+        if prev_jx: save('jpx', prev_jx)
     # v90: fundusze ETF w USA (State Street, iShares) — historia NAV i liczby jednostek; odświeżanie w środku (6 h / 2 h); awaria = poprzedni plik
     prev_fu = previous('fundusze')
     try:

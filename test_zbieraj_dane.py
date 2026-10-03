@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -181,7 +181,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Japonia giełda', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -533,7 +533,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -623,7 +623,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -756,7 +756,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1115,7 +1115,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1359,7 +1359,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1596,7 +1596,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1827,7 +1827,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2340,7 +2340,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3092,7 +3092,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3219,7 +3219,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3254,7 +3254,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3630,7 +3630,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4115,7 +4115,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8758,7 +8758,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9147,7 +9147,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10000,7 +10000,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -18810,3 +18810,1222 @@ class IciMmV135(unittest.TestCase):
         h = open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8').read()
         self.assertIn('const EXTRA144=', h); self.assertEqual(h.count('id="g-fund"'), 1, 'ten sam panel')
         self.assertTrue(h.index('function fndBody(') < h.index('FND_EXT.push(') < h.index('/* ===================== v98: USA — energia'))
+# ===================== v137: JAPONIA — kto kupuje i sprzedaje akcje na giełdzie (data/jpx.json) =====================
+# Pliki SYNTETYCZNE w układzie prawdziwych plików giełdy (plików źródła nie trzymamy w repozytorium — warunki źródła zabraniają adaptacji):
+# stary format stock_val_1_YYMMWW.xls (OLE2 + BIFF8, karta „Tokyo & Nagoya”, 2 tygodnie, liczby jako tekst) — układ pliku 260902 (07–11.09.2026);
+# nowy format stock_1_w_YYYYMMDD_YYYYMMDD.xlsx — układ dwóch pierwszych prawdziwych plików (14–18.09 i 24–25.09.2026, sprawdzone 03.10.2026):
+# nazwa karty z twardą spacją, etykiety grup w wierszach 3–5, nagłówek „Total” bez spacji, kod tygodnia tekstem tylko w pierwszym wierszu rynku,
+# rynki Prime / Standard / Growth / „Tokyo & Nagoya” (wiersz Shares + wiersz Value), wartości w TYS. JPY (próbka formatu z 07.2026 miała jeny).
+import io as _io_v137
+import struct as _struct_v137
+import zipfile as _zip_v137
+from xml.sax.saxutils import escape as _esc_v137
+
+_JPXF_END, _JPXF_FREE, _JPXF_FATSECT = 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFD
+
+
+def _jpxf_rec(typ, data):
+    return _struct_v137.pack('<HH', typ, len(data)) + data
+
+
+def _jpxf_ustr(s):
+    return _struct_v137.pack('<HB', len(s), 1) + s.encode('utf-16-le')
+
+
+def _jpxf_sst(strings, split):
+    """SST; split = przesunięcie w treści, od którego zaczyna się CONTINUE (w środku znaków napisu — z bajtem opcji, jak zapisuje Excel)."""
+    body = b''.join(_jpxf_ustr(s) for s in strings)
+    head = _struct_v137.pack('<II', len(strings), len(strings))
+    if split is None or split >= len(body):
+        return _jpxf_rec(0x00FC, head + body)
+    pos, inside = 0, False
+    for s in strings:
+        if pos + 3 <= split < pos + 3 + 2 * len(s):
+            inside = True
+            if (split - pos - 3) % 2:
+                return None                                  # podział między bajtami znaku UTF-16 — tego Excel nie zapisuje
+        if pos <= split < pos + 3:
+            return None                                      # podział w nagłówku napisu — pomijany w tym teście
+        pos += 3 + 2 * len(s)
+    return _jpxf_rec(0x00FC, head + body[:split]) + _jpxf_rec(0x003C, (b'\x01' if inside else b'') + body[split:])
+
+
+def _jpxf_biff(sheets, split=None, extra=b''):
+    strings, idx = [], {}
+    for cells in sheets.values():
+        for v in cells.values():
+            if isinstance(v, str) and v not in idx:
+                idx[v] = len(strings); strings.append(v)
+    bof = lambda kind: _jpxf_rec(0x0809, _struct_v137.pack('<HHHHII', 0x0600, kind, 0x0DBB, 0x07CC, 0, 0))   # noqa: E731
+    subs = []
+    for cells in sheets.values():
+        out = bof(0x0010)
+        for (r, c), v in sorted(cells.items()):
+            if isinstance(v, str):
+                out += _jpxf_rec(0x00FD, _struct_v137.pack('<HHHI', r, c, 15, idx[v]))
+            elif isinstance(v, int) and -(1 << 29) <= v < (1 << 29):
+                out += _jpxf_rec(0x027E, _struct_v137.pack('<HHHI', r, c, 15, ((v << 2) | 2) & 0xFFFFFFFF))
+            else:
+                out += _jpxf_rec(0x0203, _struct_v137.pack('<HHHd', r, c, 15, float(v)))
+        subs.append(out + extra + _jpxf_rec(0x000A, b''))
+    sst = _jpxf_sst(strings, split)
+    if sst is None:
+        return None
+    names = list(sheets)
+    glob_len = len(bof(0x0005)) + sum(4 + 8 + 2 * len(n) for n in names) + len(sst) + 4
+    off, glob = glob_len, bof(0x0005)
+    for nm, sub in zip(names, subs):
+        glob += _jpxf_rec(0x0085, _struct_v137.pack('<IBBBB', off, 0, 0, len(nm), 1) + nm.encode('utf-16-le'))
+        off += len(sub)
+    glob += sst + _jpxf_rec(0x000A, b'')
+    return glob + b''.join(subs)
+
+
+def _jpxf_dirent(name, typ, child, start, size):
+    e = bytearray(128)
+    nm = name.encode('utf-16-le') + b'\x00\x00'
+    e[0:len(nm)] = nm
+    _struct_v137.pack_into('<HBB', e, 64, len(nm), typ, 1)
+    _struct_v137.pack_into('<III', e, 68, _JPXF_FREE, _JPXF_FREE, child)
+    _struct_v137.pack_into('<IQ', e, 116, start, size)
+    return bytes(e)
+
+
+def _jpxf_header(dir_start, mfat_start, n_mfat):
+    hdr = bytearray(512)
+    hdr[0:8] = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
+    _struct_v137.pack_into('<HHHHH', hdr, 24, 0x3E, 3, 0xFFFE, 9, 6)
+    _struct_v137.pack_into('<IIIIIIIII', hdr, 40, 0, 1, dir_start, 0, 4096, mfat_start, n_mfat, _JPXF_END, 0)
+    _struct_v137.pack_into('<109I', hdr, 76, 0, *([_JPXF_FREE] * 108))
+    return bytes(hdr)
+
+
+def _jpxf_xls(sheets, split=None, mini=False, extra=b''):
+    """Plik OLE2 (v3) ze strumieniem 'Workbook' (BIFF8). mini=True — strumień < 4096 B w strumieniu korzenia (mini-FAT)."""
+    wb = _jpxf_biff(sheets, split, extra)
+    if wb is None:
+        return None
+    if mini:
+        assert len(wb) < 4096, 'za duży na mini-strumień'
+        nm = (len(wb) + 63) // 64
+        ms = wb + b'\x00' * (nm * 64 - len(wb))
+        nr = (len(ms) + 511) // 512
+        fat = [_JPXF_FATSECT, _JPXF_END, _JPXF_END] + [3 + i + 1 if i < nr - 1 else _JPXF_END for i in range(nr)]
+        fat += [_JPXF_FREE] * (128 - len(fat))
+        mfat = [i + 1 if i < nm - 1 else _JPXF_END for i in range(nm)] + [_JPXF_FREE] * (128 - nm)
+        dirs = _jpxf_dirent('Root Entry', 5, 1, 3, len(ms)) + _jpxf_dirent('Workbook', 2, _JPXF_FREE, 0, len(wb)) + b'\x00' * 256
+        return (_jpxf_header(1, 2, 1) + _struct_v137.pack('<128I', *fat) + dirs + _struct_v137.pack('<128I', *mfat)
+                + ms + b'\x00' * (nr * 512 - len(ms)))
+    wb += b'\x00' * max(0, 4096 - len(wb))
+    n = (len(wb) + 511) // 512
+    assert n + 2 <= 128
+    fat = [_JPXF_FATSECT, _JPXF_END] + [3 + i if i < n - 1 else _JPXF_END for i in range(n)]
+    fat += [_JPXF_FREE] * (128 - len(fat))
+    dirs = _jpxf_dirent('Root Entry', 5, 1, _JPXF_END, 0) + _jpxf_dirent('Workbook', 2, _JPXF_FREE, 2, len(wb)) + b'\x00' * 256
+    return _jpxf_header(1, _JPXF_END, 0) + _struct_v137.pack('<128I', *fat) + dirs + wb + b'\x00' * (n * 512 - len(wb))
+
+
+def _jpxf_ref(r, c):
+    s, c = '', c + 1
+    while c:
+        c, m = divmod(c - 1, 26); s = chr(65 + m) + s
+    return f'{s}{r + 1}'
+
+
+def _jpxf_xlsx(sheets, no_ref=False, inline=False, pad=0):
+    """Minimalny .xlsx; napis 0 ma wymowę (<rPh>), która NIE może trafić do tekstu; no_ref — komórki bez atrybutu r; inline — napisy inlineStr;
+    pad — dodatkowa część zip z zerami (bomba zip)."""
+    strings, idx = [], {}
+    for cells in sheets.values():
+        for v in cells.values():
+            if isinstance(v, str) and v not in idx:
+                idx[v] = len(strings); strings.append(v)
+    ns, rns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    buf = _io_v137.BytesIO()
+    with _zip_v137.ZipFile(buf, 'w', _zip_v137.ZIP_DEFLATED) as z:
+        z.writestr('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+        z.writestr('xl/workbook.xml', f'<workbook xmlns="{ns}" xmlns:r="{rns}"><sheets>' + ''.join(
+            f'<sheet name="{_esc_v137(n)}" sheetId="{i + 1}" r:id="rId{i + 1}"/>' for i, n in enumerate(sheets)) + '</sheets></workbook>')
+        z.writestr('xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + ''.join(
+            f'<Relationship Id="rId{i + 1}" Target="worksheets/sheet{i + 1}.xml"/>' for i in range(len(sheets))) + '</Relationships>')
+        z.writestr('xl/sharedStrings.xml', f'<sst xmlns="{ns}">' + ''.join(
+            f'<si><t>{_esc_v137(s)}</t>' + ('<rPh sb="0" eb="1"><t>ルビ</t></rPh>' if i == 0 else '') + '</si>' for i, s in enumerate(strings)) + '</sst>')
+        for i, cells in enumerate(sheets.values()):
+            rows = {}
+            for (r, c), v in cells.items():
+                rows.setdefault(r, []).append((c, v))
+
+            def cell(r, c, v):
+                ref = '' if no_ref else f' r="{_jpxf_ref(r, c)}"'
+                if isinstance(v, str):
+                    return f'<c{ref} t="inlineStr"><is><t>{_esc_v137(v)}</t></is></c>' if inline else f'<c{ref} t="s"><v>{idx[v]}</v></c>'
+                return f'<c{ref}><v>{v}</v></c>'
+            if no_ref:      # bez adresów komórki muszą stać kolejno od kolumny 0 (puste kolumny jako puste <c/>)
+                xml = ''.join(f'<row r="{r + 1}">' + ''.join(cell(r, c, dict(cs)[c]) if c in dict(cs) else '<c/>' for c in range(max(c for c, _ in cs) + 1)) + '</row>'
+                              for r, cs in sorted(rows.items()))
+            else:
+                xml = ''.join(f'<row r="{r + 1}">' + ''.join(cell(r, c, v) for c, v in sorted(cs)) + '</row>' for r, cs in sorted(rows.items()))
+            z.writestr(f'xl/worksheets/sheet{i + 1}.xml', f'<worksheet xmlns="{ns}"><sheetData>{xml}</sheetData></worksheet>')
+        if pad:
+            z.writestr('xl/media/pad.bin', b'\x00' * pad)
+    return buf.getvalue()
+
+
+# ---- układy plików giełdy
+_JPXF_OLD = [(12, '自己計', 'prop'), (15, '委託計', 'brk'), (18, '総　計', 'tot'), (23, '法　人', 'inst'), (26, '個　人', 'ind'),
+             (29, '海外投資家', 'for'), (32, '証券会社', 'sec'), (37, '投資信託', 'it'), (40, '事業法人', 'bus'), (43, 'その他法人等', 'oth'),
+             (46, '金融機関', 'fin'), (51, '生保・損保', 'life'), (54, '都銀・地銀等', 'bank'), (57, '信託銀行', 'trb'), (60, 'その他金融機関', 'ofin')]
+# tydzień w tys. JPY — liczby wymyślone (rząd wielkości prawdziwego tygodnia: obrót maklerski ok. 90 bln JPY, zagranica ok. 2/3), części dobrane tak,
+# by sumy były dokładne
+_JPXF_BASE = {'prop': [5_612_345_678, 5_923_456_789], 'ind': [12_634_567_890, 13_045_678_901], 'for': [29_734_567_890, 29_423_456_789],
+              'sec': [134_567_890, 133_456_789], 'it': [578_901_234, 663_456_789], 'bus': [587_654_321, 654_321_098], 'oth': [82_345_678, 96_789_012],
+              'life': [81_234_567, 22_987_654], 'bank': [64_123_456, 25_432_109], 'trb': [1_087_654_321, 536_789_012], 'ofin': [30_543_210, 37_012_345]}
+
+
+def _jpxf_K(i=0):
+    """Części tygodnia nr i (tys. JPY, całkowite) — każdy tydzień inny, skala prawdziwych tygodni."""
+    d = 1_000_000 * i
+    K = {k: list(v) for k, v in _JPXF_BASE.items()}
+    K['for'] = [K['for'][0] + 7 * d, K['for'][1] - 5 * d]; K['ind'] = [K['ind'][0] - 3 * d, K['ind'][1] + 2 * d]
+    K['trb'] = [K['trb'][0] + d, K['trb'][1]]; K['bus'] = [K['bus'][0], K['bus'][1] + 2 * d]; K['prop'] = [K['prop'][0] + d, K['prop'][1] - d]
+    return K
+
+
+def _jpxf_complete(K):
+    """Części → sumy tak, jak publikuje je giełda (tys. JPY)."""
+    K = {k: list(v) for k, v in K.items()}
+    add = lambda *ks: [sum(K[k][i] for k in ks) for i in (0, 1)]   # noqa: E731
+    K['fin'] = add('life', 'bank', 'trb', 'ofin'); K['inst'] = add('it', 'bus', 'oth', 'fin'); K['brk'] = add('ind', 'for', 'sec', 'inst'); K['tot'] = add('prop', 'brk')
+    return K
+
+
+def _jpxf_old_sheet(title, lab_prev, lab_cur, Kp, Kc):
+    """Karta „Tokyo & Nagoya” starego formatu: liczby jako tekst z przecinkami, saldo w wierszu sprzedaży (ujemne) albo zakupów (dodatnie)."""
+    c = {(0, 0): '投資部門別　株式売買状況　二市場　[金額]　全 51 社', (3, 0): title, (4, 10): '千円,%  1,000 yen, %', (10, 3): lab_prev, (10, 7): lab_cur,
+         (77, 10): '(znak zastrzeżenia praw)'}
+    for r, jp, key in _JPXF_OLD:
+        c[(r, 0)] = jp; c[(r, 1)] = '売り'; c[(r, 2)] = 'Sales'; c[(r + 1, 1)] = '買い'; c[(r + 1, 2)] = 'Purchases'
+        for K, col in ((Kp, 4), (Kc, 8)):
+            s, b = K[key]
+            c[(r, col)] = f'{s:,}'; c[(r + 1, col)] = f'{b:,}'
+            if b != s:
+                c[(r if b < s else r + 1, col + 2)] = f'{b - s:,}'
+    return c
+
+
+def _jpxf_old_file(title='2026年9月第2週 2026/9 week2  ( 9/7 - 9/11 )', lp='08/31～09/04', lc='09/07～09/11', Kp=None, Kc=None, split=None, mini=False, extra=None):
+    c = _jpxf_old_sheet(title, lp, lc, _jpxf_complete(Kp or _jpxf_K(1)), _jpxf_complete(Kc or _jpxf_K(0)))
+    c.update(extra or {})
+    return _jpxf_xls({'TSE Prime': {(0, 0): 'x'}, 'Tokyo & Nagoya': c}, split=split, mini=mini)
+
+
+_JPXF_GROUPS = [   # (kolumna, wiersz 2, wiersz 3, wiersz 4, wiersz 5, klucz) — jak w prawdziwych plikach z 29.09 i 01.10.2026
+    (3, '自己 Proprietary', '自己 Proprietary', '現金取引 Cash', '現金取引 Cash', 'prop_cash'), (7, None, None, '信用取引 Margin', '信用取引 Margin', 'prop_margin'),
+    (11, '委託 Brokerage', '個人 Individuals', '現金取引 Cash', '現金取引 Cash', 'ind_cash'), (15, None, None, '信用取引 Margin', '信用取引 Margin', 'ind_margin'),
+    (19, None, '海外投資家 Foreigners ', '法人 Institutions', '法人 Institutions', 'for_inst'), (23, None, None, '個人 Individuals', '個人 Individuals', 'for_ind'),
+    (27, None, '証券会社 Securities Cos.', '証券会社 Securities Cos.', '証券会社 Securities Cos.', 'sec'),
+    (31, None, '法人 Institutions', '投資信託 Investment Trusts', '投資信託 Investment Trusts', 'it'), (35, None, None, '事業法人 Business Cos. ', '事業法人 Business Cos. ', 'bus'),
+    (39, None, None, 'その他法人等 Other Cos.', 'その他法人等 Other Cos.', 'oth'), (43, None, None, '金融機関 Financial Institutions', '生保・損保 Life & Non-Life', 'life'),
+    (47, None, None, None, '都銀・地銀等 City & Regional BK', 'bank'), (51, None, None, None, '信託銀行 Trust BK', 'trb'),
+    (55, None, None, None, 'その他金融機関 Other Financials', 'ofin')]
+_JPXF_SHEET = '投資部門別 株式売買状況\xa0Stocks by Investor'
+
+
+def _jpxf_groups(K):
+    """Kategorie → 14 grup kolumn nowego formatu (zagranica = instytucje + osoby; własny rachunek i osoby = gotówka + kredyt)."""
+    f, i, p = K['for'], K['ind'], K['prop']
+    return {'prop_cash': [p[0] - 100, p[1] - 200], 'prop_margin': [100, 200], 'ind_cash': [i[0] // 5, i[1] // 5], 'ind_margin': [i[0] - i[0] // 5, i[1] - i[1] // 5],
+            'for_inst': [f[0] - 112_418_847, f[1] - 107_963_158], 'for_ind': [112_418_847, 107_963_158],
+            **{k: list(K[k]) for k in ('sec', 'it', 'bus', 'oth', 'life', 'bank', 'trb', 'ofin')}}
+
+
+def _jpxf_new_sheet(code, G, mult=1, nagoya=7):
+    """Karta nowego formatu. G: {grupa: [sprzedaż, kupno]} w tys. JPY; mult=1 — tys. JPY jak prawdziwe pliki, mult=1000 — jeny jak próbka z 07.2026.
+    Rynki Tokio: Prime = 90%, Standard = 5%, Growth = reszta minus `nagoya` (część Nagoi); „Tokyo & Nagoya” = suma rynków + Nagoja."""
+    c = {(0, 0): '投資部門別 株式売買状況\xa0Stocks by Investor Type', (6, 0): '年月週 Year, Month, Week', (6, 1): '市場／Market',
+         (6, 2): '株数／金額 Shares／Value 千株／千円 1,000 Shares／1,000 yen'}
+    for col, l2, l3, l4, l5, key in _JPXF_GROUPS:
+        for r, lab in ((2, l2), (3, l3), (4, l4), (5, l5)):
+            if lab:
+                c[(r, col)] = lab
+        for i, h in enumerate(('売 Sales', '買 Purchases', '差引 Balance', '合計 Total')):
+            c[(6, col + i)] = h
+    for r, name in ((7, '東証プライム\nTSE Prime Market'), (9, '東証スタンダード\nTSE Standard Market'), (11, '東証グロース\nTSE Growth Market'), (13, '二市場\nTokyo & Nagoya Markets')):
+        c[(r, 1)] = name; c[(r, 2)] = '株数 Shares'; c[(r + 1, 2)] = '金額 Value'
+    for col, *_, key in _JPXF_GROUPS:
+        tn = G[key]
+        ng = [min(nagoya, tn[0]), min(nagoya, tn[1])]
+        pr = [(x - n) * 9 // 10 for x, n in zip(tn, ng)]; sd = [(x - n) // 20 for x, n in zip(tn, ng)]
+        gr = [x - n - a - b for x, n, a, b in zip(tn, ng, pr, sd)]
+        for r, (s, b) in ((8, pr), (10, sd), (12, gr), (14, tn)):
+            for rr in (r - 1, r):           # wiersz liczby akcji: te same liczby (nieużywany przez odczyt)
+                c[(rr, col)] = float(s * mult); c[(rr, col + 1)] = float(b * mult)
+                c[(rr, col + 2)] = float((b - s) * mult); c[(rr, col + 3)] = float((s + b) * mult)
+    c[(7, 0)] = code
+    return c
+
+
+def _jpxf_new_file(code='2026093', K=None, mult=1, **kw):
+    return _jpxf_xlsx({_JPXF_SHEET: _jpxf_new_sheet(code, _jpxf_groups(K or _jpxf_K(0)), mult, **kw)})
+
+
+# ---- strony listy i archiwum (układ angielskiej strony giełdy; adresy plików ze zmiennym identyfikatorem)
+_JPXF_MON = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+_JPXF_DIR = '/english/markets/statistics-equities/investor-type/'
+
+
+def _jpxf_path(kind, a, b, code=None):
+    """Ścieżka pliku: kind 'new' → stock_1_w_od_do.xlsx, 'old' → stock_val_1_KOD.xls; identyfikator katalogu z dat (zmienny jak u źródła)."""
+    cms = 'vk0kTEST' + b.replace('-', '')
+    if kind == 'new':
+        return f'{_JPXF_DIR}{cms}-att/stock_1_w_{a.replace("-", "")}_{b.replace("-", "")}.xlsx'
+    return f'{_JPXF_DIR}{cms}-att/stock_val_1_{code}.xls'
+
+
+def _jpxf_row(kind, a, b, code, label_month=None):
+    """Wiersz tabeli listy: etykieta „Mon RRRR, WeekN（m/d - m/d）”, linki pdf i xls (dla starego formatu także stock_vol)."""
+    import datetime as _dt
+    fa, fb = _dt.date.fromisoformat(a), _dt.date.fromisoformat(b)
+    ym = label_month or (fb.year, fb.month)
+    lab = f'{_JPXF_MON[ym[1] - 1]} {ym[0]}, Week{code[-1] if code else 1}（{fa.month}/{fa.day} - {fb.month}/{fb.day}）'
+    p = _jpxf_path(kind, a, b, code)
+    if kind == 'new':
+        return (f'<tr> <td width="40%" class="a-center">{lab}</td> <td><a href="{p[:-5]}.pdf" rel="external"><img alt="icon-pdf"/></a></td> '
+                f'<td><a href="{p}" rel="external"><img alt="icon-xls"/></a></td> <td>-</td> <td>-</td> </tr>')
+    v = p.replace('stock_val_1_', 'stock_vol_1_')
+    return (f'<tr> <td width="40%" class="a-center">{lab}</td> <td><a href="{v[:-4]}.pdf"></a></td> <td><a href="{v}"></a></td> '
+            f'<td><a href="{p[:-4]}.pdf"></a></td> <td><a href="{p}"></a></td> </tr>')
+
+
+def _jpxf_page(rows, arch=(('2026', '00'), ('2025', '01'), ('2024', '02'), ('2023', '03')), update='Oct. 01, 2026'):
+    opts = ''.join(f'<option value="{_JPXF_DIR}00-00-archives-{n}.html">{y}</option>' for y, n in arch)
+    return (f'<html><body><p>Update : {update}</p><select class="backnumber"><option value="{_JPXF_DIR}index.html" selected="selected">Current Data</option>{opts}</select>'
+            '<table><tr><th>Release dates</th><td><a href="/english/x/tvdivq-att/Sep2026_e.pdf">pdf</a></td></tr></table>'
+            '<table class="overtable"><tr><th>Date</th><th colspan="2">Volume</th><th colspan="2">Value</th></tr>' + ''.join(rows) + '</table></body></html>').encode()
+
+
+def _jpxf_title(a, b, code):
+    """Tytuł starego pliku dla tygodnia a–b: '2026年9月第2週 2026/9 week2  ( 9/7 - 9/11 )' (miesiąc kodu = miesiąc etykiety)."""
+    import datetime as _dt
+    fa, fb = _dt.date.fromisoformat(a), _dt.date.fromisoformat(b)
+    y, m, w = 2000 + int(code[:2]), int(code[2:4]), int(code[4:])
+    return f'{y}年{m}月第{w}週 {y}/{m} week{w}  ( {fa.month}/{fa.day} - {fb.month}/{fb.day} )'
+
+
+def _jpxf_lab(a, b):
+    import datetime as _dt
+    fa, fb = _dt.date.fromisoformat(a), _dt.date.fromisoformat(b)
+    return f'{fa.month:02d}/{fa.day:02d}～{fb.month:02d}/{fb.day:02d}'
+
+
+class _JpxSrv:
+    """Atrapa serwera giełdy dla build_jpx(get=…): adres → (status, treść, Last-Modified) | wyjątek | funkcja(ims); zapisuje (adres, ims, limit czasu).
+    clock/cost — zegar monotoniczny przesuwany o koszt zapytania (budżety czasu)."""
+
+    def __init__(self, routes, clock=None, cost=0.0):
+        self.routes, self.calls, self.clock, self.cost = dict(routes), [], clock, cost
+
+    def __call__(self, url, ims=None, timeout=None):
+        self.calls.append((url, ims, timeout))
+        if self.clock is not None:
+            self.clock[0] += self.cost
+        r = self.routes.get(url)
+        if r is None:
+            raise AssertionError('nieoczekiwany adres: ' + url)
+        if isinstance(r, Exception):
+            raise r
+        return r(ims) if callable(r) else r
+
+
+class JpxV137(unittest.TestCase):
+    """v137: Japonia — kto kupuje i sprzedaje akcje na giełdzie (data/jpx.json). Czytnik .xls/.xlsx, oba formaty pliku z tożsamościami, jednostka
+    po wielkości, szew formatów, lista i archiwa, kalendarz publikacji ze świętami, build_jpx (304, nowe tygodnie, korekta, zły plik, lista
+    zapasowa, rejestr korekt, historia wstecz w budżecie — także bez poprzedniego pliku i w spóźnionym przebiegu), TRENDY, main(), kontrola dzienna.
+    Bez sieci (atrapa _JpxSrv, urlopen zaślepiony); zegar przypięty (now=, _now_utc, NOW kontroli); pliki syntetyczne (_jpxf_*)."""
+    NOW = datetime.datetime(2026, 10, 3, 9, 30, tzinfo=datetime.timezone.utc)
+    KURSY = {'at': '2026-10-01T00:00:00+00:00', 'm': {'JPY': [['2026-08', 184.101905], ['2026-09', 180.044091]], 'USD': [['2026-08', 1.15931], ['2026-09', 1.151323]]}}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [None]))          # przebieg „nie spóźniony” niezależnie od wcześniejszych testów main()
+        self.enterContext(mock.patch.object(zd, '_BACK_LATE_NOTE', [False]))
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+
+    # ---------------------------------------------------------------- pomocnicze: tygodnie, pliki, strony
+    WEEKS = [('2025-10-20', '2025-10-24', '251004'), ('2025-10-27', '2025-10-31', '251005'), ('2025-11-04', '2025-11-07', '251101'), ('2025-11-10', '2025-11-14', '251102'),
+             ('2025-11-17', '2025-11-21', '251103'), ('2025-11-25', '2025-11-28', '251104'), ('2025-12-01', '2025-12-05', '251201'), ('2025-12-08', '2025-12-12', '251202'),
+             ('2025-12-15', '2025-12-19', '251203'), ('2025-12-22', '2025-12-26', '251204'), ('2025-12-29', '2025-12-30', '251205'), ('2026-01-05', '2026-01-09', '260101'),
+             ('2026-01-13', '2026-01-16', '260102')]
+
+    def _old(self, i):
+        """Stary plik tygodnia WEEKS[i] (z poprzednim tygodniem WEEKS[i-1]) — części _jpxf_K(i) i _jpxf_K(i-1)."""
+        (pa, pb, _), (a, b, code) = self.WEEKS[i - 1], self.WEEKS[i]
+        return _jpxf_old_file(_jpxf_title(a, b, code), _jpxf_lab(pa, pb), _jpxf_lab(a, b), Kp=_jpxf_K(i - 1), Kc=_jpxf_K(i))
+
+    def _wk(self, i, a=None, b=None, fmt='xls'):
+        """Oczekiwany wiersz pliku (mln JPY) dla tygodnia WEEKS[i] albo (a, b) z częściami _jpxf_K(i)."""
+        a = a or self.WEEKS[i][0]; b = b or self.WEEKS[i][1]
+        return zd.jpx_row({'from': a, 'to': b, 'k': {k: v for k, v in _jpxf_complete(_jpxf_K(i)).items() if k in zd.JPX_CATS}})
+
+    def _prev(self, rows, **kw):
+        P = {'at': '2026-10-01T06:40:00+00:00', 'chk': '2026-10-01T06:40:00+00:00', 'tried': '2026-10-01T06:40:00+00:00', 'v': 1, 'src': 'jpx',
+             'unit': 'mln JPY', 'cols': list(zd.JPX_COLS), 'd': [list(r) for r in rows], 'lm': 'Thu, 01 Oct 2026 06:30:30 GMT',
+             'rev_chk': '2026-10-03T06:00:00+00:00', 'rev_lm': 'Tue, 10 Sep 2024 01:00:00 GMT', 'bf': {'done': True, 'files': 0, 'pages': 0},
+             'ok': {'listing': True, 'file': True, 'backfill': True, 'revision': True}}
+        P.update(kw)
+        return P
+
+    def _sep(self):
+        """Wrzesień 2026: tygodnie 31.08–04.09 i 07–11.09 (stary format), 14–18.09 i 24–25.09 (nowy) — jak na prawdziwej liście z 01.10.2026."""
+        return [('2026-08-31', '2026-09-04', '260901', 5), ('2026-09-07', '2026-09-11', '260902', 6), ('2026-09-14', '2026-09-18', '2026093', 7), ('2026-09-24', '2026-09-25', '2026094', 8)]
+
+    def _listing(self, weeks, extra_rows=()):
+        rows = list(extra_rows)
+        for a, b, code, i in reversed(weeks):
+            rows.append(_jpxf_row('new' if len(code) == 7 else 'old', a, b, code))
+        return _jpxf_page(rows)
+
+    def _routes(self, weeks, listing=None, lm='Thu, 01 Oct 2026 06:30:30 GMT'):
+        R = {zd.JPX_EN + 'index.html': (200, listing or self._listing(weeks), lm)}
+        for n, (a, b, code, i) in enumerate(weeks):
+            if len(code) == 7:
+                R[zd.JPX_B + _jpxf_path('new', a, b)] = (200, _jpxf_new_file(code, _jpxf_K(i)), 'Tue, 29 Sep 2026 06:30:28 GMT' if b < '2026-09-20' else lm)
+            elif n:
+                pa, pb, _, pi = weeks[n - 1]
+                R[zd.JPX_B + _jpxf_path('old', a, b, code)] = (200, _jpxf_old_file(_jpxf_title(a, b, code), _jpxf_lab(pa, pb), _jpxf_lab(a, b), Kp=_jpxf_K(pi), Kc=_jpxf_K(i)),
+                                                              'Thu, 17 Sep 2026 06:30:26 GMT')
+        return R
+
+    def _row(self, a, b, i):
+        return zd.jpx_row({'from': a, 'to': b, 'k': {k: v for k, v in _jpxf_complete(_jpxf_K(i)).items() if k in zd.JPX_CATS}})
+
+    # ---------------------------------------------------------------- 1. czytnik .xls
+    def test_xls_rekordy_komorek_i_mini_strumien(self):
+        extra = (_jpxf_rec(0x00BD, _struct_v137.pack('<HH', 5, 2) + _struct_v137.pack('<HI', 15, (7 << 2) | 2) + _struct_v137.pack('<HI', 15, (1234 << 2) | 3) + _struct_v137.pack('<H', 3))
+                 + _jpxf_rec(0x0204, _struct_v137.pack('<HHH', 6, 0, 15) + _struct_v137.pack('<HB', 4, 0) + b'abcd')
+                 + _jpxf_rec(0x0006, _struct_v137.pack('<HHH', 7, 0, 15) + b'\x00\x00\x00\x00\x00\x00\xff\xff' + b'\x00' * 8)
+                 + _jpxf_rec(0x0207, _struct_v137.pack('<HB', 3, 1) + 'żół'.encode('utf-16-le'))
+                 + _jpxf_rec(0x0006, _struct_v137.pack('<HHH', 8, 0, 15) + _struct_v137.pack('<d', 2.5) + b'\x00' * 8))
+        cells = {(0, 0): 'a', (0, 1): 123, (0, 2): -5, (0, 3): 1.25, (1, 0): 12_345_678_901.0, (2, 0): '千円,%  1,000 yen, %'}
+        for mini in (False, True):
+            raw = _jpxf_xls({'S': cells}, mini=mini, extra=extra)
+            sh = dict(zd.jpx_sheets(raw))['S']
+            self.assertEqual((sh[(0, 1)], sh[(0, 2)], sh[(0, 3)], sh[(1, 0)], sh[(2, 0)]), (123.0, -5.0, 1.25, 12_345_678_901.0, '千円,%  1,000 yen, %'), 'RK całkowite, NUMBER, LABELSST')
+            self.assertEqual((sh[(5, 2)], sh[(5, 3)]), (7.0, 12.34), 'MULRK: liczba całkowita i ×100')
+            self.assertEqual((sh[(6, 0)], sh[(7, 0)], sh[(8, 0)]), ('abcd', 'żół', 2.5), 'LABEL, FORMULA + STRING, FORMULA liczbowa')
+        self.assertLess(len(_jpxf_xls({'S': cells}, mini=True, extra=extra)), 4096, 'mini-strumień: plik mniejszy niż próg')
+
+    def test_xls_sst_podzielony_continue_w_wielu_miejscach(self):
+        n, ok = 0, 0
+        for split in range(4, 1600, 3):
+            raw = _jpxf_old_file(split=split)
+            if raw is None:
+                continue
+            n += 1
+            w = zd.jpx_parse_old(raw)
+            ok += w[1]['k']['for'] == _jpxf_K(0)['for'] and w[0]['k']['for'] == _jpxf_K(1)['for']
+        self.assertGreater(n, 150); self.assertEqual(ok, n, 'każdy podział SST (w środku znaków i między napisami) daje te same liczby')
+
+    def test_xls_obcy_uciety_petla_fat_to_valueerror(self):
+        raw = _jpxf_old_file()
+        for bad, why in ((b'<!DOCTYPE html><html>404 Not Found</html>' * 50, 'strona HTML 404'), (raw[:300], 'ucięty nagłówek'), (raw[:1600], 'ucięty strumień'),
+                         (raw[:len(raw) // 2], 'połowa pliku'), (b'', 'pusty'), (b'PK\x03\x04garbage', 'udawany zip')):
+            with self.assertRaises(ValueError, msg=why):
+                zd.jpx_sheets(bad)
+        loop = bytearray(raw)
+        fat0 = 512
+        n = _struct_v137.unpack_from('<I', loop, fat0 + 4 * 2)[0]          # sektor 2 (pierwszy sektor strumienia) wskazuje na następny
+        _struct_v137.pack_into('<I', loop, fat0 + 4 * n, 2)                 # … a następny z powrotem na 2: pętla
+        with self.assertRaises(ValueError):
+            zd.jpx_sheets(bytes(loop))
+        with self.assertRaises(ValueError):
+            zd.jpx_parse_old(_jpxf_xls({'S': {(0, 0): 'x'}}))                # brak karty „Tokyo & Nagoya”
+
+    # ---------------------------------------------------------------- 2. czytnik .xlsx
+    def test_xlsx_wymowa_bez_adresow_inline_bomba_i_html(self):
+        sheet = {_JPXF_SHEET: _jpxf_new_sheet('2026093', _jpxf_groups(_jpxf_K(0)))}
+        cells = dict(zd.jpx_sheets(_jpxf_xlsx(sheet)))[_JPXF_SHEET]
+        self.assertEqual(cells[(0, 0)], '投資部門別 株式売買状況\xa0Stocks by Investor Type', 'wymowa <rPh> nie trafia do tekstu')
+        self.assertEqual(dict(zd.jpx_sheets(_jpxf_xlsx(sheet, no_ref=True)))[_JPXF_SHEET][(14, 19)], cells[(14, 19)], 'komórki bez atrybutu r — po pozycji')
+        self.assertEqual(dict(zd.jpx_sheets(_jpxf_xlsx(sheet, inline=True)))[_JPXF_SHEET][(6, 3)], '売 Sales', 'inlineStr')
+        a = zd.jpx_parse_new(_jpxf_xlsx(sheet, no_ref=True), 'stock_1_w_20260914_20260918.xlsx')[0]
+        self.assertEqual(a['k'], zd.jpx_parse_new(_jpxf_xlsx(sheet), 'stock_1_w_20260914_20260918.xlsx')[0]['k'])
+        with self.assertRaises(ValueError):
+            zd.jpx_sheets(_jpxf_xlsx(sheet, pad=zd.JPX_UNZIP_MAX + 1))       # bomba zip: limit rozpakowania
+        with self.assertRaises(ValueError):
+            zd.jpx_parse_new(b'<html><body>404</body></html>', 'stock_1_w_20260914_20260918.xlsx')
+
+    # ---------------------------------------------------------------- 3. stary format
+    def test_stary_format_dwa_tygodnie_przelom_roku_i_saldo(self):
+        w = zd.jpx_parse_old(_jpxf_old_file())
+        self.assertEqual([(x['from'], x['to']) for x in w], [('2026-08-31', '2026-09-04'), ('2026-09-07', '2026-09-11')])
+        self.assertEqual(w[1]['k']['for'], _jpxf_K(0)['for']); self.assertEqual(w[0]['k']['for'], _jpxf_K(1)['for'])
+        self.assertEqual(w[1]['k']['brk'], _jpxf_complete(_jpxf_K(0))['brk']); self.assertEqual((w[1]['fmt'], w[1]['raw_unit']), ('xls', 'kJPY'))
+        for t, lp, lc, exp in (('2027年1月第1週 2027/1 week1  ( 1/4 - 1/8 )', '12/28～12/30', '01/04～01/08', [('2026-12-28', '2026-12-30'), ('2027-01-04', '2027-01-08')]),
+                               ('2027年1月第1週 2027/1 week1  ( 12/28 - 1/1 )', '12/21～12/25', '12/28～01/01', [('2026-12-21', '2026-12-25'), ('2026-12-28', '2027-01-01')]),
+                               ('2024年12月第5週 2024/12 week5  ( 12/30 - 12/30 )', '12/23～12/27', '12/30～12/30', [('2024-12-23', '2024-12-27'), ('2024-12-30', '2024-12-30')])):
+            self.assertEqual([(x['from'], x['to']) for x in zd.jpx_parse_old(_jpxf_old_file(t, lp, lc))], exp, t)
+        K = _jpxf_K(0); K['for'] = [K['for'][1], K['for'][1]]          # kupno = sprzedaż: bez salda w żadnym wierszu
+        self.assertEqual(zd.jpx_parse_old(_jpxf_old_file(Kc=K))[1]['k']['for'], K['for'])
+        K = _jpxf_K(0); K['for'] = [K['for'][0], K['for'][0] + 10_000]   # saldo dodatnie — w wierszu zakupów
+        self.assertEqual(zd.jpx_parse_old(_jpxf_old_file(Kc=K))[1]['k']['for'], K['for'])
+
+    def test_stary_format_bledy_to_valueerror(self):
+        c = _jpxf_old_sheet('2026年9月第2週 2026/9 week2  ( 9/7 - 9/11 )', '08/31～09/04', '09/07～09/11', _jpxf_complete(_jpxf_K(1)), _jpxf_complete(_jpxf_K(0)))
+        cases = {'drugie saldo zagranicy (złe)': {(30, 10): '999'}, 'saldo ≠ kupno − sprzedaż': {(29, 10): '-1'}, 'zmieniona etykieta wiersza': {(29, 0): 'Overseas'},
+                 'brak jednostki': {(4, 10): 'yen'}, 'tytuł ≠ etykieta': {(10, 7): '09/14～09/18'}, 'suma maklerskich ≠ części': {(15, 8): '1,000'},
+                 'pusta komórka': {(30, 8): ''}, 'ujemna sprzedaż': {(26, 8): '-5'}}
+        for why, ch in cases.items():
+            x = dict(c); x.update(ch)
+            with self.assertRaises(ValueError, msg=why):
+                zd.jpx_parse_old(_jpxf_xls({'Tokyo & Nagoya': x}))
+
+    # ---------------------------------------------------------------- 4. nowy format (układ prawdziwych plików z 29.09 i 01.10.2026)
+    def test_nowy_format_jednostka_po_wielkosci_daty_z_nazwy_i_grupy(self):
+        n = 'stock_1_w_20260914_20260918.xlsx'
+        a = zd.jpx_parse_new(_jpxf_new_file('2026093', mult=1), n)[0]
+        b = zd.jpx_parse_new(_jpxf_new_file('2026093', mult=1000), n)[0]
+        self.assertEqual((a['raw_unit'], b['raw_unit']), ('kJPY', 'JPY'), 'prawdziwe pliki: tys. JPY; próbka formatu: jeny')
+        self.assertEqual(a['k'], b['k']); self.assertEqual((a['from'], a['to'], a['code'], a['fmt']), ('2026-09-14', '2026-09-18', '2026093', 'xlsx'))
+        G = _jpxf_groups(_jpxf_K(0))
+        self.assertEqual(a['k']['for'], [G['for_inst'][0] + G['for_ind'][0], G['for_inst'][1] + G['for_ind'][1]], 'zagranica = instytucje + osoby')
+        self.assertEqual(a['k']['prop'], [G['prop_cash'][0] + G['prop_margin'][0], G['prop_cash'][1] + G['prop_margin'][1]])
+        self.assertEqual(a['k']['fin'], [sum(G[k][i] for k in ('life', 'bank', 'trb', 'ofin')) for i in (0, 1)])
+        self.assertEqual(a['k']['brk'], [sum(G[k][i] for k in zd.JPX_NEW_GR if not k.startswith('prop')) for i in (0, 1)], 'maklerskie = 12 grup bez własnego rachunku')
+        self.assertEqual(zd.jpx_parse_new(_jpxf_new_file('2026094', mult=1), 'stock_1_w_20260924_20260925.xlsx')[0]['to'], '2026-09-25', 'tydzień dwóch sesji po świętach')
+        self.assertEqual(zd.jpx_parse(_jpxf_new_file('2026093'), 'stock_1_w_20260914_20260918.xlsx')[0]['fmt'], 'xlsx', 'wybór odczytu po nazwie')
+        self.assertEqual(zd.jpx_parse(_jpxf_old_file(), 'stock_val_1_260902.xls')[1]['fmt'], 'xls')
+
+    def test_nowy_format_bledy_to_valueerror(self):
+        n = 'stock_1_w_20260914_20260918.xlsx'
+        base = _jpxf_new_sheet('2026093', _jpxf_groups(_jpxf_K(0)))
+
+        def bad(why, change=None, name=n, cells=None):
+            c = dict(cells if cells is not None else base)
+            if change:
+                change(c)
+            with self.assertRaises(ValueError, msg=why):
+                zd.jpx_parse_new(_jpxf_xlsx({_JPXF_SHEET: c}), name)
+        bad('kod tygodnia innego miesiąca', lambda c: c.__setitem__((7, 0), '2026081'))
+        bad('dwa kody tygodnia', lambda c: c.__setitem__((9, 0), '2026094'))
+        bad('brak kodu tygodnia', lambda c: c.pop((7, 0)))
+        bad('nieznana grupa', lambda c: c.__setitem__((5, 51), '年金 Pension Funds'))
+        bad('powtórzona grupa', lambda c: c.__setitem__((5, 55), '信託銀行 Trust BK'))
+        bad('brak grupy', lambda c: [c.pop((6, 55 + i)) for i in range(4)])
+        bad('saldo niezgodne', lambda c: c.__setitem__((14, 21), c[(14, 21)] + 1000.0))
+        bad('suma niezgodna', lambda c: c.__setitem__((14, 22), c[(14, 22)] + 1000.0))
+        bad('brak wiersza Tokio i Nagoja', lambda c: c.__setitem__((13, 1), '名古屋\nNagoya'))
+        bad('Tokio i Nagoja mniejsze niż rynki Tokio', lambda c: c.__setitem__((8, 19), c[(8, 19)] + 10_000.0))
+        bad('zła nazwa pliku', name='stock_1_w_2026091_20260918.xlsx')
+        bad('tydzień dłuższy niż 7 dni', name='stock_1_w_20260907_20260918.xlsx')
+        bad('data spoza kalendarza', name='stock_1_w_20260230_20260231.xlsx')
+        bad('nagłówek grupy bez „Total”', lambda c: c.__setitem__((6, 6), '合計'))
+        bad('ujemna sprzedaż', lambda c: [c.__setitem__((14, 3), -5.0), c.__setitem__((14, 5), c[(14, 4)] + 5.0), c.__setitem__((14, 6), c[(14, 4)] - 5.0)])
+
+    def test_szew_formatow_te_same_liczby_i_sprawdzenie_tygodnia(self):
+        new = zd.jpx_parse_new(_jpxf_new_file('2026092', _jpxf_K(0)), 'stock_1_w_20260907_20260911.xlsx')[0]
+        old = zd.jpx_parse_old(_jpxf_old_file())[1]
+        self.assertEqual(new['k'], old['k'], 'ten sam tydzień w obu formatach (jak próbka z 07.2026 vs plik 260401) — te same liczby')
+        self.assertEqual(zd.jpx_row(new), zd.jpx_row(old))
+        today = datetime.date(2026, 10, 3)
+        self.assertTrue(zd.jpx_week_ok(new, today))
+        x = copy.deepcopy(new); x['k'] = {k: [v[0] * 1000, v[1] * 1000] for k, v in x['k'].items()}
+        with self.assertRaisesRegex(ValueError, 'błąd jednostki'):
+            zd.jpx_week_ok(x, today)                                        # jeny wzięte za tys. JPY (× 1000) — nie przejdzie
+        x = copy.deepcopy(new); x['k'] = {k: [v[0] // 1000, v[1] // 1000] for k, v in x['k'].items()}
+        with self.assertRaises(ValueError):
+            zd.jpx_week_ok(x, today)                                        # i odwrotnie (÷ 1000)
+        for f, t in (('2026-10-05', '2026-10-09'), ('2015-12-28', '2015-12-30'), ('2026-09-18', '2026-09-14'), ('2026-09-01', '2026-09-11')):
+            with self.assertRaises(ValueError, msg=(f, t)):
+                zd.jpx_week_ok(dict(new, **{'from': f, 'to': t}), today)
+        x = copy.deepcopy(new); x['k']['for'] = [x['k']['brk'][0] + 1, x['k']['brk'][1]]
+        with self.assertRaises(ValueError):
+            zd.jpx_week_ok(x, today)
+        r = zd.jpx_row(new)
+        self.assertEqual(r[:2], ['2026-09-07', '2026-09-11']); self.assertEqual(r[2:4], [(new['k']['for'][0] + 500) // 1000, (new['k']['for'][1] + 500) // 1000])
+        self.assertEqual(zd.jpx_row({'from': 'a', 'to': 'b', 'k': {k: [1500, 2499] for k in zd.JPX_CATS}})[2:4], [2, 2], 'mln JPY: połówka w górę')
+
+    # ---------------------------------------------------------------- 5. lista, archiwa, kalendarz
+    def test_lista_linki_etykiety_i_mapa_archiwow(self):
+        page = self._listing(self._sep(), extra_rows=[])
+        L = zd.jpx_links(page)
+        self.assertEqual([x[:2] for x in L['new']], [('2026-09-14', '2026-09-18'), ('2026-09-24', '2026-09-25')], 'nowe pliki: daty z nazw, rosnąco')
+        self.assertEqual([(c, lab) for c, _, lab in L['old']], [('260901', ('2026-08-31', '2026-09-04')), ('260902', ('2026-09-07', '2026-09-11'))], 'stary format: daty z etykiety')
+        self.assertTrue(all(p.endswith('.xls') and 'stock_vol' not in p for _, p, _ in L['old']) and all(p.endswith('.xlsx') for *_, p in L['new']), 'bez pdf i stock_vol')
+        self.assertEqual(L['arch'], {'2026': '00', '2025': '01', '2024': '02', '2023': '03'}); self.assertEqual(L['upd'], 'Oct. 01, 2026')
+        shuffled = _jpxf_page([_jpxf_row('new', '2026-09-14', '2026-09-18', '2026093'), _jpxf_row('new', '2026-09-24', '2026-09-25', '2026094')])
+        self.assertEqual(zd.jpx_links(shuffled)['new'][-1][1], '2026-09-25', 'najnowszy po datach, nie po kolejności w HTML')
+        jan = _jpxf_page([], arch=(('2027', '00'), ('2026', '01'), ('2025', '02')))
+        self.assertEqual(zd.jpx_links(jan)['arch'], {'2027': '00', '2026': '01', '2025': '02'}, 'styczeń: numeracja archiwów przesunięta — mapa z etykiet')
+        self.assertEqual(zd.jpx_links('<option value="/m/00-00-archives-00.html">2026年</option>'.encode())['arch'], {'2026': '00'}, 'etykiety japońskie „2026年”')
+        self.assertEqual(zd._jpx_label('Jan 2027, Week1（12/28 - 1/1）'), ('2026-12-28', '2027-01-01'))
+        self.assertEqual(zd._jpx_label('Dec 2026, Week5（12/28 - 1/1）'), ('2026-12-28', '2027-01-01'))
+        self.assertEqual(zd._jpx_label('Dec 2024, Week5（12/30 - 12/30）'), ('2024-12-30', '2024-12-30'))
+        self.assertIsNone(zd._jpx_label('Sep 2026, Week3（9/14 - 9/31）')); self.assertIsNone(zd._jpx_label('brak etykiety'))
+
+    def test_kalendarz_publikacji_swieta(self):
+        D = datetime.date
+        self.assertEqual(zd.jpx_release(D(2026, 9, 11)), D(2026, 9, 17), 'zwykle czwartek')
+        self.assertEqual(zd.jpx_release(D(2026, 9, 18)), D(2026, 9, 29), 'tydzień 14–18.09: 21–23.09 święta → wtorek 29.09 (jak u źródła)')
+        self.assertEqual(zd.jpx_release(D(2026, 9, 25)), D(2026, 10, 1), 'tydzień 24–25.09 → czwartek 01.10 (jak u źródła)')
+        self.assertEqual(zd.jpx_next_release(D(2026, 9, 25)), D(2026, 10, 8))
+        self.assertEqual(zd.jpx_next_release(D(2026, 10, 2)), D(2026, 10, 16), 'po tygodniu 05–09.10: 12.10 święto → piątek 16.10')
+        self.assertEqual(zd.jpx_next_release(D(2026, 12, 25)), D(2027, 1, 7), 'przełom roku: 31.12 i 1–3.01 bez sesji')
+        self.assertEqual(zd.jpx_due(D(2026, 9, 11)), datetime.datetime(2026, 9, 29, 6, 25, tzinfo=datetime.timezone.utc))
+        self.assertFalse(zd.jpx_bday(D(2026, 9, 22))); self.assertFalse(zd.jpx_bday(D(2027, 1, 1))); self.assertFalse(zd.jpx_bday(D(2026, 12, 31))); self.assertTrue(zd.jpx_bday(D(2026, 9, 24)))
+        self.assertTrue(all(D.fromisoformat(x).weekday() < 5 for x in zd.JPX_SWIETA), 'w tabeli tylko dni robocze (święto w weekend bez znaczenia)')
+
+    # ---------------------------------------------------------------- 6. build_jpx: lista, nowe tygodnie, 304, korekta, zły plik
+    def test_bez_poprzedniego_pliku_tylko_lista_i_najnowszy_plik(self):
+        W = self._sep()
+        for run in range(2):                                                 # dwa przebiegi z rzędu bez pamięci i bez pliku na stronie (404)
+            zd.META['notes'].clear()
+            srv = _JpxSrv(self._routes(W))
+            J = zd.build_jpx(None, {'kursy': self.KURSY}, now=self.NOW, get=srv)
+            urls = [u for u, _, _ in srv.calls]
+            self.assertEqual(urls, [zd.JPX_EN + 'index.html', zd.JPX_B + _jpxf_path('new', '2026-09-24', '2026-09-25')],
+                             'bez poprzedniego pliku: lista + NAJNOWSZY plik (2 zapytania); bez archiwów, starych plików i rejestru korekt')
+            self.assertIsNone(srv.calls[0][1], 'bez If-Modified-Since')
+        self.assertEqual([r[:2] for r in J['d']], [['2026-09-24', '2026-09-25']])
+        self.assertEqual(J['d'][-1], self._row('2026-09-24', '2026-09-25', 8))
+        self.assertEqual((J['asof'], J['week'], J['fmt'], J['raw_unit'], J['next']), ('2026-09-25', ['2026-09-24', '2026-09-25'], 'xlsx', 'kJPY', '2026-10-08'))
+        self.assertEqual(J['pub'], '2026-10-01T06:30:30+00:00'); self.assertEqual(J['lm'], 'Thu, 01 Oct 2026 06:30:30 GMT'); self.assertEqual(J['arch']['2025'], '01')
+        self.assertNotIn('pend', J, 'starsze tygodnie z listy to zadanie historii wstecz, nie zaległość')
+        self.assertEqual(J['bf'], {'done': False, 'files': 0, 'pages': 0}); self.assertEqual(J['cols'], zd.JPX_COLS); self.assertEqual(J['unit'], 'mln JPY')
+        self.assertEqual(J['fx'], ['2026-09', round(180.044091 / 1.151323, 3)]); self.assertEqual(J['at'], J['chk']); self.assertEqual(J['run']['req'], 2)
+        self.assertIs(zd.META['ok']['jpx'], True)
+        self.assertLess(len(json.dumps(J, separators=(',', ':'))), 6000)
+        # źródło nie odpowiada albo zły plik: notatka (nie błąd), nic do zapisania (None); META ok False
+        for routes in ({zd.JPX_EN + 'index.html': OSError('timed out'), zd.JPX_JA + 'index.html': zd.urllib.error.HTTPError(zd.JPX_JA, 403, 'Forbidden', {}, None)},
+                       dict(self._routes(W), **{zd.JPX_B + _jpxf_path('new', '2026-09-24', '2026-09-25'): (200, b'<html>404</html>', None)})):
+            zd.META['notes'].clear(); zd.META['errors'].clear()
+            srv = _JpxSrv(routes)
+            self.assertIsNone(zd.build_jpx(None, {}, now=self.NOW, get=srv))
+            self.assertLessEqual(len(srv.calls), 2); self.assertEqual(zd.META['errors'], []); self.assertIs(zd.META['ok']['jpx'], False)
+            self.assertTrue(any('plik niezapisany' in n for n in zd.META['notes']), zd.META['notes'])
+
+    def test_nowy_tydzien_po_szwie_formatow_i_korekta(self):
+        W = self._sep()
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in W[:2]], tried='2026-09-29T05:00:00+00:00')
+        now = datetime.datetime(2026, 9, 29, 7, 0, tzinfo=datetime.timezone.utc)   # 29.09 07:00 UTC — publikacja należna (po świętach)
+        srv = _JpxSrv(self._routes(W[:3]))
+        J = zd.build_jpx(prev, {}, now=now, get=srv)
+        self.assertEqual([u for u, _, _ in srv.calls], [zd.JPX_EN + 'index.html', zd.JPX_B + _jpxf_path('new', '2026-09-14', '2026-09-18')])
+        self.assertEqual(srv.calls[0][1], prev['lm'], 'If-Modified-Since = ostatni Last-Modified listy')
+        self.assertEqual([r[1] for r in J['d']], ['2026-09-04', '2026-09-11', '2026-09-18'], 'szew: ostatni tydzień starego formatu, pierwszy nowego — kolejne tygodnie')
+        self.assertEqual((J['fmt'], J['pub'], J['asof']), ('xlsx', '2026-09-29T06:30:28+00:00', '2026-09-18')); self.assertEqual(J['at'], zd._jpx_iso(now))
+        self.assertIs(zd.META['ok']['jpx'], True); self.assertEqual(J['fx'], None, 'bez kursów — bez ≈ USD (nie zero)')
+        # ten sam tydzień, te same liczby → bez zmian; inne liczby w nowszym pliku starego formatu → zastąpione + notatka o korekcie
+        rows = {r[1]: r for r in J['d']}
+        self.assertEqual(zd._jpx_merge(rows, [zd.jpx_parse_new(_jpxf_new_file('2026093', _jpxf_K(7)), 'stock_1_w_20260914_20260918.xlsx')[0]], 'fwd', []), 0)
+        notes = []
+        w2 = zd.jpx_parse_new(_jpxf_new_file('2026093', _jpxf_K(9)), 'stock_1_w_20260914_20260918.xlsx')[0]
+        self.assertEqual(zd._jpx_merge(dict(rows), [w2], 'back', notes), 0, 'historia wstecz (starsza publikacja) nie nadpisuje zapisanego tygodnia')
+        rr = dict(rows); self.assertEqual(zd._jpx_merge(rr, [w2], 'fwd', notes), 1); self.assertEqual(rr['2026-09-18'], self._row('2026-09-14', '2026-09-18', 9))
+        self.assertIn('korekta tygodnia 2026-09-14–2026-09-18', notes[0])
+        w3 = dict(w2, **{'from': '2026-09-16', 'to': '2026-09-17'})
+        self.assertEqual(zd._jpx_merge(rr, [w3], 'fwd', notes), 0); self.assertIn('nachodzi', notes[-1], 'tydzień nachodzący na zapisany — odrzucony')
+        # stary plik na liście z nowym tygodniem i ZMIENIONYM poprzednim tygodniem (nowsza publikacja) → korekta
+        W2 = [('2026-08-24', '2026-08-28', '260804', 4), ('2026-08-31', '2026-09-04', '260901', 15), ('2026-09-07', '2026-09-11', '260902', 6)]
+        prev2 = self._prev([self._row('2026-08-24', '2026-08-28', 4), self._row('2026-08-31', '2026-09-04', 5)], tried='2026-09-10T00:00:00+00:00')
+        zd.META['notes'].clear()
+        J2 = zd.build_jpx(prev2, {}, now=datetime.datetime(2026, 9, 17, 7, 0, tzinfo=datetime.timezone.utc), get=_JpxSrv(self._routes(W2)))
+        self.assertEqual(J2['d'][-2], self._row('2026-08-31', '2026-09-04', 15)); self.assertEqual(J2['d'][-1], self._row('2026-09-07', '2026-09-11', 6))
+        self.assertTrue(any('korekta tygodnia 2026-08-31–2026-09-04' in n for n in zd.META['notes'])); self.assertEqual(J2['fmt'], 'xls')
+        self.assertEqual(len(J2['korekty']), 1); self.assertIn('korekta tygodnia 2026-08-31–2026-09-04', J2['korekty'][0][1])
+
+    def test_304_bez_zmian_i_nic_nalezne_bez_zapytan(self):
+        W = self._sep()
+        rows = [self._row(a, b, i) for a, b, _, i in W]
+        prev = self._prev(rows, tried='2026-10-03T00:00:00+00:00')
+        srv = _JpxSrv({})
+        self.assertIs(zd.build_jpx(prev, {}, now=self.NOW, get=srv), prev, 'publikacja nienależna, lista sprawdzona < 12 h temu — bez zapytań')
+        self.assertEqual(srv.calls, []); self.assertEqual(zd.META['ok']['jpx'], 'cached')
+        prev = self._prev(rows, tried='2026-10-02T21:00:00+00:00', chk='2026-10-02T21:00:00+00:00', at='2026-10-01T06:40:00+00:00')
+        srv = _JpxSrv({zd.JPX_EN + 'index.html': (304, b'', None)})
+        J = zd.build_jpx(prev, {}, now=self.NOW, get=srv)
+        self.assertEqual(len(srv.calls), 1); self.assertEqual(srv.calls[0][1], prev['lm'])
+        self.assertEqual(J['d'], rows); self.assertEqual((J['chk'], J['tried'], J['at']), (zd._jpx_iso(self.NOW),) * 3, '304: liczby bez zmian, sprawdzenie i plik odświeżone')
+        self.assertEqual(J['lm'], prev['lm']); self.assertIs(zd.META['ok']['jpx'], True); self.assertIs(J['ok']['listing'], True)
+
+    def test_okno_publikacji_tydzien_ze_swietami(self):
+        W = self._sep()
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in W[:2]])
+        T = lambda s: datetime.datetime.fromisoformat(s + '+00:00')   # noqa: E731
+        for now, tried, polled, why in (('2026-09-24T08:00:00', '2026-09-24T07:00:00', False, 'czwartek 24.09: zwykły termin, ale po świętach publikacja 29.09 — lista co 12 h'),
+                                        ('2026-09-24T19:01:00', '2026-09-24T07:00:00', True, '12 h od ostatniego sprawdzenia'),
+                                        ('2026-09-29T06:20:00', '2026-09-29T00:00:00', False, '29.09 przed 06:25 UTC — jeszcze co 12 h'),
+                                        ('2026-09-29T07:00:00', '2026-09-29T06:00:00', True, 'od 29.09 06:25 UTC — co godzinę'),
+                                        ('2026-09-29T07:50:00', '2026-09-29T07:20:00', False, 'w oknie publikacji najwyżej co 55 min')):
+            srv = _JpxSrv({zd.JPX_EN + 'index.html': (304, b'', None)})
+            zd.build_jpx(dict(prev, tried=tried + '+00:00'), {}, now=T(now), get=srv)
+            self.assertEqual(bool(srv.calls), polled, why)
+        self.assertFalse(zd.META['errors'], 'czekanie na publikację po świętach to nie błąd')
+
+    def test_zly_plik_lista_zapasowa_i_rejestr_korekt(self):
+        W = self._sep()
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in W[:3]], tried='2026-10-01T05:00:00+00:00', rev_chk='2026-09-30T00:00:00+00:00')
+        now = datetime.datetime(2026, 10, 1, 7, 0, tzinfo=datetime.timezone.utc)
+        R = self._routes(W)
+        R[zd.JPX_B + _jpxf_path('new', '2026-09-24', '2026-09-25')] = (200, _jpxf_new_file('2026081', _jpxf_K(8)), None)   # zły kod tygodnia
+        R[zd.JPX_REV] = (200, b'\xd0\xcf', 'Wed, 30 Sep 2026 01:00:00 GMT')
+        J = zd.build_jpx(prev, {}, now=now, get=_JpxSrv(R))
+        self.assertEqual(J['d'], prev['d'], 'zły plik: tydzień odrzucony, poprzednie dane zostają (bez zera)')
+        self.assertIs(J['ok']['file'], False); self.assertIs(zd.META['ok']['jpx'], False); self.assertEqual(zd.META['errors'], [], 'część z błędem = notatka, nie błąd')
+        self.assertTrue(any('plik tygodnia 2026-09-24–2026-09-25 odrzucony' in n for n in zd.META['notes']))
+        self.assertTrue(any('nową informację o korekcie' in n for n in zd.META['notes'])); self.assertEqual(J['rev_lm'], 'Wed, 30 Sep 2026 01:00:00 GMT')
+        # strona angielska nie odpowiada → strona japońska (te same pliki pod ścieżką japońską)
+        zd.META['notes'].clear()
+        R = self._routes(W)
+        ja = _jpxf_page([_jpxf_row('new', '2026-09-24', '2026-09-25', '2026094').replace('/english/', '/')])
+        R[zd.JPX_EN + 'index.html'] = zd.urllib.error.HTTPError(zd.JPX_EN, 503, 'x', {}, None)
+        R[zd.JPX_JA + 'index.html'] = (200, ja, None)
+        R[zd.JPX_B + _jpxf_path('new', '2026-09-24', '2026-09-25').replace('/english/', '/')] = (200, _jpxf_new_file('2026094', _jpxf_K(8)), 'Thu, 01 Oct 2026 06:30:29 GMT')
+        srv = _JpxSrv(R)
+        J = zd.build_jpx(dict(prev, rev_chk='2026-10-01T00:00:00+00:00'), {}, now=now, get=srv)
+        self.assertEqual(J['d'][-1], self._row('2026-09-24', '2026-09-25', 8)); self.assertIs(zd.META['ok']['jpx'], True)
+        self.assertEqual(J['lm'], prev['lm'], 'Last-Modified tylko ze strony angielskiej'); self.assertTrue(any('strona angielska' in n for n in zd.META['notes']))
+        # obie strony nie odpowiadają → poprzednie dane, notatka, następna próba po 55 min (nie co przebieg)
+        zd.META['notes'].clear()
+        R = {zd.JPX_EN + 'index.html': OSError('timed out'), zd.JPX_JA + 'index.html': OSError('timed out')}
+        J = zd.build_jpx(dict(prev, rev_chk='2026-10-01T00:00:00+00:00'), {}, now=now, get=_JpxSrv(R))
+        self.assertEqual(J['d'], prev['d']); self.assertEqual(J['at'], prev['at'], 'bez udanego sprawdzenia „at” stoi'); self.assertEqual(J['tried'], zd._jpx_iso(now))
+        self.assertIs(zd.META['ok']['jpx'], False); self.assertEqual(zd.META['errors'], [])
+        srv = _JpxSrv({}); zd.build_jpx(J, {}, now=now + datetime.timedelta(minutes=20), get=srv); self.assertEqual(srv.calls, [], 'ponowienie najwcześniej po 55 min')
+
+    def test_limit_historii_luka_i_kurs(self):
+        start = datetime.date(2023, 7, 7)
+        rows = [self._row((start + datetime.timedelta(days=7 * k - 4)).isoformat(), (start + datetime.timedelta(days=7 * k)).isoformat(), k % 13) for k in range(160)]
+        del rows[150]                                                       # luka: tydzień bez pliku zostaje luką
+        prev = self._prev(rows, tried='2026-01-01T00:00:00+00:00')
+        last = start + datetime.timedelta(days=7 * 159)
+        nxt = (last + datetime.timedelta(days=3), last + datetime.timedelta(days=7))
+        page = _jpxf_page([_jpxf_row('new', nxt[0].isoformat(), nxt[1].isoformat(), nxt[1].strftime('%Y%m') + '2')])
+        R = {zd.JPX_EN + 'index.html': (200, page, 'x'), zd.JPX_B + _jpxf_path('new', nxt[0].isoformat(), nxt[1].isoformat()): (200, _jpxf_new_file(nxt[1].strftime('%Y%m') + '2', _jpxf_K(3)), None)}
+        now = datetime.datetime.combine(nxt[1] + datetime.timedelta(days=7), datetime.time(7, 0), datetime.timezone.utc)
+        J = zd.build_jpx(prev, {'kursy': self.KURSY}, now=now, get=_JpxSrv(R))
+        self.assertEqual(len(J['d']), zd.JPX_WEEKS); self.assertEqual(J['d'][-1][1], nxt[1].isoformat()); self.assertEqual(J['d'][0][1], rows[160 - 156][1])
+        self.assertNotIn((start + datetime.timedelta(days=7 * 150)).isoformat(), [r[1] for r in J['d']], 'luka zostaje luką (bez zera)')
+        self.assertIsNone(J['fx'], 'tydzień z lipca, kursy od sierpnia — kurs z późniejszego miesiąca nigdy nie jest używany')
+        K2 = {'m': {'JPY': [['2026-06', 170.5], ['2026-09', 180.0]], 'USD': [['2026-06', 1.1], ['2026-09', 1.15]]}}
+        J = zd.build_jpx(dict(prev, tried='2026-01-01T00:00:00+00:00'), {'kursy': K2}, now=now, get=_JpxSrv(R))
+        self.assertEqual(J['fx'], ['2026-06', round(170.5 / 1.1, 3)], 'ostatni znany średni kurs miesiąca ≤ miesiąc tygodnia')
+
+    # ---------------------------------------------------------------- 7. historia wstecz: co drugi plik, budżet, spóźniony przebieg, koniec
+    def _bf_world(self):
+        W = self.WEEKS
+        R = {zd.JPX_EN + '00-00-archives-00.html': (200, _jpxf_page([_jpxf_row('old', a, b, c) for a, b, c in reversed(W[11:])]), None),
+             zd.JPX_EN + '00-00-archives-01.html': (200, _jpxf_page([_jpxf_row('old', a, b, c) for a, b, c in reversed(W[1:11])]), None)}
+        for i in range(1, len(W)):
+            a, b, c = W[i]
+            R[zd.JPX_B + _jpxf_path('old', a, b, c)] = (200, self._old(i), None)
+        return R
+
+    def test_historia_wstecz_co_drugi_plik_w_budzecie_i_koniec(self):
+        self.enterContext(mock.patch.object(zd, 'JPX_WEEKS', 12)); self.enterContext(mock.patch.object(zd, 'JPX_BF_FILES', 3))
+        W = self.WEEKS
+        prev = self._prev([self._row(W[11][0], W[11][1], 11), self._row(W[12][0], W[12][1], 12)], tried='2026-01-22T00:30:00+00:00',
+                          bf={'done': False, 'files': 0, 'pages': 0}, arch={'2026': '00', '2025': '01'}, arch_y=2026, rev_chk='2026-01-22T00:00:00+00:00')
+        now = datetime.datetime(2026, 1, 22, 1, 0, tzinfo=datetime.timezone.utc)
+        srv = _JpxSrv(self._bf_world())
+        J = zd.build_jpx(prev, {}, now=now, get=srv)
+        files = [u.rsplit('_', 1)[-1] for u, _, _ in srv.calls if u.endswith('.xls')]
+        self.assertEqual([u.rsplit('/', 1)[-1] for u, _, _ in srv.calls if u.endswith('.html')], ['00-00-archives-00.html', '00-00-archives-01.html'])
+        self.assertEqual(files, ['251205.xls', '251203.xls', '251201.xls'], 'co drugi stary plik (każdy niesie też poprzedni tydzień), najwyżej 3 na przebieg')
+        self.assertEqual([r[1] for r in J['d']][:3], ['2025-11-28', '2025-12-05', '2025-12-12']); self.assertEqual(len(J['d']), 8)
+        self.assertEqual(J['bf']['files'], 3); self.assertEqual(J['bf']['pages'], 2); self.assertEqual(J['bf']['y'], 2025); self.assertFalse(J['bf'].get('done'))
+        self.assertEqual(J['ok']['backfill'], 'partial'); self.assertEqual(J['d'][3], self._wk(8)); self.assertEqual(J['d'][4], self._wk(9), 'poprzedni tydzień z pliku 251205')
+        self.assertEqual(J['at'], zd._jpx_iso(now), 'nowe tygodnie = nowy czas pliku')
+        srv2 = _JpxSrv(self._bf_world())
+        J2 = zd.build_jpx(J, {}, now=now + datetime.timedelta(minutes=20), get=srv2)
+        self.assertEqual([u.rsplit('_', 1)[-1] for u, _, _ in srv2.calls], ['251103.xls', '251101.xls'], 'drugi przebieg: kolejka z pliku, bez ponownego czytania archiwum')
+        self.assertEqual([r[1] for r in J2['d']], [w[1] for w in W[1:]], '12 tygodni od 31.10.2025 do 16.01.2026, bez luk')
+        self.assertIs(J2['bf']['done'], True); self.assertNotIn('q', J2['bf']); self.assertNotIn('arch', J2, 'po końcu historii bez kolejki i mapy archiwów')
+        srv3 = _JpxSrv({}); self.assertIs(zd.build_jpx(J2, {}, now=now + datetime.timedelta(minutes=40), get=srv3), J2); self.assertEqual(srv3.calls, [])
+
+    def test_historia_wstecz_budzet_czasu_limit_zapytania_i_spozniony_przebieg(self):
+        self.enterContext(mock.patch.object(zd, 'JPX_WEEKS', 12))
+        W = self.WEEKS
+        prev = self._prev([self._row(W[11][0], W[11][1], 11), self._row(W[12][0], W[12][1], 12)], tried='2026-01-22T00:30:00+00:00',
+                          bf={'done': False, 'files': 0, 'pages': 0}, arch={'2026': '00', '2025': '01'}, arch_y=2026, rev_chk='2026-01-22T00:00:00+00:00')
+        now = datetime.datetime(2026, 1, 22, 1, 0, tzinfo=datetime.timezone.utc)
+        clock = [1000.0]
+        self.enterContext(mock.patch.object(zd.time, 'monotonic', lambda: clock[0]))
+        srv = _JpxSrv(self._bf_world(), clock=clock, cost=10.0)              # każde zapytanie trwa 10 s
+        J = zd.build_jpx(prev, {}, now=now, get=srv)
+        self.assertEqual(len(srv.calls), 4, 'budżet 45 s: strony archiwum i pliki, dopóki zostaje ≥ 6 s + przerwa')
+        self.assertTrue(all(t <= zd.JPX_TIMEOUT for _, _, t in srv.calls)); self.assertLessEqual(srv.calls[-1][2], 45 - 30 - zd.JPX_SLEEP + 1e-9, 'limit zapytania przycięty do reszty budżetu')
+        self.assertLessEqual(clock[0] - 1000.0, zd.JPX_BACK_BUDGET); self.assertFalse(J['bf'].get('done'))
+        # spóźniony przebieg (> BACK_LATE od startu main) — bez historii wstecz i z notatką
+        clock[0] = 5000.0
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [5000.0 - zd.BACK_LATE - 1]))
+        srv = _JpxSrv(self._bf_world(), clock=clock, cost=1.0)
+        self.assertIs(zd.build_jpx(prev, {}, now=now, get=srv), prev); self.assertEqual(srv.calls, [])
+        self.assertTrue(any('historia wstecz pominięta' in n for n in zd.META['notes']))
+        # błąd sieci w historii → przerwa JPX_BF_WAIT min (bez zapytań w następnym przebiegu), kolejka zostaje
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [None])); clock[0] = 9000.0
+        R = self._bf_world(); R[zd.JPX_EN + '00-00-archives-01.html'] = OSError('connection reset')
+        J = zd.build_jpx(prev, {}, now=now, get=_JpxSrv(R))
+        self.assertEqual(J['bf']['wait'], zd._jpx_iso(now + datetime.timedelta(minutes=zd.JPX_BF_WAIT))); self.assertEqual(J['ok']['backfill'], 'wait')
+        srv = _JpxSrv({}); self.assertIs(zd.build_jpx(J, {}, now=now + datetime.timedelta(minutes=20), get=srv), J); self.assertEqual(srv.calls, [])
+        # zły plik z archiwum — „bad”, bez ponawiania; jego tygodnie zostają luką
+        R = self._bf_world(); R[zd.JPX_B + _jpxf_path('old', *W[10])] = (200, b'<html>404</html>', None)
+        J = zd.build_jpx(prev, {}, now=now, get=_JpxSrv(R))
+        self.assertIn(_jpxf_path('old', *W[10]), J['bf']['bad']); self.assertNotIn('2025-12-30', [r[1] for r in J['d']])
+        self.assertEqual(zd.META['errors'], [], 'historia wstecz nigdy nie daje błędu')
+
+    def test_mapa_archiwow_nieznana_albo_z_innego_roku(self):
+        W = self.WEEKS
+        prev = self._prev([self._row(W[11][0], W[11][1], 11), self._row(W[12][0], W[12][1], 12)], tried='2026-01-21T23:00:00+00:00',
+                          bf={'done': False, 'files': 0, 'pages': 0}, rev_chk='2026-01-22T00:00:00+00:00')
+        now = datetime.datetime(2026, 1, 22, 1, 0, tzinfo=datetime.timezone.utc)
+        R = {zd.JPX_EN + 'index.html': OSError('timed out'), zd.JPX_JA + 'index.html': OSError('timed out')}
+        J = zd.build_jpx(prev, {}, now=now, get=_JpxSrv(R))
+        self.assertFalse(J['bf'].get('done'), 'bez mapy archiwów historia czeka (nie kończy się przedwcześnie)')
+        R = self._bf_world(); R[zd.JPX_EN + '00-00-archives-00.html'] = (200, _jpxf_page([_jpxf_row('old', '2027-01-04', '2027-01-08', '270101')]), None)
+        J = zd.build_jpx(dict(prev, arch={'2026': '00', '2025': '01'}, arch_y=2026), {}, now=now, get=_JpxSrv(R))
+        self.assertNotIn('arch', J); self.assertTrue(any('nie pasuje do roku' in n for n in zd.META['notes'])); self.assertFalse(J['bf'].get('done'))
+        srv = _JpxSrv({zd.JPX_EN + 'index.html': (200, _jpxf_page([]), 'x')})
+        zd.build_jpx(J, {}, now=now + datetime.timedelta(minutes=56), get=srv)
+        self.assertEqual(srv.calls[0][0], zd.JPX_EN + 'index.html', 'mapa do odświeżenia — lista jak w dniu publikacji (co 55 min)')
+
+    # ---------------------------------------------------------------- 8. pobieranie: 304, limit rozmiaru, odstęp
+    def test_jpx_get_304_limit_i_odstep(self):
+        class Resp:
+            status = 200
+            headers = {'Last-Modified': 'Thu, 01 Oct 2026 06:30:30 GMT'}
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self, n=-1):
+                return self.b[:n] if n and n > 0 else self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        seen, sleeps = [], []
+
+        def urlopen(req, timeout=None):
+            seen.append((req.full_url, req.get_header('User-agent'), req.get_header('If-modified-since'), timeout))
+            if 'big' in req.full_url:
+                return Resp(b'x' * (zd.JPX_MAX_BYTES + 5))
+            if req.get_header('If-modified-since'):
+                raise zd.urllib.error.HTTPError(req.full_url, 304, 'Not Modified', {}, None)
+            return Resp(b'ok')
+        self.enterContext(mock.patch.object(zd.urllib.request, 'urlopen', urlopen)); self.enterContext(mock.patch.object(zd.time, 'sleep', sleeps.append))
+        self.enterContext(mock.patch.object(zd, '_JPX_LAST', [zd.time.monotonic()]))
+        self.assertEqual(zd._jpx_get('https://x/a', timeout=7), (200, b'ok', 'Thu, 01 Oct 2026 06:30:30 GMT'))
+        self.assertEqual(zd._jpx_get('https://x/a', ims='Thu, 01 Oct 2026 06:30:30 GMT'), (304, b'', None))
+        with self.assertRaises(ValueError):
+            zd._jpx_get('https://x/big')
+        self.assertEqual(seen[0], ('https://x/a', 'CapitalFlowAI-collector/1.0', None, 7)); self.assertEqual(seen[1][2], 'Thu, 01 Oct 2026 06:30:30 GMT')
+        self.assertEqual(len(sleeps), 3); self.assertTrue(all(0 < s <= zd.JPX_SLEEP for s in sleeps), 'odstęp między zapytaniami do serwera giełdy')
+
+    # ---------------------------------------------------------------- 9. TRENDY
+    def test_trendy_wiersz_zagranicy(self):
+        rows = []
+        d = datetime.date(2026, 3, 6)
+        for k in range(30):
+            to = d + datetime.timedelta(days=7 * k)
+            r = self._row((to - datetime.timedelta(days=4)).isoformat(), to.isoformat(), k % 13)
+            if k != 25:
+                rows.append(r)                                              # tydzień 25 brakuje — luka (None), nie zero
+        J = {'at': zd.NOW, 'cols': list(zd.JPX_COLS), 'd': rows}
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 30, 12, 0, tzinfo=datetime.timezone.utc)))
+        with mock.patch.object(zd, '_tr_row', wraps=zd._tr_row) as spy:
+            f = {r['id']: r for r in zd.build_trendy({'jpx': J, 'kursy': self.KURSY})['f']}
+        r = f['jpx_for']
+        self.assertEqual((r['g'], r['m'], r['sz'], r['cur'], r['date'], r['fxm']), ('eq', 'flow', 1, 'JPY', rows[-1][1], '2026-09'))
+        call = next(c for c in spy.call_args_list if c.args[0] == 'jpx_for')
+        vals = call.args[5]
+        self.assertEqual(vals[-1], (rows[-1][3] - rows[-1][2]) / 1000, 'mld JPY = (kupno − sprzedaż) / 1000'); self.assertIsNone(vals[-5], 'brakujący tydzień = None')
+        self.assertIn('wu', r); self.assertAlmostEqual(r['last'], round(vals[-1], 2))
+        self.assertAlmostEqual(r['wu'], vals[-1] * 1000 / (180.044091 / 1.151323), delta=0.06, msg='≈ mln USD = mld JPY × 1000 ÷ JPY za USD (średni kurs 09.2026)')
+        self.assertNotIn('jpx_for', {x['id'] for x in zd.build_trendy({'kursy': self.KURSY})['f']}, 'bez pliku — bez wiersza')
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 30, 12, 0, tzinfo=datetime.timezone.utc)))
+        self.assertEqual({x['id']: x for x in zd.build_trendy({'jpx': J})['f']}['jpx_for']['st'], 'stale', 'po 20 dniach od końca tygodnia — za stare')
+        self.assertNotIn('wu', {x['id']: x for x in zd.build_trendy({'jpx': J})['f']}['jpx_for'], 'bez kursów — bez ≈ USD')
+        sh = dict(J, cols=list(reversed(zd.JPX_COLS)), d=[list(reversed(x)) for x in rows])
+        self.assertEqual({x['id']: x for x in zd.build_trendy({'jpx': sh})['f']}['jpx_for']['last'], {x['id']: x for x in zd.build_trendy({'jpx': J})['f']}['jpx_for']['last'], 'kolumny po nazwach')
+
+    # ---------------------------------------------------------------- 10. main()
+    def test_main_zapis_cache_i_awaria(self):
+        saved = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_jpx' and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in self._sep()])
+        built = dict(prev, at=zd.NOW)
+        [p.start() for p in stubs]
+        try:
+            def run(pv, build):
+                calls = []
+                zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear(); saved.clear()
+
+                def fake(p, S, now=None, get=None):
+                    calls.append((p, S))
+                    if isinstance(build, Exception):
+                        raise build
+                    zd.META['ok']['jpx'] = True
+                    return build
+                with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                        mock.patch.object(zd, 'previous', lambda name: pv if name == 'jpx' else None), mock.patch.object(zd, 'build_jpx', side_effect=fake):
+                    zd.main()
+                return calls
+            c = run(prev, built)
+            self.assertEqual(len(c), 1); self.assertIs(c[0][0], prev); self.assertIs(c[0][1], zd.SAVED, 'TRENDY i kurs: obiekty tego przebiegu (SAVED)')
+            self.assertIs(saved['jpx'], built); self.assertIs(zd.META['ok']['jpx'], True)
+            run(prev, RuntimeError('lista: HTTP Error 503')); self.assertIs(saved['jpx'], prev, 'awaria całości — zostaje poprzedni plik')
+            self.assertIs(zd.META['ok']['jpx'], False); self.assertIn('Japonia giełda: lista: HTTP Error 503', zd.META['errors'])
+            run(None, RuntimeError('offline')); self.assertNotIn('jpx', saved, 'bez poprzedniego pliku i bez danych — nic nie zapisujemy')
+            run(None, None); self.assertNotIn('jpx', saved, 'build_jpx bez danych (None) — brak pliku'); self.assertEqual([e for e in zd.META['errors'] if 'Japonia' in e], [])
+        finally:
+            [p.stop() for p in stubs]
+        src = open(zd.__file__, encoding='utf-8').read()
+        m0 = src.index("prev_jx = previous('jpx')")
+        self.assertLess(src.index("prev_k = previous('kursy')"), m0); self.assertLess(src.index("prev_inst = previous('instytucje')"), m0)
+        self.assertLess(m0, src.index("save('trendy', build_trendy(SAVED))"), 'po kursach i instytucjach, przed TRENDAMI')
+
+    # ---------------------------------------------------------------- 11. kontrola dzienna (najwyżej ⚠️)
+    def _k(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v137', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def _mof(self, pairs):
+        """pary (koniec tygodnia giełdy, netto giełda mld, netto MOF mld) → (instytucje, jpx)."""
+        rows, mof = [], []
+        for to, a, b in pairs:
+            t = datetime.date.fromisoformat(to)
+            s = 30_000_000
+            rows.append([(t - datetime.timedelta(days=4)).isoformat(), to, s, int(s + a * 1000)] + [1] * 18)
+            sat = t + datetime.timedelta(days=5 - t.weekday())
+            mof.append({'from': (sat - datetime.timedelta(days=6)).isoformat(), 'to': sat.isoformat(), 'liabilities': {'equity_net': b * 10}})
+        return {'mof': {'d': mof}}, {'cols': list(zd.JPX_COLS), 'd': rows, 'asof': pairs[-1][0]}
+
+    def test_kontrola_swiezosc_kalendarz_i_mof(self):
+        k = self._k()
+        self.assertEqual(k.JPX_SWIETA, zd.JPX_SWIETA, 'ta sama tabela świąt w zbieraczu i kontroli')
+        for d in ('2026-09-11', '2026-09-18', '2026-12-25', '2027-04-30'):
+            x = datetime.date.fromisoformat(d); self.assertEqual(k.jpx_next_release(x), zd.jpx_next_release(x))
+        UTC = datetime.timezone.utc
+        r = k.jpx_swiezosc({'asof': '2026-09-11'}, datetime.datetime(2026, 9, 29, 5, 0, tzinfo=UTC))
+        self.assertEqual(r[1], '✅', 'tydzień 07–11.09 po 17 dniach (święta: publikacja następnego 29.09) — w normie'); self.assertEqual(r[0], k.JPX_ETYKIETA)
+        self.assertEqual(k.jpx_swiezosc({'asof': '2026-09-11'}, datetime.datetime(2026, 9, 30, 8, 0, tzinfo=UTC))[1], '✅', 'do 26 h po spodziewanej publikacji')
+        r = k.jpx_swiezosc({'asof': '2026-09-11'}, datetime.datetime(2026, 10, 1, 9, 0, tzinfo=UTC))
+        self.assertEqual(r[1], '⚠️'); self.assertIn('2026-09-29', r[4]); self.assertIn('tylko uwaga', r[4])
+        self.assertEqual(k.jpx_swiezosc({'asof': '2026-09-25'}, datetime.datetime(2026, 10, 3, 9, 0, tzinfo=UTC))[1], '✅')
+        self.assertEqual(k.jpx_swiezosc({'asof': '2026-09-25'}, datetime.datetime(2026, 10, 9, 9, 0, tzinfo=UTC))[1], '⚠️', 'zwykły tydzień: czwartek 08.10 + 26 h')
+        self.assertEqual(k.jpx_swiezosc({'asof': '2026-06-05'}, datetime.datetime(2026, 10, 9, 9, 0, tzinfo=UTC))[1], '⚠️', 'bardzo stare — nadal tylko ⚠️, nigdy ❌')
+        self.assertEqual(k.jpx_swiezosc(None)[1], '⚠️', 'brak pliku (zbieracz bez danych nie zapisuje pliku) — ⚠️ „brak danych”, nigdy ❌')
+        self.assertIn('brak danych', k.jpx_swiezosc(None)[4]); self.assertEqual(k.jpx_swiezosc({'at': 'x'})[1], '?')
+        self.assertIn('jpx', k.PLIKI); self.assertEqual(k.LIMIT_MIN['jpx'], 26 * 60); self.assertNotIn('jpx', [x[1] for x in k.SWIEZOSC], 'lista SWIEZOSC bez zmian')
+        self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
+        base = datetime.date(2026, 3, 6)
+        good = [((base + datetime.timedelta(days=7 * i)).isoformat(), v, v * 3.5 + 20) for i, v in enumerate([300, -200, 500, -800, 120, 640, -330, 90, -1500, 700, 260, -90])]
+        Z = k.jpx_mof_porownanie(*self._mof(good))
+        self.assertEqual((Z['status'], Z['n'], Z['r']), ('✅', 12, 1.0)); self.assertEqual(Z['znak'], [12, 12]); self.assertEqual(Z['uwagi'], [])
+        self.assertEqual(Z['ostatnia'], {'tydzien': good[-1][0], 'gielda_mld': -90.0, 'mof_mld': -295.0})
+        bad = good[:-1] + [(good[-1][0], 400.0, -900.0)]
+        Z = k.jpx_mof_porownanie(*self._mof(bad)); self.assertEqual(Z['status'], '⚠️'); self.assertIn('przeciwny kierunek', Z['uwagi'][0])
+        self.assertEqual(k.jpx_mof_porownanie(*self._mof(good[:7]))['status'], '?')
+        inst, jx = self._mof(good); inst['mof']['d'] = inst['mof']['d'][:-3]
+        self.assertEqual(k.jpx_mof_porownanie(inst, jx)['n'], 9, 'tydzień bez pary MOF pominięty')
+        thu = [('2026-03-19', 100, 400)]                                     # piątek 20.03.2026 święto: tydzień giełdy kończy się w czwartek
+        inst, jx = self._mof(thu); self.assertEqual(inst['mof']['d'][0]['to'], '2026-03-21'); self.assertEqual(k.jpx_mof_porownanie(inst, jx)['n'], 1)
+        self.assertIsNone(k.jpx_mof_porownanie({}, None)); self.assertNotIn('❌', json.dumps([k.jpx_mof_porownanie(*self._mof(b)) for b in (good, bad)], ensure_ascii=False))
+
+    def test_kontrola_calosc_naglowek_wynik(self):
+        import io as _io, tempfile
+        k = self._k()
+        NOW = datetime.datetime(2026, 10, 3, 9, 0, tzinfo=datetime.timezone.utc)
+        base = datetime.date(2026, 7, 10)
+        pairs = [((base + datetime.timedelta(days=7 * i)).isoformat(), v, v * 4) for i, v in enumerate([300, -200, 500, -800, 120, 640, -330, 90, -1500, 700, 260, -90])]
+        inst, jx = self._mof(pairs)
+        jx.update({'at': (NOW - datetime.timedelta(hours=3)).isoformat(), 'asof': '2026-09-25'})
+
+        class Resp:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self, n=-1):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def siec(jfile):
+            def urlopen(req, timeout=None, **kw):
+                url = req.full_url
+                J = lambda o: Resp(json.dumps(o).encode())   # noqa: E731
+                if '/index.html?' in url:
+                    return Resp(b'<html>const EXTRA1={};' + b' ' * 1_000_100)
+                if '/data/meta.json?' in url:
+                    return J({'at': (NOW - datetime.timedelta(minutes=17)).isoformat(), 'ok': {'jpx': True}, 'errors': [], 'notes': []})
+                if '/data/jpx.json?' in url:
+                    return J(jfile)
+                if '/data/instytucje.json?' in url:
+                    return J(dict(inst, at=(NOW - datetime.timedelta(minutes=20)).isoformat()))
+                if '/data/' in url:
+                    return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                    return Resp(b'x' * 100)
+                if url.startswith('https://api.github.com/'):
+                    return J({'workflow_runs': []})
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, _io.BytesIO(b''))
+            return urlopen
+        kor = [[(NOW - datetime.timedelta(days=2)).isoformat(), 'źródło opublikowało nową informację o korekcie danych — sprawdzić ręcznie'],
+               [(NOW - datetime.timedelta(days=9)).isoformat(), 'stara informacja']]
+        for jf, fresh in ((jx, True), (dict(jx, asof='2026-08-28', korekty=kor), False)):
+            d = tempfile.mkdtemp(prefix='k137-')
+            with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                    mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', siec(jf)):
+                R = k.kontrola()
+                md = k.raport_md(R)
+            L = md.splitlines()
+            self.assertRegex(L[0], r'^# Kontrola strony — \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} \(czas polski\)$'); self.assertRegex(L[2], r'^\*\*Wynik: (OK|UWAGA)\*\*$')
+            self.assertFalse([x for x in R['bledy'] if 'Japonia' in x or 'jpx' in x], 'Japonia nigdy nie jest błędem kontroli'); self.assertNotEqual(R['wynik'], 'BŁĄD')
+            row = next(s for s in R['swiezosc'] if s['zrodlo'] == k.JPX_ETYKIETA)
+            self.assertEqual(row['status'], '✅' if fresh else '⚠️'); self.assertIn('| ' + k.JPX_ETYKIETA + ' |', md)
+            line = next(x for x in L if x.startswith('- Japonia: giełda'))
+            self.assertIn('✅ r = 1.0 z 12 tygodni', line); self.assertIn('jpx', R['pliki']); self.assertEqual(R['zgodnosc']['jpx']['status'], '✅')
+            ku = [u for u in R['uwagi'] if u.startswith('Japonia — giełda (')]
+            self.assertEqual(len(ku), 0 if fresh else 1, 'korekta źródła z ostatnich 7 dni = uwaga (starsza niż 7 dni — bez uwagi)')
+            self.assertEqual('Korekty źródła z 7 dni: 1 (sprawdzić ręcznie).' in line, not fresh)
+
+    # ---------------------------------------------------------------- 13. poprawki po niezależnym przeglądzie (v137.1)
+    LM1, LM2 = 'Thu, 01 Oct 2026 06:30:30 GMT', 'Thu, 08 Oct 2026 06:30:30 GMT'
+
+    def _lroute(self, page, lm):
+        """Lista jak u źródła: If-Modified-Since równy Last-Modified → 304, inaczej 200 z treścią."""
+        return lambda ims: (304, b'', None) if ims == lm else (200, page, lm)
+
+    def _t(self, s):
+        return datetime.datetime.fromisoformat(s + '+00:00')
+
+    def test_przeglad_lm_po_scaleniu_timeout_potem_ponowienie_i_304(self):
+        W = self._sep()
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in W[:3]], tried='2026-10-01T05:00:00+00:00', rev_chk='2026-10-01T00:00:00+00:00',
+                          lm='Tue, 29 Sep 2026 06:30:28 GMT')
+        R = self._routes(W); newp = zd.JPX_B + _jpxf_path('new', '2026-09-24', '2026-09-25'); good = R[newp]
+        R[newp] = OSError('timed out'); R[zd.JPX_EN + 'index.html'] = self._lroute(self._listing(W), self.LM1)
+        t = self._t('2026-10-01T06:40:00')
+        J = zd.build_jpx(prev, {}, now=t, get=_JpxSrv(R))
+        self.assertEqual(J['lm'], prev['lm'], 'Last-Modified listy NIE zapisany, gdy tydzień z listy nie wszedł do pliku')
+        self.assertEqual((J['pend'], J['asof']), (['2026-09-25'], '2026-09-18')); self.assertIs(zd.META['ok']['jpx'], False)
+        self.assertTrue(any('ponowienie przy następnym sprawdzeniu' in n for n in zd.META['notes'])); self.assertEqual(zd.META['errors'], [])
+        zd.META['notes'].clear(); srv = _JpxSrv(R)                         # +20 min: bez zapytań, ale nie „w pamięci, wszystko dobrze”
+        self.assertIs(zd.build_jpx(J, {}, now=t + datetime.timedelta(minutes=20), get=srv), J); self.assertEqual(srv.calls, [])
+        self.assertIs(zd.META['ok']['jpx'], False); self.assertTrue(any('2026-09-25' in n for n in zd.META['notes']), zd.META['notes'])
+        R[newp] = good; zd.META['notes'].clear(); srv = _JpxSrv(R)          # +60 min: lista bez If-Modified-Since (zaległość), plik odpowiada
+        J2 = zd.build_jpx(J, {}, now=t + datetime.timedelta(minutes=60), get=srv)
+        self.assertIsNone(srv.calls[0][1], 'zaległy tydzień — lista bez If-Modified-Since (inaczej 304 i brak ponowienia)')
+        self.assertEqual((J2['asof'], J2['lm']), ('2026-09-25', self.LM1)); self.assertNotIn('pend', J2); self.assertIs(zd.META['ok']['jpx'], True)
+        srv = _JpxSrv(R); J3 = zd.build_jpx(J2, {}, now=t + datetime.timedelta(hours=13), get=srv)   # dalej: If-Modified-Since → 304
+        self.assertEqual([(u.rsplit('/', 1)[-1], ims) for u, ims, _ in srv.calls], [('index.html', self.LM1)]); self.assertEqual(J3['d'], J2['d'])
+
+    def test_przeglad_budzet_kroku_60_s_i_ponowienie(self):
+        W = self._sep() + [('2026-09-28', '2026-10-02', '2026101', 9)]
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in W[:3]], tried='2026-10-01T05:00:00+00:00', rev_chk='2026-10-08T00:00:00+00:00')
+        clock = [100.0]
+        self.enterContext(mock.patch.object(zd.time, 'monotonic', lambda: clock[0]))
+        R = self._routes(W, lm=self.LM2); R[zd.JPX_EN + 'index.html'] = self._lroute(self._listing(W), self.LM2)
+
+        def slow(lst, rest):
+            def g(url, ims=None, timeout=None):
+                clock[0] += lst if url.endswith('index.html') else rest
+                return srv(url, ims, timeout)
+            return g
+        srv = _JpxSrv(R)
+        J = zd.build_jpx(prev, {}, now=self._t('2026-10-08T06:40:00'), get=slow(55.0, 5.0))   # lista 55 s: zostaje 60 − 55 − 1,5 < 6 s
+        self.assertEqual([u.rsplit('/', 1)[-1] for u, _, _ in srv.calls], ['index.html'], 'budżet 60 s: bez pliku, gdy zostaje < 6 s')
+        bud = [n for n in zd.META['notes'] if 'budżet czasu' in n]
+        self.assertEqual(len(bud), 1, 'jedna notatka — po wyczerpaniu budżetu bez prób kolejnych plików'); self.assertIn('2026-09-24–2026-09-25, 2026-09-28–2026-10-02', bud[0])
+        self.assertEqual(J['pend'], ['2026-09-25', '2026-10-02']); self.assertNotEqual(J.get('lm'), self.LM2); self.assertIs(zd.META['ok']['jpx'], False)
+        zd.META['notes'].clear(); srv = _JpxSrv(R)                          # lista 50 s: pierwszy plik z limitem 60 − 50 − 1,5 = 8,5 s, drugi już nie
+        J2 = zd.build_jpx(J, {}, now=self._t('2026-10-08T07:40:00'), get=slow(50.0, 5.0))
+        self.assertEqual([u.rsplit('_', 1)[-1] for u, _, _ in srv.calls[1:]], ['20260925.xlsx']); self.assertAlmostEqual(srv.calls[1][2], 8.5)
+        self.assertEqual((J2['asof'], J2['pend']), ('2026-09-25', ['2026-10-02']))
+        zd.META['notes'].clear(); srv = _JpxSrv(R)
+        J3 = zd.build_jpx(J2, {}, now=self._t('2026-10-08T08:40:00'), get=slow(1.0, 1.0))
+        self.assertEqual((J3['asof'], J3.get('pend'), J3['lm']), ('2026-10-02', None, self.LM2)); self.assertIs(zd.META['ok']['jpx'], True)
+        self.assertEqual(zd.JPX_RUN_BUDGET, 60)
+
+    def test_przeglad_lista_bez_plikow_i_linki_bezwzgledne(self):
+        W = self._sep()
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in W], tried='2026-10-08T05:00:00+00:00', lm=self.LM1, rev_chk='2026-10-08T00:00:00+00:00')
+        R = {zd.JPX_EN + 'index.html': self._lroute(_jpxf_page([]), self.LM2)}
+        J = zd.build_jpx(prev, {}, now=self._t('2026-10-08T06:40:00'), get=_JpxSrv(R))
+        self.assertEqual(J['lm'], self.LM1, 'lista bez plików (zmiana układu) — Last-Modified nie zapisany'); self.assertIs(J['ok']['listing'], False)
+        self.assertIs(zd.META['ok']['jpx'], False); self.assertTrue(any('lista bez plików danych' in n for n in zd.META['notes']))
+        srv = _JpxSrv(R); zd.build_jpx(J, {}, now=self._t('2026-10-08T07:40:00'), get=srv)
+        self.assertEqual(len(srv.calls), 1, 'po nieudanym sprawdzeniu — znowu po 55 min')
+        P2 = dict(prev, tried='2026-10-02T21:00:00+00:00')                   # poza oknem publikacji (następna 08.10): lista nie odpowiada …
+        down = {zd.JPX_EN + 'index.html': OSError('timed out'), zd.JPX_JA + 'index.html': OSError('timed out')}
+        J = zd.build_jpx(P2, {}, now=self.NOW, get=_JpxSrv(down)); self.assertIs(J['ok']['listing'], False)
+        srv = _JpxSrv({zd.JPX_EN + 'index.html': (304, b'', None)})
+        zd.build_jpx(J, {}, now=self.NOW + datetime.timedelta(minutes=60), get=srv)
+        self.assertEqual(len(srv.calls), 1, '… ponowienie po 55 min, nie dopiero po 12 h')
+        Wn = W + [('2026-09-28', '2026-10-02', '2026101', 9)]                 # linki bezwzględne (https://www.jpx.co.jp/…) też są czytane
+        R = self._routes(Wn, lm=self.LM2); R[zd.JPX_EN + 'index.html'] = self._lroute(self._listing(Wn).replace(b'href="/english', b'href="https://www.jpx.co.jp/english'), self.LM2)
+        J = zd.build_jpx(prev, {}, now=self._t('2026-10-08T06:40:00'), get=_JpxSrv(R))
+        self.assertEqual((J['asof'], J['lm']), ('2026-10-02', self.LM2)); self.assertIs(zd.META['ok']['jpx'], True)
+
+    def test_przeglad_lista_nie_pobiera_tygodni_nie_nowszych_niz_asof(self):
+        W = self._sep()
+        rows = [self._row('2026-08-31', '2026-09-04', 15), self._row('2026-09-24', '2026-09-25', 8)]   # 07–11.09 (stary) i 14–18.09 (nowy) brakuje
+        prev = self._prev(rows, tried='2026-10-02T00:00:00+00:00', rev_chk='2026-10-03T06:00:00+00:00')
+        R = self._routes(W); R[zd.JPX_EN + 'index.html'] = (200, self._listing(W), self.LM1)
+        srv = _JpxSrv(R)
+        J = zd.build_jpx(prev, {}, now=self.NOW, get=srv)
+        self.assertEqual([u.rsplit('/', 1)[-1] for u, _, _ in srv.calls], ['index.html'], 'tygodnie ≤ asof z listy (luka) — nie w tym kroku (historia wstecz)')
+        self.assertEqual(J['d'], rows, 'zapisany tydzień 31.08–04.09 nie nadpisany starszą publikacją; luki zostają lukami')
+        self.assertEqual(J['lm'], self.LM1); self.assertNotIn('pend', J)
+
+    def test_przeglad_rejestr_korekt_po_bledzie_i_korekta_w_pliku_7_dni(self):
+        W = self._sep()
+        prev = self._prev([self._row(a, b, i) for a, b, _, i in W], tried='2026-10-03T06:00:00+00:00', rev_chk='2026-10-01T00:00:00+00:00')
+        R = {zd.JPX_EN + 'index.html': self._lroute(self._listing(W), self.LM1), zd.JPX_REV: OSError('timed out')}
+        J, n, t = prev, 0, self._t('2026-10-03T09:20:00')
+        for k in range(72):                                                  # doba przebiegów co 20 min przy awarii rejestru
+            srv = _JpxSrv(R); J = zd.build_jpx(J, {}, now=t + datetime.timedelta(minutes=20 * k), get=srv)
+            n += sum(1 for u, _, _ in srv.calls if u == zd.JPX_REV)
+        self.assertEqual(n, 4, 'po błędzie rejestr najwcześniej po 6 h (nie co przebieg)'); self.assertIs(J['ok']['revision'], False)
+        R[zd.JPX_REV] = (200, b'x', 'Fri, 10 Jan 2025 06:54:43 GMT')        # pierwszy udany odczyt bez zapamiętanej daty: tylko data, bez notatki
+        P0 = dict(prev); P0.pop('rev_lm'); zd.META['notes'].clear()
+        J = zd.build_jpx(P0, {}, now=t, get=_JpxSrv(R))
+        self.assertEqual(J['rev_lm'], 'Fri, 10 Jan 2025 06:54:43 GMT'); self.assertNotIn('korekty', J); self.assertFalse([x for x in zd.META['notes'] if 'korekcie' in x])
+        R[zd.JPX_REV] = (200, b'x', 'Mon, 05 Oct 2026 02:00:00 GMT')        # zmiana → informacja w pliku na 7 dni (kontrola dzienna ją widzi)
+        J = zd.build_jpx(dict(J, rev_chk='2026-10-04T00:00:00+00:00'), {}, now=self._t('2026-10-05T03:00:00'), get=_JpxSrv(R))
+        self.assertEqual(len(J['korekty']), 1); self.assertIn('NIE są poprawiane automatycznie', J['korekty'][0][1])
+        srv = _JpxSrv(R); self.assertIs(zd.build_jpx(J, {}, now=self._t('2026-10-05T03:20:00'), get=srv), J)
+        self.assertEqual(srv.calls, []); self.assertEqual(len(J['korekty']), 1, 'w przebiegu bez zapytań informacja zostaje')
+        J2 = zd.build_jpx(J, {}, now=self._t('2026-10-08T03:00:00'), get=_JpxSrv(dict(R, **{zd.JPX_REV: (304, b'', None)})))
+        self.assertEqual(len(J2['korekty']), 1, 'po 3 dniach nadal w pliku')
+        J3 = zd.build_jpx(J2, {}, now=self._t('2026-10-12T04:00:00'), get=_JpxSrv(dict(R, **{zd.JPX_REV: (304, b'', None)})))
+        self.assertNotIn('korekty', J3, 'po 7 dniach informacja znika z pliku')
+        k = self._k()
+        self.assertEqual(len(k.jpx_korekty(J, self._t('2026-10-06T00:00:00'))), 1); self.assertIn('sprawdzić ręcznie', k.jpx_korekty(J, self._t('2026-10-06T00:00:00'))[0])
+        self.assertEqual(k.jpx_korekty(J, self._t('2026-10-13T00:00:00')), []); self.assertEqual(k.jpx_korekty(None), [])
+
+    def test_przeglad_kalendarz_swiat_z_ustawy_2026_2030(self):
+        D = datetime.date
+
+        def nth_mon(y, m, n):
+            d = D(y, m, 1); d += datetime.timedelta(days=(0 - d.weekday()) % 7); return d + datetime.timedelta(days=7 * (n - 1))
+
+        def rules(y):                                                        # ustawa o świętach państwowych; równonoc ze wzoru astronomicznego
+            v = int(20.8431 + 0.242194 * (y - 1980) - int((y - 1980) / 4)); a = int(23.2488 + 0.242194 * (y - 1980) - int((y - 1980) / 4))
+            H = {D(y, 1, 1), nth_mon(y, 1, 2), D(y, 2, 11), D(y, 2, 23), D(y, 3, v), D(y, 4, 29), D(y, 5, 3), D(y, 5, 4), D(y, 5, 5),
+                 nth_mon(y, 7, 3), D(y, 8, 11), nth_mon(y, 9, 3), D(y, 9, a), nth_mon(y, 10, 2), D(y, 11, 3), D(y, 11, 23)}
+            for h in sorted(H):
+                if h.weekday() == 6:                                         # dzień zastępczy
+                    d = h + datetime.timedelta(days=1)
+                    while d in H:
+                        d += datetime.timedelta(days=1)
+                    H.add(d)
+            for h in sorted(H):                                              # dzień między dwoma świętami
+                d, e = h + datetime.timedelta(days=1), h + datetime.timedelta(days=2)
+                if d not in H and e in H and d.weekday() != 6:
+                    H.add(d)
+            return {d.isoformat() for d in H if d.weekday() < 5 and not (d.month == 1 and d.day <= 3)}
+        self.assertEqual(set(zd.JPX_SWIETA), set().union(*(rules(y) for y in range(2026, zd.JPX_SWIETA_DO + 1))), 'tabela = reguły ustawy, 2026–2030')
+        k = self._k()
+        for m in (zd, k):
+            self.assertFalse(m.jpx_bday(D(2027, 3, 22)), 'równonoc 21.03.2027 w niedzielę → poniedziałek wolny')
+            self.assertFalse(m.jpx_bday(D(2028, 1, 3)), '3 stycznia bez sesji (poniedziałek 2028)'); self.assertTrue(m.jpx_bday(D(2028, 1, 4)))
+            self.assertFalse(m.jpx_bday(D(2029, 4, 30))); self.assertFalse(m.jpx_bday(D(2030, 5, 6))); self.assertTrue(m.jpx_bday(D(2029, 5, 1)))
+        self.assertEqual(zd.jpx_next_release(D(2027, 12, 24)), D(2028, 1, 7), 'tydzień 27–30.12.2027 → 3.01 bez sesji → piątek 7.01')
+        self.assertEqual(zd.jpx_release(D(2027, 3, 19)), D(2027, 3, 26), 'tydzień 15–19.03.2027: 22.03 wolny → piątek 26.03')
+        self.assertEqual(zd.jpx_release(D(2029, 4, 27)), D(2029, 5, 8), 'Złoty Tydzień 2029: 30.04, 3–4.05 wolne → wtorek 8.05')
+        self.assertIsNone(k.jpx_swieta_uwaga(datetime.datetime(2030, 11, 30, tzinfo=datetime.timezone.utc)))
+        self.assertIn('dopisać kolejny rok', k.jpx_swieta_uwaga(datetime.datetime(2030, 12, 1, tzinfo=datetime.timezone.utc)))
+        src = open(zd.__file__, encoding='utf-8').read()
+        self.assertNotIn('nigdy za późno', src); self.assertIn('ZA WCZEŚNIE', src)
+
+    def test_przeglad_jednostka_zaokraglenie_prog_i_kod_tygodnia(self):
+        n = 'stock_1_w_20260914_20260918.xlsx'
+        c = _jpxf_new_sheet('2026093', _jpxf_groups(_jpxf_K(0)), mult=1000)
+        for col, add in ((19, 600.0), (20, 499.0)):                         # jeny: reszta ≥ 500 w górę, < 500 w dół (zagranica: instytucje)
+            c[(14, col)] += add
+        c[(14, 21)] = c[(14, 20)] - c[(14, 19)]; c[(14, 22)] = c[(14, 19)] + c[(14, 20)]
+        w = zd.jpx_parse_new(_jpxf_xlsx({_JPXF_SHEET: c}), n)[0]
+        self.assertEqual(w['k']['for'], [_jpxf_K(0)['for'][0] + 1, _jpxf_K(0)['for'][1]], 'jeny → tys. JPY: połówka w górę')
+        big = {k: [v[0] * 4, v[1] * 4] for k, v in _jpxf_K(0).items()}      # skrajny tydzień: suma sprzedaży ≈ 1,9e11 tys. JPY — nadal tys. JPY
+        w = zd.jpx_parse_new(_jpxf_new_file('2026093', big), n)[0]
+        self.assertEqual(w['raw_unit'], 'kJPY'); self.assertTrue(zd.jpx_week_ok(w, datetime.date(2026, 10, 3)))
+        self.assertEqual(zd.JPX_KYEN_MAX, 1e12)
+        for code in ('2026090', '2026097'):
+            with self.assertRaises(ValueError, msg=code):
+                zd.jpx_parse_new(_jpxf_new_file(code), n)
+        t = '2026年1月第1週 2026/1 week1  ( 12/29 - 12/30 )'                 # tytuł styczniowy z datami grudnia → rok wcześniej
+        self.assertEqual([x['to'] for x in zd.jpx_parse_old(_jpxf_old_file(t, '12/22～12/26', '12/29～12/30'))], ['2025-12-26', '2025-12-30'])
+
+    def test_przeglad_kurs_z_miesiaca_konca_tygodnia_i_zle_wiersze_poprzedniego_pliku(self):
+        W = [('2026-09-28', '2026-10-02', '2026101', 9)]
+        K3 = {'m': {'JPY': [['2026-09', 180.0], ['2026-10', 170.0]], 'USD': [['2026-09', 1.15], ['2026-10', 1.1]]}}
+        J = zd.build_jpx(None, {'kursy': K3}, now=self._t('2026-10-08T07:00:00'), get=_JpxSrv(self._routes(W, lm=self.LM2)))
+        self.assertEqual(J['fx'], ['2026-10', round(170.0 / 1.1, 3)], 'kurs miesiąca końca tygodnia (28.09–02.10 → październik)')
+        rows = [self._row(a, b, i) for a, b, _, i in self._sep()]
+        bad = [['2026-07-03', '2026-07-01'] + [1] * 20, ['2026-07-10', '2026-07-10'] + [-5] + [1] * 19, ['x', '2026-07-17'] + [1] * 20]
+        prev = self._prev(rows + bad, tried='2026-10-02T00:00:00+00:00', rev_chk='2026-10-03T06:00:00+00:00')
+        J = zd.build_jpx(prev, {}, now=self.NOW, get=_JpxSrv({zd.JPX_EN + 'index.html': (304, b'', None)}))
+        self.assertEqual(J['d'], rows, 'złe wiersze poprzedniego pliku odrzucone')
+
+    def test_przeglad_trendy_prog_20_dni(self):
+        d = datetime.date(2026, 3, 6)
+        rows = [self._row((d + datetime.timedelta(days=7 * k - 4)).isoformat(), (d + datetime.timedelta(days=7 * k)).isoformat(), k % 13) for k in range(30)]
+        J = {'at': zd.NOW, 'cols': list(zd.JPX_COLS), 'd': rows}
+        for now, stale in (('2026-10-09T12:00:00', False), ('2026-10-15T12:00:00', False), ('2026-10-16T12:00:00', True)):
+            with mock.patch.object(zd, '_now_utc', lambda n=now: self._t(n)):
+                st = {x['id']: x for x in zd.build_trendy({'jpx': J})['f']}['jpx_for']['st']
+            self.assertEqual(st == 'stale', stale, now + ' — za stare dopiero po 20 dniach od końca tygodnia (25.09)')
+
+    def test_przeglad_sonda_jpx(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('sondy_v137', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(S.GROUPS.count(S.g_jpx), 1); self.assertLess(S.GROUPS.index(S.g_jpx), S.GROUPS.index(S.g_nasdaq))
+        W = self._sep(); page = self._listing(W); f = _jpxf_new_file('2026094', _jpxf_K(8)); seen = []
+        newp = _jpxf_path('new', '2026-09-24', '2026-09-25')
+
+        def http(url, method='GET', body=None, headers=None):
+            seen.append((url, dict(headers or {})))
+            if 'If-Modified-Since' in (headers or {}):
+                return 304, b'', 4, None
+            if url.endswith('index.html') or 'archives' in url:
+                return 200, page, 5, None
+            return (200, f, 6, None) if url.endswith(newp) else (404, b'', 3, None)
+        out = _io_v137.StringIO()
+        with mock.patch.object(S, 'http', side_effect=http), mock.patch.object(S.time, 'sleep'), mock.patch('sys.stdout', out):
+            S.g_jpx()
+        self.assertEqual(len(seen), 4, '4 zapytania'); self.assertTrue(all(h.get('User-Agent') == 'CapitalFlowAI-collector/1.0' for _, h in seen))
+        self.assertTrue(seen[2][0].endswith(newp) and seen[3][0].endswith('00-00-archives-00.html'), [u for u, _ in seen])
+        txt = out.getvalue()
+        self.assertNotIn('jpx.co.jp', txt); self.assertNotIn('vk0k', txt); self.assertNotIn('http', txt.replace('HTTP', ''))
+        self.assertIn('new_xlsx=2(20260924-20260925)', txt); self.assertIn('maxexp=10', txt)
+        self.assertIn('summary jpx-files new_xlsx=2 newest=20260924-20260925 unit=kJPY arch_years=4', txt)
+        for v in _jpxf_K(8)['for']:
+            self.assertNotIn(str(v), txt.replace(' ', ''), 'bez wartości z pliku')
+
+    # ---------------------------------------------------------------- 12. straże kodu
+    def test_kod_blok_bez_klucza_i_zaslepki(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        a = src.index('# ===================== v137: JAPONIA'); b = src.index('\n\n\ndef main():', a)
+        blok = src[a:b]
+        self.assertIn('def build_jpx(', blok); self.assertNotIn('KEY', blok); self.assertNotIn('os.environ', blok, 'źródło bez klucza')
+        self.assertNotIn('print(', blok)
+        self.assertIn("('jp', japan), ('jpx', lambda: _jpx_tr_rows(S)), ('mx', mexico),", src, 'wiersz TRENDÓW przez _tr_try (błąd = notatka)')
+        tsrc = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_zbieraj_dane.py'), encoding='utf-8').read()
+        tup = [m for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*\)", tsrc) if "'build_wieloryby'" in m.group(0)]
+        self.assertGreaterEqual(len(tup), 18); self.assertTrue(all("'build_jpx'" in m.group(0) for m in tup), 'build_jpx w każdej krotce zaślepek przebiegu głównego')
+        self.assertEqual(zd.JPX_COLS[:4], ['from', 'to', 'for_s', 'for_b']); self.assertEqual(len(zd.JPX_COLS), 22)
+        self.assertEqual((zd.JPX_WEEKS, zd.JPX_BF_FILES, zd.JPX_BACK_BUDGET, zd.JPX_IDLE_MIN, zd.JPX_DUE_MIN), (156, 10, 45, 720, 55))

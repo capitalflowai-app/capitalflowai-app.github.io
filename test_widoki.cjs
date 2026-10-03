@@ -6384,6 +6384,11 @@ G126_DATA['data/ici'] = ICI134_FILE;
    #g-fund z kaflami aktywów w każdym języku */
 const ICI135_FILE = {"at":"2026-09-27T21:30:00+00:00","v":1,"src":"Investment Company Institute (ICI), www.ici.org — Combined Estimated Long-Term Flows and ETF Net Issuance (combined_flows_data_{rok}.xls; tygodnie: szacunek, miesiące: dane rzeczywiste); bez klucza; Money Market Fund Assets (mm_summary_data_{rok}.xls; aktywa netto TNA funduszy rynku pieniężnego co tydzień)","unit":"mln USD","ok":{"lt":true,"mm":true},"part_at":{"lt":"2026-09-27T21:30:00+00:00","mm":"2026-09-27T21:30:00+00:00"},"lm":{"lt":"lm-lt-1","mm":"lm-mm-1"},"plik":{"lt":{"rok":2026},"mm":{"rok":2026}},"notes":["tydzień = środa (kalendarz USA); napływy: szacunek wydawcy z danych obejmujących ponad 98% aktywów funduszy; tygodnie z nowszego pliku zastępują wcześniejsze odczyty tej samej daty (rv = tygodnie poprawione)","fundusze wzajemne: nowe środki netto (wpłaty − wypłaty ± zamiany); ETF: emisja netto jednostek (zawiera reinwestowane dywidendy); bez funduszy inwestujących w inne fundusze","kolumny lt: total = eq + hyb + bd + com; eq = dom (akcje USA) + wld (akcje spoza USA); bd = tax (obligacje zwykłe) + muni (municypalne); com = surowce; kwoty w mln USD; m = miesiące, dane rzeczywiste (zbierane osobno — nie suma tygodni)","sum4 = suma 4 ostatnich tygodni tylko przy krokach dokładnie 7 dni; brak liczby = None (strona: „—”), nigdy zero","kolumny mm (aktywa netto TNA, mln USD — stan, nie przepływ): tot = gov (rządowe) + prime + te (zwolnione z podatku) = inst (instytucjonalne) + ret (detaliczne); *_i / *_r = typ w grupie instytucjonalnej / detalicznej; asof = tydzień z tytułu arkusza","d1w / d4w (mm) = zmiana aktywów wobec tygodnia 7 i 28 dni wcześniej (gdy święto w USA przesunęło dzień końca tygodnia — wobec najbliższego tygodnia do 2 dni dalej; jego data w d1w_od / d4w_od) — zawiera dopisane odsetki i zmiany wyceny, więc to nie czysty przepływ; brak takiego tygodnia = None"],"lt":{"week":"2026-09-16","cols":["total","eq","dom","wld","hyb","bd","tax","muni","com"],"w":[["2026-07-29",12300,4200,3000,1200,-900,8700,8000,700,300],["2026-08-05",4892,-2628,-3517,889,-860,7960,7350,610,420],["2026-08-12",11552,4612,4034,578,-820,7220,6700,520,540],["2026-08-19",2076,-4284,-4551,267,-780,6480,6050,430,660],["2026-08-26",10804,5024,5068,-44,-740,5740,5400,340,780],["2026-09-02",3180,-3200,-4100,900,-650,6520,6100,420,510],["2026-09-09",10056,5436,6102,-666,-660,4260,4100,160,1020],["2026-09-16",-3556,-7596,-6619,-977,-620,3520,3450,70,1140]],"rv":["2026-09-02"],"rev":{"week":"2026-09-02","old":-740,"new":3180},"month":"2026-07","m":[["2024-01",56900,17000,20000,-3000,-6000,45000,40000,5000,900],["2024-02",55920,15710,18300,-2590,-5910,45290,40350,4940,830],["2024-03",54940,14420,16600,-2180,-5820,45580,40700,4880,760],["2024-04",53960,13130,14900,-1770,-5730,45870,41050,4820,690],["2024-05",52980,11840,13200,-1360,-5640,46160,41400,4760,620],["2024-06",52000,10550,11500,-950,-5550,46450,41750,4700,550],["2024-07",51020,9260,9800,-540,-5460,46740,42100,4640,480],["2024-08",50040,7970,8100,-130,-5370,47030,42450,4580,410],["2024-09",49060,6680,6400,280,-5280,47320,42800,4520,340],["2024-10",48080,5390,4700,690,-5190,47610,43150,4460,270],["2024-11",47100,4100,3000,1100,-5100,47900,43500,4400,200],["2024-12",46120,2810,1300,1510,-5010,48190,43850,4340,130],["2025-01",45140,1520,-400,1920,-4920,48480,44200,4280,60],["2025-02",44160,230,-2100,2330,-4830,48770,44550,4220,-10],["2025-03",43180,-1060,-3800,2740,-4740,49060,44900,4160,-80],["2025-04",42200,-2350,-5500,3150,-4650,49350,45250,4100,-150],["2025-05",41220,-3640,-7200,3560,-4560,49640,45600,4040,-220],["2025-06",40240,-4930,-8900,3970,-4470,49930,45950,3980,-290],["2025-07",39260,-6220,-10600,4380,-4380,50220,46300,3920,-360],["2025-08",38280,-7510,-12300,4790,-4290,50510,46650,3860,-430],["2025-09",37300,-8800,-14000,5200,-4200,50800,47000,3800,-500],["2025-10",36320,-10090,-15700,5610,-4110,51090,47350,3740,-570],["2025-11",35340,-11380,-17400,6020,-4020,51380,47700,3680,-640],["2025-12",34360,-12670,-19100,6430,-3930,51670,48050,3620,-710],["2026-01",33380,-13960,-20800,6840,-3840,51960,48400,3560,-780],["2026-02",32400,-15250,-22500,7250,-3750,52250,48750,3500,-850],["2026-03",31420,-16540,-24200,7660,-3660,52540,49100,3440,-920],["2026-04",30440,-17830,-25900,8070,-3570,52830,49450,3380,-990],["2026-05",29460,-19120,-27600,8480,-3480,53120,49800,3320,-1060],["2026-06",28480,-20410,-29300,8890,-3390,53410,50150,3260,-1130],["2026-07",27500,-21700,-31000,9300,-3300,53700,50500,3200,-1200]],"sum4":{"to":"2026-09-16","v":[20484,-336,451,-787,-2670,20040,19050,990,3450]}},"mm":{"week":"2026-09-23","cols":["tot","gov","prime","te","inst","ret","gov_i","prime_i","te_i","gov_r","prime_r","te_r"],"w":[["2026-05-06",7719000,6350000,1220000,149000,4653000,3066000,4400000,240000,13000,1950000,980000,136000],["2026-05-13",7731040,6361100,1220600,149340,4663390,3067650,4409000,241300,13090,1952100,979300,136250],["2026-05-20",7743080,6372200,1221200,149680,4673780,3069300,4418000,242600,13180,1954200,978600,136500],["2026-05-27",7755120,6383300,1221800,150020,4684170,3070950,4427000,243900,13270,1956300,977900,136750],["2026-06-03",7767160,6394400,1222400,150360,4694560,3072600,4436000,245200,13360,1958400,977200,137000],["2026-06-10",7778750,6405500,1223000,150250,4704500,3074250,4445000,246500,13000,1960500,976500,137250],["2026-06-17",7790790,6416600,1223600,150590,4714890,3075900,4454000,247800,13090,1962600,975800,137500],["2026-06-24",7801080,6427700,1224200,149180,4725280,3075800,4463000,249100,13180,1964700,975100,136000],["2026-07-01",7813120,6438800,1224800,149520,4735670,3077450,4472000,250400,13270,1966800,974400,136250],["2026-07-08",7825160,6449900,1225400,149860,4746060,3079100,4481000,251700,13360,1968900,973700,136500],["2026-07-15",7836750,6461000,1226000,149750,4756000,3080750,4490000,253000,13000,1971000,973000,136750],["2026-07-22",7848790,6472100,1226600,150090,4766390,3082400,4499000,254300,13090,1973100,972300,137000],["2026-07-29",7860830,6483200,1227200,150430,4776780,3084050,4508000,255600,13180,1975200,971600,137250],["2026-08-05",7872870,6494300,1227800,150770,4787170,3085700,4517000,256900,13270,1977300,970900,137500],["2026-08-12",7883160,6505400,1228400,149360,4797560,3085600,4526000,258200,13360,1979400,970200,136000],["2026-08-19",7894750,6516500,1229000,149250,4807500,3087250,4535000,259500,13000,1981500,969500,136250],["2026-08-26",7906790,6527600,1229600,149590,4817890,3088900,4544000,260800,13090,1983600,968800,136500],["2026-09-02",7918830,6538700,1230200,149930,4828280,3090550,4553000,262100,13180,1985700,968100,136750],["2026-09-09",7930870,6549800,1230800,150270,4838670,3092200,4562000,263400,13270,1987800,967400,137000],["2026-09-16",7942910,6560900,1231400,150610,4849060,3093850,4571000,264700,13360,1989900,966700,137250],["2026-09-23",7954500,6572000,1232000,150500,4859000,3095500,4580000,266000,13000,1992000,966000,137500]],"rv":[],"rev":null,"asof":"2026-09-23","d1w":[11590,11100,600,-110,9940,1650,9000,1300,-360,2100,-700,250],"d4w":[47710,44400,2400,910,41110,6600,36000,5200,-90,8400,-2800,1000],"d1w_od":"2026-09-16","d4w_od":"2026-08-26"}};
 G126_DATA['data/ici'] = ICI135_FILE;
+/* ===================== v137: plik data/jpx.json do testów strony — SYNTETYCZNY (liczby z generatora w kształcie wyniku build_jpx, nie dane
+   źródła): 13 tygodni od 22.06 do 25.09.2026, tydzień 10–14.08 brakuje (luka), ostatni 24–25.09 (dwie sesje po świętach); także dane
+   wbudowane strażnika nazw źródeł: blok giełdy Japonii w #inst musi się narysować w każdym języku bez nazwy wydawcy ===================== */
+const JPX137_FILE = {"at":"2026-09-27T21:00:00+00:00","chk":"2026-09-27T21:00:00+00:00","tried":"2026-09-27T21:00:00+00:00","lm":"Thu, 24 Sep 2026 06:30:30 GMT","pub":"2026-09-27T06:30:30+00:00","fmt":"xlsx","raw_unit":"kJPY","v":1,"src":"jpx","unit":"mln JPY","asof":"2026-09-25","week":["2026-09-24","2026-09-25"],"next":"2026-10-01","cols":["from","to","for_s","for_b","ind_s","ind_b","it_s","it_b","bus_s","bus_b","trb_s","trb_b","prop_s","prop_b","brk_s","brk_b","sec_s","sec_b","oth_s","oth_b","fin_s","fin_b"],"d":[["2026-06-22","2026-06-26",29734568,29423457,12634568,13045679,578901,663457,587654,654321,1087654,536789,5612346,5923457,45016160,44639380,134568,133457,82346,96789,1263556,622221],["2026-06-29","2026-07-03",29349145,29858880,12827280,12917204,578901,663457,587654,684321,1107654,536789,5612346,5923457,44843449,44976329,134568,133457,82346,96789,1283556,622221],["2026-07-06","2026-07-10",29528367,29729657,12737668,12976945,578901,663457,587654,714321,1127654,536789,5612346,5923457,44953060,44936848,134568,133457,82346,96789,1303556,622221],["2026-07-13","2026-07-17",30009674,29148350,12497015,13137381,578901,663457,587654,744321,1147654,536789,5612346,5923457,45213714,44545976,134568,133457,82346,96789,1323556,622221],["2026-07-20","2026-07-24",30087950,29120075,12457877,13163473,578901,663457,587654,654321,1167654,536789,5612346,5923457,45272851,44453793,134568,133457,82346,96789,1343556,622221],["2026-07-27","2026-07-31",29648520,29609505,12677592,13016996,578901,663457,587654,684321,1087654,536789,5612346,5923457,44973136,44826746,134568,133457,82346,96789,1263556,622221],["2026-08-03","2026-08-07",29335151,29822874,12834277,12912540,578901,663457,587654,714321,1107654,536789,5612346,5923457,44836452,44965659,134568,133457,82346,96789,1283556,622221],["2026-08-17","2026-08-21",30065698,29192326,12469003,13156056,578901,663457,587654,654321,1147654,536789,5612346,5923457,45241726,44518627,134568,133457,82346,96789,1323556,622221],["2026-08-24","2026-08-28",30039361,29118663,12482171,13147277,578901,663457,587654,684321,1167654,536789,5612346,5923457,45248557,44466185,134568,133457,82346,96789,1343556,622221],["2026-08-31","2026-09-04",29566501,29641524,12718601,12989657,578901,663457,587654,714321,1087654,536789,5612346,5923457,44932127,44861425,134568,133457,82346,96789,1263556,622221],["2026-09-07","2026-09-11",29339859,29918166,12831922,12914109,578901,663457,587654,744321,1107654,536789,5612346,5923457,44838806,45092520,134568,133457,82346,96789,1283556,622221],["2026-09-14","2026-09-18",29691466,29466558,12656119,13031312,578901,663457,587654,654321,1127654,536789,5612346,5923457,45034610,44668115,134568,133457,82346,96789,1303556,622221],["2026-09-24","2026-09-25",11893827,11812593,5053827,5218272,231560,265383,235062,261728,435062,214716,2244938,2369383,18006464,17898962,53827,53383,32938,38716,505422,248888]],"fx":["2026-09",156.379],"bf":{"done":true,"files":7,"pages":2},"ok":{"listing":true,"file":true,"backfill":true,"revision":true},"notes":[],"run":{"at":"2026-09-27T21:00:00+00:00","req":3,"kb":30.1,"s":6.2}};
+G126_DATA['data/jpx'] = JPX137_FILE;
 const G126 = (() => {
   const NOW = '2026-09-27T21:45:00Z', NOWMS = Date.parse(NOW);
   class FD extends Date { constructor(...a) { if (a.length === 0) super(NOWMS); else super(...a); } static now() { return NOWMS; } }
@@ -9634,4 +9639,196 @@ test('v140.1: kafel stablecoinów — data z historii serwera bez pobranej serii
   assert.equal(mk(null, null)(null, '1D'), '', 'brak liczb — brak daty');
   assert.equal(mk(null, [])([1, 1, 1], '1D'), '', 'pusta seria — brak daty, bez wyjątku');
   assert.equal(mk({ ...H, asof: 'zła' }, null)([0.1, 0.03, 311], '1D'), '', 'zła data w historii — brak daty, nie śmieci');
+});
+/* ===================== v137: JAPONIA — kto kupuje i sprzedaje akcje na giełdzie (data/jpx.json), słownik EXTRA146, blok C2 w #inst ===================== */
+/* Plik testowy JPX137_FILE (SYNTETYCZNY: liczby z generatora, w kształcie wyniku build_jpx; 13 tygodni, tydzień 10–14.08 brakuje, ostatni 24–25.09)
+   jest zdefiniowany przy danych strażnika nazw źródeł (G126_DATA). Blok strony uruchamiany w piaskownicy z prawdziwymi instMld / instSign / instRow
+   / instFoot; t() zwraca klucz i pola — testy nie zależą od tłumaczeń (słownik ma osobny test). Bez zegara: wiek liczy atrapa gAgeNote. */
+const jpx137 = (() => {
+  const a0 = html.indexOf('/* ===================== v137: JAPONIA'), a1 = html.indexOf('/* ===================== v137: koniec', a0);
+  assert.ok(a0 > 0 && a1 > a0, 'blok v137 na stronie');
+  const cut = (from, to) => { const i = html.indexOf(from), j = html.indexOf(to, i); assert.ok(i > 0 && j > i, from); return html.slice(i, j); };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const helpers = cut('function instMld(mln,dec){', '\nfunction instDelta(') + '\n' + cut('function instRow(label,value,exact,note){', '\n/* v51: stan źródeł');
+  const mk = (o) => { o = o || {};
+    const calls = {ok: [], render: 0};
+    const f = new Function('t', 'escH', 'gAgeNote', 'engNum', 'engDate', 'nfmt', 'gtI', 'gOk', 'renderInst', 'LANG', helpers + '\n' + html.slice(a0, a1) +
+      '\nreturn {JPX, JPX_NEED, JPX_TILES, jpxData, jpxDay, jpxRows, jpxNet, jpxSum, jpxMld, jpxNum, jpxShare, jpxApply, jpxHtml, jpxRegion, instMld, instSign};');
+    const X = f(o.t || ((k, v) => k + (v ? JSON.stringify(v) : '')), esc, d => ' · age(' + d + ')', v => 'N(' + v + ')', iso => 'D(' + iso + ')',
+      o.nfmt || ((v, d) => Number(v).toFixed(d || 0)), 'gtI' in o ? o.gtI : ((k, a, c) => k === 'w' ? `<w${a > 0 ? '+' : a < 0 ? '-' : '0'}>${c}</w>` : (k === 'f' ? `[${a}]` : '')),
+      k => calls.ok.push(k), () => { calls.render++; }, o.L || 'en');
+    X.calls = calls; return X; };
+  const cp = x => JSON.parse(JSON.stringify(x));
+  const tiles = body => body.split('<div class="etfk">').slice(1).map(s => s.slice(0, s.indexOf('</div>')));
+  const PUB = /JPX|Japan Exchange|日本取引所|日本交易所|jpx\.co\.jp|\bTSE\b|Tokyo Stock Exchange|東京証券取引所/;   /* wydawca / podpis — nigdy na stronie */
+  return {a0, a1, mk, cp, tiles, D: JPX137_FILE, PUB};
+})();
+
+test('v137: Japonia — pomocnicze: kolumny po nazwach, netto = kupno − sprzedaż, sumy tylko z kolejnych tygodni, brak = „—”, udział w obrocie', () => {
+  const X = jpx137.mk(), D = jpx137.D, R = X.jpxRows(D);
+  assert.equal(R.length, 13); assert.equal(R[R.length - 1].to, '2026-09-25'); assert.ok(R.every((r, i) => !i || R[i - 1].to < r.to), 'rosnąco');
+  const L = D.d[D.d.length - 1], ci = c => D.cols.indexOf(c);
+  assert.equal(X.jpxNet(R[R.length - 1], 'for'), L[ci('for_b')] - L[ci('for_s')], 'netto = kupno − sprzedaż (nie odwrotnie)');
+  /* kolumny pomieszane: te same wiersze */
+  const perm = D.cols.map((c, i) => i).reverse(), S = jpx137.cp(D); S.cols = perm.map(i => D.cols[i]); S.d = D.d.map(r => perm.map(i => r[i]));
+  assert.deepEqual(X.jpxRows(S), R, 'czytane po nazwach z cols, nigdy po pozycji');
+  assert.equal(X.jpxSum(R, 'for', 4), [1, 2, 3, 4].reduce((s, k) => s + X.jpxNet(R[R.length - k], 'for'), 0), '4 kolejne tygodnie (ostatni po świętach: 7 dni)');
+  assert.equal(X.jpxSum(R, 'for', 13), null, '13 tygodni z luką (10–14.08) — „—”, nie suma z dziurą');
+  assert.equal(X.jpxSum(R.slice(0, 7), 'for', 7), R.slice(0, 7).reduce((s, r) => s + X.jpxNet(r, 'for'), 0)); assert.equal(X.jpxSum(R, 'for', 52), null, 'za mało tygodni');
+  const G = jpx137.cp(D); G.d[G.d.length - 1][ci('for_s')] = null; G.d[G.d.length - 2][ci('ind_b')] = 'x';
+  const RG = X.jpxRows(G);
+  assert.equal(X.jpxNet(RG[RG.length - 1], 'for'), null, 'brak liczby = null'); assert.equal(X.jpxSum(RG, 'for', 4), null); assert.equal(X.jpxNet(RG[RG.length - 2], 'ind'), null);
+  assert.equal(X.jpxMld(null), '—'); assert.equal(X.jpxMld(NaN), '—'); assert.equal(X.jpxMld(-303683), '−303.7'); assert.equal(X.jpxMld(-30), '0.0', 'zero po zaokrągleniu — bez znaku'); assert.equal(X.jpxMld(1500), '+1.5'); assert.equal(X.jpxMld(0), '0.0', 'zero to liczba');
+  const sh = X.jpxShare(R[R.length - 1]); assert.ok(Math.abs(sh - (L[ci('for_s')] + L[ci('for_b')]) / (L[ci('brk_s')] + L[ci('brk_b')]) * 100) < 1e-9 && sh > 60 && sh < 70, 'udział zagranicy w zleceniach klientów ' + sh);
+  const sa = X.jpxShare(R[R.length - 1], true), all = L[ci('brk_s')] + L[ci('brk_b')] + L[ci('prop_s')] + L[ci('prop_b')];
+  assert.ok(Math.abs(sa - (L[ci('for_s')] + L[ci('for_b')]) / all * 100) < 1e-9 && sa < sh, 'udział w całym obrocie (z handlem na własny rachunek) mniejszy: ' + sa);
+  /* sumy: każda przerwa między kolejnymi tygodniami sprawdzana — także pierwsza z n */
+  const mkR = tos => tos.map(t => ({from: t, to: t, v: {for: [1000, 3000]}}));
+  assert.equal(X.jpxSum(mkR(['2026-08-14', '2026-08-28', '2026-09-04', '2026-09-11']), 'for', 4), null, 'luka między pierwszym a drugim z 4 tygodni');
+  assert.equal(X.jpxSum(mkR(['2026-08-21', '2026-08-28', '2026-09-04', '2026-09-11']), 'for', 4), 8000);
+  assert.equal(X.jpxSum(mkR(['2026-08-21', '2026-08-28', '2026-09-04', '2026-09-23']), 'for', 4), null, 'luka między ostatnimi');
+  for (const bad of [null, {}, {cols: 'x', d: []}, {cols: D.cols.slice(2), d: D.d}, {cols: D.cols, d: [['2026-02-30', '2026-03-01', ...D.d[0].slice(2)], ['2026-09-25', '2026-09-24', ...D.d[0].slice(2)]]}])
+    assert.deepEqual(X.jpxRows(bad), [], 'zły plik / zła data → brak wierszy: ' + JSON.stringify(bad).slice(0, 60));
+  assert.equal(X.jpxDay('2026-02-30'), false, 'V8 czyta 2026-02-30 jako 2 marca'); assert.equal(X.jpxDay('2026-09-25'), true);
+});
+
+test('v137: Japonia — blok C2 z pliku: 6 kafli (zagranica: netto, kupno/sprzedaż, udział, 4 i 13 tyg., ≈ USD), tydzień i wiek przy każdej liczbie, tabela 8 tygodni z „—” dla brakującego, noty; bez nazwy wydawcy', () => {
+  const X = jpx137.mk(); X.JPX.data = jpx137.D;
+  const body = X.jpxHtml(), T = jpx137.tiles(body), R = X.jpxRows(jpx137.D), last = R[R.length - 1], net = X.jpxNet(last, 'for');
+  assert.ok(body.startsWith('<h3 class="mtxt" id="inst-jpx">[jp]<b>jpx.t</b></h3><p class="pnote">jpx.sub</p>'), 'tytuł z flagą Japonii i opis (kotwica #inst-jpx)');
+  assert.equal(T.length, 6, '6 kafli');
+  assert.deepEqual(T.map(x => x.slice(6, x.indexOf('</span>'))), ['jpx.for', 'jpx.ind', 'jpx.trb', 'jpx.bus', 'jpx.it', 'jpx.prop']);
+  const f = T[0];
+  assert.ok(f.includes(`<w->${X.jpxMld(net)}</w> inst.mld.jpy</b>`), 'zagranica: netto ze znakiem i kolorem: ' + f.slice(0, 200));
+  assert.ok(f.includes('title="inst.exact{&quot;v&quot;:&quot;N(' + net + ') jpx.mln&quot;}"'), 'dokładnie w mln JPY w podpowiedzi');
+  assert.ok(f.includes('inst.week 2026-09-24 – 2026-09-25 · age(2026-09-25)'), 'tydzień i wiek');
+  assert.ok(f.includes(`jpx.bs{"b":"${Math.round(last.v.for[1] / 1000)}","s":"${Math.round(last.v.for[0] / 1000)}"}`), 'kupno i sprzedaż brutto w mld JPY bez miejsc');
+  assert.ok(f.includes('jpx.share{"v":"' + X.jpxShare(last).toFixed(1) + '","w":"' + X.jpxShare(last, true).toFixed(1) + '"}'), 'udział w obrocie: zlecenia klientów i całość');
+  const W = v => `<w${v > 0 ? '+' : v < 0 ? '-' : '0'}>${X.jpxMld(v)}</w>`, s4 = X.jpxSum(R, 'for', 4);
+  assert.ok(typeof s4 === 'number' && f.includes('jpx.s4{"v":"' + W(s4) + '"}'), 'suma 4 kolejnych tygodni ze znakiem i kolorem');
+  assert.ok(f.includes('jpx.s13{"v":"—"}'), '13 tygodni z luką = „—”'); assert.ok(!f.includes('jpx.s52'), '52 tygodnie tylko przy pełnym roku');
+  const usd = net / jpx137.D.fx[1];
+  assert.ok(f.includes(`jpx.usd{"v":"−${Math.abs(usd).toFixed(0)}","m":"2026-09"}`), '≈ mln USD po średnim kursie miesiąca z pliku: ' + f.slice(-260));
+  for (const x of T.slice(1)) { assert.ok(x.includes('jpx.s4{"v":') && x.includes('age(2026-09-25)') && !x.includes('jpx.usd') && !x.includes('jpx.share')); }
+  /* tabela: 8 tygodni kalendarzowych; 10–14.08 nie ma w pliku → „—” w każdej komórce, z przybliżonym końcem tygodnia */
+  const tb = body.slice(body.indexOf('<summary>jpx.tab</summary>'), body.indexOf('</table>')), trs = tb.split('<tr>').slice(2);
+  assert.equal(trs.length, 8); assert.ok(trs[0].includes('2026-09-24 – 2026-09-25') && trs[1].includes('2026-09-14 – 2026-09-18'));
+  const gap = trs.find(r => r.includes('jpx.miss'));
+  assert.ok(gap && gap.includes('jpx.miss{"d":"2026-08-14"}') && (gap.match(/<span class="cell mono">—<\/span>/g) || []).length === 6, 'brakujący tydzień: „—” w 6 komórkach, nigdy 0: ' + gap);
+  assert.ok(body.includes('<summary>eng.notsays</summary><p class="pnote">jpx.not1</p><p class="pnote">jpx.not2</p><p class="pnote">jpx.not3</p>'), 'czym różni się od bloku wyżej, czego nie znaczy, zakres');
+  assert.ok(body.includes('jpx.unit · jpx.next{"d":"2026-10-01"} · inst.file{"t":"D(2026-09-27T21:00:00+00:00)"}'), 'jednostka, następna publikacja, czas pliku');
+  assert.ok(!jpx137.PUB.test(body) && !/Źródł|Source/.test(body), 'bez nazwy wydawcy i bez podpisu źródła w panelu');
+  const N = jpx137.cp(jpx137.D); N.fx = null; X.JPX.data = N; assert.ok(!X.jpxHtml().includes('jpx.usd'), 'bez kursu — bez ≈ USD (nie zero)');
+  const M = jpx137.cp(jpx137.D); M.d[M.d.length - 1][M.cols.indexOf('trb_b')] = null; X.JPX.data = M;
+  const t3 = jpx137.tiles(X.jpxHtml())[2]; assert.ok(t3.includes('<b>—</b>') && t3.includes('eng.gap'), 'brak liczby w kaflu: „—” i „brak danych — to nie zero”');
+  X.JPX.data = null; assert.equal(X.jpxHtml(), '', 'bez pliku — bez bloku'); assert.equal(X.jpxRegion('jpn'), '');
+  /* kolor tylko przez gtI; bez gtI (stare testy) — sam tekst */
+  const Y = jpx137.mk({gtI: undefined}); Y.JPX.data = jpx137.D; assert.ok(!Y.jpxHtml().includes('<w'), 'bez gtI bez znaczników koloru');
+});
+
+test('v137: jpxApply — zły plik bez gOk i bez danych; dobry — gOk("jpx") i renderInst; chwilowy błąd pobrania nie zasłania danych; region „Japonia i Korea” — jedna linia', () => {
+  const X = jpx137.mk();
+  for (const bad of [null, {}, {at: 5, cols: [], d: [1]}, {at: 'x', cols: jpx137.D.cols, d: []}, {at: 'x', d: jpx137.D.d}, {at: 'x', cols: ['a'], d: jpx137.D.d}]) {
+    X.jpxApply(bad); assert.equal(X.JPX.data, null);
+  }
+  assert.deepEqual(X.calls.ok, [], 'bez gOk dla złego pliku'); assert.equal(X.calls.render, 6);
+  X.jpxApply(jpx137.D); assert.equal(X.JPX.data, jpx137.D); assert.deepEqual(X.calls.ok, ['jpx']); assert.equal(X.calls.render, 7);
+  X.jpxApply(null); assert.equal(X.JPX.data, jpx137.D, 'chwilowy błąd nie zasłania danych'); assert.equal(X.calls.render, 7);
+  const reg = X.jpxRegion('jpn');
+  assert.ok(reg.startsWith('<div class="wide"><dt>[jp]jpx.reg</dt><dd>jpx.reg.v{"w":"2026-09-24 – 2026-09-25 · age(2026-09-25)","v":"<w->') && (reg.match(/<div/g) || []).length === 1, reg);
+  for (const id of ['chn', 'usa', 'eur', 'kor', '', null]) assert.equal(X.jpxRegion(id), '', 'inne regiony: ' + id);
+  assert.equal(new Function(html.slice(jpx137.a0, jpx137.a1) + '\nreturn jpxData();')(), null, 'jpxData bez danych');
+});
+
+test('v137: GLOBAL — sekcja #inst z samym plikiem giełdy, blok C2 zaraz po bloku MOF (przed „czego nie mówi”), #inst przed widgetami, plik w gLoad, wiersz regionu, TRENDY i Metodologia', () => {
+  const r0 = html.indexOf('function renderInst(){'), r1 = html.indexOf('\nfunction ', r0 + 10), ri = html.slice(r0, r1);
+  assert.ok(ri.includes("typeof MX!=='undefined'?MX.data:null,typeof jpxData==='function'?jpxData():null].filter(Boolean);"), 'sekcja także z samym plikiem giełdy');
+  const c = ri.indexOf('/* C. Japonia'), c2 = ri.indexOf("html+=typeof jpxHtml==='function'?jpxHtml():'';"), ns = ri.indexOf("<summary>${t('eng.notsays')}</summary><p class=\"pnote\">${t('inst.not1')}");
+  assert.ok(c > 0 && c2 > c && ns > c2, 'C2 po bloku MOF, przed „czego nie mówi” sekcji');
+  const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
+  assert.ok(sec('inst') > 0 && sec('tv-markets') > sec('inst') && sec('tv-news') > sec('tv-calendar'), '#inst przed widgetami TradingView (ostatnie w GLOBAL)');
+  const gEnd = html.indexOf('<section class="global" id="trendy"');
+  assert.deepEqual((html.slice(sec('tv-markets'), gEnd).match(/<section [^>]*id="([^"]+)"/g) || []).map(s => s.match(/id="([^"]+)"/)[1]), ['tv-markets', 'tv-calendar', 'tv-news'], 'po widgetach nic w GLOBAL');
+  const g0 = html.indexOf("    srvJSON('instytucje').then(j=>{instApply(j);}).catch(()=>{instApply(null);}),\n"), g1 = html.indexOf("    srvJSON('jpx').then(", g0);
+  assert.ok(g0 > 0 && g1 > g0 && g1 - g0 < 120 && html.indexOf("srvJSON('jpx')") === g1 + 4, 'plik data/jpx.json w gLoad zaraz po instytucjach, jedno pobranie');
+  assert.ok(html.includes("          ${typeof korRegion==='function'?korRegion(s.id):''}\n          ${typeof jpxRegion==='function'?jpxRegion(s.id):''}\n"), 'szczegóły regionu: po Korei');
+  assert.ok(html.includes("jp_eq:'jp',jp_bd:'jp',jpx_for:'jp',"), 'TRENDY: flaga Japonii przy wierszu jpx_for');
+  assert.ok(jpx137.a0 < html.indexOf("/* GLOBAL jest oknem startowym projektu */\nsetMode('global');"), 'blok przed startem GLOBAL');
+  const R = v96src.render('pl', false, null), J = R.txtJakCzytac();
+  assert.equal(R.JAK_ICO['kto handluje akcjami na giełdach w Japonii'], 'jp');
+  const row = J.split('<tr>').find(x => x.includes('<span>kto handluje akcjami na giełdach w Japonii</span>')) || '';
+  assert.ok(row.includes('flagi/jp.svg') && row.includes('co tydzień') && row.includes('4. dniu roboczym następnego tygodnia') && row.includes('po świętach później'), 'Metodologia: wiersz z flagą i terminem: ' + row.slice(0, 200));
+  const csp = (/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(html) || [])[1] || '';
+  assert.ok(csp.includes("connect-src 'self'") && !/jpx/i.test(csp), 'CSP bez nowego hosta — przeglądarka czyta tylko data/jpx.json');
+});
+
+test('v137: słownik EXTRA146 w 10 językach (te same klucze i pola), nałożony zaraz po definicji i skuteczny, bez nazwy wydawcy; wyjaśnienia prostym językiem; trd.s.jpx_for', () => {
+  const a = 'const EXTRA146=', x0 = html.indexOf(a); assert.ok(x0 > 0, 'słownik EXTRA146'); assert.equal(html.split(a).length, 2);
+  const end = html.indexOf(';\n', x0), E = JSON.parse(html.slice(x0 + a.length, end));
+  assert.deepEqual(Object.keys(E), G126_L10, '10 języków, pl pierwszy');
+  const KEYS = Object.keys(E.pl).sort(), ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  assert.equal(KEYS.length, 33); assert.ok(KEYS.every(k => k.startsWith('jpx.') || k === 'trd.s.jpx_for' || k === 'trd.src.jpx'), 'tylko klucze bloku i TRENDÓW');
+  const lit = [...html.slice(jpx137.a0, jpx137.a1).matchAll(/t\('(jpx\.[a-z0-9.]+)'/g)].map(m => m[1]).filter(k => !k.endsWith('.')).concat(['jpx.c.for', 'jpx.c.ind', 'jpx.c.trb', 'jpx.c.bus', 'jpx.c.it', 'jpx.c.prop', 'jpx.for', 'jpx.ind', 'jpx.trb', 'jpx.bus', 'jpx.it', 'jpx.prop']);
+  for (const k of lit) assert.ok(KEYS.includes(k), 'klucz użyty w bloku: ' + k);
+  for (const L of G126_L10) {
+    assert.deepEqual(Object.keys(E[L]).sort(), KEYS, L + ': te same klucze');
+    for (const k of KEYS) {
+      assert.ok(typeof E[L][k] === 'string' && E[L][k].trim(), L + ' ' + k); assert.equal(ph(E[L][k]), ph(E.pl[k]), 'pola ' + L + ' ' + k);
+      assert.ok(!jpx137.PUB.test(E[L][k]), 'nazwa wydawcy: ' + L + ' ' + k); assert.deepEqual(G126_NAMES.check(E[L][k], L), [], L + ' ' + k + ': strażnik nazw źródeł');
+      assert.equal(v96src.I18N[L][k], E[L][k], L + ': nałożony i nie nadpisany przez późniejszy słownik: ' + k);
+    }
+  }
+  assert.ok(E.pl['jpx.sub'].includes('plus = grupa kupiła za więcej, niż sprzedała') && E.pl['jpx.sub'].includes('kupili w tym tygodniu akcje za 500 mld jenów więcej'), 'co znaczy „kupiła netto”');
+  assert.ok(E.pl['jpx.not1'].includes('także poza giełdą') && E.pl['jpx.not1'].includes('tylko handel akcjami na giełdzie') && E.pl['jpx.not1'].includes('kierunek zwykle jest ten sam'), 'różnica wobec bloku wyżej')
+  assert.ok(E.pl['jpx.not1'].includes('czasem kilkakrotnie') && E.pl['jpx.not1'].includes('bywa też odwrotnie') && !E.pl['jpx.not1'].includes('zwykle kilkakrotnie') && E.en['jpx.not1'].includes('sometimes the other way round'),
+    'skala różnicy: mediana MOF/giełda ok. 1,5×, czasem giełda większa — nie „zwykle kilkakrotnie”');
+  for (const L of G126_L10) assert.ok(E[L]['jpx.share'].includes('{v}') && E[L]['jpx.share'].includes('{w}'), L + ': dwa udziały z opisem');
+  assert.ok(E.pl['jpx.share'].includes('zleceń klientów') && E.pl['jpx.share'].includes('całego obrotu') && E.en['jpx.share'].includes('client orders'), 'udział: zlecenia klientów vs całość');
+  assert.ok(E.pl['jpx.unit'].includes('Na stronie: mld JPY (w pliku giełdy: tysiące jenów)') && E.en['jpx.unit'].includes('the exchange file has thousands of yen'), 'jednostki bez dwuznaczności');;
+  assert.ok(E.pl['jpx.not2'].includes('nie oznacza, że ceny wzrosły') && E.pl['jpx.not2'].includes('To nie jest porada inwestycyjna'), 'czego nie znaczy, bez porad');
+  assert.ok(E.pl['jpx.not3'].includes('luka, nie zero') && E.en['jpx.not3'].includes('a gap, not zero'), 'brak ≠ zero');
+  assert.ok(E.pl['jpx.not1'].includes('„' + v96src.I18N.pl['inst.mof.t'] + '”') && G126_L10.every(L => E[L]['jpx.not1'].includes(v96src.I18N[L]['inst.mof.t'] ?? v96src.I18N.en['inst.mof.t'])), 'tytuł bloku wyżej taki, jak na stronie w danym języku');
+  assert.equal(E.pl['trd.s.jpx_for'], 'Japonia · akcje na giełdzie (zagranica)');
+  assert.equal(html.indexOf('for(const l in EXTRA146)if(I18N[l])Object.assign(I18N[l],EXTRA146[l]);\n'), end + 2, 'nałożenie tuż po definicji (sąsiedztwo, nie „ostatni słownik”)');
+  assert.ok(end < html.indexOf('/* ===================== STAN I DANE'), 'w bloku słowników');
+  const bad = /kupuj(?![a-ząćęłńóśźż])|sprzedawaj(?![a-ząćęłńóśźż])|warto kupi|okazj|rekomend|prognozuj|\bbuy now\b|recommend|opportunit/i;
+  for (const L of ['pl', 'en']) for (const k of KEYS) assert.ok(!bad.test(E[L][k]) || k === 'jpx.not2', 'bez języka porad: ' + L + ' ' + k);
+});
+
+test('v137: strażnik nazw źródeł — blok giełdy Japonii rysuje się w #inst (dane wbudowane JPX137_FILE) w każdym z 10 języków, bez nazwy wydawcy w tekście i atrybutach', () => {
+  assert.ok(G126_DATA['data/jpx'] === JPX137_FILE, 'plik w danych wbudowanych strażnika');
+  for (const L of G126_L10) {
+    const R = G126.run(L), el = R.el('inst');
+    assert.deepEqual(R.ERR, [], L + ': bez błędów strony');
+    assert.ok(el && !el.hidden && el.innerHTML.includes(g126I18N()[L]['jpx.t']) && el.innerHTML.includes(g126I18N()[L]['jpx.for']), L + ': blok C2 narysowany');
+    const seg = [...G126.segs([{k: 'html', v: el.innerHTML, id: 'inst'}]).keys()];
+    assert.deepEqual(seg.filter(s => jpx137.PUB.test(s)), [], L + ': bez nazwy wydawcy');
+    assert.ok(el.innerHTML.indexOf(g126I18N()[L]['jpx.t']) > el.innerHTML.indexOf(g126I18N()[L]['inst.mof.t']), L + ': pod blokiem MOF');
+  }
+});
+
+test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwartek (święta, ±3 dni od siatki) pokazane, nie „—”; jeden format liczb języka w całej linii (de, pl), blok MOF bez zmian', () => {
+  const X = jpx137.mk(), D = jpx137.cp(jpx137.D), ci = c => D.cols.indexOf(c);
+  const r1 = D.d[D.d.length - 2], r2 = D.d[D.d.length - 3];
+  r1[ci('from')] = '2026-09-14'; r1[ci('to')] = '2026-09-17';     /* czwartek (piątek wolny) */
+  r2[ci('from')] = '2026-09-07'; r2[ci('to')] = '2026-09-09';     /* środa */
+  X.JPX.data = D;
+  const body = X.jpxHtml(), tb = body.slice(body.indexOf('<summary>jpx.tab</summary>'), body.indexOf('</table>')), trs = tb.split('<tr>').slice(2);
+  assert.ok(trs[1].includes('2026-09-14 – 2026-09-17') && trs[2].includes('2026-09-07 – 2026-09-09'), 'tydzień czwartkowy i środowy w swoich wierszach: ' + trs.slice(1, 3).join(' | '));
+  assert.equal(trs.filter(r => r.includes('jpx.miss')).length, 1, 'tylko prawdziwa luka (10–14.08) jako „—”');
+  /* jeden format liczb (prawdziwy Intl, jak strona): de — kropka tysięcy, przecinek dziesiętny; żadnego „1,659.2” obok „12.396” */
+  const LOC = {pl: 'pl-PL', de: 'de-DE', en: 'en-US', fr: 'fr-FR', ru: 'ru-RU'};
+  for (const L of ['de', 'pl', 'en', 'fr', 'ru']) {
+    const nf = (v, d) => new Intl.NumberFormat(LOC[L], {minimumFractionDigits: d || 0, maximumFractionDigits: d || 0}).format(v);
+    const Y = jpx137.mk({L, nfmt: nf}); Y.JPX.data = jpx137.D;
+    const t0 = jpx137.tiles(Y.jpxHtml())[0], txt = t0.replace(/<[^>]+>/g, ' ');
+    const last = Y.jpxRows(jpx137.D).slice(-1)[0];
+    assert.ok(txt.includes(nf(Math.round(last.v.for[1] / 1000), 0).replace(/[ \u202f]/g, '\u00a0')), L + ': kupno brutto w formacie języka: ' + txt.slice(0, 300));
+    const net = Y.jpxNet(last, 'for');
+    assert.ok(txt.includes((net < 0 ? '−' : '+') + nf(Math.round(Math.abs(net) / 100) / 10, 1).replace(/[ \u202f]/g, '\u00a0')), L + ': netto w formacie języka');
+    if (L === 'de') { assert.ok(!/\d,\d{3}\.\d/.test(txt) && /\d\.\d{3}/.test(txt), 'de: bez angielskiego „1,659.2”: ' + txt); }
+    if (L === 'en') { assert.ok(!/\d\.\d{3},\d/.test(txt), 'en: bez niemieckiego zapisu'); }
+    assert.ok(!/ \d{3}[,.]/.test(txt.replace(/\u00a0/g, '#')), L + ': tysiące bez łamliwej spacji');
+  }
+  assert.ok(html.includes("const jpy=(v,x)=>typeof v==='number'?chg(v,instSign(v)+instMld(Math.abs(v)*100),x):'—';"), 'blok MOF (C) bez zmian formatu');
 });
