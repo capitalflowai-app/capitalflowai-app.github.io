@@ -6390,6 +6390,11 @@ G126_DATA['data/ici'] = ICI135_FILE;
    wbudowane strażnika nazw źródeł: blok giełdy Japonii w #inst musi się narysować w każdym języku bez nazwy wydawcy ===================== */
 const JPX137_FILE = {"at":"2026-09-27T21:00:00+00:00","chk":"2026-09-27T21:00:00+00:00","tried":"2026-09-27T21:00:00+00:00","lm":"Thu, 24 Sep 2026 06:30:30 GMT","pub":"2026-09-27T06:30:30+00:00","fmt":"xlsx","raw_unit":"kJPY","v":1,"src":"jpx","unit":"mln JPY","asof":"2026-09-25","week":["2026-09-24","2026-09-25"],"next":"2026-10-01","cols":["from","to","for_s","for_b","ind_s","ind_b","it_s","it_b","bus_s","bus_b","trb_s","trb_b","prop_s","prop_b","brk_s","brk_b","sec_s","sec_b","oth_s","oth_b","fin_s","fin_b"],"d":[["2026-06-22","2026-06-26",29734568,29423457,12634568,13045679,578901,663457,587654,654321,1087654,536789,5612346,5923457,45016160,44639380,134568,133457,82346,96789,1263556,622221],["2026-06-29","2026-07-03",29349145,29858880,12827280,12917204,578901,663457,587654,684321,1107654,536789,5612346,5923457,44843449,44976329,134568,133457,82346,96789,1283556,622221],["2026-07-06","2026-07-10",29528367,29729657,12737668,12976945,578901,663457,587654,714321,1127654,536789,5612346,5923457,44953060,44936848,134568,133457,82346,96789,1303556,622221],["2026-07-13","2026-07-17",30009674,29148350,12497015,13137381,578901,663457,587654,744321,1147654,536789,5612346,5923457,45213714,44545976,134568,133457,82346,96789,1323556,622221],["2026-07-20","2026-07-24",30087950,29120075,12457877,13163473,578901,663457,587654,654321,1167654,536789,5612346,5923457,45272851,44453793,134568,133457,82346,96789,1343556,622221],["2026-07-27","2026-07-31",29648520,29609505,12677592,13016996,578901,663457,587654,684321,1087654,536789,5612346,5923457,44973136,44826746,134568,133457,82346,96789,1263556,622221],["2026-08-03","2026-08-07",29335151,29822874,12834277,12912540,578901,663457,587654,714321,1107654,536789,5612346,5923457,44836452,44965659,134568,133457,82346,96789,1283556,622221],["2026-08-17","2026-08-21",30065698,29192326,12469003,13156056,578901,663457,587654,654321,1147654,536789,5612346,5923457,45241726,44518627,134568,133457,82346,96789,1323556,622221],["2026-08-24","2026-08-28",30039361,29118663,12482171,13147277,578901,663457,587654,684321,1167654,536789,5612346,5923457,45248557,44466185,134568,133457,82346,96789,1343556,622221],["2026-08-31","2026-09-04",29566501,29641524,12718601,12989657,578901,663457,587654,714321,1087654,536789,5612346,5923457,44932127,44861425,134568,133457,82346,96789,1263556,622221],["2026-09-07","2026-09-11",29339859,29918166,12831922,12914109,578901,663457,587654,744321,1107654,536789,5612346,5923457,44838806,45092520,134568,133457,82346,96789,1283556,622221],["2026-09-14","2026-09-18",29691466,29466558,12656119,13031312,578901,663457,587654,654321,1127654,536789,5612346,5923457,45034610,44668115,134568,133457,82346,96789,1303556,622221],["2026-09-24","2026-09-25",11893827,11812593,5053827,5218272,231560,265383,235062,261728,435062,214716,2244938,2369383,18006464,17898962,53827,53383,32938,38716,505422,248888]],"fx":["2026-09",156.379],"bf":{"done":true,"files":7,"pages":2},"ok":{"listing":true,"file":true,"backfill":true,"revision":true},"notes":[],"run":{"at":"2026-09-27T21:00:00+00:00","req":3,"kb":30.1,"s":6.2}};
 G126_DATA['data/jpx'] = JPX137_FILE;
+/* ===================== v133: plik data/rwa.json do testów strony — zbudowany przez rwa_build z nagrań planu v128/rwa (27.09.2026 19:40 UTC,
+   dzień 1; okno wartości produktów skrócone do 3 — strona go nie czyta); także dane wbudowane strażnika nazw źródeł: panel #c-rwa musi się
+   narysować w każdym języku bez nazwy źródła (pole src zostaje w pliku — strona go nie pokazuje) ===================== */
+const RWA133_FILE = {"at":"2026-10-04T00:12:00+00:00","v":1,"day":"2026-10-04","part_at":{"list":"2026-10-04T00:12:00+00:00","hidden":"2026-10-04T00:12:00+00:00"},"src":"DefiLlama — api.llama.fi/protocols (kategoria RWA) i /tvl/{produkt} dla produktów bez wartości na liście; bez klucza; sumy, rodzaje, udziały i zmiany 7/30 dni (te same produkty w obu dniach) — obliczenia CapitalFlowAI z własnych dziennych zapisów","unit":"USD","ok":{"list":true,"hidden":true},"n":{"rwa":181,"dead":9,"bad_slug":0,"listed":110,"hidden":47,"zero":15,"valued":110,"hidden_valued":33,"hidden_live":0,"kept":0,"stale":32,"wait":1,"small":79,"small_v":143869111},"seg":{"tb":{"v":2172413351,"n":32,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"ofi":{"v":671037386,"n":7,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"pc":{"v":738439440,"n":26,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"cm":{"v":83731301,"n":16,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"eq":{"v":61523948,"n":6,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"re":{"v":323694291,"n":11,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"oth":{"v":481850677,"n":12,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"all":{"v":4532690394,"n":110,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null}},"top":[["invesco-ustb","Invesco USTB","tb",545636788,null,null,"l"],["ethena-usdtb","Ethena USDtb","tb",491654883,null,null,"l"],["re","Re","ofi",388885052,null,null,"l"],["huma","Huma","pc",373219341,null,null,"l"],["anemoy-capital","Anemoy Capital","tb",334035285,null,null,"l"],["onre","OnRe","oth",296581213,null,null,"l"],["opentrade","OpenTrade","ofi",267229806,null,null,"l"],["plume-vaults","Plume Vaults","tb",220552042,null,null,"l"],["usd-ai","USD AI","pc",216774664,null,null,"l"],["realt-tokens","RealT Tokens","re",155097903,null,null,"l"]],"hist_cols":["day","all","tb","ofi","pc","cm","eq","re","oth"],"hist":[["2026-10-04",4532.7,2172.4,671.0,738.4,83.7,61.5,323.7,481.9]],"ph":{"days":["2026-10-04"],"v":{"invesco-ustb":[545.637],"ethena-usdtb":[491.655],"re":[388.885]},"kept":{}},"stale":{"n":32,"v":23207245050,"nf":32,"ng":0,"since":"2026-09-27","last":"2026-09-27","main":"2026-09-27","mixed":false,"gone":null,"src":true,"src_pct":100.0,"unk":0,"seg":{"tb":{"v":13033685742,"n":12,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"ofi":{"v":787183942,"n":2,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"pc":{"v":1684943694,"n":5,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"cm":{"v":5149850222,"n":6,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"eq":{"v":2376898218,"n":5,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"oth":{"v":174683232,"n":2,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false}},"top":[["blackrock-buidl","BlackRock BUIDL","tb",3514788159,"2026-09-27","min"],["tether-gold","Tether Gold","cm",3032831489,"2026-09-27","min"],["spiko","Spiko","tb",2625039076,"2026-09-27","min"],["circle-usyc","Circle USYC","tb",2604039211,"2026-09-27","min"],["ondo-yield-assets","Ondo Yield Assets","tb",2560085819,"2026-09-27","min"]]},"wait":{"n":1,"v":16345082,"day":"2026-10-04"},"hv":{"blackrock-buidl":[3514788158.68,"2026-09-27",0,2,null],"tether-gold":[3032831489.27,"2026-09-27",0,2,null],"openeden-usdo":[16345082.47,"2026-10-04",0,1,null]},"chk":{"c7_api_listed":-1.373,"c7_own_listed":null},"notes":[],"run":{"req":48,"s":7.9},"retry_n":0};
+G126_DATA['data/rwa'] = RWA133_FILE;
 const G126 = (() => {
   const NOW = '2026-09-27T21:45:00Z', NOWMS = Date.parse(NOW);
   class FD extends Date { constructor(...a) { if (a.length === 0) super(NOWMS); else super(...a); } static now() { return NOWMS; } }
@@ -6641,6 +6646,7 @@ const G126_PANELS = ['page-sources', 'page-method', 'page-flows', 'page-assets',
   'eng-cftc-crypto', 'eng-cftc-euro-fx', 'eng-wdi-destinations', 'tv-markets', 'tv-markets-w', 'tv-chart', 'tv-chart-w', 'tv-dvol', 'tv-newsc'];
 G126_PANELS.push('g-fund');   /* v134: panel funduszy USA (dane wbudowane: ICI134_FILE) musi się narysować */
 G126_PANELS.push('g-dolar');   /* v136: panel kursów dolara Ameryki Łacińskiej (dane wbudowane: DL136_FILE) musi się narysować */
+G126_PANELS.push('c-rwa');   /* v133: panel tokenizowanych aktywów (dane wbudowane: RWA133_FILE) musi się narysować */
 
 test('v126.2-zrodla: lista nazw łapie podpisy, dostawców (każda wielkość liter, adresy), zdania o źródle w 10 językach i NIEZNANE nazwy po zwrocie podpisu, a przepuszcza nazwy-przedmioty (giełda, indeks, bank centralny jako decydent, emitent, kraj)', () => {
   const N = G126_NAMES;
@@ -10648,4 +10654,227 @@ test('v147: strona w atrapie (dane wbudowane strażnika) — panel instytucji i 
       assert.deepEqual(m, [], L + ': angielski zapis liczby ze znakiem (instMld / bopMld)');
     }
   }
+});
+
+/* ===================== v133: TOKENIZOWANE AKTYWA (RWA) — panel #c-rwa (data/rwa.json), słownik EXTRA142 ===================== */
+/* Plik RWA133_FILE (rwa_build na nagraniach planu: dzień wdrożenia 04.10.2026 00:12 UTC bez poprzedniego pliku, wartości jak 27.09 = RWA_SEED, jeden
+   pierwszy odczyt; okno produktów skrócone) wstawiony wyżej do danych strażnika nazw źródeł. Zegar przypięty: do bloku wstrzykujemy Date z własnym
+   „teraz” (domyślnie 2026-10-04T02:00:00Z) — testy nie czytają
+   prawdziwego zegara ani sieci. Testy nie zakładają, że słownik EXTRA142 jest ostatni (szukany po nazwie). */
+const rw133 = (() => {
+  const k0 = html.indexOf('/* ===================== v133: TOKENIZOWANE AKTYWA (RWA)'), k1 = html.indexOf('\nfunction rwLoad(', k0);
+  assert.ok(k0 > 0 && k1 > k0, 'blok v133 w stronie');
+  const BLK = html.slice(k0, k1), T = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const LOC = {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'};
+  /* t i nfmt jak na stronie (słownik skuteczny po nałożeniu wszystkich słowników) */
+  const real = L => { const E = g126I18N()[L], NF = {};
+    return {t: (k, v) => { let s = E[k] ?? k; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; },
+      nfmt: (v, d = 0) => (NF[d] = NF[d] || new Intl.NumberFormat(LOC[L], {minimumFractionDigits: d, maximumFractionDigits: d})).format(v)}; };
+  const run = (D, opt) => {
+    opt = opt || {};
+    const NOWMS = Date.parse(opt.now || '2026-10-04T02:00:00Z'), L = opt.lang || 'pl', R = opt.real ? real(L) : null;
+    class FD extends Date { constructor(...a) { if (a.length === 0) super(NOWMS); else super(...a); } static now() { return NOWMS; } }
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    const K = new Function('$', 't', 'nfmt', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', 'lnAgo', 'icoWrap', 'glyphImg', 'flagImg', 'Date', 'D',
+      BLK + '\nif(D!==undefined){RW.data=D;renderRw();}\nreturn {RW,rwIsDay,rwUsd,rwPct,rwCls,rwN,rwShare,rwBody,rwOk,rwApply,renderRw,RW_SEGS,RW_LIVE,RW_OLD};')(
+      q => (q === '#c-rwa' ? el : null), R ? R.t : (opt.t || T), R ? R.nfmt : ((v, d) => Number(v).toFixed(d || 0)), v96src.escH, LOC, L,
+      s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')', s => ' · ago(' + String(s) + ')', x => `<span class="icos">${x}</span>`,
+      (n, c) => `<i class="g ${n}"></i>`, (c, k) => `<i class="f ${c}"></i>`, FD, D);
+    return {el, K};
+  };
+  const clone = o => JSON.parse(JSON.stringify(o));
+  /* plik po 31 dniach: zmiany w kilku rodzajach (wzrost, spadek, zero po zaokrągleniu, brak) */
+  const day31 = () => { const F = clone(RWA133_FILE); const S = F.seg;
+    Object.assign(S.all, {c7: 1.0, c7_from: '2026-09-20', c30: 4.357, c30_from: '2026-08-28'}); Object.assign(S.tb, {c7: 0.42, c7_from: '2026-09-20', c30: 1.6, c30_from: '2026-08-28'});
+    Object.assign(S.cm, {c7: -2.31, c7_from: '2026-09-20', c30: -0.04, c30_from: '2026-08-28'}); Object.assign(S.pc, {c7: null, c30: 3.2, c30_from: '2026-08-28'});
+    F.top[0][4] = 0.9; F.top[0][5] = -1.26;
+    F.hist = Array.from({length: 31}, (_, i) => [new Date(Date.parse('2026-08-28T00:00:00Z') + i * 864e5).toISOString().slice(0, 10), 27000 + i * 25, 15000, 1400, 2400, 5200, 2400, 320, 650]);
+    return F; };
+  return {run, clone, day31, BLK};
+})();
+
+test('v133: sekcja #c-rwa pod stablecoinami, przed widgetami; styl, blok JS, ładowanie co 30 min, zmiana języka, chwilowy błąd nie zasłania danych', () => {
+  const c0 = html.indexOf('id="crypto"'), s = html.indexOf('id="eng-defillama-stablecoins"'), r = html.indexOf('<section class="panel pcard" id="c-rwa" hidden></section>'), f = html.indexOf('id="eng-cftc-crypto"');
+  assert.ok(c0 > 0 && s > c0 && r > s && f > r && r < html.indexOf('id="tv-heatmap"'), 'kolejność: stablecoiny → RWA → pozycje CFTC → … → widgety');
+  assert.equal(html.split('id="c-rwa"').length - 1, 1, 'jedna sekcja');
+  assert.ok(html.includes('#c-rwa .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}') && html.includes('@media (max-width:620px){#c-rwa .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}'), '4 kafle, 2 na telefonie');
+  assert.ok(html.includes('#c-rwa table.etft{min-width:0;width:100%}'), 'tabele bez przewijania strony na telefonie');
+  assert.ok(html.includes("function rwLoad(){srvJSON('rwa').then(rwApply);}") && html.includes('setInterval(()=>{if(!document.hidden)rwLoad();},30*60*1000)'), 'plik serwera co 30 min, gdy karta widoczna');
+  assert.ok(html.includes("rwLoad();rwAuto();try{new MutationObserver(()=>renderRw()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'zmiana języka = nowe etykiety');
+  const {el, K} = rw133.run(RWA133_FILE);
+  assert.ok(!el.hidden); const before = el.innerHTML;
+  K.rwApply(null); assert.equal(el.innerHTML, before, 'nieudane pobranie nie zasłania wczytanych danych'); assert.equal(K.RW.data, RWA133_FILE);
+  K.rwApply({at: 'x'}); assert.equal(el.innerHTML, before);
+  const e2 = rw133.run(undefined); e2.K.rwApply(null); assert.ok(e2.el.hidden && e2.el.innerHTML === '', 'bez pliku — sekcja ukryta');
+  assert.ok(!K.rwOk({at: '2026-09-27T19:40:00+00:00', seg: {}}) && !K.rwOk({at: 'zły', seg: {all: {}}}) && K.rwOk({at: '2026-09-27T19:40:00+00:00', seg: {all: {}}}), 'plik: czas i suma');
+  assert.ok(!/srvJSON\([^)]*llama|fetch\(['"]https?:/.test(rw133.BLK), 'strona nie pyta źródła — tylko plik serwera');
+});
+
+test('v133: dzień wdrożenia (pl) — kafle z bieżącą wyceną, pod liczbą osobno „bez bieżącej wyceny (niezmienione co najmniej od 27.09)” — nigdy data wdrożenia; pierwszy odczyt osobno; Udział* i tabela produktów opisane wprost', () => {
+  const {el} = rw133.run(RWA133_FILE, {real: true}), out = el.innerHTML, A = '[2026-10-04T00:12:00+00:00] · ago(2026-10-04T00:12:00+00:00)';
+  assert.equal((out.match(/<div class="etfk">/g) || []).length, 4, 'cztery kafle');
+  assert.ok(out.includes('<span><span class="icos"><i class="g etf"></i></span>Obligacje i fundusze — z bieżącą wyceną</span><b>2,2 mld USD<small class="fz">+ 13,0 mld USD bez bieżącej wyceny (niezmienione co najmniej od 27.09)</small><small class="na">7 dni: —</small><small class="na">30 dni: —</small><small>32 produkty</small></b>'),
+    'kafel główny: liczba bieżąca, pod nią osobno wartość bez bieżącej wyceny z dowodem „co najmniej od 27.09”');
+  assert.ok(out.includes('Tokenizowane aktywa — z bieżącą wyceną</span><b>4,5 mld USD<small class="fz">+ 23,2 mld USD bez bieżącej wyceny (niezmienione co najmniej od 27.09)</small>') && out.includes('<small>110 produktów z bieżącą wyceną; pozostałych: 62</small>'), 'wszystkie: suma niezmienionych');
+  assert.ok(out.includes('Złoto i surowce — z bieżącą wyceną</span><b>84 mln USD<small class="fz">+ 5,1 mld USD bez bieżącej wyceny (niezmienione co najmniej od 27.09)</small>')
+    && out.includes('Kredyt prywatny — z bieżącą wyceną</span><b>738 mln USD<small class="fz">+ 1,7 mld USD bez bieżącej wyceny (niezmienione co najmniej od 27.09)</small>'), 'złoto i kredyt prywatny');
+  assert.ok(!/04\.10\)|od 4 paź/.test(out.replace(/zbieranych od 4 paź 2026|pierwszy odczyt \(z 4 paź 2026\)/g, '')), 'data wdrożenia nigdy jako data wartości');
+  assert.ok(/<p class="pnote">Poza sumami: 32 produkty spoza głównej listy \(m\.in\. BlackRock BUIDL, Tether Gold, Spiko\), łączna ostatnio znana wartość 23,2 mld USD\. Powód: publiczne dane nie odświeżają ich wartości — bez zmian co najmniej od 27 wrz 2026\. Starej liczby nie dodajemy do sum — pokazujemy ją osobno\.<\/p>/.test(out), 'powód wprost');
+  assert.ok(out.includes('<p class="pnote">Tylko pierwszy odczyt (z 4 paź 2026) — poza sumami do drugiego odczytu: 1 produkt, łącznie 16 mln USD.</p>'), 'pierwszy odczyt — osobno, nie jako „niezmienione”');
+  assert.equal((out.match(new RegExp('<small class="mtxt">stan na ' + A.replace(/[[\]().+]/g, '\\$&') + '</small>', 'g')) || []).length, 4, 'każdy kafel: chwila pobrania i wiek');
+  assert.ok(/Zmiany 7 i 30 dni liczymy z własnych dziennych zapisów, zbieranych od 4 paź 2026\./.test(out), 'notka: zapisy od pierwszego dnia');
+  assert.equal((out.match(/<small class="na">7 dni: —<\/small><small class="na">30 dni: —<\/small>/g) || []).length, 4, 'brak zmiany to „—” bez koloru, nigdy 0%');
+  assert.equal((out.match(/<td><span class="cell mono na">—<\/span><\/td><td><span class="cell mono na">—<\/span><\/td><\/tr>/g) || []).length, 8 + 10, 'w tabelach zmiany „—”'); assert.ok(!/class="(?:cell mono )?(?:pos|neg)"/.test(out), 'bez koloru');
+  assert.ok(!/>0 mld|>0 mln|NaN|undefined|null/.test(out), 'brak nigdy jako 0 / NaN / undefined');
+  assert.ok(out.includes('<details class="etfd" id="rw-seg" open><summary>Rodzaje aktywów</summary>') && out.includes('<details class="etfd" id="rw-top"><summary>10 największych produktów z bieżącą wyceną</summary>'), 'tytuł tabeli produktów mówi, co liczy');
+  assert.ok(out.includes('<th>Wartość</th><th>Bez bieżącej wyceny</th><th class="rw-w">Produkty</th><th class="rw-w">Udział*</th>') && (out.match(/\* Udział w wartości z bieżącą wyceną \(bez produktów bez bieżącej wyceny\)\./g) || []).length, 'Udział* z objaśnieniem');
+  assert.equal((out.match(/\* Udział w wartości z bieżącą wyceną \(bez produktów bez bieżącej wyceny\)\./g) || []).length, 2, 'objaśnienie pod obiema tabelami');
+  assert.ok(out.includes('<tr class="rw-sum"><td><span class="cell">Razem</span></td><td><span class="cell mono">4,5 mld USD</span></td><td><span class="cell mono">23,2 mld USD</span></td><td class="rw-w"><span class="cell mono">110</span></td><td class="rw-w"><span class="cell mono">100,0%</span></td>'), 'wiersz „Razem”');
+  assert.ok(out.includes('<td><span class="cell">Nieruchomości</span></td><td><span class="cell mono">324 mln USD</span></td><td><span class="cell mono na">—</span></td>'), 'rodzaj bez niezmienionych — „—”');
+  assert.ok(out.includes('<span class="rw-i">1.</span>Invesco USTB</span></td><td class="rw-w"><span class="cell">Obligacje skarbowe i fundusze rynku pieniężnego</span></td><td><span class="cell mono">546 mln USD</span></td><td class="rw-w"><span class="cell mono">12,0%</span></td>'), 'produkt nr 1');
+  assert.ok(out.includes('<p class="pnote">Największe bez bieżącej wyceny (poza tabelą i sumami): BlackRock BUIDL 3,5 mld USD (niezmieniona co najmniej od 27.09); Tether Gold 3,0 mld USD (niezmieniona co najmniej od 27.09); Spiko 2,6 mld USD (niezmieniona co najmniej od 27.09);'),
+    'największe niezmienione pod tabelą produktów — z ostatnią wartością i stanem');
+  assert.ok(out.includes('Czego te dane nie mówią') && out.includes('to nie rekomendacja') && out.includes('Obserwacja, nie prognoza ani porada inwestycyjna.') && out.includes('Co to jest: tokenizowane aktywo to zwykłe aktywo'), 'wyjaśnienia, bez porad');
+  assert.ok(out.includes('(liczba pod kaflem „Tokenizowane aktywa — z bieżącą wyceną”)') && out.includes('Produkty poniżej 10 mln USD (3,2% wartości z bieżącą wyceną) wchodzą do sum'), 'odesłanie do bieżącej nazwy kafla; udział < 10 mln liczony z pliku');
+  assert.ok(out.includes('suma może liczyć ten sam dolar dwa razy.') && !/1 mld USD \(3–4%\)/.test(out), 'bez nieaktualnych liczb w objaśnieniach');
+  const F = rw133.clone(RWA133_FILE); delete F.n.small_v; assert.ok(rw133.run(F, {real: true}).el.innerHTML.includes('Produkty poniżej 10 mln USD wchodzą do sum, ale nie do zmian.'), 'bez danych — zdanie bez liczby');
+});
+
+test('v133: po 31 dniach — „+1,0%” zielone „(od 20.09)”, spadek czerwony z „−”, zero po zaokrągleniu bez koloru, udziały sumują się do 100%; notka o zapisach do 30. dnia (także gdy 7 dni już jest)', () => {
+  const {el} = rw133.run(rw133.day31(), {real: true}), out = el.innerHTML;
+  assert.ok(out.includes('<small class="pos">7 dni: +1,0% (od 20.09)</small><small class="pos">30 dni: +4,4% (od 28.08)</small>'), 'wszystkie: wzrost zielony z dniem kotwicy');
+  assert.ok(out.includes('<small class="pos">7 dni: +0,4% (od 20.09)</small>'), 'obligacje i fundusze');
+  assert.ok(out.includes('<small class="neg">7 dni: −2,3% (od 20.09)</small><small>30 dni: 0,0% (od 28.08)</small>'), 'złoto: spadek czerwony z minusem; −0,04% → 0,0% bez koloru');
+  assert.ok(out.includes('<small class="na">7 dni: —</small><small class="pos">30 dni: +3,2% (od 28.08)</small>'), 'kredyt: brak 7 dni „—”, 30 dni jest');
+  assert.ok(!out.includes('Zmiany 7 i 30 dni liczymy'), 'po 30 dniach bez notki o czekaniu');
+  const W = rw133.day31(); W.seg.all.c30 = null; W.seg.all.c30_from = null;
+  assert.ok(rw133.run(W, {real: true}).el.innerHTML.includes('Zmiany 7 i 30 dni liczymy'), 'jest zmiana 7 dni, brak 30 — notka zostaje (liczy się 30 dni)');
+  assert.ok(out.includes('<td><span class="cell mono pos">+0,9%</span></td><td><span class="cell mono neg">−1,3%</span></td></tr>'), 'zmiany produktu w tabeli');
+  assert.ok(/Zmiany: 7 dni wobec 20[^,]*2026, 30 dni wobec 28[^;]*2026; tylko produkty obecne w obu dniach\./.test(out), 'dni kotwic pod tabelą');
+  const seg = out.slice(out.indexOf('id="rw-seg"'), out.indexOf('id="rw-top"'));
+  const sh = [...seg.matchAll(/<tr><td><span class="cell">[^<]+<\/span><\/td><td><span class="cell mono">[^<]+<\/span><\/td><td><span class="cell mono(?: na)?">[^<]+<\/span><\/td><td class="rw-w"><span class="cell mono">\d+<\/span><\/td><td class="rw-w"><span class="cell mono">([\d,]+)%<\/span>/g)].map(m => parseFloat(m[1].replace(',', '.')));
+  assert.equal(sh.length, 7); assert.ok(Math.abs(sh.reduce((a, b) => a + b, 0) - 100) <= 0.1 + 1e-9, 'udziały: ' + sh.join(' + '));
+  const {K} = rw133.run();
+  assert.deepEqual([K.rwPct(1), K.rwPct(-2.31), K.rwPct(0.04), K.rwPct(null), K.rwPct(NaN)], ['+1.0%', '−2.3%', '0.0%', '—', '—']);
+  assert.deepEqual([K.rwCls(1), K.rwCls(-0.06), K.rwCls(0.04), K.rwCls(null)], ['pos', 'neg', '', 'na']);
+  assert.deepEqual([K.rwUsd(2.7756e13), K.rwUsd(1.52e10), K.rwUsd(3.2e8), K.rwUsd(5e5), K.rwUsd(0), K.rwUsd(null), K.rwUsd(-5)], ['27.76 u.t', '15.2 u.b', '320 u.m', '<1 u.m', '—', '—', '—']);
+  assert.deepEqual([K.rwShare(1, 4), K.rwShare(null, 4), K.rwShare(1, 0)], ['25.0%', '—', '—']);
+});
+
+test('v133: plik stary — po 8 h znacznik „off”, po 48 h „—” w kaflach z powodem i bez tabel; brak wartości rodzaju = „—”', () => {
+  let r = rw133.run(RWA133_FILE, {real: true, now: '2026-10-04T08:32:00Z'});
+  assert.ok(r.el.innerHTML.includes('class="live off"') && r.el.innerHTML.includes('2,2 mld USD'), '8 h 20 min: off, liczby zostają');
+  r = rw133.run(RWA133_FILE, {real: true, now: '2026-10-06T02:00:00Z'}); const o = r.el.innerHTML;
+  assert.equal((o.match(/<b class="na">—<small class="na">dane starsze niż 48 godzin — automat ich nie odświeża<\/small><\/b>/g) || []).length, 4, 'cztery kafle „—” z powodem');
+  assert.ok(!o.includes('id="rw-seg"') && !o.includes('id="rw-top"') && !o.includes('2,2 mld') && !o.includes('4,5 mld') && !o.includes('Poza sumami') && !o.includes('pierwszy odczyt'), 'bez tabel i kwot');
+  assert.ok(o.includes('Plik z [2026-10-04T00:12:00+00:00]'), 'czas pliku w znaczniku'); assert.ok(!o.includes('class="fz"'), 'plik stary — bez linii wartości niezmienionych');
+  const F = rw133.clone(RWA133_FILE); F.seg.cm.v = null; F.seg.pc = 'zły';
+  const p = rw133.run(F, {real: true}).el.innerHTML;
+  assert.ok(p.includes('Złoto i surowce — z bieżącą wyceną</span><b class="na">—<small class="fz">+ 5,1 mld USD bez bieżącej wyceny (niezmienione co najmniej od 27.09)</small><small class="na">brak wartości w ostatnim pobraniu</small></b>') && p.includes('Kredyt prywatny — z bieżącą wyceną</span><b class="na">—'),
+    'rodzaj bez wartości bieżącej: „—” z powodem, a wartość niezmieniona osobno (nie zamiast liczby)');
+  assert.ok(p.includes('<tr><td><span class="cell">Złoto i surowce</span></td><td><span class="cell mono na">—</span></td>'), 'w tabeli też „—”');
+});
+
+test('v133: zdania z liczbą produktów poprawne dla 1, 3 i 5 (pl, en, de, ru) — pierwszy odczyt, brak wartości, rodzaj nieznany', () => {
+  const W = {
+    pl: ['Tylko pierwszy odczyt (z 4 paź 2026) — poza sumami do drugiego odczytu: 1 produkt, łącznie 16 mln USD.', '3 produkty, łącznie', '5 produktów, łącznie',
+         'Bez żadnej wartości w publicznych danych od 2 paź 2026: 1 z nich', 'Rodzaj nieznany: 1 z nich — liczymy w „Inne”.'],
+    en: ['Only a first reading so far (from Oct 4, 2026) — kept out of the totals until a second reading: 1 product, 16 M USD in total.', '3 products, 16 M USD', '5 products, 16 M USD',
+         'No value at all in public data since Oct 2, 2026: 1 of them', 'Type unknown: 1 of them — counted under “Other”.'],
+    de: [': 1 Produkt, zusammen 16 Mio. USD.', ': 3 Produkte, zusammen', ': 5 Produkte, zusammen', 'Seit 2. Okt. 2026 überhaupt kein Wert in öffentlichen Daten: 1 davon', 'Art unbekannt: 1 davon'],
+    ru: [': 1 продукт, всего 16 млн USD.', ': 3 продукта, всего', ': 5 продуктов, всего', 'Без какой-либо стоимости в публичных сведениях с 2 окт. 2026 г.: 1 из них', 'Вид неизвестен: 1 из них'],
+  };
+  for (const [l, w] of Object.entries(W)) {
+    const run = (n, g) => { const F = rw133.clone(RWA133_FILE); F.wait.n = n; Object.assign(F.stale, {ng: g, nf: F.stale.nf, gone: '2026-10-02', unk: g}); return rw133.run(F, {real: true, lang: l}).el.innerHTML; };
+    const o1 = run(1, 1), o3 = run(3, 1), o5 = run(5, 1);
+    assert.ok(o1.includes(w[0]), l + ': pierwszy odczyt, 1 produkt — ' + (o1.match(/<p class="pnote">[^<]*(?:first|ersten|первое|pierwszy)[^<]*<\/p>/) || [''])[0]);
+    assert.ok(o3.includes(w[1]) && o5.includes(w[2]), l + ': 3 i 5 produktów — formy liczby');
+    assert.ok(o1.includes(w[3]) && o1.includes(w[4]), l + ': brak wartości i rodzaj nieznany — bez zgody czasownika z liczbą');
+  }
+});
+
+test('v133: bez bieżącej wyceny — linia tylko w kaflu rodzaju, który ją ma; „brak wartości od”; powód: źródło stoi / okno produktu; rodzaj nieznany; nigdy w liczbie kafla, udziale ani zmianach', () => {
+  const F = rw133.clone(RWA133_FILE); delete F.stale.seg.pc; F.stale.seg.cm = {v: 5149850222, n: 6, ng: 6, last: null, gone: '2026-10-02'}; F.stale.unk = 2;
+  F.stale.ng = 6; F.stale.nf = 26; F.stale.gone = '2026-10-02'; F.stale.src = false;
+  const o = rw133.run(F, {real: true}).el.innerHTML;
+  assert.ok(o.includes('Kredyt prywatny — z bieżącą wyceną</span><b>738 mln USD<small class="na">7 dni: —</small>'), 'rodzaj bez wartości niezmienionych — bez linii');
+  assert.ok(o.includes('<small class="fz">+ 5,1 mld USD bez bieżącej wyceny (brak wartości od 02.10)</small>'), 'same produkty bez wartości — „brak wartości od”');
+  assert.ok(o.includes('Ich wartości nie zmieniły się co najmniej od 27 wrz 2026 (dłużej niż 4 dni robocze), więc nie traktujemy ich jako bieżących.') && !o.includes('Powód: publiczne dane'), 'okno produktu — bez twierdzenia o źródle');
+  assert.ok(o.includes('Bez żadnej wartości w publicznych danych od 2 paź 2026: 6 z nich — pokazujemy ostatnią znaną.'), 'brak wartości — wprost');
+  assert.ok(o.includes('Rodzaj nieznany: 2 z nich — liczymy w „Inne”.'), 'rodzaj nieznany — powiedziane wprost');
+  assert.ok(o.includes('<td><span class="cell">Kredyt prywatny</span></td><td><span class="cell mono">738 mln USD</span></td><td><span class="cell mono na">—</span></td>'), 'tabela: „—” dla rodzaju bez niezmienionych');
+  assert.ok(o.includes('<td class="rw-w"><span class="cell mono">16,3%</span></td>') && !o.includes('83,7%'), 'udział liczony tylko z wartości bieżących');
+  const X = rw133.clone(RWA133_FILE); Object.assign(X.stale.seg.tb, {last: '2026-10-04', mixed: true}); Object.assign(X.stale, {last: '2026-10-04', mixed: true});
+  const ox = rw133.run(X, {real: true}).el.innerHTML;
+  assert.ok(ox.includes('<small class="fz">+ 13,0 mld USD bez bieżącej wyceny (w większości niezmienione co najmniej od 27.09)</small>') && ox.includes('w większości bez zmian co najmniej od 27 wrz 2026.') && !/od 04\.10\)|od 4 paź/.test(ox.replace(/zbieranych od 4 paź 2026|pierwszy odczyt \(z 4 paź 2026\)/g, '')),
+    'różne dni w grupie — dzień większości wartości z „w większości”, nigdy dzień wdrożenia');
+  const T = rw133.clone(RWA133_FILE); T.stale.top[1] = ['tether-gold', 'Tether Gold', 'cm', 3032831489, '2026-10-02', 'g']; T.stale.top[2][5] = 'od';
+  const ot = rw133.run(T, {real: true}).el.innerHTML;
+  assert.ok(ot.includes('Tether Gold 3,0 mld USD (brak wartości od 02.10); Spiko 2,6 mld USD (niezmieniona od 27.09)'), 'stan każdego produktu na liście');
+  const N = rw133.clone(RWA133_FILE); N.stale = {n: 0, v: null, nf: 0, ng: 0, seg: {}, top: []}; N.wait = {n: 0, v: null, day: null};
+  const q = rw133.run(N, {real: true}).el.innerHTML;
+  assert.ok(!q.includes('class="fz"') && !q.includes('Poza sumami') && !q.includes('ostatnio znana wartość produktów') && !q.includes('Największe bez bieżącej') && !q.includes('pierwszy odczyt'), 'nic — żadnej linii ani objaśnienia');
+  assert.equal((q.match(/<td><span class="cell mono">[^<]+<\/span><\/td><td><span class="cell mono na">—<\/span><\/td><td class="rw-w">/g) || []).length, 8, 'kolumna: „—” w każdym wierszu');
+  const Z = rw133.clone(RWA133_FILE); delete Z.stale; delete Z.wait; assert.ok(!rw133.run(Z, {real: true}).el.innerHTML.includes('class="fz"'), 'plik bez pól stale / wait');
+  const E = rw133.run(RWA133_FILE, {real: true, lang: 'en'}).el.innerHTML;
+  assert.ok(/Treasury bills and funds — current value<\/span><b>2\.2 B USD<small class="fz">\+ 13\.0 B USD without a current value \(unchanged since at least 09\/27\)<\/small>/.test(E), 'en: etykieta i linia');
+  assert.ok(E.includes('<summary>10 largest products with a current value</summary>') && E.includes('* Share of the value with a current valuation'), 'en: tabela produktów i Udział* opisane');
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const x = rw133.run(RWA133_FILE, {real: true, lang: l}).el.innerHTML;
+    assert.equal((x.match(/<small class="fz">/g) || []).length, 4, l + ': linia w każdym z 4 kafli (każdy rodzaj ma produkty niezmienione)');
+  }
+});
+
+test('v133: część pobrania przerwana — linia o wartościach z poprzedniego dnia, „*” przy produkcie; nazwa produktu escapowana (XSS)', () => {
+  const F = rw133.clone(RWA133_FILE); F.ok.hidden = false; F.n.kept = 7; F.top[1][6] = 'k'; F.top[2][1] = '<img src=x onerror=alert(1)>'; F.stale.top[0][1] = '<b>x</b>';
+  const o = rw133.run(F, {real: true}).el.innerHTML;
+  assert.ok(o.includes('<p class="pnote neu">Ostatnie pobranie nie objęło wszystkich produktów — wartości 7 z nich pochodzą z poprzedniego dnia'), 'linia o przeniesionych wartościach');
+  assert.ok(o.includes('Ethena USDtb *</span>') && o.includes('* wartość z poprzedniego pobrania (najwyżej 2 dni).'), 'gwiazdka i objaśnienie');
+  assert.ok(o.includes('&lt;img src=x onerror=alert(1)&gt;') && !o.includes('<img src=x') && o.includes('&lt;b&gt;x&lt;/b&gt; 3,5 mld USD') && !o.includes('<b>x</b>'), 'nazwy z danych escapowane');
+  F.n.kept = 0; assert.ok(rw133.run(F, {real: true}).el.innerHTML.includes('brakujące są pominięte w sumach'), 'bez przeniesionych wartości — inna linia');
+  assert.ok(!rw133.run(RWA133_FILE, {real: true}).el.innerHTML.includes('pnote neu'), 'pełne pobranie — bez linii');
+  const G = rw133.clone(RWA133_FILE); G.top = [['a', 'A', 'xx', 5e9, null, null, 'l'], ['b', 'B', 'tb', 0, null, null, 'l'], 'zły', ['c', 'C', 'tb', 2e9, null, null, 'p']];
+  assert.equal((rw133.run(G, {real: true}).el.innerHTML.match(/class="rw-i"/g) || []).length, 1, 'złe wiersze (rodzaj, wartość 0, nie tablica) pominięte');
+});
+
+test('v133: słownik EXTRA142 — 10 języków, te same klucze i pola, bez pustych; wartości skuteczne; każdy klucz bloku jest w słowniku; liczba produktów z odmianą', () => {
+  const a = 'const EXTRA142=', x0 = html.indexOf(a);
+  assert.ok(x0 > 0 && html.indexOf(a, x0 + 1) < 0, 'słownik dokładnie raz');
+  const D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  assert.ok(html.includes('const EXTRA142=' + html.slice(x0 + a.length, html.indexOf(';\n', x0)) + ';\nfor(const l in EXTRA142)if(I18N[l])Object.assign(I18N[l],EXTRA142[l]);\n'), 'czysty JSON + jedna linia nakładania');
+  assert.deepEqual([...html.matchAll(/\/\*[\s\S]*?\*\//g)].filter(m => m[0].includes('EXTRA142')).map(m => m[0].slice(0, 80)), [], 'nazwa słownika nie w komentarzu');
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L10); const keys = Object.keys(D.pl);
+  assert.ok(keys.length >= 60 && keys.every(k => k.startsWith('rwa.')), 'klucze rwa.*');
+  const ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  const E = g126I18N();
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]), keys, l + ': te same klucze');
+    for (const k of keys) { assert.ok(typeof D[l][k] === 'string' && D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), 'pola ' + l + ' ' + k); assert.equal(E[l][k], D[l][k], 'nałożony: ' + l + ' ' + k);
+      if (l !== 'pl' && l !== 'en' && /[A-Za-z]{4}/.test(D[l][k].replace(/\{[a-z0-9]+\}/g, ' '))) assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego'); }
+    for (const k of ['u.b', 'u.m', 'u.t', 'inst.file', 'eng.notsays']) assert.ok(typeof E[l][k] === 'string' && E[l][k], l + ' ' + k + ' (klucz wspólny)');
+  }
+  const used = new Set([...rw133.BLK.matchAll(/t\('(rwa\.[a-z0-9.]+)'(?!\+)/g)].map(m => m[1]));
+  for (const p of ['rwa.k.', 'rwa.s.']) for (const s of ['tb', 'all', 'cm', 'pc', 'ofi', 'eq', 're', 'oth']) if (p === 'rwa.s.' || ['tb', 'all', 'cm', 'pc'].includes(s)) used.add(p + s);
+  ['rwa.c7', 'rwa.c30', 'rwa.fz', 'rwa.fzm', 'rwa.stale.src', 'rwa.stale.prod', 'rwa.stale.srcm', 'rwa.stale.prodm', 'rwa.st.min', 'rwa.st.od', 'rwa.st.g', 'rwa.np.one', 'rwa.np.few', 'rwa.np.many', 'rwa.np.other'].forEach(k => used.add(k));
+  for (const k of used) assert.ok(keys.includes(k), 'klucz bloku w słowniku: ' + k);
+  for (const k of keys) assert.ok(used.has(k), 'klucz słownika używany: ' + k);
+  const pl = rw133.run(undefined, {real: true}).K, ru = rw133.run(undefined, {real: true, lang: 'ru'}).K, en = rw133.run(undefined, {real: true, lang: 'en'}).K;
+  assert.deepEqual([1, 2, 5, 22, 44, 143, 111].map(n => pl.rwN(n)), ['1 produkt', '2 produkty', '5 produktów', '22 produkty', '44 produkty', '143 produkty', '111 produktów']);
+  assert.deepEqual([1, 3, 11, 21].map(n => ru.rwN(n)), ['1 продукт', '3 продукта', '11 продуктов', '21 продукт']); assert.deepEqual([1, 2].map(n => en.rwN(n)), ['1 product', '2 products']);
+});
+
+test('v133: panel w 10 językach bez nazwy źródła i bez podpisu (strażnik nazw; dane wbudowane); de — etykiety po niemiecku', () => {
+  assert.ok(G126_PANELS.includes('c-rwa') && G126_DATA['data/rwa'] === RWA133_FILE, 'strażnik v126.2 rysuje panel w 10 językach (dane wbudowane)');
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    for (const F of [rw133.day31(), RWA133_FILE]) {
+      const o = rw133.run(F, {real: true, lang: l}).el.innerHTML, txt = o.replace(/<[^>]*>/g, '\n');
+      assert.ok(!/de ?fi ?llama|llama\.fi|rwa\.xyz/i.test(o), l + ': bez nazwy źródła');
+      const bad = []; for (const s of txt.split('\n')) { const h = G126_NAMES.check(s, l); if (h.length) bad.push(h[0]); }
+      assert.deepEqual(bad, [], l + ': strażnik nazw');
+      assert.ok(!/NaN|undefined|rwa\.[a-z]/.test(txt), l + ': bez surowych kluczy i NaN');
+    }
+  }
+  const de = rw133.run(RWA133_FILE, {real: true, lang: 'de'}).el.innerHTML;
+  assert.ok(de.includes('Staatsanleihen und Geldmarktfonds') && de.includes('2,2 Mrd. USD') && de.includes('32 Produkte') && de.includes('Nicht in den Summen: 32 Produkte'), 'de: etykiety i liczby po niemiecku');
 });

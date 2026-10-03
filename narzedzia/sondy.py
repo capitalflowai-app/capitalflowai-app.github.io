@@ -1019,6 +1019,75 @@ def g_jpx():
 GROUPS.insert(GROUPS.index(g_nasdaq), g_jpx)   # v137: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
 
 
+# v133 (etykieta „rwa”): sondy bez klucza dla data/rwa.json — oficjalne darmowe API wartości protokołów (tokenizowane aktywa ze świata realnego).
+# Sześć zapytań z przerwą 0,5 s i nagłówkami zbieracza (identyfikator + Accept-Encoding: gzip): lista wszystkich protokołów (2,35 MB gzip — sondy
+# czytają najwyżej 6 MB, a bez gzip lista ma 9 MB), bieżąca wartość trzech produktów ukrytych na liście (oczekiwane: liczba > 0) i jednego bez
+# wartości (oczekiwane: pusty tekst), /rwa/current (tylko plan płatny — oczekiwane 404 na darmowym adresie). Wypisuje tylko: kod HTTP, ms, bajty,
+# bajty po rozpakowaniu, liczby pozycji, wartości logiczne i datę najnowszego wpisu — nigdy kwoty, adresu, nagłówka ani treści. Wiersz
+# „summary rwa-list …” trafia do adnotacji (filtr adnotacji w sondy.yml przepuszcza wiersze summary — workflow bez zmian).
+RWA_SB = "https://api.llama.fi"
+RWA_S_HDR = {"User-Agent": "CapitalFlowAI-collector/1.0", "Accept-Encoding": "gzip"}
+RWA_S_HID = ("blackrock-buidl", "circle-usyc", "tether-gold", "fidelity-digital-interest-token")
+_RWA_S = {"list": None, "num": 0}
+
+
+def _rwa_s_body(raw):
+    """gzip (bajty 1f8b) → bajty; inne bez zmian."""
+    import gzip as _gz
+    return _gz.decompress(raw) if raw[:2] == b"\x1f\x8b" else raw
+
+
+def _rwa_s_list(raw):
+    """Lista protokołów: pozycje, kategoria RWA, z wartością > 0, ukryte (tvl null), martwe, pole zmiany 30 dni, najnowszy wpis (data) — bez kwot."""
+    body = _rwa_s_body(raw)
+    L = json.loads(body)
+    if not isinstance(L, list):
+        return "not-a-list " + shape(body)
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
+    R = [p for p in L if isinstance(p, dict) and p.get("category") == "RWA"]
+    pos = sum(1 for p in R if num(p.get("tvl")) and p["tvl"] > 0)
+    nul = sum(1 for p in R if p.get("tvl") is None)
+    dead = sum(1 for p in R if p.get("deadFrom"))
+    by = {p.get("slug"): p for p in R}
+    hid = all(s in by and by[s].get("tvl") is None for s in RWA_S_HID[:3])
+    c30 = any(k in p for p in R for k in ("change_1m", "change_30d"))
+    la = [p["listedAt"] for p in R if num(p.get("listedAt"))]
+    newest = dt.datetime.fromtimestamp(max(la), dt.timezone.utc).date().isoformat() if la else "-"
+    _RWA_S["list"] = (len(L), len(R), pos, nul, hid)
+    return (f"raw={len(body)}B list n={len(L)} rwa={len(R)} tvl>0={pos} tvl_null={nul} dead={dead} flagship_hidden={hid} "
+            f"has_30d_field={c30} newest_listed={newest}")
+
+
+def _rwa_s_tvl(raw):
+    """/tvl/{produkt}: pusty tekst / liczba > 0 / inna treść — nigdy sama liczba."""
+    body = _rwa_s_body(raw).strip()
+    if not body:
+        return "empty-body (no value)"
+    try:
+        v = float(body)
+    except ValueError:
+        return "not-a-number " + shape(body)
+    if v > 0:
+        _RWA_S["num"] += 1
+    return f"number>0={v > 0} len={len(body)}"
+
+
+def g_rwa():
+    probe("rwa", "protocols_gzip_collectorUA", RWA_SB + "/protocols", headers=RWA_S_HDR, extra_fn=_rwa_s_list)          # → 200, ok. 2,35 MB
+    for s in RWA_S_HID:
+        time.sleep(0.5)
+        probe("rwa", f"tvl_{s[:26]}", f"{RWA_SB}/tvl/{s}", headers=RWA_S_HDR, extra_fn=_rwa_s_tvl)                       # → 200 (3 liczby, 1 pusty)
+    time.sleep(0.5)
+    probe("rwa", "rwa_current_free_expect404", RWA_SB + "/rwa/current", headers=RWA_S_HDR)                                # → 404 (plan płatny)
+    li = _RWA_S["list"]
+    with _print_lock:
+        print(f"summary rwa-list n={li[0] if li else '-'} rwa={li[1] if li else '-'} tvl>0={li[2] if li else '-'} tvl_null={li[3] if li else '-'} "
+              f"flagship_hidden={li[4] if li else '-'} tvl_numbers={_RWA_S['num']}/3", flush=True)
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_rwa)   # v133: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
+
+
 # --------------------------------------------------------------------------- main
 
 def main():

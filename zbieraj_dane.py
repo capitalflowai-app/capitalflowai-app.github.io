@@ -16169,6 +16169,617 @@ def _jpx_backfill(rows, bf, out, now, today, req, notes):
     return n
 
 
+# ===================== v133: TOKENIZOWANE AKTYWA (RWA) — obligacje skarbowe, fundusze rynku pieniężnego, złoto, kredyt prywatny, akcje… jako tokeny (data/rwa.json; bez klucza) =====================
+# Ile wartości realnych aktywów jest wyemitowane jako tokeny na łańcuchach bloków. Źródło: DefiLlama — darmowe oficjalne API bez klucza (api.llama.fi):
+#   * /protocols — wszystkie protokoły jedną listą (27.09.2026: 8 386 pozycji, 8,97 MB JSON, 2,35 MB gzip — zbieracz MUSI wysłać Accept-Encoding: gzip,
+#     urllib sam o gzip nie prosi); kategoria „RWA” ok. 181 pozycji; wartość = pole tvl (USD), zmiana 7 dni w procentach, BEZ pola zmiany 30 dni;
+#   * /tvl/{produkt} — bieżąca wartość jednego produktu (sama liczba jako tekst). Lista ukrywa największe produkty (tvl null: m.in. BUIDL, USYC,
+#     Ondo, Spiko, WisdomTree, Tether Gold, Paxos Gold — 47 pozycji 27.09); bez tych zapytań suma byłaby 4,5 zamiast 27,8 mld USD. 33 z 47 dostaje
+#     tu wartość, reszta pusty tekst albo „0” (= brak wartości, nigdy 0). Serwer NIE dekoduje %XX — produkt wysyłany dosłownie po ścisłym wzorcu
+#     RWA_SLUG (urllib przepuszcza „+”, „(”, „)” bez zmian).
+#     UWAGA (pobranie na żywo 03.10.2026, ok. 14:15 UTC): wszystkie 26 produktów ukrytych ≥ 10 mln USD dostały wartość IDENTYCZNĄ co do centa jak
+#     27.09 (BUIDL 3 514 788 158,68; Paxos Gold 1 845 395 819,07 — mimo zmian ceny złota), a /tvl produktu z listy (Invesco USTB) zmienia się na
+#     bieżąco — źródło przestało odświeżać produkty ukryte (ok. 23,2 z 27,9 mld USD). Dlatego każdy produkt ukryty ma zapis hv [wartość, dzień od
+#     którego jest taka sama, 1 = widziana zmiana, liczba odczytów, dzień od którego brak wartości]; wartość wchodzi do sum tylko jako bieżąca:
+#       * pierwszy odczyt (bez porównania) — poza sumami, osobno „czeka na drugi odczyt” (pole wait), nigdy jako data wartości;
+#       * zamrożenie ŹRÓDŁA — gdy ≥ RWA_SRC_SHARE wartości porównanych produktów ukrytych stoi od ≥ RWA_SRC_BD pełnych dni roboczych: te produkty
+#         poza sumami („niezmieniona co najmniej od {dzień}”); udział WARTOŚCI, nie liczby produktów — wiele małych funduszy z rzadką wyceną
+#         (np. raz w miesiącu) nie może samo udawać zamrożenia, a sumy zależą od dużych funduszy z codziennymi wpłatami;
+#       * pojedynczy produkt — bez zmiany od ≥ RWA_PROD_BD pełnych dni roboczych (weekend i święto to 0 dni roboczych, więc stała wycena funduszu
+#         w weekend nie jest zamrożeniem);
+#       * token złota — zamrożony tylko, gdy cena złota (fundusz GLD z pliku indeksy tego przebiegu) ruszyła się od tego dnia o ≥ RWA_GOLD_MOVE %;
+#         bez ceny złota ten warunek pomijamy;
+#       * produkt, który przestał podawać wartość (pusty tekst, „0”, 400, 404) — ostatnio znana wartość zostaje RWA_GONE_D dni jako „brak wartości od
+#         {dzień}”, w grupie bez bieżącej wyceny, nigdy w sumach.
+#     Dowód zamrożenia sprzed wdrożenia: RWA_SEED — skróty (sha256, 16 znaków) par „produkt|wartość z 2 miejscami” z 27.09.2026 19:36 UTC (33 produkty,
+#     nagranie planu v128) — wartości z dnia wdrożenia równe co do centa = „niezmieniona co najmniej od 27.09” (dowód, nie założenie); w kodzie
+#     tylko skróty, nie wartości źródła.
+# Dedykowane /rwa/* są tylko w płatnym planie (300 USD/mies.) — nieużywane. Produkty ukryte nie mają historii, więc zmiany 7 i 30 dni liczymy
+# z WŁASNYCH dziennych zapisów (wartości produktów ≥ 10 mln USD przez 31 dni, sumy rodzajów przez 400 dni): te same produkty w obu dniach
+# (like-for-like), tylko wobec dnia dokładnie D−7 / D−30 (brak takiego zapisu albo za małe pokrycie = None; na stronie „—”).
+# Warunki źródła (defillama.com/terms, 24.06.2025): pkt 1 — obejmują też oficjalne publiczne API; pkt 8 — zakaz ponownej publikacji danych
+# w jakiejkolwiek formie bez zgody; pkt 14 — kary umowne do 100 000 USD za naruszenie. W v124 dane TVL tego źródła odrzucone z tego powodu;
+# właściciel 27.09.2026 zlecił to źródło i przyjął ryzyko („licencje drugorzędne”). Ograniczenia po naszej stronie: strona pokazuje nasze sumy,
+# udziały, zmiany i 10 największych produktów; wartości produktów w pliku tylko ≥ 10 mln USD i tylko 31 dni; archiwum repozytorium ich nie zbiera.
+# Nazwa źródła tylko tutaj i w polu src pliku — na stronie żadnej (decyzja właściciela 27.09).
+# Rytm: co RWA_EVERY min; część z błędem albo nieudana próba — ponowienie po RWA_RETRY min (czas próby try_at w pliku); bez poprzedniego pliku
+# (pamięć Actions i strona) próba tylko w pierwszym przebiegu godziny — nigdy 2,35 MB co 20 minut. Jeden budżet czasu RWA_BUDGET s na cały krok:
+# każde zapytanie dostaje najwyżej pozostały czas; przebieg spóźniony (> RWA_LATE s) — krok pominięty (main).
+import gzip as _rwa_gzip            # v133: lista przychodzi spakowana (biblioteka standardowa)
+import math as _rwa_math            # v133: isfinite (ponowny import jest nieszkodliwy)
+import threading as _rwa_thr        # v133: odstęp między zapytaniami z kilku wątków
+import concurrent.futures as _rwa_cf
+import hashlib as _rwa_hash         # v133: skróty wartości z 27.09 (dowód zamrożenia sprzed wdrożenia, bez wartości w kodzie)
+
+RWA_API = 'https://api.llama.fi'
+RWA_LABEL = 'Tokenizowane aktywa (RWA)'   # przedrostek komunikatów w META (bez nazwy źródła)
+RWA_SRC = ('DefiLlama — api.llama.fi/protocols (kategoria RWA) i /tvl/{produkt} dla produktów bez wartości na liście; bez klucza; sumy, rodzaje, '
+           'udziały i zmiany 7/30 dni (te same produkty w obu dniach) — obliczenia CapitalFlowAI z własnych dziennych zapisów')
+RWA_EVERY = 360           # min — pełne odświeżenie co 6 h (lista odświeża się u źródła mniej więcej co godzinę) …
+RWA_RETRY = 60            # min — … część z błędem albo nieudana próba (try_at): ponowienie najwcześniej po godzinie (dalej RWA_RETRY_STEPS)
+RWA_BEZ_PLIKU_MIN = 20    # min — bez poprzedniego pliku próba tylko w przebiegu z minutą < 20: raz na godzinę (przebiegi o :07, :27, :47 — ten o :07, też z opóźnieniem do 12 min)
+RWA_LATE = BACK_LATE      # s — przebieg trwa dłużej (ciężki przebieg godzinowy) = krok pominięty, poprzedni plik bez zmian
+RWA_BUDGET = 45           # s na cały krok (lista + produkty ukryte); każde zapytanie najwyżej tyle, ile zostało
+RWA_LIST_TIMEOUT = 40     # s — najdłużej lista (2,35 MB gzip; z Polski 2–5 s)
+RWA_TIMEOUT = 20          # s — najdłużej jedno zapytanie /tvl (ok. 20 B; zwykle 0,2 s)
+RWA_MIN_TMO = 2.0         # s — mniej zostało z budżetu = bez kolejnego zapytania (część „przerwana”, wartości z poprzedniego dnia)
+RWA_THREADS = 4           # wątki zapytań /tvl …
+RWA_GAP = 0.2             # s — … z odstępem między startami kolejnych zapytań (najwyżej 5 na sekundę, ok. 10 s na 47 produktów)
+RWA_HID_MAX = 80          # najwyżej tyle zapytań /tvl na odświeżenie (od największych wg poprzedniej wartości)
+RWA_GZ_MAX = 40_000_000   # bajtów — lista po rozpakowaniu (i bez gzip) większa = błąd (ochrona przed „bombą” gzip)
+RWA_MIN_LIST, RWA_MIN_RWA = 1000, 50   # mniej pozycji listy albo kategorii RWA = to nie pełna lista (wyjątek, poprzedni plik zostaje)
+RWA_PH_DAYS = 31          # dni okna wartości produktów (zmiany 7 i 30 dni)
+RWA_PH_MIN = 1e7          # USD — wartości produktów w pliku tylko od 10 mln (27.09: 57 ze 143 produktów, 99,4% wartości); mniejsze liczą się w sumach
+RWA_HIST_KEEP = 400       # dni sum rodzajów w pliku
+RWA_TOL = 0               # dni — kotwica zmiany n dni: dzień D−n dokładnie (zlecenie v133; plan v128 dopuszczał D−n−2)
+RWA_COV_MIN = 0.5         # zmiana tylko, gdy porównane produkty mają ≥ 50% dzisiejszej wartości zbioru
+RWA_KEEP_D = 2            # dni — produkt ukryty bez nowej odpowiedzi: wartość z D−1 albo D−2 (oznaczona 'k'); starsza — brak wartości
+RWA_SRC_BD = 2            # pełne dni robocze bez zmiany — próg zamrożenia całego źródła …
+RWA_SRC_SHARE = 0.7       # … gdy tyle wartości porównanych produktów ukrytych stoi co najmniej tyle dni roboczych (udział wartości, nie liczby)
+RWA_SRC_MIN_N = 5         # … i jest ich co najmniej tyle (mała próba nie świadczy o źródle)
+RWA_PROD_BD = 4           # pełne dni robocze bez zmiany — próg dla pojedynczego produktu, gdy źródło nie stoi (weekend + święto = 0 dni roboczych)
+RWA_GOLD_MOVE = 0.2       # % — zmiana ceny złota (GLD) od dnia „bez zmian”, bez której token złota nie jest uznany za niezmieniony
+RWA_GOLD_RX = re.compile(r'gold|xau', re.I)   # token złota: rodzaj cm i „gold”/„xau” w nazwie albo identyfikatorze
+RWA_GONE_D = 31           # dni — ostatnio znana wartość produktu bez wartości zostaje w pliku (poza sumami), potem znika
+RWA_RETRY_STEPS = (60, 120, 360)   # min — kolejne nieudane (albo częściowe) odświeżenia: ponowienie po 1 h, 2 h, potem zwykły rytm 6 h
+RWA_SEED_DAY = '2026-09-27'
+RWA_SEED = frozenset((
+    '07f6cb50cf6ab749', '086b579b5c367792', '0aa3dd3130027af8', '1a7d8c8d6f16a931', '1c3af30fddfd01b1', '1e279d1990bb9a8c', '2450c628869d0015',
+    '3528036d0224d158', '3ebb6efb9c5cf9e3', '47835036ffec6527', '4dab3ff2d7741f18', '4e541d58f5d74fef', '585f254bc6b3574a', '5db490864531e9ab',
+    '64a47e0f570cf745', '6a9904dc35378324', '6e3223fd0ac97422', '8b808bbf434e7bee', '8c7422dbff7813b4', '9cacaa854d6759db', '9d954c428cbfdb9d',
+    '9fe882bc62850828', 'a17343e303d57a97', 'a6e54dbf84e3116a', 'a8bf31fcf4f96a36', 'bb5cbded2ff3f924', 'c0c71f42a7025e4b', 'cd8f7b7f3cc997a9',
+    'd2be424b8e90b430', 'd8109b803935f05e', 'dbaff979ee22677c', 'ea67cfe979b6b6ff', 'f434c5ce42f3e648'))
+RWA_SAME_USD = 1.0        # USD — mniejsza różnica = ta sama wartość (zamrożone wartości są identyczne co do centa; żywe zmieniają się o tysiące)
+RWA_STALE_TOP = 5         # tyle największych produktów z niezmienioną wartością trafia do pliku (nazwy na stronie)
+RWA_TOP = 10
+RWA_MAX_USD = 1e12        # USD — więcej za jeden produkt = błąd zapisu (brak wartości)
+RWA_NOTES = 12
+RWA_PARTS = ('list', 'hidden')
+RWA_SEG = (   # kolejność = priorytet: produkt z kilkoma tagami liczony RAZ, w pierwszym pasującym rodzaju
+    ('tb', ('Treasury Bills', 'Money Market Funds')),
+    ('ofi', ('Other Fixed Income',)),
+    ('pc', ('Private Credit',)),
+    ('cm', ('Commodities',)),
+    ('eq', ('Stocks & ETFs', 'Onchain Equity', 'Private Equity')),
+    ('re', ('Real Estate',)),
+)
+RWA_SEGS = ('tb', 'ofi', 'pc', 'cm', 'eq', 're', 'oth')   # 'oth' — reszta i produkty bez tagów (nowy tag źródła też trafia tu)
+RWA_SLUG = re.compile(r'^[a-z0-9][a-z0-9.+()_-]{0,79}$')   # spotykane: 'asseto-cash+', 'uranium.io', 'ondo-v1-(legacy)'; inne = bad_slug, bez zapytania
+_RWA_NUM = re.compile(r'-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?')
+_RWA_DAY = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def rwa_num(v, pos=True):
+    """Liczba z JSON-a: bool, tekst, NaN, ±inf, ≤ 0 (pos) albo |x| > RWA_MAX_USD → None (brak, nigdy 0)."""
+    if v is None or isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    x = float(v)
+    if not _rwa_math.isfinite(x) or (pos and x <= 0) or abs(x) > RWA_MAX_USD:
+        return None
+    return x
+
+
+def rwa_seg(tags):
+    """Rodzaj produktu z tagów źródła (pierwszy pasujący w RWA_SEG); bez tagów albo nieznany tag = 'oth'."""
+    t = [x for x in (tags or []) if isinstance(x, str)] if isinstance(tags, list) else []
+    for k, names in RWA_SEG:
+        if any(n in t for n in names):
+            return k
+    return 'oth'
+
+
+def rwa_gunzip(raw, limit=RWA_GZ_MAX):
+    """gzip (bajty 1f8b) → bajty, z limitem po rozpakowaniu; inne bajty bez zmian (też z limitem)."""
+    if raw[:2] != b'\x1f\x8b':
+        if len(raw) > limit:
+            raise ValueError('lista: odpowiedź większa niż limit')
+        return raw
+    with _rwa_gzip.GzipFile(fileobj=io.BytesIO(raw)) as g:
+        out = g.read(limit + 1)
+    if len(out) > limit:
+        raise ValueError('lista: odpowiedź po rozpakowaniu większa niż limit')
+    return out
+
+
+def rwa_get_gz(url, timeout, deadline=None):
+    """GET z nagłówkami zbieracza i Accept-Encoding: gzip (jedyne miejsce sieci listy — testy je łatają) → bajty po rozpakowaniu. Czytanie
+    kawałkami: po `deadline` (time.monotonic) = TimeoutError — limit czasu jednego zapytania nie przedłuża budżetu przy wolnym przesyle."""
+    req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Accept-Encoding': 'gzip', 'Accept': 'application/json'})
+    buf = bytearray()
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        enc = str(r.headers.get('Content-Encoding') or '').lower()
+        while chunk := r.read(1 << 16):
+            buf += chunk
+            if len(buf) > RWA_GZ_MAX:
+                raise ValueError('lista: odpowiedź większa niż limit')
+            if deadline is not None and time.monotonic() > deadline:
+                raise TimeoutError('lista: limit czasu kroku w trakcie pobierania')
+    raw = bytes(buf)
+    if 'gzip' in enc and raw[:2] != b'\x1f\x8b':
+        raise ValueError('lista: nagłówek gzip, a treść nie jest gzip')
+    return rwa_gunzip(raw)
+
+
+def rwa_parse_list(L, today):
+    """/protocols → {'rows': {produkt: {name, seg, v, via}}, 'hidden': [produkty], 'n': liczniki, 'c7_api': ważona zmiana 7 dni produktów z listy}.
+    Tylko kategoria 'RWA'. Martwe (deadFrom ≤ dziś) i rugged — poza wszystkim; tvl > 0 = wartość z listy ('l'); tvl null = ukryty na liście
+    (wartość z /tvl, 'p'); tvl 0, ujemne, tekst, bool, NaN = brak wartości ('zero'). Produkt spoza RWA_SLUG = bad_slug (nigdy nie pytany)."""
+    if not isinstance(L, list) or len(L) < RWA_MIN_LIST:
+        raise ValueError('lista: odpowiedź nie jest pełną listą protokołów')
+    R = [p for p in L if isinstance(p, dict) and p.get('category') == 'RWA']
+    if len(R) < RWA_MIN_RWA:
+        raise ValueError(f'lista: tylko {len(R)} pozycji kategorii RWA (zmiana nazwy kategorii?)')
+    rows, hidden = {}, []
+    n = {'rwa': len(R), 'dead': 0, 'bad_slug': 0, 'listed': 0, 'hidden': 0, 'zero': 0}
+    wa = wb = 0.0
+    for p in R:
+        slug = p.get('slug')
+        if not isinstance(slug, str) or not RWA_SLUG.match(slug) or slug in rows:
+            n['bad_slug'] += 1
+            continue
+        dead = p.get('deadFrom')
+        if (isinstance(dead, str) and dead[:10] <= today) or p.get('rugged') is True:
+            n['dead'] += 1
+            continue
+        name = re.sub(r'[\x00-\x1f\x7f]+', ' ', str(p.get('name') or slug)).strip()[:60] or slug
+        tags = p.get('tags')
+        base = {'name': name, 'seg': rwa_seg(tags), 'v': None, 'via': None,
+                'unk': not (isinstance(tags, list) and any(isinstance(x, str) and x for x in tags))}   # bez tagów = rodzaj nieznany (liczony w „oth”)
+        if p.get('tvl') is None:
+            hidden.append(slug)
+            n['hidden'] += 1
+            base['via'] = 'p'
+            rows[slug] = base
+            continue
+        v = rwa_num(p.get('tvl'))
+        if v is None:
+            n['zero'] += 1
+            continue
+        base.update(v=v, via='l')
+        rows[slug] = base
+        n['listed'] += 1
+        c7 = rwa_num(p.get('change_7d'), pos=False)
+        if c7 is not None and c7 > -100:
+            wa += v
+            wb += v / (1 + c7 / 100)
+    return {'rows': rows, 'hidden': hidden, 'n': n, 'c7_api': round((wa / wb - 1) * 100, 3) if wb > 0 else None}
+
+
+def rwa_tvl_text(status, body):
+    """/tvl/{produkt} → wartość albo None. 200 + liczba > 0 = wartość; pusty tekst, „0”, tekst, strona HTML, NaN, > RWA_MAX_USD, inny kod = None."""
+    if status != 200:
+        return None
+    s = body or b''
+    if isinstance(s, bytes):
+        s = s.decode('utf-8', 'replace')
+    s = s.strip()
+    if not s or len(s) > 40 or not _RWA_NUM.fullmatch(s):
+        return None
+    return rwa_num(float(s))
+
+
+def _rwa_day_add(day, k):
+    return (datetime.date.fromisoformat(day) + datetime.timedelta(days=k)).isoformat()
+
+
+def rwa_anchor(days, day, n):
+    """Kotwica zmiany n dni: najpóźniejszy zapis A z D−n−RWA_TOL ≤ A ≤ D−n (RWA_TOL = 0: dokładnie D−n); brak = None."""
+    hi, lo = _rwa_day_add(day, -n), _rwa_day_add(day, -n - RWA_TOL)
+    c = [d for d in days if lo <= d <= hi]
+    return max(c) if c else None
+
+
+def rwa_change(ph, slugs, day, n):
+    """Zmiana n dni zbioru produktów `slugs` (te same produkty w obu dniach): Σ dziś ÷ Σ w dniu kotwicy − 1, tylko produkty z OBIEMA wartościami.
+    → {'p': %, 'from': dzień kotwicy, 'cov': udział dzisiejszej wartości zbioru, który porównano, 'k': liczba produktów} albo None."""
+    days = (ph.get('days') or []) if isinstance(ph, dict) else []
+    if day not in days:
+        return None
+    a = rwa_anchor(days, day, n)
+    if a is None:
+        return None
+    i, j = days.index(day), days.index(a)
+    V = ph.get('v') if isinstance(ph.get('v'), dict) else {}
+    now_all = num = den = 0.0
+    k = 0
+    for s in slugs:
+        col = V.get(s)
+        if not isinstance(col, list) or len(col) != len(days):
+            continue
+        x, y = rwa_num(col[i]), rwa_num(col[j])
+        if x is not None:
+            now_all += x
+        if x is not None and y is not None:
+            num += x
+            den += y
+            k += 1
+    if den <= 0 or now_all <= 0 or num / now_all < RWA_COV_MIN:
+        return None
+    return {'p': round((num / den - 1) * 100, 3), 'from': a, 'cov': round(num / now_all, 3), 'k': k}
+
+
+def rwa_ph_update(prev_ph, day, values):
+    """Okno wartości produktów: dzień `day` dopisany albo nadpisany (ten sam dzień UTC — wygrywa późniejsze odświeżenie); ostatnie RWA_PH_DAYS dni;
+    mln USD z 3 miejscami; tylko produkty ≥ RWA_PH_MIN; produkt bez wartości danego dnia = None w jego kolumnie (nigdy 0); luk nie wypełniamy."""
+    pp = prev_ph if isinstance(prev_ph, dict) else {}
+    days = [d for d in (pp.get('days') or []) if isinstance(d, str) and _RWA_DAY.match(d)]
+    if len(days) != len(pp.get('days') or []) or len(set(days)) != len(days) or days != sorted(days):
+        days, V = [], {}                                             # uszkodzone okno — od nowa (zmiany wrócą po 7 / 30 dniach)
+    else:
+        V = {s: list(c) for s, c in (pp.get('v') or {}).items() if isinstance(c, list) and len(c) == len(days)}
+    if day in days:
+        i = days.index(day)
+    else:
+        days.append(day)
+        days.sort()
+        i = days.index(day)
+        for s in V:
+            V[s].insert(i, None)
+    for s in V:
+        V[s][i] = None
+    for s, v in values.items():
+        if v is not None and v >= RWA_PH_MIN:
+            V.setdefault(s, [None] * len(days))[i] = round(v / 1e6, 3)
+    lo = _rwa_day_add(day, -(RWA_PH_DAYS - 1))
+    keep = [k for k, d in enumerate(days) if lo <= d <= day]
+    days = [days[k] for k in keep]
+    V = {s: [c[k] for k in keep] for s, c in V.items()}
+    return {'days': days, 'v': {s: c for s, c in sorted(V.items()) if any(x is not None for x in c)}}
+
+
+def rwa_hidden(slugs, left, clock=None, sleep=None, threads=None):
+    """Wartości produktów ukrytych na liście: GET /tvl/{produkt} (przez get(), produkt dosłownie) w `threads` wątkach, starty co RWA_GAP s.
+    → (vals {produkt: wartość|None} — tylko produkty z rozstrzygającą odpowiedzią (200, 400/404 = brak wartości), info {'asked', 'stop', 'err5'}).
+    HTTP 429/403, błąd połączenia, przekroczenie czasu albo koniec budżetu (`left()` < RWA_MIN_TMO) = STOP reszty tej części (info['stop'] =
+    powód); 5xx = tylko ten produkt bez odpowiedzi (info['err5']). Produkty bez odpowiedzi nie trafiają do vals — build bierze ich wartość z D−1/D−2."""
+    clock = clock or time.monotonic
+    sleep = sleep or time.sleep
+    lock = _rwa_thr.Lock()
+    vals, err5 = {}, []
+    st = {'stop': None, 'next': clock(), 'asked': 0}
+
+    def stop(why):
+        with lock:
+            st['stop'] = st['stop'] or why
+
+    def one(s):
+        with lock:
+            if st['stop']:
+                return
+            if left() < RWA_MIN_TMO + RWA_GAP:
+                st['stop'] = 'limit czasu kroku'
+                return
+            slot = max(clock(), st['next'])
+            st['next'] = slot + RWA_GAP
+        w = slot - clock()
+        if w > 0:
+            sleep(w)
+        with lock:
+            if st['stop']:
+                return
+            tmo = min(RWA_TIMEOUT, left())
+            if tmo < RWA_MIN_TMO:
+                st['stop'] = 'limit czasu kroku'
+                return
+            st['asked'] += 1
+        try:
+            status, body = get(f'{RWA_API}/tvl/{s}', timeout=tmo)
+            v = rwa_tvl_text(status, body)
+            with lock:
+                vals[s] = v
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 403):
+                stop(f'HTTP {e.code}')
+            elif e.code >= 500:
+                with lock:
+                    err5.append(s)
+            else:                                                     # 400 „Protocol not found” itp. — produkt bez wartości
+                with lock:
+                    vals[s] = None
+        except Exception as e:  # noqa — połączenie, przekroczenie czasu, DNS
+            stop(type(e).__name__)
+    n = max(1, min(threads or RWA_THREADS, len(slugs) or 1))
+    with _rwa_cf.ThreadPoolExecutor(n) as ex:
+        list(ex.map(one, slugs))
+    return vals, {'asked': st['asked'], 'stop': st['stop'], 'err5': sorted(err5)}
+
+
+def rwa_seed_hit(slug, v):
+    """Czy wartość produktu jest równa (co do centa) wartości z 27.09.2026 (RWA_SEED: skróty par „produkt|wartość”)."""
+    return isinstance(v, (int, float)) and _rwa_hash.sha256(f'{slug}|{v:.2f}'.encode()).hexdigest()[:16] in RWA_SEED
+
+
+def _rwa_wd(a, b):
+    """Pełne dni robocze (pon.–pt.) ściśle między dniami a i b (a < d < b); zły zapis = 0."""
+    try:
+        d0, d1 = datetime.date.fromisoformat(a), datetime.date.fromisoformat(b)
+    except (TypeError, ValueError):
+        return 0
+    n, d = 0, d0 + datetime.timedelta(days=1)
+    while d < d1 and n < 400:
+        n += d.weekday() < 5
+        d += datetime.timedelta(days=1)
+    return n
+
+
+def rwa_gold_series(S):
+    """Dzienne zamknięcia funduszu złota GLD z pliku indeksy tego przebiegu (SAVED) → [[dzień, cena], …] rosnąco albo None (brak = warunek złota pominięty)."""
+    try:
+        q = S['indeksy']['etf']['q']['GLD']
+        out = sorted([r[0], float(r[1])] for r in q if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and _RWA_DAY.match(r[0])
+                     and rwa_num(r[1]) is not None)
+        return out or None
+    except Exception:  # noqa — plik bez części etf albo bez GLD
+        return None
+
+
+def rwa_gold_moved(series, since, day):
+    """Czy złoto ruszyło się od dnia `since` do `day`: ostatnie zamknięcie ≤ since vs ostatnie ≤ day, |zmiana| ≥ RWA_GOLD_MOVE %. Brak danych = None."""
+    if not series:
+        return None
+    a = [c for d, c in series if d <= since]
+    b = [c for d, c in series if d <= day]
+    if not a or not b:
+        return None
+    return abs(b[-1] / a[-1] - 1) * 100 >= RWA_GOLD_MOVE
+
+
+def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=None):
+    """Plik data/rwa.json z listy (rwa_parse_list), wartości produktów ukrytych ({produkt: wartość|None}; brak klucza = bez odpowiedzi w tym
+    odświeżeniu) i poprzedniego pliku: migawka dnia UTC, okno produktów 31 dni, sumy 400 dni, zmiany 7/30 dni (like-for-like), 10 największych.
+    Produkt ukryty bez odpowiedzi: wartość z wcześniejszego dobrego odczytu dziś, z D−1 albo D−2 (via 'k', n.kept); inaczej brak wartości. Produkt ukryty
+    niezmieniony (zamrożenie źródła albo okno produktu, warunek złota — zob. komentarz bloku) albo bez wartości od dnia X: pole stale (liczby nf / ng,
+    ostatnio znana suma, dni, src = zamrożenie źródła, unk = bez tagów (w „oth”), seg = sumy według rodzaju, największe produkty z rodzajem stanu
+    'min' / 'od' / 'g'); pierwszy odczyt: pole wait (liczba, suma, dzień) — nigdy w sumach rodzajów, w historii ani w zmianach 7/30 dni. `gold` = dzienne
+    zamknięcia GLD (rwa_gold_series) albo None."""
+    now = now or _now_utc()
+    now = now.astimezone(datetime.timezone.utc).replace(microsecond=0)
+    day = now.date().isoformat()
+    rows = {s: dict(r) for s, r in parsed['rows'].items()}
+    prev = prev if isinstance(prev, dict) else {}
+    pph = prev.get('ph') if isinstance(prev.get('ph'), dict) else {}
+    pdays = pph.get('days') if isinstance(pph.get('days'), list) else []
+    pv = pph.get('v') if isinstance(pph.get('v'), dict) else {}
+    pk = pph.get('kept') if isinstance(pph.get('kept'), dict) else {}   # {dzień: [produkty z wartością przeniesioną]} — nie są źródłem kolejnego przeniesienia
+    phv = prev.get('hv') if isinstance(prev.get('hv'), dict) else {}     # {produkt: [wartość USD, dzień od którego taka sama, 1 = widziana zmiana, odczyty, brak od]}
+    rec_ok = lambda r: (isinstance(r, list) and len(r) == 5 and rwa_num(r[0]) is not None and isinstance(r[1], str) and bool(_RWA_DAY.match(r[1]))  # noqa: E731
+                        and r[1] <= day and r[2] in (0, 1) and isinstance(r[3], int) and not isinstance(r[3], bool) and r[3] >= 1
+                        and (r[4] is None or (isinstance(r[4], str) and bool(_RWA_DAY.match(r[4])) and r[4] <= day)))
+    hv, answered = {}, {}
+    for s in parsed['hidden']:                                        # 1. zapisy: nowa wartość, ta sama, zmiana, pierwszy odczyt, brak wartości
+        old = phv.get(s) if rec_ok(phv.get(s)) else None
+        if s in hidden_vals:
+            v = hidden_vals[s]
+            if v is not None:
+                answered[s] = v
+                if old and abs(v - old[0]) < RWA_SAME_USD:
+                    rec = [old[0], old[1], old[2], min(old[3] + 1, 999), None]
+                elif old:
+                    rec = [round(v, 2), day, 1, 1, None]             # zmiana dziś — wartość bieżąca
+                elif day >= RWA_SEED_DAY and rwa_seed_hit(s, v):
+                    rec = [round(v, 2), RWA_SEED_DAY, 0, 2, None]    # równa wartości z 27.09 — dowód „co najmniej od 27.09”
+                else:
+                    rec = [round(v, 2), day, 0, 1, None]             # pierwszy odczyt
+            else:
+                rec = [old[0], old[1], old[2], old[3], old[4] or day] if old else None
+        else:
+            rec = old
+        if rec and not (rec[4] and rec[4] < _rwa_day_add(day, -RWA_GONE_D)):
+            hv[s] = rec
+    first = lambda r: r[2] == 0 and r[3] == 1  # noqa: E731
+    comp = {s: r for s, r in hv.items() if r[4] is None and not first(r)}   # 2. zamrożenie źródła: udział wartości porównanych stojących ≥ RWA_SRC_BD dni roboczych
+    tot = sum(r[0] for r in comp.values())
+    old2 = sum(r[0] for r in comp.values() if _rwa_wd(r[1], day) >= RWA_SRC_BD)
+    src = len(comp) >= RWA_SRC_MIN_N and tot > 0 and old2 / tot >= RWA_SRC_SHARE
+
+    def frozen(s, r):
+        w = _rwa_wd(r[1], day)
+        f = (src and (w >= RWA_SRC_BD or r[2] == 0)) or w >= RWA_PROD_BD   # źródło stoi: także porównany produkt, którego zmiany nigdy nie widzieliśmy
+        if f and rows[s]['seg'] == 'cm' and RWA_GOLD_RX.search(s + ' ' + rows[s]['name']) and rwa_gold_moved(gold, r[1], day) is False:
+            f = False                                                 # złoto stało — stała wartość tokenu złota nie jest dowodem zamrożenia
+        return f
+    stale, wait = [], []
+    kept, kept_s, live_hid = 0, [], 0
+    for s in parsed['hidden']:                                        # 3. klasyfikacja: bieżąca (w sumach), niezmieniona, brak wartości, pierwszy odczyt, przeniesiona
+        r, v = hv.get(s), None
+        if r and r[4]:
+            stale.append((s, r, 'g'))
+        elif r and first(r):
+            wait.append((s, r))
+        elif r and frozen(s, r):
+            stale.append((s, r, 'od' if r[2] == 1 else 'min'))
+        elif s in answered:
+            v = answered[s]
+            live_hid += 1
+        elif s not in hidden_vals:                                     # bez odpowiedzi w tym odświeżeniu (429, 5xx, limit) — wartość z dziś, D−1 albo D−2
+            col = pv.get(s)
+            for d in sorted((d for d in pdays if isinstance(d, str) and _rwa_day_add(day, -RWA_KEEP_D) <= d <= day), reverse=True):
+                if s in (pk.get(d) if isinstance(pk.get(d), list) else ()):
+                    continue                                          # ta wartość była już przeniesiona — nie przenosimy jej dalej (najwyżej 2 dni od pomiaru)
+                x = rwa_num(col[pdays.index(d)]) if isinstance(col, list) and len(col) == len(pdays) else None
+                if x is not None:
+                    v = x * 1e6
+                    rows[s]['via'] = 'k'
+                    kept += 1
+                    kept_s.append(s)
+                    break
+        rows[s]['v'] = v
+    val = {s: r['v'] for s, r in rows.items() if r['v'] is not None}
+    ph = rwa_ph_update(pph, day, val)
+    ph['kept'] = {d: sorted(x for x in pk[d] if isinstance(x, str) and x in ph['v']) for d in sorted(pk) if d in ph['days'] and d != day and isinstance(pk[d], list)}
+    ph['kept'] = {d: x for d, x in ph['kept'].items() if x}
+    if any(s in ph['v'] for s in kept_s):
+        ph['kept'][day] = sorted(s for s in kept_s if s in ph['v'])
+    segs = {}
+    for k in RWA_SEGS + ('all',):
+        S = [s for s in val if k == 'all' or rows[s]['seg'] == k]
+        o = {'v': round(sum(val[s] for s in S)) if S else None, 'n': len(S)}
+        for nd in (7, 30):
+            c = rwa_change(ph, S, day, nd)
+            o[f'c{nd}'] = c['p'] if c else None
+            o[f'c{nd}_from'] = c['from'] if c else None
+            o[f'cov{nd}'] = c['cov'] if c else None
+        segs[k] = o
+    top_rows = []
+    for s in sorted(val, key=lambda x: (-val[x], x))[:RWA_TOP]:
+        c7, c30 = rwa_change(ph, [s], day, 7), rwa_change(ph, [s], day, 30)
+        top_rows.append([s, rows[s]['name'], rows[s]['seg'], round(val[s]), c7['p'] if c7 else None, c30['p'] if c30 else None, rows[s]['via']])
+    hist = {r[0]: r for r in (prev.get('hist') or []) if isinstance(r, list) and len(r) == 2 + len(RWA_SEGS) and isinstance(r[0], str)
+            and _RWA_DAY.match(r[0]) and r[0] < day}
+    hist[day] = [day] + [round(segs[k]['v'] / 1e6, 1) if segs[k]['v'] is not None else None for k in ('all',) + RWA_SEGS]
+    hist = [hist[d] for d in sorted(hist)][-RWA_HIST_KEEP:]
+    own7 = rwa_change(ph, [s for s in val if rows[s]['via'] == 'l'], day, 7)
+    n = dict(parsed['n'])
+    n.update(valued=len(val), hidden_valued=len(answered), hidden_live=live_hid, kept=kept, stale=len(stale), wait=len(wait),
+             small=sum(1 for x in val if val[x] < RWA_PH_MIN))
+    n['small_v'] = round(sum(val[x] for x in val if val[x] < RWA_PH_MIN))   # produkty < 10 mln USD: w sumach, poza zmianami (strona liczy ich udział)
+    def main_day(dv):   # dzień „bez zmian od” większości wartości grupy (ważony wartością; remis — wcześniejszy) i czy dni są różne
+        return (min(dv, key=lambda d: (-dv[d], d)) if dv else None), len(dv) > 1
+    sg, dvs = {}, {}                                                  # bez bieżącej wyceny według rodzaju (strona: linia kafla i kolumna tabeli)
+    for x, r, kd in stale:
+        k = rows[x]['seg'] if rows[x]['seg'] in RWA_SEGS else 'oth'
+        o = sg.setdefault(k, {'v': 0.0, 'n': 0, 'ng': 0, 'last': None, 'gone': None})
+        o['v'] += r[0]; o['n'] += 1
+        if kd == 'g':
+            o['ng'] += 1; o['gone'] = min(o['gone'] or r[4], r[4])
+        else:
+            o['last'] = max(o['last'] or r[1], r[1])                  # wszystkie produkty grupy stoją co najmniej od tego dnia
+            dvs.setdefault(k, {})[r[1]] = dvs.get(k, {}).get(r[1], 0.0) + r[0]
+    for k, o in sg.items():
+        o['main'], o['mixed'] = main_day(dvs.get(k, {}))
+    fz = [r for _, r, kd in stale if kd != 'g']
+    gn = [r for _, r, kd in stale if kd == 'g']
+    dva = {}
+    for r in fz:
+        dva[r[1]] = dva.get(r[1], 0.0) + r[0]
+    st_main, st_mixed = main_day(dva)
+    st = {'n': len(stale), 'v': round(sum(r[0] for _, r, _k in stale)) if stale else None, 'nf': len(fz), 'ng': len(gn),
+          'since': min((r[1] for r in fz), default=None), 'last': max((r[1] for r in fz), default=None), 'main': st_main, 'mixed': st_mixed,
+          'gone': min((r[4] for r in gn), default=None),
+          'src': bool(src), 'src_pct': round(old2 / tot * 100, 1) if tot > 0 else None, 'unk': sum(1 for x, _r, _k in stale if rows[x].get('unk')),
+          'seg': {k: dict(sg[k], v=round(sg[k]['v'])) for k in RWA_SEGS if k in sg},
+          'top': [[x, rows[x]['name'], rows[x]['seg'], round(r[0]), r[4] if kd == 'g' else r[1], kd]
+                  for x, r, kd in sorted(stale, key=lambda q: (-q[1][0], q[0]))[:RWA_STALE_TOP]]}
+    wt = {'n': len(wait), 'v': round(sum(r[0] for _, r in wait)) if wait else None, 'day': min((r[1] for _, r in wait), default=None)}
+    stamp = now.isoformat()
+    return {'at': stamp, 'v': 1, 'day': day, 'part_at': {'list': stamp, 'hidden': stamp}, 'src': RWA_SRC, 'unit': 'USD',
+            'ok': {'list': True, 'hidden': bool(hidden_ok)}, 'n': n, 'seg': segs, 'top': top_rows,
+            'hist_cols': ['day', 'all'] + list(RWA_SEGS), 'hist': hist, 'ph': ph, 'stale': st, 'wait': wt, 'hv': dict(sorted(hv.items())),
+            'chk': {'c7_api_listed': parsed['c7_api'], 'c7_own_listed': own7['p'] if own7 else None}, 'notes': []}
+
+
+def rwa_plik_ok(j):
+    """Czy to plik tego wydania (czas, rodzaje, historia) — inny kształt traktujemy jak brak poprzedniego pliku."""
+    return (isinstance(j, dict) and isinstance(j.get('at'), str) and isinstance(j.get('seg'), dict) and isinstance(j.get('hist'), list)
+            and isinstance(j.get('ok'), dict))
+
+
+def _rwa_age_min(iso, now):
+    """Minuty od znacznika ISO do `now`; brak, zły zapis albo czas z przyszłości (> 10 min) = nieskończoność (jak brak znacznika)."""
+    try:
+        t = datetime.datetime.fromisoformat(str(iso).replace('Z', '+00:00'))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=datetime.timezone.utc)
+        m = (now - t).total_seconds() / 60
+        return m if m > -10 else float('inf')
+    except Exception:
+        return float('inf')
+
+
+def rwa_odswiez(prev, now=None):
+    """Czy pytać źródło w tym przebiegu. Bez poprzedniego pliku — tylko w pierwszym przebiegu godziny (minuta < RWA_BEZ_PLIKU_MIN). Z plikiem:
+    plik starszy niż RWA_EVERY = budowa (nie częściej niż co RWA_RETRY min od nieudanej próby try_at); część z błędem albo nieudana próba —
+    ponowienie z odstępem RWA_RETRY_STEPS według liczby kolejnych niepowodzeń retry_n (1 h, 2 h, potem 6 h) — trwała awaria części nie robi
+    z rytmu 6 h odświeżania co godzinę (2,35 MB każde)."""
+    now = now or _now_utc()
+    if not rwa_plik_ok(prev):
+        return now.minute < RWA_BEZ_PLIKU_MIN
+    a_at, a_try = _rwa_age_min(prev.get('at'), now), _rwa_age_min(prev.get('try_at'), now)
+    if min(a_at, a_try) < RWA_RETRY:
+        return False
+    ok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
+    rn = prev.get('retry_n') if isinstance(prev.get('retry_n'), int) and not isinstance(prev.get('retry_n'), bool) else 0
+    if rn <= 0 and not all(ok.get(k) is True for k in RWA_PARTS):
+        rn = 1                                                        # część z błędem bez licznika (plik starszy) — jak pierwsze niepowodzenie
+    if rn <= 0:
+        return a_at >= RWA_EVERY
+    return min(a_at, a_try) >= RWA_RETRY_STEPS[min(rn, len(RWA_RETRY_STEPS)) - 1]
+
+
+def rwa_proba(prev, now=None):
+    """Poprzedni plik z czasem nieudanej próby (try_at) i licznikiem kolejnych niepowodzeń retry_n — dane i ich czas bez zmian."""
+    now = now or _now_utc()
+    rn = prev.get('retry_n') if isinstance(prev.get('retry_n'), int) and not isinstance(prev.get('retry_n'), bool) else 0
+    return dict(prev, try_at=now.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat(), retry_n=max(rn, 0) + 1)
+
+
+def build_rwa(prev=None, now=None, budget=None, clock=None, sleep=None, S=None):
+    """data/rwa.json — wartość tokenizowanych aktywów ze świata realnego: suma, rodzaje (obligacje skarbowe i fundusze rynku pieniężnego, inne
+    obligacje, kredyt prywatny, złoto i surowce, akcje, nieruchomości, inne), zmiany 7 i 30 dni z własnych zapisów, 10 największych produktów.
+    Jedno zapytanie o listę (gzip) + najwyżej RWA_HID_MAX zapytań /tvl o produkty ukryte na liście (od największych wg poprzedniego pliku), wszystko
+    w budżecie RWA_BUDGET s (albo `budget`). Lista nieudana albo niepełna = wyjątek (main: poprzedni plik). Część produktów ukrytych przerwana
+    (429/403, połączenie, czas, budżet) albo 5xx = ok.hidden False, notatka i wartości z D−1/D−2. Brak liczby = None, nigdy 0."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
+    clock = clock or time.monotonic
+    budget = RWA_BUDGET if budget is None else budget
+    t0 = clock()
+
+    def left():
+        return t0 + budget - clock()
+    prev = prev if rwa_plik_ok(prev) else None
+    day = now.date().isoformat()
+    tmo = min(RWA_LIST_TIMEOUT, left())
+    if tmo < RWA_MIN_TMO:
+        raise TimeoutError(f'lista: brak czasu w budżecie kroku ({budget:g} s)')
+    raw = rwa_get_gz(f'{RWA_API}/protocols', tmo, deadline=time.monotonic() + tmo)
+    L = json.loads(raw)
+    del raw
+    parsed = rwa_parse_list(L, day)
+    del L
+    phv = (prev or {}).get('hv') if isinstance((prev or {}).get('hv'), dict) else {}
+
+    def last_v(s):   # ostatnio znana wartość produktu (zapis hv, także niezmienione i bez wartości) — najwięksi najpierw: 429 trafia małe
+        r = phv.get(s)
+        return (rwa_num(r[0]) or 0.0) if isinstance(r, list) and r else 0.0
+    order = sorted(parsed['hidden'], key=lambda s: (-last_v(s), s))
+    ask = order[:RWA_HID_MAX]
+    vals, info = rwa_hidden(ask, left, clock=clock, sleep=sleep)
+    notes = []
+    if info['stop']:
+        notes.append(f"produkty spoza głównej listy: przerwane ({info['stop']}) po {info['asked']} z {len(ask)} zapytań — "
+                     f'brakujące wartości z poprzedniego dnia (najwyżej {RWA_KEEP_D} dni)')
+    if info['err5']:
+        notes.append(f"produkty spoza głównej listy: {len(info['err5'])} bez odpowiedzi (HTTP 5xx) — ich wartości z poprzedniego dnia")
+    if len(order) > RWA_HID_MAX:
+        notes.append(f'produkty spoza głównej listy: {len(order)}, pytamy o {RWA_HID_MAX} największych')
+    out = rwa_build(parsed, vals, prev, now, hidden_ok=not info['stop'] and not info['err5'], gold=rwa_gold_series(S or {}))
+    rn = (prev or {}).get('retry_n') if isinstance((prev or {}).get('retry_n'), int) else 0
+    out['retry_n'] = 0 if all(out['ok'].get(k) is True for k in RWA_PARTS) else max(rn or 0, 0) + 1   # kolejne częściowe odświeżenia (odstęp ponowień)
+    out['notes'] = notes[:RWA_NOTES]
+    out['run'] = {'req': 1 + info['asked'], 's': round(clock() - t0, 1)}
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -16722,6 +17333,33 @@ def main():
             META['errors'].append(mask(f'krypto top 10: {e}')); META['ok']['krypto-top10'] = False
             if prev_t10: save('krypto-top10', prev_t10)
             if prev_t10l: save('krypto-top10-logo', prev_t10l)
+    # v133: tokenizowane aktywa (RWA; bez klucza) — lista protokołów (2,35 MB gzip) i wartości produktów ukrytych na liście (najwyżej 80 małych
+    # zapytań, 4 wątki, starty co 0,2 s) w jednym budżecie 45 s: co 6 h; część z błędem albo nieudana próba — ponowienie po 1 h, 2 h, potem 6 h
+    # (retry_n, try_at); cena złota (GLD) z pliku indeksy tego przebiegu (SAVED — krok po indeksach);
+    # przebieg spóźniony (> RWA_LATE s — ciężki przebieg godzinowy) = poprzedni plik bez zapytań; bez poprzedniego pliku (pamięć Actions i strona)
+    # próba tylko w pierwszym przebiegu godziny, a nieudana = notatka (nie błąd — kontrola dzienna i tak pokazuje ⚠️ „brak pliku”); awaria
+    # z poprzednim plikiem = błąd i poprzedni plik z czasem próby; część z błędem = notatka (strona Źródła: rwa)
+    prev_rw = previous('rwa')
+    prev_rw = prev_rw if rwa_plik_ok(prev_rw) else None
+    rw_late = _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > RWA_LATE
+    rw_due = rwa_odswiez(prev_rw)
+    if rw_late or not rw_due:
+        if prev_rw:
+            save('rwa', prev_rw); META['ok']['rwa'] = 'cached'
+        if rw_late and rw_due:
+            META['notes'].append(f'{RWA_LABEL}: pominięte w tym przebiegu — trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {RWA_LATE} s)')
+        elif not prev_rw:
+            META['notes'].append(f'{RWA_LABEL}: brak poprzedniego pliku — próba w pierwszym przebiegu pełnej godziny')
+    else:
+        try:
+            rw = build_rwa(prev_rw, S=SAVED); save('rwa', rw); META['ok']['rwa'] = all(rw['ok'].get(k) is True for k in RWA_PARTS)
+            META['notes'].extend(mask(f'{RWA_LABEL}: {x}')[:300] for x in rw.get('notes') or [])
+        except Exception as e:
+            META['ok']['rwa'] = False
+            if prev_rw:
+                META['errors'].append(mask(f'{RWA_LABEL}: {e}')[:200]); save('rwa', rwa_proba(prev_rw))
+            else:
+                META['notes'].append(mask(f'{RWA_LABEL}: brak danych — pierwsza próba nieudana ({e}); następna w pierwszym przebiegu pełnej godziny')[:300])
     # INSTYTUCJE (bez klucza): najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_inst = previous('instytucje')
     if prev_inst and fresh(prev_inst, 55):

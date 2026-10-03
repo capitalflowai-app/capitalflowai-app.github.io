@@ -10,6 +10,7 @@ Zapisuje `kontrola/ostatnia.md` (po polsku: nagłówek i linia „Wynik:” w st
 Kod wyjścia 1 = BŁĄD (GitHub wysyła właścicielowi e-mail o nieudanym przebiegu). Bez kluczy, tylko odczyt. Python 3.12, sama biblioteka standardowa.
 Uwaga: komunikat commita bota zawiera „[skip ci]” — GitHub pomija wtedy przebiegi wyzwalane pushem (dlatego commit dodający ten plik
 nie może mieć tego napisu w treści — pierwszy przebieg nie ruszył właśnie z tego powodu).
+v133: tokenizowane aktywa RWA (data/rwa.json): świeżość listy osobnym wierszem (próg 12 h; najwyżej ⚠️) i porównania z pliku strony bez zapytań — własna zmiana 7 dni vs podana przez źródło, produkty spoza głównej listy, skok sumy dzień do dnia (najwyżej ⚠️).
 v137: Japonia — kto handluje akcjami na giełdzie (data/jpx.json): świeżość wg kalendarza publikacji źródła (4. dzień roboczy następnego tygodnia, święta w Japonii; najwyżej ⚠️) i zgodność kierunku zagranicy z danymi tygodniowymi MOF (z plików strony, bez zapytań; najwyżej ⚠️).
 v136: kursy dolara Ameryki Łacińskiej (data/dolar.json) — świeżość osobnym wierszem (najwyżej ⚠️), dwa odczyty kursów Argentyny z pliku i kurs hurtowy vs API banku centralnego Argentyny (1 zapytanie); tylko uwagi, nigdy BŁĄD.
 v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (liczba jednostek × NAV); zapis sesji ze strony w `kontrola/etf-emitent.csv`.
@@ -34,9 +35,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'jpx', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -1381,6 +1382,133 @@ def i18n_kontrola(body, R, pobierz=None):
     return R['strona']['i18n']
 
 
+# ---------------------------------------------------------------- v133: tokenizowane aktywa RWA (data/rwa.json) ----------------------------------------------------------------
+RWA_ETYKIETA = 'tokenizowane aktywa RWA (co 6 h)'
+RWA_SWIEZ_MIN = 12 * 60    # min — lista starsza (plik co 6 h, część z błędem ponawiana po godzinie) = ⚠️; nigdy ❌ ani BŁĄD
+RWA_PP = 1.0               # pkt proc. — |własna zmiana 7 dni − zmiana 7 dni podana przez źródło| (produkty z listy) większa = ⚠️
+RWA_HIST_MIN = 8           # dni własnych zapisów sum potrzebnych do porównania zmian 7 dni (wcześniej tylko informacja)
+RWA_SKOK = 25.0            # % — zmiana sumy między dwoma kolejnymi dniami zapisów większa = ⚠️ (dni z ostatniego tygodnia)
+RWA_HID_MIN = 20           # mniej produktów spoza głównej listy z jakąkolwiek wartością w ostatnim pobraniu = ⚠️ (27.09: 33 z 47) — źródło
+                           # przestało podawać ich wartości (pusty tekst, „0”, 400, 404); plan v128 §4.4
+RWA_FZ_PROG = 50.0         # % — udział wartości bez bieżącej wyceny w (bieżące + bez wyceny) większy = ⚠️ (właściciel widzi to w raporcie; tylko uwaga)
+
+
+def rwa_swiezosc(j, now=None):
+    """Wiersz świeżości (etykieta, status, wiek min, data, uwaga): czas listy (part_at.list, inaczej at); starszy niż RWA_SWIEZ_MIN = ⚠️, nigdy ❌.
+    Brak pliku = ⚠️ „brak danych” (zbieracz bez poprzedniego pliku i bez danych nie zapisuje pliku — notatka w META, nie błąd)."""
+    if not isinstance(j, dict):
+        return (RWA_ETYKIETA, '⚠️', None, None, 'brak pliku data/rwa.json — panel na stronie ukryty (tylko uwaga)')
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    ts = pa.get('list') if isinstance(pa.get('list'), str) else j.get('at')
+    w = wiek_danych(ts, 'ts', 'h', now or NOW) if isinstance(ts, str) else None
+    if w is None:
+        return (RWA_ETYKIETA, '?', None, None, 'brak czasu danych w pliku')
+    if w <= RWA_SWIEZ_MIN:
+        return (RWA_ETYKIETA, '✅', w, ts, '')
+    return (RWA_ETYKIETA, '⚠️', w, ts, f'lista starsza niż {RWA_SWIEZ_MIN // 60} h (plik co 6 h) — tylko uwaga')
+
+
+def _rwa_hist(j):
+    """Wiersze historii sum [dzień, suma, …] z prawdziwą datą i liczbą sumy (mln USD), rosnąco, bez powtórzeń."""
+    out = {}
+    for r in j.get('hist') or []:
+        if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and isinstance(r[1], (int, float)) and not isinstance(r[1], bool) and r[1] > 0:
+            try:
+                dt.date.fromisoformat(r[0])
+            except ValueError:
+                continue
+            out[r[0]] = float(r[1])
+    return sorted(out.items())
+
+
+def rwa_porownanie(j, now=None):
+    """Kontrola pliku RWA bez sieci (najwyżej ⚠️): (1) po ≥ RWA_HIST_MIN dniach zapisów — własna zmiana 7 dni produktów z listy vs zmiana 7 dni
+    podana przez źródło (ważona wartością); źródło porównuje punkt godzinowy sprzed 168 h, my dzienne zapisy z chwil naszych pobrań, więc
+    drobna różnica jest normalna; (2) produkty spoza głównej listy: ostatnie pobranie przerwane = ⚠️; ile ma bieżącą wartość, a ile wartość
+    niezmienioną od dnia X (poza sumami zbieracza — źródło przestało je odświeżać; stan od 27.09.2026); udział wartości bez bieżącej wyceny
+    w (bieżące + bez wyceny) ponad RWA_FZ_PROG % = ⚠️, inaczej informacja ℹ️;
+    (3) skok sumy > RWA_SKOK % między dwoma kolejnymi dniami zapisów z ostatniego tygodnia. → {'status', 'opis', 'uwagi', …}."""
+    now = now or NOW
+    Z = {'status': '✅', 'opis': '', 'uwagi': []}
+    if not isinstance(j, dict):
+        return None
+    H = _rwa_hist(j)
+    chk = j.get('chk') if isinstance(j.get('chk'), dict) else {}
+    n = j.get('n') if isinstance(j.get('n'), dict) else {}
+    ok = j.get('ok') if isinstance(j.get('ok'), dict) else {}
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
+    cz = []
+    span = (dt.date.fromisoformat(H[-1][0]) - dt.date.fromisoformat(H[0][0])).days + 1 if H else 0
+    a, b = chk.get('c7_api_listed'), chk.get('c7_own_listed')
+    Z['c7_api'], Z['c7_own'] = (a if num(a) else None), (b if num(b) else None)
+    if span < RWA_HIST_MIN:
+        cz.append(f'ℹ️ zapisów sum {len(H)} (od {H[0][0] if H else "—"}) — porównanie zmiany 7 dni od {RWA_HIST_MIN}. dnia')
+    elif not (num(a) and num(b)):
+        cz.append('ℹ️ zmiana 7 dni: brak jednej z liczb (własnej albo źródła) — bez oceny')
+    else:
+        d = abs(b - a)
+        Z['c7_roznica_pp'] = round(d, 3)
+        if d > RWA_PP:
+            Z['status'] = '⚠️'
+            Z['uwagi'].append(f'tokenizowane aktywa: zmiana 7 dni produktów z listy — własna {b:+.2f}% vs źródło {a:+.2f}% (różnica {d:.2f} pkt proc., próg {RWA_PP:g}); '
+                              'źródło liczy od punktu godzinowego sprzed 168 h, my od dziennego zapisu z chwili pobrania — sprawdzić, czy różnica się utrzymuje')
+        cz.append(f'zmiana 7 dni produktów z listy: własna {b:+.2f}% vs źródło {a:+.2f}% (różnica {d:.2f} pkt proc.) {"⚠️" if d > RWA_PP else "✅"}')
+    hv, kept = n.get('hidden_valued'), n.get('kept')
+    if ok.get('hidden') is False:
+        Z['status'] = '⚠️'
+        Z['uwagi'].append(f'tokenizowane aktywa: ostatnie pobranie wartości produktów spoza głównej listy przerwane — z poprzedniego dnia: {kept if num(kept) else "—"} '
+                          '(ponowienie po 1 h, 2 h, potem co 6 h; tylko uwaga)')
+        cz.append(f'produkty spoza listy: pobranie przerwane, z poprzedniego dnia {kept if num(kept) else "—"} ⚠️')
+    if num(hv) and hv < RWA_HID_MIN:
+        Z['status'] = '⚠️'
+        Z['uwagi'].append(f'tokenizowane aktywa: produkty spoza głównej listy z jakąkolwiek wartością — tylko {hv} (próg {RWA_HID_MIN}) — źródło przestało '
+                          'podawać ich wartości; ostatnio znane są w grupie „bez bieżącej wyceny”, sumy spadną (tylko uwaga)')
+        cz.append(f'produkty spoza listy z wartością {hv} (próg {RWA_HID_MIN}) ⚠️')
+    st = j.get('stale') if isinstance(j.get('stale'), dict) else {}
+    sv = st.get('v') if num(st.get('v')) and st.get('v') > 0 else 0.0
+    seg = j.get('seg') if isinstance(j.get('seg'), dict) else {}
+    cv = (seg.get('all') or {}).get('v') if isinstance(seg.get('all'), dict) else None
+    cv = cv if num(cv) and cv > 0 else 0.0
+    if sv > 0:
+        p = sv / (cv + sv) * 100
+        Z['fz_pct'] = round(p, 1)
+        ng = st.get('ng') if num(st.get('ng')) else 0
+        kom = (f'bez bieżącej wyceny {p:.0f}% wartości ({sv / 1e9:.1f} mld USD, liczba produktów {st.get("n") if num(st.get("n")) else "—"}: '
+               + (f'niezmienione co najmniej od {st.get("last") or "—"}' + (' — źródło stoi' if st.get('src') is True else '') if st.get('nf') or not ng else '')
+               + (f'{", " if st.get("nf") else ""}{ng} bez wartości od {st.get("gone") or "—"}' if ng else '')
+               + f'), z bieżącą wyceną {cv / 1e9:.1f} mld USD')
+        if p > RWA_FZ_PROG:
+            Z['status'] = '⚠️'
+            Z['uwagi'].append(f'tokenizowane aktywa: {kom} — sumy na stronie obejmują tylko wartości bieżące (próg {RWA_FZ_PROG:g}%; tylko uwaga)')
+        cz.append(kom + (' ⚠️' if p > RWA_FZ_PROG else ' ℹ️'))
+    elif num(hv):
+        cz.append(f'produkty spoza listy: z bieżącą wartością {hv}, bez bieżącej wyceny 0 ✅')
+    lo = (now.date() - dt.timedelta(days=7)).isoformat()
+    skoki = []
+    for (d0, v0), (d1, v1) in zip(H, H[1:]):
+        if d1 >= lo and (dt.date.fromisoformat(d1) - dt.date.fromisoformat(d0)).days == 1:
+            p = (v1 / v0 - 1) * 100
+            if abs(p) > RWA_SKOK:
+                skoki.append(f'{d0} → {d1}: {p:+.1f}%')
+    Z['skoki'] = skoki
+    if skoki:
+        Z['status'] = '⚠️'
+        Z['uwagi'].append('tokenizowane aktywa: skok sumy dzień do dnia ponad ' + f'{RWA_SKOK:g}%: ' + '; '.join(skoki[:3]) + ' — sprawdzić, czy to nie zmiana zakresu danych')
+        cz.append('skok sumy: ' + '; '.join(skoki[:3]) + ' ⚠️')
+    elif len(H) >= 2:
+        cz.append(f'skoków sumy ponad {RWA_SKOK:g}% w tygodniu: brak ✅')
+    Z['opis'] = '; '.join(cz)
+    return Z
+
+
+def rwa_kontrola(files, R):
+    """Wynik porównań RWA do raportu (zgodność) i uwag; brak pliku = None (wiersz świeżości i tak mówi „brak pliku”)."""
+    Z = rwa_porownanie(files.get('rwa'))
+    if Z:
+        R['uwagi'].extend(Z['uwagi'])
+    return Z
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -1519,6 +1647,16 @@ def kontrola():
     ju = jpx_swieta_uwaga()
     if ju:
         R['uwagi'].append(ju)
+    # 3c''. v133: tokenizowane aktywa RWA (data/rwa.json) — świeżość listy osobnym wierszem tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️,
+    # nigdy ❌ ani BŁĄD
+    rr = rwa_swiezosc(files.get('rwa'))
+    if rr:
+        label, st, w, txt, note = rr
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -1612,6 +1750,13 @@ def kontrola():
     except Exception as e:  # noqa
         Z['jpx'] = {'status': '?', 'blad': str(e)[:120]}
         R['uwagi'].append(f'Japonia — giełda vs MOF: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v133: tokenizowane aktywa RWA — własna zmiana 7 dni vs zmiana podana przez źródło, produkty spoza głównej listy, skok sumy dzień do dnia
+    # (z pliku strony, bez zapytań; najwyżej ⚠️ — do raportu bez nowej kolumny zgodnosc.csv)
+    try:
+        Z['rwa'] = rwa_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['rwa'] = {'status': '?', 'blad': str(e)[:120]}
+        R['uwagi'].append(f'tokenizowane aktywa: kontrola przerwana ({str(e)[:80]})')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -1730,6 +1875,9 @@ def raport_md(R):
             L.append('- Japonia: giełda (tylko handel akcjami na giełdzie) vs MOF (wszystkie akcje i fundusze, także poza giełdą), zagranica netto: '
                      + (jz.get('opis') or (f'? kontrola przerwana ({jz["blad"]})' if jz.get('blad') else '—')) + '.'
                      + (f' Korekty źródła z 7 dni: {len(jz["korekty"])} (sprawdzić ręcznie).' if jz.get('korekty') else ''))
+        rz = Z.get('rwa')   # v133: tokenizowane aktywa — zmiana 7 dni (własna vs źródło), produkty spoza listy, skoki sumy; brak pliku = bez linii
+        if rz:
+            L.append('- Tokenizowane aktywa (RWA): ' + (rz.get('opis') or (f'? kontrola przerwana ({rz["blad"]})' if rz.get('blad') else '—')) + '.')
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:
