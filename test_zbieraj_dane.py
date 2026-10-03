@@ -20199,7 +20199,7 @@ class LzejszaStronaV141(unittest.TestCase):
             st = r['stale']
             self.assertTrue(st['ok'], (r['engine'], {j: st[j] for j in self.O.DZIELONE if not st[j]['ok']}))
             for j in self.O.DZIELONE:
-                self.assertEqual(st[j]['zle'], [], (r['engine'], j)); self.assertGreater(st[j]['pelny'], 1000); self.assertGreater(st[j]['ang'], 100)
+                self.assertEqual(st[j]['zle'], [], (r['engine'], j)); self.assertGreater(st[j]['pelny'], 100); self.assertGreater(st[j]['ang'], 100)   # v143: po tłumaczeniach ok. 1 070 kluczy bez pliku = angielski, nie „pełna”
                 self.assertEqual(st[j]['klucze'], st[j]['pelny'] + st[j]['ang'])
 
     # ---------------------------------------------------------------- 3. strona syntetyczna: kolejność, drugie nałożenie, wycięcie bez zmian pl/en
