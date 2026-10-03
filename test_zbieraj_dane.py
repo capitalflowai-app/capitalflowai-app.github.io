@@ -15710,6 +15710,29 @@ class PremieKoreaV129(unittest.TestCase):
         out3 = self.bp(self.rk(), ebc_err, prev)
         self.assertEqual(out3['nod'], [], 'błąd serwera to nie święto'); self.assertIn('h_kr', out3['bledy'])
 
+    def test_v128_1_history_error_note_first_then_error(self):
+        """v128.1: awaria samej historii Korei — pierwszy raz notatka (ponowienie w następnym przebiegu), ten sam błąd w kolejnym przebiegu =
+        błąd zbieracza; bledy w pliku w obu przypadkach; odczyt na żywo z błędem od razu w błędach."""
+        import urllib.error as _ue
+        prev = self.prev_full(h_kr=self.kr_full(skip=('2025-12-25', '2025-12-26')))
+
+        def ebc_err(url, headers=None, timeout=60):
+            if 'startPeriod' in url:
+                raise _ue.HTTPError(url, 503, 'Service Unavailable', {}, None)
+            return self.ebc()(url)
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out = self.bp(self.rk(), ebc_err, prev)
+        self.assertIn('h_kr', out['bledy']); self.assertEqual(zd.META['errors'], [], 'pierwsza awaria historii to nie błąd')
+        self.assertTrue(any('historia Korei' in n and 'ponowienie w następnym przebiegu' in n for n in zd.META['notes']))
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out2 = self.bp(self.rk(), ebc_err, out, now=self.NOW + datetime.timedelta(minutes=20))
+        self.assertIn('h_kr', out2['bledy'])
+        self.assertEqual(len(zd.META['errors']), 1, 'ta sama awaria drugi raz z rzędu = błąd'); self.assertIn('historia Korei', zd.META['errors'][0])
+        self.assertFalse(any('ponowienie w następnym przebiegu' in n for n in zd.META['notes']))
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        out3 = self.bp(self.rk(), self.ebc(skip=('2025-12-25', '2025-12-26')), out2, now=self.NOW + datetime.timedelta(minutes=40))
+        self.assertNotIn('h_kr', out3['bledy']); self.assertEqual(zd.META['errors'], [], 'po naprawie — bez błędu')
+
     def test_budget_late_and_deadline(self):
         zg = _PrZegar(); rk = _PrRynekKr(self.px(), self.NOW, zegar=zg); eb = self.ebc()
         out = self.bp(rk, eb, {}, run_t0=zg.monotonic() - zd.PR_LATE - 5, zegar=zg)

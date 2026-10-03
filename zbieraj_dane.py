@@ -13648,8 +13648,15 @@ def _pr_build(prev, now, late):
         have = {r[0] for r in out['h_kr']}
         out['try_kr'] = {k: tries[k] for k in sorted(tries) if k not in have}   # pustych prób dni jeszcze bez wiersza (ponowienie)
     out['req'] = cnt[0]
-    if out['bledy']:
-        META['errors'].append(mask(f'{PR_LABEL}: ' + '; '.join(out['bledy'].values()))[:400])
+    # v128.1: awaria samej historii (h_cb, h_kr) za pierwszym razem to notatka — historia ponawia się sama w następnym przebiegu, wiersze
+    # z poprzedniego pliku zostają; ta sama część historii z błędem drugi przebieg z rzędu = błąd (trwała awaria widoczna w kontroli)
+    pbl = prev.get('bledy') if isinstance(prev.get('bledy'), dict) else {}
+    raz = {k: v for k, v in out['bledy'].items() if k in ('h_cb', 'h_kr') and k not in pbl}
+    err = {k: v for k, v in out['bledy'].items() if k not in raz}
+    if err:
+        META['errors'].append(mask(f'{PR_LABEL}: ' + '; '.join(err.values()))[:400])
+    if raz:
+        notes.append(mask(f'{PR_LABEL}: ' + '; '.join(raz.values()) + ' — ponowienie w następnym przebiegu')[:400])
     META['notes'].extend(notes)
     return out
 
