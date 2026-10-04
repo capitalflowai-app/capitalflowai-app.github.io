@@ -11384,7 +11384,7 @@ test('v150: słownik EXTRA152 — czysty JSON, jedna linia for po ostatniej (prz
     }
   }
   for (const k of keys) assert.ok(!/(\d|\})[  　]+(営業日|日間|日|銘柄|件|か月|年|回|本|分|時間|週|つ|位|組|枚|取引日|ブロック|市場|契約)/.test(D.ja[k]), 'ja ' + k);
-  const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]));
+  const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]).filter(k => !['rwc.rez', 'rwc.rez0'].includes(k)));   /* v160: klucze rezerwy w EXTRA160 (tylko pl) */
   assert.deepEqual([...used].sort(), keys.slice().sort(), 'każdy klucz bloku w słowniku i każdy klucz słownika używany');
 });
 
@@ -11957,4 +11957,43 @@ test('v158: świat przed startem dziennika — „rusza 5.10”, pierścienie cz
     const c0 = html.indexOf('/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie'), css = html.slice(c0, html.indexOf('</style>', c0));
     assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'styl: tylko zmienne motywu');
   });
+});
+
+
+/* ---------- v160: tokenizowane aktywa — Tether Gold w odczycie własnym (w obiegu = wybite − rezerwa emitenta) ---------- */
+function v160Plik(ok) {
+  const F = RWC150.clone(RWA150_FILE), oc = F.onchain, at = '2026-10-04T00:12:00+00:00';
+  const tot = 827417.63, rez = 118093.970468, v = Math.round((tot - rez) * 4139.56 * 100) / 100;
+  oc.p['tether-gold'] = {name: 'Tether Gold', seg: 'cm', rule: 'zloto', px: 4139.56, px_at: '2026-10-03T15:25:59+00:00', px_ok: true,
+    t: [['eth', 'XAUt', tot, at, '0x68749665ff8d2d112fa859aa293f07a622782f38']], n: 1, nr: 1, un: [], sup: tot, v: ok ? v : null, vp: null, full: ok,
+    rez: ok ? {v: rez, tot, at, ok: true, src: 'rezerwa emitenta'} : null, obieg: ok ? tot - rez : null};
+  if (ok) {
+    oc.used['tether-gold'] = v; oc.seg.cm.v += Math.round(v); oc.seg.cm.n += 1; oc.seg.all.v += Math.round(v); oc.seg.all.n += 1;
+    const r = F.stale.top.find(x => x[0] === 'tether-gold');
+    F.stale.top = F.stale.top.filter(x => x[0] !== 'tether-gold'); F.stale.n -= 1; if (r) F.stale.v -= r[3];
+  }
+  return F;
+}
+test('v160: Tether Gold z rezerwą emitenta — w sumach z odczytu własnego, zdanie „w obiegu = wybite minus rezerwa emitenta”; bez rezerwy — opisany poza sumami, nigdy zero', () => {
+  const F = v160Plik(true), o = RWC150.out(F), S = '[\\s\\u00a0\\u202f]';
+  assert.ok(o.includes('Tether Gold 2,9 mld USD'), 'w liście odczytu własnego');
+  assert.ok(new RegExp('Tether Gold: w obiegu 709' + S + '324 tokenów = wybite 827' + S + '418 minus rezerwa emitenta 118' + S + '094 \\(tokeny wybite, jeszcze niewydane; dane emitenta z \\[2026-10-04T00:12:00\\+00:00\\]').test(o),
+    'zdanie o rezerwie: ' + (o.match(/Tether Gold: w obiegu[^<]{0,200}/) || [''])[0]);
+  assert.ok(!o.includes('Bez pełnego odczytu'), 'pełny — bez listy odczytów niepełnych');
+  assert.ok(!/Tether Gold 3,0 mld USD \(niezmieniona/.test(o), 'z łańcucha — nie na liście zamrożonych (nigdy dwa razy)');
+  const o0 = RWC150.out(v160Plik(false)), i = o0.indexOf('Bez pełnego');
+  assert.ok(o0.includes('Bez pełnego odczytu — zostają poza sumami: Tether Gold (brak bieżących danych emitenta o rezerwie).'), o0.slice(i, i + 200));
+  assert.ok(!o0.includes('minus rezerwa emitenta') && !o0.includes('Tether Gold 2,9 mld USD'), 'bez rezerwy — bez zdania o obiegu i bez wartości');
+  const bad = v160Plik(true); bad.onchain.p['tether-gold'].rez.v = 900000;
+  assert.ok(!RWC150.out(bad).includes('minus rezerwa emitenta'), 'rezerwa większa niż wybite — bez zdania (nigdy ujemny obieg)');
+  assert.ok(!/NaN|undefined|null|rwc\.[a-z]/.test(RWC150.txt(o) + RWC150.txt(o0)), 'bez NaN i surowych kluczy');
+});
+test('v160: słownik — czysty JSON, tylko po polsku, klucze rwc.rez i rwc.rez0, bez nazw dostawców i emitentów; stary akapit bez zmian dla plików bez rezerwy', () => {
+  const d0 = html.indexOf('const EXTRA160='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA160='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['rwc.rez', 'rwc.rez0']);
+  assert.ok(!/tether|defillama|chainlink|publicnode|llama/i.test(JSON.stringify(D)), 'bez nazw dostawców i emitentów w tekstach');
+  const o = RWC150.out(RWA150_FILE);
+  assert.ok(!o.includes('minus rezerwa emitenta') && !o.includes('rezerwie') && !o.includes('Bez pełnego odczytu'), 'plik v150 (bez pól rezerwy) — akapit jak dotąd');
+  const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]));
+  assert.ok(used.has('rwc.rez') && used.has('rwc.rez0'), 'oba klucze używane w bloku RWA');
 });

@@ -21839,7 +21839,8 @@ _RWC150_SUP = {   # (sieć, adres) → podaż w najmniejszych jednostkach (03.10
     ('apt', '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'): 161787121150000,
     ('eth', '0x45804880de22913dafe09f4980848ece6ecbaf78'): 432501570293000000000000, ('sol', '5GgRAEmv8ZxF2PR5hY72Qs5x1bnQ6UK2RbTPoqJ3wSwW'): 2559612389,
     ('eth', '0x136471a34f6ef19fe571effc1ca711fdb8e49f2b'): 36817540453462, ('bsc', '0x8d0fa28f221eb5735bc71d3a0da67ee5bc821311'): 2073937727947452,
-    ('sol', '7LWanZteUKtvFjv4MHYgKXXdAuCQYFPJysL9pxxdRQGn'): 120728897, ('arc', '0x8a5d989bbb96929f689b0200f435f53da42bf490'): 0}
+    ('sol', '7LWanZteUKtvFjv4MHYgKXXdAuCQYFPJysL9pxxdRQGn'): 120728897, ('arc', '0x8a5d989bbb96929f689b0200f435f53da42bf490'): 0,
+    ('eth', '0x68749665ff8d2d112fa859aa293f07a622782f38'): 827417630000}   # v160: Tether Gold (04.10.2026 — bez zmian od 02.10)
 _RWC150_DEC = {('eth', '0x45804880de22913dafe09f4980848ece6ecbaf78'): 18}
 _RWC150_PX = {'0x214ed9da11d2fbe465a6fc601a91e62ebec1a0d6': (413956000000, 1791041159),        # 4 139,56 USD/oz, 03.10 15:25:59 UTC
               '0x74f2199aeb743f68f05943e5715a33eaf2b61f53': (1139002815309548578, 1790944319)}  # 1,139002815 USD, 02.10 12:31:59 UTC
@@ -21956,8 +21957,8 @@ class RwaLancuchV150(unittest.TestCase):
     # ---------------------------------------------------------------- konfiguracja
     def test_konfiguracja_produkty_adresy_ceny(self):
         P = zd.RWC_PRODUKTY
-        self.assertEqual(sorted(P), ['blackrock-buidl', 'circle-usyc', 'paxos-gold'], 'decyzja: trzy produkty; Tether Gold bez oficjalnego adresu rezerwy — poza')
-        self.assertEqual([len(P[s]['tokeny']) for s in ('blackrock-buidl', 'paxos-gold', 'circle-usyc')], [10, 2, 4])
+        self.assertEqual(sorted(P), ['blackrock-buidl', 'circle-usyc', 'paxos-gold', 'tether-gold'], 'v160: Tether Gold z rezerwą emitenta (jego dane o przejrzystości)')
+        self.assertEqual([len(P[s]['tokeny']) for s in ('blackrock-buidl', 'paxos-gold', 'circle-usyc', 'tether-gold')], [10, 2, 4, 1])
         hexa, b58 = zd.re.compile(r'^0x[0-9a-f]{40}$'), zd.re.compile(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$')
         for s, p in P.items():
             self.assertIn(p['seg'], zd.RWA_SEGS); self.assertIn(p['cena'], ('nav1',) + tuple(zd.RWC_CENY))
@@ -21972,8 +21973,8 @@ class RwaLancuchV150(unittest.TestCase):
         self.assertEqual(P['blackrock-buidl']['wzor'], ('eth', '0x7712c34205737192402172409a8f7ccef8aa2aec'))
         self.assertEqual(P['circle-usyc']['bez_adresu'], {'sieci': ['Canton', 'NEAR'], 'pct': 0.057, 'dzien': '2026-10-03'})
         txt = repr(P).lower()
-        for kopia in ('0x21caef8a43163eea865baee23b9c2e327696a3bf', '0x68749665ff8d2d112fa859aa293f07a622782f38', 'aymatz4tcl9swneev9kvyz45chvhdz6kugjtjpzlpu9p'):
-            self.assertNotIn(kopia, txt, 'XAUt / XAUt0 (kopie i Tether Gold) poza listą')
+        for kopia in ('0x21caef8a43163eea865baee23b9c2e327696a3bf', 'aymatz4tcl9swneev9kvyz45chvhdz6kugjtjpzlpu9p'):
+            self.assertNotIn(kopia, txt, 'XAUt0 / „XAUt” na innych sieciach (kopie mostu) poza listą — v160: Tether Gold tylko z Ethereum')
         self.assertEqual((zd.RWC_CENY['zloto']['max_min'], zd.RWC_CENY['zloto']['dec'], zd.RWC_CENY['usyc']['dec']), (36 * 60, 8, 18))
         self.assertEqual((zd.RWC_BUDGET, zd.RWC_CH_MAX_MIN, zd.RWC_PROBY, zd.RWC_PRZERWA), (20, 12 * 60, 3, 0.5))
         self.assertTrue(all(u.startswith('https://') and (z is None or z.startswith('https://')) for u, z, _k in zd.RWC_SIECI.values()))
@@ -21988,7 +21989,10 @@ class RwaLancuchV150(unittest.TestCase):
             self.assertEqual(kind, 'main'); self.assertLessEqual(tmo, zd.RWC_TIMEOUT)
         self.assertEqual(per, {'eth': 1, 'arb': 1, 'op': 1, 'pol': 1, 'avax': 1, 'bsc': 1, 'tempo': 1, 'arc': 1, 'sol': 1, 'apt': 2}, 'jedno żądanie na sieć (Aptos: 2 × /view)')
         eth = [b for s, k, u, b, t in calls if s == 'eth'][0]
-        self.assertEqual(len(eth), 1 + 2 * 4 + 2 + 2, 'Ethereum: blok + 4 tokeny × (podaż, miejsca) + 2 wyrocznie + owner() BUIDL-I i wzorca')
+        self.assertEqual(len(eth), 1 + 2 * 5 + 2 + 2, 'Ethereum: blok + 5 tokenów × (podaż, miejsca) + 2 wyrocznie + owner() BUIDL-I i wzorca (v160: + XAUt)')
+        T = oc['p']['tether-gold']
+        self.assertEqual((T['sup'], T['rez'], T['obieg'], T['v'], T['vp'], T['full']), (827417.63, None, None, None, None, False),
+                         'v160: bez kroku rezerw (rez=None) — tokeny odczytane, ale bez wyceny (nigdy cała podaż jako obieg)')
         P = oc['p']
         self.assertEqual((P['blackrock-buidl']['sup'], P['blackrock-buidl']['v'], P['blackrock-buidl']['full']), (2262224431.727649, 2262224431.73, True))
         self.assertEqual((P['paxos-gold']['sup'], P['paxos-gold']['px'], P['paxos-gold']['px_at'], P['paxos-gold']['v']),
@@ -22190,7 +22194,8 @@ class RwaLancuchV150(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         with mock.patch.dict(os.environ, e, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
                 mock.patch.object(zd, 'previous', lambda name: prev if name == 'rwa' else None), mock.patch.object(zd, 'build_rwa', side_effect=fake), \
-                mock.patch.object(zd, '_RUN_T0', [None]), mock.patch.object(zd, 'rwc_odczyt', lambda now: {'at': now.isoformat(), 'r': {}, 'req': 0, 's': 0}):
+                mock.patch.object(zd, '_RUN_T0', [None]), mock.patch.object(zd, 'rwc_odczyt', lambda now: {'at': now.isoformat(), 'r': {}, 'req': 0, 's': 0}), \
+                mock.patch.object(zd, 'rwc_rezerwy', lambda now: {'tether_xaut': {'err': 'test bez sieci'}}):   # v160: rezerwy emitentów też bez sieci
             [p.start() for p in stubs]
             try:
                 zd.main()
@@ -22231,7 +22236,8 @@ class RwaLancuchV150(unittest.TestCase):
         self.assertEqual(K.rwc_swiezosc({'at': 'x'})[1], '—'); self.assertEqual(K.rwc_swiezosc(dict(J, onchain={'off': True}))[1:], ('—', None, None, 'wyłączone (RWA_CHAIN_OFF)'))
         self.assertIsNone(K.rwc_swiezosc(None))
         Z = K.rwc_porownanie(J, now)
-        self.assertEqual(Z['status'], '✅', Z); self.assertIn('w sumach z odczytu własnego: 3 z 3 produktów', Z['opis'])
+        self.assertEqual(Z['status'], '✅', Z); self.assertIn('w sumach z odczytu własnego: 3 z 4 produktów', Z['opis'])
+        self.assertIn('bez pełnego odczytu (poza sumami): Tether Gold: brak bieżących danych emitenta o rezerwie (wybite, niewydane) ℹ️', Z['opis'], 'v160')
         J2 = json.loads(json.dumps(J)); J2['onchain']['hs']['circle-usyc'] = [['2026-10-03', 1e9], ['2026-10-04', 2.11e9]]
         J2['hv']['blackrock-buidl'][0] = 2.262e8
         Z = K.rwc_porownanie(J2, now)
@@ -22303,3 +22309,180 @@ class SektoryTop10V155(unittest.TestCase):
         self.assertEqual(zd.T10_BEZ['l1'], frozenset({'bitcoin', 'ethereum'})); self.assertEqual(zd.T10_BEZ_Z, {'gaming': 'meme'})
         for k, _ in zd.T10_CATS:
             mc = [r[4] for r in out['g'][k]['c']]; self.assertEqual(mc, sorted(mc, reverse=True), k)
+
+
+_TETHER160 = json.dumps({'data': {'xaut': {'currency_iso': 'xaut', 'totaltokens_eth': '827417.63', 'reserve_balance_eth': '118093.970468'}},
+                         'data_formatted': [
+                             {'iso': 'usdt', 'blockChains': [{'name': 'Ethereum', 'totalAuthorized': '88303053982.363963', 'notIssued': '1792558000.916254'}]},
+                             {'id': 1791070203, 'name': 'XAU₮', 'iso': 'xaut', 'total_assets': '827417.63', 'total_liabilities': '827417.63', 'blockChains': [
+                                 {'totalAuthorized': 13361.368876, 'notIssued': 0, 'quarantined': 0.0, 'name': 'BNB Smart Chain'},
+                                 {'totalAuthorized': '827417.63', 'notIssued': '118093.970468', 'quarantined': 0.0, 'name': 'Ethereum'}]}]}).encode()
+# fragment danych o przejrzystości emitenta z 04.10.2026 ok. 11:50 UTC (pola i liczby jak w odpowiedzi; BNB = kopie mostu, poza zobowiązaniami)
+_TETHER160_ADR = '0x68749665ff8d2d112fa859aa293f07a622782f38'
+
+
+class RwaTetherV160(unittest.TestCase):
+    """v160: Tether Gold w odczycie własnym — w obiegu = totalSupply na Ethereum − rezerwa emitenta (wybite, niewydane) z jego danych o przejrzystości;
+    świeżość z łańcucha (wybite wg emitenta = totalSupply w tym przebiegu), poprzednia rezerwa najwyżej 12 h i tylko zgodna; brak = bez wyceny (nigdy
+    zgadywanie); sumy bez podwójnego liczenia; kontrola dzienna opisuje brak. Bez sieci (atrapy węzła i danych emitenta)."""
+    NOW = _RWC150_NOW
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
+        self.enterContext(mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('test nie może pytać sieci')))
+
+    def _rez(self, body=_TETHER160, now=None):
+        calls = []
+
+        def get(url, headers=None, timeout=60):
+            calls.append((url, headers, timeout))
+            if isinstance(body, BaseException):
+                raise body
+            return body
+        return zd.rwc_rezerwy(now or self.NOW, get=get), calls
+
+    def _oc(self, rez, prev=None, now=None, **kw):
+        now = now or self.NOW
+        return zd.rwc_blok(zd.rwc_odczyt(now, post=_rwc150_post(**kw), sleep=lambda s: None), prev, now, rez=rez)
+
+    def test_konfiguracja(self):
+        p = zd.RWC_PRODUKTY['tether-gold']
+        self.assertEqual((p['name'], p['seg'], p['cena'], p['rezerwa']), ('Tether Gold', 'cm', 'zloto', 'tether_xaut'))
+        self.assertEqual(p['tokeny'], (('eth', _TETHER160_ADR, 6, 'XAUt', False),), 'tylko Ethereum — kopie mostu poza')
+        c = zd.RWC_REZERWY['tether_xaut']
+        self.assertEqual((c['url'], c['iso'], c['siec']), ('https://app.tether.to/transparency.json', 'xaut', 'Ethereum'))
+        self.assertEqual((zd.RWC_REZ_TOL, zd.RWC_REZ_TIMEOUT, zd.RWC_REZ_MAX_B), (0.01, 8, 500_000))
+        self.assertIn('Tether Gold: w obiegu = totalSupply', zd.RWC_SRC)
+
+    def test_parse(self):
+        j = json.loads(_TETHER160)
+        self.assertEqual(zd.rwc_rez_parse(j, 'xaut', 'Ethereum'), (827417.63, 118093.970468))
+        self.assertEqual(zd.rwc_rez_parse(j, 'xaut', 'BNB Smart Chain'), (13361.368876, 0.0), 'liczby i napisy')
+        self.assertIsNone(zd.rwc_rez_parse(j, 'xaut', 'Tron'), 'brak sieci'); self.assertIsNone(zd.rwc_rez_parse(j, 'eurt', 'Ethereum'), 'brak waluty')
+        for zle in ({'totalAuthorized': '100', 'notIssued': '101'}, {'totalAuthorized': '100', 'notIssued': '-1'}, {'totalAuthorized': 'x', 'notIssued': '1'},
+                    {'totalAuthorized': 'nan', 'notIssued': '1'}, {'totalAuthorized': 'inf', 'notIssued': '1'}, {'totalAuthorized': '1e14', 'notIssued': '1'},
+                    {'notIssued': '1'}, {'totalAuthorized': True, 'notIssued': 1}, {'totalAuthorized': [5], 'notIssued': 1}, {'totalAuthorized': None, 'notIssued': 0}):
+            self.assertIsNone(zd.rwc_rez_parse({'data_formatted': [{'iso': 'xaut', 'blockChains': [dict(zle, name='Ethereum')]}]}, 'xaut', 'Ethereum'), zle)
+        for zle in (None, [], 'x', {'data_formatted': None}, {'data_formatted': [None, 'x', {'iso': 'xaut', 'blockChains': None}]}):
+            self.assertIsNone(zd.rwc_rez_parse(zle, 'xaut', 'Ethereum'), zle)
+
+    def test_zapytanie(self):
+        R, calls = self._rez()
+        self.assertEqual(R, {'tether_xaut': {'tot': 827417.63, 'v': 118093.970468, 'at': '2026-10-03T21:00:00+00:00'}})
+        self.assertEqual([(u, h, t) for u, h, t in calls], [('https://app.tether.to/transparency.json', {'Accept': 'application/json'}, 8)])
+        for body, frag in ((OSError('HTTP Error 403: Forbidden'), 'OSError: HTTP Error 403'), (b'<html>challenge</html>', 'JSONDecodeError'),
+                           (b'{}', 'brak pól notIssued / totalAuthorized (xaut, Ethereum)'), (b'x' * (zd.RWC_REZ_MAX_B + 1), 'za duża'), ('napis', 'za duża')):
+            R, _ = self._rez(body)
+            self.assertIn(frag, R['tether_xaut']['err']); self.assertEqual(list(R['tether_xaut']), ['err'], 'błąd — bez liczb')
+
+    def test_wycena_z_rezerwa(self):
+        R, _ = self._rez()
+        oc = self._oc(R)
+        T, obieg = oc['p']['tether-gold'], 827417.63 - 118093.970468
+        self.assertEqual((T['sup'], T['rez']['ok'], T['rez']['v'], T['rez']['tot'], T['rez']['at']), (827417.63, True, 118093.970468, 827417.63, '2026-10-03T21:00:00+00:00'))
+        self.assertNotIn('k', T['rez']); self.assertIn('notIssued', T['rez']['src'])
+        self.assertAlmostEqual(T['obieg'], obieg, places=6)
+        self.assertEqual(T['v'], round(obieg * 4139.56, 2)); self.assertTrue(T['full']); self.assertIsNone(T['vp'])
+        self.assertTrue(oc['ok']); self.assertEqual(oc['notes'], [])
+        U = zd.rwc_uzyj(oc, self.NOW)
+        self.assertEqual(set(U), {'blackrock-buidl', 'paxos-gold', 'circle-usyc', 'tether-gold'})
+        self.assertAlmostEqual(U['tether-gold'], obieg * 4139.56, delta=0.01)
+        self.assertAlmostEqual(U['tether-gold'] / 1e9, 2.936, delta=0.001, msg='ok. 2,94 mld USD (04.10)')
+        self.assertEqual(oc['hs']['tether-gold'], [['2026-10-03', 827417.63]], 'dzienny zapis podaży — tokeny z łańcucha (kontrola: zmiana 24 h)')
+
+    def test_bez_zgodnosci_albo_bez_danych_bez_wyceny(self):
+        R, _ = self._rez()
+        oc = self._oc(R, sup={('eth', _TETHER160_ADR): 830000000000})   # nowa emisja na łańcuchu, emitent jeszcze bez niej
+        T = oc['p']['tether-gold']
+        self.assertEqual((T['rez']['ok'], T['v'], T['obieg'], T['full']), (False, None, None, False)); self.assertFalse(oc['ok'])
+        self.assertIn('Tether Gold: wybite wg emitenta 827417.63 ≠ odczyt łańcucha 830000.00 — dane emitenta nieaktualne, bez wyceny w tym odczycie', oc['notes'])
+        self.assertNotIn('tether-gold', zd.rwc_uzyj(oc, self.NOW))
+        oc = self._oc(R, sup={('eth', _TETHER160_ADR): 100000000000})   # rezerwa większa niż podaż — niemożliwe, bez wyceny
+        self.assertEqual((oc['p']['tether-gold']['rez']['ok'], oc['p']['tether-gold']['v']), (False, None))
+        R2, _ = self._rez(OSError('HTTP Error 403: Forbidden'))
+        oc = self._oc(R2)
+        T = oc['p']['tether-gold']
+        self.assertEqual((T['rez'], T['v'], T['full']), (None, None, False)); self.assertFalse(oc['ok'], 'zapytanie nieudane = odczyt niepełny (kontrola: uwaga)')
+        self.assertTrue(any(n.startswith('Tether Gold: rezerwa emitenta — OSError: HTTP Error 403') for n in oc['notes']), oc['notes'])
+        oc = self._oc(None)
+        self.assertEqual((oc['p']['tether-gold']['rez'], oc['p']['tether-gold']['v'], oc['ok'], oc['notes']), (None, None, True, []), 'krok rezerw nieuruchomiony')
+        oc = self._oc(R, err={('eth', _TETHER160_ADR)})
+        T = oc['p']['tether-gold']
+        self.assertEqual((T['nr'], T['v'], T['vp'], T['obieg'], T['rez']['ok']), (0, None, None, None, False), 'token nieodczytany — bez wyceny, bez części')
+
+    def test_poprzednia_rezerwa_najwyzej_12_h(self):
+        R, _ = self._rez()
+        oc1 = self._oc(R)
+        for h, jest in ((6, True), (12, True), (12.02, False)):
+            later = self.NOW + datetime.timedelta(hours=h)
+            Rx, _ = self._rez(OSError('HTTP Error 403: Forbidden'), now=later)
+            oc = self._oc(Rx, prev=oc1, now=later)
+            T = oc['p']['tether-gold']
+            self.assertFalse(oc['ok'])
+            if jest:
+                self.assertEqual((T['rez']['k'], T['rez']['ok'], T['rez']['at']), (1, True, '2026-10-03T21:00:00+00:00'), h)
+                self.assertIn('tether-gold', zd.rwc_uzyj(oc, later), h)
+            else:
+                self.assertIsNone(T['rez'], 'poprzednia rezerwa starsza niż 12 h — brak'); self.assertNotIn('tether-gold', zd.rwc_uzyj(oc, later))
+        bad = json.loads(json.dumps(oc1)); bad['p']['tether-gold']['rez']['ok'] = False
+        Rx, _ = self._rez(OSError('x'))
+        self.assertIsNone(self._oc(Rx, prev=bad)['p']['tether-gold']['rez'], 'poprzednia niezgodna rezerwa nie wraca')
+
+    def test_uzyj_liczy_od_nowa_z_pliku(self):
+        R, _ = self._rez()
+        oc = self._oc(R)
+        for zmiana in ({'ok': False}, {'v': 900000.0}, {'tot': 827000.0}, {'at': '2026-10-03T08:00:00+00:00'}, {'v': None}, {'v': -1.0}, {'at': None}):
+            F = json.loads(json.dumps(oc)); F['p']['tether-gold']['rez'].update(zmiana)
+            self.assertNotIn('tether-gold', zd.rwc_uzyj(F, self.NOW), zmiana)
+        for brak in (None, 'x'):
+            F = json.loads(json.dumps(oc)); F['p']['tether-gold']['rez'] = brak
+            self.assertNotIn('tether-gold', zd.rwc_uzyj(F, self.NOW), brak)
+        F = json.loads(json.dumps(oc)); del F['p']['tether-gold']['rez']
+        self.assertNotIn('tether-gold', zd.rwc_uzyj(F, self.NOW), 'plik bez pola rezerwy — nigdy cała podaż jako obieg')
+        F = json.loads(json.dumps(oc)); F['p']['tether-gold']['t'][0][2] = 900000.0
+        self.assertNotIn('tether-gold', zd.rwc_uzyj(F, self.NOW), 'podaż w pliku niezgodna z wybitymi wg emitenta')
+
+    def test_sumy_i_zamrozone_bez_podwojnego_liczenia(self):
+        t = RwaLancuchV150('test_konfiguracja_produkty_adresy_ceny')
+        P, H = t._t()._parsed(), t._t()._hid()
+        now = datetime.datetime(2026, 10, 4, 19, 40, tzinfo=datetime.timezone.utc)
+        R, _ = self._rez(now=now)
+        oc = self._oc(R, now=now)
+        fz = t._frozen()
+        J0, J1 = zd.rwa_build(P, H, fz, now), zd.rwa_build(P, H, fz, now, oc=oc)
+        used = J1['onchain']['used']
+        self.assertEqual(set(used), {'blackrock-buidl', 'paxos-gold', 'circle-usyc', 'tether-gold'})
+        self.assertAlmostEqual(J1['seg']['cm']['v'], J0['seg']['cm']['v'] + used['paxos-gold'] + used['tether-gold'], delta=1, msg='złoto: Paxos Gold i Tether Gold z łańcucha')
+        self.assertAlmostEqual(J1['seg']['all']['v'], J0['seg']['all']['v'] + sum(used.values()), delta=1, msg='nic dwa razy')
+        self.assertEqual(J1['stale']['n'], J0['stale']['n'] - 4)
+        self.assertNotIn('tether-gold', [r[0] for r in J1['stale']['top']], 'z łańcucha — nie na liście zamrożonych')
+        self.assertEqual(J1['onchain']['seg']['cm'], {'v': round(used['paxos-gold'] + used['tether-gold']), 'n': 2})
+        self.assertEqual({r[0]: r[6] for r in J1['top'] if r[0] == 'tether-gold'}, {'tether-gold': 'o'}, 'w tabeli produktów ze znakiem odczytu własnego')
+
+    def test_kontrola_dzienna(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v160', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        t = RwaLancuchV150('test_konfiguracja_produkty_adresy_ceny')
+        P, H = t._t()._parsed(), t._t()._hid()
+        now = datetime.datetime(2026, 10, 4, 19, 40, tzinfo=datetime.timezone.utc)
+        R, _ = self._rez(now=now)
+        J = zd.rwa_build(P, H, t._frozen(), now, oc=self._oc(R, now=now))
+        Z = K.rwc_porownanie(J, now)
+        self.assertEqual(Z['status'], '✅', Z); self.assertIn('w sumach z odczytu własnego: 4 z 4 produktów', Z['opis'])
+        self.assertIn('wartość vs ostatnio znana: w paśmie', Z['opis'], 'Tether Gold 2,94 vs zamrożone 3,03 mld USD — w paśmie')
+        Rx, _ = self._rez(OSError('HTTP Error 403: Forbidden'), now=now)
+        J2 = zd.rwa_build(P, H, t._frozen(), now, oc=self._oc(Rx, now=now))
+        Z2 = K.rwc_porownanie(J2, now)
+        self.assertEqual(Z2['status'], '⚠️'); self.assertIn('Tether Gold: brak bieżących danych emitenta o rezerwie (wybite, niewydane)', Z2['opis'])
+        self.assertTrue(any('ostatni odczyt niepełny — Tether Gold: rezerwa emitenta — OSError' in u for u in Z2['uwagi']), Z2['uwagi'])
+
+    def test_krok_glowny_pyta_o_rezerwy(self):
+        seen = []
+        with mock.patch.object(zd, 'rwc_odczyt', lambda now: {'at': now.isoformat(), 'r': {}, 'req': 0, 's': 0}), \
+                mock.patch.object(zd, 'rwc_rezerwy', lambda now: seen.append(now) or {'tether_xaut': {'err': 'x'}}):
+            oc = zd.rwc_krok(None, self.NOW)
+        self.assertEqual(seen, [self.NOW]); self.assertIsNone(oc['p']['tether-gold']['rez'])
+        self.assertTrue(any(n.startswith('Tether Gold: rezerwa emitenta — x') for n in oc['notes']))

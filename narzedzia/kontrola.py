@@ -1600,6 +1600,8 @@ def rwc_porownanie(j, now=None):
                 braki.append(f'{nm}: {nr} z {n} kontraktów' + (f' (bez liczby: {", ".join(p.get("un") or [])})' if p.get('un') else ''))
             elif p.get('px_ok') is False:
                 braki.append(f'{nm}: cena nieświeża ({p.get("px_at") or "—"})')
+            elif 'rez' in p and not (isinstance(p.get('rez'), dict) and p['rez'].get('ok') is True):
+                braki.append(f'{nm}: brak bieżących danych emitenta o rezerwie (wybite, niewydane)')   # v160: Tether Gold
     if skoki:
         Z['status'] = '⚠️'
         Z['uwagi'].append('tokenizowane aktywa (odczyt własny): podaż zmieniła się w ciągu doby o ponad ' + f'{RWC_SKOK_POD:g}%: ' + '; '.join(skoki[:3])

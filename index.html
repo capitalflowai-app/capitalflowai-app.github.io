@@ -1931,6 +1931,9 @@ for(const l in EXTRA154)if(I18N[l])Object.assign(I18N[l],EXTRA154[l]);
 /* v158: TRENDY — infografika „Wyniki sygnałów” — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
 const EXTRA158={"pl":{"tig.t.c":"Wyniki sygnałów krypto","tig.t.w":"Wyniki sygnałów — rynki świata","tig.sub.c":"ostatnie {n} dni ({a}–{b}) · sprawdzane po dobie · 50% = rzut monetą","tig.sub.w":"ostatnie {n} sesji ({a}–{b}) · sprawdzane na zamknięciu sesji · 50% = rzut monetą","tig.start":"Dziennik wyników rusza {d} — pierwsze wyniki pojawią się tu po pierwszym sprawdzeniu.","tig.k":"Trafione","tig.kn":"{k} z {n}","tig.wait":"+ {n} czeka na wynik","tig.few":"za mało wyników, by oceniać","tig.d.win.c":"Ostatnie dni","tig.d.win.w":"Ostatnie sesje","tig.d.since":"Od startu ({d})","tig.d.hist":"Historia (test wsteczny)","tig.d.wait":"czekamy na wyniki","tig.n":"n = {n}","tig.hist.sub":"od {d} · n = {n}","tig.b.t":"Dzień po dniu","tig.b.k":"trafione","tig.b.m":"chybione","tig.b.w":"czeka","tig.aria.b":"Dzień po dniu (dzień trafione/wszystkie): {s}","tig.s.t":"Dzisiejsze sygnały","tig.s.sub":"▲ w górę · ▼ w dół · ● siła sygnału · szare = reguła bez potwierdzonej przewagi","tig.s.none":"bez sygnału: {n}","tig.s.empty":"Dziś żadnego sygnału.","tig.foot.c":"Sygnał = kierunek z reguł strony na następną dobę; trafienie = cena poszła w tę stronę. Przeszłe trafienia nie gwarantują przyszłych.","tig.foot.w":"Sygnał = kierunek z reguł strony na następną sesję; trafienie = cena funduszu poszła w tę stronę. Przeszłe trafienia nie gwarantują przyszłych.","tig.more":"Szczegóły: wszystkie sygnały, reguły i metoda"}};
 for(const l in EXTRA158)if(I18N[l])Object.assign(I18N[l],EXTRA158[l]);
+/* v160: tokenizowane aktywa — Tether Gold z rezerwą emitenta — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
+const EXTRA160={"pl":{"rwc.rez":"{p}: w obiegu {o} tokenów = wybite {a} minus rezerwa emitenta {r} (tokeny wybite, jeszcze niewydane; dane emitenta z {t}, zgodne z odczytem łańcucha).","rwc.rez0":"brak bieżących danych emitenta o rezerwie"}};
+for(const l in EXTRA160)if(I18N[l])Object.assign(I18N[l],EXTRA160[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -9009,9 +9012,12 @@ function rwOcPara(D){
     if(nv.length)L.push(t('rwc.nav',{list:nv.map(s=>nm(s)+' '+nfmt(o.p[s].px,4)+' USD ('+engDate(o.p[s].px_at)+')').join(sl)}));
     for(const s of U){const b=o.p[s].bez_adresu;if(rwObj(b)&&Array.isArray(b.sieci)&&b.sieci.length)
       L.push(t('rwc.noaddr',{p:nm(s),c:b.sieci.map(x=>escH(String(x))).join(sl),s:rwNum(b.pct)?nfmt(b.pct,2)+'%':'—',d:rwDayS(b.dzien)}));}
+    for(const s of U){const r=o.p[s].rez;if(rwObj(r)&&r.ok===true&&rwNum(r.tot)&&rwNum(r.v)&&r.v>=0&&r.v<=r.tot)   /* v160: w obiegu = wybite − rezerwa emitenta */
+      L.push(t('rwc.rez',{p:nm(s),o:nfmt(r.tot-r.v,0),a:nfmt(r.tot,0),r:nfmt(r.v,0),t:rwWhen(r.at)}));}
   }
-  const P=Object.keys(o.p).filter(s=>!U.includes(s)&&rwObj(o.p[s])&&rwNum(o.p[s].n)&&rwNum(o.p[s].nr)&&(o.p[s].nr<o.p[s].n||o.p[s].px_ok===false));
-  if(P.length)L.push(t('rwc.part',{list:P.map(s=>{const p=o.p[s];return nm(s)+' ('+(p.nr<p.n?t('rwc.nr',{a:nfmt(p.nr,0),b:nfmt(p.n,0)}):t('rwc.px'))+')';}).join('; ')}));
+  const rz0=p=>'rez' in p&&!(rwObj(p.rez)&&p.rez.ok===true);   /* v160: produkt z rezerwą emitenta bez bieżącej, zgodnej z łańcuchem rezerwy */
+  const P=Object.keys(o.p).filter(s=>!U.includes(s)&&rwObj(o.p[s])&&rwNum(o.p[s].n)&&rwNum(o.p[s].nr)&&(o.p[s].nr<o.p[s].n||o.p[s].px_ok===false||rz0(o.p[s])));
+  if(P.length)L.push(t('rwc.part',{list:P.map(s=>{const p=o.p[s];return nm(s)+' ('+(p.nr<p.n?t('rwc.nr',{a:nfmt(p.nr,0),b:nfmt(p.n,0)}):p.px_ok===false?t('rwc.px'):t('rwc.rez0'))+')';}).join('; ')}));
   return L.length?`<p class="pnote">${L.join(' ')}</p>`:'';
 }
 /* plik przyjęty, gdy ma czas i rodzaje (z sumą) */

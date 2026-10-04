@@ -16894,6 +16894,11 @@ RWC_PRODUKTY = {
         ('bsc', '0x8d0fa28f221eb5735bc71d3a0da67ee5bc821311', 6, 'USYC', False),
         ('sol', '7LWanZteUKtvFjv4MHYgKXXdAuCQYFPJysL9pxxdRQGn', 6, 'USYC', False),
         ('arc', '0x8a5d989bbb96929f689b0200f435f53da42bf490', 6, 'USYC', False))},
+    # v160 (decyzja koordynatora 04.10): w obiegu = totalSupply − rezerwa emitenta (RWC_REZERWY); 04.10 ok. 11:50 UTC: 827 417,63 − 118 093,970468 =
+    # 709 323,66 uncji ≈ 2,94 mld USD. Tylko Ethereum — XAUt0 / „XAUt” na innych sieciach to kopie mostu (zablokowane na Ethereum, BADANIE v150 §2.2);
+    # emitent też ich nie wlicza (total_liabilities = wybite na Ethereum).
+    'tether-gold': {'name': 'Tether Gold', 'seg': 'cm', 'cena': 'zloto', 'rezerwa': 'tether_xaut', 'tokeny': (
+        ('eth', '0x68749665ff8d2d112fa859aa293f07a622782f38', 6, 'XAUt', False),)},   # tether.to/en/supported-protocols („XAU₮ contract address”)
 }
 # Ceny z wyroczni na łańcuchu: latestRoundData() (roundId, answer, startedAt, updatedAt, answeredInRound); dec — miejsca odpowiedzi; lo / hi —
 # granice rozsądku (poza = brak ceny); max_min — najstarsza cena uznana za świeżą (wiek liczony od updatedAt).
@@ -16907,7 +16912,18 @@ RWC_CENY = {
 }
 RWC_SRC = ('Odczyt własny z publicznych łańcuchów bloków (węzły bez klucza: *.publicnode.com, zapas 1rpc.io; rpc.tempo.xyz; rpc.mainnet.arc.io; '
            'api.mainnet-beta.solana.com; api.mainnet.aptoslabs.com) — liczba tokenów (totalSupply / konto emisji / fungible_asset::supply) × cena: '
-           '1 USD (BUIDL), XAU/USD z wyroczni na Ethereum (Paxos Gold), wyrocznia funduszu USYC; obliczenia CapitalFlowAI')
+           '1 USD (BUIDL), XAU/USD z wyroczni na Ethereum (Paxos Gold, Tether Gold), wyrocznia funduszu USYC; Tether Gold: w obiegu = totalSupply '
+           'na Ethereum − rezerwa emitenta (wybite, niewydane) z jego danych o przejrzystości (app.tether.to/transparency.json); obliczenia CapitalFlowAI')
+# v160: rezerwy emitentów — produkt z 'rezerwa': w obiegu = podaż z łańcucha − tokeny wybite, jeszcze niewydane (dane emitenta, bez klucza, bez daty).
+# Świeżość z łańcucha: wybite wg emitenta (totalAuthorized) = totalSupply z odczytu w tym samym przebiegu (± RWC_REZ_TOL); inaczej, albo bez danych
+# (i bez poprzedniej zgodnej rezerwy ≤ RWC_CH_MAX_MIN), produkt bez wyceny w tym odczycie — opisany, nigdy zgadywanie.
+RWC_REZERWY = {
+    'tether_xaut': {'url': 'https://app.tether.to/transparency.json', 'iso': 'xaut', 'siec': 'Ethereum',
+                    'src': 'rezerwa emitenta: tokeny wybite, niewydane (notIssued sieci Ethereum) — dane o przejrzystości emitenta (app.tether.to/transparency.json)'},
+}
+RWC_REZ_TOL = 0.01         # tokenów — wybite wg emitenta ≠ totalSupply z łańcucha o więcej = dane emitenta nieaktualne (bez wyceny w tym odczycie)
+RWC_REZ_TIMEOUT = 8        # s — jedno zapytanie (ok. 9 KB; 04.10 z Polski 0,2 s)
+RWC_REZ_MAX_B = 500_000    # bajtów — większa odpowiedź = błąd
 RWC_SEL_SUPPLY, RWC_SEL_DEC, RWC_SEL_ROUND, RWC_SEL_OWNER = '0x18160ddd', '0x313ce567', '0xfeaf968c', '0x8da5cb5b'   # totalSupply(), decimals(), latestRoundData(), owner()
 RWC_SOL_PROG = ('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb')   # programy tokenów Solany (SPL, Token-2022)
 _RWC_HEX = re.compile(r'^0x[0-9a-fA-F]*$')
@@ -17144,14 +17160,92 @@ def rwc_cena_ok(rule, px, px_at, now):
     return _rwc_age_min(px_at, now) <= c['max_min']
 
 
-def rwc_blok(rd, prev_oc=None, now=None):
+def _rwc_rez_num(x):
+    """v160: liczba z danych emitenta (liczba albo napis; bool, NaN, ±inf, inne — nie) → float albo None."""
+    if isinstance(x, bool) or not isinstance(x, (int, float, str)):
+        return None
+    try:
+        v = float(x)
+    except ValueError:
+        return None
+    return v if math.isfinite(v) else None
+
+
+def rwc_rez_parse(j, iso, siec):
+    """v160: dane o przejrzystości emitenta → (wybite, rezerwa) waluty `iso` w sieci `siec` (data_formatted[].blockChains[]: totalAuthorized,
+    notIssued) albo None (brak, zły zapis, rezerwa < 0 albo > wybitych, wybitych więcej niż RWC_MAX_SUPPLY)."""
+    F = j.get('data_formatted') if isinstance(j, dict) else None
+    for e in F if isinstance(F, list) else []:
+        if isinstance(e, dict) and e.get('iso') == iso:
+            for b in e.get('blockChains') if isinstance(e.get('blockChains'), list) else []:
+                if isinstance(b, dict) and b.get('name') == siec:
+                    tot, rez = _rwc_rez_num(b.get('totalAuthorized')), _rwc_rez_num(b.get('notIssued'))
+                    return (tot, rez) if tot is not None and rez is not None and 0 <= rez <= tot <= RWC_MAX_SUPPLY else None
+    return None
+
+
+def rwc_rezerwy(now=None, get=None):
+    """v160: rezerwy emitentów z RWC_REZERWY → {id: {'tot', 'v', 'at'} albo {'err'}} — jedno zapytanie na id, bez ponowień (plik co 6 h; brak =
+    produkt bez wyceny w tym odczycie, chyba że poprzednia rezerwa ≤ 12 h i zgodna). `get(url, headers, timeout)` → bajty (domyślnie get_bytes)."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
+    get = get or get_bytes
+    out = {}
+    for i, c in RWC_REZERWY.items():
+        try:
+            b = get(c['url'], {'Accept': 'application/json'}, RWC_REZ_TIMEOUT)
+            if not isinstance(b, (bytes, bytearray)) or len(b) > RWC_REZ_MAX_B:
+                raise ValueError('zła albo za duża odpowiedź')
+            r = rwc_rez_parse(json.loads(b), c['iso'], c['siec'])
+            out[i] = {'tot': r[0], 'v': r[1], 'at': now.isoformat()} if r else {'err': f"brak pól notIssued / totalAuthorized ({c['iso']}, {c['siec']})"}
+        except Exception as e:  # noqa — sieć, ochrona serwera, zły JSON: ten produkt bez rezerwy w tym odczycie
+            out[i] = {'err': f'{type(e).__name__}: {e}'[:120]}
+    return out
+
+
+def _rwc_rez_ok(x):
+    """v160: zapis rezerwy — liczby v (≥ 0) i tot (≥ v, ≤ RWC_MAX_SUPPLY) oraz czas naszego odczytu at (napis)."""
+    v, tot = rwa_num(x.get('v'), pos=False), rwa_num(x.get('tot'), pos=False)
+    return v is not None and tot is not None and 0 <= v <= tot <= RWC_MAX_SUPPLY and isinstance(x.get('at'), str)
+
+
+def rwc_rez_blok(slug, p, rez, prev_oc, sup, now, notes):
+    """v160: rezerwa emitenta produktu z 'rezerwa' → (blok rez do pliku albo None, ok odczytu, liczba w obiegu albo None). `rez` — wynik rwc_rezerwy
+    (None = krok rezerw nieuruchomiony: bez wyceny, bez notatki, ok bez zmian). Dane bieżące albo — gdy zapytanie się nie udało — poprzedni zapis
+    produktu nie starszy niż RWC_CH_MAX_MIN (oznaczony 'k'). W obiegu tylko przy pełnym odczycie tokenów (`sup`), gdy wybite wg emitenta = `sup`
+    (± RWC_REZ_TOL) i rezerwa ≤ `sup`; inaczej None (produkt bez wyceny w tym odczycie, notatka, ok False)."""
+    if rez is None:
+        return None, True, None
+    cur = rez.get(p['rezerwa']) if isinstance(rez, dict) else None
+    ok, cand = True, None
+    if isinstance(cur, dict) and _rwc_rez_ok(cur):
+        cand = {'v': float(cur['v']), 'tot': float(cur['tot']), 'at': cur['at']}
+    else:
+        ok = False
+        err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else 'brak odpowiedzi'
+        notes.append(f"{p['name']}: rezerwa emitenta — {err}")
+        pp = (prev_oc.get('p') or {}).get(slug) if isinstance(prev_oc, dict) and isinstance(prev_oc.get('p'), dict) else None
+        q = pp.get('rez') if isinstance(pp, dict) else None
+        if isinstance(q, dict) and q.get('ok') is True and _rwc_rez_ok(q) and _rwc_age_min(q['at'], now) <= RWC_CH_MAX_MIN:
+            cand = {'v': float(q['v']), 'tot': float(q['tot']), 'at': q['at'], 'k': 1}
+    if cand is None:
+        return None, ok, None
+    zg = sup is not None and abs(cand['tot'] - sup) <= RWC_REZ_TOL and cand['v'] <= sup
+    if sup is not None and not zg:
+        ok = False
+        notes.append(f"{p['name']}: wybite wg emitenta {cand['tot']:.2f} ≠ odczyt łańcucha {sup:.2f} — dane emitenta nieaktualne, bez wyceny w tym odczycie")
+    return dict(cand, ok=bool(zg), src=RWC_REZERWY[p['rezerwa']]['src']), ok, (sup - cand['v']) if zg else None
+
+
+def rwc_blok(rd, prev_oc=None, now=None, rez=None):
     """Blok onchain pliku z odczytu `rd` (rwc_odczyt) i poprzedniego bloku: każdy produkt z RWC_PRODUKTY — tokeny [sieć, symbol, podaż|None,
     czas odczytu|None, adres] (nieodczytany token = poprzedni odczyt z jego czasem, najwyżej RWC_KEEP_MIN; sieć „nie do odczytu” = None), reguła
     ceny, cena i jej czas, n (tokenów na liście), nr (z liczbą), un (sieci bez liczby), vp (suma odczytanych × cena — częściowa, gdy nr < n),
     v (pełna wartość, tylko gdy wszystkie tokeny mają liczbę), full (v i wszystkie odczyty ≤ RWC_CH_MAX_MIN i świeża cena). Ceny wyroczni: bieżący
     odczyt albo poprzedni z czasem ceny. hs: dzienne sumy podaży (tylko gdy wszystkie tokeny odczytane w tym odczycie). Brak liczby = None.
     Strażnik właściciela (produkt z 'wzor', BUIDL): token z wl — owner() inny niż kontraktu wzorcowego = pominięty razem z poprzednim odczytem
-    (wl.bad), właściciela nie odczytano = jak nieodczytany (wl.nv; poprzedni sprawdzony odczyt z czasem). 'bez_adresu' z konfiguracji — do pliku."""
+    (wl.bad), właściciela nie odczytano = jak nieodczytany (wl.nv; poprzedni sprawdzony odczyt z czasem). 'bez_adresu' z konfiguracji — do pliku.
+    v160: produkt z 'rezerwa' — rez (wynik rwc_rezerwy; None = krok nieuruchomiony): v = (podaż − rezerwa emitenta) × cena tylko przy zgodnej rezerwie
+    (rwc_rez_blok); pola rez i obieg; bez wartości częściowej vp."""
     now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
     prev_oc = prev_oc if isinstance(prev_oc, dict) and not prev_oc.get('off') else {}
     stamp, day = rd['at'], now.date().isoformat()
@@ -17220,10 +17314,17 @@ def rwc_blok(rd, prev_oc=None, now=None):
         n, nr = len(toks), sum(1 for t in toks if t[2] is not None)
         nrd = sum(1 for t in toks if t[0] in RWC_SIECI and t[2] is not None)   # odczytane w sieciach, które czytamy (dzienny zapis podaży)
         pok = rwc_cena_ok(rule, px, px_at, now)
+        net, rz = tot, None
+        if p.get('rezerwa'):   # v160: w obiegu = podaż − rezerwa emitenta (zgodna z łańcuchem); bez niej — bez wyceny w tym odczycie
+            rz, rz_ok, net = rwc_rez_blok(slug, p, rez, prev_oc, tot if nr == n else None, now, notes)
+            ok = ok and rz_ok
         o = {'name': p['name'], 'seg': p['seg'], 'rule': rule, 'px': px, 'px_at': px_at, 'px_ok': pok, 't': toks, 'n': n, 'nr': nr,
              'un': sorted(set(un)), 'sup': round(tot, 6) if nr == n else None,
-             'v': round(tot * px, 2) if nr == n and px is not None else None,
-             'vp': round(tot * px, 2) if 0 < nr < n and px is not None else None}
+             'v': round(net * px, 2) if nr == n and px is not None and net is not None else None,
+             'vp': round(tot * px, 2) if 0 < nr < n and px is not None and not p.get('rezerwa') else None}
+        if p.get('rezerwa'):
+            o['rez'] = rz                                              # v, tot (wybite wg emitenta), at (nasz odczyt), ok (zgodna z łańcuchem), k (poprzednia)
+            o['obieg'] = round(net, 6) if net is not None and nr == n else None
         o['full'] = bool(o['v'] is not None and fresh_all and pok)
         if wz:
             o['wl'] = {'ref': ref, 'bad': wl_bad, 'nv': sorted(set(wl_nv))}   # strażnik właściciela (BUIDL): wzorzec, inny właściciel, niesprawdzone
@@ -17265,6 +17366,12 @@ def rwc_uzyj(oc, now=None):
                 break
             sup += t[2]
         else:
+            if RWC_PRODUKTY[slug].get('rezerwa'):   # v160: tylko z rezerwą emitenta zgodną z łańcuchem i nie starszą niż odczyt tokenów
+                q = o.get('rez')
+                if not (isinstance(q, dict) and q.get('ok') is True and _rwc_rez_ok(q) and abs(q['tot'] - sup) <= RWC_REZ_TOL
+                        and q['v'] <= sup and _rwc_age_min(q['at'], now) <= RWC_CH_MAX_MIN):
+                    continue
+                sup -= q['v']
             if rwc_cena_ok(o['rule'], o.get('px'), o.get('px_at'), now):
                 v = rwa_num(sup * o['px'])
                 if v is not None:
@@ -17295,8 +17402,9 @@ def rwc_wynik(oc, used, rows, day, prev=None):
 
 
 def rwc_krok(prev_oc, now):
-    """Krok main(): odczyt własny z łańcucha (sieć) i blok onchain z poprzednim blokiem (nieodczytane tokeny i ceny — z poprzedniego odczytu z czasem)."""
-    return rwc_blok(rwc_odczyt(now), prev_oc, now)
+    """Krok main(): odczyt własny z łańcucha (sieć), rezerwy emitentów (v160: jedno zapytanie na produkt z 'rezerwa') i blok onchain z poprzednim
+    blokiem (nieodczytane tokeny, ceny i rezerwy — z poprzedniego odczytu z czasem)."""
+    return rwc_blok(rwc_odczyt(now), prev_oc, now, rez=rwc_rezerwy(now))
 
 
 def rwc_wylaczony(prev_oc, now):
