@@ -1,5 +1,5 @@
 {
- "at": "2026-10-03T05:48:55+00:00",
+ "at": "2026-10-04T04:01:22+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,12 +22,12 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
-   "rows": 104,
+   "at": "2026-10-04T04:01:22+00:00",
+   "rows": 117,
    "first": "2026-09-26",
-   "last": "2026-10-03",
-   "added": 0,
-   "revised": 13,
+   "last": "2026-10-04",
+   "added": 13,
+   "revised": 0,
    "revisions_total": 52,
    "fetched": 13
   },
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
-   "rows": 16,
+   "at": "2026-10-04T04:01:22+00:00",
+   "rows": 18,
    "first": "2026-09-26",
-   "last": "2026-10-03",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-10-04",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 4,
    "fetched": 2
   },
@@ -68,14 +68,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
+   "at": "2026-10-04T04:01:22+00:00",
    "rows": 754,
    "first": "2023-09-26",
    "last": "2026-10-02",
    "added": 0,
    "revised": 0,
    "revisions_total": 1,
-   "fetched": 749
+   "fetched": 748
   },
   "tic": {
    "file": "tic.csv",
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
+   "at": "2026-10-04T04:01:22+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
+   "at": "2026-10-04T04:01:22+00:00",
    "rows": 1050,
    "first": "2024-10-01",
    "last": "2026-09-29",
@@ -140,14 +140,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
+   "at": "2026-10-04T04:01:22+00:00",
    "rows": 522,
    "first": "2024-09-26",
    "last": "2026-10-02",
    "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 517
+   "fetched": 516
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -170,14 +170,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
-   "rows": 40,
+   "at": "2026-10-04T04:01:22+00:00",
+   "rows": 50,
    "first": "2026-09-28",
-   "last": "2026-10-01",
-   "added": 0,
-   "revised": 10,
+   "last": "2026-10-02",
+   "added": 10,
+   "revised": 0,
    "revisions_total": 30,
-   "fetched": 40
+   "fetched": 50
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -200,7 +200,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
+   "at": "2026-10-04T04:01:22+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -240,7 +240,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-03T05:48:55+00:00",
+   "at": "2026-10-04T04:01:22+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -252,8 +252,8 @@
  },
  "errors": [],
  "notes": [
-  "swiat-dziennik: brak pliku dziennika świata na stronie (404) — nic do zapisania",
-  "swiat-dziennik-pk: brak pliku dziennika świata na stronie (404) — punktów kontrolnych nie zapisano"
+  "swiat-dziennik: dziennik świata wersji 2 od 2026-10-05 jeszcze bez wierszy — nic do zapisania",
+  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
  ],
  "seria": {
   "plyn.net": 400,
@@ -271,12 +271,12 @@
   "cftc.eth.lev": 105,
   "cftc.eth.am": 105,
   "cftc.eth.dealer": 105,
-  "stab.usdt": 8,
-  "stab.usdc": 8,
-  "wh.Binance": 8,
-  "wh.Bitfinex": 8,
-  "wh.Bybit": 8,
-  "wh.KuCoin": 8,
-  "wh.OKX": 8
+  "stab.usdt": 9,
+  "stab.usdc": 9,
+  "wh.Binance": 9,
+  "wh.Bitfinex": 9,
+  "wh.Bybit": 9,
+  "wh.KuCoin": 9,
+  "wh.OKX": 9
  }
 }
