@@ -1,8 +1,9 @@
 name: Zegar zapasowy (gdy harmonogram stoi)
 
-# v145 (03.10.2026): harmonogram „Strona i dane” potrafi stanąć na godziny (GitHub: „All Systems Operational”). Ten workflow uruchamia
-# „Strona i dane” zdarzeniem workflow_dispatch ok. 20 min po starcie ostatniego przebiegu — TYLKO gdy przebiegów z harmonogramu nie było
-# od ponad 45 min. Budzony na końcu każdego przebiegu strony (gdy harmonogram stoi) i własnym harmonogramem (gdyby ten działał).
+# v145 (03.10.2026): harmonogram „Strona i dane” potrafi stanąć na godziny (GitHub: „All Systems Operational”). v145.2 (04.10): czuwanie
+# po KAŻDYM przebiegu strony — uruchamia „Strona i dane” zdarzeniem workflow_dispatch, gdy od startu ostatniego przebiegu minęło 20 min
+# (harmonogram stoi ≥ 45 min) albo 30 min (harmonogram niedawno działał, ale nie zdążył). Budzony na końcu każdego przebiegu strony
+# i własnym harmonogramem (gdyby ten działał); nowe czuwanie anuluje poprzednie (concurrency).
 # Token: token przebiegu (actions: write), tylko w nagłówku. Wyłącznik: zmienna repozytorium ZEGAR_OFF=1.
 on:
   workflow_dispatch:
@@ -18,7 +19,7 @@ concurrency:
 jobs:
   prowadz:
     runs-on: ubuntu-latest
-    timeout-minutes: 25   # v145.1: czekanie do 21 min + doczekanie do 2 min
+    timeout-minutes: 40   # v145.2: czekanie do 31 min + doczekanie do 2 min
     permissions:
       actions: write
       contents: read

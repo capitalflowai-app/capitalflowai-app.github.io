@@ -20550,7 +20550,8 @@ class LzejszaStronaV141(unittest.TestCase):
 
 # ===================== v145: zapasowy zegar automatu strony (narzedzia/zegar.py) =====================
 class ZegarV145(unittest.TestCase):
-    """Decyzja zegara (czysta funkcja), tryby zbudz/prowadz z podmienionym API i zegarem; token nigdy w logu; błąd = kod 0."""
+    """Zegar zapasowy (v145, v145.1, v145.2 — czuwanie po każdym przebiegu): decyzja (czysta funkcja), tryby zbudz/prowadz z podmienionym API
+    i zegarem; token nigdy w logu; błąd = kod 0."""
 
     @classmethod
     def setUpClass(cls):
@@ -20568,17 +20569,25 @@ class ZegarV145(unittest.TestCase):
 
     def test_decyzja(self):
         Z = self.Z
-        self.assertEqual(Z.decyzja([self.r('schedule', 10), self.r('push', 2)], self.NOW)[0], 'nic', 'harmonogram działa')
-        self.assertEqual(Z.decyzja([self.r('schedule', 44)], self.NOW)[0], 'nic', '44 min — jeszcze działa')
-        self.assertEqual(Z.decyzja([self.r('schedule', 45)], self.NOW)[0], 'uruchom', '45 min bez harmonogramu, ostatni start 45 min temu')
+        self.assertEqual((Z.ODSTEP_MIN, Z.LUZ_MIN, Z.STOI_MIN), (20, 30, 45))
+        # harmonogram stoi (≥ 45 min bez przebiegu z harmonogramu) — próg 20 min
         self.assertEqual(Z.decyzja([self.r('schedule', 270), self.r('push', 25)], self.NOW)[0], 'uruchom')
         d = Z.decyzja([self.r('schedule', 270), self.r('push', 5)], self.NOW)
-        self.assertEqual(d[0], 'czekaj'); self.assertEqual(d[1], 15 * 60 + 5, 'do 20 min od startu ostatniego')
+        self.assertEqual(d, ('czekaj', 15 * 60 + 5), 'do 20 min od startu ostatniego')
+        self.assertEqual(Z.decyzja([self.r('schedule', 45)], self.NOW)[0], 'uruchom', '45 min — harmonogram stoi')
+        self.assertIn('harmonogram stoi', Z.decyzja([self.r('push', 30)], self.NOW)[1], 'brak przebiegów z harmonogramu = stoi')
+        # v145.2: harmonogram niedawno działał — próg 30 min (zapas na jego opóźnienie), nie „nic”
+        self.assertEqual(Z.decyzja([self.r('schedule', 10), self.r('push', 2)], self.NOW), ('czekaj', 28 * 60 + 5))
+        self.assertEqual(Z.decyzja([self.r('schedule', 10)], self.NOW), ('czekaj', 20 * 60 + 5))
+        d = Z.decyzja([self.r('schedule', 31)], self.NOW)
+        self.assertEqual(d[0], 'uruchom'); self.assertIn('harmonogram nie zdążył w 30 min', d[1])
+        self.assertEqual(Z.decyzja([self.r('schedule', 44)], self.NOW)[0], 'uruchom', '44 min: harmonogram „działa”, ale nie zdążył')
+        # inny przebieg czeka albo trwa — nic (on sam obudzi zegar na końcu)
         self.assertEqual(Z.decyzja([self.r('schedule', 270), self.r('workflow_dispatch', 30, 'queued')], self.NOW)[0], 'nic', 'inny w kolejce')
-        self.assertEqual(Z.decyzja([self.r('schedule', 270), self.r('push', 30, 'in_progress')], self.NOW)[0], 'nic', 'inny trwa')
+        self.assertEqual(Z.decyzja([self.r('schedule', 2, 'in_progress')], self.NOW)[0], 'nic', 'inny trwa')
         self.assertEqual(Z.decyzja([], self.NOW)[0], 'uruchom', 'brak przebiegów')
-        self.assertEqual(Z.decyzja([self.r('push', 30)], self.NOW)[0], 'uruchom', 'brak przebiegów z harmonogramu = stoi')
         self.assertTrue(Z.harmonogram_stoi([{'event': 'schedule', 'created_at': 'zła data'}], self.NOW), 'zła data = brak')
+        self.assertEqual((Z.prog_min([self.r('schedule', 44)], self.NOW), Z.prog_min([self.r('schedule', 45)], self.NOW)), (30, 20))
 
     def _api(self, runs_seq, log):
         it = iter(runs_seq)
@@ -20601,11 +20610,13 @@ class ZegarV145(unittest.TestCase):
         self.assertNotIn('TAJNY', out.getvalue(), 'token nigdy w logu')
         return rc, log, slept, out.getvalue()
 
-    def test_zbudz(self):
-        rc, log, _, _ = self._run('zbudz', [[self.r('schedule', 270), self.r('push', 3)]])
-        self.assertEqual(rc, 0); self.assertTrue(log[-1][0].endswith('/actions/workflows/zegar.yml/dispatches') and log[-1][1] == {'ref': 'main'})
-        rc, log, _, _ = self._run('zbudz', [[self.r('schedule', 12), self.r('push', 3)]])
-        self.assertEqual(rc, 0); self.assertEqual([p for p, d in log if d is not None], [], 'harmonogram działa — bez budzenia')
+    def test_zbudz_zawsze(self):
+        for runs in ([self.r('schedule', 270), self.r('push', 3)], [self.r('schedule', 12), self.r('schedule', 3)], []):
+            rc, log, _, out = self._run('zbudz', [runs])
+            self.assertEqual(rc, 0)
+            self.assertEqual(log, [('/repos/capitalflowai-app/capitalflowai-app.github.io/actions/workflows/zegar.yml/dispatches', {'ref': 'main'})],
+                             'v145.2: czuwanie po KAŻDYM przebiegu — także gdy harmonogram działa (bez pytania o przebiegi)')
+            self.assertIn('czuwanie', out)
         rc, log, _, out = self._run('zbudz', [[self.r('schedule', 270)]], env={'ZEGAR_OFF': '1'})
         self.assertEqual((rc, log), (0, [])); self.assertIn('wyłączony', out)
         rc, log, _, _ = self._run('zbudz', [[self.r('schedule', 270)]], token='')
@@ -20615,19 +20626,45 @@ class ZegarV145(unittest.TestCase):
         later = self.NOW + datetime.timedelta(minutes=15, seconds=10)
         stale = [self.r('schedule', 270), self.r('push', 5)]
         rc, log, slept, _ = self._run('prowadz', [stale, stale], now_seq=[self.NOW, later])
-        self.assertEqual(rc, 0); self.assertEqual(slept, [15 * 60 + 5], 'czeka do 20 min od startu ostatniego przebiegu')
+        self.assertEqual(rc, 0); self.assertEqual(slept, [15 * 60 + 5], 'harmonogram stoi: czeka do 20 min od startu ostatniego przebiegu')
         self.assertTrue(log[-1][0].endswith('/actions/workflows/strona.yml/dispatches'), 'uruchamia „Strona i dane”')
 
-    def test_prowadz_bez_uruchomienia_gdy_nowy_przebieg_albo_harmonogram(self):
+    def test_v145_2_noc_04_10_harmonogram_raz_i_cisza(self):
+        # 04.10.2026: przebieg z harmonogramu 02:16:18 (koniec 02:29:42), potem harmonogram stanął. Dawniej: zbudz — „harmonogram działa” i koniec.
+        U = datetime.timezone.utc
+        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        s = datetime.datetime(2026, 10, 4, 2, 16, 18, tzinfo=U)
+        runs = [{'event': 'schedule', 'created_at': f(s), 'run_started_at': f(s), 'status': 'completed', 'conclusion': 'success'},
+                {'event': 'workflow_dispatch', 'created_at': '2026-10-04T02:03:00Z', 'run_started_at': '2026-10-04T02:03:00Z', 'status': 'completed'}]
+        rc, log, _, _ = self._run('zbudz', [runs])
+        self.assertTrue(log[-1][0].endswith('/zegar.yml/dispatches'), 'czuwanie uruchomione mimo „działającego” harmonogramu')
+        t0 = datetime.datetime(2026, 10, 4, 2, 30, 5, tzinfo=U)
+        po = s + datetime.timedelta(minutes=30, seconds=5)
+        rc, log, slept, out = self._run('prowadz', [runs, runs], now_seq=[t0, po])
+        self.assertEqual(slept, [int((po - t0).total_seconds())], 'czeka do 30 min od startu (harmonogram niedawno działał)')
+        self.assertTrue(log[-1][0].endswith('/actions/workflows/strona.yml/dispatches'), 'harmonogram nie zdążył — zegar uruchamia przebieg')
+        self.assertIn('harmonogram nie zdążył', out)
+
+    def test_v145_2_harmonogram_zdazyl_bez_dublowania(self):
+        # harmonogram działa: w czasie czuwania ruszył kolejny przebieg z harmonogramu — zegar nic nie uruchamia (nowy przebieg sam obudzi zegar)
+        runs = [self.r('schedule', 2)]
+        later = self.NOW + datetime.timedelta(minutes=28, seconds=5)
+        nowy = [{**self.r('schedule', 0), 'created_at': (later - datetime.timedelta(minutes=8)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                 'run_started_at': (later - datetime.timedelta(minutes=8)).strftime('%Y-%m-%dT%H:%M:%SZ')}] + runs
+        rc, log, slept, out = self._run('prowadz', [runs, nowy], now_seq=[self.NOW, later])
+        self.assertEqual(slept, [28 * 60 + 5]); self.assertEqual([p for p, d in log if d is not None], [], 'bez dublowania przebiegu')
+        self.assertIn('nic', out)
+        trwa = [{**nowy[0], 'status': 'in_progress'}] + runs
+        rc, log, _, out = self._run('prowadz', [runs, trwa], now_seq=[self.NOW, later])
+        self.assertEqual([p for p, d in log if d is not None], [], 'przebieg trwa — nic'); self.assertIn('trwa', out)
+
+    def test_prowadz_bez_uruchomienia_gdy_nowy_przebieg(self):
         later = self.NOW + datetime.timedelta(minutes=15, seconds=10)
         stale = [self.r('schedule', 270), self.r('push', 5)]
         nowy = [{**self.r('push', 1), 'created_at': (later - datetime.timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ'),
                  'run_started_at': (later - datetime.timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')}] + stale
         rc, log, _, out = self._run('prowadz', [stale, nowy], now_seq=[self.NOW, later])
         self.assertEqual([p for p, d in log if d is not None], [], 'w międzyczasie nowy przebieg — bez uruchamiania'); self.assertIn('nic', out)
-        ruszyl = [{**self.r('schedule', 0), 'created_at': later.strftime('%Y-%m-%dT%H:%M:%SZ')}] + stale
-        rc, log, _, _ = self._run('prowadz', [stale, ruszyl], now_seq=[self.NOW, later])
-        self.assertEqual([p for p, d in log if d is not None], [], 'harmonogram ruszył — bez uruchamiania')
         rc, log, slept, _ = self._run('prowadz', [[self.r('schedule', 270), self.r('push', 400)], [self.r('schedule', 270), self.r('push', 400)]])
         self.assertEqual(slept, [], 'ostatni dawno — bez czekania'); self.assertTrue(log[-1][0].endswith('/strona.yml/dispatches'))
 
@@ -20637,6 +20674,7 @@ class ZegarV145(unittest.TestCase):
         out = io.StringIO()
         with mock.patch.dict(os.environ, {'GH_TOKEN': 'ghs_TAJNY_TOKEN_123'}), mock.patch.object(self.Z, '_api', zle), mock.patch('sys.stdout', out):
             self.assertEqual(self.Z.main(['zegar.py', 'zbudz']), 0, 'błąd sieci/API = kod 0 (strona nie cierpi)')
+            self.assertEqual(self.Z.main(['zegar.py', 'prowadz']), 0)
         self.assertNotIn('TAJNY', out.getvalue()); self.assertIn('OSError', out.getvalue())
         with mock.patch('sys.stdout', io.StringIO()):
             self.assertEqual(self.Z.main(['zegar.py', 'cos']), 2)
@@ -20648,19 +20686,19 @@ class ZegarV145(unittest.TestCase):
         for frag in ('needs: [zbuduj, opublikuj]', 'if: always()', 'actions: write', 'GH_TOKEN: ${{ github.token }}',
                      'python3 narzedzia/zegar.py zbudz || echo'):
             self.assertIn(frag, j, frag)
-        for frag in ('workflow_dispatch:', 'group: zegar', 'cancel-in-progress: true', 'timeout-minutes: 25', 'actions: write',
+        for frag in ('workflow_dispatch:', 'group: zegar', 'cancel-in-progress: true', 'timeout-minutes: 40', 'actions: write',
                      'python3 narzedzia/zegar.py prowadz', 'ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}'):
             self.assertIn(frag, z, frag)
         self.assertNotIn('secrets.', z, 'zegar bez sekretów — tylko token przebiegu')
-        self.assertGreaterEqual(self.Z.MAX_CZEKAJ, self.Z.ODSTEP_MIN * 60 + 5, 'v145.1: czekanie pokrywa pełny odstęp (+5 s)')
-        self.assertLess(self.Z.MAX_CZEKAJ + self.Z.DOCZEKAJ_S, 25 * 60 - 60, 'czekanie z doczekaniem mieści się w limicie zadania (25 min)')
+        self.assertGreaterEqual(self.Z.MAX_CZEKAJ, self.Z.LUZ_MIN * 60 + 5, 'v145.2: czekanie pokrywa pełny próg 30 min (+5 s)')
+        self.assertLess(self.Z.MAX_CZEKAJ + self.Z.DOCZEKAJ_S, 40 * 60 - 60, 'czekanie z doczekaniem mieści się w limicie zadania (40 min)')
 
     def test_v145_1_szybki_przebieg_nie_zrywa_lancucha(self):
         # 03.10.2026: start strony 17:12:42, zegar 17:15:35 → trzeba czekać 17 min 12 s (+5 s); przy MAX 17 min łańcuch stawał
         Z = self.Z
         start = datetime.datetime(2026, 10, 3, 17, 12, 42, tzinfo=datetime.timezone.utc)
         t0 = datetime.datetime(2026, 10, 3, 17, 15, 35, tzinfo=datetime.timezone.utc)
-        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')
+        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
         runs = [{'event': 'workflow_dispatch', 'created_at': f(start), 'run_started_at': f(start), 'status': 'completed', 'conclusion': 'success'},
                 {'event': 'schedule', 'created_at': '2026-10-03T11:05:11Z', 'run_started_at': '2026-10-03T11:05:11Z', 'status': 'completed'}]
         po = t0 + datetime.timedelta(seconds=17 * 60 + 12)
@@ -20679,7 +20717,7 @@ class ZegarV145(unittest.TestCase):
         # brakuje więcej niż DOCZEKAJ_S (np. w międzyczasie nowy przebieg) — bez doczekiwania i bez uruchamiania (nowy przebieg sam obudzi zegar)
         later = self.NOW + datetime.timedelta(minutes=15, seconds=10)
         stale = [self.r('schedule', 270), self.r('push', 5)]
-        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')
+        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
         nowy = [{**self.r('push', 1), 'created_at': f(later - datetime.timedelta(minutes=17)), 'run_started_at': f(later - datetime.timedelta(minutes=17))}] + stale
         rc, log, slept, out = self._run('prowadz', [stale, nowy], now_seq=[self.NOW, later])
         self.assertEqual(slept, [15 * 60 + 5], 'brak doczekania przy 3 min braku'); self.assertEqual([p for p, d in log if d is not None], [])

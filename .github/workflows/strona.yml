@@ -147,7 +147,8 @@ jobs:
         uses: actions/deploy-pages@v4
 
   # v145: zapasowy zegar — gdy harmonogram tego workflow stoi (03.10.2026: brak przebiegów z harmonogramu od 11:05 UTC), budzi workflow
-  # „Zegar zapasowy” (zegar.yml), który ok. 20 min po starcie tego przebiegu uruchamia następny; gdy harmonogram działa — nic nie robi.
+  # „Zegar zapasowy” (zegar.yml), który ok. 20 min po starcie tego przebiegu uruchamia następny; v145.2: budzi go ZAWSZE (czuwanie — gdy
+  # harmonogram niedawno działał, zegar czeka 30 min i uruchamia przebieg tylko, gdy harmonogram nie zdążył).
   # Zawsze (także po nieudanej publikacji), krótko; błąd zegara nigdy nie psuje przebiegu (kod 0). Wyłącznik: zmienna repozytorium ZEGAR_OFF=1.
   zegar:
     needs: [zbuduj, opublikuj]
