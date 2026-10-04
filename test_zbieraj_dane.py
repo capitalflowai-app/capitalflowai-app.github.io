@@ -22635,3 +22635,116 @@ class RwaWisdomTreeV161(unittest.TestCase):
         Z = K.rwc_porownanie(J1, now)
         self.assertEqual(Z['status'], '✅', Z); self.assertIn('w sumach z odczytu własnego: 5 z 5 produktów', Z['opis'])
         self.assertIn('wartość vs ostatnio znana: w paśmie', Z['opis'], 'WTGXX 1,23 vs zamrożone 1,24 mld USD')
+
+
+class KontrolaDziennikowV162(unittest.TestCase):
+    """v162: kontrola dzienna — ostatni dzień z wynikiem w dziennikach sygnałów TRENDÓW (treść, nie wiek pliku): krypto 4 dni kalendarzowe, świat
+    48 h roboczych, przed startem „—”, najwyżej ⚠️ (nigdy ❌ ani BŁĄD); pełny przebieg kontroli z atrapą sieci — wiersze w tabeli i uwagi."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v162', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        cls.K = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.K)
+
+    @staticmethod
+    def t(s):
+        return datetime.datetime.fromisoformat(s).replace(tzinfo=datetime.timezone.utc)
+
+    @staticmethod
+    def kr(*dni, y=0.5):
+        return {'v': 2, 'since': '2026-09-28', 'rows': [[d, 'BTC', 1, 'obs', 'p+', d + 'T06:10:00Z', y] for d in dni]}
+
+    def test_krypto(self):
+        K = self.K
+        self.assertEqual([x[0] for x in K.DZ_SPEC], ['krypto-dziennik', 'swiat-dziennik'])
+        J = self.kr('2026-09-30', '2026-10-01', '2026-10-02'); J['rows'] += [['2026-10-03', 'BTC', 1, 'obs', 'p+', 'x', None]]
+        r = K.dziennik_swiezosc(J, 'krypto-dziennik', self.t('2026-10-04T12:25:00'))
+        self.assertEqual(r, ('TRENDY krypto — ostatni dzień z wynikiem sygnałów', '✅', 36 * 60 + 25, '2026-10-02', ''), 'wiersz bez wyniku (czeka) się nie liczy')
+        r = K.dziennik_swiezosc(self.kr('2026-09-29'), 'krypto-dziennik', self.t('2026-10-04T12:25:00'))
+        self.assertEqual(r[1:4], ('⚠️', 4 * 1440 + 12 * 60 + 25, '2026-09-29')); self.assertIn('wyniki sygnałów przestały dochodzić', r[4])
+        self.assertEqual(K.dziennik_swiezosc(self.kr('2026-09-30'), 'krypto-dziennik', self.t('2026-10-05T00:00:00'))[1], '✅', 'dokładnie 4 dni — w progu')
+        self.assertEqual(K.dziennik_swiezosc(self.kr('2026-09-30'), 'krypto-dziennik', self.t('2026-10-05T00:01:00'))[1], '⚠️')
+        for zle in (None, True, float('nan'), float('inf'), '0.5'):
+            J = self.kr('2026-10-03', y=zle); J['rows'] += self.kr('2026-09-25')['rows']
+            self.assertEqual(K.dziennik_swiezosc(J, 'krypto-dziennik', self.t('2026-10-04T12:25:00'))[3], '2026-09-25', zle)
+        J = {'since': '2026-09-28', 'rows': [['zła', 'X', 1, 'obs', '', 'x', 1.0], ['2026-10-03', 'X', 1, 'obs'], 'x', None]}
+        self.assertEqual(K.dziennik_swiezosc(J, 'krypto-dziennik', self.t('2026-10-04T12:25:00'))[1], '⚠️', 'złe wiersze pominięte — brak wyniku od startu')
+        for zly in (None, [], {'at': '2026-10-04T12:00:00Z'}, {'rows': None}):
+            self.assertIsNone(K.dziennik_swiezosc(zly, 'krypto-dziennik', self.t('2026-10-04T12:25:00')), zly)
+        self.assertIsNone(K.dziennik_swiezosc(self.kr('2026-10-02'), 'inny', self.t('2026-10-04T12:25:00')))
+
+    def test_swiat(self):
+        K = self.K
+        J = {'v': 2, 'since': '2026-10-05', 'rows': []}
+        self.assertEqual(K.dziennik_swiezosc(J, 'swiat-dziennik', self.t('2026-10-04T12:25:00')),
+                         ('TRENDY świat — ostatnia sesja z wynikiem sygnałów', '—', None, None, 'dziennik rusza 2026-10-05 — pierwsze wyniki po pierwszym sprawdzeniu'))
+        self.assertEqual(K.dziennik_swiezosc(J, 'swiat-dziennik', self.t('2026-10-05T15:00:00'))[1], '—', 'dzień startu — wynik wieczorem')
+        r = K.dziennik_swiezosc(J, 'swiat-dziennik', self.t('2026-10-06T10:00:00'))
+        self.assertEqual((r[1], r[4]), ('—', 'dziennik od 2026-10-05 — czekamy na pierwsze wyniki'))
+        r = K.dziennik_swiezosc(J, 'swiat-dziennik', self.t('2026-10-08T12:00:00'))
+        self.assertEqual(r[1], '⚠️'); self.assertIn('brak dnia z wynikiem w dzienniku (od 2026-10-05)', r[4])
+        J = {'v': 2, 'since': '2026-10-05', 'rows': [['2026-10-09', 'SPY', 1, 'obs', 'p+', 'x', 0.4], ['2026-10-12', 'SPY', -1, 'obs', 'p-', 'x', None]]}
+        r = K.dziennik_swiezosc(J, 'swiat-dziennik', self.t('2026-10-12T12:00:00'))
+        self.assertEqual(r[1:4], ('✅', 12 * 60, '2026-10-09'), 'piątek → poniedziałek południe: 12 h roboczych (weekend się nie liczy)')
+        r = K.dziennik_swiezosc(J, 'swiat-dziennik', self.t('2026-10-14T12:00:00'))
+        self.assertEqual(r[1], '⚠️', 'od piątku do środy południe: 60 h roboczych > 48 h')
+
+    def test_przebieg_kontroli(self):
+        import copy, io as _io, tempfile
+        K = self.K
+        NOW = self.t('2026-10-04T12:25:00')
+        kr_ok = self.kr('2026-10-01', '2026-10-02')
+        kr_stary = self.kr('2026-09-27')
+        sw = {'v': 2, 'since': '2026-10-05', 'rows': []}
+
+        class Resp:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self, n=-1):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def siec(kr):
+            def urlopen(req, timeout=None, **kw):
+                url = req.full_url
+                J = lambda o: Resp(json.dumps(o).encode())   # noqa: E731
+                if '/index.html?' in url:
+                    return Resp(b'<html>const EXTRA1={};' + b' ' * 1_000_100)
+                if '/data/meta.json?' in url:
+                    return J({'at': (NOW - datetime.timedelta(minutes=17)).isoformat(), 'ok': {}, 'errors': [], 'notes': []})
+                if '/data/krypto-dziennik.json?' in url:
+                    return J(dict(copy.deepcopy(kr), at=(NOW - datetime.timedelta(minutes=17)).isoformat()))
+                if '/data/swiat-dziennik.json?' in url:
+                    return J(dict(sw, at=(NOW - datetime.timedelta(minutes=17)).isoformat()))
+                if '/data/' in url:
+                    return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                    return Resp(b'x' * 100)
+                if url.startswith('https://api.github.com/'):
+                    return J({'workflow_runs': []})
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, _io.BytesIO(b''))   # inne kontrole: brak odpowiedzi
+            return urlopen
+        for kr, st in ((kr_ok, '✅'), (kr_stary, '⚠️')):
+            d = tempfile.mkdtemp(prefix='k162-')
+            with mock.patch.object(K, 'NOW', NOW), mock.patch.object(K, 'OUT_DIR', d), mock.patch.object(K, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                    mock.patch.object(K.time, 'sleep', lambda s: None), mock.patch.object(K.urllib.request, 'urlopen', siec(kr)):
+                R = K.kontrola()
+                md = K.raport_md(R)
+            L = md.splitlines()
+            self.assertRegex(L[0], r'^# Kontrola strony — \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} \(czas polski\)$'); self.assertRegex(L[2], r'^\*\*Wynik: (OK|UWAGA|BŁĄD)\*\*$')
+            row = next(s for s in R['swiezosc'] if s['zrodlo'] == 'TRENDY krypto — ostatni dzień z wynikiem sygnałów')
+            self.assertEqual((row['status'], row['data']), (st, kr['rows'][-1][0]))
+            row = next(s for s in R['swiezosc'] if s['zrodlo'] == 'TRENDY świat — ostatnia sesja z wynikiem sygnałów')
+            self.assertEqual(row['status'], '—')
+            self.assertIn('| TRENDY krypto — ostatni dzień z wynikiem sygnałów |', md)
+            self.assertEqual(any(u.startswith('TRENDY krypto — ostatni dzień z wynikiem sygnałów: ostatni wynik z 2026-09-27') for u in R['uwagi']), st == '⚠️')
+            self.assertFalse([b for b in R['bledy'] if 'TRENDY' in b], 'dzienniki nigdy nie są błędem kontroli')

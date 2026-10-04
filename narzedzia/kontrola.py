@@ -989,6 +989,44 @@ def _dl_bcra_kurs(j, d):
     return None
 
 
+# ---------------------------------------------------------------- v162: dzienniki sygnałów TRENDÓW — ostatni dzień z wynikiem ----------------------------------------------------------------
+# Plik dziennika jest przepisywany w każdym przebiegu (wiek pliku zawsze mały), więc pętla wieku plików nie widzi, że wyniki przestały dochodzić.
+# Tu: najnowszy dzień (sesja) z liczbą w polu wyniku (wiersz [dzień, symbol, N, stan, głosy, czas, y]). Krypto: wynik doby D dochodzi ok. D+3
+# 00:30 UTC (pliki dzienne archiwum cen; wynik potrzebuje otwarcia 06:00 doby D+2) — norma 2–3 dni od końca doby, próg 4 dni kalendarzowe.
+# Świat: wynik sesji dochodzi tego samego wieczoru — próg 48 h roboczych (święto w USA się mieści). Najwyżej ⚠️, nigdy ❌ ani BŁĄD; przed
+# startem dziennika (since) albo w pierwszych dniach bez wyniku — „—”; brak pliku albo plik bez wierszy — None (brak pliku zgłasza pętla wieku plików).
+DZ_SPEC = (('krypto-dziennik', 'TRENDY krypto — ostatni dzień z wynikiem sygnałów', 'w', 4 * 24 * 60),
+           ('swiat-dziennik', 'TRENDY świat — ostatnia sesja z wynikiem sygnałów', 'd', 48 * 60))
+_DZ_DZIEN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def dziennik_swiezosc(j, plik, now=None):
+    """v162: wiersz świeżości dziennika sygnałów (data/<plik>.json) w kształcie wierszy swiezosc(): (etykieta, status, wiek min, dzień, uwaga)
+    albo None (inny plik, brak pliku, plik bez listy wierszy). Wynik = liczba skończona w polu y (bool, None, NaN — nie)."""
+    spec = next((x for x in DZ_SPEC if x[0] == plik), None)
+    if spec is None or not isinstance(j, dict) or not isinstance(j.get('rows'), list):
+        return None
+    _p, lab, kat, prog = spec
+    now = now or NOW
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))  # noqa: E731
+    dni = [r[0] for r in j['rows'] if isinstance(r, list) and len(r) == 7 and isinstance(r[0], str) and _DZ_DZIEN.match(r[0]) and num(r[6])]
+    since = j.get('since') if isinstance(j.get('since'), str) and _DZ_DZIEN.match(j['since']) else None
+    if not dni:
+        if since and now.date().isoformat() <= since:
+            return (lab, '—', None, None, f'dziennik rusza {since} — pierwsze wyniki po pierwszym sprawdzeniu')
+        w0 = wiek_danych(since, 'day', kat, now) if since else None
+        if w0 is not None and w0 <= prog:
+            return (lab, '—', None, None, f'dziennik od {since} — czekamy na pierwsze wyniki')
+        return (lab, '⚠️', w0, None, 'brak dnia z wynikiem w dzienniku' + (f' (od {since})' if since else '') + ' (tylko uwaga)')
+    d = max(dni)
+    w = wiek_danych(d, 'day', kat, now)
+    if w is None:
+        return (lab, '?', None, d, 'zły zapis dnia')
+    if w <= prog:
+        return (lab, '✅', w, d, '')
+    return (lab, '⚠️', w, d, f'próg {fmt_wiek(prog)} — wyniki sygnałów przestały dochodzić (tylko uwaga)')
+
+
 def dolar_swiezosc(j, now=None):
     """Wiersz świeżości kursów dolara (data/dolar.json → najnowsza z part_at.ar/ve/bo) w kształcie wierszy swiezosc(): (etykieta, status, wiek min,
     data, uwaga); brak pliku = None (brak pliku zgłasza pętla wieku plików). Najwyżej ⚠️ — nieoficjalny serwis kursów to nie awaria strony."""
@@ -1786,6 +1824,16 @@ def kontrola():
     ju = jpx_swieta_uwaga()
     if ju:
         R['uwagi'].append(ju)
+    # 3c''''. v162: dzienniki sygnałów TRENDÓW — ostatni dzień z wynikiem (treść pliku, nie jego wiek); osobne wiersze tabeli, najwyżej ⚠️
+    for plik, _lab, _kat, _prog in DZ_SPEC:
+        dz = dziennik_swiezosc(files.get(plik), plik)
+        if dz:
+            label, st, w, txt, note = dz
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
     # 3c''. v133: tokenizowane aktywa RWA (data/rwa.json) — świeżość listy osobnym wierszem tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️,
     # nigdy ❌ ani BŁĄD
     rr = rwa_swiezosc(files.get('rwa'))
