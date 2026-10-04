@@ -11120,7 +11120,7 @@ test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąsk
   const F = L => new Function('LANG', html.slice(a, b) + '\nreturn {sepK, sepL};')(L);
   assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
   for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
-  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 30, 'etykiety składane w kodzie: 30 miejsc');
+  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 31, 'etykiety składane w kodzie: 31 miejsc (v156: pasek strachu i chciwości)');
   assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 29, 'listy składane w kodzie: 29 miejsc');
   for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
     assert.ok(!html.includes(s), 'dawny separator: ' + s);
@@ -11817,4 +11817,60 @@ test('v155: małe ikony Gaming i Giełd — wariant zdjęcia właściciela (kadr
     assert.equal(F.iconURL(id, 56), SRC[id], id + ': duży rozmiar — samo zdjęcie jak dotąd');
   }
   for (const id of ['gaming', 'exch']) { const o = F.SMALL_PHOTO[id]; assert.ok(o.b > 1 && o.c >= 1 && o.s >= 1 && o.lift.every(v => v >= 0 && v < 90), id + ': tony rozjaśniają, tło granatowe'); }
+});
+
+
+/* ---------- v156: strach i chciwość w lewym pasku ---------- */
+function v156Pasek(o) {
+  const a = html.indexOf('/* v156 (właściciel 04.10:'), b = html.indexOf('/* v156: koniec paska strachu i chciwości */', a);
+  assert.ok(a > 0 && b > a, 'blok paska');
+  const els = {}, L = {}, calls = [];
+  const mk = id => ({id, hidden: true, innerHTML: '', classList: {s: new Set(), add(c) { this.s.add(c); }, contains(c) { return this.s.has(c); }},
+    scrollIntoView(x) { calls.push(['scroll', id, x]); }, setAttribute() {}});
+  for (const id of ['#side-fg', '#c-fg', '#g-fg', '#tab-global', '#tab-crypto', '#tab-trendy']) els[id] = mk(id);
+  els['#c-fg'].hidden = false; els['#g-fg'].hidden = false;
+  const MO = []; class MOb { constructor(f) { this.f = f; MO.push(this); } observe(x, opt) { (this.o = this.o || []).push([x.id, JSON.stringify(opt)]); } }
+  const st = {mode: o.mode || 'global', anim: false}, pg = {v: o.page || 'overview'};
+  const env = {setTimeout: f => f(), doc: {addEventListener(e, f) { L[e] = f; }}};
+  const F = new Function('$', 't', 'escH', 'KR', 'FG', 'st', 'fgCrypto', 'fgGlobal', 'fgNum', 'fgInt', 'fgIso', 'fgShort', 'gAgeNote', 'fgGauge', 'sepK', 'MutationObserver',
+    'document', 'setTimeout', 'page', 'setPage', 'setMode', 'zwOpenFor', html.slice(a, b) + '\nreturn {fgRenderSide};')(
+    q => els[q] || null, (k, v) => k + (v ? JSON.stringify(v) : ''), v96src.escH, {data: o.kr}, {g: o.g}, st, x => x, x => x, v => typeof v === 'number' && isFinite(v),
+    v => String(Math.round(v)), s => /^\d{4}-\d{2}-\d{2}$/.test(s), s => 'S(' + s + ')', () => ' · wiek', (v, gid) => '<svg data-gid="' + gid + '" data-v="' + v + '"></svg>',
+    () => ': ', MOb, env.doc, env.setTimeout, pg.v, p => calls.push(['page', p]), m => { calls.push(['mode', m]); st.mode = m; }, p => calls.push(['zw', p.id]));
+  return {F, els, L, MO, calls, st};
+}
+test('v156: lewy pasek — dwa wskaźniki (CapitalFlowAI i krypto): skala, liczba, stan, dzień z wiekiem, historia 1D/1T/1M; bieżąca zakładka podświetlona', () => {
+  const row = (d, v) => [d, v], stOf = r => (r[1] < 45 ? 'f' : 'g');
+  const G = {v: 34, s: 'f', date: '2026-10-03', stOf, hist: [['n', row('2026-10-03', 34)], ['s1', row('2026-10-02', 41)], ['w1', null], ['m1', row('2026-09-03', 62)]]};
+  const C = {v: 58, s: 'g', date: '2026-10-04', stOf, hist: [['n', row('2026-10-04', 58)], ['d1', row('2026-10-03', 55)], ['w1', row('2026-09-27', 49)], ['m1', row('2026-09-04', 30)]]};
+  const P = v156Pasek({mode: 'global', kr: {fng: C}, g: G}); const h = P.els['#side-fg'].innerHTML;
+  assert.equal(P.els['#side-fg'].hidden, false);
+  assert.ok(h.startsWith('<button type="button" class="sfg on" data-sfg="global" title="fg.g.cap"') && h.includes('<button type="button" class="sfg" data-sfg="crypto"'), 'GLOBAL podświetlony, kolejność: CapitalFlowAI, krypto');
+  assert.ok(h.includes('<span class="sfg-t">fg.t.g</span><svg data-gid="fg-gr-sg" data-v="34"></svg>') && h.includes('<span class="sfg-t">fg.t.c</span><svg data-gid="fg-gr-sc" data-v="58"></svg>'), 'tytuły i skale (własne id gradientów)');
+  assert.ok(h.includes('<span class="sfg-v"><b>34</b><span class="sfg-s"><i class="fg-dot fg-f"></i>fg.s.f</span></span>') && h.includes('<b>58</b>'), 'liczba i stan');
+  assert.ok(h.includes('<span class="sfg-d">S(2026-10-03) · wiek</span>'), 'dzień danych z wiekiem');
+  assert.ok(h.includes('<span><b class="fg-c fg-f">41</b>1D</span><span><b class="fg-c fg-na">—</b>1T</span><span><b class="fg-c fg-g">62</b>1M</span>'), 'historia GLOBAL; brak = „—”, nie zero');
+  assert.ok(h.includes('<span><b class="fg-c fg-g">55</b>1D</span><span><b class="fg-c fg-g">49</b>1T</span><span><b class="fg-c fg-f">30</b>1M</span>'), 'historia krypto');
+  const Q = v156Pasek({mode: 'crypto', kr: {fng: C}, g: null}); const q = Q.els['#side-fg'].innerHTML;
+  assert.ok(q.includes('class="sfg" data-sfg="global"') && q.includes('<b>—</b>') && q.includes('class="sfg on" data-sfg="crypto"'), 'bez pliku GLOBAL: „—”; krypto podświetlony');
+  const E = v156Pasek({mode: 'global', kr: null, g: null}); assert.equal(E.els['#side-fg'].hidden, true, 'bez danych — pasek ukryty'); assert.equal(E.els['#side-fg'].innerHTML, '');
+  assert.deepEqual(P.MO.map(m => m.o), [[['#c-fg', '{"childList":true}'], ['#g-fg', '{"childList":true}']], [['#tab-global', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-crypto', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-trendy', '{"attributes":true,"attributeFilter":["aria-selected"]}']]], 'odświeżanie: przerysowanie paneli i zmiana zakładki');
+});
+test('v156: kliknięcie wskaźnika w pasku — zakładka wskaźnika i panel ze szczegółami (GLOBAL: karta rozwinięta; CRYPTO: panel przeniesiony pokazany na żądanie)', () => {
+  const X = {v: 50, s: 'n', date: '2026-10-04', stOf: () => 'n', hist: []};
+  const P = v156Pasek({mode: 'crypto', page: 'sources', kr: {fng: X}, g: X});
+  const btn = k => ({closest: s => (s === '#side-fg [data-sfg]' ? {getAttribute: () => k} : null)});
+  P.L.click({target: btn('global')});
+  assert.deepEqual(P.calls, [['page', 'overview'], ['mode', 'global'], ['zw', '#g-fg'], ['scroll', '#g-fg', {behavior: 'auto', block: 'start'}]]);
+  P.calls.length = 0; P.L.click({target: btn('crypto')});
+  assert.ok(P.els['#c-fg'].classList.contains('pokaz'), 'panel krypto pokazany na żądanie'); assert.deepEqual(P.calls.slice(-1), [['scroll', '#c-fg', {behavior: 'auto', block: 'start'}]]);
+  P.calls.length = 0; P.L.click({target: {closest: () => null}}); assert.deepEqual(P.calls, [], 'kliknięcie poza paskiem — nic');
+});
+test('v156: miejsce w lewym pasku (pod menu, nad „Ostatnią aktualizacją”), styl bez stałych kolorów, telefon bez paska, nowa nazwa wskaźnika GLOBAL', () => {
+  const n = html.indexOf('</nav>'), s = html.indexOf('<div class="side-fg" id="side-fg" hidden></div>'), u = html.indexOf('<div class="upd">');
+  assert.ok(n > 0 && s > n && u > s && s < html.indexOf('</aside>'), 'pod menu, nad „Ostatnią aktualizacją”');
+  const c0 = html.indexOf('/* v156: strach i chciwość w lewym pasku — zawsze'), c1 = html.indexOf('</style>', c0), css = html.slice(c0, c1);
+  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko zmienne motywu');
+  assert.ok(css.includes('@media (max-width:900px){.side-fg{display:none!important}}') && css.includes('@media (min-width:901px){#c-fg:not(.pokaz){display:none!important}}'), 'telefon: panele jak dotąd; komputer: panel krypto przeniesiony');
+  assert.ok(html.includes('"fg.t.g":"CapitalFlowAI Strach & Chciwość"') && !html.includes('Strach i chciwość — rynki USA'), 'nazwa wskaźnika GLOBAL');
 });
