@@ -16867,6 +16867,9 @@ RWC_SIECI = {   # sieć → (węzeł główny, zapas albo None, rodzaj odczytu);
     'arc': ('https://rpc.mainnet.arc.io', None, 'evm'),               # węzeł z dokumentacji sieci (docs.arc.io); identyfikator sieci 5042
     'sol': ('https://api.mainnet-beta.solana.com', None, 'sol'),      # zapas publicnode wymaga tokenu dla odczytów kont — bez zapasu
     'apt': ('https://api.mainnet.aptoslabs.com/v1', 'https://fullnode.mainnet.aptoslabs.com/v1', 'apt'),   # REST /view (jedno zapytanie = jedna funkcja)
+    'base': ('https://base-rpc.publicnode.com', 'https://1rpc.io/base', 'evm'),   # v161 (WTGXX): identyfikator sieci 8453 — sprawdzone 04.10.2026
+    'plume': ('https://rpc.plume.org', None, 'evm'),                  # v161 (WTGXX): węzeł z dokumentacji sieci (bez klucza); identyfikator sieci 98866
+    'xlm': ('https://horizon.stellar.org', None, 'xlm'),              # v161 (WTGXX): Stellar — publiczne API Horizon (REST /assets, bez klucza)
 }
 # Produkty (identyfikator = produkt źródła v133): nazwa, rodzaj (RWA_SEGS), reguła ceny, tokeny (sieć, adres / mint / obiekt metadanych, miejsca,
 # symbol, wl = sprawdzać owner() względem kontraktu wzorcowego 'wzor'), sieci bez opublikowanego adresu ('bez_adresu': nazwy, udział jednostek
@@ -16899,6 +16902,20 @@ RWC_PRODUKTY = {
     # emitent też ich nie wlicza (total_liabilities = wybite na Ethereum).
     'tether-gold': {'name': 'Tether Gold', 'seg': 'cm', 'cena': 'zloto', 'rezerwa': 'tether_xaut', 'tokeny': (
         ('eth', '0x68749665ff8d2d112fa859aa293f07a622782f38', 6, 'XAUt', False),)},   # tether.to/en/supported-protocols („XAU₮ contract address”)
+    # v161 (decyzja koordynatora 04.10): WisdomTree — tylko fundusz WTGXX (stała wartość 1,00 USD za jednostkę wg dokumentu funduszu; większość
+    # wartości produktu źródła); pozostałe fundusze WisdomTree (zmienna wartość jednostki, bez przejrzystej bieżącej ceny) nie liczymy — 'zakres'
+    # (opis na stronie). Adresy: dokument funduszu na stronie emitenta (dataspanapi.wisdomtree.com/pdr/documents/WEBSITE_FUND_DETAILS/WDT/US/EN-US/
+    # WTGXX_2, „Fund Token Contract Addresses”, dane na 30.06.2026); Stellar: konto emisji z domeną stellar.wisdomtree.com, kod aktywa WTGX.
+    # 04.10 ok. 12:40 UTC: 1 209 811 491,94 + 13 384 953,34 + 1 123 212,31 + 51 565,03 + 0 + 0,08 + 38,19 + 2 284 838,81 ≈ 1 226,66 mln jednostek.
+    'wisdomtree': {'name': 'WisdomTree (WTGXX)', 'seg': 'tb', 'cena': 'nav1', 'zakres': 'WTGXX', 'tokeny': (
+        ('eth', '0x1fecf3d9d4fee7f2c02917a66028a48c6706c179', 18, 'WTGXX', False),
+        ('arb', '0xfeb26f0943c3885b2cb85a9f933975356c81c33d', 18, 'WTGXX', False),
+        ('avax', '0x870fd36b3bf7f5abeeea2c8d4abdf1dc4e33109d', 18, 'WTGXX', False),
+        ('base', '0x5096b85ed11798fddcb8b5cb27c399c04689c435', 18, 'WTGXX', False),
+        ('op', '0x870fd36b3bf7f5abeeea2c8d4abdf1dc4e33109d', 18, 'WTGXX', False),
+        ('plume', '0xcf7a8813bd3bdaf70a9f46d310ce1ee8d80a4f5a', 18, 'WTGXX', False),
+        ('sol', 'Em46fxxwgY2RRoUbBMSbEjJwY62x3ESMNdhnsGpEKewm', 9, 'WTGXX', False),
+        ('xlm', 'WTGX:GDMBNMFJ3TRFLASJ6UGETFME3PJPNKPU24C7KFDBEBPQFG2CI6UC3JG6', 7, 'WTGX', False))},
 }
 # Ceny z wyroczni na łańcuchu: latestRoundData() (roundId, answer, startedAt, updatedAt, answeredInRound); dec — miejsca odpowiedzi; lo / hi —
 # granice rozsądku (poza = brak ceny); max_min — najstarsza cena uznana za świeżą (wiek liczony od updatedAt).
@@ -16911,8 +16928,8 @@ RWC_CENY = {
              'src': 'USYC / USD — wyrocznia funduszu na Ethereum (0x74f2…1f53, 18 miejsc; developers.circle.com/tokenized/usyc/smart-contracts)'},
 }
 RWC_SRC = ('Odczyt własny z publicznych łańcuchów bloków (węzły bez klucza: *.publicnode.com, zapas 1rpc.io; rpc.tempo.xyz; rpc.mainnet.arc.io; '
-           'api.mainnet-beta.solana.com; api.mainnet.aptoslabs.com) — liczba tokenów (totalSupply / konto emisji / fungible_asset::supply) × cena: '
-           '1 USD (BUIDL), XAU/USD z wyroczni na Ethereum (Paxos Gold, Tether Gold), wyrocznia funduszu USYC; Tether Gold: w obiegu = totalSupply '
+           'rpc.plume.org; api.mainnet-beta.solana.com; api.mainnet.aptoslabs.com; horizon.stellar.org) — liczba tokenów (totalSupply / konto emisji / '
+           'fungible_asset::supply / salda aktywa Stellar) × cena: 1 USD (BUIDL, WisdomTree WTGXX), XAU/USD z wyroczni na Ethereum (Paxos Gold, Tether Gold), wyrocznia funduszu USYC; Tether Gold: w obiegu = totalSupply '
            'na Ethereum − rezerwa emitenta (wybite, niewydane) z jego danych o przejrzystości (app.tether.to/transparency.json); obliczenia CapitalFlowAI')
 # v160: rezerwy emitentów — produkt z 'rezerwa': w obiegu = podaż z łańcucha − tokeny wybite, jeszcze niewydane (dane emitenta, bez klucza, bez daty).
 # Świeżość z łańcucha: wybite wg emitenta (totalAuthorized) = totalSupply z odczytu w tym samym przebiegu (± RWC_REZ_TOL); inaczej, albo bez danych
@@ -17030,7 +17047,55 @@ def rwc_apt(sid, toks, termin, post=None, sleep=None):
     return _rwc_proby(sid, wyslij, 2 * len(toks), termin, sleep=sleep)
 
 
-def rwc_siec(sid, toks, oracles, termin, post=None, sleep=None, owners=()):
+_RWC_XLM_AMT = re.compile(r'^\d{1,15}\.\d{7}$')
+
+
+def _rwc_xlm_int(x):
+    """v161: kwota Horizon ('2284838.8079854' — zawsze 7 miejsc) → liczba całkowita jednostek 10^-7; inny zapis → None (brak, nigdy zero)."""
+    if not isinstance(x, str) or not _RWC_XLM_AMT.match(x):
+        return None
+    a, b = x.split('.')
+    return int(a) * 10 ** 7 + int(b)
+
+
+def rwc_xlm_supply(j, kod, wyst):
+    """v161: odpowiedź Horizon /assets → podaż aktywa KOD:WYSTAWCA w jednostkach 10^-7 = salda kont (authorized + authorized_to_maintain_liabilities
+    + unauthorized) + claimable_balances_amount + liquidity_pools_amount + contracts_amount; dokładnie jeden rekord tego kodu i wystawcy, każda
+    część w poprawnym zapisie — inaczej None."""
+    R = ((j.get('_embedded') or {}).get('records') if isinstance(j, dict) and isinstance(j.get('_embedded'), dict) else None)
+    if not isinstance(R, list) or len(R) != 1 or not isinstance(R[0], dict):
+        return None
+    r = R[0]
+    if r.get('asset_code') != kod or r.get('asset_issuer') != wyst or not isinstance(r.get('balances'), dict):
+        return None
+    b = r['balances']
+    parts = [_rwc_xlm_int(x) for x in (b.get('authorized'), b.get('authorized_to_maintain_liabilities'), b.get('unauthorized'),
+                                       r.get('claimable_balances_amount'), r.get('liquidity_pools_amount'), r.get('contracts_amount'))]
+    return sum(parts) if all(p is not None for p in parts) else None
+
+
+def rwc_xlm(sid, toks, termin, get=None, sleep=None):
+    """v161: Stellar (Horizon, bez klucza): każde aktywo 'KOD:WYSTAWCA' — GET {węzeł}/assets?asset_code=KOD&asset_issuer=WYSTAWCA (rwc_xlm_supply).
+    → (wyniki [podaż w 10^-7 | None, …], żądania HTTP, błąd albo None)."""
+    get = get or get_json
+
+    def wyslij(u, tmo):
+        out, bad = [], None
+        for a, _d in toks:
+            v = None
+            try:
+                kod, wyst = a.split(':', 1)
+                v = rwc_xlm_supply(get(f'{u}/assets?asset_code={kod}&asset_issuer={wyst}', {'Accept': 'application/json'}, tmo), kod, wyst)
+            except Exception as e:  # noqa — ten element bez wyniku (ponowienie całości)
+                bad = bad or f'{type(e).__name__}: {e}'[:100]
+            if v is None:
+                bad = bad or 'aktywo bez liczby'
+            out.append(v)
+        return out, bad
+    return _rwc_proby(sid, wyslij, len(toks), termin, sleep=sleep)
+
+
+def rwc_siec(sid, toks, oracles, termin, post=None, sleep=None, owners=(), get=None):
     """Odczyt jednej sieci: tokeny [(adres, miejsca)], wyrocznie [(id, adres)] i kontrakty do sprawdzenia właściciela `owners` [adres] →
     {'sup': {adres: liczba tokenów|None}, 'dec': {adres: miejsca z łańcucha|None}, 'px': {id: (odpowiedź surowa, updatedAt ISO)|None},
     'own': {adres: owner() małymi literami|None}, 'blk': numer bloku / slot|None, 'req': żądania, 'err': błąd|None}.
@@ -17039,6 +17104,12 @@ def rwc_siec(sid, toks, oracles, termin, post=None, sleep=None, owners=()):
     Miejsca z łańcucha ≠ miejsca z konfiguracji = token nieodczytany (zły adres albo zmiana kontraktu — nigdy cicha zła liczba)."""
     kind = RWC_SIECI[sid][2]
     out = {'sup': {}, 'dec': {}, 'px': {}, 'own': {}, 'blk': None, 'req': 0, 'err': None}
+    if kind == 'xlm':   # v161: Stellar — podaż z Horizon w jednostkach 10^-7 (miejsca stałe: 7; inne w konfiguracji = token nieodczytany)
+        res, out['req'], out['err'] = rwc_xlm(sid, toks, termin, get=get, sleep=sleep)
+        for (a, d), s in zip(toks, res):
+            out['dec'][a] = 7 if s is not None else None
+            out['sup'][a] = s / 10 ** d if s is not None and d == 7 else None
+        return out
     if kind == 'apt':
         res, out['req'], out['err'] = rwc_apt(sid, toks, termin, post=post, sleep=sleep)
         for k, (a, d) in enumerate(toks):
@@ -17111,7 +17182,7 @@ def rwc_tokeny():
     return T, O, W
 
 
-def rwc_odczyt(now=None, budget=None, clock=None, post=None, sleep=None, threads=None):
+def rwc_odczyt(now=None, budget=None, clock=None, post=None, sleep=None, threads=None, get=None):
     """Sieć: wszystkie sieci z tokenami równolegle (jedno żądanie zbiorcze na sieć), jeden budżet `budget` s (RWC_BUDGET). Nigdy nie podnosi wyjątku
     sieci — sieć bez odpowiedzi ma err i puste odczyty. → {'at': ISO, 'r': {sieć: wynik rwc_siec}, 'req': żądania HTTP, 's': sekundy}."""
     now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
@@ -17124,7 +17195,7 @@ def rwc_odczyt(now=None, budget=None, clock=None, post=None, sleep=None, threads
 
     def one(sid):
         try:
-            return sid, rwc_siec(sid, T.get(sid, []), O.get(sid, []), termin, post=post, sleep=sleep, owners=W.get(sid, []))
+            return sid, rwc_siec(sid, T.get(sid, []), O.get(sid, []), termin, post=post, sleep=sleep, owners=W.get(sid, []), get=get)
         except Exception as e:  # noqa — błąd kodu albo odpowiedzi: ta sieć bez odczytu, reszta dalej
             return sid, {'sup': {}, 'dec': {}, 'px': {}, 'own': {}, 'blk': None, 'req': 0, 'err': f'{type(e).__name__}: {e}'[:120]}
     with _rwa_cf.ThreadPoolExecutor(max(1, min(threads or len(sids), len(sids) or 1))) as ex:
@@ -17330,6 +17401,8 @@ def rwc_blok(rd, prev_oc=None, now=None, rez=None):
             o['wl'] = {'ref': ref, 'bad': wl_bad, 'nv': sorted(set(wl_nv))}   # strażnik właściciela (BUIDL): wzorzec, inny właściciel, niesprawdzone
         if p.get('bez_adresu'):
             o['bez_adresu'] = dict(p['bez_adresu'])                   # sieci bez opublikowanego adresu — opis, nigdy zero
+        if p.get('zakres'):
+            o['zakres'] = p['zakres']                                 # v161: liczony tylko ten fundusz produktu (opis na stronie)
         P[slug] = o
         old = [x for x in (phs.get(slug) or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and _RWA_DAY.match(x[0])
                and x[0] < day and rwa_num(x[1], pos=False) is not None]

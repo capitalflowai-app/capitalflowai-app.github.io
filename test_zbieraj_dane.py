@@ -21934,6 +21934,7 @@ class RwaLancuchV150(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k != 'wisdomtree'}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej)
 
     def _rd(self, now=None, budget=None, **kw):
         calls, sl = [], []
@@ -22332,6 +22333,7 @@ class RwaTetherV160(unittest.TestCase):
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
         self.enterContext(mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('test nie może pytać sieci')))
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k != 'wisdomtree'}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej)
 
     def _rez(self, body=_TETHER160, now=None):
         calls = []
@@ -22486,3 +22488,150 @@ class RwaTetherV160(unittest.TestCase):
             oc = zd.rwc_krok(None, self.NOW)
         self.assertEqual(seen, [self.NOW]); self.assertIsNone(oc['p']['tether-gold']['rez'])
         self.assertTrue(any(n.startswith('Tether Gold: rezerwa emitenta — x') for n in oc['notes']))
+
+
+_WTG161_SUP = {   # v161: WTGXX — podaż w najmniejszych jednostkach (04.10.2026 ok. 12:40 UTC; Stellar osobno — _WTG161_XLM)
+    ('eth', '0x1fecf3d9d4fee7f2c02917a66028a48c6706c179'): 1209811491940000000000000000, ('arb', '0xfeb26f0943c3885b2cb85a9f933975356c81c33d'): 13384953340000000000000000,
+    ('avax', '0x870fd36b3bf7f5abeeea2c8d4abdf1dc4e33109d'): 1123212310000000000000000, ('base', '0x5096b85ed11798fddcb8b5cb27c399c04689c435'): 51565030000000000000000,
+    ('op', '0x870fd36b3bf7f5abeeea2c8d4abdf1dc4e33109d'): 0, ('plume', '0xcf7a8813bd3bdaf70a9f46d310ce1ee8d80a4f5a'): 80000000000000000,
+    ('sol', 'Em46fxxwgY2RRoUbBMSbEjJwY62x3ESMNdhnsGpEKewm'): 38186997303}
+_WTG161_DEC = {k: (9 if k[0] == 'sol' else 18) for k in _WTG161_SUP}
+_WTG161_ISS = 'GDMBNMFJ3TRFLASJ6UGETFME3PJPNKPU24C7KFDBEBPQFG2CI6UC3JG6'
+_WTG161_XLM = {'_embedded': {'records': [{   # odpowiedź Horizon /assets (04.10.2026 ok. 12:45 UTC, pola jak w odpowiedzi)
+    'asset_type': 'credit_alphanum4', 'asset_code': 'WTGX', 'asset_issuer': _WTG161_ISS,
+    'accounts': {'authorized': 1183, 'authorized_to_maintain_liabilities': 432, 'unauthorized': 28646},
+    'balances': {'authorized': '2284838.8079854', 'authorized_to_maintain_liabilities': '0.0000000', 'unauthorized': '0.0000000'},
+    'claimable_balances_amount': '0.0000000', 'liquidity_pools_amount': '0.0000000', 'contracts_amount': '0.0000000',
+    'flags': {'auth_required': True, 'auth_revocable': True, 'auth_immutable': False, 'auth_clawback_enabled': True}}]}}
+_WTG161_SUMA = 1209811491.94 + 13384953.34 + 1123212.31 + 51565.03 + 0 + 0.08 + 38.186997303 + 2284838.8079854
+
+
+def _wtg161_get(calls=None, body=None, down=False):
+    """Udawane API Horizon: get(url, headers, timeout) → odpowiedź /assets (body, domyślnie nagranie); down — błąd połączenia."""
+    def get(url, headers=None, timeout=30):
+        if calls is not None:
+            calls.append((url, headers, timeout))
+        if down:
+            raise _socket_v150.timeout('timed out')
+        return json.loads(json.dumps(_WTG161_XLM if body is None else body))
+    return get
+
+
+class RwaWisdomTreeV161(unittest.TestCase):
+    """v161: WisdomTree w odczycie własnym — tylko WTGXX (1 USD za jednostkę), 8 sieci z dokumentu funduszu (nowe: Base, Plume, Stellar przez Horizon);
+    czytnik Stellar (jednostki 10^-7, ścisły zapis), pełna konfiguracja (5 produktów), sumy bez podwójnego liczenia, nota zakresu, kontrola dzienna.
+    Bez sieci (atrapy węzłów i Horizon)."""
+    NOW = _RWC150_NOW
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
+        self.enterContext(mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('test nie może pytać sieci')))
+        self.enterContext(mock.patch.object(zd, 'get_json', side_effect=AssertionError('test nie może pytać sieci')))
+
+    def _rd(self, now=None, xlm=None, **kw):
+        calls, gcalls = [], []
+        post = _rwc150_post(calls=calls, sup={**_WTG161_SUP, **kw.pop('sup', {})}, dec={**_WTG161_DEC, **kw.pop('dec', {})}, **kw)
+        rd = zd.rwc_odczyt(now or self.NOW, post=post, sleep=lambda s: None, get=xlm or _wtg161_get(gcalls))
+        return rd, calls, gcalls
+
+    def _oc(self, now=None, rez=None, prev=None, **kw):
+        rd, calls, gcalls = self._rd(now, **kw)
+        return zd.rwc_blok(rd, prev, now or self.NOW, rez=rez), calls, gcalls
+
+    def test_konfiguracja(self):
+        P = zd.RWC_PRODUKTY
+        self.assertEqual(sorted(P), ['blackrock-buidl', 'circle-usyc', 'paxos-gold', 'tether-gold', 'wisdomtree'])
+        w = P['wisdomtree']
+        self.assertEqual((w['name'], w['seg'], w['cena'], w['zakres']), ('WisdomTree (WTGXX)', 'tb', 'nav1', 'WTGXX'))
+        self.assertEqual([(t[0], t[2]) for t in w['tokeny']], [('eth', 18), ('arb', 18), ('avax', 18), ('base', 18), ('op', 18), ('plume', 18), ('sol', 9), ('xlm', 7)],
+                         '8 sieci z dokumentu funduszu')
+        self.assertEqual(w['tokeny'][-1][1], 'WTGX:' + _WTG161_ISS)
+        self.assertTrue(all(re.fullmatch(r'0x[0-9a-f]{40}', t[1]) for t in w['tokeny'][:6]), 'adresy EVM małymi literami')
+        self.assertEqual({k: zd.RWC_SIECI[k] for k in ('base', 'plume', 'xlm')},
+                         {'base': ('https://base-rpc.publicnode.com', 'https://1rpc.io/base', 'evm'), 'plume': ('https://rpc.plume.org', None, 'evm'),
+                          'xlm': ('https://horizon.stellar.org', None, 'xlm')})
+        self.assertIn('horizon.stellar.org', zd.RWC_SRC); self.assertIn('WisdomTree WTGXX', zd.RWC_SRC)
+
+    def test_czytnik_stellar(self):
+        j = json.loads(json.dumps(_WTG161_XLM))
+        self.assertEqual(zd.rwc_xlm_supply(j, 'WTGX', _WTG161_ISS), 22848388079854)
+        j2 = json.loads(json.dumps(_WTG161_XLM)); r = j2['_embedded']['records'][0]
+        r['balances'].update(authorized_to_maintain_liabilities='1.5000000', unauthorized='0.0000001'); r.update(claimable_balances_amount='2.0000000', contracts_amount='10.0000000')
+        self.assertEqual(zd.rwc_xlm_supply(j2, 'WTGX', _WTG161_ISS), 22848388079854 + 15000000 + 1 + 20000000 + 100000000, 'wszystkie części podaży')
+        for zmiana in ({'contracts_amount': None}, {'contracts_amount': '0'}, {'claimable_balances_amount': '1.5'}, {'liquidity_pools_amount': '-1.0000000'},
+                       {'asset_issuer': 'GXXX'}, {'asset_code': 'WTGXX'}, {'balances': None}, {'liquidity_pools_amount': 0}):
+            jj = json.loads(json.dumps(_WTG161_XLM)); jj['_embedded']['records'][0].update(zmiana)
+            self.assertIsNone(zd.rwc_xlm_supply(jj, 'WTGX', _WTG161_ISS), zmiana)
+        jj = json.loads(json.dumps(_WTG161_XLM)); jj['_embedded']['records'][0]['balances']['authorized'] = '1e9'
+        self.assertIsNone(zd.rwc_xlm_supply(jj, 'WTGX', _WTG161_ISS), 'zapis wykładniczy — nie')
+        for zle in (None, [], {}, {'_embedded': None}, {'_embedded': {'records': []}}, {'_embedded': {'records': [_WTG161_XLM['_embedded']['records'][0]] * 2}}):
+            self.assertIsNone(zd.rwc_xlm_supply(zle, 'WTGX', _WTG161_ISS), zle)
+        self.assertEqual([zd._rwc_xlm_int(x) for x in ('0.0000000', '12.3456789', '123456789012345.0000001', '1.234567', '01.0000000x', 1)],
+                         [0, 123456789, 1234567890123450000001, None, None, None])
+
+    def test_odczyt_pelny_piec_produktow(self):
+        rd, calls, gcalls = self._rd()
+        per = {}
+        for sid, kind, url, body, tmo in calls:
+            per[sid] = per.get(sid, 0) + 1
+        self.assertEqual(per, {'eth': 1, 'arb': 1, 'op': 1, 'pol': 1, 'avax': 1, 'bsc': 1, 'tempo': 1, 'arc': 1, 'sol': 1, 'apt': 2, 'base': 1, 'plume': 1})
+        self.assertEqual([(u, h, t <= zd.RWC_TIMEOUT) for u, h, t in gcalls],
+                         [('https://horizon.stellar.org/assets?asset_code=WTGX&asset_issuer=' + _WTG161_ISS, {'Accept': 'application/json'}, True)])
+        self.assertEqual(rd['r']['xlm']['sup'], {'WTGX:' + _WTG161_ISS: 2284838.8079854}); self.assertIsNone(rd['r']['xlm']['err'])
+        eth = [b for s, k, u, b, t in calls if s == 'eth'][0]
+        self.assertEqual(len(eth), 1 + 2 * 6 + 2 + 2, 'Ethereum: blok + 6 tokenów (z WTGXX) × (podaż, miejsca) + 2 wyrocznie + 2 × owner()')
+        oc = zd.rwc_blok(rd, None, self.NOW, rez=zd.rwc_rezerwy(self.NOW, get=lambda u, h, t: _TETHER160))
+        W = oc['p']['wisdomtree']
+        self.assertEqual((W['n'], W['nr'], W['un'], W['px'], W['full'], W['zakres']), (8, 8, [], 1.0, True, 'WTGXX'))
+        self.assertAlmostEqual(W['v'], _WTG161_SUMA, delta=0.01); self.assertAlmostEqual(W['v'] / 1e9, 1.2267, delta=0.0001, msg='ok. 1,23 mld USD (04.10)')
+        self.assertTrue(oc['ok']); self.assertEqual(oc['notes'], [])
+        U = zd.rwc_uzyj(oc, self.NOW)
+        self.assertEqual(set(U), {'blackrock-buidl', 'paxos-gold', 'circle-usyc', 'tether-gold', 'wisdomtree'})
+        self.assertAlmostEqual(U['wisdomtree'], _WTG161_SUMA, delta=0.01)
+
+    def test_siec_bez_odpowiedzi_bez_wyceny(self):
+        oc, _c, gcalls = self._oc(xlm=_wtg161_get(down=True))
+        W = oc['p']['wisdomtree']
+        self.assertEqual(len(gcalls), 0, 'atrapa bez rejestru'); self.assertEqual((W['nr'], W['n'], W['un'], W['v'], W['full']), (7, 8, ['xlm'], None, False))
+        self.assertAlmostEqual(W['vp'], _WTG161_SUMA - 2284838.8079854, delta=0.01, msg='wartość częściowa opisana osobno')
+        self.assertNotIn('wisdomtree', zd.rwc_uzyj(oc, self.NOW)); self.assertFalse(oc['ok'])
+        self.assertTrue(any(n.startswith('sieć xlm: timeout: timed out') or n.startswith('sieć xlm: TimeoutError') for n in oc['notes']), oc['notes'])
+        g = []
+        oc, _c, _g = self._oc(xlm=_wtg161_get(g, body={'_embedded': {'records': []}}))
+        self.assertEqual(len(g), 3, 'aktywo bez liczby = ponowienie (węzeł bez zapasu: trzy razy)'); self.assertIsNone(oc['p']['wisdomtree']['v'])
+        oc, _c, _g = self._oc(down={'plume'})
+        self.assertEqual(oc['p']['wisdomtree']['un'], ['plume']); self.assertIsNone(oc['p']['wisdomtree']['v'], 'brak jednej sieci = brak pełnej wartości, nigdy zero')
+        oc, _c, _g = self._oc(dec={('base', '0x5096b85ed11798fddcb8b5cb27c399c04689c435'): 6})
+        self.assertEqual(oc['p']['wisdomtree']['un'], ['base'], 'miejsca z łańcucha ≠ z konfiguracji — token nieodczytany')
+        zly = dict(zd.RWC_PRODUKTY['wisdomtree'], tokeny=zd.RWC_PRODUKTY['wisdomtree']['tokeny'][:-1] + (('xlm', 'WTGX:' + _WTG161_ISS, 6, 'WTGX', False),))
+        with mock.patch.dict(zd.RWC_PRODUKTY, {'wisdomtree': zly}):
+            oc, _c, _g = self._oc()
+        self.assertEqual(oc['p']['wisdomtree']['un'], ['xlm'], 'Stellar: miejsca w konfiguracji ≠ 7 — token nieodczytany (nigdy zła skala)')
+        oc1, _c, _g = self._oc()
+        later = self.NOW + datetime.timedelta(hours=6)
+        oc2, _c, _g = self._oc(now=later, prev=oc1, xlm=_wtg161_get(down=True))
+        t = [x for x in oc2['p']['wisdomtree']['t'] if x[0] == 'xlm'][0]
+        self.assertEqual((t[2], t[3]), (2284838.807985, self.NOW.isoformat()), 'poprzedni odczyt Stellar z jego czasem (≤ 12 h — w sumach)')
+        self.assertIn('wisdomtree', zd.rwc_uzyj(oc2, later))
+
+    def test_sumy_zakres_i_kontrola(self):
+        import importlib.util
+        t = RwaLancuchV150('test_konfiguracja_produkty_adresy_ceny')
+        P, H = t._t()._parsed(), t._t()._hid()
+        now = datetime.datetime(2026, 10, 4, 19, 40, tzinfo=datetime.timezone.utc)
+        oc, _c, _g = self._oc(now=now, rez=zd.rwc_rezerwy(now, get=lambda u, h, tm: _TETHER160))
+        fz = t._frozen()
+        J0, J1 = zd.rwa_build(P, H, fz, now), zd.rwa_build(P, H, fz, now, oc=oc)
+        used = J1['onchain']['used']
+        self.assertEqual(set(used), {'blackrock-buidl', 'paxos-gold', 'circle-usyc', 'tether-gold', 'wisdomtree'})
+        self.assertAlmostEqual(J1['seg']['tb']['v'], J0['seg']['tb']['v'] + used['blackrock-buidl'] + used['circle-usyc'] + used['wisdomtree'], delta=1)
+        self.assertAlmostEqual(J1['seg']['all']['v'], J0['seg']['all']['v'] + sum(used.values()), delta=1, msg='nic dwa razy')
+        self.assertEqual(J1['stale']['n'], J0['stale']['n'] - 5); self.assertNotIn('wisdomtree', [r[0] for r in J1['stale']['top']])
+        self.assertEqual(J1['onchain']['seg']['tb']['n'], 3); self.assertEqual(J1['onchain']['p']['wisdomtree']['zakres'], 'WTGXX')
+        spec = importlib.util.spec_from_file_location('kontrola_v161', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        Z = K.rwc_porownanie(J1, now)
+        self.assertEqual(Z['status'], '✅', Z); self.assertIn('w sumach z odczytu własnego: 5 z 5 produktów', Z['opis'])
+        self.assertIn('wartość vs ostatnio znana: w paśmie', Z['opis'], 'WTGXX 1,23 vs zamrożone 1,24 mld USD')

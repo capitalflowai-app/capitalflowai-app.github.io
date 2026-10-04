@@ -1934,6 +1934,9 @@ for(const l in EXTRA158)if(I18N[l])Object.assign(I18N[l],EXTRA158[l]);
 /* v160: tokenizowane aktywa — Tether Gold z rezerwą emitenta — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
 const EXTRA160={"pl":{"rwc.rez":"{p}: w obiegu {o} tokenów = wybite {a} minus rezerwa emitenta {r} (tokeny wybite, jeszcze niewydane; dane emitenta z {t}, zgodne z odczytem łańcucha).","rwc.rez0":"brak bieżących danych emitenta o rezerwie"}};
 for(const l in EXTRA160)if(I18N[l])Object.assign(I18N[l],EXTRA160[l]);
+/* v161: tokenizowane aktywa — nota zakresu produktu (WisdomTree: tylko WTGXX) — tylko po polsku (cel właściciela 04.10) */
+const EXTRA161={"pl":{"rwc.zakres":"{p}: liczymy tylko fundusz {f}; pozostałych funduszy tego emitenta (zmienna wartość jednostki, bez przejrzystej bieżącej ceny) nie liczymy."}};
+for(const l in EXTRA161)if(I18N[l])Object.assign(I18N[l],EXTRA161[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -9014,6 +9017,8 @@ function rwOcPara(D){
       L.push(t('rwc.noaddr',{p:nm(s),c:b.sieci.map(x=>escH(String(x))).join(sl),s:rwNum(b.pct)?nfmt(b.pct,2)+'%':'—',d:rwDayS(b.dzien)}));}
     for(const s of U){const r=o.p[s].rez;if(rwObj(r)&&r.ok===true&&rwNum(r.tot)&&rwNum(r.v)&&r.v>=0&&r.v<=r.tot)   /* v160: w obiegu = wybite − rezerwa emitenta */
       L.push(t('rwc.rez',{p:nm(s),o:nfmt(r.tot-r.v,0),a:nfmt(r.tot,0),r:nfmt(r.v,0),t:rwWhen(r.at)}));}
+    for(const s of U){const z=o.p[s].zakres;if(typeof z==='string'&&z)   /* v161: zakres produktu (WisdomTree: tylko fundusz WTGXX) */
+      L.push(t('rwc.zakres',{p:nm(s),f:escH(z)}));}
   }
   const rz0=p=>'rez' in p&&!(rwObj(p.rez)&&p.rez.ok===true);   /* v160: produkt z rezerwą emitenta bez bieżącej, zgodnej z łańcuchem rezerwy */
   const P=Object.keys(o.p).filter(s=>!U.includes(s)&&rwObj(o.p[s])&&rwNum(o.p[s].n)&&rwNum(o.p[s].nr)&&(o.p[s].nr<o.p[s].n||o.p[s].px_ok===false||rz0(o.p[s])));

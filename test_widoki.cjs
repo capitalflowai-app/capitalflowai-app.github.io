@@ -11384,7 +11384,7 @@ test('v150: słownik EXTRA152 — czysty JSON, jedna linia for po ostatniej (prz
     }
   }
   for (const k of keys) assert.ok(!/(\d|\})[  　]+(営業日|日間|日|銘柄|件|か月|年|回|本|分|時間|週|つ|位|組|枚|取引日|ブロック|市場|契約)/.test(D.ja[k]), 'ja ' + k);
-  const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]).filter(k => !['rwc.rez', 'rwc.rez0'].includes(k)));   /* v160: klucze rezerwy w EXTRA160 (tylko pl) */
+  const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]).filter(k => !['rwc.rez', 'rwc.rez0', 'rwc.zakres'].includes(k)));   /* v160/v161: klucze rezerwy i zakresu w EXTRA160/161 (tylko pl) */
   assert.deepEqual([...used].sort(), keys.slice().sort(), 'każdy klucz bloku w słowniku i każdy klucz słownika używany');
 });
 
@@ -11996,4 +11996,36 @@ test('v160: słownik — czysty JSON, tylko po polsku, klucze rwc.rez i rwc.rez0
   assert.ok(!o.includes('minus rezerwa emitenta') && !o.includes('rezerwie') && !o.includes('Bez pełnego odczytu'), 'plik v150 (bez pól rezerwy) — akapit jak dotąd');
   const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]));
   assert.ok(used.has('rwc.rez') && used.has('rwc.rez0'), 'oba klucze używane w bloku RWA');
+});
+
+
+/* ---------- v161: tokenizowane aktywa — WisdomTree w odczycie własnym (tylko fundusz WTGXX, nota zakresu) ---------- */
+function v161Plik() {
+  const F = RWC150.clone(RWA150_FILE), oc = F.onchain, at = '2026-10-04T00:12:00+00:00', v = 1226656099.69;
+  oc.p.wisdomtree = {name: 'WisdomTree (WTGXX)', seg: 'tb', rule: 'nav1', px: 1, px_at: null, px_ok: true, zakres: 'WTGXX',
+    t: [['eth', 'WTGXX', 1209811491.94, at, '0x1fecf3d9d4fee7f2c02917a66028a48c6706c179'], ['xlm', 'WTGX', 2284838.8079854, at, 'WTGX:GDMBNMFJ3TRFLASJ6UGETFME3PJPNKPU24C7KFDBEBPQFG2CI6UC3JG6']],
+    n: 2, nr: 2, un: [], sup: v, v, vp: null, full: true};
+  oc.used.wisdomtree = v; oc.seg.tb.v += Math.round(v); oc.seg.tb.n += 1; oc.seg.all.v += Math.round(v); oc.seg.all.n += 1;
+  const r = F.stale.top.find(x => x[0] === 'wisdomtree');
+  F.stale.top = F.stale.top.filter(x => x[0] !== 'wisdomtree'); F.stale.n -= 1; if (r) F.stale.v -= r[3];
+  return F;
+}
+test('v161: WisdomTree (WTGXX) w sumach z odczytu własnego — nota „liczymy tylko fundusz WTGXX; pozostałych funduszy … nie liczymy”; bez noty dla innych produktów', () => {
+  const o = RWC150.out(v161Plik());
+  assert.ok(o.includes('WisdomTree (WTGXX) 1,2 mld USD'), 'w liście odczytu własnego');
+  assert.ok(o.includes('WisdomTree (WTGXX): liczymy tylko fundusz WTGXX; pozostałych funduszy tego emitenta (zmienna wartość jednostki, bez przejrzystej bieżącej ceny) nie liczymy.'), 'nota zakresu');
+  assert.equal((o.match(/liczymy tylko fundusz/g) || []).length, 1, 'nota tylko dla produktu z zakresem');
+  assert.ok(o.includes('Fundusz o stałej wartości: 1 token = 1 USD (deklaracja emitenta).'), 'reguła 1 USD');
+  const E = v161Plik(); E.onchain.p.wisdomtree.zakres = '<b>x</b>';
+  assert.ok(RWC150.out(E).includes('liczymy tylko fundusz &lt;b&gt;x&lt;/b&gt;;'), 'zakres z pliku escapowany');
+  const N = v161Plik(); N.onchain.p.wisdomtree.zakres = 7;
+  assert.ok(!RWC150.out(N).includes('liczymy tylko fundusz'), 'zły zapis zakresu — bez noty');
+  assert.ok(!/NaN|undefined|null|rwc\.[a-z]/.test(RWC150.txt(o)), 'bez NaN i surowych kluczy');
+});
+test('v161: słownik — czysty JSON, tylko po polsku, klucz rwc.zakres używany w bloku, bez nazw dostawców', () => {
+  const d0 = html.indexOf('const EXTRA161='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA161='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl), ['rwc.zakres']);
+  assert.ok(!/wisdomtree|horizon|stellar|publicnode|plume|llama/i.test(JSON.stringify(D)), 'bez nazw dostawców, węzłów i emitentów w tekście');
+  const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]));
+  assert.ok(used.has('rwc.zakres'), 'klucz używany w bloku RWA');
 });
