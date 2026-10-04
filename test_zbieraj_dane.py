@@ -20194,7 +20194,7 @@ class LzejszaStronaV141(unittest.TestCase):
         S = json.loads(lek[lek.index(',CF_I18N_S=') + 11:lek.index(';function cfI18nX')])
         self.assertEqual(sorted(S), sorted(self.O.DZIELONE))
         for j in self.O.DZIELONE:
-            self.assertGreater(len(S[j]), 20, j); self.assertIn('view.bubbles', S[j]); self.assertEqual(self.opis['stare'][j], len(S[j]))
+            self.assertEqual(S[j], [], j); self.assertEqual(self.opis['stare'][j], 0, j)   # v152: słowniki nie-JSON nie mają już tekstów, które plik języka nadpisuje (wpisy zasłonięte usunięte) — nic do usuwania bez pliku
         for r in self.opis['raporty']:
             st = r['stale']
             self.assertTrue(st['ok'], (r['engine'], {j: st[j] for j in self.O.DZIELONE if not st[j]['ok']}))

@@ -254,7 +254,7 @@ test('TradingView (v126.2): widget bez stopki z nazwą i linkiem dostawcy — sa
 
 test('TradingView: wiersz na stronie Źródła, atrybucja, wpis w „Źródła i prawa”, teksty w dziesięciu językach', () => {
   const d0 = html.indexOf('const EXTRA30='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA30='.length, d1));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA30='.length, d1)));
   assert.deepEqual(Object.keys(dict).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
   for (const l of Object.keys(dict)) for (const k of ['tv.ph', 'tv.load', 'tv.off', 'tv.st.on', 'tv.st.off', 'tv.t.markets', 'tv.t.chart', 'tv.tab.idx', 'tv.tab.cmd']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: tv.foot — usunięty ze słowników (strona go nie czyta) */
   // v126.2: teksty wokół widgetów bez nazwy dostawcy (wartość skuteczna, 10 języków); zgoda i ciasteczka opisane ogólnie
@@ -370,8 +370,8 @@ test('bilans płatniczy: klucz bop w pliku urzędowym, blok, wiersz Źródła, w
   assert.ok(html.includes("['tga','rrp','soma','tgb','ilm','m3','bop','mof'].some("), 'klucze');
   assert.ok(html.includes("const bop=D.bop,BS="), 'blok');
   const d0 = html.indexOf('const EXTRA34='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA34='.length, d1));
-  assert.ok(dict.pl['inst.bop.sub'].includes('plus = kapitał netto wypływa')); assert.ok(dict.en['inst.bop.sub'].includes('positive = capital flows out'));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA34='.length, d1)));
+  assert.ok(dict.pl['inst.bop.sub'].includes('plus = pieniądz netto wypłynął')); assert.ok(dict.en['inst.bop.sub'].includes('positive = money flowed out'));   /* v152: znak opisany w tekście skutecznym (EXTRA89); dawny tekst EXTRA34 był zasłonięty */
 });
 
 // v47: TIC — przepływy netto USA ↔ regiony; netto = do − z tylko z kompletu; regiony z niepełnym składem oznaczone
@@ -397,7 +397,7 @@ test('TIC: sekcja #tic w GLOBAL przed widokami silnika, plik tic.json, karty WIT
   assert.ok(html.includes("srvJSON('tic')"), 'plik');
   assert.ok(html.includes("if(v.startsWith('tic-')&&!(chk.ok&&chk.state==='BOUND')){el.hidden=true;el.innerHTML='';return;}"), 'karty TIC silnika ukryte, gdy nie BOUND');
   const d0 = html.indexOf('const EXTRA35='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA35='.length, d1));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA35='.length, d1)));
   for (const l of ['pl', 'en']) for (const k of ['tic.t', 'tic.in', 'tic.out', 'tic.net', 'tic.not2']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: tic.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -537,7 +537,7 @@ test('v50 BIS: sekcja #bis po #tic, plik bis.json w GLOBAL, język, wiersz Źró
   assert.ok(html.indexOf("srvJSON('bis')") > html.indexOf('function gLoad(cb){'), 'w gLoad');
   assert.ok(html.includes("if(typeof renderBis==='function')renderBis();"), 'zmiana języka');
   const d0 = html.indexOf('const EXTRA39='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA39='.length, d1));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA39='.length, d1)));
   const b0 = html.indexOf('const BI={data:null};'), b1 = html.indexOf('/* v50 BIS: koniec */', b0);
   const used = [...new Set([...html.slice(b0, b1).matchAll(/t\('(bis2\.[a-z0-9.]+)'/g)].map(x => x[1]))];
   assert.ok(used.length > 20, 'klucze panelu');
@@ -635,7 +635,7 @@ test('v50 CFTC: plik w gLoad po TIC, zegar, wiersze Źródła (GLOBAL i CRYPTO),
   assert.ok(gl0 < tic && tic < cf && cf < gl1, 'plik cftc.json wczytywany w gLoad po TIC');
   assert.ok(cf0 > html.indexOf('const ENG_OVR={};') && cf1 > cf0, 'rejestracja po ENG_OVR, przed renderEng');
   const d0 = html.indexOf('const EXTRA40='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA40='.length, d1));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA40='.length, d1)));
   assert.deepEqual(Object.keys(dict.pl).sort(), Object.keys(dict.en).sort());
   for (const l of ['pl', 'en']) for (const k of ['cftc.how', 'cftc.u.eth', 'cftc.not1', 'cftc.g.nonrept']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: cftc.src — usunięty ze słowników (strona go nie czyta) */
   assert.ok(/50 eth/.test(dict.en['cftc.u.eth']) && /50 etherów/.test(dict.pl['cftc.u.eth']) && /gotówkowo/.test(dict.pl['cftc.u.eth']));
@@ -720,7 +720,7 @@ test('v50 cm: plik cm.json w gLoad i osobny zegar, wiersz Źródła CRYPTO, atry
   assert.ok(!html.includes('; Coin Metrics, DefiLlama (sieci) · <i>nie pokazujemy</i>'));
   assert.ok(html.includes('<section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>'), 'sekcja bez zmian');
   const d0 = html.indexOf('const EXTRA41='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA41='.length, d1));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA41='.length, d1)));
   for (const l of ['pl', 'en']) for (const k of ['cm.t', 'cm.sub', 'cm.in', 'cm.out', 'cm.net', 'cm.s.in', 'cm.s.out', 'cm.tab', 'cm.not1', 'cm.not2', 'cm.not3', 'cm.src', 'cm.disc']) assert.ok(dict[l][k], l + ' ' + k);
   assert.equal(Object.keys(dict.pl).sort().join(), Object.keys(dict.en).sort().join(), 'te same klucze PL i EN');
   assert.ok(html.indexOf('const EXTRA41=') > html.indexOf('for(const l in EXTRA38)'), 'po EXTRA38');
@@ -805,7 +805,7 @@ test('v50: rezerwy i depozyt Fed wpięte w sekcję danych urzędowych, plik reze
   const tl = html.indexOf("srvJSON('tic').then(j=>{ticApply(j);})"), rl = html.indexOf("srvJSON('rezerwy').then(j=>{rezApply(j);}).catch(()=>{rezApply(null);}),");
   assert.ok(tl > 0 && rl > tl, 'plik rezerwy.json w gLoad');
   const d0 = html.indexOf('const EXTRA42='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA42='.length, d1));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA42='.length, d1)));
   const keys = Object.keys(dict.pl);
   assert.deepEqual(Object.keys(dict.en), keys, 'te same klucze pl/en');
   for (const l of ['pl', 'en']) {
@@ -813,7 +813,7 @@ test('v50: rezerwy i depozyt Fed wpięte w sekcję danych urzędowych, plik reze
     assert.ok(!('inst.fred.src' in dict[l]), 'v151: podpis z listą serii inst.fred.src usunięty — strona go nie czyta: ' + l);
     assert.ok(!/FRED|Board of Governors|International Monetary Fund/.test(g126I18N()[l]['inst.fred.src'] + ' ' + g126I18N()[l]['rez.src']), 'v126.2: podpisy FRED i MFW nie są pokazywane: ' + l);
   }
-  assert.ok(dict.pl['inst.fred.cust'] === 'Papiery w depozycie Fed dla zagranicznych instytucji oficjalnych (H.4.1)');
+  assert.ok(dict.pl['inst.fred.cust'] === 'Papiery w depozycie Fed dla zagranicznych instytucji oficjalnych');   /* v152: tekst skuteczny (EXTRA89 — bez kodu publikacji „H.4.1”, v126.2); wersja z EXTRA42 była zasłonięta */
   assert.ok(dict.pl['inst.fred.sub'].startsWith('Osiem serii') && dict.en['inst.fred.sub'].startsWith('Eight'));
   assert.ok(dict.pl['inst.fred.cust.plain'].includes('To nie wszystkie obligacje USA za granicą') && dict.pl['inst.fred.cust.plain'].includes('minus = papierów ubyło (sprzedaż, wykup w terminie'));
   assert.ok(dict.pl['rez.note'].includes('to nie to samo co interwencje') && dict.en['rez.note'].includes('not the same as intervention'));
@@ -839,7 +839,7 @@ test('v52: stopy banków centralnych: formatowanie, różnica wobec Fed, wiersz 
   assert.equal(f.spPct(3.875), '3.875'); assert.equal(f.spPct(2.5), '2.50'); assert.equal(f.spPct(1), '1.00'); assert.equal(f.spPct(null), '—');
   assert.equal(f.spPP(-1.375), '−1.375'); assert.equal(f.spPP(0), '0'); assert.equal(f.spPP(0.25), '+0.25'); assert.equal(f.spPP(undefined), '—');
   const d0 = html.indexOf('const EXTRA44='), d1 = html.indexOf(';\n', d0);
-  const dict = JSON.parse(html.slice(d0 + 'const EXTRA44='.length, d1));
+  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA44='.length, d1)));
   for (const l of ['pl', 'en']) for (const k of ['sp.t', 'sp.sub', 'sp.cc.XM', 'sp.cc.US']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: sp.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -896,7 +896,7 @@ test('v53: szczegóły — okno czasu, źródło bazy, zmierzone BIS w korytarzu
   assert.ok(html.includes("${v[2]?t(v[0]>0?'g.plain.in':v[0]<0?'g.plain.out':'gmap.plain.zero'") && html.includes(":t('g.plain.none',{n:t('g.n.'+s.id)"), 'brak danych nie jest opisany jako wzrost o 0 (v96: dokładne zero — „nie zmieniła się”)');
   assert.ok(html.includes('<td><span class="cell mono"${atT(k,p)}>${at(k,p)}</span></td>'), 'BOP: dokładna wartość w podpowiedzi');
   const x0 = html.indexOf('const EXTRA45='), x1 = html.indexOf(';\n', x0);
-  const dict = JSON.parse(html.slice(x0 + 'const EXTRA45='.length, x1));
+  const dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA45='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['g.win', 'g.win.m', 'g.win.u', 'g.win.d', 'g.win.out', 'g.win.fz', 'g.win.miss', 'g.plain.none', 'g.d.basey.v', 'bi.e.v', 'bi.e.none', 'bi.e.norep']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: g.src.regm — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -924,7 +924,7 @@ test('v54: inwestorzy zagraniczni: wczytanie, sumy okien, blok, wiersz regionu I
   assert.ok(html.includes('html+=zagBlock();') && html.includes("srvJSON('obce')") && html.includes('${zagRegion(s.id)}'));
   // v107: bez map srvAt/metaErr
   const x0 = html.indexOf('const EXTRA46='), x1 = html.indexOf(';\n', x0);
-  const dict = JSON.parse(html.slice(x0 + 'const EXTRA46='.length, x1));
+  const dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA46='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['ob.t', 'ob.sub', 'ob.in.k', 'ob.tw.k', 'ob.not', 'ob.reg.v']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: ob.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -946,7 +946,7 @@ test('v56: kursy efektywne BIS: format, komórka tabeli stóp, wiersz regionu, �
   assert.ok(html.includes('${eerRegion(s.id)}') && html.includes("srvJSON('eer')"));
   // v107: bez map srvAt/metaErr
   const x0 = html.indexOf('const EXTRA47='), x1 = html.indexOf(';\n', x0);
-  const dict = JSON.parse(html.slice(x0 + 'const EXTRA47='.length, x1));
+  const dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA47='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['sp.c.fx', 'eer.not', 'eer.reg', 'eer.reg.v']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: eer.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -971,9 +971,9 @@ test('v57: bilans krypto: linie z rodzajem, datą; brak = —; bez danych ukryty
   assert.ok(h.includes('cb.cme.v{"b":"<span class=\\"pos\\">1234</span>","e":"—"}') && h.includes('cb.k.pos · 2026-09-15'), 'CME: pozycje, nie przepływ; v98.2: długie netto zielone, brak bez koloru');
   assert.ok(html.includes('<section class="panel etf-rail" id="c-bal" hidden></section>') && html.includes("function renderKr(){if(typeof cBal==='function')cBal();"));
   const x0 = html.indexOf('const EXTRA48='), x1 = html.indexOf(';\n', x0);
-  const dict = JSON.parse(html.slice(x0 + 'const EXTRA48='.length, x1));
+  const dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA48='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['cb.t', 'cb.sub', 'cb.etf', 'cb.stab', 'cb.ex', 'cb.cme', 'cb.k.pos', 'inst.t', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
-  assert.ok(dict.pl['inst.sub'].includes('BIS') && dict.pl['inst.sub'].includes('Tajwan'));
+  assert.ok(!dict.pl['inst.sub'].includes('BIS') && dict.pl['inst.sub'].includes('Tajwan'));   /* v152: tekst skuteczny — Tajwan na liście, bez nazwy wydawcy (v126.2); „BIS” stał tylko w zasłoniętej wersji EXTRA48 */
 });
 
 // v58: stablecoiny per sieć zamiast wstrzymanej karty; panele silnika w języku widza (słownik wg widoku, nazwy krajów z ISO)
@@ -998,7 +998,7 @@ test('v58: stablecoiny per sieć — panel z pliku, brak = —; karta silnika ty
 test('v58: panele silnika po angielsku — teksty wg widoku, wiek z liczbą miesięcy, nazwy krajów z ISO, bez „Texts … in Polish”', () => {
   const a0 = html.indexOf('const ISO32='), a1 = html.indexOf('function engKpis(rec){', a0);
   const x0 = html.indexOf('const EXTRA49='), x1 = html.indexOf(';\n', x0);
-  const dict = JSON.parse(html.slice(x0 + 'const EXTRA49='.length, x1));
+  const dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA49='.length, x1)), ['stc.t', 'stc.src', 'eng.x.imf-portfolio-pairs.says', 'eng.x.imf-portfolio-pairs.age', 'eng.x.imf-portfolio-pairs.rights', 'eng.x.imf-portfolio-pairs.lim', 'eng.x.wdi-destinations.says', 'eng.x.wdi-destinations.rights', 'eng.x.wdi-destinations.lim']);   /* v152: tekst skuteczny tylko w miejsce wpisów EXTRA49 usuniętych jako zasłonięte; zapas eng.x.gen.* (EXTRA52) zostaje poza tym testem jak w v58 */
   let LANG = 'en';
   const t = (k, o) => { let s = dict[LANG] && dict[LANG][k] !== undefined ? dict[LANG][k] : (dict.en[k] !== undefined ? dict.en[k] : k); if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
   const mk = () => new Function('LANG', 'LOCALE', 't', html.slice(a0, a1) + '\nreturn {engCty, engTx, engAge, engAttr, engRights, engLim, ISO32};');
@@ -1006,7 +1006,7 @@ test('v58: panele silnika po angielsku — teksty wg widoku, wiek z liczbą mies
   const en = mk()('en', {en: 'en-GB'}, t);
   assert.equal(en.engTx(rec, 'kind'), 'Flow'); assert.ok(en.engTx(rec, 'says').startsWith('Annual net inflow'));
   assert.equal(en.engAge(rec), 'Annual data, published with a lag; at capture they were 20 months old.');
-  assert.ok(en.engLim(rec).length === 9 && html.split('engAttr(').length === 2 && html.split('engRights(').length === 2, 'v126.2: atrybucja i prawa z pliku widoku nie są nigdzie wywoływane (tylko definicje)');
+  assert.ok(en.engLim(rec).length === 8 && html.split('engAttr(').length === 2 && html.split('engRights(').length === 2, 'v126.2: atrybucja i prawa z pliku widoku nie są nigdzie wywoływane (tylko definicje)');
   assert.equal(en.engTx({view: 'nowy-widok', says_pl: 'tylko PL'}, 'says'), 'tylko PL', 'brak słownika dla widoku — tekst źródłowy, nie pusto');
   assert.equal(en.engAge({view: 'wdi-destinations', data_age: {phrase_pl: 'bez liczby'}}), 'bez liczby', 'bez liczby miesięcy — tekst źródłowy');
   assert.equal(en.ISO32.CYM, 'KY'); assert.equal(en.ISO32.TWN, 'TW'); assert.equal(en.ISO32.CHI, undefined, 'kod spoza ISO pominięty');
@@ -1035,7 +1035,7 @@ test('v59: COFER: tabela udziałów, zmiany, „inne waluty”, stopka z udział
   f.cofApply({at: 'x', asof: 'q', rows: {}, order: []}); assert.equal(f.COF.data, null, 'plik bez walut odrzucony');
   assert.ok(html.includes('html+=cofHtml(COF.data);') && html.includes("srvJSON('cofer')"));
   const x0 = html.indexOf('const EXTRA50='), x1 = html.indexOf(';\n', x0);
-  const dict = JSON.parse(html.slice(x0 + 'const EXTRA50='.length, x1));
+  const dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA50='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['cof.t', 'cof.sub', 'cof.foot', 'cof.foot0', 'cof.not']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: cof.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -1076,7 +1076,7 @@ test('v62: region = średnia ważona zmian; kraj bez miesiąca / bez kursu poza 
   // v96: wiersza „Źródło” w szczegółach regionu już nie ma (źródła tylko na stronie Źródła); v151: nieużywane klucze g.src.* usunięte ze słowników
   assert.ok(!html.includes("'g.src.regm'") && !html.includes("'Finnhub · '+t('g.src.reg1d')"), 'bez wiersza źródła w szczegółach regionu');
   const x0 = html.indexOf('const EXTRA51='), x1 = html.indexOf(';\n', x0);
-  const dict = JSON.parse(html.slice(x0 + 'const EXTRA51='.length, x1));
+  const dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA51='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['g.win.nomonth', 'g.win.nofx', 'g.d.basey.fix']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: g.src.regu — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -1088,12 +1088,12 @@ test('v63: „bez zmian” tylko z historią, dokładność różnicy wobec Fed,
   assert.ok(html.includes("(typeof r.m_n==='number'?(r.m_n>=13?t('sp.none.n',{n:r.m_n}):'—'):t('sp.none'))"));
   assert.ok(html.includes("t('cof.foot',{q:instFoot(C.asof),") && html.includes("q:r?instFoot(r[0]):'—'") && html.includes("ob.reg.v',{d:instFoot(l[0]),"), 'wiek przy liczbach');
   const g0 = html.indexOf('const engGen='), g1 = html.indexOf('function engKpis(rec){', g0);
-  const x0 = html.indexOf('const EXTRA52='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA52='.length, x1));
+  const x0 = html.indexOf('const EXTRA52='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA52='.length, x1)));
   const t = (k, o) => { let s = dict.en[k] !== undefined ? dict.en[k] : k; if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
   const e = new Function('LANG', 't', html.slice(g0, g1) + '\nreturn {engTx, engAttr, engRights, engLim, engAge};')('en', t);
   const rec = {view: 'cftc-euro-fx', kind_pl: 'Pozycje', says_pl: 'Jak grupy…', not_says_pl: 'To pozycje…', rights: {sentence_pl: 'Dane rządu USA…'}, limitations_pl: ['PL'], data_age: {phrase_pl: 'Stan z wtorku'}, attribution: 'Źródło: CFTC', source_home: 'https://www.cftc.gov'};
   assert.equal(e.engTx(rec, 'kind'), ''); assert.equal(e.engTx(rec, 'says'), '');
-  assert.ok(e.engTx(rec, 'not_says').startsWith('See the Sources page') && e.engRights(rec).startsWith('Terms and attribution') && e.engLim(rec)[0].startsWith('See the Sources'));
+  assert.ok(e.engTx(rec, 'not_says').startsWith('What these data do not say is described in the Polish version') && e.engRights(rec) === 'Public data; calculations by this site.' && e.engLim(rec)[0].startsWith('The limitations of these data are listed in the Polish version'));   /* v152: zapas eng.x.gen.* = tekst skuteczny (EXTRA126, v126.2 — bez odsyłacza do Źródeł); wersja EXTRA52 była zasłonięta */
   assert.equal(e.engAttr(rec), rec.attribution); assert.ok(!/engAttr\(/.test(html.replace('function engAttr(', '')), 'v151: engAttr bez wywołań — szablon eng.x.gen.attr usunięty, funkcja zwraca zapas z pliku'); assert.ok(!/[ąćęłńóśźż]/i.test(e.engAge(rec)), 'bez polskiego');
   assert.ok(!html.includes('przygotowujemy do zasilania strony danymi CFTC'));
   assert.ok(!html.includes("'Twelve Data (klucz własny) · ETF'") && html.includes("t('g.src.tdown')+' · ETF'"));
@@ -1132,7 +1132,7 @@ test('v65: msRegion — USA z TIC, Europa z bilansu płatniczego, Japonia z MOF;
   assert.ok(f('jpn').includes('ms.jpn{"w":"2026-09-06 – 2026-09-12","e":"−2511.0","b":"+511.8","a":"−345.8"}'), '100 mln JPY → mld JPY');
   assert.equal(f('chn'), ''); assert.equal(mk({data: null}, {data: null})('usa'), '');
   assert.ok(html.includes('${msRegion(s.id)}'));
-  const x0 = html.indexOf('const EXTRA54='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA54='.length, x1));
+  const x0 = html.indexOf('const EXTRA54='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA54='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['ms.t', 'ms.usa', 'ms.eur', 'ms.jpn', 'ms.note']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
@@ -1163,7 +1163,7 @@ test('v67: Stock Connect — kafelek, kolumna, wiersz regionu Chiny; brak częś
   const r = f.zagRegion('chn'); assert.ok(r.includes('ob.reg.hk.v') && r.includes('"v":"+2.9"') && r.includes('≈ +370 inst.mln.usd'), r);
   assert.equal(f.zagRegion('jpn'), '');
   // v107: bez map srvAt/metaErr
-  const x0 = html.indexOf('const EXTRA55='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA55='.length, x1));
+  const x0 = html.indexOf('const EXTRA55='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA55='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['ob.t', 'ob.hk.k', 'ob.not.hk', 'ob.reg.hk.v']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
@@ -1180,7 +1180,7 @@ test('v68: cftcOthers — wiersze tylko dla obecnych rynków, zmiana 13 tyg. z h
   assert.ok(h.includes('<span class="cell mono">-3000</span>') && h.includes('cftc.x.c.lf13{"d":"2026-06-23"}'), 'zmiana 13 tyg. = ostatni − pierwszy');
   assert.ok(h.includes('<span class="cell mono">—</span>') && h.includes('cftc.kept'), 'brak = —, stan zachowany oznaczony');
   assert.ok(html.includes('cftcHist(m)+cftcOthers()+cftcTail()'));
-  const x0 = html.indexOf('const EXTRA56='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA56='.length, x1));
+  const x0 = html.indexOf('const EXTRA56='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA56='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['cftc.x.t', 'cftc.x.sub', 'cftc.m.jpy', 'cftc.m.msciem']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
@@ -1201,7 +1201,7 @@ test('v69: fałszywa sesja nie przesuwa okna; ETF bez daty końca = brak; daty o
   assert.ok(html.includes("t(GLIVE.cenySrv?'g.m.regtds':'g.m.regtd',{n:GCENY_N[gst.period]})") && html.includes("'gmap.l.regtd':'gmap.l.reg'"));   // v96: te same ograniczenia, opis bez nazw instytucji
   const z0 = html.indexOf('const zagSes='), z1 = html.indexOf('\n', z0), zs = new Function('LANG', html.slice(z0, z1) + '\nreturn zagSes;')('pl');
   assert.deepEqual([1, 2, 4, 5, 12, 20, 22].map(zs), ['sesja', 'sesje', 'sesje', 'sesji', 'sesji', 'sesji', 'sesje']);
-  const x0 = html.indexOf('const EXTRA57='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA57='.length, x1));
+  const x0 = html.indexOf('const EXTRA57='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA57='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['g.m.regtds', 'g.pf.mom3', 'ob.reg.hk.v']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: g.src.regtds, g.l.regtd, ob.src — usunięte ze słowników (strona ich nie czyta) */
   assert.equal(dict.pl['g.per.1R'], 'rok (12 miesięcy)');
 });
@@ -1234,7 +1234,7 @@ test('v70: bilans płatniczy: sumy tylko z kompletu, ranking, starszy kwartał w
   f.bilApply({at: 'x', rows: {}, order: []}); assert.equal(f.BIL.data, null, 'plik bez krajów odrzucony');
   assert.ok(html.includes("html+=(typeof bilHtml==='function'&&typeof BIL!=='undefined')?bilHtml(BIL.data):'';") && html.includes("srvJSON('bilans')"));
   assert.ok(html.includes("${typeof bilRegion==='function'?bilRegion(s.id):''}"));
-  const x0 = html.indexOf('const EXTRA58='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA58='.length, x1));
+  const x0 = html.indexOf('const EXTRA58='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA58='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['bil.t', 'bil.sub', 'bil.c.t4', 'bil.more', 'bil.foot', 'bil.not', 'bil.reg', 'bil.reg.v']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: bil.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -1262,7 +1262,7 @@ test('v71: blok BCB: kapitał, handel, razem, sumy tylko z kompletu, wiersz regi
   assert.equal(f.brRegion('usa'), '');
   assert.ok(html.includes("html+=typeof brBlock==='function'?brBlock():'';") && html.includes("${typeof brRegion==='function'?brRegion(s.id):''}"));
   assert.ok(html.includes("if(okD(j.br))gOk('obce_br');"));
-  const x0 = html.indexOf('const EXTRA59='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA59='.length, x1));
+  const x0 = html.indexOf('const EXTRA59='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA59='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['br.t', 'br.sub', 'br.fin', 'br.com', 'br.tot', 'br.not', 'br.reg', 'br.reg.v']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: br.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -1288,7 +1288,7 @@ test('v72: SAFE: kapitał, handel, razem, suma 12 kolejnych miesięcy, wiersz re
   f.safeApply({at: 'x', m: []}); assert.equal(f.SAFE.data, null);
   assert.ok(html.includes("html+=(typeof safeHtml==='function'&&typeof SAFE!=='undefined')?safeHtml(SAFE.data):'';") && html.includes("${typeof safeRegion==='function'?safeRegion(s.id):''}"));
   assert.ok(html.includes("srvJSON('safe')"));
-  const x0 = html.indexOf('const EXTRA60='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA60='.length, x1));
+  const x0 = html.indexOf('const EXTRA60='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA60='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['sf.t', 'sf.sub', 'sf.cfa', 'sf.ca', 'sf.cust', 'sf.not', 'sf.reg', 'sf.reg.v']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: sf.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -1310,7 +1310,7 @@ test('v73: kafelki CoinMarketCap z własnym czasem, także bez CoinPaprika; bez 
   assert.ok(html.includes('<td><span class="cell mono">${instFoot(r.q)}</span></td>'), 'kwartał z wiekiem danych');
   assert.ok(html.includes('Zmierzone przepływy kapitału między krajami — transakcje, a nie zmiany cen'));
   for (const k of ['bilans płatniczy 37 gospodarek', 'kupno i sprzedaż walut przez banki w Chinach', 'dolary przez rynek walutowy Brazylii', 'pozycje dużych graczy w kontraktach']) assert.ok(html.includes('<span class="cell">' + k + '</span>'), k);
-  const x0 = html.indexOf('const EXTRA61='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA61='.length, x1));
+  const x0 = html.indexOf('const EXTRA61='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA61='.length, x1)));
   for (const l of ['pl', 'en']) {
     for (const k of ['br.sub', 'br.fin', 'br.fin.bs', 'br.reg.v', 'bil.c.o', 'bil.foot', 'bil.not', 'bil.reg.v', 'cftc.x.from', 'cftc.x.sub', 'inst.t', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);
     assert.ok(!/Sześć|Six sets/.test(dict[l]['inst.sub']));
@@ -1343,7 +1343,7 @@ test('v74: blok CBRT: razem, akcje, obligacje; 4 i 13 tygodni tylko z kolejnych 
   assert.ok(html.includes("html+=typeof trBlock==='function'?trBlock():'';") && html.includes("${typeof trRegion==='function'?trRegion(s.id):''}"));
   assert.ok(html.includes("if(okD(j.tr))gOk('obce_tr');"));
   assert.ok(html.includes('<span class="cell">nierezydenci w tureckich akcjach i obligacjach</span>'));
-  const x0 = html.indexOf('const EXTRA62='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA62='.length, x1));
+  const x0 = html.indexOf('const EXTRA62='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA62='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['tr.t', 'tr.sub', 'tr.tot', 'tr.eq', 'tr.gd', 'tr.not', 'tr.reg', 'tr.reg.v', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: tr.src — usunięty ze słowników (strona go nie czyta) */
 });
 
@@ -1374,7 +1374,7 @@ test('v75: przegląd: USA, strefa euro (znak odwrócony), Japonia (100 mln JPY),
   assert.ok(h.includes('<span class="cell mono pos">≈ +0.3 fo.u.usd</span>'), 'przeliczenie: „≈” przed liczbą');
   assert.ok(h.includes('fo.w{"w":"2026-09-06 – 2026-09-12"} · A2026-09-12'), 'okres z wiekiem danych');
   assert.ok(html.includes("html+=typeof flowOverview==='function'?flowOverview():'';"));
-  const x0 = html.indexOf('const EXTRA63='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA63='.length, x1));
+  const x0 = html.indexOf('const EXTRA63='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA63='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['fo.t', 'fo.sub', 'fo.eur', 'fo.usa', 'fo.jpn', 'fo.chn', 'fo.hkg', 'fo.ind', 'fo.twn', 'fo.bra', 'fo.tur', 'fo.foot', 'fo.u.usdx']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
@@ -1398,14 +1398,14 @@ test('v76: UE: sumy tylko z kompletu 12 miesięcy, Polska zawsze widoczna, stars
   assert.ok(more.includes('F2026-03') && more.includes('<span class="cell mono ">—</span>'), 'LU bez kompletu — „—”');
   assert.ok(html.includes("html+=(typeof ueHtml==='function'&&typeof UE!=='undefined')?ueHtml(UE.data):'';") && html.includes("srvJSON('ue')"));
   assert.ok(html.includes("add('POL',t('fo.pol')"));
-  const x0 = html.indexOf('const EXTRA64='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA64='.length, x1));
+  const x0 = html.indexOf('const EXTRA64='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA64='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['ue.t', 'ue.sub', 'ue.c.t12', 'ue.foot', 'ue.not', 'fo.pol', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: ue.src — usunięty ze słowników (strona go nie czyta) */
   assert.ok(dict.pl['inst.sub'].includes('kraje UE'));
 });
 
 // v77: poprawki po czwartym przeglądzie — uczciwe opisy „plus” i SAFE, przybliżenie kursu, wiersz USA po przyjściu TIC
 test('v77: przegląd i SAFE opisane zgodnie z danymi; TIC przerysowuje panel; opóźnienie MFW spójne', () => {
-  const x0 = html.indexOf('const EXTRA65='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA65='.length, x1));
+  const x0 = html.indexOf('const EXTRA65='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA65='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['fo.sub', 'fo.foot', 'fo.ind', 'fo.jpn', 'fo.chn', 'sf.t', 'sf.sub', 'sf.not', 'tr.gd']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['fo.sub'].includes('transakcje mieszkańców') && !dict.pl['fo.sub'].includes('zagranica kupuje tam więcej'));
   assert.ok(dict.pl['sf.sub'].includes('nie to samo co pieniądze przychodzące z zagranicy') && !dict.pl['sf.sub'].includes('napłynęło więcej walut'));
@@ -1433,7 +1433,7 @@ test('v78: blok Kanady: razem, obligacje, akcje; suma 12 kolejnych miesięcy; wi
   assert.equal(f.kanRegion('usa'), '');
   assert.ok(html.includes("html+=(typeof kanHtml==='function'&&typeof KAN!=='undefined')?kanHtml(KAN.data):'';") && html.includes("${typeof kanRegion==='function'?kanRegion(s.id):''}"));
   assert.ok(html.includes("add('CAN',t('fo.can')") && html.includes("srvJSON('kanada')"));
-  const x0 = html.indexOf('const EXTRA66='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA66='.length, x1));
+  const x0 = html.indexOf('const EXTRA66='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA66='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['kan.t', 'kan.sub', 'kan.tot', 'kan.not', 'kan.reg.v', 'fo.can', 'fo.u.cad', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: kan.src — usunięty ze słowników (strona go nie czyta) */
   assert.ok(!/Statistics Canada/.test(g126I18N().pl['kan.src']) && dict.pl['inst.sub'].includes('Kanada'), 'v126.2: formuła licencji Statistics Canada nie jest pokazywana');
 });
@@ -1451,7 +1451,7 @@ test('v79: BCB bilans płatniczy: razem z trzech składników, 12 kolejnych mies
   M[5][6] = null; const R2 = f.brBopRow({m: M}); assert.equal(R2.t12, null, 'brak składnika w oknie = brak sumy');
   assert.ok(html.includes("t('br.bop.split',{d:bopMld(R.d),p:bopMld(R.p),o:bopMld(R.o)})") && html.includes("add('BRA',t('fo.bram')"));
   assert.ok(html.includes("t('br.reg.m',{m:instFoot(R.m)"));
-  const x0 = html.indexOf('const EXTRA67='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA67='.length, x1));
+  const x0 = html.indexOf('const EXTRA67='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA67='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['br.bop', 'br.bop.split', 'br.bop.note', 'br.reg.m', 'fo.bram']) assert.ok(dict[l][k], l + ' ' + k);
 });
 
@@ -1467,10 +1467,10 @@ test('v80: UE: kolumna pozostałych bez banku centralnego, status przy miesiącu
   assert.ok(h.includes('<th>ue.c.o</th>') && h.includes('F2026-07 · ue.f.e'), h.slice(0, 900));
   const k0 = html.indexOf('function kanHtml(K){'), k1 = html.indexOf('\nfunction kanRegion(', k0);
   assert.ok(k0 > 0 && k1 > k0 && !html.slice(k0, k1).includes("t('kan.src'"), 'v96: formuła licencji na stronie Źródła, nie przy liczbach');
-  const x0 = html.indexOf('const EXTRA68='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA68='.length, x1));
+  const x0 = html.indexOf('const EXTRA68='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA68='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['ue.sub', 'ue.c.o', 'ue.foot', 'ue.not', 'ue.f.e', 'ue.f.p', 'fo.pol', 'bil.not']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: kan.src — usunięty ze słowników (strona go nie czyta) */
   assert.ok(!/Statistics Canada|Adapted from/.test(g126I18N().pl['kan.src']) && dict.pl['ue.foot'].includes('poufne'), 'v126.2: formuła „Adapted from” nie jest pokazywana');
-  assert.ok(dict.pl['fo.pol'].includes('bez banku centralnego') && dict.pl['bil.not'].includes('TARGET2'));
+  assert.ok(dict.pl['fo.pol'].includes('bez banku centralnego') && dict.pl['bil.not'].includes('TARGET') && !dict.pl['bil.not'].includes('TARGET2'));   /* v152: tekst skuteczny (v84: „TARGET2” → „TARGET”); wersja EXTRA68 była zasłonięta */
 });
 
 // v81: Brazylia — pozostałe bez banku centralnego; ostatni miesiąc z kompletem; opisy po szóstym przeglądzie
@@ -1482,7 +1482,7 @@ test('v81: BCB: ostatni kompletny miesiąc zamiast niepełnego; brak pozycji ban
   const R = f.brBopRow({m: M});
   assert.equal(R.m, '2026-06', 'lipiec bez pozycji banku centralnego — czerwiec z kompletem');
   assert.ok(Math.abs(R.t - (9074.8 - 1055.3 + 6570.0 + 1291.6)) < 1e-6 && Math.abs(R.o - 7861.6) < 1e-6, JSON.stringify(R));
-  const x0 = html.indexOf('const EXTRA69='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA69='.length, x1));
+  const x0 = html.indexOf('const EXTRA69='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA69='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['br.sub', 'br.bop.note', 'br.bop.split', 'br.reg.m', 'fo.bra', 'fo.bram', 'fo.sub', 'ue.foot', 'ue.not', 'bil.not']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: br.src, kan.src — usunięte ze słowników (strona ich nie czyta) */
   assert.ok(!('br.src' in dict.pl) && dict.pl['ue.foot'].includes('Austrii i Luksemburga') && dict.pl['ue.not'].includes('kredyty dla rządu'));   /* v151: podpis br.src (numer serii 22986) usunięty — strona go nie czyta */
   assert.ok(!html.includes('22971 minus 22986, 23001, 23042'), 'v151: podpis z numerami serii (br.src) usunięty — strona go nie czytała');
@@ -1508,14 +1508,14 @@ test('v82: blok Korei: bln KRW i ≈ mld USD, suma 12 kolejnych miesięcy, wiers
   assert.equal(f.korRegion('chn'), '');
   assert.ok(html.includes("html+=(typeof korHtml==='function'&&typeof KOR!=='undefined')?korHtml(KOR.data):'';") && html.includes("${typeof korRegion==='function'?korRegion(s.id):''}"));
   assert.ok(html.includes("add('KOR',t('fo.kor')") && html.includes("srvJSON('korea')"));
-  const x0 = html.indexOf('const EXTRA70='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA70='.length, x1));
+  const x0 = html.indexOf('const EXTRA70='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA70='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['kor.t', 'kor.sub', 'kor.eq', 'kor.bd', 'kor.u', 'kor.usd', 'kor.12', 'kor.not', 'kor.reg.v', 'fo.kor', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: kor.src — usunięty ze słowników (strona go nie czyta) */
   assert.ok(dict.pl['inst.sub'].includes('Korea'));
 });
 
 // v83: Korea — opisy zgodne z FSS (obligacje netto po wykupach, akcje KOSPI/KOSDAQ przy rozliczeniu), opóźnienie 9–31 dni, kurs miesięczny w przypisie
 test('v83: Korea: opisy i opóźnienie zgodne ze źródłem', () => {
-  const x0 = html.indexOf('const EXTRA71='), x1 = html.indexOf(';\n', x0), dict = JSON.parse(html.slice(x0 + 'const EXTRA71='.length, x1));
+  const x0 = html.indexOf('const EXTRA71='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA71='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['kor.sub', 'kor.eq', 'kor.bd', 'kor.not', 'fo.kor', 'fo.foot']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['kor.sub'].includes('wykupione przy zapadalności') && dict.pl['kor.sub'].includes('KOSPI i KOSDAQ') && dict.pl['kor.not'].includes('kraj rejestracji'));
   assert.ok(dict.pl['fo.foot'].includes('Korea: średnim kursem miesiąca'));
@@ -1525,7 +1525,7 @@ test('v83: Korea: opisy i opóźnienie zgodne ze źródłem', () => {
 
 // v84: przegląd całościowy tekstów — Korea na własnych kluczach (panel krypto odzyskał teksty), nieaktualne i przesadzone opisy poprawione
 test('v84: klucze Korei nie kolidują z panelem krypto; słownik v84 nakładany jako ostatni; poprawione opisy', () => {
-  const dictOf = n => { const a = 'const EXTRA' + n + '=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0); return JSON.parse(html.slice(x0 + a.length, x1)); };
+  const dictOf = n => { const a = 'const EXTRA' + n + '=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0); return v152Eff(JSON.parse(html.slice(x0 + a.length, x1))); };
   const k70 = dictOf(70), k71 = dictOf(71);
   for (const l of ['pl', 'en']) {
     assert.ok(k70[l]['kor.t'] && k70[l]['kor.reg.v'] && k71[l]['kor.sub'], l);
@@ -1557,7 +1557,7 @@ test('v84: klucze Korei nie kolidują z panelem krypto; słownik v84 nakładany 
 
 // v85: tryb CRYPTO — boczny panel to szacunek modelu, strona Przepływy i legenda to zmiana wartości
 test('v85: teksty trybu CRYPTO nie nazywają zmian wyceny ani podziału modelu przepływem', () => {
-  const a = 'const EXTRA73=', x0 = html.indexOf(a), d = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA73=', x0 = html.indexOf(a), d = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of ['rail.in', 'rail.out', 'leg.areaB', 'label.pct', 'pg.sectors.dc']) assert.ok(d[l][k], l + ' ' + k);
   assert.ok(d.pl['rail.in'].includes('szacunek') && d.pl['leg.areaB'].includes('zmianie wartości') && d.pl['pg.sectors.dc'].includes('zmiany wartości'));
   assert.ok(html.indexOf('Object.assign(I18N[l],EXTRA73[l]);') > html.indexOf('Object.assign(I18N[l],EXTRA72[l]);'));
@@ -1589,11 +1589,11 @@ test('v86: Tajlandia (ThaiBMA): blok, sumy, stan, linia regionu, przegląd, podp
   assert.ok(html.includes("html+=typeof thBlock==='function'?thBlock():'';") && html.includes("${typeof thRegion==='function'?thRegion(s.id):''}"));
   assert.ok(html.includes("ses('th',7,'THA','fo.tha','fo.u.usdx');") && html.includes("if(okD(j.th))gOk('obce_th');"));
   assert.ok(html.includes('<span class="cell">nierezydenci w tajskich obligacjach</span>'));
-  const dictOf = n => { const a = 'const EXTRA' + n + '=', x0 = html.indexOf(a); return JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))); };
+  const dictOf = n => { const a = 'const EXTRA' + n + '=', x0 = html.indexOf(a); return v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)))); };
   const dict = dictOf(74), fix = dictOf(75);
   for (const l of ['pl', 'en']) for (const k of ['th.t', 'th.sub', 'th.nf', 'th.split', 'th.hold', 'th.hold.ch', 'th.not', 'th.reg.v', 'fo.tha', 'inst.sub'])   /* v151: th.src usunięty ze słowników (strona go nie czyta) */ assert.ok(dict[l][k], l + ' ' + k);
   for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(!('g.q.limd' in dict[l]) && dict[l]['g.help.limd'], l);   /* v151: g.q.limd usunięty — strona czyta g.help.limd */
-  assert.ok(dict.pl['g.help.limd'].includes('Tajlandi') && dict.pl['inst.sub'].includes('Hongkong, Tajlandia i dolary'));   /* v151: zamiast usuniętego g.q.limd — używany g.help.limd */
+  assert.ok(dict.pl['g.help.limd'].includes('Hongkong, Tajlandia;') && dict.pl['inst.sub'].includes('Hongkong, Tajlandia, dolary'));   /* v151: zamiast usuniętego g.q.limd — używany g.help.limd; v152: teksty skuteczne (późniejsze słowniki dopisały Tajwan i zmieniły „i dolary” na „, dolary”) */
   assert.ok(fix.pl['th.split'].includes('z wykupem w ciągu roku') && fix.en['th.split'].includes('maturing within 1 year') && fix.pl['th.not'].includes('od 16:00 poprzedniego dnia roboczego'));
 });
 
@@ -1629,14 +1629,14 @@ test('v87: Polska (MF): blok, zmiany, tabele, kraje, linia regionu Europa, przeg
   assert.ok(html.includes("${typeof spwRegion==='function'?spwRegion(s.id):''}") && html.includes("add('POL',t('fo.polspw'),t('fo.m',{m:L.m}),L.d1,'fo.u.pln',L.m);"));
   // v107: bez map srvAt/metaErr
   assert.ok(html.includes('<span class="cell">nierezydenci w krajowych papierach skarbowych (zmiana stanu)</span>'));
-  const a = 'const EXTRA76=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA76=', x0 = html.indexOf(a), dict = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   for (const l of ['pl', 'en']) for (const k of ['spw.t', 'spw.sub', 'spw.d1', 'spw.d1.n', 'spw.omni', 'spw.not', 'spw.reg.v', 'spw.ty.omni', 'spw.rg.asia', 'fo.polspw', 'fo.u.pln', 'inst.sub']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: spw.src — usunięty ze słowników (strona go nie czyta) */
 });
 
 // v87.1: Polska (MF) po przeglądzie — zmiana stanu (nie transakcje), udział w liście, rachunki zbiorcze, wiersz przeglądu opisany
 test('v87.1: Polska (MF): opisy po przeglądzie, zasada 2 i przegląd', () => {
-  const a = 'const EXTRA77=', x0 = html.indexOf(a), d = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
-  assert.ok(d.pl['fo.sub'].includes('Wyjątek: wiersz Polski z Ministerstwa Finansów to zmiana stanu') && d.en['fo.sub'].includes('Exception: the Poland row'));
+  const a = 'const EXTRA77=', x0 = html.indexOf(a), d = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
+  assert.ok(d.pl['fo.sub'].includes('Wyjątki: drugi wiersz Polski i wiersz Meksyku to zmiana stanu') && d.en['fo.sub'].includes('Exceptions: the second Poland row and the Mexico row'));   /* v152: tekst skuteczny (v88 dopisał Meksyk, v126.2 usunął nazwę ministerstwa); wersja EXTRA77 była zasłonięta */
   assert.ok(d.pl['spw.d1'].includes('Zmiana stanu') && !d.pl['spw.sub'].includes('zakupy netto minus wykupy') && d.pl['spw.not'].includes('z założenia'));
   assert.ok(d.pl['spw.c.sh'] === 'Udział w liście' && d.pl['spw.tab.k'].includes('{x}') && d.pl['spw.tab.k'].includes('{p}') && d.pl['fo.polspw'].includes('wycinek kapitału z wiersza wyżej'));
   assert.ok(!('spw.src' in d.pl) && !('spw.src' in d.en), 'v151: podpis spw.src usunięty — strona go nie czyta');
@@ -1672,9 +1672,9 @@ test('v88: Meksyk (Banxico): blok, zmiany, stan, linia regionu Ameryka Łacińsk
   // v107: bez map srvAt/metaErr
   assert.ok(html.includes('<span class="cell">nierezydenci w meksykańskich papierach rządowych (zmiana stanu)</span>'));
   assert.ok(html.includes('w wartości nominalnej: polskich i meksykańskich.<br>') && !html.includes('(Banco de México).'), 'v126.2: zasada 2 bez nazw wydawców');
-  const a = 'const EXTRA78=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA78=', x0 = html.indexOf(a), dict = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   for (const l of ['pl', 'en']) for (const k of ['mx.t', 'mx.sub', 'mx.d', 'mx.d.n', 'mx.lv', 'mx.lv.n', 'mx.not', 'mx.reg.v', 'fo.mex', 'fo.sub']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: mx.src — usunięty ze słowników (strona go nie czyta) */
-  assert.ok(dict.pl['fo.sub'].includes('Wyjątki: wiersz Polski z Ministerstwa Finansów i wiersz Meksyku'));
+  assert.ok(dict.pl['fo.sub'].includes('Wyjątki: drugi wiersz Polski i wiersz Meksyku'));   /* v152: tekst skuteczny (bez nazwy ministerstwa — v126.2); wersja EXTRA78 była zasłonięta */
 });
 
 // v88.1: Meksyk — podział na rodzaje papierów (Bonos M, Cetes, Udibonos, reszta), liczba USD przy zmianie 20 sesji, opisy po przeglądzie
@@ -1694,7 +1694,7 @@ test('v88.1: Meksyk (Banxico): rodzaje papierów, reszta do całości, brak = �
   d[d.length - 1][4] = null; const h2 = f.mxHtml(M);
   assert.ok(h2.includes('<tr><td><span class="cell">mx.i.oth</span></td><td><span class="cell mono">—</span></td>'), 'brak Cetes — reszta to brak, nie zero');
   assert.equal(f.mxHtml({at: 'x', d: [['2026-09-14', 1788646.44, 16097115.95]]}).includes('mx.tab'), false, 'stary plik bez rodzajów — bez tabeli');
-  const a = 'const EXTRA79=', x0 = html.indexOf(a), dict = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA79=', x0 = html.indexOf(a), dict = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.ok(dict.pl['mx.d.n'].startsWith('do {d}{u} ·') && dict.en['mx.d.n'].startsWith('to {d}{u} ·'), 'USD przy zmianie 20 sesji, nie przy „od końca roku”');
   assert.ok(dict.pl['mx.not'].includes('repo') && dict.pl['mx.not'].includes('instytucji przechowującej') && dict.pl['mx.not'].includes('IPAB'));
   assert.ok(dict.pl['inst.sub'].includes('meksykańskich papierów rządowych') && dict.pl['fo.sub'].includes('skarbowych (rządowych)'));
@@ -1720,7 +1720,7 @@ test('v89: TRENDY — trzecia zakładka, sekcja po GLOBAL, tryb w setMode/applyV
 });
 
 test('v89: EXTRA80 — nazwa zakładki w 10 językach, pl i en z tymi samymi kluczami, stany bez słów o przyszłości i bez „kupuj/sprzedaj”', () => {
-  const a = 'const EXTRA80=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA80=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.ok(x0 > html.indexOf('for(const l in EXTRA79)'), 'po EXTRA79');
   assert.ok(html.includes('for(const l in EXTRA80)if(I18N[l])Object.assign(I18N[l],EXTRA80[l]);'));
   for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(D[l] && D[l]['tab.trendy'], 'tab.trendy ' + l);
@@ -1728,7 +1728,7 @@ test('v89: EXTRA80 — nazwa zakładki w 10 językach, pl i en z tymi samymi klu
   const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), blk = html.slice(b0, b1);
   const lit = [...blk.matchAll(/t\('(trd\.[A-Za-z0-9_.]+)'/g)].map(m => m[1]).filter(k => !/[._]$/.test(k));   /* v93: też przedrostki kluczy („trd.s.fe_”) */
   const ALL = {pl: {}, en: {}};   /* v93: klucze z EXTRA80 i późniejszych słowników TRENDÓW */
-  for (const m of html.matchAll(/const (EXTRA(?:8\d|9\d|1\d\d))=/g)) { const x = html.indexOf(m[0]), d = JSON.parse(html.slice(x + m[0].length, html.indexOf(';\n', x))); Object.assign(ALL.pl, d.pl || {}); Object.assign(ALL.en, d.en || {}); }
+  for (const m of html.matchAll(/const (EXTRA(?:8\d|9\d|1\d\d))=/g)) { const x = html.indexOf(m[0]), d = v152Eff(JSON.parse(html.slice(x + m[0].length, html.indexOf(';\n', x)))); Object.assign(ALL.pl, d.pl || {}); Object.assign(ALL.en, d.en || {}); }
   for (const k of lit) assert.ok(ALL.pl[k] && ALL.en[k], 'brak klucza ' + k);
   const ST = ['in_up', 'in_flat', 'in_down', 'in_rev', 'in_new', 'in_dir', 'out_up', 'out_flat', 'out_down', 'out_rev', 'out_new', 'out_dir'];
   for (const s of ST.concat(['mixed', 'none', 'short', 'gap', 'stale'])) assert.ok(D.pl['trd.sn.' + s] && D.en['trd.sn.' + s], 'trd.sn.' + s);
@@ -1819,14 +1819,14 @@ test('v89: TRENDY — karty, kolejność stanów, brak = „—”, bez oceny pr
 });
 
 test('v90: TRENDY — panel funduszy ETF w USA, stany „prawie nic”, wiersz na stronie Źródła', () => {
-  const a = 'const EXTRA81=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA81=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.ok(x0 > html.indexOf('for(const l in EXTRA80)') && html.includes('for(const l in EXTRA81)if(I18N[l])Object.assign(I18N[l],EXTRA81[l]);'));
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
   for (const m of ['', 'stock.', 'exch.', 'supply.', 'pos.']) for (const s of ['in_stop', 'out_stop']) assert.ok(D.pl[`trd.sn.${m}${s}`] && D.en[`trd.sn.${m}${s}`], `trd.sn.${m}${s}`);
   for (const g of ['us', 'tech', 'fin', 'energy', 'health', 'indu', 'cdisc', 'cstap', 'util', 'dev', 'eur', 'jpn', 'em', 'chn', 'india', 'bra', 'kor', 'twn',
                    'ustl', 'ustm', 'usts', 'agg', 'ig', 'hy', 'emb', 'gold', 'silver']) assert.ok(D.pl['trd.s.fe_' + g] && D.en['trd.s.fe_' + g], 'trd.s.fe_' + g);
   for (const k of ['trd.e.t', 'trd.e.sub', 'trd.b.fe']) assert.ok(D.pl[k] && D.en[k], k);   /* v151: trd.src.fe — usunięty ze słowników (strona go nie czyta) */
-  assert.ok(D.pl['trd.m.6'].includes('fundusze rynków wschodzących tworzą jednostki rzadko'), 'dni z zerem w funduszach EM opisane jako pomiar');
+  assert.ok(D.pl['trd.m.6'].includes('rynków rozwiniętych i wschodzących) tworzą jednostki rzadko') && D.pl['trd.m.6'].includes('to pomiar, nie brak'), 'dni z zerem w funduszach EM opisane jako pomiar (v152: tekst skuteczny — później rozszerzony o rynki rozwinięte)');
   assert.ok(html.includes("trdPanel('e',F.filter(r=>r.g==='fe'))+") && html.indexOf("trdPanel('e'") < html.indexOf("trdPanel('f'"), 'panel funduszy przed krajami');
   assert.ok(html.includes("'in_down','in_stop','out_up'") && html.includes("['in_down','in_stop','out_down','out_stop'].includes(r.st)"));
   // v107: bez map srvAt/metaErr
@@ -1846,12 +1846,12 @@ test('v91: GLOBAL — linie funduszy ETF w opisie regionu z pliku TRENDÓW; brak
   assert.ok(h.startsWith('<div class="wide"><dt>fe.reg</dt>') && h.includes('trd.s.fe_jpn: <b class="neu">−58 trd.u.m USD</b>') && !h.includes('fe_kor'), h);
   assert.equal(f.feRegion('mea'), '', 'region bez funduszy — bez linii');
   assert.ok(html.includes("${typeof feRegion==='function'?feRegion(s.id):''}"));
-  const a = 'const EXTRA82=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA82=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.ok(D.pl['fe.reg'] && D.en['fe.reg']);
 });
 
 test('v92: surowce z CFTC w TRENDACH — nazwy, źródło, wiersz na stronie Źródła', () => {
-  const a = 'const EXTRA83=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA83=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   for (const k of ['gold', 'silver', 'copper', 'wti']) assert.ok(D.pl['trd.s.cs_' + k] && D.en['trd.s.cs_' + k]);
   assert.ok(!('trd.src.cs' in D.pl) && D.pl['trd.p.sub'].includes('fundusze zarządzające'));   /* v151: podpis trd.src.cs usunięty — strona go nie czyta */
   // v107: bez map srvAt/metaErr
@@ -1869,8 +1869,8 @@ test('v93: TRENDY — ceny jednostek funduszy (obligacje, metale, sektory) w pan
   const h = el.innerHTML;
   assert.ok(h.includes('<h3 class="mtxt"><b>trd.x.fp</b></h3>') && h.includes('<span>trd.s.fe_gold</span>') && h.includes('trd.n.nav0{"s":"GLD"}') && h.includes('trd.n.typ{"v":"1.8"}'));
   assert.ok(!h.includes('fp_bad') && !h.includes('<x>'), 'dziwny symbol z pliku — pominięty');
-  const a = 'const EXTRA84=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
-  assert.ok(D.pl['trd.x.fp'] && D.en['trd.n.nav'] && D.pl['trd.x.sub'].includes('State Street'));
+  const a = 'const EXTRA84=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
+  assert.ok(D.pl['trd.x.fp'] && D.en['trd.n.nav'] && D.pl['trd.x.sub'].includes('największego funduszu w grupie') && !D.pl['trd.x.sub'].includes('State Street'));   /* v152: tekst skuteczny (v126.2 — bez nazwy wydawcy); wersja EXTRA84 była zasłonięta */
 });
 
 test('v94: TRENDY po drugim przeglądzie — wynik funduszy ETF widoczny, źródło grupy, kafel „osłabł”, opis w katalogu źródeł', () => {
@@ -1889,7 +1889,7 @@ test('v94: TRENDY po drugim przeglądzie — wynik funduszy ETF widoczny, źród
   assert.ok(!h.includes('trd.src.') && !h.includes('trd.foot'), 'v96: bez linii źródła na kartach i bez stopki ze źródłami (wydawcy funduszy — znaczki, test v96-trendy)');
   assert.ok(h.includes('trd.k.fade</span></div><div class="k-val neu">−230 trd.u.m USD</div>') && h.includes('<span class="dlt chg">•</span><span class="ksrc" title="trd.sn.in_stop">'), 'kafel „osłabł” przy *_stop — v96: żółty (zmiana bez wyraźnego kierunku)');
   assert.ok(h.includes('trd.n.nav0{"s":"GLD"}'), 'złoto: bez wzmianki o dywidendzie');
-  const a = 'const EXTRA85=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA85=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.ok(D.pl['trd.x.sub'].includes('Obligacji tu nie ma') && D.pl['trd.s.fe_util'].includes('USA'));
 });
 
@@ -1958,7 +1958,7 @@ test('v96: Ustawienia bez pola kluczy, logo prowadzi do GLOBAL, ruchome tło w l
   assert.ok(html.includes('  .nav::before{display:none}'), 'na telefonie pasek jest poziomy — panel jak dotąd');
   assert.ok(html.includes('--yl:#FFD60A;') && html.includes('--yl:#FFCC00;') && html.includes('--gr-tx:#248A3D; --rd-tx:#D70015;'), 'żółty Apple i czytelne odcienie w jasnym motywie');
   assert.ok(html.includes('.neu{--c:var(--yl);color:var(--yl-tx)}') && html.includes(".live.off{color:var(--yl-tx);"));
-  const a = 'const EXTRA87=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA87=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
   assert.ok(D.pl['nav.home'] && !D.pl['etf.src.snap'].includes('Ustawienia'));
 });
@@ -2804,7 +2804,7 @@ test('v96-pages: Aktywa — kolumna „Aktualność” (częstotliwość i dzie�
   const s = pgEnv({st: {mode: 'crypto', period: '24H'}});
   s.f.renderAssets();
   assert.ok(s.el.innerHTML.includes('badge') && s.el.innerHTML.includes('<span class="cell pos">▲ +2.31%</span>'), 'bez danych — makieta z oznaczeniem');
-  const a = 'const EXTRA91=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA91=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.equal(D.pl['pg.fresh'], 'Aktualność');
   assert.ok(D.en['pg.fresh'] && !D.pl['pg.assets.dv'].includes('skąd pochodzi') && D.en['pg.assets.dv'] && D.pl['pg.sub.crypto'] && D.en['pg.sub.crypto'].includes('stablecoins'));
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
@@ -3054,14 +3054,14 @@ test('v96-trendy: bez nazw dostawców danych na stronie TRENDY (tylko strona Źr
   for (const h of [g, c]) assert.ok(!h.includes('trd.src.') && !h.includes('trd.foot') && h.includes('<p class="pfoot">inst.file{"t":"2026-09-25T10:00:00Z"} · eng.disclaimer</p>'), 'bez linii źródła i bez stopki ze źródłami — zostaje czas pliku i ostrzeżenie');
   const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), blk = html.slice(b0, b1);
   assert.ok(!blk.includes("t('trd.foot')") && !blk.includes("'trd.src.'"));
-  const a = 'const EXTRA92=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const a = 'const EXTRA92=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.ok(x0 > html.indexOf('for(const l in EXTRA87)') && html.includes('for(const l in EXTRA92)if(I18N[l])Object.assign(I18N[l],EXTRA92[l]);'), 'po EXTRA87 — nadpisuje starsze teksty');
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort());
   const prov = /Twelve Data|State Street|iShares|BlackRock|CoinGecko|CFTC|Coin ?Metrics|DefiLlama|SoSoValue|NSDL|TWSE|HKEX|ThaiBMA|Banxico|\bEBC\b|\bECB\b|FRED|\bTFF\b|disaggregated/;
   for (const l of ['pl', 'en']) for (const k in D[l]) assert.doesNotMatch(D[l][k], prov, `${l} ${k}`);
   for (const k of ['trd.x.sub', 'trd.p.t', 'trd.p.sub', 'trd.m.1', 'trd.m.3', 'trd.m.6', 'trd.n.fxm']) assert.ok(D.pl[k] && D.en[k], 'nadpisane bez nazw dostawców: ' + k);
   assert.ok(D.pl['trd.x.sub'].includes('Obligacji tu nie ma') && D.pl['trd.p.sub'].includes('fundusze zarządzające') && D.pl['trd.m.6'].includes('tworzą jednostki rzadko'), 'treść bez zmian poza nazwami');
-  const a0 = 'const EXTRA80=', y0 = html.indexOf(a0), D80 = JSON.parse(html.slice(y0 + a0.length, html.indexOf(';\n', y0)));
+  const a0 = 'const EXTRA80=', y0 = html.indexOf(a0), D80 = v152Eff(JSON.parse(html.slice(y0 + a0.length, html.indexOf(';\n', y0))));
   assert.ok(!('trd.src.etf' in D80.pl) && !('trd.src.cm' in D80.pl), 'v151: stare klucze źródeł usunięte — strona Źródła (v103) ich nie czyta');
   const bad = /kupuj(?![a-ząćęłńóśźż])|sprzedawaj(?![a-ząćęłńóśźż])|warto kupi|okazj|prognozuj|rekomend|\btrwa(?![a-ząćęłńóśźż])|odbic|odbij|cofa si|zaczyna|\bbuy\b|\bsell\b|worth buying|opportunit|recommend|forecast|rebound|continues|pulling back|\bstarts\b/i;
   for (const l of ['pl', 'en']) for (const k in D[l]) if (!/^trd\.m\./.test(k) && k !== 'trd.discc') assert.doesNotMatch(D[l][k], bad, `${l} ${k}: ${D[l][k]}`);
@@ -3999,11 +3999,11 @@ test('v109-dzwignia2: EXTRA102 — 10 języków, te same klucze lev.* i miejsca 
   const a = 'const EXTRA102=', x0 = html.indexOf(a);
   assert.ok(x0 > 0 && html.includes('for(const l in EXTRA102)if(I18N[l])Object.assign(I18N[l],EXTRA102[l]);'), 'słownik EXTRA102 podpięty');
   assert.ok(html.indexOf('for(const l in EXTRA101)if(I18N[l])') < x0 && html.indexOf('for(const l in EXTRA98)if(I18N[l])') > 0, 'po EXTRA101 (kotwica), EXTRA98 obecny');
-  const D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
+  const D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
   const keys = Object.keys(D.pl).sort();
-  assert.ok(keys.length === 13 && keys.every(k => k.startsWith('lev.')), keys.join(','));
-  const b = 'const EXTRA98=', b0 = html.indexOf(b), OLD = JSON.parse(html.slice(b0 + b.length, html.indexOf(';\n', b0)));
+  assert.ok(keys.length === 11 && keys.every(k => k.startsWith('lev.')), keys.join(','));   /* v152: lev.all.sub i lev.not6 zastępuje EXTRA123 — wpisy EXTRA102 były zasłonięte (było 13); teksty skuteczne sprawdza v126-dzwignia-cz */
+  const b = 'const EXTRA98=', b0 = html.indexOf(b), OLD = v152Eff(JSON.parse(html.slice(b0 + b.length, html.indexOf(';\n', b0))));
   assert.ok(keys.every(k => !(k in OLD.pl)), 'żaden klucz nie powtarza EXTRA98');
   for (const L of Object.keys(D)) {
     assert.deepEqual(Object.keys(D[L]).sort(), keys, L);
@@ -4248,8 +4248,8 @@ test('v110: nazwy widoków i opisy w 10 językach — BLOCKCHAIN 3D / KULE 3D, b
   assert.ok(html.includes('const EXTRA104=') && html.includes('for(const l in EXTRA104)if(I18N[l])Object.assign(I18N[l],EXTRA104[l]);'), 'słownik EXTRA104 dołączony');
   // EXTRA104 nadpisuje tylko klucze, które strona czyta: hint3 (dawne HINTK) i leg.area (legenda używa leg.areaB) zostają bez martwych nadpisań
   const e0 = html.indexOf('const EXTRA104='), e1 = html.indexOf(';\nfor(const l in EXTRA104)', e0);
-  const E = JSON.parse(html.slice(e0 + 'const EXTRA104='.length, e1));
-  for (const L of Object.keys(NAMES)) assert.equal(Object.keys(E[L]).sort().join('|'), KEYS.slice().sort().join('|'), L + ': klucze EXTRA104');
+  const E = v152Eff(JSON.parse(html.slice(e0 + 'const EXTRA104='.length, e1)));
+  for (const L of Object.keys(NAMES)) assert.equal(Object.keys(E[L]).sort().join('|'), KEYS.filter(k => k !== 'why.empty').sort().join('|'), L + ': klucze EXTRA104');   /* v152: why.empty z EXTRA104 nadpisuje EXTRA126 — wpis był zasłonięty; tekst skuteczny why.empty sprawdza pętla wyżej */
   assert.ok(!html.includes("t('hint3')") && !html.includes("t('leg.area'") && html.includes("t('leg.areaB'") && !html.includes('HINTK'), 'hint3 i leg.area nie są czytane przez stronę');
   assert.ok(html.includes('<div class="hint" id="hint" data-i18n="hint"></div>'), 'podpowiedź pod sceną z klucza hint');
 });
@@ -4437,7 +4437,7 @@ const trdV120 = (() => {
 test('v120: EXTRA110 — 10 języków (pl pierwszy, en drugi), te same klucze i pola w każdym języku, tylko klucze trd.d.*, literały bloku v89 w słowniku, bez „kupuj/sprzedawaj” i bez nazw dostawców', () => {
   const a = 'const EXTRA110=', x0 = html.indexOf(a); assert.ok(x0 > html.indexOf('for(const l in EXTRA109)'), 'po EXTRA109');
   assert.ok(html.includes('for(const l in EXTRA110)if(I18N[l])Object.assign(I18N[l],EXTRA110[l]);'));
-  const D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)))), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
   assert.deepEqual(Object.keys(D), L10, 'kolejność języków');
   const K = Object.keys(D.pl).sort(); assert.ok(K.length >= 85, 'liczba kluczy ' + K.length);
   const ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
@@ -6156,10 +6156,10 @@ test('v126-evds: Turcja — suma 52 tygodni tylko z 52 kolejnych tygodni z liczb
 test('v126-evds: słownik EXTRA124 — 10 języków, te same 4 klucze tr.* i miejsca na wartości, pl/en = EXTRA62, po ostatnim słowniku, bez nazw dostawców', () => {
   const a = 'const EXTRA124=', x0 = html.indexOf(a), x1 = html.indexOf(';\n', x0), fl = 'for(const l in EXTRA124)if(I18N[l])Object.assign(I18N[l],EXTRA124[l]);\n';
   assert.ok(x0 > 0 && html.split(a).length === 2 && html.slice(x1 + 2, x1 + 2 + fl.length) === fl && html.split(fl).length === 2, 'słownik i linia nakładania zaraz po nim');
-  const D = JSON.parse(html.slice(x0 + a.length, x1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = ['tr.wk', 'tr.s4', 'tr.s13', 'tr.s52'];
+  const D = v152Eff(JSON.parse(html.slice(x0 + a.length, x1))), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = ['tr.wk', 'tr.s4', 'tr.s13', 'tr.s52'];
   const PH = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
   assert.deepEqual(Object.keys(D), L10, 'kolejność języków');
-  const e0 = html.indexOf('const EXTRA62='), E62 = JSON.parse(html.slice(e0 + 'const EXTRA62='.length, html.indexOf(';\n', e0)));
+  const e0 = html.indexOf('const EXTRA62='), E62 = v152Eff(JSON.parse(html.slice(e0 + 'const EXTRA62='.length, html.indexOf(';\n', e0))));
   const PROV = /CBRT|TCMB|EVDS|Central Bank|Merkez|Türkiye Cumhuriyet/i;
   for (const L of L10) {
     assert.deepEqual(Object.keys(D[L]), K, L + ': klucze');
@@ -9772,14 +9772,14 @@ test('v137: GLOBAL — sekcja #inst z samym plikiem giełdy, blok C2 zaraz po bl
 
 test('v137: słownik EXTRA146 w 10 językach (te same klucze i pola), nałożony zaraz po definicji i skuteczny, bez nazwy wydawcy; wyjaśnienia prostym językiem; trd.s.jpx_for', () => {
   const a = 'const EXTRA146=', x0 = html.indexOf(a); assert.ok(x0 > 0, 'słownik EXTRA146'); assert.equal(html.split(a).length, 2);
-  const end = html.indexOf(';\n', x0), E = JSON.parse(html.slice(x0 + a.length, end));
+  const end = html.indexOf(';\n', x0), E = v152Eff(JSON.parse(html.slice(x0 + a.length, end)));
   assert.deepEqual(Object.keys(E), G126_L10, '10 języków, pl pierwszy');
   const KEYS = Object.keys(E.pl).sort(), ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
   assert.equal(KEYS.length, 32); assert.ok(KEYS.every(k => k.startsWith('jpx.') || k === 'trd.s.jpx_for'), 'tylko klucze bloku i TRENDÓW');   /* v151: nieużywany podpis trd.src.jpx usunięty (było 33) */
   const lit = [...html.slice(jpx137.a0, jpx137.a1).matchAll(/t\('(jpx\.[a-z0-9.]+)'/g)].map(m => m[1]).filter(k => !k.endsWith('.')).concat(['jpx.c.for', 'jpx.c.ind', 'jpx.c.trb', 'jpx.c.bus', 'jpx.c.it', 'jpx.c.prop', 'jpx.for', 'jpx.ind', 'jpx.trb', 'jpx.bus', 'jpx.it', 'jpx.prop']);
   for (const k of lit) assert.ok(KEYS.includes(k), 'klucz użyty w bloku: ' + k);
   for (const L of G126_L10) {
-    assert.deepEqual(Object.keys(E[L]).sort(), KEYS, L + ': te same klucze');
+    assert.deepEqual(Object.keys(E[L]).sort(), L === 'pl' || L === 'en' ? KEYS : KEYS.filter(k => k !== 'jpx.not1'), L + ': te same klucze');   /* v152: jpx.not1 w de–ja daje EXTRA147 (v143) — wpisy EXTRA146 były zasłonięte; tekst skuteczny sprawdza pętla niżej */
     for (const k of KEYS) {
       assert.ok(typeof E[L][k] === 'string' && E[L][k].trim(), L + ' ' + k); assert.equal(ph(E[L][k]), ph(E.pl[k]), 'pola ' + L + ' ' + k);
       assert.ok(!jpx137.PUB.test(E[L][k]), 'nazwa wydawcy: ' + L + ' ' + k); assert.deepEqual(G126_NAMES.check(E[L][k], L), [], L + ' ' + k + ': strażnik nazw źródeł');
@@ -10344,7 +10344,7 @@ const V147_DICT = 'EXTRA149';
 /* [kod sprzed v147, kod v147] — wszystkie zmiany v147 w kodzie strony (poza słownikiem i japońskimi tekstami) */
 const V147_PAIRS = [["  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n", "  let w=whole,t=tenth;if(t===10){w+=1;t=0;}\n  if(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')return (neg?'−':'')+nfmt(w+'.'+t,1);   /* v147: de–ja — zapis języka widza (nfmt = Intl.NumberFormat(LOCALE[LANG]): de 1.234,5 · fr 1 234,5 · ja 1,234.5); pl i en — linia niżej bez zmian */\n"], ["  const isZero=!/[1-9]/.test(body);const text=grouped+(LANG==='pl'?',':'.')+tenth;\n", "  const isZero=!/[1-9]/.test(body),L8=LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function';const text=L8?nfmt(wholeN+'.'+tenth,1):grouped+(LANG==='pl'?',':'.')+tenth;   /* v147: de–ja — te same cyfry w zapisie języka widza (nfmt dostaje napis; nowsze silniki formatują go dokładnie); pl i en bez zmian */\n"], ["  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(LANG==='pl'?'0,1':'0.1');\n", "  if(wholeN==='0'&&tenth===0)return (neg?'−':'+')+'<'+(L8?nfmt('0.1',1):(LANG==='pl'?'0,1':'0.1'));\n"], ["  const a=Math.abs(v),text=String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr */\n", "  const a=Math.abs(v),text=(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?nfmt(Math.floor(a/10)+'.'+(a%10),1):String(Math.floor(a/10)).replace(/\\B(?=(\\d{3})+(?!\\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+(a%10);   /* grupowanie jak w silniku: zawsze, także dla 4 cyfr (pl, en); v147: de–ja — zapis języka widza (nfmt) */\n"], ["chg=(r.change_sign>0?'+':'−')+(LANG==='pl'?'<0,1':'<0.1');", "chg=(r.change_sign>0?'+':'−')+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1):(LANG==='pl'?'<0,1':'<0.1'));"], ["  if(a<.05)return sg+(LANG==='pl'?'<0,1 ':'<0.1 ')+t('u.m');   /* v48: mały przepływ nie jest zerem */\n", "  if(a<.05)return sg+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1)+' ':(LANG==='pl'?'<0,1 ':'<0.1 '))+t('u.m');   /* v48: mały przepływ nie jest zerem; v147: „<0,1” w zapisie języka widza (de–ja) */\n"], ["  return en||c3||pl||'';}\nconst engGen=", "  return (typeof ctyName==='function'&&ctyName(null,en,pl))||en||c3||pl||'';}   /* v147: kod spoza ISO — nazwa rozpoznana po angielskiej albo polskiej (de–ja); dopiero potem angielska u źródła */\n/* v147: nazwy krajów z plików danych (TIC: posiadacze obligacji USA i skład regionów; MF: posiadacze SPW; MFW: rezerwy; zapas engCty) w języku widza.\n   de, es, fr, it, pt, ru, zh, ja: kod ISO (3 albo 2 litery) albo rozpoznana nazwa angielska / polska (gtNm: Intl.DisplayNames en i pl + lista wyjątków)\n   → Intl.DisplayNames(LOCALE[LANG]) jak w engCty; wiersze zbiorcze bez jednego kraju („All Other”, „Total Caribbean”, „Caribbean Banking Centers” …) → słownik cty.x.*.\n   pl i en — null: wywołujący pokazuje dawny tekst bajt w bajt; nazwa nierozpoznana — null (zapas: nazwa z pliku). Wycinki kodu w testach bez gtNm / ISO32 — bez błędu. */\nconst CTY_AGG={'all other':'cty.x.oth','all others':'cty.x.oth','others':'cty.x.oth','other countries':'cty.x.oth','pozostale kraje':'cty.x.oth',\n  'caribbean banking centers':'cty.x.cbc','caribbean banking centres':'cty.x.cbc','international and regional orgs':'cty.x.iro','international and regional organizations':'cty.x.iro',\n  'grand total':'cty.x.tot','total latin america':'cty.x.lat','total africa':'cty.x.afr','total caribbean':'cty.x.car'};\nfunction ctyName(code,...names){\n  try{\n    if(typeof LANG==='undefined'||LANG==='pl'||LANG==='en')return null;\n    const dn=c=>{try{const k=LOCALE[LANG]||'en',D=ENG_DN[k]||(ENG_DN[k]=new Intl.DisplayNames([k],{type:'region'})),n=D.of(c);return n&&n!==c?n:null;}catch(e){return null;}};\n    const c=String(code||'').toUpperCase(),i2=c.length===3?(typeof ISO32!=='undefined'?ISO32[c]:null):(/^[A-Z]{2}$/.test(c)?c:null);\n    if(i2){const n=dn(i2);if(n)return n;}\n    for(const x of names){if(typeof x!=='string'||!x.trim())continue;\n      const a=typeof gtKey==='function'?CTY_AGG[gtKey(x).replace(/ \\d+$/,'')]:null;   /* „Caribbean Banking Centers 4/” — przypis źródła na końcu */\n      if(a){const v=t(a);if(v&&v!==a)return v;}\n      const f=typeof gtNm==='function'?gtNm(x):[];if(f.length===1){const n=dn(f[0].toUpperCase());if(n)return n;}}\n  }catch(e){}\n  return null;}\nconst engGen="], ["  const nm=(c,x)=>escH((LANG==='pl'?x.pl:x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle */\n", "  const nm=(c,x)=>escH((LANG==='pl'?x.pl:(typeof ctyName==='function'&&ctyName(c,x.en,x.pl))||x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle; v147: de–ja — nazwa kraju w języku widza (ctyName) */\n"], ["  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory */\n", "  const W=D.world,mon=D.asof,bln=v=>typeof v==='number'?gfmt(v/1000):t('eng.gap'),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'',cn=n=>escH((typeof ctyName==='function'&&ctyName(null,n))||n);   /* gfmt przyjmuje mld: mln/1000; v96: flagi i kolory; v147: cn — nazwa z pliku w języku widza (de–ja), pl i en bez zmian */\n"], ["(D.regions[id].members||[]).map(n=>I('n',n,'sm')+escH(n)).join(', ')}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>: Total Caribbean<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>: Taiwan</p></details>`;", "(D.regions[id].members||[]).map(n=>I('n',n,'sm')+cn(n)).join((typeof sepL==='function'?sepL():', '))}`).join('<br>')}<br>${I('f',['ky','bs','bm'],'sm')}<b>${t('tic.carib')}</b>${typeof sepK==='function'?sepK():': '}${cn('Total Caribbean')}<br>${I('f','tw','sm')}<b>${t('tic.twn')}</b>${typeof sepK==='function'?sepK():': '}${cn('Taiwan')}</p></details>`;"], ["<td><span class=\"cell\">${I('n',r[0])}${escH(r[0])}</span></td>", "<td><span class=\"cell\">${I('n',r[0])}${cn(r[0])}</span></td>"], ["    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'(');\n", "    const nm=r=>(typeof LANG!=='undefined'&&LANG==='pl')?r[0]:((typeof ctyName==='function'&&ctyName(null,r[1],r[0]))||String(r[1]).replace(/\\s*\\(the\\)/g,'').replace(/\\(the /g,'('));   /* v147: de–ja — nazwa kraju w języku widza (ctyName), „Pozostałe kraje” ze słownika; en bez zmian */\n"]];
 /* [słownik, klucz] — japońskie teksty bez spacji między liczbą / {polem} a licznikiem (zmienione w miejscu) */
-const V147_JA = [["EXTRA36", "q.src.v"], ["EXTRA43", "etf.k.m"], ["EXTRA43", "etf.c.m"], ["EXTRA99", "wh.bal.sub"], ["EXTRA99", "wh.n.Binance"], ["EXTRA99", "wh.d7"], ["EXTRA99", "wh.not4"], ["EXTRA98", "lev.f7"], ["EXTRA98", "lev.dn"], ["EXTRA98", "lev.dr.sub"], ["EXTRA107", "arc.sub"], ["EXTRA107", "arc.since"], ["EXTRA107", "arc.per"], ["EXTRA107", "arc.month"], ["EXTRA107", "arc.k.yld"], ["EXTRA107", "arc.since1"], ["EXTRA109", "wh.dob.sub"], ["EXTRA110", "trd.d.nocr"], ["EXTRA110", "trd.d.k.edge"], ["EXTRA110", "trd.d.k.oos"], ["EXTRA110", "trd.d.k.of"], ["EXTRA110", "trd.d.ev"], ["EXTRA110", "trd.d.own"], ["EXTRA110", "trd.d.v.short"], ["EXTRA110", "trd.d.why.short"], ["EXTRA110", "trd.d.b.sub"], ["EXTRA110", "trd.d.b.days"], ["EXTRA110", "trd.d.b.oos"], ["EXTRA110", "trd.d.b.short"], ["EXTRA110", "trd.d.m.1"], ["EXTRA110", "trd.d.m.3"], ["EXTRA110", "trd.d.m.4"], ["EXTRA110", "trd.d.m.6"], ["EXTRA111", "kc.note"], ["EXTRA112", "ins.k.rep"], ["EXTRA112", "ins.k.nv"], ["EXTRA112", "ins.cap"], ["EXTRA113", "st.mm.fsi"], ["EXTRA114", "auk.k.abovev"], ["EXTRA114", "auk.k.aboven"], ["EXTRA114", "auk.n"], ["EXTRA116", "trd.dc.k.of"], ["EXTRA116", "trd.dc.b.sub"], ["EXTRA116", "trd.dc.b.short"], ["EXTRA116", "trd.dc.m.2"], ["EXTRA116", "trd.dc.m.3"], ["EXTRA116", "trd.dc.m.4"], ["EXTRA116", "trd.dc.m.6"], ["EXTRA116", "trd.d.m.6"], ["EXTRA117", "trd.subc"], ["EXTRA118", "trd.dc2.ans.best"], ["EXTRA118", "trd.dc2.y1"], ["EXTRA118", "trd.dc2.ans.need"], ["EXTRA118", "trd.dc2.ev1"], ["EXTRA118", "trd.dc2.own"], ["EXTRA118", "trd.dc2.why.late"], ["EXTRA118", "trd.dc2.b.sub"], ["EXTRA118", "trd.dc2.b.side"], ["EXTRA118", "trd.dc2.b.y1"], ["EXTRA118", "trd.dc2.b.y10"], ["EXTRA118", "trd.dc2.b.lvd.wait"], ["EXTRA118", "trd.dc2.b.lvd"], ["EXTRA118", "trd.dc2.b.lvd.nx"], ["EXTRA118", "trd.dc2.b.note"], ["EXTRA118", "trd.dc2.m.3"], ["EXTRA118", "trd.dc2.m.4"], ["EXTRA118", "trd.dc2.m.5"], ["EXTRA118", "trd.dc2.m.7"], ["EXTRA118", "trd.dc2.m.8"], ["EXTRA119", "ln.k.tip.tx"], ["EXTRA119", "ln.k.chk.mp"], ["EXTRA119", "ln.ago.d"], ["EXTRA123", "lev.h.cz"], ["EXTRA123", "lev.cz.r24"], ["EXTRA123", "lev.not7"], ["EXTRA125", "trd.dw2.ans.best"], ["EXTRA125", "trd.dw2.y1"], ["EXTRA125", "trd.dw2.ev1"], ["EXTRA125", "trd.dw2.own"], ["EXTRA125", "trd.dw2.b.side"], ["EXTRA125", "trd.dw2.b.y1"], ["EXTRA125", "trd.dw2.b.y10"], ["EXTRA125", "trd.dw2.b.lvd"], ["EXTRA125", "trd.dw2.b.note"], ["EXTRA125", "trd.dw2.b.v1i"], ["EXTRA125", "trd.dw2.m.6"], ["EXTRA125", "trd.dw2.m.7"], ["EXTRA125", "trd.dw2.m.8"], ["EXTRA127", "trd.b.kn"], ["EXTRA127", "trd.s.fe_ustl"], ["EXTRA127", "trd.s.fe_ustm"], ["EXTRA127", "trd.s.fe_usts"], ["EXTRA129", "prm.ago.d"], ["EXTRA129", "prm.not3"], ["EXTRA130", "prm.kr.sub"], ["EXTRA130", "prm.na.fx"], ["EXTRA130", "prm.not5"], ["EXTRA137", "c10.rank"], ["EXTRA147", "eng.x.imf-portfolio-pairs.age"], ["EXTRA147", "eng.x.wdi-destinations.age"], ["EXTRA147", "trd.k.coin"], ["EXTRA147", "trd.k.more"], ["EXTRA147", "trd.k.less"]];
+const V147_JA = [["EXTRA36", "q.src.v"], ["EXTRA43", "etf.k.m"], ["EXTRA43", "etf.c.m"], ["EXTRA99", "wh.bal.sub"], ["EXTRA99", "wh.n.Binance"], ["EXTRA99", "wh.d7"], ["EXTRA99", "wh.not4"], ["EXTRA98", "lev.f7"], ["EXTRA98", "lev.dn"], ["EXTRA98", "lev.dr.sub"], ["EXTRA107", "arc.sub"], ["EXTRA107", "arc.since"], ["EXTRA107", "arc.per"], ["EXTRA107", "arc.month"], ["EXTRA107", "arc.k.yld"], ["EXTRA107", "arc.since1"], ["EXTRA109", "wh.dob.sub"], ["EXTRA110", "trd.d.nocr"], ["EXTRA110", "trd.d.k.edge"], ["EXTRA110", "trd.d.k.oos"], ["EXTRA110", "trd.d.k.of"], ["EXTRA110", "trd.d.ev"], ["EXTRA110", "trd.d.own"], ["EXTRA110", "trd.d.v.short"], ["EXTRA110", "trd.d.why.short"], ["EXTRA110", "trd.d.b.sub"], ["EXTRA110", "trd.d.b.days"], ["EXTRA110", "trd.d.b.oos"], ["EXTRA110", "trd.d.b.short"], ["EXTRA110", "trd.d.m.1"], ["EXTRA110", "trd.d.m.3"], ["EXTRA110", "trd.d.m.4"], ["EXTRA111", "kc.note"], ["EXTRA112", "ins.k.rep"], ["EXTRA112", "ins.k.nv"], ["EXTRA112", "ins.cap"], ["EXTRA113", "st.mm.fsi"], ["EXTRA114", "auk.k.abovev"], ["EXTRA114", "auk.k.aboven"], ["EXTRA114", "auk.n"], ["EXTRA116", "trd.dc.k.of"], ["EXTRA116", "trd.dc.b.sub"], ["EXTRA116", "trd.dc.b.short"], ["EXTRA116", "trd.dc.m.2"], ["EXTRA116", "trd.dc.m.3"], ["EXTRA116", "trd.dc.m.4"], ["EXTRA116", "trd.dc.m.6"], ["EXTRA116", "trd.d.m.6"], ["EXTRA117", "trd.subc"], ["EXTRA118", "trd.dc2.ans.best"], ["EXTRA118", "trd.dc2.y1"], ["EXTRA118", "trd.dc2.ans.need"], ["EXTRA118", "trd.dc2.ev1"], ["EXTRA118", "trd.dc2.own"], ["EXTRA118", "trd.dc2.why.late"], ["EXTRA118", "trd.dc2.b.sub"], ["EXTRA118", "trd.dc2.b.side"], ["EXTRA118", "trd.dc2.b.y1"], ["EXTRA118", "trd.dc2.b.y10"], ["EXTRA118", "trd.dc2.b.lvd.wait"], ["EXTRA118", "trd.dc2.b.lvd"], ["EXTRA118", "trd.dc2.b.lvd.nx"], ["EXTRA118", "trd.dc2.b.note"], ["EXTRA118", "trd.dc2.m.3"], ["EXTRA118", "trd.dc2.m.4"], ["EXTRA118", "trd.dc2.m.5"], ["EXTRA118", "trd.dc2.m.7"], ["EXTRA118", "trd.dc2.m.8"], ["EXTRA119", "ln.k.tip.tx"], ["EXTRA119", "ln.k.chk.mp"], ["EXTRA119", "ln.ago.d"], ["EXTRA123", "lev.h.cz"], ["EXTRA123", "lev.cz.r24"], ["EXTRA123", "lev.not7"], ["EXTRA125", "trd.dw2.ans.best"], ["EXTRA125", "trd.dw2.y1"], ["EXTRA125", "trd.dw2.ev1"], ["EXTRA125", "trd.dw2.own"], ["EXTRA125", "trd.dw2.b.side"], ["EXTRA125", "trd.dw2.b.y1"], ["EXTRA125", "trd.dw2.b.y10"], ["EXTRA125", "trd.dw2.b.lvd"], ["EXTRA125", "trd.dw2.b.note"], ["EXTRA125", "trd.dw2.b.v1i"], ["EXTRA125", "trd.dw2.m.6"], ["EXTRA125", "trd.dw2.m.7"], ["EXTRA125", "trd.dw2.m.8"], ["EXTRA127", "trd.b.kn"], ["EXTRA127", "trd.s.fe_ustl"], ["EXTRA127", "trd.s.fe_ustm"], ["EXTRA127", "trd.s.fe_usts"], ["EXTRA129", "prm.ago.d"], ["EXTRA129", "prm.not3"], ["EXTRA130", "prm.kr.sub"], ["EXTRA130", "prm.na.fx"], ["EXTRA130", "prm.not5"], ["EXTRA137", "c10.rank"], ["EXTRA147", "eng.x.imf-portfolio-pairs.age"], ["EXTRA147", "eng.x.wdi-destinations.age"], ["EXTRA147", "trd.k.coin"], ["EXTRA147", "trd.k.more"], ["EXTRA147", "trd.k.less"]];
 const V147_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], V147_L8 = V147_L10.slice(2);
 const V147_LOC = new Function(html.slice(html.indexOf('const LOCALE='), html.indexOf('\n', html.indexOf('const LOCALE='))) + '\nreturn LOCALE;')();
 const v147Old = s => V147_PAIRS.reduce((a, [o, n]) => a.split(n).join(o), s);
@@ -11522,7 +11522,7 @@ const V151_PROV = ['CoinGecko', 'CoinMarketCap', 'CoinPaprika', 'DefiLlama', 'Co
   'Statistics Canada', 'EBC/ECB'];
 const V151_GONE = ["Finnhub", "New York Fed"];   /* nazwy, które v151 usunął ze słowników w całości — nie wolno im wrócić w żadnym wpisie */
 const V151_SUBJ = {'sp.cc.XM': ['EBC/ECB']};   /* „Strefa euro (EBC)” — bank centralny jako ustalający stopę, jak „USA (Fed)” i „Polska (NBP)” */
-const V151_ZASL = 659;   /* wpisy zasłonięte późniejszym słownikiem (widz ich nie zobaczy), które jeszcze mają nazwę z V151_PROV — tylko maleje (decyzja koordynatora) */
+const V151_ZASL = 0;   /* v152: wpisów zasłoniętych już nie ma — postać ścisła: nazwy z V151_PROV nie ma w ŻADNYM wpisie żadnego słownika (poza przedmiotem z V151_SUBJ); dawniej 659 */
 const v151Names = s => {
   let x = String(s); for (const [re] of G126_NAMES.ALLOW) x = x.replace(re, ' ~ ');
   const all = G126_NAMES.HIDE.concat(G126_NAMES.BOTH);
@@ -11550,7 +11550,7 @@ function v151Scan(src) {
 test('v151: strażnik nazw — we WSZYSTKICH wpisach wszystkich słowników (10 języków, także zasłonięte i I18N / EXTRA / EXTRA2) nazwy z usuniętych tekstów tylko we wpisach zasłoniętych (≤ V151_ZASL, lista może tylko maleć); nazw, które v151 usunął w całości, nie ma nigdzie', () => {
   const {zasl, bad} = v151Scan(html);
   assert.deepEqual(bad, [], 'nazwy dostawców w słownikach:\n  ' + bad.join('\n  '));
-  assert.ok(zasl.length <= V151_ZASL, 'wpisów zasłoniętych z nazwą przybyło: ' + zasl.length + ' > ' + V151_ZASL + ' (nowy słownik nie może dopisywać nazw dostawców, nawet do starszych tekstów)');
+  assert.ok(zasl.length <= V151_ZASL, 'wpisy zasłonięte z nazwą dostawcy (v152: ma ich nie być): ' + zasl.length + ' > ' + V151_ZASL + '\n  ' + zasl.join('\n  '));
   assert.ok(V151_GONE.length >= 2, 'nazwy usunięte w całości');
 });
 
@@ -11566,4 +11566,64 @@ test('v151: strażnik nazw działa — wykrywa nazwę w nowym słowniku (wpis wi
   assert.equal(r.zasl.length, base.zasl.length + 2, 'dwa nowe wpisy zasłonięte z nazwą (pl i en x.v151.z)');
   assert.deepEqual(r.bad.filter(x => x.includes('EXTRA995')).sort(), ['EXTRA9950 pl x.v151.g: ' + V151_GONE[0] + ' (usunięta w v151)', 'EXTRA9950 pl x.v151.g: ' + V151_GONE[0] + ' (wpis widoczny)',
     'EXTRA9951 pl x.v151.a: Twelve Data (wpis widoczny)'].sort(), 'wpis widoczny i nazwa usunięta w całości — zgłoszone; przedmiot sp.cc.XM pominięty');
+});
+
+/* ===================== v152: słowniki bez wpisów zasłoniętych =====================
+   Wpis (słownik D, język L, klucz k) jest zasłonięty, gdy słownik nakładany później (kolejność linii for(…) w pliku, I18N pierwszy) ma ten sam
+   klucz w tym samym języku — wartość z D nigdy nie jest końcową I18N[L][k]. Do v151 takich wpisów było 1 860 w 88 słownikach (659 z nazwami
+   dostawców i wydawców z dawnych podpisów); v152 je usunął. Między pierwszą a ostatnią linią nakładania kod strony nie czyta słownika
+   (tylko definicje funkcji), więc nikt nie widział też wartości pośredniej.
+   Testy wydań sprzed v152 czytają „swój” słownik (JSON.parse(… 'const EXTRAnn=' …)). v152Eff(d) zwraca ten słownik z tekstem SKUTECZNYM tam,
+   gdzie wpis zasłonięty zniknął: d[l][k] = własny wpis słownika, a gdy go nie ma — końcowa wartość strony I18N[l][k] (bez zapasu angielskiego;
+   klucza brak w ogóle = undefined; z listą `tylko` — tylko dla wymienionych kluczy). Zbiór kluczy (Object.keys, in, JSON.stringify) to tylko własne wpisy. Sprawdzenie „tekst istnieje / ma
+   pola / jest przetłumaczony” dotyczy więc tekstu, który widz faktycznie widzi — dawniej mogło przejść na tekście, którego nikt nie widział. */
+function v152Eff(d, tylko) {   /* tylko (opcjonalnie): tekst skuteczny tylko dla tych kluczy — gdy test sprawdza zachowanie przy kluczu, którego słownik nigdy nie miał */
+  const F = v143Final(html), own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k), out = {};
+  for (const l of Object.keys(d)) out[l] = new Proxy(d[l], {get: (o, k) => (typeof k === 'string' && !own(o, k) && own(F[l], k) && (!tylko || tylko.includes(k))) ? F[l][k] : o[k]});
+  return out;
+}
+/* wpisy zasłonięte: (słownik, język, klucz), gdy później nakładany słownik (v151Dicts: I18N, potem linie for(…) w kolejności w pliku) ma ten sam klucz w tym samym języku */
+function v152Zasl(src) {
+  const D = v151Dicts(src), out = [];
+  D.forEach((d, i) => { for (const l in d.obj) for (const k in d.obj[l]) if (D.slice(i + 1).some(x => v151Own(x.obj[l], k))) out.push(d.name + ' ' + l + ' ' + k); });
+  return out;
+}
+/* odczyty słownika w czasie nakładania: kod od const LOCALE= do ostatniej linii for(…), z I18N[l] w Proxy zaraz po literale I18N — każdy odczyt
+   wpisu (get / in) przed końcem nakładania widziałby wartość pośrednią */
+function v152Odczyty(src) {
+  const d0 = src.indexOf('const LOCALE='), i0 = src.indexOf('\nconst I18N={'), i1 = src.indexOf('\n};\n', i0) + 4;
+  const mm = [...src.matchAll(/^for\(const l in (EXTRA\w*)\)(?:if\(I18N\[l\]\))?Object\.assign\(I18N\[l\],\1\[l\]\);?$/gm)], m = mm[mm.length - 1];
+  assert.ok(d0 > 0 && i0 > d0 && i1 > i0 && m && m.index > i1, 'blok słowników');
+  const spy = 'const V152R=[];for(const l in I18N)I18N[l]=new Proxy(I18N[l],{get(o,k){if(typeof k===\'string\')V152R.push(l+\' \'+k);return o[k];},has(o,k){V152R.push(l+\' \'+String(k));return k in o;}});\n';
+  return new Function(src.slice(d0, i1) + spy + src.slice(i1, m.index + m[0].length) + '\nreturn {R: V152R, I18N};')();
+}
+
+test('v152: zero wpisów zasłoniętych — każdy wpis każdego słownika (I18N, EXTRA, EXTRA2 i 141 JSON) w swoim języku jest końcową wartością strony; kolejność nakładania = linie for(…) w pliku', () => {
+  const D = v151Dicts(html), Z = v152Zasl(html);
+  assert.deepEqual(Z, [], 'wpisy zasłonięte (słownik język klucz):\n  ' + Z.join('\n  '));
+  assert.equal(D.length, 144); assert.equal(D[0].name, 'I18N');
+  const n = D.map(d => d.name), at = x => n.indexOf(x);
+  assert.ok(at('EXTRA142') > at('EXTRA149') && at('EXTRA152') > at('EXTRA150') && at('EXTRA23') > at('EXTRA35') && at('EXTRA39') > at('EXTRA41') && at('EXTRA97') > at('EXTRA105'), 'kolejność z linii for, nie z numerów');
+  const I = v143Final(html);
+  for (const d of D) for (const l in d.obj) for (const k in d.obj[l]) assert.equal(I[l][k], d.obj[l][k], d.name + ' ' + l + ' ' + k + ': wpis = wartość końcowa');
+  assert.equal(html.split('/* v152: ze słowników usunięto wpisy zasłonięte').length, 2, 'znacznik v152 raz');
+});
+
+test('v152: między pierwszą a ostatnią linią nakładania kod strony nie czyta słownika (tylko definicje funkcji) — nikt nie widzi wartości pośredniej; stan końcowy jak bez podglądu', () => {
+  const r = v152Odczyty(html), F = v143Final(html);
+  assert.deepEqual(r.R, [], 'odczyty słownika w czasie nakładania: ' + r.R.slice(0, 20).join(', '));
+  for (const l of Object.keys(F)) assert.deepEqual(Object.keys(r.I18N[l]).sort(), Object.keys(F[l]).sort(), l + ': ten sam zestaw kluczy');
+  /* strażnik działa: odczyt t() wstawiony między dwie linie nakładania jest wykryty */
+  const a = html.indexOf('\nfor(const l in EXTRA90)'), b = html.indexOf('\n', a + 1) + 1;
+  const src = html.slice(0, b) + "const V152X=t('nav.method')+(('q.src' in I18N.pl)?'':'');\n" + html.slice(b);
+  assert.deepEqual(v152Odczyty(src).R, ['pl nav.method', 'pl q.src'], 'odczyt pośredni wykryty');
+});
+
+test('v152: strażnik zasłoniętych działa — nowy słownik, który nadpisuje istniejący klucz w jednym języku, robi ze starego wpisu zasłonięty (i tylko ten)', () => {
+  const end = html.indexOf('\n', html.lastIndexOf('for(const l in EXTRA')) + 1;
+  const mk = (name, o) => 'const ' + name + '=' + JSON.stringify(o) + ';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);\n';
+  const I = v143Final(html), D = v151Dicts(html), zrodlo = D.filter(d => v151Own(d.obj.de, 'rwc.in')).map(d => d.name);
+  assert.deepEqual(zrodlo, ['EXTRA152'], 'rwc.in po niemiecku tylko w EXTRA152');
+  const src = html.slice(0, end) + mk('EXTRA9952', {de: {'rwc.in': I.de['rwc.in'] + ' (neu)', 'x.v152.nowy': 'Neu'}}) + html.slice(end);
+  assert.deepEqual(v152Zasl(src), ['EXTRA152 de rwc.in'], 'stary wpis zasłonięty; nowy klucz — nie');
 });
