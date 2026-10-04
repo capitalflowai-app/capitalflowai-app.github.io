@@ -11120,7 +11120,7 @@ test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąsk
   const F = L => new Function('LANG', html.slice(a, b) + '\nreturn {sepK, sepL};')(L);
   assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
   for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
-  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 31, 'etykiety składane w kodzie: 31 miejsc (v156: pasek strachu i chciwości)');
+  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 32, 'etykiety składane w kodzie: 32 miejsca (v157: podpowiedzi wykresów — wkK)');
   assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 29, 'listy składane w kodzie: 29 miejsc');
   for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
     assert.ok(!html.includes(s), 'dawny separator: ' + s);
@@ -12028,4 +12028,580 @@ test('v161: słownik — czysty JSON, tylko po polsku, klucz rwc.zakres używany
   assert.ok(!/wisdomtree|horizon|stellar|publicnode|plume|llama/i.test(JSON.stringify(D)), 'bez nazw dostawców, węzłów i emitentów w tekście');
   const used = new Set([...rw133.BLK.matchAll(/t\('(rwc\.[a-z0-9.]+)'/g)].map(m => m[1]));
   assert.ok(used.has('rwc.zakres'), 'klucz używany w bloku RWA');
+});
+
+
+/* ---------- v157: widok „Wykresy” (GLOBAL i CRYPTO) — zestaw wykresów SVG, kafle z danych kart, przełącznik z pamięcią ---------- */
+/* nagrania danych: przycięte pliki strony z 04.10.2026 ok. 11:25 UTC (zegar przypięty w każdym teście — testy bez zegara) */
+const V157_FIX = {"nastroj":{"at":"2026-10-04T07:35:31+00:00","d":[["2026-09-07",59.7,4],["2026-09-08",52.9,4],["2026-09-09",46.8,4],["2026-09-10",41.5,4],["2026-09-11",55.5,4],["2026-09-14",43.3,4],["2026-09-15",37.9,4],["2026-09-16",43.1,4],["2026-09-17",55.4,4],["2026-09-18",61.8,4],["2026-09-21",68.9,4],["2026-09-22",72.1,4],["2026-09-23",60.4,4],["2026-09-24",53.9,4],["2026-09-25",50.6,4],["2026-09-28",38.5,4],["2026-09-29",37.5,4],["2026-09-30",35.1,4],["2026-10-01",32.3,4],["2026-10-02",33.7,4]]},"stres":{"at":"2026-10-04T08:16:17+00:00","pc_off":true,"fsi":{"date":"2026-09-30","value":-2.349,"d1":-0.105,"d5":0.314,"hist":[["2026-08-20",-2.675],["2026-08-21",-2.814],["2026-08-24",-2.757],["2026-08-25",-2.734],["2026-08-26",-2.741],["2026-08-27",-2.847],["2026-08-28",-3.03],["2026-08-31",-2.767],["2026-09-01",-2.749],["2026-09-02",-2.768],["2026-09-03",-2.725],["2026-09-04",-2.791],["2026-09-07",-2.874],["2026-09-08",-2.537],["2026-09-09",-2.411],["2026-09-10",-2.289],["2026-09-11",-2.458],["2026-09-14",-2.226],["2026-09-15",-2.244],["2026-09-16",-2.411],["2026-09-17",-2.593],["2026-09-18",-2.734],["2026-09-21",-2.727],["2026-09-22",-2.773],["2026-09-23",-2.663],["2026-09-24",-2.398],["2026-09-25",-2.63],["2026-09-28",-2.222],["2026-09-29",-2.244],["2026-09-30",-2.349]]}},"ici":{"at":"2026-10-04T02:04:33+00:00","ok":{"lt":true},"lt":{"week":"2026-09-23","cols":["total","eq","dom","wld","hyb","bd","tax","muni","com"],"w":[["2026-09-02",8136,-5461,-4719,-742,-1661,12684,12924,-240,2573],["2026-09-09",1631,-11701,-13318,1617,1294,11546,10270,1276,493],["2026-09-16",-9450,-12650,-11487,-1163,-2169,3244,3796,-552,2124],["2026-09-23",20137,12875,5783,7093,-1856,8162,7262,900,956]],"m":[["2025-07",-222756,-285668,-299439,13770,-3297,63968,57855,6113,2240],["2025-08",46915,-18847,-22434,3587,-5404,65552,59883,5669,5614],["2025-09",70762,-4806,-18248,13441,-4664,68634,60609,8024,11599],["2025-10",77722,3838,-12794,16631,-6971,74174,63782,10392,6681],["2025-11",67051,20632,2185,18447,-8819,53009,47267,5742,2229],["2025-12",86769,31772,19301,12471,-8373,53250,46761,6489,10119],["2026-01",104198,7616,-36801,44417,-5253,96975,82162,14813,4859],["2026-02",151226,41030,2806,38225,-2140,104839,93873,10967,7496],["2026-03",37470,22069,8942,13127,-10658,36939,31584,5354,-10879],["2026-04",101450,60944,37454,23490,-4632,45760,39839,5921,-622],["2026-05",108678,3370,6110,-2740,-3191,107301,92850,14451,1198],["2026-06",103680,42501,40262,2238,-7938,76438,66330,10108,-7321],["2026-07",94128,33984,33517,467,-3436,62188,53910,8277,1392],["2026-08",75125,-5612,-14038,8427,-6073,77169,68895,8274,9641]],"sum4":{"to":"2026-09-23","v":[20454,-16937,-23741,6805,-4392,35636,34252,1384,6146]}}},"tic":{"at":"2026-10-03T22:15:50+00:00","asof":"2026-07","months":["2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07"],"regions":{},"world":{"in":[["2025-07",65510,1],["2025-08",180271,1],["2025-09",204363,1],["2025-10",52808,1],["2025-11",215554,1],["2025-12",124741,1],["2026-01",61070,1],["2026-02",100340,1],["2026-03",95461,1],["2026-04",207412,1],["2026-05",262845,1],["2026-06",208899,1],["2026-07",40616,1]],"out":[["2025-07",28820,1],["2025-08",47909,1],["2025-09",27651,1],["2025-10",22230,1],["2025-11",12091,1],["2025-12",22461,1],["2026-01",48124,1],["2026-02",44506,1],["2026-03",15719,1],["2026-04",102093,1],["2026-05",31646,1],["2026-06",34529,1],["2026-07",68522,1]],"net":[["2025-07",36690,1],["2025-08",132362,1],["2025-09",176712,1],["2025-10",30578,1],["2025-11",203463,1],["2025-12",102280,1],["2026-01",12946,1],["2026-02",55834,1],["2026-03",79742,1],["2026-04",105319,1],["2026-05",231199,1],["2026-06",174370,1],["2026-07",-27906,1]]}},"indeksy":{"at":"2026-10-04T10:16:28+00:00","part_at":{"ix":"2026-10-04T10:16:28+00:00","etf":"2026-10-04T05:14:13+00:00"},"ix":{"BVSP":{"d":[["2026-08-28",175664.62],["2026-08-31",177418.78],["2026-09-01",179722.48],["2026-09-02",185205.09],["2026-09-03",185188.13],["2026-09-04",185147.15],["2026-09-08",187366.84],["2026-09-09",185629.04],["2026-09-10",188268.59],["2026-09-11",187206.89],["2026-09-14",185500.88],["2026-09-15",186502.64],["2026-09-16",185547.66],["2026-09-17",185992.03],["2026-09-18",185229.17],["2026-09-21",186595.6],["2026-09-22",187422.92],["2026-09-23",185814.09],["2026-09-24",183965.91],["2026-09-25",183476.86],["2026-09-28",182991.13],["2026-09-29",183827.59],["2026-09-30",186340.46],["2026-10-01",187197.46],["2026-10-02",192114.55]]},"GSPC":{"d":[["2026-08-28",7711.758],["2026-08-31",7686.1366],["2026-09-01",7631.4664],["2026-09-02",7666.6024],["2026-09-03",7747.7139],["2026-09-04",7718.5982],["2026-09-08",7673.5199],["2026-09-09",7636.3623],["2026-09-10",7591.6989],["2026-09-11",7656.9795],["2026-09-14",7619.9849],["2026-09-15",7585.7336],["2026-09-16",7551.8082],["2026-09-17",7637.7598],["2026-09-18",7650.5041],["2026-09-21",7764.7037],["2026-09-22",7764.6407],["2026-09-23",7706.0299],["2026-09-24",7704.1336],["2026-09-25",7743.4119],["2026-09-28",7683.6926],["2026-09-29",7670.84],["2026-09-30",7651.5398],["2026-10-01",7666.4527],["2026-10-02",7722.72]]},"XU100":{"d":[["2026-08-31",14334.06],["2026-09-01",14229.01],["2026-09-02",14050.56],["2026-09-03",13932.46],["2026-09-04",14012.42],["2026-09-07",14151.59],["2026-09-08",14405.25],["2026-09-09",14505.48],["2026-09-10",14393.85],["2026-09-11",14467.25],["2026-09-14",14235.83],["2026-09-15",13892.3],["2026-09-16",13122.58],["2026-09-17",13509.76],["2026-09-18",13284.42],["2026-09-21",13337.69],["2026-09-22",13198.84],["2026-09-23",13251.85],["2026-09-24",12888.33],["2026-09-25",12899.35],["2026-09-28",12592.76],["2026-09-29",12290.58],["2026-09-30",11947.18],["2026-10-01",12249.04],["2026-10-02",12270.18]]},"N225":{"d":[["2026-08-26",66262.16],["2026-08-27",66131.98],["2026-08-28",66405.56],["2026-08-31",66311.9297],["2026-09-01",66215.3438],["2026-09-02",64325.6406],["2026-09-03",64214.4805],["2026-09-04",65020.9414],["2026-09-07",66399.8438],["2026-09-08",65269.3281],["2026-09-09",65142.7813],["2026-09-10",65270.9492],["2026-09-11",64011.3398],["2026-09-14",63492.9883],["2026-09-15",63484.1016],["2026-09-16",63923.0],["2026-09-17",64136.25],["2026-09-18",65018.9492],["2026-09-24",65513.9883],["2026-09-25",66364.2031],["2026-09-28",65877.6172],["2026-09-29",65481.2695],["2026-09-30",66753.7188],["2026-10-01",68956.7188],["2026-10-02",68220.4766]]}}},"fed":{"at":"2026-10-04T10:57:04+00:00","ok":{"ks":true,"ks_tr":true,"ks_h":true,"ks_last":true},"part_at":{"ks":"2026-10-04T10:57:55+00:00","ks_tr":"2026-10-04T10:57:55+00:00","ks_h":"2026-10-04T05:35:08+00:00","ks_last":"2026-10-04T05:35:08+00:00"},"ks":{"meetings":[{"date":"2026-10-28","decision_at":"2026-10-28T18:00:00Z","close_at":"2026-10-28T17:59:00Z","sum_raw":1.015,"norm":true,"top":"hold","oi":3984699.82,"vol24":72558.6,"last_trade":"2026-10-04T10:22:33Z","out":[{"k":"cutgt25","o":-25.5,"lab":"Cut >25bps","p":0.005,"pn":0.0049,"p1d":0.005,"p7d":0.005,"p30d":0.015,"oi":212394.93,"lt":"2026-10-04T04:49:33Z"},{"k":"cut25","o":-25,"lab":"Cut 25bps","p":0.005,"pn":0.0049,"p1d":0.005,"p7d":0.005,"p30d":0.035,"oi":772673.99,"lt":"2026-10-04T10:14:00Z"},{"k":"hold","o":0,"lab":"Fed maintains rate","p":0.825,"pn":0.8128,"p1d":0.815,"p7d":0.355,"p30d":0.685,"oi":1206754.11,"lt":"2026-10-04T10:22:33Z"},{"k":"hike25","o":25,"lab":"Hike 25bps","p":0.175,"pn":0.1724,"p1d":0.185,"p7d":0.635,"p30d":0.275,"oi":978848.7,"lt":"2026-10-04T10:17:08Z"},{"k":"hikegt25","o":25.5,"lab":"Hike >25bps","p":0.005,"pn":0.0049,"p1d":0.005,"p7d":0.015,"p30d":0.015,"oi":814028.09,"lt":"2026-10-04T04:55:26Z"}]}]}},"dolar":{"at":"2026-10-04T10:26:15+00:00","ok":{"ar":true,"amb":true,"ve":true,"bo":true},"part_at":{"hist_ar":"2026-10-03T09:18:44+00:00","ar":"2026-10-04T10:26:15+00:00","amb":"2026-10-04T10:26:15+00:00","hist_ve":"2026-10-04T09:30:33+00:00","ve":"2026-10-04T10:26:15+00:00","bo":"2026-10-04T10:26:15+00:00"},"cols":{"ar":["date","oficial","mayorista","blue","bolsa","contadoconliqui","cripto"],"ve":["date","oficial","paralelo"],"bo":["date","oficial","usdt"]},"ar":{"q":{"oficial":[1490,1540,"2026-10-02T18:55:00Z"],"blue":[1540,1560,"2026-10-03T20:56:00Z"],"bolsa":[1543.6,1551.9,"2026-10-03T20:56:00Z"],"contadoconliqui":[1621.1,1623.8,"2026-10-03T20:56:00Z"],"mayorista":[1511,1520,"2026-10-02T16:40:00Z"],"cripto":[1610.59,1613.87,"2026-10-03T20:56:00Z"]},"gap":{"oficial":1.32,"blue":2.63,"bolsa":2.1,"contadoconliqui":6.83,"cripto":6.18},"d":[["2026-10-02",1540,1520,1560,1551.9,1623.8,1616.6],["2026-10-03",1540,1520,1560,1551.9,1623.8,1613.87],["2026-10-04",1540,1520,1560,1551.9,1623.8,1613.87]]},"ve":{"q":{"oficial":[null,866.5612,"2026-10-02T04:00:00Z","2026-10-02"],"paralelo":[null,974.55432,"2026-10-04T04:01:59Z"]},"base":[null,866.5612,"2026-10-02T04:00:00Z","2026-10-02"],"gap":12.46},"bo":{"q":{"oficial":[12,12,"2026-10-03T00:00:00Z"],"usdt":[11.97,12.01,"2026-10-03T21:01:13Z"]},"gap":0.08}},"etf":{"at":"2026-10-04T10:16:28+00:00","asof":"2026-10-01 – 2026-10-02","assets":{"btc":{"sym":"BTC","day":[[1790208000,190.646110255],[1790294400,134.465169155],[1790553600,31.070566450000012],[1790640000,66.1947024],[1790726400,-148.6877622],[1790812800,102.670557075]]},"eth":{"sym":"ETH","day":[[1790208000,66.01134156],[1790294400,86.94690118999999],[1790553600,17.09593008],[1790640000,-2.80855054],[1790726400,-59.582537],[1790812800,-55.372684475]]},"sol":{"sym":"SOL","day":[[1790294400,86.66702641500001],[1790553600,12.69706161],[1790640000,5.43798668],[1790726400,-11.10105175],[1790812800,-5.9078724000000005],[1790899200,1.3010888]]},"xrp":{"sym":"XRP","day":[[1790294400,22.64554595],[1790553600,3.95845],[1790640000,0.0],[1790726400,0.0],[1790812800,4.0654583099999995],[1790899200,-3.2800076]]}}},"cmc":{"at":"2026-10-04T10:57:04+00:00","src":"CoinMarketCap","asof":"2026-10-04T10:55:59.999Z","total_mcap":2906193464474.3657,"total_vol24":41778133041.94,"mcap_chg24_pct":0.85252308,"btc_dom":58.990953668829,"eth_dom":11.357534621631,"stable_mcap":285278084830.02136,"defi_mcap":93664833134.51471,"altcoin_mcap":1191802224319.7656,"active":8130},"krypto":{"at":"2026-10-04T10:16:28+00:00","stabc":{"src":"DefiLlama — stablecoins (chainCirculating, peggedUSD)","unit":"USD","asof":"2026-10-04","cols":["sieć","podaż","zmiana 1 dzień","zmiana 7 dni","zmiana 30 dni"],"n":210,"total":[313012243456,520456767,100126880,870928655],"rows":[["Ethereum",147544660516,602928005,-418437015,-1033297192],["Tron",94301787404,7565498,228979158,508932314],["BSC",16934654426,1894256,45390525,-158986921],["Solana",16793191859,-94545950,-18331159,165961279],["Hyperliquid L1",7430017340,20376704,-233995748,444119618],["Base",5160814919,14820698,48589889,167486793],["Arbitrum",4129530106,-59026563,283578850,249463907],["Polygon",3443410847,8397863,7908868,-177855370],["Avalanche",1599741795,599505,8837193,16267919],["X Layer",1573553139,5852621,-28001338,-188576731],["Plasma",1447182482,5538625,-8117001,508160422],["XRPL",1305607614,0,126365568,189518051],["Robinhood Chain",1085551119,594884,17808337,134097565],["Aptos",1049441701,-16455259,80059032,-86365205]]},"stabh":{"asof":"2026-10-04","cur":311968343174,"d":{"1":73992599,"7":1882036240,"30":3292006570,"91":3474410983,"365":10882048167},"pct":{"1":0.0237,"7":0.6069,"30":1.0665,"91":1.1262,"365":3.6143}},"fng":{"asof":"2026-10-04","d":[["2026-09-04",74,"Greed"],["2026-09-05",73,"Greed"],["2026-09-06",73,"Greed"],["2026-09-07",71,"Greed"],["2026-09-08",69,"Greed"],["2026-09-09",66,"Greed"],["2026-09-10",69,"Greed"],["2026-09-11",56,"Greed"],["2026-09-12",63,"Greed"],["2026-09-13",61,"Greed"],["2026-09-14",57,"Greed"],["2026-09-15",69,"Greed"],["2026-09-16",51,"Neutral"],["2026-09-17",50,"Neutral"],["2026-09-18",56,"Greed"],["2026-09-19",71,"Greed"],["2026-09-20",71,"Greed"],["2026-09-21",70,"Greed"],["2026-09-22",78,"Extreme Greed"],["2026-09-23",71,"Greed"],["2026-09-24",71,"Greed"],["2026-09-25",71,"Greed"],["2026-09-26",74,"Greed"],["2026-09-27",70,"Greed"],["2026-09-28",74,"Greed"],["2026-09-29",73,"Greed"],["2026-09-30",71,"Greed"],["2026-10-01",74,"Greed"],["2026-10-02",72,"Greed"],["2026-10-03",67,"Greed"],["2026-10-04",65,"Greed"]]}},"rwa":{"at":"2026-10-04T10:12:11+00:00","n":{"rwa":181,"dead":9,"bad_slug":0,"listed":108,"hidden":48,"zero":16,"valued":112,"hidden_valued":34,"hidden_live":1,"kept":0,"stale":30,"wait":0,"small":79,"small_v":147565843},"ok":{"list":true,"hidden":true},"seg":{"tb":{"v":6857937366,"n":34,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"ofi":{"v":662751879,"n":7,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"pc":{"v":894856333,"n":26,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"cm":{"v":1881616858,"n":16,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"eq":{"v":59155561,"n":6,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"re":{"v":323883529,"n":11,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"oth":{"v":475346978,"n":12,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null},"all":{"v":11155548505,"n":112,"c7":null,"c7_from":null,"cov7":null,"c30":null,"c30_from":null,"cov30":null}},"stale":{"n":30,"v":15259157185,"nf":30,"ng":0,"since":"2026-09-27","last":"2026-09-27","main":"2026-09-27","mixed":false,"gone":null,"src":true,"src_pct":100.0,"unk":0,"seg":{"tb":{"v":6914858372,"n":10,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"ofi":{"v":803319266,"n":3,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"pc":{"v":1684943694,"n":5,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"cm":{"v":3304454403,"n":5,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"eq":{"v":2376898218,"n":5,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false},"oth":{"v":174683232,"n":2,"ng":0,"last":"2026-09-27","gone":null,"main":"2026-09-27","mixed":false}}}},"top10":{"at":"2026-10-04T10:26:23+00:00","cols":["id","sym","name","px","mc","ch","upd"],"g":{"l1":{"c":[["binancecoin","BNB","BNB",790.67,105282204857.0,2.89096,"2026-10-04T10:24:20Z"],["ripple","XRP","XRP",1.5,94652609406.0,1.14553,"2026-10-04T10:24:20Z"],["solana","SOL","Solana",121.41,71422531250.0,1.70692,"2026-10-04T10:24:20Z"],["tron","TRX","TRON",0.335635,31879565301.0,-0.29849,"2026-10-04T10:24:20Z"]]},"defi":{"c":[["hyperliquid","HYPE","Hyperliquid",90.86,20210070133.0,3.27473,"2026-10-04T10:24:20Z"],["chainlink","LINK","Chainlink",14.1,10549787072.0,1.3205,"2026-10-04T10:24:20Z"],["rain","RAIN","Rain",0.01199435,8507350965.0,12.83793,"2026-10-04T10:24:20Z"],["uniswap","UNI","Uniswap",9.06,5662322493.0,-2.32723,"2026-10-04T10:24:20Z"]]},"ai":{"c":[["near","NEAR","NEAR Protocol",4.83,6320918389.0,3.10474,"2026-10-04T10:24:20Z"],["bittensor","TAO","Bittensor",303.36,3439897599.0,4.40604,"2026-10-04T10:24:20Z"],["internet-computer","ICP","Internet Computer",3.35,1863382157.0,0.87428,"2026-10-04T10:24:20Z"],["venice-token","VVV","Venice Token",28.43,1374550403.0,2.77983,"2026-10-04T10:24:20Z"]]},"meme":{"c":[["dogecoin","DOGE","Dogecoin",0.093372,14583413239.0,0.62161,"2026-10-04T10:24:20Z"],["shiba-inu","SHIB","Shiba Inu",5.71e-06,3363034440.0,0.63355,"2026-10-04T10:24:20Z"],["pump-fun","PUMP","Pump.fun",0.00633258,2943976696.0,14.70679,"2026-10-04T10:24:20Z"],["memecore","M","MemeCore",1.021,2331287329.0,-1.0139,"2026-10-04T10:24:20Z"]]}}},"wieloryby":{"at":"2026-10-04T10:57:04+00:00","ok":{"cena":true,"salda":true,"transfery":true,"eth":true},"salda":{"Binance":{"eth":2666065.775005,"usdt":20608785925.13,"usdc":57096.09,"usd":27815478675.9,"blk":26118535,"t":"2026-10-04T10:57:23+00:00","n":9},"OKX":{"eth":0.586045,"usdt":29.81,"usdc":1392174795.83,"usd":1392176409.78,"blk":26118535,"t":"2026-10-04T10:57:23+00:00","n":10},"Bybit":{"eth":297493.206207,"usdt":1377783693.69,"usdc":300067798.42,"usd":2482004625.53,"blk":26118535,"t":"2026-10-04T10:57:23+00:00","n":108},"KuCoin":{"eth":69130.325461,"usdt":576001478.4,"usdc":39560160.87,"usd":802427647.21,"blk":26118535,"t":"2026-10-04T10:57:23+00:00","n":33},"Bitfinex":{"eth":383065.395612,"usdt":141488152.16,"usdc":17870810.56,"usd":1194822064.93,"blk":26118535,"t":"2026-10-04T10:57:23+00:00","n":4}},"gieldy":{"Binance":{"tokeny":["USDT","USDC","ETH"]},"OKX":{"tokeny":["USDC"]},"Bybit":{"tokeny":["USDT","USDC","ETH"]},"KuCoin":{"tokeny":["USDT","USDC","ETH"]},"Bitfinex":{"tokeny":["USDT","USDC","ETH"]}},"eth_usd":2703.09747128,"eth_usd_at":"2026-10-04T10:57:23+00:00"},"dzwignia":{"at":"2026-10-04T10:57:04+00:00","ok":{"hl":true,"bn":true,"dr":true,"okx":true,"kr":true,"cb":true,"dy":true,"cz":true},"part_at":{"hl":"2026-10-04T10:16:28+00:00","bn":"2026-10-04T07:15:02+00:00","dr":"2026-10-04T10:16:28+00:00","okx":"2026-10-04T10:16:28+00:00","kr":"2026-10-04T10:16:28+00:00","cb":"2026-10-04T10:16:28+00:00","dy":"2026-10-04T10:16:28+00:00","cz":"2026-10-04T10:57:04+00:00"},"hl":{"rows":{"BTC":{"oi_usd":3230048993.0,"f_y":10.95},"ETH":{"oi_usd":3262116204.0,"f_y":10.95}}},"okx":{"BTC":{"oi_usd":2431205503.0,"f_y":-0.787,"t":"2026-10-04T10:16:28+00:00"},"ETH":{"oi_usd":1635290048.0,"f_y":2.01,"t":"2026-10-04T10:16:28+00:00"}},"kr":{"BTC":{"oi_usd":174736514.0,"f_y":7.287,"t":"2026-10-04T10:25:46+00:00"},"ETH":{"oi_usd":74751030.0,"f_y":5.236,"t":"2026-10-04T10:25:46+00:00"}},"cb":{"BTC":{"oi_usd":86636785.0,"f_y":49.056,"t":"2026-10-01T09:00:29+00:00"},"ETH":{"oi_usd":36889469.0,"f_y":34.164,"t":"2026-10-01T09:00:29+00:00"}},"dy":{"BTC":{"oi_usd":16793890.0,"f_y":-0.059,"t":"2026-10-04T10:16:28+00:00"},"ETH":{"oi_usd":12197417.0,"f_y":-0.927,"t":"2026-10-04T10:16:28+00:00"}},"bn":{"day":"2026-10-03","BTC":{"last":{"oi_usd":8295530161.920556}}}},"premie":{"at":"2026-10-04T10:57:04+00:00","h_kr":[["2026-08-31",0.834,0.802,1368.032,"12:10",5],["2026-09-01",0.628,0.611,1374.607,"12:10",5],["2026-09-02",0.725,0.766,1362.558,"12:10",5],["2026-09-03",1.201,1.158,1357.288,"12:10",5],["2026-09-04",1.357,1.307,1350.353,"12:10",5],["2026-09-07",0.993,1.044,1347.926,"12:10",5],["2026-09-08",1.258,1.217,1341.674,"12:10",5],["2026-09-09",1.291,1.257,1336.2,"12:10",5],["2026-09-10",1.302,1.205,1343.802,"12:10",5],["2026-09-11",1.753,1.654,1342.788,"12:10",5],["2026-09-14",0.753,0.799,1346.238,"12:10",5],["2026-09-15",0.239,0.136,1359.147,"12:10",5],["2026-09-16",-0.1,-0.205,1367.799,"12:10",5],["2026-09-17",0.027,-0.112,1382.554,"12:10",5],["2026-09-18",-0.61,-0.655,1388.098,"12:10",5],["2026-09-21",-1.404,-1.397,1372.176,"12:10",5],["2026-09-22",-0.416,-0.453,1356.146,"12:10",5],["2026-09-23",-0.523,-0.538,1365.349,"12:10",5],["2026-09-24",0.386,0.394,1368.602,"12:10",5],["2026-09-25",-0.138,-0.299,1355.047,"12:10",5],["2026-09-28",0.043,0.005,1357.928,"12:10",5],["2026-09-29",0.152,0.121,1353.36,"12:10",5],["2026-09-30",-0.025,-0.03,1355.403,"12:10",5],["2026-10-01",0.057,-0.02,1361.267,"12:10",5],["2026-10-02",0.198,0.276,1348.276,"12:10",5]],"h_cb":[["2026-09-09",-0.002,-0.021,24],["2026-09-10",-0.003,-0.039,24],["2026-09-11",-0.0,-0.035,24],["2026-09-12",0.001,-0.021,24],["2026-09-13",-0.007,-0.039,24],["2026-09-14",0.003,-0.031,24],["2026-09-15",-0.012,-0.057,24],["2026-09-16",-0.005,-0.088,24],["2026-09-17",-0.005,-0.095,24],["2026-09-18",0.006,-0.06,24],["2026-09-19",0.004,-0.029,24],["2026-09-20",-0.002,-0.037,24],["2026-09-21",0.004,-0.017,24],["2026-09-22",0.009,-0.009,24],["2026-09-23",0.006,-0.011,24],["2026-09-24",0.004,-0.023,24],["2026-09-25",0.007,-0.016,24],["2026-09-26",0.01,-0.012,24],["2026-09-27",0.005,-0.02,24],["2026-09-28",0.004,-0.035,24],["2026-09-29",0.003,-0.036,24],["2026-09-30",-0.001,-0.05,24],["2026-10-01",0.004,-0.046,24],["2026-10-02",0.006,-0.019,24],["2026-10-03",0.004,-0.016,24]]}};
+const v157 = (() => {
+  const A = '/* ===================== v157: WIDOK „WYKRESY”', M = '/* ---------- v157: przełącznik „Widok: Karty | Wykresy”', Z = '})();   /* v157: koniec widoku „Wykresy” */';
+  const a = html.indexOf(A), m = html.indexOf(M, a), z = html.indexOf(Z, m);
+  assert.ok(a > 0 && m > a && z > m, 'blok v157: zestaw i kafle, przełącznik');
+  const KIT = html.slice(a, m), UI = html.slice(m, z + Z.length);
+  const I = v143Final(html);
+  const t = (k, o) => { let s = I.pl[k] !== undefined ? I.pl[k] : k; if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
+  const NF = {}, nfmt = (v, d) => { d = d || 0; return (NF[d] || (NF[d] = new Intl.NumberFormat('pl-PL', {minimumFractionDigits: d, maximumFractionDigits: d}))).format(v); };
+  const cut = (a0, b0) => { const x = html.indexOf(a0), y = html.indexOf(b0, x + 1); assert.ok(x > 0 && y > x, 'wycinek: ' + a0.slice(0, 50)); return html.slice(x, y) + '\n'; };
+  const FD = iso => { const N = Date.parse(iso); return class extends Date { constructor(...q) { if (q.length) super(...q); else super(N); } static now() { return N; } }; };
+  const ENV = (iso, x) => Object.assign({LANG: 'pl', LOCALE: {pl: 'pl-PL', en: 'en-US'}, t, nfmt, escH: v96src.escH, Date: FD(iso || '2026-10-04T11:30:00Z'), sepK: () => ': ', sepL: () => ', ',
+    gAgeNote: d => (d ? ' · wiek(' + String(d).slice(0, 10) + ')' : ''), engDate: s => 'D(' + s + ')', icoWrap: h => (h ? '<span class="icos">' + h + '</span>' : ''),
+    flagImg: c => '<i data-f="' + c + '"></i>', glyphImg: n => '<i data-g="' + n + '"></i>', coinImg: c => '<i data-c="' + c + '"></i>', exchImg: n => '<i data-x="' + n + '"></i>',
+    netImg: n => '<i data-n="' + n + '"></i>', regFlags: id => '<i data-r="' + id + '"></i>', nName: id => t('n.' + id)}, x || {});
+  /* kod (wycinki modułów strony + zestaw v157) w piaskownicy; nazw zadeklarowanych w kodzie na najwyższym poziomie (początek wiersza) nie podajemy z zewnątrz */
+  const run = (code, env, ret) => { const k = Object.keys(env).filter(n => !new RegExp('^(?:const|let|var|function|class)\\s+' + n.replace(/\$/g, '\\$') + '\\b', 'm').test(code));
+    return new Function(...k, code + '\nreturn {' + ret + '};')(...k.map(x => env[x])); };
+  const fix = k => JSON.parse(JSON.stringify(V157_FIX[k]));
+  const attrs = s => Object.fromEntries([...s.matchAll(/([\w-]+)="([^"]*)"/g)].map(x => [x[1], x[2]]));
+  const tags = (h, tag, cls) => [...h.matchAll(new RegExp('<' + tag + ' class="' + cls + '(?: [^"]*)?"[^>]*>', 'g'))].map(x => attrs(x[0]));
+  const tips = h => [...h.matchAll(/data-t="([^"]*)"/g)].map(x => x[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'));
+  const txt = h => h.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return {KIT, UI, I, t, nfmt, cut, FD, ENV, run, fix, attrs, tags, tips, txt};
+})();
+
+test('v157: zestaw — słupki: długość ∝ wartości, linia zera między ujemnymi i dodatnimi, brak = kreskowana linia i „—” (nie zero); serie skumulowane i obok siebie', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkBars');
+  const h = K.wkBars([{l: 'A', v: 10, tip: 'A <10>'}, {l: 'B', v: -5, tip: 'B'}, {l: 'C', v: null, tip: 'C'}, {l: 'D', v: 0, tip: 'D'}], {aria: 'Opis.', fmt: String});
+  const R = v157.tags(h, 'rect', 'wk-b');
+  assert.equal(R.length, 3, 'trzy słupki (brak — bez słupka)');
+  assert.deepEqual([R[0].x, R[0].width, R[0].class], ['33.33', '66.67', 'wk-b pos'], 'dziedzina −5…10: zero w 33,33 %, +10 do prawej krawędzi, zielony');
+  assert.deepEqual([R[1].x, R[1].width, R[1].class], ['0', '33.33', 'wk-b neg'], '−5 od zera w lewo, czerwony; połowa długości +10');
+  assert.deepEqual([R[2].x, R[2].width, R[2].class], ['33.33', '0.4', 'wk-b zer'], 'zero: najkrótsza kreska bez koloru');
+  const Z = v157.tags(h, 'line', 'wk-z');
+  assert.equal(Z.length, 4, 'linia zera w każdym wierszu'); assert.ok(Z.every(z => z.x1 === '33.33' && z.x2 === '33.33' && z['vector-effect'] === 'non-scaling-stroke'));
+  assert.equal(v157.tags(h, 'line', 'wk-gl').length, 1, 'brak = kreskowana linia');
+  assert.ok(h.includes('<div class="wk-br na" data-t="C">') && h.includes('<span class="wk-bv na">—</span>'), 'brak = „—” w wierszu oznaczonym jako brak');
+  assert.ok(h.includes('data-t="A &lt;10&gt;"'), 'podpowiedź zabezpieczona (escH)');
+  assert.ok(h.startsWith('<div class="wk-ch wk-bars" role="group" aria-roledescription="wykres" aria-label="Opis." tabindex="0">') && h.endsWith('<div class="wk-tip" role="status" hidden></div></div>'), 'opis zdaniem, jedno miejsce Tab, podpowiedź');
+  const P = v157.tags(K.wkBars([{l: 'x', v: 4, tip: ''}, {l: 'y', v: 2, tip: ''}], {fmt: String}), 'rect', 'wk-b');
+  assert.deepEqual(P.map(r => [r.x, r.width]), [['0', '100'], ['0', '50']], 'same dodatnie: od lewej, długość ∝ wartości');
+  assert.ok(!K.wkBars([{l: 'x', v: 4, tip: ''}], {fmt: String}).includes('wk-z'), 'same dodatnie: bez linii zera');
+  assert.equal(v157.tags(K.wkBars([{l: 'x', v: 4, tip: ''}], {fmt: String, tone: 'lvl'}), 'rect', 'wk-b')[0].class, 'wk-b lvl', 'poziom (szansa, luka) — jeden kolor, nie zielony');
+  const S = [{n: 'S1', cls: 's1'}, {n: 'S2', cls: 's2'}];
+  const st = K.wkBars([{l: 'a', vs: [2, 3], tip: ''}, {l: 'b', vs: [1, null], tip: ''}], {ser: S, stack: true, fmt: String});
+  assert.deepEqual(v157.tags(st, 'rect', 'wk-b').map(r => [r.class, r.x, r.width]), [['wk-b s1', '0', '40'], ['wk-b s2', '40', '60'], ['wk-b s1', '0', '20']], 'skumulowane: odcinki jeden za drugim, suma = cała długość');
+  assert.ok(st.includes('<span class="wk-bv">5</span>') && st.includes('<span class="wk-bv">1</span>') && st.includes('<div class="wk-leg">'), 'wartość = suma serii, legenda');
+  const gr = K.wkBars([{l: 'a', vs: [4, -2], tip: ''}], {ser: S, fmt: String});
+  assert.deepEqual(v157.tags(gr, 'rect', 'wk-b').map(r => [r.class, r.x, r.width, r.y, r.height]), [['wk-b s1', '33.33', '66.67', '1', '3.36'], ['wk-b s2', '0', '33.33', '5', '3.36']], 'obok siebie: dwa cienkie słupki od wspólnego zera');
+  assert.ok(K.wkBars([{l: 'x', v: 1, tip: ''}], {fmt: String, lw: '46%'}).includes('<div class="wk-rows" style="--lw:46%">'), 'szerokość kolumny etykiet');
+  assert.deepEqual(v157.tags(K.wkBars([{l: 'p', v: 81, tip: ''}, {l: 'q', v: 17, tip: ''}], {fmt: String, dom: [0, 100], tone: 'lvl'}), 'rect', 'wk-b').map(r => r.width), ['81', '17'], 'stała skala 0–100: 81 % to 81 % szerokości (nie cały pasek)');
+  assert.deepEqual(v157.tags(K.wkBars([{l: 'p', v: 70, tip: ''}, {l: 'q', v: -57, tip: ''}], {fmt: String, dom: [-100, 100]}), 'rect', 'wk-b').map(r => [r.x, r.width]), [['50', '35'], ['21.5', '28.5']], 'stała skala −100…+100: zero pośrodku');
+  assert.ok(!K.wkBars([{l: 'a', vs: [4, null], tip: ''}], {ser: S, fmt: v => v157.nfmt(v, 0)}).includes('NaN'), 'serie bez tekstu wartości — bez „NaN”');
+});
+
+test('v157: zestaw — kolumny: wysokość od zera, ujemne w dół, kolumna bez liczby = kropkowana kreska, skumulowane (+ w górę, − w dół), dzień niepełny blado; oś z ładnym krokiem', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkCols,wkNice');
+  const h = K.wkCols([{x: 'a', v: 100, tip: 'a 100'}, {x: 'b', v: -50, tip: 'b −50'}, {x: 'c', v: null, tip: 'c brak'}], {aria: 'Opis.'});
+  const R = v157.tags(h, 'rect', 'wk-b');
+  assert.deepEqual(R.map(r => [r.x, r.y, r.width, r.height, r.class]), [['1.5', '0', '6.16', '66.67', 'wk-b pos'], ['11.5', '66.67', '6.16', '33.33', 'wk-b neg']], 'oś −50…100: +100 od zera do góry, −50 w dół');
+  assert.equal(v157.tags(h, 'line', 'wk-gl').length, 1, 'kolumna bez liczby — kreska, nie zero');
+  assert.deepEqual(v157.tags(h, 'line', 'wk-z').map(z => z.y1), ['66.67'], 'linia zera');
+  assert.deepEqual(v157.tags(h, 'rect', 'wk-hit').map(r => r.x), ['0', '10', '20'], 'pas podpowiedzi każdej kolumny');
+  assert.deepEqual(v157.tips(h), ['a 100', 'b −50', 'c brak'], 'podpowiedź także dla pustej kolumny');
+  assert.ok(h.includes('<span style="top:0%">100</span>') && h.includes('<span style="top:66.67%">0</span>') && h.includes('<span style="top:100%">−50</span>'), 'podpisy osi');
+  assert.ok(h.includes('<svg class="wk-sv" viewBox="0 0 30 100" preserveAspectRatio="none" aria-hidden="true">'), 'kształty rozciągane, podpisy w HTML (czytelne na telefonie)');
+  const S = [{n: 'A', cls: 'c-btc'}, {n: 'B', cls: 'c-eth'}, {n: 'C', cls: 'c-sol'}];
+  const st = K.wkCols([{x: 'd', vs: [30, -10, 20], tip: ''}, {x: 'e', vs: [5, null, null], tip: '', part: true}], {ser: S, stack: true});
+  /* oś −20…60 (krok 20): Y(v) = (60 − v) / 80 × 100 */
+  assert.deepEqual(v157.tags(st, 'rect', 'wk-b').map(r => [r.class, r.y, r.height]), [['wk-b c-btc', '37.5', '37.5'], ['wk-b c-eth', '75', '12.5'], ['wk-b c-sol', '12.5', '25'], ['wk-b c-btc pt', '68.75', '6.25']],
+    'skumulowane: dodatnie jedna na drugiej, ujemne pod zerem; dzień niepełny — klasa pt');
+  assert.ok(st.includes('<div class="wk-leg">'), 'legenda serii');
+  assert.deepEqual(K.wkNice(-10, 50, 4), {lo: -20, hi: 60, ticks: [-20, 0, 20, 40, 60], s: 20});
+  assert.deepEqual(K.wkNice(0, 0.013, 4).ticks, [0, 0.005, 0.01, 0.015]);
+  const u = K.wkCols([{x: 'm', v: 2e9, tip: ''}], {});
+  assert.ok(u.includes('>1,5 mld<') && u.includes('>500 mln<'), 'kwoty na osi krótko z jednostką');
+  assert.equal(K.wkCols([], {}), '', 'bez kolumn — nic');
+});
+
+test('v157: zestaw — linie: brak liczby i długa przerwa w czasie przerywają linię (nie zero), samotny punkt, podpowiedź dnia ze wszystkimi seriami, pasma i stała oś 0–100', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkLines');
+  const d = (s, v) => [Date.parse(s + 'T12:00:00Z'), v];
+  const L = [{n: 'A', cls: 's1', d: [d('2026-09-01', 10), d('2026-09-02', 20), d('2026-09-03', null), d('2026-09-04', 30), d('2026-09-05', 40), d('2026-09-06', 50), d('2026-10-20', 60)]},
+    {n: 'B', cls: 's2', d: [d('2026-09-01', 5), d('2026-09-02', 6)]}];
+  const h = K.wkLines(L, {aria: 'Opis.', fmt: v => 'v' + v, dt: ms => new Date(ms).toISOString().slice(0, 10)});
+  assert.deepEqual(v157.tags(h, 'polyline', 'wk-l').map(p => [p.class, p.points.split(' ').length]), [['wk-l s1', 2], ['wk-l s1', 3], ['wk-l s2', 2]], 'A: 1–2 | brak 3.09 | 4–6 | przerwa 44 dni; B: 1–2');
+  assert.deepEqual(v157.tags(h, 'line', 'wk-pt').map(p => p.class), ['wk-pt s1'], 'samotny punkt (20.10) — kropka');
+  const T = v157.tips(h);
+  assert.equal(T.length, 6, 'pas podpowiedzi dla każdego dnia z liczbą (dzień bez liczby — bez pasa)');
+  assert.equal(T[0], '2026-09-01 · A: v10 · B: v5');
+  assert.equal(T[2], '2026-09-04 · A: v30 · B: brak danych — to nie zero', 'seria bez liczby tego dnia — „brak danych”, nie zero');
+  const H = v157.tags(h, 'rect', 'wk-hit');
+  assert.ok(H.length === 6 && H[0].x === '0' && Math.abs(H.reduce((s, r) => s + +r.width, 0) - 1000) < 0.1, 'pasy pokrywają całą szerokość bez przerw');
+  assert.ok(h.includes('<div class="wk-leg">'), 'dwie serie — legenda');
+  const z = K.wkLines([{n: 'x', cls: 's1', d: [d('2026-09-01', 33), d('2026-09-02', 70)]}], {dom: [0, 100], zones: [{a: 0, b: 25, cls: 'z-xf'}, {a: 75, b: 100, cls: 'z-xg'}]});
+  assert.deepEqual(v157.tags(z, 'rect', 'wk-zn').map(r => [r.class, r.y, r.height]), [['wk-zn z-xf', '75', '25'], ['wk-zn z-xg', '0', '25']], 'pasma stanów na stałej osi');
+  assert.deepEqual([...z.matchAll(/<span style="top:([\d.]+)%">(\d+)<\/span>/g)].map(m => m[2]), ['0', '25', '50', '75', '100'], 'oś 0–100 co 25');
+  assert.ok(!z.includes('wk-leg'), 'jedna seria — bez legendy');
+  assert.equal(K.wkLines([{n: 'x', cls: 's1', d: [d('2026-09-01', null)]}], {}), '', 'bez liczb — nic');
+  const two = K.wkLines([{n: 'x', cls: 's1', d: [d('2026-09-01', 1), d('2026-09-02', 2)]}], {dx: ms => new Date(ms).toISOString().slice(5, 10)});
+  assert.deepEqual([...two.matchAll(/<span style="left:[\d.]+%">([^<]*)<\/span>/g)].map(m => m[1]), ['09-01', '09-02'], 'dwa punkty — dwa podpisy osi (bez powtórzeń)');
+  const bad = K.wkLines([{n: 'x', cls: 's1', d: [[NaN, 5], d('2026-09-01', 1), d('2026-09-02', 2)]}], {});
+  assert.ok(!/NaN/.test(bad) && v157.tips(bad).length === 2, 'dzień, którego przeglądarka nie odczyta (np. 30.02 w Safari), = brak punktu, nie „NaN”');
+});
+
+test('v157: zestaw — pierścień: łuki = udziały (suma 100), od godziny 12, legenda z udziałami; mapa prostokątów: pola ∝ wartości (także w grupach), w granicach, podpisy tylko w dużych polach', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkDonut,wkSq,wkTree');
+  const h = K.wkDonut([{l: 'A', v: 3, cls: 'c-btc', tip: 'a'}, {l: 'B', v: 1, cls: 'c-eth', tip: 'b'}], {aria: 'Opis.', fmt: String, ctr: '4', ctrs: 'razem'});
+  const C = v157.tags(h, 'circle', 'wk-dn');
+  assert.deepEqual(C.map(c => [c['stroke-dasharray'], c['stroke-dashoffset']]), [['74.4 25.6', '25'], ['24.4 75.6', '-50']], 'łuk = udział (z odstępem), start na górze');
+  assert.ok(C.every(c => c['stroke-dasharray'].split(' ').reduce((s, x) => s + +x, 0) === 100), 'każdy łuk z odstępem = obwód 100');
+  assert.ok(h.includes('<small>75,0%</small>') && h.includes('<small>25,0%</small>') && h.includes('<div class="wk-dc">4<small>razem</small></div>'), 'legenda z udziałami, środek');
+  assert.equal(K.wkDonut([{l: 'A', v: 0}, {l: 'B', v: null}], {}), '', 'bez dodatnich części — nic');
+  const V = [6, 3, 2, 1], R = K.wkSq(V.map(v => ({v})), {x: 0, y: 0, w: 120, h: 60});
+  assert.equal(R.length, 4);
+  for (const r of R) { assert.ok(Math.abs(r.w * r.h / 7200 - r.o.v / 12) < 1e-9, 'pole ∝ wartości: ' + r.o.v); assert.ok(r.x >= -1e-9 && r.y >= -1e-9 && r.x + r.w <= 120 + 1e-9 && r.y + r.h <= 60 + 1e-9, 'w granicach'); }
+  for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) { const p = R[i], q = R[j], ox = Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x), oy = Math.min(p.y + p.h, q.y + q.h) - Math.max(p.y, q.y); assert.ok(ox <= 1e-9 || oy <= 1e-9, 'bez nachodzenia'); }
+  assert.ok(Math.max(...R.map(r => Math.max(r.w / r.h, r.h / r.w))) < 3, 'squarified: proporcje bliskie kwadratu');
+  assert.deepEqual(K.wkSq([{v: 0}, {v: null}], {x: 0, y: 0, w: 10, h: 10}), [], 'bez wartości — pusto');
+  const G = [{l: 'G1', v: 9, kids: [{l: 'a', v: 6, tip: 'a'}, {l: 'b', v: 3, tip: 'b'}]}, {l: 'G2', v: 1, kids: [{l: 'c', v: 1, tip: 'c'}]}];
+  const tr = K.wkTree(G, {aria: 'Opis.', ar: 2});
+  const cells = v157.tags(tr, 'rect', 'wk-tc'), A = c => (+c.width + 0.3) * (+c.height + 0.3);
+  assert.deepEqual(v157.tips(tr), ['a', 'b', 'c'], 'komórki podgrup z podpowiedziami');
+  assert.ok(Math.abs(A(cells[0]) / A(cells[1]) - 2) < 0.02, 'w grupie: pole ∝ wartości (6 : 3)');
+  assert.equal(v157.tags(tr, 'rect', 'wk-tg').length, 2, 'obrys każdej grupy');
+  assert.ok(tr.includes('<div class="wk-tgl"') && tr.includes('>G1</div>'), 'podpis dużej grupy');
+  assert.ok(tr.includes('<div class="wk-tl b"') && tr.includes('<b>a</b>'), 'podpis dużej komórki (dół — bez nachodzenia na podpis grupy)');
+  assert.ok(!tr.includes('>G2</div>'), 'mała grupa bez podpisu (mówi podpowiedź)');
+});
+
+test('v157: zestaw — liczby: procent i kwota ze znakiem z pokazanej liczby, zero bez znaku, mała kwota to nie zero, brak = „—”', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkPct,wkUsd,wkUsdS,wkTone,wkAx');
+  assert.deepEqual([K.wkPct(3.14159, 2), K.wkPct(-0.04), K.wkPct(0.04, 1), K.wkPct(null), K.wkPct(NaN)], ['+3,14%', '0,0%', '0,0%', '—', '—']);
+  assert.deepEqual([K.wkUsd(1.71e12), K.wkUsd(-16.1e9, true), K.wkUsd(523e6, true), K.wkUsd(2.48e9), K.wkUsd(3e5), K.wkUsd(0), K.wkUsd(undefined)],
+    ['1,71 bln USD', '−16,1 mld USD', '+523 mln USD', '2,48 mld USD', '<1 mln USD', '0 mln USD', '—']);
+  assert.deepEqual([K.wkUsdS(27.8e9), K.wkUsdS(-34.5e6, true)], ['27,8 mld', '−34,5 mln']);
+  assert.deepEqual([K.wkTone(1), K.wkTone(-1), K.wkTone(0), K.wkTone(null), K.wkTone(5, 'lvl')], ['pos', 'neg', 'zer', '', 'lvl']);
+  assert.deepEqual([K.wkAx(1.5e12), K.wkAx(2e10), K.wkAx(-5e8), K.wkAx(25)], ['1,5 bln', '20 mld', '−500 mln', '25']);
+});
+
+/* GLOBAL: wycinki modułów strony + zestaw v157 */
+const v157G = (iso, extra) => {
+  const c = v157.cut, src = c('const FG={g:null,timer:null};', 'function fgRenderC(){') + c('const STR={data:null,timer:null};', 'function strBody(D){') + c('const FND={data:null,timer:null};', 'function renderFnd(){')
+    + c('const IX={data:null,timer:null};', 'function ixBody(D){') + c('const FED={data:null,timer:null,ms:0};', 'function renderFed(){') + c('const DL={data:null,timer:null};', 'function renderDolar(){')
+    + c('function instFoot(d){', '\n') + c('const GREG=[', '\nconst GB_=') + v157.KIT;
+  return v157.run(src, v157.ENV(iso, extra), 'FG,STR,FND,IX,FED,DL,GREG,wkGReg,wkGProb,wkGFg,wkGStr,wkGFund,wkGTic,wkGIx,wkGFed,wkGDl,wkTileHtml,WK_T');
+};
+test('v157: GLOBAL — regiony (zmiana w USD za okres, brak = przerwa) i „Gdzie warunki sprzyjają” (model, regiony bez wyniku — brak); data i wiek; bez danych — powód', () => {
+  const V = {usa: 0.59, can: -4.16, lat: -3.42, eur: -5.04, rus: null, mea: -6.25, afr: -9.72, ind: -6.9, chn: -6.05, jpn: 4.14, asean: -3.5, oce: -5.69};
+  const F = {}; for (const k in V) F[k] = V[k] === null ? [0, 0, false] : [V[k] * 10, V[k], true];
+  const env = {gst: {period: '1M'}, GDATA: {'1M': F}, GKPI: [{k: 'g.k.eq', fresh: '2026-10-02'}], GLIVE: {st: 'ok', asof: '2026-08'},
+    GPROB: [{id: 'can', score: 70, cov: 6}, {id: 'usa', score: 49, cov: 6}, {id: 'rus', score: 0, cov: 4}, {id: 'chn', score: -57, cov: 6}],
+    REGF: {usa: ['us'], can: ['ca'], lat: ['br', 'mx', 'cl', 'co'], eur: ['eu', 'gb', 'ch'], rus: ['ru'], mea: ['sa', 'tr', 'il'], afr: ['za'], ind: ['in'], chn: ['cn', 'hk'], jpn: ['jp', 'kr'], asean: ['id', 'sg', 'th', 'my', 'ph'], oce: ['au', 'nz']}, regFlags: id => '<i data-r="' + id + '"></i><i class="more">+1</i>',
+    flagsHtml: (c, m) => c.slice(0, m).map(x => '<i data-f="' + x + '"></i>').join('') + (c.length > m ? '<i class="more">+' + (c.length - m) + '</i>' : '')};
+  const G = v157G(null, env);
+  const r = G.wkGReg();
+  assert.equal(r.s, 'Okres: miesiąc · 11 z 12 regionów z danymi'); assert.equal(r.k, 'p'); assert.equal(r.d, '2026-10-02 · wiek(2026-10-02)');
+  const T = v157.tips(r.ch);
+  assert.equal(T.length, 12, 'wiersz każdego regionu');
+  assert.deepEqual([T[0], T[1], T[10]], ['Japonia i Korea · miesiąc: +4,14% · 2026-10-02', 'USA · miesiąc: +0,59% · 2026-10-02', 'Afryka · miesiąc: −9,72% · 2026-10-02'], 'od największej zmiany; data danych w podpowiedzi');
+  assert.equal(T[11], 'Rosja · miesiąc: brak danych — to nie zero · 2026-10-02', 'region bez danych na końcu — brak, nie zero');
+  assert.ok(r.ch.includes('aria-label="Zmiana wartości rynków akcji w USD — miesiąc: najwięcej Japonia i Korea (+4,14%), najmniej Afryka (−9,72%); 11 z 12 regionów z danymi."'), 'opis jednym zdaniem');
+  assert.ok(r.ch.includes('<span class="wk-bl"><i data-f="jp"></i><i data-f="kr"></i>Japonia i Korea</span>') && r.ch.includes('<i data-f="br"></i><i data-f="mx"></i>Ameryka Łacińska'), 'dwie flagi regionu przy nazwie');
+  assert.ok(!r.ch.includes('class="more"'), 'bez dopisku „+N” przy flagach (przy liczbach wyglądałby jak wartość)');
+  const p = G.wkGProb(), P = v157.tips(p.ch);
+  assert.equal(p.k, 'm'); assert.equal(p.d, '2026-08 · wiek(2026-08)');
+  assert.deepEqual(P.slice(0, 4), ['Kanada: +70 · składników: 6 · 2026-08', 'USA: +49 · składników: 6 · 2026-08', 'Rosja: 0 · składników: 4 · 2026-08', 'Chiny: −57 · składników: 6 · 2026-08']);
+  assert.equal(P.length, 12, 'regiony bez wyniku też w wykresie'); assert.ok(P.slice(4).every(x => x.endsWith(': brak danych — to nie zero')), 'brak wyniku = brak, nie zero');
+  assert.deepEqual(v157.tags(p.ch, 'rect', 'wk-b').map(b => [b.x, b.width]).slice(0, 2), [['50', '35'], ['50', '24.5']], 'wynik na stałej skali −100…+100 (jak pasek w karcie): +70 = 35 % szerokości od środka');
+  const Z = v157G(null, Object.assign({}, env, {GDATA: {'1M': Object.assign({}, F, {usa: [0.04, 0.004, true]})}}));
+  assert.ok(Z.wkGReg().ch.includes('<rect class="wk-b zer"') && v157.tips(Z.wkGReg().ch).includes('USA · miesiąc: 0,00% · 2026-10-02'), 'kolor z pokazanej liczby: +0,004 % = „0,00%” bez koloru');
+  const E = v157G(null, {gst: {period: '1Q'}, GDATA: null, GKPI: null, GLIVE: {st: 'load', asof: ''}, GPROB: []});
+  assert.deepEqual([E.wkGReg().na, E.wkGProb().na], ['dane jeszcze się wczytują', 'dane jeszcze się wczytują']);
+  const N = v157G(null, {gst: {period: '1M'}, GDATA: {'1M': Object.fromEntries(Object.keys(V).map(k => [k, [0, 0, false]]))}, GKPI: [], GLIVE: {st: 'ok', asof: ''}, GPROB: []});
+  assert.equal(N.wkGReg().na, 'w danych nie ma liczb do pokazania', 'żaden region bez danych — brak wykresu, nie zera');
+});
+
+test('v157: GLOBAL — strach i chciwość (linia 0–100 z pasmami, stan z liczby), stres (linia od zera), fundusze (miesiące albo tygodnie) — na nagraniach z 04.10', () => {
+  const G = v157G();
+  G.FG.g = v157.fix('nastroj');
+  const f = G.wkGFg(), T = v157.tips(f.ch);
+  assert.equal(f.k, 'm'); assert.equal(T.length, 20); assert.equal(T[T.length - 1], '2 paź 2026 · 34 · Strach', 'ostatnia sesja: liczba i stan');
+  assert.equal(f.d, '2 paź 2026 · wiek(2026-10-02)');
+  assert.equal(v157.tags(f.ch, 'rect', 'wk-zn').length, 5, 'pięć pasm stanów');
+  assert.ok(/aria-label="CapitalFlowAI Strach &amp; Chciwość: teraz 34 \(Strach\); 20 punktów na wykresie, od \d+ do \d+\."/.test(f.ch), 'opis zdaniem');
+  G.STR.data = v157.fix('stres');
+  const s = G.wkGStr();
+  assert.equal(v157.tips(s.ch).length, 30); assert.equal(v157.tips(s.ch).pop(), '30 wrz 2026 · −2,35'); assert.equal(s.d, '30 wrz 2026 · wiek(2026-09-30)');
+  assert.ok(s.ch.includes('<line class="wk-z"') && s.ch.includes('<line class="wk-g"'), 'linia zera (0 = przeciętny stres) i siatka osi');
+  G.FND.data = v157.fix('ici');
+  const u = G.wkGFund(), U = v157.tips(u.ch);
+  assert.equal(u.s, 'Napływ netto miesięcznie (mld USD, dane rzeczywiste)', '4 tygodnie w pliku — miesiące (dane rzeczywiste)');
+  assert.equal(U.length, 12); assert.equal(U[11], 'sierpień 2026 · Akcje (USA i świat): −5,6 mld USD · Obligacje: +77,2 mld USD');
+  assert.equal(v157.tags(u.ch, 'rect', 'wk-b').length, 24, 'dwie kolumny w każdym miesiącu');
+  assert.equal(u.d, 'sie 2026 · wiek(2026-08)');
+  const D = v157.fix('ici'), w0 = D.lt.w[0];
+  D.lt.w = Array.from({length: 9}, (_, i) => [new Date(Date.UTC(2026, 6, 29) + i * 7 * 864e5).toISOString().slice(0, 10)].concat(w0.slice(1).map(x => x + i)));
+  D.lt.w[4][2] = null; D.lt.week = D.lt.w[8][0]; G.FND.data = D;
+  const w = G.wkGFund(), W = v157.tips(w.ch);
+  assert.equal(w.s, 'Napływ netto tygodniowo (mld USD, szacunek wydawcy; tydzień do środy)', 'od 8 tygodni historii — tygodnie');
+  assert.deepEqual([u.k, w.k], ['p', 's'], 'miesiące — dane rzeczywiste (pomiar), tygodnie — szacunek');
+  assert.equal(W.length, 9); assert.ok(W[4].includes('Akcje (USA i świat): —'), 'tydzień bez liczby akcji — „—”, nie zero');
+  assert.equal(v157.tags(w.ch, 'rect', 'wk-b').length, 17, 'tydzień bez liczby: jedna kolumna mniej (przerwa)');
+  G.FG.g = null; G.STR.data = null; G.FND.data = null;
+  assert.deepEqual([G.wkGFg().na, G.wkGStr().na, G.wkGFund().na], ['plik danych jeszcze się wczytuje albo jest niedostępny', 'plik danych jeszcze się wczytuje albo jest niedostępny', 'plik danych jeszcze się wczytuje albo jest niedostępny']);
+  G.FG.g = {at: 'x', d: [['2026-10-02', 33.7, 4]]};
+  assert.equal(G.wkGFg().na, 'za mało punktów, żeby narysować wykres');
+});
+
+test('v157: GLOBAL — przepływy USA ↔ świat (netto miesięcznie, + napływ zielony, − czerwony), indeksy 1 M (brak = przerwa), Fed (szansa, ceny starsze niż 6 h — brak), luka dolara (reguły świeżości karty)', () => {
+  const G = v157G(null, {TIC: {data: v157.fix('tic')}});
+  const c = G.wkGTic(), C = v157.tips(c.ch);
+  assert.equal(C.length, 13); assert.equal(C[12], 'lipiec 2026 · Netto do USA (do − z): −27,9 mld USD · zagranica kupuje papiery USA: +40,6 mld USD · USA kupują papiery zagraniczne: +68,5 mld USD');
+  assert.deepEqual(v157.tags(c.ch, 'rect', 'wk-b').slice(-2).map(r => r.class), ['wk-b pos', 'wk-b neg'], 'napływ zielony, odpływ czerwony');
+  assert.equal(c.d, '2026-07 · wiek(2026-07)');
+  G.IX.data = v157.fix('indeksy');
+  const x = G.wkGIx(), X = v157.tips(x.ch);
+  assert.equal(X.length, 24, 'każdy indeks z listy (bez serii — brak z powodem)');
+  assert.equal(X.filter(s => s.endsWith('1 M: brak danych — to nie zero')).length, 20, 'indeksy bez serii w pliku — brak, nie zero');
+  assert.ok(X[0].startsWith('Bovespa (') && X[0].includes('2 paź 2026'), 'od najmocniejszego, z dniem sesji');
+  assert.equal(x.d, '2 paź 2026 · wiek(2026-10-02)');
+  G.FED.data = v157.fix('fed');
+  const f = G.wkGFed(), F = v157.tips(f.ch);
+  assert.equal(f.k, 'r');
+  assert.deepEqual(F, ['Obniżka o więcej niż 0,25 pkt proc.: <1%', 'Obniżka o 0,25 pkt proc.: <1%', 'Bez zmian: 81%', 'Podwyżka o 0,25 pkt proc.: 17%', 'Podwyżka o więcej niż 0,25 pkt proc.: <1%'].map(x => x + ' · D(2026-10-04T10:57:55+00:00)'), 'szanse po przeliczeniu do 100%, z chwilą cen');
+  assert.ok(f.ch.includes('<b>Bez zmian</b>') && f.ch.includes('class="wk-b lvl"'), 'najbardziej prawdopodobna pogrubiona; szansa jednym kolorem');
+  assert.equal(v157.tags(f.ch, 'rect', 'wk-b')[2].width, '81.28', 'szansa na stałej skali 0–100 (81 % nie wygląda jak pewność)');
+  assert.ok(/^Decyzja: 2[89] paź 2026, \d{2}:\d{2} \(czas lokalny\) · szansa z cen kontraktów$/.test(f.s), 'dzień i godzina decyzji w strefie czytelnika (18:00 UTC — 28 albo 29 paź); ceny przeliczone: ' + f.s);
+  const Fs = v157G('2026-10-04T17:30:00Z'); Fs.FED.data = v157.fix('fed');
+  assert.equal(Fs.wkGFed().na, 'brak bieżących cen (starszych niż 6 godzin nie pokazujemy) albo żadne posiedzenie nie jest w handlu', 'ceny sprzed ponad 6 h — brak, nie stara szansa');
+  const R = v157.fix('fed'); R.ks.meetings[0].norm = false; G.FED.data = R;
+  assert.ok(G.wkGFed().s.endsWith(' · ceny bez przeliczenia do 100%'), 'surowe ceny opisane wprost');
+  G.DL.data = v157.fix('dolar');
+  const l = G.wkGDl(), L = v157.tips(l.ch);
+  assert.equal(L.length, 6);
+  assert.ok(L[0].startsWith('Argentyna · CCL: +6,8 %') && L[4].startsWith('Wenezuela: +12,5 %') && L[5].startsWith('Boliwia · USDT: +0,1 %'), 'luki z pliku');
+  assert.ok(l.ch.includes('aria-label="Luka dolara: Argentyna (CCL) +6,8 %, Wenezuela +12,5 %, Boliwia (USDT) +0,1 %."'));
+  assert.equal(l.d, 'stan z D(2026-10-02T04:00:00Z) · wiek(2026-10-02)', 'data i wiek najstarszego kursu pokazanych luk (nie chwila pliku)');
+  const Ls = v157G('2026-10-09T12:00:00Z'); Ls.DL.data = v157.fix('dolar');
+  assert.equal(Ls.wkGDl().na, 'w danych nie ma liczb do pokazania', 'kursy starsze niż 4 dni — luki nie pokazujemy (jak karta)');
+  const Lp = v157G(); const P = v157.fix('dolar'); delete P.ar.q.blue; Lp.DL.data = P;
+  assert.ok(v157.tips(Lp.wkGDl().ch)[1].startsWith('Argentyna · blue: brak danych — to nie zero'), 'brak kursu — przerwa, nie zero');
+  G.TIC = null;
+});
+
+/* CRYPTO: wycinki modułów strony + zestaw v157 */
+const v157C = (iso, extra) => {
+  const c = v157.cut, src = c('const FG={g:null,timer:null};', 'function fgRenderC(){') + c('const RW={data:null,timer:null};', 'function renderRw(){') + c('function rwOk(j){', '\n')
+    + c('const WH={data:null,timer:null};', 'function renderWh(){') + c('const LEV={data:null,timer:null};', 'function levAll(){') + c('const PRM={data:null,timer:null,per:90,ok:[30,90,400]};', 'function renderPrm(){')
+    + c('function arcMs(d){', '\nfunction arcSegs(') + c('const T10_G=', 'function t10LogoNorm(') + c('const big=', '\n') + c('function t10Mc(v){', 'function t10TipHtml(')
+    + c('const NODES=[', '\nconst NB=') + c('const ETF_SYMS=', '\n') + c('const etfM=v=>{', '\nconst etfA=') + c('function instFoot(d){', '\n') + v157.KIT;
+  return v157.run(src, v157.ENV(iso, extra), 'FG_CLS,RW,WH,LEV,PRM,NODES,t10Norm,wkCFlow,wkCEtf,wkCCap,wkCStab,wkCRwa,wkCT10,wkCWh,wkCLev,wkCPrm,wkCFg');
+};
+test('v157: CRYPTO — przepływy sceny (szacunek; tylko dane na żywo, nigdy przykładowe), ETF dziennie (skumulowane; dzień niepełny), struktura rynku (pierścień z jednej chwili)', () => {
+  const D = {btc: [11900, 0.7], eth: [2000, 0.6], l12: [1130, 0.5], stab: [523, 0.2], ai: [355, 1.1], meme: [124, 0.4], gaming: [45.7, 0.9], depin: [40.2, 0.8], rwa: [18.2, 0.3], defi: [-34.5, -0.1], exch: [-16100, -1.2]};
+  const env = {isLive: () => true, LIVE: {st: 'ok', at: '2026-10-04T11:01:00Z'}, DATA: {'24H': D}, st: {period: '24H'}, nName: id => v157.t('n.' + id), cGrpW: id => '<i data-g="' + id + '"></i>', liveWhen: () => 'W',
+    ETF: {data: v157.fix('etf')}, CMC: {data: v157.fix('cmc')}, cCoins: s => s.join('+')};
+  const C = v157C(null, env), f = C.wkCFlow(), F = v157.tips(f.ch);
+  assert.equal(f.k, 's', 'szacunek'); assert.equal(F.length, 11);
+  assert.deepEqual([F[0], F[10]], ['BTC · 24 godziny: +11,9 mld USD (+0,7%) · W', 'Giełdy * · 24 godziny: −16,1 mld USD (−1,2%) · Giełdy: wartość wyliczona — reszta bilansu wszystkich pozostałych elementów, nie pomiar sald giełd · W']);
+  assert.equal(f.d, 'W · wiek(2026-10-04)');
+  const N = v157C(null, Object.assign({}, env, {isLive: () => false, LIVE: {st: 'load'}}));
+  assert.equal(N.wkCFlow().na, 'dane jeszcze się wczytują', 'bez danych na żywo — brak (nigdy dane przykładowe)');
+  assert.equal(v157C(null, Object.assign({}, env, {isLive: () => false, LIVE: {st: 'err'}})).wkCFlow().na, 'brak połączenia z cenami na żywo');
+  assert.equal(v157C(null, Object.assign({}, env, {DATA_SAMPLE: env.DATA})).wkCFlow().na, 'w danych nie ma liczb do pokazania', 'dane na żywo bez okresów — na scenie zostały liczby przykładowe: kafel ich nie pokazuje');
+  const e = C.wkCEtf(), E = v157.tips(e.ch);
+  assert.equal(E.length, 7, 'dni z pliku (sesje USA)');
+  assert.equal(E[6], '2 paź 2026 · BTC: brak danych — to nie zero · ETH: brak danych — to nie zero · SOL: +1,3 mln USD · XRP: −3,3 mln USD · dzień niepełny — części monet jeszcze brak');
+  assert.ok(E[5].startsWith('1 paź 2026 · BTC: +103 mln USD · ETH: −55 mln USD') && E[5].includes(' · razem: '), 'dzień pełny z sumą');
+  assert.equal(v157.tags(e.ch, 'rect', 'wk-b').filter(r => / pt$/.test(r.class)).length, 2 + 2, 'dni niepełne (pierwszy i ostatni) — blado');
+  assert.ok(e.ch.includes('aria-label="ETF-y krypto w USA: ostatni pełny dzień 1 paź 2026 — razem '), 'opis: ostatni pełny dzień');
+  assert.ok(!e.s.includes('Migawka'), 'plik serwera — bez dopisku');
+  assert.ok(v157C(null, Object.assign({}, env, {ETF: {data: v157.fix('etf'), live: false}})).wkCEtf().s.endsWith(' · Migawka z 2026-10-01 – 2026-10-02'), 'migawka (plik serwera niedostępny) — powiedziane wprost');
+  const m = C.wkCCap(), M = v157.tips(m.ch);
+  assert.deepEqual(M, ['BTC: 1,71 bln USD · 59,0%', 'ETH: 330 mld USD · 11,4%', 'Stablecoiny: 285 mld USD · 9,8%', 'Reszta rynku: 576 mld USD · 19,8%'].map(x => x + ' · D(2026-10-04T10:55:59.999Z)'));
+  const Q = v157C(null, Object.assign({}, env, {CMC: {data: Object.assign(v157.fix('cmc'), {eth_dom: null})}}));
+  assert.equal(Q.wkCCap().na, 'w danych nie ma liczb do pokazania', 'brak jednej części — bez pierścienia (nie zero)');
+});
+
+test('v157: CRYPTO — stablecoiny według sieci (pole = podaż, kolor = zmiana 7 dni, reszta sieci osobno), tokenizowane aktywa (dwie serie: z bieżącą wyceną i bez), top 10 w grupach', () => {
+  const K = v157.fix('krypto');
+  const C = v157C(null, {krData: () => K, krStabh: () => K.stabh, T10: {}});
+  const s = C.wkCStab(), S = v157.tips(s.ch), cells = v157.tags(s.ch, 'rect', 'wk-tc');
+  assert.equal(S.length, K.stabc.rows.length + 1, 'sieci z pliku + pozostałe');
+  assert.equal(S[0], 'Ethereum: 148 mld USD · 7 dni: −418 mln USD (−0,3%) · 2026-10-04');
+  assert.ok((S.find(x => x.startsWith('Pozostałe sieci')) || '').startsWith('Pozostałe sieci (196): '), 'reszta sieci (210 − 14) osobno');
+  assert.deepEqual([cells[0].class, cells[1].class], ['wk-tc neg', 'wk-tc pos'], 'ubyło — czerwony, przybyło — zielony');
+  const tot = cells.reduce((a, c) => a + (+c.width + 0.3) * (+c.height + 0.3), 0);
+  assert.ok(Math.abs((+cells[0].width + 0.3) * (+cells[0].height + 0.3) / tot - K.stabc.rows[0][1] / K.stabc.total[0]) < 0.01, 'pole ∝ podaży');
+  assert.equal(s.d, '2026-10-04 · wiek(2026-10-04)');
+  assert.ok(s.ch.includes('aria-label="Stablecoiny razem 312 mld USD; najwięcej w sieci Ethereum (47%); 14 największych sieci osobno."'), 'suma w opisie jak w karcie (historia podaży)');
+  C.RW.data = v157.fix('rwa');
+  const r = C.wkCRwa(), R = v157.tips(r.ch);
+  assert.equal(R.length, 7, 'siedem rodzajów');
+  assert.equal(R[0], 'Obligacje skarbowe i fundusze rynku pieniężnego · z bieżącą wyceną: 6,9 mld USD · bez bieżącej wyceny: 6,9 mld USD · D(2026-10-04T10:12:11+00:00)');
+  assert.ok(R.some(x => x.startsWith('Nieruchomości · z bieżącą wyceną: 324 mln USD · bez bieżącej wyceny: — · ')), 'rodzaj bez wartości nieodświeżanych — „—”');
+  assert.equal(v157.tags(r.ch, 'rect', 'wk-b').filter(b => b.class === 'wk-b fz').length, 6, 'seria „bez bieżącej wyceny” osobno (nie w sumie)');
+  assert.ok(r.ch.includes('<span class="wk-bv">6,9 mld</span>'), 'wartość = tylko z bieżącą wyceną');
+  const Ro = v157C('2026-10-06T12:00:00Z'); Ro.RW.data = v157.fix('rwa');
+  assert.equal(Ro.wkCRwa().na, v157.t('rwa.old'), 'plik starszy niż 48 h — brak (jak karta)');
+  C.RW.data = null; assert.equal(C.wkCRwa().na, 'plik danych jeszcze się wczytuje albo jest niedostępny');
+  const T = v157C(null, {T10: {data: null, st: 'ok'}});
+  assert.equal(T.wkCT10().na, 'plik danych jeszcze się wczytuje albo jest niedostępny');
+  assert.equal(v157C(null, {T10: {data: null, st: 'err'}}).wkCT10().na, 'w danych nie ma liczb do pokazania');
+  const N0 = v157.fix('top10'); N0.g.ai.c.push(N0.g.l1.c[0].slice());   /* ta sama moneta w dwóch grupach (jak HYPE i LINK w pliku) */
+  const N = T.t10Norm(N0);
+  const U = v157C(null, {T10: {data: N, st: 'ok'}});
+  const u = U.wkCT10(), UT = v157.tips(u.ch);
+  assert.equal(UT.length, 17, '4 grupy po 4 monety + jedna moneta w drugiej grupie');
+  assert.ok(u.ch.includes('aria-label="16 monet w 4 grupach; największa: BNB."'), 'opis: moneta w dwóch grupach liczona raz');
+  assert.deepEqual(UT.slice(0, 4).map(x => x.replace(/ · D\(2026-10-04T\d\d:\d\d:\d\dZ\)$/, '')), ['BNB (BNB) · L1: 105,3 mld USD · 24 h: +2,9%', 'XRP (XRP) · L1: 94,7 mld USD · 24 h: +1,1%', 'Solana (SOL) · L1: 71,4 mld USD · 24 h: +1,7%', 'TRON (TRX) · L1: 31,9 mld USD · 24 h: −0,3%'], 'moneta: grupa, kapitalizacja, zmiana 24 h (największe pierwsze)');
+  assert.ok(UT.every(x => / · D\(2026-10-04T\d\d:\d\d:\d\dZ\)$/.test(x)), 'chwila notowania monety w podpowiedzi');
+  assert.deepEqual(v157.tags(u.ch, 'rect', 'wk-tc').slice(0, 4).map(c => c.class), ['wk-tc pos', 'wk-tc pos', 'wk-tc pos', 'wk-tc neg'], 'wzrost zielony, spadek czerwony');
+  assert.equal(v157.tags(u.ch, 'rect', 'wk-tg').length, 4, 'obrys każdej grupy');
+  assert.ok(u.d.startsWith('D(2026-10-04T'), 'chwila pliku');
+});
+
+test('v157: CRYPTO — wieloryby (tokeny z listy giełdy; ETH po kursie), dźwignia (tylko giełdy ze stanem do 6 h), premie (osobne osie), strach i chciwość krypto (stan z pliku)', () => {
+  const C = v157C(null, {KR: {data: v157.fix('krypto')}});
+  C.WH.data = v157.fix('wieloryby');
+  const w = C.wkCWh(), W = v157.tips(w.ch);
+  assert.equal(W.length, 5);
+  assert.ok(W[0].startsWith('Binance · USDT: ') && W[0].includes(' · ETH: ') && W[0].includes(' ≈ '), 'giełda: tokeny z listy, ETH z kursem');
+  assert.equal(W.find(x => x.startsWith('OKX')), 'OKX · USDC: 1,39 mld USD · D(2026-10-04T10:57:23+00:00)', 'OKX — tylko USDC (lista giełdy), bez ETH i USDT; chwila odczytu');
+  const D = v157.fix('wieloryby'); D.eth_usd = null; C.WH.data = D;
+  const wn = C.wkCWh(), WN = v157.tips(wn.ch);
+  assert.ok(WN[0].startsWith('OKX · USDC: 1,39 mld USD'), 'bez kursu ETH: pełna suma tylko giełdy bez ETH na liście (OKX) — pierwsza');
+  assert.ok(WN[1].startsWith('Binance · USDT: 20,6 mld USD · USDC: <1 mln USD · ETH: 2,7 mln ETH · ' + v157.t('wh.px.na')), 'saldo ETH w monetach, powód braku sumy');
+  assert.equal((wn.ch.match(/<span class="wk-bv na">—<\/span>/g) || []).length, 4, 'giełdy z ETH: „—” zamiast sumy częściowej (jak w karcie)');
+  assert.equal(v157.tags(wn.ch, 'rect', 'wk-b').length, 1, 'słupek tylko pełnej sumy (OKX)'); assert.ok(wn.ch.includes('aria-label="Wieloryby: salda portfeli 5 giełd; najwięcej OKX (1,39 mld USD)."'));
+  C.LEV.data = v157.fix('dzwignia');
+  const l = C.wkCLev(), L = v157.tips(l.ch);
+  assert.deepEqual(L.map(x => x.split(' · ')[0]), ['Hyperliquid', 'OKX', 'Kraken', 'dYdX'], 'Coinbase (stan z 01.10) i Binance (plik dzienny) poza wykresem');
+  assert.ok(L[0].includes('BTC: ') && L[0].includes('ETH: ') && L[0].endsWith(' · D(2026-10-04T10:16:28+00:00)'), 'oba rynki i chwila stanu giełdy');
+  const Lp = v157C(); const LD = v157.fix('dzwignia'); LD.okx.ETH.t = '2026-10-03T09:00:00+00:00'; Lp.LEV.data = LD;
+  const lp = Lp.wkCLev(), LP = v157.tips(lp.ch);
+  assert.deepEqual(LP.map(x => x.split(' · ')[0]), ['Hyperliquid', 'Kraken', 'dYdX', 'OKX'], 'giełda bez jednej monety (stan ETH starszy niż 6 h) — po pełnych');
+  assert.ok(lp.ch.includes('<span class="wk-bv">BTC 2,43 mld</span>') && LP[3].includes('ETH: brak danych — to nie zero'), 'wartość: nazwa i kwota monety, która jest — nie „suma”');
+  const Lo = v157C('2026-10-04T20:00:00Z'); Lo.LEV.data = v157.fix('dzwignia');
+  assert.equal(Lo.wkCLev().na, v157.t('lev.nosum'), 'żadna giełda ze stanem z 6 h — brak');
+  C.PRM.data = v157.fix('premie');
+  const p = C.wkCPrm();
+  assert.equal(v157.tags(p.ch, 'polyline', 'wk-l').length >= 2, true); assert.equal((p.ch.match(/class="wk-ch wk-lines"/g) || []).length, 2, 'dwa wykresy (własna oś każdej linii)');
+  assert.ok(p.ch.startsWith('<div class="wk-pair"><div><p class="wk-sub"><i class="wk-sq s1"></i>Korea · BTC · <b>+0,20 %</b></p>'), 'Korea pierwsza, ostatnia premia');
+  assert.ok(p.ch.includes('USA · BTC · <b>0,00 %</b>'), 'USA');
+  assert.equal(p.d, '2026-10-03 · wiek(2026-10-03)');
+  const f = C.wkCFg(), F = v157.tips(f.ch);
+  assert.equal(F.length, 31); assert.equal(F[30], '4 paź 2026 · 65 · Chciwość', 'stan z klasy pliku');
+  const K2 = v157.fix('krypto'); K2.fng.d[30][2] = 'Nieznana';
+  assert.ok(v157.tips(v157C(null, {KR: {data: K2}}).wkCFg().ch)[30].endsWith(' · —'), 'bez znanej klasy — „—”, stan nie zgadywany');
+  C.PRM.data = null; assert.equal(C.wkCPrm().na, 'plik danych jeszcze się wczytuje albo jest niedostępny');
+});
+
+test('v157: kafel — tytuł, rodzaj liczb, podtytuł, data z wiekiem, „Szczegóły” z celem; brak danych — „brak danych — powód”, nigdy pusty wykres; błąd budowniczego nie psuje strony', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkTileHtml,WK_T');
+  const h = K.wkTileHtml({tt: 'wk.g.reg.t', go: 'gmap', b: () => ({s: 'Okres <x>', k: 'p', ch: '<div class="wk-ch"></div>', d: '2026-10-02 · wiek'})});
+  assert.equal(h, '<div class="wk-h"><h3>Rynki akcji regionów: zmiana w USD<span class="wk-kd">pomiar</span></h3><p class="wk-s">Okres &lt;x&gt;</p></div><div class="wk-c"><div class="wk-ch"></div></div>'
+    + '<div class="wk-f"><span class="wk-d">Dane: 2026-10-02 · wiek</span><button type="button" class="wk-go" data-wk-go="gmap" aria-label="Szczegóły: Rynki akcji regionów: zmiana w USD">Szczegóły</button></div>');
+  const n = K.wkTileHtml({tt: 'ix.t', go: 'g-indeksy', b: () => ({s: 'x', na: 'w danych nie ma liczb do pokazania'})});
+  const H = v157.run(v157.KIT, v157.ENV(null, {$: q => (q === '#g-fed' ? {hidden: true} : q === '#g-fund' ? {hidden: false} : null)}), 'wkTileHtml');
+  assert.ok(!H.wkTileHtml({tt: 'wk.g.fed.t', go: 'g-fed', b: () => ({na: 'x'})}).includes('wk-go'), 'karta celu ukryta (bez danych) — bez „Szczegółów”');
+  assert.ok(H.wkTileHtml({tt: 'wk.g.fund.t', go: 'g-fund', b: () => ({na: 'x'})}).includes('<button type="button" class="wk-go" data-wk-go="g-fund" aria-label="Szczegóły: USA: fundusze akcji i obligacji">Szczegóły</button>'), 'nazwa przycisku z tytułem kafla');
+  assert.ok(n.includes('<p class="wk-na"><b>brak danych</b> — w danych nie ma liczb do pokazania</p>') && !n.includes('wk-ch') && !n.includes('wk-kd'), 'brak danych z powodem, bez wykresu i bez rodzaju');
+  const e = K.wkTileHtml({tt: 'ix.t', go: 'g-indeksy', b: () => { throw new TypeError('x'); }});
+  assert.ok(e.includes('<b>brak danych</b> — nie udało się narysować wykresu'), 'wyjątek budowniczego — kafel z powodem');
+  assert.deepEqual(K.WK_T.global.map(T => T.id), ['g-reg', 'g-prob', 'g-fg', 'g-ix', 'g-str', 'g-fund', 'g-tic', 'g-fed', 'g-dl']);
+  assert.deepEqual(K.WK_T.crypto.map(T => T.id), ['c-flow', 'c-etf', 'c-t10', 'c-stab', 'c-cap', 'c-lev', 'c-prm', 'c-rwa', 'c-fg', 'c-wh']);
+  const cells = L => L.reduce((a, T) => a + (T.w ? 2 : 1) * (T.r ? 2 : 1), 0);
+  assert.deepEqual([cells(K.WK_T.global) % 3, cells(K.WK_T.crypto) % 3], [0, 0], 'siatka 3 kolumn bez pustych pól');
+  for (const tab of ['global', 'crypto']) for (const T of K.WK_T[tab]) {
+    assert.ok(html.includes('id="' + T.go + '"'), T.id + ': cel „Szczegółów” istnieje: ' + T.go);
+    for (const s of T.src) assert.ok(s === 'wk-t10' || html.includes('id="' + s + '"'), T.id + ': źródło odświeżenia istnieje: ' + s);
+    assert.ok(typeof v157.I.pl[T.tt] === 'string' && v157.I.pl[T.tt].length > 3, T.id + ': tytuł po polsku');
+  }
+});
+
+/* przełącznik i odświeżanie: blok UI w małej atrapie DOM (kafle testowe zamiast prawdziwych budowniczych) */
+function v157Ui(mem, opt) {
+  opt = opt || {};
+  const calls = [], writes = [], sets = [], L = {}, MO = [], scrolled = [], focused = [], modes = [];
+  const cls = () => { const s = new Set(); return {s, add: c => s.add(c), remove: c => s.delete(c), contains: c => s.has(c), toggle: (c, f) => { if (f === undefined ? !s.has(c) : f) s.add(c); else s.delete(c); return s.has(c); }}; };
+  const el = (id, tag) => ({id, tagName: (tag || 'div').toUpperCase(), hidden: true, classList: cls(), attrs: {}, _h: '', setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    hasAttribute(k) { return k in this.attrs; }, scrollIntoView(o) { scrolled.push([id, o]); }, focus(o) { focused.push([id, o]); }, closest: () => null, contains: () => false, querySelector: () => null, querySelectorAll: () => []});
+  const E = {}; for (const id of ['global', 'crypto', 'wk-global', 'wk-crypto', 'g-fund', 'g-prob', 'g-fg', 'g-kpis', 'kpis', 'gmap', 'c-fg', 'rail', 'g-etf']) E[id] = el(id);
+  E.global.hidden = false;
+  const card = (id, tab) => { const c = E[id], zt = el(id + '-zw-t', 'button'); c.closest = s => (s === 'section.pcard' ? c : s === '#' + tab ? E[tab] : null); c.querySelector = s => (s === ':scope>.zw-t' ? zt : null); return c; };
+  card('g-fund', 'global'); card('g-prob', 'global'); card('g-etf', 'global'); card('g-fg', 'global'); E.gmap.closest = s => (s === '#global' ? E.global : null);
+  E['c-fg'].closest = s => (s === '#rail' ? E.rail : null);
+  /* siatka kafli: po pierwszym zapisie skrzynka zawiera siatkę i opakowania kafli */
+  const mkBox = tab => { const b = E['wk-' + tab], tiles = {};
+    Object.defineProperty(b, 'innerHTML', {get() { return this._h; }, set(v) { this._h = String(v); writes.push(['box', tab]); for (const m of this._h.matchAll(/data-wk="([\w-]+)"/g)) tiles[m[1]] = mkTile(m[1]); }});
+    const grid = {querySelector: s => { const m = /^\[data-wk="([\w-]+)"\]$/.exec(s); return m && tiles[m[1]] || null; }};
+    const disc = {textContent: ''};
+    b.querySelector = s => (s === '.wk-grid' && b._h ? grid : s === '.wk-disc' && b._h ? disc : null); b.tiles = tiles; b.disc = disc; return b; };
+  const mkTile = id => { const x = el('t-' + id); Object.defineProperty(x, 'innerHTML', {get() { return this._h; }, set(v) { this._h = String(v); writes.push(['tile', id]); }}); return x; };
+  mkBox('global'); mkBox('crypto');
+  const btn = (tab, v) => { const b = el('b-' + tab + v, 'button'); b.attrs['data-wk-v'] = v; b.attrs['aria-pressed'] = v === 'karty' ? 'true' : 'false'; b.closest = s => (s === '[data-wk-v]' ? b : s === '.zw-bar' ? {getAttribute: k => (k === 'data-zw' ? tab : null)} : null); return b; };
+  const B = {global: [btn('global', 'karty'), btn('global', 'wykresy')], crypto: [btn('crypto', 'karty'), btn('crypto', 'wykresy')]};
+  const ls = {getItem(k) { if (opt.blok) throw new Error('zablokowane'); return k === 'cfai.widok' ? mem : null; }, setItem(k, v) { if (opt.blok) throw new Error('zablokowane'); sets.push([k, v]); }};
+  const doc = {activeElement: null, documentElement: el('html'), addEventListener(e, f) { (L[e] = L[e] || []).push(f); }};
+  class MOb { constructor(f) { this.f = f; MO.push(this); } observe(x, o) { (this.o = this.o || []).push([x.id, JSON.stringify(o)]); } }
+  const n = {}, data = {f: 1};
+  const T = (id, src) => ({id, tt: 'wk.more', go: 'g-fund', src, b: () => { n[id] = (n[id] || 0) + 1; return {s: id + ':' + data.f, ch: '<div class="wk-ch"></div>'}; }});
+  const WK_T_TEST = {global: [T('g-reg', ['g-kpis']), T('g-fund', ['g-fund'])], crypto: [T('c-flow', ['kpis'])]};
+  const KIT = v157.KIT.replace(/const WK_T=\{[\s\S]*?\n\};\n/, 'const WK_T=WK_T_TEST;\n');
+  assert.ok(KIT !== v157.KIT, 'podmiana kafli testowych');
+  const st = {mode: opt.mode || 'global', anim: false}, ui = {page: 'overview'};
+  const R = v157.run(KIT + v157.UI, v157.ENV(null, {document: doc, localStorage: ls, MutationObserver: MOb, WK_T_TEST, $: q => E[q.slice(1)] || null,
+    $$: q => { const m = /^\.zw-bar\[data-zw="(\w+)"\] \[data-wk-v\]$/.exec(q); assert.ok(m, 'selektor przycisków: ' + q); return B[m[1]]; },
+    st, page: ui.page, setPage: p => modes.push('page:' + p), setMode: m => { modes.push(m); st.mode = m; }, zwOpenFor: x => modes.push('zw:' + x.id), requestAnimationFrame: f => f()}), 'WK,wkRender,wkApply,wkSet,wkGo,wkPing,wkTip,wkMarks');
+  const fire = (e, ev) => (L[e] || []).forEach(f => f(ev)), click = (target) => fire('click', {target, preventDefault() {}});
+  return {R, E, B, L, MO, calls, writes, sets, n, data, scrolled, focused, modes, click, fire, st};
+}
+test('v157: przełącznik — domyślnie „Karty” bez żadnego rysowania (strona jak dotąd); pamięć cfai.widok osobno dla zakładek; zła albo zablokowana pamięć = „Karty”, przełącznik działa', () => {
+  const U = v157Ui(null);
+  assert.deepEqual(U.R.WK.v, {global: 'karty', crypto: 'karty'});
+  assert.deepEqual(U.writes, [], '„Karty”: kafle nie są budowane, nic nie jest zapisywane w DOM');
+  assert.equal(Object.keys(U.n).length, 0, 'żaden budowniczy nie wywołany');
+  assert.ok(!U.E.global.classList.contains('wk-on') && U.E['wk-global'].hidden && U.B.global[0].attrs['aria-pressed'] === 'true' && U.B.global[1].attrs['aria-pressed'] === 'false', 'karty widoczne, kafle ukryte');
+  U.click(U.B.crypto[1]);
+  assert.deepEqual(U.R.WK.v, {global: 'karty', crypto: 'wykresy'}); assert.deepEqual(U.sets, [['cfai.widok', '{"global":"karty","crypto":"wykresy"}']], 'zapamiętane osobno');
+  assert.ok(U.E.crypto.classList.contains('wk-on') && !U.E['wk-crypto'].hidden && U.B.crypto[1].attrs['aria-pressed'] === 'true', 'CRYPTO: Wykresy');
+  assert.ok(!U.E.global.classList.contains('wk-on'), 'GLOBAL bez zmian');
+  assert.deepEqual(U.writes, [['box', 'crypto']], 'pierwsze rysowanie: cała siatka naraz'); assert.equal(U.n['c-flow'], 1);
+  assert.ok(U.E['wk-crypto']._h.includes('<article class="wk-t panel" data-wk="c-flow">') && U.E['wk-crypto']._h.includes('<p class="pfoot wk-disc">' + v157.t('eng.disclaimer') + '</p>'), 'siatka kafli i jedno zastrzeżenie pod nią');
+  assert.ok(v157.t('eng.disclaimer').includes('To nie jest porada inwestycyjna'));
+  U.click(U.B.crypto[0]); assert.ok(!U.E.crypto.classList.contains('wk-on') && U.E['wk-crypto'].hidden, 'powrót do kart');
+  assert.ok(!U.E['g-fund'].classList.contains('wk-hid'), 'Karty: żadna karta nie dostaje klasy (DOM jak dotąd)');
+  U.click(U.B.global[1]); assert.ok(U.E['g-fund'].classList.contains('wk-hid') && !U.E['g-prob'].classList.contains('wk-hid'), 'Wykresy: schowana tylko karta z kaflem; karta bez kafla zostaje (w dotychczasowej postaci)');
+  U.click(U.B.global[0]); assert.ok(!U.E['g-fund'].classList.contains('wk-hid'), 'Karty: klasa zdjęta');
+  const M = v157Ui('{"global":"wykresy"}');
+  assert.deepEqual(M.R.WK.v, {global: 'wykresy', crypto: 'karty'}, 'pamięć z poprzedniej wizyty');
+  assert.ok(M.E.global.classList.contains('wk-on') && M.n['g-reg'] === 1 && M.n['g-fund'] === 1 && !M.n['c-flow'], 'rysowane tylko kafle zakładki z Wykresami');
+  for (const z of ['{"global":"tak"}', 'nie json', '[]', 'null', '{"global":["wykresy"]}', '']) assert.deepEqual(v157Ui(z).R.WK.v, {global: 'karty', crypto: 'karty'}, 'zła pamięć = Karty: ' + z);
+  const X = v157Ui(null, {blok: true});
+  assert.deepEqual(X.R.WK.v, {global: 'karty', crypto: 'karty'}, 'pamięć zablokowana — Karty');
+  X.click(X.B.global[1]); assert.equal(X.R.WK.v.global, 'wykresy', 'pamięć zablokowana — przełącznik działa (bez zapamiętania)'); assert.ok(X.E.global.classList.contains('wk-on'));
+  X.R.wkSet('global', 'zly'); X.R.wkSet('trendy', 'wykresy'); assert.deepEqual(X.R.WK.v, {global: 'wykresy', crypto: 'karty'}, 'tylko znane zakładki i widoki');
+});
+
+test('v157: odświeżanie — przerysowana karta przerysowuje tylko swoje kafle; sama strzałka zwijania (v154), wpis bez celu i ta sama treść — bez zapisu; motyw i język — wszystkie kafle', () => {
+  const U = v157Ui('{"global":"wykresy","crypto":"wykresy"}');
+  assert.deepEqual(U.MO[0].o.map(x => x[0]).sort(), ['g-fund', 'g-kpis', 'kpis'], 'obserwator kart i paneli KPI (źródła kafli)');
+  assert.ok(U.MO[0].o.every(x => x[1] === '{"childList":true}'));
+  assert.deepEqual(U.MO[1].o, [['html', '{"attributes":true,"attributeFilter":["data-theme","lang"]}']], 'motyw i język');
+  U.writes.length = 0;
+  U.data.f = 2; U.MO[0].f([{type: 'childList', target: U.E['g-fund'], removedNodes: [{}], addedNodes: [{}]}]);
+  assert.deepEqual(U.writes, [['tile', 'g-fund']], 'tylko kafel funduszy'); assert.ok(U.E['wk-global'].tiles['g-fund']._h.includes('g-fund:2'));
+  U.writes.length = 0;
+  U.MO[0].f([{type: 'childList', target: U.E['g-fund'], removedNodes: [], addedNodes: [{classList: {contains: c => c === 'zw-t'}}]}]);
+  U.MO[0].f([{type: 'attributes', attributeName: 'lang'}]); U.MO[0].f(undefined);
+  assert.deepEqual(U.writes, [], 'strzałka zwijania, wpis bez celu — nic');
+  U.MO[0].f([{type: 'childList', target: U.E['g-fund'], removedNodes: [{}], addedNodes: []}]);
+  assert.deepEqual(U.writes, [], 'ta sama treść kafla — bez zapisu (fokus i podpowiedź zostają)'); assert.equal(U.n['g-fund'], 3, 'budowniczy wywołany, zapis pominięty');
+  U.data.f = 3; U.MO[1].f([{type: 'attributes', attributeName: 'data-theme'}]);
+  assert.deepEqual(U.writes.map(x => x[1]).sort(), ['c-flow', 'g-fund', 'g-reg'], 'motyw: wszystkie kafle obu zakładek');
+  U.writes.length = 0; U.R.wkPing('nieznany'); U.R.wkPing('kpis'); assert.deepEqual(U.writes, [], 'kafel bez zmian danych — bez zapisu');
+  U.click(U.B.global[0]); U.writes.length = 0; U.data.f = 4; U.MO[0].f([{type: 'childList', target: U.E['g-fund'], removedNodes: [{}], addedNodes: []}]);
+  assert.deepEqual(U.writes, [], 'widok Karty — kafle nie są rysowane (bez zbędnej pracy)');
+});
+
+test('v157: „Szczegóły” — karta w innej zakładce: przejście, widok Karty, karta rozwinięta (v154), przewinięcie i fokus; mapa / scena — samo przewinięcie (widok zostaje); panel strachu krypto pokazany na żądanie', () => {
+  const U = v157Ui('{"global":"wykresy","crypto":"wykresy"}', {mode: 'crypto'});
+  assert.equal(U.R.wkGo('g-etf'), true);
+  assert.deepEqual(U.modes, ['global', 'zw:g-etf'], 'zakładka GLOBAL, karta rozwinięta');
+  assert.deepEqual(U.R.WK.v, {global: 'wykresy', crypto: 'wykresy'}, 'karta bez kafla jest widoczna także w Wykresach — widok zostaje');
+  assert.deepEqual(U.scrolled, [['g-etf', {behavior: 'auto', block: 'start'}]]); assert.deepEqual(U.focused, [['g-etf-zw-t', {preventScroll: true}]], 'fokus na przycisku zwijania karty (v154)');
+  assert.ok(!('tabindex' in U.E['g-etf'].attrs), 'bez tabindex na karcie — v154 pomija kliknięcia w elementach z tabindex (tytuł karty dalej zwija i rozwija)');
+  U.modes.length = 0; U.scrolled.length = 0; U.focused.length = 0; const n0 = U.sets.length;
+  assert.equal(U.R.wkGo('g-fund'), true); assert.equal(U.R.WK.v.global, 'karty', 'karta z kaflem (w Wykresach schowana) — Karty');
+  assert.equal(U.sets.length, n0, 'przejście chwilowe — bez zapisu (po odświeżeniu dalej Wykresy z przełącznika)'); assert.deepEqual(U.focused, [['g-fund-zw-t', {preventScroll: true}]]);
+  U.modes.length = 0; U.scrolled.length = 0; U.R.wkSet('global', 'wykresy');
+  U.focused.length = 0; assert.equal(U.R.wkGo('gmap'), true); assert.equal(U.R.WK.v.global, 'wykresy', 'mapa jest nad kaflami — widok zostaje'); assert.deepEqual(U.scrolled.map(x => x[0]), ['gmap']); assert.deepEqual(U.focused, [], 'mapa — bez przenoszenia fokusu');
+  U.R.wkGo('c-fg'); assert.ok(U.E['c-fg'].classList.contains('pokaz'), 'v156: panel z lewego paska pokazany w prawej kolumnie'); assert.equal(U.st.mode, 'crypto');
+  assert.equal(U.R.wkGo('nie ma'), false); assert.equal(U.R.wkGo('<x>'), false); assert.equal(U.R.wkGo(7), false);
+  U.modes.length = 0; U.click({closest: s => (s === '[data-wk-go]' ? {getAttribute: () => 'g-prob'} : null)}); assert.ok(U.modes.includes('zw:g-prob'), 'klik „Szczegóły” = wkGo');
+  /* v156: wskaźnik GLOBAL w lewym pasku otwiera kartę ze składnikami — w Wykresach schowaną (ma kafel): chwilowo Karty, bez zapisu */
+  U.R.wkSet('global', 'wykresy'); U.E['g-fg'].classList.add('wk-hid'); const n1 = U.sets.length;
+  const sfg = k => ({closest: s => (s === '#side-fg [data-sfg]' ? {getAttribute: () => k} : null)});
+  U.click(sfg('crypto')); assert.equal(U.R.WK.v.global, 'wykresy', 'wskaźnik krypto — panel w prawej kolumnie, widok GLOBAL bez zmian');
+  U.click(sfg('global')); assert.equal(U.R.WK.v.global, 'karty', 'wskaźnik GLOBAL — karta widoczna'); assert.equal(U.sets.length, n1, 'bez zapisu');
+});
+
+test('v157: podpowiedź i klawiatura — wartość ze znacznika, podświetlenie, miejsce w ramce wykresu; Tab pokazuje pierwszą wartość, strzałki / Home / End przechodzą, Escape chowa', () => {
+  const U = v157Ui(null);
+  const mk = (t, r) => ({t, cl: new Set(), classList: {add(c) { this.o.cl.add(c); }, remove(c) { this.o.cl.delete(c); }, contains(c) { return this.o.cl.has(c) || (c === 'wk-hit' && r.hit); }}, getAttribute: k => (k === 'data-t' ? t : null),
+    getBoundingClientRect: () => r});
+  const marks = [mk('a 1', {left: 110, top: 40, width: 20, height: 10, bottom: 50}), mk('b 2', {left: 380, top: 60, width: 30, height: 10, bottom: 70}), mk('c brak danych — to nie zero', {left: 10, top: 30, width: 10, height: 150, bottom: 180, hit: true})];
+  marks.forEach(m => { m.classList.o = m; });
+  const tip = {hidden: true, textContent: '', style: {}, offsetWidth: 100, offsetHeight: 24};
+  const ch = {classList: {contains: c => c === 'wk-ch'}, querySelector: s => (s === '.wk-tip' ? tip : null), querySelectorAll: s => (s === '[data-t]' ? marks : s === '.wk-on' ? marks.filter(m => m.cl.has('wk-on')) : []),
+    getBoundingClientRect: () => ({left: 100, top: 20, width: 300, height: 200})};
+  U.R.wkTip(ch, marks[0]);
+  assert.deepEqual([tip.hidden, tip.textContent, tip.style.left, tip.style.top, ch.wkI], [false, 'a 1', '0px', '36px', 0], 'nad znacznikiem brak miejsca — pod nim; w ramce (lewa krawędź)');
+  assert.ok(marks[0].cl.has('wk-on'));
+  U.R.wkTip(ch, marks[1]); assert.deepEqual([tip.textContent, tip.style.left, tip.style.top], ['b 2', '200px', '10px'], 'przy prawej krawędzi — w ramce');
+  assert.ok(!marks[0].cl.has('wk-on') && marks[1].cl.has('wk-on'), 'podświetlony tylko bieżący');
+  U.R.wkTip(ch, marks[2]); assert.equal(tip.style.top, '14px', 'pas linii / kolumny — u góry obszaru wykresu');
+  U.R.wkTip(ch, null); assert.ok(tip.hidden && ch.wkI === -1 && !marks.some(m => m.cl.has('wk-on')), 'schowana');
+  U.fire('focusin', {target: ch}); assert.equal(tip.textContent, 'a 1', 'Tab na wykres — pierwsza wartość');
+  const key = k => { let p = 0; U.fire('keydown', {target: ch, key: k, preventDefault() { p++; }}); return p; };
+  assert.equal(key('ArrowRight'), 1); assert.equal(tip.textContent, 'b 2');
+  key('End'); assert.equal(tip.textContent, 'c brak danych — to nie zero', 'End — ostatni (także brak z powodem)');
+  key('ArrowDown'); assert.equal(tip.textContent, 'c brak danych — to nie zero', 'koniec listy — zostaje');
+  key('Home'); assert.equal(tip.textContent, 'a 1'); key('ArrowUp'); assert.equal(tip.textContent, 'a 1', 'początek — zostaje');
+  assert.equal(key('a'), 0, 'inne klawisze — bez przechwytywania');
+  key('Escape'); assert.ok(tip.hidden, 'Escape chowa');
+  U.fire('focusin', {target: ch}); U.fire('focusout', {target: ch}); assert.ok(tip.hidden, 'fokus poza wykresem — schowana');
+  U.fire('pointerdown', {pointerType: 'mouse'}); U.fire('focusin', {target: ch}); assert.ok(tip.hidden, 'fokus po kliknięciu myszą — podpowiedź tylko przy najechaniu (nie zostaje)');
+  key('ArrowRight'); assert.ok(!tip.hidden && tip.textContent === 'a 1', 'klawisz po kliknięciu — znów podpowiedź z klawiatury');
+});
+
+test('v157: strona — pasek nad kartami z przełącznikiem (GLOBAL i CRYPTO), kontener kafli ukryty, karty i widgety TradingView na miejscu; styl bez stałych kolorów; blok przed startem GLOBAL; zaczep top 10', () => {
+  const SEL = '<span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span>';
+  for (const [tab, first, tv] of [['global', 'g-etf', 'tv-markets'], ['crypto', 'eng-coinmetrics-exchange-flows', 'tv-heatmap']]) {
+    const bar = `<div class="zw-bar" data-zw="${tab}"><span class="zw-hint" data-i18n="zw.hint"></span>${SEL}<span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->\n    <div class="wk-dash" id="wk-${tab}" hidden></div>`;
+    const b = html.indexOf(bar);
+    assert.ok(b > html.indexOf(`id="${tab}" role="tabpanel"`) && b < html.indexOf(`id="${first}"`), tab + ': pasek v154 z przełącznikiem, kafle zaraz pod nim, przed pierwszą kartą');
+    assert.ok(html.indexOf(`id="${tv}"`) > b, tab + ': widgety TradingView dalej na dole');
+  }
+  assert.equal(html.split('class="wk-sel"').length - 1, 2); assert.ok(!/class="[^"]*wk-on/.test(html.slice(0, html.indexOf('<script>'))), 'start: żadna zakładka w widoku Wykresy');
+  const c0 = html.indexOf('/* v157: widok „Wykresy” — przełącznik nad kartami'), c1 = html.indexOf('</style>', c0), css = html.slice(c0, c1);
+  assert.ok(c0 > 0 && c1 === html.indexOf('</style>'), 'styl w arkuszu strony');
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko zmienne motywu (bez stałych kolorów)');
+  assert.ok(!css.includes('zw-bs{display:none') && !css.includes(':not([id^="tv-"])'), 'Wykresy: „Rozwiń / Zwiń wszystkie” zostają (karty bez kafla są pod kaflami), widgety TradingView nietknięte');
+  for (const s of ['#global.wk-on>section.pcard.wk-hid,#crypto.wk-on>section.pcard.wk-hid{display:none!important}', '.wk-on>.zw-bar .zw-hint{display:none}',
+    '@container wk (min-width:820px){.wk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}', '@media (min-width:621px){.wk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}', '.wk-t.w2{grid-column:span 2}', '.wk-t.r2{grid-row:span 2}',
+    'background:color-mix(in srgb,var(--panel) 70%,transparent)', '.wk-tip[hidden]{display:none}', '@container wkt (max-width:300px)'])
+    assert.ok(css.includes(s), 'styl: ' + s);
+  const j0 = html.indexOf('/* ===================== v157: WIDOK „WYKRESY”'), j1 = html.indexOf("/* GLOBAL jest oknem startowym projektu */\nsetMode('global');");
+  assert.ok(j0 > html.indexOf('/* ===================== v131: FED') && j1 > j0 && j1 - html.indexOf('})();   /* v157: koniec widoku „Wykresy” */') < 60, 'blok po wszystkich modułach danych, tuż przed startem GLOBAL');
+  assert.ok(html.includes("  t10Rehome(was);try{wkPing('wk-t10');}catch(e){}}   /* v157: kafel „Top 10” widoku Wykresy */\nfunction t10Load(){"), 'plik top 10 (bez karty) odświeża swój kafel');
+  assert.ok(!/fetch\(|https?:\/\//.test(v157.KIT + v157.UI), 'bez pobrań i adresów (dane tylko z obiektów stanu strony)');
+  assert.ok(!/setTimeout|setInterval/.test(v157.KIT + v157.UI), 'bez własnych zegarów');
+});
+
+test('v157: słownik EXTRA157 — czysty JSON, tylko „pl”, jedna linia nakładania zaraz po definicji, nazwa tylko w definicji i linii; każdy klucz używany w kodzie, każdy klucz wk.* z kodu w słowniku; bez nazw dostawców', () => {
+  const a = 'const EXTRA157=', x0 = html.indexOf(a), fl = 'for(const l in EXTRA157)if(I18N[l])Object.assign(I18N[l],EXTRA157[l]);\n';
+  assert.ok(x0 > 0 && html.indexOf(a, x0 + 1) < 0, 'zadeklarowany raz');
+  const x1 = html.indexOf(';\n' + fl, x0);
+  assert.ok(x1 > x0 && html.split(fl).length === 2, 'zaraz po słowniku dokładnie jedna linia nakładania');
+  assert.equal(html.split('EXTRA157').length - 1, 3, 'nazwa tylko w definicji i linii nakładania');
+  assert.ok(html.slice(html.lastIndexOf('\n', x0 - 2) + 1, x0).startsWith('/* v157:'), 'jeden wiersz komentarza przed słownikiem');
+  const D = JSON.parse(html.slice(x0 + a.length, x1));
+  assert.deepEqual(Object.keys(D), ['pl'], 'tylko po polsku (cel 04.10: języki obce na koniec etapu)');
+  const m = [...html.matchAll(/^for\(const l in (EXTRA\w+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)].map(x => x[1]);
+  assert.ok(m.indexOf('EXTRA157') > m.indexOf('EXTRA154') && m.indexOf('EXTRA154') > 0, 'nałożony po wcześniejszych słownikach');
+  const code = v157.KIT + v157.UI + html.slice(html.indexOf('<body'), html.indexOf('<script>'));
+  for (const k in D.pl) { assert.ok(typeof D.pl[k] === 'string' && D.pl[k].trim(), k); assert.ok(code.includes("'" + k + "'") || code.includes('"' + k + '"'), 'klucz używany: ' + k); }
+  for (const k of new Set([...code.matchAll(/['"](wk\.[a-z0-9.]+)['"]/g)].map(x => x[1]))) assert.ok(k in D.pl, 'klucz z kodu w słowniku: ' + k);
+  for (const k in D.pl) assert.deepEqual(v151Names(D.pl[k]), [], 'bez nazwy dostawcy: ' + k);
+  for (const l of Object.keys(v157.I)) if (l !== 'pl') for (const k in D.pl) assert.ok(!(k in v157.I[l]), l + ': bez tłumaczeń (t() pokazuje polski)');
+});
+
+test('v157: strona w atrapie (dane wbudowane strażnika, 27.09) — „Wykresy” w obu zakładkach: bez błędów, kafle z danymi albo „brak danych” z powodem, bez nazw dostawców, surowych kluczy i NaN; bez wyboru — kafle nierysowane', () => {
+  const R = G126.run('pl', {ls: {'cfai.widok': '{"global":"wykresy","crypto":"wykresy"}'}});
+  R.fireMOs([{type: 'attributes', attributeName: 'data-theme'}]);   /* atrapa nie zgłasza zmian treści — przerysowanie kafli po wczytaniu danych jak po zmianie motywu */
+  assert.deepEqual(R.ERR, [], 'bez błędów strony');
+  const box = id => R.CAP.filter(c => c.k === 'html' && c.id === id).map(c => c.v).pop() || '';
+  for (const [id, n] of [['wk-global', 9], ['wk-crypto', 10]]) {
+    const h = box(id);
+    assert.equal((h.match(/<article class="wk-t panel/g) || []).length, n, id + ': kafle');
+    for (const tile of h.split('<article ').slice(1)) assert.ok(/class="wk-ch /.test(tile) || /<p class="wk-na"><b>brak danych<\/b> — [^<]{8,}<\/p>/.test(tile), id + ': wykres albo brak z powodem: ' + tile.slice(0, 120));
+    assert.ok(!/NaN|undefined|\[object/.test(h), id + ': bez NaN / undefined');
+    assert.ok(!/(?:>|")[^<"]*\bwk\.[a-z]+\.[a-z.]+/.test(h), id + ': bez surowych kluczy');
+    for (const [s] of G126.segs([{k: 'html', v: h, id}])) assert.deepEqual(v151Names(s), [], id + ': bez nazw dostawców: ' + s.slice(0, 80));
+  }
+  assert.ok(/class="wk-ch /.test(box('wk-global')) && /class="wk-ch /.test(box('wk-crypto')), 'są wykresy z danych strażnika');
+  const K = G126.run('pl');
+  assert.deepEqual(K.ERR, []); assert.equal(K.CAP.filter(c => /^wk-/.test(c.id)).length, 0, 'bez wyboru: kontenery kafli nietknięte (strona jak dotąd)');
 });

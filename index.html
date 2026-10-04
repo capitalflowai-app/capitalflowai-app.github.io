@@ -1188,6 +1188,112 @@ td .cell .logo-img{width:34px;height:34px}
 .trd-wiecej{margin-top:12px}
 .trd-wiecej>summary{font-weight:600}
 @media (max-width:900px){.trd-ig .tig-g,.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(0,1fr)}}
+/* v157: widok „Wykresy” — przełącznik nad kartami, siatka półprzezroczystych kafli z prostymi wykresami; kolory tylko ze zmiennych motywu */
+.wk-sel{display:inline-flex;align-items:center;gap:8px;margin-left:auto}
+.wk-lab{color:var(--mut);font-size:12.5px}
+.wk-seg{display:inline-flex;border:1px solid var(--line-2);border-radius:999px;overflow:hidden;background:var(--panel)}
+.wk-v{background:none;border:0;padding:6px 13px;color:var(--mut);font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;min-height:32px}
+.wk-v+.wk-v{border-left:1px solid var(--line)}
+.wk-v[aria-pressed="true"]{background:var(--sel);color:var(--tx)}
+.wk-v:hover{color:var(--tx)}
+.wk-v:focus-visible{outline:2px solid var(--bl);outline-offset:-2px}
+.zw-bar .wk-hint{display:none}
+.wk-on>.zw-bar .wk-hint{display:inline}
+.wk-on>.zw-bar .zw-hint{display:none}
+#global.wk-on>section.pcard.wk-hid,#crypto.wk-on>section.pcard.wk-hid{display:none!important}
+.wk-dash{container:wk/inline-size}
+.wk-dash[hidden]{display:none}
+.wk-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;grid-auto-flow:row dense}
+.wk-t.w2{grid-column:span 2}
+.wk-t.r2{grid-row:span 2}
+@media (min-width:621px){.wk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.wk-t.w2{grid-column:auto}.wk-t.r2{grid-row:auto}}
+@container wk (min-width:820px){.wk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wk (max-width:519px){.wk-grid{grid-template-columns:minmax(0,1fr)}.wk-t.w2{grid-column:auto}.wk-t.r2{grid-row:auto}}
+.wk-t{display:flex;flex-direction:column;gap:8px;padding:12px 14px 10px;min-width:0;container:wkt/inline-size;background:var(--panel);background:color-mix(in srgb,var(--panel) 70%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.wk-h h3{margin:0;font-size:14px;line-height:1.3;font-weight:600;display:flex;align-items:baseline;gap:4px 8px;flex-wrap:wrap}
+.wk-kd{font:500 10.5px/1.6 "Instrument Sans",system-ui,sans-serif;color:var(--mut);border:1px solid var(--line-2);border-radius:999px;padding:0 7px;white-space:nowrap}
+.wk-s{margin:3px 0 0;color:var(--mut);font-size:11.5px;line-height:1.35}
+.wk-c{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+.wk-c>.wk-ch,.wk-pair>div>.wk-ch{flex:1 1 auto;display:flex;flex-direction:column}
+.wk-pair{flex:1 1 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:4px 18px}
+.wk-pair>div{display:flex;flex-direction:column;min-width:0}
+.wk-f{display:flex;justify-content:space-between;align-items:center;gap:4px 10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:6px;color:var(--dim);font-size:11px;line-height:1.35}
+.wk-go{background:none;border:0;padding:4px 0;font:inherit;font-size:12px;font-weight:500;color:var(--bl);cursor:pointer;min-height:28px;margin-left:auto}
+.wk-go:hover{text-decoration:underline;text-underline-offset:2px}
+.wk-go:focus-visible{outline:2px solid var(--bl);outline-offset:2px;border-radius:4px}
+.wk-na{margin:10px 0;color:var(--mut);font-size:12.5px;line-height:1.4}
+.wk-na b{color:var(--tx);font-weight:600}
+.wk-disc{margin-top:12px}
+.wk-ch{position:relative;border-radius:8px;outline:none}
+.wk-ch:focus-visible{box-shadow:0 0 0 2px var(--bl)}
+.wk-tip{position:absolute;left:0;top:0;z-index:3;max-width:min(300px,100%);padding:6px 9px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line-2);color:var(--tx);font-size:11.5px;line-height:1.35;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.28)}
+.wk-tip[hidden]{display:none}
+.wk-dash .pos{--k:var(--gr);--kr:var(--gr-rgb)}.wk-dash .neg{--k:var(--rd);--kr:var(--rd-rgb)}.wk-dash .zer,.wk-dash .na,.wk-dash .rest{--k:var(--gy);--kr:var(--gy-rgb)}
+.wk-dash .lvl,.wk-dash .s1,.wk-dash .c-eth{--k:var(--bl);--kr:var(--bl-rgb)}.wk-dash .s2,.wk-dash .c-btc{--k:var(--or);--kr:var(--or-rgb)}
+.wk-dash .c-sol,.wk-dash .c-stab,.wk-dash .c-usdt{--k:var(--tl);--kr:var(--tl-rgb)}.wk-dash .c-usdc{--k:var(--yl);--kr:var(--yl-rgb)}.wk-dash .c-xrp,.wk-dash .c-rest{--k:var(--gy);--kr:var(--gy-rgb)}
+.wk-dash .fz{--k:rgba(var(--gy-rgb),.72);--kr:var(--gy-rgb)}
+.wk-leg{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11px;color:var(--mut);margin:0 0 6px}
+.wk-leg span{display:inline-flex;align-items:center;gap:5px}
+.wk-sq{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--k,var(--gy));flex:none}
+.wk-rows{flex:1 1 auto;display:flex;flex-direction:column;justify-content:space-evenly;gap:2px}
+.wk-br{display:grid;grid-template-columns:minmax(0,var(--lw,38%)) minmax(0,1fr) auto;align-items:center;gap:8px;padding:2px 4px;border-radius:6px;font-size:12px;line-height:1.3;min-height:22px}
+.wk-br.wk-on{background:var(--sel)}
+.wk-bl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wk-bl .icos{margin-right:5px}
+.wk-bt{display:block;width:100%;height:12px;overflow:visible}
+.wk-bv{font:500 11.5px/1.2 "JetBrains Mono",ui-monospace,monospace;color:var(--tx);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.wk-bv.na,.wk-br.na .wk-bl{color:var(--dim)}
+@container wkt (max-width:300px){.wk-br{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}.wk-bt{grid-column:1/-1;grid-row:2}}
+.wk-b{fill:var(--k,var(--gy))}
+.wk-b.pt{opacity:.45}
+.wk-z{stroke:var(--mut);stroke-width:1.2}
+.wk-g{stroke:var(--line);stroke-width:1}
+.wk-gl{stroke:var(--dim);stroke-width:1.2;stroke-dasharray:3 3}
+.wk-hit{fill:transparent}
+.wk-hit.wk-on{fill:var(--sel)}
+.wk-zn.z-xf{fill:rgba(var(--rd-rgb),.11)}.wk-zn.z-f{fill:rgba(var(--or-rgb),.10)}.wk-zn.z-n{fill:rgba(var(--yl-rgb),.10)}.wk-zn.z-g{fill:rgba(var(--gr-rgb),.09)}.wk-zn.z-xg{fill:rgba(var(--gr-rgb),.16)}
+.wk-l{fill:none;stroke:var(--k,var(--bl));stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.wk-pt{stroke:var(--k,var(--bl));stroke-width:6;stroke-linecap:round}
+.wk-plot{flex:1 1 auto;max-height:400px;display:flex;gap:6px;align-items:stretch}
+.wk-y{position:relative;width:46px;flex:none;font-size:10.5px;color:var(--dim);margin-bottom:18px}
+.wk-y span{position:absolute;right:0;transform:translateY(-50%);white-space:nowrap;font-variant-numeric:tabular-nums}
+.wk-pa{position:relative;flex:1 1 auto;min-width:0;padding-bottom:18px;display:flex;flex-direction:column}
+.wk-sv{display:block;width:100%;flex:1 1 150px;height:auto;min-height:150px;overflow:visible}
+.wk-x{position:absolute;left:0;right:0;bottom:0;height:16px;font-size:10.5px;color:var(--dim)}
+.wk-x span{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap}
+.wk-x span:first-child{transform:none}
+.wk-x span:last-child:not(:first-child){transform:translateX(-100%)}
+.wk-sub{margin:8px 0 4px;color:var(--mut);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wk-sub b{color:var(--tx);font-weight:600}
+.wk-ch.wk-donut{justify-content:center}
+.wk-dw{display:flex;align-items:center;justify-content:center;gap:14px 22px;flex-wrap:wrap}
+.wk-dr{position:relative;width:136px;height:136px;flex:none}
+.wk-ds{display:block;width:100%;height:100%}
+.wk-dbg{fill:none;stroke:var(--line);stroke-width:5}
+.wk-dn{fill:none;stroke:var(--k,var(--gy));stroke-width:5}
+.wk-dn.wk-on{stroke-width:7}
+.wk-dc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font:600 15px/1.2 Sora,sans-serif;pointer-events:none;padding:0 24px}
+.wk-dc small{font:400 10.5px/1.3 "Instrument Sans",system-ui,sans-serif;color:var(--mut)}
+.wk-dl{flex:1 1 210px;max-width:360px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.wk-li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:7px;align-items:center;font-size:12px}
+.wk-li>span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wk-li b{font:500 11.5px/1.2 "JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wk-li small{color:var(--mut);font-size:11px;min-width:42px;text-align:right}
+.wk-tw{position:relative;width:100%;flex:1 1 auto;min-height:170px;max-height:340px}
+.wk-tw .wk-sv{position:absolute;inset:0;height:100%;min-height:0;max-height:none}
+.wk-tc{fill:rgba(var(--kr,var(--gy-rgb)),var(--a,.55));stroke:var(--bg);stroke-width:1;vector-effect:non-scaling-stroke}
+.wk-tc.rest{--a:.3}
+.wk-tc.wk-on{stroke:var(--tx);stroke-width:2}
+.wk-tg{fill:none;stroke:var(--tx);stroke-opacity:.45;stroke-width:1.5;pointer-events:none}
+.wk-tl{position:absolute;display:flex;flex-direction:column;gap:1px;padding:3px 5px;overflow:hidden;pointer-events:none;font-size:11px;line-height:1.2;color:var(--tx)}
+.wk-tl.b{justify-content:flex-end}
+.wk-tl b,.wk-tl small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-tl b{font-weight:600}.wk-tl small{color:var(--mut);font-size:10.5px}
+.wk-tl .icos{margin-right:4px}
+.wk-tgl{position:absolute;margin:3px;padding:0 6px;border-radius:999px;background:var(--panel-2);color:var(--tx);font-size:10.5px;font-weight:600;line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+@media (max-width:620px){.wk-t{padding:10px 11px 8px}.wk-sv{flex-basis:132px;min-height:132px}.wk-dr{width:116px;height:116px}.wk-y{width:40px}}
+@media (prefers-reduced-motion:reduce){.wk-dn{transition:none}}
 </style>
 </head>
 <body data-bg="soft">
@@ -1264,7 +1370,8 @@ td .cell .logo-img{width:34px;height:34px}
       <h2 data-i18n="why"></h2>
       <div class="detail" id="detail" aria-live="polite"></div>
     </section>
-    <div class="zw-bar" data-zw="crypto"><span class="zw-hint" data-i18n="zw.hint"></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->
+    <div class="zw-bar" data-zw="crypto"><span class="zw-hint" data-i18n="zw.hint"></span><span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->
+    <div class="wk-dash" id="wk-crypto" hidden></div><!-- v157: widok „Wykresy” — kafle z wykresami -->
 <section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>
     <section class="panel pcard" id="c-wieloryby" hidden></section>
     <section class="panel pcard" id="eng-defillama-stablecoins" hidden></section>
@@ -1369,7 +1476,8 @@ td .cell .logo-img{width:34px;height:34px}
       <h2 data-i18n="why"></h2>
       <div class="detail" id="g-detail" aria-live="polite"></div>
     </section>
-    <div class="zw-bar" data-zw="global"><span class="zw-hint" data-i18n="zw.hint"></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->
+    <div class="zw-bar" data-zw="global"><span class="zw-hint" data-i18n="zw.hint"></span><span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->
+    <div class="wk-dash" id="wk-global" hidden></div><!-- v157: widok „Wykresy” — kafle z wykresami -->
 <section class="panel pcard etf" id="g-etf" hidden></section>
     <section class="panel pcard" id="g-prob" hidden></section>
     <section class="panel pcard" id="g-fed" hidden></section>
@@ -1937,6 +2045,9 @@ for(const l in EXTRA160)if(I18N[l])Object.assign(I18N[l],EXTRA160[l]);
 /* v161: tokenizowane aktywa — nota zakresu produktu (WisdomTree: tylko WTGXX) — tylko po polsku (cel właściciela 04.10) */
 const EXTRA161={"pl":{"rwc.zakres":"{p}: liczymy tylko fundusz {f}; pozostałych funduszy tego emitenta (zmienna wartość jednostki, bez przejrzystej bieżącej ceny) nie liczymy."}};
 for(const l in EXTRA161)if(I18N[l])Object.assign(I18N[l],EXTRA161[l]);
+/* v157: widok „Wykresy” (GLOBAL i CRYPTO) — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
+const EXTRA157={"pl":{"wk.view":"Widok","wk.cards":"Karty","wk.charts":"Wykresy","wk.hint":"Najedź albo dotknij wykresu, by zobaczyć liczbę i datę. „Szczegóły” otwiera pełną kartę.","wk.more":"Szczegóły","wk.rd":"wykres","wk.d":"Dane: {d}","wk.k.p":"pomiar","wk.k.s":"szacunek","wk.k.m":"model","wk.k.r":"ceny rynku","wk.u.t":"bln","wk.u.b":"mld","wk.u.m":"mln","wk.na.load":"dane jeszcze się wczytują","wk.na.file":"plik danych jeszcze się wczytuje albo jest niedostępny","wk.na.none":"w danych nie ma liczb do pokazania","wk.na.few":"za mało punktów, żeby narysować wykres","wk.na.err":"nie udało się narysować wykresu","wk.fg.s":"Wskaźnik własny 0–100 z sesji giełdowych; pasma od strachu (czerwone) do chciwości (zielone)","wk.fg.a":"{t}: teraz {v} ({s}); {n} punktów na wykresie, od {a} do {b}.","wk.g.reg.t":"Rynki akcji regionów: zmiana w USD","wk.g.reg.s":"Okres: {p} · {n} z {m} regionów z danymi","wk.g.reg.a":"Zmiana wartości rynków akcji w USD — {p}: najwięcej {a} ({va}), najmniej {b} ({vb}); {n} z {m} regionów z danymi.","wk.g.prob.s":"Wynik od −100 do +100 z mierzonych wskaźników — zdjęcie chwili, nie rekomendacja","wk.g.prob.cov":"składników: {n}","wk.g.prob.a":"Warunki dla rynków regionów: najlepiej {a} ({va}), najsłabiej {b} ({vb}).","wk.g.str.s":"Indeks dzienny: 0 = przeciętny stres z długiego okresu, powyżej 0 — stres ponad przeciętną","wk.g.str.a":"Stres finansowy USA: ostatnio {v} ({d}); w {n} dniach na wykresie od {a} do {b}.","wk.g.fund.t":"USA: fundusze akcji i obligacji","wk.g.fund.sm":"Napływ netto miesięcznie (mld USD, dane rzeczywiste)","wk.g.fund.sw":"Napływ netto tygodniowo (mld USD, szacunek wydawcy; tydzień do środy)","wk.g.fund.eq":"Akcje (USA i świat)","wk.g.fund.a":"Fundusze w USA — {m}: akcje {e}, obligacje {b}; {n} okresów na wykresie.","wk.g.tic.s":"Netto do USA miesięcznie: plus — zagranica kupiła więcej papierów USA, niż Amerykanie kupili za granicą","wk.g.tic.a":"Kapitał portfelowy USA i świata — {m}: netto {v}; napływ do USA w {p} z {n} miesięcy.","wk.g.ix.s":"Zmiana za 1 miesiąc (21 sesji), od najmocniejszego","wk.g.ix.a":"Indeksy giełdowe: {n} z {m} wyżej niż miesiąc temu; najmocniej {a} ({va}), najsłabiej {b} ({vb}).","wk.g.fed.t":"Fed: szanse decyzji na najbliższym posiedzeniu","wk.g.fed.s0":"Szansa z cen kontraktów rynku zakładów","wk.g.fed.s":"Decyzja: {d}, {t} (czas lokalny) · szansa z cen kontraktów","wk.g.fed.raw":"ceny bez przeliczenia do 100%","wk.g.fed.na":"brak bieżących cen (starszych niż 6 godzin nie pokazujemy) albo żadne posiedzenie nie jest w handlu","wk.g.fed.a":"Fed, decyzja {d}: najbardziej prawdopodobne — {o} ({p}).","wk.g.dl.t":"Ameryka Łacińska: luka dolara","wk.g.dl.s":"O ile procent drożej kosztuje dolar poza kursem oficjalnym","wk.g.dl.a":"Luka dolara: Argentyna (CCL) {a}, Wenezuela {v}, Boliwia (USDT) {b}.","wk.c.flow.t":"Przepływy między elementami sceny","wk.c.flow.s":"Okres: {p} · zmiana wartości w USD; Giełdy* = reszta bilansu","wk.c.flow.na":"brak połączenia z cenami na żywo","wk.c.flow.a":"Przepływy kapitału w krypto — {p} (szacunek): najwięcej {a} ({va}), najmniej {b} ({vb}).","wk.c.etf.s":"Napływ netto dziennie do ETF-ów w USA: BTC, ETH, SOL, XRP","wk.c.etf.part":"dzień niepełny — części monet jeszcze brak","wk.c.etf.sum":"razem","wk.c.etf.a":"ETF-y krypto w USA: ostatni pełny dzień {d} — razem {v}; {n} dni na wykresie.","wk.c.cap.t":"Struktura rynku krypto","wk.c.cap.s":"Kapitalizacja: BTC, ETH, stablecoiny i reszta rynku (jedna chwila)","wk.c.cap.rest":"Reszta rynku","wk.c.cap.tot":"cały rynek","wk.c.cap.a":"Rynek krypto {v}: BTC {b}, ETH {e}, stablecoiny {s}, reszta {r}.","wk.c.stab.s":"Pole = podaż stablecoinów w sieci; kolor = zmiana 7 dni (zielony — przybyło, czerwony — ubyło)","wk.c.stab.rest":"Pozostałe sieci","wk.c.stab.a":"Stablecoiny razem {v}; najwięcej w sieci {a} ({p}); {n} największych sieci osobno.","wk.c.rwa.t":"Tokenizowane aktywa według rodzaju","wk.c.rwa.s":"Z bieżącą wyceną (w sumach) i osobno — bez bieżącej wyceny (ostatnio znana, poza sumami)","wk.c.rwa.cur":"z bieżącą wyceną","wk.c.rwa.fz":"bez bieżącej wyceny","wk.c.rwa.a":"Tokenizowane aktywa: razem {v} z bieżącą wyceną, najwięcej — {a}; bez bieżącej wyceny {f}.","wk.c.t10.t":"Top 10 monet w grupach","wk.c.t10.s":"Pole = kapitalizacja, kolor = zmiana 24 h (zielony — wzrost, czerwony — spadek)","wk.c.t10.a":"{n} monet w {g} grupach; największa: {a}.","wk.c.wh.s":"Salda ogłoszonych portfeli giełd na Ethereum, w USD (ETH po kursie z chwili odczytu)","wk.c.wh.a":"Wieloryby: salda portfeli {n} giełd; najwięcej {a} ({v}).","wk.c.lev.t":"Otwarte pozycje na giełdach","wk.c.lev.s":"BTC i ETH w USD — giełdy ze stanem z ostatnich 6 godzin","wk.c.lev.a":"Otwarte pozycje BTC i ETH na {n} giełdach; najwięcej {a} ({v}).","wk.c.prm.s":"Historia dzienna, ostatnie {n} dni · każda linia z własną osią","wk.c.prm.kr":"Korea · BTC","wk.c.prm.us":"USA · BTC","wk.c.prm.a":"{l}: ostatnio {v} ({d}); {n} dni na wykresie.","wk.c.fg.s":"Indeks 0–100 (wskaźnik, nie pomiar); pasma od strachu (czerwone) do chciwości (zielone)"}};
+for(const l in EXTRA157)if(I18N[l])Object.assign(I18N[l],EXTRA157[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -6673,7 +6784,7 @@ function t10Coins(k){const D=T10.data;return D&&D.g[k]?D.g[k].c.slice(0,t10Narro
 function t10Rehome(was){const h=homeDist();if(Math.abs(h-was)<1e-9)return;const at=Math.abs(cam.dist-was)<.6&&!st.sel;cam._home=h;if(at)camTo({dist:h},700);dirty=true;}
 function t10SetData(d){const was=homeDist();T10.data=d;T10.st='ok';T10.lay={w:{},n:{}};
   for(const k in d.g){const c=d.g[k].c;if(c.length){T10.lay.w[k]=t10Group(c.slice(0,T10_N).map(x=>x.mc),T10_RG);T10.lay.n[k]=t10Group(c.slice(0,T10_NP).map(x=>x.mc),T10_RGP);}}
-  t10Rehome(was);}
+  t10Rehome(was);try{wkPing('wk-t10');}catch(e){}}   /* v157: kafel „Top 10” widoku Wykresy */
 function t10Load(){if(!T10.data)T10.st='load';
   srvJSON('krypto-top10').then(j=>{const d=t10Norm(j);if(d){t10SetData(d);if(T10.seen)t10LogoLoad();}else if(!T10.data)T10.st='err';
     if(T10.pin&&!t10Find(T10.pin.k,T10.pin.id)){T10.pin=null;t10TipHide();}dirty=true;});}
@@ -10113,6 +10224,530 @@ function fedLoad(){FED.ms=Date.now();srvJSON('fed').then(fedApply);}
 function fedAuto(){if(FED.timer)return;FED.timer=setInterval(()=>{if(!document.hidden)fedLoad();},20*60*1000);
   try{document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(Date.now()-FED.ms>60*1000)fedLoad();else renderFed();});}catch(e){}}
 fedLoad();fedAuto();try{new MutationObserver(()=>renderFed()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* v131: Fed — szanse decyzji; zmiana języka = nowe etykiety */
+/* ===================== v157: WIDOK „WYKRESY” — PROSTE WYKRESY Z DANYCH KART (GLOBAL i CRYPTO) =====================
+   Właściciel 04.10: „wszystkie dane jak dotąd, ale też OPCJA pokazania ich na diagramach (jak na obrazku), z przezroczystym tłem; co się da —
+   prostymi wykresami, co prościej pokazać jak teraz — zostaje; diagramy TYLKO jako dodatkowa opcja; zwijanie kart zostaje”.
+   Nad kartami „Widok: Karty | Wykresy” (osobno w GLOBAL i CRYPTO, zapamiętane w tej przeglądarce — cfai.widok; pamięć zablokowana = działa,
+   tylko bez zapamiętania). „Karty” (domyślnie) = strona jak dotąd. „Wykresy” = karty z danymi schowane, w ich miejscu siatka półprzezroczystych
+   kafli z wykresami; kafle u góry, mapa / scena 3D i widgety TradingView na samym dole zostają jak są. Dane — te same obiekty stanu i funkcje,
+   które rysują karty (żadnych nowych pobrań). Ta część: własny mały zestaw wykresów (SVG w stronie, bez bibliotek i sieci) i budowa kafli. */
+
+/* ---------- zestaw wykresów ----------
+   Kształty w SVG rozciąganym na szerokość kafla (preserveAspectRatio="none", linie o stałej grubości), napisy w HTML — czytelne od 320 px bez
+   mierzenia ekranu. Kolory tylko z klas (zmienne motywu w CSS). Każdy znacznik danych niesie podpowiedź (data-t: dokładna wartość i data);
+   wykres ma opis jednym zdaniem (aria-label) i jedno miejsce w kolejności klawisza Tab (strzałki przechodzą po znacznikach). Brak liczby =
+   przerwa (kreskowana linia albo przerwa w linii), nigdy zero. */
+const wkNum=v=>typeof v==='number'&&isFinite(v);
+const wkK=()=>typeof sepK==='function'?sepK():': ';   /* „etykieta: wartość” w zapisie języka widza (v149) */
+const wkF2=v=>(Math.round(v*100)/100).toString();   /* współrzędne w SVG: 2 miejsca, kropka (atrybut, nie tekst dla czytelnika) */
+/* zmiana w %: znak z pokazanej (zaokrąglonej) liczby, minus typograficzny; zero bez znaku; brak = „—” */
+function wkPct(v,d){d=d==null?1:d;if(!wkNum(v))return '—';const k=10**d,r=Math.round(v*k)/k;return (r>0?'+':r<0?'−':'')+nfmt(Math.abs(r),d)+'%';}
+/* kwota w USD (bln / mld / mln); znak = true — plus przy dodatniej; poniżej 0,5 mln — „<1 mln” (mała kwota to nie zero); brak = „—” */
+function wkUsd(v,znak){if(!wkNum(v))return '—';const a=Math.abs(v),s=v<0?'−':(znak&&v>0?'+':'');if(a===0)return '0 '+t('u.m');
+  if(a>=999.5e9)return s+nfmt(a/1e12,2)+' '+t('u.t');if(a>=999.5e6)return s+nfmt(a/1e9,a>=99.95e9?0:a>=9.995e9?1:2)+' '+t('u.b');
+  if(a>=0.5e6)return s+nfmt(a/1e6,a>=99.5e6?0:1)+' '+t('u.m');return s+'<1 '+t('u.m');}
+/* kwota krótko do słupków (bez „USD” — waluta w podtytule kafla; pełna kwota w podpowiedzi) */
+function wkUsdS(v,znak){return wkUsd(v,znak).replace(/\s*USD$/,'');}
+/* kolor znacznika: 'sign' — wzrost zielony, spadek czerwony, zero bez koloru; 'lvl' — poziom (stan, szansa, luka): jeden kolor */
+function wkTone(v,tone){if(tone==='lvl')return 'lvl';return !wkNum(v)?'':v>0?'pos':v<0?'neg':'zer';}
+/* dziedzina osi z zerem: [min(0, najmniejsza), max(0, największa)]; bez liczb albo płaska — o jeden w górę */
+function wkDom(vals,zero){let lo=Infinity,hi=-Infinity;for(const v of vals)if(wkNum(v)){if(v<lo)lo=v;if(v>hi)hi=v;}
+  if(lo===Infinity)return [0,1];if(zero!==false){lo=Math.min(0,lo);hi=Math.max(0,hi);}if(hi===lo)hi=lo+1;return [lo,hi];}
+/* ładna oś: krok 1 / 2 / 2,5 / 5 × 10^k, granice rozszerzone do pełnych kroków, około n podziałek */
+function wkNice(lo,hi,n){const raw=(hi-lo)/Math.max(1,n||4),p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p,s=(m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*p;
+  const a=Math.floor(lo/s+1e-9)*s,b=Math.ceil(hi/s-1e-9)*s,ticks=[];for(let i=0;i<=Math.round((b-a)/s);i++){const v=a+i*s;ticks.push(Math.abs(v)<s*1e-9?0:+v.toPrecision(12));}
+  return {lo:a,hi:b===a?a+s:b,ticks,s};}
+/* podpis osi: krótko (1,5 bln / 250 mld / 40) — jednostka w podtytule kafla */
+function wkAx(v,d){const a=Math.abs(v),s=v<0?'−':'';if(a>=1e12)return s+nfmt(a/1e12,1)+' '+t('wk.u.t');if(a>=1e9)return s+nfmt(a/1e9,a>=1e10?0:1)+' '+t('wk.u.b');
+  if(a>=1e6)return s+nfmt(a/1e6,a>=1e7?0:1)+' '+t('wk.u.m');return s+nfmt(a,d==null?(a&&a<10&&a!==Math.round(a)?1:0):d);}
+/* legenda serii: kolor i nazwa */
+function wkLeg(S){return `<div class="wk-leg">${S.map(s=>`<span><i class="wk-sq ${s.cls}"></i>${s.n}</span>`).join('')}</div>`;}
+/* opakowanie wykresu: opis jednym zdaniem, jedno miejsce w kolejności Tab, podpowiedź (rola status — czytnik ekranu odczyta wartość) */
+function wkCh(kind,aria,inner){return `<div class="wk-ch wk-${kind}" role="group" aria-roledescription="${escH(t('wk.rd'))}" aria-label="${escH(aria||'')}" tabindex="0">${inner}<div class="wk-tip" role="status" hidden></div></div>`;}
+/* słupki poziome (wiersz HTML: etykieta | pasek SVG | wartość). rows: [{l: etykieta HTML, v: liczba|null, vs: [liczby] (serie), tip, vt: tekst
+   wartości (HTML), cls}]; o: {aria, fmt, tone, lw: szerokość kolumny etykiet, dom: [lo, hi] stała skala (szansa 0–100, wynik −100…+100 — jak w kartach),
+   ser: [{n, cls}], stack: serie jedna za drugą (tylko ≥ 0)}.
+   Dziedzina z zerem: same dodatnie = zwykłe słupki od lewej; ujemne i dodatnie = słupki od linii zera w obie strony. */
+function wkBars(rows,o){
+  o=o||{};const S=o.ser||null,stk=!!(S&&o.stack),fmt=o.fmt||(v=>nfmt(v,0));
+  const sum=r=>r.vs.reduce((a,v)=>a+(wkNum(v)&&v>0?v:0),0),has=r=>S?r.vs.some(wkNum):wkNum(r.v),vals=[];
+  for(const r of rows){if(!has(r))continue;if(stk)vals.push(sum(r));else if(S)r.vs.forEach(v=>vals.push(v));else vals.push(r.v);}
+  const [lo,hi]=Array.isArray(o.dom)?o.dom:wkDom(vals,true),X=v=>(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*100,x0=X(0),bar=(a,b,y,h,cls)=>`<rect class="wk-b ${cls}" x="${wkF2(Math.min(a,b))}" y="${wkF2(y)}" width="${wkF2(Math.max(Math.abs(b-a),.4))}" height="${wkF2(h)}"/>`;
+  const out=rows.map(r=>{const ok=has(r);let g='';
+    if(!ok)g='<line class="wk-gl" x1="0" x2="100" y1="5" y2="5" vector-effect="non-scaling-stroke"/>';   /* brak = kreskowana linia, nie zero */
+    else if(!S)g=bar(x0,X(r.v),1.5,7,r.cls||wkTone(r.v,o.tone));
+    else if(stk){let acc=0;S.forEach((s,i)=>{const v=r.vs[i];if(!wkNum(v)||v<=0)return;g+=bar(X(acc),X(acc+v),1.5,7,s.cls);acc+=v;});}
+    else{const h=8/S.length;S.forEach((s,i)=>{const v=r.vs[i];if(wkNum(v))g+=bar(x0,X(v),1+i*h,h*.84,s.cls);});}
+    const z=lo<0?`<line class="wk-z" x1="${wkF2(x0)}" x2="${wkF2(x0)}" y1="0" y2="10" vector-effect="non-scaling-stroke"/>`:'';
+    const vt=r.vt!=null?r.vt:ok?escH(fmt(S?sum(r):r.v)):'—';
+    return `<div class="wk-br${ok?'':' na'}" data-t="${escH(r.tip)}"><span class="wk-bl">${r.l}</span><svg class="wk-bt" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">${z}${g}</svg><span class="wk-bv${ok?'':' na'}">${vt}</span></div>`;}).join('');
+  return wkCh('bars',o.aria,(S&&o.leg!==false?wkLeg(S):'')+`<div class="wk-rows"${o.lw?` style="--lw:${o.lw}"`:''}>${out}</div>`);
+}
+/* które podpisy osi czasu pokazać: wszystkie przy ≤ 6, inaczej ok. 4 równo rozłożone (pierwszy i ostatni zawsze) */
+function wkPick(n,k){if(n<=(k||6))return [...Array(n).keys()];const m=4,o=new Set([0,n-1]);for(let i=1;i<m-1;i++)o.add(Math.round(i*(n-1)/(m-1)));return [...o].sort((a,b)=>a-b);}
+/* oś Y w HTML (podziałki z wkNice): pozycja w % wysokości wykresu; kwoty (≥ 1 mln) krótko z jednostką, reszta z liczbą miejsc kroku */
+function wkYAx(N,Y,fy){let d=0;while(d<6&&Math.abs(Math.round(N.s*10**d)-N.s*10**d)>1e-9)d++;   /* miejsca po przecinku z kroku osi — wszystkie podpisy jednakowo */
+  const f=fy||(Math.max(Math.abs(N.lo),Math.abs(N.hi))>=1e6?wkAx:v=>(v<0?'−':'')+nfmt(Math.abs(v),d));   /* minus typograficzny jak w całej stronie */
+  return `<div class="wk-y" aria-hidden="true">${N.ticks.map(v=>`<span style="top:${wkF2(Y(v))}%">${escH(f(v))}</span>`).join('')}</div>`;}
+/* kolumny w czasie. X: [{x: podpis osi, tip, v | vs: [liczby serii], part: dzień niepełny}]; o: {aria, ser: [{n, cls}], stack, tone, fy}.
+   Grupowane: serie obok siebie; skumulowane: dodatnie w górę, ujemne w dół od zera. Kolumna bez żadnej liczby = kropkowana kreska (brak). */
+function wkCols(X,o){
+  o=o||{};const n=X.length;if(!n)return '';
+  const S=o.ser||null,stk=!!(S&&o.stack),vs=x=>Array.isArray(x.vs)?x.vs:[x.v],vals=[];
+  for(const x of X){const a=vs(x);if(stk){let p=0,q=0;a.forEach(v=>{if(wkNum(v)){if(v>0)p+=v;else q+=v;}});vals.push(p,q);}else a.forEach(v=>vals.push(v));}
+  const N=wkNice(...wkDom(vals,true),4),Y=v=>(N.hi-v)/(N.hi-N.lo)*100,W=n*10;
+  const col=(x,y1,y2,w,cls)=>`<rect class="wk-b ${cls}" x="${wkF2(x)}" y="${wkF2(Math.min(y1,y2))}" width="${wkF2(w)}" height="${wkF2(Math.max(Math.abs(y2-y1),.6))}"/>`;
+  let g=N.ticks.map(v=>`<line class="${v===0?'wk-z':'wk-g'}" x1="0" x2="${W}" y1="${wkF2(Y(v))}" y2="${wkF2(Y(v))}" vector-effect="non-scaling-stroke"/>`).join(''),hit='';
+  X.forEach((x,i)=>{const a=vs(x),L=i*10,pt=x.part?' pt':'';
+    if(!a.some(wkNum))g+=`<line class="wk-gl" x1="${L+5}" x2="${L+5}" y1="3" y2="97" vector-effect="non-scaling-stroke"/>`;
+    else if(stk){let p=0,q=0;a.forEach((v,j)=>{if(!wkNum(v)||v===0)return;const c=S[j].cls+pt;if(v>0){g+=col(L+1.5,Y(p),Y(p+v),7,c);p+=v;}else{g+=col(L+1.5,Y(q),Y(q+v),7,c);q+=v;}});}
+    else{const m=a.length,w=7/m;a.forEach((v,j)=>{if(wkNum(v))g+=col(L+1.5+j*w,Y(0),Y(v),w*.88,(S?S[j].cls:wkTone(v,o.tone))+pt);});}
+    hit+=`<rect class="wk-hit" x="${L}" y="0" width="10" height="100" data-t="${escH(x.tip)}"/>`;});
+  const xl=wkPick(n).map(i=>`<span style="left:${wkF2((i*10+5)/W*100)}%">${escH(X[i].x)}</span>`).join('');
+  return wkCh('cols',o.aria,(S&&S.length>1?wkLeg(S):'')+`<div class="wk-plot">${wkYAx(N,Y,o.fy)}<div class="wk-pa"><svg class="wk-sv" viewBox="0 0 ${W} 100" preserveAspectRatio="none" aria-hidden="true">${g}${hit}</svg><div class="wk-x" aria-hidden="true">${xl}</div></div></div>`);
+}
+/* odcinki linii: przerwa przy braku liczby albo przy odstępie dłuższym niż 7 typowych kroków (weekendy i święta nie przerywają linii dziennej) */
+function wkSegs(d){d=d.filter(x=>wkNum(x[0]));const p=d.filter(x=>wkNum(x[1]));if(!p.length)return [];const g=[];for(let i=1;i<p.length;i++)g.push(p[i][0]-p[i-1][0]);
+  const med=g.length?g.slice().sort((a,b)=>a-b)[Math.floor(g.length/2)]:1,out=[[]];
+  for(const x of d){const s=out[out.length-1];if(!wkNum(x[1])){if(s.length)out.push([]);continue;}if(s.length&&x[0]-s[s.length-1][0]>7*med)out.push([x]);else s.push(x);}
+  return out.filter(s=>s.length);}
+/* linie w czasie (1–3 serie na wspólnej osi). L: [{n, cls, d: [[ms, liczba|null], …]}]; o: {aria, fmt(v), dt(ms) — data podpowiedzi, dx(ms) —
+   podpis osi, zones: [{a, b, cls}] (pasma wartości), dom: [lo, hi] stała oś, zero (domyślnie oś z zerem), fy}. Podpowiedź: dzień i liczby
+   wszystkich serii (seria bez liczby tego dnia — „brak danych”). */
+function wkLines(L,o){
+  o=o||{};const okp=p=>wkNum(p[0])&&wkNum(p[1]),pts=[];L.forEach(l=>l.d.forEach(p=>{if(okp(p))pts.push(p);}));if(!pts.length)return '';   /* data, której przeglądarka nie odczyta (np. 30.02), = brak punktu */
+  const xs=[...new Set(L.flatMap(l=>l.d.filter(okp).map(p=>p[0])))].sort((a,b)=>a-b),x0=xs[0],x1=xs[xs.length-1];
+  const X=ms=>x1===x0?500:(ms-x0)/(x1-x0)*1000,N=o.dom?wkNice(o.dom[0],o.dom[1],o.nt||4):wkNice(...wkDom(pts.map(p=>p[1]),o.zero!==false),4),Y=v=>(N.hi-v)/(N.hi-N.lo)*100;
+  let g=(o.zones||[]).map(z=>{const a=Math.max(N.lo,z.a),b=Math.min(N.hi,z.b);return b>a?`<rect class="wk-zn ${z.cls}" x="0" y="${wkF2(Y(b))}" width="1000" height="${wkF2(Y(a)-Y(b))}"/>`:'';}).join('');
+  g+=N.ticks.map(v=>`<line class="${v===0&&N.lo<0?'wk-z':'wk-g'}" x1="0" x2="1000" y1="${wkF2(Y(v))}" y2="${wkF2(Y(v))}" vector-effect="non-scaling-stroke"/>`).join('');
+  L.forEach(l=>wkSegs(l.d).forEach(s=>{
+    g+=s.length===1?`<line class="wk-pt ${l.cls}" x1="${wkF2(X(s[0][0]))}" x2="${wkF2(X(s[0][0])+.01)}" y1="${wkF2(Y(s[0][1]))}" y2="${wkF2(Y(s[0][1]))}" vector-effect="non-scaling-stroke"/>`
+      :`<polyline class="wk-l ${l.cls}" points="${s.map(p=>wkF2(X(p[0]))+','+wkF2(Y(p[1]))).join(' ')}" vector-effect="non-scaling-stroke"/>`;}));
+  const M=L.map(l=>new Map(l.d.filter(okp).map(p=>[p[0],p[1]]))),fmt=o.fmt||(v=>nfmt(v,1)),dt=o.dt||(ms=>new Date(ms).toISOString().slice(0,10)),dx=o.dx||dt;
+  const hit=xs.map((ms,i)=>{const a=i?(X(xs[i-1])+X(ms))/2:0,b=i<xs.length-1?(X(ms)+X(xs[i+1]))/2:1000;
+    const v=L.map((l,k)=>(L.length>1?l.n+wkK():'')+(M[k].has(ms)?fmt(M[k].get(ms),ms):t('eng.gap'))).join(' · ');
+    return `<rect class="wk-hit" x="${wkF2(a)}" y="0" width="${wkF2(Math.max(b-a,.5))}" height="100" data-t="${escH(dt(ms)+' · '+v)}"/>`;}).join('');
+  const xl=[...new Set(x1===x0?[0]:[0,Math.floor((xs.length-1)/2),xs.length-1])].map(i=>`<span style="left:${wkF2(X(xs[i])/10)}%">${escH(dx(xs[i]))}</span>`).join('');
+  return wkCh('lines',o.aria,(L.length>1?wkLeg(L):'')+`<div class="wk-plot">${wkYAx(N,Y,o.fy)}<div class="wk-pa"><svg class="wk-sv" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">${g}${hit}</svg><div class="wk-x" aria-hidden="true">${xl}</div></div></div>`);
+}
+/* pierścień: udziały części w całości. P: [{l: etykieta HTML, v: liczba > 0, cls, tip}]; o: {aria, fmt, ctr: liczba w środku (HTML), ctrs: podpis}.
+   Część bez liczby = cały pierścień nieuczciwy — budowniczy kafla zwraca wtedy „brak danych”, ten zestaw rysuje tylko komplet. */
+function wkDonut(P,o){
+  o=o||{};const Q=P.filter(p=>wkNum(p.v)&&p.v>0),tot=Q.reduce((a,p)=>a+p.v,0);if(!(tot>0))return '';
+  let acc=0;const R=15.9155;   /* obwód 100: długość łuku = udział w % */
+  const seg=Q.map(p=>{const s=p.v/tot*100,c=`<circle class="wk-dn ${p.cls}" cx="21" cy="21" r="${R}" stroke-dasharray="${wkF2(Math.max(s-(Q.length>1?.6:0),.2))} ${wkF2(100-s+(Q.length>1?.6:0))}" stroke-dashoffset="${wkF2(25-acc)}" data-t="${escH(p.tip)}"/>`;acc+=s;return c;}).join('');
+  const leg=Q.map(p=>`<div class="wk-li"><i class="wk-sq ${p.cls}"></i><span>${p.l}</span><b>${escH((o.fmt||wkUsdS)(p.v))}</b><small>${escH(nfmt(p.v/tot*100,1)+'%')}</small></div>`).join('');
+  return wkCh('donut',o.aria,`<div class="wk-dw"><div class="wk-dr"><svg class="wk-ds" viewBox="0 0 42 42" aria-hidden="true"><circle class="wk-dbg" cx="21" cy="21" r="${R}"/>${seg}</svg><div class="wk-dc">${o.ctr||''}<small>${o.ctrs||''}</small></div></div><div class="wk-dl">${leg}</div></div>`);
+}
+/* mapa prostokątów — układ „squarified” (wiersz wzdłuż krótszego boku, póki najgorsze proporcje się poprawiają): pole ∝ wartości */
+function wkSq(items,R){const out=[],tot=items.reduce((a,x)=>a+(wkNum(x.v)&&x.v>0?x.v:0),0);if(!(tot>0)||!(R.w>0)||!(R.h>0))return out;
+  const sc=R.w*R.h/tot;let rest=items.filter(x=>wkNum(x.v)&&x.v>0).map(x=>({o:x,a:x.v*sc})).sort((p,q)=>q.a-p.a),r=Object.assign({},R);
+  const worst=(row,side)=>{let s=0,mx=0,mn=Infinity;for(const x of row){s+=x.a;if(x.a>mx)mx=x.a;if(x.a<mn)mn=x.a;}return Math.max(side*side*mx/(s*s),s*s/(side*side*mn));};
+  while(rest.length){const side=Math.min(r.w,r.h),row=[rest[0]];let i=1;
+    while(i<rest.length&&worst(row.concat(rest[i]),side)<=worst(row,side)){row.push(rest[i]);i++;}
+    const s=row.reduce((a,x)=>a+x.a,0),th=s/side,wide=r.w>=r.h;let off=0;
+    for(const x of row){const len=x.a/th;out.push(wide?{o:x.o,x:r.x,y:r.y+off,w:th,h:len}:{o:x.o,x:r.x+off,y:r.y,w:len,h:th});off+=len;}
+    r=wide?{x:r.x+th,y:r.y,w:Math.max(0,r.w-th),h:r.h}:{x:r.x,y:r.y+th,w:r.w,h:Math.max(0,r.h-th)};rest=rest.slice(i);}
+  return out;}
+/* mapa prostokątów: G = [{l, v, cls, tip, kids: [{l, v, cls, st, tip}]}] (grupy z podgrupami) albo płaska lista; o: {aria, ar: szerokość/wysokość
+   układu}. Kształty w SVG (rozciągnięte — pola zostają proporcjonalne), podpisy w HTML tylko tam, gdzie się mieszczą (resztę mówi podpowiedź). */
+function wkTree(G,o){
+  o=o||{};const W=100*(o.ar||1.8),H=100,cells=[],grp=[];
+  for(const c of wkSq(G,{x:0,y:0,w:W,h:H})){const g=c.o;
+    if(Array.isArray(g.kids)&&g.kids.length){grp.push(c);const p=.5;wkSq(g.kids,{x:c.x+p,y:c.y+p,w:c.w-2*p,h:c.h-2*p}).forEach(k=>{k.g=g;cells.push(k);});}
+    else cells.push(c);}
+  const pc=(v,b)=>wkF2(v/b*100);
+  const svg=cells.map(c=>`<rect class="wk-tc ${c.o.cls||''}" x="${wkF2(c.x+.15)}" y="${wkF2(c.y+.15)}" width="${wkF2(Math.max(c.w-.3,.05))}" height="${wkF2(Math.max(c.h-.3,.05))}"${c.o.st?` style="${c.o.st}"`:''} data-t="${escH(c.o.tip)}"/>`).join('')
+    +grp.map(c=>`<rect class="wk-tg" x="${wkF2(c.x)}" y="${wkF2(c.y)}" width="${wkF2(c.w)}" height="${wkF2(c.h)}" vector-effect="non-scaling-stroke"/>`).join('');
+  const lab=cells.filter(c=>c.w/W>=.09&&c.h/H>=.11).map(c=>`<div class="wk-tl${c.g?' b':''}" style="left:${pc(c.x,W)}%;top:${pc(c.y,H)}%;width:${pc(c.w,W)}%;height:${pc(c.h,H)}%"><b>${c.o.l}</b>${c.h/H>=.22&&c.o.lv?`<small>${c.o.lv}</small>`:''}</div>`).join('')
+    +grp.filter(c=>c.w/W>=.12&&c.h/H>=.16).map(c=>`<div class="wk-tgl" style="left:${pc(c.x,W)}%;top:${pc(c.y,H)}%;max-width:${pc(c.w,W)}%">${c.o.l}</div>`).join('');
+  return wkCh('tree',o.aria,`<div class="wk-tw"><svg class="wk-sv" viewBox="0 0 ${wkF2(W)} ${H}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg>${lab}</div>`);
+}
+/* ---------- kafle: budowniczy = funkcja bez argumentów, czyta stan strony (te same obiekty co karty) i zwraca opis kafla:
+   {s: podtytuł, k: rodzaj liczb (p — pomiar, s — szacunek, m — model, r — ceny rynku), ch: wykres (HTML) albo na: powód braku, d: data i wiek} ---------- */
+const wkMs=d=>Date.parse(String(d).slice(0,10)+'T12:00:00Z');   /* dzień danych → chwila (środek doby UTC) */
+const wkIso=ms=>new Date(ms).toISOString().slice(0,10);
+/* dzień krótko do osi i z rokiem do podpowiedzi (czas UTC — jak daty dzienne w kartach) */
+function wkDay(ms,yr){return new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',yr?{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}:{day:'numeric',month:'short',timeZone:'UTC'});}
+/* miesiąc RRRR-MM: oś „sie 26”, podpowiedź „sierpień 2026” */
+function wkMon(ym,long){const m=/^(\d{4})-(\d{2})$/.exec(String(ym||''));if(!m)return escH(ym);return new Date(Date.UTC(+m[1],+m[2]-1,1)).toLocaleDateString(LOCALE[LANG]||'pl-PL',long?{month:'long',year:'numeric',timeZone:'UTC'}:{month:'short',year:'2-digit',timeZone:'UTC'});}
+const WK_FGZ=[{a:0,b:25,cls:'z-xf'},{a:25,b:45,cls:'z-f'},{a:45,b:55,cls:'z-n'},{a:55,b:75,cls:'z-g'},{a:75,b:100,cls:'z-xg'}];   /* pasma stanów strachu i chciwości */
+const wkIco=h=>h&&typeof icoWrap==='function'?icoWrap(h):'';
+const wkAt=x=>x?' · '+x:'';   /* data danych na końcu podpowiedzi (wykresy jednej chwili — ta sama co pod kaflem) */
+/* flagi regionu w etykiecie słupka: dwie pierwsze, bez dopisku „+N” (przy liczbach wyglądałby jak wartość) */
+const wkRf=id=>typeof flagsHtml==='function'&&typeof REGF==='object'&&REGF&&Array.isArray(REGF[id])?flagsHtml(REGF[id].slice(0,2),2,'sm'):(typeof regFlags==='function'?regFlags(id,2,'sm'):'');
+
+/* GLOBAL 1: zmiana wartości rynków akcji regionów w USD za wybrany okres (te same liczby co mapa; „Szczegóły” = mapa nad kaflami) */
+function wkGReg(){
+  const per=gst.period,pn=t('g.per.'+per),F=GDATA&&GDATA[per];
+  if(!F)return {s:pn,na:t('wk.na.load')};
+  const R=GREG.map(r=>{const v=F[r.id];return {id:r.id,v:v&&v[2]&&wkNum(v[1])?v[1]:null};}),ok=R.filter(r=>r.v!==null).sort((a,b)=>b.v-a.v);
+  const K=Array.isArray(GKPI)?GKPI.find(k=>k.k==='g.k.eq'):null,fr=K&&K.fresh?String(K.fresh):'';
+  const s=t('wk.g.reg.s',{p:pn,n:ok.length,m:GREG.length});
+  if(!ok.length)return {s,na:GLIVE.st==='load'?t('wk.na.load'):t('wk.na.none')};
+  const nm=id=>t('g.n.'+id),rows=ok.concat(R.filter(r=>r.v===null)).map(r=>({l:wkRf(r.id)+escH(nm(r.id)),v:r.v,vt:r.v===null?'—':escH(wkPct(r.v,2)),cls:r.v===null?'':wkTone(Math.round(r.v*100)/100),
+    tip:nm(r.id)+' · '+pn+wkK()+(r.v===null?t('eng.gap'):wkPct(r.v,2))+wkAt(fr)}));
+  const a=ok[0],b=ok[ok.length-1];
+  return {s,k:'p',d:fr?escH(fr)+gAgeNote(fr):'',ch:wkBars(rows,{lw:'46%',aria:t('wk.g.reg.a',{p:pn,a:nm(a.id),va:wkPct(a.v,2),b:nm(b.id),vb:wkPct(b.v,2),n:ok.length,m:GREG.length})})};
+}
+/* GLOBAL 2: „Gdzie warunki sprzyjają” — wynik regionu −100…+100 (model z mierzonych wskaźników) */
+function wkGProb(){
+  if(!Array.isArray(GPROB)||!GPROB.length)return {s:t('wk.g.prob.s'),na:GLIVE.st==='load'?t('wk.na.load'):t('wk.na.none')};
+  const sc=v=>(v>0?'+':v<0?'−':'')+nfmt(Math.abs(v),0),nm=id=>t('g.n.'+id),miss=GREG.filter(r=>!GPROB.some(o=>o.id===r.id));
+  const rows=GPROB.map(o=>({l:wkRf(o.id)+escH(nm(o.id)),v:o.score,vt:escH(sc(o.score)),tip:nm(o.id)+wkK()+sc(o.score)+' · '+t('wk.g.prob.cov',{n:o.cov})+wkAt(GLIVE.asof)}))
+    .concat(miss.map(r=>({l:wkRf(r.id)+escH(nm(r.id)),v:null,tip:nm(r.id)+wkK()+t('eng.gap')})));
+  const a=GPROB[0],b=GPROB[GPROB.length-1];
+  return {s:t('wk.g.prob.s'),k:'m',d:GLIVE.asof?escH(GLIVE.asof)+gAgeNote(GLIVE.asof):'',
+    ch:wkBars(rows,{lw:'46%',dom:[-100,100],aria:t('wk.g.prob.a',{a:nm(a.id),va:sc(a.score),b:nm(b.id),vb:sc(b.score)})})};
+}
+/* linia 0–100 z pasmami stanów (strach i chciwość): wiersze [dzień, liczba, …], stOf(wiersz) = stan */
+function wkFgCh(rows,title,stOf){
+  const L=rows[rows.length-1],v=rows.map(r=>r[1]),S=new Map(rows.map(r=>[wkMs(r[0]),stOf(r)]));
+  const st=s=>s?t('fg.s.'+s):'—';
+  return wkLines([{n:title,cls:'s1',d:rows.map(r=>[wkMs(r[0]),r[1]])}],{dom:[0,100],zones:WK_FGZ,fmt:(x,ms)=>fgInt(x)+' · '+st(S.get(ms)),dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms),
+    aria:t('wk.fg.a',{t:title,v:fgInt(L[1]),s:st(stOf(L)),n:rows.length,a:fgInt(Math.min(...v)),b:fgInt(Math.max(...v))})});
+}
+/* GLOBAL 3: CapitalFlowAI Strach & Chciwość — historia sesji z pasmami stanów (wskaźnik własny = model) */
+function wkGFg(){
+  const N=FG.g;if(!N)return {s:t('wk.fg.s'),na:t('wk.na.file')};
+  const rows=fgRows(N.d);if(rows.length<2)return {s:t('wk.fg.s'),na:t('wk.na.few')};
+  const L=rows[rows.length-1];
+  return {s:t('wk.fg.s'),k:'m',d:fgLong(L[0])+gAgeNote(L[0]),ch:wkFgCh(rows,t('fg.t.g'),r=>fgState(r[1]))};
+}
+/* GLOBAL 4: stres finansowy USA — indeks dzienny z historii pliku (0 = przeciętnie) */
+function wkGStr(){
+  const D=STR.data,F=D&&D.fsi&&typeof D.fsi==='object'?D.fsi:null;
+  if(!F||!strNum(F.value)||typeof F.date!=='string')return {s:t('wk.g.str.s'),na:D?t('st.fsi.na'):t('wk.na.file')};
+  const H=strRows(F.hist).filter(r=>strNum(r[1]));if(H.length<2)return {s:t('wk.g.str.s'),na:t('wk.na.few')};
+  const v=H.map(r=>r[1]),L=H[H.length-1];
+  return {s:t('wk.g.str.s'),k:'p',d:strDay(F.date)+gAgeNote(F.date),
+    ch:wkLines([{n:t('st.k.fsi'),cls:'s1',d:H.map(r=>[wkMs(r[0]),r[1]])}],{fmt:x=>strVal(x,2),dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms,1),
+      aria:t('wk.g.str.a',{v:strVal(L[1],2),d:strDay(L[0]),a:strVal(Math.min(...v),2),b:strVal(Math.max(...v),2),n:nfmt(H.length,0)})})};
+}
+/* GLOBAL 5: fundusze w USA — akcje i obligacje, kolumny obok siebie: tygodnie, gdy plik ma ich co najmniej 8 (historia rośnie co tydzień),
+   inaczej miesiące (dane rzeczywiste, 12 ostatnich). Kwoty w pliku w mln USD. */
+function wkGFund(){
+  const D=FND.data,P=D&&D.lt&&typeof D.lt==='object'?D.lt:null;
+  if(!P)return {s:t('wk.g.fund.sm'),na:D?t('fund.lt.na'):t('wk.na.file')};
+  const ix=n=>fndIdx(P,n,FND_LT),W=fndRows(P.w,FND_LT.length),wk=W.length>=8;
+  const R=wk?W.slice(-13):fndRows(P.m,FND_LT.length,true).slice(-FND_MONTHS);
+  if(!R.length)return {s:t('wk.g.fund.sm'),na:t('wk.na.none')};
+  const S=[{n:t('wk.g.fund.eq'),cls:'s1'},{n:t('fund.k.bd'),cls:'s2'}],U=v=>wkNum(v)?v*1e6:null,f=v=>fndFlow(v).txt;
+  const lab=r=>wk?wkDay(wkMs(r[0]),1):wkMon(r[0],1),L=R[R.length-1];
+  const X=R.map(r=>({x:wk?wkDay(wkMs(r[0])):wkMon(r[0]),vs:[U(r[ix('eq')]),U(r[ix('bd')])],tip:lab(r)+' · '+S[0].n+wkK()+f(r[ix('eq')])+' · '+S[1].n+wkK()+f(r[ix('bd')])}));
+  return {s:t(wk?'wk.g.fund.sw':'wk.g.fund.sm'),k:wk?'s':'p',d:(wk?fndDay(L[0]):fndMon(L[0]))+gAgeNote(L[0]),
+    ch:wkCols(X,{ser:S,aria:t('wk.g.fund.a',{m:lab(L),e:f(L[ix('eq')]),b:f(L[ix('bd')]),n:R.length})})};
+}
+/* GLOBAL 6: kapitał portfelowy USA ↔ świat — netto do USA miesięcznie (pomiar; plus = napływ do USA) */
+function wkGTic(){
+  const D=TIC.data,W=D&&D.world;if(!W)return {s:t('wk.g.tic.s'),na:t('wk.na.file')};
+  const at=(k,m)=>{const r=Array.isArray(W[k])?W[k].find(x=>Array.isArray(x)&&x[0]===m):null;return r&&wkNum(r[1])?r[1]:null;};
+  const N=(Array.isArray(W.net)?W.net:[]).filter(r=>Array.isArray(r)&&/^\d{4}-\d{2}$/.test(String(r[0]))).slice(-13);
+  if(!N.some(r=>wkNum(r[1])))return {s:t('wk.g.tic.s'),na:t('wk.na.none')};
+  const m=v=>v===null?t('eng.gap'):wkUsd(v*1e6,true),L=N[N.length-1],P=N.filter(r=>wkNum(r[1])&&r[1]>0).length;
+  const X=N.map(r=>({x:wkMon(r[0]),v:wkNum(r[1])?r[1]*1e6:null,tip:wkMon(r[0],1)+' · '+t('tic.net')+wkK()+m(wkNum(r[1])?r[1]:null)+' · '+t('arc.tic.in')+wkK()+m(at('in',r[0]))+' · '+t('arc.tic.out')+wkK()+m(at('out',r[0]))}));
+  return {s:t('wk.g.tic.s'),k:'p',d:instFoot(D.asof),ch:wkCols(X,{aria:t('wk.g.tic.a',{m:wkMon(L[0],1),v:m(wkNum(L[1])?L[1]:null),n:N.length,p:P})})};
+}
+/* GLOBAL 7: indeksy giełdowe świata — zmiana 1 M (21 sesji), od najmocniejszego */
+function wkGIx(){
+  const D=IX.data,I=D?ixSort(ixItems(D),'m1'):[];
+  if(!I.some(x=>ixNum(x.close)))return {s:t('wk.g.ix.s'),na:t('wk.na.file')};
+  const M=I.filter(x=>wkNum(x.m1)),up=M.filter(x=>Math.round(x.m1*10)/10>0).length,nw=M.map(x=>x.date).sort().pop()||'';
+  const rows=I.map(x=>({l:wkIco(typeof flagImg==='function'?flagImg(x.cc,'sm'):'')+escH(x.name),v:wkNum(x.m1)?x.m1:null,vt:wkNum(x.m1)?escH(wkPct(x.m1)):'—',cls:wkNum(x.m1)?wkTone(Math.round(x.m1*10)/10):'',
+    tip:x.name+' ('+ixCty(x.cc)+') · '+(x.date?ixDay(x.date)+' · ':'')+t('ix.c.1m')+wkK()+(wkNum(x.m1)?wkPct(x.m1):t('eng.gap'))}));
+  const a=M[0],b=M[M.length-1];
+  return {s:t('wk.g.ix.s'),k:'p',d:nw?ixDay(nw)+gAgeNote(nw):'',
+    ch:wkBars(rows,{aria:M.length?t('wk.g.ix.a',{n:up,m:M.length,a:a.name,va:wkPct(a.m1),b:b.name,vb:wkPct(b.m1)}):t('wk.g.ix.s')})};
+}
+/* szansa jako zwykły tekst (podpowiedź — bez znaków HTML; fedPct zwraca tekst zabezpieczony) */
+function wkFedP(p){return !wkNum(p)?'—':p<0.01?t('fed.lt1'):p>0.99?t('fed.gt99'):t('fed.pct',{v:nfmt(Math.round(p*100),0)});}
+/* GLOBAL 8: Fed — szanse decyzji na najbliższym posiedzeniu (ceny rynku zakładów; po przeliczeniu do 100%, gdy automat mógł) */
+function wkGFed(){
+  const D=FED.data;if(!D||!fedOk(D))return {s:t('wk.g.fed.s0'),na:t('wk.g.fed.na')};
+  const m=fedMeet(D)[0],R=fedRows(m),top=fedTop(m,R),nm=fedNorm(m),lab=r=>FED_ORDER.includes(r.k)?t('fed.o.'+r.k):String(r.lab);
+  const pa=D.part_at&&typeof D.part_at==='object'?fedIso(D.part_at.ks):null,pat=pa||fedIso(D.at);
+  const rows=R.map(r=>({l:(top&&r.k===top.k?'<b>':'')+escH(lab(r))+(top&&r.k===top.k?'</b>':''),v:r.show===null?null:r.show*100,vt:escH(wkFedP(r.show)),tip:lab(r)+wkK()+wkFedP(r.show)+wkAt(pat?engDate(pat):'')}));
+  const s=t('wk.g.fed.s',{d:fedLocDay(m.decision_at),t:fedTime(m.decision_at)})+(nm?'':' · '+t('wk.g.fed.raw'));
+  return {s,k:'r',d:fedWhen(pat),ch:wkBars(rows,{tone:'lvl',lw:'62%',dom:[0,100],aria:top?t('wk.g.fed.a',{d:fedLocDay(m.decision_at),o:lab(top),p:wkFedP(top.show)}):s})};
+}
+/* GLOBAL 9: Ameryka Łacińska — luka dolara (o ile % drożej poza kursem oficjalnym); te same reguły świeżości i zakresu co karta */
+function wkGDl(){
+  const D=DL.data;if(!D||typeof D!=='object')return {s:t('wk.g.dl.s'),na:t('wk.na.file')};
+  const P=k=>D[k]&&typeof D[k]==='object'?D[k]:null,A=P('ar'),V=P('ve'),B=P('bo');
+  const qa=A&&A.q&&typeof A.q==='object'?A.q:{},qv=V&&V.q&&typeof V.q==='object'?V.q:{},qb=B&&B.q&&typeof B.q==='object'?B.q:{},ga=A&&A.gap&&typeof A.gap==='object'?A.gap:{};
+  const fr=(qs,cc)=>qs.every(Boolean)&&dlFreshNow(qs,cc),F=c=>wkIco(typeof flagImg==='function'?flagImg(c,'sm'):''),R=[];let old=null;
+  const add=(cc,name,x,b,g)=>{const w=dlOlder(x&&x[2],b&&b[2]),v=dlNum(g)?g:null;if(v!==null&&w)old=dlOlder(old,w);
+    R.push({l:F(cc)+escH(t('dl.cn.'+cc)+(name?' · '+name:'')),v,vt:escH(dlPct(v)),tip:t('dl.cn.'+cc)+(name?' · '+name:'')+wkK()+(v===null?t('eng.gap'):dlPct(v))+(w?' · '+dlWhen(w):'')});};
+  {const b=dlQ(qa.mayorista);for(const k of ['contadoconliqui','blue','bolsa','cripto']){const x=dlQ(qa[k]);add('ar',t('dl.n.'+k),x,b,fr([x,b],'ar')?ga[k]:null);}}
+  {const x=dlQ(qv.paralelo),base=V&&dlQ(V.base)?V.base:null;add('ve','',x,base,V&&fr([x,base],'ve')?V.gap:null);}
+  {const x=dlQ(qb.usdt),b=dlQ(qb.oficial);add('bo','USDT',x,b,B&&fr([x,b],'bo')?B.gap:null);}
+  if(!R.some(r=>r.v!==null))return {s:t('wk.g.dl.s'),na:t('wk.na.none')};
+  const v=i=>R[i].v===null?'—':dlPct(R[i].v);
+  return {s:t('wk.g.dl.s'),k:'p',d:old?dlWhen(old):t('inst.file',{t:engDate(D.at)}),ch:wkBars(R,{tone:'lvl',lw:'50%',aria:t('wk.g.dl.a',{a:v(0),v:v(4),b:v(5)})})};
+}
+
+/* CRYPTO 1: przepływy elementów sceny za wybrany okres (szacunek: zmiana wartości koszyków; giełdy = reszta bilansu; „Szczegóły” = scena) */
+function wkCFlow(){
+  const per=st.period,pn=t('per.'+per);
+  if(!isLive())return {s:t('wk.c.flow.s',{p:pn}),na:LIVE.st==='err'?t('wk.c.flow.na'):t('wk.na.load')};
+  const D=DATA&&DATA[per];if(!D||(typeof DATA_SAMPLE!=='undefined'&&DATA===DATA_SAMPLE))return {s:t('wk.c.flow.s',{p:pn}),na:t('wk.na.none')};
+  const R=NODES.map(n=>({id:n.id,v:Array.isArray(D[n.id])&&wkNum(D[n.id][0])?D[n.id][0]*1e6:null,p:Array.isArray(D[n.id])&&wkNum(D[n.id][1])?D[n.id][1]:null}));
+  const ok=R.filter(r=>r.v!==null).sort((a,b)=>b.v-a.v);if(!ok.length)return {s:t('wk.c.flow.s',{p:pn}),na:t('wk.na.none')};
+  const nm=id=>nName(id)+(id==='exch'?' *':'');
+  const rows=ok.concat(R.filter(r=>r.v===null)).map(r=>({l:(typeof cGrpW==='function'?cGrpW(r.id,'sm'):'')+escH(nm(r.id)),v:r.v,vt:escH(wkUsdS(r.v,true)),
+    tip:nm(r.id)+' · '+pn+wkK()+(r.v===null?t('eng.gap'):wkUsd(r.v,true)+' ('+wkPct(r.p)+')')+(r.id==='exch'?' · '+t('exch.tip'):'')+wkAt(liveWhen())}));
+  const a=ok[0],b=ok[ok.length-1];
+  return {s:t('wk.c.flow.s',{p:pn}),k:'s',d:liveWhen()+gAgeNote(LIVE.at||''),
+    ch:wkBars(rows,{aria:t('wk.c.flow.a',{p:pn,a:nm(a.id),va:wkUsd(a.v,true),b:nm(b.id),vb:wkUsd(b.v,true)})})};
+}
+/* CRYPTO 2: ETF-y krypto w USA — dzienne napływy netto, kolumny skumulowane (BTC, ETH, SOL, XRP); dzień bez części monet = „niepełny” (blado) */
+function wkCEtf(){
+  const D=ETF.data,A=D&&D.assets&&typeof D.assets==='object'?D.assets:null;if(!A)return {s:t('wk.c.etf.s'),na:t('wk.na.file')};
+  const C=ETF_SYMS.filter(s=>A[s]&&Array.isArray(A[s].day)),day=ts=>{const n=+ts;return wkNum(n)&&n>0?wkIso(n>1e12?n:n*1000):null;},M={};
+  C.forEach(s=>A[s].day.forEach(r=>{if(!Array.isArray(r))return;const d=day(r[0]);if(d&&wkNum(r[1]))(M[d]=M[d]||{})[s]=r[1];}));
+  const days=Object.keys(M).sort().slice(-20);if(!days.length)return {s:t('wk.c.etf.s'),na:t('wk.na.none')};
+  const S=C.map(s=>({n:s.toUpperCase(),cls:'c-'+s,s}));
+  const X=days.map(d=>{const o=M[d],miss=S.filter(x=>!wkNum(o[x.s])),sum=S.reduce((a,x)=>a+(wkNum(o[x.s])?o[x.s]:0),0);
+    return {x:wkDay(wkMs(d)),vs:S.map(x=>wkNum(o[x.s])?o[x.s]*1e6:null),part:miss.length>0,
+      tip:wkDay(wkMs(d),1)+' · '+S.map(x=>x.n+wkK()+(wkNum(o[x.s])?etfM(o[x.s]):t('eng.gap'))).join(' · ')+(miss.length?' · '+t('wk.c.etf.part'):' · '+t('wk.c.etf.sum')+wkK()+etfM(sum))};});
+  const full=days.filter(d=>S.every(x=>wkNum(M[d][x.s]))).pop();
+  const aria=full?t('wk.c.etf.a',{d:wkDay(wkMs(full),1),v:etfM(S.reduce((a,x)=>a+M[full][x.s],0)),n:days.length}):t('wk.c.etf.s');
+  return {s:t('wk.c.etf.s')+(ETF.live===false?' · '+t('etf.b.snap',{d:String(D.asof||'')}):''),k:'p',d:instFoot(D.asof),ch:wkCols(X,{ser:S,stack:true,aria})};
+}
+/* CRYPTO 3: struktura rynku — BTC, ETH, stablecoiny, reszta (jeden plik, jedna chwila); brak którejś części = brak wykresu */
+function wkCCap(){
+  const D=CMC.data;if(!D)return {s:t('wk.c.cap.s'),na:t('wk.na.file')};
+  const T=D.total_mcap,b=D.btc_dom,e=D.eth_dom,s=D.stable_mcap;
+  if(![T,b,e,s].every(wkNum)||!(T>0))return {s:t('wk.c.cap.s'),na:t('wk.na.none')};
+  const B=T*b/100,E=T*e/100,R=T-B-E-s;if(!(R>=0))return {s:t('wk.c.cap.s'),na:t('wk.na.none')};
+  const co=(...x)=>typeof cCoins==='function'?cCoins(x,'sm'):'',sh=v=>nfmt(v/T*100,1)+'%';
+  const P=[{l:co('BTC')+'BTC',v:B,cls:'c-btc',n:'BTC'},{l:co('ETH')+'ETH',v:E,cls:'c-eth',n:'ETH'},{l:co('USDT','USDC')+escH(t('n.stab')),v:s,cls:'c-stab',n:t('n.stab')},{l:escH(t('wk.c.cap.rest')),v:R,cls:'c-rest',n:t('wk.c.cap.rest')}]
+    .map(p=>Object.assign(p,{tip:p.n+wkK()+wkUsd(p.v)+' · '+sh(p.v)+wkAt(engDate(String(D.asof||'')))}));
+  const a=String(D.asof||'');
+  return {s:t('wk.c.cap.s'),k:'p',d:engDate(a)+(typeof lnAgo==='function'?lnAgo(a):''),
+    ch:wkDonut(P,{ctr:escH(wkUsdS(T)),ctrs:escH('USD · '+t('wk.c.cap.tot')),aria:t('wk.c.cap.a',{v:wkUsd(T),b:sh(B),e:sh(E),s:sh(s),r:sh(R)})})};
+}
+/* intensywność koloru komórki ze zmiany w %: 0 → .22, ≥ m% → .85 (zmienna --a w stylu komórki — sam kolor z motywu) */
+const wkA=(p,m)=>`--a:${wkF2(.22+.63*Math.min(1,Math.abs(p)/m))}`;
+/* CRYPTO 4: stablecoiny według sieci — pole = podaż w sieci, kolor = zmiana 7 dni (przybyło — zielony, ubyło — czerwony) */
+function wkCStab(){
+  const K=typeof krData==='function'?krData():null,S=K&&K.stabc&&Array.isArray(K.stabc.rows)?K.stabc:null;
+  if(!S)return {s:t('wk.c.stab.s'),na:K?t('wk.na.none'):t('wk.na.file')};
+  const R=S.rows.filter(r=>Array.isArray(r)&&typeof r[0]==='string'&&wkNum(r[1])&&r[1]>0);if(!R.length)return {s:t('wk.c.stab.s'),na:t('wk.na.none')};
+  const tot=Array.isArray(S.total)&&wkNum(S.total[0])?S.total[0]:null,sum=R.reduce((a,r)=>a+r[1],0),rest=tot!==null&&tot-sum>0?tot-sum:null,ni=n=>wkIco(typeof netImg==='function'?netImg(n,'sm'):'');
+  const H0=krStabh(),day=H0&&typeof H0.asof==='string'?H0.asof:(typeof S.asof==='string'?S.asof:'');
+  const it=R.map(r=>{const d7=wkNum(r[3])?r[3]:null,p=d7===null||!(r[1]-d7>0)?null:d7/(r[1]-d7)*100;   /* zmiana wobec stanu sprzed 7 dni */
+    return {l:ni(r[0])+escH(r[0]),lv:escH(wkUsdS(r[1])),v:r[1],cls:p===null?'na':wkTone(Math.round(p*10)/10),st:p===null?'':wkA(p,3),
+      tip:r[0]+wkK()+wkUsd(r[1])+' · '+t('stc.c.d7')+wkK()+(d7===null?t('eng.gap'):wkUsd(d7,true)+' ('+wkPct(p)+')')+wkAt(day)};});
+  if(rest!==null){const n=typeof S.n==='number'?S.n-R.length:null;it.push({l:escH(t('wk.c.stab.rest')),lv:escH(wkUsdS(rest)),v:rest,cls:'rest',tip:t('wk.c.stab.rest')+(n>0?' ('+nfmt(n,0)+')':'')+wkK()+wkUsd(rest)+wkAt(day)});}
+  const all=tot!==null?tot:sum,cur=H0&&wkNum(H0.cur)?H0.cur:all,top=R.slice().sort((a,b)=>b[1]-a[1])[0];   /* suma w opisie — jak w karcie */
+  return {s:t('wk.c.stab.s'),k:'p',d:day?instFoot(day):'',ch:wkTree(it,{ar:1.9,aria:t('wk.c.stab.a',{v:wkUsd(cur),a:top[0],p:nfmt(top[1]/all*100,0)+'%',n:nfmt(R.length,0)})})};
+}
+/* CRYPTO 5: tokenizowane aktywa według rodzaju — dwie OSOBNE serie: z bieżącą wyceną (w sumach) i bez niej (ostatnio znana, poza sumami) */
+function wkCRwa(){
+  const D=RW.data;if(!D||!rwOk(D))return {s:t('wk.c.rwa.s'),na:t('wk.na.file')};
+  if(!(Date.now()-Date.parse(D.at)<RW_OLD))return {s:t('wk.c.rwa.s'),na:t('rwa.old')};
+  const S=[{n:t('wk.c.rwa.cur'),cls:'s1'},{n:t('wk.c.rwa.fz'),cls:'fz'}];
+  const R=RW_SEGS.map(k=>{const o=rwObj(D.seg[k])?D.seg[k]:{},v=rwPos(o.v),f=rwFz(D,k),fv=f?f.v:null;
+    return {k,l:escH(t('rwa.s.'+k)),vs:[v,fv],vt:escH(rwUsd(v).replace(/\s*USD$/,'')),tip:t('rwa.s.'+k)+' · '+S[0].n+wkK()+rwUsd(v)+' · '+S[1].n+wkK()+(fv===null?'—':rwUsd(fv))+wkAt(engDate(D.at))};})
+    .sort((a,b)=>(b.vs[0]||0)-(a.vs[0]||0));
+  if(!R.some(r=>r.vs.some(wkNum)))return {s:t('wk.c.rwa.s'),na:t('wk.na.none')};
+  const A=rwObj(D.seg.all)?D.seg.all:{},F=rwFz(D,'all');
+  return {s:t('wk.c.rwa.s'),k:'p',d:rwWhen(D.at),ch:wkBars(R,{ser:S,lw:'48%',aria:t('wk.c.rwa.a',{v:rwUsd(A.v),a:t('rwa.s.'+R[0].k),f:F?rwUsd(F.v):'—'})})};
+}
+/* CRYPTO 6: top 10 monet w grupach sceny — pole = kapitalizacja, kolor = zmiana 24 h (brak zmiany = szary) */
+function wkCT10(){
+  const D=T10&&T10.data;if(!D)return {s:t('wk.c.t10.s'),na:T10&&T10.st==='err'?t('wk.na.none'):t('wk.na.file')};
+  const G=T10_G.map(([k,sec,sh])=>{const c=D.g[k]&&Array.isArray(D.g[k].c)?D.g[k].c:[],nm=sh||nName(sec);
+    return {l:escH(nm),v:c.reduce((a,x)=>a+x.mc,0),kids:c.map(x=>{const p=wkNum(x.ch)?x.ch:null;
+      return {l:escH(x.sym),lv:escH(t10Mc(x.mc).replace(/\s*USD$/,'')),v:x.mc,nm:x.name,id:x.id,cls:p===null?'na':wkTone(Math.round(p*10)/10),st:p===null?'':wkA(p,8),tip:x.name+' ('+x.sym+') · '+nm+wkK()+t10Mc(x.mc)+' · 24 h'+wkK()+(p===null?t('eng.gap'):wkPct(p))+wkAt(engDate(x.upd||D.at))};})};}).filter(g=>g.v>0);
+  if(!G.length)return {s:t('wk.c.t10.s'),na:t('wk.na.none')};
+  const n=new Set(G.flatMap(g=>g.kids.map(k=>k.id))).size,big=G.flatMap(g=>g.kids).sort((a,b)=>b.v-a.v)[0];
+  return {s:t('wk.c.t10.s'),k:'p',d:t10When(D.at),ch:wkTree(G,{ar:1.6,aria:t('wk.c.t10.a',{n:nfmt(n,0),g:nfmt(G.length,0),a:big.nm})})};
+}
+/* CRYPTO 7: wieloryby — salda ogłoszonych portfeli giełd na Ethereum w USD (USDT, USDC i ETH po kursie z chwili odczytu); tylko tokeny,
+   które giełda ma na liście (np. OKX — sam USDC). Giełda, której któregoś salda nie da się podać w USD (np. brak kursu ETH), nie ma sumy
+   („—”, jak w karcie) ani słupka — części znane są w podpowiedzi; takie wiersze na końcu */
+function wkCWh(){
+  const D=WH.data;if(!D||!whOk(D))return {s:t('wk.c.wh.s'),na:t('wk.na.file')};
+  const S=D.salda&&typeof D.salda==='object'?D.salda:{},G=D.gieldy&&typeof D.gieldy==='object'?D.gieldy:{},px=whNum(D.eth_usd)&&D.eth_usd>0?D.eth_usd:null;
+  const ser=[{n:'USDT',cls:'c-usdt',k:'usdt'},{n:'USDC',cls:'c-usdc',k:'usdc'},{n:'ETH',cls:'c-eth',k:'eth'}];
+  const R=Object.keys(S).filter(g=>S[g]&&typeof S[g]==='object').map(g=>{const s=S[g],tk=whToks(G[g]).map(x=>x.toLowerCase()),u=k=>tk.includes(k)&&whNum(s[k])?s[k]:null;
+    const usd=ser.map(x=>x.k==='eth'?(u('eth')!==null&&px?u('eth')*px:null):u(x.k)),full=ser.every((x,i)=>!tk.includes(x.k)||usd[i]!==null),tot=usd.reduce((a,v)=>a+(wkNum(v)?v:0),0);
+    const tip=g+' · '+ser.filter(x=>tk.includes(x.k)).map(x=>x.n+wkK()+(x.k==='eth'?(u('eth')===null?t('eng.gap'):whAmt(u('eth'),'ETH')+(px?' ≈ '+wkUsd(u('eth')*px):'')):(u(x.k)===null?t('eng.gap'):wkUsd(u(x.k))))).join(' · ')
+      +(!full&&u('eth')!==null&&!px?' · '+t('wh.px.na'):'')+wkAt(typeof s.t==='string'?engDate(s.t):'');
+    return {g,t:typeof s.t==='string'?s.t:'',full,tot,l:wkIco(typeof exchImg==='function'?exchImg(g,'sm'):'')+escH(g),vs:full?usd:usd.map(()=>null),vt:full?escH(wkUsdS(tot)):'—',tip};})
+    .filter(r=>r.full?r.vs.some(wkNum):r.tip).sort((a,b)=>(b.full-a.full)||(b.tot-a.tot));
+  const top=R.find(r=>r.full);if(!top)return {s:t('wk.c.wh.s'),na:R.length&&!px?t('wh.px.na'):t('wk.na.none')};
+  const tt=R.map(r=>r.t).filter(Boolean).sort()[0]||D.at;
+  return {s:t('wk.c.wh.s'),k:'p',d:engDate(tt)+gAgeNote(String(tt).slice(0,10)),ch:wkBars(R,{ser,stack:true,aria:t('wk.c.wh.a',{n:R.length,a:top.g,v:wkUsd(top.tot)})})};
+}
+/* CRYPTO 8: otwarte pozycje BTC i ETH na giełdach z bieżącym stanem (do 6 h — te same wiersze co suma w karcie; plik dzienny Binance poza wykresem).
+   Giełda bez jednej z monet: słupek tylko tej, która jest, a w wartości jej nazwa i kwota (nie „suma”); takie wiersze po pełnych */
+function wkCLev(){
+  if(!LEV.data)return {s:t('wk.c.lev.s'),na:t('wk.na.file')};
+  const B=levLive('BTC').filter(r=>r.oi_usd!==null),E=levLive('ETH').filter(r=>r.oi_usd!==null),ks=[...new Set(B.concat(E).map(r=>r.k))];
+  if(!ks.length)return {s:t('wk.c.lev.s'),na:t('lev.nosum')};
+  const S=[{n:'BTC',cls:'c-btc'},{n:'ETH',cls:'c-eth'}];
+  const R=ks.map(k=>{const b=B.find(r=>r.k===k),e=E.find(r=>r.k===k),vs=[b?b.oi_usd:null,e?e.oi_usd:null],full=vs.every(wkNum),tot=vs.reduce((a,v)=>a+(wkNum(v)?v:0),0),nm=LEV_NAME[k]||k;
+    return {nm,tot,full,at:[b&&b.at,e&&e.at].filter(Boolean).sort()[0],l:wkIco(typeof exchImg==='function'?exchImg(nm,'sm'):'')+escH(nm),vs,
+      vt:escH(full?wkUsdS(tot):(vs[0]!==null?'BTC ':'ETH ')+wkUsdS(tot)),
+      tip:nm+' · BTC'+wkK()+(vs[0]===null?t('eng.gap'):wkUsd(vs[0]))+' · ETH'+wkK()+(vs[1]===null?t('eng.gap'):wkUsd(vs[1]))+wkAt([b&&b.at,e&&e.at].filter(Boolean).sort().slice(0,1).map(engDate)[0])};})
+    .sort((a,b)=>(b.full-a.full)||(b.tot-a.tot));
+  const old=R.map(r=>r.at).filter(Boolean).sort()[0]||'',top=R.find(r=>r.full)||R[0];
+  return {s:t('wk.c.lev.s'),k:'p',d:levWhen(old),ch:wkBars(R,{ser:S,aria:t('wk.c.lev.a',{n:R.length,a:top.nm,v:wkUsd(top.tot)})})};
+}
+/* CRYPTO 9: premie cenowe — Korea i USA, historia dzienna z okna karty (30 / 90 / 400 dni); każda linia na osobnym wykresie z własną osią */
+function wkCPrm(){
+  const D=PRM.data;if(!D)return {s:t('wk.c.prm.s',{n:PRM.per}),na:t('wk.na.file')};
+  const L=prmLines(D).map(l=>Object.assign(l,{name:t(l.cls==='l1'?'wk.c.prm.kr':'wk.c.prm.us')})).filter(l=>l.d.length>=2);if(!L.length)return {s:t('wk.c.prm.s',{n:PRM.per}),na:t('wk.na.few')};
+  let last='';
+  const ch=L.map((l,i)=>{const d=arcWin(l.d,PRM.per),p=d[d.length-1];if(p[0]>last)last=p[0];
+    return `<div><p class="wk-sub"><i class="wk-sq ${i?'s2':'s1'}"></i>${escH(l.name)} · <b>${escH(prmPct(p[1]))}</b></p>`+wkLines([{n:l.name,cls:i?'s2':'s1',d:d.map(x=>[wkMs(x[0]),x[1]])}],
+      {fmt:x=>prmPct(x),dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms),aria:t('wk.c.prm.a',{l:l.name,v:prmPct(p[1]),d:wkDay(wkMs(p[0]),1),n:d.length})})+'</div>';}).join('');
+  return {s:t('wk.c.prm.s',{n:PRM.per}),k:'p',d:last?escH(last)+gAgeNote(last):'',ch:`<div class="wk-pair">${ch}</div>`};
+}
+/* CRYPTO 10: strach i chciwość — krypto: 31 dni z pliku, stan = klasa z pliku (bez klasy — „—”); indeks zewnętrzny = wskaźnik (model) */
+function wkCFg(){
+  const D=KR.data,rows=D&&D.fng?fgRows(D.fng.d):[];
+  if(rows.length<2)return {s:t('wk.c.fg.s'),na:D?t('wk.na.few'):t('wk.na.file')};
+  const L=rows[rows.length-1];
+  return {s:t('wk.c.fg.s'),k:'m',d:fgLong(L[0])+gAgeNote(L[0]),ch:wkFgCh(rows,t('fg.t.c'),r=>FG_CLS[r[2]]||null)};
+}
+/* kafle zakładek: id, tytuł (klucz), cel „Szczegółów” (id elementu), w — kafel na 2 kolumny, r — na 2 wiersze (kolejność i rozmiary tak, żeby
+   siatka 3 i 2 kolumn była pełna), źródła odświeżenia (id elementów, które przerysowuje ta sama funkcja co dane kafla), budowniczy */
+const WK_T={
+  global:[
+    {id:'g-reg',tt:'wk.g.reg.t',go:'gmap',src:['g-kpis'],b:wkGReg},
+    {id:'g-prob',tt:'g.pr.t',go:'g-prob',src:['g-prob'],b:wkGProb},
+    {id:'g-fg',tt:'fg.t.g',go:'g-fg',src:['g-fg'],b:wkGFg},
+    {id:'g-ix',tt:'ix.t',go:'g-indeksy',r:1,src:['g-indeksy'],b:wkGIx},
+    {id:'g-str',tt:'st.t.fsi',go:'g-stres',w:1,src:['g-stres'],b:wkGStr},
+    {id:'g-fund',tt:'wk.g.fund.t',go:'g-fund',w:1,src:['g-fund'],b:wkGFund},
+    {id:'g-tic',tt:'tic.t',go:'tic',src:['tic'],b:wkGTic},
+    {id:'g-fed',tt:'wk.g.fed.t',go:'g-fed',src:['g-fed'],b:wkGFed},
+    {id:'g-dl',tt:'wk.g.dl.t',go:'g-dolar',src:['g-dolar'],b:wkGDl}],
+  crypto:[
+    {id:'c-flow',tt:'wk.c.flow.t',go:'stage',src:['kpis'],b:wkCFlow},
+    {id:'c-etf',tt:'etf.t',go:'g-etf',w:1,src:['g-etf','c-etf'],b:wkCEtf},
+    {id:'c-t10',tt:'wk.c.t10.t',go:'stage',w:1,src:['kpis','wk-t10'],b:wkCT10},
+    {id:'c-stab',tt:'stc.t',go:'eng-defillama-stablecoins',src:['eng-defillama-stablecoins'],b:wkCStab},
+    {id:'c-cap',tt:'wk.c.cap.t',go:'cmc',w:1,src:['cmc'],b:wkCCap},
+    {id:'c-lev',tt:'wk.c.lev.t',go:'c-dzwignia',src:['c-dzwignia'],b:wkCLev},
+    {id:'c-prm',tt:'prm.kr.t',go:'c-premie',w:1,src:['c-premie'],b:wkCPrm},
+    {id:'c-rwa',tt:'wk.c.rwa.t',go:'c-rwa',src:['c-rwa'],b:wkCRwa},
+    {id:'c-fg',tt:'fg.t.c',go:'c-fg',w:1,src:['c-fg'],b:wkCFg},
+    {id:'c-wh',tt:'wh.t',go:'c-wieloryby',src:['c-wieloryby'],b:wkCWh}]
+};
+const WK_KIND={p:'wk.k.p',s:'wk.k.s',m:'wk.k.m',r:'wk.k.r'};
+/* kafel: tytuł, rodzaj liczb, podtytuł (jedna linia), wykres albo „brak danych” z powodem, data i wiek, „Szczegóły” (gdy cel jest widoczny); błąd budowniczego = brak z powodem */
+function wkTileHtml(T){
+  let o;try{o=T.b()||{};}catch(e){o={na:t('wk.na.err')};}
+  const body=o.ch?o.ch:`<p class="wk-na"><b>${escH(t('fg.na'))}</b> — ${escH(o.na||t('wk.na.none'))}</p>`;
+  const g=typeof $==='function'?$('#'+T.go):null,go=!g||!g.hidden;   /* karta bez danych jest ukryta — wtedy bez „Szczegółów” (nie prowadzą donikąd) */
+  return `<div class="wk-h"><h3>${escH(t(T.tt))}${o.k&&WK_KIND[o.k]?`<span class="wk-kd">${escH(t(WK_KIND[o.k]))}</span>`:''}</h3>${o.s?`<p class="wk-s">${escH(o.s)}</p>`:''}</div>`+
+    `<div class="wk-c">${body}</div><div class="wk-f"><span class="wk-d">${o.d?t('wk.d',{d:o.d}):''}</span>${go?`<button type="button" class="wk-go" data-wk-go="${T.go}" aria-label="${escH(t('wk.more')+wkK()+t(T.tt))}">${escH(t('wk.more'))}</button>`:''}</div>`;
+}
+/* ---------- v157: przełącznik „Widok: Karty | Wykresy”, rysowanie kafli, podpowiedzi, „Szczegóły”, odświeżanie ----------
+   Wybór zapamiętany osobno dla GLOBAL i CRYPTO (localStorage cfai.widok; zablokowana pamięć — widok działa, tylko bez zapamiętania).
+   Kafle rysowane tylko w widoku „Wykresy”: przy włączeniu, gdy przerysuje się karta z ich danymi (obserwator zmian, jak v156), po zmianie okresu
+   (kafle KPI nad mapą / sceną), motywu i języka. Treść kafla podmieniana tylko, gdy się zmieniła — fokus klawiatury zostaje. Bez własnych zegarów. */
+const WK={v:{global:'karty',crypto:'karty'},h:{},kb:true,pt:''};
+try{const o=JSON.parse(localStorage.getItem('cfai.widok')||'{}');if(o&&typeof o==='object'&&!Array.isArray(o))for(const k of ['global','crypto'])if(o[k]==='wykresy'||o[k]==='karty')WK.v[k]=o[k];}catch(e){}
+function wkSave(){try{localStorage.setItem('cfai.widok',JSON.stringify(WK.v));}catch(e){}}
+/* id elementu (karta, panel KPI) → kafle, które z niego biorą dane */
+const WK_SRC={};for(const tab in WK_T)for(const T of WK_T[tab])for(const id of T.src)(WK_SRC[id]=WK_SRC[id]||[]).push([tab,T.id]);
+/* kafle zakładki: pierwsze rysowanie — cała siatka naraz; potem podmiana treści tylko zmienionych kafli (only = zbiór id albo wszystkie) */
+function wkRender(tab,only){
+  if(WK.v[tab]!=='wykresy')return;const box=$('#wk-'+tab);if(!box)return;
+  const L=WK_T[tab],grid=box.querySelector('.wk-grid'),els=grid?L.map(T=>grid.querySelector(`[data-wk="${T.id}"]`)):[];
+  if(!grid||els.some(x=>!x)){const H=L.map(T=>(WK.h[T.id]=wkTileHtml(T)));
+    box.innerHTML=`<div class="wk-grid">${L.map((T,i)=>`<article class="wk-t panel${T.w?' w2':''}${T.r?' r2':''}" data-wk="${T.id}">${H[i]}</article>`).join('')}</div><p class="pfoot wk-disc">${escH(t('eng.disclaimer'))}</p>`;return;}
+  const disc=box.querySelector('.wk-disc'),dt=t('eng.disclaimer');if(disc&&disc.textContent!==dt)disc.textContent=dt;   /* „To nie jest porada inwestycyjna.” — raz pod kaflami */
+  L.forEach((T,i)=>{if(only&&!only.has(T.id))return;const el=els[i],h=wkTileHtml(T);if(WK.h[T.id]===h)return;
+    const a=document.activeElement,inT=!!(a&&a!==el&&el.contains&&el.contains(a)&&a.closest),ch=inT?a.closest('.wk-ch'):null,ci=ch?[...el.querySelectorAll('.wk-ch')].indexOf(ch):-1,gb=inT&&!!a.closest('.wk-go');
+    el.innerHTML=h;WK.h[T.id]=h;
+    const n=ci>=0?el.querySelectorAll('.wk-ch')[ci]:gb?el.querySelector('.wk-go'):null;if(n&&ch)n.wkI=ch.wkI;if(n&&n.focus)n.focus({preventScroll:true});});   /* fokus (i znacznik podpowiedzi) zostaje na tym samym miejscu kafla */
+}
+/* karty tej zakładki, które mają swój kafel (cel „Szczegółów”) — w widoku Wykresy schowane; pozostałe karty (bez prostego wykresu) zostają
+   pod kaflami w dotychczasowej postaci, ze zwijaniem v154; widgety TradingView na samym dole */
+function wkCards(tab){return WK_T[tab].map(T=>$('#'+T.go)).filter(c=>c&&c.closest&&c.closest('section.pcard')===c&&c.closest('#'+tab));}
+/* widok zakładki: klasa zakładki i kart z kaflem (CSS je chowa), siatka kafli, stan przycisków przełącznika */
+function wkApply(tab){
+  const v=WK.v[tab],on=v==='wykresy',sec=$('#'+tab),box=$('#wk-'+tab);
+  if(sec&&sec.classList)sec.classList.toggle('wk-on',on);if(box)box.hidden=!on;
+  wkCards(tab).forEach(c=>c.classList.toggle('wk-hid',on));
+  $$(`.zw-bar[data-zw="${tab}"] [data-wk-v]`).forEach(b=>b.setAttribute('aria-pressed',b.getAttribute('data-wk-v')===v?'true':'false'));
+  if(on)wkRender(tab);
+}
+/* tmp = przejście chwilowe („Szczegóły”, wskaźnik w lewym pasku) — bez zapisu: zapamiętany zostaje wybór z przełącznika */
+function wkSet(tab,v,tmp){if(!(tab in WK.v)||(v!=='karty'&&v!=='wykresy'))return;WK.v[tab]=v;if(!tmp)wkSave();wkApply(tab);}
+/* przerysowanie kafli zależnych od elementu id (karta przerysowana, okres, plik bez karty — np. top 10 sceny) */
+function wkPing(id){const want={};(WK_SRC[id]||[]).forEach(([tab,tid])=>{(want[tab]=want[tab]||new Set()).add(tid);});for(const tab in want)wkRender(tab,want[tab]);}
+/* „Szczegóły”: zakładka elementu, widok „Karty” (gdy karta jest w Wykresach schowana — chwilowo, bez zapisu), karta rozwinięta (v154), przewinięcie
+   i fokus; mapa / scena — samo przewinięcie */
+function wkGo(id){
+  const el=typeof id==='string'&&/^[a-z0-9-]{1,40}$/.test(id)?$('#'+id):null;if(!el)return false;
+  const tab=!el.closest?'':el.closest('#global')?'global':(el.closest('#crypto')||el.closest('#rail'))?'crypto':'';
+  if(page!=='overview')setPage('overview');
+  if(tab&&st.mode!==tab)setMode(tab);
+  const card=el.closest?el.closest('section.pcard'):null;
+  if(card&&tab&&WK.v[tab]==='wykresy'&&card.classList&&card.classList.contains('wk-hid'))wkSet(tab,'karty',true);
+  if(id==='c-fg'&&el.classList)el.classList.add('pokaz');   /* v156: na komputerze panel w lewym pasku — na żądanie widoczny w prawej kolumnie */
+  if(typeof zwOpenFor==='function')zwOpenFor(el);
+  /* fokus klawiatury: przycisk zwijania karty (v154) — bez tabindex na karcie (v154 pomija kliknięcia w elementach z tabindex) */
+  const f=card&&card.querySelector?card.querySelector(':scope>.zw-t'):null;
+  const go=()=>{if(f&&f.focus)f.focus({preventScroll:true});el.scrollIntoView({behavior:st.anim?'smooth':'auto',block:'start'});};
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(go);else go();
+  return true;
+}
+/* podpowiedź znacznika m wykresu ch (null = schowaj): tekst z data-t, podświetlenie, miejsce nad znacznikiem (pasy linii i kolumn — u góry wykresu) */
+function wkMarks(ch){return ch&&ch.querySelectorAll?[...ch.querySelectorAll('[data-t]')]:[];}
+function wkTip(ch,m){
+  const tip=ch&&ch.querySelector?ch.querySelector('.wk-tip'):null;if(!tip)return;
+  ch.querySelectorAll('.wk-on').forEach(x=>x.classList.remove('wk-on'));
+  if(!m){tip.hidden=true;ch.wkI=-1;return;}
+  m.classList.add('wk-on');tip.textContent=m.getAttribute('data-t')||'';tip.hidden=false;ch.wkI=wkMarks(ch).indexOf(m);
+  const a=ch.getBoundingClientRect(),b=m.getBoundingClientRect(),w=tip.offsetWidth||0,h=tip.offsetHeight||0,band=m.classList.contains('wk-hit');
+  const x=Math.max(0,Math.min(a.width-w,b.left-a.left+b.width/2-w/2));let y=band?b.top-a.top+4:b.top-a.top-h-6;
+  if(y<0)y=b.bottom-a.top+6;tip.style.left=Math.round(x)+'px';tip.style.top=Math.round(Math.max(0,Math.min(y,a.height-h)))+'px';
+}
+/* zdarzenia: mysz — najechanie; dotyk i klik — przypięta podpowiedź do kolejnego dotknięcia; klawiatura — Tab na wykres, strzałki po znacznikach,
+   Home / End, Escape chowa; przełącznik widoku i „Szczegóły” */
+(function(){
+  const chOf=x=>x&&x.closest?x.closest('.wk-ch'):null;
+  document.addEventListener('click',e=>{const tg=e.target;if(!tg||!tg.closest)return;
+    const sw=tg.closest('[data-wk-v]');if(sw){const bar=sw.closest('.zw-bar'),tab=bar?bar.getAttribute('data-zw'):'';wkSet(tab,sw.getAttribute('data-wk-v'));return;}
+    const go=tg.closest('[data-wk-go]');if(go){e.preventDefault();wkGo(go.getAttribute('data-wk-go'));return;}
+    const sf=tg.closest('#side-fg [data-sfg]');   /* v156: wskaźnik w lewym pasku otwiera swój panel — schowany w Wykresach: chwilowo Karty */
+    if(sf){const k=sf.getAttribute('data-sfg'),p=k==='global'?$('#g-fg'):null;if(p&&WK.v.global==='wykresy'&&p.classList.contains('wk-hid'))wkSet('global','karty',true);return;}
+    const m=tg.closest('.wk-ch [data-t]'),ch=chOf(m);
+    $$('.wk-ch').forEach(c=>{if(c.wkPin&&c!==ch){c.wkPin=false;wkTip(c,null);}});
+    if(m&&ch){wkTip(ch,m);ch.wkPin=WK.pt==='touch'||WK.pt==='pen';}});   /* dotyk: podpowiedź zostaje do kolejnego dotknięcia; mysz — jak najechanie */
+  document.addEventListener('pointerdown',e=>{WK.pt=e.pointerType||'';WK.kb=false;},{passive:true});
+  document.addEventListener('keydown',()=>{WK.kb=true;},true);   /* fokus z klawiatury — podpowiedź trzyma się fokusu; po kliknięciu myszą — najechania */
+  document.addEventListener('pointerover',e=>{if(e.pointerType==='touch')return;const m=e.target&&e.target.closest?e.target.closest('.wk-ch [data-t]'):null,ch=chOf(m);if(ch&&!ch.wkPin)wkTip(ch,m);});
+  document.addEventListener('pointerout',e=>{if(e.pointerType==='touch')return;const ch=chOf(e.target);if(!ch||ch.wkPin||(WK.kb&&document.activeElement===ch))return;const to=e.relatedTarget;if(to&&ch.contains(to))return;wkTip(ch,null);});
+  document.addEventListener('focusin',e=>{const ch=e.target&&e.target.classList&&e.target.classList.contains('wk-ch')?e.target:null;if(!ch||!WK.kb)return;const M=wkMarks(ch);if(M.length)wkTip(ch,M[Math.max(0,ch.wkI||0)]);});
+  document.addEventListener('focusout',e=>{const ch=e.target&&e.target.classList&&e.target.classList.contains('wk-ch')?e.target:null;if(ch&&!ch.wkPin)wkTip(ch,null);});
+  document.addEventListener('keydown',e=>{const ch=e.target&&e.target.classList&&e.target.classList.contains('wk-ch')?e.target:null;if(!ch)return;
+    const M=wkMarks(ch);if(!M.length)return;const k=e.key,on=typeof ch.wkI==='number'&&ch.wkI>=0;let i=on?ch.wkI:0;
+    if(k==='Escape'){ch.wkPin=false;wkTip(ch,null);return;}
+    if(k==='End')i=M.length-1;else if(k==='Home'||!on){if(!['ArrowRight','ArrowDown','ArrowLeft','ArrowUp','Home'].includes(k))return;i=0;}   /* bez pokazanej wartości — strzałka pokazuje pierwszą */
+    else if(k==='ArrowRight'||k==='ArrowDown')i=Math.min(M.length-1,i+1);else if(k==='ArrowLeft'||k==='ArrowUp')i=Math.max(0,i-1);else return;
+    e.preventDefault();wkTip(ch,M[i]);});
+  /* odświeżanie: przerysowanie kart i paneli KPI (dopisanie samej strzałki zwijania v154 — pominięte), motyw i język */
+  if(typeof MutationObserver==='function'){
+    const mo=new MutationObserver(R=>{const ids=new Set();
+      for(const r of Array.isArray(R)?R:[]){const tg=r&&r.target,id=tg&&tg.id;if(!id||!WK_SRC[id])continue;
+        if(r.type==='childList'&&!(r.removedNodes&&r.removedNodes.length)&&[...(r.addedNodes||[])].every(n=>n&&n.classList&&n.classList.contains('zw-t')))continue;
+        ids.add(id);}
+      ids.forEach(wkPing);});
+    Object.keys(WK_SRC).forEach(id=>{const el=$('#'+id);if(el)mo.observe(el,{childList:true});});
+    new MutationObserver(()=>{wkRender('global');wkRender('crypto');}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme','lang']});
+  }
+  wkApply('global');wkApply('crypto');
+})();   /* v157: koniec widoku „Wykresy” */
 /* GLOBAL jest oknem startowym projektu */
 setMode('global');
 window.__cf={cam,st,select,camTo,applyTheme,LIVE,loadAll,afterLive,setLang:l=>{const go=()=>{LANG=l;applyLang();};if(cfLangReady(l,go))go();},setTheme:v=>{st.theme=v;applyTheme();},setView:v=>{st.view=v;setView();DD.forEach(d=>d.refresh());},setPage,openHelp,closeHelp,camPreset,setMode,ETF,etfLoad,renderEtf};
