@@ -17570,10 +17570,12 @@ class KryptoTop10V140(unittest.TestCase):
         self.assertEqual(out['at'], T10_NOW.isoformat()); self.assertEqual(out['cols'], list(zd.T10_COLS)); self.assertEqual(out['calls'], 8)
         self.assertEqual(list(out['g']), [k for k, _ in zd.T10_CATS]); self.assertTrue(all(out['ok'].values()))
         ids = lambda k: [r[0] for r in out['g'][k]['c']]   # noqa: E731
-        self.assertEqual(ids('l1'), ['bitcoin', 'ethereum', 'binancecoin', 'ripple', 'solana', 'tron', 'zcash', 'hyperliquid', 'monero', 'cardano'])
+        self.assertEqual(ids('l1')[:8], ['binancecoin', 'ripple', 'solana', 'tron', 'zcash', 'hyperliquid', 'monero', 'cardano'], 'v155: L1 bez BTC i ETH')
+        self.assertNotIn('bitcoin', ids('l1')); self.assertNotIn('ethereum', ids('l1'))
         self.assertEqual(ids('meme')[:3], ['dogecoin', 'shiba-inu', 'memecore']); self.assertNotIn('binance-peg-dogecoin', ids('meme'))
         self.assertEqual(ids('defi')[:3], ['hyperliquid', 'chainlink', 'rain'], 'Lido Staked Ether i Wrapped stETH pominięte (bez miejsca w rankingu)')
-        self.assertNotIn('staked-tao-root', ids('ai')); self.assertEqual(ids('gaming')[0], 'floki')
+        self.assertNotIn('staked-tao-root', ids('ai')); self.assertEqual(ids('gaming')[0], 'axie-infinity', 'v155: gaming bez FLOKI (memecoin)')
+        self.assertNotIn('floki', ids('gaming'))
         for k, _ in zd.T10_CATS:
             g = out['g'][k]
             self.assertEqual(len(g['c']), 10, k); self.assertEqual(g['sk'], out['at'], k)
@@ -17598,11 +17600,11 @@ class KryptoTop10V140(unittest.TestCase):
         self.assertEqual(len(self.calls), 1, 'jedno zapytanie o ceny'); u = self.calls[0][0]
         self.assertIn('ids=', u); self.assertNotIn('category=', u); self.assertEqual(out['calls'], 1)
         ids = [r[0] for r in out['g']['l1']['c']]
-        self.assertIn('litecoin', ids); self.assertNotIn('cardano', ids, 'skład top 10 zmienia się sam — ranking od nowa')
+        self.assertIn('litecoin', ids); self.assertLess(ids.index('litecoin'), ids.index('cardano'), 'skład top 10 zmienia się sam — ranking od nowa')   # v155: L1 bez BTC i ETH — Cardano zostaje w dziesiątce, ale za Litecoinem
         lt = next(r for r in out['g']['l1']['c'] if r[0] == 'litecoin'); self.assertEqual((lt[3], lt[6]), (127.5, '2026-09-27T22:25:00Z'))
         self.assertEqual(out['g']['l1']['sk'], (T10_NOW - datetime.timedelta(minutes=60)).isoformat(), 'czas składu bez zmian')
         self.assertEqual(self.imgs, ['https://coin-images.coingecko.com/coins/images/2/small/litecoin.png?1696501400'], 'tylko nowe logo')
-        self.assertIn('litecoin', logo2['logo']); self.assertNotIn('cardano', logo2['logo'], 'loga przycięte do monet w grupach')
+        self.assertIn('litecoin', logo2['logo']); self.assertTrue(set(logo2['logo']) <= {r[0] for g in out['g'].values() for r in g['c']}, 'loga przycięte do monet w grupach')   # v155: Cardano zostaje w L1 (bez BTC i ETH)
         self.assertEqual(zd.META['errors'], [])
 
     def test_category_again_after_6_hours_rest_by_prices(self):
@@ -22165,3 +22167,23 @@ class RwaLancuchV150(unittest.TestCase):
         self.assertLess(src.index('# ===================== v133: TOKENIZOWANE AKTYWA'), a); self.assertNotIn('KEY', blok); self.assertNotIn('os.environ', blok); self.assertNotIn('print(', blok)
         self.assertIn('0xe01605f6b6dc593b7d2917f4a0940db2a625b09e', blok, 'dowód z łańcucha w komentarzu (decyzja koordynatora)')
         self.assertNotIn("'build_rwa_lancuch'", src, 'bez nowego budowniczego — krok w build_rwa (krotki zaślepek bez zmian)')
+
+
+class SektoryTop10V155(unittest.TestCase):
+    """v155: skład grup top 10 — L1 bez BTC i ETH, gaming bez memecoinów (FLOKI na stałe + kandydaci grupy memecoinów); dalej po 10 monet;
+    wykluczenia działają też na wierszach z poprzedniego pliku i na odświeżonych cenach. Bez sieci (nagrania jak w KryptoTop10V140)."""
+
+    def test_wykluczenia(self):
+        T = KryptoTop10V140('test_full_build_from_categories'); T.setUp()   # nagrania i zegar tamtej klasy (enterContext, addCleanup)
+        try:
+            out, _ = T._build()
+        finally:
+            T.doCleanups()
+        ids = lambda k: [r[0] for r in out['g'][k]['c']]   # noqa: E731
+        self.assertEqual(len(ids('l1')), 10); self.assertFalse({'bitcoin', 'ethereum'} & set(ids('l1')))
+        self.assertEqual(len(ids('gaming')), 10); self.assertNotIn('floki', ids('gaming'))
+        self.assertFalse(set(ids('gaming')) & set(out['g']['meme']['pool']), 'gaming bez monet z kandydatów memecoinów')
+        self.assertNotIn('bitcoin', out['g']['l1']['pool'], 'kandydaci też bez wykluczonych'); self.assertEqual(out['g']['l1']['pool'][:10], ids('l1'))
+        self.assertEqual(zd.T10_BEZ['l1'], frozenset({'bitcoin', 'ethereum'})); self.assertEqual(zd.T10_BEZ_Z, {'gaming': 'meme'})
+        for k, _ in zd.T10_CATS:
+            mc = [r[4] for r in out['g'][k]['c']]; self.assertEqual(mc, sorted(mc, reverse=True), k)

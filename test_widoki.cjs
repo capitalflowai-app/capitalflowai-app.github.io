@@ -7928,7 +7928,7 @@ test('v138: małe logo memecoinów — zdjęcie właściciela (wariant ≤ 24 px
   // czysta funkcja tonów: czarny → granat (podniesienie), szary jaśniej, czerwony żywszy; przezroczystość bez zmian
   const d = [0, 0, 0, 255, 128, 128, 128, 200, 255, 0, 0, 255];
   assert.deepEqual(F.smallTone(d, F.SMALL_PHOTO.meme), [30, 42, 82, 255, 203, 203, 203, 200, 255, 42, 82, 255]);
-  assert.deepEqual(Object.keys(F.SMALL_PHOTO), ['meme'], 'tylko memecoiny');
+  assert.deepEqual(Object.keys(F.SMALL_PHOTO), ['meme', 'gaming', 'exch'], 'v155: memecoiny, gaming i giełdy');
   // zdjęcie jeszcze się wczytuje: samo zdjęcie (logo właściciela), nie piktogram, bez zapisu w pamięci
   assert.equal(F.iconURL('meme', 18), SRC.meme);
   assert.equal(F.iconURL('meme', 14), SRC.meme);
@@ -7953,8 +7953,8 @@ test('v138: małe logo memecoinów — zdjęcie właściciela (wariant ≤ 24 px
   assert.equal(F.iconURL('meme', 20), SRC.meme); assert.equal(urlCache['ph|meme|20|d'], SRC.meme); F.iconURL('meme', 20); assert.equal(made, n0 + 1);
   // gaming i giełdy: piktogramy v116 bez zmian (klucz bez „ph|”), duże — zdjęcia
   fail = false;
-  assert.ok(/^data:image\/png;base64,V\d+$/.test(F.iconURL('gaming', 18)) && urlCache['gaming|18|d'] && !urlCache['ph|gaming|18|d'], 'gaming — piktogram');
-  assert.ok(/^data:image\/png;base64,V\d+$/.test(F.iconURL('exch', 14)) && urlCache['exch|14|d'], 'giełdy — piktogram');
+  assert.equal(F.iconURL('gaming', 18), SRC.gaming, 'v155: gaming — zdjęcie właściciela (jeszcze się wczytuje), nie piktogram');
+  assert.equal(F.iconURL('exch', 14), SRC.exch, 'v155: giełdy — zdjęcie właściciela'); assert.ok(!urlCache['gaming|18|d'] && !urlCache['exch|14|d'], 'bez piktogramów');
   assert.equal(F.iconURL('gaming', 56), SRC.gaming);
   assert.ok(typeof F.SMALL_PICTO.meme === 'function', 'piktogram memecoinów zostaje w kodzie (nieużywany)');
   const scene = html.slice(html.indexOf('function drawIconOn('), html.indexOf('const drawIcon=('));
@@ -11796,4 +11796,25 @@ test('v154: „Gdzie warunki sprzyjają” i „Jakość danych mapy” to zwyk�
   f.gRenderQ(); const q = els['#g-q'].innerHTML;
   assert.ok(q.startsWith('<div class="etfh"><div><h2>Jakość danych mapy</h2><p class="pnote">2026-08 · dane sprzed 34 dni · 2 z 3 regionów z danymi</p></div></div><div class="q-grid gq">'), q.slice(0, 200));
   assert.equal((q.match(/<div class="panel q">/g) || []).length, 5, 'pięć kart w środku');
+});
+
+
+/* ---------- v155: loga właściciela dla Gaming i Giełd także w małych ikonach ---------- */
+test('v155: małe ikony Gaming i Giełd — wariant zdjęcia właściciela (kadr środka, tony, maska, obwódka), jak memecoiny; piktogram nieużywany', () => {
+  const c0 = html.indexOf('const SMALL_PX=24;'), c1 = html.indexOf('\nconst logoTag=', c0);
+  const SRC = {meme: 'img/wezly/memecoiny.jpg', gaming: 'img/wezly/gaming.jpg', exch: 'img/wezly/gieldy.jpg'}, calls = [];
+  let made = 0;
+  const ctx = () => new Proxy({getImageData: (x, y, w, h) => ({data: new Uint8ClampedArray(w * h * 4)}), putImageData: () => {}, drawImage: (...a) => calls.push(a.slice(1, 5))},
+    {get: (o, k) => (k in o ? o[k] : (typeof k === 'string' ? () => {} : undefined)), set: (o, k, v) => { o[k] = v; return true; }});
+  const doc = {createElement: () => { made++; return {width: 0, height: 0, getContext: ctx, toDataURL: () => 'data:image/png;base64,P' + made}; }};
+  const urlCache = {}, img = {naturalWidth: 512, naturalHeight: 512};
+  const F = new Function('logoSrc', 'logoImg', 'urlCache', 'PAL', 'hueOf', 'drawIconOn', 'document', html.slice(c0, c1) + '\nreturn {SMALL_PHOTO, iconURL};')(
+    id => SRC[id] || '', id => (SRC[id] ? img : null), urlCache, {dark: true}, () => 210, () => {}, doc);
+  for (const [id, crop] of [['gaming', .62], ['exch', .74]]) {
+    const u = F.iconURL(id, 20); assert.ok(/^data:image\/png;base64,P\d+$/.test(u), id + ': wariant na mały rozmiar');
+    assert.ok(urlCache['ph|' + id + '|20|d'] === u && !urlCache[id + '|20|d'], id + ': zdjęcie, nie piktogram');
+    const k = 512 * crop; assert.deepEqual(calls.at(-1).map(x => Math.round(x)), [Math.round((512 - k) / 2), Math.round((512 - k) / 2), Math.round(k), Math.round(k)], id + ': kadr środka');
+    assert.equal(F.iconURL(id, 56), SRC[id], id + ': duży rozmiar — samo zdjęcie jak dotąd');
+  }
+  for (const id of ['gaming', 'exch']) { const o = F.SMALL_PHOTO[id]; assert.ok(o.b > 1 && o.c >= 1 && o.s >= 1 && o.lift.every(v => v >= 0 && v < 90), id + ': tony rozjaśniają, tło granatowe'); }
 });

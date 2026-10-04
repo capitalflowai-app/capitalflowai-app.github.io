@@ -2548,7 +2548,9 @@ function smallPicto(c,id,px){const r=px/2,col=`hsl(${hueOf(id)} 40% ${PAL.dark?3
    tło podniesione do granatu (nie czarny krążek), cienka obwódka w kolorze węzła jak w piktogramie. Zanim zdjęcie się wczyta — samo zdjęcie (onload
    w logoImg odświeża obrazki przez refreshLogoImgs), a gdy przeglądarka nie pozwala czytać pikseli (np. plik otwarty z dysku) — też samo zdjęcie,
    nigdy piktogram. Scena 3D bez zmian (drawIconOn). Gaming i giełdy — piktogramy v116 jak dotąd (piktogram memecoinów zostaje w SMALL_PICTO, nieużywany). */
-const SMALL_PHOTO={meme:{crop:.8,b:1.45,c:1.3,s:1.8,lift:[30,42,82]}};
+/* v155 (właściciel 04.10: „logo gaming i giełd jest w blockchain 3D, gdzie indziej nie”): gaming i giełdy — też zdjęcia właściciela w wariancie
+   na mały rozmiar (kadr środka: pad z monetą / kula; jaśniej; granatowe tło), zamiast piktogramów v116 (zostają w SMALL_PICTO, nieużywane) */
+const SMALL_PHOTO={meme:{crop:.8,b:1.45,c:1.3,s:1.8,lift:[30,42,82]},gaming:{crop:.62,b:1.55,c:1.25,s:1.5,lift:[18,26,64]},exch:{crop:.74,b:1.3,c:1.2,s:1.4,lift:[16,30,70]}};
 /* czysta funkcja (test bez przeglądarki): jasność → kontrast → nasycenie (jak filtry CSS) → ciemne kanały podniesione do `lift`; przezroczystość bez zmian */
 function smallTone(d,o){
   const L=o.lift||[0,0,0],cl=(v,m)=>Math.round(Math.max(m,Math.min(255,v)));

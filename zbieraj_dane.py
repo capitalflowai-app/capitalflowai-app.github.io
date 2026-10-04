@@ -4138,6 +4138,10 @@ import base64   # v140: loga monet wbudowane w plik (biblioteka standardowa)
 T10_CATS = (('l1', 'layer-1'), ('l2', 'layer-2'), ('ai', 'artificial-intelligence'), ('defi', 'decentralized-finance-defi'),
             ('rwa', 'real-world-assets-rwa'), ('meme', 'meme-token'), ('depin', 'depin'), ('gaming', 'gaming'))   # grupa strony → kategoria (sprawdzone 27.09)
 T10_COLS = ('id', 'sym', 'name', 'px', 'mc', 'ch', 'upd')   # cena USD, kapitalizacja USD, zmiana 24 h %, czas notowania (UTC)
+# v155 (właściciel 04.10): grupa L1 bez BTC i ETH (własne elementy sceny); gaming bez memecoinów — FLOKI na stałe i każda moneta z kandydatów
+# grupy memecoinów (T10_BEZ_Z: kategoria serwisu zalicza FLOKI do gier). Kandydatów jest T10_POOL (20), więc w grupie nadal T10_N monet.
+T10_BEZ = {'l1': frozenset({'bitcoin', 'ethereum'}), 'gaming': frozenset({'floki'})}
+T10_BEZ_Z = {'gaming': 'meme'}
 T10_N = 10               # monet w grupie
 T10_POOL = 20            # kandydatów z jednej kategorii (jedno zapytanie; zapas na tokeny pochodne i zmianę kolejności między pobraniami składu)
 T10_EVERY = 55           # min — ceny i kapitalizacje (jak krypto.json)
@@ -4367,8 +4371,12 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
             rows = g['prev'] if g['prev'] and prev_age is not None and prev_age < T10_MAX_AGE else []
             if not any(e.startswith(k + ':') for e in errs):
                 errs.append(f'{k}: ' + ('poprzednie ceny' if rows else 'brak danych'))
-        rows = sorted(rows, key=lambda r: -r[4])[:T10_N]
-        out['g'][k] = {'cat': cat, 'sk': g['sk'] if rows else None, 'pool': g['pool'] if rows else [], 'c': rows}
+        bez = set(T10_BEZ.get(k, ()))
+        if k in T10_BEZ_Z:   # v155: moneta z kandydatów grupy memecoinów (ten albo poprzedni skład) to memecoin, nie gra
+            bez |= {i for i in (G[T10_BEZ_Z[k]]['pool'] or []) if isinstance(i, str)}
+        rows = sorted((r for r in rows if r[0] not in bez), key=lambda r: -r[4])[:T10_N]
+        pool = [i for i in g['pool'] if i not in bez]   # v155: kandydaci też bez wykluczonych (kolejne ceny tylko dla monet grupy)
+        out['g'][k] = {'cat': cat, 'sk': g['sk'] if rows else None, 'pool': pool if rows else [], 'c': rows}
         out['ok'][k] = g['rows'] is not None
     if not any(out['g'][k]['c'] for k, _ in T10_CATS):
         raise RuntimeError('żadna grupa nie ma monet' + (f' ({"; ".join(errs)[:300]})' if errs else ''))
