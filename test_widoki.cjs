@@ -11774,7 +11774,7 @@ test('v154: pasek nad kartami w GLOBAL i CRYPTO, styl bez stałych kolorów, tek
   const d0 = html.indexOf('const EXTRA154='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA154='.length, d1));
   assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['g.q.h', 'g.q.sumcov', 'zw.all', 'zw.hint', 'zw.none', 'zw.rozwin', 'zw.zwin']);
   const m = [...html.matchAll(/^for\(const l in (EXTRA\w+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)].map(x => x[1]);
-  assert.equal(m.at(-1), 'EXTRA154', 'nałożony jako ostatni');
+  assert.ok(m.indexOf('EXTRA154') > m.indexOf('EXTRA153'), 'nałożony po EXTRA153 (v158: nowe słowniki dochodzą po nim)');
 });
 test('v154: „Gdzie warunki sprzyjają” i „Jakość danych mapy” to zwykłe karty z nagłówkiem — w zwiniętym widać sedno (najlepszy i najsłabszy region; data i pokrycie)', () => {
   assert.ok(html.includes('<section class="panel pcard" id="g-prob" hidden></section>') && html.includes('<section class="panel pcard" id="g-q"></section>'), 'sekcje to karty');
@@ -11873,4 +11873,88 @@ test('v156: miejsce w lewym pasku (pod menu, nad „Ostatnią aktualizacją”),
   assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko zmienne motywu');
   assert.ok(css.includes('@media (max-width:900px){.side-fg{display:none!important}}') && css.includes('@media (min-width:901px){#c-fg:not(.pokaz){display:none!important}}'), 'telefon: panele jak dotąd; komputer: panel krypto przeniesiony');
   assert.ok(html.includes('"fg.t.g":"CapitalFlowAI Strach & Chciwość"') && !html.includes('Strach i chciwość — rynki USA'), 'nazwa wskaźnika GLOBAL');
+});
+
+
+/* ---------- v158: TRENDY — infografika „Wyniki sygnałów” ---------- */
+function v158Blok(o) {
+  const a = html.indexOf('/* ===================== v158: TRENDY — infografika'), b = html.indexOf('/* v158: koniec infografiki */', a);
+  assert.ok(a > 0 && b > a, 'blok infografiki');
+  const calls = [];
+  const PL = {'tig.kn': '{k} z {n}', 'tig.sub.c': 'ostatnie {n} dni ({a}–{b})', 'tig.sub.w': 'ostatnie {n} sesji ({a}–{b})', 'tig.start': 'start {d}', 'tig.n': 'n = {n}',
+    'tig.hist.sub': 'od {d} · n = {n}', 'tig.d.since': 'Od startu ({d})', 'tig.wait': '+ {n} czeka', 'tig.s.none': 'bez sygnału: {n}', 'tig.aria.b': 'Dni: {s}'};
+  const t = (k, v) => { let s = PL[k] ?? k; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
+  const X = new Function('t', 'escH', 'nfmt', 'trdNum', 'trdC', 'trdDay', 'LOCALE', 'LANG', 'sepK', 'srvJSON', 'st', 'renderTrendy', 'trdDRow', 'trdDRowW', 'trdDName', 'TRD_DFAM',
+    html.slice(a, b).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '') + '\nreturn {TRDJ, trdJStat, trdIgTone, trdIgDonut, trdIgBars, trdIgChips, trdIg, trdIgWrap, trdJLoad};')(
+    t, v96src.escH, (v, d) => Number(v).toFixed(d), v => typeof v === 'number' && isFinite(v), v => v, d => d.slice(8) + '.' + d.slice(5, 7), {pl: 'pl-PL'}, 'pl', () => ': ',
+    o.srv || (n => { calls.push(n); return new Promise(() => {}); }), {mode: 'trendy'}, () => calls.push('render'),
+    r => r, r => r, r => ({s: 'N:' + r.id, ic: '<i class="ic"></i>'}), ['eq', 'bd', 'pm']);
+  return {X, calls};
+}
+test('v158: dziennik → wyniki jak w zbieraczu — N ≠ 0, znak y = znak N trafienie, y = 0 bez oceny, brak y czeka; zakres dni; złe wiersze pominięte', () => {
+  const {X} = v158Blok({});
+  const R = [['2026-09-28', 'BTC', -2, 'obs', 'p-', 'x', -0.05], ['2026-09-28', 'ADA', -1, 'obs', 'p-', 'x', 0.24], ['2026-09-28', 'DOGE', 0, 'x', '', 'x', 0.11],
+    ['2026-09-29', 'ETH', 1, 'obs', 'p+', 'x', 0], ['2026-09-29', 'SOL', 1, 'obs', 'p+', 'x', 1.2], ['2026-10-02', 'BNB', 1, 'obs', 'p+', 'x', null],
+    ['zła', 'X', 1, 'obs', '', 'x', 1], ['2026-09-30', 'X', 1.5, 'obs', '', 'x', 1], ['2026-09-30', 'X', 1, 'obs'], 'x', null];
+  const S = X.trdJStat(R, null, null);
+  assert.deepEqual([S.k, S.n, S.wait], [2, 3, 1], 'BTC i SOL trafione, ADA chybiona, ETH (y = 0) bez oceny, BNB czeka, N = 0 i złe wiersze pominięte');
+  assert.deepEqual(S.days, {'2026-09-28': {k: 1, n: 2, wait: 0}, '2026-09-29': {k: 1, n: 1, wait: 0}, '2026-10-02': {k: 0, n: 0, wait: 1}});
+  assert.deepEqual(X.trdJStat(R, '2026-09-29', '2026-09-30').n, 1, 'zakres dni');
+  assert.deepEqual([X.trdIgTone(6, 10), X.trdIgTone(4, 10), X.trdIgTone(5, 10), X.trdIgTone(5, 9), X.trdIgTone(0, 0)], ['p', 'm', 'z', 'na', 'na'], 'kolory: ≥55 / ≤45 / pomiędzy / mniej niż 10');
+});
+test('v158: infografika krypto — liczba główna „k z n” i procent, 3 pierścienie (ostatnie dni, od startu, historia), słupki dzień po dniu, chipy; reszta pod „Szczegóły”', () => {
+  const {X, calls} = v158Blok({});
+  const rows = [], add = (d, N, y) => rows.push([d, 'C' + rows.length, N, 'obs', '', 'x', y]);
+  for (const [d, k, m, w] of [['2026-09-28', 2, 6, 0], ['2026-09-29', 1, 8, 1], ['2026-09-30', 2, 2, 0], ['2026-10-01', 2, 2, 0], ['2026-10-02', 0, 0, 8], ['2026-10-03', 0, 0, 4]]) {
+    for (let i = 0; i < k; i++) add(d, 1, 1.5); for (let i = 0; i < m; i++) add(d, -1, 0.7); for (let i = 0; i < w; i++) add(d, 1, null);
+  }
+  X.TRDJ.c = {since: '2026-09-28', rows}; X.TRDJ.at = Date.now();
+  const D = {bd: [{fam: 'cr', rule: 'all', v: 2, k: 3189, n: 6329, from: '2023-11-09'}, {fam: 'cr', rule: 'all', v: 1, k: 1, n: 2}],
+    d: [{fam: 'cr', rs: [], id: 'BTC', sym: 'BTC', side: 'sell', st: 'obs', str: 2}, {fam: 'cr', rs: [], id: 'ETH', sym: 'ETH', side: 'buy', st: 'buy', str: 1},
+      {fam: 'cr', rs: [], id: 'XRP', sym: 'XRP', side: 'none', st: 'quiet', str: 0}, {fam: 'eq', rs: [], id: 'SPY', side: 'buy', st: 'obs', str: 1}]};
+  const h = X.trdIg(D, true);
+  assert.ok(h.startsWith('<section class="panel pcard trd-ig" id="trd-ig"><div class="tig-h"><h2>tig.t.c</h2><p class="pnote">ostatnie 6 dni (28.09–03.10)</p></div>'), h.slice(0, 200));
+  assert.ok(h.includes('<b class="tig-kv">7 z 25</b><span class="tig-kp m">28%</span><span class="tig-kw">+ 13 czeka</span>'), 'liczba główna: 7 z 25 = 28% (czerwony), 13 czeka');
+  assert.equal((h.match(/<figure class="tig-dn">/g) || []).length, 3, 'trzy pierścienie');
+  assert.ok(h.includes('aria-label="tig.d.win.c: 28%"') && h.includes('aria-label="Od startu (28.09): 28%"') && h.includes('aria-label="tig.d.hist: 50%"'), 'pierścienie: 28%, 28%, historia 50% (tylko v 2)');
+  assert.ok(h.includes('<small>od 09.11 · n = 6329</small>'), 'historia: od kiedy i ile');
+  assert.equal((h.match(/<rect class="h"/g) || []).length, 4, 'zielone słupki: 4 dni z trafieniami'); assert.equal((h.match(/<rect class="m"/g) || []).length, 4, 'czerwone: 4 dni');
+  assert.equal((h.match(/<rect class="w"/g) || []).length, 2, 'dwa dni tylko czekające — szara ramka');
+  assert.ok(h.includes('<span class="tig-c m"') === false && h.includes('<span class="tig-c na" title="N:BTC"><i class="ic"></i><b>BTC</b><i>▼●●</i></span>'), 'BTC: szary (bez przewagi), w dół, siła 2 — pierwszy');
+  assert.ok(h.includes('<span class="tig-c p" title="N:ETH"><i class="ic"></i><b>ETH</b><i>▲●</i></span>') && h.includes('bez sygnału: 1') && !h.includes('SPY'), 'ETH kolorowy; XRP bez sygnału; świat nie w krypto');
+  assert.ok(h.includes('<p class="pfoot">tig.foot.c eng.disclaimer</p></section>'), 'stopka z zastrzeżeniem');
+  assert.deepEqual(calls, [], 'dziennik świeży — bez ponownego wczytania');
+  const r0 = html.indexOf('function renderTrendy(){'), R = html.slice(r0, html.indexOf('\n}\n', r0));
+  assert.ok(R.includes("  if(typeof trdIgWrap==='function')trdIgWrap(w,D,cr);") && R.indexOf('trdIgWrap(w,D,cr);') < R.indexOf('TRD.shown=v;') && R.indexOf('TRD.shown=v;') < R.indexOf('(TRD.open[v]||[])'), 'renderTrendy: przebudowa po narysowaniu, przed przywróceniem otwartych bloków');
+  assert.ok(html.indexOf('function trdIgWrap(') > html.indexOf('/* v89: TRENDY — koniec */'), 'blok v158 poza blokiem TRENDY (stare testy bloku bez zmian)');
+  assert.ok(html.includes("const b=e.target&&e.target.closest?e.target.closest('#help'):null;if(!b||typeof st!=='object'||!st||st.mode!=='trendy')return;\n  const dw=$('#trd-wiecej');if(dw)dw.open=true;},true);"), 'pomoc „Jak czytać” rozwija „Szczegóły” (przechwytywanie)');
+  /* przebudowa w małym DOM: nagłówek zostaje, infografika zaraz pod nim, reszta w „Szczegółach” */
+  const mk = (n) => ({n, nextSibling: null, kids: [], appendChild(c) { this.kids.push(c); if (c && c.par && c.par !== this) c.par.kids = (c.par.kids || []).filter(x => x !== c); c.par = this; }});
+  const hr = mk('hr'), x1 = mk('x1'), x2 = mk('x2'); hr.nextSibling = x1; x1.nextSibling = x2; const ins = [];
+  hr.insertAdjacentHTML = (p, h) => ins.push([p, h]);
+  const w = {querySelector: q => (q === ':scope>.head-row' ? hr : null), kids: [], appendChild(c) { this.kids.push(c); }};
+  const G = globalThis, hadDoc = 'document' in G, prevDoc = G.document;
+  G.document = {createElement: tag => mk(tag)};
+  try { X.trdIgWrap(w, D, true); } finally { if (hadDoc) G.document = prevDoc; else delete G.document; }
+  const det = w.kids[0]; assert.ok(det && det.n === 'details' && det.id === 'trd-wiecej' && det.className === 'etfd trd-wiecej', 'blok „Szczegóły”');
+  assert.equal(det.kids[0].textContent, 'tig.more'); assert.deepEqual(det.kids[1].kids.map(k => k.n), ['x1', 'x2'], 'cała reszta w środku');
+  assert.ok(ins.length === 1 && ins[0][0] === 'afterend' && ins[0][1].startsWith('<section class="panel pcard trd-ig" id="trd-ig">'), 'infografika zaraz pod nagłówkiem');
+  const sw = {innerHTML: 'x'}; X.trdIgWrap(sw, D, true); assert.equal(sw.innerHTML, 'x', 'atrapa (sam napis) — bez zmian');
+});
+test('v158: świat przed startem dziennika — „rusza 5.10”, pierścienie czekają, historia z testu wsteczny; wczytanie dzienników raz na 20 min; słownik tylko po polsku', () => {
+  let n = 0; const res = [];
+  const {X, calls} = v158Blok({srv: name => { n++; res.push(name); return Promise.resolve(name === 'swiat-dziennik' ? {since: '2026-10-05', rows: []} : null); }});
+  const h0 = X.trdIg({bd: [{fam: 'w', rule: 'all', v: 2, k: 17563, n: 35336, from: '2016-11-30'}], d: []}, false);
+  assert.deepEqual(res, ['krypto-dziennik', 'swiat-dziennik'], 'oba dzienniki naraz'); X.trdIg({d: []}, false); assert.equal(n, 2, 'drugi raz w ciągu 20 min — bez zapytań');
+  return Promise.resolve().then(() => Promise.resolve()).then(() => {
+    assert.ok(X.TRDJ.w && X.TRDJ.w.since === '2026-10-05' && X.TRDJ.c === null, 'poprawny dziennik zapamiętany, zły pominięty');
+    const h = X.trdIg({bd: [{fam: 'w', rule: 'all', v: 2, k: 17563, n: 35336, from: '2016-11-30'}], d: []}, false);
+    assert.ok(h.includes('<p class="pnote">start 05.10</p>') && h.includes('<b class="tig-kv">—</b>') && h.includes('class="tig-g tig-g2"'), 'przed startem: „rusza”, bez słupków');
+    assert.ok(h.includes('aria-label="tig.d.hist: 50%"') && (h.match(/tig\.d\.wait/g) || []).length === 3 && !h.includes('tig-kp'), 'historia 49,7% ≈ 50%; dwa pierścienie i pole „Trafione” czekają (bez pustego procentu)');
+    assert.ok(!/NaN|undefined/.test(h) && !/NaN|undefined/.test(h0));
+    const d0 = html.indexOf('const EXTRA158='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA158='.length, d1));
+    assert.deepEqual(Object.keys(D), ['pl']); assert.ok(Object.keys(D.pl).every(k => k.startsWith('tig.')) && Object.keys(D.pl).length === 28);
+    const c0 = html.indexOf('/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie'), css = html.slice(c0, html.indexOf('</style>', c0));
+    assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'styl: tylko zmienne motywu');
+  });
 });

@@ -1150,6 +1150,44 @@ td .cell .logo-img{width:34px;height:34px}
 @media (max-height:740px){.sfg .fg-svg{max-width:90px}.sfg-d{display:none}}
 @media (max-width:900px){.side-fg{display:none!important}}
 @media (min-width:901px){#c-fg:not(.pokaz){display:none!important}}
+/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie, słupki dzień po dniu, chipy sygnałów) */
+.trd-ig .tig-g{display:grid;grid-template-columns:minmax(150px,.75fr) minmax(0,1.5fr) minmax(0,1.6fr);gap:14px;align-items:center;margin-top:10px}
+.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(150px,.75fr) minmax(0,2fr)}
+.tig-k{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel-2)}
+.tig-kl{font-size:12px;color:var(--mut)}
+.tig-kv{font:600 22px/1.15 Sora,sans-serif}
+.tig-kp{font:700 40px/1 Sora,sans-serif}
+.tig-kp.p{color:var(--gr-tx)}.tig-kp.m{color:var(--rd-tx)}.tig-kp.z{color:var(--yl-tx)}.tig-kp.na{color:var(--mut)}
+.tig-kw{font-size:11.5px;color:var(--dim)}
+.tig-d{display:flex;justify-content:space-around;gap:8px;flex-wrap:wrap}
+.tig-dn{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:84px}
+.tig-dn svg{width:84px;height:84px;display:block}
+.tig-r0{fill:none;stroke:var(--line);stroke-width:9}
+.tig-r1{fill:none;stroke-width:9;stroke-linecap:round}
+.tig-r1.p{stroke:var(--gr)}.tig-r1.m{stroke:var(--rd)}.tig-r1.z{stroke:var(--yl)}.tig-r1.na{stroke:var(--gy)}
+.tig-50{stroke:var(--mut);stroke-width:1.5}
+.tig-pt{font:600 17px Sora,sans-serif;fill:var(--tx)}
+.tig-dn figcaption{font-size:11.5px;color:var(--mut);text-align:center;line-height:1.3;max-width:120px}
+.tig-dn small{display:block;color:var(--dim);font-size:10.5px}
+.tig-b h3{margin:0 0 4px}
+.tig-bs{max-width:100%;height:auto;display:block}
+.tig-bs .h{fill:var(--gr)}.tig-bs .m{fill:var(--rd)}.tig-bs .w{fill:none;stroke:var(--gy);stroke-dasharray:3 3}
+.tig-bs text{font-size:11px;fill:var(--mut)}.tig-bs text.d{font-size:10.5px;fill:var(--dim)}
+.tig-bs .z{stroke:var(--line-2);stroke-width:1}
+.tig-lg{display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 0;font-size:11px;color:var(--mut)}
+.tig-lg span{display:inline-flex;align-items:center;gap:5px}
+.tig-lg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.tig-lg i.h{background:var(--gr)}.tig-lg i.m{background:var(--rd)}.tig-lg i.w{border:1px dashed var(--gy)}
+.tig-s{margin-top:14px}
+.tig-cs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tig-c{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:4px 9px 4px 5px;font-size:12px;background:var(--panel-2)}
+.tig-c.p{border-color:var(--gr)}.tig-c.m{border-color:var(--rd)}
+.tig-c i{font-style:normal;font-weight:700;letter-spacing:-.05em}
+.tig-c.p i{color:var(--gr-tx)}.tig-c.m i{color:var(--rd-tx)}.tig-c.na i{color:var(--mut)}
+.tig-c.tig-n{color:var(--mut);padding-left:9px}
+.trd-wiecej{margin-top:12px}
+.trd-wiecej>summary{font-weight:600}
+@media (max-width:900px){.trd-ig .tig-g,.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body data-bg="soft">
@@ -1890,6 +1928,9 @@ for(const l in EXTRA153)if(I18N[l])Object.assign(I18N[l],EXTRA153[l]);
 /* v154: sekcje do wyboru (GLOBAL i CRYPTO) — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
 const EXTRA154={"pl":{"zw.hint":"Wybierz, co czytasz: kliknij tytuł sekcji, aby ją rozwinąć.","zw.all":"Rozwiń wszystkie","zw.none":"Zwiń wszystkie","zw.rozwin":"Rozwiń","zw.zwin":"Zwiń","g.q.h":"Jakość danych mapy","g.q.sumcov":"{n} z {m} regionów z danymi"}};
 for(const l in EXTRA154)if(I18N[l])Object.assign(I18N[l],EXTRA154[l]);
+/* v158: TRENDY — infografika „Wyniki sygnałów” — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
+const EXTRA158={"pl":{"tig.t.c":"Wyniki sygnałów krypto","tig.t.w":"Wyniki sygnałów — rynki świata","tig.sub.c":"ostatnie {n} dni ({a}–{b}) · sprawdzane po dobie · 50% = rzut monetą","tig.sub.w":"ostatnie {n} sesji ({a}–{b}) · sprawdzane na zamknięciu sesji · 50% = rzut monetą","tig.start":"Dziennik wyników rusza {d} — pierwsze wyniki pojawią się tu po pierwszym sprawdzeniu.","tig.k":"Trafione","tig.kn":"{k} z {n}","tig.wait":"+ {n} czeka na wynik","tig.few":"za mało wyników, by oceniać","tig.d.win.c":"Ostatnie dni","tig.d.win.w":"Ostatnie sesje","tig.d.since":"Od startu ({d})","tig.d.hist":"Historia (test wsteczny)","tig.d.wait":"czekamy na wyniki","tig.n":"n = {n}","tig.hist.sub":"od {d} · n = {n}","tig.b.t":"Dzień po dniu","tig.b.k":"trafione","tig.b.m":"chybione","tig.b.w":"czeka","tig.aria.b":"Dzień po dniu (dzień trafione/wszystkie): {s}","tig.s.t":"Dzisiejsze sygnały","tig.s.sub":"▲ w górę · ▼ w dół · ● siła sygnału · szare = reguła bez potwierdzonej przewagi","tig.s.none":"bez sygnału: {n}","tig.s.empty":"Dziś żadnego sygnału.","tig.foot.c":"Sygnał = kierunek z reguł strony na następną dobę; trafienie = cena poszła w tę stronę. Przeszłe trafienia nie gwarantują przyszłych.","tig.foot.w":"Sygnał = kierunek z reguł strony na następną sesję; trafienie = cena funduszu poszła w tę stronę. Przeszłe trafienia nie gwarantują przyszłych.","tig.more":"Szczegóły: wszystkie sygnały, reguły i metoda"}};
+for(const l in EXTRA158)if(I18N[l])Object.assign(I18N[l],EXTRA158[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -7783,6 +7824,7 @@ function renderTrendy(){
       `<section class="panel pcard"><h2>${t('trd.b.t')}</h2><p class="pnote">${t('trd.b.nocr')}</p></section>`)+
       foot;
   }
+  if(typeof trdIgWrap==='function')trdIgWrap(w,D,cr);   /* v158: infografika na górze, cała dotychczasowa treść pod „Szczegóły” (atrapy testów — bez zmian) */
   TRD.shown=v;
   (TRD.open[v]||[]).forEach(id=>{const d=w.querySelector('#'+id);if(d)d.open=true;});
 }
@@ -7792,6 +7834,106 @@ function feRegion(id){const ids=FE_REG[id];if(!ids||typeof TRD==='undefined'||!T
   const R=ids.map(k=>TRD.data.f.find(r=>r&&r.id===k&&r.m==='flow'&&trdNum(r.w)&&trdNum(r.sz)&&typeof r.cur==='string'&&/^[A-Z]{2,4}$/.test(r.cur)&&TRD_ORD.includes(r.st))).filter(Boolean);if(!R.length)return '';
   return `<div class="wide"><dt>${t('fe.reg')}</dt><dd class="trd-fr">${R.map(r=>`${trdIcoF(r)}${escH(t('trd.s.'+r.id))}${typeof sepK==='function'?sepK():': '}<b class="${trdTone(r)}">${trdAmt(r.w,'USD')}</b> · ${trdWin(r)}${gAgeNote(r.date)} · ${trdSt(trdSn(r),trdTone(r))}`).join('<br>')}</dd></div>`;}
 /* v89: TRENDY — koniec */
+/* ===================== v158: TRENDY — infografika „Wyniki sygnałów” (cel właściciela 04.10: wykresy zamiast tekstu) =====================
+   Dzienniki sygnałów strony (krypto-dziennik.json, swiat-dziennik.json): wiersz [dzień, symbol, N, stan, głosy, czas, y]. Sygnał = N ≠ 0
+   (znak = kierunek, |N| ≥ 2 = silny); trafienie = znak y równy znakowi N; y = 0 — bez oceny; y brak — czeka (jak zbieracz: _td_cr_pairs,
+   _tdw_jpairs). Okno: ostatnie 7 dni (krypto) / 5 sesji (świat) z dziennika. Historia = test wsteczny „każda karta” (bd: cr/all, w/all; v 2).
+   Kolor: ≥ 55% zielony, ≤ 45% czerwony, pomiędzy żółty („jak rzut monetą”); mniej niż 10 wyników — szary („za mało wyników”). */
+const TRDJ={c:null,w:null,at:0,busy:false};
+function trdJLoad(){
+  if(TRDJ.busy||Date.now()-TRDJ.at<20*60*1000||typeof srvJSON!=='function')return;TRDJ.busy=true;TRDJ.at=Date.now();
+  const ok=j=>!!(j&&typeof j==='object'&&Array.isArray(j.rows));
+  Promise.all([srvJSON('krypto-dziennik'),srvJSON('swiat-dziennik')]).then(([c,w])=>{TRDJ.busy=false;let ch=false;
+    if(ok(c)){TRDJ.c=c;ch=true;}if(ok(w)){TRDJ.w=w;ch=true;}
+    if(ch&&typeof st==='object'&&st&&st.mode==='trendy'&&typeof renderTrendy==='function')renderTrendy();}).catch(()=>{TRDJ.busy=false;});
+}
+/* czysta funkcja: wiersze dziennika → {k, n, wait, days: {dzień: {k, n, wait}}} w zakresie dni [od, do] (null = bez granicy) */
+function trdJStat(rows,from,to){
+  const S={k:0,n:0,wait:0,days:{}};
+  for(const r of Array.isArray(rows)?rows:[]){
+    if(!Array.isArray(r)||r.length!==7)continue;const d=r[0],N=r[2],y=r[6];
+    if(typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d)||(from&&d<from)||(to&&d>to)||!Number.isInteger(N)||N===0)continue;
+    const D=S.days[d]||(S.days[d]={k:0,n:0,wait:0});
+    if(typeof y!=='number'||!isFinite(y)){S.wait++;D.wait++;continue;}
+    if(y===0)continue;
+    const h=(y>0)===(N>0)?1:0;S.k+=h;S.n++;D.k+=h;D.n++;
+  }
+  return S;
+}
+const trdIgTone=(k,n)=>!(n>=10)?'na':100*k/n>=55?'p':100*k/n<=45?'m':'z';
+const trdIgPct=(k,n)=>n>0?nfmt(100*k/n,0)+'%':'—';
+function trdIgDonut(p,tone,lab,sub){
+  const r=34,c=2*Math.PI*r,has=typeof p==='number'&&isFinite(p),v=has?Math.max(0,Math.min(100,p)):0,txt=has?nfmt(p,0)+'%':'—';
+  return `<figure class="tig-dn"><svg viewBox="0 0 84 84" role="img" aria-label="${escH(lab+': '+txt)}">`+
+    `<circle class="tig-r0" cx="42" cy="42" r="${r}"/>`+(has&&v>0?`<circle class="tig-r1 ${tone}" cx="42" cy="42" r="${r}" stroke-dasharray="${(c*v/100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 42 42)"/>`:'')+
+    `<line class="tig-50" x1="42" y1="${42+r-7}" x2="42" y2="${42+r+7}"/><text class="tig-pt" x="42" y="48" text-anchor="middle">${txt}</text></svg>`+
+    `<figcaption>${escH(lab)}<small>${escH(sub)}</small></figcaption></figure>`;
+}
+function trdIgBars(W,S){
+  if(!W.length)return '';
+  /* naturalny rozmiar w pikselach (napisy 10–11 px; na wąskim ekranie tylko zmniejszany); linia środkowa według danych: nad nią miejsce na najwięcej trafień,
+     pod nią na najwięcej chybień — jedna skala dla obu (słupki porównywalne), bez pustego pasa */
+  const bw=30,gp=20,wd=W.length*(bw+gp)+gp,dd=x=>S.days[x]||{k:0,n:0,wait:0};
+  const mk=Math.max(0,...W.map(d=>dd(d).k||0)),mm=Math.max(0,...W.map(d=>(dd(d).n||0)-(dd(d).k||0))),sc=96/Math.max(1,mk+mm);
+  const mid=Math.round(Math.max(12,(mk?18:4)+mk*sc)),H=Math.round(mid+Math.max(12,mm*sc+(mm?16:0))+30);
+  const wk=d=>new Date(Date.parse(d+'T12:00:00Z')).toLocaleDateString(LOCALE[LANG]||'pl-PL',{weekday:'short',timeZone:'UTC'});
+  let g='',sum=[];
+  W.forEach((d,i)=>{const x=dd(d),k=x.k,m=x.n-x.k,X=gp+i*(bw+gp);
+    if(k)g+=`<rect class="h" x="${X}" y="${(mid-k*sc).toFixed(1)}" width="${bw}" height="${(k*sc).toFixed(1)}" rx="3"/><text x="${X+bw/2}" y="${(mid-k*sc-4).toFixed(1)}" text-anchor="middle">${k}</text>`;
+    if(m)g+=`<rect class="m" x="${X}" y="${mid}" width="${bw}" height="${(m*sc).toFixed(1)}" rx="3"/><text x="${X+bw/2}" y="${(mid+m*sc+13).toFixed(1)}" text-anchor="middle">${m}</text>`;
+    if(x.wait&&!x.n)g+=`<rect class="w" x="${X+.5}" y="${mid-9}" width="${bw-1}" height="18" rx="3"/><text x="${X+bw/2}" y="${mid+4}" text-anchor="middle">${x.wait}</text>`;
+    g+=`<text class="d" x="${X+bw/2}" y="${H-16}" text-anchor="middle">${escH(wk(d))}</text><text class="d" x="${X+bw/2}" y="${H-3}" text-anchor="middle">${+d.slice(8)}</text>`;
+    sum.push(`${d.slice(8)}.${d.slice(5,7)} ${k}/${x.n}${x.wait&&!x.n?' ('+t('tig.b.w')+')':''}`);});
+  return `<svg class="tig-bs" width="${wd}" height="${H}" viewBox="0 0 ${wd} ${H}" role="img" aria-label="${escH(t('tig.aria.b',{s:sum.join(', ')}))}"><line class="z" x1="0" y1="${mid}" x2="${wd}" y2="${mid}"/>${g}</svg>`;
+}
+function trdIgChips(D,cr){
+  const A=Array.isArray(D&&D.d)?D.d:[];
+  const R=(cr?A.filter(r=>r&&r.fam==='cr'&&Array.isArray(r.rs)).map(trdDRow):A.filter(r=>r&&typeof r==='object'&&TRD_DFAM.includes(r.fam)&&Array.isArray(r.rs)).map(trdDRowW)).filter(Boolean);
+  if(!R.length)return '';
+  const sig=R.filter(r=>r.side==='buy'||r.side==='sell').sort((a,b)=>(b.str-a.str)||(a.side===b.side?0:a.side==='buy'?-1:1)),none=R.length-sig.length;
+  const chip=r=>{const nm=trdDName(r,'sm'),cls=r.st==='buy'?'p':r.st==='sell'?'m':'na';
+    return `<span class="tig-c ${cls}" title="${escH(nm.s)}">${nm.ic}<b>${escH(r.sym||r.id)}</b><i>${r.side==='buy'?'▲':'▼'}${'●'.repeat(Math.max(0,Math.min(3,r.str)))}</i></span>`;};
+  return `<div class="tig-s"><h3 class="mtxt"><b>${t('tig.s.t')}</b></h3><p class="pnote">${t('tig.s.sub')}</p>`+
+    (sig.length?`<div class="tig-cs">${sig.map(chip).join('')}${none?`<span class="tig-c na tig-n">${t('tig.s.none',{n:none})}</span>`:''}</div>`:`<p class="pnote">${t('tig.s.empty')}</p>`)+`</div>`;
+}
+function trdIg(D,cr){
+  trdJLoad();
+  const J=cr?TRDJ.c:TRDJ.w,rows=J&&Array.isArray(J.rows)?J.rows:[],since=J&&typeof J.since==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(J.since)?J.since:null;
+  const days=[...new Set(rows.filter(r=>Array.isArray(r)&&r.length===7&&typeof r[0]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(r[0])&&Number.isInteger(r[2])&&r[2]!==0).map(r=>r[0]))].sort();
+  const W=days.slice(cr?-7:-5),S=trdJStat(rows,W[0]||null,W[W.length-1]||null),A=trdJStat(rows,since,null);
+  const H=(Array.isArray(D&&D.bd)?D.bd:[]).find(b=>b&&b.fam===(cr?'cr':'w')&&b.rule==='all'&&b.v===2&&trdNum(b.k)&&trdNum(b.n)&&b.n>0)||null;
+  const dd=d=>trdDay(d),tone=trdIgTone(S.k,S.n);
+  const dm=d=>{const ms=Date.parse(String(d)+'T12:00:00Z');return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'2-digit',month:'2-digit',timeZone:'UTC'}):'—';};   /* krótko: dzień.miesiąc (bieżące tygodnie) */
+  const head=`<div class="tig-h"><h2>${t(cr?'tig.t.c':'tig.t.w')}</h2><p class="pnote">`+
+    (W.length?t(cr?'tig.sub.c':'tig.sub.w',{n:W.length,a:dm(W[0]),b:dm(W[W.length-1])}):t('tig.start',{d:since?dm(since):'—'}))+`</p></div>`;
+  const big=`<div class="tig-k"><span class="tig-kl">${t('tig.k')}</span>`+
+    (S.n?`<b class="tig-kv">${t('tig.kn',{k:trdC(S.k),n:trdC(S.n)})}</b><span class="tig-kp ${tone}">${trdIgPct(S.k,S.n)}</span>`:`<b class="tig-kv">—</b>`+(S.wait?'':`<span class="tig-kw">${t('tig.d.wait')}</span>`))+
+    (S.wait?`<span class="tig-kw">${t('tig.wait',{n:trdC(S.wait)})}</span>`:'')+(S.n&&S.n<10?`<span class="tig-kw">${t('tig.few')}</span>`:'')+`</div>`;
+  const pc=(k,n)=>n>0?100*k/n:null;
+  const dn=`<div class="tig-d">`+trdIgDonut(pc(S.k,S.n),tone,t(cr?'tig.d.win.c':'tig.d.win.w'),S.n?t('tig.n',{n:trdC(S.n)}):t('tig.d.wait'))+
+    trdIgDonut(pc(A.k,A.n),trdIgTone(A.k,A.n),t('tig.d.since',{d:since?dm(since):'—'}),A.n?t('tig.n',{n:trdC(A.n)}):t('tig.d.wait'))+
+    trdIgDonut(H?100*H.k/H.n:null,H?trdIgTone(H.k,H.n):'na',t('tig.d.hist'),H?t('tig.hist.sub',{d:typeof H.from==='string'?dd(H.from):'—',n:trdC(H.n)}):'—')+`</div>`;
+  const bars=W.length?`<div class="tig-b"><h3 class="mtxt"><b>${t('tig.b.t')}</b></h3>${trdIgBars(W,S)}<p class="tig-lg"><span><i class="h"></i>${t('tig.b.k')}</span><span><i class="m"></i>${t('tig.b.m')}</span><span><i class="w"></i>${t('tig.b.w')}</span></p></div>`:'';
+  return `<section class="panel pcard trd-ig" id="trd-ig">${head}<div class="tig-g${W.length?'':' tig-g2'}">${big}${dn}${bars}</div>${trdIgChips(D,cr)}`+
+    `<p class="pfoot">${t(cr?'tig.foot.c':'tig.foot.w')} ${t('eng.disclaimer')}</p></section>`;
+}
+/* po narysowaniu TRENDY (renderTrendy): infografika zaraz pod nagłówkiem, cała dotychczasowa treść pod jednym rozwijanym blokiem „Szczegóły”
+   (id trd-wiecej — TRD.open pamięta otwarcie). Atrapy testów (sam napis innerHTML, bez querySelector) — bez zmian. Błąd — układ jak dotąd. */
+function trdIgWrap(w,D,cr){
+  try{
+    if(!w||typeof w.querySelector!=='function'||typeof document==='undefined'||!document.createElement)return;
+    const hr=w.querySelector(':scope>.head-row');if(!hr)return;
+    const det=document.createElement('details');det.className='etfd trd-wiecej';det.id='trd-wiecej';
+    const sm=document.createElement('summary');sm.textContent=t('tig.more');det.appendChild(sm);
+    const box=document.createElement('div');box.className='trd-wiecej-b';det.appendChild(box);
+    let n=hr.nextSibling;while(n){const nx=n.nextSibling;box.appendChild(n);n=nx;}
+    w.appendChild(det);hr.insertAdjacentHTML('afterend',trdIg(D,cr));
+  }catch(e){}
+}
+/* pomoc „Jak czytać” w TRENDACH otwiera „Jak liczymy”, który jest teraz w „Szczegółach” — najpierw je rozwija (przechwytywanie: przed obsługą przycisku) */
+document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('#help'):null;if(!b||typeof st!=='object'||!st||st.mode!=='trendy')return;
+  const dw=$('#trd-wiecej');if(dw)dw.open=true;},true);
+/* v158: koniec infografiki */
 
 /* ---------- okno pomocy (znak zapytania) ---------- */
 const hModal=$('#help-modal');
