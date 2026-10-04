@@ -521,7 +521,7 @@ sekcja('ładowarka', () => {
 sekcja('brak pliku', () => {
   const K = lekka('?lang=de', {}, false, true);
   const lack = Object.keys(S.I18N.de).filter(k => !(k in K.I18N.de));
-  const fb = lack.filter(k => K.t(k) !== (S.I18N.en[k] ?? k));
+  const fb = lack.filter(k => K.t(k) !== (S.I18N.en[k] ?? S.I18N.pl[k] ?? k));   // v153: t() — zapas polski po angielskim
   const a = skr(K.doc);
   const okA = a.length === 1 && a[0].src === 'i18n/de.' + hashPliku(K.src[0]) + '.js';
   if (a[0] && a[0].onerror) a[0].onerror();
@@ -540,7 +540,7 @@ sekcja('bez pliku: bez starych tekstów', () => {
   for (const l of SPLIT) {
     const K = lekka('?lang=' + l, {}, false, true), ks = new Set([...Object.keys(S.I18N[l]), ...Object.keys(S.I18N.en)]);
     let pelny = 0, ang = 0; const zle = [];
-    for (const k of ks) { const v = K.t(k); if (v === (S.I18N[l][k] ?? S.I18N.en[k] ?? k)) pelny++; else if (v === (K.I18N.en[k] ?? k)) ang++; else if (zle.length < 5) zle.push(k + '=' + String(v).slice(0, 40)); }
+    for (const k of ks) { const v = K.t(k); if (v === (S.I18N[l][k] ?? S.I18N.en[k] ?? S.I18N.pl[k] ?? k)) pelny++; else if (v === (K.I18N.en[k] ?? K.I18N.pl[k] ?? k)) ang++; else if (zle.length < 5) zle.push(k + '=' + String(v).slice(0, 40)); }
     out[l] = {ok: zle.length === 0 && pelny > 0, klucze: ks.size, pelny, ang, zle};
   }
   R.stale = Object.assign({ok: SPLIT.every(l => out[l].ok)}, out);

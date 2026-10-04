@@ -4287,8 +4287,9 @@ test('v107: strażnik — każdy literał t(\'klucz\') i data-i18n w stronie ma 
   for (const m of code.matchAll(/(?<![A-Za-z0-9_$.])t\(\s*(['"])([^'"\\]+)\1\s*[,)]/g)) keys.add(m[2]);
   for (const m of html.matchAll(/data-i18n(?:-[a-z]+)?="([^"]+)"/g)) keys.add(m[1]);
   assert.ok(keys.size > 900, 'literały znalezione: ' + keys.size);
-  const missing = [...keys].filter(k => !EXCLUDE.includes(k) && !(k in D.pl && k in D.en));
-  assert.deepEqual(missing, [], 'literały bez wpisu w pl/en');
+  // v153 (cel właściciela 04.10: polski najpierw) — wymagany wpis po polsku; angielski i 8 języków dopiero na koniec etapu (t(): zapas polski)
+  const missing = [...keys].filter(k => !EXCLUDE.includes(k) && !(k in D.pl));
+  assert.deepEqual(missing, [], 'literały bez wpisu po polsku');
   for (const k of ['pg.sources', 'zr2.live', 'inst.file', 'eng.notsays', 'lev.t', 'wh.t', 'ix.t']) assert.ok(keys.has(k), 'literał widziany przez strażnika: ' + k);
 });
 
@@ -11601,7 +11602,7 @@ function v152Odczyty(src) {
 test('v152: zero wpisów zasłoniętych — każdy wpis każdego słownika (I18N, EXTRA, EXTRA2 i 141 JSON) w swoim języku jest końcową wartością strony; kolejność nakładania = linie for(…) w pliku', () => {
   const D = v151Dicts(html), Z = v152Zasl(html);
   assert.deepEqual(Z, [], 'wpisy zasłonięte (słownik język klucz):\n  ' + Z.join('\n  '));
-  assert.equal(D.length, 144); assert.equal(D[0].name, 'I18N');
+  assert.ok(D.length >= 144, 'słowników: ' + D.length); assert.equal(D[0].name, 'I18N');   // v153: nowe słowniki (tylko pl) dochodzą
   const n = D.map(d => d.name), at = x => n.indexOf(x);
   assert.ok(at('EXTRA142') > at('EXTRA149') && at('EXTRA152') > at('EXTRA150') && at('EXTRA23') > at('EXTRA35') && at('EXTRA39') > at('EXTRA41') && at('EXTRA97') > at('EXTRA105'), 'kolejność z linii for, nie z numerów');
   const I = v143Final(html);
@@ -11626,4 +11627,52 @@ test('v152: strażnik zasłoniętych działa — nowy słownik, który nadpisuje
   assert.deepEqual(zrodlo, ['EXTRA152'], 'rwc.in po niemiecku tylko w EXTRA152');
   const src = html.slice(0, end) + mk('EXTRA9952', {de: {'rwc.in': I.de['rwc.in'] + ' (neu)', 'x.v152.nowy': 'Neu'}}) + html.slice(end);
   assert.deepEqual(v152Zasl(src), ['EXTRA152 de rwc.in'], 'stary wpis zasłonięty; nowy klucz — nie');
+});
+
+
+/* ---------- v153: polski najpierw + strzałka „Na górę” ---------- */
+test('v153: polski najpierw — t(): język → angielski → polski → klucz; nowe teksty mogą istnieć tylko po polsku', () => {
+  const line = html.split('\n').find(l => l.startsWith('const t=(k,vars)=>{'));
+  assert.ok(line && line.includes('??I18N.en[k]??I18N.pl[k]??k'), 'zapas polski po angielskim');
+  const f = (I, L) => new Function('I18N', 'LANG', line + '\nreturn t;')(I, L);
+  const I = {pl: {a: 'A-pl', b: 'B-pl {x}', c: 'C-pl'}, en: {a: 'A-en', c: 'C-en'}, de: {c: 'C-de'}};
+  assert.equal(f(I, 'de')('c'), 'C-de'); assert.equal(f(I, 'de')('a'), 'A-en', 'brak w języku — angielski');
+  assert.equal(f(I, 'de')('b', {x: 1}), 'B-pl 1', 'brak też po angielsku — polski (z polami)'); assert.equal(f(I, 'de')('zz'), 'zz', 'nigdzie — klucz');
+  assert.equal(f(I, 'en')('b'), 'B-pl {x}'); assert.equal(f(I, 'pl')('a'), 'A-pl');
+});
+
+function v153Strzalka(scrollY, innerHeight, anim, reduce) {
+  const a = html.indexOf('/* v153: strzałka „Na górę” (cel właściciela'), b = html.indexOf('/* v153: koniec strzałki */', a);
+  assert.ok(a > 0 && b > a, 'blok strzałki');
+  const L = {}, calls = [], attrs = {}, Q = [];
+  const btn = {hidden: true, title: '', blur() { calls.push('blur'); }, setAttribute(k, v) { attrs[k] = v; }, addEventListener(e, f) { L['btn.' + e] = f; }};
+  const win = {scrollY, innerHeight, addEventListener(e, f, o) { L[e] = f; L[e + '.opt'] = o; }, requestAnimationFrame(f) { Q.push(f); return Q.length; },
+    matchMedia: q => ({matches: reduce && q === '(prefers-reduced-motion: reduce)'}), scrollTo(o) { calls.push(o); }};
+  new Function('window', '$', 't', 'st', html.slice(a, b))(win, q => q === '#totop' ? btn : null, k => k === 'top.b' ? 'Na górę' : k, {anim});
+  const scroll = () => { L.scroll(); while (Q.length) Q.shift()(); };   // klatka animacji po zdarzeniu przewijania
+  return {btn, win, L, calls, attrs, scroll};
+}
+test('v153: strzałka „Na górę” — ukryta na górze, widoczna po przewinięciu ponad 1,5 ekranu (min. 600 px), kliknięcie = płynnie na górę', () => {
+  const s = v153Strzalka(0, 800, true, false);
+  assert.equal(s.btn.hidden, true, 'na górze strony — ukryta'); assert.deepEqual(s.L['scroll.opt'], {passive: true});
+  s.win.scrollY = 1100; s.scroll(); assert.equal(s.btn.hidden, true, '1100 px < 1,5 × 800 px');
+  s.win.scrollY = 1300; s.scroll(); assert.equal(s.btn.hidden, false, 'ponad 1,5 ekranu — widoczna');
+  assert.equal(s.btn.title, 'Na górę'); assert.equal(s.attrs['aria-label'], 'Na górę', 'tekst dla czytnika ekranu');
+  s.L['btn.click'](); assert.deepEqual(s.calls, [{top: 0, behavior: 'smooth'}, 'blur']);
+  s.win.scrollY = 100; s.scroll(); assert.equal(s.btn.hidden, true, 'po powrocie na górę — znów ukryta');
+  const m = v153Strzalka(500, 300, true, false); assert.equal(m.btn.hidden, true, 'minimum 600 px nawet na niskim ekranie');
+  m.win.scrollY = 601; m.scroll(); assert.equal(m.btn.hidden, false);
+  for (const [anim, red] of [[false, false], [true, true]]) {
+    const r = v153Strzalka(5000, 800, anim, red); assert.equal(r.btn.hidden, false, 'od razu widoczna, gdy strona już przewinięta');
+    r.L['btn.click'](); assert.deepEqual(r.calls[0], {top: 0, behavior: 'auto'}, 'bez animacji: ' + (anim ? 'system ogranicza ruch' : 'animacje wyłączone'));
+  }
+});
+test('v153: strzałka — przycisk w stronie (ukryty na starcie), styl, słownik tylko po polsku po ostatniej linii nakładania', () => {
+  assert.equal((html.match(/<button type="button" class="totop" id="totop" hidden><svg /g) || []).length, 1, 'jeden przycisk, ukryty na starcie');
+  assert.ok(html.indexOf('id="totop"') > html.indexOf('id="help-modal"') && html.indexOf('id="totop"') < html.indexOf('<script>'), 'po oknach pomocy, przed skryptem (stopka zostaje końcem .app)');
+  assert.ok(html.includes('.totop{position:fixed;') && html.includes('.totop[hidden]{display:none}') && html.includes('z-index:45;'), 'styl');
+  const m = [...html.matchAll(/^for\(const l in (EXTRA\w+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)];
+  const d0 = html.indexOf('const EXTRA153='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA153='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl'], 'v153: tylko polski (języki obce na koniec etapu)'); assert.equal(D.pl['top.b'], 'Na górę');
+  assert.ok(m.some(x => x[1] === 'EXTRA153') && m.findIndex(x => x[1] === 'EXTRA153') > m.findIndex(x => x[1] === 'EXTRA152'), 'nałożony po EXTRA152');
 });
