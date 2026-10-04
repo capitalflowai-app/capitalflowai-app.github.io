@@ -7506,8 +7506,8 @@ test('v131: Fed — słownik EXTRA128 w 10 językach (te same klucze i pola), se
   assert.ok(html.indexOf('const EXTRA128=') < html.indexOf('/* ===================== STAN I DANE'), 'w bloku słowników');
   const s = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
   assert.equal(html.split('<section class="panel pcard" id="g-fed" hidden></section>').length, 2, 'jedno miejsce sekcji');
-  assert.ok(html.indexOf('<section id="g-prob"></section>\n    <section class="panel pcard" id="g-fed" hidden></section>\n') > 0, 'zaraz po #g-prob');
-  assert.ok(s('g-fed') < html.indexOf('<section class="q-grid gq" id="g-q"></section>') && s('g-fed') < s('inst') && s('inst') < s('tv-markets'), 'przed #g-q; widgety TradingView dalej ostatnie');
+  assert.ok(html.indexOf('<section class="panel pcard" id="g-prob" hidden></section>\n    <section class="panel pcard" id="g-fed" hidden></section>\n') > 0, 'zaraz po #g-prob');
+  assert.ok(s('g-fed') < html.indexOf('<section class="panel pcard" id="g-q"></section>') && s('g-fed') < s('inst') && s('inst') < s('tv-markets'), 'przed #g-q; widgety TradingView dalej ostatnie');
   assert.ok(html.includes("srvJSON('fed')") && html.includes('/* v131 fed: szanse decyzji na posiedzeniach (rynek zakładów) */') && html.includes('#g-fed .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}'), 'plik, styl');
   assert.ok(html.indexOf('/* v131 fed') < html.indexOf('</style>') && html.indexOf('/* v124 szwajcaria') < html.indexOf('/* v131 fed'), 'styl w arkuszu, po stylu v124');
   assert.ok(html.includes("FED.timer=setInterval(()=>{if(!document.hidden)fedLoad();},20*60*1000);"), 'odświeżanie co 20 min (automat co 20 min)');
@@ -8119,7 +8119,7 @@ test('v139: strach i chciwość — (i) przy tytule to przycisk: dotknięcie, kl
 
 test('v139: strach i chciwość — miejsca na stronie (CRYPTO zaraz pod „Pokryciem danych”, GLOBAL zaraz pod kartami jakości danych, widgety nadal na końcu obu zakładek), plik, odświeżanie, zaczep w renderKr, kolejność bloku, styl w obu motywach; EXTRA136 ×10 bez nazw dostawców', () => {
   assert.ok(html.includes('<section class="panel gauge"><h2 data-i18n="rail.rel"></h2><div id="gauge"></div></section>\n    <section class="panel fg" id="c-fg" hidden></section>\n'), 'CRYPTO: pasek, zaraz pod „Pokryciem danych”');
-  assert.ok(html.includes('<section class="q-grid gq" id="g-q"></section>\n    <section class="panel pcard fg" id="g-fg" hidden></section>\n'), 'GLOBAL: zaraz pod kartami jakości danych');
+  assert.ok(html.includes('<section class="panel pcard" id="g-q"></section>\n    <section class="panel pcard fg" id="g-fg" hidden></section>\n'), 'GLOBAL: zaraz pod kartami jakości danych');
   assert.equal(html.split('id="c-fg"').length, 2); assert.equal(html.split('id="g-fg"').length, 2);
   const secs = (a, b) => [...html.slice(html.indexOf(a), html.indexOf(b, html.indexOf(a))).matchAll(/<section [^>]*id="([^"]+)"/g)].map(m => m[1]);
   const gl = secs('<section class="global" id="global"', '<section class="global" id="trendy"'), cr = secs('<main class="center" id="crypto"', '</main>');
@@ -11675,4 +11675,125 @@ test('v153: strzałka — przycisk w stronie (ukryty na starcie), styl, słownik
   const d0 = html.indexOf('const EXTRA153='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA153='.length, d1));
   assert.deepEqual(Object.keys(D), ['pl'], 'v153: tylko polski (języki obce na koniec etapu)'); assert.equal(D.pl['top.b'], 'Na górę');
   assert.ok(m.some(x => x[1] === 'EXTRA153') && m.findIndex(x => x[1] === 'EXTRA153') > m.findIndex(x => x[1] === 'EXTRA152'), 'nałożony po EXTRA152');
+});
+
+
+/* ---------- v154: sekcje do wyboru (GLOBAL i CRYPTO) ---------- */
+/* mały DOM do testów: elementy z klasami, atrybutami, dziećmi; closest() dla prostych selektorów złożonych (znacznik, #id, .klasa, [atr], [atr="w"]) */
+function v154Sel(e, sel) {
+  return sel.split(',').some(p => {
+    const m = p.trim().match(/^([a-z0-9]*)((?:[#.][\w-]+|\[[^\]]+\])*)$/i); if (!m) return false;
+    if (m[1] && e.tagName !== m[1].toUpperCase()) return false;
+    for (const x of m[2].match(/[#.][\w-]+|\[[^\]]+\]/g) || []) {
+      if (x[0] === '#') { if (e.id !== x.slice(1)) return false; }
+      else if (x[0] === '.') { if (!e.classList.contains(x.slice(1))) return false; }
+      else { const a = x.slice(1, -1).split('='), k = a[0], v = a[1] && a[1].replace(/"/g, ''); const ok = k === 'id' ? !!e.id : k in e.attrs; if (!ok || (v !== undefined && (k === 'id' ? e.id : e.attrs[k]) !== v)) return false; }
+    }
+    return true;
+  });
+}
+function v154El(tag, cls, kids, at) {
+  const e = {tagName: tag.toUpperCase(), id: '', attrs: Object.assign({}, at || {}), parentElement: null, children: [], textContent: '', innerHTML: '', title: '', type: '',
+    classList: {s: new Set((cls || '').split(' ').filter(Boolean)), add(...c) { c.forEach(x => this.s.add(x)); }, remove(...c) { c.forEach(x => this.s.delete(x)); },
+      contains(c) { return this.s.has(c); }, toggle(c, f) { if (f === undefined ? !this.s.has(c) : f) this.s.add(c); else this.s.delete(c); return this.s.has(c); }},
+    setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    appendChild(c) { c.parentElement = this; this.children.push(c); return c; },
+    querySelector(q) { const st = [...this.children]; while (st.length) { const x = st.shift(); if (v154Sel(x, q)) return x; st.push(...x.children); } return null; },
+    closest(q) { let x = this; while (x) { if (v154Sel(x, q)) return x; x = x.parentElement; } return null; }};
+  Object.defineProperty(e, 'className', {set(v) { e.classList.s = new Set(String(v).split(' ').filter(Boolean)); }, get() { return [...e.classList.s].join(' '); }});
+  for (const k of kids || []) e.appendChild(k);
+  return e;
+}
+function v154Karta(id, tytul, bezNaglowka) {
+  const h2 = v154El('h2'); h2.textContent = '  ' + tytul + '\n ';
+  const btn = v154El('button', 'mini-i'), live = v154El('span', 'live on');
+  const head = bezNaglowka ? v154El('div', 'tile') : v154El('div', 'etfh', [v154El('div', '', [h2, v154El('p', 'pnote')]), v154El('div', 'etfb', [live, btn])]);
+  const s = v154El('section', 'panel pcard', [head, v154El('div', 'etfkpis'), v154El('details', 'etfd')]); s.id = id; s.attrs.id = id;
+  return {s, h2, btn, live, head};
+}
+function v154Strona(pamiec, rzuca) {
+  const a = html.indexOf('/* v154: sekcje do wyboru (cel właściciela'), b = html.indexOf('/* v154: koniec sekcji do wyboru */', a);
+  assert.ok(a > 0 && b > a, 'blok sekcji');
+  const G = v154El('section', 'global'); G.id = 'global'; const Cr = v154El('main', 'center'); Cr.id = 'crypto';
+  const K = {fund: v154Karta('g-fund', 'Fundusze USA'), fg: v154Karta('g-fg', 'Strach i chciwość'), map: v154Karta('g-map', 'Mapa', true), wh: v154Karta('c-wieloryby', 'Wieloryby')};
+  G.appendChild(K.fund.s); G.appendChild(K.fg.s); G.appendChild(K.map.s); Cr.appendChild(K.wh.s);
+  const barG = v154El('div', 'zw-bar', [v154El('button', 'zw-a', [], {'data-zw-all': '1'}), v154El('button', 'zw-a', [], {'data-zw-all': '0'})], {'data-zw': 'global'}); G.appendChild(barG);
+  const L = {}, MO = [], zapisy = [];
+  const ls = {getItem(k) { if (rzuca) throw new Error('blokada'); return k === 'cfai.zw' ? pamiec : null; }, setItem(k, v) { if (rzuca) throw new Error('blokada'); zapisy.push([k, v]); }};
+  const doc = {querySelectorAll(q) { assert.equal(q, '#global section.pcard[id],#crypto section.pcard[id]'); return [K.fund.s, K.fg.s, K.map.s, K.wh.s]; },
+    createElement(tag) { return v154El(tag); }, addEventListener(e, f) { L[e] = f; }};
+  class MOb { constructor(f) { this.f = f; MO.push(this); } observe(s, o) { assert.deepEqual(o, {childList: true}); (this.s = this.s || []).push(s); } }
+  const tt = k => ({'zw.zwin': 'Zwiń', 'zw.rozwin': 'Rozwiń'})[k] || k;
+  const X = new Function('document', 'localStorage', 't', 'MutationObserver', 'window', html.slice(a, b) + '\nreturn {ZW_OPEN, zwPrep, zwSet, zwOpenFor, zwHead};')(
+    doc, ls, tt, MOb, {getSelection: () => ''});
+  const klik = el => L.click({target: el});
+  const rysuj = k => { const n = v154Karta(k.s.id, 'Nowy tytuł'); k.s.children = []; for (const c of n.s.children) k.s.appendChild(c); MO[0].f([{target: k.s}, {target: k.s}]); return n; };
+  return {X, K, L, MO, zapisy, klik, rysuj, barG};
+}
+const v154Btn = s => s.children.find(c => c.classList.contains('zw-t'));
+test('v154: sekcje do wyboru — karty z nagłówkiem startują zwinięte, ze strzałką i opisem dla czytnika ekranu; karta bez nagłówka bez zmian', () => {
+  const S = v154Strona(null);
+  for (const k of [S.K.fund, S.K.fg, S.K.wh]) {
+    assert.ok(k.s.classList.contains('zw-on') && k.s.classList.contains('zw'), k.s.id + ': zwinięta');
+    const b = v154Btn(k.s); assert.ok(b, 'strzałka'); assert.equal(b.attrs['aria-expanded'], 'false'); assert.equal(b.type, 'button');
+  }
+  assert.equal(v154Btn(S.K.fund.s).attrs['aria-label'], 'Rozwiń: Fundusze USA', 'tytuł bez zbędnych spacji');
+  assert.ok(!S.K.map.s.classList.contains('zw-on') && !v154Btn(S.K.map.s), 'bez nagłówka .etfh — karta zwykła');
+  assert.equal(S.MO.length, 1); assert.equal(S.MO[0].s.length, 4, 'obserwator każdej karty');
+});
+test('v154: kliknięcie strzałki albo tytułu rozwija i zwija; przyciski i linki nagłówka działają jak dotąd; stan zapamiętany w przeglądarce', () => {
+  const S = v154Strona(null), f = S.K.fund;
+  S.klik(v154Btn(f.s)); assert.ok(!f.s.classList.contains('zw'), 'strzałka — rozwinięta');
+  assert.equal(v154Btn(f.s).attrs['aria-expanded'], 'true'); assert.equal(v154Btn(f.s).attrs['aria-label'], 'Zwiń: Fundusze USA');
+  assert.deepEqual(S.zapisy.at(-1), ['cfai.zw', '["g-fund"]'], 'zapamiętane');
+  S.klik(f.h2); assert.ok(f.s.classList.contains('zw'), 'tytuł — zwinięta'); assert.deepEqual(S.zapisy.at(-1), ['cfai.zw', '[]']);
+  S.klik(f.live); assert.ok(!f.s.classList.contains('zw'), 'znaczek świeżości (nie przycisk) — rozwija');
+  const n = S.zapisy.length; S.klik(f.btn); assert.ok(!f.s.classList.contains('zw') && S.zapisy.length === n, 'przycisk w nagłówku (np. (i)) — bez zmiany');
+  S.klik(f.s.children[1]); assert.ok(!f.s.classList.contains('zw'), 'treść karty — bez zmiany');
+  const d = v154Strona('["g-fg","zły id!",7]'); assert.ok(!d.K.fg.s.classList.contains('zw') && d.K.fund.s.classList.contains('zw'), 'pamięć: rozwinięta g-fg; złe wpisy pominięte');
+  for (const zle of ['{"a":1}', 'nie json', '']) { const z = v154Strona(zle); assert.ok(z.K.fund.s.classList.contains('zw'), 'zła pamięć = wszystko zwinięte: ' + zle); }
+  const r = v154Strona(null, true); r.klik(v154Btn(r.K.fund.s)); assert.ok(!r.K.fund.s.classList.contains('zw'), 'pamięć przeglądarki zablokowana — działa, tylko bez zapamiętania');
+});
+test('v154: „Rozwiń wszystkie / Zwiń wszystkie” tylko w swojej zakładce; ponowne rysowanie karty zachowuje stan; (i) rozwija swoją kartę', () => {
+  const S = v154Strona(null);
+  S.klik(S.barG.children[0]); assert.ok(!S.K.fund.s.classList.contains('zw') && !S.K.fg.s.classList.contains('zw'), 'GLOBAL rozwinięte');
+  assert.ok(S.K.wh.s.classList.contains('zw'), 'CRYPTO bez zmian'); assert.deepEqual(JSON.parse(S.zapisy.at(-1)[1]).sort(), ['g-fg', 'g-fund']);
+  S.MO[0].f([{type: 'attributes', attributeName: 'lang'}], null); S.MO[0].f(undefined); assert.ok(!S.K.fund.s.classList.contains('zw'), 'zapisy bez karty — pominięte');
+  const n = S.rysuj(S.K.fund); assert.ok(!S.K.fund.s.classList.contains('zw'), 'po rysowaniu — dalej rozwinięta');
+  assert.equal(S.K.fund.s.children.filter(c => c.classList.contains('zw-t')).length, 1, 'jedna strzałka po rysowaniu'); assert.equal(v154Btn(S.K.fund.s).attrs['aria-label'], 'Zwiń: Nowy tytuł');
+  S.klik(S.barG.children[1]); assert.ok(S.K.fund.s.classList.contains('zw') && S.K.fg.s.classList.contains('zw'), 'GLOBAL zwinięte'); assert.deepEqual(S.zapisy.at(-1), ['cfai.zw', '[]']);
+  S.X.zwOpenFor(S.K.fg.s.children[2]); assert.ok(!S.K.fg.s.classList.contains('zw'), 'element w zwiniętej karcie — karta rozwinięta');
+  assert.ok(html.includes("if(!d)return false;d.open=true;if(typeof zwOpenFor==='function')zwOpenFor(d);"), '(i) „Jak liczymy” rozwija kartę');
+});
+test('v154: pasek nad kartami w GLOBAL i CRYPTO, styl bez stałych kolorów, teksty tylko po polsku po ostatniej linii nakładania', () => {
+  const g = html.indexOf('<div class="zw-bar" data-zw="global">'), c = html.indexOf('<div class="zw-bar" data-zw="crypto">');
+  assert.ok(g > html.indexOf('id="global"') && g < html.indexOf('id="g-etf"'), 'GLOBAL: nad pierwszą kartą');
+  assert.ok(c > html.indexOf('id="crypto"') && c < html.indexOf('id="eng-coinmetrics-exchange-flows"'), 'CRYPTO: nad pierwszą kartą');
+  const c0 = html.indexOf('/* v154: sekcje do wyboru — zwinięta karta'), c1 = html.indexOf('</style>', c0), css = html.slice(c0, c1);
+  assert.ok(c0 > 0 && css.includes('.pcard.zw-on.zw>:not(.etfh):not(.zw-t){display:none!important}') && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'styl (zmienne motywu)');
+  const d0 = html.indexOf('const EXTRA154='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA154='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['g.q.h', 'g.q.sumcov', 'zw.all', 'zw.hint', 'zw.none', 'zw.rozwin', 'zw.zwin']);
+  const m = [...html.matchAll(/^for\(const l in (EXTRA\w+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)].map(x => x[1]);
+  assert.equal(m.at(-1), 'EXTRA154', 'nałożony jako ostatni');
+});
+test('v154: „Gdzie warunki sprzyjają” i „Jakość danych mapy” to zwykłe karty z nagłówkiem — w zwiniętym widać sedno (najlepszy i najsłabszy region; data i pokrycie)', () => {
+  assert.ok(html.includes('<section class="panel pcard" id="g-prob" hidden></section>') && html.includes('<section class="panel pcard" id="g-q"></section>'), 'sekcje to karty');
+  const d0 = html.indexOf('/* v53: okno czasu i źródło bazy'), d1 = html.indexOf('function gRenderRefresh(){', d0);
+  const els = {}, $ = s => els[s] || (els[s] = {innerHTML: '', hidden: true});
+  const PL = Object.assign({}, gm96.D.pl, {'g.q.h': 'Jakość danych mapy', 'g.q.sumcov': '{n} z {m} regionów z danymi', 'g.n.usa': 'USA', 'g.n.jpn': 'Japonia i Korea', 'g.pr.t': 'Gdzie warunki sprzyjają'});
+  const T = (k, o) => { let s = PL[k] !== undefined ? PL[k] : k; if (o) for (const v in o) s = s.split('{' + v + '}').join(o[v]); return s; };
+  const GREG = [{id: 'usa'}, {id: 'jpn'}, {id: 'eur'}], GP = [];
+  const f = new Function('t', 'escH', '$', '$$', 'GDATA', 'gst', 'GLIVE', 'GREG', 'GLINK', 'GPROB', 'I18N', 'gAgeNote', 'flagImg', 'regFlags', 'st', 'gRenderDetail', 'gDirty',
+    html.slice(d0, d1) + '\nreturn {gRenderProb, gRenderQ};')(
+    T, gm96.escH, $, () => [], {'1M': {usa: [1, 1, 1], jpn: [0, 0, 0], eur: [-1, -1, 1]}}, {period: '1M'}, {asof: '2026-08', src: {}}, GREG, true, GP, {en: gm96.D.en},
+    d => ' · dane sprzed 34 dni', gm96.H.flagImg, gm96.H.regFlags, {anim: false}, () => {}, () => {});
+  f.gRenderProb(); assert.equal(els['#g-prob'].hidden, true, 'bez danych — karta ukryta'); assert.equal(els['#g-prob'].innerHTML, '');
+  GP.push({id: 'usa', score: 40, parts: [['fx', 2, '+2']]}, {id: 'jpn', score: -12, parts: [['mom1', -3, '−3']]});
+  f.gRenderProb(); const p = els['#g-prob'].innerHTML;
+  assert.equal(els['#g-prob'].hidden, false);
+  assert.ok(p.startsWith('<div class="etfh"><div><h2>Gdzie warunki sprzyjają</h2><p class="pnote">▲ USA +40 · ▼ Japonia i Korea −12</p></div></div>'), 'nagłówek z sednem: ' + p.slice(0, 160));
+  assert.ok(p.includes('<button class="prow pos" data-r="usa">') && !p.includes('<div class="panel pcard">'), 'wiersze jak dotąd, bez karty w karcie');
+  f.gRenderQ(); const q = els['#g-q'].innerHTML;
+  assert.ok(q.startsWith('<div class="etfh"><div><h2>Jakość danych mapy</h2><p class="pnote">2026-08 · dane sprzed 34 dni · 2 z 3 regionów z danymi</p></div></div><div class="q-grid gq">'), q.slice(0, 200));
+  assert.equal((q.match(/<div class="panel q">/g) || []).length, 5, 'pięć kart w środku');
 });

@@ -14835,7 +14835,7 @@ class FedV131(unittest.TestCase):
         self.assertIn("fr = fed_swiezosc(files.get('fed'))", k); self.assertLess(k.index("fr = fed_swiezosc(files.get('fed'))"), k.index('# 3d. v115: zgodność liczb'))
         h = open(os.path.join(root, 'index.html'), encoding='utf-8').read()
         self.assertEqual(h.count('<section class="panel pcard" id="g-fed" hidden></section>'), 1); self.assertIn("srvJSON('fed')", h)
-        self.assertTrue(h.index('<section id="g-prob"></section>') < h.index('id="g-fed"') < h.index('id="g-q"') < h.index('id="tv-markets"'), 'zaraz po g-prob, przed widgetami')
+        self.assertTrue(h.index('<section class="panel pcard" id="g-prob" hidden></section>') < h.index('id="g-fed"') < h.index('id="g-q"') < h.index('id="tv-markets"'), 'zaraz po g-prob, przed widgetami')
         self.assertEqual(h.count('Kalshi'), 1, 'nazwa rynku na stronie jeden raz (stała FED_VENUE)'); self.assertIn("const FED_VENUE={ks:'Kalshi'};", h)
         self.assertEqual(h.count('const EXTRA128='), 1); self.assertNotIn('KXFEDDECISION', h, 'kod serii tylko w pliku danych')
         me = open(__file__, encoding='utf-8').read(); a = me.index('class FedV131(')

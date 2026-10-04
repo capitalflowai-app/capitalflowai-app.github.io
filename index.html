@@ -1113,6 +1113,23 @@ td .cell .logo-img{width:34px;height:34px}
 .totop:focus-visible{outline:2px solid var(--bl);outline-offset:3px}
 .totop svg{width:22px;height:22px}
 @media (prefers-reduced-motion: reduce){.totop{transition:none}.totop:hover{transform:none}}
+/* v154: sekcje do wyboru — zwinięta karta: tylko nagłówek (tytuł, jedna linia opisu, znaczek świeżości) i strzałka w prawym górnym rogu */
+.pcard.zw-on{position:relative}
+.pcard.zw-on>.etfh{cursor:pointer;padding-right:44px}
+.pcard.zw-on.zw>:not(.etfh):not(.zw-t){display:none!important}
+.pcard.zw-on.zw>.etfh .pnote{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.pcard.zw-on.zw{padding-bottom:14px}
+.zw-t{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;padding:0;border:1px solid var(--line);background:transparent;color:var(--mut);cursor:pointer;transition:transform .2s ease,color .15s ease,border-color .15s ease}
+.zw-t svg{width:18px;height:18px}
+.zw-t:hover{color:var(--bl);border-color:var(--bl)}
+.zw-t:focus-visible{outline:2px solid var(--bl);outline-offset:2px}
+.pcard.zw-on:not(.zw)>.zw-t{transform:rotate(180deg)}
+.zw-bar{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin:6px 2px 10px;color:var(--mut);font-size:13px}
+.zw-bs{display:flex;gap:8px;flex-wrap:wrap}
+.zw-a{border:1px solid var(--line);background:var(--panel);color:var(--tx);border-radius:999px;padding:6px 12px;font:inherit;cursor:pointer;min-height:32px}
+.zw-a:hover{border-color:var(--bl);color:var(--bl)}
+.zw-a:focus-visible{outline:2px solid var(--bl);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){.zw-t{transition:none}}
 </style>
 </head>
 <body data-bg="soft">
@@ -1188,7 +1205,8 @@ td .cell .logo-img{width:34px;height:34px}
       <h2 data-i18n="why"></h2>
       <div class="detail" id="detail" aria-live="polite"></div>
     </section>
-    <section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>
+    <div class="zw-bar" data-zw="crypto"><span class="zw-hint" data-i18n="zw.hint"></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->
+<section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>
     <section class="panel pcard" id="c-wieloryby" hidden></section>
     <section class="panel pcard" id="eng-defillama-stablecoins" hidden></section>
     <section class="panel pcard" id="c-rwa" hidden></section>
@@ -1292,10 +1310,11 @@ td .cell .logo-img{width:34px;height:34px}
       <h2 data-i18n="why"></h2>
       <div class="detail" id="g-detail" aria-live="polite"></div>
     </section>
-    <section class="panel pcard etf" id="g-etf" hidden></section>
-    <section id="g-prob"></section>
+    <div class="zw-bar" data-zw="global"><span class="zw-hint" data-i18n="zw.hint"></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->
+<section class="panel pcard etf" id="g-etf" hidden></section>
+    <section class="panel pcard" id="g-prob" hidden></section>
     <section class="panel pcard" id="g-fed" hidden></section>
-    <section class="q-grid gq" id="g-q"></section>
+    <section class="panel pcard" id="g-q"></section>
     <section class="panel pcard fg" id="g-fg" hidden></section>
     <section class="panel pcard" id="tic" hidden></section>
     <section class="panel pcard" id="bis" hidden></section>
@@ -1847,6 +1866,9 @@ for(const l in EXTRA152)if(I18N[l])Object.assign(I18N[l],EXTRA152[l]);
 /* v153: strzałka „Na górę” — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu; t() pokazuje polski) */
 const EXTRA153={"pl":{"top.b":"Na górę"}};
 for(const l in EXTRA153)if(I18N[l])Object.assign(I18N[l],EXTRA153[l]);
+/* v154: sekcje do wyboru (GLOBAL i CRYPTO) — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
+const EXTRA154={"pl":{"zw.hint":"Wybierz, co czytasz: kliknij tytuł sekcji, aby ją rozwinąć.","zw.all":"Rozwiń wszystkie","zw.none":"Zwiń wszystkie","zw.rozwin":"Rozwiń","zw.zwin":"Zwiń","g.q.h":"Jakość danych mapy","g.q.sumcov":"{n} z {m} regionów z danymi"}};
+for(const l in EXTRA154)if(I18N[l])Object.assign(I18N[l],EXTRA154[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -3338,7 +3360,7 @@ function fgComps(N,has){
 function fgHead(meth,how){return `<button type="button" class="mini-i fg-i" data-fg-how="${how}" aria-controls="${how}" title="${escH(meth)}" aria-label="${escH(t('fg.how'))}">i</button>`;}
 /* rozwinięcie „Jak liczymy” (id) z przewinięciem do niego i fokusem na jego nagłówku; brak elementu = false (nic się nie dzieje) */
 function fgHowOpen(id){
-  const d=typeof id==='string'&&/^fg-how-[cg]$/.test(id)?$('#'+id):null;if(!d)return false;d.open=true;
+  const d=typeof id==='string'&&/^fg-how-[cg]$/.test(id)?$('#'+id):null;if(!d)return false;d.open=true;if(typeof zwOpenFor==='function')zwOpenFor(d);
   if(typeof d.scrollIntoView==='function')d.scrollIntoView({behavior:typeof st==='object'&&st&&st.anim?'smooth':'auto',block:'nearest'});
   const sm=typeof d.querySelector==='function'?d.querySelector('summary'):null;if(sm&&typeof sm.focus==='function')sm.focus({preventScroll:true});
   return true;
@@ -5285,12 +5307,15 @@ function gRenderQ(){
    ['g.q.corr',GLINK?'gmap.q.corrv1':'g.q.corrv0','gmap.q.corrd',''],
    ['g.q.lim','g.q.limv','gmap.q.limd','']
   ];
-  w.innerHTML=cards.map(([a,b,c,extra])=>
-    `<div class="panel q"><div class="t">${t(a)}</div><div class="v">${extra||t(b)}</div><p>${t(c)}</p></div>`).join('');
+  /* v154: jedna karta „Jakość danych mapy” (zwijana jak inne): w nagłówku sedno — data danych, ich wiek i pokrycie regionów; pięć kart w środku */
+  const sum=(GLIVE.asof?escH(GLIVE.asof)+gAgeNote(GLIVE.asof)+' · ':'')+t('g.q.sumcov',{n:cov,m:GREG.length});
+  w.innerHTML=`<div class="etfh"><div><h2>${t('g.q.h')}</h2><p class="pnote">${sum}</p></div></div><div class="q-grid gq">`+cards.map(([a,b,c,extra])=>
+    `<div class="panel q"><div class="t">${t(a)}</div><div class="v">${extra||t(b)}</div><p>${t(c)}</p></div>`).join('')+'</div>';
 }
 function gRenderProb(){
   const w=$('#g-prob');if(!w)return;
-  if(!GPROB.length){w.innerHTML='';return;}
+  if(!GPROB.length){w.innerHTML='';w.hidden=true;return;}
+  w.hidden=false;   /* v154: sekcja #g-prob to sama karta — bez danych ukryta */
   const top=GPROB.filter(o=>o.score>0).slice(0,4),bot=GPROB.filter(o=>o.score<0).slice(-4).reverse();   /* według znaku wyniku, nie miejsca w rankingu */
   const row=o=>{
     const cls=gmTone(o.score);   /* v96: flagi przed nazwą; zero — neutralnie */
@@ -5301,14 +5326,16 @@ function gRenderProb(){
       <span class="pbar"><i style="width:${bar}%"></i></span>
       <span class="pscore">${o.score>0?'+':o.score<0?'−':''}${Math.abs(o.score)}</span>
       <span class="pparts">${chips}</span></button>`;};
-  w.innerHTML=`<div class="panel pcard">
-     <h2>${t('g.pr.t')}</h2>
+  /* v154: karta zwijana jak inne (sekcja #g-prob to sama karta) — w nagłówku sedno: najlepszy i najsłabszy region z wynikiem */
+  const sk=o=>`${t('g.n.'+o.id)} ${o.score>0?'+':o.score<0?'−':''}${Math.abs(o.score)}`,
+        sum=[top[0]?'▲ '+sk(top[0]):'',bot[0]?'▼ '+sk(bot[0]):''].filter(Boolean).join(' · ');
+  w.innerHTML=`<div class="etfh"><div><h2>${t('g.pr.t')}</h2><p class="pnote">${sum?escH(sum):t('g.pr.note')}</p></div></div>
      <p class="pnote">${t('g.pr.note')}</p>
      <div class="pcols">
        <div><h3 class="pup">▲ ${t('g.pr.up')}</h3>${top.map(row).join('')||'<p class="pnote">—</p>'}</div>
        <div><h3 class="pdn">▼ ${t('g.pr.dn')}</h3>${bot.map(row).join('')||'<p class="pnote">—</p>'}</div>
      </div>
-     <p class="pfoot">${t('g.pr.foot')}</p></div>`;
+     <p class="pfoot">${t('g.pr.foot')}</p>`;
   $$('#g-prob .prow').forEach(b=>b.addEventListener('click',()=>{
     gst.sel={type:'node',id:b.dataset.r};gRenderDetail();gDirty();
     $('#g-why').scrollIntoView({behavior:st.anim?'smooth':'auto',block:'center'});}));
@@ -7814,6 +7841,40 @@ document.addEventListener('click',e=>{const a=e.target&&e.target.closest?e.targe
   b.addEventListener('click',()=>{const red=!st.anim||!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     window.scrollTo({top:0,behavior:red?'auto':'smooth'});b.blur();});
   upd();})();   /* v153: koniec strzałki */
+/* v154: sekcje do wyboru (cel właściciela 04.10: „strona za długa — czytelnik ma sam wybierać”) — w GLOBAL i CRYPTO każda karta z nagłówkiem
+   (.etfh) startuje zwinięta do tytułu, jednej linii opisu i znaczka świeżości; kliknięcie nagłówka (poza jego przyciskami i linkami) albo strzałki
+   = rozwiń / zwiń; rozwinięte karty zapamiętane w tej przeglądarce (cfai.zw); nad kartami „Rozwiń wszystkie / Zwiń wszystkie”. Karty rysowane od
+   nowa (innerHTML) — obserwator każdej karty dodaje strzałkę po rysowaniu; stan w klasie karty (sama karta zostaje). */
+const ZW_OPEN=new Set();
+try{const a=JSON.parse(localStorage.getItem('cfai.zw')||'[]');if(Array.isArray(a))a.forEach(x=>{if(typeof x==='string'&&/^[a-z0-9-]{1,60}$/.test(x))ZW_OPEN.add(x);});}catch(e){}
+function zwSave(){try{localStorage.setItem('cfai.zw',JSON.stringify([...ZW_OPEN]));}catch(e){}}
+const ZW_ICO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+function zwHead(s){return s&&s.children?[...s.children].find(c=>c&&c.classList&&c.classList.contains('etfh'))||null:null;}
+function zwPrep(s){
+  if(!s||!s.classList)return;const h=zwHead(s);if(!h){s.classList.remove('zw-on','zw');return;}
+  const open=ZW_OPEN.has(s.id);s.classList.add('zw-on');s.classList.toggle('zw',!open);
+  let b=[...s.children].find(c=>c&&c.classList&&c.classList.contains('zw-t'));
+  if(!b){b=document.createElement('button');b.type='button';b.className='zw-t';b.innerHTML=ZW_ICO;s.appendChild(b);}
+  const h2=h.querySelector('h2'),ti=h2?String(h2.textContent||'').replace(/\s+/g,' ').trim():'',l=t(open?'zw.zwin':'zw.rozwin');
+  b.setAttribute('aria-expanded',open?'true':'false');b.setAttribute('aria-label',ti?l+': '+ti:l);b.title=l;
+}
+function zwSet(s,open){if(!s||!s.id)return;if(open)ZW_OPEN.add(s.id);else ZW_OPEN.delete(s.id);zwSave();zwPrep(s);}
+function zwOpenFor(el){const s=el&&el.closest?el.closest('section.pcard.zw-on.zw'):null;if(s)zwSet(s,true);}   /* rozwija kartę z tym elementem */
+const zwCards=()=>[...document.querySelectorAll('#global section.pcard[id],#crypto section.pcard[id]')];
+(function(){const C=zwCards();if(!C.length)return;
+  const mo=typeof MutationObserver==='function'?new MutationObserver(R=>{new Set((Array.isArray(R)?R:[]).map(r=>r&&r.target).filter(x=>x&&x.classList)).forEach(zwPrep);}):null;   /* tylko zapisy zmian kart (inne — pominięte) */
+  C.forEach(s=>{zwPrep(s);if(mo)mo.observe(s,{childList:true});});
+  document.addEventListener('click',e=>{const tg=e.target;if(!tg||!tg.closest)return;
+    const all=tg.closest('[data-zw-all]');
+    if(all){const bar=all.closest('.zw-bar'),tab=bar?bar.getAttribute('data-zw'):'',o=all.getAttribute('data-zw-all')==='1';
+      zwCards().filter(s=>!tab||s.closest('#'+tab)).forEach(s=>{if(zwHead(s)){if(o)ZW_OPEN.add(s.id);else ZW_OPEN.delete(s.id);}});zwSave();zwCards().forEach(zwPrep);return;}
+    const s=tg.closest('section.pcard.zw-on');if(!s)return;
+    if(tg.closest('.zw-t')){zwSet(s,s.classList.contains('zw'));return;}
+    const h=tg.closest('.etfh');if(!h||h.parentElement!==s)return;
+    if(tg.closest('button,a,select,input,textarea,label,summary,iframe,[role="button"],[tabindex]'))return;   /* przyciski i linki nagłówka działają jak dotąd */
+    if(window.getSelection&&String(window.getSelection()||'').length)return;   /* zaznaczanie tekstu to nie kliknięcie */
+    zwSet(s,s.classList.contains('zw'));});
+})();   /* v154: koniec sekcji do wyboru */
 $('#tab-global').addEventListener('click',()=>setMode('global'));
 $('#tab-crypto').addEventListener('click',()=>setMode('crypto'));
 $('#tab-trendy').addEventListener('click',()=>setMode('trendy'));
