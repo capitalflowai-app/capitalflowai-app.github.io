@@ -4,6 +4,8 @@ name: Zegar zapasowy (gdy harmonogram stoi)
 # po KAŻDYM przebiegu strony — uruchamia „Strona i dane” zdarzeniem workflow_dispatch, gdy od startu ostatniego przebiegu minęło 20 min
 # (harmonogram stoi ≥ 45 min) albo 30 min (harmonogram niedawno działał, ale nie zdążył). Budzony na końcu każdego przebiegu strony
 # i własnym harmonogramem (gdyby ten działał); nowe czuwanie anuluje poprzednie (concurrency).
+# v159 (04.10): na początku każdego czuwania także zadania dzienne — kontrola (06:20 UTC) i archiwum (01:20 UTC) uruchamiane, gdy ich
+# harmonogram nie ruszył do 07:30 / 03:00 UTC (04.10 kontrola nie ruszyła wcale). Wyłącznik tylko tej części: ZEGAR_DZIENNE_OFF=1.
 # Token: token przebiegu (actions: write), tylko w nagłówku. Wyłącznik: zmienna repozytorium ZEGAR_OFF=1.
 on:
   workflow_dispatch:
@@ -29,6 +31,12 @@ jobs:
           persist-credentials: false
           sparse-checkout: narzedzia/zegar.py
           sparse-checkout-cone-mode: false
+      - name: Zegar — zadania dzienne (kontrola 06:20, archiwum 01:20 UTC), gdy ich harmonogram nie ruszył (v159)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}
+          ZEGAR_DZIENNE_OFF: ${{ vars.ZEGAR_DZIENNE_OFF }}
+        run: python3 narzedzia/zegar.py dzienne || echo "zegar dzienne nieudany — bez wpływu na czuwanie"
       - name: Zegar — uruchom „Strona i dane”, gdy harmonogram stoi (token przebiegu tylko w nagłówku)
         env:
           GH_TOKEN: ${{ github.token }}

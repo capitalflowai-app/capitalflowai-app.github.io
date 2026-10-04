@@ -6,9 +6,13 @@ i nie czuwał, a harmonogram znów stanął — od 02:16 do 03:50 bez przebiegu.
 czeka do PROGU od startu ostatniego przebiegu i uruchamia następny, gdy w tym czasie nic nie ruszyło:
   próg ODSTEP_MIN (20 min), gdy harmonogram stoi (ostatni przebieg z harmonogramu starszy niż STOI_MIN),
   próg LUZ_MIN (30 min), gdy harmonogram niedawno działał — harmonogram ma 10 min zapasu na swoje opóźnienie, zegar nie dubluje przebiegów.
+v159 (04.10.2026): harmonogram GitHub nie uruchomił też kontroli dziennej (27.09–03.10 ruszała 06:37–06:49 UTC; 04.10 wcale), a archiwum
+ruszyło o 04:01 zamiast 01:20. Na początku każdego czuwania krótki tryb `dzienne` uruchamia zadanie dzienne, gdy minął jego termin + zapas,
+a dziś nie powstał żaden jego przebieg (DZIENNE; wyłącznik ZEGAR_DZIENNE_OFF=1). Oba zadania są idempotentne (ten sam dzień nadpisywany).
 Tryby:
   python3 narzedzia/zegar.py zbudz    — (koniec przebiegu „Strona i dane”) uruchom workflow „Zegar zapasowy” (zegar.yml); poprzednie czuwanie
                                         anuluje GitHub (concurrency zegar, cancel-in-progress)
+  python3 narzedzia/zegar.py dzienne  — (v159, workflow „Zegar zapasowy”, przed prowadz) kontrola i archiwum dzienne, gdy ich harmonogram nie ruszył
   python3 narzedzia/zegar.py prowadz  — (workflow „Zegar zapasowy”) czeka do progu od startu ostatniego przebiegu (najwyżej MAX_CZEKAJ s),
                                         sprawdza ponownie i uruchamia „Strona i dane”, chyba że w międzyczasie ruszył inny przebieg albo czeka/trwa
 Token: GH_TOKEN — token przebiegu GitHub Actions (uprawnienie actions: write); tylko w nagłówku, nigdy w logu. Wyłącznik: ZEGAR_OFF=1.
@@ -30,6 +34,10 @@ LUZ_MIN = 30        # v145.2: próg czuwania, gdy harmonogram niedawno działał
 MAX_CZEKAJ = 31 * 60   # s — pełny LUZ_MIN + zapas (v145.1: ucięte czekanie zrywało łańcuch); zadanie zegara ma limit 40 min
 DOCZEKAJ_S = 120       # v145.1: po czekaniu brakuje najwyżej tylu sekund (różnice zegarów GitHub i maszyny) → doczekaj raz, nie zrywaj łańcucha
 AKTYWNE = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
+# v159: zadania dzienne pilnowane przez zegar — (plik workflow, nazwa w logu, godzina UTC, minuta, zapas w min) zgodne z ich cron (test pilnuje).
+# Zapas = typowe spóźnienie harmonogramu GitHub + margines: kontrola 06:20 → 07:30 UTC, archiwum 01:20 → 03:00 UTC.
+DZIENNE = (('kontrola.yml', 'kontrola dzienna', 6, 20, 70), ('archiwum.yml', 'archiwum dzienne', 1, 20, 100))
+DZIENNE_OD_MIN = 20   # przebieg „z dziś” = utworzony najwcześniej tyle minut przed terminem (wcześniejszy push to nie dzisiejsze zadanie)
 
 
 def czas(s):
@@ -97,6 +105,44 @@ def uruchom(wf, token):
     return st
 
 
+def dzienne_decyzja(runs, now, godz, minuta, zapas):
+    """v159: przebiegi zadania dziennego (API, najnowsze) i chwila → ('nic', powód) | ('uruchom', powód). Uruchom, gdy minął dzisiejszy termin
+    + zapas, żaden przebieg nie czeka ani nie trwa, a od DZIENNE_OD_MIN min przed terminem nie powstał żaden przebieg (z harmonogramu, ręczny,
+    z zegara, push). Tylko bieżąca doba UTC — wczorajszego zadania po północy nie nadrabia (dzisiejsze i tak przyjdzie)."""
+    termin = now.replace(hour=godz, minute=minuta, second=0, microsecond=0)
+    gr = termin + dt.timedelta(minutes=zapas)
+    if now < gr:
+        return ('nic', 'przed terminem z zapasem')
+    R = [r for r in runs if isinstance(r, dict)]
+    if any(r.get('status') in AKTYWNE for r in R):
+        return ('nic', 'przebieg czeka albo trwa')
+    od = termin - dt.timedelta(minutes=DZIENNE_OD_MIN)
+    if any(t is not None and t >= od for t in (czas(r.get('created_at')) for r in R)):
+        return ('nic', 'dziś już był')
+    return ('uruchom', f'harmonogram nie uruchomił go do {gr:%H:%M} UTC')
+
+
+def przebiegi_wf(wf, token, n=10):
+    """v159: ostatnie przebiegi dowolnego workflow (najwyżej n)."""
+    _, j = _api(f'/repos/{REPO}/actions/workflows/{wf}/runs?per_page={n}', token)
+    return (j.get('workflow_runs') or []) if isinstance(j, dict) else []
+
+
+def _dzienne(token, now):
+    """v159: każde zadanie osobno — błąd jednego (sieć, API) nie blokuje drugiego; w logu tylko rodzaj błędu."""
+    for wf, nazwa, godz, minuta, zapas in DZIENNE:
+        try:
+            d = dzienne_decyzja(przebiegi_wf(wf, token), now, godz, minuta, zapas)
+            if d[0] == 'uruchom':
+                st = uruchom(wf, token)
+                print(f'zegar: {nazwa}: {d[1]} — uruchamiam (HTTP {st})')
+            else:
+                print(f'zegar: {nazwa}: nic ({d[1]})')
+        except Exception as e:  # noqa — bez treści wyjątku (mogłaby zawierać nagłówki), tylko rodzaj
+            print(f'zegar: {nazwa}: błąd {type(e).__name__} — następna próba przy kolejnym czuwaniu')
+    return 0
+
+
 def main(argv, now_fn=lambda: dt.datetime.now(dt.timezone.utc), sleep=time.sleep):
     """Kod 2 tylko przy złym trybie; każdy inny wynik (także błąd sieci/API) = 0 — zegar nigdy nie psuje przebiegu strony."""
     try:
@@ -108,13 +154,17 @@ def main(argv, now_fn=lambda: dt.datetime.now(dt.timezone.utc), sleep=time.sleep
 
 def _main(argv, now_fn, sleep):
     tryb = argv[1] if len(argv) > 1 else ''
-    if tryb not in ('zbudz', 'prowadz'):
-        print('użycie: zegar.py zbudz|prowadz'); return 2
+    if tryb not in ('zbudz', 'prowadz', 'dzienne'):
+        print('użycie: zegar.py zbudz|prowadz|dzienne'); return 2
     if os.environ.get('ZEGAR_OFF', '').strip() == '1':
         print('zegar: wyłączony (ZEGAR_OFF=1)'); return 0
+    if tryb == 'dzienne' and os.environ.get('ZEGAR_DZIENNE_OFF', '').strip() == '1':
+        print('zegar: zadania dzienne wyłączone (ZEGAR_DZIENNE_OFF=1)'); return 0
     token = os.environ.get('GH_TOKEN', '').strip()
     if not token:
         print('zegar: brak GH_TOKEN — nic nie robię'); return 0
+    if tryb == 'dzienne':   # v159: krótko, bez czekania — przed czuwaniem „Strona i dane”
+        return _dzienne(token, now_fn())
     if tryb == 'zbudz':   # v145.2: zawsze — czuwanie po każdym przebiegu (próg zależy od stanu harmonogramu, liczony w trybie prowadz)
         st = uruchom(WF_ZEGAR, token)
         print(f'zegar: czuwanie po przebiegu — uruchomiony zegar zapasowy (HTTP {st})'); return 0

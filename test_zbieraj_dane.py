@@ -20726,6 +20726,122 @@ class ZegarV145(unittest.TestCase):
         self.assertNotIn('doczekuję', out)
 
 
+class ZegarDzienneV159(unittest.TestCase):
+    """v159: zegar pilnuje zadań dziennych (kontrola 06:20 UTC, archiwum 01:20 UTC) — 04.10.2026 harmonogram GitHub nie uruchomił kontroli
+    wcale, a archiwum 2 h 41 min po czasie. Tryb `dzienne`: po terminie + zapas, gdy od 20 min przed terminem dziś nie powstał żaden przebieg
+    i żaden nie czeka ani nie trwa → workflow_dispatch; bez czekania; tylko token przebiegu (nigdy w logu); błąd = kod 0; wyłączniki."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('v159_zegar', os.path.join(root, 'narzedzia', 'zegar.py'))
+        cls.Z = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.Z)
+        cls.ROOT = root
+
+    @staticmethod
+    def r(ts, ev='schedule', status='completed'):
+        return {'event': ev, 'created_at': ts, 'run_started_at': ts, 'status': status, 'conclusion': 'success' if status == 'completed' else None}
+
+    @staticmethod
+    def t(s):
+        return datetime.datetime.fromisoformat(s).replace(tzinfo=datetime.timezone.utc)
+
+    def test_decyzja_kontrola(self):
+        D = lambda runs, now: self.Z.dzienne_decyzja(runs, self.t(now), 6, 20, 70)  # noqa: E731
+        self.assertEqual(D([], '2026-10-04T07:29:59')[0], 'nic', 'przed terminem + zapas (07:30 UTC)')
+        d = D([], '2026-10-04T07:30:00')
+        self.assertEqual(d[0], 'uruchom'); self.assertIn('07:30 UTC', d[1])
+        self.assertEqual(D([self.r('2026-10-03T06:49:10Z')], '2026-10-04T11:20:00')[0], 'uruchom', '04.10: wczoraj była, dziś nie')
+        self.assertEqual(D([self.r('2026-10-04T06:41:40Z')], '2026-10-04T11:20:00')[0], 'nic', 'dziś z harmonogramu')
+        self.assertEqual(D([self.r('2026-10-04T07:31:00Z', 'workflow_dispatch')], '2026-10-04T11:20:00')[0], 'nic', 'dziś uruchomiona (np. przez zegar)')
+        self.assertEqual(D([self.r('2026-10-04T06:05:00Z', 'push')], '2026-10-04T11:20:00')[0], 'nic', 'push po 06:00 to ten sam raport')
+        self.assertEqual(D([self.r('2026-10-04T05:59:00Z', 'push')], '2026-10-04T11:20:00')[0], 'uruchom', 'push przed 06:00 — nie dzisiejsza kontrola')
+        self.assertEqual(D([self.r('2026-10-04T07:31:00Z', 'workflow_dispatch', 'queued')], '2026-10-04T07:35:00')[0], 'nic', 'czeka w kolejce')
+        self.assertEqual(D([self.r('2026-10-03T22:53:16Z', 'push', 'in_progress')], '2026-10-04T07:35:00')[0], 'nic', 'trwa')
+        self.assertEqual(D([{'event': 'schedule', 'created_at': 'zła data'}], '2026-10-04T08:00:00')[0], 'uruchom', 'zła data = brak')
+        self.assertEqual(D([self.r('2026-10-03T06:49:10Z')], '2026-10-04T23:59:00')[0], 'uruchom', 'późno tego samego dnia — lepiej niż wcale')
+        self.assertEqual(D([self.r('2026-10-03T06:49:10Z')], '2026-10-05T00:10:00')[0], 'nic', 'nowa doba przed terminem — wczorajszej nie nadrabia')
+
+    def test_decyzja_archiwum(self):
+        A = lambda runs, now: self.Z.dzienne_decyzja(runs, self.t(now), 1, 20, 100)  # noqa: E731
+        self.assertEqual(A([self.r('2026-10-03T01:27:05Z')], '2026-10-04T02:59:59')[0], 'nic', 'do 03:00 UTC czeka na harmonogram')
+        self.assertEqual(A([self.r('2026-10-03T01:27:05Z')], '2026-10-04T03:00:00')[0], 'uruchom', '04.10: harmonogram archiwum dopiero o 04:01')
+        self.assertEqual(A([self.r('2026-10-04T04:01:15Z')], '2026-10-04T11:20:00')[0], 'nic', 'dziś już było')
+
+    def test_stale_zgodne_z_harmonogramami(self):
+        import re as _re
+        Z = self.Z
+        self.assertEqual([(w, h, m, z) for w, _, h, m, z in Z.DZIENNE], [('kontrola.yml', 6, 20, 70), ('archiwum.yml', 1, 20, 100)])
+        self.assertEqual(Z.DZIENNE_OD_MIN, 20)
+        for wf, _, h, m, _ in Z.DZIENNE:
+            y = open(os.path.join(self.ROOT, '.github', 'workflows', wf), encoding='utf-8').read()
+            self.assertIn('workflow_dispatch:', y, wf + ': zegar może go uruchomić')
+            c = _re.search(r"cron: '(\d+) (\d+) \* \* \*'", y)
+            self.assertTrue(c, wf); self.assertEqual((int(c.group(2)), int(c.group(1))), (h, m), wf + ': termin w DZIENNE = cron workflow')
+
+    def _run(self, runs_by_wf, now, env=None, token='ghs_TAJNY_TOKEN_123', zle=()):
+        log = []
+
+        def api(path, tok, data=None):
+            log.append((path, data))
+            wf = path.split('/actions/workflows/')[1].split('/')[0]
+            if wf in zle:
+                raise OSError('Authorization: Bearer ghs_TAJNY_TOKEN_123 refused')
+            if data is None:
+                return 200, {'workflow_runs': runs_by_wf.get(wf, [])}
+            return 204, None
+        out = io.StringIO()
+        e = {'GH_TOKEN': token, 'ZEGAR_OFF': '', 'ZEGAR_DZIENNE_OFF': '', **(env or {})}
+        with mock.patch.dict(os.environ, e, clear=False), mock.patch.object(self.Z, '_api', api), mock.patch('sys.stdout', out):
+            rc = self.Z.main(['zegar.py', 'dzienne'], now_fn=lambda: now, sleep=lambda s: self.fail('tryb dzienne nie czeka'))
+        self.assertNotIn('TAJNY', out.getvalue(), 'token nigdy w logu')
+        return rc, [p for p, d in log if d is not None], log, out.getvalue()
+
+    def test_tryb_dzienne_04_10(self):
+        # 04.10.2026 11:20 UTC: kontrola ostatnio 03.10 (push 22:53, harmonogram 06:49), archiwum dziś 04:01 z harmonogramu
+        runs = {'kontrola.yml': [self.r('2026-10-03T22:53:16Z', 'push'), self.r('2026-10-03T06:49:10Z')],
+                'archiwum.yml': [self.r('2026-10-04T04:01:15Z'), self.r('2026-10-03T05:48:48Z', 'push')]}
+        rc, posts, log, out = self._run(runs, self.t('2026-10-04T11:20:00'))
+        self.assertEqual(rc, 0)
+        self.assertEqual(posts, ['/repos/capitalflowai-app/capitalflowai-app.github.io/actions/workflows/kontrola.yml/dispatches'])
+        self.assertEqual([d for p, d in log if d is not None], [{'ref': 'main'}])
+        self.assertEqual([p for p, d in log if d is None], ['/repos/capitalflowai-app/capitalflowai-app.github.io/actions/workflows/kontrola.yml/runs?per_page=10',
+                                                           '/repos/capitalflowai-app/capitalflowai-app.github.io/actions/workflows/archiwum.yml/runs?per_page=10'])
+        self.assertIn('kontrola dzienna: harmonogram nie uruchomił go do 07:30 UTC — uruchamiam (HTTP 204)', out)
+        self.assertIn('archiwum dzienne: nic (dziś już był)', out)
+        # następne czuwanie (20 min później): przebieg z zegara już jest — bez drugiego uruchomienia
+        runs['kontrola.yml'] = [self.r('2026-10-04T11:20:03Z', 'workflow_dispatch')] + runs['kontrola.yml']
+        rc, posts, _, out = self._run(runs, self.t('2026-10-04T11:40:00'))
+        self.assertEqual((rc, posts), (0, []), 'bez dublowania')
+        # obu brak po terminach — oba uruchomione
+        rc, posts, _, _ = self._run({}, self.t('2026-10-04T08:00:00'))
+        self.assertEqual([p.split('/workflows/')[1] for p in posts], ['kontrola.yml/dispatches', 'archiwum.yml/dispatches'])
+        # przed 03:00 UTC nic, nawet bez przebiegów
+        rc, posts, _, _ = self._run({}, self.t('2026-10-04T02:00:00'))
+        self.assertEqual(posts, [])
+
+    def test_wylaczniki_bledy(self):
+        for env, tok in (({'ZEGAR_OFF': '1'}, 'ghs_TAJNY_TOKEN_123'), ({'ZEGAR_DZIENNE_OFF': '1'}, 'ghs_TAJNY_TOKEN_123'), ({}, '')):
+            rc, posts, log, out = self._run({}, self.t('2026-10-04T08:00:00'), env=env, token=tok)
+            self.assertEqual((rc, log), (0, []), f'{env} / token {bool(tok)}: żadnego zapytania')
+        rc, posts, log, out = self._run({}, self.t('2026-10-04T08:00:00'), zle=('kontrola.yml',))
+        self.assertEqual(rc, 0, 'błąd sieci/API = kod 0')
+        self.assertIn('kontrola dzienna: błąd OSError', out)
+        self.assertEqual([p.split('/workflows/')[1] for p in posts], ['archiwum.yml/dispatches'], 'błąd jednego nie blokuje drugiego')
+
+    def test_workflow_zegara(self):
+        z = open(os.path.join(self.ROOT, '.github', 'workflows', 'zegar.yml'), encoding='utf-8').read()
+        i, j = z.index('python3 narzedzia/zegar.py dzienne'), z.index('python3 narzedzia/zegar.py prowadz')
+        self.assertLess(i, j, 'zadania dzienne przed czuwaniem (czuwanie może czekać do 31 min i bywa anulowane przez następne)')
+        krok = z[z.rindex('- name:', 0, i):z.index('- name:', i)]
+        for frag in ('GH_TOKEN: ${{ github.token }}', 'ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}', 'ZEGAR_DZIENNE_OFF: ${{ vars.ZEGAR_DZIENNE_OFF }}',
+                     'zegar.py dzienne || echo'):
+            self.assertIn(frag, krok, frag)
+        self.assertNotIn('secrets.', z)
+
+
 class EbcPonowienieV148(unittest.TestCase):
     """v148: zapytanie do EBC — błąd przejściowy (przekroczony czas, HTTP 502/503/504) → jedno ponowienie po ECB_PONOW_S s; inne błędy bez
     ponowienia; najwyżej ECB_PONOW_MAX ponowień w przebiegu, nieudane ponowienie wyłącza dalsze. Bez sieci, bez czekania."""
