@@ -2056,6 +2056,9 @@ for(const l in EXTRA157)if(I18N[l])Object.assign(I18N[l],EXTRA157[l]);
 /* v163: poprawki po przeglądzie — TRENDY: dziennik niewczytany — tylko po polsku (cel właściciela 04.10) */
 const EXTRA163={"pl":{"tig.load":"Wczytywanie wyników…","tig.nodata":"Plik wyników chwilowo niedostępny — spróbujemy ponownie za chwilę.","tig.nodata.k":"brak danych","tig.d.since0":"Od startu"}};
 for(const l in EXTRA163)if(I18N[l])Object.assign(I18N[l],EXTRA163[l]);
+/* v164: CRYPTO — zapas cen z pliku serwera — tylko po polsku (cel właściciela 04.10) */
+const EXTRA164={"pl":{"live.srv":"Plik serwera (co 20 min) · {t}","live.srvT":"Źródło cen na żywo w przeglądarce chwilowo nie odpowiada — ceny z pliku serwera strony (odświeżany co 20 min); po powrocie źródła strona sama wraca do danych na żywo.","rel.descSrv":"Ceny z pliku serwera strony (co 20 min), bo źródło na żywo chwilowo nie odpowiada. Koszyki sceny z danymi: {n}%.","top.srv":"Stan na {t} (plik serwera, co 20 min). Przepływ = zmiana kapitalizacji monety w okresie."}};
+for(const l in EXTRA164)if(I18N[l])Object.assign(I18N[l],EXTRA164[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -2205,7 +2208,7 @@ const SEC_SYM={
 const flowOf=(mcap,pct)=>(typeof pct!=='number'||!isFinite(pct)||pct<=-99.9)?null:mcap-mcap/(1+pct/100);
 
 /* ---------- warstwa danych na żywo ---------- */
-const LIVE={st:'idle',err:'',at:'',C:null,G:null,tvl:null,stab:null,cover:0};
+const LIVE={st:'idle',err:'',at:'',C:null,G:null,tvl:null,stab:null,cover:0,src:''};   /* v164: src — 'live' (przeglądarka) albo 'srv' (plik serwera) */
 const SRC={
   coins:['https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=800',
          'https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=300'],
@@ -2241,7 +2244,7 @@ function loadAll(cb,quiet){
     });
     const got=Object.keys(m).length;
     if(got<12)throw new Error('za mało monet ('+got+')');
-    LIVE.C=m;LIVE.cover=got/want.size;
+    LIVE.C=m;LIVE.cover=got/want.size;LIVE.src='live';
     LIVE.at=(arr[0]&&arr[0].last_updated)||new Date().toISOString();
     /* dodatki są opcjonalne — brak któregoś nie psuje sceny */
     return Promise.all([
@@ -2260,8 +2263,27 @@ function loadAll(cb,quiet){
         LIVE.stabD={'24H':dlt('circulatingPrevDay'),'7D':dlt('circulatingPrevWeek'),'30D':dlt('circulatingPrevMonth')};}
     }
     LIVE.st='ok';LIVE.busy=false;krMerge();applyLive(quiet);cb&&cb();
-  }).catch(err=>{LIVE.busy=false;if(quiet){LIVE.err=String(err&&err.message||err);return;}LIVE.st='err';LIVE.err=String(err&&err.message||err);cb&&cb();});
+  }).catch(err=>{LIVE.busy=false;if(quiet){LIVE.err=String(err&&err.message||err);return;}LIVE.err=String(err&&err.message||err);LIVE.st=lvSrv(false)?'ok':'err';cb&&cb();});   /* v164: zapas z pliku serwera */
 }
+/* ===================== v164: zapas — ceny sceny z pliku serwera strony (krypto.json → mk: [SYMBOL, kapitalizacja, zm. 24 h, 7 dni, 30 dni, rok],
+   co 20 min, czas UTC bez strefy w pliku), gdy źródło na żywo w przeglądarce nie odpowiada. Pierwszy (większy) symbol wygrywa; kapitalizacja > 0;
+   zmiana nie-liczba = brak (nigdy 0); obrotu w pliku nie ma (vol = null → aktywność sektorów „—”). Mniej niż 12 monet sceny albo brak pliku/czasu —
+   false (jak dotąd: „Makieta”). keep — zachowaj zaznaczenie (odświeżenie pliku). */
+function lvSrv(keep){
+  const D=typeof krData==='function'?krData():null,M=D&&D.mk,R=M&&Array.isArray(M.rows)?M.rows:null;
+  const s0=M&&typeof M.asof==='string'?M.asof.slice(0,19):'',at=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s0)?s0+'Z':/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s0)?s0+':00Z':null;   /* czas pliku = UTC */
+  if(!R||!at||!isFinite(Date.parse(at)))return false;
+  const want=new Set();for(const k in SEC_SYM)SEC_SYM[k].forEach(s=>want.add(s));
+  const nz=v=>(typeof v==='number'&&isFinite(v))?v:null,m={};
+  R.forEach((r,i)=>{if(!Array.isArray(r)||typeof r[0]!=='string')return;const sy=r[0].toUpperCase();
+    if(!want.has(sy)||m[sy]||!(typeof r[1]==='number'&&isFinite(r[1])&&r[1]>0))return;
+    m[sy]={name:sy,rank:i+1,mcap:r[1],vol:null,pct:{'24H':nz(r[2]),'7D':nz(r[3]),'30D':nz(r[4]),'1R':nz(r[5])},at};});
+  const got=Object.keys(m).length;if(got<12)return false;
+  LIVE.C=m;LIVE.cover=got/want.size;LIVE.at=at;LIVE.src='srv';LIVE.G=null;LIVE.okTvl=false;LIVE.okStab=false;LIVE.tvl=null;LIVE.stab=null;LIVE.stabD=null;
+  if(typeof krMerge==='function')krMerge();   /* stablecoiny: zmierzona zmiana podaży z historii serwera (krStabh) */
+  LIVE.st='ok';applyLive(!!keep);return true;
+}
+/* v164: koniec zapasu */
 /* przepływ elementu sceny w danym okresie: [mln USD, % zmiany] */
 function secFlow(id,per){
   const syms=SEC_SYM[id];if(!syms||!LIVE.C)return null;
@@ -3607,7 +3629,7 @@ function krMerge(){
   if(H){LIVE.stabD=LIVE.stabD||{};const set=(per,k)=>{if(!LIVE.stabD[per]&&typeof H.d[k]==='number'&&typeof H.pct[k]==='number')LIVE.stabD[per]={d:H.d[k]/1e6,pct:H.pct[k],n:null};};
     set('24H','1');set('7D','7');set('30D','30');set('1R','365');}
 }
-function krLoad(){srvJSON('krypto').then(j=>{KR.data=(j&&typeof j==='object'&&typeof j.at==='string'&&(j.deriv||j.defi||j.fng||j.mk||j.stabh))?j:null;if(KR.data&&LIVE.st==='ok'&&LIVE.C){krMerge();applyLive(true);afterLive();}if(KR.data){if(KR.data.deriv||KR.data.defi)gOk('kr');if(KR.data.fng)gOk('fng');}renderKr();}).catch(()=>{KR.data=null;renderKr();});}
+function krLoad(){srvJSON('krypto').then(j=>{KR.data=(j&&typeof j==='object'&&typeof j.at==='string'&&(j.deriv||j.defi||j.fng||j.mk||j.stabh))?j:null;if(KR.data&&(LIVE.st==='err'||LIVE.src==='srv')){if(lvSrv(LIVE.src==='srv'))afterLive();}else if(KR.data&&LIVE.st==='ok'&&LIVE.C){krMerge();applyLive(true);afterLive();}   /* v164: zapas z pliku serwera — także po jego odświeżeniu */if(KR.data){if(KR.data.deriv||KR.data.defi)gOk('kr');if(KR.data.fng)gOk('fng');}renderKr();}).catch(()=>{KR.data=null;renderKr();});}
 function krAuto(){if(KR.timer)clearInterval(KR.timer);KR.timer=setInterval(()=>{if(!document.hidden)krLoad();},20*60*1000);}
 function krClass(c){const m={'Extreme Fear':'kr.c.xf','Fear':'kr.c.f','Neutral':'kr.c.n','Greed':'kr.c.g','Extreme Greed':'kr.c.xg'};return m[c]?t(m[c]):escH(c||'');}
 function krFngAt(rows,back){const i=rows.length-1-back;return i>=0&&Array.isArray(rows[i])&&typeof rows[i][1]==='number'?rows[i][1]:null;}
@@ -5804,7 +5826,7 @@ function renderAssets(){
       else{const sm=KV_SAMPLE[k.id];if(!sm)return;val=sm[0];unit=sm[1];d=sm[2];dec=sm[3];}
       const txt2=val.toLocaleString(LOCALE[LANG],{minimumFractionDigits:dec||0,maximumFractionDigits:dec||0})+(unit?' '+t(unit):'');
       const own=KV&&KV[k.id]&&KV[k.id].at;   /* dane z własnym czasem (plik rynku krypto) */
-      rows.push(['kpi.'+k.id,txt2,d,own?t('pg.20m')+' · '+escH(engDate(own))+gAgeNote(String(own)):lv?t('pg.live')+' · '+escH(liveWhen()):t('badge')]);});   /* own: plik automatu strony (co 20 min) */
+      rows.push(['kpi.'+k.id,txt2,d,own?t('pg.20m')+' · '+escH(engDate(own))+gAgeNote(String(own)):lv?t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.20m':'pg.live')+' · '+escH(liveWhen()):t('badge')]);});   /* own: plik automatu strony (co 20 min) */
   }
   /* v96: zmiana w trzech kolorach — wzrost zielony, spadek czerwony, zero (po zaokrągleniu do pokazanych miejsc) bez koloru */
   const chg=(k,d)=>{if(d==null||!isFinite(d))return `<span class="cell na">—</span>`;
@@ -6986,7 +7008,7 @@ function renderTop10(id){
       <span class="bar ${tn}"><i style="width:${w.toFixed(1)}%"></i></span><span class="sc ${tn}">${fPct(r.pct)}</span></li>`;}).join('');
   return wrap(`<div class="t10-cols"><span></span><span>${t('top.flow')} <i class="u">(${t('u.m')})</i></span><span>${t('top.chg')}</span></div>
     <ol class="t10">${li}</ol>
-    <p class="t10-src">${t('top.live',{t:liveWhen()})}</p>`);
+    <p class="t10-src">${t(LIVE.src==='srv'?'top.srv':'top.live',{t:liveWhen()})}</p>`);
 }
 /* ===================== v96 (krypto): logo i kolor w panelach krypto =====================
    Ikony tylko przez pomocników v96 (coinImg, netImg, exchImg, fundIco, glyphImg) i ikony grup sceny (iconURL — odświeżane przy zmianie motywu
@@ -7065,7 +7087,7 @@ const SECT_SAMPLE={'24H':[7,6,5,4,3],'7D':[6,7,6,5,4],'30D':[5,8,7,6,3],'1R':[6,
 function secAct(id){
   if(!isLive())return null;
   const syms=SEC_SYM[id];let v=0,m=0;
-  syms.forEach(s=>{const c=LIVE.C[s];if(!c)return;v+=c.vol;m+=c.mcap;});
+  syms.forEach(s=>{const c=LIVE.C[s];if(!c||typeof c.vol!=='number'||!isFinite(c.vol))return;v+=c.vol;m+=c.mcap;});   /* v164: bez obrotu (plik serwera) — brak, nigdy 1/10 */
   if(!m)return null;
   return Math.max(1,Math.min(10,Math.round(v/m/.04)));
 }
@@ -7094,7 +7116,7 @@ function renderGauge(){
    ${arc(178,122,'var(--rd)')}${arc(118,62,'var(--yl)')}${arc(58,2,'var(--gr)')}
    ${score==null?'':`<line x1="100" y1="100" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--tx)" stroke-width="3" stroke-linecap="round"/>`}<circle cx="100" cy="100" r="6" fill="var(--tx)"/>
    <text x="100" y="116" text-anchor="middle" fill="var(--tx)" font-family="Sora,sans-serif" font-weight="600" font-size="15">${score==null?'—':score+'%'}</text></svg>
-   <div class="lv sora ${score!=null&&score>=60?'ok':'warn'}">${score==null?t('eng.gap'):t(lvl)}</div><p>${isLive()?t('rel.descLive',{n:Math.round(LIVE.cover*100)}):t('rel.descOff')}</p>`;
+   <div class="lv sora ${score!=null&&score>=60?'ok':'warn'}">${score==null?t('eng.gap'):t(lvl)}</div><p>${isLive()?t(LIVE.src==='srv'?'rel.descSrv':'rel.descLive',{n:Math.round(LIVE.cover*100)}):t('rel.descOff')}</p>`;
 }
 function renderWhy(){
   /* v48: panel faktów zamiast wymyślonych ocen (bez gwiazdek, 4,2/5, 2,8 h, 78%) */
@@ -7137,10 +7159,11 @@ function renderStatus(){
   const el=$('#live-badge');if(!el)return;
   const s=LIVE.st;
   el.className='live '+(s==='ok'?'on':s==='load'?'wait':'off');
-  el.innerHTML=s==='ok'?`<i></i>${t('live.on',{t:liveWhen()})}`
+  el.innerHTML=s==='ok'?`<i></i>${t(LIVE.src==='srv'?'live.srv':'live.on',{t:liveWhen()})}`
     :s==='load'?`<i></i>${t('live.load')}`
     :`<i></i>${t('live.off')}`;
   el.title=s==='err'?(/brak źródła/.test(String(LIVE.err))?t('live.nosrc'):String(LIVE.err)):'';
+  if(s==='ok'&&LIVE.src==='srv')el.title=t('live.srvT');   /* v164: ceny z pliku serwera — dlaczego */
   const bd=document.querySelector('.head-row .badge');if(bd)bd.hidden=(s==='ok');
 }
 

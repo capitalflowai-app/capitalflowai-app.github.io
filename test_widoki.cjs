@@ -12670,3 +12670,51 @@ test('v163: strzałka karty — opis dla czytnika z tytułem bez liter przycisk�
   }
   assert.ok(html.includes('"rwc.p":"{m} Odczyt własny z łańcucha bloków (stan na {t}) — w sumach zamiast starych wartości: {list}. Wartość = liczba tokenów w obiegu (kontrakty, których adres podaje emitent) × cena."'));
 });
+
+
+/* ---------- v164: CRYPTO — zapas cen z pliku serwera (krypto.json → mk), gdy źródło na żywo w przeglądarce nie odpowiada ---------- */
+function v164Zapas(D) {
+  const a = html.indexOf('/* ===================== v164: zapas'), b = html.indexOf('/* v164: koniec zapasu */', a);
+  assert.ok(a > 0 && b > a, 'blok zapasu');
+  const LIVE = {st: 'err', err: 'brak źródła', at: '', C: null, G: {x: 1}, tvl: 5, stab: 7, stabD: {x: 1}, cover: 0, src: '', okTvl: true, okStab: true}, calls = [];
+  const SEC_SYM = {btc: ['BTC'], eth: ['ETH'], stab: ['USDT', 'USDC'], defi: ['AAVE', 'UNI', 'CRV', 'LDO', 'MKR'], meme: ['DOGE', 'PEPE', 'WIF', 'SHIB']};
+  const F = new Function('krData', 'SEC_SYM', 'krMerge', 'applyLive', 'LIVE', html.slice(a, b) + '\nreturn lvSrv;')(
+    () => D, SEC_SYM, () => calls.push('merge'), k => calls.push(['apply', k]), LIVE);
+  return {F, LIVE, calls};
+}
+const V164_MK = {src: 'x', asof: '2026-10-04T14:23:30', cols: ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'], rows: [
+  ['BTC', 1710999569661, 0.40705, 0.5339, 7.2947, -30.1987], ['ETH', 329049053472, 0.52575, -0.2959, 10.1232, -39.818], ['USDT', 184067903944, -0.0001, 0.0113, -0.0065, -0.0455],
+  ['BNB', 104728441853, 1.4, 1.1, 10.3, -31.1], ['USDC', 75e9, 0, 0.01, null, 'x'], ['DOGE', 30e9, 2.1, -3.2, 5.5, 40.1], ['AAVE', 4e9, 1.1, 2.2, 3.3, 4.4],
+  ['UNI', 5e9, -1, -2, -3, -4], ['CRV', 1e9, 0.5, 0.6, 0.7, 0.8], ['LDO', 1.5e9, 3, 4, 5, 6], ['PEPE', 4e9, 1, 1, 1, 1], ['WIF', 1e9, 2, 2, 2, 2],
+  ['SHIB', 8e9, -1, -1, -1, -1], ['ETH', 1, 99, 99, 99, 99], ['NEG', -5, 1, 1, 1, 1], 'x', null]};
+test('v164: zapas cen z pliku serwera — dane sceny z krypto.json → mk (czas UTC, brak zmiany = brak, nie 0; bez obrotu); za mało monet, brak pliku albo czasu — jak dotąd', () => {
+  const {F, LIVE, calls} = v164Zapas({mk: V164_MK});
+  assert.equal(F(false), true);
+  assert.deepEqual([LIVE.st, LIVE.src, LIVE.at, Object.keys(LIVE.C).length], ['ok', 'srv', '2026-10-04T14:23:30Z', 12], 'czas pliku = UTC; 12 monet sceny');
+  assert.deepEqual(LIVE.C.BTC, {name: 'BTC', rank: 1, mcap: 1710999569661, vol: null, pct: {'24H': 0.40705, '7D': 0.5339, '30D': 7.2947, '1R': -30.1987}, at: '2026-10-04T14:23:30Z'});
+  assert.equal(LIVE.C.ETH.mcap, 329049053472, 'pierwszy (większy) symbol wygrywa');
+  assert.deepEqual(LIVE.C.USDC.pct, {'24H': 0, '7D': 0.01, '30D': null, '1R': null}, 'zero to liczba; brak i tekst — brak');
+  assert.ok(!('NEG' in LIVE.C) && !('BNB' in LIVE.C), 'tylko monety sceny, kapitalizacja > 0');
+  assert.equal(LIVE.cover, 12 / 13, 'pokrycie koszyków');
+  assert.deepEqual([LIVE.G, LIVE.tvl, LIVE.stab, LIVE.stabD, LIVE.okTvl, LIVE.okStab], [null, null, null, null, false, false], 'dodatki z przeglądarki — brak (stablecoiny z historii serwera przez krMerge)');
+  assert.deepEqual(calls, ['merge', ['apply', false]]);
+  const k = v164Zapas({mk: V164_MK}); k.F(true); assert.deepEqual(k.calls.slice(-1), [['apply', true]], 'odświeżenie pliku — zaznaczenie zostaje');
+  for (const [D, why] of [[null, 'brak pliku'], [{}, 'brak mk'], [{mk: Object.assign({}, V164_MK, {asof: ''})}, 'brak czasu'], [{mk: Object.assign({}, V164_MK, {asof: 'wczoraj'})}, 'zły czas'],
+    [{mk: Object.assign({}, V164_MK, {rows: V164_MK.rows.slice(0, 8)})}, 'za mało monet'], [{mk: Object.assign({}, V164_MK, {rows: 'x'})}, 'zły zapis']]) {
+    const z = v164Zapas(D); assert.equal(z.F(false), false, why); assert.deepEqual([z.LIVE.st, z.LIVE.C, z.calls], ['err', null, []], why + ' — stan bez zmian');
+  }
+  const m = v164Zapas({mk: Object.assign({}, V164_MK, {asof: '2026-10-04T14:23'})}); assert.equal(m.F(false), true); assert.equal(m.LIVE.at, '2026-10-04T14:23:00Z', 'czas bez sekund');
+});
+test('v164: wpięcie — nieudane pobranie (nie ciche) używa zapasu, plik serwera później też; cicha próba co 5 min wraca na żywo; napisy „plik serwera”, aktywność sektorów bez obrotu „—”', () => {
+  assert.ok(html.includes("const LIVE={st:'idle',err:'',at:'',C:null,G:null,tvl:null,stab:null,cover:0,src:''};"));
+  assert.ok(html.includes("LIVE.C=m;LIVE.cover=got/want.size;LIVE.src='live';"), 'na żywo — src live');
+  assert.ok(html.includes("if(quiet){LIVE.err=String(err&&err.message||err);return;}LIVE.err=String(err&&err.message||err);LIVE.st=lvSrv(false)?'ok':'err';cb&&cb();"), 'błąd pobrania: zapas albo „Makieta”; ciche odświeżenie — stare dane zostają');
+  assert.ok(html.includes("if(KR.data&&(LIVE.st==='err'||LIVE.src==='srv')){if(lvSrv(LIVE.src==='srv'))afterLive();}else if(KR.data&&LIVE.st==='ok'&&LIVE.C){krMerge();applyLive(true);afterLive();}"), 'plik serwera przychodzi później albo odświeża się');
+  assert.ok(html.includes("if(!c||typeof c.vol!=='number'||!isFinite(c.vol))return;v+=c.vol;m+=c.mcap;"), 'aktywność: bez obrotu — brak');
+  assert.ok(html.includes("t(LIVE.src==='srv'?'live.srv':'live.on',{t:liveWhen()})") && html.includes("el.title=s==='err'?(/brak źródła/.test(String(LIVE.err))?t('live.nosrc'):String(LIVE.err)):'';\n  if(s==='ok'&&LIVE.src==='srv')el.title=t('live.srvT');"), 'znaczek CRYPTO');
+  assert.ok(html.includes("t(LIVE.src==='srv'?'rel.descSrv':'rel.descLive',") && html.includes("t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.20m':'pg.live')") && html.includes("t(LIVE.src==='srv'?'top.srv':'top.live',"), 'pokrycie, Przegląd, top 10');
+  const d0 = html.indexOf('const EXTRA164='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA164='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['live.srv', 'live.srvT', 'rel.descSrv', 'top.srv']);
+  assert.ok(!/coingecko|coinpaprika|defillama|llama/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+  assert.ok(D.pl['live.srv'].includes('{t}') && D.pl['top.srv'].includes('{t}') && D.pl['rel.descSrv'].includes('{n}'));
+});
