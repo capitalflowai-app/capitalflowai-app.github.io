@@ -11332,7 +11332,7 @@ test('v150: dzień 1 (pl) — kafle „w tym … z odczytu własnego ◆”, zna
   assert.ok(o.includes('<small>w tym 4,7 mld USD z odczytu własnego z łańcucha ◆</small>'), 'kafel obligacji: część z odczytu własnego');
   assert.ok(o.includes('<small>w tym 6,5 mld USD z odczytu własnego z łańcucha ◆</small>') && o.includes('<small>w tym 1,8 mld USD z odczytu własnego z łańcucha ◆</small>'), 'kafle „razem” i „złoto”');
   assert.equal((o.match(/z odczytu własnego z łańcucha ◆<\/small>/g) || []).length, 3, 'kredyt prywatny bez linii (brak produktów z odczytu własnego)');
-  assert.ok(/<p class="pnote">◆ Odczyt własny z łańcucha bloków \(stan na \[2026-10-04T00:12:00\+00:00\] · ago\(2026-10-04T00:12:00\+00:00\)\) — w sumach zamiast starych wartości: Circle USYC 2,4 mld USD, BlackRock BUIDL 2,3 mld USD, Paxos Gold 1,8 mld USD\. Wartość = liczba tokenów na wszystkich sieciach produktu × cena\./.test(o), 'akapit: czas odczytu z wiekiem i produkty od największego');
+  assert.ok(/<p class="pnote">◆ Odczyt własny z łańcucha bloków \(stan na \[2026-10-04T00:12:00\+00:00\] · ago\(2026-10-04T00:12:00\+00:00\)\) — w sumach zamiast starych wartości: Circle USYC 2,4 mld USD, BlackRock BUIDL 2,3 mld USD, Paxos Gold 1,8 mld USD\. Wartość = liczba tokenów w obiegu \(kontrakty, których adres podaje emitent\) × cena\./.test(o), 'akapit: czas odczytu z wiekiem i produkty od największego (v163: zdanie metody)');
   assert.ok(o.includes('Fundusz o stałej wartości: 1 token = 1 USD (deklaracja emitenta).'), 'reguła 1 USD');
   assert.ok(o.includes('Złoto: 1 token = 1 uncja trojańska; cena złota 4140 USD za uncję z wyroczni cenowej na łańcuchu bloków ([2026-10-03T15:25:59+00:00]).'), 'reguła złota z ceną i czasem');
   assert.ok(o.includes('Fundusz o rosnącej wartości jednostki: cena jednostki z wyroczni funduszu na łańcuchu bloków — Circle USYC 1,1390 USD ([2026-10-02T12:31:59+00:00]).'), 'reguła wyroczni funduszu');
@@ -12604,4 +12604,69 @@ test('v157: strona w atrapie (dane wbudowane strażnika, 27.09) — „Wykresy�
   assert.ok(/class="wk-ch /.test(box('wk-global')) && /class="wk-ch /.test(box('wk-crypto')), 'są wykresy z danych strażnika');
   const K = G126.run('pl');
   assert.deepEqual(K.ERR, []); assert.equal(K.CAP.filter(c => /^wk-/.test(c.id)).length, 0, 'bez wyboru: kontenery kafli nietknięte (strona jak dotąd)');
+});
+
+
+/* ---------- v163: poprawki po niezależnym przeglądzie v153–v160 ---------- */
+test('v163: lewy pasek — dzień danych zawsze widoczny (niski ekran chowa rysunek skali, nie datę); opis przycisku dla czytnika z dniem i wiekiem', () => {
+  const c0 = html.indexOf('/* v156: strach i chciwość w lewym pasku — zawsze'), c1 = html.indexOf('/* v158: TRENDY — infografika', c0), css = html.slice(c0, c1);
+  assert.ok(c0 > 0 && c1 > c0 && !/\.sfg-d\s*\{\s*display\s*:\s*none/.test(css), 'dzień danych nigdy ukryty');
+  assert.ok(css.includes('@media (max-height:780px){.sfg .fg-svg{max-width:84px}}') && css.includes('@media (max-height:740px){.sfg .fg-svg{display:none}}'), 'niski ekran: mniejsza albo bez skali');
+  const G = {v: 34, s: 'f', date: '2026-10-03', stOf: () => 'f', hist: []};
+  const h = v156Pasek({mode: 'global', kr: null, g: G}).els['#side-fg'].innerHTML;
+  assert.ok(h.includes('aria-label="fg.aria{&quot;t&quot;:&quot;fg.t.g&quot;,&quot;v&quot;:&quot;34&quot;,&quot;s&quot;:&quot;fg.s.f&quot;}, S(2026-10-03) · wiek"'), h.slice(0, 300));
+  const h0 = v156Pasek({mode: 'global', kr: null, g: {v: 34, s: 'f', date: 'zła', stOf: () => 'f', hist: []}}).els['#side-fg'].innerHTML;
+  assert.ok(h0.includes('&quot;fg.s.f&quot;}"') && !h0.includes('S(zła)'), 'zły dzień — opis bez daty');
+});
+test('v163: telefon — zwinięta karta „CapitalFlowAI Strach & Chciwość” pokazuje w nagłówku liczbę, stan i dzień z wiekiem (tylko ≤ 900 px i tylko zwinięta)', () => {
+  const elG = {hidden: true, innerHTML: 'x'}, $ = q => q === '#g-fg' ? elG : null;
+  const I = v96src.H, X = fg139.mk({$, KR: {data: null}, icoWrap: I.icoWrap, flagImg: I.flagImg, glyphImg: I.glyphImg});
+  X.fgApplyG(fg139.N); const g = elG.innerHTML;
+  const tz = (g.match(/<span class="fg-tz">.*?<\/span><span class="live on">/) || [''])[0];
+  assert.ok(/^<span class="fg-tz"><b>62<\/b><i class="fg-dot fg-[a-z]+"><\/i>fg\.s\.[a-z]+ · Sep 25 · age\(2026-09-25\)<\/span><span class="live on">$/.test(tz), tz || g.slice(0, 600));
+  assert.ok(g.indexOf('<span class="fg-tz">') > g.indexOf('<div class="etfb">') && g.indexOf('<span class="fg-tz">') < g.indexOf('</div></div><p class="fg-cap fg-own">'), 'w nagłówku karty (widoczny po zwinięciu)');
+  const N0 = Object.assign({}, fg139.N, {now: null, d: []}); X.fgApplyG(N0);
+  assert.ok(!elG.innerHTML.includes('fg-tz'), 'bez liczby — bez linii w nagłówku (nigdy zero)');
+  const c0 = html.indexOf('/* v163: zwinięta karta „CapitalFlowAI Strach & Chciwość” na telefonie'), css = html.slice(c0, html.indexOf('</style>', c0));
+  assert.ok(c0 > 0 && css.includes('.fg-tz{display:none;') && css.includes('@media (max-width:900px){.pcard.zw .fg-tz{display:inline-flex}}') && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko telefon i karta zwinięta; kolory ze zmiennych');
+});
+test('v163: TRENDY — dziennik niewczytany: „Wczytywanie wyników…”, po błędzie „brak danych” i ponowienie po 2 min; nigdy „dziennik rusza —”', () => {
+  let n = 0, odp = null; const res = [];
+  const {X, calls} = v158Blok({srv: name => { n++; res.push(name); return odp ? Promise.resolve(odp(name)) : new Promise(() => {}); }});
+  const D = {bd: [{fam: 'cr', rule: 'all', v: 2, k: 3189, n: 6329, from: '2023-11-09'}], d: []};
+  const h0 = X.trdIg(D, true);
+  assert.ok(h0.includes('<p class="pnote">tig.load</p>') && h0.includes('<span class="tig-kw">tig.load</span>') && !h0.includes('tig.start') && !h0.includes('tig.d.wait'), 'wczytywanie');
+  assert.ok(h0.includes('aria-label="tig.d.since0: —"') && h0.includes('aria-label="tig.d.hist: 50%"'), 'od startu bez daty; historia z testu wstecznego zostaje');
+  assert.equal(n, 2);
+  const {X: Y, calls: c2} = v158Blok({srv: name => { res.push(name); return Promise.resolve(null); }});
+  Y.trdIg(D, true);
+  return Promise.resolve().then(() => Promise.resolve()).then(() => {
+    assert.equal(Y.TRDJ.tried, true); assert.deepEqual(c2, ['render'], 'pierwsze zakończone wczytanie przerysowuje (także bez danych)');
+    const h = Y.trdIg(D, true);
+    assert.ok(h.includes('<p class="pnote">tig.nodata</p>') && h.includes('<span class="tig-kw">tig.nodata.k</span>') && !h.includes('tig.start') && !h.includes('tig.load'), 'brak danych');
+    const k = res.length; Y.trdIg(D, true); assert.equal(res.length, k, 'w ciągu 2 min — bez zapytań');
+    Y.TRDJ.at = Date.now() - 2 * 60 * 1000 - 1; Y.trdIg(D, true); assert.equal(res.length, k + 2, 'po 2 min — ponowienie obu dzienników');
+    Y.TRDJ.c = {since: '2026-09-28', rows: []}; Y.TRDJ.w = {since: '2026-10-05', rows: []}; Y.TRDJ.busy = false; Y.TRDJ.at = Date.now() - 2 * 60 * 1000 - 1;
+    const r2 = res.length; Y.trdIg(D, true); assert.equal(res.length, r2, 'oba dzienniki wczytane — znów co 20 min');
+    assert.ok(Y.trdIg(D, false).includes('<p class="pnote">start 05.10</p>'), 'wczytany pusty dziennik — „rusza” jak dotąd');
+    assert.ok(!/NaN|undefined/.test(h0 + h), 'bez NaN');
+    void calls; void odp;
+  });
+});
+test('v163: strzałka karty — opis dla czytnika z tytułem bez liter przycisków nagłówka; słownik tylko po polsku; wybór tekstu sprawdza polski', () => {
+  const a = html.indexOf('/* v163: tytuł karty dla czytnika ekranu'), b = html.indexOf('function zwPrep(s){', a);
+  const Z = new Function(html.slice(a, b) + '\nreturn zwTytul;')();
+  const el = (tag, txt, kids) => ({nodeType: 1, tagName: tag, textContent: txt, childNodes: kids || []});
+  const h2 = {childNodes: [el('SPAN', ''), {nodeType: 3, textContent: ' CapitalFlowAI Strach & Chciwość '}, el('BUTTON', 'i')], textContent: ' CapitalFlowAI Strach & Chciwośći'};
+  assert.equal(Z(h2), 'CapitalFlowAI Strach & Chciwość', 'bez „i” z przycisku');
+  assert.equal(Z({textContent: '  Fundusze USA \n'}), 'Fundusze USA', 'bez childNodes — cały tekst');
+  assert.equal(Z(null), '');
+  const d0 = html.indexOf('const EXTRA163='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA163='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['tig.d.since0', 'tig.load', 'tig.nodata', 'tig.nodata.k']);
+  for (const [f, k, wynik] of [['gNameL', 'g.nl.x', 'g.nl.x'], ['gmPf', 'gmap.pf.x', 'gmap.pf.x'], ['trdSn', 'trd.sn.m.s', 'trd.sn.m.s']]) {
+    const s = html.slice(html.indexOf('function ' + f + '('), html.indexOf('\n', html.indexOf('function ' + f + '(')));
+    const F = new Function('I18N', 'LANG', 't', 'trdNum', s + '\nreturn ' + f + ';')({pl: {[k]: 'PL'}, en: {}, de: {}}, 'de', kk => kk, () => true);
+    assert.equal(F(f === 'trdSn' ? {m: 'm', st: 's'} : 'x'), wynik, f + ': tekst tylko po polsku nie zastąpiony zapasowym');
+  }
+  assert.ok(html.includes('"rwc.p":"{m} Odczyt własny z łańcucha bloków (stan na {t}) — w sumach zamiast starych wartości: {list}. Wartość = liczba tokenów w obiegu (kontrakty, których adres podaje emitent) × cena."'));
 });
