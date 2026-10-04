@@ -3357,7 +3357,7 @@ test('v98.2: kolory tam, gdzie ich brakowało; brak danych szary; plakietka CRYP
     v => v > 0 ? '+' : v < 0 ? '−' : '', v => (v / 1000).toFixed(1), d => d, gtI, c => '');
   const us = ms('usa');
   assert.ok(us.includes('"in":"<span class=\\"pos\\">+40.6</span>"') && us.includes('"tr":"<span class=\\"neg\\">−3.6</span>"') && us.includes('"out":"<span class=\\"neg\\">+68.5</span>"'), 'USA: napływ zielony, zakupy Amerykanów za granicą (odpływ) czerwone: ' + us);
-  assert.ok(html.includes("const chg=(k,d)=>{if(d==null||!isFinite(d))return `<span class=\"cell na\">—</span>`;") && html.includes("<span class=\"sval ${na?'na':c}\">") && html.includes("gAgeNote(GLIVE.asof):'<span class=\"na\">—</span>'],"));
+  assert.ok(html.includes("const chg=(k,d)=>{if(d==null||!isFinite(d))return `<span class=\"cell na\">—</span>`;") && html.includes("<span class=\"sval ${na?'na':c}\">") && html.includes("gAgeNote(fr):'<span class=\"na\">—</span>'],")   /* v166: data okresu (fr), brak — szary „—” */);
   assert.ok(html.includes('#page-assets .cell.na,#page-sectors .sval.na,#g-q .na{color:var(--dim)}'));
   const a0 = html.indexOf('function applyLang(){'), a1 = html.indexOf('\nfunction applyTheme(', a0);
   assert.ok(html.slice(a0, a1).includes("if(typeof renderStatus==='function')renderStatus();"), 'applyLang odświeża plakietkę');
@@ -11792,7 +11792,7 @@ test('v154: „Gdzie warunki sprzyjają” i „Jakość danych mapy” to zwyk�
   GP.push({id: 'usa', score: 40, parts: [['fx', 2, '+2']]}, {id: 'jpn', score: -12, parts: [['mom1', -3, '−3']]});
   f.gRenderProb(); const p = els['#g-prob'].innerHTML;
   assert.equal(els['#g-prob'].hidden, false);
-  assert.ok(p.startsWith('<div class="etfh"><div><h2>Gdzie warunki sprzyjają</h2><p class="pnote">▲ USA +40 · ▼ Japonia i Korea −12</p></div></div>'), 'nagłówek z sednem: ' + p.slice(0, 160));
+  assert.ok(p.startsWith('<div class="etfh"><div><h2>Gdzie warunki sprzyjają</h2><p class="pnote">▲ USA +40 · ▼ Japonia i Korea −12 · g.pr.d</p></div></div>'), 'nagłówek z sednem (v166: i miesiącem danych): ' + p.slice(0, 160));
   assert.ok(p.includes('<button class="prow pos" data-r="usa">') && !p.includes('<div class="panel pcard">'), 'wiersze jak dotąd, bez karty w karcie');
   f.gRenderQ(); const q = els['#g-q'].innerHTML;
   assert.ok(q.startsWith('<div class="etfh"><div><h2>Jakość danych mapy</h2><p class="pnote">2026-08 · dane sprzed 34 dni · 2 z 3 regionów z danymi</p></div></div><div class="q-grid gq">'), q.slice(0, 200));
@@ -12854,4 +12854,78 @@ test('v165: polskie teksty bez angielskich resztek — rodzaj dowodu, legenda, i
   assert.equal(f('eur', '(CONTRACTS OF EUR 125,000)'), '1 kontrakt = 125 000 euro.'); assert.ok(!/CONTRACTS|Index Points|\(\(/.test(f('eth', '(50 Index Points)')));
   assert.ok(html.includes("dropdown($('#dd-ganim'),{right:true,groups:[{key:'ganim',items:[{v:'1',l:'anim.on'},{v:'0',l:'anim.off'}],") && P['anim.on'] === 'Włączona' && P['anim.off'] === 'Wyłączona');
   const E = v143Final(html).en; assert.equal(E['ev.direct'], 'Direct flow'); assert.ok(E['cftc.u.eur'].includes('{u}'), 'inne języki — na koniec etapu');
+});
+
+
+/* ===================== v166: średnie ustalenia z przeglądu wizualnego (04.10) ===================== */
+/* gProb z pomocnikami strony (gWAvg … gFxRatio, blok warunków) — dane w sandboksie */
+function v166Prob(GLIVE, GREG) {
+  const a = html.indexOf('function gWAvg(iso,w,pick){'), b = html.indexOf('/* ---------- wskaźniki ----------', a);
+  assert.ok(a > 0 && b > a && html.slice(a, b).includes('function gProb(){'), 'blok warunków');
+  return new Function('GLIVE', 'GREG', 'gpct', 'LOCALE', 'LANG', 't', html.slice(a, b) + '\nreturn {gProb, P: () => GPROB};')(GLIVE, GREG, v => String(v), {pl: 'pl-PL'}, 'pl', k => k);
+}
+test('v166: warunki — wynik regionu tylko ze składników o co najmniej połowie wagi; sam kurs waluty (Rosja) = brak danych, nie „0”', () => {
+  const m = n => Array.from({length: n}, (_, i) => ['2026-' + String(i + 1).padStart(2, '0'), 100 + i * (i % 2 ? 1.3 : 0.7)]);
+  const GLIVE = {oecd: {USA: m(6), XXX: [['2026-01', 5], ['2026-02', 5], ['2026-03', 5], ['2026-04', 5], ['2026-05', 5]]},
+    cli: {USA: [['a', 100.1], ['b', 100.2], ['c', 100.3], ['d', 100.6]], ZZZ: [['a', 99.5], ['b', 99.6], ['c', 99.8], ['d', 100.4]]},
+    irlt: {USA: [['a', 4.6], ['b', 4.5], ['c', 4.4], ['d', 4.2]]}, fx: {now: {rates: {RUB: 80}}, '1Q': {rates: {RUB: 84}}}};
+  const GREG = [{id: 'usa', iso: ['USA'], w: [1], fx: [['USD', 1]]}, {id: 'rus', iso: ['XXX'], w: [1], fx: [['RUB', 1]]}, {id: 'zz', iso: ['ZZZ'], w: [1], fx: [['ZZZ', 1]]}];
+  const F = v166Prob(GLIVE, GREG); F.gProb();
+  const P = F.P();
+  assert.deepEqual(P.map(o => o.id).sort(), ['usa', 'zz'], 'Rosja (zamrożony indeks, bez CLI — tylko waluta 0,09 wagi) poza wynikiem');
+  assert.deepEqual(P.find(o => o.id === 'usa').parts.map(x => x[0]), ['cli.lvl', 'cli.dir', 'mom3', 'mom1', 'fx', 'yld']);
+  assert.deepEqual(P.find(o => o.id === 'zz').parts.map(x => x[0]), ['cli.lvl', 'cli.dir'], 'samo CLI = 0,55 wagi — wynik jest');
+  /* wagi składników razem = 1; próg 0,5 */
+  const g0 = html.indexOf('function gProb(){'), g1 = html.indexOf('GPROB.push(', g0), W = [...html.slice(g0, g1).matchAll(/add\('[a-z.0-9]+',[^;]*?,(\.\d+),/g)].map(x => +x[1]);
+  assert.equal(W.length, 6); assert.equal(Math.round(W.reduce((s, x) => s + x, 0) * 100), 100);
+  assert.ok(html.slice(g0, g1).includes('if(wsum<.5)return;') && !html.slice(g0, g1).includes('if(!wsum)return;'));
+  /* kafel „Wykresy”: region poza wynikiem — „brak danych” (lista miss), jak na mapie */
+  assert.ok(html.includes("miss=GREG.filter(r=>!GPROB.some(o=>o.id===r.id));") && html.includes(".concat(miss.map(r=>({l:wkRf(r.id)+escH(nm(r.id)),v:null,tip:nm(r.id)+wkK()+t('eng.gap')})));"));
+});
+test('v166: warunki — miesiąc danych i wiek w nagłówku karty, objaśnienie składników (CLI …) pod kolumnami; słownik EXTRA166 tylko po polsku, bez nazw dostawców', () => {
+  const a = html.indexOf('function gRenderProb(){'), b = html.indexOf('\nfunction gRenderRefresh(', a), s = html.slice(a, b);
+  assert.ok(s.includes("const pd=GLIVE.asof?' · '+t('g.pr.d',{d:escH(GLIVE.asof)+gAgeNote(GLIVE.asof)}):'';") && s.includes("${sum?escH(sum):t('g.pr.note')}${pd}</p></div></div>"));
+  assert.ok(s.indexOf("t('g.pr.leg')") > s.indexOf('pcols') && s.indexOf("t('g.pr.leg')") < s.indexOf("t('g.pr.foot')"));
+  const d0 = html.indexOf('const EXTRA166='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA166='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['cmc.diff', 'g.pr.d', 'g.pr.leg']);
+  assert.ok(D.pl['g.pr.d'].includes('{d}') && /CLI/.test(D.pl['g.pr.leg']) && /TVL/.test(D.pl['cmc.diff']));
+  assert.ok(!/oecd|coinmarketcap|coinpaprika|defillama|llama|ecb|twelve/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+  const P = v143Final(html).pl;
+  assert.deepEqual([P['g.rf.src'], P['cmc.stab'], P['cmc.defi'], P['cmc.vol']], ['{n} źródeł w tej zakładce', 'Stablecoiny: kapitalizacja', 'Tokeny DeFi: kapitalizacja', 'Wolumen 24h (inny spis giełd)']);
+});
+test('v166: „Jakość danych mapy” — data danych wybranego okresu jak kafel „Rynki akcji” (ETF-y dziennie albo miesiące OECD); karta rynku krypto — zdanie o innym spisie monet', () => {
+  const a = html.indexOf('function gRenderQ(){'), b = html.indexOf('\nfunction gRenderProb(', a), s = html.slice(a, b);
+  assert.ok(s.includes("const KQ=(typeof GKPI!=='undefined'&&Array.isArray(GKPI))?GKPI.find(k=>k.k==='g.k.eq'):null,fr=KQ&&KQ.fresh?String(KQ.fresh):GLIVE.asof;"));
+  assert.ok(s.includes("fr?escH(fr)+gAgeNote(fr):'<span class=\"na\">—</span>'") && s.includes("const sum=(fr?escH(fr)+gAgeNote(fr)+' · ':'')") && !/GLIVE\.asof\?escH/.test(s));
+  assert.ok(html.includes("fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)}"), 'kafel „Rynki akcji”: data według źródła okresu');
+  assert.ok(html.indexOf('function gRenderAll(){gRenderKpi();gRenderDetail();gRenderQ();') > 0, 'gRenderQ po kafelkach (GKPI gotowe)');
+  const c0 = html.indexOf('function renderCmc(){'), c1 = html.indexOf('\n}', c0), C = html.slice(c0, c1);
+  assert.ok(C.indexOf("t('cmc.diff')") > C.indexOf("t('inst.asof')") && C.indexOf("t('cmc.diff')") < C.indexOf("t('eng.notsays')"));
+});
+test('v166: CSS — wąskie kafle z linią między wierszami, znaczek świeżości na telefonie, przyciski mapy na dole po lewej, wskazówka pokrycia nad liczbą, wartości zawijane', () => {
+  const a = html.indexOf('/* v166: wąskie kafle wykresów'), b = html.indexOf('</style>', a), css = html.slice(a, b);
+  assert.ok(a > 0 && b > a);
+  for (const s of ['@container wkt (max-width:300px){.wk-br{row-gap:1px;padding:3px 4px 5px;border-radius:0;border-bottom:1px solid var(--line)}.wk-br:last-child{border-bottom:0}}',
+    '@media (max-width:620px){.sub>span.live{display:inline-flex;font-size:11px}}', '.gstage .zoom{top:auto;right:auto;left:10px;bottom:10px;flex-direction:row;gap:5px}',
+    '@media (min-width:1241px){.app>.rail{position:sticky;top:min(0px,calc(100vh - var(--rail-h,0px)));align-self:start}}', '.etfk b{white-space:normal}']) assert.ok(css.includes(s), s);
+  assert.ok(html.includes('.sub>span:not(.badge){display:none}'), 'podtytuł na telefonie dalej schowany');
+  assert.ok(html.includes('@media (max-width:620px){#stage .zoom{top:auto;bottom:12px;'), 'scena CRYPTO — przyciski już na dole (bez zmian)');
+  const g0 = html.indexOf('function renderGauge(){'), g1 = html.indexOf('\n}', g0), G = html.slice(g0, g1);
+  assert.ok(G.includes('`<svg viewBox="0 0 200 128" role="img"') && G.includes('<text x="100" y="125" text-anchor="middle"') && G.includes('<circle cx="100" cy="100" r="6"'), 'liczba (od y≈112) pod kółkiem wskazówki (do y=106)');
+});
+test('v166: CRYPTO szeroko — wysokość prawej kolumny w --rail-h (sticky dołem), przy każdej zmianie wysokości; bez obserwatora — jednorazowo, bez błędu', () => {
+  const a = html.indexOf('/* v166: CRYPTO na szerokim ekranie'), b = html.indexOf('/* v166: koniec bloku */', a);
+  assert.ok(a > html.indexOf('/* v165: koniec bloku tabel i prawej kolumny */') && b > a);
+  const set = [], r = {offsetHeight: 1702.4, style: {setProperty: (k, v) => set.push([k, v])}};
+  let cb = null; const RO = function (f) { cb = f; this.observe = x => { assert.equal(x, r); }; };
+  const F = new Function('$', 'ResizeObserver', html.slice(a, b) + '\nreturn railH;')(q => (q === '#rail' ? r : null), RO);
+  assert.deepEqual(set, [['--rail-h', '1702px']]); r.offsetHeight = 900; cb(); assert.deepEqual(set[1], ['--rail-h', '900px']);
+  F({}); F(null); F({offsetHeight: -5, style: {setProperty: (k, v) => set.push([k, v])}}); assert.deepEqual(set[2], ['--rail-h', '0px']);
+  new Function('$', 'ResizeObserver', html.slice(a, b))(() => null, undefined);
+  new Function('$', 'ResizeObserver', html.slice(a, b))(q => (q === '#rail' ? r : null), undefined);
+});
+test('v166: słownik EXTRA166 — czysty JSON i jedna linia nakładania, po słownikach v165 i starszych', () => {
+  const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
+  assert.equal(mm[mm.length - 1][1], 'EXTRA166'); assert.equal(html.split('const EXTRA166=').length, 2);
+  const I = v143Final(html); assert.equal(I.pl['g.pr.d'], 'miesiąc danych: {d}'); assert.equal(I.en['g.pr.d'], undefined, 'inne języki — na koniec etapu');
 });
