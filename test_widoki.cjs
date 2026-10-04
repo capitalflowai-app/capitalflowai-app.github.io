@@ -8319,7 +8319,7 @@ test('v132: wycena — słownik EXTRA141 w 10 językach (te same klucze i pola),
   assert.ok(E.pl['wy.k.sopr.eq'].startsWith('około 1 (zysk ≈ 0%)') && E.en['wy.k.sopr.eq'].startsWith('about 1 (profit ≈ 0%)') && !/blisko zera|near zero/.test(E.pl['wy.k.sopr.eq'] + E.en['wy.k.sopr.eq']), 'SOPR ≈ 1, nie „blisko zera”');
   const pl = v96src.tFor('pl'), en = v96src.tFor('en');
   assert.ok(pl('wy.sub').includes('nigdy zero') && pl('wy.sub').includes('nie przepływ kapitału') && en('wy.sub').includes('never zero') && en('wy.sub').includes('not a capital flow'), 'brak ≠ zero, stan ≠ przepływ');
-  assert.ok(pl('wy.k.sopr.late', {n: 7}) === 'dane z opóźnieniem 7 dni (bezpłatny plan źródła)' && pl('wy.not1').startsWith('To nie jest sygnał kupna ani sprzedaży.'), 'opóźnienie i „nie sygnał” wprost');
+  assert.ok(pl('wy.k.sopr.late', {n: 7}) === 'dane z opóźnieniem 7 dni (tak udostępnia je źródło)' && pl('wy.not1').startsWith('To nie jest sygnał kupna ani sprzedaży.'), 'opóźnienie i „nie sygnał” wprost');
   for (const k of ['inst.file', 'eng.notsays', 'eng.disclaimer']) assert.ok(v96src.I18N.pl[k] && v96src.I18N.en[k], 'wspólny klucz używany przez panel: ' + k);
   const apl = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
   assert.ok(apl.indexOf('EXTRA127') >= 0 && apl.indexOf('EXTRA141') > apl.indexOf('EXTRA127') && apl.filter(x => x === 'EXTRA141').length === 1, 'EXTRA141 raz, po EXTRA127 (późniejsze wydania mogą stać dalej)');
@@ -12926,6 +12926,63 @@ test('v166: CRYPTO szeroko — wysokość prawej kolumny w --rail-h (sticky doł
 });
 test('v166: słownik EXTRA166 — czysty JSON i jedna linia nakładania, po słownikach v165 i starszych', () => {
   const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)];
-  assert.equal(mm[mm.length - 1][1], 'EXTRA166'); assert.equal(html.split('const EXTRA166=').length, 2);
+  { const ix = mm.map(m => m[1]); assert.ok(ix.indexOf('EXTRA166') > ix.indexOf('EXTRA164') && ix.indexOf('EXTRA164') >= 0, 'v167: po słowniku v164 (nie musi być ostatni)'); } assert.equal(html.split('const EXTRA166=').length, 2);
   const I = v143Final(html); assert.equal(I.pl['g.pr.d'], 'miesiąc danych: {d}'); assert.equal(I.en['g.pr.d'], undefined, 'inne języki — na koniec etapu');
+});
+
+
+/* ===================== v167: drobne ustalenia z przeglądu wizualnego (04.10) ===================== */
+test('v167: CSS — daty osi małych wykresów w jednej linii (w siatce początek i koniec), kafelki Wielorybów i Dźwigni na całą szerokość, kwoty ETF w prawej kolumnie bez łamania', () => {
+  const a = html.indexOf('/* v167: małe wykresy archiwum'), b = html.indexOf('</style>', a), css = html.slice(a, b);
+  assert.ok(a > 0 && b > a);
+  for (const s of ['.arc-x span{white-space:nowrap}.arc-x{gap:8px}.arc-grid .arc-x span:nth-child(2){display:none}',
+    '@media (min-width:1241px){#c-wieloryby .etfkpis,#c-dzwignia .etfkpis{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}', '.etf-rail .etfr span.mono{white-space:nowrap}'])
+    assert.ok(css.includes(s), s);
+  assert.ok(html.includes('@media (max-width:1240px){.etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}}'), 'węższe ekrany jak dotąd');
+});
+test('v167: „ETF → krypto” w prawej kolumnie — kwoty bez końcowego „USD” (pl, en, de …), jednostka „USD” raz w wierszu podpisów', () => {
+  const a = html.indexOf('const etfMr='), b = html.indexOf('\n', a);
+  assert.ok(a > html.indexOf('const etfM=v=>{') && a < html.indexOf('${etfMr(a.d1)}'), 'lokalnie, przed szablonem prawej kolumny');
+  const f = new Function('etfM', html.slice(a, b) + '\nreturn etfMr;')(v => v);
+  assert.equal(f('+103 mln USD'), '+103 mln'); assert.equal(f('+2,75 mld USD'), '+2,75 mld'); assert.equal(f('−55 Mio. USD'), '−55 Mio.'); assert.equal(f('+1 百万美元'), '+1 百万美元');
+  assert.equal(f('—'), '—'); assert.equal(f('0 mln USD'), '0 mln');
+  assert.ok(html.includes('${etfMr(a.d1)}</span><span class="mono ${etfCls(a.m)}">${etfMr(a.m)}</span>') && html.includes('<div class="etfr etfr-h"><span>USD</span><span>${t(\'etf.c.day\')}</span>'));
+  assert.ok(html.includes("${t('etf.k.cum')}${typeof sepK==='function'?sepK():': '}<b class=\"${etfCls(T.cum)}\">${etfM(T.cum)}</b>"), 'suma od startu — z jednostką jak dotąd');
+});
+test('v167: archiwum — wiek danych obok daty ostatniej wartości (wykresy i kafelki); Aktywa — zmiana rentowności 10-letnich w pp; Sektory w GLOBAL — „regiony świata”', () => {
+  assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>`:'';}).join('');") && html.includes("`${t('inst.asof')} ${escH(p[0])}${gAgeNote(p[0])}`:t('eng.gap'));}"));
+  assert.ok(html.includes("if(du)rows.push(['as.us10',n2(du.v)+'%',typeof du.d==='number'&&isFinite(du.d)?du.d:null,") && html.includes("if(dd)rows.push(['as.de10',n2(dd.v)+'%',typeof dd.d==='number'&&isFinite(dd.d)?dd.d:null,"));
+  assert.ok(html.includes("${(k==='kpi.dom'||k==='as.us10'||k==='as.de10')?' '+t('u.pp'):'%'}"), 'rentowność: zmiana w pp, nie %');
+  assert.ok(html.includes("else if(yu)rows.push(['as.us10',n2(yu[1])+'%',null,"), 'dane miesięczne (zapas) — bez zmiany, jak dotąd');
+  assert.ok(html.includes("<h1>${t(gActive()?'pg.sectors.g':'pg.sectors')}</h1>"));
+  const d0 = html.indexOf('const EXTRA167='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA167='.length, d1));
+  assert.deepEqual(D, {pl: {'pg.sectors.g': 'Sektory: regiony świata'}});
+  const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]); assert.ok(mm.indexOf('EXTRA167') > mm.indexOf('EXTRA166') && mm.indexOf('EXTRA166') >= 0, 'po słowniku v166');
+});
+test('v167: „Kapitał w krypto” — kliknięcie wiersza przewija do szczegółów tylko, gdy są poza oknem (ukryte — bez przewijania)', () => {
+  const a = html.indexOf('function railShow(){'), b = html.indexOf('\nfunction renderRail(){', a);
+  assert.ok(a > 0 && b > a);
+  const calls = [], el = (top, hidden) => ({hidden, getBoundingClientRect: () => ({top}), scrollIntoView: o => calls.push(o)});
+  const mk = (w, anim) => new Function('$', 'window', 'st', html.slice(a, b) + '\nreturn railShow;')(q => (q === '#why' ? w : null), {innerHeight: 900}, {anim});
+  assert.equal(mk(el(-300, false), true)(), true); assert.deepEqual(calls[0], {behavior: 'smooth', block: 'start'});
+  assert.equal(mk(el(1200, false), false)(), true); assert.deepEqual(calls[1], {behavior: 'auto', block: 'start'});
+  assert.equal(mk(el(400, false), true)(), false, 'w oknie — bez przewijania'); assert.equal(mk(el(-300, true), true)(), false, 'odznaczone (ukryte) — bez przewijania');
+  assert.equal(mk(null, true)(), false); assert.equal(calls.length, 2);
+  assert.ok(html.includes("b.addEventListener('click',()=>{select({type:'edge',id:b.dataset.e});railShow();})"));
+});
+test('v167: kontrast drobnego szarego tekstu (--dim) co najmniej 4,5:1 w obu motywach, hierarchia z --mut zachowana', () => {
+  const tok = (blk, k) => { const m = new RegExp('--' + k + ':(#[0-9a-f]{6})').exec(blk); return m ? m[1] : null; };
+  const d0 = html.indexOf(':root{'), l0 = html.indexOf(':root[data-theme="light"]{'), dark = html.slice(d0, l0), light = html.slice(l0, html.indexOf('}', l0));
+  const lum = h => { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(x => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const cr = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  assert.equal(tok(dark, 'dim'), '#8e8e93'); assert.equal(tok(light, 'dim'), '#707075');
+  for (const bg of ['#161618', '#1e1e20']) assert.ok(cr(tok(dark, 'dim'), bg) >= 4.5, 'ciemny ' + bg);
+  for (const bg of ['#ffffff', '#f5f5f7']) assert.ok(cr(tok(light, 'dim'), bg) >= 4.5, 'jasny ' + bg);
+  assert.ok(lum(tok(dark, 'mut')) > lum(tok(dark, 'dim')), 'ciemny: --mut jaśniejszy niż --dim'); assert.ok(lum(tok(light, 'mut')) <= lum(tok(light, 'dim')), 'jasny: --mut nie jaśniejszy niż --dim');
+});
+test('v167: teksty dla czytelnika zamiast notatek wewnętrznych (indeksy, stopka ETF, opóźnienie SOPR)', () => {
+  const P = v143Final(html).pl;
+  assert.deepEqual([P['ix.bad'], P['etf.meta.errs2'], P['wy.k.sopr.late']], ['brak bieżących notowań (od {d})', 'część innych źródeł chwilowo nie odpowiedziała — stan każdego pokazuje strona „Źródła”', 'dane z opóźnieniem {n} dni (tak udostępnia je źródło)']);
+  assert.ok(P['wy.not3'].startsWith('SOPR przychodzi z 7-dniowym opóźnieniem (tak udostępnia go źródło) i'));
+  for (const k of Object.keys(P)) assert.ok(!/do sprawdzenia|bezpłatny plan|automat zgłosił|odrzucony przez dostawc/.test(String(P[k])), 'pl ' + k + ': ' + P[k]);
 });
