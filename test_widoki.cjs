@@ -3504,7 +3504,7 @@ test('v103-zrodla: bez pliku meta „—” z powodem i bez linii liczby źróde
   assert.ok(noOk.includes('<b>ED[' + v103zr.FRESH + ']</b>') && !noOk.includes('W ostatnim przebiegu') && !noOk.includes(NOMETA) && !noOk.includes(NOAT), 'czas bez ok');
   assert.ok(!v103zr.render('pl', {at: v103zr.FRESH, ok: {}}).out.includes('W ostatnim przebiegu'), 'pusty ok — bez „0 z 0”');
   const old = new Date(Date.now() - 30 * 3600e3).toISOString(), so = v103zr.render('pl', {at: old, ok: {a: true}}).out;
-  assert.ok(so.includes('<b class="neu">ED[' + old + ']</b> · AGE[' + old.slice(0, 10) + ']') && so.includes('<p class="zr-count neu">Ostatni przebieg automatu jest starszy niż 3 godz.'), 'stary plik: czas na bursztynowo i ostrzeżenie');
+  assert.ok(so.includes('<b class="neu">ED[' + old + ']</b> · AGE[' + old.slice(0, 10) + ']') && so.includes('<p class="zr-count neu">Ostatni przebieg automatu jest starszy niż 1 godz.'), 'stary plik: czas na bursztynowo i ostrzeżenie');
   assert.ok(so.includes('W ostatnim przebiegu odpowiedziało 1 z 1 źródeł danych') && !so.includes(NOMETA) && !so.includes(NOAT));
   const R = v103zr.render('pl', null);
   assert.equal(R.zrCount(null), null); assert.equal(R.zrCount({}), null); assert.equal(R.zrCount({ok: {}}), null); assert.equal(R.zrCount({ok: 'x'}), null); assert.equal(R.zrCount({ok: []}), null);
@@ -13232,7 +13232,7 @@ test('v183: słownik EXTRA172 — czysty JSON, tylko po polsku, linia nakładani
     assert.ok(pk.split(',').every(x => pb.split(',').includes(x)), k + ': pola ' + pk + ' ⊆ ' + pb);
   }
   const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
-  assert.equal(mm[mm.length - 1], 'EXTRA172'); assert.ok(mm.indexOf('EXTRA172') > mm.indexOf('EXTRA171'));
+  assert.ok(mm.indexOf('EXTRA172') > mm.indexOf('EXTRA171') && mm.indexOf('EXTRA171') >= 0, 'po słowniku v176 (v191: bez wymogu „ostatni” — kolejne słowniki dochodzą)');
 });
 test('v183: prawdziwe teksty — świat 1 / 3 / 5 sesji, krypto 1 / 7 dni, „czeka/czekają”, portfele, pełne bloki; wywołania w kodzie przez tN (z zapasem dla piaskownic)', () => {
   const pl = Object.assign({}, v183Dict('EXTRA158').pl, v183Dict('EXTRA99').pl, v183Dict('EXTRA119').pl, v183Dict('EXTRA172').pl);
@@ -13345,4 +13345,26 @@ test('v190: tN — język tekstu jak w t(): tekst tylko po polsku u widza z inny
   assert.equal(mk('de')('x', 1, {n: 1}), 'ostatnia sesja', 'TRENDY po polsku u Niemca — polska forma');
   assert.equal(mk('de')('y', 3, {n: 3}), '3 Wallets', 'tekst przetłumaczony — własny, bez polskiej formy');
   assert.equal(mk('pl')('y', 3, {n: 3}), '3 portfele'); assert.equal(mk('pl')('x', 5, {n: 5}), 'ostatnie 5 sesji');
+});
+
+
+/* ---------- v191: pasek w nagłówku, gdy dane z serwera są starsze niż godzina ---------- */
+test('v191: dane z serwera starsze niż 60 min — pasek w nagłówku (min / godz.), świeże albo brak pliku stanu — bez paska; Źródła: próg 1 godz.', () => {
+  const a = html.indexOf('function srvStale(){'), b = html.indexOf('}   /* v191: koniec */', a);
+  assert.ok(a > 0 && b > a, 'funkcja srvStale');
+  const D = v183Dict('EXTRA173');
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['srv.stale.h', 'srv.stale.m']);
+  const t = (k, v) => { let s = D.pl[k] ?? k; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
+  const el = {hidden: true, textContent: 'x'}, NOW = Date.parse('2026-10-05T21:00:00Z');
+  const run = meta => new Function('document', 't', 'GLIVE', 'Date', html.slice(a, b + 1) + '\nsrvStale();')({getElementById: id => id === 'srv-stale' ? el : null}, t, {meta}, {now: () => NOW, parse: Date.parse});
+  run({at: '2026-10-05T20:30:00+00:00'}); assert.equal(el.hidden, true, '30 min — w normie');
+  run({at: '2026-10-05T19:45:00+00:00'}); assert.equal(el.hidden, false); assert.equal(el.textContent, 'Dane z serwera są sprzed 75 min — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.');
+  run({at: '2026-10-05T18:46:00+00:00'}); assert.equal(el.textContent, 'Dane z serwera są sprzed 2 godz. — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.');
+  run(null); assert.equal(el.hidden, true, 'bez pliku stanu — nie zgadujemy'); run({at: 'zły'}); assert.equal(el.hidden, true);
+  const head = html.slice(html.indexOf('<header class="top">'), html.indexOf('</header>'));
+  assert.ok(head.includes('<p class="srv-stale" id="srv-stale" role="status" hidden></p>'), 'w nagłówku — każda zakładka i telefon');
+  assert.ok(html.includes(".srv-stale{") && html.includes("srvStale();}catch(e){}") && html.includes('setInterval(()=>{if(!document.hidden)srvStale();},60*1000);'));
+  const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(mm.indexOf('EXTRA173') > mm.indexOf('EXTRA172') && mm.indexOf('EXTRA172') >= 0, 'po słowniku v183');
+  assert.ok(html.includes("const stale=!!at&&(Date.now()-ms)>60*60e3;") && html.includes("t('zr2.stale',{h:1})"), 'Źródła: ten sam próg (1 godz.)');
 });

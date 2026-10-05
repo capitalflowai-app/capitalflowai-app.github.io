@@ -132,6 +132,7 @@ body[data-bg="off"] #hex{display:none}
 
 .top{position:relative;z-index:30;grid-column:2/4;grid-row:1;display:flex;flex-direction:column;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);backdrop-filter:blur(10px)}
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.srv-stale{margin:0;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;line-height:1.35;color:var(--yl-tx);background:var(--panel)}   /* v191 */
 .tabs{display:inline-flex;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;margin-inline:auto}
 .tabs button{background:var(--panel-2);border:0;padding:10px 38px;font-weight:600;letter-spacing:.04em;color:var(--mut)}
 .tabs button[aria-selected="true"]{background:var(--sel);color:var(--tx);box-shadow:inset 0 -2px 0 var(--bl)}
@@ -1382,6 +1383,7 @@ td .cell .logo-img{width:34px;height:34px}
         <button class="icon-btn" id="help" data-i18n-aria="help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8M12 17v.5"/></svg></button>
       </div>
     </div>
+    <p class="srv-stale" id="srv-stale" role="status" hidden></p>
   </header>
 
   <main class="center" id="crypto" role="tabpanel" aria-labelledby="tab-crypto">
@@ -2127,6 +2129,9 @@ for(const l in EXTRA171)if(I18N[l])Object.assign(I18N[l],EXTRA171[l]);
 /* v183: odmiana liczebników — sesja/sesje/sesji, dzień, czeka/czekają, portfel/portfele/portfeli, blok/bloki/bloków — tylko po polsku (cel właściciela 04.10) */
 const EXTRA172={"pl":{"odm.tig.sub.w.one":"ostatnia sesja ({a}) · sprawdzane na zamknięciu sesji · 50% = rzut monetą","odm.tig.sub.w.few":"ostatnie {n} sesje ({a}–{b}) · sprawdzane na zamknięciu sesji · 50% = rzut monetą","odm.tig.sub.c.one":"ostatni dzień ({a}) · sprawdzane po dobie · 50% = rzut monetą","odm.tig.wait.few":"+ {n} czekają na wynik","odm.wh.wal.one":"{n} portfel · lista giełdy z {d}","odm.wh.wal.few":"{n} portfele · lista giełdy z {d}","odm.ln.k.mp.vb.one":"{v} mln vB ≈ {n} pełny blok","odm.ln.k.mp.vb.few":"{v} mln vB ≈ {n} pełne bloki"}};
 for(const l in EXTRA172)if(I18N[l])Object.assign(I18N[l],EXTRA172[l]);
+/* v191: pasek „dane z serwera starsze niż godzina” — tylko po polsku (cel właściciela 04.10) */
+const EXTRA173={"pl":{"srv.stale.m":"Dane z serwera są sprzed {n} min — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.","srv.stale.h":"Dane z serwera są sprzed {n} godz. — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę."}};
+for(const l in EXTRA173)if(I18N[l])Object.assign(I18N[l],EXTRA173[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -3813,7 +3818,14 @@ function instRow(label,value,exact,note){
 }
 function instFoot(d){const s=String(d||''),last=s.split('–').pop().trim();return `${escH(d)}${gAgeNote(last)}`;}   /* v51: zakres „2026-06 – 2026-07” też ma wiek */
 /* v51: stan źródeł z meta.json zbieracza i czas pliku (pole at) zamiast chwili pobrania przez przeglądarkę */
-function metaLoad(){srvJSON('meta').then(m=>{GLIVE.meta=(m&&typeof m==='object'&&m.ok)?m:null;try{if(page==='sources')renderPage();}catch(e){}});}
+function metaLoad(){srvJSON('meta').then(m=>{GLIVE.meta=(m&&typeof m==='object'&&m.ok)?m:null;try{if(page==='sources')renderPage();}catch(e){}try{srvStale();}catch(e){}});}
+/* v191: dane z serwera starsze niż godzina (automat zwykle co 10 min; 05.10 wieczorem awaria GitHub Actions — ponad 2 h bez nowych plików, a strona
+   nie mówiła tego wprost: pasek boczny pokazuje czas odświeżenia w przeglądarce, kafle — dzień danych) → pasek w nagłówku, na każdej zakładce i na telefonie */
+function srvStale(){const el=document.getElementById('srv-stale');if(!el)return;
+  const m=(typeof GLIVE!=='undefined'&&GLIVE)?GLIVE.meta:null,ms=m&&typeof m.at==='string'?Date.parse(m.at):NaN,min=isFinite(ms)?Math.floor((Date.now()-ms)/60000):null;
+  if(min===null||min<60){el.hidden=true;el.textContent='';return;}
+  el.textContent=min<120?t('srv.stale.m',{n:min}):t('srv.stale.h',{n:Math.floor(min/60)});el.hidden=false;
+}   /* v191: koniec */
 
 /* v47: TIC (Skarb USA) z pliku automatu tic.json — przepływy papierów USA ↔ regiony; brak = brak; regiony z niepełnym składem oznaczone */
 const TIC={data:null};
@@ -6468,7 +6480,7 @@ function renderSources(){
   const m=(typeof GLIVE!=='undefined'&&GLIVE&&GLIVE.meta&&typeof GLIVE.meta==='object')?GLIVE.meta:null;   /* wczytany plik stanu; null = jeszcze nie pobrany */
   /* czas pliku meta = ostatni przebieg automatu: tylko tekst ISO z datą i godziną; brak albo zły = „—” z powodem, nigdy czas zmyślony */
   const raw=m&&typeof m.at==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(m.at)?m.at:'',ms=raw?Date.parse(raw):NaN,at=isFinite(ms)?raw:'';
-  const stale=!!at&&(Date.now()-ms)>3*3600e3;   /* przebieg co 20 min: plik starszy niż 3 h znaczy, że automat stanął — mówimy to wprost */
+  const stale=!!at&&(Date.now()-ms)>60*60e3;   /* v191: automat co 10 min — plik starszy niż godzina znaczy, że odświeżanie stoi (dawniej próg 3 h przy przebiegu co 20 min) */
   const c=at?zrCount(m):null;   /* liczba źródeł tylko z datowanego pliku (liczba bez daty to liczba bez wieku) */
   const ok=typeof icoWrap==='function'&&typeof glyphImg==='function';
   const iG=ok?icoWrap(glyphImg('gauge','sm')):'',iL=ok?icoWrap(glyphImg('globe','sm')+glyphImg('coin','sm')):'';
@@ -6479,7 +6491,7 @@ function renderSources(){
     <b id="zr-clock" class="zr-clock">${escH(zrNow())}</b>
     <p class="zr-refresh">${iG}${t('zr2.refresh',{t:tm,age:at?gAgeNote(at.slice(0,10)):''})}</p>
     ${c?`<p class="zr-count">${t('zr2.count',{n:c.n,m:c.m})}</p>`:''}
-    ${!m?`<p class="zr-count">${t('zr2.nometa')}</p>`:!at?`<p class="zr-count">${t('zr2.noat')}</p>`:stale?`<p class="zr-count neu">${t('zr2.stale',{h:3})}</p>`:''}
+    ${!m?`<p class="zr-count">${t('zr2.nometa')}</p>`:!at?`<p class="zr-count">${t('zr2.noat')}</p>`:stale?`<p class="zr-count neu">${t('zr2.stale',{h:1})}</p>`:''}
     <p class="zr-legal">${iL}${t('zr2.legal')}</p>
     <p class="mtxt">${t('zr2.note')}</p>
    </section>`;
@@ -8579,6 +8591,7 @@ if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('16px "
 /* ETF → krypto: migawka od razu, dane na żywo gdy jest klucz */
 etfLoad();etfAuto();engLoad();engAuto();cmcLoad();cmcAuto();krLoad();krAuto();tvInit();
 metaLoad();setInterval(()=>{if(!document.hidden)metaLoad();},10*60*1000);   /* v51: stan źródeł z meta.json */
+setInterval(()=>{if(!document.hidden)srvStale();},60*1000);   /* v191: wiek danych serwera rośnie także bez nowego pliku */
 /* v176: powrót do karty po co najmniej 2 min w tle — od razu świeże pliki serwera (dotąd czekały na następne „tyknięcie” zegara: 10–60 min,
    a w tle tyknięcia są pomijane); kolejno co 150 ms; szanse Fed mają własny mechanizm (fedLoad przy powrocie, v126) */
 (function(){let ukryta=document.hidden?Date.now():0;try{document.addEventListener('visibilitychange',()=>{   /* v181: karta otwarta w tle — czas ukrycia od wczytania */
