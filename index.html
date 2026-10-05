@@ -2112,6 +2112,9 @@ for(const l in EXTRA167)if(I18N[l])Object.assign(I18N[l],EXTRA167[l]);
 /* v168: dane szybciej — zapasowy plik cen krypto „co godzinę” — tylko po polsku (cel właściciela 04.10) */
 const EXTRA168={"pl":{"pg.1h":"co godzinę"}};
 for(const l in EXTRA168)if(I18N[l])Object.assign(I18N[l],EXTRA168[l]);
+/* v169: tokenizowane aktywa — dane emitentów ◇ — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
+const EXTRA169={"pl":{"rwe.in":"w tym {v} wg danych emitentów {m}","rwe.top":"{m} wartość według danych emitenta produktu (opis nad tabelami).","rwe.p":"{m} Dane emitentów — produkty, których dotychczasowe źródło stoi, liczymy według danych publikowanych przez samego emitenta (bieżąca liczba jednostek × ostatnia wycena; w nawiasie dzień stanu): {list}.","rwe.fx":"Klasy w innych walutach niż USD przeliczone po dziennym kursie z {d}.","rwe.gold":"Złoto (1 token = 1 uncja): {p} USD za uncję ({d}) — ta sama cena co w odczycie z łańcucha.","rwe.zakres":"Inny zakres niż w ostatnio znanej wartości: {list}.","rwe.ref":"ostatnio znana {v}","rwe.z.sol":"emitent liczy też klasę funduszu w sieci Solana","rwe.z.cfg":"emitent liczy tylko tokeny funduszy, bez tokenów-opakowań","rwe.part":"Bez bieżących danych emitenta — zostają poza sumami: {list}.","rwe.not":"Dane emitentów {m} pochodzą od samych emitentów i nie są audytem; przy wdrożeniu (05.10.2026) porównaliśmy liczby jednostek z odczytem z łańcucha bloków — były zgodne."}};
+for(const l in EXTRA169)if(I18N[l])Object.assign(I18N[l],EXTRA169[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -9177,7 +9180,7 @@ function rwTiles(D,old){
     const o=rwObj(S[k])?S[k]:{},v=old?null:rwPos(o.v);
     const fz=old?null:rwFzLine(rwFz(D,k));   /* osobna linia — nigdy w liczbie kafla */
     if(v===null)return rwTile(ico,t('rwa.k.'+k),'—',[fz,{txt:old?t('rwa.old'):t('rwa.na'),cls:'na'}],old?t('rwa.asof',{t:rwWhen(D.at)}):when,true);
-    const L=[fz,rwOcLine(D,k),rwChLine(o,7),rwChLine(o,30)];   /* v150: linia „w tym … z odczytu własnego ◆” (tylko gdy jest) */
+    const L=[fz,rwOcLine(D,k),rwEmLine(D,k),rwChLine(o,7),rwChLine(o,30)];   /* v150: linia „w tym … z odczytu własnego ◆” (tylko gdy jest) */
     if(k==='all'){const all=rwNum(o.n)?o.n:null,tot=[n.rwa,n.dead,n.bad_slug].every(rwNum)?n.rwa-n.dead-n.bad_slug:null;
       if(all!==null)L.push({txt:tot!==null&&tot>=all?t('rwa.nval',{p:rwN(all),q:nfmt(tot-all,0)}):rwN(all),cls:''});}
     else if(rwNum(o.n))L.push({txt:rwN(o.n),cls:''});
@@ -9203,9 +9206,9 @@ function rwTopTable(D){
   const R=(Array.isArray(D.top)?D.top:[]).filter(r=>Array.isArray(r)&&r.length>=7&&typeof r[1]==='string'&&RW_SEGS.includes(r[2])&&rwPos(r[3])!==null).slice(0,10);
   if(!R.length)return '';
   const kept=R.some(r=>r[6]==='k');
-  const rows=R.map((r,i)=>`<tr><td><span class="cell"><span class="rw-i">${i+1}.</span>${escH(r[1])}${r[6]==='k'?' *':''}${r[6]==='o'?' '+RW_OC:''}</span></td><td class="rw-w"><span class="cell">${escH(t('rwa.s.'+r[2]))}</span></td><td><span class="cell mono">${rwUsd(r[3])}</span></td><td class="rw-w"><span class="cell mono">${rwShare(r[3],A.v)}</span></td><td>${rwChCell(rwNum(r[4])?r[4]:null)}</td><td>${rwChCell(rwNum(r[5])?r[5]:null)}</td></tr>`).join('');
+  const rows=R.map((r,i)=>`<tr><td><span class="cell"><span class="rw-i">${i+1}.</span>${escH(r[1])}${r[6]==='k'?' *':''}${r[6]==='o'?' '+RW_OC:''}${r[6]==='e'?' '+RW_EM:''}</span></td><td class="rw-w"><span class="cell">${escH(t('rwa.s.'+r[2]))}</span></td><td><span class="cell mono">${rwUsd(r[3])}</span></td><td class="rw-w"><span class="cell mono">${rwShare(r[3],A.v)}</span></td><td>${rwChCell(rwNum(r[4])?r[4]:null)}</td><td>${rwChCell(rwNum(r[5])?r[5]:null)}</td></tr>`).join('');
   return `<details class="etfd" id="rw-top"><summary>${t('rwa.h.top')}</summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('rwa.th.prod')}</th><th class="rw-w">${t('rwa.th.kind')}</th><th>${t('rwa.th.val')}</th><th class="rw-w">${t('rwa.th.sh')}</th><th>${t('rwa.th.c7')}</th><th>${t('rwa.th.c30')}</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="pnote">${t('rwa.top.note',{t:rwWhen(D.at)})}${kept?' '+t('rwa.top.k'):''}${R.some(r=>r[6]==='o')?' '+t('rwc.top',{m:RW_OC}):''} ${t('rwa.sh.note')}</p>${rwTopFz(D)}</details>`;
+    <p class="pnote">${t('rwa.top.note',{t:rwWhen(D.at)})}${kept?' '+t('rwa.top.k'):''}${R.some(r=>r[6]==='o')?' '+t('rwc.top',{m:RW_OC}):''}${R.some(r=>r[6]==='e')?' '+t('rwe.top',{m:RW_EM}):''} ${t('rwa.sh.note')}</p>${rwTopFz(D)}</details>`;
 }
 /* największe produkty bez bieżącej wyceny (pole stale.top): nazwa, ostatnio znana wartość i stan — „niezmieniona co najmniej od” / „od” / „brak
    wartości od” (poza tabelą i sumami) */
@@ -9235,7 +9238,7 @@ function rwBody(D){
       if(rwNum(st.unk)&&st.unk>0)x+=' '+t('rwa.stale.unk',{k:nfmt(st.unk,0)});   /* rodzaj nieznany (bez tagów) — liczone w „Inne”, mówimy to wprost */
       h+=`<p class="pnote">${x}</p>`;
     }
-    h+=rwOcPara(D);   /* v150: odczyt własny z łańcucha — czas, produkty w sumach, reguły ceny, sieci bez adresu, odczyty niepełne */
+    h+=rwOcPara(D)+rwEmPara(D);   /* v150: odczyt własny z łańcucha — czas, produkty w sumach, reguły ceny, sieci bez adresu, odczyty niepełne */
     const w=rwObj(D.wait)?D.wait:null;
     if(w&&rwNum(w.n)&&w.n>0&&rwIsDay(w.day))h+=`<p class="pnote">${t('rwa.wait',{n:rwN(w.n),v:rwUsd(w.v),d:rwDayTxt(w.day)})}</p>`;
     const H=(Array.isArray(D.hist)?D.hist:[]).filter(r=>Array.isArray(r)&&rwIsDay(r[0])).map(r=>r[0]).sort();
@@ -9246,7 +9249,7 @@ function rwBody(D){
 }
 /* „Czego te dane nie mówią”: nazwa kafla z bieżącej etykiety, udział produktów < 10 mln USD liczony z pliku (brak = zdanie bez liczby) */
 function rwNot(D){const n=rwObj(D.n)?D.n:{},A=rwObj(D.seg)&&rwObj(D.seg.all)?D.seg.all:{},p=rwPos(n.small_v)!==null&&rwPos(A.v)!==null?nfmt(n.small_v/A.v*100,1)+'%':null;
-  return [t('rwa.not1'),t('rwa.not2'),t('rwa.not3'),t('rwa.not4',{k:escH(t('rwa.k.all'))}),p?t('rwa.not5',{p}):t('rwa.not5g')].concat(rwOc(D)?[t('rwc.not')]:[]);}   /* v150: odczyt własny — tylko kontrakty z adresem od emitenta */
+  return [t('rwa.not1'),t('rwa.not2'),t('rwa.not3'),t('rwa.not4',{k:escH(t('rwa.k.all'))}),p?t('rwa.not5',{p}):t('rwa.not5g')].concat(rwOc(D)?[t('rwc.not')]:[]).concat(rwEm(D)?[t('rwe.not',{m:RW_EM})]:[]);}   /* v150: odczyt własny — tylko kontrakty z adresem od emitenta */
 function renderRw(){
   const el=$('#c-rwa');if(!el)return;
   const D=RW.data,body=D?rwBody(D):'';
@@ -9298,6 +9301,37 @@ function rwOcPara(D){
   const rz0=p=>'rez' in p&&!(rwObj(p.rez)&&p.rez.ok===true);   /* v160: produkt z rezerwą emitenta bez bieżącej, zgodnej z łańcuchem rezerwy */
   const P=Object.keys(o.p).filter(s=>!U.includes(s)&&rwObj(o.p[s])&&rwNum(o.p[s].n)&&rwNum(o.p[s].nr)&&(o.p[s].nr<o.p[s].n||o.p[s].px_ok===false||rz0(o.p[s])));
   if(P.length)L.push(t('rwc.part',{list:P.map(s=>{const p=o.p[s];return nm(s)+' ('+(p.nr<p.n?t('rwc.nr',{a:nfmt(p.nr,0),b:nfmt(p.n,0)}):p.px_ok===false?t('rwc.px'):t('rwc.rez0'))+')';}).join('; ')}));
+  return L.length?`<p class="pnote">${L.join(' ')}</p>`:'';
+}
+/* v169: dane emitentów (blok issuer pliku rwa.json): produkty, których dotychczasowe źródło stoi, a bieżącą wartość publikuje sam emitent (publiczne
+   dane bez klucza) — wchodzą do sum zamiast starej, niezmienionej wartości (nigdy obie; pierwszeństwo ma odczyt z łańcucha ◆). Na stronie: znak ◇ przy
+   nazwie w tabeli produktów, linia „w tym … ◇” pod liczbą kafla rodzaju i jeden akapit: produkty z wartością i dniem stanu emitenta, kurs dla klas
+   w innych walutach, cena złota, produkty z innym zakresem niż ostatnio znana wartość (obie liczby) i produkty bez bieżących danych emitenta (poza
+   sumami). Bez bloku albo wyłączony (off) — nic (strona jak dotąd). Nazw serwisów nie pokazujemy (pole src zostaje w pliku). */
+const RW_EM='◇';
+function rwEm(D){const o=rwObj(D.issuer)?D.issuer:null;return o&&!o.off&&rwObj(o.p)?o:null;}
+function rwEmUsed(D){const o=rwEm(D);return o&&rwObj(o.used)?Object.keys(o.used).filter(s=>rwObj(o.p[s])&&rwPos(o.used[s])!==null):[];}
+/* linia kafla: część wartości rodzaju wg danych emitentów (pole seg bloku: tylko produkty w sumach) */
+function rwEmLine(D,k){const o=rwEm(D);if(!o||!rwObj(o.seg))return null;const x=rwObj(o.seg[k])?rwPos(o.seg[k].v):null;
+  return x===null?null:{txt:t('rwe.in',{v:rwUsd(x),m:RW_EM}),cls:''};}
+/* dzień stanu emitenta (DD.MM) z chwili ISO as_of; zły zapis = „—” */
+function rwEmDay(p){const a=rwObj(p)&&typeof p.as_of==='string'?p.as_of.slice(0,10):'';return rwIsDay(a)?rwDayS(a):'—';}
+function rwEmPara(D){
+  const o=rwEm(D);if(!o)return '';
+  const U=rwEmUsed(D).sort((a,b)=>o.used[b]-o.used[a]),nm=s=>escH(typeof o.p[s].name==='string'?o.p[s].name:s),L=[],sl=(typeof sepL==='function'?sepL:()=>', ')();
+  if(U.length){
+    L.push(t('rwe.p',{m:RW_EM,list:U.map(s=>nm(s)+' '+rwUsd(o.used[s])+' ('+rwEmDay(o.p[s])+')').join(sl)}));
+    const fx=U.map(s=>o.p[s].fx).find(f=>rwObj(f)&&rwIsDay(f.d));   /* klasy w innych walutach (Spiko) — dzień kursu */
+    if(fx)L.push(t('rwe.fx',{d:rwDayS(fx.d)}));
+    const g=U.find(s=>o.p[s].kind==='xaum'&&rwPos(o.p[s].px)!==null&&typeof o.p[s].px_at==='string');
+    if(g)L.push(t('rwe.gold',{p:nfmt(o.p[g].px,0),d:engDate(o.p[g].px_at)}));
+    /* inny zakres niż ostatnio znana wartość (różnica ponad 25% w górę albo 20% w dół): obie liczby, krótki powód dla znanych przypadków */
+    const zk=z=>z==='sol'?'; '+t('rwe.z.sol'):z==='cfg'?'; '+t('rwe.z.cfg'):'';
+    const Z=U.filter(s=>{const r=rwPos(o.p[s].ref);return r!==null&&(o.used[s]/r>1.25||o.used[s]/r<0.8);});
+    if(Z.length)L.push(t('rwe.zakres',{list:Z.map(s=>nm(s)+' '+rwUsd(o.used[s])+' ('+t('rwe.ref',{v:rwUsd(o.p[s].ref)})+zk(o.p[s].zakres)+')').join('; ')}));
+  }
+  const P=Object.keys(o.p).filter(s=>rwObj(o.p[s])&&o.p[s].full!==true&&!U.includes(s));   /* bez bieżących danych emitenta — poza sumami */
+  if(P.length)L.push(t('rwe.part',{list:P.map(nm).join(sl)}));
   return L.length?`<p class="pnote">${L.join(' ')}</p>`:'';
 }
 /* plik przyjęty, gdy ma czas i rodzaje (z sumą) */

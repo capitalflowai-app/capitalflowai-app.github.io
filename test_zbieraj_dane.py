@@ -21935,7 +21935,7 @@ class RwaLancuchV150(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
-        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k != 'wisdomtree'}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej)
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k not in ('wisdomtree', 'pleasing-gold')}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej); v169: i sprzed Pleasing Gold
 
     def _rd(self, now=None, budget=None, **kw):
         calls, sl = [], []
@@ -22334,7 +22334,7 @@ class RwaTetherV160(unittest.TestCase):
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
         self.enterContext(mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('test nie może pytać sieci')))
-        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k != 'wisdomtree'}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej)
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k not in ('wisdomtree', 'pleasing-gold')}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej); v169: i sprzed Pleasing Gold
 
     def _rez(self, body=_TETHER160, now=None):
         calls = []
@@ -22530,6 +22530,7 @@ class RwaWisdomTreeV161(unittest.TestCase):
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
         self.enterContext(mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('test nie może pytać sieci')))
         self.enterContext(mock.patch.object(zd, 'get_json', side_effect=AssertionError('test nie może pytać sieci')))
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k != 'pleasing-gold'}, clear=True))   # v169: konfiguracja sprzed Pleasing Gold (v169 ma własne testy pełnej)
 
     def _rd(self, now=None, xlm=None, **kw):
         calls, gcalls = [], []
@@ -22818,3 +22819,537 @@ class SondaEmitenciV169(unittest.TestCase):
         self.assertIn('summary rwa-em spiko=14cl EUTBL=589.1/EUR/2026-10-04 hastra=652.5M@10-05T05:10 oe=294.2M@10-05T05:15 xaum=16717oz cfg=585.5M/2t', o)
         self.assertIn('BCAP=979.9M/2ch@10-05T05:00', o); self.assertIn('summary rwa-em3 ondo[assetsData=True gmTvl=True kB=0] backed[nodes=2 pages=4]', o)
         self.assertIn('summary jse eod_J200=rows=7 fmp_J200.JO=rows=6 fmp_JTOPI.JO=rows=0', o)
+
+
+# ===================== v169: TOKENIZOWANE AKTYWA — DANE EMITENTÓW (blok issuer w data/rwa.json) =====================
+# Nagrania: liczby z badania 05.10.2026 (ws51/badanie/BADANIE_RWA2.md, dowody/*.json), przycięte do pól, które czyta zbieracz. Zegar przypięty.
+_RWE169_NOW = datetime.datetime(2026, 10, 5, 6, 0, tzinfo=datetime.timezone.utc)
+_RWE169_S = {'rynki': {'fx': {'now': {'amount': 1.0, 'base': 'USD', 'date': '2026-10-02', 'rates': {'EUR': 0.89087, 'GBP': 0.75753, 'CHF': 0.82664, 'JPY': 157.67}}}}}
+_RWE169_SPIKO = {   # klasa → (waluta, wartość, chwila wyceny); eurUSTBL — maleńka klasa z wyceną sprzed tygodnia (nie wyznacza stanu)
+    'SAFO': ('USD', '208818842.47', '2026-10-02T15:20:09.492Z'), 'eurSAFO': ('EUR', '1364935000.00', '2026-10-02T15:20:09.492Z'),
+    'UKTBL': ('GBP', '11105000.00', '2026-10-02T15:33:22.029Z'), 'chfSAFO': ('CHF', '8899000.00', '2026-10-02T15:20:09.492Z'),
+    'eurUSTBL': ('EUR', '10000.00', '2026-09-25T15:33:11.252Z')}
+_RWE169_NS, _RWE169_NS2 = '1791176447086299000', '1791178230262813000'   # 05.10 05:00:47 UTC i 05:30:30 UTC (ns)
+_RWE169_SEC = {
+    'BCAP': [('ethereum', 131507.63, 108.18, 14226495.41), ('zksync', 8980603.37, 107.53, 965684280.38)],
+    'MI4': [('mantle', 1345232.248399, 121.57127, 163541594.55)],
+    'ACRED': [('ethereum', 25971.059372, 1106.96972, 28749176.32), ('solana', 16526.675787, 1106.96972, 18294529.67), ('aptos', 14147.628991, 1106.96972, 15660996.9),
+              ('sei', 14096.732653, 1106.96972, 15604656.2), ('ink', 9999.34433, 1106.96972, 11068971.39), ('avalanche', 4413.846004, 1106.96972, 4885993.88),
+              ('polygon', 818.632417, 1106.96972, 906201.3)],
+    'VBILL': [('solana', 14588298.58, 1.0, 14588298.58), ('bnb', 21595739.56, 1.0, 21595739.56), ('avalanche', 705867.46, 1.0, 705867.46), ('ethereum', 20167068.479655, 1.0, 20167068.48)],
+    'STAC': [('ethereum', 100198.000776, 1034.29405, 103634195.52), ('solana', 172413.444566, 1034.29405, 178326198.99)],
+    'HLSCOPE': [('ethereum', 148.249194, 1269.17683, 188154.44), ('polygon', 3198.243933, 1269.17683, 4059137.08), ('optimism', 0.0, 1269.17683, 0.0)]}
+_RWE169_HASTRA = {'timestamp': '2026-10-05T05:10:29.421500802Z', 'prime_card': {'vaulted_wylds': '585610896.143638'}, 'auto_card': {'vaulted_wylds': '66841503.031009'},
+                  'smb_card': {'vaulted_wylds': '316.301506'}, 'wylds_card': {'supply': '655974397.917197'}}
+_RWE169_OE = {'tvl': 294167197.2313782, 'liveVault': {'updatedAt': '2026-10-05T05:15:02.560Z'}, 'closingNav': {'updatedAt': '2026-10-05T00:01:36.323Z'}}
+_RWE169_XAUM = {'code': 0, 'message': 'success', 'data': {'token_total_supply': '16716.954084234', 'oz_per_token': '1', 'total_metal_fine_weight': '16716.96'}}
+_RWE169_USDC = {'currency': '5192296858534827628530496329220097', 'asset': {'symbol': 'USDC'}}
+_RWE169_CFG = [   # dowody/centrifuge_tokens_20261005.json (pola czytane przez zbieracz)
+    {'symbol': 'JAAA', 'decimals': 6, 'totalIssuance': '557375234196199', 'tokenPrice': '1050448396753493528', 'tokenPriceComputedAt': '1790856000000', 'pool': _RWE169_USDC},
+    {'symbol': 'JTRSY', 'decimals': 6, 'totalIssuance': '307761193758932', 'tokenPrice': '1117897001723645491', 'tokenPriceComputedAt': '1790856000000', 'pool': _RWE169_USDC},
+    {'symbol': 'ACRDX', 'decimals': 18, 'totalIssuance': '30472586069487999870702801', 'tokenPrice': '1019059386990903937', 'tokenPriceComputedAt': '1790856000000',
+     'pool': {'currency': '840', 'asset': {'symbol': 'USD'}}},
+    {'symbol': 'zSMB', 'decimals': 18, 'totalIssuance': '2349399973703516335901396', 'tokenPrice': '1140749744075950034', 'tokenPriceComputedAt': '1791150466000',
+     'pool': {'currency': '840', 'asset': {'symbol': 'USD'}}},
+    {'symbol': 'RWAt', 'decimals': 18, 'totalIssuance': '18999904602159148434', 'tokenPrice': '1000000000000000000', 'tokenPriceComputedAt': '1784648696000',
+     'pool': {'currency': '840', 'asset': {'symbol': 'USD'}}},
+    {'symbol': 'deJAAA', 'decimals': 18, 'totalIssuance': '9153251669488373083559572', 'tokenPrice': '1048920121005350000', 'tokenPriceComputedAt': '1790856000000',
+     'pool': {'currency': '840', 'asset': {'symbol': 'USD'}}},
+    {'symbol': 'BTC.b', 'decimals': 18, 'totalIssuance': '0', 'tokenPrice': '0', 'tokenPriceComputedAt': None, 'pool': {'currency': '5192296858534827628530496329220100', 'asset': {'symbol': 'BTC.bs'}}},
+    {'symbol': 'USHPi', 'decimals': 18, 'totalIssuance': '1000000000000000000', 'tokenPrice': '1000000000000000000', 'tokenPriceComputedAt': '1790189735000',
+     'pool': {'currency': '5192296858534827628530496329220116', 'asset': {'symbol': 'USHP'}}}]
+_RWE169_GOLD = {'v': 4139.21, 'at': '2026-10-05T05:15:11+00:00'}
+
+
+def _rwe169_cfg_v(items=_RWE169_CFG):
+    return sum(int(t['totalIssuance']) / 10 ** t['decimals'] * int(t['tokenPrice']) / 1e18 for t in items
+               if not t['symbol'].startswith('de') and t['pool']['asset']['symbol'] in ('USD', 'USDC') and int(t['totalIssuance']))
+
+
+def _rwe169_sec(sym, rows=None, ns=None):
+    return {'message': 'Query executed successfully', 'data': [{'blockchain': b, 'amount_tokens': q, 'symbol': sym, 'token_address': '0x' + '1' * 40,
+                                                                'date': ns or (_RWE169_NS2 if sym == 'STAC' else _RWE169_NS), 'aum': a, 'nav': n}
+                                                               for b, q, n, a in (rows or _RWE169_SEC[sym])], 'result': 1.0, 'timestamp': '2026-10-05 05:41:37.069644'}
+
+
+def _rwe169_net(calls=None, over=None, fail=()):
+    """Atrapy get (bajty) i post (JSON) dla wszystkich emitentów; `over` = {url: obiekt albo wyjątek}, `fail` = adresy z HTTPError 503."""
+    over = over or {}
+    M = {f'{zd.RWE_SPIKO}/share-classes': [{'symbol': s, 'currency': c[0], 'isin': 'FR0000000000'} for s, c in _RWE169_SPIKO.items()],
+         zd.RWE_HASTRA: _RWE169_HASTRA, zd.RWE_OE: _RWE169_OE, zd.RWE_XAUM: _RWE169_XAUM}
+    for s, (cur, v, at) in _RWE169_SPIKO.items():
+        M[f'{zd.RWE_SPIKO}/share-classes/{s}/totals'] = {'totalShares': '1', 'totalAssets': {'value': v, 'currency': cur},
+                                                         'netAssetValue': {'day': at[:10] + 'T00:00:00.000Z', 'updatedAt': at}}
+    for sym in _RWE169_SEC:
+        M[zd.RWE_SEC + sym] = _rwe169_sec(sym)
+    M.update(over)
+    lock = _thr_v133.Lock()
+
+    def ans(url):
+        with lock:
+            if calls is not None:
+                calls.append(url)
+        if url in fail:
+            raise _uerr_v133.HTTPError(url, 503, 'Service Unavailable', {}, _io_v133.BytesIO(b''))
+        x = M[url]
+        if isinstance(x, BaseException):
+            raise x
+        return x
+
+    def get(url, headers=None, timeout=60):
+        assert headers == {'Accept': 'application/json'} and 0 < timeout <= zd.RWE_TIMEOUT, (headers, timeout)
+        x = ans(url)
+        return x if isinstance(x, (bytes, bytearray)) else json.dumps(x).encode()
+
+    def post(url, obj, timeout=60):
+        assert url == zd.RWE_CFG and obj == {'query': zd.RWE_CFG_Q} and 0 < timeout <= zd.RWE_TIMEOUT
+        return ans(url) if url in over or url in fail else {'data': {'tokens': {'items': _RWE169_CFG}}}
+    return get, post
+
+
+class RwaEmitenciV169(unittest.TestCase):
+    """v169: dane emitentów dla produktów, których źródło v133 stoi — Spiko (klasy w 4 walutach, kurs z pliku rynki), kanał agenta transferowego
+    (BCAP, MI4, ACRED, VBILL, STAC, HLSCOPE), Hastra, OpenEden, Matrixdock XAUm (× cena złota z odczytu z łańcucha), Centrifuge (bez opakowań);
+    stan emitenta i jego wiek, pasmo rozsądku, poprzedni odczyt, sumy bez podwójnego liczenia (pierwszeństwo ◆), zmiany 7/30 dni tylko w obrębie
+    źródła, Pleasing Gold w odczycie z łańcucha, wyłącznik i start po wdrożeniu, kontrola dzienna. Bez sieci (atrapy)."""
+    NOW = _RWE169_NOW
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        for n in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, n, side_effect=AssertionError('test nie może pytać sieci')))
+
+    def _fx(self):
+        return zd.rwe_fx(_RWE169_S, self.NOW)
+
+    def _rd(self, now=None, calls=None, **kw):
+        get, post = _rwe169_net(calls, **kw)
+        return zd.rwe_odczyt(now or self.NOW, fx=self._fx(), get=get, post=post, sleep=lambda s: None)
+
+    def _em(self, now=None, prev=None, oc='zloto', ref=None, **kw):
+        now = now or self.NOW
+        oc = {'v': 1, 'px': {'zloto': dict(_RWE169_GOLD)}} if oc == 'zloto' else oc
+        return zd.rwe_blok(self._rd(now, **kw), prev, now, oc=oc, ref=ref)
+
+    def _spiko_usd(self):
+        r = _RWE169_S['rynki']['fx']['now']['rates']
+        return sum(float(v) / (1.0 if c == 'USD' else r[c]) for c, v, _a in _RWE169_SPIKO.values())
+
+    # ---------------------------------------------------------------- konfiguracja
+    def test_konfiguracja_i_pleasing_gold(self):
+        P = zd.RWE_PRODUKTY
+        self.assertEqual(sorted(P), sorted(['spiko', 'blockchain-capital', 'mantle-index-four-fund', 'apollo-diversified-credit-securitize-fund', 'vaneck-treasury-fund',
+                                            'securitize-tokenized-aaa-clo-fund', 'hamilton-lane-senior-credit-opportunities-securitize-fund', 'hastra', 'openeden-tbill',
+                                            'matrixdock-xaum', 'centrifuge-protocol']))
+        self.assertEqual({s: p['sym'] for s, p in P.items() if p['kind'] == 'sec'},
+                         {'blockchain-capital': 'BCAP', 'mantle-index-four-fund': 'MI4', 'apollo-diversified-credit-securitize-fund': 'ACRED', 'vaneck-treasury-fund': 'VBILL',
+                          'securitize-tokenized-aaa-clo-fund': 'STAC', 'hamilton-lane-senior-credit-opportunities-securitize-fund': 'HLSCOPE'})
+        self.assertEqual({p['kind'] for p in P.values()}, {'spiko', 'sec', 'hastra', 'oe', 'xaum', 'cfg'})
+        self.assertEqual({s: p['max_h'] for s, p in P.items() if p['kind'] != 'sec'},
+                         {'spiko': 144, 'hastra': 12, 'openeden-tbill': 12, 'matrixdock-xaum': 12, 'centrifuge-protocol': 144})
+        self.assertTrue(all(p['max_h'] == 36 for p in P.values() if p['kind'] == 'sec'))
+        self.assertEqual({s: p.get('zakres') for s, p in P.items() if p.get('zakres')}, {'securitize-tokenized-aaa-clo-fund': 'sol', 'centrifuge-protocol': 'cfg'})
+        self.assertEqual((zd.RWE_BUDGET, zd.RWE_TIMEOUT, zd.RWE_PROBY, zd.RWE_PRZERWA, zd.RWE_THREADS, zd.RWE_RAZY, zd.RWE_FX_MAX_D, zd.RWE_KEEP_MIN, zd.RWE_START_MIN, zd.RWE_PH),
+                         (30, 12, 2, 0.5, 6, 3.0, 7, 7 * 24 * 60, 120, '~e'))
+        self.assertTrue(zd.RWE_PROBY * zd.RWE_TIMEOUT + zd.RWE_PRZERWA <= zd.RWE_BUDGET, 'dwie pełne próby mieszczą się w budżecie')
+        for u in (zd.RWE_SPIKO, zd.RWE_SEC, zd.RWE_HASTRA, zd.RWE_OE, zd.RWE_XAUM, zd.RWE_CFG):
+            self.assertTrue(u.startswith('https://'), u)
+        g = zd.RWC_PRODUKTY['pleasing-gold']
+        self.assertEqual((g['name'], g['seg'], g['cena'], g['tokeny']), ('Pleasing Gold', 'cm', 'zloto', (('arb', '0x3e76bb02286bfeaa89dd35f11253f2cbce634f91', 18, 'PGOLD', False),)),
+                         'tylko Arbitrum — sieć domowa mostu; kopie na Ethereum i Pharos poza listą')
+        self.assertNotIn('0xfb0bd86210d2a10543bb40289e92d108b3a5334f', repr(zd.RWC_PRODUKTY).lower(), 'kopia z Ethereum nie jest liczona')
+        self.assertIn('Pleasing Gold — Arbitrum', zd.RWC_SRC)
+        self.assertEqual(sorted(zd.RWC_PRODUKTY), ['blackrock-buidl', 'circle-usyc', 'paxos-gold', 'pleasing-gold', 'tether-gold', 'wisdomtree'])
+        T, O, W = zd.rwc_tokeny()
+        self.assertIn(('0x3e76bb02286bfeaa89dd35f11253f2cbce634f91', 18), T['arb'])
+        y = _rwc150_txt(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'))
+        self.assertEqual(y.count('RWA_EM_OFF: ${{ vars.RWA_EM_OFF }}'), 1); self.assertLess(y.index('RWA_CHAIN_OFF:'), y.index('RWA_EM_OFF:'))
+
+    def test_chwila_emitenta(self):
+        I = zd._rwe_iso
+        self.assertEqual(I('2026-10-05T05:10:29.421500802Z'), '2026-10-05T05:10:29+00:00', 'nanosekundy w napisie')
+        self.assertEqual(I('2026-10-02T15:20:09.492Z'), '2026-10-02T15:20:09+00:00')
+        self.assertEqual(I('2026-10-05 05:41:37.069644'), '2026-10-05T05:41:37+00:00', 'bez strefy = UTC')
+        self.assertEqual(I('2026-10-05T07:00:00+02:00'), '2026-10-05T05:00:00+00:00'); self.assertEqual(I('2026-10-05T07:00:00+0200'), '2026-10-05T05:00:00+00:00')
+        self.assertEqual(I(_RWE169_NS), '2026-10-05T05:00:47+00:00', 'nanosekundy uniksowe'); self.assertEqual(I('1790856000000'), '2026-10-01T12:00:00+00:00', 'milisekundy')
+        self.assertEqual(I(1791176447), '2026-10-05T05:00:47+00:00', 'sekundy')
+        for zle in (None, True, 1.5e9, '', 'x', '2026-13-01T00:00:00Z', '2026-10-05', '123', '9' * 30, [1], {'a': 1}, '2026-10-05T25:00:00Z'):
+            self.assertIsNone(I(zle), zle)
+
+    def test_kurs_z_pliku_rynki(self):
+        F = self._fx()
+        self.assertEqual(F['d'], '2026-10-02'); self.assertEqual(F['rates']['EUR'], 0.89087)
+        self.assertIsNone(zd.rwe_fx({}, self.NOW)); self.assertIsNone(zd.rwe_fx({'rynki': None}, self.NOW))
+        S = json.loads(json.dumps(_RWE169_S))
+        S['rynki']['fx']['now']['base'] = 'EUR'; self.assertIsNone(zd.rwe_fx(S, self.NOW), 'inna baza')
+        S['rynki']['fx']['now'].update(base='USD', date='2026-09-27'); self.assertIsNone(zd.rwe_fx(S, self.NOW), 'starszy niż 7 dni')
+        S['rynki']['fx']['now']['date'] = '2026-09-28'; self.assertIsNotNone(zd.rwe_fx(S, self.NOW), '7 dni — jeszcze tak')
+        S['rynki']['fx']['now']['date'] = '2026-10-06'; self.assertIsNone(zd.rwe_fx(S, self.NOW), 'z przyszłości')
+        S['rynki']['fx']['now'].update(date='2026-10-02', rates={'EUR': 'x', 'GBP': True, 'chf': 1.0}); self.assertIsNone(zd.rwe_fx(S, self.NOW), 'bez poprawnych kursów')
+
+    # ---------------------------------------------------------------- parsery
+    def test_kanal_agenta_transferowego(self):
+        r = zd.rwe_sec_parse(_rwe169_sec('BCAP'), 'BCAP')
+        self.assertAlmostEqual(r['v'], 979910775.79, places=2); self.assertEqual((r['as_of'], r['n'], r['u']), ('2026-10-05T05:00:47+00:00', 2, 9112111.0))
+        r = zd.rwe_sec_parse(_rwe169_sec('STAC'), 'STAC')
+        self.assertAlmostEqual(r['v'] / 1e6, 281.96, places=2); self.assertEqual(r['as_of'], '2026-10-05T05:30:30+00:00', 'Ethereum + Solana')
+        r = zd.rwe_sec_parse(_rwe169_sec('HLSCOPE'), 'HLSCOPE')
+        self.assertAlmostEqual(r['v'], 4247291.52, places=2); self.assertEqual(r['n'], 3, 'wiersz z zerem jednostek to też odczyt')
+        j = _rwe169_sec('BCAP'); j['data'][0]['date'] = _RWE169_NS2
+        self.assertEqual(zd.rwe_sec_parse(j, 'BCAP')['as_of'], '2026-10-05T05:00:47+00:00', 'stan = najstarszy wiersz')
+        for zle, frag in ((dict(_rwe169_sec('BCAP'), data=[]), 'brak wierszy'), ({'data': None}, 'brak wierszy'), ('x', 'brak wierszy'),
+                          (_rwe169_sec('MI4'), 'innego symbolu'), (_rwe169_sec('BCAP', [('ethereum', 100.0, 2.0, 300.0)]), 'niespójne'),
+                          (_rwe169_sec('BCAP', [('ethereum', -1.0, 2.0, 0.0)]), 'niespójne'), (_rwe169_sec('BCAP', [('ethereum', 1.0, 0.0, 0.0)]), 'niespójne'),
+                          (_rwe169_sec('BCAP', [('ethereum', 'x', 2.0, 2.0)]), 'niespójne'), (_rwe169_sec('BCAP', ns='12'), 'zły stan')):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_sec_parse(zle, 'BCAP')
+            self.assertIn(frag, str(c.exception))
+        self.assertAlmostEqual(zd.rwe_sec_parse(_rwe169_sec('BCAP', [('ethereum', 100.0, 2.0, 200.9)]), 'BCAP')['v'], 200.9, msg='grosze różnicy — w tolerancji')
+
+    def test_hastra_openeden_xaum(self):
+        r = zd.rwe_hastra_parse(_RWE169_HASTRA)
+        self.assertAlmostEqual(r['v'], 652452715.476153, places=5); self.assertEqual(r['as_of'], '2026-10-05T05:10:29+00:00')
+        for k in ('prime_card', 'auto_card', 'smb_card'):
+            with self.assertRaises(ValueError):
+                zd.rwe_hastra_parse({x: y for x, y in _RWE169_HASTRA.items() if x != k})
+        with self.assertRaises(ValueError):
+            zd.rwe_hastra_parse(dict(_RWE169_HASTRA, timestamp='wczoraj'))
+        self.assertEqual(zd.rwe_oe_parse(_RWE169_OE), {'v': 294167197.2313782, 'as_of': '2026-10-05T05:15:02+00:00'})
+        for zle in ({'tvl': 0, 'liveVault': {'updatedAt': '2026-10-05T05:15:02Z'}}, {'tvl': '1e9'}, {'liveVault': {}}, [], {'tvl': True, 'liveVault': {'updatedAt': '2026-10-05T05:15:02Z'}}):
+            with self.assertRaises(ValueError):
+                zd.rwe_oe_parse(zle)
+        self.assertEqual(zd.rwe_oe_parse({'tvl': '1e9', 'liveVault': {'updatedAt': '2026-10-05T05:15:02Z'}})['v'], 1e9, 'liczba jako napis')
+        self.assertEqual(zd.rwe_xaum_parse(_RWE169_XAUM, 'T'), {'oz': 16716.954084234, 'as_of': 'T'})
+        for zle in (dict(_RWE169_XAUM, code=1), {'code': 0, 'data': {'token_total_supply': '5', 'oz_per_token': '0.5'}}, {'code': 0, 'data': {'token_total_supply': '0', 'oz_per_token': '1'}},
+                    {'code': 0, 'data': {'token_total_supply': 'nan', 'oz_per_token': '1'}}, {'code': 0}):
+            with self.assertRaises(ValueError):
+                zd.rwe_xaum_parse(zle, 'T')
+
+    def test_centrifuge_bez_opakowan(self):
+        r = zd.rwe_cfg_parse({'data': {'tokens': {'items': _RWE169_CFG}}})
+        self.assertAlmostEqual(r['v'], _rwe169_cfg_v(), places=2); self.assertAlmostEqual(r['v'] / 1e6, 963.27, delta=0.05)
+        self.assertEqual((r['as_of'], r['n'], r['nde'], r['nx']), ('2026-10-01T12:00:00+00:00', 5, 1, 1.0),
+                         'stan z tokenów ≥ 1% wartości (RWAt z lipca nie liczy się do stanu); deJAAA pominięty; pula USHP (bez kursu) pominięta z zapisem')
+        I = json.loads(json.dumps(_RWE169_CFG))
+        I[-1]['totalIssuance'] = str(10 ** 26)   # pula innej waluty ponad 0,5% wartości — bez wyceny
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_cfg_parse({'data': {'tokens': {'items': I}}})
+        self.assertIn('pule w innej walucie', str(c.exception))
+        I = json.loads(json.dumps(_RWE169_CFG)); I[0]['tokenPrice'] = None
+        with self.assertRaises(ValueError):
+            zd.rwe_cfg_parse({'data': {'tokens': {'items': I}}})
+        I = json.loads(json.dumps(_RWE169_CFG)); I[0]['tokenPriceComputedAt'] = None
+        with self.assertRaises(ValueError):
+            zd.rwe_cfg_parse({'data': {'tokens': {'items': I}}})
+        for zle in ({'errors': [{'message': 'x'}], 'data': {'tokens': {'items': _RWE169_CFG}}}, {'data': None}, {'data': {'tokens': {'items': []}}}, [],
+                    {'data': {'tokens': {'items': [dict(_RWE169_CFG[0], decimals=True)]}}}, {'data': {'tokens': {'items': [dict(_RWE169_CFG[0], totalIssuance='-5')]}}},
+                    {'data': {'tokens': {'items': [_RWE169_CFG[-1]]}}}):
+            with self.assertRaises(ValueError):
+                zd.rwe_cfg_parse(zle)
+
+    def test_spiko_klasy_i_kurs(self):
+        get, _post = _rwe169_net()
+        r = zd.rwe_spiko(lambda: 5.0, self._fx(), get=get)
+        self.assertAlmostEqual(r['v'], self._spiko_usd(), places=1); self.assertAlmostEqual(r['v'] / 1e6, 1766.3, delta=0.1)
+        self.assertEqual((r['as_of'], r['n'], r['fx']), ('2026-10-02T15:20:09+00:00', 5, {'d': '2026-10-02'}),
+                         'stan: najstarsza wycena klas ≥ 1% (frank 0,6% i maleńka klasa z wyceną z 25.09 nie wyznaczają stanu)')
+        self.assertEqual(r['cls'][1], ['eurSAFO', 'EUR', 1364935000.0, round(1364935000 / 0.89087, 2), '2026-10-02T15:20:09+00:00'])
+        F = dict(self._fx(), rates={'EUR': 0.89087, 'GBP': 0.75753})
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_spiko(lambda: 5.0, F, get=get)
+        self.assertIn('chfSAFO: brak kursu CHF', str(c.exception), 'klasa bez kursu = produkt bez wyceny (nigdy suma bez części)')
+        with self.assertRaises(ValueError):
+            zd.rwe_spiko(lambda: 5.0, None, get=get)
+        u = f'{zd.RWE_SPIKO}/share-classes/UKTBL/totals'
+        for zle in ({'totalAssets': {'value': '5', 'currency': 'EUR'}, 'netAssetValue': {'updatedAt': '2026-10-02T15:20:09Z'}},
+                    {'totalAssets': {'value': '-5', 'currency': 'GBP'}, 'netAssetValue': {'updatedAt': '2026-10-02T15:20:09Z'}},
+                    {'totalAssets': {'value': '5', 'currency': 'GBP'}, 'netAssetValue': {}}):
+            g2, _p = _rwe169_net(over={u: zle})
+            with self.assertRaises(ValueError):
+                zd.rwe_spiko(lambda: 5.0, self._fx(), get=g2)
+        for zla_lista in ([], [{'symbol': 'A B', 'currency': 'USD'}], [{'symbol': 'SAFO', 'currency': 'usd'}], [{'symbol': 'SAFO', 'currency': 'USD'}] * 2, ['x']):
+            g2, _p = _rwe169_net(over={f'{zd.RWE_SPIKO}/share-classes': zla_lista})
+            with self.assertRaises(ValueError):
+                zd.rwe_spiko(lambda: 5.0, self._fx(), get=g2)
+        US = {f'{zd.RWE_SPIKO}/share-classes': [{'symbol': 'SAFO', 'currency': 'USD'}]}
+        g2, _p = _rwe169_net(over=US)
+        self.assertIsNone(zd.rwe_spiko(lambda: 5.0, None, get=g2)['fx'], 'same klasy USD — bez kursu')
+
+    # ---------------------------------------------------------------- odczyt i blok
+    def test_odczyt_wszystkich_i_blok(self):
+        calls = []
+        rd = self._rd(calls=calls)
+        self.assertEqual(sorted(rd['r']), sorted(zd.RWE_PRODUKTY)); self.assertTrue(all('err' not in x for x in rd['r'].values()), rd['r'])
+        self.assertEqual(rd['req'], len(calls) + 1, 'zapytania: Spiko 1 + 5 klas, 6 kanałów agenta, Hastra, OpenEden, XAUm (get) + Centrifuge (post)')
+        self.assertEqual(len(calls), 1 + 5 + 6 + 3); self.assertEqual(rd['at'], self.NOW.isoformat())
+        ref = {'spiko': 2625039075.88, 'centrifuge-protocol': 1481703174.17, 'securitize-tokenized-aaa-clo-fund': 103529968.26, 'matrixdock-xaum': 65168921.08}
+        em = zd.rwe_blok(rd, None, self.NOW, oc={'v': 1, 'px': {'zloto': dict(_RWE169_GOLD)}}, ref=ref)
+        self.assertTrue(em['ok']); self.assertEqual(em['notes'], []); self.assertEqual(em['src'], zd.RWE_SRC)
+        P = em['p']
+        self.assertTrue(all(p['full'] for p in P.values()), {s: p for s, p in P.items() if not p['full']})
+        x = P['matrixdock-xaum']
+        self.assertEqual((x['oz'], x['px'], x['px_at'], x['as_of'], x['read']), (16716.954084234, 4139.21, '2026-10-05T05:15:11+00:00', self.NOW.isoformat(), self.NOW.isoformat()))
+        self.assertEqual(x['v'], round(16716.954084234 * 4139.21, 2)); self.assertAlmostEqual(x['v'] / 1e6, 69.19, places=2)
+        self.assertEqual(P['spiko']['fx'], {'d': '2026-10-02'}); self.assertEqual(len(P['spiko']['cls']), 5)
+        self.assertEqual((P['centrifuge-protocol']['zakres'], P['securitize-tokenized-aaa-clo-fund']['zakres']), ('cfg', 'sol'))
+        self.assertEqual((P['centrifuge-protocol']['ref'], P['hastra']['ref']), (1481703174.17, None))
+        self.assertNotIn('k', P['hastra']); self.assertIsNone(P['hastra']['err'])
+        U = zd.rwe_uzyj(em, self.NOW)
+        self.assertEqual(sorted(U), sorted(zd.RWE_PRODUKTY))
+        self.assertAlmostEqual(sum(U.values()) / 1e9, 5.327, delta=0.001, msg='suma nagrań (Spiko przycięte do 5 klas)')
+
+    def test_wiek_stanu_i_cena_zlota(self):
+        em = self._em()
+        late = self.NOW + datetime.timedelta(hours=13)
+        U = zd.rwe_uzyj(em, late)
+        self.assertNotIn('hastra', U); self.assertNotIn('openeden-tbill', U); self.assertNotIn('matrixdock-xaum', U, '12 h od stanu')
+        self.assertIn('blockchain-capital', U); self.assertIn('spiko', U)
+        self.assertIn('blockchain-capital', zd.rwe_uzyj(em, self.NOW + datetime.timedelta(hours=34)), 'kanał agenta: 35 h od stanu — jeszcze tak')
+        U = zd.rwe_uzyj(em, self.NOW + datetime.timedelta(hours=36))
+        self.assertNotIn('blockchain-capital', U, 'kanał agenta: 37 h od stanu (05:00) — poza sumami'); self.assertIn('spiko', U)
+        self.assertNotIn('spiko', zd.rwe_uzyj(em, datetime.datetime(2026, 10, 8, 15, 21, tzinfo=datetime.timezone.utc)), 'Spiko: 144 h od wyceny 02.10 15:20')
+        em2 = self._em(oc={'v': 1, 'px': {'zloto': {'v': 4139.21, 'at': '2026-10-03T12:00:00+00:00'}}})
+        self.assertIsNotNone(em2['p']['matrixdock-xaum']['v']); self.assertFalse(em2['p']['matrixdock-xaum']['full'], 'cena złota starsza niż 36 h')
+        self.assertNotIn('matrixdock-xaum', zd.rwe_uzyj(em2, self.NOW))
+        for oc in (None, {'off': True}, {'v': 1, 'px': {}}, {'v': 1, 'px': {'zloto': {'v': 'x', 'at': 'y'}}}):
+            em3 = self._em(oc=oc)
+            x = em3['p']['matrixdock-xaum']
+            self.assertEqual((x['v'], x['px'], x['full'], em3['ok']), (None, None, False, False), oc)
+            self.assertIn('Matrixdock XAUm: brak ceny złota z odczytu z łańcucha — bez wyceny', em3['notes'])
+        g, p = _rwe169_net(over={zd.RWE_SEC + 'MI4': _rwe169_sec('MI4', ns='1790956447086299000')})   # stan 02.10 15:54 — starszy niż 36 h
+        em4 = zd.rwe_blok(zd.rwe_odczyt(self.NOW, fx=self._fx(), get=g, post=p), None, self.NOW, oc=None)
+        m = em4['p']['mantle-index-four-fund']
+        self.assertEqual((m['full'], m['as_of']), (False, '2026-10-02T15:54:07+00:00')); self.assertIsNotNone(m['v'])
+        self.assertTrue(any(n.startswith('Mantle Index Four Fund: stan emitenta 2026-10-02T15:54:07+00:00 starszy niż 36 h') for n in em4['notes']), em4['notes'])
+
+    def test_pasmo_rozsadku_i_poprzedni_odczyt(self):
+        em = self._em(ref={'spiko': 1e8})   # ostatnio znana 100 mln — odczyt 1,77 mld (17×) odrzucony
+        s = em['p']['spiko']
+        self.assertEqual((s['v'], s['full'], s['as_of']), (None, False, None)); self.assertFalse(em['ok'])
+        self.assertTrue(any(n.startswith('Spiko: wartość 1766.') and 'poza pasmem 1/3–3× wobec 100.0 mln — odrzucona — bez wartości' in n for n in em['notes']), em['notes'])
+        self.assertNotIn('spiko', zd.rwe_uzyj(em, self.NOW))
+        e1 = self._em()
+        later = self.NOW + datetime.timedelta(hours=6)
+        e2 = self._em(now=later, prev=e1, fail={zd.RWE_HASTRA}, over={zd.RWE_SEC + 'BCAP': _rwe169_sec('BCAP', ns='1791172847086299000')})
+        h = e2['p']['hastra']
+        self.assertEqual((h['k'], h['v'], h['as_of'], h['read']), (1, e1['p']['hastra']['v'], '2026-10-05T05:10:29+00:00', self.NOW.isoformat()), 'błąd = poprzedni odczyt z jego stanem')
+        self.assertIn('HTTPError', h['err']); self.assertFalse(e2['ok'])
+        self.assertTrue(h['full'], 'poprzedni odczyt w limicie stanu nadal liczy się w sumach')
+        self.assertTrue(any(n.startswith('Hastra: HTTPError') and n.endswith('— poprzedni odczyt (stan 2026-10-05T05:10:29+00:00)') for n in e2['notes']), e2['notes'])
+        b = e2['p']['blockchain-capital']
+        self.assertEqual((b['k'], b['as_of']), (1, '2026-10-05T05:00:47+00:00'), 'kanał podał starszy stan (04:00) — zostaje poprzedni (05:00)')
+        self.assertIn('Blockchain Capital: dane emitenta ze starszym stanem (2026-10-05T04:00:47+00:00) niż poprzedni odczyt (2026-10-05T05:00:47+00:00) — poprzedni odczyt', e2['notes'])
+        self.assertNotIn('k', e2['p']['openeden-tbill']); self.assertEqual(e2['p']['openeden-tbill']['read'], later.isoformat())
+        x = e2['p']['matrixdock-xaum']
+        self.assertEqual(x['read'], later.isoformat())
+        e3 = self._em(now=later, prev=e1, ref={'hastra': 1e6}, over={zd.RWE_HASTRA: dict(_RWE169_HASTRA, prime_card={'vaulted_wylds': '5856108961.43'})})
+        self.assertEqual(e3['p']['hastra']['k'], 1, 'pasmo wobec POPRZEDNIEGO odczytu emitenta (nie ostatnio znanej wartości): 9× = odrzucony, poprzedni zostaje')
+        e5 = self._em(now=self.NOW + datetime.timedelta(days=8), prev=e1, fail={zd.RWE_HASTRA})
+        self.assertEqual((e5['p']['hastra']['v'], e5['p']['hastra']['full']), (None, False), 'poprzedni odczyt starszy niż 7 dni — brak, nigdy zero')
+        self.assertEqual(zd._rwe_prev({'p': {'hastra': {'kind': 'oe', 'v': 1.0, 'as_of': 'x', 'read': 'y'}}}), {}, 'zły zapis w pliku — pominięty')
+        self.assertEqual(zd._rwe_prev({'off': True, 'p': e1['p']}), {})
+
+    def test_ponowienie_tylko_po_bledzie_sieci(self):
+        g, p = _rwe169_net()
+        n = {}
+
+        def get(url, headers=None, timeout=60):
+            n[url] = n.get(url, 0) + 1
+            if url == zd.RWE_SEC + 'BCAP' and n[url] == 1:
+                raise TimeoutError('The read operation timed out')
+            if url == zd.RWE_OE and n[url] == 1:
+                raise _uerr_v133.HTTPError(url, 503, 'Service Unavailable', {}, _io_v133.BytesIO(b''))
+            if url == zd.RWE_HASTRA:
+                raise _uerr_v133.HTTPError(url, 404, 'Not Found', {}, _io_v133.BytesIO(b''))
+            if url == zd.RWE_XAUM:
+                return b'{"code": 7}'
+            return g(url, headers, timeout)
+        sl = []
+        rd = zd.rwe_odczyt(self.NOW, fx=self._fx(), get=get, post=p, sleep=sl.append)
+        self.assertNotIn('err', rd['r']['blockchain-capital']); self.assertNotIn('err', rd['r']['openeden-tbill'])
+        self.assertEqual((n[zd.RWE_SEC + 'BCAP'], n[zd.RWE_OE]), (2, 2), 'przekroczony czas i 503 — druga próba')
+        self.assertEqual((n[zd.RWE_HASTRA], n[zd.RWE_XAUM]), (1, 1), '404 i zły kształt — bez ponowienia')
+        self.assertIn('HTTP Error 404', rd['r']['hastra']['err']); self.assertIn('brak podaży', rd['r']['matrixdock-xaum']['err'])
+        self.assertEqual(sl, [zd.RWE_PRZERWA, zd.RWE_PRZERWA])
+        self.assertTrue(zd._rwe_ponow(_uerr_v133.URLError('reset'))); self.assertTrue(zd._rwe_ponow(ConnectionResetError()))
+        self.assertFalse(zd._rwe_ponow(TimeoutError('brak czasu w budżecie kroku (30 s)'))); self.assertFalse(zd._rwe_ponow(ValueError('x')))
+        self.assertTrue(zd._rwe_ponow(_uerr_v133.HTTPError('u', 429, 'Too Many', {}, _io_v133.BytesIO(b''))))
+
+    def test_bledy_odczytu_nie_przerywaja(self):
+        g, p = _rwe169_net(over={zd.RWE_OE: b'<html>Just a moment...</html>', zd.RWE_CFG: {'errors': [{'message': 'boom'}]},
+                                 zd.RWE_SEC + 'VBILL': b'x' * (zd.RWE_MAX_B + 1), zd.RWE_XAUM: 'napis'})
+        rd = zd.rwe_odczyt(self.NOW, fx=self._fx(), get=g, post=p)
+        self.assertIn('JSONDecodeError', rd['r']['openeden-tbill']['err']); self.assertIn('odpowiedź z błędem', rd['r']['centrifuge-protocol']['err'])
+        self.assertIn('za duża', rd['r']['vaneck-treasury-fund']['err']); self.assertIn('brak podaży', rd['r']['matrixdock-xaum']['err'])
+        self.assertNotIn('err', rd['r']['spiko'])
+        t = [0.0]
+        rd = zd.rwe_odczyt(self.NOW, fx=self._fx(), get=_rwe169_net()[0], post=_rwe169_net()[1], budget=0.5, clock=lambda: t[0])
+        self.assertTrue(all('brak czasu w budżecie' in x['err'] for x in rd['r'].values())); self.assertEqual(rd['req'], 0)
+        em = zd.rwe_blok(rd, None, self.NOW)
+        self.assertFalse(em['ok']); self.assertEqual(zd.rwe_uzyj(em, self.NOW), {}); self.assertEqual(len(em['notes']), zd.RWE_NOTES)
+
+    # ---------------------------------------------------------------- sumy (rwa_build) i build_rwa
+    def _prev(self, H, ph=None):
+        return {'at': '2026-10-04T23:00:00+00:00', 'seg': {}, 'hist': [], 'ok': {'list': True, 'hidden': True}, 'ph': ph or {},
+                'hv': {s: [v, '2026-09-27', 0, 2, None] for s, v in H.items() if v}}
+
+    def test_sumy_bez_podwojnego_liczenia_i_zmiany_w_obrebie_zrodla(self):
+        t = RwaV133('test_bramka_odswiezenia_i_proby'); P, H = t._parsed(), t._hid()
+        em = self._em()
+        J0 = zd.rwa_build(P, H, self._prev(H), self.NOW)
+        J = zd.rwa_build(P, H, self._prev(H), self.NOW, em=em)
+        self.assertNotIn('issuer', J0)
+        U = J['issuer']['used']
+        self.assertEqual(sorted(U), ['centrifuge-protocol', 'spiko'], 'produkty ukryte nagrania v133, które mają dane emitenta')
+        self.assertAlmostEqual(J['seg']['all']['v'], J0['seg']['all']['v'] + U['spiko'] + U['centrifuge-protocol'], delta=1)
+        self.assertAlmostEqual(J['seg']['tb']['v'] - J0['seg']['tb']['v'], U['spiko'], delta=1); self.assertAlmostEqual(J['seg']['pc']['v'] - J0['seg']['pc']['v'], U['centrifuge-protocol'], delta=1)
+        self.assertEqual(J['stale']['n'], J0['stale']['n'] - 2); self.assertNotIn('spiko', [r[0] for r in J['stale']['top']])
+        self.assertEqual(J['issuer']['seg'], {'tb': {'v': round(U['spiko']), 'n': 1}, 'pc': {'v': round(U['centrifuge-protocol']), 'n': 1},
+                                              'all': {'v': round(U['spiko'] + U['centrifuge-protocol']), 'n': 2}})
+        self.assertEqual(J['issuer']['hd'], {'2026-10-05': [round((U['spiko'] + U['centrifuge-protocol']) / 1e6, 1), ['centrifuge-protocol', 'spiko']]})
+        self.assertEqual(J['issuer']['p']['spiko']['name'], 'Spiko'); self.assertEqual(J['issuer']['p']['centrifuge-protocol']['name'], 'Centrifuge Protocol')
+        top = {r[0]: r for r in J['top']}
+        self.assertEqual(top['spiko'][6], 'e'); self.assertEqual(top['spiko'][3], round(U['spiko']))
+        self.assertIn('spiko~e', J['ph']['v']); self.assertNotIn('spiko', J['ph']['v'], 'okno: wartość wg emitenta pod osobnym kluczem')
+        self.assertEqual(J['ph']['v']['spiko~e'], [round(U['spiko'] / 1e6, 3)])
+        d7 = '2026-09-28'
+        ph = {'days': [d7], 'v': {'spiko': [2625.0], 'spiko~e': [2700.0], 'invesco-ustb': [545.6], 'ethena-usdtb': [491.7], 'plume-vaults': [220.6], 'kaio': [39.7]}}
+        J7 = zd.rwa_build(P, H, self._prev(H, ph), self.NOW, em=em)
+        top = {r[0]: r for r in J7['top']}
+        self.assertAlmostEqual(top['spiko'][4], round((round(U['spiko'] / 1e6, 3) / 2700.0 - 1) * 100, 3), places=3,
+                               msg='zmiana 7 dni produktu: emitent dziś vs emitent 7 dni temu (nie stara wartość źródła v133)')
+        ph2 = {'days': [d7], 'v': {'spiko': [2625.0], 'invesco-ustb': [545.6], 'ethena-usdtb': [491.7], 'plume-vaults': [220.6], 'kaio': [39.7]}}
+        J8 = zd.rwa_build(P, H, self._prev(H, ph2), self.NOW, em=em)
+        self.assertIsNone({r[0]: r for r in J8['top']}['spiko'][4], 'zmiana źródła — bez porównania (nigdy sztuczny skok)')
+        self.assertIsNone(J8['seg']['tb']['c7'], 'rodzaj: dziś przewaga wartości bez porównania (pokrycie < 50%) — „—”, nie zmiana z innego źródła')
+        J9 = zd.rwa_build(P, H, self._prev(H, ph2), self.NOW)
+        self.assertIsNotNone(J9['seg']['tb']['c7'], 'bez danych emitenta — produkty z listy porównane jak dotąd')
+
+    def test_pierwszenstwo_odczytu_z_lancucha(self):
+        t = RwaV133('test_bramka_odswiezenia_i_proby'); P, H = t._parsed(), t._hid()
+        with mock.patch.object(zd, 'rwc_uzyj', lambda oc, now=None: {'spiko': 2.7e9}):
+            J = zd.rwa_build(P, H, self._prev(H), self.NOW, oc={'v': 1, 'p': {}}, em=self._em())
+        self.assertEqual(J['onchain']['used'], {'spiko': 2.7e9}); self.assertEqual(sorted(J['issuer']['used']), ['centrifuge-protocol'], 'nigdy obie wartości')
+        self.assertEqual({r[0]: r[6] for r in J['top']}['spiko'], 'o')
+
+    def test_build_rwa_krok_emitentow(self):
+        t = RwaV133('test_bramka_odswiezenia_i_proby')
+        prev = self._prev(t._hid())
+        prev.update(at='2026-10-04T23:00:00+00:00', issuer={'v': 1, 'at': '2026-10-04T23:00:00+00:00', 'ok': True, 'p': {}})
+        seen = []
+
+        def em_fn(pem, now, oc=None, ref=None, S=None):
+            seen.append((pem, now, oc, ref, S))
+            return dict(self._em(now), notes=['Hastra: test'])
+        with mock.patch.object(zd, 'rwa_get_gz', lambda url, tmo, deadline=None: json.dumps(_rwa133_list()).encode()), mock.patch.object(zd, 'get', _rwa133_get()):
+            J = zd.build_rwa(prev, now=self.NOW, sleep=lambda s: None, S={'x': 1}, em_fn=em_fn)
+            self.assertEqual(len(seen), 1); pem, now, oc, ref, S = seen[0]
+            self.assertIs(pem, prev['issuer']); self.assertIsNone(oc, 'bez oc_fn — bez bloku onchain'); self.assertEqual(S, {'x': 1})
+            self.assertEqual(ref['spiko'], 2_625_000_000); self.assertIn('dane emitentów: Hastra: test', J['notes'])
+            self.assertEqual(sorted(J['issuer']['used']), ['centrifuge-protocol', 'spiko'])
+
+            def zly(pem, now, **k):
+                raise RuntimeError('awaria')
+            J = zd.build_rwa(prev, now=self.NOW, sleep=lambda s: None, em_fn=zly)
+            self.assertIn('dane emitentów: RuntimeError: awaria — poprzednie odczyty z ich stanem', J['notes']); self.assertEqual(J['issuer']['used'], {})
+            J = zd.build_rwa(dict(prev, issuer={'v': 1, 'off': True}), now=self.NOW, sleep=lambda s: None, em_fn=zly)
+            self.assertIn('dane emitentów: RuntimeError: awaria', J['notes']); self.assertNotIn('issuer', J)
+            J = zd.build_rwa(prev, now=self.NOW, sleep=lambda s: None, em_fn=zd.rwe_wylaczony)
+            self.assertEqual((J['issuer']['off'], J['issuer']['used']), (True, {}))
+            self.assertNotIn('issuer', zd.build_rwa(prev, now=self.NOW, sleep=lambda s: None), 'bez em_fn — jak dotąd')
+
+    # ---------------------------------------------------------------- main(): wyłącznik, start po wdrożeniu, stan źródła
+    def _main(self, prev, env=None):
+        saved, kw = {}, []
+
+        def fake(p, **k):
+            kw.append(k)
+            return dict(p or {}, at=self.NOW.isoformat(), ok={'list': True, 'hidden': True}, seg={'all': {}}, hist=[], notes=[],
+                        issuer=k['em_fn']((p or {}).get('issuer'), self.NOW, oc=None, ref={}, S={}))
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_rwa' and callable(getattr(zd, n))]
+        e = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL',
+                             'CACHE_DIR', 'RWA_OFF', 'RWA_CHAIN_OFF', 'RWA_EM_OFF')}
+        e.update(env or {})
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        with mock.patch.dict(os.environ, e, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                mock.patch.object(zd, 'previous', lambda name: prev if name == 'rwa' else None), mock.patch.object(zd, 'build_rwa', side_effect=fake), \
+                mock.patch.object(zd, '_RUN_T0', [None]), mock.patch.object(zd, 'rwe_odczyt', lambda now, fx=None: {'at': now.isoformat(), 'r': {}, 'req': 0, 's': 0}):
+            [p.start() for p in stubs]
+            try:
+                zd.main()
+            finally:
+                [p.stop() for p in stubs]
+        return saved, kw
+
+    def test_main_wylacznik_start_i_stan(self):
+        H = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
+        base = {'seg': {'all': {}}, 'hist': [], 'ok': {'list': True, 'hidden': True}}
+        s, kw = self._main(dict(base, at=H(7)))
+        self.assertEqual(len(kw), 1); self.assertIs(kw[0]['em_fn'], zd.rwe_krok); self.assertIs(kw[0]['oc_fn'], zd.rwc_krok)
+        self.assertIs(zd.META['ok']['rwa-emitenci'], False, 'odczyt bez odpowiedzi = niepełny'); self.assertEqual(s['rwa']['issuer']['p']['spiko']['err'], 'brak odpowiedzi')
+        s, kw = self._main(dict(base, at=H(7)), {'RWA_EM_OFF': '1'})
+        self.assertIs(kw[0]['em_fn'], zd.rwe_wylaczony); self.assertTrue(s['rwa']['issuer']['off']); self.assertNotIn('rwa-emitenci', zd.META['ok'])
+        self.assertIn('Tokenizowane aktywa — dane emitentów: wyłączone zmienną RWA_EM_OFF — bez zapytań do emitentów; sumy bez danych emitentów', zd.META['notes'])
+        s, kw = self._main(dict(base, at=H(1)))
+        self.assertEqual(kw, [], 'plik młodszy niż 2 h bez danych emitentów — czeka'); self.assertNotIn('rwa-emitenci', zd.META['ok'])
+        s, kw = self._main(dict(base, at=H(2.5)))
+        self.assertEqual(len(kw), 1, 'pierwsze przebiegi po wdrożeniu: plik bez danych emitentów przebudowany po 2 h, nie po 6 h')
+        s, kw = self._main(dict(base, at=H(2.5), try_at=H(0.5)))
+        self.assertEqual(kw, [], 'nieudana próba niedawno — bez ponowienia')
+        act = {'v': 1, 'at': H(2.5), 'ok': True, 'p': {}}
+        s, kw = self._main(dict(base, at=H(2.5), issuer=act))
+        self.assertEqual(kw, []); self.assertEqual(zd.META['ok']['rwa-emitenci'], 'cached')
+        s, kw = self._main(dict(base, at=H(0.5), issuer=act), {'RWA_EM_OFF': '1'})
+        self.assertEqual(len(kw), 1, 'wyłącznik działa od razu'); self.assertIs(kw[0]['em_fn'], zd.rwe_wylaczony)
+        s, kw = self._main(dict(base, at=H(0.5), issuer={'v': 1, 'off': True}), {'RWA_EM_OFF': '1'})
+        self.assertEqual(kw, [], 'już wyłączony w pliku — zwykły rytm')
+        s, kw = self._main(dict(base, at=H(2.5), issuer={'v': 1, 'off': True}))
+        self.assertEqual(len(kw), 1, 'wyłącznik zdjęty — przebudowa po 2 h')
+        src = _rwc150_txt(zd.__file__); m = src.index('\ndef main():')
+        self.assertLess(src.index("rwc_off = os.environ.get('RWA_CHAIN_OFF'", m), src.index("rwe_off = os.environ.get('RWA_EM_OFF'", m))
+
+    # ---------------------------------------------------------------- kontrola dzienna
+    def test_kontrola_dzienna(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v169', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        t = RwaV133('test_bramka_odswiezenia_i_proby'); P, H = t._parsed(), t._hid()
+        J = zd.rwa_build(P, H, self._prev(H), self.NOW, em=self._em(ref={s: r[0] for s, r in self._prev(H)['hv'].items()}))
+        self.assertEqual(K.rwe_swiezosc(J, self.NOW + datetime.timedelta(hours=1))[1:4], ('✅', 60, self.NOW.isoformat()))
+        self.assertEqual(K.rwe_swiezosc(J, self.NOW + datetime.timedelta(hours=13))[1], '⚠️')
+        self.assertEqual(K.rwe_swiezosc({'at': 'x'})[1:], ('—', None, None, 'brak danych emitentów w pliku (przed pierwszym odczytem po wdrożeniu v169)'))
+        self.assertEqual(K.rwe_swiezosc(dict(J, issuer={'off': True}))[1:], ('—', None, None, 'wyłączone (RWA_EM_OFF)')); self.assertIsNone(K.rwe_swiezosc(None))
+        Z = K.rwe_porownanie(J, self.NOW)
+        self.assertEqual(Z['status'], '✅', Z); self.assertTrue(Z['opis'].startswith('w sumach wg emitentów: 2 z 11 produktów, '), Z['opis'])
+        self.assertEqual(len(Z['zakres']), 2, 'Spiko (nagranie: 5 z 14 klas) i Centrifuge — inny zakres niż ostatnio znana'); self.assertEqual(Z['braki'], [])
+        self.assertIn('inny zakres niż ostatnio znana (opisane na stronie): ', Z['opis'])
+        J2 = json.loads(json.dumps(J)); J2['issuer']['ok'] = False; J2['issuer']['notes'] = ['Hastra: HTTPError 503']; J2['issuer']['p']['hastra'].update(full=False, err='HTTPError 503')
+        J2['issuer']['hd']['2026-10-04'] = [5000.0, ['centrifuge-protocol', 'spiko', 'hastra']]
+        Z = K.rwe_porownanie(J2, self.NOW)
+        self.assertEqual(Z['status'], '⚠️'); self.assertEqual(Z['wypadly'], ['hastra']); self.assertEqual(Z['braki'], ['Hastra: HTTPError 503'])
+        self.assertTrue(any('ostatni odczyt niepełny — Hastra: HTTPError 503' in u for u in Z['uwagi']))
+        self.assertEqual(K.rwe_porownanie(dict(J, issuer={'off': True}), self.NOW)['opis'], 'wyłączone (RWA_EM_OFF) — sumy bez danych emitentów')
+        self.assertIsNone(K.rwe_porownanie({'at': 'x'}, self.NOW))
+        R0 = {'uwagi': []}; self.assertIsNotNone(K.rwe_kontrola({'rwa': J}, R0)); self.assertIsNone(K.rwe_kontrola({}, R0))
+        J3 = json.loads(json.dumps(J)); em_m = J['issuer']['hd']['2026-10-05'][0]
+        J3['hist'] = [['2026-10-04', 4672.4] + [None] * 7, ['2026-10-05', 4672.4 + em_m] + [None] * 7]
+        R = K.rwa_porownanie(J3, self.NOW)
+        self.assertEqual(R['skoki'], [], 'skok sumy w dniu włączenia danych emitentów liczony bez nich')
+        self.assertIn('zmiana zbioru produktów z odczytu własnego albo danych emitentów', R['opis'])
+        J3['hist'][1][1] += 2000
+        self.assertEqual(len(K.rwa_porownanie(J3, self.NOW)['skoki']), 1, 'prawdziwy skok poza danymi emitentów nadal ⚠️')
+        src = _rwc150_txt(spec.origin)
+        self.assertIn("Z['rwa-emitenci'] = rwe_kontrola(files, R)", src); self.assertIn("re_ = rwe_swiezosc(files.get('rwa'))", src)
+        self.assertIn("L.append('- Tokenizowane aktywa — dane emitentów: '", src); self.assertIn("f'**Wynik: {R[\"wynik\"]}**'", src, 'linia „Wynik:” bez zmian')
+        self.assertLess(src.index("rc = rwc_swiezosc(files.get('rwa'))"), src.index("re_ = rwe_swiezosc(files.get('rwa'))"))
+
+    def test_kod_blok_miejsce(self):
+        src = _rwc150_txt(zd.__file__)
+        a = src.index('# ===================== v169: TOKENIZOWANE AKTYWA — DANE EMITENTÓW'); b = src.index('\n\n\ndef main():', a)
+        blok = src[a:b]
+        self.assertLess(src.index('# ===================== v150: TOKENIZOWANE AKTYWA — ODCZYT WŁASNY'), a)
+        self.assertNotIn('KEY', blok); self.assertNotIn('os.environ', blok); self.assertNotIn('print(', blok)
+        for u in ('public-api.spiko.io', 'public-feed.securitize.io', 'hastra.io', 'prod-gw.openeden.com', 'matrixdock.com', 'api.centrifuge.io'):
+            self.assertIn(u, zd.RWE_SRC)
+        self.assertNotIn("'build_rwe", src, 'bez nowego budowniczego — krok w build_rwa (krotki zaślepek bez zmian)')

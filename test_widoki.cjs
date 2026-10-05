@@ -13007,3 +13007,73 @@ test('v168: podpisy częstotliwości zgodne z automatem — co 10 minut (karty, 
   assert.ok(html.includes("t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.1h':'pg.live')") && html.includes("const fq=cmcF?t('pg.20m'):t('pg.live');"), 'zapas sceny — co godzinę; plik rynku krypto — co 10 min');
   const d0 = html.indexOf('const EXTRA168='), d1 = html.indexOf(';\n', d0); assert.deepEqual(JSON.parse(html.slice(d0 + 'const EXTRA168='.length, d1)), {pl: {'pg.1h': 'co godzinę'}});
 });
+
+/* ---------- v169: tokenizowane aktywa — dane emitentów ◇ (blok issuer pliku rwa.json) ---------- */
+/* Plik v150 (RWA150_FILE) + blok issuer: cztery produkty w sumach wg emitentów (Spiko z kursem, Centrifuge i STAC z innym zakresem niż ostatnio znana,
+   XAUm z ceną złota) i jeden bez bieżących danych (Hastra). Zegar przypięty w rw133.run (2026-10-04T02:00:00Z). */
+function v169Plik() {
+  const F = RWC150.clone(RWA150_FILE), at = '2026-10-04T00:12:00+00:00';
+  const U = {spiko: 2777900000, 'centrifuge-protocol': 966200000, 'securitize-tokenized-aaa-clo-fund': 281960000, 'matrixdock-xaum': 69190000};
+  F.issuer = {v: 1, at, ok: false, src: 'x', run: {req: 25, s: 3.1}, notes: ['Hastra: HTTPError: HTTP Error 503 — bez wartości'],
+    p: {spiko: {name: 'Spiko', kind: 'spiko', v: U.spiko, as_of: '2026-10-02T15:20:09+00:00', read: at, err: null, ref: 2625039075.88, n: 14, fx: {d: '2026-10-02'}, full: true},
+      'centrifuge-protocol': {name: 'Centrifuge Protocol', kind: 'cfg', v: U['centrifuge-protocol'], as_of: '2026-10-01T12:00:00+00:00', read: at, err: null, ref: 1481703174.17, zakres: 'cfg', full: true},
+      'securitize-tokenized-aaa-clo-fund': {name: 'Securitize Tokenized AAA CLO Fund', kind: 'sec', v: U['securitize-tokenized-aaa-clo-fund'], as_of: '2026-10-03T23:30:30+00:00',
+        read: at, err: null, ref: 103529968.26, zakres: 'sol', full: true},
+      'matrixdock-xaum': {name: 'Matrixdock XAUm', kind: 'xaum', v: U['matrixdock-xaum'], oz: 16716.95, px: 4139.21, px_at: '2026-10-03T15:25:59+00:00', as_of: at, read: at,
+        err: null, ref: 65168921.08, full: true},
+      hastra: {name: 'Hastra', kind: 'hastra', v: null, as_of: null, read: null, err: 'HTTPError: HTTP Error 503', ref: 592641759.52, full: false}},
+    used: U, seg: {tb: {v: 2777900000, n: 1}, pc: {v: 966200000, n: 1}, ofi: {v: 281960000, n: 1}, cm: {v: 69190000, n: 1}, all: {v: 4095250000, n: 4}},
+    hd: {'2026-10-04': [4095.3, Object.keys(U).sort()]}};
+  F.top[9] = ['spiko', 'Spiko', 'tb', 2777900000, null, null, 'e'];
+  F.stale.top = F.stale.top.filter(r => r[0] !== 'spiko' && r[0] !== 'centrifuge-protocol');
+  return F;
+}
+test('v169: dane emitentów ◇ — linie kafli „w tym … wg danych emitentów ◇”, znak w tabeli produktów, akapit z dniem stanu, kursem, złotem, zakresem i brakami', () => {
+  const o = RWC150.out(v169Plik()), x = RWC150.txt(o);
+  assert.ok(o.includes('<small>w tym 2,8 mld USD wg danych emitentów ◇</small>'), 'kafel obligacji');
+  assert.ok(o.includes('<small>w tym 4,1 mld USD wg danych emitentów ◇</small>') && o.includes('<small>w tym 69 mln USD wg danych emitentów ◇</small>')
+    && o.includes('<small>w tym 966 mln USD wg danych emitentów ◇</small>'), 'kafle „razem”, „złoto”, „kredyt prywatny”');
+  assert.equal((o.match(/wg danych emitentów ◇<\/small>/g) || []).length, 4, 'cztery kafle (inne obligacje nie mają kafla)');
+  assert.ok(o.indexOf('z odczytu własnego z łańcucha ◆</small>') < o.indexOf('wg danych emitentów ◇</small>'), 'linia ◆ przed ◇ (pierwszeństwo odczytu z łańcucha)');
+  assert.ok(o.includes('<span class="rw-i">10.</span>Spiko ◇</span>'), 'znak przy nazwie w tabeli produktów');
+  assert.ok(o.includes('◇ wartość według danych emitenta produktu (opis nad tabelami).'), 'nota pod tabelą');
+  assert.ok(o.includes('◇ Dane emitentów — produkty, których dotychczasowe źródło stoi, liczymy według danych publikowanych przez samego emitenta (bieżąca liczba jednostek × ostatnia wycena; w nawiasie dzień stanu): '
+    + 'Spiko 2,8 mld USD (02.10), Centrifuge Protocol 966 mln USD (01.10), Securitize Tokenized AAA CLO Fund 282 mln USD (03.10), Matrixdock XAUm 69 mln USD (04.10).'), 'lista z dniem stanu, od największych');
+  assert.ok(o.includes('Klasy w innych walutach niż USD przeliczone po dziennym kursie z 02.10.'), 'kurs');
+  assert.ok(o.includes('Złoto (1 token = 1 uncja): ') && o.includes(' USD za uncję ([2026-10-03T15:25:59+00:00]) — ta sama cena co w odczycie z łańcucha.'), 'cena złota');
+  assert.ok(o.includes('Inny zakres niż w ostatnio znanej wartości: Centrifuge Protocol 966 mln USD (ostatnio znana 1,5 mld USD; emitent liczy tylko tokeny funduszy, bez tokenów-opakowań); '
+    + 'Securitize Tokenized AAA CLO Fund 282 mln USD (ostatnio znana 104 mln USD; emitent liczy też klasę funduszu w sieci Solana).'), 'obie liczby i powód');
+  assert.ok(!/Spiko 2,8 mld USD \(ostatnio/.test(o) && !/XAUm 69 mln USD \(ostatnio/.test(o), 'różnica do 25% — bez noty zakresu');
+  assert.ok(o.includes('Bez bieżących danych emitenta — zostają poza sumami: Hastra.'), 'braki poza sumami');
+  assert.ok(o.includes('Dane emitentów ◇ pochodzą od samych emitentów i nie są audytem; przy wdrożeniu (05.10.2026) porównaliśmy liczby jednostek z odczytem z łańcucha bloków — były zgodne.'), 'czego dane nie mówią');
+  assert.ok(!/NaN|undefined|null|rwe\.[a-z]/.test(x), 'bez NaN i surowych kluczy');
+  assert.ok(!/securitize\.io|spiko\.io|centrifuge\.io|hastra\.io|openeden|matrixdock\.com|kurs EBC/i.test(x), 'bez nazw serwisów i wydawców (tylko nazwy produktów)');
+});
+test('v169: bez bloku, wyłączony albo złe zapisy — strona jak dotąd; nazwy escapowane', () => {
+  const base = RWC150.out(RWA150_FILE);
+  assert.ok(!base.includes('◇') && !base.includes('wg danych emitentów') && !base.includes('Dane emitentów'), 'plik bez bloku issuer — bez zmian');
+  const F = RWC150.clone(RWA150_FILE); F.issuer = {v: 1, off: true, at: F.at, p: {}, used: {}};
+  assert.equal(RWC150.out(F), base, 'wyłączony (off) — strona jak bez bloku');
+  const E = v169Plik(); E.issuer.p.spiko.name = '<b>x</b>';
+  assert.ok(RWC150.out(E).includes('&lt;b&gt;x&lt;/b&gt; 2,8 mld USD (02.10)'), 'nazwa z pliku escapowana');
+  const Z = v169Plik(); Z.issuer.used.spiko = 'x'; Z.issuer.p['centrifuge-protocol'].as_of = 'wczoraj'; delete Z.issuer.seg; Z.issuer.p.spiko.fx = {d: 'x'};
+  const oz = RWC150.out(Z);
+  assert.ok(!oz.includes('Spiko 2,8 mld USD') && oz.includes('Centrifuge Protocol 966 mln USD (—)'), 'zła wartość — poza listą; zły dzień stanu — „—”');
+  assert.ok(!oz.includes('wg danych emitentów ◇</small>') && !oz.includes('dziennym kursie'), 'bez pola seg — bez linii kafli; zły dzień kursu — bez zdania');
+  assert.ok(!/NaN|undefined|null|rwe\.[a-z]/.test(RWC150.txt(oz)));
+  const N = v169Plik(); N.issuer.used = {}; N.issuer.seg = {};
+  const on = RWC150.out(N);
+  assert.ok(!on.includes('◇ Dane emitentów') && on.includes('Bez bieżących danych emitenta — zostają poza sumami: Hastra.'), 'nic w sumach — tylko braki');
+});
+test('v169: słownik — czysty JSON, tylko po polsku, klucze rwe.* używane w bloku RWA, bez nazw dostawców; linia nakładania po słowniku v168', () => {
+  const d0 = html.indexOf('const EXTRA169='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA169='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl'], 'tylko po polsku (cel 04.10: języki obce na koniec etapu)');
+  const K = ['rwe.fx', 'rwe.gold', 'rwe.in', 'rwe.not', 'rwe.p', 'rwe.part', 'rwe.ref', 'rwe.top', 'rwe.z.cfg', 'rwe.z.sol', 'rwe.zakres'];
+  assert.deepEqual(Object.keys(D.pl).sort(), K);
+  assert.ok(!/securitize|spiko|centrifuge|hastra|openeden|matrixdock|llama|chainlink|publicnode|\bEBC\b|\bECB\b/i.test(JSON.stringify(D)), 'bez nazw dostawców, serwisów i wydawców kursu');
+  const used = new Set([...rw133.BLK.matchAll(/t\('(rwe\.[a-z0-9.]+)'/g)].map(m => m[1]));
+  for (const k of K) assert.ok(used.has(k), 'klucz używany w bloku RWA: ' + k);
+  const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(mm.indexOf('EXTRA169') > mm.indexOf('EXTRA168') && mm.indexOf('EXTRA168') >= 0, 'po słowniku v168');
+  assert.equal(html.split('const RW_EM=').length, 2, 'jeden znak ◇'); assert.ok(html.indexOf('const RW_OC=') < html.indexOf('const RW_EM='), 'blok v169 po bloku v150');
+});

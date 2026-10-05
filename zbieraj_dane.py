@@ -16553,7 +16553,7 @@ def rwa_gold_moved(series, since, day):
     return abs(b[-1] / a[-1] - 1) * 100 >= RWA_GOLD_MOVE
 
 
-def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=None, oc=None):
+def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=None, oc=None, em=None):
     """Plik data/rwa.json z listy (rwa_parse_list), wartości produktów ukrytych ({produkt: wartość|None}; brak klucza = bez odpowiedzi w tym
     odświeżeniu) i poprzedniego pliku: migawka dnia UTC, okno produktów 31 dni, sumy 400 dni, zmiany 7/30 dni (like-for-like), 10 największych.
     Produkt ukryty bez odpowiedzi: wartość z wcześniejszego dobrego odczytu dziś, z D−1 albo D−2 (via 'k', n.kept); inaczej brak wartości. Produkt ukryty
@@ -16563,7 +16563,10 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
     zamknięcia GLD (rwa_gold_series) albo None.
     v150: `oc` = blok onchain (odczyt własny z łańcucha, rwc_blok) — produkt ukryty bez bieżącej wyceny (niezmieniony albo „brak wartości od”)
     z PEŁNYM odczytem (rwc_uzyj) liczy się wartością z łańcucha (via 'o'), nigdy obiema; plik dostaje blok onchain z polami used / seg / hd.
-    Bez `oc` (None) wynik jest taki sam jak w v133."""
+    Bez `oc` (None) wynik jest taki sam jak w v133.
+    v169: `em` = blok issuer (dane emitentów, rwe_blok) — taki produkt BEZ pełnego odczytu z łańcucha, z bieżącymi danymi emitenta (rwe_uzyj), liczy się
+    wartością emitenta (via 'e'), nigdy dwiema; w oknie dziennym ph pod kluczem produkt + RWE_PH (zmiany 7/30 dni tylko w obrębie źródła); plik dostaje
+    blok issuer z polami used / seg / hd. Bez `em` (None) wynik jak dotąd."""
     now = now or _now_utc()
     now = now.astimezone(datetime.timezone.utc).replace(microsecond=0)
     day = now.date().isoformat()
@@ -16614,12 +16617,18 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
     kept, kept_s, live_hid = 0, [], 0
     ocv = rwc_uzyj(oc, now) if oc is not None else {}                 # v150: pełne odczyty własne z łańcucha {produkt: USD}
     oc_used = []
+    emv = rwe_uzyj(em, now) if em is not None else {}                 # v169: bieżące dane emitentów {produkt: USD}
+    em_used = []
     for s in parsed['hidden']:                                        # 3. klasyfikacja: bieżąca (w sumach), niezmieniona, brak wartości, pierwszy odczyt, przeniesiona
         r, v = hv.get(s), None
         if r and s in ocv and (r[4] or (not first(r) and frozen(s, r))):   # v150: zamiast ostatnio znanej wartości — odczyt własny (nigdy obie)
             v = ocv[s]
             rows[s]['via'] = 'o'
             oc_used.append(s)
+        elif r and s in emv and (r[4] or (not first(r) and frozen(s, r))):   # v169: dane emitenta (bez pełnego odczytu z łańcucha) — nigdy obie
+            v = emv[s]
+            rows[s]['via'] = 'e'
+            em_used.append(s)
         elif r and r[4]:
             stale.append((s, r, 'g'))
         elif r and first(r):
@@ -16643,7 +16652,8 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
                     break
         rows[s]['v'] = v
     val = {s: r['v'] for s, r in rows.items() if r['v'] is not None}
-    ph = rwa_ph_update(pph, day, val)
+    phk = {s: s + RWE_PH if rows[s]['via'] == 'e' else s for s in val}   # v169: wartość wg emitenta pod osobnym kluczem okna — zmiana źródła ≠ zmiana wartości
+    ph = rwa_ph_update(pph, day, {phk[s]: x for s, x in val.items()})
     ph['kept'] = {d: sorted(x for x in pk[d] if isinstance(x, str) and x in ph['v']) for d in sorted(pk) if d in ph['days'] and d != day and isinstance(pk[d], list)}
     ph['kept'] = {d: x for d, x in ph['kept'].items() if x}
     if any(s in ph['v'] for s in kept_s):
@@ -16653,14 +16663,14 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
         S = [s for s in val if k == 'all' or rows[s]['seg'] == k]
         o = {'v': round(sum(val[s] for s in S)) if S else None, 'n': len(S)}
         for nd in (7, 30):
-            c = rwa_change(ph, S, day, nd)
+            c = rwa_change(ph, [phk[s] for s in S], day, nd)
             o[f'c{nd}'] = c['p'] if c else None
             o[f'c{nd}_from'] = c['from'] if c else None
             o[f'cov{nd}'] = c['cov'] if c else None
         segs[k] = o
     top_rows = []
     for s in sorted(val, key=lambda x: (-val[x], x))[:RWA_TOP]:
-        c7, c30 = rwa_change(ph, [s], day, 7), rwa_change(ph, [s], day, 30)
+        c7, c30 = rwa_change(ph, [phk[s]], day, 7), rwa_change(ph, [phk[s]], day, 30)
         top_rows.append([s, rows[s]['name'], rows[s]['seg'], round(val[s]), c7['p'] if c7 else None, c30['p'] if c30 else None, rows[s]['via']])
     hist = {r[0]: r for r in (prev.get('hist') or []) if isinstance(r, list) and len(r) == 2 + len(RWA_SEGS) and isinstance(r[0], str)
             and _RWA_DAY.match(r[0]) and r[0] < day}
@@ -16706,6 +16716,8 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
             'chk': {'c7_api_listed': parsed['c7_api'], 'c7_own_listed': own7['p'] if own7 else None}, 'notes': []}
     if isinstance(oc, dict):                                          # v150: blok odczytu własnego z łańcucha (tylko gdy podany)
         out['onchain'] = rwc_wynik(oc, {s: val[s] for s in oc_used}, rows, day, prev)
+    if isinstance(em, dict):                                          # v169: blok danych emitentów (tylko gdy podany)
+        out['issuer'] = rwe_wynik(em, {s: val[s] for s in em_used}, rows, day, prev)
     return out
 
 
@@ -16754,14 +16766,16 @@ def rwa_proba(prev, now=None):
     return dict(prev, try_at=now.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat(), retry_n=max(rn, 0) + 1)
 
 
-def build_rwa(prev=None, now=None, budget=None, clock=None, sleep=None, S=None, oc_fn=None):
+def build_rwa(prev=None, now=None, budget=None, clock=None, sleep=None, S=None, oc_fn=None, em_fn=None):
     """data/rwa.json — wartość tokenizowanych aktywów ze świata realnego: suma, rodzaje (obligacje skarbowe i fundusze rynku pieniężnego, inne
     obligacje, kredyt prywatny, złoto i surowce, akcje, nieruchomości, inne), zmiany 7 i 30 dni z własnych zapisów, 10 największych produktów.
     Jedno zapytanie o listę (gzip) + najwyżej RWA_HID_MAX zapytań /tvl o produkty ukryte na liście (od największych wg poprzedniego pliku), wszystko
     w budżecie RWA_BUDGET s (albo `budget`). Lista nieudana albo niepełna = wyjątek (main: poprzedni plik). Część produktów ukrytych przerwana
     (429/403, połączenie, czas, budżet) albo 5xx = ok.hidden False, notatka i wartości z D−1/D−2. Brak liczby = None, nigdy 0.
     v150: oc_fn(poprzedni blok onchain, now) → blok onchain (main: rwc_krok — odczyt własny z łańcucha w osobnym budżecie RWC_BUDGET s, albo
-    rwc_wylaczony przy RWA_CHAIN_OFF); błąd = poprzedni blok (odczyty z ich czasem) i notatka. Bez oc_fn — wynik jak w v133."""
+    rwc_wylaczony przy RWA_CHAIN_OFF); błąd = poprzedni blok (odczyty z ich czasem) i notatka. Bez oc_fn — wynik jak w v133.
+    v169: em_fn(poprzedni blok issuer, now, oc=blok onchain, ref=ostatnio znane wartości źródła v133, S=pliki przebiegu) → blok issuer (main: rwe_krok —
+    dane emitentów w osobnym budżecie RWE_BUDGET s, albo rwe_wylaczony przy RWA_EM_OFF); błąd = poprzedni blok i notatka. Bez em_fn — wynik jak dotąd."""
     now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
     clock = clock or time.monotonic
     budget = RWA_BUDGET if budget is None else budget
@@ -16804,7 +16818,17 @@ def build_rwa(prev=None, now=None, budget=None, clock=None, sleep=None, S=None, 
         except Exception as e:  # noqa — błąd kroku nie psuje części v133: poprzedni blok (odczyty z ich czasem) albo brak bloku
             oc = poc if poc and not poc.get('off') else None
             notes.append(f'odczyt własny z łańcucha: {type(e).__name__}: {e}'[:200] + (' — poprzedni odczyt z jego czasem' if oc else ''))
-    out = rwa_build(parsed, vals, prev, now, hidden_ok=not info['stop'] and not info['err5'], gold=rwa_gold_series(S or {}), oc=oc)
+    em = None
+    if em_fn is not None:                                             # v169: dane emitentów (po odczycie z łańcucha — XAUm bierze z niego cenę złota)
+        pem = (prev or {}).get('issuer') if isinstance((prev or {}).get('issuer'), dict) else None
+        ref = {s: rwa_num(r[0]) for s, r in phv.items() if isinstance(r, list) and r and rwa_num(r[0]) is not None}
+        try:
+            em = em_fn(pem, now, oc=oc, ref=ref, S=S or {})
+            notes += [f'dane emitentów: {x}' for x in (em.get('notes') or []) if isinstance(x, str)][:RWE_NOTES]
+        except Exception as e:  # noqa — błąd kroku nie psuje reszty: poprzedni blok (odczyty z ich stanem) albo brak bloku
+            em = pem if pem and not pem.get('off') else None
+            notes.append(f'dane emitentów: {type(e).__name__}: {e}'[:200] + (' — poprzednie odczyty z ich stanem' if em else ''))
+    out = rwa_build(parsed, vals, prev, now, hidden_ok=not info['stop'] and not info['err5'], gold=rwa_gold_series(S or {}), oc=oc, em=em)
     rn = (prev or {}).get('retry_n') if isinstance((prev or {}).get('retry_n'), int) else 0
     out['retry_n'] = 0 if all(out['ok'].get(k) is True for k in RWA_PARTS) else max(rn or 0, 0) + 1   # kolejne częściowe odświeżenia (odstęp ponowień)
     out['notes'] = notes[:RWA_NOTES]
@@ -16916,6 +16940,12 @@ RWC_PRODUKTY = {
         ('plume', '0xcf7a8813bd3bdaf70a9f46d310ce1ee8d80a4f5a', 18, 'WTGXX', False),
         ('sol', 'Em46fxxwgY2RRoUbBMSbEjJwY62x3ESMNdhnsGpEKewm', 9, 'WTGXX', False),
         ('xlm', 'WTGX:GDMBNMFJ3TRFLASJ6UGETFME3PJPNKPU24C7KFDBEBPQFG2CI6UC3JG6', 7, 'WTGX', False))},
+    # v169 (badanie ws51/badanie/BADANIE_RWA2.md §15, 05.10.2026): Pleasing Gold — tylko Arbitrum: sieć domowa mostu („lock/release”); kopie na Ethereum
+    # (110 PGOLD) i Pharos (1 000) są pokryte tokenami zablokowanymi w puli mostu na Arbitrum (0x5b5C…Cdc4: 1 110,0006), więc totalSupply na Arbitrum =
+    # wszystkie jednostki, liczone raz (źródło v133 najpewniej liczyło kopie podwójnie: 87,9 mln USD wobec 80,7 mln). 1 token = 1 uncja (dokumentacja
+    # emitenta pleasing.gitbook.io …/token-features, adresy stamtąd). 05.10 ok. 05:40 UTC: 19 505,0 uncji × 4 139,21 = 80,7 mln USD.
+    'pleasing-gold': {'name': 'Pleasing Gold', 'seg': 'cm', 'cena': 'zloto', 'tokeny': (
+        ('arb', '0x3e76bb02286bfeaa89dd35f11253f2cbce634f91', 18, 'PGOLD', False),)},
 }
 # Ceny z wyroczni na łańcuchu: latestRoundData() (roundId, answer, startedAt, updatedAt, answeredInRound); dec — miejsca odpowiedzi; lo / hi —
 # granice rozsądku (poza = brak ceny); max_min — najstarsza cena uznana za świeżą (wiek liczony od updatedAt).
@@ -16929,7 +16959,7 @@ RWC_CENY = {
 }
 RWC_SRC = ('Odczyt własny z publicznych łańcuchów bloków (węzły bez klucza: *.publicnode.com, zapas 1rpc.io; rpc.tempo.xyz; rpc.mainnet.arc.io; '
            'rpc.plume.org; api.mainnet-beta.solana.com; api.mainnet.aptoslabs.com; horizon.stellar.org) — liczba tokenów (totalSupply / konto emisji / '
-           'fungible_asset::supply / salda aktywa Stellar) × cena: 1 USD (BUIDL, WisdomTree WTGXX), XAU/USD z wyroczni na Ethereum (Paxos Gold, Tether Gold), wyrocznia funduszu USYC; Tether Gold: w obiegu = totalSupply '
+           'fungible_asset::supply / salda aktywa Stellar) × cena: 1 USD (BUIDL, WisdomTree WTGXX), XAU/USD z wyroczni na Ethereum (Paxos Gold, Tether Gold, Pleasing Gold — Arbitrum, sieć domowa mostu: kopie w innych sieciach pokryte pulą mostu), wyrocznia funduszu USYC; Tether Gold: w obiegu = totalSupply '
            'na Ethereum − rezerwa emitenta (wybite, niewydane) z jego danych o przejrzystości (app.tether.to/transparency.json); obliczenia CapitalFlowAI')
 # v160: rezerwy emitentów — produkt z 'rezerwa': w obiegu = podaż z łańcucha − tokeny wybite, jeszcze niewydane (dane emitenta, bez klucza, bez daty).
 # Świeżość z łańcucha: wybite wg emitenta (totalAuthorized) = totalSupply z odczytu w tym samym przebiegu (± RWC_REZ_TOL); inaczej, albo bez danych
@@ -17496,6 +17526,472 @@ def rwc_meta(rw, off, cached=False):
         META['ok']['rwa-lancuch'] = 'cached' if cached else oc.get('ok') is True
 
 
+# ===================== v169: TOKENIZOWANE AKTYWA — DANE EMITENTÓW (blok issuer w data/rwa.json; bez klucza) =====================
+# Źródło v133 od 27.09.2026 nie odświeża 28 produktów spoza głównej listy (05.10: 11,0 mld USD w grupie „bez bieżącej wyceny”); ich rekordy
+# u źródła nie mają już kodu (badanie ws51/badanie/BADANIE_RWA2.md, 05.10.2026). Dla 11 z nich bieżącą wartość publikuje SAM EMITENT (albo jego
+# agent transferowy) w publicznych danych bez klucza — liczymy z nich, zawsze z chwilą stanu emitenta (as_of):
+#   * 'spiko'  — publiczne API emitenta: lista klas (14) i dla każdej totalAssets (wartość w walucie klasy = bieżąca liczba jednostek × ostatnia
+#                wycena); klasy w innej walucie niż USD przeliczone po kursie z pliku rynki TEGO przebiegu (kurs dzienny, nie starszy niż RWE_FX_MAX_D dni);
+#                stan = najstarsza chwila wyceny (netAssetValue.updatedAt) wśród klas ≥ RWE_MIN_SHARE wartości produktu;
+#   * 'sec'    — publiczny kanał danych agenta transferowego (asset-stats): wiersz na sieć — amount_tokens, nav, aum (= tokeny × wycena), date (ns);
+#                wartość = Σ aum (aum ≠ tokeny × wycena o więcej niż 1% = błąd); stan = najstarszy date wierszy; ten sam kanał podaje BUIDL
+#                co do tokenu równo z naszym odczytem z łańcucha (BADANIE_RWA2, walidacja);
+#   * 'hastra' — dowód rezerw emitenta: wYLDS w trzech skarbcach (prime, auto, smb) × 1 USD (metoda źródła v133); stan = timestamp;
+#   * 'oe'     — zbiorcze dane funduszu emitenta: tvl; stan = liveVault.updatedAt;
+#   * 'xaum'   — dane emitenta o podaży (1 token = 1 uncja; oz_per_token musi być „1”) × cena złota z bloku onchain TEGO odczytu (wyrocznia XAU/USD,
+#                reguła świeżości 'zloto' — 36 h); stan = chwila naszego odczytu (dane emitenta bez daty);
+#   * 'cfg'    — indeks emitenta (GraphQL): Σ totalIssuance / 10^decimals × tokenPrice / 10^18 tokenów funduszy w pulach w USD (kod 840) albo
+#                w stablecoinach USD; bez tokenów-opakowań (symbol „de…” — trzymają tokeny funduszy, liczylibyśmy je dwa razy); tokeny w pulach
+#                innej waluty: do RWE_OTHER_MAX wartości pominięte z notatką, więcej = produkt bez wyceny; stan = najstarsza wycena
+#                (tokenPriceComputedAt) wśród tokenów ≥ RWE_MIN_SHARE wartości.
+# Pleasing Gold (BADANIE_RWA2 §15) — nie tutaj: odczyt własny z łańcucha (RWC_PRODUKTY, Arbitrum × cena złota).
+# Decyzje koordynatora (05.10.2026, po badaniu; właściciel: „dane jak najlepsze i najszybsze”, decyzje sam): (1) STAC z klasą na Solanie (emitent
+# liczy obie; źródło v133 liczyło tylko Ethereum: 103,5 → 282 mln USD); (2) Centrifuge w zakresie emitenta, bez tokenów-opakowań (966 mln USD wobec
+# 1 482 mln ostatnio znanej — to samo API 27.09 dawało 930 mln, więc to różnica zakresu, nie spadek). Oba na stronie z obiema liczbami.
+# Zasady:
+#   * dane emitenta zastępują WYŁĄCZNIE ostatnio znaną (niezmienioną albo „brak wartości od”) wartość produktu ukrytego i tylko bez pełnego odczytu
+#     z łańcucha (pierwszeństwo: ◆, potem ◇) — nigdy podwójnie; produkt z bieżącą wartością źródła v133 liczy się wartością źródła;
+#   * odczyt liczy się w sumach, gdy stan emitenta nie jest starszy niż limit rodzaju (max_h) — inaczej poza sumami (notatka);
+#   * pasmo rozsądku: wartość poza 1/RWE_RAZY–RWE_RAZY wobec poprzedniego odczytu emitenta (albo, bez niego, ostatnio znanej wartości źródła
+#     v133) = odrzucona (zła jednostka, zły kształt danych) — notatka, produkt zostaje „bez bieżącej wyceny”;
+#   * nieudane zapytanie, odczyt odrzucony albo stan STARSZY niż poprzedni (pamięć podręczna kanału) = poprzedni odczyt z jego stanem (najwyżej
+#     RWE_KEEP_MIN od naszego odczytu), oznaczony 'k'; brak = brak, nigdy zero;
+#   * zmiany 7/30 dni: wartości wg emitenta w oknie dziennym pod kluczem produkt + RWE_PH — porównanie tylko w obrębie tego samego źródła
+#     (zmiana źródła nie tworzy sztucznej zmiany; rwa_build);
+#   * wyłączniki: RWA_OFF (cały krok RWA) i osobny RWA_EM_OFF (zmienna repozytorium, nie sekret: 1 = bez zapytań do emitentów; plik ma issuer
+#     {'off': True}, sumy bez danych emitentów).
+# Nazw serwisów na stronie nie ma — tylko w polu src pliku (jak v133 / v150); nazwy produktów (przedmiot danych) zostają.
+RWE_LABEL = 'Tokenizowane aktywa — dane emitentów'   # przedrostek komunikatów w META
+RWE_BUDGET = 30           # s na cały krok (produkty równolegle; 05.10.2026 z Polski: 0,1–0,9 s na zapytanie, Spiko 15 zapytań po kolei)
+RWE_TIMEOUT = 12          # s — najdłużej jedno zapytanie (kanał agenta raz odpowiadał 12,8 s, raz nie odpowiedział w 10 s)
+RWE_PROBY = 2             # próby produktu: druga tylko po przekroczonym czasie, zerwanym połączeniu, HTTP 429 albo 5xx (nie po 4xx ani złym kształcie)
+RWE_PRZERWA = 0.5         # s między próbami
+RWE_MIN_TMO = 1.0         # s — mniej zostało z budżetu = bez kolejnego zapytania (produkt z poprzedniego odczytu)
+RWE_THREADS = 6           # produkty równolegle (Spiko: klasy po kolei w jednym wątku)
+RWE_MAX_B = 2_000_000     # bajtów — większa odpowiedź = błąd (05.10: najwięcej indeks Centrifuge, ok. 51 KB)
+RWE_KEEP_MIN = 7 * 24 * 60   # min — najstarszy poprzedni odczyt trzymany w pliku (od naszego odczytu); w sumach i tak tylko w limicie stanu rodzaju
+RWE_RAZY = 3.0            # pasmo rozsądku wobec poprzedniego odczytu emitenta (albo ostatnio znanej wartości źródła v133)
+RWE_FX_MAX_D = 7          # dni — kurs z pliku rynki starszy = klasy w tej walucie bez wyceny (produkt bez wyceny w tym odczycie)
+RWE_MIN_SHARE = 0.01      # część produktu (klasa, token) poniżej 1% wartości nie wyznacza chwili stanu (maleńkie klasy z rzadką wyceną)
+RWE_OTHER_MAX = 0.005     # cfg: tokeny w pulach innej waluty (bez kursu): do 0,5% wartości pominięte z notatką, więcej = produkt bez wyceny
+RWE_HD_DAYS = 31          # dni zapisu „co liczyliśmy wg emitentów” (kontrola: skok sumy przy zmianie zbioru)
+RWE_START_MIN = 120       # min — plik bez danych emitentów (pierwsze przebiegi po wdrożeniu) przebudowany po tylu minutach, nie po RWA_EVERY
+RWE_NOTES = 8
+RWE_PH = '~e'             # przyrostek klucza produktu w oknie dziennym ph dla wartości wg emitenta (rwa_build)
+RWE_SPIKO = 'https://public-api.spiko.io'
+RWE_SEC = 'https://public-feed.securitize.io/asset-stats?symbol='
+RWE_HASTRA = 'https://hastra.io/hastra-pulse/public/api/v1/por'
+RWE_OE = 'https://prod-gw.openeden.com/v3/vault/aggregates'
+RWE_XAUM = 'https://www.matrixdock.com/rwa/anon/website/api/v1/stats/total?symbol=XAUM'
+RWE_CFG = 'https://api.centrifuge.io'
+RWE_CFG_Q = '{ tokens(limit: 500) { items { symbol decimals totalIssuance tokenPrice tokenPriceComputedAt pool { currency asset { symbol } } } } }'
+RWE_CFG_USD = ('USDC', 'USDT', 'USD')   # pula w stablecoinie USD (wycena tokenu w jednostkach 1 USD)
+RWE_PRODUKTY = {   # produkt źródła v133 → nazwa, rodzaj odczytu, limit wieku stanu emitenta (h); sym — symbol w kanale agenta; zakres — opis na stronie
+    'spiko': {'name': 'Spiko', 'kind': 'spiko', 'max_h': 144},       # wycena w dni robocze Paryża ok. 15:30 UTC; weekend + święto + zapas
+    'blockchain-capital': {'name': 'Blockchain Capital', 'kind': 'sec', 'sym': 'BCAP', 'max_h': 36},   # migawka kanału co ok. 1 h, wycena dzienna
+    'mantle-index-four-fund': {'name': 'Mantle Index Four Fund', 'kind': 'sec', 'sym': 'MI4', 'max_h': 36},
+    'apollo-diversified-credit-securitize-fund': {'name': 'Apollo Diversified Credit Securitize Fund', 'kind': 'sec', 'sym': 'ACRED', 'max_h': 36},
+    'vaneck-treasury-fund': {'name': 'VanEck Treasury Fund', 'kind': 'sec', 'sym': 'VBILL', 'max_h': 36},
+    'securitize-tokenized-aaa-clo-fund': {'name': 'Securitize Tokenized AAA CLO Fund', 'kind': 'sec', 'sym': 'STAC', 'max_h': 36, 'zakres': 'sol'},
+    'hamilton-lane-senior-credit-opportunities-securitize-fund': {'name': 'Hamilton Lane Senior Credit Opportunities Securitize Fund', 'kind': 'sec',
+                                                                  'sym': 'HLSCOPE', 'max_h': 36},
+    'hastra': {'name': 'Hastra', 'kind': 'hastra', 'max_h': 12},     # migawka co ok. 30 min
+    'openeden-tbill': {'name': 'OpenEden TBILL', 'kind': 'oe', 'max_h': 12},   # część bieżąca co ok. 30 min
+    'matrixdock-xaum': {'name': 'Matrixdock XAUm', 'kind': 'xaum', 'max_h': 12},   # stan = nasz odczyt (dane bez daty); cena złota — reguła 36 h
+    'centrifuge-protocol': {'name': 'Centrifuge Protocol', 'kind': 'cfg', 'max_h': 144, 'zakres': 'cfg'},   # wyceny funduszy w dni robocze
+}
+RWE_SRC = ('Dane emitentów (publiczne, bez klucza): public-api.spiko.io (klasy funduszy Spiko: totalAssets w walucie klasy; kurs dzienny z pliku '
+           'rynki), public-feed.securitize.io/asset-stats (agent transferowy: BCAP, MI4, ACRED, VBILL, STAC, HLSCOPE — Σ aum), '
+           'hastra.io/hastra-pulse/public/api/v1/por (wYLDS w skarbcach × 1 USD), prod-gw.openeden.com/v3/vault/aggregates (tvl), '
+           'matrixdock.com/rwa/anon/website/api/v1/stats/total (podaż XAUm × XAU/USD z wyroczni na Ethereum), api.centrifuge.io (indeks emitenta: '
+           'totalIssuance × tokenPrice, bez tokenów-opakowań „de…”); obliczenia CapitalFlowAI')
+_RWE_SYM = re.compile(r'^[A-Za-z0-9]{2,20}$')
+_RWE_CUR = re.compile(r'^[A-Z]{3}$')
+_RWE_ISO = re.compile(r'^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?$')
+
+
+def _rwe_iso(x):
+    """Chwila emitenta → ISO UTC bez ułamków: napis ISO (dowolna liczba miejsc ułamka, Z albo strefa; bez strefy = UTC) albo liczba / napis cyfr
+    sekund, milisekund, mikrosekund lub nanosekund uniksowych (rozpoznane po wielkości: lata 2000–2100); zły zapis = None."""
+    if isinstance(x, bool):
+        return None
+    if isinstance(x, int) or (isinstance(x, str) and x.isdigit() and len(x) <= 25):
+        n = int(x)
+        for div in (1, 10 ** 3, 10 ** 6, 10 ** 9):
+            if 946684800 <= n // div <= 4102444800:
+                return rwc_iso(n // div)
+        return None
+    if not isinstance(x, str):
+        return None
+    m = _RWE_ISO.match(x.strip())
+    if not m:
+        return None
+    tz = m.group(3) or '+00:00'
+    tz = '+00:00' if tz == 'Z' else (tz[:3] + ':' + tz[3:] if len(tz) == 5 else tz)
+    try:
+        t = datetime.datetime.fromisoformat(f'{m.group(1)}T{m.group(2)}{tz}')
+    except ValueError:
+        return None
+    return t.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _rwe_json(url, tmo, get=None):
+    """GET → JSON; `get(url, headers, timeout)` → bajty (domyślnie get_bytes). Nie bajty albo więcej niż RWE_MAX_B = błąd."""
+    b = (get or get_bytes)(url, {'Accept': 'application/json'}, tmo)
+    if not isinstance(b, (bytes, bytearray)) or len(b) > RWE_MAX_B:
+        raise ValueError('zła albo za duża odpowiedź')
+    return json.loads(b)
+
+
+def rwe_fx(S, now=None):
+    """Kurs dzienny z pliku rynki TEGO przebiegu (SAVED: fx.now — baza USD, jednostki waluty za 1 USD) → {'d': dzień kursu, 'rates': {waluta:
+    kurs}} albo None (brak pliku, inna baza, zły dzień, dzień z przyszłości albo starszy niż RWE_FX_MAX_D dni)."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc)
+    ry = S.get('rynki') if isinstance(S, dict) and isinstance(S.get('rynki'), dict) else {}
+    fn = (ry.get('fx') or {}).get('now') if isinstance(ry.get('fx'), dict) else None
+    if not isinstance(fn, dict) or fn.get('base') not in (None, 'USD') or not isinstance(fn.get('rates'), dict):
+        return None
+    d = fn.get('date')
+    if not (isinstance(d, str) and _RWA_DAY.match(d)) or d > now.date().isoformat() or d < _rwa_day_add(now.date().isoformat(), -RWE_FX_MAX_D):
+        return None
+    R = {k: float(v) for k, v in fn['rates'].items() if isinstance(k, str) and _RWE_CUR.match(k) and rwa_num(v) is not None}
+    return {'d': d, 'rates': R} if R else None
+
+
+def rwe_spiko(tmo, fx, get=None):
+    """Spiko: lista klas → totalAssets każdej klasy (waluta klasy = waluta wartości), USD po kursie `fx` (rwe_fx). → {'v': USD, 'as_of', 'n': klas,
+    'cls': [[klasa, waluta, wartość w walucie, USD, stan]], 'fx': {'d'} albo None (same USD)}; błąd klasy (brak liczby, waluty, kursu, stanu) =
+    wyjątek (produkt częściowy nie liczy się — nigdy wartość bez części klas). `tmo()` → timeout zapytania (wyjątek, gdy budżet się skończył)."""
+    L = _rwe_json(f'{RWE_SPIKO}/share-classes', tmo(), get)
+    C = [(c.get('symbol'), c.get('currency')) for c in L if isinstance(c, dict)] if isinstance(L, list) else []
+    if not 1 <= len(C) <= 60 or len(C) != len(L) or any(not (isinstance(s, str) and _RWE_SYM.match(s) and isinstance(c, str) and _RWE_CUR.match(c))
+                                                        for s, c in C) or len({s for s, _c in C}) != len(C):
+        raise ValueError('lista klas: zły kształt')
+    cls, used_fx = [], False
+    for s, cur in C:
+        j = _rwe_json(f'{RWE_SPIKO}/share-classes/{s}/totals', tmo(), get)
+        ta = j.get('totalAssets') if isinstance(j, dict) else None
+        nav = j.get('netAssetValue') if isinstance(j, dict) else None
+        x = _rwc_rez_num(ta.get('value')) if isinstance(ta, dict) else None
+        d = _rwe_iso(nav.get('updatedAt')) if isinstance(nav, dict) else None
+        if x is None or x < 0 or ta.get('currency') != cur or d is None:
+            raise ValueError(f'{s}: brak wartości, waluty albo stanu wyceny')
+        if cur == 'USD':
+            usd = x
+        else:
+            r = (fx or {}).get('rates', {}).get(cur)
+            if not r or r <= 0:
+                raise ValueError(f'{s}: brak kursu {cur} (plik rynki)')
+            usd, used_fx = x / r, True
+        cls.append([s, cur, round(x, 2), round(usd, 2), d])
+    tot = sum(c[3] for c in cls)
+    big = [c[4] for c in cls if tot > 0 and c[3] >= RWE_MIN_SHARE * tot]
+    if tot <= 0 or not big:
+        raise ValueError('suma klas zero')
+    return {'v': tot, 'as_of': min(big), 'n': len(cls), 'cls': cls, 'fx': {'d': fx['d']} if used_fx else None}
+
+
+def rwe_sec_parse(j, sym):
+    """Kanał agenta transferowego (asset-stats) → {'v': Σ aum USD, 'as_of': najstarszy stan wierszy, 'n': sieci, 'u': Σ jednostek}; wiersz innego
+    symbolu, liczby złe albo niespójne (aum ≠ jednostki × wycena o więcej niż 1%), zły stan, brak wierszy = wyjątek."""
+    D = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(D, list) or not 1 <= len(D) <= 100:
+        raise ValueError('brak wierszy danych')
+    v = u = 0.0
+    at = []
+    for r in D:
+        if not isinstance(r, dict) or r.get('symbol') != sym:
+            raise ValueError(f'wiersz innego symbolu niż {sym}')
+        a, q, nav = (_rwc_rez_num(r.get(k)) for k in ('aum', 'amount_tokens', 'nav'))
+        if a is None or q is None or nav is None or a < 0 or q < 0 or nav <= 0 or abs(a - q * nav) > 0.01 * a + 1:
+            raise ValueError(f"{str(r.get('blockchain'))[:20]}: liczby złe albo niespójne")
+        d = _rwe_iso(r.get('date'))
+        if d is None:
+            raise ValueError(f"{str(r.get('blockchain'))[:20]}: zły stan (date)")
+        v += a
+        u += q
+        at.append(d)
+    return {'v': v, 'as_of': min(at), 'n': len(D), 'u': round(u, 6)}
+
+
+def rwe_hastra_parse(j):
+    """Dowód rezerw: Σ vaulted_wylds trzech skarbców (prime, auto, smb) × 1 USD; stan = timestamp. Brak części = wyjątek."""
+    if not isinstance(j, dict):
+        raise ValueError('nie obiekt')
+    v = 0.0
+    for k in ('prime_card', 'auto_card', 'smb_card'):
+        c = j.get(k)
+        x = _rwc_rez_num(c.get('vaulted_wylds')) if isinstance(c, dict) else None
+        if x is None or x < 0:
+            raise ValueError(f'{k}: brak vaulted_wylds')
+        v += x
+    d = _rwe_iso(j.get('timestamp'))
+    if d is None:
+        raise ValueError('brak stanu (timestamp)')
+    return {'v': v, 'as_of': d, 'n': 3}
+
+
+def rwe_oe_parse(j):
+    """Zbiorcze dane funduszu: tvl (USD); stan = liveVault.updatedAt. Brak = wyjątek."""
+    v = _rwc_rez_num(j.get('tvl')) if isinstance(j, dict) else None
+    lv = j.get('liveVault') if isinstance(j, dict) else None
+    d = _rwe_iso(lv.get('updatedAt')) if isinstance(lv, dict) else None
+    if v is None or v <= 0:
+        raise ValueError('brak tvl')
+    if d is None:
+        raise ValueError('brak stanu (liveVault.updatedAt)')
+    return {'v': v, 'as_of': d}
+
+
+def rwe_xaum_parse(j, read):
+    """Podaż XAUm wg emitenta (uncje; code 0, oz_per_token „1”) → {'oz', 'as_of': `read` (dane bez daty)}; wartość × cena złota w rwe_blok."""
+    d = j.get('data') if isinstance(j, dict) and j.get('code') == 0 else None
+    oz = _rwc_rez_num(d.get('token_total_supply')) if isinstance(d, dict) else None
+    if oz is None or not 0 < oz <= RWC_MAX_SUPPLY or str(d.get('oz_per_token')) != '1':
+        raise ValueError('brak podaży albo inna liczba uncji na token')
+    return {'oz': oz, 'as_of': read}
+
+
+def rwe_cfg_parse(j):
+    """Indeks emitenta (GraphQL tokens): Σ totalIssuance / 10^decimals × tokenPrice / 10^18 tokenów w pulach USD (kod 840) albo stablecoina USD;
+    bez symboli „de…” (opakowania); stan = najstarszy tokenPriceComputedAt wśród tokenów ≥ RWE_MIN_SHARE wartości. Pule innej waluty: wartość
+    w jednostkach puli do RWE_OTHER_MAX sumy — pominięte (pole 'nx'), więcej = wyjątek. Token z emisją, ale bez ceny albo z ceną bez daty = wyjątek."""
+    if not isinstance(j, dict) or j.get('errors'):
+        raise ValueError('odpowiedź z błędem albo nie obiekt')
+    data = j.get('data') if isinstance(j.get('data'), dict) else {}
+    I = data['tokens'].get('items') if isinstance(data.get('tokens'), dict) else None
+    if not isinstance(I, list) or not I or len(I) > 500:
+        raise ValueError('brak listy tokenów')
+    V, X, nde = [], 0.0, 0
+    for t in I:
+        if not isinstance(t, dict) or not isinstance(t.get('symbol'), str):
+            raise ValueError('token bez symbolu')
+        if t['symbol'].startswith('de'):
+            nde += 1
+            continue
+        dec, iss, px = t.get('decimals'), t.get('totalIssuance'), t.get('tokenPrice')
+        if not (isinstance(dec, int) and not isinstance(dec, bool) and 0 <= dec <= 36 and isinstance(iss, str) and iss.isdigit() and len(iss) <= 60):
+            raise ValueError(f"{t['symbol'][:12]}: zła emisja albo miejsca")
+        if int(iss) == 0:
+            continue
+        if not (isinstance(px, str) and px.isdigit() and len(px) <= 60):
+            raise ValueError(f"{t['symbol'][:12]}: emisja bez ceny")
+        x = int(iss) / 10 ** dec * int(px) / 1e18
+        pool = t.get('pool') if isinstance(t.get('pool'), dict) else {}
+        asset = pool.get('asset') if isinstance(pool.get('asset'), dict) else {}
+        if str(pool.get('currency')) != '840' and asset.get('symbol') not in RWE_CFG_USD:
+            X += x
+            continue
+        d = _rwe_iso(t.get('tokenPriceComputedAt'))
+        if d is None:
+            raise ValueError(f"{t['symbol'][:12]}: cena bez daty")
+        V.append((x, d))
+    tot = sum(x for x, _d in V)
+    big = [d for x, d in V if tot > 0 and x >= RWE_MIN_SHARE * tot]
+    if tot <= 0 or not big:
+        raise ValueError('suma tokenów zero')
+    if X > RWE_OTHER_MAX * tot:
+        raise ValueError(f'pule w innej walucie: {X / tot * 100:.1f}% wartości (bez kursu)')
+    return {'v': tot, 'as_of': min(big), 'n': len(V), 'nde': nde, 'nx': round(X, 2)}
+
+
+def _rwe_ponow(e):
+    """Czy ponowić odczyt produktu: przekroczony czas, zerwane połączenie, HTTP 429 albo 5xx — tak; 4xx, zły kształt danych, brak czasu w budżecie — nie."""
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code == 429 or e.code >= 500
+    return isinstance(e, (TimeoutError, ConnectionError, urllib.error.URLError)) and 'brak czasu w budżecie' not in str(e)
+
+
+def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, threads=None, sleep=None):
+    """Sieć: wszystkie produkty RWE_PRODUKTY równolegle (RWE_THREADS), jeden budżet `budget` s (RWE_BUDGET); druga próba produktu po błędzie sieci
+    (_rwe_ponow; odstęp RWE_PRZERWA s), gdy zostało dość czasu. Nigdy nie podnosi wyjątku — produkt z błędem ma {'err'}. `get(url, headers, timeout)` → bajty, `post(url, obj, timeout)` → JSON. → {'at': ISO, 'r': {produkt: wynik}, 'req', 's'}."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
+    clock = clock or time.monotonic
+    post = post or post_json
+    budget = RWE_BUDGET if budget is None else budget
+    t0 = clock()
+    stamp = now.isoformat()
+    lock = _rwa_thr.Lock()
+    req = [0]
+
+    def tmo():
+        left = t0 + budget - clock()
+        if left < RWE_MIN_TMO:
+            raise TimeoutError(f'brak czasu w budżecie kroku ({budget:g} s)')
+        with lock:
+            req[0] += 1
+        return min(RWE_TIMEOUT, left)
+
+    def czytaj(c):
+        k = c['kind']
+        if k == 'spiko':
+            return rwe_spiko(tmo, fx, get=get)
+        if k == 'sec':
+            return rwe_sec_parse(_rwe_json(RWE_SEC + c['sym'], tmo(), get), c['sym'])
+        if k == 'hastra':
+            return rwe_hastra_parse(_rwe_json(RWE_HASTRA, tmo(), get))
+        if k == 'oe':
+            return rwe_oe_parse(_rwe_json(RWE_OE, tmo(), get))
+        if k == 'xaum':
+            return rwe_xaum_parse(_rwe_json(RWE_XAUM, tmo(), get), stamp)
+        if k == 'cfg':
+            return rwe_cfg_parse(post(RWE_CFG, {'query': RWE_CFG_Q}, timeout=tmo()))
+        raise ValueError(f'nieznany rodzaj {k}')
+
+    def one(slug):
+        last = None
+        for i in range(RWE_PROBY):
+            try:
+                return slug, czytaj(RWE_PRODUKTY[slug])
+            except Exception as e:  # noqa — sieć, ochrona serwera, zły kształt: ponowienie albo produkt z poprzedniego odczytu (rwe_blok)
+                last = e
+                if i + 1 >= RWE_PROBY or not _rwe_ponow(e) or t0 + budget - clock() < RWE_MIN_TMO + RWE_PRZERWA:
+                    break
+                (sleep or time.sleep)(RWE_PRZERWA)
+        return slug, {'err': f'{type(last).__name__}: {last}'[:160]}
+    S = sorted(RWE_PRODUKTY)
+    with _rwa_cf.ThreadPoolExecutor(max(1, min(threads or RWE_THREADS, len(S)))) as ex:
+        R = dict(ex.map(one, S))
+    return {'at': stamp, 'r': R, 'req': req[0], 's': round(clock() - t0, 1)}
+
+
+def _rwe_prev(prev_em):
+    """Poprzednie odczyty z pliku: {produkt: rekord} — tylko poprawne (stan i nasz odczyt jako napisy; wartość > 0, a XAUm: uncje > 0)."""
+    P = prev_em.get('p') if isinstance(prev_em, dict) and not prev_em.get('off') and isinstance(prev_em.get('p'), dict) else {}
+    out = {}
+    for s, o in P.items():
+        if (s in RWE_PRODUKTY and isinstance(o, dict) and o.get('kind') == RWE_PRODUKTY[s]['kind'] and isinstance(o.get('as_of'), str)
+                and isinstance(o.get('read'), str) and _rwe_iso(o['as_of']) and _rwe_iso(o['read'])):
+            if o['kind'] == 'xaum' and rwa_num(o.get('oz')) is not None:
+                out[s] = o
+            elif o['kind'] != 'xaum' and rwa_num(o.get('v')) is not None:
+                out[s] = o
+    return out
+
+
+def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
+    """Blok issuer pliku z odczytu `rd` (rwe_odczyt), poprzedniego bloku, bloku onchain TEGO odczytu (`oc`: cena złota dla XAUm) i ostatnio znanych
+    wartości źródła v133 (`ref`: {produkt: USD} — pasmo rozsądku bez poprzedniego odczytu emitenta). Każdy produkt: name, kind, v (USD; XAUm =
+    uncje × cena złota), as_of (stan emitenta), read (nasz odczyt tej wartości), k (1 = poprzedni odczyt), err (błąd tego odczytu), ref, full
+    (wartość, stan nie starszy niż max_h, XAUm — świeża cena złota), pola rodzaju (n, cls, fx, u, oz, px, px_at, nde, nx), zakres. Brak = None."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
+    R = rd.get('r') if isinstance(rd.get('r'), dict) else {}
+    PV = _rwe_prev(prev_em)
+    ref = ref if isinstance(ref, dict) else {}
+    gp = (oc or {}).get('px', {}).get('zloto') if isinstance(oc, dict) and not oc.get('off') and isinstance(oc.get('px'), dict) else None
+    gp = gp if isinstance(gp, dict) and rwa_num(gp.get('v')) is not None and isinstance(gp.get('at'), str) else None
+    notes, P, ok = [], {}, True
+    for slug, c in RWE_PRODUKTY.items():
+        nm, cur, pv = c['name'], R.get(slug), PV.get(slug)
+        if pv is not None and _rwc_age_min(pv['read'], now) > RWE_KEEP_MIN:
+            pv = None
+        err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else (None if isinstance(cur, dict) else 'brak odpowiedzi')
+        new = None
+        if err is None:
+            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx')}
+            new['read'] = rd['at']
+            if c['kind'] == 'xaum':
+                new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
+            base = rwa_num((pv or {}).get('v')) or rwa_num(ref.get(slug))
+            if new.get('v') is not None and base and not 1 / RWE_RAZY <= new['v'] / base <= RWE_RAZY:
+                err = f"wartość {new['v'] / 1e6:.1f} mln USD poza pasmem 1/{RWE_RAZY:g}–{RWE_RAZY:g}× wobec {base / 1e6:.1f} mln — odrzucona"
+                new = None
+            elif pv is not None and new['as_of'] < pv['as_of']:
+                notes.append(f"{nm}: dane emitenta ze starszym stanem ({new['as_of']}) niż poprzedni odczyt ({pv['as_of']}) — poprzedni odczyt")
+                new = None
+        if err is not None:
+            ok = False
+            notes.append(f'{nm}: {err}' + (f" — poprzedni odczyt (stan {pv['as_of']})" if pv is not None else ' — bez wartości'))
+        if new is None and pv is not None:
+            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx')}
+            new['k'] = 1
+            if c['kind'] == 'xaum':
+                new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
+        o = {'name': nm, 'kind': c['kind'], 'v': None, 'as_of': None, 'read': None, 'err': err, 'ref': round(ref[slug], 2) if rwa_num(ref.get(slug)) else None}
+        if new is not None:
+            o.update(new)
+            if o['v'] is not None:
+                o['v'] = round(o['v'], 2)
+        if c['kind'] == 'xaum':
+            o['px'], o['px_at'] = (gp['v'], gp['at']) if gp else (None, None)
+            if gp is None and o.get('oz') is not None:
+                ok = False
+                notes.append(f'{nm}: brak ceny złota z odczytu z łańcucha — bez wyceny')
+        if c.get('zakres'):
+            o['zakres'] = c['zakres']
+        o['full'] = slug in rwe_uzyj({'p': {slug: o}}, now)
+        if o['v'] is not None and not o['full'] and _rwc_age_min(o['as_of'], now) > c['max_h'] * 60:
+            notes.append(f"{nm}: stan emitenta {o['as_of']} starszy niż {c['max_h']} h — poza sumami")
+        P[slug] = o
+    return {'v': 1, 'at': rd['at'], 'ok': bool(ok), 'src': RWE_SRC, 'p': P, 'run': {'req': rd.get('req', 0), 's': rd.get('s', 0)}, 'notes': notes[:RWE_NOTES]}
+
+
+def rwe_uzyj(em, now=None):
+    """Produkty do sum wg emitentów: {produkt: USD} — wartość > 0 (≤ RWA_MAX_USD), rodzaj zgodny z konfiguracją, stan emitenta nie starszy niż
+    max_h rodzaju (wiek względem `now`), XAUm — świeża cena złota (rwc_cena_ok 'zloto'). Brak bloku albo wyłączony = {}."""
+    if not isinstance(em, dict) or em.get('off') or not isinstance(em.get('p'), dict):
+        return {}
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc)
+    out = {}
+    for s, o in em['p'].items():
+        c = RWE_PRODUKTY.get(s)
+        if not c or not isinstance(o, dict) or o.get('kind') != c['kind']:
+            continue
+        v = rwa_num(o.get('v'))
+        if v is None or v > RWA_MAX_USD or _rwc_age_min(o.get('as_of'), now) > c['max_h'] * 60:
+            continue
+        if c['kind'] == 'xaum' and not rwc_cena_ok('zloto', o.get('px'), o.get('px_at'), now):
+            continue
+        out[s] = v
+    return out
+
+
+def rwe_wynik(em, used, rows, day, prev=None):
+    """Blok issuer do pliku: odczyt (rwe_blok) + co z niego weszło do sum — used {produkt: USD}, seg {rodzaj: {v, n}} (i 'all'), hd: dzienny zapis
+    [mln USD, [produkty]] z ostatnich RWE_HD_DAYS dni (kontrola dzienna: skok sumy przy zmianie zbioru); nazwy produktów jak na liście źródła v133."""
+    o = dict(em)
+    o['p'] = {s: dict(x, name=rows[s]['name']) if s in rows and isinstance(rows[s].get('name'), str) and isinstance(x, dict) else x
+              for s, x in (em.get('p') or {}).items()}
+    o['used'] = {s: round(v, 2) for s, v in sorted(used.items())}
+    seg = {}
+    for s, v in used.items():
+        for k in ((rows[s]['seg'] if rows[s]['seg'] in RWA_SEGS else 'oth'), 'all'):
+            x = seg.setdefault(k, {'v': 0.0, 'n': 0})
+            x['v'] += v
+            x['n'] += 1
+    o['seg'] = {k: {'v': round(x['v']), 'n': x['n']} for k, x in seg.items()}
+    pem = (prev or {}).get('issuer') if isinstance(prev, dict) else None
+    phd = pem.get('hd') if isinstance(pem, dict) and isinstance(pem.get('hd'), dict) else {}
+    lo = _rwa_day_add(day, -(RWE_HD_DAYS - 1))
+    hd = {d: x for d, x in phd.items() if isinstance(d, str) and _RWA_DAY.match(d) and lo <= d < day and isinstance(x, list) and len(x) == 2
+          and rwa_num(x[0], pos=False) is not None and isinstance(x[1], list)}
+    hd[day] = [round(sum(used.values()) / 1e6, 1), sorted(used)]
+    o['hd'] = dict(sorted(hd.items()))
+    return o
+
+
+def rwe_krok(prev_em, now, oc=None, ref=None, S=None):
+    """Krok build_rwa: odczyt danych emitentów (sieć; kurs z pliku rynki tego przebiegu) i blok issuer z poprzednim blokiem (nieudane — poprzedni
+    odczyt z jego stanem), ceną złota z bloku onchain `oc` i ostatnio znanymi wartościami `ref`."""
+    return rwe_blok(rwe_odczyt(now, fx=rwe_fx(S or {}, now)), prev_em, now, oc=oc, ref=ref)
+
+
+def rwe_wylaczony(prev_em, now, oc=None, ref=None, S=None):
+    """RWA_EM_OFF: bez zapytań do emitentów; blok {'off': True} — nic z danych emitentów nie wchodzi do sum."""
+    return {'v': 1, 'off': True, 'at': now.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()}
+
+
+def rwe_meta(rw, off, cached=False):
+    """Stan źródła w META (strona Źródła): 'rwa-emitenci' = 'cached' (plik z pamięci / poprzedni plik) albo ok bloku; wyłączony = notatka bez wpisu
+    stanu; plik bez bloku issuer = bez wpisu."""
+    if off:
+        META['notes'].append(f'{RWE_LABEL}: wyłączone zmienną RWA_EM_OFF — bez zapytań do emitentów; sumy bez danych emitentów')
+        return
+    em = rw.get('issuer') if isinstance(rw, dict) else None
+    if isinstance(em, dict) and not em.get('off'):
+        META['ok']['rwa-emitenci'] = 'cached' if cached else em.get('ok') is True
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -18059,30 +18555,39 @@ def main():
     # (strona chowa panel); notatka, bez wpisu w stanie źródeł
     rw_off = os.environ.get('RWA_OFF', '').strip().lower() in KS_OFF_ON
     rwc_off = os.environ.get('RWA_CHAIN_OFF', '').strip().lower() in KS_OFF_ON   # v150: wyłącznik samego odczytu własnego z łańcucha (zmienna repozytorium)
+    rwe_off = os.environ.get('RWA_EM_OFF', '').strip().lower() in KS_OFF_ON     # v169: wyłącznik samych danych emitentów (zmienna repozytorium)
     prev_rw = None if rw_off else previous('rwa')
     prev_rw = prev_rw if rwa_plik_ok(prev_rw) else None
     rw_late = _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > RWA_LATE
     rw_due = rwa_odswiez(prev_rw)
     if rwc_off and isinstance((prev_rw or {}).get('onchain'), dict) and not prev_rw['onchain'].get('off'):
         rw_due = True                                                 # v150: RWA_CHAIN_OFF działa od razu — jedna przebudowa sum bez odczytu własnego
+    pem_rw = (prev_rw or {}).get('issuer')
+    em_on = isinstance(pem_rw, dict) and not pem_rw.get('off')
+    if rwe_off and em_on:
+        rw_due = True                                                 # v169: RWA_EM_OFF działa od razu — jedna przebudowa sum bez danych emitentów
+    elif (prev_rw and not rwe_off and not em_on and min(_rwa_age_min(prev_rw.get('at'), _now_utc()), _rwa_age_min(prev_rw.get('try_at'), _now_utc()))
+          >= RWE_START_MIN):
+        rw_due = True                                                 # v169: plik bez danych emitentów (pierwsze przebiegi po wdrożeniu) — przebudowa po 2 h, nie po 6 h
     if rw_off:
         META['notes'].append(f'{RWA_LABEL}: wyłączone zmienną RWA_OFF — bez zapytań i bez pliku')
     elif rw_late or not rw_due:
         if prev_rw:
-            save('rwa', prev_rw); META['ok']['rwa'] = 'cached'; rwc_meta(prev_rw, rwc_off, cached=True)
+            save('rwa', prev_rw); META['ok']['rwa'] = 'cached'; rwc_meta(prev_rw, rwc_off, cached=True); rwe_meta(prev_rw, rwe_off, cached=True)
         if rw_late and rw_due:
             META['notes'].append(f'{RWA_LABEL}: pominięte w tym przebiegu — trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {RWA_LATE} s)')
         elif not prev_rw:
             META['notes'].append(f'{RWA_LABEL}: brak poprzedniego pliku — próba w następnym przebiegu')
     else:
         try:
-            rw = build_rwa(prev_rw, S=SAVED, oc_fn=rwc_wylaczony if rwc_off else rwc_krok); save('rwa', rw)
-            META['ok']['rwa'] = all(rw['ok'].get(k) is True for k in RWA_PARTS); rwc_meta(rw, rwc_off)
+            rw = build_rwa(prev_rw, S=SAVED, oc_fn=rwc_wylaczony if rwc_off else rwc_krok, em_fn=rwe_wylaczony if rwe_off else rwe_krok); save('rwa', rw)
+            META['ok']['rwa'] = all(rw['ok'].get(k) is True for k in RWA_PARTS); rwc_meta(rw, rwc_off); rwe_meta(rw, rwe_off)
             META['notes'].extend(mask(f'{RWA_LABEL}: {x}')[:300] for x in rw.get('notes') or [])
         except Exception as e:
             META['ok']['rwa'] = False
             if prev_rw:
                 META['errors'].append(mask(f'{RWA_LABEL}: {e}')[:200]); save('rwa', rwa_proba(prev_rw)); rwc_meta(prev_rw, rwc_off, cached=True)
+                rwe_meta(prev_rw, rwe_off, cached=True)
             else:
                 META['notes'].append(mask(f'{RWA_LABEL}: brak danych — pierwsza próba nieudana ({e}); następna w następnym przebiegu')[:300])
     # INSTYTUCJE (bez klucza): najwyżej raz na 55 min; przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)

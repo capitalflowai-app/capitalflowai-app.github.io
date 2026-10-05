@@ -1528,12 +1528,15 @@ def rwa_porownanie(j, now=None):
     lo = (now.date() - dt.timedelta(days=7)).isoformat()
     skoki = []
     hd = rwc_hd(j)   # v150: dzień zmiany zbioru produktów z odczytu własnego — skok liczony bez nich (zmiana zakresu danych, nie rynku)
+    for d, x in rwe_hd(j).items():   # v169: dane emitentów tak samo (produkty z przedrostkiem e:, żeby zbiory się nie myliły)
+        a = hd.get(d, (0.0, frozenset()))
+        hd[d] = (a[0] + x[0], a[1] | frozenset('e:' + s for s in x[1]))
     for (d0, v0), (d1, v1) in zip(H, H[1:]):
         if d1 >= lo and (dt.date.fromisoformat(d1) - dt.date.fromisoformat(d0)).days == 1:
             a0, a1 = hd.get(d0, (0.0, frozenset())), hd.get(d1, (0.0, frozenset()))
             if a0[1] != a1[1] and v0 - a0[0] > 0:
                 p = ((v1 - a1[0]) / (v0 - a0[0]) - 1) * 100
-                cz.append(f'ℹ️ {d1}: zmiana zbioru produktów z odczytu własnego ({a0[0] / 1e3:.1f} → {a1[0] / 1e3:.1f} mld USD) — skok sumy liczony bez nich')
+                cz.append(f'ℹ️ {d1}: zmiana zbioru produktów z odczytu własnego albo danych emitentów ({a0[0] / 1e3:.1f} → {a1[0] / 1e3:.1f} mld USD) — skok sumy liczony bez nich')
             else:
                 p = (v1 / v0 - 1) * 100
             if abs(p) > RWA_SKOK:
@@ -1681,6 +1684,105 @@ def rwc_porownanie(j, now=None):
 def rwc_kontrola(files, R):
     """Wynik porównań odczytu własnego do raportu (zgodność) i uwag; brak pliku albo bloku = None."""
     Z = rwc_porownanie(files.get('rwa'))
+    if Z:
+        R['uwagi'].extend(Z['uwagi'])
+    return Z
+
+
+# ---------------------------------------------------------------- v169: tokenizowane aktywa — dane emitentów (blok issuer w data/rwa.json) ----------------------------------------------------------------
+RWE_ETYKIETA = 'tokenizowane aktywa — dane emitentów (co 6 h)'
+RWE_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 6 h) = ⚠️; nigdy ❌ ani BŁĄD
+RWE_ZAKRES = (0.8, 1.25)   # wartość wg emitenta vs ostatnio znana źródła v133 poza tym pasmem = informacja ℹ️ (inny zakres liczenia albo prawdziwa zmiana)
+
+
+def rwe_swiezosc(j, now=None):
+    """Wiersz świeżości danych emitentów (etykieta, status, wiek min, data, uwaga) — czas bloku issuer (at). Brak pliku = None (wiersz RWA mówi
+    „brak pliku”); plik bez bloku (przed pierwszym odczytem po wdrożeniu v169) albo wyłącznik RWA_EM_OFF = status „—” z opisem, bez uwagi;
+    starszy niż RWE_SWIEZ_MIN = ⚠️, nigdy ❌."""
+    if not isinstance(j, dict):
+        return None
+    em = j.get('issuer')
+    if not isinstance(em, dict):
+        return (RWE_ETYKIETA, '—', None, None, 'brak danych emitentów w pliku (przed pierwszym odczytem po wdrożeniu v169)')
+    if em.get('off'):
+        return (RWE_ETYKIETA, '—', None, None, 'wyłączone (RWA_EM_OFF)')
+    ts = em.get('at')
+    w = wiek_danych(ts, 'ts', 'h', now or NOW) if isinstance(ts, str) else None
+    if w is None:
+        return (RWE_ETYKIETA, '?', None, None, 'brak czasu odczytu w pliku')
+    if w <= RWE_SWIEZ_MIN:
+        return (RWE_ETYKIETA, '✅', w, ts, '')
+    return (RWE_ETYKIETA, '⚠️', w, ts, f'odczyt starszy niż {RWE_SWIEZ_MIN // 60} h (plik co 6 h) — produkty wg emitentów wracają do „bez bieżącej wyceny”')
+
+
+def rwe_hd(j):
+    """Dzienny zapis danych emitentów z pliku: {dzień: (mln USD w sumach, zbiór produktów)} — tylko poprawne wiersze."""
+    em = j.get('issuer') if isinstance(j, dict) else None
+    hd = em.get('hd') if isinstance(em, dict) and isinstance(em.get('hd'), dict) else {}
+    out = {}
+    for d, x in hd.items():
+        if (isinstance(d, str) and isinstance(x, list) and len(x) == 2 and isinstance(x[0], (int, float)) and not isinstance(x[0], bool)
+                and x[0] >= 0 and isinstance(x[1], list)):
+            out[d] = (float(x[0]), frozenset(s for s in x[1] if isinstance(s, str)))
+    return out
+
+
+def rwe_porownanie(j, now=None):
+    """Kontrola danych emitentów bez sieci (najwyżej ⚠️): (1) w sumach wg emitentów — ile produktów i ile mld USD; (2) produkty bez bieżących danych
+    emitenta (poza sumami) z powodem — ℹ️; (3) wartość wg emitenta vs ostatnio znana źródła v133 poza pasmem RWE_ZAKRES — ℹ️ (różnica zakresu,
+    np. STAC z klasą na Solanie, Centrifuge bez tokenów-opakowań — opisane na stronie); (4) produkty liczone poprzedniego dnia wg emitenta, a teraz
+    już nie (zapis hd) — ⚠️; (5) ostatni odczyt niepełny (ok False) — ⚠️. Brak pliku albo bloku = None; wyłącznik = opis „wyłączone”.
+    → {'status', 'opis', 'uwagi', 'braki', 'zakres', 'wypadly'}."""
+    if not isinstance(j, dict) or not isinstance(j.get('issuer'), dict):
+        return None
+    em = j['issuer']
+    Z = {'status': '✅', 'opis': '', 'uwagi': []}
+    if em.get('off'):
+        Z['opis'] = 'wyłączone (RWA_EM_OFF) — sumy bez danych emitentów'
+        return Z
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
+    P = em.get('p') if isinstance(em.get('p'), dict) else {}
+    used = em.get('used') if isinstance(em.get('used'), dict) else {}
+    nm = lambda s: P[s]['name'] if isinstance(P.get(s), dict) and isinstance(P[s].get('name'), str) else s  # noqa: E731
+    cz, braki, zakres = [], [], []
+    tot = sum(x for x in used.values() if num(x))
+    cz.append(f'w sumach wg emitentów: {len(used)} z {len(P)} produktów, {tot / 1e9:.1f} mld USD')
+    for s, p in sorted(P.items()):
+        if not isinstance(p, dict):
+            continue
+        if p.get('full') is not True:
+            why = p.get('err') if isinstance(p.get('err'), str) else ('stan emitenta za stary albo brak ceny' if num(p.get('v')) else 'brak wartości')
+            braki.append(f'{nm(s)}: {why[:120]}')
+        v, r = used.get(s), p.get('ref')
+        if num(v) and num(r) and r > 0 and not RWE_ZAKRES[0] <= v / r <= RWE_ZAKRES[1]:
+            zakres.append(f'{nm(s)} {v / 1e6:.0f} mln USD vs ostatnio znana {r / 1e6:.0f} mln ({v / r:.2f}×)')
+    if zakres:
+        cz.append('inny zakres niż ostatnio znana (opisane na stronie): ' + '; '.join(zakres[:4]) + ' ℹ️')
+    if braki:
+        cz.append('bez bieżących danych emitenta (poza sumami): ' + '; '.join(braki[:4]) + ' ℹ️')
+    hd = rwe_hd(j)
+    dzis = (em.get('at') or '')[:10]
+    wcz = [d for d in sorted(hd) if d < dzis]
+    wyp = sorted(s for s in (hd[wcz[-1]][1] if wcz else ()) if s not in used)
+    if wyp:
+        Z['status'] = '⚠️'
+        Z['uwagi'].append('tokenizowane aktywa (dane emitentów): po ' + wcz[-1] + ' już nie liczone wg emitenta: ' + ', '.join(nm(s) for s in wyp)
+                          + ' — odczyt nieudany, stan za stary albo źródło v133 znów podaje bieżącą wartość (tylko uwaga)')
+        cz.append('już nie wg emitenta: ' + ', '.join(nm(s) for s in wyp) + ' ⚠️')
+    if em.get('ok') is False:
+        Z['status'] = '⚠️'
+        nt = [x for x in (em.get('notes') or []) if isinstance(x, str)]
+        Z['uwagi'].append('tokenizowane aktywa (dane emitentów): ostatni odczyt niepełny — ' + ('; '.join(x[:160] for x in nt[:2]) if nt else 'brak szczegółów')
+                          + ' (poprzednie odczyty z ich stanem; tylko uwaga)')
+        cz.append('ostatni odczyt niepełny ⚠️')
+    Z['braki'], Z['zakres'], Z['wypadly'] = braki, zakres, wyp
+    Z['opis'] = '; '.join(cz)
+    return Z
+
+
+def rwe_kontrola(files, R):
+    """Wynik kontroli danych emitentów do raportu i uwag; brak pliku albo bloku = None."""
+    Z = rwe_porownanie(files.get('rwa'))
     if Z:
         R['uwagi'].extend(Z['uwagi'])
     return Z
@@ -1854,6 +1956,16 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c''''. v169: tokenizowane aktywa — dane emitentów (blok issuer w data/rwa.json) — osobny wiersz (lista SWIEZOSC bez zmian); najwyżej ⚠️;
+    # brak bloku albo wyłącznik RWA_EM_OFF = „—” bez uwagi
+    re_ = rwe_swiezosc(files.get('rwa'))
+    if re_:
+        label, st, w, txt, note = re_
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -1960,6 +2072,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['rwa-lancuch'] = {'status': '?', 'blad': str(e)[:120]}
         R['uwagi'].append(f'tokenizowane aktywa (odczyt własny): kontrola przerwana ({str(e)[:80]})')
+    # 3i. v169: dane emitentów — produkty w sumach, braki, inny zakres, produkty, które wypadły (z pliku strony, bez zapytań; najwyżej ⚠️)
+    try:
+        Z['rwa-emitenci'] = rwe_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['rwa-emitenci'] = {'status': '?', 'blad': str(e)[:120]}
+        R['uwagi'].append(f'tokenizowane aktywa (dane emitentów): kontrola przerwana ({str(e)[:80]})')
     # 4. przebiegi Actions z ostatnich 24 h (API publiczne; token tylko podnosi limit zapytań)
     try:
         hdr = {'Accept': 'application/vnd.github+json'}
@@ -2084,6 +2202,9 @@ def raport_md(R):
         oz = Z.get('rwa-lancuch')   # v150: odczyt własny z łańcucha — podaż 24 h, wartość vs ostatnio znana, braki; brak bloku = bez linii
         if oz:
             L.append('- Tokenizowane aktywa — odczyt własny z łańcucha: ' + (oz.get('opis') or (f'? kontrola przerwana ({oz["blad"]})' if oz.get('blad') else '—')) + '.')
+        ez = Z.get('rwa-emitenci')   # v169: dane emitentów — produkty w sumach, braki, inny zakres; brak bloku = bez linii
+        if ez:
+            L.append('- Tokenizowane aktywa — dane emitentów: ' + (ez.get('opis') or (f'? kontrola przerwana ({ez["blad"]})' if ez.get('blad') else '—')) + '.')
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:
