@@ -24402,3 +24402,18 @@ class CzasPrzebieguV185(unittest.TestCase):
         R['meta']['czas'] = None
         self.assertNotIn('Czas tego przebiegu', k.raport_md(R), 'stary plik stanu bez bloku czasu — bez wiersza')
         self.assertTrue(md.startswith('# Kontrola strony — ') and '**Wynik: OK**' in md, 'nagłówek i wynik bez zmian (czyta je zadanie w chmurze)')
+
+
+# ===================== v186: CMC — ZMIANA WOLUMENU 24 H W PLIKU =====================
+class CmcWolumenV186(unittest.TestCase):
+    """v186: plik cmc.json ma zmianę wolumenu 24 h (total_volume_24h_yesterday_percentage_change); brak pola = None, nigdy 0. Bez sieci."""
+
+    def test_pole(self):
+        base = {'status': {'error_code': 0}, 'data': {'btc_dominance': 59.0, 'eth_dominance': 11.3, 'last_updated': '2026-10-05T18:44:59.999Z',
+                'quote': {'USD': {'total_market_cap': 2.915e12, 'total_volume_24h': 8.59e10, 'total_market_cap_yesterday_percentage_change': 0.18}}}}
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None: base):
+            self.assertIsNone(zd.build_cmc('k')['vol_chg24_pct'], 'brak pola — brak, nie zero')
+        base['data']['quote']['USD']['total_volume_24h_yesterday_percentage_change'] = -12.4
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None: base):
+            o = zd.build_cmc('k')
+        self.assertEqual((o['total_vol24'], o['vol_chg24_pct']), (8.59e10, -12.4))

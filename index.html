@@ -2499,7 +2499,20 @@ function kpiVals(){
 /* v73: kafelki z pliku CoinMarketCap — z własnym czasem i wiekiem danych; działają także bez CoinPaprika */
 function kpiCmc(M,out,live){const ok=v=>typeof v==='number'&&isFinite(v)&&v>0;if(!(M&&ok(M.total_mcap)))return live?out:null;
   const at=M.asof||M.at,x=big(M.total_mcap);let d=(typeof M.mcap_chg24_pct==='number'&&isFinite(M.mcap_chg24_pct))?M.mcap_chg24_pct:null;if(d!==null&&Math.abs(d)<.005)d=0;
-  out.mcap={val:x[0],unit:x[1],dec:x[2],d,src:'CoinMarketCap',at};if(ok(M.btc_dom))out.dom={val:M.btc_dom,unit:'%',dec:1,d:null,src:'CoinMarketCap',at};return out;}
+  out.mcap={val:x[0],unit:x[1],dec:x[2],d,src:'CoinMarketCap',at};if(ok(M.btc_dom))out.dom={val:M.btc_dom,unit:'%',dec:1,d:null,src:'CoinMarketCap',at};
+  /* v186: kapitał poza BTC i ETH z TEGO SAMEGO pliku co rynek i dominacja (dotąd z innego źródła, które liczy rynek szerzej: 1,00 bln obok
+     rynku 2,92 bln i BTC 59% — z liczb obok wychodzi 0,86 bln); zmiana 24 h z tego rynku i zmian cen BTC i ETH na żywo, inaczej brak porównania */
+  if(ok(M.btc_dom)&&ok(M.eth_dom)&&M.btc_dom+M.eth_dom<100){
+    const alt=M.total_mcap*(1-(M.btc_dom+M.eth_dom)/100),xa=big(alt),C=(typeof LIVE!=='undefined'&&LIVE&&LIVE.C)||{};
+    const pb=C.BTC&&C.BTC.pct?C.BTC.pct['24H']:null,pe=C.ETH&&C.ETH.pct?C.ETH.pct['24H']:null;let da=null;
+    if(live&&d!==null&&typeof pb==='number'&&isFinite(pb)&&typeof pe==='number'&&isFinite(pe)){
+      const prev=M.total_mcap/(1+d/100)-M.total_mcap*M.btc_dom/100/(1+pb/100)-M.total_mcap*M.eth_dom/100/(1+pe/100);
+      if(prev>0){da=(alt-prev)/prev*100;if(Math.abs(da)<.005)da=0;}}
+    if(ok(alt))out.alt={val:xa[0],unit:xa[1],dec:xa[2],d:da,src:'CoinMarketCap',at};}
+  /* v186: wolumen 24 h też z tego pliku (inne źródło na żywo 05.10: 148,2 mld USD i „+85,97%”, dwa inne: 85,9 i 91,5 mld); zmiana — pole vol_chg24_pct */
+  if(ok(M.total_vol24)){const xv=big(M.total_vol24);let dv=(typeof M.vol_chg24_pct==='number'&&isFinite(M.vol_chg24_pct))?M.vol_chg24_pct:null;if(dv!==null&&Math.abs(dv)<.005)dv=0;
+    out.vol={val:xv[0],unit:xv[1],dec:xv[2],d:dv,src:'CoinMarketCap',at};}
+  return out;}
 function renderKPI(){
   const L=kpiVals(),lv=isLive();
   $('#kpis').innerHTML=KDEF.map(k=>{

@@ -13261,3 +13261,29 @@ test('v184: Metodologia — Indie/Tajwan/Hongkong „automat co godzinę” (od 
   const g0 = html.indexOf('function gAuto(on){'), g = html.slice(g0, html.indexOf('\n}', g0));
   assert.ok(g.includes('},60000);') && g.includes("due(5)?gJSON(cgUrl(GSRC.crypto))") && g.includes('(!krStabh()&&due(15))?gJSON(GSRC.stab)') && g.includes('if(gTick%15===0&&gTick%30!==0)gJSON(GSRC.fiat)') && g.includes('if(gTick%30===0)gLoad();'), 'strona: krypto co 5 min, stablecoiny i obrót wg walut co 15 min, pełne co 30 min');
 });
+
+
+/* ---------- v186: CRYPTO — kapitał poza BTC i ETH z tego samego pliku co rynek i dominacja ---------- */
+test('v186: „Kapitał poza BTC i ETH” i wolumen 24 h z pliku serwera — rynek × (1 − udział BTC − udział ETH) z pliku serwera (jak kafle obok); zmiana 24 h z tego rynku i cen na żywo; bez udziału ETH — jak dotąd', () => {
+  const a0 = html.indexOf('function kpiCmc(M,out,live){'), a1 = html.indexOf('function renderKPI(){', a0);
+  const mk = LIVE => new Function('big', 'LIVE', html.slice(a0, a1) + '\nreturn kpiCmc;')(v => v >= 1e12 ? [v / 1e12, 'u.t', 2] : v >= 1e9 ? [v / 1e9, 'u.b', 1] : [v / 1e6, 'u.m', 0], LIVE);
+  const M = {total_mcap: 2914751599869.277, mcap_chg24_pct: 0.18292151, btc_dom: 59.016123697454, eth_dom: 11.344955346571, asof: '2026-10-05T18:44:59.999Z', at: 'x'};
+  const alt = M.total_mcap * (1 - (M.btc_dom + M.eth_dom) / 100);
+  const f = mk({C: {BTC: {pct: {'24H': 0.86072}}, ETH: {pct: {'24H': 0.43578}}}});
+  const o = f(M, {alt: {val: 996, unit: 'u.b', dec: 1, d: 1.02, src: 'X'}}, true);   /* dawne: z innego źródła (3,055 bln − BTC − ETH) */
+  assert.equal(o.alt.unit, 'u.b'); assert.ok(Math.abs(o.alt.val - alt / 1e9) < 1e-6 && Math.abs(o.alt.val - 863.9) < 0.1, 'ok. 864 mld USD, nie 996: ' + o.alt.val);
+  assert.equal(o.alt.at, M.asof); assert.equal(o.alt.src, 'CoinMarketCap');
+  const prev = M.total_mcap / (1 + M.mcap_chg24_pct / 100) - M.total_mcap * M.btc_dom / 100 / 1.0086072 - M.total_mcap * M.eth_dom / 100 / 1.0043578;
+  assert.ok(Math.abs(o.alt.d - (alt - prev) / prev * 100) < 1e-9, 'zmiana 24 h: ' + o.alt.d);
+  assert.ok(Math.abs(o.mcap.val - 2.9147516) < 1e-6 && o.dom.val === M.btc_dom, 'rynek i dominacja jak dotąd');
+  const g = mk(undefined)(M, {}, false);
+  assert.ok(Math.abs(g.alt.val - alt / 1e9) < 1e-6 && g.alt.d === null, 'bez danych na żywo: liczba z pliku, bez porównania (dotąd „—”)');
+  const h = mk({C: {}})(Object.assign({}, M, {eth_dom: undefined}), {alt: {val: 1, unit: 'u.t', dec: 2, d: 0, src: 'X'}}, true);
+  assert.deepEqual(h.alt, {val: 1, unit: 'u.t', dec: 2, d: 0, src: 'X'}, 'plik bez udziału ETH — wartość z danych na żywo jak dotąd');
+  const k = mk({C: {BTC: {pct: {'24H': 'x'}}, ETH: {pct: {}}}})(M, {}, true);
+  assert.equal(k.alt.d, null, 'bez zmian cen BTC i ETH — brak porównania, nie zero');
+  const v = f(Object.assign({}, M, {total_vol24: 85896128809.23, vol_chg24_pct: -12.4}), {vol: {val: 148.2, unit: 'u.b', dec: 1, d: 85.97, src: 'X'}}, true);
+  assert.ok(Math.abs(v.vol.val - 85.89612880923) < 1e-9 && v.vol.d === -12.4 && v.vol.at === M.asof, 'wolumen z pliku (85,9 mld), nie z innego źródła (148,2 mld, +85,97%)');
+  assert.equal(f(Object.assign({}, M, {total_vol24: 85896128809.23}), {}, true).vol.d, null, 'plik bez zmiany wolumenu — brak porównania, nie zero');
+  assert.deepEqual(f(Object.assign({}, M, {total_vol24: null}), {vol: {val: 1}}, true).vol, {val: 1}, 'plik bez wolumenu — jak dotąd');
+});

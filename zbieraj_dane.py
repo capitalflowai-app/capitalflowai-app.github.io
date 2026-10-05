@@ -660,6 +660,7 @@ def build_cmc(key):
     out = {'at': NOW, 'src': 'CoinMarketCap', 'asof': str(d.get('last_updated') or usd.get('last_updated') or ''),
            'total_mcap': num(usd.get('total_market_cap')), 'total_vol24': num(usd.get('total_volume_24h')),
            'mcap_chg24_pct': num(usd.get('total_market_cap_yesterday_percentage_change')),
+           'vol_chg24_pct': num(usd.get('total_volume_24h_yesterday_percentage_change')),   # v186: zmiana wolumenu 24 h (kafel strony z tego samego pliku)
            'btc_dom': num(d.get('btc_dominance')), 'eth_dom': num(d.get('eth_dominance')),
            'stable_mcap': num(usd.get('stablecoin_market_cap') if 'stablecoin_market_cap' in usd else d.get('stablecoin_market_cap')),
            'defi_mcap': num(usd.get('defi_market_cap') if 'defi_market_cap' in usd else d.get('defi_market_cap')),
