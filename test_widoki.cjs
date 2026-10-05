@@ -13200,3 +13200,53 @@ test('v181: wbudowana migawka funduszy — FBTC z opłatą 0,25 (jak plik serwer
   const row = html.slice(html.indexOf("['FBTC'", a), b);
   assert.ok(/^\['FBTC','Fidelity Wise Origin Bitcoin Fund','us',[0-9.]+,[0-9.]+,-?[0-9.]+,0\.25\]/.test(row), row.slice(0, 120));
 });
+
+
+/* ---------- v183: odmiana liczebników po polsku (tN: Intl.PluralRules → klucz.kategoria) ---------- */
+function v183tN(I18N, LANG) {
+  const a = html.indexOf('function tN(k,n,o){'), b = html.indexOf('\nfunction rwN(n)', a);
+  assert.ok(a > 0 && b > a, 'funkcja tN przed rwN');
+  const t0 = html.indexOf('const t=(k,vars)=>'), t1 = html.indexOf(';\n', t0);
+  const t = new Function('I18N', 'LANG', 'return ' + html.slice(t0 + 'const t='.length, t1))(I18N, LANG);
+  return new Function('t', 'I18N', 'LANG', 'LOCALE', html.slice(a, b) + '\nreturn tN;')(t, I18N, LANG, {pl: 'pl-PL', en: 'en-US', de: 'de-DE', ru: 'ru-RU'});
+}
+const v183Dict = name => { const d0 = html.indexOf('const ' + name + '='), d1 = html.indexOf(';\n', d0); return JSON.parse(html.slice(d0 + ('const ' + name + '=').length, d1)); };
+test('v183: tN — forma wg liczby (1 / 2–4 i 22–24 / 0 i 5–21), tekst kategorii tylko w języku widza (bez polskiego u Niemca), brak tekstu kategorii = tekst bazowy', () => {
+  const I = {pl: {'x': '{n} portfeli', 'odm.x.one': '{n} portfel', 'odm.x.few': '{n} portfele'}, en: {'x': '{n} wallets'}, de: {'x': '{n} Wallets'}};
+  const f = v183tN(I, 'pl');
+  assert.deepEqual([1, 2, 4, 5, 12, 21, 22, 24, 0].map(n => f('x', n, {n})), ['1 portfel', '2 portfele', '4 portfele', '5 portfeli', '12 portfeli', '21 portfeli', '22 portfele', '24 portfele', '0 portfeli']);
+  assert.equal(f('x', NaN, {n: '—'}), '— portfeli', 'nie-liczba — tekst bazowy');
+  assert.equal(f('y', 2, {n: 2}), 'y', 'klucz bez tekstu — jak t()');
+  const g = v183tN(I, 'de'); assert.deepEqual([1, 3].map(n => g('x', n, {n})), ['1 Wallets', '3 Wallets'], 'inny język: własne tłumaczenie bazowe (bez polskiej formy)');
+});
+test('v183: słownik EXTRA172 — czysty JSON, tylko po polsku, linia nakładania po EXTRA171; każdy tekst ma tekst bazowy w starszym słowniku z tymi samymi polami', () => {
+  const D = v183Dict('EXTRA172');
+  assert.deepEqual(Object.keys(D), ['pl']);
+  assert.deepEqual(Object.keys(D.pl).sort(), ['odm.ln.k.mp.vb.few', 'odm.ln.k.mp.vb.one', 'odm.tig.sub.c.one', 'odm.tig.sub.w.few', 'odm.tig.sub.w.one', 'odm.tig.wait.few', 'odm.wh.wal.few', 'odm.wh.wal.one']);
+  const base = {'tig.sub.w': 'EXTRA158', 'tig.sub.c': 'EXTRA158', 'tig.wait': 'EXTRA158', 'wh.wal': 'EXTRA99', 'ln.k.mp.vb': 'EXTRA119'};
+  const pola = s => [...s.matchAll(/\{([a-z]+)\}/g)].map(m => m[1]).sort().join(',');
+  for (const k of Object.keys(D.pl)) {
+    const b = k.replace(/^odm\./, '').replace(/\.(one|few)$/, ''), B = v183Dict(base[b]).pl[b];
+    assert.ok(typeof B === 'string', 'tekst bazowy: ' + b);
+    const pk = pola(D.pl[k]), pb = pola(B);
+    assert.ok(pk.split(',').every(x => pb.split(',').includes(x)), k + ': pola ' + pk + ' ⊆ ' + pb);
+  }
+  const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.equal(mm[mm.length - 1], 'EXTRA172'); assert.ok(mm.indexOf('EXTRA172') > mm.indexOf('EXTRA171'));
+});
+test('v183: prawdziwe teksty — świat 1 / 3 / 5 sesji, krypto 1 / 7 dni, „czeka/czekają”, portfele, pełne bloki; wywołania w kodzie przez tN (z zapasem dla piaskownic)', () => {
+  const pl = Object.assign({}, v183Dict('EXTRA158').pl, v183Dict('EXTRA99').pl, v183Dict('EXTRA119').pl, v183Dict('EXTRA172').pl);
+  const f = v183tN({pl, en: {}}, 'pl');
+  assert.equal(f('tig.sub.w', 1, {n: 1, a: '05.10', b: '05.10'}), 'ostatnia sesja (05.10) · sprawdzane na zamknięciu sesji · 50% = rzut monetą');
+  assert.equal(f('tig.sub.w', 3, {n: 3, a: '05.10', b: '07.10'}), 'ostatnie 3 sesje (05.10–07.10) · sprawdzane na zamknięciu sesji · 50% = rzut monetą');
+  assert.equal(f('tig.sub.w', 5, {n: 5, a: '05.10', b: '09.10'}), 'ostatnie 5 sesji (05.10–09.10) · sprawdzane na zamknięciu sesji · 50% = rzut monetą');
+  assert.equal(f('tig.sub.c', 1, {n: 1, a: '04.10', b: '04.10'}), 'ostatni dzień (04.10) · sprawdzane po dobie · 50% = rzut monetą');
+  assert.equal(f('tig.sub.c', 7, {n: 7, a: '28.09', b: '04.10'}), 'ostatnie 7 dni (28.09–04.10) · sprawdzane po dobie · 50% = rzut monetą');
+  assert.deepEqual([1, 3, 19].map(n => f('tig.wait', n, {n})), ['+ 1 czeka na wynik', '+ 3 czekają na wynik', '+ 19 czeka na wynik']);
+  assert.deepEqual([1, 4, 9].map(n => f('wh.wal', n, {n, d: '2022-11'})), ['1 portfel · lista giełdy z 2022-11', '4 portfele · lista giełdy z 2022-11', '9 portfeli · lista giełdy z 2022-11']);
+  assert.deepEqual([1, 2, 7].map(n => f('ln.k.mp.vb', n, {v: '1,2', n})), ['1,2 mln vB ≈ 1 pełny blok', '1,2 mln vB ≈ 2 pełne bloki', '1,2 mln vB ≈ 7 pełnych bloków']);
+  assert.ok(html.includes("const tn=(k,n,o)=>typeof tN==='function'?tN(k,n,o):t(k,o);   /* v183"), 'infografika: odmiana z zapasem');
+  assert.ok(html.includes("(W.length?tn(cr?'tig.sub.c':'tig.sub.w',W.length,{n:W.length,a:dm(W[0]),b:dm(W[W.length-1])}):") && html.includes("t('tig.wait',{n:trdC(S.wait)})") === false && html.includes("tn('tig.wait',S.wait,{n:trdC(S.wait)})"));
+  assert.ok(html.includes("(typeof tN==='function'?tN:(k,x,o)=>t(k,o))('ln.k.mp.vb',Math.ceil(M.vsize/1e6),{v:nfmt(M.vsize/1e6,1),n:nfmt(Math.ceil(M.vsize/1e6),0)})"));
+  assert.ok(html.includes("(typeof tN==='function'?tN:(k,x,o)=>t(k,o))('wh.wal',n,{n:nfmt(n,0),d:escH(since)})"));
+});
