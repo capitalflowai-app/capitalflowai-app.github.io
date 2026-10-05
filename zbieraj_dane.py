@@ -16580,6 +16580,7 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
     rec_ok = lambda r: (isinstance(r, list) and len(r) == 5 and rwa_num(r[0]) is not None and isinstance(r[1], str) and bool(_RWA_DAY.match(r[1]))  # noqa: E731
                         and r[1] <= day and r[2] in (0, 1) and isinstance(r[3], int) and not isinstance(r[3], bool) and r[3] >= 1
                         and (r[4] is None or (isinstance(r[4], str) and bool(_RWA_DAY.match(r[4])) and r[4] <= day)))
+    zast = set(rwc_uzyj(oc, now) if oc is not None else {}) | set(rwe_uzyj(em, now) if em is not None else {})   # v175: produkty z zamiennikiem
     hv, answered = {}, {}
     for s in parsed['hidden']:                                        # 1. zapisy: nowa wartość, ta sama, zmiana, pierwszy odczyt, brak wartości
         old = phv.get(s) if rec_ok(phv.get(s)) else None
@@ -16599,7 +16600,7 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
                 rec = [old[0], old[1], old[2], old[3], old[4] or day] if old else None
         else:
             rec = old
-        if rec and not (rec[4] and rec[4] < _rwa_day_add(day, -RWA_GONE_D)):
+        if rec and not (rec[4] and rec[4] < _rwa_day_add(day, -RWA_GONE_D) and s not in zast):   # v175: zapis zostaje, gdy jest zamiennik
             hv[s] = rec
     first = lambda r: r[2] == 0 and r[3] == 1  # noqa: E731
     comp = {s: r for s, r in hv.items() if r[4] is None and not first(r)}   # 2. zamrożenie źródła: udział wartości porównanych stojących ≥ RWA_SRC_BD dni roboczych
@@ -17576,7 +17577,9 @@ RWE_MIN_TMO = 1.0         # s — mniej zostało z budżetu = bez kolejnego zapy
 RWE_THREADS = 6           # produkty równolegle (Spiko: klasy po kolei w jednym wątku)
 RWE_MAX_B = 2_000_000     # bajtów — większa odpowiedź = błąd (05.10: najwięcej indeks Centrifuge, ok. 51 KB)
 RWE_KEEP_MIN = 7 * 24 * 60   # min — najstarszy poprzedni odczyt trzymany w pliku (od naszego odczytu); w sumach i tak tylko w limicie stanu rodzaju
-RWE_RAZY = 3.0            # pasmo rozsądku wobec poprzedniego odczytu emitenta (albo ostatnio znanej wartości źródła v133)
+RWE_RAZY = 3.0            # pasmo rozsądku wobec ostatniej przyjętej wartości emitenta (pole vb; v175 — bez limitu wieku)
+RWE_RAZY_REF = 10.0       # v175: pasmo wobec ostatnio znanej wartości źródła v133, gdy nie ma przyjętej wartości emitenta — szersze: inny zakres
+                          # liczenia u części produktów to norma (05.10: STAC 2,7×, xStocks 2,1×); łapie błędy jednostek (×1000, ×10^6)
 RWE_FX_MAX_D = 7          # dni — kurs z pliku rynki starszy = klasy w tej walucie bez wyceny (produkt bez wyceny w tym odczycie)
 RWE_MIN_SHARE = 0.01      # część produktu (klasa, token) poniżej 1% wartości nie wyznacza chwili stanu (maleńkie klasy z rzadką wyceną)
 RWE_OTHER_MAX = 0.005     # cfg: tokeny w pulach innej waluty (bez kursu): do 0,5% wartości pominięte z notatką, więcej = produkt bez wyceny
@@ -17604,7 +17607,7 @@ RWE_PRODUKTY = {   # produkt źródła v133 → nazwa, rodzaj odczytu, limit wie
     'hastra': {'name': 'Hastra', 'kind': 'hastra', 'max_h': 12},     # migawka co ok. 30 min
     'openeden-tbill': {'name': 'OpenEden TBILL', 'kind': 'oe', 'max_h': 12},   # część bieżąca co ok. 30 min
     'matrixdock-xaum': {'name': 'Matrixdock XAUm', 'kind': 'xaum', 'max_h': 12},   # stan = nasz odczyt (dane bez daty); cena złota — reguła 36 h
-    'centrifuge-protocol': {'name': 'Centrifuge Protocol', 'kind': 'cfg', 'max_h': 144, 'zakres': 'cfg'},   # wyceny funduszy w dni robocze
+    'centrifuge-protocol': {'name': 'Centrifuge Protocol', 'kind': 'cfg', 'max_h': 192, 'zakres': 'cfg'},   # v175: 8 dni — 05.10 (pon.) wycena z 01.10 (czw.)
     'ondo-yield-assets': {'name': 'Ondo Yield Assets', 'kind': 'ondo_ya', 'max_h': 36},   # v170: strona emitenta (USDY + OUSG), budowana co ok. 5 min
     'ondo-global-markets': {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'max_h': 60, 'zakres': 'gm'},   # v170: punkt dzienny (stan = dzień, 00:00 UTC)
     'xstocks': {'name': 'xStocks', 'kind': 'xs', 'max_h': 36, 'zakres': 'xs'},     # v170: dowód rezerw co ok. 30 min
@@ -18030,6 +18033,16 @@ def _rwe_prev(prev_em):
     return out
 
 
+def _rwe_vb(prev_em, slug):
+    """v175: ostatnia PRZYJĘTA wartość produktu z poprzedniego bloku (pole vb, bez limitu wieku; starsze pliki — v) — podstawa pasma rozsądku,
+    gdy poprzedni odczyt jest za stary albo go nie ma; inny rodzaj, blok wyłączony albo brak = None."""
+    P = prev_em.get('p') if isinstance(prev_em, dict) and not prev_em.get('off') and isinstance(prev_em.get('p'), dict) else {}
+    o = P.get(slug)
+    if not isinstance(o, dict) or o.get('kind') != (RWE_PRODUKTY.get(slug) or {}).get('kind'):
+        return None
+    return rwa_num(o.get('vb')) or rwa_num(o.get('v'))
+
+
 def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
     """Blok issuer pliku z odczytu `rd` (rwe_odczyt), poprzedniego bloku, bloku onchain TEGO odczytu (`oc`: cena złota dla XAUm) i ostatnio znanych
     wartości źródła v133 (`ref`: {produkt: USD} — pasmo rozsądku bez poprzedniego odczytu emitenta). Każdy produkt: name, kind, v (USD; XAUm =
@@ -18044,6 +18057,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
     notes, P, ok = [], {}, True
     for slug, c in RWE_PRODUKTY.items():
         nm, cur, pv = c['name'], R.get(slug), PV.get(slug)
+        vb_prev = _rwe_vb(prev_em, slug)                               # v175: podstawa pasma bez limitu wieku
         if pv is not None and _rwc_age_min(pv['read'], now) > RWE_KEEP_MIN:
             pv = None
         err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else (None if isinstance(cur, dict) else 'brak odpowiedzi')
@@ -18053,9 +18067,11 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
             new['read'] = rd['at']
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
-            base = rwa_num((pv or {}).get('v')) or rwa_num(ref.get(slug))
-            if new.get('v') is not None and base and not 1 / RWE_RAZY <= new['v'] / base <= RWE_RAZY:
-                err = f"wartość {new['v'] / 1e6:.1f} mln USD poza pasmem 1/{RWE_RAZY:g}–{RWE_RAZY:g}× wobec {base / 1e6:.1f} mln — odrzucona"
+            base, razy = rwa_num((pv or {}).get('v')) or vb_prev, RWE_RAZY
+            if not base:                                                # v175: bez przyjętej wartości emitenta — ostatnio znana, szersze pasmo
+                base, razy = rwa_num(ref.get(slug)), RWE_RAZY_REF
+            if new.get('v') is not None and base and not 1 / razy <= new['v'] / base <= razy:
+                err = f"wartość {new['v'] / 1e6:.1f} mln USD poza pasmem 1/{razy:g}–{razy:g}× wobec {base / 1e6:.1f} mln — odrzucona"
                 new = None
             elif pv is not None and new['as_of'] < pv['as_of']:
                 notes.append(f"{nm}: dane emitenta ze starszym stanem ({new['as_of']}) niż poprzedni odczyt ({pv['as_of']}) — poprzedni odczyt")
@@ -18076,10 +18092,12 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
         if c['kind'] == 'xaum':
             o['px'], o['px_at'] = (gp['v'], gp['at']) if gp else (None, None)
             if gp is None and o.get('oz') is not None:
-                ok = False
-                notes.append(f'{nm}: brak ceny złota z odczytu z łańcucha — bez wyceny')
+                wyl = isinstance(oc, dict) and oc.get('off') is True   # v175: odczyt z łańcucha wyłączony celowo (RWA_CHAIN_OFF) — opis, nie usterka
+                ok = ok and wyl
+                notes.append(f'{nm}: brak ceny złota z odczytu z łańcucha' + (' (odczyt z łańcucha wyłączony)' if wyl else '') + ' — bez wyceny')
         if c.get('zakres'):
             o['zakres'] = c['zakres']
+        o['vb'] = o['v'] if o['v'] is not None else (round(vb_prev, 2) if vb_prev else None)   # v175: ostatnia przyjęta wartość (pasmo rozsądku)
         o['full'] = slug in rwe_uzyj({'p': {slug: o}}, now)
         if o['v'] is not None and not o['full'] and _rwc_age_min(o['as_of'], now) > c['max_h'] * 60:
             notes.append(f"{nm}: stan emitenta {o['as_of']} starszy niż {c['max_h']} h — poza sumami")
@@ -18111,8 +18129,13 @@ def rwe_wynik(em, used, rows, day, prev=None):
     """Blok issuer do pliku: odczyt (rwe_blok) + co z niego weszło do sum — used {produkt: USD}, seg {rodzaj: {v, n}} (i 'all'), hd: dzienny zapis
     [mln USD, [produkty]] z ostatnich RWE_HD_DAYS dni (kontrola dzienna: skok sumy przy zmianie zbioru); nazwy produktów jak na liście źródła v133."""
     o = dict(em)
-    o['p'] = {s: dict(x, name=rows[s]['name']) if s in rows and isinstance(rows[s].get('name'), str) and isinstance(x, dict) else x
+    o['p'] = {s: dict(x, name=rows[s]['name']) if s in rows and isinstance(rows[s].get('name'), str) and isinstance(x, dict) else (dict(x) if isinstance(x, dict) else x)
               for s, x in (em.get('p') or {}).items()}
+    for s, x in o['p'].items():   # v175: stan produktu — e (wg emitenta), o (z łańcucha), l (bieżąca wartość źródła v133), poza (bez wyceny), brak (nie ma na liście)
+        if isinstance(x, dict):
+            r = rows.get(s)
+            x['stan'] = ('e' if s in used else 'brak' if not isinstance(r, dict) else 'o' if r.get('via') == 'o' and r.get('v') is not None
+                         else 'l' if r.get('v') is not None else 'poza')
     o['used'] = {s: round(v, 2) for s, v in sorted(used.items())}
     seg = {}
     for s, v in used.items():
@@ -18721,12 +18744,13 @@ def main():
     prev_rw = prev_rw if rwa_plik_ok(prev_rw) else None
     rw_late = _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > RWA_LATE
     rw_due = rwa_odswiez(prev_rw)
-    if rwc_off and isinstance((prev_rw or {}).get('onchain'), dict) and not prev_rw['onchain'].get('off'):
+    if (rwc_off and isinstance((prev_rw or {}).get('onchain'), dict) and not prev_rw['onchain'].get('off')
+            and _rwa_age_min(prev_rw.get('try_at'), _now_utc()) >= RWA_RETRY):   # v175: po nieudanej próbie nie częściej niż co RWA_RETRY
         rw_due = True                                                 # v150: RWA_CHAIN_OFF działa od razu — jedna przebudowa sum bez odczytu własnego
     pem_rw = (prev_rw or {}).get('issuer')
     em_on = isinstance(pem_rw, dict) and not pem_rw.get('off')
     em_nowe = em_on and bool(set(RWE_PRODUKTY) - set(pem_rw['p'] if isinstance(pem_rw.get('p'), dict) else ()))   # v170: nowe produkty w konfiguracji
-    if rwe_off and em_on:
+    if rwe_off and em_on and _rwa_age_min(prev_rw.get('try_at'), _now_utc()) >= RWA_RETRY:   # v175: bez pętli po nieudanej próbie
         rw_due = True                                                 # v169: RWA_EM_OFF działa od razu — jedna przebudowa sum bez danych emitentów
     elif (prev_rw and not rwe_off and (not em_on or em_nowe)
           and min(_rwa_age_min(prev_rw.get('at'), _now_utc()), _rwa_age_min(prev_rw.get('try_at'), _now_utc())) >= RWE_START_MIN):

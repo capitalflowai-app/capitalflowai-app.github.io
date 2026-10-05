@@ -9333,7 +9333,7 @@ function rwEmPara(D){
     const Z=U.filter(s=>{const r=rwPos(o.p[s].ref);return r!==null&&(o.used[s]/r>1.25||o.used[s]/r<0.8);});
     if(Z.length)L.push(t('rwe.zakres',{list:Z.map(s=>nm(s)+' '+rwUsd(o.used[s])+' ('+t('rwe.ref',{v:rwUsd(o.p[s].ref)})+zk(o.p[s].zakres)+')').join('; ')}));
   }
-  const P=Object.keys(o.p).filter(s=>rwObj(o.p[s])&&o.p[s].full!==true&&!U.includes(s));   /* bez bieżących danych emitenta — poza sumami */
+  const P=Object.keys(o.p).filter(s=>rwObj(o.p[s])&&!U.includes(s)&&(typeof o.p[s].stan==='string'?o.p[s].stan==='poza':o.p[s].full!==true));   /* v175: tylko naprawdę poza sumami (stan z pliku; starsze pliki — brak pełnego odczytu) */
   if(P.length)L.push(t('rwe.part',{list:P.map(nm).join(sl)}));
   return L.length?`<p class="pnote">${L.join(' ')}</p>`:'';
 }

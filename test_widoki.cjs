@@ -13103,3 +13103,16 @@ test('v170: słownik — czysty JSON, tylko po polsku (rwe.z.gm, rwe.z.xs), bez 
   const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
   assert.ok(mm.indexOf('EXTRA170') > mm.indexOf('EXTRA169') && mm.indexOf('EXTRA169') >= 0, 'po słowniku v169');
 });
+
+/* ---------- v175: dane emitentów — „poza sumami” tylko dla produktów naprawdę poza sumami (stan z pliku) ---------- */
+test('v175: lista „Bez bieżących danych emitenta — zostają poza sumami” według stanu produktu; starsze pliki — jak dotąd', () => {
+  const F = v169Plik();
+  F.issuer.p.hastra.stan = 'l';   /* źródło v133 znów podaje bieżącą wartość — jest w sumach */
+  F.issuer.p.ondo = {name: 'Ondo Global Markets', kind: 'ondo_gm', v: null, as_of: null, err: 'HTTPError', full: false, stan: 'poza'};
+  F.issuer.p.raacx = {name: 'Produkt Z', kind: 'sec', v: null, err: 'x', full: false, stan: 'brak'};
+  const o = RWC150.out(F);
+  assert.ok(o.includes('Bez bieżących danych emitenta — zostają poza sumami: Ondo Global Markets.'), 'tylko stan „poza”');
+  assert.ok(!/poza sumami: [^.]*Hastra/.test(o) && !/poza sumami: [^.]*Produkt Z/.test(o), 'stan „l” (w sumach) i „brak” (nie na liście) — nie na tej liście');
+  const G = v169Plik();
+  assert.ok(RWC150.out(G).includes('Bez bieżących danych emitenta — zostają poza sumami: Hastra.'), 'plik bez pola stan — wg pełnego odczytu, jak dotąd');
+});

@@ -517,10 +517,10 @@ WH_HIST_MIN = 3                # v174: mniej wcześniejszych porównywalnych dni
 
 
 def _wh_csv(path):
-    """v174: archiwum/wieloryby.csv → ({dzień: {(giełda, aktywo): wiersz}}, {dzień: numer bloku albo None}); zły nagłówek albo brak pliku = None."""
+    """v174/v175: archiwum/wieloryby.csv → {dzień: {(giełda, aktywo): wiersz}}; zły nagłówek albo brak pliku = None."""
     if not os.path.exists(path):
         return None
-    by, blk = {}, {}
+    by = {}
     with open(path, encoding='utf-8', newline='') as f:
         r = csv.reader(f)
         head = next(r, None)
@@ -529,13 +529,12 @@ def _wh_csv(path):
         for row in r:
             if len(row) >= 9:
                 by.setdefault(row[0], {})[(row[1], row[2])] = row
-                if row[8].isdigit():
-                    blk[row[0]] = int(row[8])
-    return by, blk
+    return by
 
 
 def _wh_rozb(a, b):
-    """v174: rozbieżności par dnia `b` wobec dnia `a` (jak wieloryby_porownanie) → {(giełda, aktywo): (zmiana, netto, |zmiana − netto|)}."""
+    """v174/v175: rozbieżności par dnia `b` wobec dnia `a` → {(giełda, aktywo): (zmiana, netto, |zmiana − netto|, odstęp w blokach albo None)};
+    odstęp z bloków WŁASNYCH migawek pary (giełda bez nowego odczytu ma w archiwum blok poprzedniego)."""
     out = {}
     for k, row in b.items():
         prev = a.get(k)
@@ -548,39 +547,43 @@ def _wh_rozb(a, b):
         if not u:
             continue
         delta = (u - u0) * (usd / u)
-        out[k] = (delta, net, abs(delta - net))
+        sp = int(row[8]) - int(prev[8]) if row[8].isdigit() and prev[8].isdigit() else None
+        out[k] = (delta, net, abs(delta - net), sp)
     return out
 
 
 def wieloryby_ocena(path):
     """v174: zgodność sald i przepływów wielorybów na tle historii. Przepływy to tylko przelewy ≥ 1 mln USD w oknie 24 h, a migawki sald dzieli
-    tyle, ile minęło między zapisami archiwum (05.10: od 7,7 do 28 h) — rozbieżność jest normalna. Uwaga tylko, gdy migawki dzieli ok. doba
-    (WH_DOBA_BLOKI) i rozbieżność pary przekracza zwykły próg (WH_PROG %, WH_MIN_USD) ORAZ WH_RAZY × medianę jej rozbieżności z co najmniej
-    WH_HIST_MIN wcześniejszych porównywalnych dni; inny odstęp migawek = bez porównania (powód w 'pomin'). Mniej niż dwa dni archiwum = None.
-    → {'dzien', 'poprzedni', 'porownane', 'odstep_h', 'pomin', 'zle': [(giełda, aktywo, zmiana, netto, rozbieżność, mediana)], 'bez_historii'}."""
-    x = _wh_csv(path)
-    if not x:
+    tyle, ile minęło między zapisami archiwum (05.10: od 7,7 do 28 h) — rozbieżność jest normalna. Uwaga tylko, gdy migawki pary dzieli ok. doba
+    (WH_DOBA_BLOKI) i jej rozbieżność przekracza zwykły próg (WH_PROG %, WH_MIN_USD) ORAZ WH_RAZY × medianę jej rozbieżności z co najmniej
+    WH_HIST_MIN wcześniejszych porównywalnych dni. v175: odstęp liczony dla KAŻDEJ pary z jej własnych bloków — para z innym odstępem pominięta
+    (pole pominiete), reszta porównana; żadnej pary o dobę = bez porównania (powód w 'pomin'). Mniej niż dwa dni archiwum = None.
+    → {'dzien', 'poprzedni', 'porownane', 'pominiete', 'odstep_h' (mediana par), 'pomin', 'zle': [(giełda, aktywo, zmiana, netto, rozb., mediana)],
+    'bez_historii'}."""
+    by = _wh_csv(path)
+    if not by:
         return None
-    by, blk = x
     days = sorted(by)
     if len(days) < 2:
         return None
     d, p = days[-1], days[-2]
-    ok_odstep = lambda a, b: blk.get(a) is not None and blk.get(b) is not None and WH_DOBA_BLOKI[0] <= blk[b] - blk[a] <= WH_DOBA_BLOKI[1]  # noqa: E731
+    doba = lambda sp: sp is not None and WH_DOBA_BLOKI[0] <= sp <= WH_DOBA_BLOKI[1]  # noqa: E731
     dzis = _wh_rozb(by[p], by[d])
-    out = {'dzien': d, 'poprzedni': p, 'porownane': len(dzis), 'odstep_h': round((blk[d] - blk[p]) * 12 / 3600, 1) if blk.get(d) and blk.get(p) else None,
-           'pomin': None, 'zle': [], 'bez_historii': 0}
-    if not ok_odstep(p, d):
+    S = sorted(x[3] for x in dzis.values() if x[3] is not None)
+    out = {'dzien': d, 'poprzedni': p, 'porownane': sum(1 for x in dzis.values() if doba(x[3])),
+           'pominiete': sum(1 for x in dzis.values() if not doba(x[3])),
+           'odstep_h': round(S[len(S) // 2] * 12 / 3600, 1) if S else None, 'pomin': None, 'zle': [], 'bez_historii': 0}
+    if not out['porownane']:
         out['pomin'] = (f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie" if out['odstep_h'] is not None
                         else 'brak numeru bloku migawki — bez porównania')
         return out
     hist = {}
     for a, b in zip(days[:-2], days[1:-1]):
-        if ok_odstep(a, b):
-            for k, (_dl, _n, r) in _wh_rozb(by[a], by[b]).items():
+        for k, (_dl, _n, r, sp) in _wh_rozb(by[a], by[b]).items():
+            if doba(sp):
                 hist.setdefault(k, []).append(r)
-    for k, (delta, net, roz) in sorted(dzis.items()):
-        if not (roz > WH_MIN_USD and roz > WH_PROG / 100 * max(abs(delta), abs(net), WH_MIN_USD)):
+    for k, (delta, net, roz, sp) in sorted(dzis.items()):
+        if not doba(sp) or not (roz > WH_MIN_USD and roz > WH_PROG / 100 * max(abs(delta), abs(net), WH_MIN_USD)):
             continue
         h = sorted(hist.get(k, []))
         if len(h) < WH_HIST_MIN:
@@ -1524,7 +1527,7 @@ def i18n_kontrola(body, R, pobierz=None):
 
 # ---------------------------------------------------------------- v133: tokenizowane aktywa RWA (data/rwa.json) ----------------------------------------------------------------
 RWA_ETYKIETA = 'tokenizowane aktywa RWA (co 3 h)'   # v172: było co 6 h
-RWA_SWIEZ_MIN = 12 * 60    # min — lista starsza (plik co 6 h, część z błędem ponawiana po godzinie) = ⚠️; nigdy ❌ ani BŁĄD
+RWA_SWIEZ_MIN = 12 * 60    # min — lista starsza (plik co 3 h od v172, część z błędem ponawiana po godzinie) = ⚠️; nigdy ❌ ani BŁĄD
 RWA_PP = 1.0               # pkt proc. — |własna zmiana 7 dni − zmiana 7 dni podana przez źródło| (produkty z listy) większa = ⚠️
 RWA_HIST_MIN = 8           # dni własnych zapisów sum potrzebnych do porównania zmian 7 dni (wcześniej tylko informacja)
 RWA_SKOK = 25.0            # % — zmiana sumy między dwoma kolejnymi dniami zapisów większa = ⚠️ (dni z ostatniego tygodnia)
@@ -1597,7 +1600,7 @@ def rwa_porownanie(j, now=None):
     if ok.get('hidden') is False:
         Z['status'] = '⚠️'
         Z['uwagi'].append(f'tokenizowane aktywa: ostatnie pobranie wartości produktów spoza głównej listy przerwane — z poprzedniego dnia: {kept if num(kept) else "—"} '
-                          '(ponowienie po 1 h, 2 h, potem co 6 h; tylko uwaga)')
+                          '(ponowienie po 1 h, 2 h, potem co 3 h; tylko uwaga)')
         cz.append(f'produkty spoza listy: pobranie przerwane, z poprzedniego dnia {kept if num(kept) else "—"} ⚠️')
     if num(hv) and hv < RWA_HID_MIN:
         Z['status'] = '⚠️'
@@ -1660,7 +1663,7 @@ def rwa_kontrola(files, R):
 
 # ---------------------------------------------------------------- v150: tokenizowane aktywa — odczyt własny z łańcucha (blok onchain w data/rwa.json) ----------------------------------------------------------------
 RWC_ETYKIETA = 'tokenizowane aktywa — odczyt własny z łańcucha (co 3 h)'
-RWC_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 6 h) = ⚠️; nigdy ❌ ani BŁĄD (zbieracz i tak nie liczy odczytów starszych niż 12 h)
+RWC_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 3 h od v172) = ⚠️; nigdy ❌ ani BŁĄD (zbieracz i tak nie liczy odczytów starszych niż 12 h)
 RWC_SKOK_POD = 50.0        # % — zmiana podaży produktu między dwoma kolejnymi dniami zapisów (24 h) większa = ⚠️ (zły kontrakt albo zmiana emisji)
 RWC_RAZY = 3.0             # wartość z łańcucha vs ostatnio znana wartość źródła v133 tego produktu: więcej niż 3× albo mniej niż 1/3 = ⚠️
 
@@ -1789,7 +1792,7 @@ def rwc_kontrola(files, R):
 
 # ---------------------------------------------------------------- v169: tokenizowane aktywa — dane emitentów (blok issuer w data/rwa.json) ----------------------------------------------------------------
 RWE_ETYKIETA = 'tokenizowane aktywa — dane emitentów (co 3 h)'
-RWE_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 6 h) = ⚠️; nigdy ❌ ani BŁĄD
+RWE_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 3 h od v172) = ⚠️; nigdy ❌ ani BŁĄD
 RWE_ZAKRES = (0.8, 1.25)   # wartość wg emitenta vs ostatnio znana źródła v133 poza tym pasmem = informacja ℹ️ (inny zakres liczenia albo prawdziwa zmiana)
 
 
@@ -1848,7 +1851,10 @@ def rwe_porownanie(j, now=None):
     for s, p in sorted(P.items()):
         if not isinstance(p, dict):
             continue
-        if p.get('full') is not True:
+        st = p.get('stan')   # v175: stan produktu w sumach (pliki od v175); starsze — wg pełnego odczytu
+        if st == 'brak':
+            braki.append(f'{nm(s)}: nie ma go na liście źródła v133 — nie liczony')
+        elif (st == 'poza' if isinstance(st, str) else p.get('full') is not True):
             why = p.get('err') if isinstance(p.get('err'), str) else ('stan emitenta za stary albo brak ceny' if num(p.get('v')) else 'brak wartości')
             braki.append(f'{nm(s)}: {why[:120]}')
         v, r = used.get(s), p.get('ref')
@@ -1862,6 +1868,10 @@ def rwe_porownanie(j, now=None):
     dzis = (em.get('at') or '')[:10]
     wcz = [d for d in sorted(hd) if d < dzis]
     wyp = sorted(s for s in (hd[wcz[-1]][1] if wcz else ()) if s not in used)
+    inne = [s for s in wyp if isinstance(P.get(s), dict) and P[s].get('stan') in ('l', 'o')]   # v175: liczony innym źródłem — informacja, nie uwaga
+    if inne:
+        cz.append('liczone teraz innym źródłem (bieżąca wartość źródła v133 albo odczyt z łańcucha): ' + ', '.join(nm(s) for s in inne) + ' ℹ️')
+    wyp = [s for s in wyp if s not in inne]
     if wyp:
         Z['status'] = '⚠️'
         Z['uwagi'].append('tokenizowane aktywa (dane emitentów): po ' + wcz[-1] + ' już nie liczone wg emitenta: ' + ', '.join(nm(s) for s in wyp)
@@ -2126,7 +2136,7 @@ def kontrola():
     if w:
         zle = w['zle']
         Z['wieloryby'] = {'dzien': w['dzien'], 'poprzedni': w['poprzedni'], 'porownane': w['porownane'], 'odstep_h': w['odstep_h'], 'pomin': w['pomin'],
-                          'bez_historii': w['bez_historii'],
+                          'bez_historii': w['bez_historii'], 'pominiete': w.get('pominiete', 0),
                           'rozbieznosci': [{'gielda': g, 'aktywo': a, 'zmiana_usd': round(x, 2), 'netto_usd': round(y, 2), 'roznica_usd': round(z, 2), 'mediana_usd': round(m, 2)}
                                            for g, a, x, y, z, m in zle]}
         if zle:
@@ -2277,7 +2287,8 @@ def raport_md(R):
             L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo, rozbieżności nietypowe (> 5% i > {WH_RAZY:g}× zwykłej): '
                      f'{len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}'
                      + (' — ' + ', '.join(f'{x["gielda"]} {x["aktywo"]}' for x in w["rozbieznosci"][:6]) if w['rozbieznosci'] else '')
-                     + (f' (bez historii: {w["bez_historii"]})' if w.get('bez_historii') else '') + '.')
+                     + (f' (bez historii: {w["bez_historii"]})' if w.get('bez_historii') else '')
+                     + (f' (pominięte pary z innym odstępem migawek: {w["pominiete"]})' if w.get('pominiete') else '') + '.')
         else:
             L.append('- Wieloryby: archiwum ma mniej niż dwa dni — porównanie od jutra.')
         wy = Z.get('wycena')   # v132: MVRV BTC z dwóch źródeł — tylko różnice procentowe i daty; brak = „—”
