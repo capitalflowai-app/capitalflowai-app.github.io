@@ -2200,11 +2200,17 @@ def kontrola():
         hdr = {'Accept': 'application/vnd.github+json'}
         if TOKEN:
             hdr['Authorization'] = 'Bearer ' + TOKEN
-        runs = []
+        runs, ids, druga = [], set(), None
         for strona in (1, 2):   # v177: lista samego zadania „Strona i dane” (inne zadania — zegar, kontrola — wypychały je z listy 100 po ok. 8–10 h);
-            st, body, ms = get(f'https://api.github.com/repos/{REPO}/actions/workflows/strona.yml/runs?per_page=100&page={strona}', headers=hdr)
-            Rr = json.loads(body).get('workflow_runs', []) or []
-            runs += Rr                                                  # druga strona tylko, gdy 100 przebiegów nie pokrywa doby
+            try:
+                st, body, ms = get(f'https://api.github.com/repos/{REPO}/actions/workflows/strona.yml/runs?per_page=100&page={strona}', headers=hdr)
+                Rr = json.loads(body).get('workflow_runs', []) or []
+            except Exception as e:  # noqa — v181: nieczytelna DRUGA strona nie kasuje pierwszej (liczba z pierwszej, dopisek w raporcie)
+                if strona == 1:
+                    raise
+                druga = str(e)[:80] or type(e).__name__; break
+            runs += [r for r in Rr if not (isinstance(r, dict) and r.get('id') in ids)]   # druga strona tylko, gdy 100 przebiegów nie pokrywa doby;
+            ids.update(r.get('id') for r in Rr if isinstance(r, dict))                  # v181: bez podwójnych (nowy przebieg między stronami przesuwa listę)
             w = wiek_min(Rr[-1].get('run_started_at') or Rr[-1].get('created_at')) if Rr else None
             if len(Rr) < 100 or w is None or w > 24 * 60:
                 break
@@ -2221,6 +2227,8 @@ def kontrola():
             except Exception:  # noqa
                 pass
         R['actions'], b, u = przebiegi_ocena(runs, NOW, kroki)
+        if druga:
+            R['actions']['lista_niepelna'] = druga
         R['bledy'] += b
         R['uwagi'] += u
     except Exception as e:  # noqa
@@ -2251,7 +2259,8 @@ def raport_md(R):
         L.append('- Słowniki języków de–ja (osobne pliki strony): ' + s18.get('opis', '—') + '.')
     a = R.get('actions') or {}
     if 'przebiegi_24h' in a:
-        L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).')
+        L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).'
+                 + (' Uwaga: lista niepełna — druga strona listy nieczytelna, liczba z pierwszych 100.' if a.get('lista_niepelna') else ''))
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))

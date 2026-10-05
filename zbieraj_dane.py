@@ -9947,7 +9947,8 @@ def ix_bez_wypelnien(rows):
     """v179: seria indeksu [[dzień, zamknięcie], …] bez wierszy z zamknięciem DOKŁADNIE równym poprzedniemu — dostawca wypełnia nimi dni bez
     sesji (święta giełdy, w części serii także soboty i niedziele). Strona liczyła je jak sesje: „1 D” = 0,0% z datą święta, okna 5 i 21 sesji
     krótsze o prawdziwe sesje (05.10: 66 takich wierszy w 6 seriach). Prawdziwe zamknięcie indeksu równe poprzedniemu jest bardzo rzadkie,
-    a jego pominięcie nie zmienia zmian liczonych od sąsiednich wierszy (ta sama wartość). Weekend sam w sobie nie jest wypełnieniem
+    a jego pominięcie nie zmienia zmian liczonych między pozostałymi wierszami (ta sama wartość); gdy to ostatni wiersz, strona pokazuje
+    poprzednią sesję z jej datą i zmianą (zamiast 0,0%), a okna 5 i 21 sesji sięgają o sesję dalej. Weekend sam w sobie nie jest wypełnieniem
     (Tel Awiw do końca 2025 handlował w niedziele, Indie — niedzielna sesja budżetowa 01.02.2026). Nowa lista; wejście bez zmian."""
     out = []
     for r in rows:
@@ -18475,7 +18476,10 @@ def main():
             ins = build_insider(prev_ins if not (prev_ins or {}).get('off') else None, contact=sec_contact); save('insider', ins); META['ok']['insider'] = bool((ins.get('ok') or {}).get('sec'))
         except Exception as e:
             META['errors'].append(mask(f'Insiderzy: {e}')); META['ok']['insider'] = False
-            if prev_ins: save('insider', prev_ins)
+            if prev_ins and not prev_ins.get('off'):
+                save('insider', prev_ins)
+            else:   # v181 (przegląd v176): sekret jest, a poprzedni plik to „wyłączone” albo go brak — plik bez danych i BEZ „off” z czasem poprzedniego
+                save('insider', {'at': (prev_ins or {}).get('at') or NOW, 'v': 1})   # pliku: strona go nie pokazuje, kontrola — rosnący wiek i błąd
     # v121: stres finansowy USA (indeks stresu — bez klucza) i put/call (tylko z pisemną zgodą giełdy: CBOE_ZGODA) — co 6 h; część z błędem
     # ponawiana po godzinie; zmiana stanu zgody = przebudowa (bez zgody stare put/call nie są przepisywane); awaria = poprzedni plik i błąd
     if not PC_ZGODA:

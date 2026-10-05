@@ -13175,3 +13175,28 @@ test('v178: zapas strony — odniesienia kursów od dnia ostatniego fixingu: pon
   const r0 = html.indexOf("return gJSON(GSRC.fx('latest')).then(x=>{"), r = html.slice(r0, html.indexOf('/* v101: najpierw plik serwera */', r0));
   assert.ok(r0 > 0 && r.includes('x.date===GLIVE.fx.now.date') && r.includes('return gFxRefs(x).then(v=>{GLIVE.fx=v;okN++;gOk(\'fx\');})'), 'odświeżanie: nowy dzień fixingu = nowe odniesienia');
 });
+
+
+/* ---------- v181: poprawki po przeglądzie v176–v180 ---------- */
+test('v181: karta otwarta w tle (bez wcześniejszego „ukryta”) — pierwsze spojrzenie po ≥ 2 min odświeża pliki; wszystkie 25 funkcji istnieje w stronie', () => {
+  const a = html.indexOf('/* v176: powrót do karty'), b = html.indexOf('})();   /* v176: koniec */', a);
+  const src = html.slice(html.indexOf('(function(){', a), b + 5);
+  const N = ['metaLoad', 'cmcLoad', 'krLoad', 'etfLoad', 'whLoad', 'levLoad', 'lnLoad', 'prmLoad', 'rwLoad', 't10Load', 'trdLoad', 'kcLoad', 'wyLoad', 'cmLoad', 'dlLoad',
+             'ixLoad', 'fgLoadG', 'strLoad', 'snbLoad', 'aukLoad', 'fndLoad', 'usaLoad', 'insLoad', 'engLoad', 'arcLoad'];
+  for (const n of N) assert.equal((html.match(new RegExp('function ' + n + '\\(', 'g')) || []).length, 1, 'funkcja w stronie: ' + n);
+  const run = startHidden => {
+    const calls = [], L = {}, timers = []; for (const n of N) L[n] = () => calls.push(n);
+    let now = 1e9, hidden = startHidden; const ev = {}; const doc = {get hidden() { return hidden; }, addEventListener: (e, fn) => { ev[e] = fn; }};
+    new Function('document', 'Date', 'setTimeout', ...N, src)(doc, {now: () => now}, (fn, ms) => timers.push([ms, fn]), ...N.map(n => L[n]));
+    return {calls, timers, show: ms => { now += ms; hidden = false; ev.visibilitychange(); timers.forEach(([, fn]) => fn()); }};
+  };
+  const t = run(true); t.show(3 * 60 * 1000);
+  assert.equal(t.calls.length, 25, 'otwarta w tle, pierwsze spojrzenie po 3 min — odświeżenie');
+  const u = run(true); u.show(60 * 1000); assert.equal(u.calls.length, 0, 'po minucie — dane z wczytania są świeże');
+  const v = run(false); v.show(3 * 60 * 1000); assert.equal(v.calls.length, 0, 'widoczna od początku, bez ukrycia — nic');
+});
+test('v181: wbudowana migawka funduszy — FBTC z opłatą 0,25 (jak plik serwera od v180)', () => {
+  const a = html.indexOf('const ETF_SNAP='), b = html.indexOf('\n', html.indexOf("['FBTC'", a));
+  const row = html.slice(html.indexOf("['FBTC'", a), b);
+  assert.ok(/^\['FBTC','Fidelity Wise Origin Bitcoin Fund','us',[0-9.]+,[0-9.]+,-?[0-9.]+,0\.25\]/.test(row), row.slice(0, 120));
+});

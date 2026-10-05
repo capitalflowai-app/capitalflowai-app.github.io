@@ -24022,7 +24022,7 @@ class KontrolaPrzebiegiV177(unittest.TestCase):
 
     def _runs(self, NOW, n, od_min, krok_min):
         f = lambda m: (NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
-        return [{'id': i, 'name': 'Strona i dane', 'event': 'schedule', 'status': 'completed', 'conclusion': 'success',
+        return [{'id': od_min + i * krok_min, 'name': 'Strona i dane', 'event': 'schedule', 'status': 'completed', 'conclusion': 'success',   # v181: numery unikalne jak prawdziwe (lista bez podwójnych)
                  'run_started_at': f(od_min + i * krok_min), 'created_at': f(od_min + i * krok_min)} for i in range(n)]
 
     def test_cala_doba_z_listy_zadania(self):
@@ -24184,3 +24184,101 @@ class EtfOplataV180(unittest.TestCase):
              mock.patch.object(zd, 'ETF_SYMS', ['btc']):
             out = zd.build_etf('k', 'c')
         self.assertEqual({x['t']: x['fee'] for x in out['assets']['btc']['funds']}, {'IBIT': 0.25, 'FBTC': 0.25, 'GBTC': None})
+
+
+# ===================== v181: POPRAWKI PO PRZEGLĄDZIE v176–v180 =====================
+class PoPrzegladzieV181(unittest.TestCase):
+    """v181: kontrola — przebiegi bez podwójnych, nieczytelna druga strona nie kasuje pierwszej; insiderzy — sekret dodany po okresie bez niego
+    i nieudane pobranie = plik bez danych i bez „off” (z czasem poprzedniego pliku). Bez sieci."""
+    NOW = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=datetime.timezone.utc)
+
+    def _kontrola(self, strona):
+        import importlib.util, tempfile
+        spec = importlib.util.spec_from_file_location('kontrola_v181', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        NOW = self.NOW
+
+        class Resp:
+            def __init__(self, b):
+                self.b, self.status = b, 200
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def urlopen(req, timeout=None):
+            url = req.full_url
+            if '/index.html?' in url:
+                return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
+            if '/data/' in url:
+                return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []}).encode())
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                return Resp(b'x' * 100)
+            if '/actions/workflows/strona.yml/runs' in url:
+                r = strona(int(url.split('&page=')[1].split('&')[0]))
+                if isinstance(r, Exception):
+                    raise r
+                return Resp(json.dumps({'workflow_runs': r}).encode())
+            if url.startswith('https://api.github.com/'):
+                return Resp(b'{"jobs": []}')
+            raise k.urllib.error.URLError('test bez sieci')
+        d = tempfile.mkdtemp(prefix='k181-')
+        with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen), mock.patch('sys.stdout', io.StringIO()):
+            R = k.kontrola()
+            md = k.raport_md(R)
+        return R, md
+
+    def _runs(self, ids_min, porazki=()):
+        f = lambda m: (self.NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        return [{'id': 1000 - i, 'name': 'Strona i dane', 'event': 'schedule', 'status': 'completed', 'conclusion': 'failure' if i in porazki else 'success',
+                 'run_started_at': f(m), 'created_at': f(m)} for i, m in ids_min]
+
+    def test_kontrola_bez_podwojnych_przebiegow(self):
+        s1 = self._runs([(i, 1 + i * 10) for i in range(100)], porazki=(0, 99))
+        s2 = self._runs([(i, 1 + i * 10) for i in range(99, 144)], porazki=(99,))   # nowy przebieg między zapytaniami: nr 99 wraca na stronie 2
+        R, md = self._kontrola(lambda p: {1: s1, 2: s2}.get(p, []))
+        self.assertEqual(R['actions']['przebiegi_24h'], 144, 'przebieg z obu stron liczony raz')
+        self.assertEqual(R['actions']['wg_wyniku'].get('failure'), 2)
+        self.assertNotIn('lista_niepelna', R['actions'])
+
+    def test_kontrola_druga_strona_nieczytelna(self):
+        s1 = self._runs([(i, 1 + i * 10) for i in range(100)])
+        R, md = self._kontrola(lambda p: s1 if p == 1 else zd.urllib.error.URLError('zerwane połączenie'))
+        self.assertEqual(R['actions']['przebiegi_24h'], 100, 'pierwsza strona zostaje')
+        self.assertIn('zerwane', R['actions']['lista_niepelna'])
+        self.assertIn('Przebiegi Actions w 24 h: 100', md)
+        self.assertIn('lista niepełna — druga strona listy nieczytelna', md)
+        self.assertFalse(any('nie udało się odczytać listy przebiegów' in u for u in R['uwagi']))
+        R, md = self._kontrola(lambda p: zd.urllib.error.URLError('x'))
+        self.assertIn('blad', R['actions'], 'nieczytelna pierwsza strona — jak dotąd: część bez liczby, uwaga')
+
+    def test_insider_sekret_dodany_i_nieudane_pobranie(self):
+        saved = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
+                               'SITE_URL', 'CACHE_DIR', 'SEC_CONTACT', 'RWA_OFF')}
+        env['RWA_OFF'] = '1'; env['SEC_CONTACT'] = 'kontakt@example.org'
+        dane = {'at': '2026-10-05T08:00:00+00:00', 'day': '2026-10-02', 'done': True}
+        for prev, at in ((None, zd.NOW), ({'at': '2026-10-05T09:00:00+00:00', 'v': 1, 'off': True, 'powod': 'x'}, '2026-10-05T09:00:00+00:00'), (dane, None)):
+            saved.clear(); zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+            with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                    mock.patch.object(zd, 'previous', lambda name: prev if name == 'insider' else None), mock.patch.object(zd, '_RUN_T0', [None]):
+                [p.start() for p in stubs]
+                try:
+                    zd.main()
+                finally:
+                    [p.stop() for p in stubs]
+            I = saved['insider']
+            self.assertTrue(any(e.startswith('Insiderzy:') for e in zd.META['errors']), zd.META['errors'])
+            self.assertIs(zd.META['ok']['insider'], False)
+            if prev is dane:
+                self.assertIs(I, dane, 'poprzedni plik z danymi — bez zmian, jak dotąd')
+            else:
+                self.assertEqual(I, {'at': at, 'v': 1}, 'bez danych i bez „off” (sekret jest); czas poprzedniego pliku albo tego przebiegu')
+            zd.META['errors'].clear()
