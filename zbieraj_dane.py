@@ -9927,6 +9927,20 @@ def _ix_merge(old, new, keep):
     return [[d, m[d]] for d in sorted(m)][-keep:]
 
 
+def ix_bez_wypelnien(rows):
+    """v179: seria indeksu [[dzień, zamknięcie], …] bez wierszy z zamknięciem DOKŁADNIE równym poprzedniemu — dostawca wypełnia nimi dni bez
+    sesji (święta giełdy, w części serii także soboty i niedziele). Strona liczyła je jak sesje: „1 D” = 0,0% z datą święta, okna 5 i 21 sesji
+    krótsze o prawdziwe sesje (05.10: 66 takich wierszy w 6 seriach). Prawdziwe zamknięcie indeksu równe poprzedniemu jest bardzo rzadkie,
+    a jego pominięcie nie zmienia zmian liczonych od sąsiednich wierszy (ta sama wartość). Weekend sam w sobie nie jest wypełnieniem
+    (Tel Awiw do końca 2025 handlował w niedziele, Indie — niedzielna sesja budżetowa 01.02.2026). Nowa lista; wejście bez zmian."""
+    out = []
+    for r in rows:
+        if out and isinstance(r, list) and len(r) == 2 and isinstance(out[-1], list) and len(out[-1]) == 2 and r[1] == out[-1][1]:
+            continue
+        out.append(r)
+    return out
+
+
 def ix_fetch(sym, cc, key, rec, now):
     """Jeden indeks: dopełnienie od ostatniej sesji (z zakładką) albo rok wstecz; zwraca nowy wpis symbolu."""
     old = rec.get('d') if isinstance(rec, dict) and isinstance(rec.get('d'), list) else []
@@ -10165,6 +10179,8 @@ def build_indeksy(keys, prev=None, now=None):
         if part:
             out['ix'] = part
             out['part_at'].setdefault('ix', pat.get('ix') or prev.get('at') or NOW)
+    if isinstance(out.get('ix'), dict):   # v179: dni bez sesji wypełnione przez dostawcę — poza serią (każda seria, także niepobrana w tym przebiegu)
+        out['ix'] = {s: (dict(r, d=ix_bez_wypelnien(r['d'])) if isinstance(r, dict) and isinstance(r.get('d'), list) else r) for s, r in out['ix'].items()}
     pe = prev.get('etf') if isinstance(prev.get('etf'), dict) and isinstance(prev['etf'].get('q'), dict) and prev['etf']['q'] else None
     if keys.get('MASSIVE_KEY') or keys.get('TIINGO_KEY'):
         last = _ix_dt(pat.get('etf'))

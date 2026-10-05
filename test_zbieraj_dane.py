@@ -9603,7 +9603,7 @@ class IndeksyV106(unittest.TestCase):
         # sobota 1:00 UTC, USA pobrane przed piątkową sesją: dopełnienie z zakładką 10 dni, nowsza wartość wygrywa, ponad rok przycięty, licznik od zera
         for s, c, _ in zd.IX_SYMBOLS:
             o2['ix'].setdefault(s, {'cc': c, 'at': '2026-09-26T00:30:00+00:00', 'd': [['2026-09-25', 1.0]]})   # reszta świeżo po sesji — nie do odświeżenia
-        o2['ix']['GSPC']['at'] = '2026-09-24T23:00:00+00:00'; o2['ix']['GSPC']['d'] = [['2025-%02d-%02d' % (1 + i // 28, 1 + i % 28), 1.0] for i in range(263)] + o2['ix']['GSPC']['d']
+        o2['ix']['GSPC']['at'] = '2026-09-24T23:00:00+00:00'; o2['ix']['GSPC']['d'] = [['2025-%02d-%02d' % (1 + i // 28, 1 + i % 28), 1.0 + i / 1000] for i in range(263)] + o2['ix']['GSPC']['d']   # v179: różne wartości (równe sąsiednie = dni bez sesji)
         calls = []
         with mock.patch.object(zd, 'get_json', self._gj(calls, eod=[{'date': '2026-09-24', 'close': 6700.0}, {'date': '2026-09-25', 'close': 6750.0}], massive=self.MAS)):
             o3 = zd.build_indeksy({'EODHD_KEY': 'k-eod', 'MASSIVE_KEY': 'k-mas'}, o2, now=datetime.datetime(2026, 9, 26, 1, 0, tzinfo=self.UTC))
@@ -24100,3 +24100,57 @@ class RynkiFxV178(unittest.TestCase):
             self.assertFalse(o['ok']['fx'], zla); self.assertEqual(calls, ['latest'], 'bez dnia ostatniego fixingu — bez dalszych zapytań')
             self.assertTrue(any(e.startswith('Frankfurter: kursy now: zła data') for e in zd.META['errors']), zd.META['errors'])
             zd.META['errors'].clear()
+
+
+# ===================== v179: INDEKSY — DNI BEZ SESJI (WYPEŁNIENIA DOSTAWCY) POZA SERIĄ =====================
+class IndeksyWypelnieniaV179(unittest.TestCase):
+    """v179: wiersz z zamknięciem dokładnie równym poprzedniemu = dzień bez sesji wypełniony przez dostawcę (święto, weekend) — poza serią.
+    Wzory z pliku na żywo 05.10: Meksyk (sobota i niedziela po piątku, święto 16.03), Hiszpania (Wielki Piątek 03.04), Izrael (Jom Kipur 21.09)
+    oraz prawdziwe sesje niedzielne (Izrael 2025, Indie 01.02.2026), które zostają. Bez sieci."""
+    MON = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=datetime.timezone.utc)
+    MXX = [['2026-03-12', 66085.81], ['2026-03-13', 65648.91], ['2026-03-14', 65648.91], ['2026-03-15', 65648.91], ['2026-03-16', 65648.91],
+           ['2026-03-17', 66196.92], ['2026-03-20', 64134.9], ['2026-03-21', 64134.9], ['2026-03-22', 64134.9], ['2026-03-23', 64370.95]]
+    TA = [['2025-10-02', 3241.1], ['2025-10-05', 3270.22], ['2025-10-06', 3270.22], ['2025-10-09', 3301.5], ['2025-10-12', 3326.1799],
+          ['2026-09-17', 4164.3501], ['2026-09-21', 4164.3501], ['2026-09-22', 4173.2798]]
+    IN = [['2026-01-30', 81211.4], ['2026-02-01', 80722.9375], ['2026-02-02', 80901.2]]
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def test_regula(self):
+        f = zd.ix_bez_wypelnien
+        self.assertEqual(f(self.MXX), [['2026-03-12', 66085.81], ['2026-03-13', 65648.91], ['2026-03-17', 66196.92], ['2026-03-20', 64134.9],
+                                       ['2026-03-23', 64370.95]], 'sobota, niedziela i święto (16.03) po piątku — poza serią')
+        self.assertEqual([r[0] for r in f(self.TA)], ['2025-10-02', '2025-10-05', '2025-10-09', '2025-10-12', '2026-09-17', '2026-09-22'],
+                         'niedziele 2025 z własnym zamknięciem zostają; święta (06.10.2025, Jom Kipur 21.09.2026) — poza serią')
+        self.assertEqual(f(self.IN), self.IN, 'niedzielna sesja budżetowa w Indiach — prawdziwa, zostaje')
+        self.assertEqual(f([['2026-10-02', 7722.72], ['2026-10-05', 7722.72]]), [['2026-10-02', 7722.72]], 'wypełnienie na końcu — ostatnia sesja = piątek')
+        self.assertEqual(f([]), []); self.assertEqual(f([['2026-10-02', 1.0]]), [['2026-10-02', 1.0]])
+        r = [['2026-09-30', 10.0], ['2026-10-01', 10.5], ['2026-10-02', 10.0]]
+        self.assertEqual(f(r), r, 'ta sama wartość, ale nie w sąsiednich wierszach — prawdziwe sesje')
+        x = [['2026-10-01', 5.0], ['2026-10-02', 5.0]]; f(x)
+        self.assertEqual(len(x), 2, 'lista wejściowa bez zmian w miejscu')
+
+    def _prev(self):
+        recent = '2026-10-05T11:00:00+00:00'   # po ostatnim zamknięciu każdej sesji — poza planem tego przebiegu
+        ix = {s: {'cc': cc, 'at': recent, 'd': [['2026-10-01', 100.0 + i], ['2026-10-02', 101.0 + i]]} for i, (s, cc, _) in enumerate(zd.IX_SYMBOLS)}
+        ix['MXX']['d'] = [list(r) for r in self.MXX]; ix['TA125']['d'] = [list(r) for r in self.TA]
+        ix['GSPC'] = {'cc': 'us', 'at': '2026-10-01T23:00:00+00:00', 'd': [['2026-09-30', 7651.54], ['2026-10-01', 7666.45]]}   # do pobrania
+        return {'at': recent, 'ok': {'ix': True, 'etf': True}, 'part_at': {'ix': recent, 'etf': recent}, 'ix': ix,
+                'etf': {'date': '2026-10-02', 'q': {'BND': [['2026-10-01', 72.5], ['2026-10-02', 72.5]]}}}
+
+    def test_plik_wszystkie_serie_czesci_ix(self):
+        prev = self._prev(); kopia = json.loads(json.dumps(prev)); calls = []
+        eod = [{'date': '2026-10-01', 'close': 7666.45}, {'date': '2026-10-02', 'close': 7722.72}, {'date': '2026-10-05', 'close': 7722.72}]
+        with mock.patch.object(zd, 'get_json', side_effect=IndeksyV106._gj(self, calls, eod=eod)):
+            o = zd.build_indeksy({'EODHD_KEY': 'k'}, prev, now=self.MON)
+        self.assertEqual(len(calls), 1, 'w planie tylko S&P 500'); self.assertIn('GSPC.INDX', calls[0])
+        self.assertEqual(o['ix']['GSPC']['d'], [['2026-09-30', 7651.54], ['2026-10-01', 7666.45], ['2026-10-02', 7722.72]],
+                         'pobrany indeks: poniedziałkowy wiersz z piątkowym zamknięciem — poza serią')
+        self.assertEqual([r[0] for r in o['ix']['MXX']['d']], ['2026-03-12', '2026-03-13', '2026-03-17', '2026-03-20', '2026-03-23'],
+                         'niepobrany w tym przebiegu — też oczyszczony')
+        self.assertEqual(len(o['ix']['TA125']['d']), 6)
+        self.assertEqual(o['etf'], prev['etf'], 'fundusze ETF bez zmian (ceny bywają naprawdę równe)')
+        self.assertEqual(prev, kopia, 'poprzedni plik nie jest zmieniany w miejscu')
+        o2 = zd.build_indeksy({}, prev, now=self.MON)   # klucz zniknął — stare serie zostają, też bez wypełnień
+        self.assertEqual(len(o2['ix']['MXX']['d']), 5); self.assertEqual(prev, kopia)
