@@ -13310,3 +13310,22 @@ test('v188: dominacja BTC — zmiana 24 h (pkt proc.) z pliku serwera i zmiany c
   assert.ok(html.includes("${k.id==='dom'?' '+t('u.pp'):'%'}"), 'kafel pokazuje zmianę dominacji w pkt proc.');
 });
 
+/* ---------- v189: jedno pobranie pliku serwera na minutę (dotąd przy starcie cm.json, stopy.json, meta.json 2–3 razy) ---------- */
+test('v189: srvJSON — ten sam plik w tej samej minucie pobierany raz, każdy dostaje własną kopię; błąd nie zapamiętany; nowa minuta = nowe pobranie; plik lokalny = brak', async () => {
+  const a = html.indexOf('function srvJSON(name){'), b = html.indexOf('\n}\n', a) + 2;
+  let now = Date.parse('2026-10-05T20:00:10Z'), proto = 'https:'; const calls = []; let fail = false;
+  const fetchF = (u, o) => { calls.push(u); assert.equal(o.cache, 'no-store');
+    return fail ? Promise.reject(new Error('sieć')) : Promise.resolve({ok: true, json: () => Promise.resolve({at: 'x', d: [[1, 2]]})}); };
+  const f = new Function('fetch', 'location', 'Date', 'AbortSignal', 'structuredClone', html.slice(a, b) + '\nreturn srvJSON;')(
+    fetchF, {get protocol() { return proto; }}, {now: () => now}, {timeout: () => 'SYG'}, typeof structuredClone === 'function' ? structuredClone : undefined);
+  const [x, y] = await Promise.all([f('cm'), f('cm')]);
+  assert.equal(calls.length, 1, 'jedno pobranie'); assert.deepEqual(x, y); assert.notEqual(x, y, 'własne kopie');
+  x.d.push(9); assert.deepEqual(y.d, [[1, 2]], 'zmiana kopii nie przenosi się');
+  await f('stopy'); assert.equal(calls.length, 2, 'inny plik — osobno');
+  now += 60 * 1000; await f('cm'); assert.equal(calls.length, 3, 'nowa minuta — nowe pobranie');
+  fail = true; assert.equal(await f('meta'), null); fail = false; assert.deepEqual(await f('meta'), {at: 'x', d: [[1, 2]]});
+  assert.equal(calls.length, 5, 'błąd nie zapamiętany — drugie wywołanie pyta znowu');
+  proto = 'file:'; assert.equal(await f('cm'), null); assert.equal(calls.length, 5, 'plik lokalny — bez pobierania');
+  assert.ok(calls.every(u => /^data\/[a-z]+\.json\?t=\d+$/.test(u)), 'adres jak dotąd');
+});
+

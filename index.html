@@ -3391,10 +3391,19 @@ const GPROXY={usa:[['SPY',1]],can:[['EWC',1]],lat:[['ILF',1]],eur:[['VGK',1]],ru
 let gDayBusy=false;
 /* ---------- dane z serwera strony: data/*.json wytwarzane przez GitHub Actions (klucze zostają na serwerze) ----------
    Widz nie wpisuje żadnych kluczy. Z pliku lokalnego (file://) tej ścieżki nie ma — wtedy działają klucze z Ustawień. */
+/* v189: ten sam plik serwera w tej samej minucie — jedno pobranie (przy starcie strony cm.json, stopy.json i meta.json szły 2–3 razy, np. cm.json
+   ok. 38 KB dwukrotnie); każdy wywołujący dostaje własną kopię danych (bez wspólnych zmian obiektu); nieudane pobranie nie jest zapamiętywane.
+   Pamięć jako własność funkcji (srvJSON.c) — działa także przy wywołaniu z kodu wyżej w pliku (bez strefy martwej zmiennej). */
 function srvJSON(name){
   if(location.protocol==='file:')return Promise.resolve(null);
-  return fetch('data/'+name+'.json?t='+Math.floor(Date.now()/60000),{cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined})
-    .then(r=>r.ok?r.json():null).catch(()=>null);
+  const S=srvJSON.c||(srvJSON.c={}),m=Math.floor(Date.now()/60000);let c=S[name];
+  if(!c||c.m!==m){
+    const p=fetch('data/'+name+'.json?t='+m,{cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined})
+      .then(r=>r.ok?r.json():null).catch(()=>null);
+    c=S[name]={m,p};
+    p.then(j=>{if(j==null&&S[name]===c)delete S[name];});
+  }
+  return c.p.then(j=>j&&typeof j==='object'?(typeof structuredClone==='function'?structuredClone(j):JSON.parse(JSON.stringify(j))):j);
 }
 /* notowania ETF-ów krajowych → zmiana dnia per region (wspólne dla serwera i klucza Finnhub) */
 function gDayApply(q){
