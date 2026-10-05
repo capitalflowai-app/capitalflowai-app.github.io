@@ -1,11 +1,5 @@
 [
 {
-"at": "2026-10-02T06:41:48+00:00",
-"bledy_zbieracza": 0,
-"uwagi": 2,
-"bledy": 0
-},
-{
 "at": "2026-10-03T05:53:54+00:00",
 "bledy_zbieracza": 1,
 "uwagi": 5,
@@ -175,6 +169,12 @@
 },
 {
 "at": "2026-10-05T23:15:37+00:00",
+"bledy_zbieracza": 0,
+"uwagi": 2,
+"bledy": 0
+},
+{
+"at": "2026-10-05T23:32:26+00:00",
 "bledy_zbieracza": 0,
 "uwagi": 2,
 "bledy": 0
