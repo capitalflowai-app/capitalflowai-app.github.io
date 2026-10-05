@@ -24372,8 +24372,10 @@ class CzasPrzebieguV185(unittest.TestCase):
                 real_save(n, o)
                 if koniec and len(saved) == 1:
                     t[0] += 20 * 60   # przebieg ciężki: 20 min po pierwszym zapisie
+            cz = []   # v190: lista czasów tego testu (izolowana od reszty zestawu)
             with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'OUT', d), mock.patch.object(zd.time, 'monotonic', mono), \
-                    mock.patch.object(zd, 'previous', lambda name: None), mock.patch.object(zd, 'save', save), mock.patch('sys.stdout', io.StringIO()):
+                    mock.patch.object(zd, '_RUN_T0', [None]), mock.patch.object(zd, '_DEADLINE', [None]), mock.patch.object(zd, '_CZAS', cz), \
+                    mock.patch.object(zd, 'previous', lambda name: None), mock.patch.object(zd, 'save', save), mock.patch('sys.stdout', io.StringIO()):   # v190: zegar i listy izolowane
                 [p.start() for p in stubs]
                 try:
                     zd.main()
@@ -24387,7 +24389,7 @@ class CzasPrzebieguV185(unittest.TestCase):
                 self.assertGreaterEqual(C['s'], 20 * 60); self.assertEqual(len(uw), 1); self.assertIn('limitu zadania (25 min)', uw[0])
             else:
                 self.assertLess(C['s'], 18 * 60); self.assertEqual(uw, [])
-        self.assertEqual(zd._CZAS[-1][0], 'meta', 'ostatni zapis — plik stanu')
+            self.assertEqual(cz[-1][0], 'meta', 'ostatni zapis — plik stanu')   # v190: lista izolowana w teście
 
     def test_kontrola_pokazuje_czas(self):
         import importlib.util
@@ -24436,3 +24438,46 @@ class IkonaStronyV187(unittest.TestCase):
             self.assertLess(len(b), 20_000, n)
         self.assertIn('img/favicon.svg, img/favicon-32.png, img/apple-touch-icon.png — ikona strony', open(os.path.join(d, 'LICENCJE.txt'), encoding='utf-8').read())
 
+
+# ===================== v190: POPRAWKI PO PRZEGLĄDZIE v184–v189 =====================
+class PoPrzegladzieV190(unittest.TestCase):
+    """v190: cmc.json — wartości „sprzed doby” z tej samej odpowiedzi (zmiany 24 h z jednej migawki); kontrola — najdłuższy udany przebieg w 24 h."""
+
+    def test_cmc_wczoraj(self):
+        base = {'status': {'error_code': 0}, 'data': {'btc_dominance': 59.0, 'eth_dominance': 11.3, 'btc_dominance_yesterday': 58.6, 'eth_dominance_yesterday': 11.4,
+                'last_updated': '2026-10-05T18:44:59.999Z', 'quote': {'USD': {'total_market_cap': 2.915e12, 'total_market_cap_yesterday': 2.91e12,
+                                                                              'total_volume_24h': 8.59e10}}}}
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None: base):
+            o = zd.build_cmc('k')
+        self.assertEqual((o['btc_dom_y'], o['eth_dom_y'], o['total_mcap_y']), (58.6, 11.4, 2.91e12))
+        for k in ('btc_dominance_yesterday', 'eth_dominance_yesterday'):
+            del base['data'][k]
+        del base['data']['quote']['USD']['total_market_cap_yesterday']
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None: base):
+            o = zd.build_cmc('k')
+        self.assertEqual((o['btc_dom_y'], o['eth_dom_y'], o['total_mcap_y']), (None, None, None), 'brak pól — brak, nie zero')
+
+    def test_kontrola_najdluzszy_przebieg(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v190', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        NOW = datetime.datetime(2026, 10, 5, 21, 0, tzinfo=datetime.timezone.utc)
+        f = lambda m: (NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        runs = [{'id': 1, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(60), 'updated_at': f(45.5)},
+                {'id': 2, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(30), 'updated_at': f(27)},
+                {'id': 3, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'cancelled', 'run_started_at': f(100), 'updated_at': f(50)},
+                {'id': 4, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(25 * 60), 'updated_at': f(25 * 60 - 40)},
+                {'id': 5, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(10), 'updated_at': 'zły'}]
+        with mock.patch.object(k, 'NOW', NOW):
+            A, b, u = k.przebiegi_ocena(runs, NOW)
+        self.assertEqual(A['najdluzszy_min'], 14.5, 'tylko udane z 24 h; anulowany (czekanie w awarii) i starszy niż doba — pominięte; zły czas — pominięty')
+        R = {'at': NOW.isoformat(), 'wynik': 'OK', 'uwagi': [], 'bledy': [], 'strona': {'ok': True, 'http': 200, 'ms': 1},
+             'meta': {'at': f(5), 'wiek_min': 5, 'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'swiezosc': [], 'zgodnosc': {},
+             'actions': A}
+        md = k.raport_md(R)
+        self.assertIn('- Najdłuższy udany przebieg w 24 h: 14,5 min (od startu do końca, z czekaniem na maszyny; limit zadania budowy 25 min).', md)
+        A['najdluzszy_min'] = 21.0
+        self.assertIn('21,0 min (od startu do końca, z czekaniem na maszyny; limit zadania budowy 25 min) ⚠️ blisko limitu.', k.raport_md(R))
+        A['najdluzszy_min'] = None
+        self.assertNotIn('Najdłuższy udany przebieg', k.raport_md(R))
+        self.assertTrue(md.startswith('# Kontrola strony — ') and '**Wynik: OK**' in md)

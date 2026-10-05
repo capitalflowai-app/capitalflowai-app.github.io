@@ -2504,22 +2504,21 @@ function kpiCmc(M,out,live){const ok=v=>typeof v==='number'&&isFinite(v)&&v>0;if
   const at=M.asof||M.at,x=big(M.total_mcap);let d=(typeof M.mcap_chg24_pct==='number'&&isFinite(M.mcap_chg24_pct))?M.mcap_chg24_pct:null;if(d!==null&&Math.abs(d)<.005)d=0;
   out.mcap={val:x[0],unit:x[1],dec:x[2],d,src:'CoinMarketCap',at};if(ok(M.btc_dom))out.dom={val:M.btc_dom,unit:'%',dec:1,d:null,src:'CoinMarketCap',at};
   /* v186: kapitał poza BTC i ETH z TEGO SAMEGO pliku co rynek i dominacja (dotąd z innego źródła, które liczy rynek szerzej: 1,00 bln obok
-     rynku 2,92 bln i BTC 59% — z liczb obok wychodzi 0,86 bln); zmiana 24 h z tego rynku i zmian cen BTC i ETH na żywo, inaczej brak porównania */
+     rynku 2,92 bln i BTC 59% — z liczb obok wychodzi 0,86 bln); v190: zmiana 24 h tylko z jednej migawki — wartości „sprzed doby” z tej samej
+     odpowiedzi źródła (dawniej z cen BTC i ETH na żywo z innej chwili — możliwa zmiana znaku); brak pól = brak porównania */
+  const ty=ok(M.total_mcap_y)?M.total_mcap_y:(d!==null?M.total_mcap/(1+d/100):null);
   if(ok(M.btc_dom)&&ok(M.eth_dom)&&M.btc_dom+M.eth_dom<100){
-    const alt=M.total_mcap*(1-(M.btc_dom+M.eth_dom)/100),xa=big(alt),C=(typeof LIVE!=='undefined'&&LIVE&&LIVE.C)||{};
-    const pb=C.BTC&&C.BTC.pct?C.BTC.pct['24H']:null,pe=C.ETH&&C.ETH.pct?C.ETH.pct['24H']:null;let da=null;
-    if(live&&d!==null&&typeof pb==='number'&&isFinite(pb)&&typeof pe==='number'&&isFinite(pe)){
-      const prev=M.total_mcap/(1+d/100)-M.total_mcap*M.btc_dom/100/(1+pb/100)-M.total_mcap*M.eth_dom/100/(1+pe/100);
+    const alt=M.total_mcap*(1-(M.btc_dom+M.eth_dom)/100),xa=big(alt);let da=null;
+    if(ok(ty)&&ok(M.btc_dom_y)&&ok(M.eth_dom_y)&&M.btc_dom_y+M.eth_dom_y<100){const prev=ty*(1-(M.btc_dom_y+M.eth_dom_y)/100);
       if(prev>0){da=(alt-prev)/prev*100;if(Math.abs(da)<.005)da=0;}}
     if(ok(alt))out.alt={val:xa[0],unit:xa[1],dec:xa[2],d:da,src:'CoinMarketCap',at};}
   /* v186: wolumen 24 h też z tego pliku (inne źródło na żywo 05.10: 148,2 mld USD i „+85,97%”, dwa inne: 85,9 i 91,5 mld); zmiana — pole vol_chg24_pct */
   if(ok(M.total_vol24)){const xv=big(M.total_vol24);let dv=(typeof M.vol_chg24_pct==='number'&&isFinite(M.vol_chg24_pct))?M.vol_chg24_pct:null;if(dv!==null&&Math.abs(dv)<.005)dv=0;
     out.vol={val:xv[0],unit:xv[1],dec:xv[2],d:dv,src:'CoinMarketCap',at};}
-  /* v188: zmiana dominacji BTC z 24 h z tego samego pliku (rynek i jego zmiana) i zmiany ceny BTC na żywo (dotąd „brak porównania”);
-     |zmiana| > 5 pkt proc. = dane niespójne → brak porównania (jak dawniej) */
-  if(out.dom&&live&&d!==null){const L=(typeof LIVE!=='undefined'&&LIVE&&LIVE.C)||{},pb=L.BTC&&L.BTC.pct?L.BTC.pct['24H']:null;
-    if(typeof pb==='number'&&isFinite(pb)){const tp=M.total_mcap/(1+d/100),bp=M.total_mcap*M.btc_dom/100/(1+pb/100);
-      if(tp>0){let dd=M.btc_dom-bp/tp*100;if(Math.abs(dd)<.005)dd=0;if(Math.abs(dd)<=5)out.dom.d=dd;}}}
+  /* v188: zmiana dominacji BTC z 24 h (pkt proc.; dotąd „brak porównania”); v190: z udziału „sprzed doby” z tej samej odpowiedzi źródła
+     (dawniej z ceny BTC na żywo z innej chwili) i tylko dla kafla z tego pliku (dawniej przy braku udziału BTC w pliku — 0 przy kaflu z innego
+     źródła); |zmiana| > 5 pkt proc. = dane niespójne → brak porównania */
+  if(ok(M.btc_dom)&&ok(M.btc_dom_y)&&out.dom&&out.dom.src==='CoinMarketCap'){let dd=M.btc_dom-M.btc_dom_y;if(Math.abs(dd)<.005)dd=0;if(Math.abs(dd)<=5)out.dom.d=dd;}
   return out;}
 function renderKPI(){
   const L=kpiVals(),lv=isLive();
@@ -6369,7 +6368,7 @@ const TXT_JAK_PL=`
 <tr><td><span class="cell">rentowność 10 lat USA i Niemiec</span></td><td><span class="cell">codziennie w dni robocze</span></td><td><span class="cell">dzień bez notowań to brak danych</span></td></tr>
 <tr><td><span class="cell">kursy walut, dolar vs koszyk</span></td><td><span class="cell">raz dziennie w dni robocze</span></td><td><span class="cell">około 16:00 czasu środkowoeuropejskiego</span></td></tr>
 <tr><td><span class="cell">wartość giełd i PKB</span></td><td><span class="cell">raz w roku</span></td><td><span class="cell">najnowszy rok bywa niepełny</span></td></tr>
-<tr><td><span class="cell">wartość rynku krypto, stablecoiny, obrót BTC wg walut</span></td><td><span class="cell">na bieżąco</span></td><td><span class="cell">strona sprawdza co 5 minut (stablecoiny i obrót wg walut co 15 minut); pełne pobranie co pół godziny</span></td></tr>
+<tr><td><span class="cell">wartość rynku krypto, stablecoiny, obrót BTC wg walut</span></td><td><span class="cell">na bieżąco</span></td><td><span class="cell">wartość rynku z pliku serwera co 10 minut, stablecoiny co godzinę; obrót wg walut strona pobiera co 15 minut; pełne odświeżenie co pół godziny</span></td></tr>
 <tr><td><span class="cell">napływy do ETF na krypto</span></td><td><span class="cell">dane dzienne (po zamknięciu giełdy w USA, rano D+1)</span></td><td><span class="cell">automat pyta najwyżej raz na godzinę</span></td></tr>
 <tr><td><span class="cell">okres „DZIŚ” (fundusze krajowe)</span></td><td><span class="cell">bieżąca sesja w USA</span></td><td><span class="cell">automat co 10 minut; poza sesją pokazuje ostatnie notowanie z datą</span></td></tr>
 <tr><td><span class="cell">okresy tydzień–rok na mapie (fundusze krajowe)</span></td><td><span class="cell">dzienne zamknięcia</span></td><td><span class="cell">automat co około godzinę</span></td></tr>
@@ -9228,9 +9227,10 @@ function rwCls(v){if(!rwNum(v))return 'na';const r=Math.round(v*10)/10;return r>
    tekst bazowy k (tłumaczenia innych języków bez zmian). n — liczba do wyboru formy; o — pola tekstu (w tym sformatowane n). Dawniej jedna forma:
    „ostatnie 1 sesji”, „4 portfeli”, „≈ 1 pełnych bloków”. */
 function tN(k,n,o){
-  let c='other';try{c=new Intl.PluralRules(LOCALE[LANG]||'pl-PL').select(n);}catch(e){}
-  const D=typeof I18N!=='undefined'?I18N:null,kk='odm.'+k+'.'+c;   /* formy w osobnej przestrzeni „odm.” */
-  return t(D&&D[LANG]&&D[LANG][kk]!=null?kk:k,o);
+  const D=typeof I18N!=='undefined'?I18N:null,L=[LANG,'en','pl'].find(l=>D&&D[l]&&D[l][k]!=null)||LANG;   /* v190: język tekstu jak w t() — tekst tylko po polsku = polska forma */
+  let c='other';try{c=new Intl.PluralRules(LOCALE[L]||'pl-PL').select(n);}catch(e){}
+  const kk='odm.'+k+'.'+c;   /* formy w osobnej przestrzeni „odm.” */
+  return t(D&&D[L]&&D[L][kk]!=null?kk:k,o);
 }
 function rwN(n){let f='other';try{f=new Intl.PluralRules(LOCALE[LANG]||'pl-PL').select(n);}catch(e){}return t('rwa.np.'+(['one','few','many'].includes(f)?f:'other'),{n:nfmt(n,0)});}
 function rwShare(v,all){const x=rwPos(v),a=rwPos(all);return x!==null&&a!==null?nfmt(x/a*100,1)+'%':'—';}

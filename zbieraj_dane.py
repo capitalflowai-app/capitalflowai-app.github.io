@@ -662,6 +662,8 @@ def build_cmc(key):
            'mcap_chg24_pct': num(usd.get('total_market_cap_yesterday_percentage_change')),
            'vol_chg24_pct': num(usd.get('total_volume_24h_yesterday_percentage_change')),   # v186: zmiana wolumenu 24 h (kafel strony z tego samego pliku)
            'btc_dom': num(d.get('btc_dominance')), 'eth_dom': num(d.get('eth_dominance')),
+           'btc_dom_y': num(d.get('btc_dominance_yesterday')), 'eth_dom_y': num(d.get('eth_dominance_yesterday')),   # v190: „sprzed doby” z tej samej
+           'total_mcap_y': num(usd.get('total_market_cap_yesterday')),                                                # odpowiedzi — zmiany 24 h z jednej migawki
            'stable_mcap': num(usd.get('stablecoin_market_cap') if 'stablecoin_market_cap' in usd else d.get('stablecoin_market_cap')),
            'defi_mcap': num(usd.get('defi_market_cap') if 'defi_market_cap' in usd else d.get('defi_market_cap')),
            'altcoin_mcap': num(usd.get('altcoin_market_cap')), 'active': d.get('active_cryptocurrencies')}

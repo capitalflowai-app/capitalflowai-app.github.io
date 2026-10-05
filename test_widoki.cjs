@@ -10256,10 +10256,10 @@ test('v146: Metodologia „Jak czytać liczby” — de, es, fr, it, pt, ru, zh,
   const a = 'const TXT_JAK_EN=`', x0 = html.indexOf(a), EN = html.slice(x0 + a.length, html.indexOf('`;', x0));
   assert.equal(fnv(EN), 'f0211ddd', 'TXT_JAK_EN bez zmian (suma sprzed v146)'); assert.equal(EN.length, 571);
   const j0 = html.indexOf('const TXT_JAK_PL=`'), lit = html.slice(j0, html.indexOf('`;', j0) + 2);
-  assert.equal(fnv(lit) + ' ' + lit.length, '47201744 17860', 'TXT_JAK_PL bez zmian od v146 poza v168 (tabela częstotliwości: „co 10 minut”) i v184 (Indie/Tajwan/Hongkong „co godzinę”, krypto „co 5 minut”)');
+  assert.equal(fnv(lit) + ' ' + lit.length, 'cbd81ba1 17902', 'TXT_JAK_PL bez zmian od v146 poza v168 (tabela częstotliwości: „co 10 minut”), v184 (Indie/Tajwan/Hongkong „co godzinę”) i v190 (krypto: zwykła droga — plik serwera)');
   const out = {}, I = v143Final(html);
   for (const L of V146_L10) out[L] = v96src.render(L, false, null).txtJakCzytac();
-  assert.equal(fnv(out.pl) + ' ' + out.pl.length, 'f737afdd 23808', 'pl: Metodologia z ikonami bajt w bajt jak przed v146 poza v168 („co 10 minut” — 2 miejsca) i v184 (2 komórki tabeli częstotliwości)');
+  assert.equal(fnv(out.pl) + ' ' + out.pl.length, '608ad116 23850', 'pl: Metodologia z ikonami bajt w bajt jak przed v146 poza v168 („co 10 minut” — 2 miejsca), v184 i v190 (komórki tabeli częstotliwości)');
   assert.equal(out.en, EN, 'en: bajt w bajt TXT_JAK_EN');
   const tags = s => (s.match(/<[^>]+>/g) || []).join('');
   const enT = v146Txt(EN), enW = enT.toLowerCase().match(/[a-z]+/g), tri = new Set();
@@ -13256,8 +13256,8 @@ test('v183: prawdziwe teksty — świat 1 / 3 / 5 sesji, krypto 1 / 7 dni, „cz
 test('v184: Metodologia — Indie/Tajwan/Hongkong „automat co godzinę” (od v91), dane krypto „co 5 minut (stablecoiny i obrót wg walut co 15 minut)”; strona zgodnie z kodem (zbieracz — test w test_zbieraj_dane.py)', () => {
   const j0 = html.indexOf('const TXT_JAK_PL=`'), j = html.slice(j0, html.indexOf('`;', j0));
   assert.ok(j.includes('<td><span class="cell">zakupy i sprzedaże inwestorów zagranicznych: Indie, Tajwan, Hongkong</span></td><td><span class="cell">codziennie w dni sesji</span></td><td><span class="cell">automat co godzinę; wynik dnia po sesji</span></td>'));
-  assert.ok(j.includes('<span class="cell">strona sprawdza co 5 minut (stablecoiny i obrót wg walut co 15 minut); pełne pobranie co pół godziny</span>'));
-  assert.ok(!j.includes('automat co 3 godziny; wynik dnia po sesji') && !j.includes('strona odświeża co minutę'), 'bez dawnych opisów');
+  assert.ok(j.includes('<span class="cell">wartość rynku z pliku serwera co 10 minut, stablecoiny co godzinę; obrót wg walut strona pobiera co 15 minut; pełne odświeżenie co pół godziny</span>'), 'v190: zwykła droga (plik serwera), nie zapas');
+  assert.ok(!j.includes('automat co 3 godziny; wynik dnia po sesji') && !j.includes('strona odświeża co minutę') && !j.includes('strona sprawdza co 5 minut'), 'bez dawnych opisów');
   const g0 = html.indexOf('function gAuto(on){'), g = html.slice(g0, html.indexOf('\n}', g0));
   assert.ok(g.includes('},60000);') && g.includes("due(5)?gJSON(cgUrl(GSRC.crypto))") && g.includes('(!krStabh()&&due(15))?gJSON(GSRC.stab)') && g.includes('if(gTick%15===0&&gTick%30!==0)gJSON(GSRC.fiat)') && g.includes('if(gTick%30===0)gLoad();'), 'strona: krypto co 5 min, stablecoiny i obrót wg walut co 15 min, pełne co 30 min');
 });
@@ -13273,15 +13273,12 @@ test('v186: „Kapitał poza BTC i ETH” i wolumen 24 h z pliku serwera — ryn
   const o = f(M, {alt: {val: 996, unit: 'u.b', dec: 1, d: 1.02, src: 'X'}}, true);   /* dawne: z innego źródła (3,055 bln − BTC − ETH) */
   assert.equal(o.alt.unit, 'u.b'); assert.ok(Math.abs(o.alt.val - alt / 1e9) < 1e-6 && Math.abs(o.alt.val - 863.9) < 0.1, 'ok. 864 mld USD, nie 996: ' + o.alt.val);
   assert.equal(o.alt.at, M.asof); assert.equal(o.alt.src, 'CoinMarketCap');
-  const prev = M.total_mcap / (1 + M.mcap_chg24_pct / 100) - M.total_mcap * M.btc_dom / 100 / 1.0086072 - M.total_mcap * M.eth_dom / 100 / 1.0043578;
-  assert.ok(Math.abs(o.alt.d - (alt - prev) / prev * 100) < 1e-9, 'zmiana 24 h: ' + o.alt.d);
+  assert.equal(o.alt.d, null, 'v190: bez wartości „sprzed doby” w pliku — brak porównania (już nie z cen na żywo z innej chwili)');
   assert.ok(Math.abs(o.mcap.val - 2.9147516) < 1e-6 && o.dom.val === M.btc_dom, 'rynek i dominacja jak dotąd');
   const g = mk(undefined)(M, {}, false);
   assert.ok(Math.abs(g.alt.val - alt / 1e9) < 1e-6 && g.alt.d === null, 'bez danych na żywo: liczba z pliku, bez porównania (dotąd „—”)');
   const h = mk({C: {}})(Object.assign({}, M, {eth_dom: undefined}), {alt: {val: 1, unit: 'u.t', dec: 2, d: 0, src: 'X'}}, true);
   assert.deepEqual(h.alt, {val: 1, unit: 'u.t', dec: 2, d: 0, src: 'X'}, 'plik bez udziału ETH — wartość z danych na żywo jak dotąd');
-  const k = mk({C: {BTC: {pct: {'24H': 'x'}}, ETH: {pct: {}}}})(M, {}, true);
-  assert.equal(k.alt.d, null, 'bez zmian cen BTC i ETH — brak porównania, nie zero');
   const v = f(Object.assign({}, M, {total_vol24: 85896128809.23, vol_chg24_pct: -12.4}), {vol: {val: 148.2, unit: 'u.b', dec: 1, d: 85.97, src: 'X'}}, true);
   assert.ok(Math.abs(v.vol.val - 85.89612880923) < 1e-9 && v.vol.d === -12.4 && v.vol.at === M.asof, 'wolumen z pliku (85,9 mld), nie z innego źródła (148,2 mld, +85,97%)');
   assert.equal(f(Object.assign({}, M, {total_vol24: 85896128809.23}), {}, true).vol.d, null, 'plik bez zmiany wolumenu — brak porównania, nie zero');
@@ -13296,18 +13293,9 @@ test('v187: ikona strony — odnośniki w nagłówku dokumentu (SVG, PNG 32 px, 
 });
 
 /* ---------- v188: CRYPTO — zmiana dominacji BTC z 24 h z tego samego pliku co rynek ---------- */
-test('v188: dominacja BTC — zmiana 24 h (pkt proc.) z pliku serwera i zmiany ceny BTC na żywo; bez danych na żywo albo > 5 pkt — brak porównania', () => {
-  const a0 = html.indexOf('function kpiCmc(M,out,live){'), a1 = html.indexOf('function renderKPI(){', a0);
-  const mk = LIVE => new Function('big', 'LIVE', html.slice(a0, a1) + '\nreturn kpiCmc;')(v => [v / 1e12, 'u.t', 2], LIVE);
-  const M = {total_mcap: 2914751599869.277, mcap_chg24_pct: 0.18292151, btc_dom: 59.016123697454, eth_dom: 11.344955346571, asof: '2026-10-05T18:44:59.999Z'};
-  const o = mk({C: {BTC: {pct: {'24H': 0.86072}}, ETH: {pct: {'24H': 0.43578}}}})(M, {}, true);
-  const tp = M.total_mcap / (1 + M.mcap_chg24_pct / 100), bp = M.total_mcap * M.btc_dom / 100 / 1.0086072, dd = M.btc_dom - bp / tp * 100;
-  assert.ok(Math.abs(o.dom.d - dd) < 1e-12 && Math.abs(o.dom.d - 0.3966) < 0.001, 'BTC +0,86% przy rynku +0,18% — dominacja w górę ok. 0,4 pkt: ' + o.dom.d);
-  assert.equal(o.dom.val, M.btc_dom);
-  assert.equal(mk(undefined)(M, {}, false).dom.d, null, 'bez danych na żywo — brak porównania');
-  assert.equal(mk({C: {BTC: {pct: {'24H': 40}}}})(M, {}, true).dom.d, null, 'zmiana > 5 pkt — dane niespójne, brak porównania');
-  assert.equal(mk({C: {BTC: {pct: {'24H': 0.5}}}})(Object.assign({}, M, {mcap_chg24_pct: null}), {}, true).dom.d, null, 'bez zmiany rynku — brak porównania');
+test('v188: dominacja BTC — zmiana 24 h w pkt proc. (od v190: z udziału „sprzed doby” z pliku serwera — test v190); kafel pokazuje pkt proc.', () => {
   assert.ok(html.includes("${k.id==='dom'?' '+t('u.pp'):'%'}"), 'kafel pokazuje zmianę dominacji w pkt proc.');
+  assert.ok(html.includes('if(ok(M.btc_dom)&&ok(M.btc_dom_y)&&out.dom&&out.dom.src===\'CoinMarketCap\'){let dd=M.btc_dom-M.btc_dom_y;'));
 });
 
 /* ---------- v189: jedno pobranie pliku serwera na minutę (dotąd przy starcie cm.json, stopy.json, meta.json 2–3 razy) ---------- */
@@ -13329,3 +13317,32 @@ test('v189: srvJSON — ten sam plik w tej samej minucie pobierany raz, każdy d
   assert.ok(calls.every(u => /^data\/[a-z]+\.json\?t=\d+$/.test(u)), 'adres jak dotąd');
 });
 
+
+/* ---------- v190: zmiany 24 h kafli CRYPTO z jednej migawki pliku serwera; tN — język tekstu jak w t() ---------- */
+test('v190: „Kapitał poza BTC i ETH” i „Dominacja BTC” — zmiana 24 h tylko z wartości „sprzed doby” z tego samego pliku (bez cen na żywo z innej chwili)', () => {
+  const a0 = html.indexOf('function kpiCmc(M,out,live){'), a1 = html.indexOf('function renderKPI(){', a0);
+  const mk = LIVE => new Function('big', 'LIVE', html.slice(a0, a1) + '\nreturn kpiCmc;')(v => v >= 1e12 ? [v / 1e12, 'u.t', 2] : v >= 1e9 ? [v / 1e9, 'u.b', 1] : [v / 1e6, 'u.m', 0], LIVE);
+  const M = {total_mcap: 2.915e12, mcap_chg24_pct: 0.18, btc_dom: 59.0, eth_dom: 11.3, btc_dom_y: 58.6, eth_dom_y: 11.4, total_mcap_y: 2.91e12, asof: 'A'};
+  const L1 = {C: {BTC: {pct: {'24H': 0.86}}, ETH: {pct: {'24H': 0.44}}}}, L2 = {C: {BTC: {pct: {'24H': -3}}, ETH: {pct: {'24H': 5}}}};
+  const o = mk(L1)(M, {}, true), p = mk(L2)(M, {}, true);
+  const alt = 2.915e12 * (1 - 0.703), prev = 2.91e12 * (1 - 0.70);
+  assert.ok(Math.abs(o.alt.d - (alt - prev) / prev * 100) < 1e-9, 'kapitał poza: ' + o.alt.d); assert.equal(o.alt.d, p.alt.d, 'ceny na żywo nie zmieniają wyniku');
+  assert.ok(Math.abs(o.dom.d - 0.4) < 1e-9 && o.dom.d === p.dom.d, 'dominacja: 59,0 − 58,6 = +0,4 pkt');
+  const q = mk(L1)(Object.assign({}, M, {total_mcap_y: undefined}), {}, true);
+  assert.ok(Math.abs(q.alt.d - (alt - 2.915e12 / 1.0018 * 0.30) / (2.915e12 / 1.0018 * 0.30) * 100) < 1e-9, 'bez rynku „sprzed doby” — z jego zmiany 24 h (ta sama migawka)');
+  const r = mk(L1)(Object.assign({}, M, {btc_dom_y: null, eth_dom_y: null}), {}, true);
+  assert.equal(r.alt.d, null); assert.equal(r.dom.d, null, 'bez wartości „sprzed doby” — brak porównania (dawniej z cen na żywo)');
+  const s = mk(L1)(Object.assign({}, M, {btc_dom: null}), {dom: {val: 58.7, unit: '%', dec: 1, d: 0.21, src: 'CoinPaprika'}}, true);
+  assert.deepEqual(s.dom, {val: 58.7, unit: '%', dec: 1, d: 0.21, src: 'CoinPaprika'}, 'plik bez udziału BTC — kafel z innego źródła bez zmian (dawniej zmiana 0)');
+  assert.equal(mk(L1)(Object.assign({}, M, {btc_dom_y: 50}), {}, true).dom.d, null, 'zmiana > 5 pkt — brak porównania');
+  assert.ok(!html.slice(a0, a1).includes("pct['24H']"), 'bez cen na żywo w zmianach z pliku');
+});
+test('v190: tN — język tekstu jak w t(): tekst tylko po polsku u widza z innym językiem dostaje polską formę; tłumaczony — własny tekst', () => {
+  const a = html.indexOf('function tN(k,n,o){'), b = html.indexOf('\nfunction rwN(n)', a);
+  const I = {pl: {'x': 'ostatnie {n} sesji', 'odm.x.one': 'ostatnia sesja', 'y': '{n} portfeli', 'odm.y.few': '{n} portfele'}, en: {}, de: {'y': '{n} Wallets'}};
+  const mk = L => { const t = (k, v) => { let s = (I[L] && I[L][k]) ?? I.en[k] ?? I.pl[k] ?? k; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
+    return new Function('t', 'I18N', 'LANG', 'LOCALE', html.slice(a, b) + '\nreturn tN;')(t, I, L, {pl: 'pl-PL', en: 'en-US', de: 'de-DE'}); };
+  assert.equal(mk('de')('x', 1, {n: 1}), 'ostatnia sesja', 'TRENDY po polsku u Niemca — polska forma');
+  assert.equal(mk('de')('y', 3, {n: 3}), '3 Wallets', 'tekst przetłumaczony — własny, bez polskiej formy');
+  assert.equal(mk('pl')('y', 3, {n: 3}), '3 portfele'); assert.equal(mk('pl')('x', 5, {n: 5}), 'ostatnie 5 sesji');
+});

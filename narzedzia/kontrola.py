@@ -739,7 +739,16 @@ def przebiegi_ocena(runs, now, kroki=None):
     por = [r for r in ost if r.get('conclusion') == 'failure']
     z_rzedu = next((i for i, r in enumerate(zak) if r.get('conclusion') != 'failure'), len(zak))
     udane_po = next((i for i, r in enumerate(zak) if r.get('conclusion') == 'failure'), len(zak)) if por else None
+    def trwanie(r):   # v190: minuty od startu do końca przebiegu (z czekaniem na maszyny); zły czas = None
+        try:
+            b = dt.datetime.fromisoformat(str(r.get('updated_at')).replace('Z', '+00:00'))
+            b = b if b.tzinfo else b.replace(tzinfo=dt.timezone.utc)
+            return (b - czas(r)).total_seconds() / 60
+        except Exception:
+            return None
+    trw = [x for x in (trwanie(r) for r in ost if r.get('status') == 'completed' and r.get('conclusion') == 'success') if x is not None and x >= 0]
     A = {'przebiegi_24h': len(ost), 'wg_wyniku': z, 'ostatni': ost[0].get('run_started_at') if ost else None,
+         'najdluzszy_min': round(max(trw), 1) if trw else None,   # v190: najdłuższy udany przebieg w 24 h
          'ostatnia_porazka': por[0].get('run_started_at') if por else None, 'porazki_z_rzedu': z_rzedu, 'udane_po_porazce': udane_po,
          'porazki': [{'at': r.get('run_started_at'), 'krok': kroki.get(r.get('id'))} for r in por[:10]]}
     bledy, uwagi = [], []
@@ -2270,6 +2279,10 @@ def raport_md(R):
     if 'przebiegi_24h' in a:
         L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).'
                  + (' Uwaga: lista niepełna — druga strona listy nieczytelna, liczba z pierwszych 100.' if a.get('lista_niepelna') else ''))
+        if isinstance(a.get('najdluzszy_min'), (int, float)):   # v190: zapas do limitu zadania budowy (25 min)
+            nd = a['najdluzszy_min']
+            L.append(f'- Najdłuższy udany przebieg w 24 h: {nd:.1f} min'.replace('.', ',') + ' (od startu do końca, z czekaniem na maszyny; limit zadania budowy 25 min)'
+                     + (' ⚠️ blisko limitu.' if nd > 20 else '.'))
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
