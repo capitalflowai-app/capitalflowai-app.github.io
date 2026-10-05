@@ -13358,8 +13358,8 @@ test('v191: dane z serwera starsze niż 60 min — pasek w nagłówku (min / god
   const el = {hidden: true, textContent: 'x'}, NOW = Date.parse('2026-10-05T21:00:00Z');
   const run = meta => new Function('document', 't', 'GLIVE', 'Date', html.slice(a, b + 1) + '\nsrvStale();')({getElementById: id => id === 'srv-stale' ? el : null}, t, {meta}, {now: () => NOW, parse: Date.parse});
   run({at: '2026-10-05T20:30:00+00:00'}); assert.equal(el.hidden, true, '30 min — w normie');
-  run({at: '2026-10-05T19:45:00+00:00'}); assert.equal(el.hidden, false); assert.equal(el.textContent, 'Dane z serwera są sprzed 75 min — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.');
-  run({at: '2026-10-05T18:46:00+00:00'}); assert.equal(el.textContent, 'Dane z serwera są sprzed 2 godz. — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.');
+  run({at: '2026-10-05T19:45:00+00:00'}); assert.equal(el.hidden, false); assert.equal(el.textContent, 'Dane z serwera są sprzed ponad 70 min — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.');   /* v194: krok 10 min */
+  run({at: '2026-10-05T18:46:00+00:00'}); assert.equal(el.textContent, 'Dane z serwera są sprzed ponad 2 godz. — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.');
   run(null); assert.equal(el.hidden, true, 'bez pliku stanu — nie zgadujemy'); run({at: 'zły'}); assert.equal(el.hidden, true);
   const head = html.slice(html.indexOf('<header class="top">'), html.indexOf('</header>'));
   assert.ok(head.includes('<p class="srv-stale" id="srv-stale" role="status" hidden></p>'), 'w nagłówku — każda zakładka i telefon');
@@ -13410,4 +13410,22 @@ test('v193: para ▼ z A / ▲ na B (ta sama transakcja, zdarzenie, token, kwota
     if (NEW[L]) assert.ok(s.endsWith(NEW[L]), L + ': ' + s);
     if (L !== 'pl' && L !== 'en') assert.notEqual(s, v96src.tFor('en')('wh.tr.sub'), L + ': tłumaczenie, nie angielski');
   }
+});
+
+
+/* ---------- v194: pasek „dane z serwera starsze niż godzina” co 10 min (czytnik ekranu); włoski tekst Źródeł przy 1 godz. ---------- */
+test('v194: pasek zmienia tekst w krokach 10 min (sprzed ponad 60/70 … min, potem godz.), ten sam tekst nie jest wpisywany ponownie; włoski „più di 1 h fa”', () => {
+  const a = html.indexOf('function srvStale(){'), b = html.indexOf('}   /* v191: koniec */', a);
+  const D = v183Dict('EXTRA173');
+  const t = (k, v) => { let s = D.pl[k] ?? k; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
+  let sets = 0; const el = {hidden: true, _t: '', get textContent() { return this._t; }, set textContent(v) { sets++; this._t = v; }};
+  const NOW = Date.parse('2026-10-05T21:00:00Z');
+  const run = at => new Function('document', 't', 'GLIVE', 'Date', html.slice(a, b + 1) + '\nsrvStale();')({getElementById: () => el}, t, {meta: {at}}, {now: () => NOW, parse: Date.parse});
+  run('2026-10-05T19:45:00+00:00'); assert.equal(el.textContent, 'Dane z serwera są sprzed ponad 70 min — automatyczne odświeżanie (zwykle co 10 min) się opóźnia; każda liczba ma swoją datę.');
+  const n = sets; run('2026-10-05T19:46:00+00:00'); assert.equal(sets, n, '74 min — ten sam krok 70 min, bez ponownego wpisu (bez ogłoszenia)');
+  run('2026-10-05T19:59:00+00:00'); assert.ok(el.textContent.startsWith('Dane z serwera są sprzed ponad 60 min'), '61 min');
+  run('2026-10-05T18:46:00+00:00'); assert.ok(el.textContent.startsWith('Dane z serwera są sprzed ponad 2 godz.'), '2 h 14 min');
+  run('2026-10-05T20:30:00+00:00'); assert.equal(el.hidden, true);
+  const it = [...html.matchAll(/const EXTRA97=(\{.*?\});\n/g)].map(m => JSON.parse(m[1]))[0];
+  assert.ok(it && it.it['zr2.stale'].includes('più di {h} h fa') && !it.it['zr2.stale'].includes('{h} ore'), 'włoski: „più di 1 h fa”, nie „1 ore”');
 });

@@ -24498,9 +24498,9 @@ class EtfFunduszeRzadziejV192(unittest.TestCase):
     def _run(self, prev, last='2026-10-02', zly=None):
         calls = []
         funds = {'btc': [{'ticker': 'IBIT', 'name': 'a'}, {'ticker': 'FBTC', 'name': 'b'}]}
-        snaps = {'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 1.6e8, 'sponsor_fee': 0.0025},
+        snaps = {'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 7.1e7, 'sponsor_fee': 0.0025},   # v194: 71 + 29 = 100 = przepływ dnia
                  'FBTC': {'net_assets': 1.5e10, 'cum_inflow': 1.1e10, 'net_inflow': 2.9e7, 'sponsor_fee': 0}}
-        base = _soso_factory({'btc': _rows(['2026-10-01', last])}, funds, snaps)
+        base = _soso_factory({'btc': _rows(['2026-10-01', last]), 'eth': _rows(['2026-10-01', last])}, funds, snaps)   # v194: Hongkong BTC i ETH (czas części tylko dla kompletu)
 
         def soso(path, key, _retry=True):
             calls.append(path)
@@ -24513,7 +24513,7 @@ class EtfFunduszeRzadziejV192(unittest.TestCase):
 
     def _prev(self, h_funds=1.0, asof='2026-10-02', h_hk=1.0):
         f = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
-        return {'assets': {'btc': {'asof': asof, 'day': [], 'funds_at': f(h_funds),
+        return {'assets': {'btc': {'asof': asof, 'day': [], 'd1': 100.0, 'cum': 5000.0, 'funds_at': f(h_funds),   # v194: te same liczby dnia
                                    'funds': [{'t': 'IBIT', 'n': 'a', 'cty': 'us', 'aum': 67000.0, 'cum': 65000.0, 'd1': 150.0, 'fee': 0.25, 'prem': None}]}},
                 'hk': {'btc': {'sym': 'BTC', 'asof': asof}}, 'hk_at': f(h_hk)}
 
@@ -24587,3 +24587,132 @@ class WhMiedzyGieldamiV193(unittest.TestCase):
     def test_polacz_zachowuje_x(self):
         r = {'t': '2026-10-05T12:21:00+00:00', 'token': 'USDT', 'amt': 1e7, 'usd': 1e7, 'dir': 'out', 'exch': 'Binance', 'x': 'Bybit', 'tx': '0x' + 'aa' * 32, 'blk': 500, 'li': 3}
         self.assertEqual(zd.wh_polacz([r], [], 100)[0].get('x'), 'Bybit', 'wiersz z poprzedniego pliku zachowuje x')
+
+
+# ===================== v194: PO PRZEGLĄDZIE v190–v192 — ETF (te same liczby dnia, suma funduszy, błąd monety, Hongkong), KONTROLA =====================
+class PoPrzegladzieV194(unittest.TestCase):
+    """v194: lista funduszy ponownie tylko przy tym samym zestawieniu dnia i z sumą zgodną z przepływem dnia; błąd monety = poprzedni wpis
+    (historia dni zostaje); Hongkong z czasem tylko dla kompletu; kontrola — czas samego zadania budowy. Bez sieci."""
+    NOW = datetime.datetime(2026, 10, 5, 21, 0, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        self.enterContext(mock.patch.object(zd, 'ETF_SYMS', ['btc', 'eth']))
+        self.enterContext(mock.patch.object(zd, 'get_json', lambda url, headers=None: {'bitcoin': {'usd_market_cap': 1.7e12}, 'ethereum': {'usd_market_cap': 4e11}}))
+
+    def _run(self, prev, hist=None, snaps=None, zle=()):
+        calls = []
+        funds = {'btc': [{'ticker': 'IBIT', 'name': 'a'}, {'ticker': 'FBTC', 'name': 'b'}], 'eth': [{'ticker': 'ETHA', 'name': 'c'}]}
+        S = {'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 7.1e7, 'sponsor_fee': 0.0025},
+             'FBTC': {'net_assets': 1.5e10, 'cum_inflow': 1.1e10, 'net_inflow': 2.9e7, 'sponsor_fee': 0},
+             'ETHA': {'net_assets': 1.2e10, 'cum_inflow': 1.0e10, 'net_inflow': 1.0e8, 'sponsor_fee': 0.0025}}
+        S.update(snaps or {})
+        H = hist or {'btc': _rows(['2026-10-01', '2026-10-02']), 'eth': _rows(['2026-10-01', '2026-10-02'])}
+        H.setdefault('btc', []); H.setdefault('eth', [])
+        base = _soso_factory(H, funds, S)
+
+        def soso(path, key, _retry=True):
+            calls.append(path)
+            for z in zle:
+                if z in path:
+                    raise RuntimeError('HTTP 500')
+            if 'country_code=HK' in path:
+                return _rows(['2026-10-02'], inflow=5.0)
+            return base(path, key)
+        with mock.patch.object(zd, 'soso', soso):
+            out = zd.build_etf('k', 'c', prev)
+        return out, calls
+
+    def _prev(self, d1=100.0, cum=5000.0, asof='2026-10-02', h=1.0):
+        f = (self.NOW - datetime.timedelta(hours=h)).isoformat()
+        day = [[zd.ts('2026-08-%02d' % i), 1.0] for i in range(3, 29)] + [[zd.ts('2026-10-01'), 100.0], [zd.ts('2026-10-02'), d1]]
+        fu = [{'t': 'IBIT', 'n': 'a', 'cty': 'us', 'aum': 67000.0, 'cum': 65000.0, 'd1': 71.0, 'fee': 0.25, 'prem': None},
+              {'t': 'FBTC', 'n': 'b', 'cty': 'us', 'aum': 15000.0, 'cum': 11000.0, 'd1': 29.0, 'fee': 0.25, 'prem': None}]
+        return {'assets': {'btc': {'sym': 'BTC', 'asof': asof, 'day': day, 'd1': d1, 'cum': cum, 'funds_at': f, 'funds': fu},
+                           'eth': {'sym': 'ETH', 'asof': asof, 'day': day, 'd1': 100.0, 'cum': 5000.0, 'funds_at': f,
+                                   'funds': [{'t': 'ETHA', 'n': 'c', 'cty': 'us', 'aum': 12000.0, 'cum': 10000.0, 'd1': 100.0, 'fee': 0.25, 'prem': None}]}},
+                'hk': {'btc': {'sym': 'BTC', 'asof': asof, 'day': day[-3:]}, 'eth': {'sym': 'ETH', 'asof': asof, 'day': day[-3:]}}, 'hk_at': f}
+
+    def test_te_same_liczby_dnia_bez_listy(self):
+        out, calls = self._run(self._prev())
+        self.assertFalse(any('/market-snapshot' in c or c.startswith('/etfs?') for c in calls), 'te same liczby dnia, lista młoda — bez listy')
+        self.assertEqual(out['assets']['btc']['funds_at'], self._prev()['assets']['btc']['funds_at'])
+
+    def test_poprawka_liczb_dnia_pobiera_liste(self):
+        for prev, why in ((self._prev(d1=90.0), 'przepływ dnia poprawiony przez źródło'), (self._prev(cum=4990.0), 'suma od startu poprawiona'),
+                          (dict(self._prev(), assets={'btc': {k: v for k, v in self._prev()['assets']['btc'].items() if k != 'd1'}, 'eth': self._prev()['assets']['eth']}), 'stary plik bez d1')):
+            zd.META['notes'].clear()
+            out, calls = self._run(prev)
+            self.assertEqual(sum('/market-snapshot' in c and ('IBIT' in c or 'FBTC' in c) for c in calls), 2, why)
+            self.assertEqual(out['assets']['btc']['funds_at'], zd.NOW, why + ' — suma funduszy 71 + 29 = 100 = przepływ dnia')
+
+    def test_suma_funduszy_niezgodna_bez_czasu(self):
+        out, calls = self._run(None, snaps={'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 1.6e8, 'sponsor_fee': 0.0025}})
+        a = out['assets']['btc']
+        self.assertNotIn('funds_at', a, 'suma 160 + 29 ≠ 100 — szczegóły funduszy z innego dnia; następny przebieg pobiera znowu')
+        self.assertTrue(any('SoSoValue BTC: lista funduszy niezgodna z przepływem dnia' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual(out['assets']['eth']['funds_at'], zd.NOW, 'ETH zgodne (100 = 100)')
+        out, _ = self._run(None, snaps={'FBTC': {'net_assets': 1.5e10, 'cum_inflow': 1.1e10, 'net_inflow': None, 'sponsor_fee': 0}})
+        self.assertNotIn('funds_at', out['assets']['btc'], 'fundusz bez przepływu — suma nieznana, bez czasu')
+        out, _ = self._run(None, snaps={'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 7.12e7, 'sponsor_fee': 0.0025}})
+        self.assertEqual(out['assets']['btc']['funds_at'], zd.NOW, 'różnica 0,2 mln — w tolerancji (0,5 mln albo 2%)')
+
+    def test_blad_monety_poprzedni_wpis(self):
+        prev = self._prev()
+        out, calls = self._run(prev, hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
+        e = out['assets']['eth']
+        self.assertEqual((e['asof'], len(e['day']), e['funds'][0]['t']), ('2026-10-02', 28, 'ETHA'), 'poprzedni wpis z historią 28 dni, nie brak monety')
+        self.assertTrue(any('SoSoValue ETH: HTTP 500' in x for x in zd.META['errors'])); self.assertTrue(any('SoSoValue ETH: poprzednie dane z 2026-10-02' in n for n in zd.META['notes']))
+        self.assertIsNot(e, prev['assets']['eth'], 'kopia')
+        with self.assertRaises(RuntimeError):
+            self._run(prev, zle=('summary-history?symbol=BTC&country_code=US', 'summary-history?symbol=ETH&country_code=US'))
+
+    def test_blad_listy_nie_kasuje_monety(self):
+        out, calls = self._run(self._prev(d1=90.0), zle=('/etfs?symbol=BTC',))
+        a = out['assets']['btc']
+        self.assertEqual((a['asof'], a['d1']), ('2026-10-02', 100.0), 'moneta z nowym zestawieniem')
+        self.assertEqual([f['t'] for f in a['funds']], ['IBIT', 'FBTC'], 'ten sam dzień — poprzednia lista'); self.assertNotIn('funds_at', a)
+        self.assertTrue(any('SoSoValue BTC: lista funduszy — HTTP 500' in x for x in zd.META['errors']))
+        out, _ = self._run(self._prev(asof='2026-10-01'), zle=('/etfs?symbol=BTC',))
+        self.assertEqual(out['assets']['btc']['funds'], [], 'inny dzień — bez listy (nie stare liczby przy nowym dniu)')
+
+    def test_hongkong_komplet(self):
+        prev = self._prev(h=7)
+        out, calls = self._run(prev, zle=('symbol=ETH&country_code=HK',))
+        self.assertEqual(out['hk']['eth'], prev['hk']['eth'], 'ETH bez odpowiedzi — poprzedni wpis'); self.assertEqual(out['hk']['btc']['asof'], '2026-10-02')
+        self.assertNotIn('hk_at', out, 'bez kompletu — bez czasu, następny przebieg pobiera znowu')
+        out, _ = self._run(prev)
+        self.assertEqual(out['hk_at'], zd.NOW)
+
+    def test_kontrola_czas_zadania_budowy(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v194', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        NOW = self.NOW
+        f = lambda m: (NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        runs = [{'id': 1, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(60), 'updated_at': f(36)},
+                {'id': 2, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(30), 'updated_at': f(27)},
+                {'id': 3, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'cancelled', 'run_started_at': f(100), 'updated_at': f(50)},
+                {'id': 4, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(25 * 60), 'updated_at': f(25 * 60 - 40)},
+                {'id': 5, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(200), 'updated_at': f(186)},
+                {'id': 6, 'name': 'Zegar zapasowy', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(300), 'updated_at': f(200)},
+                {'id': 7, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': 'zły', 'updated_at': f(5)}]
+        self.assertEqual(k.najdluzsze_udane(runs, NOW, 3), [1, 5, 2], 'udane „Strona” z 24 h, malejąco wg czasu; anulowane, starsze, inne zadania i zły czas — pominięte')
+        J = [{'name': 'zbuduj', 'started_at': '2026-10-05T20:00:20Z', 'completed_at': '2026-10-05T20:13:38Z'}, {'name': 'opublikuj', 'started_at': '2026-10-05T20:13:40Z', 'completed_at': '2026-10-05T20:24:00Z'}]
+        self.assertAlmostEqual(k.zadanie_min(J, 'zbuduj'), 13.3, places=6)
+        self.assertIsNone(k.zadanie_min(J, 'brak')); self.assertIsNone(k.zadanie_min([{'name': 'zbuduj', 'started_at': None, 'completed_at': 'x'}], 'zbuduj')); self.assertIsNone(k.zadanie_min(None, 'zbuduj'))
+        A = {'przebiegi_24h': 5, 'wg_wyniku': {'success': 5}, 'najdluzszy_min': 24.0, 'budowa_max_min': 13.3, 'porazki': []}
+        R = {'at': NOW.isoformat(), 'wynik': 'OK', 'uwagi': [], 'bledy': [], 'strona': {'ok': True, 'http': 200, 'ms': 1},
+             'meta': {'at': f(5), 'wiek_min': 5, 'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'swiezosc': [], 'zgodnosc': {}, 'actions': A}
+        md = k.raport_md(R)
+        self.assertIn('- Najdłuższy udany przebieg w 24 h: 24,0 min (od startu do końca, z czekaniem na maszyny); samo zadanie budowy najdłużej 13,3 min z limitu 25 min.', md)
+        A['budowa_max_min'] = 21.5
+        self.assertIn('samo zadanie budowy najdłużej 21,5 min z limitu 25 min ⚠️ blisko limitu.', k.raport_md(R))
+        del A['budowa_max_min']
+        self.assertIn('24,0 min (od startu do końca, z czekaniem na maszyny; limit zadania budowy 25 min) ⚠️ blisko limitu.', k.raport_md(R), 'bez czasu zadań — jak w v190')
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as fh:
+            src = fh.read()
+        i = src.index('# 4. przebiegi Actions'); j = src.index('# 5. v115', i)
+        self.assertIn("najdluzsze_udane(runs, NOW, 3)", src[i:j]); self.assertIn("zadanie_min(json.loads(b3).get('jobs', []), 'zbuduj')", src[i:j])
+        self.assertTrue(md.startswith('# Kontrola strony — ') and '**Wynik: OK**' in md, 'nagłówek i wynik bez zmian (czyta je zadanie w chmurze)')

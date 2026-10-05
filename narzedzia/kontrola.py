@@ -714,6 +714,37 @@ def opis_kroku(zadanie, krok):
     return f'{zadanie} / {k}' if zadanie else k
 
 
+def najdluzsze_udane(runs, now, n=3):
+    """v194: identyfikatory n najdłuższych udanych przebiegów „Strona i dane” z ostatnich 24 h (od startu do ostatniej zmiany), malejąco."""
+    od, out = now - dt.timedelta(hours=24), []
+    for r in runs if isinstance(runs, list) else []:
+        if not (isinstance(r, dict) and str(r.get('name', '')).startswith('Strona') and r.get('status') == 'completed' and r.get('conclusion') == 'success'):
+            continue
+        try:
+            a = dt.datetime.fromisoformat(str(r.get('run_started_at')).replace('Z', '+00:00'))
+            b = dt.datetime.fromisoformat(str(r.get('updated_at')).replace('Z', '+00:00'))
+        except Exception:
+            continue
+        a, b = (x if x.tzinfo else x.replace(tzinfo=dt.timezone.utc) for x in (a, b))
+        if a >= od and b >= a:
+            out.append(((b - a).total_seconds(), r.get('id')))
+    return [i for _, i in sorted(out, key=lambda x: -x[0])[:n]]
+
+
+def zadanie_min(jobs, nazwa):
+    """v194: minuty zadania o tej nazwie (od startu zadania do końca, bez czekania w kolejce); brak albo zły czas = None."""
+    for j in jobs if isinstance(jobs, list) else []:
+        if isinstance(j, dict) and j.get('name') == nazwa:
+            try:
+                a = dt.datetime.fromisoformat(str(j.get('started_at')).replace('Z', '+00:00'))
+                b = dt.datetime.fromisoformat(str(j.get('completed_at')).replace('Z', '+00:00'))
+                m = (b - a).total_seconds() / 60
+            except Exception:
+                return None
+            return m if m >= 0 else None
+    return None
+
+
 def przebiegi_ocena(runs, now, kroki=None):
     """v124.1: przebiegi automatu („Strona i dane”) z ostatnich 24 h → (actions, bledy, uwagi).
     BŁĄD tylko, gdy automat NADAL nie działa: dwa ostatnie zakończone przebiegi nieudane albo ≥ 3 porażki w 24 h i ostatni zakończony
@@ -2240,6 +2271,19 @@ def kontrola():
             except Exception:  # noqa
                 pass
         R['actions'], b, u = przebiegi_ocena(runs, NOW, kroki)
+        # v194 (przegląd v190–v192): czas samego zadania budowy (limit 25 min) w 3 najdłuższych udanych przebiegach — całość przebiegu zawiera
+        # czekanie na maszyny (w awarii GitHuba fałszywe „blisko limitu”); 3 dodatkowe zapytania, błąd odczytu = bez tej liczby
+        bud = []
+        for rid in najdluzsze_udane(runs, NOW, 3):
+            try:
+                _, b3, _ = get(f'https://api.github.com/repos/{REPO}/actions/runs/{rid}/jobs', headers=hdr)
+                m3 = zadanie_min(json.loads(b3).get('jobs', []), 'zbuduj')
+                if m3 is not None:
+                    bud.append(m3)
+            except Exception:  # noqa
+                pass
+        if bud:
+            R['actions']['budowa_max_min'] = round(max(bud), 1)
         if druga:
             R['actions']['lista_niepelna'] = druga
         R['bledy'] += b
@@ -2280,9 +2324,13 @@ def raport_md(R):
         L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).'
                  + (' Uwaga: lista niepełna — druga strona listy nieczytelna, liczba z pierwszych 100.' if a.get('lista_niepelna') else ''))
         if isinstance(a.get('najdluzszy_min'), (int, float)):   # v190: zapas do limitu zadania budowy (25 min)
-            nd = a['najdluzszy_min']
-            L.append(f'- Najdłuższy udany przebieg w 24 h: {nd:.1f} min'.replace('.', ',') + ' (od startu do końca, z czekaniem na maszyny; limit zadania budowy 25 min)'
-                     + (' ⚠️ blisko limitu.' if nd > 20 else '.'))
+            nd, bm = a['najdluzszy_min'], a.get('budowa_max_min')
+            if isinstance(bm, (int, float)) and not isinstance(bm, bool):   # v194: ostrzeżenie z czasu samego zadania budowy (bez czekania na maszyny)
+                L.append(f'- Najdłuższy udany przebieg w 24 h: {nd:.1f} min'.replace('.', ',') + ' (od startu do końca, z czekaniem na maszyny); samo zadanie budowy najdłużej '
+                         + f'{bm:.1f} min'.replace('.', ',') + ' z limitu 25 min' + (' ⚠️ blisko limitu.' if bm > 20 else '.'))
+            else:
+                L.append(f'- Najdłuższy udany przebieg w 24 h: {nd:.1f} min'.replace('.', ',') + ' (od startu do końca, z czekaniem na maszyny; limit zadania budowy 25 min)'
+                         + (' ⚠️ blisko limitu.' if nd > 20 else '.'))
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))

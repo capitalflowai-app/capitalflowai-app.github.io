@@ -4436,6 +4436,12 @@ def etf_fee(ticker, v):
     return ETF_FEE_FIX.get(ticker, f) if f == 0 else f
 
 
+def _etf_rowne(x, y):
+    """v194: dwie liczby z zestawienia dnia równe (te same dane źródła); brak albo nie-liczba = nie (lista funduszy pobierana znowu)."""
+    ok = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and _etf_math.isfinite(v)  # noqa: E731
+    return ok(x) and ok(y) and abs(x - y) <= 1e-6 * max(1.0, abs(y))
+
+
 def build_etf(key, cg_key, prev=None):
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
     prev_assets = prev.get('assets') if isinstance(prev, dict) and isinstance(prev.get('assets'), dict) else {}
@@ -4449,21 +4455,27 @@ def build_etf(key, cg_key, prev=None):
     except Exception as e:
         META['errors'].append(mask(f'CoinGecko: {e}'))
         META['ok']['coingecko'] = False
+    nowe = 0
     for s in ETF_SYMS:
+        pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
         try:
-            pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
-            _etf_coin(out, s, key, pa.get('day'), prev_a=pa)
+            _etf_coin(out, s, key, pa.get('day'), prev_a=pa); nowe += 1
         except Exception as e:   # v49: brak jednej monety nie kasuje pozostałych
             META['errors'].append(mask(f'SoSoValue {s.upper()}: {e}'))
-    if not out['assets']:
+            # v194 (przegląd v190–v192): poprzedni wpis monety z własną datą zamiast braku wiersza — i bez utraty historii dni starszej niż okno
+            # źródła (ok. 21 sesji; następny przebieg łączy nowe okno z tą historią)
+            if isinstance(pa.get('day'), list) and pa['day'] and isinstance(pa.get('asof'), str):
+                out['assets'][s] = json.loads(json.dumps(pa))
+                META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]}')
+    if not nowe:   # wszystkie monety zawiodły — main zostawia poprzedni plik z jego czasem
         raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
     ph = prev.get('hk') if isinstance(prev, dict) and isinstance(prev.get('hk'), dict) and prev['hk'] else None
     hat = _ix_dt(prev.get('hk_at')) if isinstance(prev, dict) else None
     if ph and hat is not None and 0 <= (_now_utc() - hat).total_seconds() < ETF_FUNDS_EVERY * 60:   # v192: Hongkong najwyżej co 6 h
         out['hk'], out['hk_at'] = ph, prev['hk_at']
     else:
-        _etf_hk(out, key, ph)   # v61: Hongkong (próba, nie psuje części USA)
-        if out.get('hk'):
+        nowe_hk = _etf_hk(out, key, ph)   # v61: Hongkong (próba, nie psuje części USA)
+        if out.get('hk') and set(nowe_hk or ()) >= {'btc', 'eth'}:   # v194: czas tylko dla kompletu z tego przebiegu
             out['hk_at'] = NOW
     # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
     dates = sorted({a['asof'] for a in out['assets'].values()})
@@ -4495,8 +4507,14 @@ def _etf_hk(out, key, prev_assets_hk):
             META['notes'].append(f'SoSoValue HK {s.upper()}: {len(rows)} dni do {last["date"]}; pola: {", ".join(hk[s]["fields"])}')
         except Exception as e:
             META['notes'].append(mask(f'SoSoValue HK {s.upper()}: {e}'))
+    nowe = sorted(hk)
+    if isinstance(prev_assets_hk, dict):   # v194: moneta bez odpowiedzi — poprzedni wpis (z własną datą i historią dni), nie brak
+        for s in ('btc', 'eth'):
+            if s not in hk and isinstance(prev_assets_hk.get(s), dict):
+                hk[s] = prev_assets_hk[s]
     if hk:
         out['hk'] = hk
+    return nowe
 
 
 def _etf_coin(out, s, key, prev_day=None, prev_a=None):
@@ -4520,12 +4538,22 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
         # (limit czasu, błąd funduszu) bez funds_at — następny przebieg pobiera ją znowu
         pf = prev_a.get('funds') if isinstance(prev_a, dict) and isinstance(prev_a.get('funds'), list) else None
         fat = _ix_dt(prev_a.get('funds_at')) if isinstance(prev_a, dict) else None
-        stara = not (pf and prev_a.get('asof') == last['date'] and fat is not None and 0 <= (_now_utc() - fat).total_seconds() < ETF_FUNDS_EVERY * 60)
+        # v194 (przegląd v190–v192): ponownie tylko przy TYM SAMYM zestawieniu dnia (data, przepływ dnia, suma od startu) — poprawka źródła
+        # w liczbach dnia = lista znowu (dotąd do 6 h ze starymi liczbami funduszy)
+        same = (isinstance(prev_a, dict) and prev_a.get('asof') == last['date'] and _etf_rowne(prev_a.get('d1'), a['d1'])
+                and _etf_rowne(prev_a.get('cum'), a['cum']))
+        stara = not (pf and same and fat is not None and 0 <= (_now_utc() - fat).total_seconds() < ETF_FUNDS_EVERY * 60)
         pelna = True
+        lst = []
         if stara:
-            lst = soso(f'/etfs?symbol={s.upper()}&country_code=US', key)
+            try:
+                lst = soso(f'/etfs?symbol={s.upper()}&country_code=US', key)
+            except Exception as e:   # v194: błąd listy nie kasuje monety — lista z poprzedniego pliku tylko z tego samego dnia danych
+                META['errors'].append(mask(f'SoSoValue {s.upper()}: lista funduszy — {e}')); pelna = False
+                if pf and isinstance(prev_a, dict) and prev_a.get('asof') == last['date']:
+                    a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]
         else:
-            lst = []; a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]; a['funds_at'] = prev_a['funds_at']
+            a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]; a['funds_at'] = prev_a['funds_at']
         for it in (lst or [])[:12]:
             if _DEADLINE[0] is not None and time.monotonic() > _DEADLINE[0]:   # v49: limit czasu przebiegu
                 META['errors'].append(f'SoSoValue {s.upper()}: lista funduszy pominięta — limit czasu przebiegu'); pelna = False; break
@@ -4544,7 +4572,15 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
             except Exception as e:
                 META['errors'].append(mask(f'SoSoValue {it.get("ticker")}: {e}')); pelna = False
         if stara and pelna:
-            a['funds_at'] = NOW   # v192: pełna lista z tego przebiegu
+            # v194: czas listy tylko, gdy suma przepływów funduszy zgadza się z przepływem dnia z zestawienia (tolerancja jak w kontroli: 0,5 mln
+            # albo 2%) — przy zmianie dnia szczegóły funduszy bywają jeszcze z dnia poprzedniego; inaczej następny przebieg pobiera listę znowu
+            d1f = [f.get('d1') for f in a['funds']]
+            nl = [x for x in d1f if isinstance(x, (int, float)) and not isinstance(x, bool)]
+            if a['funds'] and len(nl) == len(d1f) and abs(sum(nl) - a['d1']) <= max(0.5, 0.02 * abs(a['d1'])):
+                a['funds_at'] = NOW   # v192: pełna lista z tego przebiegu
+            else:
+                META['notes'].append(f'SoSoValue {s.upper()}: lista funduszy niezgodna z przepływem dnia ({a["d1"]:+.1f} mln; suma {sum(nl):+.1f} mln z '
+                                     f'{len(nl)} z {len(d1f)} funduszy) — znowu w następnym przebiegu')
         a['funds'].sort(key=lambda f: -(f['aum'] or 0))
         if not a['aum'] and a['funds']:
             # suma aktywów tylko wtedy, gdy KAŻDY fundusz ma aktywa — brak nie jest zerem
