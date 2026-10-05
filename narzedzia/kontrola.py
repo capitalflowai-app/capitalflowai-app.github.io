@@ -64,10 +64,13 @@ def wylaczone(meta):
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
 # TIC +40 dni (Skarb USA publikuje dane miesiąca 46–51 dni po jego końcu; tuż przed publikacją wiek = 30 + 51 = 81 dni) — inaczej żółte świeciłoby co miesiąc bez powodu.
 # EIA: ceny dzienne ropy są publikowane raz w tygodniu (środa, za poprzedni tydzień) — próg tygodniowy 9 dni, nie 36 h (26.09: dane z wtorku w sobotę = 3 dni).
+# v182: TGA — zestawienie Skarbu USA za dzień D ukazuje się o 16:00 czasu nowojorskiego NASTĘPNEGO dnia roboczego (20:00 UTC latem, 21:00 zimą), więc
+# przed publikacją najnowsze jest D−2 dni robocze: normalny wiek do ok. 45 h roboczych (+ do 1 h na odświeżenie pliku). Próg 36 h dawał ⚠️ w każdy
+# dzień roboczy od 12:00 do ok. 21:00 UTC (05.10, 12:03 UTC: „36 h 03 min”) — teraz 48 h; święto federalne USA = ⚠️ (informacja, nigdy BŁĄD).
 SWIEZOSC = [
     ('rynki (kursy EBC, rentowności)', 'rynki', 'h', 180), ('wieloryby (salda portfeli giełd)', 'wieloryby', 'h', 180), ('dźwignia (giełdy pochodnych)', 'dzwignia', 'h', 180),
     ('premie krypto (minuty giełd)', 'premie', 'h', 180),
-    ('TGA (Fiscal Data, dziennie)', 'instytucje', 'd', 36 * 60), ('ETF krypto (SoSoValue, dziennie)', 'etf', 'd', 36 * 60),
+    ('TGA (Fiscal Data, dziennie)', 'instytucje', 'd', 48 * 60), ('ETF krypto (SoSoValue, dziennie)', 'etf', 'd', 36 * 60),
     ('FRED dzienne (RRPONTSYD)', 'fred', 'd', 36 * 60), ('EIA ceny dzienne (publikowane co tydzień)', 'energia', 'w', 9 * 24 * 60),
     ('CFTC (raport tygodniowy)', 'cftc', 'w', (9 + 3) * 24 * 60), ('FRED tygodniowe (WALCL)', 'fred', 'w', 9 * 24 * 60),
     ('TIC (miesięcznie)', 'tic', 'm', (45 + 40) * 24 * 60), ('OECD (miesięcznie)', 'oecd', 'm', 45 * 24 * 60), ('BLS (miesięcznie)', 'usa-makro', 'm', 45 * 24 * 60),

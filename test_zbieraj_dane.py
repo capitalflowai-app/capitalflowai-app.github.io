@@ -11175,7 +11175,7 @@ class KontrolaV115(unittest.TestCase):
         st = {lab: r[1] for lab, r in rows.items()}
         self.assertEqual(st['rynki (kursy EBC, rentowności)'], '✅', 'najnowsza część 37 min temu'); self.assertEqual(rows['rynki (kursy EBC, rentowności)'][3], '2026-09-26T05:43:00+00:00')
         self.assertEqual(st['wieloryby (salda portfeli giełd)'], '⚠️', '5 h 20 min > 3 h'); self.assertEqual(st['dźwignia (giełdy pochodnych)'], '?')
-        self.assertEqual(st['TGA (Fiscal Data, dziennie)'], '✅', 'czwartek + piątek roboczy = 24 h < 36 h; sobota nie liczy się')
+        self.assertEqual(st['TGA (Fiscal Data, dziennie)'], '✅', 'czwartek + piątek roboczy = 24 h < 48 h (v182; dawniej 36 h); sobota nie liczy się')
         self.assertEqual(st['EIA ceny dzienne (publikowane co tydzień)'], '❌', 'dane z 1.09: 24 dni > 2 × 9 dni')
         self.assertEqual(st['CFTC (raport tygodniowy)'], '⚠️', '17 dni > 12'); self.assertEqual(st['FRED tygodniowe (WALCL)'], '⚠️', '9,3 dnia > 9')
         self.assertEqual(st['TIC (miesięcznie)'], '⚠️', 'kwiecień: 148 dni > 75, < 150'); self.assertEqual(st['OECD (miesięcznie)'], '✅'); self.assertEqual(st['BLS (miesięcznie)'], '⚠️', 'czerwiec: 87 dni > 45')
@@ -24282,3 +24282,32 @@ class PoPrzegladzieV181(unittest.TestCase):
             else:
                 self.assertEqual(I, {'at': at, 'v': 1}, 'bez danych i bez „off” (sekret jest); czas poprzedniego pliku albo tego przebiegu')
             zd.META['errors'].clear()
+
+
+# ===================== v182: KONTROLA — PRÓG ŚWIEŻOŚCI TGA WG RYTMU PUBLIKACJI =====================
+class KontrolaTgaV182(unittest.TestCase):
+    """v182: TGA (dzienne zestawienie Skarbu USA za D ukazuje się o 16:00 czasu nowojorskiego następnego dnia roboczego) — próg 48 h roboczych.
+    05.10 o 12:03 UTC kontrola dała fałszywe „UWAGA” (36 h 03 min > 36 h) — normalny stan każdego dnia roboczego od 12:00 do ok. 21:00 UTC."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v182', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def _st(self, asof, now):
+        rows = {r[0]: r for r in self.k.swiezosc({'instytucje': {'tga': {'asof': asof}}}, now)}
+        return rows['TGA (Fiscal Data, dziennie)']
+
+    def test_prog_wg_publikacji(self):
+        D, tz = datetime.datetime, datetime.timezone.utc
+        self.assertEqual({x[0]: x[3] for x in self.k.SWIEZOSC if x[2] == 'd'},
+                         {'TGA (Fiscal Data, dziennie)': 48 * 60, 'ETF krypto (SoSoValue, dziennie)': 36 * 60, 'FRED dzienne (RRPONTSYD)': 36 * 60})
+        r = self._st('2026-10-01', D(2026, 10, 5, 12, 3, tzinfo=tz))
+        self.assertEqual((r[1], r[2]), ('✅', 36 * 60 + 3), 'poniedziałek 12:03 UTC: dane z czwartku (piątkowe ukażą się o 20:00 UTC) — normalny stan, nie uwaga')
+        self.assertEqual(self._st('2026-10-05', D(2026, 10, 7, 19, 59, tzinfo=tz))[1], '✅', 'środa tuż przed publikacją wtorku: 44 h roboczych')
+        self.assertEqual(self._st('2026-10-05', D(2026, 10, 7, 23, 30, tzinfo=tz))[1], '✅', 'publikacja z opóźnieniem do 3,5 h — w normie')
+        r = self._st('2026-10-05', D(2026, 10, 8, 1, 0, tzinfo=tz))
+        self.assertEqual(r[1], '⚠️', 'w czwartek o 01:00 UTC brak wtorku — zestawienie naprawdę się spóźnia'); self.assertIn('próg 2 d 0 h (godziny robocze)', r[4])
+        self.assertEqual(self._st('2026-10-08', D(2026, 10, 13, 19, 0, tzinfo=tz))[1], '⚠️', 'święto federalne USA (12.10): informacja, nie błąd')
+        self.assertEqual(self._st('2026-10-01', D(2026, 10, 8, 12, 0, tzinfo=tz))[1], '❌', 'tydzień bez danych: ponad 2× progu')
