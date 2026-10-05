@@ -13295,3 +13295,18 @@ test('v187: ikona strony — odnośniki w nagłówku dokumentu (SVG, PNG 32 px, 
   assert.ok(html.includes('<path d="M16 3 27 9.5v13L16 29 5 22.5v-13z" fill="none" stroke="var(--bl)"') && html.includes('--bl:#0A84FF;') && html.includes('--tl:#64D2FF;'), 'logo i kolory, z których jest ikona');
 });
 
+/* ---------- v188: CRYPTO — zmiana dominacji BTC z 24 h z tego samego pliku co rynek ---------- */
+test('v188: dominacja BTC — zmiana 24 h (pkt proc.) z pliku serwera i zmiany ceny BTC na żywo; bez danych na żywo albo > 5 pkt — brak porównania', () => {
+  const a0 = html.indexOf('function kpiCmc(M,out,live){'), a1 = html.indexOf('function renderKPI(){', a0);
+  const mk = LIVE => new Function('big', 'LIVE', html.slice(a0, a1) + '\nreturn kpiCmc;')(v => [v / 1e12, 'u.t', 2], LIVE);
+  const M = {total_mcap: 2914751599869.277, mcap_chg24_pct: 0.18292151, btc_dom: 59.016123697454, eth_dom: 11.344955346571, asof: '2026-10-05T18:44:59.999Z'};
+  const o = mk({C: {BTC: {pct: {'24H': 0.86072}}, ETH: {pct: {'24H': 0.43578}}}})(M, {}, true);
+  const tp = M.total_mcap / (1 + M.mcap_chg24_pct / 100), bp = M.total_mcap * M.btc_dom / 100 / 1.0086072, dd = M.btc_dom - bp / tp * 100;
+  assert.ok(Math.abs(o.dom.d - dd) < 1e-12 && Math.abs(o.dom.d - 0.3966) < 0.001, 'BTC +0,86% przy rynku +0,18% — dominacja w górę ok. 0,4 pkt: ' + o.dom.d);
+  assert.equal(o.dom.val, M.btc_dom);
+  assert.equal(mk(undefined)(M, {}, false).dom.d, null, 'bez danych na żywo — brak porównania');
+  assert.equal(mk({C: {BTC: {pct: {'24H': 40}}}})(M, {}, true).dom.d, null, 'zmiana > 5 pkt — dane niespójne, brak porównania');
+  assert.equal(mk({C: {BTC: {pct: {'24H': 0.5}}}})(Object.assign({}, M, {mcap_chg24_pct: null}), {}, true).dom.d, null, 'bez zmiany rynku — brak porównania');
+  assert.ok(html.includes("${k.id==='dom'?' '+t('u.pp'):'%'}"), 'kafel pokazuje zmianę dominacji w pkt proc.');
+});
+

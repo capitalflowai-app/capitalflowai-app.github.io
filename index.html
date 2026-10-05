@@ -2515,6 +2515,11 @@ function kpiCmc(M,out,live){const ok=v=>typeof v==='number'&&isFinite(v)&&v>0;if
   /* v186: wolumen 24 h też z tego pliku (inne źródło na żywo 05.10: 148,2 mld USD i „+85,97%”, dwa inne: 85,9 i 91,5 mld); zmiana — pole vol_chg24_pct */
   if(ok(M.total_vol24)){const xv=big(M.total_vol24);let dv=(typeof M.vol_chg24_pct==='number'&&isFinite(M.vol_chg24_pct))?M.vol_chg24_pct:null;if(dv!==null&&Math.abs(dv)<.005)dv=0;
     out.vol={val:xv[0],unit:xv[1],dec:xv[2],d:dv,src:'CoinMarketCap',at};}
+  /* v188: zmiana dominacji BTC z 24 h z tego samego pliku (rynek i jego zmiana) i zmiany ceny BTC na żywo (dotąd „brak porównania”);
+     |zmiana| > 5 pkt proc. = dane niespójne → brak porównania (jak dawniej) */
+  if(out.dom&&live&&d!==null){const L=(typeof LIVE!=='undefined'&&LIVE&&LIVE.C)||{},pb=L.BTC&&L.BTC.pct?L.BTC.pct['24H']:null;
+    if(typeof pb==='number'&&isFinite(pb)){const tp=M.total_mcap/(1+d/100),bp=M.total_mcap*M.btc_dom/100/(1+pb/100);
+      if(tp>0){let dd=M.btc_dom-bp/tp*100;if(Math.abs(dd)<.005)dd=0;if(Math.abs(dd)<=5)out.dom.d=dd;}}}
   return out;}
 function renderKPI(){
   const L=kpiVals(),lv=isLive();
