@@ -17562,8 +17562,8 @@ def rwc_meta(rw, off, cached=False):
 #     {'off': True}, sumy bez danych emitentów).
 # Nazw serwisów na stronie nie ma — tylko w polu src pliku (jak v133 / v150); nazwy produktów (przedmiot danych) zostają.
 RWE_LABEL = 'Tokenizowane aktywa — dane emitentów'   # przedrostek komunikatów w META
-RWE_BUDGET = 30           # s na cały krok (produkty równolegle; 05.10.2026 z Polski: 0,1–0,9 s na zapytanie, Spiko 15 zapytań po kolei)
-RWE_TIMEOUT = 12          # s — najdłużej jedno zapytanie (kanał agenta raz odpowiadał 12,8 s, raz nie odpowiedział w 10 s)
+RWE_BUDGET = 35           # s na cały krok (produkty równolegle; 05.10.2026 z Polski: 0,1–0,9 s na zapytanie, Spiko 15 zapytań po kolei)
+RWE_TIMEOUT = 15          # s — najdłużej jedno zapytanie (kanał agenta raz odpowiadał 12,8 s; v170: z serwera GitHub 05.10 07:52 UTC MI4 bez odpowiedzi 2 × 12 s)
 RWE_PROBY = 2             # próby produktu: druga tylko po przekroczonym czasie, zerwanym połączeniu, HTTP 429 albo 5xx (nie po 4xx ani złym kształcie)
 RWE_PRZERWA = 0.5         # s między próbami
 RWE_MIN_TMO = 1.0         # s — mniej zostało z budżetu = bez kolejnego zapytania (produkt z poprzedniego odczytu)
@@ -17599,12 +17599,17 @@ RWE_PRODUKTY = {   # produkt źródła v133 → nazwa, rodzaj odczytu, limit wie
     'openeden-tbill': {'name': 'OpenEden TBILL', 'kind': 'oe', 'max_h': 12},   # część bieżąca co ok. 30 min
     'matrixdock-xaum': {'name': 'Matrixdock XAUm', 'kind': 'xaum', 'max_h': 12},   # stan = nasz odczyt (dane bez daty); cena złota — reguła 36 h
     'centrifuge-protocol': {'name': 'Centrifuge Protocol', 'kind': 'cfg', 'max_h': 144, 'zakres': 'cfg'},   # wyceny funduszy w dni robocze
+    'ondo-yield-assets': {'name': 'Ondo Yield Assets', 'kind': 'ondo_ya', 'max_h': 36},   # v170: strona emitenta (USDY + OUSG), budowana co ok. 5 min
+    'ondo-global-markets': {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'max_h': 60, 'zakres': 'gm'},   # v170: punkt dzienny (stan = dzień, 00:00 UTC)
+    'xstocks': {'name': 'xStocks', 'kind': 'xs', 'max_h': 36, 'zakres': 'xs'},     # v170: dowód rezerw co ok. 30 min
 }
 RWE_SRC = ('Dane emitentów (publiczne, bez klucza): public-api.spiko.io (klasy funduszy Spiko: totalAssets w walucie klasy; kurs dzienny z pliku '
            'rynki), public-feed.securitize.io/asset-stats (agent transferowy: BCAP, MI4, ACRED, VBILL, STAC, HLSCOPE — Σ aum), '
            'hastra.io/hastra-pulse/public/api/v1/por (wYLDS w skarbcach × 1 USD), prod-gw.openeden.com/v3/vault/aggregates (tvl), '
            'matrixdock.com/rwa/anon/website/api/v1/stats/total (podaż XAUm × XAU/USD z wyroczni na Ethereum), api.centrifuge.io (indeks emitenta: '
-           'totalIssuance × tokenPrice, bez tokenów-opakowań „de…”); obliczenia CapitalFlowAI')
+           'totalIssuance × tokenPrice, bez tokenów-opakowań „de…”); v170: ondo.finance (dane serwera strony emitenta: assetsData USDY + OUSG — tvlUsd.total, '
+           'gmTvl z ostatnim punktem gmTvlHistory), api.backed.fi/graphql (dowód rezerw xStocks: akcje w rezerwie × cena akcji, kurs dzienny z pliku rynki); '
+           'obliczenia CapitalFlowAI')
 _RWE_SYM = re.compile(r'^[A-Za-z0-9]{2,20}$')
 _RWE_CUR = re.compile(r'^[A-Z]{3}$')
 _RWE_ISO = re.compile(r'^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?$')
@@ -17795,6 +17800,142 @@ def rwe_cfg_parse(j):
     return {'v': tot, 'as_of': min(big), 'n': len(V), 'nde': nde, 'nx': round(X, 2)}
 
 
+# v170 (05.10.2026; badanie BADANIE_RWA2 §2, §4, §7; decyzja koordynatora: zakres emitenta, na stronie z obiema liczbami): trzy kolejne produkty.
+#   * Ondo — dane serwera strony emitenta (ondo.finance, Next.js: napisy self.__next_f.push([1,"…"]) połączone). To nie udokumentowane API: zmiana
+#     kształtu = błąd odczytu, produkt zostaje „bez bieżącej wyceny” (albo poprzedni odczyt z jego stanem). Ondo Yield Assets = assetsData: USDY +
+#     OUSG (tvlUsd.total = tokeny × cena; na Ethereum zgodne co do grosza z totalSupply × cena), stan = assetsData.timestamp. Ondo Global Markets =
+#     gmTvl (= ostatni dzienny punkt gmTvlHistory), stan = dzień punktu (00:00 UTC); zakres emitenta szerszy niż ostatnio znana wartość (05.10:
+#     1 285 wobec 966 mln USD). Jedno pobranie strony na przebieg dla obu produktów (ok. 670 KB).
+#   * xStocks — dowód rezerw emitenta (GraphQL za stroną dowodu rezerw; poza opublikowaną dokumentacją API): Σ akcje w rezerwie × cena akcji
+#     (setne części waluty notowania; HKD, EUR, GBX po kursie z pliku rynki) — wszystkie tokeny emitenta (05.10: 748 z rezerwą, 12 sieci) wobec
+#     61 tokenów w 2 sieciach w ostatnio znanej wartości (917 wobec 438 mln USD). Akcje w rezerwie, nie tokeny w obiegu: token odpowiada rosnącej
+#     liczbie akcji (dywidendy), więc tokeny × cena akcji zaniżałyby wartość o kilka procent.
+RWE_ONDO = 'https://ondo.finance/'
+RWE_XS = 'https://api.backed.fi/graphql'
+RWE_XS_Q = ('query Reserves($page:Int!,$pageSize:Int!,$where:TokensWhereInput,$orderBy:TokenSortInput,$maxAge:Int,$maxDivergencePercent:Float,'
+            '$ignoreCurrentSession:Boolean){ tokens(page:$page,pageSize:$pageSize,where:$where,orderBy:$orderBy){ nodes{ symbol proofOfReserves{ at '
+            'sharesHeld{ quantity } } tokenCollaterals{ collateral{ price(maxAge:$maxAge,maxDivergencePercent:$maxDivergencePercent,'
+            'ignoreCurrentSession:$ignoreCurrentSession) priceCurrency } } } page{ totalPages totalNodes } } }')
+RWE_XS_VAR = {'page': 0, 'pageSize': 1000, 'where': {'businessLine': {'equals': 'xStocks'}}, 'orderBy': {'field': 'aum', 'direction': 'desc'},
+              'maxAge': 259200, 'maxDivergencePercent': 25, 'ignoreCurrentSession': True}   # jak strona dowodu rezerw emitenta (cena najwyżej 3 dni)
+RWE_MAX_HTML = 5_000_000   # bajtów — strona Ondo (05.10: 672 KB)
+_RWE_NEXTF = re.compile(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)')
+
+
+def _rwe_text(url, tmo, get=None):
+    """v170: GET strony → tekst (bajty z get_bytes, UTF-8); nie bajty albo więcej niż RWE_MAX_HTML = błąd."""
+    b = (get or get_bytes)(url, {'Accept': 'text/html'}, tmo)
+    if not isinstance(b, (bytes, bytearray)) or len(b) > RWE_MAX_HTML:
+        raise ValueError('zła albo za duża strona')
+    return b.decode('utf-8', 'replace')
+
+
+def rwe_ondo_rsc(html):
+    """v170: strona emitenta (Next.js) → połączone napisy danych serwera self.__next_f.push([1,"…"]) (tekst, w którym szukamy pól); brak = wyjątek."""
+    s = ''.join(json.loads('"' + m.group(1) + '"') for m in _RWE_NEXTF.finditer(html))
+    if not s:
+        raise ValueError('brak danych serwera strony')
+    return s
+
+
+def _rwe_po_kluczu(s, key):
+    """v170: wartość JSON po "key": w tekście `s`; kilka wystąpień musi mieć tę samą wartość (inaczej nie zgadujemy, która), brak = wyjątek."""
+    k, V = f'"{key}":', []
+    i = s.find(k)
+    while i >= 0 and len(V) < 20:
+        j = i + len(k)
+        while j < len(s) and s[j] in ' \t\r\n':
+            j += 1
+        V.append(json.JSONDecoder().raw_decode(s, j)[0])
+        i = s.find(k, i + 1)
+    if not V or any(v != V[0] for v in V):
+        raise ValueError(f'pole {key}: brak albo różne wartości')
+    return V[0]
+
+
+def rwe_ondo_ya_parse(s):
+    """v170: Ondo Yield Assets — pole assetsData strony emitenta: USDY i OUSG (tvlUsd.total = tokeny × cena wg emitenta, USD); stan = assetsData.timestamp.
+    Brak któregoś produktu albo stanu = wyjątek. → {'v', 'as_of', 'n': 2, 'cz': {'usdy', 'ousg'}}."""
+    ad = _rwe_po_kluczu(s, 'assetsData')
+    A = {a.get('symbol'): a for a in ad['assets'] if isinstance(a, dict)} if isinstance(ad, dict) and isinstance(ad.get('assets'), list) else {}
+    cz = {}
+    for sym in ('usdy', 'ousg'):
+        t = A[sym].get('tvlUsd') if isinstance(A.get(sym), dict) else None
+        x = _rwc_rez_num(t.get('total')) if isinstance(t, dict) else None
+        if x is None or x <= 0:
+            raise ValueError(f'{sym}: brak tvlUsd.total')
+        cz[sym] = round(x, 2)
+    d = _rwe_iso(ad.get('timestamp'))
+    if d is None:
+        raise ValueError('brak stanu (assetsData.timestamp)')
+    return {'v': sum(cz.values()), 'as_of': d, 'n': 2, 'cz': cz}
+
+
+def rwe_ondo_gm_parse(s):
+    """v170: Ondo Global Markets — pola gmTvl i gmTvlHistory strony emitenta: gmTvl (USD) musi równać się najnowszemu dziennemu punktowi historii
+    (± 0,5%); stan = dzień tego punktu (00:00 UTC). → {'v', 'as_of', 'n': punktów historii}."""
+    v = _rwc_rez_num(_rwe_po_kluczu(s, 'gmTvl'))
+    H = _rwe_po_kluczu(s, 'gmTvlHistory')
+    last = max((p for p in H if isinstance(p, dict) and isinstance(p.get('x'), str)), key=lambda p: p['x'], default={}) if isinstance(H, list) else {}
+    x = str(last.get('x') or '')
+    d = _rwe_iso(x[2:] if x.startswith('$D') else x)
+    y = _rwc_rez_num(last.get('y'))
+    if v is None or v <= 0 or d is None or y is None or abs(y - v) > 0.005 * v:
+        raise ValueError('gmTvl bez zgodnego najnowszego punktu historii')
+    return {'v': v, 'as_of': d, 'n': len(H)}
+
+
+def rwe_xs_parse(j, fx):
+    """v170: xStocks — dowód rezerw emitenta (GraphQL tokens, strona 0, do 1000 tokenów od największych): Σ po tokenach z rezerwą: akcje w rezerwie
+    (Σ sharesHeld) × cena akcji / 100 (setne części waluty notowania), w USD — inne waluty po kursie `fx` (GBX = pensy: jeszcze / 100 → GBP). Pełna
+    strona musi kończyć się tokenem bez rezerwy (cała lista z rezerwą na stronie 0). Token z rezerwą bez jednej ceny, waluta bez kursu, zły stan =
+    wyjątek. Stan = najstarszy proofOfReserves.at tokenów ≥ RWE_MIN_SHARE wartości. → {'v', 'as_of', 'n', 'fx': {'d'} albo None, 'cur': {waluta: USD}}."""
+    if not isinstance(j, dict) or j.get('errors'):
+        raise ValueError('odpowiedź z błędem albo nie obiekt')
+    data = j.get('data') if isinstance(j.get('data'), dict) else {}
+    N = data['tokens'].get('nodes') if isinstance(data.get('tokens'), dict) else None
+    if not isinstance(N, list) or not N:
+        raise ValueError('brak listy tokenów')
+    R = (fx or {}).get('rates', {})
+    V, cur, used_fx, last_sh = [], {}, False, 0.0
+    for n in N:
+        if not isinstance(n, dict):
+            raise ValueError('zły token')
+        sym = str(n.get('symbol'))[:12]
+        por = n.get('proofOfReserves') if isinstance(n.get('proofOfReserves'), dict) else {}
+        Q = por.get('sharesHeld') if isinstance(por.get('sharesHeld'), list) else []
+        q = [_rwc_rez_num(x.get('quantity')) if isinstance(x, dict) else None for x in Q]
+        if any(x is None or x < 0 for x in q):
+            raise ValueError(f'{sym}: zła liczba akcji w rezerwie')
+        sh = last_sh = sum(q)
+        if sh == 0:
+            continue
+        C = n.get('tokenCollaterals')
+        col = C[0].get('collateral') if isinstance(C, list) and len(C) == 1 and isinstance(C[0], dict) else None
+        px = _rwc_rez_num(col.get('price')) if isinstance(col, dict) else None
+        c = col.get('priceCurrency') if isinstance(col, dict) else None
+        if px is None or px <= 0 or not isinstance(c, str):
+            raise ValueError(f'{sym}: rezerwa bez ceny')
+        x = sh * px / 100
+        if c != 'USD':
+            r = R.get('GBP' if c == 'GBX' else c)
+            if not r or r <= 0:
+                raise ValueError(f'brak kursu {c} (plik rynki)')
+            x, used_fx = x / (100 if c == 'GBX' else 1) / r, True
+        d = _rwe_iso(por.get('at'))
+        if d is None:
+            raise ValueError(f'{sym}: zły stan (at)')
+        V.append((x, d))
+        cur[c] = cur.get(c, 0.0) + x
+    if len(N) >= RWE_XS_VAR['pageSize'] and last_sh:
+        raise ValueError('tokeny z rezerwą także poza stroną 0')
+    tot = sum(x for x, _d in V)
+    big = [d for x, d in V if tot > 0 and x >= RWE_MIN_SHARE * tot]
+    if tot <= 0 or not big:
+        raise ValueError('suma rezerw zero')
+    return {'v': tot, 'as_of': min(big), 'n': len(V), 'fx': {'d': fx['d']} if used_fx else None, 'cur': {k: round(x, 2) for k, x in sorted(cur.items())}}
+
+
 def _rwe_ponow(e):
     """Czy ponowić odczyt produktu: przekroczony czas, zerwane połączenie, HTTP 429 albo 5xx — tak; 4xx, zły kształt danych, brak czasu w budżecie — nie."""
     if isinstance(e, urllib.error.HTTPError):
@@ -17822,6 +17963,14 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
             req[0] += 1
         return min(RWE_TIMEOUT, left)
 
+    pages, plock = {}, _rwa_thr.Lock()
+
+    def strona(url):   # v170: jedno pobranie strony na przebieg dla kilku produktów (drugi wątek czeka); nieudane pobranie nie jest zapamiętane
+        with plock:
+            if url not in pages:
+                pages[url] = rwe_ondo_rsc(_rwe_text(url, tmo(), get))
+            return pages[url]
+
     def czytaj(c):
         k = c['kind']
         if k == 'spiko':
@@ -17836,6 +17985,12 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
             return rwe_xaum_parse(_rwe_json(RWE_XAUM, tmo(), get), stamp)
         if k == 'cfg':
             return rwe_cfg_parse(post(RWE_CFG, {'query': RWE_CFG_Q}, timeout=tmo()))
+        if k == 'ondo_ya':
+            return rwe_ondo_ya_parse(strona(RWE_ONDO))
+        if k == 'ondo_gm':
+            return rwe_ondo_gm_parse(strona(RWE_ONDO))
+        if k == 'xs':
+            return rwe_xs_parse(post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': RWE_XS_VAR}, timeout=tmo()), fx)
         raise ValueError(f'nieznany rodzaj {k}')
 
     def one(slug):
@@ -17888,7 +18043,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
         err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else (None if isinstance(cur, dict) else 'brak odpowiedzi')
         new = None
         if err is None:
-            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx')}
+            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur')}
             new['read'] = rd['at']
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
@@ -17903,7 +18058,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
             ok = False
             notes.append(f'{nm}: {err}' + (f" — poprzedni odczyt (stan {pv['as_of']})" if pv is not None else ' — bez wartości'))
         if new is None and pv is not None:
-            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx')}
+            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur')}
             new['k'] = 1
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
@@ -18564,11 +18719,12 @@ def main():
         rw_due = True                                                 # v150: RWA_CHAIN_OFF działa od razu — jedna przebudowa sum bez odczytu własnego
     pem_rw = (prev_rw or {}).get('issuer')
     em_on = isinstance(pem_rw, dict) and not pem_rw.get('off')
+    em_nowe = em_on and bool(set(RWE_PRODUKTY) - set(pem_rw['p'] if isinstance(pem_rw.get('p'), dict) else ()))   # v170: nowe produkty w konfiguracji
     if rwe_off and em_on:
         rw_due = True                                                 # v169: RWA_EM_OFF działa od razu — jedna przebudowa sum bez danych emitentów
-    elif (prev_rw and not rwe_off and not em_on and min(_rwa_age_min(prev_rw.get('at'), _now_utc()), _rwa_age_min(prev_rw.get('try_at'), _now_utc()))
-          >= RWE_START_MIN):
-        rw_due = True                                                 # v169: plik bez danych emitentów (pierwsze przebiegi po wdrożeniu) — przebudowa po 2 h, nie po 6 h
+    elif (prev_rw and not rwe_off and (not em_on or em_nowe)
+          and min(_rwa_age_min(prev_rw.get('at'), _now_utc()), _rwa_age_min(prev_rw.get('try_at'), _now_utc())) >= RWE_START_MIN):
+        rw_due = True                                                 # v169: plik bez danych emitentów albo (v170) bez nowych produktów konfiguracji — przebudowa po 2 h, nie po 6 h
     if rw_off:
         META['notes'].append(f'{RWA_LABEL}: wyłączone zmienną RWA_OFF — bez zapytań i bez pliku')
     elif rw_late or not rw_due:

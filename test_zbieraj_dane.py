@@ -22907,7 +22907,7 @@ def _rwe169_net(calls=None, over=None, fail=()):
     return get, post
 
 
-class RwaEmitenciV169(unittest.TestCase):
+class RwaEmitenciV169(unittest.TestCase):   # v170: konfiguracja sprzed Ondo i xStocks (v170 ma własne testy pełnej)
     """v169: dane emitentów dla produktów, których źródło v133 stoi — Spiko (klasy w 4 walutach, kurs z pliku rynki), kanał agenta transferowego
     (BCAP, MI4, ACRED, VBILL, STAC, HLSCOPE), Hastra, OpenEden, Matrixdock XAUm (× cena złota z odczytu z łańcucha), Centrifuge (bez opakowań);
     stan emitenta i jego wiek, pasmo rozsądku, poprzedni odczyt, sumy bez podwójnego liczenia (pierwszeństwo ◆), zmiany 7/30 dni tylko w obrębie
@@ -22919,6 +22919,8 @@ class RwaEmitenciV169(unittest.TestCase):
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
         for n in ('post_json', 'get_bytes', 'get_json'):
             self.enterContext(mock.patch.object(zd, n, side_effect=AssertionError('test nie może pytać sieci')))
+        self.enterContext(mock.patch.dict(zd.RWE_PRODUKTY, {k: v for k, v in zd.RWE_PRODUKTY.items()
+                                                            if k not in ('ondo-yield-assets', 'ondo-global-markets', 'xstocks')}, clear=True))   # v170
 
     def _fx(self):
         return zd.rwe_fx(_RWE169_S, self.NOW)
@@ -22951,7 +22953,7 @@ class RwaEmitenciV169(unittest.TestCase):
         self.assertTrue(all(p['max_h'] == 36 for p in P.values() if p['kind'] == 'sec'))
         self.assertEqual({s: p.get('zakres') for s, p in P.items() if p.get('zakres')}, {'securitize-tokenized-aaa-clo-fund': 'sol', 'centrifuge-protocol': 'cfg'})
         self.assertEqual((zd.RWE_BUDGET, zd.RWE_TIMEOUT, zd.RWE_PROBY, zd.RWE_PRZERWA, zd.RWE_THREADS, zd.RWE_RAZY, zd.RWE_FX_MAX_D, zd.RWE_KEEP_MIN, zd.RWE_START_MIN, zd.RWE_PH),
-                         (30, 12, 2, 0.5, 6, 3.0, 7, 7 * 24 * 60, 120, '~e'))
+                         (35, 15, 2, 0.5, 6, 3.0, 7, 7 * 24 * 60, 120, '~e'))   # v170: czas 12 → 15 s, budżet 30 → 35 s
         self.assertTrue(zd.RWE_PROBY * zd.RWE_TIMEOUT + zd.RWE_PRZERWA <= zd.RWE_BUDGET, 'dwie pełne próby mieszczą się w budżecie')
         for u in (zd.RWE_SPIKO, zd.RWE_SEC, zd.RWE_HASTRA, zd.RWE_OE, zd.RWE_XAUM, zd.RWE_CFG):
             self.assertTrue(u.startswith('https://'), u)
@@ -23297,7 +23299,7 @@ class RwaEmitenciV169(unittest.TestCase):
         self.assertEqual(len(kw), 1, 'pierwsze przebiegi po wdrożeniu: plik bez danych emitentów przebudowany po 2 h, nie po 6 h')
         s, kw = self._main(dict(base, at=H(2.5), try_at=H(0.5)))
         self.assertEqual(kw, [], 'nieudana próba niedawno — bez ponowienia')
-        act = {'v': 1, 'at': H(2.5), 'ok': True, 'p': {}}
+        act = {'v': 1, 'at': H(2.5), 'ok': True, 'p': {s: {} for s in zd.RWE_PRODUKTY}}   # v170: blok ze wszystkimi produktami konfiguracji
         s, kw = self._main(dict(base, at=H(2.5), issuer=act))
         self.assertEqual(kw, []); self.assertEqual(zd.META['ok']['rwa-emitenci'], 'cached')
         s, kw = self._main(dict(base, at=H(0.5), issuer=act), {'RWA_EM_OFF': '1'})
@@ -23353,3 +23355,191 @@ class RwaEmitenciV169(unittest.TestCase):
         for u in ('public-api.spiko.io', 'public-feed.securitize.io', 'hastra.io', 'prod-gw.openeden.com', 'matrixdock.com', 'api.centrifuge.io'):
             self.assertIn(u, zd.RWE_SRC)
         self.assertNotIn("'build_rwe", src, 'bez nowego budowniczego — krok w build_rwa (krotki zaślepek bez zmian)')
+
+
+# ===================== v170: DANE EMITENTÓW — ONDO (strona emitenta) I XSTOCKS (dowód rezerw) =====================
+_RWE170_PAYLOAD = ('0:["$","html",null,{}]\n1:{"x":1,"assetsData":{"timestamp":"2026-10-05T07:21:44Z","assets":[{"symbol":"usdy","name":"Ondo US Dollar Yield",'
+                   '"priceUsd":1.1485463,"tvlUsd":{"total":2287710214.82,"ethereum":1208298353.58}},{"symbol":"ousg","name":"Ondo Short-Term US Treasuries Fund",'
+                   '"priceUsd":116.767284,"tvlUsd":{"total":321225753.39,"xrpl":187483620.93}}]},"gmHolders":238279,"gmTvl":1284853526.542776,"gmTvlHistory":['
+                   '{"x":"$D2026-10-03T00:00:00.000Z","y":1270000000.0},{"x":"$D2026-10-04T00:00:00.000Z","y":1284853526.5427766}]}\n2:"zażółć"\n')
+
+
+def _rwe170_html(payload=_RWE170_PAYLOAD, n=3):
+    """Strona w kształcie Next.js: dane serwera pocięte na `n` napisów self.__next_f.push([1,"…"]) (cięcie w dowolnym miejscu, jak u źródła)."""
+    k = len(payload) // n
+    parts = [payload[i * k:(i + 1) * k if i < n - 1 else None] for i in range(n)]
+    return ('<html><head><script>self.__next_f=self.__next_f||[]</script></head><body>'
+            + ''.join(f'<script>self.__next_f.push([1,{json.dumps(p)}])</script>' for p in parts) + '</body></html>').encode()
+
+
+def _rwe170_xn(sym, sh, px, cur, at):
+    return {'symbol': sym, 'proofOfReserves': {'at': at, 'circulatingSupply': '1', 'sharesHeld': [{'quantity': str(sh)}] if sh else []},
+            'tokenCollaterals': [{'collateral': {'price': px, 'priceCurrency': cur, 'symbol': sym[:-1]}}]}
+
+
+def _rwe170_xs(nodes=None):
+    N = nodes if nodes is not None else [
+        _rwe170_xn('STRCx', 1463073, 9945.5, 'USD', '2026-10-05T07:23:08.602Z'), _rwe170_xn('TSLAx', 200000, 43000, 'USD', '2026-10-05T07:10:00.000Z'),
+        _rwe170_xn('XIAOx', 1314544, 5200, 'HKD', '2026-10-05T06:59:00.000Z'), _rwe170_xn('BARCx', 1000, 35642.65, 'GBX', '2026-10-05T05:00:00.000Z'),
+        _rwe170_xn('ZERO1', 0, 100, 'USD', '2026-10-05T07:00:00.000Z'),
+        {'symbol': 'NULLx', 'proofOfReserves': None, 'tokenCollaterals': [{'collateral': {'price': None, 'priceCurrency': 'USD'}}]}]
+    return {'data': {'tokens': {'nodes': N, 'page': {'totalPages': 1, 'totalNodes': len(N)}}}}
+
+
+_RWE170_S = {'rynki': {'fx': {'now': dict(_RWE169_S['rynki']['fx']['now'], rates=dict(_RWE169_S['rynki']['fx']['now']['rates'], HKD=7.8471))}}}   # + kurs HKD (EBC, 02.10)
+_RWE170_XS_USD = 1463073 * 99.455 + 200000 * 430 + 1314544 * 52 / 7.8471 + 1000 * 356.4265 / 100 / 0.75753
+
+
+def _rwe170_net(calls=None, ondo=None, xs=None, fail=()):
+    """Atrapy dla pełnej konfiguracji v170: emitenci v169 (_rwe169_net) + strona Ondo (get, bajty HTML) + dowód rezerw xStocks (post)."""
+    g9, p9 = _rwe169_net(calls)
+    lock = _thr_v133.Lock()
+
+    def get(url, headers=None, timeout=60):
+        if url == zd.RWE_ONDO:
+            assert headers == {'Accept': 'text/html'} and 0 < timeout <= zd.RWE_TIMEOUT, (headers, timeout)
+            with lock:
+                if calls is not None:
+                    calls.append(url)
+            if url in fail:
+                raise _uerr_v133.HTTPError(url, 403, 'Forbidden', {}, _io_v133.BytesIO(b''))
+            return _rwe170_html() if ondo is None else ondo
+        return g9(url, headers, timeout)
+
+    def post(url, obj, timeout=60):
+        if url == zd.RWE_XS:
+            assert obj == {'operationName': 'Reserves', 'query': zd.RWE_XS_Q, 'variables': zd.RWE_XS_VAR} and 0 < timeout <= zd.RWE_TIMEOUT
+            with lock:
+                if calls is not None:
+                    calls.append(url)
+            if url in fail:
+                raise _uerr_v133.HTTPError(url, 502, 'Bad Gateway', {}, _io_v133.BytesIO(b''))
+            return _rwe170_xs() if xs is None else xs
+        return p9(url, obj, timeout)
+    return get, post
+
+
+class RwaEmitenciV170(unittest.TestCase):
+    """v170: Ondo Yield Assets i Ondo Global Markets ze strony emitenta (jedno pobranie na przebieg), xStocks z dowodu rezerw (akcje w rezerwie
+    × cena, waluty po kursie, cała lista na stronie 0); zasady v169 (stan, wiek, pasmo, poprzedni odczyt). Bez sieci (atrapy)."""
+    NOW = datetime.datetime(2026, 10, 5, 8, 0, tzinfo=datetime.timezone.utc)   # po stanach nagrań (stan z przyszłości = nieświeży)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        for n in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, n, side_effect=AssertionError('test nie może pytać sieci')))
+
+    def _fx(self):
+        return zd.rwe_fx(_RWE170_S, self.NOW)
+
+    def test_konfiguracja(self):
+        P = zd.RWE_PRODUKTY
+        self.assertEqual(len(P), 14)
+        self.assertEqual({s: (P[s]['kind'], P[s]['max_h'], P[s].get('zakres')) for s in ('ondo-yield-assets', 'ondo-global-markets', 'xstocks')},
+                         {'ondo-yield-assets': ('ondo_ya', 36, None), 'ondo-global-markets': ('ondo_gm', 60, 'gm'), 'xstocks': ('xs', 36, 'xs')})
+        self.assertEqual((zd.RWE_ONDO, zd.RWE_XS, zd.RWE_MAX_HTML), ('https://ondo.finance/', 'https://api.backed.fi/graphql', 5_000_000))
+        self.assertEqual((zd.RWE_XS_VAR['pageSize'], zd.RWE_XS_VAR['where'], zd.RWE_XS_VAR['orderBy']),
+                         (1000, {'businessLine': {'equals': 'xStocks'}}, {'field': 'aum', 'direction': 'desc'}))
+        for f in ('sharesHeld{ quantity }', 'priceCurrency', 'proofOfReserves{ at'):
+            self.assertIn(f, zd.RWE_XS_Q)
+        self.assertIn('ondo.finance', zd.RWE_SRC); self.assertIn('api.backed.fi/graphql', zd.RWE_SRC)
+
+    def test_strona_ondo(self):
+        s = zd.rwe_ondo_rsc(_rwe170_html().decode())
+        self.assertEqual(s, _RWE170_PAYLOAD, 'napisy połączone w dane serwera (także znaki spoza ASCII)')
+        r = zd.rwe_ondo_ya_parse(s)
+        self.assertEqual(r, {'v': 2287710214.82 + 321225753.39, 'as_of': '2026-10-05T07:21:44+00:00', 'n': 2, 'cz': {'usdy': 2287710214.82, 'ousg': 321225753.39}})
+        self.assertEqual(zd.rwe_ondo_gm_parse(s), {'v': 1284853526.542776, 'as_of': '2026-10-04T00:00:00+00:00', 'n': 2})
+        dwa = _RWE170_PAYLOAD + '3:{"assetsData":' + _RWE170_PAYLOAD.split('"assetsData":', 1)[1].split(',"gmHolders"', 1)[0] + '}\n'
+        self.assertAlmostEqual(zd.rwe_ondo_ya_parse(dwa)['v'] / 1e6, 2608.94, places=2, msg='dwa wystąpienia z tą samą wartością — tak')
+        with self.assertRaises(ValueError):
+            zd.rwe_ondo_ya_parse(dwa.replace('2287710214.82,"ethereum"', '1.0,"ethereum"', 1))   # dwa różne — nie zgadujemy
+        for zle in (_RWE170_PAYLOAD.replace('"assetsData"', '"assetsDataX"'), _RWE170_PAYLOAD.replace('"ousg"', '"ousgX"'),
+                    _RWE170_PAYLOAD.replace('"timestamp":"2026-10-05T07:21:44Z"', '"timestamp":"$undefined"'), _RWE170_PAYLOAD.replace('"assetsData":{', '"assetsData":"$5",{')):
+            with self.assertRaises(ValueError):
+                zd.rwe_ondo_ya_parse(zle)
+        for zle in (_RWE170_PAYLOAD.replace('"gmTvl":1284853526.542776', '"gmTvl":1384853526.5'), _RWE170_PAYLOAD.replace('"gmTvlHistory":[', '"gmTvlHistoryX":['),
+                    _RWE170_PAYLOAD.replace('$D2026-10-04T00:00:00.000Z', 'wczoraj')):
+            with self.assertRaises(ValueError):
+                zd.rwe_ondo_gm_parse(zle)
+        self.assertEqual(zd.rwe_ondo_gm_parse(_RWE170_PAYLOAD.replace('{"x":"$D2026-10-03T00:00:00.000Z","y":1270000000.0},{"x":"$D2026-10-04T00:00:00.000Z","y":1284853526.5427766}',
+                                                                     '{"x":"$D2026-10-04T00:00:00.000Z","y":1284853526.5427766},{"x":"$D2026-10-03T00:00:00.000Z","y":1270000000.0}'))['as_of'],
+                         '2026-10-04T00:00:00+00:00', 'najnowszy punkt niezależnie od kolejności')
+        with self.assertRaises(ValueError):
+            zd.rwe_ondo_rsc('<html>Just a moment...</html>')
+
+    def test_dowod_rezerw_xstocks(self):
+        r = zd.rwe_xs_parse(_rwe170_xs(), self._fx())
+        self.assertAlmostEqual(r['v'], _RWE170_XS_USD, places=2)
+        self.assertEqual((r['as_of'], r['n'], r['fx']), ('2026-10-05T06:59:00+00:00', 4, {'d': '2026-10-02'}),
+                         'stan: najstarszy wśród tokenów ≥ 1% (BARCx z 05:00 za mały); tokeny bez rezerwy pominięte')
+        self.assertEqual(sorted(r['cur']), ['GBX', 'HKD', 'USD']); self.assertAlmostEqual(r['cur']['GBX'], 1000 * 356.4265 / 100 / 0.75753, places=2, msg='pensy → funty')
+        U = zd.rwe_xs_parse(_rwe170_xs([_rwe170_xn('A', 10, 10000, 'USD', '2026-10-05T07:00:00Z')]), None)
+        self.assertEqual((U['v'], U['fx']), (1000.0, None), 'same USD — bez kursu')
+        N = _rwe170_xs()['data']['tokens']['nodes']
+        for zle, frag in (([dict(N[0], tokenCollaterals=[{'collateral': {'price': None, 'priceCurrency': 'USD'}}])], 'bez ceny'),
+                          ([dict(N[0], tokenCollaterals=[])], 'bez ceny'), ([dict(N[0], tokenCollaterals=N[0]['tokenCollaterals'] * 2)], 'bez ceny'),
+                          ([_rwe170_xn('S', 5, 100, 'SEK', '2026-10-05T07:00:00Z')], 'brak kursu SEK'),
+                          ([dict(N[0], proofOfReserves={'at': '2026-10-05T07:00:00Z', 'sharesHeld': [{'quantity': '-1'}]})], 'zła liczba'),
+                          ([dict(N[0], proofOfReserves={'at': 'x', 'sharesHeld': [{'quantity': '5'}]})], 'zły stan'), ([N[4]], 'suma rezerw zero')):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(_rwe170_xs(zle), self._fx())
+            self.assertIn(frag, str(c.exception))
+        for zle in ({'errors': [{'message': 'x'}]}, {'data': None}, {'data': {'tokens': {'nodes': []}}}, []):
+            with self.assertRaises(ValueError):
+                zd.rwe_xs_parse(zle, self._fx())
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 3}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(_rwe170_xs(N[:3]), self._fx())
+            self.assertIn('także poza stroną 0', str(c.exception))
+            self.assertAlmostEqual(zd.rwe_xs_parse(_rwe170_xs(N[:2] + [N[4]]), self._fx())['v'], 1463073 * 99.455 + 200000 * 430, places=2, msg='pełna strona kończy się tokenem bez rezerwy')
+
+    def test_odczyt_pelny_jedno_pobranie_strony(self):
+        calls = []
+        get, post = _rwe170_net(calls)
+        rd = zd.rwe_odczyt(self.NOW, fx=self._fx(), get=get, post=post, sleep=lambda s: None)
+        self.assertEqual(sorted(rd['r']), sorted(zd.RWE_PRODUKTY)); self.assertTrue(all('err' not in x for x in rd['r'].values()), rd['r'])
+        self.assertEqual(calls.count(zd.RWE_ONDO), 1, 'strona Ondo pobrana raz dla dwóch produktów'); self.assertEqual(calls.count(zd.RWE_XS), 1)
+        ref = {'ondo-yield-assets': 2560085819.0, 'ondo-global-markets': 965790145.0, 'xstocks': 438000000.0}
+        em = zd.rwe_blok(rd, None, self.NOW, oc={'v': 1, 'px': {'zloto': dict(_RWE169_GOLD)}}, ref=ref)
+        self.assertTrue(em['ok']); self.assertEqual(em['notes'], [])
+        P = em['p']
+        self.assertEqual((P['ondo-yield-assets']['cz'], P['ondo-yield-assets']['full']), ({'usdy': 2287710214.82, 'ousg': 321225753.39}, True))
+        self.assertEqual((P['ondo-global-markets']['as_of'], P['ondo-global-markets']['zakres'], P['ondo-global-markets']['full']), ('2026-10-04T00:00:00+00:00', 'gm', True))
+        self.assertEqual((P['xstocks']['zakres'], P['xstocks']['fx'], sorted(P['xstocks']['cur'])), ('xs', {'d': '2026-10-02'}, ['GBX', 'HKD', 'USD']))
+        U = zd.rwe_uzyj(em, self.NOW)
+        self.assertEqual(len(U), 14)
+        self.assertNotIn('ondo-global-markets', zd.rwe_uzyj(em, datetime.datetime(2026, 10, 6, 12, 1, tzinfo=datetime.timezone.utc)), 'punkt dzienny: 60 h od 04.10 00:00')
+        self.assertIn('ondo-global-markets', zd.rwe_uzyj(em, datetime.datetime(2026, 10, 6, 11, 59, tzinfo=datetime.timezone.utc)))
+        e2 = zd.rwe_blok(rd, {'p': {'xstocks': dict(P['xstocks'], v=50e6)}}, self.NOW, ref=ref)
+        self.assertEqual(e2['p']['xstocks']['k'], 1); self.assertIn('wobec 50.0 mln — odrzucona', e2['p']['xstocks']['err'], 'odczyt 240 mln wobec poprzedniego 50 mln (4,8×)')
+        e3 = zd.rwe_blok(rd, {'p': {'xstocks': dict(P['xstocks'], v=100e6)}}, self.NOW, ref=ref)
+        self.assertNotIn('k', e3['p']['xstocks'], '2,4× wobec poprzedniego odczytu — w paśmie 1/3–3×')
+
+    def test_strona_ondo_niedostepna_i_bledy(self):
+        calls = []
+        get, post = _rwe170_net(calls, fail={zd.RWE_ONDO, zd.RWE_XS})
+        rd = zd.rwe_odczyt(self.NOW, fx=self._fx(), get=get, post=post, sleep=lambda s: None)
+        for s in ('ondo-yield-assets', 'ondo-global-markets'):
+            self.assertIn('HTTP Error 403', rd['r'][s]['err'])
+        self.assertEqual(calls.count(zd.RWE_ONDO), 2, '403 — bez ponowienia; nieudane pobranie nie jest zapamiętane (drugi produkt próbuje sam)')
+        self.assertEqual(calls.count(zd.RWE_XS), 2, '502 — druga próba'); self.assertIn('HTTP Error 502', rd['r']['xstocks']['err'])
+        get, post = _rwe170_net(ondo=b'<html>Just a moment...</html>', xs={'data': {'tokens': {'nodes': [_rwe170_xn('A', 1, 100, 'USD', '2026-10-05T07:00:00Z')]}}})
+        rd = zd.rwe_odczyt(self.NOW, fx=None, get=get, post=post, sleep=lambda s: None)
+        self.assertIn('brak danych serwera strony', rd['r']['ondo-yield-assets']['err']); self.assertNotIn('err', rd['r']['xstocks'])
+        self.assertIn('brak kursu', rd['r']['spiko']['err'], 'bez pliku rynki: Spiko bez wyceny, xStocks w USD liczony')
+        get, post = _rwe170_net(ondo=b'x' * (zd.RWE_MAX_HTML + 1))
+        rd = zd.rwe_odczyt(self.NOW, fx=self._fx(), get=get, post=post, sleep=lambda s: None)
+        self.assertIn('za duża strona', rd['r']['ondo-global-markets']['err'])
+
+    def test_main_nowe_produkty_konfiguracji(self):
+        H = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
+        base = {'seg': {'all': {}}, 'hist': [], 'ok': {'list': True, 'hidden': True}}
+        stare = {s: {} for s in zd.RWE_PRODUKTY if s not in ('ondo-yield-assets', 'ondo-global-markets', 'xstocks')}
+        s, kw = RwaEmitenciV169._main(self, dict(base, at=H(2.5), issuer={'v': 1, 'at': H(2.5), 'ok': True, 'p': stare}))
+        self.assertEqual(len(kw), 1, 'blok bez nowych produktów konfiguracji (pierwszy przebieg po wdrożeniu v170) — przebudowa po 2 h, nie po 6 h')
+        s, kw = RwaEmitenciV169._main(self, dict(base, at=H(1.5), issuer={'v': 1, 'at': H(1.5), 'ok': True, 'p': stare}))
+        self.assertEqual(kw, [], 'młodszy niż 2 h — czeka'); self.assertEqual(zd.META['ok']['rwa-emitenci'], 'cached')
+        s, kw = RwaEmitenciV169._main(self, dict(base, at=H(2.5), issuer={'v': 1, 'at': H(2.5), 'ok': True, 'p': {s: {} for s in zd.RWE_PRODUKTY}}))
+        self.assertEqual(kw, [], 'wszystkie produkty konfiguracji — zwykły rytm 6 h')

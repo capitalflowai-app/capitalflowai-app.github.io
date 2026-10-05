@@ -2113,8 +2113,11 @@ for(const l in EXTRA167)if(I18N[l])Object.assign(I18N[l],EXTRA167[l]);
 const EXTRA168={"pl":{"pg.1h":"co godzinę"}};
 for(const l in EXTRA168)if(I18N[l])Object.assign(I18N[l],EXTRA168[l]);
 /* v169: tokenizowane aktywa — dane emitentów ◇ — tylko po polsku (cel właściciela 04.10: języki obce na koniec etapu) */
-const EXTRA169={"pl":{"rwe.in":"w tym {v} wg danych emitentów {m}","rwe.top":"{m} wartość według danych emitenta produktu (opis nad tabelami).","rwe.p":"{m} Dane emitentów — produkty, których dotychczasowe źródło stoi, liczymy według danych publikowanych przez samego emitenta (bieżąca liczba jednostek × ostatnia wycena; w nawiasie dzień stanu): {list}.","rwe.fx":"Klasy w innych walutach niż USD przeliczone po dziennym kursie z {d}.","rwe.gold":"Złoto (1 token = 1 uncja): {p} USD za uncję ({d}) — ta sama cena co w odczycie z łańcucha.","rwe.zakres":"Inny zakres niż w ostatnio znanej wartości: {list}.","rwe.ref":"ostatnio znana {v}","rwe.z.sol":"emitent liczy też klasę funduszu w sieci Solana","rwe.z.cfg":"emitent liczy tylko tokeny funduszy, bez tokenów-opakowań","rwe.part":"Bez bieżących danych emitenta — zostają poza sumami: {list}.","rwe.not":"Dane emitentów {m} pochodzą od samych emitentów i nie są audytem; przy wdrożeniu (05.10.2026) porównaliśmy liczby jednostek z odczytem z łańcucha bloków — były zgodne."}};
+const EXTRA169={"pl":{"rwe.in":"w tym {v} wg danych emitentów {m}","rwe.top":"{m} wartość według danych emitenta produktu (opis nad tabelami).","rwe.p":"{m} Dane emitentów — produkty, których dotychczasowe źródło stoi, liczymy według danych publikowanych przez samego emitenta (bieżąca liczba jednostek × ostatnia wycena; w nawiasie dzień stanu): {list}.","rwe.fx":"Wartości w innych walutach niż USD przeliczone po dziennym kursie z {d}.","rwe.gold":"Złoto (1 token = 1 uncja): {p} USD za uncję ({d}) — ta sama cena co w odczycie z łańcucha.","rwe.zakres":"Inny zakres niż w ostatnio znanej wartości: {list}.","rwe.ref":"ostatnio znana {v}","rwe.z.sol":"emitent liczy też klasę funduszu w sieci Solana","rwe.z.cfg":"emitent liczy tylko tokeny funduszy, bez tokenów-opakowań","rwe.part":"Bez bieżących danych emitenta — zostają poza sumami: {list}.","rwe.not":"Dane emitentów {m} pochodzą od samych emitentów i nie są audytem; przy wdrożeniu (05.10.2026) porównaliśmy liczby jednostek z odczytem z łańcucha bloków — były zgodne."}};
 for(const l in EXTRA169)if(I18N[l])Object.assign(I18N[l],EXTRA169[l]);
+/* v170: tokenizowane aktywa — dane emitentów: zakres Ondo Global Markets i xStocks — tylko po polsku (cel właściciela 04.10) */
+const EXTRA170={"pl":{"rwe.z.gm":"emitent liczy szerzej — wszystkie tokeny tej linii produktów","rwe.z.xs":"emitent liczy wszystkie swoje tokeny akcji we wszystkich sieciach"}};
+for(const l in EXTRA170)if(I18N[l])Object.assign(I18N[l],EXTRA170[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -9326,7 +9329,7 @@ function rwEmPara(D){
     const g=U.find(s=>o.p[s].kind==='xaum'&&rwPos(o.p[s].px)!==null&&typeof o.p[s].px_at==='string');
     if(g)L.push(t('rwe.gold',{p:nfmt(o.p[g].px,0),d:engDate(o.p[g].px_at)}));
     /* inny zakres niż ostatnio znana wartość (różnica ponad 25% w górę albo 20% w dół): obie liczby, krótki powód dla znanych przypadków */
-    const zk=z=>z==='sol'?'; '+t('rwe.z.sol'):z==='cfg'?'; '+t('rwe.z.cfg'):'';
+    const zk=z=>z==='sol'?'; '+t('rwe.z.sol'):z==='cfg'?'; '+t('rwe.z.cfg'):z==='gm'?'; '+t('rwe.z.gm'):z==='xs'?'; '+t('rwe.z.xs'):'';
     const Z=U.filter(s=>{const r=rwPos(o.p[s].ref);return r!==null&&(o.used[s]/r>1.25||o.used[s]/r<0.8);});
     if(Z.length)L.push(t('rwe.zakres',{list:Z.map(s=>nm(s)+' '+rwUsd(o.used[s])+' ('+t('rwe.ref',{v:rwUsd(o.p[s].ref)})+zk(o.p[s].zakres)+')').join('; ')}));
   }

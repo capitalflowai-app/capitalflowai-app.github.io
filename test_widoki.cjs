@@ -13039,7 +13039,7 @@ test('v169: dane emitentów ◇ — linie kafli „w tym … wg danych emitentó
   assert.ok(o.includes('◇ wartość według danych emitenta produktu (opis nad tabelami).'), 'nota pod tabelą');
   assert.ok(o.includes('◇ Dane emitentów — produkty, których dotychczasowe źródło stoi, liczymy według danych publikowanych przez samego emitenta (bieżąca liczba jednostek × ostatnia wycena; w nawiasie dzień stanu): '
     + 'Spiko 2,8 mld USD (02.10), Centrifuge Protocol 966 mln USD (01.10), Securitize Tokenized AAA CLO Fund 282 mln USD (03.10), Matrixdock XAUm 69 mln USD (04.10).'), 'lista z dniem stanu, od największych');
-  assert.ok(o.includes('Klasy w innych walutach niż USD przeliczone po dziennym kursie z 02.10.'), 'kurs');
+  assert.ok(o.includes('Wartości w innych walutach niż USD przeliczone po dziennym kursie z 02.10.'), 'kurs (v170: tekst dla wszystkich walut)');
   assert.ok(o.includes('Złoto (1 token = 1 uncja): ') && o.includes(' USD za uncję ([2026-10-03T15:25:59+00:00]) — ta sama cena co w odczycie z łańcucha.'), 'cena złota');
   assert.ok(o.includes('Inny zakres niż w ostatnio znanej wartości: Centrifuge Protocol 966 mln USD (ostatnio znana 1,5 mld USD; emitent liczy tylko tokeny funduszy, bez tokenów-opakowań); '
     + 'Securitize Tokenized AAA CLO Fund 282 mln USD (ostatnio znana 104 mln USD; emitent liczy też klasę funduszu w sieci Solana).'), 'obie liczby i powód');
@@ -13076,4 +13076,30 @@ test('v169: słownik — czysty JSON, tylko po polsku, klucze rwe.* używane w b
   const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
   assert.ok(mm.indexOf('EXTRA169') > mm.indexOf('EXTRA168') && mm.indexOf('EXTRA168') >= 0, 'po słowniku v168');
   assert.equal(html.split('const RW_EM=').length, 2, 'jeden znak ◇'); assert.ok(html.indexOf('const RW_OC=') < html.indexOf('const RW_EM='), 'blok v169 po bloku v150');
+});
+
+/* ---------- v170: dane emitentów — Ondo (strona emitenta) i xStocks (dowód rezerw): nota zakresu, kurs dla wszystkich walut ---------- */
+test('v170: Ondo Global Markets i xStocks — nota „inny zakres” z obiema liczbami i powodem; dzień stanu w liście; zdanie o kursie dla wszystkich walut', () => {
+  const F = v169Plik(), at = F.issuer.at;
+  Object.assign(F.issuer.p, {'ondo-global-markets': {name: 'Ondo Global Markets', kind: 'ondo_gm', v: 1284853527, as_of: '2026-10-04T00:00:00+00:00', read: at, err: null,
+      ref: 965790145, zakres: 'gm', full: true},
+    xstocks: {name: 'xStocks', kind: 'xs', v: 916900000, as_of: '2026-10-03T22:06:23+00:00', read: at, err: null, ref: 438000000, zakres: 'xs', fx: {d: '2026-10-02'}, full: true}});
+  F.issuer.used['ondo-global-markets'] = 1284853527; F.issuer.used.xstocks = 916900000;
+  const o = RWC150.out(F);
+  assert.ok(o.includes('Ondo Global Markets 1,3 mld USD (ostatnio znana 966 mln USD; emitent liczy szerzej — wszystkie tokeny tej linii produktów)'), 'Ondo Global Markets');
+  assert.ok(o.includes('xStocks 917 mln USD (ostatnio znana 438 mln USD; emitent liczy wszystkie swoje tokeny akcji we wszystkich sieciach)'), 'xStocks');
+  assert.ok(o.includes('Wartości w innych walutach niż USD przeliczone po dziennym kursie z 02.10.') && !o.includes('Klasy w innych walutach'), 'kurs — wszystkie waluty');
+  assert.ok(o.includes('Ondo Global Markets 1,3 mld USD (04.10)') && o.includes('xStocks 917 mln USD (03.10)'), 'dzień stanu w liście');
+  assert.ok(!/NaN|undefined|null|rwe\.[a-z]/.test(RWC150.txt(o)), 'bez NaN i surowych kluczy');
+});
+test('v170: słownik — czysty JSON, tylko po polsku (rwe.z.gm, rwe.z.xs), bez nazw dostawców; linia nakładania po słowniku v169; rwe.fx poprawione w słowniku v169 (bez zasłaniania)', () => {
+  const d0 = html.indexOf('const EXTRA170='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA170='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl'], 'tylko po polsku (cel 04.10)'); assert.deepEqual(Object.keys(D.pl).sort(), ['rwe.z.gm', 'rwe.z.xs']);
+  const e0 = html.indexOf('const EXTRA169='), e1 = html.indexOf(';\n', e0), E = JSON.parse(html.slice(e0 + 'const EXTRA169='.length, e1));
+  assert.equal(E.pl['rwe.fx'], 'Wartości w innych walutach niż USD przeliczone po dziennym kursie z {d}.', 'tekst kursu dla wszystkich walut (Spiko i xStocks)');
+  assert.ok(!/ondo|xstock|backed|securitize|spiko|\bEBC\b|\bECB\b/i.test(JSON.stringify(D)), 'bez nazw dostawców i wydawców');
+  const used = new Set([...rw133.BLK.matchAll(/t\('(rwe\.[a-z0-9.]+)'/g)].map(m => m[1]));
+  for (const k of Object.keys(D.pl)) assert.ok(used.has(k), 'klucz używany w bloku RWA: ' + k);
+  const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(mm.indexOf('EXTRA170') > mm.indexOf('EXTRA169') && mm.indexOf('EXTRA169') >= 0, 'po słowniku v169');
 });
