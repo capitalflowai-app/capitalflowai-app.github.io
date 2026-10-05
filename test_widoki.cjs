@@ -13148,3 +13148,30 @@ test('v176: powrót do karty po ≥ 2 min w tle — od razu wczytanie plików se
   timers.forEach(([, fn]) => fn()); assert.equal(calls.length, 25); assert.equal(calls[0], 'metaLoad'); assert.ok(!calls.includes('fedLoad'), 'Fed ma własny mechanizm');
   timers.length = 0; calls.length = 0; vis(); timers.forEach(([, fn]) => fn()); assert.deepEqual(calls, [], 'drugie „widoczna” bez ukrycia — nic');
 });
+
+
+/* ---------- v178: kursy EBC — odniesienia od dnia ostatniego fixingu (nie od dzisiejszej daty) ---------- */
+test('v178: zapas strony — odniesienia kursów od dnia ostatniego fixingu: poniedziałek rano 1D = czwartek (nie piątek = 0,00%), 1T = tydzień, koniec miesiąca przycięty', async () => {
+  const a = html.indexOf('function gFxBack(d0,k){'), b = html.indexOf('\n/* ostatnia wartość serii dziennej', a);
+  assert.ok(a > 0 && b > a, 'funkcje v178 w stronie');
+  const BD = ['2026-10-05', '2026-10-02', '2026-10-01', '2026-09-28', '2026-09-25', '2026-09-02', '2026-07-02', '2025-10-02'];
+  const mk = same => { const asked = [];
+    const gJSON = u => { const d = u.split('/v1/')[1].split('?')[0]; asked.push(d); const x = same || BD.filter(v => v <= d).sort().pop(); return Promise.resolve({amount: 1, base: 'USD', date: x, rates: {EUR: 0.9}}); };
+    const F = new Function('gJSON', 'GSRC', html.slice(a, b) + '\nreturn {gFxBack, gFxRefs};')(gJSON, {fx: d => `https://api.frankfurter.dev/v1/${d}?from=USD`});
+    F.asked = asked; return F; };
+  const F = mk();
+  assert.deepEqual(['1D', '1T', '1M', '1Q', '1R'].map(k => F.gFxBack('2026-10-02', k)), ['2026-10-01', '2026-09-25', '2026-09-02', '2026-07-02', '2025-10-02']);
+  assert.equal(F.gFxBack('2026-03-31', '1M'), '2026-02-28', 'koniec miesiąca przycięty — jak months_back na serwerze');
+  assert.equal(F.gFxBack('2026-01-02', '1T'), '2025-12-26'); assert.equal(F.gFxBack('2026-01-31', '1Q'), '2025-10-31'); assert.equal(F.gFxBack('2026-03-01', '1D'), '2026-02-28');
+  const o = await F.gFxRefs({date: '2026-10-02', rates: {EUR: 0.89}});
+  assert.deepEqual(Object.keys(o), ['now', '1M', '1Q', '1R', '1D', '1T']);
+  assert.deepEqual(F.asked, ['2026-09-02', '2026-07-02', '2025-10-02', '2026-10-01', '2026-09-25'], 'od dnia fixingu, nie od dziś');
+  assert.equal(o['1D'].date, '2026-10-01', '1D = poprzedni fixing'); assert.equal(o['1T'].date, '2026-09-25');
+  assert.equal((await F.gFxRefs({date: '2026-10-05', rates: {EUR: 0.89}}))['1D'].date, '2026-10-02', 'źródło za niedzielę podaje piątek');
+  await assert.rejects(F.gFxRefs({date: 'x', rates: {}}), /brak daty/);
+  await assert.rejects(F.gFxRefs({date: '2026-10-02'}), /brak daty/, 'bez kursów — brak');
+  await assert.rejects(mk('2026-10-02').gFxRefs({date: '2026-10-02', rates: {EUR: 0.89}}), /kursy 1M: brak wcześniejszego fixingu/, 'odniesienie = ten sam dzień → brak, nie 0,00%');
+  assert.ok(html.includes("gJSON(GSRC.fx('latest')).then(gFxRefs)") && !html.includes('backD('), 'zapas bez pliku serwera — odniesienia od dnia fixingu, bez dat od dziś');
+  const r0 = html.indexOf("return gJSON(GSRC.fx('latest')).then(x=>{"), r = html.slice(r0, html.indexOf('/* v101: najpierw plik serwera */', r0));
+  assert.ok(r0 > 0 && r.includes('x.date===GLIVE.fx.now.date') && r.includes('return gFxRefs(x).then(v=>{GLIVE.fx=v;okN++;gOk(\'fx\');})'), 'odświeżanie: nowy dzień fixingu = nowe odniesienia');
+});

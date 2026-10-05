@@ -8026,9 +8026,12 @@ def months_back(d, n):
     return datetime.date(y, mo, min(d.day, last))
 
 
-def fx_dates(today):
-    return {'now': 'latest', '1M': months_back(today, 1).isoformat(), '1Q': months_back(today, 3).isoformat(), '1R': months_back(today, 12).isoformat(),
-            '1D': (today - datetime.timedelta(days=1)).isoformat(), '1T': (today - datetime.timedelta(days=7)).isoformat()}
+def fx_dates(d0):
+    """v178: daty odniesienia kursów od dnia OSTATNIEGO fixingu d0 (jak gDaily na stronie: 1D = poprzedni fixing, pozostałe = ostatni fixing
+    ≤ d0 − okres; źródło za dzień bez fixingu podaje ostatni wcześniejszy). Dawniej od dzisiejszej daty — przed publikacją EBC (ok. 14:00 UTC),
+    w weekendy i w poniedziałki 1D był tym samym fixingiem co „now” (indeks dolara „dziś” 0,00% przez ok. 15 h na dobę), a 1T obejmował 4 sesje."""
+    return {'1M': months_back(d0, 1).isoformat(), '1Q': months_back(d0, 3).isoformat(), '1R': months_back(d0, 12).isoformat(),
+            '1D': (d0 - datetime.timedelta(days=1)).isoformat(), '1T': (d0 - datetime.timedelta(days=7)).isoformat()}
 
 
 def ust_parse(xml_text):
@@ -8089,12 +8092,20 @@ def build_rynki(prev=None, today=None):
                 out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
 
     def fx():
-        r = {}
-        for k, d in fx_dates(today).items():
+        def one(k, d):
             j = get_json(FX_URL.format(d=d))
             if not isinstance(j, dict) or not isinstance(j.get('rates'), dict) or not j['rates']:
                 raise ValueError(f'kursy {k}: brak')
-            r[k] = {'amount': j.get('amount'), 'base': j.get('base'), 'date': j.get('date'), 'rates': j['rates']}
+            return {'amount': j.get('amount'), 'base': j.get('base'), 'date': j.get('date'), 'rates': j['rates']}
+        r = {'now': one('now', 'latest')}
+        d0 = _d(r['now']['date'])   # v178: odniesienia od dnia ostatniego fixingu, nie od dzisiejszej daty
+        if d0 is None or d0 > today:
+            raise ValueError(f"kursy now: zła data {r['now']['date']!r}")
+        for k, d in fx_dates(d0).items():
+            r[k] = one(k, d)
+            dk = _d(r[k]['date'])
+            if dk is None or dk >= d0:   # odniesienie musi być wcześniejszym fixingiem — inaczej zmiana 0,00% zamiast braku
+                raise ValueError(f"kursy {k}: data {r[k]['date']!r} nie przed {d0.isoformat()}")
         return r
 
     def ust():

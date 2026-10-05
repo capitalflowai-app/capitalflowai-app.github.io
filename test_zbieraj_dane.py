@@ -8861,7 +8861,7 @@ class RynkiV101(unittest.TestCase):
     def test_dates_like_page(self):
         self.assertEqual(zd.months_back(datetime.date(2026, 3, 31), 1), datetime.date(2026, 2, 28))
         self.assertEqual(zd.months_back(datetime.date(2026, 9, 25), 12), datetime.date(2025, 9, 25))
-        self.assertEqual(zd.fx_dates(datetime.date(2026, 9, 25)), {'now': 'latest', '1M': '2026-08-25', '1Q': '2026-06-25', '1R': '2025-09-25', '1D': '2026-09-24', '1T': '2026-09-18'})
+        self.assertEqual(zd.fx_dates(datetime.date(2026, 9, 25)), {'1M': '2026-08-25', '1Q': '2026-06-25', '1R': '2025-09-25', '1D': '2026-09-24', '1T': '2026-09-18'})   # v178: od dnia ostatniego fixingu
 
     def test_parsers(self):
         self.assertEqual(zd.ust_parse(self.XML), [['2026-09-24', 5.12], ['2026-09-25', 5.17]])   # brak wartości — brak wiersza, nie zero
@@ -8873,7 +8873,10 @@ class RynkiV101(unittest.TestCase):
 
         def gj(url, headers=None, timeout=30):
             calls.append(url)
-            return self.BUBA if 'bundesbank' in url else self.FX
+            if 'bundesbank' in url:
+                return self.BUBA
+            d = url.split('/v1/')[1].split('?')[0]   # v178: odniesienia muszą być wcześniejszymi fixingami — data z zapytania (≤ 25.09)
+            return dict(self.FX, date=self.FX['date'] if d == 'latest' else min(d, self.FX['date']))
 
         def gt(url, headers=None, timeout=30):
             calls.append(url)
@@ -24035,3 +24038,65 @@ class KontrolaPrzebiegiV177(unittest.TestCase):
         R, urls, _ = self._kontrola({1: self._runs(NOW, 100, 1, 20)})
         self.assertEqual(len([u for u in urls if '/runs' in u and '/jobs' not in u]), 1, 'najstarszy z pierwszej strony starszy niż doba — bez drugiej strony')
         self.assertEqual(R['actions']['przebiegi_24h'], 72)
+
+
+# ===================== v178: KURSY EBC — ODNIESIENIA OD DNIA OSTATNIEGO FIXINGU =====================
+class RynkiFxV178(unittest.TestCase):
+    """v178: kursy odniesienia (1D, 1T, 1M, 1Q, 1R) od dnia ostatniego fixingu d0, nie od dzisiejszej daty. Dawniej w poniedziałek rano
+    (ostatni fixing z piątku) 1D = piątek = „now” → indeks dolara „dziś” 0,00% (05.10: powinno być +0,35%), a 1T = 4 sesje. Bez sieci:
+    atrapa źródła podaje ostatni fixing nie późniejszy niż żądany dzień (jak prawdziwe — sprawdzone 05.10: 2026-10-04 → 2026-10-02)."""
+    BD = ('2026-10-05', '2026-10-02', '2026-10-01', '2026-09-30', '2026-09-29', '2026-09-28', '2026-09-25', '2026-09-24', '2026-09-02',
+          '2026-07-02', '2026-07-03', '2025-10-03', '2025-10-02')
+
+    def setUp(self):
+        zd.META['errors'].clear()
+        self.addCleanup(zd.META['errors'].clear)
+
+    def _gj(self, latest, calls, zly=None):
+        def gj(url, headers=None, timeout=30):
+            if 'bundesbank' in url:
+                return RynkiV101.BUBA   # druga część pliku działa — błąd kursów nie wyłącza całego pliku
+            d = url.split('/v1/')[1].split('?')[0]
+            calls.append(d)
+            if d == 'latest':
+                x = latest
+            else:
+                x = max((v for v in self.BD if v <= d), default='2024-01-02')
+                if zly and x == zly[0]:
+                    x = zly[1]
+            return {'amount': 1.0, 'base': 'USD', 'date': x, 'rates': {'EUR': 0.89 if str(x) >= '2026-10-02' else 0.88}}
+        return gj
+
+    def _build(self, latest, today, prev=None, zly=None):
+        calls = []
+        with mock.patch.object(zd, 'get_json', side_effect=self._gj(latest, calls, zly)), \
+                mock.patch.object(zd, 'get', side_effect=RuntimeError('test: bez rentowności')):
+            o = zd.build_rynki(prev, today=today)
+        return o, calls
+
+    def test_poniedzialek_rano_i_po_publikacji(self):
+        o, calls = self._build('2026-10-02', datetime.date(2026, 10, 5))
+        self.assertEqual(calls, ['latest', '2026-09-02', '2026-07-02', '2025-10-02', '2026-10-01', '2026-09-25'],
+                         'najpierw ostatni fixing, potem odniesienia od jego dnia (02.10), nie od dziś (05.10)')
+        self.assertTrue(o['ok']['fx'])
+        F = o['fx']
+        self.assertEqual(list(F), ['now', '1M', '1Q', '1R', '1D', '1T'])
+        self.assertEqual((F['now']['date'], F['1D']['date'], F['1T']['date']), ('2026-10-02', '2026-10-01', '2026-09-25'),
+                         '1D = poprzedni fixing (czwartek), nie ten sam piątek; 1T = pełny tydzień')
+        o, calls = self._build('2026-10-05', datetime.date(2026, 10, 5))
+        self.assertEqual(calls[-2:], ['2026-10-04', '2026-09-28'])
+        self.assertEqual((o['fx']['1D']['date'], o['fx']['1T']['date']), ('2026-10-02', '2026-09-28'), 'po publikacji poniedziałkowej: 1D = piątek')
+        o, calls = self._build('2026-07-03', datetime.date(2026, 7, 4))
+        self.assertEqual(o['fx']['1D']['date'], '2026-07-02')
+
+    def test_odniesienie_nie_wczesniejsze_to_blad_czesci(self):
+        prev = {'at': '2026-10-05T09:00:00+00:00', 'fx': {'now': {'date': '2026-10-01', 'rates': {'EUR': 0.88}}}, 'part_at': {'fx': '2026-10-05T09:00:00+00:00'}}
+        o, _ = self._build('2026-10-02', datetime.date(2026, 10, 5), prev=prev, zly=('2026-10-01', '2026-10-02'))
+        self.assertFalse(o['ok']['fx']); self.assertEqual(o['fx'], prev['fx']); self.assertEqual(o['part_at']['fx'], '2026-10-05T09:00:00+00:00')
+        self.assertTrue(any(e.startswith('Frankfurter: kursy 1D: data ') for e in zd.META['errors']), zd.META['errors'])
+        zd.META['errors'].clear()
+        for zla in ('x', None, '2026-10-06'):
+            o, calls = self._build(zla, datetime.date(2026, 10, 5), prev=prev)
+            self.assertFalse(o['ok']['fx'], zla); self.assertEqual(calls, ['latest'], 'bez dnia ostatniego fixingu — bez dalszych zapytań')
+            self.assertTrue(any(e.startswith('Frankfurter: kursy now: zła data') for e in zd.META['errors']), zd.META['errors'])
+            zd.META['errors'].clear()

@@ -4456,6 +4456,20 @@ function gBuba(j){
   for(const k in ser.observations){const v=parseFloat(ser.observations[k][0]);if(isFinite(v))out.push([T[+k],v]);}
   return out.sort((a,b)=>a[0]<b[0]?-1:1);
 }
+/* v178: kursy odniesienia od dnia OSTATNIEGO fixingu d0 (jak gDaily i plik serwera): 1D = poprzedni fixing (źródło za dzień bez fixingu podaje
+   ostatni wcześniejszy), 1T = ≤ d0 − 7 dni, 1M/1Q/1R = ≤ ten sam dzień n mies. wcześniej (koniec miesiąca przycięty). Dawniej od dzisiejszej daty —
+   przed publikacją EBC, w weekendy i w poniedziałki 1D = ten sam fixing co „now” (indeks dolara „dziś” 0,00%). */
+function gFxBack(d0,k){
+  const y=+d0.slice(0,4),m=+d0.slice(5,7)-1,d=+d0.slice(8,10),n={'1M':1,'1Q':3,'1R':12}[k];
+  if(!n)return new Date(Date.UTC(y,m,d-(k==='1T'?7:1))).toISOString().slice(0,10);
+  const M=y*12+m-n,Y=Math.floor(M/12),mo=M-Y*12,last=new Date(Date.UTC(Y,mo+1,0)).getUTCDate();
+  return new Date(Date.UTC(Y,mo,Math.min(d,last))).toISOString().slice(0,10);}
+function gFxRefs(n){   /* odpowiedź „latest” → {now, 1M, 1Q, 1R, 1D, 1T}; odniesienie nie wcześniejsze niż d0 = błąd (brak, nie 0,00%) */
+  const d0=n&&n.rates&&typeof n.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(n.date)?n.date:null;
+  if(!d0)return Promise.reject(new Error('kursy: brak daty'));
+  const K=['1M','1Q','1R','1D','1T'];
+  return Promise.all(K.map(k=>gJSON(GSRC.fx(gFxBack(d0,k))))).then(a=>{const o={now:n};
+    K.forEach((k,i)=>{const x=a[i];if(!x||!x.rates||typeof x.date!=='string'||!(x.date<d0))throw new Error('kursy '+k+': brak wcześniejszego fixingu');o[k]=x;});return o;});}
 /* ostatnia wartość serii dziennej i zmiana wobec okresu: 1D = poprzednia sesja, inne = ostatnia obserwacja ≤ (dziś − n mies.) */
 function gDaily(s,per){
   if(!s||!s.length)return null;
@@ -4485,7 +4499,6 @@ function gLoad(cb){
   GLIVE.st='load';GLIVE.src=keepSrc;gStatus();   /* pełne odświeżenie: lista źródeł liczona od nowa */
   const today=new Date().toISOString().slice(0,10);
   const back=n=>{const d=new Date();d.setMonth(d.getMonth()-n);return d.toISOString().slice(0,10);};
-  const backD=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10);};
   gDay();
   const P=[
     /* v99: OECD najpierw z pliku serwera (co 6 h); prosto z OECD tylko część, której w pliku brak — OECD ogranicza zapytania z jednego adresu (429) */
@@ -4497,8 +4510,8 @@ function gLoad(cb){
       const use=(k,f)=>{f(S[k]);gOk(k);GLIVE.rynkiAt[k]=pa[k]||j.at;};
       return Promise.all([
         S.fx?Promise.resolve().then(()=>use('fx',v=>{GLIVE.fx=v;})):
-        Promise.all([gJSON(GSRC.fx('latest')),gJSON(GSRC.fx(back(1))),gJSON(GSRC.fx(back(3))),gJSON(GSRC.fx(back(12))),gJSON(GSRC.fx(backD(1))),gJSON(GSRC.fx(backD(7)))])
-          .then(a=>{GLIVE.fx={now:a[0],'1M':a[1],'1Q':a[2],'1R':a[3],'1D':a[4],'1T':a[5]};gOk('fx');}).catch(e=>{GLIVE.err=GLIVE.err||('FX '+e.message);}),
+        gJSON(GSRC.fx('latest')).then(gFxRefs)   /* v178: odniesienia od dnia ostatniego fixingu */
+          .then(v=>{GLIVE.fx=v;gOk('fx');}).catch(e=>{GLIVE.err=GLIVE.err||('FX '+e.message);}),
         S.ust?Promise.resolve().then(()=>use('ust',v=>{GLIVE.ust=v;})):gUstLoad(),
         S.buba?Promise.resolve().then(()=>use('buba',v=>{GLIVE.buba=v;})):gJSON(GSRC.buba(back(13))).then(x=>{const s=gBuba(x);if(s.length){GLIVE.buba=s;gOk('buba');}}).catch(()=>{})]);}),
     gJSON(cgUrl(GSRC.crypto)).then(j=>{GLIVE.crypto=j.data;gOk('crypto');}).catch(()=>{}),
@@ -4552,7 +4565,9 @@ function gAuto(on){
     const due=n=>{if(gTick%n===0){tried++;return true;}return false;};
     Promise.all([
       due(15)?srvJSON('rynki').then(j=>{const S=rynkiSrv(j);if(S.fx&&GLIVE.fx){GLIVE.fx=S.fx;okN++;gOk('fx');GLIVE.rynkiAt=GLIVE.rynkiAt||{};GLIVE.rynkiAt.fx=(j.part_at&&j.part_at.fx)||j.at;return;}
-        return gJSON(GSRC.fx('latest')).then(x=>{if(GLIVE.fx&&x&&x.rates){GLIVE.fx.now=x;okN++;gOk('fx');}});}).catch(()=>{}):null,   /* v101: najpierw plik serwera */
+        return gJSON(GSRC.fx('latest')).then(x=>{if(!(GLIVE.fx&&x&&x.rates))return;   /* v178: nowy dzień fixingu = nowe odniesienia (inaczej 1D o dwa fixingi wstecz) */
+          if(GLIVE.fx.now&&x.date===GLIVE.fx.now.date){GLIVE.fx.now=x;okN++;gOk('fx');return;}
+          return gFxRefs(x).then(v=>{GLIVE.fx=v;okN++;gOk('fx');});});}).catch(()=>{}):null,   /* v101: najpierw plik serwera */
       due(5)?gJSON(cgUrl(GSRC.crypto)).then(j=>{if(j&&j.data){GLIVE.crypto=j.data;okN++;gOk('crypto');}}).catch(()=>{}):null,
       (!krStabh()&&due(15))?gJSON(GSRC.stab).then(j=>{if(Array.isArray(j)&&j.length){GLIVE.stab=j;okN++;gOk('stab');}}).catch(()=>{}):null
     ]).then(()=>{
