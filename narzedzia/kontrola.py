@@ -1925,7 +1925,8 @@ def kontrola():
         w = wiek_min(m.get('at'))
         nie = sorted(k for k, v in (m.get('ok') or {}).items() if v is False)
         R['meta'] = {'at': m.get('at'), 'wiek_min': w, 'zrodla': len(m.get('ok') or {}), 'bez_odpowiedzi': nie,
-                     'errors': [str(x)[:160] for x in (m.get('errors') or [])], 'notes': [str(x)[:160] for x in (m.get('notes') or [])]}
+                     'errors': [str(x)[:160] for x in (m.get('errors') or [])], 'notes': [str(x)[:160] for x in (m.get('notes') or [])],
+                     'czas': m.get('czas') if isinstance(m.get('czas'), dict) else None}   # v185: czas przebiegu automatu
         if w is None:
             R['bledy'].append('plik stanu bez czasu przebiegu')
         elif w > 180:
@@ -2257,6 +2258,11 @@ def raport_md(R):
          f'- Strona główna: {"działa" if (R.get("strona") or {}).get("ok") else "PROBLEM"} (HTTP {(R.get("strona") or {}).get("http", "—")}, {(R.get("strona") or {}).get("ms", "—")} ms).',
          f'- Ostatni przebieg automatu: {czas_pl(m.get("at"))} — {("sprzed " + str(m.get("wiek_min")) + " min") if m.get("wiek_min") is not None else "brak"}; '
          f'źródeł: {m.get("zrodla", "—")}, bez odpowiedzi: {", ".join(m.get("bez_odpowiedzi") or []) or "żadne"}; błędów zbieracza: {len(m.get("errors") or [])}.']
+    cz = m.get('czas') if isinstance(m.get('czas'), dict) else None   # v185: czas tego przebiegu i najdłuższe części
+    if cz and isinstance(cz.get('s'), (int, float)):
+        top = [x for x in (cz.get('top') or []) if isinstance(x, list) and len(x) == 2][:3]
+        L.append(f'- Czas tego przebiegu automatu: {int(cz["s"]) // 60} min {int(cz["s"]) % 60} s'
+                 + ('; najdłużej: ' + ', '.join(f'{n} {s} s' for n, s in top) if top else '') + '.')
     s18 = (R.get('strona') or {}).get('i18n')   # v141: lżejsza strona — pliki słowników języków
     if s18:
         L.append('- Słowniki języków de–ja (osobne pliki strony): ' + s18.get('opis', '—') + '.')

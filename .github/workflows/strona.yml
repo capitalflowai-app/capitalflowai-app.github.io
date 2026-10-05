@@ -16,7 +16,7 @@ concurrency:
 jobs:
   zbuduj:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25   # v185: najcięższe przebiegi (raz na godzinę) trwały 14,3–14,5 min (05.10, API Actions) — przy 15 min groziło przerwanie bez publikacji
     permissions:
       contents: read
     steps:

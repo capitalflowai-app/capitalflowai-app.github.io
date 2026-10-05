@@ -176,6 +176,8 @@ def save(name, obj):
     with open(f'{OUT}/{name}.json', 'w', encoding='utf-8') as f:
         json.dump(obj, f, ensure_ascii=False, separators=(',', ':'))
     SAVED[name] = obj
+    if _RUN_T0[0] is not None:   # v185: chwila zapisu (sekundy od startu przebiegu) — czas części przebiegu do meta.json i kontroli
+        _CZAS.append((name, time.monotonic() - _RUN_T0[0]))
     print(f'zapisano {OUT}/{name}.json ({os.path.getsize(f"{OUT}/{name}.json")} B)')
 
 
@@ -2176,6 +2178,18 @@ _BACK_LATE_NOTE = [False]
 TW_PEND_H = 12            # v95.2: starszy dzień „No Data!” (TWSE) = święto dopiero przy drugiej takiej odpowiedzi po ≥ 12 h
 HK_NF_DAYS = 7            # v95.2: brak pliku HKEX za starszy dzień — ponowne pytanie po tygodniu (bez stałej granicy)
 _RUN_T0 = [None]          # v95.2: początek przebiegu (main)
+_CZAS = []                # v185: (plik, sekundy od startu przebiegu) przy każdym zapisie
+CZAS_UWAGA_S = 18 * 60    # v185: przebieg dłuższy = notatka w meta (limit zadania w Actions: 25 min)
+
+
+def czas_przebiegu(zapisy, calosc):
+    """v185: (plik, sekundy od startu) przy kolejnych zapisach → {'s': cały przebieg (s), 'top': 5 najdłuższych części [[plik, s], …]}.
+    Część = czas od poprzedniego zapisu do zapisu tego pliku (budowa pliku i to, co przed nim); ten sam plik dwa razy — suma."""
+    d, t0 = {}, 0.0
+    for n, t in zapisy:
+        d[n] = d.get(n, 0.0) + max(0.0, t - t0); t0 = t
+    top = sorted(d.items(), key=lambda x: -x[1])[:5]
+    return {'s': round(calosc), 'top': [[n, round(s)] for n, s in top]}
 NSDL_MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
 OBCE_KEEP = 300           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg; v89: 300 — tło dla TRENDÓW)
 NSDL_CATS = {'equity': 'eq', 'debt-general limit': 'debt', 'debt-vrr': 'debt', 'debt-far': 'debt', 'hybrid': 'hyb',
@@ -18229,6 +18243,7 @@ def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
     _RUN_T0[0] = time.monotonic()      # v95.2: historia wstecz tylko, gdy przebieg nie jest już długi
+    _CZAS.clear()                      # v185: czas części tego przebiegu
     _BACK_LATE_NOTE[0] = False
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
@@ -18915,6 +18930,10 @@ def main():
         save('swiat-dziennik', _W_LOG[1])
     elif _tdw_valid(_W_LOG[0]):                                    # świat v2 nieaktywny albo bez dziennika w tym przebiegu: poprzedni bez zmian
         save('swiat-dziennik', _W_LOG[0])
+    META['czas'] = czas_przebiegu(_CZAS, time.monotonic() - _RUN_T0[0])   # v185: cały przebieg i 5 najdłuższych części
+    if META['czas']['s'] > CZAS_UWAGA_S:
+        META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "
+                             + ', '.join(f'{n} {s} s' for n, s in META['czas']['top'][:3]))
     META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')

@@ -24332,3 +24332,73 @@ class MetodologiaRytmV184(unittest.TestCase):
         self.assertIn("if td_key and prev_ceny and fresh(prev_ceny, 55):", src); self.assertIn('dzienne zamknięcia</span></td><td><span class="cell">automat co około godzinę', jak)
         self.assertNotIn('automat co 3 godziny; wynik dnia po sesji', jak)
 
+
+# ===================== v185: ZAPAS CZASU DLA CIĘŻKICH PRZEBIEGÓW I CZAS CZĘŚCI PRZEBIEGU =====================
+class CzasPrzebieguV185(unittest.TestCase):
+    """v185: limit zadania „zbuduj” 25 min (najcięższe przebiegi 05.10: 14,3–14,5 min przy limicie 15); meta.json — blok „czas”
+    (cały przebieg, 5 najdłuższych części); kontrola pokazuje czas przebiegu. Bez sieci."""
+
+    def test_limit_zadania(self):
+        wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        z0 = wf.index('  zbuduj:'); o0 = wf.index('  opublikuj:')
+        self.assertIn('    timeout-minutes: 25   # v185', wf[z0:o0]); self.assertNotIn('timeout-minutes: 15', wf[z0:o0])
+
+    def test_czas_przebiegu(self):
+        f = zd.czas_przebiegu
+        z = [('etf', 150.0), ('krypto', 160.0), ('ceny', 400.0), ('etf', 420.0), ('rwa', 700.0), ('meta', 701.0)]
+        self.assertEqual(f(z, 702.4), {'s': 702, 'top': [['rwa', 280], ['ceny', 240], ['etf', 170], ['krypto', 10], ['meta', 1]]},
+                         'część = od poprzedniego zapisu; ten sam plik dwa razy — suma; 5 najdłuższych')
+        self.assertEqual(f([], 3.2), {'s': 3, 'top': []})
+        self.assertEqual(zd.CZAS_UWAGA_S, 18 * 60)
+
+    def test_zapis_mierzy_i_meta_ma_czas(self):
+        saved, t = {}, [1000.0]
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
+                               'SITE_URL', 'CACHE_DIR', 'SEC_CONTACT', 'RWA_OFF')}
+        env['RWA_OFF'] = '1'
+
+        def mono():
+            t[0] += 1.0
+            return t[0]
+        import tempfile
+        d = tempfile.mkdtemp(prefix='cz185-')
+        for koniec in (False, True):
+            saved.clear(); zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear(); zd.META.pop('czas', None)
+            real_save = zd.save
+
+            def save(n, o):
+                saved[n] = o
+                real_save(n, o)
+                if koniec and len(saved) == 1:
+                    t[0] += 20 * 60   # przebieg ciężki: 20 min po pierwszym zapisie
+            with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'OUT', d), mock.patch.object(zd.time, 'monotonic', mono), \
+                    mock.patch.object(zd, 'previous', lambda name: None), mock.patch.object(zd, 'save', save), mock.patch('sys.stdout', io.StringIO()):
+                [p.start() for p in stubs]
+                try:
+                    zd.main()
+                finally:
+                    [p.stop() for p in stubs]
+            C = saved['meta']['czas']
+            self.assertEqual(set(C), {'s', 'top'}); self.assertGreater(C['s'], 0); self.assertLessEqual(len(C['top']), 5)
+            self.assertTrue(all(isinstance(n, str) and isinstance(s, int) and s >= 0 for n, s in C['top']))
+            uw = [x for x in saved['meta']['notes'] if x.startswith('przebieg automatu trwał')]
+            if koniec:
+                self.assertGreaterEqual(C['s'], 20 * 60); self.assertEqual(len(uw), 1); self.assertIn('limitu zadania (25 min)', uw[0])
+            else:
+                self.assertLess(C['s'], 18 * 60); self.assertEqual(uw, [])
+        self.assertEqual(zd._CZAS[-1][0], 'meta', 'ostatni zapis — plik stanu')
+
+    def test_kontrola_pokazuje_czas(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v185', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        R = {'at': '2026-10-05T19:00:00+00:00', 'wynik': 'OK', 'uwagi': [], 'bledy': [], 'strona': {'ok': True, 'http': 200, 'ms': 100},
+             'meta': {'at': '2026-10-05T18:50:00+00:00', 'wiek_min': 10, 'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': [],
+                      'czas': {'s': 862, 'top': [['etf', 170], ['krypto-top10', 120], ['ceny', 95]]}},
+             'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}}
+        md = k.raport_md(R)
+        self.assertIn('- Czas tego przebiegu automatu: 14 min 22 s; najdłużej: etf 170 s, krypto-top10 120 s, ceny 95 s.', md)
+        R['meta']['czas'] = None
+        self.assertNotIn('Czas tego przebiegu', k.raport_md(R), 'stary plik stanu bez bloku czasu — bez wiersza')
+        self.assertTrue(md.startswith('# Kontrola strony — ') and '**Wynik: OK**' in md, 'nagłówek i wynik bez zmian (czyta je zadanie w chmurze)')
