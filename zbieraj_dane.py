@@ -24,6 +24,8 @@ CG_IDS = {'btc': 'bitcoin', 'eth': 'ethereum', 'sol': 'solana', 'xrp': 'ripple'}
 _DEADLINE = [None]   # v49: po tym czasie (monotonic) SoSoValue nie czeka na 429 i pomija listy funduszy
 SOSO_BUDGET = 8 * 60
 SOSO_SLEEP = 4.0   # limit 20 zapytań/min — 15/min zostawia zapas
+ETF_FUNDS_EVERY = 6 * 60   # v192: min — lista i szczegóły funduszy tylko przy nowym dniu danych albo co 6 h (dotąd co godzinę: ok. 47 zapytań
+                           # po ok. 7 s, 479 z 686 s przebiegu 05.10); Hongkong (strona go nie pokazuje) też najwyżej co 6 h
 # te same ETF-y zastępcze co w index.html (GPROXY)
 DAY_SYMS = ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA']
 TD = 'https://api.twelvedata.com'
@@ -4450,12 +4452,19 @@ def build_etf(key, cg_key, prev=None):
     for s in ETF_SYMS:
         try:
             pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
-            _etf_coin(out, s, key, pa.get('day'))
+            _etf_coin(out, s, key, pa.get('day'), prev_a=pa)
         except Exception as e:   # v49: brak jednej monety nie kasuje pozostałych
             META['errors'].append(mask(f'SoSoValue {s.upper()}: {e}'))
     if not out['assets']:
         raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
-    _etf_hk(out, key, prev.get('hk') if isinstance(prev, dict) else None)   # v61: Hongkong (próba, nie psuje części USA)
+    ph = prev.get('hk') if isinstance(prev, dict) and isinstance(prev.get('hk'), dict) and prev['hk'] else None
+    hat = _ix_dt(prev.get('hk_at')) if isinstance(prev, dict) else None
+    if ph and hat is not None and 0 <= (_now_utc() - hat).total_seconds() < ETF_FUNDS_EVERY * 60:   # v192: Hongkong najwyżej co 6 h
+        out['hk'], out['hk_at'] = ph, prev['hk_at']
+    else:
+        _etf_hk(out, key, ph)   # v61: Hongkong (próba, nie psuje części USA)
+        if out.get('hk'):
+            out['hk_at'] = NOW
     # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
     dates = sorted({a['asof'] for a in out['assets'].values()})
     out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
@@ -4490,7 +4499,7 @@ def _etf_hk(out, key, prev_assets_hk):
         out['hk'] = hk
 
 
-def _etf_coin(out, s, key, prev_day=None):
+def _etf_coin(out, s, key, prev_day=None, prev_a=None):
         """v49: dane jednej monety (wydzielone z build_etf, żeby błąd jednej nie kasował pozostałych)."""
         rows = soso(f'/etfs/summary-history?symbol={s.upper()}&country_code=US&limit=60', key)
         rows = [r for r in rows if r.get('date') and r.get('total_net_inflow') is not None]
@@ -4507,10 +4516,19 @@ def _etf_coin(out, s, key, prev_day=None):
             
              'cum': last['cum_net_inflow'] / 1e6, 'aum': aum,
              'share': (aum * 1e6 / mc * 100) if (aum and mc) else None, 'funds': []}
-        lst = soso(f'/etfs?symbol={s.upper()}&country_code=US', key)
+        # v192: lista i szczegóły funduszy (1 + N zapytań po ok. 7 s) tylko przy nowym dniu danych albo gdy lista starsza niż 6 h; niepełna lista
+        # (limit czasu, błąd funduszu) bez funds_at — następny przebieg pobiera ją znowu
+        pf = prev_a.get('funds') if isinstance(prev_a, dict) and isinstance(prev_a.get('funds'), list) else None
+        fat = _ix_dt(prev_a.get('funds_at')) if isinstance(prev_a, dict) else None
+        stara = not (pf and prev_a.get('asof') == last['date'] and fat is not None and 0 <= (_now_utc() - fat).total_seconds() < ETF_FUNDS_EVERY * 60)
+        pelna = True
+        if stara:
+            lst = soso(f'/etfs?symbol={s.upper()}&country_code=US', key)
+        else:
+            lst = []; a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]; a['funds_at'] = prev_a['funds_at']
         for it in (lst or [])[:12]:
             if _DEADLINE[0] is not None and time.monotonic() > _DEADLINE[0]:   # v49: limit czasu przebiegu
-                META['errors'].append(f'SoSoValue {s.upper()}: lista funduszy pominięta — limit czasu przebiegu'); break
+                META['errors'].append(f'SoSoValue {s.upper()}: lista funduszy pominięta — limit czasu przebiegu'); pelna = False; break
             if not TICKER.match(str(it.get('ticker', ''))):
                 # ticker spoza wzorca nie trafia na stronę — i nie znika po cichu
                 META['errors'].append(f'SoSoValue {s.upper()}: odrzucony ticker {str(it.get("ticker"))[:20]!r}')
@@ -4524,7 +4542,9 @@ def _etf_coin(out, s, key, prev_day=None):
                                    'fee': etf_fee(it['ticker'], d.get('sponsor_fee')),   # v180: 0 od źródła przy znanej opłacie z prospektu
                                    'prem': d.get('prem_dsc')})
             except Exception as e:
-                META['errors'].append(mask(f'SoSoValue {it.get("ticker")}: {e}'))
+                META['errors'].append(mask(f'SoSoValue {it.get("ticker")}: {e}')); pelna = False
+        if stara and pelna:
+            a['funds_at'] = NOW   # v192: pełna lista z tego przebiegu
         a['funds'].sort(key=lambda f: -(f['aum'] or 0))
         if not a['aum'] and a['funds']:
             # suma aktywów tylko wtedy, gdy KAŻDY fundusz ma aktywa — brak nie jest zerem

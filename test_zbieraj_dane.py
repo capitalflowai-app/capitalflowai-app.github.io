@@ -24481,3 +24481,70 @@ class PoPrzegladzieV190(unittest.TestCase):
         A['najdluzszy_min'] = None
         self.assertNotIn('Najdłuższy udany przebieg', k.raport_md(R))
         self.assertTrue(md.startswith('# Kontrola strony — ') and '**Wynik: OK**' in md)
+
+
+# ===================== v192: FUNDUSZE ETF — SZCZEGÓŁY PRZY NOWYM DNIU DANYCH ALBO CO 6 H =====================
+class EtfFunduszeRzadziejV192(unittest.TestCase):
+    """v192: lista i szczegóły funduszy (1 + N zapytań po ok. 7 s) tylko przy nowym dniu danych albo co 6 h; niepełna lista — znowu w następnym
+    przebiegu; Hongkong co 6 h. 05.10: część „etf” 479 s z 686 s przebiegu. Bez sieci."""
+    NOW = datetime.datetime(2026, 10, 5, 21, 0, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        self.enterContext(mock.patch.object(zd, 'ETF_SYMS', ['btc']))
+        self.enterContext(mock.patch.object(zd, 'get_json', lambda url, headers=None: {'bitcoin': {'usd_market_cap': 1.7e12}}))
+
+    def _run(self, prev, last='2026-10-02', zly=None):
+        calls = []
+        funds = {'btc': [{'ticker': 'IBIT', 'name': 'a'}, {'ticker': 'FBTC', 'name': 'b'}]}
+        snaps = {'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 1.6e8, 'sponsor_fee': 0.0025},
+                 'FBTC': {'net_assets': 1.5e10, 'cum_inflow': 1.1e10, 'net_inflow': 2.9e7, 'sponsor_fee': 0}}
+        base = _soso_factory({'btc': _rows(['2026-10-01', last])}, funds, snaps)
+
+        def soso(path, key, _retry=True):
+            calls.append(path)
+            if zly and zly in path:
+                raise RuntimeError('HTTP 500')
+            return base(path, key)
+        with mock.patch.object(zd, 'soso', soso):
+            out = zd.build_etf('k', 'c', prev)
+        return out, calls
+
+    def _prev(self, h_funds=1.0, asof='2026-10-02', h_hk=1.0):
+        f = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
+        return {'assets': {'btc': {'asof': asof, 'day': [], 'funds_at': f(h_funds),
+                                   'funds': [{'t': 'IBIT', 'n': 'a', 'cty': 'us', 'aum': 67000.0, 'cum': 65000.0, 'd1': 150.0, 'fee': 0.25, 'prem': None}]}},
+                'hk': {'btc': {'sym': 'BTC', 'asof': asof}}, 'hk_at': f(h_hk)}
+
+    def test_pierwszy_przebieg_pelny(self):
+        out, calls = self._run(None)
+        self.assertEqual(sum('/market-snapshot' in c for c in calls), 2); self.assertTrue(any(c.startswith('/etfs?') for c in calls))
+        self.assertEqual(out['assets']['btc']['funds_at'], zd.NOW); self.assertEqual(out['hk_at'], zd.NOW)
+        self.assertEqual([f['t'] for f in out['assets']['btc']['funds']], ['IBIT', 'FBTC'])
+
+    def test_ten_sam_dzien_lista_mloda_bez_zapytan(self):
+        prev = self._prev()
+        out, calls = self._run(prev)
+        self.assertEqual(calls, ['/etfs/summary-history?symbol=BTC&country_code=US&limit=60'], 'tylko zestawienie USA — bez listy, szczegółów i Hongkongu')
+        a = out['assets']['btc']
+        self.assertEqual((a['funds'], a['funds_at']), (prev['assets']['btc']['funds'], prev['assets']['btc']['funds_at']))
+        self.assertEqual((out['hk'], out['hk_at']), (prev['hk'], prev['hk_at']))
+        self.assertIsNot(a['funds'], prev['assets']['btc']['funds'], 'kopia — poprzedni plik bez zmian w miejscu')
+        self.assertEqual(a['asof'], '2026-10-02'); self.assertAlmostEqual(a['d1'], 100.0)
+
+    def test_nowy_dzien_albo_stara_lista_albo_brak_czasu_pelne(self):
+        for prev, why in ((self._prev(asof='2026-10-01'), 'nowy dzień danych'), (self._prev(h_funds=7), 'lista starsza niż 6 h'),
+                          (dict(self._prev(), assets={'btc': dict(self._prev()['assets']['btc'], funds_at=None)}), 'bez czasu listy (stary plik)')):
+            out, calls = self._run(prev)
+            self.assertEqual(sum('/market-snapshot' in c for c in calls), 2, why)
+            self.assertEqual(out['assets']['btc']['funds_at'], zd.NOW, why)
+        out, calls = self._run(self._prev(h_hk=7))
+        self.assertTrue(any('country_code=HK' in c for c in calls), 'Hongkong starszy niż 6 h — pobrany')
+
+    def test_niepelna_lista_bez_czasu(self):
+        out, calls = self._run(None, zly='/FBTC/')
+        a = out['assets']['btc']
+        self.assertEqual([f['t'] for f in a['funds']], ['IBIT']); self.assertNotIn('funds_at', a, 'niepełna lista — następny przebieg pobiera znowu')
+        self.assertTrue(any('SoSoValue FBTC' in e for e in zd.META['errors']))
+        self.assertEqual(zd.ETF_FUNDS_EVERY, 6 * 60)
