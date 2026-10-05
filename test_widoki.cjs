@@ -10256,10 +10256,10 @@ test('v146: Metodologia „Jak czytać liczby” — de, es, fr, it, pt, ru, zh,
   const a = 'const TXT_JAK_EN=`', x0 = html.indexOf(a), EN = html.slice(x0 + a.length, html.indexOf('`;', x0));
   assert.equal(fnv(EN), 'f0211ddd', 'TXT_JAK_EN bez zmian (suma sprzed v146)'); assert.equal(EN.length, 571);
   const j0 = html.indexOf('const TXT_JAK_PL=`'), lit = html.slice(j0, html.indexOf('`;', j0) + 2);
-  assert.equal(fnv(lit) + ' ' + lit.length, '45b4ffee 17818', 'TXT_JAK_PL bez zmian od v146 poza v168 (tabela częstotliwości: „co 10 minut”)');
+  assert.equal(fnv(lit) + ' ' + lit.length, '47201744 17860', 'TXT_JAK_PL bez zmian od v146 poza v168 (tabela częstotliwości: „co 10 minut”) i v184 (Indie/Tajwan/Hongkong „co godzinę”, krypto „co 5 minut”)');
   const out = {}, I = v143Final(html);
   for (const L of V146_L10) out[L] = v96src.render(L, false, null).txtJakCzytac();
-  assert.equal(fnv(out.pl) + ' ' + out.pl.length, '766aab83 23766', 'pl: Metodologia z ikonami bajt w bajt jak przed v146 poza v168 („co 10 minut” — 2 miejsca)');
+  assert.equal(fnv(out.pl) + ' ' + out.pl.length, 'f737afdd 23808', 'pl: Metodologia z ikonami bajt w bajt jak przed v146 poza v168 („co 10 minut” — 2 miejsca) i v184 (2 komórki tabeli częstotliwości)');
   assert.equal(out.en, EN, 'en: bajt w bajt TXT_JAK_EN');
   const tags = s => (s.match(/<[^>]+>/g) || []).join('');
   const enT = v146Txt(EN), enW = enT.toLowerCase().match(/[a-z]+/g), tri = new Set();
@@ -13249,4 +13249,15 @@ test('v183: prawdziwe teksty — świat 1 / 3 / 5 sesji, krypto 1 / 7 dni, „cz
   assert.ok(html.includes("(W.length?tn(cr?'tig.sub.c':'tig.sub.w',W.length,{n:W.length,a:dm(W[0]),b:dm(W[W.length-1])}):") && html.includes("t('tig.wait',{n:trdC(S.wait)})") === false && html.includes("tn('tig.wait',S.wait,{n:trdC(S.wait)})"));
   assert.ok(html.includes("(typeof tN==='function'?tN:(k,x,o)=>t(k,o))('ln.k.mp.vb',Math.ceil(M.vsize/1e6),{v:nfmt(M.vsize/1e6,1),n:nfmt(Math.ceil(M.vsize/1e6),0)})"));
   assert.ok(html.includes("(typeof tN==='function'?tN:(k,x,o)=>t(k,o))('wh.wal',n,{n:nfmt(n,0),d:escH(since)})"));
+});
+
+
+/* ---------- v184: Metodologia — tabela częstotliwości zgodna z automatem ---------- */
+test('v184: Metodologia — Indie/Tajwan/Hongkong „automat co godzinę” (od v91), dane krypto „co 5 minut (stablecoiny i obrót wg walut co 15 minut)”; strona zgodnie z kodem (zbieracz — test w test_zbieraj_dane.py)', () => {
+  const j0 = html.indexOf('const TXT_JAK_PL=`'), j = html.slice(j0, html.indexOf('`;', j0));
+  assert.ok(j.includes('<td><span class="cell">zakupy i sprzedaże inwestorów zagranicznych: Indie, Tajwan, Hongkong</span></td><td><span class="cell">codziennie w dni sesji</span></td><td><span class="cell">automat co godzinę; wynik dnia po sesji</span></td>'));
+  assert.ok(j.includes('<span class="cell">strona sprawdza co 5 minut (stablecoiny i obrót wg walut co 15 minut); pełne pobranie co pół godziny</span>'));
+  assert.ok(!j.includes('automat co 3 godziny; wynik dnia po sesji') && !j.includes('strona odświeża co minutę'), 'bez dawnych opisów');
+  const g0 = html.indexOf('function gAuto(on){'), g = html.slice(g0, html.indexOf('\n}', g0));
+  assert.ok(g.includes('},60000);') && g.includes("due(5)?gJSON(cgUrl(GSRC.crypto))") && g.includes('(!krStabh()&&due(15))?gJSON(GSRC.stab)') && g.includes('if(gTick%15===0&&gTick%30!==0)gJSON(GSRC.fiat)') && g.includes('if(gTick%30===0)gLoad();'), 'strona: krypto co 5 min, stablecoiny i obrót wg walut co 15 min, pełne co 30 min');
 });

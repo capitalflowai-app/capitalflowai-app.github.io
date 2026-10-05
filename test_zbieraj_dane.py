@@ -24311,3 +24311,24 @@ class KontrolaTgaV182(unittest.TestCase):
         self.assertEqual(r[1], '⚠️', 'w czwartek o 01:00 UTC brak wtorku — zestawienie naprawdę się spóźnia'); self.assertIn('próg 2 d 0 h (godziny robocze)', r[4])
         self.assertEqual(self._st('2026-10-08', D(2026, 10, 13, 19, 0, tzinfo=tz))[1], '⚠️', 'święto federalne USA (12.10): informacja, nie błąd')
         self.assertEqual(self._st('2026-10-01', D(2026, 10, 8, 12, 0, tzinfo=tz))[1], '❌', 'tydzień bez danych: ponad 2× progu')
+
+
+# ===================== v184: METODOLOGIA — TABELA CZĘSTOTLIWOŚCI ZGODNA Z AUTOMATEM =====================
+class MetodologiaRytmV184(unittest.TestCase):
+    """v184: tabela „Jak często zmieniają się dane” na stronie (TXT_JAK_PL) zgodna z rytmem zbieracza: Indie, Tajwan, Hongkong co godzinę
+    (od v91, strona pisała „co 3 godziny”), Tajlandia, Brazylia i Turcja co 3 h, Meksyk co 6 h, aukcje co 6 h, ceny ETF co godzinę."""
+
+    def test_zgodnosc(self):
+        d = os.path.dirname(os.path.abspath(__file__))
+        src = _rwc150_txt(zd.__file__)
+        html = open(os.path.join(d, 'index.html'), encoding='utf-8').read()
+        j0 = html.index('const TXT_JAK_PL=`'); jak = html[j0:html.index('`;', j0)]
+        self.assertIn("if prev_o and fresh(prev_o, 60) and not miss:", src)
+        self.assertEqual(zd.OBCE_SLOW, {'br': 180, 'tr': 180, 'th': 180})
+        self.assertIn('Indie, Tajwan, Hongkong</span></td><td><span class="cell">codziennie w dni sesji</span></td><td><span class="cell">automat co godzinę; wynik dnia po sesji', jak)
+        self.assertIn('pełny dzień po 16:30 w Bangkoku; automat co 3 godziny', jak)
+        self.assertIn("if prev_mx and fresh(prev_mx, 360) and not old_mx:", src); self.assertIn('około półtora tygodnia; automat co 6 godzin', jak)
+        self.assertEqual(zd.AUK_EVERY, 6 * 60); self.assertIn('wyniki po 13:00 czasu Nowego Jorku; automat co 6 godzin', jak)
+        self.assertIn("if td_key and prev_ceny and fresh(prev_ceny, 55):", src); self.assertIn('dzienne zamknięcia</span></td><td><span class="cell">automat co około godzinę', jak)
+        self.assertNotIn('automat co 3 godziny; wynik dnia po sesji', jak)
+
