@@ -579,6 +579,59 @@ def _drop_open_session(q, now_ny=None):
     return n
 
 
+CENY_ZGODNOSC_PC = 0.0005   # v195: poprzednie zamknięcie z pliku notowań wobec poprzedniej świecy (0,05%) — ta sama sesja odniesienia
+
+
+def _ny_z_epoch(t):
+    """v195: czas notowania (sekundy od 1970, UTC) → czas Nowego Jorku bez strefy; zły = None."""
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or not t > 0:
+        return None
+    try:
+        u = datetime.datetime.fromtimestamp(t, datetime.timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+    try:
+        from zoneinfo import ZoneInfo
+        return u.astimezone(ZoneInfo('America/New_York')).replace(tzinfo=None)
+    except Exception:   # brak bazy stref — przyjmij czas letni (UTC−4), jak _ny_now
+        return (u - datetime.timedelta(hours=4)).replace(tzinfo=None)
+
+
+def _zamkniecia_z_notowan(q, dz, now_ny=None):
+    """v195: świeca sesji tuż po zamknięciu bywa wstępna (05.10, 17:33 w Nowym Jorku: ceny różne od zamknięcia o 0,02–0,17%, fundusz o małym
+    obrocie ASEA bez świecy — region „—”; ostateczne o 18:35, równe zamknięciom z pliku notowań dziennych). Notowanie z pliku notowań tego
+    przebiegu (dz = dzis.json) z czasem ≥ 16:00 sesji D, teraz ≥ 16:15 (jak _drop_open_session), z poprzednim zamknięciem równym poprzedniej
+    świecy (≤ CENY_ZGODNOSC_PC; inaczej — dywidenda, święto, korekta — bez zmian): jego cena zastępuje świecę D albo dopisuje brakującą;
+    obrót nieznany = None (brak, nie zero). Świeca równa cenie zamknięcia zostaje. Zwraca liczbę zmienionych funduszy."""
+    now_ny = now_ny or _ny_now()
+    now = now_ny.replace(tzinfo=None) if getattr(now_ny, 'tzinfo', None) else now_ny
+    Q = dz.get('q') if isinstance(dz, dict) and isinstance(dz.get('q'), dict) else {}
+    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool) and x > 0  # noqa: E731
+    zm = []
+    for sym, v in q.items():
+        z, d = Q.get(sym), (v.get('d') if isinstance(v, dict) else None)
+        if not isinstance(z, dict) or not isinstance(d, list) or not d or not isinstance(d[-1], list) or len(d[-1]) < 2:
+            continue
+        c, pc, tq = z.get('c'), z.get('pc'), _ny_z_epoch(z.get('t'))
+        if tq is None or not (num(c) and num(pc)) or tq.hour < 16 or now < datetime.datetime(tq.year, tq.month, tq.day, 16, 15):
+            continue   # notowanie w trakcie sesji albo za wcześnie — nie zamknięcie
+        D, ld = tq.date().isoformat(), str(d[-1][0])[:10]
+        ref = (d[-2] if len(d) >= 2 else None) if ld == D else (d[-1] if ld < D else None)
+        if not (isinstance(ref, list) and len(ref) > 1 and num(ref[1]) and abs(ref[1] / pc - 1) <= CENY_ZGODNOSC_PC):
+            continue   # inna sesja odniesienia — bez zmian
+        if ld == D:
+            if num(d[-1][1]) and abs(d[-1][1] - c) < 1e-9:
+                continue   # świeca już ostateczna
+            d[-1] = [D, c, None]
+        else:
+            d.append([D, c, None])
+        v['asof'] = D
+        zm.append(sym)
+    if zm:
+        META['notes'].append('Twelve Data: zamknięcie sesji z pliku notowań dziennych (świeca wstępna albo brak) — ' + ', '.join(sorted(zm)))
+    return len(zm)
+
+
 def _align_calendar(q):
     """v69: wszystkie ETF-y na wspólnym kalendarzu sesji (daty SPY; bez SPY — daty obecne w co najmniej połowie symboli).
     Świeca spoza kalendarza (np. 25.12 przy święcie w USA) jest usuwana — każdy region liczy zmianę z tych samych sesji."""
@@ -622,6 +675,7 @@ def build_prices(key):
         errors.extend(be)
     META['errors'].extend(errors)
     _drop_open_session(q)
+    _zamkniecia_z_notowan(q, SAVED.get('dzis'))   # v195: świeca wstępna albo brak tuż po sesji — zamknięcie z pliku notowań tego przebiegu
     _align_calendar(q)   # v69: jeden kalendarz sesji dla wszystkich ETF-ów
     good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
     if len(good) < TD_MIN_SYMBOLS:

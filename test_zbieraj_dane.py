@@ -24716,3 +24716,62 @@ class PoPrzegladzieV194(unittest.TestCase):
         i = src.index('# 4. przebiegi Actions'); j = src.index('# 5. v115', i)
         self.assertIn("najdluzsze_udane(runs, NOW, 3)", src[i:j]); self.assertIn("zadanie_min(json.loads(b3).get('jobs', []), 'zbuduj')", src[i:j])
         self.assertTrue(md.startswith('# Kontrola strony — ') and '**Wynik: OK**' in md, 'nagłówek i wynik bez zmian (czyta je zadanie w chmurze)')
+
+
+# ===================== v195: CENY ETF-ÓW REGIONÓW — ZAMKNIĘCIE SESJI Z PLIKU NOTOWAŃ (ŚWIECA WSTĘPNA ALBO BRAK) =====================
+class CenyZamknieciaV195(unittest.TestCase):
+    """v195: zamknięcie sesji z notowania (czas ≥ 16:00, teraz ≥ 16:15) zastępuje wstępną świecę albo dopisuje brakującą, gdy poprzednie
+    zamknięcie notowania = poprzednia świeca (≤ 0,05%); obrót nieznany = None. Liczby z 05.10. Bez sieci."""
+    T = 1791230400   # 2026-10-05 20:00 UTC = 16:00 w Nowym Jorku (zamknięcie sesji)
+
+    def setUp(self):
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+
+    def _q(self):
+        return {'SPY': {'asof': '2026-10-05', 'd': [['2026-10-01', 763.99, 47708100], ['2026-10-02', 769.64, 46306400], ['2026-10-05', 774.94, 36114284]]},
+                'ASEA': {'asof': '2026-10-02', 'd': [['2026-10-01', 20.9, 14900], ['2026-10-02', 20.95, 30300]]},
+                'EZA': {'asof': '2026-10-05', 'd': [['2026-10-02', 63.19, 62200], ['2026-10-05', 63.11, 70616]]},
+                'EWJ': {'asof': '2026-10-05', 'd': [['2026-10-02', 98.92, 7328800], ['2026-10-05', 99.3, 3071843]]}}
+
+    def _dz(self, **over):
+        q = {'SPY': {'c': 774.83, 'pc': 769.64, 'dp': 0.6743, 't': self.T}, 'ASEA': {'c': 21.095, 'pc': 20.95, 'dp': 0.6921, 't': self.T},
+             'EZA': {'c': 63.17, 'pc': 63.19, 'dp': -0.0317, 't': self.T}, 'EWJ': {'c': 99.3, 'pc': 98.92, 'dp': 0.3841, 't': self.T}}
+        for k, v in over.items():
+            q[k] = dict(q[k], **v)
+        return {'at': '2026-10-05T21:33:18+00:00', 'q': q}
+
+    def test_wstepne_i_brakujaca(self):
+        q = self._q()
+        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 17, 33)), 3)
+        self.assertEqual(q['SPY']['d'][-1], ['2026-10-05', 774.83, None]); self.assertEqual(q['EZA']['d'][-1], ['2026-10-05', 63.17, None])
+        self.assertEqual((q['ASEA']['d'][-1], q['ASEA']['asof'], len(q['ASEA']['d'])), (['2026-10-05', 21.095, None], '2026-10-05', 3), 'ASEA: dopisana świeca 05.10')
+        self.assertEqual(q['EWJ']['d'][-1], ['2026-10-05', 99.3, 3071843], 'świeca równa zamknięciu (ostateczna) — bez zmian')
+        self.assertEqual(q['SPY']['d'][-2], ['2026-10-02', 769.64, 46306400], 'starsze świece bez zmian')
+        self.assertTrue(any('zamknięcie sesji z pliku notowań dziennych' in n and 'ASEA, EZA, SPY' in n for n in zd.META['notes']), zd.META['notes'])
+        zd.META['notes'].clear()
+        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 18, 35)), 0, 'drugi raz — nic do zmiany')
+        self.assertEqual(zd.META['notes'], [])
+
+    def test_bez_zmian(self):
+        for dz, now, why in ((self._dz(ASEA={'t': self.T - 1800}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 15:30 — sesja w toku'),
+                             (self._dz(), datetime.datetime(2026, 10, 5, 16, 10), 'przed 16:15 (jak pomijanie trwającej sesji)'),
+                             (self._dz(ASEA={'pc': 20.5}), datetime.datetime(2026, 10, 5, 17, 33), 'inne poprzednie zamknięcie (dywidenda, korekta) — bez zmian'),
+                             (self._dz(ASEA={'c': None}), datetime.datetime(2026, 10, 5, 17, 33), 'brak ceny'),
+                             (self._dz(ASEA={'c': True}), datetime.datetime(2026, 10, 5, 17, 33), 'nie liczba'),
+                             (self._dz(ASEA={'t': 'x'}), datetime.datetime(2026, 10, 5, 17, 33), 'zły czas'),
+                             (self._dz(ASEA={'t': self.T - 3 * 86400}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — świeca już jest')):
+            q = self._q()
+            zd._zamkniecia_z_notowan(q, dz, now)
+            self.assertEqual(q['ASEA']['d'][-1], ['2026-10-02', 20.95, 30300], why)
+        q = self._q()
+        self.assertEqual(zd._zamkniecia_z_notowan(q, None, datetime.datetime(2026, 10, 5, 17, 33)), 0, 'bez pliku notowań')
+        self.assertEqual(zd._zamkniecia_z_notowan(q, {'q': 'x'}, datetime.datetime(2026, 10, 5, 17, 33)), 0)
+
+    def test_w_build_prices(self):
+        q = self._q()
+        with mock.patch.object(zd, 'DAY_SYMS', ['SPY', 'ASEA', 'EZA', 'EWJ']), mock.patch.object(zd, 'td_batch', lambda syms, key: (q, [])), \
+                mock.patch.object(zd, 'TD_MIN_CANDLES', 2), mock.patch.object(zd, 'TD_MIN_SYMBOLS', 4), \
+                mock.patch.object(zd, '_ny_now', lambda: datetime.datetime(2026, 10, 5, 17, 33)), mock.patch.dict(zd.SAVED, {'dzis': self._dz()}):
+            o = zd.build_prices('k')
+        self.assertEqual(o['asof'], '2026-10-05', 'wszystkie fundusze z tą samą ostatnią sesją — region bez „—”')
+        self.assertEqual(o['q']['ASEA']['d'][-1], ['2026-10-05', 21.095, None])
