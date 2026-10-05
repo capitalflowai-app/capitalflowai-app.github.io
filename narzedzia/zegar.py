@@ -6,6 +6,9 @@ i nie czuwał, a harmonogram znów stanął — od 02:16 do 03:50 bez przebiegu.
 czeka do PROGU od startu ostatniego przebiegu i uruchamia następny, gdy w tym czasie nic nie ruszyło:
   próg ODSTEP_MIN (20 min), gdy harmonogram stoi (ostatni przebieg z harmonogramu starszy niż STOI_MIN),
   próg LUZ_MIN (30 min), gdy harmonogram niedawno działał — harmonogram ma 10 min zapasu na swoje opóźnienie, zegar nie dubluje przebiegów.
+v171 (05.10.2026): harmonogram co 10 min (v168), ale GitHub uruchamia tylko część terminów — 05.10 05:46–07:59 UTC 6 z ok. 13 (odstępy 16–27 min),
+a zegar wkraczał dopiero po 30 min ciszy. Progi przestawione na rytm 10 min: LUZ_MIN 15 (5 min zapasu na opóźnienie harmonogramu), ODSTEP_MIN 10,
+STOI_MIN 25, czekanie najwyżej 16 min.
 v159 (04.10.2026): harmonogram GitHub nie uruchomił też kontroli dziennej (27.09–03.10 ruszała 06:37–06:49 UTC; 04.10 wcale), a archiwum
 ruszyło o 04:01 zamiast 01:20. Na początku każdego czuwania krótki tryb `dzienne` uruchamia zadanie dzienne, gdy minął jego termin + zapas,
 a dziś nie powstał żaden jego przebieg (DZIENNE; wyłącznik ZEGAR_DZIENNE_OFF=1). Oba zadania są idempotentne (ten sam dzień nadpisywany).
@@ -28,10 +31,10 @@ import urllib.request
 REPO = os.environ.get('GITHUB_REPOSITORY', 'capitalflowai-app/capitalflowai-app.github.io')
 API = 'https://api.github.com'
 WF_STRONA, WF_ZEGAR = 'strona.yml', 'zegar.yml'
-STOI_MIN = 45       # brak przebiegu z harmonogramu dłużej = harmonogram stoi (zwykle co 20 min, opóźnienia GitHub do ~15 min)
-ODSTEP_MIN = 20     # próg czuwania, gdy harmonogram stoi (jak odstęp w harmonogramie)
-LUZ_MIN = 30        # v145.2: próg czuwania, gdy harmonogram niedawno działał (10 min zapasu na jego opóźnienie — bez dublowania przebiegów)
-MAX_CZEKAJ = 31 * 60   # s — pełny LUZ_MIN + zapas (v145.1: ucięte czekanie zrywało łańcuch); zadanie zegara ma limit 40 min
+STOI_MIN = 25       # v171: brak przebiegu z harmonogramu dłużej = harmonogram stoi (co 10 min, opóźnienia GitHub do ~15 min); było 45
+ODSTEP_MIN = 10     # v171: próg czuwania, gdy harmonogram stoi (jak odstęp w harmonogramie); było 20
+LUZ_MIN = 15        # v145.2 / v171: próg czuwania, gdy harmonogram niedawno działał (5 min zapasu na jego opóźnienie — bez dublowania); było 30
+MAX_CZEKAJ = 16 * 60   # s — pełny LUZ_MIN + zapas (v145.1: ucięte czekanie zrywało łańcuch); zadanie zegara ma limit 40 min; było 31 min
 DOCZEKAJ_S = 120       # v145.1: po czekaniu brakuje najwyżej tylu sekund (różnice zegarów GitHub i maszyny) → doczekaj raz, nie zrywaj łańcucha
 AKTYWNE = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
 # v159: zadania dzienne pilnowane przez zegar — (plik workflow, nazwa w logu, godzina UTC, minuta, zapas w min) zgodne z ich cron (test pilnuje).

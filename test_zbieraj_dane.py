@@ -20563,6 +20563,7 @@ class ZegarV145(unittest.TestCase):
         spec = importlib.util.spec_from_file_location('v145_zegar', os.path.join(root, 'narzedzia', 'zegar.py'))
         cls.Z = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.Z)
+        cls.Z.STOI_MIN, cls.Z.ODSTEP_MIN, cls.Z.LUZ_MIN, cls.Z.MAX_CZEKAJ = 45, 20, 30, 31 * 60   # v171: progi rytmu 20 min (logika ta sama; nowe progi — ZegarV171)
         cls.NOW = datetime.datetime(2026, 10, 3, 15, 30, tzinfo=datetime.timezone.utc)
         cls.ROOT = root
 
@@ -23543,3 +23544,128 @@ class RwaEmitenciV170(unittest.TestCase):
         self.assertEqual(kw, [], 'młodszy niż 2 h — czeka'); self.assertEqual(zd.META['ok']['rwa-emitenci'], 'cached')
         s, kw = RwaEmitenciV169._main(self, dict(base, at=H(2.5), issuer={'v': 1, 'at': H(2.5), 'ok': True, 'p': {s: {} for s in zd.RWE_PRODUKTY}}))
         self.assertEqual(kw, [], 'wszystkie produkty konfiguracji — zwykły rytm 6 h')
+
+
+# ===================== v171: ZEGAR ZAPASOWY POD RYTM 10 MIN; KONTROLA — CZĘŚĆ WYŁĄCZONA CELOWO TO NIE USTERKA =====================
+class ZegarV171(unittest.TestCase):
+    """v171: progi zegara pod harmonogram co 10 min (v168): czuwanie 15 min od startu ostatniego przebiegu, gdy harmonogram niedawno działał,
+    10 min, gdy stoi (≥ 25 min bez przebiegu z harmonogramu); czekanie najwyżej 16 min. Pomiar 05.10.2026 05:46–07:59 UTC: GitHub uruchomił
+    6 z ok. 13 terminów (odstępy 16–27 min)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('v171_zegar', os.path.join(root, 'narzedzia', 'zegar.py'))
+        cls.Z = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.Z)
+        cls.NOW = datetime.datetime(2026, 10, 5, 7, 32, tzinfo=datetime.timezone.utc)
+        cls.ROOT = root
+
+    def r(self, ev, min_temu, status='completed'):
+        t = (self.NOW - datetime.timedelta(minutes=min_temu)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return {'event': ev, 'created_at': t, 'run_started_at': t, 'status': status, 'conclusion': 'success' if status == 'completed' else None}
+
+    def test_progi_i_decyzja(self):
+        Z = self.Z
+        self.assertEqual((Z.ODSTEP_MIN, Z.LUZ_MIN, Z.STOI_MIN, Z.MAX_CZEKAJ), (10, 15, 25, 16 * 60))
+        self.assertGreaterEqual(Z.MAX_CZEKAJ, Z.LUZ_MIN * 60 + 5, 'czekanie pokrywa pełny próg (+5 s)')
+        self.assertLess(Z.MAX_CZEKAJ + Z.DOCZEKAJ_S, 40 * 60 - 60, 'mieści się w limicie zadania zegara (40 min)')
+        self.assertEqual(Z.decyzja([self.r('schedule', 3)], self.NOW), ('czekaj', 12 * 60 + 5), 'harmonogram działa — do 15 min od startu')
+        d = Z.decyzja([self.r('schedule', 16)], self.NOW)
+        self.assertEqual(d[0], 'uruchom'); self.assertIn('harmonogram nie zdążył w 15 min', d[1])
+        self.assertEqual(Z.prog_min([self.r('schedule', 24)], self.NOW), 15); self.assertEqual(Z.prog_min([self.r('schedule', 25)], self.NOW), 10)
+        self.assertEqual(Z.decyzja([self.r('schedule', 40), self.r('workflow_dispatch', 4)], self.NOW), ('czekaj', 6 * 60 + 5), 'harmonogram stoi — co 10 min')
+        d = Z.decyzja([self.r('schedule', 40), self.r('workflow_dispatch', 11)], self.NOW)
+        self.assertEqual(d[0], 'uruchom'); self.assertIn('harmonogram stoi', d[1])
+        self.assertEqual(Z.decyzja([self.r('schedule', 16), self.r('schedule', 1, 'queued')], self.NOW)[0], 'nic', 'inny w kolejce — bez dublowania')
+
+    def test_prowadz_05_10(self):
+        # 05.10.2026: przebieg z harmonogramu 07:13, push 07:17 (koniec ok. 07:21) — następny termin harmonogramu (07:27) GitHub pominął;
+        # dawniej zegar czekał do 07:47 (30 min), teraz uruchamia „Strona i dane” o 07:32 (15 min od startu ostatniego).
+        U = datetime.timezone.utc
+        f = lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        runs = [{'event': 'push', 'created_at': '2026-10-05T07:17:49Z', 'run_started_at': '2026-10-05T07:17:49Z', 'status': 'completed', 'conclusion': 'success'},
+                {'event': 'schedule', 'created_at': '2026-10-05T07:13:06Z', 'run_started_at': '2026-10-05T07:13:06Z', 'status': 'completed', 'conclusion': 'success'}]
+        t0 = datetime.datetime(2026, 10, 5, 7, 21, 15, tzinfo=U)
+        po = datetime.datetime(2026, 10, 5, 7, 32, 54, tzinfo=U)
+        log, slept, out = [], [], io.StringIO()
+        it = iter([runs, runs])
+
+        def api(path, token, data=None):
+            log.append((path, data))
+            return (200, {'workflow_runs': next(it)}) if data is None else (204, None)
+        nows = iter([t0, po])
+        with mock.patch.dict(os.environ, {'GH_TOKEN': 'ghs_TAJNY'}, clear=False), mock.patch.object(self.Z, '_api', api), mock.patch('sys.stdout', out):
+            rc = self.Z.main(['zegar.py', 'prowadz'], now_fn=lambda: next(nows), sleep=slept.append)
+        self.assertEqual(rc, 0); self.assertEqual(slept, [int((datetime.datetime(2026, 10, 5, 7, 32, 49, tzinfo=U) - t0).total_seconds()) + 5])
+        self.assertTrue(log[-1][0].endswith('/actions/workflows/strona.yml/dispatches'), 'uruchamia „Strona i dane” po 15 min ciszy')
+        self.assertIn('harmonogram nie zdążył w 15 min', out.getvalue()); self.assertNotIn('TAJNY', out.getvalue())
+        self.assertIn('v171', _rwc150_txt(os.path.join(self.ROOT, 'narzedzia', 'zegar.py')))
+
+
+class KontrolaWylaczoneV171(unittest.TestCase):
+    """v171: plik części wyłączonej celowo (notatka zbieracza w meta.json, np. „brak SEC_CONTACT — insiderzy … wyłączeni”) — 404 to stan, nie
+    usterka: w raporcie „wyłączone”, bez uwagi (dotąd codzienne „insider.json: HTTP 404 (brak pliku)” zmieniało wynik na UWAGA)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('kontrola_v171', os.path.join(root, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.k)
+
+    def test_wylaczone_z_notatek(self):
+        k = self.k
+        self.assertEqual(k.wylaczone({'notes': ['x', 'brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni']}),
+                         {'insider': 'brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni'})
+        self.assertEqual(list(k.wylaczone({'notes': ['SEC_CONTACT to nie adres e-mail — insiderzy (zgłoszenia Form 4) wyłączeni']})), ['insider'])
+        for m in (None, {}, {'notes': None}, {'notes': ['inna notatka', 7]}, 'x'):
+            self.assertEqual(k.wylaczone(m), {}, m)
+
+    def test_kontrola_404_wylaczonej_czesci(self):
+        import tempfile
+        k, NOW = self.k, datetime.datetime(2026, 10, 5, 8, 20, tzinfo=datetime.timezone.utc)
+
+        class Resp:
+            def __init__(self, b, st=200):
+                self.b, self.status = b, st
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def J(o):
+            return Resp(json.dumps(o).encode())
+
+        def urlopen(req, timeout=None):
+            url = req.full_url if hasattr(req, 'full_url') else str(req)
+            if '/index.html?' in url:
+                return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
+            if '/data/meta.json?' in url:
+                return J({'at': (NOW - datetime.timedelta(minutes=12)).isoformat(), 'ok': {'etf': True}, 'errors': [],
+                          'notes': ['brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni']})
+            if '/data/insider.json?' in url or '/data/jpx.json?' in url:
+                raise k.urllib.error.HTTPError(url, 404, 'Not Found', {}, io.BytesIO(b''))
+            if '/data/' in url:
+                return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                return Resp(b'x' * 100)
+            if url.startswith('https://api.github.com/'):
+                return J({'workflow_runs': []})
+            raise k.urllib.error.URLError('test bez sieci: ' + url[:60])
+        d = tempfile.mkdtemp(prefix='k171-')
+        with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen), mock.patch('sys.stdout', io.StringIO()):
+            R = k.kontrola()
+        self.assertEqual(R['pliki']['insider'], {'http': 404, 'wylaczone': 'brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni'})
+        self.assertFalse(any('insider.json' in u for u in R['uwagi']), R['uwagi'])
+        self.assertIn('jpx.json: HTTP 404 (brak pliku)', R['uwagi'], 'inny brakujący plik — dalej uwaga')
+        md = k.raport_md(R)
+        self.assertIn(' insider wyłączone,', md); self.assertIn(' jpx HTTP 404,', md)

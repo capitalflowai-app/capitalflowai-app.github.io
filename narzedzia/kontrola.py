@@ -42,6 +42,23 @@ NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
              'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+# v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
+WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
+
+
+def wylaczone(meta):
+    """v171: {plik: notatka zbieracza} dla części wyłączonych celowo (np. brak sekretu SEC_CONTACT — urząd wymaga adresu w zapytaniu);
+    brak pliku stanu albo notatki = {}."""
+    N = [x for x in (meta.get('notes') or []) if isinstance(x, str)] if isinstance(meta, dict) else []
+    out = {}
+    for n, F in WYLACZONE.items():
+        for x in N:
+            if any(f in x for f in F):
+                out[n] = x[:160]
+                break
+    return out
+
+
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
 # 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
@@ -1845,7 +1862,10 @@ def kontrola():
                 R['uwagi'].append(f'{n}.json: części bez odpowiedzi: ' + ', '.join(nie))
         except urllib.error.HTTPError as e:
             R['pliki'][n] = {'http': e.code}
-            if n in ('etf', 'trendy', 'oecd', 'rynki'):
+            wyl = wylaczone(files.get('meta')).get(n) if e.code == 404 else None
+            if wyl:
+                R['pliki'][n]['wylaczone'] = wyl                       # v171: część wyłączona celowo — opis, nie uwaga
+            elif n in ('etf', 'trendy', 'oecd', 'rynki'):
                 R['uwagi'].append(f'{n}.json: HTTP {e.code}')
             elif n != 'indeksy':
                 R['uwagi'].append(f'{n}.json: HTTP {e.code} (brak pliku)')
@@ -2132,7 +2152,7 @@ def raport_md(R):
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
-    L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None else ("HTTP " + str(p.get("http", "?")))}'
+    L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None else ("wyłączone" if p.get("wylaczone") else "HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     if m.get('notes'):
         L.append('- Notatki automatu: ' + ' · '.join(m['notes']) + '.')
