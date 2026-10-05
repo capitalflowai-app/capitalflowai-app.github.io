@@ -9483,7 +9483,8 @@ def wh_zakres(head, ostatni, chunk=WH_CHUNK, chunks=WH_CHUNKS, start=WH_START):
 
 def wh_dekoduj(logs, wmap, prog=WH_PROG):
     """Zdarzenia Transfer USDT/USDC → {klucz: wiersz}. Pomija inne kontrakty, kwoty < prog, zdarzenia bez kwoty i przelewy
-    między dwoma portfelami tej samej giełdy (wewnętrzne). Druga strona przelewu nigdy nie jest opisywana."""
+    między dwoma portfelami tej samej giełdy (wewnętrzne). Portfel spoza listy po drugiej stronie nigdy nie jest opisywany; v193: przelew między
+    dwiema giełdami z listy = dwa wiersze (out/in) z polem x — giełdą po drugiej stronie (strona pokazuje jeden wiersz „⇄ A → B”)."""
     out = {}
     for l in logs if isinstance(logs, list) else []:
         if not isinstance(l, dict):
@@ -9506,6 +9507,8 @@ def wh_dekoduj(logs, wmap, prog=WH_PROG):
         for d, g in (('out', gf), ('in', gt)):
             if g:
                 out[(tx, li, g, d)] = {'t': None, 'token': tok, 'amt': round(amt, 2), 'usd': round(amt, 2), 'dir': d, 'exch': g, 'tx': tx, 'blk': blk, 'li': li}
+                if gf and gt:   # v193: druga strona to inna giełda z listy
+                    out[(tx, li, g, d)]['x'] = gt if d == 'out' else gf
     return out
 
 
@@ -9617,8 +9620,9 @@ def wh_eth_kolejka(cands, scan, n=None):
 
 def wh_eth_dekoduj(txs, wmap, px, prog=WH_PROG):
     """Zwykłe transakcje portfela (txlist) → {klucz: wiersz} dla ETH wartego ≥ prog USD po kursie px. Pomija transakcje nieudane,
-    bez kwoty i przelewy między dwoma portfelami tej samej giełdy; przelew między giełdami = dwa wiersze (out/in). Kwota w ETH
-    (4 miejsca) i w USD po kursie z chwili odczytu; czas z bloku (timeStamp). Druga strona przelewu nigdy nie jest opisywana."""
+    bez kwoty i przelewy między dwoma portfelami tej samej giełdy; przelew między giełdami = dwa wiersze (out/in), v193: z polem x — giełdą
+    po drugiej stronie. Kwota w ETH (4 miejsca) i w USD po kursie z chwili odczytu; czas z bloku (timeStamp). Portfel spoza listy po drugiej
+    stronie nigdy nie jest opisywany."""
     out = {}
     if not isinstance(px, (int, float)) or px <= 0:
         return out
@@ -9641,6 +9645,8 @@ def wh_eth_dekoduj(txs, wmap, px, prog=WH_PROG):
         for d, g in (('out', gf), ('in', gt)):
             if g:
                 out[(tx, None, g, d)] = {'t': wh_iso(ts), 'token': 'ETH', 'amt': round(eth, 4), 'usd': round(usd, 2), 'dir': d, 'exch': g, 'tx': tx, 'blk': blk, 'li': None}
+                if gf and gt:   # v193: druga strona to inna giełda z listy
+                    out[(tx, None, g, d)]['x'] = gt if d == 'out' else gf
     return out
 
 

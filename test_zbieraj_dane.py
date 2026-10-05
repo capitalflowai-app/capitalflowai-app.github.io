@@ -24548,3 +24548,42 @@ class EtfFunduszeRzadziejV192(unittest.TestCase):
         self.assertEqual([f['t'] for f in a['funds']], ['IBIT']); self.assertNotIn('funds_at', a, 'niepełna lista — następny przebieg pobiera znowu')
         self.assertTrue(any('SoSoValue FBTC' in e for e in zd.META['errors']))
         self.assertEqual(zd.ETF_FUNDS_EVERY, 6 * 60)
+
+
+# ===================== v193: WIELORYBY — PRZELEW MIĘDZY DWIEMA GIEŁDAMI Z LISTY (POLE x) =====================
+class WhMiedzyGieldamiV193(unittest.TestCase):
+    """v193: przelew między dwiema giełdami z listy = dwa wiersze (out/in) z polem x — giełdą po drugiej stronie (strona: jeden wiersz „⇄ A → B”);
+    przelew z portfelem spoza listy — bez x; wewnętrzny (ta sama giełda) — pominięty jak dotąd; sumy dobowe bez zmian. Bez sieci."""
+    T = WielorybyV105.T
+    B1, X = WielorybyV105.B1, WielorybyV105.X
+    BY1, BF1 = WielorybyEthV112.BY1, WielorybyEthV112.BF1
+    _w = staticmethod(WielorybyV105._w)
+    _h = staticmethod(WielorybyV105._h)
+    _log = WielorybyV105._log
+    _tx = WielorybyEthV112._tx
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        self.W = {w['addr']: w['exch'] for w in zd.wh_portfele()}
+
+    def test_usdt_usdc(self):
+        L = [self._log(zd.WH_USDT, self.B1, self.BY1, 19_899_999.5, tx='0x' + 'c7' * 32, li=7),   # Binance → Bybit (jak 05.10)
+             self._log(zd.WH_USDT, self.X, self.B1, 2_000_000, tx='0x' + '01' * 32),               # z zewnątrz na Binance
+             self._log(zd.WH_USDC, self.BY1, self.X, 3_000_000, tx='0x' + '02' * 32)]              # z Bybit na zewnątrz
+        rows = sorted(zd.wh_dekoduj(L, self.W).values(), key=lambda r: (r['tx'], r['dir']))
+        self.assertEqual([(r['tx'][:4], r['dir'], r['exch'], r.get('x')) for r in rows],
+                         [('0x01', 'in', 'Binance', None), ('0x02', 'out', 'Bybit', None), ('0xc7', 'in', 'Bybit', 'Binance'), ('0xc7', 'out', 'Binance', 'Bybit')])
+        self.assertTrue(all('x' not in r for r in rows if r['tx'][:4] != '0xc7'), 'portfel spoza listy — pola x nie ma (nie opisujemy)')
+        dob, kl = zd.wh_dobowe({}, {}, [dict(r, t='2026-10-05T12:21:00+00:00') for r in rows])
+        d = dob['2026-10-05']
+        self.assertEqual((d['Binance']['USDT']['out'], d['Bybit']['USDT']['in'], d['Binance']['USDT']['in']), (19899999.5, 19899999.5, 2000000.0), 'sumy dobowe per giełda jak dotąd')
+
+    def test_eth(self):
+        T = [self._tx(self.BY1, self.BF1, 1000.0, h='0x' + '04' * 32), self._tx(self.X, self.B1, 500.0, h='0x' + '05' * 32)]
+        rows = sorted(zd.wh_eth_dekoduj(T, self.W, 2500.0).values(), key=lambda r: (r['tx'], r['dir']))
+        self.assertEqual([(r['tx'][:4], r['dir'], r['exch'], r.get('x')) for r in rows],
+                         [('0x04', 'in', 'Bitfinex', 'Bybit'), ('0x04', 'out', 'Bybit', 'Bitfinex'), ('0x05', 'in', 'Binance', None)])
+
+    def test_polacz_zachowuje_x(self):
+        r = {'t': '2026-10-05T12:21:00+00:00', 'token': 'USDT', 'amt': 1e7, 'usd': 1e7, 'dir': 'out', 'exch': 'Binance', 'x': 'Bybit', 'tx': '0x' + 'aa' * 32, 'blk': 500, 'li': 3}
+        self.assertEqual(zd.wh_polacz([r], [], 100)[0].get('x'), 'Bybit', 'wiersz z poprzedniego pliku zachowuje x')

@@ -4182,8 +4182,8 @@ test('v108: wieloryby — nowe giełdy (Bybit, KuCoin, Bitfinex): kafle, noty z 
   assert.ok(out.includes(`wh.blk{"t":"[${t0}]","n":"4899"} · age(2026-09-26)`), 'data i wiek salda przy kaflach');
   assert.ok((out.match(/<i class="ico sm">Bybit<\/i>/g) || []).length >= 5 && (out.match(/<i class="ico sm">Bitfinex<\/i>/g) || []).length >= 5, 'logo (albo monogram) giełdy przy nagłówku, kaflach i w tabeli');
   const rows = out.split('<tr><td>').length - 1;
-  assert.equal(rows, 4, 'przelew Bybit → KuCoin = dwa wiersze (z giełdy / na giełdę), para wew = dwa wiersze');
-  assert.ok(out.includes('▼ wh.out · <span class="icos"><i class="ico sm">Bybit</i></span>Bybit</span>') && out.includes('▲ wh.in · <span class="icos"><i class="ico sm">KuCoin</i></span>KuCoin</span>'), 'kierunki z logo i nazwą nowej giełdy');
+  assert.equal(rows, 3, 'v193: przelew Bybit → KuCoin = jeden wiersz „⇄ Bybit → KuCoin”, para wew = dwa wiersze');
+  assert.ok(out.includes('<span class="cell whpr">⇄<span class="whg"><span class="icos"><i class="ico sm">Bybit</i></span>Bybit</span><span class="whg">→ <span class="icos"><i class="ico sm">KuCoin</i></span>KuCoin</span></span>'), 'v193: kierunek z logo i nazwami obu giełd');
   assert.equal((out.match(/class="cell neu wew"/g) || []).length, 2, 'para na Bybit: obie strony bursztynowe z dopiskiem');
   assert.ok(!/Hacken|Etherscan|Chainlink|CoinGecko|PublicNode|publicnode|GitHub/.test(out.replace(/href="[^"]*"/g, '')), 'bez nazw dostawców ani audytora w tekście panelu');
   // słownik: nowe klucze wh.n.* w dziesięciu językach, z datą listy, bez nazw dostawców i audytora; stare klucze bez zmian
@@ -13367,4 +13367,47 @@ test('v191: dane z serwera starsze niż 60 min — pasek w nagłówku (min / god
   const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
   assert.ok(mm.indexOf('EXTRA173') > mm.indexOf('EXTRA172') && mm.indexOf('EXTRA172') >= 0, 'po słowniku v183');
   assert.ok(html.includes("const stale=!!at&&(Date.now()-ms)>60*60e3;") && html.includes("t('zr2.stale',{h:1})"), 'Źródła: ten sam próg (1 godz.)');
+});
+
+
+/* ---------- v193: wieloryby — przelew między dwiema giełdami z listy w jednym wierszu „⇄ A → B”; nota pod tabelą poprawiona w 10 językach ---------- */
+test('v193: para ▼ z A / ▲ na B (ta sama transakcja, zdarzenie, token, kwota) albo wiersz z polem x = jeden wiersz „⇄ A → B” bez koloru; inne wiersze bez zmian; nota „druga strona to portfel spoza listy” w 10 językach', () => {
+  const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whApply(', w0);
+  const run = D => {
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    new Function('$', 't', 'nfmt', 'escH', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'exchImg', 'netImg', 'D', html.slice(w0, w1) + '\nWH.data=D;renderWh();')(
+      q => q === '#c-wieloryby' ? el : null, (k, v) => k + (v ? JSON.stringify(v) : ''), (v, d) => Number(v).toFixed(d), v96src.escH, s => '[' + String(s) + ']', () => '',
+      x => `<span class="icos">${x}</span>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, D);
+    return el.innerHTML;
+  };
+  const now = new Date().toISOString(), h = c => '0x' + c.repeat(32), T = '2026-10-05T12:21:00+00:00';
+  const row = (o) => Object.assign({t: T, token: 'USDT', amt: 19899999.5, usd: 19899999.5, blk: 500, li: 7}, o);
+  const D = {at: now, okno: 7200, okno_od: 100, okno_od_t: '2026-10-05T00:18:00+00:00', ostatni_blok: 7300, ostatni_t: now,
+    salda: {Binance: {eth: 1, usdt: 1, usdc: 1, usd: 1, blk: 7300, t: now, n: 9}}, gieldy: {Binance: {n: 9, since: '2022-11', tokeny: ['USDT']}},
+    transfery: [row({dir: 'out', exch: 'Binance', tx: h('c7')}), row({dir: 'in', exch: 'Bybit', tx: h('c7')}),                    // stary plik: para bez x
+      row({dir: 'out', exch: 'Binance', tx: h('aa'), x: 'Bybit', amt: 12e6, usd: 12e6}),                                        // z x, drugi wiersz wypadł z listy
+      row({dir: 'in', exch: 'Bitfinex', tx: h('01'), amt: 120e6, usd: 120e6}),                                                   // z zewnątrz
+      row({dir: 'out', exch: 'OKX', tx: h('02'), li: 1, token: 'USDC', amt: 3e6, usd: 3e6}), row({dir: 'in', exch: 'Binance', tx: h('02'), li: 1, token: 'USDT', amt: 2e6, usd: 2e6}),   // ten sam hash, inny token — nie para
+      row({dir: 'out', exch: 'Bybit', tx: 'zły', amt: 5e6, usd: 5e6}), row({dir: 'in', exch: 'KuCoin', tx: 'zły', amt: 5e6, usd: 5e6})]};   // bez poprawnego hasha — nie łączymy
+  const out = run(D), body = out.slice(out.indexOf('<tbody>', out.lastIndexOf('wh.c.time')));
+  const rows = body.split('<tr><td>').length - 1;
+  assert.equal(rows, 7, '8 wierszy pliku → 7 w tabeli (para c7 razem): ' + rows);
+  const ex = n => `<span class="icos"><i class="ico sm">${n}</i></span>${n}`;
+  assert.equal(body.split(`<span class="cell whpr">⇄<span class="whg">${ex('Binance')}</span><span class="whg">→ ${ex('Bybit')}</span></span>`).length - 1, 2, 'para bez x i wiersz z x: „⇄ Binance → Bybit”, bez koloru');
+  assert.ok(!body.includes('▲ wh.in · <span class="icos"><i class="ico sm">Bybit</i></span>Bybit'), 'Bybit nie ma osobnego wiersza „na giełdę”');
+  assert.ok(body.includes(`<span class="cell pos">▲ wh.in · ${ex('Bitfinex')}</span>`) && body.includes(`<span class="cell neg">▼ wh.out · ${ex('OKX')}</span>`) && body.includes(`<span class="cell pos">▲ wh.in · ${ex('Binance')}</span>`), 'zwykłe wiersze jak dotąd (ten sam hash, inny token — osobno)');
+  assert.ok(body.includes(`<span class="cell neg">▼ wh.out · ${ex('Bybit')}</span>`) && body.includes(`<span class="cell pos">▲ wh.in · ${ex('KuCoin')}</span>`), 'bez poprawnego hasha — bez łączenia');
+  assert.ok(body.indexOf('120.0') < body.indexOf('19.9') && body.indexOf('19.9') < body.indexOf('12.0'), 'kolejność malejąco wg kwoty zostaje');
+  const one = run(Object.assign({}, D, {transfery: [row({dir: 'in', exch: 'Bybit', tx: h('bb'), x: 'Binance'})]}));
+  assert.ok(one.includes(`<span class="cell whpr">⇄<span class="whg">${ex('Binance')}</span><span class="whg">→ ${ex('Bybit')}</span></span>`), 'sam wiersz „na giełdę” z x: kierunek od x do giełdy wiersza');
+  assert.ok(html.includes('#c-wieloryby td .cell.whpr{flex-wrap:wrap;row-gap:2px}') && html.includes('.whpr .whg{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}'), 'telefon: „→ B” w całości w drugiej linii');
+  const self = run(Object.assign({}, D, {transfery: [row({dir: 'out', exch: 'Bybit', tx: h('dd'), x: 'Bybit'})]}));
+  assert.ok(self.includes(`<span class="cell neg">▼ wh.out · ${ex('Bybit')}</span>`), 'x równe giełdzie wiersza — zignorowane');
+  const NEW = {pl: 'Druga strona przelewu to portfel spoza listy — nie wiemy czyj; ⇄ = przelew między dwiema giełdami z listy (jeden wiersz).', en: 'The other side is a wallet outside the list — we do not know whose; ⇄ = a transfer between two listed exchanges (one row).'};
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const s = v96src.tFor(L)('wh.tr.sub');
+    assert.ok(s.includes('⇄') && !/zawsze portfel zewnętrzny|always an external|immer eine externe|siempre es una cartera externa|toujours un portefeuille externe|sempre un portafoglio esterno|sempre uma carteira externa|всегда внешний|始终是外部|常に外部/.test(s), L + ': nota bez „zawsze zewnętrzny”, z ⇄: ' + s);
+    if (NEW[L]) assert.ok(s.endsWith(NEW[L]), L + ': ' + s);
+    if (L !== 'pl' && L !== 'en') assert.notEqual(s, v96src.tFor('en')('wh.tr.sub'), L + ': tłumaczenie, nie angielski');
+  }
 });
