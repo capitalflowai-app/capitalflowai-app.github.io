@@ -4401,6 +4401,22 @@ def etf_merge_days(prev_day, new_day):
     return [[k, m[k]] for k in sorted(m)][-ETF_KEEP_DAYS:]
 
 
+# v180 (przegląd jakości 05.10): opłata z prospektu emitenta, gdy źródło notowań podaje 0 — FBTC: 0,25% rocznie od końca zwolnienia z opłaty
+# (31.07.2024); źródło wciąż podaje 0, a strona pokazywała „0,00%” przy drugim co do wielkości funduszu BTC w USA. Inna niż 0 wartość od źródła
+# wygrywa (zmiana opłaty albo poprawione źródło); u funduszy spoza listy 0 zostaje (prawdziwe zwolnienia z opłaty po debiucie).
+ETF_FEE_FIX = {'FBTC': 0.25}
+import math as _etf_math   # v180: isfinite (ponowny import jest nieszkodliwy)
+
+
+def etf_fee(ticker, v):
+    """Roczna opłata funduszu w %: sponsor_fee (ułamek) × 100, zaokrąglona do 4 miejsc; nie-liczba = None (brak, nigdy 0);
+    0 dla funduszu z ETF_FEE_FIX = opłata z prospektu."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _etf_math.isfinite(v):
+        return None
+    f = round(v * 100, 4)
+    return ETF_FEE_FIX.get(ticker, f) if f == 0 else f
+
+
 def build_etf(key, cg_key, prev=None):
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
     prev_assets = prev.get('assets') if isinstance(prev, dict) and isinstance(prev.get('assets'), dict) else {}
@@ -4488,7 +4504,7 @@ def _etf_coin(out, s, key, prev_day=None):
                                    'aum': d['net_assets'] / 1e6 if d.get('net_assets') is not None else None,
                                    'cum': d['cum_inflow'] / 1e6 if d.get('cum_inflow') is not None else None,
                                    'd1': d['net_inflow'] / 1e6 if d.get('net_inflow') is not None else None,
-                                   'fee': d['sponsor_fee'] * 100 if d.get('sponsor_fee') is not None else None,
+                                   'fee': etf_fee(it['ticker'], d.get('sponsor_fee')),   # v180: 0 od źródła przy znanej opłacie z prospektu
                                    'prem': d.get('prem_dsc')})
             except Exception as e:
                 META['errors'].append(mask(f'SoSoValue {it.get("ticker")}: {e}'))

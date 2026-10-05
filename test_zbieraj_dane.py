@@ -24154,3 +24154,33 @@ class IndeksyWypelnieniaV179(unittest.TestCase):
         self.assertEqual(prev, kopia, 'poprzedni plik nie jest zmieniany w miejscu')
         o2 = zd.build_indeksy({}, prev, now=self.MON)   # klucz zniknął — stare serie zostają, też bez wypełnień
         self.assertEqual(len(o2['ix']['MXX']['d']), 5); self.assertEqual(prev, kopia)
+
+
+# ===================== v180: OPŁATA FUNDUSZU ETF — 0 OD ŹRÓDŁA PRZY ZNANEJ OPŁACIE Z PROSPEKTU =====================
+class EtfOplataV180(unittest.TestCase):
+    """v180: FBTC — źródło notowań podaje opłatę 0, prospekt 0,25% (zwolnienie skończyło się 31.07.2024); strona pokazywała „0,00%”."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_regula(self):
+        f = zd.etf_fee
+        self.assertEqual(zd.ETF_FEE_FIX, {'FBTC': 0.25})
+        self.assertEqual((f('FBTC', 0), f('FBTC', 0.0)), (0.25, 0.25), '0 od źródła — opłata z prospektu')
+        self.assertEqual(f('FBTC', 0.0015), 0.15, 'inna wartość od źródła wygrywa (zmiana opłaty albo poprawione źródło)')
+        self.assertEqual(f('IBIT', 0), 0.0, 'inny fundusz: 0 zostaje (prawdziwe zwolnienia po debiucie)')
+        self.assertEqual(f('MSBT', 0.0014), 0.14, 'bez szumu zmiennoprzecinkowego (dawniej 0.13999999999999999)')
+        for zle in (None, '0.0025', True, float('nan'), float('inf'), [0.0025]):
+            self.assertIsNone(f('FBTC', zle), repr(zle))
+
+    def test_wiersz_funduszu(self):
+        funds = {'btc': [{'ticker': 'IBIT', 'name': 'a'}, {'ticker': 'FBTC', 'name': 'b'}, {'ticker': 'GBTC', 'name': 'c'}]}
+        snapshots = {'IBIT': {'net_assets': 3e9, 'cum_inflow': 1e9, 'net_inflow': 1e6, 'sponsor_fee': 0.0025},
+                     'FBTC': {'net_assets': 2e9, 'cum_inflow': 1e9, 'net_inflow': 1e6, 'sponsor_fee': 0},
+                     'GBTC': {'net_assets': 1e9, 'cum_inflow': 1e9, 'net_inflow': 1e6, 'sponsor_fee': None}}
+        with mock.patch.object(zd, 'soso', _soso_factory({'btc': _rows(['2026-09-22', '2026-09-23'])}, funds, snapshots)), \
+             mock.patch.object(zd, 'get_json', lambda url, headers=None: {'bitcoin': {'usd_market_cap': 1e12}, 'ethereum': {'usd_market_cap': 1},
+                                                                          'solana': {'usd_market_cap': 1}, 'ripple': {'usd_market_cap': 1}}), \
+             mock.patch.object(zd, 'ETF_SYMS', ['btc']):
+            out = zd.build_etf('k', 'c')
+        self.assertEqual({x['t']: x['fee'] for x in out['assets']['btc']['funds']}, {'IBIT': 0.25, 'FBTC': 0.25, 'GBTC': None})
