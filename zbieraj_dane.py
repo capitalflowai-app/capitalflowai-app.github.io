@@ -8500,6 +8500,11 @@ def cb_parse(j, c):
                   lev_num(j.get('qty_24hr')), lev_num(j.get('notional_24hr')), lev_iso(q.get('timestamp')))
     if not row:
         raise ValueError('brak liczb')
+    st = j.get('trading_state')
+    if isinstance(st, str) and st.strip() and st.strip().upper() != 'TRADING':
+        # v176: handel wstrzymany (05.10: BTC-PERP i ETH-PERP „PAUSED” od 01.10 09:00 UTC, obrót 0) — stawka finansowania na stojącym rynku nie jest
+        # bieżąca (brak, nie liczba); pozycje i czas ostatniego notowania zostają z własną datą; strona dopisuje stan
+        row = dict(row, f_h=None, f_y=None, stan=st.strip().upper())
     return row
 
 
@@ -18418,11 +18423,13 @@ def main():
     prev_ins = previous('insider')
     if not ins_ua(sec_contact):
         META['notes'].append(('SEC_CONTACT to nie adres e-mail' if sec_contact else 'brak SEC_CONTACT') + ' — insiderzy (zgłoszenia Form 4) wyłączeni')
-        if prev_ins:
+        if prev_ins and not prev_ins.get('off'):
             save('insider', prev_ins)
+        else:   # v176: plik „część wyłączona” zamiast żadnego (strona dostawała 404 przy każdym wczytaniu); bez liczb — strona go nie pokazuje
+            save('insider', {'at': NOW, 'v': 1, 'off': True, 'powod': 'brak adresu kontaktowego wymaganego przez urząd (sekret SEC_CONTACT) — część wyłączona'})
     else:
         try:
-            ins = build_insider(prev_ins, contact=sec_contact); save('insider', ins); META['ok']['insider'] = bool((ins.get('ok') or {}).get('sec'))
+            ins = build_insider(prev_ins if not (prev_ins or {}).get('off') else None, contact=sec_contact); save('insider', ins); META['ok']['insider'] = bool((ins.get('ok') or {}).get('sec'))
         except Exception as e:
             META['errors'].append(mask(f'Insiderzy: {e}')); META['ok']['insider'] = False
             if prev_ins: save('insider', prev_ins)

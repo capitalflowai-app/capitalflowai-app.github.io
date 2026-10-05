@@ -13116,3 +13116,35 @@ test('v175: lista „Bez bieżących danych emitenta — zostają poza sumami”
   const G = v169Plik();
   assert.ok(RWC150.out(G).includes('Bez bieżących danych emitenta — zostają poza sumami: Hastra.'), 'plik bez pola stan — wg pełnego odczytu, jak dotąd');
 });
+
+
+/* ---------- v176: przegląd jakości 05.10 — Coinbase „handel wstrzymany”, powrót do karty = świeże pliki ---------- */
+test('v176: dźwignia — wiersz giełdy ze stanem rynku (handel wstrzymany) ma dopisek; bez stanu — jak dotąd', () => {
+  const f = lev104.mk({}); const j = lev109.fix();
+  j.cb.BTC = Object.assign({}, j.cb.BTC, {f_h: null, f_y: null, stan: 'PAUSED'});
+  f.levApply(j); const h = f.el.innerHTML;
+  assert.equal((h.match(/ · lev\.stan/g) || []).length, 1, 'jeden wiersz z dopiskiem (Coinbase BTC)');
+  const g = lev104.mk({}); g.levApply(lev109.fix()); assert.ok(!g.el.innerHTML.includes('lev.stan'), 'bez pola stan — bez dopisku');
+  const d0 = html.indexOf('const EXTRA171='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA171='.length, d1));
+  assert.deepEqual(D, {pl: {'lev.stan': 'handel wstrzymany'}}, 'tylko po polsku');
+  const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
+  assert.ok(mm.indexOf('EXTRA171') > mm.indexOf('EXTRA170') && mm.indexOf('EXTRA170') >= 0, 'po słowniku v170');
+});
+test('v176: powrót do karty po ≥ 2 min w tle — od razu wczytanie plików serwera (kolejno), krótszy powrót — nic', () => {
+  const a = html.indexOf('/* v176: powrót do karty'), b = html.indexOf('})();   /* v176: koniec */', a);
+  assert.ok(a > 0 && b > a, 'blok v176 w stronie');
+  const src = html.slice(html.indexOf('(function(){', a), b + 5);
+  const calls = [], L = {}, timers = [];
+  for (const n of ['metaLoad', 'cmcLoad', 'krLoad', 'etfLoad', 'whLoad', 'levLoad', 'lnLoad', 'prmLoad', 'rwLoad', 't10Load', 'trdLoad', 'kcLoad', 'wyLoad', 'cmLoad', 'dlLoad',
+                   'ixLoad', 'fgLoadG', 'strLoad', 'snbLoad', 'aukLoad', 'fndLoad', 'usaLoad', 'insLoad', 'engLoad', 'arcLoad']) L[n] = () => calls.push(n);
+  let now = 1e9, hidden = false; const doc = {get hidden() { return hidden; }, addEventListener: (ev, fn) => { L['_' + ev] = fn; }};
+  const D = {now: () => now};
+  new Function('document', 'Date', 'setTimeout', ...Object.keys(L).filter(k => k[0] !== '_'), src)(doc, D, (fn, ms) => timers.push([ms, fn]), ...Object.keys(L).filter(k => k[0] !== '_').map(k => L[k]));
+  const vis = L._visibilitychange; assert.ok(typeof vis === 'function', 'słuchacz widoczności');
+  hidden = true; vis(); now += 60 * 1000; hidden = false; vis(); timers.forEach(([, fn]) => fn());
+  assert.deepEqual(calls, [], 'minuta w tle — bez odświeżania');
+  hidden = true; vis(); now += 3 * 60 * 1000; hidden = false; vis();
+  assert.equal(timers.length, 25, '25 plików'); assert.deepEqual(timers.map(t => t[0]).slice(0, 3), [0, 150, 300], 'kolejno co 150 ms');
+  timers.forEach(([, fn]) => fn()); assert.equal(calls.length, 25); assert.equal(calls[0], 'metaLoad'); assert.ok(!calls.includes('fedLoad'), 'Fed ma własny mechanizm');
+  timers.length = 0; calls.length = 0; vis(); timers.forEach(([, fn]) => fn()); assert.deepEqual(calls, [], 'drugie „widoczna” bez ukrycia — nic');
+});

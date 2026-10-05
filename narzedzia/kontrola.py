@@ -1947,6 +1947,8 @@ def kontrola():
             okp = j.get('ok') if isinstance(j, dict) else None
             nie = sorted(k for k, v in okp.items() if v is False) if isinstance(okp, dict) else []
             R['pliki'][n] = {'http': st, 'bajty': len(body), 'wiek_min': w, 'czesci_bez_odpowiedzi': nie}
+            if isinstance(j, dict) and j.get('off') is True:   # v176: plik części wyłączonej celowo (np. insiderzy bez SEC_CONTACT) — stan, nie usterka
+                R['pliki'][n]['wylaczone'] = str(j.get('powod') or 'wyłączone')[:160]
             if w is not None and w > LIMIT_MIN.get(n, 24 * 60):
                 R['uwagi'].append(f'{n}.json sprzed {w // 60} godz. {w % 60} min (limit {LIMIT_MIN.get(n, 1440) // 60} godz.)')
             if nie:
@@ -2247,7 +2249,7 @@ def raport_md(R):
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
-    L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None else ("wyłączone" if p.get("wylaczone") else "HTTP " + str(p.get("http", "?")))}'
+    L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None and not p.get("wylaczone") else ("wyłączone" if p.get("wylaczone") else "HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     if m.get('notes'):
         L.append('- Notatki automatu: ' + ' · '.join(m['notes']) + '.')

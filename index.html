@@ -2118,6 +2118,9 @@ for(const l in EXTRA169)if(I18N[l])Object.assign(I18N[l],EXTRA169[l]);
 /* v170: tokenizowane aktywa — dane emitentów: zakres Ondo Global Markets i xStocks — tylko po polsku (cel właściciela 04.10) */
 const EXTRA170={"pl":{"rwe.z.gm":"emitent liczy szerzej — wszystkie tokeny tej linii produktów","rwe.z.xs":"emitent liczy wszystkie swoje tokeny akcji we wszystkich sieciach"}};
 for(const l in EXTRA170)if(I18N[l])Object.assign(I18N[l],EXTRA170[l]);
+/* v176: dźwignia — rynek giełdy ze wstrzymanym handlem — tylko po polsku (cel właściciela 04.10) */
+const EXTRA171={"pl":{"lev.stan":"handel wstrzymany"}};
+for(const l in EXTRA171)if(I18N[l])Object.assign(I18N[l],EXTRA171[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8528,6 +8531,20 @@ if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('16px "
 /* ETF → krypto: migawka od razu, dane na żywo gdy jest klucz */
 etfLoad();etfAuto();engLoad();engAuto();cmcLoad();cmcAuto();krLoad();krAuto();tvInit();
 metaLoad();setInterval(()=>{if(!document.hidden)metaLoad();},10*60*1000);   /* v51: stan źródeł z meta.json */
+/* v176: powrót do karty po co najmniej 2 min w tle — od razu świeże pliki serwera (dotąd czekały na następne „tyknięcie” zegara: 10–60 min,
+   a w tle tyknięcia są pomijane); kolejno co 150 ms; szanse Fed mają własny mechanizm (fedLoad przy powrocie, v126) */
+(function(){let ukryta=0;try{document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ukryta=Date.now();return;}
+  const dl=ukryta?Date.now()-ukryta:0;ukryta=0;if(dl<2*60*1000)return;
+  const F=[typeof metaLoad==='function'&&metaLoad,typeof cmcLoad==='function'&&cmcLoad,typeof krLoad==='function'&&krLoad,typeof etfLoad==='function'&&etfLoad,
+    typeof whLoad==='function'&&whLoad,typeof levLoad==='function'&&levLoad,typeof lnLoad==='function'&&lnLoad,typeof prmLoad==='function'&&prmLoad,
+    typeof rwLoad==='function'&&rwLoad,typeof t10Load==='function'&&t10Load,typeof trdLoad==='function'&&trdLoad,typeof kcLoad==='function'&&kcLoad,
+    typeof wyLoad==='function'&&wyLoad,typeof cmLoad==='function'&&cmLoad,typeof dlLoad==='function'&&dlLoad,typeof ixLoad==='function'&&ixLoad,
+    typeof fgLoadG==='function'&&fgLoadG,typeof strLoad==='function'&&strLoad,typeof snbLoad==='function'&&snbLoad,typeof aukLoad==='function'&&aukLoad,
+    typeof fndLoad==='function'&&fndLoad,typeof usaLoad==='function'&&usaLoad,typeof insLoad==='function'&&insLoad,typeof engLoad==='function'&&engLoad,
+    typeof arcLoad==='function'&&arcLoad].filter(Boolean);
+  F.forEach((f,i)=>setTimeout(()=>{try{f();}catch(e){}},i*150));
+});}catch(e){}})();   /* v176: koniec */
 trdLoad();trdAuto();   /* v89: TRENDY — plik serwera, co 20 min */
 cmLoad();cmAuto();   /* v50: Coin Metrics — plik automatu, zegar co 30 min (osobna linia: wspólna linia startu bez zmian) */
 /* ===================== v121: CENY KRYPTO — dzienne zamknięcia 10 par USDT (plik automatu data/ceny-krypto.json; publiczne pliki giełdy, bez klucza) =====================
@@ -10073,7 +10090,7 @@ function levVen(){
   for(const c of LEV_COINS){const r=H&&levObj(H.rows)&&levObj(H.rows[c])?H.rows[c]:null;if(r)add('Hyperliquid',c,r.f_y,r.oi_usd,null,'',levWhen(levAt('hl')),r.vol_usd);}
   for(const c of LEV_COINS){const r=O&&levObj(O[c])?O[c]:null;if(r)add('OKX',c,r.f_y,r.oi_usd,r.ls,typeof r.ls_t==='string'?engDate(r.ls_t):'',levWhen(r.t||levAt('okx')));}
   for(const c of LEV_COINS){const r=B&&levObj(B[c])&&levObj(B[c].last)?B[c].last:null;if(r)add('Binance',c,null,r.oi_usd,r.ls,'',`${levDay(B.day)}${gAgeNote(B.day)}`);}
-  for(const k of ['kr','cb','dy'])for(const c of LEV_COINS){const P=levPart(k),r=P&&levObj(P[c])?P[c]:null;if(r)add(LEV_NAME[k],c,r.f_y,r.oi_usd,null,'',levWhen(typeof r.t==='string'&&r.t?r.t:levAt(k)),r.vol_usd);}   /* v109: Kraken, Coinbase, dYdX — wiersz z własnym czasem */
+  for(const k of ['kr','cb','dy'])for(const c of LEV_COINS){const P=levPart(k),r=P&&levObj(P[c])?P[c]:null;if(r)add(LEV_NAME[k],c,r.f_y,r.oi_usd,null,'',levWhen(typeof r.t==='string'&&r.t?r.t:levAt(k))+(typeof r.stan==='string'&&r.stan?' · '+t('lev.stan'):''),r.vol_usd);}   /* v109: Kraken, Coinbase, dYdX — wiersz z własnym czasem; v176: stan rynku (handel wstrzymany) */
   if(!rows.length)return '';
   return `<h3 class="mtxt">${levIco(levI('glyph','chart','sm'))}<b>${t('lev.h.ven')}</b></h3><p class="pnote">${t('lev.ven.sub')}</p><div class="list-wrap"><table class="etft"><thead><tr><th>${t('lev.c.ven')}</th><th>${t('lev.c.coin')}</th><th>${t('lev.c.fund')}</th><th>${t('lev.c.oi')}</th><th>${t('lev.c.ls')}</th><th>${t('lev.c.vol')}</th><th>${t('lev.c.when')}</th></tr></thead><tbody>${rows.join('')}</tbody></table></div><p class="pnote">${t('lev.ven.note')}</p>`;
 }

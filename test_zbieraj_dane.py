@@ -23884,3 +23884,89 @@ class PoPrzegladzieV175(unittest.TestCase):
                 f.write(f'2026-10-0{i + 1},Binance,USDT,{bn},{bn},0,0,0,{blk}\n2026-10-0{i + 1},Bybit,USDT,{by_},{by_},0,0,5000000,{blk - (1800 if i == 5 else 0)}\n')
         o = k.wieloryby_ocena(p)
         self.assertEqual((o['porownane'], o['pominiete'], o['zle'], o['pomin']), (1, 1, [], None), 'Bybit (odstęp 18 h) pominięty, Binance porównany')
+
+
+# ===================== v176: PRZEGLĄD JAKOŚCI 05.10 — COINBASE WSTRZYMANY, PLIK INSIDERÓW „WYŁĄCZONE”, POWRÓT DO KARTY =====================
+class JakoscV176(unittest.TestCase):
+    """v176: stan rynku Coinbase (PAUSED = bez stawki finansowania, z dopiskiem); plik „część wyłączona” dla insiderów bez SEC_CONTACT (zamiast
+    404); kontrola pisze „wyłączone”; strona odświeża pliki po powrocie do karty."""
+
+    def _cb(self, st):
+        j = {'symbol': 'BTC-PERP', 'open_interest': '1031.3903', 'qty_24hr': '0', 'notional_24hr': '0', 'funding_interval': '3600000000000',
+             'quote': {'mark_price': '84000', 'predicted_funding': '0.000056', 'timestamp': '2026-10-01T09:00:29.114Z'}}
+        if st is not None:
+            j['trading_state'] = st
+        return zd.cb_parse(j, 'BTC')
+
+    def test_coinbase_stan_rynku(self):
+        r = self._cb('PAUSED')
+        self.assertEqual((r['f_h'], r['f_y'], r['stan'], r['oi'], r['t']), (None, None, 'PAUSED', 1031.3903, '2026-10-01T09:00:29+00:00'),
+                         'handel wstrzymany: bez stawki finansowania, pozycje i czas notowania zostają')
+        self.assertEqual(r['oi_usd'], round(1031.3903 * 84000))
+        for st in ('TRADING', None, ''):
+            r = self._cb(st)
+            self.assertNotIn('stan', r); self.assertAlmostEqual(r['f_y'], 0.000056 * 24 * 365 * 100, places=3)
+        self.assertEqual(self._cb('halt')['stan'], 'HALT')
+
+    def test_insider_plik_wylaczony(self):
+        saved = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and callable(getattr(zd, n))]
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
+                               'SITE_URL', 'CACHE_DIR', 'SEC_CONTACT', 'RWA_OFF')}
+        env['RWA_OFF'] = '1'
+        for prev in (None, {'at': '2026-10-05T09:00:00+00:00', 'v': 1, 'off': True, 'powod': 'x'}):
+            saved.clear(); zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+            with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                    mock.patch.object(zd, 'previous', lambda name: prev if name == 'insider' else None), mock.patch.object(zd, '_RUN_T0', [None]):
+                [p.start() for p in stubs]
+                try:
+                    zd.main()
+                finally:
+                    [p.stop() for p in stubs]
+            I = saved['insider']
+            self.assertEqual((I['off'], I['v']), (True, 1)); self.assertIn('SEC_CONTACT', I['powod']); self.assertEqual(I['at'], zd.NOW)
+            self.assertNotIn('day', I, 'bez liczb i bez dnia — strona go nie pokazuje'); self.assertNotIn('insider', zd.META['ok'])
+        src = _rwc150_txt(zd.__file__)
+        self.assertIn("build_insider(prev_ins if not (prev_ins or {}).get('off') else None, contact=sec_contact)", src)
+
+    def test_kontrola_plik_wylaczony(self):
+        import importlib.util, tempfile
+        spec = importlib.util.spec_from_file_location('kontrola_v176', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        NOW = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=datetime.timezone.utc)
+
+        class Resp:
+            def __init__(self, b):
+                self.b, self.status = b, 200
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def urlopen(req, timeout=None):
+            url = req.full_url
+            if '/index.html?' in url:
+                return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
+            if '/data/meta.json?' in url:
+                return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []}).encode())
+            if '/data/insider.json?' in url:
+                return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'v': 1, 'off': True,
+                                        'powod': 'brak adresu kontaktowego wymaganego przez urząd (sekret SEC_CONTACT) — część wyłączona'}).encode())
+            if '/data/' in url:
+                return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()}).encode())
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                return Resp(b'x' * 100)
+            if url.startswith('https://api.github.com/'):
+                return Resp(b'{"workflow_runs": []}')
+            raise k.urllib.error.URLError('test bez sieci')
+        d = tempfile.mkdtemp(prefix='k176-')
+        with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen), mock.patch('sys.stdout', io.StringIO()):
+            R = k.kontrola()
+        self.assertEqual(R['pliki']['insider']['wylaczone'], 'brak adresu kontaktowego wymaganego przez urząd (sekret SEC_CONTACT) — część wyłączona')
+        self.assertIn(' insider wyłączone,', k.raport_md(R)); self.assertFalse(any('insider' in u for u in R['uwagi']), R['uwagi'])
