@@ -10704,7 +10704,7 @@ test('v133: sekcja #c-rwa pod stablecoinami, przed widgetami; styl, blok JS, ła
   assert.equal(html.split('id="c-rwa"').length - 1, 1, 'jedna sekcja');
   assert.ok(html.includes('#c-rwa .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}') && html.includes('@media (max-width:620px){#c-rwa .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}'), '4 kafle, 2 na telefonie');
   assert.ok(html.includes('#c-rwa table.etft{min-width:0;width:100%}'), 'tabele bez przewijania strony na telefonie');
-  assert.ok(html.includes("function rwLoad(){srvJSON('rwa').then(rwApply);}") && html.includes('setInterval(()=>{if(!document.hidden)rwLoad();},30*60*1000)'), 'plik serwera co 30 min, gdy karta widoczna');
+  assert.ok(html.includes("function rwLoad(){srvJSON('rwa').then(rwApply);}") && html.includes('setInterval(()=>{if(!document.hidden)rwLoad();},10*60*1000)'), 'plik serwera co 30 min, gdy karta widoczna');
   assert.ok(html.includes("rwLoad();rwAuto();try{new MutationObserver(()=>renderRw()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'zmiana języka = nowe etykiety');
   const {el, K} = rw133.run(RWA133_FILE);
   assert.ok(!el.hidden); const before = el.innerHTML;
@@ -12991,7 +12991,7 @@ test('v167: teksty dla czytelnika zamiast notatek wewnętrznych (indeksy, stopka
 /* ===================== v168: dane szybciej i spójniej (05.10) ===================== */
 test('v168: strona sprawdza szybkie pliki co 10 min (rynek krypto, wieloryby, szanse Fed, dźwignia, stan źródeł); rzadkie pliki jak dotąd', () => {
   for (const [f, n] of [['cmcLoad', 10], ['whLoad', 10], ['fedLoad', 10], ['levLoad', 10], ['metaLoad', 10], ['lnLoad', 10], ['prmLoad', 10],
-    ['krLoad', 20], ['t10Load', 20], ['trdLoad', 20], ['cmLoad', 30], ['rwLoad', 30], ['dlLoad', 30], ['engLoad', 60], ['kcLoad', 60]]) {
+    ['krLoad', 20], ['t10Load', 20], ['trdLoad', 20], ['cmLoad', 30], ['rwLoad', 10], ['dlLoad', 30], ['engLoad', 60], ['kcLoad', 60]]) {
     const re = new RegExp('setInterval\\(\\(\\)=>\\{if\\(!document\\.hidden\\)' + f + '\\(\\);\\},(\\d+)\\*60\\*1000\\)', 'g'), all = [...html.matchAll(re)].map(m => +m[1]);
     assert.ok(all.length >= 1 && all.every(x => x === n), f + ': ' + JSON.stringify(all));
   }

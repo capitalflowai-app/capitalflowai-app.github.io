@@ -16223,7 +16223,7 @@ RWA_API = 'https://api.llama.fi'
 RWA_LABEL = 'Tokenizowane aktywa (RWA)'   # przedrostek komunikatów w META (bez nazwy źródła)
 RWA_SRC = ('DefiLlama — api.llama.fi/protocols (kategoria RWA) i /tvl/{produkt} dla produktów bez wartości na liście; bez klucza; sumy, rodzaje, '
            'udziały i zmiany 7/30 dni (te same produkty w obu dniach) — obliczenia CapitalFlowAI z własnych dziennych zapisów')
-RWA_EVERY = 360           # min — pełne odświeżenie co 6 h (lista odświeża się u źródła mniej więcej co godzinę) …
+RWA_EVERY = 180           # min — pełne odświeżenie co 3 h (v172; było 6 h — dane emitentów i łańcucha są świeższe) (lista odświeża się u źródła mniej więcej co godzinę) …
 RWA_RETRY = 60            # min — … część z błędem albo nieudana próba (try_at): ponowienie najwcześniej po godzinie (dalej RWA_RETRY_STEPS)
 RWA_BEZ_PLIKU_MIN = 60    # min — v133.2: bez poprzedniego pliku próba w KAŻDYM przebiegu (minuta < 60), do pierwszego pliku; było 20 (raz na godzinę) —
                           #       03.10 harmonogram GitHub spóźniał się ponad 20 min i stał, pierwszego pliku nie było godzinę po publikacji
@@ -16250,7 +16250,7 @@ RWA_PROD_BD = 4           # pełne dni robocze bez zmiany — próg dla pojedync
 RWA_GOLD_MOVE = 0.2       # % — zmiana ceny złota (GLD) od dnia „bez zmian”, bez której token złota nie jest uznany za niezmieniony
 RWA_GOLD_RX = re.compile(r'gold|xau', re.I)   # token złota: rodzaj cm i „gold”/„xau” w nazwie albo identyfikatorze
 RWA_GONE_D = 31           # dni — ostatnio znana wartość produktu bez wartości zostaje w pliku (poza sumami), potem znika
-RWA_RETRY_STEPS = (60, 120, 360)   # min — kolejne nieudane (albo częściowe) odświeżenia: ponowienie po 1 h, 2 h, potem zwykły rytm 6 h
+RWA_RETRY_STEPS = (60, 120, 180)   # min — kolejne nieudane (albo częściowe) odświeżenia: ponowienie po 1 h, 2 h, potem zwykły rytm 3 h (v172)
 RWA_SEED_DAY = '2026-09-27'
 RWA_SEED = frozenset((
     '07f6cb50cf6ab749', '086b579b5c367792', '0aa3dd3130027af8', '1a7d8c8d6f16a931', '1c3af30fddfd01b1', '1e279d1990bb9a8c', '2450c628869d0015',
@@ -16874,7 +16874,7 @@ RWC_TIMEOUT = 8           # s — najdłużej jedno żądanie (zwykle 0,2–1 s)
 RWC_MIN_TMO = 1.0         # s — mniej zostało z budżetu = bez kolejnej próby (sieć bez odpowiedzi — poprzedni odczyt z czasem)
 RWC_PROBY = 3             # jak wieloryby: węzeł główny dwa razy (odstęp RWC_PRZERWA s), potem zapas (gdy jest; bez zapasu — trzeci raz główny)
 RWC_PRZERWA = 0.5         # s między próbami
-RWC_CH_MAX_MIN = 12 * 60  # min — odczyt tokenu starszy = nie liczy się jako odczytany (dwa odświeżenia co 6 h); produkt wraca do „bez bieżącej wyceny”
+RWC_CH_MAX_MIN = 12 * 60  # min — odczyt tokenu starszy = nie liczy się jako odczytany (cztery odświeżenia co 3 h; v172); produkt wraca do „bez bieżącej wyceny”
 RWC_KEEP_MIN = 7 * 24 * 60   # min — najstarszy poprzedni odczyt trzymany w pliku (z czasem); starszy = brak
 RWC_HS_DAYS = 8           # dni dziennych zapisów podaży (kontrola dzienna: zmiana 24 h)
 RWC_HD_DAYS = 31          # dni zapisu „co liczyliśmy z odczytu własnego” (kontrola: skok sumy przy zmianie zbioru)
@@ -18701,7 +18701,7 @@ def main():
             if prev_t10: save('krypto-top10', prev_t10)
             if prev_t10l: save('krypto-top10-logo', prev_t10l)
     # v133: tokenizowane aktywa (RWA; bez klucza) — lista protokołów (2,35 MB gzip) i wartości produktów ukrytych na liście (najwyżej 80 małych
-    # zapytań, 4 wątki, starty co 0,2 s) w jednym budżecie 45 s: co 6 h; część z błędem albo nieudana próba — ponowienie po 1 h, 2 h, potem 6 h
+    # zapytań, 4 wątki, starty co 0,2 s) w jednym budżecie 45 s: co 3 h (v172; było 6 h); część z błędem albo nieudana próba — ponowienie po 1 h, 2 h, potem 3 h
     # (retry_n, try_at); cena złota (GLD) z pliku indeksy tego przebiegu (SAVED — krok po indeksach);
     # przebieg spóźniony (> RWA_LATE s — ciężki przebieg godzinowy) = poprzedni plik bez zapytań; bez poprzedniego pliku (pamięć Actions i strona)
     # próba tylko w pierwszym przebiegu godziny, a nieudana = notatka (nie błąd — kontrola dzienna i tak pokazuje ⚠️ „brak pliku”); awaria

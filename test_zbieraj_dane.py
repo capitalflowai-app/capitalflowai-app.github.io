@@ -21087,7 +21087,7 @@ class _RwaResp133:
         return False
 
 
-class RwaV133(unittest.TestCase):
+class RwaV133(unittest.TestCase):   # v172: rytm 6 h przypięty w setUp (logika ta sama; rytm 3 h — RwaRytmV172)
     """v133: tokenizowane aktywa (RWA) — lista (gzip), produkty ukryte przez /tvl (wątki, odstęp, 429/5xx/połączenie/budżet), rodzaje, migawki
     (31 / 400 dni), zmiany 7 i 30 dni tylko wobec dokładnego dnia, 10 największych, bramka bez poprzedniego pliku, main(), kontrola dzienna, sonda."""
     NOW = datetime.datetime(2026, 9, 27, 19, 40, tzinfo=datetime.timezone.utc)
@@ -21096,6 +21096,7 @@ class RwaV133(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         self.enterContext(mock.patch.object(zd, '_RUN_T0', [None]))
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        self.enterContext(mock.patch.object(zd, 'RWA_EVERY', 360)); self.enterContext(mock.patch.object(zd, 'RWA_RETRY_STEPS', (60, 120, 360)))   # v172
 
     # ---------------------------------------------------------------- pomocnicze
     def _parsed(self, day='2026-09-27'):
@@ -23669,3 +23670,30 @@ class KontrolaWylaczoneV171(unittest.TestCase):
         self.assertIn('jpx.json: HTTP 404 (brak pliku)', R['uwagi'], 'inny brakujący plik — dalej uwaga')
         md = k.raport_md(R)
         self.assertIn(' insider wyłączone,', md); self.assertIn(' jpx HTTP 404,', md)
+
+
+# ===================== v172: TOKENIZOWANE AKTYWA CO 3 H =====================
+class RwaRytmV172(unittest.TestCase):
+    """v172: plik RWA co 3 h (było 6 h): bramka odświeżenia, ponowienia 1 h, 2 h, potem 3 h; strona pyta co 10 min, znaczek „na żywo” do 5 h;
+    polskie podpisy i etykiety kontroli dziennej „co 3 h”."""
+    NOW = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=datetime.timezone.utc)
+
+    def test_rytm_3_h(self):
+        self.assertEqual((zd.RWA_EVERY, zd.RWA_RETRY_STEPS, zd.RWA_RETRY), (180, (60, 120, 180), 60))
+        at = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
+        F = lambda **kw: dict({'at': at(1), 'seg': {}, 'hist': [], 'ok': {'list': True, 'hidden': True}}, **kw)  # noqa: E731
+        O, bad = zd.rwa_odswiez, {'list': True, 'hidden': False}
+        self.assertFalse(O(F(at=at(2.9)), self.NOW)); self.assertTrue(O(F(at=at(3.1)), self.NOW), 'pełne odświeżenie po 3 h')
+        self.assertFalse(O(F(at=at(2.5), ok=bad, retry_n=3), self.NOW), 'trzecie i dalsze niepowodzenia: zwykły rytm 3 h')
+        self.assertTrue(O(F(at=at(3.1), ok=bad, retry_n=3), self.NOW)); self.assertTrue(O(F(at=at(1.1), ok=bad), self.NOW), 'pierwsze: po godzinie')
+
+    def test_strona_i_kontrola(self):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        h = _rwc150_txt(os.path.join(root, 'index.html'))
+        self.assertIn('const RW_LIVE=5*3600e3,RW_OLD=48*3600e3;', h); self.assertIn('rwLoad();},10*60*1000);}', h)
+        self.assertIn('Odświeżane co 3 godziny.', h); self.assertIn('na łańcuchach bloków, co 3 godziny.', h); self.assertNotIn('Odświeżane co 6 godzin.', h)
+        spec = importlib.util.spec_from_file_location('kontrola_v172', os.path.join(root, 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        self.assertEqual((K.RWA_ETYKIETA, K.RWC_ETYKIETA, K.RWE_ETYKIETA), ('tokenizowane aktywa RWA (co 3 h)', 'tokenizowane aktywa — odczyt własny z łańcucha (co 3 h)',
+                                                                            'tokenizowane aktywa — dane emitentów (co 3 h)'))

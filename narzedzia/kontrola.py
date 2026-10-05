@@ -1442,7 +1442,7 @@ def i18n_kontrola(body, R, pobierz=None):
 
 
 # ---------------------------------------------------------------- v133: tokenizowane aktywa RWA (data/rwa.json) ----------------------------------------------------------------
-RWA_ETYKIETA = 'tokenizowane aktywa RWA (co 6 h)'
+RWA_ETYKIETA = 'tokenizowane aktywa RWA (co 3 h)'   # v172: było co 6 h
 RWA_SWIEZ_MIN = 12 * 60    # min — lista starsza (plik co 6 h, część z błędem ponawiana po godzinie) = ⚠️; nigdy ❌ ani BŁĄD
 RWA_PP = 1.0               # pkt proc. — |własna zmiana 7 dni − zmiana 7 dni podana przez źródło| (produkty z listy) większa = ⚠️
 RWA_HIST_MIN = 8           # dni własnych zapisów sum potrzebnych do porównania zmian 7 dni (wcześniej tylko informacja)
@@ -1464,7 +1464,7 @@ def rwa_swiezosc(j, now=None):
         return (RWA_ETYKIETA, '?', None, None, 'brak czasu danych w pliku')
     if w <= RWA_SWIEZ_MIN:
         return (RWA_ETYKIETA, '✅', w, ts, '')
-    return (RWA_ETYKIETA, '⚠️', w, ts, f'lista starsza niż {RWA_SWIEZ_MIN // 60} h (plik co 6 h) — tylko uwaga')
+    return (RWA_ETYKIETA, '⚠️', w, ts, f'lista starsza niż {RWA_SWIEZ_MIN // 60} h (plik co 3 h) — tylko uwaga')
 
 
 def _rwa_hist(j):
@@ -1578,7 +1578,7 @@ def rwa_kontrola(files, R):
 
 
 # ---------------------------------------------------------------- v150: tokenizowane aktywa — odczyt własny z łańcucha (blok onchain w data/rwa.json) ----------------------------------------------------------------
-RWC_ETYKIETA = 'tokenizowane aktywa — odczyt własny z łańcucha (co 6 h)'
+RWC_ETYKIETA = 'tokenizowane aktywa — odczyt własny z łańcucha (co 3 h)'
 RWC_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 6 h) = ⚠️; nigdy ❌ ani BŁĄD (zbieracz i tak nie liczy odczytów starszych niż 12 h)
 RWC_SKOK_POD = 50.0        # % — zmiana podaży produktu między dwoma kolejnymi dniami zapisów (24 h) większa = ⚠️ (zły kontrakt albo zmiana emisji)
 RWC_RAZY = 3.0             # wartość z łańcucha vs ostatnio znana wartość źródła v133 tego produktu: więcej niż 3× albo mniej niż 1/3 = ⚠️
@@ -1601,7 +1601,7 @@ def rwc_swiezosc(j, now=None):
         return (RWC_ETYKIETA, '?', None, None, 'brak czasu odczytu w pliku')
     if w <= RWC_SWIEZ_MIN:
         return (RWC_ETYKIETA, '✅', w, ts, '')
-    return (RWC_ETYKIETA, '⚠️', w, ts, f'odczyt starszy niż {RWC_SWIEZ_MIN // 60} h (plik co 6 h) — produkty z odczytu własnego wracają do „bez bieżącej wyceny”')
+    return (RWC_ETYKIETA, '⚠️', w, ts, f'odczyt starszy niż {RWC_SWIEZ_MIN // 60} h (plik co 3 h) — produkty z odczytu własnego wracają do „bez bieżącej wyceny”')
 
 
 def rwc_hd(j):
@@ -1707,7 +1707,7 @@ def rwc_kontrola(files, R):
 
 
 # ---------------------------------------------------------------- v169: tokenizowane aktywa — dane emitentów (blok issuer w data/rwa.json) ----------------------------------------------------------------
-RWE_ETYKIETA = 'tokenizowane aktywa — dane emitentów (co 6 h)'
+RWE_ETYKIETA = 'tokenizowane aktywa — dane emitentów (co 3 h)'
 RWE_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 6 h) = ⚠️; nigdy ❌ ani BŁĄD
 RWE_ZAKRES = (0.8, 1.25)   # wartość wg emitenta vs ostatnio znana źródła v133 poza tym pasmem = informacja ℹ️ (inny zakres liczenia albo prawdziwa zmiana)
 
@@ -1729,7 +1729,7 @@ def rwe_swiezosc(j, now=None):
         return (RWE_ETYKIETA, '?', None, None, 'brak czasu odczytu w pliku')
     if w <= RWE_SWIEZ_MIN:
         return (RWE_ETYKIETA, '✅', w, ts, '')
-    return (RWE_ETYKIETA, '⚠️', w, ts, f'odczyt starszy niż {RWE_SWIEZ_MIN // 60} h (plik co 6 h) — produkty wg emitentów wracają do „bez bieżącej wyceny”')
+    return (RWE_ETYKIETA, '⚠️', w, ts, f'odczyt starszy niż {RWE_SWIEZ_MIN // 60} h (plik co 3 h) — produkty wg emitentów wracają do „bez bieżącej wyceny”')
 
 
 def rwe_hd(j):
