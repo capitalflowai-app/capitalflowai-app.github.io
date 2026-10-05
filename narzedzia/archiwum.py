@@ -488,7 +488,7 @@ def seria(arch):
     rows, _ = read_csv(os.path.join(arch, 'tic.csv'), FILES['tic']['cols'])
     add('tic.in', 'mln USD', 'M', 'tic', 'tic.csv'); add('tic.out', 'mln USD', 'M', 'tic', 'tic.csv')
     for r in rows.values():
-        if r[1] == 'All Countries':
+        if r[1] == 'Grand Total':   # v168: jak karta TIC i komunikat Skarbu USA (kraje + organizacje międzynarodowe); dotąd 'All Countries' — inne liczby niż na karcie
             put('tic.in' if r[3].startswith('slt1') else 'tic.out', r[0], _f(r[2]))
     rows, _ = read_csv(os.path.join(arch, 'cftc-krypto.csv'), FILES['cftc-krypto']['cols'])
     grp = {'lev_funds': 'lev', 'asset_mgr': 'am', 'dealer': 'dealer'}

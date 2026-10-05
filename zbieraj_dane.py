@@ -11418,7 +11418,7 @@ LN_API2 = 'https://blockstream.info/api'      # eksplorator 2 (kontrola zgodnoś
 LN_PARTS = ('fees', 'mempool', 'difficulty', 'tip', 'hashrate', 'hist', 'check')
 LN_CORE = ('fees', 'mempool', 'difficulty', 'tip', 'hashrate')   # META ok['lancuch']; 'check' → META ok['lancuch_2']
 LN_FEE_POLA = (('fast', 'fastestFee'), ('half_hour', 'halfHourFee'), ('hour', 'hourFee'), ('economy', 'economyFee'), ('minimum', 'minimumFee'))
-LN_EVERY = 15             # min: plik młodszy, z kompletem części = bez zapytań (automat co 20 min; ręczny przebieg nie dubluje zapytań)
+LN_EVERY = 8              # min: plik młodszy, z kompletem części = bez zapytań (v168: automat co 10 min — odświeżany w każdym przebiegu; ręczny przebieg zaraz po nie dubluje zapytań)
 LN_HIST_EVERY = 24 * 60   # min: pełna historia mocy (365 dób, ~25 KB) raz na dobę; w pozostałych przebiegach tylko 3 ostatnie doby (~0,3 KB)
 LN_HIST_KEEP = 365        # dób historii w pliku
 LN_HIST_MIN = 30          # pełna historia krótsza niż tyle dób = błąd odpowiedzi (nie zastępuje zapisanej)
@@ -13103,7 +13103,7 @@ KS_LATE = 480             # s: przebieg dłuższy (jak KD_LATE / INS_LATE) — t
 KS_PARTS = ('ks', 'ks_tr', 'ks_h', 'ks_last')
 KS_TICKER = re.compile(r'^[A-Z0-9][A-Z0-9._-]{0,63}$')
 KS_OFF_ON = ('1', 'true', 'tak', 'yes', 'on')   # wartości KALSHI_OFF, które wyłączają część
-FED_EVERY = 15            # min: plik młodszy z kompletem części = bez zapytań (przebieg co 20 min — zwykle budowa co przebieg)
+FED_EVERY = 8             # min: plik młodszy z kompletem części = bez zapytań (v168: przebieg co 10 min — budowa w każdym przebiegu)
 FED_LABEL = 'Fed (rynek zakładów)'
 FED_SRC = ('rynek kontraktów zdarzeniowych w USA — publiczne API bez klucza, seria KXFEDDECISION (ceny, ostatnie transakcje, świece dzienne, '
            'rozstrzygnięte posiedzenia); pole nie jest pokazywane na stronie')

@@ -11093,7 +11093,8 @@ class ArchiwumV113(unittest.TestCase):
         idx = self.a.run({'rentownosci': lambda: [['2026-09-24', 4.1, None, None], ['2026-09-25', 4.2, 2.6, 1.6]],
                           'wieloryby': lambda: [['2026-09-26', 'Binance', 'ETH', 10.0, 25000.0, 0.0, 0.0, 0.0, 5], ['2026-09-26', 'Binance', 'USDT', 100.0, 100.0, 0.0, 0.0, 0.0, 5],
                                                 ['2026-09-26', 'OKX', 'USDC', 7.0, 7.0, None, None, None, 5], ['2026-09-27', 'Binance', 'ETH', 10.0, None, None, None, None, 6], ['2026-09-27', 'Binance', 'USDT', 100.0, 100.0, 0.0, 0.0, 0.0, 6]],
-                          'tic': lambda: [['2026-06', 'All Countries', 100, 'slt1_for_lt_total_net'], ['2026-06', 'Japan', 5, 'slt1_for_lt_total_net'], ['2026-06', 'All Countries', -20, 'slt2_us_lt_total_net']],
+                          'tic': lambda: [['2026-06', 'Grand Total', 100, 'slt1_for_lt_total_net'], ['2026-06', 'All Countries', 98, 'slt1_for_lt_total_net'], ['2026-06', 'Japan', 5, 'slt1_for_lt_total_net'],
+                                  ['2026-06', 'Grand Total', -20, 'slt2_us_lt_total_net'], ['2026-06', 'All Countries', -19, 'slt2_us_lt_total_net']],
                           'cftc-krypto': lambda: [['2026-09-22', 'BTC', 'lev_funds', 10, 12, -2], ['2026-09-22', 'BTC', 'nonrept', 1, 1, 0]],
                           'stablecoiny-eth': lambda: [['2026-09-26', 'USDT', 88.5]],
                           'plynnosc': lambda: [['2026-09-25', 6600000.0, 800000.0, 120500.0, 5679500.0, 'walcl@2026-09-24,tga@2026-09-24']]}, arch=arch)
@@ -11103,7 +11104,7 @@ class ArchiwumV113(unittest.TestCase):
         self.assertEqual(S['rent.ust']['d'], [['2026-09-24', 4.1], ['2026-09-25', 4.2]]); self.assertEqual(S['rent.bund']['d'], [['2026-09-25', 2.6]], 'pusta komórka = brak punktu')
         self.assertEqual((S['rent.spread']['unit'], S['rent.spread']['n'], S['rent.ust']['first'], S['rent.ust']['last']), ('pp', 1, '2026-09-24', '2026-09-25'))
         self.assertEqual(S['wh.Binance']['d'], [['2026-09-26', 25100.0]], 'suma USD giełdy; dzień z ETH bez kursu = bez punktu (nie suma częściowa)'); self.assertEqual(S['wh.OKX']['d'], [['2026-09-26', 7.0]])
-        self.assertEqual((S['tic.in']['d'], S['tic.out']['d'], S['tic.in']['freq']), ([['2026-06', 100.0]], [['2026-06', -20.0]], 'M'), 'tylko „All Countries”')
+        self.assertEqual((S['tic.in']['d'], S['tic.out']['d'], S['tic.in']['freq']), ([['2026-06', 100.0]], [['2026-06', -20.0]], 'M'), 'v168: tylko „Grand Total” (jak karta TIC), nie „All Countries”')
         self.assertEqual(S['cftc.btc.lev']['d'], [['2026-09-22', -2.0]]); self.assertEqual(S['cftc.eth.lev']['d'], []); self.assertNotIn('cftc.btc.nonrept', S)
         self.assertEqual((S['stab.usdt']['d'], S['stab.usdc']['d']), ([['2026-09-26', 88.5]], []))
         self.assertEqual(S['plyn.net']['d'], [['2026-09-25', 5679500.0]]); self.assertEqual(S['plyn.rrp']['unit'], 'mln USD')
@@ -13360,7 +13361,7 @@ class LancuchV124(unittest.TestCase):
         src = open(zd.__file__, encoding='utf-8').read()
         self.assertIn("prev_ln = previous('lancuch')", src); self.assertIn("if prev_ln: save('lancuch', prev_ln)", src)
         self.assertLess(src.index("prev_ln = previous('lancuch')"), src.index("prev_ix = previous('indeksy')"), 'przed indeksami świata (v106)')
-        self.assertEqual((zd.LN_EVERY, zd.LN_HIST_EVERY, zd.LN_HIST_KEEP, zd.LN_DAY_MAX, zd.LN_LABEL), (15, 24 * 60, 365, 2, 'Sieć Bitcoin'))
+        self.assertEqual((zd.LN_EVERY, zd.LN_HIST_EVERY, zd.LN_HIST_KEEP, zd.LN_DAY_MAX, zd.LN_LABEL), (8, 24 * 60, 365, 2, 'Sieć Bitcoin'))   # v168: 8 min (automat co 10 min)
         all_ok = {k: True for k in zd.LN_PARTS}
         young = {'at': _iso(5), 'ok': all_ok, 'fees': {'fast': 1.0, 'at': _iso(5)}}
         saved = self._main(young, AssertionError('młody plik z kompletem części — nie wolno pytać'))
@@ -14054,7 +14055,7 @@ class KontrolaPrzebiegiV124_1(unittest.TestCase):
         runs = self._seria(set(), n=15) + [{'name': 'Strona i dane', 'run_started_at': 'zle'}, 'x', self._r(9, 25 * 60, 'failure')]
         A, b, u = self.k.przebiegi_ocena(runs, self.NOW)
         self.assertEqual((b, A['porazki'], A['udane_po_porazce'], A['przebiegi_24h']), ([], [], None, 15), 'porażka sprzed 25 h poza oknem')
-        self.assertEqual(u, ['tylko 15 przebiegów w 24 h (harmonogram co 20 min ≈ 72; GitHub bywa opóźniony)'])
+        self.assertEqual(u, ['tylko 15 przebiegów w 24 h (harmonogram co 10 min ≈ 144; GitHub bywa opóźniony)'])
 
     def test_liczebniki_i_opis_kroku(self):
         k = self.k
@@ -14428,7 +14429,7 @@ class FedV131(unittest.TestCase):
         self.assertTrue(zd.ks_due(None, self.NOW, H)); self.assertTrue(zd.ks_due('zły', self.NOW, H))
         self.assertEqual((zd.KS_MEETINGS, zd.KS_SPREAD, zd.KS_SUM_MIN, zd.KS_SUM_MAX, zd.KS_HIST_DAYS, zd.KS_BUDGET, zd.KS_MAX_CALLS, zd.FED_EVERY,
                           zd.KS_H_FROM_UTC, zd.KS_H_EVERY_H, zd.KS_LAST_EVERY_H, zd.KS_TR_MAX),
-                         (2, 0.05, 0.85, 1.15, 120, 30, 13, 15, 5, 26, 26, 10))
+                         (2, 0.05, 0.85, 1.15, 120, 30, 13, 8, 5, 26, 26, 10))   # v168: FED_EVERY 8 min
 
     def test_dwie_doby_swiece_i_wynik_raz_na_dobe_od_0500_utc(self):
         # przebiegi co 20 min przez dwie doby od nagrania (27.09 19:40 → 29.09 19:40 UTC): świece i ostatnie posiedzenie w pierwszym przebiegu
@@ -14777,7 +14778,7 @@ class FedV131(unittest.TestCase):
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
                                'SITE_URL', 'CACHE_DIR', 'KALSHI_OFF')}
         ok = {k: True for k in zd.KS_PARTS}
-        young, young_bad = {'at': _iso(10), 'ok': ok}, {'at': _iso(10), 'ok': dict(ok, ks_h=False)}
+        young, young_bad = {'at': _iso(5), 'ok': ok}, {'at': _iso(5), 'ok': dict(ok, ks_h=False)}   # v168: młodszy niż FED_EVERY (8 min)
         old = {'at': _iso(25), 'ok': ok}
         fd = {'at': zd.NOW, 'ok': dict(ok), 'ks': {}}
         [p.start() for p in stubs]
@@ -22748,3 +22749,33 @@ class KontrolaDziennikowV162(unittest.TestCase):
             self.assertIn('| TRENDY krypto — ostatni dzień z wynikiem sygnałów |', md)
             self.assertEqual(any(u.startswith('TRENDY krypto — ostatni dzień z wynikiem sygnałów: ostatni wynik z 2026-09-27') for u in R['uwagi']), st == '⚠️')
             self.assertFalse([b for b in R['bledy'] if 'TRENDY' in b], 'dzienniki nigdy nie są błędem kontroli')
+
+
+
+class SzybciejV168(unittest.TestCase):
+    """v168 (05.10.2026): automat co 10 minut, sieć Bitcoin i szanse Fed odświeżane w każdym przebiegu, archiwum TIC z wiersza Grand Total."""
+
+    def test_harmonogram_co_10_min(self):
+        root = os.path.dirname(os.path.abspath(__file__))
+        s = open(os.path.join(root, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        import re
+        m = re.search(r"- cron: '([0-9,]+) \* \* \* \*'", s)
+        self.assertIsNotNone(m)
+        minuty = [int(x) for x in m.group(1).split(',')]
+        self.assertEqual(minuty, [7, 17, 27, 37, 47, 57], 'sześć przebiegów na godzinę, poza pełną godziną')
+        self.assertEqual(sorted({(b - a) % 60 for a, b in zip(minuty, minuty[1:] + minuty[:1])}), [10], 'równe odstępy 10 min')
+        self.assertEqual(s.count('- cron:'), 1)
+
+    def test_pamiec_krotsza_niz_odstep(self):
+        # plik młodszy niż *_EVERY = bez zapytań; przy przebiegu co 10 min pamięć < 10 min = odświeżenie w każdym przebiegu z harmonogramu
+        self.assertLess(zd.LN_EVERY, 10); self.assertLess(zd.FED_EVERY, 10)
+        self.assertGreaterEqual(min(zd.LN_EVERY, zd.FED_EVERY), 5, 'ręczny przebieg zaraz po zaplanowanym nie dubluje zapytań')
+        # źródła z limitem darmowego planu — dalej co godzinę (pamięć liczona wiekiem pliku, nie liczbą przebiegów)
+        self.assertEqual((zd.T10_EVERY, zd.LEV_EVERY, zd.DL_EVERY, zd.IX_EVERY), (55, 55, 55, 55))
+
+    def test_archiwum_tic_grand_total(self):
+        root = os.path.dirname(os.path.abspath(__file__))
+        a = open(os.path.join(root, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
+        self.assertIn("if r[1] == 'Grand Total':", a); self.assertNotIn("if r[1] == 'All Countries':", a)
+        z = open(os.path.join(root, 'zbieraj_dane.py'), encoding='utf-8').read()
+        self.assertIn("'world': region(['Grand Total'])", z, 'karta TIC na stronie — ten sam wiersz')

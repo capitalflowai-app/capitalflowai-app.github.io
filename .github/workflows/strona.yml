@@ -2,7 +2,7 @@ name: Strona i dane
 
 on:
   schedule:
-    - cron: '7,27,47 * * * *'   # co 20 minut, poza pełną godziną (03.10: harmonogram */20 przestał ruszać po 11:05 UTC — zmiana linii rejestruje go od nowa; GitHub i tak może opóźnić o kilka minut)
+    - cron: '7,17,27,37,47,57 * * * *'   # v168: co 10 minut (cel właściciela 05.10: dane jak najszybsze), poza pełną godziną; GitHub może opóźnić o kilka minut — zegar zapasowy czuwa po każdym przebiegu
   push:
     branches: [main]
   workflow_dispatch:

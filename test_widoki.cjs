@@ -2856,7 +2856,7 @@ test('v96-pages: po przeglądzie — dni z serwerów zewnętrznych zabezpieczone
   const a0 = html.indexOf('function renderAssets(){'), a1 = html.indexOf('\nfunction renderSectorsPage(', a0), body = html.slice(a0, a1);
   assert.ok(body.includes("const when=(fr,day)=>fr+(day?' · '+escH(day)+gAgeNote(day):'');") && !/toFixed\(/.test(body), 'kod: dzień przez escH, liczby przez nfmt');
   const a = 'const EXTRA91=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
-  assert.equal(D.pl['pg.20m'], 'co 20 min'); assert.equal(D.en['pg.20m'], 'every 20 min');
+  assert.equal(D.pl['pg.20m'], 'co 10 min');   /* v168: plik rynku krypto w każdym przebiegu */ assert.equal(D.en['pg.20m'], 'every 20 min');
 });
 
 test('v96-pages: po przeglądzie — Sektory: flagi przy nazwie = kraje z wiersza (Chiny bez Hongkongu, Azja Płd.-Wsch. = Indonezja); „0 mln” bez zieleni', () => {
@@ -3476,7 +3476,7 @@ test('v103-zrodla: karta stanu — plakietka NA ŻYWO, zegar, czas odświeżenia
   assert.ok(out.startsWith('<h1>Źródła</h1>'), 'nagłówek strony bez zmian');
   assert.ok(out.includes('<section class="panel zr-live">') && out.includes('<span class="live on"><i></i>NA ŻYWO</span>'), 'plakietka');
   const ck = out.match(/<b id="zr-clock" class="zr-clock">([^<]*)<\/b>/); assert.ok(ck && /\d/.test(ck[1]) && ck[1].includes(', '), 'zegar wypełniony od razu: ' + (ck && ck[1]));
-  assert.ok(out.includes('Dane na serwerze odświeżone: <b>ED[' + v103zr.FRESH + ']</b> · AGE[' + v103zr.FRESH.slice(0, 10) + '] (co 20 minut, automatycznie)'), 'czas pliku meta + wiek danych: ' + out.slice(out.indexOf('Dane na serwerze'), out.indexOf('Dane na serwerze') + 160));
+  assert.ok(out.includes('Dane na serwerze odświeżone: <b>ED[' + v103zr.FRESH + ']</b> · AGE[' + v103zr.FRESH.slice(0, 10) + '] (co 10 minut, automatycznie)'), 'czas pliku meta + wiek danych: ' + out.slice(out.indexOf('Dane na serwerze'), out.indexOf('Dane na serwerze') + 160));
   assert.ok(out.includes('<p class="zr-count">W ostatnim przebiegu odpowiedziało 2 z 3 źródeł danych</p>'), 'true i cached = odpowiedź, false = brak');
   assert.deepEqual(R.zrCount({ok: {a: true, b: 'cached', c: false}}), {n: 2, m: 3});
   assert.ok(out.includes(v103zr.dict.pl['zr2.legal']) && out.includes('legalnych, publicznie dostępnych źródeł danych') && out.includes('publicznych sieci blockchain'), 'zdanie właściciela');
@@ -3495,7 +3495,7 @@ test('v103-zrodla: bez pliku meta „—” z powodem i bez linii liczby źróde
     [{at: 1758834179000, ok: {a: true}}, NOAT], [{at: '2026-09-25', ok: {a: true}}, NOAT], [{at: null, ok: {a: true}}, NOAT]];
   for (const [meta, why] of CASES) {
     const out = v103zr.render('pl', meta).out, other = why === NOMETA ? NOAT : NOMETA;
-    assert.ok(out.includes('Dane na serwerze odświeżone: <b class="na">—</b> (co 20 minut, automatycznie)'), 'bez czasu: ' + JSON.stringify(meta));
+    assert.ok(out.includes('Dane na serwerze odświeżone: <b class="na">—</b> (co 10 minut, automatycznie)'), 'bez czasu: ' + JSON.stringify(meta));
     assert.ok(out.includes('<p class="zr-count">' + why + '</p>') && !out.includes(other) && !out.includes('ED[') && !out.includes('AGE['), 'właściwy powód zamiast zmyślonego czasu: ' + JSON.stringify(meta) + ' → ' + out.slice(out.indexOf('<p class="zr-count">'), out.indexOf('<p class="zr-count">') + 90));
     assert.ok(!out.includes('W ostatnim przebiegu'), 'liczba źródeł tylko z datowanego pliku: ' + JSON.stringify(meta));
     assert.ok(out.includes('NA ŻYWO') && out.includes('id="zr-clock"') && out.includes(v103zr.dict.pl['zr2.legal']) && !out.includes('Data by CoinGecko') && !out.includes('zr-attr2'), 'reszta karty zostaje (v126.2: bez sekcji podpisów)');
@@ -3694,7 +3694,7 @@ test('v104-dzwignia: ikony (loga monet i giełd, Hyperliquid = logo sieci, Derib
   tiles.forEach((x, i) => assert.ok(/^<span><span class="icos">.+?<\/span>lev\./.test(x), 'kafelek ' + i + ' ma ikonę przed podpisem'));
   assert.ok(h.includes('<span class="icos"><img class="ico sm" src="img/krypto/btc.svg"') && /title="HYPE"/.test(h), 'w tabeli logo BTC i znaczek dla HYPE');
   assert.ok(html.includes('    <section class="panel pcard" id="eng-cftc-crypto" hidden></section>\n    <section class="panel pcard" id="c-dzwignia" hidden></section>'), 'sekcja tuż po panelu CFTC krypto (zakładka CRYPTO)');
-  assert.ok(html.includes("function levLoad(){srvJSON('dzwignia')") && html.includes('levLoad();levAuto();try{new MutationObserver(()=>renderLev())') && html.includes('LEV.timer=setInterval(()=>{if(!document.hidden)levLoad();},30*60*1000);'), 'plik automatu, odświeżanie co 30 min, zmiana języka');
+  assert.ok(html.includes("function levLoad(){srvJSON('dzwignia')") && html.includes('levLoad();levAuto();try{new MutationObserver(()=>renderLev())') && html.includes('LEV.timer=setInterval(()=>{if(!document.hidden)levLoad();},10*60*1000);'), 'plik automatu, odświeżanie co 10 min (v168), zmiana języka');
   assert.ok(html.includes('/* v104 dzwignia') && html.includes('#c-dzwignia .etfk span.icos{display:inline-flex') && html.includes('#c-dzwignia .etfk b small.neu{color:var(--yl-tx)}') && html.includes('#c-dzwignia .etfk b span{display:inline'), 'CSS tylko dla #c-dzwignia');
 });
 
@@ -7510,7 +7510,7 @@ test('v131: Fed — słownik EXTRA128 w 10 językach (te same klucze i pola), se
   assert.ok(s('g-fed') < html.indexOf('<section class="panel pcard" id="g-q"></section>') && s('g-fed') < s('inst') && s('inst') < s('tv-markets'), 'przed #g-q; widgety TradingView dalej ostatnie');
   assert.ok(html.includes("srvJSON('fed')") && html.includes('/* v131 fed: szanse decyzji na posiedzeniach (rynek zakładów) */') && html.includes('#g-fed .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}'), 'plik, styl');
   assert.ok(html.indexOf('/* v131 fed') < html.indexOf('</style>') && html.indexOf('/* v124 szwajcaria') < html.indexOf('/* v131 fed'), 'styl w arkuszu, po stylu v124');
-  assert.ok(html.includes("FED.timer=setInterval(()=>{if(!document.hidden)fedLoad();},20*60*1000);"), 'odświeżanie co 20 min (automat co 20 min)');
+  assert.ok(html.includes("FED.timer=setInterval(()=>{if(!document.hidden)fedLoad();},10*60*1000);"), 'odświeżanie co 10 min (v168: automat co 10 min)');
   assert.ok(html.includes("fedLoad();fedAuto();try{new MutationObserver(()=>renderFed()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'zmiana języka');
   assert.equal(html.split('/* ===================== v131: FED').length, 2);
   assert.ok(html.indexOf('/* ===================== v131: FED') < html.indexOf("/* GLOBAL jest oknem startowym projektu */\nsetMode('global');"), 'blok przed startem GLOBAL');
@@ -7689,7 +7689,7 @@ test('v128: premie — sekcja tuż po dźwigni i przed archiwum (CRYPTO, przed w
   const R = v96src.render('pl', false, null), J = R.txtJakCzytac(), n = Object.keys(R.JAK_ICO).find(k => /^premi[ae] cenow[ae] BTC i ETH/.test(k)) || '';   // v129 rozszerza nazwę wiersza o Koreę
   const row = J.slice(J.indexOf('<span>' + n + '</span>') - 500, J.indexOf('<span>' + n + '</span>'));
   assert.ok(n && J.includes('<span>' + n + '</span>') && / us \$BTC \$ETH$|^us \$BTC \$ETH$/.test(R.JAK_ICO[n]) && row.includes('flagi/us.svg') && row.includes('krypto/btc.svg') && row.includes('krypto/eth.svg'), 'Metodologia: wiersz z flagą i logami');
-  assert.ok(html.includes('<tr><td><span class="cell">' + n + '</span></td><td><span class="cell">co 20 minut (notowania minutowe giełd)</span></td>'), 'częstotliwość');
+  assert.ok(html.includes('<tr><td><span class="cell">' + n + '</span></td><td><span class="cell">co 10 minut (notowania minutowe giełd)</span></td>'), 'częstotliwość (v168)');
 });
 
 /* ===================== v129: PREMIA KOREI (data/premie.json: now.kr, fx, h_kr), słownik EXTRA130 ===================== */
@@ -10256,10 +10256,10 @@ test('v146: Metodologia „Jak czytać liczby” — de, es, fr, it, pt, ru, zh,
   const a = 'const TXT_JAK_EN=`', x0 = html.indexOf(a), EN = html.slice(x0 + a.length, html.indexOf('`;', x0));
   assert.equal(fnv(EN), 'f0211ddd', 'TXT_JAK_EN bez zmian (suma sprzed v146)'); assert.equal(EN.length, 571);
   const j0 = html.indexOf('const TXT_JAK_PL=`'), lit = html.slice(j0, html.indexOf('`;', j0) + 2);
-  assert.equal(fnv(lit) + ' ' + lit.length, '73afe758 17818', 'TXT_JAK_PL bez zmian (suma sprzed v146)');
+  assert.equal(fnv(lit) + ' ' + lit.length, '45b4ffee 17818', 'TXT_JAK_PL bez zmian od v146 poza v168 (tabela częstotliwości: „co 10 minut”)');
   const out = {}, I = v143Final(html);
   for (const L of V146_L10) out[L] = v96src.render(L, false, null).txtJakCzytac();
-  assert.equal(fnv(out.pl) + ' ' + out.pl.length, '9d55bed 23766', 'pl: Metodologia z ikonami bajt w bajt jak przed v146');
+  assert.equal(fnv(out.pl) + ' ' + out.pl.length, '766aab83 23766', 'pl: Metodologia z ikonami bajt w bajt jak przed v146 poza v168 („co 10 minut” — 2 miejsca)');
   assert.equal(out.en, EN, 'en: bajt w bajt TXT_JAK_EN');
   const tags = s => (s.match(/<[^>]+>/g) || []).join('');
   const enT = v146Txt(EN), enW = enT.toLowerCase().match(/[a-z]+/g), tri = new Set();
@@ -12713,7 +12713,7 @@ test('v164: wpięcie — nieudane pobranie (nie ciche) używa zapasu, plik serwe
   assert.ok(html.includes("if(KR.data&&(LIVE.st==='err'||LIVE.src==='srv')){if(lvSrv(LIVE.src==='srv'))afterLive();}else if(KR.data&&LIVE.st==='ok'&&LIVE.C){krMerge();applyLive(true);afterLive();}"), 'plik serwera przychodzi później albo odświeża się');
   assert.ok(html.includes("if(!c||typeof c.vol!=='number'||!isFinite(c.vol))return;v+=c.vol;m+=c.mcap;"), 'aktywność: bez obrotu — brak');
   assert.ok(html.includes("t(LIVE.src==='srv'?'live.srv':'live.on',{t:liveWhen()})") && html.includes("el.title=s==='err'?(/brak źródła/.test(String(LIVE.err))?t('live.nosrc'):String(LIVE.err)):'';\n  if(s==='ok'&&LIVE.src==='srv')el.title=t('live.srvT');"), 'znaczek CRYPTO');
-  assert.ok(html.includes("t(LIVE.src==='srv'?'rel.descSrv':'rel.descLive',") && html.includes("t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.20m':'pg.live')") && html.includes("t(LIVE.src==='srv'?'top.srv':'top.live',"), 'pokrycie, Przegląd, top 10');
+  assert.ok(html.includes("t(LIVE.src==='srv'?'rel.descSrv':'rel.descLive',") && html.includes("t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.1h':'pg.live')") && html.includes("t(LIVE.src==='srv'?'top.srv':'top.live',"), 'pokrycie, Przegląd, top 10');
   const d0 = html.indexOf('const EXTRA164='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA164='.length, d1));
   assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['live.srv', 'live.srvT', 'rel.descSrv', 'top.srv']);
   assert.ok(!/coingecko|coinpaprika|defillama|llama/i.test(JSON.stringify(D)), 'bez nazw dostawców');
@@ -12985,4 +12985,25 @@ test('v167: teksty dla czytelnika zamiast notatek wewnętrznych (indeksy, stopka
   assert.deepEqual([P['ix.bad'], P['etf.meta.errs2'], P['wy.k.sopr.late']], ['brak bieżących notowań (od {d})', 'część innych źródeł chwilowo nie odpowiedziała — stan każdego pokazuje strona „Źródła”', 'dane z opóźnieniem {n} dni (tak udostępnia je źródło)']);
   assert.ok(P['wy.not3'].startsWith('SOPR przychodzi z 7-dniowym opóźnieniem (tak udostępnia go źródło) i'));
   for (const k of Object.keys(P)) assert.ok(!/do sprawdzenia|bezpłatny plan|automat zgłosił|odrzucony przez dostawc/.test(String(P[k])), 'pl ' + k + ': ' + P[k]);
+});
+
+
+/* ===================== v168: dane szybciej i spójniej (05.10) ===================== */
+test('v168: strona sprawdza szybkie pliki co 10 min (rynek krypto, wieloryby, szanse Fed, dźwignia, stan źródeł); rzadkie pliki jak dotąd', () => {
+  for (const [f, n] of [['cmcLoad', 10], ['whLoad', 10], ['fedLoad', 10], ['levLoad', 10], ['metaLoad', 10], ['lnLoad', 10], ['prmLoad', 10],
+    ['krLoad', 20], ['t10Load', 20], ['trdLoad', 20], ['cmLoad', 30], ['rwLoad', 30], ['dlLoad', 30], ['engLoad', 60], ['kcLoad', 60]]) {
+    const re = new RegExp('setInterval\\(\\(\\)=>\\{if\\(!document\\.hidden\\)' + f + '\\(\\);\\},(\\d+)\\*60\\*1000\\)', 'g'), all = [...html.matchAll(re)].map(m => +m[1]);
+    assert.ok(all.length >= 1 && all.every(x => x === n), f + ': ' + JSON.stringify(all));
+  }
+});
+test('v168: podpisy częstotliwości zgodne z automatem — co 10 minut (karty, Źródła), zapasowy plik cen krypto co godzinę (limit darmowego planu)', () => {
+  const P = v143Final(html).pl;
+  assert.ok(P['cmc.sub'].endsWith('co 10 minut.') && P['ln.sub'].includes('odświeżany co 10 minut:') && P['trd.nodata'].endsWith('co 10 minut.'));
+  assert.equal(P['zr2.refresh'], 'Dane na serwerze odświeżone: {t}{age} (co 10 minut, automatycznie)'); assert.equal(P['pg.20m'], 'co 10 min');
+  assert.equal(P['pg.1h'], 'co godzinę'); assert.equal(P['live.srv'], 'Plik serwera (co godzinę) · {t}');
+  assert.ok(P['live.srvT'].includes('(odświeżany co godzinę)') && P['rel.descSrv'].includes('(co godzinę)') && P['top.srv'].includes('(plik serwera, co godzinę)'));
+  for (const k of Object.keys(P)) assert.ok(!/co 20 min/.test(String(P[k])), 'pl ' + k + ': ' + P[k]);
+  assert.ok(!/<span class="cell">[^<]*co 20 minut/.test(html), 'tabela częstotliwości na stronie Źródła');
+  assert.ok(html.includes("t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.1h':'pg.live')") && html.includes("const fq=cmcF?t('pg.20m'):t('pg.live');"), 'zapas sceny — co godzinę; plik rynku krypto — co 10 min');
+  const d0 = html.indexOf('const EXTRA168='), d1 = html.indexOf(';\n', d0); assert.deepEqual(JSON.parse(html.slice(d0 + 'const EXTRA168='.length, d1)), {pl: {'pg.1h': 'co godzinę'}});
 });

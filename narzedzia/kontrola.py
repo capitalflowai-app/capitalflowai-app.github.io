@@ -242,7 +242,7 @@ def swiezosc(files, now=None):
 
 # ---------------------------------------------------------------- v131: szanse decyzji Fed (rynek zakładów) ----------------------------------------------------------------
 FED_ETYKIETA = 'szanse decyzji Fed (rynek zakładów)'
-FED_PROG = 90              # min — wiek cen (part_at.ks; automat co 20 min): żółte po progu, czerwone po 2× — osobny wiersz, lista SWIEZOSC bez zmian
+FED_PROG = 90              # min — wiek cen (part_at.ks; automat co 10 min): żółte po progu, czerwone po 2× — osobny wiersz, lista SWIEZOSC bez zmian
 FED_SUMA = (0.90, 1.10)    # suma surowych cen wyników posiedzenia poza tym pasmem = uwaga (informacja o jakości cen, bez koloru)
 
 
@@ -646,11 +646,11 @@ def przebiegi_ocena(runs, now, kroki=None):
         if z_rzedu >= 2 or (len(por) >= 3 and z_rzedu >= 1):
             bledy.append(f'automat nie działa: {pl_przebiegi(len(por))} w 24 h, ostatnie {z_rzedu} z rzędu — strona nie odświeża danych ({lista})')
         elif z_rzedu == 1:
-            uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 20 min; dwa nieudane z rzędu = błąd')
+            uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 10 min; dwa nieudane z rzędu = błąd')
         else:
             uwagi.append(f'{pl_przebiegi(len(por))} automatu w 24 h — już naprawione: od ostatniej porażki {pl_udane(udane_po)} z rzędu ({lista})')
     if len(ost) < 20:
-        uwagi.append(f'tylko {len(ost)} przebiegów w 24 h (harmonogram co 20 min ≈ 72; GitHub bywa opóźniony)')
+        uwagi.append(f'tylko {len(ost)} przebiegów w 24 h (harmonogram co 10 min ≈ 144; GitHub bywa opóźniony)')
     return A, bledy, uwagi
 
 
@@ -1718,7 +1718,7 @@ def kontrola():
         elif w > 180:
             R['bledy'].append(f'automat nie odświeżył danych od {w // 60} godz. (ostatni przebieg {czas_pl(m.get("at"))})')
         elif w > LIMIT_MIN['meta']:
-            R['uwagi'].append(f'ostatni przebieg automatu sprzed {w} min (zwykle co 20 min)')
+            R['uwagi'].append(f'ostatni przebieg automatu sprzed {w} min (zwykle co 10 min)')
         if nie:
             R['uwagi'].append('źródła bez odpowiedzi w ostatnim przebiegu: ' + ', '.join(nie))
         for e in R['meta']['errors']:
