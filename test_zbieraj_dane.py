@@ -24775,3 +24775,41 @@ class CenyZamknieciaV195(unittest.TestCase):
             o = zd.build_prices('k')
         self.assertEqual(o['asof'], '2026-10-05', 'wszystkie fundusze z tą samą ostatnią sesją — region bez „—”')
         self.assertEqual(o['q']['ASEA']['d'][-1], ['2026-10-05', 21.095, None])
+
+
+# ===================== v196: KONTROLA RWA — TRWAŁY BRAK WARTOŚCI SPOZA LISTY PRZY MAŁYM WPŁYWIE = INFORMACJA =====================
+class KontrolaRwaTrwalyBrakV196(unittest.TestCase):
+    """v196: brak wartości produktów spoza listy (hidden_valued < 20): ⚠️ przez 3 dni od najmłodszego „brak od”, potem ℹ️, gdy „bez bieżącej
+    wyceny” ≤ 5% sumy; większy udział albo nowy brak — znowu ⚠️. Liczby z 06.10. Bez sieci."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v196', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    def _j(self, brak='2026-10-05', sv=435036774, cv=26687749609, hv_n=0):
+        hv = {'apollo': [95406791.04, '2026-09-27', 0, 10, brak], 'raac': [113538717.0, '2026-09-27', 0, 10, brak], 'stary': [1.0, '2026-09-01', 0, 3, '2026-09-20'],
+              'zly': [1.0, '2026-09-27', 0, 1, 'x'], 'bez': [1.0, '2026-09-27', 0, 1]}
+        return {'hist': [], 'chk': {}, 'ok': {'list': True, 'hidden': True}, 'n': {'hidden_valued': hv_n, 'kept': 0}, 'hv': hv,
+                'seg': {'all': {'v': cv}}, 'stale': {'n': 13, 'nf': 0, 'ng': 13, 'v': sv, 'gone': '2026-10-05'}}
+
+    def test_brak_od(self):
+        self.assertEqual(self.k.rwa_brak_od(self._j()), '2026-10-05', 'najmłodszy poprawny „brak od”')
+        self.assertIsNone(self.k.rwa_brak_od({'hv': {'a': [1.0, 'x', 0, 1]}})); self.assertIsNone(self.k.rwa_brak_od(None)); self.assertIsNone(self.k.rwa_brak_od({'hv': 'x'}))
+
+    def test_trzy_dni_uwaga_potem_informacja(self):
+        U = datetime.timezone.utc
+        Z = self.k.rwa_porownanie(self._j(), datetime.datetime(2026, 10, 6, 1, 15, tzinfo=U))
+        self.assertEqual(Z['status'], '⚠️'); self.assertIn('tylko 0 (próg 20)', Z['uwagi'][0])
+        Z = self.k.rwa_porownanie(self._j(), datetime.datetime(2026, 10, 7, 23, 0, tzinfo=U))
+        self.assertEqual(Z['status'], '⚠️', '2 dni — jeszcze uwaga')
+        Z = self.k.rwa_porownanie(self._j(), datetime.datetime(2026, 10, 8, 1, 15, tzinfo=U))
+        self.assertEqual((Z['status'], Z['uwagi']), ('✅', []), '3 dni, 1,6% bez bieżącej wyceny — bez uwagi')
+        self.assertIn('ℹ️ produkty spoza listy z wartością 0 (próg 20) — źródło nie podaje ich wartości od 2026-10-05 (3 dni, stan trwały); bez bieżącej wyceny 1,6% sumy — bez uwagi', Z['opis'])
+        Z = self.k.rwa_porownanie(self._j(sv=2e9, cv=26e9), datetime.datetime(2026, 10, 9, 1, 15, tzinfo=U))
+        self.assertEqual(Z['status'], '⚠️', '7,1% bez bieżącej wyceny — nadal uwaga'); self.assertIn('tylko 0 (próg 20)', Z['uwagi'][0])
+        Z = self.k.rwa_porownanie(self._j(brak='2026-10-09'), datetime.datetime(2026, 10, 9, 6, 0, tzinfo=U))
+        self.assertEqual(Z['status'], '⚠️', 'nowy brak (młodszy „brak od”) — znowu uwaga')
+        Z = self.k.rwa_porownanie(dict(self._j(), ok={'list': True, 'hidden': False}), datetime.datetime(2026, 10, 9, 1, 15, tzinfo=U))
+        self.assertTrue(any('pobranie wartości produktów spoza głównej listy przerwane' in u for u in Z['uwagi']), 'przerwane pobranie — uwaga jak dotąd')
+        self.assertEqual(self.k.rwa_porownanie(self._j(hv_n=25), datetime.datetime(2026, 10, 6, 1, 15, tzinfo=U))['status'], '✅', '25 z wartością — bez uwagi')

@@ -1577,6 +1577,8 @@ RWA_SKOK = 25.0            # % — zmiana sumy między dwoma kolejnymi dniami za
 RWA_HID_MIN = 20           # mniej produktów spoza głównej listy z jakąkolwiek wartością w ostatnim pobraniu = ⚠️ (27.09: 33 z 47) — źródło
                            # przestało podawać ich wartości (pusty tekst, „0”, 400, 404); plan v128 §4.4
 RWA_FZ_PROG = 50.0         # % — udział wartości bez bieżącej wyceny w (bieżące + bez wyceny) większy = ⚠️ (właściciel widzi to w raporcie; tylko uwaga)
+RWA_HID_DNI = 3            # v196: dni od najmłodszego „brak od” produktów spoza listy — potem stan trwały (źródło zmieniło zakres danych)
+RWA_HID_FZ = 5.0           # v196: % „bez bieżącej wyceny”, do którego trwały brak wartości spoza listy jest tylko informacją ℹ️ (06.10: 1,6%)
 
 
 def rwa_swiezosc(j, now=None):
@@ -1605,6 +1607,14 @@ def _rwa_hist(j):
                 continue
             out[r[0]] = float(r[1])
     return sorted(out.items())
+
+
+def rwa_brak_od(j):
+    """v196: najmłodszy dzień „brak od” w zapisach produktów spoza listy (hv: [wartość, dzień tej samej wartości, zmiana, odczyty, brak od]);
+    brak zapisów albo dat = None."""
+    hv = j.get('hv') if isinstance(j, dict) and isinstance(j.get('hv'), dict) else {}
+    d = [r[4] for r in hv.values() if isinstance(r, list) and len(r) > 4 and isinstance(r[4], str) and re.match(r'^\d{4}-\d{2}-\d{2}$', r[4])]
+    return max(d) if d else None
 
 
 def rwa_porownanie(j, now=None):
@@ -1646,10 +1656,22 @@ def rwa_porownanie(j, now=None):
                           '(ponowienie po 1 h, 2 h, potem co 3 h; tylko uwaga)')
         cz.append(f'produkty spoza listy: pobranie przerwane, z poprzedniego dnia {kept if num(kept) else "—"} ⚠️')
     if num(hv) and hv < RWA_HID_MIN:
-        Z['status'] = '⚠️'
-        Z['uwagi'].append(f'tokenizowane aktywa: produkty spoza głównej listy z jakąkolwiek wartością — tylko {hv} (próg {RWA_HID_MIN}) — źródło przestało '
-                          'podawać ich wartości; ostatnio znane są w grupie „bez bieżącej wyceny”, sumy spadną (tylko uwaga)')
-        cz.append(f'produkty spoza listy z wartością {hv} (próg {RWA_HID_MIN}) ⚠️')
+        # v196: stan trwały (≥ RWA_HID_DNI dni od najmłodszego „brak od”) przy małym udziale „bez bieżącej wyceny” — tylko informacja, nie codzienna uwaga
+        bo = rwa_brak_od(j)
+        s0 = j.get('stale') if isinstance(j.get('stale'), dict) else {}
+        sv0 = s0.get('v') if num(s0.get('v')) and s0.get('v') > 0 else 0.0
+        cv0 = ((j.get('seg') or {}).get('all') or {}).get('v') if isinstance((j.get('seg') or {}).get('all'), dict) else None
+        cv0 = cv0 if num(cv0) and cv0 > 0 else 0.0
+        p0 = sv0 / (cv0 + sv0) * 100 if cv0 + sv0 > 0 else 0.0
+        dni = (now.date() - dt.date.fromisoformat(bo)).days if bo else None
+        if dni is not None and dni >= RWA_HID_DNI and p0 <= RWA_HID_FZ:
+            cz.append(f'ℹ️ produkty spoza listy z wartością {hv} (próg {RWA_HID_MIN}) — źródło nie podaje ich wartości od {bo} ({dni} dni, stan trwały); '
+                      + f'bez bieżącej wyceny {p0:.1f}% sumy'.replace('.', ',') + ' — bez uwagi')
+        else:
+            Z['status'] = '⚠️'
+            Z['uwagi'].append(f'tokenizowane aktywa: produkty spoza głównej listy z jakąkolwiek wartością — tylko {hv} (próg {RWA_HID_MIN}) — źródło przestało '
+                              'podawać ich wartości; ostatnio znane są w grupie „bez bieżącej wyceny”, sumy spadną (tylko uwaga)')
+            cz.append(f'produkty spoza listy z wartością {hv} (próg {RWA_HID_MIN}) ⚠️')
     st = j.get('stale') if isinstance(j.get('stale'), dict) else {}
     sv = st.get('v') if num(st.get('v')) and st.get('v') > 0 else 0.0
     seg = j.get('seg') if isinstance(j.get('seg'), dict) else {}
