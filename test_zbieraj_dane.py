@@ -23729,3 +23729,72 @@ class RwaRaacV173(unittest.TestCase):
             post = _rwc150_post(sup={('eth', self.TB): 26531980000000000000000}, dec={('eth', self.TB): 6})
             oc = zd.rwc_blok(zd.rwc_odczyt(self.NOW, post=post, sleep=lambda s: None), None, self.NOW)
             self.assertEqual((oc['p']['raac']['v'], oc['p']['raac']['full']), (None, False), 'inne miejsca dziesiętne = token nieodczytany')
+
+
+# ===================== v174: KONTROLA — WIELORYBY NA TLE HISTORII =====================
+class KontrolaWielorybyV174(unittest.TestCase):
+    """v174: zgodność sald i przepływów wielorybów — uwaga tylko przy migawkach oddalonych o ok. dobę i rozbieżności ponad 3× zwykłą dla tej pary
+    (mediana z ≥ 3 wcześniejszych porównywalnych dni); inny odstęp migawek = informacja. Dotąd reguła „> 5%” wypadała prawie codziennie."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('kontrola_v174', os.path.join(root, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tempfile.mkdtemp(prefix='k174-'); cls.ROOT = root
+
+    def _csv(self, days):
+        """days: [(dzień, blok, {(giełda, aktywo): (saldo, netto)})] → plik archiwum (USD = jednostki dla stablecoinów)."""
+        p = os.path.join(self.tmp, 'wieloryby.csv')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n')
+            for d, b, rows in days:
+                for (g, a), (bal, net) in rows.items():
+                    f.write(f'{d},{g},{a},{bal},{bal},0,0,{net},{b}\n')
+        return p
+
+    def _hist(self, last_spacing=7200, today=None):
+        """5 dni co dobę: Binance USDT — saldo +20 mln dziennie, netto 0 (zwykła rozbieżność 20 mln); Bybit USDT — saldo = netto (rozbieżność 0 →
+        mediana 0); ostatni dzień według `today`."""
+        bn, by_ = 20_000_000_000, 1_000_000_000
+        D = []
+        for i in range(5):
+            D.append((f'2026-10-0{i + 1}', 26_000_000 + i * 7200, {('Binance', 'USDT'): (bn + i * 20_000_000, 0), ('Bybit', 'USDT'): (by_ + i * 5_000_000, 5_000_000)}))
+        last = D[-1][1] + last_spacing
+        t = today or {('Binance', 'USDT'): (bn + 4 * 20_000_000 + 25_000_000, 0), ('Bybit', 'USDT'): (by_ + 4 * 5_000_000 + 100_000_000, 0)}
+        D.append(('2026-10-06', last, t))
+        return D
+
+    def test_ocena_na_tle_historii(self):
+        k = self.k
+        o = k.wieloryby_ocena(self._csv(self._hist()))
+        self.assertEqual((o['dzien'], o['poprzedni'], o['porownane'], o['odstep_h'], o['pomin']), ('2026-10-06', '2026-10-05', 2, 24.0, None))
+        self.assertEqual([(g, a) for g, a, *_ in o['zle']], [('Bybit', 'USDT')],
+                         'Binance USDT: 25 mln wobec zwykłych 20 mln — norma; Bybit USDT: 100 mln wobec zwykłego 0 — nietypowe')
+        self.assertEqual(o['zle'][0][4:], (100_000_000.0, 0.0))
+        o = k.wieloryby_ocena(self._csv(self._hist(last_spacing=8485)))
+        self.assertEqual((o['zle'], o['odstep_h']), ([], 28.3)); self.assertIn('odstęp migawek 28.3 h', o['pomin'])
+        D = self._hist()[3:]   # tylko 2 wcześniejsze dni — za mało historii
+        o = k.wieloryby_ocena(self._csv(D))
+        self.assertEqual((o['zle'], o['bez_historii']), ([], 2), 'kandydaci bez historii — informacja, nie uwaga')
+        D = self._hist(); D[-1] = (D[-1][0], '', D[-1][2])
+        self.assertIn('brak numeru bloku', k.wieloryby_ocena(self._csv(D))['pomin'])
+        self.assertIsNone(k.wieloryby_ocena(os.path.join(self.tmp, 'nie-ma.csv')))
+        self.assertIsNone(k.wieloryby_ocena(self._csv(self._hist()[:1])), 'jeden dzień')
+        self.assertEqual((k.WH_DOBA_BLOKI, k.WH_RAZY, k.WH_HIST_MIN), ((6900, 7500), 3.0, 3))
+
+    def test_raport_i_wpiecie(self):
+        k = self.k
+        src = _rwc150_txt(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
+        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'))", src); self.assertIn("Z['wieloryby'] = None", src)
+        R = {'at': '2026-10-06T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-10-06T06:03:00+00:00', 'wiek_min': 17,
+             'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': [], 'bledy': [],
+             'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 13, 'odstep_h': 27.0, 'pomin': 'odstęp migawek 27.0 h — porównanie z przepływami 24 h tylko przy ok. dobie',
+                                        'rozbieznosci': [], 'bez_historii': 0}}}
+        md = k.raport_md(R)
+        self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: odstęp migawek 27.0 h — porównanie z przepływami 24 h tylko przy ok. dobie ℹ️.', md)
+        R['zgodnosc']['wieloryby'].update(odstep_h=24.0, pomin=None, rozbieznosci=[{'gielda': 'Bybit', 'aktywo': 'USDT', 'zmiana_usd': 1e8, 'netto_usd': 0.0, 'roznica_usd': 1e8, 'mediana_usd': 0.0}])
+        self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: 13 par giełda/aktywo, rozbieżności nietypowe (> 5% i > 3× zwykłej): 1 ⚠️ — Bybit USDT.', k.raport_md(R))
+        R['zgodnosc']['wieloryby'].update(rozbieznosci=[], bez_historii=2)
+        self.assertIn('rozbieżności nietypowe (> 5% i > 3× zwykłej): 0 ✅ (bez historii: 2).', k.raport_md(R))

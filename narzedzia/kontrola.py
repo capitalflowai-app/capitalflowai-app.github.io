@@ -511,6 +511,87 @@ def wieloryby_porownanie(path):
     return d, p, zle, n
 
 
+WH_DOBA_BLOKI = (6900, 7500)   # v174: migawki oddalone o ok. dobę (12 s na blok Ethereum: 23–25 h) — inny odstęp: sald nie porównujemy z przepływami 24 h
+WH_RAZY = 3.0                  # v174: rozbieżność pary ponad tyle × jej mediana z wcześniejszych porównywalnych dni = uwaga (zwykła rozbieżność to norma)
+WH_HIST_MIN = 3                # v174: mniej wcześniejszych porównywalnych dni pary = bez oceny (informacja)
+
+
+def _wh_csv(path):
+    """v174: archiwum/wieloryby.csv → ({dzień: {(giełda, aktywo): wiersz}}, {dzień: numer bloku albo None}); zły nagłówek albo brak pliku = None."""
+    if not os.path.exists(path):
+        return None
+    by, blk = {}, {}
+    with open(path, encoding='utf-8', newline='') as f:
+        r = csv.reader(f)
+        head = next(r, None)
+        if not head or head[:5] != ['date', 'exchange', 'asset', 'balance', 'balance_usd']:
+            return None
+        for row in r:
+            if len(row) >= 9:
+                by.setdefault(row[0], {})[(row[1], row[2])] = row
+                if row[8].isdigit():
+                    blk[row[0]] = int(row[8])
+    return by, blk
+
+
+def _wh_rozb(a, b):
+    """v174: rozbieżności par dnia `b` wobec dnia `a` (jak wieloryby_porownanie) → {(giełda, aktywo): (zmiana, netto, |zmiana − netto|)}."""
+    out = {}
+    for k, row in b.items():
+        prev = a.get(k)
+        if not prev:
+            continue
+        try:
+            u, u0, usd, net = float(row[3]), float(prev[3]), float(row[4]), float(row[7])
+        except ValueError:
+            continue
+        if not u:
+            continue
+        delta = (u - u0) * (usd / u)
+        out[k] = (delta, net, abs(delta - net))
+    return out
+
+
+def wieloryby_ocena(path):
+    """v174: zgodność sald i przepływów wielorybów na tle historii. Przepływy to tylko przelewy ≥ 1 mln USD w oknie 24 h, a migawki sald dzieli
+    tyle, ile minęło między zapisami archiwum (05.10: od 7,7 do 28 h) — rozbieżność jest normalna. Uwaga tylko, gdy migawki dzieli ok. doba
+    (WH_DOBA_BLOKI) i rozbieżność pary przekracza zwykły próg (WH_PROG %, WH_MIN_USD) ORAZ WH_RAZY × medianę jej rozbieżności z co najmniej
+    WH_HIST_MIN wcześniejszych porównywalnych dni; inny odstęp migawek = bez porównania (powód w 'pomin'). Mniej niż dwa dni archiwum = None.
+    → {'dzien', 'poprzedni', 'porownane', 'odstep_h', 'pomin', 'zle': [(giełda, aktywo, zmiana, netto, rozbieżność, mediana)], 'bez_historii'}."""
+    x = _wh_csv(path)
+    if not x:
+        return None
+    by, blk = x
+    days = sorted(by)
+    if len(days) < 2:
+        return None
+    d, p = days[-1], days[-2]
+    ok_odstep = lambda a, b: blk.get(a) is not None and blk.get(b) is not None and WH_DOBA_BLOKI[0] <= blk[b] - blk[a] <= WH_DOBA_BLOKI[1]  # noqa: E731
+    dzis = _wh_rozb(by[p], by[d])
+    out = {'dzien': d, 'poprzedni': p, 'porownane': len(dzis), 'odstep_h': round((blk[d] - blk[p]) * 12 / 3600, 1) if blk.get(d) and blk.get(p) else None,
+           'pomin': None, 'zle': [], 'bez_historii': 0}
+    if not ok_odstep(p, d):
+        out['pomin'] = (f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie" if out['odstep_h'] is not None
+                        else 'brak numeru bloku migawki — bez porównania')
+        return out
+    hist = {}
+    for a, b in zip(days[:-2], days[1:-1]):
+        if ok_odstep(a, b):
+            for k, (_dl, _n, r) in _wh_rozb(by[a], by[b]).items():
+                hist.setdefault(k, []).append(r)
+    for k, (delta, net, roz) in sorted(dzis.items()):
+        if not (roz > WH_MIN_USD and roz > WH_PROG / 100 * max(abs(delta), abs(net), WH_MIN_USD)):
+            continue
+        h = sorted(hist.get(k, []))
+        if len(h) < WH_HIST_MIN:
+            out['bez_historii'] += 1
+            continue
+        med = h[len(h) // 2] if len(h) % 2 else (h[len(h) // 2 - 1] + h[len(h) // 2]) / 2
+        if roz > WH_RAZY * med:
+            out['zle'].append((k[0], k[1], delta, net, roz, med))
+    return out
+
+
 PR_USDC_PP = 0.10    # v128: pkt proc. — premia USA przez USDT (poprawiona) vs przez parę z USDC; większa różnica = uwaga (kurs USDT albo USDC odbiega od dolara?)
 PR_CB_MAX = 2.0      # % — |premia USA| ponad to = możliwy zły odczyt (uwaga)
 PR_STARE_H = 3       # h — ostatnia minuta odczytu starsza, choć plik młody = giełdy nie odpowiadają (uwaga)
@@ -2041,13 +2122,17 @@ def kontrola():
             R['uwagi'].append('ETF (mapa): zamknięcia z dwóch źródeł różnią się > ' + f'{ETF_PROG:g}% dla ' + ', '.join(f'{s} ({d}: {a:g} vs {b:g})' for s, d, a, b, r in zle[:6]))
     else:
         Z['etf'] = None
-    w = wieloryby_porownanie(os.path.join(ARCH_DIR, 'wieloryby.csv'))
+    w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'))   # v174: na tle historii pary i tylko przy migawkach oddalonych o ok. dobę
     if w:
-        d, p, zle, n = w
-        Z['wieloryby'] = {'dzien': d, 'poprzedni': p, 'porownane': n, 'rozbieznosci': [{'gielda': g, 'aktywo': a, 'zmiana_usd': round(x, 2), 'netto_usd': round(y, 2), 'roznica_usd': round(z, 2)} for g, a, x, y, z in zle]}
+        zle = w['zle']
+        Z['wieloryby'] = {'dzien': w['dzien'], 'poprzedni': w['poprzedni'], 'porownane': w['porownane'], 'odstep_h': w['odstep_h'], 'pomin': w['pomin'],
+                          'bez_historii': w['bez_historii'],
+                          'rozbieznosci': [{'gielda': g, 'aktywo': a, 'zmiana_usd': round(x, 2), 'netto_usd': round(y, 2), 'roznica_usd': round(z, 2), 'mediana_usd': round(m, 2)}
+                                           for g, a, x, y, z, m in zle]}
         if zle:
-            R['uwagi'].append('wieloryby: zmiana salda ≠ przelewy netto (> 5%) dla ' + ', '.join(f'{g} {a}' for g, a, *_ in zle[:6])
-                              + ' — możliwe przelewy spoza zakresu skanu (< 1 mln USD, ETH przez kontrakty)')
+            R['uwagi'].append('wieloryby: zmiana salda ≠ przelewy netto — rozbieżność nietypowa (ponad ' + f'{WH_RAZY:g}× zwykłej dla pary) dla '
+                              + ', '.join(f'{g} {a} ({z / 1e6:.0f} mln USD, zwykle {m / 1e6:.0f} mln)' for g, a, x, y, z, m in zle[:6])
+                              + ' — sprawdzić skan przelewów tej giełdy')
     else:
         Z['wieloryby'] = None
     # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
@@ -2186,8 +2271,13 @@ def raport_md(R):
         else:
             L.append('- ETF mapy: brak wspólnej daty zamknięć w dwóch źródłach.')
         w = Z.get('wieloryby')
-        if w:
-            L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo, rozbieżności > 5%: {len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}.')
+        if w and w.get('pomin'):   # v174: migawki nie o dobę — bez porównania (informacja)
+            L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["pomin"]} ℹ️.')
+        elif w:
+            L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo, rozbieżności nietypowe (> 5% i > {WH_RAZY:g}× zwykłej): '
+                     f'{len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}'
+                     + (' — ' + ', '.join(f'{x["gielda"]} {x["aktywo"]}' for x in w["rozbieznosci"][:6]) if w['rozbieznosci'] else '')
+                     + (f' (bez historii: {w["bez_historii"]})' if w.get('bez_historii') else '') + '.')
         else:
             L.append('- Wieloryby: archiwum ma mniej niż dwa dni — porównanie od jutra.')
         wy = Z.get('wycena')   # v132: MVRV BTC z dwóch źródeł — tylko różnice procentowe i daty; brak = „—”
