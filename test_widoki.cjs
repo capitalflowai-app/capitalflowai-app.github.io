@@ -13287,3 +13287,11 @@ test('v186: „Kapitał poza BTC i ETH” i wolumen 24 h z pliku serwera — ryn
   assert.equal(f(Object.assign({}, M, {total_vol24: 85896128809.23}), {}, true).vol.d, null, 'plik bez zmiany wolumenu — brak porównania, nie zero');
   assert.deepEqual(f(Object.assign({}, M, {total_vol24: null}), {vol: {val: 1}}, true).vol, {val: 1}, 'plik bez wolumenu — jak dotąd');
 });
+
+/* ---------- v187: ikona strony w karcie przeglądarki (dotąd brak — /favicon.ico 404 przy każdej wizycie) ---------- */
+test('v187: ikona strony — odnośniki w nagłówku dokumentu (SVG, PNG 32 px, 180 px); pliki i licencja — test w test_zbieraj_dane.py', () => {
+  const head = html.slice(0, html.indexOf('</head>'));
+  assert.ok(head.includes('<link rel="icon" href="img/favicon.svg" type="image/svg+xml">') && head.includes('<link rel="icon" href="img/favicon-32.png" type="image/png" sizes="32x32">') && head.includes('<link rel="apple-touch-icon" href="img/apple-touch-icon.png">'));
+  assert.ok(html.includes('<path d="M16 3 27 9.5v13L16 29 5 22.5v-13z" fill="none" stroke="var(--bl)"') && html.includes('--bl:#0A84FF;') && html.includes('--tl:#64D2FF;'), 'logo i kolory, z których jest ikona');
+});
+

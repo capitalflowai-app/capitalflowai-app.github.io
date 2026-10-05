@@ -24417,3 +24417,22 @@ class CmcWolumenV186(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', lambda url, headers=None: base):
             o = zd.build_cmc('k')
         self.assertEqual((o['total_vol24'], o['vol_chg24_pct']), (8.59e10, -12.4))
+
+
+# ===================== v187: IKONA STRONY =====================
+class IkonaStronyV187(unittest.TestCase):
+    """v187: ikona w karcie przeglądarki — img/favicon.svg (logo z nagłówka, kolory ciemnego motywu), PNG 32 i 180 px, wpis w licencjach."""
+
+    def test_pliki(self):
+        d = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img')
+        svg = open(os.path.join(d, 'favicon.svg'), encoding='utf-8').read()
+        self.assertIn('M16 3 27 9.5v13L16 29 5 22.5v-13z', svg); self.assertIn('M5 9.5 16 16l11-6.5M16 16v13', svg)
+        self.assertIn('stroke="#0A84FF"', svg); self.assertIn('stroke="#64D2FF"', svg); self.assertLess(len(svg), 1000)
+        import struct
+        for n, w in (('favicon-32.png', 32), ('apple-touch-icon.png', 180)):
+            b = open(os.path.join(d, n), 'rb').read()
+            self.assertEqual(b[:8], bytes.fromhex('89504e470d0a1a0a'), n)
+            self.assertEqual(struct.unpack('>II', b[16:24]), (w, w), n)
+            self.assertLess(len(b), 20_000, n)
+        self.assertIn('img/favicon.svg, img/favicon-32.png, img/apple-touch-icon.png — ikona strony', open(os.path.join(d, 'LICENCJE.txt'), encoding='utf-8').read())
+
