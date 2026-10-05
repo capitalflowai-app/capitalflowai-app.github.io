@@ -2200,8 +2200,14 @@ def kontrola():
         hdr = {'Accept': 'application/vnd.github+json'}
         if TOKEN:
             hdr['Authorization'] = 'Bearer ' + TOKEN
-        st, body, ms = get(f'https://api.github.com/repos/{REPO}/actions/runs?per_page=100', headers=hdr)
-        runs = json.loads(body).get('workflow_runs', [])
+        runs = []
+        for strona in (1, 2):   # v177: lista samego zadania „Strona i dane” (inne zadania — zegar, kontrola — wypychały je z listy 100 po ok. 8–10 h);
+            st, body, ms = get(f'https://api.github.com/repos/{REPO}/actions/workflows/strona.yml/runs?per_page=100&page={strona}', headers=hdr)
+            Rr = json.loads(body).get('workflow_runs', []) or []
+            runs += Rr                                                  # druga strona tylko, gdy 100 przebiegów nie pokrywa doby
+            w = wiek_min(Rr[-1].get('run_started_at') or Rr[-1].get('created_at')) if Rr else None
+            if len(Rr) < 100 or w is None or w > 24 * 60:
+                break
         # v124.1: nazwa nieudanego kroku dla najwyżej 5 porażek z 24 h (1 zapytanie na porażkę; błąd odczytu = sama godzina)
         kroki = {}
         for r in [r for r in runs if str(r.get('name', '')).startswith('Strona') and r.get('conclusion') == 'failure'

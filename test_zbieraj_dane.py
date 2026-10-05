@@ -23970,3 +23970,68 @@ class JakoscV176(unittest.TestCase):
             R = k.kontrola()
         self.assertEqual(R['pliki']['insider']['wylaczone'], 'brak adresu kontaktowego wymaganego przez urząd (sekret SEC_CONTACT) — część wyłączona')
         self.assertIn(' insider wyłączone,', k.raport_md(R)); self.assertFalse(any('insider' in u for u in R['uwagi']), R['uwagi'])
+
+
+# ===================== v177: KONTROLA — PRZEBIEGI „STRONA I DANE” Z CAŁEJ DOBY =====================
+class KontrolaPrzebiegiV177(unittest.TestCase):
+    """v177: lista przebiegów samego zadania „Strona i dane” (nie wszystkich zadań), druga strona tylko gdy pierwsza (100) nie pokrywa 24 h."""
+
+    def _kontrola(self, strony):
+        import importlib.util, tempfile
+        spec = importlib.util.spec_from_file_location('kontrola_v177', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        NOW = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=datetime.timezone.utc)
+        urls = []
+
+        class Resp:
+            def __init__(self, b):
+                self.b, self.status = b, 200
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def urlopen(req, timeout=None):
+            url = req.full_url
+            if '/index.html?' in url:
+                return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
+            if '/data/' in url:
+                return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []}).encode())
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                return Resp(b'x' * 100)
+            if url.startswith('https://api.github.com/'):
+                urls.append(url)
+                if '/actions/workflows/strona.yml/runs' in url:
+                    p = int(url.split('&page=')[1].split('&')[0]) if '&page=' in url else 1
+                    return Resp(json.dumps({'workflow_runs': strony.get(p, [])}).encode())
+                return Resp(b'{"workflow_runs": []}')
+            raise k.urllib.error.URLError('test bez sieci')
+        d = tempfile.mkdtemp(prefix='k177-')
+        with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen), mock.patch('sys.stdout', io.StringIO()):
+            R = k.kontrola()
+        return R, urls, NOW
+
+    def _runs(self, NOW, n, od_min, krok_min):
+        f = lambda m: (NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        return [{'id': i, 'name': 'Strona i dane', 'event': 'schedule', 'status': 'completed', 'conclusion': 'success',
+                 'run_started_at': f(od_min + i * krok_min), 'created_at': f(od_min + i * krok_min)} for i in range(n)]
+
+    def test_cala_doba_z_listy_zadania(self):
+        NOW = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=datetime.timezone.utc)
+        R, urls, _ = self._kontrola({1: self._runs(NOW, 100, 1, 10), 2: self._runs(NOW, 100, 1001, 10)})
+        runs_urls = [u for u in urls if '/runs' in u and '/jobs' not in u]
+        self.assertTrue(all('/actions/workflows/strona.yml/runs?per_page=100&page=' in u for u in runs_urls), runs_urls)
+        self.assertEqual(len(runs_urls), 2, 'pierwsza strona (100 co 10 min = 16,7 h) nie pokrywa doby — druga strona')
+        self.assertEqual(R['actions']['przebiegi_24h'], 144, '100 + 44 przebiegi z ostatnich 24 h (co 10 min)')
+        R, urls, _ = self._kontrola({1: self._runs(NOW, 80, 1, 15)})
+        self.assertEqual(len([u for u in urls if '/runs' in u and '/jobs' not in u]), 1, 'mniej niż 100 na stronie — bez drugiej strony')
+        self.assertEqual(R['actions']['przebiegi_24h'], 80)
+        R, urls, _ = self._kontrola({1: self._runs(NOW, 100, 1, 20)})
+        self.assertEqual(len([u for u in urls if '/runs' in u and '/jobs' not in u]), 1, 'najstarszy z pierwszej strony starszy niż doba — bez drugiej strony')
+        self.assertEqual(R['actions']['przebiegi_24h'], 72)
