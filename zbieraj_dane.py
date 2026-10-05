@@ -16946,6 +16946,12 @@ RWC_PRODUKTY = {
     # emitenta pleasing.gitbook.io …/token-features, adresy stamtąd). 05.10 ok. 05:40 UTC: 19 505,0 uncji × 4 139,21 = 80,7 mln USD.
     'pleasing-gold': {'name': 'Pleasing Gold', 'seg': 'cm', 'cena': 'zloto', 'tokeny': (
         ('arb', '0x3e76bb02286bfeaa89dd35f11253f2cbce634f91', 18, 'PGOLD', False),)},
+    # v173 (05.10; badanie ws51/badanie/BADANIE_RWA2.md §12): RAAC — token TB (TokenBlender, „BaseToken” pmUSD Market; adres z dokumentacji emitenta
+    # docs.raac.io/deployment-rwfx). TB jest w 100% pokryty tokenami złota ION.au w stałym stosunku 1:1 (TB.totalSupply = getTokenReserveBalance(ION.au)
+    # = 26 531,98 05.10; ratios(ION.au) = 1,0), „1 TB = 1 XAU” wg docs.raac.io/token-blender — tą samą miarą liczyło dawne źródło. Pewność średnia:
+    # pokrycie to deklaracja emitenta (strona dowodu rezerw za ochroną przed botami — nie omijamy). 05.10: 26 531,98 uncji × 4 139,21 = 109,8 mln USD.
+    'raac': {'name': 'RAAC', 'seg': 'cm', 'cena': 'zloto', 'tokeny': (
+        ('eth', '0x7a7f847fb60b0000e24cce07298dc73df8b8e56a', 18, 'TB', False),)},
 }
 # Ceny z wyroczni na łańcuchu: latestRoundData() (roundId, answer, startedAt, updatedAt, answeredInRound); dec — miejsca odpowiedzi; lo / hi —
 # granice rozsądku (poza = brak ceny); max_min — najstarsza cena uznana za świeżą (wiek liczony od updatedAt).
@@ -16959,7 +16965,7 @@ RWC_CENY = {
 }
 RWC_SRC = ('Odczyt własny z publicznych łańcuchów bloków (węzły bez klucza: *.publicnode.com, zapas 1rpc.io; rpc.tempo.xyz; rpc.mainnet.arc.io; '
            'rpc.plume.org; api.mainnet-beta.solana.com; api.mainnet.aptoslabs.com; horizon.stellar.org) — liczba tokenów (totalSupply / konto emisji / '
-           'fungible_asset::supply / salda aktywa Stellar) × cena: 1 USD (BUIDL, WisdomTree WTGXX), XAU/USD z wyroczni na Ethereum (Paxos Gold, Tether Gold, Pleasing Gold — Arbitrum, sieć domowa mostu: kopie w innych sieciach pokryte pulą mostu), wyrocznia funduszu USYC; Tether Gold: w obiegu = totalSupply '
+           'fungible_asset::supply / salda aktywa Stellar) × cena: 1 USD (BUIDL, WisdomTree WTGXX), XAU/USD z wyroczni na Ethereum (Paxos Gold, Tether Gold, Pleasing Gold — Arbitrum, sieć domowa mostu: kopie w innych sieciach pokryte pulą mostu; RAAC — token TB: 1 TB = 1 uncja wg emitenta), wyrocznia funduszu USYC; Tether Gold: w obiegu = totalSupply '
            'na Ethereum − rezerwa emitenta (wybite, niewydane) z jego danych o przejrzystości (app.tether.to/transparency.json); obliczenia CapitalFlowAI')
 # v160: rezerwy emitentów — produkt z 'rezerwa': w obiegu = podaż z łańcucha − tokeny wybite, jeszcze niewydane (dane emitenta, bez klucza, bez daty).
 # Świeżość z łańcucha: wybite wg emitenta (totalAuthorized) = totalSupply z odczytu w tym samym przebiegu (± RWC_REZ_TOL); inaczej, albo bez danych

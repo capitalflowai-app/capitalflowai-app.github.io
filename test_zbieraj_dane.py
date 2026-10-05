@@ -21937,7 +21937,7 @@ class RwaLancuchV150(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
-        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k not in ('wisdomtree', 'pleasing-gold')}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej); v169: i sprzed Pleasing Gold
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k not in ('wisdomtree', 'pleasing-gold', 'raac')}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej); v169: i sprzed Pleasing Gold; v173: i RAAC
 
     def _rd(self, now=None, budget=None, **kw):
         calls, sl = [], []
@@ -22336,7 +22336,7 @@ class RwaTetherV160(unittest.TestCase):
         self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
         self.enterContext(mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('test nie może pytać sieci')))
-        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k not in ('wisdomtree', 'pleasing-gold')}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej); v169: i sprzed Pleasing Gold
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k not in ('wisdomtree', 'pleasing-gold', 'raac')}, clear=True))   # v161: konfiguracja sprzed WisdomTree (v161 ma własne testy pełnej); v169: i sprzed Pleasing Gold; v173: i RAAC
 
     def _rez(self, body=_TETHER160, now=None):
         calls = []
@@ -22532,7 +22532,7 @@ class RwaWisdomTreeV161(unittest.TestCase):
         self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
         self.enterContext(mock.patch.object(zd, 'get_bytes', side_effect=AssertionError('test nie może pytać sieci')))
         self.enterContext(mock.patch.object(zd, 'get_json', side_effect=AssertionError('test nie może pytać sieci')))
-        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k != 'pleasing-gold'}, clear=True))   # v169: konfiguracja sprzed Pleasing Gold (v169 ma własne testy pełnej)
+        self.enterContext(mock.patch.dict(zd.RWC_PRODUKTY, {k: v for k, v in zd.RWC_PRODUKTY.items() if k not in ('pleasing-gold', 'raac')}, clear=True))   # v169: konfiguracja sprzed Pleasing Gold (v169 ma własne testy pełnej); v173: i RAAC
 
     def _rd(self, now=None, xlm=None, **kw):
         calls, gcalls = [], []
@@ -22964,7 +22964,7 @@ class RwaEmitenciV169(unittest.TestCase):   # v170: konfiguracja sprzed Ondo i x
                          'tylko Arbitrum — sieć domowa mostu; kopie na Ethereum i Pharos poza listą')
         self.assertNotIn('0xfb0bd86210d2a10543bb40289e92d108b3a5334f', repr(zd.RWC_PRODUKTY).lower(), 'kopia z Ethereum nie jest liczona')
         self.assertIn('Pleasing Gold — Arbitrum', zd.RWC_SRC)
-        self.assertEqual(sorted(zd.RWC_PRODUKTY), ['blackrock-buidl', 'circle-usyc', 'paxos-gold', 'pleasing-gold', 'tether-gold', 'wisdomtree'])
+        self.assertEqual(sorted(zd.RWC_PRODUKTY), ['blackrock-buidl', 'circle-usyc', 'paxos-gold', 'pleasing-gold', 'raac', 'tether-gold', 'wisdomtree'])   # v173: + RAAC
         T, O, W = zd.rwc_tokeny()
         self.assertIn(('0x3e76bb02286bfeaa89dd35f11253f2cbce634f91', 18), T['arb'])
         y = _rwc150_txt(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'))
@@ -23697,3 +23697,35 @@ class RwaRytmV172(unittest.TestCase):
         K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
         self.assertEqual((K.RWA_ETYKIETA, K.RWC_ETYKIETA, K.RWE_ETYKIETA), ('tokenizowane aktywa RWA (co 3 h)', 'tokenizowane aktywa — odczyt własny z łańcucha (co 3 h)',
                                                                             'tokenizowane aktywa — dane emitentów (co 3 h)'))
+
+
+# ===================== v173: RAAC W ODCZYCIE WŁASNYM Z ŁAŃCUCHA =====================
+class RwaRaacV173(unittest.TestCase):
+    """v173: RAAC — token TB (TokenBlender na Ethereum) × cena złota z wyroczni (reguła 'zloto', 36 h); TB = rezerwa ION.au 1:1 (05.10:
+    26 531,98 = getTokenReserveBalance), „1 TB = 1 XAU” wg dokumentacji emitenta — ta sama miara co dawne źródło. Bez sieci (atrapa węzła)."""
+    NOW = _RWC150_NOW
+    TB = '0x7a7f847fb60b0000e24cce07298dc73df8b8e56a'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        self.enterContext(mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')))
+
+    def test_konfiguracja_i_odczyt(self):
+        p = zd.RWC_PRODUKTY['raac']
+        self.assertEqual((p['name'], p['seg'], p['cena'], p['tokeny']), ('RAAC', 'cm', 'zloto', (('eth', self.TB, 18, 'TB', False),)))
+        self.assertIn('RAAC — token TB', zd.RWC_SRC)
+        with mock.patch.dict(zd.RWC_PRODUKTY, {'raac': p}, clear=True):
+            calls = []
+            post = _rwc150_post(calls=calls, sup={('eth', self.TB): 26531980000000000000000}, dec={('eth', self.TB): 18})
+            oc = zd.rwc_blok(zd.rwc_odczyt(self.NOW, post=post, sleep=lambda s: None), None, self.NOW)
+            self.assertEqual(sorted({c[0] for c in calls}), ['eth'], 'jedna sieć, jedno żądanie zbiorcze')
+            R = oc['p']['raac']
+            self.assertEqual((R['sup'], R['px'], R['full'], R['n'], R['nr']), (26531.98, 4139.56, True, 1, 1))
+            self.assertAlmostEqual(R['v'] / 1e6, 109.83, places=1)
+            U = zd.rwc_uzyj(oc, self.NOW)
+            self.assertEqual(list(U), ['raac']); self.assertAlmostEqual(U['raac'], 26531.98 * 4139.56, delta=0.01)
+            self.assertNotIn('raac', zd.rwc_uzyj(oc, self.NOW + datetime.timedelta(hours=31)), 'cena złota starsza niż 36 h — poza sumami')
+            post = _rwc150_post(sup={('eth', self.TB): 26531980000000000000000}, dec={('eth', self.TB): 6})
+            oc = zd.rwc_blok(zd.rwc_odczyt(self.NOW, post=post, sleep=lambda s: None), None, self.NOW)
+            self.assertEqual((oc['p']['raac']['v'], oc['p']['raac']['full']), (None, False), 'inne miejsca dziesiętne = token nieodczytany')
