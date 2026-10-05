@@ -22779,3 +22779,42 @@ class SzybciejV168(unittest.TestCase):
         self.assertIn("if r[1] == 'Grand Total':", a); self.assertNotIn("if r[1] == 'All Countries':", a)
         z = open(os.path.join(root, 'zbieraj_dane.py'), encoding='utf-8').read()
         self.assertIn("'world': region(['Grand Total'])", z, 'karta TIC na stronie — ten sam wiersz')
+
+
+
+class SondaEmitenciV169(unittest.TestCase):
+    """v169s: sonda danych emitentów RWA i JSE Top 40 — tylko liczby wyliczone z odpowiedzi (podmieniona sieć), g_nasdaq zostaje ostatnia."""
+
+    def test_sonda_emitenci(self):
+        import importlib.util
+        import io as _io
+        spec = importlib.util.spec_from_file_location('sondy_v169', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual((S.GROUPS.count(S.g_rwa_emitenci), S.GROUPS.count(S.g_jse)), (1, 1))
+        sec = {'data': [{'aum': '965684280.38', 'date': '1791176447000000000'}, {'aum': '14226495.41', 'date': '1791176447000000000'}]}
+        R = {'EUTBL/totals': {'totalAssets': {'value': '589100000', 'currency': 'EUR'}, 'netAssetValue': {'day': '2026-10-04T00:00:00Z'}}, 'share-classes': [{}] * 14,
+             'asset-stats': sec, 'hastra': {'prime_card': {'vaulted_wylds': '585610896.14'}, 'auto_card': {'vaulted_wylds': '66841503.03'}, 'timestamp': '2026-10-05T05:10:29Z'},
+             'openeden': {'tvl': '294170000', 'liveVault': {'updatedAt': '2026-10-05T05:15:02Z'}}, 'matrixdock': {'data': {'token_total_supply': '16716.954084'}},
+             'centrifuge': {'data': {'tokens': {'items': [{'symbol': 'JAAA', 'decimals': 6, 'totalIssuance': '557366000000000', 'tokenPrice': '1050448000000000000'},
+                                                          {'symbol': 'deJAAA', 'decimals': 6, 'totalIssuance': '9600000000000', 'tokenPrice': '1000000000000000000'}]}}},
+             'backed': {'data': {'tokens': {'nodes': [{}, {}], 'page': {'totalPages': 4}}}}, 'J200': [{}] * 7, 'J200.JO': {'historical': [{}] * 6}, 'JTOPI.JO': []}
+
+        def http(url, method='GET', body=None, headers=None):
+            for k, v in R.items():
+                if k in url and k not in ('J200',):
+                    return 200, json.dumps(v).encode(), 5, None
+            if 'ondo.finance' in url:
+                return 200, b'x"assetsData":{} "gmTvl":1', 7, None
+            if 'eodhd.com' in url:
+                return 200, json.dumps(R['J200']).encode(), 5, None
+            return 404, b'', 1, None
+        out = _io.StringIO()
+        env = {'EODHD_KEY': 'TAJNY_EOD_123', 'FMP_KEY': 'TAJNY_FMP_456'}
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: None), mock.patch('sys.stdout', out), \
+                mock.patch.dict(os.environ, env, clear=False):
+            S.g_rwa_emitenci(); S.g_jse()
+        o = out.getvalue()
+        self.assertNotIn('TAJNY', o, 'klucz nigdy w wyniku')
+        self.assertIn('summary rwa-em spiko=14cl EUTBL=589.1/EUR/2026-10-04 hastra=652.5M@10-05T05:10 oe=294.2M@10-05T05:15 xaum=16717oz cfg=585.5M/2t', o)
+        self.assertIn('BCAP=979.9M/2ch@10-05T05:00', o); self.assertIn('summary rwa-em3 ondo[assetsData=True gmTvl=True kB=0] backed[nodes=2 pages=4]', o)
+        self.assertIn('summary jse eod_J200=rows=7 fmp_J200.JO=rows=6 fmp_JTOPI.JO=rows=0', o)

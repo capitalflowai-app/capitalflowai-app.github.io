@@ -1181,6 +1181,161 @@ def g_rwa_lancuch():
 GROUPS.insert(GROUPS.index(g_nasdaq), g_rwa_lancuch)   # v150: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
 
 
+# ===================== v169: tokenizowane aktywa — dane emitentów (BADANIE_RWA2.md, 05.10.2026) i JSE Top 40 =====================
+# Czy publiczne adresy emitentów odpowiadają z serwera GitHub (USA) i czy kształt odpowiedzi jest taki jak z Polski. Tylko kod HTTP, rozmiar,
+# czas i wyliczone liczby (mln USD / liczba pozycji / data) — nigdy treść. Wiersze „summary rwa-em …” i „summary jse …” trafiają do adnotacji.
+RWAE_SEC = ("BCAP", "MI4", "ACRED", "VBILL", "STAC", "HLSCOPE", "BUIDL")
+RWAE_CFG_Q = "{ tokens(limit: 500) { items { symbol decimals totalIssuance tokenPrice } } }"
+RWAE_BACKED_Q = ("query R($page:Int!,$pageSize:Int!,$where:TokensWhereInput){ tokens(page:$page,pageSize:$pageSize,where:$where){ nodes{ symbol "
+                 "proofOfReserves{ at sharesHeld{ quantity } } } page{ totalPages totalNodes } } }")
+_RWAE = {}
+
+
+def _rwae_f(x):
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if v == v and v not in (float("inf"), float("-inf")) else None
+
+
+def _rwae_put(k, v):
+    with _print_lock:
+        _RWAE[k] = v
+    return v
+
+
+def _rwae_m(v):
+    return "-" if v is None else f"{v / 1e6:.1f}"
+
+
+def _rwae_spiko_cls(raw):
+    j = json.loads(raw)
+    return f"classes={_rwae_put('spiko_cls', len(j) if isinstance(j, list) else -1)}"
+
+
+def _rwae_spiko_tot(raw):
+    j = json.loads(raw)
+    a = (j.get("totalAssets") or {}) if isinstance(j, dict) else {}
+    nav = (((j.get("netAssetValue") or {}).get("day") or "") if isinstance(j, dict) else "")[:10]
+    _rwae_put("spiko", (_rwae_m(_rwae_f(a.get("value"))), a.get("currency"), nav))
+    return f"M={_RWAE['spiko'][0]} {a.get('currency')} nav={nav}"
+
+
+def _rwae_sec(sym):
+    def f(raw):
+        j = json.loads(raw)
+        rows = j.get("data") if isinstance(j, dict) else None
+        if not isinstance(rows, list):
+            return _rwae_put("sec_" + sym, "bad")
+        s = sum(_rwae_f(r.get("aum")) or 0 for r in rows if isinstance(r, dict))
+        ds = [int(r["date"]) for r in rows if isinstance(r, dict) and str(r.get("date", "")).isdigit()]
+        d = dt.datetime.fromtimestamp(max(ds) / 1e9, dt.timezone.utc).strftime("%m-%dT%H:%M") if ds else "-"
+        return _rwae_put("sec_" + sym, f"{_rwae_m(s)}M/{len(rows)}ch@{d}")
+    return f
+
+
+def _rwae_hastra(raw):
+    j = json.loads(raw)
+    v = sum(_rwae_f((j.get(k) or {}).get("vaulted_wylds")) or 0 for k in ("prime_card", "auto_card", "smb_card")) if isinstance(j, dict) else None
+    return _rwae_put("hastra", f"{_rwae_m(v)}M@{str((j or {}).get('timestamp', '-'))[5:16]}")
+
+
+def _rwae_oe(raw):
+    j = json.loads(raw)
+    v = _rwae_f(j.get("tvl")) if isinstance(j, dict) else None
+    at = (((j.get("liveVault") or {}).get("updatedAt")) or "-") if isinstance(j, dict) else "-"
+    return _rwae_put("openeden", f"{_rwae_m(v)}M@{str(at)[5:16]}")
+
+
+def _rwae_md(raw):
+    j = json.loads(raw)
+    d = j.get("data") if isinstance(j, dict) else None
+    v = _rwae_f((d or {}).get("token_total_supply")) if isinstance(d, dict) else None
+    return _rwae_put("xaum", f"{v:.0f}oz" if v else "-")
+
+
+def _rwae_cfg(raw):
+    j = json.loads(raw)
+    it = (((j.get("data") or {}).get("tokens") or {}).get("items")) if isinstance(j, dict) else None
+    if not isinstance(it, list):
+        return _rwae_put("cfg", "bad")
+    v = 0.0
+    for t in it:
+        try:
+            if not str(t.get("symbol", "")).startswith("de"):
+                v += int(t["totalIssuance"]) / 10 ** int(t["decimals"]) * int(t["tokenPrice"]) / 1e18
+        except (KeyError, TypeError, ValueError):
+            pass
+    return _rwae_put("cfg", f"{_rwae_m(v)}M/{len(it)}t")
+
+
+def _rwae_ondo(raw):
+    s = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+    return _rwae_put("ondo", f"assetsData={'assetsData' in s} gmTvl={'gmTvl' in s} kB={len(raw) // 1024}")
+
+
+def _rwae_backed(raw):
+    j = json.loads(raw)
+    t = ((j.get("data") or {}).get("tokens")) if isinstance(j, dict) else None
+    n = len((t or {}).get("nodes") or []) if isinstance(t, dict) else -1
+    pg = ((t or {}).get("page") or {}) if isinstance(t, dict) else {}
+    return _rwae_put("backed", f"nodes={n} pages={pg.get('totalPages', '-')}")
+
+
+def _rwae_jse(lab):
+    def f(raw):
+        j = json.loads(raw)
+        n = len(j) if isinstance(j, list) else len((j or {}).get("historical") or []) if isinstance(j, dict) else -1
+        return _rwae_put("jse_" + lab, f"rows={n}")
+    return f
+
+
+def g_rwa_emitenci():
+    probe("rwa-em", "spiko_share-classes", "https://public-api.spiko.io/share-classes", extra_fn=_rwae_spiko_cls)
+    time.sleep(0.3)
+    probe("rwa-em", "spiko_EUTBL_totals", "https://public-api.spiko.io/share-classes/EUTBL/totals", extra_fn=_rwae_spiko_tot)
+    for sym in RWAE_SEC:
+        time.sleep(0.3)
+        probe("rwa-em", f"sec_{sym}", f"https://public-feed.securitize.io/asset-stats?symbol={sym}", extra_fn=_rwae_sec(sym))
+    probe("rwa-em", "hastra_por", "https://hastra.io/hastra-pulse/public/api/v1/por", extra_fn=_rwae_hastra)
+    probe("rwa-em", "openeden_aggregates", "https://prod-gw.openeden.com/v3/vault/aggregates", extra_fn=_rwae_oe)
+    probe("rwa-em", "matrixdock_xaum", "https://www.matrixdock.com/rwa/anon/website/api/v1/stats/total?symbol=XAUM", extra_fn=_rwae_md)
+    probe("rwa-em", "centrifuge_graphql", "https://api.centrifuge.io", method="POST", body={"query": RWAE_CFG_Q}, extra_fn=_rwae_cfg)
+    probe("rwa-em", "ondo_homepage", "https://ondo.finance/", extra_fn=_rwae_ondo)
+    probe("rwa-em", "backed_graphql", "https://api.backed.fi/graphql", method="POST", extra_fn=_rwae_backed,
+          body={"query": RWAE_BACKED_Q, "variables": {"page": 1, "pageSize": 200, "where": {"businessLine": {"equals": "xStocks"}}}})
+    with _print_lock:
+        R = _RWAE
+        sec = " ".join(f"{s}={R.get('sec_' + s, '-')}" for s in RWAE_SEC)
+        print(f"summary rwa-em spiko={R.get('spiko_cls', '-')}cl EUTBL={'/'.join(map(str, R.get('spiko', ('-',))))} hastra={R.get('hastra', '-')} "
+              f"oe={R.get('openeden', '-')} xaum={R.get('xaum', '-')} cfg={R.get('cfg', '-')}", flush=True)
+        print(f"summary rwa-em2 {sec}", flush=True)
+        print(f"summary rwa-em3 ondo[{R.get('ondo', '-')}] backed[{R.get('backed', '-')}]", flush=True)
+
+
+def g_jse():
+    frm = (_utc_today() - dt.timedelta(days=10)).isoformat()
+    name, key = find_key("eodhd")
+    if key:   # 1 zapytanie: limit planu 20 na dobę liczy też zbieracz
+        probe("jse", "eodhd_J200.INDX", f"https://eodhd.com/api/eod/J200.INDX?fmt=json&from={frm}&api_token={key}", env_name=name, extra_fn=_rwae_jse("eod_J200"))
+    else:
+        skipped("jse", "eodhd")
+    name, key = find_key("fmp")
+    if key:
+        for lab, sym in (("fmp_J200.JO", "%5EJ200.JO"), ("fmp_JTOPI.JO", "JTOPI.JO")):
+            time.sleep(0.4)
+            probe("jse", lab, f"https://financialmodelingprep.com/stable/historical-price-eod/light?symbol={sym}&apikey={key}", env_name=name, extra_fn=_rwae_jse(lab))
+    else:
+        skipped("jse", "fmp")
+    with _print_lock:
+        print("summary jse " + " ".join(f"{k[4:]}={v}" for k, v in sorted(_RWAE.items()) if k.startswith("jse_")), flush=True)
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_rwa_emitenci)   # v169: przed g_nasdaq (test v127: g_nasdaq zostaje ostatnia)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_jse)
+
+
 # --------------------------------------------------------------------------- main
 
 def main():
