@@ -23505,9 +23505,11 @@ class RwaEmitenciV170(unittest.TestCase):
             with self.assertRaises(ValueError):
                 zd.rwe_xs_parse(zle, self._fx())
         with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 3}):
+            dl = _rwe170_xs(N[:3]); dl['data']['tokens']['page']['totalNodes'] = 10   # v265: lista dłuższa niż strona, reszta duża
             with self.assertRaises(ValueError) as c:
-                zd.rwe_xs_parse(_rwe170_xs(N[:3]), self._fx())
+                zd.rwe_xs_parse(dl, self._fx())
             self.assertIn('także poza stroną 0', str(c.exception))
+            self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N[:3]), self._fx())['n'], 3, 'v265: totalNodes = 3 — pełna lista na pełnej stronie')
             self.assertAlmostEqual(zd.rwe_xs_parse(_rwe170_xs(N[:2] + [N[4]]), self._fx())['v'], 1463073 * 99.455 + 200000 * 430, places=2, msg='pełna strona kończy się tokenem bez rezerwy')
 
     def test_odczyt_pelny_jedno_pobranie_strony(self):
@@ -29145,4 +29147,44 @@ class PoPrzegladzieV264(unittest.TestCase):
         self.assertNotIn('✅', w); self.assertEqual(k.indeksy_uwagi(o), [])
         o = k.indeksy_ocena(dict(ix, FTSE={'cc': 'gb', 'src': 'fmp', 'd': [['2026-09-23', 3.0]]}), now=self.T(2026, 9, 25, 6, 20))
         self.assertEqual((o['swieze'], o['opoznione']), (23, []), 'dzień różnicy (IX_OPOZ_DNI) — nadal świeże')
+
+
+# ===================== v265: xSTOCKS — LISTA DŁUŻSZA NIŻ STRONA ODPOWIEDZI =====================
+class XstocksOgonV265(unittest.TestCase):
+    """v265: 06.10 lista emitenta 1271 tokenów (strona 1000, dalsze strony — błąd serwera): odczyt przyjęty, gdy górna granica reszty listy
+    (reszta × największy z 10 ostatnich tokenów z rezerwą) ≤ 0,5% sumy — pole 'ogon'; większa — błąd jak dotąd."""
+
+    FX = {'d': '2026-10-06', 'rates': {'HKD': 7.78, 'GBP': 0.75}}
+
+    def _lista(self, n_duze, n_male, male_usd):
+        N = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', '2026-10-06T18:00:00Z') for i in range(n_duze)]   # 100 mln USD każdy
+        N += [_rwe170_xn(f'S{i}x', 1, male_usd * 100, 'USD', '2026-10-06T18:00:00Z') for i in range(n_male)]
+        return N
+
+    def test_reszta_mala_przyjeta(self):
+        N = self._lista(9, 11, 389)   # 900 mln USD + 11 × 389 USD; strona 20 tokenów, wszystkich 291 (reszta 271)
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 15, 'totalNodes': 291}
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 20}):
+            r = zd.rwe_xs_parse(j, self.FX)
+        self.assertEqual(r['ogon'], {'n': 271, 'max_usd': 105419}, 'przegląd 06.10: reszta 271 tokenów ≤ 271 × 389 USD')
+        self.assertAlmostEqual(r['v'], 9 * 100000000 + 11 * 389, places=2)
+        self.assertEqual(r['n'], 20)
+
+    def test_reszta_duza_blad(self):
+        N = self._lista(2, 10, 1000000)   # ostatnie tokeny po 1 mln USD — reszta 271 × 1 mln ≫ 0,5% sumy
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 25, 'totalNodes': 283}
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(j, self.FX)
+        self.assertIn('górna granica reszty listy', str(c.exception))
+        del j['data']['tokens']['page']
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(j, self.FX)
+        self.assertIn('bez liczby wszystkich tokenów', str(c.exception))
+
+    def test_lista_miesci_sie_bez_pola(self):
+        N = self._lista(3, 2, 500)
+        r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX)
+        self.assertNotIn('ogon', r)
 

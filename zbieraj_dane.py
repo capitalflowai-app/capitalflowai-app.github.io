@@ -18634,6 +18634,8 @@ RWE_RAZY_REF = 10.0       # v175: pasmo wobec ostatnio znanej wartości źródł
                           # liczenia u części produktów to norma (05.10: STAC 2,7×, xStocks 2,1×); łapie błędy jednostek (×1000, ×10^6)
 RWE_FX_MAX_D = 7          # dni — kurs z pliku rynki starszy = klasy w tej walucie bez wyceny (produkt bez wyceny w tym odczycie)
 RWE_MIN_SHARE = 0.01      # część produktu (klasa, token) poniżej 1% wartości nie wyznacza chwili stanu (maleńkie klasy z rzadką wyceną)
+RWE_XS_OGON_K = 10        # v265: xStocks — tyle ostatnich tokenów z rezerwą na stronie wyznacza górną granicę wartości tokenu z dalszej części listy
+RWE_XS_OGON_PROC = 0.5    # v265: % — górna granica pominiętej reszty listy do tylu procent sumy = odczyt przyjęty (pole 'ogon'); więcej = błąd
 RWE_OTHER_MAX = 0.005     # cfg: tokeny w pulach innej waluty (bez kursu): do 0,5% wartości pominięte z notatką, więcej = produkt bez wyceny
 RWE_HD_DAYS = 31          # dni zapisu „co liczyliśmy wg emitentów” (kontrola: skok sumy przy zmianie zbioru)
 RWE_START_MIN = 120       # min — plik bez danych emitentów (pierwsze przebiegi po wdrożeniu) przebudowany po tylu minutach, nie po RWA_EVERY
@@ -18988,13 +18990,25 @@ def rwe_xs_parse(j, fx):
             raise ValueError(f'{sym}: zły stan (at)')
         V.append((x, d))
         cur[c] = cur.get(c, 0.0) + x
-    if len(N) >= RWE_XS_VAR['pageSize'] and last_sh:
-        raise ValueError('tokeny z rezerwą także poza stroną 0')
     tot = sum(x for x, _d in V)
+    pg = data['tokens'].get('page') if isinstance(data['tokens'].get('page'), dict) else {}
+    tn = pg.get('totalNodes') if isinstance(pg.get('totalNodes'), int) and not isinstance(pg.get('totalNodes'), bool) else None
+    ogon = None
+    if len(N) >= RWE_XS_VAR['pageSize'] and last_sh and not (tn is not None and tn <= len(N)):
+        # v265: lista dłuższa niż strona (06.10: 1271 tokenów; dalsze strony — błąd serwera emitenta). Kolejność od największych (aktywa
+        # malejąco), więc każdy dalszy token jest mniejszy od ostatnich na stronie: reszta ≤ (totalNodes − na stronie) × największy z ostatnich.
+        ost = [x for x, _d in V[-RWE_XS_OGON_K:]]
+        if tn is None or not ost:
+            raise ValueError('tokeny z rezerwą także poza stroną 0 (bez liczby wszystkich tokenów)')
+        gr = (tn - len(N)) * max(ost)
+        if tot <= 0 or gr > RWE_XS_OGON_PROC / 100 * tot:
+            raise ValueError(f'tokeny z rezerwą także poza stroną 0 — górna granica reszty listy {gr:,.0f} USD ponad {RWE_XS_OGON_PROC:g}% sumy')
+        ogon = {'n': tn - len(N), 'max_usd': round(gr)}
     big = [d for x, d in V if tot > 0 and x >= RWE_MIN_SHARE * tot]
     if tot <= 0 or not big:
         raise ValueError('suma rezerw zero')
-    return {'v': tot, 'as_of': min(big), 'n': len(V), 'fx': {'d': fx['d']} if used_fx else None, 'cur': {k: round(x, 2) for k, x in sorted(cur.items())}}
+    return {'v': tot, 'as_of': min(big), 'n': len(V), 'fx': {'d': fx['d']} if used_fx else None, 'cur': {k: round(x, 2) for k, x in sorted(cur.items())},
+            **({'ogon': ogon} if ogon else {})}
 
 
 def _rwe_ponow(e):
