@@ -24732,29 +24732,31 @@ class CenyZamknieciaV195(unittest.TestCase):
 
     def _q(self):
         h = lambda c, v: [[d, c, v] for d in ('2026-09-24', '2026-09-25', '2026-09-28', '2026-09-29', '2026-09-30')]  # noqa: E731 — v199: historia obrotu
-        return {'SPY': {'asof': '2026-10-05', 'd': h(760.0, 50_000_000) + [['2026-10-01', 763.99, 47708100], ['2026-10-02', 769.64, 46306400], ['2026-10-05', 774.94, 3_611_428]]},
+        return {'SPY': {'asof': '2026-10-05', 'd': h(760.0, 50_000_000) + [['2026-10-01', 763.99, 47708100], ['2026-10-02', 769.64, 46306400], ['2026-10-05', 774.94, 36114284]]},   # v203: prawdziwy obrót
                 'ASEA': {'asof': '2026-10-02', 'd': h(20.9, 20_000) + [['2026-10-01', 20.9, 14900], ['2026-10-02', 20.95, 30300]]},
-                'EZA': {'asof': '2026-10-05', 'd': h(63.0, 100_000) + [['2026-10-02', 63.19, 62200], ['2026-10-05', 63.11, 7_061]]},
+                'EZA': {'asof': '2026-10-05', 'd': h(63.0, 100_000) + [['2026-10-02', 63.19, 62200], ['2026-10-05', 63.11, 70616]]},   # v203: prawdziwy obrót
+                'EWC': {'asof': '2026-10-05', 'd': h(58.0, 1_500_000) + [['2026-10-02', 58.72, 1192200], ['2026-10-05', 58.75, 50563]]},   # v203: obrót 3% — wstępna
                 'EWJ': {'asof': '2026-10-05', 'd': h(98.0, 5_000_000) + [['2026-10-02', 98.92, 7328800], ['2026-10-05', 99.3, 3071843]]},
                 'INDA': {'asof': '2026-10-05', 'd': h(46.0, 4_500_000) + [['2026-10-02', 46.52, 4323400], ['2026-10-05', 46.55, 3032335]]}}
 
     def _dz(self, **over):
         q = {'SPY': {'c': 774.83, 'pc': 769.64, 'dp': 0.6743, 't': self.T}, 'ASEA': {'c': 21.095, 'pc': 20.95, 'dp': 0.6921, 't': self.T},
              'EZA': {'c': 63.17, 'pc': 63.19, 'dp': -0.0317, 't': self.T}, 'EWJ': {'c': 99.3, 'pc': 98.92, 'dp': 0.3841, 't': self.T},
-             'INDA': {'c': 46.57, 'pc': 46.52, 'dp': 0.1075, 't': self.T}}   # v199: świeca z pełnym obrotem — bez podmiany
+             'INDA': {'c': 46.57, 'pc': 46.52, 'dp': 0.1075, 't': self.T}, 'EWC': {'c': 58.78, 'pc': 58.72, 'dp': 0.1022, 't': self.T}}   # v199: INDA z pełnym obrotem — bez podmiany
         for k, v in over.items():
             q[k] = dict(q[k], **v)
         return {'at': '2026-10-05T21:33:18+00:00', 'q': q}
 
     def test_wstepne_i_brakujaca(self):
         q = self._q()
-        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 17, 33)), 3)
-        self.assertEqual(q['SPY']['d'][-1], ['2026-10-05', 774.83, None]); self.assertEqual(q['EZA']['d'][-1], ['2026-10-05', 63.17, None])
+        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 17, 33)), 2)
+        self.assertEqual(q['SPY']['d'][-1], ['2026-10-05', 774.94, 36114284], 'v203: obrót 72% mediany — świeca zostaje do ostatecznej (kompromis v199)')
+        self.assertEqual(q['EZA']['d'][-1], ['2026-10-05', 63.11, 70616]); self.assertEqual(q['EWC']['d'][-1], ['2026-10-05', 58.78, None], 'EWC: obrót 3% — podmiana')
         self.assertEqual((q['ASEA']['d'][-1], q['ASEA']['asof'], len(q['ASEA']['d'])), (['2026-10-05', 21.095, None], '2026-10-05', 8), 'ASEA: dopisana świeca 05.10')
         self.assertEqual(q['INDA']['d'][-1], ['2026-10-05', 46.55, 3032335], 'v199: świeca z pełnym obrotem zostaje (notowanie 46,57)')
         self.assertEqual(q['EWJ']['d'][-1], ['2026-10-05', 99.3, 3071843], 'świeca równa zamknięciu (ostateczna) — bez zmian')
         self.assertEqual(q['SPY']['d'][-2], ['2026-10-02', 769.64, 46306400], 'starsze świece bez zmian')
-        self.assertTrue(any('zamknięcie sesji z pliku notowań dziennych' in n and 'ASEA, EZA, SPY' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertTrue(any('zamknięcie sesji z pliku notowań dziennych' in n and 'ASEA, EWC' in n for n in zd.META['notes']), zd.META['notes'])
         zd.META['notes'].clear()
         self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 18, 35)), 0, 'drugi raz — nic do zmiany')
         self.assertEqual(zd.META['notes'], [])
@@ -24959,9 +24961,9 @@ class PoPrzegladzieV199(unittest.TestCase):
             prev = t._prev(); prev['assets']['eth'] = dict(prev['assets']['eth'], asof='2026-09-25')
             zd.META['notes'].clear()
             out, _ = t._run(prev, hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
-            self.assertNotIn('eth', out['assets'], 'poprzedni wpis z 25.09 — ponad 3 dni starszy od BTC (02.10): pominięty')
-            self.assertTrue(any('SoSoValue ETH: poprzednie dane z 2026-09-25 pominięte' in n for n in zd.META['notes']), zd.META['notes'])
-            self.assertEqual(list(out['assets']), ['btc'])
+            self.assertEqual(out['assets']['eth']['d1'], None, 'v203: poprzedni wpis z 25.09 zostaje (historia), przepływy = brak')
+            self.assertTrue(any('SoSoValue ETH: poprzednie dane z 2026-09-25 — ponad 3 dni starsze' in n for n in zd.META['notes']), zd.META['notes'])
+            self.assertEqual(list(out['assets']), ['btc', 'eth'])
             out, _ = t._run(t._prev(), hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
             self.assertEqual(list(out['assets']), ['btc', 'eth'], 'poprzedni wpis z tego samego dnia — zostaje, kolejność monet jak w ETF_SYMS')
         finally:
@@ -24984,7 +24986,7 @@ class PoPrzegladzieV199(unittest.TestCase):
         runs = [{'id': i, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(60 * i + dur), 'updated_at': f(60 * i)}
                 for i, dur in enumerate([25, 24, 23, 22, 21, 12, 11, 30, 5, 26, 27, 28, 29, 31], start=1)]
         c = k.budowa_kandydaci(runs, NOW)
-        self.assertEqual(c[:3], [14, 8, 13], '3 najdłuższe'); self.assertEqual(len(c), 10, 'najwyżej 10')
+        self.assertEqual(c[:3], [14, 8, 13], '3 najdłuższe'); self.assertEqual(len(c), 11, 'v203: każdy udany > 20 min (najwyżej 40)')
         self.assertTrue(set(c) <= {i for i, dur in enumerate([25, 24, 23, 22, 21, 12, 11, 30, 5, 26, 27, 28, 29, 31], start=1) if dur > 20})
         self.assertEqual(k.budowa_kandydaci(runs[5:7], NOW), [6, 7], 'bez przebiegów > 20 min — tylko 3 najdłuższe (tu 2)')
 
@@ -25012,3 +25014,51 @@ class KontrolaCzasPolskiV202(unittest.TestCase):
         self.assertEqual((h(datetime.datetime(2026, 7, 1, tzinfo=U)), h(datetime.datetime(2026, 12, 1, tzinfo=U))), (2, 1))
         self.assertEqual((h(datetime.datetime(2026, 10, 25, 0, 59, tzinfo=U)), h(datetime.datetime(2026, 10, 25, 1, 0, tzinfo=U))), (2, 1))
         self.assertEqual((h(datetime.datetime(2026, 3, 29, 0, 59, tzinfo=U)), h(datetime.datetime(2026, 3, 29, 1, 0, tzinfo=U))), (1, 2))
+
+
+# ===================== v203: PO PRZEGLĄDZIE v197–v201 — ETF (WPIS ZOSTAJE), LISTA 20 FUNDUSZY, TAJWAN (LIMIT I PRÓBY) =====================
+class PoPrzegladzieV203(unittest.TestCase):
+    """v203: poprzedni wpis monety ETF zostaje zawsze (historia), przy różnicy > 3 dni przepływy = brak; lista funduszy do 20, obcięta = bez
+    sprawdzania sumy; Tajwan — ponowny odczyt z krótkim limitem, w budżecie czasu, nieudana próba = przerwa 3 godz. Bez sieci."""
+
+    def test_etf_stary_wpis_zostaje_bez_przeplywow(self):
+        t = PoPrzegladzieV194('test_suma_funduszy_niezgodna_bez_czasu'); t.setUp()
+        try:
+            prev = t._prev(); prev['assets']['eth'] = dict(prev['assets']['eth'], asof='2026-09-25', w=50.0, m=200.0, aum=12000.0, share=3.0)
+            out, _ = t._run(prev, hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
+            e = out['assets']['eth']
+            self.assertEqual(list(out['assets']), ['btc', 'eth'], 'moneta zostaje — nie znika z sum (brak ≠ zero)')
+            self.assertEqual((e['d1'], e['w'], e['m'], e['stale']), (None, None, None, True), 'przepływy = brak (suma na stronie „—”)')
+            self.assertEqual((e['aum'], e['cum'], e['share'], e['funds'], len(e['day'])), (12000.0, 5000.0, 3.0, [], 28), 'poziomy i historia zostają; bez starych funduszy')
+            self.assertNotIn('funds_at', e)
+            self.assertTrue(any('SoSoValue ETH: poprzednie dane z 2026-09-25 — ponad 3 dni starsze od pozostałych (2026-10-02)' in n for n in zd.META['notes']), zd.META['notes'])
+            self.assertEqual(out['asof'], '2026-09-25 – 2026-10-02', 'zakres dat w nagłówku pokazuje starą monetę')
+        finally:
+            t.doCleanups()
+
+    def test_etf_lista_obcieta(self):
+        t = PoPrzegladzieV194('test_suma_funduszy_niezgodna_bez_czasu'); t.setUp()
+        try:
+            self.assertEqual(zd.ETF_FUNDS_MAX, 20)
+            with mock.patch.object(zd, 'ETF_FUNDS_MAX', 1):
+                out, calls = t._run(None)
+            self.assertEqual(sum('/market-snapshot' in c and 'IBIT' in c for c in calls), 1); self.assertFalse(any('FBTC' in c for c in calls), 'tylko 1 fundusz')
+            self.assertEqual(out['assets']['btc']['funds_at'], zd.NOW, 'lista obcięta — suma nie do sprawdzenia, lista z czasem')
+            self.assertTrue(any('SoSoValue BTC: lista funduszy obcięta do 1 z 2' in n for n in zd.META['notes']), zd.META['notes'])
+        finally:
+            t.doCleanups()
+
+    def test_tajwan_limit_budzet_i_przerwa_po_bledzie(self):
+        t = TwPoprawkiV197('test_ponowny_odczyt_poprawia_liczby'); t.setUp()
+        try:
+            out, asked = t._run(t._prev(), '2026-10-06T00:00:00+00:00', {'2026-10-05': RuntimeError('timeout')})
+            self.assertEqual(out['rtry'], {'2026-10-05': '2026-10-06T00:00:00+00:00'}, 'nieudana próba — czas próby')
+            out2, asked = t._run(out, '2026-10-06T01:00:00+00:00', {})
+            self.assertNotIn('2026-10-05', asked, 'godzinę po nieudanej próbie — bez ponownego zapytania (dawniej co przebieg)')
+            out3, asked = t._run(out2, '2026-10-06T03:30:00+00:00', {'2026-10-05': t.tw('2026-10-05', '71,896,608,245')})
+            self.assertEqual(asked, ['2026-10-05'], 'po 3 godz. — znowu'); self.assertNotIn('rtry', out3, 'udany odczyt — bez czasu próby')
+            src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py'), encoding='utf-8').read()
+            self.assertIn("j = get_json(u, timeout=TW_BACK_TIMEOUT) if (old or again) else get_json(u)", src, 'krótki limit dla ponownego odczytu')
+            self.assertIn("if (old or again) and not _back_ok(t0, BACK_BUDGET, TWSE_SLEEP + TW_BACK_TIMEOUT):", src, 'ten sam budżet czasu')
+        finally:
+            t.doCleanups()

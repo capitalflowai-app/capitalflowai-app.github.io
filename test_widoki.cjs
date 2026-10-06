@@ -13434,7 +13434,7 @@ test('v194: pasek zmienia tekst w krokach 10 min (sprzed ponad 60/70 … min, po
 /* ---------- v199: wieloryby — „Czego te dane nie mówią”: przelewy ETH są w tabeli (od v112), zdanie poprawione w 10 językach ---------- */
 test('v199: wh.not2 w 10 językach bez „przelewów ETH nie wymieniamy”, z opisem przelewów ETH (zwykłe transakcje ogłoszonych portfeli)', () => {
   const NEW = {pl: 'Przelewy ETH to zwykłe transakcje ogłoszonych portfeli (opis nad tabelą); ETH przesłane przez kontrakty pomijamy.',
-    en: 'ETH transfers are the plain transactions of the published wallets (see the note above the table); ETH moved by contracts is not counted.'};
+    en: 'ETH transfers are the plain transactions of the published wallets (see the note above the table); ETH moved by smart contracts is not counted.'};   /* v203 */
   for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
     const s = v96src.tFor(L)('wh.not2');
     assert.ok(!/nie wymieniamy|are not listed|nicht aufgeführt|no se listan|ne sont pas listés|non sono elencati|não são listadas|не перечисляются|不列出|載せません/.test(s), L + ': ' + s);
@@ -13457,9 +13457,10 @@ test('v200: Sektory i okno regionu — przy danych z funduszy (DZIŚ, okres z td
   const nodes = per => env(per, true).f.pgNodes();
   const n1 = nodes('1M'), as = n1.find(n => n.id === 'asean'), oc = n1.find(n => n.id === 'oce'), us = n1.find(n => n.id === 'usa');
   assert.deepEqual(as.iso, ['SGP', 'IDN', 'MYS', 'THA', 'PHL'], 'Azja Płd.-Wsch. z funduszu: 5 krajów');
-  assert.deepEqual(oc.iso, ['AUS'], 'Australia z funduszu — bez Nowej Zelandii'); assert.deepEqual(us.iso, ['USA'], 'inne regiony bez zmian');
+  assert.deepEqual(oc.iso, ['AUS', 'NZL'], 'v203: Oceania — zakres regionu (aktywa AU + NZ), nie skład funduszu'); assert.deepEqual(us.iso, ['USA'], 'inne regiony bez zmian');
   assert.deepEqual(nodes('1D').find(n => n.id === 'asean').iso, ['SGP', 'IDN', 'MYS', 'THA', 'PHL'], 'DZIŚ — zawsze z notowań funduszy');
-  const oe = env('1KW', false).f.pgNodes();
+  assert.deepEqual(env('1D', false).f.pgNodes().find(n => n.id === 'asean').iso, ['SGP', 'IDN', 'MYS', 'THA', 'PHL'], 'v203: DZIŚ bez td — też fundusze');
+  const oe = env('1Q', false).f.pgNodes();   /* v203: okres OECD — 1Q (klucza 1KW nie ma) */
   assert.deepEqual(oe.find(n => n.id === 'asean').iso, ['IDN'], 'dane OECD (bez td) — lista OECD jak dotąd');
   assert.deepEqual(oe.find(n => n.id === 'oce').iso, ['AUS', 'NZL']);
   const g = env('1M', true); g.f.renderSectorsPage();
@@ -13472,8 +13473,21 @@ test('v200: Sektory i okno regionu — przy danych z funduszy (DZIŚ, okres z td
 
 /* ---------- v201: podpis okresu DZIŚ — „ostatnia sesja” (także po zamknięciu i przy danych dziennych z wczoraj) ---------- */
 test('v201: g.per.1D w 10 językach — ostatnia/najnowsza sesja, nie „bieżąca”', () => {
-  const W = {pl: 'dzień (ostatnia sesja)', en: 'day (latest session)', de: 'Tag (letzte Sitzung)', es: 'día (última sesión)', fr: 'jour (dernière séance)',
+  const W = {pl: 'dzień (ostatnia sesja)', en: 'day (latest session)', de: 'Tag (letzte Handelssitzung)', es: 'día (última sesión)', fr: 'jour (dernière séance)',
     it: 'giorno (ultima seduta)', pt: 'dia (último pregão)', ru: 'день (последняя сессия)', zh: '天（最近交易时段）', ja: '1日（直近のセッション）'};
   for (const L in W) assert.equal(v96src.tFor(L)('g.per.1D'), W[L], L);
   assert.ok(!html.includes('dzień (bieżąca sesja)') && !html.includes('day (current session)'), 'dawny podpis usunięty');
+});
+
+
+/* ---------- v203: okno regionu „Ostatnia sesja (ETF w USA)” (10 języków); nota wielorybów — smart kontrakty w językach obcych ---------- */
+test('v203: g.d.today — ostatnia sesja w 10 językach; wh.not2 bez „Verträge”/„contracts” bez „smart”', () => {
+  const W = {pl: 'Ostatnia sesja (ETF w USA)', en: 'Latest session (US-listed ETF)', de: 'Letzte Handelssitzung (ETF in den USA)', es: 'Última sesión (ETF cotizado en EE. UU.)',
+    fr: 'Dernière séance (ETF coté aux États-Unis)', it: 'Ultima seduta (ETF quotato negli USA)', pt: 'Último pregão (ETF listado nos EUA)', ru: 'Последняя сессия (ETF в США)',
+    zh: '最近交易时段（美国上市 ETF）', ja: '直近のセッション（米国上場ETF）'};
+  for (const L in W) assert.equal(v96src.tFor(L)('g.d.today'), W[L], L);
+  assert.ok(v96src.tFor('de')('wh.not2').includes('Smart Contracts') && !v96src.tFor('de')('wh.not2').includes('Verträgen'), 'de: Smart Contracts');
+  assert.ok(v96src.tFor('en')('wh.not2').includes('smart contracts'), 'en');
+  assert.ok(v96src.tFor('pl')('wh.not2').includes('ETH przesłane przez kontrakty pomijamy'), 'pl bez zmian (jak nota ETH nad tabelą)');
+  assert.ok(html.includes("const turn=(a.aum&&typeof a.d1==='number'&&isFinite(a.d1))?a.d1/a.aum*100:null;"), 'ETF: obrót bez przepływu dnia = „—” (wpis monety z v203)');
 });

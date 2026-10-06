@@ -751,7 +751,7 @@ def najdluzsze_udane(runs, now, n=3):
     return [i for _, i in sorted(out, key=lambda x: -x[0])[:n]]
 
 
-def budowa_kandydaci(runs, now, n=3, prog_min=20, cap=10):
+def budowa_kandydaci(runs, now, n=3, prog_min=20, cap=40):   # v203: cap 40 (było 10) — każdy udany > 20 min
     """v199: przebiegi do odczytu czasu zadania budowy: n najdłuższych udanych z 24 h i każdy udany dłuższy niż prog_min min (razem najwyżej cap)
     — przy czekaniu w kolejce najdłuższa budowa nie musi być wśród 3 najdłuższych przebiegów (przegląd 06.10)."""
     ids = najdluzsze_udane(runs, now, len(runs) if isinstance(runs, list) else 0)

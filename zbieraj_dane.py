@@ -2517,8 +2517,10 @@ def twse_part(prev_tw, key):
     recent = tw_dates(set(have), empty, now_tpe, first=not have)[-TWSE_MAX:]
     # v197: ponowny odczyt ostatnich sesji — giełda poprawia liczby po pierwszej publikacji (dotąd dzień „w pliku” = nigdy więcej)
     chk = {k: v for k, v in (prev_tw.get('chk') or {}).items() if isinstance(k, str) and isinstance(v, str) and k in have}
+    rtry = {k: v for k, v in (prev_tw.get('rtry') or {}).items() if isinstance(k, str) and isinstance(v, str) and k in have}   # v203: czas nieudanej próby
     ref = [k for k in sorted(have) if k not in recent and _d(k) and 0 <= (now_tpe.date() - _d(k)).days <= (TW_REFRESH_D if k in chk else TW_REFRESH_NEW)
-           and (_age_h(chk.get(k)) is None or _age_h(chk[k]) >= TW_REFRESH_H)]   # v198: dzień bez chk do 14 dni — raz
+           and (_age_h(chk.get(k)) is None or _age_h(chk[k]) >= TW_REFRESH_H)
+           and (_age_h(rtry.get(k)) is None or _age_h(rtry[k]) >= TW_REFRESH_H)]   # v198: dzień bez chk do 14 dni — raz; v203: po błędzie — za 3 godz.
     rfails, zm = [], []
     wait = {k for k, v in pend.items() if _age_h(v) < TW_PEND_H}
     back = tw_back(set(have), empty, now_tpe, skip=set(recent) | wait)[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz
@@ -2527,17 +2529,20 @@ def twse_part(prev_tw, key):
         old = iso in back
         again = iso in ref                               # v197: ponowny odczyt dnia, który już jest w pliku
         bad = bfails if old else (rfails if again else fails)
-        if old and not _back_ok(t0, BACK_BUDGET, TWSE_SLEEP + TW_BACK_TIMEOUT):
-            break                                        # ostatnie dni zawsze, starsze — tylko w budżecie czasu (v95.1–v95.2)
+        if (old or again) and not _back_ok(t0, BACK_BUDGET, TWSE_SLEEP + TW_BACK_TIMEOUT):
+            break                                        # ostatnie dni zawsze; ponowny odczyt (v203) i starsze — tylko w budżecie czasu (v95.1–v95.2)
         time.sleep(TWSE_SLEEP)
         try:
             u = TWSE_URL.format(d=iso.replace('-', ''))
-            j = get_json(u, timeout=TW_BACK_TIMEOUT) if old else get_json(u)
+            j = get_json(u, timeout=TW_BACK_TIMEOUT) if (old or again) else get_json(u)
             r = parse_twse(j)
         except Exception as e:
-            bad.append(f'{iso}: {e}'); continue
+            bad.append(f'{iso}: {e}')
+            if again:
+                rtry[iso] = NOW                          # v203: następna próba za TW_REFRESH_H, nie co przebieg
+            continue
         if again and (r is None or r[0] != iso):         # v197: „No Data!” albo inna data przy ponownym odczycie — poprzednie liczby, dzień NIE „bez sesji”
-            rfails.append(f"{iso}: {str(j.get('stat'))[:60] if isinstance(j, dict) else 'nieczytelna odpowiedź'}"); continue
+            rfails.append(f"{iso}: {str(j.get('stat'))[:60] if isinstance(j, dict) else 'nieczytelna odpowiedź'}"); rtry[iso] = NOW; continue
         if r is None:
             if iso < now_tpe.date().isoformat():
                 if _twse_nodata(j) and (not old or iso in pend):
@@ -2549,7 +2554,7 @@ def twse_part(prev_tw, key):
             continue
         if again and have[r[0]][:5] != r[:5]:
             zm.append(iso)
-        have[r[0]] = r[:5]; pend.pop(iso, None); chk[r[0]] = NOW
+        have[r[0]] = r[:5]; pend.pop(iso, None); chk[r[0]] = NOW; rtry.pop(r[0], None)
     if not have:
         raise RuntimeError('brak dni' + (f' ({fails[0]})' if fails else ''))
     if zm:
@@ -2578,7 +2583,8 @@ def twse_part(prev_tw, key):
             r[5:] = [None, None]
     keep = {r[0] for r in d}
     chk = {k: v for k, v in chk.items() if k in keep and _d(k) and (now_tpe.date() - _d(k)).days <= TW_REFRESH_NEW + 1}   # v198: dłużej niż okno „raz”
-    return {'at': NOW, 'src': 'TWSE — Trading Value of Foreign & Other Investors (BFI82U)', **({'chk': chk} if chk else {}),
+    rtry = {k: v for k, v in rtry.items() if k in keep and _d(k) and (now_tpe.date() - _d(k)).days <= TW_REFRESH_NEW + 1}
+    return {'at': NOW, 'src': 'TWSE — Trading Value of Foreign & Other Investors (BFI82U)', **({'chk': chk} if chk else {}), **({'rtry': rtry} if rtry else {}),
             'url': 'https://www.twse.com.tw/en/trading/foreign/bfi82u.html', 'unit': 'mln TWD; ≈ mln USD kursem Fed H.10 (FRED DEXTAUS)',
             'cols': ['data', 'zagraniczni', 'fundusze krajowe', 'dealerzy', 'razem', '≈ mln USD (zagraniczni)', 'data kursu'],
             'asof': d[-1][0], 'empty': sorted(empty), **({'pend': pend} if pend else {}), 'd': d}
@@ -4525,6 +4531,7 @@ def etf_fee(ticker, v):
 
 
 ETF_SUMA_TOL = 0.05   # v199: mln USD — suma przepływów funduszy wobec przepływu dnia (na żywo równe co do grosza; dawniej max(0,5 mln, 2%))
+ETF_FUNDS_MAX = 20    # v203: najwyżej tyle funduszy na monetę (było 12 — lista BTC ma już 12); obcięta lista = sumy nie da się sprawdzić
 
 
 def _etf_rowne(x, y):
@@ -4560,12 +4567,15 @@ def build_etf(key, cg_key, prev=None):
     if not nowe:   # wszystkie monety zawiodły — main zostawia poprzedni plik z jego czasem
         raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
     top = max(a['asof'] for a in out['assets'].values())
-    for s, pa in stare.items():   # v199: poprzedni wpis tylko do 3 dni od najnowszej monety — inaczej stary przepływ dnia w sumie „dziś” bez końca
+    for s, pa in stare.items():   # v199/v203: poprzedni wpis z własną datą; ponad 3 dni od najnowszej monety — bez przepływów (nie stary dzień w sumie „dziś”)
+        a = json.loads(json.dumps(pa))
         if pa['asof'] >= (_d(top) - datetime.timedelta(days=3)).isoformat():
-            out['assets'][s] = json.loads(json.dumps(pa))
             META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]}')
-        else:
-            META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]} pominięte — ponad 3 dni starsze od pozostałych ({top})')
+        else:   # v203: wpis zostaje (historia dni), ale przepływy = brak — suma kolumn na stronie „—”, nie moneta liczona jak zero
+            a.update(d1=None, w=None, m=None, funds=[], stale=True); a.pop('funds_at', None)
+            META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]} — ponad 3 dni starsze od pozostałych ({top}); '
+                                 'przepływy „—”, historia dni zachowana')
+        out['assets'][s] = a
     out['assets'] = {s: out['assets'][s] for s in ETF_SYMS if s in out['assets']}
     ph = prev.get('hk') if isinstance(prev, dict) and isinstance(prev.get('hk'), dict) and prev['hk'] else None
     hat = _ix_dt(prev.get('hk_at')) if isinstance(prev, dict) else None
@@ -4652,7 +4662,8 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
                     a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]
         else:
             a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]; a['funds_at'] = prev_a['funds_at']
-        for it in (lst or [])[:12]:
+        obc = len(lst or []) > ETF_FUNDS_MAX   # v203
+        for it in (lst or [])[:ETF_FUNDS_MAX]:
             if _DEADLINE[0] is not None and time.monotonic() > _DEADLINE[0]:   # v49: limit czasu przebiegu
                 META['errors'].append(f'SoSoValue {s.upper()}: lista funduszy pominięta — limit czasu przebiegu'); pelna = False; break
             if not TICKER.match(str(it.get('ticker', ''))):
@@ -4674,7 +4685,9 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
             # albo 2%) — przy zmianie dnia szczegóły funduszy bywają jeszcze z dnia poprzedniego; inaczej następny przebieg pobiera listę znowu
             d1f = [f.get('d1') for f in a['funds']]
             nl = [x for x in d1f if isinstance(x, (int, float)) and not isinstance(x, bool)]
-            if a['funds'] and len(nl) == len(d1f) and abs(sum(nl) - a['d1']) <= ETF_SUMA_TOL:
+            if obc:
+                META['notes'].append(f'SoSoValue {s.upper()}: lista funduszy obcięta do {ETF_FUNDS_MAX} z {len(lst)} — suma nie sprawdzana')
+            if a['funds'] and len(nl) == len(d1f) and (obc or abs(sum(nl) - a['d1']) <= ETF_SUMA_TOL):
                 a['funds_at'] = NOW   # v192: pełna lista z tego przebiegu
             else:
                 META['notes'].append(f'SoSoValue {s.upper()}: lista funduszy niezgodna z przepływem dnia ({a["d1"]:+.1f} mln; suma {sum(nl):+.1f} mln z '
