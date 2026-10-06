@@ -98,9 +98,23 @@ STOPY_FRED = {'US': (('DFEDTARL', 'DFEDTARU'), 'Fed'), 'XM': (('ECBDFR',), 'EBC'
 # v242: najpierw źródło banku, bez klucza (FRED z serwerów GitHub nie odpowiedział w 30 s): Fed — przedział celu z danych EFFR nowojorskiego Fed,
 # EBC — stopa depozytowa z portalu danych EBC; kolejność wariantów = pierwszeństwo
 STOPY_SERIE = {'US': ((('NYFED_LO', 'NYFED_HI'), 'Fed', 'NY Fed'), (('DFEDTARL', 'DFEDTARU'), 'Fed', 'FRED')),
-               'XM': ((('ECB_DFR',), 'EBC', 'EBC'), (('ECBDFR',), 'EBC', 'FRED'))}
+               'XM': ((('ECB_DFR',), 'EBC', 'EBC'), (('ECBDFR',), 'EBC', 'FRED')),
+               # v244: sześć kolejnych banków u źródła, bez klucza (06.10.2026 wszystkie zgodne ze stroną); bez zapasu FRED (brak serii dziennych)
+               'GB': ((('BOE_BR',), 'Bank Anglii', 'BoE'),), 'CH': ((('SNB_LZ',), 'Bank Szwajcarii', 'SNB'),),
+               'SE': ((('RB_POL',), 'Bank Szwecji', 'Riksbank'),), 'NO': ((('NB_KPRA',), 'Bank Norwegii', 'Norges Bank'),),
+               'PL': ((('NBP_REF',), 'NBP', 'NBP'),), 'CA': ((('BOC_V39079',), 'Bank Kanady', 'BoC'),)}
 STOPY_NYFED = 'https://markets.newyorkfed.org/api/rates/unsecured/effr/last/100.json'
 STOPY_ECB = 'https://data-api.ecb.europa.eu/service/data/FM/D.U2.EUR.4F.KR.DFR.LEV?lastNObservations=150&format=csvdata'
+# v244: adresy kolejnych banków ({od} = dzień początkowy, {do} = dziś; Bank Anglii — data „08/Jun/2026”). Bank Australii odrzuca automaty
+# (403 — zabezpieczenie) — pominięty.
+STOPY_BOE = ('https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp?csv.x=yes&Datefrom={od}&Dateto=now'
+             '&SeriesCodes=IUDBEDR&CSVF=TN&UsingCodes=Y&VPD=Y&VFD=N')
+STOPY_SNB = 'https://data.snb.ch/api/cube/snbgwdzid/data/csv/en?dimSel=D0(LZ)&fromDate={od}'
+STOPY_RIKS = 'https://api.riksbank.se/swea/v1/Observations/SECBREPOEFF/{od}/{do}'
+STOPY_NORGES = 'https://data.norges-bank.no/api/data/IR/B.KPRA.SD.R?format=csv&startPeriod={od}&locale=en'
+STOPY_NBP = 'https://static.nbp.pl/dane/stopy/stopy_procentowe.xml'   # tylko stopa obowiązująca i dzień, od którego obowiązuje (archiwum do 2015)
+STOPY_BOC = 'https://www.bankofcanada.ca/valet/observations/V39079/json?start_date={od}'
+STOPY_MIES_EN = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 STOPY_FRED_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&cosd={od}'
 STOPY_OD_DNI = 120    # FRED: plik od tylu dni wstecz (data stopy na stronie bywa sprzed kilku tygodni — np. RBI)
 STOPY_PROG = 0.01     # pkt proc. — większa różnica w tym samym dniu = ⚠️
@@ -132,15 +146,16 @@ def stopy_nyfed(body):
     return {'NYFED_LO': lo, 'NYFED_HI': hi}
 
 
-def stopy_ecb_csv(body):
-    """v242: CSV portalu danych EBC (kolumny TIME_PERIOD, OBS_VALUE) → {dzień: stopa}; puste wartości pominięte; pusto = wyjątek."""
-    L = (body.decode('utf-8', 'replace') if isinstance(body, (bytes, bytearray)) else str(body)).splitlines()
-    h = L[0].split(',') if L else []
+def stopy_ecb_csv(body, sep=','):
+    """v242: CSV portalu danych EBC (kolumny TIME_PERIOD, OBS_VALUE) → {dzień: stopa}; puste wartości pominięte; pusto = wyjątek.
+    v244: sep=';' — ten sam układ SDMX u Norges Bank; znacznik BOM pominięty."""
+    L = (body.decode('utf-8-sig', 'replace') if isinstance(body, (bytes, bytearray)) else str(body)).splitlines()
+    h = L[0].split(sep) if L else []
     if 'TIME_PERIOD' not in h or 'OBS_VALUE' not in h:
         raise ValueError('nieznany nagłówek')
     i, j, out = h.index('TIME_PERIOD'), h.index('OBS_VALUE'), {}
     for line in L[1:]:
-        p = line.split(',')
+        p = line.split(sep)
         if len(p) > max(i, j) and re.match(r'^\d{4}-\d{2}-\d{2}$', p[i]):
             try:
                 v = float(p[j])
@@ -151,6 +166,113 @@ def stopy_ecb_csv(body):
     if not out:
         raise ValueError('plik bez liczb')
     return out
+
+
+def _stopy_tekst(body):
+    """v244: treść odpowiedzi jako tekst, bez znacznika BOM."""
+    return body.decode('utf-8-sig', 'replace') if isinstance(body, (bytes, bytearray)) else str(body).lstrip('﻿')
+
+
+def _stopy_liczba(x):
+    """v244: stopa z liczby albo tekstu („3,75” i „3.75”); NaN, nieskończoność, wartości absurdalne i typ bool = None."""
+    if isinstance(x, bool):
+        return None
+    if isinstance(x, str):
+        try:
+            x = float(x.strip().replace(',', '.'))
+        except ValueError:
+            return None
+    return float(x) if isinstance(x, (int, float)) and x == x and abs(x) < 1e6 else None
+
+
+def stopy_boe(body):
+    """v244: CSV bazy danych Banku Anglii (DATE,IUDBEDR; wiersze „05 Oct 2026,3.75”) → {'BOE_BR': {dzień: stopa}}; inny nagłówek (np. strona
+    błędu z kodem 200) = wyjątek; skróty miesięcy po angielsku bez ustawień regionalnych."""
+    L = _stopy_tekst(body).splitlines()
+    if not L or L[0].replace(' ', '') != 'DATE,IUDBEDR':
+        raise ValueError('nieznany nagłówek')
+    out = {}
+    for line in L[1:]:
+        p = line.split(',')
+        m = re.match(r'^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$', p[0].strip()) if len(p) == 2 else None
+        v = _stopy_liczba(p[1]) if m and m.group(2) in STOPY_MIES_EN else None
+        if v is not None:
+            out[f'{m.group(3)}-{STOPY_MIES_EN.index(m.group(2)) + 1:02d}-{int(m.group(1)):02d}'] = v
+    if not out:
+        raise ValueError('plik bez liczb')
+    return {'BOE_BR': out}
+
+
+def stopy_snb(body):
+    """v244: CSV portalu danych SNB (średniki, cudzysłowy: „"2026-10-02";"LZ";"0"”) → {'SNB_LZ': {dzień: stopa}} — tylko wymiar LZ (stopa SNB)."""
+    out = {}
+    for line in _stopy_tekst(body).splitlines():
+        p = [x.strip().strip('"') for x in line.split(';')]
+        if len(p) == 3 and p[1] == 'LZ' and re.match(r'^\d{4}-\d{2}-\d{2}$', p[0]):
+            v = _stopy_liczba(p[2])
+            if v is not None:
+                out[p[0]] = v
+    if not out:
+        raise ValueError('plik bez liczb')
+    return {'SNB_LZ': out}
+
+
+def stopy_riksbank(body):
+    """v244: JSON Riksbanku (lista {date, value}) → {'RB_POL': {dzień: stopa}}."""
+    j = json.loads(body)
+    out = {}
+    for r in j if isinstance(j, list) else []:
+        d, v = (r.get('date'), _stopy_liczba(r.get('value'))) if isinstance(r, dict) else (None, None)
+        if isinstance(d, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', d) and v is not None:
+            out[d] = v
+    if not out:
+        raise ValueError('brak stóp')
+    return {'RB_POL': out}
+
+
+def stopy_norges(body):
+    """v244: CSV Norges Bank (SDMX, średniki; kolumny TIME_PERIOD, OBS_VALUE) → {'NB_KPRA': {dzień: stopa}}."""
+    return {'NB_KPRA': stopy_ecb_csv(body, sep=';')}
+
+
+def stopy_nbp(body):
+    """v244: XML stóp NBP — tylko stopa obowiązująca (pozycja id="ref", „3,75”) i dzień, od którego obowiązuje → {'NBP_REF': {dzień: stopa}}:
+    seria schodkowa z jednym punktem (ta stopa na każdy dzień od tej daty; dzień strony sprzed niej — bez porównania, ale ze zmianą)."""
+    for m in re.finditer(r'<pozycja\b([^>]*)>', _stopy_tekst(body)):
+        a = dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', m.group(1)))
+        if a.get('id') == 'ref':
+            d, v = a.get('obowiazuje_od', ''), _stopy_liczba(a.get('oprocentowanie', ''))
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', d) or v is None:
+                raise ValueError('zła stopa referencyjna')
+            return {'NBP_REF': {d: v}}
+    raise ValueError('brak stopy referencyjnej')
+
+
+def stopy_boc(body):
+    """v244: JSON Banku Kanady (Valet: observations [{d, V39079: {v: "2.25"}}]) → {'BOC_V39079': {dzień: stopa}}."""
+    j = json.loads(body)
+    out = {}
+    for r in (j.get('observations') or []) if isinstance(j, dict) else []:
+        o = r.get('V39079') if isinstance(r, dict) else None
+        d, v = (r.get('d'), _stopy_liczba(o.get('v'))) if isinstance(o, dict) else (None, None)
+        if isinstance(d, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', d) and v is not None:
+            out[d] = v
+    if not out:
+        raise ValueError('brak stóp')
+    return {'BOC_V39079': out}
+
+
+def stopy_adresy(now=None):
+    """v244: (nazwa źródła, adres, parser) kolejnych banków — od STOPY_OD_DNI dni wstecz do dziś."""
+    now = now or NOW
+    d0, d1 = now.date() - dt.timedelta(days=STOPY_OD_DNI), now.date()
+    od = d0.isoformat()
+    return (('BoE', STOPY_BOE.format(od=f'{d0.day:02d}/{STOPY_MIES_EN[d0.month - 1]}/{d0.year}'), stopy_boe),
+            ('SNB', STOPY_SNB.format(od=od), stopy_snb),
+            ('Riksbank', STOPY_RIKS.format(od=od, do=d1.isoformat()), stopy_riksbank),
+            ('Norges Bank', STOPY_NORGES.format(od=od), stopy_norges),
+            ('NBP', STOPY_NBP, stopy_nbp),
+            ('BoC', STOPY_BOC.format(od=od), stopy_boc))
 
 
 def stopy_porownanie(stopy, fred, now=None):
@@ -183,7 +305,16 @@ def stopy_porownanie(stopy, fred, now=None):
                 wyb = (S, zr, f)
                 break
         if wyb is None:
-            out.append({'bank': nazwa, 'brak': f'brak serii obejmującej dzień strony ({r["date"]})'})
+            o = {'bank': nazwa, 'brak': f'brak serii obejmującej dzień strony ({r["date"]})'}
+            for ids, _, zr in warianty:   # v244: seria zaczyna się po dniu strony (NBP podaje tylko stopę obowiązującą): inna stopa = zmiana,
+                if all(isinstance(F.get(i), dict) and F.get(i) for i in ids):   # której strona jeszcze nie ma (uwaga po STOPY_ZWLOKA_DNI)
+                    S = [F[i] for i in ids]
+                    d0 = max(min(s) for s in S)
+                    v = _stopa_fred(S, d0)
+                    if v is not None and abs(v - rate) >= STOPY_PROG:
+                        o.update(zrodlo=zr, data=r['date'], strona=float(rate), zmiana=[d0, round(v, 4)])
+                    break
+            out.append(o)
             continue
         S, zr, f = wyb
         o = {'bank': nazwa, 'zrodlo': zr, 'data': r['date'], 'strona': float(rate), 'fred': round(f, 4), 'zgodne': abs(rate - f) < STOPY_PROG, 'zmiana': None}
@@ -199,37 +330,40 @@ def stopy_porownanie(stopy, fred, now=None):
 
 def stopy_wiersz(sp, now=None):
     """v241: wiersz raportu z Z['stopy'] — porównanie albo brak odczytu (informacja, nigdy „zgodne”); zmiana stopy, której strona jeszcze nie
-    ma: ℹ️ do STOPY_ZWLOKA_DNI dni, potem ⚠️ (jak uwaga)."""
+    ma: ℹ️ do STOPY_ZWLOKA_DNI dni, potem ⚠️ (jak uwaga). v243: bank bez porównania widoczny, z powodem. v244: zmiana także przy braku
+    porównania (seria banku zaczyna się po dniu strony — NBP podaje tylko stopę obowiązującą)."""
     now = now or NOW
     n = lambda x: format(x, 'g').replace('.', ',')  # noqa: E731
     W = sp.get('wyniki') or []
     if not W:
         return f'- Stopy banków centralnych (strona vs źródło banku): brak odczytu ({sp.get("brak") or "brak wspólnych danych"}) ℹ️.'
-    bez = [o for o in W if o.get('brak')]   # v243: bank bez porównania — widoczny, z powodem
-    W = [o for o in W if not o.get('brak')]
-    def znak(o):
-        if not o['zgodne']:
-            return '⚠️'
+
+    def stara(o):
         z = o.get('zmiana')
-        if not z:
-            return '✅'
-        return '⚠️' if (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI else 'ℹ️'
-    return '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): ' + '; '.join(
-        f'{o["bank"]} {n(o["strona"])}% ' + ('= ' if o['zgodne'] else '≠ ') + f'{n(o["fred"])}% ({o.get("zrodlo") or "FRED"}) ' + znak(o)
-        + (f' (zmiana {o["zmiana"][0]} na {n(o["zmiana"][1])}% — strona jeszcze bez niej)' if o.get('zmiana') else '') for o in W)\
-        + ('; '.join([''] + [f'{o["bank"]}: brak porównania ({o["brak"]}) ℹ️' for o in bez]) if W else '; '.join(f'{o["bank"]}: brak porównania ({o["brak"]}) ℹ️' for o in bez))\
-        + (f'; błędy odczytu: {sp["brak"]}' if bez and sp.get('brak') else '') + '.'
+        return bool(z) and (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI
+
+    def poz(o):
+        z = o.get('zmiana')
+        zm = f' (zmiana {z[0]} na {n(z[1])}% — strona jeszcze bez niej)' if z else ''
+        if o.get('brak'):
+            return f'{o["bank"]}: brak porównania ({o["brak"]}) ' + ('⚠️' if stara(o) else 'ℹ️') + zm
+        znak = '⚠️' if not o['zgodne'] or stara(o) else ('ℹ️' if z else '✅')
+        return (f'{o["bank"]} {n(o["strona"])}% ' + ('= ' if o['zgodne'] else '≠ ') + f'{n(o["fred"])}% ({o.get("zrodlo") or "FRED"}) '
+                + znak + zm)
+    bez = [o for o in W if o.get('brak')]
+    return ('- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): '
+            + '; '.join(poz(o) for o in [o for o in W if not o.get('brak')] + bez)
+            + (f'; błędy odczytu: {sp["brak"]}' if bez and sp.get('brak') else '') + '.')
 
 
 def stopy_uwagi(P, now=None):
-    """v241: uwagi z wyniku stopy_porownanie — różnica w tym samym dniu; zmiana stopy starsza niż STOPY_ZWLOKA_DNI, której strona nie ma."""
+    """v241: uwagi z wyniku stopy_porownanie — różnica w tym samym dniu; zmiana stopy starsza niż STOPY_ZWLOKA_DNI, której strona nie ma
+    (v244: także przy braku porównania — seria banku zaczyna się po dniu strony). Bank bez porównania i bez zmiany — tylko informacja (v243)."""
     now = now or NOW
     n = lambda x: format(x, 'g').replace('.', ',')  # noqa: E731
     out = []
     for o in P or []:
-        if o.get('brak'):   # v243: bez porównania — informacja w wierszu, nie uwaga
-            continue
-        if not o.get('zgodne'):
+        if not o.get('brak') and not o.get('zgodne'):
             out.append(f'stopy banków centralnych: {o["bank"]} na stronie {n(o["strona"])}% vs {o.get("zrodlo") or "FRED"} {n(o["fred"])}% ({o["data"]}) — sprawdzić plik stóp strony')
         z = o.get('zmiana')
         if z and (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI:
@@ -3015,7 +3149,7 @@ def kontrola():
                                   + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]))
         else:
             Z['ust10'] = {'brak': '; '.join(bu)[:200]}
-    if isinstance(files.get('stopy'), dict):   # v241: stopy Fed i EBC vs FRED (bez klucza); brak odczytu = informacja
+    if isinstance(files.get('stopy'), dict):   # v241: stopy Fed i EBC vs FRED (bez klucza); brak odczytu = informacja; v244: + 6 banków u źródła
         Fs, bs = {}, []
         try:   # v242: źródło banku najpierw (bez klucza)
             Fs.update(stopy_nyfed(get(STOPY_NYFED, timeout=20)[1]))
@@ -3026,6 +3160,11 @@ def kontrola():
         except Exception as e:  # noqa
             bs.append(f'EBC: {str(e)[:60]}')
         od_s = (NOW.date() - dt.timedelta(days=STOPY_OD_DNI)).isoformat()
+        for nm, url, fn in stopy_adresy():   # v244: sześć kolejnych banków u źródła (bez klucza); błąd jednego = brak porównania tego banku
+            try:
+                Fs.update(fn(get(url, timeout=15)[1]))
+            except Exception as e:  # noqa
+                bs.append(f'{nm}: {str(e)[:60]}')
         Ps = stopy_porownanie(files['stopy'], Fs)
         bez = {o['bank'] for o in Ps if o.get('brak') and o['brak'].startswith('brak serii')}   # v243: także gdy seria banku nie sięga dnia strony
         ids_f = sorted({i for a, (ids, nm) in STOPY_FRED.items() if nm in bez for i in ids if i not in Fs})

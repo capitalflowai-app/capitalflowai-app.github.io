@@ -27119,10 +27119,10 @@ class KontrolaStopyV241(unittest.TestCase):
     def test_06_10_zgodne(self):
         k = self.k
         P = k.stopy_porownanie(self.S, self.F(), self.NOW)
-        self.assertEqual([(o['bank'], o['strona'], o['fred'], o['zgodne'], o['zmiana']) for o in P],   # v242: dane FRED — zapas
+        self.assertEqual([(o['bank'], o['strona'], o['fred'], o['zgodne'], o['zmiana']) for o in P if not o.get('brak')],   # v242: dane FRED — zapas; v244: pozostałe banki bez serii
                          [('Fed', 3.875, 3.875, True, None), ('EBC', 2.5, 2.5, True, None)])
         self.assertEqual(k.stopy_uwagi(P, self.NOW), [])
-        self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW), '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (FRED) ✅; EBC 2,5% = 2,5% (FRED) ✅.')
+        self.assertEqual(k.stopy_wiersz({'wyniki': P[:2]}, self.NOW), '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (FRED) ✅; EBC 2,5% = 2,5% (FRED) ✅.')
 
     def test_roznica_i_zmiana(self):
         k = self.k
@@ -27141,12 +27141,12 @@ class KontrolaStopyV241(unittest.TestCase):
     def test_braki(self):
         k = self.k
         brak = lambda P: [(o['bank'], bool(o.get('brak'))) for o in P]  # noqa: E731 — v243: jedna pozycja na bank, bez porównania = 'brak'
-        self.assertEqual(brak(k.stopy_porownanie(self.S, {}, self.NOW)), [('Fed', True), ('EBC', True)], 'bez serii — nic do porównania (nie „zgodne”)')
+        self.assertEqual(brak(k.stopy_porownanie(self.S, {}, self.NOW))[:2], [('Fed', True), ('EBC', True)], 'bez serii — nic do porównania (nie „zgodne”)')
         self.assertEqual(k.stopy_porownanie(None, self.F(), self.NOW), [])
         S2 = {'rows': {'US': {'rate': None, 'date': '2026-09-28'}, 'XM': {'rate': 2.5, 'date': 'x'}}}
-        self.assertEqual(brak(k.stopy_porownanie(S2, self.F(), self.NOW)), [('Fed', True), ('EBC', True)])
+        self.assertEqual(brak(k.stopy_porownanie(S2, self.F(), self.NOW))[:2], [('Fed', True), ('EBC', True)])
         S3 = {'rows': {'US': {'rate': 3.875, 'date': '2026-01-01'}}}
-        self.assertEqual(brak(k.stopy_porownanie(S3, self.F(), self.NOW)), [('Fed', True), ('EBC', True)], 'data strony sprzed serii — bez porównania')
+        self.assertEqual(brak(k.stopy_porownanie(S3, self.F(), self.NOW))[:2], [('Fed', True), ('EBC', True)], 'data strony sprzed serii — bez porównania')
         self.assertEqual(k.stopy_wiersz({'wyniki': [], 'brak': 'DFEDTARL: timed out'}, self.NOW), '- Stopy banków centralnych (strona vs źródło banku): brak odczytu (DFEDTARL: timed out) ℹ️.')
         self.assertIn('stopy', k.PLIKI); self.assertEqual(k.LIMIT_MIN['stopy'], 24 * 60)
         self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
@@ -27191,11 +27191,11 @@ class PoPrzegladzieV242(unittest.TestCase):
         F = {'NYFED_LO': {d: 3.75 for d in days}, 'NYFED_HI': {d: 4.0 for d in days}, 'ECB_DFR': {d: 2.5 for d in days},
              'DFEDTARL': {d: 9.0 for d in days}, 'DFEDTARU': {d: 9.0 for d in days}}
         P = k.stopy_porownanie(S, F, self.NOW)
-        self.assertEqual([(o['bank'], o['zrodlo'], o['zgodne']) for o in P], [('Fed', 'NY Fed', True), ('EBC', 'EBC', True)], 'źródło banku przed FRED')
-        self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW),
+        self.assertEqual([(o['bank'], o['zrodlo'], o['zgodne']) for o in P[:2]], [('Fed', 'NY Fed', True), ('EBC', 'EBC', True)], 'źródło banku przed FRED')
+        self.assertEqual(k.stopy_wiersz({'wyniki': P[:2]}, self.NOW),
                          '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (NY Fed) ✅; EBC 2,5% = 2,5% (EBC) ✅.')
         P2 = k.stopy_porownanie(S, {'DFEDTARL': F['NYFED_LO'], 'DFEDTARU': F['NYFED_HI']}, self.NOW)
-        self.assertEqual([(o['bank'], o.get('zrodlo'), bool(o.get('brak'))) for o in P2], [('Fed', 'FRED', False), ('EBC', None, True)], 'zapas FRED; EBC bez serii — „brak porównania” (v243)')
+        self.assertEqual([(o['bank'], o.get('zrodlo'), bool(o.get('brak'))) for o in P2[:2]], [('Fed', 'FRED', False), ('EBC', None, True)], 'zapas FRED; EBC bez serii — „brak porównania” (v243)')
         import inspect
         src = inspect.getsource(k.kontrola)
         self.assertIn('stopy_nyfed(get(STOPY_NYFED', src); self.assertIn('stopy_ecb_csv(get(STOPY_ECB', src)
@@ -27242,7 +27242,8 @@ class PoPrzegladzieV243(unittest.TestCase):
         k = self.k
         days = ['2026-09-%02d' % d for d in range(20, 31)]
         P = k.stopy_porownanie(self.S, {'ECB_DFR': {d: 2.5 for d in days}}, self.NOW)
-        self.assertEqual([o['bank'] for o in P], ['Fed', 'EBC'], 'jedna pozycja na bank')
+        self.assertEqual([o['bank'] for o in P], ['Fed', 'EBC', 'Bank Anglii', 'Bank Szwajcarii', 'Bank Szwecji', 'Bank Norwegii', 'NBP', 'Bank Kanady'],
+                         'jedna pozycja na bank (v244: 8 banków)')
         self.assertIn('brak serii obejmującej dzień strony (2026-09-28)', P[0]['brak'])
         w = k.stopy_wiersz({'wyniki': P, 'brak': 'NY Fed: timed out; DFEDTARL: timed out'}, self.NOW)
         self.assertIn('Fed: brak porównania (brak serii obejmującej dzień strony (2026-09-28)) ℹ️', w)
@@ -27309,3 +27310,144 @@ class PoPrzegladzieV243(unittest.TestCase):
         self.assertEqual((W['OKX']['kontrola'], W['OKX']['nie_wiadomo']), ('brak', 1), 'druga próba kontrolna — blokada w trakcie')
         self.assertIn('nie wiadomo (plik obecnej listy nie odpowiada plikiem', k.wh_nowe_wiersz(W))
         self.assertIn('nie wiadomo (błąd sprawdzania', k.wh_nowe_wiersz({'_blad': 'KeyError'}))
+
+
+# ===================== v244: KONTROLA — STOPY SZEŚCIU KOLEJNYCH BANKÓW U ŹRÓDŁA =====================
+class KontrolaStopyV244(unittest.TestCase):
+    """v244: Bank Anglii, Szwajcarii, Szwecji, Norwegii, NBP i Bank Kanady u źródła (bez klucza) — ten sam dzień co strona; NBP podaje tylko
+    stopę obowiązującą (seria schodkowa); zmiana, której strona nie ma, także przy braku porównania; jedna pozycja na bank."""
+
+    BOE = b'DATE,IUDBEDR\r\n24 Sep 2026,3.75\r\n25 Sep 2026,3.75\r\n28 Sep 2026,3.75\r\n29 Sep 2026,3.75\r\n05 Oct 2026,3.75\r\n'
+    SNB = '﻿"CubeId";"snbgwdzid"\n"PublishingDate";"2026-10-05 10:00"\n\n"Date";"D0";"Value"\n"2026-09-25";"LZ";"0"\n"2026-09-29";"LZ";"0"\n"2026-10-02";"LZ";"0"\n'.encode()
+    RIKS = b'[{"date":"2026-09-25","value":1.75},{"date":"2026-09-29","value":1.75},{"date":"2026-10-06","value":1.75}]'
+    NORGES = ('FREQ;Frequency;INSTRUMENT_TYPE;Instrument Type;TENOR;Tenor;UNIT_MEASURE;Unit of Measure;DECIMALS;COLLECTION;Collection Indicator;'
+              'TIME_PERIOD;OBS_VALUE;CALC_METHOD;Calculation Method\n'
+              'B;Business;KPRA;Key policy rate;SD;Policy rate;R;Rate;2;E;End of day;2026-09-24;4.25;;\n'
+              'B;Business;KPRA;Key policy rate;SD;Policy rate;R;Rate;2;E;End of day;2026-09-25;4.5;;\n'
+              'B;Business;KPRA;Key policy rate;SD;Policy rate;R;Rate;2;E;End of day;2026-10-05;4.5;;\n').encode()
+    NBP = ('﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<stopy_procentowe data_publikacji="2026-03-05">\n'
+           '    <tabela\n        id="stoproc"\n        naglowek="Stopa procentowa:">\n'
+           '        <pozycja\n            id="ref"\n            nazwa="Stopa referencyjna"\n            oprocentowanie="3,75"\n            trend = "spadek"\n'
+           '            obowiazuje_od="2026-03-05" />\n'
+           '        <pozycja\n            id="lom"\n            nazwa="Stopa lombardowa"\n            oprocentowanie="4,25"\n            obowiazuje_od="2026-03-05" />\n'
+           '    </tabela>\n</stopy_procentowe>\n').encode()
+    BOC = b'{"terms":{"url":"x"},"observations":[{"d":"2026-09-25","V39079":{"v":"2.25"}},{"d":"2026-09-29","V39079":{"v":"2.25"}},{"d":"2026-10-05","V39079":{"v":"2.25"}}]}'
+    # wiersze pliku strony z 06.10.2026 (osiem porównywanych banków + Japonia — bez źródła, pomijana)
+    S = {'rows': {'US': {'rate': 3.875, 'date': '2026-09-28'}, 'XM': {'rate': 2.5, 'date': '2026-09-29'}, 'GB': {'rate': 3.75, 'date': '2026-09-28'},
+                  'CH': {'rate': 0.0, 'date': '2026-09-29'}, 'SE': {'rate': 1.75, 'date': '2026-09-29'}, 'NO': {'rate': 4.5, 'date': '2026-09-25'},
+                  'PL': {'rate': 3.75, 'date': '2026-09-29'}, 'CA': {'rate': 2.25, 'date': '2026-09-28'}, 'JP': {'rate': 1.25, 'date': '2026-09-29'}}}
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola244-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v244_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+
+    def F(self):
+        k = self.k
+        days = ['2026-09-%02d' % d for d in range(20, 31)]
+        F = {'NYFED_LO': {d: 3.75 for d in days}, 'NYFED_HI': {d: 4.0 for d in days}, 'ECB_DFR': {d: 2.5 for d in days}}
+        for fn, b in ((k.stopy_boe, self.BOE), (k.stopy_snb, self.SNB), (k.stopy_riksbank, self.RIKS), (k.stopy_norges, self.NORGES),
+                      (k.stopy_nbp, self.NBP), (k.stopy_boc, self.BOC)):
+            F.update(fn(b))
+        return F
+
+    def test_parsery(self):
+        k = self.k
+        self.assertEqual(k.stopy_boe(self.BOE), {'BOE_BR': {'2026-09-24': 3.75, '2026-09-25': 3.75, '2026-09-28': 3.75, '2026-09-29': 3.75, '2026-10-05': 3.75}})
+        self.assertEqual(k.stopy_snb(self.SNB), {'SNB_LZ': {'2026-09-25': 0.0, '2026-09-29': 0.0, '2026-10-02': 0.0}}, 'BOM i nagłówki portalu pominięte')
+        self.assertEqual(k.stopy_riksbank(self.RIKS), {'RB_POL': {'2026-09-25': 1.75, '2026-09-29': 1.75, '2026-10-06': 1.75}})
+        self.assertEqual(k.stopy_norges(self.NORGES), {'NB_KPRA': {'2026-09-24': 4.25, '2026-09-25': 4.5, '2026-10-05': 4.5}})
+        self.assertEqual(k.stopy_nbp(self.NBP), {'NBP_REF': {'2026-03-05': 3.75}}, 'stopa referencyjna (nie lombardowa), przecinek dziesiętny')
+        self.assertEqual(k.stopy_boc(self.BOC), {'BOC_V39079': {'2026-09-25': 2.25, '2026-09-29': 2.25, '2026-10-05': 2.25}})
+        zle = ((k.stopy_boe, b'<html><body>Error</body></html>'), (k.stopy_boe, b'DATE,IUDBEDR\n05 Okt 2026,3.75\n'),
+               (k.stopy_snb, b'"Date";"D0";"Value"\n"2026-10-02";"ENG";"0.25"\n'), (k.stopy_riksbank, b'{}'),
+               (k.stopy_riksbank, b'[{"date":"2026-10-06","value":null}]'), (k.stopy_norges, b'x;y\n'), (k.stopy_nbp, b'<stopy_procentowe/>'),
+               (k.stopy_nbp, b'<pozycja id="ref" oprocentowanie="NaN" obowiazuje_od="2026-03-05"/>'),
+               (k.stopy_boc, b'{"observations":[{"d":"2026-10-05","V39079":{"v":""}}]}'), (k.stopy_boc, b'[]'))
+        for fn, body in zle:
+            with self.assertRaises(Exception, msg=repr(body)):
+                fn(body)
+        self.assertEqual(k.stopy_boe(b'DATE,IUDBEDR\n05 Oct 2026,nan\n06 Oct 2026,3.75\n'), {'BOE_BR': {'2026-10-06': 3.75}}, 'NaN pominięte')
+        self.assertEqual(k.stopy_ecb_csv('﻿KEY,TIME_PERIOD,OBS_VALUE\nx,2026-10-06,2.5\n'.encode()), {'2026-10-06': 2.5}, 'EBC bez zmian, BOM nie przeszkadza')
+
+    def test_osiem_bankow_06_10(self):
+        k = self.k
+        P = k.stopy_porownanie(self.S, self.F(), self.NOW)
+        self.assertEqual([(o['bank'], o['zrodlo'], o['strona'], o['fred'], o['zgodne'], o['zmiana']) for o in P],
+                         [('Fed', 'NY Fed', 3.875, 3.875, True, None), ('EBC', 'EBC', 2.5, 2.5, True, None), ('Bank Anglii', 'BoE', 3.75, 3.75, True, None),
+                          ('Bank Szwajcarii', 'SNB', 0.0, 0.0, True, None), ('Bank Szwecji', 'Riksbank', 1.75, 1.75, True, None),
+                          ('Bank Norwegii', 'Norges Bank', 4.5, 4.5, True, None), ('NBP', 'NBP', 3.75, 3.75, True, None),
+                          ('Bank Kanady', 'BoC', 2.25, 2.25, True, None)], 'Norwegia: podwyżka 25.09 — strona z 25.09 już ją ma')
+        self.assertEqual(k.stopy_uwagi(P, self.NOW), [])
+        self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW),
+                         '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (NY Fed) ✅; EBC 2,5% = 2,5% (EBC) ✅; '
+                         'Bank Anglii 3,75% = 3,75% (BoE) ✅; Bank Szwajcarii 0% = 0% (SNB) ✅; Bank Szwecji 1,75% = 1,75% (Riksbank) ✅; '
+                         'Bank Norwegii 4,5% = 4,5% (Norges Bank) ✅; NBP 3,75% = 3,75% (NBP) ✅; Bank Kanady 2,25% = 2,25% (BoC) ✅.')
+
+    def test_roznica_i_zmiana_nowego_banku(self):
+        k = self.k
+        P = k.stopy_porownanie({'rows': dict(self.S['rows'], NO={'rate': 4.25, 'date': '2026-09-25'})}, self.F(), self.NOW)
+        self.assertEqual(k.stopy_uwagi(P, self.NOW),
+                         ['stopy banków centralnych: Bank Norwegii na stronie 4,25% vs Norges Bank 4,5% (2026-09-25) — sprawdzić plik stóp strony'])
+        self.assertIn('Bank Norwegii 4,25% ≠ 4,5% (Norges Bank) ⚠️', k.stopy_wiersz({'wyniki': P}, self.NOW))
+        P = k.stopy_porownanie({'rows': dict(self.S['rows'], NO={'rate': 4.25, 'date': '2026-09-24'})}, self.F(), self.NOW)
+        o = {o['bank']: o for o in P}['Bank Norwegii']
+        self.assertEqual((o['zgodne'], o['zmiana']), (True, ['2026-09-25', 4.5]), 'strona sprzed podwyżki — zgodna w swoim dniu, podwyżka to zmiana')
+        self.assertEqual(k.stopy_uwagi([o], self.NOW), ['stopy banków centralnych: Bank Norwegii zmienił stopę 2026-09-25 na 4,5% — strona pokazuje '
+                                                       'stopę z 2026-09-24 (4,25%); źródło strony spóźnia się — zwykle samo się wyrówna'], '11 dni po zmianie')
+
+    def test_nbp_tylko_stopa_obowiazujaca(self):
+        k = self.k
+        utc = datetime.timezone.utc
+        F = self.F(); F['NBP_REF'] = {'2026-10-09': 3.5}   # NBP obniża stopę 08.10, obowiązuje od 09.10 — plik NBP ma już tylko nową
+        P = k.stopy_porownanie(self.S, F, self.NOW)
+        o = {o['bank']: o for o in P}['NBP']
+        self.assertEqual((o['brak'], o['zmiana'], o['zrodlo'], o['data'], o['strona']),
+                         ('brak serii obejmującej dzień strony (2026-09-29)', ['2026-10-09', 3.5], 'NBP', '2026-09-29', 3.75))
+        t1, t2 = datetime.datetime(2026, 10, 12, 6, 0, tzinfo=utc), datetime.datetime(2026, 10, 20, 6, 0, tzinfo=utc)
+        self.assertIn('NBP: brak porównania (brak serii obejmującej dzień strony (2026-09-29)) ℹ️ (zmiana 2026-10-09 na 3,5% — strona jeszcze bez niej)',
+                      k.stopy_wiersz({'wyniki': P}, t1))
+        self.assertEqual(k.stopy_uwagi(P, t1), [], '3 dni po zmianie — źródło strony jeszcze się wyrówna')
+        self.assertEqual(k.stopy_uwagi(P, t2), ['stopy banków centralnych: NBP zmienił stopę 2026-10-09 na 3,5% — strona pokazuje stopę z 2026-09-29 '
+                                                '(3,75%); źródło strony spóźnia się — zwykle samo się wyrówna'])
+        self.assertIn('NBP: brak porównania (brak serii obejmującej dzień strony (2026-09-29)) ⚠️ (zmiana', k.stopy_wiersz({'wyniki': P}, t2))
+        F['NBP_REF'] = {'2026-10-09': 3.75}
+        o = {o['bank']: o for o in k.stopy_porownanie(self.S, F, self.NOW)}['NBP']
+        self.assertTrue(o.get('brak')); self.assertIsNone(o.get('zmiana'), 'ta sama stopa od dnia po dniu strony — bez zmiany')
+        F['NBP_REF'] = {'2026-10-09': 3.5}
+        o = {o['bank']: o for o in k.stopy_porownanie({'rows': dict(self.S['rows'], PL={'rate': 3.5, 'date': '2026-10-12'})}, F, t2)}['NBP']
+        self.assertEqual((o.get('brak'), o['zgodne'], o['fred'], o['zmiana']), (None, True, 3.5, None), 'strona dogoniła źródło — porównanie')
+
+    def test_bank_bez_wiersza_i_blad_zrodla(self):
+        k = self.k
+        rows = dict(self.S['rows']); del rows['CH']
+        F = self.F(); del F['BOE_BR']
+        P = k.stopy_porownanie({'rows': rows}, F, self.NOW)
+        self.assertEqual([o['bank'] for o in P], ['Fed', 'EBC', 'Bank Anglii', 'Bank Szwajcarii', 'Bank Szwecji', 'Bank Norwegii', 'NBP', 'Bank Kanady'])
+        D = {o['bank']: o for o in P}
+        self.assertEqual(D['Bank Szwajcarii']['brak'], 'brak stopy w pliku strony')
+        self.assertEqual(D['Bank Anglii']['brak'], 'brak serii obejmującej dzień strony (2026-09-28)')
+        w = k.stopy_wiersz({'wyniki': P, 'brak': 'BoE: HTTP Error 403: Forbidden'}, self.NOW)
+        self.assertTrue(w.endswith('Bank Kanady 2,25% = 2,25% (BoC) ✅; Bank Anglii: brak porównania (brak serii obejmującej dzień strony (2026-09-28)) ℹ️; '
+                                   'Bank Szwajcarii: brak porównania (brak stopy w pliku strony) ℹ️; błędy odczytu: BoE: HTTP Error 403: Forbidden.'), w)
+        self.assertEqual(k.stopy_uwagi(P, self.NOW), [], 'brak porównania — informacja, nie uwaga')
+
+    def test_adresy_i_pobieranie(self):
+        k = self.k
+        A = k.stopy_adresy(self.NOW)
+        self.assertEqual([a[0] for a in A], ['BoE', 'SNB', 'Riksbank', 'Norges Bank', 'NBP', 'BoC'])
+        U = {a[0]: a[1] for a in A}
+        self.assertIn('Datefrom=08/Jun/2026&Dateto=now&SeriesCodes=IUDBEDR', U['BoE'], '06.10 − 120 dni = 08.06; miesiąc po angielsku')
+        self.assertTrue(U['SNB'].endswith('dimSel=D0(LZ)&fromDate=2026-06-08'))
+        self.assertTrue(U['Riksbank'].endswith('/SECBREPOEFF/2026-06-08/2026-10-06'))
+        self.assertIn('startPeriod=2026-06-08', U['Norges Bank']); self.assertTrue(U['BoC'].endswith('start_date=2026-06-08'))
+        self.assertEqual([a[2] for a in A], [k.stopy_boe, k.stopy_snb, k.stopy_riksbank, k.stopy_norges, k.stopy_nbp, k.stopy_boc])
+        self.assertEqual(set(k.STOPY_SERIE), {'US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'CA'})
+        import inspect
+        src = inspect.getsource(k.kontrola)
+        self.assertIn('for nm, url, fn in stopy_adresy():', src); self.assertIn('Fs.update(fn(get(url, timeout=15)[1]))', src)
+        self.assertIn('stopy_nyfed(get(STOPY_NYFED', src); self.assertIn('stopy_ecb_csv(get(STOPY_ECB', src)
