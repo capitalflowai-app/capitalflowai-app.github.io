@@ -2205,6 +2205,9 @@ for(const l in EXTRA184)if(I18N[l])Object.assign(I18N[l],EXTRA184[l]);
 /* v229: indeksy świata — słupki zmiany z miesiąca (10 języków: panel rysowany w każdym języku) */
 const EXTRA185={"pl":{"ix.wyk":"Zmiana z miesiąca (21 sesji) — od najmocniejszego do najsłabszego; słupek w prawo = wzrost, w lewo = spadek"},"en":{"ix.wyk":"Change over a month (21 sessions) — strongest to weakest; bar to the right = rise, to the left = fall"},"de":{"ix.wyk":"Veränderung über einen Monat (21 Sitzungen) — vom stärksten zum schwächsten; Balken nach rechts = Anstieg, nach links = Rückgang"},"es":{"ix.wyk":"Variación en un mes (21 sesiones) — del más fuerte al más débil; barra a la derecha = subida, a la izquierda = bajada"},"fr":{"ix.wyk":"Variation sur un mois (21 séances) — du plus fort au plus faible ; barre à droite = hausse, à gauche = baisse"},"it":{"ix.wyk":"Variazione in un mese (21 sedute) — dal più forte al più debole; barra a destra = rialzo, a sinistra = ribasso"},"pt":{"ix.wyk":"Variação em um mês (21 pregões) — do mais forte ao mais fraco; barra à direita = alta, à esquerda = queda"},"ru":{"ix.wyk":"Изменение за месяц (21 сессия) — от самого сильного к самому слабому; столбец вправо = рост, влево = падение"},"zh":{"ix.wyk":"一个月（21个交易日）涨跌——由强到弱；柱向右 = 上涨，向左 = 下跌"},"ja":{"ix.wyk":"1か月（21営業日）の変化 — 強い順；右向きの棒 = 上昇、左向き = 下落"}};
 for(const l in EXTRA185)if(I18N[l])Object.assign(I18N[l],EXTRA185[l]);
+/* v230: wieloryby — zmiana listy portfeli giełdy (nowy raport dowodu rezerw) to nie przepływ (10 języków) */
+const EXTRA186={"pl":{"wh.lista":"nowa lista portfeli od {d} — bez porównania","arc.wh.lista":"Nowa lista portfeli giełdy: {l} — skok salda w tym dniu to nie przepływ."},"en":{"wh.lista":"new wallet list from {d} — no comparison","arc.wh.lista":"New exchange wallet list: {l} — the balance jump on that day is not a flow."},"de":{"wh.lista":"neue Wallet-Liste ab {d} — kein Vergleich","arc.wh.lista":"Neue Wallet-Liste der Börse: {l} — der Saldosprung an diesem Tag ist kein Zufluss."},"es":{"wh.lista":"nueva lista de carteras desde el {d} — sin comparación","arc.wh.lista":"Nueva lista de carteras del exchange: {l} — el salto del saldo ese día no es un flujo."},"fr":{"wh.lista":"nouvelle liste de portefeuilles depuis le {d} — pas de comparaison","arc.wh.lista":"Nouvelle liste de portefeuilles de la plateforme : {l} — le saut du solde ce jour-là n’est pas un flux."},"it":{"wh.lista":"nuovo elenco di portafogli dal {d} — nessun confronto","arc.wh.lista":"Nuovo elenco di portafogli dell’exchange: {l} — il salto del saldo in quel giorno non è un flusso."},"pt":{"wh.lista":"nova lista de carteiras desde {d} — sem comparação","arc.wh.lista":"Nova lista de carteiras da corretora: {l} — o salto do saldo nesse dia não é um fluxo."},"ru":{"wh.lista":"новый список кошельков с {d} — без сравнения","arc.wh.lista":"Новый список кошельков биржи: {l} — скачок баланса в этот день — не поток."},"zh":{"wh.lista":"自{d}起使用新的钱包列表——不作比较","arc.wh.lista":"交易所新的钱包列表：{l}——当天余额的跳升不是资金流动。"},"ja":{"wh.lista":"{d}から新しいウォレット一覧 — 比較なし","arc.wh.lista":"取引所の新しいウォレット一覧：{l} — その日の残高の急変は資金の流れではありません。"}};
+for(const l in EXTRA186)if(I18N[l])Object.assign(I18N[l],EXTRA186[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -10230,7 +10233,7 @@ function renderArc(){const g=$('#g-archiwum'),c=$('#c-archiwum');if(!g||!c)retur
   if(arcHas(['stab.usdt','stab.usdc']))k+=arcBlock('stab',co('USDT')+co('USDC')+t('arc.k.stab'),[{sid:'stab.usdt',cls:'l1',name:'USDT'},{sid:'stab.usdc',cls:'l2',name:'USDC'}],'tok','arc.src.stab');
   for(const m of ['btc','eth'])if(arcHas([`cftc.${m}.lev`,`cftc.${m}.am`,`cftc.${m}.dealer`]))k+=arcBlock('cftc.'+m,co(m.toUpperCase())+t('arc.k.cftc',{c:m.toUpperCase()}),[{sid:`cftc.${m}.lev`,cls:'l1',name:t('arc.g.lev')},{sid:`cftc.${m}.am`,cls:'l2',name:t('arc.g.am')},{sid:`cftc.${m}.dealer`,cls:'l3',name:t('arc.g.dealer')}],'kontrakty','arc.src.cftc');
   const W=Object.keys(S).filter(x=>x.startsWith('wh.')&&arcSer(x).length).sort((a,b)=>{const la=arcSer(a),lb=arcSer(b);return lb[lb.length-1][1]-la[la.length-1][1];});
-  if(W.length)k+=`<h3 class="mtxt"><b>${t('arc.k.wh')}</b></h3><div class="arc-grid">${W.map(x=>{const n=x.slice(3);return arcBlock(x,ex(n)+escH(n),[{sid:x,cls:'l1',name:n}],'USD','arc.src.wh',true);}).join('')}</div>`;
+  if(W.length)k+=`<h3 class="mtxt"><b>${t('arc.k.wh')}</b></h3><div class="arc-grid">${W.map(x=>{const n=x.slice(3);return arcBlock(x,ex(n)+escH(n),[{sid:x,cls:'l1',name:n}],'USD','arc.src.wh',true);}).join('')}</div>`+arcWhLista(W,(()=>{try{return WH.data?WH.data.gieldy:null;}catch(e){return null;}})(),arcSer);   /* v230: nowa lista portfeli — nota */
   c.innerHTML=k?arcHead('arc.t.c')+k+`<p class="pfoot">${t('arc.foot')}</p>`:'';c.hidden=!k;}
 function arcApply(j){const ok=arcOk(j);if(!ok&&ARC.data)return;ARC.data=ok?j:null;renderArc();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
 function arcLoad(){if(location.protocol==='file:')return;fetch('archiwum/seria.json?t='+Math.floor(Date.now()/60000),{cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined}).then(r=>r.ok?r.json():null).catch(()=>null).then(arcApply);}
@@ -10458,13 +10461,20 @@ function whOk(j){return !!(j&&typeof j==='object'&&typeof j.at==='string'&&isFin
 function whAmt(v,sym){if(!whNum(v))return '—';const a=Math.abs(v),u=a>=999.5e6?[1e9,2,'wh.u.mld']:a>=999.5e3?[1e6,1,'wh.u.mln']:[1,0,''];return (v<0?'−':'')+nfmt(a/u[0],u[1])+(u[2]?' '+t(u[2]):'')+(sym?' '+sym:'');}
 function whDay(day,k){const ms=Date.parse(String(day||'').slice(0,10)+'T00:00:00Z');return isFinite(ms)?new Date(ms+k*864e5).toISOString().slice(0,10):'';}
 /* zmiana wobec zrzutu z dnia (dzień salda − k): tylko gdy zrzut istnieje; idx: 2 = ETH, 3 = USDT, 4 = USDC */
-function whChg(hist,day,k,idx,cur){if(!Array.isArray(hist)||!whNum(cur))return null;const d=whDay(day,-k);const r=hist.find(x=>Array.isArray(x)&&x[0]===d&&whNum(x[idx]));return r?{d:cur-r[idx],t:typeof r[1]==='string'?r[1]:d}:null;}
+function whChg(hist,day,k,idx,cur,ver){if(!Array.isArray(hist)||!whNum(cur))return null;const d=whDay(day,-k);const r=hist.find(x=>Array.isArray(x)&&x[0]===d&&whNum(x[idx]));if(r&&typeof ver==='string'&&ver&&typeof r[5]==='string'&&r[5]!==ver)return {lista:true,t:typeof r[1]==='string'?r[1]:d};   /* v230: zrzut z inną listą portfeli — zmiana salda to nie przepływ */
+  return r?{d:cur-r[idx],t:typeof r[1]==='string'?r[1]:d}:null;}
 function whShort(h){const s=String(h||'');return /^0x[0-9a-f]{64}$/i.test(s)?s.slice(0,6)+'…'+s.slice(-4):'';}
 /* zmiana jako tekst: strzałka i kolor z pokazanej liczby — zero po zaokrągleniu bez koloru i bez strzałki */
 function whDelta(d){const s=whAmt(Math.abs(d));if(!/[1-9]/.test(s))return {txt:'• '+s,cls:''};return d>0?{txt:'▲ +'+s,cls:'pos'}:{txt:'▼ −'+s,cls:'neg'};}
 function whTile(ico,label,val,lines,when){return `<div class="etfk"><span>${ico?`<span class="icos">${ico}</span>`:''}${label}</span><b>${val}${lines.map(l=>`<small class="${l.cls}">${l.txt}</small>`).join('')}</b><small class="mtxt">${when}</small></div>`;}
 /* tokeny giełdy z pliku (gieldy[g].tokeny); bez listy — wszystkie trzy; kafel „razem w USD” tylko przy pełnej trójce */
 function whToks(m){const l=m&&typeof m==='object'&&Array.isArray(m.tokeny)&&m.tokeny.length?m.tokeny.filter(x=>['USDT','USDC','ETH'].includes(x)):['USDT','USDC','ETH'];return l;}
+/* v230: dzień zmiany listy portfeli giełdy (gieldy[g].zmiana, RRRR-MM-DD) jako tekst w języku strony; brak = „—” */
+function whZm(m){const z=m&&typeof m.zmiana==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(m.zmiana)?m.zmiana:'',ms=z?Date.parse(z+'T12:00:00Z'):NaN;return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'—';}
+/* v230: nota pod wykresami sald giełd w archiwum — giełdy z nową listą portfeli w zakresie wykresu (skok salda w tym dniu to nie przepływ) */
+function arcWhLista(ids,Z,ser){const G=Z&&typeof Z==='object'?Z:{};const l=(Array.isArray(ids)?ids:[]).map(x=>{const n=String(x).slice(3),m=G[n],s=typeof ser==='function'?ser(x):[];
+  return m&&typeof m.zmiana==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(m.zmiana)&&Array.isArray(s)&&s.length&&Array.isArray(s[0])&&m.zmiana>=s[0][0]?`${escH(n)} ${whZm(m)}`:'';}).filter(Boolean);
+  return l.length?`<p class="pnote">${t('arc.wh.lista',{l:l.join(', ')})}</p>`:'';}
 function whExch(D){const S=D&&D.salda&&typeof D.salda==='object'?D.salda:{},G=D&&D.gieldy&&typeof D.gieldy==='object'?D.gieldy:{},H=D&&D.hist&&typeof D.hist==='object'?D.hist:{};
   const I=typeof icoWrap==='function',ex=n=>I&&typeof exchImg==='function'?exchImg(n,'sm'):'',co=n=>I&&typeof coinImg==='function'?coinImg(n,'sm'):'';
   let h='';
@@ -10474,9 +10484,9 @@ function whExch(D){const S=D&&D.salda&&typeof D.salda==='object'?D.salda:{},G=D&
     const when=`${t('wh.blk',{t:engDate(s.t),n:whNum(s.blk)?nfmt(s.blk,0):'—'})}${gAgeNote(typeof s.t==='string'?s.t:'')}`,day=String(s.t||'').slice(0,10);
     const tiles=[];
     toks.forEach(tok=>{const key=tok.toLowerCase(),idx={eth:2,usdt:3,usdc:4}[key],cur=s[key];
-      const c1=whChg(H[g],day,1,idx,cur),c7=whChg(H[g],day,7,idx,cur),lines=[];
-      if(c1){const d=whDelta(c1.d);lines.push({txt:`${d.txt} · ${t('wh.vs',{t:engDate(c1.t)})}`,cls:d.cls});}else lines.push({txt:`— · ${t('wh.nochg')}`,cls:'na'});
-      if(c7){const d=whDelta(c7.d);lines.push({txt:`${t('wh.d7')}${typeof sepK==='function'?sepK():': '}${d.txt} · ${t('wh.vs',{t:engDate(c7.t)})}`,cls:d.cls});}else if(c1)lines.push({txt:`${t('wh.d7')}: — · ${t('wh.short')}`,cls:'na'});
+      const c1=whChg(H[g],day,1,idx,cur,since),c7=whChg(H[g],day,7,idx,cur,since),lines=[],zl=`— · ${t('wh.lista',{d:whZm(m)})}`;   /* v230: przez zmianę listy — bez porównania */
+      if(c1&&c1.lista)lines.push({txt:zl,cls:'na'});else if(c1){const d=whDelta(c1.d);lines.push({txt:`${d.txt} · ${t('wh.vs',{t:engDate(c1.t)})}`,cls:d.cls});}else lines.push({txt:`— · ${t('wh.nochg')}`,cls:'na'});
+      if(c7&&c7.lista)lines.push({txt:`${t('wh.d7')}${typeof sepK==='function'?sepK():': '}${zl}`,cls:'na'});else if(c7){const d=whDelta(c7.d);lines.push({txt:`${t('wh.d7')}${typeof sepK==='function'?sepK():': '}${d.txt} · ${t('wh.vs',{t:engDate(c7.t)})}`,cls:d.cls});}else if(c1&&!c1.lista)lines.push({txt:`${t('wh.d7')}: — · ${t('wh.short')}`,cls:'na'});
       tiles.push(whTile(ex(g)+co(tok),`${escH(g)} · ${tok}`,whAmt(cur,tok),lines,when));});
     if(toks.length===3)tiles.push(whTile(ex(g),`${escH(g)} · ${t('wh.k.usd')}`,whNum(s.usd)?whAmt(s.usd,'USD'):`— <small class="na">${t('wh.usd.na')}</small>`,[],when));
     const note=t('wh.n.'+g)!=='wh.n.'+g?` <span class="whn">${t('wh.n.'+g)}</span>`:'';
@@ -10539,7 +10549,7 @@ function renderWh(){
   open.forEach(id=>{const d=el.querySelector('#'+id);if(d)d.open=true;});
   el.hidden=false;
 }
-function whApply(j){const ok=whOk(j);if(!ok&&WH.data)return;WH.data=ok?j:null;renderWh();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
+function whApply(j){const ok=whOk(j);if(!ok&&WH.data)return;WH.data=ok?j:null;renderWh();try{if(ok&&j.gieldy&&Object.values(j.gieldy).some(m=>m&&m.zmiana)&&typeof ARC!=='undefined'&&ARC.data&&typeof renderArc==='function')renderArc();}catch(e){}}   /* v230: nota archiwum */   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
 function whLoad(){srvJSON('wieloryby').then(whApply);}
 function whAuto(){if(WH.timer)return;WH.timer=setInterval(()=>{if(!document.hidden)whLoad();},10*60*1000);}   /* v168: co 10 min */
 /* v126.2: hash transakcji bez linku do zewnętrznego eksploratora (adres serwisu był widoczny po najechaniu) — kliknięcie kopiuje pełny hash, napis na chwilę „skopiowano” */

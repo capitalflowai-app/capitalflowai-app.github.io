@@ -11121,7 +11121,7 @@ test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąsk
   const F = L => new Function('LANG', html.slice(a, b) + '\nreturn {sepK, sepL};')(L);
   assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
   for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
-  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 32, 'etykiety składane w kodzie: 32 miejsca (v157: podpowiedzi wykresów — wkK)');
+  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 33, 'etykiety składane w kodzie: 33 miejsca (v157: podpowiedzi wykresów — wkK; v230: „7 dni” przy nowej liście portfeli)');
   assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 29, 'listy składane w kodzie: 29 miejsc');
   for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
     assert.ok(!html.includes(s), 'dawny separator: ' + s);
@@ -13881,4 +13881,31 @@ test('v229: słownik EXTRA185 — ix.wyk w 10 językach (własne tłumaczenia), 
   for (const L in D) { assert.deepEqual(Object.keys(D[L]), ['ix.wyk'], L); if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['ix.wyk'], D.en['ix.wyk'], L); }
   assert.equal((html.match(/const EXTRA185=/g) || []).length, 1);
   assert.ok(html.includes('for(const l in EXTRA185)if(I18N[l])Object.assign(I18N[l],EXTRA185[l]);'));
+});
+
+
+/* ===================== v230: wieloryby — zmiana listy portfeli to nie przepływ (whChg z wersją listy), słownik EXTRA186 ===================== */
+test('v230: wieloryby — zmiana 1 i 7 dni nie liczy się przez zmianę listy portfeli; wiersze bez wersji jak dotąd', () => {
+  const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whTile(', w0);
+  const W = new Function('t', 'nfmt', html.slice(w0, w1) + '\nreturn {whChg};')((k, v) => k + (v ? JSON.stringify(v) : ''), (v, d) => Number(v).toFixed(d));
+  const H = [['2026-09-29', 'a', 100, 1, 1, '2026-08-26'], ['2026-10-05', 'b', 110, 1, 1, '2026-08-26'], ['2026-10-06', 'c', 190, 1, 1, '2026-09-23']];
+  assert.deepEqual(W.whChg(H, '2026-10-06', 1, 2, 190, '2026-09-23'), {lista: true, t: 'b'}, 'wczoraj inna lista — bez porównania');
+  assert.deepEqual(W.whChg(H, '2026-10-06', 7, 2, 190, '2026-09-23'), {lista: true, t: 'a'});
+  assert.deepEqual(W.whChg(H, '2026-10-06', 1, 2, 190, '2026-08-26'), {d: 80, t: 'b'}, 'ta sama lista — zmiana');
+  assert.deepEqual(W.whChg(H.map(r => r.slice(0, 5)), '2026-10-06', 1, 2, 190, '2026-09-23'), {d: 80, t: 'b'}, 'wiersz bez wersji (sprzed v230) — jak dotąd');
+  assert.deepEqual(W.whChg(H, '2026-10-06', 1, 2, 190), {d: 80, t: 'b'}, 'bez wersji bieżącej — jak dotąd');
+  assert.ok(html.includes("const c1=whChg(H[g],day,1,idx,cur,since),c7=whChg(H[g],day,7,idx,cur,since)") && html.includes('function whZm(m){'));
+  const i = html.indexOf('const EXTRA186='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA186='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) { assert.ok(D[L]['wh.lista'].includes('{d}'), L); if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['wh.lista'], D.en['wh.lista'], L); }
+  assert.ok(html.includes('for(const l in EXTRA186)if(I18N[l])Object.assign(I18N[l],EXTRA186[l]);'));
+  for (const L in D) assert.ok(D[L]['arc.wh.lista'].includes('{l}') && (L === 'pl' || L === 'en' || D[L]['arc.wh.lista'] !== D.en['arc.wh.lista']), 'arc.wh.lista ' + L);
+  const z0 = html.indexOf('function whZm(m){'), z1 = html.indexOf('function whExch(D){', z0);
+  const A = new Function('t', 'escH', 'LOCALE', 'LANG', html.slice(z0, z1) + '\nreturn {whZm, arcWhLista};')((k, v) => k + (v ? JSON.stringify(v) : ''), s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'), {en: 'en-US'}, 'en');
+  const ser = x => ({'wh.Bybit': [['2026-09-26', 1], ['2026-10-07', 2]], 'wh.OKX': [['2026-09-26', 1]]})[x] || [];
+  assert.equal(A.arcWhLista(['wh.Bybit', 'wh.OKX'], {Bybit: {zmiana: '2026-10-06'}, OKX: {}}, ser), '<p class="pnote">arc.wh.lista{"l":"Bybit Oct 6, 2026"}</p>', 'giełda z nową listą w zakresie wykresu');
+  assert.equal(A.arcWhLista(['wh.Bybit'], {Bybit: {zmiana: '2026-09-01'}}, ser), '', 'zmiana sprzed wykresu — bez noty');
+  assert.equal(A.arcWhLista(['wh.Bybit'], null, ser), ''); assert.equal(A.arcWhLista(null, {Bybit: {zmiana: '2026-10-06'}}, ser), '');
+  assert.equal(A.whZm({zmiana: 'x'}), '—');
+  assert.ok(html.includes("+arcWhLista(W,(()=>{try{return WH.data?WH.data.gieldy:null;}catch(e){return null;}})(),arcSer);") && html.includes('typeof renderArc===\'function\')renderArc();}catch(e){}}'));
 });

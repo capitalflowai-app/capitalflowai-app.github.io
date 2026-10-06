@@ -9220,7 +9220,7 @@ class WielorybyV105(unittest.TestCase):
         self.assertEqual(zd.wh_hex('0x1a'), 26); self.assertEqual(zd.wh_hex('0x0'), 0)
         self.assertIsNone(zd.wh_hex('0x')); self.assertIsNone(zd.wh_hex(None)); self.assertIsNone(zd.wh_hex('zz')); self.assertIsNone(zd.wh_hex(12))
         self.assertEqual(zd.wh_topic('0xBE0EB53F46CD790CD13851D5EFF43D12404D33E8'), '0x000000000000000000000000be0eb53f46cd790cd13851d5eff43d12404d33e8')
-        self.assertEqual(len(zd.wh_portfele()), 164); self.assertTrue(all(w['src'] and w['since'] and w['addr'] == w['addr'].lower() for w in zd.wh_portfele()))   # v108: 9 + 10 + 108 + 33 + 4
+        self.assertEqual(len(zd.wh_portfele()), 178); self.assertTrue(all(w['src'] and w['since'] and w['addr'] == w['addr'].lower() for w in zd.wh_portfele()))   # v230: 9 + 10 + 122 + 33 + 4
 
     def test_zakres(self):
         p, luka = zd.wh_zakres(10000, None)
@@ -9330,16 +9330,16 @@ class WielorybyV105(unittest.TestCase):
             o = zd.build_wieloryby(None)
         self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': True}); self.assertEqual(zd.META['errors'], [])
         self.assertEqual(sorted(o['part_at']), ['salda', 'transfery']); self.assertEqual(o['blk'], 10000)
-        NB = -(-(2 + 3 * len(zd.wh_portfele())) // zd.WH_BATCH)   # v108: 494 wywołań w paczkach po 40 = 13 żądań
-        self.assertEqual(NB, 13); self.assertEqual(len(calls), NB + 6 + 1, 'trzynaście paczek sald (≤ 40 wywołań), sześć paczek logów, jedna o czasy bloków')
-        self.assertEqual(calls[0][1][:2], ['eth_getBlockByNumber', 'eth_call']); self.assertEqual(sum(len(c[1]) for c in calls[:NB]), 2 + 3 * 164); self.assertEqual(len(calls[0][1]), 40)
+        NB = -(-(2 + 3 * len(zd.wh_portfele())) // zd.WH_BATCH)   # v230: 536 wywołań w paczkach po 40 = 14 żądań (v108: 494 = 13)
+        self.assertEqual(NB, 14); self.assertEqual(len(calls), NB + 6 + 1, 'czternaście paczek sald (≤ 40 wywołań), sześć paczek logów, jedna o czasy bloków')
+        self.assertEqual(calls[0][1][:2], ['eth_getBlockByNumber', 'eth_call']); self.assertEqual(sum(len(c[1]) for c in calls[:NB]), 2 + 3 * 178); self.assertEqual(len(calls[0][1]), 40)
         self.assertTrue(all(u == zd.WH_RPC for u, _ in calls))
         self.assertAlmostEqual(o['eth_usd'], 2688.8695031); self.assertEqual(o['eth_usd_at'], o['blk_t'])
         b = o['salda']['Binance']
         self.assertAlmostEqual(b['eth'], 13.5); self.assertAlmostEqual(b['usdt'], 18_000_000); self.assertAlmostEqual(b['usdc'], 18_000_000)
         self.assertAlmostEqual(b['usd'], 13.5 * 2688.8695031 + 36_000_000, places=2); self.assertEqual((b['blk'], b['n']), (10000, 9))
         self.assertEqual(o['salda']['OKX']['n'], 10); self.assertAlmostEqual(o['salda']['OKX']['eth'], 15.0)
-        self.assertEqual(o['hist']['Binance'], [[o['blk_t'][:10], o['blk_t'], 13.5, 18000000.0, 18000000.0]])
+        self.assertEqual(o['hist']['Binance'], [[o['blk_t'][:10], o['blk_t'], 13.5, 18000000.0, 18000000.0, '2022-11']])   # v230: wersja listy
         self.assertEqual([(r['tx'][:4], r['amt'], r['dir'], r['exch'], r['blk']) for r in o['transfery']],
                          [('0xff', 5000000.0, 'in', 'OKX', 9975), ('0xee', 5000000.0, 'out', 'OKX', 9970), ('0xaa', 2500000.0, 'in', 'Binance', 9950), ('0xbb', 1200000.0, 'out', 'OKX', 9960)],
                          'wewnętrzny i poniżej progu pominięte; para zostaje')
@@ -9347,13 +9347,13 @@ class WielorybyV105(unittest.TestCase):
         self.assertTrue(all(r['t'].endswith('+00:00') for r in o['transfery']))
         self.assertEqual((o['ostatni_blok'], o['okno_od'], o['okno'], o['luka']), (10000, 5201, 4800, False))
         self.assertTrue(o['okno_od_t'] < o['ostatni_t'] == o['blk_t']); self.assertEqual(o['gieldy']['OKX']['tokeny'], ['USDC'])
-        self.assertEqual(len(o['wallets']), 164); self.assertTrue(all(w['src'] for w in o['wallets']))
+        self.assertEqual(len(o['wallets']), 178); self.assertTrue(all(w['src'] for w in o['wallets']))   # v230: Bybit 122
         # drugi przebieg: od ostatniego bloku, jedna paczka, historia bez drugiego zrzutu tego dnia, okno ≈ 24 h w blokach
         post2, calls2 = self._rpc(head=10100)
         with mock.patch.object(zd, 'post_json', side_effect=post2):
             o2 = zd.build_wieloryby(o)
-        self.assertEqual(len(calls2), NB + 1, 'salda (trzynaście paczek) + jedna paczka logów; czasy bloków znane z poprzedniego pliku')
-        self.assertEqual(calls2[NB][1], ['eth_getLogs', 'eth_getLogs'], 'jedna grupa tematów (164 ≤ WH_TOPICS) = dwa zapytania o logi')
+        self.assertEqual(len(calls2), NB + 1, 'salda (czternaście paczek) + jedna paczka logów; czasy bloków znane z poprzedniego pliku')
+        self.assertEqual(calls2[NB][1], ['eth_getLogs', 'eth_getLogs'], 'jedna grupa tematów (178 ≤ WH_TOPICS) = dwa zapytania o logi')
         self.assertEqual((o2['ostatni_blok'], o2['okno_od'], o2['okno']), (10100, 5201, 4900)); self.assertEqual(len(o2['hist']['Binance']), 1)
         self.assertEqual([r['tx'][:4] for r in o2['transfery']], ['0xff', '0xee', '0xaa', '0xbb'], 'wiersze z poprzedniego pliku zostają w oknie')
         self.assertEqual([r.get('wew') for r in o2['transfery']], [True, True, None, None], 'oznaczenie pary zostaje w kolejnym przebiegu')
@@ -9378,7 +9378,7 @@ class WielorybyV105(unittest.TestCase):
         self.assertEqual((o['ostatni_blok'], o['okno'], o['okno_od_t']), (prev['ostatni_blok'], prev['okno'], prev['okno_od_t']))
         self.assertEqual(o['salda']['Binance']['blk'], 10100); self.assertEqual(o['part_at']['salda'], zd.NOW)
         self.assertEqual(len(zd.META['errors']), 1); self.assertTrue(zd.META['errors'][0].startswith('Wieloryby: transfery: węzeł RPC'))
-        self.assertEqual([u for u, _ in calls2 if 'flashbots' in u], ['https://rpc.flashbots.net'], 'zapas logów próbowany raz, po dwóch próbach głównego')
+        self.assertEqual([u for u, _ in calls2 if 'mevblocker' in u], ['https://rpc.mevblocker.io'], 'zapas logów próbowany raz, po dwóch próbach głównego (v230: mevblocker)')
         # salda zawodzą — poprzednie salda i historia z własnym czasem, transfery świeże
         zd.META['errors'].clear()
         post3, _ = self._rpc(head=10100, fail=lambda u, b: b[0]['method'] == 'eth_getBlockByNumber' and len(b) > 1)
@@ -9418,7 +9418,7 @@ class WielorybyV105(unittest.TestCase):
             return [{'jsonrpc': '2.0', 'id': b['id'], 'result': '0x1'} for b in body]
         with mock.patch.object(zd, 'post_json', side_effect=post), mock.patch.object(zd.time, 'sleep') as sl:
             r = zd.wh_rpc([('eth_getBalance', ['0x1', 'latest'])] * 30)
-        self.assertEqual(r, ['0x1'] * 30); self.assertEqual(seen, [zd.WH_RPC, zd.WH_RPC, 'https://1rpc.io/eth', 'https://1rpc.io/eth'], 'zapas w paczkach po 25')
+        self.assertEqual(r, ['0x1'] * 30); self.assertEqual(seen, [zd.WH_RPC, zd.WH_RPC, 'https://rpc.mevblocker.io', 'https://rpc.mevblocker.io'], 'zapas w paczkach po 25 (v230: mevblocker)')
         self.assertEqual(sl.call_count, 2)
         with mock.patch.object(zd, 'post_json', return_value=[{'jsonrpc': '2.0', 'id': 0, 'error': {'code': -32602, 'message': 'Archive requests require a personal token'}}]), mock.patch.object(zd.time, 'sleep'):
             with self.assertRaises(RuntimeError) as cm:
@@ -10038,14 +10038,14 @@ class Wieloryby2V108(WielorybyV105):
     def test_ksztalt_list_gield(self):
         g = zd.WH_GIELDY
         self.assertEqual(list(g), ['Binance', 'OKX', 'Bybit', 'KuCoin', 'Bitfinex'])
-        self.assertEqual((len(g['Bybit']['addr']), len(g['KuCoin']['addr']), len(g['Bitfinex']['addr'])), (108, 33, 4))
+        self.assertEqual((len(g['Bybit']['addr']), len(g['KuCoin']['addr']), len(g['Bitfinex']['addr'])), (122, 33, 4))   # v230: Bybit 23.09.2026
         for n in ('Bybit', 'KuCoin', 'Bitfinex'):
             self.assertEqual(g[n]['tokeny'], ['USDT', 'USDC', 'ETH']); self.assertTrue(g[n]['src'] and g[n]['url'].startswith('https://') and g[n]['since'])
             self.assertEqual(len(set(a.lower() for a in g[n]['addr'])), len(g[n]['addr']), 'bez powtórzeń: ' + n)
-        self.assertEqual((g['Bybit']['since'], g['KuCoin']['since'], g['Bitfinex']['since']), ('2026-08-26', '2026-08-31', '2022-11'))
+        self.assertEqual((g['Bybit']['since'], g['KuCoin']['since'], g['Bitfinex']['since']), ('2026-09-23', '2026-08-31', '2022-11'))   # v230
         W = self.W
         self.assertEqual((W[self.BY1], W[self.KC1], W[self.BF1]), ('Bybit', 'KuCoin', 'Bitfinex'))
-        self.assertEqual(len(set(W.values())), 5); self.assertEqual(len(W), 164, 'adres należy do jednej giełdy')
+        self.assertEqual(len(set(W.values())), 5); self.assertEqual(len(W), 178, 'adres należy do jednej giełdy (v230: także 14 nowych Bybit)')
 
     def test_nowe_gieldy_salda_noty_i_pierwszy_zrzut(self):
         '''Pełny przebieg: sumy nowych giełd, wpisy gieldy[...] (n, since, tokeny), historia zaczyna się od pierwszego odczytu;
@@ -10058,15 +10058,16 @@ class Wieloryby2V108(WielorybyV105):
         self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': True}); self.assertEqual(zd.META['errors'], [])
         self.assertEqual(sorted(o['salda']), ['Binance', 'Bitfinex', 'Bybit', 'KuCoin', 'OKX'])
         b = o['salda']['Bybit']
-        self.assertAlmostEqual(b['eth'], 108 * 1.5); self.assertAlmostEqual(b['usdt'], 108 * 2_000_000); self.assertEqual((b['n'], b['blk']), (108, 10000))
+        self.assertAlmostEqual(b['eth'], 122 * 1.5); self.assertAlmostEqual(b['usdt'], 122 * 2_000_000); self.assertEqual((b['n'], b['blk']), (122, 10000))
         self.assertAlmostEqual(o['salda']['KuCoin']['eth'], 33 * 1.5); self.assertAlmostEqual(o['salda']['Bitfinex']['usdc'], 4 * 2_000_000)
         self.assertAlmostEqual(o['salda']['Bitfinex']['usd'], 4 * 1.5 * 2688.8695031 + 4 * 4_000_000, places=2)
-        for n, k in (('Bybit', 108), ('KuCoin', 33), ('Bitfinex', 4)):
+        for n, k in (('Bybit', 122), ('KuCoin', 33), ('Bitfinex', 4)):
             self.assertEqual((o['gieldy'][n]['n'], o['gieldy'][n]['tokeny']), (k, ['USDT', 'USDC', 'ETH'])); self.assertIn('https://', o['gieldy'][n]['url'])
-            self.assertEqual(o['hist'][n], [[o['blk_t'][:10], o['blk_t'], k * 1.5, k * 2_000_000.0, k * 2_000_000.0]], 'historia nowej giełdy zaczyna się od pierwszego odczytu')
-        self.assertEqual(o['hist']['Binance'][0], ['2026-09-25', '2026-09-25T00:05:00+00:00', 1.0, 2.0, 3.0]); self.assertEqual(len(o['hist']['Binance']), 2)
+            self.assertEqual(o['hist'][n], [[o['blk_t'][:10], o['blk_t'], k * 1.5, k * 2_000_000.0, k * 2_000_000.0, zd.WH_GIELDY[n]['since']]], 'historia nowej giełdy zaczyna się od pierwszego odczytu (v230: z wersją listy)')
+        self.assertEqual(o['hist']['Binance'][0], ['2026-09-25', '2026-09-25T00:05:00+00:00', 1.0, 2.0, 3.0, '2022-11']);   # v230: wiersz sprzed v230 — lista sprzed v230
+        self.assertEqual(len(o['hist']['Binance']), 2)
         self.assertNotIn('OKX', prev['hist']); self.assertEqual(len(o['hist']['OKX']), 1)
-        self.assertEqual(sum(1 for w in o['wallets'] if w['exch'] == 'Bybit'), 108); self.assertTrue(all(w['since'] == '2026-08-26' for w in o['wallets'] if w['exch'] == 'Bybit'))
+        self.assertEqual(sum(1 for w in o['wallets'] if w['exch'] == 'Bybit'), 122); self.assertTrue(all(w['since'] == '2026-09-23' for w in o['wallets'] if w['exch'] == 'Bybit'))
 
     def test_nowa_gielda_bez_odpowiedzi_nie_jest_zerem(self):
         '''Jeden portfel Bybit bez odpowiedzi = Bybit bez nowego salda (bez sumy częściowej); bez poprzedniego wpisu — brak wpisu, nie zero.
@@ -10085,7 +10086,7 @@ class Wieloryby2V108(WielorybyV105):
         prev['hist'] = dict(o['hist'], Bybit=[['2026-09-25', '2026-09-25T00:00:00+00:00', 5.0, 6.0, 7.0]])
         with mock.patch.object(zd, 'post_json', side_effect=post):
             o2 = zd.build_wieloryby(prev)
-        self.assertEqual(o2['salda']['Bybit'], prev['salda']['Bybit']); self.assertEqual(o2['hist']['Bybit'], prev['hist']['Bybit'])
+        self.assertEqual(o2['salda']['Bybit'], prev['salda']['Bybit']); self.assertEqual(o2['hist']['Bybit'], [r + ['2026-08-26'] for r in prev['hist']['Bybit']])   # v230: wersja listy sprzed v230
 
     def test_dekoduj_i_pary_na_nowych_gieldach(self):
         '''Przelew Bybit → KuCoin = dwa wiersze (out/in); wewnętrzny Bybit → Bybit pominięty; para „ta sama kwota w obie strony” na Bybit oznaczona wew.'''
@@ -10107,8 +10108,8 @@ class Wieloryby2V108(WielorybyV105):
         c = zd.wh_logi(f, tw)
         self.assertEqual(len(c), 2); self.assertEqual(c[0][1][0]['topics'], [zd.WH_TRANSFER, None, tw]); self.assertEqual(c[1][1][0]['topics'], [zd.WH_TRANSFER, tw])
         c = zd.wh_logi(f, tw, maks=50)
-        self.assertEqual(len(c), 8, '164 tematy po 50 = 4 grupy × 2 zapytania')
-        self.assertEqual([len(x[1][0]['topics'][2]) for x in c[0::2]], [50, 50, 50, 14]); self.assertEqual(sum((x[1][0]['topics'][1] for x in c[1::2]), []), tw)
+        self.assertEqual(len(c), 8, '178 tematów po 50 = 4 grupy × 2 zapytania')
+        self.assertEqual([len(x[1][0]['topics'][2]) for x in c[0::2]], [50, 50, 50, 28]); self.assertEqual(sum((x[1][0]['topics'][1] for x in c[1::2]), []), tw)
         self.assertTrue(all(x[1][0]['fromBlock'] == '0x1' and x[1][0]['address'] == [zd.WH_USDT, zd.WH_USDC] for x in c))
         self.assertEqual(zd.wh_logi(f, []), [])
         # pełny przebieg z grupami po 50: 8 zapytań o logi na paczkę w jednym żądaniu, wiersze z każdej grupy
@@ -10773,7 +10774,7 @@ class WielorybyEthV112(WielorybyV105):
 
     def test_portfele_i_kolejka(self):
         W = zd.wh_portfele(); c = zd.wh_eth_portfele(W)
-        self.assertEqual(len(c), 154, '164 − 10 OKX (tylko USDC)'); self.assertTrue(all(w['exch'] != 'OKX' for w in c))
+        self.assertEqual(len(c), 168, '178 − 10 OKX (tylko USDC)'); self.assertTrue(all(w['exch'] != 'OKX' for w in c))
         q = zd.wh_eth_kolejka(c, {})
         self.assertEqual(len(q), zd.WH_ETH_PER_RUN); self.assertEqual([w['addr'] for w in q], sorted(w['addr'] for w in c)[:zd.WH_ETH_PER_RUN], 'bez stanu: stabilnie wg adresu')
         scan = {w['addr']: 100 + i for i, w in enumerate(c)}; scan.pop(c[5]['addr'])
@@ -10834,7 +10835,7 @@ class WielorybyEthV112(WielorybyV105):
             rows2, scan2, n2, errs2, prz2 = zd.wh_eth(self.KEY, W, self.W, 10100, 2500.0, {'eth_scan': scan}, termin=None)
         self.assertTrue(urls2[0].split('address=')[1].startswith(a1)); self.assertEqual(errs2, []); self.assertEqual(scan2[a1], 10095)
         nxt = [u for u in urls2 if a0 in u]
-        self.assertEqual(len(nxt), 0, 'a0 sprawdzony przed chwilą (blok 9995) nie jest w kolejce 40 najstarszych — 154 portfele bez odczytu mają pierwszeństwo')
+        self.assertEqual(len(nxt), 0, 'a0 sprawdzony przed chwilą (blok 9995) nie jest w kolejce 40 najstarszych — 168 portfeli bez odczytu ma pierwszeństwo (v230)')
         # zaległość > WH_ETH_START: od nowa (bez udawania ciągłości)
         gj3, urls3 = self._api({})
         with mock.patch.object(zd, 'get_json', side_effect=gj3), mock.patch.object(zd.time, 'sleep'):
@@ -10860,7 +10861,7 @@ class WielorybyEthV112(WielorybyV105):
             o = zd.build_wieloryby(None, eth_key=self.KEY)
         self.assertEqual(o['ok'], {'cena': True, 'salda': True, 'transfery': True, 'eth': True}); self.assertEqual(zd.META['errors'], [])
         self.assertEqual(o['part_at']['eth'], zd.NOW); self.assertIn('eksploratora', o['src'])
-        e = o['eth']; self.assertEqual((e['n'], e['total'], e['sprawdzono'], e['wiersze'], e['per_run']), (40, 154, 40, 1, zd.WH_ETH_PER_RUN)); self.assertEqual(e['lag_min'], 1)
+        e = o['eth']; self.assertEqual((e['n'], e['total'], e['sprawdzono'], e['wiersze'], e['per_run']), (40, 168, 40, 1, zd.WH_ETH_PER_RUN))   # v230: 178 − 10 OKX; self.assertEqual(e['lag_min'], 1)
         self.assertEqual(len(o['eth_scan']), 40); self.assertTrue(all(v == 10000 - zd.WH_ETH_LAG for v in o['eth_scan'].values()))
         r0 = o['transfery'][0]
         self.assertEqual((r0['token'], r0['amt'], r0['usd'], r0['dir'], r0['exch'], r0['blk'], r0['li']), ('ETH', 3000.0, round(3000 * 2688.8695031, 2), 'in', self.W[a0], 9990, None))
@@ -23795,7 +23796,7 @@ class KontrolaWielorybyV174(unittest.TestCase):
     def test_raport_i_wpiecie(self):
         k = self.k
         src = _rwc150_txt(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
-        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'))", src); self.assertIn("Z['wieloryby'] = None", src)
+        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')))", src);   # v230 self.assertIn("Z['wieloryby'] = None", src)
         R = {'at': '2026-10-06T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-10-06T06:03:00+00:00', 'wiek_min': 17,
              'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': [], 'bledy': [],
              'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 13, 'odstep_h': 27.0, 'pomin': 'odstęp migawek 27.0 h — porównanie z przepływami 24 h tylko przy ok. dobie',
@@ -26380,3 +26381,61 @@ class PoPrzegladzieV227(unittest.TestCase):
         self.assertFalse(zd._fund_bf_odrz(p, ['2026-09-24'])); self.assertNotIn('bf_czeka', p, 'dzień sprzed ponad 10 sesji — nie czeka już na plik')
         q = {'h': [['2026-09-25', 1.0, 1]], 'bf_czeka': ['2026-09-24']}
         self.assertTrue(zd._fund_bf_odrz(q, ['2026-09-24'])); self.assertEqual(q['bf_czeka'], ['2026-09-24'], 'świeży — czeka dalej')
+
+
+# ===================== v230: WIELORYBY — LISTA BYBIT 23.09.2026 I WERSJA LISTY W HISTORII =====================
+class WielorybyListaV230(unittest.TestCase):
+    """v230: Bybit 122 portfele (raport 23.09.2026), zapasowe węzły (mevblocker), wersja listy w historii sald, dzień zmiany listy w pliku."""
+
+    def test_lista_bybit_i_zapas(self):
+        import re
+        g = zd.WH_GIELDY['Bybit']
+        self.assertEqual((len(g['addr']), len(set(g['addr'])), g['since']), (122, 122, '2026-09-23'))
+        self.assertIn('Bybit_PoR_Audit_2026_Sep_23.pdf', g['url']); self.assertIn('122 portfele', g['src'])
+        self.assertTrue(all(re.fullmatch(r'0x[0-9a-f]{40}', a) for a in g['addr']), 'adresy małymi literami, bez ligatur z PDF')
+        self.assertEqual(len(zd.wh_portfele()), 178); self.assertLessEqual(len(zd.wh_portfele()), zd.WH_TOPICS)
+        self.assertEqual(zd.WH_RPC_ZAPAS, {'wywolania': ('https://rpc.mevblocker.io', 25), 'logi': ('https://rpc.mevblocker.io', 5)})
+
+    def test_wersja_w_historii(self):
+        prev = {'Bybit': [['2026-10-05', 't', 1.0, 2.0, 3.0]], 'Binance': [['2026-10-05', 't', 4.0, 5.0, 6.0, '2022-11']], 'Inna': [['2026-10-05', 't', 1, 1, 1]]}
+        h = zd.wh_hist(prev, {'Bybit': {'eth': 9.0, 'usdt': 9.0, 'usdc': 9.0}}, '2026-10-06', 't2', wer={'Bybit': '2026-09-23', 'Binance': '2022-11'})
+        self.assertEqual(h['Bybit'], [['2026-10-05', 't', 1.0, 2.0, 3.0, '2026-08-26'], ['2026-10-06', 't2', 9.0, 9.0, 9.0, '2026-09-23']],
+                         'wiersz sprzed v230 — lista sprzed v230; nowy — obecna lista')
+        self.assertEqual(h['Binance'], [['2026-10-05', 't', 4.0, 5.0, 6.0, '2022-11']], 'wersja już zapisana zostaje')
+        self.assertEqual(h['Inna'], [['2026-10-05', 't', 1, 1, 1]], 'giełda spoza mapy — bez zgadywania wersji')
+        self.assertEqual(zd.wh_hist({}, {'X': {'eth': 1, 'usdt': 1, 'usdc': 1}}, '2026-10-06', 't')['X'], [['2026-10-06', 't', 1, 1, 1]], 'bez wer — jak dotąd')
+        self.assertEqual(zd.WH_WER_PRZED, {'Binance': '2022-11', 'OKX': '2026-09-08', 'Bybit': '2026-08-26', 'KuCoin': '2026-08-31', 'Bitfinex': '2022-11'})
+
+    def test_dzien_zmiany_listy(self):
+        G = zd.wh_gieldy({'Bybit': {'since': '2026-08-26'}, 'Binance': {'since': '2022-11', 'zmiana': '2026-01-01'}, 'OKX': 'x'}, '2026-10-06')
+        self.assertEqual(G['Bybit']['zmiana'], '2026-10-06'); self.assertEqual(G['Bybit']['n'], 122)
+        self.assertEqual(G['Binance']['zmiana'], '2026-01-01', 'ta sama lista — data zmiany z poprzedniego pliku'); self.assertNotIn('zmiana', G['OKX'])
+        self.assertEqual(zd.wh_gieldy(G, '2026-10-07')['Bybit']['zmiana'], '2026-10-06', 'następny dzień — data zmiany zostaje')
+        self.assertNotIn('zmiana', zd.wh_gieldy(None, '2026-10-06')['Bybit'], 'bez poprzedniego pliku — bez daty zmiany')
+        import inspect
+        src = inspect.getsource(zd.build_wieloryby)
+        self.assertIn("'gieldy': wh_gieldy(prev.get('gieldy'), NOW[:10])", src)
+        self.assertIn("wh_hist(prev.get('hist'), salda, out['blk_t'][:10], out['blk_t'], wer={g: c['since'] for g, c in WH_GIELDY.items()})", src)
+
+
+class KontrolaWielorybyListaV230(KontrolaWielorybyV174):
+    """v230: pary archiwum obejmujące dzień zmiany listy portfeli giełdy pominięte; wiersz raportu."""
+
+    def test_zmiana_listy_pomija_pary(self):
+        k = self.k
+        o = k.wieloryby_ocena(self._csv(self._hist()))
+        self.assertIn('Bybit', {x[0] for x in o['zle']}, 'bez daty zmiany — skok Bybit to rozbieżność')
+        o2 = k.wieloryby_ocena(self._csv(self._hist()), zmiany={'Bybit': '2026-10-06'})
+        self.assertNotIn('Bybit', {x[0] for x in o2['zle']}); self.assertEqual(o2['lista'], ['Bybit']); self.assertEqual(o2['porownane'], o['porownane'] - 1)
+        o3 = k.wieloryby_ocena(self._csv(self._hist()), zmiany={'Bybit': '2026-10-05'})
+        self.assertEqual(o3['lista'], ['Bybit'], 'dzień zmiany = poprzedni dzień pary — też pominięte (migawka archiwum mogła być przed zmianą)')
+        self.assertEqual(k.wieloryby_ocena(self._csv(self._hist()), zmiany={'Bybit': '2026-09-01'})['lista'], [])
+        self.assertEqual(k.wh_zmiany({'gieldy': {'Bybit': {'zmiana': '2026-10-06'}, 'OKX': {}, 'X': {'zmiana': 'zle'}}}), {'Bybit': '2026-10-06'})
+        self.assertEqual(k.wh_zmiany(None), {})
+        with open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')))", src)
+        R = {'at': '2026-10-07T06:20:00+00:00', 'wynik': 'OK', 'meta': {}, 'uwagi': [], 'bledy': [],
+             'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 9, 'odstep_h': 24.0, 'pomin': None, 'bez_historii': 0,
+                                        'pominiete': 0, 'lista': ['Bybit'], 'rozbieznosci': []}}}
+        self.assertIn(' (nowa lista portfeli — bez porównania: Bybit).', k.raport_md(R))

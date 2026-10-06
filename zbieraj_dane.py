@@ -9846,7 +9846,8 @@ def build_dzwignia(prev=None, today=None, only=None, cz_key=None):
 # czasem, nigdy zera. Węzeł główny sprawdzony z runnera USA 26.09.2026 (zakres logów ≤ ~900 bloków; losowe 403 „archive” —
 # stąd ponowienia); węzły zapasowe sprawdzone tylko z Polski (ankr wymaga klucza, cloudflare odmawia, llamarpc 403/525).
 WH_RPC = 'https://ethereum-rpc.publicnode.com'
-WH_RPC_ZAPAS = {'wywolania': ('https://1rpc.io/eth', 25), 'logi': ('https://rpc.flashbots.net', 5)}   # (adres, limit paczki)
+WH_RPC_ZAPAS = {'wywolania': ('https://rpc.mevblocker.io', 25), 'logi': ('https://rpc.mevblocker.io', 5)}   # (adres, limit paczki); v230: 06.10 1rpc.io
+# zwraca 520, flashbots odrzuca każde eth_getLogs — mevblocker: paczka 25 eth_call i paczka 4 eth_getLogs ze 178 adresami równe węzłowi głównemu
 WH_BATCH = 40           # paczka żądań do węzła głównego (sprawdzone 62 w jednym żądaniu)
 WH_PROBY = 3            # główny dwa razy (odstęp 0,5 s), potem zapas
 WH_USDT = '0xdac17f958d2ee523a2206206994597c13d831ec7'
@@ -9894,12 +9895,14 @@ WH_GIELDY = {
                      '0x1dfc6bec8499fcb5e3151c7c6d27feb9d7eae1d4', '0xebf6c883a1d60ab38c8ed4780aadbfe4c805ed4f',
                      '0x3425519651e4c42833633fe5c0e24ed89c1023a3', '0x7fea5b4568751533039179116e372e26b6b41b13']},
     # v108: pełne listy portfeli w sieci Ethereum z raportów dowodu rezerw giełd (sprawdzone 26.09.2026): Bybit — tabela „Audited wallets”
-    # z raportu audytu z 26.08.2026 (PDF na stronie giełdy; lista styczniowa CSV giełdy pokrywa się w 90 ze 108 adresów — portfele rotują),
+    # z raportu audytu z 26.08.2026 (PDF na stronie giełdy; lista styczniowa CSV giełdy pokrywa się w 90 ze 108 adresów — portfele rotują);
+    # v230: Bybit z raportu 23.09.2026 (tabela „Verified wallets”): 122 portfele — wszystkie 108 z sierpnia + 14 nowych (06.10: ok. 77 tys. ETH
+    # i 91 mln USDC, ok. 300 mln USD); ligatury „ﬀ” w tekście PDF zamienione przed odczytem adresów,
     # KuCoin — tabela „Verified wallets” z raportu ze stanem na 31.08.2026 (PDF podlinkowany na stronie Proof of Reserves giełdy),
     # Bitfinex — publiczna lista portfeli giełdy (GitHub bitfinexcom/pub, wallets.txt, 11.2022). Salda wszystkich odczytane 26.09.2026:
     # Bybit 2,34 mld USD (108 portfeli), KuCoin 0,74 mld (33), Bitfinex 0,76 mld (4) — pełne listy, bez wyboru „największych N”.
-    'Bybit': {'src': 'Bybit — miesięczny raport dowodu rezerw giełdy (audyt z 26.08.2026, PDF na stronie giełdy): wszystkie 108 portfeli w sieci Ethereum z tabeli „Audited wallets”',
-              'url': 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Aug_26.pdf', 'since': '2026-08-26',
+    'Bybit': {'src': 'Bybit — miesięczny raport dowodu rezerw giełdy (audyt z 23.09.2026, PDF na stronie giełdy): wszystkie 122 portfele w sieci Ethereum z tabeli „Verified wallets”',
+              'url': 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Sep_23.pdf', 'since': '2026-09-23',
               'tokeny': ['USDT', 'USDC', 'ETH'],
               'addr': ['0x01e2fb8f565d5e3cb9e0e8f0b607a96169b94393', '0x076d55c8998da29531ef7fcac2a01fa21582eed2',
                       '0x0ac92eb5716516a08e7760d314d42e1d5d3c03ae', '0x0e928b196f0ba723de312a7798027b014a7f1055',
@@ -9954,7 +9957,14 @@ WH_GIELDY = {
                       '0xf42aac93ab142090db9fdc0bc86aab73cb36f173', '0xf440139a62b2b939699c5b3e09f88e40464ab9bc',
                       '0xf833685f98eba1b99947d418c9512d27c8193b1a', '0xf89d7b9c864f589bbf53a82105107622b35eaa40',
                       '0xf8f061cfc030928a4acb8c4980911b4f5afc4002', '0x3f07566d6b5febfbd0b813b857bb388c2bd15569',
-                      '0xeb9af6505bdfd2b64848a21ed02f8ccab9144f5d', '0x3dedec283546862d78e7f0707215954e166907bd']},
+                      '0xeb9af6505bdfd2b64848a21ed02f8ccab9144f5d', '0x3dedec283546862d78e7f0707215954e166907bd',
+                      '0x036c43bebe5fa5dff3c299584b4a6c1923c7d932', '0x180a1b935d28494f9ff4233985562b18b3dcfa74',
+                      '0x36cf90ac2d130b987aff0bded378525be36d9686', '0x5a22c49ea09a2995aa1ad15fa6953b9c4109f439',
+                      '0x5c4e79cc7d5b66effcbb19e22cae0c92bff7276d', '0x6fa5b6d93e2539caea358518d3fe8f75418e5a1d',
+                      '0x86dbaa55f0e65857b58109c3cb725deff4da3851', '0x8c062ffcd87a1c5f7638b8cf18da5495c390c2cf',
+                      '0x8d6d3479c94bb95e737b72186192ff5e7fedf3a2', '0x8ebff0f0c7d644310bd1728b6bbf643cea905986',
+                      '0xa31231e727ca53ff95f0d00a06c645110c4ab647', '0xa4b9569bf942c3aad23c0c2d322fe4aff8e1bf30',
+                      '0xefdca8d1f52cf3a85dc9eb797d7bcc5e9adffe9c', '0xf4e83ff52d497ed2e5301953188cf67af3064cca']},
     'KuCoin': {'src': 'KuCoin — miesięczny raport dowodu rezerw giełdy (stan z 31.08.2026, PDF podlinkowany na stronie Proof of Reserves giełdy): wszystkie 33 portfele w sieci Ethereum z tabeli „Verified wallets”',
                'url': 'https://assets.staticimg.com/cms/media/YKni0XbjiNeiu4woYgDkB3rZ2Uk6rBO4nmihgsvRI.pdf', 'since': '2026-08-31',
                'tokeny': ['USDT', 'USDC', 'ETH'],
@@ -10097,20 +10107,43 @@ def wh_dekoduj(logs, wmap, prog=WH_PROG):
     return out
 
 
-def wh_hist(prev, salda, dzien, t, dni=WH_HIST_DNI):
+WH_WER_PRZED = {'Binance': '2022-11', 'OKX': '2026-09-08', 'Bybit': '2026-08-26', 'KuCoin': '2026-08-31', 'Bitfinex': '2022-11'}   # v230: listy
+# portfeli obowiązujące przed v230 — wersja wierszy historii zapisanych bez niej (stała, nie z poprzedniego pliku: przebieg bez sald zapisałby już nową)
+
+
+def wh_hist(prev, salda, dzien, t, dni=WH_HIST_DNI, wer=None):
     """Historia sald: jeden zrzut na dobę UTC dla giełdy (pierwszy z dnia zostaje), najwyżej dni dni.
-    Wiersz: [dzień, czas bloku, eth, usdt, usdc]. Giełda bez świeżego salda zachowuje swoją historię bez nowego wiersza."""
+    Wiersz: [dzień, czas bloku, eth, usdt, usdc]. Giełda bez świeżego salda zachowuje swoją historię bez nowego wiersza.
+    v230: wer = {giełda: data listy portfeli} — 6. pole wiersza (wersja listy); wiersze bez niej dostają listę sprzed v230 (WH_WER_PRZED).
+    Zmiana listy (nowy raport giełdy) to skok salda bez przelewów — strona i kontrola nie liczą zmian przez nią."""
     prev = prev if isinstance(prev, dict) else {}
     out = {}
     for g, rows in prev.items():
         if isinstance(rows, list):
-            out[g] = [r for r in rows if isinstance(r, list) and len(r) >= 5 and isinstance(r[0], str)]
+            out[g] = [(r + [WH_WER_PRZED[g]] if wer is not None and len(r) == 5 and g in WH_WER_PRZED else r)
+                      for r in rows if isinstance(r, list) and len(r) >= 5 and isinstance(r[0], str)]
     for g, s in salda.items():
         rows = out.setdefault(g, [])
         if not any(r[0] == dzien for r in rows):
-            rows.append([dzien, t, s['eth'], s['usdt'], s['usdc']])
+            rows.append([dzien, t, s['eth'], s['usdt'], s['usdc']] + ([wer[g]] if isinstance(wer, dict) and isinstance(wer.get(g), str) else []))
         rows.sort(key=lambda r: r[0])
     return {g: rows[-dni:] for g, rows in out.items()}
+
+
+def wh_gieldy(pg, dzien):
+    """v230: opis list portfeli giełd do pliku (n, src, url, since, tokeny) + 'zmiana' — dzień, od którego automat używa obecnej listy (gdy
+    poprzedni plik miał inną datę listy); ta sama lista — data zmiany z poprzedniego pliku (jeśli była)."""
+    pg = pg if isinstance(pg, dict) else {}
+    out = {}
+    for g, c in WH_GIELDY.items():
+        o = {'n': len(c['addr']), 'src': c['src'], 'url': c['url'], 'since': c['since'], 'tokeny': c['tokeny']}
+        p = pg.get(g) if isinstance(pg.get(g), dict) else {}
+        if isinstance(p.get('since'), str) and p['since'] != c['since']:
+            o['zmiana'] = dzien
+        elif isinstance(p.get('zmiana'), str):
+            o['zmiana'] = p['zmiana']
+        out[g] = o
+    return out
 
 
 def wh_cena(res, now_s):
@@ -10295,7 +10328,7 @@ def build_wieloryby(prev=None, eth_key=None):
     out = {'at': NOW, 'src': 'Publiczny łańcuch Ethereum (JSON-RPC, węzeł publiczny) — odczyt własny sald i zdarzeń Transfer; kurs ETH/USD z wyroczni na łańcuchu'
                             + ('; transfery ETH natywne: publiczne API eksploratora łańcucha (klucz właściciela), portfele w rotacji' if eth_key else ''),
            'rpc': WH_RPC, 'ok': {}, 'part_at': {}, 'wallets': W,
-           'gieldy': {g: {'n': len(c['addr']), 'src': c['src'], 'url': c['url'], 'since': c['since'], 'tokeny': c['tokeny']} for g, c in WH_GIELDY.items()},
+           'gieldy': wh_gieldy(prev.get('gieldy'), NOW[:10]),   # v230: z dniem zmiany listy portfeli
            'prog': WH_PROG, 'eth_usd': None, 'eth_usd_at': None,
            'dobowe': prev.get('dobowe') if isinstance(prev.get('dobowe'), dict) else {}, 'dobowe_klucze': prev.get('dobowe_klucze') if isinstance(prev.get('dobowe_klucze'), dict) else {},
            'dobowe_od': prev.get('dobowe_od') if isinstance(prev.get('dobowe_od'), str) else NOW}   # v117: sumy dobowe + od kiedy są zbierane (pierwsza doba jest niepełna)
@@ -10347,7 +10380,7 @@ def build_wieloryby(prev=None, eth_key=None):
             salda[g] = s
         if not salda:
             raise ValueError('żaden portfel nie odpowiedział')
-        out['hist'] = wh_hist(prev.get('hist'), salda, out['blk_t'][:10], out['blk_t'])
+        out['hist'] = wh_hist(prev.get('hist'), salda, out['blk_t'][:10], out['blk_t'], wer={g: c['since'] for g, c in WH_GIELDY.items()})   # v230: wersja listy
         ps = prev.get('salda') if isinstance(prev.get('salda'), dict) else {}
         for g in bad:   # giełda bez odpowiedzi: poprzednie saldo z własnym czasem (pole t), nigdy zero
             errs.append(f'salda {g}: brak odpowiedzi węzła')
