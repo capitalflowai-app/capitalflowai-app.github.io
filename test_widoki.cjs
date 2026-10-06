@@ -13724,3 +13724,60 @@ test('v221: kandydat ujawniony po 200 dniach i bez przewagi po 400 — wycofany;
   assert.ok(/<title>[^<]*: —<\/title>/.test(S) && S.includes('<circle class="snbw-k"'), 'tydzień bez liczby — „—”; kropka ostatniego tygodnia');
   assert.ok(html.includes('.snbw-h{fill:transparent}') && html.includes('.snbw-k{fill:var(--bl)}'));
 });
+
+
+/* ===================== v224: USA — napływy do funduszy co miesiąc: słupki (wzór v213, klasy .zs-*), słownik EXTRA183 w 10 językach ===================== */
+const fnd224 = (() => {
+  const a0 = fnd134.a0, a1 = fnd134.a1, esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const mk = (L, tt) => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', 'glyphImg', 'icoWrap', 'srvJSON', 'Date', html.slice(a0, a1) +
+    '\nreturn {fndWyk, fndBody, FND_MONTHS};')(() => null, tt || fnd134.tFake, (v, d) => Number(v).toFixed(d), esc, d => ' · age(' + d + ')', iso => 'D(' + iso + ')',
+    {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'}, L || 'en',
+    (c) => '<img flag=' + c + '>', (n) => '<img glyph=' + n + '>', x => '<span class="icos">' + x + '</span>', () => ({then: () => {}}), Date);
+  return {mk};
+})();
+
+test('v224: fundusze USA — słupki napływów netto z 12 miesięcy (jak tabela miesięczna): 4 rzędy, po kaflach i przed tabelą tygodni, podpowiedzi z kwotą', () => {
+  const X = fnd224.mk(), D = fnd134.D, body = X.fndBody(D), w = X.fndWyk(D.lt);
+  assert.equal(X.FND_MONTHS, 12);
+  const a = body.indexOf('<div class="zs-box">');
+  assert.ok(a > body.indexOf('fund.what') && a < body.indexOf('fund.h.tab'), 'wykres po kaflach tygodnia (i ich objaśnieniu), przed tabelą tygodni');
+  assert.ok(body.includes(w), 'fndBody zawiera fndWyk');
+  assert.ok(w.startsWith('<div class="zs-box"><p class="pnote">fund.wyk{"a":"Aug 2025","b":"Jul 2026"}</p>'), '12 ostatnich miesięcy z 31 w pliku: sierpień 2025 – lipiec 2026');
+  const R = w.split('<div class="zs-r">').slice(1);
+  assert.equal(R.length, 4, 'akcje USA, akcje spoza USA, obligacje, razem');
+  assert.deepEqual(R.map(r => (/^<span class="zs-l">(?:<img[^>]*>)*([^<]*)<\/span>/.exec(r) || [])[1]), ['fund.k.dom', 'fund.k.wld', 'fund.k.bd', 'fund.k.tot']);
+  for (const r of R) assert.equal((r.match(/<rect /g) || []).length, 12, 'słupek na każdy miesiąc');
+  const tot = R[3], last = D.lt.m[D.lt.m.length - 1][1];
+  assert.equal(last, 27500);
+  assert.ok(tot.includes('<title>Jul 2026: +27.5 bn</title>'), 'podpowiedź: miesiąc i kwota ze znakiem');
+  const mx = Math.max(...D.lt.m.slice(-12).map(r => Math.abs(r[1])));
+  assert.ok(tot.includes('<span class="zs-mx">±' + (mx / 1000).toFixed(1) + ' bn</span>'), 'skala rzędu: ± największa wartość z 12 miesięcy');
+  assert.ok(/aria-label="fund\.k\.tot: Aug 2025 [+−][\d.]+ bn; /.test(tot), 'opis dla czytników ekranu: każdy miesiąc z kwotą');
+  assert.ok(!/<table|<tbody|ICI|Investment Company/.test(w), 'bez tabeli i bez nazwy wydawcy');
+});
+
+test('v224: fundusze USA — słupki: brak = ramka przerywana (nie zero), zero po zaokrągleniu = kreska, mniej niż 6 miesięcy = bez wykresu', () => {
+  const X = fnd224.mk(), D = fnd134.cp(fnd134.D), n = D.lt.m.length;
+  D.lt.m[n - 1][3] = null;                       /* akcje USA, lipiec 2026: brak */
+  D.lt.m[n - 2][3] = 30;                         /* akcje USA, czerwiec 2026: 0,03 mld USD — zero po zaokrągleniu */
+  const w = X.fndWyk(D.lt), dom = w.split('<div class="zs-r">')[1];
+  assert.ok(dom.includes('<rect class="zs-n" x="177" y="19" width="10" height="10" rx="2"><title>Jul 2026: fund.wyk.na</title></rect>'), 'brak — ramka, podpis „brak danych”');
+  assert.ok(dom.includes('<rect class="zs-z" x="160" y="23" width="12" height="2"><title>Jun 2026: 0.0 bn</title></rect>'), 'zero — kreska bez koloru i bez znaku');
+  assert.ok(/Jul 2026 fund\.wyk\.na"/.test(dom), 'brak także w opisie dla czytników ekranu');
+  D.lt.m = D.lt.m.slice(-5);
+  assert.equal(X.fndWyk(D.lt), '', '5 miesięcy — bez wykresu'); assert.equal(X.fndWyk(null), '');
+  const E = fnd134.cp(fnd134.D); E.lt.m.forEach(r => { r[3] = null; });
+  assert.equal(X.fndWyk(E.lt).split('<div class="zs-r">').length - 1, 3, 'rząd bez żadnej liczby pominięty (nie same ramki)');
+});
+
+test('v224: słownik EXTRA183 — fund.wyk i fund.wyk.na w 10 językach (własne tłumaczenia), czysty JSON, ostatni słownik', () => {
+  const i = html.indexOf('const EXTRA183='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA183='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) {
+    assert.deepEqual(Object.keys(D[L]).sort(), ['fund.wyk', 'fund.wyk.na'], L);
+    assert.ok(D[L]['fund.wyk'].includes('{a}') && D[L]['fund.wyk'].includes('{b}'), L + ': zakres miesięcy');
+    if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['fund.wyk'], D.en['fund.wyk'], L + ': tłumaczenie, nie angielski zapas');
+  }
+  assert.ok(html.includes('for(const l in EXTRA183)if(I18N[l])Object.assign(I18N[l],EXTRA183[l]);'));
+  assert.ok(!/const EXTRA184=/.test(html), 'EXTRA183 ostatni');
+});

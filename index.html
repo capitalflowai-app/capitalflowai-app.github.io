@@ -2188,6 +2188,9 @@ for(const l in EXTRA181)if(I18N[l])Object.assign(I18N[l],EXTRA181[l]);
 /* v221: reguły „w cieniu” — wycofanie po słabszej ocenie (tylko pl) */
 const EXTRA182={"pl":{"tig.sh.wyc":"Reguła z cienia „{r}” po kolejnej ocenie ({c} dni, {d}) nie ma już przewagi — nie pokazujemy jej."}};
 for(const l in EXTRA182)if(I18N[l])Object.assign(I18N[l],EXTRA182[l]);
+/* v224: fundusze USA — słupki napływów netto co miesiąc (10 języków: panel rysowany w każdym języku) */
+const EXTRA183={"pl":{"fund.wyk":"Napływy netto co miesiąc: {a} – {b} (słupek w górę = wpłaty, w dół = wypłaty; każdy rząd ma własną skalę — ± z prawej)","fund.wyk.na":"brak danych"},"en":{"fund.wyk":"Net flows by month: {a} – {b} (bar up = inflows, down = outflows; each row has its own scale — ± on the right)","fund.wyk.na":"no data"},"de":{"fund.wyk":"Nettozuflüsse pro Monat: {a} – {b} (Balken nach oben = Zuflüsse, nach unten = Abflüsse; jede Zeile hat ihre eigene Skala — ± rechts)","fund.wyk.na":"keine Daten"},"es":{"fund.wyk":"Flujos netos por mes: {a} – {b} (barra hacia arriba = entradas, hacia abajo = salidas; cada fila tiene su propia escala — ± a la derecha)","fund.wyk.na":"sin datos"},"fr":{"fund.wyk":"Flux nets par mois : {a} – {b} (barre vers le haut = entrées, vers le bas = sorties ; chaque ligne a sa propre échelle — ± à droite)","fund.wyk.na":"pas de données"},"it":{"fund.wyk":"Flussi netti per mese: {a} – {b} (barra in su = afflussi, in giù = deflussi; ogni riga ha la propria scala — ± a destra)","fund.wyk.na":"dati mancanti"},"pt":{"fund.wyk":"Fluxos líquidos por mês: {a} – {b} (barra para cima = entradas, para baixo = saídas; cada linha tem a sua própria escala — ± à direita)","fund.wyk.na":"sem dados"},"ru":{"fund.wyk":"Чистые потоки по месяцам: {a} – {b} (столбец вверх = приток, вниз = отток; у каждой строки своя шкала — ± справа)","fund.wyk.na":"нет данных"},"zh":{"fund.wyk":"每月净流量：{a} – {b}（柱向上 = 流入，向下 = 流出；每行使用各自的刻度——右侧为 ±）","fund.wyk.na":"无数据"},"ja":{"fund.wyk":"月ごとの純流入：{a} – {b}（上向きの棒 = 流入、下向き = 流出。各行は独自の目盛り — 右端に ±）","fund.wyk.na":"データなし"}};
+for(const l in EXTRA183)if(I18N[l])Object.assign(I18N[l],EXTRA183[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -9916,6 +9919,29 @@ function fndOld(w,days){const ms=Date.parse(w+'T00:00:00Z');return isFinite(ms)&
 function fndPrev(D,k,key){const ok=D.ok&&typeof D.ok==='object'?D.ok:{},pa=D.part_at&&typeof D.part_at==='object'?D.part_at:{};
   return ok[k]===false&&typeof pa[k]==='string'&&isFinite(Date.parse(pa[k]))?`<p class="pnote neu">${t(key,{t:engDate(pa[k])})}</p>`:'';}
 function fndTile(ico,label,val,lines,when){return `<div class="etfk"><span>${ico?`<span class="icos">${ico}</span>`:''}${escH(label)}</span><b><span class="fnd-v ${val.cls||''}">${val.txt}</span>${lines.map(l=>`<small class="${l.cls||''}">${l.txt}</small>`).join('')}</b><small class="mtxt">${when}</small></div>`;}
+/* v224: napływy netto co miesiąc (dane rzeczywiste, część lt.m) — słupki w rzędach: akcje USA, akcje spoza USA, obligacje, razem; wzór i style
+   wykresu przepływów zagranicy (v213: .zs-*); każdy rząd z własną skalą (± przy prawej krawędzi); zero po zaokrągleniu = kreska, brak = ramka
+   przerywana (nigdy zero); te same FND_MONTHS miesięcy co tabela miesięczna; mniej niż 6 miesięcy — bez wykresu */
+function fndWyk(P){
+  const M=P?fndRows(P.m,FND_LT.length,true).slice(-FND_MONTHS):[];
+  if(M.length<6)return '';
+  const ix=n=>fndIdx(P,n,FND_LT),bw=12,gp=4,Wd=M.length*(bw+gp)-gp,H=48,mid=H/2,nb=t('fund.wyk.na');
+  const F=(c,cls)=>typeof flagImg==='function'?flagImg(c,cls):'',G=(n,cls)=>typeof glyphImg==='function'?glyphImg(n,cls):'';
+  const R=[['dom',F('us','sm'),'fund.k.dom'],['wld',G('globe','sm'),'fund.k.wld'],['bd',F('us','sm'),'fund.k.bd'],['total',F('us','sm')+G('etf','sm'),'fund.k.tot']];
+  const rows=R.map(([n,ico,k])=>{
+    const pts=M.map(r=>[r[0],r[ix(n)]]),vs=pts.map(p=>p[1]).filter(fndNum);if(!vs.length)return '';
+    const mx=Math.max(...vs.map(Math.abs)),sc=mx>0?(mid-3)/mx:0;
+    const g=pts.map(([m,v],i)=>{const x=i*(bw+gp),lab=escH(fndMon(m));
+      if(!fndNum(v))return `<rect class="zs-n" x="${x+1}" y="${mid-5}" width="${bw-2}" height="10" rx="2"><title>${lab}: ${escH(nb)}</title></rect>`;
+      const f=fndFlow(v);
+      if(!f.cls)return `<rect class="zs-z" x="${x}" y="${mid-1}" width="${bw}" height="2"><title>${lab}: ${escH(f.txt)}</title></rect>`;
+      const h=Math.max(1,Math.abs(v)*sc);
+      return `<rect class="${v>0?'zs-p':'zs-m'}" x="${x}" y="${(v>0?mid-h:mid).toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="2"><title>${lab}: ${escH(f.txt)}</title></rect>`;}).join('');
+    const al=t(k)+': '+pts.map(([m,v])=>fndMon(m)+' '+(fndNum(v)?fndFlow(v).txt:nb)).join('; ');
+    return `<div class="zs-r"><span class="zs-l">${ico}${escH(t(k))}</span><svg class="zs" viewBox="0 0 ${Wd} ${H}" preserveAspectRatio="none" role="img" aria-label="${escH(al)}">`+
+      `<line class="zs-0" x1="0" y1="${mid}" x2="${Wd}" y2="${mid}"/>${g}</svg><span class="zs-mx">${mx>0?'±'+escH(t('fund.bn',{v:nfmt(mx/fndDiv(),fndDec())})):'0'}</span></div>`;}).join('');
+  return rows?`<div class="zs-box"><p class="pnote">${t('fund.wyk',{a:fndMon(M[0][0]),b:fndMon(M[M.length-1][0])})}</p>${rows}</div>`:'';
+}
 function fndBody(D){
   if(!D||typeof D!=='object')return '';
   const F=(c,cls)=>typeof flagImg==='function'?flagImg(c,cls):'',G=(n,cls)=>typeof glyphImg==='function'?glyphImg(n,cls):'';
@@ -9936,6 +9962,7 @@ function fndBody(D){
     html+=`<h3 class="mtxt">${t('fund.h.lt')}</h3><p class="pnote">${when}</p>${fndPrev(D,'lt','fund.prev')}`+
       (fndOld(P.week,FND_STALE.lt)?`<p class="pnote neu">${t('fund.stale',{d:fndDay(P.week)})}</p>`:'')+`<div class="etfkpis">${tiles}</div><p class="pnote">${t('fund.what')}</p>`;
   }else html+=`<p class="pnote neu">${t('fund.lt.na')}</p>`;
+  html+=fndWyk(P);   /* v224: słupki napływów z ostatnich 12 miesięcy (dane rzeczywiste, jak tabela miesięczna) */
   X.forEach(x=>{html+=x.tiles(D);});
   /* tabela: ostatnie tygodnie z napływów i dalszych części (tydzień bez liczby części = „—”), od najnowszego; przy napływach — tylko od
      pierwszego tygodnia ich historii (starsze tygodnie innych części nie dają wierszy z samymi kreskami) */
