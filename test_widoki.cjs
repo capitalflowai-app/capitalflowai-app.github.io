@@ -14016,3 +14016,34 @@ test('v234: słownik EXTRA187 — lev.wyk* w 10 językach (własne tłumaczenia)
   assert.ok(html.includes('for(const l in EXTRA187)if(I18N[l])Object.assign(I18N[l],EXTRA187[l]);'));
   assert.ok(!/Coinalyze|Binance Futures|CoinGlass/i.test(JSON.stringify(D)), 'bez nazw dostawców');
 });
+
+
+/* ===================== v236: tokenizowane aktywa — słupki udziału rodzajów nad tabelą, słownik EXTRA188 ===================== */
+const rw236 = (() => {
+  const a = html.indexOf('function rwSegWyk(D){'), b = html.indexOf('\nfunction rwSegTable(D){', a);
+  const rwNum = v => typeof v === 'number' && isFinite(v), rwPos = v => rwNum(v) && v > 0 ? v : null, rwObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  return new Function('t', 'escH', 'nfmt', 'rwObj', 'rwPos', 'rwUsd', 'RW_SEGS', html.slice(a, b) + '\nreturn rwSegWyk;')(
+    k => k, s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'), (v, d) => Number(v).toFixed(d), rwObj, rwPos,
+    v => (v / 1e9).toFixed(1) + ' mld', ['tb', 'ofi', 'pc', 'cm', 'eq', 're', 'oth']);
+})();
+test('v236: rodzaje tokenizowanych aktywów — słupki udziału od największego, długość = część całości, braki bez wiersza', () => {
+  const D = {seg: {all: {v: 26.7e9}, tb: {v: 13.9e9}, ofi: {v: 1.3e9}, pc: {v: 2.2e9}, cm: {v: 5.1e9}, eq: {v: null}, re: {v: 0}, oth: {v: 4.2e9}}};
+  const w = rw236(D);
+  assert.ok(w.startsWith('<div class="rww"><p class="pnote">rww.wyk</p><div class="rww-r">'));
+  const R = w.split('<div class="rww-r">').slice(1);
+  assert.deepEqual(R.map(r => /rww-n">([^<]+)</.exec(r)[1]), ['rwa.s.tb', 'rwa.s.cm', 'rwa.s.oth', 'rwa.s.pc', 'rwa.s.ofi'], 'od największego; bez wyceny i zero — bez wiersza');
+  assert.ok(R[0].includes('<i style="width:' + (13.9 / 26.7 * 100).toFixed(2) + '%"></i>') && R[0].includes('<span class="rww-v">' + (13.9 / 26.7 * 100).toFixed(1) + '% · 13.9 mld</span>'), 'udział i wartość');
+  assert.equal(rw236({seg: {all: {v: 1e9}, tb: {v: 5e8}, cm: {v: 4e8}}}), '', 'mniej niż 3 rodzaje — bez wykresu');
+  assert.equal(rw236({seg: {all: {v: null}, tb: {v: 5e8}, cm: {v: 4e8}, pc: {v: 1e8}}}), '', 'brak sumy — bez wykresu');
+  assert.equal(rw236({}), ''); assert.equal(rw236(null), '');
+  assert.ok(rw236({seg: {all: {v: 1e9}, tb: {v: 2e9}, cm: {v: 4e8}, pc: {v: 1e8}}}).includes('width:100.00%'), 'udział ponad 100% (niespójny plik) — pasek najwyżej pełny');
+});
+test('v236: wykres w rwSegTable — pod nagłówkiem rodzajów, nad tabelą; styl; słownik EXTRA188 (10 języków, czysty JSON, linia for po EXTRA187)', () => {
+  assert.ok(html.includes("<summary>${t('rwa.h.seg')}</summary>${rwSegWyk(D)}<div class=\"list-wrap\">"), 'nad tabelą rodzajów');
+  assert.ok(html.includes('#c-rwa .rww-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}'));
+  const i = html.indexOf('const EXTRA188='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA188='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) { assert.deepEqual(Object.keys(D[L]), ['rww.wyk'], L); if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['rww.wyk'], D.en['rww.wyk'], L); }
+  assert.ok(html.includes('for(const l in EXTRA187)if(I18N[l])Object.assign(I18N[l],EXTRA187[l]);\nconst EXTRA188='));
+  assert.ok(html.includes('for(const l in EXTRA188)if(I18N[l])Object.assign(I18N[l],EXTRA188[l]);'));
+});

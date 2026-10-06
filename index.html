@@ -1039,6 +1039,13 @@ td .cell .logo-img{width:34px;height:34px}
 #c-rwa .etfk b.na,#c-rwa .etfk b small.na,#c-rwa .cell.na{color:var(--dim)}
 #c-rwa .etfk b small.fz{color:var(--yl-tx)}   /* wartość bez bieżącej wyceny — osobna linia, nigdy w liczbie kafla */
 #c-rwa .etfk>small.mtxt{display:block;font-size:10.5px;line-height:1.35;margin-top:4px;color:var(--dim)}
+#c-rwa .rww{margin:8px 0 10px;max-width:760px}
+#c-rwa .rww-r{margin:7px 0}
+#c-rwa .rww-n{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px;overflow-wrap:anywhere}
+#c-rwa .rww-b{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+#c-rwa .rww-t{position:relative;height:10px;border-radius:2px;background:var(--line-2)}
+#c-rwa .rww-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}
+#c-rwa .rww-v{font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap;text-align:right}
 #c-rwa table.etft{min-width:0;width:100%}
 #c-rwa .etft th{white-space:nowrap;padding:8px 8px}
 #c-rwa .etft th:not(:first-child),#c-rwa td .cell.mono{text-align:right;justify-content:flex-end}
@@ -2223,6 +2230,8 @@ const EXTRA186={"pl":{"wh.lista":"nowa lista portfeli od {d} — bez porównania
 for(const l in EXTRA186)if(I18N[l])Object.assign(I18N[l],EXTRA186[l]);
 const EXTRA187={"pl":{"lev.wyk":"Likwidacje z ostatnich 24 godzin: kogo rynek wyrzucił z pozycji z dźwignią. Czerwony — grający na wzrost (pozycje długie), zielony — grający na spadek (krótkie). Obok udział obu stron i suma.","lev.wyk.l":"długie (na wzrost)","lev.wyk.s":"krótkie (na spadek)","lev.wyk.tip":"{c}: długie {l} {u} · krótkie {s} {u}"},"en":{"lev.wyk":"Liquidations over the last 24 hours: who the market forced out of leveraged positions. Red — traders betting on a rise (longs), green — betting on a fall (shorts). Next to it: each side’s share and the total.","lev.wyk.l":"longs (betting on a rise)","lev.wyk.s":"shorts (betting on a fall)","lev.wyk.tip":"{c}: longs {l} {u} · shorts {s} {u}"},"de":{"lev.wyk":"Liquidationen der letzten 24 Stunden: wen der Markt aus gehebelten Positionen gedrängt hat. Rot — Wetten auf steigende Kurse (Long), grün — auf fallende (Short). Daneben: Anteil beider Seiten und Summe.","lev.wyk.l":"Long (auf steigende Kurse)","lev.wyk.s":"Short (auf fallende Kurse)","lev.wyk.tip":"{c}: Long-Positionen {l} {u} · Short-Positionen {s} {u}"},"es":{"lev.wyk":"Liquidaciones de las últimas 24 horas: a quién expulsó el mercado de sus posiciones apalancadas. Rojo: quienes apostaban al alza (largos); verde: a la baja (cortos). Al lado: la parte de cada lado y el total.","lev.wyk.l":"largos (al alza)","lev.wyk.s":"cortos (a la baja)","lev.wyk.tip":"{c}: largos {l} {u} · cortos {s} {u}"},"fr":{"lev.wyk":"Liquidations des dernières 24 heures : qui le marché a sorti de ses positions à effet de levier. Rouge — paris à la hausse (longs), vert — à la baisse (shorts). À côté : la part de chaque côté et le total.","lev.wyk.l":"longs (à la hausse)","lev.wyk.s":"shorts (à la baisse)","lev.wyk.tip":"{c} : positions longues {l} {u} · courtes {s} {u}"},"it":{"lev.wyk":"Liquidazioni delle ultime 24 ore: chi il mercato ha espulso dalle posizioni con leva. Rosso — chi scommetteva sul rialzo (long), verde — sul ribasso (short). Accanto: la quota di ciascun lato e il totale.","lev.wyk.l":"long (al rialzo)","lev.wyk.s":"short (al ribasso)","lev.wyk.tip":"{c}: posizioni long {l} {u} · short {s} {u}"},"pt":{"lev.wyk":"Liquidações das últimas 24 horas: quem o mercado forçou a sair de posições alavancadas. Vermelho — apostas na alta (longs), verde — na baixa (shorts). Ao lado: a parte de cada lado e o total.","lev.wyk.l":"longs (na alta)","lev.wyk.s":"shorts (na baixa)","lev.wyk.tip":"{c}: posições longas {l} {u} · curtas {s} {u}"},"ru":{"lev.wyk":"Ликвидации за последние 24 часа: кого рынок выбил из позиций с плечом. Красный — ставившие на рост (длинные), зелёный — на падение (короткие). Рядом — доля каждой стороны и сумма.","lev.wyk.l":"длинные (на рост)","lev.wyk.s":"короткие (на падение)","lev.wyk.tip":"{c}: длинные {l} {u} · короткие {s} {u}"},"zh":{"lev.wyk":"过去24小时的强制平仓：市场把谁挤出了杠杆仓位。红色——押注上涨的多头，绿色——押注下跌的空头。旁边是双方占比与总额。","lev.wyk.l":"多头（押注上涨）","lev.wyk.s":"空头（押注下跌）","lev.wyk.tip":"{c}：多头 {l} {u} · 空头 {s} {u}"},"ja":{"lev.wyk":"過去24時間の強制清算：市場がレバレッジ取引から誰を締め出したか。赤は上昇に賭けたロング、緑は下落に賭けたショート。横に双方の割合と合計。","lev.wyk.l":"ロング（上昇に賭ける）","lev.wyk.s":"ショート（下落に賭ける）","lev.wyk.tip":"{c}：ロング {l} {u} · ショート {s} {u}"}};
 for(const l in EXTRA187)if(I18N[l])Object.assign(I18N[l],EXTRA187[l]);
+const EXTRA188={"pl":{"rww.wyk":"Udział rodzajów w wartości tokenizowanych aktywów z bieżącą wyceną — długość paska to część całości (cały pasek = 100%)."},"en":{"rww.wyk":"Share of each kind in the value of tokenized assets with a current valuation — the bar length is the part of the whole (a full bar = 100%)."},"de":{"rww.wyk":"Anteil jeder Art am Wert der tokenisierten Vermögenswerte mit aktueller Bewertung — die Balkenlänge ist der Anteil am Ganzen (voller Balken = 100 %)."},"es":{"rww.wyk":"Peso de cada tipo en el valor de los activos tokenizados con valoración actual: la longitud de la barra es la parte del total (barra completa = 100 %)."},"fr":{"rww.wyk":"Part de chaque type dans la valeur des actifs tokenisés avec une valorisation actuelle — la longueur de la barre est la part du total (barre pleine = 100 %)."},"it":{"rww.wyk":"Quota di ogni tipo sul valore degli asset tokenizzati con valutazione attuale: la lunghezza della barra è la parte del totale (barra piena = 100%)."},"pt":{"rww.wyk":"Peso de cada tipo no valor dos ativos tokenizados com avaliação atual — o comprimento da barra é a parte do total (barra cheia = 100%)."},"ru":{"rww.wyk":"Доля каждого вида в стоимости токенизированных активов с текущей оценкой — длина полосы показывает часть целого (полная полоса = 100%)."},"zh":{"rww.wyk":"各类别在有当前估值的代币化资产总值中的占比——条形长度即占整体的比例（整条 = 100%）。"},"ja":{"rww.wyk":"現在の評価額があるトークン化資産の価値に占める各種類の割合 — 棒の長さが全体に占める部分です（棒いっぱい = 100%）。"}};
+for(const l in EXTRA188)if(I18N[l])Object.assign(I18N[l],EXTRA188[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -9435,6 +9444,17 @@ function rwTiles(D,old){
     return rwTile(ico,t('rwa.k.'+k),rwUsd(v),L,when,false);
   }).join('');
 }
+/* v236: rodzaje aktywów — słupki udziału w wartości z bieżącą wyceną (długość = część całości, cały pasek = 100%), od największego; nazwa nad
+   paskiem (długie nazwy czytelne na telefonie); rodzaj bez wyceny — bez wiersza; brak sumy albo mniej niż 3 rodzaje — bez wykresu */
+function rwSegWyk(D){
+  const S=rwObj(D&&D.seg)?D.seg:{},a=rwPos(rwObj(S.all)?S.all.v:null);
+  if(a===null)return '';
+  const R=RW_SEGS.map(k=>({k,v:rwPos(rwObj(S[k])?S[k].v:null)})).filter(x=>x.v!==null).sort((x,y)=>y.v-x.v);
+  if(R.length<3)return '';
+  const rows=R.map(({k,v})=>{const p=Math.min(100,v/a*100);
+    return `<div class="rww-r"><span class="rww-n">${escH(t('rwa.s.'+k))}</span><span class="rww-b"><span class="rww-t" aria-hidden="true"><i style="width:${p.toFixed(2)}%"></i></span><span class="rww-v">${nfmt(p,1)}% · ${rwUsd(v)}</span></span></div>`;}).join('');
+  return `<div class="rww"><p class="pnote">${t('rww.wyk')}</p>${rows}</div>`;
+}
 function rwChCell(v){return `<span class="cell mono ${rwCls(v)}">${rwPct(v)}</span>`;}
 /* tabela rodzajów: 7 rodzajów w kolejności przypisania + „Razem”; udział = wartość ÷ suma (tylko gdy obie są liczbami); kolumna „bez bieżącej wyceny”
    — ostatnio znana wartość produktów nieodświeżanych tego rodzaju („—”, gdy ich nie ma), poza wartością, udziałem i zmianami */
@@ -9444,7 +9464,7 @@ function rwSegTable(D){
   const row=(k,o,cls)=>`<tr${cls?` class="${cls}"`:''}><td><span class="cell">${escH(t('rwa.s.'+k))}</span></td><td>${mono(rwUsd(o.v))}</td><td>${mono(fzv(k))}</td><td class="rw-w">${mono(rwNum(o.n)?nfmt(o.n,0):'—')}</td><td class="rw-w">${mono(rwShare(o.v,A.v))}</td><td>${rwChCell(o.c7)}</td><td>${rwChCell(o.c30)}</td></tr>`;
   const body=RW_SEGS.map(k=>row(k,rwObj(S[k])?S[k]:{},'')).join('')+row('all',A,'rw-sum');
   const f7=rwIsDay(A.c7_from)?rwDayTxt(A.c7_from):'—',f30=rwIsDay(A.c30_from)?rwDayTxt(A.c30_from):'—';
-  return `<details class="etfd" id="rw-seg" open><summary>${t('rwa.h.seg')}</summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('rwa.th.kind')}</th><th>${t('rwa.th.val')}</th><th>${t('rwa.th.fz')}</th><th class="rw-w">${t('rwa.th.n')}</th><th class="rw-w">${t('rwa.th.sh')}</th><th>${t('rwa.th.c7')}</th><th>${t('rwa.th.c30')}</th></tr></thead><tbody>${body}</tbody></table></div>
+  return `<details class="etfd" id="rw-seg" open><summary>${t('rwa.h.seg')}</summary>${rwSegWyk(D)}<div class="list-wrap"><table class="etft"><thead><tr><th>${t('rwa.th.kind')}</th><th>${t('rwa.th.val')}</th><th>${t('rwa.th.fz')}</th><th class="rw-w">${t('rwa.th.n')}</th><th class="rw-w">${t('rwa.th.sh')}</th><th>${t('rwa.th.c7')}</th><th>${t('rwa.th.c30')}</th></tr></thead><tbody>${body}</tbody></table></div>
     <p class="pnote">${t('rwa.seg.note',{t:rwWhen(D.at)})}${f7!=='—'||f30!=='—'?' '+t('rwa.seg.ch',{d7:f7,d30:f30}):''}${anyFz?' '+t('rwa.seg.fz'):''} ${t('rwa.sh.note')}</p></details>`;
 }
 /* 10 największych produktów: nazwa (escH), rodzaj, wartość, udział w sumie, zmiany produktu; wartość z poprzedniego pobrania oznaczona „*” */
