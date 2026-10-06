@@ -2977,6 +2977,8 @@ def _bcb_get(sid, a, b):
     v256: chwilowy błąd API JSON jednej serii (HTTP 5xx, pusta odpowiedź) → ta seria z SOAP, reszta nadal z API JSON (te same liczby —
     06.10.2026 sprawdzone na 13968, 13970 i 22936); po BCB_CHW_MAX takich seriach w przebiegu dalsze od razu z SOAP. SOAP też zawiedzie →
     błąd z obiema przyczynami, a dalsze chwilowe błędy w tym przebiegu już bez próby SOAP (najwyżej jedno czekanie na SOAP)."""
+    if _BCB_WS.get('json_zle'):   # v263 (przegląd v261): API JSON i SOAP w tym przebiegu nie odpowiadają — dalsze serie bez czekania
+        raise RuntimeError(f"API JSON i zapas SOAP w tym przebiegu niedostępne ({_BCB_WS['json_zle']})")
     if not _BCB_WS['on']:
         try:
             return get_json(BCB_URL.format(id=sid, a=a, b=b))
@@ -2998,6 +3000,7 @@ def _bcb_get(sid, a, b):
             if not _bcb_conn_err(e):
                 raise
             if _BCB_WS.get('ws_zle'):   # v261: API JSON i SOAP nie odpowiadają — bez przełączania i bez czekania
+                _BCB_WS['json_zle'] = str(e)[:90]   # v263: zapamiętane — dalsze serie bez kolejnego czekania na API JSON
                 raise RuntimeError(f'{str(e)[:90]}; zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})') from e
             _BCB_WS['on'] = True
             META['notes'].append(mask(f'BCB: API JSON nie odpowiada ({str(e)[:90]}) — serie z usługi SOAP tego samego banku'))
@@ -3011,11 +3014,13 @@ def _bcb_ws_raz(sid, a, b):
     if _BCB_WS.get('ws_zle'):
         raise RuntimeError(f'zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})')
     try:
-        return _bcb_ws(sid, a, b)
+        rows = _bcb_ws(sid, a, b)
     except Exception as e:
         if _bcb_conn_err(e) or (isinstance(e, urllib.error.HTTPError) and e.code >= 500):
             _BCB_WS['ws_zle'] = str(e)[:90]
         raise
+    _BCB_WS['soap_ok'] = _BCB_WS.get('soap_ok', 0) + 1   # v263: ile serii naprawdę przyszło z SOAP (ślad 'soap' w części tylko wtedy)
+    return rows
 
 
 def _bcb_date(s):
@@ -3068,6 +3073,7 @@ def bcb_part(prev_br):
     have = {k: list(v) for k, v in _rows(prev_br).items()}
     got, fails = {}, []
     _BCB_WS['chw'] = []; _BCB_WS.pop('ws_zle', None)   # v256: liczniki chwilowych błędów API JSON — od nowa w każdym przebiegu
+    _BCB_WS.pop('json_zle', None); _BCB_WS['soap_ok'] = 0   # v263
     now_br = _now_utc() - datetime.timedelta(hours=3)
     a, b = (now_br - datetime.timedelta(days=BCB_DAYS)).strftime('%d/%m/%Y'), now_br.strftime('%d/%m/%Y')
     for name, sid in BCB_SERIES:
@@ -3101,9 +3107,9 @@ def bcb_part(prev_br):
     extra = {'m': mrows, 'm_cols': ['miesiąc', 'bezpośrednie', 'portfelowe', 'akcje', 'fundusze', 'obligacje', 'pozostałe',
                                     'bank centralny: waluty i depozyty', 'bank centralny: kredyty', 'SDR'],
              'm_src': 'Banco Central do Brasil — SGS, balanço de pagamentos (22885, 22924, 22927, 22936, 22939, 22971, 22986, 23001, 23042)'} if mrows else {}
-    if _BCB_WS.get('chw') or _BCB_WS['on']:   # v261: ślad w części — notatka wraca w przebiegach z pamięci (bcb_nota)
-        extra['soap'] = {'at': NOW, 'serie': [s for s, _ in _BCB_WS.get('chw') or []],
-                         'np': (_BCB_WS['chw'][0][1] if _BCB_WS.get('chw') else None), 'wszystkie': bool(_BCB_WS['on'])}
+    ch, ok_s = _BCB_WS.get('chw') or [], _BCB_WS.get('soap_ok', 0)
+    if ch or (_BCB_WS['on'] and ok_s):   # v261/v263: ślad w części tylko, gdy coś naprawdę przyszło z SOAP — notatka wraca z pamięci (bcb_nota)
+        extra['soap'] = {'at': NOW, 'serie': [s for s, _ in ch], 'np': (ch[0][1] if ch else None), 'wszystkie': bool(_BCB_WS['on']) and ok_s > len(ch)}
     return {**extra, 'at': NOW, 'src': 'Banco Central do Brasil — SGS, câmbio contratado (13961, 13967–13970)',
             'url': 'https://www.bcb.gov.br/estatisticas/tabelaespecial', 'unit': 'mln USD',
             'cols': ['data', 'finansowy saldo', 'finansowy kupno', 'finansowy sprzedaż', 'handlowy saldo', 'razem saldo'],
@@ -3551,6 +3557,9 @@ def build_obce(key, prev=None, evds_key=''):
                 evds_note(pp, evds_key)
             if part == 'br':
                 bcb_nota(pp)   # v261: serie z SOAP widoczne także w przebiegu z pamięci
+            pe = (prev.get('errs') or {}).get(part) if isinstance(prev.get('errs'), dict) else None
+            if isinstance(pe, list) and pe:   # v263: ostatnie błędy części zostają widoczne do jej następnego odświeżenia (dane mają dziurę)
+                out['errs'][part] = pe; META['errors'].extend(e for e in pe if isinstance(e, str))
             continue
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
@@ -10743,7 +10752,7 @@ def ix_plan(part, now, budget):
         if bad and (now - bad).days < _ix_pause(rec):
             continue
         at = _ix_dt(rec.get('at'))
-        if at is None or at < ix_ready(ix_godzina(h, rec), now):   # v262: godzina z listy + nauczone przesunięcie
+        if ix_do_pobrania(h, rec, now):   # v262/v263: godzina z listy + nauczone przesunięcie; dzień podniesienia — bez drugiego pobrania
             due.append((at or datetime.datetime.min.replace(tzinfo=datetime.timezone.utc), i, sym))   # nigdy nie pobrane: kolejność listy
     due.sort()
     return [s for _, _, s in due[:max(0, min(IX_PER_RUN, budget))]]
@@ -10802,28 +10811,40 @@ def ix_godzina(h, rec):
     return min(23, h + _ix_hplus(rec))
 
 
-def ix_nauka(rec, rw):
-    """v262: samouczenie pory pobierania. rw — poprawki z tego pobrania (ix_rewizje). Poprawka ostatniej sesji poprzedniego pobrania
-    o więcej niż IX_POZNIEJ_PROG %, gdy poprzednie pobranie było w dniu tej sesji albo nazajutrz (UTC) = pobrana za wcześnie (zamknięcie
-    wstępne) → o godzinę później (najwyżej IX_POZNIEJ_MAX); IX_POZNIEJ_POWROT pobrań z rzędu bez takiej poprawki → o godzinę wcześniej.
-    → (przesunięcie, licznik pobrań bez poprawki); (0, 0) = nic do zapisania."""
-    p = _ix_hplus(rec)
+def ix_do_pobrania(h, rec, now):
+    """v263: indeks do pobrania — nie pobrany od chwili gotowości (ix_ready) w godzinie nauczonej; w dniu podniesienia godziny ('h+d') pobranie
+    z tego dnia wystarcza (przegląd v262: inaczej drugie pobranie tego samego dnia — zapytanie z dobowego limitu i ten sam dowód liczony dwa razy)."""
+    at = _ix_dt(rec.get('at')) if isinstance(rec, dict) else None
+    if at is None:
+        return True
+    R = ix_ready(ix_godzina(h, rec), now)
+    if at >= R:
+        return False
+    hd = rec.get('h+d') if isinstance(rec, dict) else None
+    return not (isinstance(hd, str) and hd == at.date().isoformat() == R.date().isoformat())
+
+
+def ix_nauka(rec, rw, h=None):
+    """v262/v263: samouczenie pory pobierania. rw — poprawki z tego pobrania (ix_rewizje); h — godzina z listy IX_SYMBOLS. Poprawka ostatniej
+    sesji poprzedniego pobrania o więcej niż IX_POZNIEJ_PROG % liczy się tylko, gdy tamto pobranie było w dniu tej sesji (UTC) i w godzinie
+    obecnie nauczonej (h + przesunięcie) — v263 (przegląd): pobranie o starej porze albo spóźnione (USA nazajutrz, sobota) nie jest dowodem.
+    Wtedy o godzinę później (najwyżej IX_POZNIEJ_MAX i nie później niż 23 UTC); IX_POZNIEJ_POWROT pobrań z rzędu bez takiej poprawki → o godzinę
+    wcześniej. → (przesunięcie, licznik pobrań bez poprawki, czy podniesione teraz); (0, 0, False) = nic do zapisania."""
+    lim = IX_POZNIEJ_MAX if h is None else max(0, min(IX_POZNIEJ_MAX, 23 - h))
+    p = min(_ix_hplus(rec), lim)
     n = rec.get('h+n') if isinstance(rec, dict) else None
     n = n if isinstance(n, int) and not isinstance(n, bool) and n >= 0 else 0
+    ef = None if h is None else min(23, h + p)
     for r in rw or []:
         if len(r) == 6 and r[5] is True and isinstance(r[2], (int, float)) and isinstance(r[1], (int, float)) and r[1] > 0 \
                 and abs(r[2] / r[1] - 1) * 100 > IX_POZNIEJ_PROG:
             t = _ix_dt(r[3])
-            try:
-                dni = (t.date() - datetime.date.fromisoformat(r[0])).days if t is not None else None
-            except ValueError:
-                dni = None
-            if dni is not None and 0 <= dni <= 1:
-                return min(IX_POZNIEJ_MAX, p + 1), 0
+            if t is not None and t.date().isoformat() == r[0] and (ef is None or t.hour == ef):
+                return (p + 1, 0, True) if p < lim else (p, 0, False)
     if not p:
-        return 0, 0
+        return 0, 0, False
     n += 1
-    return (p - 1, 0) if n >= IX_POZNIEJ_POWROT else (p, n)
+    return (p - 1, 0, False) if n >= IX_POZNIEJ_POWROT else (p, n, False)
 
 
 def ix_rewizje(old, new, old_at):
@@ -10885,9 +10906,12 @@ def ix_fetch(sym, cc, key, rec, now):
         out['rew'] = rew[-IX_REW_KEEP:]
     if not zakres:   # v261: ślad dla kontroli — [czas, ile sesji brakowało, pierwsza, ostatnia]
         out['luka'] = [NOW, len(usun), usun[0], usun[-1]]
-    hp, hn = ix_nauka(rec, rw)   # v262: samouczenie pory pobierania (zapis tylko przy przesunięciu > 0)
-    if hp:
+    hp, hn, wyzej = ix_nauka(rec, rw, next((g for s, _, g in IX_SYMBOLS if s == sym), None))   # v262/v263: samouczenie pory pobierania
+    if hp:   # zapis tylko przy przesunięciu > 0; 'h+d' — dzień ostatniego podniesienia (tego dnia bez drugiego pobrania)
         out['h+'], out['h+n'] = hp, hn
+        hd = now.date().isoformat() if wyzej else (rec.get('h+d') if isinstance(rec, dict) else None)
+        if isinstance(hd, str):
+            out['h+d'] = hd
     return out
 
 
@@ -11011,6 +11035,7 @@ def etf_part(keys, prev_etf, now, errors, deadline=None):
                 time.sleep(ETF_TIINGO_SLEEP)
             try:
                 rows = tiingo_parse(get_json(TIINGO_URL.format(t=t, key=keys['TIINGO_KEY'], frm=frm), timeout=TIINGO_TIMEOUT))
+                rows = [r for r in rows if frm <= r[0] <= (now.date() + datetime.timedelta(days=1)).isoformat()]   # v263: tylko żądany okres
             except urllib.error.HTTPError as e:
                 fails.append(f'Tiingo HTTP {e.code} ({t})')
                 if e.code in (401, 403, 429):   # klucz odrzucony albo limit — dalsze fundusze bez sensu
@@ -11073,7 +11098,11 @@ def ix_fmp(key, part, now, errors):
             frm = now.date() - datetime.timedelta(days=IX_HIST_DAYS)
         try:
             j = get_json(FMP_EOD_URL.format(sym=fsym, frm=frm.isoformat(), key=key), timeout=IX_TIMEOUT)
-            part[sym] = {'cc': cc, 'at': NOW, 'src': 'fmp', 'd': _ix_merge(old, fmp_eod_parse(j), IX_KEEP)}; got += 1
+            do = (now.date() + datetime.timedelta(days=1)).isoformat()   # v263: tylko żądany okres — wiersz z błędną datą nie nadpisuje historii
+            new = [r for r in fmp_eod_parse(j) if frm.isoformat() <= r[0] <= do]
+            if not new:
+                raise RuntimeError(f'odpowiedź bez sesji z żądanego okresu (od {frm.isoformat()})')
+            part[sym] = {'cc': cc, 'at': NOW, 'src': 'fmp', 'd': _ix_merge(old, new, IX_KEEP)}; got += 1
         except urllib.error.HTTPError as e:
             if e.code in (401, 402, 403, 404):
                 _ix_bad(part, sym, e.code); errors.append(f'FMP HTTP {e.code} — {sym} (przerwa)')

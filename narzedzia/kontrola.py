@@ -1748,6 +1748,7 @@ IX_STARE_DNI = 9     # v258: … o więcej niż tyle dni roboczych = ⚠️ (ser
                      # przerwy giełd — Szanghaj, Święto Wiosny 2026: bez sesji 13.02–24.02 (7 dni roboczych); Indonezja 2025: 8; z jednym nieudanym
                      # pobraniem w dniu otwarcia — 9
 IX_WSZYSTKIE_DNI = 3   # v258: najnowsza sesja wszystkich serii starsza od dziś o więcej dni roboczych = ⚠️ (dostawca stoi, choć plik jest świeży)
+IX_GRUPA_MIN = 3       # v263: świeżość serii wobec jej dostawcy, gdy ma co najmniej tyle serii (inaczej wobec wszystkich)
 
 
 def _dni_rob(a, b):
@@ -1791,6 +1792,11 @@ def _odm(n, f1, f2, f5):
 
 def _serie(n):
     return _odm(n, 'seria', 'serie', 'serii')
+
+
+def _dni_r(n):
+    """v263: „1 dzień roboczy”, „4 dni robocze”, „5 dni roboczych”."""
+    return f'{n} {_odm(n, "dzień roboczy", "dni robocze", "dni roboczych")}'
 
 
 def _ix_swiezy(t, now=None):
@@ -1839,8 +1845,10 @@ def indeksy_ocena(ix, now=None):
     out['wszystkie'] = _dni_rob(dt.date.fromisoformat(max(gl)), dzis)
     out['luki_odp'] = [(s, str(v['luka'][0]), v['luka'][1], v['luka'][2], v['luka'][3]) for s, v in sorted(ix.items())   # v261: odpowiedzi z luką
                        if isinstance(v, dict) and isinstance(v.get('luka'), list) and len(v['luka']) == 4 and _ix_swiezy(v['luka'][0], now)]
-    for s, x in sorted(ost.items()):
-        n = _dni_rob(dt.date.fromisoformat(x), dt.date.fromisoformat(najn))
+    zr = lambda s: str(ix[s].get('src') or '') if isinstance(ix.get(s), dict) else ''  # noqa: E731
+    for s, x in sorted(ost.items()):   # v263 (przegląd v261): świeżość wobec najnowszej sesji WŁASNEGO dostawcy (grupa ≥ IX_GRUPA_MIN serii)
+        g = gr[zr(s)]
+        n = _dni_rob(dt.date.fromisoformat(x), dt.date.fromisoformat(max(g) if len(g) >= IX_GRUPA_MIN else najn))
         if n > IX_STARE_DNI:
             out['stare'].append((s, x, n))
         elif n > IX_OPOZ_DNI:
@@ -1853,14 +1861,14 @@ def indeksy_ocena(ix, now=None):
 def indeksy_uwagi(o):
     """v254/v258: uwagi — seria zacięta, sesja z przyszłości, dostawca stoi (wszystkie serie bez nowych sesji)."""
     o = o or {}
-    u = [f'indeksy giełdowe: {s} bez nowych sesji od {x} ({n} dni roboczych wobec najnowszej sesji innych indeksów) — sprawdzić pobieranie tego indeksu'
+    u = [f'indeksy giełdowe: {s} bez nowych sesji od {x} ({_dni_r(n)} wobec najnowszej sesji innych indeksów) — sprawdzić pobieranie tego indeksu'
          for s, x, n in o.get('stare') or []]
     u += [f'indeksy giełdowe: {s} ma sesję z datą z przyszłości ({x}) — błąd danych dostawcy (strona może pokazywać ją jako ostatnią); w ocenie świeżości pominięta'
           for s, x in o.get('przyszle') or []]
     if (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI:   # v261: główny dostawca (grupa z największą liczbą serii)
         n = o.get('n_gl') or 0
         u.append(f'indeksy giełdowe: najnowsza sesja głównego dostawcy indeksów ({n} {_serie(n)}) to {o.get("najnowsza_gl") or o["najnowsza"]} — '
-                 f'{o["wszystkie"]} dni roboczych bez nowych sesji; dostawca oddaje stare dane albo pobieranie stoi')
+                 f'{_dni_r(o["wszystkie"])} bez nowych sesji; dostawca oddaje stare dane albo pobieranie stoi')
     return u
 
 
@@ -1872,7 +1880,7 @@ def indeksy_wiersz(o):
     zle = (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI
     if zle:   # v261: główny dostawca
         n = o.get('n_gl') or 0
-        cz.append(f'najnowsza sesja głównego dostawcy ({n} {_serie(n)}) {o["wszystkie"]} dni roboczych temu ⚠️')
+        cz.append(f'najnowsza sesja głównego dostawcy ({n} {_serie(n)}) {_dni_r(o["wszystkie"])} temu ⚠️')
     if o.get('przyszle'):
         cz.append('sesja z datą z przyszłości: ' + ', '.join(f'{s} ({x})' for s, x in o['przyszle']) + ' ⚠️')
     if o.get('stare'):

@@ -28802,7 +28802,7 @@ class PoPrzegladzieV261(unittest.TestCase):
         ix['FTSE'] = {'cc': 'gb', 'src': 'fmp', 'd': [['2026-09-09', 3.0]]}
         o = k.indeksy_ocena(ix, now=N)
         self.assertEqual((o['wszystkie'], o['n_gl'], o['najnowsza_gl'], o['najnowsza']), (4, 3, '2026-09-04', '2026-09-09'))
-        self.assertIn('najnowsza sesja głównego dostawcy (3 serie) 4 dni roboczych temu ⚠️', k.indeksy_wiersz(o))
+        self.assertIn('najnowsza sesja głównego dostawcy (3 serie) 4 dni robocze temu ⚠️', k.indeksy_wiersz(o))   # v263: odmiana
         self.assertTrue(any('głównego dostawcy indeksów (3 serie) to 2026-09-04' in u for u in k.indeksy_uwagi(o)), 'przegląd: FTSE zasłaniał przestój')
         self.assertEqual([k._serie(n) for n in (1, 2, 5, 12, 22, 23, 25)], ['seria', 'serie', 'serii', 'serii', 'serie', 'serie', 'serii'])
         ix2 = {'N225': {'cc': 'jp', 'd': [['2026-10-06', 1.0]], 'luka': ['2026-10-07T07:30:00+00:00', 4, '2026-09-29', '2026-10-02']},
@@ -28865,7 +28865,7 @@ class PoPrzegladzieV261(unittest.TestCase):
         self.assertTrue(zd._BCB_WS['on']); self.assertIn('Operation timed out', zd._BCB_WS['ws_zle'])
         self.assertEqual(out['d'][-1][1:4], [13970.5, 13968.5, 13969.5])
         self.assertTrue(any(e.startswith('BCB bilans płatniczy:') for e in zd.META['errors']), 'bilans bez SOAP — błąd, bez czekania')
-        self.assertEqual(out['soap'], {'at': zd.NOW, 'serie': ['13970', '13968', '13969'], 'np': 'HTTP Error 502: Bad Gateway', 'wszystkie': True})
+        self.assertEqual(out['soap'], {'at': zd.NOW, 'serie': ['13970', '13968', '13969'], 'np': 'HTTP Error 502: Bad Gateway', 'wszystkie': False})   # v263: po przełączeniu SOAP nic już nie oddał
 
     def test_blad_serii_soap_nie_wylacza_uslugi_i_polaczenie_bez_przelaczenia(self):
         soap = []
@@ -28921,17 +28921,23 @@ class NaukaPoryPobieraniaV262(unittest.TestCase):
 
     R = ['2026-10-06', 70777.2891, 70683.98, '2026-10-06T07:21:13+00:00', 'x', True]   # 06.10: Nikkei −0,13% po ponownym pobraniu
 
-    def test_nauka(self):
+    def test_nauka(self):   # v263: (przesunięcie, licznik, czy podniesione); godzina z listy h — dowód tylko z pobrania w godzinie nauczonej
         n = zd.ix_nauka
-        self.assertEqual(n({}, [self.R]), (1, 0), 'ostatnia sesja poprawiona, pobrana w dniu sesji — o godzinę później')
-        self.assertEqual(n({'h+': 3, 'h+n': 4}, [self.R]), (3, 0), 'najwyżej +3 h')
-        self.assertEqual(n({}, [self.R[:5] + [False]]), (0, 0), 'poprawka starszej sesji — nie pora pobierania')
-        self.assertEqual(n({}, [['2026-10-06', 100.0, 100.015, '2026-10-06T07:21:13+00:00', 'x', True]]), (0, 0), '0,015% — zaokrąglenie')
-        self.assertEqual(n({}, [['2026-10-06', 100.0, 101.0, '2026-10-09T07:21:13+00:00', 'x', True]]), (0, 0), 'pobranie 3 dni po sesji — późna korekta')
-        self.assertEqual(n({}, [['2026-10-06', 100.0, None, '2026-10-06T07:21:13+00:00', 'x', True]]), (0, 0), 'sesja usunięta — nie pora')
-        self.assertEqual(n({'h+': 2, 'h+n': 3}, []), (2, 4))
-        self.assertEqual(n({'h+': 2, 'h+n': 9}, []), (1, 0), '10. pobranie bez poprawki — o godzinę wcześniej')
-        self.assertEqual(n({}, []), (0, 0)); self.assertEqual(n({'h+': 'x', 'h+n': -1}, []), (0, 0))
+        self.assertEqual(n({}, [self.R], 7), (1, 0, True), 'ostatnia sesja poprawiona, pobrana w dniu sesji o 07 UTC (godzina z listy) — później')
+        self.assertEqual(n({}, [self.R]), (1, 0, True), 'bez godziny z listy (nieznany symbol) — bez sprawdzania godziny')
+        self.assertEqual(n({'h+': 3, 'h+n': 4}, [self.R]), (3, 0, False), 'najwyżej +3 h')
+        self.assertEqual(n({'h+': 1}, [self.R], 7), (1, 1, False), 'przegląd: dowód z pobrania o starej porze (07) przy nauczonej 08 — nie liczy się')
+        self.assertEqual(n({}, [self.R], 8), (0, 0, False), 'pobranie spóźnione wobec godziny z listy — nie dowód')
+        self.assertEqual(n({}, [self.R[:5] + [False]], 7), (0, 0, False), 'poprawka starszej sesji — nie pora pobierania')
+        self.assertEqual(n({}, [['2026-10-06', 100.0, 100.015, '2026-10-06T07:21:13+00:00', 'x', True]], 7), (0, 0, False), '0,015% — zaokrąglenie')
+        self.assertEqual(n({}, [['2026-10-02', 100.0, 101.0, '2026-10-03T07:21:13+00:00', 'x', True]], 7), (0, 0, False), 'sesja z piątku pobrana w sobotę')
+        self.assertEqual(n({}, [['2026-10-06', 100.0, None, '2026-10-06T07:21:13+00:00', 'x', True]], 7), (0, 0, False), 'sesja usunięta — nie pora')
+        us = ['2026-10-05', 100.0, 101.0, '2026-10-05T23:10:00+00:00', 'x', True]
+        self.assertEqual(n({'h+': 1}, [us], 22), (1, 0, False), 'przegląd: 22 UTC + 1 h = limit 23 — bez wzrostu „na papierze”')
+        self.assertEqual(n({'h+': 3}, [], 22), (1, 1, False), 'zapisane +3 przy godzinie 22 — przycięte do 23 UTC')
+        self.assertEqual(n({'h+': 2, 'h+n': 3}, []), (2, 4, False))
+        self.assertEqual(n({'h+': 2, 'h+n': 9}, []), (1, 0, False), '10. pobranie bez poprawki — o godzinę wcześniej')
+        self.assertEqual(n({}, []), (0, 0, False)); self.assertEqual(n({'h+': 'x', 'h+n': -1}, []), (0, 0, False))
         self.assertEqual((zd.ix_godzina(7, {'h+': 2}), zd.ix_godzina(22, {'h+': 3}), zd.ix_godzina(7, {'h+': 9}), zd.ix_godzina(7, {'h+': True})), (9, 23, 7, 7))
 
     def test_ix_fetch_i_plan(self):
@@ -28962,4 +28968,119 @@ class NaukaPoryPobieraniaV262(unittest.TestCase):
         o = k.indeksy_ocena(ix, now=N)
         self.assertEqual(o['pozniej'], [('N225', 1)])
         self.assertEqual(k.indeksy_wiersz(o), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-07); pora pobierania przesunięta (nauczone z poprawek dostawcy): N225 +1 h ℹ️.')
+
+
+# ===================== v263: POPRAWKI PO PRZEGLĄDZIE v261–v262 =====================
+class PoPrzegladzieV263(unittest.TestCase):
+    """v263: nauka pory pobierania bez podwójnego liczenia i bez drugiego pobrania tego samego dnia; Brazylia — jedno czekanie także na API JSON,
+    ślad SOAP tylko przy danych z SOAP, błędy części wolniejszych widoczne do odświeżenia; jedna uwaga przy przestoju dostawcy; filtr okresu
+    w FMP i Tiingo; odmiana „dni robocze”."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola263-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v263_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        zd._BCB_WS.update(on=False, chw=[], soap_ok=0); zd._BCB_WS.pop('ws_zle', None); zd._BCB_WS.pop('json_zle', None)
+
+    def tearDown(self):
+        zd._BCB_WS.update(on=False, chw=[], soap_ok=0); zd._BCB_WS.pop('ws_zle', None); zd._BCB_WS.pop('json_zle', None)
+
+    @staticmethod
+    def T(*a):
+        return datetime.datetime(*a, tzinfo=datetime.timezone.utc)
+
+    def test_dzien_podniesienia_bez_drugiego_pobrania(self):
+        eod = [{'date': '2026-10-06', 'close': 70683.98}, {'date': '2026-10-07', 'close': 71000.0}]
+        rec = {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-10-06', 70777.2891]]}
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o = zd.ix_fetch('N225', 'jp', 'k', rec, self.T(2026, 10, 7, 7, 21))
+        self.assertEqual((o['h+'], o['h+n'], o['h+d']), (1, 0, '2026-10-07'))
+        o['at'] = '2026-10-07T07:21:00+00:00'
+        self.assertFalse(zd.ix_do_pobrania(7, o, self.T(2026, 10, 7, 8, 21)), 'przegląd: drugie pobranie tego samego dnia (08:21) — zapytanie z limitu')
+        self.assertFalse(zd.ix_do_pobrania(7, o, self.T(2026, 10, 7, 9, 21)))
+        self.assertFalse(zd.ix_do_pobrania(7, o, self.T(2026, 10, 8, 7, 30)), 'nazajutrz przed nową godziną (08)')
+        self.assertTrue(zd.ix_do_pobrania(7, o, self.T(2026, 10, 8, 8, 10)), 'nazajutrz o nowej godzinie')
+        eod2 = [{'date': '2026-10-07', 'close': 71100.0}, {'date': '2026-10-08', 'close': 71200.0}]
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod2):
+            o2 = zd.ix_fetch('N225', 'jp', 'k', dict(o, d=[['2026-10-07', 71000.0]]), self.T(2026, 10, 8, 8, 10))
+        self.assertEqual((o2['h+'], o2['h+n'], o2['h+d']), (1, 1, '2026-10-07'), 'poprawka sesji pobranej o starej porze — nie dowód (było +2)')
+        self.assertTrue(zd.ix_do_pobrania(7, {'at': None}, self.T(2026, 10, 8, 8, 10))); self.assertTrue(zd.ix_do_pobrania(7, {}, self.T(2026, 10, 8, 8, 10)))
+
+    def test_fmp_i_tiingo_tylko_zadany_okres(self):
+        part = {'FTSE': {'cc': 'gb', 'at': '2026-10-06T17:20:00+00:00', 'src': 'fmp', 'd': [['2026-01-07', 10048.21], ['2026-10-06', 10497.94]]}}
+        ans = [{'date': '2026-10-06', 'price': 10497.94}, {'date': '2026-10-07', 'price': 10600.0}, {'date': '2026-01-07', 'price': 10612.34}]
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: ans):
+            self.assertEqual(zd.ix_fmp('K', part, self.T(2026, 10, 7, 17, 30), []), 1)
+        self.assertEqual(part['FTSE']['d'], [['2026-01-07', 10048.21], ['2026-10-06', 10497.94], ['2026-10-07', 10600.0]], 'przegląd: 7 stycznia nadpisywany')
+        errs = []
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: [{'date': '2026-01-07', 'price': 1.0}]):
+            self.assertEqual(zd.ix_fmp('K', {'FTSE': dict(part['FTSE'], at='2026-10-07T10:00:00+00:00')}, self.T(2026, 10, 8, 17, 30), errs), 0)
+        self.assertTrue(any('bez sesji z żądanego okresu' in e for e in errs), errs)
+        import inspect
+        self.assertIn("rows = [r for r in rows if frm <= r[0] <= (now.date() + datetime.timedelta(days=1)).isoformat()]", inspect.getsource(zd.etf_part))
+
+    def test_bcb_json_i_soap_jedno_czekanie(self):
+        js, soap = [], []
+
+        def gj(url, headers=None):
+            sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
+            js.append(sid)
+            if sid == 13970:
+                raise urllib.error.HTTPError(url, 502, 'Bad Gateway', {}, None)
+            raise urllib.error.URLError(TimeoutError('timed out'))
+
+        def post(xml, timeout=60):
+            soap.append(1)
+            raise urllib.error.URLError(OSError(60, 'Operation timed out'))
+        prev = {'d': [['2026-09-24', -1.0, 1.0, 2.0, 9.9, 8.9]]}
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', post):
+            with self.assertRaises(RuntimeError):
+                zd.bcb_part(prev)
+        self.assertEqual((js, len(soap)), ([13970, 13968], 1), 'przegląd: każda seria czekała na API JSON (13 czekań, 420 s)')
+        self.assertIn('timed out', zd._BCB_WS['json_zle'])
+
+    def test_bcb_slad_soap_tylko_gdy_cos_przyszlo(self):
+        def gj(url, headers=None):
+            sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
+            if sid == 13970:
+                return [{'data': '25/09/2026', 'valor': '1.5'}]
+            raise urllib.error.URLError(TimeoutError('timed out'))
+
+        def post(xml, timeout=60):
+            raise urllib.error.URLError(OSError(60, 'Operation timed out'))
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', post), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 6, 17, 30, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part(None)
+        self.assertNotIn('soap', out, 'przegląd: „serie z SOAP”, choć SOAP nic nie oddał')
+        self.assertEqual(out['d'][-1][:2], ['2026-09-25', 1.5])
+
+    def test_obce_bledy_czesci_z_pamieci(self):
+        prev = {'at': zd.NOW, 'ok': {'br': True}, 'br': {'at': zd.NOW, 'd': [['2026-09-25', 1.0]]}, 'errs': {'br': ['BCB: 1 serie bez odpowiedzi, np. 13970: x']}}
+        stub = lambda *a, **k: (_ for _ in ()).throw(RuntimeError('offline'))  # noqa: E731
+        with mock.patch.object(zd, 'nsdl_part', stub), mock.patch.object(zd, 'twse_part', stub), mock.patch.object(zd, 'hkex_part', stub), \
+                mock.patch.object(zd, 'tcmb_part', stub), mock.patch.object(zd, 'thbma_part', stub), \
+                mock.patch.object(zd, 'bcb_part', side_effect=AssertionError('część świeża — bez pobierania')):
+            o = zd.build_obce('', prev)
+        self.assertEqual(o['errs']['br'], prev['errs']['br']); self.assertIn('BCB: 1 serie bez odpowiedzi, np. 13970: x', zd.META['errors'])
+
+    def test_kontrola_przestoj_jedna_uwaga_i_odmiana(self):
+        k = self.k
+        N = self.T(2026, 9, 25, 6, 20)
+        syms = ['GSPC', 'IXIC', 'DJI', 'GSPTSE', 'BVSP', 'MXX', 'GDAXI', 'FCHI', 'IBEX', 'AEX', 'SSMI', 'OMXS30', 'WIG20', 'TA125', 'XU100',
+                'N225', 'KS11', 'HSI', 'SSEC', 'BSESN', 'AXJO', 'JKSE']
+        ix = {s: {'cc': 'x', 'd': [['2026-01-02', 1.0], ['2026-09-18', 2.0]]} for s in syms}
+        ix['FTSE'] = {'cc': 'gb', 'src': 'fmp', 'd': [['2026-09-24', 3.0]]}
+        o = k.indeksy_ocena(ix, now=N)
+        self.assertEqual((o['stare'], o['wszystkie'], o['n_gl']), ([], 5, 22), 'przegląd: było 22 × „seria zacięta” + 1')
+        self.assertEqual(len(k.indeksy_uwagi(o)), 1)
+        self.assertIn('najnowsza sesja głównego dostawcy (22 serie) 5 dni roboczych temu ⚠️', k.indeksy_wiersz(o))
+        self.assertEqual([k._dni_r(n) for n in (1, 4, 5, 22, 25)], ['1 dzień roboczy', '4 dni robocze', '5 dni roboczych', '22 dni robocze', '25 dni roboczych'])
+        o = k.indeksy_ocena({'N225': {'d': [['2026-09-24', 1.0]]}, 'FTSE': {'src': 'fmp', 'd': [['2026-09-04', 1.0]]}}, now=N)
+        self.assertEqual(o['stare'], [('FTSE', '2026-09-04', 14)], 'mała grupa (sam FTSE) — wobec wszystkich serii')
 
