@@ -13839,3 +13839,46 @@ test('v228: słownik EXTRA184 — fund.mm.wyk w 10 językach (własne tłumaczen
   assert.equal((html.match(/const EXTRA184=/g) || []).length, 1);
   assert.ok(html.includes('for(const l in EXTRA184)if(I18N[l])Object.assign(I18N[l],EXTRA184[l]);'));
 });
+
+
+/* ===================== v229: indeksy świata — słupki zmiany z miesiąca nad tabelą, słownik EXTRA185 ===================== */
+const ix229 = (() => {
+  const i0 = html.indexOf('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA'), i1 = html.indexOf('\nfunction ixLoad(', i0);
+  const mk = () => new Function('$', 't', 'nfmt', 'fPct', 'sg', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', html.slice(i0, i1) + '\nreturn {ixWyk, ixBody, ixItems, ixSort};')(
+    () => null, (k, o) => k + (o ? JSON.stringify(o) : ''), (v, d) => Number(v).toFixed(d), (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%',
+    v => v > 0 ? '+' : v < 0 ? '−' : '', s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])),
+    d => ' · age(' + d + ')', iso => 'D(' + iso + ')', {pl: 'pl-PL', en: 'en-US'}, 'en', (c) => '<img flag=' + c + '>');
+  const days = []; for (let d = new Date(Date.UTC(2025, 11, 8)); days.length < 30; d.setUTCDate(d.getUTCDate() + 1)) { if (d.getUTCDay() % 6) days.push(d.toISOString().slice(0, 10)); }
+  return {mk, days};
+})();
+
+test('v229: indeksy — słupki 1 M nad tabelą: kolejność tabeli, zielony w prawo, czerwony w lewo, długość względem największej zmiany, zero bez słupka', () => {
+  const X = ix229.mk(), d = ix229.days;
+  const D = {at: '2026-01-21T06:00:00+00:00', ix: {GSPC: {d: d.map((x, i) => [x, 100 + i])}, GDAXI: {d: d.map((x, i) => [x, 300 - i])},
+    N225: {d: d.map((x, i) => [x, i < 8 ? 100 + i : 107])}, KS11: {d: d.slice(-10).map((x, i) => [x, 50 + i])}}};
+  const body = X.ixBody(D), w = X.ixWyk(X.ixSort(X.ixItems(D), 'm1'));
+  assert.ok(w && body.includes(w), 'fndBody zawiera wykres');
+  assert.ok(body.indexOf('<div class="ixw">') > body.indexOf('<div class="etfkpis">') && body.indexOf('<div class="ixw">') < body.indexOf('<table class="etft">'), 'po kaflach, nad tabelą');
+  assert.ok(w.startsWith('<div class="ixw"><p class="pnote">ix.wyk</p>'));
+  const R = w.split('<div class="ixw-r">').slice(1);
+  assert.equal(R.length, 3, 'trzy indeksy z wartością 1 M (KOSPI — za krótka seria: bez słupka, w tabeli „—”)');
+  assert.deepEqual(R.map(r => /<\/span>([^<]*)<\/span><span class="ixw-t"/.exec(r)[1]), ['S&amp;P 500', 'Nikkei 225', 'DAX'], 'od najmocniejszego (kolejność tabeli)');
+  const up = (129 / 108 - 1) * 100, dn = (271 / 292 - 1) * 100, mx = Math.max(Math.abs(Math.round(up * 10) / 10), Math.abs(Math.round(dn * 10) / 10));
+  assert.ok(R[0].includes('<i class="ixw-b pos" style="left:50.00%;width:' + (Math.round(up * 10) / 10 / mx * 50).toFixed(2) + '%"></i>'), 'wzrost: od środka w prawo');
+  const wd = Math.abs(Math.round(dn * 10) / 10) / mx * 50;
+  assert.ok(R[2].includes('<i class="ixw-b neg" style="left:' + (50 - wd).toFixed(2) + '%;width:' + wd.toFixed(2) + '%"></i>'), 'spadek: od środka w lewo');
+  assert.ok(R[1].includes('<span class="ixw-t" aria-hidden="true"></span><span class="ixw-v">0.0%</span>'), 'zero po zaokrągleniu — bez słupka, bez koloru i bez znaku');
+  assert.ok(R[0].includes('<span class="ixw-v pos">+19.4%</span>') && /<span class="ixw-v neg">−7\.2%<\/span>/.test(R[2]), 'wartość w kolorze');
+  assert.ok(!/<tr|undefined|NaN|cell mono na/.test(w), 'bez wierszy tabeli i bez komórek „—”');
+  assert.equal(X.ixWyk(X.ixSort(X.ixItems({at: 'x', ix: {GSPC: D.ix.GSPC, GDAXI: D.ix.GDAXI}}), 'm1')), '', 'mniej niż 3 indeksy z wartością — bez wykresu');
+  assert.equal(X.ixWyk(null), '');
+  assert.ok(html.includes('#g-indeksy .ixw-b.pos{background:var(--gr)}') && html.includes('@media (max-width:520px){#g-indeksy .ixw-r{'), 'styl i telefon');
+});
+
+test('v229: słownik EXTRA185 — ix.wyk w 10 językach (własne tłumaczenia), czysty JSON z linią for', () => {
+  const i = html.indexOf('const EXTRA185='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA185='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) { assert.deepEqual(Object.keys(D[L]), ['ix.wyk'], L); if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['ix.wyk'], D.en['ix.wyk'], L); }
+  assert.equal((html.match(/const EXTRA185=/g) || []).length, 1);
+  assert.ok(html.includes('for(const l in EXTRA185)if(I18N[l])Object.assign(I18N[l],EXTRA185[l]);'));
+});

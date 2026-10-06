@@ -1059,6 +1059,14 @@ td .cell .logo-img{width:34px;height:34px}
 @media (max-width:620px){#c-wieloryby .list-wrap{padding:6px 0 10px}#c-wieloryby td .cell{padding:6px 4px;font-size:11px;gap:4px}#c-wieloryby .etft th{padding:6px 4px;font-size:11px}}
 /* v106 indeksy */
 #g-indeksy .etft{min-width:0;width:100%}
+/* v229: indeksy — słupki zmiany z miesiąca: zero w środku (kreska), zielony w prawo, czerwony w lewo; na telefonie węższa kolumna nazwy */
+#g-indeksy .ixw{margin:10px 0 8px;max-width:760px}
+#g-indeksy .ixw-r{display:grid;grid-template-columns:minmax(110px,170px) minmax(0,1fr) 64px;align-items:center;gap:8px;margin:3px 0;font-size:12.5px}
+#g-indeksy .ixw-l{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--mut)}
+#g-indeksy .ixw-t{position:relative;height:12px;background:linear-gradient(var(--line-2),var(--line-2)) center/1px 100% no-repeat}
+#g-indeksy .ixw-b{position:absolute;top:1px;bottom:1px;border-radius:2px}#g-indeksy .ixw-b.pos{background:var(--gr)}#g-indeksy .ixw-b.neg{background:var(--rd)}
+#g-indeksy .ixw-v{text-align:right;font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}#g-indeksy .ixw-v.pos{color:var(--gr-tx)}#g-indeksy .ixw-v.neg{color:var(--rd-tx)}
+@media (max-width:520px){#g-indeksy .ixw-r{grid-template-columns:minmax(0,104px) minmax(0,1fr) 54px;gap:6px;font-size:12px}}
 #g-indeksy .etft th{white-space:nowrap;padding:8px 8px}
 #g-indeksy .etft th:not(:first-child),#g-indeksy td .cell.mono{text-align:right;justify-content:flex-end}
 #g-indeksy td .cell{padding:7px 8px;gap:8px}
@@ -2194,6 +2202,9 @@ for(const l in EXTRA183)if(I18N[l])Object.assign(I18N[l],EXTRA183[l]);
 /* v228: fundusze rynku pieniężnego — linia aktywów razem (10 języków: panel rysowany w każdym języku) */
 const EXTRA184={"pl":{"fund.mm.wyk":"Aktywa funduszy rynku pieniężnego (razem) w ostatnich {n} tygodniach (najniżej i najwyżej przy osi)"},"en":{"fund.mm.wyk":"Money market fund assets (total) over the last {n} weeks (low and high on the axis)"},"de":{"fund.mm.wyk":"Vermögen der Geldmarktfonds (gesamt) in den letzten {n} Wochen (Tiefst- und Höchststand an der Achse)"},"es":{"fund.mm.wyk":"Activos de los fondos del mercado monetario (total) en las últimas {n} semanas (mínimo y máximo en el eje)"},"fr":{"fund.mm.wyk":"Actifs des fonds monétaires (total) sur les {n} dernières semaines (plus bas et plus haut sur l’axe)"},"it":{"fund.mm.wyk":"Patrimonio dei fondi del mercato monetario (totale) nelle ultime {n} settimane (minimo e massimo sull’asse)"},"pt":{"fund.mm.wyk":"Ativos dos fundos do mercado monetário (total) nas últimas {n} semanas (mínimo e máximo no eixo)"},"ru":{"fund.mm.wyk":"Активы фондов денежного рынка (всего) за последние {n} нед. (минимум и максимум на оси)"},"zh":{"fund.mm.wyk":"货币市场基金资产（合计）——最近{n}周（轴上标出最低和最高）"},"ja":{"fund.mm.wyk":"マネー・マーケット・ファンドの資産（合計）— 直近{n}週間（軸に最低値と最高値）"}};
 for(const l in EXTRA184)if(I18N[l])Object.assign(I18N[l],EXTRA184[l]);
+/* v229: indeksy świata — słupki zmiany z miesiąca (10 języków: panel rysowany w każdym języku) */
+const EXTRA185={"pl":{"ix.wyk":"Zmiana z miesiąca (21 sesji) — od najmocniejszego do najsłabszego; słupek w prawo = wzrost, w lewo = spadek"},"en":{"ix.wyk":"Change over a month (21 sessions) — strongest to weakest; bar to the right = rise, to the left = fall"},"de":{"ix.wyk":"Veränderung über einen Monat (21 Sitzungen) — vom stärksten zum schwächsten; Balken nach rechts = Anstieg, nach links = Rückgang"},"es":{"ix.wyk":"Variación en un mes (21 sesiones) — del más fuerte al más débil; barra a la derecha = subida, a la izquierda = bajada"},"fr":{"ix.wyk":"Variation sur un mois (21 séances) — du plus fort au plus faible ; barre à droite = hausse, à gauche = baisse"},"it":{"ix.wyk":"Variazione in un mese (21 sedute) — dal più forte al più debole; barra a destra = rialzo, a sinistra = ribasso"},"pt":{"ix.wyk":"Variação em um mês (21 pregões) — do mais forte ao mais fraco; barra à direita = alta, à esquerda = queda"},"ru":{"ix.wyk":"Изменение за месяц (21 сессия) — от самого сильного к самому слабому; столбец вправо = рост, влево = падение"},"zh":{"ix.wyk":"一个月（21个交易日）涨跌——由强到弱；柱向右 = 上涨，向左 = 下跌"},"ja":{"ix.wyk":"1か月（21営業日）の変化 — 強い順；右向きの棒 = 上昇、左向き = 下落"}};
+for(const l in EXTRA185)if(I18N[l])Object.assign(I18N[l],EXTRA185[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -10570,6 +10581,18 @@ function ixItems(D){
 /* kolejność: z wartością (malejąco), potem z zamknięciem bez tej zmiany (alfabetycznie), na końcu bez danych (alfabetycznie) */
 function ixSort(items,key){const has=x=>typeof x[key]==='number'&&isFinite(x[key]),rk=x=>has(x)?0:ixNum(x.close)?1:2;
   return items.slice().sort((a,b)=>{const ra=rk(a),rb=rk(b);if(ra!==rb)return ra-rb;if(!ra)return b[key]-a[key];return a.name<b.name?-1:a.name>b.name?1:0;});}
+/* v229: słupki zmiany z miesiąca (21 sesji) — wiersz na indeks z wartością 1 M, w kolejności tabeli (od najmocniejszego); słupek od zera
+   w środku (zielony w prawo, czerwony w lewo, długość względem największej |zmiany| na liście); zero po zaokrągleniu — bez słupka i bez koloru;
+   indeks bez 1 M — bez wiersza (w tabeli „—”); mniej niż 3 indeksy z wartością — bez wykresu. HTML i CSS, nazwa i wartość jako tekst. */
+function ixWyk(items){
+  const M=(Array.isArray(items)?items:[]).filter(x=>x&&typeof x.m1==='number'&&isFinite(x.m1));
+  if(M.length<3)return '';
+  const F=(c,cls)=>typeof flagImg==='function'?flagImg(c,cls):'',mx=Math.max(...M.map(x=>Math.abs(Math.round(x.m1*10)/10)));
+  const rows=M.map(x=>{const r=Math.round(x.m1*10)/10,c=ixTone(r,1),w=mx>0?Math.abs(r)/mx*50:0;
+    const bar=c?`<i class="ixw-b ${c}" style="left:${(r>0?50:50-w).toFixed(2)}%;width:${w.toFixed(2)}%"></i>`:'';
+    return `<div class="ixw-r"><span class="ixw-l"><span class="icos">${F(x.cc,'sm')}</span>${escH(x.name)}</span><span class="ixw-t" aria-hidden="true">${bar}</span><span class="ixw-v${c?' '+c:''}">${fPct(r,1)}</span></div>`;}).join('');
+  return `<div class="ixw"><p class="pnote">${t('ix.wyk')}</p>${rows}</div>`;
+}
 function ixBody(D){
   const items=ixSort(ixItems(D),'m1');if(!items.some(x=>ixNum(x.close)))return '';   /* żadnej serii — panel ukryty (klucz jeszcze nie działa) */
   const F=(c,cls)=>typeof flagImg==='function'?flagImg(c,cls):'',G=(n,cls)=>typeof glyphImg==='function'?glyphImg(n,cls):'';
@@ -10581,7 +10604,7 @@ function ixBody(D){
   /* „najsłabszy” tylko gdy jest z czego wybierać — jeden indeks nie może być naraz najmocniejszy i najsłabszy */
   const tiles=[M.length?`<div class="etfk"><span><span class="icos">${G('chart','sm')}</span>${t('ix.k.up')}</span><b>${t('ix.k.upv',{n:nfmt(up,0),m:nfmt(M.length,0)})}</b><small class="mtxt">${t('ix.k.upn',{d:ixDay(newest)})}${gAgeNote(newest)}</small></div>`:'',
     tile(t('ix.k.best'),M[0],'m1'),tile(t('ix.k.worst'),M.length>1?M[M.length-1]:null,'m1'),tile(t('ix.k.ybest'),Y[0],'ytd'),tile(t('ix.k.yworst'),Y.length>1?Y[Y.length-1]:null,'ytd')].join('');
-  return (tiles?`<div class="etfkpis">${tiles}</div>`:'')+`<div class="list-wrap"><table class="etft"><thead><tr><th>${t('ix.c.idx')}</th><th>${t('ix.c.close')}</th><th>${t('ix.c.1d')}</th><th class="ix-w">${t('ix.c.1w')}</th><th>${t('ix.c.1m')}</th><th>${t('ix.c.ytd')}</th></tr></thead><tbody>${rows}</tbody></table></div><p class="pnote">${t('ix.note')}</p>`;
+  return (tiles?`<div class="etfkpis">${tiles}</div>`:'')+ixWyk(items)+`<div class="list-wrap"><table class="etft"><thead><tr><th>${t('ix.c.idx')}</th><th>${t('ix.c.close')}</th><th>${t('ix.c.1d')}</th><th class="ix-w">${t('ix.c.1w')}</th><th>${t('ix.c.1m')}</th><th>${t('ix.c.ytd')}</th></tr></thead><tbody>${rows}</tbody></table></div><p class="pnote">${t('ix.note')}</p>`;
 }
 function renderIx(){
   const el=$('#g-indeksy');if(!el)return;
