@@ -1574,7 +1574,54 @@ def wh_zmiany(j):
     return {g: v['zmiana'] for g, v in G.items() if isinstance(v, dict) and isinstance(v.get('zmiana'), str) and re.match(r'^\d{4}-\d{2}-\d{2}$', v['zmiana'])}
 
 
-def wieloryby_ocena(path, zmiany=None):
+WH_POLNOC_H = 2       # v249: migawka „pierwsza z doby” z pliku wielorybów (hist) — tylko wykonana do tylu godzin po północy UTC
+WH_POLNOC_SP = 7200   # v249: para z migawek o północy = pełna doba (24 h w blokach po 12 s) — spełnia WH_DOBA_BLOKI
+
+
+def _wh_polnoc(hist):
+    """v249: data/wieloryby.json → hist ({giełda: [[dzień, czas bloku, eth, usdt, usdc, wersja listy], …]}) → {dzień: {(giełda, aktywo): (jednostki,
+    czas, wersja listy)}}; tylko migawki z tego samego dnia, wykonane do WH_POLNOC_H h po północy UTC (zbieracz zapisuje pierwszą z doby —
+    po awarii mogła być później)."""
+    out = {}
+    for g, rows in (hist.items() if isinstance(hist, dict) else ()):
+        for r in rows if isinstance(rows, list) else ():
+            if not (isinstance(r, list) and len(r) >= 5 and _dzien(r[0]) and isinstance(r[1], str) and r[1][:10] == r[0]):
+                continue
+            try:
+                if int(r[1][11:13]) >= WH_POLNOC_H:
+                    continue
+            except ValueError:
+                continue
+            for a, i in (('ETH', 2), ('USDT', 3), ('USDC', 4)):
+                if isinstance(r[i], (int, float)) and not isinstance(r[i], bool) and r[i] == r[i]:
+                    out.setdefault(r[0], {})[(g, a)] = (float(r[i]), r[1], r[5] if len(r) > 5 else None)
+    return out
+
+
+def _wh_rozb_polnoc(H, d, row_d):
+    """v249: pary dnia archiwum `d` z migawek o północy: zmiana salda między migawkami z d − 1 i d (cała doba d − 1; ta sama wersja listy portfeli)
+    vs przelewy netto z wiersza archiwum d (suma pełnej doby d − 1) → {(giełda, aktywo): (zmiana, netto, |zmiana − netto|, WH_POLNOC_SP)};
+    zmiana w jednostkach po kursie z wiersza archiwum (saldo USD / jednostki) — ruch kursu ETH nie jest przelewem."""
+    if not _dzien(d):
+        return {}
+    A = H.get((dt.date.fromisoformat(d) - dt.timedelta(days=1)).isoformat()) or {}
+    B = H.get(d) or {}
+    out = {}
+    for k, row in row_d.items():
+        if k not in A or k not in B or A[k][2] != B[k][2]:
+            continue
+        try:
+            u, usd, net = float(row[3]), float(row[4]), float(row[7])
+        except ValueError:
+            continue
+        if not u:
+            continue
+        delta = (B[k][0] - A[k][0]) * (usd / u)
+        out[k] = (delta, net, abs(delta - net), WH_POLNOC_SP)
+    return out
+
+
+def wieloryby_ocena(path, zmiany=None, hist=None):
     """v174: zgodność sald i przepływów wielorybów na tle historii. Przepływy to tylko przelewy ≥ 1 mln USD w oknie 24 h, a migawki sald dzieli
     tyle, ile minęło między zapisami archiwum (05.10: od 7,7 do 28 h) — rozbieżność jest normalna. Uwaga tylko, gdy migawki pary dzieli ok. doba
     (WH_DOBA_BLOKI) i jej rozbieżność przekracza zwykły próg (WH_PROG %, WH_MIN_USD) ORAZ WH_RAZY × medianę jej rozbieżności z co najmniej
@@ -1582,7 +1629,8 @@ def wieloryby_ocena(path, zmiany=None):
     (pole pominiete), reszta porównana; żadnej pary o dobę = bez porównania (powód w 'pomin'). Mniej niż dwa dni archiwum = None.
     → {'dzien', 'poprzedni', 'porownane', 'pominiete', 'odstep_h' (mediana par), 'pomin', 'zle': [(giełda, aktywo, zmiana, netto, rozb., mediana)],
     'bez_historii', 'lista'}. v230: zmiany = {giełda: dzień zmiany listy portfeli} — pary tej giełdy obejmujące ten dzień (także jako dzień
-    poprzedni: migawka archiwum mogła być przed zmianą) pominięte — nowe portfele to skok salda bez przelewów."""
+    poprzedni: migawka archiwum mogła być przed zmianą) pominięte — nowe portfele to skok salda bez przelewów. v249: hist = pole hist pliku
+    wielorybów — para z migawek o północy UTC (zgrana z dobą przelewów) zastępuje parę z migawek archiwum ('polnoc' — ile dziś takich par)."""
     by = _wh_csv(path)
     if not by:
         return None
@@ -1591,21 +1639,29 @@ def wieloryby_ocena(path, zmiany=None):
         return None
     d, p = days[-1], days[-2]
     doba = lambda sp: sp is not None and WH_DOBA_BLOKI[0] <= sp <= WH_DOBA_BLOKI[1]  # noqa: E731
-    dzis = _wh_rozb(by[p], by[d])
+    Hn = _wh_polnoc(hist) if hist else {}
+
+    def pary(a, b):   # v249: para z migawek o północy zastępuje parę z migawek archiwum (te robione są o różnych porach)
+        r = _wh_rozb(by[a], by[b])
+        r.update(_wh_rozb_polnoc(Hn, b, by[b]))
+        return r
+    dzis = pary(p, d)
+    polnoc = set(_wh_rozb_polnoc(Hn, d, by[d]))
     zm = lambda g, a, b: isinstance(zmiany, dict) and isinstance(zmiany.get(g), str) and a <= zmiany[g] <= b  # noqa: E731 — v230
     lista = sorted({k[0] for k in dzis if zm(k[0], p, d)})
     dzis = {k: v for k, v in dzis.items() if not zm(k[0], p, d)}
     S = sorted(x[3] for x in dzis.values() if x[3] is not None)
     out = {'dzien': d, 'poprzedni': p, 'porownane': sum(1 for x in dzis.values() if doba(x[3])),
            'pominiete': sum(1 for x in dzis.values() if not doba(x[3])),
-           'odstep_h': round(S[len(S) // 2] * 12 / 3600, 1) if S else None, 'pomin': None, 'zle': [], 'bez_historii': 0, 'lista': lista}
+           'odstep_h': round(S[len(S) // 2] * 12 / 3600, 1) if S else None, 'pomin': None, 'zle': [], 'bez_historii': 0, 'lista': lista,
+           'polnoc': sum(1 for k in dzis if k in polnoc)}
     if not out['porownane']:
         out['pomin'] = (f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie" if out['odstep_h'] is not None
                         else 'brak numeru bloku migawki — bez porównania')
         return out
     hist = {}
     for a, b in zip(days[:-2], days[1:-1]):
-        for k, (_dl, _n, r, sp) in _wh_rozb(by[a], by[b]).items():
+        for k, (_dl, _n, r, sp) in pary(a, b).items():
             if doba(sp) and not zm(k[0], a, b):
                 hist.setdefault(k, []).append(r)
     for k, (delta, net, roz, sp) in sorted(dzis.items()):
@@ -3495,11 +3551,12 @@ def kontrola():
             R['uwagi'].append('ETF (mapa): zamknięcia z dwóch źródeł różnią się > ' + f'{ETF_PROG:g}% dla ' + ', '.join(f'{s} ({d}: {a:g} vs {b:g})' for s, d, a, b, r in zle[:6]))
     else:
         Z['etf'] = None
-    w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')))   # v230: dzień zmiany listy; v174: na tle historii pary i tylko przy migawkach oddalonych o ok. dobę
+    w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')),
+                        hist=(files.get('wieloryby') or {}).get('hist'))   # v249: salda z migawek o północy UTC   # v230: dzień zmiany listy; v174: na tle historii pary i tylko przy migawkach oddalonych o ok. dobę
     if w:
         zle = w['zle']
         Z['wieloryby'] = {'dzien': w['dzien'], 'poprzedni': w['poprzedni'], 'porownane': w['porownane'], 'odstep_h': w['odstep_h'], 'pomin': w['pomin'],
-                          'bez_historii': w['bez_historii'], 'pominiete': w.get('pominiete', 0), 'lista': w.get('lista', []),
+                          'bez_historii': w['bez_historii'], 'pominiete': w.get('pominiete', 0), 'lista': w.get('lista', []), 'polnoc': w.get('polnoc', 0),
                           'rozbieznosci': [{'gielda': g, 'aktywo': a, 'zmiana_usd': round(x, 2), 'netto_usd': round(y, 2), 'roznica_usd': round(z, 2), 'mediana_usd': round(m, 2)}
                                            for g, a, x, y, z, m in zle]}
         if zle:
@@ -3775,7 +3832,9 @@ def raport_md(R):
         if w and w.get('pomin'):   # v174: migawki nie o dobę — bez porównania (informacja)
             L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["pomin"]} ℹ️.')
         elif w:
-            L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo, rozbieżności nietypowe (> 5% i > {WH_RAZY:g}× zwykłej): '
+            L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo'
+                     + (f' (salda z migawek o północy UTC: {w["polnoc"]})' if w.get('polnoc') else '')   # v249
+                     + f', rozbieżności nietypowe (> 5% i > {WH_RAZY:g}× zwykłej): '
                      f'{len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}'
                      + (' — ' + ', '.join(f'{x["gielda"]} {x["aktywo"]}' for x in w["rozbieznosci"][:6]) if w['rozbieznosci'] else '')
                      + (f' (bez historii: {w["bez_historii"]})' if w.get('bez_historii') else '')

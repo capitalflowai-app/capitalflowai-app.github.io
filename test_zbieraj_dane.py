@@ -23797,7 +23797,7 @@ class KontrolaWielorybyV174(unittest.TestCase):
     def test_raport_i_wpiecie(self):
         k = self.k
         src = _rwc150_txt(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
-        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')))", src);   # v230 self.assertIn("Z['wieloryby'] = None", src)
+        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')),", src);   # v230 self.assertIn("Z['wieloryby'] = None", src)
         R = {'at': '2026-10-06T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-10-06T06:03:00+00:00', 'wiek_min': 17,
              'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': [], 'bledy': [],
              'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 13, 'odstep_h': 27.0, 'pomin': 'odstęp migawek 27.0 h — porównanie z przepływami 24 h tylko przy ok. dobie',
@@ -26435,7 +26435,7 @@ class KontrolaWielorybyListaV230(KontrolaWielorybyV174):
         self.assertEqual(k.wh_zmiany(None), {})
         with open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8') as fh:
             src = fh.read()
-        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')))", src)
+        self.assertIn("w = wieloryby_ocena(os.path.join(ARCH_DIR, 'wieloryby.csv'), zmiany=wh_zmiany(files.get('wieloryby')),", src)
         R = {'at': '2026-10-07T06:20:00+00:00', 'wynik': 'OK', 'meta': {}, 'uwagi': [], 'bledy': [],
              'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 9, 'odstep_h': 24.0, 'pomin': None, 'bez_historii': 0,
                                         'pominiete': 0, 'lista': ['Bybit'], 'rozbieznosci': []}}}
@@ -27890,3 +27890,72 @@ class PoPrzegladzieV248(unittest.TestCase):
         src = inspect.getsource(k.kontrola)
         self.assertIn("'przegl': (R.get('przegladarka') or {}).get('stan')", src)
         self.assertIn("przegladarka_poprzedni(os.path.join(OUT_DIR, 'historia.json'))", src)
+
+
+# ===================== v249: WIELORYBY — SALDA Z MIGAWEK O PÓŁNOCY UTC =====================
+class KontrolaWielorybyV249(unittest.TestCase):
+    """v249: para z migawek „pierwszej z doby” (pole hist pliku wielorybów, do 2 h po północy UTC, ta sama wersja listy) zastępuje parę z migawek
+    archiwum robionych o różnych porach — porównanie z przelewami pełnej doby działa codziennie; bez migawek o północy — jak dotąd."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola249-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v249_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def _archiwum(self):
+        """Archiwum 01.10–06.10, migawki co 20 h (6000 bloków — nie doba: dotąd para pominięta); przelewy netto: Binance USDT 20 mln, Bybit USDT 5 mln."""
+        p = os.path.join(self.tmp, 'wieloryby.csv')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n')
+            for i in range(6):
+                d, b = f'2026-10-0{i + 1}', 26_000_000 + i * 6000
+                f.write(f'{d},Binance,USDT,20000000000,20000000000,0,0,20000000,{b}\n{d},Bybit,USDT,1000000000,1000000000,0,0,5000000,{b}\n')
+        return p
+
+    def _hist(self, czas_ost='00:05', wer_ost='2026-09-23', bybit_ost=105_000_000):
+        """Migawki o północy 30.09–06.10: Binance USDT +20 mln na dobę (= przelewy), Bybit USDT +5 mln (= przelewy), ostatnia doba Bybit + bybit_ost."""
+        H = {'Binance': [], 'Bybit': []}
+        for i in range(7):
+            d = (datetime.date(2026, 9, 30) + datetime.timedelta(days=i)).isoformat()
+            ost = i == 6
+            t, w = (f'{d}T{czas_ost}:00+00:00', wer_ost) if ost else (f'{d}T00:05:00+00:00', '2026-09-23')
+            H['Binance'].append([d, t, 1000.0, 20e9 + i * 20e6, 0.0, w])
+            H['Bybit'].append([d, t, 10.0, 1e9 + (5 * 5e6 + bybit_ost if ost else i * 5e6), 0.0, w])
+        return H
+
+    def test_para_z_polnocy_codziennie(self):
+        k = self.k
+        path = self._archiwum()
+        o = k.wieloryby_ocena(path)
+        self.assertEqual((o['porownane'], o['odstep_h']), (0, 20.0), 'bez migawek o północy — jak dotąd: odstęp 20 h, bez porównania')
+        self.assertIn('odstęp migawek 20.0 h', o['pomin'])
+        o = k.wieloryby_ocena(path, hist=self._hist())
+        self.assertEqual((o['porownane'], o['pominiete'], o['polnoc'], o['pomin']), (2, 0, 2, None))
+        self.assertEqual([(g, a, round(x / 1e6, 1), round(y / 1e6, 1), round(z / 1e6, 1)) for g, a, x, y, z, m in o['zle']], [('Bybit', 'USDT', 105.0, 5.0, 100.0)],
+                         'Binance: zmiana 20 mln = przelewy 20 mln; Bybit: 105 mln wobec przelewów 5 mln — nietypowe (zwykle 0)')
+        o = k.wieloryby_ocena(path, hist=self._hist(bybit_ost=5_000_000))
+        self.assertEqual((o['porownane'], o['zle']), (2, []))
+
+    def test_migawka_pozna_albo_inna_lista(self):
+        k = self.k
+        path = self._archiwum()
+        o = k.wieloryby_ocena(path, hist=self._hist(czas_ost='05:00'))
+        self.assertEqual((o['porownane'], o['polnoc']), (0, 0), 'ostatnia migawka o 05:00 (np. po awarii) — nie o północy, para z archiwum (20 h)')
+        o = k.wieloryby_ocena(path, hist=self._hist(wer_ost='2026-10-06'))
+        self.assertEqual((o['porownane'], o['polnoc']), (0, 0), 'inna wersja listy portfeli — nowe portfele to skok salda bez przelewów')
+        self.assertEqual(k._wh_polnoc({'Binance': [['2026-10-06', '2026-10-06T00:05:00+00:00', 1.0, float('nan'), 2.0], ['x', 'y', 1, 2, 3], 'zly']}),
+                         {'2026-10-06': {('Binance', 'ETH'): (1.0, '2026-10-06T00:05:00+00:00', None), ('Binance', 'USDC'): (2.0, '2026-10-06T00:05:00+00:00', None)}},
+                         'NaN i złe wiersze pominięte')
+
+    def test_wiersz_i_wywolanie(self):
+        k = self.k
+        import inspect
+        self.assertIn("hist=(files.get('wieloryby') or {}).get('hist')", inspect.getsource(k.kontrola))
+        R = {'at': '2026-10-06T15:00:00+00:00', 'wynik': 'OK', 'uwagi': [], 'bledy': [], 'meta': {}, 'pliki': {},
+             'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 13, 'odstep_h': 24.0, 'pomin': None,
+                                        'bez_historii': 0, 'pominiete': 0, 'lista': [], 'polnoc': 13, 'rozbieznosci': []}}}
+        self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: 13 par giełda/aktywo (salda z migawek o północy UTC: 13), rozbieżności nietypowe', k.raport_md(R))
