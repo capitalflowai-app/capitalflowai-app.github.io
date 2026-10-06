@@ -32,6 +32,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -124,6 +125,7 @@ STOPY_MIES_EN = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 
 STOPY_BUDZET_S = 90    # v245: cały blok stóp (źródła banków, ponowienia, zapas FRED) — zapytanie tylko, gdy zmieści się w budżecie (krok kontroli
 #                        ok. 90 s; zadanie ma 12 min, w tym do 5 min czekania na publikację)
 STOPY_PAUZA_S = 3      # v245: przerwa przed jedną ponowną próbą po błędzie serwera (5xx) albo przekroczeniu czasu
+STOPY_ZAPAS_S = 5      # v248: twardy limit jednego zapytania = jego limit + tyle (urllib liczy limit na operację gniazda; DNS bez limitu)
 STOPY_FRED_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&cosd={od}'
 STOPY_OD_DNI = 120    # FRED: plik od tylu dni wstecz (data stopy na stronie bywa sprzed kilku tygodni — np. RBI)
 STOPY_PROG = 0.01     # pkt proc. — większa różnica w tym samym dniu = ⚠️
@@ -310,20 +312,37 @@ def stopy_ponowic(e):
     return isinstance(e, TimeoutError)
 
 
-def stopy_pobierz(url, t0, timeout=15, headers=None, zegar=time.monotonic, spij=time.sleep, pobierz=None):
-    """v245: treść odpowiedzi źródła stóp. Zapytanie tylko, gdy zmieści się w STOPY_BUDZET_S od t0 (inaczej TimeoutError „pominięte — limit
-    czasu kontroli stóp”); po błędzie chwilowym (stopy_ponowic) przerwa STOPY_PAUZA_S i jedna ponowna próba — też tylko w budżecie (inaczej
-    pierwotny błąd)."""
+def _stopy_raz(url, timeout, headers=None, pobierz=None, zapas=None):
+    """v248: jedno zapytanie z twardym limitem łącznego czasu (timeout + STOPY_ZAPAS_S) — urllib liczy limit na operację gniazda, nie na całość
+    (wolno sączący serwer, DNS); wątek w tle po przekroczeniu jest porzucany (kończy się sam albo z procesem)."""
     pobierz = pobierz or get
-    if zegar() - t0 + timeout > STOPY_BUDZET_S:
-        raise TimeoutError('pominięte — limit czasu kontroli stóp')
+    zapas = STOPY_ZAPAS_S if zapas is None else zapas
+    wyn = {}
+
+    def run():
+        try:
+            wyn['b'] = pobierz(url, timeout=timeout, headers=headers)[1]
+        except Exception as e:  # noqa
+            wyn['e'] = e
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    t.join(timeout + zapas)
+    if t.is_alive():
+        raise TimeoutError(f'brak całej odpowiedzi w {timeout + zapas:g} s')
+    if 'e' in wyn:
+        raise wyn['e']
+    return wyn['b']
+
+
+def _dzien(s):
+    """v248: 'RRRR-MM-DD' tylko prawdziwego dnia kalendarza (np. 31.09 = None) — daty źródeł trafiają później do date.fromisoformat."""
+    if not isinstance(s, str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', s):
+        return None
     try:
-        return pobierz(url, timeout=timeout, headers=headers)[1]
-    except Exception as e:  # noqa
-        if not stopy_ponowic(e) or zegar() - t0 + STOPY_PAUZA_S + timeout > STOPY_BUDZET_S:
-            raise
-    spij(STOPY_PAUZA_S)
-    return pobierz(url, timeout=timeout, headers=headers)[1]
+        dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+    return s
 
 
 def stopy_porownanie(stopy, fred, now=None, bledy=None):
@@ -337,7 +356,7 @@ def stopy_porownanie(stopy, fred, now=None, bledy=None):
     if not isinstance(stopy, dict):
         return []
     rows = stopy.get('rows') if isinstance(stopy.get('rows'), dict) else {}
-    F = fred if isinstance(fred, dict) else {}
+    F = {i: {d: v for d, v in s.items() if _dzien(d)} for i, s in fred.items() if isinstance(s, dict)} if isinstance(fred, dict) else {}   # v248: tylko prawdziwe dni
     B = bledy if isinstance(bledy, dict) else {}
     out = []
     for a, warianty in STOPY_SERIE.items():
@@ -347,7 +366,7 @@ def stopy_porownanie(stopy, fred, now=None, bledy=None):
         if not isinstance(rate, (int, float)) or isinstance(rate, bool) or rate != rate or abs(rate) > 1e6:
             out.append({'bank': nazwa, 'brak': 'brak stopy w pliku strony', 'powod': 'strona'})
             continue
-        if not isinstance(r.get('date'), str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', r['date']):
+        if not _dzien(r.get('date')):   # v248: także 30.02 to nie dzień
             out.append({'bank': nazwa, 'brak': f'data w pliku strony „{str(r.get("date"))[:10]}” to nie dzień', 'powod': 'strona'})
             continue
         jest = [(ids, zr) for ids, _, zr in warianty if all(isinstance(F.get(i), dict) and F.get(i) for i in ids)]
@@ -389,9 +408,11 @@ def stopy_porownanie(stopy, fred, now=None, bledy=None):
 
 
 def stopy_sprawdz(stopy, now=None, zegar=time.monotonic, spij=time.sleep):
-    """v246: blok stóp kontroli (wyjęty z kontrola(), żeby testy szły przez prawdziwy przebieg): źródła banków w budżecie STOPY_BUDZET_S
-    z jednym ponowieniem (NY Fed, EBC, stopy_adresy), zapas FRED dla banków bez porównania, błąd odczytu każdej serii → powód „brak porównania”
-    banku. → ({'wyniki': [...], 'brak': błędy odczytu nieujęte w powodach banków albo None}, uwagi)."""
+    """v246: blok stóp kontroli (wyjęty z kontrola(), żeby testy szły przez prawdziwy przebieg): źródła banków w budżecie STOPY_BUDZET_S,
+    zapas FRED dla banków bez porównania, błąd odczytu każdej serii → powód „brak porównania” banku. v248: faza 1 — każde źródło raz;
+    faza 2 — jedno ponowienie źródeł z błędem chwilowym (5xx, przekroczenie czasu) w tym, co zostało z budżetu (ponowienia pierwszych źródeł
+    nie zabierają czasu pozostałym); każde zapytanie z twardym limitem łącznego czasu (_stopy_raz).
+    → ({'wyniki': [...], 'brak': błędy odczytu nieujęte w powodach banków albo None}, uwagi)."""
     now = now or NOW
     Fs, bs, Bl = {}, [], {}
     t0 = zegar()
@@ -400,20 +421,30 @@ def stopy_sprawdz(stopy, now=None, zegar=time.monotonic, spij=time.sleep):
         t = f'{nm}: {str(e)[:60]}'
         bs.append(t)
         Bl.update({i: t for i in ids})
-
-    def pobierz(url, timeout=15, headers=None):
-        return stopy_pobierz(url, t0, timeout=timeout, headers=headers, zegar=zegar, spij=spij)
-    try:   # v242: źródło banku najpierw (bez klucza); v245: jedno ponowienie po błędzie chwilowym
-        Fs.update(stopy_nyfed(pobierz(STOPY_NYFED, timeout=20)))
-    except Exception as e:  # noqa
-        blad('NY Fed', ('NYFED_LO', 'NYFED_HI'), e)
-    try:
-        Fs['ECB_DFR'] = stopy_ecb_csv(pobierz(STOPY_ECB, timeout=20, headers={'Accept': 'text/csv'}))
-    except Exception as e:  # noqa
-        blad('EBC', ('ECB_DFR',), e)
-    for nm, url, fn, ids in stopy_adresy(now):   # v244: kolejne banki u źródła; błąd jednego = brak porównania tego banku (v246: z powodem)
+    zr = [('NY Fed', STOPY_NYFED, stopy_nyfed, ('NYFED_LO', 'NYFED_HI'), 20, None),   # v242: źródło banku najpierw, bez klucza
+          ('EBC', STOPY_ECB, lambda b: {'ECB_DFR': stopy_ecb_csv(b)}, ('ECB_DFR',), 20, {'Accept': 'text/csv'})]
+    zr += [(nm, url, fn, ids, 15, None) for nm, url, fn, ids in stopy_adresy(now)]   # v244: kolejne banki u źródła
+    ponow = []
+    for z in zr:   # faza 1: każde źródło raz
+        nm, url, fn, ids, tm, hd = z
+        if zegar() - t0 + tm > STOPY_BUDZET_S:
+            blad(nm, ids, 'pominięte — limit czasu kontroli stóp')
+            continue
         try:
-            Fs.update(fn(pobierz(url)))
+            Fs.update(fn(_stopy_raz(url, tm, hd)))
+        except Exception as e:  # noqa
+            if stopy_ponowic(e):
+                ponow.append((z, e))
+            else:
+                blad(nm, ids, e)
+    if ponow:   # faza 2 (v245/v248): jedno ponowienie błędów chwilowych, w tym, co zostało z budżetu
+        spij(STOPY_PAUZA_S)
+    for (nm, url, fn, ids, tm, hd), e0 in ponow:
+        if zegar() - t0 + tm > STOPY_BUDZET_S:
+            blad(nm, ids, e0)   # brak czasu na ponowienie — pierwotny błąd
+            continue
+        try:
+            Fs.update(fn(_stopy_raz(url, tm, hd)))
         except Exception as e:  # noqa
             blad(nm, ids, e)
     Ps = stopy_porownanie(stopy, Fs, now, bledy=Bl)
@@ -424,7 +455,7 @@ def stopy_sprawdz(stopy, now=None, zegar=time.monotonic, spij=time.sleep):
         try:
             if zegar() - t0 + 30 > STOPY_BUDZET_S:
                 raise TimeoutError('pominięte — limit czasu kontroli stóp')
-            x = ust_fred_csv(get(STOPY_FRED_URL.format(id=sid, od=od_s), timeout=30)[1].decode('utf-8', 'replace'))
+            x = ust_fred_csv(_stopy_raz(STOPY_FRED_URL.format(id=sid, od=od_s), 30).decode('utf-8', 'replace'))
             if not x:   # v246: strona HTML z kodem 200 — błąd, nie cisza
                 raise ValueError('plik bez liczb')
             Fs[sid] = x
@@ -2566,7 +2597,10 @@ PRZEGL_PROGRAMY = ('google-chrome', 'google-chrome-stable', 'chromium', 'chromiu
 PRZEGL_CZAS_S = 90          # najdłużej tyle czekamy na zrzut strony — potem przeglądarka jest zamykana („nie sprawdzono”)
 PRZEGL_BUDZET_MS = 20000    # czas wirtualny strony przed zrzutem (dane, wykresy, liczniki odświeżania)
 PRZEGL_OKNO = '390,844'     # ekran telefonu
-PRZEGL_KONSOLA = re.compile(r':CONSOLE(?::\d+)?\] "(.*)", source: (\S*) \((\d+)\)')
+PRZEGL_KONSOLA = re.compile(r':CONSOLE(?::\d+\]|\(\d+\)\]) "(.*)", source: (\S*) \((\d+)\)\s*$', re.S)   # v248: też CONSOLE(N); wiele linii
+PRZEGL_REKORD = re.compile(r'\n(?=\[\d+:\d+:\d{4}/)')   # v248: nowy wpis logu zaczyna się od „[proces:wątek:MMDD/” — komunikat bywa wielowierszowy
+PRZEGL_ZNACZNIK = 'const EXTRA'   # v248: zrzut to nasza strona (ten sam znacznik co pobranie index.html), nie np. strona 404
+PRZEGL_MIN_WYKRESY = 10   # v248: wykresów liniowych poza tekstem skryptów — 06.10: 20 z danymi, 0 bez danych (strona z pliku, dane niedostępne)
 
 
 def przegladarka_program(kandydaci=PRZEGL_PROGRAMY, szukaj=None):
@@ -2583,13 +2617,17 @@ def przegladarka_program(kandydaci=PRZEGL_PROGRAMY, szukaj=None):
 def przegladarka_konsola(log):
     """v247: komunikaty konsoli z logu przeglądarki → {'bledy': nieobsłużone wyjątki („Uncaught …”, także odrzucone obietnice),
     'zasoby': nieudane wczytania i zapytania zablokowane (adres; 06.10 lokalnie: źródło cen krypto po kilku próbach — strona ma zapas),
-    'inne': pozostałe komunikaty (console.error/warn/log)}."""
-    out = {'bledy': [], 'zasoby': [], 'inne': []}
-    for line in str(log or '').splitlines():
-        m = PRZEGL_KONSOLA.search(line)
-        if not m:
+    'inne': pozostałe komunikaty (console.error/warn/log), 'nieczytelne': liczba wpisów konsoli, których nie udało się odczytać}.
+    v248: log dzielony na wpisy tylko przed nowym wpisem — komunikat z nową linią (np. błąd JSON.parse z treścią strony błędu) nie ginie."""
+    out = {'bledy': [], 'zasoby': [], 'inne': [], 'nieczytelne': 0}
+    for rek in PRZEGL_REKORD.split(str(log or '')):
+        if ':CONSOLE' not in rek[:120]:
             continue
-        msg, src, nr = m.group(1), m.group(2), m.group(3)
+        m = PRZEGL_KONSOLA.search(rek)
+        if not m:
+            out['nieczytelne'] += 1
+            continue
+        msg, src, nr = ' '.join(m.group(1).split()), m.group(2), m.group(3)   # wiele linii → jedna
         if msg.startswith('Uncaught'):
             out['bledy'].append(f'{msg[:160]} ({src.split("?")[0].rsplit("/", 1)[-1][:40] or "strona"}:{nr})')
         elif msg.startswith('Failed to load resource'):
@@ -2602,11 +2640,13 @@ def przegladarka_konsola(log):
 
 
 def strona_przegladarka(url, czas_s=PRZEGL_CZAS_S, program=None, zegar=time.monotonic, spij=time.sleep):
-    """v247: strona w przeglądarce bez okna → {'ok': True, 'czas_s', 'bajty', 'svg', 'wykresy', 'bledy', 'zasoby', 'inne'} albo {'brak': powód}
-    (brak przeglądarki, brak zrzutu w czas_s). Osobny profil tymczasowy; po zrzucie albo czas_s — zamknięcie całej grupy procesów."""
+    """v247: strona w przeglądarce bez okna. v248 → {'stan': 'ok', 'ok': True, 'czas_s', 'bajty', 'svg', 'wykresy' (bez tekstu skryptów),
+    'bledy', 'zasoby', 'inne', 'nieczytelne'} albo {'stan': 'brak_programu' | 'zakonczona' (awaria: kod i ostatni wpis błędu) | 'zawieszona'
+    (przeglądarka działa, strony brak — zawieszona strona albo źródło, które nie odpowiada) | 'inna_strona' (brak znacznika), 'brak': opis, …}.
+    Osobny profil tymczasowy; po zrzucie albo czas_s — zamknięcie całej grupy procesów."""
     program = program or przegladarka_program()
     if not program:
-        return {'brak': 'brak przeglądarki na maszynie kontroli'}
+        return {'stan': 'brak_programu', 'brak': 'brak przeglądarki na maszynie kontroli'}
     with tempfile.TemporaryDirectory(prefix='kontrola-przegl-') as tmp:
         args = [program, '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-extensions',
                 '--disable-dev-shm-usage', f'--user-data-dir={os.path.join(tmp, "profil")}', '--enable-logging=stderr', '--v=1',
@@ -2614,7 +2654,7 @@ def strona_przegladarka(url, czas_s=PRZEGL_CZAS_S, program=None, zegar=time.mono
         if sys.platform.startswith('linux'):
             args.insert(1, '--no-sandbox')   # maszyny GitHub (ubuntu) nie dają piaskownicy jądra; otwieramy tylko własną stronę
         po, pe = os.path.join(tmp, 'strona.html'), os.path.join(tmp, 'konsola.log')
-        t0 = zegar()
+        t0, rc = zegar(), None
         with open(po, 'wb') as fo, open(pe, 'wb') as fe:
             p = subprocess.Popen(args, stdout=fo, stderr=fe, stdin=subprocess.DEVNULL, start_new_session=True)
             try:
@@ -2628,6 +2668,7 @@ def strona_przegladarka(url, czas_s=PRZEGL_CZAS_S, program=None, zegar=time.mono
                         pass
                     spij(1)
             finally:
+                rc = p.poll()   # v248: zakończona sama (awaria) czy nadal działa
                 try:
                     os.killpg(p.pid, signal.SIGKILL)   # przeglądarka nie zamyka się sama (liczniki strony) — cała grupa procesów
                 except OSError:
@@ -2640,30 +2681,65 @@ def strona_przegladarka(url, czas_s=PRZEGL_CZAS_S, program=None, zegar=time.mono
         with open(po, 'rb') as f:
             dom = f.read().decode('utf-8', 'replace')
         with open(pe, 'rb') as f:
-            K = przegladarka_konsola(f.read().decode('utf-8', 'replace'))
+            log = f.read().decode('utf-8', 'replace')
+    K = przegladarka_konsola(log)
     if '</html>' not in dom[-64:]:
-        return {'brak': f'przeglądarka nie oddała strony w {czas_s} s', 'czas_s': czas, **K}
-    return {'ok': True, 'czas_s': czas, 'bajty': len(dom), 'svg': dom.count('<svg'), 'wykresy': dom.count('class="arc-gr"'), **K}
+        if rc is not None:   # v248: przeglądarka zakończyła się sama bez strony — awaria (kod i ostatni wpis błędu)
+            L = [x.strip() for x in log.splitlines() if x.strip()]
+            ost = next((x for x in reversed(L) if ':ERROR:' in x or ':FATAL:' in x), L[-1] if L else '')
+            return {'stan': 'zakonczona', 'brak': f'przeglądarka zakończyła się po {czas:g} s bez strony, kod {rc}'.replace('.', ',')
+                    + (f': {ost[-100:]}' if ost else ''), 'czas_s': czas, **K}
+        return {'stan': 'zawieszona', 'brak': f'strona nie oddała się w {czas_s} s — zawieszona strona albo źródło, które nie odpowiada',
+                'czas_s': czas, **K}
+    if PRZEGL_ZNACZNIK not in dom:
+        return {'stan': 'inna_strona', 'brak': 'przeglądarka dostała inną stronę (bez znacznika strony)', 'czas_s': czas, **K}
+    tresc = re.sub(r'<script\b[^>]*>.*?</script>', '', dom, flags=re.S | re.I)   # v248: tylko narysowana strona, nie tekst skryptów
+    return {'stan': 'ok', 'ok': True, 'czas_s': czas, 'bajty': len(dom), 'svg': tresc.count('<svg'), 'wykresy': tresc.count('class="arc-gr"'), **K}
 
 
-def przegladarka_uwagi(P):
-    """v247: nieobsłużone błędy JavaScriptu na stronie w przeglądarce = uwaga (najwyżej ⚠️ — strona może działać mimo błędu w jednym panelu)."""
-    if not isinstance(P, dict) or not P.get('bledy'):
+def przegladarka_poprzedni(path):
+    """v248: stan przeglądarki z ostatniej kontroli, która ją uruchamiała (kontrola/historia.json, pole 'przegl') albo None."""
+    try:
+        with open(path, encoding='utf-8') as f:
+            H = json.load(f)
+    except Exception:  # noqa
+        return None
+    return next((h.get('przegl') for h in reversed(H) if isinstance(h, dict) and h.get('przegl')), None) if isinstance(H, list) else None
+
+
+def przegladarka_uwagi(P, poprzedni=None):
+    """v247/v248: uwagi tylko z pełnego zrzutu: nieobsłużone błędy JavaScriptu, za mało wykresów liniowych (PRZEGL_MIN_WYKRESY). Strona,
+    która się nie oddała (zawieszona albo wiszące źródło) — uwaga dopiero, gdy poprzednia kontrola z przeglądarką skończyła się tak samo."""
+    if not isinstance(P, dict):
         return []
-    return [f'strona w przeglądarce: nieobsłużonych błędów JavaScriptu {len(P["bledy"])} — pierwszy: {P["bledy"][0]}']
+    out = []
+    if P.get('ok'):
+        if P.get('bledy'):
+            out.append(f'strona w przeglądarce: nieobsłużonych błędów JavaScriptu {len(P["bledy"])} — pierwszy: {P["bledy"][0]}')
+        if isinstance(P.get('wykresy'), int) and P['wykresy'] < PRZEGL_MIN_WYKRESY:
+            out.append(f'strona w przeglądarce: narysowanych wykresów liniowych tylko {P["wykresy"]} (zwykle ok. 20) — dane mogły się nie wczytać')
+    elif P.get('stan') == 'zawieszona' and poprzedni == 'zawieszona':
+        out.append(f'strona w przeglądarce: drugi raz z rzędu nie oddała się w {PRZEGL_CZAS_S} s — możliwa zawieszona strona (pętla w skrypcie) '
+                   'albo źródło, które nie odpowiada')
+    return out
 
 
 def przegladarka_wiersz(P):
-    """v247: wiersz raportu „Strona w przeglądarce” — błędy JS ⚠️, nieudane wczytania i inne komunikaty konsoli ℹ️, brak sprawdzenia ℹ️."""
-    if P.get('brak'):
-        return f'- Strona w przeglądarce (bez okna, ekran telefonu): nie sprawdzono ({P["brak"]}) ℹ️.'
-    b, z, i = P.get('bledy') or [], P.get('zasoby') or [], P.get('inne') or []
+    """v247/v248: wiersz raportu „Strona w przeglądarce” — błędy JS i za mało wykresów ⚠️; nieudane wczytania, inne i nieczytelne komunikaty
+    konsoli ℹ️; bez pełnego zrzutu „nie sprawdzono” ℹ️ (drugi raz z rzędu bez strony — ⚠️), z błędami z logu do przerwania jako informacją."""
+    if not P.get('ok'):
+        b = P.get('bledy') or []
+        return (f'- Strona w przeglądarce (bez okna, ekran telefonu): nie sprawdzono ({P.get("brak") or "—"})'
+                + (f'; w logu do przerwania nieobsłużonych błędów JavaScriptu: {len(b)}' if b else '') + (' ⚠️.' if P.get('powtorka') else ' ℹ️.'))
+    b, z, i, nc = P.get('bledy') or [], P.get('zasoby') or [], P.get('inne') or [], P.get('nieczytelne') or 0
+    malo = isinstance(P.get('wykresy'), int) and P['wykresy'] < PRZEGL_MIN_WYKRESY
     hosty = sorted({u.split('/')[2] if '://' in u else u for u in z})
     return (f'- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po {str(P.get("czas_s", "—")).replace(".", ",")} s — grafik '
-            f'{P.get("svg", 0)}, wykresów liniowych {P.get("wykresy", 0)}; nieobsłużonych błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else '✅')
+            f'{P.get("svg", 0)}, wykresów liniowych {P.get("wykresy", 0)}' + (' ⚠️ (zwykle ok. 20)' if malo else '')
+            + f'; nieobsłużonych błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else ('ℹ️' if nc else '✅'))
+            + (f' (wpisów konsoli nieczytelnych: {nc})' if nc else '')
             + (f'; nieudane wczytania: {len(z)} ({", ".join(hosty[:4])}) ℹ️' if z else '')
             + (f'; inne komunikaty konsoli: {len(i)} (pierwszy: {i[0][:80]}) ℹ️' if i else '') + '.')
-
 
 # ---------------------------------------------------------------- v141: lżejsza strona — pliki słowników języków (i18n/<język>.<skrót>.js) ----------------------------------------------------------------
 I18N_MAPA = re.compile(r'const CF_I18N_H=(\{[^{}]*\})[;,]')
@@ -3139,8 +3215,11 @@ def kontrola():
         try:
             R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}')
         except Exception as e:  # noqa
-            R['przegladarka'] = {'brak': f'błąd sprawdzania: {type(e).__name__}'}
-        R['uwagi'] += przegladarka_uwagi(R['przegladarka'])
+            R['przegladarka'] = {'stan': 'blad', 'brak': f'błąd sprawdzania: {type(e).__name__}'}
+        u = przegladarka_uwagi(R['przegladarka'], przegladarka_poprzedni(os.path.join(OUT_DIR, 'historia.json')))   # v248: drugi raz bez strony = uwaga
+        if u and R['przegladarka'].get('stan') == 'zawieszona':
+            R['przegladarka']['powtorka'] = True
+        R['uwagi'] += u
     # 2. plik stanu automatu
     try:
         st, body, ms = get(f'{SITE}/data/meta.json?nc={int(time.time())}')
@@ -3387,7 +3466,10 @@ def kontrola():
         else:
             Z['ust10'] = {'brak': '; '.join(bu)[:200]}
     if isinstance(files.get('stopy'), dict):   # v241–v246: stopy banków centralnych vs ich własne źródła (bez klucza); brak odczytu = informacja
-        Z['stopy'], u = stopy_sprawdz(files['stopy'])
+        try:
+            Z['stopy'], u = stopy_sprawdz(files['stopy'])
+        except Exception as e:  # noqa — v248: błąd bloku stóp nie zabiera całego raportu
+            Z['stopy'], u = {'wyniki': [], 'brak': f'błąd kontroli stóp: {type(e).__name__}: {str(e)[:80]}'}, []
         R['uwagi'] += u
     if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('fx'), dict):   # v225: kursy walut vs H.10 (Fed); brak = informacja
         try:
@@ -3554,7 +3636,8 @@ def kontrola():
         R['uwagi'].append('nie udało się odczytać listy przebiegów Actions: ' + str(e)[:100])
     # 5. v115: historia — błędy zbieracza w 3 kolejnych przebiegach kontroli = czerwone
     n_err = len(R['meta'].get('errors') or []) if isinstance(R['meta'], dict) else 0
-    hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy'])})
+    hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy']),
+                                                           'przegl': (R.get('przegladarka') or {}).get('stan')})   # v248: stan przeglądarki
     if czerwone_z_historii(hist):
         R['bledy'].append(f'zbieracz zgłasza błędy w {HIST_CZERWONE} kolejnych dniach kontroli (' + '; '.join((R['meta'].get('errors') or ['?'])[:2]) + ')')
     R['historia_n'] = len(hist)
@@ -3664,7 +3747,10 @@ def raport_md(R):
                          f'{len(u["roznice"])} ' + ('⚠️ — ' + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]) + '.' if u['roznice'] else '✅.'))
         sp = Z.get('stopy')   # v241
         if sp:
-            L.append(stopy_wiersz(sp))
+            try:
+                L.append(stopy_wiersz(sp))
+            except Exception as e:  # noqa — v248
+                L.append(f'- Stopy banków centralnych: błąd wiersza raportu ({type(e).__name__}) ℹ️.')
         f = Z.get('fx')   # v225: kursy walut vs H.10
         if f:
             if f.get('brak'):

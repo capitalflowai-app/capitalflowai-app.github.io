@@ -27491,49 +27491,10 @@ class KontrolaStopyV245(unittest.TestCase):
         self.assertFalse(k.stopy_ponowic(urllib.error.URLError(OSError('Name or service not known'))))
         self.assertFalse(k.stopy_ponowic(ValueError('nieznany nagłówek')), 'zła treść — bez ponowienia')
 
-    def test_pobierz_ponowienie_i_budzet(self):
+    def test_stale_budzetu(self):   # v248: ponowienia i budżet — przebiegi w PoPrzegladzieV246 i PoPrzegladzieV248 (stopy_sprawdz, dwie fazy)
         k = self.k
-        t = [0.0]; log = []
-        zegar = lambda: t[0]  # noqa: E731
-        def spij(s):
-            log.append(('spij', s)); t[0] += s
-        def pobierz_seq(odp):
-            it = iter(odp)
-            def f(url, timeout=None, headers=None):
-                log.append(('get', url, timeout)); t[0] += 1
-                x = next(it)
-                if isinstance(x, Exception):
-                    raise x
-                return 200, x, 5
-            return f
-        self.assertEqual(k.stopy_pobierz('u', 0.0, timeout=20, zegar=zegar, spij=spij, pobierz=pobierz_seq([self._err(504), b'ok'])), b'ok')
-        self.assertEqual([x[0] for x in log], ['get', 'spij', 'get'], 'po 504: przerwa i druga próba')
-        self.assertEqual(log[1], ('spij', k.STOPY_PAUZA_S))
-        log.clear(); t[0] = 0.0
-        with self.assertRaises(Exception) as c:
-            k.stopy_pobierz('u', 0.0, zegar=zegar, spij=spij, pobierz=pobierz_seq([self._err(404), b'ok']))
-        self.assertEqual(getattr(c.exception, 'code', None), 404); self.assertEqual([x[0] for x in log], ['get'], '404 — bez ponowienia')
-        log.clear(); t[0] = 0.0
-        with self.assertRaises(Exception) as c:
-            k.stopy_pobierz('u', 0.0, zegar=zegar, spij=spij, pobierz=pobierz_seq([self._err(504), self._err(504)]))
-        self.assertEqual(getattr(c.exception, 'code', None), 504); self.assertEqual([x[0] for x in log], ['get', 'spij', 'get'], 'jedna ponowna próba, nie więcej')
-        log.clear(); t[0] = 80.0
-        with self.assertRaises(TimeoutError) as c:
-            k.stopy_pobierz('u', 0.0, timeout=15, zegar=zegar, spij=spij, pobierz=pobierz_seq([b'ok']))
-        self.assertIn('limit czasu kontroli stóp', str(c.exception)); self.assertEqual(log, [], '80 + 15 > 90 s — bez zapytania')
-        log.clear(); t[0] = 73.0   # 73 + 15 ≤ 90 — pierwsze zapytanie; po nim 74 + 3 + 15 > 90 — bez ponowienia
-        with self.assertRaises(Exception) as c:
-            k.stopy_pobierz('u', 0.0, timeout=15, zegar=zegar, spij=spij, pobierz=pobierz_seq([self._err(503), b'ok']))
-        self.assertEqual(getattr(c.exception, 'code', None), 503, 'ponowienie nie mieści się w budżecie — pierwotny błąd')
-        self.assertEqual([x[0] for x in log], ['get'])
-
-    def test_kontrola_uzywa_budzetu(self):   # v246: przebieg z budżetem i ponowieniami — PoPrzegladzieV246 (stopy_sprawdz)
-        import inspect
-        k = self.k
-        src = inspect.getsource(k.stopy_sprawdz)
-        self.assertIn('return stopy_pobierz(url, t0, timeout=timeout, headers=headers, zegar=zegar, spij=spij)', src)
-        self.assertIn("raise TimeoutError('pominięte — limit czasu kontroli stóp')", src, 'zapas FRED też w budżecie (bez ponowienia)')
-        self.assertEqual((k.STOPY_BUDZET_S, k.STOPY_PAUZA_S), (90, 3))
+        self.assertEqual((k.STOPY_BUDZET_S, k.STOPY_PAUZA_S, k.STOPY_ZAPAS_S), (90, 3, 5))
+        self.assertFalse(hasattr(k, 'stopy_pobierz'), 'v248: ponowienia w fazie 2 stopy_sprawdz (stopy_pobierz usunięte)')
 
     def test_raport_czytelny_v245c(self):
         k = self.k
@@ -27719,7 +27680,7 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
         self.assertEqual(K['zasoby'], ['https://api.coingecko.com/api/v3/global', 'https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=800'],
                          'zapytanie zablokowane (CORS) to nieudane wczytanie, nie „inny komunikat”')
         self.assertEqual(K['inne'], ['BLAD-TESTOWY-1'])
-        self.assertEqual(self.k.przegladarka_konsola(''), {'bledy': [], 'zasoby': [], 'inne': []})
+        self.assertEqual(self.k.przegladarka_konsola(''), {'bledy': [], 'zasoby': [], 'inne': [], 'nieczytelne': 0})   # v248
 
     def test_wiersz_i_uwagi(self):
         k = self.k
@@ -27740,7 +27701,7 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
             self.assertEqual(k.przegladarka_program(('chromium', 'google-chrome'), szukaj=lambda n: '/usr/bin/' + n if n == 'google-chrome' else None), '/usr/bin/google-chrome')
             self.assertIsNone(k.przegladarka_program(('x-brak', '/nie/ma/chrome'), szukaj=lambda n: None))
         with mock.patch.object(k, 'przegladarka_program', lambda *a, **kw: None):
-            self.assertEqual(k.strona_przegladarka('https://x'), {'brak': 'brak przeglądarki na maszynie kontroli'})
+            self.assertEqual(k.strona_przegladarka('https://x'), {'stan': 'brak_programu', 'brak': 'brak przeglądarki na maszynie kontroli'})
 
     def _udawana(self, dom, log, spi=30):
         p = os.path.join(self.tmp, f'przegl_{abs(hash((dom, log, spi)))}.py')
@@ -27753,7 +27714,7 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
     def test_zrzut_i_zamkniecie(self):
         import time
         k = self.k
-        prog = self._udawana('<html><body><svg></svg><svg></svg><div class="arc-gr"></div></body></html>\n', self.LOG)
+        prog = self._udawana('<html><body><script>const EXTRA={};</script><svg></svg><svg></svg><div class="arc-gr"></div></body></html>\n', self.LOG)   # v248: znacznik strony
         t0 = time.monotonic()
         P = k.strona_przegladarka('https://x', czas_s=20, program=prog)
         self.assertLess(time.monotonic() - t0, 8, 'po „</html>” przeglądarka zamknięta od razu (nie czekamy, aż sama się zamknie)')
@@ -27763,15 +27724,15 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
         k = self.k
         prog = self._udawana('<html><body><p>w trakcie', '')
         P = k.strona_przegladarka('https://x', czas_s=2, program=prog)
-        self.assertEqual(P['brak'], 'przeglądarka nie oddała strony w 2 s')
-        self.assertIn('nie sprawdzono (przeglądarka nie oddała strony w 2 s) ℹ️', k.przegladarka_wiersz(P))
+        self.assertEqual(P['brak'], 'strona nie oddała się w 2 s — zawieszona strona albo źródło, które nie odpowiada')   # v248
+        self.assertIn('nie sprawdzono (strona nie oddała się w 2 s — zawieszona strona albo źródło, które nie odpowiada) ℹ️', k.przegladarka_wiersz(P))
         self.assertEqual(k.przegladarka_uwagi(P), [])
 
     def test_kontrola_wola(self):
         import inspect
         src = inspect.getsource(self.k.kontrola)
         self.assertIn("R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}')", src)
-        self.assertIn("R['uwagi'] += przegladarka_uwagi(R['przegladarka'])", src)
+        self.assertIn("u = przegladarka_uwagi(R['przegladarka'], przegladarka_poprzedni(os.path.join(OUT_DIR, 'historia.json')))", src)   # v248
         self.assertIn("os.environ.get('KONTROLA_PRZEGLADARKA') == '1'", src, 'tylko na żądanie — testy kontrola() bez przeglądarki (ma własną sieć)')
         root = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(root, '.github', 'workflows', 'kontrola.yml'), encoding='utf-8') as f:
@@ -27785,7 +27746,7 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
             self.skipTest('tylko lokalnie, z zainstalowanym Chrome (na serwerze sprawdza to sama kontrola)')
         p = os.path.join(self.tmp, 'strona_testowa.html')
         with open(p, 'w', encoding='utf-8') as f:
-            f.write('<!doctype html><html><body><svg></svg><script>console.error("BLAD-TESTOWY-1");setTimeout(()=>{null.x},100);'
+            f.write('<!doctype html><html><body><svg></svg><script>const EXTRA={};console.error("BLAD-TESTOWY-1");setTimeout(()=>{null.x},100);'
                     'Promise.reject(new Error("ODRZUCONE-2"));setInterval(()=>{},1000);</script></body></html>')
         P = k.strona_przegladarka('file://' + p, czas_s=60)
         self.assertTrue(P.get('ok'), P)
@@ -27793,3 +27754,139 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
                          ['Uncaught (in promise) Error: ODRZUCONE-2', "Uncaught TypeError: Cannot read properties of null (reading 'x')"],
                          'błąd z opóźnieniem (setTimeout) też złapany — czas wirtualny strony')
         self.assertEqual(P['inne'], ['BLAD-TESTOWY-1'])
+
+
+# ===================== v248: POPRAWKI PO PRZEGLĄDZIE v245–v247 =====================
+class PoPrzegladzieV248(unittest.TestCase):
+    """v248: wielowierszowe komunikaty konsoli; daty spoza kalendarza nie wywracają raportu; dwie fazy budżetu stóp i twardy limit zapytania;
+    stany przeglądarki (awaria, zawieszona — drugi raz ⚠️, inna strona); grafiki bez tekstu skryptów, próg wykresów."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola248-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v248_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+        cls.NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+
+    def test_konsola_wiele_linii_i_stary_zapis(self):
+        k = self.k
+        log = ('[1:2:1006/154729.1:INFO:CONSOLE:1] "Uncaught SyntaxError: Unexpected token \'<\', "\n<html>\n<body>"... is not valid JSON", '
+               'source: https://capitalflowai-app.github.io/index.html (4410)\n'
+               '[1:2:1006/154729.2:INFO:CONSOLE(77)] "Uncaught Error: a\nb", source: https://capitalflowai-app.github.io/?nc=1 (77)\n'
+               '[1:2:1006/154729.3:INFO:CONSOLE:0] coś bez źródła\n'
+               '[1:2:1006/154729.4:ERROR:gpu_init.cc(1)] nie konsola\n')
+        K = k.przegladarka_konsola(log)
+        self.assertEqual(K['bledy'], ['Uncaught SyntaxError: Unexpected token \'<\', " <html> <body>"... is not valid JSON (index.html:4410)',
+                                      'Uncaught Error: a b (strona:77)'], 'wiele linii → jeden wpis; starszy zapis CONSOLE(N)')
+        self.assertEqual(K['nieczytelne'], 1)
+        P = dict({'ok': True, 'stan': 'ok', 'czas_s': 5.0, 'svg': 148, 'wykresy': 20}, **K)
+        self.assertIn('nieobsłużonych błędów JavaScriptu: 2 ⚠️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P))
+        P = dict(P, bledy=[])
+        self.assertIn('nieobsłużonych błędów JavaScriptu: 0 ℹ️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P), 'nigdy cichy ✅')
+
+    def test_prawdziwy_chrome_wiele_linii(self):
+        k = self.k
+        if os.environ.get('GITHUB_ACTIONS') or not k.przegladarka_program():
+            self.skipTest('tylko lokalnie, z zainstalowanym Chrome')
+        p = os.path.join(self.tmp, 'wiele_linii.html')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('<!doctype html><html><body><script>const EXTRA={};setTimeout(()=>{throw new Error("a\\nb")},50);'
+                    'setTimeout(()=>{JSON.parse("\\n<html>\\n<body>")},60);Promise.reject("x\\ny");setInterval(()=>{},1000);</script></body></html>')
+        P = k.strona_przegladarka('file://' + p, czas_s=60)
+        self.assertTrue(P.get('ok'), P)
+        self.assertEqual(len(P['bledy']), 3, P['bledy'])
+
+    def test_daty_spoza_kalendarza(self):
+        k = self.k
+        self.assertIsNone(k._dzien('2026-09-31')); self.assertEqual(k._dzien('2026-09-30'), '2026-09-30'); self.assertIsNone(k._dzien('30/09/2026'))
+        bcb = k.stopy_bcb(b'[{"data":"29/09/2026","valor":"13.75"},{"data":"31/09/2026","valor":"13.50"}]')
+        S = {'rows': {'BR': {'rate': 13.75, 'date': '2026-09-29'}, 'US': {'rate': 3.875, 'date': '2026-02-30'}}}
+        P = k.stopy_porownanie(S, bcb, self.NOW)
+        D = {o['bank']: o for o in P}
+        self.assertEqual((D['Bank Brazylii']['zgodne'], D['Bank Brazylii']['zmiana']), (True, None), '31.09 pominięte — nie „zmiana”')
+        self.assertIn('to nie dzień', D['Fed']['brak'], 'data strony 30.02 — nie dzień')
+        k.stopy_wiersz({'wyniki': P}, self.NOW); k.stopy_uwagi(P, self.NOW)   # bez wyjątku
+        import inspect
+        self.assertIn('błąd kontroli stóp', inspect.getsource(k.kontrola)); self.assertIn('błąd wiersza raportu', inspect.getsource(k.raport_md))
+
+    def test_dwie_fazy_budzetu(self):
+        k = self.k
+        V = KontrolaStopyV244
+        t, log = [0.0], []
+        odp = {'newyorkfed': None, 'data-api.ecb': None, 'bankofengland': V.BOE, 'data.snb.ch': V.SNB, 'riksbank': V.RIKS, 'norges-bank': V.NORGES,
+               'nbp.pl': V.NBP, 'bankofcanada': V.BOC, 'bcb.gov.br': V.BCB, 'fred.stlouisfed': b'<html></html>'}
+
+        def get(url, timeout=25, headers=None, limit=None):
+            klucz = next(x for x in odp if x in url)
+            log.append(klucz)
+            if odp[klucz] is None:   # NY Fed i EBC: przekroczenie czasu po 20 s
+                t[0] += 20
+                raise TimeoutError('The read operation timed out')
+            t[0] += 1
+            return 200, odp[klucz], 5
+
+        def spij(s):
+            t[0] += s
+        with mock.patch.object(k, 'get', get):
+            Z, u = k.stopy_sprawdz(V.S, self.NOW, zegar=lambda: t[0], spij=spij)
+        D = {o['bank']: o for o in Z['wyniki']}
+        self.assertTrue(all(D[b].get('zgodne') for b in ('Bank Anglii', 'Bank Szwajcarii', 'Bank Szwecji', 'Bank Norwegii', 'NBP', 'Bank Kanady', 'Bank Brazylii')),
+                        'przegląd: przy ponowieniach od razu 7 zdrowych banków było „pominięte” — teraz każde źródło raz, potem ponowienia')
+        self.assertEqual([log.count(x) for x in ('newyorkfed', 'data-api.ecb', 'fred.stlouisfed')], [2, 2, 0], 'jedno ponowienie; FRED poza budżetem')
+        self.assertEqual(D['Fed']['brak'], 'nie odczytano źródła — NY Fed: The read operation timed out; DFEDTARL: pominięte — limit czasu kontroli stóp; '
+                                           'DFEDTARU: pominięte — limit czasu kontroli stóp')
+
+    def test_twardy_limit_zapytania(self):
+        import time
+        k = self.k
+        t0 = time.monotonic()
+        with self.assertRaises(TimeoutError) as c:
+            k._stopy_raz('https://x', 0.2, pobierz=lambda url, timeout=None, headers=None: time.sleep(3) or (200, b'x', 1), zapas=0.2)
+        self.assertLess(time.monotonic() - t0, 2, 'wolne źródło nie przedłuża bloku stóp ponad limit')
+        self.assertIn('brak całej odpowiedzi', str(c.exception))
+        self.assertEqual(k._stopy_raz('https://x', 1, pobierz=lambda url, timeout=None, headers=None: (200, b'ok', 1)), b'ok')
+
+    def _udawana(self, kod):
+        p = os.path.join(self.tmp, f'przegl_{abs(hash(kod))}.py')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('#!/usr/bin/env python3\nimport sys, time\n' + kod)
+        os.chmod(p, 0o755)
+        return p
+
+    def test_stany_przegladarki(self):
+        k = self.k
+        awaria = self._udawana('sys.stderr.write("[0101/000000.000000:ERROR:ozone_platform_x11.cc(240)] Missing X server or $DISPLAY\\n")\nsys.exit(1)\n')
+        P = k.strona_przegladarka('https://x', czas_s=20, program=awaria)
+        self.assertEqual(P['stan'], 'zakonczona'); self.assertIn('kod 1: [0101/000000.000000:ERROR:ozone_platform_x11.cc(240)] Missing X server', P['brak'])
+        self.assertNotIn('20 s', P['brak'], 'awaria to nie „brak strony w 20 s”')
+        wisi = self._udawana('sys.stdout.write("<html><body>"); sys.stdout.flush()\nsys.stderr.write(\'[1:2:1006/1.1:INFO:CONSOLE:1] "Uncaught RangeError: x", source: https://s/ (1)\\n\'); sys.stderr.flush()\ntime.sleep(30)\n')
+        P = k.strona_przegladarka('https://x', czas_s=2, program=wisi)
+        self.assertEqual(P['stan'], 'zawieszona')
+        self.assertEqual(k.przegladarka_uwagi(P), [], 'pierwszy raz — informacja; błędy z logu bez uwagi (przegląd: raport sam sobie przeczył)')
+        self.assertIn('nie sprawdzono (strona nie oddała się w 2 s — zawieszona strona albo źródło, które nie odpowiada); w logu do przerwania '
+                      'nieobsłużonych błędów JavaScriptu: 1 ℹ️.', k.przegladarka_wiersz(P))
+        self.assertEqual(len(k.przegladarka_uwagi(P, 'zawieszona')), 1, 'drugi raz z rzędu — uwaga')
+        self.assertTrue(k.przegladarka_wiersz(dict(P, powtorka=True)).endswith(' ⚠️.'))
+        inna = self._udawana('sys.stdout.write("<html><body><h1>404</h1></body></html>\\n"); sys.stdout.flush()\ntime.sleep(30)\n')
+        P = k.strona_przegladarka('https://x', czas_s=20, program=inna)
+        self.assertEqual(P['stan'], 'inna_strona'); self.assertEqual(k.przegladarka_uwagi(P), [])
+        pusta = self._udawana('sys.stdout.write("<html><body><script>const EXTRA={};const s=\'<svg class=\\"arc-gr\\">\';</script></body></html>\\n"); sys.stdout.flush()\ntime.sleep(30)\n')
+        P = k.strona_przegladarka('https://x', czas_s=20, program=pusta)
+        self.assertEqual((P['stan'], P['svg'], P['wykresy']), ('ok', 0, 0), 'tekst skryptów nie liczy się jako narysowane grafiki')
+        self.assertEqual(k.przegladarka_uwagi(P), ['strona w przeglądarce: narysowanych wykresów liniowych tylko 0 (zwykle ok. 20) — dane mogły się nie wczytać'])
+        self.assertIn('wykresów liniowych 0 ⚠️ (zwykle ok. 20)', k.przegladarka_wiersz(P))
+
+    def test_poprzedni_z_historii(self):
+        k = self.k
+        p = os.path.join(self.tmp, 'historia.json')
+        self.assertIsNone(k.przegladarka_poprzedni(p))
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump([{'at': '1', 'przegl': 'zawieszona'}, {'at': '2', 'przegl': 'ok'}, {'at': '3'}, {'at': '4', 'przegl': None}], f)
+        self.assertEqual(k.przegladarka_poprzedni(p), 'ok', 'ostatnia kontrola, która uruchamiała przeglądarkę')
+        import inspect
+        src = inspect.getsource(k.kontrola)
+        self.assertIn("'przegl': (R.get('przegladarka') or {}).get('stan')", src)
+        self.assertIn("przegladarka_poprzedni(os.path.join(OUT_DIR, 'historia.json'))", src)
