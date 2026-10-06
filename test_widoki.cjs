@@ -13975,9 +13975,9 @@ test('v233: opisy list Bybit i KuCoin bez daty na stałe (data listy z pliku obo
 const lq234 = (() => {
   const a = html.indexOf('function levLqWyk(R){'), b = html.indexOf('\nfunction levCz(){', a);
   const levNum = v => typeof v === 'number' && isFinite(v), levIco = (...h) => { const s = h.filter(Boolean).join(''); return s ? `<span class="icos">${s}</span>` : ''; };
-  const F = new Function('t', 'escH', 'nfmt', 'levNum', 'levIco', 'levI', html.slice(a, b) + '\nreturn levLqWyk;');
+  const F = new Function('t', 'escH', 'nfmt', 'levNum', 'levIco', 'levI', 'engDate', html.slice(a, b) + '\nreturn levLqWyk;');
   return F((k, v) => k + (v ? JSON.stringify(v) : ''), s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'),
-    (v, d) => Number(v).toFixed(d), levNum, levIco, (kind, c) => `[${kind}:${c}]`);
+    (v, d) => Number(v).toFixed(d), levNum, levIco, (kind, c) => `[${kind}:${c}]`, s => `[data:${s}]`);   /* v239: czas w podpowiedzi */
 })();
 test('v234: likwidacje 24 h — pasek 100% (długie czerwone | krótkie zielone), udział i suma, kolejność tabeli, zero i braki', () => {
   const q = (l, s) => ({l, s, t: 'x'});
@@ -13988,7 +13988,7 @@ test('v234: likwidacje 24 h — pasek 100% (długie czerwone | krótkie zielone)
   assert.deepEqual(rows.map(r => /\[coin:([A-Z]+)\]/.exec(r)[1]), ['BTC', 'ETH', 'TRX', 'LINK'], 'kolejność tabeli; moneta bez danych — bez wiersza');
   assert.ok(rows[0].includes('<i class="lqw-l" style="flex:0.7500 1 0"></i><i class="lqw-s" style="flex:0.2500 1 0"></i>'), 'BTC: 75% / 25%');
   assert.ok(rows[0].includes('<span class="lqw-v">75% / 25%<small>39.2 lev.u.mln</small></span>'), 'udział i suma');
-  assert.ok(rows[0].includes('title="lev.wyk.tip{&quot;c&quot;:&quot;BTC&quot;,&quot;l&quot;:&quot;29.4&quot;,&quot;s&quot;:&quot;9.8&quot;,&quot;u&quot;:&quot;lev.u.mln&quot;}"'), 'podpowiedź z kwotami');
+  assert.ok(rows[0].includes('title="lev.wyk.tip{&quot;c&quot;:&quot;BTC&quot;,&quot;l&quot;:&quot;29.4&quot;,&quot;s&quot;:&quot;9.8&quot;,&quot;u&quot;:&quot;lev.u.mln&quot;} · [data:x]"'), 'podpowiedź z kwotami i czasem danych (v239)');
   assert.ok(rows[2].includes('<span class="lqw-t" aria-hidden="true"></span><span class="lqw-v">—<small>0.0 lev.u.mln</small>'), 'suma zero (zmierzone) — bez paska, udział „—”, suma 0');
   assert.ok(rows[3].includes('<i class="lqw-l" style="flex:1.0000 1 0"></i></span>') && !rows[3].includes('lqw-s"'), 'same długie — jeden odcinek');
   assert.ok(rows[3].includes('100% / 0%'));
@@ -14036,7 +14036,7 @@ test('v236: rodzaje tokenizowanych aktywów — słupki udziału od największeg
   assert.equal(rw236({seg: {all: {v: 1e9}, tb: {v: 5e8}, cm: {v: 4e8}}}), '', 'mniej niż 3 rodzaje — bez wykresu');
   assert.equal(rw236({seg: {all: {v: null}, tb: {v: 5e8}, cm: {v: 4e8}, pc: {v: 1e8}}}), '', 'brak sumy — bez wykresu');
   assert.equal(rw236({}), ''); assert.equal(rw236(null), '');
-  assert.ok(rw236({seg: {all: {v: 1e9}, tb: {v: 2e9}, cm: {v: 4e8}, pc: {v: 1e8}}}).includes('width:100.00%'), 'udział ponad 100% (niespójny plik) — pasek najwyżej pełny');
+  assert.equal(rw236({seg: {all: {v: 1e9}, tb: {v: 2e9}, cm: {v: 4e8}, pc: {v: 1e8}}}), '', 'v239: udział ponad 100% (niespójny plik) — bez wykresu');
 });
 test('v236: wykres w rwSegTable — pod nagłówkiem rodzajów, nad tabelą; styl; słownik EXTRA188 (10 języków, czysty JSON, linia for po EXTRA187)', () => {
   assert.ok(html.includes("<summary>${t('rwa.h.seg')}</summary>${rwSegWyk(D)}<div class=\"list-wrap\">"), 'nad tabelą rodzajów');
@@ -14083,4 +14083,21 @@ test('v238: wykres w spBlock nad tabelą; styl i telefon; słownik EXTRA189 (10 
   for (const L in D) { assert.deepEqual(Object.keys(D[L]).sort(), ['spw.cut', 'spw.wyk'], L); if (L !== 'pl' && L !== 'en') for (const k in D[L]) assert.notEqual(D[L][k], D.en[k], L + ' ' + k); }
   assert.ok(html.includes('for(const l in EXTRA188)if(I18N[l])Object.assign(I18N[l],EXTRA188[l]);\nconst EXTRA189='));
   assert.ok(html.includes('for(const l in EXTRA189)if(I18N[l])Object.assign(I18N[l],EXTRA189[l]);'));
+});
+
+
+/* ===================== v239: poprawki po przeglądzie v234–v236 (wykresy) ===================== */
+test('v239: likwidacje — czas danych w podpowiedzi, wiersz starszy niż 6 h przygaszony', () => {
+  const q = (l, s, t) => ({l, s, t});
+  const fresh = new Date(Date.now() - 3600e3).toISOString(), old = new Date(Date.now() - 30 * 3600e3).toISOString();
+  const w = lq234([{c: 'BTC', q: q(29e6, 9e6, fresh)}, {c: 'ETH', q: q(10e6, 6e6, old)}, {c: 'SOL', q: q(3e6, 2e6, fresh)}]);
+  const R = w.split('<div class="lqw-r').slice(1);
+  assert.ok(R[0].startsWith('" title=') && R[1].startsWith(' lqw-lo" title=') && R[2].startsWith('" title='), 'stary wiersz przygaszony');
+  assert.ok(R[0].includes(' · [data:' + fresh + ']'), 'czas danych w podpowiedzi');
+});
+test('v239: tokenizowane aktywa — rodzaj ponad sumą = bez wykresu; stała kolumna wartości; „100 %” z twardą spacją', () => {
+  assert.equal(rw236({seg: {all: {v: 1e9}, tb: {v: 2e9}, cm: {v: 4e8}, pc: {v: 1e8}}}), '', 'niespójny plik — bez wykresu (tabela pokaże prawdziwy udział)');
+  assert.ok(html.includes('#c-rwa .rww-b{display:grid;grid-template-columns:minmax(0,1fr) 9.5em;align-items:center;gap:10px}'), 'równe ścieżki');
+  const i = html.indexOf('const EXTRA188='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA188='.length, j));
+  for (const L of ['de', 'es', 'fr']) assert.ok(D[L]['rww.wyk'].includes('100 %') && !D[L]['rww.wyk'].includes('100 %'), L);
 });

@@ -234,17 +234,23 @@ def _odblokuj(token, now, sleep=time.sleep):
             powod = zawieszony(r, pend, now)
             if powod is None:
                 print(f'zegar: odblokuj: przebieg {rid} czeka — jeszcze nie zawieszony albo czeka na zatwierdzenie'); continue
-            nazwa = next((p['environment']['name'] for p in pend if isinstance(p, dict) and isinstance(p.get('environment'), dict)
-                          and isinstance(p['environment'].get('name'), str) and p['environment']['name']), 'github-pages')
-            q = urllib.parse.quote(nazwa, safe='')
-            _, env = _api(f'/repos/{REPO}/environments/{q}', token)
-            _, wl = _api(f'/repos/{REPO}/environments/{q}/deployment_protection_rules', token)
-            if not srodowisko_ok(env, wl):   # v235: recenzent, reguła aplikacji albo nieznana reguła — zatwierdzenie należy do właściciela
+            nazwy = sorted({p['environment']['name'] for p in pend if isinstance(p, dict) and isinstance(p.get('environment'), dict)
+                            and isinstance(p['environment'].get('name'), str) and p['environment']['name']}) or ['github-pages']   # v239: każde
+            zle = False
+            for nazwa in nazwy:
+                q = urllib.parse.quote(nazwa, safe='')
+                _, env = _api(f'/repos/{REPO}/environments/{q}', token)
+                _, wl = _api(f'/repos/{REPO}/environments/{q}/deployment_protection_rules', token)
+                zle = zle or not srodowisko_ok(env, wl)   # v235: recenzent, reguła aplikacji albo nieznana reguła — zatwierdzenie należy do właściciela
+            if zle:
                 print(f'zegar: odblokuj: przebieg {rid} {powod}, ale środowisko ma regułę inną niż gałąź i licznik czasu — nie anuluję'); continue
             st = anuluj(rid, token)
-            zam = czekaj_koniec(rid, token, sleep)   # v235
-            print(f'zegar: odblokuj: przebieg {rid} {powod} — anulowany (HTTP {st}, ' + ('zamknięty' if zam else 'GitHub jeszcze go zamyka')
-                  + '); następny przebieg ruszy sam')
+            print(f'zegar: odblokuj: przebieg {rid} {powod} — anulowany (HTTP {st}); następny przebieg ruszy sam')   # v239: zaraz po anulowaniu
+            try:
+                zam = czekaj_koniec(rid, token, sleep)   # v235
+            except Exception as e2:  # noqa — tylko rodzaj błędu
+                print(f'zegar: odblokuj: przebieg {rid}: stanu po anulowaniu nie odczytano ({type(e2).__name__})'); continue
+            print(f'zegar: odblokuj: przebieg {rid} — ' + ('GitHub go zamknął' if zam else 'GitHub jeszcze go zamyka'))
         except Exception as e:  # noqa — bez treści wyjątku (mogłaby zawierać nagłówki), tylko rodzaj
             print(f'zegar: odblokuj: przebieg {rid}: błąd {type(e).__name__} — następna próba przy kolejnym czuwaniu')
     return 0

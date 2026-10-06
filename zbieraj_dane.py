@@ -5014,8 +5014,10 @@ FUND_STALE_U, FUND_STALE_N = 0.02, 0.03   # v233/v235: liczba jednostek zmienion
 #                     bez poprawki NAV (4:3, 5:4, 3:4, 4:5 — aktywa ×1,25–1,33 mieściły się w FUND_PARA_X) — skok; prawdziwe dane 06.10.2026
 #                     (98 902 pary dni: fundusze 37 × 300, TRENDY 35 × do 10 lat): 5 takich dni (SPDW 2017, GLDM 2018 ×3, EZU 2025) — brak, nie zła liczba
 FUND_BLISKIE = (1.5, 4 / 3, 1.25)   # v235: ułamki bliskie sobie — zgodność NAV w podziale ±5% (inne, nie do pomylenia: ±10%)
-FUND_LUSTRO = (4 / 3, 1.25, 3 / 4, 4 / 5)   # v235: NAV zmieniony o taki ułamek (±2%) przy jednostkach bez zmian (±2%) = podział z NAV przed
-#                     jednostkami (albo z opóźnieniem) — skok; aktywa ×0,75–1,33 mieszczą się w FUND_PARA_X; prawdziwe dane: 0 takich dni
+FUND_STALE_U2, FUND_STALE_N2 = 0.005, 0.06   # v239: drugie pasmo — jednostki ×ułamek ±0,5% przy NAV ±6% = podział bez poprawki NAV w dniu ruchu
+#                     ceny (prawdziwe dane: tylko SPDW 14.12.2017, już łapany pierwszym pasmem)
+FUND_NOGI = 3        # v239: poprawka NAV po skoku jednostek rozpoznawana najwyżej tyle par później (fund_pary, tylko wstecz); v235 „lustro”
+#                     w fund_split (bez warunku skoku przed nim) zamieniało dni krachu w skok (XLE 09.03.2020, srebro 02.02.2026 — w paśmie)
 FUND_GR_X = 1.5     # v227: suma grupy — para przez złe wiersze z aktywami ponad tyle razy (trwały skok, np. podział bez poprawki NAV) = brak
 FUND_TNA_OKNO = 10  # v217/v223: tyle dni PRZED wierszem tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
 
@@ -5613,7 +5615,8 @@ def fund_split(a, b):
     """v93/v94: podział jednostek między dniami a i b ([data, NAV, liczba jednostek]): 1 = zwykły dzień; k (2, 3, 3/2, 1/2 …) = podział,
     gdy liczba jednostek zmienia się o prosty ułamek, a wartość funduszu (NAV × liczba) prawie nie; 0 = skok bez wyjaśnienia (dzień pomijany).
     v233: podział tylko z jednym ułamkiem zgodnym i z liczbą jednostek, i z NAV; jednostki ×ułamek przy NAV bez zmian (FUND_STALE_*) = 0.
-    v235: NAV ±3% w regule bez poprawki; lustro (FUND_LUSTRO); zgodność NAV ±10% dla ułamków nie do pomylenia (±5% dla FUND_BLISKIE)."""
+    v235: NAV ±3% w regule bez poprawki; zgodność NAV ±10% dla ułamków nie do pomylenia (±5% dla FUND_BLISKIE).
+    v239: drugie pasmo (FUND_STALE_U2/N2); „lustro” tylko w fund_pary (wstecz, po skoku jednostek) — dzień krachu przy płaskich jednostkach = 1."""
     nr, sr = b[1] / a[1], b[2] / a[2]
     if abs(sr - 1) > 0.15 and abs(nr * sr - 1) < 0.1:
         # v233: ułamek pasuje i do liczby jednostek, i do NAV (po 5%) i jest jedyny — dwa możliwe (5:4 i 4:3 przy napływie) = skok, nie zgadywanie
@@ -5621,19 +5624,25 @@ def fund_split(a, b):
         return ks[0] if len(ks) == 1 else 0
     if abs(nr - 1) < FUND_STALE_N and any(abs(sr / k - 1) < FUND_STALE_U for q in FUND_PODZIALY for k in (q, 1 / q)):
         return 0   # v233: jednostki zmienione o ułamek podziału, NAV prawie bez zmian — podział bez poprawki NAV (skok, nie przepływ 25–33%)
-    if abs(sr - 1) <= FUND_STALE_U and any(abs(nr * k - 1) < FUND_STALE_U for k in FUND_LUSTRO):
-        return 0   # v235: lustro — NAV poprawiony o bliski ułamek przy jednostkach bez zmian (NAV przed jednostkami) — skok, nie zwrot −25%
+    if abs(nr - 1) < FUND_STALE_N2 and any(abs(sr / k - 1) < FUND_STALE_U2 for q in FUND_PODZIALY for k in (q, 1 / q)):
+        return 0   # v239: to samo w dniu ruchu ceny do 6%, gdy liczba jednostek trafia w ułamek prawie dokładnie (±0,5%)
     return 1 if 0.6 < nr < 1.6 and 1 / 3 < sr < 3 and 1 / FUND_PARA_X < nr * sr < FUND_PARA_X else 0   # v231: aktywa ponad 1,35× w dobę — skok
 
 
 def fund_pary(h):
-    """v233: współczynniki kolejnych par dni historii h (jak fund_split, para i = h[i] → h[i+1]). Druga noga podziału rozłożonego na dwa dni
-    (skok jednostek bez poprawki NAV, a następnego dnia sama poprawka NAV — razem rozpoznany podział) = 0: inaczej dawała fałszywy zwrot (−25%
-    przy 4:3) w zwrotach dziennych i w cenie tygodniowej. Tylko wstecz (wiersze do końca pary) — dziennik TRENDÓW nie zna dnia następnego."""
+    """v233: współczynniki kolejnych par dni historii h (jak fund_split, para i = h[i] → h[i+1]). Druga noga podziału rozłożonego na dni
+    (skok jednostek bez poprawki NAV, a 1–FUND_NOGI par później sama poprawka NAV — okno od dnia przed skokiem do końca tej pary to rozpoznany
+    podział, pary pomiędzy zwykłe) = 0: inaczej dawała fałszywy zwrot (−25% przy 4:3) w zwrotach dziennych i w cenie tygodniowej (v239: także
+    po 2–3 dniach). Tylko wstecz (wiersze do końca pary) — dziennik TRENDÓW nie zna dnia następnego."""
     P = [fund_split(a, b) for a, b in zip(h, h[1:])]
     for j in range(1, len(P)):
-        if P[j - 1] == 0 and P[j] == 1 and fund_split(h[j - 1], h[j + 1]) not in (0, 1):
-            P[j] = 0
+        if P[j] != 1:
+            continue
+        for i in range(j - 1, max(-1, j - 1 - FUND_NOGI), -1):   # najbliższy wcześniejszy skok (najwyżej FUND_NOGI par wstecz)
+            if P[i] == 0:
+                if all(P[x] == 1 for x in range(i + 1, j)) and fund_split(h[i], h[j + 1]) not in (0, 1):
+                    P[j] = 0
+                break
     return P
 
 

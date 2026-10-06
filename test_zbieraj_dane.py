@@ -26551,7 +26551,7 @@ class ZegarOdblokujV232(unittest.TestCase):
                                                r0 + 'environments/github-pages/deployment_protection_rules', base + 'runs/37437793511/cancel',
                                                base + 'runs/37437793511'], 'v235: reguły środowiska przed anulowaniem, stan przebiegu po nim')
         self.assertEqual([d for p, d in log if p.endswith('/cancel')], [{}], 'POST (pusta treść)')
-        self.assertIn('anulowany (HTTP 202, zamknięty)', out)
+        self.assertIn('anulowany (HTTP 202)', out); self.assertIn('GitHub go zamknął', out)   # v239: osobne wiersze
         # GitHub odmawia zwykłego anulowania (409) — force-cancel
         e409 = urllib.error.HTTPError('https://api.github.com/x', 409, 'Conflict', {}, None)
         rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
@@ -26663,8 +26663,8 @@ class PoPrzegladzieV233(unittest.TestCase):
         d, px, ret = zd._td_fund_px(h)
         self.assertEqual(ret[:3], [None, None, None], 'bez fałszywego zwrotu −25% w dniu poprawki NAV'); self.assertAlmostEqual(ret[3], 0.1 / 75 * 100)
         h2 = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 75.0, 1e8], ['2026-06-03', 75.0, 1e8 * 4 / 3], ['2026-06-04', 75.1, 1e8 * 4 / 3]]
-        self.assertEqual(zd.fund_pary(h2), [0, 0, 1], 'odwrotnie (NAV, potem jednostki): oba dni skok (v235: lustro — NAV ×0,75 przy jednostkach bez zmian)')
-        self.assertEqual(sorted(zd.fund_flows(h2, bez=())), ['2026-06-04'])
+        self.assertEqual(zd.fund_pary(h2), [1, 0, 1], 'odwrotnie (NAV, potem jednostki): v239 — pierwszy dzień nie do poznania (jak krach)')
+        self.assertEqual(sorted(zd.fund_flows(h2, bez=())), ['2026-06-02', '2026-06-04'], 'przepływ 06-02 = 0 (jednostki bez zmian) — prawdziwy')
         for n in range(2, len(h) + 1):                                              # przyczynowo: para liczona z wierszy do jej końca
             self.assertEqual(zd.fund_pary(h[:n]), zd.fund_pary(h)[:n - 1], n)
         h3 = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 100.0, 1e8 * 3], ['2026-06-03', 100.4, 1e8 * 3]]   # skok bez podziału (błąd liczby)
@@ -26729,13 +26729,14 @@ class PoPrzegladzieV235(unittest.TestCase):
     def test_lustro_nav_przed_jednostkami(self):
         F = zd.fund_split
         for k in (4 / 3, 1.25, 0.75, 0.8):
-            for u in (1.0, 1.015, 0.985):
-                self.assertEqual(F([0, 100.0, 1e6], [0, 100.0 / k, 1e6 * u]), 0, f'NAV ×{1 / k:.3f} przy jednostkach ×{u}')
+            for u in (1.0, 1.015, 0.985):   # v239: sam dzień „NAV przed jednostkami” nie do odróżnienia od krachu — zwykły dzień,
+                exp = 1 if 1 / zd.FUND_PARA_X < u / k < zd.FUND_PARA_X else 0   # chyba że aktywa zmieniły się ponad 1,35× (v231)
+                self.assertEqual(F([0, 100.0, 1e6], [0, 100.0 / k, 1e6 * u]), exp, f'NAV ×{1 / k:.3f} przy jednostkach ×{u}')
         self.assertEqual(F([0, 100.0, 1e6], [0, 84.7, 1e6]), 1, 'srebro −15,3% — zwykły dzień')
         self.assertEqual(F([0, 100.0, 1e6], [0, 77.0, 1e6]), 1, '−23% (np. krach) — poza ±2% od ×0,75 i ×0,8: zwykły dzień')
         h = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 75.0, 1e8], ['2026-06-03', 75.0, 1e8 * 4 / 3], ['2026-06-04', 75.1, 1e8 * 4 / 3]]
-        self.assertEqual(zd.fund_pary(h), [0, 0, 1], 'NAV, potem jednostki — oba dni skok (bez zwrotu −25%)')
-        self.assertEqual(zd._td_fund_px(h)[2][:3], [None, None, None])
+        self.assertEqual(zd.fund_pary(h), [1, 0, 1], 'NAV, potem jednostki — v239: pierwszy dzień nie do poznania (jak krach), drugi skok')
+        self.assertEqual(zd._td_fund_px(h)[2][2], None)
         h2 = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 100.0, 1e8 * 4 / 3], ['2026-06-03', 100.3, 1e8 * 4 / 3], ['2026-06-04', 75.2, 1e8 * 4 / 3]]
         P = zd.fund_pary(h2)
         self.assertEqual((P[0], P[2]), (0, 0), 'NAV poprawiony dwa dni później — bez przepływu +33% i bez zwrotu −25%')
@@ -26848,7 +26849,7 @@ class ZegarOdblokujV235(unittest.TestCase):
                                   ('/deployment_protection_rules', (200, {'total_count': 0})), ('/environments/github-pages', (200, {'protection_rules': [{'type': 'branch_policy'}]})),
                                   ('/cancel', (202, {})), ('/actions/runs/37437793511', lambda: (200, {'status': next(stany)}))], sl)
         self.assertEqual(sl, [self.Z.ODBLOKUJ_KROK_S] * 2, 'czeka, aż przebieg będzie zakończony')
-        self.assertIn('anulowany (HTTP 202, zamknięty)', out)
+        self.assertIn('anulowany (HTTP 202)', out); self.assertIn('GitHub go zamknął', out)
         sl = []
         rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
                                   ('/deployment_protection_rules', (200, {'total_count': 0})), ('/environments/github-pages', (200, {'protection_rules': [{'type': 'branch_policy'}]})),
@@ -26949,3 +26950,98 @@ class KontrolaNoweRaportyV237(unittest.TestCase):
         src = inspect.getsource(k.kontrola)
         self.assertIn("wh_nowe_raporty((files.get('wieloryby') or {}).get('gieldy'))", src)
         self.assertIn('wh_nowe_wiersz', inspect.getsource(k.raport_md))
+
+
+# ===================== v239: POPRAWKI PO PRZEGLĄDZIE v234–v236 =====================
+class PoPrzegladzieV239(unittest.TestCase):
+    """v239: lustro tylko wstecz po skoku jednostek (dni krachu zostają zwykłymi dniami); wąskie pasmo dokładnego ułamka; zegar i kontrola."""
+
+    def test_dni_krachu_zostaja(self):
+        F = zd.fund_split
+        for nr in (0.7981, 0.7943, 0.75, 0.8, 1.25, 4 / 3):                       # XLE 09.03.2020, srebro 02.02.2026 — przy płaskich jednostkach
+            for u in (1.0, 1.01, 0.99):
+                self.assertEqual(F([0, 100.0, 1e6], [0, 100.0 * nr, 1e6 * u]), 1, f'NAV ×{nr}, jednostki ×{u} — zwykły dzień (krach), nie skok')
+        days = ['2026-01-%02d' % d for d in range(5, 31) if datetime.date(2026, 1, d).weekday() < 5]
+        h = [[d, 100.0 * (1 + 0.002 * i), 1e6 * (1 + 0.001 * i)] for i, d in enumerate(days)]
+        h[10][1] = h[9][1] * 0.7943; h[10][2] = h[9][2]                          # krach jak srebro, jednostki płaskie
+        for r in h[11:]:
+            r[1] = h[10][1] * (1 + 0.001 * (h.index(r) - 10))
+        P = zd.fund_pary(h)
+        self.assertNotIn(0, P, 'dzień krachu bez skoku jednostek przed nim — żadna para nie jest skokiem')
+        self.assertAlmostEqual(zd._td_fund_px(h)[2][10], (0.7943 - 1) * 100, places=6)
+
+    def test_lustro_wstecz(self):
+        mk = lambda rows: [['2026-06-%02d' % (i + 1), n, u] for i, (n, u) in enumerate(rows)]  # noqa: E731
+        k = 4 / 3
+        for lag in (1, 2, 3):                                                     # poprawka NAV 1–3 dni po skoku jednostek
+            rows = [(100.0, 1e8), (100.0, 1e8 * k)] + [(100.0 + 0.1 * i, 1e8 * k) for i in range(1, lag)] + [(75.0, 1e8 * k), (75.1, 1e8 * k)]
+            P = zd.fund_pary(mk(rows))
+            self.assertEqual(P[0], 0, f'opóźnienie {lag}: skok jednostek')
+            self.assertEqual(P[lag], 0, f'opóźnienie {lag}: poprawka NAV — skok (bez zwrotu −25%)')
+            self.assertEqual(P[-1], 1)
+        rows = [(100.0, 1e8), (100.0, 1e8 * k)] + [(100.0, 1e8 * k)] * 3 + [(100.1, 1e8 * k), (75.0, 1e8 * k)]
+        self.assertEqual(zd.fund_pary(mk(rows))[-1], 1, 'poprawka po 5 dniach — poza oknem (krach od zwykłego dnia nie do odróżnienia)')
+        h = mk([(100.0, 1e8), (75.0, 1e8), (75.0, 1e8 * k), (75.1, 1e8 * k)])
+        self.assertEqual(zd.fund_pary(h), [1, 0, 1], 'NAV przed jednostkami: pierwszy dzień nie do poznania (jak krach) — zwykły; drugi skok')
+        P = zd.fund_pary(mk([(100.0, 1e8), (100.0, 3e8), (100.3, 3e8), (80.0, 3e8)]))
+        self.assertEqual(P, [0, 1, 1], 'po błędzie pliku (×3) spadek o 20% to nie poprawka podziału — zwykły dzień')
+        for n in range(2, 9):                                                     # przyczynowo: para liczona z wierszy do jej końca
+            rows = [(100.0, 1e8), (100.0, 1e8 * k), (100.2, 1e8 * k), (75.0, 1e8 * k), (75.1, 1e8 * k), (75.3, 1e8 * k), (75.2, 1e8 * k), (75.4, 1e8 * k)]
+            self.assertEqual(zd.fund_pary(mk(rows)[:n]), zd.fund_pary(mk(rows))[:n - 1], n)
+
+    def test_waskie_pasmo_dokladnego_ulamka(self):
+        F = zd.fund_split
+        self.assertEqual((zd.FUND_STALE_U2, zd.FUND_STALE_N2), (0.005, 0.06))
+        self.assertEqual(F([0, 100.0, 1e6], [0, 95.0, 1e6 * 4 / 3]), 0, '4:3 bez poprawki NAV w dniu spadku o 5% — skok')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 104.0, 1.25e6 * 1.003]), 0)
+        self.assertEqual(F([0, 100.0, 1e6], [0, 95.0, 1e6 * 4 / 3 * 1.01]), 1, 'znana luka: jednostki 1% od ułamka i ruch ceny ponad 3% — zwykły dzień')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 103.06, 1.2272e6]), 1, 'FXI 04.10.2024 — prawdziwy napływ')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 99.83, 1.2467e6]), 0, 'SPDW 14.12.2017 — jak dotąd skok')
+
+    def test_zegar_i_kontrola(self):
+        import importlib.util, tempfile
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('v239_zegar', os.path.join(root, 'narzedzia', 'zegar.py'))
+        Z = importlib.util.module_from_spec(spec); spec.loader.exec_module(Z)
+        RUN = {'id': 37437793511, 'status': 'waiting', 'updated_at': '2026-10-06T08:47:47Z'}
+        NOW = datetime.datetime(2026, 10, 6, 9, 52, tzinfo=datetime.timezone.utc)
+
+        def run(odp):
+            log, out = [], io.StringIO()
+
+            def api(path, token_, data=None):
+                log.append((path, data))
+                for klucz, o in odp:
+                    if klucz in path:
+                        if isinstance(o, Exception):
+                            raise o
+                        return o
+                raise AssertionError('nieoczekiwane zapytanie ' + path)
+            with mock.patch.dict(os.environ, {'GH_TOKEN': 'ghs_TAJNY'}, clear=False), mock.patch.object(Z, '_api', api), mock.patch('sys.stdout', out):
+                Z.main(['zegar.py', 'odblokuj'], now_fn=lambda: NOW, sleep=lambda s: None)
+            self.assertNotIn('TAJNY', out.getvalue())
+            return log, out.getvalue()
+        two = [{'environment': {'name': 'github-pages'}, 'wait_timer': 0, 'reviewers': []}, {'environment': {'name': 'drugie'}, 'wait_timer': 0, 'reviewers': []}]
+        ok_env = (200, {'protection_rules': [{'type': 'branch_policy'}]})
+        log, out = run([('runs?status=waiting', (200, {'workflow_runs': [RUN]})), ('pending_deployments', (200, two)),
+                        ('/environments/drugie/deployment_protection_rules', (200, {'total_count': 1})), ('/deployment_protection_rules', (200, {'total_count': 0})),
+                        ('/environments/', ok_env)])
+        self.assertEqual([p for p, d in log if d is not None], [], 'drugie środowisko z regułą aplikacji — bez anulowania')
+        self.assertIn('/repos/capitalflowai-app/capitalflowai-app.github.io/environments/drugie', [p for p, d in log])
+        log, out = run([('runs?status=waiting', (200, {'workflow_runs': [RUN]})), ('pending_deployments', (200, two[:1])),
+                        ('/environments/', OSError('x'))])
+        self.assertEqual([p for p, d in log if d is not None], [], 'błąd odczytu reguł — bez anulowania'); self.assertIn('błąd OSError', out)
+        log, out = run([('runs?status=waiting', (200, {'workflow_runs': [RUN]})), ('pending_deployments', (200, two[:1])),
+                        ('/deployment_protection_rules', (200, {'total_count': 0})), ('/environments/', ok_env), ('/cancel', (202, {})),
+                        ('/actions/runs/37437793511', OSError('y'))])
+        self.assertIn('anulowany (HTTP 202)', out, 'anulowanie widać w logu, choć odczyt stanu po nim padł')
+        tmp = tempfile.mkdtemp(prefix='kontrola239-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v239_k', os.path.join(root, 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        f = lambda m: (NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        runs = [{'id': 7, 'name': 'Strona i dane', 'status': 'waiting', 'run_started_at': f(50), 'updated_at': f(45)}] + \
+               [{'id': 100 + j, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(5 + 10 * j), 'updated_at': f(3 + 10 * j)} for j in range(40)]
+        A, b, u = k.przebiegi_ocena(runs, NOW)
+        w = [x for x in u if x.startswith('publikacja czeka')]
+        self.assertEqual(len(w), 1); self.assertIn('jeśli środowisko publikacji nie wymaga zatwierdzenia', w[0])

@@ -1390,7 +1390,7 @@ def przebiegi_ocena(runs, now, kroki=None, pend=None):
                          'a zegar zapasowy go nie anulował — strona bez nowych danych')
         else:
             uwagi.append(f'publikacja czeka od {m} min (przebieg z {kiedy}, stan „waiting”) — zegar zapasowy anuluje taki przebieg sam '
-                         f'(po 15 min, przy najbliższym czuwaniu); od {WAIT_BLAD_MIN // 60} godz. to błąd')
+                         f'(po 15 min, przy najbliższym czuwaniu), jeśli środowisko publikacji nie wymaga zatwierdzenia; od {WAIT_BLAD_MIN // 60} godz. to błąd')
     return A, bledy, uwagi
 
 
