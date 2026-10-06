@@ -136,11 +136,11 @@ EM_TIMEOUT = 45        # s na plik (ok. 250 KB; z USA ok. 0,6 s)
 EM_PAUZA = 1.0         # s przerwy między dwoma zapytaniami do tego samego serwera
 
 
-def get(url, timeout=25, headers=None):
+def get(url, timeout=25, headers=None, limit=None):
     req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-kontrola/1.0', **(headers or {})})
     t0 = time.monotonic()
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        body = r.read()
+        body = r.read() if limit is None else r.read(limit)   # v237: limit — najwyżej tyle bajtów (sprawdzanie, czy plik jest)
         return r.status, body, int((time.monotonic() - t0) * 1000)
 
 
@@ -996,6 +996,95 @@ def wh_listy_ocena(j, now=None):
         except (TypeError, ValueError):
             continue
     return {'wszystkie': A, 'stare': [x for x in A if x[2] > WH_LISTY_DNI]}
+
+
+# v237: nowe raporty dowodu rezerw giełd (listy portfeli wielorybów) — sprawdzanie codzienne, bez pobierania całych plików
+WH_NOWE_OD_DNI = 20        # nowszego raportu szukamy od tylu dni po dacie obecnej listy (raporty miesięczne)
+WH_NOWE_MAX = 30           # najwyżej tyle dat na giełdę, od najnowszej
+WH_NOWE_BUDZET_S = 60      # najwyżej tyle sekund na całe sprawdzanie
+WH_NOWE_ADRESY = {'OKX': 'https://static.okx.com/cdn/okx/por/chain/por_csv_{r}{mm}{dd}00_V1.zip',
+                  'Bybit': 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_{r}_{mies}_{dd}.pdf'}
+WH_NOWE_KUCOIN = 'https://www.kucoin.com/_api/asset-front/proof-of-reserves/asset-reserve'
+MIES_EN = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+
+
+def wh_plik_jest(url):
+    """v237: czy plik istnieje — tylko pierwsze 1 024 bajty (Range): 200/206 = jest, 403/404 = nie ma, inny błąd = None (nie wiadomo)."""
+    try:
+        st, _, _ = get(url, timeout=10, headers={'Range': 'bytes=0-1023'}, limit=1024)
+        return st in (200, 206)
+    except urllib.error.HTTPError as e:
+        return False if e.code in (403, 404) else None
+    except Exception:  # noqa — sieć, limit czasu, zaślepka testu bez parametru limit
+        return None
+
+
+def wh_nowe_adresy(g, d):
+    """v237: adresy pliku giełdy g z dnia d (Bybit: dzień jednocyfrowy w dwóch zapisach — „05” i „5”)."""
+    w = WH_NOWE_ADRESY[g]
+    dd = [f'{d.day:02d}'] + ([str(d.day)] if g == 'Bybit' and d.day < 10 else [])
+    return [w.format(r=d.year, mm=f'{d.month:02d}', dd=x, mies=MIES_EN[d.month - 1]) for x in dd]
+
+
+def wh_nowe_raporty(gieldy, now=None, budzet_s=WH_NOWE_BUDZET_S, zegar=time.monotonic):
+    """v237: listy portfeli giełd z raportów miesięcznych (wieloryby.json → gieldy[g].since) → {giełda: {'od': data listy, 'nowy': data nowszego
+    raportu albo None, 'lista': True (plik z adresami jest) / False (audyt bez raportu z listą) / None, 'prob': dat sprawdzonych, 'nie_wiadomo':
+    zapytań bez odpowiedzi}}. Giełda bez poprawnej daty listy pominięta."""
+    now = now or NOW
+    G = gieldy if isinstance(gieldy, dict) else {}
+    t0, out = zegar(), {}
+    for g in WH_LISTY_MIES:
+        s = G[g].get('since') if isinstance(G.get(g), dict) else None
+        try:
+            od = dt.date.fromisoformat(s)
+        except (TypeError, ValueError):
+            continue
+        o = {'od': s, 'nowy': None, 'lista': None, 'prob': 0, 'nie_wiadomo': 0}
+        if g == 'KuCoin':
+            try:
+                j = json.loads(get(WH_NOWE_KUCOIN, timeout=15)[1])
+                d = j.get('data') if isinstance(j, dict) and isinstance(j.get('data'), dict) else {}
+                ms = d.get('latestAuditDate')
+                if not isinstance(ms, (int, float)) or isinstance(ms, bool):
+                    raise ValueError('brak daty audytu')
+                o['prob'] = 1
+                a = dt.datetime.fromtimestamp(ms / 1000, dt.timezone.utc).date()
+                if a > od:
+                    o['nowy'], o['lista'] = a.isoformat(), bool(d.get('auditReportUrl'))
+            except Exception:  # noqa
+                o['nie_wiadomo'] += 1
+        elif g in WH_NOWE_ADRESY:
+            dni = [od + dt.timedelta(days=i) for i in range(WH_NOWE_OD_DNI, (now.date() - od).days + 1)][::-1][:WH_NOWE_MAX]
+            for d in dni:
+                if zegar() - t0 > budzet_s:
+                    o['nie_wiadomo'] += 1
+                    break
+                o['prob'] += 1
+                wyn = [wh_plik_jest(u) for u in wh_nowe_adresy(g, d)]
+                if True in wyn:
+                    o['nowy'], o['lista'] = d.isoformat(), True
+                    break
+                if None in wyn:
+                    o['nie_wiadomo'] += 1
+        out[g] = o
+    return out
+
+
+def wh_nowe_wiersz(W):
+    """v237: wiersz raportu „Nowe raporty giełd” z wyniku wh_nowe_raporty."""
+    cz = []
+    for g, o in W.items():
+        if o.get('nowy') and o.get('lista'):
+            cz.append(f'{g} — nowy raport z listą portfeli z {o["nowy"]} (obecna z {o["od"]}) ⚠️')
+        elif o.get('nowy'):
+            cz.append(f'{g} — audyt z {o["nowy"]}, raport z listą portfeli jeszcze niedostępny ℹ️')
+        elif o.get('nie_wiadomo'):
+            cz.append(f'{g} — nie wiadomo (źródło nie odpowiedziało) ℹ️')
+        elif not o.get('prob'):
+            cz.append(f'{g} — sprawdzanie od {(dt.date.fromisoformat(o["od"]) + dt.timedelta(days=WH_NOWE_OD_DNI)).isoformat()} (raport miesięczny)')
+        else:
+            cz.append(f'{g} — brak nowszego niż {o["od"]} ✅')
+    return '- Nowe raporty dowodu rezerw giełd (listy portfeli; sprawdzone dziś): ' + '; '.join(cz) + '.'
 
 
 def wh_zmiany(j):
@@ -2775,6 +2864,14 @@ def kontrola():
         for g, d, n in wl['stare']:
             R['uwagi'].append(f'lista portfeli giełdy {g} z {d} ma {n} dni — portfele dodane przez giełdę od tego czasu nie są liczone; '
                               f'co zrobić: napisz do Claude „odśwież listę portfeli {g} z nowego raportu dowodu rezerw”')
+        try:   # v237: nowe raporty dowodu rezerw — automat sam wie, kiedy listę można odświeżyć
+            Z['wh_nowe'] = wh_nowe_raporty((files.get('wieloryby') or {}).get('gieldy'))
+        except Exception as e:  # noqa
+            Z['wh_nowe'] = {}
+        for g, o in Z['wh_nowe'].items():
+            if o.get('nowy') and o.get('lista'):
+                R['uwagi'].append(f'nowa lista portfeli giełdy {g} z {o["nowy"]} (raport dowodu rezerw; obecna z {o["od"]}) — co zrobić: napisz do '
+                                  f'Claude „odśwież listę portfeli {g} z nowego raportu dowodu rezerw”')
     # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
     try:
         Z['etf_emitent'] = etf_emitent(files, R)
@@ -3032,6 +3129,8 @@ def raport_md(R):
         if wl and wl.get('wszystkie'):
             L.append('- Listy portfeli giełd z raportów miesięcznych (wiek): ' + ', '.join(f'{g} {n} dni' + (' ⚠️' if n > WH_LISTY_DNI else '') for g, d, n in wl['wszystkie'])
                      + (' ✅.' if not wl['stare'] else '.'))
+        if Z.get('wh_nowe'):   # v237
+            L.append(wh_nowe_wiersz(Z['wh_nowe']))
         wy = Z.get('wycena')   # v132: MVRV BTC z dwóch źródeł — tylko różnice procentowe i daty; brak = „—”
         if wy:
             dz = f'{wy["roznica_pct"]:+.2f}% ({wy["dzien"]})' if wy.get('roznica_pct') is not None else '—'

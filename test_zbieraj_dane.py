@@ -26854,3 +26854,98 @@ class ZegarOdblokujV235(unittest.TestCase):
                                   ('/deployment_protection_rules', (200, {'total_count': 0})), ('/environments/github-pages', (200, {'protection_rules': [{'type': 'branch_policy'}]})),
                                   ('/cancel', (202, {})), ('/actions/runs/37437793511', (200, {'status': 'in_progress'}))], sl)
         self.assertEqual(sum(sl), self.Z.ODBLOKUJ_CZEKAJ_S, 'najwyżej 60 s'); self.assertIn('GitHub jeszcze go zamyka', out)
+
+
+# ===================== v237: KONTROLA — NOWE RAPORTY DOWODU REZERW GIEŁD =====================
+class KontrolaNoweRaportyV237(unittest.TestCase):
+    """v237: OKX i Bybit — próba pierwszych 1 024 bajtów pliku z datą w nazwie, od najnowszej daty; KuCoin — data audytu z publicznego JSON;
+    brak odpowiedzi = „nie wiadomo”. Bez sieci (get atrapą)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola237-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v237_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.G = {'OKX': {'since': '2026-09-08'}, 'Bybit': {'since': '2026-09-23'}, 'KuCoin': {'since': '2026-08-31'}, 'Binance': {'since': '2022-11'}}
+
+    def _get(self, jest=(), kucoin=None, log=None):
+        import urllib.error
+
+        def get(url, timeout=25, headers=None, limit=None):
+            if log is not None:
+                log.append((url, headers, limit))
+            if url == self.k.WH_NOWE_KUCOIN:
+                if isinstance(kucoin, Exception):
+                    raise kucoin
+                return 200, json.dumps(kucoin).encode(), 5
+            self.assertEqual((headers, limit), ({'Range': 'bytes=0-1023'}, 1024), 'nigdy cały plik')
+            if any(x in url for x in jest):
+                return 206, b'x' * 1024, 5
+            raise urllib.error.HTTPError(url, 403 if 'bybit' in url else 404, 'x', {}, None)
+        return get
+
+    def test_06_10_stan(self):
+        k, log = self.k, []
+        now = datetime.datetime(2026, 10, 6, 7, 0, tzinfo=datetime.timezone.utc)
+        kuc = {'success': True, 'data': {'latestAuditDate': 1790783999000, 'auditReportUrl': None}}   # 30.09.2026 15:59 UTC
+        with mock.patch.object(k, 'get', self._get(kucoin=kuc, log=log)):
+            W = k.wh_nowe_raporty(self.G, now)
+        self.assertEqual(sorted(W), ['Bybit', 'KuCoin', 'OKX'], 'tylko giełdy z raportem miesięcznym')
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['prob'], W['OKX']['nie_wiadomo']), (None, 9, 0), 'OKX: 28.09–06.10 sprawdzone, nic nowszego')
+        self.assertEqual(log[0][0], 'https://static.okx.com/cdn/okx/por/chain/por_csv_2026100600_V1.zip', 'od najnowszej daty')
+        self.assertEqual((W['Bybit']['nowy'], W['Bybit']['prob']), (None, 0), 'Bybit: za wcześnie (raport z 23.09)')
+        self.assertEqual((W['KuCoin']['nowy'], W['KuCoin']['lista']), ('2026-09-30', False), 'KuCoin: audyt 30.09, bez raportu z listą')
+        w = k.wh_nowe_wiersz(W)
+        self.assertIn('OKX — brak nowszego niż 2026-09-08 ✅', w); self.assertIn('Bybit — sprawdzanie od 2026-10-13 (raport miesięczny)', w)
+        self.assertIn('KuCoin — audyt z 2026-09-30, raport z listą portfeli jeszcze niedostępny ℹ️', w)
+
+    def test_nowy_raport(self):
+        k, log = self.k, []
+        now = datetime.datetime(2026, 10, 25, 7, 0, tzinfo=datetime.timezone.utc)
+        kuc = {'data': {'latestAuditDate': 1790783999000, 'auditReportUrl': 'https://x/y.pdf'}}
+        with mock.patch.object(k, 'get', self._get(jest=('por_csv_2026100800_V1', 'Bybit_PoR_Audit_2026_Oct_5.pdf'), kucoin=kuc, log=log)):
+            W = k.wh_nowe_raporty(self.G, now)
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['lista']), ('2026-10-08', True))
+        self.assertEqual(W['OKX']['prob'], 18, 'od 25.10 do 08.10 — zatrzymanie na pierwszym znalezionym')
+        self.assertEqual(W['Bybit']['nowy'], None, '05.10 to mniej niż 20 dni po 23.09 — poza oknem')
+        self.assertEqual((W['KuCoin']['nowy'], W['KuCoin']['lista']), ('2026-09-30', True))
+        G2 = dict(self.G, Bybit={'since': '2026-09-10'})
+        with mock.patch.object(k, 'get', self._get(jest=('Bybit_PoR_Audit_2026_Oct_5.pdf',), kucoin=kuc)):
+            W2 = k.wh_nowe_raporty(G2, now)
+        self.assertEqual(W2['Bybit']['nowy'], '2026-10-05', 'dzień jednocyfrowy — także zapis bez zera')
+        self.assertIn('OKX — nowy raport z listą portfeli z 2026-10-08 (obecna z 2026-09-08) ⚠️', k.wh_nowe_wiersz(W))
+
+    def test_bledy_i_limit(self):
+        import urllib.error
+        k = self.k
+        now = datetime.datetime(2026, 10, 12, 7, 0, tzinfo=datetime.timezone.utc)
+
+        def zly(url, timeout=25, headers=None, limit=None):
+            raise urllib.error.URLError('timed out')
+        with mock.patch.object(k, 'get', zly):
+            W = k.wh_nowe_raporty(self.G, now)
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['nie_wiadomo']), (None, 15), 'brak odpowiedzi — nie wiadomo, nie „brak nowszego”')
+        self.assertEqual(W['KuCoin']['nie_wiadomo'], 1)
+        self.assertIn('OKX — nie wiadomo (źródło nie odpowiedziało) ℹ️', k.wh_nowe_wiersz(W))
+        t = iter([0.0] + [1000.0] * 100)
+        with mock.patch.object(k, 'get', self._get(kucoin={'data': {}})):
+            W = k.wh_nowe_raporty(self.G, now, zegar=lambda: next(t))
+        self.assertEqual((W['OKX']['prob'], W['OKX']['nie_wiadomo']), (0, 1), 'limit czasu całości — koniec prób, „nie wiadomo”')
+        self.assertEqual(W['KuCoin']['nie_wiadomo'], 1, 'JSON bez daty audytu — nie wiadomo')
+
+        def stara(url, timeout=25, headers=None):   # zaślepka bez parametru limit (stare testy całej kontroli) — nie wiadomo, bez sieci
+            raise AssertionError('nieoczekiwany adres ' + url)
+        with mock.patch.object(k, 'get', stara):
+            W = k.wh_nowe_raporty(self.G, now)
+        self.assertTrue(all(o['nowy'] is None for o in W.values()))
+        self.assertEqual(k.wh_nowe_raporty(None, now), {}); self.assertEqual(k.wh_nowe_raporty({'OKX': {'since': 'x'}}, now), {})
+
+    def test_get_limit_i_podpiecie(self):
+        k = self.k
+        import inspect
+        self.assertIn('limit=None', inspect.signature(k.get).__str__())
+        src = inspect.getsource(k.kontrola)
+        self.assertIn("wh_nowe_raporty((files.get('wieloryby') or {}).get('gieldy'))", src)
+        self.assertIn('wh_nowe_wiersz', inspect.getsource(k.raport_md))
