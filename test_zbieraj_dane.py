@@ -27689,3 +27689,107 @@ class PoPrzegladzieV246(unittest.TestCase):
         for p in ('narzedzia/kontrola.py', 'test_zbieraj_dane.py'):
             with open(os.path.join(root, p), encoding='utf-8') as f:
                 self.assertNotIn(chr(0xFEFF), f.read(), p + ': BOM tylko jako \\ufeff')
+
+
+# ===================== v247: KONTROLA — STRONA W PRZEGLĄDARCE BEZ OKNA =====================
+class KontrolaPrzegladarkaV247(unittest.TestCase):
+    """v247: Chrome bez okna otwiera stronę jak telefon; nieobsłużone błędy JavaScriptu = ⚠️; zrzut po „</html>” albo po limicie czasu,
+    przeglądarka zamykana; brak przeglądarki = „nie sprawdzono”. Test z prawdziwym Chrome tylko lokalnie (na serwerze pomijany)."""
+
+    LOG = ('[1:2:1006/154729.401951:INFO:CONSOLE:1] "BLAD-TESTOWY-1", source: https://capitalflowai-app.github.io/?nc=1 (12)\n'
+           '[1:2:1006/154729.409844:INFO:CONSOLE:1] "Uncaught (in promise) Error: ODRZUCONE-2", source: https://capitalflowai-app.github.io/?nc=1 (9875)\n'
+           '[1:2:1006/154729.409844:INFO:CONSOLE:1] "Uncaught TypeError: Cannot read properties of null (reading \'x\')", source: https://capitalflowai-app.github.io/index.html (4410)\n'
+           '[1:2:1006/154729.5:INFO:CONSOLE:0] "Failed to load resource: the server responded with a status of 429 ()", source: https://api.coingecko.com/api/v3/global (0)\n'
+           '[1:2:1006/154729.6:INFO:CONSOLE:0] "Access to fetch at \'https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=800\' from origin \'https://capitalflowai-app.github.io\' has been blocked by CORS policy: No \'Access-Control-Allow-Origin\' header is present on the requested resource.", source: https://capitalflowai-app.github.io/?nc=1 (0)\n'
+           '[1:2:1006/154730.1:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n')
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola247-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v247_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def test_konsola(self):
+        K = self.k.przegladarka_konsola(self.LOG)
+        self.assertEqual(K['bledy'], ['Uncaught (in promise) Error: ODRZUCONE-2 (strona:9875)',
+                                      "Uncaught TypeError: Cannot read properties of null (reading 'x') (index.html:4410)"])
+        self.assertEqual(K['zasoby'], ['https://api.coingecko.com/api/v3/global', 'https://api.coinpaprika.com/v1/tickers?quotes=USD&limit=800'],
+                         'zapytanie zablokowane (CORS) to nieudane wczytanie, nie „inny komunikat”')
+        self.assertEqual(K['inne'], ['BLAD-TESTOWY-1'])
+        self.assertEqual(self.k.przegladarka_konsola(''), {'bledy': [], 'zasoby': [], 'inne': []})
+
+    def test_wiersz_i_uwagi(self):
+        k = self.k
+        P = {'ok': True, 'czas_s': 10.4, 'bajty': 3560630, 'svg': 170, 'wykresy': 25, 'bledy': [], 'zasoby': [], 'inne': []}
+        self.assertEqual(k.przegladarka_wiersz(P), '- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po 10,4 s — grafik 170, '
+                                                   'wykresów liniowych 25; nieobsłużonych błędów JavaScriptu: 0 ✅.')
+        self.assertEqual(k.przegladarka_uwagi(P), [])
+        P2 = dict(P, **k.przegladarka_konsola(self.LOG))
+        w = k.przegladarka_wiersz(P2)
+        self.assertIn('nieobsłużonych błędów JavaScriptu: 2 ⚠️; nieudane wczytania: 2 (api.coingecko.com, api.coinpaprika.com) ℹ️; inne komunikaty konsoli: 1 (pierwszy: BLAD-TESTOWY-1) ℹ️.', w)
+        self.assertEqual(k.przegladarka_uwagi(P2), ['strona w przeglądarce: nieobsłużonych błędów JavaScriptu 2 — pierwszy: Uncaught (in promise) Error: ODRZUCONE-2 (strona:9875)'])
+        self.assertEqual(k.przegladarka_wiersz({'brak': 'brak przeglądarki na maszynie kontroli'}),
+                         '- Strona w przeglądarce (bez okna, ekran telefonu): nie sprawdzono (brak przeglądarki na maszynie kontroli) ℹ️.')
+
+    def test_program(self):
+        k = self.k
+        with mock.patch.dict(os.environ, {'KONTROLA_CHROME': ''}):
+            self.assertEqual(k.przegladarka_program(('chromium', 'google-chrome'), szukaj=lambda n: '/usr/bin/' + n if n == 'google-chrome' else None), '/usr/bin/google-chrome')
+            self.assertIsNone(k.przegladarka_program(('x-brak', '/nie/ma/chrome'), szukaj=lambda n: None))
+        with mock.patch.object(k, 'przegladarka_program', lambda *a, **kw: None):
+            self.assertEqual(k.strona_przegladarka('https://x'), {'brak': 'brak przeglądarki na maszynie kontroli'})
+
+    def _udawana(self, dom, log, spi=30):
+        p = os.path.join(self.tmp, f'przegl_{abs(hash((dom, log, spi)))}.py')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('#!/usr/bin/env python3\nimport sys, time\n'
+                    f'sys.stdout.write({dom!r}); sys.stdout.flush()\nsys.stderr.write({log!r}); sys.stderr.flush()\ntime.sleep({spi})\n')
+        os.chmod(p, 0o755)
+        return p
+
+    def test_zrzut_i_zamkniecie(self):
+        import time
+        k = self.k
+        prog = self._udawana('<html><body><svg></svg><svg></svg><div class="arc-gr"></div></body></html>\n', self.LOG)
+        t0 = time.monotonic()
+        P = k.strona_przegladarka('https://x', czas_s=20, program=prog)
+        self.assertLess(time.monotonic() - t0, 8, 'po „</html>” przeglądarka zamknięta od razu (nie czekamy, aż sama się zamknie)')
+        self.assertEqual((P['ok'], P['svg'], P['wykresy'], len(P['bledy']), len(P['zasoby']), len(P['inne'])), (True, 2, 1, 2, 2, 1))
+
+    def test_brak_zrzutu_w_limicie(self):
+        k = self.k
+        prog = self._udawana('<html><body><p>w trakcie', '')
+        P = k.strona_przegladarka('https://x', czas_s=2, program=prog)
+        self.assertEqual(P['brak'], 'przeglądarka nie oddała strony w 2 s')
+        self.assertIn('nie sprawdzono (przeglądarka nie oddała strony w 2 s) ℹ️', k.przegladarka_wiersz(P))
+        self.assertEqual(k.przegladarka_uwagi(P), [])
+
+    def test_kontrola_wola(self):
+        import inspect
+        src = inspect.getsource(self.k.kontrola)
+        self.assertIn("R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}')", src)
+        self.assertIn("R['uwagi'] += przegladarka_uwagi(R['przegladarka'])", src)
+        self.assertIn("os.environ.get('KONTROLA_PRZEGLADARKA') == '1'", src, 'tylko na żądanie — testy kontrola() bez przeglądarki (ma własną sieć)')
+        root = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(root, '.github', 'workflows', 'kontrola.yml'), encoding='utf-8') as f:
+            self.assertIn("KONTROLA_PRZEGLADARKA: '1'", f.read(), 'codzienna kontrola na serwerze włącza przeglądarkę')
+        self.assertIn("L.append(przegladarka_wiersz(pg))", inspect.getsource(self.k.raport_md))
+
+    def test_prawdziwy_chrome_lokalnie(self):
+        k = self.k
+        prog = k.przegladarka_program()
+        if os.environ.get('GITHUB_ACTIONS') or not prog:
+            self.skipTest('tylko lokalnie, z zainstalowanym Chrome (na serwerze sprawdza to sama kontrola)')
+        p = os.path.join(self.tmp, 'strona_testowa.html')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('<!doctype html><html><body><svg></svg><script>console.error("BLAD-TESTOWY-1");setTimeout(()=>{null.x},100);'
+                    'Promise.reject(new Error("ODRZUCONE-2"));setInterval(()=>{},1000);</script></body></html>')
+        P = k.strona_przegladarka('file://' + p, czas_s=60)
+        self.assertTrue(P.get('ok'), P)
+        self.assertEqual(sorted(b.rsplit(' (', 1)[0] for b in P['bledy']),
+                         ['Uncaught (in promise) Error: ODRZUCONE-2', "Uncaught TypeError: Cannot read properties of null (reading 'x')"],
+                         'błąd z opóźnieniem (setTimeout) też złapany — czas wirtualny strony')
+        self.assertEqual(P['inne'], ['BLAD-TESTOWY-1'])

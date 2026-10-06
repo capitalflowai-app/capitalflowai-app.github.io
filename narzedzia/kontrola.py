@@ -26,8 +26,12 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
+import signal
 import statistics
+import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -2554,6 +2558,113 @@ def jpx_kontrola(files, R):
     return Z
 
 
+# ---------------------------------------------------------------- v247: strona w przeglądarce bez okna (Chrome, ekran telefonu) -----------
+# Kontrola otwiera stronę jak telefon, czeka na dane i wykresy (czas wirtualny strony), zapisuje stronę i komunikaty konsoli. Nieobsłużony błąd
+# JavaScriptu = ⚠️ (testy strony liczą na danych zastępczych — tu prawdziwe). 06.10.2026 lokalnie: zrzut po 10 s, 170 grafik, konsola pusta.
+PRZEGL_PROGRAMY = ('google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser',
+                   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+PRZEGL_CZAS_S = 90          # najdłużej tyle czekamy na zrzut strony — potem przeglądarka jest zamykana („nie sprawdzono”)
+PRZEGL_BUDZET_MS = 20000    # czas wirtualny strony przed zrzutem (dane, wykresy, liczniki odświeżania)
+PRZEGL_OKNO = '390,844'     # ekran telefonu
+PRZEGL_KONSOLA = re.compile(r':CONSOLE(?::\d+)?\] "(.*)", source: (\S*) \((\d+)\)')
+
+
+def przegladarka_program(kandydaci=PRZEGL_PROGRAMY, szukaj=None):
+    """v247: ścieżka przeglądarki — zmienna KONTROLA_CHROME albo pierwszy znaleziony program; brak = None."""
+    szukaj = szukaj or shutil.which
+    env = os.environ.get('KONTROLA_CHROME')
+    for k in ((env,) if env else ()) + tuple(kandydaci):
+        p = (k if os.path.exists(k) else None) if os.path.isabs(k) else szukaj(k)
+        if p:
+            return p
+    return None
+
+
+def przegladarka_konsola(log):
+    """v247: komunikaty konsoli z logu przeglądarki → {'bledy': nieobsłużone wyjątki („Uncaught …”, także odrzucone obietnice),
+    'zasoby': nieudane wczytania i zapytania zablokowane (adres; 06.10 lokalnie: źródło cen krypto po kilku próbach — strona ma zapas),
+    'inne': pozostałe komunikaty (console.error/warn/log)}."""
+    out = {'bledy': [], 'zasoby': [], 'inne': []}
+    for line in str(log or '').splitlines():
+        m = PRZEGL_KONSOLA.search(line)
+        if not m:
+            continue
+        msg, src, nr = m.group(1), m.group(2), m.group(3)
+        if msg.startswith('Uncaught'):
+            out['bledy'].append(f'{msg[:160]} ({src.split("?")[0].rsplit("/", 1)[-1][:40] or "strona"}:{nr})')
+        elif msg.startswith('Failed to load resource'):
+            out['zasoby'].append(src[:160])
+        elif msg.startswith("Access to fetch at '"):   # zapytanie zablokowane przez przeglądarkę (CORS — zwykle limit źródła: odpowiedź bez nagłówka)
+            out['zasoby'].append(msg[len("Access to fetch at '"):].split("'", 1)[0][:160])
+        else:
+            out['inne'].append(msg[:160])
+    return out
+
+
+def strona_przegladarka(url, czas_s=PRZEGL_CZAS_S, program=None, zegar=time.monotonic, spij=time.sleep):
+    """v247: strona w przeglądarce bez okna → {'ok': True, 'czas_s', 'bajty', 'svg', 'wykresy', 'bledy', 'zasoby', 'inne'} albo {'brak': powód}
+    (brak przeglądarki, brak zrzutu w czas_s). Osobny profil tymczasowy; po zrzucie albo czas_s — zamknięcie całej grupy procesów."""
+    program = program or przegladarka_program()
+    if not program:
+        return {'brak': 'brak przeglądarki na maszynie kontroli'}
+    with tempfile.TemporaryDirectory(prefix='kontrola-przegl-') as tmp:
+        args = [program, '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-extensions',
+                '--disable-dev-shm-usage', f'--user-data-dir={os.path.join(tmp, "profil")}', '--enable-logging=stderr', '--v=1',
+                f'--virtual-time-budget={PRZEGL_BUDZET_MS}', f'--window-size={PRZEGL_OKNO}', '--dump-dom', url]
+        if sys.platform.startswith('linux'):
+            args.insert(1, '--no-sandbox')   # maszyny GitHub (ubuntu) nie dają piaskownicy jądra; otwieramy tylko własną stronę
+        po, pe = os.path.join(tmp, 'strona.html'), os.path.join(tmp, 'konsola.log')
+        t0 = zegar()
+        with open(po, 'wb') as fo, open(pe, 'wb') as fe:
+            p = subprocess.Popen(args, stdout=fo, stderr=fe, stdin=subprocess.DEVNULL, start_new_session=True)
+            try:
+                while zegar() - t0 < czas_s and p.poll() is None:
+                    try:
+                        with open(po, 'rb') as f:
+                            f.seek(max(0, os.path.getsize(po) - 64))
+                            if b'</html>' in f.read():
+                                break
+                    except OSError:
+                        pass
+                    spij(1)
+            finally:
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)   # przeglądarka nie zamyka się sama (liczniki strony) — cała grupa procesów
+                except OSError:
+                    pass
+                try:
+                    p.wait(timeout=10)
+                except Exception:  # noqa
+                    pass
+        czas = round(zegar() - t0, 1)
+        with open(po, 'rb') as f:
+            dom = f.read().decode('utf-8', 'replace')
+        with open(pe, 'rb') as f:
+            K = przegladarka_konsola(f.read().decode('utf-8', 'replace'))
+    if '</html>' not in dom[-64:]:
+        return {'brak': f'przeglądarka nie oddała strony w {czas_s} s', 'czas_s': czas, **K}
+    return {'ok': True, 'czas_s': czas, 'bajty': len(dom), 'svg': dom.count('<svg'), 'wykresy': dom.count('class="arc-gr"'), **K}
+
+
+def przegladarka_uwagi(P):
+    """v247: nieobsłużone błędy JavaScriptu na stronie w przeglądarce = uwaga (najwyżej ⚠️ — strona może działać mimo błędu w jednym panelu)."""
+    if not isinstance(P, dict) or not P.get('bledy'):
+        return []
+    return [f'strona w przeglądarce: nieobsłużonych błędów JavaScriptu {len(P["bledy"])} — pierwszy: {P["bledy"][0]}']
+
+
+def przegladarka_wiersz(P):
+    """v247: wiersz raportu „Strona w przeglądarce” — błędy JS ⚠️, nieudane wczytania i inne komunikaty konsoli ℹ️, brak sprawdzenia ℹ️."""
+    if P.get('brak'):
+        return f'- Strona w przeglądarce (bez okna, ekran telefonu): nie sprawdzono ({P["brak"]}) ℹ️.'
+    b, z, i = P.get('bledy') or [], P.get('zasoby') or [], P.get('inne') or []
+    hosty = sorted({u.split('/')[2] if '://' in u else u for u in z})
+    return (f'- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po {str(P.get("czas_s", "—")).replace(".", ",")} s — grafik '
+            f'{P.get("svg", 0)}, wykresów liniowych {P.get("wykresy", 0)}; nieobsłużonych błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else '✅')
+            + (f'; nieudane wczytania: {len(z)} ({", ".join(hosty[:4])}) ℹ️' if z else '')
+            + (f'; inne komunikaty konsoli: {len(i)} (pierwszy: {i[0][:80]}) ℹ️' if i else '') + '.')
+
+
 # ---------------------------------------------------------------- v141: lżejsza strona — pliki słowników języków (i18n/<język>.<skrót>.js) ----------------------------------------------------------------
 I18N_MAPA = re.compile(r'const CF_I18N_H=(\{[^{}]*\})[;,]')
 I18N_JEZYKI = ('de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja')
@@ -3022,6 +3133,14 @@ def kontrola():
         i18n_kontrola(body if (R.get('strona') or {}).get('ok') else None, R)
     except Exception as e:  # noqa
         R['uwagi'].append(f'pliki słowników języków: kontrola nie przeszła ({str(e)[:80]})')
+    # 1c. v247: strona w przeglądarce bez okna (Chrome, ekran telefonu) — błędy JavaScriptu na prawdziwych danych; najwyżej ⚠️. Tylko gdy
+    # KONTROLA_PRZEGLADARKA=1 (ustawia kontrola.yml): testy wołające kontrola() nie mogą uruchamiać przeglądarki — ona ma własną sieć
+    if (R.get('strona') or {}).get('ok') and os.environ.get('KONTROLA_PRZEGLADARKA') == '1':
+        try:
+            R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}')
+        except Exception as e:  # noqa
+            R['przegladarka'] = {'brak': f'błąd sprawdzania: {type(e).__name__}'}
+        R['uwagi'] += przegladarka_uwagi(R['przegladarka'])
     # 2. plik stanu automatu
     try:
         st, body, ms = get(f'{SITE}/data/meta.json?nc={int(time.time())}')
@@ -3463,6 +3582,9 @@ def raport_md(R):
     s18 = (R.get('strona') or {}).get('i18n')   # v141: lżejsza strona — pliki słowników języków
     if s18:
         L.append('- Słowniki języków de–ja (osobne pliki strony): ' + s18.get('opis', '—') + '.')
+    pg = R.get('przegladarka')   # v247: strona w przeglądarce bez okna
+    if isinstance(pg, dict):
+        L.append(przegladarka_wiersz(pg))
     a = R.get('actions') or {}
     if 'przebiegi_24h' in a:
         L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).'
