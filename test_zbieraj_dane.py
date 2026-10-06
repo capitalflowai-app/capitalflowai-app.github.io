@@ -25648,3 +25648,34 @@ class RegulyWCieniuV216(unittest.TestCase):
         w = zd._tdw_log({'v': zd.TD_VW2, 'since': zd.TD_SINCE_W2, 'rows': [], 'cp': {}}, [], [], datetime.datetime(2026, 10, 6, 12, 0, tzinfo=U))
         self.assertEqual((w.get('cs'), sorted(w['pgs']['l'])), ({}, ['eq.fo', 'eq.n2', 'eq.pf']))
         self.assertTrue(zd._td_cr_valid(out) and zd._tdw_valid(w))
+
+
+# ===================== v217: FUNDUSZE ETF — ODRZUCANIE WIERSZY Z BŁĘDEM PLIKU ŹRÓDŁA =====================
+class FunduszeCzyszczenieV217(unittest.TestCase):
+    """v217: wiersz z aktywami (NAV × jednostki) ponad 2× od mediany sąsiednich dni odrzucony (EWZ 05.10: NAV 0,001328); podział jednostek
+    zostaje; krótka historia bez oceny; fundusz iShares z odrzuconym świeżym dniem — uzupełnienie pełnym plikiem."""
+
+    H = [['2026-09-%02d' % d, 36.0 + d / 10, 232600000] for d in range(14, 31) if datetime.date(2026, 9, d).weekday() < 5]
+
+    def test_ewz_z_0510(self):
+        h = self.H + [['2026-10-01', 37.119924, 233800000], ['2026-10-02', 38.109913, 235300000], ['2026-10-05', 0.001328, 238426920]]
+        keep, bad = zd._fund_clean(h)
+        self.assertEqual(bad, ['2026-10-05']); self.assertEqual(keep[-1][0], '2026-10-02')
+        h2 = h + [['2026-10-06', 42.9, 238426920]]
+        keep, bad = zd._fund_clean(h2)
+        self.assertEqual(bad, ['2026-10-05'], 'wiersz w środku też odrzucony; następny dzień (prawdziwy NAV) zostaje'); self.assertEqual(keep[-1][0], '2026-10-06')
+
+    def test_podzial_i_krotka_historia(self):
+        h = self.H + [['2026-10-01', 18.6, 465200000], ['2026-10-02', 18.7, 466000000]]   # podział 2:1 — aktywa bez zmian
+        self.assertEqual(zd._fund_clean(h)[1], [], 'podział jednostek zostaje')
+        self.assertEqual(zd._fund_clean([['2026-10-01', 1.0, 10], ['2026-10-02', 1000.0, 10]]), ([['2026-10-01', 1.0, 10], ['2026-10-02', 1000.0, 10]], []), 'mniej niż 3 sąsiednie dni — bez oceny')
+        self.assertEqual(zd._fund_clean(None), ([], [])); self.assertEqual(zd._fund_clean([['x', 1]]), ([], []))
+        big = self.H + [['2026-10-01', 37.2 * 2.2, 232600000]]
+        self.assertEqual(zd._fund_clean(big)[1], ['2026-10-01'], 'aktywa ×2,2 w dobę — błąd pliku'); self.assertEqual(zd._fund_clean(self.H + [['2026-10-01', 37.2 * 1.9, 232600000]])[1], [])
+        self.assertEqual((zd.FUND_TNA_X, zd.FUND_TNA_OKNO), (2.0, 10))
+
+    def test_wpiecie(self):
+        import inspect
+        src = inspect.getsource(zd.build_fundusze)
+        self.assertIn("p['h'], bad = _fund_clean(h)", src); self.assertIn("out['f'][t]['h'], bad = _fund_clean(out['f'][t].get('h'))", src)
+        self.assertIn("p['bf_need'] = True", src.split("p['h'], bad = _fund_clean(h)")[1][:600], 'odrzucony świeży dzień iShares — uzupełnienie pełnym plikiem')

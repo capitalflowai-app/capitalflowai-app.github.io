@@ -4885,6 +4885,27 @@ def parse_ishares_screener(j):
     return out
 
 
+FUND_TNA_X = 2.0   # v217: aktywa funduszu (NAV × liczba jednostek) ponad tyle razy od mediany sąsiednich dni = błąd pliku źródła (wiersz odrzucony)
+FUND_TNA_OKNO = 10  # v217: tyle dni przed wierszem i po nim tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
+
+
+def _fund_clean(h):
+    """v217: historia funduszu [[data, NAV, liczba jednostek]] → (historia bez wierszy z błędem pliku, odrzucone daty). Wiersz jest błędny,
+    gdy aktywa (NAV × liczba jednostek) różnią się od mediany aktywów FUND_TNA_OKNO dni przed nim i po nim ponad FUND_TNA_X razy; podział
+    jednostek nie zmienia aktywów, więc zostaje. EWZ 05.10.2026: NAV 0,001328 USD przy 238 mln jednostek (aktywa ×0,00004)."""
+    h = [r for r in h or [] if isinstance(r, list) and len(r) == 3]
+    T = [r[1] * r[2] if _isnum(r[1]) and _isnum(r[2]) else None for r in h]
+    keep, bad = [], []
+    for i, r in enumerate(h):
+        nb = [x for x in T[max(0, i - FUND_TNA_OKNO):i] + T[i + 1:i + 1 + FUND_TNA_OKNO] if x and x > 0]
+        if len(nb) >= 3 and T[i] is not None:
+            m = statistics.median(nb)
+            if not (1 / FUND_TNA_X < T[i] / m < FUND_TNA_X):
+                bad.append(r[0]); continue
+        keep.append(r)
+    return keep, bad
+
+
 def _fund_merge(old, new):
     """Historia funduszu: nowe wiersze wygrywają dla tych samych dni; ostatnie FUND_KEEP dni rosnąco."""
     m = {r[0]: r for r in old or [] if isinstance(r, list) and len(r) == 3}
@@ -4914,6 +4935,9 @@ def build_fundusze(prev=None):
         try:
             h = parse_ssga_navhist(get_bytes(FUND_SSGA_URL.format(t=t.lower()), timeout=30), t)
             out['f'][t] = {'iss': 'ssga', 'at': NOW, 'h': _fund_merge(p.get('h'), h)}
+            out['f'][t]['h'], bad = _fund_clean(out['f'][t].get('h'))   # v217: wiersze z błędem pliku źródła odrzucone
+            if bad:
+                META['notes'].append(f'fundusze {t}: odrzucone wiersze {", ".join(bad[-3:])} — aktywa funduszu ponad {FUND_TNA_X:g}× od sąsiednich dni (błąd pliku źródła)')
         except Exception as e:
             errs.append(f'{t}: {e}')
             out['f'][t] = dict(p, iss='ssga', err_at=NOW)
@@ -4968,7 +4992,11 @@ def build_fundusze(prev=None):
                 p.pop('bf_need', None)
         p['iss'] = 'ishares'
         if h:
-            p['h'] = h
+            p['h'], bad = _fund_clean(h)   # v217: wiersze z błędem pliku źródła odrzucone (EWZ 05.10.2026: NAV 0,001328)
+            if bad:
+                META['notes'].append(f'fundusze {t}: odrzucone wiersze {", ".join(bad[-3:])} — aktywa funduszu ponad {FUND_TNA_X:g}× od sąsiednich dni (błąd pliku źródła)')
+                if p['h'] and any(_bdays(_d(b), _d(p['h'][-1][0])) <= FUND_TNA_OKNO for b in bad if _d(b)):
+                    p['bf_need'] = True   # świeży dzień odrzucony — prawdziwy NAV z pełnego pliku w kolejnym przebiegu
             out['f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
