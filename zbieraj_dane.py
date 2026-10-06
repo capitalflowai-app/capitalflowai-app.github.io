@@ -2238,6 +2238,7 @@ TW_PEND_H = 12            # v95.2: starszy dzień „No Data!” (TWSE) = świę
 TW_REFRESH_D = 3          # v197: TWSE poprawia liczby sesji po pierwszej publikacji (06.10: 5 ostatnich sesji różnych od obecnych danych giełdy, do
                           # 1,2 mld TWD w przepływie zagranicy 30.09) — dni z ostatnich 3 dni kalendarzowych pobierane ponownie…
 TW_REFRESH_H = 3          # v197: …najwyżej co 3 godz. (pole chk: czas ostatniego udanego odczytu dnia)
+TW_REFRESH_NEW = 14       # v198: dzień bez chk (nigdy nie czytany ponownie — wstępne liczby sprzed v197) do 14 dni: jeden ponowny odczyt
 HK_NF_DAYS = 7            # v95.2: brak pliku HKEX za starszy dzień — ponowne pytanie po tygodniu (bez stałej granicy)
 _RUN_T0 = [None]          # v95.2: początek przebiegu (main)
 _CZAS = []                # v185: (plik, sekundy od startu przebiegu) przy każdym zapisie
@@ -2502,8 +2503,8 @@ def twse_part(prev_tw, key):
     recent = tw_dates(set(have), empty, now_tpe, first=not have)[-TWSE_MAX:]
     # v197: ponowny odczyt ostatnich sesji — giełda poprawia liczby po pierwszej publikacji (dotąd dzień „w pliku” = nigdy więcej)
     chk = {k: v for k, v in (prev_tw.get('chk') or {}).items() if isinstance(k, str) and isinstance(v, str) and k in have}
-    ref = [k for k in sorted(have) if k not in recent and _d(k) and 0 <= (now_tpe.date() - _d(k)).days <= TW_REFRESH_D
-           and (_age_h(chk.get(k)) is None or _age_h(chk[k]) >= TW_REFRESH_H)]
+    ref = [k for k in sorted(have) if k not in recent and _d(k) and 0 <= (now_tpe.date() - _d(k)).days <= (TW_REFRESH_D if k in chk else TW_REFRESH_NEW)
+           and (_age_h(chk.get(k)) is None or _age_h(chk[k]) >= TW_REFRESH_H)]   # v198: dzień bez chk do 14 dni — raz
     rfails, zm = [], []
     wait = {k for k, v in pend.items() if _age_h(v) < TW_PEND_H}
     back = tw_back(set(have), empty, now_tpe, skip=set(recent) | wait)[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz
@@ -2562,7 +2563,7 @@ def twse_part(prev_tw, key):
         else:
             r[5:] = [None, None]
     keep = {r[0] for r in d}
-    chk = {k: v for k, v in chk.items() if k in keep and _d(k) and (now_tpe.date() - _d(k)).days <= TW_REFRESH_D + 7}
+    chk = {k: v for k, v in chk.items() if k in keep and _d(k) and (now_tpe.date() - _d(k)).days <= TW_REFRESH_NEW + 1}   # v198: dłużej niż okno „raz”
     return {'at': NOW, 'src': 'TWSE — Trading Value of Foreign & Other Investors (BFI82U)', **({'chk': chk} if chk else {}),
             'url': 'https://www.twse.com.tw/en/trading/foreign/bfi82u.html', 'unit': 'mln TWD; ≈ mln USD kursem Fed H.10 (FRED DEXTAUS)',
             'cols': ['data', 'zagraniczni', 'fundusze krajowe', 'dealerzy', 'razem', '≈ mln USD (zagraniczni)', 'data kursu'],

@@ -8352,6 +8352,7 @@ class HistoriaV95(unittest.TestCase):
     def setUp(self):
         zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear(); zd._RUN_T0[0] = None; zd._BACK_LATE_NOTE[0] = False
         self.enterContext(mock.patch.object(zd, 'TW_REFRESH_D', -1))   # v197: ponowny odczyt ostatnich sesji — osobny test (TwPoprawkiV197)
+        self.enterContext(mock.patch.object(zd, 'TW_REFRESH_NEW', -1))   # v198: jednorazowy odczyt dni bez chk — osobny test (TwJednorazowoV198)
 
     def at(self, now):
         """Wspólne atrapy czasu: data dnia stała (25.09, 17:00 w Tajpej), NOW przebiegu — podany."""
@@ -24853,8 +24854,8 @@ class TwPoprawkiV197(unittest.TestCase):
         p = {'d': [['2026-09-29', -63201.3, 1416.9, -16402.6, -78187.0, -1975.0, '2026-09-29'], ['2026-09-30', 29636.0, 7781.2, 1240.1, 38657.2, 926.1, '2026-09-30'],
                    ['2026-10-01', 21937.3, 5656.6, 1659.0, 29252.9, 685.2, '2026-10-01'], ['2026-10-02', 2621.8, 4909.6, 2026.1, 9557.5, 81.9, '2026-10-02'],
                    ['2026-10-05', 71896.6, -6394.7, 10948.1, 76450.0, 2246.1, '2026-10-02']], 'empty': ['2026-09-28']}   # 28.09 — święto (Dzień Nauczyciela)
-        if chk:
-            p['chk'] = chk
+        p['chk'] = {'2026-09-29': '2026-10-01T00:00:00+00:00', '2026-09-30': '2026-10-02T00:00:00+00:00', '2026-10-01': '2026-10-03T00:00:00+00:00',
+                    '2026-10-02': '2026-10-04T00:00:00+00:00'} if chk is None else chk   # v198: starsze dni już czytane ponownie
         return p
 
     def test_ponowny_odczyt_poprawia_liczby(self):
@@ -24863,7 +24864,7 @@ class TwPoprawkiV197(unittest.TestCase):
         r = {x[0]: x for x in out['d']}['2026-10-05']
         self.assertEqual(r[:5], ['2026-10-05', 71896.6, -5293.2, 10948.5, 77551.9], 'liczby giełdy z ponownego odczytu')
         self.assertEqual(r[5:], [2246.1, '2026-10-02'], 'ta sama liczba zagranicy — przeliczenie na USD zostaje (bez nowego kursu)')
-        self.assertEqual(out['chk'], {'2026-10-05': '2026-10-06T00:00:00+00:00'})
+        self.assertEqual(out['chk']['2026-10-05'], '2026-10-06T00:00:00+00:00')   # v198: starsze dni mają chk z _prev
         self.assertTrue(any('TWSE: poprawione liczby sesji przy ponownym odczycie — 2026-10-05' in n for n in zd.META['notes']), zd.META['notes'])
         self.assertEqual(zd.META['errors'], [])
         zd.META['notes'].clear()
@@ -24892,6 +24893,27 @@ class TwPoprawkiV197(unittest.TestCase):
             self.assertNotIn('2026-10-05', out.get('chk', {}), 'bez udanego odczytu — bez czasu; następny przebieg próbuje znowu')
 
     def test_stary_chk_przyciety(self):
-        out, _ = self._run(self._prev(chk={'2026-10-05': '2026-10-05T23:00:00+00:00', '2026-09-01': '2026-09-01T09:00:00+00:00', 'x': 5}),
-                           '2026-10-06T00:00:00+00:00', {})
-        self.assertEqual(out['chk'], {'2026-10-05': '2026-10-05T23:00:00+00:00'}, 'młody odczyt bez ponownego zapytania; dni spoza pliku i złe wpisy — usunięte')
+        c = dict(self._prev()['chk'], **{'2026-10-05': '2026-10-05T23:00:00+00:00', '2026-09-01': '2026-09-01T09:00:00+00:00', 'x': 5})
+        out, _ = self._run(self._prev(chk=c), '2026-10-06T00:00:00+00:00', {})
+        self.assertEqual(out['chk'], dict(self._prev()['chk'], **{'2026-10-05': '2026-10-05T23:00:00+00:00'}),
+                         'młody odczyt bez ponownego zapytania; dni spoza pliku i złe wpisy — usunięte')
+
+
+# ===================== v198: TAJWAN — JEDNORAZOWY PONOWNY ODCZYT DNI BEZ CHK (DO 14 DNI) =====================
+class TwJednorazowoV198(TwPoprawkiV197):
+    """v198: dzień bez chk (nigdy nie czytany ponownie) do 14 dni — jeden ponowny odczyt; potem zwykła reguła 3 dni; chk trzymane do 15 dni."""
+
+    def test_dni_bez_chk_raz(self):
+        P = self._prev(chk={})
+        ans = {d: self.tw(d, '1,000,000,000') for d in ('2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-05')}
+        out, asked = self._run(P, '2026-10-06T00:00:00+00:00', ans)
+        self.assertEqual(asked, ['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-05'], 'wszystkie dni bez chk do 14 dni')
+        self.assertEqual(sorted(out['chk']), ['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-05'])
+        out2, asked = self._run(out, '2026-10-06T04:00:00+00:00', ans)
+        self.assertEqual(asked, ['2026-10-05'], 'po odczycie — tylko ostatnie 3 dni (co 3 godz.)')
+        out3, asked = self._run(out2, '2026-10-10T04:00:00+00:00', dict(ans, **{d: self.tw(d, '1,000,000,000') for d in ('2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09')}))
+        self.assertFalse({'2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02'} & set(asked), 'dni z chk starsze niż 3 dni — nie')
+        self.assertIn('2026-09-29', out3['chk'], 'chk trzymane do 15 dni (11 dni po sesji — jeszcze jest)')
+        old = dict(P, d=[['2026-09-15', 1.0, 0, 0, 0, None, None]] + P['d'])
+        _, asked = self._run(old, '2026-10-06T00:00:00+00:00', ans)
+        self.assertNotIn('2026-09-15', asked, 'dzień starszy niż 14 dni — bez ponownego odczytu')
