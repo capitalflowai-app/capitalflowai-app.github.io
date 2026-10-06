@@ -28072,7 +28072,7 @@ class PoPrzegladzieV250(unittest.TestCase):
         self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: 1 par', k.raport_md(R))
         H = self._hist(['2026-10-05', '2026-10-06'], lambda i: 1e9, czas=lambda d: '03:10')
         o = k.wieloryby_ocena(arch, hist=H)
-        self.assertIn('; migawki o północy z 2026-10-05 i 2026-10-06: brak albo później niż 2 h po północy UTC', o['pomin'])   # v252: oba dni późno
+        self.assertIn('; migawki o północy brak albo później niż 2 h po północy UTC: 2026-10-05 — Bitfinex; 2026-10-06 — Bitfinex', o['pomin'])   # v253: dni i giełdy
 
     def test_poprzedni_tylko_z_30_h(self):
         k = self.k
@@ -28141,5 +28141,53 @@ class PoPrzegladzieV252(unittest.TestCase):
                 f.write(f'{d},Bitfinex,USDT,1000000000,1000000000,0,0,0,{26_000_000 + i * 3000}\n')   # archiwum co 10 h — bez pary o dobę
         H = {'Bitfinex': [['2026-10-05', '2026-10-05T02:30:00+00:00', 0.0, 1e9, 0.0, '2022-11'], ['2026-10-06', '2026-10-06T00:05:00+00:00', 0.0, 1e9, 0.0, '2022-11']]}
         o = k.wieloryby_ocena(p, hist=H)
-        self.assertIn('; migawki o północy z 2026-10-05: brak albo później niż 2 h po północy UTC', o['pomin'])
-        self.assertNotIn('2026-10-06: brak', o['pomin'], 'migawka z 06.10 jest i o czasie — przegląd: powód wskazywał zły dzień')
+        self.assertIn('; migawki o północy brak albo później niż 2 h po północy UTC: 2026-10-05 — Bitfinex', o['pomin'])   # v253
+        self.assertNotIn('2026-10-06 —', o['pomin'], 'migawka z 06.10 jest i o czasie — przegląd: powód wskazywał zły dzień')
+
+
+# ===================== v253: POWÓD BRAKU PORÓWNANIA WIELORYBÓW Z FAKTYCZNYCH DANYCH =====================
+class KontrolaWielorybyPowodV253(unittest.TestCase):
+    """v253: archiwum bez sum przelewów → taki powód (nie „inna wersja listy” ani „brak numeru bloku”); giełdy późne w różne dni — obie wymienione;
+    inna wersja listy — tylko gdy naprawdę się różni."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola253-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v253_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def _arch(self, netto_ost='0', nazwa='w.csv'):
+        p = os.path.join(self.tmp, nazwa)
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n')
+            for i, d in enumerate(['2026-10-04', '2026-10-05', '2026-10-06']):
+                n = netto_ost if d == '2026-10-06' else '0'
+                for g in ('Binance', 'OKX'):
+                    f.write(f'{d},{g},USDT,1000000000,1000000000,,,{n},{26_000_000 + i * 3000}\n')   # archiwum co 10 h
+        return p
+
+    def _h(self, czasy, wer=None):
+        wer = wer or {}
+        return {g: [[d, f'{d}T{czasy.get((g, d), "00:05")}:00+00:00', 0.0, 1e9, 0.0, wer.get((g, d), '2022-11')] for d in ('2026-10-05', '2026-10-06')]
+                for g in ('Binance', 'OKX')}
+
+    def test_archiwum_bez_sum(self):
+        k = self.k
+        o = k.wieloryby_ocena(self._arch(netto_ost=''), hist=self._h({}))
+        self.assertEqual(o['porownane'], 0)
+        self.assertEqual(o['pomin'], 'archiwum bez sum przelewów doby (doba niepełna albo sum brak)', 'przegląd: było „inna wersja listy portfeli”')
+
+    def test_gieldy_pozne_w_rozne_dni(self):
+        k = self.k
+        o = k.wieloryby_ocena(self._arch(), hist=self._h({('Binance', '2026-10-06'): '03:00', ('OKX', '2026-10-05'): '02:40'}))
+        self.assertIn('migawki o północy brak albo później niż 2 h po północy UTC: 2026-10-05 — OKX; 2026-10-06 — Binance', o['pomin'])
+        self.assertNotIn('wersja listy', o['pomin'])
+
+    def test_inna_wersja_listy(self):
+        k = self.k
+        o = k.wieloryby_ocena(self._arch(), hist=self._h({}, wer={('OKX', '2026-10-06'): '2026-10-06', ('Binance', '2026-10-06'): '2026-10-06'}))
+        self.assertIn('inna wersja listy portfeli w migawkach o północy: Binance, OKX', o['pomin'])
+        self.assertNotIn('brak albo później', o['pomin'])

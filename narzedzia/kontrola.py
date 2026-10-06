@@ -1659,13 +1659,25 @@ def wieloryby_ocena(path, zmiany=None, hist=None):
            'odstep_h': round(S[len(S) // 2] * 12 / 3600, 1) if S else None, 'pomin': None, 'zle': [], 'bez_historii': 0, 'lista': lista,
            'polnoc': sum(1 for x in dzis.values() if x[4] == 'p')}
     out['poprzedni_pokaz'] = dm1 if out['polnoc'] and out['polnoc'] == out['porownane'] else p   # v250: podpis zgodny z porównanymi migawkami
-    if not out['porownane']:
-        out['pomin'] = (f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie" if out['odstep_h'] is not None
-                        else 'brak numeru bloku migawki — bez porównania')
-        if hist and not out['polnoc']:   # v250: powód — migawki o północy brak albo późniejsza niż WH_POLNOC_H h
-            bd = [x for x in (dm1, d) if not Hn.get(x)]   # v252: dzień, którego migawki o północy brak albo jest późna (d − 1 albo d)
-            out['pomin'] += (f'; migawki o północy z {" i ".join(bd)}: brak albo później niż {WH_POLNOC_H} h po północy UTC' if bd
-                             else f'; migawki o północy z {dm1} i {d} są, ale bez wspólnej pary (inna wersja listy portfeli)')
+    if not out['porownane']:   # v253: powód z faktycznych danych (nie zgadywany)
+        pw = []
+        if by[d] and all(len(r) > 7 and not str(r[7]).strip() for r in by[d].values()):
+            pw.append('archiwum bez sum przelewów doby (doba niepełna albo sum brak)')
+        elif out['odstep_h'] is not None:
+            pw.append(f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie")
+        else:
+            pw.append('brak numeru bloku migawki — bez porównania')
+        if hist and not out['polnoc']:   # v250/v253: migawki o północy — dzień i giełdy, których migawki brak albo jest późna; inna wersja listy
+            A, B = Hn.get(dm1) or {}, Hn.get(d) or {}
+            ga = sorted({k[0] for k in by[d] if k not in A})
+            gb = sorted({k[0] for k in by[d] if k not in B})
+            gw = sorted({k[0] for k in by[d] if k in A and k in B and A[k][2] != B[k][2]})
+            cz = [f'{x} — {", ".join(g)}' for x, g in ((dm1, ga), (d, gb)) if g]
+            if cz:
+                pw.append(f'migawki o północy brak albo później niż {WH_POLNOC_H} h po północy UTC: ' + '; '.join(cz))
+            if gw:
+                pw.append('inna wersja listy portfeli w migawkach o północy: ' + ', '.join(gw))
+        out['pomin'] = '; '.join(pw)
         return out
     norma = {}
     for a, b in zip(days[:-2], days[1:-1]):
