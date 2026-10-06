@@ -1737,31 +1737,51 @@ def ixf_wiersz(o):
     return f'- Indeksy vs wydawcy (FRED, {IXF_DNI} dni): ' + ' · '.join(cz) + '.'
 
 
-IX_OPOZ_DNI = 2      # v254: seria indeksu starsza od najnowszej o więcej dni = „opóźniona” (informacja: weekend, rotacja zbieracza, święto)
-IX_STARE_DNI = 10    # v254: … o więcej niż tyle dni = ⚠️ (seria się zacięła; najdłuższe święta giełd — Złoty Tydzień w Chinach — ok. 8 dni)
+IX_OPOZ_DNI = 1      # v254/v258: seria indeksu starsza od dnia odniesienia o więcej DNI ROBOCZYCH (pn–pt) = „opóźniona” (informacja: rotacja, święto)
+IX_STARE_DNI = 9     # v258: … o więcej niż tyle dni roboczych = ⚠️ (seria się zacięła). Przegląd v254: 10 dni kalendarzowych to mniej niż prawdziwe
+                     # przerwy giełd — Szanghaj, Święto Wiosny 2026: bez sesji 13.02–24.02 (7 dni roboczych); Indonezja 2025: 8; z jednym nieudanym
+                     # pobraniem w dniu otwarcia — 9
+IX_WSZYSTKIE_DNI = 3   # v258: najnowsza sesja wszystkich serii starsza od dziś o więcej dni roboczych = ⚠️ (dostawca stoi, choć plik jest świeży)
 
 
-def indeksy_ocena(ix):
-    """v254: świeżość każdej serii indeksów (indeksy.json → ix: {symbol: {'d': [[dzień, zamknięcie], …], 'bad_at'?}}) wobec najnowszej daty
-    wszystkich serii → {'n', 'swieze', 'najnowsza', 'opoznione': [(symbol, dzień, dni)], 'stare': [...], 'puste': [(symbol, od)]} albo None."""
+def _dni_rob(a, b):
+    """v258: dni robocze (pn–pt) po dniu a do dnia b włącznie (daty); b ≤ a → 0."""
+    n, d = 0, a
+    while d < b:
+        d += dt.timedelta(days=1)
+        n += d.weekday() < 5
+    return n
+
+
+def indeksy_ocena(ix, now=None):
+    """v254/v258: świeżość każdej serii indeksów (indeksy.json → ix: {symbol: {'d': [[dzień, zamknięcie], …], 'bad_at'?}}) → {'n', 'swieze',
+    'najnowsza', 'opoznione': [(symbol, dzień, dni robocze)], 'stare': [...], 'puste': [(symbol, od)], 'przyszle': [(symbol, dzień)],
+    'wszystkie': dni robocze od najnowszej sesji do dziś} albo None. v258 (przegląd): dzień odniesienia = najnowsza sesja wszystkich serii, ale
+    nie później niż dziś (UTC) — sesja z przyszłości (błąd dostawcy) osobno i pominięta w ocenie; odstępy w dniach roboczych (pn–pt)."""
     if not isinstance(ix, dict) or not ix:
         return None
-    ost, puste = {}, []
+    dzis = (now or NOW).date()
+    ost, puste, przyszle = {}, [], []
     for s, v in sorted(ix.items()):
         d = v.get('d') if isinstance(v, dict) else None
         dd = [r[0] for r in d if isinstance(r, list) and len(r) >= 2 and _dzien(r[0]) and isinstance(r[1], (int, float)) and not isinstance(r[1], bool)
               and r[1] == r[1]] if isinstance(d, list) else []
+        fut = [x for x in dd if dt.date.fromisoformat(x) > dzis]
+        if fut:
+            przyszle.append((s, max(fut)))
+            dd = [x for x in dd if x not in fut]
         if dd:
             ost[s] = max(dd)
-        else:
+        elif not fut:
             puste.append((s, str(v.get('bad_at') or '')[:10] if isinstance(v, dict) else ''))
-    out = {'n': len(ix), 'swieze': 0, 'najnowsza': None, 'opoznione': [], 'stare': [], 'puste': puste}
+    out = {'n': len(ix), 'swieze': 0, 'najnowsza': None, 'opoznione': [], 'stare': [], 'puste': puste, 'przyszle': przyszle, 'wszystkie': None}
     if not ost:
         return out
     najn = max(ost.values())
     out['najnowsza'] = najn
+    out['wszystkie'] = _dni_rob(dt.date.fromisoformat(najn), dzis)
     for s, x in sorted(ost.items()):
-        n = (dt.date.fromisoformat(najn) - dt.date.fromisoformat(x)).days
+        n = _dni_rob(dt.date.fromisoformat(x), dt.date.fromisoformat(najn))
         if n > IX_STARE_DNI:
             out['stare'].append((s, x, n))
         elif n > IX_OPOZ_DNI:
@@ -1771,18 +1791,36 @@ def indeksy_ocena(ix):
     return out
 
 
+def indeksy_uwagi(o):
+    """v254/v258: uwagi — seria zacięta, sesja z przyszłości, dostawca stoi (wszystkie serie bez nowych sesji)."""
+    o = o or {}
+    u = [f'indeksy giełdowe: {s} bez nowych sesji od {x} ({n} dni roboczych wobec najnowszej sesji innych indeksów) — sprawdzić pobieranie tego indeksu'
+         for s, x, n in o.get('stare') or []]
+    u += [f'indeksy giełdowe: {s} ma sesję z datą z przyszłości ({x}) — błąd danych dostawcy (strona może pokazywać ją jako ostatnią); w ocenie świeżości pominięta'
+          for s, x in o.get('przyszle') or []]
+    if (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI:
+        u.append(f'indeksy giełdowe: najnowsza sesja wszystkich serii to {o["najnowsza"]} — {o["wszystkie"]} dni roboczych bez nowych sesji; '
+                 'dostawca oddaje stare dane albo pobieranie stoi')
+    return u
+
+
 def indeksy_wiersz(o):
-    """v254: wiersz raportu „Indeksy giełdowe” — świeże, opóźnione (ℹ️), stare (⚠️), bez danych (ℹ️)."""
+    """v254/v258: wiersz raportu „Indeksy giełdowe” — świeże, opóźnione (ℹ️), zacięte (⚠️), z przyszłości (⚠️), wszystkie stare (⚠️), bez danych (ℹ️)."""
     if not isinstance(o, dict):
         return '- Indeksy giełdowe: plik bez serii indeksów ℹ️.'
     cz = [f'świeże {o["swieze"]} z {o["n"]}' + (f' (do {o["najnowsza"]})' if o.get('najnowsza') else '')]
+    zle = (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI
+    if zle:
+        cz.append(f'najnowsza sesja {o["wszystkie"]} dni roboczych temu ⚠️')
+    if o.get('przyszle'):
+        cz.append('sesja z datą z przyszłości: ' + ', '.join(f'{s} ({x})' for s, x in o['przyszle']) + ' ⚠️')
     if o.get('stare'):
-        cz.append('bez nowych sesji ponad ' + f'{IX_STARE_DNI} dni: ' + ', '.join(f'{s} (od {x})' for s, x, n in o['stare']) + ' ⚠️')
+        cz.append('bez nowych sesji ponad ' + f'{IX_STARE_DNI} dni roboczych: ' + ', '.join(f'{s} (od {x})' for s, x, n in o['stare']) + ' ⚠️')
     if o.get('opoznione'):
         cz.append('opóźnione: ' + ', '.join(f'{s} ({x})' for s, x, n in o['opoznione']) + ' ℹ️')
     if o.get('puste'):
         cz.append('bez danych (dostawca nie podaje): ' + ', '.join(s for s, od in o['puste']) + ' ℹ️')
-    return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (o.get('stare') or o.get('opoznione') or o.get('puste')) else ' ✅.')
+    return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (zle or o.get('przyszle') or o.get('stare') or o.get('opoznione') or o.get('puste')) else ' ✅.')
 
 
 def wieloryby_ocena(path, zmiany=None, hist=None):
@@ -1825,12 +1863,17 @@ def wieloryby_ocena(path, zmiany=None, hist=None):
     out['poprzedni_pokaz'] = dm1 if out['polnoc'] and out['polnoc'] == out['porownane'] else p   # v250: podpis zgodny z porównanymi migawkami
     if not out['porownane']:   # v253: powód z faktycznych danych (nie zgadywany)
         pw = []
-        if by[d] and all(len(r) > 7 and not str(r[7]).strip() for r in by[d].values()):
+        if lista:   # v258 (przegląd): pary giełd z nową listą portfeli odpadły — powód zawsze wymieniony (wpadało w „brak numeru bloku”)
+            pw.append('nowa lista portfeli — bez porównania: ' + ', '.join(lista))
+        reszta = [r for k, r in by[d].items() if k[0] not in lista]   # v258: giełdy bez nowej listy
+        if reszta and all(len(r) > 7 and not str(r[7]).strip() for r in reszta):
             pw.append('archiwum bez sum przelewów doby (doba niepełna albo sum brak)')
         elif out['odstep_h'] is not None:
             pw.append(f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie")
-        else:
+        elif dzis:   # v258: pary są, ale żadna nie ma numerów bloków obu migawek
             pw.append('brak numeru bloku migawki — bez porównania')
+        elif reszta:   # v258: żadnej pary giełda/aktywo z liczbami w obu dniach
+            pw.append(f'brak wspólnych par giełda/aktywo z liczbami w dniach {p} i {d}')
         if hist and not out['polnoc']:   # v250/v253: migawki o północy — dzień i giełdy, których migawki brak albo jest późna; inna wersja listy
             A, B = Hn.get(dm1) or {}, Hn.get(d) or {}
             ga = sorted({k[0] for k in by[d] if k not in A})
@@ -3760,8 +3803,7 @@ def kontrola():
     except Exception as e:  # noqa
         R['uwagi'].append(f'zgodnosc.csv: nie zapisano ({str(e)[:80]})')
     Z['indeksy'] = indeksy_ocena((files.get('indeksy') or {}).get('ix'))   # v254: świeżość każdej serii indeksów
-    for s, x, n in (Z['indeksy'] or {}).get('stare') or []:
-        R['uwagi'].append(f'indeksy giełdowe: {s} bez nowych sesji od {x} ({n} dni wobec najnowszej daty innych indeksów) — sprawdzić pobieranie tego indeksu')
+    R['uwagi'] += indeksy_uwagi(Z['indeksy'])   # v258: zacięte, z przyszłości, dostawca stoi
     if isinstance((files.get('indeksy') or {}).get('ix'), dict):   # v257: 4 indeksy vs ich wydawcy (FRED, bez klucza); brak odczytu = informacja
         try:
             Z['ix_fred'] = ixf_sprawdz(files['indeksy']['ix'])

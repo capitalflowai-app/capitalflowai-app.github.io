@@ -8828,6 +8828,15 @@ def fx_z_ecb(today, pobierz=None):
     return r
 
 
+def rynki_fx_nota(r):
+    """v258 (przegląd v255): kursy z zapasu EBC — notatka w meta z przyczyną (pośrednik nie odpowiadał), w każdym przebiegu, także z pamięci;
+    inaczej awaria pośrednika mogłaby trwać niezauważona (zapas działa, błędu brak)."""
+    if isinstance(r, dict) and r.get('fx_src') == 'EBC':
+        kiedy = str(((r.get('part_at') or {}).get('fx') if isinstance(r.get('part_at'), dict) else None) or r.get('at') or '—')[:16].replace('T', ' ')
+        META['notes'].append(mask(f"Kursy walut (odświeżenie {kiedy} UTC): pośrednik nie odpowiadał ({str(r.get('fx_err') or '—')[:100]})"
+                                  ' — kursy referencyjne prosto z EBC (te same daty)'))
+
+
 def build_rynki(prev=None, today=None):
     today = today or datetime.datetime.now(datetime.timezone.utc).date()
     prev = prev if isinstance(prev, dict) else {}
@@ -8870,7 +8879,7 @@ def build_rynki(prev=None, today=None):
                 r = fx_z_ecb(today)
             except Exception as e2:  # noqa
                 raise ValueError(f'{e1}; zapas EBC: {str(e2)[:80]}')
-            out['fx_src'] = 'EBC'
+            out['fx_src'] = 'EBC'; out['fx_err'] = mask(str(e1)[:120])   # v258: przyczyna zostaje w pliku (notatka także w przebiegach z pamięci)
             return r
 
     def ust():
@@ -8885,6 +8894,11 @@ def build_rynki(prev=None, today=None):
         return buba_parse(get_json(BUBA_URL.format(f=months_back(today, 13).isoformat()), timeout=60))
 
     part('fx', fx); part('ust', ust); part('buba', buba)
+    if not out['ok'].get('fx') and 'fx' in out and prev.get('fx_src'):   # v258: poprzednie kursy zostają razem z ich pochodzeniem
+        out['fx_src'] = prev['fx_src']
+        if prev.get('fx_err'):
+            out['fx_err'] = prev['fx_err']
+    rynki_fx_nota(out)
     if not any(out['ok'].values()):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
@@ -19161,7 +19175,7 @@ def main():
     # v101: kursy EBC i rentowności 10L (bez klucza) — co godzinę; każda część osobno (strona Źródła: rynki_fx / rynki_ust / rynki_buba)
     prev_ry = previous('rynki')
     if prev_ry and fresh(prev_ry, RYNKI_EVERY) and all((prev_ry.get('ok') or {}).get(k) for k in RYNKI_PX):
-        save('rynki', prev_ry)
+        save('rynki', prev_ry); rynki_fx_nota(prev_ry)   # v258: kursy z zapasu EBC widoczne także w przebiegu z pamięci
         for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = 'cached'
     else:
         try:

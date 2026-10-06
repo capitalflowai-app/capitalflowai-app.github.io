@@ -28206,30 +28206,33 @@ class KontrolaIndeksyV254(unittest.TestCase):
             spec = importlib.util.spec_from_file_location('v254_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
             cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
 
+    N6 = datetime.datetime(2026, 10, 6, 18, 0, tzinfo=datetime.timezone.utc)   # v258: kontrola bez zegara (dzień odniesienia ≤ dziś)
+
     def _ix(self, ost):
         return {s: ({'cc': 'x', 'd': [['2026-09-01', 100.0], [d, 101.0]]} if d else {'bad_at': '2026-10-03T16:53:53+00:00', 'bad_n': 4, 'bad': 'pusto'})
                 for s, d in ost.items()}
 
     def test_06_10(self):
         k = self.k
-        o = k.indeksy_ocena(self._ix({'N225': '2026-10-06', 'GSPC': '2026-10-05', 'AEX': '2026-10-02', 'SSEC': '2026-09-30', 'JTOPI': None}))
-        self.assertEqual((o['swieze'], o['najnowsza'], o['opoznione'], o['stare'], o['puste']),
-                         (2, '2026-10-06', [('AEX', '2026-10-02', 4), ('SSEC', '2026-09-30', 6)], [], [('JTOPI', '2026-10-03')]))
+        o = k.indeksy_ocena(self._ix({'N225': '2026-10-06', 'GSPC': '2026-10-05', 'AEX': '2026-10-02', 'SSEC': '2026-09-30', 'JTOPI': None}), now=self.N6)
+        self.assertEqual((o['swieze'], o['najnowsza'], o['opoznione'], o['stare'], o['puste']),   # v258: dni robocze
+                         (2, '2026-10-06', [('AEX', '2026-10-02', 2), ('SSEC', '2026-09-30', 4)], [], [('JTOPI', '2026-10-03')]))
         self.assertEqual(k.indeksy_wiersz(o), '- Indeksy giełdowe: świeże 2 z 5 (do 2026-10-06); opóźnione: AEX (2026-10-02), SSEC (2026-09-30) ℹ️; '
                                               'bez danych (dostawca nie podaje): JTOPI ℹ️.')
 
     def test_seria_zacieta_i_brzegi(self):
         k = self.k
-        o = k.indeksy_ocena(self._ix({'N225': '2026-10-06', 'WIG20': '2026-09-24'}))
-        self.assertEqual(o['stare'], [('WIG20', '2026-09-24', 12)])
-        self.assertIn('bez nowych sesji ponad 10 dni: WIG20 (od 2026-09-24) ⚠️', k.indeksy_wiersz(o))
-        self.assertEqual(k.indeksy_wiersz(k.indeksy_ocena(self._ix({'A': '2026-10-06', 'B': '2026-10-05'}))), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-06) ✅.')
+        o = k.indeksy_ocena(self._ix({'N225': '2026-10-06', 'WIG20': '2026-09-21'}), now=self.N6)   # v258: 11 dni roboczych
+        self.assertEqual(o['stare'], [('WIG20', '2026-09-21', 11)])
+        self.assertIn('bez nowych sesji ponad 9 dni roboczych: WIG20 (od 2026-09-21) ⚠️', k.indeksy_wiersz(o))
+        self.assertEqual(k.indeksy_wiersz(k.indeksy_ocena(self._ix({'A': '2026-10-06', 'B': '2026-10-05'}), now=self.N6)), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-06) ✅.')
         self.assertIsNone(k.indeksy_ocena({})); self.assertIsNone(k.indeksy_ocena(None))
         o = k.indeksy_ocena({'X': {'d': [['2026-10-06', float('nan')], ['2026-02-30', 1.0], ['2026-10-05', True]]}})
         self.assertEqual((o['swieze'], o['puste']), (0, [('X', '')]), 'NaN, zły dzień i bool — nie sesje')
         import inspect
         src = inspect.getsource(k.kontrola)
         self.assertIn("Z['indeksy'] = indeksy_ocena((files.get('indeksy') or {}).get('ix'))", src)
+        self.assertIn("R['uwagi'] += indeksy_uwagi(Z['indeksy'])", src)   # v258
         self.assertIn("L.append(indeksy_wiersz(Z.get('indeksy')))", inspect.getsource(k.raport_md))
 
 
@@ -28511,4 +28514,105 @@ class KontrolaIndeksyWydawcyV257(unittest.TestCase):
         src = inspect.getsource(k.kontrola)
         self.assertIn("Z['ix_fred'] = ixf_sprawdz(", src); self.assertIn("R['uwagi'] += ixf_uwagi(Z['ix_fred'])", src)
         self.assertIn("ixf_wiersz(Z.get('ix_fred'))", inspect.getsource(k.raport_md))
+
+
+# ===================== v258: POPRAWKI PO PRZEGLĄDZIE v253–v255 =====================
+class PoPrzegladzieV258(unittest.TestCase):
+    """v258: indeksy — dni robocze (Święto Wiosny i Indonezja bez ⚠️), dzień odniesienia ≤ dziś, sesja z przyszłości i stojący dostawca ⚠️;
+    wieloryby — nowa lista portfeli zawsze w powodzie; kursy — przyczyna zapasu EBC w pliku i notatka także w przebiegu z pamięci."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola258-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v258_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    @staticmethod
+    def _ix(ost):
+        return {s: {'cc': 'x', 'd': [['2025-01-02', 100.0], [d, 101.0]]} for s, d in ost.items()}
+
+    def test_swieta_gield_bez_falszywego_ostrzezenia(self):
+        k = self.k
+        N = lambda *a: datetime.datetime(*a, tzinfo=datetime.timezone.utc)  # noqa: E731
+        o = k.indeksy_ocena(self._ix({'N225': '2026-02-24', 'SSEC': '2026-02-13'}), now=N(2026, 2, 24, 7, 30))
+        self.assertEqual((o['stare'], o['opoznione']), ([], [('SSEC', '2026-02-13', 7)]), 'Święto Wiosny: 7 dni roboczych — informacja')
+        o = k.indeksy_ocena(self._ix({'N225': '2025-04-09', 'JKSE': '2025-03-27'}), now=N(2025, 4, 9, 6, 20))
+        self.assertEqual((o['stare'], o['opoznione']), ([], [('JKSE', '2025-03-27', 9)]), 'Indonezja + nieudane pobranie w dniu otwarcia: 9')
+        o = k.indeksy_ocena(self._ix({'N225': '2026-10-05', 'GSPC': '2026-10-02'}), now=N(2026, 10, 5, 9, 0))
+        self.assertEqual((o['swieze'], o['opoznione']), (2, []), 'piątek → poniedziałek: 1 dzień roboczy — świeże')
+
+    def test_przyszlosc_i_stojacy_dostawca(self):
+        k = self.k
+        N6 = datetime.datetime(2026, 10, 6, 18, 0, tzinfo=datetime.timezone.utc)
+        ix = self._ix({s: '2026-10-06' for s in ('GSPC', 'IXIC', 'DJI', 'N225')})
+        ix['MXX'] = {'cc': 'mx', 'd': [['2026-10-05', 64000.0], ['2026-10-20', 1.0]]}
+        o = k.indeksy_ocena(ix, now=N6)
+        self.assertEqual((o['najnowsza'], o['stare'], o['przyszle'], o['swieze']), ('2026-10-06', [], [('MXX', '2026-10-20')], 5))
+        self.assertIn('sesja z datą z przyszłości: MXX (2026-10-20) ⚠️', k.indeksy_wiersz(o))
+        self.assertEqual(len(k.indeksy_uwagi(o)), 1); self.assertIn('MXX ma sesję z datą z przyszłości (2026-10-20)', k.indeksy_uwagi(o)[0])
+        o = k.indeksy_ocena(self._ix({s: '2026-09-01' for s in ('GSPC', 'N225', 'MXX')}), now=N6)
+        self.assertEqual((o['wszystkie'], o['stare']), (25, []), 'wszystkie stoją — względem siebie świeże')
+        self.assertIn('najnowsza sesja 25 dni roboczych temu ⚠️', k.indeksy_wiersz(o)); self.assertNotIn('✅', k.indeksy_wiersz(o))
+        self.assertTrue(any('dostawca oddaje stare dane' in u for u in k.indeksy_uwagi(o)))
+        o = k.indeksy_ocena({'X': {'d': [['2026-10-30', 5.0]]}}, now=N6)
+        self.assertEqual((o['przyszle'], o['puste'], o['najnowsza']), ([('X', '2026-10-30')], [], None), 'tylko przyszłość — nie „bez danych”')
+        self.assertEqual(k._dni_rob(datetime.date(2026, 10, 2), datetime.date(2026, 10, 5)), 1)
+        self.assertEqual(k._dni_rob(datetime.date(2026, 10, 5), datetime.date(2026, 10, 2)), 0)
+
+    def _arch(self, nazwa, sumy):
+        p = os.path.join(self.tmp, nazwa)
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n')
+            for i, d in enumerate(['2026-10-05', '2026-10-06']):
+                for g in ('Binance', 'Bybit'):
+                    n = '0' if sumy.get(g) else ''
+                    f.write(f'{d},{g},USDT,1000000000,1000000000,,,{n},{26_000_000 + i * 7200}\n')
+        return p
+
+    def test_nowa_lista_w_powodzie(self):
+        k = self.k
+        o = k.wieloryby_ocena(self._arch('l1.csv', {'Binance': 1, 'Bybit': 1}), zmiany={'Binance': '2026-10-06', 'Bybit': '2026-10-06'})
+        self.assertEqual(o['pomin'], 'nowa lista portfeli — bez porównania: Binance, Bybit', 'przegląd: było „brak numeru bloku migawki”')
+        o = k.wieloryby_ocena(self._arch('l2.csv', {'Bybit': 1}), zmiany={'Bybit': '2026-10-06'})
+        self.assertEqual(o['pomin'], 'nowa lista portfeli — bez porównania: Bybit; archiwum bez sum przelewów doby (doba niepełna albo sum brak)')
+        o = k.wieloryby_ocena(self._arch('l3.csv', {'Binance': 1, 'Bybit': 1}), zmiany={'Bybit': '2026-10-06'})
+        self.assertEqual((o['porownane'], o['lista'], o['pomin']), (1, ['Bybit'], None), 'Binance porównany — powód nie potrzebny')
+
+    def test_kursy_zapas_slad_w_meta(self):
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+        self.addCleanup(zd.META['notes'].clear); self.addCleanup(zd.META['errors'].clear)
+
+        def gj(url, headers=None, timeout=30):
+            if 'frankfurter' in url:
+                raise TimeoutError('The read operation timed out')
+            if 'bundesbank' in url:
+                return RynkiV101.BUBA
+            raise AssertionError(url)
+
+        def gt(url, headers=None, timeout=30):
+            if 'data-api.ecb' in url:
+                return 200, RynkiEbcV255('test_przeliczenie_jak_posrednik')._pobierz([])(url)
+            raise RuntimeError('test: bez rentowności USA')
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'get', side_effect=gt):
+            o = zd.build_rynki(None, today=datetime.date(2026, 10, 6))
+        self.assertEqual((o.get('fx_src'), o.get('fx_err')), ('EBC', 'The read operation timed out'))
+        self.assertEqual([n for n in zd.META['notes'] if n.startswith('Kursy walut')],
+                         [f"Kursy walut (odświeżenie {zd.NOW[:16].replace('T', ' ')} UTC): pośrednik nie odpowiadał (The read operation timed out) — kursy referencyjne prosto z EBC (te same daty)"])
+        zd.META['notes'].clear()
+        zd.rynki_fx_nota({'fx_src': 'EBC', 'fx_err': 'x', 'part_at': {'fx': '2026-10-06T17:36:01+00:00'}})
+        self.assertEqual(zd.META['notes'], ['Kursy walut (odświeżenie 2026-10-06 17:36 UTC): pośrednik nie odpowiadał (x) — kursy referencyjne prosto z EBC (te same daty)'])
+        zd.META['notes'].clear(); zd.rynki_fx_nota({'fx': {}}); self.assertEqual(zd.META['notes'], [], 'kursy od pośrednika — bez notatki')
+
+        def gt2(url, headers=None, timeout=30):
+            raise RuntimeError('offline')
+        prev = dict(o)
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'get', side_effect=gt2):
+            o2 = zd.build_rynki(prev, today=datetime.date(2026, 10, 6))
+        self.assertFalse(o2['ok']['fx']); self.assertEqual((o2.get('fx_src'), o2['fx']), ('EBC', prev['fx']), 'poprzednie kursy z pochodzeniem')
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertIn("save('rynki', prev_ry); rynki_fx_nota(prev_ry)", src)
 
