@@ -2259,8 +2259,9 @@ def czas_przebiegu(zapisy, calosc):
     return {'s': round(calosc), 'top': [[n, round(s)] for n, s in top]}
 
 
-AW_PO_NAPRAWIE_H = 48     # v207: tyle godzin wpis naprawionej awarii zostaje w meta.json (kontrola raz na dobę widzi też awarie, które minęły w nocy)
-AW_NIEOBECNA_D = 7        # v207: wpis części nieobecnej w przebiegach (zmiana kodu) znika po tylu dniach od ostatniej awarii
+AW_PO_NAPRAWIE_H = 48     # v207: tyle godzin wpis zamkniętej serii zostaje w meta.json (kontrola raz na dobę widzi też awarie, które minęły w nocy)
+AW_NIEOBECNA_H = 6        # v211: trwająca seria części nieobecnej w przebiegach dłużej niż tyle godzin od ostatniej awarii — zamknięta jako „zniknęła”
+                          # (część wyłączona albo zmieniona; nie naprawa i nie BŁĄD); części tylko z przebiegów pełnej godziny mają ost co godzinę
 AW_MAX = 100              # v207: najwyżej tyle wpisów (najmłodsze wg ostatniej awarii) — ochrona pliku stanu
 
 
@@ -2273,16 +2274,30 @@ def _aw_t(s):
     return t.astimezone(datetime.timezone.utc) if t.tzinfo else None
 
 
+def _aw_seria(s, tn):
+    """v211: zamknięta seria [od, do, n] z pliku (do ≥ od, n ≥ 1, nie z przyszłości) albo None."""
+    if not (isinstance(s, list) and len(s) == 3):
+        return None
+    od, do, n = _aw_t(s[0]), _aw_t(s[1]), s[2]
+    if od is None or do is None or do < od or do > tn or not isinstance(n, int) or isinstance(n, bool) or n < 1:
+        return None
+    return [s[0], s[1], n]
+
+
 def awarie(prev, ok, now):
-    """v207: pamięć awarii części między przebiegami (meta.json → 'awarie'): kontrola dzienna widzi, od kiedy część nie działa i co naprawiło się
-    samo w nocy. prev — 'awarie' poprzedniego meta.json; ok — META['ok'] tego przebiegu; now — czas przebiegu (ISO ze strefą).
-    Wpis {część: {'od': pierwszy nieudany przebieg serii, 'ost': ostatni nieudany, 'n': nieudanych przebiegów w serii, 'do': pierwszy udany po
-    serii albo None (seria trwa)}}. ok False → seria trwa (n + 1) albo zaczyna się od nowa (po naprawie); każda inna wartość (True, 'cached')
-    kończy trwającą serię; część nieobecna w przebiegu — wpis bez zmian. Naprawiony wpis znika po AW_PO_NAPRAWIE_H h od naprawy, wpis części
-    nieobecnej — po AW_NIEOBECNA_D dniach od ostatniej awarii; złe wpisy poprzedniego pliku pomijane; najwyżej AW_MAX wpisów."""
+    """v207/v211: pamięć awarii części między przebiegami (meta.json → 'awarie'): kontrola dzienna widzi, od kiedy część nie działa i co
+    naprawiło się samo w nocy. prev — 'awarie' poprzedniego meta.json; ok — META['ok'] tego przebiegu; now — czas przebiegu (ISO ze strefą).
+    Wpis {część: {'od', 'ost', 'n', 'do'[, 'zn'][, 'prev']}}: od — pierwszy nieudany przebieg serii, ost — ostatni nieudany, n — nieudanych
+    przebiegów w serii, do — koniec serii albo None (trwa); zn True — seria zamknięta, bo część zniknęła z przebiegów (nie naprawa); prev —
+    poprzednia zamknięta seria [od, do, n] (nowa seria jej nie wymazuje; zostaje dłuższa z dwóch).
+    ok False → seria trwa (n + 1) albo zaczyna się nowa; tylko True kończy serię (v211: 'cached' = bez zapytania — część po nieudanej próbie
+    czeka na ponowienie — nic nie zmienia, jak brak części w przebiegu). Seria części nieobecnej dłużej niż AW_NIEOBECNA_H h od ostatniej
+    awarii — zamknięta z zn. Zamknięty wpis znika AW_PO_NAPRAWIE_H h po końcu, prev — AW_PO_NAPRAWIE_H h po swoim końcu; złe wpisy pomijane;
+    najwyżej AW_MAX wpisów."""
     tn = _aw_t(now)
     if tn is None:
         raise ValueError('awarie: czas przebiegu bez strefy')
+    H48 = datetime.timedelta(hours=AW_PO_NAPRAWIE_H)
     out = {}
     for k, w in (prev.items() if isinstance(prev, dict) else ()):
         if not (isinstance(k, str) and isinstance(w, dict)):
@@ -2292,26 +2307,39 @@ def awarie(prev, ok, now):
         if (od is None or ost is None or ost < od or ost > tn or not isinstance(n, int) or isinstance(n, bool) or n < 1
                 or (do is not None and (tdo is None or tdo < ost or tdo > tn))):
             continue
-        out[k] = {'od': w['od'], 'ost': w['ost'], 'n': n, 'do': do}
+        e = {'od': w['od'], 'ost': w['ost'], 'n': n, 'do': do}
+        if do is not None and w.get('zn') is True:
+            e['zn'] = True
+        p = _aw_seria(w.get('prev'), tn)
+        if p and _aw_t(p[1]) <= od:
+            e['prev'] = p
+        out[k] = e
     for k, v in (ok.items() if isinstance(ok, dict) else ()):
         w = out.get(k)
         if v is False:
             if w and w['do'] is None:
                 w['ost'] = now; w['n'] += 1
             else:
-                out[k] = {'od': now, 'ost': now, 'n': 1, 'do': None}
-        elif w and w['do'] is None:
+                e = {'od': now, 'ost': now, 'n': 1, 'do': None}
+                c = ([[w['od'], w['do'], w['n']]] if w and not w.get('zn') else []) + ([w['prev']] if w and w.get('prev') else [])
+                if c:   # v211: zamknięta seria nie znika przy nowej awarii — zostaje dłuższa z dwóch (ta i jej poprzednia)
+                    e['prev'] = max(c, key=lambda s: (_aw_t(s[1]) - _aw_t(s[0]), s[1]))
+                out[k] = e
+        elif v is True and w and w['do'] is None:
             w['do'] = now
     for k in list(out):
         w = out[k]
-        if w['do'] is not None:
-            if tn - _aw_t(w['do']) > datetime.timedelta(hours=AW_PO_NAPRAWIE_H):
-                del out[k]
-        elif k not in (ok or {}) and tn - _aw_t(w['ost']) > datetime.timedelta(days=AW_NIEOBECNA_D):
+        if w.get('prev') and tn - _aw_t(w['prev'][1]) > H48:
+            del w['prev']
+        if w['do'] is None and k not in (ok if isinstance(ok, dict) else {}) and tn - _aw_t(w['ost']) > datetime.timedelta(hours=AW_NIEOBECNA_H):
+            w['do'] = now; w['zn'] = True
+        if w['do'] is not None and tn - _aw_t(w['do']) > H48:
             del out[k]
     if len(out) > AW_MAX:
         out = dict(sorted(out.items(), key=lambda x: _aw_t(x[1]['ost']), reverse=True)[:AW_MAX])
     return out
+
+
 NSDL_MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
 OBCE_KEEP = 300           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg; v89: 300 — tło dla TRENDÓW)
 NSDL_CATS = {'equity': 'eq', 'debt-general limit': 'debt', 'debt-vrr': 'debt', 'debt-far': 'debt', 'hybrid': 'hyb',
@@ -6145,7 +6173,7 @@ def _td_pg(lines, lines_all, names, looks, cp, since, today, settle):
         est = None
         if c is not None and nm >= TD_PG_EST_N and span >= TD_PG_EST_D:
             est = (upto + datetime.timedelta(days=math.ceil(max(0, c - nm) * span / nm) + settle)).isoformat()
-        out[name] = [n, c, est]
+        out[name] = [n, c, est, nm]   # v211: + dni dojrzałe (punkt kontrolny liczy tylko je — strona: „ocena w ciągu kilku dni”, gdy n ≥ c)
     return {'do': upto.isoformat(), 'l': out}
 
 
@@ -19191,7 +19219,9 @@ def main():
         META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "
                              + ', '.join(f'{n} {s} s' for n, s in META['czas']['top'][:3]))
     try:   # v207: pamięć awarii części między przebiegami (kontrola dzienna: od kiedy nie działa, co naprawiło się samo); awaria = bez pola
-        META['awarie'] = awarie((previous('meta') or {}).get('awarie'), META['ok'], NOW)
+        pm = previous('meta') or {}
+        META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW)
+        META['awarie_od'] = pm['awarie_od'] if 'awarie' in pm and _aw_t(pm.get('awarie_od')) else NOW   # v211: początek pamięci (raport: „pamięć od …”)
     except Exception as e:
         META['notes'].append(f'pamięć awarii: {e}')
     META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu

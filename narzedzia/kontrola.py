@@ -87,6 +87,9 @@ ZG_ZOLTE, ZG_CZERWONE = 2.0, 5.0   # pkt proc. odchylenia od mediany
 STAB_ZOLTE = 2.0     # pkt proc. — odchylenie dzisiejszej różnicy (DefiLlama vs CoinMarketCap) od mediany ZG_DNI dni = ⚠️ (nigdy ❌)
 STAB_MAX_H = 6.0     # h — pliki krypto.json i cmc.json pobrane dalej od siebie = bez porównania (informacja)
 UST_FRED = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd={od}'   # H.15: Rada Gubernatorów Fed — domena publiczna, bez klucza
+UST_FED = ('https://www.federalreserve.gov/datadownload/Output.aspx?rel=H15&series=bf17364827e38702b42a58cf8eaa3f78&lastobs=15&from=&to='
+           '&filetype=csv&label=include&layout=seriescolumn&type=package')   # v211: H.15 u wydawcy (stałe zapadalności, dni robocze) — najpierw to, FRED zapasem
+UST_FED_KOL = 'RIFLGFCY10_N.B'   # v211: kolumna 10 lat w pliku H.15 (06.10: 24.09 5,18 = DGS10 5,18 = plik strony)
 UST_PROG = 0.02      # pkt proc. — ta sama data: plik strony (Skarb USA) vs H.15; większa różnica = ⚠️
 UST_DNI = 10         # tyle ostatnich dat z pliku strony porównujemy (H.15 wychodzi z ok. 1-dniowym opóźnieniem)
 UST_OD_DNI = 21      # FRED: plik od tylu dni wstecz (mały — ok. 200 B)
@@ -175,7 +178,10 @@ AW_UWAGA_H = 3        # v207: część automatu nie działa co najmniej tyle god
 AW_BLAD_H = 48        # v207: … co najmniej tyle godzin = BŁĄD (e-mail do właściciela): automat nie naprawił tego sam
 AW_INFO_H = 24        # v207: awarie naprawione w ostatnich tylu godzinach — informacja ℹ️ (samonaprawa widoczna w raporcie)
 AW_KLUCZ = re.compile(r'klucz\w*(?:\s+\S+)?\s+odrzuc|zły klucz|unauthori[sz]ed|HTTP\D{0,7}401\b|(?:invalid|incorrect) api ?key', re.I)
-AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań|dobowy limit|limit planu', re.I)
+AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań(?! w przebiegu)|dobowy limit|limit planu', re.I)   # v211: bez własnego limitu zbieracza
+AW_BEZ_BLEDU = {   # v211: części, w których „brak” znaczy też „czeka na publikację” albo dodatek bez czerwieni — seria tylko informacją (wiek danych ocenia wiersz świeżości)
+    'ici': 'fundusze USA — spóźniona publikacja to nie awaria (v134)', 'jpx': 'Japonia — tydzień czeka na publikację giełdy',
+    'snb': 'Szwajcaria — tydzień czeka na publikację banku', 'wycena_bg': 'dodatek SOPR — limit planu źródła (v132)'}
 
 
 def _aw_t(s):
@@ -203,15 +209,18 @@ def awaria_rodzaj(e):
 
 
 def awarie_ocena(meta, now=None):
-    """v207: pole 'awarie' z meta.json (pamięć zbieracza między przebiegami) → {'trwa': [...], 'naprawione': [...], 'uwagi': [...], 'bledy': [...]};
-    element: {'czesc', 'od', 'ost', 'n', 'do', 'h'} (h — godziny serii: do teraz albo do naprawy). Seria trwa ≥ AW_BLAD_H h = błąd (automat nie
-    naprawił tego sam), ≥ AW_UWAGA_H h = uwaga, krótsza — tylko informacja; naprawione w ostatnich AW_INFO_H h — informacja. Brak pola
-    (zbieracz sprzed v207) albo zły typ = None; złe wpisy pomijane."""
+    """v207/v211: pole 'awarie' z meta.json (pamięć zbieracza między przebiegami) → {'trwa', 'naprawione', 'zniknely', 'uwagi', 'bledy'};
+    element: {'czesc', 'od', 'ost', 'n', 'do', 'h'[, 'bez']} (h — godziny serii: do ostatniego przebiegu automatu (meta.at; nie dalej niż
+    teraz) albo do końca serii). Seria trwa ≥ AW_BLAD_H h = błąd (automat nie naprawił tego sam), ≥ AW_UWAGA_H h = uwaga, krótsza —
+    informacja; części z AW_BEZ_BLEDU — zawsze informacja ('bez'); zamknięte w ostatnich AW_INFO_H h — „naprawione” albo „zniknęły” (zn);
+    poprzednia zamknięta seria (prev) — także w „naprawionych”. Brak pola (zbieracz sprzed v207) albo zły typ = None; złe wpisy pomijane."""
     now = now or NOW
     aw = meta.get('awarie') if isinstance(meta, dict) else None
     if not isinstance(aw, dict):
         return None
-    Z = {'trwa': [], 'naprawione': [], 'uwagi': [], 'bledy': []}
+    ma = _aw_t(meta.get('at'))
+    kon = min(now, ma) if ma else now
+    Z = {'trwa': [], 'naprawione': [], 'zniknely': [], 'uwagi': [], 'bledy': []}
     for k, w in sorted(aw.items()):
         if not isinstance(w, dict):
             continue
@@ -219,17 +228,27 @@ def awarie_ocena(meta, now=None):
         do = _aw_t(w.get('do')) if w.get('do') is not None else None
         if od is None or ost is None or not isinstance(n, int) or isinstance(n, bool) or n < 1 or (w.get('do') is not None and do is None):
             continue
-        h = ((do or now) - od).total_seconds() / 3600
+        h = max(0.0, ((do or kon) - od).total_seconds() / 3600)
         x = {'czesc': str(k)[:40], 'od': w['od'], 'ost': w['ost'], 'n': n, 'do': w.get('do'), 'h': round(h, 1)}
         if do is None:
+            x['bez'] = k in AW_BEZ_BLEDU
             Z['trwa'].append(x)
             opis = f'część automatu „{x["czesc"]}” nie działa od {czas_pl(w["od"])} ({_aw_h(h)}, nieudanych przebiegów z rzędu: {n})'
-            if h >= AW_BLAD_H:
+            if x['bez']:
+                pass
+            elif h >= AW_BLAD_H:
                 Z['bledy'].append(opis + ' — automat nie naprawił tego sam; co zrobić: napisz do Claude „napraw część ' + x['czesc'] + '”')
             elif h >= AW_UWAGA_H:
-                Z['uwagi'].append(opis + ' — automat ponawia co 10 min; dane tej części mają swój wiek na stronie')
+                Z['uwagi'].append(opis + ' — automat ponawia sam; dane tej części mają swój wiek na stronie')
         elif (now - do).total_seconds() <= AW_INFO_H * 3600:
-            Z['naprawione'].append(x)
+            Z['zniknely' if w.get('zn') is True else 'naprawione'].append(x)
+        p = w.get('prev')
+        if isinstance(p, list) and len(p) == 3:
+            po, pd_, pn = _aw_t(p[0]), _aw_t(p[1]), p[2]
+            if (po and pd_ and pd_ >= po and isinstance(pn, int) and not isinstance(pn, bool) and pn >= 1
+                    and (now - pd_).total_seconds() <= AW_INFO_H * 3600):
+                Z['naprawione'].append({'czesc': str(k)[:40], 'od': p[0], 'ost': p[1], 'n': pn, 'do': p[1], 'h': round((pd_ - po).total_seconds() / 3600, 1)})
+    Z['naprawione'].sort(key=lambda x: (x['czesc'], x['od']))
     return Z
 
 
@@ -562,6 +581,24 @@ def ust_fred_csv(txt):
         if len(p) == 2 and re.match(r'^\d{4}-\d{2}-\d{2}$', p[0]):
             try:
                 out[p[0]] = float(p[1])
+            except ValueError:
+                pass
+    return out
+
+
+def ust_fed_csv(txt):
+    """v211: CSV H.15 z serwisu danych Rady Gubernatorów Fed (wiersze opisu, potem „Time Period” z kodami serii, potem dni) → {dzień: rentowność
+    10L}; 'ND' (brak notowania) i złe wiersze pominięte; brak kolumny 10L albo nagłówka = {}."""
+    out, col = {}, None
+    for r in csv.reader(str(txt or '').splitlines()):
+        if not r:
+            continue
+        if r[0].strip() == 'Time Period':
+            col = r.index(UST_FED_KOL) if UST_FED_KOL in r else None
+            continue
+        if col is not None and len(r) > col and re.match(r'^\d{4}-\d{2}-\d{2}$', r[0]):
+            try:
+                out[r[0]] = float(r[col])
             except ValueError:
                 pass
     return out
@@ -2149,7 +2186,8 @@ def kontrola():
         nie = sorted(k for k, v in (m.get('ok') or {}).items() if v is False)
         R['meta'] = {'at': m.get('at'), 'wiek_min': w, 'zrodla': len(m.get('ok') or {}), 'bez_odpowiedzi': nie,
                      'errors': [str(x)[:160] for x in (m.get('errors') or [])], 'notes': [str(x)[:160] for x in (m.get('notes') or [])],
-                     'czas': m.get('czas') if isinstance(m.get('czas'), dict) else None}   # v185: czas przebiegu automatu
+                     'czas': m.get('czas') if isinstance(m.get('czas'), dict) else None,   # v185: czas przebiegu automatu
+                     'awarie_od': m.get('awarie_od') if isinstance(m.get('awarie_od'), str) else None}   # v211: początek pamięci awarii
         if w is None:
             R['bledy'].append('plik stanu bez czasu przebiegu')
         elif w > 180:
@@ -2158,8 +2196,8 @@ def kontrola():
             R['uwagi'].append(f'ostatni przebieg automatu sprzed {w} min (zwykle co 10 min)')
         if nie:
             R['uwagi'].append('źródła bez odpowiedzi w ostatnim przebiegu: ' + ', '.join(nie))
-        for e in R['meta']['errors']:
-            R['uwagi'].append('błąd zbieracza: ' + e + awaria_rodzaj(e))   # v207: dopisek — odrzucony klucz / limit planu
+        for e in (m.get('errors') or []):   # v211: dopisek z pełnej treści (dotąd z obciętej do 160 znaków)
+            R['uwagi'].append('błąd zbieracza: ' + str(e)[:160] + awaria_rodzaj(e))   # v207: dopisek — odrzucony klucz / limit planu
         aw = awarie_ocena(m)   # v207: pamięć awarii zbieracza — od kiedy część nie działa, co naprawiło się samo (None = zbieracz sprzed v207)
         if aw is not None:
             R['awarie'] = aw
@@ -2362,16 +2400,25 @@ def kontrola():
             if st3 == '⚠️':
                 R['uwagi'].append(f'podaż stablecoinów: różnica dwóch źródeł dziś {s["roznica_pct"]:+.2f}% wobec normy {med3:+.2f}% ({opis3}) — sprawdzić, czy któreś źródło nie pominęło sieci albo monety')
         Z['stablecoiny'] = s
-    if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('ust'), list):   # v209: rentowność 10L USA vs H.15 (1 zapytanie; brak = informacja)
-        try:
-            st4, body4, _ = get(UST_FRED.format(od=(NOW.date() - dt.timedelta(days=UST_OD_DNI)).isoformat()), timeout=30)
-            u = ust_porownanie(files['rynki'], ust_fred_csv(body4.decode('utf-8', 'replace')))
+    if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('ust'), list):   # v209/v211: rentowność 10L USA vs H.15 — wydawca, zapas FRED; brak = informacja
+        u, bu = None, []
+        for nazwa, url, czytaj in (('Fed', UST_FED, ust_fed_csv), ('FRED', UST_FRED.format(od=(NOW.date() - dt.timedelta(days=UST_OD_DNI)).isoformat()), ust_fred_csv)):
+            try:
+                st4, body4, _ = get(url, timeout=30)
+                F = czytaj(body4.decode('utf-8', 'replace'))
+                if not F:
+                    raise ValueError('plik bez liczb')
+                u = ust_porownanie(files['rynki'], F); u['zrodlo'] = nazwa
+                break
+            except Exception as e:  # noqa
+                bu.append(f'{nazwa}: {str(e)[:80]}')
+        if u is not None:
             Z['ust10'] = u
-            if u and u['roznice']:
+            if u['roznice']:
                 R['uwagi'].append('rentowność 10L USA: plik strony vs H.15 różnią się ponad ' + f'{UST_PROG:g} pkt proc.: '
                                   + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]))
-        except Exception as e:  # noqa
-            Z['ust10'] = {'brak': str(e)[:100]}
+        else:
+            Z['ust10'] = {'brak': '; '.join(bu)[:200]}
     try:
         zgodnosc_zapisz(zg_path, rows)
     except Exception as e:  # noqa
@@ -2549,15 +2596,20 @@ def raport_md(R):
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     aw = R.get('awarie') if isinstance(R.get('awarie'), dict) else None   # v207: pamięć awarii części automatu
     if aw is not None:
-        if not aw.get('trwa') and not aw.get('naprawione'):
-            L.append('- Awarie części automatu (pamięć 48 h): brak — wszystkie części działały w każdym przebiegu.')
+        if not aw.get('trwa') and not aw.get('naprawione') and not aw.get('zniknely'):
+            ao, ra = _aw_t(m.get('awarie_od')), _aw_t(R.get('at'))   # v211: „brak” tylko za ostatnią dobę; pamięć młodsza niż doba — od kiedy
+            L.append('- Awarie części automatu (24 h): brak' + (f' (pamięć od {czas_pl(m["awarie_od"])})' if ao and ra and (ra - ao).total_seconds() < AW_INFO_H * 3600 else '') + '.')
         if aw.get('trwa'):
             L.append('- Awarie części automatu — trwają: ' + '; '.join(
                 f'{x["czesc"]} od {czas_pl(x["od"])} ({_aw_h(x["h"])}, nieudanych przebiegów: {x["n"]}) '
-                + ('❌' if x['h'] >= AW_BLAD_H else '⚠️' if x['h'] >= AW_UWAGA_H else 'ℹ️') for x in aw['trwa']) + '.')
+                + ('ℹ️ (' + AW_BEZ_BLEDU.get(x['czesc'], '') + ')' if x.get('bez') else '❌' if x['h'] >= AW_BLAD_H else '⚠️' if x['h'] >= AW_UWAGA_H else 'ℹ️')
+                for x in aw['trwa']) + '.')
         if aw.get('naprawione'):
             L.append('- Naprawiły się same (24 h): ' + '; '.join(
                 f'{x["czesc"]} {czas_pl(x["od"])} – {czas_pl(x["do"])} ({_aw_h(x["h"])}, nieudanych przebiegów: {x["n"]}) ℹ️' for x in aw['naprawione']) + '.')
+        if aw.get('zniknely'):   # v211: seria zamknięta, bo część nie pojawia się w przebiegach (wyłączona albo zmieniona) — nie awaria, nie naprawa
+            L.append('- Zniknęły z przebiegów (24 h; część wyłączona albo zmieniona — nie awaria): ' + '; '.join(
+                f'{x["czesc"]} — ostatnia nieudana próba {czas_pl(x["ost"])} (nieudanych przebiegów: {x["n"]}) ℹ️' for x in aw['zniknely']) + '.')
     if m.get('notes'):
         L.append('- Notatki automatu: ' + ' · '.join(m['notes']) + '.')
     if R.get('swiezosc'):
@@ -2599,7 +2651,7 @@ def raport_md(R):
             elif not u.get('porownane'):
                 L.append('- Rentowność 10L USA (Skarb USA vs H.15): brak wspólnych dat ℹ️.')
             else:
-                L.append(f'- Rentowność 10L USA (Skarb USA vs H.15, te same dni): porównane {u["porownane"]} dat (do {u["do"]}), różnice > {UST_PROG:g} pkt proc.: '
+                L.append(f'- Rentowność 10L USA (Skarb USA vs H.15{" — " + u["zrodlo"] if u.get("zrodlo") else ""}, te same dni): porównane {u["porownane"]} dat (do {u["do"]}), różnice > {UST_PROG:g} pkt proc.: '
                          f'{len(u["roznice"])} ' + ('⚠️ — ' + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]) + '.' if u['roznice'] else '✅.'))
         e = Z.get('etf')
         if e:

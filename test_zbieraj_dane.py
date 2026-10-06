@@ -25146,18 +25146,21 @@ class PamiecAwariiV207(unittest.TestCase):
         a = zd.awarie(a, {'fred': True}, t(2))
         self.assertEqual(a['tic']['do'], None, 'część nieobecna w przebiegu — seria bez zmian')
         a = zd.awarie(a, {'tic': 'cached'}, t(3))
-        self.assertEqual(a['tic'], {'od': t(0), 'ost': t(1), 'n': 2, 'do': t(3)}, "'cached' kończy serię (naprawa)")
+        self.assertEqual(a['tic'], {'od': t(0), 'ost': t(1), 'n': 2, 'do': None}, "v211: 'cached' (bez zapytania — czeka na ponowienie) nie kończy serii")
+        a = zd.awarie(a, {'tic': True}, t(3))
+        self.assertEqual(a['tic'], {'od': t(0), 'ost': t(1), 'n': 2, 'do': t(3)}, 'tylko True kończy serię (naprawa)')
         b = zd.awarie(a, {'tic': True}, t(4))
         self.assertEqual(b['tic']['do'], t(3), 'naprawiona — data naprawy bez zmian')
         b = zd.awarie(a, {'tic': False}, t(5))
-        self.assertEqual(b['tic'], {'od': t(5), 'ost': t(5), 'n': 1, 'do': None}, 'awaria po naprawie = nowa seria')
+        self.assertEqual(b['tic'], {'od': t(5), 'ost': t(5), 'n': 1, 'do': None, 'prev': [t(0), t(3), 2]}, 'awaria po naprawie = nowa seria; v211: poprzednia zostaje')
         self.assertEqual(zd.awarie(a, {'tic': True}, t(3 + 48)), a, '48 h po naprawie — wpis jeszcze jest')
         self.assertEqual(zd.awarie(a, {'tic': True}, t(3 + 48.1)), {}, 'ponad 48 h po naprawie — wpis znika')
 
     def test_nieobecna_zle_wpisy_i_limit(self):
         t = self._t
         a = {'stara': {'od': t(-200), 'ost': t(-169), 'n': 5, 'do': None}, 'mloda': {'od': t(-200), 'ost': t(-167), 'n': 5, 'do': None}}
-        self.assertEqual(sorted(zd.awarie(a, {}, t(0))), ['mloda'], 'część nieobecna: wpis znika po 7 dniach od ostatniej awarii')
+        o = zd.awarie(a, {}, t(0))
+        self.assertEqual((o['stara']['do'], o['stara']['zn'], o['mloda']['zn']), (t(0), True, True), 'v211: nieobecna > 6 h od ostatniej awarii — seria zamknięta jako „zniknęła”')
         self.assertEqual(sorted(zd.awarie(a, {'stara': False}, t(0))), ['mloda', 'stara'], 'obecna z błędem — seria trwa mimo wieku')
         zle = {'a': {'od': t(0), 'ost': t(-1), 'n': 1, 'do': None}, 'b': {'od': t(-1), 'ost': t(0), 'n': 0, 'do': None},
                'c': {'od': t(-1), 'ost': t(0), 'n': True, 'do': None}, 'd': {'od': 'x', 'ost': t(0), 'n': 1, 'do': None},
@@ -25170,21 +25173,21 @@ class PamiecAwariiV207(unittest.TestCase):
         duzo = {f'c{i:03d}': {'od': t(-10), 'ost': t(-10 + i / 100), 'n': 1, 'do': None} for i in range(120)}
         out = zd.awarie(duzo, {}, t(0))
         self.assertEqual(len(out), zd.AW_MAX); self.assertIn('c119', out); self.assertNotIn('c019', out, 'zostają najmłodsze wg ostatniej awarii')
-        self.assertEqual((zd.AW_PO_NAPRAWIE_H, zd.AW_NIEOBECNA_D, zd.AW_MAX), (48, 7, 100))
+        self.assertEqual((zd.AW_PO_NAPRAWIE_H, zd.AW_NIEOBECNA_H, zd.AW_MAX), (48, 6, 100))
 
     def test_main_zapisuje_awarie_przed_meta(self):
         import inspect
         src = inspect.getsource(zd.main)
         i, j = src.index("META['awarie'] = awarie("), src.index("save('meta', META)")
         self.assertLess(i, j, 'pamięć awarii liczona przed zapisem meta.json')
-        self.assertIn("(previous('meta') or {}).get('awarie')", src)
+        self.assertIn("META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW)", src); self.assertIn("pm = previous('meta') or {}", src)
 
     def test_kontrola_ocena(self):
         k, t = self.k, self._t
         now = datetime.datetime(2026, 10, 6, 4, 0, tzinfo=datetime.timezone.utc)
         self.assertIsNone(k.awarie_ocena({}, now)); self.assertIsNone(k.awarie_ocena({'awarie': []}, now)); self.assertIsNone(k.awarie_ocena(None, now))
         Z = k.awarie_ocena({'awarie': {}}, now)
-        self.assertEqual(Z, {'trwa': [], 'naprawione': [], 'uwagi': [], 'bledy': []})
+        self.assertEqual(Z, {'trwa': [], 'naprawione': [], 'zniknely': [], 'uwagi': [], 'bledy': []})
         aw = {'krotka': {'od': t(-2), 'ost': t(-0.2), 'n': 12, 'do': None}, 'tic': {'od': t(-5), 'ost': t(-0.1), 'n': 30, 'do': None},
               'oecd': {'od': t(-50), 'ost': t(-0.1), 'n': 290, 'do': None}, 'fred': {'od': t(-10), 'ost': t(-8), 'n': 13, 'do': t(-7.9)},
               'bis': {'od': t(-40), 'ost': t(-30), 'n': 60, 'do': t(-25)}, 'zly': {'od': t(-1), 'ost': t(0), 'n': 0, 'do': None}, 'x': 'y'}
@@ -25194,7 +25197,7 @@ class PamiecAwariiV207(unittest.TestCase):
         self.assertEqual(Z['bledy'][0], 'część automatu „oecd” nie działa od 04.10.2026, 04:00 (2 dni 2 godz., nieudanych przebiegów z rzędu: 290) — automat '
                                         'nie naprawił tego sam; co zrobić: napisz do Claude „napraw część oecd”')
         self.assertEqual(Z['uwagi'][0], 'część automatu „tic” nie działa od 06.10.2026, 01:00 (5 godz., nieudanych przebiegów z rzędu: 30) — automat ponawia '
-                                        'co 10 min; dane tej części mają swój wiek na stronie')
+                                        'sam; dane tej części mają swój wiek na stronie')
         self.assertEqual(Z['naprawione'][0]['h'], 2.1)
         self.assertEqual((k.AW_UWAGA_H, k.AW_BLAD_H, k.AW_INFO_H), (3, 48, 24))
 
@@ -25213,13 +25216,13 @@ class PamiecAwariiV207(unittest.TestCase):
         k = self.k
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
             src = f.read()
-        self.assertIn("R['uwagi'].append('błąd zbieracza: ' + e + awaria_rodzaj(e))", src)
+        self.assertIn("R['uwagi'].append('błąd zbieracza: ' + str(e)[:160] + awaria_rodzaj(e))", src)
         self.assertIn("aw = awarie_ocena(m)", src)
         R = {'at': '2026-10-06T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-10-06T06:13:00+00:00', 'wiek_min': 7,
              'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': [], 'bledy': []}
         self.assertNotIn('Awarie części automatu', k.raport_md(R), 'zbieracz sprzed v207 — bez linii')
         R['awarie'] = {'trwa': [], 'naprawione': [], 'uwagi': [], 'bledy': []}
-        self.assertIn('- Awarie części automatu (pamięć 48 h): brak — wszystkie części działały w każdym przebiegu.', k.raport_md(R))
+        self.assertIn('- Awarie części automatu (24 h): brak.', k.raport_md(R))
         R['awarie'] = {'trwa': [{'czesc': 'tic', 'od': '2026-10-06T01:00:00+00:00', 'ost': '2026-10-06T06:10:00+00:00', 'n': 30, 'do': None, 'h': 5.3}],
                        'naprawione': [{'czesc': 'fred', 'od': '2026-10-05T22:00:00+00:00', 'ost': '2026-10-06T00:00:00+00:00', 'n': 13, 'do': '2026-10-06T00:10:00+00:00', 'h': 2.2}],
                        'uwagi': ['x'], 'bledy': []}
@@ -25265,11 +25268,11 @@ class PamiecAwariiV207(unittest.TestCase):
                 mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen):
             R = k.kontrola()
         self.assertEqual(R['wynik'], 'BŁĄD')
-        self.assertTrue(any('„oecd” nie działa od 03.10.2026, 20:20 (2 dni 12 godz.' in b and 'napraw część oecd' in b for b in R['bledy']), R['bledy'])
-        self.assertTrue(any('„tic” nie działa od 06.10.2026, 03:20 (5 godz.' in u for u in R['uwagi']), R['uwagi'])
+        self.assertTrue(any('„oecd” nie działa od 03.10.2026, 20:20 (2 dni 11 godz.' in b and 'napraw część oecd' in b for b in R['bledy']), R['bledy'])
+        self.assertTrue(any('„tic” nie działa od 06.10.2026, 03:20 (4 godz.' in u for u in R['uwagi']), 'v211: do ostatniego przebiegu (7 min przed kontrolą)')
         self.assertTrue(any(u.startswith('błąd zbieracza: EODHD') and 'odrzucony klucz' in u for u in R['uwagi']), R['uwagi'])
         md = k.raport_md(R)
-        self.assertIn('- Awarie części automatu — trwają: oecd od 03.10.2026, 20:20 (2 dni 12 godz., nieudanych przebiegów: 350) ❌; tic od 06.10.2026, 03:20 (5 godz., nieudanych przebiegów: 30) ⚠️.', md)
+        self.assertIn('- Awarie części automatu — trwają: oecd od 03.10.2026, 20:20 (2 dni 11 godz., nieudanych przebiegów: 350) ❌; tic od 06.10.2026, 03:20 (4 godz., nieudanych przebiegów: 30) ⚠️.', md)
 
 
 # ===================== v208: TRENDY — POSTĘP NAUKI SYGNAŁÓW (pg w dziennikach) =====================
@@ -25283,19 +25286,19 @@ class PostepNaukiV208(unittest.TestCase):
         names = [('p', 'p'), ('e', 'e'), ('all', 'all')]
         LA = dict(L, all=L['all'] + [('2026-10-03', 1, 'BTC', 1)])
         pg = zd._td_pg(L, LA, names, (100, 200, 400), {}, '2026-09-28', d('2026-10-06'), 5)
-        self.assertEqual(pg, {'do': '2026-10-01', 'l': {'p': [0, 100, None], 'e': [1, 100, None], 'all': [3, 100, None]}},
+        self.assertEqual(pg, {'do': '2026-10-01', 'l': {'p': [0, 100, None, 0], 'e': [1, 100, None, 1], 'all': [3, 100, None, 2]}},
                          'dni bez powtórzeń, także młodsze niż 5 dni (03.10); za mało na szacunek')
         self.assertEqual(zd._td_pg(L, None, names, (100,), {}, '2026-09-28', d('2026-10-06'), 5)['l']['all'][0], 2, 'bez par „wszystkie” — dojrzałe')
         L2 = {'all': [('2026-09-%02d' % (1 + i), 1, 'BTC', 1) for i in range(20)]}
         pg = zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), {}, '2026-09-01', d('2026-09-25'), 5)
-        self.assertEqual(pg['l']['all'], [20, 100, '2026-12-14'], '20 dni z sygnałem w 20 dniach: 80 dni + 5 dojrzewania od granicy 20.09 → 14.12 (tempo n/dni)')
+        self.assertEqual(pg['l']['all'], [20, 100, '2026-12-14', 20], '20 dni z sygnałem w 20 dniach: 80 dni + 5 dojrzewania od granicy 20.09 → 14.12 (tempo n/dni)')
         cp = {'all': [[100, 60, 100, 50.0, 60.0, 60.0, 40.0, 70.0, 'none', '2026-12-01', 'x']]}
         self.assertEqual(zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), cp, '2026-09-01', d('2026-09-25'), 5)['l']['all'][1], 200, 'po zapisanej ocenie — następny punkt')
         cp['all'] += [[200] + [0] * 10, [400] + [0] * 10]
-        self.assertEqual(zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), cp, '2026-09-01', d('2026-09-25'), 5)['l']['all'], [20, None, None], 'wszystkie zapisane')
+        self.assertEqual(zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), cp, '2026-09-01', d('2026-09-25'), 5)['l']['all'], [20, None, None, 20], 'wszystkie zapisane')
         pg = zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), {}, '2026-09-15', d('2026-09-25'), 5)
         self.assertEqual(pg['l']['all'][2], None, 'dziennik krótszy niż 2 tygodnie — bez szacunku')
-        self.assertEqual(zd._td_pg(None, None, [('x', 'x')], (100,), None, '2026-10-05', d('2026-10-06'), 4), {'do': '2026-10-02', 'l': {'x': [0, 100, None]}})
+        self.assertEqual(zd._td_pg(None, None, [('x', 'x')], (100,), None, '2026-10-05', d('2026-10-06'), 4), {'do': '2026-10-02', 'l': {'x': [0, 100, None, 0]}})
         self.assertEqual((zd.TD_PG_EST_N, zd.TD_PG_EST_D), (10, 14))
 
     def test_dzienniki_maja_pg_zgodne_z_punktami_kontrolnymi(self):
@@ -25311,10 +25314,10 @@ class PostepNaukiV208(unittest.TestCase):
         self.assertEqual(out['pg']['l']['all'][:2], [40, 100], '40 dni z sygnałem i wynikiem (28.09–06.11), w tym 36 dojrzałych (do 02.11)')
         self.assertEqual(out['pg']['l']['all'][2], '2027-01-10', 'szacunek z dojrzałych: 36 w 36 dniach — 64 dni dalej + 5 dojrzewania')
         self.assertEqual(sorted(out['pg']['l']), sorted(k for _, k in zd.TD_RULES_CR2), 'wszystkie 7 linii')
-        self.assertEqual(out['pg']['l']['e'], [0, 100, None], 'linia bez sygnału — 0')
+        self.assertEqual(out['pg']['l']['e'], [0, 100, None, 0], 'linia bez sygnału — 0')
         w = {'v': zd.TD_VW2, 'since': zd.TD_SINCE_W2, 'rows': [], 'cp': {}}
         ow = zd._tdw_log(w, [], [], datetime.datetime(2026, 10, 6, 12, 0, tzinfo=U))
-        self.assertEqual(ow['pg'], {'do': '2026-10-02', 'l': {k[0] + '.' + k[1]: [0, 100, None] for k in zd.TD_RULES_W2}}, 'świat: nazwy jak w cp, start 05.10')
+        self.assertEqual(ow['pg'], {'do': '2026-10-02', 'l': {k[0] + '.' + k[1]: [0, 100, None, 0] for k in zd.TD_RULES_W2}}, 'świat: nazwy jak w cp, start 05.10')
         self.assertTrue(zd._td_cr_valid(out) and zd._tdw_valid(ow), 'dzienniki z pg nadal poprawne')
 
 
@@ -25440,11 +25443,101 @@ class KontrolaPorownaniaV209(unittest.TestCase):
         R, csv_out = run()
         self.assertEqual(R['zgodnosc']['stablecoiny']['roznica_pct'], 9.523); self.assertEqual(R['zgodnosc']['stablecoiny']['status'], 'ℹ️')
         self.assertIn(',9.523\n', csv_out, 'różnica zapisana do historii')
-        self.assertEqual(R['zgodnosc']['ust10'], {'porownane': 2, 'do': '2026-10-02', 'roznice': [['2026-10-02', 5.33, 5.28, 0.05]]})
+        self.assertEqual(R['zgodnosc']['ust10'], {'porownane': 2, 'do': '2026-10-02', 'roznice': [['2026-10-02', 5.33, 5.28, 0.05]], 'zrodlo': 'FRED'}, 'v211: wydawca niedostępny — zapas')
         self.assertTrue(any(u.startswith('rentowność 10L USA: plik strony vs H.15 różnią się') and '2026-10-02: 5.33 vs 5.28' in u for u in R['uwagi']), R['uwagi'])
         self.assertTrue(any('fredgraph.csv?id=DGS10&cosd=2026-09-15' in c for c in calls), calls)
         self.assertIn('cmc', k.PLIKI); self.assertEqual(k.LIMIT_MIN['cmc'], 90, 'cmc.json co przebieg — wiek jak meta'); self.assertEqual(R['pliki']['cmc']['http'], 200)
         fred['ok'] = False
         R, _ = run()
-        self.assertEqual(R['zgodnosc']['ust10'], {'brak': '<urlopen error HTTP 503>'})
+        self.assertEqual(R['zgodnosc']['ust10'], {'brak': 'Fed: <urlopen error brak sieci w teście>; FRED: <urlopen error HTTP 503>'})
         self.assertFalse(any('10L' in u or 'H.15' in u for u in R['uwagi']), 'brak FRED — bez uwagi')
+
+
+# ===================== v211: POPRAWKI PO PRZEGLĄDZIE v207–v208 + H.15 U WYDAWCY =====================
+class PoPrzegladzieV211(unittest.TestCase):
+    """v211: tylko True kończy serię awarii ('cached' = czeka na ponowienie); część nieobecna > 6 h — „zniknęła”, nie BŁĄD; poprzednia seria
+    zostaje (prev); czas serii do ostatniego przebiegu; części „czeka na publikację” tylko informacją; „(24 h): brak” i pamięć od; dopisek z pełnej
+    treści błędu; pg z dniami dojrzałymi; H.15 u wydawcy z zapasem FRED."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v211', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    @staticmethod
+    def _t(h):
+        return (datetime.datetime(2026, 10, 6, 4, 0, tzinfo=datetime.timezone.utc) + datetime.timedelta(hours=h)).isoformat()
+
+    def test_trwala_awaria_z_cached_nie_jest_naprawa(self):
+        """Wzór części ze stanem z pliku (stres, rwa): False przy próbie, 'cached' między próbami — 3 doby; seria rośnie, BŁĄD po 48 h."""
+        t, a = self._t, {}
+        for h in range(0, 72):
+            a = zd.awarie(a, {'stres': False if h % 6 == 0 else 'cached'}, t(h))
+        self.assertEqual((a['stres']['od'], a['stres']['n'], a['stres']['do']), (t(0), 12, None))
+        Z = self.k.awarie_ocena({'at': t(71), 'awarie': a}, datetime.datetime(2026, 10, 9, 4, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(len(Z['bledy']), 1); self.assertIn('„stres” nie działa od 06.10.2026, 06:00 (2 dni 23 godz.', Z['bledy'][0]); self.assertEqual(Z['naprawione'], [])
+
+    def test_znikniecie_i_poprzednia_seria(self):
+        t = self._t
+        a = zd.awarie({}, {'fed': False}, t(0)); a = zd.awarie(a, {'fed': False}, t(2))
+        self.assertIsNone(zd.awarie(a, {'x': True}, t(8))['fed']['do'], 'dokładnie 6 h nieobecności — jeszcze trwa')
+        a = zd.awarie(a, {'x': True}, t(8.5))
+        self.assertEqual(a['fed'], {'od': t(0), 'ost': t(2), 'n': 2, 'do': t(8.5), 'zn': True}, 'wyłączona część: ponad 6 h nieobecności — zamknięta jako „zniknęła”')
+        Z = self.k.awarie_ocena({'at': t(9), 'awarie': a}, datetime.datetime(2026, 10, 6, 13, 30, tzinfo=datetime.timezone.utc))
+        self.assertEqual(([x['czesc'] for x in Z['zniknely']], Z['bledy'], Z['uwagi'], Z['naprawione']), (['fed'], [], [], []), 'bez BŁĘDU i bez „naprawy”')
+        md = self.k.raport_md({'at': t(9.5), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
+        self.assertIn('- Zniknęły z przebiegów (24 h; część wyłączona albo zmieniona — nie awaria): fed — ostatnia nieudana próba 06.10.2026, 08:00 (nieudanych przebiegów: 2) ℹ️.', md)
+        b = zd.awarie(a, {'fed': False}, t(10))
+        self.assertNotIn('prev', b['fed'], 'seria „zniknęła” nie udaje naprawionej')
+        # noc: 22:00–02:00 awaria, naprawa; rano jedna awaria — nocna zostaje w prev i w raporcie
+        n0 = {'cftc': {'od': t(-6), 'ost': t(-2.2), 'n': 24, 'do': t(-2)}}
+        b = zd.awarie(n0, {'cftc': False}, t(-1))
+        self.assertEqual(b['cftc']['prev'], [t(-6), t(-2), 24])
+        b = zd.awarie(b, {'cftc': True}, t(-0.8))
+        Z = self.k.awarie_ocena({'at': t(0.3), 'awarie': b}, datetime.datetime(2026, 10, 6, 4, 27, tzinfo=datetime.timezone.utc))
+        self.assertEqual([(x['od'], x['do'], x['n']) for x in Z['naprawione']], [(t(-6), t(-2), 24), (t(-1), t(-0.8), 1)], 'obie serie w „naprawionych”')
+        c = zd.awarie(b, {'cftc': False}, t(0))
+        self.assertEqual(c['cftc']['prev'], [t(-6), t(-2), 24], 'zostaje dłuższa z dwóch zamkniętych')
+        self.assertNotIn('prev', zd.awarie(c, {'cftc': False}, t(46.1))['cftc'], 'prev znika 48 h po swoim końcu')
+        zle = {'q': {'od': t(-3), 'ost': t(-2), 'n': 1, 'do': None, 'prev': [t(-1), t(-0.5), 1]}, 'r': {'od': t(-3), 'ost': t(-2), 'n': 1, 'do': None, 'prev': ['x', t(-4), 1]}}
+        o = zd.awarie(zle, {'q': False, 'r': False}, t(0))
+        self.assertTrue('prev' not in o['q'] and 'prev' not in o['r'], 'zła albo późniejsza od serii „prev” pominięta')
+
+    def test_czeka_na_publikacje_tylko_informacja(self):
+        t = self._t
+        aw = {k: {'od': t(-100), 'ost': t(-0.1), 'n': 500, 'do': None} for k in ('jpx', 'snb', 'ici', 'wycena_bg')}
+        Z = self.k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
+        self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 4)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
+        md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
+        self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
+        self.assertEqual(set(self.k.AW_BEZ_BLEDU), {'ici', 'jpx', 'snb', 'wycena_bg'})
+
+    def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
+        t, k = self._t, self.k
+        aw = {'tic': {'od': t(-60), 'ost': t(-50), 'n': 60, 'do': None}}
+        Z = k.awarie_ocena({'at': t(-50), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual((Z['trwa'][0]['h'], Z['uwagi'] != [], Z['bledy']), (10.0, True, []), 'automat stoi od 50 h — seria 10 h do ostatniego przebiegu (stojący automat ma osobny BŁĄD)')
+        R = {'at': t(2), 'wynik': 'OK', 'meta': {'awarie_od': t(-3)}, 'awarie': {'trwa': [], 'naprawione': [], 'zniknely': [], 'uwagi': [], 'bledy': []}, 'uwagi': [], 'bledy': []}
+        self.assertIn('- Awarie części automatu (24 h): brak (pamięć od 06.10.2026, 03:00).', k.raport_md(R))
+        R['meta']['awarie_od'] = t(-30)
+        self.assertIn('- Awarie części automatu (24 h): brak.', k.raport_md(R))
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn("META['awarie_od'] = pm['awarie_od'] if 'awarie' in pm and _aw_t(pm.get('awarie_od')) else NOW", src)
+
+    def test_dopisek_z_pelnej_tresci(self):
+        k = self.k
+        dlugi = 'premie: ' + 'x' * 300 + ' HTTP Error 429: Too Many Requests'
+        self.assertIn('limit darmowego planu', k.awaria_rodzaj(dlugi))
+        self.assertEqual(k.awaria_rodzaj('Kalshi: limit zapytań w przebiegu (40) — reszta w następnym'), '', 'własny limit zbieracza to nie limit planu')
+        self.assertIn('limit darmowego planu', k.awaria_rodzaj('Coinalyze: limit zapytań (HTTP 429)'))
+
+    def test_h15_u_wydawcy(self):
+        k = self.k
+        txt = ('"Series Description","Market yield … 1-month","Market yield … 10-year"\n"Unit:","Percent:_Per_Year","Percent:_Per_Year"\n'
+               '"Time Period","RIFLGFCM01_N.B","RIFLGFCY10_N.B"\n2026-09-24,4.01,5.18\n2026-09-25,4.04,5.17\n2026-09-29,ND,ND\nzły,1,2\n2026-10-02,4.1,x\n')
+        self.assertEqual(k.ust_fed_csv(txt), {'2026-09-24': 5.18, '2026-09-25': 5.17})
+        self.assertEqual(k.ust_fed_csv('"Time Period","A"\n2026-09-24,1\n'), {}, 'bez kolumny 10L')
+        self.assertEqual(k.ust_fed_csv(None), {}); self.assertEqual(k.ust_fed_csv('<html>'), {})
+        self.assertTrue(k.UST_FED.startswith('https://www.federalreserve.gov/datadownload/Output.aspx?rel=H15&series=') and 'filetype=csv' in k.UST_FED)
+        self.assertEqual(k.UST_FED_KOL, 'RIFLGFCY10_N.B')

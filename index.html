@@ -2152,11 +2152,14 @@ for(const l in EXTRA173)if(I18N[l])Object.assign(I18N[l],EXTRA173[l]);
 const EXTRA174={"pl":{"etf.stale":"ostatnie dane z {d}"}};
 for(const l in EXTRA174)if(I18N[l])Object.assign(I18N[l],EXTRA174[l]);
 /* v208: TRENDY — nauka sygnałów: postęp do pierwszej oceny reguł (tylko pl, cel właściciela 04.10) */
-const EXTRA175={"pl":{"tig.l.t":"Nauka: kiedy pierwsza ocena sygnałów?","tig.l.first":"{n} z {c} dni z sygnałem do pierwszej oceny","tig.l.next":"{n} z {c} dni z sygnałem do kolejnej oceny","tig.l.est":"szacowany termin w obecnym tempie: {d}","tig.l.est0":"termin oszacujemy po co najmniej 10 dniach z sygnałem i 2 tygodniach zbierania","tig.l.done":"wszystkie oceny (po 100, 200 i 400 dniach z sygnałem) są już zapisane","tig.l.vd":"Ocena po {c} dniach z sygnałem ({d}): {v}","tig.l.vd.edge":"przewaga potwierdzona testem","tig.l.vd.none":"bez potwierdzonej przewagi","tig.l.vd.anti":"gorzej niż rzut monetą","tig.l.how":"Strona sama sprawdza swoje sygnały: każda z {m} reguł ma własny licznik, a ocena po 100, 200 i 400 dniach z sygnałem jest zapisywana na stałe i później się nie zmienia.","tig.l.aria":"Postęp nauki: {n} z {c} dni z sygnałem"}};
+const EXTRA175={"pl":{"tig.l.t":"Nauka: kiedy pierwsza ocena sygnałów?","tig.l.first":"{n} z {c} dni z sygnałem do pierwszej oceny","tig.l.next":"{n} z {c} dni z sygnałem do kolejnej oceny","tig.l.est":"szacowany termin w obecnym tempie: {d}","tig.l.est0":"termin podamy po ok. 3 tygodniach zbierania wyników","tig.l.done":"wszystkie oceny (po 100, 200 i 400 dniach z sygnałem) są już zapisane","tig.l.vd":"Ocena po {c} dniach z sygnałem ({d}): {v}","tig.l.vd.edge":"przewaga potwierdzona testem","tig.l.vd.none":"bez potwierdzonej przewagi","tig.l.vd.anti":"gorzej niż rzut monetą","tig.l.how":"Strona sama sprawdza swoje sygnały: każda z {m} reguł ma własny licznik, a ocena po 100, 200 i 400 dniach z sygnałem jest zapisywana na stałe i później się nie zmienia.","tig.l.aria":"Postęp nauki: {n} z {c} dni z sygnałem"}};
 for(const l in EXTRA175)if(I18N[l])Object.assign(I18N[l],EXTRA175[l]);
 /* v210: Ustawienia — karta „Prywatność” (tylko pl, cel właściciela 04.10) */
 const EXTRA176={"pl":{"set.priv.t":"Prywatność","set.priv.1":"Strona nie ma kont, formularzy, reklam ani statystyk odwiedzin i nie zapisuje ciasteczek — nie zbiera danych osobowych.","set.priv.2":"W pamięci Twojej przeglądarki zostają tylko: ustawienia (język, widok, zwinięte sekcje, okresy wykresów), Twoja zgoda na widgety wykresów i comiesięczny zapis odczytów mapy do statystyki trafności w „Metodologii”. Obraz tła wybrany powyżej zostaje tylko w otwartej karcie. Nic z tego nie opuszcza Twojego urządzenia; usuniesz to, czyszcząc dane tej strony w przeglądarce.","set.priv.3":"Część liczb Twoja przeglądarka pobiera bezpośrednio z publicznych serwisów danych, a samą stronę udostępnia serwis hostingowy — jak każdy serwer, widzą one adres IP połączenia. Widgety wykresów firmy zewnętrznej na dole stron GLOBAL i CRYPTO ładują się dopiero po Twojej zgodzie i mogą wtedy używać własnych ciasteczek."}};
 for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);
+/* v211: TRENDY — nauka: nagłówki wg stanu, „ocena w ciągu kilku dni”, termin „po ok. 3 tygodniach” (tylko pl) */
+const EXTRA177={"pl":{"tig.l.t2":"Nauka: kiedy kolejna ocena sygnałów?","tig.l.t3":"Nauka: oceny sygnałów","tig.l.soon":"{c} z {c} dni z sygnałem — ocena w ciągu kilku dni, gdy ostatnie wyniki się potwierdzą"}};
+for(const l in EXTRA177)if(I18N[l])Object.assign(I18N[l],EXTRA177[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8225,18 +8228,18 @@ const TRD_LV={edge:'tig.l.vd.edge',none:'tig.l.vd.none',anti:'tig.l.vd.anti'};
 function trdIgLearn(J,cr){
   const P=J&&typeof J==='object'&&J.pg&&typeof J.pg==='object'&&J.pg.l&&typeof J.pg.l==='object'?J.pg:null;if(!P)return '';
   const la=cr?'all':'w.all',g=P.l[la],iso=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d);
-  if(!Array.isArray(g)||g.length!==3||!Number.isInteger(g[0])||g[0]<0||!(g[1]===null||(Number.isInteger(g[1])&&g[1]>0)))return '';
+  if(!Array.isArray(g)||(g.length!==3&&g.length!==4)||!Number.isInteger(g[0])||g[0]<0||!(g[1]===null||(Number.isInteger(g[1])&&g[1]>0)))return '';   /* v211: [n, c, szacunek, dni dojrzałe] */
   const n=g[0],c=g[1],lines=Object.keys(P.l).length,L=LOCALE[LANG]||'pl-PL';
   const fd=(d,o)=>new Date(Date.parse(d+'T12:00:00Z')).toLocaleDateString(L,Object.assign({timeZone:'UTC'},o));
   const cpl=J.cp&&Array.isArray(J.cp[la])?J.cp[la].filter(x=>Array.isArray(x)&&x.length>=11&&Number.isInteger(x[0])&&iso(x[9])):[];
   const last=cpl.length?cpl.reduce((a,x)=>x[0]>a[0]?x:a):null;
   let bar='',txt;
-  if(c!==null){const p=Math.max(0,Math.min(100,100*n/c));
-    bar=`<div class="tig-pb" role="img" aria-label="${escH(t('tig.l.aria',{n:trdC(n),c:trdC(c)}))}"><i style="width:${p.toFixed(1)}%"></i></div>`;
-    txt=t(last?'tig.l.next':'tig.l.first',{n:trdC(n),c:trdC(c)})+' · '+(iso(g[2])?t('tig.l.est',{d:fd(g[2],{month:'long',year:'numeric'})}):t('tig.l.est0'));}
+  if(c!==null){const nd=Math.min(n,c),p=Math.max(0,Math.min(100,100*nd/c));   /* v211: licznik nie przekracza punktu kontrolnego (ocena liczy tylko dni dojrzałe) */
+    bar=`<div class="tig-pb" role="img" aria-label="${escH(t('tig.l.aria',{n:trdC(nd),c:trdC(c)}))}"><i style="width:${p.toFixed(1)}%"></i></div>`;
+    txt=n>=c?t('tig.l.soon',{c:trdC(c)}):t(last?'tig.l.next':'tig.l.first',{n:trdC(n),c:trdC(c)})+' · '+(iso(g[2])?t('tig.l.est',{d:fd(g[2],{month:'long',year:'numeric'})}):t('tig.l.est0'));}
   else txt=t('tig.l.done');
   const vd=last?`<p class="pnote">${t('tig.l.vd',{c:trdC(last[0]),d:fd(last[9],{day:'2-digit',month:'2-digit',year:'numeric'}),v:t(TRD_LV[last[8]]||'tig.l.vd.none')})}</p>`:'';
-  return `<div class="tig-l"><h3 class="mtxt"><b>${t('tig.l.t')}</b></h3>${bar}<p class="pnote">${txt}</p>${vd}<p class="pnote tig-lw">${t('tig.l.how',{m:trdC(lines)})}</p></div>`;
+  return `<div class="tig-l"><h3 class="mtxt"><b>${t(c===null?'tig.l.t3':last?'tig.l.t2':'tig.l.t')}</b></h3>${bar}<p class="pnote">${txt}</p>${vd}<p class="pnote tig-lw">${t('tig.l.how',{m:trdC(lines)})}</p></div>`;
 }
 function trdIg(D,cr){
   trdJLoad();

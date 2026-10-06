@@ -13569,3 +13569,23 @@ test('v210: Ustawienia — karta „Prywatność” przed przyciskiem „Gotowe�
   const c = html.slice(html.indexOf('/* v210: Ustawienia — karta „Prywatność”'), html.indexOf('\n', html.indexOf('.set-priv p{')));
   assert.ok(c.includes('.set-priv p{') && !/#[0-9a-fA-F]{3,6}\b/.test(c), 'styl: tylko zmienne motywu');
 });
+
+
+/* ---------- v211: pasek nauki — licznik do punktu kontrolnego, „ocena w ciągu kilku dni”, nagłówek wg stanu ---------- */
+test('v211: nauka — n ≥ c bez oceny: pełny pasek i „ocena w ciągu kilku dni” (nie „101 z 100”); nagłówek: pierwsza / kolejna / wszystkie; pole dni dojrzałych', () => {
+  const t2 = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const Y = new Function('t', 'escH', 'trdC', 'LOCALE', 'LANG', html.slice(html.indexOf('const TRD_LV='), html.indexOf('function trdIg(D,cr){')) + '\nreturn trdIgLearn;')(t2, v96src.escH, v => v, {pl: 'pl-PL'}, 'pl');
+  let h = Y({pg: {l: {all: [101, 100, '2027-01-10', 97]}}}, true);
+  assert.ok(h.includes('<b>tig.l.t</b>') && h.includes('aria-label="tig.l.aria{&quot;n&quot;:100,&quot;c&quot;:100}"') && h.includes('width:100.0%'), h);
+  assert.ok(h.includes('<p class="pnote">tig.l.soon{"c":100}</p>') && !h.includes('101') && !h.includes('tig.l.est'), 'bez „101 z 100” i bez terminu');
+  h = Y({pg: {l: {all: [36, 100, null, 30]}}}, true);
+  assert.ok(h.includes('tig.l.first{"n":36,"c":100} · tig.l.est0') && h.includes('width:36.0%'), '4 pola — jak dotąd');
+  const cp = {all: [[100, 61, 100, 50.0, 60.0, 62.0, 51.0, 70.0, 'edge', '2027-01-08', 'x']]};
+  assert.ok(Y({pg: {l: {all: [130, 200, null, 126]}}, cp}, true).includes('<b>tig.l.t2</b>'), 'po pierwszej ocenie — „kolejna”');
+  assert.ok(Y({pg: {l: {all: [412, null, null, 410]}}, cp}, true).includes('<b>tig.l.t3</b>'), 'wszystkie oceny — „oceny sygnałów”');
+  assert.equal(Y({pg: {l: {all: [1, 100, null, 1, 5]}}}, true), '', '5 pól — zły kształt');
+  const d0 = html.indexOf('const EXTRA177='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA177='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl), ['tig.l.t2', 'tig.l.t3', 'tig.l.soon']);
+  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA177)if(I18N[l])Object.assign(I18N[l],EXTRA177[l]);'), 'jedna linia for po słowniku');
+  assert.equal(v96src.tFor('pl')('tig.l.est0'), 'termin podamy po ok. 3 tygodniach zbierania wyników', 'tekst zmieniony w EXTRA175 (bez zasłoniętych wpisów)');
+});
