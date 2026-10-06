@@ -1824,7 +1824,9 @@ def indeksy_ocena(ix, now=None):
         elif not fut:
             puste.append((s, str(v.get('bad_at') or '')[:10] if isinstance(v, dict) else ''))
     out = {'n': len(ix), 'swieze': 0, 'najnowsza': None, 'opoznione': [], 'stare': [], 'puste': puste, 'przyszle': przyszle, 'wszystkie': None,
-           'zmiany': indeksy_zmiany(ix, now)}
+           'zmiany': indeksy_zmiany(ix, now),
+           'pozniej': [(s, v['h+']) for s, v in sorted(ix.items()) if isinstance(v, dict) and isinstance(v.get('h+'), int)
+                       and not isinstance(v.get('h+'), bool) and v['h+'] > 0]}   # v262: nauczone przesunięcia pory pobierania
     if not ost:
         return out
     najn = max(ost.values())
@@ -1889,8 +1891,10 @@ def indeksy_wiersz(o):
     if o.get('luki_odp'):   # v261: odpowiedź dostawcy z wieloma brakującymi sesjami — nic nie usunięto
         cz.append('odpowiedź dostawcy z luką (sesje zostawione): ' + ', '.join(f'{s} ({n} {_odm(n, "sesja", "sesje", "sesji")}, {a}–{b})'
                                                                              for s, t, n, a, b in o['luki_odp'][:5]) + ' ℹ️')
+    if o.get('pozniej'):   # v262: samouczenie — indeksy pobierane później, bo dostawca poprawiał zamknięcia pobrane tuż po sesji
+        cz.append('pora pobierania przesunięta (nauczone z poprawek dostawcy): ' + ', '.join(f'{s} +{h} h' for s, h in o['pozniej']) + ' ℹ️')
     return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (zle or o.get('przyszle') or o.get('stare') or o.get('opoznione') or o.get('puste')
-                                                       or o.get('zmiany') or o.get('luki_odp')) else ' ✅.')
+                                                       or o.get('zmiany') or o.get('luki_odp') or o.get('pozniej')) else ' ✅.')
 
 
 def wieloryby_ocena(path, zmiany=None, hist=None):

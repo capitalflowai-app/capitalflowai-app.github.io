@@ -28905,3 +28905,61 @@ class PoPrzegladzieV261(unittest.TestCase):
         import inspect
         self.assertIn("bcb_nota(prev_o.get('br'))", inspect.getsource(zd.main))
 
+
+# ===================== v262: SAMOUCZENIE — PORA POBIERANIA INDEKSU Z POPRAWEK DOSTAWCY =====================
+class NaukaPoryPobieraniaV262(unittest.TestCase):
+    """v262: poprawka ostatniej sesji (> 0,02%, pobranej w dniu sesji albo nazajutrz) → indeks pobierany o godzinę później (najwyżej +3 h,
+    nie później niż 23 UTC); 10 pobrań z rzędu bez takiej poprawki → o godzinę wcześniej; kontrola pokazuje nauczone przesunięcia."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola262-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v262_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    R = ['2026-10-06', 70777.2891, 70683.98, '2026-10-06T07:21:13+00:00', 'x', True]   # 06.10: Nikkei −0,13% po ponownym pobraniu
+
+    def test_nauka(self):
+        n = zd.ix_nauka
+        self.assertEqual(n({}, [self.R]), (1, 0), 'ostatnia sesja poprawiona, pobrana w dniu sesji — o godzinę później')
+        self.assertEqual(n({'h+': 3, 'h+n': 4}, [self.R]), (3, 0), 'najwyżej +3 h')
+        self.assertEqual(n({}, [self.R[:5] + [False]]), (0, 0), 'poprawka starszej sesji — nie pora pobierania')
+        self.assertEqual(n({}, [['2026-10-06', 100.0, 100.015, '2026-10-06T07:21:13+00:00', 'x', True]]), (0, 0), '0,015% — zaokrąglenie')
+        self.assertEqual(n({}, [['2026-10-06', 100.0, 101.0, '2026-10-09T07:21:13+00:00', 'x', True]]), (0, 0), 'pobranie 3 dni po sesji — późna korekta')
+        self.assertEqual(n({}, [['2026-10-06', 100.0, None, '2026-10-06T07:21:13+00:00', 'x', True]]), (0, 0), 'sesja usunięta — nie pora')
+        self.assertEqual(n({'h+': 2, 'h+n': 3}, []), (2, 4))
+        self.assertEqual(n({'h+': 2, 'h+n': 9}, []), (1, 0), '10. pobranie bez poprawki — o godzinę wcześniej')
+        self.assertEqual(n({}, []), (0, 0)); self.assertEqual(n({'h+': 'x', 'h+n': -1}, []), (0, 0))
+        self.assertEqual((zd.ix_godzina(7, {'h+': 2}), zd.ix_godzina(22, {'h+': 3}), zd.ix_godzina(7, {'h+': 9}), zd.ix_godzina(7, {'h+': True})), (9, 23, 7, 7))
+
+    def test_ix_fetch_i_plan(self):
+        rec = {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-10-05', 69946.8594], ['2026-10-06', 70777.2891]]}
+        eod = [{'date': '2026-10-05', 'close': 69946.86}, {'date': '2026-10-06', 'close': 70683.98}, {'date': '2026-10-07', 'close': 71000.0}]
+        now = datetime.datetime(2026, 10, 7, 7, 30, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o = zd.ix_fetch('N225', 'jp', 'k', rec, now)
+        self.assertEqual((o['h+'], o['h+n']), (1, 0))
+        o['at'] = '2026-10-07T08:05:00+00:00'
+
+        def plan(t):   # pozostałe indeksy pobrane przed chwilą — w planie tylko to, co zależy od N225
+            part = {s: {'at': (t - datetime.timedelta(minutes=10)).isoformat()} for s, _, _ in zd.IX_SYMBOLS}
+            part['N225'] = o
+            return zd.ix_plan(part, t, 20)
+        self.assertEqual(plan(datetime.datetime(2026, 10, 8, 7, 30, tzinfo=datetime.timezone.utc)), [], 'nauczone: N225 dopiero po 08:00 UTC')
+        self.assertEqual(plan(datetime.datetime(2026, 10, 8, 8, 10, tzinfo=datetime.timezone.utc)), ['N225'])
+        o['h+'] = 0
+        self.assertEqual(plan(datetime.datetime(2026, 10, 8, 7, 30, tzinfo=datetime.timezone.utc)), ['N225'], 'bez nauki — jak dotąd po 07:00')
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o2 = zd.ix_fetch('N225', 'jp', 'k', dict(rec, d=[['2026-10-06', 70683.98]]), now)
+        self.assertNotIn('h+', o2, 'bez poprawek — bez pola')
+
+    def test_kontrola_pokazuje(self):
+        k = self.k
+        N = datetime.datetime(2026, 10, 8, 6, 20, tzinfo=datetime.timezone.utc)
+        ix = {'N225': {'cc': 'jp', 'd': [['2026-10-07', 71000.0]], 'h+': 1, 'h+n': 0}, 'GSPC': {'cc': 'us', 'd': [['2026-10-07', 7800.0]], 'h+': True}}
+        o = k.indeksy_ocena(ix, now=N)
+        self.assertEqual(o['pozniej'], [('N225', 1)])
+        self.assertEqual(k.indeksy_wiersz(o), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-07); pora pobierania przesunięta (nauczone z poprawek dostawcy): N225 +1 h ℹ️.')
+

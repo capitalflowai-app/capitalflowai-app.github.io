@@ -10743,7 +10743,7 @@ def ix_plan(part, now, budget):
         if bad and (now - bad).days < _ix_pause(rec):
             continue
         at = _ix_dt(rec.get('at'))
-        if at is None or at < ix_ready(h, now):
+        if at is None or at < ix_ready(ix_godzina(h, rec), now):   # v262: godzina z listy + nauczone przesunięcie
             due.append((at or datetime.datetime.min.replace(tzinfo=datetime.timezone.utc), i, sym))   # nigdy nie pobrane: kolejność listy
     due.sort()
     return [s for _, _, s in due[:max(0, min(IX_PER_RUN, budget))]]
@@ -10786,6 +10786,44 @@ def _ix_merge(old, new, keep, zakres=False):
 IX_REW_TOL = 0.01    # v260: % — zamknięcie sesji zmienione przez dostawcę o więcej przy ponownym pobraniu = poprawka (pole 'rew')
 IX_REW_KEEP = 6      # v260: tyle ostatnich poprawek na indeks w pliku
 IX_USUN_MAX = 3      # v261: najwyżej tyle sesji z zakładki może dostawca „usunąć” w jednej odpowiedzi; więcej = luka w odpowiedzi
+IX_POZNIEJ_MAX = 3       # v262: najwyżej o tyle godzin później niż godzina z IX_SYMBOLS (nauczone z poprawek dostawcy)
+IX_POZNIEJ_PROG = 0.02   # v262: % — poprawka ostatniej sesji większa = pobrana za wcześnie (mniejsze to zaokrąglenia dostawcy)
+IX_POZNIEJ_POWROT = 10   # v262: tyle pobrań z rzędu bez takiej poprawki = o godzinę wcześniej
+
+
+def _ix_hplus(rec):
+    """v262: nauczone przesunięcie pory pobierania ('h+' wpisu indeksu), 0..IX_POZNIEJ_MAX; zły zapis = 0."""
+    p = rec.get('h+') if isinstance(rec, dict) else None
+    return p if isinstance(p, int) and not isinstance(p, bool) and 0 <= p <= IX_POZNIEJ_MAX else 0
+
+
+def ix_godzina(h, rec):
+    """v262: godzina pobrania indeksu (UTC) = godzina z listy + nauczone przesunięcie, najwyżej 23."""
+    return min(23, h + _ix_hplus(rec))
+
+
+def ix_nauka(rec, rw):
+    """v262: samouczenie pory pobierania. rw — poprawki z tego pobrania (ix_rewizje). Poprawka ostatniej sesji poprzedniego pobrania
+    o więcej niż IX_POZNIEJ_PROG %, gdy poprzednie pobranie było w dniu tej sesji albo nazajutrz (UTC) = pobrana za wcześnie (zamknięcie
+    wstępne) → o godzinę później (najwyżej IX_POZNIEJ_MAX); IX_POZNIEJ_POWROT pobrań z rzędu bez takiej poprawki → o godzinę wcześniej.
+    → (przesunięcie, licznik pobrań bez poprawki); (0, 0) = nic do zapisania."""
+    p = _ix_hplus(rec)
+    n = rec.get('h+n') if isinstance(rec, dict) else None
+    n = n if isinstance(n, int) and not isinstance(n, bool) and n >= 0 else 0
+    for r in rw or []:
+        if len(r) == 6 and r[5] is True and isinstance(r[2], (int, float)) and isinstance(r[1], (int, float)) and r[1] > 0 \
+                and abs(r[2] / r[1] - 1) * 100 > IX_POZNIEJ_PROG:
+            t = _ix_dt(r[3])
+            try:
+                dni = (t.date() - datetime.date.fromisoformat(r[0])).days if t is not None else None
+            except ValueError:
+                dni = None
+            if dni is not None and 0 <= dni <= 1:
+                return min(IX_POZNIEJ_MAX, p + 1), 0
+    if not p:
+        return 0, 0
+    n += 1
+    return (p - 1, 0) if n >= IX_POZNIEJ_POWROT else (p, n)
 
 
 def ix_rewizje(old, new, old_at):
@@ -10847,6 +10885,9 @@ def ix_fetch(sym, cc, key, rec, now):
         out['rew'] = rew[-IX_REW_KEEP:]
     if not zakres:   # v261: ślad dla kontroli — [czas, ile sesji brakowało, pierwsza, ostatnia]
         out['luka'] = [NOW, len(usun), usun[0], usun[-1]]
+    hp, hn = ix_nauka(rec, rw)   # v262: samouczenie pory pobierania (zapis tylko przy przesunięciu > 0)
+    if hp:
+        out['h+'], out['h+n'] = hp, hn
     return out
 
 
