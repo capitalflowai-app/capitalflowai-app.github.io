@@ -1621,6 +1621,122 @@ def _wh_rozb_polnoc(H, d, row_d):
     return out
 
 
+IXF_SERIE = (('GSPC', 'SP500', 'S&P 500'), ('IXIC', 'NASDAQCOM', 'Nasdaq Composite'), ('DJI', 'DJIA', 'Dow Jones'),
+             ('N225', 'NIKKEI225', 'Nikkei 225'))   # v257: indeksy strony, które FRED podaje od ich wydawców (bez klucza)
+IXF_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&cosd={od}'
+IXF_DNI = 45       # v257: okno porównania — dni kalendarzowe wstecz od dziś
+IXF_TOL = 0.02     # v257: % — różnica do tylu = zgodne (zaokrąglenia: dostawca strony podaje zamknięcia do 4 miejsc)
+IXF_ZLE = 0.1      # v257: % — starsza sesja różna o więcej = ⚠️ (kolejne pobranie z zakładką 10 dni powinno ją już poprawić)
+
+
+def ixf_porownanie(rows, F, od):
+    """v257: seria strony [[dzień, zamknięcie], …] vs {dzień: zamknięcie} wydawcy od dnia `od` → {'n', 'zgodne', 'ost', 'ost_roz',
+    'roznice': [(dzień, strona, wydawca, %)], 'bez_sesji': [dni strony, których wydawca nie ma, choć ma późniejsze], 'luki': [dni wydawcy
+    bez wiersza strony, do ostatniego dnia strony]} albo None. Ostatni dzień strony osobno (ost_roz) — może być zamknięciem wstępnym."""
+    S = {r[0]: r[1] for r in (rows or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and r[0] >= od
+         and isinstance(r[1], (int, float)) and not isinstance(r[1], bool) and 0 < r[1] < float('inf')}
+    F = {d: v for d, v in (F or {}).items() if d >= od and isinstance(v, (int, float)) and 0 < v < float('inf')}
+    if not S or not F:
+        return None
+    ost, fmax = max(S), max(F)
+    out = {'n': 0, 'zgodne': 0, 'ost': ost, 'ost_roz': None, 'roznice': [], 'bez_sesji': [], 'luki': []}
+    for d in sorted(S):
+        if d in F:
+            out['n'] += 1
+            p = round((S[d] / F[d] - 1) * 100, 3)
+            if abs(p) <= IXF_TOL:
+                out['zgodne'] += 1
+            elif d == ost:
+                out['ost_roz'] = (d, S[d], F[d], p)
+            else:
+                out['roznice'].append((d, S[d], F[d], p))
+        elif d < fmax:
+            out['bez_sesji'].append(d)
+    out['luki'] = [d for d in sorted(F) if d <= ost and d not in S]
+    return out
+
+
+def ixf_sprawdz(ix, now=None, pobierz=None):
+    """v257: 4 indeksy strony vs wydawcy (FRED, CSV bez klucza) → {'od', 'wyniki': [{'s', 'nazwa', 'at', … ixf_porownanie albo 'brak'}]}.
+    FRED nie odpowiada (czas, połączenie — nie odpowiedź HTTP) — pozostałe serie bez czekania (najwyżej jedno czekanie)."""
+    now = now or NOW
+    od = (now.date() - dt.timedelta(days=IXF_DNI)).isoformat()
+    wyn, stop = [], None
+    for s, fid, nazwa in IXF_SERIE:
+        rec = ix.get(s) if isinstance(ix, dict) and isinstance(ix.get(s), dict) else {}
+        w = {'s': s, 'nazwa': nazwa, 'at': rec.get('at') if isinstance(rec.get('at'), str) else None}
+        if stop:
+            w['brak'] = f'FRED nie odpowiada ({stop})'
+            wyn.append(w)
+            continue
+        try:
+            st, body, _ = (pobierz or get)(IXF_URL.format(id=fid, od=od), timeout=30)
+            F = ust_fred_csv(body.decode('utf-8', 'replace'))
+            if not F:
+                raise ValueError('plik bez liczb')
+            c = ixf_porownanie(rec.get('d') if isinstance(rec.get('d'), list) else [], F, od)
+            if c is None:
+                w['brak'] = 'seria strony bez sesji w oknie porównania'
+            else:
+                w.update(c)
+        except Exception as e:  # noqa
+            w['brak'] = f'FRED: {str(e)[:80]}'
+            if not isinstance(e, urllib.error.HTTPError) and isinstance(e, (urllib.error.URLError, OSError, TimeoutError)):
+                stop = str(e)[:60]
+        wyn.append(w)
+    return {'od': od, 'wyniki': wyn}
+
+
+def _ixf_n(x):
+    return f'{x:,.2f}'.replace(',', ' ').replace('.', ',')
+
+
+def _ixf_p(p):
+    return f'{p:+.2f}%'.replace('.', ',')
+
+
+def ixf_uwagi(o):
+    """v257: uwaga tylko dla starszej sesji różnej o więcej niż IXF_ZLE (ponowne pobranie jej nie poprawiło); reszta — informacja w wierszu."""
+    u = []
+    for w in (o or {}).get('wyniki') or []:
+        zle = [r for r in w.get('roznice') or [] if abs(r[3]) > IXF_ZLE]
+        if zle:
+            u.append(f"indeks {w['nazwa']}: zamknięcie na stronie różni się od wydawcy ponad {IXF_ZLE:g}% także po ponownym pobraniu: ".replace('.', ',')
+                     + ', '.join(f'{d}: {_ixf_n(a)} vs {_ixf_n(b)} ({_ixf_p(p)})' for d, a, b, p in zle[:3])
+                     + ' — sprawdzić dane dostawcy indeksów')
+    return u
+
+
+def ixf_wiersz(o):
+    """v257: wiersz raportu „Indeksy vs wydawcy”: zgodne sesje, różne (⚠️ ponad IXF_ZLE, inaczej ℹ️), ostatnia sesja różna (ℹ️, z godziną
+    pobrania), sesje bez odpowiednika (ℹ️); brak porównania — ℹ️. Brak wyniku — None (wiersza nie ma)."""
+    if not isinstance(o, dict):
+        return None
+    if o.get('brak'):
+        return f'- Indeksy vs wydawcy (FRED): brak porównania ({o["brak"]}) ℹ️.'
+    cz, zle = [], False
+    for w in o.get('wyniki') or []:
+        if w.get('brak'):
+            cz.append(f"{w['nazwa']} — brak porównania ({w['brak']}) ℹ️")
+            continue
+        x = []
+        if w.get('roznice'):
+            z = any(abs(r[3]) > IXF_ZLE for r in w['roznice'])
+            zle = zle or z
+            x.append('różne: ' + ', '.join(f'{d} {_ixf_p(p)}' for d, a, b, p in w['roznice'][:5]) + (' ⚠️' if z else ' ℹ️'))
+        if w.get('ost_roz'):
+            d, a, b, p = w['ost_roz']
+            kiedy = str(w.get('at') or '')[:16].replace('T', ' ')
+            x.append(f'ostatnia sesja {d}: {_ixf_n(a)} vs {_ixf_n(b)} ({_ixf_p(p)})' + (f' — pobrana {kiedy} UTC' if kiedy else '')
+                     + ', możliwe zamknięcie wstępne; następne pobranie ją nadpisze ℹ️')
+        if w.get('bez_sesji'):
+            x.append('sesje, których wydawca nie ma: ' + ', '.join(w['bez_sesji'][:5]) + ' ℹ️')
+        if w.get('luki'):
+            x.append('sesje wydawcy bez wiersza na stronie: ' + ', '.join(w['luki'][:5]) + ' ℹ️')
+        cz.append(f"{w['nazwa']} — zgodne {w['zgodne']} z {w['n']} sesji" + ('; ' + '; '.join(x) if x else ' ✅'))
+    return f'- Indeksy vs wydawcy (FRED, {IXF_DNI} dni): ' + ' · '.join(cz) + '.'
+
+
 IX_OPOZ_DNI = 2      # v254: seria indeksu starsza od najnowszej o więcej dni = „opóźniona” (informacja: weekend, rotacja zbieracza, święto)
 IX_STARE_DNI = 10    # v254: … o więcej niż tyle dni = ⚠️ (seria się zacięła; najdłuższe święta giełd — Złoty Tydzień w Chinach — ok. 8 dni)
 
@@ -3646,6 +3762,12 @@ def kontrola():
     Z['indeksy'] = indeksy_ocena((files.get('indeksy') or {}).get('ix'))   # v254: świeżość każdej serii indeksów
     for s, x, n in (Z['indeksy'] or {}).get('stare') or []:
         R['uwagi'].append(f'indeksy giełdowe: {s} bez nowych sesji od {x} ({n} dni wobec najnowszej daty innych indeksów) — sprawdzić pobieranie tego indeksu')
+    if isinstance((files.get('indeksy') or {}).get('ix'), dict):   # v257: 4 indeksy vs ich wydawcy (FRED, bez klucza); brak odczytu = informacja
+        try:
+            Z['ix_fred'] = ixf_sprawdz(files['indeksy']['ix'])
+        except Exception as e:  # noqa — błąd bloku nie zabiera całego raportu
+            Z['ix_fred'] = {'brak': f'błąd porównania indeksów: {type(e).__name__}: {str(e)[:80]}'}
+        R['uwagi'] += ixf_uwagi(Z['ix_fred'])
     e = etf_porownanie(files.get('ceny') or {}, files.get('indeksy') or {})
     if e:
         zle = [x for x in e if x[4] is not None and x[4] > ETF_PROG]
@@ -3927,6 +4049,9 @@ def raport_md(R):
                     + ('; migawki z inną walutą bazową: ' + ', '.join(f'{k} ({b})' for k, b in f['baza']) if f.get('baza') else '')   # v233
                     + (' ⚠️.' if f['zle'] or f['med_zle'] or f.get('baza') else ' ✅.'))
         L.append(indeksy_wiersz(Z.get('indeksy')))   # v254
+        w = ixf_wiersz(Z.get('ix_fred'))   # v257
+        if w:
+            L.append(w)
         e = Z.get('etf')
         if e:
             L.append(f'- ETF mapy (dwa źródła, ta sama data): porównane {e["porownane"]} symboli, różnice > {ETF_PROG:g}%: {len(e["roznice"])} {"⚠️" if e["roznice"] else "✅"}' + (' — ' + ', '.join(x["symbol"] for x in e["roznice"][:6]) if e["roznice"] else '') + '.')

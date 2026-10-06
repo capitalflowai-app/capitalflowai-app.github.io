@@ -28403,3 +28403,112 @@ class BcbChwilowyV256(unittest.TestCase):
         self.assertFalse(zd._bcb_chwilowy(urllib.error.URLError(OSError(-2, 'x'))), 'zerwane połączenie — osobna ścieżka (wszystkie serie)')
         self.assertFalse(zd._bcb_chwilowy(RuntimeError('HTTP Error 503')))
 
+
+# ===================== v257: KONTROLA — 4 INDEKSY STRONY VS ICH WYDAWCY (FRED) =====================
+class KontrolaIndeksyWydawcyV257(unittest.TestCase):
+    """v257: S&P 500, Nasdaq, Dow i Nikkei 225 vs FRED: zgodne ≤ 0,02%; ostatnia sesja różna — ℹ️ z godziną pobrania; starsza różna > 0,1% —
+    ⚠️ i uwaga; sesje bez odpowiednika — ℹ️; FRED nie odpowiada — reszta bez czekania; brak porównania nigdy nie jest uwagą."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola257-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v257_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 7, 6, 20, tzinfo=datetime.timezone.utc)
+
+    @staticmethod
+    def _csv(fid, rows):
+        return ('observation_date,' + fid + '\n' + ''.join(f'{d},{v}\n' for d, v in rows)).encode()
+
+    def _ix(self):
+        dni = ['2026-10-01', '2026-10-02', '2026-10-05', '2026-10-06']
+        return {'GSPC': {'at': '2026-10-06T22:31:00+00:00', 'd': [[d, 7700.0 + i] for i, d in enumerate(dni)]},
+                'IXIC': {'at': '2026-10-06T22:31:00+00:00', 'd': [[d, 27000.0 + i] for i, d in enumerate(dni)]},
+                'DJI': {'at': '2026-10-06T22:31:00+00:00', 'd': [[d, 51000.0 + i] for i, d in enumerate(dni)]},
+                'N225': {'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-08-01', 1.0], ['2026-09-29', 65481.2695], ['2026-09-30', 66753.7188],
+                                                                  ['2026-10-01', 68956.7188], ['2026-10-05', 69946.8594], ['2026-10-06', 70777.2891]]}}
+
+    def _fred(self, nikkei, luka=False, zle=False):
+        def pobierz(url, timeout=25):
+            fid = url.split('id=')[1].split('&')[0]
+            self.assertIn('cosd=2026-08-23', url, 'okno 45 dni od 07.10')
+            if fid == 'NIKKEI225':
+                return 200, self._csv(fid, nikkei), 5
+            base = {'SP500': 7700.0, 'NASDAQCOM': 27000.0, 'DJIA': 51000.0}[fid]
+            rows = [('2026-10-01', base), ('2026-10-02', base + 1 + (0.5 if zle and fid == 'DJIA' else 0)), ('2026-10-05', base + 2), ('2026-10-06', base + 3)]
+            if luka and fid == 'SP500':
+                rows.insert(2, ('2026-10-03', base + 9))
+            return 200, self._csv(fid, rows), 5
+        return pobierz
+
+    NIK = [('2026-09-29', 65481.27), ('2026-09-30', 66753.72), ('2026-10-01', 68956.72), ('2026-10-02', 68309.46), ('2026-10-05', 69946.86),
+           ('2026-10-06', 70683.98)]
+
+    def test_06_10_nikkei_wstepny(self):
+        k = self.k
+        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=self._fred(self.NIK))
+        w = {x['s']: x for x in o['wyniki']}
+        self.assertEqual((w['GSPC']['n'], w['GSPC']['zgodne'], w['GSPC']['ost_roz']), (4, 4, None))
+        self.assertEqual(w['N225']['ost_roz'], ('2026-10-06', 70777.2891, 70683.98, 0.132))
+        self.assertEqual(w['N225']['luki'], ['2026-10-02'], 'sesja wydawcy bez wiersza strony')
+        self.assertEqual((w['N225']['n'], w['N225']['zgodne'], w['N225']['roznice'], w['N225']['bez_sesji']), (5, 4, [], []))
+        self.assertEqual(k.ixf_uwagi(o), [], 'ostatnia sesja różna — informacja, nie uwaga')
+        txt = k.ixf_wiersz(o)
+        self.assertTrue(txt.startswith('- Indeksy vs wydawcy (FRED, 45 dni): S&P 500 — zgodne 4 z 4 sesji ✅ · Nasdaq Composite — zgodne 4 z 4 sesji ✅'), txt)
+        self.assertIn('Nikkei 225 — zgodne 4 z 5 sesji; ostatnia sesja 2026-10-06: 70 777,29 vs 70 683,98 (+0,13%) — pobrana 2026-10-06 07:21 UTC, '
+                      'możliwe zamknięcie wstępne; następne pobranie ją nadpisze ℹ️; sesje wydawcy bez wiersza na stronie: 2026-10-02 ℹ️.', txt)
+        self.assertNotIn('2026-08-01', txt, 'sesja sprzed okna nie liczy się')
+
+    def test_starsza_rozna_i_bez_sesji(self):
+        k = self.k
+        nik = [r for r in self.NIK if r[0] != '2026-09-30'] + [('2026-10-07', 1.0)]
+        nik = [(d, 66000.0) if d == '2026-09-29' else (d, v) for d, v in nik]
+        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=self._fred(nik, luka=True, zle=True))
+        w = {x['s']: x for x in o['wyniki']}
+        self.assertEqual(w['N225']['roznice'], [('2026-09-29', 65481.2695, 66000.0, -0.786)])
+        self.assertEqual(w['N225']['bez_sesji'], ['2026-09-30'], 'strona ma sesję, której wydawca nie ma (choć ma późniejsze)')
+        self.assertEqual(w['GSPC']['luki'], ['2026-10-03'])
+        self.assertEqual((w['DJI']['roznice'], w['DJI']['zgodne']), ([], 4), 'różnica 0,001% — zgodne')
+        u = k.ixf_uwagi(o)
+        self.assertEqual(u, ['indeks Nikkei 225: zamknięcie na stronie różni się od wydawcy ponad 0,1% także po ponownym pobraniu: '
+                             '2026-09-29: 65 481,27 vs 66 000,00 (-0,79%) — sprawdzić dane dostawcy indeksów'])
+        txt = k.ixf_wiersz(o)
+        self.assertIn('różne: 2026-09-29 -0,79% ⚠️', txt); self.assertIn('sesje, których wydawca nie ma: 2026-09-30 ℹ️', txt)
+        self.assertIn('S&P 500 — zgodne 4 z 4 sesji; sesje wydawcy bez wiersza na stronie: 2026-10-03 ℹ️', txt)
+
+    def test_fred_nie_odpowiada_jedno_czekanie(self):
+        k = self.k
+        n = {'n': 0}
+
+        def pobierz(url, timeout=25):
+            n['n'] += 1
+            raise urllib.error.URLError(TimeoutError('timed out'))
+        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=pobierz)
+        self.assertEqual(n['n'], 1, 'po braku odpowiedzi reszta bez czekania')
+        self.assertTrue(all(w.get('brak') for w in o['wyniki']))
+        self.assertEqual(k.ixf_uwagi(o), [])
+        self.assertIn('Dow Jones — brak porównania (FRED nie odpowiada (<urlopen error timed out>)) ℹ️', k.ixf_wiersz(o))
+
+        def http(url, timeout=25):
+            n['n'] += 1
+            if 'SP500' in url:
+                raise urllib.error.HTTPError(url, 500, 'Internal Server Error', {}, None)
+            return 200, b'observation_date,X\n2026-10-06,.\n', 5
+        n['n'] = 0
+        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=http)
+        self.assertEqual(n['n'], 4, 'odpowiedź HTTP z błędem — pozostałe serie nadal pytane')
+        self.assertEqual([w['brak'] for w in o['wyniki']], ['FRED: HTTP Error 500: Internal Server Error'] + ['FRED: plik bez liczb'] * 3)
+
+    def test_wpiete_w_kontrole_i_raport(self):
+        import inspect
+        k = self.k
+        self.assertIsNone(k.ixf_wiersz(None))
+        self.assertEqual(k.ixf_porownanie([['2026-10-06', 1.0]], {}, '2026-08-23'), None)
+        self.assertEqual(k.ixf_porownanie([['2026-10-06', True], ['2026-10-05', float('nan')]], {'2026-10-06': 1.0}, '2026-08-23'), None,
+                         'bool i NaN — nie sesje')
+        src = inspect.getsource(k.kontrola)
+        self.assertIn("Z['ix_fred'] = ixf_sprawdz(", src); self.assertIn("R['uwagi'] += ixf_uwagi(Z['ix_fred'])", src)
+        self.assertIn("ixf_wiersz(Z.get('ix_fred'))", inspect.getsource(k.raport_md))
+
