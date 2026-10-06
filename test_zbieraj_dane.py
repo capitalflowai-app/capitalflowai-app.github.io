@@ -8229,8 +8229,8 @@ class CenyFunduszyV93(unittest.TestCase):
             out = zd.build_trendy({'fundusze': {'f': fu}})
         by = {r['id']: r for r in out['p']}
         self.assertEqual((by['fp_gold']['sym'], by['fp_gold']['g']), ('GLD', 'fp'), 'największy fundusz grupy (300 × 400 > 60 × 700)')
-        self.assertNotIn('fp_ustl', by, 'v94: bez obligacji — wypłata odsetek obniża NAV'); self.assertNotIn('fp_tech', by); self.assertNotIn('fp_us', by, 'akcje USA są już na liście cen krajów (SPY)')
-        self.assertTrue(any(n.startswith('trendy XLK: skok NAV bez podziału') for n in zd.META['notes']))
+        self.assertNotIn('fp_ustl', by, 'v94: bez obligacji — wypłata odsetek obniża NAV'); self.assertIn('fp_tech', by, 'v221: pojedynczy zły wiersz NAV pominięty — seria ciągła'); self.assertNotIn('fp_us', by, 'akcje USA są już na liście cen krajów (SPY)')
+        self.assertTrue(any(n.startswith('trendy XLK: wiersz ') and 'pominięty w cenie tygodniowej' in n for n in zd.META['notes']), 'v221: notatka o pominiętym wierszu')
         fu2 = {'XLE': {'h': [[d.isoformat(), (90.0 if i < 200 else 45.0) + 0.01 * i, 300 if i < 200 else 600] for i, d in enumerate(days)]}}
         with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 10, 0, tzinfo=datetime.timezone.utc)):
             r = {x['id']: x for x in zd.build_trendy({'fundusze': {'f': fu2}})['p']}['fp_energy']
@@ -25622,12 +25622,12 @@ class RegulyWCieniuV216(unittest.TestCase):
         self.assertEqual(L['pt'], [('2026-09-28', 1, 'BTC', 1), ('2026-09-29', 0, 'BTC', 1)], 'p i t zgodne; y = 0 i brak y pominięte')
         self.assertEqual(L['es'], [('2026-09-29', 1, 'BTC', -1)], 'e i s zgodne w dół, cena spadła — trafienie')
         self.assertEqual(L['n3'], [('2026-09-28', 1, 'BTC', 1)]); self.assertEqual(L['ph'], [])
-        self.assertEqual([k for k, _ in zd.TD_SH_CR], ['pt', 'ph', 'es', 'n3']); self.assertEqual([k for k, _, _ in zd.TD_SH_W], ['eq.pf', 'eq.fo', 'eq.n2'])
+        self.assertEqual([k for k, _ in zd.TD_SH_CR], ['pt', 'ph', 'es', 'n3']); self.assertEqual([k for k, _, _ in zd.TD_SH_W], ['eq.pf', 'eq.fo'])   # v221: eq.n2 usunięty
 
     def test_prog_surowszy_i_dziennik(self):
         self.assertGreater(zd.TD_CR_ZLS, zd.TD_CR_ZL); self.assertGreater(zd.TD_W_ZLS, zd.TD_W_ZL)
         self.assertAlmostEqual(zd.TD_CR_ZLS, statistics.NormalDist().inv_cdf(1 - 0.025 / 33), places=6)
-        self.assertAlmostEqual(zd.TD_W_ZLS, statistics.NormalDist().inv_cdf(1 - 0.025 / 30), places=6)
+        self.assertAlmostEqual(zd.TD_W_ZLS, statistics.NormalDist().inv_cdf(1 - 0.025 / 27), places=6)   # v221: 9 linii × 3
         U = datetime.timezone.utc
         rows = []
         for i in range(110):
@@ -25646,7 +25646,7 @@ class RegulyWCieniuV216(unittest.TestCase):
         again = zd._td_cr_log(dict(out, rows=out['rows'] + []), [], [], datetime.datetime(2027, 1, 21, 12, 0, tzinfo=U))
         self.assertEqual(again['cs']['pt'][0], c, 'ocena zamrożona — nie liczona od nowa')
         w = zd._tdw_log({'v': zd.TD_VW2, 'since': zd.TD_SINCE_W2, 'rows': [], 'cp': {}}, [], [], datetime.datetime(2026, 10, 6, 12, 0, tzinfo=U))
-        self.assertEqual((w.get('cs'), sorted(w['pgs']['l'])), ({}, ['eq.fo', 'eq.n2', 'eq.pf']))
+        self.assertEqual((w.get('cs'), sorted(w['pgs']['l'])), ({}, ['eq.fo', 'eq.pf']))   # v221: eq.n2 usunięty
         self.assertTrue(zd._td_cr_valid(out) and zd._tdw_valid(w))
 
 
@@ -25677,8 +25677,8 @@ class FunduszeCzyszczenieV217(unittest.TestCase):
     def test_wpiecie(self):
         import inspect
         src = inspect.getsource(zd.build_fundusze)
-        self.assertIn("p['h'], bad = _fund_clean(h)", src); self.assertIn("out['f'][t]['h'], bad = _fund_clean(out['f'][t].get('h'))", src)
-        self.assertIn("p['bf_need'] = True", src.split("p['h'], bad = _fund_clean(h)")[1][:600], 'odrzucony świeży dzień iShares — uzupełnienie pełnym plikiem')
+        self.assertIn('bad = _fund_clean(h)[1]', src); self.assertIn("bad = _fund_clean(out['f'][t]['h'])[1]", src)   # v221: wykrycie, historia surowa
+        self.assertIn("p['bf_need'] = True", src.split('bad = _fund_clean(h)[1]')[1][:700], 'świeży zły dzień iShares — próba pełnym plikiem')
 
 
 # ===================== v218: KONTROLA — WIEK LIST PORTFELI GIEŁD Z RAPORTÓW MIESIĘCZNYCH =====================
@@ -25772,3 +25772,61 @@ class FunduszeBezPetliV220(unittest.TestCase):
         src = inspect.getsource(zd.build_fundusze)
         self.assertIn("if _fund_bf_odrz(p, bad):", src)
         self.assertNotIn("any(_bdays(_d(b), _d(p['h'][-1][0])) <= FUND_TNA_OKNO for b in bad if _d(b))", src, 'dawny warunek v217 (pętla) usunięty')
+
+
+# ===================== v221: POPRAWKI PO PRZEGLĄDZIE v216–v219 =====================
+class PoPrzegladzieV221(unittest.TestCase):
+    """v221: historia funduszy surowa (zły wiersz przerywa łańcuch — przepływ i zwrot obu dni = brak, nie dwa dni na jednym); cena tygodniowa
+    TRENDÓW bez pojedynczego złego wiersza; Pages — 5 najnowszych porażek serii; eq.n2 usunięty."""
+
+    def test_przeplywy_nie_lacza_dwoch_dni(self):
+        h = [['2026-09-29', 36.39653, 232600000], ['2026-09-30', 37.127677, 232600000], ['2026-10-01', 37.119924, 233800000],
+             ['2026-10-02', 38.109913, 235300000], ['2026-10-05', 0.001328, 238426920], ['2026-10-06', 42.9, 238426920]]
+        fl = zd.fund_flows(h)
+        self.assertNotIn('2026-10-05', fl); self.assertNotIn('2026-10-06', fl, 'zły wiersz przerywa łańcuch — 06.10 to brak, nie przepływ dwóch dni')
+        self.assertAlmostEqual(fl['2026-10-02'], (235300000 - 233800000) * 38.109913 / 1e6)
+        d, px, ret = zd._td_fund_px(zd._fund_rows(h))
+        self.assertEqual(ret[-2:], [None, None], 'zwroty 05.10 i 06.10 — brak')
+        import inspect
+        src = inspect.getsource(zd.build_fundusze)
+        self.assertIn("p['h'] = h", src); self.assertIn('bad = _fund_clean(h)[1]', src); self.assertNotIn("p['h'], bad = _fund_clean(h)", src)
+        self.assertIn("bad = _fund_clean(out['f'][t]['h'])[1]", src)
+
+    def test_cena_tygodniowa_bez_zlego_wiersza(self):
+        h = [['2026-09-%02d' % d, 36.0 + d / 10, 232600000] for d in range(14, 31) if datetime.date(2026, 9, d).weekday() < 5]
+        h += [['2026-10-01', 37.1, 233800000], ['2026-10-02', 38.1, 235300000], ['2026-10-05', 0.001328, 238426920]]
+        zd.META['notes'] = []
+        keep = zd._fund_px_rows('EWZ', h)
+        self.assertEqual(keep[-1][0], '2026-10-02'); self.assertEqual(len(keep), len(h) - 1)
+        self.assertTrue(any(n.startswith('trendy EWZ: wiersz 2026-10-05 pominięty w cenie tygodniowej') for n in zd.META['notes']), zd.META['notes'])
+        import inspect
+        self.assertIn("_fund_px_rows(t, _fund_rows((fu.get(t) or {}).get('h')))", inspect.getsource(zd._tr_prices))
+
+    def test_trwaly_skok_nadal_ucina(self):
+        """v221: od pewnego dnia NAV o połowę na stałe (bez zmiany jednostek) — to nie pojedynczy zły wiersz: cena tygodniowa ucięta jak w v93."""
+        days = [d for d in (datetime.date(2025, 9, 1) + datetime.timedelta(days=i) for i in range(390)) if d.weekday() < 5][-280:]
+        h = [[d.isoformat(), (200.0 + 0.01 * i) * (0.5 if i >= len(days) - 10 else 1.0), 600] for i, d in enumerate(days)]
+        self.assertEqual(zd._fund_clean(h)[1], [], 'trwały skok — żaden wiersz nie odstaje od sąsiadów')
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 10, 0, tzinfo=datetime.timezone.utc)):
+            zd.META['notes'].clear()
+            out = zd.build_trendy({'fundusze': {'f': {'XLK': {'h': h}}}})
+        self.assertNotIn('fp_tech', {r['id'] for r in out['p']}); self.assertTrue(any(n.startswith('trendy XLK: skok NAV bez podziału') for n in zd.META['notes']))
+
+    def test_kandydaci_swiata_po_poprawce(self):
+        self.assertEqual([k for k, _, _ in zd.TD_SH_W], ['eq.pf', 'eq.fo'])
+        self.assertAlmostEqual(zd.TD_W_ZLS, statistics.NormalDist().inv_cdf(1 - 0.025 / 27), places=6)
+
+    def test_pages_dluga_seria(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v221', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        U = datetime.timezone.utc
+        NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=U)
+
+        def r(i, m, c):
+            return {'id': i, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': c,
+                    'run_started_at': (NOW - datetime.timedelta(minutes=m)).isoformat(), 'updated_at': (NOW - datetime.timedelta(minutes=m - 5)).isoformat()}
+        PG = 'opublikuj / publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)'
+        runs = [r(i, 10 * i, 'failure') for i in range(1, 8)] + [r(100 + i, 100 + 10 * i, 'success') for i in range(25)]
+        A, b, u = k.przebiegi_ocena(runs, NOW, {i: PG for i in range(1, 6)})
+        self.assertTrue(b[0].startswith('automat nie działa (publikacja GitHub Pages): 7 nieudanych'), b)

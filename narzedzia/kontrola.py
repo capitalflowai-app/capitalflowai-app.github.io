@@ -1047,7 +1047,7 @@ def przebiegi_ocena(runs, now, kroki=None):
         lista = ', '.join((x[:5] + ' ' + x[-5:] if x != '—' else x) + (f' ({p["krok"]})' if p.get('krok') else '') for x, p in zip(c, A['porazki']))
         lista += f' i {len(por) - 5} wcześniejsze' if len(por) > 5 else ''
         if z_rzedu >= 2 or (len(por) >= 3 and z_rzedu >= 1):
-            pages = all('GitHub Pages' in str(kroki.get(r.get('id')) or '') for r in zak[:z_rzedu])   # v219: KAŻDA porażka bieżącej serii to publikacja Pages
+            pages = all('GitHub Pages' in str(kroki.get(r.get('id')) or '') for r in zak[:min(z_rzedu, 5)])   # v219/v221: 5 najnowszych porażek serii (tylko one mają opis kroku)
             bledy.append(f'automat nie działa{" (publikacja GitHub Pages)" if pages else ""}: {pl_przebiegi(len(por))} w 24 h, ostatnie {z_rzedu} z rzędu — strona nie odświeża danych ({lista})')
         elif z_rzedu == 1:
             uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 10 min; dwa nieudane z rzędu = błąd')

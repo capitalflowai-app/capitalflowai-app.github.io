@@ -4906,6 +4906,16 @@ def _fund_clean(h):
     return keep, bad
 
 
+def _fund_px_rows(t, h):
+    """v221: wiersze NAV do ceny tygodniowej TRENDÓW bez wierszy z błędem pliku źródła (_fund_clean) — pojedynczy zły dzień nie ucina historii
+    (dotąd „skok NAV bez podziału jednostek” ucinał ją na ok. 5 tygodni); tydzień z pominiętym dniem liczony z 6 sesji (notatka). Przepływy
+    i zwroty dzienne liczą się z pełnej historii — zły wiersz przerywa tam łańcuch, oba dni = brak (nie dwa dni na jednym)."""
+    keep, bad = _fund_clean(h)
+    if bad:
+        META['notes'].append(f'trendy {t}: wiersz {", ".join(bad[-3:])} pominięty w cenie tygodniowej (błąd pliku źródła) — tydzień z tym dniem liczony z 6 sesji')
+    return keep
+
+
 def _fund_bf_odrz(p, bad):
     """v220: czy odrzucone dni funduszu iShares wymagają uzupełnienia pełnym plikiem: tylko świeży dzień (≤ FUND_TNA_OKNO sesji od ostatniego
     wiersza) i tylko raz na dzień — zapis prób w p['bf_odrz'] (ostatnie 20 dat). Pełny plik z tym samym błędem nie wraca co przebieg
@@ -4950,9 +4960,9 @@ def build_fundusze(prev=None):
         try:
             h = parse_ssga_navhist(get_bytes(FUND_SSGA_URL.format(t=t.lower()), timeout=30), t)
             out['f'][t] = {'iss': 'ssga', 'at': NOW, 'h': _fund_merge(p.get('h'), h)}
-            out['f'][t]['h'], bad = _fund_clean(out['f'][t].get('h'))   # v217: wiersze z błędem pliku źródła odrzucone
+            bad = _fund_clean(out['f'][t]['h'])[1]   # v217/v221: wykryte; w historii zostają (zły wiersz przerywa łańcuch: przepływy i zwroty tych dni = brak)
             if bad:
-                META['notes'].append(f'fundusze {t}: odrzucone wiersze {", ".join(bad[-3:])} — aktywa funduszu ponad {FUND_TNA_X:g}× od sąsiednich dni (błąd pliku źródła)')
+                META['notes'].append(f'fundusze {t}: błąd pliku źródła w wierszach {", ".join(bad[-3:])} — aktywa ponad {FUND_TNA_X:g}× od sąsiednich dni; przepływy i zwroty tych dni = brak')
         except Exception as e:
             errs.append(f'{t}: {e}')
             out['f'][t] = dict(p, iss='ssga', err_at=NOW)
@@ -5007,10 +5017,11 @@ def build_fundusze(prev=None):
                 p.pop('bf_need', None)
         p['iss'] = 'ishares'
         if h:
-            p['h'], bad = _fund_clean(h)   # v217: wiersze z błędem pliku źródła odrzucone (EWZ 05.10.2026: NAV 0,001328)
+            p['h'] = h
+            bad = _fund_clean(h)[1]   # v217/v221: wykryte; w historii zostają — usunięcie robiło z dwóch sesji jedną (przepływ dwóch dni na jednym)
             if bad:
-                META['notes'].append(f'fundusze {t}: odrzucone wiersze {", ".join(bad[-3:])} — aktywa funduszu ponad {FUND_TNA_X:g}× od sąsiednich dni (błąd pliku źródła)')
-                if _fund_bf_odrz(p, bad):   # v220: świeży dzień odrzucony — jedna próba pełnym plikiem (bez pętli, gdy plik ma ten sam błąd)
+                META['notes'].append(f'fundusze {t}: błąd pliku źródła w wierszach {", ".join(bad[-3:])} — aktywa ponad {FUND_TNA_X:g}× od sąsiednich dni; przepływy i zwroty tych dni = brak')
+                if _fund_bf_odrz(p, bad):   # v220: jedna próba pełnym plikiem — poprawny NAV zastąpi błędny wiersz (nowsze wygrywają)
                     p['bf_need'] = True
             out['f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
@@ -5151,7 +5162,7 @@ TD_CR_CLL = round(100 - 5 / (TD_CR_M * len(TD_CR_LOOKS)), 1)                    
 # v216: reguły „w cieniu” — rejestracja z góry: checkpoints/REGULY_W_CIENIU_2026-10-06_PL.md (lista zamknięta 06.10, przed wynikami). Kandydat =
 # zgodność dwóch głosów składników (oba ≠ 0, ten sam znak) albo próg |N|; oceny jak reguł głównych, z Bonferronim na wszystkie linie naraz.
 TD_SH_CR = (('pt', ('p', 't')), ('ph', ('p', 'h')), ('es', ('e', 's')), ('n3', 3))
-TD_SH_W = (('eq.pf', 'eq', ('p', 'f')), ('eq.fo', 'eq', ('f', 'o')), ('eq.n2', 'eq', 2))
+TD_SH_W = (('eq.pf', 'eq', ('p', 'f')), ('eq.fo', 'eq', ('f', 'o')))   # v221: poprawka rejestracji 06.10 — eq.n2 usunięty (dla 30 z 33 funduszy = eq.pf)
 TD_SH_JAWNE = 200   # v216: kandydat ujawniany na stronie dopiero z werdyktem „przewaga” w punkcie kontrolnym 200 dni z sygnałem
 TD_W_ZLS = statistics.NormalDist().inv_cdf(1 - 0.025 / ((TD_W_M + len(TD_SH_W)) * len(TD_W_LOOKS)))   # v216: świat — 10 linii × 3 oceny
 TD_CR_ZLS = statistics.NormalDist().inv_cdf(1 - 0.025 / ((TD_CR_M + len(TD_SH_CR)) * len(TD_CR_LOOKS)))   # v216: 11 linii × 3 oceny
@@ -8005,7 +8016,7 @@ def _tr_prices(S):
         for gid, members in TR_FE:
             if gid not in TR_FP:
                 continue
-            cand = [(t, _fund_rows((fu.get(t) or {}).get('h'))) for t in members]
+            cand = [(t, _fund_px_rows(t, _fund_rows((fu.get(t) or {}).get('h')))) for t in members]   # v221: bez pojedynczych wierszy z błędem pliku
             cand = [(t, h) for t, h in cand if len(h) >= 5 * 21 + 1]        # v94: tylko fundusz z historią na cały rachunek i z bieżącą datą
             newest = max((h[-1][0] for _, h in cand), default=None)
             cand = [(t, h) for t, h in cand if _bdays(_d(h[-1][0]), _d(newest)) <= 3]

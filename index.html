@@ -1211,6 +1211,8 @@ td .cell .logo-img{width:34px;height:34px}
 @media (max-width:520px){.zs-r{grid-template-columns:minmax(0,1fr) auto}.zs-l{grid-column:1/-1}}
 /* v214/v219: Szwajcaria — linia depozytów banków krajowych: wzór wykresów archiwum (.arc-body, .arc-y, .arc-svg, .arc-x — kolor neutralny --bl) */
 .snbw{margin:4px 0 8px;max-width:640px}
+.snbw-h{fill:transparent}.snbw-h:hover{fill:var(--bl);fill-opacity:.12}
+.snbw-k{fill:var(--bl)}
 .trd-wiecej{margin-top:12px}
 .trd-wiecej>summary{font-weight:600}
 @media (max-width:900px){.trd-ig .tig-g,.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(0,1fr)}}
@@ -2172,17 +2174,20 @@ for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);
 const EXTRA177={"pl":{"tig.l.t2":"Nauka: kiedy kolejna ocena sygnałów?","tig.l.t3":"Nauka: oceny sygnałów","tig.l.soon":"{c} z {c} dni z sygnałem — ocena w ciągu kilku dni, gdy ostatnie wyniki się potwierdzą"}};
 for(const l in EXTRA177)if(I18N[l])Object.assign(I18N[l],EXTRA177[l]);
 /* v213: dzienne przepływy zagranicy — wykres słupkowy (tylko pl, cel właściciela 04.10) */
-const EXTRA178={"pl":{"ob.wyk":"Ostatnie {n} dni — przepływ dzienny w mln USD (Tajwan i Hongkong ≈ po kursie dnia): słupek w górę = napływ, w dół = odpływ; każdy rynek w swojej skali (±maks. po prawej); kreska = brak danych, nie zero.","ob.wyk.in":"Indie","ob.wyk.tw":"Tajwan","ob.wyk.hk":"Hongkong (z Chin)"}};
+const EXTRA178={"pl":{"ob.wyk":"Ostatnie {n} dni — przepływ dzienny w mln USD (Tajwan i Hongkong ≈ po kursie dnia): słupek w górę = napływ, w dół = odpływ; każdy rynek w swojej skali (±maks. po prawej); szara kreska = zero, ramka przerywana = brak danych.","ob.wyk.in":"Indie","ob.wyk.tw":"Tajwan","ob.wyk.hk":"Hongkong (z Chin)"}};
 for(const l in EXTRA178)if(I18N[l])Object.assign(I18N[l],EXTRA178[l]);
 /* v214: Szwajcaria — wykres depozytów (10 języków jak cały panel — strażnik v124) */
 const EXTRA179={"pl":{"snb.wyk":"Banki krajowe — depozyty w ostatnich {n} tygodniach (najniżej i najwyżej przy osi)"},"en":{"snb.wyk":"Domestic banks — sight deposits over the last {n} weeks (low and high on the axis)"},"de":{"snb.wyk":"Inländische Banken — Sichtguthaben in den letzten {n} Wochen (Tiefst- und Höchststand an der Achse)"},"es":{"snb.wyk":"Bancos nacionales — depósitos a la vista en las últimas {n} semanas (mínimo y máximo en el eje)"},"fr":{"snb.wyk":"Banques domestiques — avoirs à vue sur les {n} dernières semaines (plus bas et plus haut sur l’axe)"},"it":{"snb.wyk":"Banche nazionali — depositi a vista nelle ultime {n} settimane (minimo e massimo sull’asse)"},"pt":{"snb.wyk":"Bancos nacionais — depósitos à vista nas últimas {n} semanas (mínimo e máximo no eixo)"},"ru":{"snb.wyk":"Отечественные банки — депозиты до востребования за последние {n} нед. (минимум и максимум на оси)"},"zh":{"snb.wyk":"国内银行——最近{n}周的活期存款（轴上标出最低和最高）"},"ja":{"snb.wyk":"国内銀行 — 直近{n}週間の当座預金（軸に最低値と最高値）"}};
 for(const l in EXTRA179)if(I18N[l])Object.assign(I18N[l],EXTRA179[l]);
 /* v216: TRENDY — reguły „w cieniu” (tylko pl, cel właściciela 04.10) */
-const EXTRA180={"pl":{"tig.sh":"W cieniu testujemy jeszcze {m} reguły — pokażemy je dopiero, gdy przejdą ten sam test w punkcie 200 dni z sygnałem.","tig.sh.nx":"Najbliżej oceny: {n} z {c} dni.","tig.sh.ok":"Reguła z cienia przeszła test (punkt 200 dni, {d}): {r}. Decyzja o pokazywaniu jej sygnałów należy do właściciela.","tig.sh.r.pt":"cena i trend zgodne","tig.sh.r.ph":"cena i premia kontraktów zgodne","tig.sh.r.es":"przepływy na giełdy i stablecoiny zgodne","tig.sh.r.n3":"co najmniej 3 składniki w tę samą stronę","tig.sh.r.eq.pf":"akcje: cena i przepływ do funduszu zgodne","tig.sh.r.eq.fo":"akcje: przepływ do funduszu i zagraniczni zgodni","tig.sh.r.eq.n2":"akcje: co najmniej 2 składniki w tę samą stronę"}};
+const EXTRA180={"pl":{"tig.sh":"W cieniu testujemy jeszcze {m} reguły — pokażemy je dopiero, gdy przejdą ten sam test w punkcie 200 dni z sygnałem.","tig.sh.nx":"Najbliżej oceny: {n} z {c} dni.","tig.sh.ok":"Reguła z cienia przeszła test (punkt {c} dni, {d}): {r}. Decyzja o pokazywaniu jej sygnałów należy do właściciela.","tig.sh.r.pt":"cena i trend zgodne","tig.sh.r.ph":"cena i premia kontraktów zgodne","tig.sh.r.es":"przepływy na giełdy i stablecoiny zgodne","tig.sh.r.n3":"przewaga co najmniej 3 składników w jedną stronę","tig.sh.r.eq.pf":"akcje: cena i przepływ do funduszu zgodne","tig.sh.r.eq.fo":"akcje: przepływ do funduszu i zagraniczni zgodni"}};
 for(const l in EXTRA180)if(I18N[l])Object.assign(I18N[l],EXTRA180[l]);
 /* v219: słupki przepływów zagranicy — „brak danych” w podpowiedzi i opisie (tylko pl) */
 const EXTRA181={"pl":{"ob.wyk.brak":"brak danych"}};
 for(const l in EXTRA181)if(I18N[l])Object.assign(I18N[l],EXTRA181[l]);
+/* v221: reguły „w cieniu” — wycofanie po słabszej ocenie (tylko pl) */
+const EXTRA182={"pl":{"tig.sh.wyc":"Reguła z cienia „{r}” po kolejnej ocenie ({c} dni, {d}) nie ma już przewagi — nie pokazujemy jej."}};
+for(const l in EXTRA182)if(I18N[l])Object.assign(I18N[l],EXTRA182[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8276,10 +8281,13 @@ function trdIgShadow(J){
   const P=J&&J.pgs&&typeof J.pgs==='object'&&J.pgs.l&&typeof J.pgs.l==='object'?J.pgs.l:null;if(!P)return '';
   const K=Object.keys(P).filter(k=>Array.isArray(P[k])&&P[k].length>=3&&Number.isInteger(P[k][0])&&P[k][0]>=0);if(!K.length)return '';
   const iso=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d),L=LOCALE[LANG]||'pl-PL';
-  const ok=K.map(k=>{const v=J.cs&&Array.isArray(J.cs[k])?J.cs[k].find(x=>Array.isArray(x)&&x[0]===TRD_SH_JAWNE&&x[8]==='edge'&&iso(x[9])):null;return v?[k,v]:null;}).filter(Boolean);
+  const ok=K.map(k=>{const L2=J.cs&&Array.isArray(J.cs[k])?J.cs[k].filter(x=>Array.isArray(x)&&Number.isInteger(x[0])&&iso(x[9])):[];
+    if(!L2.some(x=>x[0]===TRD_SH_JAWNE&&x[8]==='edge'))return null;   /* ujawniony dopiero z przewagą w punkcie 200 */
+    return [k,L2.reduce((a,x)=>x[0]>a[0]?x:a)];}).filter(Boolean);   /* v221: decyduje ostatnia ocena — bez przewagi po 400 dniach = wycofany */
   const nx=K.map(k=>P[k]).filter(g=>Number.isInteger(g[1])&&g[1]>0).sort((a,b)=>(b[0]/b[1])-(a[0]/a[1]))[0];
   let h=`<p class="pnote tig-lw">${t('tig.sh',{m:trdC(K.length)})}${nx?' '+t('tig.sh.nx',{n:trdC(Math.min(nx[0],nx[1])),c:trdC(nx[1])}):''}</p>`;
-  for(const [k,v] of ok)h+=`<p class="pnote">${t('tig.sh.ok',{r:t('tig.sh.r.'+k),d:new Date(Date.parse(v[9]+'T12:00:00Z')).toLocaleDateString(L,{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'})})}</p>`;
+  for(const [k,v] of ok){const o={r:t('tig.sh.r.'+k),c:trdC(v[0]),d:new Date(Date.parse(v[9]+'T12:00:00Z')).toLocaleDateString(L,{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'})};
+    h+=`<p class="pnote">${t(v[8]==='edge'?'tig.sh.ok':'tig.sh.wyc',o)}</p>`;}
   return h;
 }
 function trdIgLearn(J,cr){
@@ -9586,8 +9594,10 @@ function snbWyk(rows,n){
   const segs=[];for(const r of P){const s=segs[segs.length-1];if(s&&ms(r[0])-ms(s[s.length-1][0])===wk)s.push(r);else segs.push([r]);}
   const g=segs.map(s=>s.length===1?`<circle class="arc-p" cx="${X(s[0][0])}" cy="${Y(s[0][1])}" r="3"/>`:`<polyline class="arc-l" points="${s.map(r=>X(r[0])+','+Y(r[1])).join(' ')}"/>`).join('');
   const cap=t('snb.wyk',{n:nfmt(P.length,0)}),al=cap+': '+snbDay(R[0][0])+' – '+snbDay(R[R.length-1][0])+', '+snbAmt(mn)+' – '+snbAmt(mx);
+  const hw=(W-2*Q)/Math.max(1,(x1-x0)/wk)/2,last=P[P.length-1];   /* v221: pas podpowiedzi na tydzień i kropka ostatniego tygodnia (jak w v214) */
+  const hit=R.map(r=>`<rect class="snbw-h" x="${(+X(r[0])-hw).toFixed(1)}" y="0" width="${(2*hw).toFixed(1)}" height="${H}"><title>${snbDay(r[0])}: ${snbNum(r[1])?snbAmt(r[1]):'—'}</title></rect>`).join('');
   return `<p class="pnote">${cap}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-body"><div class="arc-y"><span>${snbAmt(mx)}</span><span>${snbAmt(mn)}</span></div>`+
-    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}</svg></div>`+
+    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<circle class="snbw-k" cx="${X(last[0])}" cy="${Y(last[1])}" r="3.5"/>${hit}</svg></div>`+
     `<div class="arc-x"><span>${snbDay(R[0][0])}</span><span>${snbDay(R[R.length-1][0])}</span></div></div>`;
 }
 function snbBody(D){

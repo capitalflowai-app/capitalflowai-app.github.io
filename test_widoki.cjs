@@ -13666,12 +13666,12 @@ test('v216: w cieniu — liczba kandydatów i najbliższy postęp; ujawnienie ty
   let h = Y({pgs: {l: {pt: [42, 100, null, 38], ph: [3, 100, null, 2], es: [0, 100, null, 0], n3: [17, 100, null, 15]}}});
   assert.equal(h, '<p class="pnote tig-lw">tig.sh{"m":4} tig.sh.nx{"n":42,"c":100}</p>');
   h = Y({pgs: {l: {pt: [230, 400, null, 226], ph: [3, 100, null, 2]}}, cs: {pt: [[100, 70, 100, 50, 0, 0, 51, 80, 'edge', '2027-01-05', 'x'], [200, 140, 200, 50, 0, 0, 55, 75, 'edge', '2027-04-25', 'x']], ph: [[200, 1, 1, 0, 0, 0, 0, 0, 'none', '2027-04-25', 'x']]}});
-  assert.ok(h.includes('tig.sh.ok{"r":"tig.sh.r.pt","d":"25.04.2027"}') && !h.includes('tig.sh.r.ph'), 'ujawniony tylko kandydat z „przewagą” w punkcie 200');
+  assert.ok(h.includes('tig.sh.ok{"r":"tig.sh.r.pt","c":200,"d":"25.04.2027"}') && !h.includes('tig.sh.r.ph'), 'ujawniony tylko kandydat z „przewagą” w punkcie 200 (v221: z punktem)');
   h = Y({pgs: {l: {pt: [130, 200, null, 126]}}, cs: {pt: [[100, 70, 100, 50, 0, 0, 51, 80, 'edge', '2027-01-05', 'x']]}});
   assert.ok(!h.includes('tig.sh.ok'), 'przewaga po 100 dniach — jeszcze nie ujawniamy');
   for (const J of [null, {}, {pgs: null}, {pgs: {l: {}}}, {pgs: {l: {pt: 'x'}}}]) assert.equal(Y(J), '', JSON.stringify(J));
   const d0 = html.indexOf('const EXTRA180='), d1 = html.indexOf(';\n', d0), E = JSON.parse(html.slice(d0 + 'const EXTRA180='.length, d1));
-  assert.deepEqual(Object.keys(E), ['pl']); assert.equal(Object.keys(E.pl).length, 10); assert.ok(Object.keys(E.pl).every(k => k.startsWith('tig.sh')));
+  assert.deepEqual(Object.keys(E), ['pl']); assert.equal(Object.keys(E.pl).length, 9); assert.ok(Object.keys(E.pl).every(k => k.startsWith('tig.sh')));   // v221: bez eq.n2
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA180)if(I18N[l])Object.assign(I18N[l],EXTRA180[l]);'), 'jedna linia for po słowniku');
   assert.ok(html.includes("${vd}${trdIgShadow(J)}<p class=\"pnote tig-lw\">${t('tig.l.how'"), 'zdanie pod paskiem, przed opisem metody');
 });
@@ -13698,4 +13698,29 @@ test('v219: słupki — brak = ramka przerywana z „brak danych”, zero szare 
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA181)if(I18N[l])Object.assign(I18N[l],EXTRA181[l]);'), 'jedna linia for po słowniku');
   assert.equal(v96src.tFor('pl')('ob.wyk.hk'), 'Hongkong (z Chin)', 'kapitał z Chin kontynentalnych — jak kafelek i tabela');
   assert.ok(html.includes('.zs-n{fill:none;stroke:var(--dim);') && html.includes('.zs-z{fill:var(--dim)}'), 'styl braku i zera');
+});
+
+
+/* ---------- v221: w cieniu — wycofanie po słabszej ocenie; SNB — podpowiedzi tygodni i ostatni tydzień; legenda słupków ---------- */
+test('v221: kandydat ujawniony po 200 dniach i bez przewagi po 400 — wycofany; przewaga po 400 — „przeszła” z punktem 400; SNB: pasy podpowiedzi i kropka; legenda', () => {
+  const t2 = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const s0 = html.indexOf('/* v216: reguły „w cieniu”'), s1 = html.indexOf('function trdIg(D,cr){');
+  const Y = new Function('t', 'trdC', 'LOCALE', 'LANG', html.slice(s0, s1) + '\nreturn trdIgShadow;')(t2, v => v, {pl: 'pl-PL'}, 'pl');
+  const c200 = [200, 140, 200, 50, 0, 0, 55, 75, 'edge', '2027-04-25', 'x'], pg = {pgs: {l: {pt: [430, null, null, 426]}}};
+  let h = Y(Object.assign({cs: {pt: [c200, [400, 210, 400, 50, 0, 0, 48, 58, 'none', '2027-12-01', 'x']]}}, pg));
+  assert.ok(h.includes('tig.sh.wyc{"r":"tig.sh.r.pt","c":400,"d":"01.12.2027"}') && !h.includes('tig.sh.ok'), 'bez przewagi po 400 — wycofany');
+  h = Y(Object.assign({cs: {pt: [c200, [400, 280, 400, 50, 0, 0, 62, 74, 'edge', '2027-12-01', 'x']]}}, pg));
+  assert.ok(h.includes('tig.sh.ok{"r":"tig.sh.r.pt","c":400,"d":"01.12.2027"}'), 'przewaga potwierdzona po 400');
+  h = Y(Object.assign({cs: {pt: [[400, 280, 400, 50, 0, 0, 62, 74, 'edge', '2027-12-01', 'x']]}}, pg));
+  assert.ok(!h.includes('tig.sh.ok') && !h.includes('tig.sh.wyc'), 'bez przewagi w punkcie 200 — nigdy nie ujawniony');
+  const E = JSON.parse(html.slice(html.indexOf('const EXTRA182=') + 'const EXTRA182='.length, html.indexOf(';\n', html.indexOf('const EXTRA182='))));
+  assert.deepEqual(Object.keys(E), ['pl']); assert.ok(E.pl['tig.sh.wyc'].includes('{r}') && E.pl['tig.sh.wyc'].includes('{c}') && E.pl['tig.sh.wyc'].includes('{d}'));
+  assert.ok(html.slice(html.indexOf(';\n', html.indexOf('const EXTRA182=')), html.indexOf(';\n', html.indexOf('const EXTRA182=')) + 80).includes('for(const l in EXTRA182)if(I18N[l])Object.assign(I18N[l],EXTRA182[l]);'));
+  const P = v96src.tFor('pl');
+  assert.ok(P('tig.sh.ok').includes('{c}') && P('tig.sh.r.n3').startsWith('przewaga co najmniej 3') && P('tig.sh.r.eq.n2') === 'tig.sh.r.eq.n2', 'teksty kandydatów po poprawce rejestracji');
+  assert.ok(P('ob.wyk').includes('szara kreska = zero') && P('ob.wyk').includes('ramka przerywana = brak danych') && !P('ob.wyk').includes('kreska = brak danych'), 'legenda zgodna z rysunkiem');
+  const X = snb124.mk(), body = X.snbBody(snb124.D), S = body.slice(body.indexOf('<div class="snbw"'), body.indexOf('snb.mm{'));
+  assert.equal((S.match(/<rect class="snbw-h"/g) || []).length, 9, 'pas podpowiedzi na każdy tydzień z wierszem');
+  assert.ok(/<title>[^<]*: —<\/title>/.test(S) && S.includes('<circle class="snbw-k"'), 'tydzień bez liczby — „—”; kropka ostatniego tygodnia');
+  assert.ok(html.includes('.snbw-h{fill:transparent}') && html.includes('.snbw-k{fill:var(--bl)}'));
 });
