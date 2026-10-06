@@ -13721,8 +13721,8 @@ test('v221: kandydat ujawniony po 200 dniach i bez przewagi po 400 — wycofany;
   assert.ok(P('ob.wyk').includes('szara kreska = zero') && P('ob.wyk').includes('ramka przerywana = brak danych') && !P('ob.wyk').includes('kreska = brak danych'), 'legenda zgodna z rysunkiem');
   const X = snb124.mk(), body = X.snbBody(snb124.D), S = body.slice(body.indexOf('<div class="snbw"'), body.indexOf('snb.mm{'));
   assert.equal((S.match(/<rect class="snbw-h"/g) || []).length, 9, 'pas podpowiedzi na każdy tydzień z wierszem');
-  assert.ok(/<title>[^<]*: —<\/title>/.test(S) && S.includes('<circle class="snbw-k"'), 'tydzień bez liczby — „—”; kropka ostatniego tygodnia');
-  assert.ok(html.includes('.snbw-h{fill:transparent}') && html.includes('.snbw-k{fill:var(--bl)}'));
+  assert.ok(/<title>[^<]*: —<\/title>/.test(S) && S.includes('<line class="snbw-k"'), 'tydzień bez liczby — „—”; kropka ostatniego tygodnia');
+  assert.ok(html.includes('.snbw-h{fill:transparent}') && html.includes('.snbw-k{fill:none;stroke:var(--bl);stroke-width:7px;stroke-linecap:round;vector-effect:non-scaling-stroke}'));
 });
 
 
@@ -13810,7 +13810,7 @@ test('v228: rynek pieniężny — linia aktywów razem z tygodni pliku pod kafla
   const l = W[W.length - 1];
   assert.ok(w.includes('<title>Sep 23, 2026: ' + (l[1] / 1000).toFixed(1) + ' bn</title>'), 'podpowiedź ostatniego tygodnia: data i kwota');
   assert.equal((w.match(/<polyline class="arc-l"/g) || []).length, 1, 'tygodnie po kolei — jedna linia');
-  assert.ok(/<circle class="snbw-k" cx="596\.0" cy="[\d.]+" r="3\.5"\/>/.test(w), 'kropka ostatniego tygodnia przy prawej krawędzi');
+  assert.ok(/<line class="snbw-k" x1="596\.0" y1="[\d.]+" x2="596\.01" y2="[\d.]+"\/>/.test(w), 'kropka ostatniego tygodnia przy prawej krawędzi');
   assert.ok(!/NaN|undefined/.test(w));
 });
 
@@ -14100,4 +14100,22 @@ test('v239: tokenizowane aktywa — rodzaj ponad sumą = bez wykresu; stała kol
   assert.ok(html.includes('#c-rwa .rww-b{display:grid;grid-template-columns:minmax(0,1fr) 9.5em;align-items:center;gap:10px}'), 'równe ścieżki');
   const i = html.indexOf('const EXTRA188='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA188='.length, j));
   for (const L of ['de', 'es', 'fr']) assert.ok(D[L]['rww.wyk'].includes('100 %') && !D[L]['rww.wyk'].includes('100 %'), L);
+});
+
+
+/* ===================== v240: wykresy liniowe — daty pod początkiem linii (jedna siatka), okrągła kropka ostatniego punktu ===================== */
+test('v240: pięć wykresów liniowych w siatce .arc-gr — daty w kolumnie wykresu; CSS siatki', () => {
+  assert.equal((html.match(/<div class="arc-gr"><div class="arc-body">/g) || []).length, 5, 'archiwum, Szwajcaria, rynek pieniężny, sieć BTC, wycena BTC');
+  assert.ok(html.includes('.arc-gr{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:stretch}'));
+  assert.ok(html.includes('.arc-gr>.arc-body{display:contents}') && html.includes('.arc-gr>.arc-x{grid-column:2;margin:3px 0 0}'));
+  for (const f of ['function arcChart(', 'function lnHashChart(', 'function wyChart(', 'function snbWyk(', 'function fndMmWyk(']) {
+    const i = html.indexOf(f); if (i < 0) continue;
+    const body = html.slice(i, html.indexOf('\nfunction ', i + 10));
+    assert.ok(body.includes('<div class="arc-gr"><div class="arc-body">'), f + ' — siatka');
+  }
+});
+test('v240: kropka ostatniego punktu — kreska z zaokrąglonym końcem, grubość w pikselach ekranu (okrągła przy rozciąganym wykresie)', () => {
+  assert.ok(html.includes('.snbw-k{fill:none;stroke:var(--bl);stroke-width:7px;stroke-linecap:round;vector-effect:non-scaling-stroke}'));
+  assert.ok(!html.includes('<circle class="snbw-k"'), 'bez okręgu (rozciągał się w elipsę)');
+  assert.ok(html.includes('.snbw .arc-svg{overflow:visible}'), 'kropka przy prawej krawędzi nie jest obcięta');
 });

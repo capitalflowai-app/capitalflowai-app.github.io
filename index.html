@@ -858,6 +858,10 @@ td .cell .logo-img{width:34px;height:34px}
 .arc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:6px}.arc-grid .arc{margin:0}
 .arc .pnote{margin-top:6px}.arc-seg button{padding:5px 9px}
 @media (max-width:620px){.arc-x{margin-left:0}.arc-y{min-width:46px;font-size:10px}.arc-h{gap:8px}}
+/* v240: etykiety osi, wykres i daty w jednej siatce — daty w kolumnie wykresu (pierwsza pod początkiem linii, przy każdej szerokości etykiet) */
+.arc-gr{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:stretch}
+.arc-gr>.arc-body{display:contents}
+.arc-gr>.arc-x{grid-column:2;margin:3px 0 0}
 /* v120 sygnały dzienne (TRENDY): blok nad kaflami tygodnia — 4 kafle, karty po stronach, zwinięte „Bez sygnału”, skuteczność reguł, metoda */
 #trendy .trd-d h3{margin:14px 0 6px}#trendy .trd-d h3>.tg{margin-right:6px}
 #trendy .trd-d .etfk.trk b{white-space:nowrap}
@@ -1252,7 +1256,7 @@ td .cell .logo-img{width:34px;height:34px}
 /* v214/v219: Szwajcaria — linia depozytów banków krajowych: wzór wykresów archiwum (.arc-body, .arc-y, .arc-svg, .arc-x — kolor neutralny --bl) */
 .snbw{margin:4px 0 8px;max-width:640px}
 .snbw-h{fill:transparent}.snbw-h:hover{fill:var(--bl);fill-opacity:.12}
-.snbw-k{fill:var(--bl)}
+.snbw-k{fill:none;stroke:var(--bl);stroke-width:7px;stroke-linecap:round;vector-effect:non-scaling-stroke}.snbw .arc-svg{overflow:visible}
 .trd-wiecej{margin-top:12px}
 .trd-wiecej>summary{font-weight:600}
 @media (max-width:900px){.trd-ig .tig-g,.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(0,1fr)}}
@@ -9124,7 +9128,7 @@ function lnChart(rows){
     segs.forEach(g=>{s+=g.length===1?`<circle class="arc-p ${l.cls}" cx="${X(g[0][0]).toFixed(1)}" cy="${Y(g[0][1]).toFixed(1)}" r="2"/>`:`<polyline class="arc-l ${l.cls}" points="${g.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/>`;});});
   s+='</svg>';
   const mid=new Date((x0+x1)/2).toISOString().slice(0,10);
-  return `<div class="arc-body"><div class="arc-y"><span>${lnEh(mx)} EH/s</span><span>${lnEh(mn)} EH/s</span></div>${s}</div><div class="arc-x"><span>${escH(r[0][0])}</span><span>${escH(mid)}</span><span>${escH(r[r.length-1][0])}</span></div>`;
+  return `<div class="arc-gr"><div class="arc-body"><div class="arc-y"><span>${lnEh(mx)} EH/s</span><span>${lnEh(mn)} EH/s</span></div>${s}</div><div class="arc-x"><span>${escH(r[0][0])}</span><span>${escH(mid)}</span><span>${escH(r[r.length-1][0])}</span></div></div>`;
 }
 function lnHistBlock(D){
   const H=D&&lnObj(D.hashrate)?D.hashrate:null,r=lnHist(H&&H.hist);if(r.length<2)return '';
@@ -9362,7 +9366,7 @@ function wyChart(S){
     segs.forEach(g=>{s+=g.length===1?`<circle class="arc-p ${l.cls}" cx="${X(g[0][0]).toFixed(1)}" cy="${Y(g[0][1]).toFixed(1)}" r="2"/>`:`<polyline class="arc-l ${l.cls}" points="${g.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/>`;});});
   s+='</svg>';
   const mid=new Date((x0+x1)/2).toISOString().slice(0,10);
-  return `<div class="arc-body"><div class="arc-y"><span>${nfmt(mx,0)}</span><span>${nfmt(mn,0)}</span></div>${s}</div><div class="arc-x"><span>${wyDayTxt(S.P[0][0])}</span><span>${wyDayTxt(mid)}</span><span>${wyDayTxt(S.P[S.P.length-1][0])}</span></div>`;
+  return `<div class="arc-gr"><div class="arc-body"><div class="arc-y"><span>${nfmt(mx,0)}</span><span>${nfmt(mn,0)}</span></div>${s}</div><div class="arc-x"><span>${wyDayTxt(S.P[0][0])}</span><span>${wyDayTxt(mid)}</span><span>${wyDayTxt(S.P[S.P.length-1][0])}</span></div></div>`;
 }
 function wySeg(){return `<div class="seg arc-seg" role="group" aria-label="${escH(t('wy.win'))}">${WY.ok.map(p=>`<button type="button" data-wy-per="${p}" aria-pressed="${WY.per===p}">${t('wy.per',{n:p})}</button>`).join('')}</div>`;}
 function wyHist(D){
@@ -9680,9 +9684,9 @@ function snbWyk(rows,n){
   const cap=t('snb.wyk',{n:nfmt(P.length,0)}),al=cap+': '+snbDay(R[0][0])+' – '+snbDay(R[R.length-1][0])+', '+snbAmt(mn)+' – '+snbAmt(mx);
   const hw=(W-2*Q)/Math.max(1,(x1-x0)/wk)/2,last=P[P.length-1];   /* v221: pas podpowiedzi na tydzień i kropka ostatniego tygodnia (jak w v214) */
   const hit=R.map(r=>`<rect class="snbw-h" x="${(+X(r[0])-hw).toFixed(1)}" y="0" width="${(2*hw).toFixed(1)}" height="${H}"><title>${snbDay(r[0])}: ${snbNum(r[1])?snbAmt(r[1]):'—'}</title></rect>`).join('');
-  return `<p class="pnote">${cap}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-body"><div class="arc-y"><span>${snbAmt(mx)}</span><span>${snbAmt(mn)}</span></div>`+
-    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<circle class="snbw-k" cx="${X(last[0])}" cy="${Y(last[1])}" r="3.5"/>${hit}</svg></div>`+
-    `<div class="arc-x"><span>${snbDay(R[0][0])}</span><span>${snbDay(R[R.length-1][0])}</span></div></div>`;
+  return `<p class="pnote">${cap}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-gr"><div class="arc-body"><div class="arc-y"><span>${snbAmt(mx)}</span><span>${snbAmt(mn)}</span></div>`+
+    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<line class="snbw-k" x1="${X(last[0])}" y1="${Y(last[1])}" x2="${(+X(last[0])+0.01).toFixed(2)}" y2="${Y(last[1])}"/>${hit}</svg></div>`+
+    `<div class="arc-x"><span>${snbDay(R[0][0])}</span><span>${snbDay(R[R.length-1][0])}</span></div></div></div>`;
 }
 function snbBody(D){
   if(!D||typeof D!=='object')return '';
@@ -10130,9 +10134,9 @@ function fndMmWyk(D){
   const cap=t('fund.mm.wyk',{n:nfmt(Math.round((x1-x0)/wk)+1,0)})   /* v231: tygodnie osi */,al=cap+': '+fndDay(R[0][0])+' – '+fndDay(R[R.length-1][0])+', '+fndAmt(mn)+' – '+fndAmt(mx);
   const hw=(W-2*Q)/Math.max(1,(x1-x0)/wk)/2,last=Pt[Pt.length-1];
   const hit=R.map(r=>`<rect class="snbw-h" x="${(+X(r[0])-hw).toFixed(1)}" y="0" width="${(2*hw).toFixed(1)}" height="${H}"><title>${escH(fndDay(r[0]))}: ${escH(fndNum(r[i])?fndAmt(r[i]):'—')}</title></rect>`).join('');
-  return `<p class="pnote">${escH(cap)}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-body"><div class="arc-y"><span>${escH(fndAmt(mx))}</span><span>${escH(fndAmt(mn))}</span></div>`+
-    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<circle class="snbw-k" cx="${X(last[0])}" cy="${Y(last[i])}" r="3.5"/>${hit}</svg></div>`+
-    `<div class="arc-x"><span>${escH(fndDay(R[0][0]))}</span><span>${escH(fndDay(R[R.length-1][0]))}</span></div></div>`;
+  return `<p class="pnote">${escH(cap)}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-gr"><div class="arc-body"><div class="arc-y"><span>${escH(fndAmt(mx))}</span><span>${escH(fndAmt(mn))}</span></div>`+
+    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<line class="snbw-k" x1="${X(last[0])}" y1="${Y(last[i])}" x2="${(+X(last[0])+0.01).toFixed(2)}" y2="${Y(last[i])}"/>${hit}</svg></div>`+
+    `<div class="arc-x"><span>${escH(fndDay(R[0][0]))}</span><span>${escH(fndDay(R[R.length-1][0]))}</span></div></div></div>`;
 }
 FND_EXT.push({
   ok:D=>!!fndMmW(D),
@@ -10272,7 +10276,7 @@ function arcChart(L,unit,small){const W=600,H=small?70:120,P=4,all=[];L.forEach(
     s+=`<polyline class="arc-l ${l.cls}" points="${seg.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/>`;});});
   s+='</svg>';
   const d0=all.reduce((m,p)=>p[0]<m?p[0]:m,all[0][0]),d1=all.reduce((m,p)=>p[0]>m?p[0]:m,all[0][0]),mid=x1>x0?new Date((x0+x1)/2).toISOString().slice(0,d0.length):'';
-  return `<div class="arc-body"><div class="arc-y"><span>${arcVal(yMax,unit)}</span><span>${arcVal(yMin,unit)}</span></div>${s}</div><div class="arc-x"><span>${escH(d0)}</span><span>${escH(mid)}</span><span>${escH(d1)}</span></div>`;}
+  return `<div class="arc-gr"><div class="arc-body"><div class="arc-y"><span>${arcVal(yMax,unit)}</span><span>${arcVal(yMin,unit)}</span></div>${s}</div><div class="arc-x"><span>${escH(d0)}</span><span>${escH(mid)}</span><span>${escH(d1)}</span></div></div>`;}
 function arcBlock(id,title,lines,unit,srcKey,small){const per=ARC.per;let first=null,freq=null;
   const L=lines.map(l=>{const m=arcMeta(l.sid)||{},d=arcSer(l.sid);if(m.freq&&!freq)freq=m.freq;if(typeof m.first==='string'&&(!first||m.first<first))first=m.first;return {d:arcWin(d,per,m.freq),cls:l.cls||'l1',name:l.name||''};});
   const head=L.map(l=>{const p=l.d.length?l.d[l.d.length-1]:null;return p?`<span class="arc-last"><i class="${l.cls}"></i><b>${arcVal(p[1],unit)}</b><small>${escH(p[0])}${gAgeNote(p[0])}</small></span>`:'';}).join('');
