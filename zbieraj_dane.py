@@ -5011,7 +5011,7 @@ FUND_TNA_OKNO = 10  # v217/v223: tyle dni PRZED wierszem tworzy medianę porówn
 
 def _fund_clean(h):
     """v217: historia funduszu [[data, NAV, liczba jednostek]] → (historia bez wierszy z błędem pliku, odrzucone daty). Wiersz jest błędny,
-    gdy aktywa (NAV × liczba jednostek) różnią się od mediany aktywów FUND_TNA_OKNO dni przed nim i po nim ponad FUND_TNA_X razy; podział
+    gdy aktywa (NAV × liczba jednostek) różnią się od mediany aktywów FUND_TNA_OKNO dni przed nim ponad FUND_TNA_X razy (v223: tylko przed); podział
     jednostek nie zmienia aktywów, więc zostaje. EWZ 05.10.2026: NAV 0,001328 USD przy 238 mln jednostek (aktywa ×0,00004).
     v223: tylko dni PRZED wierszem (dotąd także po nim) — decyzja o dniu nie zmienia się, gdy dochodzą nowsze dni, więc dziennik sygnałów
     (zapis raz na zawsze) i późniejsze przeliczenie widzą to samo; trwały skok aktywów ponad 2× oznacza ok. 5 pierwszych dni po nim."""
@@ -5061,12 +5061,18 @@ def _fund_bf_odrz(p, bad):
     return True
 
 
-def _fund_bf_zapisz(p):
-    """v223: pełny plik pobrany — dni czekające na próbę (bf_czeka) zapisane jako wypróbowane (bf_odrz, ostatnie 20 dat). Nieudane pobranie
-    nie zużywa jedynej próby (dotąd: błąd pobrania + nowy dzień z zestawienia = zły wiersz bez poprawki na ok. 300 dni)."""
+def _fund_bf_zapisz(p, do=None):
+    """v223/v226: pełny plik pobrany — dni czekające na próbę (bf_czeka) do ostatniego dnia pliku `do` (None = wszystkie) zapisane jako
+    wypróbowane (bf_odrz, ostatnie 20 dat); dni po końcu pliku (zestawienie wydawcy wyprzedza pełny plik) czekają dalej → True. Nieudane
+    pobranie nie zużywa jedynej próby (dotąd: błąd pobrania + nowy dzień z zestawienia = zły wiersz bez poprawki na ok. 300 dni)."""
     cz = [x for x in (p.pop('bf_czeka', None) or []) if isinstance(x, str)]
-    if cz:
-        p['bf_odrz'] = sorted(set(x for x in (p.get('bf_odrz') or []) if isinstance(x, str)) | set(cz))[-20:]
+    tak = [x for x in cz if do is None or x <= do]
+    nie = sorted(set(cz) - set(tak))
+    if tak:
+        p['bf_odrz'] = sorted(set(x for x in (p.get('bf_odrz') or []) if isinstance(x, str)) | set(tak))[-20:]
+    if nie:
+        p['bf_czeka'] = nie
+    return bool(nie)
 
 
 def _fund_notatka(t, h, bad):
@@ -5137,7 +5143,7 @@ def build_fundusze(prev=None):
     for t in FUND_ISH:
         p = dict(pf.get(t)) if isinstance(pf.get(t), dict) else {'iss': 'ishares'}
         h = p.get('h') or []
-        pobrany = False   # v223: pełny plik pobrany w tym przebiegu — złe wiersze, które w nim zostały, to już wynik jedynej próby
+        pobrany = None    # v223/v226: ostatni dzień pełnego pliku pobranego w tym przebiegu — złe dni do niego to już wynik jedynej próby
         pid = (scr.get(t) or (p.get('pid'),))[0]
         if pid:
             p['pid'] = pid
@@ -5151,7 +5157,9 @@ def build_fundusze(prev=None):
                 full = parse_ishares_hist(get_bytes(FUND_ISH_DOC.format(pid=pid), timeout=90))
                 h = _fund_merge(h, full)
                 p['at'] = NOW; p.pop('bf_need', None); p.pop('bf_err_at', None)
-                _fund_bf_zapisz(p); pobrany = True                       # v223: próba dla złych dni zużyta dopiero teraz (plik pobrany)
+                pobrany = max((r[0] for r in full if isinstance(r, list) and r and isinstance(r[0], str)), default='')
+                if _fund_bf_zapisz(p, pobrany):                          # v223/v226: próba zużyta dla dni z pliku; dzień po jego końcu czeka —
+                    p['bf_need'] = True; p['bf_err_at'] = NOW            # kolejna próba po FUND_BF_RETRY (jak po błędzie; bez pętli co przebieg)
                 if len(full) < FUND_MIN:
                     p['bf_done'] = True                                  # młody fundusz — cała historia już jest
             except Exception as e:
@@ -5171,10 +5179,10 @@ def build_fundusze(prev=None):
             if bad:
                 _fund_notatka(t, h, bad)   # v223: notatka tylko o świeżych (dotąd co przebieg przez ok. 14 miesięcy)
                 if _fund_bf_odrz(p, bad):   # v220: jedna próba pełnym plikiem — poprawny NAV zastąpi błędny wiersz (nowsze wygrywają)
-                    if pobrany:
-                        _fund_bf_zapisz(p)   # v223: plik już pobrany w tym przebiegu — błąd jest w samym pliku, próba zużyta
-                    else:
+                    if pobrany is None:
                         p['bf_need'] = True
+                    elif _fund_bf_zapisz(p, pobrany):   # v226: plik pobrany w tym przebiegu — dni z pliku: próba zużyta; dzień po jego końcu
+                        p['bf_need'] = True; p['bf_err_at'] = p.get('bf_err_at') or NOW   # czeka (kolejna próba po FUND_BF_RETRY, bez pętli)
             out['f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
@@ -5608,12 +5616,13 @@ def _fund_rows(h):
     return h[:1] + [b for a, b in zip(h, h[1:]) if not (b[1] == a[1] and b[2] == a[2])]
 
 
-def fund_flows(h):
+def fund_flows(h, bez=None):
     """Historia funduszu [[data, NAV, liczba jednostek]] → {data: przepływ w mln USD} = zmiana liczby jednostek × NAV z tego dnia;
-    w dniu podziału jednostek poprzednia liczba mnożona przez współczynnik podziału (v93); skok bez wyjaśnienia — dzień pominięty."""
+    w dniu podziału jednostek poprzednia liczba mnożona przez współczynnik podziału (v93); skok bez wyjaśnienia — dzień pominięty.
+    v226: bez = daty złych wierszy już znane (historia oczyszczona w fund_group) — bez drugiego wykrywania."""
     out = {}
     h = _fund_rows(h)
-    bad = set(_fund_clean(h)[1])   # v223: para dni z wierszem z błędem pliku — dzień pominięty (brak), jak skok bez wyjaśnienia
+    bad = set(_fund_clean(h)[1]) if bez is None else set(bez)   # v223: para dni z wierszem z błędem pliku — dzień pominięty (brak)
     for a, b in zip(h, h[1:]):
         if a[0] in bad or b[0] in bad:
             continue
@@ -5633,7 +5642,7 @@ def fund_group(fu, members):
         h = _fund_rows(((fu or {}).get(t) or {}).get('h') or [])
         bad = set(_fund_clean(h)[1])
         hk = [r for r in h if r[0] not in bad]   # v223: zły wiersz pliku poza sumą grupy — przepływ przez dwa dni trafia do następnego wiersza (jak inny kalendarz)
-        fl = fund_flows(hk)
+        fl = fund_flows(hk, bez=())   # v226: historia już oczyszczona — bez drugiego wykrywania (oznaczałoby kolejne dni po trwałym skoku)
         if not fl:
             return [], [], None
         F.append(fl); B.append({r[0] for r in hk[1:]} - set(fl))   # v223: wiersz bez przepływu (skok bez wyjaśnienia) — brak grupy, nie zero

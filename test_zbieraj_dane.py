@@ -26032,7 +26032,7 @@ class KontrolaZuzycieV222(unittest.TestCase):
 # ===================== v223: FUNDUSZE PO PRZEGLĄDZIE v220–v221 =====================
 class PoPrzegladzieV223(unittest.TestCase):
     """v223: zły wiersz pliku decyduje o braku (para dni = brak; suma grupy bez niego — dokładna); aktywa grupy z ostatniego poprawnego wiersza;
-    próba uzupełnienia zużyta dopiero po pobraniu pliku; granice 0,6–1,6×; notatki tylko o świeżych złych wierszach; limit planu od dostawcy."""
+    próba uzupełnienia zużyta dopiero po pobraniu pliku; granice 0,5–2× zostają; notatki tylko o świeżych złych wierszach; limit planu od dostawcy."""
 
     H = [['2026-09-%02d' % d, 36.0 + d / 10, 232600000 + 100000 * d] for d in range(14, 31) if datetime.date(2026, 9, d).weekday() < 5]
 
@@ -26178,7 +26178,7 @@ class PoPrzegladzieV223(unittest.TestCase):
         self.assertIn('według dostawcy w miesiącu: 471 z 15 000 (3%', o['plany'][0]['tekst'])
         q['dost'] = {'at': '2026-10-07T06:00:05+00:00', 'blad': 'HTTP 500'}
         o = k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00', 'zuzycie': {'cmc': q}})
-        self.assertIn('z limitu 10 000 (45%)', o['plany'][0]['tekst'], 'bez raportu dostawcy — limit z tabeli')
+        self.assertIn('z limitu 15 000 (30%)', o['plany'][0]['tekst'], 'bez raportu dostawcy — limit z tabeli (v226: 15 000 według dostawcy)')
 
 
 # ===================== v225: KONTROLA — KURSY WALUT STRONY VS H.10 (FED) =====================
@@ -26251,3 +26251,82 @@ class KontrolaKursyV225(unittest.TestCase):
         self.assertIn('brak wspólnych dat (H.10 wychodzi raz w tygodniu) ℹ️.', k.raport_md(dict(base, zgodnosc={'fx': {'daty': [], 'zle': [], 'med_zle': []}})))
         self.assertIn('brak porównania (H.10: HTTP 503) ℹ️.', k.raport_md(dict(base, zgodnosc={'fx': {'brak': 'H.10: HTTP 503'}})))
         self.assertEqual((k.FX_PROG, k.FX_MED, k.FX_MIN_N), (1.5, 0.4, 5))
+
+
+# ===================== v226: POPRAWKI PO PRZEGLĄDZIE v222–v223 =====================
+class PoPrzegladzieV226(unittest.TestCase):
+    """v226: próba pełnym plikiem zużyta tylko dla dni z pliku (dzień po jego końcu czeka — bez pętli); suma grupy bez drugiego wykrywania;
+    kontrola: limit CoinMarketCap 15 000 i ocena końca poprzedniego miesiąca."""
+
+    def test_plik_krotszy_niz_zestawienie(self):
+        t0 = datetime.datetime(2026, 9, 25, 12, 0, tzinfo=datetime.timezone.utc)
+        spy = [[d, 700.0 + i, 1000000 + i] for i, d in enumerate(['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24'])]
+        days = [d for d in (datetime.date(2026, 8, 3) + datetime.timedelta(days=i) for i in range(60)) if d.weekday() < 5 and d <= datetime.date(2026, 9, 24)]
+        hist = [[d.isoformat(), 50.0, 1000000] for d in days if d <= datetime.date(2026, 9, 22)]
+        prev = {'scr_at': None, 'f': {t: {'iss': 'ssga', 'h': spy} for t in zd.FUND_SSGA}}
+        prev['f']['EFA'] = {'iss': 'ishares', 'pid': '1', 'bf_done': True, 'h': hist}
+        scr = {'1': {'localExchangeTicker': 'EFA', 'portfolioId': '1', 'navAmount': {'r': 0.001}, 'navAmountAsOf': {'r': 20260924},
+                     'totalNetAssetsFund': {'r': 0.001 * 1000000}, 'totalNetAssetsFundAsOf': {'r': 20260924}}}
+        doc1 = FunduszeV90.xml([(d.strftime('%b %d, %Y'), 50.0, 1000000) for d in reversed(days) if d <= datetime.date(2026, 9, 23)])   # plik do 23.09
+        doc2 = FunduszeV90.xml([(d.strftime('%b %d, %Y'), 50.0, 1000000) for d in reversed(days)])                                     # plik do 24.09
+        seq = [(t0, doc1), (t0 + datetime.timedelta(minutes=10), doc1), (t0 + datetime.timedelta(minutes=zd.FUND_BF_RETRY + 20), doc2)]
+        wyn = []
+        for now, doc in seq:
+            calls = []
+
+            def fake(url, timeout=60, headers=None, doc=doc):
+                calls.append(url)
+                return json.dumps(scr).encode() if 'product-screener' in url else doc
+            for t in zd.FUND_SSGA:
+                prev['f'][t]['at'] = (now - datetime.timedelta(minutes=5)).isoformat()
+            zd.META['notes'].clear(); zd.META['errors'].clear()
+            with mock.patch.object(zd, 'get_bytes', side_effect=fake), mock.patch.object(zd, '_now_utc', return_value=now), \
+                    mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'FUND_SLEEP', 0), mock.patch.object(zd.time, 'sleep'):
+                out = zd.build_fundusze(prev)
+            e = out['f']['EFA']
+            wyn.append((sum('get-fund-document' in u for u in calls), e.get('bf_need'), e.get('bf_czeka'), e.get('bf_odrz'), e.get('bf_err_at'), e['h'][-1]))
+            prev = out
+        d = '2026-09-24'
+        self.assertEqual(wyn[0][:5], (1, True, [d], None, t0.isoformat()),
+                         'przebieg 1: luka — pełny plik (do 23.09); zły dzień 24.09 z zestawienia po końcu pliku — czeka, próba nie zużyta, przerwa jak po błędzie')
+        self.assertEqual(wyn[0][5], [d, 0.001, 1000000])
+        self.assertEqual(wyn[1][0], 0, 'przebieg 2 (10 min później): bez pobierania — bez pętli')
+        self.assertEqual(wyn[2][:4], (1, None, None, [d]), 'przebieg 3 (po przerwie): plik obejmuje 24.09 — próba zużyta')
+        self.assertEqual(wyn[2][5], [d, 50.0, 1000000], 'poprawny NAV z pliku zastąpił zły wiersz')
+
+    def test_zapisz_tylko_do_konca_pliku(self):
+        p = {'bf_czeka': ['2026-09-24', '2026-09-22'], 'bf_odrz': ['2026-09-01']}
+        self.assertTrue(zd._fund_bf_zapisz(p, '2026-09-23'))
+        self.assertEqual((p['bf_odrz'], p['bf_czeka']), (['2026-09-01', '2026-09-22'], ['2026-09-24']))
+        self.assertFalse(zd._fund_bf_zapisz(p, '2026-09-24')); self.assertEqual((p['bf_odrz'], 'bf_czeka' in p), (['2026-09-01', '2026-09-22', '2026-09-24'], False))
+        q = {'bf_czeka': ['2026-09-24']}
+        self.assertFalse(zd._fund_bf_zapisz(q)); self.assertEqual(q['bf_odrz'], ['2026-09-24'], 'bez końca pliku — wszystkie (jak v223)')
+        self.assertFalse(zd._fund_bf_zapisz({}))
+
+    def test_grupa_bez_drugiego_wykrycia(self):
+        days = [d.isoformat() for d in (datetime.date(2026, 6, 1) + datetime.timedelta(days=i) for i in range(90)) if d.weekday() < 5][:60]
+        h = [[d, 50.0 + 0.01 * i, 1000000 if i < 30 else 2500000] for i, d in enumerate(days)]   # trwałe utworzenie jednostek ×2,5 (aktywa ×2,5)
+        first = zd._fund_clean(h)[1]
+        self.assertEqual(first, days[30:35], 'pierwsze wykrycie: 5 dni po skoku (tylko dni wcześniejsze w medianie)')
+        ds, v, aum = zd.fund_group({'X': {'h': h}}, ('X',))
+        self.assertTrue(all(zd._isnum(x) for x in v), 'bez drugiego wykrycia — żaden dzień grupy nie jest brakiem')
+        self.assertAlmostEqual(sum(v), (2500000 - 1000000) * 50.35 / 1e6, msg='suma grupy dokładna: całe utworzenie jednostek w dniu po oznaczonych')
+        self.assertAlmostEqual(zd.fund_flows(h[:30] + h[35:], bez=())[days[35]], 75.525)
+        fl = zd.fund_flows(h)
+        self.assertTrue(all(d not in fl for d in days[30:36]), 'karta dzienna funduszu: dni ze złymi wierszami i dzień po nich — brak')
+
+    def test_kontrola_cmc_i_poprzedni_miesiac(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v226', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        self.assertEqual([x[3] for x in k.ZUZ_PLANY], [10000, 15000, 800])
+        q = {'od': '2026-10-06T07:16:20+00:00', 'd': '2026-11-02', 'n': 150, 'm': '2026-11', 'nm': 300, 'mp': ['2026-10', 9700], 'dp': ['2026-11-01', 150]}
+        o = k.zuzycie_ocena({'at': '2026-11-02T06:20:00+00:00', 'zuzycie': {'cg': q}})
+        self.assertEqual(o['plany'][0]['znak'], '⚠️'); self.assertEqual(o['bledy'], [])
+        self.assertTrue(any('w poprzednim miesiącu (2026-10) automat zużył 9 700 z 10 000 zapytań' in u for u in o['uwagi']), o['uwagi'])
+        o = k.zuzycie_ocena({'at': '2026-11-09T06:20:00+00:00', 'zuzycie': {'cg': dict(q, d='2026-11-09')}})
+        self.assertFalse(any('poprzednim miesiącu' in u for u in o['uwagi']), 'po 7 dniach — bez uwagi o poprzednim miesiącu')
+        o = k.zuzycie_ocena({'at': '2026-11-02T06:20:00+00:00', 'zuzycie': {'cg': dict(q, mp=['2026-10', 6000])}})
+        self.assertFalse(any('poprzednim miesiącu' in u for u in o['uwagi']), '60% — bez uwagi')
+        o = k.zuzycie_ocena({'at': '2026-11-02T06:20:00+00:00', 'zuzycie': {'cmc': dict(q, mp=['2026-10', 13000])}})
+        self.assertFalse(any('poprzednim miesiącu' in u for u in o['uwagi']), 'CoinMarketCap: 13 000 z 15 000 (87%) — bez uwagi')

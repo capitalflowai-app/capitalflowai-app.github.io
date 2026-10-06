@@ -840,11 +840,12 @@ def _wh_rozb(a, b):
 
 
 ZUZ_PLANY = (('cg', 'CoinGecko (Demo)', 'mies', 10000, 'zapytań'),        # v222: limity darmowych planów (stan 06.10.2026; inny plan = zmiana tutaj)
-             ('cmc', 'CoinMarketCap (Basic)', 'mies', 10000, 'zapytań'),
+             ('cmc', 'CoinMarketCap (Basic)', 'mies', 15000, 'zapytań'),       # v226: 15 000 według dostawcy (06.10.2026)
              ('td', 'Twelve Data (Basic)', 'doba', 800, 'kredytów'))
 ZUZ_UWAGA = 0.8       # v222: prognoza miesiąca albo wczorajsza doba ≥ 80% limitu = ⚠️
 ZUZ_BLAD = 0.95       # v222: zużyte w miesiącu ≥ 95% limitu albo wczoraj ≥ 100% limitu doby = ❌
 ZUZ_PROG_H = 24       # v222: prognoza miesiąca dopiero po dobie liczenia
+ZUZ_MP_DNI = 7       # v226: w pierwszych tylu dniach miesiąca oceniany też koniec poprzedniego (przekroczenie po ostatniej kontroli)
 
 
 def _zuz_l(n):
@@ -896,6 +897,11 @@ def zuzycie_ocena(meta):
             if nm >= ZUZ_BLAD * lim:
                 znak = '❌'
                 out['bledy'].append(f'limit planu {nazwa} prawie wyczerpany: {_zuz_l(nm)} z {_zuz_l(lim)} {jedn} w tym miesiącu (licznik automatu)')
+            mp, pm_ = q.get('mp'), (ms - dt.timedelta(days=1)).strftime('%Y-%m')
+            if at.day <= ZUZ_MP_DNI and isinstance(mp, list) and len(mp) == 2 and mp[0] == pm_ and _zuz_ok(mp[1]) and mp[1] >= ZUZ_BLAD * lim:
+                znak = '❌' if znak == '❌' else '⚠️'   # v226: koniec poprzedniego miesiąca (przekroczenie mogło przyjść po ostatniej kontroli)
+                out['uwagi'].append(f'{nazwa}: w poprzednim miesiącu ({mp[0]}) automat zużył {_zuz_l(mp[1])} z {_zuz_l(lim)} {jedn} — limit był prawie '
+                                    f'wyczerpany, część liczb mogła zniknąć pod koniec miesiąca; {rada}')
         else:
             dp, wcz = q.get('dp'), (at - dt.timedelta(days=1)).strftime('%Y-%m-%d')
             if isinstance(dp, list) and len(dp) == 2 and dp[0] == wcz and _zuz_ok(dp[1]) and dp[0] > od.strftime('%Y-%m-%d'):
