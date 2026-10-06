@@ -11202,7 +11202,7 @@ class KontrolaV115(unittest.TestCase):
         self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', k.TGA_PROG, None)[0], '✅'); self.assertEqual(k.mediana_ocena(tg, 'tga', 4.3, '2026-09-26', k.TGA_PROG, None)[0], '⚠️')
         self.assertEqual(k.mediana_ocena(tg, 'tga', 9.9, '2026-09-26', k.TGA_PROG, None)[0], '⚠️', 'TGA nigdy nie jest czerwone'); self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', 1.0, None)[2], 10)
         p = os.path.join(self.tmp, 'zgodnosc.csv'); k.zgodnosc_zapisz(p, {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
-        self.assertEqual(open(p, encoding='utf-8').read(), 'date,cap_gap_pct,tga_gap_pct\n2026-09-25,4.361,3.050\n2026-09-26,4.400,\n'); self.assertEqual(k.zgodnosc_csv(p), {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
+        self.assertEqual(open(p, encoding='utf-8').read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct\n2026-09-25,4.361,3.050,\n2026-09-26,4.400,,\n');   # v209: + kolumna stablecoinów self.assertEqual(k.zgodnosc_csv(p), {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
 
     def test_tga_i_wieloryby(self):
         k = self.k
@@ -25316,3 +25316,135 @@ class PostepNaukiV208(unittest.TestCase):
         ow = zd._tdw_log(w, [], [], datetime.datetime(2026, 10, 6, 12, 0, tzinfo=U))
         self.assertEqual(ow['pg'], {'do': '2026-10-02', 'l': {k[0] + '.' + k[1]: [0, 100, None] for k in zd.TD_RULES_W2}}, 'świat: nazwy jak w cp, start 05.10')
         self.assertTrue(zd._td_cr_valid(out) and zd._tdw_valid(ow), 'dzienniki z pg nadal poprawne')
+
+
+# ===================== v209: KONTROLA — PODAŻ STABLECOINÓW I RENTOWNOŚĆ 10L USA (porównania krzyżowe) =====================
+class KontrolaPorownaniaV209(unittest.TestCase):
+    """v209: stablecoiny — DefiLlama vs CoinMarketCap z plików strony, odchylenie od mediany (kolumna stab_gap_pct); 10L USA — plik strony vs H.15
+    z tych samych dni; brak FRED = informacja, nie uwaga. Liczby z 06.10."""
+
+    def setUp(self):
+        import importlib.util, tempfile
+        spec = importlib.util.spec_from_file_location('kontrola_v209', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+        self.tmp = tempfile.mkdtemp(prefix='k209-')
+
+    KR = {'at': '2026-10-06T04:08:00+00:00', 'stabh': {'asof': '2026-10-06', 'cur': 312656934980}}
+    CMC = {'at': '2026-10-06T04:30:00+00:00', 'stable_mcap': 285470694106.04}
+
+    def test_stab_porownanie(self):
+        k = self.k
+        s = k.stab_porownanie(self.KR, self.CMC)
+        self.assertEqual(s, {'a': 312656934980.0, 'b': 285470694106.04, 'roznica_pct': 9.523, 'odstep_h': 0.4, 'data': '2026-10-06'})
+        self.assertIsNone(k.stab_porownanie({'stabh': {}}, self.CMC)); self.assertIsNone(k.stab_porownanie(self.KR, {'stable_mcap': 0}))
+        self.assertIsNone(k.stab_porownanie(None, None)); self.assertIsNone(k.stab_porownanie({'stabh': {'cur': True}}, self.CMC))
+        s = k.stab_porownanie(dict(self.KR, at='2026-10-05T20:00:00+00:00'), self.CMC)
+        self.assertEqual((s['roznica_pct'], s['odstep_h']), (None, 8.5), 'pliki z różnych chwil — bez porównania')
+        self.assertIsNone(k.stab_porownanie(dict(self.KR, at='zły'), self.CMC)['roznica_pct'])
+        self.assertIsNone(k.stab_porownanie(dict(self.KR, at='2026-10-06T04:08:00'), self.CMC)['roznica_pct'], 'czas bez strefy — bez porównania')
+        rows = {'2026-09-%02d' % d: {'stab': 9.4 + (d % 3) * 0.05} for d in range(20, 30)}
+        self.assertEqual(k.mediana_ocena(rows, 'stab', 9.52, '2026-10-06', k.STAB_ZOLTE, None)[0], '✅')
+        self.assertEqual(k.mediana_ocena(rows, 'stab', 12.0, '2026-10-06', k.STAB_ZOLTE, None)[0], '⚠️')
+        self.assertEqual(k.mediana_ocena({}, 'stab', 9.52, '2026-10-06', k.STAB_ZOLTE, None)[0], 'ℹ️', 'bez historii — informacja')
+        p = os.path.join(self.tmp, 'zgodnosc.csv')
+        k.zgodnosc_zapisz(p, {'2026-10-05': {'cap': 4.3, 'tga': 3.0}, '2026-10-06': {'cap': 4.27, 'stab': 9.523}})
+        with open(p, encoding='utf-8') as f:
+            self.assertEqual(f.read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct\n2026-10-05,4.300,3.000,\n2026-10-06,4.270,,9.523\n')
+        self.assertEqual(k.zgodnosc_csv(p), {'2026-10-05': {'cap': 4.3, 'tga': 3.0}, '2026-10-06': {'cap': 4.27, 'stab': 9.523}})
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,cap_gap_pct,tga_gap_pct\n2026-10-05,4.300,3.000\n')
+        self.assertEqual(k.zgodnosc_csv(p), {'2026-10-05': {'cap': 4.3, 'tga': 3.0}}, 'stary plik (3 kolumny) czytany jak dotąd')
+
+    def test_ust(self):
+        k = self.k
+        csv_txt = 'observation_date,DGS10\n2026-09-21,4.96\n2026-09-24,5.18\n2026-09-25,5.17\n2026-09-28,5.24\n2026-09-29,.\n2026-09-30,5.29\nzły,1\n2026-10-01,x\n2026-10-02,5.28\n'
+        F = k.ust_fred_csv(csv_txt)
+        self.assertEqual(F, {'2026-09-21': 4.96, '2026-09-24': 5.18, '2026-09-25': 5.17, '2026-09-28': 5.24, '2026-09-30': 5.29, '2026-10-02': 5.28})
+        self.assertEqual(k.ust_fred_csv(None), {}); self.assertEqual(k.ust_fred_csv('<html>'), {})
+        ust = [['2026-09-%02d' % d, 5.0] for d in range(1, 20)] + [['2026-09-24', 5.18], ['2026-09-25', 5.17], ['2026-09-28', 5.24], ['2026-09-29', 5.26],
+                                                                    ['2026-09-30', 5.29], ['2026-10-01', 5.24], ['2026-10-02', 5.28], ['2026-10-05', 5.31]]
+        u = k.ust_porownanie({'ust': ust}, F)
+        self.assertEqual(u, {'porownane': 5, 'do': '2026-10-02', 'roznice': []}, '06.10: wspólne daty równe co do setnej; 05.10 jeszcze bez H.15')
+        u = k.ust_porownanie({'ust': ust[:-2] + [['2026-10-02', 5.31], ['2026-10-05', 5.31]]}, F)
+        self.assertEqual(u['roznice'], [['2026-10-02', 5.31, 5.28, 0.03]])
+        self.assertEqual(k.ust_porownanie({'ust': ust[:-2] + [['2026-10-02', 5.30]]}, F)['roznice'], [], 'dokładnie próg 0,02 — bez uwagi')
+        self.assertIsNone(k.ust_porownanie({}, F)); self.assertIsNone(k.ust_porownanie({'ust': ust}, None))
+        self.assertEqual(k.ust_porownanie({'ust': [['x', True], 'y', ['2026-10-02', 5.28]]}, F), {'porownane': 1, 'do': '2026-10-02', 'roznice': []})
+        self.assertEqual((k.UST_PROG, k.UST_DNI, k.STAB_ZOLTE, k.STAB_MAX_H), (0.02, 10, 2.0, 6.0))
+        self.assertTrue(k.UST_FRED.startswith('https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd='))
+
+    def test_raport(self):
+        k = self.k
+        R = {'at': '2026-10-06T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-10-06T06:13:00+00:00', 'wiek_min': 7,
+             'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': [], 'bledy': [],
+             'zgodnosc': {'stablecoiny': {'a': 312656934980.0, 'b': 285470694106.04, 'roznica_pct': 9.523, 'odstep_h': 0.4, 'data': '2026-10-06', 'status': 'ℹ️',
+                                          'mediana_pct': None, 'dni': 0, 'opis': 'historia 0 z 7 dni — bez oceny'},
+                          'ust10': {'porownane': 5, 'do': '2026-10-02', 'roznice': []}}}
+        md = k.raport_md(R)
+        self.assertIn('- Podaż stablecoinów, dwa źródła: 312.7 vs 285.5 mld USD — różnica dziś +9.52%, norma (mediana 0 dni) — — ℹ️ historia 0 z 7 dni — bez oceny.', md)
+        self.assertIn('- Rentowność 10L USA (Skarb USA vs H.15, te same dni): porównane 5 dat (do 2026-10-02), różnice > 0.02 pkt proc.: 0 ✅.', md)
+        R['zgodnosc']['stablecoiny'].update(roznica_pct=None, odstep_h=8.5)
+        self.assertIn('- Podaż stablecoinów, dwa źródła: pliki pobrane w odstępie 8.5 h — bez porównania ℹ️.', k.raport_md(R))
+        R['zgodnosc']['ust10'] = {'porownane': 5, 'do': '2026-10-02', 'roznice': [['2026-10-02', 5.31, 5.28, 0.03]]}
+        self.assertIn('różnice > 0.02 pkt proc.: 1 ⚠️ — 2026-10-02: 5.31 vs 5.28.', k.raport_md(R))
+        R['zgodnosc']['ust10'] = {'brak': 'HTTP 503'}
+        self.assertIn('- Rentowność 10L USA (Skarb USA vs H.15): brak odczytu H.15 (HTTP 503) ℹ️.', k.raport_md(R))
+        R['zgodnosc']['ust10'] = {'porownane': 0, 'do': None, 'roznice': []}
+        self.assertIn('- Rentowność 10L USA (Skarb USA vs H.15): brak wspólnych dat ℹ️.', k.raport_md(R))
+        del R['zgodnosc']['stablecoiny'], R['zgodnosc']['ust10']
+        md = k.raport_md(R)
+        self.assertNotIn('Podaż stablecoinów', md); self.assertNotIn('Rentowność 10L', md)
+
+    def test_kontrola_calosc(self):
+        """Cała kontrola na zaślepionej sieci: pliki strony z liczbami stablecoinów i rentowności; FRED odpowiada albo nie — brak FRED bez uwagi."""
+        import io, tempfile
+        k = self.k
+        NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+        fred = {'ok': True}
+        csv_txt = 'observation_date,DGS10\n2026-10-01,5.24\n2026-10-02,5.28\n'
+        files = {'krypto': self.KR, 'cmc': self.CMC, 'rynki': {'at': NOW.isoformat(), 'ust': [['2026-10-01', 5.24], ['2026-10-02', 5.33], ['2026-10-05', 5.31]]},
+                 'meta': {'at': (NOW - datetime.timedelta(minutes=7)).isoformat(), 'ok': {}, 'errors': [], 'notes': []}}
+
+        class Resp:
+            def __init__(self, b):
+                self.b, self.status = b, 200
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        calls = []
+
+        def urlopen(req, timeout=None):
+            url = req.full_url; calls.append(url)
+            if url.startswith('https://fred.stlouisfed.org/'):
+                if fred['ok']:
+                    return Resp(csv_txt.encode())
+                raise k.urllib.error.URLError('HTTP 503')
+            for n, j in files.items():
+                if f'/data/{n}.json?' in url:
+                    return Resp(json.dumps(j).encode())
+            raise k.urllib.error.URLError('brak sieci w teście')
+
+        def run():
+            d = tempfile.mkdtemp(prefix='k209c-', dir=self.tmp)
+            with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                    mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen):
+                R = k.kontrola()
+            with open(os.path.join(d, 'zgodnosc.csv'), encoding='utf-8') as f:
+                return R, f.read()
+        R, csv_out = run()
+        self.assertEqual(R['zgodnosc']['stablecoiny']['roznica_pct'], 9.523); self.assertEqual(R['zgodnosc']['stablecoiny']['status'], 'ℹ️')
+        self.assertIn(',9.523\n', csv_out, 'różnica zapisana do historii')
+        self.assertEqual(R['zgodnosc']['ust10'], {'porownane': 2, 'do': '2026-10-02', 'roznice': [['2026-10-02', 5.33, 5.28, 0.05]]})
+        self.assertTrue(any(u.startswith('rentowność 10L USA: plik strony vs H.15 różnią się') and '2026-10-02: 5.33 vs 5.28' in u for u in R['uwagi']), R['uwagi'])
+        self.assertTrue(any('fredgraph.csv?id=DGS10&cosd=2026-09-15' in c for c in calls), calls)
+        self.assertIn('cmc', k.PLIKI); self.assertEqual(k.LIMIT_MIN['cmc'], 90, 'cmc.json co przebieg — wiek jak meta'); self.assertEqual(R['pliki']['cmc']['http'], 200)
+        fred['ok'] = False
+        R, _ = run()
+        self.assertEqual(R['zgodnosc']['ust10'], {'brak': '<urlopen error HTTP 503>'})
+        self.assertFalse(any('10L' in u or 'H.15' in u for u in R['uwagi']), 'brak FRED — bez uwagi')

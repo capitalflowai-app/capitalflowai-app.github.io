@@ -39,9 +39,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
 
@@ -82,6 +82,14 @@ CP_TICKER = 'https://api.coinpaprika.com/v1/tickers/{id}?quotes=USD'
 ZG_DNI = 30          # mediana z ostatnich 30 dni różnicy kapitalizacji
 ZG_MIN = 7           # do zebrania tylu dni historii — tylko informacja, bez koloru
 ZG_ZOLTE, ZG_CZERWONE = 2.0, 5.0   # pkt proc. odchylenia od mediany
+
+# v209: podaż stablecoinów — dwa pliki strony (bez zapytań); rentowność 10L USA — plik strony vs H.15 (FRED, bez klucza)
+STAB_ZOLTE = 2.0     # pkt proc. — odchylenie dzisiejszej różnicy (DefiLlama vs CoinMarketCap) od mediany ZG_DNI dni = ⚠️ (nigdy ❌)
+STAB_MAX_H = 6.0     # h — pliki krypto.json i cmc.json pobrane dalej od siebie = bez porównania (informacja)
+UST_FRED = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd={od}'   # H.15: Rada Gubernatorów Fed — domena publiczna, bez klucza
+UST_PROG = 0.02      # pkt proc. — ta sama data: plik strony (Skarb USA) vs H.15; większa różnica = ⚠️
+UST_DNI = 10         # tyle ostatnich dat z pliku strony porównujemy (H.15 wychodzi z ok. 1-dniowym opóźnieniem)
+UST_OD_DNI = 21      # FRED: plik od tylu dni wstecz (mały — ok. 200 B)
 CENA_PROG = 1.0      # % różnicy cen BTC/ETH między źródłami
 ETF_PROG = 1.0       # % różnicy zamknięcia ETF tej samej daty: Twelve Data (ceny.json, mapa) vs Massive/Tiingo (indeksy.json → etf) — v117.1
 TGA_PROG = 1.0       # pkt proc. — odchylenie dzisiejszej różnicy TGA (Fiscal Data vs FRED WTREGEN, ta sama data) od mediany 30 dni; różnica sama w sobie
@@ -475,11 +483,11 @@ def wycena_mvrv(j):
 
 
 # ---------------------------------------------------------------- v115: zgodność liczb ----------------------------------------------------------------
-ZG_KOL = ['date', 'cap_gap_pct', 'tga_gap_pct']   # kontrola/zgodnosc.csv: tylko różnice procentowe (bez wartości źródeł); puste pole = brak odczytu
+ZG_KOL = ['date', 'cap_gap_pct', 'tga_gap_pct', 'stab_gap_pct']   # kontrola/zgodnosc.csv: tylko różnice procentowe (bez wartości źródeł); puste pole = brak odczytu (v209: + stablecoiny)
 
 
 def zgodnosc_csv(path):
-    """{dzień: {'cap': %, 'tga': %}} — pusta komórka = brak (klucz pominięty)."""
+    """{dzień: {'cap': %, 'tga': %, 'stab': %}} — pusta komórka albo brak kolumny (plik sprzed v209) = brak (klucz pominięty)."""
     rows = {}
     if os.path.exists(path):
         with open(path, encoding='utf-8', newline='') as f:
@@ -487,7 +495,7 @@ def zgodnosc_csv(path):
             for row in r:
                 if len(row) >= 2 and row[0] != 'date':
                     rec = {}
-                    for i, kk in ((1, 'cap'), (2, 'tga')):
+                    for i, kk in ((1, 'cap'), (2, 'tga'), (3, 'stab')):
                         try:
                             rec[kk] = float(row[i])
                         except (ValueError, IndexError):
@@ -500,7 +508,7 @@ def zgodnosc_zapisz(path, rows):
     with open(path, 'w', encoding='utf-8', newline='') as f:
         wtr = csv.writer(f, lineterminator='\n'); wtr.writerow(ZG_KOL)
         for d in sorted(rows):
-            wtr.writerow([d] + [('%.3f' % rows[d][kk]) if isinstance(rows[d].get(kk), (int, float)) else '' for kk in ('cap', 'tga')])
+            wtr.writerow([d] + [('%.3f' % rows[d][kk]) if isinstance(rows[d].get(kk), (int, float)) else '' for kk in ('cap', 'tga', 'stab')])
 
 
 def mediana_ocena(rows, kk, gap, today, zolte, czerwone):
@@ -526,6 +534,49 @@ def procent(a, b):
         return abs(a - b) / abs(b) * 100.0 if b else None
     except Exception:
         return None
+
+
+def stab_porownanie(krypto, cmc):
+    """v209: podaż stablecoinów z dwóch plików strony → {'a': DefiLlama (krypto.json stabh.cur, USD), 'b': CoinMarketCap (cmc.json stable_mcap),
+    'roznica_pct': (a − b) / b × 100, 'odstep_h': odstęp pobrań plików, 'data': stabh.asof} albo None (brak liczby). Odstęp > STAB_MAX_H —
+    'roznica_pct' None (bez porównania; liczby różnych chwil)."""
+    st = krypto.get('stabh') if isinstance(krypto, dict) and isinstance(krypto.get('stabh'), dict) else {}
+    a, b = st.get('cur'), (cmc.get('stable_mcap') if isinstance(cmc, dict) else None)
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0  # noqa: E731
+    if not (num(a) and num(b)):
+        return None
+    try:
+        t1 = dt.datetime.fromisoformat(str(krypto.get('at')).replace('Z', '+00:00')); t2 = dt.datetime.fromisoformat(str(cmc.get('at')).replace('Z', '+00:00'))
+        h = abs((t1 - t2).total_seconds()) / 3600 if t1.tzinfo and t2.tzinfo else None
+    except (TypeError, ValueError):
+        h = None
+    r = round((a - b) / b * 100.0, 3) if h is not None and h <= STAB_MAX_H else None
+    return {'a': float(a), 'b': float(b), 'roznica_pct': r, 'odstep_h': (round(h, 1) if h is not None else None), 'data': st.get('asof')}
+
+
+def ust_fred_csv(txt):
+    """v209: CSV z FRED (observation_date,DGS10) → {dzień: rentowność}; '.' albo puste (święto) i złe wiersze pominięte."""
+    out = {}
+    for line in str(txt or '').splitlines()[1:]:
+        p = line.strip().split(',')
+        if len(p) == 2 and re.match(r'^\d{4}-\d{2}-\d{2}$', p[0]):
+            try:
+                out[p[0]] = float(p[1])
+            except ValueError:
+                pass
+    return out
+
+
+def ust_porownanie(rynki, fred):
+    """v209: rentowność 10L USA — plik strony (rynki.json ust: [[dzień, %], …]) vs H.15 (DGS10, {dzień: %}) z tych samych dni, ostatnie UST_DNI dat
+    pliku strony → {'porownane': n, 'do': ostatnia wspólna data, 'roznice': [[dzień, a, b, |a − b|], …] ponad UST_PROG} albo None (brak serii)."""
+    s = rynki.get('ust') if isinstance(rynki, dict) else None
+    if not isinstance(s, list) or not isinstance(fred, dict):
+        return None
+    ost = [r for r in s if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and isinstance(r[1], (int, float)) and not isinstance(r[1], bool)][-UST_DNI:]
+    wsp = [(d, float(v), fred[d]) for d, v in ost if d in fred]
+    return {'porownane': len(wsp), 'do': (wsp[-1][0] if wsp else None),
+            'roznice': [[d, a, b, round(abs(a - b), 3)] for d, a, b in wsp if abs(a - b) > UST_PROG + 1e-9]}
 
 
 def tga_porownanie(inst, fred):
@@ -2302,6 +2353,25 @@ def kontrola():
             R['uwagi'].append(f'TGA {d}: Fiscal Data {a:,.0f} vs FRED {b:,.0f} mln USD — różnica {r:.2f}% wobec normy {med2:.2f}% ({opis2})')
     else:
         Z['tga'] = None
+    s = stab_porownanie(files.get('krypto'), files.get('cmc'))   # v209: podaż stablecoinów — dwa pliki strony, odchylenie od mediany (najwyżej ⚠️)
+    if s:
+        if s['roznica_pct'] is not None:
+            rows[today]['stab'] = s['roznica_pct']
+            st3, med3, n3, opis3 = mediana_ocena(rows, 'stab', s['roznica_pct'], today, STAB_ZOLTE, None)
+            s.update(status=st3, mediana_pct=(round(med3, 3) if med3 is not None else None), dni=n3, opis=opis3)
+            if st3 == '⚠️':
+                R['uwagi'].append(f'podaż stablecoinów: różnica dwóch źródeł dziś {s["roznica_pct"]:+.2f}% wobec normy {med3:+.2f}% ({opis3}) — sprawdzić, czy któreś źródło nie pominęło sieci albo monety')
+        Z['stablecoiny'] = s
+    if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('ust'), list):   # v209: rentowność 10L USA vs H.15 (1 zapytanie; brak = informacja)
+        try:
+            st4, body4, _ = get(UST_FRED.format(od=(NOW.date() - dt.timedelta(days=UST_OD_DNI)).isoformat()), timeout=30)
+            u = ust_porownanie(files['rynki'], ust_fred_csv(body4.decode('utf-8', 'replace')))
+            Z['ust10'] = u
+            if u and u['roznice']:
+                R['uwagi'].append('rentowność 10L USA: plik strony vs H.15 różnią się ponad ' + f'{UST_PROG:g} pkt proc.: '
+                                  + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]))
+        except Exception as e:  # noqa
+            Z['ust10'] = {'brak': str(e)[:100]}
     try:
         zgodnosc_zapisz(zg_path, rows)
     except Exception as e:  # noqa
@@ -2514,6 +2584,23 @@ def raport_md(R):
                      if r is not None else f'- TGA {t["data"]}: brak porównania.')
         else:
             L.append('- TGA: brak wspólnej daty Fiscal Data i FRED.')
+        s = Z.get('stablecoiny')   # v209
+        if s:
+            if s.get('roznica_pct') is None:
+                L.append(f'- Podaż stablecoinów, dwa źródła: pliki pobrane w odstępie {s.get("odstep_h", "—")} h — bez porównania ℹ️.')
+            else:
+                md3 = f'{s["mediana_pct"]:+.2f}%' if s.get('mediana_pct') is not None else '—'
+                L.append(f'- Podaż stablecoinów, dwa źródła: {s["a"] / 1e9:.1f} vs {s["b"] / 1e9:.1f} mld USD — różnica dziś {s["roznica_pct"]:+.2f}%, '
+                         f'norma (mediana {s.get("dni", 0)} dni) {md3} — {s.get("status", "?")} {s.get("opis", "")}.')
+        u = Z.get('ust10')   # v209
+        if u:
+            if u.get('brak'):
+                L.append(f'- Rentowność 10L USA (Skarb USA vs H.15): brak odczytu H.15 ({u["brak"]}) ℹ️.')
+            elif not u.get('porownane'):
+                L.append('- Rentowność 10L USA (Skarb USA vs H.15): brak wspólnych dat ℹ️.')
+            else:
+                L.append(f'- Rentowność 10L USA (Skarb USA vs H.15, te same dni): porównane {u["porownane"]} dat (do {u["do"]}), różnice > {UST_PROG:g} pkt proc.: '
+                         f'{len(u["roznice"])} ' + ('⚠️ — ' + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]) + '.' if u['roznice'] else '✅.'))
         e = Z.get('etf')
         if e:
             L.append(f'- ETF mapy (dwa źródła, ta sama data): porównane {e["porownane"]} symboli, różnice > {ETF_PROG:g}%: {len(e["roznice"])} {"⚠️" if e["roznice"] else "✅"}' + (' — ' + ', '.join(x["symbol"] for x in e["roznice"][:6]) if e["roznice"] else '') + '.')
