@@ -4192,7 +4192,7 @@ test('v108: wieloryby — nowe giełdy (Bybit, KuCoin, Bitfinex): kafle, noty z 
   for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
     const t = v96src.tFor(L);
     for (const k of keys) { assert.ok(v96src.I18N[L][k] && t(k) !== k && t(k).length > 40, L + ' ' + k); assert.ok(!PROV.test(t(k)), 'dostawca: ' + L + ' ' + k); }
-    assert.ok(/2026/.test(t('wh.n.Bybit')) && /2026/.test(t('wh.n.KuCoin')) && /2022/.test(t('wh.n.Bitfinex')), 'data listy w nocie: ' + L);
+    assert.ok(!/2026/.test(t('wh.n.Bybit')) && !/2026/.test(t('wh.n.KuCoin')) && /2022/.test(t('wh.n.Bitfinex')), 'v233: data listy z pliku obok nazwy, nie w nocie (Bitfinex — lista stała): ' + L);
     if (!['pl', 'en'].includes(L)) for (const k of keys) assert.notEqual(t(k), v96src.tFor('en')(k), 'przetłumaczone: ' + L + ' ' + k);
   }
   assert.ok(v96src.tFor('pl')('wh.n.Bybit').includes('108') === false && v96src.tFor('pl')('wh.n.Bybit').includes('Portfele giełdy w sieci Ethereum wymienione'), 'nota Bybit: portfele z raportu (liczba i data listy są w wh.wal z pliku)');
@@ -13862,7 +13862,7 @@ test('v229: indeksy — słupki 1 M nad tabelą: kolejność tabeli, zielony w p
   assert.ok(w.startsWith('<div class="ixw"><p class="pnote">ix.wyk</p>'));
   const R = w.split('<div class="ixw-r">').slice(1);
   assert.equal(R.length, 3, 'trzy indeksy z wartością 1 M (KOSPI — za krótka seria: bez słupka, w tabeli „—”)');
-  assert.deepEqual(R.map(r => /<\/span>([^<]*)<\/span><span class="ixw-t"/.exec(r)[1]), ['S&amp;P 500', 'Nikkei 225', 'DAX'], 'od najmocniejszego (kolejność tabeli)');
+  assert.deepEqual(R.map(r => /<span class="ixw-n" title="[^"]*">([^<]*)<\/span><\/span><span class="ixw-t"/.exec(r)[1]), ['S&amp;P 500', 'Nikkei 225', 'DAX'], 'od najmocniejszego (kolejność tabeli; v233: nazwa w ixw-n)');
   const up = (129 / 108 - 1) * 100, dn = (271 / 292 - 1) * 100, mx = Math.max(Math.abs(Math.round(up * 10) / 10), Math.abs(Math.round(dn * 10) / 10));
   assert.ok(R[0].includes('<i class="ixw-b pos" style="left:50.00%;width:' + (Math.round(up * 10) / 10 / mx * 50).toFixed(2) + '%"></i>'), 'wzrost: od środka w prawo');
   const wd = Math.abs(Math.round(dn * 10) / 10) / mx * 50;
@@ -13907,7 +13907,7 @@ test('v230: wieloryby — zmiana 1 i 7 dni nie liczy się przez zmianę listy po
   assert.equal(A.arcWhLista(['wh.Bybit'], {Bybit: {zmiana: '2026-09-01'}}, ser), '', 'zmiana sprzed wykresu — bez noty');
   assert.equal(A.arcWhLista(['wh.Bybit'], null, ser), ''); assert.equal(A.arcWhLista(null, {Bybit: {zmiana: '2026-10-06'}}, ser), '');
   assert.equal(A.whZm({zmiana: 'x'}), '—');
-  assert.ok(html.includes("+arcWhLista(W,(()=>{try{return WH.data?WH.data.gieldy:null;}catch(e){return null;}})(),arcSer);") && html.includes('typeof renderArc===\'function\')renderArc();}catch(e){}}'));
+  assert.ok(html.includes("+arcWhLista(W,(()=>{try{return WH.data?WH.data.gieldy:null;}catch(e){return null;}})(),x=>arcWin(arcSer(x),ARC.per));") && html.includes('typeof renderArc===\'function\')renderArc();}catch(e){}}'));
 });
 
 
@@ -13924,4 +13924,48 @@ test('v231: rynek pieniężny — podpis liczy tygodnie osi (od pierwszego do os
   const X = mm228.mk(), D = mm135.cp(mm135.D), n = D.mm.w.length;
   D.mm.w[10][1] = null;
   assert.ok(X.fndMmWyk(D).includes('fund.mm.wyk{&quot;n&quot;:&quot;' + n + '&quot;}'), 'tydzień bez liczby nie skraca podpisu');
+});
+
+
+/* ===================== v233: poprawki po przeglądzie v229–v231 i po sprawdzeniu na żywo ===================== */
+test('v233: kursy z serwisu pośredniego (zapas i odświeżanie) — tylko baza USD, jak plik serwera', async () => {
+  const a = html.indexOf('function gFxBack(d0,k){'), b = html.indexOf('/* ostatnia wartość serii dziennej', a);
+  const mk = by => new Function('gJSON', 'GSRC', html.slice(a, b) + '\nreturn {gFxRefs, gFxUsd};')(d => Promise.resolve(by(d)), {fx: d => d});
+  const ok = d => ({base: 'USD', date: d, rates: {EUR: 0.9}});
+  const X = mk(d => ok('2026-09-01'));
+  assert.ok(X.gFxUsd({rates: {EUR: 1}}) && X.gFxUsd(ok('2026-10-02')), 'bez pola base albo USD — przyjęte');
+  assert.ok(!X.gFxUsd({base: 'EUR', rates: {EUR: 1}}) && !X.gFxUsd({base: null, rates: {EUR: 1}}) && !X.gFxUsd(null) && !X.gFxUsd({base: 'USD'}));
+  const v = await X.gFxRefs(ok('2026-10-02'));
+  assert.deepEqual(Object.keys(v).sort(), ['1D', '1M', '1Q', '1R', '1T', 'now']);
+  await assert.rejects(X.gFxRefs({base: 'EUR', date: '2026-10-02', rates: {USD: 1.1}}), /bazowa/, '„now” z bazą EUR — odrzucone');
+  await assert.rejects(mk(d => ({base: 'EUR', date: '2026-09-01', rates: {USD: 1.1}})).gFxRefs(ok('2026-10-02')), /bazowa/, 'odniesienie z bazą EUR — odrzucone');
+  assert.ok(html.includes("return gJSON(GSRC.fx('latest')).then(x=>{if(!(GLIVE.fx&&gFxUsd(x)))return;"), 'odświeżanie co 15 min: „now” tylko z bazą USD');
+});
+test('v233: słupki indeksów — długa nazwa z wielokropkiem (osobny element), pełna nazwa w podpowiedzi', () => {
+  assert.ok(html.includes('#g-indeksy .ixw-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'));
+  const a = html.indexOf('function ixWyk(items){'), b = html.indexOf('\nfunction ixBody(D){', a);
+  const F = new Function('t', 'fPct', 'escH', 'ixTone', 'flagImg', html.slice(a, b) + '\nreturn ixWyk;')(k => k, (v) => String(v), s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'),
+    (v) => v > 0 ? 'pos' : v < 0 ? 'neg' : '', () => '');
+  const out = F([{name: 'Shanghai Composite', cc: 'cn', m1: -3.6}, {name: 'A&B "x"', cc: 'us', m1: 1}, {name: 'C', cc: 'de', m1: 2}]);
+  assert.ok(out.includes('<span class="ixw-n" title="Shanghai Composite">Shanghai Composite</span>'), out);
+  assert.ok(out.includes('<span class="ixw-n" title="A&amp;B &quot;x&quot;">A&amp;B &quot;x&quot;</span>'), 'nazwa w atrybucie bez łamania znacznika');
+});
+test('v233: nota archiwum o nowej liście — skok „w tym albo w następnym dniu”, tylko gdy zmiana mieści się w oknie wykresu', () => {
+  const i = html.indexOf('const EXTRA186='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA186='.length, j));
+  assert.ok(D.pl['arc.wh.lista'].includes('w tym albo w następnym dniu') && D.en['arc.wh.lista'].includes('that day or the next'));
+  for (const L in D) assert.ok(D[L]['arc.wh.lista'].includes('{l}') && (L === 'pl' || L === 'en' || D[L]['arc.wh.lista'] !== D.en['arc.wh.lista']), L);
+  assert.ok(html.includes("+arcWhLista(W,(()=>{try{return WH.data?WH.data.gieldy:null;}catch(e){return null;}})(),x=>arcWin(arcSer(x),ARC.per));"), 'okno wykresu (30/90/365 dni), nie cała seria');
+  const z0 = html.indexOf('function whZm(m){'), z1 = html.indexOf('function whExch(D){', z0);
+  const A = new Function('t', 'escH', 'LOCALE', 'LANG', html.slice(z0, z1) + '\nreturn {arcWhLista};')((k, v) => k + (v ? JSON.stringify(v) : ''), s => String(s), {en: 'en-US'}, 'en');
+  const pelna = [['2026-01-01', 1], ['2026-10-07', 2]], okno30 = [['2026-09-08', 1], ['2026-10-07', 2]];
+  assert.equal(A.arcWhLista(['wh.Bybit'], {Bybit: {zmiana: '2026-08-01'}}, () => pelna) !== '', true, 'cała seria — dawniej nota przez rok');
+  assert.equal(A.arcWhLista(['wh.Bybit'], {Bybit: {zmiana: '2026-08-01'}}, () => okno30), '', 'okno 30 dni — zmiana sprzed okna: bez noty');
+});
+test('v233: opisy list Bybit i KuCoin bez daty na stałe (data listy z pliku obok nazwy) — 10 języków', () => {
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const t = v96src.tFor(L);
+    for (const k of ['wh.n.Bybit', 'wh.n.KuCoin']) assert.ok(!/2026|26\.08|31\.08|26\/08|31\/08|8月/.test(t(k)) && t(k).length > 30, L + ' ' + k + ': ' + t(k));
+  }
+  assert.equal(v96src.tFor('pl')('wh.n.Bybit'), 'Portfele giełdy w sieci Ethereum wymienione w jej miesięcznym raporcie dowodu rezerw — portfele w innych sieciach tu nie wchodzą.');
+  assert.equal(v96src.tFor('es')('wh.n.KuCoin'), 'Las carteras de la plataforma en la red Ethereum incluidas en su informe mensual de auditoría de prueba de reservas; las carteras en otras redes no se cuentan aquí.');
 });

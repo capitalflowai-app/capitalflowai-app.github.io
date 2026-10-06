@@ -5008,6 +5008,10 @@ FUND_TNA_X = 2.0   # v217: aktywa funduszu (NAV × liczba jednostek) ponad tyle 
                    # v223: zostaje 2 — przy 1,6 duże, ale możliwe napływy byłyby „błędem”; prawdziwe dni: do ×1,25 (srebro 29.01.2026, 11 089 wierszy)
 FUND_PARA_X = 1.35  # v231: para kolejnych dni z aktywami (NAV × jednostki) ponad tyle razy (albo poniżej odwrotności) bez rozpoznanego podziału = skok
 #                     bez wyjaśnienia (podział jednostek bez poprawki NAV: 2:1, 1:2, 3:2); prawdziwe dane 06.10.2026, 11 052 pary: −15,3% … +12,7%
+FUND_PODZIALY = (2, 3, 4, 5, 10, 1.5, 4 / 3, 1.25)   # v233: ułamki podziału (i odwrotności — scalenia)
+FUND_STALE_U, FUND_STALE_N = 0.02, 0.01   # v233: liczba jednostek zmieniona o ułamek podziału (±2%) przy NAV prawie bez zmian (±1%) = podział
+#                     bez poprawki NAV (4:3, 5:4, 3:4, 4:5 — aktywa ×1,25–1,33 mieściły się w FUND_PARA_X) — skok; prawdziwe dane 06.10.2026
+#                     (98 902 pary dni: fundusze 37 × 300, TRENDY 35 × do 10 lat): 5 takich dni (SPDW 2017, GLDM 2018 ×3, EZU 2025) — brak, nie zła liczba
 FUND_GR_X = 1.5     # v227: suma grupy — para przez złe wiersze z aktywami ponad tyle razy (trwały skok, np. podział bez poprawki NAV) = brak
 FUND_TNA_OKNO = 10  # v217/v223: tyle dni PRZED wierszem tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
 
@@ -5603,15 +5607,27 @@ def _cftc_roll(ds):
 
 def fund_split(a, b):
     """v93/v94: podział jednostek między dniami a i b ([data, NAV, liczba jednostek]): 1 = zwykły dzień; k (2, 3, 3/2, 1/2 …) = podział,
-    gdy liczba jednostek zmienia się o prosty ułamek, a wartość funduszu (NAV × liczba) prawie nie; 0 = skok bez wyjaśnienia (dzień pomijany)."""
+    gdy liczba jednostek zmienia się o prosty ułamek, a wartość funduszu (NAV × liczba) prawie nie; 0 = skok bez wyjaśnienia (dzień pomijany).
+    v233: podział tylko z jednym ułamkiem zgodnym i z liczbą jednostek, i z NAV; jednostki ×ułamek przy NAV bez zmian (FUND_STALE_*) = 0."""
     nr, sr = b[1] / a[1], b[2] / a[2]
     if abs(sr - 1) > 0.15 and abs(nr * sr - 1) < 0.1:
-        for q in (2, 3, 4, 5, 10, 1.5, 4 / 3, 1.25):
-            for k in (q, 1 / q):
-                if abs(sr / k - 1) < 0.05:
-                    return k
-        return 0
+        # v233: ułamek pasuje i do liczby jednostek, i do NAV (po 5%) i jest jedyny — dwa możliwe (5:4 i 4:3 przy napływie) = skok, nie zgadywanie
+        ks = [k for q in FUND_PODZIALY for k in (q, 1 / q) if abs(sr / k - 1) < 0.05 and abs(nr * k - 1) < 0.05]
+        return ks[0] if len(ks) == 1 else 0
+    if abs(nr - 1) < FUND_STALE_N and any(abs(sr / k - 1) < FUND_STALE_U for q in FUND_PODZIALY for k in (q, 1 / q)):
+        return 0   # v233: jednostki zmienione o ułamek podziału, NAV prawie bez zmian — podział bez poprawki NAV (skok, nie przepływ 25–33%)
     return 1 if 0.6 < nr < 1.6 and 1 / 3 < sr < 3 and 1 / FUND_PARA_X < nr * sr < FUND_PARA_X else 0   # v231: aktywa ponad 1,35× w dobę — skok
+
+
+def fund_pary(h):
+    """v233: współczynniki kolejnych par dni historii h (jak fund_split, para i = h[i] → h[i+1]). Druga noga podziału rozłożonego na dwa dni
+    (skok jednostek bez poprawki NAV, a następnego dnia sama poprawka NAV — razem rozpoznany podział) = 0: inaczej dawała fałszywy zwrot (−25%
+    przy 4:3) w zwrotach dziennych i w cenie tygodniowej. Tylko wstecz (wiersze do końca pary) — dziennik TRENDÓW nie zna dnia następnego."""
+    P = [fund_split(a, b) for a, b in zip(h, h[1:])]
+    for j in range(1, len(P)):
+        if P[j - 1] == 0 and P[j] == 1 and fund_split(h[j - 1], h[j + 1]) not in (0, 1):
+            P[j] = 0
+    return P
 
 
 def _fund_rows(h):
@@ -5627,10 +5643,9 @@ def fund_flows(h, bez=None):
     out = {}
     h = _fund_rows(h)
     bad = set(_fund_clean(h)[1]) if bez is None else set(bez)   # v223: para dni z wierszem z błędem pliku — dzień pominięty (brak)
-    for a, b in zip(h, h[1:]):
+    for (a, b), k in zip(zip(h, h[1:]), fund_pary(h)):   # v233: podział rozłożony na dwa dni = obie pary skok (brak)
         if a[0] in bad or b[0] in bad:
             continue
-        k = fund_split(a, b)
         if k:
             out[b[0]] = (b[2] - a[2] * k) * b[1] / 1e6
     return out
@@ -5821,7 +5836,8 @@ def _td_fund_px(h):
     (fund_split ≠ 1 → None; poziomu nie trzeba korygować, bo zwroty liczymy wyłącznie dzień do dnia)."""
     dates = [r[0] for r in h]; px = [r[1] for r in h]
     bad = set(_fund_clean(h)[1])   # v223: zwrot z pary dni z wierszem z błędem pliku — brak
-    ret = [None] + [(b[1] / a[1] - 1) * 100 if fund_split(a, b) == 1 and a[0] not in bad and b[0] not in bad else None for a, b in zip(h, h[1:])]
+    ret = [None] + [(b[1] / a[1] - 1) * 100 if k == 1 and a[0] not in bad and b[0] not in bad else None
+                    for (a, b), k in zip(zip(h, h[1:]), fund_pary(h))]   # v233: także podział rozłożony na dwa dni = brak
     return dates, px, ret
 
 
@@ -5862,7 +5878,7 @@ def _td_series_ob(ob, spec, fu):
     zle = set(_fund_clean(h)[1])
     hk = [r for r in h if r[0] not in zle]   # v223: NAV z wiersza z błędem pliku nie jest ceną (zwrot między poprawnymi dniami)
     nav = {str(r[0])[:10]: r[1] for r in hk}
-    splits = [b[0] for a, b in zip(hk, hk[1:]) if fund_split(a, b) != 1]
+    splits = [b[0] for (a, b), k in zip(zip(hk, hk[1:]), fund_pary(hk)) if k != 1]   # v233: fund_pary (podział rozłożony na dwa dni)
     px = [nav.get(str(d)[:10]) for d in dates]
     ret = [None]
     for i in range(1, len(dates)):
@@ -8206,8 +8222,7 @@ def _tr_prices(S):
                 continue
             h = best[1][-(5 * (TR_PX_WEEKS + 1) + 1):]
             c, f = [h[-1][1]], 1.0                         # NAV w jednostkach po ostatnim podziale; skok bez wyjaśnienia ucina starszą część
-            for a, b in zip(reversed(h[:-1]), reversed(h[1:])):
-                k = fund_split(a, b)
+            for (a, b), k in zip(zip(reversed(h[:-1]), reversed(h[1:])), reversed(fund_pary(h))):   # v233: podział na dwa dni = skok
                 if not k:
                     META['notes'].append(f'trendy {best[0]}: skok NAV bez podziału jednostek ({b[0]}) — cena liczona od tego dnia'); break
                 f *= k; c.append(a[1] / f)

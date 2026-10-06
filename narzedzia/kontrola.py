@@ -720,8 +720,8 @@ def fx_porownanie(rynki, h10):
     by, baza = {}, []
     for k in FX_MIGAWKI:
         s = fx.get(k)
-        if isinstance(s, dict) and isinstance(s.get('base'), str) and s['base'] != 'USD':
-            baza.append([k, s['base'][:8]])   # v231: migawka z inną walutą bazową — ⚠️ (strona liczyłaby ją jak USD)
+        if isinstance(s, dict) and 'base' in s and s.get('base') != 'USD':   # v233: także puste pole base (strona je odrzuca)
+            baza.append([k, s['base'][:8] if isinstance(s.get('base'), str) else 'brak'])   # v231: migawka z inną walutą bazową — ⚠️
         if isinstance(s, dict) and s.get('base') == 'USD' and isinstance(s.get('date'), str) and isinstance(s.get('rates'), dict):
             by.setdefault(s['date'], s['rates'])
     if not by and not baza:
@@ -2978,12 +2978,16 @@ def raport_md(R):
         if f:
             if f.get('brak'):
                 L.append(f'- Kursy walut (plik strony vs H.10 Fed): brak porównania ({f["brak"]}) ℹ️.')
+            elif not f.get('daty') and f.get('baza'):   # v233: same migawki z inną bazą — ⚠️ z powodem (dotąd „brak wspólnych dat”)
+                L.append('- Kursy walut (plik strony vs H.10 Fed): migawki z walutą bazową inną niż USD ('
+                         + ', '.join(f'{k} ({b})' for k, b in f['baza']) + ') — bez porównania ⚠️.')
             elif not f.get('daty'):
                 L.append('- Kursy walut (plik strony vs H.10 Fed): brak wspólnych dat (H.10 wychodzi raz w tygodniu) ℹ️.')
             else:
                 L.append('- Kursy walut (strona: kurs EBC; H.10: Fed, Nowy Jork; te same dni): ' + '; '.join(
                     f'{d} — {n} walut, mediana różnicy {m:.2f}%, najwięcej {c} {x:+.2f}%'.replace('.', ',') for d, n, m, c, x in f['daty'])
-                    + (' ⚠️.' if f['zle'] or f['med_zle'] else ' ✅.'))
+                    + ('; migawki z inną walutą bazową: ' + ', '.join(f'{k} ({b})' for k, b in f['baza']) if f.get('baza') else '')   # v233
+                    + (' ⚠️.' if f['zle'] or f['med_zle'] or f.get('baza') else ' ✅.'))
         e = Z.get('etf')
         if e:
             L.append(f'- ETF mapy (dwa źródła, ta sama data): porównane {e["porownane"]} symboli, różnice > {ETF_PROG:g}%: {len(e["roznice"])} {"⚠️" if e["roznice"] else "✅"}' + (' — ' + ', '.join(x["symbol"] for x in e["roznice"][:6]) if e["roznice"] else '') + '.')
