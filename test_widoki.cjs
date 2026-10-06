@@ -14139,3 +14139,42 @@ test('v243: pasy podpowiedzi pierwszego i ostatniego tygodnia w granicach wykres
   const R = [...w.matchAll(/<rect class="snbw-h" x="([\d.-]+)" y="0" width="([\d.-]+)"/g)].map(m => [+m[1], +m[2]]);
   assert.ok(R.length >= 8 && R.every(([x, ww]) => x >= 0 && x + ww <= 600.05), JSON.stringify(R.slice(0, 2)) + ' … ' + JSON.stringify(R.slice(-1)));
 });
+
+
+/* ===================== v251: opcje — pasek put/call i terminy wygaśnięcia nad tabelą, słownik EXTRA190 ===================== */
+const lvo251 = (() => {
+  const a = html.indexOf('function levOptWyk(c,o){'), b = html.indexOf('\nfunction ', a + 10);
+  return new Function('t', 'escH', 'nfmt', 'levNum', 'levDay', 'levObj', html.slice(a, b) + '\nreturn levOptWyk;')(
+    (k, v) => k + (v ? JSON.stringify(v) : ''), s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'),
+    (v, d) => Number(v).toFixed(d), v => typeof v === 'number' && isFinite(v), d => '[' + d + ']', o => !!o && typeof o === 'object' && !Array.isArray(o));
+})();
+test('v251: opcje — pasek put/call (put zaokrąglony, call = 100 − put), terminy od najbliższego, długość względem największego, udział i liczba', () => {
+  const o = {oi: 100, oi_p: 35.6, oi_c: 64.4, exp: [['2026-12-25', 30], ['2026-10-09', 6], ['2026-10-30', 35], ['2027-03-26', 10], ['x', 5], ['2026-11-27', 0]]};
+  const w = lvo251('BTC', o);
+  assert.ok(w.startsWith('<div class="lvo"><p class="lvo-leg"><span><i class="lvo-p"></i>36% lvo.p</span><span><i class="lvo-c"></i>64% lvo.c</span></p>'), w.slice(0, 200));
+  assert.ok(w.includes('<span class="lvo-pc" aria-hidden="true"><i class="lvo-p" style="flex:0.3560 1 0"></i><i class="lvo-c" style="flex:0.6440 1 0"></i></span>'));
+  const R = w.split('<div class="lvo-r">').slice(1);
+  assert.deepEqual(R.map(r => /<span class="lvo-n">\[([^\]]+)\]/.exec(r)[1]), ['2026-10-09', '2026-10-30', '2026-12-25', '2027-03-26'], 'od najbliższego; zły dzień i 0 — bez wiersza');
+  assert.ok(R[1].includes('style="width:100.00%"') && R[0].includes('style="width:' + (6 / 35 * 100).toFixed(2) + '%"'), 'długość względem największego terminu');
+  assert.ok(R[1].includes('<span class="lvo-v">35.0%<small>35 BTC</small></span>'), 'udział w otwartych opcjach i liczba monet');
+  assert.ok(w.includes('<p class="pnote">lvo.wyk{"c":"BTC"}</p>'));
+  assert.ok(!/undefined|NaN/.test(w));
+});
+test('v251: opcje — przypadki brzegowe: bez put/call (tylko słupki), jeden termin (tylko pasek), nic (pusto)', () => {
+  const a = lvo251('ETH', {oi: 10, exp: [['2026-10-09', 4], ['2026-10-30', 6]]});
+  assert.ok(!a.includes('lvo-leg') && a.includes('lvo-r'), 'bez put/call — same słupki');
+  const b = lvo251('ETH', {oi: 10, oi_p: 4, oi_c: 6, exp: [['2026-10-09', 10]]});
+  assert.ok(b.includes('40% lvo.p') && !b.includes('lvo-r'), 'jeden termin — sam pasek');
+  assert.ok(lvo251('BTC', {oi: 10, oi_p: 0, oi_c: 10, exp: []}).includes('<span class="lvo-pc" aria-hidden="true"><i class="lvo-c" style="flex:1.0000 1 0"></i></span>'), 'bez putów — sam call');
+  assert.equal(lvo251('BTC', {oi: 10, exp: [['2026-10-09', 3]]}), '', 'nic do narysowania');
+  assert.equal(lvo251('BTC', null), ''); assert.equal(lvo251('BTC', {oi_p: -1, oi_c: 5}), '');
+});
+test('v251: wykres w levOpt nad tabelą monety; styl i telefon; słownik EXTRA190 (10 języków, czysty JSON, linia for po EXTRA189)', () => {
+  assert.ok(html.includes("${levAsOf(o.t||levAt('dr'))}</p>${levOptWyk(c,o)}<div class=\"list-wrap\"><table class=\"etft lev-opt\">"), 'nad tabelą');
+  assert.ok(html.includes('#c-dzwignia .lvo-p{background:var(--or)}#c-dzwignia .lvo-c{background:var(--bl)}') && html.includes('@media (max-width:420px){#c-dzwignia .lvo-r{'));
+  const i = html.indexOf('const EXTRA190='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA190='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) { assert.deepEqual(Object.keys(D[L]).sort(), ['lvo.c', 'lvo.p', 'lvo.wyk'], L); assert.ok(D[L]['lvo.wyk'].includes('{c}'), L); if (L !== 'pl' && L !== 'en') for (const k in D[L]) assert.notEqual(D[L][k], D.en[k], L + ' ' + k); }
+  assert.ok(html.includes('for(const l in EXTRA189)if(I18N[l])Object.assign(I18N[l],EXTRA189[l]);\nconst EXTRA190='));
+  assert.ok(html.includes('for(const l in EXTRA190)if(I18N[l])Object.assign(I18N[l],EXTRA190[l]);'));
+});

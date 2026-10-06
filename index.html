@@ -818,6 +818,20 @@ td .cell .logo-img{width:34px;height:34px}
 #c-dzwignia .etft td .cell>.icos{margin-right:0}#c-dzwignia .etft th .icos{margin-right:4px}
 #c-dzwignia .etft.lev-opt{min-width:0}
 #c-dzwignia .lev-opt-h{margin:8px 0 2px}
+/* v251: opcje — pasek put/call i terminy wygaśnięcia nad tabelą */
+#c-dzwignia .lvo{margin:4px 0 8px;max-width:640px}
+#c-dzwignia .lvo-leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:2px 0 4px;font-size:12px;color:var(--mut)}
+#c-dzwignia .lvo-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+#c-dzwignia .lvo-pc{display:flex;gap:2px;height:10px;margin:0 0 10px}
+#c-dzwignia .lvo-pc i{border-radius:2px}
+#c-dzwignia .lvo-p{background:var(--or)}#c-dzwignia .lvo-c{background:var(--bl)}
+#c-dzwignia .lvo-r{display:grid;grid-template-columns:minmax(64px,96px) minmax(0,1fr) 116px;align-items:center;gap:8px;margin:3px 0;font-size:12.5px}
+#c-dzwignia .lvo-n{color:var(--mut);white-space:nowrap}
+#c-dzwignia .lvo-b{position:relative;height:10px}
+#c-dzwignia .lvo-b i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--gy)}
+#c-dzwignia .lvo-v{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
+#c-dzwignia .lvo-v small{margin-left:6px;font-size:11px;color:var(--dim)}
+@media (max-width:420px){#c-dzwignia .lvo-r{grid-template-columns:minmax(0,74px) minmax(0,1fr) 104px;gap:6px;font-size:12px}}
 #c-dzwignia .lqw{margin:10px 0 8px;max-width:760px}
 #c-dzwignia .lqw-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:2px 0 6px}
 #c-dzwignia .lqw-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
@@ -2251,6 +2265,8 @@ const EXTRA188={"pl":{"rww.wyk":"Udział rodzajów w wartości tokenizowanych ak
 for(const l in EXTRA188)if(I18N[l])Object.assign(I18N[l],EXTRA188[l]);
 const EXTRA189={"pl":{"spw.wyk":"Stopy procentowe banków centralnych od najwyższej — dłuższy pasek to droższy pieniądz w tym kraju; obok stopa i jej zmiana za 12 miesięcy (pkt proc.).","spw.cut":"Pasek z przerwą — stopa poza skalą wykresu (dokładna wartość obok)."},"en":{"spw.wyk":"Central bank policy rates from the highest — a longer bar means more expensive money in that country; next to it: the rate and its 12-month change (percentage points).","spw.cut":"A bar with a gap — the rate is off the chart scale (exact value next to it)."},"de":{"spw.wyk":"Leitzinsen der Zentralbanken vom höchsten an — ein längerer Balken bedeutet teureres Geld in diesem Land; daneben der Zins und seine Veränderung über 12 Monate (Prozentpunkte).","spw.cut":"Balken mit Lücke — der Zins liegt außerhalb der Skala (genauer Wert daneben)."},"es":{"spw.wyk":"Tipos de interés de los bancos centrales del más alto al más bajo: una barra más larga significa dinero más caro en ese país; al lado, el tipo y su variación en 12 meses (puntos porcentuales).","spw.cut":"Barra con un corte: el tipo queda fuera de la escala del gráfico (valor exacto al lado)."},"fr":{"spw.wyk":"Taux directeurs des banques centrales du plus élevé au plus bas — une barre plus longue signifie un argent plus cher dans ce pays ; à côté, le taux et sa variation sur 12 mois (points de pourcentage).","spw.cut":"Barre interrompue — le taux sort de l’échelle du graphique (valeur exacte à côté)."},"it":{"spw.wyk":"Tassi di riferimento delle banche centrali dal più alto — una barra più lunga significa denaro più caro in quel paese; accanto il tasso e la sua variazione a 12 mesi (punti percentuali).","spw.cut":"Barra interrotta — il tasso è fuori scala (valore esatto accanto)."},"pt":{"spw.wyk":"Taxas de juro dos bancos centrais da mais alta para a mais baixa — uma barra mais longa significa dinheiro mais caro nesse país; ao lado, a taxa e a sua variação em 12 meses (pontos percentuais).","spw.cut":"Barra interrompida — a taxa está fora da escala do gráfico (valor exato ao lado)."},"ru":{"spw.wyk":"Ключевые ставки центральных банков от самой высокой — более длинная полоса означает более дорогие деньги в этой стране; рядом ставка и её изменение за 12 месяцев (п. п.).","spw.cut":"Полоса с разрывом — ставка выходит за шкалу графика (точное значение рядом)."},"zh":{"spw.wyk":"各国央行政策利率从高到低——条形越长，该国资金越贵；旁边是利率及其12个月变化（百分点）。","spw.cut":"带缺口的条形——利率超出图表刻度（旁边为准确数值）。"},"ja":{"spw.wyk":"中央銀行の政策金利を高い順に — 棒が長いほどその国のお金は高い；横に金利と12か月の変化（ポイント）。","spw.cut":"途切れた棒 — 金利がグラフの目盛りを超えています（正確な値は横）。"}};
 for(const l in EXTRA189)if(I18N[l])Object.assign(I18N[l],EXTRA189[l]);
+const EXTRA190={"pl":{"lvo.wyk":"Otwarte opcje według terminu wygaśnięcia — dłuższy pasek to więcej opcji wygasających tego dnia; obok udział w otwartych opcjach i liczba {c}.","lvo.p":"opcje sprzedaży (put) — zabezpieczenie przed spadkiem","lvo.c":"opcje kupna (call) — na wzrost"},"en":{"lvo.wyk":"Open options by expiry date — a longer bar means more options expiring that day; next to it: the share of open options and the number of {c}.","lvo.p":"puts — protection against a fall","lvo.c":"calls — betting on a rise"},"de":{"lvo.wyk":"Offene Optionen nach Verfallstermin — ein längerer Balken bedeutet mehr an diesem Tag verfallende Optionen; daneben der Anteil an den offenen Optionen und die Anzahl {c}.","lvo.p":"Puts — Absicherung gegen fallende Kurse","lvo.c":"Calls — Wette auf steigende Kurse"},"es":{"lvo.wyk":"Opciones abiertas por fecha de vencimiento: una barra más larga significa más opciones que vencen ese día; al lado, la cuota de las opciones abiertas y el número de {c}.","lvo.p":"puts: protección ante una caída","lvo.c":"calls: apuesta por una subida"},"fr":{"lvo.wyk":"Options ouvertes par date d’échéance — une barre plus longue signifie plus d’options expirant ce jour-là ; à côté, la part des options ouvertes et le nombre de {c}.","lvo.p":"puts — protection contre une baisse","lvo.c":"calls — pari sur une hausse"},"it":{"lvo.wyk":"Opzioni aperte per data di scadenza — una barra più lunga significa più opzioni in scadenza quel giorno; accanto la quota delle opzioni aperte e il numero di {c}.","lvo.p":"put — protezione da un ribasso","lvo.c":"call — scommessa su un rialzo"},"pt":{"lvo.wyk":"Opções em aberto por data de vencimento — uma barra mais longa significa mais opções a vencer nesse dia; ao lado, a quota das opções em aberto e o número de {c}.","lvo.p":"puts — proteção contra uma queda","lvo.c":"calls — aposta numa subida"},"ru":{"lvo.wyk":"Открытые опционы по дате экспирации — более длинная полоса означает больше опционов, истекающих в этот день; рядом доля в открытых опционах и количество {c}.","lvo.p":"путы — защита от падения","lvo.c":"коллы — ставка на рост"},"zh":{"lvo.wyk":"按到期日划分的未平仓期权——条形越长，当天到期的期权越多；旁边是占未平仓期权的比例和{c}数量。","lvo.p":"看跌期权——防范下跌","lvo.c":"看涨期权——押注上涨"},"ja":{"lvo.wyk":"満期日別の建玉オプション — 棒が長いほどその日に満期を迎えるオプションが多い；横に建玉に占める割合と{c}の数量。","lvo.p":"プット — 下落への備え","lvo.c":"コール — 上昇への賭け"}};
+for(const l in EXTRA190)if(I18N[l])Object.assign(I18N[l],EXTRA190[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -10445,13 +10461,28 @@ function levTab(){
     return `<tr><td><span class="cell">${levIco(levI('coin',c,'sm'))}${escH(c)}</span></td><td><span class="cell mono">${nfmt(r.oi_usd/1e9,2)}</span></td><td>${levNum(r.f_y)?`<span class="cell mono${levTone(r.f_y,1)?' '+levTone(r.f_y,1):''}">${fPct(r.f_y,1)}</span>`:na}</td><td>${levNum(r.d1)?`<span class="cell mono${levTone(r.d1,1)?' '+levTone(r.d1,1):''}">${fPct(r.d1,1)}</span>`:na}</td><td>${levNum(r.vol_usd)?`<span class="cell mono">${nfmt(r.vol_usd/1e6,0)}</span>`:na}</td></tr>`;}).join('');
   return `<h3 class="mtxt">${levIco(levI('exch','Hyperliquid','sm'))}<b>${t('lev.h.tab')}</b></h3><p class="pnote">${t('lev.tab.sub',{n:levNum(H.n)?nfmt(H.n,0):'—'})}${levAsOf(levAt('hl'))}</p><div class="list-wrap"><table class="etft"><thead><tr><th>${t('lev.c.coin')}</th><th>${t('lev.c.oi')}</th><th>${t('lev.c.fund')}</th><th>${t('lev.c.px')}</th><th>${t('lev.c.vol')}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
+/* v251: opcje — pasek opcji sprzedaży (put) i kupna (call) w otwartych opcjach monety oraz słupki terminów wygaśnięcia (dłuższy = więcej opcji
+   wygasających tego dnia; obok udział w otwartych i liczba monet; szare — suma put i call) nad tabelą; < 2 terminy — bez słupków; brak put/call — bez paska */
+function levOptWyk(c,o){
+  if(!levObj(o))return '';
+  const p=levNum(o.oi_p)&&o.oi_p>=0?o.oi_p:null,k=levNum(o.oi_c)&&o.oi_c>=0?o.oi_c:null,s=p!==null&&k!==null?p+k:0;
+  const ex=(Array.isArray(o.exp)?o.exp:[]).filter(e=>Array.isArray(e)&&typeof e[0]==='string'&&/^\d{4}-\d{2}-\d{2}/.test(e[0])&&levNum(e[1])&&e[1]>0).sort((a,b)=>a[0]<b[0]?-1:1);
+  const mx=ex.length>=2?Math.max(...ex.map(e=>e[1])):0;
+  if(!(s>0)&&!(mx>0))return '';
+  const P=s>0?Math.round(p/s*100):0;
+  const pc=s>0?`<p class="lvo-leg"><span><i class="lvo-p"></i>${nfmt(P,0)}% ${t('lvo.p')}</span><span><i class="lvo-c"></i>${nfmt(100-P,0)}% ${t('lvo.c')}</span></p>`+
+    `<span class="lvo-pc" aria-hidden="true">${p>0?`<i class="lvo-p" style="flex:${(p/s).toFixed(4)} 1 0"></i>`:''}${k>0?`<i class="lvo-c" style="flex:${(k/s).toFixed(4)} 1 0"></i>`:''}</span>`:'';
+  const rows=mx>0?ex.map(e=>`<div class="lvo-r"><span class="lvo-n">${levDay(e[0])}</span><span class="lvo-b" aria-hidden="true"><i style="width:${(e[1]/mx*100).toFixed(2)}%"></i></span>`+
+    `<span class="lvo-v">${levNum(o.oi)&&o.oi>0?nfmt(e[1]/o.oi*100,1)+'%':'—'}<small>${nfmt(e[1],0)} ${escH(c)}</small></span></div>`).join(''):'';
+  return `<div class="lvo">${pc}${rows?`<p class="pnote">${t('lvo.wyk',{c:escH(c)})}</p>${rows}`:''}</div>`;
+}
 function levOpt(){
   const D=levPart('dr');if(!D)return '';
   const blocks=LEV_COINS.map(c=>{const o=levObj(D[c])&&levObj(D[c].opt)?D[c].opt:null;if(!o||!Array.isArray(o.exp)||!levNum(o.oi)||!(o.oi>0))return '';
     const ex=o.exp.filter(e=>Array.isArray(e)&&typeof e[0]==='string'&&levNum(e[1])).sort((a,b)=>a[0]<b[0]?-1:1);if(!ex.length)return '';
     const head=t('lev.opt.tot',{v:nfmt(o.oi,0),c,u:levNum(o.px)?nfmt(o.oi*o.px/1e9,2):'—',pc:levNum(o.pc)?nfmt(o.pc,2):'—'});
     const rows=ex.map(e=>`<tr><td><span class="cell mono">${levDay(e[0])}</span></td><td><span class="cell mono">${nfmt(e[1],0)}</span></td><td><span class="cell mono">${nfmt(e[1]/o.oi*100,1)}%</span></td></tr>`).join('');
-    return `<p class="pnote lev-opt-h">${levIco(levI('coin',c,'sm'))}<b>${escH(c)}</b> · ${head}${levAsOf(o.t||levAt('dr'))}</p><div class="list-wrap"><table class="etft lev-opt"><thead><tr><th>${t('lev.c.exp')}</th><th>${t('lev.c.oiopt',{c})}</th><th>${t('lev.c.share')}</th></tr></thead><tbody>${rows}</tbody></table></div>`;}).join('');
+    return `<p class="pnote lev-opt-h">${levIco(levI('coin',c,'sm'))}<b>${escH(c)}</b> · ${head}${levAsOf(o.t||levAt('dr'))}</p>${levOptWyk(c,o)}<div class="list-wrap"><table class="etft lev-opt"><thead><tr><th>${t('lev.c.exp')}</th><th>${t('lev.c.oiopt',{c})}</th><th>${t('lev.c.share')}</th></tr></thead><tbody>${rows}</tbody></table></div>`;}).join('');
   return blocks?`<details class="etfd" id="lev-opt"><summary>${levIco(levI('exch','Deribit','sm'))}${t('lev.h.opt')}</summary>${blocks}</details>`:'';
 }
 /* v126: wszystkie duże giełdy — część `cz` pliku (zbiera ją automat z jednego źródła zbiorczego; jego nazwa i link tylko na stronie Źródła).
