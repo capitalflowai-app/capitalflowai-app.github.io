@@ -13969,3 +13969,50 @@ test('v233: opisy list Bybit i KuCoin bez daty na stałe (data listy z pliku obo
   assert.equal(v96src.tFor('pl')('wh.n.Bybit'), 'Portfele giełdy w sieci Ethereum wymienione w jej miesięcznym raporcie dowodu rezerw — portfele w innych sieciach tu nie wchodzą.');
   assert.equal(v96src.tFor('es')('wh.n.KuCoin'), 'Las carteras de la plataforma en la red Ethereum incluidas en su informe mensual de auditoría de prueba de reservas; las carteras en otras redes no se cuentan aquí.');
 });
+
+
+/* ===================== v234: dźwignia — wykres likwidacji 24 h nad tabelą, słownik EXTRA187 ===================== */
+const lq234 = (() => {
+  const a = html.indexOf('function levLqWyk(R){'), b = html.indexOf('\nfunction levCz(){', a);
+  const levNum = v => typeof v === 'number' && isFinite(v), levIco = (...h) => { const s = h.filter(Boolean).join(''); return s ? `<span class="icos">${s}</span>` : ''; };
+  const F = new Function('t', 'escH', 'nfmt', 'levNum', 'levIco', 'levI', html.slice(a, b) + '\nreturn levLqWyk;');
+  return F((k, v) => k + (v ? JSON.stringify(v) : ''), s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'),
+    (v, d) => Number(v).toFixed(d), levNum, levIco, (kind, c) => `[${kind}:${c}]`);
+})();
+test('v234: likwidacje 24 h — pasek 100% (długie czerwone | krótkie zielone), udział i suma, kolejność tabeli, zero i braki', () => {
+  const q = (l, s) => ({l, s, t: 'x'});
+  const R = [{c: 'BTC', q: q(29.4e6, 9.8e6)}, {c: 'ETH', q: q(10.4e6, 6.0e6)}, {c: 'XRP', q: null}, {c: 'TRX', q: q(0, 0)}, {c: 'LINK', q: q(0.5e6, 0)}];
+  const w = lq234(R);
+  assert.ok(w.startsWith('<div class="lqw"><p class="pnote">lev.wyk</p><p class="lqw-leg"><span><i class="lqw-l"></i>lev.wyk.l</span><span><i class="lqw-s"></i>lev.wyk.s</span></p>'));
+  const rows = w.split('<div class="lqw-r').slice(1);
+  assert.deepEqual(rows.map(r => /\[coin:([A-Z]+)\]/.exec(r)[1]), ['BTC', 'ETH', 'TRX', 'LINK'], 'kolejność tabeli; moneta bez danych — bez wiersza');
+  assert.ok(rows[0].includes('<i class="lqw-l" style="flex:0.7500 1 0"></i><i class="lqw-s" style="flex:0.2500 1 0"></i>'), 'BTC: 75% / 25%');
+  assert.ok(rows[0].includes('<span class="lqw-v">75% / 25%<small>39.2 lev.u.mln</small></span>'), 'udział i suma');
+  assert.ok(rows[0].includes('title="lev.wyk.tip{&quot;c&quot;:&quot;BTC&quot;,&quot;l&quot;:&quot;29.4&quot;,&quot;s&quot;:&quot;9.8&quot;,&quot;u&quot;:&quot;lev.u.mln&quot;}"'), 'podpowiedź z kwotami');
+  assert.ok(rows[2].includes('<span class="lqw-t" aria-hidden="true"></span><span class="lqw-v">—<small>0.0 lev.u.mln</small>'), 'suma zero (zmierzone) — bez paska, udział „—”, suma 0');
+  assert.ok(rows[3].includes('<i class="lqw-l" style="flex:1.0000 1 0"></i></span>') && !rows[3].includes('lqw-s"'), 'same długie — jeden odcinek');
+  assert.ok(rows[3].includes('100% / 0%'));
+  assert.ok(rows[2].startsWith(' lqw-lo"') && rows[0].startsWith('" title=') && !rows[3].startsWith(' lqw-lo'), 'suma < 0,05 mln USD — przygaszony (TRX), większe — zwykłe');
+  assert.ok(lq234([{c: 'A', q: q(3e4, 1e4)}, {c: 'B', q: q(1e6, 1e6)}, {c: 'C', q: q(5e4, 0)}]).includes('<div class="lqw-r lqw-lo" title='), '40 tys. USD — przygaszony');
+  assert.equal(lq234(R.slice(0, 3)), '', 'mniej niż 3 monety z danymi — bez wykresu');
+  assert.equal(lq234(null), ''); assert.equal(lq234([{c: 'A', q: q(-1, 2)}, {c: 'B', q: q(1, 2)}, {c: 'C', q: q(NaN, 1)}]), '', 'ujemne i NaN — poza wykresem');
+  assert.ok(!/undefined|NaN/.test(w));
+});
+test('v234: wykres w levCz — po kafelkach, nad tabelą; styl i telefon', () => {
+  assert.ok(html.includes("<div class=\"etfkpis\">${out.join('')}</div>`+levLqWyk(R)+\n    `<div class=\"list-wrap\"><table class=\"etft lev-cz\">"), 'po kafelkach, nad tabelą');
+  assert.ok(html.includes('#c-dzwignia i.lqw-l{background:var(--rd)}#c-dzwignia i.lqw-s{background:var(--gr)}'), 'kolory jak w tabeli (przewaga długich = czerwono)');
+  assert.ok(html.includes('@media (max-width:520px){#c-dzwignia .lqw-r{'), 'telefon');
+  assert.ok(html.includes('#c-dzwignia .lqw-lo .lqw-t i{opacity:.4}'), 'małe kwoty przygaszone');
+});
+test('v234: słownik EXTRA187 — lev.wyk* w 10 językach (własne tłumaczenia), czysty JSON z linią for po EXTRA186', () => {
+  const i = html.indexOf('const EXTRA187='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA187='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) {
+    assert.deepEqual(Object.keys(D[L]).sort(), ['lev.wyk', 'lev.wyk.l', 'lev.wyk.s', 'lev.wyk.tip'], L);
+    for (const k of ['{c}', '{l}', '{s}', '{u}']) assert.ok(D[L]['lev.wyk.tip'].includes(k), L + ' ' + k);
+    if (L !== 'pl' && L !== 'en') for (const k in D[L]) assert.notEqual(D[L][k], D.en[k], L + ' ' + k);
+  }
+  assert.ok(html.includes('for(const l in EXTRA186)if(I18N[l])Object.assign(I18N[l],EXTRA186[l]);\nconst EXTRA187='), 'po EXTRA186');
+  assert.ok(html.includes('for(const l in EXTRA187)if(I18N[l])Object.assign(I18N[l],EXTRA187[l]);'));
+  assert.ok(!/Coinalyze|Binance Futures|CoinGlass/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+});
