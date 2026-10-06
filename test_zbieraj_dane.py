@@ -27686,12 +27686,12 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
         k = self.k
         P = {'ok': True, 'czas_s': 10.4, 'bajty': 3560630, 'svg': 170, 'wykresy': 25, 'bledy': [], 'zasoby': [], 'inne': []}
         self.assertEqual(k.przegladarka_wiersz(P), '- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po 10,4 s — grafik 170, '
-                                                   'wykresów liniowych 25; nieobsłużonych błędów JavaScriptu: 0 ✅.')
+                                                   'wykresów liniowych 25; błędów JavaScriptu: 0 ✅.')
         self.assertEqual(k.przegladarka_uwagi(P), [])
         P2 = dict(P, **k.przegladarka_konsola(self.LOG))
         w = k.przegladarka_wiersz(P2)
-        self.assertIn('nieobsłużonych błędów JavaScriptu: 2 ⚠️; nieudane wczytania: 2 (api.coingecko.com, api.coinpaprika.com) ℹ️; inne komunikaty konsoli: 1 (pierwszy: BLAD-TESTOWY-1) ℹ️.', w)
-        self.assertEqual(k.przegladarka_uwagi(P2), ['strona w przeglądarce: nieobsłużonych błędów JavaScriptu 2 — pierwszy: Uncaught (in promise) Error: ODRZUCONE-2 (strona:9875)'])
+        self.assertIn('błędów JavaScriptu: 2 ⚠️; nieudane wczytania: 2 (api.coingecko.com, api.coinpaprika.com) ℹ️; inne komunikaty konsoli: 1 (pierwszy: BLAD-TESTOWY-1) ℹ️.', w)
+        self.assertEqual(k.przegladarka_uwagi(P2), ['strona w przeglądarce: błędów JavaScriptu 2 — pierwszy: Uncaught (in promise) Error: ODRZUCONE-2 (strona:9875)'])
         self.assertEqual(k.przegladarka_wiersz({'brak': 'brak przeglądarki na maszynie kontroli'}),
                          '- Strona w przeglądarce (bez okna, ekran telefonu): nie sprawdzono (brak przeglądarki na maszynie kontroli) ℹ️.')
 
@@ -27783,9 +27783,9 @@ class PoPrzegladzieV248(unittest.TestCase):
                                       'Uncaught Error: a b (strona:77)'], 'wiele linii → jeden wpis; starszy zapis CONSOLE(N)')
         self.assertEqual(K['nieczytelne'], 1)
         P = dict({'ok': True, 'stan': 'ok', 'czas_s': 5.0, 'svg': 148, 'wykresy': 20}, **K)
-        self.assertIn('nieobsłużonych błędów JavaScriptu: 2 ⚠️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P))
+        self.assertIn('błędów JavaScriptu: 2 ⚠️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P))
         P = dict(P, bledy=[])
-        self.assertIn('nieobsłużonych błędów JavaScriptu: 0 ℹ️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P), 'nigdy cichy ✅')
+        self.assertIn('błędów JavaScriptu: 0 ℹ️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P), 'nigdy cichy ✅')
 
     def test_prawdziwy_chrome_wiele_linii(self):
         k = self.k
@@ -27867,7 +27867,7 @@ class PoPrzegladzieV248(unittest.TestCase):
         self.assertEqual(P['stan'], 'zawieszona')
         self.assertEqual(k.przegladarka_uwagi(P), [], 'pierwszy raz — informacja; błędy z logu bez uwagi (przegląd: raport sam sobie przeczył)')
         self.assertIn('nie sprawdzono (strona nie oddała się w 2 s — zawieszona strona albo źródło, które nie odpowiada); w logu do przerwania '
-                      'nieobsłużonych błędów JavaScriptu: 1 ℹ️.', k.przegladarka_wiersz(P))
+                      'błędów JavaScriptu: 1 ℹ️.', k.przegladarka_wiersz(P))
         self.assertEqual(len(k.przegladarka_uwagi(P, 'zawieszona')), 1, 'drugi raz z rzędu — uwaga')
         self.assertTrue(k.przegladarka_wiersz(dict(P, powtorka=True)).endswith(' ⚠️.'))
         inna = self._udawana('sys.stdout.write("<html><body><h1>404</h1></body></html>\\n"); sys.stdout.flush()\ntime.sleep(30)\n')
@@ -28021,7 +28021,7 @@ class PoPrzegladzieV250(unittest.TestCase):
                '[1:2:1006/1.4:INFO:CONSOLE:1] "Uncaught RangeError: x", source: https://s/ (1)\nINFO: Created TensorFlow Lite XNNPACK delegate for CPU.\n')
         K = k.przegladarka_konsola(log)
         self.assertEqual([b.split(' (')[0] for b in K['bledy']], ["TypeError: Cannot read properties of undefined", 'Error: zła odpowiedź',
-                                                                  'nieczytelny wpis z „Uncaught”'], K)
+                                                                  'Uncaught RangeError: x'], K)   # v252: doklejona obca linia — wpis odczytany
         self.assertEqual((K['inne'], K['nieczytelne']), (['Errors in the past'], 0), '„Errors…” to nie nazwa błędu; obca linia po „Uncaught” — błąd, nie „nieczytelny”')
 
     def test_prawdziwy_chrome_blad_zlapany(self):
@@ -28072,7 +28072,7 @@ class PoPrzegladzieV250(unittest.TestCase):
         self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: 1 par', k.raport_md(R))
         H = self._hist(['2026-10-05', '2026-10-06'], lambda i: 1e9, czas=lambda d: '03:10')
         o = k.wieloryby_ocena(arch, hist=H)
-        self.assertIn('; migawki o północy z 2026-10-06: brak albo później niż 2 h po północy UTC', o['pomin'])
+        self.assertIn('; migawki o północy z 2026-10-05 i 2026-10-06: brak albo później niż 2 h po północy UTC', o['pomin'])   # v252: oba dni późno
 
     def test_poprzedni_tylko_z_30_h(self):
         k = self.k
@@ -28084,3 +28084,62 @@ class PoPrzegladzieV250(unittest.TestCase):
         with open(p, 'w', encoding='utf-8') as f:
             json.dump([{'at': '2026-10-06T06:20:00+00:00', 'przegl': 'zawieszona'}], f)
         self.assertEqual(k.przegladarka_poprzedni(p, teraz), 'zawieszona')
+
+
+# ===================== v252: POPRAWKI PO PRZEGLĄDZIE v250–v251 =====================
+class PoPrzegladzieV252(unittest.TestCase):
+    """v252: „[object DOMException]” i nazwy …Error/…Exception = błąd; wpis z doklejoną linią odczytany; „∞” i „Invalid Date” = napisy-błędy;
+    powód braku porównania wielorybów — właściwy dzień; „błędów JavaScriptu”."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola252-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v252_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def test_bledy_dom_i_doklejona_linia(self):
+        k = self.k
+        log = ('[1:2:1006/1.1:INFO:CONSOLE:5] "[object DOMException]", source: https://capitalflowai-app.github.io/ (3319)\n'
+               '[1:2:1006/1.2:INFO:CONSOLE:5] "IndexSizeError: Failed to execute \'arc\' on \'CanvasRenderingContext2D\': The radius provided (-1) is negative.", '
+               'source: https://capitalflowai-app.github.io/ (3320)\n'
+               '[1:2:1006/1.3:INFO:CONSOLE:5] "TypeError: x is null", source: https://capitalflowai-app.github.io/ (3319)\nINFO: Created TensorFlow Lite XNNPACK delegate for CPU.\n')
+        K = k.przegladarka_konsola(log)
+        self.assertEqual([b.split(' (')[0] for b in K['bledy']], ['[object DOMException]', "IndexSizeError: Failed to execute 'arc' on 'CanvasRenderingContext2D': The radius provided",
+                                                                  'TypeError: x is null'])
+        self.assertEqual((K['inne'], K['nieczytelne']), ([], 0), 'doklejona obca linia — wpis odczytany')
+        P = dict({'ok': True, 'stan': 'ok', 'czas_s': 5.0, 'svg': 148, 'wykresy': 20}, **K)
+        w = k.przegladarka_wiersz(P)
+        self.assertIn('; błędów JavaScriptu: 3 ⚠️', w); self.assertNotIn('nieobsłużonych', w)
+        self.assertTrue(k.przegladarka_uwagi(P)[0].startswith('strona w przeglądarce: błędów JavaScriptu 3 — pierwszy: [object DOMException]'))
+
+    def test_prawdziwy_chrome_blad_dom(self):
+        k = self.k
+        if os.environ.get('GITHUB_ACTIONS') or not k.przegladarka_program():
+            self.skipTest('tylko lokalnie, z zainstalowanym Chrome')
+        p = os.path.join(self.tmp, 'dom.html')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('<!doctype html><html><body><script>const EXTRA={};const c=document.createElement("canvas").getContext("2d");'
+                    'function render(){try{c.beginPath();c.arc(0,0,-1,0,1);}catch(err){console.error(err);}}setTimeout(render,50);setInterval(()=>{},1000);</script></body></html>')
+        P = k.strona_przegladarka('file://' + p, czas_s=60)
+        self.assertTrue(P.get('ok'), P)
+        self.assertEqual(len(P['bledy']), 1, P)
+
+    def test_nieskonczonosc_i_zla_data(self):
+        k = self.k
+        A = k.przegladarka_artefakty('<p>Zmiana: +∞%</p><p>Stan na Invalid Date</p><p>Rynek 1,2%</p>')
+        self.assertEqual(len(A), 2, A); self.assertIn('+∞%', A[0]); self.assertIn('Invalid Date', A[1])
+
+    def test_powod_wlasciwy_dzien(self):
+        k = self.k
+        p = os.path.join(self.tmp, 'w.csv')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n')
+            for i, d in enumerate(['2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06']):
+                f.write(f'{d},Bitfinex,USDT,1000000000,1000000000,0,0,0,{26_000_000 + i * 3000}\n')   # archiwum co 10 h — bez pary o dobę
+        H = {'Bitfinex': [['2026-10-05', '2026-10-05T02:30:00+00:00', 0.0, 1e9, 0.0, '2022-11'], ['2026-10-06', '2026-10-06T00:05:00+00:00', 0.0, 1e9, 0.0, '2022-11']]}
+        o = k.wieloryby_ocena(p, hist=H)
+        self.assertIn('; migawki o północy z 2026-10-05: brak albo później niż 2 h po północy UTC', o['pomin'])
+        self.assertNotIn('2026-10-06: brak', o['pomin'], 'migawka z 06.10 jest i o czasie — przegląd: powód wskazywał zły dzień')

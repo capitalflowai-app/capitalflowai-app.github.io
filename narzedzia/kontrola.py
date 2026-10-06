@@ -1663,7 +1663,9 @@ def wieloryby_ocena(path, zmiany=None, hist=None):
         out['pomin'] = (f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie" if out['odstep_h'] is not None
                         else 'brak numeru bloku migawki — bez porównania')
         if hist and not out['polnoc']:   # v250: powód — migawki o północy brak albo późniejsza niż WH_POLNOC_H h
-            out['pomin'] += f'; migawki o północy z {d}: brak albo później niż {WH_POLNOC_H} h po północy UTC'
+            bd = [x for x in (dm1, d) if not Hn.get(x)]   # v252: dzień, którego migawki o północy brak albo jest późna (d − 1 albo d)
+            out['pomin'] += (f'; migawki o północy z {" i ".join(bd)}: brak albo później niż {WH_POLNOC_H} h po północy UTC' if bd
+                             else f'; migawki o północy z {dm1} i {d} są, ale bez wspólnej pary (inna wersja listy portfeli)')
         return out
     norma = {}
     for a, b in zip(days[:-2], days[1:-1]):
@@ -2663,10 +2665,12 @@ PRZEGL_OKNO = '390,844'     # ekran telefonu
 PRZEGL_KONSOLA = re.compile(r':CONSOLE(?::\d+\]|\(\d+\)\]) "(.*)", source: (\S*) \((\d+)\)\s*$', re.S)   # v248: też CONSOLE(N); wiele linii
 PRZEGL_REKORD = re.compile(r'\n(?=\[\d+:\d+:\d{4}/)')   # v248: nowy wpis logu zaczyna się od „[proces:wątek:MMDD/” — komunikat bywa wielowierszowy
 PRZEGL_ZNACZNIK = 'const EXTRA'   # v248: zrzut to nasza strona (ten sam znacznik co pobranie index.html), nie np. strona 404
-PRZEGL_BLAD = re.compile(r'^(Uncaught (\(in promise\) )?)?(TypeError|ReferenceError|RangeError|SyntaxError|URIError|EvalError|AggregateError|Error)\b')   # v250
+PRZEGL_BLAD = re.compile(r'^(Uncaught (\(in promise\) )?)?(\[object \w*(Error|Exception)\]|\w*(Error|Exception)\b)')   # v250/v252: nazwa błędu JS (też DOMException, „[object DOMException]”)
+PRZEGL_KONSOLA_LUZ = re.compile(r':CONSOLE(?::\d+\]|\(\d+\)\]) "(.*?)", source: (\S*) \((\d+)\)', re.S)   # v252: wpis z doklejoną obcą linią
 PRZEGL_POPRZ_H = 30   # v250: „drugi raz z rzędu” — poprzednia kontrola z przeglądarką nie starsza niż tyle godzin
 PRZEGL_MIN_WYKRESY = 10   # v248: wykresów liniowych poza tekstem skryptów — 06.10: 20 z danymi, 0 bez danych (strona z pliku, dane niedostępne)
-PRZEGL_ARTEFAKTY = re.compile(r'\bNaN\b|\bundefined\b|\[object Object\]|\bInfinity\b|\bnull\b')   # v250: napisy-błędy (06.10: 0 na całej stronie)
+PRZEGL_ARTEFAKTY = re.compile(r'\bNaN\b|\bundefined\b|\[object Object\]|\bInfinity\b|\bnull\b|∞|Invalid Date')   # v252: „∞” — Intl dla Infinity
+#   # v250: napisy-błędy (06.10: 0 na całej stronie)
 
 
 def przegladarka_artefakty(tresc):
@@ -2697,7 +2701,7 @@ def przegladarka_konsola(log):
     for rek in PRZEGL_REKORD.split(str(log or '')):
         if ':CONSOLE' not in rek[:120]:
             continue
-        m = PRZEGL_KONSOLA.search(rek)
+        m = PRZEGL_KONSOLA.search(rek) or PRZEGL_KONSOLA_LUZ.search(rek)   # v252: obca linia doklejona do wpisu — wpis nadal odczytany
         if not m:
             if re.search(r':CONSOLE[^\]]*\] "Uncaught', rek):   # v250: obca linia doklejona do wpisu z błędem — nadal błąd
                 out['bledy'].append('nieczytelny wpis z „Uncaught” (zob. log przeglądarki)')
@@ -2804,7 +2808,7 @@ def przegladarka_uwagi(P, poprzedni=None):
     out = []
     if P.get('ok'):
         if P.get('bledy'):
-            out.append(f'strona w przeglądarce: nieobsłużonych błędów JavaScriptu {len(P["bledy"])} — pierwszy: {P["bledy"][0]}')
+            out.append(f'strona w przeglądarce: błędów JavaScriptu {len(P["bledy"])} — pierwszy: {P["bledy"][0]}')
         if P.get('artefakty_n'):   # v250
             out.append(f'strona w przeglądarce: napisy-błędy w tekście strony (NaN, undefined…): {P["artefakty_n"]} — pierwszy: „{(P.get("artefakty") or ["—"])[0]}”')
         if isinstance(P.get('wykresy'), int) and P['wykresy'] < PRZEGL_MIN_WYKRESY:
@@ -2821,13 +2825,13 @@ def przegladarka_wiersz(P):
     if not P.get('ok'):
         b = P.get('bledy') or []
         return (f'- Strona w przeglądarce (bez okna, ekran telefonu): nie sprawdzono ({P.get("brak") or "—"})'
-                + (f'; w logu do przerwania nieobsłużonych błędów JavaScriptu: {len(b)}' if b else '') + (' ⚠️.' if P.get('powtorka') else ' ℹ️.'))
+                + (f'; w logu do przerwania błędów JavaScriptu: {len(b)}' if b else '') + (' ⚠️.' if P.get('powtorka') else ' ℹ️.'))
     b, z, i, nc = P.get('bledy') or [], P.get('zasoby') or [], P.get('inne') or [], P.get('nieczytelne') or 0
     malo = isinstance(P.get('wykresy'), int) and P['wykresy'] < PRZEGL_MIN_WYKRESY
     hosty = sorted({u.split('/')[2] if '://' in u else u for u in z})
     return (f'- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po {str(P.get("czas_s", "—")).replace(".", ",")} s — grafik '
             f'{P.get("svg", 0)}, wykresów liniowych {P.get("wykresy", 0)}' + (' ⚠️ (zwykle ok. 20)' if malo else '')
-            + f'; nieobsłużonych błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else ('ℹ️' if nc else '✅'))
+            + f'; błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else ('ℹ️' if nc else '✅'))
             + (f' (wpisów konsoli nieczytelnych: {nc})' if nc else '')
             + (f'; napisy-błędy w tekście (NaN, undefined…): {P["artefakty_n"]} ⚠️' if P.get('artefakty_n') else '')   # v250
             + (f'; nieudane wczytania: {len(z)} ({", ".join(hosty[:4])}) ℹ️' if z else '')

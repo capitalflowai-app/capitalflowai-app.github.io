@@ -14154,7 +14154,8 @@ test('v251: opcje — pasek put/call (put zaokrąglony, call = 100 − put), ter
   assert.ok(w.startsWith('<div class="lvo"><p class="lvo-leg"><span><i class="lvo-p"></i>36% lvo.p</span><span><i class="lvo-c"></i>64% lvo.c</span></p>'), w.slice(0, 200));
   assert.ok(w.includes('<span class="lvo-pc" aria-hidden="true"><i class="lvo-p" style="flex:0.3560 1 0"></i><i class="lvo-c" style="flex:0.6440 1 0"></i></span>'));
   const R = w.split('<div class="lvo-r">').slice(1);
-  assert.deepEqual(R.map(r => /<span class="lvo-n">\[([^\]]+)\]/.exec(r)[1]), ['2026-10-09', '2026-10-30', '2026-12-25', '2027-03-26'], 'od najbliższego; zły dzień i 0 — bez wiersza');
+  assert.deepEqual(R.slice(0, 4).map(r => /<span class="lvo-n">\[([^\]]+)\]/.exec(r)[1]), ['2026-10-09', '2026-10-30', '2026-12-25', '2027-03-26'], 'od najbliższego; zły dzień i 0 — bez wiersza');
+  assert.ok(R.length === 5 && R[4].includes('<span class="lvo-n">lvo.inne</span>') && R[4].includes('19.0%<small>19 BTC</small>'), 'v252: pozostałe terminy (100 − 81)');
   assert.ok(R[1].includes('style="width:100.00%"') && R[0].includes('style="width:' + (6 / 35 * 100).toFixed(2) + '%"'), 'długość względem największego terminu');
   assert.ok(R[1].includes('<span class="lvo-v">35.0%<small>35 BTC</small></span>'), 'udział w otwartych opcjach i liczba monet');
   assert.ok(w.includes('<p class="pnote">lvo.wyk{"c":"BTC"}</p>'));
@@ -14171,10 +14172,29 @@ test('v251: opcje — przypadki brzegowe: bez put/call (tylko słupki), jeden te
 });
 test('v251: wykres w levOpt nad tabelą monety; styl i telefon; słownik EXTRA190 (10 języków, czysty JSON, linia for po EXTRA189)', () => {
   assert.ok(html.includes("${levAsOf(o.t||levAt('dr'))}</p>${levOptWyk(c,o)}<div class=\"list-wrap\"><table class=\"etft lev-opt\">"), 'nad tabelą');
-  assert.ok(html.includes('#c-dzwignia .lvo-p{background:var(--or)}#c-dzwignia .lvo-c{background:var(--bl)}') && html.includes('@media (max-width:420px){#c-dzwignia .lvo-r{'));
+  assert.ok(html.includes('#c-dzwignia .lvo-p{background:var(--or)}#c-dzwignia .lvo-c{background:var(--bl)}') && html.includes('@media (max-width:420px){#c-dzwignia .lvo-g{'));   // v252
   const i = html.indexOf('const EXTRA190='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA190='.length, j));
   assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
   for (const L in D) { assert.deepEqual(Object.keys(D[L]).sort(), ['lvo.c', 'lvo.p', 'lvo.wyk'], L); assert.ok(D[L]['lvo.wyk'].includes('{c}'), L); if (L !== 'pl' && L !== 'en') for (const k in D[L]) assert.notEqual(D[L][k], D.en[k], L + ' ' + k); }
   assert.ok(html.includes('for(const l in EXTRA189)if(I18N[l])Object.assign(I18N[l],EXTRA189[l]);\nconst EXTRA190='));
   assert.ok(html.includes('for(const l in EXTRA190)if(I18N[l])Object.assign(I18N[l],EXTRA190[l]);'));
+});
+
+
+/* ===================== v252: opcje — jedna siatka wierszy, pozostałe terminy, słownik EXTRA191 ===================== */
+test('v252: opcje — wiersze w jednej siatce (kolumny według najdłuższej daty i wartości), pozostałe terminy, słownik EXTRA191', () => {
+  const w = lvo251('ETH', {oi: 1000, exp: [['2026-10-09', 100], ['2026-10-30', 200]]});
+  assert.ok(w.includes('<div class="lvo-g"><div class="lvo-r">'), 'wiersze w siatce');
+  const R = w.split('<div class="lvo-r">').slice(1);
+  assert.equal(R.length, 3);
+  assert.ok(R[2].includes('<span class="lvo-n">lvo.inne</span>') && R[2].includes('style="width:100.00%"') && R[2].includes('70.0%<small>700 ETH</small>'), 'reszta 700 z 1000');
+  assert.ok(R[1].includes('style="width:' + (200 / 700 * 100).toFixed(2) + '%"'), 'skala do pozostałych terminów, gdy większe od największego');
+  assert.ok(!lvo251('ETH', {oi: 1000, exp: [['2026-10-09', 500], ['2026-10-30', 497]]}).includes('lvo.inne'), 'reszta ≤ 0,5% — bez wiersza');
+  assert.ok(!lvo251('ETH', {exp: [['2026-10-09', 500], ['2026-10-30', 497]]}).includes('lvo.inne'), 'bez sumy otwartych opcji — bez wiersza');
+  assert.ok(html.includes('#c-dzwignia .lvo-g{display:grid;grid-template-columns:max-content minmax(0,1fr) max-content;') && html.includes('#c-dzwignia .lvo-r{display:contents}'));
+  assert.ok(!html.includes('grid-template-columns:minmax(0,74px) minmax(0,1fr) 104px'), 'bez stałej kolumny dat');
+  const i = html.indexOf('const EXTRA191='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA191='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) { assert.deepEqual(Object.keys(D[L]), ['lvo.inne'], L); if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['lvo.inne'], D.en['lvo.inne'], L); }
+  assert.ok(html.includes('for(const l in EXTRA190)if(I18N[l])Object.assign(I18N[l],EXTRA190[l]);\nconst EXTRA191=') && html.includes('for(const l in EXTRA191)if(I18N[l])Object.assign(I18N[l],EXTRA191[l]);'));
 });
