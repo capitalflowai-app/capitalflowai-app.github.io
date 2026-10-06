@@ -13491,3 +13491,21 @@ test('v203: g.d.today — ostatnia sesja w 10 językach; wh.not2 bez „Verträg
   assert.ok(v96src.tFor('pl')('wh.not2').includes('ETH przesłane przez kontrakty pomijamy'), 'pl bez zmian (jak nota ETH nad tabelą)');
   assert.ok(html.includes("const turn=(a.aum&&typeof a.d1==='number'&&isFinite(a.d1))?a.d1/a.aum*100:null;"), 'ETF: obrót bez przepływu dnia = „—” (wpis monety z v203)');
 });
+
+
+/* ---------- v205: ETF — moneta stale: przepływy „—” w wierszu i w sumach, data przy nazwie, bez tabeli funduszy; tabela funduszy do 20 ---------- */
+test('v205: etfTotals i wiersz ETF przy monecie stale — sumy przepływów „—”, poziomy sumowane; obrót „—”; nota „ostatnie dane z …”', () => {
+  const a0 = html.indexOf('function etfTotals(D){'), a1 = html.indexOf('\nfunction etfStabCompare(', a0);
+  const tot = new Function('ETF_SYMS', html.slice(a0, a1) + '\nreturn etfTotals;')(['btc', 'eth']);
+  const D = {assets: {btc: {d1: 100, w: 300, m: 900, cum: 5000, aum: 60000}, eth: {d1: 10, w: 30, m: 90, cum: 1000, aum: 12000, stale: true}}};
+  assert.deepEqual(tot(D), {d1: null, w: null, m: null, cum: 6000, aum: 72000}, 'przepływy „—”, aktywa i suma od startu sumowane');
+  delete D.assets.eth.stale; assert.deepEqual(tot(D), {d1: 110, w: 330, m: 990, cum: 6000, aum: 72000}, 'bez stale — jak dotąd');
+  assert.ok(html.includes("const a=a0.stale?Object.assign({},a0,{d1:null,w:null,m:null}):a0;"), 'wiersz i panel boczny: przepływy „—”');
+  assert.ok(html.includes("${a.stale?' · '+t('etf.stale',{d:escH(a.asof)}):''}") && html.includes("if(!a||a.stale||!a.funds||!a.funds.length)return '';"), 'data przy nazwie, bez tabeli funduszy');
+  assert.ok(html.includes('a.funds.slice(0,20)') && !html.includes('a.funds.slice(0,14)'), 'tabela funduszy do 20');
+  const ex = html.slice(html.indexOf('const turn=') + 'const turn='.length, html.indexOf(';', html.indexOf('const turn=')));
+  const turn = a => new Function('a', 'return ' + ex)(a);
+  assert.equal(turn({aum: 1000, d1: 10}), 1); assert.equal(turn({aum: 1000, d1: null}), null, 'brak przepływu — „—”, nie 0,00%'); assert.equal(turn({aum: null, d1: 5}), null);
+  const D2 = v183Dict('EXTRA174'); assert.deepEqual(D2, {pl: {'etf.stale': 'ostatnie dane z {d}'}});
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(/smart|Smart|inteligentes|intelligents|смарт|智能|スマート/.test(v96src.tFor(L)('wh.eth.note')), L + ': wh.eth.note — smart kontrakty');
+});

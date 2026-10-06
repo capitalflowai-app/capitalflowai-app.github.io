@@ -24739,17 +24739,17 @@ class CenyZamknieciaV195(unittest.TestCase):
                 'EWJ': {'asof': '2026-10-05', 'd': h(98.0, 5_000_000) + [['2026-10-02', 98.92, 7328800], ['2026-10-05', 99.3, 3071843]]},
                 'INDA': {'asof': '2026-10-05', 'd': h(46.0, 4_500_000) + [['2026-10-02', 46.52, 4323400], ['2026-10-05', 46.55, 3032335]]}}
 
-    def _dz(self, **over):
+    def _dz(self, at='2026-10-05T21:33:18+00:00', **over):   # v205: at — czas pobrania pliku notowań
         q = {'SPY': {'c': 774.83, 'pc': 769.64, 'dp': 0.6743, 't': self.T}, 'ASEA': {'c': 21.095, 'pc': 20.95, 'dp': 0.6921, 't': self.T},
              'EZA': {'c': 63.17, 'pc': 63.19, 'dp': -0.0317, 't': self.T}, 'EWJ': {'c': 99.3, 'pc': 98.92, 'dp': 0.3841, 't': self.T},
              'INDA': {'c': 46.57, 'pc': 46.52, 'dp': 0.1075, 't': self.T}, 'EWC': {'c': 58.78, 'pc': 58.72, 'dp': 0.1022, 't': self.T}}   # v199: INDA z pełnym obrotem — bez podmiany
         for k, v in over.items():
             q[k] = dict(q[k], **v)
-        return {'at': '2026-10-05T21:33:18+00:00', 'q': q}
+        return {'at': at, 'q': q}
 
     def test_wstepne_i_brakujaca(self):
         q = self._q()
-        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 17, 33)), 5)
+        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz()), 5)
         self.assertEqual(q['SPY']['d'][-1], ['2026-10-05', 774.83, None], 'v204: zamknięcie oficjalne (świeca wstępna 774,94 mimo obrotu 72% mediany)')
         self.assertEqual(q['EZA']['d'][-1], ['2026-10-05', 63.17, None]); self.assertEqual(q['EWC']['d'][-1], ['2026-10-05', 58.78, None])
         self.assertEqual((q['ASEA']['d'][-1], q['ASEA']['asof'], len(q['ASEA']['d'])), (['2026-10-05', 21.095, None], '2026-10-05', 8), 'ASEA: dopisana świeca 05.10')
@@ -24758,23 +24758,23 @@ class CenyZamknieciaV195(unittest.TestCase):
         self.assertEqual(q['SPY']['d'][-2], ['2026-10-02', 769.64, 46306400], 'starsze świece bez zmian')
         self.assertTrue(any('zamknięcie sesji z pliku notowań dziennych' in n and 'ASEA, EWC, EZA, INDA, SPY' in n for n in zd.META['notes']), zd.META['notes'])
         zd.META['notes'].clear()
-        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 18, 35)), 0, 'drugi raz — nic do zmiany')
+        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(at='2026-10-05T22:35:00+00:00')), 0, 'drugi raz — nic do zmiany')
         self.assertEqual(zd.META['notes'], [])
 
     def test_bez_zmian(self):
-        for dz, now, why in ((self._dz(ASEA={'t': self.T - 1800}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 15:30 — sesja w toku'),
-                             (self._dz(), datetime.datetime(2026, 10, 5, 16, 10), 'przed 16:15 (jak pomijanie trwającej sesji)'),
-                             (self._dz(ASEA={'pc': 20.5}), datetime.datetime(2026, 10, 5, 17, 33), 'inne poprzednie zamknięcie (dywidenda, korekta) — bez zmian'),
-                             (self._dz(ASEA={'c': None}), datetime.datetime(2026, 10, 5, 17, 33), 'brak ceny'),
-                             (self._dz(ASEA={'c': True}), datetime.datetime(2026, 10, 5, 17, 33), 'nie liczba'),
-                             (self._dz(ASEA={'t': 'x'}), datetime.datetime(2026, 10, 5, 17, 33), 'zły czas'),
-                             (self._dz(ASEA={'t': self.T - 3 * 86400, 'c': 20.95, 'pc': 20.9}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — świeca równa (v199: zgodne poprzednie zamknięcie)')):
+        for dz, why in ((self._dz(at='2026-10-05T19:30:00+00:00', ASEA={'t': self.T - 1800}), 'plik pobrany 15:30 — sesja w toku (v205: czas pobrania)'),
+                        (self._dz(at='2026-10-05T20:10:00+00:00'), 'plik pobrany 16:10 — przed 16:15'),
+                        (self._dz(ASEA={'pc': 20.5}), 'inne poprzednie zamknięcie (dywidenda, korekta) — bez zmian'),
+                        (self._dz(ASEA={'c': None}), 'brak ceny'),
+                        (self._dz(ASEA={'c': True}), 'nie liczba'),
+                        (self._dz(ASEA={'t': 'x'}), 'zły czas'),
+                        (self._dz(ASEA={'t': self.T - 3 * 86400, 'c': 20.95, 'pc': 20.9}), 'notowanie z 02.10 — świeca równa (v199: zgodne poprzednie zamknięcie)')):
             q = self._q()
-            zd._zamkniecia_z_notowan(q, dz, now)
+            zd._zamkniecia_z_notowan(q, dz)
             self.assertEqual(q['ASEA']['d'][-1], ['2026-10-02', 20.95, 30300], why)
         q = self._q()
-        self.assertEqual(zd._zamkniecia_z_notowan(q, None, datetime.datetime(2026, 10, 5, 17, 33)), 0, 'bez pliku notowań')
-        self.assertEqual(zd._zamkniecia_z_notowan(q, {'q': 'x'}, datetime.datetime(2026, 10, 5, 17, 33)), 0)
+        self.assertEqual(zd._zamkniecia_z_notowan(q, None), 0, 'bez pliku notowań')
+        self.assertEqual(zd._zamkniecia_z_notowan(q, {'q': 'x'}), 0)
 
     def test_w_build_prices(self):
         q = self._q()
@@ -24960,8 +24960,8 @@ class PoPrzegladzieV199(unittest.TestCase):
             prev = t._prev(); prev['assets']['eth'] = dict(prev['assets']['eth'], asof='2026-09-25')
             zd.META['notes'].clear()
             out, _ = t._run(prev, hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
-            self.assertEqual(out['assets']['eth']['d1'], None, 'v203: poprzedni wpis z 25.09 zostaje (historia), przepływy = brak')
-            self.assertTrue(any('SoSoValue ETH: poprzednie dane z 2026-09-25 — ponad 3 dni starsze' in n for n in zd.META['notes']), zd.META['notes'])
+            self.assertEqual((out['assets']['eth']['d1'], out['assets']['eth']['stale']), (100.0, True), 'v205: wpis zostaje z liczbami, oznaczony stale (strona: przepływy „—”)')
+            self.assertTrue(any('SoSoValue ETH: dane z 2026-09-25 — ponad 2 sesje za najnowszymi' in n for n in zd.META['notes']), zd.META['notes'])
             self.assertEqual(list(out['assets']), ['btc', 'eth'])
             out, _ = t._run(t._prev(), hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
             self.assertEqual(list(out['assets']), ['btc', 'eth'], 'poprzedni wpis z tego samego dnia — zostaje, kolejność monet jak w ETF_SYMS')
@@ -25022,10 +25022,10 @@ class PoPrzegladzieV203(unittest.TestCase):
             out, _ = t._run(prev, hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
             e = out['assets']['eth']
             self.assertEqual(list(out['assets']), ['btc', 'eth'], 'moneta zostaje — nie znika z sum (brak ≠ zero)')
-            self.assertEqual((e['d1'], e['w'], e['m'], e['stale']), (None, None, None, True), 'przepływy = brak (suma na stronie „—”)')
-            self.assertEqual((e['aum'], e['cum'], e['share'], e['funds'], len(e['day'])), (12000.0, 5000.0, 3.0, [], 28), 'poziomy i historia zostają; bez starych funduszy')
-            self.assertNotIn('funds_at', e)
-            self.assertTrue(any('SoSoValue ETH: poprzednie dane z 2026-09-25 — ponad 3 dni starsze od pozostałych (2026-10-02)' in n for n in zd.META['notes']), zd.META['notes'])
+            self.assertEqual((e['d1'], e['w'], e['m'], e['stale']), (100.0, 50.0, 200.0, True), 'v205: liczby zostają, pole stale (strona: przepływy „—”)')
+            self.assertEqual((e['aum'], e['cum'], e['share'], len(e['funds']), len(e['day'])), (12000.0, 5000.0, 3.0, 1, 28), 'poziomy, fundusze i historia zostają')
+            self.assertIn('funds_at', e, 'v205: lista funduszy z czasem — przy wznowieniu bez pobierania co przebieg')
+            self.assertTrue(any('SoSoValue ETH: dane z 2026-09-25 — ponad 2 sesje za najnowszymi (2026-10-02)' in n for n in zd.META['notes']), zd.META['notes'])
             self.assertEqual(out['asof'], '2026-09-25 – 2026-10-02', 'zakres dat w nagłówku pokazuje starą monetę')
         finally:
             t.doCleanups()
@@ -25056,3 +25056,68 @@ class PoPrzegladzieV203(unittest.TestCase):
             self.assertIn("if (old or again) and not _back_ok(t0, BACK_BUDGET, TWSE_SLEEP + TW_BACK_TIMEOUT):", src, 'ten sam budżet czasu')
         finally:
             t.doCleanups()
+
+
+# ===================== v205: PO PRZEGLĄDZIE v202–v204 — ETF STALE W SESJACH, ZAMKNIĘCIA WG CZASU POBRANIA, TAJWAN I CZAS POLSKI DZIAŁANIEM =====================
+class PoPrzegladzieV205(unittest.TestCase):
+    """v205: moneta ETF ponad 2 sesje za najnowszą (pobrana albo przeniesiona) = stale (liczby zostają); zamknięcie z notowania wg czasu pobrania
+    pliku notowań; Tajwan — krótki limit i budżet; czas polski bez bazy stref; kontrola — przebieg_min. Bez sieci."""
+
+    def test_etf_stale_w_sesjach(self):
+        t = PoPrzegladzieV194('test_suma_funduszy_niezgodna_bez_czasu'); t.setUp()
+        try:
+            out, _ = t._run(None, hist={'btc': _rows(['2026-10-01', '2026-10-02']), 'eth': _rows(['2026-09-24', '2026-09-25'])})
+            e, b = out['assets']['eth'], out['assets']['btc']
+            self.assertEqual((e.get('stale'), e['d1'], b.get('stale')), (True, 100.0, None), 'ETH ze źródła kończy się 25.09 (5 sesji za BTC) — stale, liczby zostają')
+            self.assertTrue(any('SoSoValue ETH: dane z 2026-09-25 — ponad 2 sesje za najnowszymi (2026-10-02)' in n for n in zd.META['notes']), zd.META['notes'])
+            zd.META['notes'].clear()
+            out, _ = t._run(None, hist={'btc': _rows(['2026-09-03', '2026-09-08']), 'eth': _rows(['2026-09-03', '2026-09-04'])})
+            self.assertNotIn('stale', out['assets']['eth'], 'pt 04.09 → wt 08.09 (Święto Pracy w poniedziałek) = 2 sesje — nie stale')
+            self.assertEqual(zd.ETF_STALE_SES, 2)
+        finally:
+            t.doCleanups()
+
+    def test_zamkniecia_wg_czasu_pobrania(self):
+        c = CenyZamknieciaV195('test_wstepne_i_brakujaca'); c.setUp()
+        q = c._q()
+        self.assertEqual(zd._zamkniecia_z_notowan(q, c._dz(at='2026-10-05T20:10:00+00:00')), 0, 'plik notowań pobrany 16:10 (zapas z poprzedniego przebiegu) — bez podmiany')
+        dz = c._dz(ASEA={'t': c.T - 3 * 3600})   # notowanie z 13:00 (dzień skrócony), pobrane 17:33
+        q = c._q()
+        self.assertGreaterEqual(zd._zamkniecia_z_notowan(q, dz), 1)
+        self.assertEqual(q['ASEA']['d'][-1], ['2026-10-05', 21.095, None], 'dzień skrócony — zamknięcie z notowania')
+        self.assertEqual(zd._zamkniecia_z_notowan(c._q(), dict(c._dz(), at='zły')), 0, 'bez czasu pobrania — bez podmiany')
+
+    def test_tajwan_limit_i_budzet_dzialaniem(self):
+        t = TwPoprawkiV197('test_ponowny_odczyt_poprawia_liczby'); t.setUp()
+        try:
+            seen = []
+
+            def gj(url, headers=None, timeout=30):
+                if 'DEXTAUS' in url:
+                    return {'observations': []}
+                seen.append((url.split('dayDate=')[1][:8], timeout))
+                return t.tw('2026-10-05', '71,896,608,245')
+            now = '2026-10-06T00:00:00+00:00'
+            with mock.patch.object(zd, 'NOW', now), mock.patch.object(zd, '_now_utc', lambda: datetime.datetime.fromisoformat(now)), mock.patch.object(zd, 'get_json', gj):
+                zd.twse_part(t._prev(), 'KLUCZ')
+                self.assertEqual(seen, [('20261005', zd.TW_BACK_TIMEOUT)], 'ponowny odczyt z krótkim limitem (10 s)')
+                seen.clear()
+                with mock.patch.object(zd, '_back_ok', lambda *a, **k: False):
+                    out = zd.twse_part(t._prev(), 'KLUCZ')
+                self.assertEqual(seen, [], 'budżet czasu wyczerpany — ponowny odczyt pominięty (najnowsze dni zawsze)')
+                self.assertNotIn('rtry', out, 'pominięcie to nie nieudana próba')
+        finally:
+            t.doCleanups()
+
+    def test_czas_polski_bez_bazy_stref_przez_czas_pl(self):
+        import importlib.util
+        import sys
+        spec = importlib.util.spec_from_file_location('kontrola_v205', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        with mock.patch.dict(sys.modules, {'zoneinfo': None}):
+            self.assertEqual(k.czas_pl('2026-11-02T10:00:00Z'), '02.11.2026, 11:00', 'zima bez bazy stref')
+            self.assertEqual(k.czas_pl('2026-10-06T00:24:00+00:00'), '06.10.2026, 02:24', 'lato bez bazy stref')
+        self.assertEqual(k.przebieg_min({'run_started_at': '2026-10-06T00:00:00Z', 'updated_at': '2026-10-06T00:13:30Z'}), 13.5)
+        self.assertIsNone(k.przebieg_min({'run_started_at': 'zły'})); self.assertEqual(k.BUDOWA_BUDZET_S, 90)
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertIn("if bud and (dl_b.get(rid) or 0) <= max(bud):", src); self.assertIn("if time.monotonic() - t_b > BUDOWA_BUDZET_S:", src)

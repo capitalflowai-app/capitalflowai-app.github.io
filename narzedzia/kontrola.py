@@ -751,6 +751,19 @@ def najdluzsze_udane(runs, now, n=3):
     return [i for _, i in sorted(out, key=lambda x: -x[0])[:n]]
 
 
+BUDOWA_BUDZET_S = 90   # v205: s — odczyt czasów zadania budowy (API zadań) najwyżej tyle; limit całego zadania kontroli 12 min
+
+
+def przebieg_min(r):
+    """v205: minuty od startu do ostatniej zmiany przebiegu; zły zapis = None."""
+    try:
+        a = dt.datetime.fromisoformat(str(r.get('run_started_at')).replace('Z', '+00:00'))
+        b = dt.datetime.fromisoformat(str(r.get('updated_at')).replace('Z', '+00:00'))
+        return (b - a).total_seconds() / 60
+    except Exception:
+        return None
+
+
 def budowa_kandydaci(runs, now, n=3, prog_min=20, cap=40):   # v203: cap 40 (było 10) — każdy udany > 20 min
     """v199: przebiegi do odczytu czasu zadania budowy: n najdłuższych udanych z 24 h i każdy udany dłuższy niż prog_min min (razem najwyżej cap)
     — przy czekaniu w kolejce najdłuższa budowa nie musi być wśród 3 najdłuższych przebiegów (przegląd 06.10)."""
@@ -2330,8 +2343,13 @@ def kontrola():
         R['actions'], b, u = przebiegi_ocena(runs, NOW, kroki)
         # v194 (przegląd v190–v192): czas samego zadania budowy (limit 25 min) w 3 najdłuższych udanych przebiegach — całość przebiegu zawiera
         # czekanie na maszyny (w awarii GitHuba fałszywe „blisko limitu”); 3 dodatkowe zapytania, błąd odczytu = bez tej liczby
-        bud = []
-        for rid in budowa_kandydaci(runs, NOW):   # v199: także każdy udany > 20 min (najwyżej 10)
+        bud, t_b = [], time.monotonic()
+        dl_b = {r.get('id'): przebieg_min(r) for r in runs if isinstance(r, dict)}
+        for rid in budowa_kandydaci(runs, NOW):   # v199: także każdy udany > 20 min; v205: koniec, gdy dłuższej budowy już nie będzie, albo po 90 s
+            if bud and (dl_b.get(rid) or 0) <= max(bud):
+                break                                    # budowa ≤ cały przebieg, kandydaci malejąco — kolejne nie dadzą dłuższej budowy
+            if time.monotonic() - t_b > BUDOWA_BUDZET_S:
+                R['actions']['budowa_niepelna'] = True; break
             try:
                 _, b3, _ = get(f'https://api.github.com/repos/{REPO}/actions/runs/{rid}/jobs', headers=hdr)
                 m3 = zadanie_min(json.loads(b3).get('jobs', []), 'zbuduj')

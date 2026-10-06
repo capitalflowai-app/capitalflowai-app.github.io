@@ -599,15 +599,17 @@ def _ny_z_epoch(t):
         return (u - datetime.timedelta(hours=4)).replace(tzinfo=None)
 
 
-def _zamkniecia_z_notowan(q, dz, now_ny=None):
+def _zamkniecia_z_notowan(q, dz):
     """v195: świeca sesji tuż po zamknięciu bywa wstępna (05.10, 17:33 w Nowym Jorku: ceny różne od zamknięcia o 0,02–0,17%, fundusz o małym
     obrocie ASEA bez świecy — region „—”; ostateczne o 18:35, równe zamknięciom z pliku notowań dziennych). Notowanie z pliku notowań tego
     przebiegu (dz = dzis.json) z czasem ≥ 16:00 sesji D, teraz ≥ 16:15 (jak _drop_open_session), z poprzednim zamknięciem równym poprzedniej
     świecy (≤ CENY_ZGODNOSC_PC; inaczej — dywidenda, święto, korekta — bez zmian): jego cena zastępuje świecę D albo dopisuje brakującą;
-    obrót nieznany = None (brak, nie zero). Świeca równa cenie zamknięcia zostaje. Zwraca liczbę zmienionych funduszy."""
-    now_ny = now_ny or _ny_now()
-    now = now_ny.replace(tzinfo=None) if getattr(now_ny, 'tzinfo', None) else now_ny
-    Q = dz.get('q') if isinstance(dz, dict) and isinstance(dz.get('q'), dict) else {}
+    obrót nieznany = None (brak, nie zero). Świeca równa cenie zamknięcia zostaje. Zwraca liczbę zmienionych funduszy.
+    v205: o „po sesji” decyduje czas pobrania pliku notowań (dz['at'] ≥ 16:15 w Nowym Jorku dnia notowania), nie zegar przebiegu — plik
+    z poprzedniego przebiegu (zapas po błędzie źródła) sprzed 16:15 nie podmienia; bez warunku „czas notowania ≥ 16:00” (dni skrócone)."""
+    at = _ix_dt(dz.get('at')) if isinstance(dz, dict) else None
+    fz = _ny_z_epoch(at.timestamp()) if at is not None else None
+    Q = dz.get('q') if isinstance(dz, dict) and isinstance(dz.get('q'), dict) and fz is not None else {}
     num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool) and x > 0  # noqa: E731
     zm = []
     for sym, v in q.items():
@@ -615,8 +617,8 @@ def _zamkniecia_z_notowan(q, dz, now_ny=None):
         if not isinstance(z, dict) or not isinstance(d, list) or not d or not isinstance(d[-1], list) or len(d[-1]) < 2:
             continue
         c, pc, tq = z.get('c'), z.get('pc'), _ny_z_epoch(z.get('t'))
-        if tq is None or not (num(c) and num(pc)) or tq.hour < 16 or now < datetime.datetime(tq.year, tq.month, tq.day, 16, 15):
-            continue   # notowanie w trakcie sesji albo za wcześnie — nie zamknięcie
+        if tq is None or not (num(c) and num(pc)) or fz < datetime.datetime(tq.year, tq.month, tq.day, 16, 15):
+            continue   # plik notowań pobrany przed 16:15 dnia notowania — sesja mogła trwać (v205)
         D, ld = tq.date().isoformat(), str(d[-1][0])[:10]
         ref = (d[-2] if len(d) >= 2 else None) if ld == D else (d[-1] if ld < D else None)
         if not (isinstance(ref, list) and len(ref) > 1 and num(ref[1]) and abs(ref[1] / pc - 1) <= CENY_ZGODNOSC_PC):
@@ -4520,6 +4522,7 @@ def etf_fee(ticker, v):
 
 ETF_SUMA_TOL = 0.05   # v199: mln USD — suma przepływów funduszy wobec przepływu dnia (na żywo równe co do grosza; dawniej max(0,5 mln, 2%))
 ETF_FUNDS_MAX = 20    # v203: najwyżej tyle funduszy na monetę (było 12 — lista BTC ma już 12); obcięta lista = sumy nie da się sprawdzić
+ETF_STALE_SES = 2     # v205: moneta ponad tyle sesji (dni roboczych) za najnowszą = stale (strona: przepływy „—”, data przy nazwie)
 
 
 def _etf_rowne(x, y):
@@ -4555,15 +4558,18 @@ def build_etf(key, cg_key, prev=None):
     if not nowe:   # wszystkie monety zawiodły — main zostawia poprzedni plik z jego czasem
         raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
     top = max(a['asof'] for a in out['assets'].values())
-    for s, pa in stare.items():   # v199/v203: poprzedni wpis z własną datą; ponad 3 dni od najnowszej monety — bez przepływów (nie stary dzień w sumie „dziś”)
-        a = json.loads(json.dumps(pa))
-        if pa['asof'] >= (_d(top) - datetime.timedelta(days=3)).isoformat():
-            META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]}')
-        else:   # v203: wpis zostaje (historia dni), ale przepływy = brak — suma kolumn na stronie „—”, nie moneta liczona jak zero
-            a.update(d1=None, w=None, m=None, funds=[], stale=True); a.pop('funds_at', None)
-            META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]} — ponad 3 dni starsze od pozostałych ({top}); '
-                                 'przepływy „—”, historia dni zachowana')
-        out['assets'][s] = a
+    for s, pa in stare.items():   # v199/v203: poprzedni wpis z własną datą i historią dni (stan „stale” — niżej, jak dla każdej monety)
+        out['assets'][s] = json.loads(json.dumps(pa))
+        META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]}')
+    # v205 (przegląd v202–v204): każda moneta (pobrana albo przeniesiona) ponad ETF_STALE_SES sesji za najnowszą = stale — liczby zostają (prawdziwe
+    # dla swojej daty; przy wznowieniu lista funduszy nie jest pobierana co przebieg), strona pokazuje przepływy „—” i datę przy nazwie
+    for s, a in out['assets'].items():
+        ad = _d(a['asof']) if isinstance(a.get('asof'), str) else None
+        if ad and a['asof'] < top and _bdays(ad, _d(top)) > ETF_STALE_SES:
+            a['stale'] = True
+            META['notes'].append(f'SoSoValue {s.upper()}: dane z {a["asof"]} — ponad {ETF_STALE_SES} sesje za najnowszymi ({top}); na stronie przepływy „—”')
+        else:
+            a.pop('stale', None)
     out['assets'] = {s: out['assets'][s] for s in ETF_SYMS if s in out['assets']}
     ph = prev.get('hk') if isinstance(prev, dict) and isinstance(prev.get('hk'), dict) and prev['hk'] else None
     hat = _ix_dt(prev.get('hk_at')) if isinstance(prev, dict) else None
