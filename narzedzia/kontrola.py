@@ -101,7 +101,8 @@ UST_OD_DNI = 21      # FRED: plik od tylu dni wstecz (mały — ok. 200 B)
 FX_H10 = ('https://www.federalreserve.gov/datadownload/Output.aspx?rel=H10&series=60f32914ab61dfab590e0e470153e3ae&lastobs=300&from=&to='
           '&filetype=csv&label=include&layout=seriescolumn&type=package')   # v227: 300 obserwacji (ok. 14 mies., ok. 57 KB) — też migawki 1Q i 1R
 FX_PROG = 5.0      # % — waluta ponad tyle od H.10 tego samego dnia = ⚠️ (grube błędy: odwrócony kurs, zła jednostka; nigdy ❌)
-FX_MED = 2.5       # % — mediana różnic jednej daty ponad tyle = ⚠️ (np. zła waluta bazowa albo migawka sprzed tygodni)
+FX_MED = 2.5       # % — mediana różnic jednej daty ponad tyle = ⚠️ (np. waluta bazowa źle podpisana); migawka sprzed tygodnia/miesiąca
+#                    prawie nigdy nie przekracza progów (sprawdzone v231) — to kontrola grubych błędów, nie dat
 FX_MIN_N = 5       # najmniej wspólnych walut, żeby oceniać medianę dnia
 FX_MIGAWKI = ('now', '1D', '1T', '1M', '1Q', '1R')
 CENA_PROG = 1.0      # % różnicy cen BTC/ETH między źródłami
@@ -694,6 +695,9 @@ def fx_uwagi(f):
     if isinstance(f, dict) and f.get('zle'):
         out.append(f'kursy walut: plik strony vs H.10 (Fed) różnią się ponad {n(FX_PROG, "g")}%: '
                    + ', '.join(f'{c} {d}: {n(v, "g")} vs {n(h, "g")} ({n(r, "+.2f")}%)' for d, c, v, h, r in f['zle'][:6]))
+    if isinstance(f, dict) and f.get('baza'):   # v231
+        out.append('kursy walut: migawki z walutą bazową inną niż USD: ' + ', '.join(f'{k} ({b})' for k, b in f['baza'])
+                   + ' — strona przyjmuje tylko USD (te kursy pominie); sprawdzić serwis pośredni kursów')
     if isinstance(f, dict) and f.get('med_zle'):
         out.append(f'kursy walut: mediana różnic z H.10 (Fed) ponad {n(FX_MED, "g")}% dla ' + ', '.join(f'{d} ({n(m, ".2f")}%)' for d, m in f['med_zle'])
                    + ' — sprawdzić walutę bazową i datę migawki')
@@ -708,14 +712,16 @@ def fx_porownanie(rynki, h10):
     fx = rynki.get('fx') if isinstance(rynki, dict) else None
     if not isinstance(fx, dict) or not isinstance(h10, dict) or not h10:
         return None
-    by = {}
+    by, baza = {}, []
     for k in FX_MIGAWKI:
         s = fx.get(k)
+        if isinstance(s, dict) and isinstance(s.get('base'), str) and s['base'] != 'USD':
+            baza.append([k, s['base'][:8]])   # v231: migawka z inną walutą bazową — ⚠️ (strona liczyłaby ją jak USD)
         if isinstance(s, dict) and s.get('base') == 'USD' and isinstance(s.get('date'), str) and isinstance(s.get('rates'), dict):
             by.setdefault(s['date'], s['rates'])
-    if not by:
+    if not by and not baza:
         return None
-    out = {'daty': [], 'zle': [], 'med_zle': []}
+    out = {'daty': [], 'zle': [], 'med_zle': [], 'baza': baza}
     for d in sorted(by):
         H = h10.get(d)
         if not isinstance(H, dict):

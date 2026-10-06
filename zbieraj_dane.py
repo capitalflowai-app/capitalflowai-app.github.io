@@ -5006,6 +5006,8 @@ def parse_ishares_screener(j):
 
 FUND_TNA_X = 2.0   # v217: aktywa funduszu (NAV × liczba jednostek) ponad tyle razy od mediany sąsiednich dni = błąd pliku źródła (wiersz odrzucony)
                    # v223: zostaje 2 — przy 1,6 duże, ale możliwe napływy byłyby „błędem”; prawdziwe dni: do ×1,25 (srebro 29.01.2026, 11 089 wierszy)
+FUND_PARA_X = 1.35  # v231: para kolejnych dni z aktywami (NAV × jednostki) ponad tyle razy (albo poniżej odwrotności) bez rozpoznanego podziału = skok
+#                     bez wyjaśnienia (podział jednostek bez poprawki NAV: 2:1, 1:2, 3:2); prawdziwe dane 06.10.2026, 11 052 pary: −15,3% … +12,7%
 FUND_GR_X = 1.5     # v227: suma grupy — para przez złe wiersze z aktywami ponad tyle razy (trwały skok, np. podział bez poprawki NAV) = brak
 FUND_TNA_OKNO = 10  # v217/v223: tyle dni PRZED wierszem tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
 
@@ -5609,7 +5611,7 @@ def fund_split(a, b):
                 if abs(sr / k - 1) < 0.05:
                     return k
         return 0
-    return 1 if 0.6 < nr < 1.6 and 1 / 3 < sr < 3 else 0
+    return 1 if 0.6 < nr < 1.6 and 1 / 3 < sr < 3 and 1 / FUND_PARA_X < nr * sr < FUND_PARA_X else 0   # v231: aktywa ponad 1,35× w dobę — skok
 
 
 def _fund_rows(h):

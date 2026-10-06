@@ -4202,9 +4202,9 @@ class FunduszeV90(unittest.TestCase):
         ds, v, aum = zd.fund_group(fu, ('SPY', 'IVV'))
         self.assertEqual((ds, aum), (['2026-09-23'], (10.0 * 130 + 20.0 * 60) / 1e6), 'do ostatniego wspólnego dnia')
         self.assertAlmostEqual(v[0], 300 / 1e6)
-        fu['IVV']['h'] = [['2026-09-21', 20.0, 40], ['2026-09-23', 20.0, 60]]
+        fu['IVV']['h'] = [['2026-09-21', 20.0, 50], ['2026-09-23', 20.0, 60]]   # v231: +20% (ponad 1,35× w parze dni = skok, FUND_PARA_X)
         ds, v, _ = zd.fund_group(fu, ('SPY', 'IVV'))
-        self.assertEqual(ds, ['2026-09-23']); self.assertAlmostEqual(v[0], 100 / 1e6 + 400 / 1e6, msg='zmiana przez dwa dni przypisana do dnia publikacji')
+        self.assertEqual(ds, ['2026-09-23']); self.assertAlmostEqual(v[0], 100 / 1e6 + 200 / 1e6, msg='zmiana przez dwa dni przypisana do dnia publikacji')
         self.assertEqual(zd.fund_group(fu, ('SPY', 'EEM')), ([], [], None), 'brak funduszu w grupie — brak grupy, nie część')
 
     def test_build_fundusze(self):
@@ -7638,7 +7638,7 @@ class TrendyDailyWorldV127(unittest.TestCase):
                 r[3] = r[0] + 'T21:05:00Z'
             for r in wd['fl'][s_]['d'][-30:]:
                 r[3] = r[0] + 'T23:30:00Z'
-            wd['fl'][s_]['d'][-1][2] += 5e5                                           # duży napływ w dniu danych → f głosuje na S
+            wd['fl'][s_]['d'][-1][2] += 2e5                                           # duży napływ w dniu danych → f głosuje na S (v231: +20%; ponad 1,35× aktywów w dobę to skok)
         days = [d for d in self.sessions(130, '2026-06-01') if d <= '2026-11-26']
         wd['ob'] = {'tw': {'d': [[d, float(i % 7) - 3.0, d + 'T08:20:00Z'] for i, d in enumerate(days)], 'empty': []}}
         wd['ob']['tw']['d'][-1][1] = 500.0
@@ -26232,7 +26232,7 @@ class KontrolaKursyV225(unittest.TestCase):
         f = k.fx_porownanie(self.R(**{'1D': ('2026-10-02', dzien)}), H)
         self.assertEqual(f['zle'], []); self.assertEqual(len(f['med_zle']), 1)
         self.assertIsNone(k.fx_porownanie({}, H)); self.assertIsNone(k.fx_porownanie(self.R(now=('2026-10-05', ok)), {}))
-        self.assertIsNone(k.fx_porownanie({'fx': {'now': {'base': 'EUR', 'date': '2026-10-02', 'rates': ok}}}, H), 'inna waluta bazowa — bez porównania')
+        self.assertEqual(k.fx_porownanie({'fx': {'now': {'base': 'EUR', 'date': '2026-10-02', 'rates': ok}}}, H)['baza'], [['now', 'EUR']], 'v231: inna waluta bazowa — ⚠️ (dotąd cicho bez porównania)')
         f = k.fx_porownanie(self.R(now=('2026-10-02', {'EUR': True, 'JPY': -1, 'CHF': 'x'})), H)
         self.assertEqual(f['daty'], [], 'złe liczby pominięte — bez dat')
         f = k.fx_porownanie(self.R(now=('2026-10-02', ok), **{'1D': ('2026-10-02', zly)}), H)
@@ -26313,7 +26313,7 @@ class PoPrzegladzieV226(unittest.TestCase):
         self.assertEqual([d for d, x in zip(ds, v) if x is None], [days[35]],
                          'v227: jedyny brak — dzień pary przez złe wiersze z aktywami ×2,5 (nie fałszywy napływ); bez drugiego wykrycia — bez kolejnych braków')
         self.assertAlmostEqual(sum(x for x in v if x is not None), 0.0)
-        self.assertAlmostEqual(zd.fund_flows(h[:30] + h[35:], bez=())[days[35]], 75.525)
+        self.assertNotIn(days[35], zd.fund_flows(h[:30] + h[35:], bez=()), 'v231: aktywa ×2,5 w parze dni — skok bez wyjaśnienia, nie przepływ (FUND_PARA_X)')
         fl = zd.fund_flows(h)
         self.assertTrue(all(d not in fl for d in days[30:36]), 'karta dzienna funduszu: dni ze złymi wierszami i dzień po nich — brak')
 
@@ -26439,3 +26439,38 @@ class KontrolaWielorybyListaV230(KontrolaWielorybyV174):
              'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 9, 'odstep_h': 24.0, 'pomin': None, 'bez_historii': 0,
                                         'pominiete': 0, 'lista': ['Bybit'], 'rozbieznosci': []}}}
         self.assertIn(' (nowa lista portfeli — bez porównania: Bybit).', k.raport_md(R))
+
+
+# ===================== v231: POPRAWKI PO PRZEGLĄDZIE v227–v228 =====================
+class PoPrzegladzieV231(unittest.TestCase):
+    """v231: para dni z aktywami ponad 1,35× (podział bez poprawki NAV) = brak; kursy walut z inną walutą bazową = ⚠️."""
+
+    def test_podzial_bez_poprawki_nav(self):
+        self.assertEqual(zd.FUND_PARA_X, 1.35)
+        for k, nav in ((2.0, 0.995), (0.5, 1.005), (1.5, 1.0), (1.5, 0.99)):        # jednostki ×k, NAV prawie bez zmian (podział bez poprawki NAV)
+            self.assertEqual(zd.fund_split([0, 100.0, 1_000_000], [0, 100.0 * nav, 1_000_000 * k]), 0, f'jednostki ×{k}, NAV ×{nav} — skok, nie przepływ')
+        self.assertEqual(zd.fund_split([0, 100.0, 1_000_000], [0, 50.0, 2_000_000]), 2, 'prawdziwy podział 2:1 z poprawionym NAV — rozpoznany')
+        self.assertEqual(zd.fund_split([0, 100.0, 1_000_000], [0, 101.0, 1_200_000]), 1, 'duży, ale możliwy napływ (+20%)')
+        self.assertEqual(zd.fund_split([0, 100.0, 1_000_000], [0, 84.7, 1_000_000]), 1, 'spadek NAV o 15,3% (srebro 02.02.2026) — zwykły dzień')
+        days = [d.isoformat() for d in (datetime.date(2026, 6, 1) + datetime.timedelta(days=i) for i in range(60)) if d.weekday() < 5][:30]
+        h = [[d, (100.0 if i < 20 or i >= 28 else 100.0) * (0.5 if i >= 28 else 1.0) + 0.01 * i, 1_000_000 if i < 20 else 2_000_000] for i, d in enumerate(days)]
+        fl = zd.fund_flows(h)
+        self.assertTrue(all(abs(v) < 1 for v in fl.values()), 'podział 2:1 z NAV poprawionym dopiero po 8 sesjach — żadnego przepływu rzędu aktywów')
+        self.assertNotIn(days[20], fl); self.assertNotIn(days[28], fl)
+        ds, v, aum = zd.fund_group({'X': {'h': h}}, ('X',))
+        self.assertTrue(all(x is None or abs(x) < 0.2 * aum for x in v), 'suma grupy bez fałszywego napływu')
+
+    def test_kursy_inna_baza(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v231', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        H = k.fx_h10_csv(KontrolaKursyV225.CSV)
+        ok = {'EUR': 0.88818, 'JPY': 157.70, 'MXN': 18.33, 'CHF': 0.8290, 'CAD': 1.4250, 'AUD': 1.4390}
+        R = {'fx': {'now': {'base': 'EUR', 'date': '2026-10-02', 'rates': ok}, '1D': {'base': 'USD', 'date': '2026-10-02', 'rates': ok}}}
+        f = k.fx_porownanie(R, H)
+        self.assertEqual(f['baza'], [['now', 'EUR']]); self.assertEqual(len(f['daty']), 1)
+        u = k.fx_uwagi(f)
+        self.assertTrue(any(x.startswith('kursy walut: migawki z walutą bazową inną niż USD: now (EUR)') for x in u), u)
+        f = k.fx_porownanie({'fx': {'now': {'base': 'EUR', 'date': '2026-10-02', 'rates': ok}}}, H)
+        self.assertEqual((f['daty'], f['baza']), ([], [['now', 'EUR']]), 'same migawki z inną bazą — ⚠️, nie „brak migawek”')
+        self.assertIsNone(k.fx_porownanie({'fx': {'now': {'date': '2026-10-02', 'rates': ok}}}, H), 'bez pola base — jak dotąd: bez porównania')

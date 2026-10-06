@@ -13820,7 +13820,7 @@ test('v228: rynek pieniężny — tydzień bez liczby przerywa linię (bez punkt
   let w = X.fndMmWyk(D);
   assert.equal((w.match(/<polyline class="arc-l"/g) || []).length, 2, 'brak w środku — dwie linie');
   assert.ok(w.includes(': —</title>'), 'podpowiedź tygodnia bez liczby: „—”');
-  assert.ok(w.includes('fund.mm.wyk{&quot;n&quot;:&quot;' + (D.mm.w.length - 1) + '&quot;}'), 'podpis liczy tylko tygodnie z liczbą');
+  assert.ok(w.includes('fund.mm.wyk{&quot;n&quot;:&quot;' + D.mm.w.length + '&quot;}'), 'v231: podpis liczy tygodnie osi (tydzień bez liczby go nie skraca)');
   const E = JSON.parse(JSON.stringify(mm135.D)), d = E.mm.w[12][0], dd = new Date(Date.parse(d + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
   E.mm.w[12][0] = dd;                                                      /* tydzień do wtorku (święto w USA): 6 i 8 dni — w linii */
   assert.equal((X.fndMmWyk(E).match(/<polyline class="arc-l"/g) || []).length, 1);
@@ -13908,4 +13908,20 @@ test('v230: wieloryby — zmiana 1 i 7 dni nie liczy się przez zmianę listy po
   assert.equal(A.arcWhLista(['wh.Bybit'], null, ser), ''); assert.equal(A.arcWhLista(null, {Bybit: {zmiana: '2026-10-06'}}, ser), '');
   assert.equal(A.whZm({zmiana: 'x'}), '—');
   assert.ok(html.includes("+arcWhLista(W,(()=>{try{return WH.data?WH.data.gieldy:null;}catch(e){return null;}})(),arcSer);") && html.includes('typeof renderArc===\'function\')renderArc();}catch(e){}}'));
+});
+
+
+/* ===================== v231: kursy walut — strona bierze tylko migawki z bazą USD; podpis linii rynku pieniężnego = tygodnie osi ===================== */
+test('v231: rynkiSrv — migawki kursów z walutą bazową inną niż USD odrzucone (bez pola base — jak dotąd)', () => {
+  const a = html.indexOf('function rynkiSrv(j){'), b = html.indexOf('\nfunction gLoad(', a);
+  const F = new Function(html.slice(a, b) + '\nreturn rynkiSrv;')();
+  const now = new Date().toISOString(), snap = base => Object.assign({date: '2026-10-02', rates: {EUR: 0.89}}, base ? {base} : {});
+  const mk = base => ({at: now, part_at: {fx: now}, fx: Object.fromEntries(['now', '1M', '1Q', '1R', '1D', '1T'].map(k => [k, snap(k === 'now' ? base : 'USD')]))});
+  assert.ok(F(mk('USD')).fx, 'baza USD — przyjęte'); assert.ok(F(mk(null)).fx, 'bez pola base — przyjęte (stary format)');
+  assert.equal(F(mk('EUR')).fx, undefined, 'migawka z bazą EUR — całe kursy odrzucone (strona nie policzy zmian względem euro jak względem dolara)');
+});
+test('v231: rynek pieniężny — podpis liczy tygodnie osi (od pierwszego do ostatniego wiersza), także z tygodniem bez liczby', () => {
+  const X = mm228.mk(), D = mm135.cp(mm135.D), n = D.mm.w.length;
+  D.mm.w[10][1] = null;
+  assert.ok(X.fndMmWyk(D).includes('fund.mm.wyk{&quot;n&quot;:&quot;' + n + '&quot;}'), 'tydzień bez liczby nie skraca podpisu');
 });

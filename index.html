@@ -4632,7 +4632,7 @@ function gUstLoad(){const yr=new Date().getUTCFullYear();
 /* v101: plik serwera data/rynki.json — kursy EBC (6 dat) i dzienne rentowności 10L; część nieważna albo za stara — pominięta (strona zapyta źródło sama) */
 function rynkiSrv(j){const out={};if(!j||typeof j!=='object')return out;const now=Date.now(),pat=j.part_at&&typeof j.part_at==='object'?j.part_at:{};
   const age=k=>{const t=Date.parse(pat[k]||j.at||'');return isFinite(t)?now-t:Infinity;};
-  const F=j.fx;if(F&&typeof F==='object'&&['now','1M','1Q','1R','1D','1T'].every(k=>F[k]&&F[k].rates&&typeof F[k].rates==='object'&&Object.keys(F[k].rates).length)&&age('fx')<36*3600e3)out.fx=F;
+  const F=j.fx;if(F&&typeof F==='object'&&['now','1M','1Q','1R','1D','1T'].every(k=>F[k]&&F[k].rates&&typeof F[k].rates==='object'&&Object.keys(F[k].rates).length&&(F[k].base===undefined||F[k].base==='USD'))&&age('fx')<36*3600e3)out.fx=F;
   const ser=a=>Array.isArray(a)?a.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&typeof x[1]==='number'&&isFinite(x[1])):[];
   for(const k of ['ust','buba']){const a=ser(j[k]);if(a.length&&age(k)<4*864e5)out[k]=a;}
   return out;}
@@ -10063,7 +10063,7 @@ function fndMmWyk(D){
   const W=600,H=120,Q=4,X=d=>(x1===x0?W/2:Q+(ms(d)-x0)/(x1-x0)*(W-2*Q)).toFixed(1),Y=v=>(H-Q-(v-y0)/(y1-y0)*(H-2*Q)).toFixed(1);
   const segs=[];for(const r of Pt){const s=segs[segs.length-1];if(s&&Math.abs(ms(r[0])-ms(s[s.length-1][0])-wk)<=FND_TOL_D*864e5)s.push(r);else segs.push([r]);}
   const g=segs.map(s=>s.length===1?`<circle class="arc-p" cx="${X(s[0][0])}" cy="${Y(s[0][i])}" r="3"/>`:`<polyline class="arc-l" points="${s.map(r=>X(r[0])+','+Y(r[i])).join(' ')}"/>`).join('');
-  const cap=t('fund.mm.wyk',{n:nfmt(Pt.length,0)}),al=cap+': '+fndDay(R[0][0])+' – '+fndDay(R[R.length-1][0])+', '+fndAmt(mn)+' – '+fndAmt(mx);
+  const cap=t('fund.mm.wyk',{n:nfmt(Math.round((x1-x0)/wk)+1,0)})   /* v231: tygodnie osi */,al=cap+': '+fndDay(R[0][0])+' – '+fndDay(R[R.length-1][0])+', '+fndAmt(mn)+' – '+fndAmt(mx);
   const hw=(W-2*Q)/Math.max(1,(x1-x0)/wk)/2,last=Pt[Pt.length-1];
   const hit=R.map(r=>`<rect class="snbw-h" x="${(+X(r[0])-hw).toFixed(1)}" y="0" width="${(2*hw).toFixed(1)}" height="${H}"><title>${escH(fndDay(r[0]))}: ${escH(fndNum(r[i])?fndAmt(r[i]):'—')}</title></rect>`).join('');
   return `<p class="pnote">${escH(cap)}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-body"><div class="arc-y"><span>${escH(fndAmt(mx))}</span><span>${escH(fndAmt(mn))}</span></div>`+
