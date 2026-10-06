@@ -13518,3 +13518,35 @@ test('v206: etfP — „−0,21%” (nie „-0,21%”), „−0,00%” nie wyst�
   assert.equal(f(-0.2134, 2), '−0,21%'); assert.equal(f(0.17, 2), '0,17%'); assert.equal(f(-0.001, 2), '0,00%', 'zaokrąglone do zera — bez znaku');
   assert.equal(f(null, 2), '—'); assert.equal(f(NaN), '—'); assert.equal(f(-12.5), '−12,5%');
 });
+
+
+/* ---------- v208: TRENDY — postęp nauki sygnałów (pasek do punktu kontrolnego) ---------- */
+test('v208: nauka sygnałów — pasek „n z c dni z sygnałem”, szacunek (miesiąc i rok), werdykt zapisanej oceny; brak pola — bez bloku; słownik tylko po polsku', () => {
+  const {X} = v158Blok({});
+  const L7 = {p: [3, 100, null], t: [3, 100, null], e: [0, 100, null], s: [2, 100, null], h: [3, 100, null], n2: [3, 100, null], all: [4, 100, null]};
+  X.TRDJ.c = {since: '2026-09-28', rows: [], pg: {do: '2026-10-01', l: L7}, cp: {}}; X.TRDJ.at = Date.now();
+  let h = X.trdIg({d: []}, true);
+  assert.ok(h.includes('<div class="tig-l"><h3 class="mtxt"><b>tig.l.t</b></h3><div class="tig-pb" role="img" aria-label="tig.l.aria"><i style="width:4.0%"></i></div>'), h.slice(h.indexOf('tig-l'), h.indexOf('tig-l') + 300));
+  assert.ok(h.includes('<p class="pnote">tig.l.first · tig.l.est0</p>') && h.includes('<p class="pnote tig-lw">tig.l.how</p></div>'), 'pierwsza ocena, bez szacunku');
+  assert.ok(h.indexOf('class="tig-l"') > h.indexOf('class="tig-g') && (h.indexOf('class="tig-s"') < 0 || h.indexOf('class="tig-l"') < h.indexOf('class="tig-s"')), 'pod pierścieniami, przed chipami');
+  const t2 = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const Y = new Function('t', 'escH', 'trdC', 'LOCALE', 'LANG', html.slice(html.indexOf('const TRD_LV='), html.indexOf('function trdIg(D,cr){')) + '\nreturn trdIgLearn;')(t2, v96src.escH, v => v, {pl: 'pl-PL'}, 'pl');
+  h = Y({pg: {l: Object.assign({}, L7, {all: [36, 100, '2027-01-10']})}}, true);
+  assert.ok(h.includes('tig.l.first{"n":36,"c":100} · tig.l.est{"d":"styczeń 2027"}'), h);
+  assert.ok(h.includes('tig.l.how{"m":7}') && h.includes('width:36.0%'));
+  const cp = {all: [[100, 61, 100, 50.0, 60.0, 62.0, 51.0, 70.0, 'edge', '2027-01-08', 'x']]};
+  h = Y({pg: {l: Object.assign({}, L7, {all: [130, 200, '2027-05-01']})}, cp}, true);
+  assert.ok(h.includes('tig.l.next{"n":130,"c":200}') && h.includes('tig.l.vd{"c":100,"d":"08.01.2027","v":"tig.l.vd.edge"}') && h.includes('width:65.0%'), h);
+  h = Y({pg: {l: {'w.all': [412, null, null], 'eq.p': [0, 100, null]}}, cp: {'w.all': [[100, 1, 1, 0, 0, 0, 0, 0, 'none', '2027-03-01', 'x'], [400, 1, 1, 0, 0, 0, 0, 0, 'anti', '2028-06-01', 'x'], [200, 1, 1, 0, 0, 0, 0, 0, 'none', '2027-08-01', 'x']]}}, false);
+  assert.ok(h.includes('tig.l.done') && !h.includes('tig-pb') && h.includes('"c":400,"d":"01.06.2028","v":"tig.l.vd.anti"') && h.includes('tig.l.how{"m":2}'), 'świat: wszystkie oceny; werdykt najwyższego punktu');
+  for (const J of [null, {}, {pg: null}, {pg: {l: null}}, {pg: {l: {all: [1, 2]}}}, {pg: {l: {all: [-1, 100, null]}}}, {pg: {l: {all: [1.5, 100, null]}}}, {pg: {l: {all: [1, 0, null]}}}, {pg: {l: {'w.all': [1, 100, null]}}}])
+    assert.equal(Y(J, true), '', JSON.stringify(J));
+  h = Y({pg: {l: {all: [5, 100, 'zła']}}, cp: {all: [[100, 1], 'x', [100, 1, 1, 0, 0, 0, 0, 0, 'edge', 'zła', 'x']]}}, true);
+  assert.ok(h.includes('tig.l.first{"n":5,"c":100} · tig.l.est0') && !h.includes('tig.l.vd{'), 'zła data szacunku i złe zapisy ocen pominięte');
+  assert.ok(!/NaN|undefined/.test(h));
+  const d0 = html.indexOf('const EXTRA175='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA175='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.equal(Object.keys(D.pl).length, 12); assert.ok(Object.keys(D.pl).every(k => k.startsWith('tig.l.')));
+  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA175)if(I18N[l])Object.assign(I18N[l],EXTRA175[l]);'), 'jedna linia for po słowniku');
+  const c0 = html.indexOf('/* v208: nauka sygnałów — pasek postępu'), css = html.slice(c0, html.indexOf('\n@media', c0));
+  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && css.includes('var(--bl)'), 'styl: tylko zmienne motywu');
+});

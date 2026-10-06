@@ -25270,3 +25270,49 @@ class PamiecAwariiV207(unittest.TestCase):
         self.assertTrue(any(u.startswith('błąd zbieracza: EODHD') and 'odrzucony klucz' in u for u in R['uwagi']), R['uwagi'])
         md = k.raport_md(R)
         self.assertIn('- Awarie części automatu — trwają: oecd od 03.10.2026, 20:20 (2 dni 12 godz., nieudanych przebiegów: 350) ❌; tic od 06.10.2026, 03:20 (5 godz., nieudanych przebiegów: 30) ⚠️.', md)
+
+
+# ===================== v208: TRENDY — POSTĘP NAUKI SYGNAŁÓW (pg w dziennikach) =====================
+class PostepNaukiV208(unittest.TestCase):
+    """v208: pole pg dzienników — dni z sygnałem każdej linii (te same pary i granica dojrzałości co punkty kontrolne), najbliższy punkt kontrolny
+    bez oceny, szacunek terminu od 10 dni z sygnałem i 2 tygodni dziennika."""
+
+    def test_pg_liczenie_i_szacunek(self):
+        d = lambda s: datetime.date.fromisoformat(s)
+        L = {'all': [('2026-09-28', 1, 'BTC', 1), ('2026-09-28', 0, 'ETH', -1), ('2026-09-29', 1, 'BTC', 1)], 'p': [], 'e': [('2026-09-30', 1, 'X', 1)]}
+        names = [('p', 'p'), ('e', 'e'), ('all', 'all')]
+        LA = dict(L, all=L['all'] + [('2026-10-03', 1, 'BTC', 1)])
+        pg = zd._td_pg(L, LA, names, (100, 200, 400), {}, '2026-09-28', d('2026-10-06'), 5)
+        self.assertEqual(pg, {'do': '2026-10-01', 'l': {'p': [0, 100, None], 'e': [1, 100, None], 'all': [3, 100, None]}},
+                         'dni bez powtórzeń, także młodsze niż 5 dni (03.10); za mało na szacunek')
+        self.assertEqual(zd._td_pg(L, None, names, (100,), {}, '2026-09-28', d('2026-10-06'), 5)['l']['all'][0], 2, 'bez par „wszystkie” — dojrzałe')
+        L2 = {'all': [('2026-09-%02d' % (1 + i), 1, 'BTC', 1) for i in range(20)]}
+        pg = zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), {}, '2026-09-01', d('2026-09-25'), 5)
+        self.assertEqual(pg['l']['all'], [20, 100, '2026-12-14'], '20 dni z sygnałem w 20 dniach: 80 dni + 5 dojrzewania od granicy 20.09 → 14.12 (tempo n/dni)')
+        cp = {'all': [[100, 60, 100, 50.0, 60.0, 60.0, 40.0, 70.0, 'none', '2026-12-01', 'x']]}
+        self.assertEqual(zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), cp, '2026-09-01', d('2026-09-25'), 5)['l']['all'][1], 200, 'po zapisanej ocenie — następny punkt')
+        cp['all'] += [[200] + [0] * 10, [400] + [0] * 10]
+        self.assertEqual(zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), cp, '2026-09-01', d('2026-09-25'), 5)['l']['all'], [20, None, None], 'wszystkie zapisane')
+        pg = zd._td_pg(L2, L2, [('all', 'all')], (100, 200, 400), {}, '2026-09-15', d('2026-09-25'), 5)
+        self.assertEqual(pg['l']['all'][2], None, 'dziennik krótszy niż 2 tygodnie — bez szacunku')
+        self.assertEqual(zd._td_pg(None, None, [('x', 'x')], (100,), None, '2026-10-05', d('2026-10-06'), 4), {'do': '2026-10-02', 'l': {'x': [0, 100, None]}})
+        self.assertEqual((zd.TD_PG_EST_N, zd.TD_PG_EST_D), (10, 14))
+
+    def test_dzienniki_maja_pg_zgodne_z_punktami_kontrolnymi(self):
+        U = datetime.timezone.utc
+        rows = []
+        for i in range(40):
+            day = (datetime.date(2026, 9, 28) + datetime.timedelta(days=i)).isoformat()
+            rows.append([day, 'BTC', 2, 'obs', 'p+t+', '%sT06:30:00Z' % day, 0.5])
+            rows.append([day, 'ETH', 0, 'quiet', 'p0', '%sT06:30:00Z' % day, -0.2])
+        log = {'v': zd.TD_VC2, 'since': zd.TD_SINCE_CR2, 'rows': rows, 'cp': {}}
+        out = zd._td_cr_log(log, [], [], datetime.datetime(2026, 11, 7, 12, 0, tzinfo=U))
+        self.assertEqual(out['pg']['do'], '2026-11-02')
+        self.assertEqual(out['pg']['l']['all'][:2], [40, 100], '40 dni z sygnałem i wynikiem (28.09–06.11), w tym 36 dojrzałych (do 02.11)')
+        self.assertEqual(out['pg']['l']['all'][2], '2027-01-10', 'szacunek z dojrzałych: 36 w 36 dniach — 64 dni dalej + 5 dojrzewania')
+        self.assertEqual(sorted(out['pg']['l']), sorted(k for _, k in zd.TD_RULES_CR2), 'wszystkie 7 linii')
+        self.assertEqual(out['pg']['l']['e'], [0, 100, None], 'linia bez sygnału — 0')
+        w = {'v': zd.TD_VW2, 'since': zd.TD_SINCE_W2, 'rows': [], 'cp': {}}
+        ow = zd._tdw_log(w, [], [], datetime.datetime(2026, 10, 6, 12, 0, tzinfo=U))
+        self.assertEqual(ow['pg'], {'do': '2026-10-02', 'l': {k[0] + '.' + k[1]: [0, 100, None] for k in zd.TD_RULES_W2}}, 'świat: nazwy jak w cp, start 05.10')
+        self.assertTrue(zd._td_cr_valid(out) and zd._tdw_valid(ow), 'dzienniki z pg nadal poprawne')

@@ -1191,6 +1191,13 @@ td .cell .logo-img{width:34px;height:34px}
 .tig-c i{font-style:normal;font-weight:700;letter-spacing:-.05em}
 .tig-c.p i{color:var(--gr-tx)}.tig-c.m i{color:var(--rd-tx)}.tig-c.na i{color:var(--mut)}
 .tig-c.tig-n{color:var(--mut);padding-left:9px}
+/* v208: nauka sygnałów — pasek postępu do punktu kontrolnego (kolor niebieski: postęp, nie trafienie ani chybienie) */
+.tig-l{margin-top:14px}
+.tig-l h3{margin:0 0 6px}
+.tig-pb{height:10px;max-width:520px;border-radius:999px;background:var(--line);overflow:hidden}
+.tig-pb i{display:block;height:100%;min-width:3px;border-radius:999px;background:var(--bl)}
+.tig-l .pnote{margin:6px 0 0}
+.tig-lw{color:var(--dim)}
 .trd-wiecej{margin-top:12px}
 .trd-wiecej>summary{font-weight:600}
 @media (max-width:900px){.trd-ig .tig-g,.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(0,1fr)}}
@@ -2136,6 +2143,9 @@ for(const l in EXTRA173)if(I18N[l])Object.assign(I18N[l],EXTRA173[l]);
 /* v205: moneta ETF ponad 2 sesje za najnowszymi — data przy nazwie (tylko pl, cel właściciela 04.10) */
 const EXTRA174={"pl":{"etf.stale":"ostatnie dane z {d}"}};
 for(const l in EXTRA174)if(I18N[l])Object.assign(I18N[l],EXTRA174[l]);
+/* v208: TRENDY — nauka sygnałów: postęp do pierwszej oceny reguł (tylko pl, cel właściciela 04.10) */
+const EXTRA175={"pl":{"tig.l.t":"Nauka: kiedy pierwsza ocena sygnałów?","tig.l.first":"{n} z {c} dni z sygnałem do pierwszej oceny","tig.l.next":"{n} z {c} dni z sygnałem do kolejnej oceny","tig.l.est":"szacowany termin w obecnym tempie: {d}","tig.l.est0":"termin oszacujemy po co najmniej 10 dniach z sygnałem i 2 tygodniach zbierania","tig.l.done":"wszystkie oceny (po 100, 200 i 400 dniach z sygnałem) są już zapisane","tig.l.vd":"Ocena po {c} dniach z sygnałem ({d}): {v}","tig.l.vd.edge":"przewaga potwierdzona testem","tig.l.vd.none":"bez potwierdzonej przewagi","tig.l.vd.anti":"gorzej niż rzut monetą","tig.l.how":"Strona sama sprawdza swoje sygnały: każda z {m} reguł ma własny licznik, a ocena po 100, 200 i 400 dniach z sygnałem jest zapisywana na stałe i później się nie zmienia.","tig.l.aria":"Postęp nauki: {n} z {c} dni z sygnałem"}};
+for(const l in EXTRA175)if(I18N[l])Object.assign(I18N[l],EXTRA175[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8198,6 +8208,25 @@ function trdIgChips(D,cr){
   return `<div class="tig-s"><h3 class="mtxt"><b>${t('tig.s.t')}</b></h3><p class="pnote">${t('tig.s.sub')}</p>`+
     (sig.length?`<div class="tig-cs">${sig.map(chip).join('')}${none?`<span class="tig-c na tig-n">${t('tig.s.none',{n:none})}</span>`:''}</div>`:`<p class="pnote">${t('tig.s.empty')}</p>`)+`</div>`;
 }
+/* v208: nauka sygnałów — postęp linii łącznej do najbliższego punktu kontrolnego (dziennik: pg.l[linia] = [n, c, szacunek], cp = oceny zapisane
+   raz i na zawsze). Brak pola (dziennik sprzed v208) albo zły kształt — bez bloku. Szacunek tylko miesiąc i rok, podpisany jako szacunek. */
+const TRD_LV={edge:'tig.l.vd.edge',none:'tig.l.vd.none',anti:'tig.l.vd.anti'};
+function trdIgLearn(J,cr){
+  const P=J&&typeof J==='object'&&J.pg&&typeof J.pg==='object'&&J.pg.l&&typeof J.pg.l==='object'?J.pg:null;if(!P)return '';
+  const la=cr?'all':'w.all',g=P.l[la],iso=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d);
+  if(!Array.isArray(g)||g.length!==3||!Number.isInteger(g[0])||g[0]<0||!(g[1]===null||(Number.isInteger(g[1])&&g[1]>0)))return '';
+  const n=g[0],c=g[1],lines=Object.keys(P.l).length,L=LOCALE[LANG]||'pl-PL';
+  const fd=(d,o)=>new Date(Date.parse(d+'T12:00:00Z')).toLocaleDateString(L,Object.assign({timeZone:'UTC'},o));
+  const cpl=J.cp&&Array.isArray(J.cp[la])?J.cp[la].filter(x=>Array.isArray(x)&&x.length>=11&&Number.isInteger(x[0])&&iso(x[9])):[];
+  const last=cpl.length?cpl.reduce((a,x)=>x[0]>a[0]?x:a):null;
+  let bar='',txt;
+  if(c!==null){const p=Math.max(0,Math.min(100,100*n/c));
+    bar=`<div class="tig-pb" role="img" aria-label="${escH(t('tig.l.aria',{n:trdC(n),c:trdC(c)}))}"><i style="width:${p.toFixed(1)}%"></i></div>`;
+    txt=t(last?'tig.l.next':'tig.l.first',{n:trdC(n),c:trdC(c)})+' · '+(iso(g[2])?t('tig.l.est',{d:fd(g[2],{month:'long',year:'numeric'})}):t('tig.l.est0'));}
+  else txt=t('tig.l.done');
+  const vd=last?`<p class="pnote">${t('tig.l.vd',{c:trdC(last[0]),d:fd(last[9],{day:'2-digit',month:'2-digit',year:'numeric'}),v:t(TRD_LV[last[8]]||'tig.l.vd.none')})}</p>`:'';
+  return `<div class="tig-l"><h3 class="mtxt"><b>${t('tig.l.t')}</b></h3>${bar}<p class="pnote">${txt}</p>${vd}<p class="pnote tig-lw">${t('tig.l.how',{m:trdC(lines)})}</p></div>`;
+}
 function trdIg(D,cr){
   trdJLoad();
   const J=cr?TRDJ.c:TRDJ.w,rows=J&&Array.isArray(J.rows)?J.rows:[],since=J&&typeof J.since==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(J.since)?J.since:null;
@@ -8218,7 +8247,7 @@ function trdIg(D,cr){
     trdIgDonut(pc(A.k,A.n),trdIgTone(A.k,A.n),brak?t('tig.d.since0'):t('tig.d.since',{d:since?dm(since):'—'}),A.n?t('tig.n',{n:trdC(A.n)}):wk)+
     trdIgDonut(H?100*H.k/H.n:null,H?trdIgTone(H.k,H.n):'na',t('tig.d.hist'),H?t('tig.hist.sub',{d:typeof H.from==='string'?dd(H.from):'—',n:trdC(H.n)}):'—')+`</div>`;
   const bars=W.length?`<div class="tig-b"><h3 class="mtxt"><b>${t('tig.b.t')}</b></h3>${trdIgBars(W,S)}<p class="tig-lg"><span><i class="h"></i>${t('tig.b.k')}</span><span><i class="m"></i>${t('tig.b.m')}</span><span><i class="w"></i>${t('tig.b.w')}</span></p></div>`:'';
-  return `<section class="panel pcard trd-ig" id="trd-ig">${head}<div class="tig-g${W.length?'':' tig-g2'}">${big}${dn}${bars}</div>${trdIgChips(D,cr)}`+
+  return `<section class="panel pcard trd-ig" id="trd-ig">${head}<div class="tig-g${W.length?'':' tig-g2'}">${big}${dn}${bars}</div>${trdIgLearn(J,cr)}${trdIgChips(D,cr)}`+
     `<p class="pfoot">${t(cr?'tig.foot.c':'tig.foot.w')} ${t('eng.disclaimer')}</p></section>`;
 }
 /* po narysowaniu TRENDY (renderTrendy): infografika zaraz pod nagłówkiem, cała dotychczasowa treść pod jednym rozwijanym blokiem „Szczegóły”

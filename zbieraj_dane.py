@@ -6123,6 +6123,32 @@ def _td_cr_cp(log, today, iso):
     return {k: sorted(v) for k, v in cp.items() if v}
 
 
+TD_PG_EST_N = 10   # v208: szacunek terminu oceny linii dopiero od tylu dojrzałych dni z sygnałem
+TD_PG_EST_D = 14   # v208: … i od tylu dni kalendarzowych dziennika (od since do granicy dni dojrzałych)
+
+
+def _td_pg(lines, lines_all, names, looks, cp, since, today, settle):
+    """v208: postęp nauki do punktów kontrolnych (strona: „X z 100 dni z sygnałem do pierwszej oceny”) → {'do': granica dni dojrzałych (ISO),
+    'l': {nazwa: [n, c, est]}}: n — dni z sygnałem linii ze znanym wynikiem (wszystkie, także młodsze niż `settle` — jak pierścień „od startu”),
+    c — najmniejszy punkt kontrolny z `looks` bez zapisanej oceny w cp (None = wszystkie zapisane), est — szacowana data (ISO) oceny c: tempo
+    z dni DOJRZAŁYCH (doba ≤ today − settle; te same pary co punkty kontrolne) na dni kalendarzowe od since do granicy, plus settle dni
+    dojrzewania — dopiero od TD_PG_EST_N dni dojrzałych i TD_PG_EST_D dni dziennika, inaczej None. `lines` / `lines_all` — {klucz: [(doba, …)]}
+    z funkcji par dziennika (z granicą / bez); `names` — [(klucz, nazwa w cp)]. Szacunek, nie obietnica (strona tak go podpisuje)."""
+    upto = today - datetime.timedelta(days=settle)
+    span = (upto - _d(since)).days + 1 if since else 0
+    out = {}
+    for key, name in names:
+        nm = len({p[0] for p in (lines or {}).get(key) or []})
+        n = max(nm, len({p[0] for p in (lines_all or {}).get(key) or []}))
+        have = {x[0] for x in ((cp or {}).get(name) or []) if isinstance(x, list) and x}
+        c = next((x for x in looks if x not in have), None)
+        est = None
+        if c is not None and nm >= TD_PG_EST_N and span >= TD_PG_EST_D:
+            est = (upto + datetime.timedelta(days=math.ceil(max(0, c - nm) * span / nm) + settle)).isoformat()
+        out[name] = [n, c, est]
+    return {'do': upto.isoformat(), 'l': out}
+
+
 def _td_cr_valid(log):
     """Czy to dziennik: słownik z listą rows oraz polami v i since (pusty obiekt albo inny plik — nie)."""
     return isinstance(log, dict) and isinstance(log.get('rows'), list) and 'v' in log and 'since' in log
@@ -6156,6 +6182,8 @@ def _td_cr_log(log, rows, series, now_utc):
             r[6] = round(y, 4) if y is not None else None
     out = {'at': iso, 'v': TD_VC2, 'since': TD_SINCE_CR2, 'wh': TD_CR_WH, 'rows': [R[k] for k in sorted(R)], 'cp': {}}
     out['cp'] = _td_cr_cp(dict(out, cp=log.get('cp') or {}), now.date(), iso)
+    out['pg'] = _td_pg(_td_cr_pairs(out, out['since'], (now.date() - datetime.timedelta(days=TD_CR_SETTLE)).isoformat())[0],   # v208: postęp nauki
+                       _td_cr_pairs(out, out['since'])[0], [(k, k) for _, k in TD_RULES_CR2], TD_CR_LOOKS, out['cp'], out['since'], now.date(), TD_CR_SETTLE)
     if prev:
         out['prev'] = prev
     return out
@@ -6889,6 +6917,8 @@ def _tdw_log(log, rows, series, now_utc, ut=None):
             r[6] = round(y, 4) if y is not None else None
     out = {'at': iso, 'v': TD_VW2, 'since': TD_SINCE_W2, 'cut': TD_W_CUT, 'rows': [R[k] for k in sorted(R)], 'cp': {}}
     out['cp'] = _tdw_cp(dict(out, cp=log.get('cp') or {}), now.date(), iso, ut)
+    out['pg'] = _td_pg(_tdw_jpairs(out, out['since'], (now.date() - datetime.timedelta(days=TD_W_SETTLE)).isoformat())[0],   # v208: postęp nauki
+                       _tdw_jpairs(out, out['since'])[0], [(k, k[0] + '.' + k[1]) for k in TD_RULES_W2], TD_W_LOOKS, out['cp'], out['since'], now.date(), TD_W_SETTLE)
     if prevs:
         out['prev'] = prevs
     return out
