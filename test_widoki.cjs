@@ -13589,3 +13589,37 @@ test('v211: nauka — n ≥ c bez oceny: pełny pasek i „ocena w ciągu kilku 
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA177)if(I18N[l])Object.assign(I18N[l],EXTRA177[l]);'), 'jedna linia for po słowniku');
   assert.equal(v96src.tFor('pl')('tig.l.est0'), 'termin podamy po ok. 3 tygodniach zbierania wyników', 'tekst zmieniony w EXTRA175 (bez zasłoniętych wpisów)');
 });
+
+
+/* ---------- v213: dzienne przepływy zagranicy — małe wykresy słupkowe ---------- */
+test('v213: Indie / Tajwan / Hongkong — wiersz słupków na rynek (mln USD, te same dni co tabela), kolor = kierunek, brak = kreska; od 5 dni; słownik pl', () => {
+  const a0 = html.indexOf('const ZAG={data:null};'), a1 = html.indexOf('function renderInst(){', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'instRow', 'instFoot', 'engNum', 'engDate', 'escH', html.slice(a0, a1) + '\nreturn {ZAG, zagApply, zagBlock, zagWyk};')(
+    T, () => {}, () => {}, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), (a, b, c, d) => `[${a}|${b}|${c}|${d}]`, s => s, v => String(v), s => s, v96src.escH);
+  const D = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-05'];
+  const IN = [-270.7, 806.2, null, 120, -45, 300].map((v, i) => [D[i], 0, 0, 0, v, 95]);
+  const TW = [[D[0], -32964.6, 0, 0, 0, -1036, D[0]], [D[1], 1000, 0, 0, 0, 31.5, D[1]], [D[3], 500, 0, 0, 0, 15.7, D[3]], [D[4], -100, 0, 0, 0, -3.1, D[4]], [D[5], 2000, 0, 0, 0, 62.9, D[5]]];
+  f.zagApply({at: '2026-10-06T00:00:00+00:00', in: {d: IN}, tw: {d: TW}});
+  const b = f.zagBlock(), w0 = b.indexOf('<div class="zs-box">');
+  const k1 = b.indexOf('<div class="etfkpis">'), k2 = b.indexOf('</div>', k1);
+  assert.ok(k1 > 0 && w0 > k2 && w0 < b.indexOf('<summary>ob.tab'), 'wykres między kafelkami a tabelą');
+  const W = b.slice(w0, b.indexOf('<details', w0));
+  assert.ok(W.startsWith('<div class="zs-box"><p class="pnote">ob.wyk{"n":6}</p>'), W.slice(0, 120));
+  assert.equal((W.match(/<div class="zs-r">/g) || []).length, 2, 'Indie i Tajwan — Hongkong bez danych bez wiersza');
+  const rin = W.slice(0, W.indexOf('</svg>'));
+  assert.equal((rin.match(/class="zs-p"/g) || []).length, 3); assert.equal((rin.match(/class="zs-m"/g) || []).length, 2); assert.equal((rin.match(/class="zs-n"/g) || []).length, 1, '30.09 brak — kreska');
+  assert.ok(rin.includes('<title>2026-09-29: +806 inst.mln.usd</title>') && rin.includes('<title>2026-09-30: —</title>'), 'podpowiedzi: dzień i wartość');
+  assert.ok(rin.includes('height="21.0"') && rin.includes('y="3.0"'), 'najwyższy słupek = pół wysokości minus margines (806 → 21 px)');
+  assert.ok(W.includes('<span class="zs-mx">±806</span>') && W.includes('<span class="zs-mx">±1036</span>'), 'każdy rynek w swojej skali (Tajwan w USD, nie w TWD)');
+  assert.ok(W.includes('aria-label="ob.wyk.in: 09-28 −271, 09-29 +806, 09-30 —, 10-01 +120, 10-02 −45, 10-05 +300"'), 'opis dla czytników ekranu');
+  assert.ok(!/NaN|undefined/.test(W));
+  f.zagApply({at: 'x', in: {d: IN.slice(0, 4)}});
+  assert.ok(!f.zagBlock().includes('zs-box'), 'mniej niż 5 dni — bez wykresu');
+  assert.equal(f.zagWyk(null, null, null, D, (k, a, c) => ''), '', 'bez rynków — pusto');
+  const d0 = html.indexOf('const EXTRA178='), d1 = html.indexOf(';\n', d0), X = JSON.parse(html.slice(d0 + 'const EXTRA178='.length, d1));
+  assert.deepEqual(Object.keys(X), ['pl']); assert.deepEqual(Object.keys(X.pl), ['ob.wyk', 'ob.wyk.in', 'ob.wyk.tw', 'ob.wyk.hk']);
+  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA178)if(I18N[l])Object.assign(I18N[l],EXTRA178[l]);'), 'jedna linia for po słowniku');
+  const c0 = html.indexOf('/* v213: dzienne przepływy zagranicy — małe wykresy słupkowe (zielony'), css = html.slice(c0, html.indexOf('\n', html.indexOf('@media (max-width:520px){.zs-r', c0)));
+  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && css.includes('var(--gr)') && css.includes('var(--rd)'), 'styl: tylko zmienne motywu');
+});
