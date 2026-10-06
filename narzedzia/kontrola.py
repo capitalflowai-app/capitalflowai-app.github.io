@@ -1623,7 +1623,6 @@ def _wh_rozb_polnoc(H, d, row_d):
 
 IXF_SERIE = (('GSPC', 'SP500', 'S&P 500'), ('IXIC', 'NASDAQCOM', 'Nasdaq Composite'), ('DJI', 'DJIA', 'Dow Jones'),
              ('N225', 'NIKKEI225', 'Nikkei 225'))   # v257: indeksy strony, które FRED podaje od ich wydawców (bez klucza)
-IXF_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&cosd={od}'
 IXF_DNI = 45       # v257: okno porównania — dni kalendarzowe wstecz od dziś
 IXF_TOL = 0.02     # v257: % — różnica do tylu = zgodne (zaokrąglenia: dostawca strony podaje zamknięcia do 4 miejsc)
 IXF_ZLE = 0.1      # v257: % — starsza sesja różna o więcej = ⚠️ (kolejne pobranie z zakładką 10 dni powinno ją już poprawić)
@@ -1656,36 +1655,31 @@ def ixf_porownanie(rows, F, od):
     return out
 
 
-def ixf_sprawdz(ix, now=None, pobierz=None):
-    """v257: 4 indeksy strony vs wydawcy (FRED, CSV bez klucza) → {'od', 'wyniki': [{'s', 'nazwa', 'at', … ixf_porownanie albo 'brak'}]}.
-    FRED nie odpowiada (czas, połączenie — nie odpowiedź HTTP) — pozostałe serie bez czekania (najwyżej jedno czekanie)."""
+def ixf_sprawdz(ix, wyd=None, now=None):
+    """v257/v259: 4 indeksy strony vs wydawcy → {'od', 'wyniki': [{'s', 'nazwa', 'at', 'wyd_at', … ixf_porownanie albo 'brak'}]}. v259: serie
+    wydawców z pliku indeksów (część 'wyd' — zbieracz pobiera je z FRED z kluczem co 3 h); v257 pytała FRED bez klucza, ale z maszyn GitHub
+    FRED nie odpowiadał w 30 s (06.10 18:09 UTC — wszystkie 4 „brak porównania”). Ten blok kontroli działa bez sieci."""
     now = now or NOW
     od = (now.date() - dt.timedelta(days=IXF_DNI)).isoformat()
-    wyn, stop = [], None
+    W = wyd.get('d') if isinstance(wyd, dict) and isinstance(wyd.get('d'), dict) else {}
+    WA = wyd.get('at_s') if isinstance(wyd, dict) and isinstance(wyd.get('at_s'), dict) else {}
+    wyn = []
     for s, fid, nazwa in IXF_SERIE:
         rec = ix.get(s) if isinstance(ix, dict) and isinstance(ix.get(s), dict) else {}
-        w = {'s': s, 'nazwa': nazwa, 'at': rec.get('at') if isinstance(rec.get('at'), str) else None}
-        if stop:
-            w['brak'] = f'FRED nie odpowiada ({stop})'
-            wyn.append(w)
-            continue
-        try:
-            st, body, _ = (pobierz or get)(IXF_URL.format(id=fid, od=od), timeout=30)
-            F = ust_fred_csv(body.decode('utf-8', 'replace'))
-            if not F:
-                raise ValueError('plik bez liczb')
+        w = {'s': s, 'nazwa': nazwa, 'at': rec.get('at') if isinstance(rec.get('at'), str) else None,
+             'wyd_at': WA.get(s) if isinstance(WA.get(s), str) else None}
+        F = {r[0]: r[1] for r in (W.get(s) if isinstance(W.get(s), list) else []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str)
+             and isinstance(r[1], (int, float)) and not isinstance(r[1], bool)}
+        if not F:
+            w['brak'] = f'zbieracz nie podał serii wydawcy {fid}'
+        else:
             c = ixf_porownanie(rec.get('d') if isinstance(rec.get('d'), list) else [], F, od)
             if c is None:
-                w['brak'] = 'seria strony bez sesji w oknie porównania'
+                w['brak'] = 'seria strony albo wydawcy bez sesji w oknie porównania'
             else:
                 w.update(c)
-        except Exception as e:  # noqa
-            w['brak'] = f'FRED: {str(e)[:80]}'
-            if not isinstance(e, urllib.error.HTTPError) and isinstance(e, (urllib.error.URLError, OSError, TimeoutError)):
-                stop = str(e)[:60]
         wyn.append(w)
     return {'od': od, 'wyniki': wyn}
-
 
 def _ixf_n(x):
     return f'{x:,.2f}'.replace(',', ' ').replace('.', ',')
@@ -3804,9 +3798,9 @@ def kontrola():
         R['uwagi'].append(f'zgodnosc.csv: nie zapisano ({str(e)[:80]})')
     Z['indeksy'] = indeksy_ocena((files.get('indeksy') or {}).get('ix'))   # v254: świeżość każdej serii indeksów
     R['uwagi'] += indeksy_uwagi(Z['indeksy'])   # v258: zacięte, z przyszłości, dostawca stoi
-    if isinstance((files.get('indeksy') or {}).get('ix'), dict):   # v257: 4 indeksy vs ich wydawcy (FRED, bez klucza); brak odczytu = informacja
+    if isinstance((files.get('indeksy') or {}).get('ix'), dict):   # v257/v259: 4 indeksy vs ich wydawcy (serie wydawców z pliku); brak = informacja
         try:
-            Z['ix_fred'] = ixf_sprawdz(files['indeksy']['ix'])
+            Z['ix_fred'] = ixf_sprawdz(files['indeksy']['ix'], files['indeksy'].get('wyd'))
         except Exception as e:  # noqa — błąd bloku nie zabiera całego raportu
             Z['ix_fred'] = {'brak': f'błąd porównania indeksów: {type(e).__name__}: {str(e)[:80]}'}
         R['uwagi'] += ixf_uwagi(Z['ix_fred'])

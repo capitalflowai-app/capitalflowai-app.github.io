@@ -10966,6 +10966,42 @@ def ix_fmp(key, part, now, errors):
     return got
 
 
+IX_WYD = (('GSPC', 'SP500'), ('IXIC', 'NASDAQCOM'), ('DJI', 'DJIA'), ('N225', 'NIKKEI225'))   # v259: te same 4 indeksy od wydawców (przez FRED)
+IX_WYD_EVERY = 3 * 60   # v259: min — część 'wyd' (tylko do kontroli dziennej; strona jej nie pokazuje)
+IX_WYD_LIMIT = 40       # v259: obserwacji na serię (z dniami „.”) — ok. 8 tygodni; okno kontroli to 45 dni
+IX_WYD_TIMEOUT = 15     # v259: s na zapytanie — jedno w toku po budżecie czasu budowniczego i tak kończy się przed 60 s
+
+
+def ix_wyd_part(key, prev_w, deadline=None):
+    """v259: zamknięcia S&P 500, Nasdaq Composite, Dow Jones i Nikkei 225 od ich wydawców (przez FRED; klucz FRED_KEY tylko w adresie,
+    maskowany) → ({'at', 'd': {symbol strony: [[dzień, zamknięcie]]}, 'at_s': {symbol: czas pobrania serii}}, [błędy]). Tylko do kontroli
+    dziennej (porównanie z serią dostawcy indeksów, v257) — strona tej części nie pokazuje. Seria z błędem — poprzednia z własnym czasem,
+    nigdy zera; brak odpowiedzi (czas, połączenie) — dalsze serie bez czekania; po budżecie czasu budowniczego — bez nowych zapytań.
+    'at' = teraz tylko, gdy coś przyszło (inaczej następny przebieg ponawia, nie czeka 3 h)."""
+    pw = prev_w if isinstance(prev_w, dict) else {}
+    pd_ = pw.get('d') if isinstance(pw.get('d'), dict) else {}
+    pat = pw.get('at_s') if isinstance(pw.get('at_s'), dict) else {}
+    out, err, stop, got = {'at': NOW, 'd': {}, 'at_s': {}}, [], None, 0
+    for s, sid in IX_WYD:
+        if stop or _ix_late(deadline):
+            err.append(f'{sid}: pominięta ({stop or "budżet czasu"})')
+        else:
+            try:
+                out['d'][s] = ns_rows(get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit={IX_WYD_LIMIT}',
+                                               timeout=IX_WYD_TIMEOUT), sid)
+                out['at_s'][s] = NOW; got += 1
+                continue
+            except Exception as e:  # noqa
+                err.append(mask(f'{sid}: {str(e)[:80]}'))
+                if not isinstance(e, urllib.error.HTTPError) and isinstance(e, (urllib.error.URLError, OSError, TimeoutError)):
+                    stop = 'FRED nie odpowiada'
+        if isinstance(pd_.get(s), list) and pd_[s]:
+            out['d'][s] = pd_[s]; out['at_s'][s] = pat.get(s) or pw.get('at')
+    if not got:
+        out['at'] = pw.get('at') or NOW
+    return out, err
+
+
 def build_indeksy(keys, prev=None, now=None):
     """data/indeksy.json — część ix: dzienne zamknięcia 23 indeksów świata (EODHD, rotacja 20 zapytań na dobę);
     część etf: zamknięcia funduszy ETF używanych przez stronę (Massive; zapas Tiingo). Część bez klucza albo z błędem = poprzednia
@@ -11014,6 +11050,19 @@ def build_indeksy(keys, prev=None, now=None):
                     out['etf'] = pe; out['part_at']['etf'] = pat.get('etf') or prev.get('at')
     elif pe:
         out['etf'] = pe; out['part_at']['etf'] = pat.get('etf') or prev.get('at')
+    pw = prev.get('wyd') if isinstance(prev.get('wyd'), dict) else None   # v259: serie wydawców 4 indeksów — do kontroli dziennej
+    if keys.get('FRED_KEY'):
+        last = _ix_dt(pw.get('at')) if pw else None
+        if pw and last and (now - last).total_seconds() < IX_WYD_EVERY * 60:
+            out['wyd'] = pw
+        else:
+            w, werr = ix_wyd_part(keys['FRED_KEY'], pw, deadline)
+            if w['d']:
+                out['wyd'] = w
+            if werr:   # część tylko do kontroli — notatka, nie błąd strony
+                META['notes'].append(mask('Indeksy — serie wydawców do kontroli (FRED): ' + '; '.join(werr)[:300]))
+    elif pw:
+        out['wyd'] = pw
     if errors:
         META['errors'].append(mask('Indeksy: ' + '; '.join(errors)[:400]))
     if not any(k in out for k in IX_PARTS) and not any(keys.get(k) for k in IX_ACTIVE):
@@ -19412,7 +19461,7 @@ def main():
             META['ok']['indeksy_' + k] = 'cached' if st is True else st
     elif ix_any:
         try:
-            ix = build_indeksy(ix_keys, prev_ix); save('indeksy', ix)
+            ix = build_indeksy(dict(ix_keys, FRED_KEY=fred_key), prev_ix); save('indeksy', ix)   # v259: FRED_KEY — serie wydawców 4 indeksów do kontroli
             for k, st in ix['ok'].items():
                 META['ok']['indeksy_' + k] = st
         except Exception as e:

@@ -9797,7 +9797,8 @@ class IndeksyV106(unittest.TestCase):
                     mock.patch.object(zd, 'previous', lambda n: prev.get(n)), \
                     mock.patch.object(zd, 'build_indeksy', lambda k, p, now=None: calls.append((dict(k), p)) or built):
                 zd.main()
-            self.assertEqual(calls, [({'EODHD_KEY': 'SEKRET-EODHD', 'MASSIVE_KEY': '', 'TIINGO_KEY': '', 'FMP_KEY': '', 'ALPHAVANTAGE_KEY': ''}, None)])
+            self.assertEqual(calls, [({'EODHD_KEY': 'SEKRET-EODHD', 'MASSIVE_KEY': '', 'TIINGO_KEY': '', 'FMP_KEY': '', 'ALPHAVANTAGE_KEY': '',
+                                       'FRED_KEY': ''}, None)])   # v259: FRED_KEY — serie wydawców 4 indeksów do kontroli
             self.assertIn('SEKRET-EODHD', zd.SECRETS, 'klucz maskowany w komunikatach'); self.assertIs(saved['indeksy'], built)
             self.assertIs(zd.META['ok']['indeksy_ix'], True); self.assertNotIn('indeksy_etf', zd.META['ok'])
             self.assertTrue(any(n.startswith('brak MASSIVE_KEY') for n in zd.META['notes']) and any(n.startswith('brak TIINGO_KEY') for n in zd.META['notes']))
@@ -28410,7 +28411,7 @@ class BcbChwilowyV256(unittest.TestCase):
 # ===================== v257: KONTROLA — 4 INDEKSY STRONY VS ICH WYDAWCY (FRED) =====================
 class KontrolaIndeksyWydawcyV257(unittest.TestCase):
     """v257: S&P 500, Nasdaq, Dow i Nikkei 225 vs FRED: zgodne ≤ 0,02%; ostatnia sesja różna — ℹ️ z godziną pobrania; starsza różna > 0,1% —
-    ⚠️ i uwaga; sesje bez odpowiednika — ℹ️; FRED nie odpowiada — reszta bez czekania; brak porównania nigdy nie jest uwagą."""
+    ⚠️ i uwaga; sesje bez odpowiednika — ℹ️; v259: serie wydawców z pliku (zbieracz); brak porównania nigdy nie jest uwagą."""
 
     @classmethod
     def setUpClass(cls):
@@ -28421,10 +28422,6 @@ class KontrolaIndeksyWydawcyV257(unittest.TestCase):
             cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
         cls.NOW = datetime.datetime(2026, 10, 7, 6, 20, tzinfo=datetime.timezone.utc)
 
-    @staticmethod
-    def _csv(fid, rows):
-        return ('observation_date,' + fid + '\n' + ''.join(f'{d},{v}\n' for d, v in rows)).encode()
-
     def _ix(self):
         dni = ['2026-10-01', '2026-10-02', '2026-10-05', '2026-10-06']
         return {'GSPC': {'at': '2026-10-06T22:31:00+00:00', 'd': [[d, 7700.0 + i] for i, d in enumerate(dni)]},
@@ -28433,25 +28430,21 @@ class KontrolaIndeksyWydawcyV257(unittest.TestCase):
                 'N225': {'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-08-01', 1.0], ['2026-09-29', 65481.2695], ['2026-09-30', 66753.7188],
                                                                   ['2026-10-01', 68956.7188], ['2026-10-05', 69946.8594], ['2026-10-06', 70777.2891]]}}
 
-    def _fred(self, nikkei, luka=False, zle=False):
-        def pobierz(url, timeout=25):
-            fid = url.split('id=')[1].split('&')[0]
-            self.assertIn('cosd=2026-08-23', url, 'okno 45 dni od 07.10')
-            if fid == 'NIKKEI225':
-                return 200, self._csv(fid, nikkei), 5
-            base = {'SP500': 7700.0, 'NASDAQCOM': 27000.0, 'DJIA': 51000.0}[fid]
-            rows = [('2026-10-01', base), ('2026-10-02', base + 1 + (0.5 if zle and fid == 'DJIA' else 0)), ('2026-10-05', base + 2), ('2026-10-06', base + 3)]
-            if luka and fid == 'SP500':
-                rows.insert(2, ('2026-10-03', base + 9))
-            return 200, self._csv(fid, rows), 5
-        return pobierz
+    def _wyd(self, nikkei, luka=False, zle=False):   # v259: serie wydawców z pliku (część 'wyd' zbieracza), nie z sieci
+        d = {'N225': [list(r) for r in nikkei]}
+        for s, base in (('GSPC', 7700.0), ('IXIC', 27000.0), ('DJI', 51000.0)):
+            rows = [['2026-10-01', base], ['2026-10-02', base + 1 + (0.5 if zle and s == 'DJI' else 0)], ['2026-10-05', base + 2], ['2026-10-06', base + 3]]
+            if luka and s == 'GSPC':
+                rows.insert(2, ['2026-10-03', base + 9])
+            d[s] = rows
+        return {'at': '2026-10-07T03:00:00+00:00', 'd': d, 'at_s': {s: '2026-10-07T03:00:00+00:00' for s in d}}
 
     NIK = [('2026-09-29', 65481.27), ('2026-09-30', 66753.72), ('2026-10-01', 68956.72), ('2026-10-02', 68309.46), ('2026-10-05', 69946.86),
            ('2026-10-06', 70683.98)]
 
     def test_06_10_nikkei_wstepny(self):
         k = self.k
-        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=self._fred(self.NIK))
+        o = k.ixf_sprawdz(self._ix(), now=self.NOW, wyd=self._wyd(self.NIK))
         w = {x['s']: x for x in o['wyniki']}
         self.assertEqual((w['GSPC']['n'], w['GSPC']['zgodne'], w['GSPC']['ost_roz']), (4, 4, None))
         self.assertEqual(w['N225']['ost_roz'], ('2026-10-06', 70777.2891, 70683.98, 0.132))
@@ -28468,7 +28461,7 @@ class KontrolaIndeksyWydawcyV257(unittest.TestCase):
         k = self.k
         nik = [r for r in self.NIK if r[0] != '2026-09-30'] + [('2026-10-07', 1.0)]
         nik = [(d, 66000.0) if d == '2026-09-29' else (d, v) for d, v in nik]
-        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=self._fred(nik, luka=True, zle=True))
+        o = k.ixf_sprawdz(self._ix(), now=self.NOW, wyd=self._wyd(nik, luka=True, zle=True))
         w = {x['s']: x for x in o['wyniki']}
         self.assertEqual(w['N225']['roznice'], [('2026-09-29', 65481.2695, 66000.0, -0.786)])
         self.assertEqual(w['N225']['bez_sesji'], ['2026-09-30'], 'strona ma sesję, której wydawca nie ma (choć ma późniejsze)')
@@ -28481,28 +28474,16 @@ class KontrolaIndeksyWydawcyV257(unittest.TestCase):
         self.assertIn('różne: 2026-09-29 -0,79% ⚠️', txt); self.assertIn('sesje, których wydawca nie ma: 2026-09-30 ℹ️', txt)
         self.assertIn('S&P 500 — zgodne 4 z 4 sesji; sesje wydawcy bez wiersza na stronie: 2026-10-03 ℹ️', txt)
 
-    def test_fred_nie_odpowiada_jedno_czekanie(self):
+    def test_brak_serii_wydawcy(self):   # v259: brak części 'wyd' albo serii bez liczb — informacja, bez sieci
         k = self.k
-        n = {'n': 0}
-
-        def pobierz(url, timeout=25):
-            n['n'] += 1
-            raise urllib.error.URLError(TimeoutError('timed out'))
-        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=pobierz)
-        self.assertEqual(n['n'], 1, 'po braku odpowiedzi reszta bez czekania')
-        self.assertTrue(all(w.get('brak') for w in o['wyniki']))
+        o = k.ixf_sprawdz(self._ix(), None, now=self.NOW)
+        self.assertEqual([w['brak'] for w in o['wyniki']], [f'zbieracz nie podał serii wydawcy {f}' for f in ('SP500', 'NASDAQCOM', 'DJIA', 'NIKKEI225')])
         self.assertEqual(k.ixf_uwagi(o), [])
-        self.assertIn('Dow Jones — brak porównania (FRED nie odpowiada (<urlopen error timed out>)) ℹ️', k.ixf_wiersz(o))
-
-        def http(url, timeout=25):
-            n['n'] += 1
-            if 'SP500' in url:
-                raise urllib.error.HTTPError(url, 500, 'Internal Server Error', {}, None)
-            return 200, b'observation_date,X\n2026-10-06,.\n', 5
-        n['n'] = 0
-        o = k.ixf_sprawdz(self._ix(), now=self.NOW, pobierz=http)
-        self.assertEqual(n['n'], 4, 'odpowiedź HTTP z błędem — pozostałe serie nadal pytane')
-        self.assertEqual([w['brak'] for w in o['wyniki']], ['FRED: HTTP Error 500: Internal Server Error'] + ['FRED: plik bez liczb'] * 3)
+        self.assertIn('Dow Jones — brak porównania (zbieracz nie podał serii wydawcy DJIA) ℹ️', k.ixf_wiersz(o))
+        w = self._wyd(self.NIK); w['d']['N225'] = [['2026-10-06', True], ['2026-10-05', 'x']]
+        o = k.ixf_sprawdz(self._ix(), w, now=self.NOW)
+        self.assertEqual(o['wyniki'][3]['brak'], 'zbieracz nie podał serii wydawcy NIKKEI225', 'bool i tekst — nie liczby')
+        self.assertEqual((o['wyniki'][0]['zgodne'], o['wyniki'][0]['wyd_at']), (4, '2026-10-07T03:00:00+00:00'))
 
     def test_wpiete_w_kontrole_i_raport(self):
         import inspect
@@ -28615,4 +28596,82 @@ class PoPrzegladzieV258(unittest.TestCase):
         import inspect
         src = inspect.getsource(zd.main)
         self.assertIn("save('rynki', prev_ry); rynki_fx_nota(prev_ry)", src)
+
+
+# ===================== v259: ZBIERACZ — SERIE WYDAWCÓW 4 INDEKSÓW (FRED Z KLUCZEM) DO KONTROLI =====================
+class IndeksyWydawcyV259(unittest.TestCase):
+    """v259: część 'wyd' w indeksy.json — S&P 500, Nasdaq, Dow, Nikkei 225 od wydawców przez FRED (klucz tylko w adresie); co 3 h; seria z błędem
+    — poprzednia z własnym czasem; brak odpowiedzi — dalsze bez czekania; błędy tej części to notatka, nie błąd strony."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    @staticmethod
+    def _obs(rows):   # odpowiedź FRED observations (sort_order=desc)
+        return {'observations': [{'date': d, 'value': v} for d, v in reversed(rows)]}
+
+    def test_czesc_wyd_seria_z_bledem_zostaje(self):
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append((url, timeout))
+            sid = url.split('series_id=')[1].split('&')[0]
+            if sid == 'DJIA':
+                raise urllib.error.HTTPError(url, 500, 'Internal Server Error', {}, None)
+            return self._obs([('2026-10-02', '1.5'), ('2026-10-05', '.'), ('2026-10-06', f'{len(sid)}.25')])
+        prev = {'at': '2026-10-06T10:00:00+00:00', 'd': {'DJI': [['2026-10-02', 9.0]]}, 'at_s': {'DJI': '2026-10-06T10:00:00+00:00'}}
+        with mock.patch.object(zd, 'get_json', gj):
+            o, err = zd.ix_wyd_part('k-fred', prev)
+        self.assertEqual(o['d']['GSPC'], [['2026-10-02', 1.5], ['2026-10-06', 5.25]], 'rosnąco, dzień „.” pominięty (brak, nie zero)')
+        self.assertEqual((o['d']['DJI'], o['at_s']['DJI']), ([['2026-10-02', 9.0]], '2026-10-06T10:00:00+00:00'), 'poprzednia z własnym czasem')
+        self.assertEqual((o['at_s']['GSPC'], o['at']), (zd.NOW, zd.NOW))
+        self.assertEqual(err, ['DJIA: HTTP Error 500: Internal Server Error'])
+        self.assertEqual(len(calls), 4, 'odpowiedź HTTP z błędem — pozostałe serie nadal pytane')
+        self.assertTrue(all('limit=40' in u and 'sort_order=desc' in u and t == 15 for u, t in calls))
+
+    def test_brak_odpowiedzi_bez_czekania_klucz_maskowany(self):
+        n = []
+
+        def gj(url, headers=None, timeout=30):
+            n.append(url)
+            raise urllib.error.URLError(TimeoutError('timed out'))
+        zd.SECRETS.append('k-fred-sekret'); self.addCleanup(zd.SECRETS.remove, 'k-fred-sekret')
+        prev = {'at': '2026-10-06T10:00:00+00:00', 'd': {'N225': [['2026-10-06', 7.0]]}}
+        with mock.patch.object(zd, 'get_json', gj):
+            o, err = zd.ix_wyd_part('k-fred-sekret', prev)
+        self.assertEqual(len(n), 1, 'po braku odpowiedzi reszta bez czekania')
+        self.assertEqual(err, ['SP500: <urlopen error timed out>'] + [f'{s}: pominięta (FRED nie odpowiada)' for s in ('NASDAQCOM', 'DJIA', 'NIKKEI225')])
+        self.assertEqual((o['d'], o['at']), ({'N225': [['2026-10-06', 7.0]]}, '2026-10-06T10:00:00+00:00'), 'nic nie przyszło — stary czas (ponowienie za godzinę)')
+        self.assertFalse(any('k-fred-sekret' in e for e in err))
+
+    def test_build_indeksy_co_3_h_notatka_nie_blad(self):
+        def gj(url, headers=None, timeout=30):
+            if 'stlouisfed' not in url:
+                raise AssertionError(url)
+            if 'NIKKEI225' in url:
+                raise urllib.error.HTTPError(url, 500, 'x', {}, None)
+            return self._obs([('2026-10-06', '100')])
+        prev = {'ix': {'GSPC': {'cc': 'us', 'at': 'x', 'd': [['2026-10-05', 1.0]]}}, 'part_at': {'ix': 'x'}}
+        now = datetime.datetime(2026, 10, 6, 20, 0, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'get_json', gj):
+            o = zd.build_indeksy({'FRED_KEY': 'k'}, prev, now=now)
+        self.assertEqual(sorted(o['wyd']['d']), ['DJI', 'GSPC', 'IXIC']); self.assertEqual(o['ix'], prev['ix'])
+        self.assertEqual(zd.META['errors'], [], 'część tylko do kontroli — bez błędu strony')
+        self.assertEqual(zd.META['notes'], ['Indeksy — serie wydawców do kontroli (FRED): NIKKEI225: HTTP Error 500: x'])
+        self.assertNotIn('wyd', o['ok'])
+
+        def nic(url, headers=None, timeout=30):
+            raise AssertionError('młodsza niż 3 h — bez zapytań: ' + url)
+        o['wyd']['at'] = '2026-10-06T18:00:00+00:00'
+        with mock.patch.object(zd, 'get_json', nic):
+            o2 = zd.build_indeksy({'FRED_KEY': 'k'}, o, now=now)
+        self.assertEqual(o2['wyd'], o['wyd'])
+        o['wyd']['at'] = '2026-10-06T16:59:00+00:00'
+        with mock.patch.object(zd, 'get_json', gj):
+            o3 = zd.build_indeksy({'FRED_KEY': 'k'}, o, now=now)
+        self.assertEqual(o3['wyd']['at'], zd.NOW, 'starsza niż 3 h — pobrana od nowa')
+        o4 = zd.build_indeksy({}, o, now=now)
+        self.assertEqual(o4['wyd'], o['wyd'], 'bez klucza — poprzednia część zostaje')
+        import inspect
+        self.assertIn("build_indeksy(dict(ix_keys, FRED_KEY=fred_key), prev_ix)", inspect.getsource(zd.main))
 
