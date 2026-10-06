@@ -25679,3 +25679,37 @@ class FunduszeCzyszczenieV217(unittest.TestCase):
         src = inspect.getsource(zd.build_fundusze)
         self.assertIn("p['h'], bad = _fund_clean(h)", src); self.assertIn("out['f'][t]['h'], bad = _fund_clean(out['f'][t].get('h'))", src)
         self.assertIn("p['bf_need'] = True", src.split("p['h'], bad = _fund_clean(h)")[1][:600], 'odrzucony świeży dzień iShares — uzupełnienie pełnym plikiem')
+
+
+# ===================== v218: KONTROLA — WIEK LIST PORTFELI GIEŁD Z RAPORTÓW MIESIĘCZNYCH =====================
+class KontrolaListyPortfeliV218(unittest.TestCase):
+    """v218: listy OKX, Bybit, KuCoin (wieloryby.json → gieldy) starsze niż 45 dni — uwaga z tym, co zrobić; wiersz w raporcie."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v218', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    G = {'gieldy': {'Binance': {'since': '2022-11'}, 'OKX': {'since': '2026-09-08'}, 'Bybit': {'since': '2026-08-26'}, 'KuCoin': {'since': '2026-08-31'}, 'Bitfinex': {'since': '2022-11'}}}
+
+    def test_ocena(self):
+        k = self.k
+        U = datetime.timezone.utc
+        o = k.wh_listy_ocena(self.G, datetime.datetime(2026, 10, 6, 6, 20, tzinfo=U))
+        self.assertEqual(o, {'wszystkie': [('OKX', '2026-09-08', 28), ('Bybit', '2026-08-26', 41), ('KuCoin', '2026-08-31', 36)], 'stare': []})
+        o = k.wh_listy_ocena(self.G, datetime.datetime(2026, 10, 11, 6, 20, tzinfo=U))
+        self.assertEqual(o['stare'], [('Bybit', '2026-08-26', 46)], 'Bybit po 45 dniach — uwaga; listy stałe (Binance, Bitfinex) bez oceny')
+        self.assertIsNone(k.wh_listy_ocena(None)); self.assertIsNone(k.wh_listy_ocena({'gieldy': 'x'}))
+        self.assertEqual(k.wh_listy_ocena({'gieldy': {'OKX': {'since': '2026-02-30'}, 'Bybit': 'x'}})['wszystkie'], [], 'zła data i zły wpis pominięte')
+        self.assertEqual((k.WH_LISTY_MIES, k.WH_LISTY_DNI), (('OKX', 'Bybit', 'KuCoin'), 45))
+
+    def test_raport_i_wpiecie(self):
+        k = self.k
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn("wl = wh_listy_ocena(files.get('wieloryby'))", src)
+        R = {'at': '2026-10-11T06:20:00+00:00', 'wynik': 'UWAGA', 'meta': {}, 'uwagi': [], 'bledy': [],
+             'zgodnosc': {'wh_listy': {'wszystkie': [('OKX', '2026-09-08', 33), ('Bybit', '2026-08-26', 46), ('KuCoin', '2026-08-31', 41)], 'stare': [('Bybit', '2026-08-26', 46)]}}}
+        self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 33 dni, Bybit 46 dni ⚠️, KuCoin 41 dni.', k.raport_md(R))
+        R['zgodnosc']['wh_listy'] = {'wszystkie': [('OKX', '2026-09-08', 28)], 'stare': []}
+        self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 28 dni ✅.', k.raport_md(R))

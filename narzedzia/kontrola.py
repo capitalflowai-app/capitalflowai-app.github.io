@@ -765,6 +765,27 @@ def _wh_rozb(a, b):
     return out
 
 
+WH_LISTY_MIES = ('OKX', 'Bybit', 'KuCoin')   # v218: giełdy z comiesięcznym raportem dowodu rezerw (wieloryby.json → gieldy[*].since) — listy do odświeżania
+WH_LISTY_DNI = 45                             # v218: lista starsza = uwaga (portfele dodane przez giełdę od tego czasu nie są liczone)
+
+
+def wh_listy_ocena(j, now=None):
+    """v218: wiek list portfeli giełd z miesięcznym raportem dowodu rezerw → {'wszystkie': [(giełda, data, dni)], 'stare': [… > WH_LISTY_DNI]};
+    brak pliku albo pola gieldy = None; giełda bez poprawnej daty RRRR-MM-DD pominięta."""
+    now = now or NOW
+    G = j.get('gieldy') if isinstance(j, dict) and isinstance(j.get('gieldy'), dict) else None
+    if G is None:
+        return None
+    A = []
+    for g in WH_LISTY_MIES:
+        s = G[g].get('since') if isinstance(G.get(g), dict) else None
+        try:
+            A.append((g, s, (now.date() - dt.date.fromisoformat(s)).days))
+        except (TypeError, ValueError):
+            continue
+    return {'wszystkie': A, 'stare': [x for x in A if x[2] > WH_LISTY_DNI]}
+
+
 def wieloryby_ocena(path):
     """v174: zgodność sald i przepływów wielorybów na tle historii. Przepływy to tylko przelewy ≥ 1 mln USD w oknie 24 h, a migawki sald dzieli
     tyle, ile minęło między zapisami archiwum (05.10: od 7,7 do 28 h) — rozbieżność jest normalna. Uwaga tylko, gdy migawki pary dzieli ok. doba
@@ -2484,6 +2505,12 @@ def kontrola():
                               + ' — sprawdzić skan przelewów tej giełdy')
     else:
         Z['wieloryby'] = None
+    wl = wh_listy_ocena(files.get('wieloryby'))   # v218: wiek list portfeli giełd z raportów miesięcznych
+    if wl is not None:
+        Z['wh_listy'] = wl
+        for g, d, n in wl['stare']:
+            R['uwagi'].append(f'lista portfeli giełdy {g} z {d} ma {n} dni — portfele dodane przez giełdę od tego czasu nie są liczone; '
+                              f'co zrobić: napisz do Claude „odśwież listę portfeli {g} z nowego raportu dowodu rezerw”')
     # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
     try:
         Z['etf_emitent'] = etf_emitent(files, R)
@@ -2711,6 +2738,10 @@ def raport_md(R):
                      + (f' (pominięte pary z innym odstępem migawek: {w["pominiete"]})' if w.get('pominiete') else '') + '.')
         else:
             L.append('- Wieloryby: archiwum ma mniej niż dwa dni — porównanie od jutra.')
+        wl = Z.get('wh_listy')   # v218: wiek list portfeli giełd z raportów miesięcznych
+        if wl and wl.get('wszystkie'):
+            L.append('- Listy portfeli giełd z raportów miesięcznych (wiek): ' + ', '.join(f'{g} {n} dni' + (' ⚠️' if n > WH_LISTY_DNI else '') for g, d, n in wl['wszystkie'])
+                     + (' ✅.' if not wl['stare'] else '.'))
         wy = Z.get('wycena')   # v132: MVRV BTC z dwóch źródeł — tylko różnice procentowe i daty; brak = „—”
         if wy:
             dz = f'{wy["roznica_pct"]:+.2f}% ({wy["dzien"]})' if wy.get('roznica_pct') is not None else '—'
