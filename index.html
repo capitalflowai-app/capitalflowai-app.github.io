@@ -403,6 +403,8 @@ td .cell .logo-img{width:34px;height:34px}
 .settings h1{font-size:24px}
 .set-card{padding:6px 14px 10px}
 .set-card h2{padding:10px 0 2px}
+/* v210: Ustawienia — karta „Prywatność” (zwykły tekst, kolor przygaszony jak opisy) */
+.set-priv p{margin:4px 0 10px;max-width:74ch;line-height:1.5;color:var(--mut)}
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line);flex-wrap:wrap}
 .set-row>span{color:var(--mut);font-size:13px}
 .set-row .dd-btn{min-width:186px;justify-content:space-between;padding:8px 11px}
@@ -1497,6 +1499,12 @@ td .cell .logo-img{width:34px;height:34px}
       <div class="set-row"><span data-i18n="cam"></span><div class="dd cam-tools" id="dd-cam"></div></div>
       <div class="set-row"><span data-i18n="size"></span><div class="dd" id="dd-size"></div></div>
     </section>
+    <section class="panel set-card set-priv">
+      <h2 data-i18n="set.priv.t"></h2>
+      <p data-i18n="set.priv.1"></p>
+      <p data-i18n="set.priv.2"></p>
+      <p data-i18n="set.priv.3"></p>
+    </section>
     <div><button class="small-btn" id="set-done" data-i18n="set.done"></button></div>
   </section>
 
@@ -2146,6 +2154,9 @@ for(const l in EXTRA174)if(I18N[l])Object.assign(I18N[l],EXTRA174[l]);
 /* v208: TRENDY — nauka sygnałów: postęp do pierwszej oceny reguł (tylko pl, cel właściciela 04.10) */
 const EXTRA175={"pl":{"tig.l.t":"Nauka: kiedy pierwsza ocena sygnałów?","tig.l.first":"{n} z {c} dni z sygnałem do pierwszej oceny","tig.l.next":"{n} z {c} dni z sygnałem do kolejnej oceny","tig.l.est":"szacowany termin w obecnym tempie: {d}","tig.l.est0":"termin oszacujemy po co najmniej 10 dniach z sygnałem i 2 tygodniach zbierania","tig.l.done":"wszystkie oceny (po 100, 200 i 400 dniach z sygnałem) są już zapisane","tig.l.vd":"Ocena po {c} dniach z sygnałem ({d}): {v}","tig.l.vd.edge":"przewaga potwierdzona testem","tig.l.vd.none":"bez potwierdzonej przewagi","tig.l.vd.anti":"gorzej niż rzut monetą","tig.l.how":"Strona sama sprawdza swoje sygnały: każda z {m} reguł ma własny licznik, a ocena po 100, 200 i 400 dniach z sygnałem jest zapisywana na stałe i później się nie zmienia.","tig.l.aria":"Postęp nauki: {n} z {c} dni z sygnałem"}};
 for(const l in EXTRA175)if(I18N[l])Object.assign(I18N[l],EXTRA175[l]);
+/* v210: Ustawienia — karta „Prywatność” (tylko pl, cel właściciela 04.10) */
+const EXTRA176={"pl":{"set.priv.t":"Prywatność","set.priv.1":"Strona nie ma kont, formularzy, reklam ani statystyk odwiedzin i nie zapisuje ciasteczek — nie zbiera danych osobowych.","set.priv.2":"W pamięci Twojej przeglądarki zostają tylko: ustawienia (język, widok, zwinięte sekcje, okresy wykresów), Twoja zgoda na widgety wykresów i comiesięczny zapis odczytów mapy do statystyki trafności w „Metodologii”. Obraz tła wybrany powyżej zostaje tylko w otwartej karcie. Nic z tego nie opuszcza Twojego urządzenia; usuniesz to, czyszcząc dane tej strony w przeglądarce.","set.priv.3":"Część liczb Twoja przeglądarka pobiera bezpośrednio z publicznych serwisów danych, a samą stronę udostępnia serwis hostingowy — jak każdy serwer, widzą one adres IP połączenia. Widgety wykresów firmy zewnętrznej na dole stron GLOBAL i CRYPTO ładują się dopiero po Twojej zgodzie i mogą wtedy używać własnych ciasteczek."}};
+for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */

@@ -13550,3 +13550,22 @@ test('v208: nauka sygnałów — pasek „n z c dni z sygnałem”, szacunek (mi
   const c0 = html.indexOf('/* v208: nauka sygnałów — pasek postępu'), css = html.slice(c0, html.indexOf('\n@media', c0));
   assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && css.includes('var(--bl)'), 'styl: tylko zmienne motywu');
 });
+
+
+/* ---------- v210: Ustawienia — karta „Prywatność” ---------- */
+test('v210: Ustawienia — karta „Prywatność” przed przyciskiem „Gotowe”: nagłówek i trzy akapity z data-i18n, bez nazw dostawców; słownik tylko po polsku', () => {
+  const s0 = html.indexOf('<section class="settings" id="settings" hidden>'), s1 = html.indexOf('</section>\n\n  <section class="page" id="page-flows"', s0), S = html.slice(s0, s1);
+  const c0 = S.indexOf('<section class="panel set-card set-priv">');
+  assert.ok(c0 > S.indexOf('id="set-scene"') && c0 < S.indexOf('id="set-done"'), 'ostatnia karta, przed „Gotowe”');
+  assert.ok(S.includes('<h2 data-i18n="set.priv.t"></h2>\n      <p data-i18n="set.priv.1"></p>\n      <p data-i18n="set.priv.2"></p>\n      <p data-i18n="set.priv.3"></p>'), 'nagłówek i trzy akapity');
+  const d0 = html.indexOf('const EXTRA176='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA176='.length, d1));
+  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl), ['set.priv.t', 'set.priv.1', 'set.priv.2', 'set.priv.3']);
+  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);'), 'jedna linia for po słowniku');
+  const T = Object.values(D.pl).join(' ');
+  for (const w of ['TradingView', 'GitHub', 'CoinGecko', 'CoinPaprika', 'DefiLlama', 'BIS', 'Google']) assert.ok(!T.includes(w), 'bez nazwy: ' + w);
+  assert.ok(T.includes('nie zapisuje ciasteczek') && T.includes('nie opuszcza Twojego urządzenia') && T.includes('dopiero po Twojej zgodzie') && T.includes('Obraz tła'), 'kluczowe zdania');
+  for (const k of Object.keys(D.pl)) assert.equal(v96src.tFor('pl')(k), D.pl[k], 'wpis widoczny w słowniku strony: ' + k);
+  assert.ok(html.includes("$$('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));"), 'teksty jako zwykły tekst (bez HTML)');
+  const c = html.slice(html.indexOf('/* v210: Ustawienia — karta „Prywatność”'), html.indexOf('\n', html.indexOf('.set-priv p{')));
+  assert.ok(c.includes('.set-priv p{') && !/#[0-9a-fA-F]{3,6}\b/.test(c), 'styl: tylko zmienne motywu');
+});
