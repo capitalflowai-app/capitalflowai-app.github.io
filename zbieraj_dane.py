@@ -5009,9 +5009,13 @@ FUND_TNA_X = 2.0   # v217: aktywa funduszu (NAV × liczba jednostek) ponad tyle 
 FUND_PARA_X = 1.35  # v231: para kolejnych dni z aktywami (NAV × jednostki) ponad tyle razy (albo poniżej odwrotności) bez rozpoznanego podziału = skok
 #                     bez wyjaśnienia (podział jednostek bez poprawki NAV: 2:1, 1:2, 3:2); prawdziwe dane 06.10.2026, 11 052 pary: −15,3% … +12,7%
 FUND_PODZIALY = (2, 3, 4, 5, 10, 1.5, 4 / 3, 1.25)   # v233: ułamki podziału (i odwrotności — scalenia)
-FUND_STALE_U, FUND_STALE_N = 0.02, 0.01   # v233: liczba jednostek zmieniona o ułamek podziału (±2%) przy NAV prawie bez zmian (±1%) = podział
+FUND_STALE_U, FUND_STALE_N = 0.02, 0.03   # v233/v235: liczba jednostek zmieniona o ułamek podziału (±2%) przy NAV prawie bez zmian (±3%; v233 ±1% —
+#                     przegląd: 25,7% dni funduszy TRENDÓW rusza się o ponad 1%, a FXI 04.10.2024 z NAV +3,06% to prawdziwy napływ) = podział
 #                     bez poprawki NAV (4:3, 5:4, 3:4, 4:5 — aktywa ×1,25–1,33 mieściły się w FUND_PARA_X) — skok; prawdziwe dane 06.10.2026
 #                     (98 902 pary dni: fundusze 37 × 300, TRENDY 35 × do 10 lat): 5 takich dni (SPDW 2017, GLDM 2018 ×3, EZU 2025) — brak, nie zła liczba
+FUND_BLISKIE = (1.5, 4 / 3, 1.25)   # v235: ułamki bliskie sobie — zgodność NAV w podziale ±5% (inne, nie do pomylenia: ±10%)
+FUND_LUSTRO = (4 / 3, 1.25, 3 / 4, 4 / 5)   # v235: NAV zmieniony o taki ułamek (±2%) przy jednostkach bez zmian (±2%) = podział z NAV przed
+#                     jednostkami (albo z opóźnieniem) — skok; aktywa ×0,75–1,33 mieszczą się w FUND_PARA_X; prawdziwe dane: 0 takich dni
 FUND_GR_X = 1.5     # v227: suma grupy — para przez złe wiersze z aktywami ponad tyle razy (trwały skok, np. podział bez poprawki NAV) = brak
 FUND_TNA_OKNO = 10  # v217/v223: tyle dni PRZED wierszem tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
 
@@ -5608,14 +5612,17 @@ def _cftc_roll(ds):
 def fund_split(a, b):
     """v93/v94: podział jednostek między dniami a i b ([data, NAV, liczba jednostek]): 1 = zwykły dzień; k (2, 3, 3/2, 1/2 …) = podział,
     gdy liczba jednostek zmienia się o prosty ułamek, a wartość funduszu (NAV × liczba) prawie nie; 0 = skok bez wyjaśnienia (dzień pomijany).
-    v233: podział tylko z jednym ułamkiem zgodnym i z liczbą jednostek, i z NAV; jednostki ×ułamek przy NAV bez zmian (FUND_STALE_*) = 0."""
+    v233: podział tylko z jednym ułamkiem zgodnym i z liczbą jednostek, i z NAV; jednostki ×ułamek przy NAV bez zmian (FUND_STALE_*) = 0.
+    v235: NAV ±3% w regule bez poprawki; lustro (FUND_LUSTRO); zgodność NAV ±10% dla ułamków nie do pomylenia (±5% dla FUND_BLISKIE)."""
     nr, sr = b[1] / a[1], b[2] / a[2]
     if abs(sr - 1) > 0.15 and abs(nr * sr - 1) < 0.1:
         # v233: ułamek pasuje i do liczby jednostek, i do NAV (po 5%) i jest jedyny — dwa możliwe (5:4 i 4:3 przy napływie) = skok, nie zgadywanie
-        ks = [k for q in FUND_PODZIALY for k in (q, 1 / q) if abs(sr / k - 1) < 0.05 and abs(nr * k - 1) < 0.05]
+        ks = [k for q in FUND_PODZIALY for k in (q, 1 / q) if abs(sr / k - 1) < 0.05 and abs(nr * k - 1) < (0.05 if q in FUND_BLISKIE else 0.10)]
         return ks[0] if len(ks) == 1 else 0
     if abs(nr - 1) < FUND_STALE_N and any(abs(sr / k - 1) < FUND_STALE_U for q in FUND_PODZIALY for k in (q, 1 / q)):
         return 0   # v233: jednostki zmienione o ułamek podziału, NAV prawie bez zmian — podział bez poprawki NAV (skok, nie przepływ 25–33%)
+    if abs(sr - 1) <= FUND_STALE_U and any(abs(nr * k - 1) < FUND_STALE_U for k in FUND_LUSTRO):
+        return 0   # v235: lustro — NAV poprawiony o bliski ułamek przy jednostkach bez zmian (NAV przed jednostkami) — skok, nie zwrot −25%
     return 1 if 0.6 < nr < 1.6 and 1 / 3 < sr < 3 and 1 / FUND_PARA_X < nr * sr < FUND_PARA_X else 0   # v231: aktywa ponad 1,35× w dobę — skok
 
 
@@ -8222,7 +8229,8 @@ def _tr_prices(S):
                 continue
             h = best[1][-(5 * (TR_PX_WEEKS + 1) + 1):]
             c, f = [h[-1][1]], 1.0                         # NAV w jednostkach po ostatnim podziale; skok bez wyjaśnienia ucina starszą część
-            for (a, b), k in zip(zip(reversed(h[:-1]), reversed(h[1:])), reversed(fund_pary(h))):   # v233: podział na dwa dni = skok
+            P = fund_pary(best[1])                          # v235: pary z całej historii — pierwsza para wycinka widzi dzień przed sobą
+            for (a, b), k in zip(zip(reversed(h[:-1]), reversed(h[1:])), reversed(P[-(len(h) - 1):])):   # v233: podział na dwa dni = skok
                 if not k:
                     META['notes'].append(f'trendy {best[0]}: skok NAV bez podziału jednostek ({b[0]}) — cena liczona od tego dnia'); break
                 f *= k; c.append(a[1] / f)

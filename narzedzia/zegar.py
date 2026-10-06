@@ -30,6 +30,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 REPO = os.environ.get('GITHUB_REPOSITORY', 'capitalflowai-app/capitalflowai-app.github.io')
@@ -50,6 +51,8 @@ DZIENNE_OD_MIN = 20   # przebieg „z dziś” = utworzony najwcześniej tyle mi
 ZAWIESZONY_MIN = 15         # v232: waiting tak długo (od updated_at), a nic nie czeka na osobę ani na licznik czasu = zawieszony (zwykle przejście trwa sekundy)
 ZAWIESZONY_PUSTY_MIN = 60   # v232: waiting bez żadnego oczekującego wdrożenia (pusta lista) — dłuższa cierpliwość
 ODBLOKUJ_MAX = 5            # v232: najwyżej tyle przebiegów sprawdzanych w jednym czuwaniu
+SRODOWISKO_REGULY_OK = ('branch_policy', 'wait_timer')   # v235: tylko takie reguły środowiska — recenzent, reguła aplikacji, nieznana = nie anulować
+ODBLOKUJ_CZEKAJ_S, ODBLOKUJ_KROK_S = 60, 5   # v235: po anulowaniu czekaj, aż GitHub zamknie przebieg (najwyżej tyle sekund, co tyle)
 
 
 def czas(s):
@@ -182,6 +185,28 @@ def zawieszony(run, pend, now):
     return f'czeka {int(od)} min na wdrożenie, którego nikt nie musi zatwierdzać'
 
 
+def srodowisko_ok(env, wlasne):
+    """v235: środowisko (GET /environments/{nazwa}) i jego reguły aplikacji (GET …/deployment_protection_rules) → True, gdy wolno anulować:
+    same reguły z SRODOWISKO_REGULY_OK i żadnej reguły aplikacji (ich zatwierdzeń nie widać w reviewers ani wait_timer); nieznany kształt = False."""
+    if not isinstance(env, dict) or not isinstance(env.get('protection_rules'), list) or not isinstance(wlasne, dict):
+        return False
+    if any(not isinstance(r, dict) or r.get('type') not in SRODOWISKO_REGULY_OK for r in env['protection_rules']):
+        return False
+    n = wlasne.get('total_count')
+    return isinstance(n, int) and not isinstance(n, bool) and n == 0
+
+
+def czekaj_koniec(rid, token, sleep):
+    """v235: po anulowaniu czekaj (najwyżej ODBLOKUJ_CZEKAJ_S), aż GitHub zamknie przebieg — inaczej czuwanie chwilę później widzi go jako
+    aktywny („nic”), a po force-cancel zadanie zegara tego przebiegu się nie wykona (łańcuch czuwania mógłby stanąć). True = zamknięty."""
+    for _ in range(ODBLOKUJ_CZEKAJ_S // ODBLOKUJ_KROK_S):
+        _, j = _api(f'/repos/{REPO}/actions/runs/{rid}', token)
+        if isinstance(j, dict) and j.get('status') == 'completed':
+            return True
+        sleep(ODBLOKUJ_KROK_S)
+    return False
+
+
 def anuluj(rid, token):
     """v232: anuluj przebieg; GitHub odmawia (409) — force-cancel. Zwraca kod HTTP."""
     try:
@@ -194,7 +219,7 @@ def anuluj(rid, token):
     return st
 
 
-def _odblokuj(token, now):
+def _odblokuj(token, now, sleep=time.sleep):
     """v232: zawieszone przebiegi „Strona i dane” → anuluj; każdy osobno (błąd jednego nie blokuje drugiego); w logu tylko rodzaj błędu."""
     _, j = _api(f'/repos/{REPO}/actions/workflows/{WF_STRONA}/runs?status=waiting&per_page=10', token)
     runs = [r for r in ((j.get('workflow_runs') or []) if isinstance(j, dict) else []) if isinstance(r, dict) and r.get('status') == 'waiting']
@@ -209,8 +234,17 @@ def _odblokuj(token, now):
             powod = zawieszony(r, pend, now)
             if powod is None:
                 print(f'zegar: odblokuj: przebieg {rid} czeka — jeszcze nie zawieszony albo czeka na zatwierdzenie'); continue
+            nazwa = next((p['environment']['name'] for p in pend if isinstance(p, dict) and isinstance(p.get('environment'), dict)
+                          and isinstance(p['environment'].get('name'), str) and p['environment']['name']), 'github-pages')
+            q = urllib.parse.quote(nazwa, safe='')
+            _, env = _api(f'/repos/{REPO}/environments/{q}', token)
+            _, wl = _api(f'/repos/{REPO}/environments/{q}/deployment_protection_rules', token)
+            if not srodowisko_ok(env, wl):   # v235: recenzent, reguła aplikacji albo nieznana reguła — zatwierdzenie należy do właściciela
+                print(f'zegar: odblokuj: przebieg {rid} {powod}, ale środowisko ma regułę inną niż gałąź i licznik czasu — nie anuluję'); continue
             st = anuluj(rid, token)
-            print(f'zegar: odblokuj: przebieg {rid} {powod} — anulowany (HTTP {st}); następny przebieg ruszy sam')
+            zam = czekaj_koniec(rid, token, sleep)   # v235
+            print(f'zegar: odblokuj: przebieg {rid} {powod} — anulowany (HTTP {st}, ' + ('zamknięty' if zam else 'GitHub jeszcze go zamyka')
+                  + '); następny przebieg ruszy sam')
         except Exception as e:  # noqa — bez treści wyjątku (mogłaby zawierać nagłówki), tylko rodzaj
             print(f'zegar: odblokuj: przebieg {rid}: błąd {type(e).__name__} — następna próba przy kolejnym czuwaniu')
     return 0
@@ -239,7 +273,7 @@ def _main(argv, now_fn, sleep):
     if tryb == 'dzienne':   # v159: krótko, bez czekania — przed czuwaniem „Strona i dane”
         return _dzienne(token, now_fn())
     if tryb == 'odblokuj':   # v232: krótko, bez czekania — przed czuwaniem (zawieszony przebieg trzyma grupę „pages”)
-        return _odblokuj(token, now_fn())
+        return _odblokuj(token, now_fn(), sleep)
     if tryb == 'zbudz':   # v145.2: zawsze — czuwanie po każdym przebiegu (próg zależy od stanu harmonogramu, liczony w trybie prowadz)
         st = uruchom(WF_ZEGAR, token)
         print(f'zegar: czuwanie po przebiegu — uruchomiony zegar zapasowy (HTTP {st})'); return 0

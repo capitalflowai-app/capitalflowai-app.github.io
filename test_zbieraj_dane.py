@@ -8117,9 +8117,9 @@ class TrendyDailyWorldV127(unittest.TestCase):
             r[3] = r[0] + 'T23:30:00Z'
         by = {r[0]: r for r in px}; fb = {r[0]: r for r in fl}
         by[D][2] = round(by[D1][2] * 1.03, 4); by[D][1] = round(by[D][2] / 1.001, 4)       # D: +3% zamknięcie→zamknięcie → p w górę na S
-        base = fb[D2][2]; fb[D1][2] = base - 2.9e5; fb[D][2] = base - 3.0e5                # od D−2 do D: duży odpływ; D−1 → D: prawie nic
+        base = fb[D2][2]; fb[D1][2] = base - 1.5e5; fb[D][2] = base - 1.6e5                # od D−2 do D: duży odpływ; D−1 → D: prawie nic (v235: ok. 13%, nie ×3/4)
         for d in cal[i:]:
-            fb[d][2] = base - 3.0e5 + 1e3 * (cal.index(d) - i)
+            fb[d][2] = base - 1.6e5 + 1e3 * (cal.index(d) - i)
         fb[D1][3] = S + 'T15:00:00Z'                                                       # wiersz D−1 dopisany po granicy S (13:00 UTC)
         t = self.utc(zd._tdw_cut(S)) + datetime.timedelta(minutes=5)
         s0 = zd._tdw_series(self._state_at(wd, t, S), 'EWJ')
@@ -14088,7 +14088,7 @@ class KontrolaPrzebiegiV124_1(unittest.TestCase):
         with open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
             src = f.read()
         i = src.index('# 4. przebiegi Actions'); j = src.index('# 5. v115', i)
-        self.assertIn('przebiegi_ocena(runs, NOW, kroki)', src[i:j]); self.assertNotIn("R['bledy'].append", src[i:j])
+        self.assertIn('przebiegi_ocena(runs, NOW, kroki, pend)', src[i:j]); self.assertNotIn("R['bledy'].append", src[i:j])   # v235: pend
         self.assertIn('/jobs', src[i:j]); self.assertIn('[:5]', src[i:j], 'najwyżej 5 dodatkowych zapytań')
 
 
@@ -26526,6 +26526,12 @@ class ZegarOdblokujV232(unittest.TestCase):
                     if isinstance(odp, Exception):
                         raise odp
                     return odp
+            if path.endswith('/deployment_protection_rules'):   # v235: domyślnie stan 06.10.2026 (bez reguł aplikacji, sama reguła gałęzi)
+                return 200, {'total_count': 0, 'custom_deployment_protection_rules': []}
+            if '/environments/' in path:
+                return 200, {'protection_rules': [{'type': 'branch_policy'}]}
+            if path.rsplit('/', 1)[1].isdigit():                   # v235: stan przebiegu po anulowaniu
+                return 200, {'status': 'completed'}
             raise AssertionError('nieoczekiwane zapytanie ' + path)
         with mock.patch.dict(os.environ, {'GH_TOKEN': token, **(env or {})}, clear=False), mock.patch.object(self.Z, '_api', api), \
                 mock.patch('sys.stdout', out):
@@ -26539,15 +26545,18 @@ class ZegarOdblokujV232(unittest.TestCase):
         rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
                                   ('/cancel', (202, {}))])
         self.assertEqual(rc, 0)
+        r0 = '/repos/capitalflowai-app/capitalflowai-app.github.io/'
         self.assertEqual([p for p, d in log], [base + 'workflows/strona.yml/runs?status=waiting&per_page=10',
-                                               base + 'runs/37437793511/pending_deployments', base + 'runs/37437793511/cancel'])
-        self.assertEqual(log[-1][1], {}, 'POST (pusta treść)')
-        self.assertIn('anulowany (HTTP 202)', out)
+                                               base + 'runs/37437793511/pending_deployments', r0 + 'environments/github-pages',
+                                               r0 + 'environments/github-pages/deployment_protection_rules', base + 'runs/37437793511/cancel',
+                                               base + 'runs/37437793511'], 'v235: reguły środowiska przed anulowaniem, stan przebiegu po nim')
+        self.assertEqual([d for p, d in log if p.endswith('/cancel')], [{}], 'POST (pusta treść)')
+        self.assertIn('anulowany (HTTP 202, zamknięty)', out)
         # GitHub odmawia zwykłego anulowania (409) — force-cancel
         e409 = urllib.error.HTTPError('https://api.github.com/x', 409, 'Conflict', {}, None)
         rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
                                   ('/cancel', e409), ('/force-cancel', (202, {}))])
-        self.assertEqual([p.rsplit('/', 1)[1] for p, d in log][-2:], ['cancel', 'force-cancel']); self.assertIn('anulowany (HTTP 202)', out)
+        self.assertEqual([p.rsplit('/', 1)[1] for p, d in log][-3:-1], ['cancel', 'force-cancel']); self.assertIn('anulowany (HTTP 202', out)
         # inny błąd anulowania — bez force-cancel, kod 0, w logu tylko rodzaj
         e403 = urllib.error.HTTPError('https://api.github.com/x', 403, 'Forbidden', {}, None)
         rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
@@ -26641,7 +26650,7 @@ class PoPrzegladzieV233(unittest.TestCase):
     """v233: podział jednostek — ponad 15% w dobę tylko z poprawionym NAV i jednym pasującym ułamkiem; kursy z inną bazą w kontroli."""
 
     def test_podzial_bez_poprawki_nav_bliskie_ulamki(self):
-        self.assertEqual((zd.FUND_STALE_U, zd.FUND_STALE_N), (0.02, 0.01))
+        self.assertEqual((zd.FUND_STALE_U, zd.FUND_STALE_N), (0.02, 0.03))   # v235: NAV ±3%
         for k in (4 / 3, 1.25, 0.75, 0.8, 1.5, 2 / 3, 2.0, 0.5):                 # jednostki ×k, NAV bez zmian (podział bez poprawki NAV)
             for nav in (1.0, 0.995, 1.005):
                 self.assertEqual(zd.fund_split([0, 100.0, 1_000_000], [0, 100.0 * nav, 1_000_000 * k]), 0, f'jednostki ×{k:.3f}, NAV ×{nav} — skok')
@@ -26654,8 +26663,8 @@ class PoPrzegladzieV233(unittest.TestCase):
         d, px, ret = zd._td_fund_px(h)
         self.assertEqual(ret[:3], [None, None, None], 'bez fałszywego zwrotu −25% w dniu poprawki NAV'); self.assertAlmostEqual(ret[3], 0.1 / 75 * 100)
         h2 = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 75.0, 1e8], ['2026-06-03', 75.0, 1e8 * 4 / 3], ['2026-06-04', 75.1, 1e8 * 4 / 3]]
-        self.assertEqual(zd.fund_pary(h2), [1, 0, 1], 'odwrotnie (NAV, potem jednostki): drugi dzień skok; pierwszego nie da się poznać bez dnia następnego')
-        self.assertEqual(sorted(zd.fund_flows(h2, bez=())), ['2026-06-02', '2026-06-04'], 'przepływ 06-02 = 0 (jednostki bez zmian) — prawdziwy')
+        self.assertEqual(zd.fund_pary(h2), [0, 0, 1], 'odwrotnie (NAV, potem jednostki): oba dni skok (v235: lustro — NAV ×0,75 przy jednostkach bez zmian)')
+        self.assertEqual(sorted(zd.fund_flows(h2, bez=())), ['2026-06-04'])
         for n in range(2, len(h) + 1):                                              # przyczynowo: para liczona z wierszy do jej końca
             self.assertEqual(zd.fund_pary(h[:n]), zd.fund_pary(h)[:n - 1], n)
         h3 = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 100.0, 1e8 * 3], ['2026-06-03', 100.4, 1e8 * 3]]   # skok bez podziału (błąd liczby)
@@ -26676,7 +26685,7 @@ class PoPrzegladzieV233(unittest.TestCase):
         self.assertEqual(F([0, 100.0, 1e6], [0, 75.0, 1e6 * 4 / 3 * 1.08]), 0, '4:3 i napływ 8% — dawniej 3:2 (zły przepływ)')
         self.assertEqual(F([0, 100.0, 1e6], [0, 75.0, 1e6 * 4 / 3 * 1.03]), 4 / 3, '4:3 i napływ 3%')
         self.assertEqual(F([0, 100.0, 1e6], [0, 50.0 * 1.02, 2e6 * 1.03]), 2, '2:1 z napływem 3% i zwrotem 2%')
-        self.assertEqual(F([0, 100.0, 1e6], [0, 50.0 * 0.93, 2e6]), 0, '2:1 w dniu spadku o 7% — NAV nie pasuje: skok (brak)')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 50.0 * 0.93, 2e6]), 2, '2:1 w dniu spadku o 7% — v235: ±10% dla ułamków nie do pomylenia')
         for nr, sr in ((1.0, 1.104), (1.0, 0.9142), (0.847, 1.0), (1.127, 1.0), (1.0306, 1.2272), (1.0087, 1.1648), (1.037, 1.1457)):   # prawdziwe dni (FXI X 2024 …)
             self.assertEqual(F([0, 100.0, 1e6], [0, 100.0 * nr, 1e6 * sr]), 1, (nr, sr))
 
@@ -26703,3 +26712,145 @@ class PoPrzegladzieV233(unittest.TestCase):
         self.assertIn('; migawki z inną walutą bazową: 1T (EUR) ⚠️.', r)
         r = k.raport_md(dict(base, zgodnosc={'fx': {'daty': [['2026-10-02', 2, 0.1, 'JPY', 0.2]], 'zle': [], 'med_zle': [], 'baza': []}}))
         self.assertIn('najwięcej JPY +0,20% ✅.', r)
+
+
+# ===================== v235: POPRAWKI PO PRZEGLĄDZIE v232–v233 =====================
+class PoPrzegladzieV235(unittest.TestCase):
+    """v235: podział bez poprawki NAV także w dni ruchu ceny (±3%), lustro (NAV przed jednostkami), tolerancja NAV wg ułamka; kontrola i zegar."""
+
+    def test_podzial_bez_poprawki_nav_w_dni_ruchu(self):
+        F = zd.fund_split
+        self.assertEqual((zd.FUND_STALE_U, zd.FUND_STALE_N), (0.02, 0.03))
+        for k in (4 / 3, 1.25, 0.75, 0.8):
+            for nav in (0.985, 1.015, 0.975, 1.025):                                 # przegląd: 4:3 przy NAV −1,5% dawał +33% aktywów
+                self.assertEqual(F([0, 100.0, 1e6], [0, 100.0 * nav, 1e6 * k]), 0, f'jednostki ×{k:.3f}, NAV ×{nav}')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 103.06, 1.2272e6]), 1, 'FXI 04.10.2024 (NAV +3,06%) — prawdziwy napływ, nadal zwykły dzień')
+
+    def test_lustro_nav_przed_jednostkami(self):
+        F = zd.fund_split
+        for k in (4 / 3, 1.25, 0.75, 0.8):
+            for u in (1.0, 1.015, 0.985):
+                self.assertEqual(F([0, 100.0, 1e6], [0, 100.0 / k, 1e6 * u]), 0, f'NAV ×{1 / k:.3f} przy jednostkach ×{u}')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 84.7, 1e6]), 1, 'srebro −15,3% — zwykły dzień')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 77.0, 1e6]), 1, '−23% (np. krach) — poza ±2% od ×0,75 i ×0,8: zwykły dzień')
+        h = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 75.0, 1e8], ['2026-06-03', 75.0, 1e8 * 4 / 3], ['2026-06-04', 75.1, 1e8 * 4 / 3]]
+        self.assertEqual(zd.fund_pary(h), [0, 0, 1], 'NAV, potem jednostki — oba dni skok (bez zwrotu −25%)')
+        self.assertEqual(zd._td_fund_px(h)[2][:3], [None, None, None])
+        h2 = [['2026-06-01', 100.0, 1e8], ['2026-06-02', 100.0, 1e8 * 4 / 3], ['2026-06-03', 100.3, 1e8 * 4 / 3], ['2026-06-04', 75.2, 1e8 * 4 / 3]]
+        P = zd.fund_pary(h2)
+        self.assertEqual((P[0], P[2]), (0, 0), 'NAV poprawiony dwa dni później — bez przepływu +33% i bez zwrotu −25%')
+        self.assertNotIn(None, [zd._td_fund_px(h2)[2][2]], 'dzień między nogami — zwykły ruch')
+
+    def test_tolerancja_nav_wg_ulamka(self):
+        F = zd.fund_split
+        self.assertEqual(F([0, 100.0, 1e6], [0, 50.0 * 0.93, 2e6]), 2, '2:1 w dniu spadku o 7% — rozpoznany (±10% dla ułamków nie do pomylenia)')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 50.0 * 1.08, 2e6 * 0.99]), 2)
+        self.assertEqual(F([0, 100.0, 1e6], [0, 50.0 * 0.85, 2e6]), 0, 'NAV −15% przy 2:1 — skok')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 80.0, 1.25e6 * 1.03]), 1.25, '5:4 i napływ 3% — nadal jednoznaczny')
+        self.assertEqual(F([0, 100.0, 1e6], [0, 75.0 * 0.93, 1e6 * 4 / 3]), 0, '4:3 przy NAV −7% — bliski ułamek: tylko ±5%')
+
+    def test_cena_tygodniowa_fund_pary_z_calej_historii(self):
+        import inspect
+        src = inspect.getsource(zd)
+        self.assertIn('P = fund_pary(best[1])', src); self.assertIn('reversed(P[-(len(h) - 1):])', src)
+
+    def test_kontrola_baza_bez_h10(self):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola235-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v235_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        ok = {'EUR': 0.85}
+        r = {'fx': {'now': {'base': 'EUR', 'date': '2026-10-02', 'rates': ok}, '1M': {'base': '', 'date': '2026-09-02', 'rates': ok},
+                    '1D': {'base': 'USD', 'date': '2026-10-01', 'rates': ok}, '1T': {'date': '2026-09-25', 'rates': ok}}}
+        self.assertEqual(k.fx_baza(r), [['now', 'EUR'], ['1M', 'brak']], 'pusta baza = „brak”; bez pola base (stary format) — bez uwagi')
+        self.assertEqual(k.fx_baza({}), []); self.assertEqual(k.fx_baza({'fx': 'x'}), [])
+        self.assertEqual(k.fx_porownanie(r, {})['baza'], [['now', 'EUR'], ['1M', 'brak']], 'H.10 puste — ostrzeżenie o bazie zostaje')
+        self.assertIsNone(k.fx_porownanie({'fx': {'1T': {'date': '2026-09-25', 'rates': ok}}}, {}))
+        base = {'at': '2026-10-06T10:00:00+00:00', 'wynik': 'UWAGA', 'bledy': [], 'uwagi': ['x'], 'meta': {}, 'strona': {}, 'zrodla': []}
+        t = k.raport_md(dict(base, zgodnosc={'fx': {'brak': 'H.10: timed out', 'baza': [['now', 'EUR']]}}))
+        self.assertIn('- Kursy walut (plik strony vs H.10 Fed): brak porównania (H.10: timed out) ℹ️; migawki z walutą bazową inną niż USD: now (EUR) ⚠️.', t)
+        self.assertIn('- Kursy walut (plik strony vs H.10 Fed): brak porównania (x) ℹ️.', k.raport_md(dict(base, zgodnosc={'fx': {'brak': 'x'}})))
+
+    def test_kontrola_recenzent(self):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola235r-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v235_kr', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        NOW = datetime.datetime(2026, 10, 6, 12, 0, tzinfo=datetime.timezone.utc)
+        f = lambda m: (NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        runs = [{'id': 7, 'name': 'Strona i dane', 'status': 'waiting', 'conclusion': None, 'run_started_at': f(200), 'updated_at': f(190)}] + \
+               [{'id': 100 + j, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(5 + 10 * j), 'updated_at': f(3 + 10 * j)} for j in range(40)]
+        A, b, u = k.przebiegi_ocena(runs, NOW, None, {7: [{'environment': {'name': 'github-pages'}, 'wait_timer': 0, 'reviewers': [{'type': 'User'}]}]})
+        self.assertEqual(b, [], 'czeka na osobę — nie „zawieszona”')
+        w = [x for x in u if x.startswith('publikacja czeka')]
+        self.assertEqual(len(w), 1); self.assertIn('zatwierdzenie przez osobę', w[0]); self.assertIn('Review deployments', w[0])
+        A, b, u = k.przebiegi_ocena(runs, NOW, None, {7: [{'wait_timer': 0, 'reviewers': []}]})
+        self.assertTrue(b and b[0].startswith('publikacja zawieszona'), 'bez recenzenta — jak w v232')
+        A, b, u = k.przebiegi_ocena(runs, NOW)
+        self.assertTrue(b and b[0].startswith('publikacja zawieszona'), 'bez odczytu oczekujących wdrożeń — jak w v232')
+
+
+class ZegarOdblokujV235(unittest.TestCase):
+    """v235: reguły środowiska przed anulowaniem; po anulowaniu czekanie, aż GitHub zamknie przebieg. Bez sieci (_api atrapą)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('v235_zegar', os.path.join(root, 'narzedzia', 'zegar.py'))
+        cls.Z = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.Z)
+        cls.NOW = datetime.datetime(2026, 10, 6, 9, 52, tzinfo=datetime.timezone.utc)
+        cls.RUN = {'id': 37437793511, 'name': 'Strona i dane', 'status': 'waiting', 'updated_at': '2026-10-06T08:47:47Z'}
+        cls.PEND = [{'environment': {'name': 'github-pages'}, 'wait_timer': 0, 'wait_timer_started_at': None, 'reviewers': []}]
+
+    def test_srodowisko_ok(self):
+        Z = self.Z
+        self.assertTrue(Z.srodowisko_ok({'protection_rules': [{'type': 'branch_policy'}]}, {'total_count': 0}), 'stan 06.10.2026')
+        self.assertTrue(Z.srodowisko_ok({'protection_rules': [{'type': 'branch_policy'}, {'type': 'wait_timer', 'wait_timer': 5}]}, {'total_count': 0}))
+        self.assertTrue(Z.srodowisko_ok({'protection_rules': []}, {'total_count': 0}))
+        for env, wl in (({'protection_rules': [{'type': 'required_reviewers'}]}, {'total_count': 0}),
+                        ({'protection_rules': [{'type': 'branch_policy'}]}, {'total_count': 1}),
+                        ({'protection_rules': [{'type': 'cos_nowego'}]}, {'total_count': 0}),
+                        ({}, {'total_count': 0}), (None, None), ({'protection_rules': [{'type': 'branch_policy'}]}, {'total_count': True})):
+            self.assertFalse(Z.srodowisko_ok(env, wl), (env, wl))
+
+    def _run(self, odp, sleeps):
+        log, out = [], io.StringIO()
+
+        def api(path, token_, data=None):
+            log.append((path, data))
+            for klucz, o in odp:
+                if klucz in path:
+                    if isinstance(o, Exception):
+                        raise o
+                    return o() if callable(o) else o
+            raise AssertionError('nieoczekiwane zapytanie ' + path)
+        with mock.patch.dict(os.environ, {'GH_TOKEN': 'ghs_TAJNY'}, clear=False), mock.patch.object(self.Z, '_api', api), mock.patch('sys.stdout', out):
+            rc = self.Z.main(['zegar.py', 'odblokuj'], now_fn=lambda: self.NOW, sleep=sleeps.append)
+        self.assertNotIn('TAJNY', out.getvalue())
+        return rc, log, out.getvalue()
+
+    def test_recenzent_albo_aplikacja_nie_anuluje(self):
+        for env, wl in (({'protection_rules': [{'type': 'required_reviewers'}]}, {'total_count': 0}),
+                        ({'protection_rules': [{'type': 'branch_policy'}]}, {'total_count': 2})):
+            sl = []
+            rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
+                                      ('/deployment_protection_rules', (200, wl)), ('/environments/github-pages', (200, env))], sl)
+            self.assertEqual([p for p, d in log if d is not None], [], 'bez anulowania'); self.assertIn('nie anuluję', out)
+
+    def test_czeka_az_github_zamknie(self):
+        stany = iter(['in_progress', 'in_progress', 'completed'])
+        sl = []
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
+                                  ('/deployment_protection_rules', (200, {'total_count': 0})), ('/environments/github-pages', (200, {'protection_rules': [{'type': 'branch_policy'}]})),
+                                  ('/cancel', (202, {})), ('/actions/runs/37437793511', lambda: (200, {'status': next(stany)}))], sl)
+        self.assertEqual(sl, [self.Z.ODBLOKUJ_KROK_S] * 2, 'czeka, aż przebieg będzie zakończony')
+        self.assertIn('anulowany (HTTP 202, zamknięty)', out)
+        sl = []
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
+                                  ('/deployment_protection_rules', (200, {'total_count': 0})), ('/environments/github-pages', (200, {'protection_rules': [{'type': 'branch_policy'}]})),
+                                  ('/cancel', (202, {})), ('/actions/runs/37437793511', (200, {'status': 'in_progress'}))], sl)
+        self.assertEqual(sum(sl), self.Z.ODBLOKUJ_CZEKAJ_S, 'najwyżej 60 s'); self.assertIn('GitHub jeszcze go zamyka', out)

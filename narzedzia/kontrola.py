@@ -709,19 +709,28 @@ def fx_uwagi(f):
     return out
 
 
+def fx_baza(rynki):
+    """v235: migawki kursów pliku strony z polem base innym niż USD → [[migawka, waluta albo „brak”], …] — niezależnie od H.10 (gdy H.10 nie
+    odpowiada, ostrzeżenie zostaje; strona takie migawki odrzuca). Bez pola base (stary format) — bez uwagi."""
+    fx = rynki.get('fx') if isinstance(rynki, dict) else None
+    if not isinstance(fx, dict):
+        return []
+    return [[k, fx[k]['base'][:8] if isinstance(fx[k].get('base'), str) and fx[k]['base'] else 'brak'] for k in FX_MIGAWKI
+            if isinstance(fx.get(k), dict) and 'base' in fx[k] and fx[k].get('base') != 'USD']
+
+
 def fx_porownanie(rynki, h10):
     """v225: migawki kursów pliku strony (rynki.json → fx[now|1D|1T|1M|1Q|1R] = {date, base: USD, rates: {waluta: ile za 1 USD}}) vs H.10 z tych
     samych dni → {'daty': [[dzień, n walut, mediana |%|, waluta z największą różnicą, jej %], …], 'zle': [[dzień, waluta, strona, H.10, %], …]
     (ponad FX_PROG), 'med_zle': [[dzień, mediana %], …] (ponad FX_MED przy co najmniej FX_MIN_N walutach)}; brak migawek albo H.10 = None.
     Ta sama data w kilku migawkach — porównana raz (pierwsza w kolejności FX_MIGAWKI)."""
     fx = rynki.get('fx') if isinstance(rynki, dict) else None
+    baza = fx_baza(rynki)   # v231/v233/v235: migawka z inną walutą bazową (także pusta) — ⚠️, także bez H.10
     if not isinstance(fx, dict) or not isinstance(h10, dict) or not h10:
-        return None
-    by, baza = {}, []
+        return {'daty': [], 'zle': [], 'med_zle': [], 'baza': baza} if baza else None
+    by = {}
     for k in FX_MIGAWKI:
         s = fx.get(k)
-        if isinstance(s, dict) and 'base' in s and s.get('base') != 'USD':   # v233: także puste pole base (strona je odrzuca)
-            baza.append([k, s['base'][:8] if isinstance(s.get('base'), str) else 'brak'])   # v231: migawka z inną walutą bazową — ⚠️
         if isinstance(s, dict) and s.get('base') == 'USD' and isinstance(s.get('date'), str) and isinstance(s.get('rates'), dict):
             by.setdefault(s['date'], s['rates'])
     if not by and not baza:
@@ -1217,12 +1226,13 @@ def zadanie_min(jobs, nazwa):
     return None
 
 
-def przebiegi_ocena(runs, now, kroki=None):
+def przebiegi_ocena(runs, now, kroki=None, pend=None):
     """v124.1: przebiegi automatu („Strona i dane”) z ostatnich 24 h → (actions, bledy, uwagi).
     BŁĄD tylko, gdy automat NADAL nie działa: dwa ostatnie zakończone przebiegi nieudane albo ≥ 3 porażki w 24 h i ostatni zakończony
     też nieudany. Jedna świeża porażka = uwaga („kolejny przebieg za ok. 20 min”). Porażki już naprawione (po ostatniej same udane) =
     uwaga z godzinami, krokiem i liczbą udanych przebiegów od ostatniej porażki. Przebiegi w toku i anulowane nie liczą się do serii.
-    kroki: {id przebiegu: opis kroku} dla porażek (z API zadań; może brakować — wtedy sama godzina)."""
+    kroki: {id przebiegu: opis kroku} dla porażek (z API zadań; może brakować — wtedy sama godzina).
+    v235: pend — {id przebiegu: oczekujące wdrożenia} dla przebiegów „waiting”: czeka na osobę (recenzent) = uwaga „zatwierdź”, nie błąd."""
     kroki = kroki or {}
     od = now - dt.timedelta(hours=24)
 
@@ -1282,7 +1292,11 @@ def przebiegi_ocena(runs, now, kroki=None):
     if cz:
         m, r = cz[0]
         kiedy = czas_pl(r.get('run_started_at'))
-        if m >= WAIT_BLAD_MIN:
+        pd_ = (pend or {}).get(r.get('id'))
+        if isinstance(pd_, list) and any(isinstance(p, dict) and p.get('reviewers') for p in pd_):   # v235: wymóg zatwierdzenia przez osobę
+            uwagi.append(f'publikacja czeka od {m} min na zatwierdzenie przez osobę (przebieg z {kiedy}; wymóg w ustawieniach środowiska '
+                         'github-pages) — zatwierdź w Actions („Review deployments”) albo usuń ten wymóg; zegar zapasowy takiego przebiegu nie anuluje')
+        elif m >= WAIT_BLAD_MIN:
             bledy.append(f'publikacja zawieszona: przebieg z {kiedy} czeka od {m // 60} godz. {m % 60} min na wdrożenie strony (stan „waiting”), '
                          'a zegar zapasowy go nie anulował — strona bez nowych danych')
         else:
@@ -2728,7 +2742,8 @@ def kontrola():
             Z['fx'] = f if f is not None else {'brak': 'brak migawek kursów w pliku strony'}
             R['uwagi'] += fx_uwagi(f)   # v227: przecinki dziesiętne, opis bez „migawki z innego dnia”
         except Exception as e:  # noqa
-            Z['fx'] = {'brak': f'H.10: {str(e)[:100]}'}
+            Z['fx'] = {'brak': f'H.10: {str(e)[:100]}', 'baza': fx_baza(files['rynki'])}   # v235: ostrzeżenie o walucie bazowej i bez H.10
+            R['uwagi'] += fx_uwagi(Z['fx'])
     try:
         zgodnosc_zapisz(zg_path, rows)
     except Exception as e:  # noqa
@@ -2839,7 +2854,14 @@ def kontrola():
                         break
             except Exception:  # noqa
                 pass
-        R['actions'], b, u = przebiegi_ocena(runs, NOW, kroki)
+        pend = {}   # v235: oczekujące wdrożenia przebiegów „waiting” (najwyżej 3 zapytania; błąd odczytu = jak dotąd, bez rozróżnienia)
+        for r in [r for r in runs if isinstance(r, dict) and str(r.get('name', '')).startswith('Strona') and r.get('status') == 'waiting'][:3]:
+            try:
+                _, b4, _ = get(f'https://api.github.com/repos/{REPO}/actions/runs/{r["id"]}/pending_deployments', headers=hdr)
+                pend[r['id']] = json.loads(b4)
+            except Exception:  # noqa
+                pass
+        R['actions'], b, u = przebiegi_ocena(runs, NOW, kroki, pend)
         # v194 (przegląd v190–v192): czas samego zadania budowy (limit 25 min) w 3 najdłuższych udanych przebiegach — całość przebiegu zawiera
         # czekanie na maszyny (w awarii GitHuba fałszywe „blisko limitu”); 3 dodatkowe zapytania, błąd odczytu = bez tej liczby
         bud, t_b = [], time.monotonic()
@@ -2977,7 +2999,8 @@ def raport_md(R):
         f = Z.get('fx')   # v225: kursy walut vs H.10
         if f:
             if f.get('brak'):
-                L.append(f'- Kursy walut (plik strony vs H.10 Fed): brak porównania ({f["brak"]}) ℹ️.')
+                L.append(f'- Kursy walut (plik strony vs H.10 Fed): brak porównania ({f["brak"]}) ℹ️'
+                         + ('; migawki z walutą bazową inną niż USD: ' + ', '.join(f'{k} ({b})' for k, b in f['baza']) + ' ⚠️.' if f.get('baza') else '.'))   # v235
             elif not f.get('daty') and f.get('baza'):   # v233: same migawki z inną bazą — ⚠️ z powodem (dotąd „brak wspólnych dat”)
                 L.append('- Kursy walut (plik strony vs H.10 Fed): migawki z walutą bazową inną niż USD ('
                          + ', '.join(f'{k} ({b})' for k, b in f['baza']) + ') — bez porównania ⚠️.')
