@@ -26179,3 +26179,75 @@ class PoPrzegladzieV223(unittest.TestCase):
         q['dost'] = {'at': '2026-10-07T06:00:05+00:00', 'blad': 'HTTP 500'}
         o = k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00', 'zuzycie': {'cmc': q}})
         self.assertIn('z limitu 10 000 (45%)', o['plany'][0]['tekst'], 'bez raportu dostawcy — limit z tabeli')
+
+
+# ===================== v225: KONTROLA — KURSY WALUT STRONY VS H.10 (FED) =====================
+class KontrolaKursyV225(unittest.TestCase):
+    """v225: migawki kursów rynki.json (now/1D/1T/…) vs H.10 Fed z tych samych dni; ⚠️ ponad 1,5% albo mediana dnia ponad 0,4%; nigdy ❌."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v225', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    CSV = ('"Series Description","Australian Dollar","Euro-Area Euro","Japanese Yen","Mexican Peso","Swiss Franc","Canadian Dollar","Venezuelan Bolivar"\n'
+           '"Unit:","Currency","Currency","Currency","Currency","Currency","Currency","Currency"\n'
+           '"Multiplier:","1","1","1","1","1","1","1"\n'
+           '"Currency:","AUD","EUR","JPY","MXN","CHF","CAD","VEB"\n'
+           '"Unique Identifier: ","H10/H10/RXI$US_N.B.AL","H10/H10/RXI$US_N.B.EU","H10/H10/RXI_N.B.JA","H10/H10/RXI_N.B.MX","H10/H10/RXI_N.B.SZ","H10/H10/RXI_N.B.CA","H10/H10/RXI_N.B.VE"\n'
+           '"Time Period","RXI$US_N.B.AL","RXI$US_N.B.EU","RXI_N.B.JA","RXI_N.B.MX","RXI_N.B.SZ","RXI_N.B.CA","RXI_N.B.VE"\n'
+           '2026-09-28,0.7024,1.1400,157.0000,18.1000,0.8300,1.4160,ND\n'
+           '2026-10-01,ND,1.1232,157.6300,18.4001,0.8263,1.4253,0\n'
+           '2026-10-02,0.6953,1.1259,157.8100,18.1920,0.8306,1.4253,850.1\n')
+
+    @staticmethod
+    def R(**m):
+        return {'fx': {k: {'amount': 1.0, 'base': 'USD', 'date': d, 'rates': r} for k, (d, r) in m.items()}}
+
+    def test_csv(self):
+        H = self.k.fx_h10_csv(self.CSV)
+        self.assertEqual(sorted(H), ['2026-09-28', '2026-10-01', '2026-10-02'])
+        self.assertAlmostEqual(H['2026-10-02']['EUR'], 1 / 1.1259); self.assertAlmostEqual(H['2026-10-02']['AUD'], 1 / 0.6953, msg='RXI$US — USD za jednostkę: odwrotność')
+        self.assertEqual(H['2026-10-02']['JPY'], 157.81); self.assertEqual(H['2026-10-02']['VEB'], 850.1)
+        self.assertNotIn('AUD', H['2026-10-01'], 'ND — brak, nie zero'); self.assertNotIn('VEB', H['2026-10-01'], 'zero — pominięte')
+        self.assertNotIn('VEB', H['2026-09-28'])
+        self.assertEqual(self.k.fx_h10_csv(''), {}); self.assertEqual(self.k.fx_h10_csv('a,b\n2026-10-02,1'), {}, 'bez wierszy walut — nic')
+
+    def test_porownanie(self):
+        k = self.k
+        H = k.fx_h10_csv(self.CSV)
+        ok = {'EUR': 0.88818, 'JPY': 157.70, 'MXN': 18.33, 'CHF': 0.8290, 'CAD': 1.4250, 'AUD': 1.4390, 'GBP': 0.75}
+        ok28 = {c: v * 1.001 for c, v in H['2026-09-28'].items()}          # migawka „1T” z 28.09 — kursy z tego dnia
+        f = k.fx_porownanie(self.R(now=('2026-10-05', ok), **{'1D': ('2026-10-02', ok), '1T': ('2026-09-28', ok28)}), H)
+        self.assertEqual([x[0] for x in f['daty']], ['2026-09-28', '2026-10-02'], 'tylko dni obecne w H.10; „now” (05.10) jeszcze nie')
+        d = f['daty'][1]
+        self.assertEqual((d[1], d[3]), (6, 'MXN'), '6 wspólnych walut (GBP nie ma w H.10); najwięcej peso')
+        self.assertAlmostEqual(d[4], round((18.33 / 18.192 - 1) * 100, 3))
+        self.assertEqual((f['zle'], f['med_zle']), ([], []))
+        zly = dict(ok, JPY=157.81 * 1.02)
+        f = k.fx_porownanie(self.R(**{'1D': ('2026-10-02', zly)}), H)
+        self.assertEqual([x[:2] for x in f['zle']], [['2026-10-02', 'JPY']]); self.assertEqual(f['med_zle'], [])
+        dzien = {c: v * 1.006 for c, v in ok.items()}                     # wszystko o 0,6% obok — migawka z innego dnia
+        f = k.fx_porownanie(self.R(**{'1D': ('2026-10-02', dzien)}), H)
+        self.assertEqual(f['zle'], []); self.assertEqual(len(f['med_zle']), 1)
+        self.assertIsNone(k.fx_porownanie({}, H)); self.assertIsNone(k.fx_porownanie(self.R(now=('2026-10-05', ok)), {}))
+        self.assertIsNone(k.fx_porownanie({'fx': {'now': {'base': 'EUR', 'date': '2026-10-02', 'rates': ok}}}, H), 'inna waluta bazowa — bez porównania')
+        f = k.fx_porownanie(self.R(now=('2026-10-02', {'EUR': True, 'JPY': -1, 'CHF': 'x'})), H)
+        self.assertEqual(f['daty'], [], 'złe liczby pominięte — bez dat')
+        f = k.fx_porownanie(self.R(now=('2026-10-02', ok), **{'1D': ('2026-10-02', zly)}), H)
+        self.assertEqual((len(f['daty']), f['zle']), (1, []), 'ta sama data w dwóch migawkach — porównana raz (pierwsza: now)')
+
+    def test_raport_i_wpiecie(self):
+        k = self.k
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertIn("f = fx_porownanie(files['rynki'], H)", src); self.assertIn('get(FX_H10, timeout=30)', src)
+        base = {'at': '2026-10-07T06:20:00+00:00', 'wynik': 'OK', 'meta': {}, 'uwagi': [], 'bledy': []}
+        R = dict(base, zgodnosc={'fx': {'daty': [['2026-09-28', 20, 0.097, 'MXN', -0.442], ['2026-10-02', 20, 0.091, 'MXN', 0.786]], 'zle': [], 'med_zle': []}})
+        self.assertIn('- Kursy walut (strona: kurs EBC; H.10: Fed, Nowy Jork; te same dni): 2026-09-28 — 20 walut, mediana różnicy 0,10%, najwięcej MXN -0,44%; '
+                      '2026-10-02 — 20 walut, mediana różnicy 0,09%, najwięcej MXN +0,79% ✅.', k.raport_md(R))
+        R = dict(base, zgodnosc={'fx': {'daty': [['2026-10-02', 20, 0.6, 'JPY', 2.0]], 'zle': [['2026-10-02', 'JPY', 1, 1, 2.0]], 'med_zle': [['2026-10-02', 0.6]]}})
+        self.assertIn('najwięcej JPY +2,00% ⚠️.', k.raport_md(R))
+        self.assertIn('brak wspólnych dat (H.10 wychodzi raz w tygodniu) ℹ️.', k.raport_md(dict(base, zgodnosc={'fx': {'daty': [], 'zle': [], 'med_zle': []}})))
+        self.assertIn('brak porównania (H.10: HTTP 503) ℹ️.', k.raport_md(dict(base, zgodnosc={'fx': {'brak': 'H.10: HTTP 503'}})))
+        self.assertEqual((k.FX_PROG, k.FX_MED, k.FX_MIN_N), (1.5, 0.4, 5))

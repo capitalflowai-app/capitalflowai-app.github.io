@@ -93,6 +93,15 @@ UST_FED_KOL = 'RIFLGFCY10_N.B'   # v211: kolumna 10 lat w pliku H.15 (06.10: 24.
 UST_PROG = 0.02      # pkt proc. — ta sama data: plik strony (Skarb USA) vs H.15; większa różnica = ⚠️
 UST_DNI = 10         # tyle ostatnich dat z pliku strony porównujemy (H.15 wychodzi z ok. 1-dniowym opóźnieniem)
 UST_OD_DNI = 21      # FRED: plik od tylu dni wstecz (mały — ok. 200 B)
+# v225: kursy walut — migawki pliku strony (rynki.json fx: now/1D/1T/1M/1Q/1R, waluta za 1 USD; kurs EBC przez serwis pośredni) vs H.10 Fed
+# (kursy w południe w Nowym Jorku, wydawane raz w tygodniu; bez klucza) — te same dni. Inna godzina ustalenia kursu (EBC 14:15 we Frankfurcie),
+# więc małe różnice są normalne (06.10.2026: 3 daty × 20 walut, mediana 0,09%, najwięcej 0,79% — peso meksykańskie).
+FX_H10 = ('https://www.federalreserve.gov/datadownload/Output.aspx?rel=H10&series=60f32914ab61dfab590e0e470153e3ae&lastobs=45&from=&to='
+          '&filetype=csv&label=include&layout=seriescolumn&type=package')
+FX_PROG = 1.5      # % — waluta ponad tyle od H.10 tego samego dnia = ⚠️ (nigdy ❌: inna godzina kursu)
+FX_MED = 0.4       # % — mediana różnic jednej daty ponad tyle = ⚠️ (np. migawka z innego dnia, niż mówi jej data)
+FX_MIN_N = 5       # najmniej wspólnych walut, żeby oceniać medianę dnia
+FX_MIGAWKI = ('now', '1D', '1T', '1M', '1Q', '1R')
 CENA_PROG = 1.0      # % różnicy cen BTC/ETH między źródłami
 ETF_PROG = 1.0       # % różnicy zamknięcia ETF tej samej daty: Twelve Data (ceny.json, mapa) vs Massive/Tiingo (indeksy.json → etf) — v117.1
 TGA_PROG = 1.0       # pkt proc. — odchylenie dzisiejszej różnicy TGA (Fiscal Data vs FRED WTREGEN, ta sama data) od mediany 30 dni; różnica sama w sobie
@@ -644,6 +653,68 @@ def ust_fed_csv(txt):
                 out[r[0]] = float(r[col])
             except ValueError:
                 pass
+    return out
+
+
+def fx_h10_csv(txt):
+    """v225: CSV H.10 z serwisu danych Rady Gubernatorów Fed (wiersze opisu — „Currency:” z kodami walut, „Unique Identifier:” z kodami serii:
+    RXI$US = USD za jednostkę waluty, RXI = waluta za 1 USD; potem dni) → {dzień: {waluta: ile waluty za 1 USD}}; 'ND' (brak notowania), zera,
+    kody spoza trzech liter i złe wiersze pominięte; bez wierszy walut = {}."""
+    cur, inv, out = None, None, {}
+    for r in csv.reader(str(txt or '').splitlines()):
+        if not r:
+            continue
+        k = r[0].strip()
+        if k == 'Currency:':
+            cur = [c.strip() for c in r[1:]]
+            continue
+        if k.startswith('Unique Identifier'):
+            inv = ['$US' in c for c in r[1:]]
+            continue
+        if cur and inv and len(inv) == len(cur) and re.match(r'^\d{4}-\d{2}-\d{2}$', k):
+            d = {}
+            for c, i, v in zip(cur, inv, r[1:]):
+                try:
+                    x = float(v)
+                except ValueError:
+                    continue
+                if x > 0 and re.match(r'^[A-Z]{3}$', c):
+                    d[c] = 1 / x if i else x
+            if d:
+                out[k] = d
+    return out
+
+
+def fx_porownanie(rynki, h10):
+    """v225: migawki kursów pliku strony (rynki.json → fx[now|1D|1T|1M|1Q|1R] = {date, base: USD, rates: {waluta: ile za 1 USD}}) vs H.10 z tych
+    samych dni → {'daty': [[dzień, n walut, mediana |%|, waluta z największą różnicą, jej %], …], 'zle': [[dzień, waluta, strona, H.10, %], …]
+    (ponad FX_PROG), 'med_zle': [[dzień, mediana %], …] (ponad FX_MED przy co najmniej FX_MIN_N walutach)}; brak migawek albo H.10 = None.
+    Ta sama data w kilku migawkach — porównana raz (pierwsza w kolejności FX_MIGAWKI)."""
+    fx = rynki.get('fx') if isinstance(rynki, dict) else None
+    if not isinstance(fx, dict) or not isinstance(h10, dict) or not h10:
+        return None
+    by = {}
+    for k in FX_MIGAWKI:
+        s = fx.get(k)
+        if isinstance(s, dict) and s.get('base') == 'USD' and isinstance(s.get('date'), str) and isinstance(s.get('rates'), dict):
+            by.setdefault(s['date'], s['rates'])
+    if not by:
+        return None
+    out = {'daty': [], 'zle': [], 'med_zle': []}
+    for d in sorted(by):
+        H = h10.get(d)
+        if not isinstance(H, dict):
+            continue
+        rs = [(c, float(v), H[c], (float(v) / H[c] - 1) * 100) for c, v in by[d].items()
+              if c in H and isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0]
+        if not rs:
+            continue
+        med = statistics.median(abs(x[3]) for x in rs)
+        mx = max(rs, key=lambda x: abs(x[3]))
+        out['daty'].append([d, len(rs), round(med, 3), mx[0], round(mx[3], 3)])
+        out['zle'] += [[d, c, v, round(h, 6), round(r, 3)] for c, v, h, r in rs if abs(r) > FX_PROG]
+        if len(rs) >= FX_MIN_N and med > FX_MED:
+            out['med_zle'].append([d, round(med, 3)])
     return out
 
 
@@ -2585,6 +2656,22 @@ def kontrola():
                                   + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]))
         else:
             Z['ust10'] = {'brak': '; '.join(bu)[:200]}
+    if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('fx'), dict):   # v225: kursy walut vs H.10 (Fed); brak = informacja
+        try:
+            st5, body5, _ = get(FX_H10, timeout=30)
+            H = fx_h10_csv(body5.decode('utf-8', 'replace'))
+            if not H:
+                raise ValueError('plik bez liczb')
+            f = fx_porownanie(files['rynki'], H)
+            Z['fx'] = f if f is not None else {'brak': 'brak migawek kursów w pliku strony'}
+            if f and f['zle']:
+                R['uwagi'].append('kursy walut: plik strony vs H.10 (Fed) różnią się ponad ' + f'{FX_PROG:g}%: '
+                                  + ', '.join(f'{c} {d}: {v:g} vs {h:g} ({r:+.2f}%)' for d, c, v, h, r in f['zle'][:6]))
+            if f and f['med_zle']:
+                R['uwagi'].append('kursy walut: mediana różnic z H.10 (Fed) ponad ' + f'{FX_MED:g}% dla ' + ', '.join(f'{d} ({m:.2f}%)' for d, m in f['med_zle'])
+                                  + ' — możliwa migawka z innego dnia, niż mówi jej data')
+        except Exception as e:  # noqa
+            Z['fx'] = {'brak': f'H.10: {str(e)[:100]}'}
     try:
         zgodnosc_zapisz(zg_path, rows)
     except Exception as e:  # noqa
@@ -2830,6 +2917,16 @@ def raport_md(R):
             else:
                 L.append(f'- Rentowność 10L USA (Skarb USA vs H.15{" — " + u["zrodlo"] if u.get("zrodlo") else ""}, te same dni): porównane {u["porownane"]} dat (do {u["do"]}), różnice > {UST_PROG:g} pkt proc.: '
                          f'{len(u["roznice"])} ' + ('⚠️ — ' + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]) + '.' if u['roznice'] else '✅.'))
+        f = Z.get('fx')   # v225: kursy walut vs H.10
+        if f:
+            if f.get('brak'):
+                L.append(f'- Kursy walut (plik strony vs H.10 Fed): brak porównania ({f["brak"]}) ℹ️.')
+            elif not f.get('daty'):
+                L.append('- Kursy walut (plik strony vs H.10 Fed): brak wspólnych dat (H.10 wychodzi raz w tygodniu) ℹ️.')
+            else:
+                L.append('- Kursy walut (strona: kurs EBC; H.10: Fed, Nowy Jork; te same dni): ' + '; '.join(
+                    f'{d} — {n} walut, mediana różnicy {m:.2f}%, najwięcej {c} {x:+.2f}%'.replace('.', ',') for d, n, m, c, x in f['daty'])
+                    + (' ⚠️.' if f['zle'] or f['med_zle'] else ' ✅.'))
         e = Z.get('etf')
         if e:
             L.append(f'- ETF mapy (dwa źródła, ta sama data): porównane {e["porownane"]} symboli, różnice > {ETF_PROG:g}%: {len(e["roznice"])} {"⚠️" if e["roznice"] else "✅"}' + (' — ' + ', '.join(x["symbol"] for x in e["roznice"][:6]) if e["roznice"] else '') + '.')
