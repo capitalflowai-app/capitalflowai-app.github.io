@@ -25121,3 +25121,152 @@ class PoPrzegladzieV205(unittest.TestCase):
         self.assertIsNone(k.przebieg_min({'run_started_at': 'zły'})); self.assertEqual(k.BUDOWA_BUDZET_S, 90)
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
         self.assertIn("if bud and (dl_b.get(rid) or 0) <= max(bud):", src); self.assertIn("if time.monotonic() - t_b > BUDOWA_BUDZET_S:", src)
+
+
+# ===================== v207: PAMIĘĆ AWARII CZĘŚCI AUTOMATU + OCENA W KONTROLI =====================
+class PamiecAwariiV207(unittest.TestCase):
+    """v207: zbieracz pamięta w meta.json, od kiedy część nie działa (seria nieudanych przebiegów) i kiedy się naprawiła (wpis 48 h po naprawie);
+    kontrola: seria ≥ 3 h = uwaga, ≥ 48 h = BŁĄD z tym, co zrobić; naprawione w 24 h = informacja; dopisek przy odrzuconym kluczu i limicie."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v207', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    @staticmethod
+    def _t(h):
+        return (datetime.datetime(2026, 10, 6, 4, 0, tzinfo=datetime.timezone.utc) + datetime.timedelta(hours=h)).isoformat()
+
+    def test_seria_naprawa_i_nowa_seria(self):
+        t = self._t
+        a = zd.awarie({}, {'tic': False, 'fred': True, 'oecd': 'cached'}, t(0))
+        self.assertEqual(a, {'tic': {'od': t(0), 'ost': t(0), 'n': 1, 'do': None}}, 'tylko ok False zaczyna serię')
+        a = zd.awarie(a, {'tic': False}, t(1))
+        self.assertEqual(a['tic'], {'od': t(0), 'ost': t(1), 'n': 2, 'do': None})
+        a = zd.awarie(a, {'fred': True}, t(2))
+        self.assertEqual(a['tic']['do'], None, 'część nieobecna w przebiegu — seria bez zmian')
+        a = zd.awarie(a, {'tic': 'cached'}, t(3))
+        self.assertEqual(a['tic'], {'od': t(0), 'ost': t(1), 'n': 2, 'do': t(3)}, "'cached' kończy serię (naprawa)")
+        b = zd.awarie(a, {'tic': True}, t(4))
+        self.assertEqual(b['tic']['do'], t(3), 'naprawiona — data naprawy bez zmian')
+        b = zd.awarie(a, {'tic': False}, t(5))
+        self.assertEqual(b['tic'], {'od': t(5), 'ost': t(5), 'n': 1, 'do': None}, 'awaria po naprawie = nowa seria')
+        self.assertEqual(zd.awarie(a, {'tic': True}, t(3 + 48)), a, '48 h po naprawie — wpis jeszcze jest')
+        self.assertEqual(zd.awarie(a, {'tic': True}, t(3 + 48.1)), {}, 'ponad 48 h po naprawie — wpis znika')
+
+    def test_nieobecna_zle_wpisy_i_limit(self):
+        t = self._t
+        a = {'stara': {'od': t(-200), 'ost': t(-169), 'n': 5, 'do': None}, 'mloda': {'od': t(-200), 'ost': t(-167), 'n': 5, 'do': None}}
+        self.assertEqual(sorted(zd.awarie(a, {}, t(0))), ['mloda'], 'część nieobecna: wpis znika po 7 dniach od ostatniej awarii')
+        self.assertEqual(sorted(zd.awarie(a, {'stara': False}, t(0))), ['mloda', 'stara'], 'obecna z błędem — seria trwa mimo wieku')
+        zle = {'a': {'od': t(0), 'ost': t(-1), 'n': 1, 'do': None}, 'b': {'od': t(-1), 'ost': t(0), 'n': 0, 'do': None},
+               'c': {'od': t(-1), 'ost': t(0), 'n': True, 'do': None}, 'd': {'od': 'x', 'ost': t(0), 'n': 1, 'do': None},
+               'e': {'od': t(-2), 'ost': t(-1), 'n': 1, 'do': 'x'}, 'f': {'od': t(-2), 'ost': t(-1), 'n': 1, 'do': t(-1.5)},
+               'g': {'od': t(-2), 'ost': t(1), 'n': 1, 'do': None}, 'h': {'od': '2026-10-06T03:00:00', 'ost': t(0), 'n': 1, 'do': None}, 'i': 'x', 5: {}}
+        self.assertEqual(zd.awarie(zle, {}, t(0)), {}, 'złe wpisy pominięte (kolejność, liczba, czas bez strefy, naprawa przed awarią, przyszłość)')
+        self.assertEqual(zd.awarie(None, None, t(0)), {}); self.assertEqual(zd.awarie('x', {'a': None, 'b': 0}, t(0)), {}, 'tylko False = awaria')
+        with self.assertRaises(ValueError):
+            zd.awarie({}, {'a': False}, '2026-10-06T04:00:00')
+        duzo = {f'c{i:03d}': {'od': t(-10), 'ost': t(-10 + i / 100), 'n': 1, 'do': None} for i in range(120)}
+        out = zd.awarie(duzo, {}, t(0))
+        self.assertEqual(len(out), zd.AW_MAX); self.assertIn('c119', out); self.assertNotIn('c019', out, 'zostają najmłodsze wg ostatniej awarii')
+        self.assertEqual((zd.AW_PO_NAPRAWIE_H, zd.AW_NIEOBECNA_D, zd.AW_MAX), (48, 7, 100))
+
+    def test_main_zapisuje_awarie_przed_meta(self):
+        import inspect
+        src = inspect.getsource(zd.main)
+        i, j = src.index("META['awarie'] = awarie("), src.index("save('meta', META)")
+        self.assertLess(i, j, 'pamięć awarii liczona przed zapisem meta.json')
+        self.assertIn("(previous('meta') or {}).get('awarie')", src)
+
+    def test_kontrola_ocena(self):
+        k, t = self.k, self._t
+        now = datetime.datetime(2026, 10, 6, 4, 0, tzinfo=datetime.timezone.utc)
+        self.assertIsNone(k.awarie_ocena({}, now)); self.assertIsNone(k.awarie_ocena({'awarie': []}, now)); self.assertIsNone(k.awarie_ocena(None, now))
+        Z = k.awarie_ocena({'awarie': {}}, now)
+        self.assertEqual(Z, {'trwa': [], 'naprawione': [], 'uwagi': [], 'bledy': []})
+        aw = {'krotka': {'od': t(-2), 'ost': t(-0.2), 'n': 12, 'do': None}, 'tic': {'od': t(-5), 'ost': t(-0.1), 'n': 30, 'do': None},
+              'oecd': {'od': t(-50), 'ost': t(-0.1), 'n': 290, 'do': None}, 'fred': {'od': t(-10), 'ost': t(-8), 'n': 13, 'do': t(-7.9)},
+              'bis': {'od': t(-40), 'ost': t(-30), 'n': 60, 'do': t(-25)}, 'zly': {'od': t(-1), 'ost': t(0), 'n': 0, 'do': None}, 'x': 'y'}
+        Z = k.awarie_ocena({'awarie': aw}, now)
+        self.assertEqual([x['czesc'] for x in Z['trwa']], ['krotka', 'oecd', 'tic']); self.assertEqual([x['czesc'] for x in Z['naprawione']], ['fred'])
+        self.assertEqual(len(Z['bledy']), 1); self.assertEqual(len(Z['uwagi']), 1)
+        self.assertEqual(Z['bledy'][0], 'część automatu „oecd” nie działa od 04.10.2026, 04:00 (2 dni 2 godz., nieudanych przebiegów z rzędu: 290) — automat '
+                                        'nie naprawił tego sam; co zrobić: napisz do Claude „napraw część oecd”')
+        self.assertEqual(Z['uwagi'][0], 'część automatu „tic” nie działa od 06.10.2026, 01:00 (5 godz., nieudanych przebiegów z rzędu: 30) — automat ponawia '
+                                        'co 10 min; dane tej części mają swój wiek na stronie')
+        self.assertEqual(Z['naprawione'][0]['h'], 2.1)
+        self.assertEqual((k.AW_UWAGA_H, k.AW_BLAD_H, k.AW_INFO_H), (3, 48, 24))
+
+    def test_rodzaj_bledu(self):
+        r = self.k.awaria_rodzaj
+        for e in ('EODHD — klucz odrzucony albo plan bez indeksów (każda próba: HTTP 401/403)', 'Turcja: klucz EVDS_KEY odrzucony',
+                  'Coinalyze: HTTP 403 — klucz odrzucony albo blokada', 'CoinGecko: HTTP Error 401: Unauthorized', 'BEA: Invalid API UserId — invalid api key'):
+            self.assertIn('odrzucony klucz', r(e), e)
+        for e in ('Twelve Data: You have run out of API credits for the current minute', 'OECD: HTTP Error 429: Too Many Requests',
+                  'Coinalyze: limit zapytań (HTTP 429, Retry-After 30)', 'EODHD: HTTP Error 402: Payment Required'):
+            self.assertIn('limit darmowego planu', r(e), e)
+        for e in ('TWSE: timed out', 'trendy: KeyError x', 'CM: 401 dni historii', 'HTTP Error 500: Internal Server Error'):
+            self.assertEqual(r(e), '', e)
+
+    def test_raport_i_wpiecie(self):
+        k = self.k
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn("R['uwagi'].append('błąd zbieracza: ' + e + awaria_rodzaj(e))", src)
+        self.assertIn("aw = awarie_ocena(m)", src)
+        R = {'at': '2026-10-06T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-10-06T06:13:00+00:00', 'wiek_min': 7,
+             'zrodla': 76, 'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': [], 'bledy': []}
+        self.assertNotIn('Awarie części automatu', k.raport_md(R), 'zbieracz sprzed v207 — bez linii')
+        R['awarie'] = {'trwa': [], 'naprawione': [], 'uwagi': [], 'bledy': []}
+        self.assertIn('- Awarie części automatu (pamięć 48 h): brak — wszystkie części działały w każdym przebiegu.', k.raport_md(R))
+        R['awarie'] = {'trwa': [{'czesc': 'tic', 'od': '2026-10-06T01:00:00+00:00', 'ost': '2026-10-06T06:10:00+00:00', 'n': 30, 'do': None, 'h': 5.3}],
+                       'naprawione': [{'czesc': 'fred', 'od': '2026-10-05T22:00:00+00:00', 'ost': '2026-10-06T00:00:00+00:00', 'n': 13, 'do': '2026-10-06T00:10:00+00:00', 'h': 2.2}],
+                       'uwagi': ['x'], 'bledy': []}
+        md = k.raport_md(R)
+        self.assertIn('- Awarie części automatu — trwają: tic od 06.10.2026, 03:00 (5 godz., nieudanych przebiegów: 30) ⚠️.', md)
+        self.assertIn('- Naprawiły się same (24 h): fred 06.10.2026, 00:00 – 06.10.2026, 02:10 (2 godz., nieudanych przebiegów: 13) ℹ️.', md)
+        self.assertIn('# Kontrola strony — 06.10.2026, 08:20 (czas polski)', md); self.assertIn('**Wynik: OK**', md)
+        R['awarie']['trwa'][0]['h'] = 1.5
+        self.assertIn('tic od 06.10.2026, 03:00 (1 godz., nieudanych przebiegów: 30) ℹ️.', k.raport_md(R), 'krótka seria — informacja')
+        R['awarie']['trwa'][0]['h'] = 50.0
+        self.assertIn('(2 dni 2 godz., nieudanych przebiegów: 30) ❌.', k.raport_md(R))
+
+    def test_kontrola_calosc_z_awariami(self):
+        """Cała kontrola na zaślepionej sieci: meta.json z polem awarie — uwaga i błąd trafiają do wyniku, dopisek przy błędzie klucza."""
+        k = self.k
+        NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+        meta = {'at': (NOW - datetime.timedelta(minutes=7)).isoformat(), 'ok': {'tic': False, 'oecd': False}, 'notes': [],
+                'errors': ['EODHD — klucz odrzucony albo plan bez indeksów (każda próba: HTTP 401/403)'],
+                'awarie': {'tic': {'od': (NOW - datetime.timedelta(hours=5)).isoformat(), 'ost': (NOW - datetime.timedelta(minutes=7)).isoformat(), 'n': 30, 'do': None},
+                           'oecd': {'od': (NOW - datetime.timedelta(hours=60)).isoformat(), 'ost': (NOW - datetime.timedelta(minutes=7)).isoformat(), 'n': 350, 'do': None}}}
+
+        class Resp:
+            def __init__(self, b):
+                self.b, self.status = b, 200
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def urlopen(req, timeout=None):
+            url = req.full_url
+            if '/data/meta.json?' in url:
+                return Resp(json.dumps(meta).encode())
+            raise k.urllib.error.URLError('brak sieci w teście')
+        import tempfile
+        d = tempfile.mkdtemp(prefix='k207-')
+        with mock.patch.object(k, 'NOW', NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen):
+            R = k.kontrola()
+        self.assertEqual(R['wynik'], 'BŁĄD')
+        self.assertTrue(any('„oecd” nie działa od 03.10.2026, 20:20 (2 dni 12 godz.' in b and 'napraw część oecd' in b for b in R['bledy']), R['bledy'])
+        self.assertTrue(any('„tic” nie działa od 06.10.2026, 03:20 (5 godz.' in u for u in R['uwagi']), R['uwagi'])
+        self.assertTrue(any(u.startswith('błąd zbieracza: EODHD') and 'odrzucony klucz' in u for u in R['uwagi']), R['uwagi'])
+        md = k.raport_md(R)
+        self.assertIn('- Awarie części automatu — trwają: oecd od 03.10.2026, 20:20 (2 dni 12 godz., nieudanych przebiegów: 350) ❌; tic od 06.10.2026, 03:20 (5 godz., nieudanych przebiegów: 30) ⚠️.', md)

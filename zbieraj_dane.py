@@ -2257,6 +2257,61 @@ def czas_przebiegu(zapisy, calosc):
         d[n] = d.get(n, 0.0) + max(0.0, t - t0); t0 = t
     top = sorted(d.items(), key=lambda x: -x[1])[:5]
     return {'s': round(calosc), 'top': [[n, round(s)] for n, s in top]}
+
+
+AW_PO_NAPRAWIE_H = 48     # v207: tyle godzin wpis naprawionej awarii zostaje w meta.json (kontrola raz na dobę widzi też awarie, które minęły w nocy)
+AW_NIEOBECNA_D = 7        # v207: wpis części nieobecnej w przebiegach (zmiana kodu) znika po tylu dniach od ostatniej awarii
+AW_MAX = 100              # v207: najwyżej tyle wpisów (najmłodsze wg ostatniej awarii) — ochrona pliku stanu
+
+
+def _aw_t(s):
+    """v207: zapis czasu ISO ze strefą → datetime UTC; brak strefy albo zły zapis = None."""
+    try:
+        t = datetime.datetime.fromisoformat(str(s))
+    except (TypeError, ValueError):
+        return None
+    return t.astimezone(datetime.timezone.utc) if t.tzinfo else None
+
+
+def awarie(prev, ok, now):
+    """v207: pamięć awarii części między przebiegami (meta.json → 'awarie'): kontrola dzienna widzi, od kiedy część nie działa i co naprawiło się
+    samo w nocy. prev — 'awarie' poprzedniego meta.json; ok — META['ok'] tego przebiegu; now — czas przebiegu (ISO ze strefą).
+    Wpis {część: {'od': pierwszy nieudany przebieg serii, 'ost': ostatni nieudany, 'n': nieudanych przebiegów w serii, 'do': pierwszy udany po
+    serii albo None (seria trwa)}}. ok False → seria trwa (n + 1) albo zaczyna się od nowa (po naprawie); każda inna wartość (True, 'cached')
+    kończy trwającą serię; część nieobecna w przebiegu — wpis bez zmian. Naprawiony wpis znika po AW_PO_NAPRAWIE_H h od naprawy, wpis części
+    nieobecnej — po AW_NIEOBECNA_D dniach od ostatniej awarii; złe wpisy poprzedniego pliku pomijane; najwyżej AW_MAX wpisów."""
+    tn = _aw_t(now)
+    if tn is None:
+        raise ValueError('awarie: czas przebiegu bez strefy')
+    out = {}
+    for k, w in (prev.items() if isinstance(prev, dict) else ()):
+        if not (isinstance(k, str) and isinstance(w, dict)):
+            continue
+        od, ost, n, do = _aw_t(w.get('od')), _aw_t(w.get('ost')), w.get('n'), w.get('do')
+        tdo = _aw_t(do) if do is not None else None
+        if (od is None or ost is None or ost < od or ost > tn or not isinstance(n, int) or isinstance(n, bool) or n < 1
+                or (do is not None and (tdo is None or tdo < ost or tdo > tn))):
+            continue
+        out[k] = {'od': w['od'], 'ost': w['ost'], 'n': n, 'do': do}
+    for k, v in (ok.items() if isinstance(ok, dict) else ()):
+        w = out.get(k)
+        if v is False:
+            if w and w['do'] is None:
+                w['ost'] = now; w['n'] += 1
+            else:
+                out[k] = {'od': now, 'ost': now, 'n': 1, 'do': None}
+        elif w and w['do'] is None:
+            w['do'] = now
+    for k in list(out):
+        w = out[k]
+        if w['do'] is not None:
+            if tn - _aw_t(w['do']) > datetime.timedelta(hours=AW_PO_NAPRAWIE_H):
+                del out[k]
+        elif k not in (ok or {}) and tn - _aw_t(w['ost']) > datetime.timedelta(days=AW_NIEOBECNA_D):
+            del out[k]
+    if len(out) > AW_MAX:
+        out = dict(sorted(out.items(), key=lambda x: _aw_t(x[1]['ost']), reverse=True)[:AW_MAX])
+    return out
 NSDL_MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
 OBCE_KEEP = 300           # tyle ostatnich dni trzyma plik (historia narasta z przebiegu na przebieg; v89: 300 — tło dla TRENDÓW)
 NSDL_CATS = {'equity': 'eq', 'debt-general limit': 'debt', 'debt-vrr': 'debt', 'debt-far': 'debt', 'hybrid': 'hyb',
@@ -19105,6 +19160,10 @@ def main():
     if META['czas']['s'] > CZAS_UWAGA_S:
         META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "
                              + ', '.join(f'{n} {s} s' for n, s in META['czas']['top'][:3]))
+    try:   # v207: pamięć awarii części między przebiegami (kontrola dzienna: od kiedy nie działa, co naprawiło się samo); awaria = bez pola
+        META['awarie'] = awarie((previous('meta') or {}).get('awarie'), META['ok'], NOW)
+    except Exception as e:
+        META['notes'].append(f'pamięć awarii: {e}')
     META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')

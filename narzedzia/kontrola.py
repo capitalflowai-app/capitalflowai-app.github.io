@@ -163,6 +163,68 @@ def czas_pl(iso):
         return '—'
 
 
+AW_UWAGA_H = 3        # v207: część automatu nie działa co najmniej tyle godzin (seria trwa) = ⚠️ z datą początku
+AW_BLAD_H = 48        # v207: … co najmniej tyle godzin = BŁĄD (e-mail do właściciela): automat nie naprawił tego sam
+AW_INFO_H = 24        # v207: awarie naprawione w ostatnich tylu godzinach — informacja ℹ️ (samonaprawa widoczna w raporcie)
+AW_KLUCZ = re.compile(r'klucz\w*(?:\s+\S+)?\s+odrzuc|zły klucz|unauthori[sz]ed|HTTP\D{0,7}401\b|(?:invalid|incorrect) api ?key', re.I)
+AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań|dobowy limit|limit planu', re.I)
+
+
+def _aw_t(s):
+    try:
+        t = dt.datetime.fromisoformat(str(s).replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        return None
+    return t.astimezone(dt.timezone.utc) if t.tzinfo else None
+
+
+def _aw_h(h):
+    """Godziny → „5 godz.” albo „3 dni 2 godz.” (pełne godziny w dół)."""
+    h = int(h)
+    return f'{h // 24} {"dzień" if h // 24 == 1 else "dni"} {h % 24} godz.' if h >= 24 else f'{h} godz.'
+
+
+def awaria_rodzaj(e):
+    """v207: błąd zbieracza → dopisek dla właściciela: odrzucony klucz (automat sam tego nie naprawi), limit planu (zwykle mija sam) albo ''."""
+    e = str(e)
+    if AW_KLUCZ.search(e):
+        return ' — wygląda na odrzucony klucz: automat sam tego nie naprawi (co zrobić: napisz do Claude „sprawdź klucz z tego błędu”)'
+    if AW_LIMIT.search(e):
+        return ' — limit darmowego planu: zwykle mija sam (automat ponawia); jeśli trwa ponad 2 dni — napisz do Claude'
+    return ''
+
+
+def awarie_ocena(meta, now=None):
+    """v207: pole 'awarie' z meta.json (pamięć zbieracza między przebiegami) → {'trwa': [...], 'naprawione': [...], 'uwagi': [...], 'bledy': [...]};
+    element: {'czesc', 'od', 'ost', 'n', 'do', 'h'} (h — godziny serii: do teraz albo do naprawy). Seria trwa ≥ AW_BLAD_H h = błąd (automat nie
+    naprawił tego sam), ≥ AW_UWAGA_H h = uwaga, krótsza — tylko informacja; naprawione w ostatnich AW_INFO_H h — informacja. Brak pola
+    (zbieracz sprzed v207) albo zły typ = None; złe wpisy pomijane."""
+    now = now or NOW
+    aw = meta.get('awarie') if isinstance(meta, dict) else None
+    if not isinstance(aw, dict):
+        return None
+    Z = {'trwa': [], 'naprawione': [], 'uwagi': [], 'bledy': []}
+    for k, w in sorted(aw.items()):
+        if not isinstance(w, dict):
+            continue
+        od, ost, n = _aw_t(w.get('od')), _aw_t(w.get('ost')), w.get('n')
+        do = _aw_t(w.get('do')) if w.get('do') is not None else None
+        if od is None or ost is None or not isinstance(n, int) or isinstance(n, bool) or n < 1 or (w.get('do') is not None and do is None):
+            continue
+        h = ((do or now) - od).total_seconds() / 3600
+        x = {'czesc': str(k)[:40], 'od': w['od'], 'ost': w['ost'], 'n': n, 'do': w.get('do'), 'h': round(h, 1)}
+        if do is None:
+            Z['trwa'].append(x)
+            opis = f'część automatu „{x["czesc"]}” nie działa od {czas_pl(w["od"])} ({_aw_h(h)}, nieudanych przebiegów z rzędu: {n})'
+            if h >= AW_BLAD_H:
+                Z['bledy'].append(opis + ' — automat nie naprawił tego sam; co zrobić: napisz do Claude „napraw część ' + x['czesc'] + '”')
+            elif h >= AW_UWAGA_H:
+                Z['uwagi'].append(opis + ' — automat ponawia co 10 min; dane tej części mają swój wiek na stronie')
+        elif (now - do).total_seconds() <= AW_INFO_H * 3600:
+            Z['naprawione'].append(x)
+    return Z
+
+
 def fmt_wiek(m):
     """Minuty → „0 h 34 min” / „2 d 3 h” / „—”."""
     if m is None:
@@ -2046,7 +2108,11 @@ def kontrola():
         if nie:
             R['uwagi'].append('źródła bez odpowiedzi w ostatnim przebiegu: ' + ', '.join(nie))
         for e in R['meta']['errors']:
-            R['uwagi'].append('błąd zbieracza: ' + e)
+            R['uwagi'].append('błąd zbieracza: ' + e + awaria_rodzaj(e))   # v207: dopisek — odrzucony klucz / limit planu
+        aw = awarie_ocena(m)   # v207: pamięć awarii zbieracza — od kiedy część nie działa, co naprawiło się samo (None = zbieracz sprzed v207)
+        if aw is not None:
+            R['awarie'] = aw
+            R['uwagi'] += aw['uwagi']; R['bledy'] += aw['bledy']
     except Exception as e:  # noqa
         R['meta'] = {'blad': str(e)[:200]}
         R['bledy'].append(f'plik stanu (meta.json) nie odpowiada: {str(e)[:120]}')
@@ -2411,6 +2477,17 @@ def raport_md(R):
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
     L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None and not p.get("wylaczone") else ("wyłączone" if p.get("wylaczone") else "HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
+    aw = R.get('awarie') if isinstance(R.get('awarie'), dict) else None   # v207: pamięć awarii części automatu
+    if aw is not None:
+        if not aw.get('trwa') and not aw.get('naprawione'):
+            L.append('- Awarie części automatu (pamięć 48 h): brak — wszystkie części działały w każdym przebiegu.')
+        if aw.get('trwa'):
+            L.append('- Awarie części automatu — trwają: ' + '; '.join(
+                f'{x["czesc"]} od {czas_pl(x["od"])} ({_aw_h(x["h"])}, nieudanych przebiegów: {x["n"]}) '
+                + ('❌' if x['h'] >= AW_BLAD_H else '⚠️' if x['h'] >= AW_UWAGA_H else 'ℹ️') for x in aw['trwa']) + '.')
+        if aw.get('naprawione'):
+            L.append('- Naprawiły się same (24 h): ' + '; '.join(
+                f'{x["czesc"]} {czas_pl(x["od"])} – {czas_pl(x["do"])} ({_aw_h(x["h"])}, nieudanych przebiegów: {x["n"]}) ℹ️' for x in aw['naprawione']) + '.')
     if m.get('notes'):
         L.append('- Notatki automatu: ' + ' · '.join(m['notes']) + '.')
     if R.get('swiezosc'):
