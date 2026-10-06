@@ -2053,7 +2053,7 @@ test('v96-global_map: szczegóły regionu — flagi krajów i regionów, waluty 
   assert.ok(pb.includes('<h4>g.pr.t · 0</h4>') && pb.includes('<li><span>gmap.pf.cli.lvl</span><b class="">0</b></li>') && pb.includes('<b class="neg">−2</b>'));
   // gRenderDetail: flagi w nagłówkach, bez wierszy „Źródło”
   const r0 = html.indexOf('function gRenderDetail(){'), r1 = html.indexOf('/* v53: okno czasu', r0), R = html.slice(r0, r1);
-  assert.ok(R.includes('<h3>${gmRf(s.id,\'\')}${gNameL(s.id)}</h3>') && R.includes('r.iso.map(gmCty)'), 'region: flagi przed nazwą, kraje z flagami');
+  assert.ok(R.includes('<h3>${gmRf(s.id,\'\')}${gNameL(s.id)}</h3>') && R.includes('ri.map(gmCty)') && R.includes('gRegIso(r,gst.period)'), 'region: flagi przed nazwą, kraje z flagami (v200: skład funduszu przy danych z funduszy)');
   assert.ok(R.includes('<h3>${gmRf(e.f,\'\')}${t(\'g.n.\'+e.f)} → ${gmRf(e.t,\'\')}${t(\'g.n.\'+e.t)}</h3>'), 'korytarz: flagi po obu stronach');
   assert.ok(R.includes("t('gmap.cf.edge',{r:gmRf(e.f,'')+t('g.n.'+e.f),c:CRY()})") && R.includes("gmCoins(['BTC','ETH'])"), 'krypto: loga monet');
   assert.ok(!R.includes("t('d.source')") && !GM_PROV.test(R.replace(/\/\*[\s\S]*?\*\//g, '')), 'bez wierszy „Źródło” i nazw dostawców');
@@ -13443,4 +13443,28 @@ test('v199: wh.not2 w 10 językach bez „przelewów ETH nie wymieniamy”, z op
     if (L !== 'pl' && L !== 'en') assert.notEqual(s, v96src.tFor('en')('wh.not2'), L + ': tłumaczenie');
   }
   assert.ok(v96src.tFor('pl')('wh.not2').includes('nieogłoszony portfel') && v96src.tFor('en')('wh.not2').includes('unpublished exchange wallet'), 'reszta noty bez zmian');
+});
+
+
+/* ---------- v200: kraje regionu przy danych z funduszy ETF — skład funduszu (Azja Płd.-Wsch. = 5 krajów, Australia bez Nowej Zelandii) ---------- */
+test('v200: Sektory i okno regionu — przy danych z funduszy (DZIŚ, okres z td) kraje funduszu; przy danych OECD — lista OECD jak dotąd', () => {
+  const env = (per, td) => pgEnv({
+    ISO32: {IDN: 'ID', SGP: 'SG', MYS: 'MY', THA: 'TH', PHL: 'PH', AUS: 'AU', NZL: 'NZ', USA: 'US'},
+    GREG: [{id: 'asean', mcap: 20, iso: ['IDN']}, {id: 'oce', mcap: 10, iso: ['AUS', 'NZL']}, {id: 'usa', mcap: 60, iso: ['USA']}],
+    gst: {period: per},
+    GDATA: {[per]: Object.assign({asean: [-112, -3.4, true], oce: [-137, -6.4, true], usa: [148, 0.2, true], crypto: [1, .5, true]}, td ? {td: true} : {})},
+  });
+  const nodes = per => env(per, true).f.pgNodes();
+  const n1 = nodes('1M'), as = n1.find(n => n.id === 'asean'), oc = n1.find(n => n.id === 'oce'), us = n1.find(n => n.id === 'usa');
+  assert.deepEqual(as.iso, ['SGP', 'IDN', 'MYS', 'THA', 'PHL'], 'Azja Płd.-Wsch. z funduszu: 5 krajów');
+  assert.deepEqual(oc.iso, ['AUS'], 'Australia z funduszu — bez Nowej Zelandii'); assert.deepEqual(us.iso, ['USA'], 'inne regiony bez zmian');
+  assert.deepEqual(nodes('1D').find(n => n.id === 'asean').iso, ['SGP', 'IDN', 'MYS', 'THA', 'PHL'], 'DZIŚ — zawsze z notowań funduszy');
+  const oe = env('1KW', false).f.pgNodes();
+  assert.deepEqual(oe.find(n => n.id === 'asean').iso, ['IDN'], 'dane OECD (bez td) — lista OECD jak dotąd');
+  assert.deepEqual(oe.find(n => n.id === 'oce').iso, ['AUS', 'NZL']);
+  const g = env('1M', true); g.f.renderSectorsPage();
+  const row = g.el.innerHTML.split('<div class="secrow">').slice(1).find(x => x.includes('g.n.asean<'));
+  assert.ok(row.includes('flagi/sg.svg') && row.includes('flagi/th.svg') && row.includes('flagi/ph.svg'), 'wiersz: flagi krajów funduszu');
+  const R = html.slice(html.indexOf('const r=GB_[s.id],v=F[s.id],dy='), html.indexOf('${gCenyRow(s)}'));
+  assert.ok(R.includes('gRegIso(r,gst.period)') && R.includes('ri.map(gmCty)'), 'okno regionu na mapie — te same kraje');
 });

@@ -5519,7 +5519,7 @@ function gRenderDetail(){
         <dl class="d-grid">
           <div><dt>${t('g.d.base')}</dt><dd>${gfmt(r.mcap)}</dd></div>
           <div><dt>${t('g.d.chgp')}</dt><dd>${v[2]?`<span class="${gmTone(v[1])}">${gmPct(v[1])}</span>`:'—'}</dd></div>
-          <div${r.iso.length>2?' class="wide"':''}><dt>${t('g.d.cty')}</dt><dd class="gctys">${r.iso.map(gmCty).join('')}</dd></div>
+          ${(ri=>`<div${ri.length>2?' class="wide"':''}><dt>${t('g.d.cty')}</dt><dd class="gctys">${ri.map(gmCty).join('')}</dd></div>`)(typeof gRegIso==='function'?gRegIso(r,gst.period):r.iso)}
           ${(dy&&dy.dp!=null)?`<div class="wide"><dt>${t('g.d.today')}</dt><dd><b class="${gmTone(dy.dp)}">${gmPct(dy.dp)}</b> · ${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund).join(' + ')} · ${escH(GLIVE.dayAt||'')}</dd></div>`:''}
           ${gCenyRow(s)}
           ${spRegion(s.id)}
@@ -5862,11 +5862,16 @@ function pgEdges(){
   }
   return EDGES.map(e=>({f:e.f,t:e.t,a:eAmt(e),k:e.k==='out'?'out':'in',ev:e.ev,nm:id=>nName(id),u:'u.m'}));   /* v96: k — jak na scenie: do giełd = odpływ (czerwony) */
 }
+/* v200: kraje regionu, gdy liczby są z funduszy ETF (DZIŚ zawsze; 1T, 1M, kwartał i rok — gdy GDATA[okres].td): skład funduszu zastępczego, nie
+   lista krajów indeksów OECD — Azja Płd.-Wsch. (fundusz regionu: Singapur, Indonezja, Malezja, Tajlandia, Filipiny) zamiast samej Indonezji;
+   Australia (fundusz Australii) bez Nowej Zelandii. Pozostałe regiony — skład jak dotąd. */
+const GREG_ETF_ISO={asean:['SGP','IDN','MYS','THA','PHL'],oce:['AUS']};
+function gRegIso(r,per){const F=typeof GDATA!=='undefined'&&GDATA?GDATA[per]:null;return GREG_ETF_ISO[r.id]&&(per==='1D'||(F&&F.td))?GREG_ETF_ISO[r.id]:r.iso;}
 function pgNodes(){
   if(gActive()){const F=GDATA?GDATA[gst.period]:null;
     /* has=false: brak danych dla regionu (nie zero); v=0 jest wtedy tylko wartością techniczną — widok powinien pokazać „—” */
     return GREG.map(r=>({id:r.id,nm:t('g.n.'+r.id),v:F?F[r.id][0]:0,p:F?F[r.id][1]:0,has:!!(F&&F[r.id]&&F[r.id][2]),
-      base:r.mcap,sub:r.iso.join((typeof sepL==='function'?sepL():', ')),iso:r.iso,u:'u.b'}))
+      base:r.mcap,sub:gRegIso(r,gst.period).join((typeof sepL==='function'?sepL():', ')),iso:gRegIso(r,gst.period),u:'u.b'}))   /* v200 */
       .concat(GDATA?[{id:'crypto',nm:t('g.n.crypto'),v:GDATA[gst.period].crypto[0],has:!!GDATA[gst.period].crypto[2],
         p:GDATA[gst.period].crypto[1],base:null,sub:t('pg.sub.crypto'),coins:['BTC','ETH','USDT','USDC'],u:'u.b'}]:[]);}
   const D=DATA[st.period];
