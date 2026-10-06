@@ -1,17 +1,17 @@
-# Kontrola strony — 06.10.2026, 10:46 (czas polski)
+# Kontrola strony — 06.10.2026, 11:35 (czas polski)
 
 **Wynik: UWAGA**
 
 ⚠️ Uwag: 2 — nic nie wymaga natychmiastowej reakcji.
 
-- Strona główna: działa (HTTP 200, 529 ms).
-- Ostatni przebieg automatu: 06.10.2026, 10:41 — sprzed 4 min; źródeł: 77, bez odpowiedzi: żadne; błędów zbieracza: 0.
+- Strona główna: działa (HTTP 200, 169 ms).
+- Ostatni przebieg automatu: 06.10.2026, 10:41 — sprzed 53 min; źródeł: 77, bez odpowiedzi: żadne; błędów zbieracza: 0.
 - Czas tego przebiegu automatu: 2 min 33 s; najdłużej: ceny 62 s, wieloryby 21 s, etf 18 s.
 - Słowniki języków de–ja (osobne pliki strony): 8 z 8 plików odpowiada, skróty zgodne.
-- Przebiegi Actions w 24 h: 169 (in_progress: 1, success: 149, cancelled: 14, failure: 5).
+- Przebiegi Actions w 24 h: 169 (pending: 1, cancelled: 19, waiting: 1, success: 143, failure: 5).
 - Najdłuższy udany przebieg w 24 h: 22,8 min (od startu do końca, z czekaniem na maszyny); samo zadanie budowy najdłużej 13,3 min z limitu 25 min.
 - Nieudane przebiegi (24 h): 05.10.2026, 22:55; 05.10.2026, 22:23; 05.10.2026, 21:56; 05.10.2026, 21:21; 05.10.2026, 20:46. Od ostatniej porażki 88 udanych przebiegów z rzędu.
-- Pliki danych (wiek): etf 0h04, trendy 0h04, oecd 5h11, rynki 0h04, dzwignia 0h04, wieloryby 0h04, energia 5h11, usa-makro 5h11, bilans-usa 11h13, krypto 0h29, krypto-top10 0h55, cmc 0h04, instytucje 0h34, tic 10h25, cm 0h04, fred 0h04, cftc 5h11, ceny 0h04, indeksy 0h29, ceny-krypto 0h49, snb 11h13, ici 6h22, fed 0h04, lancuch 0h04, wycena 5h26, insider wyłączone, nastroj 5h11, stres 5h11, aukcje 5h11, swiat-dzien 0h04, swiat-dziennik 0h02, premie 0h04, dolar 0h55, jpx 6h47, rwa 1h48, krypto-dzien 0h04, krypto-dziennik 0h02, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200.
+- Pliki danych (wiek): etf 0h53, trendy 0h53, oecd 5h59, rynki 0h53, dzwignia 0h53, wieloryby 0h53, energia 5h59, usa-makro 5h59, bilans-usa 12h02, krypto 1h18, krypto-top10 1h44, cmc 0h53, instytucje 1h23, tic 11h14, cm 0h53, fred 0h53, cftc 5h59, ceny 0h53, indeksy 1h18, ceny-krypto 1h38, snb 12h02, ici 7h11, fed 0h53, lancuch 0h53, wycena 6h14, insider wyłączone, nastroj 5h59, stres 5h59, aukcje 5h59, swiat-dzien 0h53, swiat-dziennik 0h50, premie 0h53, dolar 1h44, jpx 7h35, rwa 2h36, krypto-dzien 0h53, krypto-dziennik 0h50, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200.
 - Awarie części automatu (24 h): brak (pamięć od 06.10.2026, 07:19).
 - Zużycie darmowych planów (licznik automatu — dolna granica): CoinGecko (Demo) — zapytań w tym miesiącu (od 06.10.2026, 09:16): 11 (prognoza po pierwszej dobie liczenia) ✅; CoinMarketCap (Basic) — zapytań w tym miesiącu (od 06.10.2026, 09:16): 13 (prognoza po pierwszej dobie liczenia); według dostawcy w miesiącu: 471 z 15 000 (3%, stan 06.10.2026, 09:16) ✅; Twelve Data (Basic) — kredytów wczoraj: brak pełnej doby licznika; w bieżącej dobie (od północy UTC): 28 ✅.
 - Notatki automatu: Twelve Data: zamknięcie sesji z pliku notowań dziennych (świeca wstępna albo brak) — ASEA · Twelve Data: świece spoza wspólnego kalendarza sesji pominięte: 3 · brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni · Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta) · fundusze EWZ: błąd pliku źródła w wierszach 2026-10-05 — aktywa ponad 2× od sąsiednich dni; przepływ i zwrot tego dnia i następnego = brak (nie zero) · trendy EWZ: wiersz 2026-10-05 pominięty w cenie tygodniowej (błąd pliku źródła) — cena do 2026-10-02.
@@ -20,37 +20,37 @@
 
 | Źródło | Status | Wiek danych | Data danych | Uwaga |
 |---|---|---|---|---|
-| rynki (kursy EBC, rentowności) | ✅ | 0 h 04 min | 2026-10-06T08:41:59+00:00 | — |
-| wieloryby (salda portfeli giełd) | ✅ | 0 h 04 min | 2026-10-06T08:41:59+00:00 | — |
-| dźwignia (giełdy pochodnych) | ✅ | 0 h 04 min | 2026-10-06T08:41:59+00:00 | — |
-| premie krypto (minuty giełd) | ✅ | 0 h 04 min | 2026-10-06T08:42 | — |
-| TGA (Fiscal Data, dziennie) | ✅ | 32 h 46 min | 2026-10-02 | — |
-| ETF krypto (SoSoValue, dziennie) | ✅ | 8 h 46 min | 2026-10-05 | — |
-| FRED dzienne (RRPONTSYD) | ✅ | 8 h 46 min | 2026-10-05 | — |
-| EIA ceny dzienne (publikowane co tydzień) | ✅ | 6 d 8 h | 2026-09-29 | — |
-| CFTC (raport tygodniowy) | ✅ | 6 d 8 h | 2026-09-29 | — |
-| FRED tygodniowe (WALCL) | ✅ | 5 d 8 h | 2026-09-30 | — |
-| TIC (miesięcznie) | ✅ | 66 d 8 h | 2026-07 | — |
-| OECD (miesięcznie) | ✅ | 5 d 8 h | 2026-09 | — |
-| BLS (miesięcznie) | ✅ | 35 d 8 h | 2026-08 | — |
-| szanse decyzji Fed (rynek zakładów) | ✅ | 0 h 02 min | 2026-10-06T08:44:14+00:00 | — |
-| wycena BTC — MVRV, średnia cena zakupu (dziennie) | ✅ | 8 h 46 min | 2026-10-05 | — |
-| SOPR BTC (źródło opóźnia 7 dni) | ✅ | 6 d 8 h | 2026-09-29 | — |
-| kursy dolara Ameryki Łacińskiej (co godzinę) | ✅ | 0 h 55 min | 2026-10-06T07:50:53+00:00 | — |
-| Fundusze USA: napływy (tydzień do środy, publ. w środę) | ✅ | 12 d 8 h | 2026-09-23 | — |
-| Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek) | ✅ | 5 d 8 h | 2026-09-30 | — |
-| Japonia: kto handluje akcjami na giełdzie (tydzień) | ✅ | 10 d 8 h | 2026-09-25 | — |
-| TRENDY krypto — ostatni dzień z wynikiem sygnałów | ✅ | 2 d 8 h | 2026-10-03 | — |
-| TRENDY świat — ostatnia sesja z wynikiem sygnałów | ✅ | 8 h 46 min | 2026-10-05 | — |
-| tokenizowane aktywa RWA (co 3 h) | ✅ | 1 h 48 min | 2026-10-06T06:58:21+00:00 | — |
-| tokenizowane aktywa — odczyt własny z łańcucha (co 3 h) | ✅ | 1 h 48 min | 2026-10-06T06:58:21+00:00 | — |
-| tokenizowane aktywa — dane emitentów (co 3 h) | ✅ | 1 h 48 min | 2026-10-06T06:58:21+00:00 | — |
+| rynki (kursy EBC, rentowności) | ✅ | 0 h 53 min | 2026-10-06T08:41:59+00:00 | — |
+| wieloryby (salda portfeli giełd) | ✅ | 0 h 53 min | 2026-10-06T08:41:59+00:00 | — |
+| dźwignia (giełdy pochodnych) | ✅ | 0 h 53 min | 2026-10-06T08:41:59+00:00 | — |
+| premie krypto (minuty giełd) | ✅ | 0 h 53 min | 2026-10-06T08:42 | — |
+| TGA (Fiscal Data, dziennie) | ✅ | 33 h 35 min | 2026-10-02 | — |
+| ETF krypto (SoSoValue, dziennie) | ✅ | 9 h 35 min | 2026-10-05 | — |
+| FRED dzienne (RRPONTSYD) | ✅ | 9 h 35 min | 2026-10-05 | — |
+| EIA ceny dzienne (publikowane co tydzień) | ✅ | 6 d 9 h | 2026-09-29 | — |
+| CFTC (raport tygodniowy) | ✅ | 6 d 9 h | 2026-09-29 | — |
+| FRED tygodniowe (WALCL) | ✅ | 5 d 9 h | 2026-09-30 | — |
+| TIC (miesięcznie) | ✅ | 66 d 9 h | 2026-07 | — |
+| OECD (miesięcznie) | ✅ | 5 d 9 h | 2026-09 | — |
+| BLS (miesięcznie) | ✅ | 35 d 9 h | 2026-08 | — |
+| szanse decyzji Fed (rynek zakładów) | ✅ | 0 h 51 min | 2026-10-06T08:44:14+00:00 | — |
+| wycena BTC — MVRV, średnia cena zakupu (dziennie) | ✅ | 9 h 35 min | 2026-10-05 | — |
+| SOPR BTC (źródło opóźnia 7 dni) | ✅ | 6 d 9 h | 2026-09-29 | — |
+| kursy dolara Ameryki Łacińskiej (co godzinę) | ✅ | 1 h 44 min | 2026-10-06T07:50:53+00:00 | — |
+| Fundusze USA: napływy (tydzień do środy, publ. w środę) | ✅ | 12 d 9 h | 2026-09-23 | — |
+| Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek) | ✅ | 5 d 9 h | 2026-09-30 | — |
+| Japonia: kto handluje akcjami na giełdzie (tydzień) | ✅ | 10 d 9 h | 2026-09-25 | — |
+| TRENDY krypto — ostatni dzień z wynikiem sygnałów | ✅ | 2 d 9 h | 2026-10-03 | — |
+| TRENDY świat — ostatnia sesja z wynikiem sygnałów | ✅ | 9 h 35 min | 2026-10-05 | — |
+| tokenizowane aktywa RWA (co 3 h) | ✅ | 2 h 36 min | 2026-10-06T06:58:21+00:00 | — |
+| tokenizowane aktywa — odczyt własny z łańcucha (co 3 h) | ✅ | 2 h 36 min | 2026-10-06T06:58:21+00:00 | — |
+| tokenizowane aktywa — dane emitentów (co 3 h) | ✅ | 2 h 36 min | 2026-10-06T06:58:21+00:00 | — |
 
 ## Zgodność liczb (porównania krzyżowe)
 
-- Kapitalizacja krypto, dwa źródła: różnica dziś 5.01%, norma (mediana 10 dni) 4.32% — ✅ odchylenie od mediany 0.70 pkt proc. (progi 2 / 5).
-- Cena BTC: 85,928 vs 85,798 USD — różnica 0.15% ✅.
-- Cena ETH: 2,715 vs 2,715 USD — różnica 0.01% ✅.
+- Kapitalizacja krypto, dwa źródła: różnica dziś 5.13%, norma (mediana 10 dni) 4.32% — ✅ odchylenie od mediany 0.82 pkt proc. (progi 2 / 5).
+- Cena BTC: 85,877 vs 85,777 USD — różnica 0.12% ✅.
+- Cena ETH: 2,703 vs 2,704 USD — różnica 0.05% ✅.
 - TGA 2026-09-30: Fiscal Data 984,046 vs FRED 948,674 mln USD — różnica 3.73%, norma (mediana 10 dni) 3.05% — ✅ odchylenie od mediany 0.68 pkt proc. (progi 1).
 - Podaż stablecoinów, dwa źródła: 312.6 vs 285.4 mld USD — różnica dziś +9.55%, norma (mediana 0 dni) — — ℹ️ historia 0 z 7 dni — bez oceny.
 - Rentowność 10L USA (Skarb USA vs H.15 — Fed, te same dni): porównane 9 dat (do 2026-10-02), różnice > 0.02 pkt proc.: 0 ✅.
