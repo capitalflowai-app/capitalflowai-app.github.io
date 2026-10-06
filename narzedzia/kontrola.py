@@ -731,6 +731,21 @@ def najdluzsze_udane(runs, now, n=3):
     return [i for _, i in sorted(out, key=lambda x: -x[0])[:n]]
 
 
+def budowa_kandydaci(runs, now, n=3, prog_min=20, cap=10):
+    """v199: przebiegi do odczytu czasu zadania budowy: n najdłuższych udanych z 24 h i każdy udany dłuższy niż prog_min min (razem najwyżej cap)
+    — przy czekaniu w kolejce najdłuższa budowa nie musi być wśród 3 najdłuższych przebiegów (przegląd 06.10)."""
+    ids = najdluzsze_udane(runs, now, len(runs) if isinstance(runs, list) else 0)
+    dl = {}
+    for r in runs if isinstance(runs, list) else []:
+        try:
+            a = dt.datetime.fromisoformat(str(r.get('run_started_at')).replace('Z', '+00:00'))
+            b = dt.datetime.fromisoformat(str(r.get('updated_at')).replace('Z', '+00:00'))
+            dl[r.get('id')] = (b - a).total_seconds() / 60
+        except Exception:
+            continue
+    return [i for k, i in enumerate(ids) if k < n or dl.get(i, 0) > prog_min][:cap]
+
+
 def zadanie_min(jobs, nazwa):
     """v194: minuty zadania o tej nazwie (od startu zadania do końca, bez czekania w kolejce); brak albo zły czas = None."""
     for j in jobs if isinstance(jobs, list) else []:
@@ -2296,7 +2311,7 @@ def kontrola():
         # v194 (przegląd v190–v192): czas samego zadania budowy (limit 25 min) w 3 najdłuższych udanych przebiegach — całość przebiegu zawiera
         # czekanie na maszyny (w awarii GitHuba fałszywe „blisko limitu”); 3 dodatkowe zapytania, błąd odczytu = bez tej liczby
         bud = []
-        for rid in najdluzsze_udane(runs, NOW, 3):
+        for rid in budowa_kandydaci(runs, NOW):   # v199: także każdy udany > 20 min (najwyżej 10)
             try:
                 _, b3, _ = get(f'https://api.github.com/repos/{REPO}/actions/runs/{rid}/jobs', headers=hdr)
                 m3 = zadanie_min(json.loads(b3).get('jobs', []), 'zbuduj')

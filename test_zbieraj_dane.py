@@ -21465,7 +21465,8 @@ class RwaV133(unittest.TestCase):   # v172: rytm 6 h przypięty w setUp (logika 
         self.assertEqual(B['stale']['seg']['tb'], {'v': 3_514_800_000, 'n': 1, 'ng': 1, 'last': None, 'gone': '2026-09-28', 'main': None, 'mixed': False})
         def g4(url, headers=None, timeout=30):
             return (200, '') if url.endswith('/blackrock-buidl') else _rwa133_get(scale=1.01)(url, headers, timeout)
-        C = self._build(B, get=g4, now=self._at('2026-10-30T07:00:00'))
+        with mock.patch.dict(zd.RWC_PRODUKTY, {}, clear=True), mock.patch.dict(zd.RWE_PRODUKTY, {}, clear=True):   # v199: produkt bez zamiennika w konfiguracji
+            C = self._build(B, get=g4, now=self._at('2026-10-30T07:00:00'))
         self.assertEqual((C['n']['stale'], C['stale']['gone']), (0, None), 'po 31 dniach bez wartości zapis znika')
         self.assertNotIn('blackrock-buidl', C['hv'])
 
@@ -23858,7 +23859,7 @@ class PoPrzegladzieV175(unittest.TestCase):
         self.assertIn('spiko', J2['hv'], 'v175: zapis zostaje (bieżące dane emitenta), mimo „brak wartości” ponad 31 dni')
         self.assertIn('spiko', J2['issuer']['used'])
         J3 = zd.rwa_build(P, H2, prev2, self.NOW)
-        self.assertNotIn('spiko', J3['hv'], 'bez zamiennika — jak dotąd (zapis znika po 31 dniach)')
+        self.assertIn('spiko', J3['hv'], 'v199: produkt z zamiennikiem w konfiguracji — zapis zostaje także w dniu bez danych emitenta')
 
     def test_wylaczniki_bez_petli_i_lancuch_wylaczony(self):
         H = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
@@ -24657,8 +24658,8 @@ class PoPrzegladzieV194(unittest.TestCase):
         self.assertEqual(out['assets']['eth']['funds_at'], zd.NOW, 'ETH zgodne (100 = 100)')
         out, _ = self._run(None, snaps={'FBTC': {'net_assets': 1.5e10, 'cum_inflow': 1.1e10, 'net_inflow': None, 'sponsor_fee': 0}})
         self.assertNotIn('funds_at', out['assets']['btc'], 'fundusz bez przepływu — suma nieznana, bez czasu')
-        out, _ = self._run(None, snaps={'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 7.12e7, 'sponsor_fee': 0.0025}})
-        self.assertEqual(out['assets']['btc']['funds_at'], zd.NOW, 'różnica 0,2 mln — w tolerancji (0,5 mln albo 2%)')
+        out, _ = self._run(None, snaps={'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 7.102e7, 'sponsor_fee': 0.0025}})
+        self.assertEqual(out['assets']['btc']['funds_at'], zd.NOW, 'różnica 0,02 mln — w tolerancji 0,05 mln (v199)')
 
     def test_blad_monety_poprzedni_wpis(self):
         prev = self._prev()
@@ -24716,7 +24717,7 @@ class PoPrzegladzieV194(unittest.TestCase):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as fh:
             src = fh.read()
         i = src.index('# 4. przebiegi Actions'); j = src.index('# 5. v115', i)
-        self.assertIn("najdluzsze_udane(runs, NOW, 3)", src[i:j]); self.assertIn("zadanie_min(json.loads(b3).get('jobs', []), 'zbuduj')", src[i:j])
+        self.assertIn("budowa_kandydaci(runs, NOW)", src[i:j]); self.assertIn("zadanie_min(json.loads(b3).get('jobs', []), 'zbuduj')", src[i:j])   # v199
         self.assertTrue(md.startswith('# Kontrola strony — ') and '**Wynik: OK**' in md, 'nagłówek i wynik bez zmian (czyta je zadanie w chmurze)')
 
 
@@ -24730,14 +24731,17 @@ class CenyZamknieciaV195(unittest.TestCase):
         zd.META['notes'].clear(); zd.META['errors'].clear()
 
     def _q(self):
-        return {'SPY': {'asof': '2026-10-05', 'd': [['2026-10-01', 763.99, 47708100], ['2026-10-02', 769.64, 46306400], ['2026-10-05', 774.94, 36114284]]},
-                'ASEA': {'asof': '2026-10-02', 'd': [['2026-10-01', 20.9, 14900], ['2026-10-02', 20.95, 30300]]},
-                'EZA': {'asof': '2026-10-05', 'd': [['2026-10-02', 63.19, 62200], ['2026-10-05', 63.11, 70616]]},
-                'EWJ': {'asof': '2026-10-05', 'd': [['2026-10-02', 98.92, 7328800], ['2026-10-05', 99.3, 3071843]]}}
+        h = lambda c, v: [[d, c, v] for d in ('2026-09-24', '2026-09-25', '2026-09-28', '2026-09-29', '2026-09-30')]  # noqa: E731 — v199: historia obrotu
+        return {'SPY': {'asof': '2026-10-05', 'd': h(760.0, 50_000_000) + [['2026-10-01', 763.99, 47708100], ['2026-10-02', 769.64, 46306400], ['2026-10-05', 774.94, 3_611_428]]},
+                'ASEA': {'asof': '2026-10-02', 'd': h(20.9, 20_000) + [['2026-10-01', 20.9, 14900], ['2026-10-02', 20.95, 30300]]},
+                'EZA': {'asof': '2026-10-05', 'd': h(63.0, 100_000) + [['2026-10-02', 63.19, 62200], ['2026-10-05', 63.11, 7_061]]},
+                'EWJ': {'asof': '2026-10-05', 'd': h(98.0, 5_000_000) + [['2026-10-02', 98.92, 7328800], ['2026-10-05', 99.3, 3071843]]},
+                'INDA': {'asof': '2026-10-05', 'd': h(46.0, 4_500_000) + [['2026-10-02', 46.52, 4323400], ['2026-10-05', 46.55, 3032335]]}}
 
     def _dz(self, **over):
         q = {'SPY': {'c': 774.83, 'pc': 769.64, 'dp': 0.6743, 't': self.T}, 'ASEA': {'c': 21.095, 'pc': 20.95, 'dp': 0.6921, 't': self.T},
-             'EZA': {'c': 63.17, 'pc': 63.19, 'dp': -0.0317, 't': self.T}, 'EWJ': {'c': 99.3, 'pc': 98.92, 'dp': 0.3841, 't': self.T}}
+             'EZA': {'c': 63.17, 'pc': 63.19, 'dp': -0.0317, 't': self.T}, 'EWJ': {'c': 99.3, 'pc': 98.92, 'dp': 0.3841, 't': self.T},
+             'INDA': {'c': 46.57, 'pc': 46.52, 'dp': 0.1075, 't': self.T}}   # v199: świeca z pełnym obrotem — bez podmiany
         for k, v in over.items():
             q[k] = dict(q[k], **v)
         return {'at': '2026-10-05T21:33:18+00:00', 'q': q}
@@ -24746,7 +24750,8 @@ class CenyZamknieciaV195(unittest.TestCase):
         q = self._q()
         self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 17, 33)), 3)
         self.assertEqual(q['SPY']['d'][-1], ['2026-10-05', 774.83, None]); self.assertEqual(q['EZA']['d'][-1], ['2026-10-05', 63.17, None])
-        self.assertEqual((q['ASEA']['d'][-1], q['ASEA']['asof'], len(q['ASEA']['d'])), (['2026-10-05', 21.095, None], '2026-10-05', 3), 'ASEA: dopisana świeca 05.10')
+        self.assertEqual((q['ASEA']['d'][-1], q['ASEA']['asof'], len(q['ASEA']['d'])), (['2026-10-05', 21.095, None], '2026-10-05', 8), 'ASEA: dopisana świeca 05.10')
+        self.assertEqual(q['INDA']['d'][-1], ['2026-10-05', 46.55, 3032335], 'v199: świeca z pełnym obrotem zostaje (notowanie 46,57)')
         self.assertEqual(q['EWJ']['d'][-1], ['2026-10-05', 99.3, 3071843], 'świeca równa zamknięciu (ostateczna) — bez zmian')
         self.assertEqual(q['SPY']['d'][-2], ['2026-10-02', 769.64, 46306400], 'starsze świece bez zmian')
         self.assertTrue(any('zamknięcie sesji z pliku notowań dziennych' in n and 'ASEA, EZA, SPY' in n for n in zd.META['notes']), zd.META['notes'])
@@ -24761,7 +24766,8 @@ class CenyZamknieciaV195(unittest.TestCase):
                              (self._dz(ASEA={'c': None}), datetime.datetime(2026, 10, 5, 17, 33), 'brak ceny'),
                              (self._dz(ASEA={'c': True}), datetime.datetime(2026, 10, 5, 17, 33), 'nie liczba'),
                              (self._dz(ASEA={'t': 'x'}), datetime.datetime(2026, 10, 5, 17, 33), 'zły czas'),
-                             (self._dz(ASEA={'t': self.T - 3 * 86400}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — świeca już jest')):
+                             (self._dz(ASEA={'t': self.T - 3 * 86400, 'c': 20.95, 'pc': 20.9}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — świeca równa (v199: zgodne poprzednie zamknięcie)'),
+                             (self._dz(ASEA={'t': self.T - 3 * 86400, 'c': 21.0, 'pc': 20.9}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — inna cena, świeca z pełnym obrotem zostaje')):
             q = self._q()
             zd._zamkniecia_z_notowan(q, dz, now)
             self.assertEqual(q['ASEA']['d'][-1], ['2026-10-02', 20.95, 30300], why)
@@ -24771,7 +24777,7 @@ class CenyZamknieciaV195(unittest.TestCase):
 
     def test_w_build_prices(self):
         q = self._q()
-        with mock.patch.object(zd, 'DAY_SYMS', ['SPY', 'ASEA', 'EZA', 'EWJ']), mock.patch.object(zd, 'td_batch', lambda syms, key: (q, [])), \
+        with mock.patch.object(zd, 'DAY_SYMS', ['SPY', 'ASEA', 'EZA', 'EWJ', 'INDA']), mock.patch.object(zd, 'td_batch', lambda syms, key: (q, [])), \
                 mock.patch.object(zd, 'TD_MIN_CANDLES', 2), mock.patch.object(zd, 'TD_MIN_SYMBOLS', 4), \
                 mock.patch.object(zd, '_ny_now', lambda: datetime.datetime(2026, 10, 5, 17, 33)), mock.patch.dict(zd.SAVED, {'dzis': self._dz()}):
             o = zd.build_prices('k')
@@ -24917,3 +24923,67 @@ class TwJednorazowoV198(TwPoprawkiV197):
         old = dict(P, d=[['2026-09-15', 1.0, 0, 0, 0, None, None]] + P['d'])
         _, asked = self._run(old, '2026-10-06T00:00:00+00:00', ans)
         self.assertNotIn('2026-09-15', asked, 'dzień starszy niż 14 dni — bez ponownego odczytu')
+
+
+# ===================== v199: PO PRZEGLĄDZIE v193–v196 — RWA (ZAPIS Z ZAMIENNIKIEM), ETF, CENY, KONTROLA =====================
+class PoPrzegladzieV199(unittest.TestCase):
+    """v199: zapis produktu z zamiennikiem w konfiguracji zostaje także w dniu bez danych zamiennika (potem wraca do sum); ETF — tolerancja
+    0,05 mln i poprzedni wpis tylko do 3 dni od najnowszej monety; ceny — podmiana tylko świecy wstępnej (mały obrót); kontrola — czasy zadania
+    budowy także dla przebiegów > 20 min. Bez sieci."""
+
+    def test_rwa_zapis_z_zamiennikiem_i_powrot(self):
+        t = PoPrzegladzieV175('test_stan_produktow_i_zapis_po_31_dniach'); t.setUp()
+        try:
+            r = RwaV133('test_bramka_odswiezenia_i_proby'); P, H = r._parsed(), r._hid()
+            em = zd.rwe_blok(t._rd(), None, t.NOW, oc={'v': 1, 'px': {'zloto': dict(_RWE169_GOLD)}})
+            prev = {'at': '2026-10-04T23:00:00+00:00', 'seg': {}, 'hist': [], 'ok': {'list': True, 'hidden': True}, 'ph': {},
+                    'hv': {s: [v, '2026-09-27', 0, 2, None] for s, v in H.items() if v}}
+            H2 = dict(H, spiko=None)
+            prev2 = dict(prev, hv=dict(prev['hv'], spiko=[2625000000.0, '2026-08-20', 0, 5, '2026-08-25']))
+            J1 = zd.rwa_build(P, H2, prev2, t.NOW, em=em)
+            self.assertIn('spiko', J1['issuer']['used'], 'dzień 1: Spiko w sumach z danych emitenta')
+            J2 = zd.rwa_build(P, H2, J1, t.NOW)                                  # przebieg bez danych emitenta
+            self.assertIn('spiko', J2['hv'], 'zapis zostaje mimo braku zamiennika tego dnia')
+            J3 = zd.rwa_build(P, H2, J2, t.NOW, em=em)                           # dane emitenta wracają
+            self.assertIn('spiko', J3['issuer']['used'], 'Spiko wraca do sum (dotąd: zapis usunięty — poza sumą na zawsze)')
+            self.assertGreater(J3['seg']['all']['v'], J2['seg']['all']['v'] + 1e9, 'suma z Spiko wyższa o ponad 1 mld USD')
+        finally:
+            t.doCleanups()
+
+    def test_etf_tolerancja_i_wiek_poprzedniego_wpisu(self):
+        t = PoPrzegladzieV194('test_suma_funduszy_niezgodna_bez_czasu'); t.setUp()
+        try:
+            out, _ = t._run(None, snaps={'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 7.12e7, 'sponsor_fee': 0.0025}})
+            self.assertNotIn('funds_at', out['assets']['btc'], 'różnica 0,2 mln — poza tolerancją 0,05 mln (dawniej 0,5 mln albo 2%)')
+            self.assertEqual(zd.ETF_SUMA_TOL, 0.05)
+            prev = t._prev(); prev['assets']['eth'] = dict(prev['assets']['eth'], asof='2026-09-25')
+            zd.META['notes'].clear()
+            out, _ = t._run(prev, hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
+            self.assertNotIn('eth', out['assets'], 'poprzedni wpis z 25.09 — ponad 3 dni starszy od BTC (02.10): pominięty')
+            self.assertTrue(any('SoSoValue ETH: poprzednie dane z 2026-09-25 pominięte' in n for n in zd.META['notes']), zd.META['notes'])
+            self.assertEqual(list(out['assets']), ['btc'])
+            out, _ = t._run(t._prev(), hist={'btc': _rows(['2026-10-01', '2026-10-02'])}, zle=('symbol=ETH&country_code=US',))
+            self.assertEqual(list(out['assets']), ['btc', 'eth'], 'poprzedni wpis z tego samego dnia — zostaje, kolejność monet jak w ETF_SYMS')
+        finally:
+            t.doCleanups()
+
+    def test_ceny_wstepna_tylko_przy_malym_obrocie(self):
+        d = [['2026-09-%02d' % i, 10.0, 1000] for i in range(10, 30)] + [['2026-10-05', 10.5, 290]]
+        self.assertTrue(zd._ceny_wstepna(d), '290 < 30% z 1000')
+        self.assertFalse(zd._ceny_wstepna(d[:-1] + [['2026-10-05', 10.5, 310]]), '31% — nie')
+        self.assertFalse(zd._ceny_wstepna(d[:-1] + [['2026-10-05', 10.5, None]]), 'obrót nieznany — nie wiadomo, bez podmiany')
+        self.assertFalse(zd._ceny_wstepna(d[-4:]), 'za mało historii (3 świece) — nie')
+        self.assertFalse(zd._ceny_wstepna([['2026-10-05', 10.5, True]]))
+
+    def test_kontrola_kandydaci_budowy(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v199', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        NOW = datetime.datetime(2026, 10, 6, 6, 0, tzinfo=datetime.timezone.utc)
+        f = lambda m: (NOW - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        runs = [{'id': i, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': f(60 * i + dur), 'updated_at': f(60 * i)}
+                for i, dur in enumerate([25, 24, 23, 22, 21, 12, 11, 30, 5, 26, 27, 28, 29, 31], start=1)]
+        c = k.budowa_kandydaci(runs, NOW)
+        self.assertEqual(c[:3], [14, 8, 13], '3 najdłuższe'); self.assertEqual(len(c), 10, 'najwyżej 10')
+        self.assertTrue(set(c) <= {i for i, dur in enumerate([25, 24, 23, 22, 21, 12, 11, 30, 5, 26, 27, 28, 29, 31], start=1) if dur > 20})
+        self.assertEqual(k.budowa_kandydaci(runs[5:7], NOW), [6, 7], 'bez przebiegów > 20 min — tylko 3 najdłuższe (tu 2)')

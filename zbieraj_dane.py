@@ -580,6 +580,18 @@ def _drop_open_session(q, now_ny=None):
 
 
 CENY_ZGODNOSC_PC = 0.0005   # v195: poprzednie zamknięcie z pliku notowań wobec poprzedniej świecy (0,05%) — ta sama sesja odniesienia
+CENY_WSTEPNA_VOL = 0.3      # v199: świeca z obrotem < 30% mediany 20 poprzednich = wstępna (05.10 17:33 NY: EWC 3%, MCHI 9%, EWA 7%)
+
+
+def _ceny_wstepna(d):
+    """v199: czy ostatnia świeca wygląda na wstępną: obrót liczbą < CENY_WSTEPNA_VOL × mediana obrotu 20 poprzednich świec (co najmniej 5
+    z obrotem). Obrót nieznany albo za mało historii = nie wiadomo → nie (bez podmiany; świeca z pełnym obrotem może być ostateczna innego
+    rodzaju, np. cena aukcji zamknięcia — INDA 05.10: 46,55 przy notowaniu 46,57)."""
+    v = d[-1][2] if d and isinstance(d[-1], list) and len(d[-1]) > 2 else None
+    if not (isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0):
+        return False
+    h = [r[2] for r in d[-21:-1] if isinstance(r, list) and len(r) > 2 and isinstance(r[2], (int, float)) and not isinstance(r[2], bool) and r[2] > 0]
+    return len(h) >= 5 and v < CENY_WSTEPNA_VOL * statistics.median(h)
 
 
 def _ny_z_epoch(t):
@@ -622,6 +634,8 @@ def _zamkniecia_z_notowan(q, dz, now_ny=None):
         if ld == D:
             if num(d[-1][1]) and abs(d[-1][1] - c) < 1e-9:
                 continue   # świeca już ostateczna
+            if not _ceny_wstepna(d):
+                continue   # v199: świeca z pełnym obrotem zostaje (podmiana tylko wstępnej; inaczej zamknięcie „skakało” po otwarciu)
             d[-1] = [D, c, None]
         else:
             d.append([D, c, None])
@@ -4510,6 +4524,9 @@ def etf_fee(ticker, v):
     return ETF_FEE_FIX.get(ticker, f) if f == 0 else f
 
 
+ETF_SUMA_TOL = 0.05   # v199: mln USD — suma przepływów funduszy wobec przepływu dnia (na żywo równe co do grosza; dawniej max(0,5 mln, 2%))
+
+
 def _etf_rowne(x, y):
     """v194: dwie liczby z zestawienia dnia równe (te same dane źródła); brak albo nie-liczba = nie (lista funduszy pobierana znowu)."""
     ok = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and _etf_math.isfinite(v)  # noqa: E731
@@ -4529,7 +4546,7 @@ def build_etf(key, cg_key, prev=None):
     except Exception as e:
         META['errors'].append(mask(f'CoinGecko: {e}'))
         META['ok']['coingecko'] = False
-    nowe = 0
+    nowe, stare = 0, {}
     for s in ETF_SYMS:
         pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
         try:
@@ -4538,11 +4555,18 @@ def build_etf(key, cg_key, prev=None):
             META['errors'].append(mask(f'SoSoValue {s.upper()}: {e}'))
             # v194 (przegląd v190–v192): poprzedni wpis monety z własną datą zamiast braku wiersza — i bez utraty historii dni starszej niż okno
             # źródła (ok. 21 sesji; następny przebieg łączy nowe okno z tą historią)
-            if isinstance(pa.get('day'), list) and pa['day'] and isinstance(pa.get('asof'), str):
-                out['assets'][s] = json.loads(json.dumps(pa))
-                META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]}')
+            if isinstance(pa.get('day'), list) and pa['day'] and isinstance(pa.get('asof'), str) and _d(pa['asof']):
+                stare[s] = pa
     if not nowe:   # wszystkie monety zawiodły — main zostawia poprzedni plik z jego czasem
         raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
+    top = max(a['asof'] for a in out['assets'].values())
+    for s, pa in stare.items():   # v199: poprzedni wpis tylko do 3 dni od najnowszej monety — inaczej stary przepływ dnia w sumie „dziś” bez końca
+        if pa['asof'] >= (_d(top) - datetime.timedelta(days=3)).isoformat():
+            out['assets'][s] = json.loads(json.dumps(pa))
+            META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]}')
+        else:
+            META['notes'].append(f'SoSoValue {s.upper()}: poprzednie dane z {pa["asof"]} pominięte — ponad 3 dni starsze od pozostałych ({top})')
+    out['assets'] = {s: out['assets'][s] for s in ETF_SYMS if s in out['assets']}
     ph = prev.get('hk') if isinstance(prev, dict) and isinstance(prev.get('hk'), dict) and prev['hk'] else None
     hat = _ix_dt(prev.get('hk_at')) if isinstance(prev, dict) else None
     if ph and hat is not None and 0 <= (_now_utc() - hat).total_seconds() < ETF_FUNDS_EVERY * 60:   # v192: Hongkong najwyżej co 6 h
@@ -4650,7 +4674,7 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
             # albo 2%) — przy zmianie dnia szczegóły funduszy bywają jeszcze z dnia poprzedniego; inaczej następny przebieg pobiera listę znowu
             d1f = [f.get('d1') for f in a['funds']]
             nl = [x for x in d1f if isinstance(x, (int, float)) and not isinstance(x, bool)]
-            if a['funds'] and len(nl) == len(d1f) and abs(sum(nl) - a['d1']) <= max(0.5, 0.02 * abs(a['d1'])):
+            if a['funds'] and len(nl) == len(d1f) and abs(sum(nl) - a['d1']) <= ETF_SUMA_TOL:
                 a['funds_at'] = NOW   # v192: pełna lista z tego przebiegu
             else:
                 META['notes'].append(f'SoSoValue {s.upper()}: lista funduszy niezgodna z przepływem dnia ({a["d1"]:+.1f} mln; suma {sum(nl):+.1f} mln z '
@@ -16783,6 +16807,7 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
                         and r[1] <= day and r[2] in (0, 1) and isinstance(r[3], int) and not isinstance(r[3], bool) and r[3] >= 1
                         and (r[4] is None or (isinstance(r[4], str) and bool(_RWA_DAY.match(r[4])) and r[4] <= day)))
     zast = set(rwc_uzyj(oc, now) if oc is not None else {}) | set(rwe_uzyj(em, now) if em is not None else {})   # v175: produkty z zamiennikiem
+    zast |= set(RWC_PRODUKTY) | set(RWE_PRODUKTY)   # v199: także w dniu bez danych zamiennika — bez zapisu zamiennik nie wróciłby do sum (przegląd 06.10)
     hv, answered = {}, {}
     for s in parsed['hidden']:                                        # 1. zapisy: nowa wartość, ta sama, zmiana, pierwszy odczyt, brak wartości
         old = phv.get(s) if rec_ok(phv.get(s)) else None

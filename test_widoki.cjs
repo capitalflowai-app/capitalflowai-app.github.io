@@ -13429,3 +13429,18 @@ test('v194: pasek zmienia tekst w krokach 10 min (sprzed ponad 60/70 … min, po
   const it = [...html.matchAll(/const EXTRA97=(\{.*?\});\n/g)].map(m => JSON.parse(m[1]))[0];
   assert.ok(it && it.it['zr2.stale'].includes('più di {h} h fa') && !it.it['zr2.stale'].includes('{h} ore'), 'włoski: „più di 1 h fa”, nie „1 ore”');
 });
+
+
+/* ---------- v199: wieloryby — „Czego te dane nie mówią”: przelewy ETH są w tabeli (od v112), zdanie poprawione w 10 językach ---------- */
+test('v199: wh.not2 w 10 językach bez „przelewów ETH nie wymieniamy”, z opisem przelewów ETH (zwykłe transakcje ogłoszonych portfeli)', () => {
+  const NEW = {pl: 'Przelewy ETH to zwykłe transakcje ogłoszonych portfeli (opis nad tabelą); ETH przesłane przez kontrakty pomijamy.',
+    en: 'ETH transfers are the plain transactions of the published wallets (see the note above the table); ETH moved by contracts is not counted.'};
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const s = v96src.tFor(L)('wh.not2');
+    assert.ok(!/nie wymieniamy|are not listed|nicht aufgeführt|no se listan|ne sont pas listés|non sono elencati|não são listadas|не перечисляются|不列出|載せません/.test(s), L + ': ' + s);
+    assert.ok(s.includes('ETH'), L);
+    if (NEW[L]) assert.ok(s.includes(NEW[L]), L + ': ' + s);
+    if (L !== 'pl' && L !== 'en') assert.notEqual(s, v96src.tFor('en')('wh.not2'), L + ': tłumaczenie');
+  }
+  assert.ok(v96src.tFor('pl')('wh.not2').includes('nieogłoszony portfel') && v96src.tFor('en')('wh.not2').includes('unpublished exchange wallet'), 'reszta noty bez zmian');
+});
