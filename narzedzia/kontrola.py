@@ -102,7 +102,8 @@ STOPY_SERIE = {'US': ((('NYFED_LO', 'NYFED_HI'), 'Fed', 'NY Fed'), (('DFEDTARL',
                # v244: sześć kolejnych banków u źródła, bez klucza (06.10.2026 wszystkie zgodne ze stroną); bez zapasu FRED (brak serii dziennych)
                'GB': ((('BOE_BR',), 'Bank Anglii', 'BoE'),), 'CH': ((('SNB_LZ',), 'Bank Szwajcarii', 'SNB'),),
                'SE': ((('RB_POL',), 'Bank Szwecji', 'Riksbank'),), 'NO': ((('NB_KPRA',), 'Bank Norwegii', 'Norges Bank'),),
-               'PL': ((('NBP_REF',), 'NBP', 'NBP'),), 'CA': ((('BOC_V39079',), 'Bank Kanady', 'BoC'),)}
+               'PL': ((('NBP_REF',), 'NBP', 'NBP'),), 'CA': ((('BOC_V39079',), 'Bank Kanady', 'BoC'),),
+               'BR': ((('BCB_SELIC',), 'Bank Brazylii', 'BCB'),)}   # v245: Selic — cel stopy (SGS 432)
 STOPY_NYFED = 'https://markets.newyorkfed.org/api/rates/unsecured/effr/last/100.json'
 STOPY_ECB = 'https://data-api.ecb.europa.eu/service/data/FM/D.U2.EUR.4F.KR.DFR.LEV?lastNObservations=150&format=csvdata'
 # v244: adresy kolejnych banków ({od} = dzień początkowy, {do} = dziś; Bank Anglii — data „08/Jun/2026”). Bank Australii odrzuca automaty
@@ -114,7 +115,11 @@ STOPY_RIKS = 'https://api.riksbank.se/swea/v1/Observations/SECBREPOEFF/{od}/{do}
 STOPY_NORGES = 'https://data.norges-bank.no/api/data/IR/B.KPRA.SD.R?format=csv&startPeriod={od}&locale=en'
 STOPY_NBP = 'https://static.nbp.pl/dane/stopy/stopy_procentowe.xml'   # tylko stopa obowiązująca i dzień, od którego obowiązuje (archiwum do 2015)
 STOPY_BOC = 'https://www.bankofcanada.ca/valet/observations/V39079/json?start_date={od}'
+STOPY_BCB = 'https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados?formato=json&dataInicial={od}&dataFinal={do}'   # v245: daty dd/mm/rrrr
 STOPY_MIES_EN = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+STOPY_BUDZET_S = 90    # v245: cały blok stóp (źródła banków, ponowienia, zapas FRED) — zapytanie tylko, gdy zmieści się w budżecie (krok kontroli
+#                        ok. 90 s; zadanie ma 12 min, w tym do 5 min czekania na publikację)
+STOPY_PAUZA_S = 3      # v245: przerwa przed jedną ponowną próbą po błędzie serwera (5xx) albo przekroczeniu czasu
 STOPY_FRED_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&cosd={od}'
 STOPY_OD_DNI = 120    # FRED: plik od tylu dni wstecz (data stopy na stronie bywa sprzed kilku tygodni — np. RBI)
 STOPY_PROG = 0.01     # pkt proc. — większa różnica w tym samym dniu = ⚠️
@@ -262,6 +267,21 @@ def stopy_boc(body):
     return {'BOC_V39079': out}
 
 
+def stopy_bcb(body):
+    """v245: JSON Banku Brazylii (SGS 432 — cel stopy Selic, dziennie; [{"data": "29/09/2026", "valor": "13.75"}]) → {'BCB_SELIC': {dzień:
+    stopa}}; obiekt z błędem (np. okno ponad 10 lat) = wyjątek."""
+    j = json.loads(body)
+    out = {}
+    for r in j if isinstance(j, list) else []:
+        m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', r.get('data', '')) if isinstance(r, dict) and isinstance(r.get('data'), str) else None
+        v = _stopy_liczba(r.get('valor')) if m else None
+        if v is not None:
+            out[f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = v
+    if not out:
+        raise ValueError('brak stóp' if isinstance(j, list) else f'odpowiedź bez listy ({str(j)[:40]})')
+    return {'BCB_SELIC': out}
+
+
 def stopy_adresy(now=None):
     """v244: (nazwa źródła, adres, parser) kolejnych banków — od STOPY_OD_DNI dni wstecz do dziś."""
     now = now or NOW
@@ -272,7 +292,33 @@ def stopy_adresy(now=None):
             ('Riksbank', STOPY_RIKS.format(od=od, do=d1.isoformat()), stopy_riksbank),
             ('Norges Bank', STOPY_NORGES.format(od=od), stopy_norges),
             ('NBP', STOPY_NBP, stopy_nbp),
-            ('BoC', STOPY_BOC.format(od=od), stopy_boc))
+            ('BoC', STOPY_BOC.format(od=od), stopy_boc),
+            ('BCB', STOPY_BCB.format(od=d0.strftime('%d/%m/%Y'), do=d1.strftime('%d/%m/%Y')), stopy_bcb))
+
+
+def stopy_ponowic(e):
+    """v245: błąd chwilowy, który warto raz ponowić — kod 5xx serwera albo przekroczenie czasu (także owinięte w URLError)."""
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code >= 500
+    if isinstance(e, urllib.error.URLError):
+        return isinstance(e.reason, TimeoutError)
+    return isinstance(e, TimeoutError)
+
+
+def stopy_pobierz(url, t0, timeout=15, headers=None, zegar=time.monotonic, spij=time.sleep, pobierz=None):
+    """v245: treść odpowiedzi źródła stóp. Zapytanie tylko, gdy zmieści się w STOPY_BUDZET_S od t0 (inaczej TimeoutError „pominięte — limit
+    czasu kontroli stóp”); po błędzie chwilowym (stopy_ponowic) przerwa STOPY_PAUZA_S i jedna ponowna próba — też tylko w budżecie (inaczej
+    pierwotny błąd)."""
+    pobierz = pobierz or get
+    if zegar() - t0 + timeout > STOPY_BUDZET_S:
+        raise TimeoutError('pominięte — limit czasu kontroli stóp')
+    try:
+        return pobierz(url, timeout=timeout, headers=headers)[1]
+    except Exception as e:  # noqa
+        if not stopy_ponowic(e) or zegar() - t0 + STOPY_PAUZA_S + timeout > STOPY_BUDZET_S:
+            raise
+    spij(STOPY_PAUZA_S)
+    return pobierz(url, timeout=timeout, headers=headers)[1]
 
 
 def stopy_porownanie(stopy, fred, now=None):
@@ -1164,6 +1210,11 @@ ZUZ_MP_DNI = 7       # v226: w pierwszych tylu dniach miesiąca oceniany też ko
 
 def _zuz_l(n):
     return f'{n:,.0f}'.replace(',', ' ')
+
+
+def _norma(med, dni, fmt='{:.2f}%'):
+    """v245: „, norma (mediana N dni) X%” do wierszy porównań — bez mediany (za krótka historia) pusto (było „norma (mediana 0 dni) — —”)."""
+    return f', norma (mediana {dni} dni) {fmt.format(med)}' if med is not None else ''
 
 
 def _zuz_ok(v):
@@ -3118,7 +3169,7 @@ def kontrola():
         Z['tga'] = {'data': d, 'fiscal_mln': a, 'fred_mln': b, 'roznica_pct': (round(r, 3) if r is not None else None), 'status': st2,
                     'mediana_pct': (round(med2, 3) if med2 is not None else None), 'dni': n2, 'opis': opis2}
         if st2 == '⚠️':
-            R['uwagi'].append(f'TGA {d}: Fiscal Data {a:,.0f} vs FRED {b:,.0f} mln USD — różnica {r:.2f}% wobec normy {med2:.2f}% ({opis2})')
+            R['uwagi'].append(f'TGA {d}: Fiscal Data {_zuz_l(a)} vs FRED {_zuz_l(b)} mln USD — różnica {r:.2f}% wobec normy {med2:.2f}% ({opis2})')
     else:
         Z['tga'] = None
     s = stab_porownanie(files.get('krypto'), files.get('cmc'))   # v209: podaż stablecoinów — dwa pliki strony, odchylenie od mediany (najwyżej ⚠️)
@@ -3151,25 +3202,28 @@ def kontrola():
             Z['ust10'] = {'brak': '; '.join(bu)[:200]}
     if isinstance(files.get('stopy'), dict):   # v241: stopy Fed i EBC vs FRED (bez klucza); brak odczytu = informacja; v244: + 6 banków u źródła
         Fs, bs = {}, []
-        try:   # v242: źródło banku najpierw (bez klucza)
-            Fs.update(stopy_nyfed(get(STOPY_NYFED, timeout=20)[1]))
+        t0s = time.monotonic()   # v245: budżet czasu całego bloku stóp (STOPY_BUDZET_S)
+        try:   # v242: źródło banku najpierw (bez klucza); v245: jedno ponowienie po błędzie chwilowym
+            Fs.update(stopy_nyfed(stopy_pobierz(STOPY_NYFED, t0s, timeout=20)))
         except Exception as e:  # noqa
             bs.append(f'NY Fed: {str(e)[:60]}')
         try:
-            Fs['ECB_DFR'] = stopy_ecb_csv(get(STOPY_ECB, timeout=20, headers={'Accept': 'text/csv'})[1])
+            Fs['ECB_DFR'] = stopy_ecb_csv(stopy_pobierz(STOPY_ECB, t0s, timeout=20, headers={'Accept': 'text/csv'}))
         except Exception as e:  # noqa
             bs.append(f'EBC: {str(e)[:60]}')
         od_s = (NOW.date() - dt.timedelta(days=STOPY_OD_DNI)).isoformat()
         for nm, url, fn in stopy_adresy():   # v244: sześć kolejnych banków u źródła (bez klucza); błąd jednego = brak porównania tego banku
             try:
-                Fs.update(fn(get(url, timeout=15)[1]))
+                Fs.update(fn(stopy_pobierz(url, t0s)))
             except Exception as e:  # noqa
                 bs.append(f'{nm}: {str(e)[:60]}')
         Ps = stopy_porownanie(files['stopy'], Fs)
         bez = {o['bank'] for o in Ps if o.get('brak') and o['brak'].startswith('brak serii')}   # v243: także gdy seria banku nie sięga dnia strony
         ids_f = sorted({i for a, (ids, nm) in STOPY_FRED.items() if nm in bez for i in ids if i not in Fs})
-        for sid in ids_f:   # zapas FRED tylko dla banków bez porównania
+        for sid in ids_f:   # zapas FRED tylko dla banków bez porównania (v245: w budżecie, bez ponowienia — z serwerów GitHub zwykle nie odpowiada)
             try:
+                if time.monotonic() - t0s + 30 > STOPY_BUDZET_S:
+                    raise TimeoutError('pominięte — limit czasu kontroli stóp')
                 Fs[sid] = ust_fred_csv(get(STOPY_FRED_URL.format(id=sid, od=od_s), timeout=30)[1].decode('utf-8', 'replace'))
             except Exception as e:  # noqa
                 bs.append(f'{sid}: {str(e)[:60]}')
@@ -3418,17 +3472,16 @@ def raport_md(R):
         k = Z.get('kapitalizacja') or {}
         if k:
             dz = f'{k["dzis_pct"]:.2f}%' if k.get('dzis_pct') is not None else '—'
-            md = f'{k["mediana_pct"]:.2f}%' if k.get('mediana_pct') is not None else '—'
-            L.append(f'- Kapitalizacja krypto, dwa źródła: różnica dziś {dz}, norma (mediana {k.get("dni", 0)} dni) {md} — {k.get("status", "?")} {k.get("opis", "")}.')
+            L.append(f'- Kapitalizacja krypto, dwa źródła: różnica dziś {dz}{_norma(k.get("mediana_pct"), k.get("dni", 0))} — {k.get("status", "?")} {k.get("opis", "")}.')
         c = Z.get('ceny') or {}
         for key, nm in (('bitcoin', 'BTC'), ('ethereum', 'ETH')):
             if key in c:
                 r = c[key].get('roznica_pct')
-                L.append(f'- Cena {nm}: {c[key]["a"]:,.0f} vs {c[key]["b"]:,.0f} USD — różnica {r:.2f}% {"⚠️" if r > CENA_PROG else "✅"}.' if r is not None else f'- Cena {nm}: brak porównania.')
+                L.append(f'- Cena {nm}: {_zuz_l(c[key]["a"])} vs {_zuz_l(c[key]["b"])} USD — różnica {r:.2f}% {"⚠️" if r > CENA_PROG else "✅"}.' if r is not None else f'- Cena {nm}: brak porównania.')
         t = Z.get('tga')
         if t:
-            r = t.get('roznica_pct'); md2 = f'{t["mediana_pct"]:.2f}%' if t.get('mediana_pct') is not None else '—'
-            L.append(f'- TGA {t["data"]}: Fiscal Data {t["fiscal_mln"]:,.0f} vs FRED {t["fred_mln"]:,.0f} mln USD — różnica {r:.2f}%, norma (mediana {t.get("dni", 0)} dni) {md2} — {t.get("status", "?")} {t.get("opis", "")}.'
+            r = t.get('roznica_pct')
+            L.append(f'- TGA {t["data"]}: Fiscal Data {_zuz_l(t["fiscal_mln"])} vs FRED {_zuz_l(t["fred_mln"])} mln USD — różnica {r:.2f}%{_norma(t.get("mediana_pct"), t.get("dni", 0))} — {t.get("status", "?")} {t.get("opis", "")}.'
                      if r is not None else f'- TGA {t["data"]}: brak porównania.')
         else:
             L.append('- TGA: brak wspólnej daty Fiscal Data i FRED.')
@@ -3437,9 +3490,8 @@ def raport_md(R):
             if s.get('roznica_pct') is None:
                 L.append(f'- Podaż stablecoinów, dwa źródła: pliki pobrane w odstępie {s.get("odstep_h", "—")} h — bez porównania ℹ️.')
             else:
-                md3 = f'{s["mediana_pct"]:+.2f}%' if s.get('mediana_pct') is not None else '—'
-                L.append(f'- Podaż stablecoinów, dwa źródła: {s["a"] / 1e9:.1f} vs {s["b"] / 1e9:.1f} mld USD — różnica dziś {s["roznica_pct"]:+.2f}%, '
-                         f'norma (mediana {s.get("dni", 0)} dni) {md3} — {s.get("status", "?")} {s.get("opis", "")}.')
+                L.append(f'- Podaż stablecoinów, dwa źródła: {s["a"] / 1e9:.1f} vs {s["b"] / 1e9:.1f} mld USD — różnica dziś {s["roznica_pct"]:+.2f}%'
+                         f'{_norma(s.get("mediana_pct"), s.get("dni", 0), "{:+.2f}%")} — {s.get("status", "?")} {s.get("opis", "")}.')
         u = Z.get('ust10')   # v209
         if u:
             if u.get('brak'):
@@ -3493,8 +3545,7 @@ def raport_md(R):
         wy = Z.get('wycena')   # v132: MVRV BTC z dwóch źródeł — tylko różnice procentowe i daty; brak = „—”
         if wy:
             dz = f'{wy["roznica_pct"]:+.2f}% ({wy["dzien"]})' if wy.get('roznica_pct') is not None else '—'
-            md3 = f'{wy["mediana_pct"]:+.2f}%' if wy.get('mediana_pct') is not None else '—'
-            L.append(f'- MVRV BTC, dwa źródła: różnica najnowszego wspólnego dnia {dz}, norma (mediana {wy.get("n", 0)} dni) {md3} — {wy.get("status", "?")} {wy.get("opis", "")}.')
+            L.append(f'- MVRV BTC, dwa źródła: różnica najnowszego wspólnego dnia {dz}{_norma(wy.get("mediana_pct"), wy.get("n", 0), "{:+.2f}%")} — {wy.get("status", "?")} {wy.get("opis", "")}.')
         pz = Z.get('premie')
         if pz:
             L.append(f'- Premie krypto: {pz.get("opis") or "—"} ' + ('⚠️' if pz.get('uwagi') else '✅') + '.')
