@@ -13654,3 +13654,22 @@ test('v215: Prywatność — zapisy nie są wysyłane; wybrany język decyduje o
   const D = v96src.I18N.pl['set.priv.2'];
   assert.ok(D.includes('Te zapisy nie są nigdzie wysyłane') && D.includes('jedynie wybrany język decyduje, który plik języka pobiera strona') && !D.includes('Nic z tego nie opuszcza'), D);
 });
+
+
+/* ---------- v216: reguły „w cieniu” — zdanie w bloku „Nauka” ---------- */
+test('v216: w cieniu — liczba kandydatów i najbliższy postęp; ujawnienie tylko z „przewagą” w punkcie 200 dni; bez pola — nic; słownik pl', () => {
+  const t2 = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const s0 = html.indexOf('/* v216: reguły „w cieniu”'), s1 = html.indexOf('function trdIg(D,cr){');
+  const Y = new Function('t', 'trdC', 'LOCALE', 'LANG', html.slice(s0, s1) + '\nreturn trdIgShadow;')(t2, v => v, {pl: 'pl-PL'}, 'pl');
+  let h = Y({pgs: {l: {pt: [42, 100, null, 38], ph: [3, 100, null, 2], es: [0, 100, null, 0], n3: [17, 100, null, 15]}}});
+  assert.equal(h, '<p class="pnote tig-lw">tig.sh{"m":4} tig.sh.nx{"n":42,"c":100}</p>');
+  h = Y({pgs: {l: {pt: [230, 400, null, 226], ph: [3, 100, null, 2]}}, cs: {pt: [[100, 70, 100, 50, 0, 0, 51, 80, 'edge', '2027-01-05', 'x'], [200, 140, 200, 50, 0, 0, 55, 75, 'edge', '2027-04-25', 'x']], ph: [[200, 1, 1, 0, 0, 0, 0, 0, 'none', '2027-04-25', 'x']]}});
+  assert.ok(h.includes('tig.sh.ok{"r":"tig.sh.r.pt","d":"25.04.2027"}') && !h.includes('tig.sh.r.ph'), 'ujawniony tylko kandydat z „przewagą” w punkcie 200');
+  h = Y({pgs: {l: {pt: [130, 200, null, 126]}}, cs: {pt: [[100, 70, 100, 50, 0, 0, 51, 80, 'edge', '2027-01-05', 'x']]}});
+  assert.ok(!h.includes('tig.sh.ok'), 'przewaga po 100 dniach — jeszcze nie ujawniamy');
+  for (const J of [null, {}, {pgs: null}, {pgs: {l: {}}}, {pgs: {l: {pt: 'x'}}}]) assert.equal(Y(J), '', JSON.stringify(J));
+  const d0 = html.indexOf('const EXTRA180='), d1 = html.indexOf(';\n', d0), E = JSON.parse(html.slice(d0 + 'const EXTRA180='.length, d1));
+  assert.deepEqual(Object.keys(E), ['pl']); assert.equal(Object.keys(E.pl).length, 10); assert.ok(Object.keys(E.pl).every(k => k.startsWith('tig.sh')));
+  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA180)if(I18N[l])Object.assign(I18N[l],EXTRA180[l]);'), 'jedna linia for po słowniku');
+  assert.ok(html.includes("${vd}${trdIgShadow(J)}<p class=\"pnote tig-lw\">${t('tig.l.how'"), 'zdanie pod paskiem, przed opisem metody');
+});

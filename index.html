@@ -2182,6 +2182,9 @@ for(const l in EXTRA178)if(I18N[l])Object.assign(I18N[l],EXTRA178[l]);
 /* v214: Szwajcaria — wykres depozytów (10 języków jak cały panel — strażnik v124) */
 const EXTRA179={"pl":{"snb.wyk":"Banki krajowe — depozyty w ostatnich {n} tygodniach (najniżej i najwyżej przy osi)"},"en":{"snb.wyk":"Domestic banks — sight deposits over the last {n} weeks (low and high on the axis)"},"de":{"snb.wyk":"Inländische Banken — Sichtguthaben in den letzten {n} Wochen (Tiefst- und Höchststand an der Achse)"},"es":{"snb.wyk":"Bancos nacionales — depósitos a la vista en las últimas {n} semanas (mínimo y máximo en el eje)"},"fr":{"snb.wyk":"Banques domestiques — avoirs à vue sur les {n} dernières semaines (plus bas et plus haut sur l’axe)"},"it":{"snb.wyk":"Banche nazionali — depositi a vista nelle ultime {n} settimane (minimo e massimo sull’asse)"},"pt":{"snb.wyk":"Bancos nacionais — depósitos à vista nas últimas {n} semanas (mínimo e máximo no eixo)"},"ru":{"snb.wyk":"Внутренние банки — депозиты до востребования за последние {n} нед. (минимум и максимум на оси)"},"zh":{"snb.wyk":"国内银行——最近{n}周的活期存款（轴上标出最低和最高）"},"ja":{"snb.wyk":"国内銀行 — 直近{n}週間の当座預金（軸に最安値と最高値）"}};
 for(const l in EXTRA179)if(I18N[l])Object.assign(I18N[l],EXTRA179[l]);
+/* v216: TRENDY — reguły „w cieniu” (tylko pl, cel właściciela 04.10) */
+const EXTRA180={"pl":{"tig.sh":"W cieniu testujemy jeszcze {m} reguły — pokażemy je dopiero, gdy przejdą ten sam test w punkcie 200 dni z sygnałem.","tig.sh.nx":"Najbliżej oceny: {n} z {c} dni.","tig.sh.ok":"Reguła z cienia przeszła test (punkt 200 dni, {d}): {r}. Decyzja o pokazywaniu jej sygnałów należy do właściciela.","tig.sh.r.pt":"cena i trend zgodne","tig.sh.r.ph":"cena i premia kontraktów zgodne","tig.sh.r.es":"przepływy na giełdy i stablecoiny zgodne","tig.sh.r.n3":"co najmniej 3 składniki w tę samą stronę","tig.sh.r.eq.pf":"akcje: cena i przepływ do funduszu zgodne","tig.sh.r.eq.fo":"akcje: przepływ do funduszu i zagraniczni zgodni","tig.sh.r.eq.n2":"akcje: co najmniej 2 składniki w tę samą stronę"}};
+for(const l in EXTRA180)if(I18N[l])Object.assign(I18N[l],EXTRA180[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8267,6 +8270,19 @@ function trdIgChips(D,cr){
 /* v208: nauka sygnałów — postęp linii łącznej do najbliższego punktu kontrolnego (dziennik: pg.l[linia] = [n, c, szacunek], cp = oceny zapisane
    raz i na zawsze). Brak pola (dziennik sprzed v208) albo zły kształt — bez bloku. Szacunek tylko miesiąc i rok, podpisany jako szacunek. */
 const TRD_LV={edge:'tig.l.vd.edge',none:'tig.l.vd.none',anti:'tig.l.vd.anti'};
+/* v216: reguły „w cieniu” — dziennik: pgs.l[kandydat] = [n, c, szacunek, dni dojrzałe], cs[kandydat] = oceny zapisane; strona pokazuje tylko liczbę
+   kandydatów i najbliższy postęp; kandydat z werdyktem „przewaga” w punkcie TRD_SH_JAWNE dni — nazwa i data (decyzja o włączeniu: właściciel) */
+const TRD_SH_JAWNE=200;
+function trdIgShadow(J){
+  const P=J&&J.pgs&&typeof J.pgs==='object'&&J.pgs.l&&typeof J.pgs.l==='object'?J.pgs.l:null;if(!P)return '';
+  const K=Object.keys(P).filter(k=>Array.isArray(P[k])&&P[k].length>=3&&Number.isInteger(P[k][0])&&P[k][0]>=0);if(!K.length)return '';
+  const iso=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d),L=LOCALE[LANG]||'pl-PL';
+  const ok=K.map(k=>{const v=J.cs&&Array.isArray(J.cs[k])?J.cs[k].find(x=>Array.isArray(x)&&x[0]===TRD_SH_JAWNE&&x[8]==='edge'&&iso(x[9])):null;return v?[k,v]:null;}).filter(Boolean);
+  const nx=K.map(k=>P[k]).filter(g=>Number.isInteger(g[1])&&g[1]>0).sort((a,b)=>(b[0]/b[1])-(a[0]/a[1]))[0];
+  let h=`<p class="pnote tig-lw">${t('tig.sh',{m:trdC(K.length)})}${nx?' '+t('tig.sh.nx',{n:trdC(Math.min(nx[0],nx[1])),c:trdC(nx[1])}):''}</p>`;
+  for(const [k,v] of ok)h+=`<p class="pnote">${t('tig.sh.ok',{r:t('tig.sh.r.'+k),d:new Date(Date.parse(v[9]+'T12:00:00Z')).toLocaleDateString(L,{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'})})}</p>`;
+  return h;
+}
 function trdIgLearn(J,cr){
   const P=J&&typeof J==='object'&&J.pg&&typeof J.pg==='object'&&J.pg.l&&typeof J.pg.l==='object'?J.pg:null;if(!P)return '';
   const la=cr?'all':'w.all',g=P.l[la],iso=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -8281,7 +8297,7 @@ function trdIgLearn(J,cr){
     txt=n>=c?t('tig.l.soon',{c:trdC(c)}):t(last?'tig.l.next':'tig.l.first',{n:trdC(n),c:trdC(c)})+' · '+(iso(g[2])?t('tig.l.est',{d:fd(g[2],{month:'long',year:'numeric'})}):t('tig.l.est0'));}
   else txt=t('tig.l.done');
   const vd=last?`<p class="pnote">${t('tig.l.vd',{c:trdC(last[0]),d:fd(last[9],{day:'2-digit',month:'2-digit',year:'numeric'}),v:t(TRD_LV[last[8]]||'tig.l.vd.none')})}</p>`:'';
-  return `<div class="tig-l"><h3 class="mtxt"><b>${t(c===null?'tig.l.t3':last?'tig.l.t2':'tig.l.t')}</b></h3>${bar}<p class="pnote">${txt}</p>${vd}<p class="pnote tig-lw">${t('tig.l.how',{m:trdC(lines)})}</p></div>`;
+  return `<div class="tig-l"><h3 class="mtxt"><b>${t(c===null?'tig.l.t3':last?'tig.l.t2':'tig.l.t')}</b></h3>${bar}<p class="pnote">${txt}</p>${vd}${trdIgShadow(J)}<p class="pnote tig-lw">${t('tig.l.how',{m:trdC(lines)})}</p></div>`;
 }
 function trdIg(D,cr){
   trdJLoad();

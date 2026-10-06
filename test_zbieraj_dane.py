@@ -25605,3 +25605,46 @@ class PoPrzegladzieV215(unittest.TestCase):
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
         self.assertEqual(set(k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg'})
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
+
+
+# ===================== v216: TRENDY — REGUŁY „W CIENIU” (rejestracja z góry 06.10) =====================
+class RegulyWCieniuV216(unittest.TestCase):
+    """v216: kandydaci z głosów składników (zgodność dwóch albo |N| ≥ r), te same wiersze i punkty kontrolne co reguły główne, surowszy próg
+    (Bonferroni 11 / 10 linii × 3 oceny); pola cs i pgs dziennika; reguły główne bez zmian."""
+
+    def test_glosy_i_pary_krypto(self):
+        G = zd._td_sh_glos
+        self.assertEqual((G({'p': 1, 't': 1}, 1, ('p', 't')), G({'p': 1, 't': -1}, 0, ('p', 't')), G({'p': 0, 't': 1}, 1, ('p', 't'))), (1, 0, 0))
+        self.assertEqual((G({}, 3, 3), G({}, -3, 3), G({}, 2, 3), G({}, True, 2), G({}, None, 2)), (1, -1, 0, 0, 0))
+        rows = [['2026-09-28', 'BTC', 3, 'obs', 'p+t+e0s+h0', 'x', 0.5], ['2026-09-28', 'ETH', -2, 'obs', 'p-t0e-s0h0', 'x', -0.3],
+                ['2026-09-29', 'BTC', 1, 'obs', 'p+t+e-s-h0', 'x', -0.2], ['2026-09-29', 'SOL', 0, 'x', 'p+t+', 'x', 0], ['2026-09-30', 'ADA', 2, 'obs', 'p+h+', 'x', None]]
+        L = zd._td_sh_pairs_cr({'rows': rows}, '2026-09-28')
+        self.assertEqual(L['pt'], [('2026-09-28', 1, 'BTC', 1), ('2026-09-29', 0, 'BTC', 1)], 'p i t zgodne; y = 0 i brak y pominięte')
+        self.assertEqual(L['es'], [('2026-09-29', 1, 'BTC', -1)], 'e i s zgodne w dół, cena spadła — trafienie')
+        self.assertEqual(L['n3'], [('2026-09-28', 1, 'BTC', 1)]); self.assertEqual(L['ph'], [])
+        self.assertEqual([k for k, _ in zd.TD_SH_CR], ['pt', 'ph', 'es', 'n3']); self.assertEqual([k for k, _, _ in zd.TD_SH_W], ['eq.pf', 'eq.fo', 'eq.n2'])
+
+    def test_prog_surowszy_i_dziennik(self):
+        self.assertGreater(zd.TD_CR_ZLS, zd.TD_CR_ZL); self.assertGreater(zd.TD_W_ZLS, zd.TD_W_ZL)
+        self.assertAlmostEqual(zd.TD_CR_ZLS, statistics.NormalDist().inv_cdf(1 - 0.025 / 33), places=6)
+        self.assertAlmostEqual(zd.TD_W_ZLS, statistics.NormalDist().inv_cdf(1 - 0.025 / 30), places=6)
+        U = datetime.timezone.utc
+        rows = []
+        for i in range(110):
+            day = (datetime.date(2026, 9, 28) + datetime.timedelta(days=i)).isoformat()
+            rows.append([day, 'BTC', 3, 'obs', 'p+t+e0s+h0', '%sT06:30:00Z' % day, 0.5 if i % 4 else -0.4])
+            rows.append([day, 'ETH', 0, 'quiet', 'p0', '%sT06:30:00Z' % day, -0.1])
+        log = {'v': zd.TD_VC2, 'since': zd.TD_SINCE_CR2, 'rows': rows, 'cp': {}}
+        out = zd._td_cr_log(log, [], [], datetime.datetime(2027, 1, 20, 12, 0, tzinfo=U))
+        self.assertEqual(sorted(out['cs']), ['n3', 'pt'], 'kandydaci ze 100 dniami z sygnałem — ocena zapisana')
+        c = out['cs']['pt'][0]
+        self.assertEqual((c[0], c[1], c[2]), (100, 75, 100)); self.assertEqual(c[9], '2027-01-05')
+        self.assertEqual(out['cp']['all'][0][:3], [100, 75, 100], 'reguła główna — ta sama liczba trafień')
+        self.assertLess(c[6], out['cp']['all'][0][6], 'surowszy próg — szerszy zakres (dolna granica niżej)')
+        self.assertEqual(out['pgs']['l']['pt'][:2], [110, 200], '110 dni z sygnałem; ocena 100 zapisana — następny punkt 200')
+        self.assertEqual(out['pgs']['l']['es'], [0, 100, None, 0])
+        again = zd._td_cr_log(dict(out, rows=out['rows'] + []), [], [], datetime.datetime(2027, 1, 21, 12, 0, tzinfo=U))
+        self.assertEqual(again['cs']['pt'][0], c, 'ocena zamrożona — nie liczona od nowa')
+        w = zd._tdw_log({'v': zd.TD_VW2, 'since': zd.TD_SINCE_W2, 'rows': [], 'cp': {}}, [], [], datetime.datetime(2026, 10, 6, 12, 0, tzinfo=U))
+        self.assertEqual((w.get('cs'), sorted(w['pgs']['l'])), ({}, ['eq.fo', 'eq.n2', 'eq.pf']))
+        self.assertTrue(zd._td_cr_valid(out) and zd._tdw_valid(w))

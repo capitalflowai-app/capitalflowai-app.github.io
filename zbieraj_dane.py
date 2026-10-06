@@ -5104,6 +5104,14 @@ TD_CR_Y1 = 365                                                     # dni wyniku 
 TD_CR_LOOKS = (100, 200, 400)                                      # punkty kontrolne dziennika (dni z sygnałem linii): ocena „od wdrożenia” tylko tam
 TD_CR_ZL = statistics.NormalDist().inv_cdf(1 - 0.025 / (TD_CR_M * len(TD_CR_LOOKS)))   # 3,0381: 7 linii × 3 oceny
 TD_CR_CLL = round(100 - 5 / (TD_CR_M * len(TD_CR_LOOKS)), 1)                           # 99.8
+
+# v216: reguły „w cieniu” — rejestracja z góry: checkpoints/REGULY_W_CIENIU_2026-10-06_PL.md (lista zamknięta 06.10, przed wynikami). Kandydat =
+# zgodność dwóch głosów składników (oba ≠ 0, ten sam znak) albo próg |N|; oceny jak reguł głównych, z Bonferronim na wszystkie linie naraz.
+TD_SH_CR = (('pt', ('p', 't')), ('ph', ('p', 'h')), ('es', ('e', 's')), ('n3', 3))
+TD_SH_W = (('eq.pf', 'eq', ('p', 'f')), ('eq.fo', 'eq', ('f', 'o')), ('eq.n2', 'eq', 2))
+TD_SH_JAWNE = 200   # v216: kandydat ujawniany na stronie dopiero z werdyktem „przewaga” w punkcie kontrolnym 200 dni z sygnałem
+TD_W_ZLS = statistics.NormalDist().inv_cdf(1 - 0.025 / ((TD_W_M + len(TD_SH_W)) * len(TD_W_LOOKS)))   # v216: świat — 10 linii × 3 oceny
+TD_CR_ZLS = statistics.NormalDist().inv_cdf(1 - 0.025 / ((TD_CR_M + len(TD_SH_CR)) * len(TD_CR_LOOKS)))   # v216: 11 linii × 3 oceny
 TD_CR_SETTLE = 5                # doba dziennika wchodzi do punktu kontrolnego, gdy ma ≥ 5 dni: wynik doby D potrzebuje świecy 06:00 doby D+2,
                                 # a brakujące pole tej doby budowniczy ponawia, dopóki doba ma < 48 h (do D+5 00:00) — dopiero wtedy wynik jest
                                 # ostateczny, więc punkt zamrożony w dzienniku = punkt policzony od nowa z kopii w archiwum (przegląd 27.09; było 4)
@@ -6177,6 +6185,51 @@ def _td_pg(lines, lines_all, names, looks, cp, since, today, settle):
     return {'do': upto.isoformat(), 'l': out}
 
 
+def _td_sh_glos(V, N, r):
+    """v216: głos kandydata z głosów wiersza: para składników (oba ≠ 0 i zgodne → ich znak) albo próg |N| ≥ r (→ znak N); inaczej 0."""
+    if isinstance(r, tuple):
+        a, b = V.get(r[0]), V.get(r[1])
+        return a if a and b and a == b else 0
+    return (1 if N > 0 else -1) if isinstance(N, int) and not isinstance(N, bool) and abs(N) >= r else 0
+
+
+def _td_sh_pairs_cr(log, since=None, upto=None):
+    """v216: dziennik krypto → {kandydat: [(doba, trafienie, moneta, głos)]} (TD_SH_CR); te same wiersze co _td_cr_pairs (since ≤ D ≤ upto,
+    znany wynik y ≠ 0)."""
+    since = since or TD_SINCE_CR2
+    acc = {k: [] for k, _ in TD_SH_CR}
+    for r in (log or {}).get('rows') or []:
+        if not (isinstance(r, list) and len(r) == 7):
+            continue
+        d, sym, N, st, vs, at, y = r
+        if not isinstance(d, str) or d < since or (upto and d > upto) or not _isnum(y) or y == 0:
+            continue
+        V = _td_vparse(vs)
+        for k, reg in TD_SH_CR:
+            g = _td_sh_glos(V, N, reg)
+            if g:
+                acc[k].append((d, 1 if (y > 0) == (g > 0) else 0, sym, g))
+    return acc
+
+
+def _td_sh_cp_cr(log, today, iso):
+    """v216: punkty kontrolne kandydatów krypto — jak _td_cr_cp (te same dni dojrzałe, b0 z dziennika), ale z = TD_CR_ZLS; zapis raz:
+    [c, k, n, b0, h1, h2, lo, hi, vd, doba c-tego sygnału, czas wyliczenia]."""
+    cp = {k: [list(x) for x in v if isinstance(x, list) and len(x) == 11] for k, v in ((log or {}).get('cs') or {}).items()}
+    upto = (today - datetime.timedelta(days=TD_CR_SETTLE)).isoformat()
+    L = _td_sh_pairs_cr(log, (log or {}).get('since'), upto)
+    _, Y = _td_cr_pairs(log, (log or {}).get('since'), upto)
+    for k, _ in TD_SH_CR:
+        pr = sorted(L[k]); ds = sorted({p[0] for p in pr}); have = {x[0] for x in cp.get(k, [])}
+        for c in TD_CR_LOOKS:
+            if c in have or len(ds) < c:
+                continue
+            S = _td_stat([p for p in pr if p[0] <= ds[c - 1]], Y, TD_CR_ZLS)
+            cp.setdefault(k, []).append([c, S['k'], S['n'], None if S['b0'] is None else round(S['b0'], 1), S['h1'], S['h2'],
+                                         S['ca'][0], S['ca'][1], S['vd'], ds[c - 1], iso])
+    return {k: sorted(v) for k, v in cp.items() if v}
+
+
 def _td_cr_valid(log):
     """Czy to dziennik: słownik z listą rows oraz polami v i since (pusty obiekt albo inny plik — nie)."""
     return isinstance(log, dict) and isinstance(log.get('rows'), list) and 'v' in log and 'since' in log
@@ -6192,7 +6245,8 @@ def _td_cr_log(log, rows, series, now_utc):
     if log and (log.get('v') != TD_VC2 or log.get('since') != TD_SINCE_CR2):
         o, _ = _td_cr_pairs(log, log.get('since') or '0000')
         prev = {'v': log.get('v'), 'since': log.get('since'),
-                'oos': {k: [sum(x[1] for x in v), len(v), len({x[0] for x in v})] for k, v in o.items()}, 'cp': log.get('cp') or {}}
+                'oos': {k: [sum(x[1] for x in v), len(v), len({x[0] for x in v})] for k, v in o.items()}, 'cp': log.get('cp') or {},
+                **({'cs': log['cs']} if log.get('cs') else {})}   # v216: oceny kandydatów starej wersji też zostają (pole tylko, gdy są)
         log = {}
     now = now_utc.astimezone(datetime.timezone.utc)
     iso = now.replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -6212,6 +6266,9 @@ def _td_cr_log(log, rows, series, now_utc):
     out['cp'] = _td_cr_cp(dict(out, cp=log.get('cp') or {}), now.date(), iso)
     out['pg'] = _td_pg(_td_cr_pairs(out, out['since'], (now.date() - datetime.timedelta(days=TD_CR_SETTLE)).isoformat())[0],   # v208: postęp nauki
                        _td_cr_pairs(out, out['since'])[0], [(k, k) for _, k in TD_RULES_CR2], TD_CR_LOOKS, out['cp'], out['since'], now.date(), TD_CR_SETTLE)
+    out['cs'] = _td_sh_cp_cr(dict(out, cs=log.get('cs') or {}), now.date(), iso)   # v216: kandydaci „w cieniu” — oceny i postęp
+    out['pgs'] = _td_pg(_td_sh_pairs_cr(out, out['since'], (now.date() - datetime.timedelta(days=TD_CR_SETTLE)).isoformat()),
+                        _td_sh_pairs_cr(out, out['since']), [(k, k) for k, _ in TD_SH_CR], TD_CR_LOOKS, out['cs'], out['since'], now.date(), TD_CR_SETTLE)
     if prev:
         out['prev'] = prev
     return out
@@ -6884,6 +6941,44 @@ def _tdw_jpairs(log, since=None, upto=None):
     return acc, ys
 
 
+def _tdw_sh_pairs(log, since=None, upto=None):
+    """v216: dziennik świata → {kandydat: [(sesja, trafienie, rynek, głos)]} (TD_SH_W, tylko rynki rodziny kandydata); te same wiersze co
+    _tdw_jpairs."""
+    since = since or TD_SINCE_W2
+    acc = {k: [] for k, _, _ in TD_SH_W}
+    for r in (log or {}).get('rows') or []:
+        if not (isinstance(r, list) and len(r) == 7):
+            continue
+        d, sym, N, st, vs, at, y = r
+        if not isinstance(d, str) or d < since or (upto and d > upto) or not _isnum(y) or y == 0:
+            continue
+        fam = _tdw_fam(sym); V = _tdw_vparse(vs)
+        for k, f, reg in TD_SH_W:
+            g = _td_sh_glos(V, N, reg) if fam == f else 0
+            if g:
+                acc[k].append((d, 1 if (y > 0) == (g > 0) else 0, sym, g))
+    return acc
+
+
+def _tdw_sh_cp(log, today, iso, ut=None):
+    """v216: punkty kontrolne kandydatów świata — jak _tdw_cp (b0 z dziennika, b0t z 250 sesji rynku), z = TD_W_ZLS; zapis raz (13 pól)."""
+    cp = {k: _tdw_cpl(v) for k, v in ((log or {}).get('cs') or {}).items()}
+    upto = (today - datetime.timedelta(days=TD_W_SETTLE)).isoformat()
+    L = _tdw_sh_pairs(log, (log or {}).get('since'), upto)
+    _, Y = _tdw_jpairs(log, (log or {}).get('since'), upto)
+    for name, _, _ in TD_SH_W:
+        pr = sorted(L[name]); ds = sorted({p[0] for p in pr}); have = {x[0] for x in cp.get(name, [])}
+        for c in TD_W_LOOKS:
+            if c in have or len(ds) < c:
+                continue
+            S = _tdw_stat([p for p in pr if p[0] <= ds[c - 1]], Y, TD_W_ZLS, ut)
+            bm = S['bm']; thr = round(bm + 100 * TD_W_ZLS * math.sqrt(bm / 100 * (1 - bm / 100) / S['ne']), 1) if S['ne'] else None
+            cp.setdefault(name, []).append([c, S['k'], S['n'], None if S['b0'] is None else round(S['b0'], 1), S['h1'], S['h2'],
+                                            S['ca'][0], S['ca'][1], S['vd'], ds[c - 1], iso,
+                                            None if S['b0t'] is None else round(S['b0t'], 1), thr])
+    return {k: sorted(v) for k, v in cp.items() if v}
+
+
 def _tdw_cp(log, today, iso, ut=None):
     """Punkty kontrolne 100/200/400 sesji z sygnałem (wiersze ≥ TD_W_SETTLE dni): [c, k, n, b0, h1, h2, lo, hi, vd, dzień c, zapisano, b0t, próg]
     przy z = TD_W_ZL, zwykła sesja z własnych wyników dziennika (b0) i z 250 sesji rynku przed parą (b0t, ut); zapisane — nigdy przeliczane."""
@@ -6928,7 +7023,7 @@ def _tdw_log(log, rows, series, now_utc, ut=None):
         o, _ = _tdw_jpairs(log, log.get('since') or '0000')
         prevs = prevs + [{'v': log.get('v'), 'since': log.get('since'),
                           'oos': {k[0] + '.' + k[1]: [sum(x[1] for x in v), len(v), len({x[0] for x in v})] for k, v in o.items()},
-                          'cp': log.get('cp') or {}}]
+                          'cp': log.get('cp') or {}, **({'cs': log['cs']} if log.get('cs') else {})}]   # v216: oceny kandydatów starej wersji (pole tylko, gdy są)
         log = {}
     now = now_utc.astimezone(datetime.timezone.utc)
     iso = now.replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ'); n19 = iso[:19]
@@ -6947,6 +7042,9 @@ def _tdw_log(log, rows, series, now_utc, ut=None):
     out['cp'] = _tdw_cp(dict(out, cp=log.get('cp') or {}), now.date(), iso, ut)
     out['pg'] = _td_pg(_tdw_jpairs(out, out['since'], (now.date() - datetime.timedelta(days=TD_W_SETTLE)).isoformat())[0],   # v208: postęp nauki
                        _tdw_jpairs(out, out['since'])[0], [(k, k[0] + '.' + k[1]) for k in TD_RULES_W2], TD_W_LOOKS, out['cp'], out['since'], now.date(), TD_W_SETTLE)
+    out['cs'] = _tdw_sh_cp(dict(out, cs=log.get('cs') or {}), now.date(), iso, ut)   # v216: kandydaci „w cieniu” — oceny i postęp
+    out['pgs'] = _td_pg(_tdw_sh_pairs(out, out['since'], (now.date() - datetime.timedelta(days=TD_W_SETTLE)).isoformat()),
+                        _tdw_sh_pairs(out, out['since']), [(k, k) for k, _, _ in TD_SH_W], TD_W_LOOKS, out['cs'], out['since'], now.date(), TD_W_SETTLE)
     if prevs:
         out['prev'] = prevs
     return out
