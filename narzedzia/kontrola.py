@@ -175,7 +175,7 @@ def stopy_ecb_csv(body, sep=','):
 
 def _stopy_tekst(body):
     """v244: treść odpowiedzi jako tekst, bez znacznika BOM."""
-    return body.decode('utf-8-sig', 'replace') if isinstance(body, (bytes, bytearray)) else str(body).lstrip('﻿')
+    return body.decode('utf-8-sig', 'replace') if isinstance(body, (bytes, bytearray)) else str(body).lstrip('\ufeff')
 
 
 def _stopy_liczba(x):
@@ -283,17 +283,18 @@ def stopy_bcb(body):
 
 
 def stopy_adresy(now=None):
-    """v244: (nazwa źródła, adres, parser) kolejnych banków — od STOPY_OD_DNI dni wstecz do dziś."""
+    """v244: (nazwa źródła, adres, parser, serie) kolejnych banków — od STOPY_OD_DNI dni wstecz do dziś (v246: serie — do powodu banku przy
+    błędzie odczytu)."""
     now = now or NOW
     d0, d1 = now.date() - dt.timedelta(days=STOPY_OD_DNI), now.date()
     od = d0.isoformat()
-    return (('BoE', STOPY_BOE.format(od=f'{d0.day:02d}/{STOPY_MIES_EN[d0.month - 1]}/{d0.year}'), stopy_boe),
-            ('SNB', STOPY_SNB.format(od=od), stopy_snb),
-            ('Riksbank', STOPY_RIKS.format(od=od, do=d1.isoformat()), stopy_riksbank),
-            ('Norges Bank', STOPY_NORGES.format(od=od), stopy_norges),
-            ('NBP', STOPY_NBP, stopy_nbp),
-            ('BoC', STOPY_BOC.format(od=od), stopy_boc),
-            ('BCB', STOPY_BCB.format(od=d0.strftime('%d/%m/%Y'), do=d1.strftime('%d/%m/%Y')), stopy_bcb))
+    return (('BoE', STOPY_BOE.format(od=f'{d0.day:02d}/{STOPY_MIES_EN[d0.month - 1]}/{d0.year}'), stopy_boe, ('BOE_BR',)),
+            ('SNB', STOPY_SNB.format(od=od), stopy_snb, ('SNB_LZ',)),
+            ('Riksbank', STOPY_RIKS.format(od=od, do=d1.isoformat()), stopy_riksbank, ('RB_POL',)),
+            ('Norges Bank', STOPY_NORGES.format(od=od), stopy_norges, ('NB_KPRA',)),
+            ('NBP', STOPY_NBP, stopy_nbp, ('NBP_REF',)),
+            ('BoC', STOPY_BOC.format(od=od), stopy_boc, ('BOC_V39079',)),
+            ('BCB', STOPY_BCB.format(od=d0.strftime('%d/%m/%Y'), do=d1.strftime('%d/%m/%Y')), stopy_bcb, ('BCB_SELIC',)))
 
 
 def stopy_ponowic(e):
@@ -321,44 +322,53 @@ def stopy_pobierz(url, t0, timeout=15, headers=None, zegar=time.monotonic, spij=
     return pobierz(url, timeout=timeout, headers=headers)[1]
 
 
-def stopy_porownanie(stopy, fred, now=None):
-    """v241/v243: stopy.json (rows[US|XM] = {rate, date}) i serie ({id: {dzień: %}}) → jedna pozycja na bank: porównanie {'bank', 'zrodlo',
-    'data', 'strona', 'fred', 'zgodne', 'zmiana': [dzień, nowa stopa] albo None} albo {'bank', 'brak': powód} — bank bez porównania nie znika
-    z wiersza raportu (v243). Wariant serii: pierwszy, który obejmuje dzień strony (źródło banku, potem FRED). Brak pliku strony = []."""
+def stopy_porownanie(stopy, fred, now=None, bledy=None):
+    """v241/v243: stopy.json (rows[kraj] = {rate, date}) i serie ({id: {dzień: %}}) → jedna pozycja na bank: porównanie {'bank', 'zrodlo',
+    'data', 'strona', 'fred', 'zgodne', 'zmiana': [dzień, nowa stopa] albo None} albo {'bank', 'brak': powód, 'powod'} — bank bez porównania
+    nie znika z wiersza raportu (v243). Wariant serii: pierwszy, który obejmuje dzień strony (źródło banku, potem FRED). Brak pliku strony = [].
+    v246: bledy = {id serii: 'źródło: błąd'} — bank bez żadnej serii: powód z błędów odczytu ('powod': 'odczyt', 'bledy'); „brak serii
+    obejmującej dzień strony” tylko, gdy seria jest, ale zaczyna się po dniu strony ('powod': 'seria') — wtedy pierwsza inna stopa w całej
+    serii ('zmiana'); inna już na początku danych = 'od_poczatku' (dzień zmiany nieznany; NBP — jedyny dzień to dzień, od którego obowiązuje)."""
     now = now or NOW
     if not isinstance(stopy, dict):
         return []
     rows = stopy.get('rows') if isinstance(stopy.get('rows'), dict) else {}
     F = fred if isinstance(fred, dict) else {}
+    B = bledy if isinstance(bledy, dict) else {}
     out = []
     for a, warianty in STOPY_SERIE.items():
         nazwa = warianty[0][1]
         r = rows.get(a)
         rate = r.get('rate') if isinstance(r, dict) else None
         if not isinstance(rate, (int, float)) or isinstance(rate, bool) or rate != rate or abs(rate) > 1e6:
-            out.append({'bank': nazwa, 'brak': 'brak stopy w pliku strony'})
+            out.append({'bank': nazwa, 'brak': 'brak stopy w pliku strony', 'powod': 'strona'})
             continue
         if not isinstance(r.get('date'), str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', r['date']):
-            out.append({'bank': nazwa, 'brak': f'data w pliku strony „{str(r.get("date"))[:10]}” to nie dzień'})
+            out.append({'bank': nazwa, 'brak': f'data w pliku strony „{str(r.get("date"))[:10]}” to nie dzień', 'powod': 'strona'})
             continue
+        jest = [(ids, zr) for ids, _, zr in warianty if all(isinstance(F.get(i), dict) and F.get(i) for i in ids)]
         wyb = None
-        for ids, _, zr in warianty:
-            if not all(isinstance(F.get(i), dict) and F.get(i) for i in ids):
-                continue
+        for ids, zr in jest:
             S = [F[i] for i in ids]
             f = _stopa_fred(S, r['date'])
             if f is not None:
                 wyb = (S, zr, f)
                 break
-        if wyb is None:
-            o = {'bank': nazwa, 'brak': f'brak serii obejmującej dzień strony ({r["date"]})'}
-            for ids, _, zr in warianty:   # v244: seria zaczyna się po dniu strony (NBP podaje tylko stopę obowiązującą): inna stopa = zmiana,
-                if all(isinstance(F.get(i), dict) and F.get(i) for i in ids):   # której strona jeszcze nie ma (uwaga po STOPY_ZWLOKA_DNI)
-                    S = [F[i] for i in ids]
-                    d0 = max(min(s) for s in S)
-                    v = _stopa_fred(S, d0)
-                    if v is not None and abs(v - rate) >= STOPY_PROG:
-                        o.update(zrodlo=zr, data=r['date'], strona=float(rate), zmiana=[d0, round(v, 4)])
+        if not jest:   # v246: żadne źródło nie dało serii — powód z błędów odczytu (było „brak serii obejmującej dzień strony”)
+            bl = list(dict.fromkeys(B[i] for ids, _, _ in warianty for i in ids if i in B))
+            out.append({'bank': nazwa, 'brak': ('nie odczytano źródła — ' + '; '.join(bl)) if bl else 'brak danych ze źródła', 'powod': 'odczyt',
+                        'bledy': bl})
+            continue
+        if wyb is None:   # seria jest, ale zaczyna się po dniu strony (NBP podaje tylko stopę obowiązującą; okno pobierania ok. 4 mies.)
+            ids, zr = jest[0]
+            S = [F[i] for i in ids]
+            d0 = max(min(s) for s in S)
+            o = {'bank': nazwa, 'brak': f'brak serii obejmującej dzień strony ({r["date"]})', 'powod': 'seria'}
+            for d in sorted({k for s in S for k in s if k >= d0}):   # v246: pierwsza inna stopa w całej serii (było: tylko pierwszy dzień)
+                v = _stopa_fred(S, d)
+                if v is not None and abs(v - rate) >= STOPY_PROG:
+                    o.update(zrodlo=zr, data=r['date'], strona=float(rate), zmiana=[d, round(v, 4)],
+                             od_poczatku=d == d0 and any(len(s) > 1 for s in S))
                     break
             out.append(o)
             continue
@@ -372,6 +382,55 @@ def stopy_porownanie(stopy, fred, now=None):
                 break
         out.append(o)
     return out
+
+
+def stopy_sprawdz(stopy, now=None, zegar=time.monotonic, spij=time.sleep):
+    """v246: blok stóp kontroli (wyjęty z kontrola(), żeby testy szły przez prawdziwy przebieg): źródła banków w budżecie STOPY_BUDZET_S
+    z jednym ponowieniem (NY Fed, EBC, stopy_adresy), zapas FRED dla banków bez porównania, błąd odczytu każdej serii → powód „brak porównania”
+    banku. → ({'wyniki': [...], 'brak': błędy odczytu nieujęte w powodach banków albo None}, uwagi)."""
+    now = now or NOW
+    Fs, bs, Bl = {}, [], {}
+    t0 = zegar()
+
+    def blad(nm, ids, e):
+        t = f'{nm}: {str(e)[:60]}'
+        bs.append(t)
+        Bl.update({i: t for i in ids})
+
+    def pobierz(url, timeout=15, headers=None):
+        return stopy_pobierz(url, t0, timeout=timeout, headers=headers, zegar=zegar, spij=spij)
+    try:   # v242: źródło banku najpierw (bez klucza); v245: jedno ponowienie po błędzie chwilowym
+        Fs.update(stopy_nyfed(pobierz(STOPY_NYFED, timeout=20)))
+    except Exception as e:  # noqa
+        blad('NY Fed', ('NYFED_LO', 'NYFED_HI'), e)
+    try:
+        Fs['ECB_DFR'] = stopy_ecb_csv(pobierz(STOPY_ECB, timeout=20, headers={'Accept': 'text/csv'}))
+    except Exception as e:  # noqa
+        blad('EBC', ('ECB_DFR',), e)
+    for nm, url, fn, ids in stopy_adresy(now):   # v244: kolejne banki u źródła; błąd jednego = brak porównania tego banku (v246: z powodem)
+        try:
+            Fs.update(fn(pobierz(url)))
+        except Exception as e:  # noqa
+            blad(nm, ids, e)
+    Ps = stopy_porownanie(stopy, Fs, now, bledy=Bl)
+    bez = {o['bank'] for o in Ps if o.get('powod') in ('odczyt', 'seria')}   # v243/v246: seria nie sięga dnia strony albo źródło nieodczytane
+    od_s = (now.date() - dt.timedelta(days=STOPY_OD_DNI)).isoformat()
+    ids_f = sorted({i for a, (ids, nm) in STOPY_FRED.items() if nm in bez for i in ids if i not in Fs})
+    for sid in ids_f:   # zapas FRED tylko dla banków bez porównania (v245: w budżecie, bez ponowienia — z serwerów GitHub zwykle nie odpowiada)
+        try:
+            if zegar() - t0 + 30 > STOPY_BUDZET_S:
+                raise TimeoutError('pominięte — limit czasu kontroli stóp')
+            x = ust_fred_csv(get(STOPY_FRED_URL.format(id=sid, od=od_s), timeout=30)[1].decode('utf-8', 'replace'))
+            if not x:   # v246: strona HTML z kodem 200 — błąd, nie cisza
+                raise ValueError('plik bez liczb')
+            Fs[sid] = x
+        except Exception as e:  # noqa
+            blad(sid, (sid,), e)
+    if ids_f:
+        Ps = stopy_porownanie(stopy, Fs, now, bledy=Bl)
+    uz = {e for o in Ps for e in o.get('bledy') or []}   # v246: błędy ujęte w powodach banków nie powtarzają się na końcu wiersza; bez ucinania
+    reszta = [e for e in dict.fromkeys(bs) if e not in uz]
+    return {'wyniki': Ps, 'brak': '; '.join(reszta) if reszta else None}, stopy_uwagi(Ps, now)
 
 
 def stopy_wiersz(sp, now=None):
@@ -390,7 +449,10 @@ def stopy_wiersz(sp, now=None):
 
     def poz(o):
         z = o.get('zmiana')
-        zm = f' (zmiana {z[0]} na {n(z[1])}% — strona jeszcze bez niej)' if z else ''
+        if z and o.get('od_poczatku'):   # v246: inna stopa już na początku danych źródła — dzień zmiany nieznany
+            zm = f' (już {n(z[1])}% na początku danych źródła ({z[0]}) — strona jeszcze bez tej stopy)'
+        else:
+            zm = f' (zmiana {z[0]} na {n(z[1])}% — strona jeszcze bez niej)' if z else ''
         if o.get('brak'):
             return f'{o["bank"]}: brak porównania ({o["brak"]}) ' + ('⚠️' if stara(o) else 'ℹ️') + zm
         znak = '⚠️' if not o['zgodne'] or stara(o) else ('ℹ️' if z else '✅')
@@ -412,7 +474,10 @@ def stopy_uwagi(P, now=None):
         if not o.get('brak') and not o.get('zgodne'):
             out.append(f'stopy banków centralnych: {o["bank"]} na stronie {n(o["strona"])}% vs {o.get("zrodlo") or "FRED"} {n(o["fred"])}% ({o["data"]}) — sprawdzić plik stóp strony')
         z = o.get('zmiana')
-        if z and (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI:
+        if z and o.get('od_poczatku'):   # v246: dzień zmiany nieznany — plik strony nie ma stopy tego banku od miesięcy (uwaga od razu)
+            out.append(f'stopy banków centralnych: {o["bank"]} — źródło podaje {n(z[1])}% już na początku swoich danych ({z[0]}), strona pokazuje '
+                       f'stopę z {o["data"]} ({n(o["strona"])}%); plik stóp strony nie aktualizuje tego banku od miesięcy — sprawdzić')
+        elif z and (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI:
             out.append(f'stopy banków centralnych: {o["bank"]} zmienił stopę {z[0]} na {n(z[1])}% — strona pokazuje stopę z {o["data"]} '
                        f'({n(o["strona"])}%); źródło strony spóźnia się — zwykle samo się wyrówna')
     return out
@@ -1416,6 +1481,7 @@ def wh_nowe_raporty(gieldy, now=None, budzet_s=WH_NOWE_BUDZET_S, zegar=time.mono
         if o['kontrola'] != True:  # noqa: E712
             o['nie_wiadomo'] += 1
             continue
+        ciagly = True   # v246: zakres tylko z ciągłych dni od najnowszego — dzień bez odpowiedzi go zamyka
         for d in dni:
             if not czas_ok(20):
                 o['przerwane'] = True
@@ -1432,7 +1498,8 @@ def wh_nowe_raporty(gieldy, now=None, budzet_s=WH_NOWE_BUDZET_S, zegar=time.mono
                 break
             if None in wyn:
                 o['nie_wiadomo'] += 1
-            else:   # v243: zakres „brak nowszego” tylko z dni, na które każda odpowiedź brzmiała „nie ma pliku”
+                ciagly = False
+            elif ciagly:   # v243: zakres „brak nowszego” tylko z dni, na które każda odpowiedź brzmiała „nie ma pliku” (v246: ciągłych)
                 o['zakres'] = [d.isoformat(), o['zakres'][1] if o['zakres'] else d.isoformat()]
         if o['prob'] and not o['nowy'] and czas_ok(10) and wh_plik_jest(ku, g) is not True:   # v243: druga próba kontrolna — blokada w trakcie
             o['kontrola'] = 'brak'
@@ -3200,37 +3267,9 @@ def kontrola():
                                   + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]))
         else:
             Z['ust10'] = {'brak': '; '.join(bu)[:200]}
-    if isinstance(files.get('stopy'), dict):   # v241: stopy Fed i EBC vs FRED (bez klucza); brak odczytu = informacja; v244: + 6 banków u źródła
-        Fs, bs = {}, []
-        t0s = time.monotonic()   # v245: budżet czasu całego bloku stóp (STOPY_BUDZET_S)
-        try:   # v242: źródło banku najpierw (bez klucza); v245: jedno ponowienie po błędzie chwilowym
-            Fs.update(stopy_nyfed(stopy_pobierz(STOPY_NYFED, t0s, timeout=20)))
-        except Exception as e:  # noqa
-            bs.append(f'NY Fed: {str(e)[:60]}')
-        try:
-            Fs['ECB_DFR'] = stopy_ecb_csv(stopy_pobierz(STOPY_ECB, t0s, timeout=20, headers={'Accept': 'text/csv'}))
-        except Exception as e:  # noqa
-            bs.append(f'EBC: {str(e)[:60]}')
-        od_s = (NOW.date() - dt.timedelta(days=STOPY_OD_DNI)).isoformat()
-        for nm, url, fn in stopy_adresy():   # v244: sześć kolejnych banków u źródła (bez klucza); błąd jednego = brak porównania tego banku
-            try:
-                Fs.update(fn(stopy_pobierz(url, t0s)))
-            except Exception as e:  # noqa
-                bs.append(f'{nm}: {str(e)[:60]}')
-        Ps = stopy_porownanie(files['stopy'], Fs)
-        bez = {o['bank'] for o in Ps if o.get('brak') and o['brak'].startswith('brak serii')}   # v243: także gdy seria banku nie sięga dnia strony
-        ids_f = sorted({i for a, (ids, nm) in STOPY_FRED.items() if nm in bez for i in ids if i not in Fs})
-        for sid in ids_f:   # zapas FRED tylko dla banków bez porównania (v245: w budżecie, bez ponowienia — z serwerów GitHub zwykle nie odpowiada)
-            try:
-                if time.monotonic() - t0s + 30 > STOPY_BUDZET_S:
-                    raise TimeoutError('pominięte — limit czasu kontroli stóp')
-                Fs[sid] = ust_fred_csv(get(STOPY_FRED_URL.format(id=sid, od=od_s), timeout=30)[1].decode('utf-8', 'replace'))
-            except Exception as e:  # noqa
-                bs.append(f'{sid}: {str(e)[:60]}')
-        if ids_f:
-            Ps = stopy_porownanie(files['stopy'], Fs)
-        Z['stopy'] = {'wyniki': Ps, 'brak': '; '.join(bs)[:200] if bs else None}
-        R['uwagi'] += stopy_uwagi(Ps)
+    if isinstance(files.get('stopy'), dict):   # v241–v246: stopy banków centralnych vs ich własne źródła (bez klucza); brak odczytu = informacja
+        Z['stopy'], u = stopy_sprawdz(files['stopy'])
+        R['uwagi'] += u
     if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('fx'), dict):   # v225: kursy walut vs H.10 (Fed); brak = informacja
         try:
             st5, body5, _ = get(FX_H10, timeout=30)

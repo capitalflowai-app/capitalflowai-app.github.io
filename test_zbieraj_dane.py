@@ -12086,7 +12086,7 @@ class StresV121(unittest.TestCase):
     plik młodszy niż 6 h z pamięci; żadnego dostępu do sieci (urlopen zablokowany)."""
     NOW = datetime.datetime(2026, 9, 26, 14, 0, tzinfo=datetime.timezone.utc)   # sobota
     STUBS = tuple(n for n in dir(zd) if n.startswith('build_') and n != 'build_stres')   # pozostałe źródła udają awarię (bez sieci)
-    CSV = ('﻿Date,OFR FSI,Credit,Equity valuation,Safe assets,Funding,Volatility,United States,Other advanced economies,Emerging markets\n'
+    CSV = ('\ufeffDate,OFR FSI,Credit,Equity valuation,Safe assets,Funding,Volatility,United States,Other advanced economies,Emerging markets\n'
            '2026-09-14,-2.4,-1.0,-0.5,-0.3,-0.1,-0.5,-1.2,-0.8,-0.5\n'
            '2026-09-15,-2.5,-1.1,-0.5,-0.3,-0.1,-0.5,-1.2,-0.8,-0.5\n'
            '2026-09-16,-2.6,-1.1,-0.55,-0.3,-0.12,-0.52,-1.25,-0.8,-0.5\n'
@@ -27199,7 +27199,7 @@ class PoPrzegladzieV242(unittest.TestCase):
         self.assertEqual([(o['bank'], o.get('zrodlo'), bool(o.get('brak'))) for o in P2[:2]], [('Fed', 'FRED', False), ('EBC', None, True)], 'zapas FRED; EBC bez serii — „brak porównania” (v243)')
         import inspect
         src = inspect.getsource(k.kontrola)
-        self.assertIn('stopy_nyfed(stopy_pobierz(STOPY_NYFED', src); self.assertIn('stopy_ecb_csv(stopy_pobierz(STOPY_ECB', src)   # v245: ponowienie i budżet
+        self.assertIn("Z['stopy'], u = stopy_sprawdz(files['stopy'])", src)   # v246: blok stóp w stopy_sprawdz (przebieg: PoPrzegladzieV246)
 
     def test_zegar_bez_nazwy_srodowiska(self):
         Z = self.Z
@@ -27245,9 +27245,9 @@ class PoPrzegladzieV243(unittest.TestCase):
         P = k.stopy_porownanie(self.S, {'ECB_DFR': {d: 2.5 for d in days}}, self.NOW)
         self.assertEqual([o['bank'] for o in P], ['Fed', 'EBC', 'Bank Anglii', 'Bank Szwajcarii', 'Bank Szwecji', 'Bank Norwegii', 'NBP', 'Bank Kanady',
                                                  'Bank Brazylii'], 'jedna pozycja na bank (v244: 8 banków, v245: 9)')
-        self.assertIn('brak serii obejmującej dzień strony (2026-09-28)', P[0]['brak'])
+        self.assertEqual(P[0]['brak'], 'brak danych ze źródła', 'v246: żadne źródło nie dało serii — nie „seria nie sięga dnia strony”')
         w = k.stopy_wiersz({'wyniki': P, 'brak': 'NY Fed: timed out; DFEDTARL: timed out'}, self.NOW)
-        self.assertIn('Fed: brak porównania (brak serii obejmującej dzień strony (2026-09-28)) ℹ️', w)
+        self.assertIn('Fed: brak porównania (brak danych ze źródła) ℹ️', w)
         self.assertIn('EBC 2,5% = 2,5% (EBC) ✅', w); self.assertIn('błędy odczytu: NY Fed: timed out; DFEDTARL: timed out', w)
         self.assertEqual(k.stopy_uwagi(P, self.NOW), [], 'brak porównania — informacja, nie uwaga')
         late = {'NYFED_LO': {'2026-10-01': 3.75}, 'NYFED_HI': {'2026-10-01': 4.0}, 'DFEDTARL': {d: 3.75 for d in days}, 'DFEDTARU': {d: 4.0 for d in days}}
@@ -27257,7 +27257,7 @@ class PoPrzegladzieV243(unittest.TestCase):
         self.assertIn('to nie dzień', P[0]['brak']); self.assertEqual(P[1]['brak'], 'brak stopy w pliku strony')
         self.assertEqual(k.stopy_porownanie(None, late, self.NOW), [])
         import inspect
-        self.assertIn("o['brak'].startswith('brak serii')", inspect.getsource(k.kontrola), 'FRED także, gdy seria banku nie sięga dnia strony')
+        self.assertIn("o.get('powod') in ('odczyt', 'seria')", inspect.getsource(k.stopy_sprawdz), 'FRED także, gdy seria banku nie sięga dnia strony (v246: albo źródło nieodczytane)')
 
     def test_zwloka_10_dni_i_nan(self):
         k = self.k
@@ -27319,14 +27319,14 @@ class KontrolaStopyV244(unittest.TestCase):
     stopę obowiązującą (seria schodkowa); zmiana, której strona nie ma, także przy braku porównania; jedna pozycja na bank."""
 
     BOE = b'DATE,IUDBEDR\r\n24 Sep 2026,3.75\r\n25 Sep 2026,3.75\r\n28 Sep 2026,3.75\r\n29 Sep 2026,3.75\r\n05 Oct 2026,3.75\r\n'
-    SNB = '﻿"CubeId";"snbgwdzid"\n"PublishingDate";"2026-10-05 10:00"\n\n"Date";"D0";"Value"\n"2026-09-25";"LZ";"0"\n"2026-09-29";"LZ";"0"\n"2026-10-02";"LZ";"0"\n'.encode()
+    SNB = '\ufeff"CubeId";"snbgwdzid"\n"PublishingDate";"2026-10-05 10:00"\n\n"Date";"D0";"Value"\n"2026-09-25";"LZ";"0"\n"2026-09-29";"LZ";"0"\n"2026-10-02";"LZ";"0"\n'.encode()
     RIKS = b'[{"date":"2026-09-25","value":1.75},{"date":"2026-09-29","value":1.75},{"date":"2026-10-06","value":1.75}]'
     NORGES = ('FREQ;Frequency;INSTRUMENT_TYPE;Instrument Type;TENOR;Tenor;UNIT_MEASURE;Unit of Measure;DECIMALS;COLLECTION;Collection Indicator;'
               'TIME_PERIOD;OBS_VALUE;CALC_METHOD;Calculation Method\n'
               'B;Business;KPRA;Key policy rate;SD;Policy rate;R;Rate;2;E;End of day;2026-09-24;4.25;;\n'
               'B;Business;KPRA;Key policy rate;SD;Policy rate;R;Rate;2;E;End of day;2026-09-25;4.5;;\n'
               'B;Business;KPRA;Key policy rate;SD;Policy rate;R;Rate;2;E;End of day;2026-10-05;4.5;;\n').encode()
-    NBP = ('﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<stopy_procentowe data_publikacji="2026-03-05">\n'
+    NBP = ('\ufeff<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<stopy_procentowe data_publikacji="2026-03-05">\n'
            '    <tabela\n        id="stoproc"\n        naglowek="Stopa procentowa:">\n'
            '        <pozycja\n            id="ref"\n            nazwa="Stopa referencyjna"\n            oprocentowanie="3,75"\n            trend = "spadek"\n'
            '            obowiazuje_od="2026-03-05" />\n'
@@ -27380,7 +27380,7 @@ class KontrolaStopyV244(unittest.TestCase):
             with self.assertRaises(Exception, msg=repr(body)):
                 fn(body)
         self.assertEqual(k.stopy_boe(b'DATE,IUDBEDR\n05 Oct 2026,nan\n06 Oct 2026,3.75\n'), {'BOE_BR': {'2026-10-06': 3.75}}, 'NaN pominięte')
-        self.assertEqual(k.stopy_ecb_csv('﻿KEY,TIME_PERIOD,OBS_VALUE\nx,2026-10-06,2.5\n'.encode()), {'2026-10-06': 2.5}, 'EBC bez zmian, BOM nie przeszkadza')
+        self.assertEqual(k.stopy_ecb_csv('\ufeffKEY,TIME_PERIOD,OBS_VALUE\nx,2026-10-06,2.5\n'.encode()), {'2026-10-06': 2.5}, 'EBC bez zmian, BOM nie przeszkadza')
 
     def test_osiem_bankow_06_10(self):
         k = self.k
@@ -27441,9 +27441,9 @@ class KontrolaStopyV244(unittest.TestCase):
                                                  'Bank Brazylii'])
         D = {o['bank']: o for o in P}
         self.assertEqual(D['Bank Szwajcarii']['brak'], 'brak stopy w pliku strony')
-        self.assertEqual(D['Bank Anglii']['brak'], 'brak serii obejmującej dzień strony (2026-09-28)')
+        self.assertEqual(D['Bank Anglii']['brak'], 'brak danych ze źródła', 'v246: bez serii i bez zapisanego błędu odczytu')
         w = k.stopy_wiersz({'wyniki': P, 'brak': 'BoE: HTTP Error 403: Forbidden'}, self.NOW)
-        self.assertTrue(w.endswith('Bank Brazylii 13,75% = 13,75% (BCB) ✅; Bank Anglii: brak porównania (brak serii obejmującej dzień strony (2026-09-28)) ℹ️; '
+        self.assertTrue(w.endswith('Bank Brazylii 13,75% = 13,75% (BCB) ✅; Bank Anglii: brak porównania (brak danych ze źródła) ℹ️; '
                                    'Bank Szwajcarii: brak porównania (brak stopy w pliku strony) ℹ️; błędy odczytu: BoE: HTTP Error 403: Forbidden.'), w)
         self.assertEqual(k.stopy_uwagi(P, self.NOW), [], 'brak porównania — informacja, nie uwaga')
 
@@ -27461,8 +27461,8 @@ class KontrolaStopyV244(unittest.TestCase):
         self.assertEqual(set(k.STOPY_SERIE), {'US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'CA', 'BR'})
         import inspect
         src = inspect.getsource(k.kontrola)
-        self.assertIn('for nm, url, fn in stopy_adresy():', src); self.assertIn('Fs.update(fn(stopy_pobierz(url, t0s)))', src)   # v245
-        self.assertIn('stopy_nyfed(stopy_pobierz(STOPY_NYFED', src); self.assertIn('stopy_ecb_csv(stopy_pobierz(STOPY_ECB', src)   # v245: ponowienie i budżet
+        self.assertEqual([len(a) for a in A], [4] * 7, 'v246: (nazwa, adres, parser, serie)')
+        self.assertIn("Z['stopy'], u = stopy_sprawdz(files['stopy'])", src)   # v246: blok stóp w stopy_sprawdz (przebieg: PoPrzegladzieV246)
 
 
 # ===================== v245: STOPY — PONOWIENIE PO CHWILOWYM BŁĘDZIE, BUDŻET CZASU, BANK BRAZYLII =====================
@@ -27527,14 +27527,11 @@ class KontrolaStopyV245(unittest.TestCase):
         self.assertEqual(getattr(c.exception, 'code', None), 503, 'ponowienie nie mieści się w budżecie — pierwotny błąd')
         self.assertEqual([x[0] for x in log], ['get'])
 
-    def test_kontrola_uzywa_budzetu(self):
+    def test_kontrola_uzywa_budzetu(self):   # v246: przebieg z budżetem i ponowieniami — PoPrzegladzieV246 (stopy_sprawdz)
         import inspect
         k = self.k
-        src = inspect.getsource(k.kontrola)
-        self.assertIn('t0s = time.monotonic()', src)
-        self.assertIn('stopy_nyfed(stopy_pobierz(STOPY_NYFED, t0s, timeout=20))', src)
-        self.assertIn("stopy_ecb_csv(stopy_pobierz(STOPY_ECB, t0s, timeout=20, headers={'Accept': 'text/csv'}))", src)
-        self.assertIn('Fs.update(fn(stopy_pobierz(url, t0s)))', src)
+        src = inspect.getsource(k.stopy_sprawdz)
+        self.assertIn('return stopy_pobierz(url, t0, timeout=timeout, headers=headers, zegar=zegar, spij=spij)', src)
         self.assertIn("raise TimeoutError('pominięte — limit czasu kontroli stóp')", src, 'zapas FRED też w budżecie (bez ponowienia)')
         self.assertEqual((k.STOPY_BUDZET_S, k.STOPY_PAUZA_S), (90, 3))
 
@@ -27548,3 +27545,147 @@ class KontrolaStopyV245(unittest.TestCase):
         self.assertNotIn(':,.0f}', src, 'tysiące ze spacją (_zuz_l), nie z przecinkiem')
         self.assertNotIn('norma (mediana {', src, 'norma tylko przez _norma')
         self.assertNotIn("FRED {b:,.0f}", inspect.getsource(k.kontrola), 'uwaga TGA też ze spacją')
+
+
+# ===================== v246: POPRAWKI PO PRZEGLĄDZIE v243–v244; BLOK STÓP NA PRAWDZIWYM PRZEBIEGU =====================
+class PoPrzegladzieV246(unittest.TestCase):
+    """v246: zmiana stopy w środku okna danych widoczna; „już X% na początku danych”; powód „nie odczytano źródła” z błędem; FRED z HTML = błąd;
+    blok stóp (stopy_sprawdz) z podstawionymi odpowiedziami: ponowienia, budżet, powody; zakres raportów giełd tylko z ciągłych dni; bez BOM."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola246-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v246_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+        dni = ['2026-09-%02d' % d for d in range(20, 31)] + ['2026-10-%02d' % d for d in range(1, 6)]
+        cls.NYFED = json.dumps({'refRates': [{'effectiveDate': d, 'targetRateFrom': 3.75, 'targetRateTo': 4.0} for d in dni]}).encode()
+        cls.ECB = ('KEY,TIME_PERIOD,OBS_VALUE\n' + ''.join(f'x,{d},2.5\n' for d in dni)).encode()
+
+    def _fed(self, od, zmiany):
+        """Seria NY Fed od dnia od do 2026-10-05: zmiany = [(dzień, dolna), ...] — górna = dolna + 0,25."""
+        F = {'NYFED_LO': {}, 'NYFED_HI': {}}
+        d = datetime.date.fromisoformat(od)
+        while d <= datetime.date(2026, 10, 5):
+            lo = [v for z, v in zmiany if z <= d.isoformat()][-1]
+            F['NYFED_LO'][d.isoformat()], F['NYFED_HI'][d.isoformat()] = lo, lo + 0.25
+            d += datetime.timedelta(days=1)
+        return F
+
+    def test_zmiana_w_srodku_okna_widoczna(self):
+        k = self.k
+        F = self._fed('2026-05-14', [('2026-05-14', 3.5), ('2026-09-17', 3.75)])   # przegląd: 3,625% do 16.09, potem 3,875%
+        o = k.stopy_porownanie({'rows': {'US': {'rate': 3.625, 'date': '2026-04-30'}}}, F, self.NOW)[0]
+        self.assertEqual((o['powod'], o['zmiana'], o['od_poczatku']), ('seria', ['2026-09-17', 3.875], False), 'zmiana 17.09 — nie ukryta')
+        self.assertEqual(k.stopy_uwagi([o], self.NOW), ['stopy banków centralnych: Fed zmienił stopę 2026-09-17 na 3,875% — strona pokazuje stopę z '
+                                                       '2026-04-30 (3,625%); źródło strony spóźnia się — zwykle samo się wyrówna'], '19 dni po zmianie')
+        self.assertIn('Fed: brak porównania (brak serii obejmującej dzień strony (2026-04-30)) ⚠️ (zmiana 2026-09-17 na 3,875% — strona jeszcze bez niej)',
+                      k.stopy_wiersz({'wyniki': [o]}, self.NOW))
+
+    def test_inna_stopa_juz_na_poczatku_danych(self):
+        k = self.k
+        F = self._fed('2026-05-14', [('2026-05-14', 3.5), ('2026-09-17', 3.75)])
+        o = k.stopy_porownanie({'rows': {'US': {'rate': 3.5, 'date': '2026-04-30'}}}, F, self.NOW)[0]
+        self.assertEqual((o['zmiana'], o['od_poczatku']), (['2026-05-14', 3.625], True), 'dzień zmiany nieznany — początek danych, nie „zmiana 14.05”')
+        w = k.stopy_wiersz({'wyniki': [o]}, self.NOW)
+        self.assertIn('(już 3,625% na początku danych źródła (2026-05-14) — strona jeszcze bez tej stopy)', w); self.assertNotIn('zmiana 2026-05-14', w)
+        self.assertEqual(k.stopy_uwagi([o], self.NOW), ['stopy banków centralnych: Fed — źródło podaje 3,625% już na początku swoich danych (2026-05-14), '
+                                                       'strona pokazuje stopę z 2026-04-30 (3,5%); plik stóp strony nie aktualizuje tego banku od miesięcy — sprawdzić'])
+        nbp = k.stopy_porownanie({'rows': {'PL': {'rate': 3.75, 'date': '2026-09-29'}}}, {'NBP_REF': {'2026-10-09': 3.5}}, self.NOW)
+        o = {x['bank']: x for x in nbp}['NBP']
+        self.assertEqual((o['zmiana'], o['od_poczatku']), (['2026-10-09', 3.5], False), 'NBP: jedyny dzień = dzień, od którego obowiązuje — zwykła zmiana')
+
+    def _get(self, odp, t, log, koszt=1):
+        def get(url, timeout=25, headers=None, limit=None):
+            t[0] += koszt
+            for klucz, x in odp:
+                if klucz in url:
+                    log.append(klucz)
+                    x = x.pop(0) if isinstance(x, list) else x
+                    if isinstance(x, Exception):
+                        raise x
+                    return 200, x, 5
+            raise AssertionError(url)
+        return get
+
+    def _odp(self, **zmien):
+        V = KontrolaStopyV244
+        o = {'newyorkfed': self.NYFED, 'data-api.ecb': self.ECB, 'bankofengland': V.BOE, 'data.snb.ch': V.SNB, 'riksbank': V.RIKS,
+             'norges-bank': V.NORGES, 'nbp.pl': V.NBP, 'bankofcanada': V.BOC, 'bcb.gov.br': V.BCB, 'fred.stlouisfed': b'<html></html>'}
+        o.update(zmien)
+        return list(o.items())
+
+    def _przebieg(self, odp, koszt=1):
+        k = self.k
+        t, log = [0.0], []
+
+        def spij(s):
+            t[0] += s
+        with mock.patch.object(k, 'get', self._get(odp, t, log, koszt)):
+            Z, u = k.stopy_sprawdz(KontrolaStopyV244.S, self.NOW, zegar=lambda: t[0], spij=spij)
+        return Z, u, log
+
+    def test_przebieg_wszystko_dziala(self):
+        Z, u, log = self._przebieg(self._odp())
+        self.assertEqual([(o['bank'], o.get('zgodne')) for o in Z['wyniki']],
+                         [(b, True) for b in ('Fed', 'EBC', 'Bank Anglii', 'Bank Szwajcarii', 'Bank Szwecji', 'Bank Norwegii', 'NBP', 'Bank Kanady', 'Bank Brazylii')])
+        self.assertIsNone(Z['brak']); self.assertEqual(u, []); self.assertNotIn('fred.stlouisfed', log, 'zapas FRED tylko dla banków bez porównania')
+
+    def test_przebieg_awarie_powody(self):
+        import urllib.error
+        k = self.k
+        tm = lambda: TimeoutError('The read operation timed out')  # noqa: E731
+        odp = self._odp(newyorkfed=[tm(), tm()], **{'norges-bank': urllib.error.HTTPError('https://x', 403, 'Forbidden', {}, None),
+                        'nbp.pl': b'<html><body>Request unsuccessful. Incapsula incident</body></html>', 'bankofcanada': [tm(), tm()]})
+        Z, u, log = self._przebieg(odp)
+        D = {o['bank']: o for o in Z['wyniki']}
+        self.assertEqual(D['Fed']['brak'], 'nie odczytano źródła — NY Fed: The read operation timed out; DFEDTARL: plik bez liczb; DFEDTARU: plik bez liczb',
+                         'NY Fed: przekroczenie czasu (z ponowieniem); FRED: strona HTML z kodem 200 = błąd, nie cisza')
+        self.assertEqual(D['Bank Norwegii']['brak'], 'nie odczytano źródła — Norges Bank: HTTP Error 403: Forbidden')
+        self.assertEqual(D['NBP']['brak'], 'nie odczytano źródła — NBP: brak stopy referencyjnej')
+        self.assertEqual(D['Bank Kanady']['brak'], 'nie odczytano źródła — BoC: The read operation timed out')
+        self.assertTrue(all(D[b].get('zgodne') for b in ('EBC', 'Bank Anglii', 'Bank Szwajcarii', 'Bank Szwecji', 'Bank Brazylii')))
+        self.assertEqual([log.count(x) for x in ('newyorkfed', 'norges-bank', 'nbp.pl', 'bankofcanada', 'fred.stlouisfed')], [2, 1, 1, 2, 2],
+                         'ponowienie tylko po przekroczeniu czasu; 403 i zła treść — bez ponowienia; FRED bez ponowienia')
+        self.assertIsNone(Z['brak'], 'wszystkie błędy w powodach banków — koniec wiersza bez powtórzeń')
+        self.assertEqual(u, [], 'brak porównania — informacja, nie uwaga')
+        w = k.stopy_wiersz(Z, self.NOW)
+        self.assertIn('Bank Norwegii: brak porównania (nie odczytano źródła — Norges Bank: HTTP Error 403: Forbidden) ℹ️', w)
+        self.assertNotIn('brak serii obejmującej', w); self.assertNotIn('błędy odczytu', w)
+
+    def test_przebieg_budzet_czasu(self):
+        Z, u, log = self._przebieg(self._odp(), koszt=20)   # każde zapytanie 20 s
+        D = {o['bank']: o for o in Z['wyniki']}
+        self.assertTrue(all(D[b].get('zgodne') for b in ('Fed', 'EBC', 'Bank Anglii', 'Bank Szwajcarii')), '0+20, 20+20, 40+15, 60+15 ≤ 90 s')
+        self.assertEqual(D['Bank Szwecji']['brak'], 'nie odczytano źródła — Riksbank: pominięte — limit czasu kontroli stóp', '80 + 15 > 90 s')
+        self.assertEqual([log.count(x) for x in ('riksbank', 'norges-bank', 'nbp.pl', 'bankofcanada', 'bcb.gov.br')], [0] * 5, 'po przekroczeniu budżetu — bez zapytań')
+        import inspect
+        self.assertIn("Z['stopy'], u = stopy_sprawdz(files['stopy'])", inspect.getsource(self.k.kontrola))
+
+    def test_raporty_gield_zakres_ciagly(self):
+        import urllib.error
+        k = self.k
+        t = [0.0]
+
+        def get(url, timeout=25, headers=None, limit=None):
+            t[0] += 1
+            if 'por_csv_2026090100' in url:
+                return 206, b'PK\x03\x04' + b'x' * 100, 5
+            if 'por_csv_20261004' in url or 'por_csv_20261002' in url:
+                raise urllib.error.URLError('timed out')
+            raise urllib.error.HTTPError(url, 404, 'x', {}, None)
+        with mock.patch.object(k, 'get', get):
+            W = k.wh_nowe_raporty({'OKX': {'since': '2026-09-01'}}, datetime.datetime(2026, 10, 6, 7, 0, tzinfo=datetime.timezone.utc),
+                                  budzet_s=30, zegar=lambda: t[0], spij=lambda s: None)
+        o = W['OKX']
+        self.assertEqual((o['prob'], o['nie_wiadomo'], o['przerwane']), (10, 2, True), 'przegląd: 10 dni od 06.10, dwa bez odpowiedzi, limit czasu')
+        self.assertEqual(o['zakres'], ['2026-10-05', '2026-10-06'], 'zakres tylko z ciągłych dni od najnowszego (04.10 bez odpowiedzi go zamyka)')
+        self.assertIn('OKX — sprawdzanie przerwane (limit czasu); brak nowszego w dniach 2026-10-05–2026-10-06; dni bez odpowiedzi: 2 ℹ️', k.wh_nowe_wiersz(W))
+
+    def test_bez_niewidocznych_bom(self):
+        root = os.path.dirname(os.path.abspath(__file__))
+        for p in ('narzedzia/kontrola.py', 'test_zbieraj_dane.py'):
+            with open(os.path.join(root, p), encoding='utf-8') as f:
+                self.assertNotIn(chr(0xFEFF), f.read(), p + ': BOM tylko jako \\ufeff')
