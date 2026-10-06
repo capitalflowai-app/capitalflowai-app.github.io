@@ -13468,3 +13468,12 @@ test('v200: Sektory i okno regionu — przy danych z funduszy (DZIŚ, okres z td
   const R = html.slice(html.indexOf('const r=GB_[s.id],v=F[s.id],dy='), html.indexOf('${gCenyRow(s)}'));
   assert.ok(R.includes('gRegIso(r,gst.period)') && R.includes('ri.map(gmCty)'), 'okno regionu na mapie — te same kraje');
 });
+
+
+/* ---------- v201: podpis okresu DZIŚ — „ostatnia sesja” (także po zamknięciu i przy danych dziennych z wczoraj) ---------- */
+test('v201: g.per.1D w 10 językach — ostatnia/najnowsza sesja, nie „bieżąca”', () => {
+  const W = {pl: 'dzień (ostatnia sesja)', en: 'day (latest session)', de: 'Tag (letzte Sitzung)', es: 'día (última sesión)', fr: 'jour (dernière séance)',
+    it: 'giorno (ultima seduta)', pt: 'dia (último pregão)', ru: 'день (последняя сессия)', zh: '天（最近交易时段）', ja: '1日（直近のセッション）'};
+  for (const L in W) assert.equal(v96src.tFor(L)('g.per.1D'), W[L], L);
+  assert.ok(!html.includes('dzień (bieżąca sesja)') && !html.includes('day (current session)'), 'dawny podpis usunięty');
+});
