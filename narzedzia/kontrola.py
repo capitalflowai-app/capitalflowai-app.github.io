@@ -1627,10 +1627,12 @@ def wieloryby_ocena(path, zmiany=None, hist=None):
     (WH_DOBA_BLOKI) i jej rozbieżność przekracza zwykły próg (WH_PROG %, WH_MIN_USD) ORAZ WH_RAZY × medianę jej rozbieżności z co najmniej
     WH_HIST_MIN wcześniejszych porównywalnych dni. v175: odstęp liczony dla KAŻDEJ pary z jej własnych bloków — para z innym odstępem pominięta
     (pole pominiete), reszta porównana; żadnej pary o dobę = bez porównania (powód w 'pomin'). Mniej niż dwa dni archiwum = None.
-    → {'dzien', 'poprzedni', 'porownane', 'pominiete', 'odstep_h' (mediana par), 'pomin', 'zle': [(giełda, aktywo, zmiana, netto, rozb., mediana)],
-    'bez_historii', 'lista'}. v230: zmiany = {giełda: dzień zmiany listy portfeli} — pary tej giełdy obejmujące ten dzień (także jako dzień
-    poprzedni: migawka archiwum mogła być przed zmianą) pominięte — nowe portfele to skok salda bez przelewów. v249: hist = pole hist pliku
-    wielorybów — para z migawek o północy UTC (zgrana z dobą przelewów) zastępuje parę z migawek archiwum ('polnoc' — ile dziś takich par)."""
+    → {'dzien', 'poprzedni', 'poprzedni_pokaz', 'porownane', 'pominiete', 'odstep_h' (mediana par), 'pomin', 'zle': [(giełda, aktywo, zmiana,
+    netto, rozb., mediana)], 'bez_historii', 'lista', 'polnoc'}. v230: zmiany = {giełda: dzień zmiany listy portfeli} — pary tej giełdy
+    obejmujące ten dzień (także jako dzień poprzedni: migawka archiwum mogła być przed zmianą) pominięte — nowe portfele to skok salda bez
+    przelewów. v249: hist = pole hist pliku wielorybów — para z migawek o północy UTC (zgrana z dobą przelewów) zastępuje dziś parę z migawek
+    archiwum ('polnoc' — ile dziś takich par). v250: historia (norma pary) liczona osobno dla par z północy i z archiwum — para dnia oceniana
+    normą swojego rodzaju (rozbieżności par z archiwum są zwykle większe); 'poprzedni_pokaz' — przy samych parach z północy dzień d − 1."""
     by = _wh_csv(path)
     if not by:
         return None
@@ -1641,33 +1643,38 @@ def wieloryby_ocena(path, zmiany=None, hist=None):
     doba = lambda sp: sp is not None and WH_DOBA_BLOKI[0] <= sp <= WH_DOBA_BLOKI[1]  # noqa: E731
     Hn = _wh_polnoc(hist) if hist else {}
 
-    def pary(a, b):   # v249: para z migawek o północy zastępuje parę z migawek archiwum (te robione są o różnych porach)
-        r = _wh_rozb(by[a], by[b])
-        r.update(_wh_rozb_polnoc(Hn, b, by[b]))
-        return r
-    dzis = pary(p, d)
-    polnoc = set(_wh_rozb_polnoc(Hn, d, by[d]))
+    def obie(a, b):   # v250: pary z archiwum ('a') i z migawek o północy ('p') osobno
+        return ({k: v + ('a',) for k, v in _wh_rozb(by[a], by[b]).items()},
+                {k: v + ('p',) for k, v in _wh_rozb_polnoc(Hn, b, by[b]).items()})
+    A, Pn = obie(p, d)
+    dzis = dict(A)
+    dzis.update(Pn)   # v249: para z migawek o północy zastępuje dziś parę z migawek archiwum (te robione są o różnych porach)
     zm = lambda g, a, b: isinstance(zmiany, dict) and isinstance(zmiany.get(g), str) and a <= zmiany[g] <= b  # noqa: E731 — v230
     lista = sorted({k[0] for k in dzis if zm(k[0], p, d)})
     dzis = {k: v for k, v in dzis.items() if not zm(k[0], p, d)}
     S = sorted(x[3] for x in dzis.values() if x[3] is not None)
+    dm1 = (dt.date.fromisoformat(d) - dt.timedelta(days=1)).isoformat() if _dzien(d) else p
     out = {'dzien': d, 'poprzedni': p, 'porownane': sum(1 for x in dzis.values() if doba(x[3])),
            'pominiete': sum(1 for x in dzis.values() if not doba(x[3])),
            'odstep_h': round(S[len(S) // 2] * 12 / 3600, 1) if S else None, 'pomin': None, 'zle': [], 'bez_historii': 0, 'lista': lista,
-           'polnoc': sum(1 for k in dzis if k in polnoc)}
+           'polnoc': sum(1 for x in dzis.values() if x[4] == 'p')}
+    out['poprzedni_pokaz'] = dm1 if out['polnoc'] and out['polnoc'] == out['porownane'] else p   # v250: podpis zgodny z porównanymi migawkami
     if not out['porownane']:
         out['pomin'] = (f"odstęp migawek {out['odstep_h']:.1f} h — porównanie z przepływami 24 h tylko przy ok. dobie" if out['odstep_h'] is not None
                         else 'brak numeru bloku migawki — bez porównania')
+        if hist and not out['polnoc']:   # v250: powód — migawki o północy brak albo późniejsza niż WH_POLNOC_H h
+            out['pomin'] += f'; migawki o północy z {d}: brak albo później niż {WH_POLNOC_H} h po północy UTC'
         return out
-    hist = {}
+    norma = {}
     for a, b in zip(days[:-2], days[1:-1]):
-        for k, (_dl, _n, r, sp) in pary(a, b).items():
-            if doba(sp) and not zm(k[0], a, b):
-                hist.setdefault(k, []).append(r)
-    for k, (delta, net, roz, sp) in sorted(dzis.items()):
+        for X in obie(a, b):
+            for k, (_dl, _n, r, sp, rd) in X.items():
+                if doba(sp) and not zm(k[0], a, b):
+                    norma.setdefault((k, rd), []).append(r)
+    for k, (delta, net, roz, sp, rd) in sorted(dzis.items()):
         if not doba(sp) or not (roz > WH_MIN_USD and roz > WH_PROG / 100 * max(abs(delta), abs(net), WH_MIN_USD)):
             continue
-        h = sorted(hist.get(k, []))
+        h = sorted(norma.get((k, rd), []))   # v250: norma z par tego samego rodzaju
         if len(h) < WH_HIST_MIN:
             out['bez_historii'] += 1
             continue
@@ -2656,7 +2663,18 @@ PRZEGL_OKNO = '390,844'     # ekran telefonu
 PRZEGL_KONSOLA = re.compile(r':CONSOLE(?::\d+\]|\(\d+\)\]) "(.*)", source: (\S*) \((\d+)\)\s*$', re.S)   # v248: też CONSOLE(N); wiele linii
 PRZEGL_REKORD = re.compile(r'\n(?=\[\d+:\d+:\d{4}/)')   # v248: nowy wpis logu zaczyna się od „[proces:wątek:MMDD/” — komunikat bywa wielowierszowy
 PRZEGL_ZNACZNIK = 'const EXTRA'   # v248: zrzut to nasza strona (ten sam znacznik co pobranie index.html), nie np. strona 404
+PRZEGL_BLAD = re.compile(r'^(Uncaught (\(in promise\) )?)?(TypeError|ReferenceError|RangeError|SyntaxError|URIError|EvalError|AggregateError|Error)\b')   # v250
+PRZEGL_POPRZ_H = 30   # v250: „drugi raz z rzędu” — poprzednia kontrola z przeglądarką nie starsza niż tyle godzin
 PRZEGL_MIN_WYKRESY = 10   # v248: wykresów liniowych poza tekstem skryptów — 06.10: 20 z danymi, 0 bez danych (strona z pliku, dane niedostępne)
+PRZEGL_ARTEFAKTY = re.compile(r'\bNaN\b|\bundefined\b|\[object Object\]|\bInfinity\b|\bnull\b')   # v250: napisy-błędy (06.10: 0 na całej stronie)
+
+
+def przegladarka_artefakty(tresc):
+    """v250: napisy-błędy w tekście narysowanej strony (bez skryptów — już usunięte —, stylów, znaczników i atrybutów): „NaN”, „undefined”,
+    „[object Object]”, „Infinity”, „null” — objaw błędu na prawdziwych danych → fragmenty tekstu z otoczeniem (gdzie)."""
+    t = re.sub(r'<style\b[^>]*>.*?</style>', ' ', str(tresc or ''), flags=re.S | re.I)
+    t = ' '.join(re.sub(r'<[^>]+>', ' ', t).split())
+    return [t[max(0, m.start() - 40):m.end() + 20] for m in PRZEGL_ARTEFAKTY.finditer(t)]
 
 
 def przegladarka_program(kandydaci=PRZEGL_PROGRAMY, szukaj=None):
@@ -2681,10 +2699,13 @@ def przegladarka_konsola(log):
             continue
         m = PRZEGL_KONSOLA.search(rek)
         if not m:
-            out['nieczytelne'] += 1
+            if re.search(r':CONSOLE[^\]]*\] "Uncaught', rek):   # v250: obca linia doklejona do wpisu z błędem — nadal błąd
+                out['bledy'].append('nieczytelny wpis z „Uncaught” (zob. log przeglądarki)')
+            else:
+                out['nieczytelne'] += 1
             continue
         msg, src, nr = ' '.join(m.group(1).split()), m.group(2), m.group(3)   # wiele linii → jedna
-        if msg.startswith('Uncaught'):
+        if msg.startswith('Uncaught') or PRZEGL_BLAD.match(msg):   # v250: też błąd złapany przez stronę i wypisany przez console.error
             out['bledy'].append(f'{msg[:160]} ({src.split("?")[0].rsplit("/", 1)[-1][:40] or "strona"}:{nr})')
         elif msg.startswith('Failed to load resource'):
             out['zasoby'].append(src[:160])
@@ -2750,17 +2771,29 @@ def strona_przegladarka(url, czas_s=PRZEGL_CZAS_S, program=None, zegar=time.mono
     if PRZEGL_ZNACZNIK not in dom:
         return {'stan': 'inna_strona', 'brak': 'przeglądarka dostała inną stronę (bez znacznika strony)', 'czas_s': czas, **K}
     tresc = re.sub(r'<script\b[^>]*>.*?</script>', '', dom, flags=re.S | re.I)   # v248: tylko narysowana strona, nie tekst skryptów
-    return {'stan': 'ok', 'ok': True, 'czas_s': czas, 'bajty': len(dom), 'svg': tresc.count('<svg'), 'wykresy': tresc.count('class="arc-gr"'), **K}
+    A = przegladarka_artefakty(tresc)   # v250: napisy-błędy w tekście strony
+    return {'stan': 'ok', 'ok': True, 'czas_s': czas, 'bajty': len(dom), 'svg': tresc.count('<svg'), 'wykresy': tresc.count('class="arc-gr"'),
+            'artefakty': A[:5], 'artefakty_n': len(A), **K}
 
 
-def przegladarka_poprzedni(path):
-    """v248: stan przeglądarki z ostatniej kontroli, która ją uruchamiała (kontrola/historia.json, pole 'przegl') albo None."""
+def przegladarka_poprzedni(path, now=None):
+    """v248: stan przeglądarki z ostatniej kontroli, która ją uruchamiała (kontrola/historia.json, pole 'przegl') albo None. v250: tylko
+    z kontroli z ostatnich PRZEGL_POPRZ_H h (dwie szybkie publikacje mogą nadpisać wpis historii — stary stan nie liczy się „z rzędu”)."""
+    now = now or NOW
     try:
         with open(path, encoding='utf-8') as f:
             H = json.load(f)
     except Exception:  # noqa
         return None
-    return next((h.get('przegl') for h in reversed(H) if isinstance(h, dict) and h.get('przegl')), None) if isinstance(H, list) else None
+    for h in reversed(H) if isinstance(H, list) else ():
+        if isinstance(h, dict) and h.get('przegl'):
+            try:
+                if (now - dt.datetime.fromisoformat(str(h.get('at')))).total_seconds() > PRZEGL_POPRZ_H * 3600:
+                    return None
+            except (TypeError, ValueError):
+                pass
+            return h['przegl']
+    return None
 
 
 def przegladarka_uwagi(P, poprzedni=None):
@@ -2772,6 +2805,8 @@ def przegladarka_uwagi(P, poprzedni=None):
     if P.get('ok'):
         if P.get('bledy'):
             out.append(f'strona w przeglądarce: nieobsłużonych błędów JavaScriptu {len(P["bledy"])} — pierwszy: {P["bledy"][0]}')
+        if P.get('artefakty_n'):   # v250
+            out.append(f'strona w przeglądarce: napisy-błędy w tekście strony (NaN, undefined…): {P["artefakty_n"]} — pierwszy: „{(P.get("artefakty") or ["—"])[0]}”')
         if isinstance(P.get('wykresy'), int) and P['wykresy'] < PRZEGL_MIN_WYKRESY:
             out.append(f'strona w przeglądarce: narysowanych wykresów liniowych tylko {P["wykresy"]} (zwykle ok. 20) — dane mogły się nie wczytać')
     elif P.get('stan') == 'zawieszona' and poprzedni == 'zawieszona':
@@ -2794,6 +2829,7 @@ def przegladarka_wiersz(P):
             f'{P.get("svg", 0)}, wykresów liniowych {P.get("wykresy", 0)}' + (' ⚠️ (zwykle ok. 20)' if malo else '')
             + f'; nieobsłużonych błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else ('ℹ️' if nc else '✅'))
             + (f' (wpisów konsoli nieczytelnych: {nc})' if nc else '')
+            + (f'; napisy-błędy w tekście (NaN, undefined…): {P["artefakty_n"]} ⚠️' if P.get('artefakty_n') else '')   # v250
             + (f'; nieudane wczytania: {len(z)} ({", ".join(hosty[:4])}) ℹ️' if z else '')
             + (f'; inne komunikaty konsoli: {len(i)} (pierwszy: {i[0][:80]}) ℹ️' if i else '') + '.')
 
@@ -3556,7 +3592,7 @@ def kontrola():
     if w:
         zle = w['zle']
         Z['wieloryby'] = {'dzien': w['dzien'], 'poprzedni': w['poprzedni'], 'porownane': w['porownane'], 'odstep_h': w['odstep_h'], 'pomin': w['pomin'],
-                          'bez_historii': w['bez_historii'], 'pominiete': w.get('pominiete', 0), 'lista': w.get('lista', []), 'polnoc': w.get('polnoc', 0),
+                          'bez_historii': w['bez_historii'], 'pominiete': w.get('pominiete', 0), 'lista': w.get('lista', []), 'polnoc': w.get('polnoc', 0), 'poprzedni_pokaz': w.get('poprzedni_pokaz'),
                           'rozbieznosci': [{'gielda': g, 'aktywo': a, 'zmiana_usd': round(x, 2), 'netto_usd': round(y, 2), 'roznica_usd': round(z, 2), 'mediana_usd': round(m, 2)}
                                            for g, a, x, y, z, m in zle]}
         if zle:
@@ -3830,9 +3866,9 @@ def raport_md(R):
             L.append('- ETF mapy: brak wspólnej daty zamknięć w dwóch źródłach.')
         w = Z.get('wieloryby')
         if w and w.get('pomin'):   # v174: migawki nie o dobę — bez porównania (informacja)
-            L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["pomin"]} ℹ️.')
+            L.append(f'- Wieloryby {w["dzien"]} vs {w.get("poprzedni_pokaz") or w["poprzedni"]}: {w["pomin"]} ℹ️.')
         elif w:
-            L.append(f'- Wieloryby {w["dzien"]} vs {w["poprzedni"]}: {w["porownane"]} par giełda/aktywo'
+            L.append(f'- Wieloryby {w["dzien"]} vs {w.get("poprzedni_pokaz") or w["poprzedni"]}: {w["porownane"]} par giełda/aktywo'   # v250
                      + (f' (salda z migawek o północy UTC: {w["polnoc"]})' if w.get('polnoc') else '')   # v249
                      + f', rozbieżności nietypowe (> 5% i > {WH_RAZY:g}× zwykłej): '
                      f'{len(w["rozbieznosci"])} {"⚠️" if w["rozbieznosci"] else "✅"}'

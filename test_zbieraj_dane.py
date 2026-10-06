@@ -27959,3 +27959,128 @@ class KontrolaWielorybyV249(unittest.TestCase):
              'zgodnosc': {'wieloryby': {'dzien': '2026-10-06', 'poprzedni': '2026-10-05', 'porownane': 13, 'odstep_h': 24.0, 'pomin': None,
                                         'bez_historii': 0, 'pominiete': 0, 'lista': [], 'polnoc': 13, 'rozbieznosci': []}}}
         self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: 13 par giełda/aktywo (salda z migawek o północy UTC: 13), rozbieżności nietypowe', k.raport_md(R))
+
+
+# ===================== v250: KONTROLA W PRZEGLĄDARCE — NAPISY-BŁĘDY W TEKŚCIE STRONY =====================
+class KontrolaNapisyV250(unittest.TestCase):
+    """v250: „NaN”, „undefined”, „[object Object]”, „Infinity”, „null” w tekście narysowanej strony = ⚠️ (tylko tekst — nie skrypty, style, atrybuty)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola250-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v250_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def test_tylko_tekst_strony(self):
+        k = self.k
+        self.assertEqual(k.przegladarka_artefakty('<div><p>Zmiana: 1,2%</p><style>.x{content:"NaN"}</style><p aria-label="undefined">ok</p></div>'), [],
+                         'style i atrybuty się nie liczą')
+        A = k.przegladarka_artefakty('<div class="k"><span>Rentowność 10L</span><b>NaN%</b></div><p>[object Object]</p><p>Nullstellensatz, nullable</p>')
+        self.assertEqual(len(A), 2, A); self.assertIn('Rentowność 10L NaN%', A[0]); self.assertIn('[object Object]', A[1])
+
+    def test_przebieg_i_uwaga(self):
+        k = self.k
+        p = os.path.join(self.tmp, 'przegl_napisy.py')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('#!/usr/bin/env python3\nimport sys, time\nsys.stdout.write(\'<html><body><script>const EXTRA={};let a=undefined;</script>'
+                    '<div class="arc-gr"></div><p>Zmiana miesiąca: NaN%</p><p>Saldo: undefined USD</p></body></html>\\n\'); sys.stdout.flush()\ntime.sleep(30)\n')
+        os.chmod(p, 0o755)
+        P = k.strona_przegladarka('https://x', czas_s=20, program=p)
+        self.assertEqual((P['stan'], P['artefakty_n']), ('ok', 2), 'undefined w skrypcie się nie liczy')
+        self.assertIn('Zmiana miesiąca: NaN%', P['artefakty'][0])
+        u = k.przegladarka_uwagi(dict(P, wykresy=20))
+        self.assertEqual(len(u), 1); self.assertIn('napisy-błędy w tekście strony (NaN, undefined…): 2 — pierwszy: „Zmiana miesiąca: NaN%', u[0])
+        self.assertIn('; napisy-błędy w tekście (NaN, undefined…): 2 ⚠️', k.przegladarka_wiersz(dict(P, wykresy=20)))
+        P0 = dict(P, artefakty=[], artefakty_n=0, wykresy=20)
+        self.assertEqual(k.przegladarka_uwagi(P0), []); self.assertNotIn('napisy-błędy', k.przegladarka_wiersz(P0))
+
+
+# ===================== v250b: POPRAWKI PO PRZEGLĄDZIE v248–v249 =====================
+class PoPrzegladzieV250(unittest.TestCase):
+    """v250b: błąd złapany przez stronę (console.error) = błąd; norma pary wielorybów z par tego samego rodzaju; podpis „d vs d − 1”;
+    powód przy braku migawki o północy; „drugi raz z rzędu” tylko z ostatnich 30 h."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola250b-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v250b_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def test_blad_zlapany_przez_strone(self):
+        k = self.k
+        log = ('[1:2:1006/1.1:INFO:CONSOLE:5] "TypeError: Cannot read properties of undefined (reading \'x\')\n    at render (https://capitalflowai-app.github.io/:3303:9)", '
+               'source: https://capitalflowai-app.github.io/ (3304)\n'
+               '[1:2:1006/1.2:INFO:CONSOLE:5] "Error: zła odpowiedź", source: https://capitalflowai-app.github.io/ (2426)\n'
+               '[1:2:1006/1.3:INFO:CONSOLE:5] "Errors in the past", source: https://capitalflowai-app.github.io/ (1)\n'
+               '[1:2:1006/1.4:INFO:CONSOLE:1] "Uncaught RangeError: x", source: https://s/ (1)\nINFO: Created TensorFlow Lite XNNPACK delegate for CPU.\n')
+        K = k.przegladarka_konsola(log)
+        self.assertEqual([b.split(' (')[0] for b in K['bledy']], ["TypeError: Cannot read properties of undefined", 'Error: zła odpowiedź',
+                                                                  'nieczytelny wpis z „Uncaught”'], K)
+        self.assertEqual((K['inne'], K['nieczytelne']), (['Errors in the past'], 0), '„Errors…” to nie nazwa błędu; obca linia po „Uncaught” — błąd, nie „nieczytelny”')
+
+    def test_prawdziwy_chrome_blad_zlapany(self):
+        k = self.k
+        if os.environ.get('GITHUB_ACTIONS') or not k.przegladarka_program():
+            self.skipTest('tylko lokalnie, z zainstalowanym Chrome')
+        p = os.path.join(self.tmp, 'zlapany.html')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('<!doctype html><html><body><script>const EXTRA={};function render(){try{const o=undefined;return o.x;}catch(err){console.error(err);}}'
+                    'setTimeout(render,50);setInterval(()=>{},1000);</script></body></html>')
+        P = k.strona_przegladarka('file://' + p, czas_s=60)
+        self.assertTrue(P.get('ok'), P)
+        self.assertEqual(len(P['bledy']), 1, P); self.assertTrue(P['bledy'][0].startswith('TypeError'), P['bledy'])
+        self.assertEqual(len(k.przegladarka_uwagi(dict(P, wykresy=20))), 1, 'uwaga — popsuty rysunek nie jest „0 ✅”')
+
+    def _archiwum(self, dni, bloki, saldo, netto, nazwa='w.csv'):
+        p = os.path.join(self.tmp, nazwa)
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n')
+            for i, d in enumerate(dni):
+                f.write(f'{d},Bitfinex,USDT,{saldo(i)},{saldo(i)},0,0,{netto},{bloki(i)}\n')
+        return p
+
+    def _hist(self, dni, usdt, czas=lambda d: '00:05'):
+        return {'Bitfinex': [[d, f'{d}T{czas(d)}:00+00:00', 0.0, usdt(i), 0.0, '2022-11'] for i, d in enumerate(dni)]}
+
+    def test_norma_z_par_tego_samego_rodzaju(self):
+        k = self.k
+        dni = [f'2026-10-0{i}' for i in range(1, 8)]
+        arch = self._archiwum(dni, lambda i: 26_000_000 + i * 7200, lambda i: 1e9 + i * 20e6, 0)   # archiwum: rozbieżność 20 mln dziennie
+        H = self._hist(['2026-09-30'] + dni, lambda i: 1e9 + i * 4e6, czas=lambda d: '02:30' if d == '2026-10-07' else '00:05')   # północ: 4 mln; 07.10 późno
+        o = k.wieloryby_ocena(arch, hist=H)
+        self.assertEqual((o['porownane'], o['polnoc'], o['zle']), (1, 0, []), 'para z archiwum (20 mln) oceniana normą par z archiwum (20 mln) — bez fałszywej ⚠️')
+        H2 = self._hist(['2026-09-30'] + dni, lambda i: 1e9 + i * 4e6 + (16e6 if i == 7 else 0))
+        o = k.wieloryby_ocena(arch, hist=H2)
+        self.assertEqual((o['polnoc'], [(g, a, round(z / 1e6)) for g, a, x, y, z, m in o['zle']]), (1, [('Bitfinex', 'USDT', 20)]),
+                         'para z północy 20 mln wobec normy par północnych 4 mln — nietypowe')
+
+    def test_podpis_i_powod(self):
+        k = self.k
+        dni = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-06']   # archiwum bez 05.10
+        arch = self._archiwum(dni, lambda i: 26_000_000 + i * 6000, lambda i: 1e9, 0, nazwa='w2.csv')
+        H = self._hist(['2026-10-05', '2026-10-06'], lambda i: 1e9)
+        o = k.wieloryby_ocena(arch, hist=H)
+        self.assertEqual((o['poprzedni'], o['poprzedni_pokaz'], o['polnoc'], o['porownane']), ('2026-10-04', '2026-10-05', 1, 1))
+        R = {'at': '2026-10-06T15:00:00+00:00', 'wynik': 'OK', 'uwagi': [], 'bledy': [], 'meta': {}, 'pliki': {},
+             'zgodnosc': {'wieloryby': dict(o, rozbieznosci=[])}}
+        self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: 1 par', k.raport_md(R))
+        H = self._hist(['2026-10-05', '2026-10-06'], lambda i: 1e9, czas=lambda d: '03:10')
+        o = k.wieloryby_ocena(arch, hist=H)
+        self.assertIn('; migawki o północy z 2026-10-06: brak albo później niż 2 h po północy UTC', o['pomin'])
+
+    def test_poprzedni_tylko_z_30_h(self):
+        k = self.k
+        p = os.path.join(self.tmp, 'historia30.json')
+        teraz = datetime.datetime(2026, 10, 6, 15, 0, tzinfo=datetime.timezone.utc)
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump([{'at': '2026-10-04T06:20:00+00:00', 'przegl': 'zawieszona'}], f)
+        self.assertIsNone(k.przegladarka_poprzedni(p, teraz), 'sprzed 57 h — nie „z rzędu”')
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump([{'at': '2026-10-06T06:20:00+00:00', 'przegl': 'zawieszona'}], f)
+        self.assertEqual(k.przegladarka_poprzedni(p, teraz), 'zawieszona')
