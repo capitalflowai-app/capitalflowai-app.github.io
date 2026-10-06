@@ -14142,11 +14142,12 @@ class BcbZapasV127_2(unittest.TestCase):
         self.assertEqual(len(zd.META['notes']), 1); self.assertIn('usługi SOAP', zd.META['notes'][0]); self.assertEqual(zd.META['errors'], [])
 
     def test_http_error_does_not_switch(self):
+        """v256: odpowiedź 4xx — błąd jak dotąd, bez SOAP i bez przełączania (5xx: KontrolaBcbChwilowyV256)."""
         def gj(url, headers=None):
-            raise urllib.error.HTTPError(url, 503, 'Service Unavailable', {}, None)
+            raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
 
         def post(xml, timeout=60):
-            raise AssertionError('zapas SOAP nie przy odpowiedzi HTTP z błędem')
+            raise AssertionError('zapas SOAP nie przy odpowiedzi 4xx')
         with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', post):
             with self.assertRaises(urllib.error.HTTPError):
                 zd._bcb_get(13970, '01/09/2026', '03/10/2026')
@@ -28310,3 +28311,95 @@ class RynkiEbcV255(unittest.TestCase):
             o = zd.build_rynki(None, today=datetime.date(2026, 10, 6))
         self.assertFalse(o['ok']['fx']); self.assertNotIn('fx_src', o)
         self.assertTrue(any(e.startswith('Frankfurter: The read operation timed out; zapas EBC: offline') for e in zd.META['errors']))
+
+
+# ===================== v256: BRAZYLIA — CHWILOWY BŁĄD API JSON JEDNEJ SERII → TA SERIA Z USŁUGI SOAP =====================
+class BcbChwilowyV256(unittest.TestCase):
+    """v256: HTTP 5xx albo pusta odpowiedź API JSON jednej serii → ta seria z SOAP (te same liczby), reszta nadal z API JSON; jedna notatka
+    na przebieg; po 3 takich seriach dalsze od razu z SOAP; SOAP też zawiedzie → błąd z obiema przyczynami i bez kolejnych prób SOAP."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        zd._BCB_WS.update(on=False, chw=[]); zd._BCB_WS.pop('ws_zle', None)
+
+    def tearDown(self):
+        zd._BCB_WS.update(on=False, chw=[]); zd._BCB_WS.pop('ws_zle', None)
+
+    @staticmethod
+    def _sid(url):
+        return int(url.split('bcdata.sgs.')[1].split('/')[0])
+
+    def _soap(self, calls, fail=False):
+        def post(xml, timeout=60):
+            sid = int(re.search(r'<item>(\d+)</item>', xml).group(1))
+            calls.append(sid)
+            if fail:
+                raise urllib.error.URLError(OSError(60, 'Operation timed out'))
+            data = '7/2026' if sid > 20000 else '25/9/2026'
+            return ('<getValoresSeriesXMLReturn>&lt;SERIES&gt;&lt;SERIE ID=\'%d\'&gt;&lt;ITEM&gt;&lt;DATA&gt;%s&lt;/DATA&gt;&lt;VALOR&gt;%d.5'
+                    '&lt;/VALOR&gt;&lt;BLOQUEADO&gt;false&lt;/BLOQUEADO&gt;&lt;/ITEM&gt;&lt;/SERIES&gt;</getValoresSeriesXMLReturn>' % (sid, data, sid)).encode()
+        return post
+
+    def _json(self, zle, wolania):
+        def gj(url, headers=None):
+            sid = self._sid(url)
+            wolania.append(sid)
+            if sid in zle:
+                e = zle[sid]
+                if e == 'pusta':
+                    return json.loads('')
+                raise urllib.error.HTTPError(url, e, 'Bad Gateway', {}, None)
+            data = '01/07/2026' if sid > 20000 else '25/09/2026'
+            return [{'data': data, 'valor': f'{sid}.5'}]
+        return gj
+
+    def test_502_i_pusta_jedna_seria_z_soap(self):
+        soap, wol = [], []
+        with mock.patch.object(zd, 'get_json', self._json({13970: 502, 22936: 'pusta'}, wol)), mock.patch.object(zd, '_bcb_ws_post', self._soap(soap)), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 6, 17, 30, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part(None)
+        self.assertEqual(soap, [13970, 22936], 'z SOAP tylko serie z chwilowym błędem')
+        self.assertEqual(len(wol), 14, 'każda seria najpierw z API JSON — bez przełączania wszystkich')
+        self.assertEqual(out['d'], [['2026-09-25', 13970.5, 13968.5, 13969.5, 13967.5, 13961.5]], 'kolumna 13970 z SOAP — bez dziury')
+        self.assertEqual(out['m'][-1][4], 22936.5, 'fundusze (22936) z SOAP')
+        self.assertEqual(zd.META['errors'], [])
+        nt = [n for n in zd.META['notes'] if n.startswith('BCB: API JSON chwilowo')]
+        self.assertEqual(nt, ['BCB: API JSON chwilowo bez danych serii 13970, 22936 (np. HTTP Error 502: Bad Gateway) — te serie z usługi SOAP tego samego banku'])
+        self.assertFalse(zd._BCB_WS['on'])
+
+    def test_po_trzech_dalsze_od_razu_z_soap(self):
+        soap, wol = [], []
+        with mock.patch.object(zd, 'get_json', self._json({13970: 503, 13968: 502, 13969: 'pusta', 13967: 502}, wol)), \
+                mock.patch.object(zd, '_bcb_ws_post', self._soap(soap)), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 6, 17, 30, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part(None)
+        self.assertEqual(wol, [13970, 13968, 13969], 'po 3 seriach z błędem API JSON nie jest już pytane')
+        self.assertEqual(len(soap), 14)
+        self.assertEqual(out['d'][-1][1:], [13970.5, 13968.5, 13969.5, 13967.5, 13961.5]); self.assertEqual(zd.META['errors'], [])
+        self.assertTrue(any(n.startswith('BCB: API JSON z błędami dla 3 serii') for n in zd.META['notes']), zd.META['notes'])
+        self.assertTrue(zd._BCB_WS['on'])
+
+    def test_soap_tez_zawodzi_jedna_proba(self):
+        soap, wol = [], []
+        prev = {'d': [['2026-09-24', -1.0, 1.0, 2.0, 9.9, 8.9]]}
+        with mock.patch.object(zd, 'get_json', self._json({13970: 502, 13968: 502}, wol)), mock.patch.object(zd, '_bcb_ws_post', self._soap(soap, fail=True)), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 6, 17, 30, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part(prev)
+        self.assertEqual(soap, [13970], 'po nieudanym SOAP kolejna seria z błędem już bez czekania na SOAP')
+        self.assertEqual(out['d'][-1], ['2026-09-25', None, None, 13969.5, 13967.5, 13961.5], 'bez danych = None, nigdy 0')
+        e = [x for x in zd.META['errors'] if x.startswith('BCB: 2 serie')]
+        self.assertEqual(len(e), 1, zd.META['errors'])
+        self.assertIn('13970: HTTP Error 502: Bad Gateway; zapas SOAP: <urlopen error [Errno 60] Operation timed out>', e[0])
+        self.assertFalse(any(n.startswith('BCB: API JSON chwilowo') for n in zd.META['notes']), 'żadna seria nie przyszła z SOAP')
+
+    def test_klasyfikacja(self):
+        H = lambda c: urllib.error.HTTPError('u', c, 'x', {}, None)
+        self.assertTrue(all(zd._bcb_chwilowy(H(c)) for c in (500, 502, 503, 504)))
+        self.assertFalse(any(zd._bcb_chwilowy(H(c)) for c in (400, 404, 429)))
+        try:
+            json.loads('<html>Bad Gateway</html>')
+        except ValueError as e:
+            self.assertTrue(zd._bcb_chwilowy(e), 'strona błędu z kodem 200 — nie JSON')
+        self.assertFalse(zd._bcb_chwilowy(urllib.error.URLError(OSError(-2, 'x'))), 'zerwane połączenie — osobna ścieżka (wszystkie serie)')
+        self.assertFalse(zd._bcb_chwilowy(RuntimeError('HTTP Error 503')))
+

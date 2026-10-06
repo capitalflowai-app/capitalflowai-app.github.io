@@ -2905,7 +2905,9 @@ BCB_DAYS = 400    # dni kalendarzowe wstecz (v95: ok. 275 dni roboczych — peł
 
 # v127.2: zapas — oficjalna usługa SOAP SGS tego samego banku (03.10.2026: host api.bcb.gov.br zniknął z DNS, NXDOMAIN)
 BCB_WS = 'https://www3.bcb.gov.br/wssgs/services/FachadaWSSGS'
-_BCB_WS = {'on': False}   # w tym przebiegu API JSON już zawiodło na poziomie połączenia → kolejne serie od razu z SOAP
+_BCB_WS = {'on': False, 'chw': []}   # w tym przebiegu API JSON już zawiodło na poziomie połączenia → kolejne serie od razu z SOAP;
+                                     # v256: 'chw' — serie z SOAP po chwilowym błędzie API JSON, 'ws_zle' — SOAP w tym przebiegu zawiódł
+BCB_CHW_MAX = 3   # v256: po tylu seriach z chwilowym błędem API JSON w przebiegu — dalsze serie od razu z SOAP
 
 
 def _bcb_conn_err(e):
@@ -2962,12 +2964,38 @@ def _bcb_ws(sid, a, b):
     return _bcb_ws_rows(_bcb_ws_post(xml))
 
 
+def _bcb_chwilowy(e):
+    """v256: chwilowy błąd API JSON jednej serii — odpowiedź HTTP 5xx (06.10.2026: 502 Bad Gateway raz dla jednej, raz dla innej serii)
+    albo treść, która nie jest JSON-em (pusta odpowiedź: „Expecting value”). Odpowiedź 4xx (zła seria, zły zakres dat) — nie: zapas by nie pomógł."""
+    if isinstance(e, urllib.error.HTTPError):
+        return 500 <= e.code <= 599
+    return isinstance(e, ValueError)
+
+
 def _bcb_get(sid, a, b):
-    """v127.2: seria SGS — API JSON, a przy awarii połączenia usługa SOAP banku (jedna notatka na przebieg; dalsze serie od razu z SOAP)."""
+    """v127.2: seria SGS — API JSON, a przy awarii połączenia usługa SOAP banku (jedna notatka na przebieg; dalsze serie od razu z SOAP).
+    v256: chwilowy błąd API JSON jednej serii (HTTP 5xx, pusta odpowiedź) → ta seria z SOAP, reszta nadal z API JSON (te same liczby —
+    06.10.2026 sprawdzone na 13968, 13970 i 22936); po BCB_CHW_MAX takich seriach w przebiegu dalsze od razu z SOAP. SOAP też zawiedzie →
+    błąd z obiema przyczynami, a dalsze chwilowe błędy w tym przebiegu już bez próby SOAP (najwyżej jedno czekanie na SOAP)."""
     if not _BCB_WS['on']:
         try:
             return get_json(BCB_URL.format(id=sid, a=a, b=b))
         except Exception as e:
+            if _bcb_chwilowy(e):
+                pw = str(e)[:60] if isinstance(e, urllib.error.HTTPError) else f'odpowiedź pusta albo nie JSON: {str(e)[:40]}'
+                if _BCB_WS.get('ws_zle'):
+                    raise RuntimeError(f'{pw}; zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})') from e
+                try:
+                    rows = _bcb_ws(sid, a, b)
+                except Exception as e2:
+                    _BCB_WS['ws_zle'] = str(e2)[:90]
+                    raise RuntimeError(f'{pw}; zapas SOAP: {str(e2)[:90]}') from e
+                ch = _BCB_WS.setdefault('chw', [])
+                ch.append((str(sid), pw))
+                if len(ch) >= BCB_CHW_MAX:
+                    _BCB_WS['on'] = True
+                    META['notes'].append(mask(f'BCB: API JSON z błędami dla {len(ch)} serii w tym przebiegu — dalsze serie od razu z usługi SOAP tego samego banku'))
+                return rows
             if not _bcb_conn_err(e):
                 raise
             _BCB_WS['on'] = True
@@ -3024,6 +3052,7 @@ def bcb_part(prev_br):
     zostawia stare wartości swojej kolumny, a nowe dni mają tam None (nigdy 0). Bez żadnego nowego dnia = błąd (zostaje poprzednia część)."""
     have = {k: list(v) for k, v in _rows(prev_br).items()}
     got, fails = {}, []
+    _BCB_WS['chw'] = []; _BCB_WS.pop('ws_zle', None)   # v256: liczniki chwilowych błędów API JSON — od nowa w każdym przebiegu
     now_br = _now_utc() - datetime.timedelta(hours=3)
     a, b = (now_br - datetime.timedelta(days=BCB_DAYS)).strftime('%d/%m/%Y'), now_br.strftime('%d/%m/%Y')
     for name, sid in BCB_SERIES:
@@ -3051,6 +3080,9 @@ def bcb_part(prev_br):
         mrows = bcb_bop((prev_br or {}).get('m'))
     except Exception as e:
         mrows = (prev_br or {}).get('m'); META['errors'].append(mask(f'BCB bilans płatniczy: {e}'))
+    if _BCB_WS.get('chw'):   # v256: serie z SOAP po chwilowym błędzie API JSON — jedna notatka na przebieg (części dzienna i miesięczna)
+        META['notes'].append(mask(f"BCB: API JSON chwilowo bez danych serii {', '.join(s for s, _ in _BCB_WS['chw'])} (np. {_BCB_WS['chw'][0][1]})"
+                                  ' — te serie z usługi SOAP tego samego banku'))
     extra = {'m': mrows, 'm_cols': ['miesiąc', 'bezpośrednie', 'portfelowe', 'akcje', 'fundusze', 'obligacje', 'pozostałe',
                                     'bank centralny: waluty i depozyty', 'bank centralny: kredyty', 'SDR'],
              'm_src': 'Banco Central do Brasil — SGS, balanço de pagamentos (22885, 22924, 22927, 22936, 22939, 22971, 22986, 23001, 23042)'} if mrows else {}
