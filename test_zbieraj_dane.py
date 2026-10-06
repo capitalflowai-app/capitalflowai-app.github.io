@@ -24987,3 +24987,28 @@ class PoPrzegladzieV199(unittest.TestCase):
         self.assertEqual(c[:3], [14, 8, 13], '3 najdłuższe'); self.assertEqual(len(c), 10, 'najwyżej 10')
         self.assertTrue(set(c) <= {i for i, dur in enumerate([25, 24, 23, 22, 21, 12, 11, 30, 5, 26, 27, 28, 29, 31], start=1) if dur > 20})
         self.assertEqual(k.budowa_kandydaci(runs[5:7], NOW), [6, 7], 'bez przebiegów > 20 min — tylko 3 najdłuższe (tu 2)')
+
+
+# ===================== v202: KONTROLA — CZAS POLSKI Z BAZĄ STREF (ZIMĄ UTC+1) =====================
+class KontrolaCzasPolskiV202(unittest.TestCase):
+    """v202: czas_pl — Europe/Warsaw (latem UTC+2, zimą UTC+1, zmiana w ostatnią niedzielę października o 01:00 UTC); bez bazy stref — reguła UE."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v202', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    def test_lato_zima_i_granica(self):
+        c = self.k.czas_pl
+        self.assertEqual(c('2026-10-06T00:24:00+00:00'), '06.10.2026, 02:24', 'lato: UTC+2')
+        self.assertEqual(c('2026-11-02T10:00:00Z'), '02.11.2026, 11:00', 'zima: UTC+1 (dotąd 12:00)')
+        self.assertEqual(c('2026-10-25T00:59:00+00:00'), '25.10.2026, 02:59'); self.assertEqual(c('2026-10-25T01:00:00+00:00'), '25.10.2026, 02:00', 'zmiana czasu')
+        self.assertEqual(c('2027-03-28T01:00:00+00:00'), '28.03.2027, 03:00', 'wiosna: od 01:00 UTC znowu UTC+2')
+        self.assertEqual(c('2026-11-02T10:00:00'), '02.11.2026, 11:00', 'zapis bez strefy = UTC'); self.assertEqual(c('zły'), '—'); self.assertEqual(c(None), '—')
+
+    def test_bez_bazy_stref(self):
+        h = self.k._pl_przesuniecie_h
+        U = datetime.timezone.utc
+        self.assertEqual((h(datetime.datetime(2026, 7, 1, tzinfo=U)), h(datetime.datetime(2026, 12, 1, tzinfo=U))), (2, 1))
+        self.assertEqual((h(datetime.datetime(2026, 10, 25, 0, 59, tzinfo=U)), h(datetime.datetime(2026, 10, 25, 1, 0, tzinfo=U))), (2, 1))
+        self.assertEqual((h(datetime.datetime(2026, 3, 29, 0, 59, tzinfo=U)), h(datetime.datetime(2026, 3, 29, 1, 0, tzinfo=U))), (1, 2))

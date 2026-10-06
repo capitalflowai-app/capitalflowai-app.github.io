@@ -135,9 +135,29 @@ def wiek_min(iso):
         return None
 
 
+def _pl_przesuniecie_h(u):
+    """v202: przesunięcie czasu polskiego bez bazy stref (reguła UE): czas letni od ostatniej niedzieli marca do ostatniej niedzieli października,
+    zmiana o 01:00 UTC → 2, inaczej 1. `u` — chwila ze strefą."""
+    u = u.astimezone(dt.timezone.utc)
+
+    def last_sun(y, m):
+        d = dt.date(y, m, 31)
+        return d - dt.timedelta(days=(d.weekday() + 1) % 7)
+    a = dt.datetime.combine(last_sun(u.year, 3), dt.time(1), dt.timezone.utc)
+    b = dt.datetime.combine(last_sun(u.year, 10), dt.time(1), dt.timezone.utc)
+    return 2 if a <= u < b else 1
+
+
 def czas_pl(iso):
+    """Czas polski (v202: Europe/Warsaw — latem UTC+2, zimą UTC+1; dotąd stałe UTC+2); zapis bez strefy = UTC; zły zapis = „—”."""
     try:
-        t = dt.datetime.fromisoformat(str(iso).replace('Z', '+00:00')).astimezone(dt.timezone(dt.timedelta(hours=2)))   # czas polski (letni)
+        t = dt.datetime.fromisoformat(str(iso).replace('Z', '+00:00'))
+        t = t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+        try:
+            from zoneinfo import ZoneInfo
+            t = t.astimezone(ZoneInfo('Europe/Warsaw'))
+        except Exception:   # brak bazy stref — reguła UE
+            t = t.astimezone(dt.timezone(dt.timedelta(hours=_pl_przesuniecie_h(t))))
         return t.strftime('%d.%m.%Y, %H:%M')
     except Exception:
         return '—'
