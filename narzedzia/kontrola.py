@@ -252,6 +252,39 @@ def awarie_ocena(meta, now=None):
     return Z
 
 
+# v212: rodzaj BŁĘDU (początek treści) → co zrobić — prostymi słowami dla właściciela; kolejność = pierwszeństwo dopasowania
+CO_ZROBIC = (
+    (re.compile(r'^(strona główna|plik stanu \(meta\.json\) nie odpowiada)'),
+     'Strona albo jej pliki nie odpowiadają. Zwykle to chwilowa awaria serwera GitHub — sprawdź stronę za godzinę (stan serwera: githubstatus.com). '
+     'Jeśli trwa ponad 3 godziny, napisz do Claude: „strona nie działa — sprawdź kontrolę”.'),
+    (re.compile(r'^(automat nie odświeżył danych|plik stanu bez czasu)'),
+     'Automat nie odświeża danych. Najczęściej GitHub wstrzymał harmonogram — zegar zapasowy zwykle uruchamia automat w ciągu godziny. '
+     'Jeśli trwa ponad 6 godzin, napisz do Claude: „automat stoi”.'),
+    (re.compile(r'^automat nie działa'),
+     'Kolejne przebiegi automatu kończą się błędem — sam tego nie naprawi. Napisz do Claude: „przebiegi automatu kończą się błędem”.'),
+    (re.compile(r'^część automatu „'),
+     'Część automatu nie działa od ponad 2 dni (szczegóły niżej) — napisz do Claude tak, jak podpowiada wiersz błędu.'),
+    (re.compile(r'^zbieracz zgłasza błędy'),
+     'Zbieracz od kilku dni zgłasza błędy — napisz do Claude: „napraw błędy zbieracza z kontroli”.'),
+    (re.compile(r'^kapitalizacja krypto'),
+     'Dwa źródła tej samej liczby bardzo się różnią — jedno może podawać złe dane. Napisz do Claude: „sprawdź różnicę źródeł z kontroli”.'),
+    (re.compile(r': dane z .* temu \('),
+     'Dane źródła są starsze niż zwykle. Po święcie albo długim weekendzie to normalne (źródło nie publikuje); inaczej napisz do Claude: '
+     '„sprawdź źródło z kontroli”.'),
+)
+CO_ZROBIC_INNE = 'Napisz do Claude: „sprawdź błąd z kontroli” — w raporcie niżej jest jego treść.'
+
+
+def co_zrobic(bledy):
+    """v212: treści BŁĘDÓW → lista podpowiedzi „co zrobić” (każda raz, w kolejności pierwszego błędu danego rodzaju; nieznany — ogólna)."""
+    out = []
+    for b in bledy or []:
+        h = next((x for r, x in CO_ZROBIC if r.search(str(b))), CO_ZROBIC_INNE)
+        if h not in out:
+            out.append(h)
+    return out
+
+
 def fmt_wiek(m):
     """Minuty → „0 h 34 min” / „2 d 3 h” / „—”."""
     if m is None:
@@ -2569,6 +2602,8 @@ def raport_md(R):
          f'- Strona główna: {"działa" if (R.get("strona") or {}).get("ok") else "PROBLEM"} (HTTP {(R.get("strona") or {}).get("http", "—")}, {(R.get("strona") or {}).get("ms", "—")} ms).',
          f'- Ostatni przebieg automatu: {czas_pl(m.get("at"))} — {("sprzed " + str(m.get("wiek_min")) + " min") if m.get("wiek_min") is not None else "brak"}; '
          f'źródeł: {m.get("zrodla", "—")}, bez odpowiedzi: {", ".join(m.get("bez_odpowiedzi") or []) or "żadne"}; błędów zbieracza: {len(m.get("errors") or [])}.']
+    if R['wynik'] == 'BŁĄD' and R.get('bledy'):   # v212: zaraz pod werdyktem — co zrobić przy każdym rodzaju błędu (nagłówek i „Wynik:” bez zmian)
+        L[6:6] = ['**Co zrobić:**'] + ['- ' + h for h in co_zrobic(R['bledy'])] + ['']
     cz = m.get('czas') if isinstance(m.get('czas'), dict) else None   # v185: czas tego przebiegu i najdłuższe części
     if cz and isinstance(cz.get('s'), (int, float)):
         top = [x for x in (cz.get('top') or []) if isinstance(x, list) and len(x) == 2][:3]

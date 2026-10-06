@@ -25541,3 +25541,42 @@ class PoPrzegladzieV211(unittest.TestCase):
         self.assertEqual(k.ust_fed_csv(None), {}); self.assertEqual(k.ust_fed_csv('<html>'), {})
         self.assertTrue(k.UST_FED.startswith('https://www.federalreserve.gov/datadownload/Output.aspx?rel=H15&series=') and 'filetype=csv' in k.UST_FED)
         self.assertEqual(k.UST_FED_KOL, 'RIFLGFCY10_N.B')
+
+
+# ===================== v212: KONTROLA — „CO ZROBIĆ” PRZY KAŻDYM BŁĘDZIE =====================
+class KontrolaCoZrobicV212(unittest.TestCase):
+    """v212: blok „Co zrobić:” zaraz pod werdyktem przy BŁĘDZIE — podpowiedź dla każdego rodzaju błędu (raz), nieznany — ogólna; nagłówek i
+    linia „Wynik:” bez zmian; bez BŁĘDU — bez bloku."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v212', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    def test_rodzaje(self):
+        k = self.k
+        B = ['strona główna nie odpowiada: timed out', 'plik stanu (meta.json) nie odpowiada: x', 'automat nie odświeżył danych od 4 godz. (ostatni przebieg …)',
+             'plik stanu bez czasu przebiegu', 'automat nie działa: 6 przebiegów w 24 h, ostatnie 6 z rzędu — …',
+             'część automatu „oecd” nie działa od 03.10.2026, 20:20 (2 dni 11 godz., …) — automat nie naprawił tego sam; co zrobić: …',
+             'zbieracz zgłasza błędy w 3 kolejnych dniach kontroli (x)', 'kapitalizacja krypto: różnica źródeł dziś 9.00% wobec normy 4.00% — …',
+             'TIC (miesięcznie): dane z 2026-06 — 160 d 0 h temu (próg 150 d)', 'coś zupełnie nowego']
+        H = k.co_zrobic(B)
+        self.assertEqual(len(H), 8, 'strona ×2 i automat stoi ×2 — po jednej podpowiedzi; reszta osobno; nieznany — ogólna')
+        self.assertTrue(H[0].startswith('Strona albo jej pliki nie odpowiadają') and 'githubstatus.com' in H[0])
+        self.assertTrue(H[1].startswith('Automat nie odświeża danych') and 'ponad 6 godzin' in H[1])
+        self.assertTrue(H[2].startswith('Kolejne przebiegi automatu kończą się błędem'))
+        self.assertTrue(H[3].startswith('Część automatu nie działa od ponad 2 dni'))
+        self.assertTrue(H[4].startswith('Zbieracz od kilku dni')); self.assertTrue(H[5].startswith('Dwa źródła tej samej liczby'))
+        self.assertTrue(H[6].startswith('Dane źródła są starsze niż zwykle')); self.assertEqual(H[7], k.CO_ZROBIC_INNE)
+        self.assertEqual(k.co_zrobic([]), []); self.assertEqual(k.co_zrobic(None), [])
+
+    def test_raport(self):
+        k = self.k
+        R = {'at': '2026-10-06T06:20:00+00:00', 'wynik': 'BŁĄD', 'strona': {'ok': False, 'http': 503, 'ms': 30000}, 'meta': {}, 'pliki': {}, 'actions': {},
+             'swiezosc': [], 'uwagi': [], 'bledy': ['strona główna: HTTP 503, 0 B', 'automat nie odświeżył danych od 5 godz. (ostatni przebieg x)']}
+        L = k.raport_md(R).splitlines()
+        self.assertEqual(L[0], '# Kontrola strony — 06.10.2026, 08:20 (czas polski)'); self.assertEqual(L[2], '**Wynik: BŁĄD**'); self.assertTrue(L[4].startswith('❌ Błędów: 2'))
+        self.assertEqual(L[5:7], ['', '**Co zrobić:**']); self.assertTrue(L[7].startswith('- Strona albo jej pliki') and L[8].startswith('- Automat nie odświeża'))
+        self.assertEqual(L[9], ''); self.assertTrue(L[10].startswith('- Strona główna: PROBLEM'))
+        for w in ('OK', 'UWAGA'):
+            self.assertNotIn('Co zrobić:', k.raport_md(dict(R, wynik=w, bledy=[])))
