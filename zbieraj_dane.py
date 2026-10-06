@@ -580,18 +580,8 @@ def _drop_open_session(q, now_ny=None):
 
 
 CENY_ZGODNOSC_PC = 0.0005   # v195: poprzednie zamknięcie z pliku notowań wobec poprzedniej świecy (0,05%) — ta sama sesja odniesienia
-CENY_WSTEPNA_VOL = 0.3      # v199: świeca z obrotem < 30% mediany 20 poprzednich = wstępna (05.10 17:33 NY: EWC 3%, MCHI 9%, EWA 7%)
-
-
-def _ceny_wstepna(d):
-    """v199: czy ostatnia świeca wygląda na wstępną: obrót liczbą < CENY_WSTEPNA_VOL × mediana obrotu 20 poprzednich świec (co najmniej 5
-    z obrotem). Obrót nieznany albo za mało historii = nie wiadomo → nie (bez podmiany; świeca z pełnym obrotem może być ostateczna innego
-    rodzaju, np. cena aukcji zamknięcia — INDA 05.10: 46,55 przy notowaniu 46,57)."""
-    v = d[-1][2] if d and isinstance(d[-1], list) and len(d[-1]) > 2 else None
-    if not (isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0):
-        return False
-    h = [r[2] for r in d[-21:-1] if isinstance(r, list) and len(r) > 2 and isinstance(r[2], (int, float)) and not isinstance(r[2], bool) and r[2] > 0]
-    return len(h) >= 5 and v < CENY_WSTEPNA_VOL * statistics.median(h)
+# v204: bez progu obrotu z v199 — świeca INDA 05.10 (46,55 przy obrocie 3,03 mln) była wstępna, oficjalne zamknięcie 46,57 = notowanie z pliku
+# notowań (źródło świec poprawiło ją po kilku godzinach); notowanie z czasem 16:00 = zamknięcie oficjalne dla wszystkich 14 funduszy 05.10
 
 
 def _ny_z_epoch(t):
@@ -634,8 +624,6 @@ def _zamkniecia_z_notowan(q, dz, now_ny=None):
         if ld == D:
             if num(d[-1][1]) and abs(d[-1][1] - c) < 1e-9:
                 continue   # świeca już ostateczna
-            if not _ceny_wstepna(d):
-                continue   # v199: świeca z pełnym obrotem zostaje (podmiana tylko wstępnej; inaczej zamknięcie „skakało” po otwarciu)
             d[-1] = [D, c, None]
         else:
             d.append([D, c, None])

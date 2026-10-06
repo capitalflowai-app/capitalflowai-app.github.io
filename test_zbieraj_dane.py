@@ -24749,14 +24749,14 @@ class CenyZamknieciaV195(unittest.TestCase):
 
     def test_wstepne_i_brakujaca(self):
         q = self._q()
-        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 17, 33)), 2)
-        self.assertEqual(q['SPY']['d'][-1], ['2026-10-05', 774.94, 36114284], 'v203: obrót 72% mediany — świeca zostaje do ostatecznej (kompromis v199)')
-        self.assertEqual(q['EZA']['d'][-1], ['2026-10-05', 63.11, 70616]); self.assertEqual(q['EWC']['d'][-1], ['2026-10-05', 58.78, None], 'EWC: obrót 3% — podmiana')
+        self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 17, 33)), 5)
+        self.assertEqual(q['SPY']['d'][-1], ['2026-10-05', 774.83, None], 'v204: zamknięcie oficjalne (świeca wstępna 774,94 mimo obrotu 72% mediany)')
+        self.assertEqual(q['EZA']['d'][-1], ['2026-10-05', 63.17, None]); self.assertEqual(q['EWC']['d'][-1], ['2026-10-05', 58.78, None])
         self.assertEqual((q['ASEA']['d'][-1], q['ASEA']['asof'], len(q['ASEA']['d'])), (['2026-10-05', 21.095, None], '2026-10-05', 8), 'ASEA: dopisana świeca 05.10')
-        self.assertEqual(q['INDA']['d'][-1], ['2026-10-05', 46.55, 3032335], 'v199: świeca z pełnym obrotem zostaje (notowanie 46,57)')
+        self.assertEqual(q['INDA']['d'][-1], ['2026-10-05', 46.57, None], 'v204: INDA 46,57 = zamknięcie oficjalne (świeca 46,55 była wstępna)')
         self.assertEqual(q['EWJ']['d'][-1], ['2026-10-05', 99.3, 3071843], 'świeca równa zamknięciu (ostateczna) — bez zmian')
         self.assertEqual(q['SPY']['d'][-2], ['2026-10-02', 769.64, 46306400], 'starsze świece bez zmian')
-        self.assertTrue(any('zamknięcie sesji z pliku notowań dziennych' in n and 'ASEA, EWC' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertTrue(any('zamknięcie sesji z pliku notowań dziennych' in n and 'ASEA, EWC, EZA, INDA, SPY' in n for n in zd.META['notes']), zd.META['notes'])
         zd.META['notes'].clear()
         self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(), datetime.datetime(2026, 10, 5, 18, 35)), 0, 'drugi raz — nic do zmiany')
         self.assertEqual(zd.META['notes'], [])
@@ -24768,8 +24768,7 @@ class CenyZamknieciaV195(unittest.TestCase):
                              (self._dz(ASEA={'c': None}), datetime.datetime(2026, 10, 5, 17, 33), 'brak ceny'),
                              (self._dz(ASEA={'c': True}), datetime.datetime(2026, 10, 5, 17, 33), 'nie liczba'),
                              (self._dz(ASEA={'t': 'x'}), datetime.datetime(2026, 10, 5, 17, 33), 'zły czas'),
-                             (self._dz(ASEA={'t': self.T - 3 * 86400, 'c': 20.95, 'pc': 20.9}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — świeca równa (v199: zgodne poprzednie zamknięcie)'),
-                             (self._dz(ASEA={'t': self.T - 3 * 86400, 'c': 21.0, 'pc': 20.9}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — inna cena, świeca z pełnym obrotem zostaje')):
+                             (self._dz(ASEA={'t': self.T - 3 * 86400, 'c': 20.95, 'pc': 20.9}), datetime.datetime(2026, 10, 5, 17, 33), 'notowanie z 02.10 — świeca równa (v199: zgodne poprzednie zamknięcie)')):
             q = self._q()
             zd._zamkniecia_z_notowan(q, dz, now)
             self.assertEqual(q['ASEA']['d'][-1], ['2026-10-02', 20.95, 30300], why)
@@ -24969,13 +24968,8 @@ class PoPrzegladzieV199(unittest.TestCase):
         finally:
             t.doCleanups()
 
-    def test_ceny_wstepna_tylko_przy_malym_obrocie(self):
-        d = [['2026-09-%02d' % i, 10.0, 1000] for i in range(10, 30)] + [['2026-10-05', 10.5, 290]]
-        self.assertTrue(zd._ceny_wstepna(d), '290 < 30% z 1000')
-        self.assertFalse(zd._ceny_wstepna(d[:-1] + [['2026-10-05', 10.5, 310]]), '31% — nie')
-        self.assertFalse(zd._ceny_wstepna(d[:-1] + [['2026-10-05', 10.5, None]]), 'obrót nieznany — nie wiadomo, bez podmiany')
-        self.assertFalse(zd._ceny_wstepna(d[-4:]), 'za mało historii (3 świece) — nie')
-        self.assertFalse(zd._ceny_wstepna([['2026-10-05', 10.5, True]]))
+    def test_ceny_bez_progu_obrotu(self):
+        self.assertFalse(hasattr(zd, '_ceny_wstepna'), 'v204: próg obrotu z v199 usunięty (INDA 05.10 — świeca wstępna z obrotem 74%)')
 
     def test_kontrola_kandydaci_budowy(self):
         import importlib.util
