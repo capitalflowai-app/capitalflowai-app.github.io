@@ -29188,3 +29188,33 @@ class XstocksOgonV265(unittest.TestCase):
         r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX)
         self.assertNotIn('ogon', r)
 
+
+# ===================== v266: ARGENTYNA — ODCZYTY Z RÓŻNYCH GODZIN =====================
+class ArgentynaOdstepV266(unittest.TestCase):
+    """v266: dwa odczyty dalej od siebie niż 1 h — próg „dużej różnicy” (1,5% / 4%), odstęp w opisie i w uwadze; z tej samej godziny — jak dotąd."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v266_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def _dl(self, q, amb):
+        return {'ar': {'q': {'blue': q}, 'amb': {'blue': amb}}}
+
+    def test_06_10_blue(self):
+        k = self.k
+        Z = k.dolar_porownanie(self._dl([1530, 1550, '2026-10-06T19:56:00Z'], [1520, 1540, '2026-10-06T17:00:00Z']), None,
+                               datetime.datetime(2026, 10, 6, 20, 33, tzinfo=datetime.timezone.utc))
+        P = next(P for P in Z['pary'] if P['kurs'] == 'blue')
+        self.assertEqual((P['status'], P['roznica_pct'], P['odstep_h']), ('✅', 0.65, 2.9), 'przegląd 06.10: ruch rynku w 2,9 h, nie błąd')
+        self.assertFalse(any('kurs blue' in u for u in Z['uwagi']))
+        self.assertIn('blue ✅ 0.65% (odczyty 2.9 h od siebie)', Z['opis'])
+        Z = k.dolar_porownanie(self._dl([1530, 1600, '2026-10-06T19:56:00Z'], [1520, 1540, '2026-10-06T17:00:00Z']), None,
+                               datetime.datetime(2026, 10, 6, 20, 33, tzinfo=datetime.timezone.utc))
+        self.assertTrue(any(u.startswith('Argentyna, kurs blue: dwa odczyty różnią się o 3.90% (próg 1.5%, odczyty 2.9 h od siebie; ponad 1.5% — duża różnica')
+                            for u in Z['uwagi']), Z['uwagi'])
+        Z = k.dolar_porownanie(self._dl([1530, 1550, '2026-10-06T19:56:00Z'], [1520, 1540, '2026-10-06T19:30:00Z']), None,
+                               datetime.datetime(2026, 10, 6, 20, 33, tzinfo=datetime.timezone.utc))
+        self.assertIn('Argentyna, kurs blue: dwa odczyty różnią się o 0.65% (próg 0.5%)', Z['uwagi'], 'ta sama godzina — próg jak dotąd')
+

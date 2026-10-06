@@ -2498,6 +2498,7 @@ DL_PROG = 180              # min — wiek najnowszej części pliku (part_at.ar/
 DL_PARY = (('blue', 'blue', 0.5), ('mayorista', 'hurtowy', 0.5), ('oficial', 'oficjalny w banku', 0.5), ('bolsa', 'MEP', 2.0), ('contadoconliqui', 'CCL', 2.0))
 DL_DUZA = {0.5: 1.5, 2.0: 4.0}   # % — ponad to różnica dwóch odczytów jest „duża” (dopisek przy ⚠️; nigdy ❌ ani BŁĄD)
 DL_DNI = 3                 # dni — znaczniki dwóch odczytów dalej od siebie = „?” (bez oceny: porównanie różnych sesji)
+DL_ODSTEP_H = 1.0          # v266: h — odczyty dalej od siebie oceniane progiem DL_DUZA (kurs zmienia się w ciągu dnia; 06.10: 17:00 vs 19:56 UTC, 0,65%)
 DL_BCRA = 'https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde={a}&fechahasta={b}'   # bez klucza, dni robocze
 DL_BCRA_PROG = 0.3         # % — kurs hurtowy z pliku vs kurs banku centralnego Argentyny z tego samego dnia (27.09: 1525,5 = 1525,5)
 DL_LUKA_MAX = {'ar': 60.0, 've': 300.0}   # % — większa luka = możliwy błąd skali, który przeszedł przez zakres stosunku kursów (uwaga)
@@ -2654,13 +2655,19 @@ def dolar_porownanie(dl, bcra=None, now=None):
             P['uwaga'] = f'odczyty dalej niż {DL_DNI} dni od siebie'
         else:
             r = abs(a[1] - b[1]) / b[1] * 100
+            odst = abs(ta - tb).total_seconds() / 3600
+            pr = prog if odst <= DL_ODSTEP_H else DL_DUZA[prog]   # v266: odczyty z różnych godzin — kurs mógł się zmienić; próg „dużej różnicy”
             P['roznica_pct'] = round(r, 2) + 0.0
-            P['status'] = '✅' if r <= prog else '⚠️'
-            if r > prog:
-                out['uwagi'].append(f'Argentyna, kurs {nm}: dwa odczyty różnią się o {r:.2f}% (próg {prog:g}%'
+            P['status'] = '✅' if r <= pr else '⚠️'
+            if odst > DL_ODSTEP_H:
+                P['odstep_h'] = round(odst, 1)
+            if r > pr:
+                out['uwagi'].append(f'Argentyna, kurs {nm}: dwa odczyty różnią się o {r:.2f}% (próg {pr:g}%'
+                                    + (f', odczyty {odst:.1f} h od siebie' if odst > DL_ODSTEP_H else '')
                                     + (f'; ponad {DL_DUZA[prog]:g}% — duża różnica' if r > DL_DUZA[prog] else '') + ')')
         out['pary'].append(P)
-        txt.append(f'{nm} {P["status"]} ' + (f'{P["roznica_pct"]:.2f}%' if P['roznica_pct'] is not None else f'({P["uwaga"]})'))
+        txt.append(f'{nm} {P["status"]} ' + (f'{P["roznica_pct"]:.2f}%' if P['roznica_pct'] is not None else f'({P["uwaga"]})')
+                   + (f' (odczyty {P["odstep_h"]:.1f} h od siebie)' if P.get('odstep_h') else ''))
     m = q.get('mayorista')
     B = {'status': '?', 'data': None, 'roznica_pct': None}
     t = _dl_czas(m[2]) if _dl_kurs(m) else None
