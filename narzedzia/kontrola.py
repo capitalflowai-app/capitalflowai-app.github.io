@@ -799,6 +799,10 @@ def zuzycie_ocena(meta):
         if od is None:
             continue
         krotko, znak = nazwa.split(' (')[0], '✅'
+        ds0 = q.get('dost') if isinstance(q.get('dost'), dict) else {}
+        ml = ds0.get('mies') if isinstance(ds0.get('mies'), list) and len(ds0['mies']) == 3 else [None] * 3
+        if okres == 'mies' and _zuz_ok(ml[2]) and ml[2] > 0:
+            lim = ml[2]   # v223: limit miesiąca według samego dostawcy (CoinMarketCap 06.10: 15 000, nie 10 000)
         rada = f'co zrobić: napisz do Claude „zmniejsz liczbę zapytań do {krotko}”'
         if okres == 'mies':
             ms = at.replace(day=1, hour=0, minute=0, second=0, microsecond=0)

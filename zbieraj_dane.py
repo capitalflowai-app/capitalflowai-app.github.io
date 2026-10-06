@@ -975,8 +975,10 @@ def ns_ma(rows, n):
 def ns_sb(spy, ief, n=NS_RET):
     """Historie NAV dwóch funduszy [[dzień, NAV, jednostki]] → [[dzień, x = zwrot akcji − zwrot obligacji, zwrot akcji, zwrot obligacji]]
     na wspólnych dniach; zwrot z n wspólnych sesji wstecz. Iloraz NAV poza 0,5–2 (podział jednostek, błąd pliku) = dzień pominięty."""
-    a = {r[0]: r[1] for r in _fund_rows(spy)}
-    b = {r[0]: r[1] for r in _fund_rows(ief)}
+    ra, rb = _fund_rows(spy), _fund_rows(ief)
+    za, zb = set(_fund_clean(ra)[1]), set(_fund_clean(rb)[1])   # v223: bez wierszy z błędem pliku
+    a = {r[0]: r[1] for r in ra if r[0] not in za}
+    b = {r[0]: r[1] for r in rb if r[0] not in zb}
     ds = sorted(set(a) & set(b))
     out = []
     for i in range(n, len(ds)):
@@ -5003,18 +5005,21 @@ def parse_ishares_screener(j):
 
 
 FUND_TNA_X = 2.0   # v217: aktywa funduszu (NAV × liczba jednostek) ponad tyle razy od mediany sąsiednich dni = błąd pliku źródła (wiersz odrzucony)
-FUND_TNA_OKNO = 10  # v217: tyle dni przed wierszem i po nim tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
+                   # v223: zostaje 2 — przy 1,6 duże, ale możliwe napływy byłyby „błędem”; prawdziwe dni: do ×1,25 (srebro 29.01.2026, 11 089 wierszy)
+FUND_TNA_OKNO = 10  # v217/v223: tyle dni PRZED wierszem tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
 
 
 def _fund_clean(h):
     """v217: historia funduszu [[data, NAV, liczba jednostek]] → (historia bez wierszy z błędem pliku, odrzucone daty). Wiersz jest błędny,
     gdy aktywa (NAV × liczba jednostek) różnią się od mediany aktywów FUND_TNA_OKNO dni przed nim i po nim ponad FUND_TNA_X razy; podział
-    jednostek nie zmienia aktywów, więc zostaje. EWZ 05.10.2026: NAV 0,001328 USD przy 238 mln jednostek (aktywa ×0,00004)."""
+    jednostek nie zmienia aktywów, więc zostaje. EWZ 05.10.2026: NAV 0,001328 USD przy 238 mln jednostek (aktywa ×0,00004).
+    v223: tylko dni PRZED wierszem (dotąd także po nim) — decyzja o dniu nie zmienia się, gdy dochodzą nowsze dni, więc dziennik sygnałów
+    (zapis raz na zawsze) i późniejsze przeliczenie widzą to samo; trwały skok aktywów ponad 2× oznacza ok. 5 pierwszych dni po nim."""
     h = [r for r in h or [] if isinstance(r, list) and len(r) == 3]
     T = [r[1] * r[2] if _isnum(r[1]) and _isnum(r[2]) else None for r in h]
     keep, bad = [], []
     for i, r in enumerate(h):
-        nb = [x for x in T[max(0, i - FUND_TNA_OKNO):i] + T[i + 1:i + 1 + FUND_TNA_OKNO] if x and x > 0]
+        nb = [x for x in T[max(0, i - FUND_TNA_OKNO):i] if x and x > 0]
         if len(nb) >= 3 and T[i] is not None:
             m = statistics.median(nb)
             if not (1 / FUND_TNA_X < T[i] / m < FUND_TNA_X):
@@ -5024,12 +5029,20 @@ def _fund_clean(h):
 
 
 def _fund_px_rows(t, h):
-    """v221: wiersze NAV do ceny tygodniowej TRENDÓW bez wierszy z błędem pliku źródła (_fund_clean) — pojedynczy zły dzień nie ucina historii
-    (dotąd „skok NAV bez podziału jednostek” ucinał ją na ok. 5 tygodni); tydzień z pominiętym dniem liczony z 6 sesji (notatka). Przepływy
-    i zwroty dzienne liczą się z pełnej historii — zły wiersz przerywa tam łańcuch, oba dni = brak (nie dwa dni na jednym)."""
+    """v221/v223: wiersze NAV do ceny tygodniowej TRENDÓW bez wierszy z błędem pliku źródła (_fund_clean) — pojedynczy zły dzień nie ucina historii.
+    Notatka tylko, gdy zły wiersz dotyczy ostatniego tygodnia: najnowszy (cena do poprzedniej sesji) albo w środku tygodnia (tydzień z N sesji);
+    starszy — bez notatki (v223: dotąd co przebieg, póki był w historii). Przepływy i zwroty dzienne: pary dni z tym wierszem = brak."""
     keep, bad = _fund_clean(h)
-    if bad:
-        META['notes'].append(f'trendy {t}: wiersz {", ".join(bad[-3:])} pominięty w cenie tygodniowej (błąd pliku źródła) — tydzień z tym dniem liczony z 6 sesji')
+    if bad and len(keep) >= 6:
+        ix = {r[0]: i for i, r in enumerate(h)}
+        a0 = ix.get(keep[-6][0], 0)
+        wb = [b for b in bad if ix.get(b, -1) > a0]
+        co = [f'cena do {keep[-1][0]}'] if h[-1][0] in bad else []
+        s = ix.get(keep[-1][0], 0) - a0
+        if s != 5:
+            co.append(f'ostatni tydzień liczony z {s} sesji')
+        if wb and co:
+            META['notes'].append(f'trendy {t}: wiersz {", ".join(wb[-3:])} pominięty w cenie tygodniowej (błąd pliku źródła) — ' + ', '.join(co))
     return keep
 
 
@@ -5044,8 +5057,26 @@ def _fund_bf_odrz(p, bad):
     nowe = [b for b in bad if isinstance(b, str) and _d(b) and b not in tried and _bdays(_d(b), _d(h[-1][0])) <= FUND_TNA_OKNO]
     if not nowe:
         return False
-    p['bf_odrz'] = sorted(tried | set(nowe))[-20:]
+    p['bf_czeka'] = sorted(set(nowe))[-20:]   # v223: próba zużyta dopiero po pobraniu pełnego pliku (_fund_bf_zapisz)
     return True
+
+
+def _fund_bf_zapisz(p):
+    """v223: pełny plik pobrany — dni czekające na próbę (bf_czeka) zapisane jako wypróbowane (bf_odrz, ostatnie 20 dat). Nieudane pobranie
+    nie zużywa jedynej próby (dotąd: błąd pobrania + nowy dzień z zestawienia = zły wiersz bez poprawki na ok. 300 dni)."""
+    cz = [x for x in (p.pop('bf_czeka', None) or []) if isinstance(x, str)]
+    if cz:
+        p['bf_odrz'] = sorted(set(x for x in (p.get('bf_odrz') or []) if isinstance(x, str)) | set(cz))[-20:]
+
+
+def _fund_notatka(t, h, bad):
+    """v223: notatka o złych wierszach tylko, gdy są świeże (≤ FUND_TNA_OKNO sesji od ostatniego wiersza) — dotąd powtarzała się w każdym
+    przebiegu, póki zły wiersz był w historii (ok. 14 miesięcy)."""
+    L = _d(h[-1][0]) if h and isinstance(h[-1], list) and h[-1] else None
+    sw = [b for b in bad or [] if L and isinstance(b, str) and _d(b) and _bdays(_d(b), L) <= FUND_TNA_OKNO]
+    if sw:
+        META['notes'].append(f'fundusze {t}: błąd pliku źródła w wierszach {", ".join(sw[-3:])} — aktywa ponad {FUND_TNA_X:g}× od sąsiednich dni; '
+                             'przepływ i zwrot tego dnia i następnego = brak (nie zero)')
 
 
 def _fund_merge(old, new):
@@ -5078,8 +5109,7 @@ def build_fundusze(prev=None):
             h = parse_ssga_navhist(get_bytes(FUND_SSGA_URL.format(t=t.lower()), timeout=30), t)
             out['f'][t] = {'iss': 'ssga', 'at': NOW, 'h': _fund_merge(p.get('h'), h)}
             bad = _fund_clean(out['f'][t]['h'])[1]   # v217/v221: wykryte; w historii zostają (zły wiersz przerywa łańcuch: przepływy i zwroty tych dni = brak)
-            if bad:
-                META['notes'].append(f'fundusze {t}: błąd pliku źródła w wierszach {", ".join(bad[-3:])} — aktywa ponad {FUND_TNA_X:g}× od sąsiednich dni; przepływy i zwroty tych dni = brak')
+            _fund_notatka(t, out['f'][t]['h'], bad)   # v223: notatka tylko o świeżych
         except Exception as e:
             errs.append(f'{t}: {e}')
             out['f'][t] = dict(p, iss='ssga', err_at=NOW)
@@ -5107,6 +5137,7 @@ def build_fundusze(prev=None):
     for t in FUND_ISH:
         p = dict(pf.get(t)) if isinstance(pf.get(t), dict) else {'iss': 'ishares'}
         h = p.get('h') or []
+        pobrany = False   # v223: pełny plik pobrany w tym przebiegu — złe wiersze, które w nim zostały, to już wynik jedynej próby
         pid = (scr.get(t) or (p.get('pid'),))[0]
         if pid:
             p['pid'] = pid
@@ -5120,6 +5151,7 @@ def build_fundusze(prev=None):
                 full = parse_ishares_hist(get_bytes(FUND_ISH_DOC.format(pid=pid), timeout=90))
                 h = _fund_merge(h, full)
                 p['at'] = NOW; p.pop('bf_need', None); p.pop('bf_err_at', None)
+                _fund_bf_zapisz(p); pobrany = True                       # v223: próba dla złych dni zużyta dopiero teraz (plik pobrany)
                 if len(full) < FUND_MIN:
                     p['bf_done'] = True                                  # młody fundusz — cała historia już jest
             except Exception as e:
@@ -5137,9 +5169,12 @@ def build_fundusze(prev=None):
             p['h'] = h
             bad = _fund_clean(h)[1]   # v217/v221: wykryte; w historii zostają — usunięcie robiło z dwóch sesji jedną (przepływ dwóch dni na jednym)
             if bad:
-                META['notes'].append(f'fundusze {t}: błąd pliku źródła w wierszach {", ".join(bad[-3:])} — aktywa ponad {FUND_TNA_X:g}× od sąsiednich dni; przepływy i zwroty tych dni = brak')
+                _fund_notatka(t, h, bad)   # v223: notatka tylko o świeżych (dotąd co przebieg przez ok. 14 miesięcy)
                 if _fund_bf_odrz(p, bad):   # v220: jedna próba pełnym plikiem — poprawny NAV zastąpi błędny wiersz (nowsze wygrywają)
-                    p['bf_need'] = True
+                    if pobrany:
+                        _fund_bf_zapisz(p)   # v223: plik już pobrany w tym przebiegu — błąd jest w samym pliku, próba zużyta
+                    else:
+                        p['bf_need'] = True
             out['f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
@@ -5281,7 +5316,7 @@ TD_CR_CLL = round(100 - 5 / (TD_CR_M * len(TD_CR_LOOKS)), 1)                    
 TD_SH_CR = (('pt', ('p', 't')), ('ph', ('p', 'h')), ('es', ('e', 's')), ('n3', 3))
 TD_SH_W = (('eq.pf', 'eq', ('p', 'f')), ('eq.fo', 'eq', ('f', 'o')))   # v221: poprawka rejestracji 06.10 — eq.n2 usunięty (dla 30 z 33 funduszy = eq.pf)
 TD_SH_JAWNE = 200   # v216: kandydat ujawniany na stronie dopiero z werdyktem „przewaga” w punkcie kontrolnym 200 dni z sygnałem
-TD_W_ZLS = statistics.NormalDist().inv_cdf(1 - 0.025 / ((TD_W_M + len(TD_SH_W)) * len(TD_W_LOOKS)))   # v216: świat — 10 linii × 3 oceny
+TD_W_ZLS = statistics.NormalDist().inv_cdf(1 - 0.025 / ((TD_W_M + len(TD_SH_W)) * len(TD_W_LOOKS)))   # v216/v221: świat — 9 linii × 3 oceny (7 + 2 w cieniu; poprawka rejestracji 1)
 TD_CR_ZLS = statistics.NormalDist().inv_cdf(1 - 0.025 / ((TD_CR_M + len(TD_SH_CR)) * len(TD_CR_LOOKS)))   # v216: 11 linii × 3 oceny
 TD_CR_SETTLE = 5                # doba dziennika wchodzi do punktu kontrolnego, gdy ma ≥ 5 dni: wynik doby D potrzebuje świecy 06:00 doby D+2,
                                 # a brakujące pole tej doby budowniczy ponawia, dopóki doba ma < 48 h (do D+5 00:00) — dopiero wtedy wynik jest
@@ -5578,7 +5613,10 @@ def fund_flows(h):
     w dniu podziału jednostek poprzednia liczba mnożona przez współczynnik podziału (v93); skok bez wyjaśnienia — dzień pominięty."""
     out = {}
     h = _fund_rows(h)
+    bad = set(_fund_clean(h)[1])   # v223: para dni z wierszem z błędem pliku — dzień pominięty (brak), jak skok bez wyjaśnienia
     for a, b in zip(h, h[1:]):
+        if a[0] in bad or b[0] in bad:
+            continue
         k = fund_split(a, b)
         if k:
             out[b[0]] = (b[2] - a[2] * k) * b[1] / 1e6
@@ -5587,19 +5625,25 @@ def fund_flows(h):
 
 def fund_group(fu, members):
     """Grupa funduszy → (daty, przepływy, aktywa w mln USD) do ostatniego wspólnego dnia. v94: dzień, którego nie ma któryś fundusz
-    (np. inny kalendarz), nie przerywa serii — przepływy pozostałych funduszy z tego dnia dodajemy do najbliższego wspólnego dnia (sumy dokładne)."""
-    F, H = [], []
+    (np. inny kalendarz), nie przerywa serii — przepływy pozostałych funduszy z tego dnia dodajemy do najbliższego wspólnego dnia (sumy dokładne).
+    v223: zły wiersz pliku (_fund_clean) poza sumą — jak inny kalendarz; wiersz bez przepływu (skok bez wyjaśnienia) = brak grupy w najbliższym
+    wspólnym dniu (dotąd suma pomijała fundusz — brak liczony jak zero); aktywa z ostatniego poprawnego wiersza (zły najnowszy: „% aktywów” ×20 000)."""
+    F, B, H = [], [], []
     for t in members:
         h = _fund_rows(((fu or {}).get(t) or {}).get('h') or [])
-        fl = fund_flows(h)
+        bad = set(_fund_clean(h)[1])
+        hk = [r for r in h if r[0] not in bad]   # v223: zły wiersz pliku poza sumą grupy — przepływ przez dwa dni trafia do następnego wiersza (jak inny kalendarz)
+        fl = fund_flows(hk)
         if not fl:
             return [], [], None
-        F.append(fl); H.append(h[-1])
+        F.append(fl); B.append({r[0] for r in hk[1:]} - set(fl))   # v223: wiersz bez przepływu (skok bez wyjaśnienia) — brak grupy, nie zero
+        H.append(hk[-1])                                             # v223: aktywa z ostatniego wiersza bez błędu pliku
     end = min(max(f) for f in F)
-    days, vals, pend = [], [], 0.0
-    for d in sorted({d for f in F for d in f if d <= end}):
-        if all(d in f for f in F):
-            days.append(d); vals.append(sum(f[d] for f in F) + pend); pend = 0.0
+    days, vals, pend, zly = [], [], 0.0, False
+    for d in sorted({d for f in F for d in f if d <= end} | {d for b in B for d in b if d <= end}):
+        zly = zly or any(d in b for b in B)
+        if all(d in f or d in b for f, b in zip(F, B)):
+            days.append(d); vals.append(None if zly else sum(f[d] for f in F) + pend); pend, zly = 0.0, False
         else:
             pend += sum(f[d] for f in F if d in f)
     aum = sum(r[1] * r[2] for r in H) / 1e6
@@ -5759,7 +5803,8 @@ def _td_fund_px(h):
     """Poprawne wiersze historii funduszu → (daty, NAV, zwroty w %): zwrot tylko między kolejnymi wierszami bez podziału jednostek
     (fund_split ≠ 1 → None; poziomu nie trzeba korygować, bo zwroty liczymy wyłącznie dzień do dnia)."""
     dates = [r[0] for r in h]; px = [r[1] for r in h]
-    ret = [None] + [(b[1] / a[1] - 1) * 100 if fund_split(a, b) == 1 else None for a, b in zip(h, h[1:])]
+    bad = set(_fund_clean(h)[1])   # v223: zwrot z pary dni z wierszem z błędem pliku — brak
+    ret = [None] + [(b[1] / a[1] - 1) * 100 if fund_split(a, b) == 1 and a[0] not in bad and b[0] not in bad else None for a, b in zip(h, h[1:])]
     return dates, px, ret
 
 
@@ -5797,8 +5842,10 @@ def _td_series_ob(ob, spec, fu):
     if not dates:
         return None
     fuv = cols[2] if ucol else flow
-    nav = {str(r[0])[:10]: r[1] for r in h}
-    splits = [b[0] for a, b in zip(h, h[1:]) if fund_split(a, b) != 1]
+    zle = set(_fund_clean(h)[1])
+    hk = [r for r in h if r[0] not in zle]   # v223: NAV z wiersza z błędem pliku nie jest ceną (zwrot między poprawnymi dniami)
+    nav = {str(r[0])[:10]: r[1] for r in hk}
+    splits = [b[0] for a, b in zip(hk, hk[1:]) if fund_split(a, b) != 1]
     px = [nav.get(str(d)[:10]) for d in dates]
     ret = [None]
     for i in range(1, len(dates)):

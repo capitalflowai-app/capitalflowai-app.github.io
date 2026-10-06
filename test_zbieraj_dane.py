@@ -8074,9 +8074,11 @@ class TrendyDailyWorldV127(unittest.TestCase):
         być podzbiorem par dziennika — przy spóźnionych, brakujących i dopisanych później wierszach cen, wydawców i Tajwanu (także wierszach
         z okna z i poprzednich wierszach pary przepływu). Bez reguły dz próba dodawała pary, których dziennik nigdy nie miał (tu: karta
         EWT sprzeczna w chwili granicy, a w pliku końcowym jeden z jej głosów znika → para „każda karta”, której dziennik nie ma). Ziarno 9: jeden taki przypadek; sprawdzone
-        także ziarna 1–30 (poza testem — czas): nigdzie próba nie wychodzi poza dziennik."""
+        także ziarna 1–30 (poza testem — czas): nigdzie próba nie wychodzi poza dziennik. v223: ziarno 17 — w ziarnie 9 jedyny taki przypadek
+        leżał na wierszach, które v223 uznaje za błąd pliku (jednostki ujemne, skoki ×3); ziarna 1–30 sprawdzone z v223: próba nigdy poza
+        dziennikiem, przypadki reguły dz w 17, 25, 26, 28, 29."""
         extra, dzs, tot = 0, 0, 0
-        for seed in (9,):
+        for seed in (17,):
             wd, cal, syms, targets = self._parity_world(seed)
             fin = {s: zd._tdw_series(wd, s) for s in syms}
             for S in targets:
@@ -25758,14 +25760,18 @@ class FunduszeBezPetliV220(unittest.TestCase):
     """v220: odrzucony świeży dzień — jedna próba uzupełnienia pełnym plikiem; ten sam dzień ponownie (pełny plik z tym samym błędem) — bez kolejnej."""
 
     def test_jedna_proba(self):
+        """v223: próba zużyta dopiero po pobraniu pełnego pliku (_fund_bf_zapisz) — nieudane pobranie nie zamyka drogi do poprawki."""
         p = {'h': [['2026-10-02', 38.1, 235300000], ['2026-10-06', 42.9, 238426920]]}
-        self.assertTrue(zd._fund_bf_odrz(p, ['2026-10-05'])); self.assertEqual(p['bf_odrz'], ['2026-10-05'])
-        self.assertFalse(zd._fund_bf_odrz(p, ['2026-10-05']), 'ten sam dzień po próbie — bez pętli')
-        self.assertTrue(zd._fund_bf_odrz(p, ['2026-10-05', '2026-10-06'])); self.assertEqual(p['bf_odrz'], ['2026-10-05', '2026-10-06'])
+        self.assertTrue(zd._fund_bf_odrz(p, ['2026-10-05'])); self.assertEqual((p.get('bf_odrz'), p['bf_czeka']), (None, ['2026-10-05']))
+        self.assertTrue(zd._fund_bf_odrz(p, ['2026-10-05']), 'plik jeszcze nie pobrany — próba nadal przed nami')
+        zd._fund_bf_zapisz(p); self.assertEqual((p['bf_odrz'], 'bf_czeka' in p), (['2026-10-05'], False))
+        self.assertFalse(zd._fund_bf_odrz(p, ['2026-10-05']), 'ten sam dzień po pobraniu pliku — bez pętli')
+        self.assertTrue(zd._fund_bf_odrz(p, ['2026-10-05', '2026-10-06'])); self.assertEqual(p['bf_czeka'], ['2026-10-06'])
+        zd._fund_bf_zapisz(p); self.assertEqual(p['bf_odrz'], ['2026-10-05', '2026-10-06'])
         self.assertFalse(zd._fund_bf_odrz(p, ['2026-08-01']), 'dzień sprzed ponad 10 sesji — bez uzupełnienia')
         self.assertFalse(zd._fund_bf_odrz({'h': []}, ['2026-10-05'])); self.assertFalse(zd._fund_bf_odrz({'h': [['x', 1, 1]]}, ['2026-10-05']))
         q = {'h': [['2026-12-31', 1.0, 1]], 'bf_odrz': ['2026-12-%02d' % d for d in range(1, 31)]}
-        self.assertTrue(zd._fund_bf_odrz(q, ['2026-12-31'])); self.assertEqual(len(q['bf_odrz']), 20, 'zapis prób — ostatnie 20 dat')
+        self.assertTrue(zd._fund_bf_odrz(q, ['2026-12-31'])); zd._fund_bf_zapisz(q); self.assertEqual(len(q['bf_odrz']), 20, 'zapis prób — ostatnie 20 dat')
 
     def test_wpiecie(self):
         import inspect
@@ -26021,3 +26027,155 @@ class KontrolaZuzycieV222(unittest.TestCase):
         self.assertIsNone(k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00'})); self.assertIsNone(k.zuzycie_ocena(None))
         self.assertIsNone(k.zuzycie_ocena({'at': 'x', 'zuzycie': {}}))
         self.assertEqual(k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00', 'zuzycie': {'cg': 'x', 'td': {'od': 'zly'}}}), {'plany': [], 'uwagi': [], 'bledy': []})
+
+
+# ===================== v223: FUNDUSZE PO PRZEGLĄDZIE v220–v221 =====================
+class PoPrzegladzieV223(unittest.TestCase):
+    """v223: zły wiersz pliku decyduje o braku (para dni = brak; suma grupy bez niego — dokładna); aktywa grupy z ostatniego poprawnego wiersza;
+    próba uzupełnienia zużyta dopiero po pobraniu pliku; granice 0,6–1,6×; notatki tylko o świeżych złych wierszach; limit planu od dostawcy."""
+
+    H = [['2026-09-%02d' % d, 36.0 + d / 10, 232600000 + 100000 * d] for d in range(14, 31) if datetime.date(2026, 9, d).weekday() < 5]
+
+    @staticmethod
+    def mk(rows):
+        return {'h': rows}
+
+    def test_dwa_zle_wiersze_i_jednostki(self):
+        h = self.H + [['2026-10-01', 37.1, 233800000], ['2026-10-02', 38.1, 235300000], ['2026-10-05', 0.001328, 238400000],
+                      ['2026-10-06', 0.001402, 239100000], ['2026-10-07', 41.0, 239500000]]
+        self.assertEqual(zd._fund_clean(h)[1], ['2026-10-05', '2026-10-06'])
+        fl = zd.fund_flows(h)
+        for d in ('2026-10-05', '2026-10-06', '2026-10-07'):
+            self.assertNotIn(d, fl, d + ' — para ze złym wierszem to brak, nie przepływ ≈ 0')
+        self.assertIn('2026-10-02', fl)
+        d, px, ret = zd._td_fund_px(zd._fund_rows(h))
+        self.assertEqual(ret[-3:], [None, None, None], 'zwroty dni ze złymi wierszami i dnia po nich — brak (nie zwrot z dwóch złych NAV)')
+        self.assertTrue(zd._isnum(ret[-4]))
+        h2 = self.H + [['2026-10-01', 37.1, 233800000], ['2026-10-02', 37.2, 233800000 * 2.5], ['2026-10-05', 37.3, 233900000]]
+        fl2 = zd.fund_flows(h2)
+        self.assertNotIn('2026-10-02', fl2); self.assertNotIn('2026-10-05', fl2, 'jednostki ×2,5 jednego dnia — brak, nie ±13 500 mln USD')
+
+    def test_grupa_bez_zlego_wiersza_i_aktywa(self):
+        days = ['2026-09-%02d' % d for d in (14, 15, 16, 17, 18, 21, 22, 23, 24, 25)]
+        a = [[d, 50.0, 1000 + 10 * i] for i, d in enumerate(days)]
+        b = [[d, 20.0, 500 + 5 * i] for i, d in enumerate(days)]
+        b[6] = [days[6], 0.001, 530]                                       # zły wiersz B 22.09
+        ds, v, aum = zd.fund_group({'A': self.mk(a), 'B': self.mk(b)}, ('A', 'B'))
+        self.assertNotIn('2026-09-22', ds, 'dzień ze złym wierszem B — jak inny kalendarz: przepływy do następnego wspólnego dnia')
+        self.assertAlmostEqual(v[ds.index('2026-09-23')], (20 * 50.0 + 10 * 20.0) / 1e6, msg='suma przez dwa dni — dokładna (A 22+23, B 21→23)')
+        self.assertAlmostEqual(v[ds.index('2026-09-24')], (10 * 50.0 + 5 * 20.0) / 1e6)
+        b2 = [r[:] for r in b]; b2[6] = [days[6], 20.0, 530]; b2[-1] = [days[-1], 0.001, 545]   # zły NAJNOWSZY wiersz B
+        ds, v, aum = zd.fund_group({'A': self.mk(a), 'B': self.mk(b2)}, ('A', 'B'))
+        self.assertAlmostEqual(aum, (50.0 * 1090 + 20.0 * 540) / 1e6, msg='aktywa B z 24.09 (ostatni poprawny), nie z błędnego 25.09')
+        self.assertEqual(ds[-1], '2026-09-24')
+        dl = [d.isoformat() for d in (datetime.date(2026, 8, 3) + datetime.timedelta(days=i) for i in range(45)) if d.weekday() < 5][:30]
+        a3 = [[d, 50.0, 1000 + 10 * i] for i, d in enumerate(dl)]
+        b3 = [[d, 20.0 if i < 15 else 36.0, 500 + 5 * i] for i, d in enumerate(dl)]   # trwały skok NAV ×1,8 bez wyjaśnienia (fund_split = 0)
+        self.assertEqual(zd._fund_clean(b3)[1], [], 'aktywa ×1,9 — poniżej progu 2×, nie „zły wiersz”')
+        ds, v, _ = zd.fund_group({'A': self.mk(a3), 'B': self.mk(b3)}, ('A', 'B'))
+        self.assertIsNone(v[ds.index(dl[15])], 'skok bez wyjaśnienia u B — brak całej grupy tego dnia, nie przepływ samego A')
+        self.assertTrue(all(zd._isnum(x) for x in v[ds.index(dl[16]):]) and all(zd._isnum(x) for x in v[:ds.index(dl[15])]), 'pozostałe dni liczone')
+
+    def test_trendy_procent_aktywow(self):
+        days = [d for d in (datetime.date(2025, 9, 1) + datetime.timedelta(days=i) for i in range(400)) if d.weekday() < 5][-260:]
+        h = [[d.isoformat(), 38.0 + 0.01 * i, 230000000 + 50000 * i + (3000000 if i % 2 else 0)] for i, d in enumerate(days)]
+        h[-1] = [h[-1][0], 0.001328, h[-1][2]]
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime.combine(days[-1], datetime.time(22, 0), tzinfo=datetime.timezone.utc)):
+            ds, v, aum = zd.fund_group({'EWZ': self.mk(h)}, ('EWZ',))
+        self.assertGreater(aum, 8000, 'aktywa z przedostatniego (poprawnego) wiersza — ok. 9 mld USD, nie ułamek')
+
+    def test_ceny_bez_zlych_wierszy(self):
+        days = ['2026-01-%02d' % d for d in range(1, 27)]
+        spy = [[d, 100.0 + i, 5] for i, d in enumerate(days)]
+        spy[22] = [days[22], 55.0, 5]                                       # odstęp ×0,47 od mediany sąsiadów — błąd pliku (iloraz 20 sesji 0,54 — dawny próg go przepuszczał)
+        ief = [[d, 50.0 + i / 100, 3] for i, d in enumerate(days)]
+        sb = zd.ns_sb(spy, ief, 20)
+        self.assertNotIn(days[22], [r[0] for r in sb]); self.assertTrue(all(abs(r[2]) < 0.3 for r in sb), 'żaden zwrot akcji z błędnego NAV')
+        self.assertEqual(zd._fund_clean(spy)[1], [days[22]])
+        s = zd._td_series_ob({'in': {'d': [[d, 10.0, 1.0, 0, 0, 88.0] for d in days]}}, zd.TD_OB[0], {'INDA': {'h': [[d, 50.0 + i / 10, 1000] for i, d in enumerate(days)][:22]
+                             + [[days[22], 0.01, 1000]] + [[d, 52.3 + i / 10, 1000] for i, d in enumerate(days[23:])]}})
+        i22 = s['dates'].index(days[22])
+        self.assertIsNone(s['ret'][i22]); self.assertIsNone(s['ret'][i22 + 1], 'NAV z błędnego wiersza nie jest ceną')
+        self.assertTrue(zd._isnum(s['ret'][i22 + 2]))
+
+    def test_notatki_tylko_swieze_i_cena_tygodniowa(self):
+        zd.META['notes'] = []
+        h = self.H + [['2026-10-01', 37.1, 233800000], ['2026-10-02', 38.1, 235300000], ['2026-10-05', 0.001328, 238400000]]
+        zd._fund_notatka('EWZ', h, ['2026-10-05'])
+        self.assertEqual(zd.META['notes'], ['fundusze EWZ: błąd pliku źródła w wierszach 2026-10-05 — aktywa ponad 2× od sąsiednich dni; '
+                                            'przepływ i zwrot tego dnia i następnego = brak (nie zero)'])
+        zd.META['notes'] = []
+        zd._fund_notatka('EWZ', h + [['2026-10-%02d' % d, 41.0, 238500000] for d in (6, 7, 8, 9, 12, 13, 14, 15, 16, 19, 20)], ['2026-10-05'])
+        self.assertEqual(zd.META['notes'], [], 'zły wiersz sprzed ponad 10 sesji — bez notatki w każdym przebiegu')
+        zd.META['notes'] = []
+        self.assertEqual(zd._fund_px_rows('EWZ', h)[-1][0], '2026-10-02')
+        self.assertEqual(zd.META['notes'], ['trendy EWZ: wiersz 2026-10-05 pominięty w cenie tygodniowej (błąd pliku źródła) — cena do 2026-10-02'])
+        zd.META['notes'] = []
+        hm = self.H + [['2026-10-01', 37.1, 233800000], ['2026-10-02', 0.001, 235300000], ['2026-10-05', 38.5, 235400000], ['2026-10-06', 38.6, 235500000]]
+        zd._fund_px_rows('EWZ', hm)
+        self.assertEqual(zd.META['notes'], ['trendy EWZ: wiersz 2026-10-02 pominięty w cenie tygodniowej (błąd pliku źródła) — ostatni tydzień liczony z 6 sesji'])
+        zd.META['notes'] = []
+        ho = self.H[:5] + [[self.H[5][0], 0.001, self.H[5][2]]] + self.H[6:] + [['2026-10-01', 37.1, 233800000], ['2026-10-02', 37.2, 233900000]]
+        self.assertEqual(len(zd._fund_px_rows('EWZ', ho)), len(ho) - 1); self.assertEqual(zd.META['notes'], [], 'stary zły wiersz — bez notatki')
+
+    def test_proba_zuzyta_po_pobraniu(self):
+        """Przebieg 1: zły najnowszy wiersz — próba zaplanowana. 2: pobranie pada — próba NIE zużyta. 3 (po przerwie): plik pobrany (ten sam błąd)
+        — próba zużyta. 4: bez pobrania (bez pętli)."""
+        t0 = datetime.datetime(2026, 9, 25, 12, 0, tzinfo=datetime.timezone.utc)
+        spy = [[d, 700.0 + i, 1000000 + i] for i, d in enumerate(['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24'])]
+        days = [datetime.date(2026, 8, 3) + datetime.timedelta(days=i) for i in range(60)]
+        days = [d for d in days if d.weekday() < 5 and d <= datetime.date(2026, 9, 24)]
+        hist = [[d.isoformat(), 50.0, 1000000] for d in days[:-1]] + [[days[-1].isoformat(), 0.001, 1000000]]
+        prev = {'f': {t: {'iss': 'ssga', 'h': spy} for t in zd.FUND_SSGA}}
+        prev['f']['EFA'] = {'iss': 'ishares', 'pid': '1', 'bf_done': True, 'h': hist}
+        doc = FunduszeV90.xml([(d.strftime('%b %d, %Y'), 0.001 if d == days[-1] else 50.0, 1000000) for d in reversed(days)])
+        seq = [(t0, False), (t0 + datetime.timedelta(minutes=10), True), (t0 + datetime.timedelta(minutes=zd.FUND_BF_RETRY + 20), False),
+               (t0 + datetime.timedelta(minutes=zd.FUND_BF_RETRY + 30), False)]
+        wyn = []
+        for now, fail in seq:
+            calls = []
+
+            def fake(url, timeout=60, headers=None, fail=fail):
+                calls.append(url)
+                if fail:
+                    raise RuntimeError('503')
+                return doc
+            prev['scr_at'] = (now - datetime.timedelta(minutes=1)).isoformat()
+            for t in zd.FUND_SSGA:
+                prev['f'][t]['at'] = (now - datetime.timedelta(minutes=5)).isoformat()
+            zd.META['notes'].clear(); zd.META['errors'].clear()
+            with mock.patch.object(zd, 'get_bytes', side_effect=fake), mock.patch.object(zd, '_now_utc', return_value=now), \
+                    mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'FUND_SLEEP', 0), mock.patch.object(zd.time, 'sleep'):
+                out = zd.build_fundusze(prev)
+            e = out['f']['EFA']
+            wyn.append((sum('get-fund-document' in u for u in calls), e.get('bf_need'), e.get('bf_czeka'), e.get('bf_odrz'), list(zd.META['notes'])))
+            prev = out
+        d = days[-1].isoformat()
+        self.assertEqual(wyn[0][:4], (0, True, [d], None), 'przebieg 1: zły dzień wykryty — próba zaplanowana, jeszcze nie zużyta')
+        self.assertTrue(any(n.startswith(f'fundusze EFA: błąd pliku źródła w wierszach {d}') for n in wyn[0][4]))
+        self.assertEqual(wyn[1][:4], (1, True, [d], None), 'przebieg 2: pobranie padło — próba nadal przed nami')
+        self.assertEqual(wyn[2][:4], (1, None, None, [d]), 'przebieg 3: plik pobrany (ten sam błąd) — próba zużyta')
+        self.assertEqual(wyn[3][:4], (0, None, None, [d]), 'przebieg 4: bez pobrania — bez pętli')
+
+    def test_granice_bez_zmian_i_komentarz(self):
+        self.assertEqual(zd.FUND_TNA_X, 2.0, 'granice 0,5–2× zostają (przy 1,6 duże prawdziwe napływy byłyby „błędem”)')
+        H = FunduszeCzyszczenieV217.H
+        self.assertEqual(zd._fund_clean(H + [['2026-10-01', 37.2 * 1.7, 235600000]])[1], [], 'aktywa ×1,7 — duży, możliwy dzień, nie błąd pliku')
+        f = zd.fund_flows(H + [['2026-10-01', 37.2 * 0.55, 235600000], ['2026-10-02', 38.0, 235700000]])
+        self.assertNotIn('2026-10-01', f); self.assertNotIn('2026-10-02', f, 'odstęp ×0,55 (nie „zły wiersz”) — i tak brak przez skok NAV (fund_split)')
+        import inspect
+        src = inspect.getsource(zd)
+        self.assertNotIn('10 linii × 3 oceny', src); self.assertIn('9 linii × 3 oceny', src)
+
+    def test_kontrola_limit_od_dostawcy(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v223', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        q = {'od': '2026-10-01T00:00:00+00:00', 'd': '2026-10-07', 'n': 40, 'm': '2026-10', 'nm': 900,
+             'dost': {'at': '2026-10-07T06:00:05+00:00', 'dz': [57, None, None], 'mies': [471, 14529, 15000]}}
+        o = k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00', 'zuzycie': {'cmc': q}})
+        self.assertIn('z limitu 15 000 (30%)', o['plany'][0]['tekst'], 'prognoza licznika wobec limitu dostawcy')
+        self.assertIn('według dostawcy w miesiącu: 471 z 15 000 (3%', o['plany'][0]['tekst'])
+        q['dost'] = {'at': '2026-10-07T06:00:05+00:00', 'blad': 'HTTP 500'}
+        o = k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00', 'zuzycie': {'cmc': q}})
+        self.assertIn('z limitu 10 000 (45%)', o['plany'][0]['tekst'], 'bez raportu dostawcy — limit z tabeli')
