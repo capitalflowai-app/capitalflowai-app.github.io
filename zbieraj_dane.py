@@ -2235,6 +2235,9 @@ NSDL_BACK_BUDGET = 60     # v95.2: archiwum NSDL — sekund na przebieg; jeden m
 BACK_LATE = 600           # v96: przebieg dłuższy niż 10 min przed krokiem krajów — bez historii wstecz (kraje liczone po ok. 9 min; zapas do 15 min)
 _BACK_LATE_NOTE = [False]
 TW_PEND_H = 12            # v95.2: starszy dzień „No Data!” (TWSE) = święto dopiero przy drugiej takiej odpowiedzi po ≥ 12 h
+TW_REFRESH_D = 3          # v197: TWSE poprawia liczby sesji po pierwszej publikacji (06.10: 5 ostatnich sesji różnych od obecnych danych giełdy, do
+                          # 1,2 mld TWD w przepływie zagranicy 30.09) — dni z ostatnich 3 dni kalendarzowych pobierane ponownie…
+TW_REFRESH_H = 3          # v197: …najwyżej co 3 godz. (pole chk: czas ostatniego udanego odczytu dnia)
 HK_NF_DAYS = 7            # v95.2: brak pliku HKEX za starszy dzień — ponowne pytanie po tygodniu (bez stałej granicy)
 _RUN_T0 = [None]          # v95.2: początek przebiegu (main)
 _CZAS = []                # v185: (plik, sekundy od startu przebiegu) przy każdym zapisie
@@ -2497,12 +2500,18 @@ def twse_part(prev_tw, key):
     fails, bfails = [], []
     pend = {k: v for k, v in (prev_tw.get('pend') or {}).items() if isinstance(k, str) and k >= lim and _age_h(v) is not None}
     recent = tw_dates(set(have), empty, now_tpe, first=not have)[-TWSE_MAX:]
+    # v197: ponowny odczyt ostatnich sesji — giełda poprawia liczby po pierwszej publikacji (dotąd dzień „w pliku” = nigdy więcej)
+    chk = {k: v for k, v in (prev_tw.get('chk') or {}).items() if isinstance(k, str) and isinstance(v, str) and k in have}
+    ref = [k for k in sorted(have) if k not in recent and _d(k) and 0 <= (now_tpe.date() - _d(k)).days <= TW_REFRESH_D
+           and (_age_h(chk.get(k)) is None or _age_h(chk[k]) >= TW_REFRESH_H)]
+    rfails, zm = [], []
     wait = {k for k, v in pend.items() if _age_h(v) < TW_PEND_H}
     back = tw_back(set(have), empty, now_tpe, skip=set(recent) | wait)[:min(TW_BACK_MAX, max(0, TWSE_MAX - len(recent)))]   # v95: historia wstecz
     t0 = time.monotonic()
-    for iso in recent + back:
+    for iso in recent + ref + back:
         old = iso in back
-        bad = bfails if old else fails
+        again = iso in ref                               # v197: ponowny odczyt dnia, który już jest w pliku
+        bad = bfails if old else (rfails if again else fails)
         if old and not _back_ok(t0, BACK_BUDGET, TWSE_SLEEP + TW_BACK_TIMEOUT):
             break                                        # ostatnie dni zawsze, starsze — tylko w budżecie czasu (v95.1–v95.2)
         time.sleep(TWSE_SLEEP)
@@ -2512,6 +2521,8 @@ def twse_part(prev_tw, key):
             r = parse_twse(j)
         except Exception as e:
             bad.append(f'{iso}: {e}'); continue
+        if again and (r is None or r[0] != iso):         # v197: „No Data!” albo inna data przy ponownym odczycie — poprzednie liczby, dzień NIE „bez sesji”
+            rfails.append(f"{iso}: {str(j.get('stat'))[:60] if isinstance(j, dict) else 'nieczytelna odpowiedź'}"); continue
         if r is None:
             if iso < now_tpe.date().isoformat():
                 if _twse_nodata(j) and (not old or iso in pend):
@@ -2521,9 +2532,15 @@ def twse_part(prev_tw, key):
                 else:
                     bad.append(f"{iso}: {str(j.get('stat'))[:60] if isinstance(j, dict) else 'nieczytelna odpowiedź'}")   # v95: nie święto — ponowimy
             continue
-        have[r[0]] = r[:5]; pend.pop(iso, None)
+        if again and have[r[0]][:5] != r[:5]:
+            zm.append(iso)
+        have[r[0]] = r[:5]; pend.pop(iso, None); chk[r[0]] = NOW
     if not have:
         raise RuntimeError('brak dni' + (f' ({fails[0]})' if fails else ''))
+    if zm:
+        META['notes'].append('TWSE: poprawione liczby sesji przy ponownym odczycie — ' + ', '.join(zm))
+    if rfails:
+        META['notes'].append(mask(f'TWSE ponowny odczyt: {len(rfails)} dni bez odpowiedzi, np. {rfails[0]} — zostają poprzednie liczby'))
     if fails:
         META['errors'].append(mask(f'TWSE: {len(fails)} dni bez odpowiedzi, np. {fails[0]}'))
     if bfails:
@@ -2540,11 +2557,13 @@ def twse_part(prev_tw, key):
         rd, rt = _rate_for(rates, r[0])
         if rt and r[1] is not None:
             r[5:] = [round(r[1] / rt, 1), rd]
-        elif r[0] in old and len(old[r[0]]) >= 7:
-            r[5:] = old[r[0]][5:7]          # bez nowego kursu zostaje poprzednie przeliczenie
+        elif r[0] in old and len(old[r[0]]) >= 7 and old[r[0]][1] == r[1]:
+            r[5:] = old[r[0]][5:7]          # bez nowego kursu zostaje poprzednie przeliczenie (v197: tylko przy tej samej liczbie zagranicy)
         else:
             r[5:] = [None, None]
-    return {'at': NOW, 'src': 'TWSE — Trading Value of Foreign & Other Investors (BFI82U)',
+    keep = {r[0] for r in d}
+    chk = {k: v for k, v in chk.items() if k in keep and _d(k) and (now_tpe.date() - _d(k)).days <= TW_REFRESH_D + 7}
+    return {'at': NOW, 'src': 'TWSE — Trading Value of Foreign & Other Investors (BFI82U)', **({'chk': chk} if chk else {}),
             'url': 'https://www.twse.com.tw/en/trading/foreign/bfi82u.html', 'unit': 'mln TWD; ≈ mln USD kursem Fed H.10 (FRED DEXTAUS)',
             'cols': ['data', 'zagraniczni', 'fundusze krajowe', 'dealerzy', 'razem', '≈ mln USD (zagraniczni)', 'data kursu'],
             'asof': d[-1][0], 'empty': sorted(empty), **({'pend': pend} if pend else {}), 'd': d}

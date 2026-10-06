@@ -8351,6 +8351,7 @@ class HistoriaV95(unittest.TestCase):
 
     def setUp(self):
         zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear(); zd._RUN_T0[0] = None; zd._BACK_LATE_NOTE[0] = False
+        self.enterContext(mock.patch.object(zd, 'TW_REFRESH_D', -1))   # v197: ponowny odczyt ostatnich sesji — osobny test (TwPoprawkiV197)
 
     def at(self, now):
         """Wspólne atrapy czasu: data dnia stała (25.09, 17:00 w Tajpej), NOW przebiegu — podany."""
@@ -24813,3 +24814,84 @@ class KontrolaRwaTrwalyBrakV196(unittest.TestCase):
         Z = self.k.rwa_porownanie(dict(self._j(), ok={'list': True, 'hidden': False}), datetime.datetime(2026, 10, 9, 1, 15, tzinfo=U))
         self.assertTrue(any('pobranie wartości produktów spoza głównej listy przerwane' in u for u in Z['uwagi']), 'przerwane pobranie — uwaga jak dotąd')
         self.assertEqual(self.k.rwa_porownanie(self._j(hv_n=25), datetime.datetime(2026, 10, 6, 1, 15, tzinfo=U))['status'], '✅', '25 z wartością — bez uwagi')
+
+
+# ===================== v197: TAJWAN — PONOWNY ODCZYT OSTATNICH SESJI (POPRAWKI GIEŁDY PO PIERWSZEJ PUBLIKACJI) =====================
+class TwPoprawkiV197(unittest.TestCase):
+    """v197: dni z ostatnich 3 dni kalendarzowych pobierane ponownie najwyżej co 3 godz.; zmiana = nowy wiersz + notatka; brak odpowiedzi albo
+    „No Data!” — poprzednie liczby (dzień nie staje się „bez sesji”); USD bez nowego kursu tylko przy tej samej liczbie zagranicy. Bez sieci."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd._RUN_T0[0] = None; zd._BACK_LATE_NOTE[0] = False
+        self.enterContext(mock.patch.object(zd.time, 'sleep', lambda s: None))
+        self.enterContext(mock.patch.object(zd, 'TW_BACK_MAX', 0))   # bez historii wstecz — tylko ostatnie dni
+
+    @staticmethod
+    def tw(date, fx, it='-5,293,160,007'):
+        return {'stat': 'OK', 'date': date.replace('-', ''), 'data': [
+            ['Dealers (Proprietary)', '1', '1', '1,415,360,504'], ['Dealers (Hedge)', '1', '1', '9,533,137,013'],
+            ['Securities Investment Trust Companies', '1', '1', it],
+            ['Foreign Investors include Mainland Area Investors(Foreign Dealers excluded)', '1', '1', fx],
+            ['Foreign Dealers', '0', '0', '0'], ['Total', '1', '1', '77,551,945,755']]}
+
+    def _run(self, prev, now, answers, rates=None):
+        asked = []
+
+        def gj(url, headers=None, timeout=30):
+            if 'DEXTAUS' in url:
+                return {'observations': rates or []}
+            day = url.split('dayDate=')[1][:8]; iso = f'{day[:4]}-{day[4:6]}-{day[6:]}'; asked.append(iso)
+            a = answers.get(iso)
+            if isinstance(a, Exception):
+                raise a
+            return a if a is not None else {'stat': 'No Data!'}
+        with mock.patch.object(zd, 'NOW', now), mock.patch.object(zd, '_now_utc', lambda: datetime.datetime.fromisoformat(now)), \
+                mock.patch.object(zd, 'get_json', gj):
+            return zd.twse_part(prev, 'KLUCZ'), asked
+
+    def _prev(self, chk=None):
+        p = {'d': [['2026-09-29', -63201.3, 1416.9, -16402.6, -78187.0, -1975.0, '2026-09-29'], ['2026-09-30', 29636.0, 7781.2, 1240.1, 38657.2, 926.1, '2026-09-30'],
+                   ['2026-10-01', 21937.3, 5656.6, 1659.0, 29252.9, 685.2, '2026-10-01'], ['2026-10-02', 2621.8, 4909.6, 2026.1, 9557.5, 81.9, '2026-10-02'],
+                   ['2026-10-05', 71896.6, -6394.7, 10948.1, 76450.0, 2246.1, '2026-10-02']], 'empty': ['2026-09-28']}   # 28.09 — święto (Dzień Nauczyciela)
+        if chk:
+            p['chk'] = chk
+        return p
+
+    def test_ponowny_odczyt_poprawia_liczby(self):
+        out, asked = self._run(self._prev(), '2026-10-06T00:00:00+00:00', {'2026-10-05': self.tw('2026-10-05', '71,896,608,245')})
+        self.assertEqual(asked, ['2026-10-05'], '08:00 w Tajpej: dziś jeszcze bez sesji; 05.10 (1 dzień) — ponownie; 02.10 (4 dni) — nie')
+        r = {x[0]: x for x in out['d']}['2026-10-05']
+        self.assertEqual(r[:5], ['2026-10-05', 71896.6, -5293.2, 10948.5, 77551.9], 'liczby giełdy z ponownego odczytu')
+        self.assertEqual(r[5:], [2246.1, '2026-10-02'], 'ta sama liczba zagranicy — przeliczenie na USD zostaje (bez nowego kursu)')
+        self.assertEqual(out['chk'], {'2026-10-05': '2026-10-06T00:00:00+00:00'})
+        self.assertTrue(any('TWSE: poprawione liczby sesji przy ponownym odczycie — 2026-10-05' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual(zd.META['errors'], [])
+        zd.META['notes'].clear()
+        out2, asked = self._run(out, '2026-10-06T01:00:00+00:00', {})
+        self.assertEqual(asked, [], 'godzinę później — bez ponownego odczytu')
+        out3, asked = self._run(out2, '2026-10-06T03:30:00+00:00', {'2026-10-05': self.tw('2026-10-05', '71,896,608,245')})
+        self.assertEqual(asked, ['2026-10-05'], 'po 3 godz. — znowu'); self.assertFalse(any('poprawione' in n for n in zd.META['notes']), 'te same liczby — bez notatki')
+        out4, asked = self._run(out3, '2026-10-09T09:00:00+00:00', {'2026-10-06': self.tw('2026-10-06', '1,000,000,000'), '2026-10-07': self.tw('2026-10-07', '2,000,000,000'),
+                                                                    '2026-10-08': self.tw('2026-10-08', '3,000,000,000'), '2026-10-09': self.tw('2026-10-09', '4,000,000,000')})
+        self.assertNotIn('2026-10-05', asked, '4 dni po sesji — już nie')
+
+    def test_zmiana_zagranicy_bez_kursu_bez_usd_i_brak_odpowiedzi(self):
+        out, _ = self._run(self._prev(), '2026-10-06T00:00:00+00:00', {'2026-10-05': self.tw('2026-10-05', '70,000,000,000')})
+        r = {x[0]: x for x in out['d']}['2026-10-05']
+        self.assertEqual((r[1], r[5:]), (70000.0, [None, None]), 'inna liczba zagranicy, brak kursu — brak przeliczenia, nie stara liczba')
+        out, _ = self._run(self._prev(), '2026-10-06T00:00:00+00:00', {'2026-10-05': self.tw('2026-10-05', '70,000,000,000')},
+                           rates=[{'date': '2026-10-02', 'value': '32.0'}])
+        self.assertEqual({x[0]: x for x in out['d']}['2026-10-05'][5:], [2187.5, '2026-10-02'], 'z kursem — nowe przeliczenie')
+        for ans, why in ((None, '„No Data!”'), (RuntimeError('HTTP 500'), 'błąd')):
+            zd.META['notes'].clear(); zd.META['errors'].clear()
+            out, _ = self._run(self._prev(), '2026-10-06T00:00:00+00:00', {'2026-10-05': ans})
+            self.assertEqual({x[0]: x for x in out['d']}['2026-10-05'][:5], ['2026-10-05', 71896.6, -6394.7, 10948.1, 76450.0], why + ' — poprzednie liczby')
+            self.assertNotIn('2026-10-05', out['empty'], why + ' — dzień z danymi nie staje się „bez sesji”')
+            self.assertEqual(zd.META['errors'], [], why + ' — notatka, nie błąd')
+            self.assertTrue(any('TWSE ponowny odczyt: 1 dni bez odpowiedzi' in n for n in zd.META['notes']), zd.META['notes'])
+            self.assertNotIn('2026-10-05', out.get('chk', {}), 'bez udanego odczytu — bez czasu; następny przebieg próbuje znowu')
+
+    def test_stary_chk_przyciety(self):
+        out, _ = self._run(self._prev(chk={'2026-10-05': '2026-10-05T23:00:00+00:00', '2026-09-01': '2026-09-01T09:00:00+00:00', 'x': 5}),
+                           '2026-10-06T00:00:00+00:00', {})
+        self.assertEqual(out['chk'], {'2026-10-05': '2026-10-05T23:00:00+00:00'}, 'młody odczyt bez ponownego zapytania; dni spoza pliku i złe wpisy — usunięte')
