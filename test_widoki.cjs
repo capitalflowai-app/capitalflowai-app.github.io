@@ -13509,3 +13509,12 @@ test('v205: etfTotals i wiersz ETF przy monecie stale — sumy przepływów „�
   const D2 = v183Dict('EXTRA174'); assert.deepEqual(D2, {pl: {'etf.stale': 'ostatnie dane z {d}'}});
   for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.ok(/smart|Smart|inteligentes|intelligents|смарт|智能|スマート/.test(v96src.tFor(L)('wh.eth.note')), L + ': wh.eth.note — smart kontrakty');
 });
+
+
+/* ---------- v206: ETF — procenty ujemne z długim minusem, zero bez znaku ---------- */
+test('v206: etfP — „−0,21%” (nie „-0,21%”), „−0,00%” nie występuje, brak = „—”', () => {
+  const a = html.indexOf('const etfP='), b = html.indexOf('\n', a);
+  const f = new Function('LOCALE', 'LANG', html.slice(a, b) + '\nreturn etfP;')({pl: 'pl-PL', en: 'en-US'}, 'pl');
+  assert.equal(f(-0.2134, 2), '−0,21%'); assert.equal(f(0.17, 2), '0,17%'); assert.equal(f(-0.001, 2), '0,00%', 'zaokrąglone do zera — bez znaku');
+  assert.equal(f(null, 2), '—'); assert.equal(f(NaN), '—'); assert.equal(f(-12.5), '−12,5%');
+});

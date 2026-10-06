@@ -6663,7 +6663,7 @@ const etfM=v=>{ /* v w mln USD */
 };
 const etfA=v=>{if(v==null||isNaN(v))return '—';const a=Math.abs(v);
   return a>=1000?(a/1000).toLocaleString(LOCALE[LANG],{maximumFractionDigits:1})+' '+t('u.b'):a.toLocaleString(LOCALE[LANG],{maximumFractionDigits:0})+' '+t('u.m');};
-const etfP=(v,d)=>v==null||isNaN(v)?'—':v.toLocaleString(LOCALE[LANG],{minimumFractionDigits:d==null?1:d,maximumFractionDigits:d==null?1:d})+'%';
+const etfP=(v,d)=>{if(v==null||isNaN(v))return '—';const s=Math.abs(v).toLocaleString(LOCALE[LANG],{minimumFractionDigits:d==null?1:d,maximumFractionDigits:d==null?1:d});return (v<0&&/[1-9]/.test(s)?'−':'')+s+'%';};   /* v206: długi minus jak w całej stronie; zaokrąglone do zera — bez znaku */
 const etfCls=v=>v>0?'pos':v<0?'neg':'';
 function etfBars(day){
   const d=day.slice(-30);if(!d.length)return '';
