@@ -25830,3 +25830,194 @@ class PoPrzegladzieV221(unittest.TestCase):
         runs = [r(i, 10 * i, 'failure') for i in range(1, 8)] + [r(100 + i, 100 + 10 * i, 'success') for i in range(25)]
         A, b, u = k.przebiegi_ocena(runs, NOW, {i: PG for i in range(1, 6)})
         self.assertTrue(b[0].startswith('automat nie działa (publikacja GitHub Pages): 7 nieudanych'), b)
+
+
+# ===================== v222: LICZNIK ZUŻYCIA DARMOWYCH PLANÓW =====================
+class LicznikZuzyciaV222(unittest.TestCase):
+    """v222: zbieracz liczy zapytania do planów z limitem (CoinGecko z kluczem, CoinMarketCap, Twelve Data — kredyty = symbole), narastająco
+    między przebiegami (doba i miesiąc UTC); raport dostawcy CoinMarketCap najwyżej raz na 6 h."""
+
+    def setUp(self):
+        zd._ZUZ.clear()
+
+    def tearDown(self):
+        zd._ZUZ.clear()
+
+    def test_licz(self):
+        L = zd._zuz_licz
+        L('https://api.coingecko.com/api/v3/global', {'x-cg-demo-api-key': 'k'})
+        L('https://api.coingecko.com/api/v3/global', {'X-CG-DEMO-API-KEY': 'k'})
+        L('https://api.coingecko.com/api/v3/simple/price?ids=ethereum', None)        # bez klucza — nie z planu
+        L('https://api.coingecko.com/api/v3/global', {'x-cg-demo-api-key': ''})       # pusty klucz — nie z planu
+        L('https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest', {'X-CMC_PRO_API_KEY': 'k'})
+        L('https://api.twelvedata.com/time_series?symbol=SPY,QQQ,EWJ&interval=1day&apikey=k')
+        L('https://api.twelvedata.com/time_series?symbol=SPY&apikey=k')
+        L('https://api.twelvedata.com/time_series?apikey=k')
+        L('https://example.com/x?symbol=A,B', None); L(None, None); L('::', {'x': 1}); L('https://api.coingecko.com/x', 'zle')
+        self.assertEqual(zd._ZUZ, {'cg': 2, 'cmc': 1, 'td': 5})
+
+    def test_get_liczy(self):
+        class R:
+            status = 200
+
+            def read(self):
+                return b'{}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        with mock.patch.object(zd.urllib.request, 'urlopen', return_value=R()):
+            zd.get('https://api.twelvedata.com/time_series?symbol=SPY,QQQ&apikey=k')
+            zd.get_json('https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest', {'X-CMC_PRO_API_KEY': 'k'})
+            zd.get_bytes('https://api.coingecko.com/api/v3/x', {'x-cg-demo-api-key': 'k'})
+            zd.get('https://stablecoins.llama.fi/stablecoins')
+        self.assertEqual(zd._ZUZ, {'td': 2, 'cmc': 1, 'cg': 1})
+
+    def test_narastajaco(self):
+        z = zd.zuzycie
+        a = z(None, {'cg': 4, 'cmc': 1, 'td': 7}, '2026-10-06T07:30:00+00:00')
+        self.assertEqual(a['cg'], {'od': '2026-10-06T07:30:00+00:00', 'd': '2026-10-06', 'n': 4, 'm': '2026-10', 'nm': 4})
+        self.assertEqual((a['cmc']['n'], a['td']['n'], sorted(a)), (1, 7, ['cg', 'cmc', 'td']))
+        b = z(a, {'cg': 1}, '2026-10-06T07:40:00+00:00')
+        self.assertEqual((b['cg']['n'], b['cg']['nm'], b['cmc']['n'], b['td']['nm'], b['cg']['od']), (5, 5, 1, 7, '2026-10-06T07:30:00+00:00'))
+        c = z(b, {'cg': 2}, '2026-10-07T00:00:05+00:00')   # nowa doba UTC
+        self.assertEqual((c['cg']['n'], c['cg']['dp'], c['cg']['nm']), (2, ['2026-10-06', 5], 7))
+        self.assertEqual((c['td']['n'], c['td']['dp'], c['td']['nm']), (0, ['2026-10-06', 7], 7))
+        e = z(c, {'cg': 3}, '2026-11-01T00:00:05+00:00')   # nowy miesiąc
+        self.assertEqual((e['cg']['n'], e['cg']['nm'], e['cg']['dp'], e['cg']['mp']), (3, 3, ['2026-10-07', 2], ['2026-10', 7]))
+        f = z(e, {}, '2026-11-01T00:10:05+00:00')
+        self.assertEqual((f['cg']['n'], f['cg']['dp'], f['cg']['mp']), (3, ['2026-10-07', 2], ['2026-10', 7]), 'poprzednia doba i miesiąc przechodzą dalej')
+        g = z({'cg': {'od': 'x', 'd': '2026-11-01', 'n': True, 'nm': -3, 'dp': ['2026-10-31', 'x']}, 'td': 'x'}, {'cg': 1, 'td': 2.5},
+              '2026-11-01T01:00:00+00:00')
+        self.assertEqual(g['cg'], {'od': '2026-11-01T01:00:00+00:00', 'd': '2026-11-01', 'n': 1, 'm': '2026-11', 'nm': 1}, 'złe pola — od zera')
+        self.assertEqual(g['td']['n'], 0, 'ułamek z przebiegu nie jest liczbą zapytań')
+        h = z(a, {}, '2026-10-06T07:50:00+00:00', {'cmc': {'at': 'x', 'blad': 'HTTP 401'}})
+        self.assertEqual(h['cmc']['dost'], {'at': 'x', 'blad': 'HTTP 401'}); self.assertNotIn('dost', h['cg'])
+
+    def test_dost_cmc(self):
+        P = {'cmc': {'dost': {'at': '2026-10-06T07:10:00+00:00', 'mies': [100, 9900, 10000]}}}
+        with mock.patch.object(zd, 'cmc_key_info', side_effect=AssertionError('bez zapytania')):
+            self.assertIs(zd._zuz_dost_cmc(P, 'k', '2026-10-06T11:50:00+00:00'), P['cmc']['dost'], 'ten sam blok 6 h — poprzedni raport')
+            self.assertIsNone(zd._zuz_dost_cmc(P, '', '2026-10-06T12:00:00+00:00'), 'bez klucza — bez raportu')
+        with mock.patch.object(zd, 'cmc_key_info', return_value={'at': 'n'}) as ki:
+            self.assertEqual(zd._zuz_dost_cmc(P, 'k', '2026-10-06T12:00:00+00:00'), {'at': 'n'}); ki.assert_called_once_with('k')
+            self.assertEqual(zd._zuz_dost_cmc(None, 'k', '2026-10-06T12:00:00+00:00'), {'at': 'n'})
+            self.assertEqual(zd._zuz_dost_cmc({'cmc': {'dost': {'at': 'zly'}}}, 'k', '2026-10-06T12:00:00+00:00'), {'at': 'n'})
+        old = list(zd.SECRETS)
+        try:
+            zd.SECRETS[:] = ['sekret']
+            with mock.patch.object(zd, 'cmc_key_info', side_effect=RuntimeError('HTTP 401 sekret')):
+                r = zd._zuz_dost_cmc(P, 'k', '2026-10-07T00:00:00+00:00')
+        finally:
+            zd.SECRETS[:] = old
+        self.assertEqual(r, {'at': '2026-10-07T00:00:00+00:00', 'blad': 'HTTP 401 ***'}, 'nieudana próba zapisana bez klucza — bez ponawiania w bloku')
+        self.assertEqual((zd._zuz_blok('2026-10-06T05:59:59+00:00'), zd._zuz_blok('2026-10-06T06:00:00+00:00'), zd._zuz_blok(None)),
+                         ('2026-10-06/0', '2026-10-06/1', None))
+
+    def test_key_info(self):
+        J = {'status': {'error_code': 0}, 'data': {'plan': {'credit_limit_daily': 333, 'credit_limit_monthly': 10000,
+             'credit_limit_monthly_reset_timestamp': '2026-11-01T00:00:00.000Z'},
+             'usage': {'current_day': {'credits_used': 150, 'credits_left': 183}, 'current_month': {'credits_used': 880, 'credits_left': 9120.0}}}}
+        with mock.patch.object(zd, 'get_json', return_value=J) as g:
+            o = zd.cmc_key_info('k')
+        self.assertEqual((o['dz'], o['mies'], o['reset_m']), ([150, 183, 333], [880, 9120, 10000], '2026-11-01T00:00:00.000Z'))
+        self.assertTrue(g.call_args[0][0].endswith('/v1/key/info')); self.assertEqual(g.call_args[0][1]['X-CMC_PRO_API_KEY'], 'k')
+        with mock.patch.object(zd, 'get_json', return_value={'status': {'error_code': 1002, 'error_message': 'bad key'}}):
+            self.assertRaises(RuntimeError, zd.cmc_key_info, 'k')
+        with mock.patch.object(zd, 'get_json', return_value={'status': {}, 'data': {'plan': 'x', 'usage': {'current_day': {'credits_used': True}}}}):
+            self.assertRaises(RuntimeError, zd.cmc_key_info, 'k')   # bez żadnej liczby — błąd, nie zera
+
+    def test_wpiecie(self):
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertIn('_ZUZ.clear()', src)
+        self.assertIn("META['zuzycie'] = zuzycie(pz, dict(_ZUZ), NOW, {'cmc': dc} if dc else None)", src)
+        self.assertLess(src.index('dc = _zuz_dost_cmc('), src.index("META['zuzycie'] = zuzycie("), 'raport dostawcy przed licznikiem — samo zapytanie też się liczy')
+        self.assertLess(src.index("META['zuzycie'] = zuzycie("), src.index("save('meta', META)"))
+        self.assertLess(src.index('    pm = {}\n'), src.index("pm = previous('meta') or {}"), 'pm istnieje, nawet gdy odczyt poprzedniego stanu zawiedzie')
+        for f in (zd.get, zd.get_bytes):
+            self.assertIn('_zuz_licz(url, headers)', inspect.getsource(f))
+
+
+class KontrolaZuzycieV222(unittest.TestCase):
+    """v222: kontrola — zużycie planów z prognozą na miesiąc, ⚠️ od 80% prognozy, ❌ przy wyczerpaniu (z podpowiedzią „Co zrobić”)."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v222', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    @staticmethod
+    def M(at, **z):
+        return {'at': at, 'zuzycie': z}
+
+    def test_miesiac(self):
+        k = self.k
+        q = lambda nm, od='2026-10-06T07:30:00+00:00', m='2026-10': {'od': od, 'd': '2026-10-07', 'n': 10, 'm': m, 'nm': nm}  # noqa: E731
+        o = k.zuzycie_ocena(self.M('2026-10-07T07:30:00+00:00', cg=q(176)))
+        self.assertEqual(o['plany'], [{'k': 'cg', 'znak': '✅', 'tekst': 'CoinGecko (Demo) — zapytań w tym miesiącu (od 06.10.2026, 09:30): 176, '
+                                       'prognoza na miesiąc ok. 5 456 z limitu 10 000 (55%)'}])
+        self.assertEqual((o['uwagi'], o['bledy']), ([], []))
+        o = k.zuzycie_ocena(self.M('2026-10-07T07:30:00+00:00', cg=q(300)))   # 300 × 31 = 9 300
+        self.assertEqual(o['plany'][0]['znak'], '⚠️'); self.assertIn('zapas maleje', o['uwagi'][0])
+        self.assertIn('co zrobić: napisz do Claude „zmniejsz liczbę zapytań do CoinGecko”', o['uwagi'][0])
+        o = k.zuzycie_ocena(self.M('2026-10-07T07:30:00+00:00', cg=q(400)))   # 12 400
+        self.assertIn('ponad limit', o['uwagi'][0]); self.assertEqual(o['bledy'], [])
+        o = k.zuzycie_ocena(self.M('2026-10-30T07:30:00+00:00', cg=q(9600, od='2026-09-01T00:00:00+00:00')))
+        self.assertEqual(o['plany'][0]['znak'], '❌')
+        self.assertEqual(o['bledy'], ['limit planu CoinGecko (Demo) prawie wyczerpany: 9 600 z 10 000 zapytań w tym miesiącu (licznik automatu)'])
+        self.assertNotIn('(od ', o['plany'][0]['tekst'], 'licznik sprzed początku miesiąca — bez „od”')
+        o = k.zuzycie_ocena(self.M('2026-10-06T20:00:00+00:00', cg=q(90)))
+        self.assertTrue(o['plany'][0]['tekst'].endswith(': 90 (prognoza po pierwszej dobie liczenia)')); self.assertEqual(o['uwagi'], [])
+        o = k.zuzycie_ocena(self.M('2026-11-01T06:20:00+00:00', cg=q(7000)))
+        self.assertEqual(o['plany'][0], {'k': 'cg', 'tekst': 'CoinGecko (Demo) — brak licznika w tym miesiącu', 'znak': 'ℹ️'})
+        o = k.zuzycie_ocena(self.M('2026-02-02T00:00:00+00:00', cg=q(100, od='2026-02-01T00:00:00+00:00', m='2026-02')))
+        self.assertIn('ok. 2 800 z limitu', o['plany'][0]['tekst'], 'luty — 28 dni')
+
+    def test_doba(self):
+        k = self.k
+        q = lambda dp, od='2026-10-05T07:30:00+00:00': {'od': od, 'd': '2026-10-07', 'n': 84, 'm': '2026-10', 'nm': 1000, 'dp': dp}  # noqa: E731
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', td=q(['2026-10-06', 336])))
+        self.assertEqual(o['plany'], [{'k': 'td', 'znak': '✅', 'tekst': 'Twelve Data (Basic) — kredytów wczoraj (doba UTC): 336 z limitu 800 (42%); '
+                                       'w bieżącej dobie (od północy UTC): 84'}])
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', td=q(['2026-10-06', 700])))
+        self.assertEqual((o['plany'][0]['znak'], len(o['uwagi']), o['bledy']), ('⚠️', 1, []))
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', td=q(['2026-10-06', 812])))
+        self.assertEqual(o['plany'][0]['znak'], '❌')
+        self.assertEqual(o['bledy'], ['limit planu Twelve Data (Basic) wyczerpany wczoraj: 812 z 800 kredytów (licznik automatu) — część notowań mogła nie przyjść'])
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', td=q(['2026-10-06', 336], od='2026-10-06T07:30:00+00:00')))
+        self.assertIn('kredytów wczoraj: brak pełnej doby licznika', o['plany'][0]['tekst'], 'doba startu licznika niepełna')
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', td=q(['2026-10-05', 336])))
+        self.assertIn('brak pełnej doby licznika', o['plany'][0]['tekst'], 'doba sprzed przerwy w przebiegach to nie „wczoraj”')
+
+    def test_dostawca(self):
+        k = self.k
+        q = {'od': '2026-10-01T00:00:00+00:00', 'd': '2026-10-07', 'n': 40, 'm': '2026-10', 'nm': 900,
+             'dost': {'at': '2026-10-07T06:00:05+00:00', 'dz': [150, 183, 333], 'mies': [930, 9070, 10000]}}
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', cmc=q))
+        self.assertTrue(o['plany'][0]['tekst'].endswith('; według dostawcy w miesiącu: 930 z 10 000 (9%, stan 07.10.2026, 08:00)'))
+        self.assertEqual((o['plany'][0]['znak'], o['uwagi'], o['bledy']), ('✅', [], []))
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', cmc=dict(q, dost={'at': '2026-10-07T06:00:05+00:00', 'dz': [None] * 3, 'mies': [9600, 400, None]})))
+        self.assertEqual(o['plany'][0]['znak'], '❌'); self.assertIn('według dostawcy', o['bledy'][-1], 'limit z sumy: zużyte + zostało')
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', cmc=dict(q, dost={'at': '2026-10-07T06:00:05+00:00', 'blad': 'HTTP Error 403: Forbidden'})))
+        self.assertTrue(o['plany'][0]['tekst'].endswith('; raport dostawcy niedostępny (HTTP Error 403: Forbidden)')); self.assertEqual(o['bledy'], [])
+        o = k.zuzycie_ocena(self.M('2026-10-07T06:20:00+00:00', cmc=dict(q, dost={'at': '2026-10-07T06:00:05+00:00', 'dz': [340, 0, 333], 'mies': 'x'})))
+        self.assertEqual(o['plany'][0]['znak'], '⚠️'); self.assertIn('dzienny limit wyczerpany', o['uwagi'][-1])
+
+    def test_raport_i_wpiecie(self):
+        k = self.k
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn('zu = zuzycie_ocena(m)', src)
+        R = {'at': '2026-10-07T06:20:00+00:00', 'wynik': 'UWAGA', 'meta': {}, 'uwagi': ['x'], 'bledy': [],
+             'zuzycie': {'plany': [{'k': 'cg', 'tekst': 'A', 'znak': '✅'}, {'k': 'td', 'tekst': 'B', 'znak': '⚠️'}], 'uwagi': [], 'bledy': []}}
+        self.assertIn('\n- Zużycie darmowych planów (licznik automatu — dolna granica): A ✅; B ⚠️.\n', k.raport_md(R))
+        R['zuzycie'] = {'plany': [], 'uwagi': [], 'bledy': []}
+        self.assertNotIn('Zużycie darmowych planów', k.raport_md(R))
+        h = k.co_zrobic(['limit planu Twelve Data (Basic) wyczerpany wczoraj: 812 z 800 kredytów (licznik automatu) — część notowań mogła nie przyjść'])
+        self.assertEqual(len(h), 1); self.assertIn('„zmniejsz liczbę zapytań — limit planu z kontroli”', h[0])
+        self.assertIsNone(k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00'})); self.assertIsNone(k.zuzycie_ocena(None))
+        self.assertIsNone(k.zuzycie_ocena({'at': 'x', 'zuzycie': {}}))
+        self.assertEqual(k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00', 'zuzycie': {'cg': 'x', 'td': {'od': 'zly'}}}), {'plany': [], 'uwagi': [], 'bledy': []})

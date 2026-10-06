@@ -90,7 +90,39 @@ def mask(text):
     return text
 
 
+import threading as _zuz_th, urllib.parse as _zuz_parse   # v222: blokada licznika (części w wątkach) i rozbiór adresu (biblioteka standardowa)
+
+ZUZ_PLANY = {'cg': ('api.coingecko.com', 'x-cg-demo-api-key'),   # v222: darmowe plany z limitem — host i nagłówek klucza (bez klucza = nie z planu)
+             'cmc': ('pro-api.coinmarketcap.com', None),
+             'td': ('api.twelvedata.com', None)}                # Twelve Data: kredyty = liczba symboli w zapytaniu
+ZUZ_DOST_H = 6        # v222: raport zużycia od dostawcy (CoinMarketCap) najwyżej raz na blok 6 godzin UTC
+_ZUZ = {}             # v222: zapytania tego przebiegu do planów z limitem (td: kredyty)
+_ZUZ_LOCK = _zuz_th.Lock()
+
+
+def _zuz_licz(url, headers=None):
+    """v222: zapytanie do darmowego planu z limitem → licznik tego przebiegu. CoinGecko tylko z kluczem w nagłówku (zapytanie bez klucza nie
+    zużywa planu), Twelve Data: kredyty = liczba symboli w parametrze symbol. Licznik nigdy nie przerywa zapytania."""
+    try:
+        u = _zuz_parse.urlsplit(url)
+        for k, (host, hdr) in ZUZ_PLANY.items():
+            if u.hostname != host:
+                continue
+            if hdr and not any(str(h).lower() == hdr and v for h, v in (headers or {}).items()):
+                return
+            n = 1
+            if k == 'td':
+                s = _zuz_parse.parse_qs(u.query).get('symbol')
+                n = max(1, len([x for x in s[0].split(',') if x.strip()])) if s else 1
+            with _ZUZ_LOCK:
+                _ZUZ[k] = _ZUZ.get(k, 0) + n
+            return
+    except Exception:
+        return
+
+
 def get(url, headers=None, timeout=30):
+    _zuz_licz(url, headers)   # v222: licznik zużycia planów z limitem
     req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', **(headers or {})})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.status, r.read().decode('utf-8', 'replace')
@@ -102,6 +134,7 @@ def get_json(url, headers=None, timeout=30):
 
 
 def get_bytes(url, headers=None, timeout=60):
+    _zuz_licz(url, headers)   # v222: licznik zużycia planów z limitem
     req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', **(headers or {})})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
@@ -730,6 +763,90 @@ def build_cmc(key):
     if out['total_mcap'] is None:
         raise RuntimeError('CoinMarketCap: brak total_market_cap')
     return out
+
+
+def _zuz_n(v):
+    """v222: liczba zapytań — całkowita ≥ 0 (bool, ułamek, tekst = None)."""
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+
+
+def _zuz_para(x):
+    return isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and _zuz_n(x[1]) is not None
+
+
+def zuzycie(prev, run, now, dost=None):
+    """v222: licznik zapytań automatu do darmowych planów z limitem, narastająco między przebiegami (doba i miesiąc UTC).
+    → {'cg'|'cmc'|'td': {'od': początek licznika, 'd': doba, 'n': zapytania doby (td: kredyty), 'm': miesiąc, 'nm': w miesiącu,
+    'dp': [poprzednia doba, n], 'mp': [poprzedni miesiąc, nm][, 'dost': raport dostawcy]}}. Dolna granica: przebieg, którego plik stanu
+    nie trafił ani do pamięci Actions, ani na stronę, nie dolicza się (następny liczy od starszego stanu). Złe pole poprzedniego stanu = od zera."""
+    p = prev if isinstance(prev, dict) else {}
+    d, m = now[:10], now[:7]
+    out = {}
+    for k in ZUZ_PLANY:
+        q = p.get(k) if isinstance(p.get(k), dict) else {}
+        r = _zuz_n((run or {}).get(k)) or 0
+        qn, qm = _zuz_n(q.get('n')), _zuz_n(q.get('nm'))
+        qd = q.get('d') if isinstance(q.get('d'), str) else ''
+        qmm = q.get('m') if isinstance(q.get('m'), str) else ''
+        o = {'od': q['od'] if isinstance(q.get('od'), str) and _aw_t(q['od']) else now,
+             'd': d, 'n': (qn if qd == d and qn is not None else 0) + r,
+             'm': m, 'nm': (qm if qmm == m and qm is not None else 0) + r}
+        if qd and qd < d and qn is not None:
+            o['dp'] = [qd, qn]
+        elif _zuz_para(q.get('dp')):
+            o['dp'] = q['dp']
+        if qmm and qmm < m and qm is not None:
+            o['mp'] = [qmm, qm]
+        elif _zuz_para(q.get('mp')):
+            o['mp'] = q['mp']
+        if isinstance(dost, dict) and isinstance(dost.get(k), dict):
+            o['dost'] = dost[k]
+        out[k] = o
+    return out
+
+
+def _zuz_blok(t):
+    """v222: czas ISO (UTC) → blok ZUZ_DOST_H godzin 'RRRR-MM-DD/b'; zły zapis = None."""
+    try:
+        return f'{str(t)[:10]}/{int(str(t)[11:13]) // ZUZ_DOST_H}'
+    except (TypeError, ValueError):
+        return None
+
+
+def cmc_key_info(key):
+    """v222: zużycie planu według samego dostawcy (/v1/key/info — wg dokumentacji bez kosztu kredytów; liczy się tylko do limitu minutowego).
+    → {'at', 'dz': [zużyte, zostało, limit doby], 'mies': [zużyte, zostało, limit miesiąca][, 'reset_m']}; brak liczby = None (nigdy 0)."""
+    j = get_json(f'{CMC}/v1/key/info', {'X-CMC_PRO_API_KEY': key, 'Accept': 'application/json'}, timeout=15)
+    st = j.get('status') or {}
+    if st.get('error_code') not in (None, 0):
+        raise RuntimeError(f'CoinMarketCap: {st.get("error_code")} {st.get("error_message")}')
+    dd = lambda o, k: o.get(k) if isinstance(o.get(k), dict) else {}  # noqa: E731
+    d = dd(j, 'data')
+    pl, us = dd(d, 'plan'), dd(d, 'usage')
+    cd, cm = dd(us, 'current_day'), dd(us, 'current_month')
+    n = lambda v: int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 else None  # noqa: E731
+    out = {'at': NOW, 'dz': [n(cd.get('credits_used')), n(cd.get('credits_left')), n(pl.get('credit_limit_daily'))],
+           'mies': [n(cm.get('credits_used')), n(cm.get('credits_left')), n(pl.get('credit_limit_monthly'))]}
+    if pl.get('credit_limit_monthly_reset_timestamp'):
+        out['reset_m'] = str(pl['credit_limit_monthly_reset_timestamp'])[:25]
+    if all(x is None for x in out['dz'] + out['mies']):
+        raise RuntimeError('CoinMarketCap: raport zużycia bez liczb')
+    return out
+
+
+def _zuz_dost_cmc(prev, key, now):
+    """v222: raport dostawcy CoinMarketCap — nowy najwyżej raz na blok ZUZ_DOST_H godzin (także po nieudanej próbie: bez ponawiania co przebieg);
+    w tym samym bloku poprzedni raport bez zmian; bez klucza = None."""
+    if not key:
+        return None
+    q = prev.get('cmc') if isinstance(prev, dict) and isinstance(prev.get('cmc'), dict) else {}
+    st = q.get('dost') if isinstance(q.get('dost'), dict) else None
+    if st and _zuz_blok(st.get('at')) == _zuz_blok(now):
+        return st
+    try:
+        return cmc_key_info(key)
+    except Exception as e:
+        return {'at': now, 'blad': mask(str(e))[:120]}
 
 
 def parse_fred(j, sid):
@@ -18680,6 +18797,7 @@ def main():
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
     _RUN_T0[0] = time.monotonic()      # v95.2: historia wstecz tylko, gdy przebieg nie jest już długi
     _CZAS.clear()                      # v185: czas części tego przebiegu
+    _ZUZ.clear()                       # v222: licznik zużycia planów — od zera w każdym przebiegu (stan narastający w meta.json)
     _BACK_LATE_NOTE[0] = False
     soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
     cg_key = os.environ.get('COINGECKO_KEY', '').strip()
@@ -19370,12 +19488,19 @@ def main():
     if META['czas']['s'] > CZAS_UWAGA_S:
         META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "
                              + ', '.join(f'{n} {s} s' for n, s in META['czas']['top'][:3]))
+    pm = {}
     try:   # v207: pamięć awarii części między przebiegami (kontrola dzienna: od kiedy nie działa, co naprawiło się samo); awaria = bez pola
         pm = previous('meta') or {}
         META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW)
         META['awarie_od'] = pm['awarie_od'] if 'awarie' in pm and _aw_t(pm.get('awarie_od')) else NOW   # v211: początek pamięci (raport: „pamięć od …”)
     except Exception as e:
         META['notes'].append(f'pamięć awarii: {e}')
+    try:   # v222: licznik zużycia darmowych planów z limitem (doba i miesiąc UTC) i raport dostawcy co 6 h — kontrola dzienna ostrzega z wyprzedzeniem
+        pz = pm.get('zuzycie') if isinstance(pm, dict) else None
+        dc = _zuz_dost_cmc(pz, cmc_key, NOW)          # przed licznikiem: samo zapytanie o raport też się liczy
+        META['zuzycie'] = zuzycie(pz, dict(_ZUZ), NOW, {'cmc': dc} if dc else None)
+    except Exception as e:
+        META['notes'].append(f'licznik zużycia planów: {e}')
     META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')

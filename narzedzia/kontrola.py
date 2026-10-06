@@ -278,6 +278,9 @@ CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez 
     (re.compile(r': dane z .* temu \('),
      'Dane źródła są dużo starsze niż zwykle (ponad dwa razy dłużej niż norma; weekendy już odliczone) — źródło przestało publikować '
      '(np. przerwa w pracy urzędu) albo automat nie może ich pobrać. Napisz do Claude: „sprawdź źródło z kontroli”.'),
+    (re.compile(r'^limit planu '),   # v222: licznik zużycia darmowych planów
+     'Darmowy plan jednego źródła danych jest (prawie) wyczerpany — część liczb może chwilowo zniknąć, aż limit się odnowi (o północy UTC '
+     'albo z nowym miesiącem); nic nie psuje się na stałe. Napisz do Claude: „zmniejsz liczbę zapytań — limit planu z kontroli”.'),
 )
 CO_ZROBIC_INNE = 'Napisz do Claude: „sprawdź błąd z kontroli” — w raporcie niżej jest jego treść.'
 
@@ -762,6 +765,99 @@ def _wh_rozb(a, b):
         delta = (u - u0) * (usd / u)
         sp = int(row[8]) - int(prev[8]) if row[8].isdigit() and prev[8].isdigit() else None
         out[k] = (delta, net, abs(delta - net), sp)
+    return out
+
+
+ZUZ_PLANY = (('cg', 'CoinGecko (Demo)', 'mies', 10000, 'zapytań'),        # v222: limity darmowych planów (stan 06.10.2026; inny plan = zmiana tutaj)
+             ('cmc', 'CoinMarketCap (Basic)', 'mies', 10000, 'zapytań'),
+             ('td', 'Twelve Data (Basic)', 'doba', 800, 'kredytów'))
+ZUZ_UWAGA = 0.8       # v222: prognoza miesiąca albo wczorajsza doba ≥ 80% limitu = ⚠️
+ZUZ_BLAD = 0.95       # v222: zużyte w miesiącu ≥ 95% limitu albo wczoraj ≥ 100% limitu doby = ❌
+ZUZ_PROG_H = 24       # v222: prognoza miesiąca dopiero po dobie liczenia
+
+
+def _zuz_l(n):
+    return f'{n:,.0f}'.replace(',', ' ')
+
+
+def _zuz_ok(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def zuzycie_ocena(meta):
+    """v222: licznik zużycia darmowych planów (meta.json → zuzycie) → {'plany': [{'k', 'tekst', 'znak'}], 'uwagi', 'bledy'}; plik bez pola
+    (zbieracz sprzed v222) albo bez czasu = None. Liczby automatu to dolna granica (przebieg bez zapisu stanu nie dolicza się); CoinMarketCap
+    także według samego dostawcy (raport co 6 h). Miesiąc i doba — kalendarz UTC."""
+    z = meta.get('zuzycie') if isinstance(meta, dict) else None
+    at = _aw_t(meta.get('at')) if isinstance(meta, dict) else None
+    if not isinstance(z, dict) or at is None:
+        return None
+    out = {'plany': [], 'uwagi': [], 'bledy': []}
+    for k, nazwa, okres, lim, jedn in ZUZ_PLANY:
+        q = z.get(k) if isinstance(z.get(k), dict) else None
+        od = _aw_t(q.get('od')) if q else None
+        if od is None:
+            continue
+        krotko, znak = nazwa.split(' (')[0], '✅'
+        rada = f'co zrobić: napisz do Claude „zmniejsz liczbę zapytań do {krotko}”'
+        if okres == 'mies':
+            ms = at.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if q.get('m') != at.strftime('%Y-%m') or not _zuz_ok(q.get('nm')):
+                out['plany'].append({'k': k, 'tekst': f'{nazwa} — brak licznika w tym miesiącu', 'znak': 'ℹ️'})
+                continue
+            nm, start = q['nm'], max(ms, od)
+            t = f'{nazwa} — {jedn} w tym miesiącu' + (f' (od {czas_pl(od.isoformat())})' if od > ms else '') + f': {_zuz_l(nm)}'
+            h = (at - start).total_seconds() / 3600
+            if h >= ZUZ_PROG_H:
+                dni = ((ms + dt.timedelta(days=32)).replace(day=1) - ms).days
+                prog = nm / h * dni * 24
+                t += f', prognoza na miesiąc ok. {_zuz_l(prog)} z limitu {_zuz_l(lim)} ({prog / lim * 100:.0f}%)'
+                if prog >= ZUZ_UWAGA * lim:
+                    znak = '⚠️'
+                    out['uwagi'].append(f'{nazwa}: prognoza zużycia planu w miesiącu ok. {_zuz_l(prog)} z {_zuz_l(lim)} {jedn} — '
+                                        + ('ponad limit' if prog >= lim else 'zapas maleje') + f'; {rada}')
+            else:
+                t += ' (prognoza po pierwszej dobie liczenia)'
+            if nm >= ZUZ_BLAD * lim:
+                znak = '❌'
+                out['bledy'].append(f'limit planu {nazwa} prawie wyczerpany: {_zuz_l(nm)} z {_zuz_l(lim)} {jedn} w tym miesiącu (licznik automatu)')
+        else:
+            dp, wcz = q.get('dp'), (at - dt.timedelta(days=1)).strftime('%Y-%m-%d')
+            if isinstance(dp, list) and len(dp) == 2 and dp[0] == wcz and _zuz_ok(dp[1]) and dp[0] > od.strftime('%Y-%m-%d'):
+                t = f'{nazwa} — {jedn} wczoraj (doba UTC): {_zuz_l(dp[1])} z limitu {_zuz_l(lim)} ({dp[1] / lim * 100:.0f}%)'
+                if dp[1] >= lim:
+                    znak = '❌'
+                    out['bledy'].append(f'limit planu {nazwa} wyczerpany wczoraj: {_zuz_l(dp[1])} z {_zuz_l(lim)} {jedn} (licznik automatu) — '
+                                        'część notowań mogła nie przyjść')
+                elif dp[1] >= ZUZ_UWAGA * lim:
+                    znak = '⚠️'
+                    out['uwagi'].append(f'{nazwa}: wczoraj {_zuz_l(dp[1])} z {_zuz_l(lim)} {jedn} limitu doby — zapas maleje; {rada}')
+            else:
+                t = f'{nazwa} — {jedn} wczoraj: brak pełnej doby licznika'
+            if q.get('d') == at.strftime('%Y-%m-%d') and _zuz_ok(q.get('n')):
+                t += f'; w bieżącej dobie (od północy UTC): {_zuz_l(q["n"])}'
+        ds = q.get('dost') if isinstance(q.get('dost'), dict) else None
+        if ds and ds.get('blad'):
+            t += f'; raport dostawcy niedostępny ({str(ds["blad"])[:80]})'
+        elif ds:
+            def trzy(x):
+                return (list(x) + [None] * 3)[:3] if isinstance(x, list) else [None] * 3
+            u, left, lm = trzy(ds.get('mies'))
+            lm = lm if _zuz_ok(lm) and lm > 0 else (u + left if _zuz_ok(u) and _zuz_ok(left) and u + left > 0 else None)
+            if _zuz_ok(u) and lm:
+                t += f'; według dostawcy w miesiącu: {_zuz_l(u)} z {_zuz_l(lm)} ({u / lm * 100:.0f}%, stan {czas_pl(ds.get("at"))})'
+                if u >= ZUZ_BLAD * lm:
+                    znak = '❌'
+                    out['bledy'].append(f'limit planu {nazwa} prawie wyczerpany według dostawcy: {_zuz_l(u)} z {_zuz_l(lm)} w tym miesiącu')
+                elif u >= ZUZ_UWAGA * lm:
+                    znak = '❌' if znak == '❌' else '⚠️'
+                    out['uwagi'].append(f'{nazwa}: według dostawcy zużyto {_zuz_l(u)} z {_zuz_l(lm)} w tym miesiącu — zapas maleje; {rada}')
+            du, dleft, dlm = trzy(ds.get('dz'))
+            if _zuz_ok(du) and _zuz_ok(dlm) and dlm > 0 and du >= dlm:
+                znak = '❌' if znak == '❌' else '⚠️'
+                out['uwagi'].append(f'{nazwa}: według dostawcy dzienny limit wyczerpany ({_zuz_l(du)} z {_zuz_l(dlm)}, stan {czas_pl(ds.get("at"))}) — '
+                                    f'część liczb może poczekać do północy UTC; {rada}')
+        out['plany'].append({'k': k, 'tekst': t, 'znak': znak})
     return out
 
 
@@ -2264,6 +2360,10 @@ def kontrola():
         if aw is not None:
             R['awarie'] = aw
             R['uwagi'] += aw['uwagi']; R['bledy'] += aw['bledy']
+        zu = zuzycie_ocena(m)   # v222: licznik zużycia darmowych planów (None = zbieracz sprzed v222)
+        if zu is not None:
+            R['zuzycie'] = zu
+            R['uwagi'] += zu['uwagi']; R['bledy'] += zu['bledy']
     except Exception as e:  # noqa
         R['meta'] = {'blad': str(e)[:200]}
         R['bledy'].append(f'plik stanu (meta.json) nie odpowiada: {str(e)[:120]}')
@@ -2680,6 +2780,9 @@ def raport_md(R):
         if aw.get('zniknely'):   # v211: seria zamknięta, bo część nie pojawia się w przebiegach (wyłączona albo zmieniona) — nie awaria, nie naprawa
             L.append('- Zniknęły z przebiegów (24 h; część wyłączona albo zmieniona — nie awaria): ' + '; '.join(
                 f'{x["czesc"]} — ostatnia nieudana próba {czas_pl(x["ost"])} (nieudanych przebiegów: {x["n"]}) ℹ️' for x in aw['zniknely']) + '.')
+    zu = R.get('zuzycie') if isinstance(R.get('zuzycie'), dict) else None   # v222: zużycie darmowych planów z limitem
+    if zu and zu.get('plany'):
+        L.append('- Zużycie darmowych planów (licznik automatu — dolna granica): ' + '; '.join(f'{p["tekst"]} {p["znak"]}' for p in zu['plany']) + '.')
     if m.get('notes'):
         L.append('- Notatki automatu: ' + ' · '.join(m['notes']) + '.')
     if R.get('swiezosc'):
