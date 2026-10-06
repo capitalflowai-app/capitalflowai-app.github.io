@@ -29151,27 +29151,37 @@ class PoPrzegladzieV264(unittest.TestCase):
 
 # ===================== v265: xSTOCKS — LISTA DŁUŻSZA NIŻ STRONA ODPOWIEDZI =====================
 class XstocksOgonV265(unittest.TestCase):
-    """v265: 06.10 lista emitenta 1271 tokenów (strona 1000, dalsze strony — błąd serwera): odczyt przyjęty, gdy górna granica reszty listy
-    (reszta × największy z 10 ostatnich tokenów z rezerwą) ≤ 0,5% sumy — pole 'ogon'; większa — błąd jak dotąd."""
+    """v265/v267: lista emitenta dłuższa niż strona odpowiedzi (06.10: 1271 tokenów, strona 1000, dalsze strony — błąd serwera): granica reszty
+    = (totalNodes − na stronie) × największy z 50 ostatnich tokenów z rezerwą × 2 (zapas); ≤ 0,5% sumy — odczyt z polem 'ogon'; większa — błąd.
+    v267: zawsze, gdy totalNodes > tokeny na stronie (także strona kończąca się tokenem bez rezerwy albo niepełna)."""
 
     FX = {'d': '2026-10-06', 'rates': {'HKD': 7.78, 'GBP': 0.75}}
 
-    def _lista(self, n_duze, n_male, male_usd):
+    def _lista(self, n_duze, n_male, male_usd, zero_na_koncu=False):
         N = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', '2026-10-06T18:00:00Z') for i in range(n_duze)]   # 100 mln USD każdy
         N += [_rwe170_xn(f'S{i}x', 1, male_usd * 100, 'USD', '2026-10-06T18:00:00Z') for i in range(n_male)]
+        if zero_na_koncu:
+            N.append(_rwe170_xn('ZEROx', 0, 100, 'USD', '2026-10-06T18:00:00Z'))
         return N
 
     def test_reszta_mala_przyjeta(self):
-        N = self._lista(9, 11, 389)   # 900 mln USD + 11 × 389 USD; strona 20 tokenów, wszystkich 291 (reszta 271)
-        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 15, 'totalNodes': 291}
-        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 20}):
+        N = self._lista(9, 60, 389)   # 900 mln USD + 60 × 389 USD; strona 69, wszystkich 340 (reszta 271)
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 5, 'totalNodes': 340}
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 69}):
             r = zd.rwe_xs_parse(j, self.FX)
-        self.assertEqual(r['ogon'], {'n': 271, 'max_usd': 105419}, 'przegląd 06.10: reszta 271 tokenów ≤ 271 × 389 USD')
-        self.assertAlmostEqual(r['v'], 9 * 100000000 + 11 * 389, places=2)
-        self.assertEqual(r['n'], 20)
+        self.assertEqual(r['ogon'], {'n': 271, 'max_usd': 210838}, 'reszta 271 × 389 USD × 2 (zapas)')
+        self.assertAlmostEqual(r['v'], 9 * 100000000 + 60 * 389, places=2)
+
+    def test_strona_konczy_sie_bez_rezerwy_albo_niepelna(self):
+        N = self._lista(9, 60, 389, zero_na_koncu=True)
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 5, 'totalNodes': 341}
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 70}):
+            self.assertEqual(zd.rwe_xs_parse(j, self.FX)['ogon'], {'n': 271, 'max_usd': 210838}, 'przegląd: strona kończąca się tokenem bez rezerwy — dawniej „pełna lista”')
+        j = _rwe170_xs(self._lista(9, 60, 389)); j['data']['tokens']['page'] = {'totalPages': 1, 'totalNodes': 1271}
+        self.assertEqual(zd.rwe_xs_parse(j, self.FX)['ogon']['n'], 1202, 'przegląd: serwer oddał mniej niż stronę przy totalNodes 1271')
 
     def test_reszta_duza_blad(self):
-        N = self._lista(2, 10, 1000000)   # ostatnie tokeny po 1 mln USD — reszta 271 × 1 mln ≫ 0,5% sumy
+        N = self._lista(2, 10, 1000000)   # ostatnie tokeny po 1 mln USD — reszta ≫ 0,5% sumy
         j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 25, 'totalNodes': 283}
         with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
             with self.assertRaises(ValueError) as c:
@@ -29184,14 +29194,14 @@ class XstocksOgonV265(unittest.TestCase):
         self.assertIn('bez liczby wszystkich tokenów', str(c.exception))
 
     def test_lista_miesci_sie_bez_pola(self):
-        N = self._lista(3, 2, 500)
-        r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX)
+        r = zd.rwe_xs_parse(_rwe170_xs(self._lista(3, 2, 500)), self.FX)
         self.assertNotIn('ogon', r)
 
 
-# ===================== v266: ARGENTYNA — ODCZYTY Z RÓŻNYCH GODZIN =====================
+# ===================== v266 → v267: ARGENTYNA — PORÓWNANIE BEZ ODSTĘPU ZE ZNACZNIKÓW =====================
 class ArgentynaOdstepV266(unittest.TestCase):
-    """v266: dwa odczyty dalej od siebie niż 1 h — próg „dużej różnicy” (1,5% / 4%), odstęp w opisie i w uwadze; z tej samej godziny — jak dotąd."""
+    """v267 (przegląd v266): znaczniki drugiego źródła są o ok. 3 h „wcześniejsze” (czas Buenos Aires oznaczony jako UTC) — odstępu z nich nie
+    liczymy; oba odczyty pobierane w tym samym przebiegu, próg pary jak przed v266."""
 
     @classmethod
     def setUpClass(cls):
@@ -29199,22 +29209,48 @@ class ArgentynaOdstepV266(unittest.TestCase):
         spec = importlib.util.spec_from_file_location('v266_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
         cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
 
-    def _dl(self, q, amb):
-        return {'ar': {'q': {'blue': q}, 'amb': {'blue': amb}}}
-
-    def test_06_10_blue(self):
+    def test_06_10_blue_jak_przed_v266(self):
         k = self.k
-        Z = k.dolar_porownanie(self._dl([1530, 1550, '2026-10-06T19:56:00Z'], [1520, 1540, '2026-10-06T17:00:00Z']), None,
+        Z = k.dolar_porownanie({'ar': {'q': {'blue': [1530, 1550, '2026-10-06T19:56:00Z']}, 'amb': {'blue': [1520, 1540, '2026-10-06T17:00:00Z']}}}, None,
                                datetime.datetime(2026, 10, 6, 20, 33, tzinfo=datetime.timezone.utc))
         P = next(P for P in Z['pary'] if P['kurs'] == 'blue')
-        self.assertEqual((P['status'], P['roznica_pct'], P['odstep_h']), ('✅', 0.65, 2.9), 'przegląd 06.10: ruch rynku w 2,9 h, nie błąd')
-        self.assertFalse(any('kurs blue' in u for u in Z['uwagi']))
-        self.assertIn('blue ✅ 0.65% (odczyty 2.9 h od siebie)', Z['opis'])
-        Z = k.dolar_porownanie(self._dl([1530, 1600, '2026-10-06T19:56:00Z'], [1520, 1540, '2026-10-06T17:00:00Z']), None,
-                               datetime.datetime(2026, 10, 6, 20, 33, tzinfo=datetime.timezone.utc))
-        self.assertTrue(any(u.startswith('Argentyna, kurs blue: dwa odczyty różnią się o 3.90% (próg 1.5%, odczyty 2.9 h od siebie; ponad 1.5% — duża różnica')
-                            for u in Z['uwagi']), Z['uwagi'])
-        Z = k.dolar_porownanie(self._dl([1530, 1550, '2026-10-06T19:56:00Z'], [1520, 1540, '2026-10-06T19:30:00Z']), None,
-                               datetime.datetime(2026, 10, 6, 20, 33, tzinfo=datetime.timezone.utc))
-        self.assertIn('Argentyna, kurs blue: dwa odczyty różnią się o 0.65% (próg 0.5%)', Z['uwagi'], 'ta sama godzina — próg jak dotąd')
+        self.assertEqual((P['status'], P['roznica_pct']), ('⚠️', 0.65)); self.assertNotIn('odstep_h', P)
+        self.assertIn('Argentyna, kurs blue: dwa odczyty różnią się o 0.65% (próg 0.5%)', Z['uwagi'])
+        self.assertFalse(hasattr(k, 'DL_ODSTEP_H'), 'przegląd: odstęp ze znaczników drugiego źródła był zawsze ok. 3 h')
+
+
+# ===================== v267: POPRAWKI PO PRZEGLĄDZIE v264–v266 =====================
+class PoPrzegladzieV267(unittest.TestCase):
+    """v267: reszta listy xStocks w rwa.json i w kontroli (informacja); zacięty indeks z ostrzeżeniem także przy opóźnionym dostawcy."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola267-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v267_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def test_ogon_w_bloku_i_w_kontroli(self):
+        import inspect
+        src = inspect.getsource(zd.rwe_blok)
+        self.assertEqual(src.count("'cz', 'cur', 'ogon')"), 2, 'przegląd: rwe_blok przepuszczał tylko znane pola — ogon ginął')
+        k = self.k
+        j = {'issuer': {'at': '2026-10-06T21:06:00+00:00', 'ok': True, 'used': {'xstocks': 936093867.0},
+                        'p': {'xstocks': {'name': 'xStocks', 'v': 936093867.0, 'stan': 'w', 'full': True, 'ogon': {'n': 271, 'max_usd': 1134623}}}}}
+        Z = k.rwe_porownanie(j)
+        self.assertIn('xStocks: reszta listy emitenta poza odczytem (271 tokenów) najwyżej 1.13 mln USD (0.121% wartości) ℹ️', Z['opis'])
+        self.assertEqual(Z['uwagi'], [])
+
+    def test_zaciety_indeks_przy_opoznionym_dostawcy(self):
+        k = self.k
+        syms = ['GSPC', 'IXIC', 'DJI', 'GSPTSE', 'BVSP', 'MXX', 'GDAXI', 'FCHI', 'IBEX', 'AEX', 'SSMI', 'OMXS30', 'TA125', 'XU100',
+                'N225', 'KS11', 'HSI', 'SSEC', 'BSESN', 'AXJO', 'JKSE']
+        ix = {s: {'cc': 'x', 'd': [['2026-01-02', 1.0], ['2026-09-22', 2.0]]} for s in syms}
+        ix['WIG20'] = {'cc': 'pl', 'd': [['2026-01-02', 1.0], ['2026-09-01', 2.0]]}
+        ix['FTSE'] = {'cc': 'gb', 'src': 'fmp', 'd': [['2026-09-24', 3.0]]}
+        o = k.indeksy_ocena(ix, now=datetime.datetime(2026, 9, 25, 6, 20, tzinfo=datetime.timezone.utc))
+        self.assertEqual(o['stare'], [('WIG20', '2026-09-01', 15)], 'przegląd: WIG20 ginął w „(+14)” bez ostrzeżenia')
+        self.assertEqual(len(o['opoznione']), 21)
+        self.assertTrue(any(u.startswith('indeksy giełdowe: WIG20 bez nowych sesji od 2026-09-01') for u in k.indeksy_uwagi(o)))
 

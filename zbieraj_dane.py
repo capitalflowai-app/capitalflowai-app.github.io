@@ -18634,7 +18634,8 @@ RWE_RAZY_REF = 10.0       # v175: pasmo wobec ostatnio znanej wartości źródł
                           # liczenia u części produktów to norma (05.10: STAC 2,7×, xStocks 2,1×); łapie błędy jednostek (×1000, ×10^6)
 RWE_FX_MAX_D = 7          # dni — kurs z pliku rynki starszy = klasy w tej walucie bez wyceny (produkt bez wyceny w tym odczycie)
 RWE_MIN_SHARE = 0.01      # część produktu (klasa, token) poniżej 1% wartości nie wyznacza chwili stanu (maleńkie klasy z rzadką wyceną)
-RWE_XS_OGON_K = 10        # v265: xStocks — tyle ostatnich tokenów z rezerwą na stronie wyznacza górną granicę wartości tokenu z dalszej części listy
+RWE_XS_OGON_K = 50        # v265/v267: xStocks — tyle ostatnich tokenów z rezerwą na stronie wyznacza wartość tokenu z dalszej części listy
+RWE_XS_OGON_ZAPAS = 2     # v267 (przegląd v265): zapas — kolejność emitenta wg jego „aum”, nie wg rezerwa × cena (FCNCAx 5,5× sąsiadów, HKD jak USD)
 RWE_XS_OGON_PROC = 0.5    # v265: % — górna granica pominiętej reszty listy do tylu procent sumy = odczyt przyjęty (pole 'ogon'); więcej = błąd
 RWE_OTHER_MAX = 0.005     # cfg: tokeny w pulach innej waluty (bez kursu): do 0,5% wartości pominięte z notatką, więcej = produkt bez wyceny
 RWE_HD_DAYS = 31          # dni zapisu „co liczyliśmy wg emitentów” (kontrola: skok sumy przy zmianie zbioru)
@@ -18994,13 +18995,14 @@ def rwe_xs_parse(j, fx):
     pg = data['tokens'].get('page') if isinstance(data['tokens'].get('page'), dict) else {}
     tn = pg.get('totalNodes') if isinstance(pg.get('totalNodes'), int) and not isinstance(pg.get('totalNodes'), bool) else None
     ogon = None
-    if len(N) >= RWE_XS_VAR['pageSize'] and last_sh and not (tn is not None and tn <= len(N)):
-        # v265: lista dłuższa niż strona (06.10: 1271 tokenów; dalsze strony — błąd serwera emitenta). Kolejność od największych (aktywa
-        # malejąco), więc każdy dalszy token jest mniejszy od ostatnich na stronie: reszta ≤ (totalNodes − na stronie) × największy z ostatnich.
+    if (tn is not None and tn > len(N)) or (tn is None and len(N) >= RWE_XS_VAR['pageSize'] and last_sh):
+        # v265/v267: lista dłuższa niż odczytana strona (06.10: 1271 tokenów; dalsze strony — błąd serwera emitenta). Kolejność od największych
+        # (aktywa emitenta malejąco): reszta ≤ (totalNodes − na stronie) × największy z RWE_XS_OGON_K ostatnich × RWE_XS_OGON_ZAPAS. v267 (przegląd):
+        # zawsze, gdy totalNodes > tokeny na stronie (także strona kończąca się tokenem bez rezerwy albo niepełna); bez totalNodes — dawna reguła.
         ost = [x for x, _d in V[-RWE_XS_OGON_K:]]
         if tn is None or not ost:
             raise ValueError('tokeny z rezerwą także poza stroną 0 (bez liczby wszystkich tokenów)')
-        gr = (tn - len(N)) * max(ost)
+        gr = (tn - len(N)) * max(ost) * RWE_XS_OGON_ZAPAS
         if tot <= 0 or gr > RWE_XS_OGON_PROC / 100 * tot:
             raise ValueError(f'tokeny z rezerwą także poza stroną 0 — górna granica reszty listy {gr:,.0f} USD ponad {RWE_XS_OGON_PROC:g}% sumy')
         ogon = {'n': tn - len(N), 'max_usd': round(gr)}
@@ -19129,7 +19131,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
         err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else (None if isinstance(cur, dict) else 'brak odpowiedzi')
         new = None
         if err is None:
-            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur')}
+            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon
             new['read'] = rd['at']
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
@@ -19146,7 +19148,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
             ok = False
             notes.append(f'{nm}: {err}' + (f" — poprzedni odczyt (stan {pv['as_of']})" if pv is not None else ' — bez wartości'))
         if new is None and pv is not None:
-            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur')}
+            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon
             new['k'] = 1
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
