@@ -1,5 +1,5 @@
 {
- "at": "2026-10-05T05:46:47+00:00",
+ "at": "2026-10-06T01:28:55+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,12 +22,12 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
-   "rows": 130,
+   "at": "2026-10-06T01:28:55+00:00",
+   "rows": 143,
    "first": "2026-09-26",
-   "last": "2026-10-05",
-   "added": 0,
-   "revised": 13,
+   "last": "2026-10-06",
+   "added": 13,
+   "revised": 0,
    "revisions_total": 65,
    "fetched": 13
   },
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
-   "rows": 20,
+   "at": "2026-10-06T01:28:55+00:00",
+   "rows": 22,
    "first": "2026-09-26",
-   "last": "2026-10-05",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-10-06",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 5,
    "fetched": 2
   },
@@ -68,11 +68,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
-   "rows": 754,
+   "at": "2026-10-06T01:28:55+00:00",
+   "rows": 755,
    "first": "2023-09-26",
-   "last": "2026-10-02",
-   "added": 0,
+   "last": "2026-10-05",
+   "added": 1,
    "revised": 0,
    "revisions_total": 1,
    "fetched": 747
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
+   "at": "2026-10-06T01:28:55+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
+   "at": "2026-10-06T01:28:55+00:00",
    "rows": 1050,
    "first": "2024-10-01",
    "last": "2026-09-29",
@@ -140,14 +140,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
-   "rows": 522,
+   "at": "2026-10-06T01:28:55+00:00",
+   "rows": 523,
    "first": "2024-09-26",
-   "last": "2026-10-02",
-   "added": 0,
-   "revised": 0,
-   "revisions_total": 0,
-   "fetched": 515
+   "last": "2026-10-05",
+   "added": 1,
+   "revised": 1,
+   "revisions_total": 1,
+   "fetched": 516
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -170,14 +170,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
-   "rows": 60,
+   "at": "2026-10-06T01:28:55+00:00",
+   "rows": 70,
    "first": "2026-09-28",
-   "last": "2026-10-03",
-   "added": 0,
-   "revised": 10,
+   "last": "2026-10-04",
+   "added": 10,
+   "revised": 0,
    "revisions_total": 50,
-   "fetched": 60
+   "fetched": 70
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -200,14 +200,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
-   "rows": 0,
-   "first": null,
-   "last": null,
-   "added": 0,
+   "at": "2026-10-06T01:28:55+00:00",
+   "rows": 44,
+   "first": "2026-10-05",
+   "last": "2026-10-05",
+   "added": 44,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 44
   },
   "swiat-dziennik-pk": {
    "file": "swiat-dziennik-pk.csv",
@@ -240,7 +240,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-05T05:46:47+00:00",
+   "at": "2026-10-06T01:28:55+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -252,7 +252,6 @@
  },
  "errors": [],
  "notes": [
-  "swiat-dziennik: dziennik świata wersji 2 od 2026-10-05 jeszcze bez wierszy — nic do zapisania",
   "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
  ],
  "seria": {
@@ -271,12 +270,12 @@
   "cftc.eth.lev": 105,
   "cftc.eth.am": 105,
   "cftc.eth.dealer": 105,
-  "stab.usdt": 10,
-  "stab.usdc": 10,
-  "wh.Binance": 10,
-  "wh.Bitfinex": 10,
-  "wh.Bybit": 10,
-  "wh.KuCoin": 10,
-  "wh.OKX": 10
+  "stab.usdt": 11,
+  "stab.usdc": 11,
+  "wh.Binance": 11,
+  "wh.Bitfinex": 11,
+  "wh.Bybit": 11,
+  "wh.KuCoin": 11,
+  "wh.OKX": 11
  }
 }
