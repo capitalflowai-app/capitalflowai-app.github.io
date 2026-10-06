@@ -10900,7 +10900,8 @@ def ix_fetch(sym, cc, key, rec, now):
     zakres = len(usun) <= IX_USUN_MAX   # v261: więcej brakujących sesji = luka w odpowiedzi, nie poprawka — nic nie usuwamy
     if not zakres:
         rw = [r for r in rw if r[2] is not None]
-    out = {'cc': cc, 'at': NOW, 'd': _ix_merge(old, new, IX_KEEP, zakres=zakres)}   # v260: w zakresie odpowiedzi dostawca rozstrzyga
+    out = {'cc': cc, 'at': now.replace(microsecond=0).isoformat(), 'd': _ix_merge(old, new, IX_KEEP, zakres=zakres)}   # v260: w zakresie odpowiedzi dostawca rozstrzyga
+    # v264 (przegląd v263): 'at' = chwila budowniczego (ta sama, której używa plan) — nie start przebiegu (NOW, 30–40 s wcześniej)
     rew = (rec.get('rew') if isinstance(rec, dict) and isinstance(rec.get('rew'), list) else []) + rw
     if rew:   # v260: poprawki dostawcy po naszym pobraniu (najwyżej IX_REW_KEEP ostatnich)
         out['rew'] = rew[-IX_REW_KEEP:]
@@ -10909,7 +10910,8 @@ def ix_fetch(sym, cc, key, rec, now):
     hp, hn, wyzej = ix_nauka(rec, rw, next((g for s, _, g in IX_SYMBOLS if s == sym), None))   # v262/v263: samouczenie pory pobierania
     if hp:   # zapis tylko przy przesunięciu > 0; 'h+d' — dzień ostatniego podniesienia (tego dnia bez drugiego pobrania)
         out['h+'], out['h+n'] = hp, hn
-        hd = now.date().isoformat() if wyzej else (rec.get('h+d') if isinstance(rec, dict) else None)
+        dzis = now.date().isoformat()   # v264: dzień podniesienia tylko, gdy pobranie ma już sesję z tego dnia (inaczej po północy — cały dzień bez pobrania)
+        hd = dzis if wyzej and out['d'] and out['d'][-1][0] == dzis else (rec.get('h+d') if isinstance(rec, dict) else None)
         if isinstance(hd, str):
             out['h+d'] = hd
     return out
@@ -11102,7 +11104,7 @@ def ix_fmp(key, part, now, errors):
             new = [r for r in fmp_eod_parse(j) if frm.isoformat() <= r[0] <= do]
             if not new:
                 raise RuntimeError(f'odpowiedź bez sesji z żądanego okresu (od {frm.isoformat()})')
-            part[sym] = {'cc': cc, 'at': NOW, 'src': 'fmp', 'd': _ix_merge(old, new, IX_KEEP)}; got += 1
+            part[sym] = {'cc': cc, 'at': now.replace(microsecond=0).isoformat(), 'src': 'fmp', 'd': _ix_merge(old, new, IX_KEEP)}; got += 1   # v264: 'at' = chwila budowniczego
         except urllib.error.HTTPError as e:
             if e.code in (401, 402, 403, 404):
                 _ix_bad(part, sym, e.code); errors.append(f'FMP HTTP {e.code} — {sym} (przerwa)')

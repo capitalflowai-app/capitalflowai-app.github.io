@@ -1848,8 +1848,11 @@ def indeksy_ocena(ix, now=None):
     zr = lambda s: str(ix[s].get('src') or '') if isinstance(ix.get(s), dict) else ''  # noqa: E731
     for s, x in sorted(ost.items()):   # v263 (przegląd v261): świeżość wobec najnowszej sesji WŁASNEGO dostawcy (grupa ≥ IX_GRUPA_MIN serii)
         g = gr[zr(s)]
-        n = _dni_rob(dt.date.fromisoformat(x), dt.date.fromisoformat(max(g) if len(g) >= IX_GRUPA_MIN else najn))
-        if n > IX_STARE_DNI:
+        duza = len(g) >= IX_GRUPA_MIN
+        n = _dni_rob(dt.date.fromisoformat(x), dt.date.fromisoformat(max(g) if duza else najn))
+        if duza and _dni_rob(dt.date.fromisoformat(max(g)), dt.date.fromisoformat(najn)) > IX_OPOZ_DNI:   # v264 (przegląd v263): cały dostawca w tyle —
+            out['opoznione'].append((s, x, _dni_rob(dt.date.fromisoformat(x), dt.date.fromisoformat(najn))))   # seria opóźniona wobec wszystkich, bez osobnej ⚠️
+        elif n > IX_STARE_DNI:
             out['stare'].append((s, x, n))
         elif n > IX_OPOZ_DNI:
             out['opoznione'].append((s, x, n))
@@ -1886,7 +1889,8 @@ def indeksy_wiersz(o):
     if o.get('stare'):
         cz.append('bez nowych sesji ponad ' + f'{IX_STARE_DNI} dni roboczych: ' + ', '.join(f'{s} (od {x})' for s, x, n in o['stare']) + ' ⚠️')
     if o.get('opoznione'):
-        cz.append('opóźnione: ' + ', '.join(f'{s} ({x})' for s, x, n in o['opoznione']) + ' ℹ️')
+        op = o['opoznione']   # v264: najwyżej 8 nazw (przy przestoju dostawcy byłoby 22)
+        cz.append('opóźnione: ' + ', '.join(f'{s} ({x})' for s, x, n in op[:8]) + (f' (+{len(op) - 8})' if len(op) > 8 else '') + ' ℹ️')
     if o.get('puste'):
         cz.append('bez danych (dostawca nie podaje): ' + ', '.join(s for s, od in o['puste']) + ' ℹ️')
     if o.get('zmiany'):   # v260: poprawki dostawcy po naszym pobraniu (informacja; ostatnia sesja = pobrana za wcześnie)

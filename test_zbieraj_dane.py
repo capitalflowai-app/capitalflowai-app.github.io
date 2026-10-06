@@ -9588,7 +9588,7 @@ class IndeksyV106(unittest.TestCase):
             o = zd.build_indeksy({'EODHD_KEY': 'k-eod', 'MASSIVE_KEY': 'k-mas'}, None, now=self.FRI)
         self.assertEqual(o['ok'], {'ix': True, 'etf': True})
         self.assertEqual(sorted(o['ix']), ['DJI', 'GSPC', 'GSPTSE', 'IXIC'], 'pierwszy przebieg: IX_PER_RUN indeksów')
-        self.assertEqual(o['ix']['GSPC'], {'cc': 'us', 'at': zd.NOW, 'd': [['2026-09-22', 6650.5], ['2026-09-24', 6702.1]]})
+        self.assertEqual(o['ix']['GSPC'], {'cc': 'us', 'at': self.FRI.isoformat(), 'd': [['2026-09-22', 6650.5], ['2026-09-24', 6702.1]]})   # v264: chwila budowniczego
         self.assertEqual(o['ix_calls'], {'d': '2026-09-25', 'n': 4}); self.assertNotIn('ix_quota', o)
         self.assertEqual(o['part_at'], {'ix': zd.NOW, 'etf': zd.NOW})
         self.assertEqual(o['etf'], {'date': '2026-09-24', 'src': 'massive', 'q': {'SPY': [['2026-09-24', 690.12]], 'GLD': [['2026-09-24', 410.5]]}})
@@ -9606,7 +9606,8 @@ class IndeksyV106(unittest.TestCase):
         self.assertEqual(o2['ix']['GSPC'], prev['ix']['GSPC']); self.assertIs(o2['etf'], prev['etf']); self.assertEqual(o2['part_at']['etf'], zd.NOW)
         # sobota 1:00 UTC, USA pobrane przed piątkową sesją: dopełnienie z zakładką 10 dni, nowsza wartość wygrywa, ponad rok przycięty, licznik od zera
         for s, c, _ in zd.IX_SYMBOLS:
-            o2['ix'].setdefault(s, {'cc': c, 'at': '2026-09-26T00:30:00+00:00', 'd': [['2026-09-25', 1.0]]})   # reszta świeżo po sesji — nie do odświeżenia
+            o2['ix'].setdefault(s, {'cc': c, 'd': [['2026-09-25', 1.0]]})   # reszta świeżo po sesji — nie do odświeżenia
+            o2['ix'][s]['at'] = '2026-09-26T00:30:00+00:00'   # v264: także pobrane w 1. etapie — ich 'at' to teraz chwila budowniczego (pt 18:30, przed sesją USA)
         o2['ix']['GSPC']['at'] = '2026-09-24T23:00:00+00:00'; o2['ix']['GSPC']['d'] = [['2025-%02d-%02d' % (1 + i // 28, 1 + i % 28), 1.0 + i / 1000] for i in range(263)] + o2['ix']['GSPC']['d']   # v179: różne wartości (równe sąsiednie = dni bez sesji)
         calls = []
         with mock.patch.object(zd, 'get_json', self._gj(calls, eod=[{'date': '2026-09-24', 'close': 6700.0}, {'date': '2026-09-25', 'close': 6750.0}], massive=self.MAS)):
@@ -29083,4 +29084,65 @@ class PoPrzegladzieV263(unittest.TestCase):
         self.assertEqual([k._dni_r(n) for n in (1, 4, 5, 22, 25)], ['1 dzień roboczy', '4 dni robocze', '5 dni roboczych', '22 dni robocze', '25 dni roboczych'])
         o = k.indeksy_ocena({'N225': {'d': [['2026-09-24', 1.0]]}, 'FTSE': {'src': 'fmp', 'd': [['2026-09-04', 1.0]]}}, now=N)
         self.assertEqual(o['stare'], [('FTSE', '2026-09-04', 14)], 'mała grupa (sam FTSE) — wobec wszystkich serii')
+
+
+# ===================== v264: POPRAWKI PO PRZEGLĄDZIE v263 =====================
+class PoPrzegladzieV264(unittest.TestCase):
+    """v264: dzień podniesienia godziny tylko przy sesji z dnia pobrania; czas pobrania = chwila budowniczego; przestój dostawcy — jego serie
+    opóźnione wobec wszystkich (nie „świeże”)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola264-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v264_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    @staticmethod
+    def T(*a):
+        return datetime.datetime(*a, tzinfo=datetime.timezone.utc)
+
+    def test_podniesienie_po_polnocy_nie_blokuje_dnia(self):
+        rec = {'cc': 'us', 'at': '2026-10-12T22:35:00+00:00', 'd': [['2026-10-09', 51000.0], ['2026-10-12', 51267.9]]}
+        eod = [{'date': '2026-10-12', 'close': 51190.0}, {'date': '2026-10-13', 'close': 51300.0}]
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o = zd.ix_fetch('DJI', 'us', 'k', rec, self.T(2026, 10, 14, 0, 7))
+        self.assertEqual(o['h+'], 1, 'poniedziałkowa sesja pobrana o 22:35 i poprawiona — o godzinę później')
+        self.assertNotIn('h+d', o, 'przegląd: pobranie po północy bez sesji z 14.10 — nie dzień podniesienia')
+        self.assertTrue(zd.ix_do_pobrania(22, o, self.T(2026, 10, 14, 23, 5)), 'w środę o nowej godzinie (23) — do pobrania (było: dopiero w czwartek)')
+        eod2 = [{'date': '2026-10-13', 'close': 51400.0}, {'date': '2026-10-14', 'close': 51450.0}]   # poprawka +0,19% — dowód, ale limit 23 UTC
+        rec2 = dict(o, at='2026-10-13T23:10:00+00:00', d=[['2026-10-13', 51300.0]])
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod2):
+            o2 = zd.ix_fetch('DJI', 'us', 'k', rec2, self.T(2026, 10, 14, 23, 5))
+        self.assertEqual((o2['h+'], o2.get('h+d')), (1, None), 'limit 23 UTC — bez podniesienia')
+
+    def test_czas_pobrania_chwila_budowniczego(self):
+        rec = {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-10-06', 70683.98]]}
+        eod = [{'date': '2026-10-06', 'close': 70683.98}, {'date': '2026-10-07', 'close': 71000.0}]
+        t = self.T(2026, 10, 7, 7, 0, 20)
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod), mock.patch.object(zd, 'NOW', '2026-10-07T06:59:50+00:00'):
+            o = zd.ix_fetch('N225', 'jp', 'k', rec, t)
+        self.assertEqual(o['at'], '2026-10-07T07:00:20+00:00', 'przegląd: zapisywany był start przebiegu 06:59:50')
+        self.assertFalse(zd.ix_do_pobrania(7, o, self.T(2026, 10, 7, 7, 10)), 'bez drugiego pobrania tej samej sesji')
+        part = {'FTSE': {'cc': 'gb', 'at': '2026-10-06T17:20:00+00:00', 'src': 'fmp', 'd': [['2026-10-06', 10497.94]]}}
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: [{'date': '2026-10-07', 'price': 10600.0}]), \
+                mock.patch.object(zd, 'NOW', '2026-10-07T16:59:50+00:00'):
+            zd.ix_fmp('K', part, self.T(2026, 10, 7, 17, 0, 20), [])
+        self.assertEqual(part['FTSE']['at'], '2026-10-07T17:00:20+00:00')
+
+    def test_kontrola_przestoj_nie_swieze(self):
+        k = self.k
+        syms = ['GSPC', 'IXIC', 'DJI', 'GSPTSE', 'BVSP', 'MXX', 'GDAXI', 'FCHI', 'IBEX', 'AEX', 'SSMI', 'OMXS30', 'WIG20', 'TA125', 'XU100',
+                'N225', 'KS11', 'HSI', 'SSEC', 'BSESN', 'AXJO', 'JKSE']
+        ix = {s: {'cc': 'x', 'd': [['2026-01-02', 1.0], ['2026-09-22', 2.0]]} for s in syms}
+        ix['FTSE'] = {'cc': 'gb', 'src': 'fmp', 'd': [['2026-09-24', 3.0]]}
+        o = k.indeksy_ocena(ix, now=self.T(2026, 9, 25, 6, 20))
+        self.assertEqual((o['swieze'], len(o['opoznione']), o['stare'], o['wszystkie']), (1, 22, [], 3), 'przegląd: było „świeże 23 z 23 ✅”')
+        w = k.indeksy_wiersz(o)
+        self.assertIn('świeże 1 z 23 (do 2026-09-24); opóźnione: AEX (2026-09-22), AXJO (2026-09-22), BSESN (2026-09-22), BVSP (2026-09-22), '
+                      'DJI (2026-09-22), FCHI (2026-09-22), GDAXI (2026-09-22), GSPC (2026-09-22) (+14) ℹ️', w)
+        self.assertNotIn('✅', w); self.assertEqual(k.indeksy_uwagi(o), [])
+        o = k.indeksy_ocena(dict(ix, FTSE={'cc': 'gb', 'src': 'fmp', 'd': [['2026-09-23', 3.0]]}), now=self.T(2026, 9, 25, 6, 20))
+        self.assertEqual((o['swieze'], o['opoznione']), (23, []), 'dzień różnicy (IX_OPOZ_DNI) — nadal świeże')
 
