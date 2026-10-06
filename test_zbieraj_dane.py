@@ -28191,3 +28191,42 @@ class KontrolaWielorybyPowodV253(unittest.TestCase):
         o = k.wieloryby_ocena(self._arch(), hist=self._h({}, wer={('OKX', '2026-10-06'): '2026-10-06', ('Binance', '2026-10-06'): '2026-10-06'}))
         self.assertIn('inna wersja listy portfeli w migawkach o północy: Binance, OKX', o['pomin'])
         self.assertNotIn('brak albo później', o['pomin'])
+
+
+# ===================== v254: KONTROLA — ŚWIEŻOŚĆ KAŻDEJ SERII INDEKSÓW =====================
+class KontrolaIndeksyV254(unittest.TestCase):
+    """v254: każda seria indeksów wobec najnowszej daty wszystkich: opóźnione > 2 dni (ℹ️), stare > 10 dni (⚠️ i uwaga), puste (ℹ️)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola254-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v254_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def _ix(self, ost):
+        return {s: ({'cc': 'x', 'd': [['2026-09-01', 100.0], [d, 101.0]]} if d else {'bad_at': '2026-10-03T16:53:53+00:00', 'bad_n': 4, 'bad': 'pusto'})
+                for s, d in ost.items()}
+
+    def test_06_10(self):
+        k = self.k
+        o = k.indeksy_ocena(self._ix({'N225': '2026-10-06', 'GSPC': '2026-10-05', 'AEX': '2026-10-02', 'SSEC': '2026-09-30', 'JTOPI': None}))
+        self.assertEqual((o['swieze'], o['najnowsza'], o['opoznione'], o['stare'], o['puste']),
+                         (2, '2026-10-06', [('AEX', '2026-10-02', 4), ('SSEC', '2026-09-30', 6)], [], [('JTOPI', '2026-10-03')]))
+        self.assertEqual(k.indeksy_wiersz(o), '- Indeksy giełdowe: świeże 2 z 5 (do 2026-10-06); opóźnione: AEX (2026-10-02), SSEC (2026-09-30) ℹ️; '
+                                              'bez danych (dostawca nie podaje): JTOPI ℹ️.')
+
+    def test_seria_zacieta_i_brzegi(self):
+        k = self.k
+        o = k.indeksy_ocena(self._ix({'N225': '2026-10-06', 'WIG20': '2026-09-24'}))
+        self.assertEqual(o['stare'], [('WIG20', '2026-09-24', 12)])
+        self.assertIn('bez nowych sesji ponad 10 dni: WIG20 (od 2026-09-24) ⚠️', k.indeksy_wiersz(o))
+        self.assertEqual(k.indeksy_wiersz(k.indeksy_ocena(self._ix({'A': '2026-10-06', 'B': '2026-10-05'}))), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-06) ✅.')
+        self.assertIsNone(k.indeksy_ocena({})); self.assertIsNone(k.indeksy_ocena(None))
+        o = k.indeksy_ocena({'X': {'d': [['2026-10-06', float('nan')], ['2026-02-30', 1.0], ['2026-10-05', True]]}})
+        self.assertEqual((o['swieze'], o['puste']), (0, [('X', '')]), 'NaN, zły dzień i bool — nie sesje')
+        import inspect
+        src = inspect.getsource(k.kontrola)
+        self.assertIn("Z['indeksy'] = indeksy_ocena((files.get('indeksy') or {}).get('ix'))", src)
+        self.assertIn("L.append(indeksy_wiersz(Z.get('indeksy')))", inspect.getsource(k.raport_md))

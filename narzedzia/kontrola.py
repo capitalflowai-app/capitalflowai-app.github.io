@@ -1621,6 +1621,54 @@ def _wh_rozb_polnoc(H, d, row_d):
     return out
 
 
+IX_OPOZ_DNI = 2      # v254: seria indeksu starsza od najnowszej o więcej dni = „opóźniona” (informacja: weekend, rotacja zbieracza, święto)
+IX_STARE_DNI = 10    # v254: … o więcej niż tyle dni = ⚠️ (seria się zacięła; najdłuższe święta giełd — Złoty Tydzień w Chinach — ok. 8 dni)
+
+
+def indeksy_ocena(ix):
+    """v254: świeżość każdej serii indeksów (indeksy.json → ix: {symbol: {'d': [[dzień, zamknięcie], …], 'bad_at'?}}) wobec najnowszej daty
+    wszystkich serii → {'n', 'swieze', 'najnowsza', 'opoznione': [(symbol, dzień, dni)], 'stare': [...], 'puste': [(symbol, od)]} albo None."""
+    if not isinstance(ix, dict) or not ix:
+        return None
+    ost, puste = {}, []
+    for s, v in sorted(ix.items()):
+        d = v.get('d') if isinstance(v, dict) else None
+        dd = [r[0] for r in d if isinstance(r, list) and len(r) >= 2 and _dzien(r[0]) and isinstance(r[1], (int, float)) and not isinstance(r[1], bool)
+              and r[1] == r[1]] if isinstance(d, list) else []
+        if dd:
+            ost[s] = max(dd)
+        else:
+            puste.append((s, str(v.get('bad_at') or '')[:10] if isinstance(v, dict) else ''))
+    out = {'n': len(ix), 'swieze': 0, 'najnowsza': None, 'opoznione': [], 'stare': [], 'puste': puste}
+    if not ost:
+        return out
+    najn = max(ost.values())
+    out['najnowsza'] = najn
+    for s, x in sorted(ost.items()):
+        n = (dt.date.fromisoformat(najn) - dt.date.fromisoformat(x)).days
+        if n > IX_STARE_DNI:
+            out['stare'].append((s, x, n))
+        elif n > IX_OPOZ_DNI:
+            out['opoznione'].append((s, x, n))
+        else:
+            out['swieze'] += 1
+    return out
+
+
+def indeksy_wiersz(o):
+    """v254: wiersz raportu „Indeksy giełdowe” — świeże, opóźnione (ℹ️), stare (⚠️), bez danych (ℹ️)."""
+    if not isinstance(o, dict):
+        return '- Indeksy giełdowe: plik bez serii indeksów ℹ️.'
+    cz = [f'świeże {o["swieze"]} z {o["n"]}' + (f' (do {o["najnowsza"]})' if o.get('najnowsza') else '')]
+    if o.get('stare'):
+        cz.append('bez nowych sesji ponad ' + f'{IX_STARE_DNI} dni: ' + ', '.join(f'{s} (od {x})' for s, x, n in o['stare']) + ' ⚠️')
+    if o.get('opoznione'):
+        cz.append('opóźnione: ' + ', '.join(f'{s} ({x})' for s, x, n in o['opoznione']) + ' ℹ️')
+    if o.get('puste'):
+        cz.append('bez danych (dostawca nie podaje): ' + ', '.join(s for s, od in o['puste']) + ' ℹ️')
+    return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (o.get('stare') or o.get('opoznione') or o.get('puste')) else ' ✅.')
+
+
 def wieloryby_ocena(path, zmiany=None, hist=None):
     """v174: zgodność sald i przepływów wielorybów na tle historii. Przepływy to tylko przelewy ≥ 1 mln USD w oknie 24 h, a migawki sald dzieli
     tyle, ile minęło między zapisami archiwum (05.10: od 7,7 do 28 h) — rozbieżność jest normalna. Uwaga tylko, gdy migawki pary dzieli ok. doba
@@ -3595,6 +3643,9 @@ def kontrola():
         zgodnosc_zapisz(zg_path, rows)
     except Exception as e:  # noqa
         R['uwagi'].append(f'zgodnosc.csv: nie zapisano ({str(e)[:80]})')
+    Z['indeksy'] = indeksy_ocena((files.get('indeksy') or {}).get('ix'))   # v254: świeżość każdej serii indeksów
+    for s, x, n in (Z['indeksy'] or {}).get('stare') or []:
+        R['uwagi'].append(f'indeksy giełdowe: {s} bez nowych sesji od {x} ({n} dni wobec najnowszej daty innych indeksów) — sprawdzić pobieranie tego indeksu')
     e = etf_porownanie(files.get('ceny') or {}, files.get('indeksy') or {})
     if e:
         zle = [x for x in e if x[4] is not None and x[4] > ETF_PROG]
@@ -3875,6 +3926,7 @@ def raport_md(R):
                     f'{d} — {n} walut, mediana różnicy {m:.2f}%, najwięcej {c} {x:+.2f}%'.replace('.', ',') for d, n, m, c, x in f['daty'])
                     + ('; migawki z inną walutą bazową: ' + ', '.join(f'{k} ({b})' for k, b in f['baza']) if f.get('baza') else '')   # v233
                     + (' ⚠️.' if f['zle'] or f['med_zle'] or f.get('baza') else ' ✅.'))
+        L.append(indeksy_wiersz(Z.get('indeksy')))   # v254
         e = Z.get('etf')
         if e:
             L.append(f'- ETF mapy (dwa źródła, ta sama data): porównane {e["porownane"]} symboli, różnice > {ETF_PROG:g}%: {len(e["roznice"])} {"⚠️" if e["roznice"] else "✅"}' + (' — ' + ', '.join(x["symbol"] for x in e["roznice"][:6]) if e["roznice"] else '') + '.')
