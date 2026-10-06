@@ -13623,3 +13623,27 @@ test('v213: Indie / Tajwan / Hongkong — wiersz słupków na rynek (mln USD, te
   const c0 = html.indexOf('/* v213: dzienne przepływy zagranicy — małe wykresy słupkowe (zielony'), css = html.slice(c0, html.indexOf('\n', html.indexOf('@media (max-width:520px){.zs-r', c0)));
   assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && css.includes('var(--gr)') && css.includes('var(--rd)'), 'styl: tylko zmienne motywu');
 });
+
+
+/* ---------- v214: Szwajcaria — linia depozytów banków krajowych ---------- */
+test('v214: Szwajcaria — linia 52 tygodni pod kaflami: kolor neutralny, luka = przerwa w linii, osie min/max i daty, podpowiedzi; od 8 liczb; słownik w 10 językach', () => {
+  const X = snb124.mk(), D = snb124.D, body = X.snbBody(D);
+  const s0 = body.indexOf('<svg class="snbw"'), s1 = body.indexOf('</svg>', s0), S = body.slice(s0, s1);
+  assert.ok(s0 > body.lastIndexOf('<div class="etfk">') && s0 < body.indexOf('snb.mm{'), 'pod kaflami, nad zdaniem „najniżej / najwyżej”');
+  assert.ok(body.includes('<p class="pnote">snb.wyk{"n":"9"}</p><svg class="snbw"'), 'podpis z liczbą tygodni');
+  const d = (S.match(/<path class="snbw-l" d="([^"]+)"/) || [])[1];
+  assert.ok(d && (d.match(/M/g) || []).length === 2, 'tydzień bez liczby (4.09) — dwa odcinki linii: ' + d);
+  assert.equal((S.match(/<circle class="snbw-h"/g) || []).length, 9, 'podpowiedź przy każdym tygodniu');
+  assert.ok(S.includes('<title>D2026-09-04: —</title>') === false && /<title>[^<]*: —<\/title>/.test(S), 'brak liczby w podpowiedzi = „—”');
+  assert.ok(S.includes('>snb.bn{"v":"440.0"}</text>') && S.includes('>snb.bn{"v":"432.0"}</text>'), 'oś: najwyżej i najniżej z tych tygodni');
+  assert.ok(S.includes('<circle class="snbw-k"'), 'ostatni tydzień zaznaczony');
+  assert.ok(!/undefined|NaN|\[object|null/.test(body) && !body.includes('pos') && !body.includes('neg'), 'bez kolorów kierunku i bez pustych wartości');
+  const krotko = Object.assign({}, D, {hist: D.hist.slice(0, 4).concat(snb124.W.slice(0, 7).map((w, i) => [w, 440000 - i * 1000, 470000]))});
+  assert.ok(!X.snbBody(krotko).includes('class="snbw"'), 'mniej niż 8 liczb — bez wykresu');
+  const d0 = html.indexOf('const EXTRA179='), d1 = html.indexOf(';\n', d0), E = JSON.parse(html.slice(d0 + 'const EXTRA179='.length, d1));
+  assert.deepEqual(Object.keys(E), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], 'jak cały panel — 10 języków');
+  for (const L in E) assert.ok(E[L]['snb.wyk'].includes('{n}') && (L === 'en' || E[L]['snb.wyk'] !== E.en['snb.wyk']), L + ': {n} i własne tłumaczenie');
+  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA179)if(I18N[l])Object.assign(I18N[l],EXTRA179[l]);'), 'jedna linia for po słowniku');
+  const c0 = html.indexOf('/* v214: Szwajcaria — linia depozytów'), css = html.slice(c0, html.indexOf('\n', html.indexOf('.snbw-h{', c0)));
+  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && css.includes('var(--bl)') && !css.includes('var(--gr)') && !css.includes('var(--rd)'), 'styl: zmienne motywu, kolor neutralny');
+});
