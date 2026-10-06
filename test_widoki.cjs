@@ -14108,8 +14108,8 @@ test('v240: pięć wykresów liniowych w siatce .arc-gr — daty w kolumnie wykr
   assert.equal((html.match(/<div class="arc-gr"><div class="arc-body">/g) || []).length, 5, 'archiwum, Szwajcaria, rynek pieniężny, sieć BTC, wycena BTC');
   assert.ok(html.includes('.arc-gr{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:stretch}'));
   assert.ok(html.includes('.arc-gr>.arc-body{display:contents}') && html.includes('.arc-gr>.arc-x{grid-column:2;margin:3px 0 0}'));
-  for (const f of ['function arcChart(', 'function lnHashChart(', 'function wyChart(', 'function snbWyk(', 'function fndMmWyk(']) {
-    const i = html.indexOf(f); if (i < 0) continue;
+  for (const f of ['function arcChart(', 'function lnChart(', 'function wyChart(', 'function snbWyk(', 'function fndMmWyk(']) {   /* v243: lnChart — właściwa nazwa */
+    const i = html.indexOf(f); assert.ok(i >= 0, f);
     const body = html.slice(i, html.indexOf('\nfunction ', i + 10));
     assert.ok(body.includes('<div class="arc-gr"><div class="arc-body">'), f + ' — siatka');
   }
@@ -14127,4 +14127,15 @@ test('v242: likwidacje — BTC/ETH przygaszone po 4 h, pozostałe monety po 8 h 
   const w = lq234([{c: 'BTC', q: q(5)}, {c: 'ETH', q: q(3)}, {c: 'XRP', q: q(7)}, {c: 'BNB', q: q(9)}]);
   const R = w.split('<div class="lqw-r').slice(1).map(r => r.startsWith(' lqw-lo"'));
   assert.deepEqual(R, [true, false, false, true], 'BTC 5 h — stare; ETH 3 h — świeże; XRP 7 h — w rytmie; BNB 9 h — stare');
+});
+
+
+/* ===================== v243: wykresy liniowe — środkowa data ukryta na wąskich ekranach; pasy podpowiedzi w granicach wykresu ===================== */
+test('v243: do 420 px środkowa data pod wykresem ukryta (pierwsza i ostatnia zostają)', () => {
+  assert.ok(html.includes('@media (max-width:420px){.arc-gr>.arc-x>span:nth-child(2):not(:last-child){display:none}}'));
+});
+test('v243: pasy podpowiedzi pierwszego i ostatniego tygodnia w granicach wykresu (overflow: visible nie wypuszcza ich nad etykiety)', () => {
+  const X = mm228.mk(), D = mm135.cp(mm135.D), w = X.fndMmWyk(D);
+  const R = [...w.matchAll(/<rect class="snbw-h" x="([\d.-]+)" y="0" width="([\d.-]+)"/g)].map(m => [+m[1], +m[2]]);
+  assert.ok(R.length >= 8 && R.every(([x, ww]) => x >= 0 && x + ww <= 600.05), JSON.stringify(R.slice(0, 2)) + ' … ' + JSON.stringify(R.slice(-1)));
 });

@@ -862,6 +862,7 @@ td .cell .logo-img{width:34px;height:34px}
 .arc-gr{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:stretch}
 .arc-gr>.arc-body{display:contents}
 .arc-gr>.arc-x{grid-column:2;margin:3px 0 0}
+@media (max-width:420px){.arc-gr>.arc-x>span:nth-child(2):not(:last-child){display:none}}   /* v243: wąski ekran — bez środkowej daty */
 /* v120 sygnały dzienne (TRENDY): blok nad kaflami tygodnia — 4 kafle, karty po stronach, zwinięte „Bez sygnału”, skuteczność reguł, metoda */
 #trendy .trd-d h3{margin:14px 0 6px}#trendy .trd-d h3>.tg{margin-right:6px}
 #trendy .trd-d .etfk.trk b{white-space:nowrap}
@@ -9683,7 +9684,7 @@ function snbWyk(rows,n){
   const g=segs.map(s=>s.length===1?`<circle class="arc-p" cx="${X(s[0][0])}" cy="${Y(s[0][1])}" r="3"/>`:`<polyline class="arc-l" points="${s.map(r=>X(r[0])+','+Y(r[1])).join(' ')}"/>`).join('');
   const cap=t('snb.wyk',{n:nfmt(P.length,0)}),al=cap+': '+snbDay(R[0][0])+' – '+snbDay(R[R.length-1][0])+', '+snbAmt(mn)+' – '+snbAmt(mx);
   const hw=(W-2*Q)/Math.max(1,(x1-x0)/wk)/2,last=P[P.length-1];   /* v221: pas podpowiedzi na tydzień i kropka ostatniego tygodnia (jak w v214) */
-  const hit=R.map(r=>`<rect class="snbw-h" x="${(+X(r[0])-hw).toFixed(1)}" y="0" width="${(2*hw).toFixed(1)}" height="${H}"><title>${snbDay(r[0])}: ${snbNum(r[1])?snbAmt(r[1]):'—'}</title></rect>`).join('');
+  const hit=R.map(r=>`<rect class="snbw-h" x="${Math.max(0,+X(r[0])-hw).toFixed(1)}" y="0" width="${(Math.min(W,+X(r[0])+hw)-Math.max(0,+X(r[0])-hw)).toFixed(1)}" height="${H}"><title>${snbDay(r[0])}: ${snbNum(r[1])?snbAmt(r[1]):'—'}</title></rect>`).join('');
   return `<p class="pnote">${cap}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-gr"><div class="arc-body"><div class="arc-y"><span>${snbAmt(mx)}</span><span>${snbAmt(mn)}</span></div>`+
     `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<line class="snbw-k" x1="${X(last[0])}" y1="${Y(last[1])}" x2="${(+X(last[0])+0.01).toFixed(2)}" y2="${Y(last[1])}"/>${hit}</svg></div>`+
     `<div class="arc-x"><span>${snbDay(R[0][0])}</span><span>${snbDay(R[R.length-1][0])}</span></div></div></div>`;
@@ -10133,7 +10134,7 @@ function fndMmWyk(D){
   const g=segs.map(s=>s.length===1?`<circle class="arc-p" cx="${X(s[0][0])}" cy="${Y(s[0][i])}" r="3"/>`:`<polyline class="arc-l" points="${s.map(r=>X(r[0])+','+Y(r[i])).join(' ')}"/>`).join('');
   const cap=t('fund.mm.wyk',{n:nfmt(Math.round((x1-x0)/wk)+1,0)})   /* v231: tygodnie osi */,al=cap+': '+fndDay(R[0][0])+' – '+fndDay(R[R.length-1][0])+', '+fndAmt(mn)+' – '+fndAmt(mx);
   const hw=(W-2*Q)/Math.max(1,(x1-x0)/wk)/2,last=Pt[Pt.length-1];
-  const hit=R.map(r=>`<rect class="snbw-h" x="${(+X(r[0])-hw).toFixed(1)}" y="0" width="${(2*hw).toFixed(1)}" height="${H}"><title>${escH(fndDay(r[0]))}: ${escH(fndNum(r[i])?fndAmt(r[i]):'—')}</title></rect>`).join('');
+  const hit=R.map(r=>`<rect class="snbw-h" x="${Math.max(0,+X(r[0])-hw).toFixed(1)}" y="0" width="${(Math.min(W,+X(r[0])+hw)-Math.max(0,+X(r[0])-hw)).toFixed(1)}" height="${H}"><title>${escH(fndDay(r[0]))}: ${escH(fndNum(r[i])?fndAmt(r[i]):'—')}</title></rect>`).join('');
   return `<p class="pnote">${escH(cap)}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-gr"><div class="arc-body"><div class="arc-y"><span>${escH(fndAmt(mx))}</span><span>${escH(fndAmt(mn))}</span></div>`+
     `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<line class="snbw-k" x1="${X(last[0])}" y1="${Y(last[i])}" x2="${(+X(last[0])+0.01).toFixed(2)}" y2="${Y(last[i])}"/>${hit}</svg></div>`+
     `<div class="arc-x"><span>${escH(fndDay(R[0][0]))}</span><span>${escH(fndDay(R[R.length-1][0]))}</span></div></div></div>`;

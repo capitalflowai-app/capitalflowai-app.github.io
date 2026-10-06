@@ -26890,7 +26890,7 @@ class KontrolaNoweRaportyV237(unittest.TestCase):
                 return wszystko(url)
             if any(x in url for x in jest):
                 return 206, (b'PK\x03\x04' if 'okx' in url else b'%PDF-1.7') + b'x' * 1000, 5
-            raise urllib.error.HTTPError(url, 403 if 'bybit' in url else 404, 'x', {}, None)
+            raise urllib.error.HTTPError(url, 403 if 'bybit' in url else 404, 'x', {'Server': 'AmazonS3'} if 'bybit' in url else {}, None)
         return get
 
     def run_w(self, now, **kw):
@@ -26951,7 +26951,7 @@ class KontrolaNoweRaportyV237(unittest.TestCase):
         def odp(st=None, body=b'', kod=None):
             def get(url, timeout=25, headers=None, limit=None):
                 if kod:
-                    raise urllib.error.HTTPError(url, kod, 'x', {}, None)
+                    raise urllib.error.HTTPError(url, kod, 'x', {'Server': 'AmazonS3'}, None)
                 return st, body, 5
             return get
         for g, kod, exp in (('OKX', 404, False), ('OKX', 403, None), ('Bybit', 403, False), ('Bybit', 404, False), ('Bybit', 429, None), ('OKX', 500, None)):
@@ -27131,21 +27131,22 @@ class KontrolaStopyV241(unittest.TestCase):
         self.assertEqual(len(u), 1); self.assertIn('EBC na stronie 2,5% vs FRED 2,25% (2026-09-29)', u[0])   # v242: źródło w treści
         P = k.stopy_porownanie(self.S, self.F(zmiana='2026-10-01'), self.NOW)
         self.assertEqual(P[0]['zmiana'], ['2026-10-01', 3.625]); self.assertTrue(P[0]['zgodne'], 'w dniu z pliku strony zgodne')
-        u = k.stopy_uwagi(P, self.NOW)
+        u = k.stopy_uwagi(P, self.NOW + datetime.timedelta(days=7))   # v243: próg 10 dni
         self.assertEqual(len(u), 1); self.assertIn('Fed zmienił stopę 2026-10-01 na 3,625% — strona pokazuje stopę z 2026-09-28', u[0])
         self.assertEqual(k.stopy_uwagi(k.stopy_porownanie(self.S, self.F(zmiana='2026-10-04'), self.NOW), self.NOW), [], 'zmiana sprzed 2 dni — źródło jeszcze się wyrówna')
-        self.assertIn('Fed 3,875% = 3,875% (FRED) ⚠️ (zmiana 2026-10-01 na 3,625% — strona jeszcze bez niej)', k.stopy_wiersz({'wyniki': P}, self.NOW))
+        self.assertIn('Fed 3,875% = 3,875% (FRED) ⚠️ (zmiana 2026-10-01 na 3,625% — strona jeszcze bez niej)', k.stopy_wiersz({'wyniki': P}, self.NOW + datetime.timedelta(days=7)))
         P2 = k.stopy_porownanie(self.S, self.F(zmiana='2026-10-04'), self.NOW)
         self.assertIn('Fed 3,875% = 3,875% (FRED) ℹ️ (zmiana 2026-10-04', k.stopy_wiersz({'wyniki': P2}, self.NOW), 'świeża zmiana — informacja')
 
     def test_braki(self):
         k = self.k
-        self.assertEqual(k.stopy_porownanie(self.S, {}, self.NOW), [], 'bez serii FRED — nic do porównania (nie „zgodne”)')
+        brak = lambda P: [(o['bank'], bool(o.get('brak'))) for o in P]  # noqa: E731 — v243: jedna pozycja na bank, bez porównania = 'brak'
+        self.assertEqual(brak(k.stopy_porownanie(self.S, {}, self.NOW)), [('Fed', True), ('EBC', True)], 'bez serii — nic do porównania (nie „zgodne”)')
         self.assertEqual(k.stopy_porownanie(None, self.F(), self.NOW), [])
         S2 = {'rows': {'US': {'rate': None, 'date': '2026-09-28'}, 'XM': {'rate': 2.5, 'date': 'x'}}}
-        self.assertEqual(k.stopy_porownanie(S2, self.F(), self.NOW), [])
+        self.assertEqual(brak(k.stopy_porownanie(S2, self.F(), self.NOW)), [('Fed', True), ('EBC', True)])
         S3 = {'rows': {'US': {'rate': 3.875, 'date': '2026-01-01'}}}
-        self.assertEqual(k.stopy_porownanie(S3, self.F(), self.NOW), [], 'data strony sprzed serii FRED — bez porównania')
+        self.assertEqual(brak(k.stopy_porownanie(S3, self.F(), self.NOW)), [('Fed', True), ('EBC', True)], 'data strony sprzed serii — bez porównania')
         self.assertEqual(k.stopy_wiersz({'wyniki': [], 'brak': 'DFEDTARL: timed out'}, self.NOW), '- Stopy banków centralnych (strona vs źródło banku): brak odczytu (DFEDTARL: timed out) ℹ️.')
         self.assertIn('stopy', k.PLIKI); self.assertEqual(k.LIMIT_MIN['stopy'], 24 * 60)
         self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
@@ -27194,7 +27195,7 @@ class PoPrzegladzieV242(unittest.TestCase):
         self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW),
                          '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (NY Fed) ✅; EBC 2,5% = 2,5% (EBC) ✅.')
         P2 = k.stopy_porownanie(S, {'DFEDTARL': F['NYFED_LO'], 'DFEDTARU': F['NYFED_HI']}, self.NOW)
-        self.assertEqual([(o['bank'], o['zrodlo']) for o in P2], [('Fed', 'FRED')], 'zapas FRED; EBC bez serii — pominięty (nie „zgodne”)')
+        self.assertEqual([(o['bank'], o.get('zrodlo'), bool(o.get('brak'))) for o in P2], [('Fed', 'FRED', False), ('EBC', None, True)], 'zapas FRED; EBC bez serii — „brak porównania” (v243)')
         import inspect
         src = inspect.getsource(k.kontrola)
         self.assertIn('stopy_nyfed(get(STOPY_NYFED', src); self.assertIn('stopy_ecb_csv(get(STOPY_ECB', src)
@@ -27219,3 +27220,92 @@ class PoPrzegladzieV242(unittest.TestCase):
             Z.main(['zegar.py', 'odblokuj'], now_fn=lambda: datetime.datetime(2026, 10, 6, 9, 52, tzinfo=datetime.timezone.utc), sleep=lambda s: None)
         self.assertEqual([p for p, d in log if d is not None], [], 'wdrożenie bez nazwy środowiska — nie anulować')
         self.assertIn('nie anuluję', out.getvalue())
+
+
+# ===================== v243: POPRAWKI PO PRZEGLĄDZIE v240–v242 =====================
+class PoPrzegladzieV243(unittest.TestCase):
+    """v243: bank bez porównania widoczny w raporcie; FRED także, gdy seria banku nie sięga dnia strony; raporty giełd — zakres tylko z dni
+    „nie ma pliku”, Bybit 403 tylko z nagłówkiem brakującego pliku, druga próba kontrolna; próg zwłoki stóp 10 dni; NaN odrzucane."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola243-')
+        root = os.path.dirname(os.path.abspath(__file__))
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v243_k', os.path.join(root, 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+        cls.S = {'rows': {'US': {'rate': 3.875, 'date': '2026-09-28'}, 'XM': {'rate': 2.5, 'date': '2026-09-29'}}}
+
+    def test_bank_bez_porownania_widoczny(self):
+        k = self.k
+        days = ['2026-09-%02d' % d for d in range(20, 31)]
+        P = k.stopy_porownanie(self.S, {'ECB_DFR': {d: 2.5 for d in days}}, self.NOW)
+        self.assertEqual([o['bank'] for o in P], ['Fed', 'EBC'], 'jedna pozycja na bank')
+        self.assertIn('brak serii obejmującej dzień strony (2026-09-28)', P[0]['brak'])
+        w = k.stopy_wiersz({'wyniki': P, 'brak': 'NY Fed: timed out; DFEDTARL: timed out'}, self.NOW)
+        self.assertIn('Fed: brak porównania (brak serii obejmującej dzień strony (2026-09-28)) ℹ️', w)
+        self.assertIn('EBC 2,5% = 2,5% (EBC) ✅', w); self.assertIn('błędy odczytu: NY Fed: timed out; DFEDTARL: timed out', w)
+        self.assertEqual(k.stopy_uwagi(P, self.NOW), [], 'brak porównania — informacja, nie uwaga')
+        late = {'NYFED_LO': {'2026-10-01': 3.75}, 'NYFED_HI': {'2026-10-01': 4.0}, 'DFEDTARL': {d: 3.75 for d in days}, 'DFEDTARU': {d: 4.0 for d in days}}
+        P = k.stopy_porownanie(self.S, late, self.NOW)
+        self.assertEqual((P[0]['bank'], P[0].get('zrodlo')), ('Fed', 'FRED'), 'seria banku nie sięga dnia strony — następny wariant (FRED)')
+        P = k.stopy_porownanie({'rows': {'US': {'rate': 3.875, 'date': '2026-09'}, 'XM': {'rate': float('nan'), 'date': '2026-09-29'}}}, late, self.NOW)
+        self.assertIn('to nie dzień', P[0]['brak']); self.assertEqual(P[1]['brak'], 'brak stopy w pliku strony')
+        self.assertEqual(k.stopy_porownanie(None, late, self.NOW), [])
+        import inspect
+        self.assertIn("o['brak'].startswith('brak serii')", inspect.getsource(k.kontrola), 'FRED także, gdy seria banku nie sięga dnia strony')
+
+    def test_zwloka_10_dni_i_nan(self):
+        k = self.k
+        self.assertEqual(k.STOPY_ZWLOKA_DNI, 10)
+        days = ['2026-09-%02d' % d for d in range(20, 31)] + ['2026-10-%02d' % d for d in range(1, 6)]
+        F = {'NYFED_LO': {d: (3.5 if d >= '2026-09-30' else 3.75) for d in days}, 'NYFED_HI': {d: (3.75 if d >= '2026-09-30' else 4.0) for d in days},
+             'ECB_DFR': {d: 2.5 for d in days}}
+        P = k.stopy_porownanie(self.S, F, self.NOW)
+        self.assertEqual(P[0]['zmiana'], ['2026-09-30', 3.625]); self.assertEqual(k.stopy_uwagi(P, self.NOW), [], '6 dni po zmianie — źródło strony jeszcze się wyrówna')
+        self.assertEqual(len(k.stopy_uwagi(P, self.NOW + datetime.timedelta(days=5))), 1, '11 dni — uwaga')
+        ny = json.dumps({'refRates': [{'effectiveDate': '2026-10-02', 'targetRateFrom': float('nan'), 'targetRateTo': 4.0},
+                                      {'effectiveDate': '2026-10-01', 'targetRateFrom': 3.75, 'targetRateTo': 4.0}]}).encode()
+        self.assertEqual(k.stopy_nyfed(ny)['NYFED_LO'], {'2026-10-01': 3.75}, 'NaN odrzucone')
+        csv = 'KEY,TIME_PERIOD,OBS_VALUE\nx,2026-10-05,NaN\nx,2026-10-06,2.5\n'.encode()
+        self.assertEqual(k.stopy_ecb_csv(csv), {'2026-10-06': 2.5})
+
+    def test_raporty_gield_zakres_i_bybit(self):
+        import urllib.error
+        k = self.k
+        G = {'OKX': {'since': '2026-09-08'}, 'Bybit': {'since': '2026-09-10', 'url': 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Sep_10.pdf'}}
+        now = datetime.datetime(2026, 10, 6, 7, 0, tzinfo=datetime.timezone.utc)
+        licz = {'n': 0}
+
+        def get(url, timeout=25, headers=None, limit=None):
+            if 'por_csv_2026090800' in url or 'Sep_10' in url:
+                return 206, (b'PK\x03\x04' if 'okx' in url else b'%PDF') + b'x' * 100, 5
+            if 'okx' in url:
+                licz['n'] += 1
+                if licz['n'] % 2:
+                    raise urllib.error.URLError('timed out')
+                raise urllib.error.HTTPError(url, 404, 'x', {}, None)
+            raise urllib.error.HTTPError(url, 403, 'x', {'Server': 'CloudFront'}, None)   # blokada (nie strona brakującego pliku)
+        with mock.patch.object(k, 'get', get):
+            W = k.wh_nowe_raporty(G, now, spij=lambda s: None)
+        o = W['OKX']
+        self.assertEqual((o['prob'], o['nie_wiadomo']), (9, 5), 'co druga data bez odpowiedzi')
+        self.assertIn('nie wiadomo', k.wh_nowe_wiersz({'OKX': o}))
+        self.assertNotIn('brak nowszego', k.wh_nowe_wiersz({'OKX': o}), 'dni bez odpowiedzi to nie „brak nowszego”')
+        self.assertEqual(W['Bybit']['nowy'], None); self.assertGreater(W['Bybit']['nie_wiadomo'], 0, 'Bybit 403 bez nagłówka brakującego pliku — nie wiadomo')
+
+        def get2(url, timeout=25, headers=None, limit=None):
+            if 'por_csv_2026090800' in url:
+                get2.n += 1
+                if get2.n > 1:
+                    raise urllib.error.HTTPError(url, 403, 'x', {}, None)   # blokada w trakcie — druga próba kontrolna nie przechodzi
+                return 206, b'PK\x03\x04' + b'x' * 100, 5
+            raise urllib.error.HTTPError(url, 404, 'x', {}, None)
+        get2.n = 0
+        with mock.patch.object(k, 'get', get2):
+            W = k.wh_nowe_raporty({'OKX': G['OKX']}, now, spij=lambda s: None)
+        self.assertEqual((W['OKX']['kontrola'], W['OKX']['nie_wiadomo']), ('brak', 1), 'druga próba kontrolna — blokada w trakcie')
+        self.assertIn('nie wiadomo (plik obecnej listy nie odpowiada plikiem', k.wh_nowe_wiersz(W))
+        self.assertIn('nie wiadomo (błąd sprawdzania', k.wh_nowe_wiersz({'_blad': 'KeyError'}))

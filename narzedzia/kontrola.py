@@ -104,7 +104,8 @@ STOPY_ECB = 'https://data-api.ecb.europa.eu/service/data/FM/D.U2.EUR.4F.KR.DFR.L
 STOPY_FRED_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&cosd={od}'
 STOPY_OD_DNI = 120    # FRED: plik od tylu dni wstecz (data stopy na stronie bywa sprzed kilku tygodni — np. RBI)
 STOPY_PROG = 0.01     # pkt proc. — większa różnica w tym samym dniu = ⚠️
-STOPY_ZWLOKA_DNI = 3  # zmiana stopy starsza niż tyle dni, a strona jej nie ma = ⚠️ (źródło strony podaje stopy z 1–2-dniowym opóźnieniem)
+STOPY_ZWLOKA_DNI = 10  # zmiana stopy starsza niż tyle dni, a strona jej nie ma = ⚠️ (v243: źródło stóp strony spóźnia się 7–8 dni; przy 3 każda
+#                        decyzja Fed/EBC dawałaby kilka dni UWAGI)
 
 
 def _stopa_fred(S, d):
@@ -124,7 +125,7 @@ def stopy_nyfed(body):
     lo, hi = {}, {}
     for r in (j.get('refRates') or []) if isinstance(j, dict) else []:
         d, a, b = (r.get('effectiveDate'), r.get('targetRateFrom'), r.get('targetRateTo')) if isinstance(r, dict) else (None, None, None)
-        if isinstance(d, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', d) and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b)):
+        if isinstance(d, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', d) and all(isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) < 1e6 for x in (a, b)):
             lo[d], hi[d] = float(a), float(b)
     if not lo:
         raise ValueError('brak przedziału celu')
@@ -142,35 +143,50 @@ def stopy_ecb_csv(body):
         p = line.split(',')
         if len(p) > max(i, j) and re.match(r'^\d{4}-\d{2}-\d{2}$', p[i]):
             try:
-                out[p[i]] = float(p[j])
+                v = float(p[j])
             except ValueError:
-                pass
+                continue
+            if v == v and abs(v) < 1e6:   # v243: NaN i nieskończoność odrzucone
+                out[p[i]] = v
     if not out:
         raise ValueError('plik bez liczb')
     return out
 
 
 def stopy_porownanie(stopy, fred, now=None):
-    """v241: stopy.json (rows[US|XM] = {rate, date}) i serie FRED ({id: {dzień: %}}) → [{'bank', 'data', 'strona', 'fred', 'zgodne', 'zmiana':
-    [dzień, nowa stopa] albo None}]; bank bez stopy na stronie albo bez serii FRED pominięty."""
+    """v241/v243: stopy.json (rows[US|XM] = {rate, date}) i serie ({id: {dzień: %}}) → jedna pozycja na bank: porównanie {'bank', 'zrodlo',
+    'data', 'strona', 'fred', 'zgodne', 'zmiana': [dzień, nowa stopa] albo None} albo {'bank', 'brak': powód} — bank bez porównania nie znika
+    z wiersza raportu (v243). Wariant serii: pierwszy, który obejmuje dzień strony (źródło banku, potem FRED). Brak pliku strony = []."""
     now = now or NOW
-    rows = stopy.get('rows') if isinstance(stopy, dict) and isinstance(stopy.get('rows'), dict) else {}
+    if not isinstance(stopy, dict):
+        return []
+    rows = stopy.get('rows') if isinstance(stopy.get('rows'), dict) else {}
     F = fred if isinstance(fred, dict) else {}
     out = []
-    for a, warianty in STOPY_SERIE.items():   # v242: pierwszy wariant z kompletem serii (źródło banku, potem FRED)
+    for a, warianty in STOPY_SERIE.items():
+        nazwa = warianty[0][1]
         r = rows.get(a)
-        if not isinstance(r, dict) or not isinstance(r.get('rate'), (int, float)) or isinstance(r.get('rate'), bool) \
-                or not isinstance(r.get('date'), str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', r['date']):
+        rate = r.get('rate') if isinstance(r, dict) else None
+        if not isinstance(rate, (int, float)) or isinstance(rate, bool) or rate != rate or abs(rate) > 1e6:
+            out.append({'bank': nazwa, 'brak': 'brak stopy w pliku strony'})
             continue
-        wyb = next(((ids, nazwa, zr) for ids, nazwa, zr in warianty if all(isinstance(F.get(i), dict) and F.get(i) for i in ids)), None)
+        if not isinstance(r.get('date'), str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', r['date']):
+            out.append({'bank': nazwa, 'brak': f'data w pliku strony „{str(r.get("date"))[:10]}” to nie dzień'})
+            continue
+        wyb = None
+        for ids, _, zr in warianty:
+            if not all(isinstance(F.get(i), dict) and F.get(i) for i in ids):
+                continue
+            S = [F[i] for i in ids]
+            f = _stopa_fred(S, r['date'])
+            if f is not None:
+                wyb = (S, zr, f)
+                break
         if wyb is None:
+            out.append({'bank': nazwa, 'brak': f'brak serii obejmującej dzień strony ({r["date"]})'})
             continue
-        ids, nazwa, zr = wyb
-        S = [F[i] for i in ids]
-        f = _stopa_fred(S, r['date'])
-        if f is None:
-            continue
-        o = {'bank': nazwa, 'zrodlo': zr, 'data': r['date'], 'strona': float(r['rate']), 'fred': round(f, 4), 'zgodne': abs(r['rate'] - f) < STOPY_PROG, 'zmiana': None}
+        S, zr, f = wyb
+        o = {'bank': nazwa, 'zrodlo': zr, 'data': r['date'], 'strona': float(rate), 'fred': round(f, 4), 'zgodne': abs(rate - f) < STOPY_PROG, 'zmiana': None}
         dni = sorted({k for s in S for k in s if k > r['date']})
         for d in dni:
             v = _stopa_fred(S, d)
@@ -189,6 +205,8 @@ def stopy_wiersz(sp, now=None):
     W = sp.get('wyniki') or []
     if not W:
         return f'- Stopy banków centralnych (strona vs źródło banku): brak odczytu ({sp.get("brak") or "brak wspólnych danych"}) ℹ️.'
+    bez = [o for o in W if o.get('brak')]   # v243: bank bez porównania — widoczny, z powodem
+    W = [o for o in W if not o.get('brak')]
     def znak(o):
         if not o['zgodne']:
             return '⚠️'
@@ -198,7 +216,9 @@ def stopy_wiersz(sp, now=None):
         return '⚠️' if (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI else 'ℹ️'
     return '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): ' + '; '.join(
         f'{o["bank"]} {n(o["strona"])}% ' + ('= ' if o['zgodne'] else '≠ ') + f'{n(o["fred"])}% ({o.get("zrodlo") or "FRED"}) ' + znak(o)
-        + (f' (zmiana {o["zmiana"][0]} na {n(o["zmiana"][1])}% — strona jeszcze bez niej)' if o.get('zmiana') else '') for o in W) + '.'
+        + (f' (zmiana {o["zmiana"][0]} na {n(o["zmiana"][1])}% — strona jeszcze bez niej)' if o.get('zmiana') else '') for o in W)\
+        + ('; '.join([''] + [f'{o["bank"]}: brak porównania ({o["brak"]}) ℹ️' for o in bez]) if W else '; '.join(f'{o["bank"]}: brak porównania ({o["brak"]}) ℹ️' for o in bez))\
+        + (f'; błędy odczytu: {sp["brak"]}' if bez and sp.get('brak') else '') + '.'
 
 
 def stopy_uwagi(P, now=None):
@@ -207,6 +227,8 @@ def stopy_uwagi(P, now=None):
     n = lambda x: format(x, 'g').replace('.', ',')  # noqa: E731
     out = []
     for o in P or []:
+        if o.get('brak'):   # v243: bez porównania — informacja w wierszu, nie uwaga
+            continue
         if not o.get('zgodne'):
             out.append(f'stopy banków centralnych: {o["bank"]} na stronie {n(o["strona"])}% vs {o.get("zrodlo") or "FRED"} {n(o["fred"])}% ({o["data"]}) — sprawdzić plik stóp strony')
         z = o.get('zmiana')
@@ -1140,7 +1162,12 @@ def wh_plik_jest(url, g=None):
     try:
         st, body, _ = get(url, timeout=10, headers={'Range': 'bytes=0-1023'}, limit=1024)
     except urllib.error.HTTPError as e:
-        return False if e.code in WH_NOWE_BRAK.get(g, (404,)) else None
+        if e.code not in WH_NOWE_BRAK.get(g, (404,)):
+            return None
+        if g == 'Bybit' and e.code == 403:   # v243: 403 = „nie ma pliku” tylko ze stroną brakującego pliku (Server: AmazonS3); blokada wygląda inaczej
+            srv = (e.headers.get('Server') if e.headers is not None and hasattr(e.headers, 'get') else None) or ''
+            return False if 'AmazonS3' in str(srv) else None
+        return False
     except Exception:  # noqa — sieć, limit czasu, zaślepka testu bez parametru limit
         return None
     if st not in (200, 206):
@@ -1210,7 +1237,6 @@ def wh_nowe_raporty(gieldy, now=None, budzet_s=WH_NOWE_BUDZET_S, zegar=time.mono
                 break
             spij(WH_NOWE_PAUZA_S)
             o['prob'] += 1
-            o['zakres'] = [d.isoformat(), o['zakres'][1] if o['zakres'] else d.isoformat()]
             wyn = []
             for u in wh_nowe_adresy(g, d):
                 wyn.append(wh_plik_jest(u, g))
@@ -1221,11 +1247,18 @@ def wh_nowe_raporty(gieldy, now=None, budzet_s=WH_NOWE_BUDZET_S, zegar=time.mono
                 break
             if None in wyn:
                 o['nie_wiadomo'] += 1
+            else:   # v243: zakres „brak nowszego” tylko z dni, na które każda odpowiedź brzmiała „nie ma pliku”
+                o['zakres'] = [d.isoformat(), o['zakres'][1] if o['zakres'] else d.isoformat()]
+        if o['prob'] and not o['nowy'] and czas_ok(10) and wh_plik_jest(ku, g) is not True:   # v243: druga próba kontrolna — blokada w trakcie
+            o['kontrola'] = 'brak'
+            o['nie_wiadomo'] += 1
     return out
 
 
 def wh_nowe_wiersz(W):
     """v237/v242: wiersz raportu „Nowe raporty dowodu rezerw giełd” — zakres naprawdę sprawdzonych dni; „nie wiadomo” i „przerwane” osobno."""
+    if W.get('_blad'):   # v243: błąd całego sprawdzania — wiersz zostaje, „nie wiadomo”
+        return f'- Nowe raporty dowodu rezerw giełd (listy portfeli): nie wiadomo (błąd sprawdzania: {str(W["_blad"])[:80]}) ℹ️.'
     cz = []
     for g, o in W.items():
         if o.get('nowy') and o.get('lista'):
@@ -1235,7 +1268,8 @@ def wh_nowe_wiersz(W):
         elif o.get('kontrola') == 'brak':
             cz.append(f'{g} — nie wiadomo (plik obecnej listy nie odpowiada plikiem — możliwa blokada serwera) ℹ️')
         elif o.get('przerwane'):
-            cz.append(f'{g} — sprawdzanie przerwane (limit czasu)' + (f'; brak nowszego w dniach {o["zakres"][0]}–{o["zakres"][1]}' if o.get('zakres') else '') + ' ℹ️')
+            cz.append(f'{g} — sprawdzanie przerwane (limit czasu)' + (f'; brak nowszego w dniach {o["zakres"][0]}–{o["zakres"][1]}' if o.get('zakres') else '')
+                      + (f'; dni bez odpowiedzi: {o["nie_wiadomo"]}' if o.get('nie_wiadomo') else '') + ' ℹ️')
         elif o.get('nie_wiadomo'):
             cz.append(f'{g} — nie wiadomo (źródło nie odpowiedziało albo odpowiedź niejasna) ℹ️')
         elif not o.get('prob'):
@@ -2992,13 +3026,16 @@ def kontrola():
         except Exception as e:  # noqa
             bs.append(f'EBC: {str(e)[:60]}')
         od_s = (NOW.date() - dt.timedelta(days=STOPY_OD_DNI)).isoformat()
-        brak_ids = [ids for a, (ids, _) in STOPY_FRED.items() if not any(all(i in Fs for i in w[0]) for w in STOPY_SERIE[a][:1])]
-        for sid in sorted({i for ids in brak_ids for i in ids}):   # zapas FRED tylko dla banków bez serii źródła
+        Ps = stopy_porownanie(files['stopy'], Fs)
+        bez = {o['bank'] for o in Ps if o.get('brak') and o['brak'].startswith('brak serii')}   # v243: także gdy seria banku nie sięga dnia strony
+        ids_f = sorted({i for a, (ids, nm) in STOPY_FRED.items() if nm in bez for i in ids if i not in Fs})
+        for sid in ids_f:   # zapas FRED tylko dla banków bez porównania
             try:
                 Fs[sid] = ust_fred_csv(get(STOPY_FRED_URL.format(id=sid, od=od_s), timeout=30)[1].decode('utf-8', 'replace'))
             except Exception as e:  # noqa
                 bs.append(f'{sid}: {str(e)[:60]}')
-        Ps = stopy_porownanie(files['stopy'], Fs)
+        if ids_f:
+            Ps = stopy_porownanie(files['stopy'], Fs)
         Z['stopy'] = {'wyniki': Ps, 'brak': '; '.join(bs)[:200] if bs else None}
         R['uwagi'] += stopy_uwagi(Ps)
     if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('fx'), dict):   # v225: kursy walut vs H.10 (Fed); brak = informacja
@@ -3047,9 +3084,9 @@ def kontrola():
         try:   # v237: nowe raporty dowodu rezerw — automat sam wie, kiedy listę można odświeżyć
             Z['wh_nowe'] = wh_nowe_raporty((files.get('wieloryby') or {}).get('gieldy'))
         except Exception as e:  # noqa
-            Z['wh_nowe'] = {}
+            Z['wh_nowe'] = {'_blad': type(e).__name__}   # v243: wiersz „nie wiadomo”, nie zniknięcie
         for g, o in Z['wh_nowe'].items():
-            if o.get('nowy') and o.get('lista'):
+            if isinstance(o, dict) and o.get('nowy') and o.get('lista'):
                 R['uwagi'].append(f'nowa lista portfeli giełdy {g} z {o["nowy"]} (raport dowodu rezerw; obecna z {o["od"]}) — co zrobić: napisz do '
                                   f'Claude „odśwież listę portfeli {g} z nowego raportu dowodu rezerw”')
     # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
