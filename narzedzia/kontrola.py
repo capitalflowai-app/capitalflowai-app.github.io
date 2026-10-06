@@ -276,6 +276,10 @@ CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez 
     (re.compile(r'^automat nie odświeżył danych'),
      'Automat nie odświeża danych od ponad 3 godzin — zegar zapasowy też nie pomógł. Najczęściej to przerwa po stronie GitHub (stan: githubstatus.com); '
      'jeśli trwa ponad 6 godzin, napisz do Claude: „automat stoi”.'),
+    (re.compile(r'^publikacja zawieszona'),   # v232: przebieg czeka na środowisko, choć nikt nie musi zatwierdzać
+     'Przebieg publikacji czeka na „zatwierdzenie”, którego nikt nie wymaga (usterka po stronie GitHub), a zegar zapasowy go nie anulował — '
+     'dopóki czeka, strona nie dostaje nowych danych. Otwórz na GitHub zakładkę Actions, przebieg „Strona i dane” ze stanem „Waiting” '
+     '→ „Cancel workflow”; następny przebieg ruszy sam w ciągu 10–20 min. Jeśli to wraca, napisz do Claude: „publikacja zawieszona”.'),
     (re.compile(r'^automat nie działa \(publikacja GitHub Pages\)'),   # v219: tylko seria samych porażek publikacji (przebiegi_ocena)
      'Ostatnie przebiegi padły na publikacji strony — to zwykle chwilowa awaria po stronie GitHub. Sprawdź za 1–2 godziny; jeśli trwa dłużej, '
      'napisz do Claude: „publikacja strony nie działa”.'),
@@ -295,6 +299,7 @@ CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez 
      'albo z nowym miesiącem); nic nie psuje się na stałe. Napisz do Claude: „zmniejsz liczbę zapytań — limit planu z kontroli”.'),
 )
 CO_ZROBIC_INNE = 'Napisz do Claude: „sprawdź błąd z kontroli” — w raporcie niżej jest jego treść.'
+WAIT_UWAGA_MIN, WAIT_BLAD_MIN = 30, 120   # v232: przebieg „Strona i dane” w stanie waiting tak długo — uwaga / błąd (zegar anuluje po 15 min)
 
 
 def co_zrobic(bledy):
@@ -1263,6 +1268,26 @@ def przebiegi_ocena(runs, now, kroki=None):
             uwagi.append(f'{pl_przebiegi(len(por))} automatu w 24 h — już naprawione: od ostatniej porażki {pl_udane(udane_po)} z rzędu ({lista})')
     if len(ost) < 20:
         uwagi.append(f'tylko {len(ost)} przebiegów w 24 h (harmonogram co 10 min ≈ 144; GitHub bywa opóźniony)')
+    # v232: przebieg w stanie waiting (zadanie „opublikuj” czeka na środowisko) trzyma grupę „pages” — żadna publikacja nie przejdzie;
+    # wszystkie przebiegi z listy (także starsze niż doba), czas czekania od updated_at; zła data = bez zgadywania
+    def czeka_min(r):
+        try:
+            t = dt.datetime.fromisoformat(str(r.get('updated_at')).replace('Z', '+00:00'))
+            t = t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+        except Exception:
+            return None
+        return int((now - t).total_seconds() // 60)
+    cz = [(czeka_min(r), r) for r in runs if isinstance(r, dict) and str(r.get('name', '')).startswith('Strona') and r.get('status') == 'waiting']
+    cz = sorted(((m, r) for m, r in cz if m is not None and m >= WAIT_UWAGA_MIN), key=lambda x: -x[0])
+    if cz:
+        m, r = cz[0]
+        kiedy = czas_pl(r.get('run_started_at'))
+        if m >= WAIT_BLAD_MIN:
+            bledy.append(f'publikacja zawieszona: przebieg z {kiedy} czeka od {m // 60} godz. {m % 60} min na wdrożenie strony (stan „waiting”), '
+                         'a zegar zapasowy go nie anulował — strona bez nowych danych')
+        else:
+            uwagi.append(f'publikacja czeka od {m} min (przebieg z {kiedy}, stan „waiting”) — zegar zapasowy anuluje taki przebieg sam '
+                         f'(po 15 min, przy najbliższym czuwaniu); od {WAIT_BLAD_MIN // 60} godz. to błąd')
     return A, bledy, uwagi
 
 

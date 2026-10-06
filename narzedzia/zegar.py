@@ -16,6 +16,9 @@ Tryby:
   python3 narzedzia/zegar.py zbudz    — (koniec przebiegu „Strona i dane”) uruchom workflow „Zegar zapasowy” (zegar.yml); poprzednie czuwanie
                                         anuluje GitHub (concurrency zegar, cancel-in-progress)
   python3 narzedzia/zegar.py dzienne  — (v159, workflow „Zegar zapasowy”, przed prowadz) kontrola i archiwum dzienne, gdy ich harmonogram nie ruszył
+  python3 narzedzia/zegar.py odblokuj — (v232, workflow „Zegar zapasowy”, przed prowadz) anuluje przebieg „Strona i dane” zawieszony w stanie
+                                        waiting (zadanie „opublikuj” czeka na środowisko, choć nic nie wymaga zatwierdzenia — 06.10.2026 od 08:47
+                                        UTC trzymało grupę „pages” i blokowało każdą publikację); zatwierdzenia przez osobę nie rusza nigdy
   python3 narzedzia/zegar.py prowadz  — (workflow „Zegar zapasowy”) czeka do progu od startu ostatniego przebiegu (najwyżej MAX_CZEKAJ s),
                                         sprawdza ponownie i uruchamia „Strona i dane”, chyba że w międzyczasie ruszył inny przebieg albo czeka/trwa
 Token: GH_TOKEN — token przebiegu GitHub Actions (uprawnienie actions: write); tylko w nagłówku, nigdy w logu. Wyłącznik: ZEGAR_OFF=1.
@@ -26,6 +29,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 
 REPO = os.environ.get('GITHUB_REPOSITORY', 'capitalflowai-app/capitalflowai-app.github.io')
@@ -41,6 +45,11 @@ AKTYWNE = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
 # Zapas = typowe spóźnienie harmonogramu GitHub + margines: kontrola 06:20 → 07:30 UTC, archiwum 01:20 → 03:00 UTC.
 DZIENNE = (('kontrola.yml', 'kontrola dzienna', 6, 20, 70), ('archiwum.yml', 'archiwum dzienne', 1, 20, 100))
 DZIENNE_OD_MIN = 20   # przebieg „z dziś” = utworzony najwcześniej tyle minut przed terminem (wcześniejszy push to nie dzisiejsze zadanie)
+# v232 (06.10.2026): zadanie „opublikuj” stało ponad godzinę w stanie waiting (środowisko github-pages bez wymogu zatwierdzenia) i trzymało
+# grupę „pages” — każdy następny przebieg czekał. Tryb `odblokuj` anuluje taki przebieg; zatwierdzenia przez osobę nie rusza nigdy.
+ZAWIESZONY_MIN = 15         # v232: waiting tak długo (od updated_at), a nic nie czeka na osobę ani na licznik czasu = zawieszony (zwykle przejście trwa sekundy)
+ZAWIESZONY_PUSTY_MIN = 60   # v232: waiting bez żadnego oczekującego wdrożenia (pusta lista) — dłuższa cierpliwość
+ODBLOKUJ_MAX = 5            # v232: najwyżej tyle przebiegów sprawdzanych w jednym czuwaniu
 
 
 def czas(s):
@@ -146,6 +155,67 @@ def _dzienne(token, now):
     return 0
 
 
+def zawieszony(run, pend, now):
+    """v232: przebieg (API) i jego oczekujące wdrożenia (lista z /pending_deployments) → powód anulowania albo None (nie ruszać).
+    Zawieszony = status 'waiting' od ≥ ZAWIESZONY_MIN min (updated_at), a żadne wdrożenie nie czeka na osobę (reviewers) ani na licznik czasu
+    środowiska, który jeszcze biegnie (wait_timer); pusta lista — dopiero po ZAWIESZONY_PUSTY_MIN min. Zła data albo nieznany kształt = None."""
+    if not isinstance(run, dict) or run.get('status') != 'waiting' or not isinstance(pend, list):
+        return None
+    t = czas(run.get('updated_at'))
+    if t is None:
+        return None
+    od = (now - t).total_seconds() / 60
+    if not pend:
+        return f'czeka {int(od)} min bez oczekującego wdrożenia' if od >= ZAWIESZONY_PUSTY_MIN else None
+    if od < ZAWIESZONY_MIN:
+        return None
+    for p in pend:
+        if not isinstance(p, dict) or p.get('reviewers'):
+            return None                                   # ktoś ma zatwierdzić — to nie usterka
+        w = p.get('wait_timer') or 0
+        if not isinstance(w, (int, float)) or isinstance(w, bool) or w < 0:
+            return None
+        if w:
+            s = czas(p.get('wait_timer_started_at'))
+            if s is None or now < s + dt.timedelta(minutes=w):
+                return None                               # licznik czasu środowiska jeszcze biegnie
+    return f'czeka {int(od)} min na wdrożenie, którego nikt nie musi zatwierdzać'
+
+
+def anuluj(rid, token):
+    """v232: anuluj przebieg; GitHub odmawia (409) — force-cancel. Zwraca kod HTTP."""
+    try:
+        st, _ = _api(f'/repos/{REPO}/actions/runs/{rid}/cancel', token, {})
+        return st
+    except urllib.error.HTTPError as e:
+        if e.code != 409:
+            raise
+    st, _ = _api(f'/repos/{REPO}/actions/runs/{rid}/force-cancel', token, {})
+    return st
+
+
+def _odblokuj(token, now):
+    """v232: zawieszone przebiegi „Strona i dane” → anuluj; każdy osobno (błąd jednego nie blokuje drugiego); w logu tylko rodzaj błędu."""
+    _, j = _api(f'/repos/{REPO}/actions/workflows/{WF_STRONA}/runs?status=waiting&per_page=10', token)
+    runs = [r for r in ((j.get('workflow_runs') or []) if isinstance(j, dict) else []) if isinstance(r, dict) and r.get('status') == 'waiting']
+    if not runs:
+        print('zegar: odblokuj: żaden przebieg nie czeka'); return 0
+    for r in runs[:ODBLOKUJ_MAX]:
+        rid = r.get('id')
+        if not isinstance(rid, int) or isinstance(rid, bool):
+            continue
+        try:
+            _, pend = _api(f'/repos/{REPO}/actions/runs/{rid}/pending_deployments', token)
+            powod = zawieszony(r, pend, now)
+            if powod is None:
+                print(f'zegar: odblokuj: przebieg {rid} czeka — jeszcze nie zawieszony albo czeka na zatwierdzenie'); continue
+            st = anuluj(rid, token)
+            print(f'zegar: odblokuj: przebieg {rid} {powod} — anulowany (HTTP {st}); następny przebieg ruszy sam')
+        except Exception as e:  # noqa — bez treści wyjątku (mogłaby zawierać nagłówki), tylko rodzaj
+            print(f'zegar: odblokuj: przebieg {rid}: błąd {type(e).__name__} — następna próba przy kolejnym czuwaniu')
+    return 0
+
+
 def main(argv, now_fn=lambda: dt.datetime.now(dt.timezone.utc), sleep=time.sleep):
     """Kod 2 tylko przy złym trybie; każdy inny wynik (także błąd sieci/API) = 0 — zegar nigdy nie psuje przebiegu strony."""
     try:
@@ -157,8 +227,8 @@ def main(argv, now_fn=lambda: dt.datetime.now(dt.timezone.utc), sleep=time.sleep
 
 def _main(argv, now_fn, sleep):
     tryb = argv[1] if len(argv) > 1 else ''
-    if tryb not in ('zbudz', 'prowadz', 'dzienne'):
-        print('użycie: zegar.py zbudz|prowadz|dzienne'); return 2
+    if tryb not in ('zbudz', 'prowadz', 'dzienne', 'odblokuj'):
+        print('użycie: zegar.py zbudz|prowadz|dzienne|odblokuj'); return 2
     if os.environ.get('ZEGAR_OFF', '').strip() == '1':
         print('zegar: wyłączony (ZEGAR_OFF=1)'); return 0
     if tryb == 'dzienne' and os.environ.get('ZEGAR_DZIENNE_OFF', '').strip() == '1':
@@ -168,6 +238,8 @@ def _main(argv, now_fn, sleep):
         print('zegar: brak GH_TOKEN — nic nie robię'); return 0
     if tryb == 'dzienne':   # v159: krótko, bez czekania — przed czuwaniem „Strona i dane”
         return _dzienne(token, now_fn())
+    if tryb == 'odblokuj':   # v232: krótko, bez czekania — przed czuwaniem (zawieszony przebieg trzyma grupę „pages”)
+        return _odblokuj(token, now_fn())
     if tryb == 'zbudz':   # v145.2: zawsze — czuwanie po każdym przebiegu (próg zależy od stanu harmonogramu, liczony w trybie prowadz)
         st = uruchom(WF_ZEGAR, token)
         print(f'zegar: czuwanie po przebiegu — uruchomiony zegar zapasowy (HTTP {st})'); return 0

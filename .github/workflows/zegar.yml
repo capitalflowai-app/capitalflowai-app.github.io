@@ -6,6 +6,8 @@ name: Zegar zapasowy (gdy harmonogram stoi)
 # i własnym harmonogramem (gdyby ten działał); nowe czuwanie anuluje poprzednie (concurrency).
 # v159 (04.10): na początku każdego czuwania także zadania dzienne — kontrola (06:20 UTC) i archiwum (01:20 UTC) uruchamiane, gdy ich
 # harmonogram nie ruszył do 07:30 / 03:00 UTC (04.10 kontrola nie ruszyła wcale). Wyłącznik tylko tej części: ZEGAR_DZIENNE_OFF=1.
+# v232 (06.10): przed czuwaniem także odblokowanie — przebieg „Strona i dane” w stanie waiting ≥ 15 min, choć nic nie wymaga zatwierdzenia
+# (06.10 od 08:47 UTC trzymał grupę „pages” i blokował każdą publikację), jest anulowany; zatwierdzenia przez osobę nie rusza.
 # Token: token przebiegu (actions: write), tylko w nagłówku. Wyłącznik: zmienna repozytorium ZEGAR_OFF=1.
 on:
   workflow_dispatch:
@@ -37,6 +39,11 @@ jobs:
           ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}
           ZEGAR_DZIENNE_OFF: ${{ vars.ZEGAR_DZIENNE_OFF }}
         run: python3 narzedzia/zegar.py dzienne || echo "zegar dzienne nieudany — bez wpływu na czuwanie"
+      - name: Zegar — odblokuj zawieszoną publikację (przebieg „waiting” bez wymogu zatwierdzenia, v232)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}
+        run: python3 narzedzia/zegar.py odblokuj || echo "zegar odblokuj nieudany — bez wpływu na czuwanie"
       - name: Zegar — uruchom „Strona i dane”, gdy harmonogram stoi (token przebiegu tylko w nagłówku)
         env:
           GH_TOKEN: ${{ github.token }}

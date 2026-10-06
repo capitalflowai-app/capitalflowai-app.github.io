@@ -26474,3 +26474,163 @@ class PoPrzegladzieV231(unittest.TestCase):
         f = k.fx_porownanie({'fx': {'now': {'base': 'EUR', 'date': '2026-10-02', 'rates': ok}}}, H)
         self.assertEqual((f['daty'], f['baza']), ([], [['now', 'EUR']]), 'same migawki z inną bazą — ⚠️, nie „brak migawek”')
         self.assertIsNone(k.fx_porownanie({'fx': {'now': {'date': '2026-10-02', 'rates': ok}}}, H), 'bez pola base — jak dotąd: bez porównania')
+
+
+# ===================== v232: ZAWIESZONA PUBLIKACJA — ZEGAR ANULUJE, KONTROLA ZGŁASZA =====================
+class ZegarOdblokujV232(unittest.TestCase):
+    """v232: 06.10.2026 zadanie „opublikuj” stało od 08:47 UTC w stanie waiting (środowisko github-pages bez wymogu zatwierdzenia) i trzymało
+    grupę „pages”. Tryb `odblokuj` anuluje taki przebieg; zatwierdzenia przez osobę i trwającego licznika czasu nie rusza. Bez sieci (_api atrapą)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('v232_zegar', os.path.join(root, 'narzedzia', 'zegar.py'))
+        cls.Z = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.Z)
+        cls.ROOT = root
+        cls.NOW = datetime.datetime(2026, 10, 6, 9, 52, tzinfo=datetime.timezone.utc)
+        # prawdziwy przebieg 06.10.2026 (API, skrót) i jego oczekujące wdrożenie
+        cls.RUN = {'id': 37437793511, 'name': 'Strona i dane', 'status': 'waiting', 'conclusion': None, 'event': 'push',
+                   'created_at': '2026-10-06T08:41:24Z', 'run_started_at': '2026-10-06T08:41:24Z', 'updated_at': '2026-10-06T08:47:47Z'}
+        cls.PEND = [{'environment': {'name': 'github-pages'}, 'wait_timer': 0, 'wait_timer_started_at': None, 'current_user_can_approve': False, 'reviewers': []}]
+
+    def test_zawieszony(self):
+        Z, R, P, N = self.Z, self.RUN, self.PEND, self.NOW
+        self.assertEqual((Z.ZAWIESZONY_MIN, Z.ZAWIESZONY_PUSTY_MIN), (15, 60))
+        self.assertIn('nikt nie musi zatwierdzać', Z.zawieszony(R, P, N), 'prawdziwy przypadek 06.10: 64 min, bez recenzentów, wait_timer 0')
+        self.assertIn('czeka 64 min', Z.zawieszony(R, P, N))
+        u = lambda m: {**R, 'updated_at': (N - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')}  # noqa: E731
+        self.assertIsNone(Z.zawieszony(u(14), P, N), '14 min — jeszcze nie')
+        self.assertIsNotNone(Z.zawieszony(u(15), P, N), '15 min — zawieszony')
+        self.assertIsNone(Z.zawieszony(u(300), [{**P[0], 'reviewers': [{'type': 'User', 'reviewer': {'login': 'x'}}]}], N), 'ktoś ma zatwierdzić — nigdy')
+        self.assertIsNone(Z.zawieszony(u(300), P + [{**P[0], 'reviewers': [{'type': 'Team'}]}], N), 'jedno z wdrożeń czeka na osobę — nie ruszać')
+        t = lambda m: (N - datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+        self.assertIsNone(Z.zawieszony(u(40), [{**P[0], 'wait_timer': 30, 'wait_timer_started_at': t(20)}], N), 'licznik czasu środowiska biegnie')
+        self.assertIsNotNone(Z.zawieszony(u(40), [{**P[0], 'wait_timer': 30, 'wait_timer_started_at': t(31)}], N), 'licznik minął, a nadal czeka')
+        self.assertIsNone(Z.zawieszony(u(40), [{**P[0], 'wait_timer': 30, 'wait_timer_started_at': None}], N), 'licznik bez startu — nie ruszać')
+        self.assertIsNone(Z.zawieszony(u(59), [], N), 'pusta lista — cierpliwość 60 min')
+        self.assertIn('bez oczekującego wdrożenia', Z.zawieszony(u(60), [], N))
+        for zly in ({**R, 'status': 'pending'}, {**R, 'status': 'in_progress'}, {**R, 'updated_at': 'zła data'}, {**R, 'updated_at': None}, None, 'x'):
+            self.assertIsNone(Z.zawieszony(zly, P, N), zly)
+        for zle in (None, {'x': 1}, 'x', [None], [{**P[0], 'wait_timer': 'x'}], [{**P[0], 'wait_timer': True}], [{**P[0], 'wait_timer': -1}]):
+            self.assertIsNone(Z.zawieszony(u(300), zle, N), zle)
+
+    def _run(self, odpowiedzi, env=None, token='ghs_TAJNY_TOKEN_123', now=None):
+        log, out = [], io.StringIO()
+
+        def api(path, token_, data=None):
+            log.append((path, data))
+            for klucz, odp in odpowiedzi:
+                if klucz in path:
+                    if isinstance(odp, Exception):
+                        raise odp
+                    return odp
+            raise AssertionError('nieoczekiwane zapytanie ' + path)
+        with mock.patch.dict(os.environ, {'GH_TOKEN': token, **(env or {})}, clear=False), mock.patch.object(self.Z, '_api', api), \
+                mock.patch('sys.stdout', out):
+            rc = self.Z.main(['zegar.py', 'odblokuj'], now_fn=lambda: now or self.NOW, sleep=lambda s: self.fail('tryb odblokuj nie czeka'))
+        self.assertNotIn('TAJNY', out.getvalue(), 'token nigdy w logu')
+        return rc, log, out.getvalue()
+
+    def test_odblokuj_06_10(self):
+        import urllib.error
+        base = '/repos/capitalflowai-app/capitalflowai-app.github.io/actions/'
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
+                                  ('/cancel', (202, {}))])
+        self.assertEqual(rc, 0)
+        self.assertEqual([p for p, d in log], [base + 'workflows/strona.yml/runs?status=waiting&per_page=10',
+                                               base + 'runs/37437793511/pending_deployments', base + 'runs/37437793511/cancel'])
+        self.assertEqual(log[-1][1], {}, 'POST (pusta treść)')
+        self.assertIn('anulowany (HTTP 202)', out)
+        # GitHub odmawia zwykłego anulowania (409) — force-cancel
+        e409 = urllib.error.HTTPError('https://api.github.com/x', 409, 'Conflict', {}, None)
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
+                                  ('/cancel', e409), ('/force-cancel', (202, {}))])
+        self.assertEqual([p.rsplit('/', 1)[1] for p, d in log][-2:], ['cancel', 'force-cancel']); self.assertIn('anulowany (HTTP 202)', out)
+        # inny błąd anulowania — bez force-cancel, kod 0, w logu tylko rodzaj
+        e403 = urllib.error.HTTPError('https://api.github.com/x', 403, 'Forbidden', {}, None)
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, self.PEND)),
+                                  ('/cancel', e403)])
+        self.assertEqual(rc, 0); self.assertNotIn('force-cancel', ' '.join(p for p, d in log)); self.assertIn('błąd HTTPError', out)
+
+    def test_odblokuj_bez_anulowania(self):
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': []}))])
+        self.assertEqual((rc, len(log)), (0, 1)); self.assertIn('żaden przebieg nie czeka', out)
+        swiezy = {**self.RUN, 'updated_at': '2026-10-06T09:45:00Z'}
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [swiezy]})), ('pending_deployments', (200, self.PEND))])
+        self.assertEqual([p for p, d in log if d is not None], [], '7 min — bez anulowania'); self.assertIn('jeszcze nie zawieszony', out)
+        osoba = [{**self.PEND[0], 'reviewers': [{'type': 'User'}]}]
+        rc, log, out = self._run([('runs?status=waiting', (200, {'workflow_runs': [self.RUN]})), ('pending_deployments', (200, osoba))])
+        self.assertEqual([p for p, d in log if d is not None], [], 'zatwierdzenie przez osobę — nigdy')
+
+    def test_odblokuj_bledy_i_wylaczniki(self):
+        rc, log, out = self._run([('runs?status=waiting', OSError('Authorization: Bearer ghs_TAJNY_TOKEN_123 refused'))])
+        self.assertEqual(rc, 0); self.assertIn('OSError', out)
+        # błąd jednego przebiegu nie blokuje drugiego
+        r2 = {**self.RUN, 'id': 37437793999}
+        odp = [('runs?status=waiting', (200, {'workflow_runs': [self.RUN, r2]})), ('37437793511/pending_deployments', OSError('x')),
+               ('37437793999/pending_deployments', (200, self.PEND)), ('37437793999/cancel', (202, {}))]
+        rc, log, out = self._run(odp)
+        self.assertEqual([p for p, d in log if d is not None], ['/repos/capitalflowai-app/capitalflowai-app.github.io/actions/runs/37437793999/cancel'])
+        self.assertIn('przebieg 37437793511: błąd OSError', out)
+        for env, tok in (({'ZEGAR_OFF': '1'}, 'ghs_TAJNY_TOKEN_123'), ({}, '')):
+            rc, log, out = self._run([], env=env, token=tok)
+            self.assertEqual((rc, log), (0, []), f'{env} / token {bool(tok)}: żadnego zapytania')
+        with mock.patch('sys.stdout', io.StringIO()) as o:
+            self.assertEqual(self.Z.main(['zegar.py', 'cos']), 2)
+        self.assertIn('odblokuj', o.getvalue(), 'tryb w podpowiedzi użycia')
+
+    def test_workflow_zegara(self):
+        z = open(os.path.join(self.ROOT, '.github', 'workflows', 'zegar.yml'), encoding='utf-8').read()
+        i, j, k = (z.index('python3 narzedzia/zegar.py dzienne'), z.index('python3 narzedzia/zegar.py odblokuj'),
+                   z.index('python3 narzedzia/zegar.py prowadz'))
+        self.assertLess(i, j); self.assertLess(j, k, 'odblokowanie przed czuwaniem (czuwanie widzi już przebieg, który ruszył po anulowaniu)')
+        krok = z[z.rindex('- name:', 0, j):z.index('- name:', j)]
+        for frag in ('GH_TOKEN: ${{ github.token }}', 'ZEGAR_OFF: ${{ vars.ZEGAR_OFF }}', 'zegar.py odblokuj || echo'):
+            self.assertIn(frag, krok, frag)
+        self.assertIn('actions: write', z); self.assertNotIn('secrets.', z)
+        self.assertIn('v232', _rwc150_txt(os.path.join(self.ROOT, 'narzedzia', 'zegar.py')))
+
+
+class KontrolaZawieszonaV232(unittest.TestCase):
+    """v232: kontrola dzienna — przebieg „Strona i dane” w stanie waiting od ≥ 30 min = uwaga, od ≥ 120 min = błąd z podpowiedzią."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='kontrola232-')
+        os.environ['KONTROLA_DIR'] = os.path.join(cls.tmp, 'kontrola'); os.environ['KONTROLA_ARCH'] = os.path.join(cls.tmp, 'archiwum')
+        spec = importlib.util.spec_from_file_location('v232_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 6, 9, 52, tzinfo=datetime.timezone.utc)
+
+    def _r(self, i, min_temu, status='completed', wynik='success', czeka_min=None, nazwa='Strona i dane'):
+        t = (self.NOW - datetime.timedelta(minutes=min_temu)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        u = (self.NOW - datetime.timedelta(minutes=czeka_min)).strftime('%Y-%m-%dT%H:%M:%SZ') if czeka_min is not None else t
+        return {'id': i, 'name': nazwa, 'status': status, 'conclusion': wynik, 'run_started_at': t, 'updated_at': u}
+
+    def seria(self):
+        return [self._r(2000 + j, 5 + 10 * j) for j in range(60)]
+
+    def test_progi(self):
+        k = self.k
+        self.assertEqual((k.WAIT_UWAGA_MIN, k.WAIT_BLAD_MIN), (30, 120))
+        A, b, u = k.przebiegi_ocena([self._r(1, 70, 'waiting', None, czeka_min=64)] + self.seria(), self.NOW)
+        self.assertEqual(b, []); w = [x for x in u if x.startswith('publikacja czeka')]
+        self.assertEqual(len(w), 1, u); self.assertIn('od 64 min', w[0]); self.assertIn('zegar zapasowy', w[0])
+        A, b, u = k.przebiegi_ocena([self._r(1, 130, 'waiting', None, czeka_min=125)] + self.seria(), self.NOW)
+        self.assertEqual(len(b), 1, b); self.assertTrue(b[0].startswith('publikacja zawieszona'), b)
+        self.assertIn('2 godz.', b[0]); self.assertFalse([x for x in u if x.startswith('publikacja czeka')], 'błąd zamiast uwagi, nie oba')
+        h = k.co_zrobic(b)
+        self.assertEqual(len(h), 1); self.assertIn('Cancel workflow', h[0]); self.assertIn('Waiting', h[0])
+        for czeka in (0, 29):
+            A, b, u = k.przebiegi_ocena([self._r(1, 40, 'waiting', None, czeka_min=czeka)] + self.seria(), self.NOW)
+            self.assertEqual(b, []); self.assertFalse([x for x in u if x.startswith('publikacja')], f'{czeka} min — nic')
+        A, b, u = k.przebiegi_ocena([self._r(1, 300, 'waiting', None, czeka_min=290, nazwa='Kontrola strony (codziennie)')] + self.seria(), self.NOW)
+        self.assertFalse([x for x in b + u if x.startswith('publikacja')], 'inne zadanie — nie ta kontrola')
+        A, b, u = k.przebiegi_ocena([{**self._r(1, 300, 'waiting', None), 'updated_at': 'zła data'}] + self.seria(), self.NOW)
+        self.assertFalse([x for x in b + u if x.startswith('publikacja')], 'zła data — bez zgadywania')
+        # przebieg czekający dłużej niż doba (poza oknem 24 h liczników) — nadal zgłoszony
+        A, b, u = k.przebiegi_ocena([self._r(1, 1600, 'waiting', None, czeka_min=1590)] + self.seria(), self.NOW)
+        self.assertTrue(b and b[0].startswith('publikacja zawieszona'), b)
