@@ -11202,7 +11202,7 @@ class KontrolaV115(unittest.TestCase):
         self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', k.TGA_PROG, None)[0], '✅'); self.assertEqual(k.mediana_ocena(tg, 'tga', 4.3, '2026-09-26', k.TGA_PROG, None)[0], '⚠️')
         self.assertEqual(k.mediana_ocena(tg, 'tga', 9.9, '2026-09-26', k.TGA_PROG, None)[0], '⚠️', 'TGA nigdy nie jest czerwone'); self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', 1.0, None)[2], 10)
         p = os.path.join(self.tmp, 'zgodnosc.csv'); k.zgodnosc_zapisz(p, {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
-        self.assertEqual(open(p, encoding='utf-8').read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct\n2026-09-25,4.361,3.050,\n2026-09-26,4.400,,\n');   # v209: + kolumna stablecoinów self.assertEqual(k.zgodnosc_csv(p), {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
+        self.assertEqual(open(p, encoding='utf-8').read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct\n2026-09-25,4.361,3.050,\n2026-09-26,4.400,,\n'); self.assertEqual(k.zgodnosc_csv(p), {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})   # v209: + kolumna stablecoinów; v215: druga asercja znowu działa
 
     def test_tga_i_wieloryby(self):
         k = self.k
@@ -25505,12 +25505,12 @@ class PoPrzegladzieV211(unittest.TestCase):
 
     def test_czeka_na_publikacje_tylko_informacja(self):
         t = self._t
-        aw = {k: {'od': t(-100), 'ost': t(-0.1), 'n': 500, 'do': None} for k in ('jpx', 'snb', 'ici', 'wycena_bg')}
+        aw = {k: {'od': t(-100), 'ost': t(-0.1), 'n': 500, 'do': None} for k in ('jpx', 'ici', 'wycena_bg')}
         Z = self.k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
-        self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 4)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
+        self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 3)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
-        self.assertEqual(set(self.k.AW_BEZ_BLEDU), {'ici', 'jpx', 'snb', 'wycena_bg'})
+        self.assertEqual(set(self.k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg'}, 'v215: snb — zwykła ocena')
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
         t, k = self._t, self.k
@@ -25559,15 +25559,20 @@ class KontrolaCoZrobicV212(unittest.TestCase):
              'plik stanu bez czasu przebiegu', 'automat nie działa: 6 przebiegów w 24 h, ostatnie 6 z rzędu — …',
              'część automatu „oecd” nie działa od 03.10.2026, 20:20 (2 dni 11 godz., …) — automat nie naprawił tego sam; co zrobić: …',
              'zbieracz zgłasza błędy w 3 kolejnych dniach kontroli (x)', 'kapitalizacja krypto: różnica źródeł dziś 9.00% wobec normy 4.00% — …',
-             'TIC (miesięcznie): dane z 2026-06 — 160 d 0 h temu (próg 150 d)', 'coś zupełnie nowego']
+             'TIC (miesięcznie): dane z 2026-06 — 160 d 0 h temu (próg 150 d)', 'coś zupełnie nowego',
+             'strona główna: HTTP 200, 512 B', 'automat nie działa: 2 przebiegi w 24 h, ostatnie 2 z rzędu — strona nie odświeża danych (06.10 08:00 — publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba))']
         H = k.co_zrobic(B)
-        self.assertEqual(len(H), 8, 'strona ×2 i automat stoi ×2 — po jednej podpowiedzi; reszta osobno; nieznany — ogólna')
-        self.assertTrue(H[0].startswith('Strona albo jej pliki nie odpowiadają') and 'githubstatus.com' in H[0])
-        self.assertTrue(H[1].startswith('Automat nie odświeża danych') and 'ponad 6 godzin' in H[1])
-        self.assertTrue(H[2].startswith('Kolejne przebiegi automatu kończą się błędem'))
-        self.assertTrue(H[3].startswith('Część automatu nie działa od ponad 2 dni'))
-        self.assertTrue(H[4].startswith('Zbieracz od kilku dni')); self.assertTrue(H[5].startswith('Dwa źródła tej samej liczby'))
-        self.assertTrue(H[6].startswith('Dane źródła są starsze niż zwykle')); self.assertEqual(H[7], k.CO_ZROBIC_INNE)
+        self.assertEqual(len(H), 11, 'v215: strona ×2 jedną podpowiedzią; „bez czasu”, „HTTP 200” i publikacja Pages osobno; nieznany — ogólna')
+        self.assertTrue(H[0].startswith('Strona albo jej plik stanu nie odpowiada') and 'githubstatus.com' in H[0])
+        self.assertTrue(H[1].startswith('Automat nie odświeża danych od ponad 3 godzin') and 'zegar zapasowy też nie pomógł' in H[1])
+        self.assertTrue(H[2].startswith('Plik stanu automatu jest uszkodzony'))
+        self.assertTrue(H[3].startswith('Ostatnie przebiegi automatu kończą się błędem') and 'sam tego nie naprawi' not in H[3])
+        self.assertTrue(H[4].startswith('Część automatu nie działa od ponad 2 dni'))
+        self.assertTrue(H[5].startswith('Zbieracz od kilku dni')); self.assertTrue(H[6].startswith('Dwa źródła tej samej liczby'))
+        self.assertTrue(H[7].startswith('Dane źródła są dużo starsze niż zwykle') and 'normalne' not in H[7] and 'święcie' not in H[7])
+        self.assertEqual(H[8], k.CO_ZROBIC_INNE)
+        self.assertTrue(H[9].startswith('Strona odpowiada, ale jej treść jest niepełna'))
+        self.assertTrue(H[10].startswith('Ostatnie przebiegi padły na publikacji strony') and '1–2 godziny' in H[10])
         self.assertEqual(k.co_zrobic([]), []); self.assertEqual(k.co_zrobic(None), [])
 
     def test_raport(self):
@@ -25576,7 +25581,27 @@ class KontrolaCoZrobicV212(unittest.TestCase):
              'swiezosc': [], 'uwagi': [], 'bledy': ['strona główna: HTTP 503, 0 B', 'automat nie odświeżył danych od 5 godz. (ostatni przebieg x)']}
         L = k.raport_md(R).splitlines()
         self.assertEqual(L[0], '# Kontrola strony — 06.10.2026, 08:20 (czas polski)'); self.assertEqual(L[2], '**Wynik: BŁĄD**'); self.assertTrue(L[4].startswith('❌ Błędów: 2'))
-        self.assertEqual(L[5:7], ['', '**Co zrobić:**']); self.assertTrue(L[7].startswith('- Strona albo jej pliki') and L[8].startswith('- Automat nie odświeża'))
+        self.assertEqual(L[5:7], ['', '**Co zrobić:**']); self.assertTrue(L[7].startswith('- Strona albo jej plik stanu') and L[8].startswith('- Automat nie odświeża'))
         self.assertEqual(L[9], ''); self.assertTrue(L[10].startswith('- Strona główna: PROBLEM'))
         for w in ('OK', 'UWAGA'):
             self.assertNotIn('Co zrobić:', k.raport_md(dict(R, wynik=w, bledy=[])))
+
+
+# ===================== v215: POPRAWKI PO PRZEGLĄDZIE v209–v212 =====================
+class PoPrzegladzieV215(unittest.TestCase):
+    """v215: snb — zwykła ocena serii awarii (BŁĄD po 48 h); ici, jpx, wycena_bg — nadal tylko informacja, z poprawionym powodem."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v215', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    def test_snb_wraca_do_oceny(self):
+        k = self.k
+        t = lambda h: (datetime.datetime(2026, 10, 6, 4, 0, tzinfo=datetime.timezone.utc) + datetime.timedelta(hours=h)).isoformat()
+        aw = {x: {'od': t(-100), 'ost': t(-0.1), 'n': 500, 'do': None} for x in ('snb', 'jpx', 'ici', 'wycena_bg')}
+        Z = k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
+        self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
+        self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
+        self.assertEqual(set(k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg'})
+        self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])

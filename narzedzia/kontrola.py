@@ -179,9 +179,9 @@ AW_BLAD_H = 48        # v207: … co najmniej tyle godzin = BŁĄD (e-mail do w�
 AW_INFO_H = 24        # v207: awarie naprawione w ostatnich tylu godzinach — informacja ℹ️ (samonaprawa widoczna w raporcie)
 AW_KLUCZ = re.compile(r'klucz\w*(?:\s+\S+)?\s+odrzuc|zły klucz|unauthori[sz]ed|HTTP\D{0,7}401\b|(?:invalid|incorrect) api ?key', re.I)
 AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań(?! w przebiegu)|dobowy limit|limit planu', re.I)   # v211: bez własnego limitu zbieracza
-AW_BEZ_BLEDU = {   # v211: części, w których „brak” znaczy też „czeka na publikację” albo dodatek bez czerwieni — seria tylko informacją (wiek danych ocenia wiersz świeżości)
-    'ici': 'fundusze USA — spóźniona publikacja to nie awaria (v134)', 'jpx': 'Japonia — tydzień czeka na publikację giełdy',
-    'snb': 'Szwajcaria — tydzień czeka na publikację banku', 'wycena_bg': 'dodatek SOPR — limit planu źródła (v132)'}
+AW_BEZ_BLEDU = {   # v211/v215: części bez czerwieni z serii awarii — seria tylko informacją (wiek danych ocenia wiersz świeżości); v215: snb usunięte (False = błąd pobrania)
+    'ici': 'fundusze USA — z założenia bez czerwieni (v134); wiek danych w wierszu świeżości', 'jpx': 'Japonia — tydzień czeka na publikację giełdy',
+    'wycena_bg': 'dodatek SOPR — limit planu źródła (v132)'}
 
 
 def _aw_t(s):
@@ -253,15 +253,22 @@ def awarie_ocena(meta, now=None):
 
 
 # v212: rodzaj BŁĘDU (początek treści) → co zrobić — prostymi słowami dla właściciela; kolejność = pierwszeństwo dopasowania
-CO_ZROBIC = (
+CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez czasu” osobno, publikacja Pages osobno, świeżość bez „to normalne”
+    (re.compile(r'^strona główna: HTTP 200'),
+     'Strona odpowiada, ale jej treść jest niepełna (nieudana publikacja) — napisz do Claude: „strona ma złą treść — sprawdź kontrolę”.'),
     (re.compile(r'^(strona główna|plik stanu \(meta\.json\) nie odpowiada)'),
-     'Strona albo jej pliki nie odpowiadają. Zwykle to chwilowa awaria serwera GitHub — sprawdź stronę za godzinę (stan serwera: githubstatus.com). '
+     'Strona albo jej plik stanu nie odpowiada. Zwykle to chwilowa awaria serwera GitHub — sprawdź stronę za godzinę (stan serwera: githubstatus.com). '
      'Jeśli trwa ponad 3 godziny, napisz do Claude: „strona nie działa — sprawdź kontrolę”.'),
-    (re.compile(r'^(automat nie odświeżył danych|plik stanu bez czasu)'),
-     'Automat nie odświeża danych. Najczęściej GitHub wstrzymał harmonogram — zegar zapasowy zwykle uruchamia automat w ciągu godziny. '
-     'Jeśli trwa ponad 6 godzin, napisz do Claude: „automat stoi”.'),
+    (re.compile(r'^plik stanu bez czasu'),
+     'Plik stanu automatu jest uszkodzony (bez czasu przebiegu) — to błąd w kodzie, sam się nie naprawi. Napisz do Claude: „plik stanu bez czasu”.'),
+    (re.compile(r'^automat nie odświeżył danych'),
+     'Automat nie odświeża danych od ponad 3 godzin — zegar zapasowy też nie pomógł. Najczęściej to przerwa po stronie GitHub (stan: githubstatus.com); '
+     'jeśli trwa ponad 6 godzin, napisz do Claude: „automat stoi”.'),
+    (re.compile(r'^automat nie działa.*GitHub Pages'),
+     'Ostatnie przebiegi padły na publikacji strony — to zwykle chwilowa awaria po stronie GitHub. Sprawdź za 1–2 godziny; jeśli trwa dłużej, '
+     'napisz do Claude: „publikacja strony nie działa”.'),
     (re.compile(r'^automat nie działa'),
-     'Kolejne przebiegi automatu kończą się błędem — sam tego nie naprawi. Napisz do Claude: „przebiegi automatu kończą się błędem”.'),
+     'Ostatnie przebiegi automatu kończą się błędem. Napisz do Claude: „przebiegi automatu kończą się błędem”.'),
     (re.compile(r'^część automatu „'),
      'Część automatu nie działa od ponad 2 dni (szczegóły niżej) — napisz do Claude tak, jak podpowiada wiersz błędu.'),
     (re.compile(r'^zbieracz zgłasza błędy'),
@@ -269,8 +276,8 @@ CO_ZROBIC = (
     (re.compile(r'^kapitalizacja krypto'),
      'Dwa źródła tej samej liczby bardzo się różnią — jedno może podawać złe dane. Napisz do Claude: „sprawdź różnicę źródeł z kontroli”.'),
     (re.compile(r': dane z .* temu \('),
-     'Dane źródła są starsze niż zwykle. Po święcie albo długim weekendzie to normalne (źródło nie publikuje); inaczej napisz do Claude: '
-     '„sprawdź źródło z kontroli”.'),
+     'Dane źródła są dużo starsze niż zwykle (ponad dwa razy dłużej niż norma, dni bez sesji już odliczone) — źródło przestało publikować '
+     '(np. przerwa w pracy urzędu) albo automat nie może ich pobrać. Napisz do Claude: „sprawdź źródło z kontroli”.'),
 )
 CO_ZROBIC_INNE = 'Napisz do Claude: „sprawdź błąd z kontroli” — w raporcie niżej jest jego treść.'
 

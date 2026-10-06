@@ -13563,7 +13563,7 @@ test('v210: Ustawienia — karta „Prywatność” przed przyciskiem „Gotowe�
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);'), 'jedna linia for po słowniku');
   const T = Object.values(D.pl).join(' ');
   for (const w of ['TradingView', 'GitHub', 'CoinGecko', 'CoinPaprika', 'DefiLlama', 'BIS', 'Google']) assert.ok(!T.includes(w), 'bez nazwy: ' + w);
-  assert.ok(T.includes('nie zapisuje ciasteczek') && T.includes('nie opuszcza Twojego urządzenia') && T.includes('dopiero po Twojej zgodzie') && T.includes('Obraz tła'), 'kluczowe zdania');
+  assert.ok(T.includes('nie zapisuje ciasteczek') && T.includes('nie są nigdzie wysyłane') && T.includes('dopiero po Twojej zgodzie') && T.includes('Obraz tła'), 'kluczowe zdania (v215: o wysyłaniu)');
   for (const k of Object.keys(D.pl)) assert.equal(v96src.tFor('pl')(k), D.pl[k], 'wpis widoczny w słowniku strony: ' + k);
   assert.ok(html.includes("$$('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));"), 'teksty jako zwykły tekst (bez HTML)');
   const c = html.slice(html.indexOf('/* v210: Ustawienia — karta „Prywatność”'), html.indexOf('\n', html.indexOf('.set-priv p{')));
@@ -13646,4 +13646,11 @@ test('v214: Szwajcaria — linia 52 tygodni pod kaflami: kolor neutralny, luka =
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA179)if(I18N[l])Object.assign(I18N[l],EXTRA179[l]);'), 'jedna linia for po słowniku');
   const c0 = html.indexOf('/* v214: Szwajcaria — linia depozytów'), css = html.slice(c0, html.indexOf('\n', html.indexOf('.snbw-h{', c0)));
   assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && css.includes('var(--bl)') && !css.includes('var(--gr)') && !css.includes('var(--rd)'), 'styl: zmienne motywu, kolor neutralny');
+});
+
+
+/* ---------- v215: karta „Prywatność” — zdanie o tym, co wychodzi z urządzenia ---------- */
+test('v215: Prywatność — zapisy nie są wysyłane; wybrany język decyduje o pliku języka i języku widgetów (po zgodzie)', () => {
+  const D = v96src.I18N.pl['set.priv.2'];
+  assert.ok(D.includes('Te zapisy nie są nigdzie wysyłane') && D.includes('jedynie wybrany język decyduje, który plik języka pobiera strona') && !D.includes('Nic z tego nie opuszcza'), D);
 });
