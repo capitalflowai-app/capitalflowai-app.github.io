@@ -26224,10 +26224,10 @@ class KontrolaKursyV225(unittest.TestCase):
         self.assertEqual((d[1], d[3]), (6, 'MXN'), '6 wspólnych walut (GBP nie ma w H.10); najwięcej peso')
         self.assertAlmostEqual(d[4], round((18.33 / 18.192 - 1) * 100, 3))
         self.assertEqual((f['zle'], f['med_zle']), ([], []))
-        zly = dict(ok, JPY=157.81 * 1.02)
+        zly = dict(ok, JPY=157.81 * 1.06)   # v227: próg 5%
         f = k.fx_porownanie(self.R(**{'1D': ('2026-10-02', zly)}), H)
         self.assertEqual([x[:2] for x in f['zle']], [['2026-10-02', 'JPY']]); self.assertEqual(f['med_zle'], [])
-        dzien = {c: v * 1.006 for c, v in ok.items()}                     # wszystko o 0,6% obok — migawka z innego dnia
+        dzien = {c: v * 1.03 for c, v in ok.items()}                      # v227: wszystko o 3% obok (np. zła waluta bazowa) — mediana > 2,5%
         f = k.fx_porownanie(self.R(**{'1D': ('2026-10-02', dzien)}), H)
         self.assertEqual(f['zle'], []); self.assertEqual(len(f['med_zle']), 1)
         self.assertIsNone(k.fx_porownanie({}, H)); self.assertIsNone(k.fx_porownanie(self.R(now=('2026-10-05', ok)), {}))
@@ -26250,7 +26250,7 @@ class KontrolaKursyV225(unittest.TestCase):
         self.assertIn('najwięcej JPY +2,00% ⚠️.', k.raport_md(R))
         self.assertIn('brak wspólnych dat (H.10 wychodzi raz w tygodniu) ℹ️.', k.raport_md(dict(base, zgodnosc={'fx': {'daty': [], 'zle': [], 'med_zle': []}})))
         self.assertIn('brak porównania (H.10: HTTP 503) ℹ️.', k.raport_md(dict(base, zgodnosc={'fx': {'brak': 'H.10: HTTP 503'}})))
-        self.assertEqual((k.FX_PROG, k.FX_MED, k.FX_MIN_N), (1.5, 0.4, 5))
+        self.assertEqual((k.FX_PROG, k.FX_MED, k.FX_MIN_N), (5.0, 2.5, 5))   # v227: progi z 5 lat poprawnych danych
 
 
 # ===================== v226: POPRAWKI PO PRZEGLĄDZIE v222–v223 =====================
@@ -26309,8 +26309,9 @@ class PoPrzegladzieV226(unittest.TestCase):
         first = zd._fund_clean(h)[1]
         self.assertEqual(first, days[30:35], 'pierwsze wykrycie: 5 dni po skoku (tylko dni wcześniejsze w medianie)')
         ds, v, aum = zd.fund_group({'X': {'h': h}}, ('X',))
-        self.assertTrue(all(zd._isnum(x) for x in v), 'bez drugiego wykrycia — żaden dzień grupy nie jest brakiem')
-        self.assertAlmostEqual(sum(v), (2500000 - 1000000) * 50.35 / 1e6, msg='suma grupy dokładna: całe utworzenie jednostek w dniu po oznaczonych')
+        self.assertEqual([d for d, x in zip(ds, v) if x is None], [days[35]],
+                         'v227: jedyny brak — dzień pary przez złe wiersze z aktywami ×2,5 (nie fałszywy napływ); bez drugiego wykrycia — bez kolejnych braków')
+        self.assertAlmostEqual(sum(x for x in v if x is not None), 0.0)
         self.assertAlmostEqual(zd.fund_flows(h[:30] + h[35:], bez=())[days[35]], 75.525)
         fl = zd.fund_flows(h)
         self.assertTrue(all(d not in fl for d in days[30:36]), 'karta dzienna funduszu: dni ze złymi wierszami i dzień po nich — brak')
@@ -26330,3 +26331,52 @@ class PoPrzegladzieV226(unittest.TestCase):
         self.assertFalse(any('poprzednim miesiącu' in u for u in o['uwagi']), '60% — bez uwagi')
         o = k.zuzycie_ocena({'at': '2026-11-02T06:20:00+00:00', 'zuzycie': {'cmc': dict(q, mp=['2026-10', 13000])}})
         self.assertFalse(any('poprzednim miesiącu' in u for u in o['uwagi']), 'CoinMarketCap: 13 000 z 15 000 (87%) — bez uwagi')
+
+
+# ===================== v227: POPRAWKI PO PRZEGLĄDZIE v224–v226 =====================
+class PoPrzegladzieV227(unittest.TestCase):
+    """v227: progi kursów z 5 lat (5% / 2,5%), H.10 z 300 obserwacji, uwagi z przecinkami; suma grupy bez fałszywego napływu przy trwałym
+    skoku aktywów przez złe wiersze; dzień czekający na pełny plik znika, gdy przestaje być świeży."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v227', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    def test_kursy_progi_i_uwagi(self):
+        k = self.k
+        self.assertEqual((k.FX_PROG, k.FX_MED, k.FX_MIN_N), (5.0, 2.5, 5)); self.assertIn('lastobs=300&', k.FX_H10)
+        u = k.fx_uwagi({'zle': [['2026-10-02', 'JPY', 167.2786, 157.81, 6.0]], 'med_zle': [['2026-10-02', 3.012]]})
+        self.assertEqual(u, ['kursy walut: plik strony vs H.10 (Fed) różnią się ponad 5%: JPY 2026-10-02: 167,279 vs 157,81 (+6,00%)',
+                             'kursy walut: mediana różnic z H.10 (Fed) ponad 2,5% dla 2026-10-02 (3,01%) — sprawdzić walutę bazową i datę migawki'])
+        self.assertEqual(k.fx_uwagi({'zle': [], 'med_zle': []}), []); self.assertEqual(k.fx_uwagi(None), [])
+        H = k.fx_h10_csv(KontrolaKursyV225.CSV)
+        ok = {'EUR': 0.88818, 'JPY': 157.70, 'MXN': 18.33, 'CHF': 0.8290, 'CAD': 1.4250, 'AUD': 1.4390}
+        sk = {c: v * 1.036 for c, v in ok.items()}                       # wszystko o ok. 3,6% obok (np. migawka sprzed tygodni): żadna waluta ponad 5%, mediana ponad 2,5%
+        f = k.fx_porownanie(KontrolaKursyV225.R(**{'1D': ('2026-10-02', sk)}), H)
+        self.assertEqual(f['zle'], []); self.assertEqual(len(f['med_zle']), 1)
+        f = k.fx_porownanie(KontrolaKursyV225.R(**{'1D': ('2026-10-02', dict(ok, JPY=157.81 * 1.0365))}), H)
+        self.assertEqual((f['zle'], f['med_zle']), ([], []), 'największa różnica z 5 lat (3,65%, jen) — bez ⚠️')
+        f = k.fx_porownanie(KontrolaKursyV225.R(**{'1D': ('2026-10-02', dict(ok, EUR=1.1259))}), H)
+        self.assertEqual([x[1] for x in f['zle']], ['EUR'], 'odwrócony kurs (USD za EUR zamiast EUR za USD) — ⚠️')
+
+    def test_grupa_bez_falszywego_naplywu(self):
+        days = [d.isoformat() for d in (datetime.date(2026, 6, 1) + datetime.timedelta(days=i) for i in range(70)) if d.weekday() < 5][:40]
+        nav = lambda i: (100.0 if i < 28 else 50.0) + 0.01 * i  # noqa: E731
+        h = [[d, nav(i), 1000000 if i < 20 else 2000000] for i, d in enumerate(days)]   # podział 2:1 od 20. sesji, NAV poprawiony dopiero od 28.
+        ds, v, aum = zd.fund_group({'X': {'h': h}}, ('X',))
+        num = [x for x in v if x is not None]
+        self.assertTrue(num and max(abs(x) for x in num) < 0.5 * aum, 'żaden dzień grupy nie ma przepływu rzędu połowy aktywów (v226: +100%)')
+        self.assertIn(None, v, 'nieprawdopodobna para — brak, widoczny jako brak')
+        e = [[d, 38.0 + 0.01 * i, 235000000] for i, d in enumerate(days)]; e[25] = [days[25], 0.001328, 235000000]   # pojedynczy zły wiersz (jak EWZ)
+        e[26] = [days[26], 38.27, 236000000]
+        ds, v, _ = zd.fund_group({'E': {'h': e}}, ('E',))
+        self.assertNotIn(days[25], ds); self.assertAlmostEqual(v[ds.index(days[26])], (236000000 - 235000000) * 38.27 / 1e6,
+                                                                 msg='pojedynczy zły wiersz — przepływ przez dwa dni zostaje (suma dokładna)')
+        self.assertEqual(zd.FUND_GR_X, 1.5)
+
+    def test_czekajacy_dzien_wygasa(self):
+        p = {'h': [['2026-10-20', 1.0, 1]], 'bf_czeka': ['2026-09-24'], 'bf_odrz': []}
+        self.assertFalse(zd._fund_bf_odrz(p, ['2026-09-24'])); self.assertNotIn('bf_czeka', p, 'dzień sprzed ponad 10 sesji — nie czeka już na plik')
+        q = {'h': [['2026-09-25', 1.0, 1]], 'bf_czeka': ['2026-09-24']}
+        self.assertTrue(zd._fund_bf_odrz(q, ['2026-09-24'])); self.assertEqual(q['bf_czeka'], ['2026-09-24'], 'świeży — czeka dalej')

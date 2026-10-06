@@ -95,11 +95,13 @@ UST_DNI = 10         # tyle ostatnich dat z pliku strony porównujemy (H.15 wych
 UST_OD_DNI = 21      # FRED: plik od tylu dni wstecz (mały — ok. 200 B)
 # v225: kursy walut — migawki pliku strony (rynki.json fx: now/1D/1T/1M/1Q/1R, waluta za 1 USD; kurs EBC przez serwis pośredni) vs H.10 Fed
 # (kursy w południe w Nowym Jorku, wydawane raz w tygodniu; bez klucza) — te same dni. Inna godzina ustalenia kursu (EBC 14:15 we Frankfurcie),
-# więc małe różnice są normalne (06.10.2026: 3 daty × 20 walut, mediana 0,09%, najwięcej 0,79% — peso meksykańskie).
-FX_H10 = ('https://www.federalreserve.gov/datadownload/Output.aspx?rel=H10&series=60f32914ab61dfab590e0e470153e3ae&lastobs=45&from=&to='
-          '&filetype=csv&label=include&layout=seriescolumn&type=package')
-FX_PROG = 1.5      # % — waluta ponad tyle od H.10 tego samego dnia = ⚠️ (nigdy ❌: inna godzina kursu)
-FX_MED = 0.4       # % — mediana różnic jednej daty ponad tyle = ⚠️ (np. migawka z innego dnia, niż mówi jej data)
+# więc małe różnice są normalne (06.10.2026: 3 daty × 20 walut, mediana 0,09%, najwięcej 0,79% — peso meksykańskie). v227: progi z 5 lat
+# poprawnych danych (1 234 wspólne daty 10.2021–10.2026): największa różnica waluty 3,65% (jen 21.10.2022 — interwencja), najwyższa mediana dnia
+# 1,85% (10.11.2022 — dane o inflacji w USA między ustaleniami kursów); progi 1,5% / 0,4% z v225 dawały ⚠️ w ok. 10% dni.
+FX_H10 = ('https://www.federalreserve.gov/datadownload/Output.aspx?rel=H10&series=60f32914ab61dfab590e0e470153e3ae&lastobs=300&from=&to='
+          '&filetype=csv&label=include&layout=seriescolumn&type=package')   # v227: 300 obserwacji (ok. 14 mies., ok. 57 KB) — też migawki 1Q i 1R
+FX_PROG = 5.0      # % — waluta ponad tyle od H.10 tego samego dnia = ⚠️ (grube błędy: odwrócony kurs, zła jednostka; nigdy ❌)
+FX_MED = 2.5       # % — mediana różnic jednej daty ponad tyle = ⚠️ (np. zła waluta bazowa albo migawka sprzed tygodni)
 FX_MIN_N = 5       # najmniej wspólnych walut, żeby oceniać medianę dnia
 FX_MIGAWKI = ('now', '1D', '1T', '1M', '1Q', '1R')
 CENA_PROG = 1.0      # % różnicy cen BTC/ETH między źródłami
@@ -682,6 +684,19 @@ def fx_h10_csv(txt):
                     d[c] = 1 / x if i else x
             if d:
                 out[k] = d
+    return out
+
+
+def fx_uwagi(f):
+    """v227: uwagi kontroli z wyniku fx_porownanie — liczby z przecinkiem dziesiętnym (nazwa „H.10” bez zmian)."""
+    n = lambda x, fmt: format(x, fmt).replace('.', ',')  # noqa: E731
+    out = []
+    if isinstance(f, dict) and f.get('zle'):
+        out.append(f'kursy walut: plik strony vs H.10 (Fed) różnią się ponad {n(FX_PROG, "g")}%: '
+                   + ', '.join(f'{c} {d}: {n(v, "g")} vs {n(h, "g")} ({n(r, "+.2f")}%)' for d, c, v, h, r in f['zle'][:6]))
+    if isinstance(f, dict) and f.get('med_zle'):
+        out.append(f'kursy walut: mediana różnic z H.10 (Fed) ponad {n(FX_MED, "g")}% dla ' + ', '.join(f'{d} ({n(m, ".2f")}%)' for d, m in f['med_zle'])
+                   + ' — sprawdzić walutę bazową i datę migawki')
     return out
 
 
@@ -2670,12 +2685,7 @@ def kontrola():
                 raise ValueError('plik bez liczb')
             f = fx_porownanie(files['rynki'], H)
             Z['fx'] = f if f is not None else {'brak': 'brak migawek kursów w pliku strony'}
-            if f and f['zle']:
-                R['uwagi'].append('kursy walut: plik strony vs H.10 (Fed) różnią się ponad ' + f'{FX_PROG:g}%: '
-                                  + ', '.join(f'{c} {d}: {v:g} vs {h:g} ({r:+.2f}%)' for d, c, v, h, r in f['zle'][:6]))
-            if f and f['med_zle']:
-                R['uwagi'].append('kursy walut: mediana różnic z H.10 (Fed) ponad ' + f'{FX_MED:g}% dla ' + ', '.join(f'{d} ({m:.2f}%)' for d, m in f['med_zle'])
-                                  + ' — możliwa migawka z innego dnia, niż mówi jej data')
+            R['uwagi'] += fx_uwagi(f)   # v227: przecinki dziesiętne, opis bez „migawki z innego dnia”
         except Exception as e:  # noqa
             Z['fx'] = {'brak': f'H.10: {str(e)[:100]}'}
     try:

@@ -5006,6 +5006,7 @@ def parse_ishares_screener(j):
 
 FUND_TNA_X = 2.0   # v217: aktywa funduszu (NAV × liczba jednostek) ponad tyle razy od mediany sąsiednich dni = błąd pliku źródła (wiersz odrzucony)
                    # v223: zostaje 2 — przy 1,6 duże, ale możliwe napływy byłyby „błędem”; prawdziwe dni: do ×1,25 (srebro 29.01.2026, 11 089 wierszy)
+FUND_GR_X = 1.5     # v227: suma grupy — para przez złe wiersze z aktywami ponad tyle razy (trwały skok, np. podział bez poprawki NAV) = brak
 FUND_TNA_OKNO = 10  # v217/v223: tyle dni PRZED wierszem tworzy medianę porównania (co najmniej 3 dni — inaczej bez oceny)
 
 
@@ -5056,6 +5057,7 @@ def _fund_bf_odrz(p, bad):
     tried = set(x for x in (p.get('bf_odrz') or []) if isinstance(x, str))
     nowe = [b for b in bad if isinstance(b, str) and _d(b) and b not in tried and _bdays(_d(b), _d(h[-1][0])) <= FUND_TNA_OKNO]
     if not nowe:
+        p.pop('bf_czeka', None)   # v227: dzień, który przestał być świeży (albo już wypróbowany), nie czeka dłużej na pełny plik
         return False
     p['bf_czeka'] = sorted(set(nowe))[-20:]   # v223: próba zużyta dopiero po pobraniu pełnego pliku (_fund_bf_zapisz)
     return True
@@ -5643,6 +5645,10 @@ def fund_group(fu, members):
         bad = set(_fund_clean(h)[1])
         hk = [r for r in h if r[0] not in bad]   # v223: zły wiersz pliku poza sumą grupy — przepływ przez dwa dni trafia do następnego wiersza (jak inny kalendarz)
         fl = fund_flows(hk, bez=())   # v226: historia już oczyszczona — bez drugiego wykrywania (oznaczałoby kolejne dni po trwałym skoku)
+        if bad:   # v227: para przez złe wiersze z aktywami ponad FUND_GR_X razy (trwały skok — np. podział bez poprawki NAV) — brak, nie przepływ
+            for a, b in zip(hk, hk[1:]):
+                if b[0] in fl and any(a[0] < x < b[0] for x in bad) and not (1 / FUND_GR_X < b[1] * b[2] / (a[1] * a[2]) < FUND_GR_X):
+                    del fl[b[0]]
         if not fl:
             return [], [], None
         F.append(fl); B.append({r[0] for r in hk[1:]} - set(fl))   # v223: wiersz bez przepływu (skok bez wyjaśnienia) — brak grupy, nie zero

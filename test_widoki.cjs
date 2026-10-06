@@ -13779,5 +13779,5 @@ test('v224: słownik EXTRA183 — fund.wyk i fund.wyk.na w 10 językach (własne
     if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['fund.wyk'], D.en['fund.wyk'], L + ': tłumaczenie, nie angielski zapas');
   }
   assert.ok(html.includes('for(const l in EXTRA183)if(I18N[l])Object.assign(I18N[l],EXTRA183[l]);'));
-  assert.ok(!/const EXTRA184=/.test(html), 'EXTRA183 ostatni');
+  assert.equal((html.match(/const EXTRA183=/g) || []).length, 1, 'EXTRA183 raz (v227: bez warunku „ostatni” — kolejne słowniki dopisują się po nim)');
 });
