@@ -1,9 +1,9 @@
 {
- "at": "2026-10-06T18:34:55+00:00",
+ "at": "2026-10-06T19:11:47+00:00",
  "strona": {
   "http": 200,
   "bajty": 1990111,
-  "ms": 346,
+  "ms": 280,
   "ok": true,
   "i18n": {
    "pelna": false,
@@ -14,20 +14,20 @@
   }
  },
  "meta": {
-  "at": "2026-10-06T18:31:41+00:00",
-  "wiek_min": 3,
+  "at": "2026-10-06T19:09:15+00:00",
+  "wiek_min": 2,
   "zrodla": 76,
   "bez_odpowiedzi": [],
   "errors": [],
   "notes": [
-   "Kursy walut (odświeżenie 2026-10-06 17:36 UTC): pośrednik nie odpowiadał (—) — kursy referencyjne prosto z EBC (te same daty)",
+   "Kursy walut (odświeżenie 2026-10-06 18:43 UTC): pośrednik nie odpowiadał (HTTP Error 522: <none>) — kursy referencyjne prosto z EBC (te same daty)",
    "brak SEC_CONTACT — insiderzy (zgłoszenia Form 4) wyłączeni",
    "Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta)",
    "fundusze EWZ: błąd pliku źródła w wierszach 2026-10-05 — aktywa ponad 2× od sąsiednich dni; przepływ i zwrot tego dnia i następnego = brak (nie zero)",
    "trendy EWZ: wiersz 2026-10-05 pominięty w cenie tygodniowej (błąd pliku źródła) — cena do 2026-10-02"
   ],
   "czas": {
-   "s": 45,
+   "s": 49,
    "top": [
     [
      "wieloryby",
@@ -43,11 +43,11 @@
     ],
     [
      "dzis",
-     5
+     4
     ],
     [
-     "swiat-dzien",
-     1
+     "lancuch",
+     2
     ]
    ]
   },
@@ -56,152 +56,152 @@
  "pliki": {
   "etf": {
    "http": 200,
-   "bajty": 10182,
-   "wiek_min": 43,
+   "bajty": 10183,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
    "http": 200,
-   "bajty": 65241,
+   "bajty": 65235,
    "wiek_min": 2,
    "czesci_bez_odpowiedzi": []
   },
   "oecd": {
    "http": 200,
    "bajty": 19213,
-   "wiek_min": 155,
+   "wiek_min": 192,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
-   "bajty": 17079,
-   "wiek_min": 58,
+   "bajty": 17113,
+   "wiek_min": 28,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
-   "bajty": 29575,
-   "wiek_min": 28,
+   "bajty": 29542,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 184466,
-   "wiek_min": 3,
+   "bajty": 186331,
+   "wiek_min": 2,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
    "bajty": 8913,
-   "wiek_min": 155,
+   "wiek_min": 192,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 4941,
-   "wiek_min": 155,
+   "wiek_min": 192,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
    "bajty": 25683,
-   "wiek_min": 1261,
+   "wiek_min": 1298,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
-   "bajty": 38571,
-   "wiek_min": 43,
+   "bajty": 38578,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-top10": {
    "http": 200,
-   "bajty": 9612,
-   "wiek_min": 39,
+   "bajty": 9604,
+   "wiek_min": 9,
    "czesci_bez_odpowiedzi": []
   },
   "cmc": {
    "http": 200,
-   "bajty": 448,
+   "bajty": 450,
    "wiek_min": 2,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
    "bajty": 15224,
-   "wiek_min": 43,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
    "http": 200,
    "bajty": 28118,
-   "wiek_min": 1214,
+   "wiek_min": 1251,
    "czesci_bez_odpowiedzi": []
   },
   "cm": {
    "http": 200,
    "bajty": 79917,
-   "wiek_min": 19,
+   "wiek_min": 56,
    "czesci_bez_odpowiedzi": []
   },
   "fred": {
    "http": 200,
    "bajty": 13072,
-   "wiek_min": 43,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "cftc": {
    "http": 200,
    "bajty": 19411,
-   "wiek_min": 146,
+   "wiek_min": 183,
    "czesci_bez_odpowiedzi": []
   },
   "ceny": {
    "http": 200,
    "bajty": 104840,
-   "wiek_min": 43,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "indeksy": {
    "http": 200,
-   "bajty": 170263,
-   "wiek_min": 43,
+   "bajty": 174201,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "ceny-krypto": {
    "http": 200,
    "bajty": 196915,
-   "wiek_min": 19,
+   "wiek_min": 56,
    "czesci_bez_odpowiedzi": []
   },
   "snb": {
    "http": 200,
    "bajty": 10147,
-   "wiek_min": 513,
+   "wiek_min": 550,
    "czesci_bez_odpowiedzi": []
   },
   "ici": {
    "http": 200,
    "bajty": 6976,
-   "wiek_min": 246,
+   "wiek_min": 283,
    "czesci_bez_odpowiedzi": []
   },
   "fed": {
    "http": 200,
-   "bajty": 14473,
-   "wiek_min": 8,
+   "bajty": 14472,
+   "wiek_min": 2,
    "czesci_bez_odpowiedzi": []
   },
   "lancuch": {
    "http": 200,
-   "bajty": 9381,
-   "wiek_min": 8,
+   "bajty": 9380,
+   "wiek_min": 2,
    "czesci_bez_odpowiedzi": []
   },
   "wycena": {
    "http": 200,
    "bajty": 25280,
-   "wiek_min": 145,
+   "wiek_min": 182,
    "czesci_bez_odpowiedzi": []
   },
   "insider": {
@@ -214,24 +214,24 @@
   "nastroj": {
    "http": 200,
    "bajty": 1522,
-   "wiek_min": 155,
+   "wiek_min": 192,
    "czesci_bez_odpowiedzi": []
   },
   "stres": {
    "http": 200,
    "bajty": 9320,
-   "wiek_min": 155,
+   "wiek_min": 192,
    "czesci_bez_odpowiedzi": []
   },
   "aukcje": {
    "http": 200,
    "bajty": 11683,
-   "wiek_min": 155,
+   "wiek_min": 192,
    "czesci_bez_odpowiedzi": []
   },
   "swiat-dzien": {
    "http": 200,
-   "bajty": 7143633,
+   "bajty": 7143634,
    "wiek_min": 2,
    "czesci_bez_odpowiedzi": []
   },
@@ -243,32 +243,32 @@
   },
   "premie": {
    "http": 200,
-   "bajty": 26995,
-   "wiek_min": 3,
+   "bajty": 26994,
+   "wiek_min": 2,
    "czesci_bez_odpowiedzi": []
   },
   "dolar": {
    "http": 200,
-   "bajty": 30900,
-   "wiek_min": 39,
+   "bajty": 30894,
+   "wiek_min": 9,
    "czesci_bez_odpowiedzi": []
   },
   "stopy": {
    "http": 200,
    "bajty": 2241,
-   "wiek_min": 146,
+   "wiek_min": 183,
    "czesci_bez_odpowiedzi": []
   },
   "jpx": {
    "http": 200,
    "bajty": 28705,
-   "wiek_min": 270,
+   "wiek_min": 307,
    "czesci_bez_odpowiedzi": []
   },
   "rwa": {
    "http": 200,
    "bajty": 22484,
-   "wiek_min": 135,
+   "wiek_min": 171,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-dzien": {
@@ -280,7 +280,7 @@
   "krypto-dziennik": {
    "http": 200,
    "bajty": 6073,
-   "wiek_min": 2,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "robots.txt": {
@@ -297,17 +297,18 @@
   }
  },
  "actions": {
-  "przebiegi_24h": 186,
+  "przebiegi_24h": 187,
   "wg_wyniku": {
-   "success": 155,
-   "cancelled": 26,
-   "failure": 5
+   "in_progress": 1,
+   "success": 157,
+   "cancelled": 25,
+   "failure": 4
   },
-  "ostatni": "2026-10-06T18:29:39Z",
+  "ostatni": "2026-10-06T19:06:41Z",
   "najdluzszy_min": 22.8,
   "ostatnia_porazka": "2026-10-05T20:55:59Z",
   "porazki_z_rzedu": 0,
-  "udane_po_porazce": 153,
+  "udane_po_porazce": 157,
   "porazki": [
    {
     "at": "2026-10-05T20:55:59Z",
@@ -324,10 +325,6 @@
    {
     "at": "2026-10-05T19:21:37Z",
     "krok": null
-   },
-   {
-    "at": "2026-10-05T18:46:09Z",
-    "krok": null
    }
   ],
   "budowa_max_min": 13.3
@@ -336,175 +333,175 @@
   {
    "zrodlo": "rynki (kursy EBC, rentowności)",
    "status": "✅",
-   "wiek_min": 58,
-   "data": "2026-10-06T17:36:01+00:00",
+   "wiek_min": 28,
+   "data": "2026-10-06T18:43:05+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "wieloryby (salda portfeli giełd)",
    "status": "✅",
-   "wiek_min": 3,
-   "data": "2026-10-06T18:31:41+00:00",
+   "wiek_min": 2,
+   "data": "2026-10-06T19:09:15+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "dźwignia (giełdy pochodnych)",
    "status": "✅",
-   "wiek_min": 43,
-   "data": "2026-10-06T17:51:17+00:00",
+   "wiek_min": 13,
+   "data": "2026-10-06T18:58:11+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "premie krypto (minuty giełd)",
    "status": "✅",
-   "wiek_min": 4,
-   "data": "2026-10-06T18:30",
+   "wiek_min": 3,
+   "data": "2026-10-06T19:08",
    "uwaga": ""
   },
   {
    "zrodlo": "TGA (Fiscal Data, dziennie)",
    "status": "✅",
-   "wiek_min": 2554,
+   "wiek_min": 2591,
    "data": "2026-10-02",
    "uwaga": ""
   },
   {
    "zrodlo": "ETF krypto (SoSoValue, dziennie)",
    "status": "✅",
-   "wiek_min": 1114,
+   "wiek_min": 1151,
    "data": "2026-10-05",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED dzienne (RRPONTSYD)",
    "status": "✅",
-   "wiek_min": 1114,
-   "data": "2026-10-05",
+   "wiek_min": 0,
+   "data": "2026-10-06",
    "uwaga": ""
   },
   {
    "zrodlo": "EIA ceny dzienne (publikowane co tydzień)",
    "status": "✅",
-   "wiek_min": 9754,
+   "wiek_min": 9791,
    "data": "2026-09-29",
    "uwaga": ""
   },
   {
    "zrodlo": "CFTC (raport tygodniowy)",
    "status": "✅",
-   "wiek_min": 9754,
+   "wiek_min": 9791,
    "data": "2026-09-29",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED tygodniowe (WALCL)",
    "status": "✅",
-   "wiek_min": 8314,
+   "wiek_min": 8351,
    "data": "2026-09-30",
    "uwaga": ""
   },
   {
    "zrodlo": "TIC (miesięcznie)",
    "status": "✅",
-   "wiek_min": 96154,
+   "wiek_min": 96191,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "OECD (miesięcznie)",
    "status": "✅",
-   "wiek_min": 51514,
+   "wiek_min": 51551,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "BLS (miesięcznie)",
    "status": "✅",
-   "wiek_min": 51514,
+   "wiek_min": 51551,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "szanse decyzji Fed (rynek zakładów)",
    "status": "✅",
-   "wiek_min": 8,
-   "data": "2026-10-06T18:26:46+00:00",
+   "wiek_min": 1,
+   "data": "2026-10-06T19:09:48+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "wycena BTC — MVRV, średnia cena zakupu (dziennie)",
    "status": "✅",
-   "wiek_min": 1114,
+   "wiek_min": 1151,
    "data": "2026-10-05",
    "uwaga": ""
   },
   {
    "zrodlo": "SOPR BTC (źródło opóźnia 7 dni)",
    "status": "✅",
-   "wiek_min": 9754,
+   "wiek_min": 9791,
    "data": "2026-09-29",
    "uwaga": ""
   },
   {
    "zrodlo": "kursy dolara Ameryki Łacińskiej (co godzinę)",
    "status": "✅",
-   "wiek_min": 39,
-   "data": "2026-10-06T17:55:48+00:00",
+   "wiek_min": 9,
+   "data": "2026-10-06T19:02:25+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze USA: napływy (tydzień do środy, publ. w środę)",
    "status": "✅",
-   "wiek_min": 18394,
+   "wiek_min": 18431,
    "data": "2026-09-23",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek)",
    "status": "✅",
-   "wiek_min": 8314,
+   "wiek_min": 8351,
    "data": "2026-09-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Japonia: kto handluje akcjami na giełdzie (tydzień)",
    "status": "✅",
-   "wiek_min": 15514,
+   "wiek_min": 15551,
    "data": "2026-09-25",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY krypto — ostatni dzień z wynikiem sygnałów",
    "status": "✅",
-   "wiek_min": 3994,
+   "wiek_min": 4031,
    "data": "2026-10-03",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY świat — ostatnia sesja z wynikiem sygnałów",
    "status": "✅",
-   "wiek_min": 1114,
+   "wiek_min": 1151,
    "data": "2026-10-05",
    "uwaga": ""
   },
   {
    "zrodlo": "tokenizowane aktywa RWA (co 3 h)",
    "status": "✅",
-   "wiek_min": 135,
+   "wiek_min": 171,
    "data": "2026-10-06T16:19:49+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "tokenizowane aktywa — odczyt własny z łańcucha (co 3 h)",
    "status": "✅",
-   "wiek_min": 135,
+   "wiek_min": 171,
    "data": "2026-10-06T16:19:49+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "tokenizowane aktywa — dane emitentów (co 3 h)",
    "status": "✅",
-   "wiek_min": 135,
+   "wiek_min": 171,
    "data": "2026-10-06T16:19:49+00:00",
    "uwaga": ""
   }
@@ -523,21 +520,21 @@
   },
   "kapitalizacja": {
    "status": "✅",
-   "dzis_pct": 4.328,
+   "dzis_pct": 4.231,
    "mediana_pct": 4.316,
    "dni": 10,
-   "opis": "odchylenie od mediany 0.01 pkt proc. (progi 2 / 5)"
+   "opis": "odchylenie od mediany 0.08 pkt proc. (progi 2 / 5)"
   },
   "ceny": {
    "bitcoin": {
-    "a": 85656.0,
-    "b": 85667.48711331867,
-    "roznica_pct": 0.013
+    "a": 85469.0,
+    "b": 85544.2535903613,
+    "roznica_pct": 0.088
    },
    "ethereum": {
-    "a": 2696.8,
-    "b": 2698.4578833315504,
-    "roznica_pct": 0.061
+    "a": 2688.22,
+    "b": 2689.5831427352427,
+    "roznica_pct": 0.051
    }
   },
   "tga": {
@@ -551,10 +548,10 @@
    "opis": "odchylenie od mediany 0.68 pkt proc. (progi 1)"
   },
   "stablecoiny": {
-   "a": 312672651033.0,
-   "b": 285452135715.36395,
+   "a": 312680120785.0,
+   "b": 285458520248.983,
    "roznica_pct": 9.536,
-   "odstep_h": 0.7,
+   "odstep_h": 0.2,
    "data": "2026-10-06",
    "status": "ℹ️",
    "mediana_pct": null,
@@ -708,7 +705,10 @@
    ],
    "przyszle": [],
    "wszystkie": 0,
-   "zmiany": []
+   "zmiany": [],
+   "n_gl": 22,
+   "najnowsza_gl": "2026-10-06",
+   "luki_odp": []
   },
   "ix_fred": {
    "od": "2026-08-22",
@@ -717,29 +717,66 @@
      "s": "GSPC",
      "nazwa": "S&P 500",
      "at": "2026-10-05T22:35:56+00:00",
-     "wyd_at": null,
-     "brak": "zbieracz nie podał serii wydawcy SP500"
+     "wyd_at": "2026-10-06T18:58:11+00:00",
+     "n": 30,
+     "zgodne": 30,
+     "ost": "2026-10-05",
+     "ost_roz": null,
+     "roznice": [],
+     "bez_sesji": [],
+     "luki": [],
+     "wyd_do": "2026-10-05",
+     "wyd_stare": false
     },
     {
      "s": "IXIC",
      "nazwa": "Nasdaq Composite",
      "at": "2026-10-05T22:35:56+00:00",
-     "wyd_at": null,
-     "brak": "zbieracz nie podał serii wydawcy NASDAQCOM"
+     "wyd_at": "2026-10-06T18:58:11+00:00",
+     "n": 30,
+     "zgodne": 30,
+     "ost": "2026-10-05",
+     "ost_roz": null,
+     "roznice": [],
+     "bez_sesji": [],
+     "luki": [],
+     "wyd_do": "2026-10-05",
+     "wyd_stare": false
     },
     {
      "s": "DJI",
      "nazwa": "Dow Jones",
      "at": "2026-10-05T22:35:56+00:00",
-     "wyd_at": null,
-     "brak": "zbieracz nie podał serii wydawcy DJIA"
+     "wyd_at": "2026-10-06T18:58:11+00:00",
+     "n": 30,
+     "zgodne": 30,
+     "ost": "2026-10-05",
+     "ost_roz": null,
+     "roznice": [],
+     "bez_sesji": [],
+     "luki": [],
+     "wyd_do": "2026-10-05",
+     "wyd_stare": false
     },
     {
      "s": "N225",
      "nazwa": "Nikkei 225",
      "at": "2026-10-06T07:21:13+00:00",
-     "wyd_at": null,
-     "brak": "zbieracz nie podał serii wydawcy NIKKEI225"
+     "wyd_at": "2026-10-06T18:58:11+00:00",
+     "n": 29,
+     "zgodne": 28,
+     "ost": "2026-10-06",
+     "ost_roz": [
+      "2026-10-06",
+      70777.2891,
+      70683.98,
+      0.132
+     ],
+     "roznice": [],
+     "bez_sesji": [],
+     "luki": [],
+     "wyd_do": "2026-10-06",
+     "wyd_stare": false
     }
    ]
   },
@@ -834,7 +871,7 @@
      "zaleglosc": 0,
      "strona_do": null,
      "nieaktualny": false,
-     "ms": 1111
+     "ms": 606
     },
     "ETHA": {
      "status": "✅",
@@ -851,16 +888,16 @@
      "zaleglosc": 0,
      "strona_do": null,
      "nieaktualny": false,
-     "ms": 628
+     "ms": 981
     }
    },
    "zapis_dni": 3,
    "status": "✅"
   },
   "premie": {
-   "opis": "USA BTC -0.00% (przez USDC -0.01%, różnica 0.01 pkt proc.); Korea BTC +0.99% (kurs z 2026-10-06); kurs KRW/USD 2026-10-06: wprost 1338.779, w pliku rynki 1338.800 (różnica 0.002%)",
+   "opis": "USA BTC -0.01% (przez USDC -0.02%, różnica 0.01 pkt proc.); Korea BTC +1.13% (kurs z 2026-10-06); kurs KRW/USD 2026-10-06: wprost 1338.779, w pliku rynki 1338.800 (różnica 0.002%)",
    "uwagi": [],
-   "cb_usdc_pp": 0.014,
+   "cb_usdc_pp": 0.008,
    "fx_gap_pct": 0.0016
   },
   "dolar": {
@@ -887,24 +924,23 @@
     {
      "kurs": "MEP",
      "status": "✅",
-     "roznica_pct": 0.08,
+     "roznica_pct": 0.06,
      "prog": 2.0
     },
     {
      "kurs": "CCL",
      "status": "✅",
-     "roznica_pct": 0.05,
+     "roznica_pct": 0.17,
      "prog": 2.0
     }
    ],
    "bcra": {
-    "status": "?",
+    "status": "✅",
     "data": "2026-10-06",
-    "roznica_pct": null,
-    "uwaga": "brak tego dnia w odpowiedzi banku"
+    "roznica_pct": 0.07
    },
    "uwagi": [],
-   "opis": "blue ✅ 0.00%, hurtowy ✅ 0.00%, oficjalny w banku ✅ 0.10%, MEP ✅ 0.08%, CCL ✅ 0.05%; hurtowy vs bank centralny (2026-10-06) ? (brak tego dnia w odpowiedzi banku); główne luki: AR ✅, VE ✅, BO ✅",
+   "opis": "blue ✅ 0.00%, hurtowy ✅ 0.00%, oficjalny w banku ✅ 0.10%, MEP ✅ 0.06%, CCL ✅ 0.17%; hurtowy vs bank centralny (2026-10-06) ✅ 0.07%; główne luki: AR ✅, VE ✅, BO ✅",
    "luki": {
     "ar": {
      "status": "✅",
@@ -912,11 +948,11 @@
     },
     "ve": {
      "status": "✅",
-     "wiek_dni": 0.1
+     "wiek_dni": 0.0
     },
     "bo": {
      "status": "✅",
-     "wiek_dni": 0.1
+     "wiek_dni": 0.0
     }
    }
   },
@@ -988,14 +1024,14 @@
  },
  "uwagi": [
   "tokenizowane aktywa: produkty spoza głównej listy z jakąkolwiek wartością — tylko 0 (próg 20) — źródło przestało podawać ich wartości; ostatnio znane są w grupie „bez bieżącej wyceny”, sumy spadną (tylko uwaga)",
-  "5 nieudanych przebiegów automatu w 24 h — już naprawione: od ostatniej porażki 153 udane przebiegi z rzędu (05.10 22:55, 05.10 22:23, 05.10 21:56, 05.10 21:21, 05.10 20:46)"
+  "4 nieudane przebiegi automatu w 24 h — już naprawione: od ostatniej porażki 157 udanych przebiegów z rzędu (05.10 22:55, 05.10 22:23, 05.10 21:56, 05.10 21:21)"
  ],
  "bledy": [],
  "przegladarka": {
   "stan": "ok",
   "ok": true,
-  "czas_s": 5.0,
-  "bajty": 3607302,
+  "czas_s": 4.0,
+  "bajty": 3566148,
   "svg": 148,
   "wykresy": 20,
   "artefakty": [],
@@ -1025,17 +1061,17 @@
   "plany": [
    {
     "k": "cg",
-    "tekst": "CoinGecko (Demo) — zapytań w tym miesiącu (od 06.10.2026, 09:16): 73 (prognoza po pierwszej dobie liczenia)",
+    "tekst": "CoinGecko (Demo) — zapytań w tym miesiącu (od 06.10.2026, 09:16): 86 (prognoza po pierwszej dobie liczenia)",
     "znak": "✅"
    },
    {
     "k": "cmc",
-    "tekst": "CoinMarketCap (Basic) — zapytań w tym miesiącu (od 06.10.2026, 09:16): 82 (prognoza po pierwszej dobie liczenia); według dostawcy w miesiącu: 544 z 15 000 (4%, stan 06.10.2026, 20:02)",
+    "tekst": "CoinMarketCap (Basic) — zapytań w tym miesiącu (od 06.10.2026, 09:16): 86 (prognoza po pierwszej dobie liczenia); według dostawcy w miesiącu: 544 z 15 000 (4%, stan 06.10.2026, 20:02)",
     "znak": "✅"
    },
    {
     "k": "td",
-    "tekst": "Twelve Data (Basic) — kredytów wczoraj: brak pełnej doby licznika; w bieżącej dobie (od północy UTC): 154",
+    "tekst": "Twelve Data (Basic) — kredytów wczoraj: brak pełnej doby licznika; w bieżącej dobie (od północy UTC): 168",
     "znak": "✅"
    }
   ],
