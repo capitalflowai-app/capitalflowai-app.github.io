@@ -13781,3 +13781,61 @@ test('v224: słownik EXTRA183 — fund.wyk i fund.wyk.na w 10 językach (własne
   assert.ok(html.includes('for(const l in EXTRA183)if(I18N[l])Object.assign(I18N[l],EXTRA183[l]);'));
   assert.equal((html.match(/const EXTRA183=/g) || []).length, 1, 'EXTRA183 raz (v227: bez warunku „ostatni” — kolejne słowniki dopisują się po nim)');
 });
+
+
+/* ===================== v228: fundusze rynku pieniężnego — linia aktywów razem (wzór wykresu SNB), słownik EXTRA184 ===================== */
+const mm228 = (() => {
+  const a0 = html.indexOf('/* ===================== v134: USA — NAPŁYWY DO FUNDUSZY'), a1 = html.indexOf('\nfunction fndLoad(', a0);
+  const b0 = html.indexOf('/* ===================== v135: USA — FUNDUSZE RYNKU PIENIĘŻNEGO'), b1 = html.indexOf('\nif(FND.data)renderFnd();', b0);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const PIN = Date.parse('2026-09-27T21:45:00Z');
+  class PD extends Date { constructor(...a) { if (a.length) super(...a); else super(PIN); } static now() { return PIN; } }
+  const mk = () => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', 'glyphImg', 'icoWrap', 'srvJSON', 'Date', html.slice(a0, a1) + '\n' + html.slice(b0, b1) +
+    '\nreturn {fndMmWyk, fndBody, FND_TOL_D};')(() => null, (k, v) => (k === 'fund.div' ? '1000' : k === 'fund.bn' ? v.v + ' bn' : k + (v ? JSON.stringify(v) : '')),
+    (v, d) => Number(v).toFixed(d), esc, d => ' · age(' + d + ')', iso => 'D(' + iso + ')', {pl: 'pl-PL', en: 'en-US', zh: 'zh-CN', ja: 'ja-JP'}, 'en',
+    (c) => '<img flag=' + c + '>', (n) => '<img glyph=' + n + '>', x => '<span class="icos">' + x + '</span>', () => ({then: () => {}}), PD);
+  return {mk};
+})();
+
+test('v228: rynek pieniężny — linia aktywów razem z tygodni pliku pod kaflami (przed „co to znaczy”), podpowiedź na każdy tydzień, kropka ostatniego', () => {
+  const X = mm228.mk(), D = mm135.D, body = X.fndBody(D), w = X.fndMmWyk(D), W = D.mm.w;
+  const n = W.length; assert.ok(n >= 8, 'plik testowy: ' + n + ' tygodni');
+  assert.ok(w && body.includes(w), 'fndBody zawiera wykres');
+  const a = body.indexOf('<div class="snbw" role="img"');
+  assert.ok(a > body.indexOf('fund.h.mm') && a < body.indexOf('<p class="pnote">fund.mm.what</p>'), 'pod kaflami rynku pieniężnego, przed „co to znaczy”');
+  assert.ok(w.startsWith('<p class="pnote">fund.mm.wyk{&quot;n&quot;:&quot;' + n + '&quot;}</p>'), 'podpis: liczba tygodni z liczbą');
+  assert.equal((w.match(/<rect class="snbw-h"/g) || []).length, n, 'pas podpowiedzi na każdy tydzień');
+  const tot = W.map(r => r[1]), mx = Math.max(...tot), mn = Math.min(...tot);
+  assert.ok(w.includes('<div class="arc-y"><span>' + (mx / 1000).toFixed(1) + ' bn</span><span>' + (mn / 1000).toFixed(1) + ' bn</span></div>'), 'najwyżej i najniżej przy osi');
+  const l = W[W.length - 1];
+  assert.ok(w.includes('<title>Sep 23, 2026: ' + (l[1] / 1000).toFixed(1) + ' bn</title>'), 'podpowiedź ostatniego tygodnia: data i kwota');
+  assert.equal((w.match(/<polyline class="arc-l"/g) || []).length, 1, 'tygodnie po kolei — jedna linia');
+  assert.ok(/<circle class="snbw-k" cx="596\.0" cy="[\d.]+" r="3\.5"\/>/.test(w), 'kropka ostatniego tygodnia przy prawej krawędzi');
+  assert.ok(!/NaN|undefined/.test(w));
+});
+
+test('v228: rynek pieniężny — tydzień bez liczby przerywa linię (bez punktu, podpowiedź „—”), święto w USA nie przerywa, mniej niż 8 tygodni — bez wykresu', () => {
+  const X = mm228.mk(), D = mm135.cp(mm135.D);
+  D.mm.w[10][1] = null;
+  let w = X.fndMmWyk(D);
+  assert.equal((w.match(/<polyline class="arc-l"/g) || []).length, 2, 'brak w środku — dwie linie');
+  assert.ok(w.includes(': —</title>'), 'podpowiedź tygodnia bez liczby: „—”');
+  assert.ok(w.includes('fund.mm.wyk{&quot;n&quot;:&quot;' + (D.mm.w.length - 1) + '&quot;}'), 'podpis liczy tylko tygodnie z liczbą');
+  const E = JSON.parse(JSON.stringify(mm135.D)), d = E.mm.w[12][0], dd = new Date(Date.parse(d + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+  E.mm.w[12][0] = dd;                                                      /* tydzień do wtorku (święto w USA): 6 i 8 dni — w linii */
+  assert.equal((X.fndMmWyk(E).match(/<polyline class="arc-l"/g) || []).length, 1);
+  const F = JSON.parse(JSON.stringify(mm135.D)); F.mm.w = F.mm.w.slice(-7); F.mm.week = F.mm.w[F.mm.w.length - 1][0];
+  assert.equal(X.fndMmWyk(F), '', '7 tygodni — bez wykresu');
+  assert.equal(X.fndMmWyk({}), '');
+});
+
+test('v228: słownik EXTRA184 — fund.mm.wyk w 10 językach (własne tłumaczenia), czysty JSON z linią for', () => {
+  const i = html.indexOf('const EXTRA184='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA184='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) {
+    assert.deepEqual(Object.keys(D[L]), ['fund.mm.wyk'], L); assert.ok(D[L]['fund.mm.wyk'].includes('{n}'), L);
+    if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['fund.mm.wyk'], D.en['fund.mm.wyk'], L + ': tłumaczenie, nie angielski zapas');
+  }
+  assert.equal((html.match(/const EXTRA184=/g) || []).length, 1);
+  assert.ok(html.includes('for(const l in EXTRA184)if(I18N[l])Object.assign(I18N[l],EXTRA184[l]);'));
+});

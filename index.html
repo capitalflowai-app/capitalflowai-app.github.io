@@ -2191,6 +2191,9 @@ for(const l in EXTRA182)if(I18N[l])Object.assign(I18N[l],EXTRA182[l]);
 /* v224: fundusze USA — słupki napływów netto co miesiąc (10 języków: panel rysowany w każdym języku) */
 const EXTRA183={"pl":{"fund.wyk":"Napływy netto co miesiąc: {a} – {b} (słupek w górę = wpłaty, w dół = wypłaty; każdy rząd ma własną skalę — ± z prawej)","fund.wyk.na":"brak danych"},"en":{"fund.wyk":"Net flows by month: {a} – {b} (bar up = inflows, down = outflows; each row has its own scale — ± on the right)","fund.wyk.na":"no data"},"de":{"fund.wyk":"Nettozuflüsse pro Monat: {a} – {b} (Balken nach oben = Zuflüsse, nach unten = Abflüsse; jede Zeile hat ihre eigene Skala — ± rechts)","fund.wyk.na":"keine Daten"},"es":{"fund.wyk":"Flujos netos por mes: {a} – {b} (barra hacia arriba = entradas, hacia abajo = salidas; cada fila tiene su propia escala — ± a la derecha)","fund.wyk.na":"sin datos"},"fr":{"fund.wyk":"Flux nets par mois : {a} – {b} (barre vers le haut = entrées, vers le bas = sorties ; chaque ligne a sa propre échelle — ± à droite)","fund.wyk.na":"pas de données"},"it":{"fund.wyk":"Flussi netti per mese: {a} – {b} (barra in su = afflussi, in giù = deflussi; ogni riga ha la propria scala — ± a destra)","fund.wyk.na":"dati mancanti"},"pt":{"fund.wyk":"Fluxos líquidos por mês: {a} – {b} (barra para cima = entradas, para baixo = saídas; cada linha tem a sua própria escala — ± à direita)","fund.wyk.na":"sem dados"},"ru":{"fund.wyk":"Чистые потоки по месяцам: {a} – {b} (столбец вверх = приток, вниз = отток; у каждой строки своя шкала — ± справа)","fund.wyk.na":"нет данных"},"zh":{"fund.wyk":"每月净流量：{a} – {b}（柱向上 = 流入，向下 = 流出；每行使用各自的刻度——右侧为 ±）","fund.wyk.na":"无数据"},"ja":{"fund.wyk":"月ごとの資金の純流出入：{a} – {b}（上向きの棒 = 流入、下向き = 流出。各行は独自の目盛り — 右端に ±）","fund.wyk.na":"データなし"}};
 for(const l in EXTRA183)if(I18N[l])Object.assign(I18N[l],EXTRA183[l]);
+/* v228: fundusze rynku pieniężnego — linia aktywów razem (10 języków: panel rysowany w każdym języku) */
+const EXTRA184={"pl":{"fund.mm.wyk":"Aktywa funduszy rynku pieniężnego (razem) w ostatnich {n} tygodniach (najniżej i najwyżej przy osi)"},"en":{"fund.mm.wyk":"Money market fund assets (total) over the last {n} weeks (low and high on the axis)"},"de":{"fund.mm.wyk":"Vermögen der Geldmarktfonds (gesamt) in den letzten {n} Wochen (Tiefst- und Höchststand an der Achse)"},"es":{"fund.mm.wyk":"Activos de los fondos del mercado monetario (total) en las últimas {n} semanas (mínimo y máximo en el eje)"},"fr":{"fund.mm.wyk":"Actifs des fonds monétaires (total) sur les {n} dernières semaines (plus bas et plus haut sur l’axe)"},"it":{"fund.mm.wyk":"Patrimonio dei fondi del mercato monetario (totale) nelle ultime {n} settimane (minimo e massimo sull’asse)"},"pt":{"fund.mm.wyk":"Ativos dos fundos do mercado monetário (total) nas últimas {n} semanas (mínimo e máximo no eixo)"},"ru":{"fund.mm.wyk":"Активы фондов денежного рынка (всего) за последние {n} нед. (минимум и максимум на оси)"},"zh":{"fund.mm.wyk":"货币市场基金资产（合计）——最近{n}周（轴上标出最低和最高）"},"ja":{"fund.mm.wyk":"マネー・マーケット・ファンドの資産（合計）— 直近{n}週間（軸に最低値と最高値）"}};
+for(const l in EXTRA184)if(I18N[l])Object.assign(I18N[l],EXTRA184[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -10033,6 +10036,26 @@ function fndMmBase(R,d,days){let best=null,bo=FND_TOL_D+1;for(const x of R){if(x
 function fndMmChg(D,d,name,days){const P=fndPart(D,'mm'),R=fndMmRows(D),i=fndIdx(P,name,FND_MM),r=R.find(x=>x[0]===d);if(!r||!fndNum(r[i]))return {v:null,od:null};
   const q=fndMmBase(R,d,days);return q&&fndNum(q[i])?{v:r[i]-q[i],od:q[0]}:{v:null,od:null};}
 function fndRateApply(j){const r=j&&j.rows&&j.rows.US;if(r&&fndNum(r.rate)&&r.rate>=0&&r.rate<25&&fndDateOk(r.date))FND.rate={r:r.rate,d:r.date};if(FND.data)renderFnd();}
+/* v228: aktywa funduszy rynku pieniężnego (razem) z tygodni pliku — linia na wzór wykresu SNB (v214/v219: klasy .arc-* i .snbw — pas
+   podpowiedzi na tydzień, kropka ostatniego tygodnia); przerwa w linii, gdy tygodnie dzieli więcej niż 7 ± FND_TOL_D dni (święto w USA zostaje
+   w linii); tydzień bez liczby — bez punktu (podpowiedź „—”); mniej niż 8 tygodni z liczbą — bez wykresu */
+function fndMmWyk(D){
+  const P=fndPart(D,'mm'),R=fndMmRows(D);if(!P||!R.length)return '';
+  const i=fndIdx(P,'tot',FND_MM),Pt=R.filter(r=>fndNum(r[i]));
+  if(Pt.length<8)return '';
+  const ms=d=>Date.parse(d+'T12:00:00Z'),x0=ms(R[0][0]),x1=ms(R[R.length-1][0]),wk=7*864e5;
+  const mn=Math.min(...Pt.map(r=>r[i])),mx=Math.max(...Pt.map(r=>r[i]));
+  let y0=mn,y1=mx;if(y0===y1){const e=Math.abs(y0)*.05||1;y0-=e;y1+=e;}const pad=(y1-y0)*.06;y0-=pad;y1+=pad;
+  const W=600,H=120,Q=4,X=d=>(x1===x0?W/2:Q+(ms(d)-x0)/(x1-x0)*(W-2*Q)).toFixed(1),Y=v=>(H-Q-(v-y0)/(y1-y0)*(H-2*Q)).toFixed(1);
+  const segs=[];for(const r of Pt){const s=segs[segs.length-1];if(s&&Math.abs(ms(r[0])-ms(s[s.length-1][0])-wk)<=FND_TOL_D*864e5)s.push(r);else segs.push([r]);}
+  const g=segs.map(s=>s.length===1?`<circle class="arc-p" cx="${X(s[0][0])}" cy="${Y(s[0][i])}" r="3"/>`:`<polyline class="arc-l" points="${s.map(r=>X(r[0])+','+Y(r[i])).join(' ')}"/>`).join('');
+  const cap=t('fund.mm.wyk',{n:nfmt(Pt.length,0)}),al=cap+': '+fndDay(R[0][0])+' – '+fndDay(R[R.length-1][0])+', '+fndAmt(mn)+' – '+fndAmt(mx);
+  const hw=(W-2*Q)/Math.max(1,(x1-x0)/wk)/2,last=Pt[Pt.length-1];
+  const hit=R.map(r=>`<rect class="snbw-h" x="${(+X(r[0])-hw).toFixed(1)}" y="0" width="${(2*hw).toFixed(1)}" height="${H}"><title>${escH(fndDay(r[0]))}: ${escH(fndNum(r[i])?fndAmt(r[i]):'—')}</title></rect>`).join('');
+  return `<p class="pnote">${escH(cap)}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-body"><div class="arc-y"><span>${escH(fndAmt(mx))}</span><span>${escH(fndAmt(mn))}</span></div>`+
+    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}<circle class="snbw-k" cx="${X(last[0])}" cy="${Y(last[i])}" r="3.5"/>${hit}</svg></div>`+
+    `<div class="arc-x"><span>${escH(fndDay(R[0][0]))}</span><span>${escH(fndDay(R[R.length-1][0]))}</span></div></div>`;
+}
 FND_EXT.push({
   ok:D=>!!fndMmW(D),
   sub:()=>t('fund.mm.sub'),
@@ -10048,7 +10071,7 @@ FND_EXT.push({
     const tile=(ico,n)=>fndTile(ico,t('fund.mm.k.'+n),{txt:fndAmt(W[fndIdx(P,n,FND_MM)]),cls:fndNum(W[fndIdx(P,n,FND_MM)])?'':'na'},[line(n,7,'fund.mm.d1w'),line(n,28,'fund.mm.d4w')],when);
     const tiles=tile(F('us','sm')+G('etf','sm'),'tot')+tile(F('us','sm'),'gov')+tile(G('chart','sm'),'prime')+tile(F('us','sm'),'te')+tile(G('etf','sm'),'inst')+tile(G('etf','sm'),'ret');
     return `<h3 class="mtxt">${t('fund.h.mm')}</h3><p class="pnote">${when}</p>${fndPrev(D,'mm','fund.mm.prev')}`+
-      (fndOld(P.week,FND_STALE.mm)?`<p class="pnote neu">${t('fund.mm.stale',{d:fndDay(P.week)})}</p>`:'')+`<div class="etfkpis">${tiles}</div><p class="pnote">${t('fund.mm.what')}</p>`;},
+      (fndOld(P.week,FND_STALE.mm)?`<p class="pnote neu">${t('fund.mm.stale',{d:fndDay(P.week)})}</p>`:'')+`<div class="etfkpis">${tiles}</div>${fndMmWyk(D)}<p class="pnote">${t('fund.mm.what')}</p>`;},   /* v228: linia aktywów razem pod kaflami */
   th:()=>`<th><span class="fnd-l">${t('fund.c.mm')}</span><span class="fnd-s">${t('fund.c.mm.s')}</span></th>`,
   td:(D,d)=>{const c=fndMmChg(D,d,'tot',7),f=fndChg(c.v,false),o=fndNum(c.v)&&fndDni(d,c.od)!==7;if(o)FND_MM_STEP=true;
     return `<td><span class="cell mono${f.cls?' '+f.cls:''}">${f.txt}${o?'<small class="fnd-rv">†</small>':''}</span></td>`;},
