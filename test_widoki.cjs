@@ -14047,3 +14047,40 @@ test('v236: wykres w rwSegTable — pod nagłówkiem rodzajów, nad tabelą; sty
   assert.ok(html.includes('for(const l in EXTRA187)if(I18N[l])Object.assign(I18N[l],EXTRA187[l]);\nconst EXTRA188='));
   assert.ok(html.includes('for(const l in EXTRA188)if(I18N[l])Object.assign(I18N[l],EXTRA188[l]);'));
 });
+
+
+/* ===================== v238: stopy banków centralnych — słupki nad tabelą, słownik EXTRA189 ===================== */
+const sp238 = (() => {
+  const a = html.indexOf('function spWyk(D){'), b = html.indexOf('\nfunction spBlock(){', a);
+  const I = (k, v) => k === 't' ? (typeof v === 'number' && v > 0 ? ' pos' : typeof v === 'number' && v < 0 ? ' neg' : '') : k === 'f' ? `[f:${v}]` : '';
+  return new Function('t', 'escH', 'spPct', 'spPP', 'gtI', html.slice(a, b) + '\nreturn spWyk;')(
+    (k, v) => k + (v ? JSON.stringify(v) : ''), s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'),
+    v => Number(v).toFixed(2), v => (v > 0 ? '+' : '') + Number(v).toFixed(2), I);
+})();
+test('v238: stopy banków centralnych — od najwyższej, Turcja poza skalą (pasek z przerwą), USA wyróżnione, zmiana 12 mies. w kolorze', () => {
+  const rows = {US: {rate: 3.875, d12: -0.25}, TR: {rate: 37, d12: -3.5}, RU: {rate: 14, d12: -3}, JP: {rate: 1.25, d12: 0.75}, CH: {rate: 0, d12: 0}, XX: {rate: null}};
+  const w = sp238({order: ['US', 'TR', 'RU', 'JP', 'CH', 'XX'], rows});
+  assert.ok(w.startsWith('<div class="spw"><p class="pnote">spw.wyk spw.cut</p>'), 'podpis z wyjaśnieniem przerwy');
+  const R = w.split('<div class="spw-r').slice(1);
+  assert.deepEqual(R.map(r => /\[f:([A-Z]+)\]/.exec(r)[1]), ['TR', 'RU', 'US', 'JP', 'CH'], 'od najwyższej; bez stopy — bez wiersza');
+  const S = 14 * 1.15;
+  assert.ok(R[0].includes('<i class="spw-cut" style="width:100.00%"></i>'), 'Turcja: pełny pasek z przerwą');
+  assert.ok(R[1].includes('<i style="width:' + (14 / S * 100).toFixed(2) + '%"></i>') && R[2].includes('<i style="width:' + (3.875 / S * 100).toFixed(2) + '%"></i>'), 'skala do drugiej ×1,15');
+  assert.ok(R[2].startsWith(' spw-us"'), 'USA wyróżnione');
+  assert.ok(R[4].includes('<span class="spw-t" aria-hidden="true"></span>'), 'stopa 0 — bez paska');
+  assert.ok(R[0].includes('<span class="spw-v">37.00%<small class="neg">-3.50</small></span>') && R[3].includes('<small class="pos">+0.75</small>'), 'zmiana 12 mies. w kolorze');
+  const w2 = sp238({order: ['A', 'B', 'C'], rows: {A: {rate: 5, d12: 0}, B: {rate: 4, d12: 0}, C: {rate: 1, d12: 0}}});
+  assert.ok(!w2.includes('spw-cut') && w2.includes('<p class="pnote">spw.wyk</p>') && w2.includes('width:100.00%'), 'bez wartości odstającej — skala do najwyższej, bez zdania o przerwie');
+  assert.equal(sp238({order: ['A', 'B'], rows: {A: {rate: 5}, B: {rate: 4}}}), '', 'mniej niż 3 banki');
+  assert.equal(sp238(null), ''); assert.equal(sp238({order: 'x', rows: {}}), '');
+  assert.ok(!/undefined|NaN/.test(w));
+});
+test('v238: wykres w spBlock nad tabelą; styl i telefon; słownik EXTRA189 (10 języków, czysty JSON, linia for po EXTRA188)', () => {
+  assert.ok(html.includes("<p class=\"pnote\">${t('sp.sub')}</p>${spWyk(D)}<div class=\"list-wrap\"><table class=\"etft\"><thead><tr><th>${t('sp.c.cb')}</th>"), 'nad tabelą');
+  assert.ok(html.includes('@media (max-width:520px){#inst .spw-r{') && html.includes('#inst .spw-us .spw-n{color:var(--tx);font-weight:600}'));
+  const i = html.indexOf('const EXTRA189='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA189='.length, j));
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const L in D) { assert.deepEqual(Object.keys(D[L]).sort(), ['spw.cut', 'spw.wyk'], L); if (L !== 'pl' && L !== 'en') for (const k in D[L]) assert.notEqual(D[L][k], D.en[k], L + ' ' + k); }
+  assert.ok(html.includes('for(const l in EXTRA188)if(I18N[l])Object.assign(I18N[l],EXTRA188[l]);\nconst EXTRA189='));
+  assert.ok(html.includes('for(const l in EXTRA189)if(I18N[l])Object.assign(I18N[l],EXTRA189[l]);'));
+});
