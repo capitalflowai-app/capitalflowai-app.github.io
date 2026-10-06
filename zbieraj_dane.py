@@ -4906,6 +4906,21 @@ def _fund_clean(h):
     return keep, bad
 
 
+def _fund_bf_odrz(p, bad):
+    """v220: czy odrzucone dni funduszu iShares wymagają uzupełnienia pełnym plikiem: tylko świeży dzień (≤ FUND_TNA_OKNO sesji od ostatniego
+    wiersza) i tylko raz na dzień — zapis prób w p['bf_odrz'] (ostatnie 20 dat). Pełny plik z tym samym błędem nie wraca co przebieg
+    (EWZ 05.10.2026: ten sam NAV 0,001328 w zestawieniu i w pełnym pliku)."""
+    h = p.get('h') or []
+    if not h or not _d(h[-1][0]):
+        return False
+    tried = set(x for x in (p.get('bf_odrz') or []) if isinstance(x, str))
+    nowe = [b for b in bad if isinstance(b, str) and _d(b) and b not in tried and _bdays(_d(b), _d(h[-1][0])) <= FUND_TNA_OKNO]
+    if not nowe:
+        return False
+    p['bf_odrz'] = sorted(tried | set(nowe))[-20:]
+    return True
+
+
 def _fund_merge(old, new):
     """Historia funduszu: nowe wiersze wygrywają dla tych samych dni; ostatnie FUND_KEEP dni rosnąco."""
     m = {r[0]: r for r in old or [] if isinstance(r, list) and len(r) == 3}
@@ -4995,8 +5010,8 @@ def build_fundusze(prev=None):
             p['h'], bad = _fund_clean(h)   # v217: wiersze z błędem pliku źródła odrzucone (EWZ 05.10.2026: NAV 0,001328)
             if bad:
                 META['notes'].append(f'fundusze {t}: odrzucone wiersze {", ".join(bad[-3:])} — aktywa funduszu ponad {FUND_TNA_X:g}× od sąsiednich dni (błąd pliku źródła)')
-                if p['h'] and any(_bdays(_d(b), _d(p['h'][-1][0])) <= FUND_TNA_OKNO for b in bad if _d(b)):
-                    p['bf_need'] = True   # świeży dzień odrzucony — prawdziwy NAV z pełnego pliku w kolejnym przebiegu
+                if _fund_bf_odrz(p, bad):   # v220: świeży dzień odrzucony — jedna próba pełnym plikiem (bez pętli, gdy plik ma ten sam błąd)
+                    p['bf_need'] = True
             out['f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))

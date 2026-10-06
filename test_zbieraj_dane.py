@@ -25751,3 +25751,24 @@ class PoPrzegladzieV219(unittest.TestCase):
     def test_tekst_o_weekendach(self):
         h = self.k.co_zrobic(['TIC (miesięcznie): dane z 2026-06 — 160 d 0 h temu (próg 150 d)'])[0]
         self.assertIn('weekendy już odliczone', h); self.assertNotIn('dni bez sesji', h)
+
+
+# ===================== v220: FUNDUSZE — JEDNA PRÓBA UZUPEŁNIENIA NA ODRZUCONY DZIEŃ =====================
+class FunduszeBezPetliV220(unittest.TestCase):
+    """v220: odrzucony świeży dzień — jedna próba uzupełnienia pełnym plikiem; ten sam dzień ponownie (pełny plik z tym samym błędem) — bez kolejnej."""
+
+    def test_jedna_proba(self):
+        p = {'h': [['2026-10-02', 38.1, 235300000], ['2026-10-06', 42.9, 238426920]]}
+        self.assertTrue(zd._fund_bf_odrz(p, ['2026-10-05'])); self.assertEqual(p['bf_odrz'], ['2026-10-05'])
+        self.assertFalse(zd._fund_bf_odrz(p, ['2026-10-05']), 'ten sam dzień po próbie — bez pętli')
+        self.assertTrue(zd._fund_bf_odrz(p, ['2026-10-05', '2026-10-06'])); self.assertEqual(p['bf_odrz'], ['2026-10-05', '2026-10-06'])
+        self.assertFalse(zd._fund_bf_odrz(p, ['2026-08-01']), 'dzień sprzed ponad 10 sesji — bez uzupełnienia')
+        self.assertFalse(zd._fund_bf_odrz({'h': []}, ['2026-10-05'])); self.assertFalse(zd._fund_bf_odrz({'h': [['x', 1, 1]]}, ['2026-10-05']))
+        q = {'h': [['2026-12-31', 1.0, 1]], 'bf_odrz': ['2026-12-%02d' % d for d in range(1, 31)]}
+        self.assertTrue(zd._fund_bf_odrz(q, ['2026-12-31'])); self.assertEqual(len(q['bf_odrz']), 20, 'zapis prób — ostatnie 20 dat')
+
+    def test_wpiecie(self):
+        import inspect
+        src = inspect.getsource(zd.build_fundusze)
+        self.assertIn("if _fund_bf_odrz(p, bad):", src)
+        self.assertNotIn("any(_bdays(_d(b), _d(p['h'][-1][0])) <= FUND_TNA_OKNO for b in bad if _d(b))", src, 'dawny warunek v217 (pętla) usunięty')
