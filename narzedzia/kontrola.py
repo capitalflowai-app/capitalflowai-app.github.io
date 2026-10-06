@@ -264,7 +264,7 @@ CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez 
     (re.compile(r'^automat nie odświeżył danych'),
      'Automat nie odświeża danych od ponad 3 godzin — zegar zapasowy też nie pomógł. Najczęściej to przerwa po stronie GitHub (stan: githubstatus.com); '
      'jeśli trwa ponad 6 godzin, napisz do Claude: „automat stoi”.'),
-    (re.compile(r'^automat nie działa.*GitHub Pages'),
+    (re.compile(r'^automat nie działa \(publikacja GitHub Pages\)'),   # v219: tylko seria samych porażek publikacji (przebiegi_ocena)
      'Ostatnie przebiegi padły na publikacji strony — to zwykle chwilowa awaria po stronie GitHub. Sprawdź za 1–2 godziny; jeśli trwa dłużej, '
      'napisz do Claude: „publikacja strony nie działa”.'),
     (re.compile(r'^automat nie działa'),
@@ -276,7 +276,7 @@ CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez 
     (re.compile(r'^kapitalizacja krypto'),
      'Dwa źródła tej samej liczby bardzo się różnią — jedno może podawać złe dane. Napisz do Claude: „sprawdź różnicę źródeł z kontroli”.'),
     (re.compile(r': dane z .* temu \('),
-     'Dane źródła są dużo starsze niż zwykle (ponad dwa razy dłużej niż norma, dni bez sesji już odliczone) — źródło przestało publikować '
+     'Dane źródła są dużo starsze niż zwykle (ponad dwa razy dłużej niż norma; weekendy już odliczone) — źródło przestało publikować '
      '(np. przerwa w pracy urzędu) albo automat nie może ich pobrać. Napisz do Claude: „sprawdź źródło z kontroli”.'),
 )
 CO_ZROBIC_INNE = 'Napisz do Claude: „sprawdź błąd z kontroli” — w raporcie niżej jest jego treść.'
@@ -1047,7 +1047,8 @@ def przebiegi_ocena(runs, now, kroki=None):
         lista = ', '.join((x[:5] + ' ' + x[-5:] if x != '—' else x) + (f' ({p["krok"]})' if p.get('krok') else '') for x, p in zip(c, A['porazki']))
         lista += f' i {len(por) - 5} wcześniejsze' if len(por) > 5 else ''
         if z_rzedu >= 2 or (len(por) >= 3 and z_rzedu >= 1):
-            bledy.append(f'automat nie działa: {pl_przebiegi(len(por))} w 24 h, ostatnie {z_rzedu} z rzędu — strona nie odświeża danych ({lista})')
+            pages = all('GitHub Pages' in str(kroki.get(r.get('id')) or '') for r in zak[:z_rzedu])   # v219: KAŻDA porażka bieżącej serii to publikacja Pages
+            bledy.append(f'automat nie działa{" (publikacja GitHub Pages)" if pages else ""}: {pl_przebiegi(len(por))} w 24 h, ostatnie {z_rzedu} z rzędu — strona nie odświeża danych ({lista})')
         elif z_rzedu == 1:
             uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 10 min; dwa nieudane z rzędu = błąd')
         else:

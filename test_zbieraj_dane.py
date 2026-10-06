@@ -25560,7 +25560,7 @@ class KontrolaCoZrobicV212(unittest.TestCase):
              'część automatu „oecd” nie działa od 03.10.2026, 20:20 (2 dni 11 godz., …) — automat nie naprawił tego sam; co zrobić: …',
              'zbieracz zgłasza błędy w 3 kolejnych dniach kontroli (x)', 'kapitalizacja krypto: różnica źródeł dziś 9.00% wobec normy 4.00% — …',
              'TIC (miesięcznie): dane z 2026-06 — 160 d 0 h temu (próg 150 d)', 'coś zupełnie nowego',
-             'strona główna: HTTP 200, 512 B', 'automat nie działa: 2 przebiegi w 24 h, ostatnie 2 z rzędu — strona nie odświeża danych (06.10 08:00 — publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba))']
+             'strona główna: HTTP 200, 512 B', 'automat nie działa (publikacja GitHub Pages): 2 przebiegi w 24 h, ostatnie 2 z rzędu — strona nie odświeża danych (06.10 08:00 — publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba))']   # v219: osobny początek błędu
         H = k.co_zrobic(B)
         self.assertEqual(len(H), 11, 'v215: strona ×2 jedną podpowiedzią; „bez czasu”, „HTTP 200” i publikacja Pages osobno; nieznany — ogólna')
         self.assertTrue(H[0].startswith('Strona albo jej plik stanu nie odpowiada') and 'githubstatus.com' in H[0])
@@ -25713,3 +25713,41 @@ class KontrolaListyPortfeliV218(unittest.TestCase):
         self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 33 dni, Bybit 46 dni ⚠️, KuCoin 41 dni.', k.raport_md(R))
         R['zgodnosc']['wh_listy'] = {'wszystkie': [('OKX', '2026-09-08', 28)], 'stare': []}
         self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 28 dni ✅.', k.raport_md(R))
+
+
+# ===================== v219: POPRAWKI PO PRZEGLĄDZIE v213–v215 (kontrola) =====================
+class PoPrzegladzieV219(unittest.TestCase):
+    """v219: podpowiedź Pages tylko, gdy każda porażka bieżącej serii to publikacja Pages (osobny początek błędu); tekst o weekendach."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v219', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+
+    def test_pages_tylko_dla_biezacej_serii(self):
+        k = self.k
+        U = datetime.timezone.utc
+        NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=U)
+
+        def r(i, m, c):
+            return {'id': i, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': c,
+                    'run_started_at': (NOW - datetime.timedelta(minutes=m)).isoformat(), 'updated_at': (NOW - datetime.timedelta(minutes=m - 5)).isoformat()}
+        tlo = [r(100 + i, 400 + 10 * i, 'success') for i in range(25)]
+        PG = 'opublikuj / publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)'
+        runs = [r(1, 10, 'failure'), r(2, 20, 'failure'), r(3, 30, 'success')] + tlo
+        A, b, u = k.przebiegi_ocena(runs, NOW, {1: PG, 2: PG})
+        self.assertTrue(b[0].startswith('automat nie działa (publikacja GitHub Pages): 2 nieudane przebiegi'), b)
+        self.assertTrue(k.co_zrobic(b)[0].startswith('Ostatnie przebiegi padły na publikacji strony'))
+        A, b, u = k.przebiegi_ocena(runs, NOW, {1: 'zbuduj / zbieraj dane', 2: PG})
+        self.assertTrue(b[0].startswith('automat nie działa: 2 nieudane'), 'najnowsza porażka nie jest publikacją — zwykły błąd')
+        self.assertTrue(k.co_zrobic(b)[0].startswith('Ostatnie przebiegi automatu kończą się błędem'))
+        mix = [r(1, 10, 'failure'), r(2, 20, 'success'), r(3, 200, 'failure'), r(4, 210, 'failure')] + tlo
+        A, b, u = k.przebiegi_ocena(mix, NOW, {1: 'zbuduj / zbieraj dane', 3: PG, 4: PG})
+        self.assertTrue(b[0].startswith('automat nie działa: 3 nieudane'), 'stare porażki Pages + nowa porażka zbieracza — bez rady „poczekaj”')
+        self.assertFalse(k.co_zrobic(b)[0].startswith('Ostatnie przebiegi padły na publikacji'))
+        A, b, u = k.przebiegi_ocena(runs, NOW, {})
+        self.assertTrue(b[0].startswith('automat nie działa: 2'), 'bez opisu kroków — zwykły błąd')
+
+    def test_tekst_o_weekendach(self):
+        h = self.k.co_zrobic(['TIC (miesięcznie): dane z 2026-06 — 160 d 0 h temu (próg 150 d)'])[0]
+        self.assertIn('weekendy już odliczone', h); self.assertNotIn('dni bez sesji', h)

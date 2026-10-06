@@ -13609,10 +13609,10 @@ test('v213: Indie / Tajwan / Hongkong — wiersz słupków na rynek (mln USD, te
   assert.equal((W.match(/<div class="zs-r">/g) || []).length, 2, 'Indie i Tajwan — Hongkong bez danych bez wiersza');
   const rin = W.slice(0, W.indexOf('</svg>'));
   assert.equal((rin.match(/class="zs-p"/g) || []).length, 3); assert.equal((rin.match(/class="zs-m"/g) || []).length, 2); assert.equal((rin.match(/class="zs-n"/g) || []).length, 1, '30.09 brak — kreska');
-  assert.ok(rin.includes('<title>2026-09-29: +806 inst.mln.usd</title>') && rin.includes('<title>2026-09-30: —</title>'), 'podpowiedzi: dzień i wartość');
+  assert.ok(rin.includes('<title>2026-09-29: +806 inst.mln.usd</title>') && rin.includes('<title>2026-09-30: ob.wyk.brak</title>'), 'podpowiedzi: dzień i wartość (v219: brak słowem)');
   assert.ok(rin.includes('height="21.0"') && rin.includes('y="3.0"'), 'najwyższy słupek = pół wysokości minus margines (806 → 21 px)');
   assert.ok(W.includes('<span class="zs-mx">±806</span>') && W.includes('<span class="zs-mx">±1036</span>'), 'każdy rynek w swojej skali (Tajwan w USD, nie w TWD)');
-  assert.ok(W.includes('aria-label="ob.wyk.in: 09-28 −271, 09-29 +806, 09-30 —, 10-01 +120, 10-02 −45, 10-05 +300"'), 'opis dla czytników ekranu');
+  assert.ok(W.includes('aria-label="ob.wyk.in (inst.mln.usd): 09-28 −271; 09-29 +806; 09-30 ob.wyk.brak; 10-01 +120; 10-02 −45; 10-05 +300"'), 'opis dla czytników ekranu (v219: „; ”, jednostka, brak słowem)');
   assert.ok(!/NaN|undefined/.test(W));
   f.zagApply({at: 'x', in: {d: IN.slice(0, 4)}});
   assert.ok(!f.zagBlock().includes('zs-box'), 'mniej niż 5 dni — bez wykresu');
@@ -13625,27 +13625,29 @@ test('v213: Indie / Tajwan / Hongkong — wiersz słupków na rynek (mln USD, te
 });
 
 
-/* ---------- v214: Szwajcaria — linia depozytów banków krajowych ---------- */
-test('v214: Szwajcaria — linia 52 tygodni pod kaflami: kolor neutralny, luka = przerwa w linii, osie min/max i daty, podpowiedzi; od 8 liczb; słownik w 10 językach', () => {
+/* ---------- v214/v219: Szwajcaria — linia depozytów banków krajowych (wzór wykresów archiwum) ---------- */
+test('v214/v219: Szwajcaria — linia jak wykresy archiwum: podpisy w HTML, punkty według dat, każdy brakujący tydzień = przerwa, pojedynczy = kropka; od 8 liczb; 10 języków', () => {
   const X = snb124.mk(), D = snb124.D, body = X.snbBody(D);
-  const s0 = body.indexOf('<svg class="snbw"'), s1 = body.indexOf('</svg>', s0), S = body.slice(s0, s1);
-  assert.ok(s0 > body.lastIndexOf('<div class="etfk">') && s0 < body.indexOf('snb.mm{'), 'pod kaflami, nad zdaniem „najniżej / najwyżej”');
-  assert.ok(body.includes('<p class="pnote">snb.wyk{"n":"9"}</p><svg class="snbw"'), 'podpis z liczbą tygodni');
-  const d = (S.match(/<path class="snbw-l" d="([^"]+)"/) || [])[1];
-  assert.ok(d && (d.match(/M/g) || []).length === 2, 'tydzień bez liczby (4.09) — dwa odcinki linii: ' + d);
-  assert.equal((S.match(/<circle class="snbw-h"/g) || []).length, 9, 'podpowiedź przy każdym tygodniu');
-  assert.ok(S.includes('<title>D2026-09-04: —</title>') === false && /<title>[^<]*: —<\/title>/.test(S), 'brak liczby w podpowiedzi = „—”');
-  assert.ok(S.includes('>snb.bn{"v":"440.0"}</text>') && S.includes('>snb.bn{"v":"432.0"}</text>'), 'oś: najwyżej i najniżej z tych tygodni');
-  assert.ok(S.includes('<circle class="snbw-k"'), 'ostatni tydzień zaznaczony');
-  assert.ok(!/undefined|NaN|\[object|null/.test(body) && !body.includes('pos') && !body.includes('neg'), 'bez kolorów kierunku i bez pustych wartości');
+  const w0 = body.indexOf('<div class="snbw"'), S = body.slice(w0, body.indexOf('snb.mm{'));
+  assert.ok(w0 > body.lastIndexOf('<div class="etfk">') && w0 < body.indexOf('snb.mm{'), 'pod kaflami, nad zdaniem „najniżej / najwyżej”');
+  assert.ok(body.includes('<p class="pnote">snb.wyk{"n":"8"}</p><div class="snbw" role="img" aria-label="'), 'podpis: tygodnie z liczbą (8), jak w zdaniu obok');
+  assert.ok(S.includes('<div class="arc-y"><span>snb.bn{"v":"440.0"}</span><span>snb.bn{"v":"432.0"}</span></div>'), 'oś w HTML: najwyżej i najniżej');
+  assert.ok(S.includes('<svg class="arc-svg" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true">'), 'SVG o stałej wysokości (bez skalowania tekstu)');
+  /* tygodnie: 17.07–14.08 kolejne (5), 21.08 bez wiersza, 28.08 sam, 4.09 bez liczby, 11.09–18.09 (2) */
+  assert.equal((S.match(/<polyline class="arc-l"/g) || []).length, 2, 'dwie linie: 17.07–14.08 i 11.09–18.09 (21.08 i 4.09 przerywają)');
+  assert.equal((S.match(/<circle class="arc-p"/g) || []).length, 1, '28.08 między lukami — kropka');
+  const pl = S.match(/<polyline class="arc-l" points="([^"]+)"/)[1].split(' ').map(p => +p.split(',')[0]);
+  assert.ok(pl.length === 5 && Math.abs((pl[1] - pl[0]) - (pl[2] - pl[1])) < 0.2, 'punkty według dat — równe odstępy tygodniowe');
+  assert.ok(S.includes('<div class="arc-x"><span>') && !/undefined|NaN|\[object|null/.test(body) && !body.includes('pos') && !body.includes('neg'), 'daty pod osią; bez kolorów kierunku');
   const krotko = Object.assign({}, D, {hist: D.hist.slice(0, 4).concat(snb124.W.slice(0, 7).map((w, i) => [w, 440000 - i * 1000, 470000]))});
   assert.ok(!X.snbBody(krotko).includes('class="snbw"'), 'mniej niż 8 liczb — bez wykresu');
   const d0 = html.indexOf('const EXTRA179='), d1 = html.indexOf(';\n', d0), E = JSON.parse(html.slice(d0 + 'const EXTRA179='.length, d1));
   assert.deepEqual(Object.keys(E), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], 'jak cały panel — 10 języków');
   for (const L in E) assert.ok(E[L]['snb.wyk'].includes('{n}') && (L === 'en' || E[L]['snb.wyk'] !== E.en['snb.wyk']), L + ': {n} i własne tłumaczenie');
+  assert.ok(E.ja['snb.wyk'].includes('最低値') && !E.ja['snb.wyk'].includes('最安値') && E.ru['snb.wyk'].startsWith('Отечественные банки'), 'v219: ja 最低値, ru jak reszta panelu');
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA179)if(I18N[l])Object.assign(I18N[l],EXTRA179[l]);'), 'jedna linia for po słowniku');
-  const c0 = html.indexOf('/* v214: Szwajcaria — linia depozytów'), css = html.slice(c0, html.indexOf('\n', html.indexOf('.snbw-h{', c0)));
-  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && css.includes('var(--bl)') && !css.includes('var(--gr)') && !css.includes('var(--rd)'), 'styl: zmienne motywu, kolor neutralny');
+  const c0 = html.indexOf('/* v214/v219: Szwajcaria — linia depozytów'), css = html.slice(c0, html.indexOf('\n', html.indexOf('.snbw{', c0)));
+  assert.ok(c0 > 0 && css.includes('.snbw{') && !/#[0-9a-fA-F]{3,6}\b/.test(css) && !html.includes('.snbw-l{'), 'styl: wzór archiwum, stare klasy usunięte');
 });
 
 
@@ -13672,4 +13674,28 @@ test('v216: w cieniu — liczba kandydatów i najbliższy postęp; ujawnienie ty
   assert.deepEqual(Object.keys(E), ['pl']); assert.equal(Object.keys(E.pl).length, 10); assert.ok(Object.keys(E.pl).every(k => k.startsWith('tig.sh')));
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA180)if(I18N[l])Object.assign(I18N[l],EXTRA180[l]);'), 'jedna linia for po słowniku');
   assert.ok(html.includes("${vd}${trdIgShadow(J)}<p class=\"pnote tig-lw\">${t('tig.l.how'"), 'zdanie pod paskiem, przed opisem metody');
+});
+
+
+/* ---------- v219: słupki przepływów zagranicy — brak, zero, opis dla czytników ekranu, Hongkong (z Chin) ---------- */
+test('v219: słupki — brak = ramka przerywana z „brak danych”, zero szare bez kierunku, wiersz zer „0”; opis „; ” z jednostką; Hongkong (z Chin)', () => {
+  const a0 = html.indexOf('const ZAG={data:null};'), a1 = html.indexOf('function renderInst(){', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'instRow', 'instFoot', 'engNum', 'engDate', 'escH', html.slice(a0, a1) + '\nreturn {zagWyk, zagApply, ZAG};')(
+    T, () => {}, () => {}, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), (a, b, c, d) => `[${a}|${b}|${c}|${d}]`, s => s, v => String(v), s => s, v96src.escH);
+  const D = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02'];
+  const S = {d: [[D[0], 0, 0, 0, 0, 1], [D[1], 0, 0, 0, 12, 1], [D[3], 0, 0, 0, -7, 1], [D[4], 0, 0, 0, 0, 1]]};
+  const Z = {d: D.map(d => [d, 0, 0, 0, 0, 0])};
+  const h = f.zagWyk(S, null, Z, D, (k, a, c) => '');
+  const r1 = h.slice(0, h.indexOf('</svg>'));
+  assert.equal((r1.match(/class="zs-z"/g) || []).length, 2, 'dwa zera — szare'); assert.equal((r1.match(/class="zs-n"/g) || []).length, 1, 'brak 30.09 — ramka');
+  assert.ok(r1.includes('<title>2026-09-30: ob.wyk.brak</title>') && r1.includes('<title>2026-09-28: 0 inst.mln.usd</title>'));
+  assert.ok(r1.includes('aria-label="ob.wyk.in (inst.mln.usd): 09-28 0; 09-29 +12; 09-30 ob.wyk.brak; 10-01 −7.0; 10-02 0"'), r1.slice(r1.indexOf('aria-label'), r1.indexOf('aria-label') + 120));
+  assert.ok(h.includes('<span class="zs-mx">0</span>'), 'wiersz samych zer — „0”, nie „±1”');
+  assert.ok(!/NaN|undefined/.test(h));
+  const d0 = html.indexOf('const EXTRA181='), d1 = html.indexOf(';\n', d0), E = JSON.parse(html.slice(d0 + 'const EXTRA181='.length, d1));
+  assert.deepEqual(E, {pl: {'ob.wyk.brak': 'brak danych'}});
+  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA181)if(I18N[l])Object.assign(I18N[l],EXTRA181[l]);'), 'jedna linia for po słowniku');
+  assert.equal(v96src.tFor('pl')('ob.wyk.hk'), 'Hongkong (z Chin)', 'kapitał z Chin kontynentalnych — jak kafelek i tabela');
+  assert.ok(html.includes('.zs-n{fill:none;stroke:var(--dim);') && html.includes('.zs-z{fill:var(--dim)}'), 'styl braku i zera');
 });

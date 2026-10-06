@@ -1205,17 +1205,12 @@ td .cell .logo-img{width:34px;height:34px}
 .zs-r{display:grid;grid-template-columns:minmax(90px,140px) minmax(0,1fr) auto;align-items:center;gap:10px;margin:6px 0}
 .zs-l{font-size:12.5px;color:var(--mut);display:inline-flex;align-items:center;gap:5px;min-width:0}
 .zs{width:100%;height:48px;display:block}
-.zs-p{fill:var(--gr)}.zs-m{fill:var(--rd)}.zs-n{fill:var(--line-2)}
+.zs-p{fill:var(--gr)}.zs-m{fill:var(--rd)}.zs-n{fill:none;stroke:var(--dim);stroke-width:1;stroke-dasharray:2 2;vector-effect:non-scaling-stroke}.zs-z{fill:var(--dim)}
 .zs-0{stroke:var(--line-2);stroke-width:1;vector-effect:non-scaling-stroke}
 .zs-mx{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
 @media (max-width:520px){.zs-r{grid-template-columns:minmax(0,1fr) auto}.zs-l{grid-column:1/-1}}
-/* v214: Szwajcaria — linia depozytów banków krajowych (kolor neutralny: wzrost to nie „dobrze/źle”) */
-.snbw{display:block;width:100%;max-width:640px;height:auto;margin:4px 0 8px}
-.snbw-l{fill:none;stroke:var(--bl);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.snbw-k{fill:var(--bl)}
-.snbw-a{stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 4}
-.snbw-t{font-size:11px;fill:var(--mut);font-variant-numeric:tabular-nums}
-.snbw-h{fill:transparent;stroke:none}.snbw-h:hover{fill:var(--bl);fill-opacity:.35}
+/* v214/v219: Szwajcaria — linia depozytów banków krajowych: wzór wykresów archiwum (.arc-body, .arc-y, .arc-svg, .arc-x — kolor neutralny --bl) */
+.snbw{margin:4px 0 8px;max-width:640px}
 .trd-wiecej{margin-top:12px}
 .trd-wiecej>summary{font-weight:600}
 @media (max-width:900px){.trd-ig .tig-g,.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(0,1fr)}}
@@ -2177,14 +2172,17 @@ for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);
 const EXTRA177={"pl":{"tig.l.t2":"Nauka: kiedy kolejna ocena sygnałów?","tig.l.t3":"Nauka: oceny sygnałów","tig.l.soon":"{c} z {c} dni z sygnałem — ocena w ciągu kilku dni, gdy ostatnie wyniki się potwierdzą"}};
 for(const l in EXTRA177)if(I18N[l])Object.assign(I18N[l],EXTRA177[l]);
 /* v213: dzienne przepływy zagranicy — wykres słupkowy (tylko pl, cel właściciela 04.10) */
-const EXTRA178={"pl":{"ob.wyk":"Ostatnie {n} dni — przepływ dzienny w mln USD (Tajwan i Hongkong ≈ po kursie dnia): słupek w górę = napływ, w dół = odpływ; każdy rynek w swojej skali (±maks. po prawej); kreska = brak danych, nie zero.","ob.wyk.in":"Indie","ob.wyk.tw":"Tajwan","ob.wyk.hk":"Hongkong"}};
+const EXTRA178={"pl":{"ob.wyk":"Ostatnie {n} dni — przepływ dzienny w mln USD (Tajwan i Hongkong ≈ po kursie dnia): słupek w górę = napływ, w dół = odpływ; każdy rynek w swojej skali (±maks. po prawej); kreska = brak danych, nie zero.","ob.wyk.in":"Indie","ob.wyk.tw":"Tajwan","ob.wyk.hk":"Hongkong (z Chin)"}};
 for(const l in EXTRA178)if(I18N[l])Object.assign(I18N[l],EXTRA178[l]);
 /* v214: Szwajcaria — wykres depozytów (10 języków jak cały panel — strażnik v124) */
-const EXTRA179={"pl":{"snb.wyk":"Banki krajowe — depozyty w ostatnich {n} tygodniach (najniżej i najwyżej przy osi)"},"en":{"snb.wyk":"Domestic banks — sight deposits over the last {n} weeks (low and high on the axis)"},"de":{"snb.wyk":"Inländische Banken — Sichtguthaben in den letzten {n} Wochen (Tiefst- und Höchststand an der Achse)"},"es":{"snb.wyk":"Bancos nacionales — depósitos a la vista en las últimas {n} semanas (mínimo y máximo en el eje)"},"fr":{"snb.wyk":"Banques domestiques — avoirs à vue sur les {n} dernières semaines (plus bas et plus haut sur l’axe)"},"it":{"snb.wyk":"Banche nazionali — depositi a vista nelle ultime {n} settimane (minimo e massimo sull’asse)"},"pt":{"snb.wyk":"Bancos nacionais — depósitos à vista nas últimas {n} semanas (mínimo e máximo no eixo)"},"ru":{"snb.wyk":"Внутренние банки — депозиты до востребования за последние {n} нед. (минимум и максимум на оси)"},"zh":{"snb.wyk":"国内银行——最近{n}周的活期存款（轴上标出最低和最高）"},"ja":{"snb.wyk":"国内銀行 — 直近{n}週間の当座預金（軸に最安値と最高値）"}};
+const EXTRA179={"pl":{"snb.wyk":"Banki krajowe — depozyty w ostatnich {n} tygodniach (najniżej i najwyżej przy osi)"},"en":{"snb.wyk":"Domestic banks — sight deposits over the last {n} weeks (low and high on the axis)"},"de":{"snb.wyk":"Inländische Banken — Sichtguthaben in den letzten {n} Wochen (Tiefst- und Höchststand an der Achse)"},"es":{"snb.wyk":"Bancos nacionales — depósitos a la vista en las últimas {n} semanas (mínimo y máximo en el eje)"},"fr":{"snb.wyk":"Banques domestiques — avoirs à vue sur les {n} dernières semaines (plus bas et plus haut sur l’axe)"},"it":{"snb.wyk":"Banche nazionali — depositi a vista nelle ultime {n} settimane (minimo e massimo sull’asse)"},"pt":{"snb.wyk":"Bancos nacionais — depósitos à vista nas últimas {n} semanas (mínimo e máximo no eixo)"},"ru":{"snb.wyk":"Отечественные банки — депозиты до востребования за последние {n} нед. (минимум и максимум на оси)"},"zh":{"snb.wyk":"国内银行——最近{n}周的活期存款（轴上标出最低和最高）"},"ja":{"snb.wyk":"国内銀行 — 直近{n}週間の当座預金（軸に最低値と最高値）"}};
 for(const l in EXTRA179)if(I18N[l])Object.assign(I18N[l],EXTRA179[l]);
 /* v216: TRENDY — reguły „w cieniu” (tylko pl, cel właściciela 04.10) */
 const EXTRA180={"pl":{"tig.sh":"W cieniu testujemy jeszcze {m} reguły — pokażemy je dopiero, gdy przejdą ten sam test w punkcie 200 dni z sygnałem.","tig.sh.nx":"Najbliżej oceny: {n} z {c} dni.","tig.sh.ok":"Reguła z cienia przeszła test (punkt 200 dni, {d}): {r}. Decyzja o pokazywaniu jej sygnałów należy do właściciela.","tig.sh.r.pt":"cena i trend zgodne","tig.sh.r.ph":"cena i premia kontraktów zgodne","tig.sh.r.es":"przepływy na giełdy i stablecoiny zgodne","tig.sh.r.n3":"co najmniej 3 składniki w tę samą stronę","tig.sh.r.eq.pf":"akcje: cena i przepływ do funduszu zgodne","tig.sh.r.eq.fo":"akcje: przepływ do funduszu i zagraniczni zgodni","tig.sh.r.eq.n2":"akcje: co najmniej 2 składniki w tę samą stronę"}};
 for(const l in EXTRA180)if(I18N[l])Object.assign(I18N[l],EXTRA180[l]);
+/* v219: słupki przepływów zagranicy — „brak danych” w podpowiedzi i opisie (tylko pl) */
+const EXTRA181={"pl":{"ob.wyk.brak":"brak danych"}};
+for(const l in EXTRA181)if(I18N[l])Object.assign(I18N[l],EXTRA181[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -4053,23 +4051,24 @@ function zagSesW(n){
   return (D&&(w(D[L])??w(D.en)))??(n===1?'session':'sessions');
 }
 const zagPart=k=>{const D=ZAG.data,p=D&&D[k];return (p&&Array.isArray(p.d)&&p.d.length)?p:null;};
-/* v213: dzienne przepływy zagranicy — małe wykresy słupkowe (dni z tabeli niżej, rosnąco; mln USD — Tajwan i Hongkong ≈ po kursie dnia; każdy rynek
-   w swojej skali, „±maks.” obok; brak liczby = kreska, nie zero; wykres od 5 dni) — wykres zamiast samej tabeli (cel właściciela 04.10) */
+/* v213/v219: dzienne przepływy zagranicy — małe wykresy słupkowe (dni z tabeli niżej, rosnąco; mln USD — Tajwan i Hongkong ≈ po kursie dnia; każdy rynek
+   w swojej skali, „±maks.” obok; brak liczby = ramka przerywana jak „czeka” w TRENDY, nie zero; zero = szare, bez kierunku; wykres od 5 dni) */
 function zagWyk(I,W,K,ds,G){
   const R=[[I,4,'in','ob.wyk.in'],[W,5,'tw','ob.wyk.tw'],[K,5,['cn','hk'],'ob.wyk.hk']].filter(x=>x[0]);
   if(!R.length||!Array.isArray(ds)||ds.length<5)return '';
-  const bw=12,gp=4,Wd=ds.length*(bw+gp)-gp,H=48,mid=H/2;
+  const bw=12,gp=4,Wd=ds.length*(bw+gp)-gp,H=48,mid=H/2,nb=t('ob.wyk.brak'),u=t('inst.mln.usd');
   const rows=R.map(([S,iv,fl,k])=>{
     const pts=ds.map(d=>{const r=S.d.find(x=>Array.isArray(x)&&x[0]===d);return [d,r?zagNum(r[iv]):null];});
     const vs=pts.map(p=>p[1]).filter(v=>v!=null);if(!vs.length)return '';
-    const mx=Math.max(...vs.map(Math.abs))||1,sc=(mid-3)/mx;
+    const mx=Math.max(...vs.map(Math.abs)),sc=mx>0?(mid-3)/mx:0;
     const g=pts.map(([d,v],i)=>{const x=i*(bw+gp);
-      if(v==null)return `<rect class="zs-n" x="${x}" y="${mid-1}" width="${bw}" height="2"><title>${escH(d)}: —</title></rect>`;
+      if(v==null)return `<rect class="zs-n" x="${x+1}" y="${mid-5}" width="${bw-2}" height="10" rx="2"><title>${escH(d)}: ${escH(nb)}</title></rect>`;
+      if(v===0)return `<rect class="zs-z" x="${x}" y="${mid-1}" width="${bw}" height="2"><title>${escH(d)}: 0 ${u}</title></rect>`;
       const h=Math.max(1,Math.abs(v)*sc);
-      return `<rect class="${v>=0?'zs-p':'zs-m'}" x="${x}" y="${(v>=0?mid-h:mid).toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="2"><title>${escH(d)}: ${zagM(v)} ${t('inst.mln.usd')}</title></rect>`;}).join('');
-    const al=t(k)+': '+pts.map(([d,v])=>d.slice(5)+' '+(v==null?'—':zagM(v))).join(', ');
+      return `<rect class="${v>0?'zs-p':'zs-m'}" x="${x}" y="${(v>0?mid-h:mid).toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="2"><title>${escH(d)}: ${zagM(v)} ${u}</title></rect>`;}).join('');
+    const al=t(k)+' ('+u+'): '+pts.map(([d,v])=>d.slice(5)+' '+(v==null?nb:zagM(v))).join('; ');
     return `<div class="zs-r"><span class="zs-l">${G('f',fl,'sm')}${t(k)}</span><svg class="zs" viewBox="0 0 ${Wd} ${H}" preserveAspectRatio="none" role="img" aria-label="${escH(al)}">`+
-      `<line class="zs-0" x1="0" y1="${mid}" x2="${Wd}" y2="${mid}"/>${g}</svg><span class="zs-mx">±${zagM(mx).replace(/^[+−]/,'')}</span></div>`;}).join('');
+      `<line class="zs-0" x1="0" y1="${mid}" x2="${Wd}" y2="${mid}"/>${g}</svg><span class="zs-mx">${mx>0?'±'+zagM(mx).replace(/^[+−]/,''):'0'}</span></div>`;}).join('');
   return rows?`<div class="zs-box"><p class="pnote">${t('ob.wyk',{n:ds.length})}</p>${rows}</div>`:'';
 }
 function zagBlock(){if(!ZAG.data)return '';const I=zagPart('in'),W=zagPart('tw'),K=zagPart('hk'),G=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v67: K = Hongkong (Stock Connect); v96: G — flagi i kolory */
@@ -9574,20 +9573,22 @@ function snbWk(rows,i,idx){const r=rows[i];if(!r||!snbNum(r[idx]))return null;co
 /* najniżej / najwyżej kolumny idx w ostatnich n tygodniach — tylko z liczb; mniej niż 2 liczby = brak */
 function snbMinMax(rows,idx,n){const r=rows.slice(-n).filter(x=>snbNum(x[idx]));if(r.length<2)return null;let mn=r[0],mx=r[0];for(const x of r){if(x[idx]<mn[idx])mn=x;if(x[idx]>mx[idx])mx=x;}return {n:r.length,min:mn[idx],dmin:mn[0],max:mx[idx],dmax:mx[0]};}
 function snbTile(ico,label,val,lines,when){return `<div class="etfk"><span>${ico?`<span class="icos">${ico}</span>`:''}${escH(label)}</span><b>${val}${lines.map(l=>`<small class="${l.cls}">${l.txt}</small>`).join('')}</b><small class="mtxt">${when}</small></div>`;}
-/* v214: depozyty banków krajowych — linia z ostatnich n tygodni (kolor neutralny; luka = przerwa w linii, nie zero; od 8 liczb) */
+/* v214/v219: depozyty banków krajowych — linia z ostatnich n tygodni jak wykresy archiwum strony: podpisy w HTML (nie maleją na telefonie i nie są
+   ucinane w żadnym języku), SVG o stałej wysokości, punkty według dat, przerwa przy każdym brakującym tygodniu (bez wiersza albo bez liczby),
+   pojedynczy tydzień = kropka; kolor neutralny (panel bez kolorów kierunku); od 8 tygodni z liczbą */
 function snbWyk(rows,n){
-  const R=rows.slice(-n),pts=R.map((r,i)=>[i,r[0],snbNum(r[1])?r[1]:null]),vs=pts.filter(p=>p[2]!=null);
-  if(vs.length<8)return '';
-  const W=560,H=120,L=100,P=8,B=22,mn=Math.min(...vs.map(p=>p[2])),mx=Math.max(...vs.map(p=>p[2])),sp=(mx-mn)||1;
-  const X=i=>(L+(W-L-P)*(R.length>1?i/(R.length-1):0)).toFixed(1),Y=v=>(P+(H-P-B)*(1-(v-mn)/sp)).toFixed(1);
-  let d='',up=false;for(const [i,,v] of pts){if(v==null){up=false;continue;}d+=(up?'L':'M')+X(i)+' '+Y(v);up=true;}
-  const last=vs[vs.length-1],hit=pts.map(([i,w,v])=>`<circle class="snbw-h" cx="${X(i)}" cy="${v==null?(H-B):Y(v)}" r="5"><title>${snbDay(w)}: ${v==null?'—':snbAmt(v)}</title></circle>`).join('');
-  const al=t('snb.wyk',{n:nfmt(R.length,0)})+': '+snbDay(R[0][0])+' – '+snbDay(R[R.length-1][0])+', '+snbAmt(mn)+' – '+snbAmt(mx);
-  return `<p class="pnote">${t('snb.wyk',{n:nfmt(R.length,0)})}</p><svg class="snbw" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escH(al)}">`+
-    `<line class="snbw-a" x1="${L}" y1="${P}" x2="${W-P}" y2="${P}"/><line class="snbw-a" x1="${L}" y1="${H-B}" x2="${W-P}" y2="${H-B}"/>`+
-    `<text class="snbw-t" x="${L-6}" y="${P+4}" text-anchor="end">${snbAmt(mx)}</text><text class="snbw-t" x="${L-6}" y="${H-B+4}" text-anchor="end">${snbAmt(mn)}</text>`+
-    `<path class="snbw-l" d="${d}"/><circle class="snbw-k" cx="${X(last[0])}" cy="${Y(last[2])}" r="3.5"/>`+
-    `<text class="snbw-t" x="${L}" y="${H-6}">${snbDay(R[0][0])}</text><text class="snbw-t" x="${W-P}" y="${H-6}" text-anchor="end">${snbDay(R[R.length-1][0])}</text>${hit}</svg>`;
+  const R=rows.slice(-n),P=R.filter(r=>snbNum(r[1]));
+  if(P.length<8)return '';
+  const ms=d=>Date.parse(d+'T12:00:00Z'),x0=ms(R[0][0]),x1=ms(R[R.length-1][0]),wk=7*864e5;
+  const mn=Math.min(...P.map(r=>r[1])),mx=Math.max(...P.map(r=>r[1]));
+  let y0=mn,y1=mx;if(y0===y1){const e=Math.abs(y0)*.05||1;y0-=e;y1+=e;}const pad=(y1-y0)*.06;y0-=pad;y1+=pad;
+  const W=600,H=120,Q=4,X=d=>(x1===x0?W/2:Q+(ms(d)-x0)/(x1-x0)*(W-2*Q)).toFixed(1),Y=v=>(H-Q-(v-y0)/(y1-y0)*(H-2*Q)).toFixed(1);
+  const segs=[];for(const r of P){const s=segs[segs.length-1];if(s&&ms(r[0])-ms(s[s.length-1][0])===wk)s.push(r);else segs.push([r]);}
+  const g=segs.map(s=>s.length===1?`<circle class="arc-p" cx="${X(s[0][0])}" cy="${Y(s[0][1])}" r="3"/>`:`<polyline class="arc-l" points="${s.map(r=>X(r[0])+','+Y(r[1])).join(' ')}"/>`).join('');
+  const cap=t('snb.wyk',{n:nfmt(P.length,0)}),al=cap+': '+snbDay(R[0][0])+' – '+snbDay(R[R.length-1][0])+', '+snbAmt(mn)+' – '+snbAmt(mx);
+  return `<p class="pnote">${cap}</p><div class="snbw" role="img" aria-label="${escH(al)}"><div class="arc-body"><div class="arc-y"><span>${snbAmt(mx)}</span><span>${snbAmt(mn)}</span></div>`+
+    `<svg class="arc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${g}</svg></div>`+
+    `<div class="arc-x"><span>${snbDay(R[0][0])}</span><span>${snbDay(R[R.length-1][0])}</span></div></div>`;
 }
 function snbBody(D){
   if(!D||typeof D!=='object')return '';
