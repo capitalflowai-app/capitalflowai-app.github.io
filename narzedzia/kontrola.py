@@ -39,8 +39,8 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
-LIMIT_MIN = {'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
+LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
              'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
@@ -93,6 +93,89 @@ UST_FED_KOL = 'RIFLGFCY10_N.B'   # v211: kolumna 10 lat w pliku H.15 (06.10: 24.
 UST_PROG = 0.02      # pkt proc. — ta sama data: plik strony (Skarb USA) vs H.15; większa różnica = ⚠️
 UST_DNI = 10         # tyle ostatnich dat z pliku strony porównujemy (H.15 wychodzi z ok. 1-dniowym opóźnieniem)
 UST_OD_DNI = 21      # FRED: plik od tylu dni wstecz (mały — ok. 200 B)
+# v241: stopy Fed i EBC — plik strony (stopy.json) vs FRED (bez klucza), ten sam dzień; zmiana stopy, której strona jeszcze nie ma
+STOPY_FRED = {'US': (('DFEDTARL', 'DFEDTARU'), 'Fed'), 'XM': (('ECBDFR',), 'EBC')}   # Fed: środek przedziału celu; EBC: stopa depozytowa
+STOPY_FRED_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&cosd={od}'
+STOPY_OD_DNI = 120    # FRED: plik od tylu dni wstecz (data stopy na stronie bywa sprzed kilku tygodni — np. RBI)
+STOPY_PROG = 0.01     # pkt proc. — większa różnica w tym samym dniu = ⚠️
+STOPY_ZWLOKA_DNI = 3  # zmiana stopy starsza niż tyle dni, a strona jej nie ma = ⚠️ (źródło strony podaje stopy z 1–2-dniowym opóźnieniem)
+
+
+def _stopa_fred(S, d):
+    """Stopa z serii FRED (lista {dzień: %}) w dniu d = średnia ostatnich obserwacji ≤ d każdej serii; brak którejś = None."""
+    v = []
+    for s in S:
+        dn = [k for k in s if k <= d]
+        if not dn:
+            return None
+        v.append(s[max(dn)])
+    return sum(v) / len(v)
+
+
+def stopy_porownanie(stopy, fred, now=None):
+    """v241: stopy.json (rows[US|XM] = {rate, date}) i serie FRED ({id: {dzień: %}}) → [{'bank', 'data', 'strona', 'fred', 'zgodne', 'zmiana':
+    [dzień, nowa stopa] albo None}]; bank bez stopy na stronie albo bez serii FRED pominięty."""
+    now = now or NOW
+    rows = stopy.get('rows') if isinstance(stopy, dict) and isinstance(stopy.get('rows'), dict) else {}
+    F = fred if isinstance(fred, dict) else {}
+    out = []
+    for a, (ids, nazwa) in STOPY_FRED.items():
+        r = rows.get(a)
+        if not isinstance(r, dict) or not isinstance(r.get('rate'), (int, float)) or isinstance(r.get('rate'), bool) \
+                or not isinstance(r.get('date'), str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', r['date']):
+            continue
+        S = [F.get(i) for i in ids]
+        if not all(isinstance(s, dict) and s for s in S):
+            continue
+        f = _stopa_fred(S, r['date'])
+        if f is None:
+            continue
+        o = {'bank': nazwa, 'data': r['date'], 'strona': float(r['rate']), 'fred': round(f, 4), 'zgodne': abs(r['rate'] - f) < STOPY_PROG, 'zmiana': None}
+        dni = sorted({k for s in S for k in s if k > r['date']})
+        for d in dni:
+            v = _stopa_fred(S, d)
+            if v is not None and abs(v - f) >= STOPY_PROG:
+                o['zmiana'] = [d, round(v, 4)]
+                break
+        out.append(o)
+    return out
+
+
+def stopy_wiersz(sp, now=None):
+    """v241: wiersz raportu z Z['stopy'] — porównanie albo brak odczytu (informacja, nigdy „zgodne”); zmiana stopy, której strona jeszcze nie
+    ma: ℹ️ do STOPY_ZWLOKA_DNI dni, potem ⚠️ (jak uwaga)."""
+    now = now or NOW
+    n = lambda x: format(x, 'g').replace('.', ',')  # noqa: E731
+    W = sp.get('wyniki') or []
+    if not W:
+        return f'- Stopy banków centralnych (strona vs FRED): brak odczytu ({sp.get("brak") or "brak wspólnych danych"}) ℹ️.'
+    def znak(o):
+        if not o['zgodne']:
+            return '⚠️'
+        z = o.get('zmiana')
+        if not z:
+            return '✅'
+        return '⚠️' if (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI else 'ℹ️'
+    return '- Stopy banków centralnych (strona vs FRED, ten sam dzień): ' + '; '.join(
+        f'{o["bank"]} {n(o["strona"])}% ' + ('= ' if o['zgodne'] else '≠ ') + f'{n(o["fred"])}% ' + znak(o)
+        + (f' (zmiana {o["zmiana"][0]} na {n(o["zmiana"][1])}% — strona jeszcze bez niej)' if o.get('zmiana') else '') for o in W) + '.'
+
+
+def stopy_uwagi(P, now=None):
+    """v241: uwagi z wyniku stopy_porownanie — różnica w tym samym dniu; zmiana stopy starsza niż STOPY_ZWLOKA_DNI, której strona nie ma."""
+    now = now or NOW
+    n = lambda x: format(x, 'g').replace('.', ',')  # noqa: E731
+    out = []
+    for o in P or []:
+        if not o.get('zgodne'):
+            out.append(f'stopy banków centralnych: {o["bank"]} na stronie {n(o["strona"])}% vs FRED {n(o["fred"])}% ({o["data"]}) — sprawdzić plik stóp strony')
+        z = o.get('zmiana')
+        if z and (now.date() - dt.date.fromisoformat(z[0])).days > STOPY_ZWLOKA_DNI:
+            out.append(f'stopy banków centralnych: {o["bank"]} zmienił stopę {z[0]} na {n(z[1])}% — strona pokazuje stopę z {o["data"]} '
+                       f'({n(o["strona"])}%); źródło strony spóźnia się — zwykle samo się wyrówna')
+    return out
+
+
 # v225: kursy walut — migawki pliku strony (rynki.json fx: now/1D/1T/1M/1Q/1R, waluta za 1 USD; kurs EBC przez serwis pośredni) vs H.10 Fed
 # (kursy w południe w Nowym Jorku, wydawane raz w tygodniu; bez klucza) — te same dni. Inna godzina ustalenia kursu (EBC 14:15 we Frankfurcie),
 # więc małe różnice są normalne (06.10.2026: 3 daty × 20 walut, mediana 0,09%, najwięcej 0,79% — peso meksykańskie). v227: progi z 5 lat
@@ -2821,6 +2904,17 @@ def kontrola():
                                   + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]))
         else:
             Z['ust10'] = {'brak': '; '.join(bu)[:200]}
+    if isinstance(files.get('stopy'), dict):   # v241: stopy Fed i EBC vs FRED (bez klucza); brak odczytu = informacja
+        Fs, bs = {}, []
+        od_s = (NOW.date() - dt.timedelta(days=STOPY_OD_DNI)).isoformat()
+        for sid in sorted({i for ids, _ in STOPY_FRED.values() for i in ids}):
+            try:
+                Fs[sid] = ust_fred_csv(get(STOPY_FRED_URL.format(id=sid, od=od_s), timeout=30)[1].decode('utf-8', 'replace'))
+            except Exception as e:  # noqa
+                bs.append(f'{sid}: {str(e)[:60]}')
+        Ps = stopy_porownanie(files['stopy'], Fs)
+        Z['stopy'] = {'wyniki': Ps, 'brak': '; '.join(bs)[:200] if bs else None}
+        R['uwagi'] += stopy_uwagi(Ps)
     if isinstance(files.get('rynki'), dict) and isinstance(files['rynki'].get('fx'), dict):   # v225: kursy walut vs H.10 (Fed); brak = informacja
         try:
             st5, body5, _ = get(FX_H10, timeout=30)
@@ -3093,6 +3187,9 @@ def raport_md(R):
             else:
                 L.append(f'- Rentowność 10L USA (Skarb USA vs H.15{" — " + u["zrodlo"] if u.get("zrodlo") else ""}, te same dni): porównane {u["porownane"]} dat (do {u["do"]}), różnice > {UST_PROG:g} pkt proc.: '
                          f'{len(u["roznice"])} ' + ('⚠️ — ' + ', '.join(f'{d}: {a:g} vs {b:g}' for d, a, b, x in u['roznice'][:5]) + '.' if u['roznice'] else '✅.'))
+        sp = Z.get('stopy')   # v241
+        if sp:
+            L.append(stopy_wiersz(sp))
         f = Z.get('fx')   # v225: kursy walut vs H.10
         if f:
             if f.get('brak'):

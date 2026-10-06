@@ -27045,3 +27045,61 @@ class PoPrzegladzieV239(unittest.TestCase):
         A, b, u = k.przebiegi_ocena(runs, NOW)
         w = [x for x in u if x.startswith('publikacja czeka')]
         self.assertEqual(len(w), 1); self.assertIn('jeśli środowisko publikacji nie wymaga zatwierdzenia', w[0])
+
+
+# ===================== v241: KONTROLA — STOPY FED I EBC VS FRED =====================
+class KontrolaStopyV241(unittest.TestCase):
+    """v241: stopa Fed (środek przedziału) i EBC (depozytowa) na stronie vs FRED w tym samym dniu; zmiana, której strona nie ma; plik na liście."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola241-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v241_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+        cls.S = {'rows': {'US': {'rate': 3.875, 'date': '2026-09-28'}, 'XM': {'rate': 2.5, 'date': '2026-09-29'}, 'GB': {'rate': 3.75, 'date': '2026-09-28'}}}
+
+    def F(self, lo=3.75, hi=4.0, ecb=2.5, zmiana=None):
+        days = ['2026-09-%02d' % d for d in range(20, 31)] + ['2026-10-%02d' % d for d in range(1, 6)]
+        F = {'DFEDTARL': {d: lo for d in days}, 'DFEDTARU': {d: hi for d in days}, 'ECBDFR': {d: ecb for d in days}}
+        if zmiana:
+            for d in days:
+                if d >= zmiana:
+                    F['DFEDTARL'][d] = lo - 0.25; F['DFEDTARU'][d] = hi - 0.25
+        return F
+
+    def test_06_10_zgodne(self):
+        k = self.k
+        P = k.stopy_porownanie(self.S, self.F(), self.NOW)
+        self.assertEqual([(o['bank'], o['strona'], o['fred'], o['zgodne'], o['zmiana']) for o in P],
+                         [('Fed', 3.875, 3.875, True, None), ('EBC', 2.5, 2.5, True, None)])
+        self.assertEqual(k.stopy_uwagi(P, self.NOW), [])
+        self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW), '- Stopy banków centralnych (strona vs FRED, ten sam dzień): Fed 3,875% = 3,875% ✅; EBC 2,5% = 2,5% ✅.')
+
+    def test_roznica_i_zmiana(self):
+        k = self.k
+        P = k.stopy_porownanie(self.S, self.F(ecb=2.25), self.NOW)
+        u = k.stopy_uwagi(P, self.NOW)
+        self.assertEqual(len(u), 1); self.assertIn('EBC na stronie 2,5% vs FRED 2,25% (2026-09-29)', u[0])
+        P = k.stopy_porownanie(self.S, self.F(zmiana='2026-10-01'), self.NOW)
+        self.assertEqual(P[0]['zmiana'], ['2026-10-01', 3.625]); self.assertTrue(P[0]['zgodne'], 'w dniu z pliku strony zgodne')
+        u = k.stopy_uwagi(P, self.NOW)
+        self.assertEqual(len(u), 1); self.assertIn('Fed zmienił stopę 2026-10-01 na 3,625% — strona pokazuje stopę z 2026-09-28', u[0])
+        self.assertEqual(k.stopy_uwagi(k.stopy_porownanie(self.S, self.F(zmiana='2026-10-04'), self.NOW), self.NOW), [], 'zmiana sprzed 2 dni — źródło jeszcze się wyrówna')
+        self.assertIn('Fed 3,875% = 3,875% ⚠️ (zmiana 2026-10-01 na 3,625% — strona jeszcze bez niej)', k.stopy_wiersz({'wyniki': P}, self.NOW))
+        P2 = k.stopy_porownanie(self.S, self.F(zmiana='2026-10-04'), self.NOW)
+        self.assertIn('Fed 3,875% = 3,875% ℹ️ (zmiana 2026-10-04', k.stopy_wiersz({'wyniki': P2}, self.NOW), 'świeża zmiana — informacja')
+
+    def test_braki(self):
+        k = self.k
+        self.assertEqual(k.stopy_porownanie(self.S, {}, self.NOW), [], 'bez serii FRED — nic do porównania (nie „zgodne”)')
+        self.assertEqual(k.stopy_porownanie(None, self.F(), self.NOW), [])
+        S2 = {'rows': {'US': {'rate': None, 'date': '2026-09-28'}, 'XM': {'rate': 2.5, 'date': 'x'}}}
+        self.assertEqual(k.stopy_porownanie(S2, self.F(), self.NOW), [])
+        S3 = {'rows': {'US': {'rate': 3.875, 'date': '2026-01-01'}}}
+        self.assertEqual(k.stopy_porownanie(S3, self.F(), self.NOW), [], 'data strony sprzed serii FRED — bez porównania')
+        self.assertEqual(k.stopy_wiersz({'wyniki': [], 'brak': 'DFEDTARL: timed out'}, self.NOW), '- Stopy banków centralnych (strona vs FRED): brak odczytu (DFEDTARL: timed out) ℹ️.')
+        self.assertIn('stopy', k.PLIKI); self.assertEqual(k.LIMIT_MIN['stopy'], 24 * 60)
+        self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
