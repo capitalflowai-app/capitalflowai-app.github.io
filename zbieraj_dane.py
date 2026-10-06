@@ -2986,9 +2986,8 @@ def _bcb_get(sid, a, b):
                 if _BCB_WS.get('ws_zle'):
                     raise RuntimeError(f'{pw}; zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})') from e
                 try:
-                    rows = _bcb_ws(sid, a, b)
+                    rows = _bcb_ws_raz(sid, a, b)
                 except Exception as e2:
-                    _BCB_WS['ws_zle'] = str(e2)[:90]
                     raise RuntimeError(f'{pw}; zapas SOAP: {str(e2)[:90]}') from e
                 ch = _BCB_WS.setdefault('chw', [])
                 ch.append((str(sid), pw))
@@ -2998,9 +2997,25 @@ def _bcb_get(sid, a, b):
                 return rows
             if not _bcb_conn_err(e):
                 raise
+            if _BCB_WS.get('ws_zle'):   # v261: API JSON i SOAP nie odpowiadają — bez przełączania i bez czekania
+                raise RuntimeError(f'{str(e)[:90]}; zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})') from e
             _BCB_WS['on'] = True
             META['notes'].append(mask(f'BCB: API JSON nie odpowiada ({str(e)[:90]}) — serie z usługi SOAP tego samego banku'))
-    return _bcb_ws(sid, a, b)
+    return _bcb_ws_raz(sid, a, b)
+
+
+def _bcb_ws_raz(sid, a, b):
+    """v261 (przegląd v256): SOAP z pamięcią awarii usługi — po pierwszej awarii połączenia (czas, DNS, TLS) albo odpowiedzi 5xx w przebiegu
+    kolejne serie od razu z błędem: najwyżej jedno czekanie na SOAP, także po przełączeniu wszystkich serii. Błąd jednej serii (Fault SOAP)
+    usługi nie wyłącza."""
+    if _BCB_WS.get('ws_zle'):
+        raise RuntimeError(f'zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})')
+    try:
+        return _bcb_ws(sid, a, b)
+    except Exception as e:
+        if _bcb_conn_err(e) or (isinstance(e, urllib.error.HTTPError) and e.code >= 500):
+            _BCB_WS['ws_zle'] = str(e)[:90]
+        raise
 
 
 def _bcb_date(s):
@@ -3086,10 +3101,27 @@ def bcb_part(prev_br):
     extra = {'m': mrows, 'm_cols': ['miesiąc', 'bezpośrednie', 'portfelowe', 'akcje', 'fundusze', 'obligacje', 'pozostałe',
                                     'bank centralny: waluty i depozyty', 'bank centralny: kredyty', 'SDR'],
              'm_src': 'Banco Central do Brasil — SGS, balanço de pagamentos (22885, 22924, 22927, 22936, 22939, 22971, 22986, 23001, 23042)'} if mrows else {}
+    if _BCB_WS.get('chw') or _BCB_WS['on']:   # v261: ślad w części — notatka wraca w przebiegach z pamięci (bcb_nota)
+        extra['soap'] = {'at': NOW, 'serie': [s for s, _ in _BCB_WS.get('chw') or []],
+                         'np': (_BCB_WS['chw'][0][1] if _BCB_WS.get('chw') else None), 'wszystkie': bool(_BCB_WS['on'])}
     return {**extra, 'at': NOW, 'src': 'Banco Central do Brasil — SGS, câmbio contratado (13961, 13967–13970)',
             'url': 'https://www.bcb.gov.br/estatisticas/tabelaespecial', 'unit': 'mln USD',
             'cols': ['data', 'finansowy saldo', 'finansowy kupno', 'finansowy sprzedaż', 'handlowy saldo', 'razem saldo'],
             'asof': d[-1][0], 'd': d}
+
+
+def bcb_nota(pp):
+    """v261 (przegląd v256): część Brazylii z serii z usługi SOAP — notatka także w przebiegach z pamięci (część odświeża się co 3 h, a kontrola
+    czyta ostatni meta; wzór: Turcja v126, kursy walut v258)."""
+    s = pp.get('soap') if isinstance(pp, dict) and isinstance(pp.get('soap'), dict) else None
+    if not s:
+        return
+    kiedy = str(s.get('at') or pp.get('at') or '—')[:16].replace('T', ' ')
+    if s.get('serie'):
+        META['notes'].append(mask(f"BCB (odświeżenie {kiedy} UTC): API JSON chwilowo bez danych serii {', '.join(map(str, s['serie']))}"
+                                  + (f" (np. {s['np']})" if s.get('np') else '') + ' — te serie z usługi SOAP tego samego banku'))
+    elif s.get('wszystkie'):
+        META['notes'].append(mask(f'BCB (odświeżenie {kiedy} UTC): API JSON nie odpowiadał — serie z usługi SOAP tego samego banku'))
 
 
 # v74: Turcja — bank centralny (CBRT), tygodniowe transakcje netto nierezydentów w papierach (oczyszczone z cen i kursów), bez klucza
@@ -3517,6 +3549,8 @@ def build_obce(key, prev=None, evds_key=''):
             out[part] = pp; META['ok']['obce_' + part] = 'cached'; out['ok'][part] = True   # v91: źródło publikujące rzadziej — bez zapytania
             if part == 'tr':
                 evds_note(pp, evds_key)
+            if part == 'br':
+                bcb_nota(pp)   # v261: serie z SOAP widoczne także w przebiegu z pamięci
             continue
         try:
             out[part] = fn(); META['ok']['obce_' + part] = True
@@ -10751,6 +10785,7 @@ def _ix_merge(old, new, keep, zakres=False):
 
 IX_REW_TOL = 0.01    # v260: % — zamknięcie sesji zmienione przez dostawcę o więcej przy ponownym pobraniu = poprawka (pole 'rew')
 IX_REW_KEEP = 6      # v260: tyle ostatnich poprawek na indeks w pliku
+IX_USUN_MAX = 3      # v261: najwyżej tyle sesji z zakładki może dostawca „usunąć” w jednej odpowiedzi; więcej = luka w odpowiedzi
 
 
 def ix_rewizje(old, new, old_at):
@@ -10797,11 +10832,21 @@ def ix_fetch(sym, cc, key, rec, now):
     except (TypeError, ValueError, IndexError):
         frm = now.date() - datetime.timedelta(days=IX_HIST_DAYS)
     j = get_json(IX_URL.format(sym=sym, key=key, frm=frm.isoformat()), timeout=IX_TIMEOUT)
-    new = eod_parse(j)
-    out = {'cc': cc, 'at': NOW, 'd': _ix_merge(old, new, IX_KEEP, zakres=True)}   # v260: w zakresie odpowiedzi dostawca rozstrzyga
-    rew = (rec.get('rew') if isinstance(rec, dict) and isinstance(rec.get('rew'), list) else []) + ix_rewizje(old, new, rec.get('at') if isinstance(rec, dict) else None)
+    od, do = frm.isoformat(), (now.date() + datetime.timedelta(days=1)).isoformat()
+    new = [r for r in eod_parse(j) if od <= r[0] <= do]   # v261 (przegląd v260): tylko żądany okres — wiersz z błędną datą nie rusza historii
+    if not new:
+        raise RuntimeError(f'odpowiedź bez sesji z żądanego okresu (od {od})')
+    rw = ix_rewizje(old, new, rec.get('at') if isinstance(rec, dict) else None)
+    usun = [r[0] for r in rw if r[2] is None]
+    zakres = len(usun) <= IX_USUN_MAX   # v261: więcej brakujących sesji = luka w odpowiedzi, nie poprawka — nic nie usuwamy
+    if not zakres:
+        rw = [r for r in rw if r[2] is not None]
+    out = {'cc': cc, 'at': NOW, 'd': _ix_merge(old, new, IX_KEEP, zakres=zakres)}   # v260: w zakresie odpowiedzi dostawca rozstrzyga
+    rew = (rec.get('rew') if isinstance(rec, dict) and isinstance(rec.get('rew'), list) else []) + rw
     if rew:   # v260: poprawki dostawcy po naszym pobraniu (najwyżej IX_REW_KEEP ostatnich)
         out['rew'] = rew[-IX_REW_KEEP:]
+    if not zakres:   # v261: ślad dla kontroli — [czas, ile sesji brakowało, pierwsza, ostatnia]
+        out['luka'] = [NOW, len(usun), usun[0], usun[-1]]
     return out
 
 
@@ -11016,7 +11061,7 @@ def ix_wyd_part(key, prev_w, deadline=None):
     pd_ = pw.get('d') if isinstance(pw.get('d'), dict) else {}
     pat = pw.get('at_s') if isinstance(pw.get('at_s'), dict) else {}
     out, err, stop, got = {'at': NOW, 'd': {}, 'at_s': {}}, [], None, 0
-    for s, sid in IX_WYD:
+    for s, sid in sorted(IX_WYD, key=lambda x: str(pat.get(x[0]) or '')):   # v261: najdawniej pobrana seria najpierw
         if stop or _ix_late(deadline):
             err.append(f'{sid}: pominięta ({stop or "budżet czasu"})')
         else:
@@ -19545,6 +19590,7 @@ def main():
             META['ok']['obce_' + p] = 'cached' if st is True else st
         META['errors'].extend(e for es in (prev_o.get('errs') or {}).values() for e in (es if isinstance(es, list) else []))
         evds_note(prev_o.get('tr'), evds_key)   # v126: przyczyna zapasu ZIP Turcji widoczna także w przebiegu z pamięci
+        bcb_nota(prev_o.get('br'))   # v261: Brazylia — serie z usługi SOAP widoczne także w przebiegu z pamięci
     else:
         try:
             save('obce', build_obce(fred_key, prev_o, evds_key=evds_key)); META['ok']['obce'] = True

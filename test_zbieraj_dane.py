@@ -28452,8 +28452,9 @@ class KontrolaIndeksyWydawcyV257(unittest.TestCase):
         self.assertEqual((w['N225']['n'], w['N225']['zgodne'], w['N225']['roznice'], w['N225']['bez_sesji']), (5, 4, [], []))
         self.assertEqual(k.ixf_uwagi(o), [], 'ostatnia sesja różna — informacja, nie uwaga')
         txt = k.ixf_wiersz(o)
-        self.assertTrue(txt.startswith('- Indeksy vs wydawcy (FRED, 45 dni): S&P 500 — zgodne 4 z 4 sesji ✅ · Nasdaq Composite — zgodne 4 z 4 sesji ✅'), txt)
-        self.assertIn('Nikkei 225 — zgodne 4 z 5 sesji; ostatnia sesja 2026-10-06: 70 777,29 vs 70 683,98 (+0,13%) — pobrana 2026-10-06 07:21 UTC, '
+        self.assertTrue(txt.startswith('- Indeksy vs wydawcy (FRED, 45 dni): S&P 500 — zgodne 4 z 4 sesji (wydawca do 2026-10-06) ✅ · '
+                                       'Nasdaq Composite — zgodne 4 z 4 sesji (wydawca do 2026-10-06) ✅'), txt)   # v261: do kiedy dane wydawcy
+        self.assertIn('Nikkei 225 — zgodne 4 z 5 sesji (wydawca do 2026-10-06); ostatnia sesja 2026-10-06: 70 777,29 vs 70 683,98 (+0,13%) — pobrana 2026-10-06 07:21 UTC, '
                       'możliwe zamknięcie wstępne; następne pobranie ją nadpisze ℹ️; sesje wydawcy bez wiersza na stronie: 2026-10-02 ℹ️.', txt)
         self.assertNotIn('2026-08-01', txt, 'sesja sprzed okna nie liczy się')
 
@@ -28472,7 +28473,7 @@ class KontrolaIndeksyWydawcyV257(unittest.TestCase):
                              '2026-09-29: 65 481,27 vs 66 000,00 (-0,79%) — sprawdzić dane dostawcy indeksów'])
         txt = k.ixf_wiersz(o)
         self.assertIn('różne: 2026-09-29 -0,79% ⚠️', txt); self.assertIn('sesje, których wydawca nie ma: 2026-09-30 ℹ️', txt)
-        self.assertIn('S&P 500 — zgodne 4 z 4 sesji; sesje wydawcy bez wiersza na stronie: 2026-10-03 ℹ️', txt)
+        self.assertIn('S&P 500 — zgodne 4 z 4 sesji (wydawca do 2026-10-06); sesje wydawcy bez wiersza na stronie: 2026-10-03 ℹ️', txt)
 
     def test_brak_serii_wydawcy(self):   # v259: brak części 'wyd' albo serii bez liczb — informacja, bez sieci
         k = self.k
@@ -28536,7 +28537,7 @@ class PoPrzegladzieV258(unittest.TestCase):
         self.assertEqual(len(k.indeksy_uwagi(o)), 1); self.assertIn('MXX ma sesję z datą z przyszłości (2026-10-20)', k.indeksy_uwagi(o)[0])
         o = k.indeksy_ocena(self._ix({s: '2026-09-01' for s in ('GSPC', 'N225', 'MXX')}), now=N6)
         self.assertEqual((o['wszystkie'], o['stare']), (25, []), 'wszystkie stoją — względem siebie świeże')
-        self.assertIn('najnowsza sesja 25 dni roboczych temu ⚠️', k.indeksy_wiersz(o)); self.assertNotIn('✅', k.indeksy_wiersz(o))
+        self.assertIn('najnowsza sesja głównego dostawcy (3 serie) 25 dni roboczych temu ⚠️', k.indeksy_wiersz(o)); self.assertNotIn('✅', k.indeksy_wiersz(o))   # v261
         self.assertTrue(any('dostawca oddaje stare dane' in u for u in k.indeksy_uwagi(o)))
         o = k.indeksy_ocena({'X': {'d': [['2026-10-30', 5.0]]}}, now=N6)
         self.assertEqual((o['przyszle'], o['puste'], o['najnowsza']), ([('X', '2026-10-30')], [], None), 'tylko przyszłość — nie „bez danych”')
@@ -28729,4 +28730,178 @@ class IndeksyPoprawkiV260(unittest.TestCase):
                                               'GDAXI 2026-10-02 usunięta, N225 2026-10-06 -0,13%; ostatnia sesja pobrana za wcześnie: N225 ℹ️.')
         self.assertEqual(k.indeksy_uwagi(o), [], 'poprawki to informacja')
         self.assertEqual(k.indeksy_zmiany({'X': {'d': []}}, N), [])
+
+
+# ===================== v261: POPRAWKI PO PRZEGLĄDZIE v256–v260 =====================
+class PoPrzegladzieV261(unittest.TestCase):
+    """v261: wiersz z błędną datą nie kasuje historii indeksu, luka w odpowiedzi nic nie usuwa; „dostawca stoi” z głównego dostawcy; wiek danych
+    wydawcy; jedno czekanie na SOAP także po przełączeniu wszystkich serii; notatka Brazylii (SOAP) także w przebiegu z pamięci."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola261-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v261_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        zd._BCB_WS.update(on=False, chw=[]); zd._BCB_WS.pop('ws_zle', None)
+
+    def tearDown(self):
+        zd._BCB_WS.update(on=False, chw=[]); zd._BCB_WS.pop('ws_zle', None)
+
+    NOW7 = datetime.datetime(2026, 10, 7, 7, 30, tzinfo=datetime.timezone.utc)
+
+    @staticmethod
+    def _dni(a, b):
+        d, out = datetime.date.fromisoformat(a), []
+        while d <= datetime.date.fromisoformat(b):
+            if d.weekday() < 5:
+                out.append(d.isoformat())
+            d += datetime.timedelta(days=1)
+        return out
+
+    def _eod(self, rows):
+        return lambda url, headers=None, timeout=30: [{'date': d, 'close': v} for d, v in rows]
+
+    def test_wiersz_z_bledna_data_nie_kasuje_historii(self):
+        old = [[d, 100.0 + i] for i, d in enumerate(self._dni('2026-01-01', '2026-10-06'))]
+        val = dict(map(tuple, old))
+        ans = [(d, val[d]) for d in self._dni('2026-09-28', '2026-10-06')] + [('2026-10-07', 999.0), ('2026-01-07', 1.0), ('2026-12-07', 2.0)]
+        with mock.patch.object(zd, 'get_json', self._eod(ans)):
+            o = zd.ix_fetch('N225', 'jp', 'k', {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': old}, self.NOW7)
+        self.assertEqual(o['d'][:-1], old, 'przegląd: wiersz 2026-01-07 kasował 174 sesje')
+        self.assertEqual(o['d'][-1], ['2026-10-07', 999.0], 'wiersz z przyszłości (2026-12-07) pominięty')
+        self.assertNotIn('rew', o); self.assertNotIn('luka', o)
+
+    def test_luka_w_odpowiedzi_nic_nie_usuwa(self):
+        old = [[d, 100.0 + i] for i, d in enumerate(self._dni('2026-09-14', '2026-10-06'))]
+        val = dict(map(tuple, old))
+        ans = [(d, val[d]) for d in ('2026-09-28', '2026-10-05')] + [('2026-10-06', 120.0)]   # brak 30.09–02.10 i 29.09 (4 sesje)
+        with mock.patch.object(zd, 'get_json', self._eod(ans)):
+            o = zd.ix_fetch('N225', 'jp', 'k', {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': old}, self.NOW7)
+        self.assertEqual([r[0] for r in o['d']], [r[0] for r in old], 'luka w odpowiedzi — stare sesje zostają')
+        self.assertEqual(o['luka'], [zd.NOW, 4, '2026-09-29', '2026-10-02'])
+        self.assertEqual([r[2] for r in o['rew']], [120.0], 'tylko zmiana wartości, bez „usuniętych”')
+        ans2 = [(d, val[d]) for d in self._dni('2026-09-28', '2026-10-06') if d != '2026-10-01']
+        with mock.patch.object(zd, 'get_json', self._eod(ans2)):
+            o2 = zd.ix_fetch('N225', 'jp', 'k', {'cc': 'jp', 'at': 'x', 'd': old}, self.NOW7)
+        self.assertNotIn('2026-10-01', [r[0] for r in o2['d']], 'jedna brakująca sesja — poprawka dostawcy, usunięta')
+        self.assertEqual(o2['rew'][-1][:3], ['2026-10-01', val['2026-10-01'], None]); self.assertNotIn('luka', o2)
+        with mock.patch.object(zd, 'get_json', self._eod([('2026-01-07', 1.0)])):
+            with self.assertRaises(RuntimeError) as c:
+                zd.ix_fetch('N225', 'jp', 'k', {'cc': 'jp', 'at': 'x', 'd': old}, self.NOW7)
+        self.assertIn('bez sesji z żądanego okresu', str(c.exception))
+
+    def test_kontrola_glowny_dostawca_i_luka(self):
+        k = self.k
+        N = datetime.datetime(2026, 9, 10, 6, 20, tzinfo=datetime.timezone.utc)
+        ix = {s: {'cc': 'x', 'd': [['2026-01-02', 1.0], ['2026-09-04', 2.0]]} for s in ('GSPC', 'N225', 'GDAXI')}
+        ix['FTSE'] = {'cc': 'gb', 'src': 'fmp', 'd': [['2026-09-09', 3.0]]}
+        o = k.indeksy_ocena(ix, now=N)
+        self.assertEqual((o['wszystkie'], o['n_gl'], o['najnowsza_gl'], o['najnowsza']), (4, 3, '2026-09-04', '2026-09-09'))
+        self.assertIn('najnowsza sesja głównego dostawcy (3 serie) 4 dni roboczych temu ⚠️', k.indeksy_wiersz(o))
+        self.assertTrue(any('głównego dostawcy indeksów (3 serie) to 2026-09-04' in u for u in k.indeksy_uwagi(o)), 'przegląd: FTSE zasłaniał przestój')
+        self.assertEqual([k._serie(n) for n in (1, 2, 5, 12, 22, 23, 25)], ['seria', 'serie', 'serii', 'serii', 'serie', 'serie', 'serii'])
+        ix2 = {'N225': {'cc': 'jp', 'd': [['2026-10-06', 1.0]], 'luka': ['2026-10-07T07:30:00+00:00', 4, '2026-09-29', '2026-10-02']},
+               'GSPC': {'cc': 'us', 'd': [['2026-10-06', 1.0]], 'luka': ['2026-09-01T07:30:00+00:00', 5, '2026-08-20', '2026-08-26']}}
+        o = k.indeksy_ocena(ix2, now=datetime.datetime(2026, 10, 7, 8, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(o['luki_odp'], [('N225', '2026-10-07T07:30:00+00:00', 4, '2026-09-29', '2026-10-02')], 'ślad z 7 dni')
+        self.assertIn('odpowiedź dostawcy z luką (sesje zostawione): N225 (4 sesje, 2026-09-29–2026-10-02) ℹ️', k.indeksy_wiersz(o))
+
+    def test_kontrola_wiek_danych_wydawcy(self):
+        k = self.k
+        N = datetime.datetime(2026, 10, 7, 6, 20, tzinfo=datetime.timezone.utc)
+        ix = {'GSPC': {'at': '2026-10-06T22:31:00+00:00', 'd': [['2026-10-02', 7701.0], ['2026-10-05', 7702.0], ['2026-10-06', 7703.0]]}}
+        wyd = {'d': {'GSPC': [['2026-10-02', 7701.0], ['2026-10-05', 7702.0]]}, 'at_s': {'GSPC': '2026-10-05T10:00:00+00:00'}}
+        o = k.ixf_sprawdz(ix, wyd, now=N)
+        w = o['wyniki'][0]
+        self.assertEqual((w['wyd_do'], w['wyd_stare'], w['zgodne'], w['luki']), ('2026-10-05', True, 2, []))
+        txt = k.ixf_wiersz(o)
+        self.assertIn('S&P 500 — zgodne 2 z 2 sesji (wydawca do 2026-10-05); dane wydawcy pobrane 2026-10-05 10:00 UTC — ponad 36 h temu ℹ️', txt)
+        self.assertNotIn('S&P 500 — zgodne 2 z 2 sesji (wydawca do 2026-10-05) ✅', txt, 'przegląd: stare dane wydawcy dawały ✅')
+        wyd['at_s']['GSPC'] = '2026-10-07T03:00:00+00:00'
+        self.assertIn('S&P 500 — zgodne 2 z 2 sesji (wydawca do 2026-10-05) ✅', k.ixf_wiersz(k.ixf_sprawdz(ix, wyd, now=N)))
+
+    def test_wyd_najdawniej_pobrana_najpierw(self):
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(url.split('series_id=')[1].split('&')[0])
+            return {'observations': [{'date': '2026-10-06', 'value': '1'}]}
+        prev = {'at': '2026-10-06T18:00:00+00:00', 'd': {}, 'at_s': {'GSPC': '2026-10-06T18:00:00+00:00', 'IXIC': '2026-10-06T09:00:00+00:00',
+                                                                        'DJI': '2026-10-06T12:00:00+00:00'}}
+        with mock.patch.object(zd, 'get_json', gj):
+            zd.ix_wyd_part('k', prev)
+        self.assertEqual(calls, ['NIKKEI225', 'NASDAQCOM', 'DJIA', 'SP500'], 'bez czasu, potem od najdawniej pobranej')
+
+    def _soap(self, calls, zle_od=None, fault=()):
+        def post(xml, timeout=60):
+            sid = int(re.search(r'<item>(\d+)</item>', xml).group(1))
+            calls.append(sid)
+            if sid in fault:
+                return b'<soapenv:Fault><faultstring>Serie inexistente</faultstring></soapenv:Fault>'
+            if zle_od is not None and len(calls) >= zle_od:
+                raise urllib.error.URLError(OSError(60, 'Operation timed out'))
+            data = '7/2026' if sid > 20000 else '25/9/2026'
+            return ('<getValoresSeriesXMLReturn>&lt;SERIES&gt;&lt;SERIE ID=\'%d\'&gt;&lt;ITEM&gt;&lt;DATA&gt;%s&lt;/DATA&gt;&lt;VALOR&gt;%d.5'
+                    '&lt;/VALOR&gt;&lt;BLOQUEADO&gt;false&lt;/BLOQUEADO&gt;&lt;/ITEM&gt;&lt;/SERIES&gt;</getValoresSeriesXMLReturn>' % (sid, data, sid)).encode()
+        return post
+
+    def test_jedno_czekanie_na_soap_po_przelaczeniu(self):
+        soap = []
+
+        def gj(url, headers=None):
+            sid = int(url.split('bcdata.sgs.')[1].split('/')[0])
+            if sid in (13970, 13968, 13969):
+                raise urllib.error.HTTPError(url, 502, 'Bad Gateway', {}, None)
+            raise AssertionError('po 3 seriach z błędem API JSON nie jest już pytane')
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', self._soap(soap, zle_od=4)), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 6, 17, 30, tzinfo=datetime.timezone.utc)):
+            out = zd.bcb_part(None)
+        self.assertEqual(soap, [13970, 13968, 13969, 13967], 'przegląd: po przełączeniu każda seria czekała do 60 s (14 wywołań)')
+        self.assertTrue(zd._BCB_WS['on']); self.assertIn('Operation timed out', zd._BCB_WS['ws_zle'])
+        self.assertEqual(out['d'][-1][1:4], [13970.5, 13968.5, 13969.5])
+        self.assertTrue(any(e.startswith('BCB bilans płatniczy:') for e in zd.META['errors']), 'bilans bez SOAP — błąd, bez czekania')
+        self.assertEqual(out['soap'], {'at': zd.NOW, 'serie': ['13970', '13968', '13969'], 'np': 'HTTP Error 502: Bad Gateway', 'wszystkie': True})
+
+    def test_blad_serii_soap_nie_wylacza_uslugi_i_polaczenie_bez_przelaczenia(self):
+        soap = []
+        zd._BCB_WS['on'] = True
+        with mock.patch.object(zd, '_bcb_ws_post', self._soap(soap, fault=(13970,))):
+            with self.assertRaises(RuntimeError):
+                zd._bcb_get(13970, '01/09/2026', '03/10/2026')
+            self.assertNotIn('ws_zle', zd._BCB_WS, 'Fault jednej serii — usługa działa')
+            self.assertEqual(zd._bcb_get(13968, '01/09/2026', '03/10/2026'), [{'data': '25/09/2026', 'valor': '13968.5'}])
+        zd._BCB_WS.update(on=False, ws_zle='timed out')
+
+        def gj(url, headers=None):
+            raise urllib.error.URLError(OSError(-2, 'Name or service not known'))
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', self._soap(soap)):
+            with self.assertRaises(RuntimeError) as c:
+                zd._bcb_get(13961, '01/09/2026', '03/10/2026')
+        self.assertIn('zapas SOAP w tym przebiegu niedostępny (timed out)', str(c.exception))
+        self.assertFalse(zd._BCB_WS['on'], 'JSON i SOAP nie odpowiadają — bez przełączania'); self.assertEqual(soap, [13970, 13968])
+
+    def test_notatka_brazylii_z_pamieci(self):
+        pp = {'at': '2026-10-06T20:01:00+00:00', 'd': [['2026-09-25', 1.0, 1.0, 1.0, 1.0, 1.0]],
+              'soap': {'at': '2026-10-06T20:01:00+00:00', 'serie': ['13970'], 'np': 'HTTP Error 502: Bad Gateway', 'wszystkie': False}}
+        zd.bcb_nota(pp)
+        self.assertEqual(zd.META['notes'], ['BCB (odświeżenie 2026-10-06 20:01 UTC): API JSON chwilowo bez danych serii 13970 (np. HTTP Error 502: Bad Gateway)'
+                                            ' — te serie z usługi SOAP tego samego banku'])
+        zd.META['notes'].clear(); zd.bcb_nota({'soap': {'at': 'x', 'serie': [], 'wszystkie': True}})
+        self.assertEqual(zd.META['notes'], ['BCB (odświeżenie x UTC): API JSON nie odpowiadał — serie z usługi SOAP tego samego banku'])
+        zd.META['notes'].clear(); zd.bcb_nota({'d': []}); zd.bcb_nota(None); self.assertEqual(zd.META['notes'], [])
+        prev = {'at': zd.NOW, 'ok': {'br': True}, 'br': dict(pp, at=zd.NOW)}
+        with mock.patch.object(zd, 'nsdl_part', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'twse_part', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd, 'hkex_part', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'tcmb_part', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd, 'thbma_part', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd, 'bcb_part', side_effect=AssertionError('część świeża — bez pobierania')):
+            o = zd.build_obce('', prev)
+        self.assertIs(o['br'], prev['br'])
+        self.assertTrue(any(n.startswith('BCB (odświeżenie 2026-10-06 20:01 UTC)') for n in zd.META['notes']), 'notatka w przebiegu z pamięci')
+        import inspect
+        self.assertIn("bcb_nota(prev_o.get('br'))", inspect.getsource(zd.main))
 

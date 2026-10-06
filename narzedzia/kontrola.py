@@ -1626,6 +1626,7 @@ IXF_SERIE = (('GSPC', 'SP500', 'S&P 500'), ('IXIC', 'NASDAQCOM', 'Nasdaq Composi
 IXF_DNI = 45       # v257: okno porównania — dni kalendarzowe wstecz od dziś
 IXF_TOL = 0.02     # v257: % — różnica do tylu = zgodne (zaokrąglenia: dostawca strony podaje zamknięcia do 4 miejsc)
 IXF_ZLE = 0.1      # v257: % — starsza sesja różna o więcej = ⚠️ (kolejne pobranie z zakładką 10 dni powinno ją już poprawić)
+IXF_WYD_STARE_H = 36   # v261: dane wydawcy pobrane dawniej (zbieracz odświeża co 3 h) = informacja zamiast ✅
 
 
 def ixf_porownanie(rows, F, od):
@@ -1638,7 +1639,7 @@ def ixf_porownanie(rows, F, od):
     if not S or not F:
         return None
     ost, fmax = max(S), max(F)
-    out = {'n': 0, 'zgodne': 0, 'ost': ost, 'ost_roz': None, 'roznice': [], 'bez_sesji': [], 'luki': []}
+    out = {'n': 0, 'zgodne': 0, 'ost': ost, 'ost_roz': None, 'roznice': [], 'bez_sesji': [], 'luki': [], 'wyd_do': fmax}   # v261: do kiedy dane wydawcy
     for d in sorted(S):
         if d in F:
             out['n'] += 1
@@ -1678,8 +1679,16 @@ def ixf_sprawdz(ix, wyd=None, now=None):
                 w['brak'] = 'seria strony albo wydawcy bez sesji w oknie porównania'
             else:
                 w.update(c)
+        if w['wyd_at'] and not w.get('brak'):   # v261 (przegląd v259): dane wydawcy, które przestały się odświeżać — nie „zgodne ✅”
+            try:
+                t = dt.datetime.fromisoformat(w['wyd_at'])
+                t = t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+                w['wyd_stare'] = (now - t).total_seconds() > IXF_WYD_STARE_H * 3600
+            except ValueError:
+                pass
         wyn.append(w)
     return {'od': od, 'wyniki': wyn}
+
 
 def _ixf_n(x):
     return f'{x:,.2f}'.replace(',', ' ').replace('.', ',')
@@ -1727,7 +1736,10 @@ def ixf_wiersz(o):
             x.append('sesje, których wydawca nie ma: ' + ', '.join(w['bez_sesji'][:5]) + ' ℹ️')
         if w.get('luki'):
             x.append('sesje wydawcy bez wiersza na stronie: ' + ', '.join(w['luki'][:5]) + ' ℹ️')
-        cz.append(f"{w['nazwa']} — zgodne {w['zgodne']} z {w['n']} sesji" + ('; ' + '; '.join(x) if x else ' ✅'))
+        if w.get('wyd_stare'):   # v261
+            x.append(f"dane wydawcy pobrane {str(w['wyd_at'])[:16].replace('T', ' ')} UTC — ponad {IXF_WYD_STARE_H} h temu ℹ️")
+        cz.append(f"{w['nazwa']} — zgodne {w['zgodne']} z {w['n']} sesji" + (f" (wydawca do {w['wyd_do']})" if w.get('wyd_do') else '')
+                  + ('; ' + '; '.join(x) if x else ' ✅'))
     return f'- Indeksy vs wydawcy (FRED, {IXF_DNI} dni): ' + ' · '.join(cz) + '.'
 
 
@@ -1772,6 +1784,24 @@ def indeksy_zmiany(ix, now=None):
     return [x[:7] for x in out]
 
 
+def _odm(n, f1, f2, f5):
+    """v261: polska odmiana po liczebniku — 1 seria, 3 serie, 22 serie, 5 serii, 12 serii."""
+    return f1 if n == 1 else f2 if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else f5
+
+
+def _serie(n):
+    return _odm(n, 'seria', 'serie', 'serii')
+
+
+def _ix_swiezy(t, now=None):
+    """v261: czas ISO z ostatnich IX_ZMIANY_DNI dni (ślad 'luka' w kontroli)."""
+    try:
+        x = dt.datetime.fromisoformat(str(t))
+    except ValueError:
+        return False
+    return (x if x.tzinfo else x.replace(tzinfo=dt.timezone.utc)) >= (now or NOW) - dt.timedelta(days=IX_ZMIANY_DNI)
+
+
 def indeksy_ocena(ix, now=None):
     """v254/v258: świeżość każdej serii indeksów (indeksy.json → ix: {symbol: {'d': [[dzień, zamknięcie], …], 'bad_at'?}}) → {'n', 'swieze',
     'najnowsza', 'opoznione': [(symbol, dzień, dni robocze)], 'stare': [...], 'puste': [(symbol, od)], 'przyszle': [(symbol, dzień)],
@@ -1799,7 +1829,14 @@ def indeksy_ocena(ix, now=None):
         return out
     najn = max(ost.values())
     out['najnowsza'] = najn
-    out['wszystkie'] = _dni_rob(dt.date.fromisoformat(najn), dzis)
+    gr = {}   # v261 (przegląd v258): „dostawca stoi” z najnowszej sesji GŁÓWNEGO dostawcy — FTSE z drugiego (src 'fmp') nie zasłania przestoju
+    for s, x in ost.items():
+        gr.setdefault(str(ix[s].get('src') or '') if isinstance(ix.get(s), dict) else '', []).append(x)
+    gl = max(gr.values(), key=len)
+    out['n_gl'], out['najnowsza_gl'] = len(gl), max(gl)
+    out['wszystkie'] = _dni_rob(dt.date.fromisoformat(max(gl)), dzis)
+    out['luki_odp'] = [(s, str(v['luka'][0]), v['luka'][1], v['luka'][2], v['luka'][3]) for s, v in sorted(ix.items())   # v261: odpowiedzi z luką
+                       if isinstance(v, dict) and isinstance(v.get('luka'), list) and len(v['luka']) == 4 and _ix_swiezy(v['luka'][0], now)]
     for s, x in sorted(ost.items()):
         n = _dni_rob(dt.date.fromisoformat(x), dt.date.fromisoformat(najn))
         if n > IX_STARE_DNI:
@@ -1818,9 +1855,10 @@ def indeksy_uwagi(o):
          for s, x, n in o.get('stare') or []]
     u += [f'indeksy giełdowe: {s} ma sesję z datą z przyszłości ({x}) — błąd danych dostawcy (strona może pokazywać ją jako ostatnią); w ocenie świeżości pominięta'
           for s, x in o.get('przyszle') or []]
-    if (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI:
-        u.append(f'indeksy giełdowe: najnowsza sesja wszystkich serii to {o["najnowsza"]} — {o["wszystkie"]} dni roboczych bez nowych sesji; '
-                 'dostawca oddaje stare dane albo pobieranie stoi')
+    if (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI:   # v261: główny dostawca (grupa z największą liczbą serii)
+        n = o.get('n_gl') or 0
+        u.append(f'indeksy giełdowe: najnowsza sesja głównego dostawcy indeksów ({n} {_serie(n)}) to {o.get("najnowsza_gl") or o["najnowsza"]} — '
+                 f'{o["wszystkie"]} dni roboczych bez nowych sesji; dostawca oddaje stare dane albo pobieranie stoi')
     return u
 
 
@@ -1830,8 +1868,9 @@ def indeksy_wiersz(o):
         return '- Indeksy giełdowe: plik bez serii indeksów ℹ️.'
     cz = [f'świeże {o["swieze"]} z {o["n"]}' + (f' (do {o["najnowsza"]})' if o.get('najnowsza') else '')]
     zle = (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI
-    if zle:
-        cz.append(f'najnowsza sesja {o["wszystkie"]} dni roboczych temu ⚠️')
+    if zle:   # v261: główny dostawca
+        n = o.get('n_gl') or 0
+        cz.append(f'najnowsza sesja głównego dostawcy ({n} {_serie(n)}) {o["wszystkie"]} dni roboczych temu ⚠️')
     if o.get('przyszle'):
         cz.append('sesja z datą z przyszłości: ' + ', '.join(f'{s} ({x})' for s, x in o['przyszle']) + ' ⚠️')
     if o.get('stare'):
@@ -1847,8 +1886,11 @@ def indeksy_wiersz(o):
                   + ', '.join(f'{s} {d} ' + (f'{p:+.2f}%'.replace('.', ',') if p is not None else 'usunięta') for s, d, a, b, p, last, at in zz[:8])
                   + (f' (+{len(zz) - 8})' if len(zz) > 8 else '')
                   + (f'; ostatnia sesja pobrana za wcześnie: {", ".join(ost)}' if ost else '') + ' ℹ️')
+    if o.get('luki_odp'):   # v261: odpowiedź dostawcy z wieloma brakującymi sesjami — nic nie usunięto
+        cz.append('odpowiedź dostawcy z luką (sesje zostawione): ' + ', '.join(f'{s} ({n} {_odm(n, "sesja", "sesje", "sesji")}, {a}–{b})'
+                                                                             for s, t, n, a, b in o['luki_odp'][:5]) + ' ℹ️')
     return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (zle or o.get('przyszle') or o.get('stare') or o.get('opoznione') or o.get('puste')
-                                                       or o.get('zmiany')) else ' ✅.')
+                                                       or o.get('zmiany') or o.get('luki_odp')) else ' ✅.')
 
 
 def wieloryby_ocena(path, zmiany=None, hist=None):
