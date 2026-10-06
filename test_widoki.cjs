@@ -14119,3 +14119,12 @@ test('v240: kropka ostatniego punktu — kreska z zaokrąglonym końcem, gruboś
   assert.ok(!html.includes('<circle class="snbw-k"'), 'bez okręgu (rozciągał się w elipsę)');
   assert.ok(html.includes('.snbw .arc-svg{overflow:visible}'), 'kropka przy prawej krawędzi nie jest obcięta');
 });
+
+
+/* ===================== v242: likwidacje — próg przygaszenia wg rytmu odświeżania monety ===================== */
+test('v242: likwidacje — BTC/ETH przygaszone po 4 h, pozostałe monety po 8 h (odświeżane co ok. 6 h)', () => {
+  const ago = h => new Date(Date.now() - h * 3600e3).toISOString(), q = (h) => ({l: 2e6, s: 1e6, t: ago(h)});
+  const w = lq234([{c: 'BTC', q: q(5)}, {c: 'ETH', q: q(3)}, {c: 'XRP', q: q(7)}, {c: 'BNB', q: q(9)}]);
+  const R = w.split('<div class="lqw-r').slice(1).map(r => r.startsWith(' lqw-lo"'));
+  assert.deepEqual(R, [true, false, false, true], 'BTC 5 h — stare; ETH 3 h — świeże; XRP 7 h — w rytmie; BNB 9 h — stare');
+});

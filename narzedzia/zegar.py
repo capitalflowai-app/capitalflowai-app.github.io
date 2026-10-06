@@ -236,7 +236,8 @@ def _odblokuj(token, now, sleep=time.sleep):
                 print(f'zegar: odblokuj: przebieg {rid} czeka — jeszcze nie zawieszony albo czeka na zatwierdzenie'); continue
             nazwy = sorted({p['environment']['name'] for p in pend if isinstance(p, dict) and isinstance(p.get('environment'), dict)
                             and isinstance(p['environment'].get('name'), str) and p['environment']['name']}) or ['github-pages']   # v239: każde
-            zle = False
+            zle = any(not (isinstance(p, dict) and isinstance(p.get('environment'), dict) and isinstance(p['environment'].get('name'), str)
+                           and p['environment']['name']) for p in pend)   # v242: wdrożenie bez nazwy środowiska — nieznany kształt, nie anulować
             for nazwa in nazwy:
                 q = urllib.parse.quote(nazwa, safe='')
                 _, env = _api(f'/repos/{REPO}/environments/{q}', token)

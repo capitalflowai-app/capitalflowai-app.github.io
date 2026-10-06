@@ -10474,7 +10474,8 @@ function levLqWyk(R){
   const u=t('lev.u.mln');
   const rows=M.map(({c,q})=>{const s=q.l+q.s,L=s>0?Math.round(q.l/s*100):null;
     const bar=s>0?(q.l>0?`<i class="lqw-l" style="flex:${(q.l/s).toFixed(4)} 1 0"></i>`:'')+(q.s>0?`<i class="lqw-s" style="flex:${(q.s/s).toFixed(4)} 1 0"></i>`:''):'';
-    const old=typeof q.t==='string'&&Date.now()-Date.parse(q.t)>6*3600e3;   /* v239: dane monety starsze niż 6 h — przygaszone, czas w podpowiedzi */
+    const old=typeof q.t==='string'&&Date.now()-Date.parse(q.t)>(c==='BTC'||c==='ETH'?4:8)*3600e3;   /* v239/v242: dane starsze niż rytm odświeżania monety
+       (zbieracz: BTC/ETH co ok. 2 h, pozostałe co ok. 6 h; dane do 65 min za pobraniem) — przygaszone, czas w podpowiedzi */
     return `<div class="lqw-r${s<5e4||old?' lqw-lo':''}" title="${escH(t('lev.wyk.tip',{c,l:nfmt(q.l/1e6,1),s:nfmt(q.s/1e6,1),u})+(typeof q.t==='string'&&q.t?' · '+engDate(q.t):''))}"><span class="lqw-c">${levIco(levI('coin',c,'sm'))}${escH(c)}</span>`+
       `<span class="lqw-t" aria-hidden="true">${bar}</span><span class="lqw-v">${L===null?'—':`${nfmt(L,0)}% / ${nfmt(100-L,0)}%`}<small>${nfmt(s/1e6,1)} ${u}</small></span></div>`;}).join('');
   return `<div class="lqw"><p class="pnote">${t('lev.wyk')}</p><p class="lqw-leg"><span><i class="lqw-l"></i>${t('lev.wyk.l')}</span><span><i class="lqw-s"></i>${t('lev.wyk.s')}</span></p>${rows}</div>`;

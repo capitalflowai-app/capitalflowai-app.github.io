@@ -26857,10 +26857,11 @@ class ZegarOdblokujV235(unittest.TestCase):
         self.assertEqual(sum(sl), self.Z.ODBLOKUJ_CZEKAJ_S, 'najwyżej 60 s'); self.assertIn('GitHub jeszcze go zamyka', out)
 
 
-# ===================== v237: KONTROLA — NOWE RAPORTY DOWODU REZERW GIEŁD =====================
+# ===================== v237/v242: KONTROLA — NOWE RAPORTY DOWODU REZERW GIEŁD =====================
 class KontrolaNoweRaportyV237(unittest.TestCase):
-    """v237: OKX i Bybit — próba pierwszych 1 024 bajtów pliku z datą w nazwie, od najnowszej daty; KuCoin — data audytu z publicznego JSON;
-    brak odpowiedzi = „nie wiadomo”. Bez sieci (get atrapą)."""
+    """v237/v242: OKX i Bybit — najpierw plik obecnej listy (próba kontrolna), potem pierwsze 1 024 bajty plików z datą w nazwie, od najnowszej;
+    trafienie tylko z podpisem pliku; „nie ma” tylko kodem giełdy; KuCoin — data audytu z publicznego JSON; brak odpowiedzi = „nie wiadomo”.
+    Bez sieci (get atrapą), bez czekania (spij atrapą)."""
 
     @classmethod
     def setUpClass(cls):
@@ -26869,10 +26870,13 @@ class KontrolaNoweRaportyV237(unittest.TestCase):
         with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
             spec = importlib.util.spec_from_file_location('v237_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
             cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
-        cls.G = {'OKX': {'since': '2026-09-08'}, 'Bybit': {'since': '2026-09-23'}, 'KuCoin': {'since': '2026-08-31'}, 'Binance': {'since': '2022-11'}}
+        cls.BY = 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Sep_23.pdf'
+        cls.G = {'OKX': {'since': '2026-09-08'}, 'Bybit': {'since': '2026-09-23', 'url': cls.BY}, 'KuCoin': {'since': '2026-08-31', 'url': 'https://old/k.pdf'},
+                 'Binance': {'since': '2022-11'}}
 
-    def _get(self, jest=(), kucoin=None, log=None):
+    def _get(self, jest=(), kucoin=None, log=None, wszystko=None):
         import urllib.error
+        jest = tuple(jest) + ('por_csv_2026090800_V1', 'Bybit_PoR_Audit_2026_Sep_23.pdf', 'Bybit_PoR_Audit_2026_Sep_10.pdf')   # pliki obecnych list
 
         def get(url, timeout=25, headers=None, limit=None):
             if log is not None:
@@ -26882,41 +26886,80 @@ class KontrolaNoweRaportyV237(unittest.TestCase):
                     raise kucoin
                 return 200, json.dumps(kucoin).encode(), 5
             self.assertEqual((headers, limit), ({'Range': 'bytes=0-1023'}, 1024), 'nigdy cały plik')
+            if wszystko is not None:
+                return wszystko(url)
             if any(x in url for x in jest):
-                return 206, b'x' * 1024, 5
+                return 206, (b'PK\x03\x04' if 'okx' in url else b'%PDF-1.7') + b'x' * 1000, 5
             raise urllib.error.HTTPError(url, 403 if 'bybit' in url else 404, 'x', {}, None)
         return get
+
+    def run_w(self, now, **kw):
+        k = self.k
+        with mock.patch.object(k, 'get', self._get(**kw)):
+            return k.wh_nowe_raporty(self.G, now, spij=lambda s: None)
 
     def test_06_10_stan(self):
         k, log = self.k, []
         now = datetime.datetime(2026, 10, 6, 7, 0, tzinfo=datetime.timezone.utc)
         kuc = {'success': True, 'data': {'latestAuditDate': 1790783999000, 'auditReportUrl': None}}   # 30.09.2026 15:59 UTC
-        with mock.patch.object(k, 'get', self._get(kucoin=kuc, log=log)):
-            W = k.wh_nowe_raporty(self.G, now)
+        W = self.run_w(now, kucoin=kuc, log=log)
         self.assertEqual(sorted(W), ['Bybit', 'KuCoin', 'OKX'], 'tylko giełdy z raportem miesięcznym')
-        self.assertEqual((W['OKX']['nowy'], W['OKX']['prob'], W['OKX']['nie_wiadomo']), (None, 9, 0), 'OKX: 28.09–06.10 sprawdzone, nic nowszego')
-        self.assertEqual(log[0][0], 'https://static.okx.com/cdn/okx/por/chain/por_csv_2026100600_V1.zip', 'od najnowszej daty')
-        self.assertEqual((W['Bybit']['nowy'], W['Bybit']['prob']), (None, 0), 'Bybit: za wcześnie (raport z 23.09)')
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['prob'], W['OKX']['nie_wiadomo'], W['OKX']['kontrola']), (None, 9, 0, True))
+        self.assertEqual(log[0][0], 'https://static.okx.com/cdn/okx/por/chain/por_csv_2026090800_V1.zip', 'najpierw plik obecnej listy')
+        self.assertEqual(log[1][0], 'https://static.okx.com/cdn/okx/por/chain/por_csv_2026100600_V1.zip', 'potem od najnowszej daty')
+        self.assertEqual((W['Bybit']['nowy'], W['Bybit']['prob'], W['Bybit']['kontrola']), (None, 0, None), 'Bybit: za wcześnie — bez zapytań')
         self.assertEqual((W['KuCoin']['nowy'], W['KuCoin']['lista']), ('2026-09-30', False), 'KuCoin: audyt 30.09, bez raportu z listą')
         w = k.wh_nowe_wiersz(W)
-        self.assertIn('OKX — brak nowszego niż 2026-09-08 ✅', w); self.assertIn('Bybit — sprawdzanie od 2026-10-13 (raport miesięczny)', w)
+        self.assertIn('OKX — brak nowszego w dniach 2026-09-28–2026-10-06 ✅', w); self.assertIn('Bybit — sprawdzanie od 2026-10-13 (raport miesięczny)', w)
         self.assertIn('KuCoin — audyt z 2026-09-30, raport z listą portfeli jeszcze niedostępny ℹ️', w)
 
     def test_nowy_raport(self):
-        k, log = self.k, []
+        k = self.k
         now = datetime.datetime(2026, 10, 25, 7, 0, tzinfo=datetime.timezone.utc)
         kuc = {'data': {'latestAuditDate': 1790783999000, 'auditReportUrl': 'https://x/y.pdf'}}
-        with mock.patch.object(k, 'get', self._get(jest=('por_csv_2026100800_V1', 'Bybit_PoR_Audit_2026_Oct_5.pdf'), kucoin=kuc, log=log)):
-            W = k.wh_nowe_raporty(self.G, now)
-        self.assertEqual((W['OKX']['nowy'], W['OKX']['lista']), ('2026-10-08', True))
-        self.assertEqual(W['OKX']['prob'], 18, 'od 25.10 do 08.10 — zatrzymanie na pierwszym znalezionym')
+        W = self.run_w(now, jest=('por_csv_2026100800_V1', 'Bybit_PoR_Audit_2026_Oct_5.pdf'), kucoin=kuc)
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['lista'], W['OKX']['prob']), ('2026-10-08', True, 18))
         self.assertEqual(W['Bybit']['nowy'], None, '05.10 to mniej niż 20 dni po 23.09 — poza oknem')
         self.assertEqual((W['KuCoin']['nowy'], W['KuCoin']['lista']), ('2026-09-30', True))
-        G2 = dict(self.G, Bybit={'since': '2026-09-10'})
+        W2 = self.run_w(now, kucoin={'data': {'latestAuditDate': 1790783999000, 'auditReportUrl': 'https://old/k.pdf'}})
+        self.assertEqual(W2['KuCoin']['lista'], False, 'v242: ten sam link co obecna lista — nic nowego')
         with mock.patch.object(k, 'get', self._get(jest=('Bybit_PoR_Audit_2026_Oct_5.pdf',), kucoin=kuc)):
-            W2 = k.wh_nowe_raporty(G2, now)
-        self.assertEqual(W2['Bybit']['nowy'], '2026-10-05', 'dzień jednocyfrowy — także zapis bez zera')
+            W3 = k.wh_nowe_raporty(dict(self.G, Bybit={'since': '2026-09-10'}), now, spij=lambda s: None)
+        self.assertEqual(W3['Bybit']['nowy'], '2026-10-05', 'dzień jednocyfrowy — także zapis bez zera')
         self.assertIn('OKX — nowy raport z listą portfeli z 2026-10-08 (obecna z 2026-09-08) ⚠️', k.wh_nowe_wiersz(W))
+
+    def test_blokada_i_strona_html(self):
+        import urllib.error
+        k = self.k
+        now = datetime.datetime(2026, 10, 12, 7, 0, tzinfo=datetime.timezone.utc)
+
+        def zabl(url):
+            raise urllib.error.HTTPError(url, 403, 'Forbidden', {}, None)
+        W = self.run_w(now, kucoin={'data': {}}, wszystko=zabl)
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['kontrola'], W['OKX']['prob'], W['OKX']['nie_wiadomo']), (None, 'brak', 0, 1), 'przegląd v237: 403 na wszystko')
+        w = k.wh_nowe_wiersz(W)
+        self.assertIn('OKX — nie wiadomo (plik obecnej listy nie odpowiada plikiem — możliwa blokada serwera) ℹ️', w)
+        self.assertNotIn('brak nowszego', w, 'nigdy „brak nowszego” bez odpowiedzi plikiem')
+        W = self.run_w(now, kucoin={'data': {}}, wszystko=lambda url: (200, b'<!DOCTYPE html><html>' + b'x' * 900, 5))
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['kontrola']), (None, 'brak'), 'strona HTML z kodem 200 to nie plik — bez fałszywego „nowa lista”')
+        self.assertFalse([o for o in W.values() if o.get('nowy') and o.get('lista')])
+
+    def test_plik_jest(self):
+        import urllib.error
+        k = self.k
+
+        def odp(st=None, body=b'', kod=None):
+            def get(url, timeout=25, headers=None, limit=None):
+                if kod:
+                    raise urllib.error.HTTPError(url, kod, 'x', {}, None)
+                return st, body, 5
+            return get
+        for g, kod, exp in (('OKX', 404, False), ('OKX', 403, None), ('Bybit', 403, False), ('Bybit', 404, False), ('Bybit', 429, None), ('OKX', 500, None)):
+            with mock.patch.object(k, 'get', odp(kod=kod)):
+                self.assertEqual(k.wh_plik_jest('u', g), exp, (g, kod))
+        for g, body, exp in (('OKX', b'PK\x03\x04abc', True), ('OKX', b'%PDF', None), ('Bybit', b'%PDF-1.7', True), ('Bybit', b'<html>', None)):
+            with mock.patch.object(k, 'get', odp(206, body)):
+                self.assertEqual(k.wh_plik_jest('u', g), exp, (g, body))
 
     def test_bledy_i_limit(self):
         import urllib.error
@@ -26926,22 +26969,25 @@ class KontrolaNoweRaportyV237(unittest.TestCase):
         def zly(url, timeout=25, headers=None, limit=None):
             raise urllib.error.URLError('timed out')
         with mock.patch.object(k, 'get', zly):
-            W = k.wh_nowe_raporty(self.G, now)
-        self.assertEqual((W['OKX']['nowy'], W['OKX']['nie_wiadomo']), (None, 15), 'brak odpowiedzi — nie wiadomo, nie „brak nowszego”')
+            W = k.wh_nowe_raporty(self.G, now, spij=lambda s: None)
+        self.assertEqual((W['OKX']['nowy'], W['OKX']['nie_wiadomo'], W['OKX']['prob']), (None, 1, 0), 'brak odpowiedzi — nie wiadomo, bez dalszych prób')
         self.assertEqual(W['KuCoin']['nie_wiadomo'], 1)
-        self.assertIn('OKX — nie wiadomo (źródło nie odpowiedziało) ℹ️', k.wh_nowe_wiersz(W))
         t = iter([0.0] + [1000.0] * 100)
         with mock.patch.object(k, 'get', self._get(kucoin={'data': {}})):
-            W = k.wh_nowe_raporty(self.G, now, zegar=lambda: next(t))
-        self.assertEqual((W['OKX']['prob'], W['OKX']['nie_wiadomo']), (0, 1), 'limit czasu całości — koniec prób, „nie wiadomo”')
-        self.assertEqual(W['KuCoin']['nie_wiadomo'], 1, 'JSON bez daty audytu — nie wiadomo')
+            W = k.wh_nowe_raporty(self.G, now, zegar=lambda: next(t), spij=lambda s: None)
+        self.assertTrue(W['OKX']['przerwane'] and W['KuCoin']['przerwane'], 'limit czasu — koniec prób (także KuCoin)')
+        self.assertIn('OKX — sprawdzanie przerwane (limit czasu) ℹ️', k.wh_nowe_wiersz(W))
 
         def stara(url, timeout=25, headers=None):   # zaślepka bez parametru limit (stare testy całej kontroli) — nie wiadomo, bez sieci
             raise AssertionError('nieoczekiwany adres ' + url)
         with mock.patch.object(k, 'get', stara):
-            W = k.wh_nowe_raporty(self.G, now)
+            W = k.wh_nowe_raporty(self.G, now, spij=lambda s: None)
         self.assertTrue(all(o['nowy'] is None for o in W.values()))
         self.assertEqual(k.wh_nowe_raporty(None, now), {}); self.assertEqual(k.wh_nowe_raporty({'OKX': {'since': 'x'}}, now), {})
+        pauzy = []
+        with mock.patch.object(k, 'get', self._get(kucoin={'data': {}})):
+            k.wh_nowe_raporty(self.G, now, spij=pauzy.append)
+        self.assertTrue(pauzy and set(pauzy) == {k.WH_NOWE_PAUZA_S}, 'przerwa między zapytaniami do tej samej giełdy')
 
     def test_get_limit_i_podpiecie(self):
         k = self.k
@@ -27073,24 +27119,24 @@ class KontrolaStopyV241(unittest.TestCase):
     def test_06_10_zgodne(self):
         k = self.k
         P = k.stopy_porownanie(self.S, self.F(), self.NOW)
-        self.assertEqual([(o['bank'], o['strona'], o['fred'], o['zgodne'], o['zmiana']) for o in P],
+        self.assertEqual([(o['bank'], o['strona'], o['fred'], o['zgodne'], o['zmiana']) for o in P],   # v242: dane FRED — zapas
                          [('Fed', 3.875, 3.875, True, None), ('EBC', 2.5, 2.5, True, None)])
         self.assertEqual(k.stopy_uwagi(P, self.NOW), [])
-        self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW), '- Stopy banków centralnych (strona vs FRED, ten sam dzień): Fed 3,875% = 3,875% ✅; EBC 2,5% = 2,5% ✅.')
+        self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW), '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (FRED) ✅; EBC 2,5% = 2,5% (FRED) ✅.')
 
     def test_roznica_i_zmiana(self):
         k = self.k
         P = k.stopy_porownanie(self.S, self.F(ecb=2.25), self.NOW)
         u = k.stopy_uwagi(P, self.NOW)
-        self.assertEqual(len(u), 1); self.assertIn('EBC na stronie 2,5% vs FRED 2,25% (2026-09-29)', u[0])
+        self.assertEqual(len(u), 1); self.assertIn('EBC na stronie 2,5% vs FRED 2,25% (2026-09-29)', u[0])   # v242: źródło w treści
         P = k.stopy_porownanie(self.S, self.F(zmiana='2026-10-01'), self.NOW)
         self.assertEqual(P[0]['zmiana'], ['2026-10-01', 3.625]); self.assertTrue(P[0]['zgodne'], 'w dniu z pliku strony zgodne')
         u = k.stopy_uwagi(P, self.NOW)
         self.assertEqual(len(u), 1); self.assertIn('Fed zmienił stopę 2026-10-01 na 3,625% — strona pokazuje stopę z 2026-09-28', u[0])
         self.assertEqual(k.stopy_uwagi(k.stopy_porownanie(self.S, self.F(zmiana='2026-10-04'), self.NOW), self.NOW), [], 'zmiana sprzed 2 dni — źródło jeszcze się wyrówna')
-        self.assertIn('Fed 3,875% = 3,875% ⚠️ (zmiana 2026-10-01 na 3,625% — strona jeszcze bez niej)', k.stopy_wiersz({'wyniki': P}, self.NOW))
+        self.assertIn('Fed 3,875% = 3,875% (FRED) ⚠️ (zmiana 2026-10-01 na 3,625% — strona jeszcze bez niej)', k.stopy_wiersz({'wyniki': P}, self.NOW))
         P2 = k.stopy_porownanie(self.S, self.F(zmiana='2026-10-04'), self.NOW)
-        self.assertIn('Fed 3,875% = 3,875% ℹ️ (zmiana 2026-10-04', k.stopy_wiersz({'wyniki': P2}, self.NOW), 'świeża zmiana — informacja')
+        self.assertIn('Fed 3,875% = 3,875% (FRED) ℹ️ (zmiana 2026-10-04', k.stopy_wiersz({'wyniki': P2}, self.NOW), 'świeża zmiana — informacja')
 
     def test_braki(self):
         k = self.k
@@ -27100,6 +27146,76 @@ class KontrolaStopyV241(unittest.TestCase):
         self.assertEqual(k.stopy_porownanie(S2, self.F(), self.NOW), [])
         S3 = {'rows': {'US': {'rate': 3.875, 'date': '2026-01-01'}}}
         self.assertEqual(k.stopy_porownanie(S3, self.F(), self.NOW), [], 'data strony sprzed serii FRED — bez porównania')
-        self.assertEqual(k.stopy_wiersz({'wyniki': [], 'brak': 'DFEDTARL: timed out'}, self.NOW), '- Stopy banków centralnych (strona vs FRED): brak odczytu (DFEDTARL: timed out) ℹ️.')
+        self.assertEqual(k.stopy_wiersz({'wyniki': [], 'brak': 'DFEDTARL: timed out'}, self.NOW), '- Stopy banków centralnych (strona vs źródło banku): brak odczytu (DFEDTARL: timed out) ℹ️.')
         self.assertIn('stopy', k.PLIKI); self.assertEqual(k.LIMIT_MIN['stopy'], 24 * 60)
         self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
+
+
+# ===================== v242: STOPY U ŹRÓDŁA BANKU, ZEGAR, POPRAWKI PO PRZEGLĄDZIE v237–v239 =====================
+class PoPrzegladzieV242(unittest.TestCase):
+    """v242: stopy Fed (NY Fed) i EBC (portal EBC) przed FRED; zegar — wdrożenie bez nazwy środowiska = nie anulować."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola242-')
+        root = os.path.dirname(os.path.abspath(__file__))
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v242_k', os.path.join(root, 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        spec = importlib.util.spec_from_file_location('v242_zegar', os.path.join(root, 'narzedzia', 'zegar.py'))
+        cls.Z = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.Z)
+        cls.NOW = datetime.datetime(2026, 10, 6, 6, 20, tzinfo=datetime.timezone.utc)
+
+    def test_parsery(self):
+        k = self.k
+        ny = json.dumps({'refRates': [{'effectiveDate': '2026-10-02', 'type': 'EFFR', 'percentRate': 3.88, 'targetRateFrom': 3.75, 'targetRateTo': 4.0},
+                                      {'effectiveDate': '2026-10-01', 'type': 'EFFR', 'percentRate': 3.88, 'targetRateFrom': 3.75, 'targetRateTo': 4.0},
+                                      {'effectiveDate': 'x', 'targetRateFrom': 1, 'targetRateTo': 2}, {'effectiveDate': '2026-09-30'}]}).encode()
+        self.assertEqual(k.stopy_nyfed(ny), {'NYFED_LO': {'2026-10-02': 3.75, '2026-10-01': 3.75}, 'NYFED_HI': {'2026-10-02': 4.0, '2026-10-01': 4.0}})
+        csv = ('KEY,FREQ,REF_AREA,CURRENCY,PROVIDER_FM,INSTRUMENT_FM,PROVIDER_FM_ID,DATA_TYPE_FM,TIME_PERIOD,OBS_VALUE,OBS_STATUS,OBS_CONF\n'
+               'FM.D.U2.EUR.4F.KR.DFR.LEV,D,U2,EUR,4F,KR,DFR,LEV,2026-10-05,2.5,A,F\nFM.D.U2.EUR.4F.KR.DFR.LEV,D,U2,EUR,4F,KR,DFR,LEV,2026-10-06,2.5,A,F\n'
+               'FM.D.U2.EUR.4F.KR.DFR.LEV,D,U2,EUR,4F,KR,DFR,LEV,2026-10-07,,A,F\n').encode()
+        self.assertEqual(k.stopy_ecb_csv(csv), {'2026-10-05': 2.5, '2026-10-06': 2.5})
+        for zle in (b'', b'x', b'{}'):
+            with self.assertRaises(Exception):
+                k.stopy_nyfed(zle)
+        with self.assertRaises(Exception):
+            k.stopy_ecb_csv(b'KEY,TIME_PERIOD\n')
+
+    def test_pierwszenstwo_i_zrodlo(self):
+        k = self.k
+        S = {'rows': {'US': {'rate': 3.875, 'date': '2026-09-28'}, 'XM': {'rate': 2.5, 'date': '2026-09-29'}}}
+        days = ['2026-09-%02d' % d for d in range(20, 31)]
+        F = {'NYFED_LO': {d: 3.75 for d in days}, 'NYFED_HI': {d: 4.0 for d in days}, 'ECB_DFR': {d: 2.5 for d in days},
+             'DFEDTARL': {d: 9.0 for d in days}, 'DFEDTARU': {d: 9.0 for d in days}}
+        P = k.stopy_porownanie(S, F, self.NOW)
+        self.assertEqual([(o['bank'], o['zrodlo'], o['zgodne']) for o in P], [('Fed', 'NY Fed', True), ('EBC', 'EBC', True)], 'źródło banku przed FRED')
+        self.assertEqual(k.stopy_wiersz({'wyniki': P}, self.NOW),
+                         '- Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (NY Fed) ✅; EBC 2,5% = 2,5% (EBC) ✅.')
+        P2 = k.stopy_porownanie(S, {'DFEDTARL': F['NYFED_LO'], 'DFEDTARU': F['NYFED_HI']}, self.NOW)
+        self.assertEqual([(o['bank'], o['zrodlo']) for o in P2], [('Fed', 'FRED')], 'zapas FRED; EBC bez serii — pominięty (nie „zgodne”)')
+        import inspect
+        src = inspect.getsource(k.kontrola)
+        self.assertIn('stopy_nyfed(get(STOPY_NYFED', src); self.assertIn('stopy_ecb_csv(get(STOPY_ECB', src)
+
+    def test_zegar_bez_nazwy_srodowiska(self):
+        Z = self.Z
+        RUN = {'id': 37437793511, 'status': 'waiting', 'updated_at': '2026-10-06T08:47:47Z'}
+        log, out = [], io.StringIO()
+
+        def api(path, token_, data=None):
+            log.append((path, data))
+            if 'runs?status=waiting' in path:
+                return 200, {'workflow_runs': [RUN]}
+            if 'pending_deployments' in path:
+                return 200, [{'environment': {'name': 'github-pages'}, 'wait_timer': 0, 'reviewers': []}, {'environment': {}, 'wait_timer': 0, 'reviewers': []}]
+            if path.endswith('/deployment_protection_rules'):
+                return 200, {'total_count': 0}
+            if '/environments/' in path:
+                return 200, {'protection_rules': [{'type': 'branch_policy'}]}
+            raise AssertionError(path)
+        with mock.patch.dict(os.environ, {'GH_TOKEN': 'ghs_TAJNY'}, clear=False), mock.patch.object(Z, '_api', api), mock.patch('sys.stdout', out):
+            Z.main(['zegar.py', 'odblokuj'], now_fn=lambda: datetime.datetime(2026, 10, 6, 9, 52, tzinfo=datetime.timezone.utc), sleep=lambda s: None)
+        self.assertEqual([p for p, d in log if d is not None], [], 'wdrożenie bez nazwy środowiska — nie anulować')
+        self.assertIn('nie anuluję', out.getvalue())
