@@ -27647,7 +27647,7 @@ class PoPrzegladzieV246(unittest.TestCase):
 
     def test_bez_niewidocznych_bom(self):
         root = os.path.dirname(os.path.abspath(__file__))
-        for p in ('narzedzia/kontrola.py', 'test_zbieraj_dane.py'):
+        for p in ('narzedzia/kontrola.py', 'test_zbieraj_dane.py', 'zbieraj_dane.py'):   # v255: także zbieracz
             with open(os.path.join(root, p), encoding='utf-8') as f:
                 self.assertNotIn(chr(0xFEFF), f.read(), p + ': BOM tylko jako \\ufeff')
 
@@ -28230,3 +28230,83 @@ class KontrolaIndeksyV254(unittest.TestCase):
         src = inspect.getsource(k.kontrola)
         self.assertIn("Z['indeksy'] = indeksy_ocena((files.get('indeksy') or {}).get('ix'))", src)
         self.assertIn("L.append(indeksy_wiersz(Z.get('indeksy')))", inspect.getsource(k.raport_md))
+
+
+# ===================== v255: KURSY WALUT — ZAPAS PROSTO Z EBC =====================
+class RynkiEbcV255(unittest.TestCase):
+    """v255: gdy pośrednik (Frankfurter) nie odpowiada, kursy referencyjne prosto z portalu danych EBC — te same daty i liczby (06.10.2026:
+    EUR 0,88739, PLN 3,8735, JPY 158,09 za 1 USD), pole fx_src = „EBC”."""
+    DNI = {'2025-10-03': {'USD': 1.1734, 'PLN': 4.2610, 'JPY': 173.24}, '2026-07-03': {'USD': 1.1790, 'PLN': 4.2400, 'JPY': 170.10},
+           '2026-09-04': {'USD': 1.1700, 'PLN': 4.2700, 'JPY': 172.00}, '2026-09-29': {'USD': 1.1250, 'PLN': 4.3800, 'JPY': 176.50},
+           '2026-10-02': {'USD': 1.1225, 'PLN': 4.3775, 'JPY': 176.99}, '2026-10-05': {'USD': 1.1204, 'PLN': 4.3795, 'JPY': 177.28},
+           '2026-10-06': {'USD': 1.1269, 'PLN': 4.365, 'JPY': 178.15, 'GBP': 0.8488, 'CHF': 0.9359}}
+
+    def _csv(self, od, do):
+        L = ['\ufeffKEY,FREQ,CURRENCY,CURRENCY_DENOM,EXR_TYPE,EXR_SUFFIX,TIME_PERIOD,OBS_VALUE,OBS_STATUS']
+        for d in sorted(self.DNI):
+            if od <= d <= do:
+                for c, v in self.DNI[d].items():
+                    L.append(f'EXR.D.{c}.EUR.SP00.A,D,{c},EUR,SP00,A,{d},{v},A')
+        L.append('EXR.D.ISK.EUR.SP00.A,D,ISK,EUR,SP00,A,2026-10-06,,A')   # pusta wartość — pominięta
+        return '\n'.join(L) + '\n'
+
+    def _pobierz(self, calls):
+        def p(url):
+            calls.append(url)
+            q = dict(x.split('=') for x in url.split('?', 1)[1].split('&'))
+            return self._csv(q['startPeriod'], q['endPeriod'])
+        return p
+
+    def test_przeliczenie_jak_posrednik(self):
+        x = zd.fx_ecb_dzien(zd.fx_ecb_csv(self._csv('2026-09-26', '2026-10-06')), '2026-10-06')
+        self.assertEqual((x['amount'], x['base'], x['date']), (1.0, 'USD', '2026-10-06'))
+        self.assertEqual({c: x['rates'][c] for c in ('EUR', 'PLN', 'JPY', 'GBP', 'CHF')},
+                         {'EUR': 0.88739, 'PLN': 3.8735, 'JPY': 158.09, 'GBP': 0.75322, 'CHF': 0.83051}, 'jak pośrednik 06.10: EUR 0,88739, PLN 3,8735, JPY 158,09')
+        self.assertNotIn('USD', x['rates']); self.assertNotIn('ISK', x['rates'], 'pusta wartość pominięta')
+        self.assertEqual(zd.fx_ecb_dzien(zd.fx_ecb_csv(self._csv('2026-09-26', '2026-10-06')), '2026-10-04')['date'], '2026-10-02', 'niedziela → ostatni fixing ≤ dzień')
+        self.assertIsNone(zd.fx_ecb_dzien({}, '2026-10-06'))
+        self.assertEqual(zd.fx_ecb_csv('<html>błąd</html>'), {})
+
+    def test_daty_jak_posrednik(self):
+        calls = []
+        r = zd.fx_z_ecb(datetime.date(2026, 10, 6), pobierz=self._pobierz(calls))
+        self.assertEqual(list(r), ['now', '1M', '1Q', '1R', '1D', '1T'])
+        self.assertEqual({k: v['date'] for k, v in r.items()},
+                         {'now': '2026-10-06', '1M': '2026-09-04', '1Q': '2026-07-03', '1R': '2025-10-03', '1D': '2026-10-05', '1T': '2026-09-29'})
+        self.assertEqual(len(calls), 6); self.assertTrue(all('startPeriod=' in c and 'EXR/D..EUR.SP00.A' in c for c in calls))
+        DNI = dict(self.DNI); self.DNI = {k: v for k, v in DNI.items() if k != '2026-10-05'}
+        try:
+            with self.assertRaises(ValueError):   # odniesienie 1D (≤ 05.10) to fixing z 02.10 — w porządku; usuwamy też 02.10 i 29.09 → brak fixingu
+                self.DNI = {k: v for k, v in DNI.items() if k == '2026-10-06'}
+                zd.fx_z_ecb(datetime.date(2026, 10, 6), pobierz=self._pobierz([]))
+        finally:
+            self.DNI = DNI
+
+    def test_build_rynki_zapas(self):
+        zd.META['errors'].clear()
+        self.addCleanup(zd.META['errors'].clear)
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            if 'frankfurter' in url:
+                raise TimeoutError('The read operation timed out')
+            if 'bundesbank' in url:
+                return RynkiV101.BUBA
+            raise AssertionError(url)
+
+        def gt(url, headers=None, timeout=30):
+            if 'data-api.ecb' in url:
+                return 200, self._pobierz(calls)(url)
+            raise RuntimeError('test: bez rentowności USA')
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'get', side_effect=gt):
+            o = zd.build_rynki(None, today=datetime.date(2026, 10, 6))
+        self.assertTrue(o['ok']['fx']); self.assertEqual(o.get('fx_src'), 'EBC')
+        self.assertEqual(o['fx']['now']['rates']['EUR'], 0.88739)
+        self.assertFalse(any(e.startswith('Frankfurter') for e in zd.META['errors']), 'zapas zadziałał — bez błędu kursów')
+
+        def gt2(url, headers=None, timeout=30):
+            raise RuntimeError('offline')
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'get', side_effect=gt2):
+            o = zd.build_rynki(None, today=datetime.date(2026, 10, 6))
+        self.assertFalse(o['ok']['fx']); self.assertNotIn('fx_src', o)
+        self.assertTrue(any(e.startswith('Frankfurter: The read operation timed out; zapas EBC: offline') for e in zd.META['errors']))

@@ -8687,6 +8687,9 @@ FX_URL = 'https://api.frankfurter.dev/v1/{d}?from=USD'
 UST_URL = 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value={y}'
 BUBA_URL = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A?startPeriod={f}&format=json'
 RYNKI_EVERY = 60     # kursy EBC i rentowności zmieniają się raz dziennie — co godzinę wystarczy
+FX_ECB_URL = ('https://data-api.ecb.europa.eu/service/data/EXR/D..EUR.SP00.A?startPeriod={od}&endPeriod={do}&format=csvdata')   # v255: zapas —
+#   kursy referencyjne prosto z EBC (pośrednik je tylko przekazuje); 06.10.2026: 29 walut, okno 11 dni ok. 45 KB, 0,6 s
+FX_ECB_OKNO = 10     # v255: dni wstecz od daty — ostatni fixing ≤ data (weekendy, święta TARGET)
 RYNKI_PX = {'fx': 'Frankfurter', 'ust': 'Skarb USA 10L', 'buba': 'Bundesbank 10L'}   # początek komunikatu błędu (strona Źródła)
 
 
@@ -8746,6 +8749,53 @@ def buba_parse(j):
     return sorted(out)
 
 
+def fx_ecb_csv(text):
+    """v255: CSV portalu danych EBC (zbiór EXR, D.<waluta>.EUR.SP00.A) → {dzień: {waluta: jednostek za 1 EUR}}; puste i złe wartości pominięte."""
+    import csv
+    import io
+    out = {}
+    for r in csv.DictReader(io.StringIO(str(text or '').lstrip('\ufeff'))):
+        d, c = str(r.get('TIME_PERIOD') or '')[:10], r.get('CURRENCY')
+        try:
+            x = float(r.get('OBS_VALUE'))
+        except (TypeError, ValueError):
+            continue
+        if _d(d) and c and x == x and 0 < x < 1e9:
+            out.setdefault(d, {})[c] = x
+    return out
+
+
+def fx_ecb_dzien(by_day, d):
+    """v255: ostatni fixing ≤ d w układzie pośrednika — {'amount': 1.0, 'base': 'USD', 'date', 'rates' (waluta za 1 USD, 5 cyfr znaczących, z EUR)};
+    brak fixingu z kursem USD = None."""
+    dni = [x for x in sorted(by_day) if x <= d and by_day[x].get('USD')]
+    if not dni:
+        return None
+    x = dni[-1]
+    v = by_day[x]
+    usd = v['USD']
+    rates = {c: float(f'{k / usd:.5g}') for c, k in v.items() if c != 'USD'}
+    rates['EUR'] = float(f'{1 / usd:.5g}')
+    return {'amount': 1.0, 'base': 'USD', 'date': x, 'rates': dict(sorted(rates.items()))}
+
+
+def fx_z_ecb(today, pobierz=None):
+    """v255: kursy now/1D/1T/1M/1Q/1R prosto z EBC — te same daty co z pośrednika (fx_dates od dnia ostatniego fixingu; odniesienie musi być
+    wcześniejszym fixingiem). pobierz(url) → tekst CSV."""
+    pobierz = pobierz or (lambda url: get(url, timeout=30)[1])
+    okno = lambda d: FX_ECB_URL.format(od=(d - datetime.timedelta(days=FX_ECB_OKNO)).isoformat(), do=d.isoformat())  # noqa: E731
+    r = {'now': fx_ecb_dzien(fx_ecb_csv(pobierz(okno(today))), today.isoformat())}
+    if not r['now']:
+        raise ValueError('kursy now: brak')
+    d0 = _d(r['now']['date'])
+    for k, d in fx_dates(d0).items():
+        x = fx_ecb_dzien(fx_ecb_csv(pobierz(okno(_d(d)))), d)
+        if not x or _d(x['date']) >= d0:
+            raise ValueError(f'kursy {k}: brak fixingu przed {d0.isoformat()}')
+        r[k] = x
+    return r
+
+
 def build_rynki(prev=None, today=None):
     today = today or datetime.datetime.now(datetime.timezone.utc).date()
     prev = prev if isinstance(prev, dict) else {}
@@ -8763,7 +8813,7 @@ def build_rynki(prev=None, today=None):
             if prev.get(k):
                 out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
 
-    def fx():
+    def fx_frank():
         def one(k, d):
             j = get_json(FX_URL.format(d=d))
             if not isinstance(j, dict) or not isinstance(j.get('rates'), dict) or not j['rates']:
@@ -8779,6 +8829,17 @@ def build_rynki(prev=None, today=None):
             if dk is None or dk >= d0:   # odniesienie musi być wcześniejszym fixingiem — inaczej zmiana 0,00% zamiast braku
                 raise ValueError(f"kursy {k}: data {r[k]['date']!r} nie przed {d0.isoformat()}")
         return r
+
+    def fx():   # v255: pośrednik nie odpowiada — kursy referencyjne prosto z EBC (te same dane, pierwsza ręka); oba zawiodą — błąd jak dotąd
+        try:
+            return fx_frank()
+        except Exception as e1:  # noqa
+            try:
+                r = fx_z_ecb(today)
+            except Exception as e2:  # noqa
+                raise ValueError(f'{e1}; zapas EBC: {str(e2)[:80]}')
+            out['fx_src'] = 'EBC'
+            return r
 
     def ust():
         y = today.year
@@ -11545,7 +11606,7 @@ def fsi_parse(text, dni=None):
     d5 = wobec 5 dni serii wcześniej (dni robocze — indeks ma wartość za każdy dzień roboczy, także w święta giełdowe USA; nie kalendarz);
     składowe: ostatnia wartość i zmiana dzienna, brak → None. Zła treść = wyjątek."""
     dni = FSI_DNI if dni is None else dni
-    rd = csv.reader(io.StringIO(str(text or '').lstrip('﻿')))
+    rd = csv.reader(io.StringIO(str(text or '').lstrip('\ufeff')))
     try:
         head = [h.strip() for h in next(rd)]
     except StopIteration:
