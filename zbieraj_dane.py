@@ -18951,9 +18951,9 @@ def rwe_ondo_gm_parse(s):
 
 def rwe_xs_parse(j, fx):
     """v170: xStocks — dowód rezerw emitenta (GraphQL tokens, strona 0, do 1000 tokenów od największych): Σ po tokenach z rezerwą: akcje w rezerwie
-    (Σ sharesHeld) × cena akcji / 100 (setne części waluty notowania), w USD — inne waluty po kursie `fx` (GBX = pensy: jeszcze / 100 → GBP). Pełna
-    strona musi kończyć się tokenem bez rezerwy (cała lista z rezerwą na stronie 0). Token z rezerwą bez jednej ceny, waluta bez kursu, zły stan =
-    wyjątek. Stan = najstarszy proofOfReserves.at tokenów ≥ RWE_MIN_SHARE wartości. → {'v', 'as_of', 'n', 'fx': {'d'} albo None, 'cur': {waluta: USD}}."""
+    (Σ sharesHeld) × cena akcji / 100 (setne części waluty notowania), w USD — inne waluty po kursie `fx` (GBX = pensy: jeszcze / 100 → GBP). Lista
+    dłuższa niż strona (totalNodes) — reszta ograniczona z góry, pole 'ogon' (v265/v267); pełna strona bez totalNodes — wyjątek (v268). Dowód rezerw
+    nieznany (null), token z rezerwą bez jednej ceny, waluta bez kursu, zły stan = wyjątek. Stan = najstarszy proofOfReserves.at tokenów ≥ RWE_MIN_SHARE wartości. → {'v', 'as_of', 'n', 'fx': {'d'} albo None, 'cur': {waluta: USD}}."""
     if not isinstance(j, dict) or j.get('errors'):
         raise ValueError('odpowiedź z błędem albo nie obiekt')
     data = j.get('data') if isinstance(j.get('data'), dict) else {}
@@ -18961,17 +18961,19 @@ def rwe_xs_parse(j, fx):
     if not isinstance(N, list) or not N:
         raise ValueError('brak listy tokenów')
     R = (fx or {}).get('rates', {})
-    V, cur, used_fx, last_sh = [], {}, False, 0.0
+    V, cur, used_fx = [], {}, False
     for n in N:
         if not isinstance(n, dict):
             raise ValueError('zły token')
         sym = str(n.get('symbol'))[:12]
-        por = n.get('proofOfReserves') if isinstance(n.get('proofOfReserves'), dict) else {}
-        Q = por.get('sharesHeld') if isinstance(por.get('sharesHeld'), list) else []
+        por = n.get('proofOfReserves')
+        Q = por.get('sharesHeld') if isinstance(por, dict) else None
+        if not isinstance(Q, list):   # v268 (przegląd v267): dowód nieznany (null) to nie „zero” — cicho zaniżyłby sumę (null w STRCx: −15,5%)
+            raise ValueError(f'{sym}: dowód rezerw nieznany (brak listy sharesHeld)')
         q = [_rwc_rez_num(x.get('quantity')) if isinstance(x, dict) else None for x in Q]
         if any(x is None or x < 0 for x in q):
             raise ValueError(f'{sym}: zła liczba akcji w rezerwie')
-        sh = last_sh = sum(q)
+        sh = sum(q)
         if sh == 0:
             continue
         C = n.get('tokenCollaterals')
@@ -18993,15 +18995,19 @@ def rwe_xs_parse(j, fx):
         cur[c] = cur.get(c, 0.0) + x
     tot = sum(x for x, _d in V)
     pg = data['tokens'].get('page') if isinstance(data['tokens'].get('page'), dict) else {}
-    tn = pg.get('totalNodes') if isinstance(pg.get('totalNodes'), int) and not isinstance(pg.get('totalNodes'), bool) else None
+    tn = pg.get('totalNodes')
+    tn = int(tn) if isinstance(tn, (int, float)) and not isinstance(tn, bool) and 0 <= tn < 1e9 and tn == int(tn) else None   # v268: także 1271.0
     ogon = None
-    if (tn is not None and tn > len(N)) or (tn is None and len(N) >= RWE_XS_VAR['pageSize'] and last_sh):
+    if (tn is not None and tn > len(N)) or (tn is None and len(N) >= RWE_XS_VAR['pageSize']):
         # v265/v267: lista dłuższa niż odczytana strona (06.10: 1271 tokenów; dalsze strony — błąd serwera emitenta). Kolejność od największych
         # (aktywa emitenta malejąco): reszta ≤ (totalNodes − na stronie) × największy z RWE_XS_OGON_K ostatnich × RWE_XS_OGON_ZAPAS. v267 (przegląd):
-        # zawsze, gdy totalNodes > tokeny na stronie (także strona kończąca się tokenem bez rezerwy albo niepełna); bez totalNodes — dawna reguła.
+        # zawsze, gdy totalNodes > tokeny na stronie (także strona kończąca się tokenem bez rezerwy albo niepełna). v268: pełna strona bez totalNodes
+        # = błąd bez względu na ostatni token (dawna reguła ostatniego tokenu zależała od przypadku).
+        if tn is None:
+            raise ValueError('tokeny z rezerwą także poza stroną 0? — pełna strona bez liczby wszystkich tokenów')
         ost = [x for x, _d in V[-RWE_XS_OGON_K:]]
-        if tn is None or not ost:
-            raise ValueError('tokeny z rezerwą także poza stroną 0 (bez liczby wszystkich tokenów)')
+        if not ost:
+            raise ValueError('lista dłuższa niż strona, a na stronie brak tokenów z rezerwą — reszty nie da się ograniczyć')
         gr = (tn - len(N)) * max(ost) * RWE_XS_OGON_ZAPAS
         if tot <= 0 or gr > RWE_XS_OGON_PROC / 100 * tot:
             raise ValueError(f'tokeny z rezerwą także poza stroną 0 — górna granica reszty listy {gr:,.0f} USD ponad {RWE_XS_OGON_PROC:g}% sumy')

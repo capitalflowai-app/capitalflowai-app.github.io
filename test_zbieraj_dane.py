@@ -23397,7 +23397,8 @@ def _rwe170_xs(nodes=None):
         _rwe170_xn('STRCx', 1463073, 9945.5, 'USD', '2026-10-05T07:23:08.602Z'), _rwe170_xn('TSLAx', 200000, 43000, 'USD', '2026-10-05T07:10:00.000Z'),
         _rwe170_xn('XIAOx', 1314544, 5200, 'HKD', '2026-10-05T06:59:00.000Z'), _rwe170_xn('BARCx', 1000, 35642.65, 'GBX', '2026-10-05T05:00:00.000Z'),
         _rwe170_xn('ZERO1', 0, 100, 'USD', '2026-10-05T07:00:00.000Z'),
-        {'symbol': 'NULLx', 'proofOfReserves': None, 'tokenCollaterals': [{'collateral': {'price': None, 'priceCurrency': 'USD'}}]}]
+        {'symbol': 'NULLx', 'proofOfReserves': {'at': '2026-10-05T07:00:00.000Z', 'sharesHeld': []},   # v268: rezerwa zero jawnie; dowód null = błąd
+         'tokenCollaterals': [{'collateral': {'price': None, 'priceCurrency': 'USD'}}]}]
     return {'data': {'tokens': {'nodes': N, 'page': {'totalPages': 1, 'totalNodes': len(N)}}}}
 
 
@@ -29253,4 +29254,68 @@ class PoPrzegladzieV267(unittest.TestCase):
         self.assertEqual(o['stare'], [('WIG20', '2026-09-01', 15)], 'przegląd: WIG20 ginął w „(+14)” bez ostrzeżenia')
         self.assertEqual(len(o['opoznione']), 21)
         self.assertTrue(any(u.startswith('indeksy giełdowe: WIG20 bez nowych sesji od 2026-09-01') for u in k.indeksy_uwagi(o)))
+
+
+# ===================== v268: POPRAWKI PO PRZEGLĄDZIE v267 =====================
+class PoPrzegladzieV268(unittest.TestCase):
+    """v268: dowód rezerw null = błąd (nie zero); pełna strona bez totalNodes = błąd bez względu na ostatni token; totalNodes 1271.0; odmiana
+    i małe kwoty w wierszu kontroli."""
+
+    FX = {'d': '2026-10-06', 'rates': {'HKD': 7.78, 'GBP': 0.75}}
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola268-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v268_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def _N(self):
+        return [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', '2026-10-06T18:00:00Z') for i in range(3)] + \
+               [_rwe170_xn(f'S{i}x', 1, 38900, 'USD', '2026-10-06T18:00:00Z') for i in range(60)]   # 3 × 100 mln + 60 × 389 USD
+
+    def test_dowod_null_blad(self):
+        N = self._N()
+        N[0] = dict(N[0], proofOfReserves=None)
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX)
+        self.assertIn('B0x: dowód rezerw nieznany', str(c.exception), 'przegląd: null w STRCx dawał −15,5% bez błędu')
+        N = self._N(); N[1] = dict(N[1], proofOfReserves={'at': '2026-10-06T18:00:00Z', 'sharesHeld': None})
+        with self.assertRaises(ValueError):
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX)
+        N = self._N(); N.append(_rwe170_xn('ZEROx', 0, 100, 'USD', '2026-10-06T18:00:00Z'))
+        self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX)['n'], 63, 'jawne „sharesHeld: []” — bez rezerwy, bez błędu')
+
+    def test_pelna_strona_bez_totalnodes(self):
+        N = self._N() + [_rwe170_xn('ZEROx', 0, 100, 'USD', '2026-10-06T18:00:00Z')]   # ostatni token bez rezerwy
+        for pg in (None, {'totalPages': 2}, {'totalPages': 2, 'totalNodes': None}):
+            j = _rwe170_xs(N)
+            if pg is None:
+                del j['data']['tokens']['page']
+            else:
+                j['data']['tokens']['page'] = pg
+            with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 64}):
+                with self.assertRaises(ValueError) as c:
+                    zd.rwe_xs_parse(j, self.FX)
+            self.assertIn('bez liczby wszystkich tokenów', str(c.exception), 'przegląd: dawniej „pełna lista” — zależnie od ostatniego tokenu')
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 2, 'totalNodes': 300.0}
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 64}):
+            self.assertEqual(zd.rwe_xs_parse(j, self.FX)['ogon']['n'], 236, 'totalNodes 300.0 jak 300')
+        j = _rwe170_xs([_rwe170_xn('ZEROx', 0, 100, 'USD', '2026-10-06T18:00:00Z')] * 2 + self._N()[:1])
+        j['data']['tokens']['nodes'] = j['data']['tokens']['nodes'][:2]; j['data']['tokens']['page'] = {'totalPages': 2, 'totalNodes': 300}
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(j, self.FX)
+        self.assertIn('brak tokenów z rezerwą', str(c.exception))
+
+    def test_wiersz_kontroli_odmiana(self):
+        k = self.k
+        def opis(n, x, v=936093867.0):
+            j = {'issuer': {'at': '2026-10-06T21:06:00+00:00', 'ok': True, 'used': {'xstocks': v},
+                            'p': {'xstocks': {'name': 'xStocks', 'v': v, 'stan': 'w', 'full': True, 'ogon': {'n': n, 'max_usd': x}}}}}
+            return k.rwe_porownanie(j)['opis']
+        self.assertIn('(272 tokeny) najwyżej 1.13 mln USD (0.121% wartości) ℹ️', opis(272, 1134623))
+        self.assertIn('(1 token) najwyżej 389 USD (<0.001% wartości) ℹ️', opis(1, 389))
+        self.assertIn('(22 tokeny) najwyżej 12.0 tys. USD (0.001% wartości) ℹ️', opis(22, 12000))
+        self.assertIn('(271 tokenów)', opis(271, 1134623))
 

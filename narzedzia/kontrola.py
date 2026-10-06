@@ -3560,8 +3560,11 @@ def rwe_porownanie(j, now=None):
     for s, p in sorted(P.items()):   # v267: reszta listy emitenta poza odczytem (xStocks: lista dłuższa niż strona odpowiedzi) — informacja
         og = p.get('ogon') if isinstance(p, dict) and isinstance(p.get('ogon'), dict) else None
         if og and num(og.get('n')) and num(og.get('max_usd')):
-            cz.append(f"{nm(s)}: reszta listy emitenta poza odczytem ({og['n']} tokenów) najwyżej {og['max_usd'] / 1e6:.2f} mln USD"
-                      + (f" ({og['max_usd'] / p['v'] * 100:.3f}% wartości)" if num(p.get('v')) and p['v'] > 0 else '') + ' ℹ️')
+            x = og['max_usd']   # v268: odmiana i małe kwoty (było „1 tokenów … 0.00 mln USD”)
+            kw = f'{x / 1e6:.2f} mln USD' if x >= 1e6 else f'{x / 1e3:.1f} tys. USD' if x >= 1e3 else f'{x:.0f} USD'
+            pr = og['max_usd'] / p['v'] * 100 if num(p.get('v')) and p['v'] > 0 else None
+            cz.append(f"{nm(s)}: reszta listy emitenta poza odczytem ({og['n']} {_odm(og['n'], 'token', 'tokeny', 'tokenów')}) najwyżej {kw}"
+                      + ((f' ({pr:.3f}% wartości)' if pr >= 0.001 else ' (<0.001% wartości)') if pr is not None else '') + ' ℹ️')
     if braki:
         cz.append('bez bieżących danych emitenta (poza sumami): ' + '; '.join(braki[:4]) + ' ℹ️')
     hd = rwe_hd(j)
