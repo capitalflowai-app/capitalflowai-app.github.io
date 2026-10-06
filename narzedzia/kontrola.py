@@ -1747,6 +1747,31 @@ def _dni_rob(a, b):
     return n
 
 
+IX_ZMIANY_DNI = 7    # v260: poprawki dostawcy indeksów z tylu ostatnich dni w raporcie
+
+
+def indeksy_zmiany(ix, now=None):
+    """v260: poprawki dostawcy z pola 'rew' serii (zbieracz, v260) z ostatnich IX_ZMIANY_DNI dni → [(symbol, dzień, stare, nowe albo None,
+    zmiana % albo None, czy ostatnia sesja pobrania, czas poprzedniego pobrania)], od najnowszej poprawki."""
+    od = (now or NOW) - dt.timedelta(days=IX_ZMIANY_DNI)
+    out = []
+    for s, v in sorted((ix or {}).items()):
+        for r in (v.get('rew') if isinstance(v, dict) and isinstance(v.get('rew'), list) else []):
+            if not (isinstance(r, list) and len(r) == 6 and _dzien(r[0]) and isinstance(r[1], (int, float)) and r[1] > 0):
+                continue
+            try:
+                t = dt.datetime.fromisoformat(str(r[4]))
+            except ValueError:
+                continue
+            if (t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)) < od:
+                continue
+            nowe = r[2] if isinstance(r[2], (int, float)) and not isinstance(r[2], bool) else None
+            out.append((s, r[0], r[1], nowe, round((nowe / r[1] - 1) * 100, 3) if nowe is not None else None, r[5] is True,
+                        r[3] if isinstance(r[3], str) else None, str(r[4])))
+    out.sort(key=lambda x: x[7], reverse=True)
+    return [x[:7] for x in out]
+
+
 def indeksy_ocena(ix, now=None):
     """v254/v258: świeżość każdej serii indeksów (indeksy.json → ix: {symbol: {'d': [[dzień, zamknięcie], …], 'bad_at'?}}) → {'n', 'swieze',
     'najnowsza', 'opoznione': [(symbol, dzień, dni robocze)], 'stare': [...], 'puste': [(symbol, od)], 'przyszle': [(symbol, dzień)],
@@ -1768,7 +1793,8 @@ def indeksy_ocena(ix, now=None):
             ost[s] = max(dd)
         elif not fut:
             puste.append((s, str(v.get('bad_at') or '')[:10] if isinstance(v, dict) else ''))
-    out = {'n': len(ix), 'swieze': 0, 'najnowsza': None, 'opoznione': [], 'stare': [], 'puste': puste, 'przyszle': przyszle, 'wszystkie': None}
+    out = {'n': len(ix), 'swieze': 0, 'najnowsza': None, 'opoznione': [], 'stare': [], 'puste': puste, 'przyszle': przyszle, 'wszystkie': None,
+           'zmiany': indeksy_zmiany(ix, now)}
     if not ost:
         return out
     najn = max(ost.values())
@@ -1814,7 +1840,15 @@ def indeksy_wiersz(o):
         cz.append('opóźnione: ' + ', '.join(f'{s} ({x})' for s, x, n in o['opoznione']) + ' ℹ️')
     if o.get('puste'):
         cz.append('bez danych (dostawca nie podaje): ' + ', '.join(s for s, od in o['puste']) + ' ℹ️')
-    return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (zle or o.get('przyszle') or o.get('stare') or o.get('opoznione') or o.get('puste')) else ' ✅.')
+    if o.get('zmiany'):   # v260: poprawki dostawcy po naszym pobraniu (informacja; ostatnia sesja = pobrana za wcześnie)
+        zz = o['zmiany']
+        ost = sorted({s for s, d, a, b, p, last, at in zz if last})
+        cz.append(f'zamknięcia poprawione przez dostawcę po pobraniu ({IX_ZMIANY_DNI} dni): '
+                  + ', '.join(f'{s} {d} ' + (f'{p:+.2f}%'.replace('.', ',') if p is not None else 'usunięta') for s, d, a, b, p, last, at in zz[:8])
+                  + (f' (+{len(zz) - 8})' if len(zz) > 8 else '')
+                  + (f'; ostatnia sesja pobrana za wcześnie: {", ".join(ost)}' if ost else '') + ' ℹ️')
+    return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (zle or o.get('przyszle') or o.get('stare') or o.get('opoznione') or o.get('puste')
+                                                       or o.get('zmiany')) else ' ✅.')
 
 
 def wieloryby_ocena(path, zmiany=None, hist=None):

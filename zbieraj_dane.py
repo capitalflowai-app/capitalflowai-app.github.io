@@ -10738,11 +10738,40 @@ def eod_parse(j):
     return [[d, out[d]] for d in sorted(out)]
 
 
-def _ix_merge(old, new, keep):
-    """Stare i nowe pary [dzień, zamknięcie] → jedna seria rosnąco (nowsza wartość wygrywa), ostatnie `keep` sesji."""
+def _ix_merge(old, new, keep, zakres=False):
+    """Stare i nowe pary [dzień, zamknięcie] → jedna seria rosnąco (nowsza wartość wygrywa), ostatnie `keep` sesji. v260: zakres=True —
+    w zakresie dat nowej odpowiedzi dostawca jest rozstrzygający: stara sesja, której już nie podaje (np. sesja w święto), wypada."""
     m = {r[0]: r[1] for r in (old or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and isinstance(r[1], (int, float))}
+    if zakres and new:
+        lo, hi = min(r[0] for r in new), max(r[0] for r in new)
+        m = {d: v for d, v in m.items() if not lo <= d <= hi}
     m.update({r[0]: r[1] for r in new})
     return [[d, m[d]] for d in sorted(m)][-keep:]
+
+
+IX_REW_TOL = 0.01    # v260: % — zamknięcie sesji zmienione przez dostawcę o więcej przy ponownym pobraniu = poprawka (pole 'rew')
+IX_REW_KEEP = 6      # v260: tyle ostatnich poprawek na indeks w pliku
+
+
+def ix_rewizje(old, new, old_at):
+    """v260: poprawki dostawcy w zakładce ponownego pobrania → [[dzień, stare, nowe (None = sesja usunięta), czas poprzedniego pobrania,
+    czas tego pobrania, czy to była ostatnia sesja poprzedniego pobrania]]. Tylko dni z zakresu dat nowej odpowiedzi; zmiana ≤ IX_REW_TOL % —
+    nie poprawka (zaokrąglenia). Poprawiona ostatnia sesja = pobrana za wcześnie (zamknięcie wstępne)."""
+    o = {r[0]: r[1] for r in (old or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str)
+         and isinstance(r[1], (int, float)) and not isinstance(r[1], bool) and r[1] > 0}
+    if not o or not new:
+        return []
+    nd = {r[0]: r[1] for r in new}
+    lo, hi, last = min(nd), max(nd), max(o)
+    at = old_at if isinstance(old_at, str) else None
+    out = []
+    for d in sorted(o):
+        if not lo <= d <= hi:
+            continue
+        v = nd.get(d)
+        if v is None or abs(v / o[d] - 1) * 100 > IX_REW_TOL:
+            out.append([d, o[d], v, at, NOW, d == last])
+    return out
 
 
 def ix_bez_wypelnien(rows):
@@ -10768,7 +10797,12 @@ def ix_fetch(sym, cc, key, rec, now):
     except (TypeError, ValueError, IndexError):
         frm = now.date() - datetime.timedelta(days=IX_HIST_DAYS)
     j = get_json(IX_URL.format(sym=sym, key=key, frm=frm.isoformat()), timeout=IX_TIMEOUT)
-    return {'cc': cc, 'at': NOW, 'd': _ix_merge(old, eod_parse(j), IX_KEEP)}
+    new = eod_parse(j)
+    out = {'cc': cc, 'at': NOW, 'd': _ix_merge(old, new, IX_KEEP, zakres=True)}   # v260: w zakresie odpowiedzi dostawca rozstrzyga
+    rew = (rec.get('rew') if isinstance(rec, dict) and isinstance(rec.get('rew'), list) else []) + ix_rewizje(old, new, rec.get('at') if isinstance(rec, dict) else None)
+    if rew:   # v260: poprawki dostawcy po naszym pobraniu (najwyżej IX_REW_KEEP ostatnich)
+        out['rew'] = rew[-IX_REW_KEEP:]
+    return out
 
 
 def _ix_late(deadline):

@@ -28675,3 +28675,58 @@ class IndeksyWydawcyV259(unittest.TestCase):
         import inspect
         self.assertIn("build_indeksy(dict(ix_keys, FRED_KEY=fred_key), prev_ix)", inspect.getsource(zd.main))
 
+
+# ===================== v260: POPRAWKI DOSTAWCY INDEKSÓW PO NASZYM POBRANIU =====================
+class IndeksyPoprawkiV260(unittest.TestCase):
+    """v260: ponowne pobranie z zakładką zapisuje poprawki dostawcy ('rew': zmiana > 0,01% albo sesja usunięta w zakresie odpowiedzi); usunięta
+    sesja wypada z serii; kontrola wymienia poprawki z 7 dni i indeksy z poprawioną ostatnią sesją (pobrane za wcześnie)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola260-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v260_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def test_rewizje_i_usuniecie(self):
+        old = [['2026-02-20', 56825.6992], ['2026-02-23', 56703.0], ['2026-02-24', 57321.0898], ['2026-10-05', 69946.8594], ['2026-10-06', 70777.2891]]
+        new = [['2026-02-20', 56825.70], ['2026-02-24', 57321.09], ['2026-10-05', 69946.86], ['2026-10-06', 70683.98], ['2026-10-07', 71000.0]]
+        r = zd.ix_rewizje(old, new, '2026-10-06T07:21:13+00:00')
+        self.assertEqual(r, [['2026-02-23', 56703.0, None, '2026-10-06T07:21:13+00:00', zd.NOW, False],
+                             ['2026-10-06', 70777.2891, 70683.98, '2026-10-06T07:21:13+00:00', zd.NOW, True]], 'zaokrąglenia ≤ 0,01% — nie poprawki')
+        self.assertEqual(zd._ix_merge(old, new, 265, zakres=True),
+                         [['2026-02-20', 56825.70], ['2026-02-24', 57321.09], ['2026-10-05', 69946.86], ['2026-10-06', 70683.98], ['2026-10-07', 71000.0]])
+        self.assertEqual(zd._ix_merge(old, new[-2:], 265, zakres=True)[:3], old[:3], 'poza zakresem odpowiedzi stare sesje zostają')
+        self.assertEqual(zd._ix_merge(old, new[-2:], 265)[1], ['2026-02-23', 56703.0], 'bez zakresu — jak dotąd')
+        self.assertEqual(zd.ix_rewizje([], new, None), []); self.assertEqual(zd.ix_rewizje(old, [], None), [])
+
+    def test_ix_fetch_zapisuje_poprawki(self):
+        rec = {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-10-02', 68309.4609], ['2026-10-05', 69946.8594], ['2026-10-06', 70777.2891]],
+               'rew': [['2026-09-01', 1.0, 2.0, 'a', 'b', True]] * 6}
+        eod = [{'date': '2026-09-26', 'close': 1.0}, {'date': '2026-10-02', 'close': 68309.46}, {'date': '2026-10-05', 'close': 69946.86},
+               {'date': '2026-10-06', 'close': 70683.98}, {'date': '2026-10-07', 'close': 71000.0}]
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o = zd.ix_fetch('N225', 'jp', 'k', rec, datetime.datetime(2026, 10, 7, 7, 30, tzinfo=datetime.timezone.utc))
+        self.assertEqual(o['d'][-2:], [['2026-10-06', 70683.98], ['2026-10-07', 71000.0]])
+        self.assertEqual(len(o['rew']), 6, 'najwyżej IX_REW_KEEP')
+        self.assertEqual(o['rew'][-1], ['2026-10-06', 70777.2891, 70683.98, '2026-10-06T07:21:13+00:00', zd.NOW, True])
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o2 = zd.ix_fetch('N225', 'jp', 'k', {'cc': 'jp', 'at': 'x', 'd': [['2026-10-06', 70683.98]]}, datetime.datetime(2026, 10, 7, 7, 30, tzinfo=datetime.timezone.utc))
+        self.assertNotIn('rew', o2, 'bez poprawek — bez pola')
+
+    def test_kontrola_wymienia_poprawki(self):
+        k = self.k
+        N = datetime.datetime(2026, 10, 8, 6, 20, tzinfo=datetime.timezone.utc)
+        ix = {'N225': {'cc': 'jp', 'd': [['2026-10-07', 71000.0]], 'rew': [['2026-09-01', 1.0, 2.0, 'a', '2026-09-02T07:00:00+00:00', True],
+                                                                         ['2026-10-06', 70777.2891, 70683.98, '2026-10-06T07:21:13+00:00', '2026-10-07T07:30:00+00:00', True]]},
+              'GDAXI': {'cc': 'de', 'd': [['2026-10-07', 25000.0]], 'rew': [['2026-10-02', 25100.0, None, 'x', '2026-10-07T17:20:00+00:00', False], 'zły']}}
+        z = k.indeksy_zmiany(ix, N)
+        self.assertEqual(z, [('GDAXI', '2026-10-02', 25100.0, None, None, False, 'x'),
+                             ('N225', '2026-10-06', 70777.2891, 70683.98, -0.132, True, '2026-10-06T07:21:13+00:00')], 'z 7 dni, od najnowszej; zły wpis pominięty')
+        o = k.indeksy_ocena(ix, now=N)
+        self.assertEqual(k.indeksy_wiersz(o), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-07); zamknięcia poprawione przez dostawcę po pobraniu (7 dni): '
+                                              'GDAXI 2026-10-02 usunięta, N225 2026-10-06 -0,13%; ostatnia sesja pobrana za wcześnie: N225 ℹ️.')
+        self.assertEqual(k.indeksy_uwagi(o), [], 'poprawki to informacja')
+        self.assertEqual(k.indeksy_zmiany({'X': {'d': []}}, N), [])
+
