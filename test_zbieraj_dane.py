@@ -30199,3 +30199,37 @@ class EtfPoraPublikacjiV279(unittest.TestCase):
         b = inspect.getsource(zd.build_etf)
         self.assertIn("out['pub'] = etf_pub(prev.get('pub') if isinstance(prev, dict) else None, prev_assets, out['assets'], stare, NOW)", b)
         self.assertIn("out['okno'] = {'od': od, 'do': do, 'n': n}", b)
+
+
+class EtfKapitalizacjeV280(unittest.TestCase):
+    """v280: w trybie szybkim ETF kapitalizacje z poprzedniego pliku sprzed < 55 min (bez zapytania CoinGecko); starsze albo niepełne — pobranie."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_kapitalizacje(self):
+        now = datetime.datetime(2026, 10, 7, 3, 0, tzinfo=datetime.timezone.utc)
+        mc = {s: 1e12 + i for i, s in enumerate(zd.ETF_SYMS)}
+        prev = {'at': '2026-10-07T02:50:00+00:00', 'mcap': mc, 'mcap_at': '2026-10-07T02:20:00+00:00', 'assets': {}}
+        cg = []
+        def gj(url, headers=None, timeout=30):
+            if 'coingecko' in url:
+                cg.append(url); return {i: {'usd_market_cap': 2e12} for i in zd.CG_IDS.values()}
+            raise RuntimeError('SoSoValue offline')
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'soso', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd, 'NOW', now.isoformat()):
+            with self.assertRaises(RuntimeError):   # SoSoValue offline — wyjątek jak dotąd; kapitalizacje sprawdzamy przed nim
+                zd.build_etf('k', 'cg', prev)
+        self.assertEqual(cg, [], 'kapitalizacje sprzed 40 min — bez zapytania CoinGecko'); self.assertEqual(zd.META['ok']['coingecko'], 'cached')
+        old = dict(prev, mcap_at='2026-10-07T01:59:00+00:00')
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'soso', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd, 'NOW', now.isoformat()):
+            with self.assertRaises(RuntimeError):
+                zd.build_etf('k', 'cg', old)
+        self.assertEqual(len(cg), 1, 'kapitalizacje sprzed 61 min — pobranie'); self.assertIs(zd.META['ok']['coingecko'], True)
+        niep = dict(prev, mcap={'btc': 1e12})
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'soso', side_effect=RuntimeError('offline')), \
+                mock.patch.object(zd, 'NOW', now.isoformat()):
+            with self.assertRaises(RuntimeError):
+                zd.build_etf('k', 'cg', niep)
+        self.assertEqual(len(cg), 2, 'niepełne kapitalizacje — pobranie')

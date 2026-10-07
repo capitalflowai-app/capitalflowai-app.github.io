@@ -5089,15 +5089,25 @@ def build_etf(key, cg_key, prev=None):
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
     prev_assets = prev.get('assets') if isinstance(prev, dict) and isinstance(prev.get('assets'), dict) else {}
     # kapitalizacje (CoinGecko) — do udziału ETF w rynku
-    try:
-        u = ('https://api.coingecko.com/api/v3/simple/price?ids=' + ','.join(CG_IDS.values())
-             + '&vs_currencies=usd&include_market_cap=true')
-        j = get_json(u, {'x-cg-demo-api-key': cg_key} if cg_key else None)   # klucz w nagłówku, nie w adresie
-        out['mcap'] = {s: j[CG_IDS[s]]['usd_market_cap'] for s in ETF_SYMS}
-        META['ok']['coingecko'] = True
-    except Exception as e:
-        META['errors'].append(mask(f'CoinGecko: {e}'))
-        META['ok']['coingecko'] = False
+    pm = prev.get('mcap') if isinstance(prev, dict) and isinstance(prev.get('mcap'), dict) else {}
+    pma_s = (prev.get('mcap_at') or prev.get('at')) if isinstance(prev, dict) else None
+    pma = _ix_dt(pma_s)
+    if (pm and all(isinstance(pm.get(s), (int, float)) and not isinstance(pm.get(s), bool) and pm[s] > 0 for s in ETF_SYMS)
+            and pma is not None and 0 <= (_now_utc() - pma).total_seconds() < 55 * 60):
+        # v280: tryb szybki (v279) — kapitalizacje sprzed < 55 min z poprzedniego pliku, bez zapytania planu CoinGecko (10 000 / mies.)
+        out['mcap'], out['mcap_at'] = dict(pm), pma_s
+        META['ok']['coingecko'] = 'cached'
+    else:
+        try:
+            u = ('https://api.coingecko.com/api/v3/simple/price?ids=' + ','.join(CG_IDS.values())
+                 + '&vs_currencies=usd&include_market_cap=true')
+            j = get_json(u, {'x-cg-demo-api-key': cg_key} if cg_key else None)   # klucz w nagłówku, nie w adresie
+            out['mcap'] = {s: j[CG_IDS[s]]['usd_market_cap'] for s in ETF_SYMS}
+            out['mcap_at'] = NOW
+            META['ok']['coingecko'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'CoinGecko: {e}'))
+            META['ok']['coingecko'] = False
     nowe, stare = 0, {}
     for s in ETF_SYMS:
         pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
