@@ -29378,7 +29378,7 @@ class CenyZapasV269(unittest.TestCase):
         self.assertEqual(saved, {}); self.assertTrue(any(n.startswith('Ceny (mapa GLOBAL, zapas): niedostępny') for n in zd.META['notes']))
         import inspect
         src = inspect.getsource(zd.main)
-        self.assertIn("ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}')", src); self.assertIn("ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')", src)
+        self.assertIn("ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}', proba=True)", src); self.assertIn("ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')", src)
 
 
 # ===================== v270: POPRAWKI PO PRZEGLĄDZIE v268–v269 =====================
@@ -29469,4 +29469,58 @@ class PoPrzegladzieV270(unittest.TestCase):
                             'p': {'xstocks': {'name': 'xStocks', 'v': 1e9, 'stan': 'w', 'full': True, 'ogon': {'n': 5, 'max_usd': x}}}}}
             return k.rwe_porownanie(j)['opis']
         self.assertIn('najwyżej 1.00 mln USD', opis(999960)); self.assertIn('najwyżej 1.0 tys. USD', opis(999.6))
+
+
+# ===================== v271: POPRAWKI PO PRZEGLĄDZIE v270 =====================
+class PoPrzegladzieV271(unittest.TestCase):
+    """v271: podziały jednostek z ruchem rynku w dniu podziału (i 5:2, 4:3); zapas zastępuje tylko pełniejszy plik; Twelve Data po nieudanej
+    próbie ponawiany najwcześniej po 55 min."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    _sd = staticmethod(PoPrzegladzieV270._sd)
+
+    def test_podzial_z_ruchem_rynku(self):
+        for wsp, ruch in ((0.5, 1.031), (0.4, 0.97), (0.75, 1.02), (1 / 1.5, 1.03), (2, 0.95)):
+            sd = self._sd()
+            rows = sd['px']['EWY']['d']
+            base = rows[-4][2]
+            rows[-3][2] = round(base * wsp * ruch, 4)   # dzień podziału: współczynnik × ruch rynku
+            for r in rows[-2:]:
+                r[2] = round(r[2] * wsp, 4)
+            c = zd.ceny_z_swiata(sd)
+            self.assertEqual(c.get('podzialy'), [['EWY', rows[-3][0], round(wsp, 6)]], f'przegląd: podział ×{wsp} w dniu ruchu {ruch} umykał')
+            e = c['q']['EWY']['d']
+            self.assertAlmostEqual(e[-3][1] / e[-4][1], ruch, places=3, msg='po przeskalowaniu zostaje sam ruch rynku')
+        sd = self._sd(); rows = sd['px']['ILF']['d']; rows[-1][2] = round(rows[-2][2] * 0.82, 4)   # −18% (największy spadek w 10 latach)
+        self.assertNotIn('podzialy', zd.ceny_z_swiata(sd), 'spadek −18% to nie podział')
+
+    @staticmethod
+    def _plik(ost, pelne, niepelne=(), dzien_wczesniej='2026-10-02'):
+        q = {s: {'asof': ost, 'd': [['2026-09-30', 1.0, None], [ost, 2.0, None]]} for s in pelne}
+        q.update({s: {'asof': dzien_wczesniej, 'd': [['2026-09-30', 1.0, None], [dzien_wczesniej, 2.0, None]]} for s in niepelne})
+        return {'at': 'x', 'q': q}
+
+    def test_kiedy_zapas_zastepuje(self):
+        S = list(zd.DAY_SYMS)
+        L = zd._ceny_lepszy
+        self.assertTrue(L(self._plik('2026-10-05', S), self._plik('2026-10-05', S[:-1], S[-1:])), 'przegląd (a): Twelve Data z ASEA na 02.10 — pełny zapas zastępuje')
+        self.assertFalse(L(self._plik('2026-10-05', S[:-1]), self._plik('2026-10-02', S)), 'przegląd (b): zapas bez funduszu nie zastępuje pełnego o sesję starszego')
+        z = self._plik('2026-10-05', S[:-1]); z['q']['SPY']['d'] = [[d, 1.0, None] for d in ('2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-05')]
+        self.assertTrue(L(z, self._plik('2026-09-25', S)), 'poprzedni plik ≥ 5 sesji starszy — świeższy, choć niepełny')
+        self.assertTrue(L(self._plik('2026-10-05', S), None)); self.assertFalse(L(self._plik('2026-10-02', S), self._plik('2026-10-05', S)))
+        self.assertEqual(zd._ceny_pelne(self._plik('2026-10-05', S[:-2], S[-2:])), ('2026-10-05', 12))
+
+    def test_ponowienie_po_godzinie(self):
+        saved = {}
+        prev = {'at': '2026-10-06T10:00:00+00:00', 'q': {'SPY': {'d': [['2026-10-05', 1.0, 1]]}}}
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, '_prev_cache', lambda n: None), \
+                mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            zd.ceny_zapas(prev, 'Twelve Data: HTTP 429', proba=True)
+        self.assertIs(saved['ceny'], prev); self.assertEqual((prev['td_proba'], prev['td_blad']), (zd.NOW, 'Twelve Data: HTTP 429'))
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertIn("elif td_key and prev_ceny and isinstance(prev_ceny.get('td_proba'), str) and fresh({'at': prev_ceny['td_proba']}, 55):", src)
+        self.assertIn("— ponowienie po godzinie", src)
 

@@ -729,6 +729,8 @@ CENY_ZAPAS_ETYKIETA = 'Ceny (mapa GLOBAL, zapas)'
 
 
 CENY_ZAPAS_STARY = 5   # v270: fundusz bez zamknięcia w tylu ostatnich sesjach kalendarza wypada z zapasu (nie zatrzymuje go na starej sesji)
+CENY_PODZIALY = ((2, 0.12), (2.5, 0.12), (3, 0.12), (4, 0.12), (5, 0.12), (10, 0.12), (1.5, 0.05), (4 / 3, 0.05))   # v271: współczynnik,
+# tolerancja (iloraz zamknięć w dniu podziału zawiera ruch rynku); test wsteczny 10 lat 14 funduszy: ilorazy 0,81–1,21 — zero fałszywych
 
 
 def ceny_z_swiata(sd):
@@ -756,7 +758,7 @@ def ceny_z_swiata(sd):
         ds = sorted(m)
         for i in range(len(ds) - 1, 0, -1):   # od najnowszej pary: podział jednostek → wcześniejsze zamknięcia × dokładny współczynnik
             iq = m[ds[i]] / m[ds[i - 1]]
-            f = next((x for k in TD_W_SPLIT for x in (k, 1 / k) if abs(iq / x - 1) < 0.02), None)
+            f = next((x for k, t in CENY_PODZIALY for x in (k, 1 / k) if abs(iq / x - 1) < t), None)   # v271: szersze tolerancje
             if f is not None:
                 for d in ds[:i]:
                     m[d] *= f
@@ -787,27 +789,56 @@ def _ceny_ost(c):
     return max((str(v.get('asof') or '')[:10] for v in q.values() if isinstance(v, dict)), default='')
 
 
-def ceny_zapas(prev, why):
-    """v269: Twelve Data zawiódł albo brak klucza — ceny.json z zapasu (plik Świat dziennie, giełda bez klucza), gdy ma nowszą sesję niż
-    poprzedni plik; inaczej poprzedni plik (jak dotąd). Notatka w meta z przyczyną."""
+def _ceny_pelne(c):
+    """v271: (ostatnia sesja pliku cen, liczba funduszy z liczbą-zamknięciem na tej sesji); brak = ('', 0)."""
+    ost = _ceny_ost(c)
+    q = c.get('q') if isinstance(c, dict) and isinstance(c.get('q'), dict) else {}
+    n = 0
+    for v in q.values():
+        r = v['d'][-1] if isinstance(v, dict) and isinstance(v.get('d'), list) and v['d'] and isinstance(v['d'][-1], list) else None
+        if r and len(r) >= 2 and str(r[0])[:10] == ost and isinstance(r[1], (int, float)) and not isinstance(r[1], bool) and r[1] > 0:
+            n += 1
+    return ost, n
+
+
+def _ceny_lepszy(z, prev):
+    """v271 (przegląd v270): czy zapas z zastępuje poprzedni plik — sesja nowsza i pełnych funduszy nie mniej, albo ta sama sesja i więcej
+    pełnych; inaczej tylko, gdy poprzedni plik jest co najmniej CENY_ZAPAS_STARY sesji starszy (wtedy lepiej świeższy, choć niepełny)."""
+    sz, nz = _ceny_pelne(z)
+    so, no = _ceny_pelne(prev)
+    if (sz > so and nz >= no) or (sz == so and nz > no):
+        return True
+    if sz > so:
+        cal = sorted({str(r[0])[:10] for v in z['q'].values() for r in v['d'] if isinstance(r, list) and r})
+        return sum(1 for d in cal if so < d <= sz) >= CENY_ZAPAS_STARY
+    return False
+
+
+def ceny_zapas(prev, why, proba=False):
+    """v269/v271: Twelve Data zawiódł albo brak klucza — ceny.json z zapasu (plik Świat dziennie, giełda bez klucza), gdy lepszy niż poprzedni
+    plik (_ceny_lepszy); inaczej poprzedni plik. Notatka w meta z przyczyną. proba=True (nieudana próba Twelve Data): zapisany plik dostaje
+    'td_proba' (teraz) i 'td_blad' — następna próba najwcześniej po 55 min (main)."""
     try:
         sd = _prev_cache('swiat-dzien')   # najpierw pamięć Actions (bez pobierania ok. 7 MB ze strony), potem poprzedni plik
         z = ceny_z_swiata(sd if isinstance(sd, dict) else previous('swiat-dzien'))
     except Exception as e:  # noqa — zapasu brak (np. pierwszy przebieg albo plik Świat dziennie bez cen) — poprzedni plik jak dotąd
         z = None
         META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: niedostępny ({str(e)[:80]})'))
-    wz = lambda c: (_ceny_ost(c), len(c['q']) if isinstance(c, dict) and isinstance(c.get('q'), dict) else 0)  # noqa: E731
-    if z is not None and wz(z) > wz(prev):   # v270: (sesja, liczba funduszy) — pełniejszy zapas z tą samą sesją zastępuje niepełny
+    obj = None
+    if z is not None and _ceny_lepszy(z, prev):
         z['zapas_dlaczego'] = mask(str(why)[:120])
-        save('ceny', z)
+        obj = z
         META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: {str(why)[:80]} — zamknięcia sesji z giełdy (bez klucza) do {_ceny_ost(z)}'))
         print('CENY: zapas z pliku Świat dziennie do', _ceny_ost(z))
         if z.get('podzialy'):
             META['notes'].append(f"{CENY_ZAPAS_ETYKIETA}: podział jednostek uwzględniony — " + ', '.join(f'{s} {d} (×{f:g})' for s, d, f in z['podzialy'][:4]))
     elif prev:
-        save('ceny', prev)
+        obj = prev
         print('CENY: zachowano poprzedni ceny.json z', prev.get('at'))
-
+    if obj is not None:
+        if proba:   # v271: znacznik nieudanej próby Twelve Data — ponowienie najwcześniej po 55 min (koszt kredytów)
+            obj['td_proba'], obj['td_blad'] = NOW, mask(str(why)[:120])
+        save('ceny', obj)
 
 def build_day(key):
     q = {}
@@ -19379,12 +19410,16 @@ def main():
     prev_ceny = previous('ceny')   # v269: także bez klucza — zapas cen porównuje się z poprzednim plikiem
     if td_key and prev_ceny and fresh(prev_ceny, 55) and not prev_ceny.get('zapas'):   # v270: plik zapasu to nie pamięć Twelve Data
         save('ceny', prev_ceny); META['ok']['twelvedata'] = 'cached'; print('CENY: dane z', prev_ceny.get('at'), '— młodsze niż 55 min, bez zapytań do Twelve Data')
+    elif td_key and prev_ceny and isinstance(prev_ceny.get('td_proba'), str) and fresh({'at': prev_ceny['td_proba']}, 55):
+        # v271: Twelve Data zawiódł mniej niż 55 min temu — bez próby co przebieg (14 kredytów na próbę); błąd nadal widoczny w meta
+        save('ceny', prev_ceny); META['ok']['twelvedata'] = False
+        META['errors'].append(mask(f"{str(prev_ceny.get('td_blad') or 'Twelve Data: błąd')[:100]} — ponowienie po godzinie"))
     elif td_key:
         try:
             save('ceny', build_prices(td_key)); META['ok']['twelvedata'] = True
         except Exception as e:
             META['errors'].append(mask(f'Twelve Data: {e}')); META['ok']['twelvedata'] = False
-            ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}')   # v269: zamknięcia z giełdy (bez klucza), gdy nowsze — inaczej poprzedni plik
+            ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}', proba=True)   # v269/v271: zapas z giełdy albo poprzedni plik; znacznik próby
     else:
         META['errors'].append('brak TWELVEDATA_KEY'); META['ok']['twelvedata'] = False
         ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')   # v269: mapa GLOBAL działa także bez klucza
