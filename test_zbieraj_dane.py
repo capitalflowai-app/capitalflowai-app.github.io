@@ -737,7 +737,7 @@ class Krypto(unittest.TestCase):
             return {'data': [{'value': '50', 'value_classification': 'Neutral', 'timestamp': '1790208000'}]}
         with mock.patch.object(zd, 'get_json', get_json):
             out = zd.build_krypto('TAJNY-CG')
-        self.assertEqual(sorted(k for k in out if k not in ('at', 'src', 'attribution')), ['defi', 'fng'])
+        self.assertEqual(sorted(k for k in out if k not in ('at', 'src', 'attribution', 'part_at')), ['defi', 'fng'])   # v276: + part_at
         self.assertEqual(out['attribution'], 'Data by CoinGecko')
         self.assertEqual(zd.META['ok'], {'krypto.deriv': False, 'krypto.defi': True, 'krypto.fng': True, 'krypto.mk': False, 'krypto.stabh': False, 'krypto.stabc': False})
         self.assertTrue(all('TAJNY' not in u for u in seen), 'klucz nie w adresie')
@@ -17801,10 +17801,10 @@ class KryptoTop10V140(unittest.TestCase):
         self.assertEqual([s[:60] for s in lists if "'build_krypto_top10'" not in s], [], 'każda krotka zaślepek przebiegu głównego zna build_krypto_top10')
         src = rd(zd.__file__)
         a = src.index('# ===================== v140: TOP 10 MONET'); b = src.index('\nETF_KEEP_DAYS = ', a)
-        self.assertLess(src.index('def build_krypto(cg_key):'), a); blok = src[a:b]
+        self.assertLess(src.index('def build_krypto(cg_key, prev=None):'), a); blok = src[a:b]   # v276: + prev
         self.assertNotIn('os.environ', blok, 'klucz tylko z main()'); self.assertEqual(blok.count("'x-cg-demo-api-key'"), 1)
         m0 = src.index("prev_t10, prev_t10l = previous('krypto-top10'), previous('krypto-top10-logo')")
-        self.assertLess(src.index("save('krypto', build_krypto(cg_key))"), m0); self.assertLess(m0, src.index('    # INSTYTUCJE (bez klucza)'))
+        self.assertLess(src.index("save('krypto', build_krypto(cg_key, prev_kr))"), m0); self.assertLess(m0, src.index('    # INSTYTUCJE (bez klucza)'))
         k = rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
         PL = eval(zd.re.search(r'^PLIKI = (\[.*\])$', k, zd.re.M).group(1)); LM = eval(zd.re.search(r'^LIMIT_MIN = (\{[^}]*\})', k, zd.re.M).group(1))
         self.assertIn('krypto-top10', PL); self.assertEqual(LM['krypto-top10'], 180)
@@ -29937,3 +29937,37 @@ class CzesciZZapasemV275(unittest.TestCase):
                 zd.build_fred('k', prev)
         import inspect
         self.assertIn("save('fred', build_fred(fred_key, prev_fred))", inspect.getsource(zd.main))
+
+
+# ===================== v276: KRYPTO — CZĘŚĆ Z WŁASNĄ DATĄ ZOSTAJE PRZY BŁĘDZIE =====================
+class KryptoCzesciV276(unittest.TestCase):
+    """v276: fng, mk, stabh, stabc (własna data/czas danych) przy błędzie z poprzedniego pliku z czasem pobrania; deriv i defi nie (strona
+    podpisuje je czasem pliku); wszystkie zawiodły = wyjątek mimo poprzedniego pliku."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_czesci(self):
+        prev = {'at': '2026-10-07T01:00:00+00:00', 'part_at': {'mk': '2026-10-07T00:59:00+00:00'},
+                'deriv': {'n': 3}, 'defi': {'defi_market_cap': 9.0}, 'mk': {'asof': '2026-10-07T00:58:12', 'rows': [['BTC', 1.7e12]]},
+                'fng': {'asof': '2026-10-06', 'd': [['2026-10-06', 40, 'Fear']]}, 'stabc': {'asof': '2026-10-07', 'rows': []}}
+        def get_json(url, headers=None):
+            if 'llama' in url or 'markets' in url or 'derivatives' in url or 'alternative' in url:
+                raise RuntimeError('429')
+            if 'defi' in url:
+                return {'data': {'defi_market_cap': '1'}}
+            raise AssertionError(url)
+        with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'NOW', '2026-10-07T02:10:00+00:00'):
+            out = zd.build_krypto('k', prev)
+        self.assertEqual((out['mk'], out['fng'], out['stabc']), (prev['mk'], prev['fng'], prev['stabc']), 'własna data/czas — poprzednia wersja')
+        self.assertNotIn('deriv', out, 'otwarte pozycje podpisane czasem pliku — bez starej liczby'); self.assertEqual(out['defi']['defi_market_cap'], 1.0)
+        self.assertNotIn('stabh', out, 'bez poprzedniej wersji — brak, nie zero')
+        self.assertEqual(out['part_at'], {'defi': '2026-10-07T02:10:00+00:00', 'mk': '2026-10-07T00:59:00+00:00', 'fng': '2026-10-07T01:00:00+00:00',
+                                          'stabc': '2026-10-07T01:00:00+00:00'})
+        self.assertIs(zd.META['ok']['krypto.mk'], False)
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')):
+            with self.assertRaises(RuntimeError):
+                zd.build_krypto('k', prev)
+        import inspect
+        self.assertIn("save('krypto', build_krypto(cg_key, prev_kr))", inspect.getsource(zd.main))
+        self.assertEqual(zd.KR_ZAPAS_CZESCI, ('fng', 'mk', 'stabh', 'stabc'))

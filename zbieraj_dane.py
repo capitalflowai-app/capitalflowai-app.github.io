@@ -4676,9 +4676,14 @@ def _q_ym_add(ym, k):
     return f'{t // 12:04d}-{t % 12 + 1:02d}'
 
 
-def build_krypto(cg_key):
-    """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku."""
-    out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko'}
+KR_ZAPAS_CZESCI = ('fng', 'mk', 'stabh', 'stabc')   # v276: części z własną datą/czasem danych — przy błędzie poprzednia wersja (deriv i defi: strona podpisuje je czasem pliku)
+
+
+def build_krypto(cg_key, prev=None):
+    """data/krypto.json — każda część osobno (awaria jednej nie kasuje pozostałych); CoinGecko z kluczem w nagłówku. v276: część z własną datą
+    albo czasem danych (KR_ZAPAS_CZESCI), która zawiodła, zostaje z poprzedniego pliku z czasem pobrania w 'part_at' — nie znika do następnej
+    budowy; deriv i defi bez tego (strona podpisuje je czasem całego pliku — stara liczba wyglądałaby na świeżą)."""
+    out = {'at': NOW, 'src': 'krypto', 'attribution': 'Data by CoinGecko', 'part_at': {}}
     hdr = {'x-cg-demo-api-key': cg_key} if cg_key else None
     jobs = [('deriv', lambda: parse_deriv(get_json(CG + '/derivatives/exchanges?per_page=20', hdr))),
             ('defi', lambda: parse_defi(get_json(CG + '/global/decentralized_finance_defi', hdr))),
@@ -4687,12 +4692,15 @@ def build_krypto(cg_key):
                                              '&price_change_percentage=24h,7d,30d,1y', hdr) for p in (1, 2)])),
             ('stabh', lambda: parse_stabh(get_json('https://stablecoins.llama.fi/stablecoincharts/all'))),
             ('stabc', lambda: parse_stabc(get_json('https://stablecoins.llama.fi/stablecoins?includePrices=true')))]   # v58: per sieć
+    udane = 0
     for name, job in jobs:
         try:
-            out[name] = job(); META['ok']['krypto.' + name] = True
+            out[name] = job(); META['ok']['krypto.' + name] = True; out['part_at'][name] = NOW; udane += 1
         except Exception as e:
             META['errors'].append(mask(f'krypto {name}: {e}')); META['ok']['krypto.' + name] = False
-    if not any(k in out for k, _ in jobs):
+            if name in KR_ZAPAS_CZESCI:
+                _czesc_z_zapasem(out, prev, name)   # v276: poprzednia wersja z własną datą danych
+    if not udane:
         raise RuntimeError('żadne źródło rynku krypto nie odpowiedziało')
     return out
 
@@ -20059,7 +20067,7 @@ def main():
         save('krypto', prev_kr); META['ok']['krypto'] = 'cached'; print('KRYPTO: dane z', prev_kr.get('at'), '— młodsze niż 55 min')
     else:
         try:
-            save('krypto', build_krypto(cg_key)); META['ok']['krypto'] = True
+            save('krypto', build_krypto(cg_key, prev_kr)); META['ok']['krypto'] = True   # v276: część z własną datą — przy błędzie poprzednia wersja
         except Exception as e:
             META['errors'].append(mask(f'krypto: {e}')); META['ok']['krypto'] = False
             if prev_kr: save('krypto', prev_kr); print('rynek krypto zawiódł — zachowano poprzedni krypto.json z', prev_kr.get('at'))
