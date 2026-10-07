@@ -1085,7 +1085,8 @@ def stab_porownanie(krypto, cmc):
     if not (num(a) and num(b)):
         return None
     try:
-        t1 = dt.datetime.fromisoformat(str(krypto.get('at')).replace('Z', '+00:00')); t2 = dt.datetime.fromisoformat(str(cmc.get('at')).replace('Z', '+00:00'))
+        pa = krypto.get('part_at') if isinstance(krypto.get('part_at'), dict) else {}   # v281 (przegląd v276): czas części 'stabh', nie całego pliku
+        t1 = dt.datetime.fromisoformat(str(pa.get('stabh') or krypto.get('at')).replace('Z', '+00:00')); t2 = dt.datetime.fromisoformat(str(cmc.get('at')).replace('Z', '+00:00'))
         h = abs((t1 - t2).total_seconds()) / 3600 if t1.tzinfo and t2.tzinfo else None
     except (TypeError, ValueError):
         h = None
@@ -3862,11 +3863,13 @@ def kontrola():
         gap = round((float(cp) - float(cg)) / float(cg) * 100.0, 3)
         rows[today]['cap'] = gap
         d_cmc = cmc_roznica(files.get('cmc') if isinstance(files.get('cmc'), dict) else {}, cg, NOW)   # v277: trzecie źródło (plik strony)
-        if d_cmc is not None:
-            rows[today]['cmc'] = d_cmc
     except Exception as e:  # noqa
         Z['kapitalizacja_blad'] = str(e)[:120]; R['uwagi'].append(f'zgodność kapitalizacji: brak odczytu ({str(e)[:80]})')
     st, med, n, opis = kapitalizacja(rows, gap, today)
+    if d_cmc is not None and st in ('✅', 'ℹ️'):   # v281 (przegląd v277): norma CMC tylko z dni bez rozbieżności głównej reguły — nie uczy się błędu CoinGecko
+        rows[today]['cmc'] = d_cmc
+    else:
+        rows[today].pop('cmc', None)
     st, opis = kapitalizacja_trzecie(rows, st, opis, d_cmc, today)   # v277: odstaje źródło kontrolne, gdy oba źródła strony zgodne — ℹ️
     Z['kapitalizacja'] = {'status': st, 'dzis_pct': gap, 'mediana_pct': (round(med, 3) if med is not None else None), 'dni': n, 'opis': opis,
                           'cmc_pct': d_cmc}

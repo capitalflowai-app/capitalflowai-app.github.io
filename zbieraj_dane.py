@@ -93,7 +93,8 @@ def _mask_formy(k, kawalki=False):
     spacjami i znakami sterującymi (inna biblioteka mogła zakodować tylko sam znak). Najdłuższe najpierw."""
     f = {k, repr(k)[1:-1], json.dumps(k)[1:-1], urllib.parse.quote(k, safe=''), urllib.parse.quote_plus(k)}
     if kawalki:   # v278 (przegląd v272): nazwa zmiennej wklejona z wartością („FMP_KEY = …”) nie jest kawałkiem klucza — inaczej „Klucz ***” w meta
-        f.update(p for p in _KLUCZ_ZLY.split(k) if len(p) >= 6 and not re.fullmatch(r'[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:KEY|TOKEN|SECRET)', p))
+        f.update(p for p in _KLUCZ_ZLY.split(k) if len(p) >= 6   # v281: także „FRED_KEY:” / „FRED_KEY=” (nazwa ze znakiem przypisania)
+                 and not re.fullmatch(r'[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:KEY|TOKEN|SECRET)', p.strip(':=;,')))
     return tuple(sorted((x for x in f if x), key=len, reverse=True))
 
 
@@ -551,17 +552,23 @@ def parse_bop(j_ca, j_fa):
             'sign': 'net = assets minus liabilities; positive = net outflow from the euro area', 's': s}
 
 
-def _czesc_z_zapasem(out, prev, name, dane='', pole='part_at'):
+def _czesc_z_zapasem(out, prev, name, dane='', pole='part_at', max_h=None):
     """v275: część `name`, która w tym przebiegu zawiodła, z poprzedniego pliku `prev` (słownik części: prev[dane] albo prev, gdy dane = '')
     z jej własnym czasem pobrania (prev[pole][name], inaczej prev['at']) — data danych części zostaje w niej samej (strona: „stan na …”).
-    Bez poprzedniej wersji — nic (brak, nie zero). → czy wzięta."""
+    Bez poprzedniej wersji — nic (brak, nie zero). v281: max_h — część starsza (od swojego pobrania) niż tyle godzin nie zostaje (krypto.json:
+    strona i TRENDY nie wszędzie pokazują czas części). → czy wzięta."""
     src = (prev.get(dane) if dane else prev) if isinstance(prev, dict) else None
     old = src.get(name) if isinstance(src, dict) else None
     if not isinstance(old, dict):
         return False
     pat = prev.get(pole) if isinstance(prev.get(pole), dict) else {}
+    kiedy = pat.get(name) or prev.get('at')
+    if max_h is not None:
+        tk, tn = _ix_dt(kiedy), _ix_dt(NOW)
+        if tk is None or tn is None or (tn - tk).total_seconds() > max_h * 3600:
+            return False
     (out[dane] if dane else out)[name] = old
-    out.setdefault(pole, {})[name] = pat.get(name) or prev.get('at')
+    out.setdefault(pole, {})[name] = kiedy
     return True
 
 
@@ -4677,6 +4684,8 @@ def _q_ym_add(ym, k):
 
 
 KR_ZAPAS_CZESCI = ('fng', 'mk', 'stabh', 'stabc')   # v276: części z własną datą/czasem danych — przy błędzie poprzednia wersja (deriv i defi: strona podpisuje je czasem pliku)
+KR_ZAPAS_MAX_H = 3   # v281 (przegląd v276): najwyżej tyle godzin od pobrania części — strona dokłada zmiany 30 dni / 1 rok z 'mk' bez sprawdzania wieku,
+#                      a panel stablecoinów podpisuje 'stabc' datą historii albo czasem pliku; dłużej — część znika jak przed v276 („—”)
 
 
 def build_krypto(cg_key, prev=None):
@@ -4699,7 +4708,7 @@ def build_krypto(cg_key, prev=None):
         except Exception as e:
             META['errors'].append(mask(f'krypto {name}: {e}')); META['ok']['krypto.' + name] = False
             if name in KR_ZAPAS_CZESCI:
-                _czesc_z_zapasem(out, prev, name)   # v276: poprzednia wersja z własną datą danych
+                _czesc_z_zapasem(out, prev, name, max_h=KR_ZAPAS_MAX_H)   # v276: poprzednia wersja z własną datą danych (v281: najwyżej 3 h)
     if not udane:
         raise RuntimeError('żadne źródło rynku krypto nie odpowiedziało')
     return out
@@ -8631,7 +8640,8 @@ def _tr_prices(S):
             if not r or not _isnum(r[i7]) or not _isnum(r[i30]) or r[i7] <= -100:
                 continue
             prev = ((1 + r[i30] / 100) / (1 + r[i7] / 100) - 1) * 100     # 23 dni przed ostatnim tygodniem
-            out.append({'id': sym, 'g': 'cr', 'date': str(kr.get('at') or '')[:10], 'w': round(r[i7], 2), 'pr': round(prev, 2), 'z': None,
+            mk_at = (kr.get('part_at') or {}).get('mk') if isinstance(kr.get('part_at'), dict) else None   # v281: czas pobrania części 'mk'
+            out.append({'id': sym, 'g': 'cr', 'date': str(mk_at or kr.get('at') or '')[:10], 'w': round(r[i7], 2), 'pr': round(prev, 2), 'z': None,
                         'st': _px_state(r[i7], prev, TR_CR_TYP)})
     return out, pairs
 
@@ -11479,6 +11489,54 @@ def _ix_fmp_wyczerpany(rec, h, now, blad=False):
     return bool(blad) or b[1] > IX_PONOW
 
 
+def _ix_zapas_wybor(pix, kand, now, calls, quota):
+    """v281 (przegląd v278): które indeksy FMP z wyczerpanymi ponowieniami (kand, kolejność IX_FMP) pobrać teraz z zapasu EODHD:
+    (a) grupa wspólnej sesji (kraj i godzina z IX_FMP — S&P 500, Nasdaq i Dow to jedna sesja): gdy któryś z grupy dostał już tę samą sesję
+        z zapasu (wpis nie od FMP): z sesją — reszta grupy też z zapasu; bez sesji ('brak' tego dnia) — to dzień bez sesji (święto): reszta
+        grupy bez zapasu; inaczej najpierw jedna próba (pierwszy z grupy);
+    (b) tylko z limitu, który zostaje po własnych indeksach EODHD jeszcze do pobrania dziś (IX_DAILY − zużyte dziś − własne należne do końca
+        doby UTC); blokada limitu albo brak zapasu limitu — zapas w następnej dobie;
+    (c) najdłużej czekający (najstarsza ostatnia sesja) najpierw — przy wielodniowym przestoju FMP wolny limit dostaje każdy po kolei. → zbiór kodów."""
+    today = now.date().isoformat()
+    if quota == today:
+        return set()
+    zuz = int(calls.get('n') or 0) if isinstance(calls, dict) and calls.get('d') == today else 0
+    fmp_kody = {s for s, _, _, _ in IX_FMP}
+    koniec = now.replace(hour=23, minute=59, second=59, microsecond=0)
+    wlasne = 0
+    for s, _, h in IX_SYMBOLS:
+        if s in fmp_kody:
+            continue
+        rec = pix.get(s) if isinstance(pix.get(s), dict) else {}
+        bad = _ix_dt(rec.get('bad_at'))
+        if bad and (koniec - bad).days < _ix_pause(rec):
+            continue
+        if ix_do_pobrania(h, rec, koniec):
+            wlasne += 1
+    wolne = IX_DAILY - zuz - wlasne
+    grupy = {s: (cc, h) for s, cc, h, _ in IX_FMP}
+    kol = {s: i for i, (s, _, _, _) in enumerate(IX_FMP)}
+    def ost(x):   # ostatnia sesja wpisu ('' = brak) — najdłużej czekający najpierw (przy wielodniowym przestoju FMP każdy dostaje kolejkę)
+        d = (pix.get(x) or {}).get('d') if isinstance(pix.get(x), dict) else None
+        return str(d[-1][0]) if isinstance(d, list) and d and isinstance(d[-1], list) and d[-1] else ''
+    out = []
+    for s in sorted(kand, key=lambda x: (ost(x), kol.get(x, 99))):
+        if len(out) >= wolne:
+            break
+        b = _ix_brak(pix.get(s))
+        if not b:
+            continue
+        czlonkowie = [x for x, gr in grupy.items() if gr == grupy[s] and x != s]
+        zapas = [pix.get(x) for x in czlonkowie if isinstance(pix.get(x), dict) and pix[x].get('src') != 'fmp']
+        if any((_ix_brak(r) or [None])[0] == b[0] for r in zapas):
+            continue   # zapas też bez tej sesji — dzień bez sesji (święto)
+        z_sesja = any(isinstance(r.get('d'), list) and r['d'] and str(r['d'][-1][0]) >= b[0] for r in zapas)
+        if not z_sesja and any(grupy.get(x) == grupy[s] for x in out):
+            continue   # najpierw jedna próba z grupy wspólnej sesji
+        out.append(s)
+    return set(out)
+
+
 def ix_fmp(key, part, now, errors, zle=None, deadline=None):
     """Indeksy z FMP (IX_FMP; v273: FTSE 100 oraz S&P 500, Nasdaq Composite, Dow Jones, Nikkei 225 i Hang Seng): wspólny rdzeń _ix_pobierz
     (poprawki, luka, nauka pory pobierania, brak sesji), raz po zamknięciu sesji w godzinie nauczonej (ix_do_pobrania), a gdy pobranie nie
@@ -11570,7 +11628,8 @@ def build_indeksy(keys, prev=None, now=None):
     if keys.get('FMP_KEY'):   # v273: najpierw FMP (6 indeksów, plan 250 zapytań na dobę), potem EODHD — reszta i zapas indeksów FMP
         fmp_got = ix_fmp(keys['FMP_KEY'], pix, now, errors, zle, deadline)
         eod_kody = {s for s, _, _ in IX_SYMBOLS}
-        wymus = {s for s, _, g, _ in IX_FMP if s in eod_kody and _ix_fmp_wyczerpany(pix.get(s), g, now, s in zle)}   # v278: FMP bez sesji — zapas raz
+        kand = [s for s, _, g, _ in IX_FMP if s in eod_kody and _ix_fmp_wyczerpany(pix.get(s), g, now, s in zle)]   # v278: FMP bez sesji — zapas raz
+        wymus = _ix_zapas_wybor(pix, kand, now, prev.get('ix_calls'), prev.get('ix_quota')) if keys.get('EODHD_KEY') else set()   # v281: limit, grupa, święto
         for s in sorted(wymus):
             b = _ix_brak(pix.get(s)) or ['?', 0]
             META['notes'].append(f'Indeksy: {s} — FMP bez sesji {b[0]} (pobrań bez niej: {b[1]}) — pobranie z zapasu (drugi dostawca)')

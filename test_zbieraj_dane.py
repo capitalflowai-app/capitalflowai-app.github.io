@@ -30233,3 +30233,108 @@ class EtfKapitalizacjeV280(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 zd.build_etf('k', 'cg', niep)
         self.assertEqual(len(cg), 2, 'niepełne kapitalizacje — pobranie')
+
+
+# ===================== v281: POPRAWKI PO PRZEGLĄDZIE v274–v278 =====================
+class PoPrzegladzieV281(unittest.TestCase):
+    """v281: straż kluczy pomija kawałki-nazwy (publikacja nie staje); części krypto najwyżej 3 h, TRENDY datują 'mk' czasem części;
+    zapas EODHD za FMP z limitu, z grupą wspólnej sesji i świętem; norma CMC tylko z dni ✅/ℹ️; stablecoiny według czasu części."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+
+    def _mod(self, name):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v281_' + name, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', name + '.py'))
+        m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+        return m
+
+    def test_straz_nazwa_sekretu(self):
+        s = self._mod('straz_kluczy')
+        import tempfile
+        root = tempfile.mkdtemp(); os.makedirs(os.path.join(root, 'data'))
+        with open(os.path.join(root, 'data', 'meta.json'), 'w', encoding='utf-8') as f:
+            json.dump({'errors': ['Klucz TWELVEDATA_KEY: spacja albo znak sterujący …', 'brak TWELVEDATA_KEY', 'brak FRED_KEY']}, f)
+        sek, _ = s.sekrety({'TWELVEDATA_KEY': 'TWELVEDATA_KEY = fakefake1234abcd', 'FRED_KEY': 'FRED_KEY: abcdef0123456789'})
+        self.assertEqual(sorted(sek), ['FRED_KEY', 'FRED_KEY (kawałek 1)', 'TWELVEDATA_KEY', 'TWELVEDATA_KEY (kawałek 1)'])
+        self.assertEqual((sek['TWELVEDATA_KEY (kawałek 1)'], sek['FRED_KEY (kawałek 1)']), (b'fakefake1234abcd', b'abcdef0123456789'))
+        tr, _ = s.skanuj(sek, root)
+        self.assertEqual(tr, [], 'przegląd v278: nazwa sekretu w meta.json przerywała każdą publikację')
+        with open(os.path.join(root, 'data', 'x.json'), 'w', encoding='utf-8') as f:
+            f.write('{"e": "apikey=fakefake1234abcd"}')
+        self.assertEqual([a for a, _, _ in s.skanuj(sek, root)[0]], ['TWELVEDATA_KEY (kawałek 1)'], 'prawdziwy kawałek klucza nadal wykrywany')
+        s0, z0 = list(zd.SECRETS), list(zd.SECRETS_ZLE)
+        try:
+            with mock.patch.dict(os.environ, {'FRED_KEY': 'FRED_KEY: abcdef0123456789'}, clear=False):
+                self.assertEqual(zd.klucz('FRED_KEY'), '')
+            self.assertTrue(zd.mask(zd.META['errors'][-1]).startswith('Klucz FRED_KEY: spacja'), 'nazwa z dwukropkiem nie jest maskowana')
+            os.remove(os.path.join(root, 'data', 'x.json'))
+            with open(os.path.join(root, 'data', 'meta.json'), 'w', encoding='utf-8') as f:
+                json.dump({'errors': [zd.mask(zd.META['errors'][-1]), 'brak FRED_KEY']}, f)
+            self.assertEqual(s.skanuj(s.sekrety({'FRED_KEY': 'FRED_KEY: abcdef0123456789'})[0], root)[0], [], 'straż: „FRED_KEY:” to nazwa, nie kawałek klucza')
+        finally:
+            zd.SECRETS[:] = s0; zd.SECRETS_ZLE[:] = z0
+
+    def test_krypto_najwyzej_3h_i_trendy(self):
+        prev = {'at': '2026-10-10T07:05:00+00:00', 'part_at': {'mk': '2026-10-10T05:30:00+00:00', 'fng': '2026-10-10T07:05:00+00:00'},
+                'mk': {'asof': '2026-10-10T05:29:00', 'cols': ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'], 'rows': [['BTC', 2e12, 1.0, 12.5, 20.0, 50.0]]},
+                'fng': {'asof': '2026-10-10', 'd': [['2026-10-10', 40, 'Fear']]}}
+        def gj(url, headers=None, timeout=30):
+            raise RuntimeError('HTTP 401') if 'alternative' not in url else RuntimeError('HTTP 500')
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', '2026-10-10T08:05:00+00:00'):
+            with self.assertRaises(RuntimeError):   # żadna część się nie udała — wyjątek jak dotąd
+                zd.build_krypto('k', prev)
+        def gj2(url, headers=None, timeout=30):
+            if 'decentralized_finance' in url:
+                return {'data': {'defi_market_cap': '1'}}
+            raise RuntimeError('HTTP 401')
+        with mock.patch.object(zd, 'get_json', side_effect=gj2), mock.patch.object(zd, 'NOW', '2026-10-10T08:05:00+00:00'):
+            out = zd.build_krypto('k', prev)
+        self.assertEqual((out['mk'], out['part_at']['mk']), (prev['mk'], '2026-10-10T05:30:00+00:00'), '2 h 35 min — zostaje')
+        with mock.patch.object(zd, 'get_json', side_effect=gj2), mock.patch.object(zd, 'NOW', '2026-10-10T08:31:00+00:00'):
+            out2 = zd.build_krypto('k', prev)
+        self.assertNotIn('mk', out2, 'przegląd v276: ponad 3 h — znika („—”), nie udaje świeżej'); self.assertIn('fng', out2)
+        rows, _ = zd._tr_prices({'krypto': dict(out, at='2026-10-12T08:05:00+00:00', part_at={'mk': '2026-10-10T05:30:00+00:00'})})
+        self.assertEqual([r['date'] for r in rows if r.get('g') == 'cr'], ['2026-10-10'], 'TRENDY: data pobrania części, nie czas pliku')
+
+    def test_zapas_limit_grupa_swieto(self):
+        def rec(src, d, at, brak=None):
+            r = {'cc': 'us', 'src': src, 'at': at, 'd': [[d, 1.0]]}
+            if brak:
+                r['brak'] = brak
+            return r
+        now = self.T(2026, 11, 27, 1, 30)
+        wl = {s: {'cc': c, 'at': '2026-11-26T23:00:00+00:00', 'd': [['2026-11-26', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
+        wl['JTOPI'] = {'bad_at': '2026-11-25T16:05:00+00:00', 'bad_n': 4, 'bad': 'pusto'}   # jak na żywo: dostawca nie podaje — przerwa 7 dni
+        B = ['2026-11-26', 4, '2026-11-26T22:05:00+00:00']
+        pix = dict(wl, GSPC=rec('fmp', '2026-11-25', '2026-11-27T01:05:00+00:00', B), IXIC=rec('fmp', '2026-11-25', '2026-11-27T01:05:00+00:00', B),
+                   DJI=rec('fmp', '2026-11-25', '2026-11-27T01:05:00+00:00', B))
+        kand = ['GSPC', 'IXIC', 'DJI']
+        self.assertEqual(zd._ix_zapas_wybor(pix, kand, now, {'d': '2026-11-27', 'n': 0}, None), {'GSPC'}, 'najpierw jedna próba z grupy USA')
+        pix2 = dict(pix, GSPC=rec(None, '2026-11-25', '2026-11-27T01:30:00+00:00', ['2026-11-26', 5, '2026-11-26T22:05:00+00:00']))
+        self.assertEqual(zd._ix_zapas_wybor(pix2, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 1}, None), set(), 'zapas też bez sesji — święto: reszta bez limitu')
+        pix3 = dict(pix, GSPC=rec(None, '2026-11-26', '2026-11-27T01:30:00+00:00'))
+        self.assertEqual(zd._ix_zapas_wybor(pix3, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 1}, None), {'IXIC', 'DJI'}, 'zapas ma sesję — reszta grupy też')
+        # limit: własne indeksy EODHD jeszcze do pobrania dziś (stan 01:30 — wszystkie 17 przed swoją sesją 27.11) zabierają cały limit 20 − 3
+        self.assertEqual(zd._ix_zapas_wybor(pix3, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 3}, None), set(), 'bez wolnego limitu — zapas w następnej dobie')
+        self.assertEqual(zd._ix_zapas_wybor(pix3, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 2}, None), {'IXIC'}, 'wolne 1 — jeden')
+        self.assertEqual(zd._ix_zapas_wybor(pix3, ['IXIC'], now, {'d': '2026-11-27', 'n': 0}, '2026-11-27'), set(), 'blokada limitu')
+        import inspect
+        self.assertIn("wymus = _ix_zapas_wybor(pix, kand, now, prev.get('ix_calls'), prev.get('ix_quota')) if keys.get('EODHD_KEY') else set()", inspect.getsource(zd.build_indeksy))
+
+    def test_kontrola_norma_cmc_i_stablecoiny(self):
+        kk = self._mod('kontrola')
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertIn("if d_cmc is not None and st in ('✅', 'ℹ️'):", src)
+        i, j = src.index("st, med, n, opis = kapitalizacja(rows, gap, today)"), src.index("rows[today]['cmc'] = d_cmc")
+        self.assertLess(i, j, 'zapis różnicy CMC dopiero po ocenie głównej reguły')
+        krypto = {'at': '2026-10-20T08:05:00+00:00', 'part_at': {'stabh': '2026-10-06T08:05:00+00:00'}, 'stabh': {'asof': '2026-10-06', 'cur': 300.0e9}}
+        cmc = {'at': '2026-10-20T08:05:00+00:00', 'stable_mcap': 307.5e9}
+        s = kk.stab_porownanie(krypto, cmc)
+        self.assertIsNone(s['roznica_pct'], 'przegląd v276: historia sprzed 2 tygodni nie jest „z tej samej chwili”'); self.assertGreater(s['odstep_h'], 300)
+        krypto2 = dict(krypto, part_at={'stabh': '2026-10-20T07:05:00+00:00'})
+        self.assertIsNotNone(kk.stab_porownanie(krypto2, cmc)['roznica_pct'])

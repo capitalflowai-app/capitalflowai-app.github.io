@@ -12,6 +12,7 @@ NAZWY = ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COI
          'SEC_CONTACT', 'GITHUB_TOKEN', 'COINALYZE_KEY', 'BANXICO_TOKEN', 'EVDS_KEY')   # v126: trzy nowe sekrety właściciela (27.09)
 MIN_DL = 8
 _ZLY = re.compile(r'[\x00-\x20\x7f]')   # v272: spacja, tabulator, nowa linia i inne znaki sterujące
+_NAZWA = re.compile(r'[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:KEY|TOKEN|SECRET)')   # v281: nazwa zmiennej (jak w maskowaniu zbieracza, v278)
 KATALOGI = ('_site', 'data')
 
 
@@ -27,7 +28,10 @@ def sekrety(env=None):
             krotkie.append(n); continue
         out[n] = v.encode('utf-8')
         if n != 'SEC_CONTACT' and _ZLY.search(v):   # v272: klucz ze spacją albo znakiem sterującym w środku — w komunikacie z ucieczkami (\\t, \\n)
-            for i, p in enumerate(x for x in _ZLY.split(v) if len(x) >= MIN_DL):   # widać tylko jego kawałki; adres kontaktowy ma spacje z natury
+            # widać tylko jego kawałki; adres kontaktowy ma spacje z natury. v281 (przegląd v278): nazwa zmiennej wklejona z wartością
+            # („TWELVEDATA_KEY = …”) nie jest kawałkiem sekretu — meta.json ją pokazuje (od v278 niemaskowana), a straż przerywałaby każdą publikację
+            for i, p in enumerate(x for x in _ZLY.split(v) if len(x) >= MIN_DL and x.strip(':=;,') not in NAZWY
+                                  and not _NAZWA.fullmatch(x.strip(':=;,'))):
                 out[f'{n} (kawałek {i + 1})'] = p.encode('utf-8')
     return out, krotkie
 
