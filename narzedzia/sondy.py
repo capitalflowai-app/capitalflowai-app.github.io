@@ -27,6 +27,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -1336,14 +1337,119 @@ GROUPS.insert(GROUPS.index(g_nasdaq), g_rwa_emitenci)   # v169: przed g_nasdaq (
 GROUPS.insert(GROUPS.index(g_nasdaq), g_jse)
 
 
+# v272p (07.10.2026): pokrycie indeksów w planach z kluczem, które właściciel już ma (FMP, Massive). Plan bezpłatny EODHD (20 zapytań na dobę)
+# nie wystarcza na 22 indeksy strony: co dzień 2–3 indeksy (06.10 m.in. WIG20 i trzy indeksy USA) dostają sesję dopiero po północy UTC.
+# Czy FMP albo Massive dają dzienne zamknięcia tych indeksów? Wynik: HTTP, liczba wierszy, najnowsza data i różnica zamknięcia względem pliku
+# strony (indeksy.json, te same dni; ostatni wspólny dzień i największa różnica) — nigdy wartości, adresy ani klucze. FMP: lista indeksów
+# + 1 zapytanie na kod (plan 250 na dobę); Massive: 3 zapytania z przerwą 13 s (plan 5 na minutę). Bez zapytań z dobowego limitu EODHD.
+IXK_FMP = (("GSPC", "%5EGSPC"), ("IXIC", "%5EIXIC"), ("DJI", "%5EDJI"), ("N225", "%5EN225"), ("GSPTSE", "%5EGSPTSE"), ("BVSP", "%5EBVSP"),
+           ("MXX", "%5EMXX"), ("GDAXI", "%5EGDAXI"), ("FCHI", "%5EFCHI"), ("IBEX", "%5EIBEX"), ("AEX", "%5EAEX"), ("SSMI", "%5ESSMI"),
+           ("OMXS30", "%5EOMX"), ("WIG20", "WIG20.WA"), ("WIG20", "%5EWIG20"), ("TA125", "%5ETA125.TA"), ("XU100", "XU100.IS"), ("HSI", "%5EHSI"),
+           ("SSEC", "000001.SS"), ("BSESN", "%5EBSESN"), ("AXJO", "%5EAXJO"), ("JKSE", "%5EJKSE"), ("KS11", "%5EKS11"))
+IXK_MASSIVE = (("GSPC", "I:SPX"), ("IXIC", "I:COMP"), ("DJI", "I:DJI"))
+IXK_SITE = "https://capitalflowai-app.github.io/data/indeksy.json"
+
+
+def _ixk_site():
+    """Serie indeksów z pliku strony (publiczny, bez klucza) → {kod: {dzień: zamknięcie}}; błąd = {} (porównanie „nocommon”)."""
+    st, raw, _, _ = http(IXK_SITE)
+    try:
+        ix = (json.loads(raw).get("ix") or {}) if st == 200 and raw else {}
+        return {k: {r[0]: r[1] for r in (v.get("d") or []) if isinstance(r, list) and len(r) == 2} for k, v in ix.items() if isinstance(v, dict)}
+    except Exception:
+        return {}
+
+
+def _ixk_rows(raw, kind):
+    """Odpowiedź → [(dzień, zamknięcie)] rosnąco: FMP — lista {date, price|close}; Massive — {results: [{t (ms), c}]}."""
+    j = json.loads(raw)
+    if kind == "fmp":
+        rows = [(str(r.get("date"))[:10], r.get("price", r.get("close"))) for r in j if isinstance(r, dict)] if isinstance(j, list) else []
+    else:
+        res = j.get("results") if isinstance(j, dict) else None
+        rows = [(dt.datetime.fromtimestamp(r["t"] / 1000, dt.timezone.utc).date().isoformat(), r.get("c"))
+                for r in (res if isinstance(res, list) else []) if isinstance(r, dict) and isinstance(r.get("t"), (int, float))]
+    return sorted((d, float(v)) for d, v in rows if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0)
+
+
+def _ixk_res(st, raw, ref, kind):
+    """Wynik jednego kodu: 'HTTP/r<wiersze>/<najnowszy MM-DD>/d<różnica % ostatniego wspólnego dnia>@<dzień>/m<największa |różnica| %>'."""
+    if st != 200 or not raw:
+        return str(st if st is not None else "ERR")
+    try:
+        rows = _ixk_rows(raw, kind)
+    except Exception as e:  # noqa
+        return f"200/{type(e).__name__}"
+    if not rows:
+        return "200/r0"
+    s = f"200/r{len(rows)}/{rows[-1][0][5:]}"
+    com = [(d, v, ref[d]) for d, v in rows if isinstance(ref, dict) and isinstance(ref.get(d), (int, float)) and ref[d] > 0]
+    if not com:
+        return s + "/nocommon"
+    dd = [(v / r - 1) * 100 for _, v, r in com]
+    return s + f"/d{dd[-1]:+.2f}@{com[-1][0][5:]}/m{max(abs(x) for x in dd):.2f}"
+
+
+def g_ix_fmp():
+    name, key = find_key("fmp")
+    if not key:
+        skipped("fmp", "index coverage")
+        return
+    ref = _ixk_site()
+    b = "https://financialmodelingprep.com/stable"
+    frm = (_utc_today() - dt.timedelta(days=12)).isoformat()
+    st, raw = probe("fmp", "index_list", f"{b}/index-list?apikey={key}", env_name=name)
+    lst = "-"
+    if st == 200 and raw:
+        try:
+            have = {str(r.get("symbol")) for r in json.loads(raw) if isinstance(r, dict)}
+            lst = f"n={len(have)} has=" + ",".join(c for c, s in IXK_FMP if urllib.parse.unquote(s) in have)
+        except Exception as e:  # noqa
+            lst = type(e).__name__
+    out = []
+    for code, sym in IXK_FMP:
+        time.sleep(0.3)
+        lab = urllib.parse.unquote(sym)
+        st, raw = probe("fmp", f"ix_{code}_{lab}", f"{b}/historical-price-eod/light?symbol={sym}&from={frm}&apikey={key}", env_name=name)
+        out.append(f"{code}:{lab}=" + _ixk_res(st, raw, ref.get(code), "fmp"))
+    with _print_lock:
+        print(f"summary ix-fmp-list {lst} site_codes={len(ref)}", flush=True)
+        print("summary ix-fmp " + " ".join(out), flush=True)
+
+
+def g_ix_massive():
+    name, key = find_key("massive")
+    if not key:
+        skipped("massive", "index aggregates")
+        return
+    ref = _ixk_site()
+    hdr = {"Authorization": "Bearer " + key}
+    frm, to = (_utc_today() - dt.timedelta(days=12)).isoformat(), _utc_today().isoformat()
+    out = []
+    for i, (code, sym) in enumerate(IXK_MASSIVE):
+        if i:
+            time.sleep(13)   # plan bezpłatny: 5 zapytań na minutę (zbieracz pyta Massive 4 razy na dobę)
+        st, raw = probe("massive", f"ix_{code}_{sym}", f"https://api.massive.com/v2/aggs/ticker/{sym}/range/1/day/{frm}/{to}?adjusted=true&sort=asc&limit=50",
+                        env_name=name, headers=hdr)
+        out.append(f"{code}:{sym}=" + _ixk_res(st, raw, ref.get(code), "massive"))
+    with _print_lock:
+        print("summary ix-massive " + " ".join(out), flush=True)
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_ix_fmp)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_ix_massive)
+TYLKO = ("g_ix_fmp", "g_ix_massive")   # v272p: ten przebieg sondy — tylko sondy indeksów (pozostałe grupy w poprzednich wydaniach; pusta krotka = wszystkie)
+
+
 # --------------------------------------------------------------------------- main
 
 def main():
     print(f"sondy.py start {dt.datetime.now(dt.timezone.utc).isoformat(timespec='seconds')} "
           f"python {sys.version.split()[0]} (no URLs, headers, bodies or key values are printed)", flush=True)
     print(f"{'provider':<15}| {'env var found':<30}| {'probe':<34}| status    | elapsed   | bytes       | shape", flush=True)
-    ex = cf.ThreadPoolExecutor(max_workers=len(GROUPS))
-    futs = {ex.submit(g): g.__name__ for g in GROUPS}
+    grupy = [g for g in GROUPS if not TYLKO or g.__name__ in TYLKO]   # v272p: przebieg tylko wybranych grup (bez zbędnych zapytań z limitów planów)
+    ex = cf.ThreadPoolExecutor(max_workers=max(1, len(grupy)))
+    futs = {ex.submit(g): g.__name__ for g in grupy}
     try:
         for f in cf.as_completed(futs, timeout=max(1.0, DEADLINE + 8 - time.monotonic())):
             try:

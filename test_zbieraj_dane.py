@@ -22837,6 +22837,77 @@ class SondaEmitenciV169(unittest.TestCase):
         self.assertIn('summary jse eod_J200=rows=7 fmp_J200.JO=rows=6 fmp_JTOPI.JO=rows=0', o)
 
 
+class SondaIndeksyKluczeV272p(unittest.TestCase):
+    """v272p: sonda pokrycia indeksów w planach FMP i Massive — HTTP, wiersze, najnowsza data i różnica względem pliku strony; nigdy wartości,
+    adresy ani klucze; przebieg tylko grup z TYLKO (bez zapytań z dobowego limitu EODHD); g_nasdaq zostaje ostatnia."""
+
+    def _S(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('sondy_v272p', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        return S
+
+    def test_grupy_i_wynik(self):
+        import io as _io
+        S = self._S()
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual((S.GROUPS.count(S.g_ix_fmp), S.GROUPS.count(S.g_ix_massive)), (1, 1))
+        self.assertEqual(S.TYLKO, ('g_ix_fmp', 'g_ix_massive'))
+        site = {'ix': {'GSPC': {'d': [['2026-10-05', 6700.0], ['2026-10-06', 6712.5]]}, 'DJI': {'d': [['2026-10-06', 46000.0]]}}}
+        fmp_gspc = [{'symbol': '^GSPC', 'date': '2026-10-06', 'price': 6712.5, 'volume': 1}, {'symbol': '^GSPC', 'date': '2026-10-05', 'price': 6706.7, 'volume': 1}]
+        seen = []
+
+        def http(url, method='GET', body=None, headers=None):
+            seen.append((url, headers))
+            if 'capitalflowai-app.github.io' in url:
+                return 200, json.dumps(site).encode(), 3, None
+            if 'index-list' in url:
+                return 200, json.dumps([{'symbol': '^GSPC'}, {'symbol': '^DJI'}, {'symbol': 'XYZ'}]).encode(), 3, None
+            if 'symbol=%5EGSPC' in url:
+                return 200, json.dumps(fmp_gspc).encode(), 3, None
+            if 'symbol=%5EDJI' in url:
+                return 200, b'[]', 3, None
+            if 'financialmodelingprep' in url:
+                return 402, b'{"Error Message":"plan"}', 3, None
+            if 'I:SPX' in url:   # 6.10 00:00 ET = 04:00 UTC
+                return 200, json.dumps({'results': [{'t': 1791259200000, 'c': 6712.6}], 'resultsCount': 1}).encode(), 3, None
+            return 403, b'{"status":"NOT_AUTHORIZED"}', 3, None
+        out = _io.StringIO()
+        env = {'FMP_KEY': 'TAJNY_FMP_456', 'MASSIVE_KEY': 'TAJNY_MAS_789'}
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: None), mock.patch('sys.stdout', out), \
+                mock.patch.dict(os.environ, env, clear=False):
+            S.g_ix_fmp(); S.g_ix_massive()
+        o = out.getvalue()
+        self.assertNotIn('TAJNY', o, 'klucz nigdy w wyniku'); self.assertNotIn('http', o.replace('HTTP', ''), 'żadnego adresu')
+        for v in ('6712', '6706', '46000'):
+            self.assertNotIn(v, o, 'bez wartości')
+        self.assertIn('summary ix-fmp-list n=3 has=GSPC,DJI site_codes=2', o)
+        self.assertIn('GSPC:^GSPC=200/r2/10-06/d+0.00@10-06/m0.10', o)   # 05.10: 6706,7 vs 6700 = +0,10%
+        self.assertIn('DJI:^DJI=200/r0', o); self.assertIn('WIG20:WIG20.WA=402', o); self.assertIn('WIG20:^WIG20=402', o)
+        self.assertIn('summary ix-massive GSPC:I:SPX=200/r1/10-06/d+0.00@10-06/m0.00 IXIC:I:COMP=403 DJI:I:DJI=403', o)
+        self.assertEqual(sum(1 for u, _ in seen if 'financialmodelingprep' in u), 1 + len(S.IXK_FMP), 'lista + 1 zapytanie na kod')
+        self.assertEqual(sum(1 for u, _ in seen if 'massive' in u), 3)
+        self.assertTrue(all(h == {'Authorization': 'Bearer TAJNY_MAS_789'} for u, h in seen if 'massive' in u), 'klucz Massive tylko w nagłówku')
+        self.assertFalse([u for u, _ in seen if 'eodhd' in u], 'bez zapytań z dobowego limitu EODHD')
+
+    def test_main_tylko_wybrane_grupy(self):
+        import io as _io
+        S = self._S()
+        ran = []
+
+        def g_ix_fmp():
+            ran.append('fmp')
+
+        def g_eodhd():
+            ran.append('eodhd')
+        with mock.patch.object(S, 'GROUPS', [g_eodhd, g_ix_fmp]), mock.patch('sys.stdout', _io.StringIO()):
+            S.main()
+        self.assertEqual(ran, ['fmp'])
+        ran.clear()
+        with mock.patch.object(S, 'GROUPS', [g_eodhd, g_ix_fmp]), mock.patch.object(S, 'TYLKO', ()), mock.patch('sys.stdout', _io.StringIO()):
+            S.main()
+        self.assertEqual(sorted(ran), ['eodhd', 'fmp'], 'pusta krotka = wszystkie grupy')
+
+
 # ===================== v169: TOKENIZOWANE AKTYWA — DANE EMITENTÓW (blok issuer w data/rwa.json) =====================
 # Nagrania: liczby z badania 05.10.2026 (ws51/badanie/BADANIE_RWA2.md, dowody/*.json), przycięte do pól, które czyta zbieracz. Zegar przypięty.
 _RWE169_NOW = datetime.datetime(2026, 10, 5, 6, 0, tzinfo=datetime.timezone.utc)
