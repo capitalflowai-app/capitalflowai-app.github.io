@@ -11324,6 +11324,7 @@ class IndeksyFmpV119(unittest.TestCase):
             zd.fmp_eod_parse({'Error Message': 'Limit'})
 
     def test_fetch_once_after_session_and_backoff(self):
+        p_ftse = mock.patch.object(zd, 'IX_FMP', zd.IX_FMP[:1]); p_ftse.start(); self.addCleanup(p_ftse.stop)   # v273: tylko FTSE
         calls = []
         def gj(url, headers=None, timeout=30):
             calls.append(url); self.assertIn('symbol=%5EFTSE', url); self.assertIn('from=', url)
@@ -29090,6 +29091,7 @@ class PoPrzegladzieV263(unittest.TestCase):
         self.assertTrue(zd.ix_do_pobrania(7, {'at': None}, self.T(2026, 10, 8, 8, 10))); self.assertTrue(zd.ix_do_pobrania(7, {}, self.T(2026, 10, 8, 8, 10)))
 
     def test_fmp_i_tiingo_tylko_zadany_okres(self):
+        p_ftse = mock.patch.object(zd, 'IX_FMP', zd.IX_FMP[:1]); p_ftse.start(); self.addCleanup(p_ftse.stop)   # v273: tylko FTSE
         part = {'FTSE': {'cc': 'gb', 'at': '2026-10-06T17:20:00+00:00', 'src': 'fmp', 'd': [['2026-01-07', 10048.21], ['2026-10-06', 10497.94]]}}
         ans = [{'date': '2026-10-06', 'price': 10497.94}, {'date': '2026-10-07', 'price': 10600.0}, {'date': '2026-01-07', 'price': 10612.34}]
         with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: ans):
@@ -29690,3 +29692,183 @@ class PoPrzegladzieV272(unittest.TestCase):
             r[2] = round(r[2] / 2, 4)
         rows[-3][2] = round(base / 2 * 1.01, 4); del rows[-4]
         self.assertEqual(zd.ceny_z_swiata(sd).get('podzialy'), [['EWY', rows[-3][0], 0.5]])
+
+
+# ===================== v273: 5 INDEKSÓW Z FMP, EODHD JAKO ZAPAS; NAUKA PORY TAKŻE Z BRAKU SESJI =====================
+class IndeksyFmpV273(unittest.TestCase):
+    """v273: S&P 500, Nasdaq, Dow, Nikkei i Hang Seng z FMP (plan 250 zapytań na dobę) — EODHD ma 17 indeksów, wszystkie tego samego dnia;
+    EODHD zapasem, gdy FMP zawiedzie; wspólny rdzeń (poprawki, luka, nauka); brak sesji = ponowienie (FMP) i dowód dla nauki; zmiana dostawcy
+    to nie poprawka."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+
+    @staticmethod
+    def _dni(od, do):
+        d, out = od, []
+        while d <= do:
+            if d.weekday() < 5:
+                out.append(d)
+            d += datetime.timedelta(days=1)
+        return out
+
+    def _siec(self, now_ref, opoz=None, fmp_402=(), fmp_down=False):
+        """Udawana sieć: każdy dostawca ma sesję dnia D od godziny h (z IX_SYMBOLS / IX_FMP) + opóźnienie opoz[kod] godzin."""
+        godz = {s: h for s, _, h in zd.IX_SYMBOLS}; godz.update({s: h for s, _, h, _ in zd.IX_FMP})
+        fsym = {f: s for s, _, _, f in zd.IX_FMP}
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            now = now_ref[0]
+            if 'financialmodelingprep' in url:
+                s = fsym[url.split('symbol=')[1].split('&')[0]]
+                calls.append(('fmp', s, now))
+                if fmp_down:
+                    raise zd.urllib.error.URLError('timeout')
+                if s in fmp_402:
+                    raise zd.urllib.error.HTTPError('u', 402, 'Payment', {}, None)
+            else:
+                s = url.split('/eod/')[1].split('.INDX')[0]
+                calls.append(('eod', s, now))
+                if s == 'JTOPI':
+                    return []
+            frm = datetime.date.fromisoformat(url.split('from=')[1].split('&')[0])
+            gotowe = now - datetime.timedelta(hours=godz[s] + (opoz or {}).get(s, 0))
+            dni = self._dni(frm, gotowe.date())
+            if 'financialmodelingprep' in url:
+                return [{'date': d.isoformat(), 'price': 100.0 + d.toordinal() % 7} for d in dni]
+            return [{'date': d.isoformat(), 'close': 100.0 + d.toordinal() % 7} for d in dni]
+        return gj, calls
+
+    def _swiezy(self, now):
+        """Wszystkie indeksy pobrane w tej chwili z sesją dnia (FMP: src 'fmp') — w planie tylko to, co test zmieni."""
+        d = now.date().isoformat()
+        ix = {s: {'cc': c, 'at': now.isoformat(), 'd': [[d, 1.0]]} for s, c, _ in zd.IX_SYMBOLS}
+        ix.update({s: {'cc': c, 'at': now.isoformat(), 'src': 'fmp', 'd': [[d, 1.0]]} for s, c, _, _ in zd.IX_FMP})
+        ix['JTOPI'] = {'bad_at': now.isoformat(), 'bad_n': 3, 'bad': 'pusto'}
+        return ix
+
+    def test_tydzien_wszystkie_indeksy_tego_samego_dnia(self):
+        now_ref = [self.T(2026, 10, 12, 0, 5)]
+        gj, calls = self._siec(now_ref)
+        dni = self._dni(datetime.date(2026, 10, 5), datetime.date(2026, 10, 9))
+        rows = [[d.isoformat(), 100.0 + d.toordinal() % 7] for d in dni]
+        ix = {s: {'cc': c, 'at': '2026-10-09T23:30:00+00:00', 'd': [list(r) for r in rows]} for s, c, _ in zd.IX_SYMBOLS}
+        ix.update({s: {'cc': c, 'at': '2026-10-09T23:30:00+00:00', 'src': 'fmp', 'd': [list(r) for r in rows]} for s, c, _, _ in zd.IX_FMP})
+        ix['JTOPI'] = {'bad_at': '2026-10-09T16:05:00+00:00', 'bad_n': 3, 'bad': 'pusto'}
+        prev = {'at': '2026-10-09T23:30:00+00:00', 'ix': ix, 'ix_calls': {'d': '2026-10-09', 'n': 18}}
+        with mock.patch.object(zd, 'get_json', side_effect=gj):
+            for hh in range(5 * 24):   # poniedziałek 00:05 – piątek 23:05, przebieg indeksów co godzinę
+                now_ref[0] = self.T(2026, 10, 12, 0, 5) + datetime.timedelta(hours=hh)
+                with mock.patch.object(zd, 'NOW', now_ref[0].isoformat()):
+                    prev = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, prev, now=now_ref[0])
+                if now_ref[0].hour == 23:   # o 23:05 UTC każdy indeks ma sesję tego dnia (JTOPI — dostawca nie podaje)
+                    dzien = now_ref[0].date().isoformat()
+                    zal = {s: r['d'][-1][0] for s, r in prev['ix'].items() if s != 'JTOPI' and r.get('d') and r['d'][-1][0] != dzien}
+                    self.assertEqual(zal, {}, f'{dzien}: indeksy bez sesji tego dnia')
+        per = {}
+        for src, s, t in calls:
+            if src == 'eod':
+                per[t.date()] = per.get(t.date(), 0) + 1
+        self.assertTrue(max(per.values()) <= zd.IX_DAILY, per)
+        self.assertTrue(all(n <= 18 for n in per.values()), f'EODHD: 17 indeksów (+ JTOPI w przerwie rosnącej) — {per}')
+        self.assertTrue(all(t.hour >= 7 for src, _, t in calls if src == 'eod'), 'żadnego indeksu po północy — każdy w dniu swojej sesji')
+        eod_kody = {s for src, s, _ in calls if src == 'eod'}
+        self.assertFalse(eod_kody & {'GSPC', 'IXIC', 'DJI', 'N225', 'HSI'}, 'FMP zdrowy — EODHD nie pyta o jego indeksy')
+        self.assertEqual({s for src, s, _ in calls if src == 'fmp'}, {'FTSE', 'GSPC', 'IXIC', 'DJI', 'N225', 'HSI'})
+        self.assertTrue(all(prev['ix'][s].get('src') == 'fmp' for s in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI', 'FTSE')))
+
+    def test_zapas_eodhd_gdy_fmp_zawodzi(self):
+        now = self.T(2026, 10, 13, 22, 5)
+        now_ref = [now]
+        gj, calls = self._siec(now_ref, fmp_402={'GSPC'})
+        prev = {'ix': self._swiezy(now + datetime.timedelta(hours=1))}
+        prev['ix']['GSPC'] = {'cc': 'us', 'at': '2026-10-12T22:05:00+00:00', 'src': 'fmp', 'd': [['2026-10-12', 100.0]], 'h+': 1, 'h+n': 2}
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', now.isoformat()):
+            o = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, prev, now=now + datetime.timedelta(hours=1))
+        g = o['ix']['GSPC']
+        self.assertEqual((g['fmp_bad'], g['fmp_bad_n'], g['d'][-1][0]), (402, 1, '2026-10-13'), 'EODHD dostarczył sesję mimo odrzucenia w FMP')
+        self.assertNotIn('src', g); self.assertNotIn('h+', g, 'zmiana dostawcy — nauka od zera'); self.assertNotIn('rew', g)
+        self.assertIn('FMP HTTP 402 — GSPC (przerwa; zapas EODHD)', '; '.join(zd.META['errors']))
+        # nazajutrz: FMP w przerwie (1 doba) — EODHD dalej zapasem, bez zapytania do FMP o GSPC
+        calls.clear(); now_ref[0] = self.T(2026, 10, 14, 22, 1)   # przerwa FMP po 402 trwa dobę (do 22:05)
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', now_ref[0].isoformat()):
+            o = dict(o, ix=dict(self._swiezy(now_ref[0]), GSPC=o['ix']['GSPC']))
+            o2 = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, o, now=now_ref[0])
+        self.assertNotIn(('fmp', 'GSPC'), [(a, b) for a, b, _ in calls]); self.assertIn(('eod', 'GSPC'), [(a, b) for a, b, _ in calls])
+        self.assertEqual((o2['ix']['GSPC']['d'][-1][0], o2['ix']['GSPC']['fmp_bad_n']), ('2026-10-14', 1), 'przerwa FMP przechodzi przez pobranie z zapasu')
+        # FMP nie odpowiada (czas) — dwa braki z rzędu kończą pętlę, reszta z zapasu EODHD
+        calls.clear(); zd.META['errors'].clear()
+        gj2, calls2 = self._siec(now_ref, fmp_down=True)
+        with mock.patch.object(zd, 'get_json', side_effect=gj2), mock.patch.object(zd, 'NOW', now_ref[0].isoformat()):
+            o3 = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, {'ix': {}}, now=now_ref[0])
+        self.assertEqual(sum(1 for a, _, _ in calls2 if a == 'fmp'), 2, 'dwa braki odpowiedzi — koniec pętli FMP')
+        self.assertTrue({'GSPC', 'IXIC', 'DJI'} <= {b for a, b, _ in calls2 if a == 'eod'} | {s for s in o3['ix'] if o3['ix'][s].get('d')})
+        # bez klucza FMP — EODHD wszystkie 22 kody jak przed v273
+        with mock.patch.object(zd, 'IX_PER_RUN', 99):   # cały plan, bez limitu na przebieg
+            self.assertEqual(len(zd.ix_plan({}, self.T(2026, 10, 14, 23, 0), 99)), len(zd.IX_SYMBOLS))
+            self.assertEqual(set(zd.ix_plan({}, self.T(2026, 10, 14, 23, 0), 99, {'GSPC', 'N225'})), {s for s, _, _ in zd.IX_SYMBOLS} - {'GSPC', 'N225'})
+
+    def test_brak_sesji_ponowienie_i_nauka(self):
+        v13 = 100.0 + datetime.date(2026, 10, 13).toordinal() % 7   # ta sama wartość co w udawanej sieci — bez „poprawki”
+        rec = {'cc': 'jp', 'at': '2026-10-13T07:05:00+00:00', 'src': 'fmp', 'd': [['2026-10-13', v13]]}
+        part = {'N225': dict(rec)}
+        now_ref = [self.T(2026, 10, 14, 7, 5)]
+        gj, calls = self._siec(now_ref, opoz={'N225': 1})   # dostawca ma sesję dopiero od 08:00
+        N1 = mock.patch.object(zd, 'IX_FMP', (('N225', 'jp', 7, '%5EN225'),))
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', now_ref[0].isoformat()), N1:
+            self.assertEqual(zd.ix_fmp('f', part, now_ref[0], []), 1)
+        n = part['N225']
+        self.assertEqual(n['brak'], ['2026-10-14', 1, '2026-10-14T07:05:00+00:00']); self.assertEqual(n['d'][-1][0], '2026-10-13')
+        self.assertFalse(zd.ix_do_pobrania(7, n, self.T(2026, 10, 14, 7, 50), ponow=True), 'przed IX_PONOW_MIN')
+        self.assertFalse(zd.ix_do_pobrania(7, n, self.T(2026, 10, 14, 8, 5)), 'EODHD (bez ponowień) — nie')
+        self.assertTrue(zd.ix_do_pobrania(7, n, self.T(2026, 10, 14, 8, 5), ponow=True))
+        now_ref[0] = self.T(2026, 10, 14, 8, 5)
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', now_ref[0].isoformat()),                 mock.patch.object(zd, 'IX_FMP', (('N225', 'jp', 7, '%5EN225'),)):
+            self.assertEqual(zd.ix_fmp('f', part, now_ref[0], []), 1)
+        n2 = part['N225']
+        self.assertEqual((n2['d'][-1][0], n2.get('brak'), n2['h+'], n2['h+n'], n2['h+d']), ('2026-10-14', None, 1, 0, '2026-10-14'),
+                         'sesja przyszła godzinę później — nauka: pobieranie o 08:00')
+        self.assertFalse(zd.ix_do_pobrania(7, n2, self.T(2026, 10, 14, 9, 30), ponow=True))
+        self.assertTrue(zd.ix_do_pobrania(7, n2, self.T(2026, 10, 15, 8, 5), ponow=True)); self.assertFalse(zd.ix_do_pobrania(7, n2, self.T(2026, 10, 15, 7, 30), ponow=True))
+        # święto: sesja nie przychodzi — najwyżej IX_PONOW ponowień, potem do następnego dnia; nie dowód dla nauki
+        hol = {'cc': 'jp', 'at': '2026-10-15T08:05:00+00:00', 'src': 'fmp', 'd': [['2026-10-15', 1.0]], 'brak': ['2026-10-16', 1, '2026-10-16T08:05:00+00:00']}
+        for i, (hh, ok) in enumerate(((9, True), (10, True), (11, True))):
+            r = dict(hol, at=f'2026-10-16T{hh - 1:02d}:05:00+00:00', brak=['2026-10-16', i + 1, '2026-10-16T08:05:00+00:00'])
+            self.assertEqual(zd.ix_do_pobrania(7, r, self.T(2026, 10, 16, hh, 5), ponow=True), ok)
+        self.assertFalse(zd.ix_do_pobrania(7, dict(hol, at='2026-10-16T11:05:00+00:00', brak=['2026-10-16', 4, '2026-10-16T08:05:00+00:00']),
+                                           self.T(2026, 10, 16, 12, 5), ponow=True), 'po IX_PONOW ponowieniach — do następnego dnia')
+        nast = zd.ix_nauka({'brak': ['2026-10-16', 4, 'x']}, [], 7, [])
+        self.assertEqual(nast, (0, 0, False), 'brak bez sesji (święto) — nic do nauki')
+        # sesja przyszła nazajutrz (EODHD bez ponowień) — też dowód, gdy pierwsze pobranie było w dniu sesji o nauczonej godzinie
+        self.assertEqual(zd.ix_nauka({}, [], 7, [('2026-10-16', '2026-10-16T07:20:00+00:00')]), (1, 0, True))
+        self.assertEqual(zd.ix_nauka({}, [], 7, [('2026-10-16', '2026-10-16T09:20:00+00:00')]), (0, 0, False), 'pobranie o innej godzinie — nie dowód')
+        self.assertEqual(zd.ix_nauka({}, [], 22, [('2026-10-16', '2026-10-17T00:20:00+00:00')]), (0, 0, False), 'pobranie nazajutrz — nie dowód')
+
+    def test_zmiana_dostawcy_to_nie_poprawka(self):
+        rec = {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-10-05', 69000.0], ['2026-10-06', 70683.98]]}   # EODHD, wstępne +0,13%
+        ans = [{'date': '2026-10-06', 'price': 70592.11}, {'date': '2026-10-07', 'price': 70900.0}]
+        part = {'N225': rec}
+        N1 = (('N225', 'jp', 7, '%5EN225'),)
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: ans), mock.patch.object(zd, 'NOW', '2026-10-07T07:10:00+00:00'),                 mock.patch.object(zd, 'IX_FMP', N1):
+            self.assertEqual(zd.ix_fmp('f', part, self.T(2026, 10, 7, 7, 10), []), 1)
+        n = part['N225']
+        self.assertEqual(n['d'], [['2026-10-05', 69000.0], ['2026-10-06', 70592.11], ['2026-10-07', 70900.0]], 'wartość końcowa wydawcy zastępuje wstępną')
+        self.assertEqual(n['src'], 'fmp'); self.assertNotIn('rew', n); self.assertNotIn('h+', n, 'różnica dwóch dostawców — nie dowód dla nauki')
+        # ten sam dostawca: poprawka ostatniej sesji pobranej o nauczonej godzinie = dowód (jak w EODHD)
+        ans2 = [{'date': '2026-10-07', 'price': 71000.0}, {'date': '2026-10-08', 'price': 71100.0}]
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: ans2), mock.patch.object(zd, 'NOW', '2026-10-08T07:10:00+00:00'),                 mock.patch.object(zd, 'IX_FMP', N1):
+            zd.ix_fmp('f', part, self.T(2026, 10, 8, 7, 10), [])
+        self.assertEqual(part['N225']['rew'][-1][:3], ['2026-10-07', 70900.0, 71000.0]); self.assertEqual(part['N225']['h+'], 1)
+
+    def test_kontrola_pusta_seria_z_przerwa_fmp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v273_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        kk = importlib.util.module_from_spec(spec); spec.loader.exec_module(kk)
+        o = kk.indeksy_ocena({'GSPC': {'fmp_bad_at': '2026-10-13T22:05:00+00:00', 'fmp_bad': 402}, 'DJI': {'d': [['2026-10-13', 1.0]]}},
+                             datetime.datetime(2026, 10, 14, 6, 0, tzinfo=self.UTC))
+        self.assertEqual(o['puste'], [('GSPC', '2026-10-13')])

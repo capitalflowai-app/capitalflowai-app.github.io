@@ -1828,7 +1828,7 @@ def indeksy_ocena(ix, now=None):
         if dd:
             ost[s] = max(dd)
         elif not fut:
-            puste.append((s, str(v.get('bad_at') or '')[:10] if isinstance(v, dict) else ''))
+            puste.append((s, str(v.get('bad_at') or v.get('fmp_bad_at') or '')[:10] if isinstance(v, dict) else ''))   # v273: przerwa FMP
     out = {'n': len(ix), 'swieze': 0, 'najnowsza': None, 'opoznione': [], 'stare': [], 'puste': puste, 'przyszle': przyszle, 'wszystkie': None,
            'zmiany': indeksy_zmiany(ix, now),
            'pozniej': [(s, v['h+']) for s, v in sorted(ix.items()) if isinstance(v, dict) and isinstance(v.get('h+'), int)

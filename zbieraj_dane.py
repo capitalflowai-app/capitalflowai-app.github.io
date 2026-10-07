@@ -10916,11 +10916,14 @@ def _ix_bad(part, sym, code):
     rec.update({'bad_at': NOW, 'bad_n': (n if isinstance(n, int) and n > 0 else 0) + 1, 'bad': code}); part[sym] = rec
 
 
-def ix_plan(part, now, budget):
+def ix_plan(part, now, budget, pomin=()):
     """Indeksy do pobrania w tym przebiegu: „do odświeżenia” (nie pobrane od ostatniego zamknięcia swojej sesji), najdłużej
-    czekające najpierw; najwyżej IX_PER_RUN i nie więcej, niż zostało z dobowego limitu. Kod odrzucony — przerwa _ix_pause."""
+    czekające najpierw; najwyżej IX_PER_RUN i nie więcej, niż zostało z dobowego limitu. Kod odrzucony — przerwa _ix_pause.
+    v273: kody z `pomin` (dostarcza je FMP) poza planem — EODHD bierze je tylko jako zapas."""
     due = []
     for i, (sym, cc, h) in enumerate(IX_SYMBOLS):
+        if sym in pomin:
+            continue
         rec = part.get(sym) if isinstance(part, dict) else None
         rec = rec if isinstance(rec, dict) else {}
         bad = _ix_dt(rec.get('bad_at'))
@@ -10973,6 +10976,8 @@ IX_USUN_MAX = 3      # v261: najwyżej tyle sesji z zakładki może dostawca „
 IX_POZNIEJ_MAX = 3       # v262: najwyżej o tyle godzin później niż godzina z IX_SYMBOLS (nauczone z poprawek dostawcy)
 IX_POZNIEJ_PROG = 0.02   # v262: % — poprawka ostatniej sesji większa = pobrana za wcześnie (mniejsze to zaokrąglenia dostawcy)
 IX_POZNIEJ_POWROT = 10   # v262: tyle pobrań z rzędu bez takiej poprawki = o godzinę wcześniej
+IX_PONOW = 3             # v273: dostawca z dużym limitem (FMP) — najwyżej tyle ponowień, gdy pobranie nie przyniosło oczekiwanej sesji
+IX_PONOW_MIN = 55        # v273: min między takimi ponowieniami (zbieracz zajmuje się indeksami najwyżej raz na IX_EVERY)
 
 
 def _ix_hplus(rec):
@@ -10986,25 +10991,32 @@ def ix_godzina(h, rec):
     return min(23, h + _ix_hplus(rec))
 
 
-def ix_do_pobrania(h, rec, now):
+def ix_do_pobrania(h, rec, now, ponow=False):
     """v263: indeks do pobrania — nie pobrany od chwili gotowości (ix_ready) w godzinie nauczonej; w dniu podniesienia godziny ('h+d') pobranie
-    z tego dnia wystarcza (przegląd v262: inaczej drugie pobranie tego samego dnia — zapytanie z dobowego limitu i ten sam dowód liczony dwa razy)."""
+    z tego dnia wystarcza (przegląd v262: inaczej drugie pobranie tego samego dnia — zapytanie z dobowego limitu i ten sam dowód liczony dwa razy).
+    v273: ponow=True (dostawca z dużym limitem — FMP): pobranie po chwili gotowości bez oczekiwanej sesji ('brak' z dniem tej chwili) ponawiane
+    po IX_PONOW_MIN min, najwyżej IX_PONOW razy (dostawca spóźniony; w dzień bez sesji — święto — najwyżej IX_PONOW zbędnych zapytań)."""
     at = _ix_dt(rec.get('at')) if isinstance(rec, dict) else None
     if at is None:
         return True
     R = ix_ready(ix_godzina(h, rec), now)
     if at >= R:
-        return False
+        b = rec.get('brak') if ponow and isinstance(rec.get('brak'), list) and len(rec['brak']) == 3 else None
+        return bool(b and b[0] == R.date().isoformat() and isinstance(b[1], int) and not isinstance(b[1], bool) and b[1] <= IX_PONOW
+                    and (now - at).total_seconds() >= IX_PONOW_MIN * 60)
     hd = rec.get('h+d') if isinstance(rec, dict) else None
     return not (isinstance(hd, str) and hd == at.date().isoformat() == R.date().isoformat())
 
 
-def ix_nauka(rec, rw, h=None):
+def ix_nauka(rec, rw, h=None, braki=()):
     """v262/v263: samouczenie pory pobierania. rw — poprawki z tego pobrania (ix_rewizje); h — godzina z listy IX_SYMBOLS. Poprawka ostatniej
     sesji poprzedniego pobrania o więcej niż IX_POZNIEJ_PROG % liczy się tylko, gdy tamto pobranie było w dniu tej sesji (UTC) i w godzinie
     obecnie nauczonej (h + przesunięcie) — v263 (przegląd): pobranie o starej porze albo spóźnione (USA nazajutrz, sobota) nie jest dowodem.
     Wtedy o godzinę później (najwyżej IX_POZNIEJ_MAX i nie później niż 23 UTC); IX_POZNIEJ_POWROT pobrań z rzędu bez takiej poprawki → o godzinę
-    wcześniej. → (przesunięcie, licznik pobrań bez poprawki, czy podniesione teraz); (0, 0, False) = nic do zapisania."""
+    wcześniej. v273: drugi rodzaj dowodu — braki [(dzień sesji, czas pierwszego pobrania bez niej)]: sesja, której pobranie o nauczonej godzinie
+    w dniu tej sesji (UTC) jeszcze nie miało, przyszła później (dostawca spóźniony) — też o godzinę później (dzień bez sesji, np. święto,
+    nigdy nie przychodzi, więc nie jest dowodem). → (przesunięcie, licznik pobrań bez poprawki, czy podniesione teraz); (0, 0, False) = nic
+    do zapisania."""
     lim = IX_POZNIEJ_MAX if h is None else max(0, min(IX_POZNIEJ_MAX, 23 - h))
     p = min(_ix_hplus(rec), lim)
     n = rec.get('h+n') if isinstance(rec, dict) else None
@@ -11016,6 +11028,10 @@ def ix_nauka(rec, rw, h=None):
             t = _ix_dt(r[3])
             if t is not None and t.date().isoformat() == r[0] and (ef is None or t.hour == ef):
                 return (p + 1, 0, True) if p < lim else (p, 0, False)
+    for d, ta in braki or ():   # v273: sesja, której pobranie o nauczonej godzinie (w jej dniu) jeszcze nie miało, przyszła później
+        t = _ix_dt(ta)
+        if t is not None and t.date().isoformat() == d and (ef is None or t.hour == ef):
+            return (p + 1, 0, True) if p < lim else (p, 0, False)
     if not p:
         return 0, 0, False
     n += 1
@@ -11058,50 +11074,76 @@ def ix_bez_wypelnien(rows):
     return out
 
 
-def ix_fetch(sym, cc, key, rec, now):
-    """Jeden indeks: dopełnienie od ostatniej sesji (z zakładką) albo rok wstecz; zwraca nowy wpis symbolu."""
-    old = rec.get('d') if isinstance(rec, dict) and isinstance(rec.get('d'), list) else []
+def _ix_pobierz(sym, cc, rec, now, pobierz, h=None, src=None):
+    """v273: wspólny rdzeń pobrania jednego indeksu (EODHD — ix_fetch, FMP — ix_fmp). pobierz(od) → [[dzień, zamknięcie], …] od dnia `od`:
+    dopełnienie od ostatniej sesji (z zakładką IX_OVERLAP) albo rok wstecz; tylko żądany okres (v261); poprawki dostawcy ('rew', v260); luka
+    w odpowiedzi ('luka', v261); w zakresie odpowiedzi dostawca rozstrzyga; samouczenie pory pobierania ('h+', 'h+n', 'h+d', v262–v264) z dwóch
+    rodzajów dowodów: poprawka ostatniej sesji i — v273 — brak oczekiwanej sesji ('brak' = [dzień sesji, liczba pobrań bez niej, czas pierwszego
+    z nich]), która przyszła w późniejszym pobraniu. Zmiana dostawcy (src) — różnica dwóch dostawców to nie poprawka: bez wpisów 'rew', bez
+    dowodów i nauka od zera. Przerwa FMP ('fmp_bad_*') zostaje przy pobraniu z zapasu EODHD. → nowy wpis symbolu."""
+    rec = rec if isinstance(rec, dict) else {}
+    old = rec.get('d') if isinstance(rec.get('d'), list) else []
     try:
         frm = datetime.date.fromisoformat(old[-1][0]) - datetime.timedelta(days=IX_OVERLAP)
     except (TypeError, ValueError, IndexError):
         frm = now.date() - datetime.timedelta(days=IX_HIST_DAYS)
-    j = get_json(IX_URL.format(sym=sym, key=key, frm=frm.isoformat()), timeout=IX_TIMEOUT)
     od, do = frm.isoformat(), (now.date() + datetime.timedelta(days=1)).isoformat()
-    new = [r for r in eod_parse(j) if od <= r[0] <= do]   # v261 (przegląd v260): tylko żądany okres — wiersz z błędną datą nie rusza historii
+    new = [r for r in pobierz(od) if od <= r[0] <= do]   # v261 (przegląd v260): tylko żądany okres — wiersz z błędną datą nie rusza historii
     if not new:
         raise RuntimeError(f'odpowiedź bez sesji z żądanego okresu (od {od})')
-    rw = ix_rewizje(old, new, rec.get('at') if isinstance(rec, dict) else None)
+    ten_sam = (rec.get('src') or None) == (src or None)   # v273: ten sam dostawca co poprzedni zapis
+    rw = ix_rewizje(old, new, rec.get('at'))
     usun = [r[0] for r in rw if r[2] is None]
     zakres = len(usun) <= IX_USUN_MAX   # v261: więcej brakujących sesji = luka w odpowiedzi, nie poprawka — nic nie usuwamy
     if not zakres:
         rw = [r for r in rw if r[2] is not None]
     out = {'cc': cc, 'at': now.replace(microsecond=0).isoformat(), 'd': _ix_merge(old, new, IX_KEEP, zakres=zakres)}   # v260: w zakresie odpowiedzi dostawca rozstrzyga
     # v264 (przegląd v263): 'at' = chwila budowniczego (ta sama, której używa plan) — nie start przebiegu (NOW, 30–40 s wcześniej)
-    rew = (rec.get('rew') if isinstance(rec, dict) and isinstance(rec.get('rew'), list) else []) + rw
+    if src:
+        out['src'] = src
+    if src != 'fmp':   # v273: przerwa FMP zostaje przy pobraniu z zapasu EODHD (inaczej FMP pytałby o odrzucony kod co dzień)
+        out.update({x: rec[x] for x in ('fmp_bad_at', 'fmp_bad_n', 'fmp_bad') if x in rec})
+    if not ten_sam:
+        rw = []   # v273: różnica dwóch dostawców to nie poprawka — bez wpisu 'rew' i bez dowodu dla nauki
+    rew = (rec.get('rew') if isinstance(rec.get('rew'), list) else []) + rw
     if rew:   # v260: poprawki dostawcy po naszym pobraniu (najwyżej IX_REW_KEEP ostatnich)
         out['rew'] = rew[-IX_REW_KEEP:]
     if not zakres:   # v261: ślad dla kontroli — [czas, ile sesji brakowało, pierwsza, ostatnia]
         out['luka'] = [NOW, len(usun), usun[0], usun[-1]]
-    hp, hn, wyzej = ix_nauka(rec, rw, next((g for s, _, g in IX_SYMBOLS if s == sym), None))   # v262/v263: samouczenie pory pobierania
+    nrec = rec if ten_sam else {}   # v273: po zmianie dostawcy nauka od zera
+    b = nrec.get('brak') if isinstance(nrec.get('brak'), list) and len(nrec['brak']) == 3 and isinstance(nrec['brak'][0], str) else None
+    braki = [(b[0], b[2])] if b and any(r[0] == b[0] for r in new) else []   # v273: brakująca wcześniej sesja przyszła teraz — dowód dla nauki
+    hp, hn, wyzej = ix_nauka(nrec, rw, h, braki)   # v262/v263: samouczenie pory pobierania
     if hp:   # zapis tylko przy przesunięciu > 0; 'h+d' — dzień ostatniego podniesienia (tego dnia bez drugiego pobrania)
         out['h+'], out['h+n'] = hp, hn
         dzis = now.date().isoformat()   # v264: dzień podniesienia tylko, gdy pobranie ma już sesję z tego dnia (inaczej po północy — cały dzień bez pobrania)
-        hd = dzis if wyzej and out['d'] and out['d'][-1][0] == dzis else (rec.get('h+d') if isinstance(rec, dict) else None)
+        hd = dzis if wyzej and out['d'] and out['d'][-1][0] == dzis else nrec.get('h+d')
         if isinstance(hd, str):
             out['h+d'] = hd
+    if h is not None and out['d']:   # v273: oczekiwana sesja (dzień chwili gotowości w godzinie z chwili pobrania) nie przyszła — ślad 'brak'
+        oczek = ix_ready(ix_godzina(h, nrec), now).date().isoformat()
+        if out['d'][-1][0] < oczek:
+            same = b is not None and b[0] == oczek and isinstance(b[1], int) and not isinstance(b[1], bool)
+            out['brak'] = [oczek, b[1] + 1 if same else 1, b[2] if same else out['at']]
     return out
 
+
+def ix_fetch(sym, cc, key, rec, now):
+    """Jeden indeks z EODHD — wspólny rdzeń _ix_pobierz (v273); zwraca nowy wpis symbolu."""
+    return _ix_pobierz(sym, cc, rec, now, lambda od: eod_parse(get_json(IX_URL.format(sym=sym, key=key, frm=od), timeout=IX_TIMEOUT)),
+                       next((g for s, _, g in IX_SYMBOLS if s == sym), None))
 
 def _ix_late(deadline):
     """Budżet czasu budowniczego wyczerpany? (None = bez limitu, np. w testach jednostkowych)."""
     return deadline is not None and time.monotonic() > deadline
 
 
-def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None):
+def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None, pomin=frozenset()):
     """Część ix: plan (rotacja), pobranie, dobowy licznik zapytań i blokada po przekroczeniu limitu.
     Kod odrzucony (401/403/404) dostaje przerwę i NIE zatrzymuje pozostałych — jeden zły kod nie może zablokować całej rotacji;
     dopiero gdy każda próba w przebiegu została odrzucona, zgłaszamy „klucz odrzucony”. Dwa braki odpowiedzi z rzędu albo
     przekroczony budżet czasu = koniec pętli (zbieracz ma 15 min na wszystkie źródła).
+    v273: kody z `pomin` (dostarcza je FMP) poza planem — EODHD bierze je tylko jako zapas.
     Zwraca (część, licznik, dzień blokady, czy bez błędów, ile odświeżono)."""
     znane = {s for s, _, _ in IX_SYMBOLS} | {s for s, _, _, _ in IX_FMP}
     part = {s: dict(r) for s, r in prev_part.items() if isinstance(r, dict) and s in znane} if isinstance(prev_part, dict) else {}   # v118.2: kod usunięty z listy wypada z pliku
@@ -11109,9 +11151,9 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None):
     calls = dict(prev_calls) if isinstance(prev_calls, dict) and prev_calls.get('d') == today else {'d': today, 'n': 0}
     quota = today if prev_quota == today else None
     ok, got, tried, miss, rej = True, 0, 0, 0, []
-    if quota and ix_plan(part, now, IX_PER_RUN):   # blokada po przekroczeniu limitu: informacja, nie błąd (dane zostają z własnymi datami)
+    if quota and ix_plan(part, now, IX_PER_RUN, pomin):   # blokada po przekroczeniu limitu: informacja, nie błąd (dane zostają z własnymi datami)
         META['notes'].append(f'Indeksy: limit dobowy EODHD wyczerpany ({today}) — odświeżenie jutro')
-    for sym in ix_plan(part, now, 0 if quota else IX_DAILY - int(calls.get('n') or 0)):
+    for sym in ix_plan(part, now, 0 if quota else IX_DAILY - int(calls.get('n') or 0), pomin):
         if _ix_late(deadline):
             ok = False; errors.append('EODHD: przekroczony budżet czasu — reszta indeksów za godzinę'); break
         cc = next(c for s, c, _ in IX_SYMBOLS if s == sym)
@@ -11234,7 +11276,11 @@ def etf_part(keys, prev_etf, now, errors, deadline=None):
 
 # v119: FTSE 100 z FMP — plan bezpłatny EODHD nie daje indeksów grupy LSE (pusta lista), a sonda 26.09 pokazała, że FMP (plan bezpłatny)
 # oddaje dzienne zamknięcia ^FTSE (FTSE MIB i ^GDAXI: HTTP 402 — poza planem). Jedno zapytanie po sesji, jak indeksy EODHD; ten sam wpis w części ix.
-IX_FMP = (('FTSE', 'gb', 17, '%5EFTSE'),)   # kod na stronie, flaga, godzina UTC po sesji, symbol FMP (zakodowany w adresie)
+# v273: sonda 07.10 (v272p) — plan bezpłatny FMP oddaje też ^GSPC, ^IXIC, ^DJI, ^N225 i ^HSI (zamknięcia zgodne z plikiem strony do 0,00%;
+# Nikkei z 06.10 końcowe, gdy EODHD miał wstępne: −0,13%); pozostałe 16 indeksów — HTTP 402. Te 5 z FMP (plan 250 zapytań na dobę) —
+# EODHD (20 na dobę) zostaje z 17 indeksami, więc każdy dostaje sesję tego samego dnia; dla tych 5 jest zapasem (ix_plan: pomin).
+IX_FMP = (('FTSE', 'gb', 17, '%5EFTSE'), ('GSPC', 'us', 22, '%5EGSPC'), ('IXIC', 'us', 22, '%5EIXIC'), ('DJI', 'us', 22, '%5EDJI'),
+          ('N225', 'jp', 7, '%5EN225'), ('HSI', 'hk', 9, '%5EHSI'))   # kod na stronie, flaga, godzina UTC po sesji, symbol FMP (zakodowany w adresie)
 FMP_EOD_URL = 'https://financialmodelingprep.com/stable/historical-price-eod/light?symbol={sym}&from={frm}&apikey={key}'
 
 
@@ -11256,41 +11302,59 @@ def fmp_eod_parse(j):
     return [[d, out[d]] for d in sorted(out)]
 
 
-def ix_fmp(key, part, now, errors):
-    """Indeksy z FMP (IX_FMP): dopełnienie od ostatniej sesji (z zakładką) albo rok wstecz, raz po zamknięciu sesji (ix_ready);
-    kod odrzucony (401/402/403/404) i pusta lista dostają przerwę jak w EODHD (_ix_bad). Zwraca liczbę pobranych."""
-    got = 0
+def _ix_fmp_pola(sym):
+    """v273: przedrostek pól przerwy FMP — kod obsługiwany też przez EODHD (zapas) ma własne pola ('fmp_bad_at', 'fmp_bad_n', 'fmp_bad'),
+    żeby przerwa FMP nie blokowała zapasu; FTSE (tylko FMP) — dotychczasowe ('bad_at', 'bad_n', 'bad')."""
+    return 'fmp_' if any(s == sym for s, _, _ in IX_SYMBOLS) else ''
+
+
+def _ix_bad_fmp(part, sym, code):
+    """v273: kod odrzucony przez FMP (HTTP 401/402/403/404 albo pusta lista) — znacznik przerwy w polach _ix_fmp_pola, licznik rośnie;
+    stara seria zostaje (strona pokazuje ją z własną datą i wiekiem)."""
+    pf = _ix_fmp_pola(sym)
+    rec = part.get(sym) if isinstance(part.get(sym), dict) else {}
+    n = rec.get(pf + 'bad_n')
+    rec.update({pf + 'bad_at': NOW, pf + 'bad_n': (n if isinstance(n, int) and n > 0 else 0) + 1, pf + 'bad': code}); part[sym] = rec
+
+
+def ix_fmp(key, part, now, errors, zle=None, deadline=None):
+    """Indeksy z FMP (IX_FMP; v273: FTSE 100 oraz S&P 500, Nasdaq Composite, Dow Jones, Nikkei 225 i Hang Seng): wspólny rdzeń _ix_pobierz
+    (poprawki, luka, nauka pory pobierania, brak sesji), raz po zamknięciu sesji w godzinie nauczonej (ix_do_pobrania), a gdy pobranie nie
+    przyniosło oczekiwanej sesji — ponowienie po IX_PONOW_MIN min, najwyżej IX_PONOW razy (plan 250 zapytań na dobę). Kod odrzucony
+    (401/402/403/404) i pusta lista — przerwa na kodzie (_ix_bad_fmp). Dwa braki odpowiedzi z rzędu (czas, połączenie) albo budżet czasu =
+    koniec pętli. `zle` (zbiór) dostaje kody, których FMP w tym przebiegu nie dostarczył mimo terminu (błąd, przerwa, koniec pętli) — dla nich
+    EODHD jest zapasem. Zwraca liczbę pobranych."""
+    got, miss, stop = 0, 0, False
+    zle = zle if isinstance(zle, set) else set()
     for sym, cc, h, fsym in IX_FMP:
         rec = part.get(sym) if isinstance(part.get(sym), dict) else {}
-        bad = _ix_dt(rec.get('bad_at'))
-        if bad and (now - bad).days < _ix_pause(rec):
+        pf = _ix_fmp_pola(sym)
+        bad = _ix_dt(rec.get(pf + 'bad_at'))
+        if bad and (now - bad).days < _ix_pause({'bad_n': rec.get(pf + 'bad_n')}):
+            zle.add(sym); continue
+        if not ix_do_pobrania(h, rec, now, ponow=True):
             continue
-        at = _ix_dt(rec.get('at'))
-        if at is not None and at >= ix_ready(h, now):
-            continue
-        old = rec.get('d') if isinstance(rec.get('d'), list) else []
+        if stop or _ix_late(deadline):
+            zle.add(sym); continue
         try:
-            frm = datetime.date.fromisoformat(old[-1][0]) - datetime.timedelta(days=IX_OVERLAP)
-        except (TypeError, ValueError, IndexError):
-            frm = now.date() - datetime.timedelta(days=IX_HIST_DAYS)
-        try:
-            j = get_json(FMP_EOD_URL.format(sym=fsym, frm=frm.isoformat(), key=key), timeout=IX_TIMEOUT)
-            do = (now.date() + datetime.timedelta(days=1)).isoformat()   # v263: tylko żądany okres — wiersz z błędną datą nie nadpisuje historii
-            new = [r for r in fmp_eod_parse(j) if frm.isoformat() <= r[0] <= do]
-            if not new:
-                raise RuntimeError(f'odpowiedź bez sesji z żądanego okresu (od {frm.isoformat()})')
-            part[sym] = {'cc': cc, 'at': now.replace(microsecond=0).isoformat(), 'src': 'fmp', 'd': _ix_merge(old, new, IX_KEEP)}; got += 1   # v264: 'at' = chwila budowniczego
+            part[sym] = _ix_pobierz(sym, cc, rec, now, lambda od, fsym=fsym: fmp_eod_parse(get_json(FMP_EOD_URL.format(sym=fsym, frm=od, key=key),
+                                                                                                     timeout=IX_TIMEOUT)), h, 'fmp')
+            got += 1; miss = 0
         except urllib.error.HTTPError as e:
+            zle.add(sym)
             if e.code in (401, 402, 403, 404):
-                _ix_bad(part, sym, e.code); errors.append(f'FMP HTTP {e.code} — {sym} (przerwa)')
+                _ix_bad_fmp(part, sym, e.code); errors.append(f'FMP HTTP {e.code} — {sym} (przerwa' + ('; zapas EODHD)' if pf else ')'))
             else:
                 errors.append(f'FMP HTTP {e.code} ({sym})')
         except IxPusto:
-            _ix_bad(part, sym, 'pusto'); errors.append(f'FMP: pusta lista dla {sym} — przerwa')
-        except Exception as e:  # noqa
-            errors.append(mask(f'FMP {sym}: {e}'))
+            zle.add(sym); _ix_bad_fmp(part, sym, 'pusto'); errors.append(f'FMP: pusta lista dla {sym} — przerwa')
+        except Exception as e:  # noqa — jeden indeks bez odpowiedzi nie zatrzymuje pozostałych; dwa braki odpowiedzi z rzędu = FMP nie odpowiada
+            zle.add(sym); errors.append(mask(f'FMP {sym}: {e}'))
+            if isinstance(e, (urllib.error.URLError, TimeoutError, OSError)):
+                miss += 1
+                if miss >= IX_MISS_MAX:
+                    stop = True; errors.append('FMP: brak odpowiedzi — reszta indeksów FMP z zapasu albo za godzinę')
     return got
-
 
 IX_WYD = (('GSPC', 'SP500'), ('IXIC', 'NASDAQCOM'), ('DJI', 'DJIA'), ('N225', 'NIKKEI225'))   # v259: te same 4 indeksy od wydawców (przez FRED)
 IX_WYD_EVERY = 3 * 60   # v259: min — część 'wyd' (tylko do kontroli dziennej; strona jej nie pokazuje)
@@ -11339,27 +11403,24 @@ def build_indeksy(keys, prev=None, now=None):
     pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
     deadline = time.monotonic() + IX_BUDGET_S   # cały budowniczy < 60 s: po tym czasie żadnego nowego zapytania
     out, errors = {'at': NOW, 'ok': {}, 'part_at': {}}, []
+    pix = {s: dict(r) for s, r in prev['ix'].items() if isinstance(r, dict)} if isinstance(prev.get('ix'), dict) else {}   # kopia — poprzedni plik nie jest modyfikowany w miejscu
+    fmp_got, zle, pomin = 0, set(), set()
+    if keys.get('FMP_KEY'):   # v273: najpierw FMP (6 indeksów, plan 250 zapytań na dobę), potem EODHD — reszta i zapas indeksów FMP
+        fmp_got = ix_fmp(keys['FMP_KEY'], pix, now, errors, zle, deadline)
+        pomin = {s for s, _, _, _ in IX_FMP} - zle   # EODHD pobiera indeks FMP tylko, gdy FMP go teraz nie dostarczył (błąd, przerwa, koniec pętli)
     if keys.get('EODHD_KEY'):
-        part, calls, quota, ok, got = ix_part(keys['EODHD_KEY'], prev.get('ix'), prev.get('ix_calls'), prev.get('ix_quota'), now, errors, deadline)
+        part, calls, quota, ok, got = ix_part(keys['EODHD_KEY'], pix, prev.get('ix_calls'), prev.get('ix_quota'), now, errors, deadline, pomin)
         has = any(isinstance(r.get('d'), list) and r['d'] for r in part.values())
         out['ix_calls'] = calls; out['ok']['ix'] = bool(ok and has)   # licznik zawsze w pliku — także po nieudanym pierwszym przebiegu
         if quota:
             out['ix_quota'] = quota
         if part:   # serie i/lub znaczniki przerw; strona ukrywa panel, dopóki żaden indeks nie ma serii
             out['ix'] = part
-            at = NOW if (ok or got) else (pat.get('ix') or prev.get('at'))
+            at = NOW if (ok or got or fmp_got) else (pat.get('ix') or prev.get('at'))
             if at:
                 out['part_at']['ix'] = at
-    elif isinstance(prev.get('ix'), dict) and prev['ix']:   # klucz zniknął — stare serie zostają (strona pokazuje ich datę i wiek)
-        out['ix'] = prev['ix']; out['part_at']['ix'] = pat.get('ix') or prev.get('at')
-    if keys.get('FMP_KEY') and not _ix_late(deadline):   # v119: FTSE 100 z FMP dopisany do tej samej części ix
-        src = out['ix'] if isinstance(out.get('ix'), dict) else (prev.get('ix') if isinstance(prev.get('ix'), dict) else {})
-        part = {s: dict(r) for s, r in src.items() if isinstance(r, dict)}   # kopia — poprzedni plik nie jest modyfikowany w miejscu
-        if ix_fmp(keys['FMP_KEY'], part, now, errors):
-            out['part_at']['ix'] = NOW
-        if part:
-            out['ix'] = part
-            out['part_at'].setdefault('ix', pat.get('ix') or prev.get('at') or NOW)
+    elif pix:   # bez klucza EODHD — serie z poprzedniego pliku (i z FMP); strona pokazuje datę i wiek każdej
+        out['ix'] = pix; out['part_at']['ix'] = NOW if fmp_got else (pat.get('ix') or prev.get('at') or NOW)
     if isinstance(out.get('ix'), dict):   # v179: dni bez sesji wypełnione przez dostawcę — poza serią (każda seria, także niepobrana w tym przebiegu)
         out['ix'] = {s: (dict(r, d=ix_bez_wypelnien(r['d'])) if isinstance(r, dict) and isinstance(r.get('d'), list) else r) for s, r in out['ix'].items()}
     pe = prev.get('etf') if isinstance(prev.get('etf'), dict) and isinstance(prev['etf'].get('q'), dict) and prev['etf']['q'] else None
