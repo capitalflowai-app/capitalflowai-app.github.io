@@ -1911,7 +1911,7 @@ def indeksy_uwagi(o):
           for s, x in o.get('przyszle') or []]
     for zr0, x, n, d in o.get('grupy_stoja') or []:   # v278: drugi dostawca stoi
         u.append(f'indeksy giełdowe: drugi dostawca indeksów ({zr0}, {n} {_serie(n)}) — najnowsza sesja {x}, {_dni_r(d)} za pozostałymi; '
-                 'dostawca oddaje stare dane albo pobieranie stoi (zapas — tylko przy błędzie albo wyczerpanych ponowieniach)')
+                 'dostawca oddaje stare dane albo pobieranie stoi (zapas — gdy FMP nie da sesji w ciągu 2 h 15 min, raz na sesję i tylko z wolnego limitu)')
     if (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI:   # v261: główny dostawca (grupa z największą liczbą serii)
         n = o.get('n_gl') or 0
         u.append(f'indeksy giełdowe: najnowsza sesja głównego dostawcy indeksów ({n} {_serie(n)}) to {o.get("najnowsza_gl") or o["najnowsza"]} — '

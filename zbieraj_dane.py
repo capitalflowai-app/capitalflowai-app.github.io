@@ -11244,13 +11244,14 @@ def _ix_brak(rec):
     return b if isinstance(b, list) and len(b) == 3 and isinstance(b[0], str) and isinstance(b[1], int) and not isinstance(b[1], bool) else None
 
 
-def _ix_pobierz(sym, cc, rec, now, pobierz, h=None, src=None):
+def _ix_pobierz(sym, cc, rec, now, pobierz, h=None, src=None, zapas=False):
     """v273: wspólny rdzeń pobrania jednego indeksu (EODHD — ix_fetch, FMP — ix_fmp). pobierz(od) → [[dzień, zamknięcie], …] od dnia `od`:
     dopełnienie od ostatniej sesji (z zakładką IX_OVERLAP) albo rok wstecz; tylko żądany okres (v261); poprawki dostawcy ('rew', v260); luka
     w odpowiedzi ('luka', v261); w zakresie odpowiedzi dostawca rozstrzyga; samouczenie pory pobierania ('h+', 'h+n', 'h+d', v262–v264) z dwóch
     rodzajów dowodów: poprawka ostatniej sesji i — v273 — brak oczekiwanej sesji ('brak' = [dzień sesji, liczba pobrań bez niej, czas pierwszego
     z nich]), która przyszła w późniejszym pobraniu. Zmiana dostawcy (src) — różnica dwóch dostawców to nie poprawka: bez wpisów 'rew', bez
-    dowodów i nauka od zera. Przerwa FMP ('fmp_bad_*') zostaje przy pobraniu z zapasu EODHD. → nowy wpis symbolu.
+    dowodów (v284: nauczona pora zostaje). Przerwa FMP ('fmp_bad_*') zostaje przy pobraniu z zapasu EODHD. v285: zapas=True — pobranie z zapasu
+    (wybór _ix_zapas_wybor): bez nauki pory i ze znacznikiem 'zap' (dzień sesji, o który pytał zapas — raz na sesję). → nowy wpis symbolu.
     v278 (przegląd v273): licznik 'brak' ciągły także przy zmianie dostawcy (ta sama sesja — limit ponowień i zapasu nie zaczyna się od nowa);
     dowód z braku sesji tylko z serii bez wypełnień (wiersz-wypełnienie w święto to nie spóźniona sesja); 'obce' — dni dostarczone przez
     poprzedniego dostawcę, których obecny jeszcze nie podał: nie są porównywane (ix_rewizje) ani usuwane (_ix_merge), aż obecny je poda
@@ -11294,10 +11295,9 @@ def _ix_pobierz(sym, cc, rec, now, pobierz, h=None, src=None):
         out['rew'] = rew[-IX_REW_KEEP:]
     if not zakres:   # v261: ślad dla kontroli — [czas, ile sesji brakowało, pierwsza, ostatnia]
         out['luka'] = [NOW, len(usun), usun[0], usun[-1]]
-    # v284 (przegląd v283): pora pobierania należy do dostawcy GŁÓWNEGO kodu (FMP dla IX_FMP, EODHD dla pozostałych) — pobranie z zapasu niczego
-    # nie uczy, a nauczona pora zostaje; po powrocie do głównego — nauczona pora bez dowodów ze zmiany dostawcy
-    glowny = 'fmp' if any(x == sym for x, _, _, _ in IX_FMP) else None
-    z_zapasu = (src or None) != glowny
+    # v284 (przegląd v283): pobranie z zapasu niczego nie uczy, a nauczona pora zostaje; po powrocie do głównego — nauczona pora bez dowodów ze
+    # zmiany dostawcy. v285 (przegląd v284): „z zapasu” = wybrane przez _ix_zapas_wybor (bez klucza FMP EODHD jest głównym dla wszystkich kodów)
+    z_zapasu = bool(zapas)
     lrec = rec if ten_sam else {k: rec[k] for k in ('h+', 'h+n', 'h+d') if k in rec}
     bb = _ix_brak(rec)              # v278: licznik braku sesji — ciągły także przy zmianie dostawcy
     b = bb if ten_sam else None     # dowód dla nauki — tylko od tego samego dostawcy
@@ -11318,12 +11318,19 @@ def _ix_pobierz(sym, cc, rec, now, pobierz, h=None, src=None):
         if out['d'][-1][0] < oczek:
             same = bb is not None and bb[0] == oczek
             out['brak'] = [oczek, bb[1] + 1 if same else 1, bb[2] if same else out['at']]
+    # v285 (przegląd v284): znacznik próby zapasu — dzień sesji, o który pytał zapas; przechodzi przez każde pobranie (ponowienie FMP zmienia
+    # 'src', a zapas ma być raz na sesję)
+    if z_zapasu and h is not None:
+        out['zap'] = ix_ready(ix_godzina(h, rec), now).date().isoformat()
+    elif isinstance(rec.get('zap'), str):
+        out['zap'] = rec['zap']
     return out
 
-def ix_fetch(sym, cc, key, rec, now):
-    """Jeden indeks z EODHD — wspólny rdzeń _ix_pobierz (v273); zwraca nowy wpis symbolu."""
+
+def ix_fetch(sym, cc, key, rec, now, zapas=False):
+    """Jeden indeks z EODHD — wspólny rdzeń _ix_pobierz (v273); zapas=True — pobranie z zapasu za FMP (v285); zwraca nowy wpis symbolu."""
     return _ix_pobierz(sym, cc, rec, now, lambda od: eod_parse(get_json(IX_URL.format(sym=sym, key=key, frm=od), timeout=IX_TIMEOUT)),
-                       next((g for s, _, g in IX_SYMBOLS if s == sym), None))
+                       next((g for s, _, g in IX_SYMBOLS if s == sym), None), zapas=zapas)
 
 def _ix_late(deadline):
     """Budżet czasu budowniczego wyczerpany? (None = bez limitu, np. w testach jednostkowych)."""
@@ -11351,7 +11358,7 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None, 
         cc = next(c for s, c, _ in IX_SYMBOLS if s == sym)
         calls['n'] = int(calls.get('n') or 0) + 1; tried += 1
         try:
-            part[sym] = ix_fetch(sym, cc, key, part.get(sym), now); got += 1; miss = 0
+            part[sym] = ix_fetch(sym, cc, key, part.get(sym), now, sym in wymus); got += 1; miss = 0   # v285: z zapasu tylko z wyboru
         except urllib.error.HTTPError as e:
             ok = False
             if e.code in (402, 429):      # dobowy limit planu wyczerpany — reszta jutro, poprzednie serie zostają
@@ -11521,6 +11528,7 @@ def _ix_brak_proba(part, sym, h, now):
 
 
 IX_ZAPAS_PO = IX_PONOW * IX_PONOW_MIN   # v284: min po chwili gotowości FMP — dopiero wtedy zapas EODHD bierze sesję, której FMP nie dał
+IX_ZAPAS_REZERWA = 1   # v285 (przegląd v284): tyle zapytań dobowego limitu EODHD zawsze zostaje na chwilowe błędy własnych indeksów
 
 
 def _ix_zapas_wybor(pix, now, calls, quota):
@@ -11552,7 +11560,7 @@ def _ix_zapas_wybor(pix, now, calls, quota):
             if rec.get('at') and not (bad and (now - bad).days < _ix_pause(rec)) and ix_do_pobrania(h, rec, now) \
                     and ix_ready(ix_godzina(h, rec), now) < ix_ready(ix_godzina(h, rec), koniec):
                 wlasne += 1
-    wolne = IX_DAILY - zuz - wlasne
+    wolne = IX_DAILY - zuz - wlasne - IX_ZAPAS_REZERWA   # v285: rezerwa na chwilowy błąd własnego indeksu (święto USA zabierało cały zapas limitu)
     if wolne <= 0:
         return set(), {}
     eod_kody = {s for s, _, _ in IX_SYMBOLS}
@@ -11573,8 +11581,8 @@ def _ix_zapas_wybor(pix, now, calls, quota):
         if last >= D:
             continue   # sesja jest
         at = _ix_dt(rec.get('at'))
-        if rec.get('src') != 'fmp' and at is not None and at >= R:
-            continue   # zapas już próbował tej sesji (także gdy oddał tylko wiersz-wypełnienie — święto)
+        if rec.get('zap') == D or (rec.get('src') != 'fmp' and at is not None and at >= R):
+            continue   # zapas już próbował tej sesji (v285: znacznik 'zap' — także po ponowieniu FMP; także gdy oddał tylko wiersz-wypełnienie — święto)
         b = _ix_brak(rec)
         kand.append((last, i, s, D, b[1] if b and b[0] == D else 0))
     kand.sort()
@@ -11669,13 +11677,14 @@ def build_indeksy(keys, prev=None, now=None):
     deadline = time.monotonic() + IX_BUDGET_S   # cały budowniczy < 60 s: po tym czasie żadnego nowego zapytania
     out, errors = {'at': NOW, 'ok': {}, 'part_at': {}}, []
     pix = {s: dict(r) for s, r in prev['ix'].items() if isinstance(r, dict)} if isinstance(prev.get('ix'), dict) else {}   # kopia — poprzedni plik nie jest modyfikowany w miejscu
-    fmp_got, zle, pomin, wymus = 0, set(), set(), set()
+    fmp_got, pomin, wymus = 0, set(), set()
     if keys.get('FMP_KEY'):   # v273: najpierw FMP (6 indeksów, plan 250 zapytań na dobę), potem EODHD — reszta i zapas indeksów FMP
-        fmp_got = ix_fmp(keys['FMP_KEY'], pix, now, errors, zle, deadline)
+        fmp_got = ix_fmp(keys['FMP_KEY'], pix, now, errors, None, deadline)
         if keys.get('EODHD_KEY'):   # v284: jedna reguła zapasu — sesja bez FMP po IX_ZAPAS_PO min, raz, z limitu, najdłużej czekający
             wymus, info = _ix_zapas_wybor(pix, now, prev.get('ix_calls'), prev.get('ix_quota'))
             for s in sorted(wymus):
-                META['notes'].append(f'Indeksy: {s} — FMP bez sesji {info[s][0]} (pobrań bez niej: {info[s][1]}) — pobranie z zapasu (drugi dostawca)')
+                ile = f'pobrań bez niej: {info[s][1]}' if info[s][1] else 'błąd albo przerwa FMP — w błędach'   # v285: bez „pobrań bez niej: 0”
+                META['notes'].append(f'Indeksy: {s} — FMP bez sesji {info[s][0]} ({ile}) — pobranie z zapasu (drugi dostawca)')
         pomin = {s for s, _, _, _ in IX_FMP} - wymus   # EODHD pobiera indeks FMP tylko jako zapas (_ix_zapas_wybor)
     if keys.get('EODHD_KEY'):
         part, calls, quota, ok, got = ix_part(keys['EODHD_KEY'], pix, prev.get('ix_calls'), prev.get('ix_quota'), now, errors, deadline, pomin, wymus)

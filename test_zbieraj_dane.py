@@ -30309,12 +30309,12 @@ class PoPrzegladzieV281(unittest.TestCase):
         def us(d, at='2026-11-26T22:05:00+00:00', src='fmp'):
             return {'cc': 'us', 'src': src, 'at': at, 'd': [[d, 1.0]]}
         pix = _v284_fmp_swieze(dict(wl, GSPC=us('2026-11-24'), IXIC=us('2026-11-25'), DJI=us('2026-11-25')), '2026-11-26')
-        self.assertEqual(zd._ix_zapas_wybor(pix, now, {'d': '2026-11-27', 'n': 0}, None)[0], {'GSPC', 'IXIC', 'DJI'}, 'wolne 3 — wszystkie trzy (święto: najwyżej 3 zapytania)')
-        self.assertEqual(zd._ix_zapas_wybor(pix, now, {'d': '2026-11-27', 'n': 2}, None)[0], {'GSPC'}, 'wolne 1 — najdłużej czekający (24.11)')
+        self.assertEqual(zd._ix_zapas_wybor(pix, now, {'d': '2026-11-27', 'n': 0}, None)[0], {'GSPC', 'IXIC'}, 'wolne 2 (v285: rezerwa 1) — najdłużej czekający i kolejność')
+        self.assertEqual(zd._ix_zapas_wybor(pix, now, {'d': '2026-11-27', 'n': 1}, None)[0], {'GSPC'}, 'wolne 1 — najdłużej czekający (24.11)')
         self.assertEqual(zd._ix_zapas_wybor(pix, now, {'d': '2026-11-27', 'n': 3}, None)[0], set(), 'bez wolnego limitu — później')
         self.assertEqual(zd._ix_zapas_wybor(pix, now, {'d': '2026-11-27', 'n': 0}, '2026-11-27')[0], set(), 'blokada limitu')
         swieto = dict(pix, GSPC=us('2026-11-25', at='2026-11-27T00:20:00+00:00', src=None))   # zapas już pytał o 26.11 — bez sesji (święto)
-        self.assertEqual(zd._ix_zapas_wybor(swieto, now, {'d': '2026-11-27', 'n': 1}, None)[0], {'IXIC', 'DJI'}, 'raz na sesję — GSPC już nie')
+        self.assertEqual(zd._ix_zapas_wybor(swieto, now, {'d': '2026-11-27', 'n': 0}, None)[0], {'IXIC', 'DJI'}, 'raz na sesję — GSPC już nie')
         import inspect
         self.assertIn("wymus, info = _ix_zapas_wybor(pix, now, prev.get('ix_calls'), prev.get('ix_quota'))", inspect.getsource(zd.build_indeksy))
     def test_kontrola_norma_cmc_i_stablecoiny(self):
@@ -30409,7 +30409,7 @@ class PoPrzegladzieV282(unittest.TestCase):
         self.assertEqual(zd._ix_zapas_wybor(pix, self.T(2026, 10, 13, 7, 10), {'d': '2026-10-13', 'n': 2}, None)[0], set(), 'przed 09:15 — FMP jeszcze ma czas')
         self.assertEqual(zd._ix_zapas_wybor(pix, self.T(2026, 10, 13, 9, 20), {'d': '2026-10-13', 'n': 3}, None)[0], set(),
                          'przegląd v281: 17 własnych należnych, limit 20 − 3 — bez zapasu (własne nie po północy)')
-        self.assertEqual(zd._ix_zapas_wybor(pix, self.T(2026, 10, 13, 9, 20), {'d': '2026-10-13', 'n': 2}, None)[0], {'N225'})
+        self.assertEqual(zd._ix_zapas_wybor(pix, self.T(2026, 10, 13, 9, 20), {'d': '2026-10-13', 'n': 1}, None)[0], {'N225'}, 'v285: rezerwa 1')
     def test_swieto_z_wypelnieniem(self):
         now = self.T(2026, 11, 27, 2, 0)
         wl = {s: {'cc': c, 'at': '2026-11-26T23:00:00+00:00', 'd': [['2026-11-26', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
@@ -30454,7 +30454,7 @@ class PoPrzegladzieV283(unittest.TestCase):
                'brak': ['2026-10-13', 4, '2026-10-13T22:05:00+00:00']}
         eod = [{'date': '2026-10-12', 'close': 1.0}, {'date': '2026-10-13', 'close': 2.0}]
         with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
-            o = zd.ix_fetch('GSPC', 'us', 'k', rec, self.T(2026, 10, 14, 0, 20))
+            o = zd.ix_fetch('GSPC', 'us', 'k', rec, self.T(2026, 10, 14, 0, 20), True)   # v285: z zapasu = wybór _ix_zapas_wybor
         self.assertEqual((o.get('src'), o['d'][-1][0], o.get('h+'), o.get('h+n')), (None, '2026-10-13', 1, 3), 'zapas: bez nauki, pora FMP bez zmian')
         fmp = [{'date': '2026-10-13', 'price': 2.0}, {'date': '2026-10-14', 'price': 3.0}]
         with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: fmp), \
@@ -30486,3 +30486,63 @@ def _v284_fmp_swieze(pix, d, at='2026-10-13T23:30:00+00:00'):
     for s, cc in (('GSPC', 'us'), ('IXIC', 'us'), ('DJI', 'us'), ('N225', 'jp'), ('HSI', 'hk')):
         pix.setdefault(s, {'cc': cc, 'src': 'fmp', 'at': at, 'd': [[d, 1.0]]})
     return pix
+
+
+# ===================== v285: POPRAWKI PO PRZEGLĄDZIE v284 =====================
+class PoPrzegladzieV285(unittest.TestCase):
+    """v285: znacznik 'zap' — zapas raz na sesję mimo ponowienia FMP; rezerwa 1 zapytania limitu; bez klucza FMP pięć indeksów FMP uczy się
+    pory od EODHD; notatka bez „pobrań bez niej: 0”."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+
+    def test_zapas_raz_na_sesje_mimo_ponowienia_fmp(self):
+        rec = {'cc': 'jp', 'at': '2026-11-03T06:05:00+00:00', 'src': 'fmp', 'd': [['2026-11-02', 1.0]]}
+        eod = [{'date': '2026-11-02', 'close': 1.0}]   # święto w Japonii — zapas też bez sesji 03.11
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o = zd.ix_fetch('N225', 'jp', 'k', rec, self.T(2026, 11, 3, 9, 20), True)
+        self.assertEqual((o['zap'], o.get('src')), ('2026-11-03', None))
+        fmp = [{'date': '2026-11-02', 'price': 1.0}]
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: fmp), mock.patch.object(zd, 'IX_FMP', (('N225', 'jp', 7, '%5EN225'),)), \
+                mock.patch.object(zd, 'NOW', '2026-11-03T10:20:00+00:00'):
+            part = {'N225': dict(o, brak=['2026-11-03', 2, '2026-11-03T07:05:00+00:00'], at='2026-11-03T09:20:00+00:00')}
+            zd.ix_fmp('f', part, self.T(2026, 11, 3, 10, 20), [])
+        p = part['N225']
+        self.assertEqual((p['src'], p['zap']), ('fmp', '2026-11-03'), 'ponowienie FMP zmienia src — znacznik zostaje')
+        wl = {s: {'cc': c, 'at': '2026-11-03T06:00:00+00:00', 'd': [['2026-11-02', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
+        wl['JTOPI'] = {'bad_at': '2026-11-02T16:05:00+00:00', 'bad_n': 4, 'bad': 'pusto'}
+        pix = _v284_fmp_swieze(dict(wl, N225=p), '2026-11-03')
+        self.assertEqual(zd._ix_zapas_wybor(pix, self.T(2026, 11, 3, 11, 20), {'d': '2026-11-03', 'n': 1}, None)[0], set(),
+                         'przegląd v284: drugi zapas tej samej sesji (cały wolny limit dnia) — już nie')
+
+    def test_bez_klucza_fmp_n225_uczy_sie_od_eodhd(self):
+        rec = {'cc': 'jp', 'at': '2026-10-06T07:21:13+00:00', 'd': [['2026-10-05', 69946.8594], ['2026-10-06', 70777.2891]]}
+        eod = [{'date': '2026-10-05', 'close': 69946.86}, {'date': '2026-10-06', 'close': 70683.98}, {'date': '2026-10-07', 'close': 71000.0}]
+        with mock.patch.object(zd, 'get_json', lambda url, headers=None, timeout=30: eod):
+            o = zd.ix_fetch('N225', 'jp', 'k', rec, self.T(2026, 10, 7, 7, 30))
+        self.assertEqual((o['h+'], o['h+n']), (1, 0), 'przegląd v284: bez klucza FMP EODHD jest głównym — nauka pory jak przed v273')
+        self.assertNotIn('zap', o)
+        import inspect
+        self.assertIn("ix_fetch(sym, cc, key, part.get(sym), now, sym in wymus)", inspect.getsource(zd.ix_part))
+        self.assertEqual(zd.IX_ZAPAS_REZERWA, 1)
+
+    def test_notatka_bez_zera(self):
+        now = self.T(2026, 10, 14, 0, 20)
+        calls = []
+        def gj(url, headers=None, timeout=30):
+            calls.append(url)
+            if 'financialmodelingprep' in url:
+                raise zd.urllib.error.HTTPError('u', 503, 'Unavailable', {}, None)
+            return [{'date': '2026-10-12', 'close': 1.0}, {'date': '2026-10-13', 'close': 1.5}]   # 1,0 dwa razy = wypełnienie (święto)
+        wl = {s: {'cc': c, 'at': '2026-10-14T00:10:00+00:00', 'd': [['2026-10-13', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
+        wl['JTOPI'] = {'bad_at': '2026-10-13T16:05:00+00:00', 'bad_n': 4, 'bad': 'pusto'}
+        ix = _v284_fmp_swieze(dict(wl), '2026-10-13')
+        ix['GSPC'] = {'cc': 'us', 'src': 'fmp', 'at': '2026-10-12T22:05:00+00:00', 'd': [['2026-10-12', 1.0]]}
+        with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', now.isoformat()):
+            o = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, {'ix': ix, 'ix_calls': {'d': '2026-10-14', 'n': 0}}, now=now)
+        self.assertTrue(any('GSPC — FMP bez sesji 2026-10-13 (błąd albo przerwa FMP — w błędach) — pobranie z zapasu' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual((o['ix']['GSPC']['d'][-1][0], o['ix']['GSPC']['zap']), ('2026-10-13', '2026-10-13'))
