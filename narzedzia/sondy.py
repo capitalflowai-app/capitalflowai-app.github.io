@@ -11,7 +11,7 @@ SAFETY RULES (enforced by the code below):
     found (or "-"), HTTP status, elapsed ms, byte length, and the top-level JSON keys or
     an item count. It never prints key values, URLs (keyed or not), response headers or
     response bodies. Exception messages are reduced to the exception class name.
-  * Every request has a timeout <= 20 s; a global deadline keeps the whole run < 2 min.
+  * Every request has a timeout <= 20 s; a global deadline keeps the whole run < 5 min (v294p: 240 s, earlier 105 s).
   * The process always exits with code 0.
   * SONDY_NO_KEYS=1 disables all keyed probes (public probes only).
 
@@ -32,7 +32,7 @@ import urllib.request
 import zipfile
 
 T0 = time.monotonic()
-DEADLINE = T0 + 105.0          # hard stop for starting/reading requests (seconds)
+DEADLINE = T0 + 240.0          # hard stop for starting/reading requests (seconds); v294p: 240 s (sonda surowców — paczki Twelve Data co 61 s; było 105 s)
 REQ_TIMEOUT = 20.0             # per-request timeout cap (seconds)
 MAX_BYTES = 6_000_000          # never read more than this per response
 UA = "Mozilla/5.0 (compatible; CapitalFlowAI-sondy/1.0; +https://github.com)"
@@ -53,6 +53,9 @@ KEY_CANDIDATES = {
     "alphavantage": ["ALPHAVANTAGE_KEY", "ALPHA_VANTAGE_KEY", "ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"],
     "banxico":      ["BANXICO_TOKEN"],          # v126 (27.09): Banco de México SIE, nagłówek Bmx-Token
     "evds":         ["EVDS_KEY"],               # v126 (27.09): TCMB EVDS3, nagłówek key
+    "twelvedata":   ["TWELVEDATA_KEY"],         # v294p: sekrety pod tymi samymi nazwami co w strona.yml
+    "eia":          ["EIA_KEY"],
+    "coingecko":    ["COINGECKO_KEY"],          # plan Demo: nagłówek x-cg-demo-api-key
 }
 
 
@@ -1496,7 +1499,998 @@ def g_jse2():
 
 
 GROUPS.insert(GROUPS.index(g_nasdaq), g_jse2)
-TYLKO = ("g_jse2",)   # v288p: ten przebieg sondy — tylko JSE w FMP (v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
+
+
+# ===================== v294p: SUROWCE — etap 0: sonda źródeł z serwerów GitHub (USA) =====================
+# Dział SUROWCE (projekt: surowce/wyniki_badania.json, 07.10.2026). Czy źródła cen, zapasów i pozycji surowców odpowiadają z serwera GitHub
+# (USA) i co dają plany z kluczem właściciela: Twelve Data Basic (czy towary są w planie — badacze się różnią), FMP darmowy, EIA, Tiingo,
+# CoinGecko Demo. Wynik: kod HTTP, rozmiar, czas, najnowsza data, liczba wierszy i kształt; błąd jako klasa (plan / limit / key / nf) — nigdy
+# klucze, adresy, treść ani ceny. Wyjątek bez poziomu ceny: zmiana % dnia przy dwóch podejrzanych punktach (WTI 25.09, Brent 02.10) w Twelve
+# Data, FMP i EIA — weryfikacja drugim źródłem (projekt, sonda 12). Limity tego przebiegu: Twelve Data 16 kredytów (paczki ≤ 7 co 61 s — limit
+# planu 8 na minutę dzieli zbieracz; paczka odrzucona limitem minutowym: jedna powtórka), FMP 19 zapytań (z 250 na dobę), EIA 6, Tiingo 8,
+# CoinGecko 1. Duże pliki (JODI 5,5 MB, Weekly Oil Bulletin 4,5 MB): tylko 64 KB / 4 KB (nagłówek Range), rozmiar z nagłówków. Ochrona przed
+# botami (403, captcha, Cloudflare): notatka „blocked:…”, bez obchodzenia. Chainlink: ten sam węzeł co XAU/USD w RWA (bez nowego węzła).
+# Każda sonda: wiersz „summary su-<grupa> <sonda> <HTTP> <rozmiar> <czas> <wynik>” — sondy.yml dzieli wiersze summary na kilka adnotacji.
+import csv as _su_csv
+import email.utils as _su_eu
+import re as _su_re
+
+SU_HDR = {"User-Agent": "CapitalFlowAI-collector/1.0"}   # identyfikator zbieracza — ta sama prośba, którą wyśle później zbieracz
+SU_W_OD = "2026-09-20"     # początek okna historii w zapytaniach z kluczem: weryfikacja WTI 25.09 i Brent 02.10
+SU_TD = "https://api.twelvedata.com"
+SU_TD_SYMS = ("XAU/USD", "XAG/USD", "XPT/USD", "XPD/USD", "HG1", "WTI/USD", "XBR/USD")
+SU_TD_W = (("WTI/USD", "2026-09-25"), ("XBR/USD", "2026-10-02"))
+SU_TD_PACZKA = 7           # kredyty w jednej minucie (plan Basic: 8 na minutę; 1 zostaje) — 1 symbol = 1 kredyt
+SU_FMP = "https://financialmodelingprep.com/stable"
+SU_FMP_SYMS = ("BZUSD", "SIUSD", "CLUSD", "NGUSD", "GCUSD", "HGUSD", "ALIUSD", "PLUSD", "PAUSD")
+SU_FMP_W = (("CLUSD", "2026-09-25"), ("BZUSD", "2026-10-02"))
+SU_FMP_EXTRA = r"TTF|Dutch|Coal|Uranium|Iron|Lithium|Cobalt|Gasoil|Heating"
+SU_EIA = "https://api.eia.gov/v2/"
+SU_EIA_W = (("RWTC", "2026-09-25"), ("RBRTE", "2026-10-02"))
+SU_STEO = ("COPR_OPEC", "COPR_OPECPLUS", "COPC_OPEC", "PAPR_WORLD", "BREPUUS")
+SU_WSTK = ("WCESTUS1", "WCSSTUS1", "WGTSTUS1", "WDISTUS1", "WKJSTUS1", "W_EPC0_SAX_YCUOK_MBBL")
+SU_SNDW = ("WCRFPUS2", "WPULEUS3", "WCREXUS2", "WRPUPUS2")
+SU_TIINGO = ("WEAT", "CORN", "SOYB", "DBA", "DBC", "GSG", "USO", "CPER")
+SU_JODI = "https://www.jodidata.org/_resources/files/downloads/oil-data/annual-csv/primary/primaryyear2026.csv"
+SU_WOB = ("https://energy.ec.europa.eu/document/download/906e60ca-8b6a-44e7-8589-652854d2fd3f_en"
+          "?filename=Weekly_Oil_Bulletin_Prices_History_maticni_4web.xlsx")
+SU_IMF30 = ("https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.RES/PCPS/+/"
+            "G001.PGOLD+PSILVER+PPLAT+PPALLA+PCOPP+PALUM+PNICK+PZINC+PIORECR+PURAN.USD.M?lastNObservations=3")
+SU_IMF21 = ("https://api.imf.org/external/sdmx/2.1/data/IMF.RES,PCPS/"
+            "G001.POILBRE+POILDUB+POILWTI+PNGASEU+PNGASUS+PNGASJP+PCOALAU+PURAN.USD.M?startPeriod=2026-01")
+SU_WB_PAGE = "https://www.worldbank.org/en/research/commodity-markets"
+SU_CL = (("xag", "0x379589227b15F1a12195D3f2d90bBc9F31f95235"), ("paxg", "0x9944D86CEB9160aF5C5feB251FD671923323f8C3"))
+SU_SOC_CODES = ("023651", "111659", "022651", "06765T")
+SU_MON = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+
+
+def _su_sz(n):
+    n = n or 0
+    return f"{n / 1e6:.1f}MB" if n >= 1_000_000 else f"{n / 1e3:.1f}KB"
+
+
+def _su_out(line):
+    with _print_lock:
+        print(_scrub(line), flush=True)
+
+
+def _su_num(v):
+    if isinstance(v, bool):
+        return False
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return False
+    return f == f and 0 < f < float("inf")
+
+
+def _su_errcls(raw):
+    """Treść odpowiedzi z błędem → klasa: html (strona błędu) / limit / plan / key / nf / '-'. Sam komunikat nigdy nie jest wypisywany
+    (może zawierać adres)."""
+    b = raw if isinstance(raw, (bytes, bytearray)) else str(raw or "").encode()
+    s = bytes(b[:4000]).decode("utf-8", "replace").lower()
+    if s.lstrip().startswith("<") or "<html" in s[:1000]:
+        return "html"
+    for cls, words in (("limit", ("credits", "limit reach", "rate limit", "too many", "limit exceeded", "exceeded")),
+                       ("plan", ("premium", "plan", "upgrade", "subscription", "exclusive", "restricted")),
+                       ("key", ("api key", "apikey", "api_key", "token", "unauthorized", "not authorized", "invalid key")),
+                       ("nf", ("not found", "invalid symbol", "no data", "symbol"))):
+        if any(w in s for w in words):
+            return cls
+    return "-"
+
+
+def _su_blocked(raw):
+    """Ochrona przed botami albo odmowa → 'cloudflare' / 'captcha' / 'denied' / None (tylko notatka, bez obchodzenia)."""
+    b = bytes((raw or b"")[:60000]).lower()
+    if b"just a moment" in b or b"cf-chl" in b or b"challenge-platform" in b or b"attention required" in b:
+        return "cloudflare"
+    if b"captcha" in b:
+        return "captcha"
+    if b"access denied" in b or b"request rejected" in b:
+        return "denied"
+    return None
+
+
+def _su_info(st, raw, err, fn):
+    """Opis wyniku: dla 2xx — fn(raw) (daty, wiersze, kształt); pusty opis albo wyjątek przy ochronie przed botami → 'blocked:…';
+    inne kody — 'blocked:…' albo klasa błędu. Nigdy treść ani adres."""
+    if err:
+        return err
+    if st in (200, 206) and raw is not None:
+        try:
+            info = fn(raw) if fn else shape(raw)
+        except Exception as e:  # noqa
+            info = "parse:" + type(e).__name__
+        k = _su_blocked(raw) if (not info or info.startswith("parse:")) else None
+        return "blocked:" + k if k else (info or "-")
+    k = _su_blocked(raw)
+    return "blocked:" + k if k else _su_errcls(raw)
+
+
+def _su(grp, label, url, fn=None, headers=None, env_name=None, method="GET", body=None, line=True):
+    """Jedno zapytanie: wiersz sondy (report) i — gdy line — wiersz „summary su-<grp> <label> <HTTP> <rozmiar> <ms>ms <wynik>”."""
+    st, raw, ms, err = http(url, method, body, SU_HDR if headers is None else headers)
+    info = _su_info(st, raw, err, fn)
+    report("su-" + grp, env_name, label, st, raw, ms, None, info)
+    if line:
+        _su_out(f"summary su-{grp} {label} {st if st is not None else 'ERR'} {_su_sz(len(raw) if raw else 0)} {ms}ms {info}")
+    return st, raw, info
+
+
+def _su_part(url, n=65536, tail=False, headers=None):
+    """Tylko część dużego pliku: nagłówek Range (pierwsze albo ostatnie n bajtów); serwer bez Range — i tak najwyżej n bajtów.
+    → (status, rozmiar pliku z Content-Range / Content-Length albo None, Last-Modified 'RRRR-MM-DD' albo None, bajty, ms, błąd)."""
+    left = _remaining()
+    if left < 2.0:
+        return None, None, None, None, 0, "SkippedDeadline"
+    h = {"User-Agent": SU_HDR["User-Agent"], "Accept": "*/*", "Range": f"bytes=-{n}" if tail else f"bytes=0-{n - 1}"}
+    h.update(headers or {})
+    t = time.monotonic()
+    st = tot = lm = raw = err = hd = None
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=min(REQ_TIMEOUT, left), context=SSL_CTX) as r:
+            st, hd = r.status, r.headers
+            raw = r.read(n)
+    except urllib.error.HTTPError as e:
+        st, hd = e.code, e.headers
+    except Exception as e:  # noqa
+        reason = getattr(e, "reason", None)
+        err = type(e).__name__ + ("/" + type(reason).__name__ if reason is not None and not isinstance(reason, str) else "")
+    if hd is not None:
+        m = _su_re.search(r"/(\d+)\s*$", str(hd.get("Content-Range") or ""))
+        cl = str(hd.get("Content-Length") or "")
+        tot = int(m.group(1)) if m else (int(cl) if st == 200 and cl.isdigit() else None)
+        try:
+            lm = _su_eu.parsedate_to_datetime(hd.get("Last-Modified")).date().isoformat() if hd.get("Last-Modified") else None
+        except Exception:  # noqa
+            lm = None
+    return st, tot, lm, raw, int((time.monotonic() - t) * 1000), err
+
+
+def _su_big(grp, label, url, n, tail, fn):
+    st, tot, lm, raw, ms, err = _su_part(url, n, tail)
+    rng = "range" if st == 206 else ("norange" if st == 200 else "-")
+    info = f"total={_su_sz(tot) if tot else '-'} lm={lm or '-'} {rng} " + _su_info(st, raw, err, fn)
+    report("su-" + grp, None, label, st, raw, ms, None, info)
+    _su_out(f"summary su-{grp} {label} {st if st is not None else 'ERR'} {_su_sz(len(raw) if raw else 0)} {ms}ms {info}")
+
+
+# --------------------------------------------------------------------------- daty i proste kształty (bez wartości)
+
+def _su_date(s):
+    """Tekst daty (RRRR-MM-DD, RRRR/MM/DD, RRRR-Mon-DD, MM/DD/RRRR, M/D/RR, DD-Mon-RRRR, DD Mon RRRR, Mon DD, RRRR) → dt.date albo None."""
+    s = str(s or "").strip()
+    try:
+        m = _su_re.match(r"^(\d{4})[-/](\d{1,2})[-/](\d{1,2})", s)
+        if m:
+            return dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        m = _su_re.match(r"^(\d{4})-([A-Za-z]{3})-(\d{1,2})", s)
+        if m and m.group(2).lower() in SU_MON:
+            return dt.date(int(m.group(1)), SU_MON[m.group(2).lower()], int(m.group(3)))
+        m = _su_re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?!\d)", s)
+        if m:
+            y = int(m.group(3))
+            return dt.date(y + 2000 if y < 100 else y, int(m.group(1)), int(m.group(2)))
+        m = _su_re.match(r"^(\d{1,2})[- ]([A-Za-z]{3})[a-z]*[- ,]+(\d{4})", s)
+        if m and m.group(2).lower() in SU_MON:
+            return dt.date(int(m.group(3)), SU_MON[m.group(2).lower()], int(m.group(1)))
+        m = _su_re.match(r"^([A-Za-z]{3})[a-z]*\.? (\d{1,2}),? (\d{4})", s)
+        if m and m.group(1).lower() in SU_MON:
+            return dt.date(int(m.group(3)), SU_MON[m.group(1).lower()], int(m.group(2)))
+    except ValueError:
+        return None
+    return None
+
+
+def _su_max(ds):
+    """Najnowsza data nie później niż jutro (dt.date albo tekst) → 'RRRR-MM-DD' albo '-'."""
+    lim = _utc_today() + dt.timedelta(days=1)
+    xs = [d if isinstance(d, dt.date) else _su_date(d) for d in ds]
+    xs = [d for d in xs if d and d <= lim]
+    return max(xs).isoformat() if xs else "-"
+
+
+def _su_iso(text):
+    return _su_re.findall(r"(?<!\d)(20\d\d-\d\d-\d\d)(?!\d)", text)
+
+
+def _su_txt(raw):
+    """HTML → tekst bez znaczników, skryptów i stylów (jedna spacja między słowami)."""
+    s = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+    s = _su_re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", s)
+    s = _su_re.sub(r"<[^>]+>", " ", s).replace("&nbsp;", " ").replace("&#160;", " ")
+    return " ".join(s.split())
+
+
+def _su_walk(o, out, keys=("date", "period"), depth=0):
+    """Daty RRRR-MM-DD spod kluczy `keys` w dowolnym zagnieżdżeniu JSON (do 8 poziomów, najwyżej 50 000 dat)."""
+    if depth > 8 or len(out) > 50000:
+        return
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k in keys and isinstance(v, str) and _su_re.match(r"\d{4}-\d{2}-\d{2}", v):
+                out.append(v[:10])
+            elif isinstance(v, (dict, list)):
+                _su_walk(v, out, keys, depth + 1)
+    elif isinstance(o, list):
+        for v in o:
+            if isinstance(v, (dict, list)):
+                _su_walk(v, out, keys, depth + 1)
+
+
+def _su_pct(rows, day):
+    """[(dzień, liczba)] → zmiana % dnia `day` wobec poprzedniego dnia w danych, np. '+18.0%/10-01' (sama zmiana — bez poziomu ceny);
+    brak dnia → 'brak'."""
+    r = sorted((str(d)[:10], float(v)) for d, v in rows if _su_num(v))
+    for i, (d, v) in enumerate(r):
+        if d == day:
+            return f"{(v / r[i - 1][1] - 1) * 100:+.1f}%/{r[i - 1][0][5:]}" if i else "pierwszy"
+    return "brak"
+
+
+# --------------------------------------------------------------------------- (a) z kluczem: Twelve Data
+
+def _su_td_list(raw):
+    j = json.loads(raw)
+    L = [x for x in ((j.get("data") if isinstance(j, dict) else j) or []) if isinstance(x, dict)]
+    have = {str(x.get("symbol")) for x in L}
+    miss = [s for s in SU_TD_SYMS if s not in have]
+    return f"n={len(L)} has={len(SU_TD_SYMS) - len(miss)}/{len(SU_TD_SYMS)} miss={','.join(miss) or '-'}"
+
+
+def _su_td_obj(j, syms):
+    """Odpowiedź Twelve Data → {symbol: obiekt}; jeden symbol — obiekt na górze; błąd całego zapytania — ten sam dla wszystkich."""
+    if not isinstance(j, dict):
+        return {s: None for s in syms}
+    if any(s in j for s in syms):
+        return {s: j.get(s) for s in syms}
+    return {s: j for s in syms}
+
+
+def _su_td_err(o):
+    """Błąd w treści (status 'error' / code + message) → kod i klasa komunikatu, np. '403plan'; poprawny obiekt → None."""
+    if not isinstance(o, dict):
+        return "shape"
+    if o.get("status") == "error" or ("code" in o and "message" in o):
+        return f"{o.get('code', '')}{_su_errcls(str(o.get('message', '')))}"
+    return None
+
+
+def _su_td_ts(o):
+    """time_series jednego symbolu → ('ok/r<wiersze>/<najnowszy MM-DD>' albo kod i klasa błędu, [(dzień, zamknięcie)])."""
+    e = _su_td_err(o)
+    if e:
+        return e, []
+    rows = [(str(x.get("datetime"))[:10], x.get("close")) for x in (o.get("values") or []) if isinstance(x, dict)]
+    ds = sorted(d for d, _ in rows)
+    return f"ok/r{len(rows)}" + (f"/{ds[-1][5:]}" if ds else ""), rows
+
+
+def _su_td_q(o, now):
+    """quote jednego symbolu → 'ok/<dzień świecy MM-DD>/c<początek świecy HH:MM UTC>/lag<min od ostatniego notowania>m/o<rynek otwarty>'."""
+    e = _su_td_err(o)
+    if e:
+        return e
+    ts, lq = o.get("timestamp"), o.get("last_quote_at")
+    lq = lq if isinstance(lq, (int, float)) and not isinstance(lq, bool) else ts
+    c = dt.datetime.fromtimestamp(ts, dt.timezone.utc).strftime("%H:%M") if isinstance(ts, (int, float)) and not isinstance(ts, bool) else "-"
+    lag = f"lag{int((now - lq) / 60)}m" if isinstance(lq, (int, float)) and not isinstance(lq, bool) else "lag-"
+    return f"ok/{str(o.get('datetime') or '-')[5:10]}/c{c}/{lag}/o{int(bool(o.get('is_market_open')))}"
+
+
+def _su_td_url(job, key):
+    s = ",".join(SU_TD_SYMS)
+    if job == "ts":
+        return f"{SU_TD}/time_series?symbol={s}&interval=1day&start_date={SU_W_OD}&apikey={key}"
+    if job == "q":
+        return f"{SU_TD}/quote?symbol={s}&apikey={key}"
+    if job == "hist":
+        return f"{SU_TD}/time_series?symbol=XAU/USD&interval=1day&outputsize=5000&apikey={key}"
+    return f"{SU_TD}/api_usage?apikey={key}"
+
+
+def _su_td_job(job, key, name, W):
+    """Jedno zapytanie Twelve Data; → True, gdy całą paczkę odrzucił limit minutowy (bez zużycia kredytów — do powtórki)."""
+    st, raw, ms, err = http(_su_td_url(job, key), "GET", None, SU_HDR)
+    try:
+        j = json.loads(raw) if raw else None
+    except Exception:  # noqa
+        j = None
+    lim = st == 429 or (isinstance(j, dict) and not any(s in j for s in SU_TD_SYMS)
+                        and (j.get("code") == 429 or "credits" in str(j.get("message", "")).lower()))
+    if err:
+        info = err
+    elif lim:
+        info = "429limit"
+    elif not isinstance(j, dict):
+        info = _su_errcls(raw) if st != 200 else "non-json"
+    elif job in ("ts", "q"):
+        objs, parts = _su_td_obj(j, SU_TD_SYMS), []
+        for s in SU_TD_SYMS:
+            if job == "ts":
+                r, rows = _su_td_ts(objs.get(s))
+                if rows:
+                    W[s] = rows
+            else:
+                r = _su_td_q(objs.get(s), time.time())
+            parts.append(f"{s}={r}")
+        info = " ".join(parts)
+    elif job == "hist":
+        r, rows = _su_td_ts(_su_td_obj(j, ("XAU/USD",)).get("XAU/USD"))
+        ds = sorted(d for d, _ in rows)
+        info = f"XAU/USD={r}" + (f"/od={ds[0]}" if ds else "")
+    else:
+        info = _su_td_err(j) if ("code" in j and "message" in j) else (
+            f"plan={str(j.get('plan_category', '-'))[:16]} min={j.get('current_usage', '-')}/{j.get('plan_limit', '-')} "
+            f"day={j.get('daily_usage', '-')}/{j.get('plan_daily_limit', '-')}")
+    report("su-td", name, job, st, raw, ms, None, info)
+    _su_out(f"summary su-td {job} {st if st is not None else 'ERR'} {_su_sz(len(raw) if raw else 0)} {ms}ms {info}")
+    return lim
+
+
+def g_su_td():
+    """Twelve Data (plan Basic): czy towary są w planie (time_series i quote 7 symboli), opóźnienie notowań, początek świecy dziennej,
+    od kiedy jest historia złota (outputsize 5000), zużycie planu (api_usage). Paczki ≤ 7 kredytów co 61 s; 16 kredytów w sumie."""
+    _su("td", "commodities_list_nokey", SU_TD + "/commodities", fn=_su_td_list)   # lista bez klucza — bez kredytów
+    name, key = find_key("twelvedata")
+    if not key:
+        skipped("su-td", "time_series/quote/api_usage")
+        return
+    jobs = [("ts", len(SU_TD_SYMS)), ("q", len(SU_TD_SYMS)), ("hist", 1), ("usage", 1)]
+    W, again, sent, first = {}, set(), 0, True
+    while jobs:
+        if not first:
+            time.sleep(61)   # nowa minuta limitu planu (8 kredytów na minutę, część dla zbieracza)
+        first = False
+        if _remaining() < 15:
+            for j, _ in jobs:
+                skipped("su-td", j, "global deadline")
+            break
+        cap, now_jobs = SU_TD_PACZKA, []
+        while jobs and (jobs[0][1] <= cap or not now_jobs):
+            cap -= jobs[0][1]
+            now_jobs.append(jobs.pop(0))
+        for job, cost in now_jobs:
+            if _su_td_job(job, key, name, W):
+                if job not in again:
+                    again.add(job)
+                    jobs.append((job, cost))
+            else:
+                sent += cost
+    _su_out("summary su-td-w " + " ".join(f"{s}@{d[5:]}=" + (_su_pct(W[s], d) if W.get(s) else "brak") for s, d in SU_TD_W))
+    _su_out(f"summary su-td-credits sent={sent} retries={len(again)}")
+
+
+# --------------------------------------------------------------------------- (a) z kluczem: FMP
+
+def _su_fmp_list(raw):
+    j = json.loads(raw)
+    if not isinstance(j, list):
+        return "err-" + _su_errcls(raw)
+    L = [r for r in j if isinstance(r, dict)]
+    have = {str(r.get("symbol")) for r in L}
+    ex = [str(r.get("symbol"))[:10] for r in L if _su_re.search(SU_FMP_EXTRA, str(r.get("name") or ""), _su_re.I)]
+    miss = [s for s in SU_FMP_SYMS if s not in have]
+    return (f"n={len(L)} has={len(SU_FMP_SYMS) - len(miss)}/{len(SU_FMP_SYMS)} miss={','.join(miss) or '-'} "
+            f"extra={','.join(ex[:8]) or '-'}")
+
+
+def _su_fmp_q(raw):
+    j = json.loads(raw)
+    if not isinstance(j, list):
+        return "err-" + _su_errcls(raw)
+    r = next((x for x in j if isinstance(x, dict)), None)
+    if r is None:
+        return "r0"
+    t = r.get("timestamp")
+    return f"lag{int((time.time() - t) / 60)}m" if isinstance(t, (int, float)) and not isinstance(t, bool) else "lag-"
+
+
+def _su_fmp_eod(raw):
+    j = json.loads(raw)
+    if not isinstance(j, list):
+        return "err-" + _su_errcls(raw)
+    ds = sorted(str(r.get("date"))[:10] for r in j if isinstance(r, dict) and r.get("date"))
+    return f"r{len(ds)}" + (f"/{ds[-1][5:]}" if ds else "")
+
+
+def g_su_fmp():
+    """FMP (plan darmowy, 250 zapytań na dobę dzielone ze zbieraczem): lista towarów, quote i dzienne zamknięcia 9 symboli — 19 zapytań."""
+    name, key = find_key("fmp")
+    if not key:
+        skipped("su-fmp", "commodities-list/quote/eod")
+        return
+    _su("fmp", "commodities_list", f"{SU_FMP}/commodities-list?apikey={key}", fn=_su_fmp_list, env_name=name)
+    q, e, W = [], [], {}
+    for s in SU_FMP_SYMS:
+        time.sleep(0.3)
+        st, raw, info = _su("fmp", f"quote_{s}", f"{SU_FMP}/quote?symbol={s}&apikey={key}", fn=_su_fmp_q, env_name=name, line=False)
+        q.append(f"{s}={st if st is not None else 'ERR'}/{info}")
+        time.sleep(0.3)
+        st, raw, info = _su("fmp", f"eod_{s}", f"{SU_FMP}/historical-price-eod/light?symbol={s}&from={SU_W_OD}&apikey={key}",
+                            fn=_su_fmp_eod, env_name=name, line=False)
+        e.append(f"{s}={st if st is not None else 'ERR'}/{info}")
+        if st == 200 and raw:
+            try:
+                W[s] = [(str(r.get("date"))[:10], r.get("price", r.get("close"))) for r in json.loads(raw) if isinstance(r, dict)]
+            except Exception:  # noqa
+                pass
+    _su_out("summary su-fmp-q " + " ".join(q))
+    _su_out("summary su-fmp-eod " + " ".join(e))
+    _su_out("summary su-fmp-w " + " ".join(f"{s}@{d[5:]}=" + (_su_pct(W[s], d) if W.get(s) else "brak") for s, d in SU_FMP_W))
+
+
+# --------------------------------------------------------------------------- (a) z kluczem: EIA API v2
+
+def _su_eia_url(route, key, params):
+    return SU_EIA + route + "/data/?" + urllib.parse.urlencode([("api_key", key)] + list(params))
+
+
+def _su_eia_info(field, expect=()):
+    def f(raw):
+        j = json.loads(raw)
+        if not isinstance(j, dict) or j.get("error"):
+            return "err-" + _su_errcls(json.dumps(j.get("error") if isinstance(j, dict) else ""))
+        r = j.get("response") or {}
+        rows = [x for x in (r.get("data") or []) if isinstance(x, dict)]
+        ser = {str(x.get(field)) for x in rows}
+        ps = sorted(str(x.get("period")) for x in rows if x.get("period"))
+        s = f"total={str(r.get('total', '-'))[:10]} r={len(rows)} ser={len(ser)}"
+        if expect:   # ser=<znalezione z oczekiwanych>/<oczekiwane>
+            miss = [x for x in expect if x not in ser]
+            s = s.rsplit(" ser=", 1)[0] + f" ser={len(expect) - len(miss)}/{len(expect)}" + (f" miss={','.join(miss)}" if miss else "")
+        if j.get("warning") or r.get("warnings"):
+            s += " warn"
+        return s + (f" {ps[0]}..{ps[-1]}" if ps else "")
+    return f
+
+
+def g_su_eia():
+    """EIA API v2: ceny spot jednym zapytaniem (bez filtra serii, 5000 wierszy — czas i rozmiar), STEO (OPEC, OPEC+, moce, świat, Brent),
+    zapasy tygodniowe, bilans tygodniowy, gaz w magazynach, Henry Hub — 6 zapytań."""
+    name, key = find_key("eia")
+    if not key:
+        skipped("su-eia", "pri/spt, steo, wstk, sndw, stor/wkly, pri/fut")
+        return
+    desc = [("sort[0][column]", "period"), ("sort[0][direction]", "desc"), ("offset", "0")]
+    st, raw, _ = _su("eia", "pri_spt_all_5000", _su_eia_url("petroleum/pri/spt", key, [("frequency", "daily"), ("data[0]", "value")] + desc
+                                                             + [("length", "5000")]), fn=_su_eia_info("series"), env_name=name)
+    W = {}
+    if st == 200 and raw:
+        try:
+            for x in (json.loads(raw).get("response") or {}).get("data") or []:
+                if isinstance(x, dict) and x.get("series") in dict(SU_EIA_W):
+                    W.setdefault(x["series"], []).append((str(x.get("period"))[:10], x.get("value")))
+        except Exception:  # noqa
+            pass
+    od = (_utc_today() - dt.timedelta(days=120)).strftime("%Y-%m")
+    wk = [("frequency", "weekly"), ("data[0]", "value")]
+    calls = (("steo_5", "steo", [("frequency", "monthly"), ("data[0]", "value")] + [("facets[seriesId][]", s) for s in SU_STEO]
+              + [("start", od)] + desc + [("length", "500")], "seriesId", SU_STEO),
+             ("stoc_wstk_6", "petroleum/stoc/wstk", wk + [("facets[series][]", s) for s in SU_WSTK] + desc + [("length", "60")], "series", SU_WSTK),
+             ("sum_sndw_4", "petroleum/sum/sndw", wk + [("facets[series][]", s) for s in SU_SNDW] + desc + [("length", "40")], "series", SU_SNDW),
+             ("ng_stor_wkly", "natural-gas/stor/wkly", wk + [("facets[series][]", "NW2_EPG0_SWO_R48_BCF")] + desc + [("length", "10")], "series",
+              ("NW2_EPG0_SWO_R48_BCF",)),
+             ("ng_pri_fut_hh", "natural-gas/pri/fut", [("frequency", "daily"), ("data[0]", "value"), ("facets[series][]", "RNGWHHD")] + desc
+              + [("length", "10")], "series", ("RNGWHHD",)))
+    for lab, route, params, field, exp in calls:
+        time.sleep(0.3)
+        _su("eia", lab, _su_eia_url(route, key, params), fn=_su_eia_info(field, exp), env_name=name)
+    _su_out("summary su-eia-w " + " ".join(f"{s}@{d[5:]}=" + (_su_pct(W[s], d) if W.get(s) else "brak") for s, d in SU_EIA_W))
+
+
+# --------------------------------------------------------------------------- (a) z kluczem: Tiingo, CoinGecko
+
+def _su_tiingo_eod(raw):
+    j = json.loads(raw)
+    if not isinstance(j, list):
+        return "err-" + _su_errcls(json.dumps(j))
+    ds = sorted(str(r.get("date"))[:10] for r in j if isinstance(r, dict) and r.get("date"))
+    return f"r{len(ds)}" + (f"/{ds[-1][5:]}" if ds else "")
+
+
+def g_su_tiingo():
+    """Tiingo (plan darmowy): dzienne zamknięcia 8 funduszy surowcowych z 10 dni — 8 zapytań (klucz tylko w nagłówku)."""
+    name, key = find_key("tiingo")
+    if not key:
+        skipped("su-tiingo", "daily prices of 8 commodity funds")
+        return
+    hdr = {**SU_HDR, "Authorization": "Token " + key, "Content-Type": "application/json"}
+    start = (_utc_today() - dt.timedelta(days=10)).isoformat()
+    out = []
+    for i, tk in enumerate(SU_TIINGO):
+        if i:
+            time.sleep(0.3)
+        st, raw, info = _su("tiingo", f"eod_{tk}", f"https://api.tiingo.com/tiingo/daily/{tk}/prices?startDate={start}", fn=_su_tiingo_eod,
+                            headers=hdr, env_name=name, line=False)
+        out.append(f"{tk}={st if st is not None else 'ERR'}/{info}")
+    _su_out("summary su-tiingo " + " ".join(out))
+
+
+def _su_cg(raw):
+    j = json.loads(raw)
+    if not isinstance(j, dict):
+        return "shape"
+    out = []
+    for cid in ("pax-gold", "tether-gold"):
+        o = j.get(cid)
+        if not isinstance(o, dict):
+            out.append(f"{cid}=brak")
+            continue
+        t = o.get("last_updated_at")
+        lag = f"lag{int((time.time() - t) / 60)}m" if isinstance(t, (int, float)) and not isinstance(t, bool) else "lag-"
+        out.append(f"{cid}=ok/{lag}/mcap={'usd_market_cap' in o}")
+    return " ".join(out)
+
+
+def g_su_cg():
+    """CoinGecko simple/price dla PAXG i XAUT — 1 zapytanie (klucz Demo w nagłówku, gdy jest; bez klucza — plan publiczny)."""
+    name, key = find_key("coingecko")
+    hdr = {**SU_HDR, "x-cg-demo-api-key": key} if key else None
+    _su("cg", "simple_price_paxg_xaut" + ("" if key else "_nokey"),
+        "https://api.coingecko.com/api/v3/simple/price?ids=pax-gold,tether-gold&vs_currencies=usd&include_market_cap=true&include_last_updated_at=true",
+        fn=_su_cg, headers=hdr, env_name=name)
+
+
+# --------------------------------------------------------------------------- (b) bez klucza: energia
+
+def _su_table1(raw):
+    t = raw.decode("utf-8-sig", "replace")
+    L = [x for x in t.splitlines() if x.strip()]
+    h = next(_su_csv.reader([L[0]])) if L else []
+    ds = [d for d in (_su_date(c) for c in h) if d]
+    return f"week={ds[0].isoformat() if ds else '-'} rows={max(0, len(L) - 1)}"
+
+
+def _su_psw(raw):
+    j = json.loads(raw)
+    md = (j.get("metadata") or {}) if isinstance(j, dict) else {}
+    ds = []
+    _su_walk(j.get("data") if isinstance(j, dict) else j, ds)
+    return f"rel={str(md.get('release_date') or '-')[:10]} newest={_su_max(ds)} n={len(ds)}"
+
+
+def _su_wngsr(raw):
+    j = json.loads(raw)
+    ds = []
+    _su_walk(j, ds, ("current_week", "report_date", "week_ending", "date", "period"))
+    g = j if isinstance(j, dict) else {}
+    return f"week={str(g.get('current_week') or '-')[:10]} rel={_su_date(g.get('release_date')) or '-'} newest={_su_max(ds)}"
+
+
+def _su_prices(raw):
+    s = _su_txt(raw)
+    m = _su_re.findall(r"(\d{1,2}/\d{1,2}/\d{2,4})\s+Close", s)
+    return f"close={_su_max(m)} tables={raw.count(b'summary=')}"
+
+
+def _su_dnav(raw):
+    """Strona historii EIA (wiersz = tydzień, 5 dni roboczych): najnowszy dzień z liczbą i liczba tygodni — bez wartości."""
+    s = raw.decode("utf-8", "replace")
+    rows = _su_re.findall(r"(\d{4})\s+([A-Z][a-z]{2})-\s*(\d{1,2})\s+to\s+[A-Z][a-z]{2}-\s*\d{1,2}\s*</td>(.*?)</tr>", s, _su_re.S)
+    if not rows:
+        return "weeks=0"
+    y, mon, d, cells = rows[-1]
+    vals = _su_re.findall(r"<td[^>]*>(.*?)</td>", cells, _su_re.S)
+    idx = [i for i, c in enumerate(vals) if _su_re.search(r"\d", _su_re.sub(r"<[^>]+>|&nbsp;", "", c))]
+    newest = (dt.date(int(y), SU_MON[mon.lower()], int(d)) + dt.timedelta(days=idx[-1])).isoformat() if idx and mon.lower() in SU_MON else "-"
+    return f"weeks={len(rows)} newest={newest}"
+
+
+def _su_acer(raw):
+    t = raw.decode("latin-1")
+    R = [r for r in _su_csv.reader(t.splitlines()) if r]
+    if not R:
+        return "rows=0"
+    h = [c.strip().upper() for c in R[0]]
+    bi = next((i for i, c in enumerate(h) if "BENCHMARK" in c), None)
+    data = [r for r in R[1:] if _su_date(r[0])]
+    if not data:
+        return f"rows=0 cols={len(h)}"
+    nw = max(data, key=lambda r: _su_date(r[0]))
+    bm = "-" if bi is None else ("empty" if bi >= len(nw) or not nw[bi].strip() else "ok")
+    return f"rows={len(data)} newest={_su_date(nw[0]).isoformat()} bm_newest={bm} cols={len(h)}"
+
+
+def _su_jodi(raw):
+    t = raw.decode("utf-8", "replace")
+    ps = _su_re.findall(r",((?:19|20)\d\d-\d\d),", t)
+    return f"lines={t.count(chr(10))} newest={max(ps) if ps else '-'}"
+
+
+def _su_zipsig(raw):
+    return f"zip={raw[:4] == b'PK' + bytes([3, 4])}"
+
+
+def g_su_energia():
+    """Energia bez klucza: pliki raportów tygodniowych EIA (przekierowania 302), strona cen dziennych, strony historii WTI i Brent,
+    ACER TERMINAL (LNG), JODI (ostatnie 64 KB), Weekly Oil Bulletin KE (pierwsze 4 KB)."""
+    E = "https://ir.eia.gov/"
+    for i, (lab, url, fn) in enumerate((("wpsr_table1_csv", E + "wpsr/table1.csv", _su_table1),
+                                        ("wpsr_psw00_json", E + "wpsr/psw00.json", _su_psw),
+                                        ("ngs_wngsr_json", E + "ngs/wngsr.json", _su_wngsr),
+                                        ("todayinenergy_prices", "https://www.eia.gov/todayinenergy/prices.php", _su_prices),
+                                        ("dnav_hist_RWTCD", "https://www.eia.gov/dnav/pet/hist/RWTCD.htm", _su_dnav),
+                                        ("dnav_hist_RBRTED", "https://www.eia.gov/dnav/pet/hist/RBRTED.htm", _su_dnav),
+                                        ("acer_terminal_csv", "https://aegis.acer.europa.eu/terminal/price_assessments/historical_data", _su_acer))):
+        if i:
+            time.sleep(0.3)
+        _su("en", lab, url, fn=fn)
+    time.sleep(0.3)
+    _su_big("en", "jodi_primary2026_tail64k", SU_JODI, 65536, True, _su_jodi)
+    time.sleep(0.3)
+    _su_big("en", "eu_oil_bulletin_head4k", SU_WOB, 4096, False, _su_zipsig)
+
+
+# --------------------------------------------------------------------------- (c) bez klucza: metale i fundusze
+
+def _su_xlsx(raw):
+    """Plik .xlsx: arkusze, wiersze największego arkusza (pierwszy bywa zastrzeżeniem — SPDR: „Disclaimer”) i najnowsza data w kolumnie A
+    (tekst albo liczba seryjna Excela) — bez wartości."""
+    if raw[:4] != b"PK" + bytes([3, 4]):
+        return f"zip=False html={raw[:300].lstrip().lower().startswith(b'<')}"
+    z = zipfile.ZipFile(io.BytesIO(raw))
+    names = z.namelist()
+    wb = z.read("xl/workbook.xml").decode("utf-8", "replace") if "xl/workbook.xml" in names else ""
+    ss = []
+    if "xl/sharedStrings.xml" in names:
+        x = z.read("xl/sharedStrings.xml").decode("utf-8", "replace")
+        ss = [_su_re.sub(r"<[^>]+>", "", si) for si in _su_re.findall(r"<si>(.*?)</si>", x, _su_re.S)]
+    sh = [n for n in names if _su_re.match(r"xl/worksheets/sheet\d+\.xml$", n)]
+    s1 = z.read(max(sh, key=lambda n: z.getinfo(n).file_size)).decode("utf-8", "replace") if sh else ""
+    ds = []
+    for attrs, inner in _su_re.findall(r'<c ([^>]*?\br="A\d+"[^>]*?)(?:/>|>(.*?)</c>)', s1, _su_re.S):
+        v = _su_re.search(r"<v>([^<]*)</v>", inner or "")
+        tt = _su_re.search(r'\bt="(\w+)"', attrs)
+        if tt and tt.group(1) == "s" and v and v.group(1).isdigit():
+            k = int(v.group(1))
+            ds.append(_su_date(ss[k]) if k < len(ss) else None)
+        elif tt and tt.group(1) in ("inlineStr", "str"):
+            ds.append(_su_date(_su_re.sub(r"<[^>]+>", "", inner or "")))
+        elif v:
+            try:
+                f = float(v.group(1))
+            except ValueError:
+                f = 0.0
+            if 36526 <= f <= 60000:
+                ds.append(dt.date(1899, 12, 30) + dt.timedelta(days=int(f)))
+    ds = [d for d in ds if d]
+    return (f"xlsx sheets={wb.count('<sheet ')} rows={len(_su_re.findall(r'<row[ >]', s1))} dates={len(ds)} "
+            f"newest={_su_max(ds)}")
+
+
+def _su_sprott(raw):
+    """Lista trustów bez symboli: liczba pozycji, podpis kolejności (rząd wielkości wartość/ilość, „+” = drugi metal), najnowsza data."""
+    j = json.loads(raw)
+    L = j if isinstance(j, list) else (j.get("data") if isinstance(j, dict) else None)
+    if not isinstance(L, list):
+        return "shape"
+    sig, ds = [], []
+    for x in L[:6]:
+        if not isinstance(x, dict):
+            sig.append("?")
+            continue
+        ds.append(str(x.get("dateTimeStamp") or "")[:10])
+        try:
+            r = float(x.get("totalMarketValue")) / float(x.get("totalOunces1"))
+            e = f"e{len(str(int(r))) - 1}" if r >= 1 else "e-"
+        except (TypeError, ValueError, ZeroDivisionError):
+            e = "e?"
+        sig.append(e + ("+" if _su_num(x.get("totalOunces2")) else ""))
+    k0 = ",".join(str(k)[:16] for k in list(L[0].keys())[:7]) if L and isinstance(L[0], dict) else "-"
+    return f"n={len(L)} sig={'/'.join(sig)} newest={_su_max(ds)} keys0={k0}"
+
+
+def _su_cameco(raw):
+    ds = {f"{a}-{b}-{c}" for a, b, c in _su_re.findall(r"(20\d\d)/(\d\d)/(\d\d)", raw.decode("utf-8", "replace"))}
+    return f"dates={len(ds)} newest={_su_max(ds)}"
+
+
+def _su_nbp(raw):
+    j = json.loads(raw)
+    ds = [str(x.get("data")) for x in j if isinstance(x, dict)] if isinstance(j, list) else []
+    return f"r={len(ds)} newest={_su_max(ds)}"
+
+
+def _su_sdmx(raw):
+    """SDMX-JSON (MFW 2.1 i 3.0): liczba serii, liczba okresów z obserwacją i najnowszy okres — bez wartości."""
+    j = json.loads(raw)
+    d = j.get("data", j) if isinstance(j, dict) else {}
+    ds = (d.get("dataSets") or [{}])[0] or {}
+    st = d.get("structures") or d.get("structure") or {}
+    st = (st[0] if st else {}) if isinstance(st, list) else st
+    od = ((st.get("dimensions") or {}).get("observation") or [{}]) if isinstance(st, dict) else [{}]
+    per = [v.get("value") or v.get("id") for v in ((od[0] or {}).get("values") or []) if isinstance(v, dict)]
+    ser = ds.get("series") or {}
+    idx = set()
+    for s in ser.values():
+        idx.update(int(k) for k in ((s or {}).get("observations") or {}) if str(k).isdigit())
+    ps = sorted(str(per[i]) for i in idx if i < len(per))
+    return f"ser={len(ser)} periods={len(ps)} newest={ps[-1] if ps else '-'}"
+
+
+def _su_wb_link(raw):
+    s = raw.decode("utf-8", "replace")
+    m = _su_re.search(r'href="([^"]*CMO-Historical-Data-Monthly\.xlsx)"', s) or _su_re.search(r"""(https?://[^\s"'<>]*CMO-Historical-Data-Monthly\.xlsx)""", s)
+    return urllib.parse.urljoin(SU_WB_PAGE, m.group(1)) if m else None
+
+
+def _su_wb_xlsx(raw):
+    """Arkusz Banku Światowego: arkusze, czy jest 'Monthly Prices', najnowszy miesiąc 'RRRRMmm' i data aktualizacji — bez wartości."""
+    if raw[:4] != b"PK" + bytes([3, 4]):
+        return f"zip=False html={raw[:300].lstrip().lower().startswith(b'<')}"
+    z = zipfile.ZipFile(io.BytesIO(raw))
+    names = z.namelist()
+    wb = z.read("xl/workbook.xml").decode("utf-8", "replace") if "xl/workbook.xml" in names else ""
+    txt = z.read("xl/sharedStrings.xml").decode("utf-8", "replace") if "xl/sharedStrings.xml" in names else ""
+    mre = r"(?<![\dA-Za-z])((?:19|20)\d\dM(?:0[1-9]|1[0-2]))(?!\d)"
+    ms = set(_su_re.findall(mre, txt))
+    if not ms:
+        for n in names:
+            if n.startswith("xl/worksheets/sheet"):
+                ms |= set(_su_re.findall(mre, z.read(n).decode("utf-8", "replace")))
+    up = _su_re.search(r"Updated on ([A-Z][a-z]+ \d{1,2},? \d{4})", txt)
+    ms = sorted(ms)
+    return (f"sheets={wb.count('<sheet ')} monthly_prices={'Monthly Prices' in wb} months={len(ms)} newest={ms[-1] if ms else '-'} "
+            f"upd={_su_date(up.group(1)) if up else '-'}")
+
+
+def _su_kraken(raw):
+    j = json.loads(raw)
+    if not isinstance(j, dict):
+        return "shape"
+    if j.get("error"):
+        return "err=" + str(j["error"][0] if isinstance(j["error"], list) else j["error"])[:40].replace(" ", "_")
+    L = next((v for v in (j.get("result") or {}).values() if isinstance(v, list)), [])
+    ts = [x[0] for x in L if isinstance(x, list) and x and isinstance(x[0], (int, float))]
+    return f"r={len(L)} newest={dt.datetime.fromtimestamp(max(ts), dt.timezone.utc).date().isoformat() if ts else '-'}"
+
+
+def g_su_metale():
+    """Metale i fundusze bez klucza: archiwa SPDR (GLD, GLDM), trusty Sprott, uran (Cameco), złoto NBP, MFW PCPS (SDMX 3.0 metale,
+    2.1 energia), świece dzienne PAXG i XAUT (Kraken), Bank Światowy (strona → adres pliku → xlsx)."""
+    J = {"Accept": "application/json"}
+    for i, (lab, url, fn, hdr) in enumerate((
+            ("spdr_gld_archive_xlsx", "https://api.spdrgoldshares.com/api/v1/historical-archive?product=gld&exchange=NYSE&lang=en", _su_xlsx, None),
+            ("spdr_gldm_archive_xlsx", "https://api.spdrgoldshares.com/api/v1/historical-archive?product=gldm&exchange=NYSE&lang=en", _su_xlsx, None),
+            ("sprott_bullion_calc", "https://sprott.com/api/FinancialData/v1/BullionCalculatorData", _su_sprott, None),
+            ("cameco_uranium_price", "https://www.cameco.com/invest/markets/uranium-price", _su_cameco, None),
+            ("nbp_cenyzlota_last5", "https://api.nbp.pl/api/cenyzlota/last/5?format=json", _su_nbp, None),
+            ("imf_pcps_sdmx30_metals", SU_IMF30, _su_sdmx, J),
+            ("imf_pcps_sdmx21_energy", SU_IMF21, _su_sdmx, J),
+            ("kraken_ohlc_PAXGUSD", "https://api.kraken.com/0/public/OHLC?pair=PAXGUSD&interval=1440", _su_kraken, None),
+            ("kraken_ohlc_XAUTUSD", "https://api.kraken.com/0/public/OHLC?pair=XAUTUSD&interval=1440", _su_kraken, None))):
+        if i:
+            time.sleep(0.3)
+        _su("met", lab, url, fn=fn, headers=None if hdr is None else {**SU_HDR, **hdr})
+    time.sleep(0.3)
+    st, raw, _ = _su("met", "worldbank_page", SU_WB_PAGE, fn=lambda r: f"xlsx_link={'yes' if _su_wb_link(r) else 'no'}")
+    link = _su_wb_link(raw) if st == 200 and raw else None
+    if link:
+        time.sleep(0.3)
+        _su("met", "worldbank_cmo_monthly_xlsx", link, fn=_su_wb_xlsx)
+    else:
+        skipped("su-met", "worldbank_cmo_monthly_xlsx", "no link on page")
+        _su_out("summary su-met worldbank_cmo_monthly_xlsx SKIP no-link-on-page")
+
+
+def _su_cl(raw):
+    j = json.loads(raw)
+    h = str(j.get("result") or "") if isinstance(j, dict) else ""
+    if not h.startswith("0x") or len(h) < 2 + 64 * 5:
+        return "err-" + ("rpc" if isinstance(j, dict) and j.get("error") else "shape")
+    w = [int(h[2 + 64 * i:2 + 64 * (i + 1)], 16) for i in range(5)]
+    return f"answer>0={0 < w[1] < 2 ** 255} age={(time.time() - w[3]) / 3600:.1f}h"
+
+
+def g_su_chainlink():
+    """Wyrocznie XAG/USD i PAXG/USD (latestRoundData) przez ten sam publiczny węzeł Ethereum, którego zbieracz używa dla XAU/USD w RWA —
+    bez nowego węzła. Tylko: czy odpowiedź jest dodatnia i wiek ostatniej aktualizacji (bez kursu)."""
+    for i, (lab, adr) in enumerate(SU_CL):
+        if i:
+            time.sleep(0.3)
+        _su("cl", f"latestRoundData_{lab}", "https://ethereum-rpc.publicnode.com", fn=_su_cl, method="POST",
+            body={"jsonrpc": "2.0", "id": 1, "method": "eth_call", "params": [{"to": adr, "data": "0xfeaf968c"}, "latest"]})
+
+
+# --------------------------------------------------------------------------- (d) bez klucza: pozycje i rolne
+
+def _su_cot(raw):
+    t = raw.decode("utf-8-sig", "replace")
+    return f"rows={sum(1 for x in t.splitlines() if x.strip())} newest={_su_max(_su_iso(t))}"
+
+
+def _su_soc_cftc(raw):
+    j = json.loads(raw)
+    if not isinstance(j, list):
+        return "err-" + _su_errcls(raw)
+    R = [r for r in j if isinstance(r, dict)]
+    cs = {str(r.get("cftc_contract_market_code")) for r in R}
+    return (f"r={len(R)} newest={_su_max([str(r.get('report_date_as_yyyy_mm_dd') or '')[:10] for r in R])} "
+            f"codes={len(cs & set(SU_SOC_CODES))}/{len(SU_SOC_CODES)}")
+
+
+def _su_soc_date(raw):
+    j = json.loads(raw)
+    if not isinstance(j, list):
+        return "err-" + _su_errcls(raw)
+    return f"r={len(j)} newest={_su_max([str(r.get('date') or '')[:10] for r in j if isinstance(r, dict)])}"
+
+
+def _su_ice(raw):
+    t = raw.decode("utf-8-sig", "replace")
+    R = [r for r in _su_csv.reader(t.splitlines()) if r]
+    h = R[0] if R else []
+    di = next((i for i, c in enumerate(h) if c.strip().startswith("As_of_Date_Form")), None)
+    ds = [_su_date(r[di]) for r in R[1:] if di is not None and di < len(r)]
+    if di is None:
+        ds = [_su_date(f"{a}/{b}/{c}") for a, b, c in _su_re.findall(r"(?<!\d)(\d{2})/(\d{2})/(20\d\d)(?!\d)", t)]
+    return f"rows={max(0, len(R) - 1)} newest={_su_max([d for d in ds if d])} mkts={len({r[0] for r in R[1:]})} cols={len(h)}"
+
+
+def _su_fao(raw):
+    ms = _su_re.findall(r"(?m)^\"?((?:19|20)\d\d-\d\d)", raw.decode("utf-8-sig", "replace"))
+    return f"rows={len(ms)} newest={max(ms) if ms else '-'}"
+
+
+def _su_valet(raw):
+    j = json.loads(raw)
+    g = j if isinstance(j, dict) else {}
+    obs = [o for o in (g.get("observations") or []) if isinstance(o, dict)]
+    return f"obs={len(obs)} newest={_su_max([o.get('d') for o in obs])} ser={len(g.get('seriesDetail') or {})}"
+
+
+def _su_gscpi(raw):
+    R = [r for r in _su_csv.reader(raw.decode("utf-8-sig", "replace").splitlines()) if r]
+    if not R:
+        return "rows=0"
+    h = R[0]
+    li = max((i for i, c in enumerate(h) if c.strip()), default=0)
+    last = [r for r in R[1:] if li < len(r) and r[li].strip()]
+    return f"vintage={h[li].strip()[:12]} rows={len(R) - 1} last={last[-1][0].strip()[:12] if last else '-'}"
+
+
+def _su_arcgis(raw):
+    j = json.loads(raw)
+    if not isinstance(j, dict):
+        return "shape"
+    if j.get("error"):
+        return "err-" + str((j.get("error") or {}).get("code", ""))[:6]
+    F = [f.get("attributes") or {} for f in (j.get("features") or []) if isinstance(f, dict)]
+    ds = []
+    for a in F:
+        v = a.get("date")
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            ds.append(dt.datetime.fromtimestamp(v / 1000, dt.timezone.utc).date())
+        elif v:
+            ds.append(str(v)[:10])
+    return f"n={len(F)} newest={_su_max(ds)} ports={len({a.get('portname') for a in F})}"
+
+
+def _su_lmr_list(raw):
+    j = json.loads(raw)
+    L = j if isinstance(j, list) else ((j.get("results") or j.get("reports") or []) if isinstance(j, dict) else [])
+    return f"reports={len(L)}"
+
+
+def _su_lmr(raw):
+    j = json.loads(raw)
+    R = (j.get("results") or []) if isinstance(j, dict) else (j if isinstance(j, list) else [])
+    ds = [str(r.get("report_date") or "") for r in R if isinstance(r, dict)]
+    return f"res={len(R)} newest={_su_max(ds)}"
+
+
+def g_su_rolne():
+    """Pozycje i rolne bez klucza: CFTC (indeksowi, Socrata z filtrem), ICE COT, FAO, WASDE (bieżący albo poprzedni miesiąc), Bank Kanady
+    (BCPI), NY Fed (GSCPI), PortWatch (cieśniny), agtransport (inspekcje zboża), USDA LMR (lista raportów i wycena wołowiny)."""
+    q = urllib.parse.quote
+    soc = "https://publicreporting.cftc.gov/resource/72hh-3qpy.json?" + urllib.parse.urlencode(
+        {"$where": "cftc_contract_market_code in(" + ",".join(f"'{c}'" for c in SU_SOC_CODES) + ")",
+         "$order": "report_date_as_yyyy_mm_dd DESC", "$limit": "8"}, quote_via=q)
+    agt = "https://agtransport.usda.gov/resource/sruw-w49i.json?" + urllib.parse.urlencode({"$order": "date DESC", "$limit": "5"}, quote_via=q)
+    pw = ("https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query?"
+          "where=1%3D1&outFields=date,portname,n_total&orderByFields=date%20DESC&resultRecordCount=30&f=json")
+    lmr = "https://mpr.datamart.ams.usda.gov/services/v1.1/reports"
+    for i, (lab, url, fn) in enumerate((
+            ("cftc_deacit_txt", "https://www.cftc.gov/dea/newcot/deacit.txt", _su_cot),
+            ("cftc_socrata_72hh_filter", soc, _su_soc_cftc),
+            ("ice_cothist2026_csv", "https://www.ice.com/publicdocs/futures/COTHist2026.csv", _su_ice),
+            ("fao_food_price_indices_csv", "https://www.fao.org/media/docs/worldfoodsituationlibraries/wfs-library/food_price_indices_data.csv",
+             _su_fao),
+            ("boc_valet_bcpi_weekly", "https://www.bankofcanada.ca/valet/observations/group/BCPI_WEEKLY/json?recent=5", _su_valet),
+            ("nyfed_gscpi_csv", "https://www.newyorkfed.org/medialibrary/research/interactives/data/gscpi/gscpi_interactive_data.csv", _su_gscpi),
+            ("imf_portwatch_chokepoints", pw, _su_arcgis),
+            ("agtransport_sruw_inspections", agt, _su_soc_date),
+            ("usda_lmr_reports_list", lmr, _su_lmr_list),
+            ("usda_lmr_2453_cutout", f"{lmr}/2453/Current%20Cutout%20Values?q=report_date={_last_weekday(1):%m/%d/%Y}", _su_lmr))):
+        if i:
+            time.sleep(0.3)
+        _su("rol", lab, url, fn=fn)
+    t = _utc_today()
+    for y, m in ((t.year, t.month), (t.year - 1, 12) if t.month == 1 else (t.year, t.month - 1)):
+        time.sleep(0.3)
+        st, _, _ = _su("rol", f"wasde_csv_{y}-{m:02d}", f"https://www.usda.gov/sites/default/files/documents/oce-wasde-report-data-{y}-{m:02d}.csv",
+                       fn=_su_cot)
+        if st == 200:
+            break
+
+
+# --------------------------------------------------------------------------- (e) bez klucza: źródła kruche (tylko dostęp)
+
+def _su_shfe(raw):
+    j = json.loads(raw)
+    g = j if isinstance(j, dict) else {}
+    return f"inst={len(g.get('o_curinstrument') or [])} idx={len(g.get('o_curmetalindex') or [])} keys={len(g)}"
+
+
+def _su_sge(raw):
+    j = json.loads(raw)
+    g = j if isinstance(j, dict) else {}
+    out = []
+    for k in ("zp", "wp"):
+        L = [x for x in (g.get(k) or []) if isinstance(x, list) and x and isinstance(x[0], (int, float))]
+        nw = (dt.datetime.fromtimestamp(max(x[0] for x in L) / 1000, dt.timezone.utc) + dt.timedelta(hours=8)).date().isoformat() if L else "-"   # północ w Pekinie
+        out.append(f"{k}={len(L)}/{nw}")
+    return " ".join(out)
+
+
+def _su_gme(raw):
+    m = _su_re.search(r"OQD Marker Price\s+([A-Z][a-z]+ \d{1,2},? \d{4})", _su_txt(raw))
+    return f"marker_date={_su_date(m.group(1)) if m else '-'}"
+
+
+def _su_orlen(raw):
+    j = json.loads(raw)
+    L = [x for x in j if isinstance(x, dict)] if isinstance(j, list) else []
+    return f"n={len(L)} newest={_su_max([str(x.get('effectiveDate') or '')[:10] for x in L])}"
+
+
+def _su_tge(raw):
+    m = _su_re.search(r"w dniu\s+(\d{2})-(\d{2})-(\d{4})", _su_txt(raw))
+    return f"delivery_day={m.group(3)}-{m.group(2)}-{m.group(1)}" if m else ""
+
+
+def _su_igc(word):
+    def f(raw):
+        s = _su_txt(raw)
+        m = _su_re.search(r"\b(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))\b", s)
+        return f"table={word in s} date={m.group(1).replace(' ', '_') if m else '-'}" if word in s else ""
+    return f
+
+
+def g_su_kruche():
+    """Źródła kruche (tylko dostęp z USA): SHFE (plik dnia sprzed świąt w Chinach i ostatni dzień roboczy), SGE, GME (OQD Marker), Orlen,
+    TGE (gaz RDN), IGC (indeks zbóż i frachtów). Przy 403 / captcha / Cloudflare — notatka, bez obchodzenia."""
+    sh = "https://www.shfe.com.cn/data/tradedata/future/dailydata/kx{}.dat"
+    d2 = _last_weekday(1).strftime("%Y%m%d")
+    items = [("shfe_kx_20260930", sh.format("20260930"), _su_shfe)]
+    if d2 != "20260930":
+        items.append(("shfe_kx_last_weekday", sh.format(d2), _su_shfe))
+    items += [("sge_gold_benchmark", "https://en.sge.com.cn/graph/DayilyJzj", _su_sge),
+              ("gme_homepage", "https://www.gulfmerc.com/", _su_gme),
+              ("orlen_wholesalefuelprices", "https://tool.orlen.pl/api/wholesalefuelprices", _su_orlen),
+              ("tge_gaz_rdn", "https://tge.pl/gaz-rdn", _su_tge),
+              ("igc_goi", "https://igc.int/en/public-site/markets/marketinfo-goi.aspx", _su_igc("Grains and Oilseeds Index")),
+              ("igc_freight", "https://igc.int/en/public-site/markets/marketinfo-freight.aspx", _su_igc("Freight Index"))]
+    for i, (lab, url, fn) in enumerate(items):
+        if i:
+            time.sleep(0.3)
+        _su("kru", lab, url, fn=fn)
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_td)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_fmp)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_eia)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_tiingo)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_cg)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_energia)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_metale)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_chainlink)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_rolne)
+GROUPS.insert(GROUPS.index(g_nasdaq), g_su_kruche)
+TYLKO = ("g_su_td", "g_su_fmp", "g_su_eia", "g_su_tiingo", "g_su_cg", "g_su_energia", "g_su_metale", "g_su_chainlink", "g_su_rolne",
+         "g_su_kruche")   # v294p: ten przebieg — tylko sonda surowców (v288p: g_jse2; v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
 
 
 # --------------------------------------------------------------------------- main

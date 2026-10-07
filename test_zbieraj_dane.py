@@ -30586,7 +30586,8 @@ class SondaJseV288p(unittest.TestCase):
         import importlib.util, io as _io
         spec = importlib.util.spec_from_file_location('sondy_v288p', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
         S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
-        self.assertEqual(S.TYLKO, ('g_jse2',)); self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(S.GROUPS.count(S.g_jse2), 1)
+        self.assertTrue(S.TYLKO and all(any(g.__name__ == n for g in S.GROUPS) for n in S.TYLKO), 'TYLKO = istniejące grupy (zmienia się co sondę)')
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(S.GROUPS.count(S.g_jse2), 1)
         seen = []
 
         def http(url, method='GET', body=None, headers=None):
@@ -30736,3 +30737,243 @@ class OstrzezeniaGithubV292(unittest.TestCase):
     def test_wszystkie_zle(self):
         with self.assertRaises(RuntimeError):
             self.k.github_ostrz_odczyt({}, self._get(self.k.GH_OSTRZ_WF))
+
+
+# ===================== v294p: SONDA — SUROWCE (etap 0) =====================
+class SondaSurowceV294p(unittest.TestCase):
+    """v294p: sonda surowców — 10 grup g_su_* przed g_nasdaq, TYLKO = te grupy; z atrapą http: żadnego klucza, adresu ani ceny w wyniku,
+    zapytania w limitach (Twelve Data ≤ 20 kredytów i ≤ 7 w minucie, FMP ≤ 25, EIA ≤ 10, Tiingo ≤ 10, CoinGecko ≤ 2), wiersze „summary su-…”;
+    sondy.yml: sekrety TWELVEDATA_KEY, EIA_KEY, COINGECKO_KEY, dłuższy limit czasu i podział wierszy summary na kilka adnotacji."""
+    DZIS = datetime.date(2026, 10, 8)
+    KEYS = {'TWELVEDATA_KEY': 'TAJNY_TD_111', 'FMP_KEY': 'TAJNY_FMP_222', 'EIA_KEY': 'TAJNY_EIA_333', 'TIINGO_KEY': 'TAJNY_TII_444',
+            'COINGECKO_KEY': 'TAJNY_CG_555', 'SONDY_NO_KEYS': ''}
+    CENY = ('96.16', '85.23', '114.8', '135.51', '4156.4', '4117.81', '4110.46', '381.025846', '650.12', '5.43', '3283.05', '410860000000', '4108.6')
+
+    def _S(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('sondy_v294p', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        return S
+
+    @staticmethod
+    def _xlsx(sheets, shared, sheet1, pre=None):
+        import io as _io, zipfile as _zf
+        b = _io.BytesIO()
+        with _zf.ZipFile(b, 'w') as z:
+            z.writestr('xl/workbook.xml', '<workbook><sheets>' + ''.join(f'<sheet name="{n}" sheetId="{i + 1}"/>' for i, n in enumerate(sheets)) + '</sheets></workbook>')
+            z.writestr('xl/sharedStrings.xml', '<sst>' + ''.join(f'<si><t>{s}</t></si>' for s in shared) + '</sst>')
+            if pre is not None:   # mały arkusz przed danymi (SPDR: „Disclaimer”)
+                z.writestr('xl/worksheets/sheet1.xml', '<worksheet><sheetData>' + pre + '</sheetData></worksheet>')
+            z.writestr(f'xl/worksheets/sheet{1 + (pre is not None)}.xml', '<worksheet><sheetData>' + sheet1 + '</sheetData></worksheet>')
+        return b.getvalue()
+
+    def _odp(self):
+        """Nagrania w kształcie odpowiedzi źródeł (badanie 07.10.2026), przycięte; ceny zmyślone, ale charakterystyczne (nie mogą trafić do wyniku)."""
+        td_ts = {'XAU/USD': {'meta': {'symbol': 'XAU/USD'}, 'values': [{'datetime': '2026-10-07', 'close': '4156.40000'}, {'datetime': '2026-10-06', 'close': '4100.1'}], 'status': 'ok'},
+                 'XAG/USD': {'meta': {}, 'values': [{'datetime': '2026-10-07', 'close': '64.6'}], 'status': 'ok'},
+                 'XPT/USD': {'code': 403, 'message': 'XPT/USD is available exclusively with grow or pro plans. Consider upgrading your API Key now at https://twelvedata.com/pricing', 'status': 'error'},
+                 'XPD/USD': {'meta': {}, 'values': [{'datetime': '2026-10-07', 'close': '1309.0'}], 'status': 'ok'},
+                 'HG1': {'code': 404, 'message': 'symbol not found: HG1', 'status': 'error'},
+                 'WTI/USD': {'meta': {}, 'values': [{'datetime': '2026-09-26', 'close': '86.1'}, {'datetime': '2026-09-25', 'close': '85.23'}, {'datetime': '2026-09-24', 'close': '96.16'}], 'status': 'ok'},
+                 'XBR/USD': {'meta': {}, 'values': [{'datetime': '2026-10-02', 'close': '135.51'}, {'datetime': '2026-10-01', 'close': '114.8'}], 'status': 'ok'}}
+        td_q = {s: {'symbol': s, 'datetime': '2026-10-08', 'timestamp': 1791417600, 'last_quote_at': 1791460800, 'close': '4156.4', 'is_market_open': True}
+                for s in ('XAU/USD', 'XAG/USD', 'XPD/USD', 'WTI/USD', 'XBR/USD')}
+        td_q['XPT/USD'] = td_ts['XPT/USD']; td_q['HG1'] = td_ts['HG1']
+        spdr = self._xlsx(['Disclaimer', 'US GLD Historical Archive'], ['Date', '06-Oct-2026', 'US Holiday'],
+                          '<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2" t="s"><v>1</v></c><c r="B2"><v>381.025846</v></c></row>'
+                          '<row r="3"><c r="A3" s="2"><v>46300</v></c></row><row r="4"><c r="A4" s="1"/></row>',
+                          pre='<row r="1"><c r="B1" s="8"/></row><row r="2"><c r="B2" t="s"><v>2</v></c></row>')
+        wbx = self._xlsx(['AFOSHEET', 'Monthly Prices'], ['2026M08', '2026M09', 'Updated on October 02, 2026'], '<row r="1"><c r="B1"><v>3283.05</v></c></row>')
+        sprott = [{'dateTimeStamp': '2026-10-06T20:00:00', 'totalMarketValue': 15500000000.0, 'totalOunces1': 3751666.0, 'totalOunces2': 0},
+                  {'dateTimeStamp': '2026-10-06T20:00:00', 'totalMarketValue': 13400000000.0, 'totalOunces1': 207194980.0, 'totalOunces2': 0},
+                  {'dateTimeStamp': '2026-10-05T20:00:00', 'totalMarketValue': 560000000.0, 'totalOunces1': 200095.0, 'totalOunces2': 155159.0}]
+        hexw = lambda *w: '0x' + ''.join(f'{x:064x}' for x in w)
+        return {
+            'api.twelvedata.com/commodities': (200, {'data': [{'symbol': s, 'name': 'x'} for s in ('XAU/USD', 'XAG/USD', 'XPT/USD', 'XPD/USD', 'HG1', 'GAU/USD')], 'status': 'ok'}),
+            'twelvedata.com/time_series?symbol=XAU/USD,': (200, td_ts),
+            'twelvedata.com/quote': (200, td_q),
+            'outputsize=5000': (200, {'meta': {}, 'values': [{'datetime': '2026-10-07', 'close': '4156.4'}, {'datetime': '2006-07-13', 'close': '650.12'}], 'status': 'ok'}),
+            'twelvedata.com/api_usage': (200, {'timestamp': '2026-10-08 12:03:00', 'current_usage': 2, 'plan_limit': 8, 'daily_usage': 345, 'plan_daily_limit': 800, 'plan_category': 'basic'}),
+            'commodities-list': (200, [{'symbol': s, 'name': n} for s, n in (('BZUSD', 'Brent Crude Oil'), ('SIUSD', 'Silver'), ('CLUSD', 'Crude Oil'), ('GCUSD', 'Gold'), ('TTFUSD', 'Dutch TTF Natural Gas'))]),
+            'quote?symbol=BZUSD': (200, [{'symbol': 'BZUSD', 'price': 135.51, 'timestamp': 1791460800}]),
+            'quote?symbol=SIUSD': (200, [{'symbol': 'SIUSD', 'price': 64.6, 'timestamp': 1791460800}]),
+            'light?symbol=BZUSD': (200, [{'symbol': 'BZUSD', 'date': '2026-10-02', 'price': 135.51}, {'symbol': 'BZUSD', 'date': '2026-10-01', 'price': 114.8}]),
+            'financialmodelingprep.com': (402, {'Error Message': 'Premium Query Parameter: This value set for symbol is not available under your current subscription'}),
+            'petroleum/pri/spt': (200, {'response': {'total': '412345', 'data': [{'period': '2026-10-02', 'series': 'RBRTE', 'value': 135.51}, {'period': '2026-10-01', 'series': 'RBRTE', 'value': 114.8},
+                                                                                {'period': '2026-09-25', 'series': 'RWTC', 'value': 85.23}, {'period': '2026-09-24', 'series': 'RWTC', 'value': 96.16}]},
+                                        'warning': [{'warning': 'Incomplete return'}]}),
+            'api.eia.gov/v2/steo': (200, {'response': {'total': 4, 'data': [{'period': '2026-09', 'seriesId': s, 'value': 30.47} for s in ('COPR_OPEC', 'COPR_OPECPLUS', 'COPC_OPEC', 'PAPR_WORLD')]}}),
+            'api.eia.gov': (200, {'response': {'total': 1, 'data': [{'period': '2026-10-02', 'series': 'WCESTUS1', 'value': 424134}]}}),
+            'tiingo/daily/WEAT': (200, [{'date': '2026-10-07T00:00:00.000Z', 'close': 5.43}]),
+            'tiingo/daily/DBA': (404, {'detail': 'Error: Ticker DBA not found'}),
+            'api.tiingo.com': (200, [{'date': '2026-10-06T00:00:00.000Z', 'close': 5.43}, {'date': '2026-10-07T00:00:00.000Z', 'close': 5.43}]),
+            'api.coingecko.com': (200, {'pax-gold': {'usd': 4117.81, 'usd_market_cap': 1798000000, 'last_updated_at': 1791460800},
+                                        'tether-gold': {'usd': 4110.46, 'last_updated_at': 1791460800}}),
+            'wpsr/table1.csv': (200, b'"STUB_1","10/2/26","9/25/26","Difference"\n"Commercial (Excluding SPR)","424.134","427.320","-3.186"\n'),
+            'wpsr/psw00.json': (200, {'metadata': {'release_date': '2026-10-07', 'release_time': '10:30 am'}, 'data': {'U.S.': {'time_series': [{'date': '2026-10-02', 'value': 424134}, {'date': '2026-09-25', 'value': 427320}]}}}),
+            'ngs/wngsr.json': (200, {'release_date': '2026-Oct-01 00:00:00', 'current_week': '2026-09-25', 'series': []}),
+            'todayinenergy/prices.php': (200, b'<table summary="Spot Petroleum Prices"><tr><th>10/06/26 <b>Close</b></th></tr><tr><td>WTI</td><td>96.16</td></tr></table>'),
+            'RWTCD.htm': (200, b"<tr><td class='B6'>&nbsp;&nbsp;2026 Sep-28 to Oct- 2</td><td class='B3'>96.16</td><td class='B3'>85.23</td><td class='B5'>&nbsp;</td>"
+                               b"<td class='B5'></td><td class='B5'></td></tr>"),
+            'acer.europa.eu': (200, b'"DATE","NORTH-WEST EUROPE PRICE (EUR/MWh)","EU PRICE (EUR/MWh)","LNG BENCHMARK (EUR/MWh)"\n"2026-10-06","71.928","71.875","-3.816"\n"2026-10-07","72.1","74.058",""\n'),
+            'spdrgoldshares.com': (200, spdr),
+            'sprott.com': (200, sprott),
+            'cameco.com': (200, b'<table class="hidden"><tr><td>2026/09/30</td><td>89.63</td></tr><tr><td>2026/08/31</td><td>89.68</td></tr></table>'),
+            'api.nbp.pl': (200, [{'data': '2026-10-06', 'cena': 519.24}, {'data': '2026-10-07', 'cena': 520.1}]),
+            'sdmx/3.0': (200, {'data': {'dataSets': [{'series': {'0:0:0:0': {'observations': {'0': ['4334.75'], '1': ['4319.0']}}}}],
+                                        'structures': [{'dimensions': {'observation': [{'id': 'TIME_PERIOD', 'values': [{'value': '2026-M08'}, {'value': '2026-M09'}]}]}}]}}),
+            'worldbank.org/en/research': (200, b'<a href="https://thedocs.worldbank.org/en/doc/abc-0050012026/related/CMO-Historical-Data-Monthly.xlsx">Monthly prices</a>'),
+            'CMO-Historical-Data-Monthly.xlsx': (200, wbx),
+            'pair=PAXGUSD': (200, {'error': [], 'result': {'PAXGUSD': [[1791244800, '4170.11', '4171.41', '4083.19', '4120.99', '4120', '1', 5]], 'last': 1791244800}}),
+            'pair=XAUTUSD': (200, {'error': ['EQuery:Unknown asset pair'], 'result': {}}),
+            'publicnode.com': (200, {'jsonrpc': '2.0', 'id': 1, 'result': hexw(1, 410860000000, 1791450000, int(__import__('time').time()) - 7200, 1)}),
+            'deacit.txt': (200, b'"WHEAT-SRW - CHICAGO BOARD OF TRADE",260929,2026-09-29,001602\n"CORN - CHICAGO BOARD OF TRADE",260929,2026-09-29,002602\n'),
+            '72hh-3qpy': (200, [{'cftc_contract_market_code': '023651', 'report_date_as_yyyy_mm_dd': '2026-09-29T00:00:00.000'},
+                                {'cftc_contract_market_code': '06765T', 'report_date_as_yyyy_mm_dd': '2026-09-29T00:00:00.000'}]),
+            'bankofcanada.ca': (200, {'seriesDetail': {'W.BCPI': {}, 'W.ENER': {}}, 'observations': [{'d': '2026-09-23'}, {'d': '2026-09-30'}]}),
+            'gscpi_interactive_data.csv': (200, b'Date,Sep-26,Oct-26\n31-Aug-2026,0.1,0.12\n30-Sep-2026,,0.2\n'),
+            'gulfmerc.com': (403, b'<html><title>Just a moment...</title><script src="/cdn-cgi/challenge-platform/x.js"></script></html>'),
+            'tge.pl': (200, b'<html><div class="g-recaptcha"></div>Please complete the captcha</html>'),
+            'oce-wasde-report-data-2026-10': (404, b'<!DOCTYPE html><html><title>Page Not Found</title><script>var token="x";</script></html>'),
+        }
+
+    def _run(self, S, groups):
+        import io as _io
+        odp, seen, ev, lim = self._odp(), [], [], []
+
+        def http(url, method='GET', body=None, headers=None):
+            seen.append((url, dict(headers or {}))); ev.append(('http', url))
+            if 'twelvedata.com/time_series?symbol=XAU/USD,' in url and not lim:   # pierwsza paczka: limit minutowy (zbieracz w tej samej minucie)
+                lim.append(url); ev.append(('429', url))
+                return 429, b'{"code":429,"message":"You have run out of API credits for the current minute. 9 API credits were used, with the current limit being 8."}', 3, None
+            for k, (st, b) in odp.items():
+                if k in url:
+                    return st, (b if isinstance(b, bytes) else json.dumps(b).encode()), 3, None
+            return 404, b'', 3, None
+
+        def part(url, n=65536, tail=False, headers=None):
+            seen.append((url, {})); ev.append(('part', url))
+            if 'jodidata' in url:
+                return 206, 5_500_000, '2026-09-15', b'7,CRUDEOIL,INDPROD,KBD,8135.0968,1\nSA,2026-07,CRUDEOIL,INDPROD,KBD,8135.0968,1\nSA,2026-06,CRUDEOIL,X,KBD,1,1\n', 120, None
+            return 206, 4_480_000, '2026-10-06', b'PK' + bytes([3, 4]) + b'\x14\x00', 80, None
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', http), mock.patch.object(S, '_su_part', part), mock.patch.object(S.time, 'sleep', lambda s: ev.append(('sleep', s))), \
+                mock.patch.object(S, '_utc_today', lambda: self.DZIS), mock.patch('sys.stdout', out), mock.patch.dict(os.environ, self.KEYS, clear=False):
+            for g in groups:
+                g()
+        return out.getvalue(), seen, ev
+
+    def test_grupy_klucze_i_czas(self):
+        import re
+        S = self._S()
+        names = [g.__name__ for g in S.GROUPS]
+        su = tuple(n for n in names if n.startswith('g_su_'))
+        self.assertEqual(su, S.TYLKO, 'ten przebieg: tylko sonda surowców'); self.assertEqual(len(su), 10)
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertTrue(all(names.index(n) < names.index('g_nasdaq') for n in su))
+        self.assertEqual(len(set(names)), len(names), 'każda grupa raz')
+        self.assertEqual((S.KEY_CANDIDATES['twelvedata'], S.KEY_CANDIDATES['eia'], S.KEY_CANDIDATES['coingecko']), (['TWELVEDATA_KEY'], ['EIA_KEY'], ['COINGECKO_KEY']))
+        self.assertAlmostEqual(S.DEADLINE - S.T0, 240.0, places=3)
+        with mock.patch.dict(os.environ, {'SONDY_NO_KEYS': '1', 'TWELVEDATA_KEY': 'TAJNY'}, clear=False):
+            self.assertEqual(S.find_key('twelvedata'), (None, None), 'SONDY_NO_KEYS=1 — bez kluczy')
+        wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        sy = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'sondy.yml'), encoding='utf-8').read()
+        for k in ('TWELVEDATA_KEY', 'EIA_KEY', 'COINGECKO_KEY'):
+            self.assertIn(f'{k}: ${{{{ secrets.{k} }}}}', wf, 'ta sama nazwa sekretu co w strona.yml'); self.assertIn(f'{k}: ${{{{ secrets.{k} }}}}', sy)
+        tm = int(re.search(r'timeout-minutes: (\d+)', sy).group(1))
+        self.assertGreaterEqual(tm * 60, 240 + 60, 'limit zadania > DEADLINE sond + przygotowanie')
+
+    def test_adnotacje_podzielone(self):
+        import subprocess, sys, tempfile, textwrap
+        sy = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'sondy.yml'), encoding='utf-8').read()
+        a = sy.index('python3 -c "\n') + len('python3 -c "\n'); b = sy.index('\n          "\n', a)
+        code = textwrap.dedent(sy[a:b])
+        lines = [f'summary su-x{i:03d} ' + 'a%b' * 25 for i in range(120)] + ['coinalyze      | env=- | x', 'deribit | env=- | y']
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'sondy.txt'), 'w', encoding='utf-8') as f:
+                f.write('\n'.join(lines) + '\n')
+            r = subprocess.run([sys.executable, '-c', code], cwd=d, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        N = [x for x in r.stdout.splitlines() if x.startswith('::notice title=sondy')]
+        self.assertGreaterEqual(len(N), 3); self.assertLessEqual(len(N), 9)
+        self.assertTrue(N[0].startswith('::notice title=sondy::') and N[1].startswith('::notice title=sondy-2::'))
+        msgs = [x.split('::', 2)[2].replace('%0A', '\n').replace('%0D', '\r').replace('%25', '%') for x in N]
+        self.assertTrue(all(len(m) <= 3900 for m in msgs))
+        got = '\n'.join(msgs).splitlines()
+        self.assertEqual([x for x in got if x.startswith('summary')], lines[:120], 'wszystkie wiersze summary, w kolejności, bez ucięcia')
+        self.assertIn('coinalyze      | env=- | x', got); self.assertNotIn('deribit | env=- | y', got)
+
+    def test_sonda_z_atrapa(self):
+        import re
+        S = self._S()
+        G = [getattr(S, n) for n in S.TYLKO]
+        o, seen, ev = self._run(S, G)
+        self.assertNotIn('TAJNY', o, 'klucz nigdy w wyniku'); self.assertNotIn('http', o.replace('HTTP', ''), 'żadnego adresu')
+        self.assertNotIn('twelvedata.com', o); self.assertNotIn('apikey', o)
+        for v in self.CENY:
+            self.assertNotIn(v, o, 'bez cen: ' + v)
+        SM = [x for x in o.splitlines() if x.startswith('summary')]
+        self.assertTrue(SM and all(re.match(r'^summary su-[a-z]+(-[a-z]+)? \S', x) for x in SM), SM)
+        # Twelve Data: ≤ 20 kredytów, ≤ 7 w każdej minucie (paczki rozdzielone sleep(61)), powtórka paczki odrzuconej limitem
+        def kred(u):
+            if 'api_usage' in u:
+                return 1
+            m = re.search(r'symbol=([^&]+)', u)
+            return len(m.group(1).split(',')) if m else 0
+        td = [u for k, u in ev if k == 'http' and 'twelvedata.com' in u and 'apikey=' in u]
+        bad = {u for k, u in ev if k == '429'}
+        self.assertLessEqual(sum(kred(u) for u in td) - sum(kred(u) for u in bad), 20)
+        minuty, cur = [], 0
+        for k, u in ev:
+            if k == 'sleep' and u == 61:
+                minuty.append(cur); cur = 0
+            elif k == 'http' and 'twelvedata.com' in u and 'apikey=' in u:
+                cur += kred(u)
+        minuty.append(cur)
+        self.assertTrue(all(m <= 7 for m in minuty), minuty); self.assertEqual(minuty, [7, 7, 2, 7], 'paczka odrzucona limitem — powtórka po minucie')
+        self.assertTrue(all('apikey=TAJNY_TD_111' in u for u in td))
+        n = lambda h: sum(1 for u, _ in seen if h in u)
+        self.assertEqual(n('financialmodelingprep.com'), 19); self.assertLessEqual(n('financialmodelingprep.com'), 25)
+        self.assertEqual(n('api.eia.gov'), 6); self.assertLessEqual(n('api.tiingo.com'), 10); self.assertEqual(n('api.tiingo.com'), 8)
+        self.assertEqual(n('api.coingecko.com'), 1)
+        self.assertTrue(all('TAJNY' not in u for u, _ in seen if 'tiingo' in u or 'coingecko' in u), 'Tiingo i CoinGecko: klucz tylko w nagłówku')
+        self.assertTrue(all(h.get('Authorization') == 'Token TAJNY_TII_444' for u, h in seen if 'tiingo' in u))
+        self.assertTrue(all(h.get('x-cg-demo-api-key') == 'TAJNY_CG_555' for u, h in seen if 'coingecko' in u))
+        self.assertFalse([u for u, _ in seen if 'eodhd' in u or 'massive' in u], 'bez planów z dobowym limitem spoza zadania')
+        # wiersze summary (wybrane)
+        for frag in ('summary su-td commodities_list_nokey 200', 'n=6 has=5/7 miss=WTI/USD,XBR/USD',
+                     'summary su-td ts 429 ', '429limit', 'XAU/USD=ok/r2/10-07', 'XPT/USD=403plan', 'HG1=404nf', 'WTI/USD=ok/r3/09-26',
+                     'XAU/USD=ok/10-08/c00:00/lag', '/o1', 'XAU/USD=ok/r2/10-07/od=2006-07-13', 'plan=basic min=2/8 day=345/800',
+                     'summary su-td-w WTI/USD@09-25=-11.4%/09-24 XBR/USD@10-02=+18.0%/10-01', 'summary su-td-credits sent=16 retries=1',
+                     'summary su-fmp commodities_list 200', 'n=5 has=4/9', 'extra=TTFUSD', 'summary su-fmp-q BZUSD=200/lag', 'CLUSD=402/plan',
+                     'summary su-fmp-eod BZUSD=200/r2/10-02', 'summary su-fmp-w CLUSD@09-25=brak BZUSD@10-02=+18.0%/10-01',
+                     'summary su-eia pri_spt_all_5000 200', 'total=412345 r=4 ser=2 warn 2026-09-24..2026-10-02',
+                     'ser=4/5 miss=BREPUUS', 'summary su-eia-w RWTC@09-25=-11.4%/09-24 RBRTE@10-02=+18.0%/10-01',
+                     'summary su-tiingo WEAT=200/r1/10-07', 'DBA=404/nf', 'pax-gold=ok/lag', 'mcap=True', 'tether-gold=ok/', 'mcap=False',
+                     'week=2026-10-02 rows=1', 'rel=2026-10-07 newest=2026-10-02 n=2', 'week=2026-09-25 rel=2026-10-01',
+                     'close=2026-10-06 tables=1', 'weeks=1 newest=2026-09-29', 'rows=2 newest=2026-10-07 bm_newest=empty cols=4',
+                     'total=5.5MB lm=2026-09-15 range lines=3 newest=2026-07', 'total=4.5MB lm=2026-10-06 range zip=True',
+                     'xlsx sheets=2 rows=4 dates=2 newest=2026-10-06', 'n=3 sig=e3/e1/e3+ newest=2026-10-06', 'dates=2 newest=2026-09-30',
+                     'r=2 newest=2026-10-07', 'ser=1 periods=2 newest=2026-M09', 'xlsx_link=yes',
+                     'sheets=2 monthly_prices=True months=2 newest=2026M09 upd=2026-10-02', 'r=1 newest=2026-10-06', 'err=EQuery:Unknown_asset_pair',
+                     'answer>0=True age=2.0h', 'rows=2 newest=2026-09-29', 'r=2 newest=2026-09-29 codes=2/4', 'obs=2 newest=2026-09-30 ser=2',
+                     'vintage=Oct-26 rows=2 last=30-Sep-2026', 'summary su-kru gme_homepage 403', 'blocked:cloudflare',
+                     'summary su-kru tge_gaz_rdn 200', 'blocked:captcha', 'summary su-rol wasde_csv_2026-10 404 0.1KB 3ms html', 'summary su-rol wasde_csv_2026-09 404'):
+            self.assertIn(frag, o)
+        self.assertEqual(n('oce-wasde-report-data'), 2, 'WASDE: bieżący miesiąc, potem poprzedni')
+        self.assertIn('shfe_kx_last_weekday', o); self.assertIn('kx20261007.dat', ' '.join(u for u, _ in seen))
+
+    def test_bez_kluczy(self):
+        S = self._S()
+        import io as _io
+        out, seen = _io.StringIO(), []
+
+        def http(url, method='GET', body=None, headers=None):
+            seen.append(url)
+            return 404, b'', 3, None
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: None), mock.patch('sys.stdout', out), \
+                mock.patch.dict(os.environ, {'SONDY_NO_KEYS': '1'}, clear=False):
+            for g in (S.g_su_td, S.g_su_fmp, S.g_su_eia, S.g_su_tiingo, S.g_su_cg):
+                g()
+        self.assertEqual([u.split('?')[0] for u in seen], ['https://api.twelvedata.com/commodities', 'https://api.coingecko.com/api/v3/simple/price'],
+                         'bez kluczy: tylko lista Twelve Data i CoinGecko bez klucza')
+        self.assertIn('simple_price_paxg_xaut_nokey', out.getvalue())

@@ -14,7 +14,7 @@ permissions: {}
 jobs:
   sondy:
     runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
-    timeout-minutes: 5
+    timeout-minutes: 8   # v294p: sonda surowców ok. 4 min (paczki Twelve Data co 61 s; DEADLINE w sondy.py 240 s)
     permissions:
       contents: read
     steps:
@@ -55,9 +55,27 @@ jobs:
           COINALYZE_KEY: ${{ secrets.COINALYZE_KEY }}      # v126: bez sekretu COINALYZE (właściciel: pomijać)
           BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
           EVDS_KEY: ${{ secrets.EVDS_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}   # v294p: sonda surowców — nazwy sekretów jak w strona.yml
+          EIA_KEY: ${{ secrets.EIA_KEY }}
+          COINGECKO_KEY: ${{ secrets.COINGECKO_KEY }}
         run: |
           python3 narzedzia/sondy.py > sondy.txt 2>&1 || true
           cat sondy.txt
-          # cały wynik jako jedna adnotacja (czytelna bez logowania); znaki specjalne kodowane jak wymaga GitHub
-          # adnotacja ma ok. 4 KB: najpierw podsumowanie, potem wiersze trzech nowych źródeł z kluczem (v126: Coinalyze, Banxico, EVDS)
-          python3 -c "L=open('sondy.txt',encoding='utf-8').read().splitlines();A=[l for l in L if l.startswith('summary')];B=[l for l in L if l.split('|')[0].strip() in ('coinalyze','banxico','evds','ici')];t=chr(10).join(A+['--']+B);print('::notice title=sondy::'+t[:3900].replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"
+          # wynik jako adnotacje (czytelne bez logowania); znaki specjalne kodowane jak wymaga GitHub. Adnotacja ma ok. 4 KB: najpierw wiersze
+          # summary, potem wiersze trzech źródeł z kluczem (v126: Coinalyze, Banxico, EVDS) i ici. v294p: sonda surowców ma ok. 8 KB wierszy summary —
+          # dzielone na kilka adnotacji po ≤ 3900 znaków (pierwsza „sondy”, kolejne „sondy-2”, …; najwyżej 9 — GitHub: 10 adnotacji notice na krok)
+          python3 -c "
+          L=open('sondy.txt',encoding='utf-8').read().splitlines()
+          A=[l for l in L if l.startswith('summary')]
+          B=[l for l in L if l.split('|')[0].strip() in ('coinalyze','banxico','evds','ici')]
+          P,c=[],''
+          for l in A+['--']+B:
+              l=l[:3900]
+              if c and len(c)+1+len(l)>3900:
+                  P.append(c)
+                  c=''
+              c=c+chr(10)+l if c else l
+          P.append(c)
+          for i,x in enumerate(P[:9]):
+              print('::notice title=sondy'+('-'+str(i+1) if i else '')+'::'+x.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))
+          "
