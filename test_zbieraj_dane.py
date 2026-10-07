@@ -518,7 +518,7 @@ class Instytucje(unittest.TestCase):
             raise AssertionError(url)
         with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('cp932')):
             out = zd.build_instytucje()
-        self.assertEqual(sorted(k for k in out if k not in ('at', 'src')), ['rrp', 'soma'])
+        self.assertEqual(sorted(k for k in out if k not in ('at', 'src', 'part_at')), ['rrp', 'soma'])   # v275: + part_at
         self.assertEqual(zd.META['ok'], {'tga': False, 'rrp': True, 'soma': True, 'tgb': False, 'ilm': False, 'm3': False, 'bop': False, 'mof': False})
         self.assertEqual(len(zd.META['errors']), 8)   # v49: bop ca + bop fa + bop razem
 
@@ -29888,3 +29888,52 @@ class PrzypietyObrazV274(unittest.TestCase):
             self.assertNotIn('ubuntu-latest', y, os.path.basename(p))
             self.assertEqual(y.count('runs-on:'), y.count('runs-on: ubuntu-24.04'), os.path.basename(p))
 
+
+# ===================== v275: CZĘŚĆ Z BŁĘDEM ZOSTAJE Z POPRZEDNIEGO PLIKU (instytucje.json, fred.json) =====================
+class CzesciZZapasemV275(unittest.TestCase):
+    """v275: źródło (seria), które w tym przebiegu zawiodło, zostaje z poprzedniego pliku z własną datą danych i czasem pobrania — nie znika
+    do następnej budowy; META ok False i błąd jak dotąd; wszystkie zawiodły = wyjątek mimo poprzedniego pliku; bez poprzedniego — jak dotąd."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_instytucje(self):
+        prev = {'at': '2026-10-07T01:00:00+00:00', 'part_at': {'tga': '2026-10-06T23:00:00+00:00'},
+                'tga': {'asof': '2026-10-05', 'd': [['2026-10-05', 984046.0]]}, 'mof': {'asof': '2026-09-26', 'd': []}}
+        def get_json(url, headers=None):
+            if 'fiscaldata' in url: raise RuntimeError('timeout')
+            if 'reverserepo' in url: return {'repo': {'operations': [{'operationDate': '2026-10-06', 'operationType': 'Reverse Repo', 'totalAmtAccepted': 1e6}]}}
+            if 'soma' in url: return {'soma': {'summary': [{'asOfDate': '2026-10-01', 'total': '6.364e12'}]}}
+            if 'ecb' in url: raise RuntimeError('503')
+            raise AssertionError(url)
+        with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('cp932')), \
+                mock.patch.object(zd, 'NOW', '2026-10-07T02:10:00+00:00'), mock.patch.object(zd.time, 'sleep', lambda s: None):
+            out = zd.build_instytucje(prev)
+        self.assertEqual(out['tga'], prev['tga'], 'TGA zawiodło — poprzednia wersja z własną datą danych (05.10)')
+        self.assertEqual(out['mof'], prev['mof'])
+        self.assertEqual(out['part_at'], {'tga': '2026-10-06T23:00:00+00:00', 'rrp': '2026-10-07T02:10:00+00:00', 'soma': '2026-10-07T02:10:00+00:00',
+                                          'mof': '2026-10-07T01:00:00+00:00'}, 'czas pobrania części (stary plik bez part_at — czas pliku)')
+        self.assertNotIn('tgb', out, 'bez poprzedniej wersji — brak, nie zero')
+        self.assertIs(zd.META['ok']['tga'], False); self.assertTrue(any(e.startswith('tga:') for e in zd.META['errors']))
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('down')), \
+                mock.patch.object(zd.time, 'sleep', lambda s: None):
+            with self.assertRaises(RuntimeError):
+                zd.build_instytucje(prev)   # żadne źródło — wyjątek mimo poprzedniego pliku (main zostawia go w całości)
+        import inspect
+        self.assertIn("save('instytucje', build_instytucje(prev_inst))", inspect.getsource(zd.main))
+
+    def test_fred(self):
+        prev = {'at': '2026-10-07T00:57:00+00:00', 'series': {'DTWEXBGS': {'asof': '2026-10-03', 'd': [['2026-10-03', 120.5]]}}}
+        def get_json(url, headers=None):
+            if 'series_id=DTWEXBGS' in url:
+                raise RuntimeError('HTTP 500')
+            return {'observations': [{'date': '2026-10-01', 'value': '5'}]}
+        with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd.time, 'sleep', lambda s: None), mock.patch.object(zd, 'NOW', '2026-10-07T02:10:00+00:00'):
+            out = zd.build_fred('k', prev)
+        self.assertEqual(out['series']['DTWEXBGS'], prev['series']['DTWEXBGS']); self.assertEqual(out['part_at']['DTWEXBGS'], '2026-10-07T00:57:00+00:00')
+        self.assertEqual(out['part_at']['WALCL'], '2026-10-07T02:10:00+00:00'); self.assertEqual(len(out['series']), len(zd.FRED_SERIES))
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), mock.patch.object(zd.time, 'sleep', lambda s: None):
+            with self.assertRaises(RuntimeError):
+                zd.build_fred('k', prev)
+        import inspect
+        self.assertIn("save('fred', build_fred(fred_key, prev_fred))", inspect.getsource(zd.main))

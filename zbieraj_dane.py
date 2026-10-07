@@ -551,21 +551,40 @@ def parse_bop(j_ca, j_fa):
             'sign': 'net = assets minus liabilities; positive = net outflow from the euro area', 's': s}
 
 
-def build_instytucje():
-    """data/instytucje.json — każde źródło osobno: awaria jednego nie kasuje pozostałych (brak nie jest zerem)."""
-    out = {'at': NOW, 'src': 'instytucje'}
+def _czesc_z_zapasem(out, prev, name, dane='', pole='part_at'):
+    """v275: część `name`, która w tym przebiegu zawiodła, z poprzedniego pliku `prev` (słownik części: prev[dane] albo prev, gdy dane = '')
+    z jej własnym czasem pobrania (prev[pole][name], inaczej prev['at']) — data danych części zostaje w niej samej (strona: „stan na …”).
+    Bez poprzedniej wersji — nic (brak, nie zero). → czy wzięta."""
+    src = (prev.get(dane) if dane else prev) if isinstance(prev, dict) else None
+    old = src.get(name) if isinstance(src, dict) else None
+    if not isinstance(old, dict):
+        return False
+    pat = prev.get(pole) if isinstance(prev.get(pole), dict) else {}
+    (out[dane] if dane else out)[name] = old
+    out.setdefault(pole, {})[name] = pat.get(name) or prev.get('at')
+    return True
+
+
+def build_instytucje(prev=None):
+    """data/instytucje.json — każde źródło osobno: awaria jednego nie kasuje pozostałych (brak nie jest zerem). v275: źródło, które zawiodło,
+    zostaje z poprzedniego pliku z własną datą danych i czasem pobrania ('part_at') — wcześniej znikało z pliku do następnej budowy (strona
+    pokazywała „—” do godziny); META ok = False i błąd jak dotąd. Żadne źródło nie odpowiedziało — wyjątek (main zostawia poprzedni plik)."""
+    out = {'at': NOW, 'src': 'instytucje', 'part_at': {}}
     jobs = [('tga', lambda: parse_tga(get_json(TGA_URL))), ('rrp', lambda: parse_rrp(get_json(RRP_URL))),
             ('soma', lambda: parse_soma(get_json(SOMA_URL))), ('tgb', lambda: parse_tgb(_ecb_json(TGB_URL))),
             ('ilm', lambda: parse_ilm(_ecb_json(ILM_URL))), ('m3', lambda: parse_m3(_ecb_json(M3_URL))),
             ('bop', lambda: parse_bop(_ecb_try(BOP_CA_URL, 'bop ca'), _ecb_try(BOP_FA_URL, 'bop fa'))),
             ('mof', lambda: parse_mof(get_bytes(MOF_URL)))]
+    udane = 0
     for name, job in jobs:
         try:
-            out[name] = job(); META['ok'][name] = True
+            out[name] = job(); META['ok'][name] = True; out['part_at'][name] = NOW; udane += 1
             print(f"{name}: stan {out[name]['asof']}")
         except Exception as e:
             META['errors'].append(mask(f'{name}: {e}')); META['ok'][name] = False
-    if not any(k in out for k, _ in jobs):
+            if _czesc_z_zapasem(out, prev, name):   # v275: poprzednia wersja z własną datą — nie „—” do następnej budowy
+                print(f'{name}: zawiódł — zostaje poprzednia wersja z', out['part_at'][name])
+    if not udane:
         raise RuntimeError('żadne źródło urzędowe nie odpowiedziało')
     return out
 
@@ -1042,19 +1061,23 @@ def parse_fred(j, sid):
     return {'unit': meta['unit'], 'freq': meta['freq'], 'name': meta['name'], 'asof': rows[-1][0], 'd': rows}
 
 
-def build_fred(key):
+def build_fred(key, prev=None):
     """data/fred.json — serie Rady Gubernatorów Fed przez FRED API (klucz tylko w adresie zapytania, nigdy w komunikatach).
-    Każda seria osobno: awaria jednej nie kasuje pozostałych (brak nie jest zerem)."""
-    out = {'at': NOW, 'src': FRED_CITE, 'api_note': FRED_API_NOTE, 'url': 'https://fred.stlouisfed.org/', 'series': {}}
+    Każda seria osobno: awaria jednej nie kasuje pozostałych (brak nie jest zerem). v275: seria, która zawiodła, zostaje z poprzedniego pliku
+    z własną datą danych i czasem pobrania ('part_at') — wcześniej znikała do następnej budowy (strona: „—” do godziny). Żadna seria nie
+    odpowiedziała — wyjątek (main zostawia poprzedni plik)."""
+    out = {'at': NOW, 'src': FRED_CITE, 'api_note': FRED_API_NOTE, 'url': 'https://fred.stlouisfed.org/', 'series': {}, 'part_at': {}}
+    udane = 0
     for sid in FRED_SERIES:
         time.sleep(FRED_SLEEP)
         try:
             j = get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit={FRED_LIMIT}')
-            out['series'][sid] = parse_fred(j, sid)
+            out['series'][sid] = parse_fred(j, sid); out['part_at'][sid] = NOW; udane += 1
             print(f"FRED {sid}: stan {out['series'][sid]['asof']}")
         except Exception as e:
             META['errors'].append(mask(f'FRED {sid}: {e}'))
-    if not out['series']:
+            _czesc_z_zapasem(out, prev, sid, dane='series')   # v275: poprzednia wersja serii z własną datą
+    if not udane:
         raise RuntimeError('żadna seria FRED nie odpowiedziała')
     try:   # v50: podsumowanie depozytu H.4.1 — jego błąd nie może zatrzymać zapisu pozostałych serii FRED
         out['custody'] = custody_summary(out['series'])
@@ -19559,7 +19582,7 @@ def main():
         save('fred', prev_fred); META['ok']['fred'] = 'cached'; print('FRED: dane z', prev_fred.get('at'), '— młodsze niż 55 min, bez zapytań do FRED')
     elif fred_key:
         try:
-            save('fred', build_fred(fred_key)); META['ok']['fred'] = True
+            save('fred', build_fred(fred_key, prev_fred)); META['ok']['fred'] = True   # v275: seria z błędem — poprzednia wersja z własną datą
         except Exception as e:
             META['errors'].append(mask(f'FRED: {e}')); META['ok']['fred'] = False
             if prev_fred: save('fred', prev_fred); print('FRED zawiódł — zachowano poprzedni fred.json z', prev_fred.get('at'))
@@ -20107,7 +20130,7 @@ def main():
         save('instytucje', prev_inst); META['ok']['instytucje'] = 'cached'; print('INSTYTUCJE: dane z', prev_inst.get('at'), '— młodsze niż 55 min')
     else:
         try:
-            save('instytucje', build_instytucje()); META['ok']['instytucje'] = True
+            save('instytucje', build_instytucje(prev_inst)); META['ok']['instytucje'] = True   # v275: źródło z błędem — poprzednia wersja z własną datą
         except Exception as e:
             META['errors'].append(mask(f'instytucje: {e}')); META['ok']['instytucje'] = False
             if prev_inst: save('instytucje', prev_inst); print('źródła urzędowe zawiodły — zachowano poprzedni instytucje.json z', prev_inst.get('at'))
