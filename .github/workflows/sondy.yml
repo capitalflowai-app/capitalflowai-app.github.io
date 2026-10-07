@@ -18,10 +18,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7   # v289a: akcje na Node.js 24 (v4/v5 — Node.js 20, wycofywany); najpierw tu, potem kontrola i strona
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Sondy (tylko statusy)
