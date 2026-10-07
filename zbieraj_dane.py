@@ -5030,8 +5030,9 @@ def _etf_rowne(x, y):
 ETF_PUB_KEEP = 30                     # obserwacji pory publikacji na monetę
 ETF_PUB_MIN = 5                       # tyle obserwacji (wszystkie monety) = okno z danych; mniej = okno domyślne
 ETF_OKNO_DOM = (21 * 60, 30 * 60)     # min od północy UTC dnia danych: 21:00 tego dnia – 06:00 następnego (okno domyślne)
-ETF_OKNO_GRAN = (20 * 60, 38 * 60)    # granice okna z danych: 20:00 – 14:00 następnego dnia
-ETF_SZYBKO_MIN = 9                    # min — w oknie pytanie, gdy plik starszy (przebieg automatu co 10 min)
+ETF_OKNO_GRAN = (20 * 60, 40 * 60)    # granice okna z danych: 20:00 – 16:00 następnego dnia (v282: było 14:00)
+ETF_SZYBKO_MIN = 4                    # min — w oknie pytanie, gdy plik starszy (v282: było 9 — przebiegi GitHuba bywają co 5–7 min)
+ETF_FUNDS_PONOW = 55                  # v282: min — lista funduszy niezgodna z przepływem dnia: ponownie najwyżej tak często (ten sam dzień danych)
 
 
 def etf_oczekiwany(now):
@@ -5042,41 +5043,60 @@ def etf_oczekiwany(now):
     return d
 
 
-def etf_okno(pub):
+def _etf_obs(rows):
+    """v279/v282: obserwacje jednej monety ([dzień, czas pierwszego zobaczenia]) → minuty od północy UTC dnia danych; złe i poza 0–3 doby — pominięte."""
+    out = []
+    for r in (rows if isinstance(rows, list) else []):
+        try:
+            d, t = datetime.date.fromisoformat(r[0]), _ix_dt(r[1])
+            m = (t - datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc)).total_seconds() / 60
+        except (TypeError, ValueError, IndexError):
+            continue
+        if 0 <= m <= 3 * 24 * 60:
+            out.append(m)
+    return out
+
+
+def etf_okno(pub, coin=None):
     """v279: okno publikacji z obserwacji 'pub' (minuty od północy UTC dnia danych do pierwszego zobaczenia) → (od, do, n): 10. centyl − 60
-    i 90. centyl + 30 min, w granicach ETF_OKNO_GRAN; mniej niż ETF_PUB_MIN obserwacji — ETF_OKNO_DOM. Obserwacja poza 0–3 doby — pominięta."""
-    obs = []
-    for rows in (pub.values() if isinstance(pub, dict) else []):
-        for r in (rows if isinstance(rows, list) else []):
-            try:
-                d, t = datetime.date.fromisoformat(r[0]), _ix_dt(r[1])
-                m = (t - datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc)).total_seconds() / 60
-            except (TypeError, ValueError, IndexError):
-                continue
-            if 0 <= m <= 3 * 24 * 60:
-                obs.append(m)
+    i 90. centyl + 30 min, w granicach ETF_OKNO_GRAN; mniej niż ETF_PUB_MIN obserwacji — ETF_OKNO_DOM. Obserwacja poza 0–3 doby — pominięta.
+    v282 (przegląd v279): coin — okno tej monety z jej obserwacji (≥ ETF_PUB_MIN), inaczej ze wszystkich monet razem, inaczej domyślne;
+    okno puste (od > do — publikacje późniejsze niż granica) = bez trybu szybkiego (co godzinę jak dotąd)."""
+    pub = pub if isinstance(pub, dict) else {}
+    obs = _etf_obs(pub.get(coin)) if coin is not None else []
+    if len(obs) < ETF_PUB_MIN:
+        obs = [m for rows in pub.values() for m in _etf_obs(rows)]
     if len(obs) < ETF_PUB_MIN:
         return ETF_OKNO_DOM[0], ETF_OKNO_DOM[1], len(obs)
     obs.sort()
     q = lambda p: obs[min(len(obs) - 1, int(p * (len(obs) - 1) + 0.5))]  # noqa: E731
     od = max(ETF_OKNO_GRAN[0], q(0.1) - 60)
     do = min(ETF_OKNO_GRAN[1], max(od + 60, q(0.9) + 30))
+    if do - od < 30:   # okno przycięte granicą do mniej niż 30 min — publikacje po granicy: puste (od > do)
+        return int(od), int(od) - 1, len(obs)
     return int(od), int(do), len(obs)
 
 
-def etf_szybko(prev, now):
-    """v279: czy pytać o przepływy mimo pliku młodszego niż godzina — oczekiwanego dnia (etf_oczekiwany) brak w którejś monecie (poza
-    'stale') i teraz jest w oknie publikacji (etf_okno). → bool."""
+def etf_brakujace(prev, now):
+    """v282: monety do trybu szybkiego — bez oczekiwanego dnia (etf_oczekiwany; poza 'stale', z poprawną datą), gdy teraz jest w oknie
+    publikacji TEJ monety (etf_okno(pub, moneta)). → zbiór (pusty = bez trybu szybkiego)."""
     if not isinstance(prev, dict) or not isinstance(prev.get('assets'), dict):
-        return False
+        return set()
     E = etf_oczekiwany(now)
-    brak = [s for s, a in prev['assets'].items() if isinstance(a, dict) and not a.get('stale') and isinstance(a.get('asof'), str)
-            and re.match(r'^\d{4}-\d{2}-\d{2}$', a['asof']) and a['asof'] < E.isoformat()]   # moneta bez poprawnej daty — bez trybu szybkiego
-    if not brak:
-        return False
-    od, do, _ = etf_okno(prev.get('pub'))
     m = (now - datetime.datetime(E.year, E.month, E.day, tzinfo=datetime.timezone.utc)).total_seconds() / 60
-    return od <= m <= do
+    out = set()
+    for s, a in prev['assets'].items():
+        if isinstance(a, dict) and not a.get('stale') and isinstance(a.get('asof'), str) and re.match(r'^\d{4}-\d{2}-\d{2}$', a['asof']) \
+                and a['asof'] < E.isoformat():   # moneta bez poprawnej daty — bez trybu szybkiego
+            od, do, _ = etf_okno(prev.get('pub'), s)
+            if od <= m <= do:
+                out.add(s)
+    return out
+
+
+def etf_szybko(prev, now):
+    """v279: czy pytać o przepływy mimo pliku młodszego niż godzina — v282: któraś moneta bez oczekiwanego dnia w swoim oknie (etf_brakujace). → bool."""
+    return bool(etf_brakujace(prev, now))
 
 
 def etf_pub(prev_pub, prev_assets, assets, stare, now_iso):
@@ -5094,7 +5114,9 @@ def etf_pub(prev_pub, prev_assets, assets, stare, now_iso):
     return out
 
 
-def build_etf(key, cg_key, prev=None):
+def build_etf(key, cg_key, prev=None, tylko=None):
+    """v282: tylko — zbiór monet do pobrania (tryb szybki: monety bez oczekiwanego dnia); pozostałe z poprzedniego pliku bez zapytań
+    (z historią dni i stanem); None = wszystkie (pełna budowa, 'pelne_at' = teraz)."""
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
     prev_assets = prev.get('assets') if isinstance(prev, dict) and isinstance(prev.get('assets'), dict) else {}
     # kapitalizacje (CoinGecko) — do udziału ETF w rynku
@@ -5117,9 +5139,13 @@ def build_etf(key, cg_key, prev=None):
         except Exception as e:
             META['errors'].append(mask(f'CoinGecko: {e}'))
             META['ok']['coingecko'] = False
-    nowe, stare = 0, {}
+    nowe, stare, pominiete = 0, {}, set()
     for s in ETF_SYMS:
         pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
+        if tylko is not None and s not in tylko and isinstance(pa.get('day'), list) and pa['day'] and isinstance(pa.get('asof'), str) and _d(pa['asof']):
+            out['assets'][s] = json.loads(json.dumps(pa)); pominiete.add(s)   # v282: tryb szybki — moneta z oczekiwanym dniem bez zapytań
+            out['asof'] = max(out['asof'], pa['asof'])
+            continue
         try:
             _etf_coin(out, s, key, pa.get('day'), prev_a=pa); nowe += 1
         except Exception as e:   # v49: brak jednej monety nie kasuje pozostałych
@@ -5153,9 +5179,9 @@ def build_etf(key, cg_key, prev=None):
         if out.get('hk') and set(nowe_hk or ()) >= {'btc', 'eth'}:   # v194: czas tylko dla kompletu z tego przebiegu
             out['hk_at'] = NOW
     # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
-    out['pub'] = etf_pub(prev.get('pub') if isinstance(prev, dict) else None, prev_assets, out['assets'], stare, NOW)   # v279: pora publikacji
-    od, do, n = etf_okno(out['pub'])
-    out['okno'] = {'od': od, 'do': do, 'n': n}   # v279: okno publikacji (min od północy UTC dnia danych) — do kontroli i opisu
+    out['pub'] = etf_pub(prev.get('pub') if isinstance(prev, dict) else None, prev_assets, out['assets'], set(stare) | pominiete, NOW)   # v279: pora publikacji
+    out['okno'] = {s: dict(zip(('od', 'do', 'n'), etf_okno(out['pub'], s))) for s in ETF_SYMS}   # v282: okno publikacji każdej monety (min od północy UTC dnia danych)
+    out['pelne_at'] = NOW if tylko is None else ((prev.get('pelne_at') or prev.get('at')) if isinstance(prev, dict) else NOW)   # v282: ostatnia pełna budowa
     dates = sorted({a['asof'] for a in out['assets'].values()})
     out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
     return out
@@ -5221,6 +5247,12 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
         same = (isinstance(prev_a, dict) and prev_a.get('asof') == last['date'] and _etf_rowne(prev_a.get('d1'), a['d1'])
                 and _etf_rowne(prev_a.get('cum'), a['cum']))
         stara = not (pf and same and fat is not None and 0 <= (_now_utc() - fat).total_seconds() < ETF_FUNDS_EVERY * 60)
+        # v282 (przegląd v279): lista bez funds_at (niezgodna z przepływem dnia albo niepełna) — przy tym samym zestawieniu dnia ponownie najwyżej
+        # co ETF_FUNDS_PONOW min (tryb szybki co ~10 min pobierał ją w każdej budowie: 1 + N zapytań); nowy dzień danych — od razu
+        ftry = _ix_dt(prev_a.get('funds_try')) if isinstance(prev_a, dict) else None
+        wstrzymana = bool(stara and pf and same and fat is None and ftry is not None and 0 <= (_now_utc() - ftry).total_seconds() < ETF_FUNDS_PONOW * 60)
+        if wstrzymana:
+            stara = False
         pelna = True
         lst = []
         if stara:
@@ -5230,6 +5262,8 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
                 META['errors'].append(mask(f'SoSoValue {s.upper()}: lista funduszy — {e}')); pelna = False
                 if pf and isinstance(prev_a, dict) and prev_a.get('asof') == last['date']:
                     a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]
+        elif wstrzymana:   # v282: niezgodna lista z poprzedniego pliku, bez czasu listy — ponowienie po ETF_FUNDS_PONOW min
+            a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]; a['funds_try'] = prev_a['funds_try']
         else:
             a['funds'] = [dict(f) for f in pf if isinstance(f, dict)]; a['funds_at'] = prev_a['funds_at']
         obc = len(lst or []) > ETF_FUNDS_MAX   # v203
@@ -5261,7 +5295,9 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
                 a['funds_at'] = NOW   # v192: pełna lista z tego przebiegu
             else:
                 META['notes'].append(f'SoSoValue {s.upper()}: lista funduszy niezgodna z przepływem dnia ({a["d1"]:+.1f} mln; suma {sum(nl):+.1f} mln z '
-                                     f'{len(nl)} z {len(d1f)} funduszy) — znowu w następnym przebiegu')
+                                     f'{len(nl)} z {len(d1f)} funduszy) — znowu za {ETF_FUNDS_PONOW} min albo przy nowym dniu danych')
+        if stara and 'funds_at' not in a:   # v282: pobrana, ale niezgodna albo niepełna — czas próby (ponowienie najwyżej co ETF_FUNDS_PONOW min)
+            a['funds_try'] = NOW
         a['funds'].sort(key=lambda f: -(f['aum'] or 0))
         if not a['aum'] and a['funds']:
             # suma aktywów tylko wtedy, gdy KAŻDY fundusz ma aktywa — brak nie jest zerem
@@ -11489,11 +11525,13 @@ def _ix_fmp_wyczerpany(rec, h, now, blad=False):
     return bool(blad) or b[1] > IX_PONOW
 
 
-def _ix_zapas_wybor(pix, kand, now, calls, quota):
-    """v281 (przegląd v278): które indeksy FMP z wyczerpanymi ponowieniami (kand, kolejność IX_FMP) pobrać teraz z zapasu EODHD:
-    (a) grupa wspólnej sesji (kraj i godzina z IX_FMP — S&P 500, Nasdaq i Dow to jedna sesja): gdy któryś z grupy dostał już tę samą sesję
-        z zapasu (wpis nie od FMP): z sesją — reszta grupy też z zapasu; bez sesji ('brak' tego dnia) — to dzień bez sesji (święto): reszta
-        grupy bez zapasu; inaczej najpierw jedna próba (pierwszy z grupy);
+def _ix_zapas_wybor(pix, kand, now, calls, quota, zle_kand=()):
+    """v281 (przegląd v278): które indeksy FMP pobrać teraz z zapasu EODHD. kand — FMP wyczerpał ponowienia bez sesji (sesja = 'brak');
+    v282 (przegląd v281): zle_kand — FMP zawiódł w tym przebiegu albo ma przerwę, a indeks jest należny (sesja = dzień chwili gotowości);
+    wszystkie przez te same reguły:
+    (a) grupa wspólnej sesji (kraj i godzina z IX_FMP — S&P 500, Nasdaq i Dow to jedna sesja): gdy któryś z grupy dostał już tę sesję z zapasu
+        (wpis nie od FMP): z sesją — reszta grupy też z zapasu; bez niej ('brak' tego dnia albo — v282 — pobrany po chwili gotowości, a ostatnia
+        prawdziwa sesja bez wierszy-wypełnień jest wcześniejsza) — to dzień bez sesji (święto): reszta grupy bez zapasu; inaczej najpierw jedna próba;
     (b) tylko z limitu, który zostaje po własnych indeksach EODHD jeszcze do pobrania dziś (IX_DAILY − zużyte dziś − własne należne do końca
         doby UTC); blokada limitu albo brak zapasu limitu — zapas w następnej dobie;
     (c) najdłużej czekający (najstarsza ostatnia sesja) najpierw — przy wielodniowym przestoju FMP wolny limit dostaje każdy po kolei. → zbiór kodów."""
@@ -11519,19 +11557,43 @@ def _ix_zapas_wybor(pix, kand, now, calls, quota):
     def ost(x):   # ostatnia sesja wpisu ('' = brak) — najdłużej czekający najpierw (przy wielodniowym przestoju FMP każdy dostaje kolejkę)
         d = (pix.get(x) or {}).get('d') if isinstance(pix.get(x), dict) else None
         return str(d[-1][0]) if isinstance(d, list) and d and isinstance(d[-1], list) and d[-1] else ''
+    kandydaci = {}
+    for s in kand:
+        b = _ix_brak(pix.get(s))
+        if b and s in grupy:
+            kandydaci[s] = b[0]
+    for s in zle_kand:   # v282: FMP zawiódł albo przerwa — sesja = dzień chwili gotowości
+        if s in grupy and s not in kandydaci:
+            rec = pix.get(s) if isinstance(pix.get(s), dict) else {}
+            kandydaci[s] = ix_ready(ix_godzina(grupy[s][1], rec), now).date().isoformat()
     out = []
-    for s in sorted(kand, key=lambda x: (ost(x), kol.get(x, 99))):
+    for s in sorted(kandydaci, key=lambda x: (ost(x), kol.get(x, 99))):
         if len(out) >= wolne:
             break
-        b = _ix_brak(pix.get(s))
-        if not b:
+        D = kandydaci[s]
+        try:
+            Rd = datetime.datetime.fromisoformat(D).replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(hours=grupy[s][1])
+        except ValueError:
             continue
-        czlonkowie = [x for x, gr in grupy.items() if gr == grupy[s] and x != s]
-        zapas = [pix.get(x) for x in czlonkowie if isinstance(pix.get(x), dict) and pix[x].get('src') != 'fmp']
-        if any((_ix_brak(r) or [None])[0] == b[0] for r in zapas):
+        stan = None   # 'jest' — zapas ma tę sesję; 'swieto' — zapas pobrany po chwili gotowości bez niej
+        for x, gr in grupy.items():
+            r = pix.get(x)
+            if x == s or gr != grupy[s] or not isinstance(r, dict) or r.get('src') == 'fmp':
+                continue
+            bx = _ix_brak(r)
+            if bx and bx[0] == D:
+                stan = 'swieto'; break
+            at = _ix_dt(r.get('at'))
+            if at is not None and at >= Rd:
+                dd = ix_bez_wypelnien(r['d']) if isinstance(r.get('d'), list) else []   # v282: wiersz-wypełnienie w święto to nie sesja
+                last = str(dd[-1][0]) if dd and isinstance(dd[-1], list) and dd[-1] else ''
+                if last >= D:
+                    stan = 'jest'
+                else:
+                    stan = 'swieto'; break
+        if stan == 'swieto':
             continue   # zapas też bez tej sesji — dzień bez sesji (święto)
-        z_sesja = any(isinstance(r.get('d'), list) and r['d'] and str(r['d'][-1][0]) >= b[0] for r in zapas)
-        if not z_sesja and any(grupy.get(x) == grupy[s] for x in out):
+        if stan != 'jest' and any(grupy.get(x) == grupy[s] for x in out):
             continue   # najpierw jedna próba z grupy wspólnej sesji
         out.append(s)
     return set(out)
@@ -11624,16 +11686,18 @@ def build_indeksy(keys, prev=None, now=None):
     deadline = time.monotonic() + IX_BUDGET_S   # cały budowniczy < 60 s: po tym czasie żadnego nowego zapytania
     out, errors = {'at': NOW, 'ok': {}, 'part_at': {}}, []
     pix = {s: dict(r) for s, r in prev['ix'].items() if isinstance(r, dict)} if isinstance(prev.get('ix'), dict) else {}   # kopia — poprzedni plik nie jest modyfikowany w miejscu
-    fmp_got, zle, pomin, wymus = 0, set(), set(), set()
+    fmp_got, zle, pomin, wymus, wybor = 0, set(), set(), set(), set()
     if keys.get('FMP_KEY'):   # v273: najpierw FMP (6 indeksów, plan 250 zapytań na dobę), potem EODHD — reszta i zapas indeksów FMP
         fmp_got = ix_fmp(keys['FMP_KEY'], pix, now, errors, zle, deadline)
         eod_kody = {s for s, _, _ in IX_SYMBOLS}
         kand = [s for s, _, g, _ in IX_FMP if s in eod_kody and _ix_fmp_wyczerpany(pix.get(s), g, now, s in zle)]   # v278: FMP bez sesji — zapas raz
-        wymus = _ix_zapas_wybor(pix, kand, now, prev.get('ix_calls'), prev.get('ix_quota')) if keys.get('EODHD_KEY') else set()   # v281: limit, grupa, święto
+        zle_nal = [s for s, _, g, _ in IX_FMP if s in eod_kody and s in zle and s not in kand and ix_do_pobrania(g, pix.get(s) or {}, now)]   # v282: błąd/przerwa FMP
+        wybor = _ix_zapas_wybor(pix, kand, now, prev.get('ix_calls'), prev.get('ix_quota'), zle_nal) if keys.get('EODHD_KEY') else set()   # v281/v282: limit, grupa, święto
+        wymus = wybor & set(kand)
         for s in sorted(wymus):
             b = _ix_brak(pix.get(s)) or ['?', 0]
             META['notes'].append(f'Indeksy: {s} — FMP bez sesji {b[0]} (pobrań bez niej: {b[1]}) — pobranie z zapasu (drugi dostawca)')
-        pomin = {s for s, _, _, _ in IX_FMP} - zle - wymus   # EODHD pobiera indeks FMP tylko, gdy FMP go teraz nie dostarczył (błąd, przerwa, koniec pętli, v278: brak sesji)
+        pomin = {s for s, _, _, _ in IX_FMP} - wybor   # EODHD pobiera indeks FMP tylko z wyboru zapasu (v282: także błąd/przerwa FMP — przez limit)
     if keys.get('EODHD_KEY'):
         part, calls, quota, ok, got = ix_part(keys['EODHD_KEY'], pix, prev.get('ix_calls'), prev.get('ix_quota'), now, errors, deadline, pomin, wymus)
         has = any(isinstance(r.get('d'), list) and r['d'] for r in part.values())
@@ -19732,12 +19796,14 @@ def main():
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
     prev_etf = previous('etf') if soso_key else None
-    etf_szybki = bool(soso_key and prev_etf and etf_szybko(prev_etf, _now_utc()))   # v279: okno publikacji, oczekiwanego dnia brak — co przebieg
-    if soso_key and prev_etf and fresh(prev_etf, 55) and not (etf_szybki and not fresh(prev_etf, ETF_SZYBKO_MIN)):
+    etf_pelne = {'at': prev_etf.get('pelne_at') or prev_etf.get('at')} if isinstance(prev_etf, dict) else None   # v282: czas ostatniej pełnej budowy
+    etf_szybkie = etf_brakujace(prev_etf, _now_utc()) if (soso_key and prev_etf) else set()   # v279/v282: monety bez oczekiwanego dnia w swoim oknie
+    if soso_key and prev_etf and fresh(etf_pelne, 55) and not (etf_szybkie and not fresh(prev_etf, ETF_SZYBKO_MIN)):
         save('etf', prev_etf); META['ok']['sosovalue'] = 'cached'; print('ETF: dane z', prev_etf.get('at'), '— młodsze niż 55 min, bez zapytań do SoSoValue')
     elif soso_key:
         try:
-            save('etf', build_etf(soso_key, cg_key, prev_etf)); META['ok']['sosovalue'] = True
+            etf_tylko = etf_szybkie if (prev_etf and fresh(etf_pelne, 55)) else None   # v282: pełna budowa co godzinę; w oknie — tylko brakujące monety
+            save('etf', build_etf(soso_key, cg_key, prev_etf, etf_tylko)); META['ok']['sosovalue'] = True
         except Exception as e:
             META['errors'].append(mask(f'SoSoValue: {e}')); META['ok']['sosovalue'] = False
             if prev_etf: save('etf', prev_etf); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))

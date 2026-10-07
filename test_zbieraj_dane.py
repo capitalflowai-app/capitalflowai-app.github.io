@@ -29807,7 +29807,8 @@ class IndeksyFmpV273(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', side_effect=gj2), mock.patch.object(zd, 'NOW', now_ref[0].isoformat()):
             o3 = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, {'ix': {}}, now=now_ref[0])
         self.assertEqual(sum(1 for a, _, _ in calls2 if a == 'fmp'), 2, 'dwa braki odpowiedzi — koniec pętli FMP')
-        self.assertTrue({'GSPC', 'IXIC', 'DJI'} <= {b for a, b, _ in calls2 if a == 'eod'} | {s for s in o3['ix'] if o3['ix'][s].get('d')})
+        eodx = {b for a, b, _ in calls2 if a == 'eod'}   # v282: zapas przez limit i z jedną próbą z grupy wspólnej sesji (USA)
+        self.assertIn('GSPC', eodx); self.assertFalse({'IXIC', 'DJI'} & eodx, 'reszta grupy USA po potwierdzeniu sesji próbą')
         # bez klucza FMP — EODHD wszystkie 22 kody jak przed v273
         with mock.patch.object(zd, 'IX_PER_RUN', 99):   # cały plan, bez limitu na przebieg
             self.assertEqual(len(zd.ix_plan({}, self.T(2026, 10, 14, 23, 0), 99)), len(zd.IX_SYMBOLS))
@@ -30194,11 +30195,11 @@ class EtfPoraPublikacjiV279(unittest.TestCase):
     def test_polaczenie(self):
         import inspect
         src = inspect.getsource(zd.main)
-        self.assertIn("etf_szybki = bool(soso_key and prev_etf and etf_szybko(prev_etf, _now_utc()))", src)
-        self.assertIn("if soso_key and prev_etf and fresh(prev_etf, 55) and not (etf_szybki and not fresh(prev_etf, ETF_SZYBKO_MIN)):", src)
+        self.assertIn("etf_szybkie = etf_brakujace(prev_etf, _now_utc()) if (soso_key and prev_etf) else set()", src)   # v282
+        self.assertIn("if soso_key and prev_etf and fresh(etf_pelne, 55) and not (etf_szybkie and not fresh(prev_etf, ETF_SZYBKO_MIN)):", src)
         b = inspect.getsource(zd.build_etf)
-        self.assertIn("out['pub'] = etf_pub(prev.get('pub') if isinstance(prev, dict) else None, prev_assets, out['assets'], stare, NOW)", b)
-        self.assertIn("out['okno'] = {'od': od, 'do': do, 'n': n}", b)
+        self.assertIn("out['pub'] = etf_pub(prev.get('pub') if isinstance(prev, dict) else None, prev_assets, out['assets'], set(stare) | pominiete, NOW)", b)   # v282
+        self.assertIn("out['okno'] = {s: dict(zip(('od', 'do', 'n'), etf_okno(out['pub'], s))) for s in ETF_SYMS}", b)   # v282: okno każdej monety
 
 
 class EtfKapitalizacjeV280(unittest.TestCase):
@@ -30324,7 +30325,7 @@ class PoPrzegladzieV281(unittest.TestCase):
         self.assertEqual(zd._ix_zapas_wybor(pix3, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 2}, None), {'IXIC'}, 'wolne 1 — jeden')
         self.assertEqual(zd._ix_zapas_wybor(pix3, ['IXIC'], now, {'d': '2026-11-27', 'n': 0}, '2026-11-27'), set(), 'blokada limitu')
         import inspect
-        self.assertIn("wymus = _ix_zapas_wybor(pix, kand, now, prev.get('ix_calls'), prev.get('ix_quota')) if keys.get('EODHD_KEY') else set()", inspect.getsource(zd.build_indeksy))
+        self.assertIn("wybor = _ix_zapas_wybor(pix, kand, now, prev.get('ix_calls'), prev.get('ix_quota'), zle_nal) if keys.get('EODHD_KEY') else set()", inspect.getsource(zd.build_indeksy))   # v282
 
     def test_kontrola_norma_cmc_i_stablecoiny(self):
         kk = self._mod('kontrola')
@@ -30338,3 +30339,97 @@ class PoPrzegladzieV281(unittest.TestCase):
         self.assertIsNone(s['roznica_pct'], 'przegląd v276: historia sprzed 2 tygodni nie jest „z tej samej chwili”'); self.assertGreater(s['odstep_h'], 300)
         krypto2 = dict(krypto, part_at={'stabh': '2026-10-20T07:05:00+00:00'})
         self.assertIsNotNone(kk.stab_porownanie(krypto2, cmc)['roznica_pct'])
+
+
+# ===================== v282: POPRAWKI PO PRZEGLĄDZIE v279–v281 =====================
+class PoPrzegladzieV282(unittest.TestCase):
+    """v282: tryb szybki ETF — okno każdej monety, tylko brakujące monety, niezgodna lista funduszy najwyżej co 55 min, pełna budowa od
+    'pelne_at', próg 4 min; zapas EODHD dla błędów/przerw FMP przez limit; święto rozpoznane mimo wiersza-wypełnienia."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    def test_okno_kazdej_monety_i_brakujace(self):
+        late = [['2026-09-%02d' % d, '2026-09-%02dT13:%02d:00+00:00' % (d + 1, 10 + d)] for d in range(14, 26)]   # BTC: 37 h po północy dnia danych
+        early = [['2026-09-%02d' % d, '2026-09-%02dT00:%02d:00+00:00' % (d + 1, 10 + d)] for d in range(14, 26)]   # SOL: 24 h
+        pub = {'btc': late, 'sol': early}
+        ob, os_ = zd.etf_okno(pub, 'btc'), zd.etf_okno(pub, 'sol')
+        self.assertTrue(ob[0] > 30 * 60 and os_[1] < 26 * 60, (ob, os_))
+        self.assertEqual(zd.etf_okno(pub, 'xrp')[2], 24, 'moneta bez własnych obserwacji — okno ze wszystkich')
+        prev = {'pub': pub, 'assets': {'btc': {'asof': '2026-10-05'}, 'eth': {'asof': '2026-10-06'}, 'sol': {'asof': '2026-10-05'}, 'xrp': {'asof': '2026-10-06'}}}
+        self.assertEqual(zd.etf_brakujace(prev, self.T(2026, 10, 7, 0, 30)), {'sol'}, 'o 00:30 tylko SOL w swoim oknie — BTC poza swoim')
+        self.assertEqual(zd.etf_brakujace(prev, self.T(2026, 10, 7, 13, 30)), {'btc'}, 'o 13:30 tylko BTC')
+        self.assertFalse(zd.etf_szybko(prev, self.T(2026, 10, 7, 18, 0))); self.assertEqual(zd.ETF_SZYBKO_MIN, 4)
+        bardzo = {'btc': [['2026-09-%02d' % d, '2026-09-%02dT17:00:00+00:00' % (d + 1)] for d in range(14, 26)]}   # 41 h — po granicy
+        od, do, _ = zd.etf_okno(bardzo, 'btc')
+        self.assertTrue(od > do, 'publikacje po granicy — okno puste (co godzinę), nie przyklejone do 16:00')
+
+    def test_tylko_brakujace_monety(self):
+        def pa(s, asof):
+            return {'sym': s.upper(), 'asof': asof, 'day': [[1, 1.0]], 'd1': 1.0, 'cum': 5.0, 'aum': 10.0, 'funds': [], 'funds_at': '2026-10-07T02:00:00+00:00'}
+        prev = {'at': '2026-10-07T02:50:00+00:00', 'pelne_at': '2026-10-07T02:30:00+00:00', 'mcap': {s: 1e12 for s in zd.ETF_SYMS}, 'mcap_at': '2026-10-07T02:30:00+00:00',
+                'assets': {'btc': pa('btc', '2026-10-05'), 'eth': pa('eth', '2026-10-05'), 'sol': pa('sol', '2026-10-06'), 'xrp': pa('xrp', '2026-10-06')}, 'pub': {}}
+        pytane = []
+        def coin(out, s, key, prev_day=None, prev_a=None):
+            pytane.append(s); a = dict(prev_a, asof='2026-10-06'); out['assets'][s] = a; out['asof'] = max(out['asof'], '2026-10-06')
+        now = self.T(2026, 10, 7, 3, 0)
+        with mock.patch.object(zd, '_etf_coin', coin), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'NOW', now.isoformat()), \
+                mock.patch.object(zd, '_etf_hk', lambda out, key, ph: ()):
+            o = zd.build_etf('k', 'cg', prev, {'btc', 'eth'})
+        self.assertEqual(sorted(pytane), ['btc', 'eth'], 'tryb szybki — tylko monety bez oczekiwanego dnia')
+        self.assertEqual(o['assets']['sol'], prev['assets']['sol']); self.assertEqual(o['pelne_at'], '2026-10-07T02:30:00+00:00', 'szybka budowa nie jest pełną')
+        self.assertEqual(sorted(o['pub']), ['btc', 'eth'], 'nowy dzień BTC i ETH zapisany; przeniesione — bez obserwacji')
+        self.assertEqual(set(o['okno']), set(zd.ETF_SYMS))
+        with mock.patch.object(zd, '_etf_coin', coin), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'NOW', now.isoformat()), \
+                mock.patch.object(zd, '_etf_hk', lambda out, key, ph: ()):
+            pytane.clear(); o2 = zd.build_etf('k', 'cg', prev)
+        self.assertEqual(sorted(pytane), sorted(zd.ETF_SYMS)); self.assertEqual(o2['pelne_at'], now.isoformat())
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertIn("etf_tylko = etf_szybkie if (prev_etf and fresh(etf_pelne, 55)) else None", src)
+
+    def test_lista_funduszy_niezgodna_najwyzej_co_55_min(self):
+        now = self.T(2026, 10, 7, 3, 19)
+        rows = [{'date': '2026-10-05', 'total_net_inflow': -50.76e6, 'total_net_assets': 1e10, 'cum_net_inflow': 1e10}]
+        prev_a = {'asof': '2026-10-05', 'd1': -50.76, 'cum': 1e4, 'day': [[1, 1.0]], 'funds': [{'t': 'ETHA', 'aum': 1.0, 'd1': -31.88}],
+                  'funds_try': '2026-10-07T03:01:00+00:00'}
+        calls = []
+        def soso(path, key, _retry=True):
+            calls.append(path)
+            return rows if 'summary-history' in path else ([{'ticker': 'ETHA', 'name': 'x'}] if path.startswith('/etfs?') else {'net_inflow': -31.88e6, 'net_assets': 1e9})
+        out = {'asof': '', 'mcap': {'eth': 1e11}, 'assets': {}}
+        with mock.patch.object(zd, 'soso', soso), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'NOW', now.isoformat()):
+            zd._etf_coin(out, 'eth', 'k', prev_a['day'], prev_a=prev_a)
+        self.assertEqual(len(calls), 1, 'przegląd: niezgodna lista pobierana w każdej budowie (12 zapytań) — teraz po 55 min')
+        self.assertEqual(out['assets']['eth']['funds_try'], '2026-10-07T03:01:00+00:00'); self.assertNotIn('funds_at', out['assets']['eth'])
+        later = self.T(2026, 10, 7, 4, 0)
+        calls.clear(); out = {'asof': '', 'mcap': {'eth': 1e11}, 'assets': {}}
+        with mock.patch.object(zd, 'soso', soso), mock.patch.object(zd, '_now_utc', lambda: later), mock.patch.object(zd, 'NOW', later.isoformat()):
+            zd._etf_coin(out, 'eth', 'k', prev_a['day'], prev_a=prev_a)
+        self.assertEqual(len(calls), 3, 'po 55 min — lista znowu'); self.assertEqual(out['assets']['eth']['funds_try'], later.isoformat())
+
+    def test_zapas_dla_bledow_fmp_przez_limit(self):
+        now = self.T(2026, 10, 13, 7, 10)
+        wl = {s: {'cc': c, 'at': '2026-10-12T23:00:00+00:00', 'd': [['2026-10-12', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
+        wl['JTOPI'] = {'bad_at': '2026-10-12T16:05:00+00:00', 'bad_n': 4, 'bad': 'pusto'}
+        pix = dict(wl, N225={'cc': 'jp', 'src': 'fmp', 'at': '2026-10-12T07:05:00+00:00', 'd': [['2026-10-12', 1.0]]})
+        self.assertEqual(zd._ix_zapas_wybor(pix, [], now, {'d': '2026-10-13', 'n': 3}, None, ['N225']), set(),
+                         'przegląd v281: FMP zawiódł o 07:10 — 17 własnych należnych, limit 20 − 3: bez zapasu (własne nie po północy)')
+        self.assertEqual(zd._ix_zapas_wybor(pix, [], now, {'d': '2026-10-13', 'n': 2}, None, ['N225']), {'N225'})
+
+    def test_swieto_z_wypelnieniem(self):
+        now = self.T(2026, 11, 27, 2, 0)
+        wl = {s: {'cc': c, 'at': '2026-11-26T23:00:00+00:00', 'd': [['2026-11-26', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
+        wl['JTOPI'] = {'bad_at': '2026-11-25T16:05:00+00:00', 'bad_n': 4, 'bad': 'pusto'}
+        B = ['2026-11-26', 4, '2026-11-26T22:05:00+00:00']
+        gspc_eod = {'cc': 'us', 'at': '2026-11-27T01:00:00+00:00', 'd': [['2026-11-24', 6800.0], ['2026-11-25', 6812.0], ['2026-11-26', 6812.0]]}   # wypełnienie
+        pix = dict(wl, GSPC=gspc_eod, IXIC={'cc': 'us', 'src': 'fmp', 'at': '2026-11-27T01:05:00+00:00', 'd': [['2026-11-25', 1.0]], 'brak': B},
+                   DJI={'cc': 'us', 'src': 'fmp', 'at': '2026-11-27T01:05:00+00:00', 'd': [['2026-11-25', 1.0]], 'brak': B})
+        self.assertEqual(zd._ix_zapas_wybor(pix, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 0}, None), set(),
+                         'przegląd v281: zapas z wierszem-wypełnieniem (zamknięcie = poprzednie) — to święto, reszta grupy bez zapytań')
+        pix['GSPC'] = dict(gspc_eod, d=[['2026-11-25', 6812.0], ['2026-11-26', 6850.0]])
+        self.assertEqual(zd._ix_zapas_wybor(pix, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 0}, None), {'IXIC', 'DJI'}, 'prawdziwa sesja w zapasie — reszta też')
