@@ -5628,10 +5628,17 @@ function gStatus(){
     :GLIVE.st==='load'?t('g.live.load'):t('g.live.off'));
   const s2=$('#g-sample');if(s2)s2.hidden=live||location.protocol!=='file:';
 }
-/* wiek danych: ile dni minęło od końca okresu (RRRR-MM, RRRR-Qn) albo od dnia (RRRR-MM-DD) do teraz — brak = pusty tekst, nigdy „0” */
+/* wiek danych: ile dni minęło od końca okresu (RRRR-MM, RRRR-Qn) albo od dnia (RRRR-MM-DD) do teraz — brak = pusty tekst, nigdy „0”.
+   v287: chwila ze strefą (…T…Z albo ±hh:mm) — różnica dni kalendarzowych w strefie czytelnika, tej samej co data obok (engDate); wcześniej
+   dzień UTC tej chwili: „7.10.2026, 00:00 · dane sprzed 1 dnia” przy danych sprzed 8 godzin */
 function gAgeNote(fresh){
   if(!fresh||typeof fresh!=='string')return '';
   const f=fresh.trim();let end=null;
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(f)){   /* v287: chwila ze strefą — dzień czytelnika */
+    const x=new Date(Date.parse(f)),n=new Date(Date.now());if(isNaN(x.getTime()))return '';
+    const d=Math.round((Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())-Date.UTC(x.getFullYear(),x.getMonth(),x.getDate()))/86400000);
+    return d<0?'':' · '+(d===0?t('g.age0'):d===1?t('g.age1'):t('g.age',{n:d}));
+  }
   if(/^\d{4}-\d{2}$/.test(f)){const y=+f.slice(0,4),m=+f.slice(5,7);end=Date.UTC(y,m,0);}          /* ostatni dzień miesiąca */
   else if(/^\d{4}-Q[1-4]$/.test(f)){const y=+f.slice(0,4),q=+f.slice(6);end=Date.UTC(y,q*3,0);}       /* ostatni dzień kwartału */
   else if(/^\d{4}-\d{2}-\d{2}/.test(f)){end=Date.parse(f.slice(0,10)+'T00:00:00Z');}
@@ -6669,7 +6676,7 @@ function renderSources(){
    <section class="panel zr-live">
     <span class="live on"><i></i>${t('zr2.live')}</span>
     <b id="zr-clock" class="zr-clock">${escH(zrNow())}</b>
-    <p class="zr-refresh">${iG}${t('zr2.refresh',{t:tm,age:at?gAgeNote(at.slice(0,10)):''})}</p>
+    <p class="zr-refresh">${iG}${t('zr2.refresh',{t:tm,age:at?gAgeNote(at):''})}</p>
     ${c?`<p class="zr-count">${t('zr2.count',{n:c.n,m:c.m})}</p>`:''}
     ${!m?`<p class="zr-count">${t('zr2.nometa')}</p>`:!at?`<p class="zr-count">${t('zr2.noat')}</p>`:stale?`<p class="zr-count neu">${t('zr2.stale',{h:1})}</p>`:''}
     <p class="zr-legal">${iL}${t('zr2.legal')}</p>
@@ -9446,7 +9453,7 @@ function rwIsDay(d){if(typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d))retur
 function rwDayTxt(d){return rwIsDay(d)?new Date(Date.parse(d+'T12:00:00Z')).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'—';}
 function rwDayS(d){return rwIsDay(d)?new Date(Date.parse(d+'T12:00:00Z')).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'2-digit',month:'2-digit',timeZone:'UTC'}):'—';}
 /* chwila pobrania z wiekiem (wiek jak w panelu sieci Bitcoin, gdy jest pomocnik) */
-function rwWhen(iso){const ms=Date.parse(iso||'');if(!isFinite(ms))return '—';return engDate(iso)+(typeof lnAgo==='function'?lnAgo(iso):gAgeNote(String(iso).slice(0,10)));}
+function rwWhen(iso){const ms=Date.parse(iso||'');if(!isFinite(ms))return '—';return engDate(iso)+(typeof lnAgo==='function'?lnAgo(iso):gAgeNote(String(iso)));}
 /* kwota USD: bln / mld (1 miejsce) / mln; brak = „—” (nigdy 0) */
 function rwUsd(v){const x=rwPos(v);if(x===null)return '—';if(x>=1e12)return nfmt(x/1e12,2)+' '+t('u.t');if(x>=1e9)return nfmt(x/1e9,1)+' '+t('u.b');if(x>=1e6)return nfmt(x/1e6,0)+' '+t('u.m');return '<1 '+t('u.m');}
 /* zmiana w %: znak, 1 miejsce; zero po zaokrągleniu bez znaku i bez koloru; brak = „—” */
@@ -9864,7 +9871,7 @@ function dlQ(q){return Array.isArray(q)&&dlNum(q[1])&&q[1]>0?q:null;}
 function dlMs(s){const ms=Date.parse(s||'');return isFinite(ms)?ms:null;}
 /* chwila odczytu w czasie przeglądarki i wiek; znacznik o północy UTC to sama data (kurs dzienny z datą strony banku) — bez godziny; brak = „—” */
 function dlWhen(iso){const ms=dlMs(iso);if(ms===null)return '—';if(/T00:00:00(?:\.0+)?(?:Z|\+00:00)$/.test(String(iso)))return t('dl.asof',{d:dlDay(iso)})+gAgeNote(String(iso).slice(0,10));
-  return t('dl.asof',{d:engDate(iso)})+(typeof lnAgo==='function'?lnAgo(iso):gAgeNote(String(iso).slice(0,10)));}
+  return t('dl.asof',{d:engDate(iso)})+(typeof lnAgo==='function'?lnAgo(iso):gAgeNote(String(iso)));}
 function dlDay(d){const ms=Date.parse(String(d||'').slice(0,10)+'T12:00:00Z');return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):escH(d);}
 /* starszy z dwóch znaczników (luka nosi datę starszego kursu) */
 function dlOlder(a,b){const x=dlMs(a),y=dlMs(b);if(x===null)return y===null?null:b;if(y===null)return a;return x<=y?a:b;}
@@ -10343,7 +10350,7 @@ const levIco=(...h)=>{const s=h.filter(Boolean).join('');return s?`<span class="
 function levPart(k){const D=LEV.data;if(!D||!levObj(D[k]))return null;const ms=Date.parse((D.part_at&&D.part_at[k])||'');return (isFinite(ms)&&Date.now()-ms<=LEV_MAXAGE)?D[k]:null;}
 function levAt(k){const at=LEV.data&&LEV.data.part_at&&LEV.data.part_at[k];return typeof at==='string'?at:'';}
 function levDay(d){const ms=Date.parse(String(d||'').slice(0,10)+'T12:00:00Z');return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):escH(d);}
-function levWhen(iso){return typeof iso==='string'&&iso?`${engDate(iso)}${gAgeNote(iso.slice(0,10))}`:'';}
+function levWhen(iso){return typeof iso==='string'&&iso?`${engDate(iso)}${gAgeNote(iso)}`:'';}   /* v287: cała chwila — wiek od dnia czytelnika */
 function levTone(v,dec){if(!levNum(v))return '';const r=Math.round(v*10**dec)/10**dec;return r>0?'pos':r<0?'neg':'';}   /* zero po zaokrągleniu — bez koloru */
 function levRatio(v,inv){if(!levNum(v))return '';const r=Math.round(v*100)/100;return r>1?(inv?'neg':'pos'):r<1?(inv?'pos':'neg'):'';}   /* 1,00 — bez koloru */
 const levMld=v=>`${nfmt(v/1e9,2)} <small class="mtxt">${t('lev.u.mld')}</small>`;
@@ -11225,7 +11232,7 @@ function wkCWh(){
     .filter(r=>r.full?r.vs.some(wkNum):r.tip).sort((a,b)=>(b.full-a.full)||(b.tot-a.tot));
   const top=R.find(r=>r.full);if(!top)return {s:t('wk.c.wh.s'),na:R.length&&!px?t('wh.px.na'):t('wk.na.none')};
   const tt=R.map(r=>r.t).filter(Boolean).sort()[0]||D.at;
-  return {s:t('wk.c.wh.s'),k:'p',d:engDate(tt)+gAgeNote(String(tt).slice(0,10)),ch:wkBars(R,{ser,stack:true,aria:t('wk.c.wh.a',{n:R.length,a:top.g,v:wkUsd(top.tot)})})};
+  return {s:t('wk.c.wh.s'),k:'p',d:engDate(tt)+gAgeNote(String(tt)),ch:wkBars(R,{ser,stack:true,aria:t('wk.c.wh.a',{n:R.length,a:top.g,v:wkUsd(top.tot)})})};
 }
 /* CRYPTO 8: otwarte pozycje BTC i ETH na giełdach z bieżącym stanem (do 6 h — te same wiersze co suma w karcie; plik dzienny Binance poza wykresem).
    Giełda bez jednej z monet: słupek tylko tej, która jest, a w wartości jej nazwa i kwota (nie „suma”); takie wiersze po pełnych */

@@ -3476,7 +3476,7 @@ test('v103-zrodla: karta stanu — plakietka NA ŻYWO, zegar, czas odświeżenia
   assert.ok(out.startsWith('<h1>Źródła</h1>'), 'nagłówek strony bez zmian');
   assert.ok(out.includes('<section class="panel zr-live">') && out.includes('<span class="live on"><i></i>NA ŻYWO</span>'), 'plakietka');
   const ck = out.match(/<b id="zr-clock" class="zr-clock">([^<]*)<\/b>/); assert.ok(ck && /\d/.test(ck[1]) && ck[1].includes(', '), 'zegar wypełniony od razu: ' + (ck && ck[1]));
-  assert.ok(out.includes('Dane na serwerze odświeżone: <b>ED[' + v103zr.FRESH + ']</b> · AGE[' + v103zr.FRESH.slice(0, 10) + '] (co 10 minut, automatycznie)'), 'czas pliku meta + wiek danych: ' + out.slice(out.indexOf('Dane na serwerze'), out.indexOf('Dane na serwerze') + 160));
+  assert.ok(out.includes('Dane na serwerze odświeżone: <b>ED[' + v103zr.FRESH + ']</b> · AGE[' + v103zr.FRESH + '] (co 10 minut, automatycznie)'), 'czas pliku meta + wiek danych: ' + out.slice(out.indexOf('Dane na serwerze'), out.indexOf('Dane na serwerze') + 160));
   assert.ok(out.includes('<p class="zr-count">W ostatnim przebiegu odpowiedziało 2 z 3 źródeł danych</p>'), 'true i cached = odpowiedź, false = brak');
   assert.deepEqual(R.zrCount({ok: {a: true, b: 'cached', c: false}}), {n: 2, m: 3});
   assert.ok(out.includes(v103zr.dict.pl['zr2.legal']) && out.includes('legalnych, publicznie dostępnych źródeł danych') && out.includes('publicznych sieci blockchain'), 'zdanie właściciela');
@@ -3504,7 +3504,7 @@ test('v103-zrodla: bez pliku meta „—” z powodem i bez linii liczby źróde
   assert.ok(noOk.includes('<b>ED[' + v103zr.FRESH + ']</b>') && !noOk.includes('W ostatnim przebiegu') && !noOk.includes(NOMETA) && !noOk.includes(NOAT), 'czas bez ok');
   assert.ok(!v103zr.render('pl', {at: v103zr.FRESH, ok: {}}).out.includes('W ostatnim przebiegu'), 'pusty ok — bez „0 z 0”');
   const old = new Date(Date.now() - 30 * 3600e3).toISOString(), so = v103zr.render('pl', {at: old, ok: {a: true}}).out;
-  assert.ok(so.includes('<b class="neu">ED[' + old + ']</b> · AGE[' + old.slice(0, 10) + ']') && so.includes('<p class="zr-count neu">Ostatni przebieg automatu jest starszy niż 1 godz.'), 'stary plik: czas na bursztynowo i ostrzeżenie');
+  assert.ok(so.includes('<b class="neu">ED[' + old + ']</b> · AGE[' + old + ']') && so.includes('<p class="zr-count neu">Ostatni przebieg automatu jest starszy niż 1 godz.'), 'stary plik: czas na bursztynowo i ostrzeżenie');
   assert.ok(so.includes('W ostatnim przebiegu odpowiedziało 1 z 1 źródeł danych') && !so.includes(NOMETA) && !so.includes(NOAT));
   const R = v103zr.render('pl', null);
   assert.equal(R.zrCount(null), null); assert.equal(R.zrCount({}), null); assert.equal(R.zrCount({ok: {}}), null); assert.equal(R.zrCount({ok: 'x'}), null); assert.equal(R.zrCount({ok: []}), null);
@@ -3634,7 +3634,7 @@ test('v104-dzwignia: panel — kafelki z kolorami wg kierunku, brak = „—” 
   assert.ok(h.includes('<b class="neg">0.70 <small class="neg">lev.more.short · lev.mean{v=2.72} · lev.topacc{v=1.53} · lev.top{v=1.56}</small></b>'), 'Binance ETH: więcej krótkich — czerwono');
   assert.ok(h.includes('lev.k.taker{c=BTC}</span><b class="pos">1.30 <small class="pos">lev.more.buy · lev.last5{v=1.08}</small></b>'), 'kupno/sprzedaż BTC: nagłówek, kolor i słowa ze średniej dnia (1,30), ostatnie 5 min (1,08) tylko w dopisku: ' + h.slice(h.indexOf('lev.k.taker{c=BTC}'), h.indexOf('lev.k.taker{c=BTC}') + 160));
   assert.ok(h.includes('lev.k.taker{c=ETH}</span><b class="na">— <small>eng.gap</small></b>'), 'brak stosunku kupno/sprzedaż ETH — „—” z powodem, nie zero');
-  const asof = 'lev.asof{t=D:' + lev104.now + ' ·wiek(' + lev104.today + ')}';
+  const asof = 'lev.asof{t=D:' + lev104.now + ' ·wiek(' + lev104.now + ')}';   // v287: cała chwila
   assert.ok(h.includes('lev.tab.sub{n=234} · ' + asof + '</p>'), 'tabela kontraktów ma własną datę części (stan na): ' + h.slice(h.indexOf('lev.tab.sub'), h.indexOf('lev.tab.sub') + 120));
   assert.ok(h.includes('lev.k.oib{c=ETH}</span><b>6.10 <small class="mtxt">lev.u.mld</small></b>') && !h.includes('lev.mean{v=0.00'), 'otwarte pozycje ETH koniec dnia bez średniej (brak, nie zero)');
   assert.ok(h.includes('lev.k.dvol{c=BTC}</span><b>34.7 <small class="neg">lev.dn{n=1,v=−1.5%}</small></b>'), 'DVOL BTC: spadek o 1,5 % — czerwono');
@@ -3680,7 +3680,7 @@ test('v104-dzwignia: część nieaktualna albo brakująca = brak (nie stare licz
   // część Deribit zachowana z wcześniejszego przebiegu: opcje pokazują własny czas części, nie czas pliku
   const od = lev104.mk({}); const jd = lev104.fix(); const older = new Date(Date.now() - 864e5).toISOString(); jd.part_at.dr = older; jd.dr.BTC.opt.t = older; jd.dr.ETH.opt.t = older;
   od.levApply(jd);
-  assert.ok(od.el.innerHTML.includes('lev.opt.tot{v=351283,c=BTC,u=29.48,pc=0.52} · lev.asof{t=D:' + older + ' ·wiek(' + lev104.yest + ')}'), 'opcje z zachowanej części — data tej części z wiekiem');
+  assert.ok(od.el.innerHTML.includes('lev.opt.tot{v=351283,c=BTC,u=29.48,pc=0.52} · lev.asof{t=D:' + older + ' ·wiek(' + older + ')}'), 'opcje z zachowanej części — data tej części z wiekiem');
 });
 
 test('v104-dzwignia: ikony (loga monet i giełd, Hyperliquid = logo sieci, Deribit = znaczek), sekcja w CRYPTO, ładowanie i odświeżanie, CSS', () => {
@@ -3946,7 +3946,7 @@ test('v109-dzwignia2: „wszystkie giełdy razem” — suma z giełd z bieżąc
   const L = [[10.95, j.hl.rows.BTC.oi_usd], [2.307, j.okx.BTC.oi_usd], [j.kr.BTC.f_y, j.kr.BTC.oi_usd], [j.cb.BTC.f_y, j.cb.BTC.oi_usd], [j.dy.BTC.f_y, j.dy.BTC.oi_usd]];
   const w = L.reduce((a, r) => a + r[1], 0), avg = L.reduce((a, r) => a + r[0] * r[1], 0) / w;
   assert.ok(avg > 5 && avg < 10, 'średnia ważona między OKX a Hyperliquid: ' + avg);
-  assert.ok(h.includes('lev.k.fall{c=BTC}</span><b class="pos">' + lev109.fp(avg) + ' <small>lev.wof{n=5,v=' + lev109.VEN + '}</small></b><small class="mtxt">D:' + lev104.now + ' ·wiek(' + lev104.today + ')</small>'), 'średnia ważona, dodatnia — zielono, data najstarszego zdjęcia stanu: ' + h.slice(h.indexOf('lev.k.fall{c=BTC}'), h.indexOf('lev.k.fall{c=BTC}') + 300));
+  assert.ok(h.includes('lev.k.fall{c=BTC}</span><b class="pos">' + lev109.fp(avg) + ' <small>lev.wof{n=5,v=' + lev109.VEN + '}</small></b><small class="mtxt">D:' + lev104.now + ' ·wiek(' + lev104.now + ')</small>'), 'średnia ważona, dodatnia — zielono, data najstarszego zdjęcia stanu: ' + h.slice(h.indexOf('lev.k.fall{c=BTC}'), h.indexOf('lev.k.fall{c=BTC}') + 300));
   assert.ok(/lev\.k\.fall\{c=ETH\}<\/span><b class="neg">−/.test(h), 'ETH: średnia ujemna — czerwono');
   assert.ok((h.match(/class="etfk"/g) || []).length === 18, '18 kafelków');
   const k = lev104.mk({}); const jj = lev104.fix(); k.levApply(jj); const hh = k.el.innerHTML;   // plik sprzed v109: suma z dwóch giełd, historia bez sum → „historia dopiero się buduje”
@@ -4045,7 +4045,7 @@ test('v126-dzwignia-cz: sekcja „Wszystkie duże giełdy” — kafelki z datą
   const f = lev104.mk({}); f.levApply(lev126.fix()); const h = f.el.innerHTML;
   const i0 = h.indexOf('lev.h.all'), i1 = h.indexOf('lev.h.cz'), i2 = h.indexOf('lev.h.hl');
   assert.ok(i0 > 0 && i1 > i0 && i2 > i1 && h.includes('<p class="pnote">lev.cz.sub</p>'), 'po „razem”, przed Hyperliquid, z podtytułem');
-  const when = '<small class="mtxt">D:' + lev126.now + ' ·wiek(' + lev126.today + ')</small>';
+  const when = '<small class="mtxt">D:' + lev126.now + ' ·wiek(' + lev126.now + ')</small>';   // v287: cała chwila
   assert.ok(h.includes('lev.k.oicz{c=BTC}</span><b>20.20 <small class="mtxt">lev.u.mld</small> <small>lev.cz.nex{n=4,m=5} · <span class="pos">lev.cz.d24{v=+5.3%}</span></small></b>' + when), 'BTC: suma, liczba giełd i rynków, zmiana 24 h na zielono, data i wiek: ' + h.slice(h.indexOf('lev.k.oicz{c=BTC}'), h.indexOf('lev.k.oicz{c=BTC}') + 300));
   assert.ok(h.includes('lev.k.oicz{c=ETH}</span><b>8.50 <small class="mtxt">lev.u.mld</small> <small>lev.cz.nex{n=4,m=4} · <span class="neg">lev.cz.d24{v=−2.1%}</span></small></b>'), 'ETH: spadek na czerwono');
   assert.ok(h.includes('lev.k.lq{c=BTC}</span><b class="neg">84.7 <small class="mtxt">lev.u.mln</small> <small class="neg">lev.lq.sub{l=68.1,s=16.6}</small></b>' + when), 'BTC: więcej likwidacji długich — czerwono');
@@ -14197,4 +14197,28 @@ test('v252: opcje — wiersze w jednej siatce (kolumny według najdłuższej dat
   assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
   for (const L in D) { assert.deepEqual(Object.keys(D[L]), ['lvo.inne'], L); if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['lvo.inne'], D.en['lvo.inne'], L); }
   assert.ok(html.includes('for(const l in EXTRA190)if(I18N[l])Object.assign(I18N[l],EXTRA190[l]);\nconst EXTRA191=') && html.includes('for(const l in EXTRA191)if(I18N[l])Object.assign(I18N[l],EXTRA191[l]);'));
+});
+
+
+/* ===================== v287: wiek danych przy chwili — od dnia czytelnika (jak data obok) ===================== */
+test('v287: gAgeNote — chwila ze strefą liczona w dniach czytelnika; dzień, miesiąc i kwartał bez zmian; wywołania bez ucinania chwili', () => {
+  const now0 = Date.now;
+  try {
+    const now = new Date(2026, 9, 7, 8, 20);   /* 7.10.2026, 08:20 w strefie maszyny testu */
+    Date.now = () => now.getTime();
+    const L = (y, m, d, hh, mm) => new Date(y, m, d, hh, mm).toISOString();   /* chwila UTC z czasu lokalnego */
+    assert.equal(ageFor(L(2026, 9, 7, 0, 0)), ' · g.age0', 'północ dnia czytelnika = dziś (przed v287 w Polsce: „sprzed 1 dnia”)');
+    assert.equal(ageFor(L(2026, 9, 6, 23, 59)), ' · g.age1', 'minuta przed północą = wczoraj');
+    assert.equal(ageFor(L(2026, 9, 4, 12, 0)), ' · g.age');
+    assert.equal(ageFor(L(2026, 9, 7, 9, 0)), ' · g.age0', 'później tego samego dnia (zegar źródła) — nadal dziś');
+    assert.equal(ageFor(L(2026, 9, 8, 1, 0)), '', 'jutro — bez wieku');
+    assert.equal(ageFor(new Date(2026, 9, 7, 0, 0).toISOString().replace('Z', '+00:00')), ' · g.age0', 'strefa jako +00:00');
+    assert.equal(ageFor('2026-10-07T00:00:00'), ' · g.age0', 'bez strefy — dzień z napisu, jak dotąd');
+    assert.equal(ageFor('2026-13-45T00:00:00Z'), '', 'zła chwila — nic');
+  } finally { Date.now = now0; }
+  assert.equal(ageFor(dayIso(1)), ' · g.age1', 'dzień bez godziny — jak dotąd');
+  assert.ok(html.includes("function levWhen(iso){return typeof iso==='string'&&iso?`${engDate(iso)}${gAgeNote(iso)}`:'';}"));
+  assert.ok(html.includes("gAgeNote(at):''") && html.includes('d:engDate(tt)+gAgeNote(String(tt)),'));
+  for (const old of ['gAgeNote(iso.slice(0,10))', 'gAgeNote(at.slice(0,10))', 'gAgeNote(String(tt).slice(0,10))', "lnAgo(iso):gAgeNote(String(iso).slice(0,10))"]) assert.ok(!html.includes(old), 'chwila ucięta do dnia UTC: ' + old);
+  assert.ok(html.includes("return t('dl.asof',{d:dlDay(iso)})+gAgeNote(String(iso).slice(0,10));"), 'kurs dzienny (północ UTC = sama data) — dzień jak dotąd');
 });
