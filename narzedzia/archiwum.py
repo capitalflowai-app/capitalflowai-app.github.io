@@ -10,7 +10,8 @@ Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez pol
   wieloryby.csv        dzień × giełda × aktywo — salda ogłoszonych portfeli giełd (z data/wieloryby.json, wyliczenie własne v105–v112)
   stablecoiny-eth.csv  dzień × token — własny odczyt totalSupply() USDT i USDC w sieci Ethereum (tylko ta sieć)
   plynnosc.csv         dzień — FRED WALCL, WDTGAL (TGA, stan na środę; do v293 WTREGEN — średnia tygodnia), RRPONTSYD; net = WALCL − TGA − RRP;
-                       serie tygodniowe przenoszone do przodu (kolumna method; seria.json: pole obs = dzień obserwacji ostatniego punktu)
+                       serie tygodniowe przenoszone do przodu (kolumna method; seria.json: pole obs = dzień obserwacji ostatniego punktu);
+                       v296: każdy przebieg pobiera okno od pierwszego wiersza pliku (cały plik jedną miarą i z tymi samymi rewizjami)
   tic.csv              miesiąc × kraj — TIC SLT tabela 1 (zagranica kupuje papiery USA) i tabela 2 (USA kupują papiery zagraniczne), od 2020-01
   cftc-krypto.csv      tydzień × kontrakt × grupa — CFTC COT (TFF, futures-only) BTC i ETH na CME, 2 lata
   rentownosci.csv      dzień — rentowność 10-letnia USA (Skarb USA) i Niemiec (Bundesbank) oraz różnica, 2 lata
@@ -250,15 +251,30 @@ def plynnosc_rows(walcl, tga, rrp, od):
     return rows
 
 
-def src_plynnosc(key, today=None):
+def _plyn_od(today, arch=None):
+    """v296 (runda 2, G2): początek okna pobrania płynności — lata_wstecz(today, back) albo pierwszy dzień istniejącego pliku, jeśli wcześniejszy.
+    Każdy przebieg nadpisuje wtedy CAŁY plik tą samą miarą: od v293 TGA = WDTGAL (stan na środę), a okno 3 lat od pierwszego przebiegu po zmianie
+    (08.10.2026 → od 08.10.2023) zostawiłoby na zawsze 9 pierwszych wierszy (26.09–06.10.2023) z WTREGEN — średnią tygodnia. Plik nieczytelny,
+    z innym nagłówkiem albo bez wierszy — samo okno lat."""
+    od = lata_wstecz(today, FILES['plynnosc']['back'])
+    rows, _ = read_csv(os.path.join(arch or ARCH, FILES['plynnosc']['file']), FILES['plynnosc']['cols'])
+    try:
+        first = min(datetime.date.fromisoformat(k[0]) for k in rows) if rows else None
+    except (ValueError, TypeError):
+        first = None
+    return min(od, first) if first else od
+
+
+def src_plynnosc(key, today=None, arch=None):
     today = today or TODAY
     if not key:
         raise RuntimeError('brak FRED_KEY')
-    od = lata_wstecz(today, FILES['plynnosc']['back'])
+    od = _plyn_od(today, arch)   # v296 (runda 2, G2): od pierwszego wiersza pliku, gdy starszy niż okno lat
     marg = od - datetime.timedelta(days=45)   # zapas na przeniesienie serii tygodniowych do przodu na początku okresu
     walcl = fred_obs('WALCL', key, marg); time.sleep(zd.FRED_SLEEP)
     tga = fred_obs('WDTGAL', key, marg); time.sleep(zd.FRED_SLEEP)   # v293 (audyt G2): stan na środę jak WALCL (WTREGEN = średnia tygodnia);
-    # pierwszy przebieg po zmianie nadpisze kolumnę tga_musd za całe okno (rewizje w indeks.json) — jedna miara w całej historii
+    # pierwszy przebieg po zmianie nadpisze kolumnę tga_musd w całym pliku (v296: okno od pierwszego wiersza — _plyn_od; rewizje w indeks.json) —
+    # jedna miara w całej historii
     rrp = fred_obs('RRPONTSYD', key, marg)
     rows = plynnosc_rows(walcl, tga, rrp, od.isoformat())
     if not rows:

@@ -537,6 +537,10 @@ CENA_PROG = 1.0      # % różnicy cen BTC/ETH między źródłami
 ETF_PROG = 1.0       # % różnicy zamknięcia ETF tej samej daty: Twelve Data (ceny.json, mapa) vs Massive/Tiingo (indeksy.json → etf) — v117.1
 TGA_PROG = 1.0       # pkt proc. — v293: przy WDTGAL (stan na środę) próg stały różnicy; przy WTREGEN (plik sprzed v293) — odchylenie dzisiejszej różnicy TGA (Fiscal Data vs FRED WTREGEN, ta sama data) od mediany 30 dni; różnica sama w sobie
                      # jest stała (~3%: H.4.1 liczy zobowiązanie Fed na środę, DTS — gotówkę operacyjną Skarbu), więc próg 1% na poziomach świeciłby codziennie
+                     # v296 (runda 2, test wsteczny progu stałego 1%, 07.10.2026): 554 wspólne środy 06.01.2016–30.09.2026 — FRED WDTGAL wobec salda
+                     # zamknięcia TGA z DTS (do 09.2021 „Federal Reserve Account”, 10.2021–04.2022 „Treasury General Account (TGA)”, od 18.04.2022
+                     # „TGA Closing Balance”): różnica > 1%: 0 (0,00%), różnica ≠ 0: 0 — równe co do jednostki; środy świąteczne (19.06.2024, 25.12.2024,
+                     # 01.01.2025): FRED podaje saldo z dnia roboczego przed nią, DTS nie ma wiersza — porównanie bierze poprzednią wspólną środę
 WH_PROG = 5.0        # % — |zmiana salda − przelewy netto| wobec większej z tych liczb
 WH_MIN_USD = 1e6     # poniżej miliona USD rozbieżność nie jest uwagą (przelewy < 1 mln nie są skanowane)
 HIST_N = 30          # przechowywane przebiegi w historia.json
@@ -1251,8 +1255,8 @@ def tga_porownanie(inst, fred):
 
 def tga_ocena(rows, inst, fred, today):
     """v293 (audyt G2): porównanie TGA z oceną → słownik raportu (Z['tga']) albo None; dzisiejsza różnica trafia do rows[today]['tga'].
-    WDTGAL (stan na środę) = saldo zamknięcia z dziennego zestawienia Skarbu tego samego dnia (sprawdzone na 6 środach 08–09.2026: równe co do
-    jednostki) — różnica powinna być bliska zeru, więc próg stały TGA_PROG, bez mediany (historia różnic sprzed v293 to średnia tygodnia, inna
+    WDTGAL (stan na środę) = saldo zamknięcia z dziennego zestawienia Skarbu tego samego dnia (test wsteczny v296: 554 środy 2016–2026, wszystkie
+    równe co do jednostki — opis przy TGA_PROG) — różnica powinna być bliska zeru, więc próg stały TGA_PROG, bez mediany (historia różnic sprzed v293 to średnia tygodnia, inna
     miara: ok. 3–4% — mediana z niej dawałaby fałszywe ⚠️ przez dwa tygodnie). Plik sprzed v293 (tylko WTREGEN) — mediana jak dotąd."""
     t = tga_porownanie(inst, fred)
     if not t:

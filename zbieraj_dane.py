@@ -11170,6 +11170,8 @@ def _ix_bad_od(rec, pf=''):
     od = rec.get(pf + 'bad_od')
     if isinstance(od, str) and od:
         return od
+    if rec.get(pf + 'bad_od_nieznany'):   # v296 (runda 2, G12): licznik wyzerowany przez _ix_bad_reset — bad_n == 1 nie znaczy „druga odmowa”
+        return None
     n, at = rec.get(pf + 'bad_n'), rec.get(pf + 'bad_at')
     return at if isinstance(n, int) and not isinstance(n, bool) and n == 1 and isinstance(at, str) and at else None
 
@@ -11183,6 +11185,17 @@ def _ix_bad(part, sym, code):
     rec.update({'bad_at': NOW, 'bad_n': (n if isinstance(n, int) and n > 0 else 0) + 1, 'bad': code}); part[sym] = rec
     if od:
         rec['bad_od'] = od
+
+
+def _ix_bad_reset(rec):
+    """v296 (runda 2, G12): przerwa jednodniowa po przebiegu, w którym odrzucono każdy kod (licznik bad_n = 1). Licznik 1 znaczy w _ix_bad_od
+    „następna odmowa będzie drugą — początek ciągu = bad_at”, więc wpis z wcześniejszymi odmowami i bez początku ciągu (sprzed v293, np. JTOPI:
+    4 odmowy) dostaje znacznik bad_od_nieznany: następna odmowa nie zrobi z poprzedniej odmowy początku braku (strona: „ostatnia próba {d}”, nie
+    „od {d}” z datą późniejszą niż prawdziwy początek). Znacznik znika przy udanym pobraniu (nowy wpis bez pól przerwy)."""
+    n = rec.get('bad_n')
+    if isinstance(n, int) and not isinstance(n, bool) and n > 1 and not rec.get('bad_od'):
+        rec['bad_od_nieznany'] = True
+    rec['bad_n'] = 1
 
 
 def ix_plan(part, now, budget, pomin=(), wymus=()):
@@ -11484,7 +11497,7 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None, 
                 errors.append('EODHD: brak odpowiedzi — koniec przebiegu'); break
     if tried and len(rej) == tried:   # każda próba odrzucona: najpewniej klucz (albo plan bez indeksów), nie pojedynczy kod —
         for sym in rej:               # przerwa zostaje jednodniowa, żeby poprawiony klucz wrócił do pracy w dobę
-            part[sym]['bad_n'] = 1
+            _ix_bad_reset(part[sym])   # v296 (runda 2, G12): bez zgadywania początku ciągu odmów
         errors.append('EODHD — klucz odrzucony albo plan bez indeksów (każda próba: HTTP 401/403)')
     return part, calls, quota, ok, got
 

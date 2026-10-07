@@ -12961,7 +12961,7 @@ test('v167: „ETF → krypto” w prawej kolumnie — kwoty bez końcowego „U
   assert.ok(html.includes("${t('etf.k.cum')}${typeof sepK==='function'?sepK():': '}<b class=\"${etfCls(T.cum)}\">${etfM(T.cum)}</b>"), 'suma od startu — z jednostką jak dotąd');
 });
 test('v167: archiwum — wiek danych obok daty ostatniej wartości (wykresy i kafelki); Aktywa — zmiana rentowności 10-letnich w pp; Sektory w GLOBAL — „regiony świata”', () => {
-  assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>`:'';}).join('');") && html.includes("`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));}")   /* v293 (audyt G2): dzień obserwacji serii tygodniowej */);
+  assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>${l.note?`<span class=\"arc-last arc-obs\"><small>${l.note}</small></span>`:''}`:'';}).join('');") /* v296 (runda 2, G2): + dopisek pod wartością */ && html.includes("`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));}")   /* v293 (audyt G2): dzień obserwacji serii tygodniowej */);
   assert.ok(html.includes("if(du)rows.push(['as.us10',n2(du.v)+'%',typeof du.d==='number'&&isFinite(du.d)?du.d:null,") && html.includes("if(dd)rows.push(['as.de10',n2(dd.v)+'%',typeof dd.d==='number'&&isFinite(dd.d)?dd.d:null,"));
   assert.ok(html.includes("${(k==='kpi.dom'||k==='as.us10'||k==='as.de10'||k==='as.jp10')?' '+t('u.pp'):'%'}"), 'rentowność: zmiana w pp, nie % (v293: także Japonia)');
   assert.ok(html.includes("else if(yu)rows.push(['as.us10',n2(yu[1])+'%',ym('USA'),"), 'dane miesięczne (zapas) — v293 (audyt G11): zmiana z danych miesięcznych jak kafelek GLOBAL, nie „—”');
@@ -14345,7 +14345,7 @@ test('v293 (audyt G1/G3/G11): strona Aktywa — akcje = ta sama liczba co kafele
   assert.ok(el.innerHTML.includes('<div class="k-val" title="a&lt;b">F153718</div>') && el.innerHTML.includes('g.cov.of{"n":11,"m":12} · SZAC · 2026-10-06 · age(2026-10-06)'), el.innerHTML);
   // szczegóły regionu, rok bazy i Metodologia
   assert.ok(html.includes("${(e=>e?`<div><dt>${t('a293g.d.est')}</dt><dd>${gfmt(e.v)} · ${escH(GLIVE.est.d)}${gAgeNote(GLIVE.est.d)}</dd></div>`:'')(GLIVE.est&&GLIVE.est.r?GLIVE.est.r[s.id]:null)}"));
-  assert.ok(html.includes("<b>${t('a293g.m.lvl.h')}:</b> ${t('a293g.m.lvl')}</p></section>"));
+  assert.ok(html.includes("<b>${t('a293g.m.lvl.h')}:</b> ${t('a293g.m.lvl')} ${t('r296g.m.day',{p:t('g.p.1D')})}</p></section>"));   // v296 (runda 2, G1): + zdanie o kwocie dnia
   const d0 = html.indexOf('/* v53: okno czasu i źródło bazy'), d1 = html.indexOf('function gRenderRefresh(){', d0);
   const B = GL2 => new Function('t', 'escH', 'GDATA', 'gst', 'BI', 'GB_', 'GLIVE', 'gFrozen', 'gFrozenN', 'instSign', 'instMld', 'bopMld', 'biRow', 'biV', 'bopSum', 'instFoot', html.slice(d0, d1) + '\nreturn gBaseRow;')(
     a293gT, s => String(s), {}, {period: '1M'}, {data: null}, {}, GL2, () => false, () => 0, () => '', () => '', () => '', () => '', () => null, () => null, s => s);
@@ -14807,4 +14807,129 @@ test('v293: słownik a293t — czysty JSON w 10 językach, te same klucze i pola
   const code = html.slice(html.indexOf('/* v89: TRENDY — początek'), html.indexOf('/* v158: koniec infografiki */'));
   for (const k of K) assert.ok(code.includes("'" + k + "'") || (k.startsWith('a293t.w.') && code.includes("'a293t.w.'+k.slice(4)")), 'klucz w kodzie: ' + k);
   assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2);
+});
+
+
+test('v296 (runda 2, G2): płynność netto — pod wartością dzień obserwacji bilansu Fed i TGA (stan na środę), gdy wcześniejszy niż dzień wartości', () => {
+  const a0 = html.indexOf('function arcMeta('), a1 = html.indexOf('function arcApply(', a0);
+  assert.ok(a0 > 0 && a1 > a0);
+  const mk = S => {
+    const el = {g: {innerHTML: '', hidden: true}, c: {innerHTML: '', hidden: true}};
+    const F = new Function('ARC', 't', 'nfmt', 'escH', 'gAgeNote', '$', 'instRow', 'engDate', 'arcWhLista', 'WH', html.slice(a0, a1) + '\nreturn {arcLiqNote, renderArc};')(
+      {data: {at: '2026-10-07T02:04:34+00:00', series: S}, per: 90, ok: [30, 90, 365]}, a293gT, (v, d) => Number(v).toFixed(d), s => String(s), d => ' ·wiek(' + d + ')',
+      q => q === '#g-archiwum' ? el.g : q === '#c-archiwum' ? el.c : null, (a, b, c, d) => '<R>' + a + '|' + b + '|' + d + '</R>', s => String(s), () => '', {data: null});
+    return Object.assign(F, {el});
+  };
+  const ser = (o, last, v) => Object.assign({unit: 'mln USD', freq: 'D', first: '2026-09-29', d: [['2026-10-05', v], [last, v]]}, o ? {obs: o} : {});
+  const S = (ow, ot, last = '2026-10-06') => ({'plyn.net': ser(null, last, 5793943), 'plyn.walcl': ser(ow, last, 6743031), 'plyn.tga': ser(ot, last, 984046), 'plyn.rrp': ser(null, last, 414)});
+  assert.equal(mk(S('2026-09-30', '2026-09-30')).arcLiqNote(), 'r296g.liq.obs{"d":"2026-09-30"}');
+  assert.equal(mk(S('2026-09-30', '2026-09-23')).arcLiqNote(), 'r296g.liq.obs2{"a":"2026-09-30","b":"2026-09-23"}', 'różne dni — oba');
+  assert.equal(mk(S(null, null)).arcLiqNote(), '', 'plik sprzed v293 bez pola obs — bez noty (nie zgadujemy)');
+  assert.equal(mk(S('2026-09-30', '2026-09-30', '2026-09-30')).arcLiqNote(), '', 'wiersz ze środy — dzień wartości = dzień obserwacji');
+  assert.equal(mk({}).arcLiqNote(), '', 'bez serii — nic');
+  const f = mk(S('2026-09-30', '2026-09-30')); f.renderArc();
+  const g = f.el.g.innerHTML, i = g.indexOf('data-arc="liq"');
+  assert.ok(!f.el.g.hidden && i > 0, 'panel archiwum widoczny');
+  const liq = g.slice(i, g.indexOf('<p class="pnote">', i));
+  assert.ok(liq.includes('<small>2026-10-06 ·wiek(2026-10-06)</small></span><span class="arc-last arc-obs"><small>r296g.liq.obs{"d":"2026-09-30"}</small></span>'),
+    'wartość z dniem wiersza i wiekiem, obok dzień obserwacji składników tygodniowych: ' + liq);
+  assert.equal(g.split('arc-obs').length, 2, 'dopisek tylko przy płynności netto');
+  assert.ok(g.includes('<R>arc.k.tga|') && g.includes('inst.asof 2026-09-30 ·wiek(2026-09-30)</R>'), 'kafelek TGA — stan na środę (v293)');
+  assert.ok(html.includes('.arc-last.arc-obs{white-space:normal}'), 'dopisek łamie się na wąskim ekranie (bez poziomego przewijania)');
+});
+
+test('v296 (runda 2, G1): DZIŚ — kwota regionu od wartości na początku sesji (w sesji szacunek = poprzednie zamknięcie); zmiana kafelka z tych samych wartości', () => {
+  const g0 = html.indexOf('const GREG=['), g1 = html.indexOf('const GB_=', g0), p0 = html.indexOf('const GPROXY='), p1 = html.indexOf('let gDayBusy', p0);
+  const c0 = html.indexOf('const GCENY_N='), c1 = html.indexOf('function gCenyAt(', c0), b0 = html.indexOf('const GSAMPLE={'), b1 = html.indexOf('\n}\n', html.indexOf('function gKpis(){', b0)) + 3;
+  const e0 = html.indexOf('function gEqTot('), e1 = html.indexOf('\nfunction renderAssets(', e0);
+  assert.ok([g0, g1, p0, p1, c0, c1, b0, b1, e0, e1].every(x => x > 0) && c1 > c0 && e1 > e0 && html.slice(c0, c1).includes('function gDayStart('), 'bloki kodu');
+  const src = html.slice(g0, g1) + html.slice(p0, p1) + html.slice(c0, c1) + html.slice(b0, b1) + html.slice(e0, e1) + '\nreturn {gBuild, gKpis, GREG, GPROXY, get: () => ({GDATA, GKPI})};';
+  const mk = (GLIVE, gst) => new Function('GLIVE', 'GPER', 'gst', 'GLINK', 'location', 'krStabh', 'gDaily', 'CMC', 't', 'escH', 'gOk', 'gPeriodButtons', 'LOCALE', 'LANG', 'gpct', src)(
+    GLIVE, ['1D', '1T', '1M', '1Q', '1R'], gst, null, {protocol: 'https:'}, () => null, () => null, {data: null}, a293gT, s => String(s), () => {}, () => {}, {pl: 'pl-PL'}, 'pl', v => String(v));
+  const tile = (f, gst, per) => { gst.period = per; f.gKpis(); return f.get().GKPI.find(k => k.k === 'g.k.eq'); };
+  const cal = []; for (let d = new Date(Date.UTC(2025, 5, 2)); d <= new Date(Date.UTC(2026, 9, 7)); d.setUTCDate(d.getUTCDate() + 1)) if (d.getUTCDay() % 6) cal.push(d.toISOString().slice(0, 10));
+  const SY = ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA'];
+  const px = (k, i) => Math.round((40 + 3 * k) * (1 + 0.0004 * (k + 1) * i) * (1 + 0.01 * Math.sin(i / 7 + k)) * 100) / 100;
+  const ceny = to => ({at: to + 'T22:00:00Z', asof: to, q: Object.fromEntries(SY.map((s, k) => [s, {d: cal.filter(x => x <= to).map(x => [x, px(k, cal.indexOf(x)), 1000])}]))});
+  const cl = (C, sy, d) => C.q[sy].d.find(x => x[0] === d)[1];
+  const close = (a, b, m) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), m + ': ' + a + ' ≠ ' + b);
+  const L0 = {st: 'ok', oecd: null, fx: null, crypto: null, stab: null, fiat: null, asof: '2026-08', src: {}, srcAt: {}, cenySrv: 'x', day: null, dayAt: '15:30'};
+  const run = (to, day) => { const GL = Object.assign({}, L0, {ceny: ceny(to)}), st = {period: '1D'}, f = mk(GL, st); GL.day = day(f, GL); f.gBuild(); return {f, GL, st, F: f.get().GDATA['1D']}; };
+  const ids = f => f.GREG.filter(r => (f.GPROXY[r.id] || []).length).map(r => r.id);
+  // A. sesja w toku: plik cen kończy się na 06.10 = poprzednie zamknięcie (pc) — szacunek to POCZĄTEK dnia: kwota = szacunek × zmiana
+  const A = run('2026-10-06', (f, GL) => Object.fromEntries(ids(f).map((id, i) => [id, {dp: -0.74 + 0.2 * i, syms: f.GPROXY[id].map(x => x[0]),
+    pc: Object.fromEntries(f.GPROXY[id].map(([sy]) => [sy, cl(GL.ceny, sy, '2026-10-06')]))}])));
+  assert.equal(A.GL.est.d, '2026-10-06');
+  let fl = 0, s0 = 0;
+  for (const id of ids(A.f)) { const e = A.GL.est.r[id].v, v = A.F[id]; close(v[0], e * v[1] / 100, 'A ' + id + ': kwota = wartość na początku sesji × zmiana'); close(A.F.s0[id], e, 'A ' + id + ': początek = szacunek'); fl += v[0]; s0 += e; }
+  assert.ok(Math.abs(A.F.usa[0] - A.GL.est.r.usa.v * A.F.usa[1] / (100 + A.F.usa[1])) > 1e-6, 'inna liczba niż dawny wzór (szacunek jako koniec okresu)');
+  const KA = tile(A.f, A.st, '1D'), KM = tile(A.f, A.st, '1M');
+  close(KA.d, fl / s0 * 100, 'A: zmiana kafelka = suma kwot ÷ suma wartości na początku sesji'); close(KA.v, KM.v, 'A: poziom ten sam co w innych okresach');
+  // B. po sesji: plik cen ma już zamknięcie 07.10 (szacunek = KONIEC dnia), pc = zamknięcie 06.10 — jak dawny wzór
+  const B = run('2026-10-07', (f, GL) => Object.fromEntries(ids(f).map(id => { const P = f.GPROXY[id]; let s = 0, ws = 0;
+    P.forEach(([sy, w]) => { s += w * (cl(GL.ceny, sy, '2026-10-07') / cl(GL.ceny, sy, '2026-10-06') - 1) * 100; ws += w; });
+    return [id, {dp: s / ws, syms: P.map(x => x[0]), pc: Object.fromEntries(P.map(([sy]) => [sy, cl(GL.ceny, sy, '2026-10-06')]))}]; })));
+  assert.equal(B.GL.est.d, '2026-10-07');
+  for (const id of ids(B.f)) {
+    const e = B.GL.est.r[id].v, P = B.f.GPROXY[id], v = B.F[id];
+    let s = 0, ws = 0; P.forEach(([sy, w]) => { s += w * cl(B.GL.ceny, sy, '2026-10-06') / cl(B.GL.ceny, sy, '2026-10-07'); ws += w; });
+    close(v[0], e * s / ws * v[1] / 100, 'B ' + id + ': początek = szacunek × (poprzednie zamknięcie ÷ dzisiejsze)');
+    if (P.length === 1) close(v[0], e - e / (1 + v[1] / 100), 'B ' + id + ': jeden fundusz — to samo co dawny wzór');
+  }
+  // C. bez poprzednich zamknięć (stary plik dnia) albo zła liczba — dawny wzór, bez F.s0
+  const C = run('2026-10-06', f => Object.fromEntries(ids(f).map((id, i) => [id, {dp: 0.3 + 0.1 * i, syms: [], pc: i ? undefined : {SPY: 'x'}}])));
+  for (const id of ids(C.f)) { const e = C.GL.est.r[id].v, v = C.F[id]; close(v[0], e * v[1] / (100 + v[1]), 'C ' + id + ': gAmt'); }
+  assert.ok(!C.F.s0, 'bez wartości początku');
+  // gDayApply: poprzednie zamknięcie z pliku dnia (liczba > 0), fundusz bez niego — pominięty
+  const d0 = html.indexOf('function gDayApply('), d1 = html.indexOf('function gDay(', d0);
+  const GLd = {};
+  const apply = new Function('GREG', 'GPROXY', 'GLIVE', 'gOk', 'LOCALE', 'LANG', 'GDATA', html.slice(d0, d1) + '\nreturn gDayApply;')(
+    [{id: 'usa'}, {id: 'mea'}], {usa: [['SPY', 1]], mea: [['KSA', .76], ['TUR', .13], ['EIS', .11]]}, GLd, () => {}, {pl: 'pl-PL'}, 'pl', null);
+  assert.equal(apply({SPY: {c: 776.62, pc: 779.09, dp: -0.317, t: 0}, KSA: {dp: 1, pc: 30, t: 0}, TUR: {dp: 2, t: 0}, EIS: {dp: 3, pc: 'x', t: 0}}), 2);
+  assert.deepEqual(GLd.day.usa.pc, {SPY: 779.09}); assert.deepEqual(GLd.day.mea.pc, {KSA: 30}); assert.deepEqual(GLd.day.mea.syms, ['KSA', 'TUR', 'EIS']);
+  assert.ok(html.includes('c:+j.c,pc:+j.pc,t:+j.t'), 'notowania na żywo też niosą poprzednie zamknięcie');
+  assert.ok(html.includes("${t('a293g.m.lvl')} ${t('r296g.m.day',{p:t('g.p.1D')})}</p></section>"), 'Metodologia: jak liczona jest kwota dnia');
+});
+
+test('v296 (runda 2, G1): rok bazy w tekstach a293g.k.tip, a293g.m.lvl, a293g.basey.v = GEST_D (10 języków) — zmiana bazy bez tekstów nie przejdzie', () => {
+  const m = html.match(/const GEST_D=\{def:'(\d{4})-12-31',ind:'(\d{4})-12-31'\};/);
+  assert.ok(m, 'GEST_D');
+  const yd = m[1], yi = m[2];
+  const yrs = s => { const out = [], re = /(^|\D)((?:19|20)\d{2})(?!\d)/g; let x; while ((x = re.exec(s))) out.push(x[2]); return out; };
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const T = v96src.I18N[L];
+    for (const k of ['a293g.k.tip', 'a293g.m.lvl']) assert.deepEqual(yrs(T[k]).slice(0, 2), [yd, yi], L + ' ' + k + ': ' + T[k]);
+    assert.equal(yrs(T['a293g.basey.v'])[0], yd, L + ' a293g.basey.v: ' + T['a293g.basey.v']);
+  }
+  const P = html.match(/const GEST_P=\{'(\d{4}-\d{2}-\d{2})':\{[^}]*\},\s*'(\d{4}-\d{2}-\d{2})':\{/);
+  assert.ok(P && P[1] === yd + '-12-31' && P[2] === yi + '-12-31', 'GEST_P — zamknięcia z dni bazy GEST_D');
+  assert.ok(html.includes('rok bazy wpisany w teksty a293g.k.tip, a293g.m.lvl i a293g.basey.v'), 'komentarz nad GEST_D wymienia teksty z rokiem bazy');
+});
+
+test('v296 (runda 2, G13): kurs efektywny — po dacie z wiekiem tylko znak interpunkcji (ja: „基準日 {d}” w nawiasie, nie „{d} まで”)', () => {
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const v = v96src.I18N[L]['a293g.eer.asof'];
+    assert.match(v, /\{d\}[\s  ]*[;；。.）)]/, L + ': ' + v);
+  }
+  assert.ok(v96src.I18N.ja['a293g.eer.asof'].includes('（基準日 {d}）') && !v96src.I18N.ja['a293g.eer.asof'].includes('まで'));
+});
+
+test('v296: słownik r296g — 10 języków, te same klucze, prawdziwe tłumaczenia, pola zachowane, bez nazw dostawców', () => {
+  const m = html.match(/const (EXTRA\d+)=(\{"pl":\{"r296g\.[^\n]*);\nfor\(const l in \1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);/);
+  assert.ok(m, 'słownik z kluczami r296g.');
+  const Dd = JSON.parse(m[2]), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(Dd), L10);
+  const keys = Object.keys(Dd.pl).sort();
+  assert.deepEqual(keys, ['r296g.liq.obs', 'r296g.liq.obs2', 'r296g.m.day']);
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(Dd[L]).sort(), keys, L);
+    for (const k of keys) {
+      const v = Dd[L][k];
+      assert.ok(typeof v === 'string' && v.trim() && !GM_PROV.test(v) && !/FRED|Fiscal Data|Finnhub|Twelve Data/.test(v), L + ' ' + k + ': ' + v);
+      if (L !== 'en' && L !== 'pl') assert.notEqual(v, Dd.en[k], L + ' ' + k + ': prawdziwe tłumaczenie');
+      for (const ph of (Dd.pl[k].match(/\{[a-z]\}/g) || [])) assert.ok(v.includes(ph), L + ' ' + k + ' ' + ph);
+      assert.equal(v96src.I18N[L][k], v, L + ' ' + k + ': nałożony na słownik strony');
+    }
+  }
+  assert.ok(/^EXTRA\d+$/.test(m[1]) && html.split('const ' + m[1] + '=').length === 2);
 });

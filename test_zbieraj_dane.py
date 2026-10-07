@@ -31340,3 +31340,111 @@ class TrendyAudytV293(unittest.TestCase):
         self.assertEqual((r['f'], r['fu'], [x[1] for x in r['rs'] if x[0] == 'f']), (979.46, 979.46, [979.46]), 'strona zaokrągla raz: 979, jak karta tygodniowa (dotąd 979,5 → 980)')
         import inspect
         self.assertIn("'f': rnd(flow[i] if flow else None, 2)", inspect.getsource(zd._td_row), 'wersja 1 kart świata — też 2 miejsca')
+
+
+
+class RundaDwaGlobalV296(unittest.TestCase):
+    """v296 (runda 2 audytu m1, obszar GLOBAL): G2 — archiwum płynności w całości jedną miarą TGA (okno od pierwszego wiersza pliku); test wsteczny
+    progu stałego TGA (środa świąteczna, prawdziwe liczby); G12 — odrzucenie wszystkich kodów nie robi z poprzedniej odmowy początku ciągu. Bez sieci."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='v296g-')
+        spec = importlib.util.spec_from_file_location('archiwum_v296g', os.path.join(cls.ROOT, 'narzedzia', 'archiwum.py'))
+        cls.a = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.a)
+        spec = importlib.util.spec_from_file_location('kontrola_v296g', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); self.a.NOTES.clear()
+
+    def _csv(self, name, rows, head='date,walcl_musd,tga_musd,rrp_musd,net_liquidity_musd,method'):
+        arch = os.path.join(self.tmp, name); os.makedirs(arch, exist_ok=True)
+        with open(os.path.join(arch, 'plynnosc.csv'), 'w', encoding='utf-8', newline='') as f:
+            f.write(head + '\n' + ''.join(r + '\n' for r in rows))
+        return arch
+
+    def test_g2_plynnosc_caly_plik_jedna_miara_tga(self):
+        a = self.a
+        # plik z wierszami sprzed okna 3 lat (26.09–06.10.2023: TGA = WTREGEN, średnia tygodnia) — przebieg 08.10.2026
+        arch = self._csv('pl1', ['2023-09-26,8024090,640296,1438301,5945493,"walcl@2023-09-20,tga@2023-09-20"',
+                                 '2023-10-04,7955782,668009,1342031,5945742,"walcl@2023-10-04,tga@2023-10-04"',
+                                 '2026-10-06,6743031,948674,414,5793943,"walcl@2026-09-30,tga@2026-09-30"'])
+        dzis = datetime.date(2026, 10, 8)
+        self.assertEqual(a.lata_wstecz(dzis, 3), datetime.date(2023, 10, 8), 'samo okno 3 lat nie obejmuje pierwszych wierszy pliku')
+        self.assertEqual(a._plyn_od(dzis, arch), datetime.date(2023, 9, 26), 'okno od pierwszego wiersza pliku')
+        self.assertEqual(a._plyn_od(dzis, os.path.join(self.tmp, 'brak')), datetime.date(2023, 10, 8), 'bez pliku — 3 lata')
+        self.assertEqual(a._plyn_od(dzis, self._csv('pl2', ['2025-01-02,1,1,1,1,"walcl@2024-12-31,tga@2024-12-31"'])), datetime.date(2023, 10, 8), 'plik młodszy niż 3 lata — 3 lata')
+        self.assertEqual(a._plyn_od(dzis, self._csv('pl3', ['2020-01-02,1,1,1,1,x'], head='date,inne')), datetime.date(2023, 10, 8), 'inny nagłówek — 3 lata')
+        asked = []
+        W = {'2023-09-20': 8024090.0, '2023-09-27': 8002064.0, '2023-10-04': 7955782.0, '2026-09-30': 6743031.0}
+        T = {'2023-09-20': 657000.0, '2023-09-27': 676000.0, '2023-10-04': 655000.0, '2026-09-30': 984046.0}   # stan na środę — inne liczby niż średnie w pliku
+        R = {'2023-09-26': 1438.301, '2023-10-04': 1342.031, '2026-10-06': 0.414}
+
+        def fred_obs(sid, key, od):
+            asked.append((sid, od))
+            return {'WALCL': W, 'WDTGAL': T, 'RRPONTSYD': R}[sid]
+        with mock.patch.object(a, 'fred_obs', fred_obs), mock.patch.object(a.time, 'sleep', lambda s: None):
+            idx = a.run({'plynnosc': lambda: a.src_plynnosc('K', dzis, arch=arch)}, arch=arch)
+        self.assertEqual(idx['errors'], [])
+        self.assertEqual([s for s, _ in asked], ['WALCL', 'WDTGAL', 'RRPONTSYD'])
+        self.assertEqual({od for _, od in asked}, {datetime.date(2023, 9, 26) - datetime.timedelta(days=45)}, 'zapytanie od pierwszego wiersza pliku (z zapasem 45 dni)')
+        rows, _ = a.read_csv(os.path.join(arch, 'plynnosc.csv'), a.FILES['plynnosc']['cols'])
+        by = {r[0]: r for r in rows.values()}
+        self.assertEqual(by['2023-09-26'][2], '657000', 'pierwszy wiersz pliku — stan na środę (WDTGAL), nie dawna średnia tygodnia (640296)')
+        self.assertEqual((by['2023-10-04'][2], by['2026-10-06'][2]), ('655000', '984046'))
+        self.assertEqual(idx['files']['plynnosc']['revised'], 3, 'wszystkie trzy wiersze przeliczone tą samą miarą')
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
+        self.assertIn("'plynnosc': lambda: src_plynnosc(key)", src, 'przebieg dzienny — katalog archiwum domyślny (ARCH)')
+
+    def test_g2_tga_prog_staly_test_wsteczny(self):
+        k = self.k
+        # prawdziwe liczby z testu wstecznego (07.10.2026): środa świąteczna 25.12.2024 — FRED podaje saldo z wtorku 24.12 (735 039), DTS nie ma wiersza
+        inst = {'tga': {'d': [['2024-12-17', 830681], ['2024-12-18', 803975], ['2024-12-19', 787982], ['2024-12-20', 767489], ['2024-12-23', 792864],
+                              ['2024-12-24', 735039], ['2024-12-26', 688699], ['2024-12-27', 720401]]}}
+        fw = {'series': {'WDTGAL': {'d': [['2024-12-11', 711354.0], ['2024-12-18', 803975.0], ['2024-12-25', 735039.0]]}}}
+        rows = {}
+        z = k.tga_ocena(rows, inst, fw, '2024-12-27')
+        self.assertEqual((z['data'], z['roznica_pct'], z['status'], z['mediana_pct']), ('2024-12-18', 0.0, '✅', None), 'poprzednia wspólna środa — bez fałszywego ⚠️')
+        self.assertEqual(k.TGA_PROG, 1.0, 'próg stały 1% (test wsteczny: 0 przekroczeń w 554 środach)')
+        self.assertEqual(k.tga_ocena({}, inst, {'series': {'WDTGAL': {'d': [['2024-12-18', 803975.0 * 1.011]]}}}, '2024-12-27')['status'], '⚠️', 'różnica 1,1% — ostrzeżenie')
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertIn('554 wspólne środy 06.01.2016–30.09.2026', src, 'wynik testu wstecznego progu zapisany przy progu')
+        self.assertNotIn('sprawdzone na 6 środach', src)
+
+    def test_g12_odrzucenie_wszystkich_kodow_bez_zgadywania_poczatku(self):
+        import urllib.error
+        inne = frozenset(s for s, _, _ in zd.IX_SYMBOLS if s != 'JTOPI')
+        self.assertIn('JTOPI', {s for s, _, _ in zd.IX_SYMBOLS})
+
+        def odmowa(sym, cc, key, rec, now, z=False):
+            raise urllib.error.HTTPError('https://x', 401, 'Unauthorized', {}, None)
+        teraz = datetime.datetime(2026, 10, 11, 17, 0, tzinfo=datetime.timezone.utc)
+
+        def przebieg(part):
+            with mock.patch.object(zd, 'ix_fetch', odmowa), mock.patch.object(zd, 'NOW', '2026-10-11T17:00:00+00:00'):
+                p, calls, quota, ok, got = zd.ix_part('K', part, None, None, teraz, [], pomin=inne)
+            self.assertEqual(calls['n'], 1, 'jedno zapytanie (JTOPI)')
+            return p
+        # wpis sprzed v293 (tak wygląda JTOPI w pliku 07.10): 4 odmowy, bez początku ciągu
+        p = przebieg({'JTOPI': {'bad_at': '2026-10-03T16:53:53+00:00', 'bad_n': 4, 'bad': 'pusto'}})
+        j = p['JTOPI']
+        self.assertEqual((j['bad_n'], j['bad'], j['bad_at']), (1, 401, '2026-10-11T17:00:00+00:00'), 'wszystkie próby odrzucone — przerwa jednodniowa')
+        self.assertNotIn('bad_od', j); self.assertIs(j.get('bad_od_nieznany'), True, 'początek ciągu nieznany — zapamiętany')
+        with mock.patch.object(zd, 'NOW', '2026-10-12T17:00:00+00:00'):
+            zd._ix_bad(p, 'JTOPI', 401)
+        self.assertNotIn('bad_od', p['JTOPI'], 'następna odmowa nie robi z odmowy 11.10 początku braku (prawdziwy: przed 03.10)')
+        self.assertEqual(p['JTOPI']['bad_n'], 2); self.assertIsNone(zd._ix_bad_od(p['JTOPI']))
+        # nowy wpis: pierwsza odmowa w przebiegu z samymi odmowami — bez znacznika; druga odmowa ustala początek = pierwsza
+        q = przebieg({})
+        self.assertEqual(q['JTOPI'], {'bad_at': '2026-10-11T17:00:00+00:00', 'bad_n': 1, 'bad': 401})
+        with mock.patch.object(zd, 'NOW', '2026-10-12T17:00:00+00:00'):
+            zd._ix_bad(q, 'JTOPI', 401)
+        self.assertEqual(q['JTOPI']['bad_od'], '2026-10-11T17:00:00+00:00', 'druga odmowa — początek = pierwsza')
+        # wpis z początkiem ciągu (v293): reset licznika nie rusza bad_od, bez znacznika
+        r = przebieg({'JTOPI': {'bad_at': '2026-10-05T17:00:00+00:00', 'bad_n': 2, 'bad': 401, 'bad_od': '2026-10-04T17:00:00+00:00'}})
+        self.assertEqual((r['JTOPI']['bad_od'], r['JTOPI']['bad_n']), ('2026-10-04T17:00:00+00:00', 1)); self.assertNotIn('bad_od_nieznany', r['JTOPI'])
+        rec = {'bad_n': True, 'bad_at': 'x'}; zd._ix_bad_reset(rec)
+        self.assertEqual(rec, {'bad_n': 1, 'bad_at': 'x'}, 'True to nie liczba odmów — bez znacznika')
