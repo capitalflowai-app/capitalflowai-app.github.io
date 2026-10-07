@@ -10952,7 +10952,7 @@ class WielorybyEthV112(WielorybyV105):
 
     def test_main_wiring(self):
         src = open(zd.__file__, encoding='utf-8').read()
-        self.assertIn("eth_key = os.environ.get('ETHERSCAN_KEY', '').strip()", src); self.assertIn("SECRETS.append(eth_key)", src)
+        self.assertIn("eth_key = klucz('ETHERSCAN_KEY')", src); self.assertIn("SECRETS.append(eth_key)", src)   # v272: klucz() — odrzuca znaki sterujące
         self.assertIn("wh = build_wieloryby(prev_wh, eth_key=eth_key or None)", src); self.assertIn("META['ok']['wieloryby_eth'] = bool(wh['ok'].get('eth'))", src)
         self.assertIn("brak ETHERSCAN_KEY — transfery ETH natywne w wielorybach wyłączone", src)
         wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
@@ -29449,7 +29449,7 @@ class CenyZapasV269(unittest.TestCase):
         self.assertEqual(saved, {}); self.assertTrue(any(n.startswith('Ceny (mapa GLOBAL, zapas): niedostępny') for n in zd.META['notes']))
         import inspect
         src = inspect.getsource(zd.main)
-        self.assertIn("ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}', proba=True)", src); self.assertIn("ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')", src)
+        self.assertIn("ceny_zapas(prev_ceny, mask(f'Twelve Data: {e}')[:93], proba=True)", src); self.assertIn("ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')", src)
 
 
 # ===================== v270: POPRAWKI PO PRZEGLĄDZIE v268–v269 =====================
@@ -29553,7 +29553,7 @@ class PoPrzegladzieV271(unittest.TestCase):
     _sd = staticmethod(PoPrzegladzieV270._sd)
 
     def test_podzial_z_ruchem_rynku(self):
-        for wsp, ruch in ((0.5, 1.031), (0.4, 0.97), (0.75, 1.02), (1 / 1.5, 1.03), (2, 0.95)):
+        for wsp, ruch in ((0.5, 1.031), (1 / 3, 1.08), (0.25, 0.95), (1 / 1.5, 1.03), (2, 0.95)):   # v272: 5:2 i 4:3 usunięte; 3:1 w dniu +8%
             sd = self._sd()
             rows = sd['px']['EWY']['d']
             base = rows[-4][2]
@@ -29595,3 +29595,98 @@ class PoPrzegladzieV271(unittest.TestCase):
         self.assertIn("elif td_key and prev_ceny and isinstance(prev_ceny.get('td_proba'), str) and fresh({'at': prev_ceny['td_proba']}, 55):", src)
         self.assertIn("— ponowienie po godzinie", src)
 
+
+# ===================== v272: POPRAWKI PO PRZEGLĄDZIE v271 =====================
+class PoPrzegladzieV272(unittest.TestCase):
+    """v272: klucz ze znakiem sterującym w środku nieużyty i nigdy w komunikacie (postaci z ucieczkami, zapytanie, straż kluczy); maskowanie
+    przed cięciem; podziały jednostek w zapasie cen — para przez lukę ±2%, najbliższy współczynnik, bez 4:3 i 5:2."""
+
+    K = 'f00dcafe12345678\tbeefbabe87654321'   # klucz wklejony z tabulatorem w środku (zmyślony)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._s, self._z = list(zd.SECRETS), list(zd.SECRETS_ZLE)
+
+    def tearDown(self):
+        zd.SECRETS[:] = self._s; zd.SECRETS_ZLE[:] = self._z
+
+    _sd = staticmethod(PoPrzegladzieV270._sd)
+
+    def test_klucz_odrzuca_znaki_sterujace(self):
+        with mock.patch.dict(os.environ, {'TWELVEDATA_KEY': self.K, 'FRED_KEY': '  dobry-klucz-123  ', 'EIA_KEY': 'ab cd'}, clear=False):
+            self.assertEqual((zd.klucz('TWELVEDATA_KEY'), zd.klucz('FRED_KEY'), zd.klucz('EIA_KEY'), zd.klucz('NIE_MA_TAKIEGO')),
+                             ('', 'dobry-klucz-123', '', ''))
+        self.assertEqual(len(zd.META['errors']), 2); self.assertTrue(all('f00d' not in e and 'beef' not in e and 'ab cd' not in e for e in zd.META['errors']))
+        self.assertIn('Klucz TWELVEDATA_KEY: spacja albo znak sterujący', zd.META['errors'][0])
+        self.assertIn(self.K, zd.SECRETS_ZLE, 'odrzucona wartość nadal maskowana')
+        import inspect
+        src = inspect.getsource(zd.main)
+        for n in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'COINALYZE_KEY', 'ETHERSCAN_KEY',
+                  'EVDS_KEY', 'BANXICO_TOKEN'):
+            self.assertIn(f"klucz('{n}')", src)
+        self.assertIn("ix_keys = {k: klucz(k) for k in IX_KEYS}", src); self.assertIn("(klucz(k) for k in ('EIA_KEY', 'BLS_KEY', 'BEA_KEY'))", src)
+        self.assertNotRegex(src, r"os\.environ\.get\('[A-Z_]*(KEY|TOKEN)'", 'każdy klucz przez klucz()')
+
+    def test_maskowanie_postaci_z_ucieczkami(self):
+        zd.SECRETS[:] = ['dobryklucz12345']; zd.SECRETS_ZLE[:] = [self.K]
+        a, b = 'f00dcafe12345678', 'beefbabe87654321'
+        for txt in (f"URL can't contain control characters. '/x?apikey={repr(self.K)[1:-1]}' (found at least '\\t')",
+                    json.dumps({'e': self.K}), 'apikey=' + zd.urllib.parse.quote(self.K, safe=''), f'apikey={a}%5Ct{b}', f'{a} … {b}'):
+            m = zd.mask(txt)
+            self.assertNotIn(a, m, txt); self.assertNotIn(b, m, txt)
+        self.assertEqual(zd.mask("x 'dobryklucz12345' y"), "x '***' y")
+        self.assertEqual(zd.mask(json.dumps('dobry"klucz')), json.dumps('dobry"klucz'), 'krótkie/obce teksty bez zmian')
+
+    def test_zapytanie_ze_zlym_kluczem_bez_tresci(self):
+        for url, h in (('https://api.example.invalid/x?apikey=' + self.K, None), ('https://api.example.invalid/x', {'x-api-key': 'ab\ncd1234567890'})):
+            with self.assertRaises(ValueError) as c:
+                zd.get(url, h)
+            self.assertEqual(str(c.exception), 'zły adres albo nagłówek zapytania (' + ('InvalidURL' if h is None else 'ValueError') + ')')
+            self.assertIsNone(c.exception.__cause__); self.assertTrue(c.exception.__suppress_context__, 'bez pierwotnego wyjątku w śladzie')
+        with self.assertRaises(ValueError):
+            zd.get_bytes('https://api.example.invalid/x?apikey=' + self.K)
+
+    def test_straz_kawalki(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v272_straz', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'straz_kluczy.py'))
+        s = importlib.util.module_from_spec(spec); spec.loader.exec_module(s)
+        sek, _ = s.sekrety({'TWELVEDATA_KEY': self.K, 'SEC_CONTACT': 'CapitalFlowAI kontakt@example.com', 'FRED_KEY': 'zwyklyklucz123'})
+        self.assertEqual(sorted(sek), ['FRED_KEY', 'SEC_CONTACT', 'TWELVEDATA_KEY', 'TWELVEDATA_KEY (kawałek 1)', 'TWELVEDATA_KEY (kawałek 2)'])
+        import tempfile
+        root = tempfile.mkdtemp(); os.makedirs(os.path.join(root, 'data'))
+        with open(os.path.join(root, 'data', 'meta.json'), 'w', encoding='utf-8') as f:
+            json.dump({'errors': ["URL can't contain control characters. '/q?apikey=" + repr(self.K)[1:-1] + "'"]}, f)
+        tr, n = s.skanuj(sek, root)
+        self.assertEqual(sorted(a for a, _, _ in tr), ['TWELVEDATA_KEY (kawałek 1)', 'TWELVEDATA_KEY (kawałek 2)'], 'straż widzi kawałki w postaci z ucieczkami')
+
+    def test_maskowanie_przed_cieciem(self):
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertIn("ceny_zapas(prev_ceny, mask(f'Twelve Data: {e}')[:93], proba=True)", src)
+        self.assertIn("err.append(f'{sid}: ' + mask(str(e))[:80])", inspect.getsource(zd.ix_wyd_part))
+        zd.SECRETS[:] = ['X' * 28 + 'KLUCZ1234']
+        saved = {}
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, '_prev_cache', lambda n: None), \
+                mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            zd.ceny_zapas({'at': 'x', 'q': {}}, mask_ := zd.mask('Twelve Data: ' + 'a' * 60 + ' ' + 'X' * 28 + 'KLUCZ1234')[:93], proba=True)
+        self.assertNotIn('XXXXXXXX', saved['ceny']['td_blad'] + ' '.join(zd.META['notes']))
+
+    def test_podzial_przez_luke_i_najblizszy(self):
+        f = zd._ceny_podzial
+        self.assertIsNone(f(0.761, False), 'TUR 9→13.08.2018 przez lukę — nie podział'); self.assertIsNone(f(0.7874, True), '4:3 usunięte')
+        self.assertEqual(f(1 / 3 * 1.08), 1 / 3, 'przegląd: 3:1 w dniu +8% brany jako ×0,4'); self.assertEqual(f(0.5 * 0.9), 0.5)
+        self.assertEqual(f(0.5 * 1.015, False), 0.5, 'przez lukę tylko ±2%'); self.assertIsNone(f(0.5 * 1.05, False))
+        self.assertIsNone(f(0.82)); self.assertIsNone(f(1.21)); self.assertIsNone(f(1.0)); self.assertIsNone(f(0.0)); self.assertIsNone(f(float('nan')))
+        self.assertEqual(f(1 / 1.5 * 1.03), 1 / 1.5); self.assertIsNone(f(1 / 1.5 * 1.06), '1,5 tylko ±5%')
+        # TUR −24% przez lukę (brak wiersza w sesji pomiędzy) — zapas bez fałszywego podziału, cały rok bez przeskalowania
+        sd = self._sd(); rows = sd['px']['TUR']['d']
+        rows[-1][2] = round(rows[-3][2] * 0.761, 4); del rows[-2]
+        c = zd.ceny_z_swiata(sd)
+        self.assertNotIn('podzialy', c); e = {r[0]: r[1] for r in c['q'].get('TUR', {'d': []})['d']}
+        self.assertTrue(all(abs(e[r[0]] - r[2]) < 1e-6 for r in rows if r[0] in e), 'zamknięcia TUR bez zmian')
+        # prawdziwy podział 2:1 przez lukę (bez ruchu rynku) — nadal rozpoznany
+        sd = self._sd(); rows = sd['px']['EWY']['d']; base = rows[-4][2]
+        for r in rows[-3:]:
+            r[2] = round(r[2] / 2, 4)
+        rows[-3][2] = round(base / 2 * 1.01, 4); del rows[-4]
+        self.assertEqual(zd.ceny_z_swiata(sd).get('podzialy'), [['EWY', rows[-3][0], 0.5]])

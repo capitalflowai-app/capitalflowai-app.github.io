@@ -77,17 +77,51 @@ OUT = 'data'
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 META = {'at': NOW, 'ok': {}, 'errors': [], 'notes': []}   # notes: informacje (np. brak poprzedniego pliku), nie błędy
 SECRETS = []      # wartości kluczy — maskowane w każdym komunikacie błędu
+SECRETS_ZLE = []  # v272: wartości odrzuconych kluczy (spacja albo znak sterujący w środku) — maskowane mimo resetu SECRETS w main()
+_KLUCZ_ZLY = re.compile(r'[\x00-\x20\x7f]')   # v272: spacja, tabulator, nowa linia i inne znaki sterujące
 SAVED = {}        # v89: obiekty zapisane w tym przebiegu (wejście dla TRENDÓW)
 TICKER = re.compile(r'^[A-Z0-9.]{1,10}$')
 
 
+import functools as _mk_ft   # v272: pamięć postaci kluczy (biblioteka standardowa)
+
+
+@_mk_ft.lru_cache(maxsize=256)
+def _mask_formy(k, kawalki=False):
+    """v272 (przegląd v271): postaci wartości sekretu, w których może się pojawić w komunikacie — dosłowna, z ucieczkami (repr: \\t, \\n;
+    JSON: \\u0000) i zakodowana w adresie (%09, +); kawalki=True (klucz odrzucony przez klucz()) — także każdy kawałek ≥ 6 znaków między
+    spacjami i znakami sterującymi (inna biblioteka mogła zakodować tylko sam znak). Najdłuższe najpierw."""
+    f = {k, repr(k)[1:-1], json.dumps(k)[1:-1], urllib.parse.quote(k, safe=''), urllib.parse.quote_plus(k)}
+    if kawalki:
+        f.update(p for p in _KLUCZ_ZLY.split(k) if len(p) >= 6)
+    return tuple(sorted((x for x in f if x), key=len, reverse=True))
+
+
 def mask(text):
-    """Komunikat błędu nigdy nie zawiera klucza (nawet gdy dostawca odbije adres z parametrem)."""
+    """Komunikat błędu nigdy nie zawiera klucza (nawet gdy dostawca odbije adres z parametrem, także w postaci z ucieczkami — v272)."""
     text = str(text)
     for k in SECRETS:
         if k:
-            text = text.replace(k, '***')
+            for x in _mask_formy(k):
+                text = text.replace(x, '***')
+    for k in SECRETS_ZLE:
+        for x in _mask_formy(k, True):
+            text = text.replace(x, '***')
     return text
+
+
+def klucz(name):
+    """v272 (przegląd v271): sekret ze zmiennej środowiska (GitHub Secrets) bez spacji na końcach. Spacja, tabulator, nowa linia albo inny
+    znak sterujący W ŚRODKU (np. sekret wklejony w dwóch liniach) = klucz nieużyty + błąd w meta (tylko nazwa, nigdy wartość): zapytanie z takim
+    kluczem i tak by się nie udało, a komunikat biblioteki cytowałby adres z kluczem w postaci z ucieczkami. Wartość zostaje w SECRETS_ZLE
+    (maskowana z kawałkami)."""
+    v = os.environ.get(name, '').strip()
+    if v and _KLUCZ_ZLY.search(v):
+        if v not in SECRETS_ZLE:
+            SECRETS_ZLE.append(v)
+        META['errors'].append(f'Klucz {name}: spacja albo znak sterujący (np. nowa linia) w środku wartości — klucz nieużyty; popraw sekret w GitHub')
+        return ''
+    return v
 
 
 import threading as _zuz_th, urllib.parse as _zuz_parse   # v222: blokada licznika (części w wątkach) i rozbiór adresu (biblioteka standardowa)
@@ -121,10 +155,23 @@ def _zuz_licz(url, headers=None):
         return
 
 
+import http.client as _http_client   # v272: InvalidURL (biblioteka standardowa; ponowny import jest nieszkodliwy)
+
+
+def _otworz(url, headers=None, timeout=30):
+    """v272 (przegląd v271): żądanie GET z identyfikatorem zbieracza. Zły adres albo nagłówek (np. znak sterujący w kluczu) = ValueError bez
+    treści — komunikat biblioteki (http.client.InvalidURL, „Invalid header value”, „unknown url type”) cytuje cały adres albo nagłówek, a w nim
+    klucz w postaci z ucieczkami (\\t, \\n); „from None” — także bez pierwotnego wyjątku w śladzie w dzienniku przebiegu."""
+    try:
+        return urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', **(headers or {})}),
+                                      timeout=timeout)
+    except (ValueError, _http_client.InvalidURL) as e:   # InvalidURL nie jest ValueError (http.client.HTTPException)
+        raise ValueError(f'zły adres albo nagłówek zapytania ({type(e).__name__})') from None
+
+
 def get(url, headers=None, timeout=30):
     _zuz_licz(url, headers)   # v222: licznik zużycia planów z limitem
-    req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', **(headers or {})})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with _otworz(url, headers, timeout) as r:   # v272: zły adres/nagłówek — komunikat bez klucza
         return r.status, r.read().decode('utf-8', 'replace')
 
 
@@ -135,8 +182,7 @@ def get_json(url, headers=None, timeout=30):
 
 def get_bytes(url, headers=None, timeout=60):
     _zuz_licz(url, headers)   # v222: licznik zużycia planów z limitem
-    req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-collector/1.0', **(headers or {})})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with _otworz(url, headers, timeout) as r:   # v272: zły adres/nagłówek — komunikat bez klucza
         return r.read()
 
 
@@ -729,8 +775,20 @@ CENY_ZAPAS_ETYKIETA = 'Ceny (mapa GLOBAL, zapas)'
 
 
 CENY_ZAPAS_STARY = 5   # v270: fundusz bez zamknięcia w tylu ostatnich sesjach kalendarza wypada z zapasu (nie zatrzymuje go na starej sesji)
-CENY_PODZIALY = ((2, 0.12), (2.5, 0.12), (3, 0.12), (4, 0.12), (5, 0.12), (10, 0.12), (1.5, 0.05), (4 / 3, 0.05))   # v271: współczynnik,
-# tolerancja (iloraz zamknięć w dniu podziału zawiera ruch rynku); test wsteczny 10 lat 14 funduszy: ilorazy 0,81–1,21 — zero fałszywych
+CENY_PODZIALY = ((2, 0.12), (3, 0.12), (4, 0.12), (5, 0.12), (10, 0.12), (1.5, 0.05))   # v271/v272: współczynnik, tolerancja dla pary
+# SĄSIEDNICH sesji (iloraz w dniu podziału zawiera ruch rynku); test wsteczny 10 lat 14 funduszy: ilorazy sąsiednich sesji 0,81–1,21 — zero
+# fałszywych. v272 (przegląd v271): 4:3 (−21…−29%) i 5:2 usunięte — pary przez lukę z marca 2020 i sierpnia 2018 (TUR 0,761, ILF 0,787) w nie trafiały
+CENY_PODZ_LUKA = 0.02   # v272: tolerancja pary przez lukę (fundusz bez zamknięcia w sesji pomiędzy — iloraz obejmuje ruch kilku sesji)
+
+
+def _ceny_podzial(iq, sasiednie=True):
+    """v272 (przegląd v271): współczynnik podziału jednostek dla ilorazu kolejnych zamknięć funduszu — NAJBLIŻSZY (|ln(iloraz/współczynnik)|)
+    z CENY_PODZIALY i odwrotności, gdy mieści się w swojej tolerancji (para sąsiednich sesji kalendarza) albo w CENY_PODZ_LUKA (para przez
+    lukę); inaczej None. Wcześniej wygrywał pierwszy pasujący z nakładających się pasm (podział 3:1 w dniu +8% jako ×0,4)."""
+    if not isinstance(iq, float) or not 0 < iq < float('inf'):
+        return None
+    k, t = min(((x, tol) for f, tol in CENY_PODZIALY for x in (f, 1 / f)), key=lambda p: abs(math.log(iq / p[0])))
+    return k if abs(iq / k - 1) < (t if sasiednie else CENY_PODZ_LUKA) else None
 
 
 def ceny_z_swiata(sd):
@@ -738,7 +796,8 @@ def ceny_z_swiata(sd):
     i tak dla TRENDÓW): 14 funduszy DAY_SYMS na kalendarzu pliku (pole cal, ostatnie TD_OUTPUT sesji), wiersze [dzień, zamknięcie, None].
     v270 (przegląd): zapas kończy się na ostatniej sesji, w której mają zamknięcie wszystkie jego fundusze (fundusz bez zamknięcia w ostatnich
     CENY_ZAPAS_STARY sesjach wypada); SPY ma wiersz [dzień, None, None] w dniu bez zamknięcia (kalendarz strony = daty SPY); podziały jednostek
-    (iloraz kolejnych zamknięć w 2% od k albo 1/k, TD_W_SPLIT) — wcześniejsze zamknięcia przeskalowane, zapis w 'podzialy'. Za mało funduszy
+    (_ceny_podzial: najbliższy współczynnik; para sąsiednich sesji ±12%/±5%, para przez lukę ±2%) — wcześniejsze zamknięcia przeskalowane,
+    zapis w 'podzialy'. Za mało funduszy
     albo świec — wyjątek (jak build_prices). → słownik jak build_prices z 'zapas': True."""
     cal = sorted({d for d in (sd.get('cal') if isinstance(sd, dict) and isinstance(sd.get('cal'), list) else [])
                   if isinstance(d, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', d)})[-TD_OUTPUT:]
@@ -746,6 +805,7 @@ def ceny_z_swiata(sd):
         raise RuntimeError('plik Świat dziennie bez kalendarza sesji')
     px = sd.get('px') if isinstance(sd.get('px'), dict) else {}
     M, podz = {}, []
+    ci = {d: i for i, d in enumerate(cal)}   # v272: pozycja sesji w kalendarzu — para sąsiednich sesji czy przez lukę
     for s in DAY_SYMS:
         rec = px.get(s) if isinstance(px.get(s), dict) else {}
         m = {}
@@ -757,8 +817,7 @@ def ceny_z_swiata(sd):
             continue   # fundusz bez zamknięć albo bez zamknięcia w ostatnich sesjach — poza zapasem (jak brakujący symbol)
         ds = sorted(m)
         for i in range(len(ds) - 1, 0, -1):   # od najnowszej pary: podział jednostek → wcześniejsze zamknięcia × dokładny współczynnik
-            iq = m[ds[i]] / m[ds[i - 1]]
-            f = next((x for k, t in CENY_PODZIALY for x in (k, 1 / k) if abs(iq / x - 1) < t), None)   # v271: szersze tolerancje
+            f = _ceny_podzial(m[ds[i]] / m[ds[i - 1]], ci[ds[i]] - ci[ds[i - 1]] == 1)   # v272: najbliższy współczynnik; luka = ±2%
             if f is not None:
                 for d in ds[:i]:
                     m[d] *= f
@@ -823,12 +882,12 @@ def ceny_zapas(prev, why, proba=False):
         z = ceny_z_swiata(sd if isinstance(sd, dict) else previous('swiat-dzien'))
     except Exception as e:  # noqa — zapasu brak (np. pierwszy przebieg albo plik Świat dziennie bez cen) — poprzedni plik jak dotąd
         z = None
-        META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: niedostępny ({str(e)[:80]})'))
+        META['notes'].append(f'{CENY_ZAPAS_ETYKIETA}: niedostępny ({mask(str(e))[:80]})')   # v272: najpierw maskowanie
     obj = None
     if z is not None and _ceny_lepszy(z, prev):
-        z['zapas_dlaczego'] = mask(str(why)[:120])
+        z['zapas_dlaczego'] = mask(str(why))[:120]
         obj = z
-        META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: {str(why)[:80]} — zamknięcia sesji z giełdy (bez klucza) do {_ceny_ost(z)}'))
+        META['notes'].append(f'{CENY_ZAPAS_ETYKIETA}: {mask(str(why))[:80]} — zamknięcia sesji z giełdy (bez klucza) do {_ceny_ost(z)}')
         print('CENY: zapas z pliku Świat dziennie do', _ceny_ost(z))
         if z.get('podzialy'):
             META['notes'].append(f"{CENY_ZAPAS_ETYKIETA}: podział jednostek uwzględniony — " + ', '.join(f'{s} {d} (×{f:g})' for s, d, f in z['podzialy'][:4]))
@@ -837,7 +896,7 @@ def ceny_zapas(prev, why, proba=False):
         print('CENY: zachowano poprzedni ceny.json z', prev.get('at'))
     if obj is not None:
         if proba:   # v271: znacznik nieudanej próby Twelve Data — ponowienie najwcześniej po 55 min (koszt kredytów)
-            obj['td_proba'], obj['td_blad'] = NOW, mask(str(why)[:120])
+            obj['td_proba'], obj['td_blad'] = NOW, mask(str(why))[:120]
         save('ceny', obj)
 
 def build_day(key):
@@ -11259,7 +11318,7 @@ def ix_wyd_part(key, prev_w, deadline=None):
                 out['at_s'][s] = NOW; got += 1
                 continue
             except Exception as e:  # noqa
-                err.append(mask(f'{sid}: {str(e)[:80]}'))
+                err.append(f'{sid}: ' + mask(str(e))[:80])   # v272: najpierw maskowanie, potem cięcie
                 if not isinstance(e, urllib.error.HTTPError) and isinstance(e, (urllib.error.URLError, OSError, TimeoutError)):
                     stop = 'FRED nie odpowiada'
         if isinstance(pd_.get(s), list) and pd_[s]:
@@ -19375,13 +19434,13 @@ def main():
     _CZAS.clear()                      # v185: czas części tego przebiegu
     _ZUZ.clear()                       # v222: licznik zużycia planów — od zera w każdym przebiegu (stan narastający w meta.json)
     _BACK_LATE_NOTE[0] = False
-    soso_key = os.environ.get('SOSOVALUE_KEY', '').strip()
-    cg_key = os.environ.get('COINGECKO_KEY', '').strip()
-    fh_key = os.environ.get('FINNHUB_KEY', '').strip()
-    td_key = os.environ.get('TWELVEDATA_KEY', '').strip()
-    cmc_key = os.environ.get('COINMARKETCAP_KEY', '').strip()
-    fred_key = os.environ.get('FRED_KEY', '').strip()
-    eia_key, bls_key, bea_key = (os.environ.get(k, '').strip() for k in ('EIA_KEY', 'BLS_KEY', 'BEA_KEY'))   # v97
+    soso_key = klucz('SOSOVALUE_KEY')   # v272: spacja/znak sterujący w środku = nieużyty + błąd
+    cg_key = klucz('COINGECKO_KEY')
+    fh_key = klucz('FINNHUB_KEY')
+    td_key = klucz('TWELVEDATA_KEY')
+    cmc_key = klucz('COINMARKETCAP_KEY')
+    fred_key = klucz('FRED_KEY')
+    eia_key, bls_key, bea_key = (klucz(k) for k in ('EIA_KEY', 'BLS_KEY', 'BEA_KEY'))   # v97
     SECRETS[:] = [k for k in (soso_key, cg_key, fh_key, td_key, cmc_key, fred_key, eia_key, bls_key, bea_key) if k]
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
@@ -19413,13 +19472,13 @@ def main():
     elif td_key and prev_ceny and isinstance(prev_ceny.get('td_proba'), str) and fresh({'at': prev_ceny['td_proba']}, 55):
         # v271: Twelve Data zawiódł mniej niż 55 min temu — bez próby co przebieg (14 kredytów na próbę); błąd nadal widoczny w meta
         save('ceny', prev_ceny); META['ok']['twelvedata'] = False
-        META['errors'].append(mask(f"{str(prev_ceny.get('td_blad') or 'Twelve Data: błąd')[:100]} — ponowienie po godzinie"))
+        META['errors'].append(mask(str(prev_ceny.get('td_blad') or 'Twelve Data: błąd'))[:100] + ' — ponowienie po godzinie')
     elif td_key:
         try:
             save('ceny', build_prices(td_key)); META['ok']['twelvedata'] = True
         except Exception as e:
             META['errors'].append(mask(f'Twelve Data: {e}')); META['ok']['twelvedata'] = False
-            ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}', proba=True)   # v269/v271: zapas z giełdy albo poprzedni plik; znacznik próby
+            ceny_zapas(prev_ceny, mask(f'Twelve Data: {e}')[:93], proba=True)   # v269/v271: zapas z giełdy albo poprzedni plik; znacznik próby (v272: najpierw maskowanie)
     else:
         META['errors'].append('brak TWELVEDATA_KEY'); META['ok']['twelvedata'] = False
         ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')   # v269: mapa GLOBAL działa także bez klucza
@@ -19534,7 +19593,7 @@ def main():
     # v126: część `cz` (wszystkie duże giełdy, sekret COINALYZE_KEY — tylko nagłówek zapytań, maskowany w błędach). Bez klucza plik jak dotąd (notatka).
     # Z kluczem: młody zdrowy plik z zaległymi zadaniami tej części = dobierana tylko ona (co przebieg, w budżecie wywołań); jej awaria nigdy nie
     # wymusza pełnej budowy (lv_bad liczone po LEV_PX); META ok.dzwignia_cz tylko z kluczem (licznik strony Źródła)
-    cz_key = os.environ.get('COINALYZE_KEY', '').strip()
+    cz_key = klucz('COINALYZE_KEY')
     if cz_key:
         SECRETS.append(cz_key)
     else:
@@ -19571,7 +19630,7 @@ def main():
         if prev_pr: save('premie', prev_pr)
     # v105: wieloryby — portfele giełd na Ethereum (bez klucza): co przebieg (kilka żądań zbiorczych); awaria = poprzedni plik i błąd
     # v112: z kluczem ETHERSCAN_KEY (sekret właściciela ETHERSCAN) także transfery ETH natywne — klucz tylko w adresie zapytania, maskowany w błędach
-    eth_key = os.environ.get('ETHERSCAN_KEY', '').strip()
+    eth_key = klucz('ETHERSCAN_KEY')
     if eth_key:
         SECRETS.append(eth_key)
     else:
@@ -19744,7 +19803,7 @@ def main():
             if prev_dl: save('dolar', prev_dl)
     # v106: indeksy świata (EODHD, rotacja 20 zapytań na dobę) i notowania ETF (Massive, zapas Tiingo) — klucze właściciela; co godzinę;
     # brak klucza = informacja (notes), nie błąd; awaria = poprzedni plik
-    ix_keys = {k: os.environ.get(k, '').strip() for k in IX_KEYS}
+    ix_keys = {k: klucz(k) for k in IX_KEYS}
     SECRETS.extend(v for v in ix_keys.values() if v)
     for k, what in (('EODHD_KEY', 'indeksy świata wyłączone'), ('MASSIVE_KEY', 'notowania ETF (Massive) wyłączone'), ('TIINGO_KEY', 'zapas notowań ETF (Tiingo) wyłączony')):
         if not ix_keys[k]:
@@ -19789,7 +19848,7 @@ def main():
             if prev_k: save('kursy', prev_k)
     # v126: Turcja przez API banku (EVDS3) — klucz tylko w nagłówku zapytania, maskowany w komunikatach; brak klucza = plik ZIP jak dotąd
     # (informacja, nie błąd)
-    evds_key = os.environ.get('EVDS_KEY', '').strip()
+    evds_key = klucz('EVDS_KEY')
     if evds_key:
         SECRETS.append(evds_key)
     else:
@@ -19897,7 +19956,7 @@ def main():
     # v88: Meksyk — Banxico (dziennie, z opóźnieniem ok. 1,5 tygodnia): najwyżej co 6 h; awaria = poprzedni plik i błąd
     # v126: z sekretem BANXICO_TOKEN najpierw oficjalne API SIE (token tylko w nagłówku, maskowany w komunikatach); brak albo odrzucony
     # = formularz jak dotąd; rytm 6 h i plik bez zmian
-    bmx_token = os.environ.get('BANXICO_TOKEN', '').strip()
+    bmx_token = klucz('BANXICO_TOKEN')
     if bmx_token:
         SECRETS.append(bmx_token)
     prev_mx = previous('meksyk')

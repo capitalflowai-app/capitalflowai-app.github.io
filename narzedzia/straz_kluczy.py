@@ -4,12 +4,14 @@ pliku `_site/**` ani `data/*.json`. Wartości bierze z env (nazwy jak w kroku �
 i podsumowaniu jest tylko nazwa sekretu, plik i pozycja. Znalezisko = kod wyjścia 1 = publikacja przerwana (GitHub wysyła e-mail).
 Zbyt krótkie wartości (< 8 znaków) pomijane — dopasowanie byłoby przypadkowe. Python 3.12, biblioteka standardowa."""
 import os
+import re
 import sys
 
 NAZWY = ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
          'EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'FMP_KEY', 'ALPHAVANTAGE_KEY', 'ETHERSCAN_KEY', 'CRYPTOPANIC_KEY', 'CENSUS_KEY',
          'SEC_CONTACT', 'GITHUB_TOKEN', 'COINALYZE_KEY', 'BANXICO_TOKEN', 'EVDS_KEY')   # v126: trzy nowe sekrety właściciela (27.09)
 MIN_DL = 8
+_ZLY = re.compile(r'[\x00-\x20\x7f]')   # v272: spacja, tabulator, nowa linia i inne znaki sterujące
 KATALOGI = ('_site', 'data')
 
 
@@ -24,6 +26,9 @@ def sekrety(env=None):
         if len(v) < MIN_DL:
             krotkie.append(n); continue
         out[n] = v.encode('utf-8')
+        if n != 'SEC_CONTACT' and _ZLY.search(v):   # v272: klucz ze spacją albo znakiem sterującym w środku — w komunikacie z ucieczkami (\\t, \\n)
+            for i, p in enumerate(x for x in _ZLY.split(v) if len(x) >= MIN_DL):   # widać tylko jego kawałki; adres kontaktowy ma spacje z natury
+                out[f'{n} (kawałek {i + 1})'] = p.encode('utf-8')
     return out, krotkie
 
 
