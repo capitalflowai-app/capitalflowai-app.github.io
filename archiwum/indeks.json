@@ -1,5 +1,5 @@
 {
- "at": "2026-10-06T01:28:55+00:00",
+ "at": "2026-10-07T01:30:08+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,10 +22,10 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
-   "rows": 143,
+   "at": "2026-10-07T01:30:08+00:00",
+   "rows": 156,
    "first": "2026-09-26",
-   "last": "2026-10-06",
+   "last": "2026-10-07",
    "added": 13,
    "revised": 0,
    "revisions_total": 65,
@@ -44,10 +44,10 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
-   "rows": 22,
+   "at": "2026-10-07T01:30:08+00:00",
+   "rows": 24,
    "first": "2026-09-26",
-   "last": "2026-10-06",
+   "last": "2026-10-07",
    "added": 2,
    "revised": 0,
    "revisions_total": 5,
@@ -68,10 +68,10 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
-   "rows": 755,
+   "at": "2026-10-07T01:30:08+00:00",
+   "rows": 756,
    "first": "2023-09-26",
-   "last": "2026-10-05",
+   "last": "2026-10-06",
    "added": 1,
    "revised": 0,
    "revisions_total": 1,
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
+   "at": "2026-10-07T01:30:08+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
+   "at": "2026-10-07T01:30:08+00:00",
    "rows": 1050,
    "first": "2024-10-01",
    "last": "2026-09-29",
@@ -140,14 +140,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
-   "rows": 523,
+   "at": "2026-10-07T01:30:08+00:00",
+   "rows": 524,
    "first": "2024-09-26",
-   "last": "2026-10-05",
+   "last": "2026-10-06",
    "added": 1,
-   "revised": 1,
+   "revised": 0,
    "revisions_total": 1,
-   "fetched": 516
+   "fetched": 517
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -170,14 +170,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
-   "rows": 70,
+   "at": "2026-10-07T01:30:08+00:00",
+   "rows": 80,
    "first": "2026-09-28",
-   "last": "2026-10-04",
+   "last": "2026-10-05",
    "added": 10,
-   "revised": 0,
-   "revisions_total": 50,
-   "fetched": 70
+   "revised": 10,
+   "revisions_total": 60,
+   "fetched": 80
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -200,14 +200,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
-   "rows": 44,
+   "at": "2026-10-07T01:30:08+00:00",
+   "rows": 88,
    "first": "2026-10-05",
-   "last": "2026-10-05",
+   "last": "2026-10-06",
    "added": 44,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 44
+   "fetched": 88
   },
   "swiat-dziennik-pk": {
    "file": "swiat-dziennik-pk.csv",
@@ -240,7 +240,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-06T01:28:55+00:00",
+   "at": "2026-10-07T01:30:08+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -270,12 +270,12 @@
   "cftc.eth.lev": 105,
   "cftc.eth.am": 105,
   "cftc.eth.dealer": 105,
-  "stab.usdt": 11,
-  "stab.usdc": 11,
-  "wh.Binance": 11,
-  "wh.Bitfinex": 11,
-  "wh.Bybit": 11,
-  "wh.KuCoin": 11,
-  "wh.OKX": 11
+  "stab.usdt": 12,
+  "stab.usdc": 12,
+  "wh.Binance": 12,
+  "wh.Bitfinex": 12,
+  "wh.Bybit": 12,
+  "wh.KuCoin": 12,
+  "wh.OKX": 12
  }
 }
