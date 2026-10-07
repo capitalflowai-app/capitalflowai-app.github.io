@@ -24114,15 +24114,15 @@ class KontrolaPrzebiegiV177(unittest.TestCase):
     def test_cala_doba_z_listy_zadania(self):
         NOW = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=datetime.timezone.utc)
         R, urls, _ = self._kontrola({1: self._runs(NOW, 100, 1, 10), 2: self._runs(NOW, 100, 1001, 10)})
-        runs_urls = [u for u in urls if '/runs' in u and '/jobs' not in u]
+        runs_urls = [u for u in urls if '/runs' in u and '/jobs' not in u and 'status=completed' not in u]   # v291: bez odczytu ostrzeżeń GitHuba
         self.assertTrue(all('/actions/workflows/strona.yml/runs?per_page=100&page=' in u for u in runs_urls), runs_urls)
         self.assertEqual(len(runs_urls), 2, 'pierwsza strona (100 co 10 min = 16,7 h) nie pokrywa doby — druga strona')
         self.assertEqual(R['actions']['przebiegi_24h'], 144, '100 + 44 przebiegi z ostatnich 24 h (co 10 min)')
         R, urls, _ = self._kontrola({1: self._runs(NOW, 80, 1, 15)})
-        self.assertEqual(len([u for u in urls if '/runs' in u and '/jobs' not in u]), 1, 'mniej niż 100 na stronie — bez drugiej strony')
+        self.assertEqual(len([u for u in urls if '/runs' in u and '/jobs' not in u and 'status=completed' not in u]), 1, 'mniej niż 100 na stronie — bez drugiej strony')
         self.assertEqual(R['actions']['przebiegi_24h'], 80)
         R, urls, _ = self._kontrola({1: self._runs(NOW, 100, 1, 20)})
-        self.assertEqual(len([u for u in urls if '/runs' in u and '/jobs' not in u]), 1, 'najstarszy z pierwszej strony starszy niż doba — bez drugiej strony')
+        self.assertEqual(len([u for u in urls if '/runs' in u and '/jobs' not in u and 'status=completed' not in u]), 1, 'najstarszy z pierwszej strony starszy niż doba — bez drugiej strony')
         self.assertEqual(R['actions']['przebiegi_24h'], 72)
 
 
@@ -30640,3 +30640,53 @@ class PoPrzegladzieV290(unittest.TestCase):
     def test_tekst_kontroli_zgodny_z_opoznieniem_zapasu(self):
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
         self.assertIn(f'w ciągu {zd.IX_ZAPAS_PO // 60} h {zd.IX_ZAPAS_PO % 60} min', src)
+
+
+# ===================== v291: KONTROLA — OSTRZEŻENIA GITHUBA O PRZESTARZAŁYCH AKCJACH =====================
+class OstrzezeniaGithubV291(unittest.TestCase):
+    """v291: adnotacje „warning” o wycofaniu w ostatnim przebiegu każdego przepływu = uwaga; własne „notice” się nie liczą; raport z ✅/⚠️/?."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v291_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    NODE = 'Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4.'
+
+    def test_wybor_adnotacji(self):
+        k = self.k
+        ann = {'archiwum.yml': [{'annotation_level': 'warning', 'title': '', 'message': self.NODE}, {'annotation_level': 'warning', 'message': self.NODE}],
+               'sondy.yml': [{'annotation_level': 'notice', 'title': 'sondy', 'message': 'summary ... deprecated?'}],
+               'strona.yml': [{'annotation_level': 'warning', 'title': 'lżejsza strona', 'message': 'podział słowników nie przeszedł'}],
+               'kontrola.yml': [{'annotation_level': 'notice', 'title': 'kontrola', 'message': 'UWAGA — GitHub ostrzega … deprecated'}], 'x': 'zły'}
+        self.assertEqual(k.ostrzezenia_github(ann), [('archiwum.yml', self.NODE[:160])], 'tylko warning o wycofaniu, bez powtórzeń; własne notice nie')
+        self.assertEqual(k.ostrzezenia_github(None), []); self.assertEqual(k.ostrzezenia_github({'a': [None, 5]}), [])
+
+    def _R(self, go):
+        return {'at': '2026-10-07T08:20:00+00:00', 'wynik': 'UWAGA', 'strona': {'ok': True, 'http': 200, 'ms': 100}, 'meta': {}, 'pliki': {},
+                'actions': {'przebiegi_24h': 140, 'wg_wyniku': {'success': 140}, 'najdluzszy_min': 9.0}, 'github_ostrz': go,
+                'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
+
+    def test_raport(self):
+        k = self.k
+        md = k.raport_md(self._R({'sprawdzone': 5, 'znalezione': []}))
+        self.assertIn('- Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z 5 przepływów): brak ✅.', md)
+        md = k.raport_md(self._R({'sprawdzone': 5, 'znalezione': [('archiwum.yml', self.NODE[:160])]}))
+        self.assertIn('- Ostrzeżenia GitHuba o przestarzałych akcjach: archiwum.yml: Node.js 20 is deprecated.', md)
+        self.assertIn('⚠️ — napisz do Claude: „zaktualizuj akcje GitHuba”.', md)
+        md = k.raport_md(self._R({'blad': 'HTTP Error 403: rate limit'}))
+        self.assertIn('- Ostrzeżenia GitHuba o przestarzałych akcjach: ? (odczyt przerwany: HTTP Error 403: rate limit).', md)
+        self.assertNotIn('Ostrzeżenia GitHuba', k.raport_md(self._R(None)), 'stary raport bez pola — bez linii')
+
+    def test_odczyt_w_kontroli(self):
+        import inspect
+        src = inspect.getsource(self.k)
+        i = src.index('# 4b. v291'); j = src.index("R['github_ostrz'] = {'blad'", i)
+        blok = src[i:j]
+        for s in ("actions/workflows/{wf}/runs?per_page=1&status=completed", "/actions/runs/{rr[0][\"id\"]}/jobs", "/check-runs/{j[\"id\"]}/annotations",
+                  "GH_OSTRZ_BUDZET_S", "R['uwagi'].append('GitHub ostrzega"):
+            self.assertIn(s, blok)
+        self.assertNotIn("R['bledy']", blok, 'nigdy BŁĄD')
+        zg = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'zegar.yml'), encoding='utf-8').read()
+        self.assertIn('actions/checkout@v7', zg); self.assertNotIn('actions/checkout@v4', zg)

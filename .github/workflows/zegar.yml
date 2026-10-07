@@ -28,7 +28,7 @@ jobs:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7   # v291: akcje na Node.js 24 (ten sam krok w zadaniu „zegar” przepływu strony — od v289c)
         with:
           persist-credentials: false
           sparse-checkout: narzedzia/zegar.py

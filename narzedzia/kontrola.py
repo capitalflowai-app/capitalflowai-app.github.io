@@ -2142,6 +2142,27 @@ def pl_udane(n):
     return f'{n} udanych przebiegów'
 
 
+GH_OSTRZ_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'sondy.yml')   # v291: czynne przepływy (sondy_v128 — archiwalny)
+GH_OSTRZ_RE = re.compile(r'deprecat|no longer supported|will be removed|will stop working|end of life|is being retired', re.I)
+GH_OSTRZ_BUDZET_S = 30   # s — najdłużej odczyt adnotacji (5 przepływów: lista, zadania, adnotacje — ok. 15 zapytań)
+
+
+def ostrzezenia_github(ann):
+    """v291: {przepływ: [adnotacje ostatniego zakończonego przebiegu]} → [(przepływ, tekst)] — ostrzeżenia GitHuba (poziom „warning”) o
+    przestarzałych akcjach albo systemie (np. „Node.js 20 is deprecated…”); bez powtórzeń tej samej treści w przepływie, tekst ≤ 160 znaków.
+    Własne adnotacje kontroli i sond mają poziom „notice” — nie liczą się."""
+    out, seen = [], set()
+    for wf, L in (ann or {}).items():
+        for a in L if isinstance(L, list) else []:
+            if not isinstance(a, dict) or a.get('annotation_level') != 'warning':
+                continue
+            msg = ' '.join(str(a.get('message') or '').split())
+            if not GH_OSTRZ_RE.search(msg) or (wf, msg[:80]) in seen:
+                continue
+            seen.add((wf, msg[:80])); out.append((wf, msg[:160]))
+    return out
+
+
 def opis_kroku(zadanie, krok):
     """Nazwa nieudanego kroku po ludzku: publikacja GitHub Pages to zwykle chwilowa awaria po stronie GitHuba; długie nazwy kroków
     z workflow skrócone do części przed nawiasem / myślnikiem."""
@@ -4108,6 +4129,33 @@ def kontrola():
     except Exception as e:  # noqa
         R['actions'] = {'blad': str(e)[:160]}
         R['uwagi'].append('nie udało się odczytać listy przebiegów Actions: ' + str(e)[:100])
+    # 4b. v291: ostrzeżenia GitHuba o przestarzałych akcjach i systemie w ostatnim zakończonym przebiegu każdego przepływu (07.10 „Node.js 20
+    # is deprecated…” znalezione przypadkiem w adnotacji sondy); tylko uwaga, błąd odczytu = „?” bez uwagi
+    try:
+        hdr = {'Accept': 'application/vnd.github+json'}
+        if TOKEN:
+            hdr['Authorization'] = 'Bearer ' + TOKEN
+        ann, t_g, nwf = {}, time.monotonic(), 0
+        for wf in GH_OSTRZ_WF:
+            if time.monotonic() - t_g > GH_OSTRZ_BUDZET_S:
+                break
+            _, bw, _ = get(f'https://api.github.com/repos/{REPO}/actions/workflows/{wf}/runs?per_page=1&status=completed', headers=hdr)
+            rr = [r for r in (json.loads(bw).get('workflow_runs') or []) if isinstance(r, dict) and r.get('id')]
+            if not rr:
+                continue
+            nwf += 1
+            _, bj, _ = get(f'https://api.github.com/repos/{REPO}/actions/runs/{rr[0]["id"]}/jobs', headers=hdr)
+            for j in [j for j in (json.loads(bj).get('jobs') or []) if isinstance(j, dict) and j.get('id')][:4]:
+                _, ba, _ = get(f'https://api.github.com/repos/{REPO}/check-runs/{j["id"]}/annotations', headers=hdr)
+                A = json.loads(ba)
+                ann.setdefault(wf, []).extend(x for x in (A if isinstance(A, list) else []) if isinstance(x, dict))
+        zn = ostrzezenia_github(ann)
+        R['github_ostrz'] = {'sprawdzone': nwf, 'znalezione': zn}
+        if zn:
+            R['uwagi'].append('GitHub ostrzega o przestarzałych akcjach albo systemie (' + '; '.join(f'{w}: {m[:90]}' for w, m in zn[:3])
+                              + ') — napisz do Claude: „zaktualizuj akcje GitHuba”')
+    except Exception as e:  # noqa
+        R['github_ostrz'] = {'blad': str(e)[:120]}
     # 5. v115: historia — błędy zbieracza w 3 kolejnych przebiegach kontroli = czerwone
     n_err = len(R['meta'].get('errors') or []) if isinstance(R['meta'], dict) else 0
     hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy']),
@@ -4157,6 +4205,15 @@ def raport_md(R):
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
+    go = R.get('github_ostrz') if isinstance(R.get('github_ostrz'), dict) else None   # v291: ostrzeżenia GitHuba o przestarzałych akcjach
+    if go is not None:
+        if go.get('blad'):
+            L.append(f'- Ostrzeżenia GitHuba o przestarzałych akcjach: ? (odczyt przerwany: {go["blad"][:60]}).')
+        elif go.get('znalezione'):
+            L.append('- Ostrzeżenia GitHuba o przestarzałych akcjach: ' + '; '.join(f'{w}: {m[:90]}' for w, m in go['znalezione'][:3])
+                     + ' ⚠️ — napisz do Claude: „zaktualizuj akcje GitHuba”.')
+        else:
+            L.append(f'- Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z {go.get("sprawdzone", 0)} przepływów): brak ✅.')
     L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None and not p.get("wylaczone") else ("wyłączone" if p.get("wylaczone") else "HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     aw = R.get('awarie') if isinstance(R.get('awarie'), dict) else None   # v207: pamięć awarii części automatu
