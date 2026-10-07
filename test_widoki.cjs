@@ -2761,7 +2761,7 @@ test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa k
   assert.ok(eur.includes('<span class="sval neg">−5.0 B</span>') && jpn.includes('<span class="sval pos">+3.0 B</span>'));
   assert.ok(usa.includes('<span class="sval ">0.0 B</span>') && usa.includes('width:0%'), 'dokładne zero — bez koloru i bez paska');
   assert.ok(rus.includes('<span class="sval na">—</span>') && rus.includes('class="sna">g.nodata<'), 'brak danych to szary „—” (v98.2), nie zero');
-  assert.ok(nameOf(cr).includes('krypto/btc.svg') && subOf(cr).includes('pg.sub.crypto') && subOf(cr).includes('krypto/usdt.svg') && subOf(cr).includes('krypto/usdc.svg'));
+  assert.ok(nameOf(cr).includes('krypto/usdt.svg') && !nameOf(cr).includes('krypto/btc.svg') && subOf(cr).includes('pg.sub.crypto') && subOf(cr).includes('krypto/usdt.svg') && subOf(cr).includes('krypto/usdc.svg'));   // v296c (CR-03): przed nazwą USDT i USDC (wiersz = podaż stablecoinów), nie BTC
   const p0 = html.indexOf('function pgNodes(){'), p1 = html.indexOf('\nconst pgFmt=', p0);
   assert.ok(p1 > p0 && !html.slice(p0, p1).includes("'BTC · ETH · stablecoiny'") && html.slice(p0, p1).includes("t('pg.sub.crypto')"), 'podpis krypto tłumaczony');
   const c = pgEnv({st: {mode: 'crypto', period: '24H'}});
@@ -14932,4 +14932,116 @@ test('v296: słownik r296g — 10 języków, te same klucze, prawdziwe tłumacze
     }
   }
   assert.ok(/^EXTRA\d+$/.test(m[1]) && html.split('const ' + m[1] + '=').length === 2);
+});
+
+
+
+/* ===================== v296c: CRYPTO — runda 2 (uwagi recenzenta v293c: CR-03 ikona, CR-07 loga, CR-04 nota, CR-01 podpis zapasu, zh) ===================== */
+const V296C_L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+test('v296c: słownik CRYPTO — czysty JSON, 10 języków, te same klucze i pola {x}, prawdziwe tłumaczenia, bez nazw dostawców, linia for zaraz po poprzednim słowniku', () => {
+  const i = html.indexOf('"r296c.kpi.stab.cap"'), a = html.lastIndexOf('const EXTRA', i), eq = html.indexOf('=', a), n = html.slice(a + 11, eq), b = html.indexOf(';\n', a);
+  assert.ok(i > 0 && /^\d+$/.test(n), n);
+  const D = JSON.parse(html.slice(eq + 1, b));
+  assert.deepEqual(Object.keys(D).sort(), V296C_L.slice().sort());
+  const K = Object.keys(D.pl).sort();
+  assert.ok(K.length >= 1 && K.every(k => k.startsWith('r296c.')), K.join(','));
+  const ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const L of V296C_L) {
+    assert.deepEqual(Object.keys(D[L]).sort(), K, L);
+    for (const k of K) { assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k); if (L !== 'pl' && L !== 'en') assert.notEqual(D[L][k], D.en[k], L + ' ' + k); }
+  }
+  const vals = JSON.stringify(V296C_L.map(L => Object.values(D[L])));
+  assert.ok(!/coingecko|coinmarketcap|coinpaprika|defillama|llama|sosovalue|cftc|binance|tether\.to/i.test(vals), 'bez nazw dostawców');
+  const prev = 'EXTRA' + (+n - 1);
+  assert.ok(html.includes('for(const l in ' + prev + ')if(I18N[l])Object.assign(I18N[l],' + prev + '[l]);\nconst EXTRA' + n + '='), 'zaraz po poprzednim słowniku');
+  assert.ok(html.includes(';\nfor(const l in EXTRA' + n + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + n + '[l]);'));
+});
+
+test('v296c CR-03: Sektory i Przepływy — wiersz „Krypto: stablecoiny” z logo USDT i USDC także przed nazwą (dawniej BTC); korytarz ETF BTC → Krypto bez zmian', () => {
+  const g = pgEnv();
+  g.f.renderSectorsPage();
+  const row = g.el.innerHTML.split('<div class="secrow">').find(r => r.includes('a293c.pg.n.crypto<'));
+  const nm = row.slice(row.indexOf('<span class="sname">'), row.indexOf('<span class="sbar'));
+  assert.ok(nm.includes('krypto/usdt.svg') && nm.includes('krypto/usdc.svg'), nm);
+  assert.ok(!row.includes('krypto/btc.svg') && !row.includes('krypto/eth.svg'), 'cały wiersz (nazwa i podpis) bez BTC i ETH');
+  const eur = g.el.innerHTML.split('<div class="secrow">').find(r => r.includes('g.n.eur<'));
+  assert.ok(eur.includes('flagi/de.svg'), 'regiony — flagi jak dotąd');
+  g.f.renderFlows();
+  const h = g.el.innerHTML, lists = h.slice(0, h.indexOf('<table>')), it = lists.split('<div class="row">').find(r => r.includes('a293c.pg.n.crypto'));
+  assert.ok(it && it.includes('krypto/usdt.svg') && it.includes('krypto/usdc.svg') && !it.includes('krypto/btc.svg'), 'lista napływów: ' + it);
+  const etf = h.split('<tr>').find(r => r.includes('ETF BTC'));
+  assert.equal((etf.match(/krypto\/btc\.svg/g) || []).length, 2, 'korytarz ETF BTC → Krypto — jak dotąd (rynek krypto)');
+  const c = pgEnv({st: {mode: 'crypto', period: '24H'}});
+  c.f.renderSectorsPage();
+  assert.ok(c.el.innerHTML.includes('data-id="btc"') && c.el.innerHTML.includes('data-id="exch"') && c.el.innerHTML.includes('data-id="stab"'), 'CRYPTO — loga grup jak dotąd');
+  assert.equal(g.f.pgNodes().find(n => n.id === 'crypto').coins.join(','), 'USDT,USDC');
+});
+
+test('v296c CR-07: każda moneta koszyków sceny ma logo (plik SVG albo wbudowany obraz PNG/WebP) — dawniej 8 z 70 jako znaczki z literami', () => {
+  const L0 = html.indexOf('const COIN_LOGO={'), L1 = html.indexOf('\nconst BASKET={', L0);
+  const LOGO = new Function(html.slice(L0, L1) + '\nreturn COIN_LOGO;')();
+  const b0 = html.indexOf('const BASKET={'), b1 = html.indexOf('\n};', b0);
+  const B = new Function(html.slice(b0, b1 + 3) + '\nreturn BASKET;')(), all = Object.values(B).flat();
+  assert.equal(all.length, 70);
+  const h0 = html.indexOf('/* ===================== v96: FLAGI, LOGA, WALUTY, ZNACZKI WYDAWCÓW'), h1 = html.indexOf('\nfunction fundIco(', h0);
+  const V = new Function('escH', 'ISO32', 'COIN_LOGO', html.slice(h0, html.indexOf('\n', h1 + 1)) + '\nreturn {coinImg, CRYPTO_SVG};')(v96cEsc, {}, LOGO);
+  const bez = all.filter(s => !V.CRYPTO_SVG.has(s.toLowerCase()) && !/^data:image\/(webp|png);base64,[A-Za-z0-9+/=]+$/.test(LOGO[s] || ''));
+  assert.deepEqual(bez, [], 'monety bez logo');
+  for (const s of all) { const im = V.coinImg(s); assert.ok(im.includes('<img ') && !im.includes('class="iss'), s + ': ' + im.slice(0, 80)); }
+  for (const s of ['SKY', 'GRAM', 'SYRUP', 'XDC', 'ONYC', 'PLUME', 'FARTCOIN', 'THETA']) assert.ok(LOGO[s].startsWith('data:image/png;base64,iVBORw0KGgo'), s + ': PNG');
+  assert.ok(LOGO.GRAM !== LOGO.TON && LOGO.RENDER === LOGO.RNDR, 'GRAM (dawny TON) — logo obecne, nie dawne; RENDER jak dotąd');
+});
+
+test('v296c CR-04: nota panelu stablecoinów — zmiana DO stanu z chwili pobrania, różnica z braku stanu sprzed okresu (nie z „nowych monet”); cała podaż = wszystkie monety', () => {
+  const I = v143Final(html);
+  const BAD = {pl: ['od stanu', 'pojawiły'], en: ['from the state', 'appeared'], de: ['ab dem Stand', 'hinzugekommen'], es: ['desde el estado', 'aparecidas'],
+    fr: ['depuis l’état', 'apparues'], it: ['dallo stato', 'comparse'], pt: ['a partir do estado', 'surgidas'], ru: ['от состояния', 'появившиеся'], zh: ['从获取时', '新出现'], ja: ['状態からの変化', '登場']};
+  const OK = {pl: 'do stanu z chwili pobrania', en: 'up to the state at fetch time', de: 'bis zum Stand', es: 'hasta el estado', fr: 'jusqu’à l’état', it: 'fino allo stato',
+    pt: 'até ao estado', ru: 'до состояния', zh: '截至获取时', ja: '状態までの変化'};
+  const NEW = {pl: 'nowymi', en: 'new', de: 'neuer', es: 'nuevas', fr: 'nouvelles', it: 'nuove', pt: 'novas', ru: 'новыми', zh: '新币', ja: '新しい'};
+  for (const L of V296C_L) {
+    const d = I[L]['a293c.stc.diff'], k = I[L]['a293c.stc.k.all'];
+    for (const x of BAD[L]) assert.ok(!d.includes(x), L + ': „' + x + '” w ' + d);
+    assert.ok(d.includes(OK[L]) && d.includes('GLOBAL'), L + ': ' + d);
+    assert.ok(!k.toLowerCase().includes(NEW[L]), L + ': ' + k);
+  }
+  assert.ok(I.pl['a293c.stc.diff'].includes('tylko tam, gdzie źródło podaje stan sprzed okresu') && I.pl['a293c.stc.k.all'] === 'Cała podaż — historia dzienna (wszystkie monety)');
+});
+
+test('v296c CR-01: ostatni zapas kafla stablecoinów (bez podaży na żywo i bez historii) — podpis „Kapitalizacja stablecoinów (monety: n/m)” na kaflu i w Aktywach', () => {
+  const a = html.indexOf('const big=v=>'), b = html.indexOf('\nfunction renderKPI(){', a);
+  const mk = env => new Function('isLive', 'LIVE', 'CMC', 'SEC_SYM', 'secFlow', 'krStabh', html.slice(a, b) + '\nreturn {kpiVals};')(
+    () => true, env.LIVE, undefined, {stab: ['USDT', 'USDC', 'DAI']}, () => null, () => env.H);
+  const C = {USDT: {mcap: 180e9, pct: {}}, USDC: {mcap: 75e9, pct: {}}, DAI: {mcap: 0, pct: {}}};
+  const v = mk({LIVE: {src: 'srv', C, G: null, stab: null, stabD: null}, H: null}).kpiVals();
+  assert.deepEqual([v.stab.val, v.stab.d, v.stab.lbl], [255, null, ['r296c.kpi.stab.cap', {n: 2, m: 3}]], 'suma kapitalizacji 2 z 3 monet listy — z podpisem');
+  const H = {asof: '2026-10-07', cur: 312834075148, d: {'1': 1}, pct: {'1': 0.0524}};
+  assert.ok(!('lbl' in mk({LIVE: {src: 'srv', C, G: null, stab: null, stabD: null}, H}).kpiVals().stab), 'historia serwera — podaż, zwykły podpis');
+  assert.ok(!('lbl' in mk({LIVE: {src: 'live', C, G: null, stab: 315e9, stabD: null}, H}).kpiVals().stab), 'na żywo — zwykły podpis');
+  const HV = v96cHelpers();
+  const k0 = html.indexOf('const KDEF=['), k1 = html.indexOf('/* zapasowe wartości', k0);
+  const KDEF = new Function(html.slice(k0, k1) + '\nreturn KDEF;')();
+  const r0 = html.indexOf('function renderKPI(){'), r1 = html.indexOf('/* ===================== PALETA SCENY', r0);
+  const el = {innerHTML: ''}, lbl = ['r296c.kpi.stab.cap', {n: 8, m: 8}];
+  const vals = {mcap: {val: 2.84, unit: 'u.t', dec: 2, d: -2.6}, stab: {val: 281.2, unit: 'u.b', dec: 1, d: null, src: 'CoinPaprika', lbl}};
+  new Function('$', 'kpiVals', 'isLive', 'KDEF', 'KV_SAMPLE', 't', 'sg', 'nfmt', 'engDate', 'gAgeNote', 'liveWhen', 'LIVE', 'coinImg', 'icoWrap', 'cGrp', 'LOCALE', 'LANG',
+    html.slice(r0, r1) + '\nrenderKPI();')(() => el, () => vals, () => true, KDEF, {}, (k, o) => k + (o ? JSON.stringify(o) : ''), v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d) => v.toFixed(d),
+    iso => 'D(' + iso + ')', () => '', () => 'W', {at: 'x'}, HV.coinImg, HV.icoWrap, HV.cGrp, {pl: 'pl-PL'}, 'pl');
+  const tiles = el.innerHTML.split('<div class="panel kpi">').slice(1);
+  assert.ok(tiles[2].includes('r296c.kpi.stab.cap{"n":8,"m":8}</div>') && !tiles[2].includes('kpi.stab</div>') && tiles[2].includes('kpi.nodelta'), tiles[2]);
+  assert.ok(tiles[2].includes('krypto/usdt.svg') && tiles[0].includes('kpi.mcap</div>'), 'logo kafla i inne kafle — jak dotąd');
+  const c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true, kpiVals: () => vals});
+  c.f.renderAssets();
+  const rows = c.el.innerHTML.split('<tr>');
+  assert.ok(rows.some(r => r.includes('<b>r296c.kpi.stab.cap{"n":8,"m":8}</b>') && r.includes('krypto/usdt.svg') && /281[.,]2/.test(r)), 'Aktywa: wiersz z tym samym podpisem');
+  assert.ok(rows.some(r => r.includes('<b>kpi.mcap</b>')) && !rows.some(r => r.includes('<b>kpi.stab</b>')));
+  const I = v143Final(html);
+  assert.equal(I.pl['r296c.kpi.stab.cap'].replace('{n}', '8').replace('{m}', '8'), 'Kapitalizacja stablecoinów (monety: 8/8)');
+  for (const L of V296C_L) assert.ok(I[L]['r296c.kpi.stab.cap'] !== I[L]['kpi.stab'] && I[L]['r296c.kpi.stab.cap'].includes('{n}/{m}'), L);
+});
+
+test('v296c: chiński podpis wiersza krypto — „…不同的衡量标准” (pełny rzeczownik); otwarte pozycje w 百万枚 — jak dotąd', () => {
+  const I = v143Final(html);
+  assert.equal(I.zh['pg.sub.crypto'], '稳定币供应量变化（近似流入）——与股票市场价值是不同的衡量标准');
+  assert.equal(I.zh['kr.oi.v'], '{v} 百万枚 BTC');
 });

@@ -31448,3 +31448,56 @@ class RundaDwaGlobalV296(unittest.TestCase):
         self.assertEqual((r['JTOPI']['bad_od'], r['JTOPI']['bad_n']), ('2026-10-04T17:00:00+00:00', 1)); self.assertNotIn('bad_od_nieznany', r['JTOPI'])
         rec = {'bad_n': True, 'bad_at': 'x'}; zd._ix_bad_reset(rec)
         self.assertEqual(rec, {'bad_n': 1, 'bad_at': 'x'}, 'True to nie liczba odmów — bez znacznika')
+
+
+
+# ===================== v296c: CRYPTO — runda 2: loga monet koszyków sceny (CR-07) =====================
+class LogaKoszykowV296c(unittest.TestCase):
+    """v296c (CR-07): każda moneta koszyków sceny ma logo — plik img/krypto/<symbol>.svg (CRYPTO_SVG) albo wbudowany obraz w COIN_LOGO; wbudowane obrazy
+    to poprawne PNG/WebP (te same reguły co plik logo top 10 zbieracza: rodzaj z pierwszych bajtów, ≤ T10_LOGO_MAX). Dawniej 8 z 70 monet (SKY, GRAM, SYRUP,
+    XDC, ONYC, PLUME, FARTCOIN, THETA) bez logo — w Top 10 sektora znaczki z literami."""
+    NOWE = ('SKY', 'GRAM', 'SYRUP', 'XDC', 'ONYC', 'PLUME', 'FARTCOIN', 'THETA')
+
+    def setUp(self):
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        self.here = here
+        html = open(os.path.join(here, 'index.html'), encoding='utf-8').read()
+        a = html.index('const COIN_LOGO={'); b = html.index('\nconst BASKET={', a)
+        part = html[a:b]
+        self.logo = dict(re.findall(r"[\"']?([A-Z0-9]+)[\"']?\s*:\s*[\"'](data:image/[a-z]+;base64,[A-Za-z0-9+/=]+)[\"']", part))
+        for x, y in re.findall(r'COIN_LOGO\.([A-Z0-9]+)=COIN_LOGO\.([A-Z0-9]+);', part):
+            if y in self.logo:
+                self.logo[x] = self.logo[y]
+        i = html.index('const BASKET={'); j = html.index('\n};', i)
+        self.basket = {k: re.findall(r"'([^']+)'", v) for k, v in re.findall(r"\n (\w+):\[([^\]]*)\]", html[i:j])}
+        s = re.search(r"const CRYPTO_SVG=new Set\('([^']*)'\.split\(' '\)\);", html)
+        self.svg = set(s.group(1).split())
+
+    def test_kazda_moneta_ma_logo(self):
+        import base64
+        bez = []
+        for k, v in sorted(self.basket.items()):
+            for s in v:
+                if s.lower() in self.svg:
+                    self.assertTrue(os.path.exists(os.path.join(self.here, 'img', 'krypto', s.lower() + '.svg')), s)
+                    continue
+                u = self.logo.get(s)
+                if not u:
+                    bez.append(s); continue
+                mime, b64 = u[5:].split(';base64,')
+                raw = base64.b64decode(b64)
+                self.assertIn(mime, ('image/png', 'image/webp'), s)
+                self.assertEqual(zd._t10_mime(raw), mime, s + ': rodzaj z pierwszych bajtów')
+                self.assertLessEqual(len(raw), zd.T10_LOGO_MAX, s)
+        self.assertEqual(bez, [], 'monety koszyków bez logo')
+        self.assertEqual(sum(len(v) for v in self.basket.values()), 70)
+
+    def test_nowe_loga_png_50px(self):
+        import base64
+        for s in self.NOWE:
+            raw = base64.b64decode(self.logo[s].split(';base64,')[1])
+            self.assertEqual(raw[:8], b'\x89PNG\r\n\x1a\n', s)
+            self.assertEqual((int.from_bytes(raw[16:20], 'big'), int.from_bytes(raw[20:24], 'big')), (50, 50), s)
+        self.assertNotEqual(self.logo['GRAM'], self.logo['TON'], 'GRAM (dawny TON) — obecne logo, nie dawne')
+        self.assertEqual(len({self.logo[s] for s in self.NOWE}), len(self.NOWE), 'każda moneta — własny obraz')
