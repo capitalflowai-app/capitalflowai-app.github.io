@@ -2190,7 +2190,7 @@ class EtfHongKongV61(unittest.TestCase):
             if 'country_code=HK' in path:
                 if 'ETH' in path:
                     raise RuntimeError('HTTP Error 400')
-                return [{'date': d, 'total_net_inflow': 5e6, 'cum_net_inflow': 3e8, 'total_net_assets': 4e8} for d in dates]
+                return [{'date': d, 'total_net_inflow': 5.0, 'cum_net_inflow': 3534.0, 'total_net_assets': 2.975e8} for d in dates]   # v293c: przepływy w BTC (jak u źródła), aktywa w USD
             if path.startswith('/etfs/summary-history'):
                 return _rows(dates)
             return []
@@ -2198,7 +2198,7 @@ class EtfHongKongV61(unittest.TestCase):
             out = zd.build_etf('klucz', '')
         self.assertEqual(sorted(out['hk']), ['btc'], 'ETH z błędem — pominięty, BTC jest')
         b = out['hk']['btc']
-        self.assertEqual((b['d1'], b['w'], b['m'], b['cum'], b['aum']), (5.0, None, None, 300.0, 400.0), 'za krótko na 5 i 22 sesje = brak')
+        self.assertEqual((b['d1_ntv'], b['w_ntv'], b['m_ntv'], b['cum_ntv'], b['aum'], b['unit']), (5.0, None, None, 3534.0, 297.5, 'BTC'), 'v293c: przepływy w monetach; za krótko na 5 i 22 sesje = brak')
         self.assertEqual(sorted(out['assets']), sorted(zd.ETF_SYMS), 'część USA bez zmian')
         self.assertTrue(any(n.startswith('SoSoValue HK BTC: 2 dni do 2026-09-23; pola: cum_net_inflow, date,') for n in zd.META['notes']))
         self.assertTrue(any(n.startswith('SoSoValue HK ETH: HTTP Error 400') for n in zd.META['notes']))
@@ -24602,7 +24602,7 @@ class EtfFunduszeRzadziejV192(unittest.TestCase):
         f = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
         return {'assets': {'btc': {'asof': asof, 'day': [], 'd1': 100.0, 'cum': 5000.0, 'funds_at': f(h_funds),   # v194: te same liczby dnia
                                    'funds': [{'t': 'IBIT', 'n': 'a', 'cty': 'us', 'aum': 67000.0, 'cum': 65000.0, 'd1': 150.0, 'fee': 0.25, 'prem': None}]}},
-                'hk': {'btc': {'sym': 'BTC', 'asof': asof}}, 'hk_at': f(h_hk)}
+                'hk': {'btc': {'sym': 'BTC', 'asof': asof, 'v': zd.ETF_HK_V}}, 'hk_at': f(h_hk)}   # v293c: wpis HK w bieżącym zapisie (starszy nie jest przenoszony)
 
     def test_pierwszy_przebieg_pelny(self):
         out, calls = self._run(None)
@@ -24719,7 +24719,7 @@ class PoPrzegladzieV194(unittest.TestCase):
         return {'assets': {'btc': {'sym': 'BTC', 'asof': asof, 'day': day, 'd1': d1, 'cum': cum, 'funds_at': f, 'funds': fu},
                            'eth': {'sym': 'ETH', 'asof': asof, 'day': day, 'd1': 100.0, 'cum': 5000.0, 'funds_at': f,
                                    'funds': [{'t': 'ETHA', 'n': 'c', 'cty': 'us', 'aum': 12000.0, 'cum': 10000.0, 'd1': 100.0, 'fee': 0.25, 'prem': None}]}},
-                'hk': {'btc': {'sym': 'BTC', 'asof': asof, 'day': day[-3:]}, 'eth': {'sym': 'ETH', 'asof': asof, 'day': day[-3:]}}, 'hk_at': f}
+                'hk': {'btc': {'sym': 'BTC', 'asof': asof, 'day': day[-3:], 'v': zd.ETF_HK_V}, 'eth': {'sym': 'ETH', 'asof': asof, 'day': day[-3:], 'v': zd.ETF_HK_V}}, 'hk_at': f}   # v293c: bieżący zapis HK
 
     def test_te_same_liczby_dnia_bez_listy(self):
         out, calls = self._run(self._prev())
@@ -31081,3 +31081,172 @@ class AudytM1GlobalV293(unittest.TestCase):
         self.assertEqual((q[sym]['fmp_bad_od'], q[sym]['fmp_bad_n']), ('2026-10-01T10:00:00+00:00', 2)); self.assertNotIn('bad_od', q[sym])
         src = open(zd.__file__, encoding='utf-8').read()
         self.assertIn("('fmp_bad_at', 'fmp_bad_n', 'fmp_bad', 'fmp_bad_od')", src, 'pobranie z zapasu EODHD zachowuje początek ciągu odmów FMP')
+
+
+
+# ===================== v293c: CRYPTO — poprawki audytu m1 (HK w monetach, obrót 0 → brak, cena BTC w mk, godzina archiwum, koszyki sceny) =====================
+class EtfHongKongMonetyV293c(unittest.TestCase):
+    """v293c (CR-08/G9): przepływy ETF-ów z Hongkongu źródło podaje w MONETACH — zapis *_ntv z jednostką, szacunek USD z dziennego zamknięcia;
+    stary zapis (monety ÷ 1e6 jak dolary) nie jest przenoszony ani łączony. Bez sieci, bez zegara."""
+    PX = {'2026-10-03': 84000.0, '2026-10-06': 83000.0, '2026-10-07': 84198.0}   # zamknięcia BTC (USDT)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    @staticmethod
+    def _days(n=22):
+        d, out = datetime.date(2026, 10, 7), []
+        while len(out) < n:
+            if d.weekday() < 5:
+                out.append(d.isoformat())
+            d -= datetime.timedelta(days=1)
+        return sorted(out)
+
+    def _run(self, prev_hk=None, px=None, eth_err=False):
+        days, P = self._days(), (self.PX if px is None else px)
+
+        def soso(path, key, _retry=True):   # jak etf.json z 7.10: jeden dzień z przepływem 4,8865 BTC, suma od startu 3533,66 BTC, aktywa 297,5 mln USD
+            if 'ETH' in path and eth_err:
+                raise RuntimeError('HTTP 500')
+            return [{'date': d, 'total_net_inflow': (4.8865222197661565 if d == '2026-10-06' else 0.0), 'cum_net_inflow': 3533.6580534517507,
+                     'total_net_assets': 297531534.54, 'total_value_traded': 1.0} for d in days]
+        out = {}
+        with mock.patch.object(zd, 'soso', soso), mock.patch.object(zd, '_etf_hk_px', lambda sym: dict(P) if sym == 'BTC' else {}):
+            nowe = zd._etf_hk(out, 'k', prev_hk)
+        return out, nowe, days
+
+    def test_monety_z_jednostka_i_usd_z_zamkniecia_dnia(self):
+        out, nowe, days = self._run()
+        b = out['hk']['btc']
+        self.assertEqual((b['v'], b['unit'], b['sym'], b['asof']), (zd.ETF_HK_V, 'BTC', 'BTC', '2026-10-07'))
+        self.assertAlmostEqual(b['cum_ntv'], 3533.6580534517507); self.assertAlmostEqual(b['aum'], 297.53153454)
+        self.assertAlmostEqual(b['w_ntv'], 4.8865222197661565); self.assertAlmostEqual(b['m_ntv'], 4.8865222197661565); self.assertEqual(b['d1_ntv'], 0.0)
+        self.assertEqual((len(b['day_ntv']), b['m_n']), (22, 22))
+        self.assertAlmostEqual(dict(b['day'])[zd.ts('2026-10-06')], round(4.8865222197661565 * 83000 / 1e6, 6), msg='4,8865 BTC × 83 000 = 0,41 mln USD (przed v293c: 4,9e-06 „mln USD”)')
+        self.assertLess(abs(b['cum_ntv'] * self.PX['2026-10-07'] / 1e6 - b['aum']) / b['aum'], 0.02, 'suma od startu w monetach × cena ≈ aktywa funduszy')
+        self.assertNotIn('cum', b, 'suma od startu tylko w monetach (cum_ntv) — bez cen każdego dnia w USD nie ma sensu')
+        for k in ('w', 'm', 'd1'):
+            self.assertFalse(isinstance(b.get(k), float) and 0 < abs(b[k]) < 1e-3, k + ': liczba monet podzielona przez 1e6 jak dolary')
+        self.assertEqual(nowe, ['btc', 'eth']); self.assertEqual(out['hk']['eth']['unit'], 'ETH')
+        self.assertTrue(all(v is None for _, v in out['hk']['eth']['day']), 'ETH bez zamknięć w pliku cen — USD brak, nie zero')
+
+    def test_dzien_bez_ceny(self):
+        out, _, days = self._run(px={'2026-10-03': 84000.0})
+        D = dict(out['hk']['btc']['day'])
+        self.assertEqual(D[zd.ts('2026-10-06')], round(4.8865222197661565 * 84000 / 1e6, 6), '2026-10-06: zamknięcie z 2026-10-03 (3 dni wstecz)')
+        self.assertIsNone(D[zd.ts('2026-10-07')], '4 dni po ostatnim zamknięciu — brak, nie zero')
+        self.assertIsNone(out['hk']['btc']['d1']); self.assertIsNone(out['hk']['btc']['w'], 'suma tygodnia z brakiem = brak')
+        out, _, _ = self._run(px={})
+        self.assertTrue(all(v is None for _, v in out['hk']['btc']['day'])); self.assertIsNone(out['hk']['btc']['m'])
+        self.assertAlmostEqual(out['hk']['btc']['w_ntv'], 4.8865222197661565, msg='monety są zawsze')
+
+    def test_stary_zapis_nie_laczony_ani_przenoszony(self):
+        old = {'sym': 'BTC', 'asof': '2026-09-01', 'day': [[zd.ts('2026-08-28'), 4.9e-06]], 'cum': 0.0035, 'aum': 290.0}   # zapis sprzed v293c
+        out, _, days = self._run(prev_hk={'btc': old, 'eth': dict(old, sym='ETH')}, eth_err=True)
+        self.assertEqual(sorted(out['hk']), ['btc'], 'ETH bez odpowiedzi i ze starym zapisem — bez wpisu (nie stare liczby ÷ 1e6)')
+        self.assertEqual(out['hk']['btc']['day_ntv'][0][0], zd.ts(days[0]), 'bez dni starego zapisu')
+        cur = dict(out['hk']['btc'])
+        prev_day = [[zd.ts('2026-09-04'), 7.0]] + cur['day_ntv']
+        out2, _, _ = self._run(prev_hk={'btc': dict(cur, day_ntv=prev_day), 'eth': dict(cur, sym='ETH', unit='ETH')}, eth_err=True)
+        self.assertEqual(out2['hk']['eth']['unit'], 'ETH', 'wpis w bieżącym zapisie — przeniesiony jak w v194')
+        self.assertEqual(out2['hk']['btc']['day_ntv'][0], [zd.ts('2026-09-04'), 7.0], 'bieżący zapis — starsze dni łączone (etf_merge_days)')
+
+    def test_usd_i_ceny_z_pliku(self):
+        px = {'2026-10-06': 100.0}
+        R = zd._etf_hk_usd([[zd.ts('2026-10-06'), 2.0], [zd.ts('2026-10-09'), 1.0], [zd.ts('2026-10-10'), 1.0], [zd.ts('2026-10-07'), 'x']], px)
+        self.assertEqual(R, [[zd.ts('2026-10-06'), 0.0002], [zd.ts('2026-10-09'), 0.0001], [zd.ts('2026-10-10'), None], [zd.ts('2026-10-07'), None]])
+        with mock.patch.dict(zd.SAVED, {'ceny-krypto': {'q': {'BTC': {'d': [['2026-10-06', 83000.0], ['2026-10-07', 0], ['x'], 'y']}}}}):
+            self.assertEqual(zd._etf_hk_px('BTC'), {'2026-10-06': 83000.0}, 'zero, zły wiersz — pominięte')
+            self.assertEqual(zd._etf_hk_px('ETH'), {})
+        with mock.patch.dict(zd.SAVED, {'ceny-krypto': None}), mock.patch.object(zd, '_prev_cache', lambda name: {'q': {'ETH': {'d': [['2026-10-06', 2500]]}}}):
+            self.assertEqual(zd._etf_hk_px('ETH'), {'2026-10-06': 2500.0}, 'bez pliku z tego przebiegu — pamięć Actions')
+        with mock.patch.dict(zd.SAVED, {'ceny-krypto': None}), mock.patch.object(zd, '_prev_cache', lambda name: None):
+            self.assertEqual(zd._etf_hk_px('BTC'), {})
+
+    def test_build_etf_nie_przenosi_starego_zapisu(self):
+        NOW = datetime.datetime(2026, 10, 5, 21, 0, tzinfo=datetime.timezone.utc)
+        calls = []
+        funds = {'btc': [{'ticker': 'IBIT', 'name': 'a'}, {'ticker': 'FBTC', 'name': 'b'}]}
+        snaps = {'IBIT': {'net_assets': 6.7e10, 'cum_inflow': 6.5e10, 'net_inflow': 7.1e7, 'sponsor_fee': 0.0025},
+                 'FBTC': {'net_assets': 1.5e10, 'cum_inflow': 1.1e10, 'net_inflow': 2.9e7, 'sponsor_fee': 0}}
+        base = _soso_factory({'btc': _rows(['2026-10-01', '2026-10-02']), 'eth': _rows(['2026-10-01', '2026-10-02'])}, funds, snaps)
+
+        def soso(path, key, _retry=True):
+            calls.append(path); return base(path, key)
+        f = (NOW - datetime.timedelta(hours=1)).isoformat()
+        prev = {'assets': {'btc': {'asof': '2026-10-02', 'day': [], 'd1': 100.0, 'cum': 5000.0, 'funds_at': f,
+                                   'funds': [{'t': 'IBIT', 'n': 'a', 'cty': 'us', 'aum': 67000.0, 'cum': 65000.0, 'd1': 150.0, 'fee': 0.25, 'prem': None}]}},
+                'hk': {'btc': {'sym': 'BTC', 'asof': '2026-10-02', 'cum': 0.0035}}, 'hk_at': f}   # stary zapis HK sprzed godziny
+        with mock.patch.object(zd, '_now_utc', lambda: NOW), mock.patch.object(zd, 'ETF_SYMS', ['btc']), \
+                mock.patch.object(zd, 'get_json', lambda url, headers=None: {'bitcoin': {'usd_market_cap': 1.7e12}}), mock.patch.object(zd, 'soso', soso), \
+                mock.patch.object(zd, '_etf_hk_px', lambda sym: {}):
+            out = zd.build_etf('k', 'c', prev)
+        self.assertTrue(any('country_code=HK' in c for c in calls), 'stary zapis HK — pobranie od nowa mimo czasu < 6 h')
+        self.assertEqual((out['hk']['btc']['v'], out['hk']['btc']['unit'], out['hk_at']), (zd.ETF_HK_V, 'BTC', zd.NOW))
+
+
+class LevZaokraglenieV293c(unittest.TestCase):
+    """v293c (CR-13): zero obrotu i pozycji po zaokrągleniu = brak (Coinbase ETH przy wstrzymanym handlu: 0,4 USD obrotu → dawniej 0.0, strona „0”)."""
+
+    def test_zero_po_zaokragleniu_to_brak(self):
+        r = zd.lev_row(0.0001, 1, 1.0, 100.0, 0.00004, 0.4)
+        self.assertEqual((r['vol'], r['vol_usd']), (None, None))
+        r = zd.lev_row(0.0001, 1, 0.00004, 100.0)
+        self.assertEqual((r['oi'], r['oi_usd']), (None, None), 'pozycja zaokrąglona do zera — brak (także w USD)')
+        self.assertIsNotNone(r['f_h'], 'stawka zostaje — wiersz jest')
+        r = zd.lev_row(0.0001, 1, 2.0, 100.0, 3.0, 0.6)
+        self.assertEqual((r['oi'], r['oi_usd'], r['vol'], r['vol_usd']), (2.0, 200.0, 3.0, 1.0))
+        self.assertIsNone(zd.lev_row(None, 1, 0.00004, 100.0), 'bez stawki i z pozycją zero po zaokrągleniu — brak wiersza')
+
+
+class KryptoCenaBtcV293c(unittest.TestCase):
+    """v293c (CR-10): krypto.mk.btc_px — cena BTC z tej samej odpowiedzi rynku (strona: otwarte pozycje w BTC ≈ USD)."""
+
+    def test_cena_btc(self):
+        p = [{'symbol': 'btc', 'market_cap': 1.67e12, 'current_price': 83477.0}, {'symbol': 'btc', 'market_cap': 1, 'current_price': 1.0},
+             {'symbol': 'eth', 'market_cap': 3e11, 'current_price': 2600.0}]
+        self.assertEqual(zd.parse_mk([p, []])['btc_px'], 83477.0, 'pierwszy (większy) BTC')
+        self.assertIsNone(zd.parse_mk([[{'symbol': 'eth', 'market_cap': 3e11, 'current_price': 2600.0}]])['btc_px'])
+        self.assertIsNone(zd.parse_mk([[{'symbol': 'btc', 'market_cap': 1e12, 'current_price': 0}]])['btc_px'], 'zero = brak')
+        self.assertIsNone(zd.parse_mk([[{'symbol': 'btc', 'market_cap': 1e12, 'current_price': True}]])['btc_px'])
+        self.assertEqual(zd.parse_mk([p])['rows'][0], ['BTC', 1.67e12, None, None, None, None], 'wiersze bez zmian')
+
+
+class ArchiwumGodzinaV293c(unittest.TestCase):
+    """v293c (CR-14): godzina zapisu archiwum w stopce panelu = harmonogram archiwum.yml (dawniej „02:20 czasu polskiego” / „00:20 UTC”)."""
+
+    def test_godzina_w_stopce_jak_cron(self):
+        import re
+        root = os.path.dirname(os.path.abspath(__file__))
+        y = open(os.path.join(root, '.github', 'workflows', 'archiwum.yml'), encoding='utf-8').read()
+        m = re.search(r"cron:\s*'(\d+) (\d+) \* \* \*'", y)
+        self.assertIsNotNone(m)
+        hhmm = f'{int(m.group(2)):02d}:{int(m.group(1)):02d} UTC'
+        html = open(os.path.join(root, 'index.html'), encoding='utf-8').read()
+        texts = re.findall(r'"arc\.foot":"([^"]*)"', html)
+        self.assertEqual(len(texts), 10)
+        for s in texts:
+            self.assertIn(hhmm, s); self.assertNotIn('00:20', s); self.assertNotIn('02:20 czasu', s)
+
+
+class KoszykiScenyV293c(unittest.TestCase):
+    """v293c (CR-07): każdy symbol koszyków sceny jest w pliku serwera (zapas — 492 monety rynku z 7.10.2026) i, poza wyjątkami, wśród 300 pierwszych
+    monet źródła na żywo z tego dnia (zapytanie zapasowe strony; główne pobiera 800); dawniej RWA miało dane dla 4 z 10 monet, gaming dla 6 z 10 (stare symbole: RNDR, MKR, MPL, TON …)."""
+    MK = '0G 1INCH 2Z A A7A5 AAVE AB ACRDX ACRED ADA ADI AERO AI AIOZ AKE AKT ALFW ALGO ALLO ALT AMP ANSEM ANVL APE APEPE APES APT APXUSD APYUSD AR ARB ARC ARIAX ARKM ARRR ARX ASTER ASTR ATH ATOM AUSD AUSDT AUTO AVAX AVUSD AWE AXL AXS B BABY BABYCLAW BABYDOGE BAN BANANAS31 BAS BAT BC BCAP BCH BDX BEAM BERA BFUSD BGB BGBTC BIM BIO BLUR BNB BOME BONER BONK BORG BP BR BRETT BRLV BRSRV BRZ BSPX BSV BTC BTSE BTT BTW BUIDL CAKE CAP CARDS CASH CASHCAT CC CELO CFG CFX CGUSD CHEEMS CHIP CHZ CKB COAI COCO COMP COW CRCLB CRCLON CRCLX CRO CRV CRVUSD CTC CUSD CVX CX DAI DASH DATA DBR DCR DEEP DEXE DGAI DGB DIEM DOG DOGE DOLA DOT DRV DUSD DYDX EARNUSD EDGE EDU EGLD EIGEN ELF ELG ENA ENJ ENS ESP ETC ETH ETHFI EURC EURCV EURSAFO EUTBL EXOD FARTCOIN FDUSD FET FEUSD FF FIDD FIL FLOKI FLOW FLR FLUID FONQ FORM FP FRAX FRXUSD FT FUN FXNW FXSAVE FXUSD GAL GALA GAS GBPSAFO GEKKO GENIUS GEOD GGBR GHO GLM GMX GNO GOMINING GPS GRAM GRASS GRT GRX GT GUSD H HASH HBAR HNT HOT HTX HUMA HYPE ICP ID IMX INJ IO IOTA IVVON JAAA JASMY JELLYJELLY JPYC JPYSC JST JTO JTRSY JUP KAG KAIA KAITO KAS KAU KAVA KCS KITE KMNO KNTQ KOGE KSM LCX LDO LEO LINEA LINK LISUSD LIT LPT LSK LTC LUNC M MAG7.SSI MANA MARSCOIN MCAT MEGA MELANIA MEME MERL MET META METAL MF-ONE MGLO MHORSE MINA MNT MON MORPHO MSTRB MSTRX MTBILL MUBARAK MX NEAR NEO NEX NEXO NFT NIGHT NILA NMR NOCK NOPAL NOS NOXO NPC NUSD NXM NXPC O OHM OKB OMI ONDO ONE ONT ONYC OP ORBIO ORCA ORDI ORE OUSD OUSG OZA OZO PAXG PC PC0000015 PC0000019 PC0000023 PC0000031 PC0000033 PC0000049 PC0000081 PC0000085 PC0000101 PC0016245 PEAQ PENDLE PENGU PEPE PGOLD PHA PI PIEVERSE PLUME PMUSD PNUT POD POL POLYX PONS PRIZE PRL PROM PROS PUMP PURR PYTH PYUSD Q QNT QRL QTUM QUBIC RAIL RAIN RAVE RAY RE RED RENDER REUR REUSD RIF RLB RLC RLUSD RON ROSE RSR RUNE S SAFE SAFO SAND SC SECZ SEI SENT SFP SHFL SHIB SHX SKR SKY SN120 SN4 SN44 SN51 SN53 SN64 SNEK SNX SOFID SOL SOON SOSO SPCXB SPK SPX SPYX STABLE STAC STONK STRCON STRCX STRK STX SUI SUN SUPER SUSHI SWOP SYRUP T TAG TAO TEMPLE TFUEL THBILL THETA TIA TPT TRAC TRB TRUMP TRUSD TRX TSLAX TURBO TUSD TWT U UAI UB ULTIMA UNI UNP UNT USAT USD0 USD1 USD3 USDA USDAI USDAT USDC USDD USDE USDF USDG USDGO USDKG USDON USDS USDSUI USDT USDTB USDU USDX USDY USELESS USTB USTBL USX USYC UUSD VBILL VELO VET VIRTUAL VSN VTHO VVV W WAL WBT WEMIX WIF WIN WLD WLFI WM XAUM XAUT XCN XDC XEC XLM XMR XPL XPR XRP XTZ XVS XYO YFI YLDS YZY ZAMA ZANO ZBCN ZCAT ZEC ZEN ZETA ZIG ZIL ZK ZRO ZRX'
+    CP = '1INCH 2Z A AAVE ADA AERO AGIX AIOZ AKE AKT ALGO ALUSD ANT APE APT AR ARB ASBNB ASTER ATH ATOM AVAX AWE AXS B BAT BBSOL BCH BDX BEAM BETH BFUSD BGB BNB BNSOL BONK BORG BR BSV BTC BTC.B BTSE BTT BTW CAKE CAP CARDS CASH CASHCAT CBBTC CBETH CC CFX CHEEMS CHIP CHZ COMP CRO CRV CRVUSD CVX DAI DASH DATA DCR DEXE DGAI DOG DOGE DRV DSOL DYDX EBTC EDGE EGLD ENA ENS EOS ETC ETH ETHFI ETHX EURC EZETH FARTCOIN FDUSD FET FF FIL FLOKI FLR FORM FRAX FRXETH FRXUSD FTM FUN GALA GAS GEOD GHO GLM GNO GOMINING GRAM GRASS GRT GT H HBAR HEX HNT HSOL HYPE ICP IMX INJ IOTA JASMY JITOSOL JLP JST JTO JUP JUPSOL KAIA KAS KCS KHYPE KITE LBTC LDO LEO LINK LIT LPT LSETH LTC LUNC M MAG7.SSI MANA MATIC MET METH MINA MKR MNT MON MORPHO MSOL MUSD MX NEAR NEO NEXO NFT NIGHT NMR NPC OETH OHMV2 OKB ONDO ONYC OP ORCA ORDI PAXG PEAQ PENDLE PENGU PEPE PI PIEVERSE PLSX POL PROM PROS PSOL PUMP PYTH PYUSD QNT QTUM RAIN RAY RENDER RETH RIF RLB RLUSD RSETH RSR RUNE S SAFE SAND SAVAX SCNSOL SEI SENT SFP SFRXETH SHFL SHIB SKR SKY SOL SOLVBTC SPCXB SPX STABLE STETH STG STKAAVE STRK STX SUI SUN SUPER SUPEROETH SUSDAI SUSDE SUSDS SYRUP SYRUPUSDC TAO TBTC TEL THETA TIA TIBBIR TON TRAC TRUMP TRX TUSD TWT UB UNI USD0 USD1 USDA USDAI USDC USDC.E USDD USDE USDF USDG USDS USDT USDTB USELESS UUSD UXLINK VCNT VELO VET VIRTUAL VSN VSOL VVV W WBNB WBT WBTC WEETH WETH WIF WLD WLFI WSTETH WTRX XAUT XCN XDC XEC XLM XMR XPL XRP XTZ YZY ZBU ZEC ZEN ZIG ZRO ZRX'
+    POZA_LIVE = {'CFG', 'POLYX', 'PLUME', 'RON'}   # są w pliku serwera, poza 300 pierwszymi monetami źródła na żywo (w głównym zapytaniu — 800 — zwykle są; pokrycie widać w Wykresach)
+
+    def test_symbole_koszykow_sa_w_danych(self):
+        import re
+        html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
+        i = html.index('const BASKET={'); j = html.index('\n};', i)
+        B = {k: re.findall(r"'([^']+)'", v) for k, v in re.findall(r"\n (\w+):\[([^\]]*)\]", html[i:j])}
+        self.assertEqual(sorted(B), ['ai', 'defi', 'depin', 'gaming', 'l12', 'meme', 'rwa'])
+        mk, cp = set(self.MK.split()), set(self.CP.split())
+        self.assertEqual((len(mk), len(cp) > 250), (492, True))
+        for k, v in B.items():
+            self.assertEqual(len(set(v)), 10, k)
+            self.assertEqual([s for s in v if s not in mk], [], k + ': brak w pliku serwera z 7.10')
+            self.assertEqual([s for s in v if s not in cp and s not in self.POZA_LIVE], [], k + ': brak wśród 300 pierwszych monet źródła na żywo')
+        for s in ('MKR', 'TON', 'RNDR', 'OCEAN', 'OM', 'TRU', 'GFI', 'DUSK', 'MPL', 'TOKEN', 'ILV', 'PRIME', 'PIXEL', 'YGG', 'POPCAT', 'MEW', 'IOTX', 'DIMO'):
+            self.assertFalse(any(s in v for v in B.values()), s + ' — brak w danych z 7.10')

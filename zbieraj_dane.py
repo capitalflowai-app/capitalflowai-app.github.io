@@ -1493,7 +1493,7 @@ def build_tic():
 def parse_mk(pages):
     """CoinGecko /coins/markets (strony po 250): [[SYMBOL, kapitalizacja, zm.24h, 7d, 30d, 1y]] — pierwszy (większy) symbol
     wygrywa; brak liczby = None (nigdy 0)."""
-    rows, seen, last = [], set(), ''
+    rows, seen, last, bpx = [], set(), '', None
     for page in pages:
         if not isinstance(page, list):
             raise RuntimeError('markets: odpowiedź nie jest listą')
@@ -1505,12 +1505,15 @@ def parse_mk(pages):
                 continue
             seen.add(sy)
             num = lambda k: c.get(k) if isinstance(c.get(k), (int, float)) and not isinstance(c.get(k), bool) else None
+            if sy == 'BTC' and bpx is None:
+                bpx = num('current_price')   # v293c (CR-10): cena BTC z tej samej odpowiedzi — strona przelicza otwarte pozycje (w BTC) na ≈ USD
             rows.append([sy, num('market_cap'), num('price_change_percentage_24h_in_currency'), num('price_change_percentage_7d_in_currency'),
                          num('price_change_percentage_30d_in_currency'), num('price_change_percentage_1y_in_currency')])
             last = max(last, str(c.get('last_updated') or ''))
     if not rows:
         raise RuntimeError('markets: brak monet')
-    return {'src': 'CoinGecko — coins/markets', 'asof': last[:19], 'cols': ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'], 'rows': rows}
+    return {'src': 'CoinGecko — coins/markets', 'asof': last[:19], 'cols': ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'], 'rows': rows,
+            'btc_px': bpx if bpx is not None and bpx > 0 else None}
 
 
 def parse_stabc(j, top=14):
@@ -5173,6 +5176,7 @@ def build_etf(key, cg_key, prev=None, tylko=None):
             a.pop('stale', None)
     out['assets'] = {s: out['assets'][s] for s in ETF_SYMS if s in out['assets']}
     ph = prev.get('hk') if isinstance(prev, dict) and isinstance(prev.get('hk'), dict) and prev['hk'] else None
+    ph = ({s: a for s, a in ph.items() if _etf_hk_ok(a)} or None) if ph else None   # v293c (CR-08/G9): stary zapis HK (monety ÷ 1e6) — bez przeniesienia, pobranie od nowa
     hat = _ix_dt(prev.get('hk_at')) if isinstance(prev, dict) else None
     if ph and hat is not None and 0 <= (_now_utc() - hat).total_seconds() < ETF_FUNDS_EVERY * 60:   # v192: Hongkong najwyżej co 6 h
         out['hk'], out['hk_at'] = ph, prev['hk_at']
@@ -5189,39 +5193,81 @@ def build_etf(key, cg_key, prev=None, tylko=None):
     return out
 
 
+ETF_HK_V = 2   # v293c (CR-08/G9): wersja zapisu części HK — przepływy w MONETACH (pola *_ntv, 'unit') i szacunek w mln USD; wpisy bez tej wersji
+#                (v61–v292: liczby monet dzielone przez 1e6 jak dolary — 3534 BTC zapisane jako „0,0035 mln USD”) nie są przenoszone ani łączone
+ETF_HK_PX_DNI = 3   # dzień bez zamknięcia w pliku cen krypto — ostatnie wcześniejsze zamknięcie najwyżej tyle dni wstecz; dalej USD = brak (None), nie zero
+
+
+def _etf_hk_ok(a):
+    """v293c: wpis monety HK w bieżącym zapisie (ETF_HK_V) — tylko taki wolno przenieść z poprzedniego pliku albo łączyć z nowymi dniami."""
+    return isinstance(a, dict) and a.get('v') == ETF_HK_V
+
+
+def _etf_hk_px(sym):
+    """v293c: dzienne zamknięcia {dzień: cena w USDT} monety z pliku ceny-krypto (zapisany w tym przebiegu albo z pamięci Actions — bez sieci);
+    brak pliku, monety albo liczb = {} (USD przepływów = brak)."""
+    try:
+        kc = SAVED.get('ceny-krypto') if isinstance(SAVED.get('ceny-krypto'), dict) else _prev_cache('ceny-krypto')
+        q = kc.get('q') if isinstance(kc, dict) and isinstance(kc.get('q'), dict) else {}
+        rows = q.get(sym).get('d') if isinstance(q.get(sym), dict) else None
+        return {r[0]: float(r[1]) for r in (rows if isinstance(rows, list) else []) if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str)
+                and isinstance(r[1], (int, float)) and not isinstance(r[1], bool) and r[1] > 0}
+    except Exception:  # noqa — plik cen jest pomocniczy; awaria = USD brak, nie błąd części
+        return {}
+
+
+def _etf_hk_usd(day_ntv, px):
+    """v293c: [[ts, monety]] → [[ts, mln USD albo None]]: monety × zamknięcie dnia danych (dzień bez zamknięcia — ostatnie wcześniejsze, najwyżej
+    ETF_HK_PX_DNI dni; dalej None — brak, nie zero)."""
+    out = []
+    for t, v in day_ntv:
+        d = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).date()
+        p = next((px[k] for k in ((d - datetime.timedelta(days=i)).isoformat() for i in range(ETF_HK_PX_DNI + 1)) if k in px), None)
+        out.append([t, round(v * p / 1e6, 6) if p is not None and isinstance(v, (int, float)) and not isinstance(v, bool) else None])
+    return out
+
+
 def _etf_hk(out, key, prev_assets_hk):
-    """v61: ETF-y spot w Hongkongu (SoSoValue country_code=HK), BTC i ETH — dane dzienne jak dla USA (bez listy funduszy).
-    Brak/awaria = notatka w meta (nie błąd strony); pole 'fields' mówi, co zwraca API (nazwy pól, bez wartości)."""
+    """v61: ETF-y spot w Hongkongu (SoSoValue country_code=HK), BTC i ETH — dane dzienne (bez listy funduszy).
+    Brak/awaria = notatka w meta (nie błąd strony); pole 'fields' mówi, co zwraca API (nazwy pól, bez wartości).
+    v293c (CR-08/G9): źródło podaje przepływy HK (total_net_inflow, cum_net_inflow) w MONETACH, nie w USD (7.10: cum 3533,66 = BTC; × cena ≈ aktywa
+    297,5 mln USD) — dawniej dzielone przez 1e6 jak dolary („0,0035 mln USD”). Teraz: monety w polach *_ntv z jednostką 'unit', szacunek w mln USD
+    (day, d1, w, m) z dziennego zamknięcia (_etf_hk_usd; brak ceny = None), 'aum' — aktywa w mln USD (to pole źródło podaje w USD); 'v' = ETF_HK_V."""
     hk = {}
+    isnum = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
     for s in ('btc', 'eth'):
         if _DEADLINE[0] is not None and time.monotonic() > _DEADLINE[0]:
             META['notes'].append('SoSoValue HK: pominięte — limit czasu przebiegu'); break
         try:
             rows = soso(f'/etfs/summary-history?symbol={s.upper()}&country_code=HK&limit=60', key)
-            rows = sorted([r for r in (rows or []) if isinstance(r, dict) and r.get('date') and r.get('total_net_inflow') is not None],
-                          key=lambda r: r['date'])
+            rows = sorted([r for r in (rows or []) if isinstance(r, dict) and r.get('date') and isnum(r.get('total_net_inflow'))], key=lambda r: r['date'])
             if not rows:
                 META['notes'].append(f'SoSoValue HK {s.upper()}: brak danych'); continue
             last = rows[-1]
             pd = (prev_assets_hk or {}).get(s) if isinstance(prev_assets_hk, dict) else None
-            day = etf_merge_days(pd.get('day') if isinstance(pd, dict) else None, [[ts(r['date']), r['total_net_inflow'] / 1e6] for r in rows])
-            num = lambda k: last[k] / 1e6 if isinstance(last.get(k), (int, float)) and not isinstance(last.get(k), bool) else None
-            hk[s] = {'sym': s.upper(), 'asof': last['date'], 'day': day, 'd1': day[-1][1],
-                     'w': sum(v for _, v in day[-5:]) if len(day) >= 5 else None,
-                     'm': sum(v for _, v in day[-22:]) if len(day) >= 22 else None, 'm_n': min(len(day), 22),
-                     'cum': num('cum_net_inflow'), 'aum': num('total_net_assets'), 'fields': sorted(str(k) for k in last)[:20]}
+            pd = pd if _etf_hk_ok(pd) else None   # v293c: stary zapis (monety ÷ 1e6) — bez łączenia z nowymi dniami
+            day_ntv = etf_merge_days(pd.get('day_ntv') if pd else None, [[ts(r['date']), float(r['total_net_inflow'])] for r in rows])
+            day = _etf_hk_usd(day_ntv, _etf_hk_px(s.upper()))
+            ntv, usd = [v for _, v in day_ntv], [v for _, v in day]
+            sm = lambda xs, n: sum(xs[-n:]) if len(xs) >= n and all(isnum(x) for x in xs[-n:]) else None  # noqa: E731
+            num = lambda k: float(last[k]) if isnum(last.get(k)) else None  # noqa: E731
+            aum = num('total_net_assets')
+            hk[s] = {'sym': s.upper(), 'v': ETF_HK_V, 'unit': s.upper(), 'asof': last['date'],
+                     'day_ntv': day_ntv, 'd1_ntv': ntv[-1], 'w_ntv': sm(ntv, 5), 'm_ntv': sm(ntv, 22), 'cum_ntv': num('cum_net_inflow'),
+                     'day': day, 'd1': usd[-1], 'w': sm(usd, 5), 'm': sm(usd, 22), 'm_n': min(len(day), 22),
+                     'usd': 'szacunek: monety × dzienne zamknięcie (USDT)', 'aum': aum / 1e6 if aum is not None else None,
+                     'fields': sorted(str(k) for k in last)[:20]}
             META['notes'].append(f'SoSoValue HK {s.upper()}: {len(rows)} dni do {last["date"]}; pola: {", ".join(hk[s]["fields"])}')
         except Exception as e:
             META['notes'].append(mask(f'SoSoValue HK {s.upper()}: {e}'))
     nowe = sorted(hk)
-    if isinstance(prev_assets_hk, dict):   # v194: moneta bez odpowiedzi — poprzedni wpis (z własną datą i historią dni), nie brak
+    if isinstance(prev_assets_hk, dict):   # v194: moneta bez odpowiedzi — poprzedni wpis (z własną datą i historią dni), nie brak; v293c: tylko w bieżącym zapisie
         for s in ('btc', 'eth'):
-            if s not in hk and isinstance(prev_assets_hk.get(s), dict):
+            if s not in hk and _etf_hk_ok(prev_assets_hk.get(s)):
                 hk[s] = prev_assets_hk[s]
     if hk:
         out['hk'] = hk
     return nowe
-
 
 def _etf_coin(out, s, key, prev_day=None, prev_a=None):
         """v49: dane jednej monety (wydzielone z build_etf, żeby błąd jednej nie kasował pozostałych)."""
@@ -9616,9 +9662,10 @@ def lev_row(f, hours, oi, px, vol=None, vol_usd=None, t=None):
         fh = None
     px = px if px is not None and px > 0 else None
     oi = oi if oi is not None and oi > 0 else None
+    pos = lambda v, n: (lambda r: r if r is not None and r > 0 else None)(lev_r(v, n) if v is not None else None)  # noqa: E731 — v293c (CR-13): zaokrąglenie PRZED sprawdzeniem > 0 (0,4 USD obrotu dawało 0.0 zamiast braku)
     row = {'f_h': None if fh is None else round(fh, 12), 'f_y': None if fh is None else lev_r(fh * 24 * 365 * 100, 3), 'f_hours': hours,
-           'oi': lev_r(oi, 4), 'oi_usd': lev_r(oi * px, 0) if oi is not None and px else None, 'px': px,
-           'vol': lev_r(vol, 4) if vol is not None and vol > 0 else None, 'vol_usd': lev_r(vol_usd, 0) if vol_usd is not None and vol_usd > 0 else None, 't': t or NOW}
+           'oi': pos(oi, 4), 'oi_usd': pos(oi * px, 0) if pos(oi, 4) is not None and px else None, 'px': px,
+           'vol': pos(vol, 4), 'vol_usd': pos(vol_usd, 0), 't': t or NOW}
     return row if row['oi'] is not None or row['f_h'] is not None else None
 
 
