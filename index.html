@@ -3900,13 +3900,13 @@ function renderCmc(){
   const el=$('#cmc');if(!el)return;const D=CMC.data;if(!D){el.hidden=true;el.innerHTML='';return;}
   const bln=v=>typeof v==='number'?gfmt(v/1e9):t('eng.gap');   /* gfmt dobiera mld/bln USD sam */
   const pct=v=>typeof v==='number'&&isFinite(v)?(v===0?nfmt(0,2)+'%':gpct(v)):t('eng.gap');   /* v96: zero bez „+” */
-  const asof=String(D.asof||'').slice(0,10);
+  const asof=String(D.asof||'');   /* v290: cała chwila (data i godzina czytelnika + wiek od jego dnia) */
   /* v96: logo przy każdym kafelku; zmiana 24h: wzrost zielony, spadek czerwony, zero bez koloru; bez nazwy dostawcy (menu „Źródła”) */
   const cc=(...s)=>typeof cCoins==='function'?cCoins(s):'',gi=id=>{const h=cGrp(id);return h&&typeof icoWrap==='function'?icoWrap(h):'';},
     tone=v=>typeof v==='number'&&isFinite(v)&&v!==0?(v>0?'pos':'neg'):'',kc=(h,cls)=>cls?h.replace('</span><b>',`</span><b class="${cls}">`):h;
   el.innerHTML=`<div class="etfh"><div><h2>${t('cmc.t')}</h2><p class="pnote">${t('cmc.sub')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>
     <div class="etfkpis">${engK(cc('BTC','ETH')+t('cmc.mcap'),bln(D.total_mcap))}${kc(engK(cc('BTC','ETH')+t('cmc.chg'),pct(D.mcap_chg24_pct)),tone(D.mcap_chg24_pct))}${engK(cc('BTC')+t('cmc.btc'),typeof D.btc_dom==='number'?nfmt(D.btc_dom,1)+'%':t('eng.gap'))}${engK(cc('ETH')+t('cmc.eth'),typeof D.eth_dom==='number'?nfmt(D.eth_dom,1)+'%':t('eng.gap'))}${engK(cc('USDT','USDC')+t('cmc.stab'),bln(D.stable_mcap))}${engK(gi('defi')+t('cmc.defi'),bln(D.defi_mcap))}${engK(gi('exch')+t('cmc.vol'),bln(D.total_vol24))}</div>
-    <p class="pnote">${t('inst.asof')} ${escH(asof)}${gAgeNote(asof)}</p>
+    <p class="pnote">${t('inst.asof')} ${escH(typeof gFreshTxt==='function'?gFreshTxt(asof):asof)}${gAgeNote(asof)}</p>
     <p class="pnote">${t('cmc.diff')}</p>
     <details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('cmc.not')}</p></details>
     <p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('eng.disclaimer')}</p>`;
@@ -5048,8 +5048,8 @@ function gKpis(){
    yd?{k:'g.k.de10',v:yd.v,u:'u.pp0',dec:2,d:yd.d,dpp:1,src:'Bundesbank',fresh:yd.date}
      :{k:'g.k.de10',v:irlt('DEU',0),u:'u.pp0',dec:2,d:n&&irlt('DEU',0)!=null&&irlt('DEU',n)!=null?irlt('DEU',0)-irlt('DEU',n):null,dpp:1,src:'OECD',fresh:GLIVE.asof},
    ((M=>(M&&typeof M.total_mcap==='number'&&M.total_mcap>0)   /* v66: jedna liczba z jednego źródła — ten sam plik CoinMarketCap co panel CRYPTO; CoinGecko tylko zapas */
-     ?{k:'g.k.cry',v:M.total_mcap/1e9,u:'u.b',d:(typeof M.mcap_chg24_pct==='number'&&isFinite(M.mcap_chg24_pct))?M.mcap_chg24_pct:null,d24:1,src:'CoinMarketCap',fresh:String(M.asof||'').slice(0,10)}
-     :{k:'g.k.cry',v:cy?cy.total_market_cap.usd/1e9:null,u:'u.b',d:cy?cy.market_cap_change_percentage_24h_usd:null,d24:1,src:'CoinGecko',fresh:(cy&&isFinite(+cy.updated_at)&&+cy.updated_at>0)?new Date(+cy.updated_at*1000).toISOString().slice(0,10):''})(typeof CMC!=='undefined'?CMC.data:null)),
+     ?{k:'g.k.cry',v:M.total_mcap/1e9,u:'u.b',d:(typeof M.mcap_chg24_pct==='number'&&isFinite(M.mcap_chg24_pct))?M.mcap_chg24_pct:null,d24:1,src:'CoinMarketCap',fresh:String(M.asof||'')}
+     :{k:'g.k.cry',v:cy?cy.total_market_cap.usd/1e9:null,u:'u.b',d:cy?cy.market_cap_change_percentage_24h_usd:null,d24:1,src:'CoinGecko',fresh:(cy&&isFinite(+cy.updated_at)&&+cy.updated_at>0)?new Date(+cy.updated_at*1000).toISOString():''})(typeof CMC!=='undefined'?CMC.data:null)),
    {k:'g.k.stab',v:st?st[2]:null,u:'u.b',d:st?st[1]:null,src:'DefiLlama',fresh:gStabFresh(st,per)}
   ];
 }
@@ -5646,6 +5646,9 @@ function gAgeNote(fresh){
   const d=Math.floor((Date.now()-end)/86400000);if(d<0)return '';
   return ' · '+(d===0?t('g.age0'):d===1?t('g.age1'):t('g.age',{n:d}));   /* v43: dzisiejsze dane to nie „sprzed 0 dni” */
 }
+/* v290 (przegląd v287): chwila ze strefą pokazana jako data i godzina czytelnika (engDate) — ta sama, od której gAgeNote liczy wiek;
+   dzień, miesiąc i kwartał — bez zmian */
+function gFreshTxt(f){return typeof f==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(f)&&typeof engDate==='function'?engDate(f):f;}
 function gRenderKpi(){
   const wrap=$('#g-kpis');if(!wrap||!GKPI)return;
   /* v96: ikona przy każdym kafelku (flaga kraju, logo monety albo glob). Pod kafelkiem: pokrycie, data i wiek danych —
@@ -5664,7 +5667,7 @@ function gRenderKpi(){
         num=Math.abs(k.d).toLocaleString(LOCALE[LANG],{minimumFractionDigits:2,maximumFractionDigits:2})+(k.dpp?' '+t('u.pp'):'%');
       d=big?`<span class="dlt ${up?'up':'dn'}">${(up?'▲ +':'▼ −')+num}${per}</span>`:`<span class="dlt zero">• ${num}${per}</span>`;   /* zero to zero, nie „brak porównania” */
     }else d=`<span class="dlt na">${t('kpi.nodelta')}</span>`;
-    const foot=[k.cov?t('g.cov.of',{n:k.cov[0],m:k.cov[1]}):'',k.fresh?escH(k.fresh)+gAgeNote(k.fresh):(k.nd&&has?t('g.k.nodate'):'')].filter(Boolean).join(' · ');
+    const foot=[k.cov?t('g.cov.of',{n:k.cov[0],m:k.cov[1]}):'',k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh):(k.nd&&has?t('g.k.nodate'):'')].filter(Boolean).join(' · ');
     return `<div class="panel kpi"><div class="k-head">${H&&ico[k.k]?icoWrap(ico[k.k]()):''}<span>${t(k.k)}</span></div>
       <div class="k-val">${val}${unit}</div>
       <div class="k-foot">${d}<span class="ksrc">${foot}</span></div></div>`;
@@ -6124,8 +6127,9 @@ function renderAssets(){
     /* po przeglądzie: liczba z pliku rynku krypto (automat strony co 20 min) nie jest „na bieżąco” — ten sam warunek co kafelek (v66) */
     const cmcF=typeof CMC!=='undefined'&&CMC&&CMC.data&&typeof CMC.data.total_mcap==='number'&&CMC.data.total_mcap>0;
     const fq=cmcF?t('pg.20m'):t('pg.live');
-    if(gk){const D=typeof gk.fresh==='string'?gk.fresh:'';rows.push(['as.cry',gfmt(gk.v),gk.d,fq+' · '+(D?escH(D)+gAgeNote(D):noD())]);}
-    else if(cy){const D=uDay(cy.updated_at);rows.push(['as.cry',gfmt(cy.total_market_cap.usd/1e9),cy.market_cap_change_percentage_24h_usd,t('pg.live')+' · '+(D?escH(D)+gAgeNote(D):noD())]);}
+    const fT=D=>escH(typeof gFreshTxt==='function'?gFreshTxt(D):D)+gAgeNote(D);   /* v290: chwila — data i godzina czytelnika */
+    if(gk){const D=typeof gk.fresh==='string'?gk.fresh:'';rows.push(['as.cry',gfmt(gk.v),gk.d,fq+' · '+(D?fT(D):noD())]);}
+    else if(cy){const n=+cy.updated_at,D=(n>0&&isFinite(n))?new Date(n*1000).toISOString():'';rows.push(['as.cry',gfmt(cy.total_market_cap.usd/1e9),cy.market_cap_change_percentage_24h_usd,t('pg.live')+' · '+(D?fT(D):noD())]);}
     const sd=gStabDelta(gst.period);
     const sdD=sd&&Array.isArray(GLIVE.stab)&&GLIVE.stab.length?uDay(GLIVE.stab[GLIVE.stab.length-1].date):'';
     if(sd)rows.push(['as.stab',gfmt(sd[2]),sd[1],t('pg.daily')+' · '+(sdD?escH(sdD)+gAgeNote(sdD):noD())]);

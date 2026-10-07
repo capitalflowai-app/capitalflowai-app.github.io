@@ -11528,7 +11528,8 @@ def _ix_brak_proba(part, sym, h, now):
 
 
 IX_ZAPAS_PO = IX_PONOW * IX_PONOW_MIN   # v284: min po chwili gotowości FMP — dopiero wtedy zapas EODHD bierze sesję, której FMP nie dał
-IX_ZAPAS_REZERWA = 1   # v285 (przegląd v284): tyle zapytań dobowego limitu EODHD zawsze zostaje na chwilowe błędy własnych indeksów
+IX_ZAPAS_REZERWA = 1   # v285 (przegląd v284): tyle zapytań dobowego limitu EODHD zostaje na chwilowy błąd własnego indeksu — v290: tylko, gdy
+                       # własny indeks jest jeszcze należny dziś (po pobraniu wszystkich rezerwa wraca do zapasu)
 
 
 def _ix_zapas_wybor(pix, now, calls, quota):
@@ -11537,8 +11538,8 @@ def _ix_zapas_wybor(pix, now, calls, quota):
     (bez wierszy-wypełnień) po IX_ZAPAS_PO min od chwili gotowości (FMP miał czas na ponowienia, a zapas — na publikację zamknięcia) i zapas
     jeszcze jej nie próbował (wpis od FMP albo pobrany przed chwilą gotowości) — jedna próba zapasu na sesję. Tylko z limitu, który zostaje
     po własnych indeksach EODHD należnych do końca doby UTC (zaległy już pobierany i bez przerwy — dwa zapytania; kod w przerwie EODHD —
-    pominięty); najdłużej czekający najpierw. Bez grup i bez zgadywania świąt: święto w USA przy awarii FMP kosztuje najwyżej 3 zapytania.
-    → (zbiór kodów, {kod: (dzień sesji D, licznik braku tej sesji)})."""
+    pominięty), bez IX_ZAPAS_REZERWA, dopóki własny indeks jest jeszcze należny dziś (v285/v290); najdłużej czekający najpierw. Bez grup
+    i bez zgadywania świąt. → (zbiór kodów, {kod: (dzień sesji D, licznik braku tej sesji)})."""
     today = now.date().isoformat()
     if quota == today:
         return set(), {}
@@ -11560,7 +11561,9 @@ def _ix_zapas_wybor(pix, now, calls, quota):
             if rec.get('at') and not (bad and (now - bad).days < _ix_pause(rec)) and ix_do_pobrania(h, rec, now) \
                     and ix_ready(ix_godzina(h, rec), now) < ix_ready(ix_godzina(h, rec), koniec):
                 wlasne += 1
-    wolne = IX_DAILY - zuz - wlasne - IX_ZAPAS_REZERWA   # v285: rezerwa na chwilowy błąd własnego indeksu (święto USA zabierało cały zapas limitu)
+    # v285: rezerwa na chwilowy błąd własnego indeksu (święto USA zabierało cały zapas limitu); v290 (przegląd v285): tylko, gdy własny jest jeszcze
+    # należny — po pobraniu wszystkich rezerwa wraca do zapasu (przy awarii FMP indeksy USA czekały całe dni robocze)
+    wolne = IX_DAILY - zuz - wlasne - (IX_ZAPAS_REZERWA if wlasne else 0)
     if wolne <= 0:
         return set(), {}
     eod_kody = {s for s, _, _ in IX_SYMBOLS}
@@ -11595,8 +11598,8 @@ def ix_fmp(key, part, now, errors, zle=None, deadline=None):
     (poprawki, luka, nauka pory pobierania, brak sesji), raz po zamknięciu sesji w godzinie nauczonej (ix_do_pobrania), a gdy pobranie nie
     przyniosło oczekiwanej sesji — ponowienie po IX_PONOW_MIN min, najwyżej IX_PONOW razy (plan 250 zapytań na dobę). Kod odrzucony
     (401/402/403/404) i pusta lista — przerwa na kodzie (_ix_bad_fmp). Dwa braki odpowiedzi z rzędu (czas, połączenie) albo budżet czasu =
-    koniec pętli. `zle` (zbiór) dostaje kody, których FMP w tym przebiegu nie dostarczył mimo terminu (błąd, przerwa, koniec pętli) — dla nich
-    EODHD jest zapasem. Zwraca liczbę pobranych."""
+    koniec pętli. `zle` (zbiór, opcjonalnie) dostaje kody, których FMP w tym przebiegu nie dostarczył mimo terminu (błąd, przerwa, koniec
+    pętli) — od v284 zapas wybiera _ix_zapas_wybor, a build_indeksy zbioru nie przekazuje. Zwraca liczbę pobranych."""
     got, miss, stop = 0, 0, False
     zle = zle if isinstance(zle, set) else set()
     for sym, cc, h, fsym in IX_FMP:
@@ -11683,7 +11686,7 @@ def build_indeksy(keys, prev=None, now=None):
         if keys.get('EODHD_KEY'):   # v284: jedna reguła zapasu — sesja bez FMP po IX_ZAPAS_PO min, raz, z limitu, najdłużej czekający
             wymus, info = _ix_zapas_wybor(pix, now, prev.get('ix_calls'), prev.get('ix_quota'))
             for s in sorted(wymus):
-                ile = f'pobrań bez niej: {info[s][1]}' if info[s][1] else 'błąd albo przerwa FMP — w błędach'   # v285: bez „pobrań bez niej: 0”
+                ile = f'pobrań bez niej: {info[s][1]}' if info[s][1] else 'błąd albo przerwa FMP'   # v285: bez „pobrań bez niej: 0”; v290: przerwa z wcześniejszego dnia nie ma błędu
                 META['notes'].append(f'Indeksy: {s} — FMP bez sesji {info[s][0]} ({ile}) — pobranie z zapasu (drugi dostawca)')
         pomin = {s for s, _, _, _ in IX_FMP} - wymus   # EODHD pobiera indeks FMP tylko jako zapas (_ix_zapas_wybor)
     if keys.get('EODHD_KEY'):

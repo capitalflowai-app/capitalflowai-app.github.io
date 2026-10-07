@@ -30078,8 +30078,8 @@ class PoPrzegladzieV278(unittest.TestCase):
         eod = lambda url, headers=None, timeout=30: [{'date': '2026-10-13', 'close': 1.0}]
         r = dict(rec, brak=['2026-10-14', 4, '2026-10-14T07:06:00+00:00'], at='2026-10-14T10:06:00+00:00')
         with mock.patch.object(zd, 'get_json', eod):
-            o = zd.ix_fetch('N225', 'jp', 'k', r, self.T(2026, 10, 14, 11, 0))
-        self.assertEqual((o.get('src'), o['brak'][:2]), (None, ['2026-10-14', 5]), 'ta sama sesja — licznik ciągły przy zmianie dostawcy')
+            o = zd.ix_fetch('N225', 'jp', 'k', r, self.T(2026, 10, 14, 11, 0), True)   # v290 (przegląd v285): krok zapasu — z wyboru, ze znacznikiem
+        self.assertEqual((o.get('src'), o['brak'][:2], o.get('zap')), (None, ['2026-10-14', 5], '2026-10-14'), 'ta sama sesja — licznik ciągły przy zmianie dostawcy')
         self.assertFalse(zd.ix_do_pobrania(7, o, self.T(2026, 10, 14, 12, 0), ponow=True), 'FMP nie ponawia — limit wyczerpany')
 
     def test_wypelnienie_w_swieto_to_nie_dowod(self):
@@ -30538,14 +30538,14 @@ class PoPrzegladzieV285(unittest.TestCase):
             calls.append(url)
             if 'financialmodelingprep' in url:
                 raise zd.urllib.error.HTTPError('u', 503, 'Unavailable', {}, None)
-            return [{'date': '2026-10-12', 'close': 1.0}, {'date': '2026-10-13', 'close': 1.5}]   # 1,0 dwa razy = wypełnienie (święto)
+            return [{'date': '2026-10-12', 'close': 1.0}, {'date': '2026-10-13', 'close': 1.5}]   # różne zamknięcia — 1,0 dwa razy byłoby wierszem-wypełnieniem (święto)
         wl = {s: {'cc': c, 'at': '2026-10-14T00:10:00+00:00', 'd': [['2026-10-13', 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
         wl['JTOPI'] = {'bad_at': '2026-10-13T16:05:00+00:00', 'bad_n': 4, 'bad': 'pusto'}
         ix = _v284_fmp_swieze(dict(wl), '2026-10-13')
         ix['GSPC'] = {'cc': 'us', 'src': 'fmp', 'at': '2026-10-12T22:05:00+00:00', 'd': [['2026-10-12', 1.0]]}
         with mock.patch.object(zd, 'get_json', side_effect=gj), mock.patch.object(zd, 'NOW', now.isoformat()):
             o = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, {'ix': ix, 'ix_calls': {'d': '2026-10-14', 'n': 0}}, now=now)
-        self.assertTrue(any('GSPC — FMP bez sesji 2026-10-13 (błąd albo przerwa FMP — w błędach) — pobranie z zapasu' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertTrue(any('GSPC — FMP bez sesji 2026-10-13 (błąd albo przerwa FMP) — pobranie z zapasu' in n for n in zd.META['notes']), zd.META['notes'])
         self.assertEqual((o['ix']['GSPC']['d'][-1][0], o['ix']['GSPC']['zap']), ('2026-10-13', '2026-10-13'))
 
 
@@ -30606,3 +30606,37 @@ class SondaJseV288p(unittest.TestCase):
         self.assertIn('summary jse2-list n=2 rpa=1 ^J200.JO|FTSE/JSE Top 40|JNB|ZAR', o)
         self.assertIn('summary jse2 ^J200.JO=200/r2/10-06 ^J203.JO=402 ^JTOPI.JO=402 ^JALSH.JO=402', o)
         self.assertEqual(len(seen), 5, 'lista + 4 kody'); self.assertFalse([u for u in seen if 'eodhd' in u], 'bez EODHD')
+
+
+# ===================== v290: POPRAWKI PO PRZEGLĄDZIE v285–v287 =====================
+class PoPrzegladzieV290(unittest.TestCase):
+    """v290: rezerwa limitu tylko, gdy własny indeks jest jeszcze należny dziś; tekst kontroli zgodny z IX_ZAPAS_PO."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def _pix(self, at, d_wl, d_fmp):
+        wl = {s: {'cc': c, 'at': at, 'd': [[d_wl, 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
+        wl['JTOPI'] = {'bad_at': '2026-10-21T16:05:00+00:00', 'bad_n': 4, 'bad': 'pusto'}
+        return {**wl, **{s: {'cc': c, 'src': 'fmp', 'at': '2026-10-20T23:30:00+00:00', 'd': [[d_fmp, 1.0]]}
+                         for s, c in (('GSPC', 'us'), ('IXIC', 'us'), ('DJI', 'us'), ('N225', 'jp'), ('HSI', 'hk'))}}
+
+    def test_rezerwa_tylko_gdy_wlasny_nalezny(self):
+        # awaria FMP: wszystkie 5 bez sesji; własne pobrane dziś po swojej porze (22:00 — po ostatniej grupie dnia)
+        now = self.T(2026, 10, 21, 23, 0)
+        pix = self._pix('2026-10-21T22:40:00+00:00', '2026-10-21', '2026-10-19')
+        w, info = zd._ix_zapas_wybor(pix, now, {'d': '2026-10-21', 'n': 18}, None)
+        self.assertEqual(w, {'N225', 'HSI'}, 'przegląd v285: 20 − 18 = 2 wolne (v285: 1) — rezerwa wraca do zapasu, gdy żaden własny nie jest już należny')
+        # rano: własne jeszcze należne dziś — rezerwa trzymana
+        now2 = self.T(2026, 10, 22, 0, 30)
+        pix2 = self._pix('2026-10-21T22:40:00+00:00', '2026-10-21', '2026-10-19')
+        w2, _ = zd._ix_zapas_wybor(pix2, now2, {'d': '2026-10-22', 'n': 0}, None)
+        wl_due = sum(1 for s, _, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI', 'JTOPI'))
+        self.assertEqual(len(w2), min(5, zd.IX_DAILY - wl_due - zd.IX_ZAPAS_REZERWA), 'własne należne — rezerwa trzymana')
+        import inspect
+        self.assertIn('(IX_ZAPAS_REZERWA if wlasne else 0)', inspect.getsource(zd._ix_zapas_wybor))
+
+    def test_tekst_kontroli_zgodny_z_opoznieniem_zapasu(self):
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertIn(f'w ciągu {zd.IX_ZAPAS_PO // 60} h {zd.IX_ZAPAS_PO % 60} min', src)

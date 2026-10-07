@@ -1142,7 +1142,7 @@ test('v66: kafelek kapitalizacji krypto z CoinMarketCap (jak panel CRYPTO), Coin
   const expr = html.slice(k0, k1);
   const run = (CMC, cy) => new Function('CMC', 'cy', 'return ' + expr + ';')(CMC, cy);
   const a = run({data: {total_mcap: 2887476408334.7, mcap_chg24_pct: 0.83135, asof: '2026-09-25T00:10:59.999Z'}}, {total_market_cap: {usd: 2.9e12}, market_cap_change_percentage_24h_usd: -2.02, updated_at: 1790295334});
-  assert.equal(a.src, 'CoinMarketCap'); assert.ok(Math.abs(a.v - 2887.4764) < 1e-3); assert.equal(a.d, 0.83135); assert.equal(a.fresh, '2026-09-25');
+  assert.equal(a.src, 'CoinMarketCap'); assert.ok(Math.abs(a.v - 2887.4764) < 1e-3); assert.equal(a.d, 0.83135); assert.equal(a.fresh, '2026-09-25T00:10:59.999Z');   // v290: cała chwila (data i godzina czytelnika na stronie)
   const b = run({data: null}, {total_market_cap: {usd: 2.9e12}, market_cap_change_percentage_24h_usd: -2.02, updated_at: 1790295334});
   assert.equal(b.src, 'CoinGecko', 'bez pliku CMC — zapas CoinGecko'); assert.equal(b.d, -2.02);
   const c = run({data: {total_mcap: 1, mcap_chg24_pct: 'x', asof: ''}}, null); assert.equal(c.d, null, 'zła zmiana = brak, nie 0');
@@ -14203,6 +14203,9 @@ test('v252: opcje — wiersze w jednej siatce (kolumny według najdłuższej dat
 /* ===================== v287: wiek danych przy chwili — od dnia czytelnika (jak data obok) ===================== */
 test('v287: gAgeNote — chwila ze strefą liczona w dniach czytelnika; dzień, miesiąc i kwartał bez zmian; wywołania bez ucinania chwili', () => {
   const now0 = Date.now;
+  /* v290 (przegląd v287): strefa przypięta — w CI (UTC) stara funkcja też przechodziła, a na maszynie w Azji test zawodził; w jsc — strefa maszyny */
+  const PE = (typeof process !== 'undefined' && process && process.env) ? process.env : null, tz0 = PE ? PE.TZ : undefined;
+  if (PE) PE.TZ = 'Europe/Warsaw';
   try {
     const now = new Date(2026, 9, 7, 8, 20);   /* 7.10.2026, 08:20 w strefie maszyny testu */
     Date.now = () => now.getTime();
@@ -14215,10 +14218,24 @@ test('v287: gAgeNote — chwila ze strefą liczona w dniach czytelnika; dzień, 
     assert.equal(ageFor(new Date(2026, 9, 7, 0, 0).toISOString().replace('Z', '+00:00')), ' · g.age0', 'strefa jako +00:00');
     assert.equal(ageFor('2026-10-07T00:00:00'), ' · g.age0', 'bez strefy — dzień z napisu, jak dotąd');
     assert.equal(ageFor('2026-13-45T00:00:00Z'), '', 'zła chwila — nic');
-  } finally { Date.now = now0; }
+  } finally { Date.now = now0; if (PE) { if (tz0 === undefined) delete PE.TZ; else PE.TZ = tz0; } }
   assert.equal(ageFor(dayIso(1)), ' · g.age1', 'dzień bez godziny — jak dotąd');
   assert.ok(html.includes("function levWhen(iso){return typeof iso==='string'&&iso?`${engDate(iso)}${gAgeNote(iso)}`:'';}"));
   assert.ok(html.includes("gAgeNote(at):''") && html.includes('d:engDate(tt)+gAgeNote(String(tt)),'));
   for (const old of ['gAgeNote(iso.slice(0,10))', 'gAgeNote(at.slice(0,10))', 'gAgeNote(String(tt).slice(0,10))', "lnAgo(iso):gAgeNote(String(iso).slice(0,10))"]) assert.ok(!html.includes(old), 'chwila ucięta do dnia UTC: ' + old);
   assert.ok(html.includes("return t('dl.asof',{d:dlDay(iso)})+gAgeNote(String(iso).slice(0,10));"), 'kurs dzienny (północ UTC = sama data) — dzień jak dotąd');
+});
+
+
+/* ===================== v290: chwila z pliku kapitalizacji krypto — data i godzina czytelnika (przegląd v287) ===================== */
+test('v290: gFreshTxt — chwila przez engDate, dzień bez zmian; kafelek, panel i tabela aktywów bez ucinania chwili do dnia UTC', () => {
+  const a = html.indexOf('function gFreshTxt(f){'), b = html.indexOf('\n', a);
+  const f = new Function('engDate', html.slice(a, b) + '\nreturn gFreshTxt;')(s => 'ED(' + s + ')');
+  assert.equal(f('2026-10-07T07:51:59.999Z'), 'ED(2026-10-07T07:51:59.999Z)');
+  assert.equal(f('2026-10-06'), '2026-10-06'); assert.equal(f('2026-09'), '2026-09'); assert.equal(f(''), ''); assert.equal(f(null), null);
+  assert.ok(html.includes("fresh:String(M.asof||'')}") && !html.includes("fresh:String(M.asof||'').slice(0,10)"), 'kafelek GLOBAL — cała chwila');
+  assert.ok(html.includes("new Date(+cy.updated_at*1000).toISOString():''})") && !html.includes("new Date(+cy.updated_at*1000).toISOString().slice(0,10)"), 'zapas na żywo — cała chwila');
+  assert.ok(html.includes("const asof=String(D.asof||'');") && html.includes("${t('inst.asof')} ${escH(typeof gFreshTxt==='function'?gFreshTxt(asof):asof)}${gAgeNote(asof)}"), 'panel CRYPTO');
+  assert.ok(html.includes("k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh):"), 'stopka kafelka');
+  assert.ok(html.includes("const fT=D=>escH(typeof gFreshTxt==='function'?gFreshTxt(D):D)+gAgeNote(D);"), 'tabela aktywów');
 });
