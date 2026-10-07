@@ -30683,10 +30683,56 @@ class OstrzezeniaGithubV291(unittest.TestCase):
         import inspect
         src = inspect.getsource(self.k)
         i = src.index('# 4b. v291'); j = src.index("R['github_ostrz'] = {'blad'", i)
-        blok = src[i:j]
+        blok = src[i:j] + inspect.getsource(self.k.github_ostrz_odczyt)   # v292: odczyt w osobnej funkcji
         for s in ("actions/workflows/{wf}/runs?per_page=1&status=completed", "/actions/runs/{rr[0][\"id\"]}/jobs", "/check-runs/{j[\"id\"]}/annotations",
                   "GH_OSTRZ_BUDZET_S", "R['uwagi'].append('GitHub ostrzega"):
             self.assertIn(s, blok)
         self.assertNotIn("R['bledy']", blok, 'nigdy BŁĄD')
         zg = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'zegar.yml'), encoding='utf-8').read()
         self.assertIn('actions/checkout@v7', zg); self.assertNotIn('actions/checkout@v4', zg)
+
+
+# ===================== v292: OSTRZEŻENIA GITHUBA — KAŻDY PRZEPŁYW OSOBNO =====================
+class OstrzezeniaGithubV292(unittest.TestCase):
+    """v292: błąd odczytu jednego przepływu (404, 5xx) nie przerywa pozostałych; wszystkie nieudane = wyjątek („?” w raporcie)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v292_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def _get(self, zly):
+        k = self.k
+        node = 'Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24.'
+
+        def get(url, timeout=25, headers=None, limit=None):
+            if any(f'/workflows/{w}/' in url for w in zly):
+                raise k.urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            if '/workflows/' in url:
+                wf = url.split('/workflows/')[1].split('/')[0]
+                return 200, json.dumps({'workflow_runs': [{'id': 100 + k.GH_OSTRZ_WF.index(wf)}]}).encode(), 5
+            if '/jobs' in url:
+                rid = int(url.split('/runs/')[1].split('/')[0])
+                return 200, json.dumps({'jobs': [{'id': rid * 10}]}).encode(), 5
+            if '/annotations' in url:
+                jid = int(url.split('/check-runs/')[1].split('/')[0])
+                return 200, json.dumps([{'annotation_level': 'warning', 'message': node}] if jid == 1030 else []).encode(), 5   # 103 = archiwum.yml
+            raise AssertionError(url)
+        return get
+
+    def test_jeden_zly_przeplyw(self):
+        k = self.k
+        go = k.github_ostrz_odczyt({}, self._get(('zegar.yml',)))
+        self.assertEqual((go['sprawdzone'], [w for w, _ in go['znalezione']]), (4, ['archiwum.yml']), 'pozostałe ocenione mimo 404 jednego')
+        self.assertEqual(len(go['bledne']), 1); self.assertTrue(go['bledne'][0].startswith('zegar.yml ('))
+        md = k.raport_md({'at': '2026-10-08T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 1}, 'meta': {}, 'pliki': {},
+                          'actions': {}, 'github_ostrz': {'sprawdzone': 4, 'znalezione': [], 'bledne': go['bledne']}, 'swiezosc': [], 'zgodnosc': {},
+                          'uwagi': [], 'bledy': []})
+        self.assertIn('brak ✅; nie odczytano: zegar.yml (', md)
+        go = k.github_ostrz_odczyt({}, self._get(()))
+        self.assertEqual((go['sprawdzone'], go['bledne']), (5, []))
+
+    def test_wszystkie_zle(self):
+        with self.assertRaises(RuntimeError):
+            self.k.github_ostrz_odczyt({}, self._get(self.k.GH_OSTRZ_WF))

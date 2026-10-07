@@ -2163,6 +2163,34 @@ def ostrzezenia_github(ann):
     return out
 
 
+def github_ostrz_odczyt(hdr, getf=None):
+    """v291/v292: adnotacje ostatniego zakończonego przebiegu każdego przepływu z GH_OSTRZ_WF → {'sprawdzone': liczba odczytanych przepływów,
+    'znalezione': ostrzezenia_github(...), 'bledne': ['przepływ (błąd)', …]}. Każdy przepływ osobno — błąd jednego (404 po usunięciu, 5xx)
+    nie przerywa pozostałych; wszystkie nieudane = RuntimeError. Budżet czasu GH_OSTRZ_BUDZET_S; `getf` — atrapa w testach."""
+    getf = getf or get
+    ann, t_g, nwf, bledne = {}, time.monotonic(), 0, []
+    for wf in GH_OSTRZ_WF:
+        if time.monotonic() - t_g > GH_OSTRZ_BUDZET_S:
+            break
+        try:
+            _, bw, _ = getf(f'https://api.github.com/repos/{REPO}/actions/workflows/{wf}/runs?per_page=1&status=completed', headers=hdr)
+            rr = [r for r in (json.loads(bw).get('workflow_runs') or []) if isinstance(r, dict) and r.get('id')]
+            if not rr:
+                continue
+            _, bj, _ = getf(f'https://api.github.com/repos/{REPO}/actions/runs/{rr[0]["id"]}/jobs', headers=hdr)
+            A_wf = []
+            for j in [j for j in (json.loads(bj).get('jobs') or []) if isinstance(j, dict) and j.get('id')][:4]:
+                _, ba, _ = getf(f'https://api.github.com/repos/{REPO}/check-runs/{j["id"]}/annotations', headers=hdr)
+                A = json.loads(ba)
+                A_wf += [x for x in (A if isinstance(A, list) else []) if isinstance(x, dict)]
+            ann[wf] = A_wf; nwf += 1
+        except Exception as e:  # noqa
+            bledne.append(f'{wf} ({str(e)[:40] or type(e).__name__})')
+    if bledne and not nwf:
+        raise RuntimeError('; '.join(bledne)[:120])
+    return {'sprawdzone': nwf, 'znalezione': ostrzezenia_github(ann), 'bledne': bledne}
+
+
 def opis_kroku(zadanie, krok):
     """Nazwa nieudanego kroku po ludzku: publikacja GitHub Pages to zwykle chwilowa awaria po stronie GitHuba; długie nazwy kroków
     z workflow skrócone do części przed nawiasem / myślnikiem."""
@@ -4135,22 +4163,8 @@ def kontrola():
         hdr = {'Accept': 'application/vnd.github+json'}
         if TOKEN:
             hdr['Authorization'] = 'Bearer ' + TOKEN
-        ann, t_g, nwf = {}, time.monotonic(), 0
-        for wf in GH_OSTRZ_WF:
-            if time.monotonic() - t_g > GH_OSTRZ_BUDZET_S:
-                break
-            _, bw, _ = get(f'https://api.github.com/repos/{REPO}/actions/workflows/{wf}/runs?per_page=1&status=completed', headers=hdr)
-            rr = [r for r in (json.loads(bw).get('workflow_runs') or []) if isinstance(r, dict) and r.get('id')]
-            if not rr:
-                continue
-            nwf += 1
-            _, bj, _ = get(f'https://api.github.com/repos/{REPO}/actions/runs/{rr[0]["id"]}/jobs', headers=hdr)
-            for j in [j for j in (json.loads(bj).get('jobs') or []) if isinstance(j, dict) and j.get('id')][:4]:
-                _, ba, _ = get(f'https://api.github.com/repos/{REPO}/check-runs/{j["id"]}/annotations', headers=hdr)
-                A = json.loads(ba)
-                ann.setdefault(wf, []).extend(x for x in (A if isinstance(A, list) else []) if isinstance(x, dict))
-        zn = ostrzezenia_github(ann)
-        R['github_ostrz'] = {'sprawdzone': nwf, 'znalezione': zn}
+        R['github_ostrz'] = github_ostrz_odczyt(hdr)   # v292: każdy przepływ osobno (błąd jednego nie przerywa pozostałych)
+        zn = R['github_ostrz']['znalezione']
         if zn:
             R['uwagi'].append('GitHub ostrzega o przestarzałych akcjach albo systemie (' + '; '.join(f'{w}: {m[:90]}' for w, m in zn[:3])
                               + ') — napisz do Claude: „zaktualizuj akcje GitHuba”')
@@ -4213,7 +4227,8 @@ def raport_md(R):
             L.append('- Ostrzeżenia GitHuba o przestarzałych akcjach: ' + '; '.join(f'{w}: {m[:90]}' for w, m in go['znalezione'][:3])
                      + ' ⚠️ — napisz do Claude: „zaktualizuj akcje GitHuba”.')
         else:
-            L.append(f'- Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z {go.get("sprawdzone", 0)} przepływów): brak ✅.')
+            L.append(f'- Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z {go.get("sprawdzone", 0)} przepływów): brak ✅'
+                     + (f'; nie odczytano: {", ".join(go["bledne"])[:120]}.' if go.get('bledne') else '.'))
     L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None and not p.get("wylaczone") else ("wyłączone" if p.get("wylaczone") else "HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     aw = R.get('awarie') if isinstance(R.get('awarie'), dict) else None   # v207: pamięć awarii części automatu
