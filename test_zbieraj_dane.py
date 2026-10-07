@@ -29045,7 +29045,7 @@ class NaukaPoryPobieraniaV262(unittest.TestCase):
         ix = {'N225': {'cc': 'jp', 'd': [['2026-10-07', 71000.0]], 'h+': 1, 'h+n': 0}, 'GSPC': {'cc': 'us', 'd': [['2026-10-07', 7800.0]], 'h+': True}}
         o = k.indeksy_ocena(ix, now=N)
         self.assertEqual(o['pozniej'], [('N225', 1)])
-        self.assertEqual(k.indeksy_wiersz(o), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-07); pora pobierania przesunięta (nauczone z poprawek dostawcy): N225 +1 h ℹ️.')
+        self.assertEqual(k.indeksy_wiersz(o), '- Indeksy giełdowe: świeże 2 z 2 (do 2026-10-07); pora pobierania przesunięta (nauczone z poprawek i spóźnień dostawcy): N225 +1 h ℹ️.')
 
 
 # ===================== v263: POPRAWKI PO PRZEGLĄDZIE v261–v262 =====================
@@ -29824,7 +29824,7 @@ class IndeksyFmpV273(unittest.TestCase):
             self.assertEqual(zd.ix_fmp('f', part, now_ref[0], []), 1)
         n = part['N225']
         self.assertEqual(n['brak'], ['2026-10-14', 1, '2026-10-14T07:05:00+00:00']); self.assertEqual(n['d'][-1][0], '2026-10-13')
-        self.assertFalse(zd.ix_do_pobrania(7, n, self.T(2026, 10, 14, 7, 50), ponow=True), 'przed IX_PONOW_MIN')
+        self.assertFalse(zd.ix_do_pobrania(7, n, self.T(2026, 10, 14, 7, 45), ponow=True), 'przed IX_PONOW_MIN')   # v278: 45 min
         self.assertFalse(zd.ix_do_pobrania(7, n, self.T(2026, 10, 14, 8, 5)), 'EODHD (bez ponowień) — nie')
         self.assertTrue(zd.ix_do_pobrania(7, n, self.T(2026, 10, 14, 8, 5), ponow=True))
         now_ref[0] = self.T(2026, 10, 14, 8, 5)
@@ -30007,3 +30007,138 @@ class KapitalizacjaTrzecieV277(unittest.TestCase):
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
         self.assertIn("st, opis = kapitalizacja_trzecie(rows, st, opis, d_cmc, today)", src)
         self.assertLess(src.index("st, opis = kapitalizacja_trzecie("), src.index("    if st == '❌':\n        R['bledy'].append(f'kapitalizacja krypto:"), 'rozstrzygnięcie przed uwagą/błędem')
+
+
+# ===================== v278: POPRAWKI PO PRZEGLĄDZIE v272–v273 =====================
+class PoPrzegladzieV278(unittest.TestCase):
+    """v278: FMP bez sesji → zapas EODHD raz (licznik ciągły, nieudane ponowienia się liczą); wypełnienie w święto to nie dowód; ponowienie
+    po 45 min; dni poprzedniego dostawcy ('obce') nie są poprawkami; nazwa zmiennej nie jest kawałkiem klucza; kontrola — przestój drugiego
+    dostawcy = ⚠️; notka indeksów bez „co drugi dzień”."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+
+    def _swiezy(self, now, dzien=None):
+        d = (dzien or now.date()).isoformat()
+        ix = {s: {'cc': c, 'at': now.isoformat(), 'd': [[d, 1.0 + i]]} for i, (s, c, _) in enumerate(zd.IX_SYMBOLS)}
+        ix.update({s: {'cc': c, 'at': now.isoformat(), 'src': 'fmp', 'd': [[d, 50.0 + i]]} for i, (s, c, _, _) in enumerate(zd.IX_FMP)})
+        ix['JTOPI'] = {'bad_at': now.isoformat(), 'bad_n': 3, 'bad': 'pusto'}
+        return ix
+
+    def test_fmp_bez_sesji_zapas_eodhd(self):
+        calls = []
+        def gj(url, headers=None, timeout=30):
+            fmp = 'financialmodelingprep' in url
+            calls.append(('fmp' if fmp else 'eod', url.split('symbol=')[1].split('&')[0] if fmp else url.split('/eod/')[1].split('.INDX')[0]))
+            if fmp:   # FMP stoi na 12.10 (odpowiada 200, bez nowych sesji)
+                return [{'date': '2026-10-12', 'price': 6700.0}]
+            return [{'date': '2026-10-12', 'close': 6700.0}, {'date': '2026-10-13', 'close': 6750.0}]
+        prev = {'ix': self._swiezy(self.T(2026, 10, 12, 23, 5), datetime.date(2026, 10, 12))}
+        prev['ix']['GSPC']['d'] = [['2026-10-12', 6700.0]]
+        keys = {'EODHD_KEY': 'e', 'FMP_KEY': 'f'}
+        only = mock.patch.object(zd, 'IX_FMP', (('GSPC', 'us', 22, '%5EGSPC'),))
+        eod_only = mock.patch.object(zd, 'IX_SYMBOLS', (('GSPC', 'us', 22),))
+        o = prev
+        with mock.patch.object(zd, 'get_json', side_effect=gj), only, eod_only:
+            for hh, mm in ((22, 5), (22, 55), (23, 45), (0, 35), (1, 25)):   # pobranie + 3 ponowienia co ≥ 45 min, potem zapas
+                now = self.T(2026, 10, 13 if hh >= 22 else 14, hh, mm)
+                with mock.patch.object(zd, 'NOW', now.isoformat()):
+                    o = zd.build_indeksy(keys, o, now=now)
+        g = o['ix']['GSPC']
+        self.assertEqual([c for c in calls], [('fmp', '%5EGSPC')] * 4 + [('eod', 'GSPC')], 'FMP: 1 + 3 ponowienia, potem raz EODHD')
+        self.assertEqual((g['d'][-1], g.get('src'), g.get('brak')), (['2026-10-13', 6750.0], None, None), 'sesja z zapasu')
+        self.assertTrue(any('GSPC — FMP bez sesji 2026-10-13 (pobrań bez niej: 4) — pobranie z zapasu' in n for n in zd.META['notes']), zd.META['notes'])
+
+    def test_nieudane_ponowienie_liczy_sie_i_zapas_od_razu(self):
+        rec = {'cc': 'us', 'at': '2026-10-13T22:05:00+00:00', 'src': 'fmp', 'd': [['2026-10-12', 1.0]], 'brak': ['2026-10-13', 1, '2026-10-13T22:05:00+00:00']}
+        part = {'GSPC': dict(rec)}
+        only = mock.patch.object(zd, 'IX_FMP', (('GSPC', 'us', 22, '%5EGSPC'),))
+        with mock.patch.object(zd, 'get_json', side_effect=zd.urllib.error.URLError('timed out')), only:
+            zle = set()
+            self.assertEqual(zd.ix_fmp('f', part, self.T(2026, 10, 13, 22, 55), [], zle), 0)
+        self.assertEqual(part['GSPC']['brak'], ['2026-10-13', 2, '2026-10-13T22:05:00+00:00'], 'nieudane ponowienie liczy się do limitu')
+        self.assertEqual(zle, {'GSPC'})
+        self.assertTrue(zd._ix_fmp_wyczerpany(part['GSPC'], 22, self.T(2026, 10, 13, 22, 55), True), 'ponowienie zawiodło — zapas od razu')
+        self.assertFalse(zd._ix_fmp_wyczerpany(part['GSPC'], 22, self.T(2026, 10, 13, 22, 55), False), 'licznik 2 ≤ 3 i bez błędu — jeszcze FMP')
+        self.assertFalse(zd._ix_fmp_wyczerpany(dict(part['GSPC'], src=None), 22, self.T(2026, 10, 13, 22, 55), True), 'po zapasie — nie drugi raz')
+        r4 = dict(part['GSPC'], brak=['2026-10-13', 4, 'x'])
+        self.assertTrue(zd._ix_fmp_wyczerpany(r4, 22, self.T(2026, 10, 14, 1, 30))); self.assertFalse(zd.ix_do_pobrania(22, r4, self.T(2026, 10, 14, 1, 30), ponow=True))
+        self.assertFalse(zd._ix_fmp_wyczerpany(r4, 22, self.T(2026, 10, 14, 22, 5)), 'następna chwila gotowości — nowa sesja, od nowa')
+
+    def test_ponowienie_po_45_min_i_licznik_ciagly(self):
+        rec = {'cc': 'jp', 'at': '2026-10-14T07:06:00+00:00', 'src': 'fmp', 'd': [['2026-10-13', 1.0]], 'brak': ['2026-10-14', 1, '2026-10-14T07:06:00+00:00']}
+        self.assertTrue(zd.ix_do_pobrania(7, rec, self.T(2026, 10, 14, 8, 0, 30), ponow=True), 'przegląd: przebieg godzinę później — ponowienie (54,5 min)')
+        self.assertEqual(zd.IX_PONOW_MIN, 45)
+        # zapas EODHD bez sesji (święto) — licznik ciągły: FMP nie ponawia od nowa
+        eod = lambda url, headers=None, timeout=30: [{'date': '2026-10-13', 'close': 1.0}]
+        r = dict(rec, brak=['2026-10-14', 4, '2026-10-14T07:06:00+00:00'], at='2026-10-14T10:06:00+00:00')
+        with mock.patch.object(zd, 'get_json', eod):
+            o = zd.ix_fetch('N225', 'jp', 'k', r, self.T(2026, 10, 14, 11, 0))
+        self.assertEqual((o.get('src'), o['brak'][:2]), (None, ['2026-10-14', 5]), 'ta sama sesja — licznik ciągły przy zmianie dostawcy')
+        self.assertFalse(zd.ix_do_pobrania(7, o, self.T(2026, 10, 14, 12, 0), ponow=True), 'FMP nie ponawia — limit wyczerpany')
+
+    def test_wypelnienie_w_swieto_to_nie_dowod(self):
+        rec = {'cc': 'cn', 'at': '2026-10-01T08:05:00+00:00', 'd': [['2026-09-30', 3800.0]], 'brak': ['2026-10-01', 1, '2026-10-01T08:05:00+00:00']}
+        fil = lambda url, headers=None, timeout=30: [{'date': '2026-09-30', 'close': 3800.0}, {'date': '2026-10-01', 'close': 3800.0}]   # wypełnienie
+        with mock.patch.object(zd, 'get_json', fil):
+            o = zd.ix_fetch('SSEC', 'cn', 'k', rec, self.T(2026, 10, 2, 8, 5))
+        self.assertNotIn('h+', o, 'przegląd: wiersz-wypełnienie w święto uczył +1 h')
+        real = lambda url, headers=None, timeout=30: [{'date': '2026-09-30', 'close': 3800.0}, {'date': '2026-10-01', 'close': 3812.0}]
+        with mock.patch.object(zd, 'get_json', real):
+            o2 = zd.ix_fetch('SSEC', 'cn', 'k', rec, self.T(2026, 10, 2, 8, 5))
+        self.assertEqual(o2['h+'], 1, 'prawdziwa spóźniona sesja (inne zamknięcie) — dowód jak dotąd')
+
+    def test_obce_dni_to_nie_poprawka(self):
+        # czwartek 15.10 z zapasu EODHD (src None), FMP w piątek jeszcze tylko do środy 14.10, w sobotę podaje czwartek o 0,10% wyżej
+        rec = {'cc': 'us', 'at': '2026-10-15T23:10:00+00:00', 'd': [['2026-10-14', 6700.0], ['2026-10-15', 6750.0]]}
+        part = {'GSPC': rec}
+        only = mock.patch.object(zd, 'IX_FMP', (('GSPC', 'us', 22, '%5EGSPC'),))
+        f1 = lambda url, headers=None, timeout=30: [{'date': '2026-10-13', 'price': 6690.0}, {'date': '2026-10-14', 'price': 6700.0}]
+        with mock.patch.object(zd, 'get_json', f1), only, mock.patch.object(zd, 'NOW', '2026-10-16T22:05:00+00:00'):
+            zd.ix_fmp('f', part, self.T(2026, 10, 16, 22, 5), [])
+        g = part['GSPC']
+        self.assertEqual((g['src'], g['obce'], g['d'][-1]), ('fmp', ['2026-10-15'], ['2026-10-15', 6750.0]), 'dzień EODHD zostaje, oznaczony jako obcy')
+        f2 = lambda url, headers=None, timeout=30: [{'date': '2026-10-14', 'price': 6700.0}, {'date': '2026-10-15', 'price': 6756.75}, {'date': '2026-10-16', 'price': 6770.0}]
+        g['at'] = '2026-10-16T22:05:00+00:00'
+        with mock.patch.object(zd, 'get_json', f2), only, mock.patch.object(zd, 'NOW', '2026-10-17T00:05:00+00:00'):
+            zd.ix_fmp('f', part, self.T(2026, 10, 17, 0, 5), [])
+        g2 = part['GSPC']
+        self.assertNotIn('rew', g2, 'przegląd: różnica dwóch dostawców zapisywała się jako poprawka FMP'); self.assertNotIn('obce', g2)
+        self.assertEqual(g2['d'][-2:], [['2026-10-15', 6756.75], ['2026-10-16', 6770.0]])
+        self.assertEqual(g2['h+'], 1, 'sesja 16.10 brakowała o 22:05 i przyszła później — prawdziwy dowód spóźnienia FMP (to nie 15.10 z zapasu)')
+
+    def test_maskowanie_nazwy_zmiennej(self):
+        s0, z0 = list(zd.SECRETS), list(zd.SECRETS_ZLE)
+        try:
+            with mock.patch.dict(os.environ, {'FMP_KEY': 'FMP_KEY = 0123456789abcdef'}, clear=False):
+                self.assertEqual(zd.klucz('FMP_KEY'), '')
+            self.assertEqual(zd.mask(zd.META['errors'][-1]).split(':')[0], 'Klucz FMP_KEY', 'przegląd: nazwa sekretu maskowana — „Klucz ***”')
+            self.assertEqual(zd.mask('x 0123456789abcdef y'), 'x *** y')
+        finally:
+            zd.SECRETS[:] = s0; zd.SECRETS_ZLE[:] = z0
+
+    def test_kontrola_drugi_dostawca_stoi(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v278_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        kk = importlib.util.module_from_spec(spec); spec.loader.exec_module(kk)
+        ix = {s: {'d': [['2026-10-26', 1.0]]} for s, _, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI', 'JTOPI')}
+        ix.update({s: {'src': 'fmp', 'd': [['2026-10-08', 1.0]]} for s in ('FTSE', 'GSPC', 'IXIC', 'DJI', 'N225', 'HSI')})
+        o = kk.indeksy_ocena(ix, datetime.datetime(2026, 10, 27, 6, 20, tzinfo=self.UTC))
+        self.assertEqual(o['grupy_stoja'], [('fmp', '2026-10-08', 6, 12)])
+        u = kk.indeksy_uwagi(o)
+        self.assertTrue(any('drugi dostawca indeksów (fmp, 6 serii) — najnowsza sesja 2026-10-08' in x for x in u), u)
+        self.assertIn('drugi dostawca (fmp, 6 serii) stoi', kk.indeksy_wiersz(o)); self.assertIn('⚠️', kk.indeksy_wiersz(o))
+        ix2 = dict(ix, **{s: {'src': 'fmp', 'd': [['2026-10-23', 1.0]]} for s in ('FTSE', 'GSPC', 'IXIC', 'DJI', 'N225', 'HSI')})
+        self.assertEqual(kk.indeksy_ocena(ix2, datetime.datetime(2026, 10, 27, 6, 20, tzinfo=self.UTC))['grupy_stoja'], [], '1 dzień roboczy — norma')
+
+    def test_notka_indeksow(self):
+        h = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
+        import re as _re
+        v = _re.findall(r'"ix\.not":"((?:[^"\\]|\\.)*)"', h)
+        self.assertEqual(len(v), 10)
+        for x in v:
+            self.assertIsNone(_re.search('co drugi dzień|every other day|jeden zweiten Tag|cada dos días|un jour sur deux|giorni alterni|dia sim, dia não|через день|每隔一天|1日おき', x), x[:80])

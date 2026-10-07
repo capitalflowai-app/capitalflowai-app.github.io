@@ -1877,6 +1877,11 @@ def indeksy_ocena(ix, now=None):
         gr.setdefault(str(ix[s].get('src') or '') if isinstance(ix.get(s), dict) else '', []).append(x)
     gl = max(gr.values(), key=len)
     out['n_gl'], out['najnowsza_gl'] = len(gl), max(gl)
+    # v278 (przegląd v273): grupa drugiego dostawcy (≥ IX_GRUPA_MIN serii) ponad IX_WSZYSTKIE_DNI dni roboczych za najnowszą sesją wszystkich —
+    # cały ten dostawca stoi (wcześniej mierzony tylko do własnej najnowszej sesji: przestój 6 serii FMP dawał jedynie ℹ️ „opóźnione”)
+    out['grupy_stoja'] = sorted((zr0 or 'główny', max(g), len(g), _dni_rob(dt.date.fromisoformat(max(g)), dt.date.fromisoformat(najn)))
+                                for zr0, g in gr.items() if g is not gl and len(g) >= IX_GRUPA_MIN
+                                and _dni_rob(dt.date.fromisoformat(max(g)), dt.date.fromisoformat(najn)) > IX_WSZYSTKIE_DNI)
     out['wszystkie'] = _dni_rob(dt.date.fromisoformat(max(gl)), dzis)
     out['luki_odp'] = [(s, str(v['luka'][0]), v['luka'][1], v['luka'][2], v['luka'][3]) for s, v in sorted(ix.items())   # v261: odpowiedzi z luką
                        if isinstance(v, dict) and isinstance(v.get('luka'), list) and len(v['luka']) == 4 and _ix_swiezy(v['luka'][0], now)]
@@ -1903,6 +1908,9 @@ def indeksy_uwagi(o):
          for s, x, n in o.get('stare') or []]
     u += [f'indeksy giełdowe: {s} ma sesję z datą z przyszłości ({x}) — błąd danych dostawcy (strona może pokazywać ją jako ostatnią); w ocenie świeżości pominięta'
           for s, x in o.get('przyszle') or []]
+    for zr0, x, n, d in o.get('grupy_stoja') or []:   # v278: drugi dostawca stoi
+        u.append(f'indeksy giełdowe: drugi dostawca indeksów ({zr0}, {n} {_serie(n)}) — najnowsza sesja {x}, {_dni_r(d)} za pozostałymi; '
+                 'dostawca oddaje stare dane albo pobieranie stoi (zapas — tylko przy błędzie albo wyczerpanych ponowieniach)')
     if (o.get('wszystkie') or 0) > IX_WSZYSTKIE_DNI:   # v261: główny dostawca (grupa z największą liczbą serii)
         n = o.get('n_gl') or 0
         u.append(f'indeksy giełdowe: najnowsza sesja głównego dostawcy indeksów ({n} {_serie(n)}) to {o.get("najnowsza_gl") or o["najnowsza"]} — '
@@ -1919,6 +1927,8 @@ def indeksy_wiersz(o):
     if zle:   # v261: główny dostawca
         n = o.get('n_gl') or 0
         cz.append(f'najnowsza sesja głównego dostawcy ({n} {_serie(n)}) {_dni_r(o["wszystkie"])} temu ⚠️')
+    for zr0, x, n, d in o.get('grupy_stoja') or []:   # v278
+        cz.append(f'drugi dostawca ({zr0}, {n} {_serie(n)}) stoi: najnowsza sesja {x}, {_dni_r(d)} za pozostałymi ⚠️')
     if o.get('przyszle'):
         cz.append('sesja z datą z przyszłości: ' + ', '.join(f'{s} ({x})' for s, x in o['przyszle']) + ' ⚠️')
     if o.get('stare'):
@@ -1939,7 +1949,7 @@ def indeksy_wiersz(o):
         cz.append('odpowiedź dostawcy z luką (sesje zostawione): ' + ', '.join(f'{s} ({n} {_odm(n, "sesja", "sesje", "sesji")}, {a}–{b})'
                                                                              for s, t, n, a, b in o['luki_odp'][:5]) + ' ℹ️')
     if o.get('pozniej'):   # v262: samouczenie — indeksy pobierane później, bo dostawca poprawiał zamknięcia pobrane tuż po sesji
-        cz.append('pora pobierania przesunięta (nauczone z poprawek dostawcy): ' + ', '.join(f'{s} +{h} h' for s, h in o['pozniej']) + ' ℹ️')
+        cz.append('pora pobierania przesunięta (nauczone z poprawek i spóźnień dostawcy): ' + ', '.join(f'{s} +{h} h' for s, h in o['pozniej']) + ' ℹ️')
     return '- Indeksy giełdowe: ' + '; '.join(cz) + ('.' if (zle or o.get('przyszle') or o.get('stare') or o.get('opoznione') or o.get('puste')
                                                        or o.get('zmiany') or o.get('luki_odp') or o.get('pozniej')) else ' ✅.')
 
