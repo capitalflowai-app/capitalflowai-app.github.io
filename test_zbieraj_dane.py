@@ -29290,8 +29290,9 @@ class ArgentynaOdstepV266(unittest.TestCase):
         Z = k.dolar_porownanie({'ar': {'q': {'blue': [1530, 1550, '2026-10-06T19:56:00Z']}, 'amb': {'blue': [1520, 1540, '2026-10-06T17:00:00Z']}}}, None,
                                datetime.datetime(2026, 10, 6, 20, 33, tzinfo=datetime.timezone.utc))
         P = next(P for P in Z['pary'] if P['kurs'] == 'blue')
-        self.assertEqual((P['status'], P['roznica_pct']), ('⚠️', 0.65)); self.assertNotIn('odstep_h', P)
-        self.assertIn('Argentyna, kurs blue: dwa odczyty różnią się o 0.65% (próg 0.5%)', Z['uwagi'])
+        # v286: próg blue 1,5% (test wsteczny 2 lat) — jeden krok notowania (10 peso = 0,65%) to ✅
+        self.assertEqual((P['status'], P['roznica_pct']), ('✅', 0.65)); self.assertNotIn('odstep_h', P)
+        self.assertFalse(any('kurs blue' in u for u in Z['uwagi']), Z['uwagi'])
         self.assertFalse(hasattr(k, 'DL_ODSTEP_H'), 'przegląd: odstęp ze znaczników drugiego źródła był zawsze ok. 3 h')
 
 
@@ -30546,3 +30547,32 @@ class PoPrzegladzieV285(unittest.TestCase):
             o = zd.build_indeksy({'EODHD_KEY': 'e', 'FMP_KEY': 'f'}, {'ix': ix, 'ix_calls': {'d': '2026-10-14', 'n': 0}}, now=now)
         self.assertTrue(any('GSPC — FMP bez sesji 2026-10-13 (błąd albo przerwa FMP — w błędach) — pobranie z zapasu' in n for n in zd.META['notes']), zd.META['notes'])
         self.assertEqual((o['ix']['GSPC']['d'][-1][0], o['ix']['GSPC']['zap']), ('2026-10-13', '2026-10-13'))
+
+
+# ===================== v286: PRÓG KURSU BLUE Z TESTU WSTECZNEGO =====================
+class ProgBlueV286(unittest.TestCase):
+    """v286: próg dwóch odczytów kursu blue 1,5% (z rozkładu 2 lat), „duża różnica” od 3%; pozostałe pary bez zmian."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v286_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def _blue(self, a, b):
+        Z = self.k.dolar_porownanie({'ar': {'q': {'blue': [round(a * 0.987, 2), a, '2026-10-06T20:56:00Z']}, 'amb': {'blue': [round(b * 0.987, 2), b, '2026-10-06T18:00:00Z']}}}, None,
+                                    datetime.datetime(2026, 10, 7, 3, 0, tzinfo=datetime.timezone.utc))
+        return next(P for P in Z['pary'] if P['kurs'] == 'blue'), [u for u in Z['uwagi'] if 'kurs blue' in u]
+
+    def test_progi(self):
+        self.assertEqual(dict((k, p) for k, _, p in self.k.DL_PARY), {'blue': 1.5, 'mayorista': 0.5, 'oficial': 0.5, 'bolsa': 2.0, 'contadoconliqui': 2.0})
+        self.assertTrue(all(p in self.k.DL_DUZA for _, _, p in self.k.DL_PARY), 'każdy próg ma próg „dużej różnicy”')
+        P, U = self._blue(1550, 1530)   # dwa kroki notowania: 1,31% — w progu
+        self.assertEqual((P['status'], P['roznica_pct'], U), ('✅', 1.31, []))
+        P, U = self._blue(1560, 1530)   # 1,96% — ponad próg
+        self.assertEqual((P['status'], P['roznica_pct']), ('⚠️', 1.96))
+        self.assertEqual(U, ['Argentyna, kurs blue: dwa odczyty różnią się o 1.96% (próg 1.5%)'])
+        P, U = self._blue(1550, 1500)   # 3,33% — duża różnica
+        self.assertEqual(U, ['Argentyna, kurs blue: dwa odczyty różnią się o 3.33% (próg 1.5%; ponad 3% — duża różnica)'])
+        P, U = self._blue(1550, 15.5)   # błąd skali — nadal tylko ⚠️ (nigdy ❌)
+        self.assertEqual(P['status'], '⚠️'); self.assertIn('duża różnica', U[0])
