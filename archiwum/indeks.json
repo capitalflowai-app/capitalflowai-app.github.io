@@ -1,5 +1,5 @@
 {
- "at": "2026-10-07T18:42:40+00:00",
+ "at": "2026-10-07T19:35:49+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,13 +22,13 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 156,
    "first": "2026-09-26",
    "last": "2026-10-07",
    "added": 0,
    "revised": 13,
-   "revisions_total": 91,
+   "revisions_total": 104,
    "fetched": 13
   },
   "stablecoiny-eth": {
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 24,
    "first": "2026-09-26",
    "last": "2026-10-07",
    "added": 0,
-   "revised": 2,
-   "revisions_total": 8,
+   "revised": 1,
+   "revisions_total": 9,
    "fetched": 2
   },
   "plynnosc": {
@@ -68,14 +68,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 757,
    "first": "2023-09-26",
    "last": "2026-10-07",
-   "added": 1,
-   "revised": 747,
-   "revisions_total": 748,
-   "fetched": 748
+   "added": 0,
+   "revised": 9,
+   "revisions_total": 757,
+   "fetched": 757
   },
   "tic": {
    "file": "tic.csv",
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 1050,
    "first": "2024-10-01",
    "last": "2026-09-29",
@@ -140,11 +140,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 525,
    "first": "2024-09-26",
    "last": "2026-10-07",
-   "added": 1,
+   "added": 0,
    "revised": 0,
    "revisions_total": 1,
    "fetched": 518
@@ -170,12 +170,12 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 90,
    "first": "2026-09-28",
    "last": "2026-10-06",
-   "added": 10,
-   "revised": 10,
+   "added": 0,
+   "revised": 0,
    "revisions_total": 70,
    "fetched": 90
   },
@@ -200,12 +200,12 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 132,
    "first": "2026-10-05",
    "last": "2026-10-07",
-   "added": 44,
-   "revised": 44,
+   "added": 0,
+   "revised": 0,
    "revisions_total": 44,
    "fetched": 132
   },
@@ -240,7 +240,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-07T18:42:40+00:00",
+   "at": "2026-10-07T19:35:49+00:00",
    "rows": 0,
    "first": null,
    "last": null,
