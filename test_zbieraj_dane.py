@@ -22852,7 +22852,7 @@ class SondaIndeksyKluczeV272p(unittest.TestCase):
         import io as _io
         S = self._S()
         self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual((S.GROUPS.count(S.g_ix_fmp), S.GROUPS.count(S.g_ix_massive)), (1, 1))
-        self.assertEqual(S.TYLKO, ('g_ix_fmp', 'g_ix_massive'))
+        self.assertTrue(S.TYLKO and all(any(g.__name__ == n for g in S.GROUPS) for n in S.TYLKO), 'TYLKO = istniejące grupy (zmienia się co sondę)')
         site = {'ix': {'GSPC': {'d': [['2026-10-05', 6700.0], ['2026-10-06', 6712.5]]}, 'DJI': {'d': [['2026-10-06', 46000.0]]}}}
         fmp_gspc = [{'symbol': '^GSPC', 'date': '2026-10-06', 'price': 6712.5, 'volume': 1}, {'symbol': '^GSPC', 'date': '2026-10-05', 'price': 6706.7, 'volume': 1}]
         seen = []
@@ -22900,7 +22900,7 @@ class SondaIndeksyKluczeV272p(unittest.TestCase):
 
         def g_eodhd():
             ran.append('eodhd')
-        with mock.patch.object(S, 'GROUPS', [g_eodhd, g_ix_fmp]), mock.patch('sys.stdout', _io.StringIO()):
+        with mock.patch.object(S, 'GROUPS', [g_eodhd, g_ix_fmp]), mock.patch.object(S, 'TYLKO', ('g_ix_fmp',)), mock.patch('sys.stdout', _io.StringIO()):
             S.main()
         self.assertEqual(ran, ['fmp'])
         ran.clear()
@@ -30576,3 +30576,33 @@ class ProgBlueV286(unittest.TestCase):
         self.assertEqual(U, ['Argentyna, kurs blue: dwa odczyty różnią się o 3.33% (próg 1.5%; ponad 3% — duża różnica)'])
         P, U = self._blue(1550, 15.5)   # błąd skali — nadal tylko ⚠️ (nigdy ❌)
         self.assertEqual(P['status'], '⚠️'); self.assertIn('duża różnica', U[0])
+
+
+# ===================== v288p: SONDA — INDEKS RPA W FMP =====================
+class SondaJseV288p(unittest.TestCase):
+    """v288p: lista indeksów FMP — kody i nazwy z RPA (bez wartości), do 4 kodów z liczbą wierszy i najnowszą datą; bez EODHD; TYLKO = g_jse2."""
+
+    def test_sonda(self):
+        import importlib.util, io as _io
+        spec = importlib.util.spec_from_file_location('sondy_v288p', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        self.assertEqual(S.TYLKO, ('g_jse2',)); self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(S.GROUPS.count(S.g_jse2), 1)
+        seen = []
+
+        def http(url, method='GET', body=None, headers=None):
+            seen.append(url)
+            if 'index-list' in url:
+                return 200, json.dumps([{'symbol': '^GSPC', 'name': 'S&P 500', 'currency': 'USD'},
+                                        {'symbol': '^J200.JO', 'name': 'FTSE/JSE Top 40', 'exchange': 'JNB', 'currency': 'ZAR'}]).encode(), 3, None
+            if 'symbol=%5EJ200.JO' in url:
+                return 200, json.dumps([{'symbol': '^J200.JO', 'date': '2026-10-06', 'price': 98765.4}, {'date': '2026-10-05', 'price': 98000.1}]).encode(), 3, None
+            return 402, b'{"Error Message":"plan"}', 3, None
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: None), mock.patch('sys.stdout', out), \
+                mock.patch.dict(os.environ, {'FMP_KEY': 'TAJNY_FMP_456'}, clear=False):
+            S.g_jse2()
+        o = out.getvalue()
+        self.assertNotIn('TAJNY', o); self.assertNotIn('http', o.replace('HTTP', '')); self.assertNotIn('98765', o); self.assertNotIn('98000', o)
+        self.assertIn('summary jse2-list n=2 rpa=1 ^J200.JO|FTSE/JSE Top 40|JNB|ZAR', o)
+        self.assertIn('summary jse2 ^J200.JO=200/r2/10-06 ^J203.JO=402 ^JTOPI.JO=402 ^JALSH.JO=402', o)
+        self.assertEqual(len(seen), 5, 'lista + 4 kody'); self.assertFalse([u for u in seen if 'eodhd' in u], 'bez EODHD')

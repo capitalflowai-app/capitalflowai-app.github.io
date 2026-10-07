@@ -1438,7 +1438,65 @@ def g_ix_massive():
 
 GROUPS.insert(GROUPS.index(g_nasdaq), g_ix_fmp)
 GROUPS.insert(GROUPS.index(g_nasdaq), g_ix_massive)
-TYLKO = ("g_ix_fmp", "g_ix_massive")   # v272p: ten przebieg sondy — tylko sondy indeksów (pozostałe grupy w poprzednich wydaniach; pusta krotka = wszystkie)
+
+
+# v288p (07.10.2026): JSE Top 40 (RPA) — jedyny indeks strony bez notowań (EODHD: pusta odpowiedź od 03.10; w GLOBAL „—” przy RPA). Czy FMP
+# (klucz właściciela, 250 zapytań na dobę) ma indeks RPA? Lista indeksów FMP: kody i nazwy z RPA (bez wartości), potem do 4 kodów — HTTP,
+# liczba wierszy z 12 dni i najnowsza data (nigdy wartości). Bez zapytań z dobowego limitu EODHD.
+JSE_FMP_DOM = ("%5EJ200.JO", "%5EJ203.JO", "%5EJTOPI.JO", "%5EJALSH.JO")
+JSE_RE = r"JSE|South Africa|Johannesburg|Top 40|All Share"
+
+
+def _jse_res(st, raw):
+    """HTTP i dla 200: liczba wierszy i najnowsza data (MM-DD) — bez wartości."""
+    if st != 200 or not raw:
+        return str(st)
+    try:
+        j = json.loads(raw)
+        rows = j if isinstance(j, list) else (j or {}).get("historical") or [] if isinstance(j, dict) else []
+        ds = sorted(str(r.get("date"))[:10] for r in rows if isinstance(r, dict) and r.get("date"))
+        return f"200/r{len(rows)}" + (f"/{ds[-1][5:]}" if ds else "")
+    except Exception as e:  # noqa
+        return f"200/{type(e).__name__}"
+
+
+def g_jse2():
+    import re
+    name, key = find_key("fmp")
+    if not key:
+        skipped("fmp", "jse")
+        return
+    b = "https://financialmodelingprep.com/stable"
+    frm = (_utc_today() - dt.timedelta(days=12)).isoformat()
+    st, raw = probe("fmp", "index_list_jse", f"{b}/index-list?apikey={key}", env_name=name)
+    zn, lst = [], str(st)
+    if st == 200 and raw:
+        try:
+            L = [r for r in json.loads(raw) if isinstance(r, dict)]
+            for r in L:
+                s, n, c = str(r.get("symbol") or ""), str(r.get("name") or ""), str(r.get("currency") or "")
+                if s.upper().endswith(".JO") or c.upper() == "ZAR" or re.search(JSE_RE, n, re.I):
+                    zn.append(f"{s[:16]}|{n[:36]}|{str(r.get('exchange') or '')[:8]}|{c[:4]}")
+            lst = f"n={len(L)} rpa={len(zn)}"
+        except Exception as e:  # noqa
+            lst = type(e).__name__
+    kody = [urllib.parse.quote(x.split("|")[0]) for x in zn[:4]]
+    for s in JSE_FMP_DOM:
+        if s not in kody and len(kody) < 4:
+            kody.append(s)
+    out = []
+    for sym in kody[:4]:
+        time.sleep(0.3)
+        lab = urllib.parse.unquote(sym)
+        st, raw = probe("fmp", f"jse_{lab}", f"{b}/historical-price-eod/light?symbol={sym}&from={frm}&apikey={key}", env_name=name)
+        out.append(f"{lab}=" + _jse_res(st, raw))
+    with _print_lock:
+        print(f"summary jse2-list {lst} " + "; ".join(zn[:12]), flush=True)
+        print("summary jse2 " + " ".join(out), flush=True)
+
+
+GROUPS.insert(GROUPS.index(g_nasdaq), g_jse2)
+TYLKO = ("g_jse2",)   # v288p: ten przebieg sondy — tylko JSE w FMP (v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
 
 
 # --------------------------------------------------------------------------- main
