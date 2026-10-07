@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   zbuduj:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
     timeout-minutes: 25   # v185: najcięższe przebiegi (raz na godzinę) trwały 14,3–14,5 min (05.10, API Actions) — przy 15 min groziło przerwanie bez publikacji
     permissions:
       contents: read
@@ -135,7 +135,7 @@ jobs:
 
   opublikuj:
     needs: zbuduj
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
     timeout-minutes: 10
     permissions:
       pages: write
@@ -154,7 +154,7 @@ jobs:
   zegar:
     needs: [zbuduj, opublikuj]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
     timeout-minutes: 5
     permissions:
       actions: write

@@ -29872,3 +29872,19 @@ class IndeksyFmpV273(unittest.TestCase):
         o = kk.indeksy_ocena({'GSPC': {'fmp_bad_at': '2026-10-13T22:05:00+00:00', 'fmp_bad': 402}, 'DJI': {'d': [['2026-10-13', 1.0]]}},
                              datetime.datetime(2026, 10, 14, 6, 0, tzinfo=self.UTC))
         self.assertEqual(o['puste'], [('GSPC', '2026-10-13')])
+
+
+class PrzypietyObrazV274(unittest.TestCase):
+    """v274: każdy przepływ pracy na przypiętym obrazie ubuntu-24.04 — ubuntu-latest przechodzi na Ubuntu 26 od 19.10.2026 (nowy system bez
+    gotowego Pythona 3.12, inny Chrome albo Node mogłyby zatrzymać automat bez niczyjej wiedzy); zmiana obrazu tylko świadomie."""
+
+    def test_przepływy_przypiete(self):
+        import glob
+        root = os.path.dirname(os.path.abspath(__file__))
+        pliki = sorted(glob.glob(os.path.join(root, '.github', 'workflows', '*.yml')))
+        self.assertGreaterEqual(len(pliki), 6)
+        for p in pliki:
+            y = open(p, encoding='utf-8').read()
+            self.assertNotIn('ubuntu-latest', y, os.path.basename(p))
+            self.assertEqual(y.count('runs-on:'), y.count('runs-on: ubuntu-24.04'), os.path.basename(p))
+

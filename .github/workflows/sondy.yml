@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   sondy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
     timeout-minutes: 5
     permissions:
       contents: read

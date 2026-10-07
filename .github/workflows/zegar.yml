@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   prowadz:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
     timeout-minutes: 40   # v145.2: czekanie do 31 min + doczekanie do 2 min
     permissions:
       actions: write
