@@ -5154,8 +5154,8 @@ def build_etf(key, cg_key, prev=None, tylko=None):
             # źródła (ok. 21 sesji; następny przebieg łączy nowe okno z tą historią)
             if isinstance(pa.get('day'), list) and pa['day'] and isinstance(pa.get('asof'), str) and _d(pa['asof']):
                 stare[s] = pa
-    if not nowe:   # wszystkie monety zawiodły — main zostawia poprzedni plik z jego czasem
-        raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')
+    if not nowe and (tylko is None or not pominiete):   # wszystkie monety zawiodły — main zostawia poprzedni plik z jego czasem
+        raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')   # v283: w trybie szybkim z przeniesionymi monetami — bez wyjątku (błąd monety w meta)
     top = max(a['asof'] for a in out['assets'].values())
     for s, pa in stare.items():   # v199/v203: poprzedni wpis z własną datą i historią dni (stan „stale” — niżej, jak dla każdej monety)
         out['assets'][s] = json.loads(json.dumps(pa))
@@ -11551,6 +11551,9 @@ def _ix_zapas_wybor(pix, kand, now, calls, quota, zle_kand=()):
             continue
         if ix_do_pobrania(h, rec, koniec):
             wlasne += 1
+            # v283 (przegląd v282): zaległy (należny teraz za wcześniejszą chwilę gotowości niż dzisiejsza) — dziś DWA zapytania: teraz i później
+            if ix_do_pobrania(h, rec, now) and ix_ready(ix_godzina(h, rec), now) < ix_ready(ix_godzina(h, rec), koniec):
+                wlasne += 1
     wolne = IX_DAILY - zuz - wlasne
     grupy = {s: (cc, h) for s, cc, h, _ in IX_FMP}
     kol = {s: i for i, (s, _, _, _) in enumerate(IX_FMP)}
@@ -11581,16 +11584,16 @@ def _ix_zapas_wybor(pix, kand, now, calls, quota, zle_kand=()):
             if x == s or gr != grupy[s] or not isinstance(r, dict) or r.get('src') == 'fmp':
                 continue
             bx = _ix_brak(r)
-            if bx and bx[0] == D:
-                stan = 'swieto'; break
             at = _ix_dt(r.get('at'))
-            if at is not None and at >= Rd:
-                dd = ix_bez_wypelnien(r['d']) if isinstance(r.get('d'), list) else []   # v282: wiersz-wypełnienie w święto to nie sesja
-                last = str(dd[-1][0]) if dd and isinstance(dd[-1], list) and dd[-1] else ''
-                if last >= D:
-                    stan = 'jest'
-                else:
-                    stan = 'swieto'; break
+            # v283 (przegląd v282): brak sesji w zapasie to święto dopiero po dość późnym sprawdzeniu (jak po wyczerpanych ponowieniach FMP) —
+            # zapas sprawdzony o 22:0x mógł jeszcze nie mieć zamknięcia; wcześniej — bez wniosku (zapas może ponowić)
+            pozno = at is not None and at >= Rd + datetime.timedelta(minutes=IX_PONOW * IX_PONOW_MIN)
+            dd = ix_bez_wypelnien(r['d']) if isinstance(r.get('d'), list) else []   # v282: wiersz-wypełnienie w święto to nie sesja
+            last = str(dd[-1][0]) if dd and isinstance(dd[-1], list) and dd[-1] else ''
+            if at is not None and at >= Rd and last >= D:
+                stan = 'jest'
+            elif (bx and bx[0] == D and (pozno or bx[1] > IX_PONOW)) or (pozno and last < D):
+                stan = 'swieto'; break
         if stan == 'swieto':
             continue   # zapas też bez tej sesji — dzień bez sesji (święto)
         if stan != 'jest' and any(grupy.get(x) == grupy[s] for x in out):
@@ -11691,9 +11694,10 @@ def build_indeksy(keys, prev=None, now=None):
         fmp_got = ix_fmp(keys['FMP_KEY'], pix, now, errors, zle, deadline)
         eod_kody = {s for s, _, _ in IX_SYMBOLS}
         kand = [s for s, _, g, _ in IX_FMP if s in eod_kody and _ix_fmp_wyczerpany(pix.get(s), g, now, s in zle)]   # v278: FMP bez sesji — zapas raz
-        zle_nal = [s for s, _, g, _ in IX_FMP if s in eod_kody and s in zle and s not in kand and ix_do_pobrania(g, pix.get(s) or {}, now)]   # v282: błąd/przerwa FMP
+        zle_nal = [s for s, _, g, _ in IX_FMP if s in eod_kody and s in zle and s not in kand
+                   and ix_do_pobrania(g, pix.get(s) or {}, now, ponow=True)]   # v282: błąd/przerwa FMP; v283: także ponowienie zapasu bez sesji
         wybor = _ix_zapas_wybor(pix, kand, now, prev.get('ix_calls'), prev.get('ix_quota'), zle_nal) if keys.get('EODHD_KEY') else set()   # v281/v282: limit, grupa, święto
-        wymus = wybor & set(kand)
+        wymus = set(wybor)   # v283: wybrane — w planie EODHD także ponowienie zapasu (wpis wygląda na pobrany po chwili gotowości)
         for s in sorted(wymus):
             b = _ix_brak(pix.get(s)) or ['?', 0]
             META['notes'].append(f'Indeksy: {s} — FMP bez sesji {b[0]} (pobrań bez niej: {b[1]}) — pobranie z zapasu (drugi dostawca)')

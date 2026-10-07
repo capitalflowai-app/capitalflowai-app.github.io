@@ -30433,3 +30433,64 @@ class PoPrzegladzieV282(unittest.TestCase):
                          'przegląd v281: zapas z wierszem-wypełnieniem (zamknięcie = poprzednie) — to święto, reszta grupy bez zapytań')
         pix['GSPC'] = dict(gspc_eod, d=[['2026-11-25', 6812.0], ['2026-11-26', 6850.0]])
         self.assertEqual(zd._ix_zapas_wybor(pix, ['IXIC', 'DJI'], now, {'d': '2026-11-27', 'n': 0}, None), {'IXIC', 'DJI'}, 'prawdziwa sesja w zapasie — reszta też')
+
+
+# ===================== v283: POPRAWKI PO PRZEGLĄDZIE v282 =====================
+class PoPrzegladzieV283(unittest.TestCase):
+    """v283: zaległy własny indeks liczy się podwójnie w limicie zapasu; brak sesji w zapasie = święto dopiero po późnym sprawdzeniu, zapas
+    może ponowić; błąd jednej monety w szybkiej budowie ETF nie wywraca całego źródła."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    def _wl(self, at, d):
+        wl = {s: {'cc': c, 'at': at, 'd': [[d, 1.0]]} for s, c, _ in zd.IX_SYMBOLS if s not in ('GSPC', 'IXIC', 'DJI', 'N225', 'HSI')}
+        wl['JTOPI'] = {'bad_at': at, 'bad_n': 4, 'bad': 'pusto'}
+        return wl
+
+    def test_zalegle_wlasne_liczone_podwojnie(self):
+        now = self.T(2026, 10, 8, 0, 13)
+        pix = self._wl('2026-10-07T18:58:00+00:00', '2026-10-07')
+        for s in ('GSPTSE', 'BVSP', 'MXX', 'WIG20'):   # sesja 07.10 jeszcze nie pobrana (jak na żywo 07.10 rano)
+            pix[s] = {'cc': 'x', 'at': '2026-10-06T23:00:00+00:00', 'd': [['2026-10-06', 1.0]]}
+        pix['N225'] = {'cc': 'jp', 'src': 'fmp', 'at': '2026-10-07T07:05:00+00:00', 'd': [['2026-10-07', 1.0]]}
+        self.assertEqual(zd._ix_zapas_wybor(pix, [], now, {'d': '2026-10-08', 'n': 0}, None, ['N225']), set(),
+                         'przegląd v282: 17 własnych + 4 zaległe = 21 > 20 — bez zapasu (zaległe nie znów po północy)')
+
+    def test_swieto_dopiero_po_poznym_sprawdzeniu(self):
+        wl = self._wl('2026-10-13T23:00:00+00:00', '2026-10-13')
+        gspc = {'cc': 'us', 'at': '2026-10-13T22:10:00+00:00', 'd': [['2026-10-12', 1.0]], 'brak': ['2026-10-13', 1, '2026-10-13T22:10:00+00:00']}   # zapas o 22:10 bez zamknięcia
+        ixic = {'cc': 'us', 'src': 'fmp', 'at': '2026-10-12T22:05:00+00:00', 'd': [['2026-10-12', 1.0]]}
+        pix = dict(wl, GSPC=gspc, IXIC=ixic, DJI=dict(ixic))
+        now = self.T(2026, 10, 13, 23, 10)
+        w = zd._ix_zapas_wybor(pix, [], now, {'d': '2026-10-13', 'n': 15}, None, ['IXIC', 'DJI'])
+        self.assertEqual(w, {'IXIC'}, 'przegląd v282: zapas o 22:10 bez zamknięcia to jeszcze nie święto — jedna próba z grupy')
+        self.assertTrue(zd.ix_do_pobrania(22, gspc, now, ponow=True), 'zapas bez sesji może ponowić (jak FMP)')
+        pozne = dict(gspc, at='2026-10-14T00:30:00+00:00', brak=['2026-10-13', 2, '2026-10-13T22:10:00+00:00'])
+        self.assertEqual(zd._ix_zapas_wybor(dict(pix, GSPC=pozne), [], self.T(2026, 10, 14, 0, 40), {'d': '2026-10-14', 'n': 0}, None, ['IXIC', 'DJI']), set(),
+                         'sprawdzenie 2,5 h po chwili gotowości bez sesji — święto')
+        import inspect
+        self.assertIn("ix_do_pobrania(g, pix.get(s) or {}, now, ponow=True)", inspect.getsource(zd.build_indeksy))
+        self.assertIn("wymus = set(wybor)", inspect.getsource(zd.build_indeksy))
+
+    def test_etf_szybka_budowa_blad_jednej_monety(self):
+        def pa(s, asof):
+            return {'sym': s.upper(), 'asof': asof, 'day': [[1, 1.0]], 'd1': 1.0, 'cum': 5.0, 'aum': 10.0, 'funds': [], 'funds_at': '2026-10-07T02:00:00+00:00'}
+        prev = {'at': '2026-10-07T02:50:00+00:00', 'pelne_at': '2026-10-07T02:30:00+00:00', 'mcap': {s: 1e12 for s in zd.ETF_SYMS}, 'mcap_at': '2026-10-07T02:30:00+00:00',
+                'assets': {'btc': pa('btc', '2026-10-05'), 'eth': pa('eth', '2026-10-06'), 'sol': pa('sol', '2026-10-06'), 'xrp': pa('xrp', '2026-10-06')}, 'pub': {}}
+        def coin(out, s, key, prev_day=None, prev_a=None):
+            raise RuntimeError('HTTP 500')
+        now = self.T(2026, 10, 7, 3, 0)
+        with mock.patch.object(zd, '_etf_coin', coin), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'NOW', now.isoformat()), \
+                mock.patch.object(zd, '_etf_hk', lambda out, key, ph: ()):
+            o = zd.build_etf('k', 'cg', prev, {'btc'})
+        self.assertEqual(o['assets']['btc']['asof'], '2026-10-05', 'błąd jednej monety — jej poprzednie dane zostają')
+        self.assertEqual(o['assets']['eth'], prev['assets']['eth'])
+        self.assertTrue(any(e.startswith('SoSoValue BTC:') for e in zd.META['errors']))
+        with mock.patch.object(zd, '_etf_coin', coin), mock.patch.object(zd, '_now_utc', lambda: now), mock.patch.object(zd, 'NOW', now.isoformat()):
+            with self.assertRaises(RuntimeError):
+                zd.build_etf('k', 'cg', prev)   # pełna budowa — wszystkie zawiodły: wyjątek jak dotąd
