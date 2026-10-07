@@ -669,9 +669,10 @@ def _zamkniecia_z_notowan(q, dz):
     return len(zm)
 
 
-def _align_calendar(q):
+def _align_calendar(q, etykieta='Twelve Data'):
     """v69: wszystkie ETF-y na wspólnym kalendarzu sesji (daty SPY; bez SPY — daty obecne w co najmniej połowie symboli).
-    Świeca spoza kalendarza (np. 25.12 przy święcie w USA) jest usuwana — każdy region liczy zmianę z tych samych sesji."""
+    Świeca spoza kalendarza (np. 25.12 przy święcie w USA) jest usuwana — każdy region liczy zmianę z tych samych sesji.
+    v269: etykieta notatek (zapas cen z pliku Świat dziennie ma własną)."""
     if not q:
         return 0
     spy = q.get('SPY') if isinstance(q.get('SPY'), dict) else None
@@ -694,9 +695,9 @@ def _align_calendar(q):
             n += len(d) - len(keep); v['d'] = keep
             v['asof'] = str(keep[-1][0])[:10]
     if gone:
-        META['notes'].append('Twelve Data: bez świec we wspólnym kalendarzu: ' + ', '.join(sorted(gone)))
+        META['notes'].append(f'{etykieta}: bez świec we wspólnym kalendarzu: ' + ', '.join(sorted(gone)))
     if n:
-        META['notes'].append(f'Twelve Data: świece spoza wspólnego kalendarza sesji pominięte: {n}')
+        META['notes'].append(f'{etykieta}: świece spoza wspólnego kalendarza sesji pominięte: {n}')
     return n
 
 
@@ -722,6 +723,62 @@ def build_prices(key):
     for s, v in q.items():
         print(f'{s}: {len(v["d"])} świec, ostatnia {v["asof"]} close {v["d"][-1][1]}')
     return {'at': NOW, 'src': 'Twelve Data', 'plan': 'basic', 'asof': asof, 'q': q}
+
+
+CENY_ZAPAS_ETYKIETA = 'Ceny (mapa GLOBAL, zapas)'
+
+
+def ceny_z_swiata(sd):
+    """v269: zapas ceny.json z ostatniego pliku Świat dziennie (zamknięcia sesji w USA z giełdy Nasdaq, bez klucza — zbieracz pobiera je i tak
+    dla TRENDÓW): 14 funduszy DAY_SYMS, ostatnie TD_OUTPUT sesji, wiersze [dzień, zamknięcie, None] (bez obrotu), wspólny kalendarz; za mało
+    symboli albo świec — wyjątek (jak build_prices). → słownik jak build_prices z 'zapas': True."""
+    px = sd.get('px') if isinstance(sd, dict) and isinstance(sd.get('px'), dict) else {}
+    q = {}
+    for s in DAY_SYMS:
+        rec = px.get(s) if isinstance(px.get(s), dict) else {}
+        m = {}
+        for r in (rec.get('d') if isinstance(rec.get('d'), list) else []):
+            if isinstance(r, list) and len(r) >= 3 and isinstance(r[0], str) and re.match(r'^\d{4}-\d{2}-\d{2}$', r[0]) \
+                    and isinstance(r[2], (int, float)) and not isinstance(r[2], bool) and 0 < r[2] < float('inf'):
+                m[r[0]] = r[2]
+        d = [[k, m[k], None] for k in sorted(m)][-TD_OUTPUT:]
+        if d:
+            q[s] = {'asof': d[-1][0], 'd': d}
+    _align_calendar(q, CENY_ZAPAS_ETYKIETA)
+    good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
+    if len(good) < TD_MIN_SYMBOLS:
+        raise RuntimeError(f'tylko {len(good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec w pliku Świat dziennie')
+    dates = sorted({v['asof'] for v in q.values()})
+    asof = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
+    return {'at': NOW, 'src': 'Nasdaq', 'plan': 'zapas', 'asof': asof, 'q': q, 'zapas': True}
+
+
+def _ceny_ost(c):
+    """v269: ostatnia sesja pliku cen (wg SPY, inaczej najnowsza z asof); brak = ''."""
+    q = c.get('q') if isinstance(c, dict) and isinstance(c.get('q'), dict) else {}
+    s = q.get('SPY') if isinstance(q.get('SPY'), dict) else None
+    if s and isinstance(s.get('d'), list) and s['d'] and isinstance(s['d'][-1], list):
+        return str(s['d'][-1][0])[:10]
+    return max((str(v.get('asof') or '')[:10] for v in q.values() if isinstance(v, dict)), default='')
+
+
+def ceny_zapas(prev, why):
+    """v269: Twelve Data zawiódł albo brak klucza — ceny.json z zapasu (plik Świat dziennie, giełda bez klucza), gdy ma nowszą sesję niż
+    poprzedni plik; inaczej poprzedni plik (jak dotąd). Notatka w meta z przyczyną."""
+    try:
+        sd = _prev_cache('swiat-dzien')   # najpierw pamięć Actions (bez pobierania ok. 7 MB ze strony), potem poprzedni plik
+        z = ceny_z_swiata(sd if isinstance(sd, dict) else previous('swiat-dzien'))
+    except Exception as e:  # noqa — zapasu brak (np. pierwszy przebieg albo plik Świat dziennie bez cen) — poprzedni plik jak dotąd
+        z = None
+        META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: niedostępny ({str(e)[:80]})'))
+    if z is not None and _ceny_ost(z) > _ceny_ost(prev):
+        z['zapas_dlaczego'] = mask(str(why)[:120])
+        save('ceny', z)
+        META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: {str(why)[:80]} — zamknięcia sesji z giełdy (bez klucza) do {_ceny_ost(z)}'))
+        print('CENY: zapas z pliku Świat dziennie do', _ceny_ost(z))
+    elif prev:
+        save('ceny', prev)
+        print('CENY: zachowano poprzedni ceny.json z', prev.get('at'))
 
 
 def build_day(key):
@@ -19289,7 +19346,7 @@ def main():
     else:
         META['errors'].append('brak FINNHUB_KEY'); META['ok']['finnhub'] = False
     # CENY (okresy 1T i 1M, Twelve Data, klucz właściciela): najwyżej raz na godzinę — 24 × 14 kredytów = 336 z 800 dziennie
-    prev_ceny = previous('ceny') if td_key else None
+    prev_ceny = previous('ceny')   # v269: także bez klucza — zapas cen porównuje się z poprzednim plikiem
     if td_key and prev_ceny and fresh(prev_ceny, 55):
         save('ceny', prev_ceny); META['ok']['twelvedata'] = 'cached'; print('CENY: dane z', prev_ceny.get('at'), '— młodsze niż 55 min, bez zapytań do Twelve Data')
     elif td_key:
@@ -19297,9 +19354,10 @@ def main():
             save('ceny', build_prices(td_key)); META['ok']['twelvedata'] = True
         except Exception as e:
             META['errors'].append(mask(f'Twelve Data: {e}')); META['ok']['twelvedata'] = False
-            if prev_ceny: save('ceny', prev_ceny); print('Twelve Data zawiódł — zachowano poprzedni ceny.json z', prev_ceny.get('at'))
+            ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}')   # v269: zamknięcia z giełdy (bez klucza), gdy nowsze — inaczej poprzedni plik
     else:
         META['errors'].append('brak TWELVEDATA_KEY'); META['ok']['twelvedata'] = False
+        ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')   # v269: mapa GLOBAL działa także bez klucza
     # CMC (CoinMarketCap, klucz właściciela): global metrics co przebieg (limit planu Basic: 10 000 kredytów/mies.; 72/dzień)
     if cmc_key:
         try:

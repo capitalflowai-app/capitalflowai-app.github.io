@@ -379,9 +379,10 @@ class MainFlowPrices(unittest.TestCase):
     def test_missing_key_is_reported_and_no_file_is_written(self):
         env = {'SOSOVALUE_KEY': '', 'FINNHUB_KEY': '', 'COINGECKO_KEY': '', 'TWELVEDATA_KEY': '', 'COINMARKETCAP_KEY': ''}
         with mock.patch.dict(os.environ, env, clear=False), \
-             mock.patch.object(zd, 'previous', lambda name: (_raise() if name == 'ceny' else None)):
+             mock.patch.object(zd, 'previous', lambda name: None):   # v269: bez klucza — zapas z pliku Świat dziennie (tu go brak)
             zd.main()
         self.assertNotIn('ceny', self.saved)
+        self.assertTrue(any(n.startswith('Ceny (mapa GLOBAL, zapas): niedostępny') for n in zd.META['notes']))
         self.assertIn('brak TWELVEDATA_KEY', zd.META['errors'])
         self.assertIs(zd.META['ok']['twelvedata'], False)
 
@@ -29318,4 +29319,63 @@ class PoPrzegladzieV268(unittest.TestCase):
         self.assertIn('(1 token) najwyżej 389 USD (<0.001% wartości) ℹ️', opis(1, 389))
         self.assertIn('(22 tokeny) najwyżej 12.0 tys. USD (0.001% wartości) ℹ️', opis(22, 12000))
         self.assertIn('(271 tokenów)', opis(271, 1134623))
+
+
+# ===================== v269: CENY MAPY GLOBAL — ZAPAS Z PLIKU ŚWIAT DZIENNIE (GIEŁDA, BEZ KLUCZA) =====================
+class CenyZapasV269(unittest.TestCase):
+    """v269: Twelve Data zawiedzie albo brak klucza → ceny.json z zamknięć pliku Świat dziennie (14 funduszy mapy), gdy nowsze niż poprzedni plik."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    @staticmethod
+    def _sd(dni=30, ost='2026-10-05', bez=()):
+        d0 = datetime.date.fromisoformat(ost)
+        cal = []
+        x = d0
+        while len(cal) < dni:
+            if x.weekday() < 5:
+                cal.append(x.isoformat())
+            x -= datetime.timedelta(days=1)
+        cal = sorted(cal)
+        px = {s: {'d': [[d, 99.0, 100.0 + i + j, '2026-10-06T01:07:00Z'] for j, d in enumerate(cal)], 'miss': [], 'seed': 'full'}
+              for i, s in enumerate(zd.DAY_SYMS) if s not in bez}
+        if 'SPY' in px:
+            px['SPY']['d'].append(['2026-09-01', 1.0, None, 'x'])   # wiersz bez zamknięcia — pominięty (brak, nie zero)
+        return {'at': '2026-10-06T23:56:47+00:00', 'px': px, 'cal': cal}
+
+    def test_z_pliku_swiata(self):
+        c = zd.ceny_z_swiata(self._sd())
+        self.assertEqual(sorted(c['q']), sorted(zd.DAY_SYMS)); self.assertEqual((c['asof'], c['zapas'], c['src']), ('2026-10-05', True, 'Nasdaq'))
+        self.assertEqual(c['q']['SPY']['d'][-1], ['2026-10-05', 129.0, None]); self.assertEqual(len(c['q']['SPY']['d']), 30)
+        self.assertFalse(any(r[1] is None for r in c['q']['SPY']['d']), 'wiersz bez zamknięcia pominięty')
+        with self.assertRaises(RuntimeError):
+            zd.ceny_z_swiata(self._sd(dni=10))
+        with self.assertRaises(RuntimeError):
+            zd.ceny_z_swiata(self._sd(bez=zd.DAY_SYMS[:5]))
+        with self.assertRaises(RuntimeError):
+            zd.ceny_z_swiata(None)
+
+    def test_wybor_nowszego(self):
+        saved = {}
+        prev = {'at': '2026-10-05T23:00:00+00:00', 'q': {'SPY': {'asof': '2026-10-02', 'd': [['2026-10-02', 770.58, 1]]}}}
+        with mock.patch.object(zd, 'previous', lambda n: self._sd() if n == 'swiat-dzien' else None), mock.patch.object(zd, '_prev_cache', lambda n: None), \
+                mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            zd.ceny_zapas(prev, 'Twelve Data: HTTP 401')
+        self.assertTrue(saved['ceny']['zapas']); self.assertEqual(saved['ceny']['zapas_dlaczego'], 'Twelve Data: HTTP 401')
+        self.assertTrue(any('Twelve Data: HTTP 401 — zamknięcia sesji z giełdy (bez klucza) do 2026-10-05' in n for n in zd.META['notes']))
+        saved.clear(); zd.META['notes'].clear()
+        prev2 = {'at': '2026-10-06T23:00:00+00:00', 'q': {'SPY': {'asof': '2026-10-06', 'd': [['2026-10-06', 779.09, 1]]}}}
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, '_prev_cache', lambda n: self._sd() if n == 'swiat-dzien' else None), \
+                mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            zd.ceny_zapas(prev2, 'brak TWELVEDATA_KEY')   # pamięć Actions zamiast pobierania ze strony
+        self.assertIs(saved['ceny'], prev2, 'poprzedni plik ma nowszą sesję — zostaje')
+        saved.clear(); zd.META['notes'].clear()
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, '_prev_cache', lambda n: None), \
+                mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            zd.ceny_zapas(None, 'brak TWELVEDATA_KEY')
+        self.assertEqual(saved, {}); self.assertTrue(any(n.startswith('Ceny (mapa GLOBAL, zapas): niedostępny') for n in zd.META['notes']))
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertIn("ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}')", src); self.assertIn("ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')", src)
 
