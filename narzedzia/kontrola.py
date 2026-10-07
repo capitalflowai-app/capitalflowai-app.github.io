@@ -87,6 +87,9 @@ CP_TICKER = 'https://api.coinpaprika.com/v1/tickers/{id}?quotes=USD'
 ZG_DNI = 30          # mediana z ostatnich 30 dni różnicy kapitalizacji
 ZG_MIN = 7           # do zebrania tylu dni historii — tylko informacja, bez koloru
 ZG_ZOLTE, ZG_CZERWONE = 2.0, 5.0   # pkt proc. odchylenia od mediany
+ZG_CMC_MAX_MIN = 30   # v277: min — plik cmc.json starszy niż tyle od chwili kontroli = bez rozstrzygania (inna chwila rynku)
+ZG_CMC_ROZ = 1.0      # v277: pkt proc. — różnica CoinMarketCap/CoinGecko w swojej normie (mediana dni) = oba źródła strony zgodne jak zwykle
+ZG_CMC_BEZ = 1.5      # v277: % — bez historii tej różnicy (< ZG_MIN dni): oba źródła strony zgodne, gdy |różnica| mniejsza
 
 # v209: podaż stablecoinów — dwa pliki strony (bez zapytań); rentowność 10L USA — plik strony vs H.15 (FRED, bez klucza)
 STAB_ZOLTE = 2.0     # pkt proc. — odchylenie dzisiejszej różnicy (DefiLlama vs CoinMarketCap) od mediany ZG_DNI dni = ⚠️ (nigdy ❌)
@@ -987,11 +990,11 @@ def wycena_mvrv(j):
 
 
 # ---------------------------------------------------------------- v115: zgodność liczb ----------------------------------------------------------------
-ZG_KOL = ['date', 'cap_gap_pct', 'tga_gap_pct', 'stab_gap_pct']   # kontrola/zgodnosc.csv: tylko różnice procentowe (bez wartości źródeł); puste pole = brak odczytu (v209: + stablecoiny)
+ZG_KOL = ['date', 'cap_gap_pct', 'tga_gap_pct', 'stab_gap_pct', 'cmc_gap_pct']   # kontrola/zgodnosc.csv: tylko różnice procentowe (bez wartości źródeł); puste pole = brak odczytu (v209: + stablecoiny)
 
 
 def zgodnosc_csv(path):
-    """{dzień: {'cap': %, 'tga': %, 'stab': %}} — pusta komórka albo brak kolumny (plik sprzed v209) = brak (klucz pominięty)."""
+    """{dzień: {'cap': %, 'tga': %, 'stab': %, 'cmc': %}} — pusta komórka albo brak kolumny (plik sprzed v209/v277) = brak (klucz pominięty)."""
     rows = {}
     if os.path.exists(path):
         with open(path, encoding='utf-8', newline='') as f:
@@ -999,7 +1002,7 @@ def zgodnosc_csv(path):
             for row in r:
                 if len(row) >= 2 and row[0] != 'date':
                     rec = {}
-                    for i, kk in ((1, 'cap'), (2, 'tga'), (3, 'stab')):
+                    for i, kk in ((1, 'cap'), (2, 'tga'), (3, 'stab'), (4, 'cmc')):
                         try:
                             rec[kk] = float(row[i])
                         except (ValueError, IndexError):
@@ -1012,7 +1015,7 @@ def zgodnosc_zapisz(path, rows):
     with open(path, 'w', encoding='utf-8', newline='') as f:
         wtr = csv.writer(f, lineterminator='\n'); wtr.writerow(ZG_KOL)
         for d in sorted(rows):
-            wtr.writerow([d] + [('%.3f' % rows[d][kk]) if isinstance(rows[d].get(kk), (int, float)) else '' for kk in ('cap', 'tga', 'stab')])
+            wtr.writerow([d] + [('%.3f' % rows[d][kk]) if isinstance(rows[d].get(kk), (int, float)) else '' for kk in ('cap', 'tga', 'stab', 'cmc')])
 
 
 def mediana_ocena(rows, kk, gap, today, zolte, czerwone):
@@ -1031,6 +1034,38 @@ def mediana_ocena(rows, kk, gap, today, zolte, czerwone):
 
 def kapitalizacja(rows, gap, today):
     return mediana_ocena(rows, 'cap', gap, today, ZG_ZOLTE, ZG_CZERWONE)
+
+
+def cmc_roznica(cmc, cg, now):
+    """v277: różnica kapitalizacji z pliku cmc.json strony wobec CoinGecko z chwili kontroli, % ((cmc − cg) / cg × 100) — None, gdy brak liczby
+    albo plik starszy niż ZG_CMC_MAX_MIN min (inna chwila rynku)."""
+    try:
+        v, t = cmc.get('total_mcap'), dt.datetime.fromisoformat(str(cmc.get('at')).replace('Z', '+00:00'))
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not v > 0 or not t.tzinfo or not float(cg) > 0:
+            return None
+        if abs((now - t).total_seconds()) > ZG_CMC_MAX_MIN * 60:
+            return None
+        return round((float(v) - float(cg)) / float(cg) * 100.0, 3)
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def kapitalizacja_trzecie(rows, st, opis, d_cmc, today):
+    """v277: ⚠️/❌ różnicy CoinGecko–CoinPaprika rozstrzygane trzecim źródłem strony (CoinMarketCap, cmc_roznica): CoinMarketCap wobec
+    CoinGecko w swojej normie (mediana ostatnich ZG_DNI dni, gdy ≥ ZG_MIN; inaczej |różnica| < ZG_CMC_BEZ) = oba źródła strony zgodne jak zwykle
+    — odstaje źródło kontrolne → ℹ️ z opisem; inaczej status bez zmian (z dopiskiem). → (status, opis)."""
+    if st not in ('⚠️', '❌') or d_cmc is None:
+        return st, opis
+    hist = [v['cmc'] for d, v in sorted(rows.items()) if d < today and isinstance(v.get('cmc'), (int, float))][-ZG_DNI:]
+    if len(hist) >= ZG_MIN:
+        med = statistics.median(hist)
+        zgodne, norma = abs(d_cmc - med) < ZG_CMC_ROZ, f'norma {med:+.2f}%'
+    else:
+        zgodne, norma = abs(d_cmc) < ZG_CMC_BEZ, f'bez normy — próg ±{ZG_CMC_BEZ:g}%'
+    if zgodne:
+        return 'ℹ️', (f'{opis}; odstaje źródło kontrolne (CoinPaprika) — dwa źródła strony zgodne jak zwykle: CoinMarketCap wobec CoinGecko '
+                      f'{d_cmc:+.2f}% ({norma}); liczby strony bez zmian')
+    return st, f'{opis}; CoinMarketCap wobec CoinGecko też odstaje: {d_cmc:+.2f}% ({norma})'
 
 
 def procent(a, b):
@@ -3811,15 +3846,20 @@ def kontrola():
     zg_path = os.path.join(OUT_DIR, 'zgodnosc.csv')
     rows = zgodnosc_csv(zg_path)
     rows.setdefault(today, {})
-    gap = None
+    gap, d_cmc = None, None
     try:
         cg = get_json(CG_GLOBAL)['data']['total_market_cap']['usd']; cp = get_json(CP_GLOBAL)['market_cap_usd']
         gap = round((float(cp) - float(cg)) / float(cg) * 100.0, 3)
         rows[today]['cap'] = gap
+        d_cmc = cmc_roznica(files.get('cmc') if isinstance(files.get('cmc'), dict) else {}, cg, NOW)   # v277: trzecie źródło (plik strony)
+        if d_cmc is not None:
+            rows[today]['cmc'] = d_cmc
     except Exception as e:  # noqa
         Z['kapitalizacja_blad'] = str(e)[:120]; R['uwagi'].append(f'zgodność kapitalizacji: brak odczytu ({str(e)[:80]})')
     st, med, n, opis = kapitalizacja(rows, gap, today)
-    Z['kapitalizacja'] = {'status': st, 'dzis_pct': gap, 'mediana_pct': (round(med, 3) if med is not None else None), 'dni': n, 'opis': opis}
+    st, opis = kapitalizacja_trzecie(rows, st, opis, d_cmc, today)   # v277: odstaje źródło kontrolne, gdy oba źródła strony zgodne — ℹ️
+    Z['kapitalizacja'] = {'status': st, 'dzis_pct': gap, 'mediana_pct': (round(med, 3) if med is not None else None), 'dni': n, 'opis': opis,
+                          'cmc_pct': d_cmc}
     if st == '❌':
         R['bledy'].append(f'kapitalizacja krypto: różnica źródeł dziś {gap:.2f}% wobec normy {med:.2f}% — {opis}')
     elif st == '⚠️':

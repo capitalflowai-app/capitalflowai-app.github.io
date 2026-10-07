@@ -11208,7 +11208,7 @@ class KontrolaV115(unittest.TestCase):
         self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', k.TGA_PROG, None)[0], '✅'); self.assertEqual(k.mediana_ocena(tg, 'tga', 4.3, '2026-09-26', k.TGA_PROG, None)[0], '⚠️')
         self.assertEqual(k.mediana_ocena(tg, 'tga', 9.9, '2026-09-26', k.TGA_PROG, None)[0], '⚠️', 'TGA nigdy nie jest czerwone'); self.assertEqual(k.mediana_ocena(tg, 'tga', 3.5, '2026-09-26', 1.0, None)[2], 10)
         p = os.path.join(self.tmp, 'zgodnosc.csv'); k.zgodnosc_zapisz(p, {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})
-        self.assertEqual(open(p, encoding='utf-8').read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct\n2026-09-25,4.361,3.050,\n2026-09-26,4.400,,\n'); self.assertEqual(k.zgodnosc_csv(p), {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})   # v209: + kolumna stablecoinów; v215: druga asercja znowu działa
+        self.assertEqual(open(p, encoding='utf-8').read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct,cmc_gap_pct\n2026-09-25,4.361,3.050,,\n2026-09-26,4.400,,,\n');   # v277: + cmc self.assertEqual(k.zgodnosc_csv(p), {'2026-09-25': {'cap': 4.361, 'tga': 3.05}, '2026-09-26': {'cap': 4.4}})   # v209: + kolumna stablecoinów; v215: druga asercja znowu działa
 
     def test_tga_i_wieloryby(self):
         k = self.k
@@ -25436,7 +25436,7 @@ class KontrolaPorownaniaV209(unittest.TestCase):
         p = os.path.join(self.tmp, 'zgodnosc.csv')
         k.zgodnosc_zapisz(p, {'2026-10-05': {'cap': 4.3, 'tga': 3.0}, '2026-10-06': {'cap': 4.27, 'stab': 9.523}})
         with open(p, encoding='utf-8') as f:
-            self.assertEqual(f.read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct\n2026-10-05,4.300,3.000,\n2026-10-06,4.270,,9.523\n')
+            self.assertEqual(f.read(), 'date,cap_gap_pct,tga_gap_pct,stab_gap_pct,cmc_gap_pct\n2026-10-05,4.300,3.000,,\n2026-10-06,4.270,,9.523,\n')   # v277: + cmc
         self.assertEqual(k.zgodnosc_csv(p), {'2026-10-05': {'cap': 4.3, 'tga': 3.0}, '2026-10-06': {'cap': 4.27, 'stab': 9.523}})
         with open(p, 'w', encoding='utf-8') as f:
             f.write('date,cap_gap_pct,tga_gap_pct\n2026-10-05,4.300,3.000\n')
@@ -25526,7 +25526,7 @@ class KontrolaPorownaniaV209(unittest.TestCase):
                 return R, f.read()
         R, csv_out = run()
         self.assertEqual(R['zgodnosc']['stablecoiny']['roznica_pct'], 9.523); self.assertEqual(R['zgodnosc']['stablecoiny']['status'], 'ℹ️')
-        self.assertIn(',9.523\n', csv_out, 'różnica zapisana do historii')
+        self.assertIn(',9.523,\n', csv_out, 'różnica zapisana do historii')   # v277: + pusta kolumna cmc
         self.assertEqual(R['zgodnosc']['ust10'], {'porownane': 2, 'do': '2026-10-02', 'roznice': [['2026-10-02', 5.33, 5.28, 0.05]], 'zrodlo': 'FRED'}, 'v211: wydawca niedostępny — zapas')
         self.assertTrue(any(u.startswith('rentowność 10L USA: plik strony vs H.15 różnią się') and '2026-10-02: 5.33 vs 5.28' in u for u in R['uwagi']), R['uwagi'])
         self.assertTrue(any('fredgraph.csv?id=DGS10&cosd=2026-09-15' in c for c in calls), calls)
@@ -29971,3 +29971,39 @@ class KryptoCzesciV276(unittest.TestCase):
         import inspect
         self.assertIn("save('krypto', build_krypto(cg_key, prev_kr))", inspect.getsource(zd.main))
         self.assertEqual(zd.KR_ZAPAS_CZESCI, ('fng', 'mk', 'stabh', 'stabc'))
+
+
+# ===================== v277: KONTROLA — ROZBIEŻNOŚĆ KAPITALIZACJI ROZSTRZYGANA TRZECIM ŹRÓDŁEM =====================
+class KapitalizacjaTrzecieV277(unittest.TestCase):
+    """v277: przy ⚠️/❌ różnicy CoinGecko–CoinPaprika kontrola patrzy na CoinMarketCap z pliku strony — gdy oba źródła strony zgodne jak
+    zwykle, odstaje źródło kontrolne (ℹ️, nie uwaga i nie błąd); gdy CoinMarketCap też odstaje — status bez zmian; różnica CMC w zgodnosc.csv."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v277_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        self.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(self.k)
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def test_rozstrzygniecie(self):
+        k = self.k
+        now = datetime.datetime(2026, 10, 7, 2, 9, tzinfo=datetime.timezone.utc)
+        cmc = {'at': '2026-10-07T02:07:35+00:00', 'total_mcap': 2853707426510.2}
+        d = k.cmc_roznica(cmc, 2864500000000.0, now)
+        self.assertAlmostEqual(d, -0.377, places=3)   # 07.10 02:09: CoinMarketCap wobec CoinGecko
+        self.assertIsNone(k.cmc_roznica(dict(cmc, at='2026-10-07T01:30:00+00:00'), 2.8645e12, now), 'plik sprzed 39 min — inna chwila rynku')
+        self.assertIsNone(k.cmc_roznica({'at': 'x', 'total_mcap': 1.0}, 2.8645e12, now)); self.assertIsNone(k.cmc_roznica({}, 2.8645e12, now))
+        rows = {'2026-10-0%d' % i: {'cap': 4.3} for i in range(1, 7)}
+        st, opis = k.kapitalizacja_trzecie(rows, '⚠️', 'odchylenie od mediany 3.30 pkt proc. (progi 2 / 5)', d, '2026-10-07')
+        self.assertEqual(st, 'ℹ️'); self.assertIn('odstaje źródło kontrolne (CoinPaprika)', opis); self.assertIn('bez normy — próg ±1.5%', opis)
+        self.assertEqual(k.kapitalizacja_trzecie(rows, '❌', 'x', -2.4, '2026-10-07')[0], '❌', 'CoinMarketCap też odstaje — może się mylić strona')
+        self.assertEqual(k.kapitalizacja_trzecie(rows, '✅', 'x', -2.4, '2026-10-07'), ('✅', 'x')); self.assertEqual(k.kapitalizacja_trzecie(rows, '⚠️', 'x', None, '2026-10-07'), ('⚠️', 'x'))
+        # z normą (≥ 7 dni): zwykle CMC −1,9% wobec CoinGecko — dziś −2,1% = w normie (rozstrzygnięte); dziś −0,4% = poza normą (bez zmian)
+        hist = {'2026-09-%02d' % i: {'cap': 4.3, 'cmc': -1.9} for i in range(20, 30)}
+        self.assertEqual(k.kapitalizacja_trzecie(hist, '⚠️', 'x', -2.1, '2026-10-07')[0], 'ℹ️')
+        self.assertEqual(k.kapitalizacja_trzecie(hist, '⚠️', 'x', -0.4, '2026-10-07')[0], '⚠️')
+        p = os.path.join(self.tmp, 'zg.csv'); k.zgodnosc_zapisz(p, {'2026-10-07': {'cap': 7.627, 'cmc': -0.377}})
+        self.assertEqual(k.zgodnosc_csv(p), {'2026-10-07': {'cap': 7.627, 'cmc': -0.377}})
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertIn("st, opis = kapitalizacja_trzecie(rows, st, opis, d_cmc, today)", src)
+        self.assertLess(src.index("st, opis = kapitalizacja_trzecie("), src.index("    if st == '❌':\n        R['bledy'].append(f'kapitalizacja krypto:"), 'rozstrzygnięcie przed uwagą/błędem')
