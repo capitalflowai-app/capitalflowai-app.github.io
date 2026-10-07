@@ -278,7 +278,7 @@ test('FRED: zmiana procentowa indeksu dolara liczona tylko z liczb; za krótka s
 
 test('FRED: strona czyta fred.json z serwera, pokazuje cztery serie Fed; v126.2: bez podpisu FRED i noty API', () => {
   assert.ok(html.includes("srvJSON('fred')"), 'plik automatu');
-  for (const k of ['WALCL', 'RRPONTSYD', 'DTWEXBGS', 'WTREGEN']) assert.ok(html.includes(`sr('${k}')`), k);
+  for (const k of ['WALCL', 'RRPONTSYD', 'DTWEXBGS', 'WDTGAL']) assert.ok(html.includes(`sr('${k}')`), k);   // v293 (audyt G2): TGA = stan na środę (WDTGAL), nie średnia tygodnia (WTREGEN)
   assert.ok(!/sr\('(SP500|VIXCLS|BAMLH0A0HYM2)'\)/.test(html), 'tylko serie Fed');
   const d0 = html.indexOf('const EXTRA31='), d1 = html.indexOf(';\n', d0);
   const dict = JSON.parse(html.slice(d0 + 'const EXTRA31='.length, d1));
@@ -3477,7 +3477,7 @@ test('v103-zrodla: karta stanu — plakietka NA ŻYWO, zegar, czas odświeżenia
   assert.ok(out.includes('<section class="panel zr-live">') && out.includes('<span class="live on"><i></i>NA ŻYWO</span>'), 'plakietka');
   const ck = out.match(/<b id="zr-clock" class="zr-clock">([^<]*)<\/b>/); assert.ok(ck && /\d/.test(ck[1]) && ck[1].includes(', '), 'zegar wypełniony od razu: ' + (ck && ck[1]));
   assert.ok(out.includes('Dane na serwerze odświeżone: <b>ED[' + v103zr.FRESH + ']</b> · AGE[' + v103zr.FRESH + '] (co 10 minut, automatycznie)'), 'czas pliku meta + wiek danych: ' + out.slice(out.indexOf('Dane na serwerze'), out.indexOf('Dane na serwerze') + 160));
-  assert.ok(out.includes('<p class="zr-count">W ostatnim przebiegu odpowiedziało 2 z 3 źródeł danych</p>'), 'true i cached = odpowiedź, false = brak');
+  assert.ok(out.includes('<p class="zr-count">Źródła danych bez błędu: 2 z 3</p>') && out.includes('W ostatnim przebiegu automat zapytał 1 z nich; 1 — '), 'true i cached = bez błędu, false = błąd; v293 (audyt G8): osobno zapytane i z pamięci');
   assert.deepEqual(R.zrCount({ok: {a: true, b: 'cached', c: false}}), {n: 2, m: 3});
   assert.ok(out.includes(v103zr.dict.pl['zr2.legal']) && out.includes('legalnych, publicznie dostępnych źródeł danych') && out.includes('publicznych sieci blockchain'), 'zdanie właściciela');
   assert.ok(out.includes('brak danych jest pokazywany jako „—”, nigdy jako zero'), 'nota o brakach');
@@ -3497,15 +3497,15 @@ test('v103-zrodla: bez pliku meta „—” z powodem i bez linii liczby źróde
     const out = v103zr.render('pl', meta).out, other = why === NOMETA ? NOAT : NOMETA;
     assert.ok(out.includes('Dane na serwerze odświeżone: <b class="na">—</b> (co 10 minut, automatycznie)'), 'bez czasu: ' + JSON.stringify(meta));
     assert.ok(out.includes('<p class="zr-count">' + why + '</p>') && !out.includes(other) && !out.includes('ED[') && !out.includes('AGE['), 'właściwy powód zamiast zmyślonego czasu: ' + JSON.stringify(meta) + ' → ' + out.slice(out.indexOf('<p class="zr-count">'), out.indexOf('<p class="zr-count">') + 90));
-    assert.ok(!out.includes('W ostatnim przebiegu'), 'liczba źródeł tylko z datowanego pliku: ' + JSON.stringify(meta));
+    assert.ok(!out.includes('Źródła danych bez błędu') && !out.includes('W ostatnim przebiegu'), 'liczba źródeł tylko z datowanego pliku: ' + JSON.stringify(meta));   // v293 (audyt G8): nowy tekst licznika
     assert.ok(out.includes('NA ŻYWO') && out.includes('id="zr-clock"') && out.includes(v103zr.dict.pl['zr2.legal']) && !out.includes('Data by CoinGecko') && !out.includes('zr-attr2'), 'reszta karty zostaje (v126.2: bez sekcji podpisów)');
   }
   const noOk = v103zr.render('pl', {at: v103zr.FRESH}).out;   // plik z czasem, ale bez ok: czas jest, liczba źródeł pominięta bez ostrzeżenia
-  assert.ok(noOk.includes('<b>ED[' + v103zr.FRESH + ']</b>') && !noOk.includes('W ostatnim przebiegu') && !noOk.includes(NOMETA) && !noOk.includes(NOAT), 'czas bez ok');
-  assert.ok(!v103zr.render('pl', {at: v103zr.FRESH, ok: {}}).out.includes('W ostatnim przebiegu'), 'pusty ok — bez „0 z 0”');
+  assert.ok(noOk.includes('<b>ED[' + v103zr.FRESH + ']</b>') && !noOk.includes('Źródła danych bez błędu') && !noOk.includes(NOMETA) && !noOk.includes(NOAT), 'czas bez ok');
+  assert.ok(!v103zr.render('pl', {at: v103zr.FRESH, ok: {}}).out.includes('Źródła danych bez błędu'), 'pusty ok — bez „0 z 0”');   // v293 (audyt G8): nowy tekst licznika
   const old = new Date(Date.now() - 30 * 3600e3).toISOString(), so = v103zr.render('pl', {at: old, ok: {a: true}}).out;
   assert.ok(so.includes('<b class="neu">ED[' + old + ']</b> · AGE[' + old + ']') && so.includes('<p class="zr-count neu">Ostatni przebieg automatu jest starszy niż 1 godz.'), 'stary plik: czas na bursztynowo i ostrzeżenie');
-  assert.ok(so.includes('W ostatnim przebiegu odpowiedziało 1 z 1 źródeł danych') && !so.includes(NOMETA) && !so.includes(NOAT));
+  assert.ok(so.includes('Źródła danych bez błędu: 1 z 1') && !so.includes(NOMETA) && !so.includes(NOAT));
   const R = v103zr.render('pl', null);
   assert.equal(R.zrCount(null), null); assert.equal(R.zrCount({}), null); assert.equal(R.zrCount({ok: {}}), null); assert.equal(R.zrCount({ok: 'x'}), null); assert.equal(R.zrCount({ok: []}), null);
   assert.deepEqual(R.zrCount({ok: {a: false}}), {n: 0, m: 1}, 'zero odpowiedzi to prawdziwa liczba, nie brak');
@@ -3552,7 +3552,7 @@ test('v103-zrodla (v126.2): strona Źródła = sama karta stanu — bez sekcji �
   const PROV = /Etherscan|EODHD|Tiingo|SoSoValue|Twelve Data|Finnhub|OECD|Bundesbank|CoinMarketCap|DefiLlama|CoinPaprika|CoinGecko|Coin ?Metrics|FRED|Massive|Alpha Vantage|FMP|CryptoPanic|PublicNode|Frankfurter|Eurostat|Coinalyze|Binance|Trading ?View|Statistics Canada|New York Fed|Banco de México|Alternative\.me|\bSNB\b|EVDS|\bBIS\b|\bMFW\b|\bIMF\b|Creative Commons|CC BY|country-flag-icons|web3icons|cryptocurrency-icons/;
   assert.ok(!PROV.test(out), 'strona Źródła bez nazw: ' + (out.match(PROV) || [''])[0]);
   assert.ok(!out.includes('zr-attr2') && !out.includes('<h2>') && !out.includes('<a ') && !out.includes('<br>'), 'bez sekcji podpisów i bez linków');
-  assert.ok(out.includes('NA ŻYWO') && out.includes('id="zr-clock"') && out.includes('W ostatnim przebiegu odpowiedziało 2 z 2 źródeł danych') && out.includes(v103zr.dict.pl['zr2.legal']), 'karta stanu zostaje');
+  assert.ok(out.includes('NA ŻYWO') && out.includes('id="zr-clock"') && out.includes('Źródła danych bez błędu: 2 z 2') && out.includes(v103zr.dict.pl['zr2.legal']), 'karta stanu zostaje');
   for (const L of v103zr.L10) { const o = v103zr.render(L, {at: v103zr.FRESH, ok: {a: true}}).out; assert.ok(!PROV.test(o) && !o.includes('zr-attr2'), L + ': ' + (o.match(PROV) || [''])[0]); }
   for (const s of ['function zrCredits(', 'const SNB_CREDIT=', 'function snbCredit(', 'const TR_CREDIT=', 'function trCredit(', 'zr-attr2', 'https://www.banxico.org.mx/', 'evds3.tcmb.gov.tr', 'data.snb.ch/en', 'data.binance.vision', 'https://coinalyze.net'])
     assert.ok(!html.includes(s), 'v126.2 usunięte: ' + s);
@@ -3864,7 +3864,7 @@ test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od począ
   assert.ok(!body.includes('ix.c.date'), 'data i wiek w wierszu pod nazwą, nie w osobnej kolumnie');
   const one = X.ixBody({at: 'x', ix: {GSPC: {d: rows}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 2, bad: 403}}});
   assert.ok(one.includes('ix.k.best') && one.includes('ix.k.ybest') && !one.includes('ix.k.worst') && !one.includes('ix.k.yworst'), 'jeden indeks z wartością: bez kafli „najsłabszy” (nie ten sam indeks dwa razy)');
-  assert.ok(one.includes('ix.k.upv{"n":"1","m":"1"}') && one.includes('ix.bad{"d":"') && one.includes('2026') && (one.match(/ix\.nodata/g) || []).length === 22, 'kod odrzucony: powód z datą; reszta „jeszcze nie pobrano”');
+  assert.ok(one.includes('ix.k.upv{"n":"1","m":"1"}') && one.includes('a293g.ix.badl{"d":"') && one.includes('2026')   /* v293 (audyt G12): bez bad_od — „ostatnia próba”, nie „od” */ && (one.match(/ix\.nodata/g) || []).length === 22, 'kod odrzucony: powód z datą; reszta „jeszcze nie pobrano”');
   assert.equal(X.ixBody({at: 'x', ix: {}}), ''); assert.equal(X.ixBody(null), '');
   assert.equal(X.ixBody({at: 'x', ix: {GSPC: {bad_at: 'x', bad_n: 1, bad: 403}, IXIC: {d: []}}}), '', 'same znaczniki przerw, żadnej serii — panel ukryty');
   const el = {hidden: false, innerHTML: 'x'}, Y = mk(q => q === '#g-indeksy' ? el : null);
@@ -12950,10 +12950,10 @@ test('v167: „ETF → krypto” w prawej kolumnie — kwoty bez końcowego „U
   assert.ok(html.includes("${t('etf.k.cum')}${typeof sepK==='function'?sepK():': '}<b class=\"${etfCls(T.cum)}\">${etfM(T.cum)}</b>"), 'suma od startu — z jednostką jak dotąd');
 });
 test('v167: archiwum — wiek danych obok daty ostatniej wartości (wykresy i kafelki); Aktywa — zmiana rentowności 10-letnich w pp; Sektory w GLOBAL — „regiony świata”', () => {
-  assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>`:'';}).join('');") && html.includes("`${t('inst.asof')} ${escH(p[0])}${gAgeNote(p[0])}`:t('eng.gap'));}"));
+  assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>`:'';}).join('');") && html.includes("`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));}")   /* v293 (audyt G2): dzień obserwacji serii tygodniowej */);
   assert.ok(html.includes("if(du)rows.push(['as.us10',n2(du.v)+'%',typeof du.d==='number'&&isFinite(du.d)?du.d:null,") && html.includes("if(dd)rows.push(['as.de10',n2(dd.v)+'%',typeof dd.d==='number'&&isFinite(dd.d)?dd.d:null,"));
-  assert.ok(html.includes("${(k==='kpi.dom'||k==='as.us10'||k==='as.de10')?' '+t('u.pp'):'%'}"), 'rentowność: zmiana w pp, nie %');
-  assert.ok(html.includes("else if(yu)rows.push(['as.us10',n2(yu[1])+'%',null,"), 'dane miesięczne (zapas) — bez zmiany, jak dotąd');
+  assert.ok(html.includes("${(k==='kpi.dom'||k==='as.us10'||k==='as.de10'||k==='as.jp10')?' '+t('u.pp'):'%'}"), 'rentowność: zmiana w pp, nie % (v293: także Japonia)');
+  assert.ok(html.includes("else if(yu)rows.push(['as.us10',n2(yu[1])+'%',ym('USA'),"), 'dane miesięczne (zapas) — v293 (audyt G11): zmiana z danych miesięcznych jak kafelek GLOBAL, nie „—”');
   assert.ok(html.includes("<h1>${t(gActive()?'pg.sectors.g':'pg.sectors')}</h1>"));
   const d0 = html.indexOf('const EXTRA167='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA167='.length, d1));
   assert.deepEqual(D, {pl: {'pg.sectors.g': 'Sektory: regiony świata'}});
@@ -14238,4 +14238,210 @@ test('v290: gFreshTxt — chwila przez engDate, dzień bez zmian; kafelek, panel
   assert.ok(html.includes("const asof=String(D.asof||'');") && html.includes("${t('inst.asof')} ${escH(typeof gFreshTxt==='function'?gFreshTxt(asof):asof)}${gAgeNote(asof)}"), 'panel CRYPTO');
   assert.ok(html.includes("k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh):"), 'stopka kafelka');
   assert.ok(html.includes("const fT=D=>escH(typeof gFreshTxt==='function'?gFreshTxt(D):D)+gAgeNote(D);"), 'tabela aktywów');
+});
+
+
+/* ===================== v293: poprawki audytu m1 — obszar GLOBAL ===================== */
+const a293gT = (k, o) => k + (o ? JSON.stringify(o) : '');
+test('v293 (audyt G1): rynki akcji — poziom = szacunek (baza z końca roku danych × zmiana cen funduszy od tej daty), ten sam w każdym okresie; kwoty mapy z tej samej bazy; bez cen — tylko zmiana', () => {
+  const g0 = html.indexOf('const GREG=['), g1 = html.indexOf('const GB_=', g0), p0 = html.indexOf('const GPROXY='), p1 = html.indexOf('let gDayBusy', p0);
+  const c0 = html.indexOf('const GCENY_N='), c1 = html.indexOf('function gCenyAt(', c0), b0 = html.indexOf('const GSAMPLE={'), b1 = html.indexOf('\n}\n', html.indexOf('function gKpis(){', b0)) + 3;
+  const e0 = html.indexOf('function gEqTot('), e1 = html.indexOf('\nfunction renderAssets(', e0);
+  assert.ok([g0, g1, p0, p1, c0, c1, b0, b1, e0, e1].every(x => x > 0) && c1 > c0 && e1 > e0, 'bloki kodu');
+  const src = html.slice(g0, g1) + html.slice(p0, p1) + html.slice(c0, c1) + html.slice(b0, b1) + html.slice(e0, e1) + '\nreturn {gBuild, gKpis, GREG, GPROXY, GEST_P, get: () => ({GDATA, GKPI})};';
+  const mk = (GLIVE, gst) => new Function('GLIVE', 'GPER', 'gst', 'GLINK', 'location', 'krStabh', 'gDaily', 'CMC', 't', 'escH', 'gOk', 'gPeriodButtons', 'LOCALE', 'LANG', 'gpct', src)(
+    GLIVE, ['1D', '1T', '1M', '1Q', '1R'], gst, null, {protocol: 'https:'}, () => null, () => null, {data: null}, a293gT, s => String(s), () => {}, () => {}, {pl: 'pl-PL'}, 'pl', v => String(v));
+  const tileFor = (f, gst, per) => { gst.period = per; f.gKpis(); return f.get().GKPI.find(k => k.k === 'g.k.eq'); };
+  // kalendarz sesji (pon.–pt.) 2025-06-02 … 2026-10-06 — obejmuje 31.12.2025, nie obejmuje 31.12.2024 (Indie: zapisane zamknięcie bazy)
+  const cal = []; for (let d = new Date(Date.UTC(2025, 5, 2)); d <= new Date(Date.UTC(2026, 9, 6)); d.setUTCDate(d.getUTCDate() + 1)) if (d.getUTCDay() % 6) cal.push(d.toISOString().slice(0, 10));
+  assert.ok(cal.includes('2025-12-31') && cal[cal.length - 1] === '2026-10-06' && cal.length > 260);
+  const SY = ['SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA'];
+  const px = (k, i) => Math.round((40 + 3 * k) * (1 + 0.0004 * (k + 1) * i) * (1 + 0.01 * Math.sin(i / 7 + k)) * 100) / 100;
+  const ceny = from => ({at: '2026-10-06T22:00:00Z', asof: '2026-10-06', q: Object.fromEntries(SY.map((s, k) => [s, {d: cal.filter(x => x >= from).map(x => [x, px(k, cal.indexOf(x)), 1000])}]))});
+  const day = Object.fromEntries(['usa', 'can', 'lat', 'eur', 'mea', 'afr', 'ind', 'chn', 'jpn', 'asean', 'oce'].map((id, i) => [id, {dp: 0.3 + 0.1 * i, syms: []}]));
+  const L0 = {st: 'ok', oecd: null, fx: null, crypto: null, stab: null, fiat: null, asof: '2026-08', src: {}, srcAt: {}, cenySrv: '2026-10-06T22:00:00Z', day, dayAt: '7.10.2026, 15:30'};
+  const close = (a, b, m) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), m + ': ' + a + ' ≠ ' + b);
+  const want = (f, GL) => {   // niezależnie od kodu strony: baza × średnia ważona (cena ostatnia ÷ cena z dnia bazy; z pliku, inaczej zapisana)
+    let sum = 0, n = 0;
+    for (const r of f.GREG) {
+      const P = f.GPROXY[r.id] || []; if (!P.length) continue;
+      const b = r.id === 'ind' ? '2024-12-31' : '2025-12-31'; let s = 0, ws = 0;
+      for (const [sy, w] of P) { const d = GL.ceny.q[sy].d, x = d.find(z => z[0] === b); s += w * d[d.length - 1][1] / (x ? x[1] : f.GEST_P[b][sy]); ws += w; }
+      close(GL.est.r[r.id].v, r.mcap * s / ws, 'szacunek regionu ' + r.id); sum += r.mcap * s / ws; n++;
+    }
+    return {sum, n};
+  };
+  // A. plik cen obejmuje dzień bazy — cena bazy z pliku (pierwszeństwo przed zapisanymi zamknięciami); Indie z bazy 2024 (zapisane zamknięcie)
+  const GA = Object.assign({}, L0, {ceny: ceny('2025-06-02')}), sA = {period: '1M'}, fA = mk(GA, sA); fA.gBuild();
+  const WA = want(fA, GA);
+  assert.equal(WA.n, 11, 'Rosja bez funduszu zastępczego — poza sumą'); assert.equal(GA.est.d, '2026-10-06'); assert.equal(GA.est.r.ind.b, '2024-12-31');
+  assert.notEqual(fA.GEST_P['2025-12-31'].SPY, GA.ceny.q.SPY.d.find(x => x[0] === '2025-12-31')[1], 'fikstura: cena z pliku ≠ zapisanej — sprawdza pierwszeństwo pliku');
+  const tiles = {};
+  for (const per of ['1D', '1T', '1M', '1Q', '1R']) {
+    const K = tileFor(fA, sA, per), F = fA.get().GDATA[per];
+    tiles[per] = K;
+    let fl = 0, n = 0;
+    for (const r of fA.GREG) { const v = F[r.id]; if (!v[2]) continue; n++; const e = GA.est.r[r.id].v; close(v[0], e - e / (1 + v[1] / 100), per + ' ' + r.id + ': kwota mapy = szacunek − wartość na początku okresu'); fl += v[0]; }
+    assert.equal(n, 11, per + ': 11 regionów z danymi'); close(K.v, WA.sum, per + ': poziom = suma szacunków'); close(K.d, fl / (K.v - fl) * 100, per + ': zmiana = kwoty ÷ wartość na początku');
+    assert.deepEqual(K.cov, [11, 12], per + ': pokrycie');
+  }
+  for (const per of ['1D', '1T', '1Q', '1R']) assert.equal(tiles[per].v, tiles['1M'].v, per + ': TEN SAM poziom co miesiąc (dawniej 142,37 / 138,55 / 144,18 / 154,98)');
+  assert.ok(new Set(['1T', '1M', '1Q', '1R'].map(p => tiles[p].d.toFixed(6))).size === 4, 'zmiany różne w okresach');
+  const base = fA.GREG.filter(r => (fA.GPROXY[r.id] || []).length).reduce((a, r) => a + r.mcap, 0);
+  assert.ok(Math.abs(tiles['1M'].v - base) > 1, 'poziom to szacunek, nie sama baza z roku danych');
+  assert.equal(tiles['1M'].estn, 'a293g.k.est0', '1M: data kafelka = dzień szacunku → „szacunek wartości”');
+  assert.equal(tiles['1D'].estn, 'a293g.k.est{"d":"2026-10-06"}', 'dziś: zmiana z notowań sesji, poziom z zamknięcia 06.10 — dzień szacunku podany');
+  assert.equal(tiles['1M'].tip, 'a293g.k.tip{"d":"2026-10-06"}');
+  // B. plik cen już bez dnia bazy (okno ok. 260 sesji przesunięte) — zapisane zamknięcia z 31.12.2025
+  const GB = Object.assign({}, L0, {ceny: ceny('2026-01-15')}), sB = {period: '1M'}, fB = mk(GB, sB); fB.gBuild();
+  assert.ok(!GB.ceny.q.SPY.d.some(x => x[0] === '2025-12-31'), 'fikstura: plik bez dnia bazy');
+  const WB = want(fB, GB);
+  for (const per of ['1T', '1M', '1Q']) close(tileFor(fB, sB, per).v, WB.sum, 'bez dnia bazy w pliku: ' + per + ' — szacunek z zapisanych zamknięć');
+  // C. bez pliku cen: dziś z notowań — poziom „—”, sama zmiana ważona bazą; podpis „tylko zmiana”
+  const GC = Object.assign({}, L0, {ceny: null}), fC1 = mk(GC, {period: '1D'}); fC1.gBuild(); const KC = fC1.get().GKPI.find(k => k.k === 'g.k.eq'), FC = fC1.get().GDATA['1D'];
+  assert.equal(GC.est, null); assert.equal(KC.v, null, 'bez szacunku — poziom „—”, nie baza z roku danych');
+  const okC = fC1.GREG.filter(r => FC[r.id][2]), mcC = okC.reduce((a, r) => a + r.mcap, 0);
+  close(KC.d, okC.reduce((a, r) => a + r.mcap * FC[r.id][1] / 100, 0) / mcC * 100, 'sama zmiana ważona bazą');
+  assert.equal(KC.estn, 'a293g.k.noest'); assert.equal(KC.tip, '');
+  for (const r of okC) close(FC[r.id][0], r.mcap * FC[r.id][1] / 100, 'bez szacunku: kwota = baza × zmiana (jak dotąd) ' + r.id);
+});
+
+test('v293 (audyt G1/G3/G11): strona Aktywa — akcje = ta sama liczba co kafelek (szacunek), stablecoiny z datą kafelka, rentowności z danych miesięcznych ze zmianą', () => {
+  const GL = {fx: null, irlt: {USA: [['2026-07', 4.2], ['2026-08', 4.35]], DEU: [['2026-07', 2.6], ['2026-08', 2.55]], JPN: [['2026-07', 2.79], ['2026-08', 2.94]]}, stab: null,
+    est: {d: '2026-10-06', r: {eur: {v: 120}, jpn: {v: 60}, usa: {v: 250}}}};
+  const g = pgEnv({GLIVE: GL, GBACK: {'1D': 0, '1T': 0, '1M': 1, '1Q': 3, '1R': 12}, gStabDelta: () => [3.9, 1.26, 313],
+    GKPI: [{k: 'g.k.stab', v: 313, d: 1.26, fresh: '2026-10-07'}, {k: 'g.k.eq', v: 430, fresh: '2026-10-06'}]});
+  g.f.renderAssets();
+  const h = g.el.innerHTML, row = k => h.split('<tr>').find(r => r.includes('<b>' + k + '</b>')) || '';
+  // GDATA z pgEnv: eur −5, jpn +3, usa 0 (z danymi), rus bez danych → szacunek 120 + 60 + 250 = 430, zmiana −2 ÷ 432
+  assert.ok(row('as.eq').includes('430.0 B') && row('as.eq').includes('▼ −0.46%') && row('as.eq').includes('a293g.k.est{"d":"2026-10-06"}') && row('as.eq').includes('g.q.cov 3/4'), row('as.eq'));
+  assert.ok(row('as.stab').includes('pg.daily · 2026-10-07') && !row('as.stab').includes('bez daty'), 'G3: dzień z kafelka GLOBAL (historia serwera), nie „bez daty u źródła”: ' + row('as.stab'));
+  assert.ok(row('as.jp10').includes('2.94%') && row('as.jp10').includes('▲ +0.15 u.pp'), 'G11: Japonia 10L — zmiana miesiąca w pp: ' + row('as.jp10'));
+  assert.ok(row('as.us10').includes('▲ +0.15 u.pp') && row('as.de10').includes('▼ −0.05 u.pp'), 'zapas miesięczny USA i Niemiec — także ze zmianą');
+  const g2 = pgEnv({GLIVE: Object.assign({}, GL), gst: {period: '1T'}, GBACK: {'1D': 0, '1T': 0, '1M': 1, '1Q': 3, '1R': 12}, GDATA: {'1T': {eur: [1, 1, true], jpn: [0, 0, false], usa: [0, 0, false], rus: [0, 0, false]}}});
+  g2.f.renderAssets();
+  const r2 = g2.el.innerHTML.split('<tr>').find(r => r.includes('<b>as.jp10</b>')) || '';
+  assert.ok(r2.includes('<span class="cell na">—</span>'), 'tydzień z danych miesięcznych — brak zmiany („—”), nie zero');
+  // bez szacunku (brak pliku cen) — „—” i sama zmiana
+  const g3 = pgEnv({GLIVE: {fx: null}});
+  g3.f.renderAssets();
+  const r3 = g3.el.innerHTML.split('<tr>').find(r => r.includes('<b>as.eq</b>')) || '';
+  assert.ok(r3.includes('<span class="cell">—</span>') && r3.includes('▼ −0.57%') && !r3.includes('a293g.k.est'), 'bez szacunku: poziom „—”, zmiana ważona bazą: ' + r3);
+  // kafelek: podpis i podpowiedź
+  const a0 = html.indexOf('\nfunction gRenderKpi(){'), a1 = html.indexOf('\nfunction gNameL(', a0), el = {innerHTML: ''};
+  new Function('$', 'GKPI', 't', 'gfmt', 'LOCALE', 'LANG', 'gst', 'gAgeNote', 'escH', html.slice(a0, a1) + '\nreturn gRenderKpi;')(
+    () => el, [{k: 'g.k.eq', v: 153718, u: 'u.b', d: -1.58, cov: [11, 12], estn: 'SZAC', tip: 'a<b', fresh: '2026-10-06'}], a293gT, v => 'F' + v, {pl: 'pl-PL'}, 'pl', {period: '1M'}, d => ' · age(' + d + ')', v96src.escH)();
+  assert.ok(el.innerHTML.includes('<div class="k-val" title="a&lt;b">F153718</div>') && el.innerHTML.includes('g.cov.of{"n":11,"m":12} · SZAC · 2026-10-06 · age(2026-10-06)'), el.innerHTML);
+  // szczegóły regionu, rok bazy i Metodologia
+  assert.ok(html.includes("${(e=>e?`<div><dt>${t('a293g.d.est')}</dt><dd>${gfmt(e.v)} · ${escH(GLIVE.est.d)}${gAgeNote(GLIVE.est.d)}</dd></div>`:'')(GLIVE.est&&GLIVE.est.r?GLIVE.est.r[s.id]:null)}"));
+  assert.ok(html.includes("<b>${t('a293g.m.lvl.h')}:</b> ${t('a293g.m.lvl')}</p></section>"));
+  const d0 = html.indexOf('/* v53: okno czasu i źródło bazy'), d1 = html.indexOf('function gRenderRefresh(){', d0);
+  const B = GL2 => new Function('t', 'escH', 'GDATA', 'gst', 'BI', 'GB_', 'GLIVE', 'gFrozen', 'gFrozenN', 'instSign', 'instMld', 'bopMld', 'biRow', 'biV', 'bopSum', 'instFoot', html.slice(d0, d1) + '\nreturn gBaseRow;')(
+    a293gT, s => String(s), {}, {period: '1M'}, {data: null}, {}, GL2, () => false, () => 0, () => '', () => '', () => '', () => '', () => null, () => null, s => s);
+  assert.ok(B({est: {d: '2026-10-06', r: {usa: {v: 1}}}})('usa').includes('a293g.basey.v') && B({})('usa').includes('g.d.basey.v'), 'rok bazy: przy szacunku opis szacunku, bez — „baza × zmiana”');
+});
+
+test('v293 (audyt G2): archiwum — bilans Fed i konto rządu z dniem obserwacji (środa) i prawdziwym wiekiem; panel urzędowy czyta stan na środę', () => {
+  const a0 = html.indexOf('function arcMeta('), a1 = html.indexOf('function arcBlock(', a0);
+  const f = new Function('ARC', 't', 'nfmt', 'escH', html.slice(a0, a1) + '\nreturn {arcObs, arcSer};');
+  const ARC = {data: {series: {'plyn.walcl': {d: [['2026-10-05', 6743031], ['2026-10-06', 6743031]], obs: '2026-09-30'}, 'plyn.tga': {d: [['2026-10-06', 984046]], obs: 'zła'},
+    'plyn.rrp': {d: [['2026-10-06', 8000]]}, 'x': {d: [['2026-10-06', 1]], obs: '2026-10-09'}}}};
+  const F = f(ARC, k => k, (v, d) => String(v), s => String(s));
+  assert.equal(F.arcObs('plyn.walcl', '2026-10-06'), '2026-09-30', 'dzień obserwacji, nie wiersza');
+  assert.equal(F.arcObs('plyn.tga', '2026-10-06'), '2026-10-06', 'zły zapis — dzień wiersza');
+  assert.equal(F.arcObs('plyn.rrp', '2026-10-06'), '2026-10-06', 'seria dzienna bez pola obs — dzień wiersza');
+  assert.equal(F.arcObs('x', '2026-10-06'), '2026-10-06', 'obserwacja późniejsza niż wiersz — odrzucona');
+  assert.ok(html.includes("const d=arcSer(sid),p=d.length?d[d.length-1]:null,o=p?arcObs(sid,p[0]):'';return instRow(t(k),p?arcVal(p[1],'mln USD'):'—','',p?`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));"), 'kafelki archiwum: data i wiek z dnia obserwacji');
+  assert.ok(html.includes("tga2=sr('WDTGAL')") && !html.includes("sr('WTREGEN')"), 'panel urzędowy: „stan na środę” = WDTGAL');
+});
+
+test('v293 (audyt G4): Japonia — w bloku tygodniowym krótkie papiery dłużne i suma (liczba z przeglądu da się uzgodnić)', () => {
+  const m0 = html.indexOf('  /* C. Japonia: tygodniowe transakcje w papierach (MOF) */'), m1 = html.indexOf("  html+=typeof jpxHtml==='function'?jpxHtml():'';", m0);
+  assert.ok(m0 > 0 && m1 > m0);
+  const run = new Function('D', 't', 'I', 'chg', 'instSign', 'instMld', 'instRow', 'instFoot', 'escH', 'sepK', 'let html="";' + html.slice(m0, m1) + '\nreturn html;');
+  const wk = (from, to, st, tot) => ({from, to, assets: {equity_net: 2258, ltdebt_net: -6845, stdebt_net: 1309, total_net: -3278}, liabilities: {equity_net: -3620, ltdebt_net: -13418, stdebt_net: st, total_net: tot}});
+  const D = {mof: {d: [wk('2026-08-30', '2026-09-05', -100, -200), wk('2026-09-06', '2026-09-12', -200, -300), wk('2026-09-13', '2026-09-19', -300, -400), wk('2026-09-20', '2026-09-26', -32672, -49711)]}};
+  const h = run(D, a293gT, () => '', (v, s) => s, v => v > 0 ? '+' : v < 0 ? '−' : '', v => (v / 1000).toFixed(1), (a, b, c, d) => '<R>' + a + '|' + b + '|' + d + '</R>', s => s, s => s, () => ': ');
+  assert.ok(h.includes('<R>a293g.mof.l.st|−3267.2 inst.mld.jpy|inst.sum4: −3327.2</R>'), 'bony: −3 267,2 mld JPY, suma 4 tygodni: ' + h);
+  assert.ok(h.includes('<R>a293g.mof.l.tot|−4971.1 inst.mld.jpy|inst.sum4: −5061.1</R>'), 'razem: −4 971,1 (ta sama liczba co przegląd)');
+  assert.ok(h.includes("a293g.mof.l.st.s") && h.includes("a293g.mof.l.tot.s") && (h.match(/<td><span class="cell mono">−3267\.2<\/span><\/td>/g) || []).length === 1 && h.includes('<td><span class="cell mono">−4971.1</span></td></tr>'), 'tabela 8 tygodni: kolumny bony i razem');
+  for (const L of ['pl', 'en']) assert.ok(/bony|bills/.test(v96src.tFor(L)('fo.jpn')), L + ': opis wiersza przeglądu mówi, że to razem z bonami');
+});
+
+test('v293 (audyt G6): USA — pod tabelą kwartalną obie liczby tego samego napływu (tabela i panel USA) i różnica', () => {
+  const a0 = html.indexOf('const BIL={data:null};'), a1 = html.indexOf('function renderInst(){', a0);
+  const mk = USA => new Function('t', 'gOk', 'renderInst', 'escH', 'engDate', 'instFoot', 'etfCls', 'bopMld', 'LANG', 'USA', html.slice(a0, a1) + '\nreturn {bilHtml, bilApply, BIL, bilUsaNote};')(
+    a293gT, () => {}, () => {}, s => String(s), s => String(s), s => s, () => '', v => typeof v === 'number' ? (v > 0 ? '+' : '') + (v / 1000).toFixed(1) : '—', 'pl', USA);
+  const rows = [{c: 'USA', q: '2026-Q2', t: 982966}, {c: 'KOR', q: '2026-Q2', t: 1}];
+  const f = mk({b: {ita: {FinLiabsExclFinDeriv: [['2026-Q1', 1], ['2026-Q2', 978860]]}}});
+  const n = f.bilUsaNote(rows);
+  assert.ok(n.includes('a293g.bil.usa') && n.includes('"a":"+983.0 inst.mld.usd"') && n.includes('"b":"+978.9 inst.mld.usd"') && n.includes('"d":"+4.1 inst.mld.usd"') && n.includes('"p":"usa.h.f"') && n.includes('"q":"2026-Q2"'), n);
+  assert.equal(mk({b: {ita: {FinLiabsExclFinDeriv: [['2026-Q1', 1]]}}}).bilUsaNote(rows), '', 'inny kwartał w panelu USA — bez noty');
+  assert.equal(mk(null).bilUsaNote(rows), ''); assert.equal(f.bilUsaNote([{c: 'KOR', q: '2026-Q2', t: 1}]), '', 'bez wiersza USA — bez noty');
+  assert.ok(html.includes("`${bilUsaNote(rows)}<p class=\"pnote\">${t('bil.foot')}</p>"), 'nota pod tabelą');
+});
+
+test('v293 (audyt G7, G14): podtytuł przepływów USA ↔ świat w mld (10 języków); opisy najszybszych przepływów z Meksykiem i Polską; pomoc ETF jak panel', () => {
+  const want = {pl: 'mld USD', en: 'USD billions', de: 'Mrd. USD', es: 'miles de millones de USD', fr: 'milliards de dollars', it: 'miliardi di USD', pt: 'bilhões de USD', ru: 'млрд USD', zh: '十亿美元', ja: '十億ドル'};
+  const mx = {pl: 'meksykańskie', en: 'Mexican', de: 'mexikanischen', es: 'mexicano', fr: 'mexicains', it: 'messicani', pt: 'mexicanos', ru: 'Мексики', zh: '墨西哥', ja: 'メキシコ'};
+  const po = {pl: 'polskie', en: 'Polish', de: 'polnischen', es: 'polaco', fr: 'polonais', it: 'polacchi', pt: 'Polônia', ru: 'Польши', zh: '波兰', ja: 'ポーランド'};
+  for (const L of Object.keys(want)) {
+    const t = v96src.tFor(L);
+    assert.ok(t('tic.sub').includes(want[L]) && !/mln USD|USD millions|Mio\. USD|en millones de USD|millions de dollars|milioni di USD|milhões de USD|млн USD|百万美元|百万ドル/.test(t('tic.sub')), L + ' tic.sub: ' + t('tic.sub'));
+    for (const k of ['gmap.q.limd', 'g.hm.limd', 'g.help.limd']) assert.ok(t(k).includes(mx[L]) && t(k).includes(po[L]), L + ' ' + k);
+    assert.ok(t('g.help.etf').includes(t('etf.k.m')), L + ': pomoc ETF nazywa okres tak jak kafelek panelu („' + t('etf.k.m') + '”)');
+  }
+});
+
+test('v293 (audyt G8): Źródła — „bez błędu {n} z {m}”, osobno: ile zapytano, ile z pamięci (świeże); nie „odpowiedziało”', () => {
+  const meta = {at: v103zr.FRESH, ok: {a: true, b: 'cached', c: 'cached', d: false}};
+  for (const L of v103zr.L10) {
+    const t = v96src.tFor(L), out = v103zr.render(L, meta).out;
+    assert.ok(out.includes(t('zr2.count', {n: 3, m: 4})) && out.includes(t('a293g.zr.q', {q: 1, c: 2})), L + ': ' + out.slice(0, 600));
+  }
+  const pl = v103zr.render('pl', meta).out;
+  assert.ok(!/odpowiedział/.test(pl), 'pl: bez „odpowiedziało” (56 z 76 nie było pytanych)');
+  assert.ok(!v103zr.render('pl', {at: v103zr.FRESH, ok: {a: true, b: true}}).out.includes('W ostatnim przebiegu automat zapytał'), 'wszystkie zapytane — bez drugiego zdania');
+});
+
+test('v293 (audyt G12): indeksy — „od {d}” tylko z początkiem ciągu odmów; inaczej „ostatnia próba {d}”', () => {
+  const i0 = html.indexOf('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA'), i1 = html.indexOf('\nfunction ixLoad(', i0);
+  const X = new Function('$', 't', 'nfmt', 'fPct', 'sg', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', html.slice(i0, i1) + '\nreturn {ixBody, ixItems};')(
+    () => null, a293gT, (v, d) => Number(v).toFixed(d), (v, d) => v.toFixed(d) + '%', v => v > 0 ? '+' : '', s => String(s), d => ' · age(' + d + ')', s => s, {en: 'en-US'}, 'en');
+  const rows = []; for (let i = 0; i < 30; i++) rows.push(['2026-09-' + String(i + 1).padStart(2, '0'), 100 + i]);
+  const b1 = X.ixBody({at: 'x', ix: {GSPC: {d: rows.slice(0, 30).filter(r => r[0] <= '2026-09-30')}, N225: {bad_at: '2026-10-03T16:53:53+00:00', bad_n: 4, bad: 'pusto', bad_od: '2026-09-26T16:53:00+00:00'}}});
+  assert.ok(b1.includes('ix.bad{"d":"Sep 26, 2026"}') && !b1.includes('a293g.ix.badl'), 'początek ciągu znany — „od” z dniem pierwszej odmowy');
+  const b2 = X.ixBody({at: 'x', ix: {GSPC: {d: rows.filter(r => r[0] <= '2026-09-30')}, N225: {bad_at: '2026-10-03T16:53:53+00:00', bad_n: 4, bad: 'pusto'}}});
+  assert.ok(b2.includes('a293g.ix.badl{"d":"Oct 3, 2026"}') && !b2.includes('ix.bad{'), 'bez początku — „ostatnia próba”, nie „od 3 paź”');
+  assert.equal(X.ixItems({ix: {N225: {bad_at: 'a', bad_n: 2, bad_od: 'b'}}}).find(x => x.sym === 'N225').bad_od, 'b');
+});
+
+test('v293 (audyt G13): kurs efektywny pod tabelą stóp z datą i wiekiem (30 dni do dnia, 12 mies. — średnia miesiąca)', () => {
+  const a0 = html.indexOf('const EER={data:null};'), a1 = html.indexOf('function spWyk(', a0);
+  const mk = rows => new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'escH', 'instFoot', 'EERD', html.slice(a0, a1).replace('const EER={data:null};', 'const EER={data:EERD};') + '\nreturn {eerAsof};')(
+    a293gT, () => {}, () => {}, v => v > 0 ? '+' : '', (v, d) => v.toFixed(d), s => String(s), d => 'F(' + d + ')', {at: 'x', rows});
+  const R = {US: {d: '2026-09-29', m: '2026-08', c30: 1.73, c12: -1.82}, XM: {d: '2026-09-29', m: '2026-08', c30: -1.07, c12: -0.99}};
+  assert.equal(mk(R).eerAsof(['US', 'XM', 'ZZ']), '<p class="pnote">a293g.eer.asof{"d":"F(2026-09-29)","m":"2026-08"}</p>');
+  assert.equal(mk(Object.assign({}, R, {GB: {d: '2026-09-26', m: '2026-07'}})).eerAsof(['US', 'GB']), '<p class="pnote">a293g.eer.asof{"d":"F(2026-09-26 – 2026-09-29)","m":"2026-07 – 2026-08"}</p>', 'różne dni — zakres');
+  assert.equal(mk(R).eerAsof(['ZZ']), '', 'bez wierszy — nic');
+  assert.ok(html.includes("(EER.data?`<p class=\"pnote\">${t('eer.not')}</p>${eerAsof(D.order)}`:'')"));
+});
+
+test('v293: słownik a293g — 10 języków, te same klucze, prawdziwe tłumaczenia, pola zachowane, bez nazw dostawców', () => {
+  const m = html.match(/const (EXTRA\d+)=(\{"pl":\{"a293g\.[^\n]*);\nfor\(const l in \1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);/);
+  assert.ok(m, 'słownik z kluczami a293g.');
+  const Dd = JSON.parse(m[2]), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(Dd), L10);
+  const keys = Object.keys(Dd.pl).sort();
+  assert.ok(keys.length === 16 && keys.every(k => k.startsWith('a293g.')));
+  for (const L of L10) {
+    assert.deepEqual(Object.keys(Dd[L]).sort(), keys, L);
+    for (const k of keys) {
+      const v = Dd[L][k];
+      assert.ok(typeof v === 'string' && v.trim() && !GM_PROV.test(v), L + ' ' + k + ': ' + v);
+      if (L !== 'en' && L !== 'pl') assert.notEqual(v, Dd.en[k], L + ' ' + k + ': prawdziwe tłumaczenie');
+      for (const ph of (Dd.pl[k].match(/\{[a-z]\}/g) || [])) assert.ok(v.includes(ph), L + ' ' + k + ' ' + ph);
+      assert.equal(v96src.I18N[L][k], v, L + ' ' + k + ': nałożony na słownik strony');
+    }
+  }
 });

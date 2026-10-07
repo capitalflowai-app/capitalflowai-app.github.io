@@ -62,7 +62,9 @@ FRED_SERIES = {
     'WALCL': {'unit': 'mln USD', 'freq': 'W', 'name': 'Fed: aktywa razem (H.4.1), środa'},
     'RRPONTSYD': {'unit': 'mld USD', 'freq': 'D', 'name': 'Reverse repo overnight, wolumen dnia'},
     'DTWEXBGS': {'unit': 'indeks (styczeń 2006 = 100)', 'freq': 'D', 'name': 'Szeroki nominalny indeks dolara'},
-    'WTREGEN': {'unit': 'mln USD', 'freq': 'W', 'name': 'Konto rządu USA w Fed (TGA) wg H.4.1, środa'},
+    # v293 (audyt G2): stan na środę (Wednesday level) — jak WALCL i jak opis na stronie; WTREGEN to średnia tygodnia (czwartek–środa),
+    # a była opisana jako „stan na środę” (30.09: średnia 948,7 mld, stan w środę 984,0 mld = saldo zamknięcia z dziennego zestawienia Skarbu)
+    'WDTGAL': {'unit': 'mln USD', 'freq': 'W', 'name': 'Konto rządu USA w Fed (TGA) wg H.4.1, stan na środę'},
     # v50: H.4.1 Table 1A (Memorandum items, Wednesday level) — papiery w depozycie Fed dla zagranicznych instytucji oficjalnych
     'WSEFINTL1': {'unit': 'mln USD', 'freq': 'W', 'name': 'Fed: papiery w depozycie dla zagranicznych instytucji oficjalnych i międzynarodowych (H.4.1), środa'},
     'WMTSECL1': {'unit': 'mln USD', 'freq': 'W', 'name': '… w tym rynkowe papiery Skarbu USA (H.4.1), środa'},
@@ -11069,12 +11071,26 @@ def _ix_pause(rec):
     return min(IX_BAD_DAYS, 2 ** (n - 1))
 
 
+def _ix_bad_od(rec, pf=''):
+    """v293 (audyt G12): początek ciągu odmów kodu — zachowany pf+'bad_od'; przy drugiej odmowie (bad_n == 1) — czas pierwszej (poprzednie
+    bad_at, które zaraz zostanie nadpisane); pierwsza odmowa albo wpis sprzed v293 bez początku — None (strona: „ostatnia próba {d}”, nie „od {d}”:
+    bad_at to ostatnia odmowa — JTOPI 03.10 przy 4 odmowach, brak co najmniej od ok. 26.09)."""
+    od = rec.get(pf + 'bad_od')
+    if isinstance(od, str) and od:
+        return od
+    n, at = rec.get(pf + 'bad_n'), rec.get(pf + 'bad_at')
+    return at if isinstance(n, int) and not isinstance(n, bool) and n == 1 and isinstance(at, str) and at else None
+
+
 def _ix_bad(part, sym, code):
     """Kod odrzucony przez dostawcę (HTTP 401/403/404): znacznik przerwy na wpisie symbolu, licznik odrzuceń rośnie.
-    Stara seria (jeśli była) zostaje — strona pokazuje ją z własną datą i wiekiem."""
+    Stara seria (jeśli była) zostaje — strona pokazuje ją z własną datą i wiekiem. v293: 'bad_od' — początek ciągu odmów (_ix_bad_od)."""
     rec = part.get(sym) if isinstance(part.get(sym), dict) else {}
     n = rec.get('bad_n')
+    od = _ix_bad_od(rec)
     rec.update({'bad_at': NOW, 'bad_n': (n if isinstance(n, int) and n > 0 else 0) + 1, 'bad': code}); part[sym] = rec
+    if od:
+        rec['bad_od'] = od
 
 
 def ix_plan(part, now, budget, pomin=(), wymus=()):
@@ -11287,7 +11303,7 @@ def _ix_pobierz(sym, cc, rec, now, pobierz, h=None, src=None, zapas=False):
     if obce:
         out['obce'] = obce
     if src != 'fmp':   # v273: przerwa FMP zostaje przy pobraniu z zapasu EODHD (inaczej FMP pytałby o odrzucony kod co dzień)
-        out.update({x: rec[x] for x in ('fmp_bad_at', 'fmp_bad_n', 'fmp_bad') if x in rec})
+        out.update({x: rec[x] for x in ('fmp_bad_at', 'fmp_bad_n', 'fmp_bad', 'fmp_bad_od') if x in rec})   # v293: + początek ciągu odmów
     if not ten_sam:
         rw = []   # v273: różnica dwóch dostawców to nie poprawka — bez wpisu 'rew' i bez dowodu dla nauki
     rew = (rec.get('rew') if isinstance(rec.get('rew'), list) else []) + rw
@@ -11513,7 +11529,10 @@ def _ix_bad_fmp(part, sym, code):
     pf = _ix_fmp_pola(sym)
     rec = part.get(sym) if isinstance(part.get(sym), dict) else {}
     n = rec.get(pf + 'bad_n')
+    od = _ix_bad_od(rec, pf)   # v293 (audyt G12): początek ciągu odmów
     rec.update({pf + 'bad_at': NOW, pf + 'bad_n': (n if isinstance(n, int) and n > 0 else 0) + 1, pf + 'bad': code}); part[sym] = rec
+    if od:
+        rec[pf + 'bad_od'] = od
 
 
 def _ix_brak_proba(part, sym, h, now):

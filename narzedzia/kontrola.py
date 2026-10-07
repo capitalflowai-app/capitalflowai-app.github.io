@@ -535,7 +535,7 @@ FX_MIN_N = 5       # najmniej wspólnych walut, żeby oceniać medianę dnia
 FX_MIGAWKI = ('now', '1D', '1T', '1M', '1Q', '1R')
 CENA_PROG = 1.0      # % różnicy cen BTC/ETH między źródłami
 ETF_PROG = 1.0       # % różnicy zamknięcia ETF tej samej daty: Twelve Data (ceny.json, mapa) vs Massive/Tiingo (indeksy.json → etf) — v117.1
-TGA_PROG = 1.0       # pkt proc. — odchylenie dzisiejszej różnicy TGA (Fiscal Data vs FRED WTREGEN, ta sama data) od mediany 30 dni; różnica sama w sobie
+TGA_PROG = 1.0       # pkt proc. — v293: przy WDTGAL (stan na środę) próg stały różnicy; przy WTREGEN (plik sprzed v293) — odchylenie dzisiejszej różnicy TGA (Fiscal Data vs FRED WTREGEN, ta sama data) od mediany 30 dni; różnica sama w sobie
                      # jest stała (~3%: H.4.1 liczy zobowiązanie Fed na środę, DTS — gotówkę operacyjną Skarbu), więc próg 1% na poziomach świeciłby codziennie
 WH_PROG = 5.0        # % — |zmiana salda − przelewy netto| wobec większej z tych liczb
 WH_MIN_USD = 1e6     # poniżej miliona USD rozbieżność nie jest uwagą (przelewy < 1 mln nie są skanowane)
@@ -1226,11 +1226,20 @@ def ust_porownanie(rynki, fred):
             'roznice': [[d, a, b, round(abs(a - b), 3)] for d, a, b in wsp if abs(a - b) > UST_PROG + 1e-9]}
 
 
+def tga_seria(fred):
+    """v293 (audyt G2): seria TGA w fred.json — WDTGAL (stan na środę, od v293) albo WTREGEN (średnia tygodnia, plik sprzed v293); brak — None."""
+    S = fred.get('series') if isinstance(fred, dict) else None
+    for sid in ('WDTGAL', 'WTREGEN'):
+        if isinstance(S, dict) and isinstance(S.get(sid), dict) and isinstance(S[sid].get('d'), list) and S[sid]['d']:
+            return sid
+    return None
+
+
 def tga_porownanie(inst, fred):
-    """Ostatnia wspólna data Fiscal Data (instytucje.tga.d) i FRED WTREGEN (obie w mln USD) → (data, fiscal, fred, różnica %)."""
+    """Ostatnia wspólna data Fiscal Data (instytucje.tga.d) i FRED (tga_seria: WDTGAL, w pliku sprzed v293 WTREGEN; obie w mln USD) → (data, fiscal, fred, różnica %)."""
     try:
         a = {str(r[0]): float(r[1]) for r in inst['tga']['d'] if isinstance(r, list) and len(r) >= 2 and r[1] is not None}
-        b = {str(r[0]): float(r[1]) for r in fred['series']['WTREGEN']['d'] if isinstance(r, list) and len(r) >= 2 and r[1] is not None}
+        b = {str(r[0]): float(r[1]) for r in fred['series'][tga_seria(fred)]['d'] if isinstance(r, list) and len(r) >= 2 and r[1] is not None}
     except Exception:
         return None
     wspolne = sorted(set(a) & set(b))
@@ -1238,6 +1247,25 @@ def tga_porownanie(inst, fred):
         return None
     d = wspolne[-1]
     return d, a[d], b[d], procent(a[d], b[d])
+
+
+def tga_ocena(rows, inst, fred, today):
+    """v293 (audyt G2): porównanie TGA z oceną → słownik raportu (Z['tga']) albo None; dzisiejsza różnica trafia do rows[today]['tga'].
+    WDTGAL (stan na środę) = saldo zamknięcia z dziennego zestawienia Skarbu tego samego dnia (sprawdzone na 6 środach 08–09.2026: równe co do
+    jednostki) — różnica powinna być bliska zeru, więc próg stały TGA_PROG, bez mediany (historia różnic sprzed v293 to średnia tygodnia, inna
+    miara: ok. 3–4% — mediana z niej dawałaby fałszywe ⚠️ przez dwa tygodnie). Plik sprzed v293 (tylko WTREGEN) — mediana jak dotąd."""
+    t = tga_porownanie(inst, fred)
+    if not t:
+        return None
+    d, a, b, r = t
+    if r is not None:
+        rows.setdefault(today, {})['tga'] = round(r, 3)
+    if tga_seria(fred) == 'WDTGAL':
+        st2, med2, n2, opis2 = ('?', None, 0, 'brak odczytu') if r is None else (('⚠️' if r > TGA_PROG else '✅'), None, 0, f'próg stały {TGA_PROG:g}% (stan na środę = saldo zamknięcia tego dnia)')
+    else:
+        st2, med2, n2, opis2 = mediana_ocena(rows, 'tga', r, today, TGA_PROG, None)
+    return {'data': d, 'fiscal_mln': a, 'fred_mln': b, 'roznica_pct': (round(r, 3) if r is not None else None), 'status': st2,
+            'mediana_pct': (round(med2, 3) if med2 is not None else None), 'dni': n2, 'opis': opis2}
 
 
 def etf_porownanie(ceny, ix):
@@ -3939,18 +3967,11 @@ def kontrola():
         Z['ceny'] = c
     except Exception as e:  # noqa
         Z['ceny_blad'] = str(e)[:120]; R['uwagi'].append(f'zgodność cen BTC/ETH: brak odczytu ({str(e)[:80]})')
-    t = tga_porownanie(files.get('instytucje') or {}, files.get('fred') or {})
-    if t:
-        d, a, b, r = t
-        if r is not None:
-            rows[today]['tga'] = round(r, 3)
-        st2, med2, n2, opis2 = mediana_ocena(rows, 'tga', r, today, TGA_PROG, None)
-        Z['tga'] = {'data': d, 'fiscal_mln': a, 'fred_mln': b, 'roznica_pct': (round(r, 3) if r is not None else None), 'status': st2,
-                    'mediana_pct': (round(med2, 3) if med2 is not None else None), 'dni': n2, 'opis': opis2}
-        if st2 == '⚠️':
-            R['uwagi'].append(f'TGA {d}: Fiscal Data {_zuz_l(a)} vs FRED {_zuz_l(b)} mln USD — różnica {r:.2f}% wobec normy {med2:.2f}% ({opis2})')
-    else:
-        Z['tga'] = None
+    Z['tga'] = tga_ocena(rows, files.get('instytucje') or {}, files.get('fred') or {}, today)   # v293 (audyt G2): WDTGAL — próg stały, WTREGEN — mediana
+    tz = Z['tga']
+    if tz and tz['status'] == '⚠️':
+        R['uwagi'].append(f"TGA {tz['data']}: Fiscal Data {_zuz_l(tz['fiscal_mln'])} vs FRED {_zuz_l(tz['fred_mln'])} mln USD — różnica {tz['roznica_pct']:.2f}%"
+                          + (f" wobec normy {tz['mediana_pct']:.2f}%" if tz['mediana_pct'] is not None else '') + f" ({tz['opis']})")
     s = stab_porownanie(files.get('krypto'), files.get('cmc'))   # v209: podaż stablecoinów — dwa pliki strony, odchylenie od mediany (najwyżej ⚠️)
     if s:
         if s['roznica_pct'] is not None:

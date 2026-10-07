@@ -582,7 +582,7 @@ class ParseFred(unittest.TestCase):
         self.assertIn('api_key is not set', str(cm.exception))
 
     def test_only_fed_series_are_configured(self):
-        self.assertEqual(sorted(zd.FRED_SERIES), ['DTWEXBGS', 'RRPONTSYD', 'WALCL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1', 'WTREGEN'])   # v50: + depozyt H.4.1
+        self.assertEqual(sorted(zd.FRED_SERIES), ['DTWEXBGS', 'RRPONTSYD', 'WALCL', 'WDTGAL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1'])   # v50: + depozyt H.4.1; v293 (audyt G2): TGA = WDTGAL (stan na środę), nie WTREGEN (średnia tygodnia)
         for third_party in ('SP500', 'VIXCLS', 'BAMLH0A0HYM2'):
             self.assertNotIn(third_party, zd.FRED_SERIES)
         self.assertIn('Board of Governors of the Federal Reserve System', zd.FRED_CITE)
@@ -605,7 +605,7 @@ class BuildFred(unittest.TestCase):
             return {'observations': [{'date': '2026-09-16', 'value': '5'}]}
         with mock.patch.object(zd, 'get_json', get_json):
             out = zd.build_fred('TAJNY-FRED')
-        self.assertEqual(sorted(out['series']), ['RRPONTSYD', 'WALCL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1', 'WTREGEN'])   # v50: + depozyt H.4.1
+        self.assertEqual(sorted(out['series']), ['RRPONTSYD', 'WALCL', 'WDTGAL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1'])   # v50: + depozyt H.4.1; v293 (audyt G2): WDTGAL zamiast WTREGEN
         self.assertEqual(out['custody']['total'], 5.0); self.assertIsNone(out['custody']['d1w'])   # jedna środa: zmiany = brak, nie zero
         self.assertEqual(out['src'], zd.FRED_CITE); self.assertEqual(out['api_note'], zd.FRED_API_NOTE)
         self.assertTrue(any(e.startswith('FRED DTWEXBGS:') for e in zd.META['errors']))
@@ -15982,7 +15982,7 @@ class NastrojV139(unittest.TestCase):
         blok = src[a:b]
         self.assertIn('def build_nastroj(', blok); self.assertNotIn('os.environ', blok, 'klucz tylko z przebiegu głównego')
         self.assertLess(src.index('def build_fred('), a, 'blok zaraz po FRED')
-        self.assertEqual(sorted(zd.FRED_SERIES), ['DTWEXBGS', 'RRPONTSYD', 'WALCL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1', 'WTREGEN'], 'fred.json bez zmian — same serie Fed')
+        self.assertEqual(sorted(zd.FRED_SERIES), ['DTWEXBGS', 'RRPONTSYD', 'WALCL', 'WDTGAL', 'WFASECL1', 'WMTSECL1', 'WSEFINOL', 'WSEFINTL1'], 'fred.json — same serie Fed (v293, audyt G2: TGA jako stan na środę WDTGAL)')
         self.assertEqual(zd.NS_SERIES, (('vix', 'VIXCLS'), ('hy', 'BAMLH0A0HYM2'), ('spx', 'SP500')))
         head = src[:src.index("FRED = 'https://api.stlouisfed.org")]
         self.assertIn('VIXCLS i BAMLH0A0HYM2 — wskazane wprost w zadaniu właściciela', head)
@@ -30977,3 +30977,107 @@ class SondaSurowceV294p(unittest.TestCase):
         self.assertEqual([u.split('?')[0] for u in seen], ['https://api.twelvedata.com/commodities', 'https://api.coingecko.com/api/v3/simple/price'],
                          'bez kluczy: tylko lista Twelve Data i CoinGecko bez klucza')
         self.assertIn('simple_price_paxg_xaut_nokey', out.getvalue())
+
+
+
+class AudytM1GlobalV293(unittest.TestCase):
+    """v293 (audyt m1, obszar GLOBAL): G2 — konto rządu w Fed jako stan na środę (WDTGAL) w fred.json, archiwum i kontroli; seria.json z dniem
+    obserwacji serii tygodniowych; G12 — początek ciągu odmów indeksu (bad_od), nie tylko ostatnia odmowa."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='v293-')
+        spec = importlib.util.spec_from_file_location('archiwum_v293', os.path.join(cls.ROOT, 'narzedzia', 'archiwum.py'))
+        cls.a = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.a)
+        spec = importlib.util.spec_from_file_location('kontrola_v293', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); self.a.NOTES.clear()
+
+    def test_g2_fred_tga_stan_na_srode(self):
+        self.assertIn('WDTGAL', zd.FRED_SERIES); self.assertNotIn('WTREGEN', zd.FRED_SERIES, 'średnia tygodnia opisana jako „stan na środę” — usunięta')
+        self.assertIn('stan na środę', zd.FRED_SERIES['WDTGAL']['name']); self.assertEqual(zd.FRED_SERIES['WDTGAL']['unit'], 'mln USD')
+        urls = []
+
+        def get_json(url, headers=None):
+            urls.append(url)
+            return {'observations': [{'date': '2026-09-23', 'value': '947317'}, {'date': '2026-09-30', 'value': '984046'}]}
+        with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd.time, 'sleep', lambda s: None):
+            out = zd.build_fred('K')
+        self.assertTrue(any('series_id=WDTGAL' in u for u in urls) and not any('series_id=WTREGEN' in u for u in urls))
+        self.assertEqual(out['series']['WDTGAL']['asof'], '2026-09-30'); self.assertEqual(out['series']['WDTGAL']['d'][-1], ['2026-09-30', 984046.0])
+
+    def test_g2_archiwum_wdtgal_i_dzien_obserwacji(self):
+        a = self.a
+        self.assertIn('WDTGAL', a.FILES['plynnosc']['src']); self.assertNotIn('WTREGEN', a.FILES['plynnosc']['src'])
+        asked = []
+
+        def fred_obs(sid, key, od):
+            asked.append(sid)
+            return {'WALCL': {'2026-09-23': 6750000.0, '2026-09-30': 6743031.0}, 'WDTGAL': {'2026-09-23': 947317.0, '2026-09-30': 984046.0},
+                    'RRPONTSYD': {'2026-10-01': 5.0, '2026-10-02': 6.0, '2026-10-05': 7.0, '2026-10-06': 8.0}}[sid]
+        with mock.patch.object(a, 'fred_obs', fred_obs), mock.patch.object(a.time, 'sleep', lambda s: None):
+            rows = a.src_plynnosc('K', datetime.date(2026, 10, 7))
+        self.assertEqual(asked, ['WALCL', 'WDTGAL', 'RRPONTSYD'], 'TGA: stan na środę (WDTGAL), nie średnia tygodnia (WTREGEN)')
+        self.assertEqual(rows[-1], ['2026-10-06', 6743031.0, 984046.0, 8000.0, 6743031.0 - 984046.0 - 8000.0, 'walcl@2026-09-30,tga@2026-09-30'])
+        import shutil
+        arch = os.path.join(self.tmp, 'seria'); shutil.rmtree(arch, ignore_errors=True)
+        idx = a.run({'plynnosc': lambda: rows}, arch=arch)
+        self.assertEqual(idx['errors'], [])
+        S = json.load(open(os.path.join(arch, 'seria.json'), encoding='utf-8'))['series']
+        self.assertEqual(S['plyn.walcl']['d'][-1], ['2026-10-06', 6743031.0]); self.assertEqual(S['plyn.walcl']['last'], '2026-10-06', 'wiersz archiwum z 06.10')
+        self.assertEqual((S['plyn.walcl']['obs'], S['plyn.tga']['obs']), ('2026-09-30', '2026-09-30'), 'dzień obserwacji (środa), nie dzień wiersza')
+        self.assertNotIn('obs', S['plyn.rrp']); self.assertNotIn('obs', S['plyn.net'])
+        # zły zapis method albo dzień późniejszy niż wiersz — bez pola (strona zostaje przy dacie wiersza)
+        self.assertIsNone(a._obs([['2026-10-06', '1', '2', '3', '4', 'x']], 1, 'walcl'))
+        self.assertIsNone(a._obs([['2026-10-06', '1', '2', '3', '4', 'walcl@2026-10-09,tga@2026-09-30']], 1, 'walcl'))
+        self.assertIsNone(a._obs([['2026-10-06', '1', '2', '3', '4', 'walcl@2026-02-30,tga@2026-09-30']], 1, 'walcl'))
+        self.assertEqual(a._obs([['2026-10-06', '', '2', '3', '4', 'walcl@2026-09-30,tga@2026-09-30'], ['2026-10-05', '1', '2', '3', '4', 'walcl@2026-09-23,tga@2026-09-30']], 1, 'walcl'),
+                         '2026-09-23', 'ostatni wiersz Z LICZBĄ w kolumnie')
+
+    def test_g2_kontrola_tga_prog_staly_przy_stanie_na_srode(self):
+        k = self.k
+        inst = {'tga': {'d': [['2026-09-29', 950000], ['2026-09-30', 984046], ['2026-10-01', 970000]]}}
+        fw = {'series': {'WDTGAL': {'d': [['2026-09-23', 947317.0], ['2026-09-30', 984046.0]]}}}
+        self.assertEqual(k.tga_seria(fw), 'WDTGAL'); self.assertEqual(k.tga_seria({'series': {'WTREGEN': {'d': [['2026-09-30', 1.0]]}}}), 'WTREGEN')
+        self.assertIsNone(k.tga_seria({})); self.assertIsNone(k.tga_seria({'series': {'WDTGAL': {'d': []}}}))
+        self.assertEqual(k.tga_porownanie(inst, fw)[:3], ('2026-09-30', 984046.0, 984046.0))
+        # historia różnic sprzed v293 (średnia tygodnia: ok. 3–4%) — przy stanie na środę bez fałszywego ⚠️ (próg stały, nie mediana)
+        rows = {'2026-09-%02d' % d: {'cap': 4.0, 'tga': 3.729} for d in range(10, 30)}
+        z = k.tga_ocena(rows, inst, fw, '2026-10-07')
+        self.assertEqual((z['status'], z['roznica_pct'], z['mediana_pct'], z['data']), ('✅', 0.0, None, '2026-09-30'), z)
+        self.assertEqual(rows['2026-10-07']['tga'], 0.0, 'różnica dnia zapisana do historii')
+        zle = {'series': {'WDTGAL': {'d': [['2026-09-30', 984046.0 * 1.02]]}}}
+        self.assertEqual(k.tga_ocena({}, inst, zle, '2026-10-07')['status'], '⚠️', 'stan na środę różny od salda dnia o 2% — ostrzeżenie')
+        # plik sprzed v293 (tylko WTREGEN) — mediana jak dotąd
+        stary = {'series': {'WTREGEN': {'d': [['2026-09-30', 948674.0]]}}}
+        zs = k.tga_ocena(rows, inst, stary, '2026-10-08')
+        self.assertEqual(zs['status'], '✅'); self.assertIsNotNone(zs['mediana_pct'])
+        self.assertIsNone(k.tga_ocena({}, {}, fw, '2026-10-07'))
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertIn("Z['tga'] = tga_ocena(rows, files.get('instytucje') or {}, files.get('fred') or {}, today)", src)
+
+    def test_g12_poczatek_ciagu_odmow(self):
+        p = {}
+        with mock.patch.object(zd, 'NOW', '2026-09-26T16:53:00+00:00'):
+            zd._ix_bad(p, 'JTOPI', 'pusto')
+        self.assertEqual(p['JTOPI'], {'bad_at': '2026-09-26T16:53:00+00:00', 'bad_n': 1, 'bad': 'pusto'}, 'pierwsza odmowa — bez początku (to ta sama chwila)')
+        with mock.patch.object(zd, 'NOW', '2026-09-27T16:53:00+00:00'):
+            zd._ix_bad(p, 'JTOPI', 'pusto')
+        with mock.patch.object(zd, 'NOW', '2026-10-03T16:53:00+00:00'):
+            zd._ix_bad(p, 'JTOPI', 'pusto')
+        self.assertEqual(p['JTOPI'], {'bad_at': '2026-10-03T16:53:00+00:00', 'bad_n': 3, 'bad': 'pusto', 'bad_od': '2026-09-26T16:53:00+00:00'}, 'początek ciągu zostaje')
+        old = {'JTOPI': {'bad_at': '2026-10-03T16:53:53+00:00', 'bad_n': 4, 'bad': 'pusto'}}
+        zd._ix_bad(old, 'JTOPI', 'pusto')
+        self.assertNotIn('bad_od', old['JTOPI'], 'wpis sprzed v293 bez początku — nie zgadujemy (strona: „ostatnia próba”)')
+        self.assertIsNone(zd._ix_bad_od({'bad_n': True, 'bad_at': 'x'}), 'True to nie liczba odmów')
+        sym = zd.IX_SYMBOLS[0][0]   # kod obsługiwany też przez EODHD — pola FMP z przedrostkiem
+        q = {sym: {'fmp_bad_at': '2026-10-01T10:00:00+00:00', 'fmp_bad_n': 1, 'fmp_bad': 402}}
+        with mock.patch.object(zd, 'NOW', '2026-10-02T10:00:00+00:00'):
+            zd._ix_bad_fmp(q, sym, 402)
+        self.assertEqual((q[sym]['fmp_bad_od'], q[sym]['fmp_bad_n']), ('2026-10-01T10:00:00+00:00', 2)); self.assertNotIn('bad_od', q[sym])
+        src = open(zd.__file__, encoding='utf-8').read()
+        self.assertIn("('fmp_bad_at', 'fmp_bad_n', 'fmp_bad', 'fmp_bad_od')", src, 'pobranie z zapasu EODHD zachowuje początek ciągu odmów FMP')

@@ -9,7 +9,8 @@ Coin Metrics, Finnhub, Twelve Data, CoinMarketCap, giełdy, Tiingo, Massive, EOD
 Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez polskich znaków) w katalogu `archiwum/`:
   wieloryby.csv        dzień × giełda × aktywo — salda ogłoszonych portfeli giełd (z data/wieloryby.json, wyliczenie własne v105–v112)
   stablecoiny-eth.csv  dzień × token — własny odczyt totalSupply() USDT i USDC w sieci Ethereum (tylko ta sieć)
-  plynnosc.csv         dzień — FRED WALCL, WTREGEN (TGA), RRPONTSYD; net = WALCL − TGA − RRP; serie tygodniowe przenoszone do przodu (kolumna method)
+  plynnosc.csv         dzień — FRED WALCL, WDTGAL (TGA, stan na środę; do v293 WTREGEN — średnia tygodnia), RRPONTSYD; net = WALCL − TGA − RRP;
+                       serie tygodniowe przenoszone do przodu (kolumna method; seria.json: pole obs = dzień obserwacji ostatniego punktu)
   tic.csv              miesiąc × kraj — TIC SLT tabela 1 (zagranica kupuje papiery USA) i tabela 2 (USA kupują papiery zagraniczne), od 2020-01
   cftc-krypto.csv      tydzień × kontrakt × grupa — CFTC COT (TFF, futures-only) BTC i ETH na CME, 2 lata
   rentownosci.csv      dzień — rentowność 10-letnia USA (Skarb USA) i Niemiec (Bundesbank) oraz różnica, 2 lata
@@ -51,7 +52,7 @@ FILES = {
     'stablecoiny-eth': {'file': 'stablecoiny-eth.csv', 'cols': ['date', 'token', 'total_supply'], 'key': ['date', 'token'], 'back': None,
                         'src': 'Odczyt własny totalSupply() USDT i USDC przez publiczny węzeł JSON-RPC — tylko sieć Ethereum'},
     'plynnosc': {'file': 'plynnosc.csv', 'cols': ['date', 'walcl_musd', 'tga_musd', 'rrp_musd', 'net_liquidity_musd', 'method'], 'key': ['date'], 'back': 3,
-                 'src': 'Source: Federal Reserve, via FRED (WALCL, WTREGEN, RRPONTSYD); net = WALCL − TGA − RRP, obliczenie własne'},
+                 'src': 'Source: Federal Reserve, via FRED (WALCL, WDTGAL, RRPONTSYD); net = WALCL − TGA − RRP, obliczenie własne'},
     'tic': {'file': 'tic.csv', 'cols': ['month', 'country', 'net_flow_musd', 'table'], 'key': ['month', 'country', 'table'], 'back': None,
             'src': 'U.S. Department of the Treasury — Treasury International Capital (TIC), SLT tabele 1 i 2 (domena publiczna)'},
     'cftc-krypto': {'file': 'cftc-krypto.csv', 'cols': ['date', 'contract', 'group', 'long', 'short', 'net'], 'key': ['date', 'contract', 'group'], 'back': 2,
@@ -234,7 +235,7 @@ def fred_obs(sid, key, od):
 
 
 def plynnosc_rows(walcl, tga, rrp, od):
-    """Dzienne wiersze płynności: kalendarz z serii dziennej RRPONTSYD (mld USD → mln), WALCL i TGA (mln USD, środy) przeniesione
+    """Dzienne wiersze płynności: kalendarz z serii dziennej RRPONTSYD (mld USD → mln), WALCL i TGA (mln USD, stan na środę) przeniesione
     do przodu do następnej publikacji; dzień bez którejkolwiek wartości = brak wiersza. method = daty przeniesionych obserwacji."""
     dw, dt = sorted(walcl), sorted(tga)
     rows = []
@@ -256,7 +257,8 @@ def src_plynnosc(key, today=None):
     od = lata_wstecz(today, FILES['plynnosc']['back'])
     marg = od - datetime.timedelta(days=45)   # zapas na przeniesienie serii tygodniowych do przodu na początku okresu
     walcl = fred_obs('WALCL', key, marg); time.sleep(zd.FRED_SLEEP)
-    tga = fred_obs('WTREGEN', key, marg); time.sleep(zd.FRED_SLEEP)
+    tga = fred_obs('WDTGAL', key, marg); time.sleep(zd.FRED_SLEEP)   # v293 (audyt G2): stan na środę jak WALCL (WTREGEN = średnia tygodnia);
+    # pierwszy przebieg po zmianie nadpisze kolumnę tga_musd za całe okno (rewizje w indeks.json) — jedna miara w całej historii
     rrp = fred_obs('RRPONTSYD', key, marg)
     rows = plynnosc_rows(walcl, tga, rrp, od.isoformat())
     if not rows:
@@ -463,6 +465,25 @@ def _f(s):
     return v if v == v else None
 
 
+def _obs(rows, col, tag):
+    """v293 (audyt G2): dzień obserwacji wartości w ostatnim wierszu z liczbą w kolumnie col — z kolumny method ('walcl@D,tga@D'). Seria
+    tygodniowa jest przenoszona do przodu na kolejne dni, więc data wiersza nie jest datą danych (strona: „stan 2026-10-06 · sprzed 1 dnia”
+    przy obserwacji z 30.09). Brak albo zły zapis, dzień późniejszy niż wiersz — None (strona zostaje przy dacie wiersza)."""
+    last = None
+    for r in rows:
+        if _f(r[col]) is not None and (last is None or r[0] > last[0]):
+            last = r
+    if last is None:
+        return None
+    m = dict(x.split('@', 1) for x in str(last[-1]).split(',') if '@' in x)
+    d = m.get(tag, '')
+    try:
+        ok = len(d) == 10 and datetime.date.fromisoformat(d).isoformat() == d
+    except ValueError:
+        ok = False
+    return d if ok and d <= str(last[0])[:10] else None
+
+
 def seria(arch):
     """archiwum/seria.json — widok archiwum dla strony (wykresy 30/90/365 dni): kilkanaście szeregów [[dzień, wartość]] z plików CSV
     na dysku (także tych sprzed tego przebiegu). Pusta komórka = brak punktu (nigdy zero). Pełna historia i wszystkie kolumny są w CSV."""
@@ -481,6 +502,10 @@ def seria(arch):
     for r in rows.values():
         for sid, col in (('plyn.net', 4), ('plyn.walcl', 1), ('plyn.tga', 2), ('plyn.rrp', 3)):
             put(sid, r[0], _f(r[col]))
+    for sid, col, tag in (('plyn.walcl', 1, 'walcl'), ('plyn.tga', 2, 'tga')):   # v293 (audyt G2): dzień obserwacji ostatniego punktu (środa) z kolumny method
+        o = _obs(rows.values(), col, tag)
+        if o:
+            out[sid]['obs'] = o
     rows, _ = read_csv(os.path.join(arch, 'rentownosci.csv'), FILES['rentownosci']['cols'])
     add('rent.ust', '%', 'D', 'rent', 'rentownosci.csv'); add('rent.bund', '%', 'D', 'rent', 'rentownosci.csv'); add('rent.spread', 'pp', 'D', 'rent', 'rentownosci.csv')
     for r in rows.values():
