@@ -24343,7 +24343,8 @@ class MetodologiaRytmV184(unittest.TestCase):
         self.assertIn('pełny dzień po 16:30 w Bangkoku; automat co 3 godziny', jak)
         self.assertIn("if prev_mx and fresh(prev_mx, 360) and not old_mx:", src); self.assertIn('około półtora tygodnia; automat co 6 godzin', jak)
         self.assertEqual(zd.AUK_EVERY, 6 * 60); self.assertIn('wyniki po 13:00 czasu Nowego Jorku; automat co 6 godzin', jak)
-        self.assertIn("if td_key and prev_ceny and fresh(prev_ceny, 55):", src); self.assertIn('dzienne zamknięcia</span></td><td><span class="cell">automat co około godzinę', jak)
+        self.assertIn("if td_key and prev_ceny and fresh(prev_ceny, 55) and not prev_ceny.get('zapas'):", src)   # v270: plik zapasu to nie pamięć Twelve Data
+        self.assertIn('dzienne zamknięcia</span></td><td><span class="cell">automat co około godzinę', jak)
         self.assertNotIn('automat co 3 godziny; wynik dnia po sesji', jak)
 
 
@@ -29347,7 +29348,7 @@ class CenyZapasV269(unittest.TestCase):
     def test_z_pliku_swiata(self):
         c = zd.ceny_z_swiata(self._sd())
         self.assertEqual(sorted(c['q']), sorted(zd.DAY_SYMS)); self.assertEqual((c['asof'], c['zapas'], c['src']), ('2026-10-05', True, 'Nasdaq'))
-        self.assertEqual(c['q']['SPY']['d'][-1], ['2026-10-05', 129.0, None]); self.assertEqual(len(c['q']['SPY']['d']), 30)
+        self.assertEqual(c['q']['SPY']['d'][-1], ['2026-10-05', 129.0, None]); self.assertEqual(len(c['q']['SPY']['d']), 30)   # kalendarz z pola cal
         self.assertFalse(any(r[1] is None for r in c['q']['SPY']['d']), 'wiersz bez zamknięcia pominięty')
         with self.assertRaises(RuntimeError):
             zd.ceny_z_swiata(self._sd(dni=10))
@@ -29378,4 +29379,94 @@ class CenyZapasV269(unittest.TestCase):
         import inspect
         src = inspect.getsource(zd.main)
         self.assertIn("ceny_zapas(prev_ceny, f'Twelve Data: {str(e)[:80]}')", src); self.assertIn("ceny_zapas(prev_ceny, 'brak TWELVEDATA_KEY')", src)
+
+
+# ===================== v270: POPRAWKI PO PRZEGLĄDZIE v268–v269 =====================
+class PoPrzegladzieV270(unittest.TestCase):
+    """v270: zapas cen kończy się na ostatniej pełnej sesji; kalendarz z pliku Świat dziennie (SPY z wierszem bez ceny); podziały jednostek;
+    plik zapasu nie jest pamięcią Twelve Data; totalNodes < strona = nieużyteczne; jednostka kwoty po zaokrągleniu."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola270-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v270_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    @staticmethod
+    def _sd(dni=30, ost='2026-10-05'):
+        d0, cal = datetime.date.fromisoformat(ost), []
+        while len(cal) < dni:
+            if d0.weekday() < 5:
+                cal.append(d0.isoformat())
+            d0 -= datetime.timedelta(days=1)
+        cal = sorted(cal)
+        px = {s: {'d': [[d, 99.0, 100.0 + i + j, 'x'] for j, d in enumerate(cal)]} for i, s in enumerate(zd.DAY_SYMS)}
+        return {'at': '2026-10-06T23:56:47+00:00', 'px': px, 'cal': cal}
+
+    def test_niepelna_ostatnia_sesja(self):
+        sd = self._sd()
+        for s in ('KSA', 'ASEA'):
+            sd['px'][s]['d'] = sd['px'][s]['d'][:-1]   # brak 05.10 — dopisywane po 55 min
+        c = zd.ceny_z_swiata(sd)
+        self.assertEqual((c['asof'], {v['asof'] for v in c['q'].values()}, len(c['q'])), ('2026-10-02', {'2026-10-02'}, 14),
+                         'przegląd: niepełny zapas (bez KSA i ASEA z 05.10) zastępował pełny plik')
+        self.assertEqual(c['q']['SPY']['d'][-1][0], '2026-10-02')
+        sd = self._sd(); sd['px']['ASEA']['d'] = sd['px']['ASEA']['d'][:-6]   # ASEA bez zamknięcia od 6 sesji — wypada
+        c = zd.ceny_z_swiata(sd)
+        self.assertEqual((c['asof'], 'ASEA' in c['q'], len(c['q'])), ('2026-10-05', False, 13))
+
+    def test_kalendarz_z_pliku_i_spy_bez_ceny(self):
+        sd = self._sd()
+        d = sd['cal'][10]
+        sd['px']['SPY']['d'] = [r for r in sd['px']['SPY']['d'] if r[0] != d] + [[d, None, None, 'x']]
+        c = zd.ceny_z_swiata(sd)
+        self.assertIn([d, None, None], c['q']['SPY']['d'], 'SPY: wiersz bez ceny — kalendarz strony pełny')
+        self.assertIn(d, [r[0] for r in c['q']['EWC']['d']], 'przegląd: zamknięcia innych funduszy z tego dnia wypadały')
+        self.assertEqual(len(c['q']['SPY']['d']), 30)
+
+    def test_podzial_jednostek(self):
+        sd = self._sd()
+        rows = sd['px']['EWY']['d']
+        for r in rows[-3:]:
+            r[2] = round(r[2] / 2, 4)   # podział 2:1 trzy sesje temu, szereg niepoprawiony
+        c = zd.ceny_z_swiata(sd)
+        e = c['q']['EWY']['d']
+        self.assertAlmostEqual(e[-3][1] / e[-4][1], (rows[-3][2] * 2) / rows[-4][2], places=6, msg='ruch dnia podziału bez skoku −50%')
+        self.assertEqual(c['podzialy'], [['EWY', rows[-3][0], 0.5]])
+        saved = {}
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, '_prev_cache', lambda n: sd if n == 'swiat-dzien' else None), \
+                mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            zd.ceny_zapas(None, 'Twelve Data: HTTP 401')
+        self.assertTrue(any('podział jednostek uwzględniony — EWY' in n for n in zd.META['notes']), zd.META['notes'])
+
+    def test_pelniejszy_zastepuje_i_pamiec(self):
+        sd = self._sd(); sd['px']['ASEA']['d'] = sd['px']['ASEA']['d'][:-6]
+        prev = zd.ceny_z_swiata(sd)   # zapas bez ASEA, sesja 05.10
+        saved = {}
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, '_prev_cache', lambda n: self._sd() if n == 'swiat-dzien' else None), \
+                mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+            zd.ceny_zapas(prev, 'Twelve Data: HTTP 401')
+        self.assertEqual(len(saved['ceny']['q']), 14, 'ta sama sesja, więcej funduszy — zastępuje')
+        import inspect
+        self.assertIn("if td_key and prev_ceny and fresh(prev_ceny, 55) and not prev_ceny.get('zapas'):", inspect.getsource(zd.main))
+
+    def test_xs_totalnodes_mniejsze_i_jednostka(self):
+        N = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', '2026-10-06T18:00:00Z') for i in range(3)]
+        for tn in (0, 2):
+            j = _rwe170_xs(N); j['data']['tokens']['page']['totalNodes'] = tn
+            with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 3}):
+                with self.assertRaises(ValueError) as c:
+                    zd.rwe_xs_parse(j, None)
+            self.assertIn('bez liczby wszystkich tokenów', str(c.exception), 'przegląd: totalNodes < strona uchodziło za pełną listę')
+        k = self.k
+        def opis(x):
+            j = {'issuer': {'at': 'x', 'ok': True, 'used': {'xstocks': 1e9},
+                            'p': {'xstocks': {'name': 'xStocks', 'v': 1e9, 'stan': 'w', 'full': True, 'ogon': {'n': 5, 'max_usd': x}}}}}
+            return k.rwe_porownanie(j)['opis']
+        self.assertIn('najwyżej 1.00 mln USD', opis(999960)); self.assertIn('najwyżej 1.0 tys. USD', opis(999.6))
 

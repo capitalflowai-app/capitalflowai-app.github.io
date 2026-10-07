@@ -3561,7 +3561,8 @@ def rwe_porownanie(j, now=None):
         og = p.get('ogon') if isinstance(p, dict) and isinstance(p.get('ogon'), dict) else None
         if og and num(og.get('n')) and num(og.get('max_usd')):
             x = og['max_usd']   # v268: odmiana i małe kwoty (było „1 tokenów … 0.00 mln USD”)
-            kw = f'{x / 1e6:.2f} mln USD' if x >= 1e6 else f'{x / 1e3:.1f} tys. USD' if x >= 1e3 else f'{x:.0f} USD'
+            kw = (f'{x / 1e6:.2f} mln USD' if round(x / 1e3, 1) >= 1000 else f'{x / 1e3:.1f} tys. USD' if round(x) >= 1000
+                  else f'{x:.0f} USD')   # v270: jednostka po zaokrągleniu (999 960 → 1.00 mln, nie „1000.0 tys.”)
             pr = og['max_usd'] / p['v'] * 100 if num(p.get('v')) and p['v'] > 0 else None
             cz.append(f"{nm(s)}: reszta listy emitenta poza odczytem ({og['n']} {_odm(og['n'], 'token', 'tokeny', 'tokenów')}) najwyżej {kw}"
                       + ((f' ({pr:.3f}% wartości)' if pr >= 0.001 else ' (<0.001% wartości)') if pr is not None else '') + ' ℹ️')

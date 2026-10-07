@@ -728,30 +728,55 @@ def build_prices(key):
 CENY_ZAPAS_ETYKIETA = 'Ceny (mapa GLOBAL, zapas)'
 
 
+CENY_ZAPAS_STARY = 5   # v270: fundusz bez zamknięcia w tylu ostatnich sesjach kalendarza wypada z zapasu (nie zatrzymuje go na starej sesji)
+
+
 def ceny_z_swiata(sd):
-    """v269: zapas ceny.json z ostatniego pliku Świat dziennie (zamknięcia sesji w USA z giełdy Nasdaq, bez klucza — zbieracz pobiera je i tak
-    dla TRENDÓW): 14 funduszy DAY_SYMS, ostatnie TD_OUTPUT sesji, wiersze [dzień, zamknięcie, None] (bez obrotu), wspólny kalendarz; za mało
-    symboli albo świec — wyjątek (jak build_prices). → słownik jak build_prices z 'zapas': True."""
-    px = sd.get('px') if isinstance(sd, dict) and isinstance(sd.get('px'), dict) else {}
-    q = {}
+    """v269/v270: zapas ceny.json z ostatniego pliku Świat dziennie (zamknięcia sesji w USA z giełdy Nasdaq, bez klucza — zbieracz pobiera je
+    i tak dla TRENDÓW): 14 funduszy DAY_SYMS na kalendarzu pliku (pole cal, ostatnie TD_OUTPUT sesji), wiersze [dzień, zamknięcie, None].
+    v270 (przegląd): zapas kończy się na ostatniej sesji, w której mają zamknięcie wszystkie jego fundusze (fundusz bez zamknięcia w ostatnich
+    CENY_ZAPAS_STARY sesjach wypada); SPY ma wiersz [dzień, None, None] w dniu bez zamknięcia (kalendarz strony = daty SPY); podziały jednostek
+    (iloraz kolejnych zamknięć w 2% od k albo 1/k, TD_W_SPLIT) — wcześniejsze zamknięcia przeskalowane, zapis w 'podzialy'. Za mało funduszy
+    albo świec — wyjątek (jak build_prices). → słownik jak build_prices z 'zapas': True."""
+    cal = sorted({d for d in (sd.get('cal') if isinstance(sd, dict) and isinstance(sd.get('cal'), list) else [])
+                  if isinstance(d, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', d)})[-TD_OUTPUT:]
+    if not cal:
+        raise RuntimeError('plik Świat dziennie bez kalendarza sesji')
+    px = sd.get('px') if isinstance(sd.get('px'), dict) else {}
+    M, podz = {}, []
     for s in DAY_SYMS:
         rec = px.get(s) if isinstance(px.get(s), dict) else {}
         m = {}
         for r in (rec.get('d') if isinstance(rec.get('d'), list) else []):
-            if isinstance(r, list) and len(r) >= 3 and isinstance(r[0], str) and re.match(r'^\d{4}-\d{2}-\d{2}$', r[0]) \
+            if isinstance(r, list) and len(r) >= 3 and isinstance(r[0], str) and r[0] in cal \
                     and isinstance(r[2], (int, float)) and not isinstance(r[2], bool) and 0 < r[2] < float('inf'):
-                m[r[0]] = r[2]
-        d = [[k, m[k], None] for k in sorted(m)][-TD_OUTPUT:]
-        if d:
-            q[s] = {'asof': d[-1][0], 'd': d}
-    _align_calendar(q, CENY_ZAPAS_ETYKIETA)
-    good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
+                m[r[0]] = float(r[2])
+        if not m or max(m) < cal[-min(CENY_ZAPAS_STARY, len(cal))]:
+            continue   # fundusz bez zamknięć albo bez zamknięcia w ostatnich sesjach — poza zapasem (jak brakujący symbol)
+        ds = sorted(m)
+        for i in range(len(ds) - 1, 0, -1):   # od najnowszej pary: podział jednostek → wcześniejsze zamknięcia × dokładny współczynnik
+            iq = m[ds[i]] / m[ds[i - 1]]
+            f = next((x for k in TD_W_SPLIT for x in (k, 1 / k) if abs(iq / x - 1) < 0.02), None)
+            if f is not None:
+                for d in ds[:i]:
+                    m[d] *= f
+                podz.append([s, ds[i], round(f, 6)])
+        M[s] = m
+    pelne = [d for d in cal if M and all(d in m for m in M.values())]
+    if not pelne:
+        raise RuntimeError('plik Świat dziennie bez wspólnej sesji z zamknięciem wszystkich funduszy')
+    ost = pelne[-1]
+    q = {}
+    for s, m in M.items():
+        d = [[k, round(m[k], 6) if k in m else None, None] for k in cal if k <= ost and (k in m or s == 'SPY')]   # SPY: dzień bez ceny też (kalendarz strony)
+        q[s] = {'asof': ost, 'd': d}
+    good = [s for s, v in q.items() if sum(1 for r in v['d'] if r[1] is not None) >= TD_MIN_CANDLES]
     if len(good) < TD_MIN_SYMBOLS:
         raise RuntimeError(f'tylko {len(good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec w pliku Świat dziennie')
-    dates = sorted({v['asof'] for v in q.values()})
-    asof = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
-    return {'at': NOW, 'src': 'Nasdaq', 'plan': 'zapas', 'asof': asof, 'q': q, 'zapas': True}
-
+    out = {'at': NOW, 'src': 'Nasdaq', 'plan': 'zapas', 'asof': ost, 'q': q, 'zapas': True}
+    if podz:
+        out['podzialy'] = podz
+    return out
 
 def _ceny_ost(c):
     """v269: ostatnia sesja pliku cen (wg SPY, inaczej najnowsza z asof); brak = ''."""
@@ -771,11 +796,14 @@ def ceny_zapas(prev, why):
     except Exception as e:  # noqa — zapasu brak (np. pierwszy przebieg albo plik Świat dziennie bez cen) — poprzedni plik jak dotąd
         z = None
         META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: niedostępny ({str(e)[:80]})'))
-    if z is not None and _ceny_ost(z) > _ceny_ost(prev):
+    wz = lambda c: (_ceny_ost(c), len(c['q']) if isinstance(c, dict) and isinstance(c.get('q'), dict) else 0)  # noqa: E731
+    if z is not None and wz(z) > wz(prev):   # v270: (sesja, liczba funduszy) — pełniejszy zapas z tą samą sesją zastępuje niepełny
         z['zapas_dlaczego'] = mask(str(why)[:120])
         save('ceny', z)
         META['notes'].append(mask(f'{CENY_ZAPAS_ETYKIETA}: {str(why)[:80]} — zamknięcia sesji z giełdy (bez klucza) do {_ceny_ost(z)}'))
         print('CENY: zapas z pliku Świat dziennie do', _ceny_ost(z))
+        if z.get('podzialy'):
+            META['notes'].append(f"{CENY_ZAPAS_ETYKIETA}: podział jednostek uwzględniony — " + ', '.join(f'{s} {d} (×{f:g})' for s, d, f in z['podzialy'][:4]))
     elif prev:
         save('ceny', prev)
         print('CENY: zachowano poprzedni ceny.json z', prev.get('at'))
@@ -19054,6 +19082,8 @@ def rwe_xs_parse(j, fx):
     pg = data['tokens'].get('page') if isinstance(data['tokens'].get('page'), dict) else {}
     tn = pg.get('totalNodes')
     tn = int(tn) if isinstance(tn, (int, float)) and not isinstance(tn, bool) and 0 <= tn < 1e9 and tn == int(tn) else None   # v268: także 1271.0
+    if tn is not None and tn < len(N):   # v270 (przegląd): mniej wszystkich niż na stronie — liczba nieużyteczna (pełna strona = błąd)
+        tn = None
     ogon = None
     if (tn is not None and tn > len(N)) or (tn is None and len(N) >= RWE_XS_VAR['pageSize']):
         # v265/v267: lista dłuższa niż odczytana strona (06.10: 1271 tokenów; dalsze strony — błąd serwera emitenta). Kolejność od największych
@@ -19347,7 +19377,7 @@ def main():
         META['errors'].append('brak FINNHUB_KEY'); META['ok']['finnhub'] = False
     # CENY (okresy 1T i 1M, Twelve Data, klucz właściciela): najwyżej raz na godzinę — 24 × 14 kredytów = 336 z 800 dziennie
     prev_ceny = previous('ceny')   # v269: także bez klucza — zapas cen porównuje się z poprzednim plikiem
-    if td_key and prev_ceny and fresh(prev_ceny, 55):
+    if td_key and prev_ceny and fresh(prev_ceny, 55) and not prev_ceny.get('zapas'):   # v270: plik zapasu to nie pamięć Twelve Data
         save('ceny', prev_ceny); META['ok']['twelvedata'] = 'cached'; print('CENY: dane z', prev_ceny.get('at'), '— młodsze niż 55 min, bez zapytań do Twelve Data')
     elif td_key:
         try:
