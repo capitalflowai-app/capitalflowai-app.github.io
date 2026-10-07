@@ -20,10 +20,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7   # v289c: akcje na Node.js 24 (sondy i kontrola na tych wersjach od v289a/b — działają)
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Testy zbieracza (brak nie jest zerem, zakres dat, pamięć podręczna) — awaria blokuje publikację
@@ -31,7 +31,7 @@ jobs:
       - name: Test bramki strony dla plików widoków silnika (bez przeglądarki) — awaria blokuje publikację
         run: node --test test_widoki.cjs
       - name: Przywróć pamięć zbieracza (ostatnie pliki danych; przeżywa awarię publikacji strony)
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6   # v289c: brak pamięci (np. inna wersja wpisu) = poprzednie pliki ze strony (previous() bierze nowszy) — bez utraty danych
         with:
           path: pamiec-danych
           key: dane-${{ github.run_id }}
@@ -71,7 +71,7 @@ jobs:
       - name: Zapisz pamięć zbieracza
         if: always()
         run: mkdir -p pamiec-danych && cp data/*.json pamiec-danych/ 2>/dev/null || true
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: always()
         with:
           path: pamiec-danych
@@ -129,9 +129,10 @@ jobs:
           BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
           EVDS_KEY: ${{ secrets.EVDS_KEY }}
         run: python3 narzedzia/straz_kluczy.py
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+          include-hidden-files: true   # v289c: od v4 pliki ukryte (.nojekyll) są domyślnie pomijane — zostaje jak dotąd
 
   opublikuj:
     needs: zbuduj
@@ -145,7 +146,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   # v145: zapasowy zegar — gdy harmonogram tego workflow stoi (03.10.2026: brak przebiegów z harmonogramu od 11:05 UTC), budzi workflow
   # „Zegar zapasowy” (zegar.yml), który ok. 20 min po starcie tego przebiegu uruchamia następny; v145.2: budzi go ZAWSZE (czuwanie — gdy
@@ -160,7 +161,7 @@ jobs:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           sparse-checkout: narzedzia/zegar.py
