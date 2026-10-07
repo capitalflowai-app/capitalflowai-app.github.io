@@ -30142,3 +30142,60 @@ class PoPrzegladzieV278(unittest.TestCase):
         self.assertEqual(len(v), 10)
         for x in v:
             self.assertIsNone(_re.search('co drugi dzień|every other day|jeden zweiten Tag|cada dos días|un jour sur deux|giorni alterni|dia sim, dia não|через день|每隔一天|1日おき', x), x[:80])
+
+
+# ===================== v279: SAMOUCZENIE PORY PUBLIKACJI PRZEPŁYWÓW ETF =====================
+class EtfPoraPublikacjiV279(unittest.TestCase):
+    """v279: oczekiwany dzień danych, okno publikacji (domyślne i z obserwacji), tryb szybki (brak dnia w oknie), zapis obserwacji 'pub',
+    połączenie w main() i w build_etf."""
+    UTC = datetime.timezone.utc
+
+    def T(self, *a):
+        return datetime.datetime(*a, tzinfo=self.UTC)
+
+    def test_oczekiwany_dzien(self):
+        f = zd.etf_oczekiwany
+        self.assertEqual(f(self.T(2026, 10, 7, 2, 0)).isoformat(), '2026-10-06', 'środa 02:00 — wtorek')
+        self.assertEqual(f(self.T(2026, 10, 6, 21, 0)).isoformat(), '2026-10-06', 'wtorek po 20:00 — wtorek')
+        self.assertEqual(f(self.T(2026, 10, 6, 19, 0)).isoformat(), '2026-10-05', 'wtorek przed 20:00 — poniedziałek')
+        self.assertEqual(f(self.T(2026, 10, 12, 10, 0)).isoformat(), '2026-10-09', 'poniedziałek rano — piątek')
+        self.assertEqual(f(self.T(2026, 10, 11, 12, 0)).isoformat(), '2026-10-09', 'niedziela — piątek')
+
+    def test_okno(self):
+        self.assertEqual(zd.etf_okno(None), (21 * 60, 30 * 60, 0))
+        pub = {'btc': [['2026-09-%02d' % d, '2026-09-%02dT01:%02d:00+00:00' % (d + 1, 10 + d)] for d in range(14, 26)]}   # 25 h 24 min – 25 h 35 min
+        od, do, n = zd.etf_okno(pub)
+        self.assertEqual(n, 12); self.assertEqual((od, do), (1525 - 60, 1534 + 30), '10. centyl 1525 min (25 h 25 min), 90. centyl 1534 min')
+        pub['eth'] = [['2026-09-20', 'zły czas'], ['2026-09-20', '2026-09-27T00:00:00+00:00']]   # zły i ponad 3 doby — pominięte
+        self.assertEqual(zd.etf_okno(pub)[2], 12)
+        wcz = {'btc': [['2026-09-%02d' % d, '2026-09-%02dT19:00:00+00:00' % d] for d in range(14, 26)]}   # 19:00 tego samego dnia
+        self.assertEqual(zd.etf_okno(wcz)[0], 20 * 60, 'granica okna z danych: 20:00')
+
+    def test_tryb_szybki(self):
+        prev = {'assets': {'btc': {'asof': '2026-10-05'}, 'eth': {'asof': '2026-10-05'}, 'sol': {'asof': '2026-10-06'}, 'xrp': {'asof': '2026-10-06'}}}
+        self.assertTrue(zd.etf_szybko(prev, self.T(2026, 10, 7, 2, 0)), '07.10 02:00 — BTC i ETH bez 06.10, w oknie domyślnym')
+        self.assertFalse(zd.etf_szybko(prev, self.T(2026, 10, 7, 7, 0)), 'po oknie (06:00)')
+        pelny = {'assets': {s: {'asof': '2026-10-06'} for s in ('btc', 'eth', 'sol', 'xrp')}}
+        self.assertFalse(zd.etf_szybko(pelny, self.T(2026, 10, 7, 2, 0)), 'komplet — co godzinę')
+        stale = {'assets': dict(pelny['assets'], xrp={'asof': '2026-09-30', 'stale': True})}
+        self.assertFalse(zd.etf_szybko(stale, self.T(2026, 10, 7, 2, 0)), 'moneta „stale” nie wymusza trybu szybkiego')
+        self.assertFalse(zd.etf_szybko(None, self.T(2026, 10, 7, 2, 0))); self.assertFalse(zd.etf_szybko({'assets': 'x'}, self.T(2026, 10, 7, 2, 0)))
+        self.assertFalse(zd.etf_szybko({'assets': {'btc': {'day': [[1, 1.0]]}}}, self.T(2026, 10, 7, 2, 0)), 'moneta bez daty danych — bez trybu szybkiego')
+
+    def test_pub(self):
+        pa = {'btc': {'asof': '2026-10-05'}, 'eth': {'asof': '2026-10-05'}, 'sol': {'asof': '2026-10-06'}}
+        a = {'btc': {'asof': '2026-10-06'}, 'eth': {'asof': '2026-10-06'}, 'sol': {'asof': '2026-10-06'}, 'xrp': {'asof': '2026-10-06'}}
+        p = zd.etf_pub({'btc': [['2026-10-02', 'x']]}, pa, a, {'eth': pa['eth']}, '2026-10-07T02:10:00+00:00')
+        self.assertEqual(p, {'btc': [['2026-10-02', 'x'], ['2026-10-06', '2026-10-07T02:10:00+00:00']]},
+                         'tylko nowy dzień monety pobranej teraz; przeniesiona (eth), bez zmiany (sol) i bez poprzedniego wpisu (xrp) — bez obserwacji')
+        long = zd.etf_pub({'btc': [[f'd{i}', 't'] for i in range(40)]}, pa, a, {}, 'T')
+        self.assertEqual(len(long['btc']), zd.ETF_PUB_KEEP); self.assertEqual(long['btc'][-1], ['2026-10-06', 'T'])
+
+    def test_polaczenie(self):
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertIn("etf_szybki = bool(soso_key and prev_etf and etf_szybko(prev_etf, _now_utc()))", src)
+        self.assertIn("if soso_key and prev_etf and fresh(prev_etf, 55) and not (etf_szybki and not fresh(prev_etf, ETF_SZYBKO_MIN)):", src)
+        b = inspect.getsource(zd.build_etf)
+        self.assertIn("out['pub'] = etf_pub(prev.get('pub') if isinstance(prev, dict) else None, prev_assets, out['assets'], stare, NOW)", b)
+        self.assertIn("out['okno'] = {'od': od, 'do': do, 'n': n}", b)

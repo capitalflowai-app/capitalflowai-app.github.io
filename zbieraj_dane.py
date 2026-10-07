@@ -5014,6 +5014,77 @@ def _etf_rowne(x, y):
     return ok(x) and ok(y) and abs(x - y) <= 1e-6 * max(1.0, abs(y))
 
 
+# v279: samouczenie pory publikacji przepływów ETF w USA. Dzień D pojawia się u źródła wieczorem albo w nocy UTC, różnie dla monet i dni
+# (07.10: SOL i XRP z 06.10 już o 00:58 UTC, BTC i ETH jeszcze nie o 01:58). Zbieracz zapisuje, kiedy nowy dzień każdej monety pojawił się
+# pierwszy raz ('pub'), uczy się z tego okna publikacji ('okno') i w oknie — gdy oczekiwanego dnia brak — pyta w każdym przebiegu (co ~10 min)
+# zamiast raz na godzinę. Poza oknem i przy komplecie — jak dotąd (plan 100 000 zapytań na miesiąc).
+ETF_PUB_KEEP = 30                     # obserwacji pory publikacji na monetę
+ETF_PUB_MIN = 5                       # tyle obserwacji (wszystkie monety) = okno z danych; mniej = okno domyślne
+ETF_OKNO_DOM = (21 * 60, 30 * 60)     # min od północy UTC dnia danych: 21:00 tego dnia – 06:00 następnego (okno domyślne)
+ETF_OKNO_GRAN = (20 * 60, 38 * 60)    # granice okna z danych: 20:00 – 14:00 następnego dnia
+ETF_SZYBKO_MIN = 9                    # min — w oknie pytanie, gdy plik starszy (przebieg automatu co 10 min)
+
+
+def etf_oczekiwany(now):
+    """v279: dzień danych, którego przepływów oczekujemy: ostatni dzień roboczy D (pon–pt) taki, że teraz ≥ D 20:00 UTC (po sesji w USA)."""
+    d = (now - datetime.timedelta(hours=20)).date()
+    while d.weekday() >= 5:
+        d -= datetime.timedelta(days=1)
+    return d
+
+
+def etf_okno(pub):
+    """v279: okno publikacji z obserwacji 'pub' (minuty od północy UTC dnia danych do pierwszego zobaczenia) → (od, do, n): 10. centyl − 60
+    i 90. centyl + 30 min, w granicach ETF_OKNO_GRAN; mniej niż ETF_PUB_MIN obserwacji — ETF_OKNO_DOM. Obserwacja poza 0–3 doby — pominięta."""
+    obs = []
+    for rows in (pub.values() if isinstance(pub, dict) else []):
+        for r in (rows if isinstance(rows, list) else []):
+            try:
+                d, t = datetime.date.fromisoformat(r[0]), _ix_dt(r[1])
+                m = (t - datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc)).total_seconds() / 60
+            except (TypeError, ValueError, IndexError):
+                continue
+            if 0 <= m <= 3 * 24 * 60:
+                obs.append(m)
+    if len(obs) < ETF_PUB_MIN:
+        return ETF_OKNO_DOM[0], ETF_OKNO_DOM[1], len(obs)
+    obs.sort()
+    q = lambda p: obs[min(len(obs) - 1, int(p * (len(obs) - 1) + 0.5))]  # noqa: E731
+    od = max(ETF_OKNO_GRAN[0], q(0.1) - 60)
+    do = min(ETF_OKNO_GRAN[1], max(od + 60, q(0.9) + 30))
+    return int(od), int(do), len(obs)
+
+
+def etf_szybko(prev, now):
+    """v279: czy pytać o przepływy mimo pliku młodszego niż godzina — oczekiwanego dnia (etf_oczekiwany) brak w którejś monecie (poza
+    'stale') i teraz jest w oknie publikacji (etf_okno). → bool."""
+    if not isinstance(prev, dict) or not isinstance(prev.get('assets'), dict):
+        return False
+    E = etf_oczekiwany(now)
+    brak = [s for s, a in prev['assets'].items() if isinstance(a, dict) and not a.get('stale') and isinstance(a.get('asof'), str)
+            and re.match(r'^\d{4}-\d{2}-\d{2}$', a['asof']) and a['asof'] < E.isoformat()]   # moneta bez poprawnej daty — bez trybu szybkiego
+    if not brak:
+        return False
+    od, do, _ = etf_okno(prev.get('pub'))
+    m = (now - datetime.datetime(E.year, E.month, E.day, tzinfo=datetime.timezone.utc)).total_seconds() / 60
+    return od <= m <= do
+
+
+def etf_pub(prev_pub, prev_assets, assets, stare, now_iso):
+    """v279: obserwacje pory publikacji — moneta pobrana teraz (nie przeniesiona z poprzedniego pliku), której dzień danych jest nowszy niż
+    w poprzednim pliku: [dzień, czas pierwszego zobaczenia]; najwyżej ETF_PUB_KEEP ostatnich na monetę. Bez poprzedniego wpisu monety — bez
+    obserwacji (nie wiadomo, kiedy dzień się pojawił)."""
+    out = {s: [list(r) for r in rows if isinstance(r, list) and len(r) == 2] for s, rows in prev_pub.items() if isinstance(rows, list)} \
+        if isinstance(prev_pub, dict) else {}
+    for s, a in assets.items():
+        pa = prev_assets.get(s) if isinstance(prev_assets, dict) else None
+        if s in stare or not isinstance(pa, dict) or not isinstance(a.get('asof'), str) or not isinstance(pa.get('asof'), str):
+            continue
+        if a['asof'] > pa['asof']:
+            out[s] = (out.get(s, []) + [[a['asof'], now_iso]])[-ETF_PUB_KEEP:]
+    return out
+
+
 def build_etf(key, cg_key, prev=None):
     out = {'at': NOW, 'asof': '', 'src': 'SoSoValue', 'live': True, 'mcap': {}, 'assets': {}}
     prev_assets = prev.get('assets') if isinstance(prev, dict) and isinstance(prev.get('assets'), dict) else {}
@@ -5063,6 +5134,9 @@ def build_etf(key, cg_key, prev=None):
         if out.get('hk') and set(nowe_hk or ()) >= {'btc', 'eth'}:   # v194: czas tylko dla kompletu z tego przebiegu
             out['hk_at'] = NOW
     # fundusze publikują dane w różnych godzinach — jeśli daty różnią się między monetami, pokazujemy zakres, nie najnowszą
+    out['pub'] = etf_pub(prev.get('pub') if isinstance(prev, dict) else None, prev_assets, out['assets'], stare, NOW)   # v279: pora publikacji
+    od, do, n = etf_okno(out['pub'])
+    out['okno'] = {'od': od, 'do': do, 'n': n}   # v279: okno publikacji (min od północy UTC dnia danych) — do kontroli i opisu
     dates = sorted({a['asof'] for a in out['assets'].values()})
     out['asof'] = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
     return out
@@ -19589,7 +19663,8 @@ def main():
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
     prev_etf = previous('etf') if soso_key else None
-    if soso_key and prev_etf and fresh(prev_etf, 55):
+    etf_szybki = bool(soso_key and prev_etf and etf_szybko(prev_etf, _now_utc()))   # v279: okno publikacji, oczekiwanego dnia brak — co przebieg
+    if soso_key and prev_etf and fresh(prev_etf, 55) and not (etf_szybki and not fresh(prev_etf, ETF_SZYBKO_MIN)):
         save('etf', prev_etf); META['ok']['sosovalue'] = 'cached'; print('ETF: dane z', prev_etf.get('at'), '— młodsze niż 55 min, bez zapytań do SoSoValue')
     elif soso_key:
         try:
