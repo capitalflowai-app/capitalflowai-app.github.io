@@ -8233,7 +8233,9 @@ class CenyFunduszyV93(unittest.TestCase):
         by = {r['id']: r for r in out['p']}
         self.assertEqual((by['fp_gold']['sym'], by['fp_gold']['g']), ('GLD', 'fp'), 'największy fundusz grupy (300 × 400 > 60 × 700)')
         self.assertNotIn('fp_ustl', by, 'v94: bez obligacji — wypłata odsetek obniża NAV'); self.assertIn('fp_tech', by, 'v221: pojedynczy zły wiersz NAV pominięty — seria ciągła'); self.assertNotIn('fp_us', by, 'akcje USA są już na liście cen krajów (SPY)')
-        self.assertTrue(any(n.startswith('trendy XLK: wiersz ') and 'pominięty w cenie tygodniowej' in n for n in zd.META['notes']), 'v221: notatka o pominiętym wierszu')
+        x = fu['XLK']['h']   # v293: zły wiersz w środku tygodnia — cena tygodniowa z zamknięć 5 sesji wstecz (dotąd 6: notatka „z 6 sesji”), bez notatki
+        self.assertFalse(any(n.startswith('trendy XLK: wiersz ') for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual(by['fp_tech']['w'], round((x[-1][1] / x[-6][1] - 1) * 100, 2), 'v293: tydzień = 5 sesji, zły dzień w środku bez wpływu')
         fu2 = {'XLE': {'h': [[d.isoformat(), (90.0 if i < 200 else 45.0) + 0.01 * i, 300 if i < 200 else 600] for i, d in enumerate(days)]}}
         with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 9, 25, 10, 0, tzinfo=datetime.timezone.utc)):
             r = {x['id']: x for x in zd.build_trendy({'fundusze': {'f': fu2}})['p']}['fp_energy']
@@ -26195,7 +26197,7 @@ class PoPrzegladzieV223(unittest.TestCase):
         zd.META['notes'] = []
         hm = self.H + [['2026-10-01', 37.1, 233800000], ['2026-10-02', 0.001, 235300000], ['2026-10-05', 38.5, 235400000], ['2026-10-06', 38.6, 235500000]]
         zd._fund_px_rows('EWZ', hm)
-        self.assertEqual(zd.META['notes'], ['trendy EWZ: wiersz 2026-10-02 pominięty w cenie tygodniowej (błąd pliku źródła) — ostatni tydzień liczony z 6 sesji'])
+        self.assertEqual(zd.META['notes'], [], 'v293: zły wiersz w środku tygodnia — tydzień liczony po sesjach kalendarza pliku (5 sesji), bez notatki')
         zd.META['notes'] = []
         ho = self.H[:5] + [[self.H[5][0], 0.001, self.H[5][2]]] + self.H[6:] + [['2026-10-01', 37.1, 233800000], ['2026-10-02', 37.2, 233900000]]
         self.assertEqual(len(zd._fund_px_rows('EWZ', ho)), len(ho) - 1); self.assertEqual(zd.META['notes'], [], 'stary zły wiersz — bez notatki')
@@ -31250,3 +31252,91 @@ class KoszykiScenyV293c(unittest.TestCase):
             self.assertEqual([s for s in v if s not in cp and s not in self.POZA_LIVE], [], k + ': brak wśród 300 pierwszych monet źródła na żywo')
         for s in ('MKR', 'TON', 'RNDR', 'OCEAN', 'OM', 'TRU', 'GFI', 'DUSK', 'MPL', 'TOKEN', 'ILV', 'PRIME', 'PIXEL', 'YGG', 'POPCAT', 'MEW', 'IOTX', 'DIMO'):
             self.assertFalse(any(s in v for v in B.values()), s + ' — brak w danych z 7.10')
+
+
+# ===================== v293: TRENDY — POPRAWKI AUDYTU M1 (T1 dzień z dwóch sesji, T2 tydzień NAV po sesjach, T4 zaokrąglenie przepływu) =====================
+class TrendyAudytV293(unittest.TestCase):
+    """v293 (audyt m1): zły wiersz pliku funduszu (EWZ 05.10.2026: NAV 0,001328) — przepływ dwóch sesji trafiał do 06.10 i był „ostatnim dniem:
+    nietypowo dużo” (z = 17,47), a tydzień przepływów i ceny NAV obejmował 6 sesji zamiast 5. Teraz: liczba sesji każdej wartości (fund_group
+    info), bloki po sesjach, bez oceny dnia z kilku sesji; cena tygodniowa z zamknięć 5 sesji kalendarza pliku. T4: przepływ w wierszu dziennym
+    z 2 miejscami. Zegar przypięty (_now_utc)."""
+    NOW = datetime.datetime(2026, 10, 7, 16, 23, tzinfo=datetime.timezone.utc)
+    TAIL = [['2026-09-28', 36.160004, 232000000], ['2026-09-29', 36.39653, 232600000], ['2026-09-30', 37.127677, 232600000],
+            ['2026-10-01', 37.119924, 233800000], ['2026-10-02', 38.109913, 235300000], ['2026-10-05', 0.001328, 238426920],
+            ['2026-10-06', 42.894671, 254800000]]   # prawdziwe wiersze EWZ (poza 28.09: jednostki −600 tys., żeby 29.09 miał przepływ ≠ 0)
+
+    def ewz(self, tail=None):
+        tail = tail or self.TAIL
+        days = [d for d in (datetime.date(2025, 6, 2) + datetime.timedelta(days=i) for i in range(500)) if d.weekday() < 5 and d < datetime.date(2026, 9, 28)][-293:]
+        return [[d.isoformat(), 36.0 + 0.002 * i, 230000000 + (100000 * (i % 7) if i % 3 else 0)] for i, d in enumerate(days)] + [r[:] for r in tail]
+
+    def row(self, h):
+        with mock.patch.object(zd, '_now_utc', return_value=self.NOW):
+            zd.META['notes'].clear()
+            out = zd.build_trendy({'fundusze': {'f': {'EWZ': {'h': h}}}})
+        return {x['id']: x for x in out['f']}.get('fe_bra'), {x['id']: x for x in out['p']}.get('fp_bra')
+
+    def test_grupa_liczba_sesji(self):
+        h = self.ewz(); inf = {}
+        ds, v, aum = zd.fund_group({'EWZ': {'h': h}}, ('EWZ',), inf)
+        self.assertEqual((ds, v, aum), zd.fund_group({'EWZ': {'h': h}}, ('EWZ',)), 'daty, wartości i aktywa bez zmian')
+        self.assertEqual((len(inf['ns']), ds[-1], inf['ns'][-1]), (len(ds), '2026-10-06', 2), 'przepływ 06.10 obejmuje sesje 05.10 (zły wiersz) i 06.10')
+        self.assertEqual(set(inf['ns'][:-1]), {1})
+        self.assertAlmostEqual(v[-1], (254800000 - 235300000) * 42.894671 / 1e6, places=6)
+        fu = {'GLD': {'h': [['2026-09-03', 10.0, 100], ['2026-09-04', 10.0, 110], ['2026-09-07', 10.1, 110], ['2026-09-08', 10.0, 130]]},
+              'IAU': {'h': [['2026-09-03', 5.0, 100], ['2026-09-04', 5.0, 90], ['2026-09-08', 5.0, 117]]}}
+        inf = {}; ds, v, _ = zd.fund_group(fu, ('GLD', 'IAU'), inf)
+        self.assertEqual((ds, inf['ns']), (['2026-09-04', '2026-09-08'], [1, 2]), 'dzień tylko w jednym pliku — następny wspólny dzień z 2 sesji')
+
+    def test_bloki_po_sesjach(self):
+        v = [float(i) for i in range(1, 11)]
+        for k in (1, 2, 3):
+            self.assertEqual(zd._tr_sums(v, 5, k), zd._tr_sums(v, 5, k, wt=[1] * 10), 'same jedynki = jak dotąd')
+        bl = []
+        self.assertEqual(zd._tr_sums(v, 5, 3, wt=[1, 1, 1, 1, 1, 1, 2, 1, 1, 1], blk=bl), [7 + 8 + 9 + 10, 2 + 3 + 4 + 5 + 6])
+        self.assertEqual(bl, [(5, 6), (5, 1)], 'wartość z 2 sesji w środku bloku — blok to 5 sesji w 4 wartościach')
+        bl = []
+        self.assertEqual(zd._tr_sums(v, 5, 3, wt=[1, 1, 1, 1, 1, 2, 1, 1, 1, 1], blk=bl), [6 + 7 + 8 + 9 + 10, 1 + 2 + 3 + 4 + 5])
+        self.assertEqual(bl, [(6, 5), (5, 0)], 'na granicy bloku — blok o sesję dłuższy')
+        self.assertEqual(zd._tr_sums(v, 5, 3, wt=[1, 1, 1, 1, 1, 3, 1, 1, 1, 1]), [], 'dłuższy niż 6 sesji — koniec listy (brak, nie zgadywanie)')
+        st = zd.trend_state([10.0] * 45 + [100.0] * 5, 5, wt=[1] * 45 + [2] + [1] * 4)   # pierwsza wartość ostatniego bloku z 2 sesji
+        self.assertEqual(st['ns'], 6); self.assertNotIn('ns', zd.trend_state([10.0] * 45 + [100.0] * 5, 5))
+
+    def test_karta_bez_dnia_z_dwoch_sesji(self):
+        h = self.ewz(); r, _ = self.row(h)
+        self.assertNotIn('dz', r, 'T1: wartość z dwóch sesji — bez „ostatni dzień: nietypowo dużo” (dotąd z = 17,47)')
+        self.assertNotIn('last', r); self.assertEqual((r['s'], r['sg']), (0, 0), 'seria dni z rzędu — nie wiemy, jak było w każdej z dwóch sesji')
+        self.assertNotIn('ns', r, 'ostatnie 5 sesji (30.09–06.10) to 4 wartości — podpis „5 sesji” prawdziwy')
+        fl = zd.fund_flows([x for x in h if x[0] != '2026-10-05'])
+        five = sum(fl[d] for d in ('2026-09-30', '2026-10-01', '2026-10-02', '2026-10-06'))
+        self.assertAlmostEqual(r['w'], round(five, 2), places=2, msg='suma 5 sesji (30.09–06.10)')
+        self.assertGreater(abs(r['w'] - round(five + fl['2026-09-29'], 2)), 10, 'nie 6 sesji (29.09–06.10), jak dotąd')
+        ok = [x[:] for x in self.TAIL]; ok[5] = ['2026-10-05', 40.5, 238426920]   # kontrola: poprawny wiersz 05.10 — dzień 06.10 oceniany jak zawsze
+        r2, _ = self.row(self.ewz(ok))
+        self.assertIn('dz', r2); self.assertAlmostEqual(r2['last'], (254800000 - 238426920) * 42.894671 / 1e6, places=2)
+
+    def test_blok_na_granicy_sesji(self):
+        t = [x[:] for x in self.TAIL]; t[1] = ['2026-09-29', 0.001, 232600000]; t[5] = ['2026-10-05', 40.5, 238426920]   # zły 29.09, dobry 05.10
+        r, p = self.row(self.ewz(t))
+        self.assertEqual(r['ns'], 6, '30.09 niesie przepływ 29.09 i 30.09 — ostatni blok to 6 sesji (strona: „6 sesji do …”)')
+        fl = zd.fund_flows([x for x in self.ewz(t) if x[0] != '2026-09-29'])
+        self.assertAlmostEqual(r['w'], round(sum(fl[d] for d in ('2026-09-30', '2026-10-01', '2026-10-02', '2026-10-05', '2026-10-06')), 2), places=2)
+        self.assertIsNone(p, 'T2: zamknięcie sprzed 5 sesji (29.09) z błędem pliku — bez ceny tygodniowej, nie cena z 6 sesji')
+        self.assertTrue(any(n.startswith('trendy EWZ: zamknięcie sprzed 5 albo 25 sesji z błędem pliku') for n in zd.META['notes']), zd.META['notes'])
+
+    def test_cena_nav_tydzien_po_sesjach(self):
+        h = self.ewz(); _, p = self.row(h)
+        by = {x[0]: x[1] for x in h}
+        self.assertEqual(p['w'], round((by['2026-10-06'] / by['2026-09-29'] - 1) * 100, 2), 'T2: zamknięcia 5 sesji (od 29.09), nie 6 (od 28.09)')
+        self.assertEqual(p['w'], 17.85); self.assertNotEqual(p['w'], round((by['2026-10-06'] / by['2026-09-28'] - 1) * 100, 2))
+        self.assertFalse(any('EWZ' in n and 'sesji' in n for n in zd.META['notes']), zd.META['notes'])
+
+    def test_przeplyw_w_wierszu_dziennym_dwa_miejsca(self):
+        self.assertEqual((zd.TD_W_DIG['f'], zd.TD_W_DIG['o']), (2, 2), 'T4: jak „last” kart tygodniowych')
+        s = {'dates': ['2026-10-06'], 'cal': ['2026-10-06'], 'in': {'p': [0.53], 'f': [979.46]}, 'fam': 'eq', 'id': 'XLK', 'sym': 'XLK', 'iss': 'ssga',
+             'late': False, 'pend': []}
+        with mock.patch.object(zd, '_tdw_votes', return_value=({'p': (0.53, 0.33, 0, True), 'f': (979.46, 6.18, 1, True)}, 1)):
+            r = zd._tdw_row(s, {}, {}, datetime.date(2026, 10, 7), self.NOW)
+        self.assertEqual((r['f'], r['fu'], [x[1] for x in r['rs'] if x[0] == 'f']), (979.46, 979.46, [979.46]), 'strona zaokrągla raz: 979, jak karta tygodniowa (dotąd 979,5 → 980)')
+        import inspect
+        self.assertIn("'f': rnd(flow[i] if flow else None, 2)", inspect.getsource(zd._td_row), 'wersja 1 kart świata — też 2 miejsca')

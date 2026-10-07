@@ -5501,7 +5501,8 @@ def _fund_clean(h):
 
 def _fund_px_rows(t, h):
     """v221/v223: wiersze NAV do ceny tygodniowej TRENDÓW bez wierszy z błędem pliku źródła (_fund_clean) — pojedynczy zły dzień nie ucina historii.
-    Notatka tylko, gdy zły wiersz dotyczy ostatniego tygodnia: najnowszy (cena do poprzedniej sesji) albo w środku tygodnia (tydzień z N sesji);
+    Notatka tylko, gdy zły wiersz jest najnowszy (cena do poprzedniej sesji); v293: w środku tygodnia — bez notatki (_tr_prices liczy tydzień
+    po sesjach kalendarza pliku, zły dzień to brak ceny tylko tego dnia — tydzień zostaje 5 sesji);
     starszy — bez notatki (v223: dotąd co przebieg, póki był w historii). Przepływy i zwroty dzienne: pary dni z tym wierszem = brak."""
     keep, bad = _fund_clean(h)
     if bad and len(keep) >= 6:
@@ -5509,9 +5510,6 @@ def _fund_px_rows(t, h):
         a0 = ix.get(keep[-6][0], 0)
         wb = [b for b in bad if ix.get(b, -1) > a0]
         co = [f'cena do {keep[-1][0]}'] if h[-1][0] in bad else []
-        s = ix.get(keep[-1][0], 0) - a0
-        if s != 5:
-            co.append(f'ostatni tydzień liczony z {s} sesji')
         if wb and co:
             META['notes'].append(f'trendy {t}: wiersz {", ".join(wb[-3:])} pominięty w cenie tygodniowej (błąd pliku źródła) — ' + ', '.join(co))
     return keep
@@ -5681,7 +5679,7 @@ TR_DAY_Z = 3.0        # … i |ostatni dzień − średnia| ≥ 3 odchylenia (z 
 TR_SPAN = 11          # 5 sesji mieści się w 11 dniach kalendarzowych (święta do 4 dni roboczych); dłużej = brak dnia w tygodniu
 TR_PX_MIN = 0.5       # ceny: ruch tygodnia wyraźny, gdy |zmiana| ≥ 0,5 typowego tygodniowego ruchu tego rynku
 TR_PX_WEEKS = 50      # typowy tygodniowy ruch: z najwyżej 50 poprzednich tygodni (co najmniej 20)
-TR_CR_TYP = 9.0       # krypto (brak historii cen w plikach): umowny typowy tydzień 9% — ruch tygodnia wyraźny od 4,5%, 23 dni przed nim od 9%
+TR_CR_TYP = 9.0       # krypto (próg umowny — jeszcze nie z historii cen, choć ceny-krypto.json ma już ponad rok zamknięć): umowny typowy tydzień 9% — ruch tygodnia wyraźny od 4,5%, 23 dni przed nim od 9%
 TR_CR_SYMS = ('BTC', 'ETH', 'XRP', 'BNB', 'SOL', 'DOGE', 'ADA', 'TRX', 'LINK', 'AVAX')
 TR_PX_SYMS = ('SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA')
 TR_CFTC = ('usd', 'eur', 'jpy', 'spx', 'msciem', 'btc', 'eth')   # fundusze lewarowane; bez obligacji 10L (transakcja na bazie)
@@ -5758,7 +5756,7 @@ TD_W_ZL = statistics.NormalDist().inv_cdf(1 - 0.025 / (TD_W_M * len(TD_W_LOOKS))
 TD_W_CLL = round(100 - 5 / (TD_W_M * len(TD_W_LOOKS)), 1)                           # 99.8
 TD_W_SETTLE = 4                   # wiersz dziennika wchodzi do punktu kontrolnego, gdy ma ≥ 4 dni
 TD_W_JST = ('buy', 'sell', 'obs', 'x', 'quiet')
-TD_W_DIG = {'p': 2, 'f': 1, 'o': 1}
+TD_W_DIG = {'p': 2, 'f': 2, 'o': 2}   # v293: przepływy z 2 miejscami jak „last” kart tygodniowych (979,46 → 979,5 → 980 przy 979 na karcie)
 TD_W_SPLIT = (1.5, 2, 3, 4, 5, 10)   # iloraz zamknięć w 2% od k albo 1/k = niepoprawiony podział jednostek → brak (nigdy 0)
 TD_W_YR = (2 / 3, 1.5)            # otwarcie→zamknięcie poza tym zakresem = błąd danych → brak
 TD_NYSE_CLOSED = ('2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07',
@@ -5818,20 +5816,36 @@ def _d(s):
         return None
 
 
-def _tr_sums(vals, size, k, dates=None, span=None):
+def _tr_sums(vals, size, k, dates=None, span=None, wt=None, blk=None):
     """Sumy k kolejnych pełnych bloków po `size` wartości, od końca: [ostatni, poprzedni, …]. Blok z brakiem (None) albo — gdy podano
-    daty i `span` — rozciągnięty na więcej niż `span` dni kalendarzowych (brakujący dzień w pliku) kończy listę."""
-    out = []
+    daty i `span` — rozciągnięty na więcej niż `span` dni kalendarzowych (brakujący dzień w pliku) kończy listę.
+    v293: wt — liczba sesji w każdej wartości (fund_group info['ns']: przepływ dnia ze złym wierszem pliku dodany do następnego dnia = 2 sesje).
+    Blok zbiera wtedy wartości od końca do `size` SESJI, nie wartości — „5 sesji” to naprawdę 5 sesji (EWZ 06.10.2026: dotąd 5 wartości = 6 sesji);
+    wartość z kilku sesji na granicy bloku — blok o jedną sesję dłuższy (dłuższy niż size + 1 = koniec listy). Bez wt — jak dotąd.
+    blk (lista, opcjonalnie) ← (liczba sesji, indeks pierwszej wartości) kolejnych bloków."""
+    out, b = [], len(vals)
     for i in range(k):
-        a, b = len(vals) - (i + 1) * size, len(vals) - i * size
-        blk = vals[a:b] if a >= 0 else []
-        if len(blk) < size or not all(_isnum(x) for x in blk):
+        if wt is None:
+            a, n = len(vals) - (i + 1) * size, size
+            b = a + size
+        else:
+            a, n = b, 0
+            while a > 0 and n < size:
+                a -= 1
+                n += wt[a] if _isnum(wt[a]) and wt[a] >= 1 else 1
+            if not size <= n <= size + 1:
+                break
+        bl = vals[a:b] if a >= 0 else []
+        if not bl or (wt is None and len(bl) < size) or not all(_isnum(x) for x in bl):
             break
         if dates is not None and span:
             d0, d1 = _d(dates[a]), _d(dates[b - 1])
             if not d0 or not d1 or (d1 - d0).days > span:
                 break
-        out.append(sum(blk))
+        out.append(sum(bl))
+        if blk is not None:
+            blk.append((n, a))
+        b = a
     return out
 
 
@@ -5853,13 +5867,23 @@ def _tr_clear(w, typ, days):
     return days is None or abs(w) >= TR_ALL * typ or sum(1 for x in nz if x * w > 0) >= len(nz) // 2 + 1
 
 
-def trend_state(vals, size, dates=None, span=None):
+def trend_state(vals, size, dates=None, span=None, wt=None):
+    """v293: _trend_state z liczbą sesji wartości (wt, jak w _tr_sums); ostatni blok z innej liczby sesji niż size → pole 'ns'
+    (strona: „6 sesji do …”). Bez wt — wynik bajt w bajt jak dotąd."""
+    bl = []
+    r = _trend_state(vals, size, dates, span, wt, bl)
+    if bl and bl[0][0] != size and 'w' in r:
+        r['ns'] = bl[0][0]
+    return r
+
+
+def _trend_state(vals, size, dates, span, wt, bl):
     """Stan trendu jednej serii (wartości w kolejności dat, None = brak). size = 5 (sesje), 7 (dni) albo 1 (tygodnie raportu).
     → {st, w, base, d, n, x, lc}. st: in_up / in_flat / in_down (napływ jak zwykle, ale większy / taki sam / słabszy),
     in_rev (napływ po tygodniach odpływu), in_new (napływ po okresie bez wyraźnego kierunku), in_dir (napływ, historia za krótka
     do oceny siły), in_stop (zwykle napływ, w tym tygodniu prawie nic); to samo dla out_*; mixed (duża suma, dni w różne strony);
     none; short; gap."""
-    sums = _tr_sums(vals, size, 1 + TR_BASE_MAX, dates, span)
+    sums = _tr_sums(vals, size, 1 + TR_BASE_MAX, dates, span, wt, bl)
     if not sums:
         return {'st': 'gap'}
     w, prev = sums[0], sums[1:]
@@ -5872,7 +5896,7 @@ def trend_state(vals, size, dates=None, span=None):
     if sd <= 0:
         return {'st': 'none', 'w': w, 'base': base, 'n': n, 'x': False, 'lc': lc}
     d = (w - base) / sd
-    clear = _tr_clear(w, typ, None if size == 1 else vals[-size:])
+    clear = _tr_clear(w, typ, None if size == 1 else vals[bl[0][1]:])   # v293: dni ostatniego bloku (bez wt = vals[-size:])
     bpos, bneg = base > 0 and base >= TR_DIR * typ, base < 0 and -base >= TR_DIR * typ
     if clear:
         s = 'in' if w > 0 else 'out'
@@ -5969,15 +5993,17 @@ def _bdays(a, b, skip=()):
     return n
 
 
-def _tr_row(sid, g, m, size, dates, vals, usd=None, hold=None, lag=1, weekly_days=None, cur='USD', span=None, skip=()):
+def _tr_row(sid, g, m, size, dates, vals, usd=None, hold=None, lag=1, weekly_days=None, cur='USD', span=None, skip=(), wt=None):
     """Jeden wiersz TRENDÓW. lag = zwykłe opóźnienie publikacji w dniach roboczych (dane sesyjne); dane z każdego dnia kalendarza
     (size 7) — za stare po 3 dniach; weekly_days = po ilu dniach od końca tygodnia dane tygodniowe są za stare."""
     if not dates or not vals or len(dates) != len(vals):
         return None
+    if wt is not None and len(wt) != len(vals):   # v293: wt — liczba sesji wartości (fundusze, fund_group info['ns'])
+        wt = None
     ld = _d(dates[-1])
     if ld is None:
         return None
-    t = trend_state(vals, size, dates, span)
+    t = trend_state(vals, size, dates, span, wt)
     today = _now_utc().date()
     age = (today - ld).days
     stale = age > weekly_days if weekly_days else (age > 3 if size == 7 else _bdays(ld, today, skip) > lag + 2)
@@ -5986,14 +6012,14 @@ def _tr_row(sid, g, m, size, dates, vals, usd=None, hold=None, lag=1, weekly_day
     for k in ('w', 'base', 'd'):
         if _isnum(t.get(k)):
             r[k] = round(t[k], 2)
-    for k in ('n', 'lc'):
+    for k in ('n', 'lc', 'ns'):
         if k in t:
             r[k] = t[k]
     ev = st not in ('stale', 'gap', 'short')
     r['x'] = bool(ev and t.get('x'))                   # bez oceny — bez dopisków oceny
     ratio = 1.0 if cur == 'USD' else None
     if usd is not None and cur != 'USD':
-        us = _tr_sums(usd, size, 1, dates, span)
+        us = _tr_sums(usd, size, 1, dates, span, wt)
         if us:
             r['wu'] = round(us[0], 1)
             if _isnum(t.get('w')) and t['w']:
@@ -6002,12 +6028,13 @@ def _tr_row(sid, g, m, size, dates, vals, usd=None, hold=None, lag=1, weekly_day
         r['du'] = round((t['w'] - t['base']) * ratio, 1)   # odchylenie od zwykłego poziomu w mln USD (do kafli)
     if _isnum(hold) and hold and _isnum(t.get('w')):
         r['ph'] = round(100 * t['w'] / hold, 2)
-    r['s'], r['sg'] = trend_streak(vals)
-    dz = trend_day_z(vals) if size != 1 and ev else None
+    vd = vals if wt is None else [x if k == 1 else None for x, k in zip(vals, wt)]   # v293: wartość z kilku sesji to nie „dzień” — bez oceny
+    r['s'], r['sg'] = trend_streak(vd)                                                 # dnia, bez „ostatniego dnia” i bez serii dni (karta dzienna:
+    dz = trend_day_z(vd) if size != 1 and ev else None                                 # „brak danych z tej sesji”); tło porównania też bez niej
     if dz is not None:
         r['dz'] = round(dz, 2)
-    if _isnum(vals[-1]):
-        r['last'] = round(vals[-1], 2)
+    if _isnum(vd[-1]):
+        r['last'] = round(vd[-1], 2)
     return r
 
 
@@ -6125,12 +6152,15 @@ def fund_flows(h, bez=None):
     return out
 
 
-def fund_group(fu, members):
+def fund_group(fu, members, info=None):
     """Grupa funduszy → (daty, przepływy, aktywa w mln USD) do ostatniego wspólnego dnia. v94: dzień, którego nie ma któryś fundusz
     (np. inny kalendarz), nie przerywa serii — przepływy pozostałych funduszy z tego dnia dodajemy do najbliższego wspólnego dnia (sumy dokładne).
     v223: zły wiersz pliku (_fund_clean) poza sumą — jak inny kalendarz; wiersz bez przepływu (skok bez wyjaśnienia) = brak grupy w najbliższym
-    wspólnym dniu (dotąd suma pomijała fundusz — brak liczony jak zero); aktywa z ostatniego poprawnego wiersza (zły najnowszy: „% aktywów” ×20 000)."""
-    F, B, H = [], [], []
+    wspólnym dniu (dotąd suma pomijała fundusz — brak liczony jak zero); aktywa z ostatniego poprawnego wiersza (zły najnowszy: „% aktywów” ×20 000).
+    v293: info (słownik, opcjonalnie) ← 'ns': liczba sesji w każdej wartości = dni kalendarza plików grupy (także dni ze złym wierszem) od
+    poprzedniej wartości; 2+ = przepływ z pominiętego dnia dodany do tego dnia (dotąd liczony jak jedna sesja — „ostatni dzień” EWZ 06.10.2026
+    był sumą 05.10 i 06.10). Daty, wartości i aktywa bez zmian."""
+    F, B, H, C, S0 = [], [], [], set(), []
     for t in members:
         h = _fund_rows(((fu or {}).get(t) or {}).get('h') or [])
         bad = set(_fund_clean(h)[1])
@@ -6143,6 +6173,7 @@ def fund_group(fu, members):
         if not fl:
             return [], [], None
         F.append(fl); B.append({r[0] for r in hk[1:]} - set(fl))   # v223: wiersz bez przepływu (skok bez wyjaśnienia) — brak grupy, nie zero
+        C.update(r[0] for r in h); S0.append(hk[0][0])              # v293: kalendarz sesji plików (z dniami złych wierszy), początek
         H.append(hk[-1])                                             # v223: aktywa z ostatniego wiersza bez błędu pliku
     end = min(max(f) for f in F)
     days, vals, pend, zly = [], [], 0.0, False
@@ -6152,6 +6183,14 @@ def fund_group(fu, members):
             days.append(d); vals.append(None if zly else sum(f[d] for f in F) + pend); pend, zly = 0.0, False
         else:
             pend += sum(f[d] for f in F if d in f)
+    if info is not None:   # v293: sesje w każdej wartości — dni kalendarza od poprzedniej wartości (pierwsza: od najwcześniejszego początku)
+        cal, j, prev, ns = sorted(C), 0, min(S0), []
+        for d in days:
+            k = 0
+            while j < len(cal) and cal[j] <= d:
+                k += cal[j] > prev; j += 1
+            ns.append(max(1, k)); prev = d
+        info['ns'] = ns
     aum = sum(r[1] * r[2] for r in H) / 1e6
     return days, vals, aum
 
@@ -6410,7 +6449,7 @@ def _td_row(s, vd_by, own, now_ny, today, now_utc=None):   # v123: now_utc — z
         return round(x, k) if _isnum(x) else None
     return {'id': s['id'], 'fam': s['fam'], 'grp': s['grp'], 'iss': s['iss'], 'pub': s['pub'], 'sym': s['sym'], 'date': date,
             'nx': (_d(date) + datetime.timedelta(days=1) if s['fam'] == 'cr' else _td_next(date)).isoformat(), 'live': live, 'age': (today - _d(date)).days,
-            'f': rnd(flow[i] if flow else None, 1), 'cur': s['cur'], 'fu': rnd(s['fu'][i] if s['fu'] else None, 1), 'zf': rnd(zf, 2),
+            'f': rnd(flow[i] if flow else None, 2), 'cur': s['cur'], 'fu': rnd(s['fu'][i] if s['fu'] else None, 2), 'zf': rnd(zf, 2),
             'r': rnd(ret[i] if ret else None, 2), 'zp': rnd(zp, 2), 'rule': rule, 'dir': d, 'side': side, 'str': sg, 'st': st, 'vd': vd,
             'ik': o[0], 'in': o[1]}
 
@@ -7618,7 +7657,7 @@ def _tdw_row(s, vd_by, own, today, now_utc, gates=None, lcv=None):
     return {'id': s['id'], 'fam': fam, 'grp': TD_GRP.get(s['id']), 'iss': s.get('iss'), 'pub': 0, 'sym': s['sym'], 'date': date, 'nx': S,
             'live': live, 'age': (today - _d(date)).days, 'we': TD_W_CLOSE_HALF if S in TD_NYSE_HALF else TD_W_CLOSE,
             'oc': {'tw': 'TWD', 'hk': 'HKD', 'in': 'USD'}[TD_W_OB[s['id']][0]] if s['id'] in TD_W_OB else None,
-            'f': rnd(fx[0], 1), 'cur': 'USD' if 'f' in V else None, 'fu': rnd(fx[0], 1), 'zf': _tdw_rz(fx[1]),
+            'f': rnd(fx[0], 2), 'cur': 'USD' if 'f' in V else None, 'fu': rnd(fx[0], 2), 'zf': _tdw_rz(fx[1]),
             'r': rnd(V['p'][0], 2), 'zp': _tdw_rz(V['p'][1]),
             'rule': rule, 'dir': d, 'side': side, 'str': sg, 'st': st,
             'vd': ('edge' if colour else ('none' if lv == 'edge' else lv)) if d else None,
@@ -8616,9 +8655,10 @@ def _tr_flows(S):
             return []
         out = []
         for gid, members in TR_FE:
-            ds, v, aum = fund_group(fu, members)
+            inf = {}
+            ds, v, aum = fund_group(fu, members, inf)
             if ds:
-                r = _tr_row(gid, 'fe', 'flow', 5, ds, v, hold=aum, span=TR_SPAN)
+                r = _tr_row(gid, 'fe', 'flow', 5, ds, v, hold=aum, span=TR_SPAN, wt=inf.get('ns'))   # v293: bloki po sesjach
                 if r:
                     iss = {(fu.get(t) or {}).get('iss') for t in members}   # v94: źródło grupy — wydawcy jej funduszy
                     r['iss'] = 'both' if len(iss) > 1 else (next(iter(iss)) or '')
@@ -8694,20 +8734,25 @@ def _tr_prices(S):
             best = max(cand, key=lambda c: c[1][-1][1] * c[1][-1][2], default=None)
             if not best:
                 continue
-            h = best[1][-(5 * (TR_PX_WEEKS + 1) + 1):]
-            c, f = [h[-1][1]], 1.0                         # NAV w jednostkach po ostatnim podziale; skok bez wyjaśnienia ucina starszą część
+            cal = [r[0] for r in _fund_rows((fu.get(best[0]) or {}).get('h')) if r[0] <= best[1][-1][0]][-(5 * (TR_PX_WEEKS + 1) + 1):]   # v293: sesje
+            h = [r for r in best[1] if r[0] >= cal[0]]      # pliku (także dni ze złym wierszem) — okno liczone w sesjach, nie w wierszach
+            px, f = {h[-1][0]: h[-1][1]}, 1.0              # NAV w jednostkach po ostatnim podziale; skok bez wyjaśnienia ucina starszą część
             P = fund_pary(best[1])                          # v235: pary z całej historii — pierwsza para wycinka widzi dzień przed sobą
             for (a, b), k in zip(zip(reversed(h[:-1]), reversed(h[1:])), reversed(P[-(len(h) - 1):])):   # v233: podział na dwa dni = skok
                 if not k:
                     META['notes'].append(f'trendy {best[0]}: skok NAV bez podziału jednostek ({b[0]}) — cena liczona od tego dnia'); break
-                f *= k; c.append(a[1] / f)
-            c.reverse()
-            if len(c) < 26:
+                f *= k; px[a[0]] = a[1] / f
+            c = [px.get(d) for d in cal if d >= min(px)]   # v293: zły wiersz = brak ceny tego dnia; tydzień = 5 SESJI (dotąd 5 wierszy — z pominiętym
+            if len(c) < 26:                                 # wierszem 6 sesji: EWZ 06.10.2026 +18,62% zamiast +17,85%)
                 continue
-            wk = [(c[-1 - 5 * i] / c[-1 - 5 * (i + 1)] - 1) * 100 for i in range(min(TR_PX_WEEKS + 1, (len(c) - 1) // 5))]
-            if len(wk) < 21:
+            R = lambda i, j: (c[i] / c[j] - 1) * 100 if c[i] and c[j] else None   # noqa: E731 — brak na którymkolwiek końcu = brak, nie zero
+            wk = [R(-1 - 5 * i, -1 - 5 * (i + 1)) for i in range(min(TR_PX_WEEKS + 1, (len(c) - 1) // 5))]
+            prev = R(-6, -26)
+            if not wk or wk[0] is None or prev is None or sum(x is not None for x in wk[1:]) < 20:
+                if wk and (wk[0] is None or prev is None):
+                    META['notes'].append(f'trendy {best[0]}: zamknięcie sprzed 5 albo 25 sesji z błędem pliku — bez ceny tygodniowej')
                 continue
-            typ = _sd(wk[1:]); prev = (c[-6] / c[-26] - 1) * 100; z = wk[0] / typ if typ > 0 else None
+            typ = _sd([x for x in wk[1:] if x is not None]); z = wk[0] / typ if typ > 0 else None
             out.append({'id': 'fp_' + gid[3:], 'g': 'fp', 'sym': best[0], 'date': best[1][-1][0], 'w': round(wk[0], 2), 'pr': round(prev, 2),
                         'typ': round(typ, 2), 'z': round(z, 2) if z is not None else None, 'st': _px_state(wk[0], prev, typ) if typ > 0 else 'flat'})
     kr = S.get('krypto') if isinstance(S.get('krypto'), dict) else {}
