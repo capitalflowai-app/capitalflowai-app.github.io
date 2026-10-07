@@ -31300,7 +31300,7 @@ class TrendyAudytV293(unittest.TestCase):
         self.assertEqual(bl, [(6, 5), (5, 0)], 'na granicy bloku — blok o sesję dłuższy')
         self.assertEqual(zd._tr_sums(v, 5, 3, wt=[1, 1, 1, 1, 1, 3, 1, 1, 1, 1]), [], 'dłuższy niż 6 sesji — koniec listy (brak, nie zgadywanie)')
         st = zd.trend_state([10.0] * 45 + [100.0] * 5, 5, wt=[1] * 45 + [2] + [1] * 4)   # pierwsza wartość ostatniego bloku z 2 sesji
-        self.assertEqual(st['ns'], 6); self.assertNotIn('ns', zd.trend_state([10.0] * 45 + [100.0] * 5, 5))
+        self.assertEqual(st, {'st': 'gap'}, 'v296: blok z 6 sesji — bez oceny (dotąd ns = 6 i ocena siły)'); self.assertNotIn('ns', zd.trend_state([10.0] * 45 + [100.0] * 5, 5))
 
     def test_karta_bez_dnia_z_dwoch_sesji(self):
         h = self.ewz(); r, _ = self.row(h)
@@ -31318,10 +31318,10 @@ class TrendyAudytV293(unittest.TestCase):
     def test_blok_na_granicy_sesji(self):
         t = [x[:] for x in self.TAIL]; t[1] = ['2026-09-29', 0.001, 232600000]; t[5] = ['2026-10-05', 40.5, 238426920]   # zły 29.09, dobry 05.10
         r, p = self.row(self.ewz(t))
-        self.assertEqual(r['ns'], 6, '30.09 niesie przepływ 29.09 i 30.09 — ostatni blok to 6 sesji (strona: „6 sesji do …”)')
-        fl = zd.fund_flows([x for x in self.ewz(t) if x[0] != '2026-09-29'])
-        self.assertAlmostEqual(r['w'], round(sum(fl[d] for d in ('2026-09-30', '2026-10-01', '2026-10-02', '2026-10-05', '2026-10-06')), 2), places=2)
-        self.assertIsNone(p, 'T2: zamknięcie sprzed 5 sesji (29.09) z błędem pliku — bez ceny tygodniowej, nie cena z 6 sesji')
+        self.assertEqual(r['st'], 'gap', 'v296: 30.09 niesie przepływ 29.09 i 30.09 — ostatni blok to 6 sesji: bez oceny (dotąd ns = 6 i ocena)')
+        self.assertNotIn('ns', r); self.assertNotIn('w', r); self.assertFalse(r['x'])
+        self.assertEqual((p['st'], p['sym'], p['date']), ('gap', 'EWZ', '2026-10-06'), 'v296: karta ceny zostaje — bez oceny (dotąd znikała)')
+        self.assertNotIn('w', p, 'T2: zamknięcie sprzed 5 sesji (29.09) z błędem pliku — bez ceny tygodniowej, nie cena z 6 sesji')
         self.assertTrue(any(n.startswith('trendy EWZ: zamknięcie sprzed 5 albo 25 sesji z błędem pliku') for n in zd.META['notes']), zd.META['notes'])
 
     def test_cena_nav_tydzien_po_sesjach(self):
@@ -31501,3 +31501,88 @@ class LogaKoszykowV296c(unittest.TestCase):
             self.assertEqual((int.from_bytes(raw[16:20], 'big'), int.from_bytes(raw[20:24], 'big')), (50, 50), s)
         self.assertNotEqual(self.logo['GRAM'], self.logo['TON'], 'GRAM (dawny TON) — obecne logo, nie dawne')
         self.assertEqual(len({self.logo[s] for s in self.NOWE}), len(self.NOWE), 'każda moneta — własny obraz')
+
+
+# ===================== v296: TRENDY — druga runda po recenzji v293 (U2 blok z 6 sesji, U3 karta ceny NAV, P5 tygodnie funduszy) =====================
+class TrendyRunda2V296(unittest.TestCase):
+    """v296: U2 — ostatni blok funduszu z 6 sesji (wartość z 2 sesji na jego początku) bez oceny ('gap'), nie suma 6 sesji na tle bloków po 5;
+    U3 — cena NAV ze złym zamknięciem sprzed 5 albo 25 sesji: karta zostaje (stan 'gap', bez oceny), nie znika; P5 — panel „czy tydzień zapowiadał
+    następny” bez tygodni, między którymi wartość przenosi przepływ (zły wiersz w piątek). Zegar przypięty (_now_utc)."""
+    NOW = datetime.datetime(2026, 10, 7, 16, 23, tzinfo=datetime.timezone.utc)
+
+    def hist(self, n=160, bad=None):
+        """Fundusz: NAV ok. 10 (zmienny o kilka setnych), jednostki +1000 dziennie (przepływ +0,01 mln USD każdej sesji — każdy tydzień wyraźnie w górę); bad — dzień
+        ze złym wierszem pliku (NAV 0,001: _fund_clean go odrzuca, przepływ dwóch sesji trafia do następnego dnia)."""
+        days = [d for d in (datetime.date(2026, 10, 6) - datetime.timedelta(days=i) for i in range(400)) if d.weekday() < 5][:n][::-1]
+        return [[d.isoformat(), 0.001 if d.isoformat() == bad else 10.0 + 0.01 * ((i * 7) % 11), 1000000 + 1000 * i] for i, d in enumerate(days)]
+
+    def build(self, h):
+        with mock.patch.object(zd, '_now_utc', return_value=self.NOW):
+            zd.META['notes'].clear()
+            return zd.build_trendy({'fundusze': {'f': {'EWZ': {'h': h}}}})
+
+    def test_blok_szesciu_sesji_bez_oceny(self):
+        v = [10.0] * 45 + [100.0] * 5
+        self.assertEqual(zd.trend_state(v, 5, wt=[1] * 45 + [2] + [1] * 4), {'st': 'gap'}, 'wartość z 2 sesji na początku ostatniego bloku — 6 sesji: bez oceny')
+        ok = zd.trend_state(v, 5, wt=[1] * 46 + [2] + [1] * 3)   # wartość z 2 sesji w środku bloku: 5 sesji w 4 wartościach — ocena jak zawsze
+        self.assertEqual((ok['st'], ok['w'], ok['x']), ('in_up', 400.0, True)); self.assertNotIn('ns', ok)
+        self.assertEqual(zd.trend_state(v, 5), dict(zd.trend_state(v, 5, wt=[1] * 50)), 'same jedynki — jak bez wt')
+        h = self.hist(bad='2026-09-29')   # zły wtorek: 30.09 niesie 2 sesje, ostatnie 5 sesji to 30.09–06.10 → ostatni blok 29.09–06.10 = 6 sesji
+        r = {x['id']: x for x in self.build(h)['f']}['fe_bra']
+        self.assertEqual(r['st'], 'gap', r); self.assertNotIn('w', r); self.assertNotIn('ns', r); self.assertFalse(r['x'])
+        self.assertNotIn('d', r, 'bez odchylenia od zwykłego poziomu (dotąd: suma 6 sesji na tle bloków po 5)')
+        r2 = {x['id']: x for x in self.build(self.hist(bad='2026-10-05'))['f']}['fe_bra']   # zły poniedziałek: 5 sesji w 4 wartościach — ocena jak zawsze
+        self.assertNotEqual(r2['st'], 'gap'); self.assertAlmostEqual(r2['w'], 0.05, places=2)
+
+    def test_cena_nav_karta_bez_oceny(self):
+        h = self.hist(n=300, bad='2026-09-29')   # zamknięcie sprzed 5 sesji z błędem pliku: zmiana tygodnia i 4 tygodnie przed nim nieznane
+        p = {x['id']: x for x in self.build(h)['p']}.get('fp_bra')
+        self.assertIsNotNone(p, 'karta zostaje (dotąd znikała)')
+        self.assertEqual((p['st'], p['g'], p['sym'], p['date'], p['z']), ('gap', 'fp', 'EWZ', '2026-10-06', None))
+        self.assertNotIn('w', p); self.assertNotIn('pr', p); self.assertTrue(zd._isnum(p['typ']))
+        self.assertTrue(any(n.startswith('trendy EWZ: zamknięcie sprzed 5 albo 25 sesji z błędem pliku') for n in zd.META['notes']), zd.META['notes'])
+        cal = [r[0] for r in h]
+        h2 = self.hist(n=300, bad=cal[-26])   # zamknięcie sprzed 25 sesji z błędem: zmiana tygodnia znana, 4 tygodnie przed nim — nie
+        p2 = {x['id']: x for x in self.build(h2)['p']}['fp_bra']
+        c = {r[0]: r[1] for r in h2}
+        self.assertEqual(p2['st'], 'gap'); self.assertEqual(p2['w'], round((c[cal[-1]] / c[cal[-6]] - 1) * 100, 2)); self.assertNotIn('pr', p2)
+        p3 = {x['id']: x for x in self.build(self.hist(n=300))['p']}['fp_bra']   # kontrola: bez złego wiersza — ocena jak zawsze
+        self.assertNotEqual(p3['st'], 'gap'); self.assertIn('pr', p3)
+
+    def test_grupa_pierwsza_sesja_wartosci(self):
+        inf = {}
+        ds, v, _ = zd.fund_group({'EWZ': {'h': self.hist(bad='2026-09-25')}}, ('EWZ',), inf)
+        i = ds.index('2026-09-28')
+        self.assertEqual((inf['ns'][i], inf['d0'][i]), (2, '2026-09-25'), 'poniedziałek 28.09 niesie przepływ piątku 25.09')
+        self.assertTrue(all(a == d for a, d, k in zip(inf['d0'], ds, inf['ns']) if k == 1), 'wartość z jednej sesji — pierwsza sesja to jej dzień')
+        fu = {'GLD': {'h': [['2026-09-03', 10.0, 100], ['2026-09-04', 10.0, 110], ['2026-09-07', 10.1, 110], ['2026-09-08', 10.0, 130]]},
+              'IAU': {'h': [['2026-09-03', 5.0, 100], ['2026-09-04', 5.0, 90], ['2026-09-08', 5.0, 117]]}}
+        inf = {}; ds, _, _ = zd.fund_group(fu, ('GLD', 'IAU'), inf)
+        self.assertEqual((ds, inf['d0']), (['2026-09-04', '2026-09-08'], ['2026-09-04', '2026-09-07']), 'inny kalendarz — 08.09 od 07.09')
+
+    def test_tygodnie_z_przeplywem_z_dwoch_tygodni_poza_parami(self):
+        days = [datetime.date(2026, 3, 2) + datetime.timedelta(days=i) for i in range(16 * 7)]
+        days = [d.isoformat() for d in days if d.weekday() < 5]
+        fri = days[8 * 5 + 4]; i = days.index(fri)   # piątek 9. tygodnia ze złym wierszem: jego przepływ w poniedziałku
+        ds = days[:i] + days[i + 1:]; v = [1.0] * len(ds); v[i] = 2.0
+        d0 = list(ds); d0[i] = fri
+        today = datetime.date(2026, 6, 22)
+        w_old, w_new = set(), set()
+        old = zd.trend_persist(ds, v, today, w_old)
+        new = zd.trend_persist(ds, v, today, w_new, d0)
+        self.assertEqual((old[0], old[1]), (11, 11), 'bez d0 — tydzień bez piątku i tydzień z dwoma piątkami w parach')
+        self.assertEqual((new[0], new[1]), (8, 8), 'z d0 — oba tygodnie poza parami: 3 pary mniej')
+        m8, m9 = datetime.date.fromisoformat(fri) - datetime.timedelta(days=4), datetime.date.fromisoformat(ds[i])
+        self.assertTrue({m8, m9} <= w_old and not ({m8, m9} & w_new), (sorted(w_old - w_new)))
+        self.assertEqual(zd.trend_persist(ds, v, today, None, list(ds)), old, 'd0 = dni wartości — bez zmian')
+        self.assertEqual(zd.trend_persist(ds, v, today, None, d0[:-1]), old, 'zła długość d0 — bez zmian (jak dotąd)')
+
+    def test_panel_funduszy_bez_tygodni_z_przeniesionym_przeplywem(self):
+        h = self.hist(n=200, bad='2026-08-21')   # zły piątek w środku historii
+        today = self.NOW.date()
+        inf = {}; ds, v, _ = zd.fund_group({'EWZ': {'h': h}}, ('EWZ',), inf)
+        exp, old = zd.trend_persist(ds, v, today, set(), inf['d0']), zd.trend_persist(ds, v, today, set())
+        self.assertEqual(old[1] - exp[1], 3, 'para przed, para z tygodniem i para po — poza panelem')
+        b = {x['id']: x for x in self.build(h)['b']}['fe']
+        self.assertEqual((b['k'], b['n']), exp[:2], 'build_trendy przekazuje d0 z fund_group')
+        self.assertEqual((b['from'], b['to']), exp[2:])

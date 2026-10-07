@@ -5868,13 +5868,11 @@ def _tr_clear(w, typ, days):
 
 
 def trend_state(vals, size, dates=None, span=None, wt=None):
-    """v293: _trend_state z liczbą sesji wartości (wt, jak w _tr_sums); ostatni blok z innej liczby sesji niż size → pole 'ns'
-    (strona: „6 sesji do …”). Bez wt — wynik bajt w bajt jak dotąd."""
-    bl = []
-    r = _trend_state(vals, size, dates, span, wt, bl)
-    if bl and bl[0][0] != size and 'w' in r:
-        r['ns'] = bl[0][0]
-    return r
+    """v293: _trend_state z liczbą sesji wartości (wt, jak w _tr_sums). Bez wt — wynik bajt w bajt jak dotąd.
+    v296: ostatni blok z innej liczby sesji niż size (wartość z 2 sesji na jego początku — blok 6 sesji) — bez oceny ('gap'), jak blok
+    z brakiem: przepływu pierwszej z 5 ostatnich sesji nie znamy osobno, a suma 6 sesji na tle bloków po 5 była zawyżona o ok. 1/5
+    (dotąd pole 'ns', „6 sesji do …” i ocena siły z tej sumy)."""
+    return _trend_state(vals, size, dates, span, wt, [])
 
 
 def _trend_state(vals, size, dates, span, wt, bl):
@@ -5884,7 +5882,7 @@ def _trend_state(vals, size, dates, span, wt, bl):
     do oceny siły), in_stop (zwykle napływ, w tym tygodniu prawie nic); to samo dla out_*; mixed (duża suma, dni w różne strony);
     none; short; gap."""
     sums = _tr_sums(vals, size, 1 + TR_BASE_MAX, dates, span, wt, bl)
-    if not sums:
+    if not sums or bl[0][0] != size:   # v296: ostatni blok z 6 sesji (wartość z 2 sesji na granicy) — wartości jednej z 5 sesji brak = bez oceny
         return {'st': 'gap'}
     w, prev = sums[0], sums[1:]
     if len(prev) < TR_BASE_MIN:
@@ -5966,9 +5964,15 @@ def _iso_weeks(dates, vals, today):
     return W[1:] if W and len(W[0][2]) < 4 else W
 
 
-def trend_persist(dates, vals, today, weeks=None):
+def trend_persist(dates, vals, today, weeks=None, d0=None):
     """Jak często po tygodniu z wyraźnym kierunkiem następny tydzień kalendarzowy miał ten sam kierunek. Wyraźny tydzień — ta sama reguła
-    co na kartach, z typowym tygodniem liczonym tylko z 4–8 wcześniejszych tygodni. → (k, n, pierwszy, ostatni poniedziałek par)."""
+    co na kartach, z typowym tygodniem liczonym tylko z 4–8 wcześniejszych tygodni. → (k, n, pierwszy, ostatni poniedziałek par).
+    v296: d0 (fund_group info['d0']) — pierwsza sesja każdej wartości; wartość z sesji dwóch tygodni kalendarzowych (przepływ dnia ze złym
+    wierszem w piątek dodany do poniedziałku) — oba tygodnie niepełne, poza parami (brak, nie przepływ przeniesiony do następnego tygodnia)."""
+    if d0 is not None and len(d0) == len(dates):
+        mon = lambda s: (lambda x: x - datetime.timedelta(days=x.weekday()) if x else None)(_d(s))   # noqa: E731
+        cut = {m for a, d in zip(d0, dates) if mon(a) != mon(d) for m in (mon(a), mon(d)) if m}
+        vals = [None if mon(d) in cut else v for d, v in zip(dates, vals)]
     W = _iso_weeks(dates, vals, today)
     k = n = 0; first = last = None
     for i in range(len(W) - 1):
@@ -6012,7 +6016,7 @@ def _tr_row(sid, g, m, size, dates, vals, usd=None, hold=None, lag=1, weekly_day
     for k in ('w', 'base', 'd'):
         if _isnum(t.get(k)):
             r[k] = round(t[k], 2)
-    for k in ('n', 'lc', 'ns'):
+    for k in ('n', 'lc'):   # v296: bez 'ns' — blok z 6 sesji jest bez oceny ('gap')
         if k in t:
             r[k] = t[k]
     ev = st not in ('stale', 'gap', 'short')
@@ -6159,7 +6163,9 @@ def fund_group(fu, members, info=None):
     wspólnym dniu (dotąd suma pomijała fundusz — brak liczony jak zero); aktywa z ostatniego poprawnego wiersza (zły najnowszy: „% aktywów” ×20 000).
     v293: info (słownik, opcjonalnie) ← 'ns': liczba sesji w każdej wartości = dni kalendarza plików grupy (także dni ze złym wierszem) od
     poprzedniej wartości; 2+ = przepływ z pominiętego dnia dodany do tego dnia (dotąd liczony jak jedna sesja — „ostatni dzień” EWZ 06.10.2026
-    był sumą 05.10 i 06.10). Daty, wartości i aktywa bez zmian."""
+    był sumą 05.10 i 06.10). Daty, wartości i aktywa bez zmian.
+    v296: info ← także 'd0': pierwsza sesja (dzień kalendarza plików) każdej wartości — trend_persist pomija tygodnie, między którymi wartość
+    przenosi przepływ (zły wiersz w piątek → przepływ w poniedziałku)."""
     F, B, H, C, S0 = [], [], [], set(), []
     for t in members:
         h = _fund_rows(((fu or {}).get(t) or {}).get('h') or [])
@@ -6184,13 +6190,15 @@ def fund_group(fu, members, info=None):
         else:
             pend += sum(f[d] for f in F if d in f)
     if info is not None:   # v293: sesje w każdej wartości — dni kalendarza od poprzedniej wartości (pierwsza: od najwcześniejszego początku)
-        cal, j, prev, ns = sorted(C), 0, min(S0), []
+        cal, j, prev, ns, d0 = sorted(C), 0, min(S0), [], []
         for d in days:
-            k = 0
+            k, a = 0, None
             while j < len(cal) and cal[j] <= d:
-                k += cal[j] > prev; j += 1
-            ns.append(max(1, k)); prev = d
-        info['ns'] = ns
+                if cal[j] > prev:
+                    k += 1; a = a or cal[j]
+                j += 1
+            ns.append(max(1, k)); d0.append(a or d); prev = d
+        info['ns'] = ns; info['d0'] = d0
     aum = sum(r[1] * r[2] for r in H) / 1e6
     return days, vals, aum
 
@@ -8748,11 +8756,21 @@ def _tr_prices(S):
             R = lambda i, j: (c[i] / c[j] - 1) * 100 if c[i] and c[j] else None   # noqa: E731 — brak na którymkolwiek końcu = brak, nie zero
             wk = [R(-1 - 5 * i, -1 - 5 * (i + 1)) for i in range(min(TR_PX_WEEKS + 1, (len(c) - 1) // 5))]
             prev = R(-6, -26)
-            if not wk or wk[0] is None or prev is None or sum(x is not None for x in wk[1:]) < 20:
-                if wk and (wk[0] is None or prev is None):
-                    META['notes'].append(f'trendy {best[0]}: zamknięcie sprzed 5 albo 25 sesji z błędem pliku — bez ceny tygodniowej')
+            ok = [x for x in wk[1:] if x is not None]
+            if wk and (wk[0] is None or prev is None):
+                META['notes'].append(f'trendy {best[0]}: zamknięcie sprzed 5 albo 25 sesji z błędem pliku — cena tygodniowa bez oceny')
+            if len(ok) < 20:
                 continue
-            typ = _sd([x for x in wk[1:] if x is not None]); z = wk[0] / typ if typ > 0 else None
+            typ = _sd(ok)
+            if wk[0] is None or prev is None:   # v296: karta zostaje — „—” (albo znana zmiana tygodnia) z datą, stan 'gap' bez oceny; dotąd znikała,
+                g = {'id': 'fp_' + gid[3:], 'g': 'fp', 'sym': best[0], 'date': best[1][-1][0], 'typ': round(typ, 2), 'z': None, 'st': 'gap'}   # a kafel
+                if wk[0] is not None:                                                                                       # rynków wybierał
+                    g['w'] = round(wk[0], 2)                                                                                # inny rynek bez słowa
+                if prev is not None:
+                    g['pr'] = round(prev, 2)
+                out.append(g)
+                continue
+            z = wk[0] / typ if typ > 0 else None
             out.append({'id': 'fp_' + gid[3:], 'g': 'fp', 'sym': best[0], 'date': best[1][-1][0], 'w': round(wk[0], 2), 'pr': round(prev, 2),
                         'typ': round(typ, 2), 'z': round(z, 2) if z is not None else None, 'st': _px_state(wk[0], prev, typ) if typ > 0 else 'flat'})
     kr = S.get('krypto') if isinstance(S.get('krypto'), dict) else {}
@@ -8820,8 +8838,9 @@ def build_trendy(S):
         if isinstance(fu, dict):
             K = N = 0; wk = set(); a0 = b0 = None
             for gid, members in TR_FE:
-                ds, v, _ = fund_group(fu, members)
-                k, n, a, b = trend_persist(ds, v, today, wk)
+                inf = {}
+                ds, v, _ = fund_group(fu, members, inf)
+                k, n, a, b = trend_persist(ds, v, today, wk, inf.get('d0'))   # v296: tygodnie z wartością z sesji dwóch tygodni — poza parami
                 K += k; N += n
                 if n:
                     a0 = min(a0 or a, a); b0 = max(b0 or b, b)

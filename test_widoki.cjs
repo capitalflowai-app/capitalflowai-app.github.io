@@ -5682,9 +5682,11 @@ test('v125: EXTRA118 — 10 języków w kolejności, te same 83 klucze trd.dc2.*
   /* v293: trzy teksty zmienione po audycie m1 (T5: powód „stablecoiny” = USDT i USDC; T6: zwykła doba przy każdym powodzie) — suma Aneksu A liczona
      z dawnymi wersjami tych trzech tekstów odtworzonymi z nowych (zamiana musi trafić — inaczej suma się nie zgodzi); nowe teksty sprawdzone wprost */
   const A293 = {pl: {'trd.dc2.ev1': '{name} {p}% ({k} z {n})', 'trd.dc2.ev': D.pl['trd.dc2.ev'] + ' (zwykła doba {b0}%)',
-      'trd.dc2.sub': D.pl['trd.dc2.sub'].replace('podaż stablecoinów USDT i USDC (wspólna dla całego rynku)', 'podaż stablecoinów (cały rynek)')},
+      'trd.dc2.sub': D.pl['trd.dc2.sub'].replace('podaż stablecoinów USDT i USDC (wspólna dla całego rynku)', 'podaż stablecoinów (cały rynek)'),
+      'trd.dc2.d.s': D.pl['trd.dc2.d.s'].replace('USDT i USDC, wspólne dla całego rynku', 'cały rynek')},   /* v296 (U5) */
     en: {'trd.dc2.ev1': '{name} {p}% ({k} of {n})', 'trd.dc2.ev': D.en['trd.dc2.ev'] + ' (ordinary day {b0}%)',
-      'trd.dc2.sub': D.en['trd.dc2.sub'].replace('USDT and USDC stablecoin supply (shared by the whole market)', 'stablecoin supply (whole market)')}};
+      'trd.dc2.sub': D.en['trd.dc2.sub'].replace('USDT and USDC stablecoin supply (shared by the whole market)', 'stablecoin supply (whole market)'),
+      'trd.dc2.d.s': D.en['trd.dc2.d.s'].replace('USDT and USDC, shared by the whole market', 'whole market')}};   /* v296 (U5) */
   assert.equal(fnv(JSON.stringify(noLate(Object.assign({}, D.pl, A293.pl)))) + ':' + fnv(JSON.stringify(noLate(Object.assign({}, D.en, A293.en)))), 'd09e53bd:e00574a', 'pl i en = Aneks A (poza 5 kluczami dopisku; v293: 3 teksty po audycie)');
   assert.equal(D.pl['trd.dc2.ev'], 'w historii, gdy powód wskazywał tę stronę (sam opis): {l}'); assert.ok(D.pl['trd.dc2.sub'].includes('podaż stablecoinów USDT i USDC (wspólna dla całego rynku)'));
   assert.equal(D.pl['trd.dc2.why.late'], 'ceny i obroty potrzebne tej karcie (z {d} albo z dni, z którymi ją porównujemy — do 61 dni wstecz) trafiły na stronę albo zostały poprawione dopiero po {u} UTC, tuż przed albo już po starcie mierzonego okna — karta jest tylko opisem, bez strony');
@@ -11926,7 +11928,7 @@ test('v158: infografika krypto — liczba główna „k z n” i procent, 3 pier
       {fam: 'cr', rs: [], id: 'XRP', sym: 'XRP', side: 'none', st: 'quiet', str: 0}, {fam: 'eq', rs: [], id: 'SPY', side: 'buy', st: 'obs', str: 1}]};
   const h = X.trdIg(D, true);
   assert.ok(h.startsWith('<section class="panel pcard trd-ig" id="trd-ig"><div class="tig-h"><h2>tig.t.c</h2><p class="pnote">ostatnie 6 dni (28.09–03.10)</p></div>'), h.slice(0, 200));
-  assert.ok(h.includes('<b class="tig-kv">7 z 25</b><span class="tig-kp na">28%</span><span class="tig-kw">+ 13 czeka</span><span class="tig-kw">a293t.ig.few.c</span>'), 'liczba główna: 7 z 25 = 28% (v293: szara — wyniki z 4 dni to za mało), 13 czeka');
+  assert.ok(h.includes('<b class="tig-kv">7 z 25</b><span class="tig-kp na">28%</span><span class="tig-kw">+ 13 czeka</span><span class="tig-kw">r296t.ig.win.c</span>'), 'liczba główna: 7 z 25 = 28% (v293: szara — wyniki z 4 dni to za mało; v296: dopisek bez obietnicy), 13 czeka');
   assert.equal((h.match(/<figure class="tig-dn">/g) || []).length, 3, 'trzy pierścienie');
   assert.ok(h.includes('aria-label="tig.d.win.c: 28%"') && h.includes('aria-label="Od startu (28.09): 28%"') && h.includes('aria-label="tig.d.hist: 50%"'), 'pierścienie: 28%, 28%, historia 50% (tylko v 2)');
   assert.ok(h.includes('<small>od 09.11 · n = 6329</small>'), 'historia: od kiedy i ile');
@@ -14752,7 +14754,7 @@ test('v293 T3 + T9: górny panel — kolor dopiero od 20 dni z wynikiem i przy z
   for (const [d, k, m] of [['2026-10-05', 15, 4], ['2026-10-06', 6, 8]]) { for (let i = 0; i < k; i++) add(d, 1, 1); for (let i = 0; i < m; i++) add(d, 1, -1); }
   X.TRDJ.w = {since: '2026-10-05', rows}; X.TRDJ.at = Date.now();
   let h = X.trdIg({bd: [{fam: 'w', rule: 'all', v: 2, k: 17590, n: 35376, from: '2016-11-30', vd: 'none'}], d: []}, false);
-  assert.ok(h.includes('<b class="tig-kv">21 z 33</b><span class="tig-kp na">64%</span>') && h.includes('<span class="tig-kw">a293t.ig.few.w</span>'),
+  assert.ok(h.includes('<b class="tig-kv">21 z 33</b><span class="tig-kp na">64%</span>') && h.includes('<span class="tig-kw">r296t.ig.win.w</span>'),   /* v296: dopisek bez obietnicy */
     'audyt: 21 z 33 z 2 sesji (zakres na dniach 14,6–94,7%) — szare, nie zielone: ' + h.slice(0, 600));
   assert.ok(!h.includes('tig-r1 p') && !h.includes('tig-kp p') && h.includes('<small>n = 33 · a293t.ig.nd.w</small>'), 'pierścienie szare, pod nimi także dni');
   assert.ok(h.includes('<circle class="tig-r1 z"') && h.includes('<p class="pnote tig-lw">a293t.ig.bw</p>'), 'historia: ocena „none” — żółta; podpis słupków świata');
@@ -14761,13 +14763,13 @@ test('v293 T3 + T9: górny panel — kolor dopiero od 20 dni z wynikiem i przy z
   for (const d of days) { for (let i = 0; i < 4; i++) add2(d, 1, 1); add2(d, -1, 1); }
   X.TRDJ.c = {since: days[0], rows: R2};
   h = X.trdIg({bd: [{fam: 'cr', rule: 'all', v: 2, k: 3186, n: 6331, from: '2023-11-12', vd: 'edge'}], d: []}, true);
-  assert.ok(h.includes('<span class="tig-kp na">80%</span>') && h.includes('a293t.ig.few.c'), 'okno 7 dni — zawsze za mało dni, choć 80%');
+  assert.ok(h.includes('<span class="tig-kp na">80%</span>') && h.includes('r296t.ig.win.c'), 'okno 7 dni — zawsze za mało dni, choć 80% (v296: dopisek bez obietnicy)');
   assert.ok(h.includes('aria-label="Od startu (01.09): 80%"><circle class="tig-r0" cx="42" cy="42" r="34"/><circle class="tig-r1 p"'), 'od startu: 30 dni, zakres na dniach powyżej 50% — zielony');
   assert.ok((h.match(/<circle class="tig-r1 p"/g) || []).length === 2 && h.includes('<p class="pnote tig-lw">a293t.ig.bc</p>'), 'historia z oceną „edge” — zielona; podpis słupków krypto');
   const ok = X.trdIgTone, w = (k, n, d) => ok(k, n, d);
   assert.deepEqual([w(21, 33, 2), w(15, 40, 7), w(12, 23, 5)], ['na', 'na', 'na'], 'liczby z audytu: świat 21/33 (2 sesje), krypto od startu 15/40 (7 dni), okno 12/23 (5 dni)');
   const tp = v96src.tFor('pl');
-  assert.equal(tp('a293t.ig.few.w', {m: 20, d: 2}), 'za mało, by oceniać: potrzeba co najmniej 20 sesji z wynikiem (jest 2)');
+  assert.equal(tp('r296t.ig.win.w', {m: 20}), 'ostatnich sesji jest za mało, by je oceniać — kolor dajemy od 20 sesji z wynikiem (pierścień „Od startu”)');   /* v296 (dotąd a293t.ig.few.w) */
   assert.ok(tp('a293t.ig.bc').includes('doba danych') && tp('a293t.ig.bc').includes('06:00 UTC') && tp('a293t.ig.bc').includes('2:00 UTC'));
 });
 
@@ -14799,7 +14801,7 @@ test('v293 T8 + T13: teksty — bez „pliki strony nie mają historii cen krypt
 test('v293: słownik a293t — czysty JSON w 10 językach, te same klucze i pola {x}, tłumaczenia różne od angielskiego, bez nazw dostawców; każdy klucz użyty w kodzie', () => {
   const {name, D} = v293.dict(), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
   assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
-  assert.equal(K.length, 23); assert.ok(K.every(k => k.startsWith('a293t.')));
+  assert.equal(K.length, 21); assert.ok(K.every(k => k.startsWith('a293t.')));   /* v296: bez a293t.ig.few.w/c (okno bez obietnicy) */
   for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
   for (const l of L10.slice(2)) for (const k of K) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
   const prov = /binance|coinbase|coin ?metrics|defillama|hyperliquid|sosovalue|coingecko|ishares|ssga|state street|blackrock/i;
@@ -15044,4 +15046,102 @@ test('v296c: chiński podpis wiersza krypto — „…不同的衡量标准” (
   const I = v143Final(html);
   assert.equal(I.zh['pg.sub.crypto'], '稳定币供应量变化（近似流入）——与股票市场价值是不同的衡量标准');
   assert.equal(I.zh['kr.oi.v'], '{v} 百万枚 BTC');
+});
+
+/* ---------- v296: TRENDY — druga runda po recenzji v293 (U1 okno bez obietnicy, U3 karta ceny bez oceny, U4 zdanie nauki, U5 opis stablecoinów) ---------- */
+const v296t = (() => {
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), blk = html.slice(b0, b1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const z0 = html.indexOf('const zagSes=');
+  const mk = L => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fInt, fPct};')(L, LOC);
+    const zs = new Function('LANG', 'zagSesW', html.slice(z0, html.indexOf('\n', z0)) + '\nreturn zagSes;')(L, n => (n === 1 ? 'session' : 'sessions'));
+    const el = {innerHTML: '', querySelectorAll() { return []; }, querySelector() { return null; }};
+    return new Function('$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+      blk + '\nreturn {trdPx, trdKpis, trdPsK, TRD_PORD};')(() => el, v96src.tFor(L), {mode: 'trendy'}, () => Promise.resolve(null), v96src.escH,
+      v => v > 0 ? 'pos' : v < 0 ? 'neg' : '', () => '', F.fInt, F.sg, F.nfmt, F.fPct, zs, s => s, L, LOC, v96src.I18N);
+  };
+  const dict = () => { const a = html.indexOf('{"pl":{"r296t.'); assert.ok(a > 0, 'słownik v296'); const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1);
+    const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania'); return {name, D: JSON.parse(html.slice(a, d1))}; };
+  return {mk, dict};
+})();
+
+test('v296 U1: okno ostatnich sesji / dni — stały dopisek bez obietnicy oceny; postęp do 20 dni z wynikiem tylko pod „Od startu”', () => {
+  const {X} = v158Blok({});
+  const rows = [], add = (d, N, y) => rows.push([d, 'R' + rows.length, N, 'obs', '', 'x', y]);
+  for (const [d, k, m] of [['2026-10-05', 15, 4], ['2026-10-06', 6, 8]]) { for (let i = 0; i < k; i++) add(d, 1, 1); for (let i = 0; i < m; i++) add(d, 1, -1); }
+  X.TRDJ.w = {since: '2026-10-05', rows}; X.TRDJ.at = Date.now();
+  let h = X.trdIg({bd: [{fam: 'w', rule: 'all', v: 2, k: 17590, n: 35376, from: '2016-11-30', vd: 'none'}], d: []}, false);
+  assert.ok(h.includes('<span class="tig-kp na">64%</span><span class="tig-kw">r296t.ig.win.w</span>') && !h.includes('a293t.ig.few'), 'świat: dopisek okna bez „(jest N)”: ' + h.slice(0, 700));
+  assert.ok(h.includes('aria-label="tig.d.win.w: 64%"') && h.includes('<small>n = 33 · a293t.ig.nd.w</small></figcaption></figure><figure class="tig-dn">'), 'okno: sama liczba dni z wynikiem');
+  assert.ok(h.includes('aria-label="Od startu (05.10): 64%"') && h.includes('<small>n = 33 · r296t.ig.nd2.w</small>'), 'od startu (2 sesje z 20): postęp do koloru');
+  const R2 = [], add2 = (d, N, y) => R2.push([d, 'S' + R2.length, N, 'obs', '', 'x', y]);
+  const days = []; for (let i = 0; i < 30; i++) days.push(new Date(Date.UTC(2026, 8, 1 + i)).toISOString().slice(0, 10));
+  for (const d of days) { for (let i = 0; i < 4; i++) add2(d, 1, 1); add2(d, -1, 1); }
+  X.TRDJ.c = {since: days[0], rows: R2};
+  h = X.trdIg({bd: [{fam: 'cr', rule: 'all', v: 2, k: 3186, n: 6331, from: '2023-11-12', vd: 'edge'}], d: []}, true);
+  assert.ok(h.includes('<span class="tig-kw">r296t.ig.win.c</span>') && h.includes('<small>n = 150 · a293t.ig.nd.c</small>') && !h.includes('r296t.ig.nd2'), 'krypto: 30 dni od startu — kolor, bez „z 20 potrzebnych”');
+  const tp = v96src.tFor('pl'), I = v96src.I18N;
+  for (const k of ['r296t.ig.win.w', 'r296t.ig.win.c']) assert.ok(!/\(jest|potrzeba co najmniej/.test(tp(k, {m: 20})) && tp(k, {m: 20}).includes('od 20 ') && tp(k, {m: 20}).includes('„Od startu”'), k);
+  assert.equal(tp('r296t.ig.nd2.w', {d: 2, m: 20}), 'sesje z wynikiem:\u00a02 z 20 potrzebnych'); assert.equal(tp('r296t.ig.nd2.c', {d: 5, m: 20}), 'dni z wynikiem:\u00a05 z 20 potrzebnych');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of ['a293t.ig.few.w', 'a293t.ig.few.c']) assert.ok(!(k in I[L]), 'usunięty: ' + L + ' ' + k);
+  assert.ok(!html.includes('a293t.ig.few'), 'stare klucze ani w kodzie, ani w słowniku');
+  assert.equal(I.ru['a293t.ig.nd.w'], 'сессии с результатом:\u00a0{d}'); assert.equal(I.ru['a293t.ig.nd.c'], 'дни с результатом:\u00a0{d}');   /* U4: mianownik po dwukropku */
+});
+
+test('v296 U3: cena NAV ze złym zamknięciem sprzed 5 albo 25 sesji — karta zostaje z „—” (albo znaną zmianą tygodnia) i datą, stan „bez oceny”; kafel nie wybiera po cichu innego rynku', () => {
+  const f = v296t.mk('pl'), tp = v96src.tFor('pl'), gt = tp('r296t.ps.gap').slice(2);
+  assert.deepEqual(f.TRD_PORD, ['up_cont', 'up_new', 'dn_fade', 'up_fade', 'dn_new', 'dn_cont', 'flat', 'gap'], 'gap na końcu kolejności');
+  assert.equal(f.trdPsK({st: 'gap'}), 'r296t.ps.gap'); assert.equal(f.trdPsK({st: 'up_new'}), 'trd.ps.up_new');
+  const g0 = {id: 'fp_bra', g: 'fp', sym: 'EWZ', date: '2026-10-06', typ: 3.68, z: null, st: 'gap'};
+  const c0 = f.trdPx(g0);
+  assert.ok(c0.includes('<b class="na">—<small><i class="tg">•</i> ' + gt + '</small></b>') && c0.includes('5 sesji do 06.10.2026') && c0.includes(tp('trd.n.pr', {v: '—'})), c0);
+  assert.ok(c0.includes('<span>Akcje Brazylii (EWZ)</span>') && c0.includes(tp('trd.n.typ', {v: '3,7'})), c0);
+  const g1 = Object.assign({}, g0, {w: 17.85}), c1 = f.trdPx(g1);
+  assert.ok(c1.includes('<b class="">+17,85%<small><i class="tg">•</i> ' + gt + '</small></b>'), 'znana zmiana tygodnia — bez koloru (bez oceny): ' + c1);
+  const ILF = {id: 'ILF', g: 'eq', date: '2026-10-06', w: 11.09, pr: -1.86, typ: 3.05, st: 'up_new'};
+  const k1 = f.trdKpis([], [g1, ILF], []), k0 = f.trdKpis([], [g0, ILF], []);
+  assert.ok(k1.includes(tp('trd.k.pup') + '</span></div><div class="k-val">+17,85%</div>') && k1.includes('title="' + gt + '"'), 'kafel: Brazylia ze znaną zmianą — szara, „bez oceny”: ' + k1);
+  assert.ok(k0.includes(tp('trd.k.pup') + '</span></div><div class="k-val pos">+11,09%</div>') && !k0.includes(gt), 'bez zmiany tygodnia — kafel z ILF (Brazylii nie da się porównać)');
+  const D = trdV120.data({p: trdV96.data.p.filter(r => r.id !== 'fp_bra').concat([g0])});
+  const v = trdV125.view('pl', D, {mode: 'trendy', trdv: 'global'});
+  assert.ok(v.includes('<span>Akcje Brazylii (EWZ)</span><b class="na">—<small><i class="tg">•</i> ' + gt), 'widok świata: karta ze stanem gap przechodzi przez filtr wierszy (TRD_PORD)');
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  for (const L of L10) assert.ok(v96src.tFor(L)('r296t.ps.gap').startsWith('• '), L + ': znaczek stanu jak trd.ps.flat');
+});
+
+test('v296 U4: widok świata — szacowany termin oceny w języku widza (jak reszta zdania „sesji z sygnałem”); krypto bez zmian', () => {
+  const t2 = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const Y = new Function('t', 'escH', 'trdC', 'LOCALE', 'LANG', html.slice(html.indexOf('const TRD_LV='), html.indexOf('function trdIg(D,cr){')) + '\nreturn trdIgLearn;')(t2, v96src.escH, v => v, {pl: 'pl-PL'}, 'pl');
+  const J = e => ({pg: {l: {'w.all': [12, 100, e, 10], all: [13, 100, e, 11]}}});
+  const w = Y(J('2026-12-15'), false), c = Y(J('2026-12-15'), true), w0 = Y(J(null), false), c0 = Y(J(null), true);
+  assert.ok(w.includes('a293t.w.l.first{"n":12,"c":100} · r296t.w.l.est{"d":"') && w.includes('2026"}'), 'świat: szacowany termin z klucza w 10 językach: ' + w);
+  assert.ok(c.includes('tig.l.first{"n":13,"c":100} · tig.l.est{"d":') && !c.includes('r296t.'), 'krypto: tig.l.est');
+  assert.ok(w0.includes(' · r296t.w.l.est0') && !w0.includes('tig.l.est0') && c0.includes(' · tig.l.est0'), 'bez szacunku: świat r296t.w.l.est0, krypto tig.l.est0');
+  const I = v96src.I18N;
+  assert.equal(I.pl['r296t.w.l.est'], I.pl['tig.l.est']); assert.equal(I.pl['r296t.w.l.est0'], I.pl['tig.l.est0']);   /* po polsku bez zmian */
+  assert.ok(!/termin podamy/.test(I.ru['r296t.w.l.est0']) && I.ru['r296t.w.l.est0'].includes('3'), 'ru: całe zdanie po rosyjsku');
+});
+
+test('v296 U5: opis linii „stablecoiny” w „Szczegółach” krypto — USDT i USDC, wspólne dla całego rynku (nie „cały rynek” = wszystkie stablecoiny)', () => {
+  const tp = v96src.tFor('pl');
+  assert.equal(tp('trd.dc2.d.s'), 'większy przyrost stablecoinów → w górę · USDT i USDC, wspólne dla całego rynku');
+  assert.equal(tp('trd.dc2.b.name', {n: tp('trd.dc2.n.s'), d: tp('trd.dc2.d.s')}), 'stablecoiny (większy przyrost stablecoinów → w górę · USDT i USDC, wspólne dla całego rynku)');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) { const s = v96src.tFor(L)('trd.dc2.d.s'); assert.ok(s.includes('USDT') && s.includes('USDC') && s.includes('→'), L + ': ' + s); }
+  assert.equal(v96src.tFor('en')('trd.dc2.d.s'), 'larger stablecoin growth → up · USDT and USDC, shared by the whole market');
+});
+
+test('v296: słownik r296t — czysty JSON w 10 językach zaraz po poprzednim, te same klucze i pola {x}, tłumaczenia różne od angielskiego, bez nazw dostawców; każdy klucz użyty w kodzie', () => {
+  const {name, D} = v296t.dict(), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.deepEqual(K, ['r296t.ig.win.w', 'r296t.ig.win.c', 'r296t.ig.nd2.w', 'r296t.ig.nd2.c', 'r296t.ps.gap', 'r296t.w.l.est', 'r296t.w.l.est0']);
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10.slice(2)) for (const k of K) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  const prov = /binance|coinbase|coin ?metrics|defillama|hyperliquid|sosovalue|coingecko|ishares|ssga|state street|blackrock|twelve ?data|cboe/i;
+  for (const l of L10) for (const k of K) assert.doesNotMatch(D[l][k], prov, l + ' ' + k);
+  const code = html.slice(html.indexOf('/* v89: TRENDY — początek'), html.indexOf('/* v158: koniec infografiki */'));
+  for (const k of K) assert.ok(code.includes("'" + k + "'"), 'klucz w kodzie: ' + k);
+  const n = +name.slice(5), prev = 'for(const l in EXTRA' + (n - 1) + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + (n - 1) + '[l]);\nconst ' + name + '=';
+  assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2 && html.includes(prev), 'numer = poprzedni + 1, zaraz po jego linii nakładania');
 });
