@@ -25,8 +25,8 @@ jobs:
       contents: write          # zapis kontrola/ostatnia.* do repozytorium
       actions: read            # lista przebiegów
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7   # v289b: akcje na Node.js 24 (sondy v289a — działa); checkout v6+ trzyma dane logowania w osobnym pliku — git push niżej bez zmian
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Po pushu poczekaj na publikację strony (budowa i wdrożenie trwają kilka minut; bez tego kontrola widzi stary stan)
