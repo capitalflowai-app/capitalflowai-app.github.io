@@ -5694,6 +5694,9 @@ TR_PX_SYMS = ('SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'M
 TR_CFTC = ('usd', 'eur', 'jpy', 'spx', 'msciem', 'btc', 'eth')   # fundusze lewarowane; bez obligacji 10L (transakcja na bazie)
 TR_CS = ('gold', 'silver', 'copper', 'wti')   # v295: wiersze cs_* (fundusze zarządzające CFTC) — stała, nie CFTCD_MARKETS: rozszerzenie CFTC
                                               # w dziale SUROWCE nie zmienia TRENDÓW po cichu (nowe wiersze tylko świadomie, tutaj)
+TR_CS_POZ = (('brent', 'ice'), ('ng', 'cftc'), ('corn', 'cftc'), ('wheat', 'cftc'), ('soy', 'cftc'), ('platinum', 'cftc'))   # v303: + 6 wierszy cs_*
+            # świadomie (etap 7 działu SUROWCE): netto funduszy zarządzających z części „pozycje” pliku surowców (rynek, podczęść: ICE — ropa
+            # Brent; CFTC — gaz ziemny, kukurydza, pszenica, soja, platyna); ta sama reguła tygodniowa; TR_CS (część „markets”, v92) bez zmian
 TR_OB = (('in', 1), ('in', 2), ('tw', 1), ('hk', 1), ('br', 1))   # v95: Indie (akcje, dług), Tajwan, Hongkong, Brazylia
 TR_FE = (('fe_us', ('SPY', 'IVV')), ('fe_tech', ('XLK',)), ('fe_fin', ('XLF',)), ('fe_energy', ('XLE',)), ('fe_health', ('XLV',)),
          ('fe_indu', ('XLI',)), ('fe_cdisc', ('XLY',)), ('fe_cstap', ('XLP',)), ('fe_util', ('XLU',)),
@@ -8666,6 +8669,15 @@ def _tr_flows(S):
                 wd, wv = _tr_weeks(ds, lv, n=len(ds) + 4)
                 ch = [wv[i] - wv[i - 1] if _isnum(wv[i]) and _isnum(wv[i - 1]) else None for i in range(1, len(wv))]
                 out.append(_tr_row('cs_' + k, 'pos', 'pos', 1, wd[1:], ch, weekly_days=14, cur='CT'))
+        pz = su.get('pozycje') if isinstance(su.get('pozycje'), dict) else {}   # v303: + 6 wierszy z części „pozycje” (TR_CS_POZ, świadomie)
+        for k, sub in TR_CS_POZ:
+            e = (pz.get(sub) or {}).get(k) if isinstance(pz.get(sub), dict) else None
+            h = e.get('h') if isinstance(e, dict) and isinstance(e.get('h'), dict) else {}
+            ds, lv = h.get('d') or [], h.get('net') or []       # netto funduszy zarządzających (managed money), stan na wtorek
+            if isinstance(ds, list) and isinstance(lv, list) and len(ds) == len(lv) and len(ds) > 1:
+                wd, wv = _tr_weeks(ds, lv, n=len(ds) + 4)
+                ch = [wv[i] - wv[i - 1] if _isnum(wv[i]) and _isnum(wv[i - 1]) else None for i in range(1, len(wv))]
+                out.append(_tr_row('cs_' + k, 'pos', 'pos', 1, wd[1:], ch, weekly_days=14, cur='CT'))
         return out
 
     def funds():
@@ -8899,10 +8911,457 @@ def build_trendy(S):
         if wr2:                                              # karty v2 (reguły c / cx / c0 — strona sprzed v127 ich nie przyjmuje) przed kartami v1
             daily['d'] = wr2 + (daily['d'] or [])            # świata i krypto, które zostają bez zmian (stara karta przeglądarki czyta wersję 1);
             daily['bd'] = (daily['bd'] or []) + wl2          # 7 linii v1 świata na początku bd (licznik od TD_SINCE liczy się dalej), linie v2 na końcu
+    su_td = None
+    try:                                  # v303: SUROWCE — blok reguł „w cieniu” TD_SH_SU (dziennik _SUT_LOG; strona: opis, licznik, data rejestracji)
+        su_td = _sut_build(S)
+    except Exception as e:
+        _SUT_LOG[1] = None                 # awaria bloku nie rusza reszty pliku; poprzedni dziennik zostaje (main)
+        META['notes'].append(mask(f'trendy surowce (w cieniu): {e}'))
     return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (fundusze, obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, surowce, ceny)',
             'rules': {'base_min': TR_BASE_MIN, 'base_max': TR_BASE_MAX, 'dir': TR_DIR, 'all': TR_ALL, 'floor': TR_FLOOR, 'strong': TR_STRONG,
                       'exc': TR_EXC, 'day_z': TR_DAY_Z, 'span': TR_SPAN, 'px_min': TR_PX_MIN, 'cr_typ': TR_CR_TYP},
-            'f': flows, 'p': prices, 'b': base, **daily}
+            'f': flows, 'p': prices, 'b': base, **daily, **({'su': su_td} if su_td else {})}   # v303: su tylko, gdy blok policzony
+
+
+# ===================== v303: SUROWCE w TRENDACH — blok „w cieniu” TD_SH_SU (dział SUROWCE, etap 7) =====================
+# Rejestracja z góry: checkpoints/REGULY_SUROWCE_2026-10-08_PL.md (suma SHA-256 dokumentu w SUT_SHA) — lista zamknięta 08.10.2026, przed
+# jakimkolwiek wynikiem. Trafności tych linii NIE liczymy na historii (nie ma testu „w próbie”): jedyne źródło ocen to dziennik
+# data/surowce-dziennik.json z kartami liczonymi na żywo od wdrożenia. Karta sesji (świat) / doby (krypto) jest liczona w każdym przebiegu
+# PRZED swoją granicą (09:00 NY / 05:30 UTC) z danych, które w tej chwili są w plikach strony, i zamrażana na granicy (saved_at = chwila
+# wyliczenia); karta, której przed granicą nie było, trafia do dziennika „po czasie” — bez głosu. Dzień danych głosuje najwyżej raz w linii
+# (najnowszy, którego wcześniejsza karta nie użyła; za stary — wcale). Progi wyłącznie ze stałych reguł głównych (TD_LB, TD_MIN, TD_Z1, TD_Z2,
+# TD_FLOOR, TD_GAP); własny Bonferroni: m = 4 linie × 3 oceny = 12; punkty kontrolne 100/200/400 dni z sygnałem zamrażane raz; strona pokazuje
+# tylko opis, licznik i datę rejestracji — linię dopiero z werdyktem „przewaga” w punkcie 200 (TD_SH_JAWNE). Linie cm.p i cm.f czekają na dane
+# funduszy surowcowych (części px i fl pliku swiat-dzien; ten krok ich nie zbiera) — ruszają same, gdy dane będą. Bez zapytań do sieci.
+SUT_V = 1                       # wersja bloku (zmiana linii albo reguły = nowa rejestracja, nowa wersja; stare oceny zostają w 'prev')
+SUT_REG = '2026-10-08'          # data rejestracji (dokument z sumą SHA-256)
+SUT_SINCE = '2026-10-08'        # najwcześniejsza data karty w dzienniku (sesja docelowa świata / doba karty krypto)
+# SHA-256 pliku checkpoints/REGULY_SUROWCE_2026-10-08_PL.md (dokument rejestracji, zatwierdzony w repozytorium projektu przed wdrożeniem kodu)
+SUT_SHA = '79d4eef13ba7fc33f0630fdb323baf3979e55007a8d120ad9213f8811630fe5b'
+SUT_CM_PX = ('GSG', 'CMDY', 'COMT', 'DBC', 'USO', 'CPER', 'DBA')   # fundusze surowcowe — ruch ceny (su.cm.p)
+SUT_CM_FL = ('GSG', 'CMDY', 'COMT')                               # fundusze surowcowe iShares — przepływ (su.cm.f)
+TD_SH_SU = (('cm.p', 'w', 'px', 1, TD_Z1), ('cm.f', 'w', 'fl', 1, TD_Z1), ('eq.cu', 'w', 'cuau', 1, TD_Z1), ('cr.au', 'cr', 'au', 1, TD_Z2))
+#            (nazwa, rodzina: 'w' sesja NYSE / 'cr' doba krypto, wejście, kierunek z góry, próg |z|) — lista zamknięta 08.10.2026
+SUT_M = len(TD_SH_SU) * len(TD_W_LOOKS)                                   # 12 prób naraz (4 linie × 3 oceny) — także linie jeszcze bez danych
+SUT_ZL = statistics.NormalDist().inv_cdf(1 - 0.025 / SUT_M)            # 2,8653
+SUT_CLL = round(100 - 5 / SUT_M, 1)                                     # 99.6
+SUT_EQ = tuple(s for s in TD_W_SYMS if _tdw_fam(s) == 'eq')             # 33 rynki rodziny „eq” (wynik su.eq.cu: średnia ich sesji)
+SUT_ZW_W = 1      # sesje NYSE: pierwsza sesja, w której wejście mogło głosować (po publikacji), najwyżej tyle sesji przed sesją karty — dla
+                  # zamknięć i ceny złota: dzień danych najwyżej 2 sesje przed kartą (dostępność danych, nie próg sygnału)
+SUT_ZW_CR = 3     # doby: pierwsza doba krypto, w której wejście mogło głosować, najwyżej tyle dób przed dobą karty (j.w.)
+# publikacja wejścia z datą d (stanu albo dnia): (dni po d, minuty po północy, strefa); w tygodniu ze świętem (dzień bez sesji NYSE między
+# d a dniem publikacji) — ostrożnie dzień roboczy później. Zamknięcie dnia: 16:00 NY; LBMA PM: 15:00 UTC (15:00 w Londynie zimą, 14:00 UTC
+# latem — górna granica); pliki wydawców funduszy: 23:59 NY; CFTC i ICE (stan na wtorek): piątek 15:30 NY; EIA WPSR (stan na piątek): środa 10:30 NY
+SUT_PUB = {'close': (0, 960, 'ny'), 'lbma': (0, 900, 'utc'), 'ishares': (0, 1439, 'ny'), 'cftc': (3, 930, 'ny'), 'ice': (3, 930, 'ny'),
+           'wpsr': (5, 630, 'ny')}
+SUT_KIND = {'px': ('close',), 'fl': ('ishares',), 'cuau': ('close', 'lbma'), 'au': ('lbma',)}   # wejście linii → rodzaje publikacji
+SUT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'archiwum', 'surowce-dziennik.csv')   # kopia dzienna (narzedzia/archiwum.py)
+SUT_CSV_COLS = ['date', 'line', 'sym', 'g', 'state', 'z', 'saved_at', 'y', 'dd', 'v', 'reg']
+SUT_JST = ('ok', 'late')        # stany wiersza: ok — karta przed granicą (głos albo spokój), late — po czasie (bez głosu)
+_SUT_LOG = [None, None]         # [poprzedni dziennik (main, przed trendami), nowy dziennik (_sut_build)]
+
+
+def _sut_pub(kind, d):
+    """Chwila publikacji (UTC, 'YYYY-MM-DDTHH:MM:SS') wejścia rodzaju `kind` z datą d. Dzień bez sesji NYSE (TD_NYSE_CLOSED) w (d, dzień
+    publikacji] albo publikacja w sobotę/niedzielę — dzień roboczy później (ostrożnie, nigdy wcześniej)."""
+    dd, m, tz = SUT_PUB[kind]
+    p = _d(d) + datetime.timedelta(days=dd)
+    if dd:
+        if any((_d(d) + datetime.timedelta(days=k)).isoformat() in TD_NYSE_CLOSED for k in range(1, dd + 1)):
+            p += datetime.timedelta(days=1)
+        while p.weekday() >= 5 or p.isoformat() in TD_NYSE_CLOSED:
+            p += datetime.timedelta(days=1)
+    if tz == 'utc':
+        return p.isoformat() + 'T%02d:%02d:00' % divmod(m, 60)
+    return _tdw_at(p.isoformat(), m)
+
+
+def _sut_sesja_pub(kind, d):
+    """Pierwsza sesja NYSE, w której karta (granica 09:00 NY) może użyć wejścia `kind` z datą d — pierwsza sesja z granicą po publikacji."""
+    pub = _sut_pub(kind, d)
+    s = pub[:10] if _d(pub[:10]).weekday() < 5 and pub[:10] not in TD_NYSE_CLOSED else _tdw_next(pub[:10])
+    return s if _tdw_cut(s) > pub else _tdw_next(s)
+
+
+def _sut_doba_pub(kind, d):
+    """Pierwsza doba krypto D′, której karta (granica 05:30 UTC doby D′+1) może użyć wejścia `kind` z datą d."""
+    pub = datetime.datetime.strptime(_sut_pub(kind, d), '%Y-%m-%dT%H:%M:%S')
+    return (pub - datetime.timedelta(minutes=TD_CR_CUT)).date().isoformat()
+
+
+def _sut_iso(now_utc):
+    n = now_utc.astimezone(datetime.timezone.utc) if getattr(now_utc, 'tzinfo', None) else now_utc.replace(tzinfo=datetime.timezone.utc)
+    return n.replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def _sut_cel(fam, now_utc):
+    """Karta liczona teraz: świat — pierwsza sesja NYSE z granicą (09:00 NY) po teraz; krypto — doba danych D′ z granicą (05:30 UTC D′+1) po teraz."""
+    n19 = _sut_iso(now_utc)[:19]
+    if fam == 'cr':
+        return (datetime.datetime.strptime(n19, '%Y-%m-%dT%H:%M:%S') - datetime.timedelta(minutes=TD_CR_CUT)).date().isoformat()
+    d = _wd_ny(now_utc if getattr(now_utc, 'tzinfo', None) else now_utc.replace(tzinfo=datetime.timezone.utc)).date().isoformat()
+    if _d(d).weekday() < 5 and d not in TD_NYSE_CLOSED and n19 < _tdw_cut(d):
+        return d
+    return _tdw_next(d)
+
+
+def _sut_poprz(fam, cel):
+    return _wd_prev_session(cel) if fam == 'w' else (_d(cel) - datetime.timedelta(days=1)).isoformat()
+
+
+def _sut_granica(fam, cel):
+    return _tdw_cut(cel) if fam == 'w' else _td_cut(cel)
+
+
+def _sut_koniec(fam, cel):
+    """Koniec karty (po nim nie zapisujemy już karty „po czasie”): świat — 16:15 NY (13:15 w sesji skróconej); krypto — 06:00 UTC doby D′+2."""
+    if fam == 'w':
+        return _tdw_end(cel)
+    return (_d(cel) + datetime.timedelta(days=2)).isoformat() + 'T%02d:00:00' % TD_CR_WH
+
+
+def _sut_ser(rows, k=1):
+    """Wiersze [dzień, …, wartość w kolumnie k, …] → posortowane [(dzień, wartość > 0)]; brak, zero i zły dzień pominięte (nigdy 0)."""
+    by = {}
+    for r in rows or []:
+        if isinstance(r, list) and len(r) > k and isinstance(r[0], str) and _d(r[0]) and _isnum(r[k]) and r[k] > 0:
+            by[str(r[0])[:10]] = float(r[k])
+    return sorted(by.items())
+
+
+def _sut_zm(ser, split=False):
+    """[(dzień, wartość)] → [(dzień, zmiana w % | None)] wobec poprzedniego dnia z wartością; dalej niż TD_GAP dni = None; split — iloraz
+    bliski ułamkowi podziału jednostek = None (_tdw_mv). Tylko dzień i dzień przed nim — nic z dni późniejszych."""
+    out = []
+    for i, (d, v) in enumerate(ser):
+        if not i or (_d(d) - _d(ser[i - 1][0])).days > TD_GAP:
+            out.append((d, None)); continue
+        pv = ser[i - 1][1]
+        out.append((d, _tdw_mv(pv, v) if split else (v / pv - 1) * 100))
+    return out
+
+
+def _sut_fl(rows):
+    """Wiersze pliku wydawcy [dzień, NAV, jednostki, …] → [(dzień, przepływ mln USD | None)] (fund_flows: złe wiersze i podziały wykrywane
+    tylko z dni wcześniejszych); poprzedni wiersz dalej niż TD_GAP dni albo dzień bez przepływu = None."""
+    h = [[r[0], r[1], r[2]] for r in rows or [] if isinstance(r, list) and len(r) >= 3]
+    h = sorted({str(r[0])[:10]: r for r in h if isinstance(r[0], str)}.values(), key=lambda r: r[0])
+    k = _fund_rows(h)
+    fl = fund_flows(k)
+    out = []
+    for a, b in zip(k, k[1:]):
+        ok = (_d(b[0]) - _d(a[0])).days <= TD_GAP
+        out.append((b[0], fl.get(b[0]) if ok else None))
+    return out
+
+
+def _sut_wejscia(S):
+    """Wejścia linii z plików tego przebiegu → {(linia, symbol): ([(dzień, zmiana | przepływ | None)], demean)}. Brak pliku albo serii = brak wpisu."""
+    out = {}
+    su = S.get('surowce') if isinstance(S.get('surowce'), dict) else {}
+    ce = su.get('ceny') if su.get('v') == SU_V and isinstance(su.get('ceny'), dict) else {}
+    au = _sut_ser(((ce.get('gold') or {}) if isinstance(ce.get('gold'), dict) else {}).get('d'))
+    cu = _sut_ser(((ce.get('copper') or {}) if isinstance(ce.get('copper'), dict) else {}).get('d'))
+    if len(au) > 1:
+        out[('cr.au', 'BTC')] = (_sut_zm(au), False)
+    A = dict(au)
+    ra = [(d, v / A[d]) for d, v in cu if d in A]                # stosunek miedź/złoto tylko z dni, w których są obie ceny
+    if len(ra) > 1:
+        out[('eq.cu', 'EQ')] = (_sut_zm(ra), False)
+    wd = S.get('swiat-dzien') if isinstance(S.get('swiat-dzien'), dict) else {}
+    for sym in SUT_CM_PX:
+        c = _sut_ser((((wd.get('px') or {}).get(sym) or {}).get('d')), 2)
+        if len(c) > 1:
+            out[('cm.p', sym)] = (_sut_zm(c, split=True), False)
+    for sym in SUT_CM_FL:
+        f = _sut_fl((((wd.get('fl') or {}).get(sym) or {}).get('d')))
+        if f:
+            out[('cm.f', sym)] = (f, True)
+    return out
+
+
+def _sut_karta(ch, demean, thr, kinds, cel, fam, prev_dd):
+    """Karta linii dla sesji/doby `cel` z serii wejścia ch → (głos przed kierunkiem, z, dzień danych) albo None (brak karty). Dzień danych =
+    najnowszy dzień serii przed kartą (świat: < cel; krypto: ≤ cel), którego publikacja jest przed granicą karty; zużyty przez wcześniejszą
+    kartę (≤ prev_dd) albo za stary (pierwsza sesja / doba, w której mógł głosować, wcześniej niż SUT_ZW_W sesji / SUT_ZW_CR dób przed
+    kartą) = brak karty. z z najwyżej TD_LB poprzednich wartości serii (_td_z; ruch ceny bez odejmowania średniej, przepływ ze średnią
+    i dolną granicą rozrzutu)."""
+    cut = _sut_granica(fam, cel)
+
+    def wolno(d):
+        return (d < cel if fam == 'w' else d <= cel) and all(_sut_pub(k, d) < cut for k in kinds)
+    i = len(ch) - 1
+    while i >= 0 and not wolno(ch[i][0]):
+        i -= 1
+    if i < 0:
+        return None
+    d = ch[i][0]
+    lo = cel
+    if fam == 'w':
+        for _ in range(SUT_ZW_W):
+            lo = _wd_prev_session(lo)
+        first = max(_sut_sesja_pub(k, d) for k in kinds)
+    else:
+        lo = (_d(cel) - datetime.timedelta(days=SUT_ZW_CR)).isoformat()
+        first = max(_sut_doba_pub(k, d) for k in kinds)
+    if first < lo or (prev_dd and d <= prev_dd):
+        return None
+    z = _td_z([x for _, x in ch], i, demean)
+    if z is None:
+        return None
+    return ((1 if z > 0 else -1) if abs(z) >= thr else 0), z, d
+
+
+def _sut_valid(log):
+    return isinstance(log, dict) and isinstance(log.get('rows'), list) and 'v' in log and 'reg' in log
+
+
+def _sut_rows(log):
+    """Poprawne wiersze dziennika: [dzień, linia, symbol, głos, stan, z, zapisano, y, dzień danych]."""
+    return [list(r) for r in ((log or {}).get('rows') or []) if isinstance(r, list) and len(r) == 9 and isinstance(r[0], str) and _d(r[0])
+            and r[1] in {n for n, *_ in TD_SH_SU} and isinstance(r[2], str) and r[4] in SUT_JST]
+
+
+def _sut_oc(wd, syms):
+    """Wyniki sesji (otwarcie→zamknięcie, %) z pliku swiat-dzien → {symbol: {sesja: wynik | None}} (wiersz pliku = pierwsza publikacja)."""
+    px = (wd or {}).get('px') or {}
+    return {s: {r[0]: _tdw_oc(r[1], r[2]) for r in ((px.get(s) or {}).get('d') or []) if isinstance(r, list) and len(r) >= 3 and isinstance(r[0], str)}
+            for s in syms}
+
+
+def _sut_y_w(oc, T, sym, now19):
+    """Wynik sesji T z indeksu _sut_oc: fundusz — jego sesja; 'EQ' — średnia 33 rynków rodziny eq, gdy mają ją wszystkie, a od WD_GAP_H
+    (48 h) po zamknięciu sesji — gdy ma ją co najmniej WD_MIN_SHARE (90%) z nich. Brak → None (nigdy 0)."""
+    if sym != 'EQ':
+        return (oc.get(sym) or {}).get(T)
+    ys = [y for y in ((oc.get(s) or {}).get(T) for s in SUT_EQ) if y is not None]
+    late = now19 >= (datetime.datetime.strptime(_tdw_at(T, TD_W_CLOSE), '%Y-%m-%dT%H:%M:%S') + datetime.timedelta(hours=WD_GAP_H)).strftime('%Y-%m-%dT%H:%M:%S')
+    if ys and (len(ys) == len(SUT_EQ) or (late and len(ys) >= WD_MIN_SHARE * len(SUT_EQ))):
+        return sum(ys) / len(ys)
+    return None
+
+
+def _sut_ut_w(wd, name):
+    """Udział sesji wzrostowych w TD_W_UT sesjach przed parą (b0t, jak reguły świata) z pliku swiat-dzien → {symbol: {sesja: udział}}."""
+    cal = [c for c in ((wd or {}).get('cal') or []) if isinstance(c, str)]
+    if not cal:
+        return None
+    by = _sut_oc(wd, SUT_EQ if name == 'eq.cu' else SUT_CM_PX)
+    if name == 'eq.cu':
+        ys = []
+        for c in cal:
+            v = [by[s].get(c) for s in SUT_EQ if by[s].get(c) is not None]
+            ys.append(sum(v) / len(v) if v and len(v) >= WD_MIN_SHARE * len(SUT_EQ) else None)
+        ser = [{'id': 'EQ', 'dates': cal, 'y': ys}]
+    else:
+        ser = [{'id': s, 'dates': cal, 'y': [by[s].get(c) for c in cal]} for s in SUT_CM_PX if by[s]]
+    return _tdw_ut(ser)
+
+
+def _sut_pary(rows, name, since, upto=None):
+    """Wiersze linii → (pary [(dzień, trafienie, symbol, głos)], ys {symbol: {dzień: y}}): para — karta na czas z głosem i wynikiem ≠ 0;
+    ys — każdy wiersz z wynikiem (zwykła sesja/doba okresu)."""
+    pr, ys = [], {}
+    for d, ln, sym, g, st, z, at, y, dd in rows:
+        if ln != name or d < since or (upto and d > upto) or not _isnum(y):
+            continue
+        ys.setdefault(sym, {})[d] = y
+        if st == 'ok' and g and y != 0:
+            pr.append((d, 1 if (y > 0) == (g > 0) else 0, sym, g))
+    return pr, ys
+
+
+def _sut_cp(log, rows, today, iso, wd):
+    """Punkty kontrolne 100/200/400 dni z sygnałem (wiersze dojrzałe: świat ≥ TD_W_SETTLE, krypto ≥ TD_CR_SETTLE dni) przy z = SUT_ZL:
+    [c, k, n, b0, h1, h2, lo, hi, vd, dzień c, zapisano, b0t, próg] — zapis raz, nigdy liczone od nowa (jak _tdw_sh_cp)."""
+    cp = {k: [list(x) for x in v if isinstance(x, list) and len(x) == 13] for k, v in ((log or {}).get('cp') or {}).items()}
+    for name, fam, *_ in TD_SH_SU:
+        settle = TD_W_SETTLE if fam == 'w' else TD_CR_SETTLE
+        pr, ys = _sut_pary(rows, name, SUT_SINCE, (today - datetime.timedelta(days=settle)).isoformat())
+        pr = sorted(pr); ds = sorted({p[0] for p in pr}); have = {x[0] for x in cp.get(name, [])}
+        ut = None
+        for c in TD_W_LOOKS:
+            if c in have or len(ds) < c:
+                continue
+            q = [p for p in pr if p[0] <= ds[c - 1]]
+            if fam == 'w':
+                ut = ut if ut is not None else (_sut_ut_w(wd, name) or {})
+                S_ = _tdw_stat(q, ys, SUT_ZL, ut)
+                ne = S_['ne']; b0t = None if S_['b0t'] is None else round(S_['b0t'], 1)
+            else:
+                S_ = _td_stat(q, ys, SUT_ZL)
+                ne = S_['days']; b0t = None
+            bm = S_['bm']
+            thr = round(bm + 100 * SUT_ZL * math.sqrt(bm / 100 * (1 - bm / 100) / ne), 1) if ne else None
+            cp.setdefault(name, []).append([c, S_['k'], S_['n'], None if S_['b0'] is None else round(S_['b0'], 1), S_['h1'], S_['h2'],
+                                            S_['ca'][0], S_['ca'][1], S_['vd'], ds[c - 1], iso, b0t, thr])
+    return {k: sorted(v) for k, v in cp.items() if v}
+
+
+def _sut_log(log, S, now_utc):
+    """Dziennik bloku: karty liczone na żywo przed granicą (nadpisywane do granicy, potem zamrożone), karta bez wiersza przed granicą →
+    „po czasie” (bez głosu, tylko gdy dziennik istniał przed tą granicą), wyniki dopisywane raz, punkty kontrolne raz, postęp (pg).
+    Inna wersja albo rejestracja → nowy dziennik, stare oceny w 'prev'. Nie zmienia S."""
+    log = log if _sut_valid(log) else {}
+    prevs = [x for x in (log.get('prev') or []) if isinstance(x, dict)] if isinstance(log.get('prev'), list) else []
+    if log and (log.get('v') != SUT_V or log.get('reg') != SUT_REG):
+        prevs = prevs + [{'v': log.get('v'), 'reg': log.get('reg'), 'cp': log.get('cp') or {}, 'n': len(log.get('rows') or [])}]
+        log = {}
+    iso = _sut_iso(now_utc); n19 = iso[:19]; today = _d(iso)
+    was = log.get('at') if isinstance(log.get('at'), str) else None
+    R = {(r[0], r[1], r[2]): r for r in _sut_rows(log)}
+    W = _sut_wejscia(S)
+
+    def zuzyty(name, sym, przed):
+        return max((r[8] for (d, ln, s), r in R.items() if ln == name and s == sym and d < przed and r[4] == 'ok' and isinstance(r[8], str)),
+                   default=None)
+    for name, fam, inp, dr, thr in TD_SH_SU:
+        cel = _sut_cel(fam, now_utc); pc = _sut_poprz(fam, cel); kinds = SUT_KIND[inp]
+        for (ln, sym), (ch, dm) in W.items():
+            if ln != name:
+                continue
+            if cel >= SUT_SINCE:
+                k = _sut_karta(ch, dm, thr, kinds, cel, fam, zuzyty(name, sym, cel))
+                if k:
+                    R[(cel, name, sym)] = [cel, name, sym, k[0] * dr, 'ok', _tdw_rz(k[1]), iso, None, k[2]]
+            if (pc >= SUT_SINCE and (pc, name, sym) not in R and was and was[:19] < _sut_granica(fam, pc) <= n19 < _sut_koniec(fam, pc)):
+                k = _sut_karta(ch, dm, thr, kinds, pc, fam, zuzyty(name, sym, pc))
+                if k:
+                    R[(pc, name, sym)] = [pc, name, sym, 0, 'late', None, iso, None, k[2]]
+    wd = S.get('swiat-dzien') if isinstance(S.get('swiat-dzien'), dict) else {}
+    kd = S.get('krypto-dzien') if isinstance(S.get('krypto-dzien'), dict) else None
+    btc = oc = None
+    for key, r in R.items():
+        if r[7] is not None:
+            continue
+        if r[1] == 'cr.au':
+            if btc is None:
+                try:                                            # zepsuty plik dzienny krypto nie zatrzymuje kart (wynik dojdzie później)
+                    btc = (_td_series_cr2(kd, 'BTC', today) if kd else None) or {}
+                except Exception as e:  # noqa
+                    btc = {}; META['notes'].append(mask(f'trendy surowce (w cieniu): wynik bitcoina — {e}')[:200])
+            y = _td_win(btc, btc['dates'].index(r[0])) if btc and r[0] in btc['dates'] else None
+        elif r[0] < today.isoformat() or n19 >= _tdw_at(r[0], TD_W_CLOSE):
+            oc = oc if oc is not None else _sut_oc(wd, SUT_EQ + SUT_CM_PX)
+            y = _sut_y_w(oc, r[0], r[2], n19)
+        else:
+            y = None
+        if y is not None:
+            r[7] = round(y, 4)
+    rows = [R[k] for k in sorted(R)]
+    out = {'at': iso, 'v': SUT_V, 'reg': SUT_REG, 'sha': SUT_SHA, 'since': SUT_SINCE, 'cut': {'w': TD_W_CUT, 'cr': TD_CR_CUT},
+           'rows': rows, 'cp': {}}
+    out['cp'] = _sut_cp(log, rows, today, iso, wd)
+    pg = {}
+    for name, fam, *_ in TD_SH_SU:
+        settle = TD_W_SETTLE if fam == 'w' else TD_CR_SETTLE
+        od = min((r[0] for r in rows if r[1] == name), default=None)
+        a, _ = _sut_pary(rows, name, SUT_SINCE, (today - datetime.timedelta(days=settle)).isoformat())
+        b, _ = _sut_pary(rows, name, SUT_SINCE)
+        g = _td_pg({name: a}, {name: b}, [(name, name)], TD_W_LOOKS, out['cp'], od, today, settle)['l'][name]
+        pg[name] = g + [od]                                     # [n, c, szacunek, dni dojrzałe, pierwsza karta]
+    out['pg'] = pg
+    if prevs:
+        out['prev'] = prevs
+    return out
+
+
+def _sut_from_csv(path=None):
+    """Kopia dzienna dziennika (archiwum/surowce-dziennik.csv, narzedzia/archiwum.py) → (dziennik, 'ok') z wierszami TEJ wersji i rejestracji
+    (punkty kontrolne policzy od nowa _sut_log z tych samych wierszy); (None, 'none') — brak pliku albo wierszy tej wersji; (None, 'bad') —
+    plik jest, ale nieczytelny (inny nagłówek, błąd odczytu)."""
+    path = path or SUT_CSV
+    try:
+        with open(path, encoding='utf-8', newline='') as f:
+            rd = csv.reader(f)
+            if next(rd, None) != SUT_CSV_COLS:
+                return None, 'bad'
+            raw = list(rd)
+    except FileNotFoundError:
+        return None, 'none'
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return None, 'bad'
+    rows = []
+    num = lambda x: float(x) if x != '' else None   # noqa: E731 — puste pole = brak, nigdy 0
+    for r in raw:
+        if len(r) != len(SUT_CSV_COLS):
+            continue
+        d = dict(zip(SUT_CSV_COLS, r))
+        try:
+            if int(d['v'] or 0) != SUT_V or d['reg'] != SUT_REG or not _d(d['date']):
+                continue
+            rows.append([d['date'], d['line'], d['sym'], int(d['g']), d['state'], num(d['z']), d['saved_at'], num(d['y']), d['dd'] or None])
+        except (TypeError, ValueError):
+            continue
+    rows = [r for r in rows if r in _sut_rows({'rows': [r]})]
+    if not rows:
+        return None, 'none'
+    return {'at': None, 'v': SUT_V, 'reg': SUT_REG, 'since': SUT_SINCE, 'rows': sorted(rows), 'cp': {}}, 'ok'
+
+
+def _sut_summary(log):
+    """Dziennik → pole 'su' pliku trendy.json: wersja, data rejestracji, suma dokumentu, m, poziom, punkty kontrolne, stan dziennika, postęp
+    linii (l: [n, c, szacunek, dni dojrzałe, pierwsza karta]) i TYLKO linie z werdyktem „przewaga” w punkcie TD_SH_JAWNE (ok: [linia, c,
+    werdykt ostatniej oceny, dzień c]) — żadnych liczb ocen przed ujawnieniem."""
+    pg = log.get('pg') if isinstance(log.get('pg'), dict) else {}
+    L, ok = {}, []
+    for name, *_ in TD_SH_SU:
+        g = pg.get(name)
+        L[name] = g if isinstance(g, list) and len(g) == 5 else [0, TD_W_LOOKS[0], None, 0, None]
+        cps = [x for x in ((log.get('cp') or {}).get(name) or []) if isinstance(x, list) and len(x) == 13]
+        if any(x[0] == TD_SH_JAWNE and x[8] == 'edge' for x in cps):
+            last = max(cps, key=lambda x: x[0])
+            ok.append([name, last[0], last[8], last[9]])
+    return {'v': SUT_V, 'reg': SUT_REG, 'sha': SUT_SHA, 'm': SUT_M, 'cll': SUT_CLL, 'looks': list(TD_W_LOOKS), 'jawne': TD_SH_JAWNE,
+            'at': log.get('at'), 'l': L, 'ok': ok}
+
+
+def _sut_arch_byl(path=None):
+    """Czy archiwum miało już kiedyś kopię dziennika: archiwum/indeks.json (obok SUT_CSV) z wpisem surowce-dziennik o co najmniej jednym
+    wierszu → True; indeks bez takiego wpisu → False (pierwsze wdrożenie: dziennika nie było ani na stronie, ani w archiwum); brak albo
+    nieczytelny indeks → None (wtedy ostrożnie reguła daty)."""
+    path = path or os.path.join(os.path.dirname(SUT_CSV), 'indeks.json')
+    try:
+        with open(path, encoding='utf-8') as f:
+            ix = json.load(f)
+    except (OSError, ValueError):
+        return None
+    fl = ix.get('files') if isinstance(ix, dict) else None
+    if not isinstance(fl, dict):
+        return None
+    e = fl.get('surowce-dziennik')
+    return isinstance(e, dict) and _isnum(e.get('rows')) and e['rows'] > 0
+
+
+def _sut_build(S):
+    """v303: blok „w cieniu” SUROWCE → pole 'su' pliku trendy.json albo None (bez danych surowców i bez dziennika — bez pola). Dziennik:
+    _SUT_LOG[0] (poprzedni) → _SUT_LOG[1] (nowy); brak → odtworzenie z archiwum/surowce-dziennik.csv; nieczytelne archiwum → błąd w meta,
+    licznik wstrzymany, nic nie zapisujemy; brak pliku i kopii → błąd w meta tylko wtedy, gdy dziennik już był (wpis w archiwum/indeks.json;
+    bez czytelnego indeksu — po 4 dniach od SUT_SINCE), a przy pierwszym wdrożeniu — uwaga. Liczone tylko z plików tego przebiegu
+    (surowce, swiat-dzien, krypto-dzien), bez sieci."""
+    S = S if isinstance(S, dict) else {}
+    su = S.get('surowce') if isinstance(S.get('surowce'), dict) else {}
+    rd = lambda k: isinstance(S.get(k), dict) and S[k].get('ready') is True   # noqa: E731
+    log0 = _SUT_LOG[0] if _sut_valid(_SUT_LOG[0]) else None
+    if log0 is None and not (su.get('v') == SU_V and isinstance(su.get('ceny'), dict) and (rd('swiat-dzien') or rd('krypto-dzien'))):
+        return None
+    now_utc = _now_utc()
+    if log0 is None:
+        log0, why = _sut_from_csv()
+        if why == 'bad':
+            META['errors'].append('Dziennik surowców (TRENDY): brak poprzedniego pliku, a kopia w archiwum jest nieczytelna — licznik wstrzymany, '
+                                  'nic nie nadpisano')
+            return None
+        if log0 is not None:
+            META['notes'].append(f"Dziennik surowców (TRENDY): odtworzony z archiwum ({len(log0['rows'])} wierszy do {log0['rows'][-1][0]})")
+        else:
+            byl = _sut_arch_byl()
+            if byl or (byl is None and now_utc.date() > _d(SUT_SINCE) + datetime.timedelta(days=4)):
+                META['errors'].append('Dziennik surowców (TRENDY): brak poprzedniego pliku i brak jego kopii w archiwum — nowy dziennik, licznik od zera')
+            else:                              # pierwsze wdrożenie (także po 12.10): dziennika nie było ani na stronie, ani w archiwum
+                META['notes'].append('Dziennik surowców (TRENDY): nowy dziennik — pierwszy zapis (archiwum jeszcze go nie miało)')
+    _SUT_LOG[1] = _sut_log(log0, S, now_utc)
+    return _sut_summary(_SUT_LOG[1])
 
 
 # ===================== v295: SUROWCE v2 — dział SUROWCE, etapy 1–2 (dane) =====================
@@ -23378,6 +23837,7 @@ def main():
         if prev_zk:
             save('zloto-krypto', prev_zk)
     _CR_LOG[0] = previous('krypto-dziennik'); _CR_LOG[1] = None   # v125: dziennik kart krypto — źródło licznika „od wdrożenia”
+    _SUT_LOG[0] = previous('surowce-dziennik'); _SUT_LOG[1] = None   # v303: dziennik reguł „w cieniu” SUROWCE — licznik od rejestracji
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
@@ -23391,6 +23851,10 @@ def main():
         save('swiat-dziennik', _W_LOG[1])
     elif _tdw_valid(_W_LOG[0]):                                    # świat v2 nieaktywny albo bez dziennika w tym przebiegu: poprzedni bez zmian
         save('swiat-dziennik', _W_LOG[0])
+    if _SUT_LOG[1]:                                                 # v303: dziennik reguł „w cieniu” SUROWCE zbudowany w tym przebiegu
+        save('surowce-dziennik', _SUT_LOG[1])
+    elif _sut_valid(_SUT_LOG[0]):                                 # blok bez dziennika w tym przebiegu (awaria trendów): poprzedni bez zmian
+        save('surowce-dziennik', _SUT_LOG[0])
     META['czas'] = czas_przebiegu(_CZAS, time.monotonic() - _RUN_T0[0])   # v185: cały przebieg i 5 najdłuższych części
     if META['czas']['s'] > CZAS_UWAGA_S:
         META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "

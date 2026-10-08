@@ -44,9 +44,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'zloto-krypto', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'surowce-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'zloto-krypto', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60, 'surowce': 24 * 60, 'surowce-hist': 48 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'zloto-krypto': 90, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'surowce-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'zloto-krypto': 90, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
 
@@ -2754,6 +2754,44 @@ def dziennik_swiezosc(j, plik, now=None):
     return (lab, '⚠️', w, d, f'próg {fmt_wiek(prog)} — wyniki sygnałów przestały dochodzić (tylko uwaga)')
 
 
+# v303: dziennik reguł „w cieniu” działu SUROWCE (data/surowce-dziennik.json; wiersz [dzień, linia, symbol, głos, stan, z, zapisano, y,
+# dzień danych]) — ostatni dzień z wynikiem. Plik jest przepisywany w każdym przebiegu (wiek pliku zawsze mały), więc tu: najnowszy dzień
+# z liczbą w polu wyniku. Wyniki dochodzą z linii krypto (złoto → bitcoin: doba karty ≈ dzień złota + 1, wynik po otwarciu 06:00 UTC doby + 2
+# i pliku dziennym świec, ok. 3 doby później) i — od grudnia 2026 — z linii świata (sesja, ten sam wieczór). Próg 14 dni kalendarzowych:
+# test wsteczny na kalendarzu sesji NYSE 2004–2026 (dni złota = sesje funduszu złota, z zamknięciami nadzwyczajnymi) z najgorszym
+# opóźnieniem archiwum złota (dzień złota w plikach dopiero o 13:05 UTC następnego dnia roboczego) i kontrolą codziennie o 06:20 UTC
+# (kontrola.yml): najwyższy wiek 7 dni 6 h (kontrola 06.01.2007: Nowy Rok i dzień żałoby po prezydencie Fordzie), fałszywych ⚠️ 0 z 8 285
+# kontroli (surowce/projekt/test_wsteczny_su_dz.py i .out, 08.10.2026).
+# Najwyżej ⚠️, nigdy ❌ ani BŁĄD; przed startem dziennika albo w pierwszych dniach bez wyniku — „—”.
+SUT_DZ = ('surowce-dziennik', 'TRENDY surowce — ostatni dzień z wynikiem reguł w cieniu', 'w', 14 * 24 * 60)
+
+
+def su_dziennik_swiezosc(j, now=None):
+    """v303: wiersz świeżości dziennika reguł „w cieniu” SUROWCE w kształcie wierszy swiezosc(): (etykieta, status, wiek min, dzień, uwaga)
+    albo None (brak pliku albo plik bez listy wierszy). Wynik = liczba skończona w polu y (indeks 7; bool, None, NaN — nie)."""
+    if not isinstance(j, dict) or not isinstance(j.get('rows'), list):
+        return None
+    _p, lab, kat, prog = SUT_DZ
+    now = now or NOW
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))  # noqa: E731
+    dni = [r[0] for r in j['rows'] if isinstance(r, list) and len(r) == 9 and isinstance(r[0], str) and _DZ_DZIEN.match(r[0]) and num(r[7])]
+    since = j.get('since') if isinstance(j.get('since'), str) and _DZ_DZIEN.match(j['since']) else None
+    if not dni:
+        if since and now.date().isoformat() <= since:
+            return (lab, '—', None, None, f'dziennik rusza {since} — pierwsze wyniki po pierwszym sprawdzeniu')
+        w0 = wiek_danych(since, 'day', kat, now) if since else None
+        if w0 is not None and w0 <= prog:
+            return (lab, '—', None, None, f'dziennik od {since} — czekamy na pierwsze wyniki')
+        return (lab, '⚠️', w0, None, 'brak dnia z wynikiem w dzienniku' + (f' (od {since})' if since else '') + ' (tylko uwaga)')
+    d = max(dni)
+    w = wiek_danych(d, 'day', kat, now)
+    if w is None:
+        return (lab, '?', None, d, 'zły zapis dnia')
+    if w <= prog:
+        return (lab, '✅', w, d, '')
+    return (lab, '⚠️', w, d, f'próg {fmt_wiek(prog)} — wyniki reguł w cieniu przestały dochodzić (tylko uwaga)')
+
+
 def dolar_swiezosc(j, now=None):
     """Wiersz świeżości kursów dolara (data/dolar.json → najnowsza z part_at.ar/ve/bo) w kształcie wierszy swiezosc(): (etykieta, status, wiek min,
     data, uwaga); brak pliku = None (brak pliku zgłasza pętla wieku plików). Najwyżej ⚠️ — nieoficjalny serwis kursów to nie awaria strony."""
@@ -4412,6 +4450,15 @@ def kontrola():
                 R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
             elif st == '?':
                 R['uwagi'].append(f'{label}: {note}')
+    # 3c'''''. v303: dziennik reguł „w cieniu” SUROWCE — ostatni dzień z wynikiem (treść pliku, nie jego wiek); osobny wiersz tabeli, najwyżej ⚠️
+    sz = su_dziennik_swiezosc(files.get('surowce-dziennik'))
+    if sz:
+        label, st, w, txt, note = sz
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c''. v133: tokenizowane aktywa RWA (data/rwa.json) — świeżość listy osobnym wierszem tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️,
     # nigdy ❌ ani BŁĄD
     rr = rwa_swiezosc(files.get('rwa'))

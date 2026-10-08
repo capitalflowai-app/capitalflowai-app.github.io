@@ -16508,3 +16508,90 @@ test('v302: słownik rwa302.* — czysty JSON, 10 języków z prawdziwymi tłuma
   for (const k of ['rwa302.k', 'rwa302.k.i']) assert.ok(rw133.BLK.includes("t('" + k + "'"), 'klucz używany w bloku RWA: ' + k);
   assert.ok(!/securitize|spiko|centrifuge|backed|llama|archive/i.test(JSON.stringify(D)), 'bez nazw dostawców i serwisów');
 });
+
+/* ---------- v303: SUROWCE w TRENDACH — 6 nowych wierszy tygodniowych cs_* (ikony, etykiety w 10 językach) i zwinięty blok reguł „w cieniu”:
+   do werdyktu tylko opis, data rejestracji, licznik dni z sygnałem i stan dziennika; linia z oceną dopiero z „przewagą” w punkcie 200 ---------- */
+const v303 = (() => {
+  const dict = v142Dicts(html).find(d => d.obj.pl && d.obj.pl['td303.t']);
+  const su = (o = {}) => Object.assign({v: 1, reg: '2026-10-08', sha: 'a'.repeat(64), m: 12, cll: 99.6, looks: [100, 200, 400], jawne: 200,
+    at: '2026-10-13T12:59:00Z', l: {'cm.p': [0, 100, null, 0, null], 'cm.f': [0, 100, null, 0, null], 'eq.cu': [7, 100, '2028-01-27', 6, '2026-10-13'],
+      'cr.au': [0, 100, null, 0, '2026-10-12']}, ok: []}, o);
+  const view = (data, trdv, ico) => { const st = {mode: 'trendy', trdv: trdv || 'global'}, f = trdV96.make(st, ico); f.trdApply(data); return f.el.innerHTML; };
+  const panel = h => { const a = h.indexOf('<details class="etfd" id="trd-su">'); return a < 0 ? '' : h.slice(a, h.indexOf('</details>', a) + 10); };
+  return {dict, su, view, panel};
+})();
+
+test('v303: słownik — 10 języków, te same klucze i pola, prawdziwe tłumaczenia, bez nazw dostawców; etykiety 6 nowych wierszy tygodniowych', () => {
+  const {dict} = v303;
+  assert.ok(dict, 'słownik z kluczem td303.t');
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = Object.keys(dict.obj.pl);
+  assert.deepEqual(Object.keys(dict.obj), L10);
+  for (const id of ['cs_brent', 'cs_ng', 'cs_corn', 'cs_wheat', 'cs_soy', 'cs_platinum']) assert.ok(K.includes('trd.s.' + id), id);
+  assert.ok(K.every(k => k.startsWith('td303.') || k.startsWith('trd.s.cs_')), 'przedrostek zadania (i etykiety wierszy trd.s.cs_*)');
+  const ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  const PROV = /\b(CFTC|EIA|LBMA|GLD|SPDR|Sprott|iShares|Nasdaq|Twelve|FMP|Tiingo|BlackRock|Invesco|WPSR|ACER)\b/;
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(dict.obj[l]), K, 'te same klucze: ' + l);
+    for (const k of K) {
+      assert.ok(typeof dict.obj[l][k] === 'string' && dict.obj[l][k].trim().length > 0, l + ' ' + k);
+      assert.equal(ph(dict.obj[l][k]), ph(dict.obj.pl[k]), 'pola ' + l + ' ' + k);
+      assert.ok(!PROV.test(dict.obj[l][k]), 'bez nazw dostawców: ' + l + ' ' + k);
+      if (!['pl', 'en'].includes(l)) assert.notEqual(dict.obj[l][k], dict.obj.en[k], 'nie kopia angielskiego: ' + l + ' ' + k);
+    }
+  }
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(dict.name + ' ')), [], 'strażnik v142');
+  assert.ok(!/\d \{|\} (日|件|回|セッション)|\d (日|件|回)/.test(Object.values(dict.obj.ja).join('|')), 'ja: bez spacji przed licznikiem');
+  assert.equal(dict.obj.pl['trd.s.cs_brent'], 'Ropa Brent (ICE, Londyn)'); assert.equal(dict.obj.pl['td303.wait'], 'czeka na dane — reguła ruszy sama, gdy dane będą');
+  assert.ok(dict.obj.pl['td303.sub'].startsWith('Sprawdzamy, czy ruchy surowców pomagają przewidzieć rynki.'));
+});
+
+test('v303: nowe wiersze tygodniowe — etykieta trd.s.cs_* i glif surowca na karcie (obrazki strony), w panelu pozycji świata', () => {
+  const {view} = v303, {data, card} = trdV96;
+  const row = (id, st, w) => ({id, g: 'pos', m: 'pos', sz: 1, cur: 'CT', date: '2026-09-29', age: 6, n: 8, lc: false, s: 1, sg: 1, x: false, st, w, base: 10, d: 1});
+  const D = JSON.parse(JSON.stringify(data));
+  D.f.push(row('cs_brent', 'in_new', 3320), row('cs_ng', 'out_up', -67252), row('cs_corn', 'none', -22877), row('cs_wheat', 'out_new', -10093),
+    row('cs_soy', 'mixed', -18601), row('cs_platinum', 'in_flat', 120));
+  const g = view(D, 'global', true);
+  const G = {cs_brent: 'oil', cs_ng: 'gas', cs_corn: 'corn', cs_wheat: 'wheat', cs_soy: 'soy', cs_platinum: 'platinum'};
+  for (const [id, gl] of Object.entries(G)) {
+    const c = card(g, 'trd.s.' + id);
+    assert.ok(c && c.includes('img/glify/' + gl + '.svg'), id + ': ' + c.slice(0, 200));
+  }
+  assert.ok(card(g, 'trd.s.cs_gold').includes('glify/gold.svg') && card(g, 'trd.s.cs_wti').includes('glify/oil.svg'), 'stare wiersze bez zmian');
+  const c = view(D, 'crypto', true);
+  for (const id of Object.keys(G)) assert.ok(!c.includes('trd.s.' + id), 'krypto bez wierszy świata: ' + id);
+});
+
+test('v303: blok „w cieniu” SUROWCE — zwinięty, opis, data rejestracji, licznik dni z sygnałem, stan dziennika z datą; bez wyników przed werdyktem', () => {
+  const {su, view, panel} = v303, {data} = trdV96;
+  for (const v of ['global', 'crypto']) {
+    const h = view(Object.assign({}, data, {su: su()}), v), p = panel(h);
+    assert.ok(p.startsWith('<details class="etfd" id="trd-su"><summary>') && p.includes('td303.t</summary>'), v + ': blok zwinięty (bez open), id trd-su');
+    assert.ok(p.includes('td303.sub{"j":200}') && p.includes('td303.reg{"d":"08.10.2026"}') && p.includes('td303.how{"r":4,"m":12,"j":200}'), v + ': ' + p.slice(0, 400));
+    assert.ok(p.includes('<b>td303.l.eq.cu</b> — td303.d.eq.cu<br><span class="mtxt">td303.n.w{"n":7,"c":100} · td303.est{"d":'), 'licznik sesji z sygnałem i szacunek');
+    assert.ok(p.includes('<b>td303.l.cr.au</b> — td303.d.cr.au<br><span class="mtxt">td303.n.c{"n":0,"c":100}</span>'), 'krypto — dni');
+    assert.equal(p.split('td303.wait').length - 1, 2, 'linie bez danych (cm.p, cm.f) — czekają');
+    assert.ok(p.includes('td303.at{"t":"2026-10-13T12:59:00Z"}') && p.includes('eng.disclaimer'), 'stan dziennika z datą');
+    assert.ok(!/td303\.(ok|wyc)|\d+(\.\d)?%|"k":|"vd"/.test(p), v + ': bez ocen, procentów i liczb trafień przed werdyktem');
+  }
+  assert.equal(panel(view(data, 'global')), '', 'bez pola su — bez bloku (pliki sprzed v303)');
+  assert.equal(panel(view(Object.assign({}, data, {su: {reg: 'x', l: {}}}), 'global')), '', 'zły kształt — bez bloku');
+  const n = su(); n.l['eq.cu'] = [130, 100, null, 101, '2026-10-13'];
+  assert.ok(panel(view(Object.assign({}, data, {su: n}), 'global')).includes('td303.n.w{"n":100,"c":100} · td303.soon'), 'licznik nie przekracza punktu kontrolnego');
+  const d = su(); d.l['eq.cu'] = [500, null, null, 500, '2026-10-13'];
+  assert.ok(panel(view(Object.assign({}, data, {su: d}), 'global')).includes('<span class="mtxt">td303.done</span>'));
+  assert.ok(html.includes('.trd-su{margin:8px 0;padding-left:18px;font-size:12.5px;line-height:1.45}.trd-su li{margin:8px 0}.trd-su .mtxt{font-size:11.5px}'), 'styl bez stałych szerokości (telefon 390 px)');
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), fsu = html.indexOf('function trdSu(D){');
+  assert.ok(b0 < fsu && fsu < b1, 'blok w części TRENDY');
+  assert.ok(!html.slice(fsu, html.indexOf('\nfunction renderTrendy(){', fsu)).includes('srvJSON('), 'bez nowych plików danych (dane z trendy.json)');
+});
+
+test('v303: ujawnienie dopiero z werdyktem „przewaga” w punkcie 200 — nazwa reguły i data oceny; ostatnia ocena bez przewagi = wycofana', () => {
+  const {su, view, panel} = v303, {data} = trdV96;
+  let p = panel(view(Object.assign({}, data, {su: su({ok: [['eq.cu', 200, 'edge', '2027-09-01']]})}), 'global'));
+  assert.ok(p.includes('<b>td303.l.eq.cu</b> — td303.d.eq.cu<br><span class="mtxt">td303.ok{"c":200,"d":"01.09.2027"}</span>'), p);
+  p = panel(view(Object.assign({}, data, {su: su({ok: [['eq.cu', 400, 'none', '2029-01-02']]})}), 'global'));
+  assert.ok(p.includes('td303.wyc{"c":400,"d":"02.01.2029"}'), 'po 400 bez przewagi — wycofujemy');
+  p = panel(view(Object.assign({}, data, {su: su({ok: [['eq.cu', 100, 'edge', '2027-01-04'], ['cr.au', 200, 'edge', 'zła data']]})}), 'global'));
+  assert.ok(!/td303\.(ok|wyc)/.test(p), 'ocena przed punktem 200 albo zły wpis — nic nie ujawnia');
+});

@@ -11137,7 +11137,8 @@ class ArchiwumV113(unittest.TestCase):
         src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
         for n in self.a.FILES:
             self.assertIn(f"'{n}'", src)
-        self.assertEqual(set(self.a.FILES), {'wieloryby', 'stablecoiny-eth', 'plynnosc', 'tic', 'cftc-krypto', 'rentownosci', 'swiat-dziennik', 'swiat-dziennik-pk', 'krypto-dziennik'})
+        self.assertEqual(set(self.a.FILES), {'wieloryby', 'stablecoiny-eth', 'plynnosc', 'tic', 'cftc-krypto', 'rentownosci', 'swiat-dziennik', 'swiat-dziennik-pk', 'krypto-dziennik',
+                                             'surowce-dziennik'})   # v303: dziennik reguł „w cieniu” SUROWCE
         for spec in self.a.FILES.values():
             self.assertTrue(all(c.isascii() and c == c.lower() for c in spec['cols']), spec['cols']); self.assertTrue(set(spec['key']) <= set(spec['cols']))
         self.assertIn('FRED_OBS', src)
@@ -32103,7 +32104,8 @@ class SurowceV295(unittest.TestCase):
             with mock.patch.dict(zd.CFTCD_MARKETS, {'platinum': '076651'}):
                 c = [r for r in zd.build_trendy({'surowce': ext})['f'] if r['id'].startswith('cs_')]
         self.assertEqual(json.dumps(a), json.dumps(b), 'te same wiersze cs_* co przed zmianą')
-        self.assertEqual([r['id'] for r in a], ['cs_gold', 'cs_silver', 'cs_copper', 'cs_wti'])
+        self.assertEqual([r['id'] for r in a][:4], ['cs_gold', 'cs_silver', 'cs_copper', 'cs_wti'])   # v303: potem świadomie wiersze TR_CS_POZ
+        self.assertTrue(all(r['id'][3:] in {k for k, _ in zd.TR_CS_POZ} for r in a[4:]), 'po TR_CS tylko wiersze z części „pozycje” (TR_CS_POZ)')
         self.assertEqual(json.dumps(c), json.dumps(a), 'rozszerzenie CFTC nie zmienia TRENDÓW po cichu')
 
     def test_licznik_fmp_i_minuta_td(self):
@@ -34536,3 +34538,556 @@ class RwaOndoGmV302(unittest.TestCase):
         self.assertEqual((Z['status'], Z['uwagi']), ('✅', []), 'tylko informacja')
         for q in (dict(p, hl=1330000000.0), {kk: x for kk, x in p.items() if kk != 'hl'}, dict(p, hl=None)):   # 0,21%; starsze pliki bez hl
             self.assertNotIn('nagłówku', k.rwe_porownanie({'issuer': dict(j['issuer'], p={'ondo-global-markets': q})})['opis'])
+
+
+class TrendySurowceV303(unittest.TestCase):
+    """v303 (etap 7 działu SUROWCE — TRENDY): 6 nowych wierszy tygodniowych cs_* z części „pozycje” (reguła tygodniowa bez zmian); nowy, osobny
+    blok reguł „w cieniu” TD_SH_SU — rejestracja z góry (dokument z SHA-256), karty liczone na żywo przed granicą (09:00 NY / 05:30 UTC)
+    i zamrażane, wejście z datą PUBLIKACJI (CFTC: piątek, EIA: środa, LBMA i zamknięcia dnia: następna sesja), dzień danych głosuje raz,
+    filtry tylko na danych wcześniejszych (ziarna 1–30), Bonferroni m = 12, punkty kontrolne 100/200/400 zamrażane raz, strona bez wyników
+    przed werdyktem w punkcie 200; dziennik: zapis w main(), kopia w archiwum, odtworzenie, kontrola. Stałe zarejestrowane 06.10 bez zmian.
+    Bez sieci, czas przypięty."""
+    UTC = datetime.timezone.utc
+
+    def setUp(self):
+        import shutil, tempfile
+        self.tmp = tempfile.mkdtemp(prefix='v303-'); self.addCleanup(shutil.rmtree, self.tmp, True)
+        for p in (mock.patch.object(zd, 'SUT_CSV', os.path.join(self.tmp, 'brak', 'surowce-dziennik.csv')),
+                  mock.patch.object(zd.urllib.request, 'urlopen', side_effect=AssertionError('sieć w teście'))):
+            p.start(); self.addCleanup(p.stop)
+        zd._SUT_LOG[0] = zd._SUT_LOG[1] = None
+        self.addCleanup(zd._SUT_LOG.__setitem__, slice(None), [None, None])
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+
+    def t(self, s):
+        return datetime.datetime.fromisoformat(s).replace(tzinfo=self.UTC)
+
+    @staticmethod
+    def sesje(a, b):
+        d, out = datetime.date.fromisoformat(a), []
+        while d.isoformat() <= b:
+            if d.weekday() < 5 and d.isoformat() not in zd.TD_NYSE_CLOSED:
+                out.append(d.isoformat())
+            d += datetime.timedelta(days=1)
+        return out
+
+    def swiat(self, a='2026-06-15', b='2026-12-31', seed=7):
+        """Ceny złota (LBMA PM), wyceny miedzi i otwarcia/zamknięcia 33 rynków eq na sesjach NYSE; dostępność w plikach strony: złoto dnia D
+        od 13:05 UTC dnia D+1, miedź od 22:00 UTC D, ceny rynków od 21:30 UTC D (jak dziś w produkcji)."""
+        import random
+        rnd = random.Random(seed)
+        self.cal = self.sesje(a, b); g, c = 4000.0, 10000.0; self.gold, self.cu, self.px = {}, {}, {}
+        for d in self.cal:
+            g *= 1 + rnd.gauss(0, 0.01); c *= 1 + rnd.gauss(0, 0.015); self.gold[d] = round(g, 2); self.cu[d] = round(c, 0)
+        for s in zd.SUT_EQ:
+            p, rows = 100.0, []
+            for d in self.cal:
+                o = p * (1 + rnd.gauss(0, 0.003)); p = o * (1 + rnd.gauss(0, 0.01)); rows.append([d, round(o, 4), round(p, 4), None])
+            self.px[s] = rows
+        at = lambda d, h, m, plus: (datetime.datetime.combine(datetime.date.fromisoformat(d) + datetime.timedelta(days=plus), datetime.time(h, m))
+                                    .strftime('%Y-%m-%dT%H:%M'))   # noqa: E731
+        self.av = {d: (at(d, 13, 5, 1), at(d, 22, 0, 0), at(d, 21, 30, 0)) for d in self.cal}   # złoto, miedź, ceny rynków
+
+    def S(self, now, gold=None, cu=None):
+        n = now.strftime('%Y-%m-%dT%H:%M')
+        G = [[d, v] for d, v in (gold or self.gold).items() if self.av[d][0] <= n][-zd.SU_D:]
+        C = [[d, v] for d, v in (cu or self.cu).items() if self.av[d][1] <= n][-zd.SU_D:]
+        k = sum(1 for d in self.cal if self.av[d][2] <= n)
+        P = {s: {'d': rows[:k]} for s, rows in self.px.items()}
+        return {'surowce': {'v': zd.SU_V, 'ceny': {'gold': {'d': G}, 'copper': {'d': C}}},
+                'swiat-dzien': {'ready': True, 'cal': self.cal[:k], 'px': P, 'fl': {}}}
+
+    def run_log(self, log, now, S=None):
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            return zd._sut_log(log, S if S is not None else self.S(now), now)
+
+    # ---------------------------------------------------------------- stałe zarejestrowane — bez zmian
+    def test_stale_zarejestrowane_bez_zmian(self):
+        import hashlib
+        self.assertEqual(len(zd.TD_W_SYMS), 44, 'TD_W_SYMS = 44 (wersja reguły świata 2 bez zmian)')
+        self.assertEqual(zd.TD_SH_W, (('eq.pf', 'eq', ('p', 'f')), ('eq.fo', 'eq', ('f', 'o'))))
+        self.assertEqual(zd.TD_SH_CR, (('pt', ('p', 't')), ('ph', ('p', 'h')), ('es', ('e', 's')), ('n3', 3)))
+        self.assertAlmostEqual(zd.TD_W_ZLS, 3.1130172634086892, places=12); self.assertAlmostEqual(zd.TD_CR_ZLS, 3.1717657833516224, places=12)
+        self.assertEqual((len(zd.TD_RULES_W2), len(zd.TD_RULES_CR2), zd.TD_W_M, zd.TD_CR_M), (7, 7, 7, 7), 'liczby linii bez zmian')
+        self.assertEqual((hashlib.sha256(repr(zd.TR_FE).encode()).hexdigest()[:16], hashlib.sha256(repr(zd.TD_W_SYMS).encode()).hexdigest()[:16]),
+                         ('4dba46775e53461d', '72dbe975b6dc3a58'), 'TR_FE i TD_W_SYMS bajt w bajt jak w v300')
+        self.assertEqual((len(zd.TR_FE), sum(len(m) for _, m in zd.TR_FE)), (27, 37), 'TR_FE bez zmian (27 grup, 37 funduszy)')
+        self.assertFalse(set(zd.SUT_CM_PX) & set(zd.TD_W_SYMS) or set(zd.SUT_CM_PX) & set(zd.TD_GRP), 'fundusze surowcowe poza TR_FE i TD_W_SYMS')
+        self.assertFalse(set(zd.SUT_CM_PX) & set(zd.FUND_ISH + zd.FUND_SSGA), 'ten krok nie zbiera funduszy surowcowych (FUND_ISH bez zmian)')
+        self.assertEqual(zd.TR_CS, ('gold', 'silver', 'copper', 'wti'), 'TR_CS (część markets) bez zmian')
+        self.assertEqual(zd.TR_CS_POZ, (('brent', 'ice'), ('ng', 'cftc'), ('corn', 'cftc'), ('wheat', 'cftc'), ('soy', 'cftc'), ('platinum', 'cftc')))
+        # blok „w cieniu” SUROWCE — lista zamknięta, kierunki i progi z góry, własny Bonferroni
+        self.assertEqual([(n, f, i, d, z) for n, f, i, d, z in zd.TD_SH_SU],
+                         [('cm.p', 'w', 'px', 1, 1.0), ('cm.f', 'w', 'fl', 1, 1.0), ('eq.cu', 'w', 'cuau', 1, 1.0), ('cr.au', 'cr', 'au', 1, 2.0)])
+        self.assertEqual((zd.SUT_M, zd.SUT_CLL, zd.TD_W_LOOKS, zd.TD_SH_JAWNE), (12, 99.6, (100, 200, 400), 200))
+        self.assertAlmostEqual(zd.SUT_ZL, statistics.NormalDist().inv_cdf(1 - 0.025 / 12), places=12); self.assertAlmostEqual(zd.SUT_ZL, 2.8652602, places=6)
+        self.assertEqual((zd.SUT_V, zd.SUT_REG, zd.SUT_SINCE, len(zd.SUT_SHA)), (1, '2026-10-08', '2026-10-08', 64))
+        self.assertTrue(all(c in '0123456789abcdef' for c in zd.SUT_SHA), 'suma SHA-256 dokumentu rejestracji')
+        self.assertEqual(len(zd.SUT_EQ), 33); self.assertTrue(all(zd._tdw_fam(s) == 'eq' for s in zd.SUT_EQ))
+        self.assertEqual((zd.TD_LB, zd.TD_MIN, zd.TD_Z1, zd.TD_Z2, zd.TD_FLOOR, zd.TD_GAP), (60, 40, 1.0, 2.0, 0.25, 4), 'progi z istniejących stałych')
+
+    # ---------------------------------------------------------------- wiersze tygodniowe
+    def poz(self):
+        days = [(datetime.date(2026, 7, 7) + datetime.timedelta(days=7 * i)).isoformat() for i in range(13)]   # wtorki do 29.09.2026
+        net = lambda a, b: [a + b * i + (37 if i % 4 == 0 else -11) * (i % 3) for i in range(13)]   # noqa: E731
+        e = lambda a, b: {'code': 'x', 'asof': days[-1], 'oi': 1000, 'net': net(a, b)[-1], 'h': {'d': days, 'oi': [1000] * 13, 'net': net(a, b)}}   # noqa: E731
+        markets = {k: {'asof': days[-1], 'hist': {'dates': days, 'mm': net(100 * j, 5 + j)}} for j, k in enumerate(zd.TR_CS)}
+        cftc = {k: e(1000 + 50 * j, -7 * j) for j, k in enumerate(('ng', 'corn', 'wheat', 'soy', 'platinum', 'wti', 'brent_ny'))}
+        ice = {'brent': e(5000, 40), 'gasoil': e(10, 1)}
+        return days, {'v': zd.SU_V, 'markets': markets, 'pozycje': {'unit': 'kontrakty', 'asof': {'cftc': days[-1]}, 'cftc': cftc, 'ice': ice}}
+
+    def test_wiersze_tygodniowe_szesc_nowych(self):
+        days, su = self.poz()
+        with mock.patch.object(zd, '_now_utc', return_value=self.t('2026-10-05T12:00:00')):
+            out = zd.build_trendy({'surowce': su})
+            old = zd.build_trendy({'surowce': dict(su, pozycje={})})
+            cs = [r for r in out['f'] if r['id'].startswith('cs_')]
+            self.assertEqual([r['id'] for r in cs], ['cs_gold', 'cs_silver', 'cs_copper', 'cs_wti', 'cs_brent', 'cs_ng', 'cs_corn', 'cs_wheat', 'cs_soy', 'cs_platinum'])
+            self.assertEqual(json.dumps(cs[:4]), json.dumps([r for r in old['f'] if r['id'].startswith('cs_')]), 'stare 4 wiersze bajt w bajt')
+            self.assertNotIn('su', out, 'bez danych bloku „w cieniu” — bez pola su (klucze pliku jak dotąd)')
+            for k, sub in zd.TR_CS_POZ:
+                h = su['pozycje'][sub][k]['h']
+                wd, wv = zd._tr_weeks(h['d'], h['net'], n=len(h['d']) + 4)
+                ch = [wv[i] - wv[i - 1] if zd._isnum(wv[i]) and zd._isnum(wv[i - 1]) else None for i in range(1, len(wv))]
+                ref = zd._tr_row('cs_' + k, 'pos', 'pos', 1, wd[1:], ch, weekly_days=14, cur='CT')
+                got = next(r for r in cs if r['id'] == 'cs_' + k)
+                self.assertEqual(got, ref, 'ta sama reguła tygodniowa: ' + k)
+                self.assertEqual((got['g'], got['m'], got['cur'], got['date'], got['last']), ('pos', 'pos', 'CT', days[-1], h['net'][-1] - h['net'][-2]))
+            bn, bi = su['pozycje']['cftc']['brent_ny']['h']['net'], su['pozycje']['ice']['brent']['h']['net']
+            self.assertEqual(next(r for r in cs if r['id'] == 'cs_brent')['last'], bi[-1] - bi[-2]); self.assertNotEqual(bi[-1] - bi[-2], bn[-1] - bn[-2], 'Brent z ICE, nie z CFTC')
+            bez = json.loads(json.dumps(su)); del bez['pozycje']['ice']; bez['pozycje']['cftc']['corn']['h']['net'] = bez['pozycje']['cftc']['corn']['h']['net'][:-1]
+            ids = [r['id'] for r in zd.build_trendy({'surowce': bez})['f'] if r['id'].startswith('cs_')]
+            self.assertEqual(ids, ['cs_gold', 'cs_silver', 'cs_copper', 'cs_wti', 'cs_ng', 'cs_wheat', 'cs_soy', 'cs_platinum'], 'brak części — brak wiersza, nie zero')
+        with mock.patch.object(zd, '_now_utc', return_value=self.t('2026-10-20T12:00:00')):
+            r = {x['id']: x for x in zd.build_trendy({'surowce': su})['f']}
+        self.assertEqual((r['cs_ng']['st'], r['cs_brent']['st'], r['cs_ng']['x']), ('stale', 'stale', False), 'raport starszy niż 14 dni — „za stare”, bez oceny')
+
+    def test_glify_nowych_wierszy(self):
+        import xml.dom.minidom
+        root = os.path.dirname(os.path.abspath(__file__))
+        for n in ('wheat', 'corn', 'soy', 'platinum'):
+            p = os.path.join(root, 'img', 'glify', n + '.svg')
+            d = xml.dom.minidom.parse(p).documentElement
+            self.assertEqual((d.tagName, d.getAttribute('viewBox'), d.getAttribute('width')), ('svg', '0 0 24 24', '64'), n)
+            self.assertLess(os.path.getsize(p), 2000, n)
+
+    # ---------------------------------------------------------------- przyczynowość: data publikacji
+    def test_wejscie_ma_date_publikacji(self):
+        P, SP = zd._sut_pub, zd._sut_sesja_pub
+        self.assertEqual((P('cftc', '2026-09-29'), SP('cftc', '2026-09-29')), ('2026-10-02T19:30:00', '2026-10-05'),
+                         'CFTC: stan na wtorek, publikacja w piątek 15:30 NY — głos najwcześniej w poniedziałek (piątkowa karta jest o 9:00)')
+        self.assertEqual((P('ice', '2026-09-29'), SP('ice', '2026-09-29')), ('2026-10-02T19:30:00', '2026-10-05'))
+        self.assertEqual((P('cftc', '2027-03-23'), SP('cftc', '2027-03-23')), ('2027-03-29T19:30:00', '2027-03-30'), 'Wielki Piątek — poniedziałek')
+        self.assertEqual((P('cftc', '2026-11-24'), SP('cftc', '2026-11-24')), ('2026-11-30T20:30:00', '2026-12-01'), 'Święto Dziękczynienia (czas zimowy)')
+        self.assertEqual((P('wpsr', '2026-10-02'), SP('wpsr', '2026-10-02')), ('2026-10-07T14:30:00', '2026-10-08'),
+                         'EIA WPSR: stan na piątek, publikacja w środę 10:30 NY — głos najwcześniej w czwartek')
+        self.assertEqual((P('wpsr', '2026-09-04'), SP('wpsr', '2026-09-04')), ('2026-09-10T14:30:00', '2026-09-11'), 'tydzień ze świętem Pracy — dzień później')
+        self.assertEqual((P('close', '2026-10-09'), SP('close', '2026-10-09')), ('2026-10-09T20:00:00', '2026-10-12'), 'zamknięcie piątku — poniedziałek')
+        self.assertEqual((P('lbma', '2026-10-08'), SP('lbma', '2026-10-08')), ('2026-10-08T15:00:00', '2026-10-09'), 'LBMA PM dnia S — sesja S+1')
+        self.assertEqual(SP('lbma', '2026-12-31'), '2027-01-04', 'Nowy Rok i weekend')
+        self.assertEqual((P('ishares', '2026-10-08'), SP('ishares', '2026-10-08')), ('2026-10-09T03:59:00', '2026-10-09'))
+        # karta używa wejścia dopiero po publikacji: tygodniowa seria CFTC — piątkowa karta bierze raport sprzed tygodnia, poniedziałkowa — nowy
+        wt = [(datetime.date(2026, 9, 29) - datetime.timedelta(days=7 * i)).isoformat() for i in range(59, -1, -1)]   # 60 wtorków do 29.09
+        ch = [(d, float(((i * 37) % 11) - 5) + (9.0 if d == '2026-09-29' else 0.0)) for i, d in enumerate(wt)]
+        K = lambda cel, kinds: zd._sut_karta(ch, False, 1.0, kinds, cel, 'w', None)   # noqa: E731
+        self.assertIsNone(K('2026-10-02', ('cftc',)), 'piątek: raport z 29.09 wychodzi o 15:30 NY (po karcie), poprzedni głosował w poniedziałek — bez karty')
+        self.assertEqual((K('2026-10-05', ('cftc',))[2], K('2026-10-06', ('cftc',))[2]), ('2026-09-29', '2026-09-29'), 'poniedziałek (albo wtorek)')
+        self.assertIsNone(K('2026-10-07', ('cftc',)), 'środa: raport za stary (pierwsza sesja po publikacji dalej niż sesję wstecz)')
+        pt = [(d, v) for d, v in ch]
+        pt = [((datetime.date.fromisoformat(d) + datetime.timedelta(days=3)).isoformat(), v) for d, v in pt]   # stany na piątek
+        self.assertIsNone(zd._sut_karta(pt, False, 1.0, ('wpsr',), '2026-10-07', 'w', None), 'środa: raport z 02.10 jeszcze nieopublikowany, a 25.09 — za stary')
+        self.assertEqual(zd._sut_karta(pt, False, 1.0, ('wpsr',), '2026-10-08', 'w', None)[2], '2026-10-02', 'czwartek: raport ze środy')
+        self.assertIsNone(K('2026-10-02', ('close',)), 'dzień danych starszy niż 2 sesje przed kartą — bez karty')
+
+    # ---------------------------------------------------------------- karta przed granicą, zamrożenie, „po czasie”, dzień danych raz
+    def test_karta_przed_granica_zamrozona_i_po_czasie(self):
+        self.swiat()
+        log = None
+        for h in ('2026-10-12T22:00:00', '2026-10-13T09:00:00', '2026-10-13T12:59:00'):
+            log = self.run_log(log, self.t(h))
+        r = {(x[0], x[1], x[2]): x for x in log['rows']}
+        k = r[('2026-10-13', 'eq.cu', 'EQ')]
+        self.assertEqual((k[4], k[6], k[8]), ('ok', '2026-10-13T12:59:00Z', '2026-10-09'),
+                         'karta wtorku liczona o 8:59 NY: złoto z poniedziałku jeszcze niedostępne (13:05 UTC) — dzień danych 09.10')
+        self.assertEqual(k[3], (1 if k[5] > 0 else -1) if abs(k[5]) >= 1 else 0)
+        # po granicy: zmienione i nowe dane nie zmieniają karty; następna karta (środa) bierze poniedziałek, nie piątek drugi raz
+        g2 = dict(self.gold); g2['2026-10-09'] = g2['2026-10-09'] * 1.2
+        log2 = self.run_log(log, self.t('2026-10-13T13:20:00'), self.S(self.t('2026-10-13T13:20:00'), g2))
+        r2 = {(x[0], x[1], x[2]): x for x in log2['rows']}
+        self.assertEqual(r2[('2026-10-13', 'eq.cu', 'EQ')][:7], k[:7], 'zamrożona na granicy (wynik dochodzi później)')
+        self.assertEqual(r2[('2026-10-14', 'eq.cu', 'EQ')][8], '2026-10-12', 'następna karta — następny dzień danych')
+        dd = [x[8] for x in log2['rows'] if x[1] == 'eq.cu' and x[4] == 'ok']
+        self.assertEqual(len(dd), len(set(dd)), 'dzień danych głosuje raz')
+        # wtorek bez karty przed granicą (przerwa automatu): po granicy — wiersz „po czasie”, bez głosu; dzień danych nie jest zużyty
+        cut = {kk: v for kk, v in r.items() if kk[0] != '2026-10-13'}
+        log3 = self.run_log(dict(log, rows=list(cut.values()), at='2026-10-13T09:00:00Z'), self.t('2026-10-13T13:30:00'))
+        r3 = {(x[0], x[1], x[2]): x for x in log3['rows']}
+        self.assertEqual((r3[('2026-10-13', 'eq.cu', 'EQ')][3:6], r3[('2026-10-13', 'eq.cu', 'EQ')][8]), ([0, 'late', None], '2026-10-12'))
+        self.assertEqual(r3[('2026-10-14', 'eq.cu', 'EQ')][4], 'ok')
+        # dziennik założony dopiero po granicy (wdrożenie) — bez wiersza „po czasie”
+        log4 = self.run_log(dict(log, rows=list(cut.values()), at='2026-10-13T13:10:00Z'), self.t('2026-10-13T13:30:00'))
+        self.assertNotIn(('2026-10-13', 'eq.cu', 'EQ'), {(x[0], x[1], x[2]) for x in log4['rows']})
+        # krypto: karta doby D′ do 05:30 UTC D′+1, potem zamrożona; złoto D głosuje w karcie D+1 (dostępne od 13:05 UTC D+1)
+        c = {(x[0], x[1]): x for x in log2['rows'] if x[1] == 'cr.au'}
+        self.assertEqual((c[('2026-10-12', 'cr.au')][6], c[('2026-10-12', 'cr.au')][8]), ('2026-10-12T22:00:00Z', '2026-10-09'),
+                         'karta krypto doby 12.10 (granica 05:30 UTC 13.10) z wieczoru 12.10 — złoto z piątku; potem zamrożona')
+        self.assertEqual(c[('2026-10-13', 'cr.au')][8], '2026-10-12', 'złoto z 12.10 (dostępne 13:05 UTC 13.10) — karta doby 13.10')
+        for x in log2['rows']:
+            gr = zd._tdw_cut(x[0]) if x[1] != 'cr.au' else zd._td_cut(x[0])
+            if x[4] == 'ok':
+                self.assertLess(x[6][:19], gr, 'karta na czas: zapisana przed granicą')
+            self.assertTrue(x[0] >= zd.SUT_SINCE)
+
+    def test_symulacja_miesiecy_i_wyniki(self):
+        import random
+        self.swiat()
+        rnd = random.Random(3)
+        btc = {}
+        d0 = datetime.date(2026, 4, 1); p = 60000.0
+        for i in range(260):
+            p *= 1 + rnd.gauss(0, 0.02); btc[(d0 + datetime.timedelta(days=i)).isoformat()] = round(p, 2)
+        def kd(now):
+            rows = [[d, v, 1e9, 5e8, round(v * 1.001, 2)] for d, v in sorted(btc.items()) if d < now.date().isoformat()]
+            return {'ready': True, 'q': {'BTC': {'d': rows, 'seen': [rows[-1][0], now.strftime('%Y-%m-%dT%H:%M:%SZ')]}}, 'hl': {}, 'cm': {}, 'st': {}}
+        log, t = None, self.t('2026-10-08T00:05:00')
+        while t < self.t('2026-11-06T00:00:00'):          # przebiegi co 25–45 min (w oknie 13:05–14:00 UTC zawsze co najmniej jeden)
+            S = self.S(t); S['krypto-dzien'] = kd(t)
+            log = self.run_log(log, t, S)
+            t += datetime.timedelta(minutes=25 + int(rnd.random() * 20))
+        rows = log['rows']
+        self.assertTrue(rows and all(x[0] >= '2026-10-08' for x in rows))
+        ok = [x for x in rows if x[4] == 'ok']
+        for x in ok:
+            gr = zd._tdw_cut(x[0]) if x[1] != 'cr.au' else zd._td_cut(x[0])
+            self.assertLess(x[6][:19], gr)
+            self.assertTrue(x[8] < x[0] if x[1] != 'cr.au' else x[8] <= x[0], x)
+        for ln in ('eq.cu', 'cr.au'):
+            dd = [x[8] for x in ok if x[1] == ln]
+            self.assertEqual(len(dd), len(set(dd)), 'dzień danych raz: ' + ln)
+        kier = {n: (dr, thr) for n, _f, _i, dr, thr in zd.TD_SH_SU}
+        prev = {d: self.cal[i - 1] for i, d in enumerate(self.cal) if i}
+        for x in ok:                                   # z zapisane przez _tdw_rz — nie przeskakuje progu, więc |z| ≥ próg ⇔ głos
+            dr, thr = kier[x[1]]
+            self.assertEqual(x[3], dr * (1 if x[5] > 0 else -1) if abs(x[5]) >= thr else 0, ('głos = kierunek × znak z', x))
+            p0 = prev[x[8]]
+            ch = (self.cu[x[8]] / self.gold[x[8]]) / (self.cu[p0] / self.gold[p0]) - 1 if x[1] == 'eq.cu' else self.gold[x[8]] / self.gold[p0] - 1
+            if x[5]:
+                self.assertEqual(x[5] > 0, ch > 0, ('z ma znak zmiany wejścia (miedź/złoto, złoto)', x, ch))
+        self.assertTrue({1, -1} <= {x[3] for x in ok}, 'w symulacji są karty z głosem +1 i −1')
+        lag = {(datetime.date.fromisoformat(x[0]) - datetime.date.fromisoformat(x[8])).days for x in ok if x[1] == 'cr.au'}
+        self.assertEqual(lag, {1}, 'złoto D (dostępne 13:05 UTC D+1) → karta krypto doby D+1')
+        self.assertTrue(any(x[0] >= '2026-11-02' and (datetime.date.fromisoformat(x[0]) - datetime.date.fromisoformat(x[8])).days == 1 for x in ok if x[1] == 'eq.cu'),
+                        'zimą (granica 14:00 UTC) złoto D głosuje już w sesji D+1')
+        # wyniki: sesja — średnia 33 rynków eq; krypto — okno 06:00 → 06:00 UTC
+        x = next(x for x in ok if x[1] == 'eq.cu' and x[7] is not None)
+        ys = [zd._tdw_oc(r[1], r[2]) for s in zd.SUT_EQ for r in self.px[s] if r[0] == x[0]]
+        self.assertAlmostEqual(x[7], round(sum(ys) / len(ys), 4), places=9)
+        c = next(x for x in rows if x[1] == 'cr.au' and x[7] is not None)
+        d1 = (datetime.date.fromisoformat(c[0]) + datetime.timedelta(days=1)).isoformat(); d2 = (datetime.date.fromisoformat(c[0]) + datetime.timedelta(days=2)).isoformat()
+        self.assertAlmostEqual(c[7], round((round(btc[d2] * 1.001, 2) / round(btc[d1] * 1.001, 2) - 1) * 100, 4), places=9)
+        self.assertEqual(log['pg']['cm.p'], [0, 100, None, 0, None], 'linie bez danych czekają (licznik 0, bez pierwszej karty)')
+        self.assertEqual(log['pg']['cr.au'][4], min(x[0] for x in rows if x[1] == 'cr.au'))
+        self.assertEqual(log['cp'], {}, 'przed 100 dniami z sygnałem — żadnej oceny')
+
+    # ---------------------------------------------------------------- filtry tylko na danych wcześniejszych: ziarna 1–30
+    def test_ziarna_1_30_decyzja_dnia_nie_zalezy_od_dni_pozniejszych(self):
+        import random
+        for seed in range(1, 31):
+            rnd = random.Random(seed)
+            d, ser, fl, cl = datetime.date(2026, 1, 5), [], [], []
+            v, nav, un, c = 100.0, 50.0, 1e6, 30.0
+            for i in range(90):
+                d += datetime.timedelta(days=1 + (rnd.random() < 0.15) + 3 * (rnd.random() < 0.04))   # przerwy, czasem > 4 dni
+                v *= 1 + rnd.gauss(0, 0.012); c *= 1 + rnd.gauss(0, 0.015)
+                if rnd.random() < 0.02:
+                    c *= rnd.choice((2, 0.5, 3))                                       # niepoprawiony podział jednostek
+                nav *= 1 + rnd.gauss(0, 0.01); un *= 1 + rnd.gauss(0, 0.02)
+                if rnd.random() < 0.02:
+                    un *= 2; nav /= 2                                                  # podział jednostek z poprawką NAV
+                row = [d.isoformat(), nav * (1000 if rnd.random() < 0.02 else 1), un]   # zły wiersz pliku wydawcy
+                ser.append([d.isoformat(), round(v, 4)]); cl.append([d.isoformat(), None, round(c, 4), None]); fl.append(row + [None])
+            F = {'zmiana': (lambda X: zd._sut_zm(zd._sut_ser(X)), ser, False), 'cena funduszu': (lambda X: zd._sut_zm(zd._sut_ser(X, 2), True), cl, False),
+                 'przepływ': (zd._sut_fl, fl, True)}
+            for fn, (f, raw, dm) in F.items():
+                full = f(raw); vals = [x for _, x in full]
+                for k in range(1, len(raw)):
+                    D = raw[k][0]
+                    trunc = f(raw[:k + 1])                                             # tylko dni do D włącznie
+                    i = next((j for j, x in enumerate(full) if x[0] == D), None)
+                    if i is None:
+                        self.assertFalse(trunc and trunc[-1][0] == D, (seed, D, fn)); continue
+                    self.assertEqual(full[:i + 1], trunc, (seed, D, fn))
+                    self.assertEqual(zd._td_z(vals, i, dm), zd._td_z([x for _, x in trunc], len(trunc) - 1, dm), (seed, D, fn))
+                    cel = zd._tdw_next(D)                                              # karta: dane opublikowane przed granicą = dni < cel
+                    przed = trunc if not any(D < r[0] < cel for r in raw[k + 1:k + 6]) else f([r for r in raw if r[0] < cel])
+                    self.assertEqual(zd._sut_karta(full, dm, 1.0, ('close',), cel, 'w', None), zd._sut_karta(przed, dm, 1.0, ('close',), cel, 'w', None),
+                                     (seed, D, fn, 'karta'))
+
+    # ---------------------------------------------------------------- punkty kontrolne, Bonferroni, strona bez wyników przed 200
+    def rows_syn(self, name, n, hit, sym='EQ', start='2026-10-08', seed=1):
+        import random
+        rnd = random.Random(seed)
+        days = self.sesje(start, '2031-12-31')[:n] if name != 'cr.au' else [(datetime.date.fromisoformat(start) + datetime.timedelta(days=i)).isoformat() for i in range(n)]
+        out = []
+        for d in days:
+            g = rnd.choice((1, -1, 0, 1))
+            y = abs(rnd.gauss(0.5, 0.3)) * (g if g and rnd.random() < hit else -(g or 1)) * (1 if rnd.random() < 0.97 else 0)
+            out.append([d, name, sym, g, 'ok', 0.5 * g, d + 'T12:00:00Z', round(y, 4), d])
+        return out
+
+    def test_punkty_kontrolne_raz_bonferroni_i_ujawnienie(self):
+        rows = self.rows_syn('eq.cu', 900, 0.62) + self.rows_syn('cr.au', 60, 0.5, sym='BTC')
+        today = datetime.date.fromisoformat(rows[899][0]) + datetime.timedelta(days=10)
+        cp = zd._sut_cp({}, rows, today, 'X', {})
+        self.assertEqual([c[0] for c in cp['eq.cu']], [100, 200, 400]); self.assertNotIn('cr.au', cp, 'za mało dni z sygnałem')
+        pr, ys = zd._sut_pary(rows, 'eq.cu', zd.SUT_SINCE)
+        ds = sorted({p[0] for p in pr})
+        S100 = zd._tdw_stat([p for p in pr if p[0] <= ds[99]], ys, zd.SUT_ZL, {})
+        c = cp['eq.cu'][0]
+        self.assertEqual(c[:9], [100, S100['k'], S100['n'], round(S100['b0'], 1), S100['h1'], S100['h2'], S100['ca'][0], S100['ca'][1], S100['vd']])
+        self.assertEqual((c[9], c[10], len(c)), (ds[99], 'X', 13))
+        lo = zd.wilson(S100['k'], S100['n'], z=zd.SUT_ZL, n_eff=S100['ne'])[0]
+        self.assertEqual(c[6], lo, 'zakres przy z = 2,8653 (12 prób)')
+        self.assertNotEqual(lo, zd.wilson(S100['k'], S100['n'], z=zd.TD_W_ZLS, n_eff=S100['ne'])[0], 'inna poprawka niż linie świata 06.10')
+        # zapis raz: inne wyniki później nie zmieniają zapisanych ocen
+        flip = [r[:7] + [-r[7] if r[7] else r[7]] + r[8:] for r in rows]
+        self.assertEqual(zd._sut_cp({'cp': cp}, flip, today, 'Y', {})['eq.cu'], cp['eq.cu'])
+        # strona: przed punktem 200 — bez ocen; z werdyktem „przewaga” w 200 — linia z oceną; ostatnia ocena bez przewagi — wycofana
+        log = {'at': 'X', 'pg': {}, 'cp': {'eq.cu': [x for x in cp['eq.cu'] if x[0] == 100]}}
+        s = zd._sut_summary(log)
+        self.assertEqual(s['ok'], []); self.assertEqual(set(s), {'v', 'reg', 'sha', 'm', 'cll', 'looks', 'jawne', 'at', 'l', 'ok'})
+        self.assertNotIn('"k"', json.dumps(s)); self.assertEqual(s['l']['eq.cu'], [0, 100, None, 0, None])
+        e200 = [200] + [1] * 7 + ['edge', '2027-09-01', 'X', None, None]
+        self.assertEqual(zd._sut_summary({'cp': {'eq.cu': [cp['eq.cu'][0], e200]}})['ok'], [['eq.cu', 200, 'edge', '2027-09-01']])
+        e400 = [400] + [1] * 7 + ['none', '2029-01-02', 'X', None, None]
+        self.assertEqual(zd._sut_summary({'cp': {'eq.cu': [cp['eq.cu'][0], e200, e400]}})['ok'], [['eq.cu', 400, 'none', '2029-01-02']])
+        self.assertEqual(zd._sut_summary({'cp': {'eq.cu': [e200[:8] + ['none'] + e200[9:]]}})['ok'], [], 'bez przewagi w 200 — linia nieujawniona')
+        # dojrzewanie: sesja wchodzi do oceny po 4 dniach (świat), doba po 5 (krypto); setny dzień z sygnałem = ostatni wiersz
+        for name, sym, settle in (('cr.au', 'BTC', 5), ('eq.cu', 'EQ', 4)):
+            rr = [[d, name, sym, 1, 'ok', 1.5, 'x', (0.4 if i % 3 else -0.2), d] for i, (d, *_) in enumerate(self.rows_syn(name, 100, 0.5, sym=sym))]
+            last = datetime.date.fromisoformat(rr[-1][0])
+            self.assertNotIn(name, zd._sut_cp({}, rr, last + datetime.timedelta(days=settle - 1), 'Z', {}))
+            c = zd._sut_cp({}, rr, last + datetime.timedelta(days=settle), 'Z', {})[name][0]
+            self.assertEqual((c[0], c[1], c[2], c[9]), (100, sum(1 for i in range(100) if i % 3), 100, rr[-1][0]))
+            self.assertEqual(c[11] is None, name == 'cr.au', 'krypto bez b0t (jak reguły krypto); świat z b0t')
+
+    # ---------------------------------------------------------------- trendy.json, dziennik, odtworzenie z archiwum
+    def test_trendy_pole_su_i_dziennik(self):
+        self.swiat()
+        now = self.t('2026-10-10T03:00:00')   # dwa dni po rejestracji (pierwsze przebiegi po wdrożeniu)
+        bez = [mock.patch.object(zd, n, return_value=(None, None)) for n in ('build_daily', 'build_daily_cr', 'build_daily_w2')]   # sygnały główne poza testem
+        [p.start() for p in bez]; self.addCleanup(lambda: [p.stop() for p in bez])
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            out = zd.build_trendy(self.S(now))
+            self.assertEqual(set(zd.build_trendy({})), {'at', 'v', 'src', 'rules', 'f', 'p', 'b', 'dv', 'dsince', 'dr', 'd', 'bd'}, 'bez wejść — klucze jak dotąd')
+        su = out['su']
+        self.assertEqual((su['reg'], su['m'], su['jawne'], su['looks'], su['ok'], su['at']), ('2026-10-08', 12, 200, [100, 200, 400], [], '2026-10-10T03:00:00Z'))
+        self.assertEqual(list(su['l']), ['cm.p', 'cm.f', 'eq.cu', 'cr.au'])
+        L = zd._SUT_LOG[1]
+        self.assertEqual((L['v'], L['reg'], L['since'], L['sha'], L['cut']), (1, '2026-10-08', '2026-10-08', zd.SUT_SHA, {'w': 540, 'cr': 330}))
+        self.assertTrue(any(r[1] == 'eq.cu' for r in L['rows']) and any(r[1] == 'cr.au' for r in L['rows']))
+        self.assertEqual(zd.META['errors'], [])
+        # awaria bloku nie rusza reszty pliku
+        with mock.patch.object(zd, '_now_utc', return_value=now), mock.patch.object(zd, '_sut_log', side_effect=RuntimeError('x')):
+            o2 = zd.build_trendy(self.S(now))
+        self.assertNotIn('su', o2); self.assertIsNone(zd._SUT_LOG[1]); self.assertIn('trendy surowce (w cieniu): x', zd.META['notes'])
+
+    def test_kopia_w_archiwum_i_odtworzenie(self):
+        import csv, importlib.util
+        self.swiat()
+        log = None
+        for h in ('2026-10-12T22:00:00', '2026-10-13T12:59:00', '2026-10-14T12:50:00'):
+            log = self.run_log(log, self.t(h))
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('archiwum_v303', os.path.join(root, 'narzedzia', 'archiwum.py'))
+        A = importlib.util.module_from_spec(spec); spec.loader.exec_module(A)
+        F = A.FILES['surowce-dziennik']
+        self.assertEqual((F['cols'], F['key']), (zd.SUT_CSV_COLS, ['date', 'line', 'sym', 'v', 'reg']))
+        with mock.patch.object(A.zd, 'get_json', return_value=dict(log)):
+            rows = A.src_surowce_dziennik()
+        self.assertEqual(rows, [r + [1, '2026-10-08'] for r in log['rows']])
+        e404 = zd.urllib.error.HTTPError('u', 404, 'nf', {}, None); self.addCleanup(e404.close)
+        with mock.patch.object(A.zd, 'get_json', side_effect=e404):
+            A.NOTES.clear(); self.assertEqual(A.src_surowce_dziennik(), []); self.assertIn('404', A.NOTES[0])
+        with mock.patch.object(A.zd, 'get_json', return_value={'rows': [], 'v': 1}):
+            self.assertRaises(RuntimeError, A.src_surowce_dziennik)
+        merged = A.merge({}, rows, F['cols'], F['key'])[0]
+        path = os.path.join(self.tmp, 'surowce-dziennik.csv'); A.write_csv(path, F['cols'], merged)
+        back, why = zd._sut_from_csv(path)
+        self.assertEqual(why, 'ok'); self.assertEqual(back['rows'], log['rows'], 'te same wiersze (liczby, braki = None)')
+        with open(path, 'w', encoding='utf-8', newline='') as f:
+            csv.writer(f).writerow(['date', 'zly'])
+        self.assertEqual(zd._sut_from_csv(path), (None, 'bad')); self.assertEqual(zd._sut_from_csv(path + '.x'), (None, 'none'))
+        # zbieracz: brak poprzedniego pliku → odtworzenie z kopii; kopia nieczytelna → błąd, licznik wstrzymany, nic nie zapisujemy
+        A.write_csv(path, F['cols'], merged)
+        now = self.t('2026-10-15T12:00:00')
+        with mock.patch.object(zd, 'SUT_CSV', path), mock.patch.object(zd, '_now_utc', return_value=now):
+            su = zd._sut_build(self.S(now))
+        self.assertTrue(su and any('odtworzony z archiwum' in n for n in zd.META['notes']))
+        self.assertTrue(set(map(tuple, map(lambda r: r[:3], log['rows']))) <= {tuple(r[:3]) for r in zd._SUT_LOG[1]['rows']})
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('zly\n')
+        zd._SUT_LOG[1] = None
+        with mock.patch.object(zd, 'SUT_CSV', path), mock.patch.object(zd, '_now_utc', return_value=now):
+            self.assertIsNone(zd._sut_build(self.S(now)))
+        self.assertIsNone(zd._SUT_LOG[1]); self.assertTrue(any('Dziennik surowców' in e and 'nieczytelna' in e for e in zd.META['errors']))
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, '_now_utc', return_value=self.t('2026-10-20T12:00:00')):
+            zd._sut_build(self.S(self.t('2026-10-20T12:00:00')))
+        self.assertTrue(any('brak jego kopii w archiwum' in e for e in zd.META['errors']), 'zgubiony dziennik po starcie — błąd w meta')
+        # inna wersja w poprzednim pliku → nowy dziennik, stare oceny w prev
+        n = self.run_log(dict(log, v=0, cp={'eq.cu': [[100] + [0] * 12]}), self.t('2026-10-14T12:55:00'))
+        self.assertEqual(n['prev'][0]['v'], 0); self.assertTrue(all(r[0] >= '2026-10-14' for r in n['rows']))
+
+    def test_main_kontrola_i_bez_proby(self):
+        import importlib.util, inspect
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        m = src.index('def main():')
+        a = src.index("_SUT_LOG[0] = previous('surowce-dziennik'); _SUT_LOG[1] = None"); t0 = src.index("save('trendy', build_trendy(SAVED))")
+        b = src.index("save('surowce-dziennik', _SUT_LOG[1])"); c = src.index("save('surowce-dziennik', _SUT_LOG[0])")
+        self.assertTrue(m < a < t0 < b < c, 'dziennik: poprzedni przed trendami, zapis po trendach')
+        blk = src[src.index('# ===================== v303: SUROWCE w TRENDACH'):src.index('# ===================== v295: SUROWCE v2')]
+        for bad in ('_tdw_pool(', '_td_pool_cr2(', '_tdw_pairs(', '_td_pairs_cr2(', 'get_json(', 'urlopen', 'os.environ'):
+            self.assertNotIn(bad, blk, 'blok bez wyniku „w próbie” i bez sieci: ' + bad)
+        self.assertFalse(any(n.startswith('build_') for n in dir(zd) if 'sut' in n.lower()), 'funkcje bloku bez przedrostka build_ (atrapy testów main)')
+        spec = importlib.util.spec_from_file_location('kontrola_v303', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        self.assertEqual(K.PLIKI[K.PLIKI.index('swiat-dziennik') + 1], 'surowce-dziennik'); self.assertEqual(K.LIMIT_MIN['surowce-dziennik'], 180)
+        self.assertEqual(K.PLIKI.count('surowce-dziennik'), 1)
+        J = {'v': 1, 'reg': '2026-10-08', 'since': '2026-10-08', 'rows': []}
+        self.assertEqual(K.su_dziennik_swiezosc(J, self.t('2026-10-08T00:10:00'))[1], '—')
+        self.assertEqual(K.su_dziennik_swiezosc(J, self.t('2026-10-20T00:10:00'))[1], '—', 'do 14 dni od startu — czekamy')
+        r = K.su_dziennik_swiezosc(J, self.t('2026-10-30T00:10:00')); self.assertEqual(r[1], '⚠️'); self.assertIn('brak dnia z wynikiem', r[4])
+        J['rows'] = [['2026-10-12', 'cr.au', 'BTC', 0, 'ok', 0.4, 'x', 0.31, '2026-10-11'], ['2026-10-13', 'cr.au', 'BTC', 1, 'ok', 2.2, 'x', None, '2026-10-12']]
+        r = K.su_dziennik_swiezosc(J, self.t('2026-10-16T00:10:00'))
+        self.assertEqual(r[1:4], ('✅', 3 * 1440 + 10, '2026-10-12'), 'wiersz bez wyniku (czeka) się nie liczy')
+        r = K.su_dziennik_swiezosc(J, self.t('2026-10-28T00:10:00')); self.assertEqual(r[1], '⚠️'); self.assertIn('przestały dochodzić', r[4])
+        self.assertIsNone(K.su_dziennik_swiezosc({'at': 'x'})); self.assertEqual(K.SUT_DZ[3], 14 * 24 * 60)
+        self.assertIn('su_dziennik_swiezosc(files.get(\'surowce-dziennik\'))', inspect.getsource(K.kontrola))
+
+    # ---------------------------------------------------------------- przegląd v303: kierunek, wejścia, przerwy, wynik eq, krypto, „po czasie”
+    def test_wejscia_kierunek_stosunku_miedz_zloto(self):
+        self.swiat()
+        now = self.t('2026-10-14T12:00:00')
+        base = zd._sut_wejscia(self.S(now))
+        cu2 = dict(self.cu); cu2['2026-10-12'] = self.cu['2026-10-12'] * 1.10
+        g2 = dict(self.gold); g2['2026-10-12'] = self.gold['2026-10-12'] * 1.10
+        W1, W2 = zd._sut_wejscia(self.S(now, cu=cu2)), zd._sut_wejscia(self.S(now, gold=g2))
+        z0, z1, z2 = (dict(W[('eq.cu', 'EQ')][0])['2026-10-12'] for W in (base, W1, W2))
+        r0 = (self.cu['2026-10-12'] / self.gold['2026-10-12']) / (self.cu['2026-10-09'] / self.gold['2026-10-09']) - 1
+        self.assertAlmostEqual(z0, r0 * 100, places=9)
+        self.assertAlmostEqual(z1, ((1 + r0) * 1.10 - 1) * 100, places=9); self.assertGreater(z1, 5, 'miedź +10% przy stałym złocie: miedź/złoto w górę')
+        self.assertAlmostEqual(z2, ((1 + r0) / 1.10 - 1) * 100, places=9); self.assertLess(z2, -5, 'złoto +10% przy stałej miedzi: miedź/złoto w dół')
+        za = dict(W2[('cr.au', 'BTC')][0])['2026-10-12']
+        self.assertAlmostEqual(za, (self.gold['2026-10-12'] * 1.10 / self.gold['2026-10-09'] - 1) * 100, places=9)
+        self.assertEqual((W1[('eq.cu', 'EQ')][1], W2[('cr.au', 'BTC')][1]), (False, False), 'ruch ceny: z bez odejmowania średniej')
+
+    def test_kierunek_glosu_w_dzienniku(self):
+        self.swiat()
+        now = self.t('2026-10-14T12:00:00')   # karta świata 14.10 i krypto doby 14.10: dzień danych 12.10 (złoto z 13.10 dopiero o 13:05 UTC)
+        cu2 = dict(self.cu); cu2['2026-10-12'] = self.cu['2026-10-12'] * 1.10
+        g2 = dict(self.gold); g2['2026-10-12'] = self.gold['2026-10-12'] * 1.06
+        g3 = dict(self.gold); g3['2026-10-12'] = self.gold['2026-10-12'] / 1.06
+        R = lambda log: {(x[0], x[1]): x for x in log['rows']}   # noqa: E731
+        a, b, c = (R(self.run_log(None, now, self.S(now, **kw))) for kw in ({'cu': cu2}, {'gold': g2}, {'gold': g3}))
+        for r in (a, b, c):
+            self.assertEqual((r[('2026-10-14', 'eq.cu')][4], r[('2026-10-14', 'eq.cu')][8], r[('2026-10-14', 'cr.au')][8]), ('ok', '2026-10-12', '2026-10-12'))
+        self.assertEqual((a[('2026-10-14', 'eq.cu')][3], b[('2026-10-14', 'eq.cu')][3], c[('2026-10-14', 'eq.cu')][3]), (1, -1, 1),
+                         'miedź/złoto w górę = akcje w górę (+1); złoto w górę = miedź/złoto w dół (−1)')
+        self.assertEqual((b[('2026-10-14', 'cr.au')][3], c[('2026-10-14', 'cr.au')][3]), (1, -1), 'złoto w górę = bitcoin w górę (+1), w dół = −1')
+        self.assertTrue(b[('2026-10-14', 'cr.au')][5] >= 2 and c[('2026-10-14', 'cr.au')][5] <= -2 and a[('2026-10-14', 'eq.cu')][5] >= 1)
+
+    def test_przerwa_w_danych_zmiana_i_przeplyw(self):
+        ser = [('2026-10-01', 100.0), ('2026-10-05', 110.0), ('2026-10-10', 121.0), ('2026-10-14', 133.1)]
+        out = zd._sut_zm(ser)
+        self.assertEqual([d for d, _ in out], [d for d, _ in ser])
+        self.assertIsNone(out[0][1]); self.assertAlmostEqual(out[1][1], 10.0, places=9); self.assertAlmostEqual(out[3][1], 10.0, places=9)
+        self.assertIsNone(out[2][1], 'przerwa 5 dni kalendarzowych (> TD_GAP = 4) — brak zmiany, nie zero')
+        self.assertIsNone(zd._sut_zm(ser, split=True)[2][1]); self.assertAlmostEqual(zd._sut_zm(ser, split=True)[1][1], 10.0, places=9)
+        rows = [['2026-10-01', 50.0, 1.0e6], ['2026-10-05', 50.5, 1.01e6], ['2026-10-10', 51.0, 1.02e6], ['2026-10-14', 51.5, 1.03e6]]
+        fl = zd._sut_fl(rows)
+        self.assertEqual([d for d, _ in fl], ['2026-10-05', '2026-10-10', '2026-10-14'])
+        self.assertAlmostEqual(fl[0][1], 0.01e6 * 50.5 / 1e6, places=9); self.assertAlmostEqual(fl[2][1], 0.01e6 * 51.5 / 1e6, places=9)
+        self.assertIsNone(fl[1][1], 'przepływ po przerwie 5 dni — brak')
+
+    def test_wynik_eq_90_procent_po_48_h(self):
+        T = '2026-10-13'
+        close = datetime.datetime.strptime(zd._tdw_at(T, zd.TD_W_CLOSE), '%Y-%m-%dT%H:%M:%S')
+        przed, po = ((close + datetime.timedelta(hours=48, minutes=m)).strftime('%Y-%m-%dT%H:%M:%S') for m in (-1, 0))
+        ys = {s: 0.1 * (i + 1) for i, s in enumerate(zd.SUT_EQ)}
+        oc = lambda syms: {s: ({T: ys[s]} if s in syms else {}) for s in zd.SUT_EQ}   # noqa: E731
+        Y = lambda syms, n19: zd._sut_y_w(oc(syms), T, 'EQ', n19)   # noqa: E731
+        self.assertAlmostEqual(Y(zd.SUT_EQ, przed), sum(ys.values()) / 33, places=12, msg='wszystkie 33 rynki — od razu')
+        s32 = zd.SUT_EQ[:-1]
+        self.assertIsNone(Y(s32, przed), '32 z 33 przed upływem 48 h — czekamy')
+        self.assertAlmostEqual(Y(s32, po), sum(ys[s] for s in s32) / 32, places=12, msg='32 z 33 (≥ 90%) po 48 h — średnia')
+        s30, s29 = zd.SUT_EQ[:30], zd.SUT_EQ[:29]
+        self.assertAlmostEqual(Y(s30, po), sum(ys[s] for s in s30) / 30, places=12)
+        self.assertIsNone(Y(s29, po), '29 z 33 (< 90%) — brak na stałe'); self.assertIsNone(Y(s29, '2027-01-01T00:00:00'))
+        self.assertIsNone(Y((), po))
+        self.assertEqual(zd._sut_y_w({'GSG': {T: 0.7}}, T, 'GSG', przed), 0.7); self.assertIsNone(zd._sut_y_w({}, T, 'GSG', po))
+
+    def test_za_stary_dzien_danych_krypto_i_swiat(self):
+        import random
+        rnd = random.Random(5)
+        def ser(last, n=70):
+            d0 = datetime.date.fromisoformat(last)
+            return [((d0 - datetime.timedelta(days=n - 1 - i)).isoformat(), rnd.gauss(0, 1)) for i in range(n)]
+        K = lambda ch, cel, fam: zd._sut_karta(ch, False, 2.0 if fam == 'cr' else 1.0, ('lbma',) if fam == 'cr' else ('close', 'lbma'), cel, fam, None)   # noqa: E731
+        self.assertEqual(K(ser('2026-10-17'), '2026-10-20', 'cr')[2], '2026-10-17', 'krypto: złoto sprzed 3 dób — jeszcze głosuje')
+        self.assertIsNone(K(ser('2026-10-16'), '2026-10-20', 'cr'), 'krypto: złoto sprzed ponad 3 dób — za stare, bez karty')
+        self.assertEqual(zd.SUT_ZW_CR, 3)
+        ws = lambda last: [(d, rnd.gauss(0, 1)) for d in self.sesje('2026-06-01', last)]   # noqa: E731
+        self.assertEqual(K(ws('2026-10-12'), '2026-10-14', 'w')[2], '2026-10-12', 'świat: dzień danych 2 sesje przed kartą — głosuje')
+        self.assertIsNone(K(ws('2026-10-09'), '2026-10-14', 'w'), 'świat: 3 sesje przed kartą — za stary')
+        self.assertEqual(K(ws('2026-10-09'), '2026-10-13', 'w')[2], '2026-10-09', 'piątek → wtorek (poniedziałek to 1 sesja) — głosuje')
+
+    def test_po_czasie_bez_glosu_i_dzien_danych_wolny(self):
+        self.swiat()
+        g2 = dict(self.gold); g2['2026-10-12'] = self.gold['2026-10-12'] * 1.06   # duży ruch złota w dniu danych 12.10 (miedź/złoto w dół)
+        log = None
+        for h in ('2026-10-12T22:00:00', '2026-10-13T09:00:00'):
+            log = self.run_log(log, self.t(h), self.S(self.t(h), g2))
+        self.assertEqual(log['at'], '2026-10-13T09:00:00Z')
+        log = dict(log, rows=[x for x in log['rows'] if x[0] != '2026-10-13'])   # przerwa automatu: brak przebiegu przed granicą 13:00 UTC
+        now = self.t('2026-10-13T13:30:00')
+        S = self.S(now, g2)
+        ch = zd._sut_wejscia(S)[('eq.cu', 'EQ')][0]
+        k = zd._sut_karta(ch, False, 1.0, ('close', 'lbma'), '2026-10-13', 'w', None)
+        self.assertEqual((k[0], k[2]), (-1, '2026-10-12'), 'karta wtorku z danymi po granicy miałaby głos')
+        L = self.run_log(log, now, S)
+        r = {(x[0], x[1], x[2]): x for x in L['rows']}
+        self.assertEqual(r[('2026-10-13', 'eq.cu', 'EQ')][3:9], [0, 'late', None, '2026-10-13T13:30:00Z', None, '2026-10-12'], 'po czasie — bez głosu')
+        self.assertEqual(r[('2026-10-14', 'eq.cu', 'EQ')][3:5] + r[('2026-10-14', 'eq.cu', 'EQ')][8:], [-1, 'ok', '2026-10-12'],
+                         'dzień danych wiersza „po czasie” głosuje w następnej karcie')
+        # następny przebieg liczy kartę środy od nowa (z dziennikiem, w którym jest już wiersz „po czasie”) — dzień danych nadal wolny
+        L2 = self.run_log(dict(L, rows=[x for x in L['rows'] if x[0] != '2026-10-14']), self.t('2026-10-13T14:00:00'), self.S(self.t('2026-10-13T14:00:00'), g2))
+        r2 = {(x[0], x[1], x[2]): x for x in L2['rows']}
+        self.assertEqual(r2[('2026-10-13', 'eq.cu', 'EQ')][3:5], [0, 'late'])
+        self.assertEqual((r2[('2026-10-14', 'eq.cu', 'EQ')][3], r2[('2026-10-14', 'eq.cu', 'EQ')][8]), (-1, '2026-10-12'))
+        pr, _ = zd._sut_pary([x for x in L2['rows']] + [['2026-10-13', 'eq.cu', 'EQ', 0, 'late', None, 'x', 0.5, '2026-10-12']], 'eq.cu', zd.SUT_SINCE)
+        self.assertFalse(any(p[0] == '2026-10-13' for p in pr), 'wiersz „po czasie” nie wchodzi do ocen')
+
+    def test_pierwsze_wdrozenie_uwaga_zamiast_bledu(self):
+        self.swiat()
+        now = self.t('2026-10-20T12:00:00')   # wdrożenie po 12.10: brak pliku na stronie i w archiwum
+        d = os.path.dirname(zd.SUT_CSV); os.makedirs(d, exist_ok=True)
+        ix = os.path.join(d, 'indeks.json')
+        for files, err in (({'swiat-dziennik': {'rows': 120}}, False), ({'surowce-dziennik': {'rows': 0}}, False), ({'surowce-dziennik': {'rows': 37}}, True)):
+            with open(ix, 'w', encoding='utf-8') as f:
+                json.dump({'at': 'x', 'files': files}, f)
+            zd.META['errors'].clear(); zd.META['notes'].clear(); zd._SUT_LOG[1] = None
+            with mock.patch.object(zd, '_now_utc', return_value=now):
+                su = zd._sut_build(self.S(now))
+            self.assertTrue(su and zd._SUT_LOG[1], files)
+            self.assertEqual(any('brak jego kopii w archiwum' in e for e in zd.META['errors']), err, files)
+            self.assertEqual(any('nowy dziennik — pierwszy zapis' in n for n in zd.META['notes']), not err, files)
+        self.assertEqual((zd._sut_arch_byl(ix), zd._sut_arch_byl(ix + '.brak')), (True, None))
+        with open(ix, 'w', encoding='utf-8') as f:
+            f.write('{zly')
+        self.assertIsNone(zd._sut_arch_byl(ix))
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, '_now_utc', return_value=self.t('2026-10-11T12:00:00')):
+            zd._sut_build(self.S(self.t('2026-10-11T12:00:00')))
+        self.assertEqual(zd.META['errors'], [], 'bez czytelnego indeksu: do 4 dni od startu — bez błędu')
