@@ -1987,7 +1987,7 @@ CFTCD_GROUPS = (('prod', 'Prod_Merc_Positions_Long_All', 'Prod_Merc_Positions_Sh
                 ('nonrept', 'NonRept_Positions_Long_All', 'NonRept_Positions_Short_All', None))
 
 
-def parse_cftcd(text, header=None):
+def parse_cftcd(text, header=None, want=None):   # v298: want — zbiór kodów rynków (domyślnie CFTCD_MARKETS)
     """Plik disaggregated (CSV) → {kod rynku: {data: rekord}} dla rynków CFTCD_MARKETS; nagłówek z pliku (roczny) albo podany (tygodniowy).
     Rekord: {'name','date','oi','g': {grupa: {long, short, spread, net}}}; wiersz, w którym pozycje grup nie sumują się do open interest,
     trafia do 'bad' (pomijany — brak, nie zero)."""
@@ -1997,7 +1997,7 @@ def parse_cftcd(text, header=None):
             return {}, []
         header, rows = rows[0], rows[1:]
     I = {n.strip(): i for i, n in enumerate(header)}
-    want = set(CFTCD_MARKETS.values())
+    want = set(want or CFTCD_MARKETS.values())
     out, bad = {}, []
     for r in rows:
         if len(r) < len(CFTCD_COLS) or r[I['CFTC_Contract_Market_Code']].strip() not in want:
@@ -8921,7 +8921,7 @@ def build_trendy(S):
 # Budżet czasu: najcięższe przebiegi automatu trwają 14,3–14,5 min z 25 — budowniczy ma SU_BUDZET_S s (każde zapytanie tylko, gdy zmieści się
 # z całym swoim limitem), a w przebiegu dłuższym niż SU_LATE s ciężkie źródła (SU_CIEZKIE) czekają na następny przebieg (10 min później).
 SU_V = 2
-SU_PARTS = ('ceny', 'zapasy', 'mies', 'markets')
+SU_PARTS = ('ceny', 'zapasy', 'mies', 'markets', 'pozycje', 'fundusze', 'banki')   # v298: + etap 3 (przepływy kapitału w surowcach)
 SU_D, SU_H = 90, 400            # sesji: część ceny (surowce.json) / historia (surowce-hist.json)
 SU_W, SU_WH = 26, 6 * 53 + 4    # tygodni: część zapasy / historia (pasmo 5 lat dla 26 tygodni)
 SU_M, SU_MH, SU_K = 36, 120, 24  # miesięcy: część mies / historia / serie kontrolne MFW (mies.k)
@@ -9159,7 +9159,7 @@ def _su_due(src, z, now, S):
         if asof < _su_prev_month(now) and now.day <= dzien and (src != 'wb' or wd < 5):
             return tr >= co
         return at >= 7 * 24 * 60 and tr >= 60
-    return False
+    return _su_due3(src, z, now, S)   # v298: źródła etapu 3 (pozycje, fundusze, banki)
 
 
 def _su_drugi_rob(y, m):
@@ -9196,7 +9196,7 @@ def _su_next(part, out, now):
         if str(out.get('asof') or '') >= exp:
             fri += datetime.timedelta(days=7)
         return iso(fri, 19, 30)
-    return None
+    return _su_next3(part, out, now)   # v298: części etapu 3
 
 
 # ---- parsery (nagrania odpowiedzi w testach SurowceV295) ----
@@ -9649,7 +9649,7 @@ def _su_staly(rows):
 # ---- historia (surowce-hist.json) ----
 def _su_hist_load(ph, prev):
     """Historia do łączenia: z poprzedniego surowce-hist.json, uzupełniona poprzednim surowce.json (v2) — gdy pliku historii nie było."""
-    H = {'d': {}, 'w': {}, 'm': {}}
+    H = {'d': {}, 'w': {}, 'm': {}, 'f': {}, 'b': {}}   # v298: f — ilości metalu w funduszach, b — złoto banków centralnych (uncje)
     for k in H:
         src = (ph or {}).get(k) if isinstance(ph, dict) else None
         for cid, rows in (src or {}).items() if isinstance(src, dict) else ():
@@ -9694,7 +9694,10 @@ def _su_limit(ctx, src, limit=None):
 
 
 def _su_get(ctx, src, url, headers=None, limit=None):
-    return ctx['fetch'](url, _su_limit(ctx, src, limit), headers)
+    b = ctx['fetch'](url, _su_limit(ctx, src, limit), headers)
+    if src in SU_RAW and isinstance(ctx.get('raw'), dict):   # v298: odpowiedź lidera dla źródeł-naśladowców etapu 3 (bez drugiego zapytania)
+        ctx['raw'][url] = b
+    return b
 
 
 def _su_json(b):
@@ -9860,7 +9863,7 @@ def _su_eia_t(ctx):
 
 
 def _su_cftc(ctx):
-    m = su_markets(fetch=lambda u: ctx['fetch'](u, _su_limit(ctx, 'cftc'), None), today=ctx['now'].date(), prev=ctx['prev'])
+    m = su_markets(fetch=lambda u: _su_get(ctx, 'cftc', u), today=ctx['now'].date(), prev=ctx['prev'])   # v298: przez _su_get (pliki dla części pozycje)
     ctx['markets'] = m
     return m['asof']
 
@@ -9905,6 +9908,799 @@ SU_POBIERZ = {'eia': _su_eia, 'eia_dz': _su_eia_dz, 'acer': _su_acer, 'gld': _su
               'wpsr': _su_wpsr, 'wngsr': _su_wngsr, 'eia_t': _su_eia_t, 'cftc': _su_cftc, 'fao': _su_fao, 'imf': _su_imf, 'wb': _su_wb}
 
 
+# ===================== v298: SUROWCE — etap 3: przepływy kapitału (części pozycje, fundusze, banki) =====================
+# Trzy nowe części data/surowce.json — każda z part_at / ok / next / err jak pozostałe; klucz „markets” (CFTC v92) i TRENDY bez zmian (TR_CS stałe):
+#  pozycje  — tygodniowe pozycje uczestników rynków terminowych (stan na wtorek, publikacja w piątek): CFTC disaggregated dla 30 rynków
+#             (SU_POZ_CFTC; z tych samych plików co „markets” — w przebiegu z pobraniem CFTC bez nowych zapytań), CFTC CIT (fundusze indeksowe,
+#             13 rynków rolnych), CFTC TFF 221602 (kontrakty na szeroki indeks surowców) i ICE Futures Europe (ropa Brent, olej napędowy,
+#             Dubai, kakao i pszenica paszowa w Londynie, robusta, cukier biały); netto grupy w % otwartych pozycji, zmiana tygodnia, 13 tygodni.
+#  fundusze — ilość metalu w funduszach fizycznych (nie cena): złoto w tonach — GLD i GLDM (archiwa funduszy), IAU (wyliczony z wartości
+#             aktywów z pliku funduszy strony i ceny złota), PHYS; srebro (PSLV), platyna i pallad (SPPP), uran (SPUT, mln funtów), miedź (COP);
+#             90 dni, zmiana tygodnia, sumy złota.
+#  banki    — złoto banków centralnych 10 krajów w tonach (MFW IL, wskaźnik RGV_REVS w uncjach; Chiny — także SAFE, zwykle o 2 miesiące
+#             szybciej), 24 miesiące, każdy kraj ze swoim miesiącem.
+# Tony = uncje ÷ 32 150,7466 (uncja trojańska = 31,1034768 g). Brak = null, nigdy 0. Ciężkie pliki (CFTC roczny 1,9 MB, archiwum GLD 0,54 MB):
+# odpowiedź źródła-lidera z tego samego przebiegu (źródła-naśladowcy SU_ZA) albo własne pobranie tylko na start, po błędzie i gdy lider ma
+# nowsze dane. Kody źródeł (z) — pełne nazwy wyłącznie na stronie „Źródła”: gld (archiwa GLD, GLDM), ish (wyliczenie z pliku funduszy strony),
+# sprott, imf, safe; pozycje — z kodem w nazwie części (cftc, ice, cit, tff).
+SU_OZ_T = 32150.7466
+SU_E3_ZR = (('sprott_t', 'fundusze'), ('gldm', 'fundusze'), ('gld_t', 'fundusze'), ('imf_il', 'banki'), ('safe_zl', 'banki'),
+            ('cit', 'pozycje'), ('tff', 'pozycje'), ('ice', 'pozycje'), ('cftcd', 'pozycje'))   # lekkie najpierw; naśladowcy po liderach
+SU_ZR = SU_ZR + SU_E3_ZR
+SU_CIEZKIE = SU_CIEZKIE | frozenset(('gld_t', 'cftcd'))   # ciężkie tylko przy własnym pobraniu — lider (też ciężki) w długim przebiegu i tak czeka
+SU_LIMIT_S.update({'sprott_t': 20, 'gldm': 30, 'gld_t': 60, 'imf_il': 30, 'safe_zl': 20, 'cit': 20, 'tff': 30, 'ice': 30, 'cftcd': 60})
+SU_ZAPYTANIA.update({'safe_zl': 2, 'cit': 2, 'tff': 2, 'ice': 2, 'cftcd': 2})   # strona + plik; tydzień + rok (rok tylko przy krótkiej historii)
+SU_ZA = {'cftcd': 'cftc', 'gld_t': 'gld', 'sprott_t': 'sprott'}   # naśladowca → lider (ta sama odpowiedź w tym samym przebiegu)
+SU_ZA_PONOW = {'cftcd': 360, 'gld_t': 60, 'sprott_t': 60}        # min — po błędzie naśladowcy ponowienie własnym pobraniem
+SU_RAW = frozenset(('cftc', 'gld', 'sprott'))                     # odpowiedzi liderów zachowywane w pamięci przebiegu (ctx['raw'])
+# ---- pozycje ----
+SU_POZ_CFTC = (   # id, kod rynku CFTC (disaggregated, futures only), grupa: en energia, ms szlachetne, mi przemysłowe, ag rolne, fe nawozy
+    ('wti', '067651', 'en'), ('ng', '023651', 'en'), ('rbob', '111659', 'en'), ('ulsd', '022651', 'en'), ('brent_ny', '06765T', 'en'),
+    ('gold', '088691', 'ms'), ('silver', '084691', 'ms'), ('platinum', '076651', 'ms'), ('palladium', '075651', 'ms'),
+    ('copper', '085692', 'mi'), ('aluminium', '191693', 'mi'), ('steel', '192651', 'mi'), ('cobalt', '188691', 'mi'), ('lithium', '189691', 'mi'),
+    ('wheat', '001602', 'ag'), ('wheat_hrw', '001612', 'ag'), ('corn', '002602', 'ag'), ('soy', '005602', 'ag'), ('soy_oil', '007601', 'ag'),
+    ('soy_meal', '026603', 'ag'), ('rice', '039601', 'ag'), ('cotton', '033661', 'ag'), ('coffee', '083731', 'ag'), ('cocoa', '073732', 'ag'),
+    ('sugar', '080732', 'ag'), ('cattle', '057642', 'ag'), ('feeder', '061641', 'ag'), ('hogs', '054642', 'ag'), ('canola', '135731', 'ag'),
+    ('urea', '251607', 'fe'))   # 30 rynków (wszystkie w raporcie 29.09.2026); brak rynku w raporcie = notatka, poprzedni stan najwyżej 35 dni
+SU_POZ_CIT = ('wheat', 'wheat_hrw', 'corn', 'soy', 'soy_oil', 'soy_meal', 'cotton', 'hogs', 'cattle', 'feeder', 'cocoa', 'sugar', 'coffee')   # kody z SU_POZ_CFTC
+SU_POZ_ICE = (('brent', 'B', 'en'), ('gasoil', 'G', 'en'), ('dubai', 'Dubai_1st', 'en'), ('cocoa_l', 'Cocoa', 'ag'), ('robusta', 'RC', 'ag'),
+              ('wsugar', 'W', 'ag'), ('feed_wheat', 'Wheat', 'ag'))   # klucz: CFTC_Commodity_Code (kod rynku w pliku pusty), wiersze „FutOnly”
+SU_POZ_TFF = (('bcom', '221602'),)   # BBG COMMODITY (CBOT) — kontrakty na indeks surowców; plik TFF (FinFutWk.txt, jak data/cftc.json)
+SU_CIT_WEEK_URL = 'https://www.cftc.gov/dea/newcot/deacit.txt'
+SU_CIT_YEAR_URL = 'https://www.cftc.gov/files/dea/history/dea_cit_txt_{}.zip'
+SU_ICE_URL = 'https://www.ice.com/publicdocs/futures/COTHist{}.csv'
+SU_CIT_COLS = ('Market_and_Exchange_Names', 'As_of_Date_In_Form_YYMMDD', 'As_of_Date_In_Form_YYYY-MM-DD', 'CFTC_Contract_Market_Code',
+               'CFTC_Market_Code', 'CFTC_Region_Code', 'CFTC_Commodity_Code', 'Open_Interest_All', 'NComm_Positions_Long_All_NoCIT',
+               'NComm_Positions_Short_All_NoCIT', 'NComm_Postions_Spread_All_NoCIT', 'Comm_Positions_Long_All_NoCIT',
+               'Comm_Positions_Short_All_NoCIT', 'Tot_Rept_Positions_Long_All', 'Tot_Rept_Positions_Short_All', 'NonRept_Positions_Long_All',
+               'NonRept_Positions_Short_All', 'CIT_Positions_Long_All', 'CIT_Positions_Short_All')
+# plik tygodniowy CIT bez nagłówka: pierwsze 19 kolumn w kolejności pliku rocznego (annualci.txt, 54 kolumny; sprawdzone 07.10.2026 — 13 rynków)
+SU_CIT_G = (('nc', 'NComm_Positions_Long_All_NoCIT', 'NComm_Positions_Short_All_NoCIT', 'NComm_Postions_Spread_All_NoCIT'),   # literówka CFTC
+            ('c', 'Comm_Positions_Long_All_NoCIT', 'Comm_Positions_Short_All_NoCIT', None),
+            ('cit', 'CIT_Positions_Long_All', 'CIT_Positions_Short_All', None),
+            ('nonrept', 'NonRept_Positions_Long_All', 'NonRept_Positions_Short_All', None))
+SU_CIT_TOL = 5          # kontraktów — CIT: pozycje grup „bez funduszy indeksowych” są wyliczane i zaokrąglane przez CFTC; plik roczny 2026:
+                        # 354 z 507 wierszy różni się od open interest o 1–2 kontrakty (maks. 2) — dokładna równość odrzucałaby większość raportów
+SU_ICE_G = tuple((g, re.sub(r'_+', '_', lo), re.sub(r'_+', '_', sh), re.sub(r'_+', '_', sp) if sp else None) for g, lo, sh, sp in CFTCD_GROUPS)
+SU_ICE_PUB = (17, 45)   # UTC — piątek: plik ICE (Last-Modified pt 02.10.2026 17:44 UTC); CFTC — 19:30 UTC (15:30 czasu Nowego Jorku)
+SU_POZ_DNI = 14         # dni — najnowszy raport w pliku najwyżej tyle przed spodziewanym: okno co 30 min; dłuższa przerwa w pracy urzędu — co 12 h
+# ---- fundusze ----
+SU_GLDM_URL = 'https://api.spdrgoldshares.com/api/v1/historical-archive?product=gldm&exchange=NYSE&lang=en'
+SU_FU = (   # id, metal, jednostka strony, kod źródła, jednostka ilości w źródle (oz — uncje trojańskie, lb — funty U3O8, t — tony)
+    ('GLD', 'au', 't', 'gld', 'oz'), ('GLDM', 'au', 't', 'gld', 'oz'), ('IAU', 'au', 't', 'ish', 'oz'), ('PHYS', 'au', 't', 'sprott', 'oz'),
+    ('PSLV', 'ag', 't', 'sprott', 'oz'), ('SPPP_pt', 'pt', 't', 'sprott', 'oz'), ('SPPP_pd', 'pd', 't', 'sprott', 'oz'),
+    ('SPUT', 'u3o8', 'mln lb', 'sprott', 'lb'), ('COP', 'cu', 't', 'sprott', 't'))
+SU_FU_SPROTT = (('PHYS', 0, 'totalOunces1'), ('PSLV', 1, 'totalOunces1'), ('SPPP_pt', 2, 'totalOunces1'), ('SPPP_pd', 2, 'totalOunces2'),
+                ('SPUT', 4, 'totalOunces1'), ('COP', 5, 'totalOunces1'))   # pozycja na liście bez symboli (kolejność SU_SPROTT) i pole ilości
+SU_FU_SUMY = (('au', ('GLD', 'GLDM', 'IAU', 'PHYS')), ('au_usa', ('GLD', 'GLDM', 'IAU')))   # sumy złota: cztery fundusze; trzy notowane w USA
+SU_FU_DNI = 90          # dni w części fundusze (historia do SU_H sesji: surowce-hist.json, klucze f i fs)
+SU_FU_HIST_DNI = 600    # dni kalendarzowych archiwum funduszu zapisywanych do historii (≥ SU_H sesji)
+SU_FU_LUKA = 4          # dni — dziura wewnątrz serii funduszu (święto giełdy) w sumie wypełniana stanem z poprzedniego dnia; nigdy za końcem serii
+SU_FU_SKOK = 0.2        # zmiana ilości w trustach Sprott o ponad 20% w ≤ 7 dni = punkt odrzucony (lista bez symboli); archiwa GLD 2006–2026
+                        # i GLDM 2019–2026 (bez roku startu funduszu): największa zmiana w 1 sesji 7,2% i 10,2%, w 5 sesjach 18,0% i 17,1%
+                        # (ws53/v298-dane3/bt/bt_fundusze.py); trusty Sprott to dojrzałe, duże fundusze
+# ---- banki ----
+SU_BANKI = (('PL', 'POL'), ('CN', 'CHN'), ('TR', 'TUR'), ('IN', 'IND'), ('CZ', 'CZE'), ('KZ', 'KAZ'), ('JP', 'JPN'), ('US', 'USA'),
+            ('DE', 'DEU'), ('RU', 'RUS'))
+SU_BANKI_M = 24
+SU_IMF_IL_ZL_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/IL/+/' + '+'.join(c3 for _, c3 in SU_BANKI)
+                    + '.RGV_REVS.*.M?lastNObservations=' + str(SU_BANKI_M + 1))   # 11 KB; 07.10.2026: PL, CZ, JP, KZ, TR, US — 2026-08,
+                                                                                # DE, IN — 07, CN — 06, RU — 2025-11 (każdy kraj ze swoim miesiącem)
+SU_SAFE_ZL_PAGE = 'https://www.safe.gov.cn/en/2021/0203/2045.html'   # „Official Reserve Assets (2026)” — strona z odnośnikiem do pliku miesiąca
+SU_BANKI_T = (0.5, 20000)    # t — straż skali (atrybut SCALE MFW): kraj spoza zakresu = cała odpowiedź odrzucona (USA 8133 t, CZ 86 t)
+SU_SAFE_WAN = (3000, 30000)  # 万盎司 (10 tys. uncji) — złoto Chin w pliku SAFE (I–VIII 2026: 7419–7673); spoza zakresu = plik odrzucony
+
+
+def _su_wtorek_po(now, h, m):
+    """Wtorek (stan pozycji) raportu tygodniowego publikowanego w piątek o h:m UTC, który według kalendarza już wyszedł."""
+    for back in range(8):
+        d = (now - datetime.timedelta(days=back)).date()
+        if d.weekday() == 4 and datetime.datetime(d.year, d.month, d.day, h, m, tzinfo=datetime.timezone.utc) <= now:
+            return (d - datetime.timedelta(days=3)).isoformat()
+    return ''
+
+
+def _su_due3(src, z, now, S):
+    """v298: bramki źródeł etapu 3 (z _su_due dla źródeł spoza etapów 1–2). Naśladowca (SU_ZA) bierze odpowiedź lidera z tego przebiegu
+    (bez zapytania); własne pobranie — tylko na start, po błędzie (po SU_ZA_PONOW min) i gdy lider ma nowsze dane (np. naśladowca pominięty
+    przez budżet czasu). Pozycje — piątek po publikacji co 30 min, aż przyjdzie nowy wtorek (gdy brakuje najwyżej 2 raportów); poza oknem
+    co 12 h (święto przesuwa publikację na poniedziałek); banki — MFW raz na dobę, SAFE w dniach 5–20."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    asof = z.get('asof') if isinstance(z.get('asof'), str) else ''
+    first, today = at == float('inf'), now.date()
+    st = S.get('st') if isinstance(S.get('st'), dict) else {}
+    if src in SU_ZA:
+        lider = SU_ZA[src]
+        if lider in (S.get('udane') or ()):
+            return True
+        if first:
+            return tr >= 60
+        if z.get('err'):
+            return tr >= SU_ZA_PONOW[src]
+        return str((st.get(lider) or {}).get('asof') or '') > asof and tr >= 60
+    if src in ('cit', 'tff', 'ice'):
+        exp = _su_wtorek_po(now, *(SU_ICE_PUB if src == 'ice' else (19, 30)))
+        if first:
+            return tr >= 60
+        if exp and asof < exp and _cftc_iso(asof) and (datetime.date.fromisoformat(exp) - _cftc_iso(asof)).days <= SU_POZ_DNI:
+            return tr >= 30   # brakuje 1–2 raportów: okno co 30 min; dłuższa przerwa w pracy urzędu (2025: 6 tygodni) — co 12 h
+        return at >= 12 * 60 and tr >= 60
+    if src == 'gldm':     # archiwum GLDM — te same terminy co GLD (po sesji NYSE): 01:00, ponowienie 13:00 UTC
+        return _su_termin(now, z, ((1, 0), (13, 0)))
+    if src == 'imf_il':   # MFW dopisuje kraje w różnych dniach miesiąca — raz na dobę (11 KB)
+        return tr >= 60 and (first or at >= 24 * 60)
+    if src == 'safe_zl':  # SAFE ok. 7. dnia miesiąca: w dniach 5–20 co 6 h, aż przyjdzie poprzedni miesiąc; poza tym raz na tydzień
+        if first:
+            return tr >= 60
+        if asof < _su_prev_month(now) and 5 <= now.day <= 20:
+            return tr >= 360
+        return at >= 7 * 24 * 60 and tr >= 60
+    return False
+
+
+def _su_next3(part, out, now):
+    """v298: najbliższa spodziewana publikacja części etapu 3 (ISO, UTC); termin w przeszłości = publikacja zaległa."""
+    utc = datetime.timezone.utc
+    today = now.date()
+    if part == 'pozycje':    # CFTC: piątek 15:30 czasu Nowego Jorku (19:30 UTC latem); ICE wcześniej tego samego dnia
+        exp = _su_cftc_wtorek(now)
+        fri = datetime.date.fromisoformat(exp) + datetime.timedelta(days=3) if exp else today
+        if str(((out.get('pozycje') or {}).get('asof') or {}).get('cftc') or '') >= exp:
+            fri += datetime.timedelta(days=7)
+        return datetime.datetime(fri.year, fri.month, fri.day, 19, 30, tzinfo=utc).isoformat()
+    if part == 'fundusze':   # archiwa funduszy złota po sesji NYSE — pobranie o 01:00 UTC (wtorek–sobota)
+        d = today if now.hour < 1 else today + datetime.timedelta(days=1)
+        while d.weekday() in (6, 0):
+            d += datetime.timedelta(days=1)
+        return datetime.datetime(d.year, d.month, d.day, 1, 0, tzinfo=utc).isoformat()
+    if part == 'banki':      # SAFE ok. 7. dnia miesiąca (Chiny); MFW — bez kalendarza (kraje w różnych dniach miesiąca)
+        y, m = (now.year, now.month) if now.day < 7 else ((now.year + 1, 1) if now.month == 12 else (now.year, now.month + 1))
+        return datetime.datetime(y, m, 7, 12, 0, tzinfo=utc).isoformat()
+    return None
+
+
+# ---- parsery etapu 3 (nagrania w testach SurowceEtap3V298) ----
+def _su_cot_grupy(v, groups):
+    g = {}
+    for gk, lo, sh, sp in groups:
+        L, S, P = v(lo), v(sh), (v(sp) if sp else None)
+        g[gk] = {'long': L, 'short': S, 'spread': P, 'net': L - S if L is not None and S is not None else None}
+    return g
+
+
+def _su_cot_ok(oi, g, groups, tol=0):
+    """Suma pozycji grup = open interest: osobno long + spread i short + spread (spread liczy się po obu stronach); tol — dopuszczalna
+    różnica w kontraktach (raporty disaggregated i ICE — dokładnie; CIT — SU_CIT_TOL)."""
+    tl = [oi] + [x['long'] for x in g.values()] + [x['short'] for x in g.values()] + [g[gk]['spread'] for gk, _, _, sp in groups if sp]
+    return (None not in tl and abs(sum(x['long'] + (x['spread'] or 0) for x in g.values()) - oi) <= tol
+            and abs(sum(x['short'] + (x['spread'] or 0) for x in g.values()) - oi) <= tol)
+
+
+def parse_ice_cot(text):
+    """ICE Futures Europe — Commitments of Traders (CSV z BOM, układ jak CFTC disaggregated) → ({kod towaru: {dzień: rekord}}, [złe wiersze]).
+    Tylko wiersze „FutOnly” (bez opcji); klucz CFTC_Commodity_Code (kod rynku w pliku pusty); nazwy kolumn z pojedynczym „_” (CFTC ma
+    „Swap__”); data z kolumny MM/DD/YYYY bez zer wiodących (np. 7/28/2026), sprawdzana z kolumną RRMMDD; rekord jak w parse_cftcd; wiersz,
+    w którym grupy nie sumują się do open interest, trafia do złych (pomijany — brak, nie zero)."""
+    rows = list(csv.reader(io.StringIO(text.lstrip('\ufeff'))))
+    if not rows:
+        raise RuntimeError('pusty plik')
+    I = {re.sub(r'_+', '_', n.strip()): i for i, n in enumerate(rows[0])}
+    need = ['Market_and_Exchange_Names', 'As_of_Date_Form_MM/DD/YYYY', 'CFTC_Commodity_Code', 'Open_Interest_All', 'FutOnly_or_Combined']
+    need += [c for _, lo, sh, sp in SU_ICE_G for c in (lo, sh, sp) if c]
+    miss = [n for n in need if n not in I]
+    if miss:
+        raise RuntimeError('brak kolumn ' + ', '.join(miss)[:160])
+    want = {c for _, c, _ in SU_POZ_ICE}
+    out, bad = {}, []
+    for r in rows[1:]:
+        if len(r) != len(rows[0]) or r[I['FutOnly_or_Combined']].strip() != 'FutOnly':
+            continue
+        code = r[I['CFTC_Commodity_Code']].strip()
+        if code not in want:
+            continue
+        m = re.fullmatch(r'(\d{1,2})/(\d{1,2})/(\d{4})', r[I['As_of_Date_Form_MM/DD/YYYY']].strip())
+        try:
+            day = datetime.date(int(m.group(3)), int(m.group(1)), int(m.group(2))).isoformat() if m else None
+        except ValueError:
+            day = None
+        yy = r[I['As_of_Date_In_Form_YYMMDD']].strip() if 'As_of_Date_In_Form_YYMMDD' in I else ''
+        if not day or (yy and yy != day[2:].replace('-', '')):
+            bad.append(f'{code} {r[I["As_of_Date_Form_MM/DD/YYYY"]].strip()} (data)'); continue
+        v = lambda n: _cftc_int(r[I[n]])   # noqa: E731
+        oi = v('Open_Interest_All')
+        g = _su_cot_grupy(v, SU_ICE_G)
+        if not _su_cot_ok(oi, g, SU_ICE_G):
+            bad.append(f'{code} {day}'); continue
+        out.setdefault(code, {})[day] = {'name': r[I['Market_and_Exchange_Names']].strip(), 'date': day, 'oi': oi, 'g': g}
+    return out, bad
+
+
+def parse_cit(text, header=None):
+    """CFTC Supplemental — Commodity Index Traders (futures + opcje, 13 rynków rolnych) → ({kod rynku: {dzień: rekord}}, [złe wiersze]).
+    Plik roczny z nagłówkiem (annualci.txt), tygodniowy bez (header=SU_CIT_COLS — pierwsze 19 kolumn). Grupy: nc — duzi niekomercyjni
+    bez funduszy indeksowych (long, short, spread), c — komercyjni bez nich, cit — fundusze indeksowe, nonrept — małe pozycje; suma = open
+    interest (long + spread i short + spread) z tolerancją SU_CIT_TOL kontraktów (zaokrąglenia CFTC), inaczej wiersz do złych."""
+    rows = list(csv.reader(io.StringIO(text)))
+    if header is None:
+        if not rows:
+            return {}, []
+        header, rows = rows[0], rows[1:]
+    I = {n.strip(): i for i, n in enumerate(header)}
+    miss = [n for n in SU_CIT_COLS if n not in I]
+    if miss:
+        raise RuntimeError('brak kolumn ' + ', '.join(miss)[:160])
+    out, bad = {}, []
+    for r in rows:
+        if len(r) < len(SU_CIT_COLS):
+            continue
+        code, day = r[I['CFTC_Contract_Market_Code']].strip(), r[I['As_of_Date_In_Form_YYYY-MM-DD']].strip()
+        if not _cftc_iso(day):
+            bad.append(f'{code} {day} (data)'); continue
+        v = lambda n: _cftc_int(r[I[n]])   # noqa: E731
+        oi = v('Open_Interest_All')
+        g = _su_cot_grupy(v, SU_CIT_G)
+        if not _su_cot_ok(oi, g, SU_CIT_G, SU_CIT_TOL):
+            bad.append(f'{code} {day}'); continue
+        out.setdefault(code, {})[day] = {'name': r[I['Market_and_Exchange_Names']].strip(), 'date': day, 'oi': oi, 'g': g}
+    return out, bad
+
+
+def parse_spdr_ilosc(data, produkt):
+    """Archiwum funduszu SPDR (xlsx, arkusz „US {produkt} Historical Archive”: GLD, GLDM) → {dzień: (uncje złota w funduszu, odchylenie wartości
+    aktywów od uncji × ceny złota w % — cena = NAV/jedn. ÷ uncje/jedn., jak seria gold)}; kolumny po nazwie; wiersze świąt („US Holiday”)
+    i bez liczby pominięte. Kolumny „Tonnes of Gold” nie używamy: tony zawsze = uncje ÷ 32 150,7466 (w pliku inny sposób zaokrąglenia —
+    różnica do 0,015 t)."""
+    rows = _xlsx_rows(data, f'US {produkt} Historical Archive')
+    head = next((k for k in sorted(rows) if str(rows[k].get(1, '')).strip() == 'Date'), None)
+    if head is None:
+        raise RuntimeError(f'{produkt}: brak nagłówka')
+    col = {re.sub(r'\s+', ' ', str(v)).strip(): c for c, v in rows[head].items()}
+    co, cv = col.get('Total Ounces of Gold in the Trust'), col.get('Total Net Asset Value in the Trust')
+    cn = next((c for n, c in col.items() if n.startswith('NAV/Share')), None)
+    cs = col.get('Ounces of Gold per Share')
+    if not co:
+        raise RuntimeError(f'{produkt}: brak kolumny uncji złota w funduszu')
+    out = {}
+    for k in sorted(rows):
+        if k <= head:
+            continue
+        r = rows[k]
+        try:
+            d = datetime.datetime.strptime(str(r.get(1, '')).strip(), '%d-%b-%Y').date().isoformat()
+        except ValueError:
+            continue
+        oz = _num(r.get(co))
+        if not (_isnum(oz) and oz > 0):
+            continue
+        tv, nav, ops = (_num(r.get(c)) if c else None for c in (cv, cn, cs))
+        rr = (tv / (oz * nav / ops) - 1) * 100 if _isnum(tv) and _isnum(nav) and _isnum(ops) and nav > 0 and ops > 0 else None
+        out[d] = (oz, None if rr is None else round(rr, 4))
+    if not out:
+        raise RuntimeError(f'{produkt}: brak wierszy z uncjami')
+    return out
+
+
+def parse_sprott_ilosci(j):
+    """Kalkulator trustów fizycznych → {id funduszu: (dzień, ilość w jednostce źródła)} dla SU_FU_SPROTT. Najpierw podpis listy z parse_sprott
+    (kolejność, zakres ceny jednostki, jeden/dwa metale — wyjątek przy zmianie), potem ilości; ilość ≤ 0 albo zła data = fundusz pominięty."""
+    parse_sprott(j)
+    out = {}
+    for fid, i, pole in SU_FU_SPROTT:
+        r = j[i]
+        q, d = _num(r.get(pole)), str(r.get('dateTimeStamp') or '')[:10]
+        if _isnum(q) and q > 0 and re.match(r'^\d{4}-\d{2}-\d{2}$', d):
+            out[fid] = (d, q)
+    return out
+
+
+def parse_imf_il_zloto(j):
+    """MFW IL, wskaźnik RGV_REVS (złoto w rezerwach; jednostka FTO — uncje trojańskie) → ({kraj ISO2: {RRRR-MM: uncje}}, [kraje z inną
+    jednostką]). Straż skali: kraj z ostatnią wartością poza SU_BANKI_T ton = cała odpowiedź odrzucona (zmiana atrybutu SCALE)."""
+    ser = parse_imf_sdmx(j)
+    iso = {c3: c2 for c2, c3 in SU_BANKI}
+    out, inna = {}, []
+    for lab, rows in ser.items():
+        if len(lab) != 4 or lab[1] != 'RGV_REVS' or lab[3] != 'M' or lab[0] not in iso:
+            continue
+        if lab[2] != 'FTO':
+            inna.append(lab[0]); continue
+        out[iso[lab[0]]] = {m: v for m, v in rows}
+    if not out:
+        raise RuntimeError('brak krajów z jednostką FTO' + (f' (inna jednostka: {", ".join(inna)})' if inna else ''))
+    for c2, rows in out.items():
+        t = rows[max(rows)] / SU_OZ_T
+        if not SU_BANKI_T[0] <= t <= SU_BANKI_T[1]:
+            raise RuntimeError(f'{c2}: {t:.1f} t poza zakresem {SU_BANKI_T[0]:g}–{SU_BANKI_T[1]:g} t — zmiana skali? odpowiedź odrzucona')
+    return out, inna
+
+
+def parse_safe_zloto(data):
+    """SAFE „Official Reserve Assets” (xlsx) → {RRRR-MM: uncje}: wiersz nagłówka „Item”/„项目” z miesiącami „RRRR.MM” (kolumna USD; obok SDR
+    z tą samą ilością), wiersz „Gold”/„黄金”, a najwyżej 3 wiersze niżej ilość tekstem „7673万盎司” (万 = 10 000 uncji). Wartość spoza
+    SU_SAFE_WAN = cały plik odrzucony."""
+    import html as _h
+    import zipfile as _zf
+    wb = _zf.ZipFile(io.BytesIO(data)).read('xl/workbook.xml').decode('utf-8', 'replace')
+    for name in [_h.unescape(x) for x in re.findall(r'<sheet\b[^>]*\bname="([^"]*)"', wb)]:
+        rows = _xlsx_rows(data, name)
+        ks = sorted(rows)
+        head = next((k for k in ks if re.search(r'Item|项目', str(rows[k].get(1, ''))) and any(re.fullmatch(r'20\d{2}\.(0[1-9]|1[0-2])', str(v).strip())
+                                                                                                    for v in rows[k].values())), None)
+        gold = next((k for k in ks if re.search(r'黄金|^\W*\d*\.?\s*Gold\b', str(rows[k].get(1, '')).strip(), re.I)), None)
+        if head is None or gold is None:
+            continue
+        months = {c: str(v).strip().replace('.', '-') for c, v in rows[head].items() if re.fullmatch(r'20\d{2}\.(0[1-9]|1[0-2])', str(v).strip())}
+        qrow = next((rows[k] for k in ks if gold < k <= gold + 3 and any('万盎司' in str(v) for v in rows[k].values())), None)
+        if not qrow:
+            raise RuntimeError('brak wiersza ilości złota (万盎司)')
+        out = {}
+        for c, m in months.items():
+            mm = re.fullmatch(r'\s*([\d.,]+)\s*万盎司\s*', str(qrow.get(c, '')))
+            if mm:
+                w = _num(mm.group(1))
+                if not (_isnum(w) and SU_SAFE_WAN[0] <= w <= SU_SAFE_WAN[1]):
+                    raise RuntimeError(f'{m}: {mm.group(1)} 万盎司 poza zakresem — plik odrzucony')
+                out[m] = w * 10000
+        if not out:
+            raise RuntimeError('brak miesięcy z ilością złota')
+        return out
+    raise RuntimeError('brak arkusza z nagłówkiem miesięcy i wierszem złota')
+
+
+# ---- wpisy części pozycje ----
+def _su_poz_wpis(code, recs, prev_e, glowna, hf=(), extra=None):
+    """Rekordy jednego rynku {dzień: {'name','oi','g'}} → wpis części pozycje: ostatni raport — open interest, pos (wszystkie grupy [long, short,
+    spread] — kontrola sumy), netto grupy głównej (glowna: 'mm' fundusze zarządzające, 'cit' fundusze indeksowe, 'asset_mgr' zarządzający
+    aktywami) i jego udział w open interest (pct, %); zmiana tygodnia d1 / d1p — tylko wobec raportu sprzed 7 dni (inaczej null); historia
+    13 tygodni z okna 90 dni (h: d, net, oi + pola hf), brakujące starsze tygodnie z poprzedniego wpisu tego rynku."""
+    days = sorted(recs)
+    last, ld = recs[days[-1]], _cftc_iso(days[-1])
+    fields = (('net', glowna),) + tuple(hf)
+    H = {}
+    ph = prev_e.get('h') if isinstance(prev_e, dict) and isinstance(prev_e.get('h'), dict) else {}
+    for i, d in enumerate(ph.get('d') or []):
+        dd = _cftc_iso(d)
+        vals = {'oi': _cftc_hv(ph.get('oi'), i), **{f: _cftc_hv(ph.get(f), i) for f, _ in fields}}
+        if dd and 0 < (ld - dd).days <= CFTC_SPAN_DAYS and vals['oi'] and vals['net'] is not None:
+            H[d] = vals
+    for d in days:
+        dd = _cftc_iso(d)
+        if (ld - dd).days <= CFTC_SPAN_DAYS:
+            H[d] = {'oi': recs[d]['oi'], **{f: recs[d]['g'][g]['net'] for f, g in fields}}
+    hd = sorted(H)[-CFTC_WEEKS:]
+    oi, n = last['oi'], last['g'][glowna]['net']
+    pct = round(100.0 * n / oi, 1) if oi and n is not None else None
+    w = H.get((ld - datetime.timedelta(days=7)).isoformat())
+    e = {'code': code, 'asof': days[-1], 'oi': oi, 'net': n, 'pct': pct,
+         'd1': n - w['net'] if w and n is not None and w['net'] is not None else None,
+         'd1p': round(pct - 100.0 * w['net'] / w['oi'], 1) if w and pct is not None and w['net'] is not None and w['oi'] else None,
+         'pos': {gk: [x['long'], x['short'], x['spread']] for gk, x in last['g'].items()},
+         'h': {'d': hd, 'oi': [H[d]['oi'] for d in hd], **{f: [H[d][f] for d in hd] for f, _ in fields}}}
+    if extra:
+        e.update(extra)
+    return e
+
+
+def _su_poz_zapisz(ctx, sub, pairs, rows, prev_sub, glowna, hf=(), extra=None, nazwa=''):
+    """Wpisy jednej podczęści (cftc, ice, cit, tff) z rekordów rows {kod: {dzień: rekord}}; pairs — [(id, kod, dodatki wpisu)]. Rynek bez
+    rekordów — notatka; poprzedni wpis zostaje (najwyżej CFTC_KEEP_DAYS dni od jego daty) z polem kept. Bez żadnego rynku = wyjątek."""
+    out, brak, now = {}, [], ctx['now'].date()
+    for k, code, dod in pairs:
+        recs = rows.get(code) or {}
+        pe = prev_sub.get(k) if isinstance(prev_sub.get(k), dict) else None
+        if recs:
+            out[k] = _su_poz_wpis(code, recs, pe, glowna, hf, dict(extra or {}, **(dod or {})))
+            continue
+        brak.append(k)
+        pd = _cftc_iso(pe.get('asof')) if pe else None
+        if pd and 0 <= (now - pd).days <= CFTC_KEEP_DAYS:
+            out[k] = dict(pe, kept=True)
+    if brak:
+        ctx['uwagi'].append(f'pozycje {nazwa or sub}: brak rynku w raporcie — {", ".join(brak[:8])}' + (' …' if len(brak) > 8 else ''))
+    if not any(not e.get('kept') for e in out.values()):
+        raise RuntimeError('żaden rynek nie ma danych z tego pobrania')
+    ctx['poz'][sub] = out
+    return max(e['asof'] for e in out.values() if not e.get('kept'))
+
+
+def _su_poz_prev(ctx, sub):
+    pp = ctx['prev'].get('pozycje') if isinstance(ctx.get('prev'), dict) and isinstance(ctx['prev'].get('pozycje'), dict) else {}
+    return pp.get(sub) if isinstance(pp.get(sub), dict) else {}
+
+
+def _su_poz_krotka(rows, pairs, prev_sub):
+    """Czy historia któregoś rynku (nowe rekordy + poprzedni wpis) ma mniej niż 13 tygodni — wtedy plik roczny."""
+    for k, code, _ in pairs:
+        d = set(rows.get(code) or {})
+        pe = prev_sub.get(k) if isinstance(prev_sub.get(k), dict) else {}
+        d |= set(((pe.get('h') or {}).get('d') or []) if isinstance(pe.get('h'), dict) else [])
+        if len(d) < CFTC_WEEKS:
+            return True
+    return False
+
+
+def _su_poz_rok(ctx, src, rows, prev_sub, pairs):
+    """Czy pobrać plik roczny: historia któregoś rynku krótsza niż 13 tygodni i plik roczny nie był pobierany dla tego raportu (najwyżej raz
+    na raport tygodniowy — rynek z krótką historią, np. nowy, nie ściąga pliku przy każdym przebiegu). Zapamiętuje raport w st[src]['rok']."""
+    z = ctx['st'].setdefault(src, {})
+    tyg = max((d for days in rows.values() for d in days), default='')
+    if not _su_poz_krotka(rows, pairs, prev_sub) or z.get('rok') == tyg:
+        return False
+    z['rok'] = tyg
+    return True
+
+
+def _su_raw(ctx, src, url):
+    """Odpowiedź lidera z tego przebiegu (ctx['raw']) albo własne pobranie źródła src."""
+    raw = ctx.get('raw') if isinstance(ctx.get('raw'), dict) else {}
+    return raw[url] if url in raw else _su_get(ctx, src, url)
+
+
+def _su_zip_txt(b):
+    with zipfile.ZipFile(io.BytesIO(b)) as z:
+        names = [n for n in z.namelist() if n.lower().endswith('.txt')]
+        if not names:
+            raise RuntimeError('brak pliku .txt w archiwum')
+        return z.read(names[0]).decode('utf-8', 'replace')
+
+
+def _su_poz_dodaj(rows, bad, parsed, nadpisz=True):
+    p, b = parsed
+    bad.extend(b)
+    for code, days in p.items():
+        tgt = rows.setdefault(code, {})
+        for d, rec in days.items():
+            if nadpisz or d not in tgt:
+                tgt[d] = rec
+
+
+def _su_poz_cftcd(ctx):
+    """Pozycje — CFTC disaggregated, 30 rynków (SU_POZ_CFTC): pliki roczny i tygodniowy z pobrania części „markets” w tym przebiegu (bez
+    zapytań); bez niego — własne pobranie (rok bieżący, tydzień; rok poprzedni przy krótkiej historii w styczniu–kwietniu)."""
+    pairs = [(k, c, {'g': g}) for k, c, g in SU_POZ_CFTC]
+    want, prev_sub, now = {c for _, c, _ in pairs}, _su_poz_prev(ctx, 'cftc'), ctx['now']
+    raw = ctx.get('raw') if isinstance(ctx.get('raw'), dict) else {}
+    rows, bad = {}, []
+
+    def rok(y, nadpisz=True):
+        try:
+            _su_poz_dodaj(rows, bad, parse_cftcd(_su_zip_txt(_su_raw(ctx, 'cftcd', CFTCD_YEAR_URL.format(y))), want=want), nadpisz)
+        except urllib.error.HTTPError as e:
+            (ctx['uwagi'] if e.code == 404 else ctx['bledy']).append(f'cftcd rok {y}: HTTP {e.code}')
+        except Exception as e:
+            ctx['bledy'].append(f'cftcd rok {y}: {e}')
+    for y in sorted(y for y in (now.year - 1, now.year) if CFTCD_YEAR_URL.format(y) in raw) or [now.year]:
+        rok(y)
+    try:
+        _su_poz_dodaj(rows, bad, parse_cftcd(_su_raw(ctx, 'cftcd', CFTCD_WEEK_URL).decode('utf-8', 'replace'), header=CFTCD_COLS, want=want))
+    except Exception as e:
+        ctx['bledy'].append(f'cftcd tydzień: {e}')
+    if CFTCD_YEAR_URL.format(now.year - 1) not in raw and now.month <= 4 and _su_poz_rok(ctx, 'cftcd', rows, prev_sub, pairs):
+        rok(now.year - 1, nadpisz=False)
+    if bad:
+        ctx['uwagi'].append('pozycje cftc: suma pozycji ≠ open interest (wiersz pominięty) — ' + ', '.join(bad[-5:]))
+    return _su_poz_zapisz(ctx, 'cftc', pairs, rows, prev_sub, 'mm', nazwa='USA (30 rynków)')
+
+
+def _su_poz_ice(ctx):
+    """Pozycje — ICE Futures Europe (plik roczny CSV ok. 0,3 MB); rok poprzedni tylko przy krótkiej historii (start, styczeń–kwiecień) albo
+    gdy pliku bieżącego roku jeszcze nie ma (HTTP 404 w pierwszych dniach stycznia)."""
+    pairs = [(k, c, {'g': g}) for k, c, g in SU_POZ_ICE]
+    prev_sub, now = _su_poz_prev(ctx, 'ice'), ctx['now']
+    rows, bad = {}, []
+
+    def rok(y, nadpisz=True):
+        _su_poz_dodaj(rows, bad, parse_ice_cot(_su_get(ctx, 'ice', SU_ICE_URL.format(y)).decode('utf-8-sig', 'replace')), nadpisz)
+    nie = False
+    try:
+        rok(now.year)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+        nie = True
+        ctx['uwagi'].append(f'pozycje ice: brak pliku {now.year} (HTTP 404 — w pierwszych dniach stycznia to normalne)')
+    if nie or (now.month <= 4 and _su_poz_rok(ctx, 'ice', rows, prev_sub, pairs)):
+        rok(now.year - 1, nadpisz=False)
+    if bad:
+        ctx['uwagi'].append('pozycje ice: suma pozycji ≠ open interest albo zła data (wiersz pominięty) — ' + ', '.join(bad[-5:]))
+    return _su_poz_zapisz(ctx, 'ice', pairs, rows, prev_sub, 'mm', nazwa='Londyn')
+
+
+def _su_poz_cit(ctx):
+    """Pozycje — CFTC CIT (fundusze indeksowe, 13 rynków rolnych): plik tygodniowy (6,5 KB); roczny (70 KB) tylko przy krótkiej historii."""
+    kod = {k: c for k, c, _ in SU_POZ_CFTC}
+    pairs = [(k, kod[k], {}) for k in SU_POZ_CIT]
+    prev_sub, now = _su_poz_prev(ctx, 'cit'), ctx['now']
+    rows, bad = {}, []
+    _su_poz_dodaj(rows, bad, parse_cit(_su_get(ctx, 'cit', SU_CIT_WEEK_URL).decode('utf-8', 'replace'), header=SU_CIT_COLS))
+    if _su_poz_rok(ctx, 'cit', rows, prev_sub, pairs):
+        for y in (now.year, now.year - 1):
+            try:
+                _su_poz_dodaj(rows, bad, parse_cit(_su_zip_txt(_su_get(ctx, 'cit', SU_CIT_YEAR_URL.format(y)))), nadpisz=False)
+            except urllib.error.HTTPError as e:
+                (ctx['uwagi'] if e.code == 404 else ctx['bledy']).append(f'cit rok {y}: HTTP {e.code}')
+            if now.month > 4 or not _su_poz_krotka(rows, pairs, prev_sub):
+                break
+    if bad:
+        ctx['uwagi'].append('pozycje cit: suma pozycji ≠ open interest (wiersz pominięty) — ' + ', '.join(bad[-5:]))
+    for c, days in rows.items():
+        for rec in days.values():
+            rec['pct_l'] = round(100.0 * rec['g']['cit']['long'] / rec['oi'], 1) if rec['oi'] else None
+    out = _su_poz_zapisz(ctx, 'cit', pairs, rows, prev_sub, 'cit', nazwa='fundusze indeksowe')
+    for k, e in ctx['poz']['cit'].items():
+        if not e.get('kept'):
+            r = (rows.get(e['code']) or {}).get(e['asof'])
+            e['pct_l'] = r.get('pct_l') if r else None   # udział długich pozycji funduszy indeksowych w open interest (%)
+    return out
+
+
+def _su_poz_tff(ctx):
+    """Pozycje — CFTC TFF, kod 221602 (kontrakty na szeroki indeks surowców): plik tygodniowy FinFutWk.txt (73 KB, ten sam co data/cftc.json);
+    roczny (0,55 MB) tylko przy krótkiej historii. Grupa główna: zarządzający aktywami (asset_mgr); w historii także netto dealerów (dn)."""
+    pairs = [(k, c, {}) for k, c in SU_POZ_TFF]
+    codes, prev_sub, now = {c for _, c in SU_POZ_TFF}, _su_poz_prev(ctx, 'tff'), ctx['now']
+    rows, bad = {}, []
+
+    def dodaj(parsed, nadpisz=True):
+        for code, days in parsed.items():
+            for d, r in days.items():
+                rec = cftc_record(r)
+                if not cftc_consistent(rec):
+                    bad.append(f'{code} {d}'); continue
+                if nadpisz or d not in rows.get(code, {}):
+                    rows.setdefault(code, {})[d] = rec
+    dodaj(parse_cftc_csv(_su_get(ctx, 'tff', CFTC_WEEK_URL).decode('utf-8', 'replace'), header=CFTC_COLS, codes=codes))
+    if _su_poz_rok(ctx, 'tff', rows, prev_sub, pairs):
+        for y in (now.year, now.year - 1):
+            try:
+                dodaj(parse_cftc_csv(_su_zip_txt(_su_get(ctx, 'tff', CFTC_YEAR_URL.format(y))), codes=codes), nadpisz=False)
+            except urllib.error.HTTPError as e:
+                (ctx['uwagi'] if e.code == 404 else ctx['bledy']).append(f'tff rok {y}: HTTP {e.code}')
+            if now.month > 4 or not _su_poz_krotka(rows, pairs, prev_sub):
+                break
+    if bad:
+        ctx['uwagi'].append('pozycje tff: suma pozycji ≠ open interest (wiersz pominięty) — ' + ', '.join(bad[-5:]))
+    return _su_poz_zapisz(ctx, 'tff', pairs, rows, prev_sub, 'asset_mgr', hf=(('dn', 'dealer'),), nazwa='indeks surowców')
+
+
+# ---- fundusze ----
+def _su_fu_spdr(ctx, src, produkt, data):
+    g = parse_spdr_ilosc(data, produkt)
+    last = max(g)
+    od = (datetime.date.fromisoformat(last) - datetime.timedelta(days=SU_FU_HIST_DNI)).isoformat()
+    tgt = ctx['H']['f'].setdefault(produkt, {})
+    for d, (oz, _r) in g.items():
+        if d >= od:
+            tgt[d] = round(oz / SU_OZ_T, 3)
+    z = ctx['st'].setdefault(src, {})
+    z['q'] = {produkt: [last, round(g[last][0], 2)]}
+    z['nav_r'] = {produkt: g[last][1]}   # odchylenie wartości aktywów od uncji × ceny (%) — kontrola dzienna
+    return last
+
+
+def _su_fu_gld(ctx):
+    """Fundusze — GLD: archiwum z pobrania ceny złota w tym przebiegu (źródło gld; bez zapytania) albo własne pobranie."""
+    return _su_fu_spdr(ctx, 'gld_t', 'GLD', _su_raw(ctx, 'gld_t', SU_GLD_URL))
+
+
+def _su_fu_gldm(ctx):
+    """Fundusze — GLDM: archiwum funduszu (0,2 MB), te same terminy co GLD."""
+    return _su_fu_spdr(ctx, 'gldm', 'GLDM', _su_get(ctx, 'gldm', SU_GLDM_URL))
+
+
+def _su_fu_sprott(ctx):
+    """Fundusze — trusty fizyczne Sprott (odpowiedź źródła sprott z tego przebiegu albo własne pobranie): ilości metalu. Bez udanego lidera
+    w tym przebiegu — także sprawdzenie kolejności listy złotem i srebrem (jak w _su_sprott). Skok ilości > SU_FU_SKOK w ≤ 7 dni = punkt odrzucony."""
+    j = _su_json(_su_raw(ctx, 'sprott_t', SU_SPROTT_URL))
+    day, _vals, kon = parse_sprott(j)
+    if 'sprott' not in (ctx.get('udane') or ()):
+        od = (datetime.date.fromisoformat(day) - datetime.timedelta(days=7)).isoformat()
+        for cid, tol in (('gold', 0.05), ('silver', 0.10)):
+            ref = _su_last(sorted((d, x) for d, x in (ctx['H']['d'].get(cid) or {}).items() if od <= d <= day))
+            if ref and abs(kon[cid] / ref[1] - 1) > tol:
+                raise RuntimeError(f'{cid} z listy {kon[cid]:.2f} wobec {ref[1]} ({ref[0]}) — zmiana kolejności listy? odpowiedź odrzucona')
+    il = parse_sprott_ilosci(j)
+    jedn = {fid: qu for fid, _m, _u, _z, qu in SU_FU}
+    q, asof = {}, ''
+    for fid, (d, x) in il.items():
+        v = round(x / SU_OZ_T, 3) if jedn[fid] == 'oz' else (round(x / 1e6, 3) if jedn[fid] == 'lb' else round(x, 3))
+        tgt = ctx['H']['f'].setdefault(fid, {})
+        p = _su_last(sorted((a, b) for a, b in tgt.items() if a < d))
+        if p and (datetime.date.fromisoformat(d) - datetime.date.fromisoformat(p[0])).days <= 7 and abs(v / p[1] - 1) > SU_FU_SKOK:
+            ctx['bledy'].append(f'sprott_t {fid}: {p[1]} → {v} ({(v / p[1] - 1) * 100:+.0f}%) — punkt odrzucony (zmiana kolejności listy?)'); continue
+        tgt[d] = v
+        q[fid] = [d, x]
+        asof = max(asof, d)
+    if not q:
+        raise RuntimeError('żaden fundusz bez błędu')
+    ctx['st'].setdefault('sprott_t', {})['q'] = q
+    return asof
+
+
+def _su_fu_iau(H, fund):
+    """IAU — tony złota wyliczone: wartość aktywów (NAV × liczba jednostek z pliku funduszy strony; dni bez błędu pliku wg _fund_clean) ÷ cena
+    złota z tego samego dnia (LBMA PM wyliczona z archiwum GLD — tą ceną fundusz wycenia złoto) ÷ 32 150,7466. Sprawdzone 06.10.2026: 463,52 t
+    wobec 463,54 t na stronie wydawcy (−0,003%). Plik funduszy z poprzedniego przebiegu (ten budowniczy działa przed funduszami) — dzień później
+    o jeden przebieg. Oznaczenie x 'wyl'."""
+    fi = ((fund or {}).get('f') or {}).get('IAU') if isinstance(fund, dict) and isinstance(fund.get('f'), dict) else None
+    h = fi.get('h') if isinstance(fi, dict) else None
+    if not isinstance(h, list):
+        return None
+    G, tgt, last = H['d'].get('gold') or {}, H['f'].setdefault('IAU', {}), None
+    for r in _fund_clean(h)[0]:
+        d, nav, u = r
+        p = G.get(d) if isinstance(d, str) else None
+        if _isnum(nav) and _isnum(u) and nav > 0 and u > 0 and _isnum(p) and p > 0:
+            tgt[d] = round(nav * u / p / SU_OZ_T, 3)
+            last = [d, round(nav * u / p, 2)] if last is None or d >= last[0] else last
+    return last
+
+
+def _su_w1(rows):
+    """Zmiana tygodnia: [dzień odniesienia, ostatnia − wartość z ostatniego dnia ≤ ostatni − 7 dni (w ciągu 14 dni)] albo None."""
+    if not rows:
+        return None
+    ld = datetime.date.fromisoformat(rows[-1][0])
+    ref = next((r for r in reversed(rows) if (ld - datetime.date.fromisoformat(r[0])).days >= 7), None)
+    if not ref or (ld - datetime.date.fromisoformat(ref[0])).days > 14 or not _isnum(ref[1]) or not _isnum(rows[-1][1]):
+        return None
+    return [ref[0], round(rows[-1][1] - ref[1], 3)]
+
+
+def _su_fu_sumy(F):
+    """Sumy złota w funduszach ({id sumy: [[dzień, t]]}) w dniach sesji NYSE według GLD: dzień tylko, gdy każdy fundusz ma wartość — z tego dnia
+    albo (dziura wewnątrz serii: święto giełdy) z ostatniego dnia ≤ SU_FU_LUKA dni wcześniej; nigdy za końcem serii (bez przedłużania)."""
+    out = {}
+    for sid, sklad in SU_FU_SUMY:
+        S = {f: sorted((d, v) for d, v in (F.get(f) or {}).items() if _isnum(v)) for f in sklad}
+        if not all(S.values()):
+            continue
+        K = {f: [d for d, _ in s] for f, s in S.items()}
+        rows = []
+        for D in K['GLD']:
+            tot = 0.0
+            for f in sklad:
+                i = bisect.bisect_right(K[f], D) - 1
+                if i < 0:
+                    break
+                if K[f][i] != D and (i + 1 >= len(K[f]) or (datetime.date.fromisoformat(D) - datetime.date.fromisoformat(K[f][i])).days > SU_FU_LUKA):
+                    break
+                tot += S[f][i][1]
+            else:
+                rows.append([D, round(tot, 3)])
+        if rows:
+            out[sid] = rows
+    return out
+
+
+# ---- banki ----
+def _su_bk_imf(ctx):
+    """Banki — MFW IL: złoto w uncjach dla 10 krajów (jedno zapytanie, 11 KB); historia łączona z poprzednią (kraj ze swoim miesiącem)."""
+    got, inna = parse_imf_il_zloto(_su_json(_su_get(ctx, 'imf_il', SU_IMF_IL_ZL_URL, {'Accept': 'application/json'})))
+    if inna:
+        ctx['uwagi'].append('banki: inna jednostka złota niż uncje (pominięte) — ' + ', '.join(inna))
+    brak = [c2 for c2, _ in SU_BANKI if c2 not in got]
+    if brak:
+        ctx['uwagi'].append('banki: brak kraju w odpowiedzi MFW (poprzednie dane zostają) — ' + ', '.join(brak))
+    for c2, rows in got.items():
+        ctx['H']['b'].setdefault(c2, {}).update(rows)
+    return max(max(r) for r in got.values())
+
+
+def _su_bk_safe(ctx):
+    """Banki — SAFE (Chiny): strona „Official Reserve Assets” (18 KB) → plik miesiąca (16 KB; adres zmienia się co miesiąc)."""
+    page = _su_get(ctx, 'safe_zl', SU_SAFE_ZL_PAGE).decode('utf-8', 'replace')
+    if 'Official Reserve Assets' not in page:
+        raise RuntimeError('strona bez tytułu „Official Reserve Assets” — zmiana adresu?')
+    m = re.search(r'href="([^"]+\.xlsx)"', page)
+    if not m:
+        raise RuntimeError('brak odnośnika do pliku na stronie')
+    url = m.group(1) if m.group(1).startswith('http') else 'https://www.safe.gov.cn' + m.group(1)
+    rows = parse_safe_zloto(_su_get(ctx, 'safe_zl', url))
+    ctx['H']['b'].setdefault('CN_safe', {}).update(rows)
+    return max(rows)
+
+
+SU_POBIERZ.update({'cftcd': _su_poz_cftcd, 'ice': _su_poz_ice, 'cit': _su_poz_cit, 'tff': _su_poz_tff, 'gld_t': _su_fu_gld, 'gldm': _su_fu_gldm,
+                   'sprott_t': _su_fu_sprott, 'imf_il': _su_bk_imf, 'safe_zl': _su_bk_safe})
+
+
+def _su_hist3(H, prev):
+    """Historia etapu 3 z poprzedniego surowce.json (gdy brak surowce-hist.json): ilości funduszy (f) i złoto banków (b; uncje z ton — ostatni
+    miesiąc dokładnie z pola oz)."""
+    if not (isinstance(prev, dict) and prev.get('v') == SU_V):
+        return
+    fu = prev.get('fundusze') if isinstance(prev.get('fundusze'), dict) else {}
+    for fid, e in ((fu.get('f') or {}).items() if isinstance(fu.get('f'), dict) else ()):
+        for r in (e.get('d') or []) if isinstance(e, dict) else []:
+            if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and _isnum(r[1]):
+                H['f'].setdefault(fid, {}).setdefault(r[0], r[1])
+    bk = prev.get('banki') if isinstance(prev.get('banki'), dict) else {}
+    for c2, e in ((bk.get('kr') or {}).items() if isinstance(bk.get('kr'), dict) else ()):
+        if not isinstance(e, dict):
+            continue
+        od = e.get('safe_od') if c2 == 'CN' and isinstance(e.get('safe_od'), str) else None   # miesiące z SAFE (Chiny) — do osobnej serii
+        for r in e.get('d') or []:
+            if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and _isnum(r[1]):
+                tgt = H['b'].setdefault('CN_safe' if od and r[0] >= od else c2, {})
+                tgt.setdefault(r[0], e['oz'] if r[0] == e.get('asof') and _isnum(e.get('oz')) else round(r[1] * SU_OZ_T, 2))
+
+
+def _su_etap3(ctx, prev):
+    """Części pozycje, fundusze i banki pliku surowce.json (z historii H i wyników źródeł tego przebiegu; źródło bez pobrania = poprzednie
+    dane z ich datą) oraz sumy złota w funduszach do surowce-hist.json (klucz fs)."""
+    H, st = ctx['H'], ctx['st']
+    prev = prev if isinstance(prev, dict) and prev.get('v') == SU_V else {}
+    # pozycje
+    pp = prev.get('pozycje') if isinstance(prev.get('pozycje'), dict) else {}
+    poz = {'unit': 'kontrakty', 'asof': {}}
+    for sub, ids in (('cftc', [k for k, _, _ in SU_POZ_CFTC]), ('ice', [k for k, _, _ in SU_POZ_ICE]), ('cit', list(SU_POZ_CIT)),
+                     ('tff', [k for k, _ in SU_POZ_TFF])):
+        src = ctx['poz'].get(sub)
+        if src is None:   # podczęść bez pobrania w tym przebiegu — poprzednie wpisy (z ich datami)
+            src = {k: e for k, e in (pp.get(sub) or {}).items() if isinstance(e, dict)} if isinstance(pp.get(sub), dict) else {}
+        poz[sub] = {k: src[k] for k in ids if k in src}
+        a = [e['asof'] for e in poz[sub].values() if isinstance(e.get('asof'), str)]
+        if a:
+            poz['asof'][sub] = max(a)
+    # fundusze
+    iau = _su_fu_iau(H, ctx.get('fund'))
+    q = {}
+    for src in ('gld_t', 'gldm', 'sprott_t'):
+        q.update((st.get(src) or {}).get('q') or {})
+    if iau:
+        q['IAU'] = iau
+    nav = {**((st.get('gld_t') or {}).get('nav_r') or {}), **((st.get('gldm') or {}).get('nav_r') or {})}
+    f = {}
+    for fid, metal, u, z, qu in SU_FU:
+        rows = [[d, v] for d, v in sorted((H['f'].get(fid) or {}).items()) if _isnum(v)][-SU_FU_DNI:]
+        if not rows:
+            continue
+        e = {'m': metal, 'u': u, 'z': z, 'asof': rows[-1][0], 'd': rows, 'w1': _su_w1(rows), 'qu': qu}
+        if fid == 'IAU':
+            e['x'] = ['wyl']
+        if isinstance(q.get(fid), list) and len(q[fid]) == 2:
+            e['q'] = q[fid]
+        if fid in nav and nav[fid] is not None:
+            e['nav_r'] = nav[fid]
+        f[fid] = e
+    sumy = _su_fu_sumy(H['f'])
+    suma = {}
+    for sid, sklad in SU_FU_SUMY:
+        rows = (sumy.get(sid) or [])[-SU_FU_DNI:]
+        if rows:
+            suma[sid] = {'u': 't', 'sklad': list(sklad), 'asof': rows[-1][0], 'd': rows, 'w1': _su_w1(rows)}
+    fund = {'u': 't', 'f': f, 'suma': suma}
+    # banki
+    safe = {m: v for m, v in (H['b'].get('CN_safe') or {}).items() if _isnum(v)}
+    kr = {}
+    for c2, _c3 in SU_BANKI:
+        imf = {m: v for m, v in (H['b'].get(c2) or {}).items() if _isnum(v)}
+        rows, zr = dict(imf), {m: 'imf' for m in imf}
+        if c2 == 'CN':
+            for m, v in safe.items():
+                if not imf or m > max(imf):
+                    rows[m], zr[m] = v, 'safe'
+        if not rows:
+            continue
+        ks = sorted(rows)[-SU_BANKI_M:]
+        last = ks[-1]
+        p1, p12 = _imf_month_add(last, -1), _imf_month_add(last, -12)
+        e = {'u': 't', 'asof': last, 'z': zr[last], 'oz': rows[last], 'd': [[m, round(rows[m] / SU_OZ_T, 3)] for m in ks],
+             'm1': round((rows[last] - rows[p1]) / SU_OZ_T, 3) if p1 in rows else None,
+             'm12': round((rows[last] - rows[p12]) / SU_OZ_T, 3) if p12 in rows else None}
+        if c2 == 'CN':
+            od = [m for m in ks if zr[m] == 'safe']
+            if od:
+                e['safe_od'] = od[0]   # pierwszy miesiąc z SAFE (nowszy niż ostatni miesiąc MFW)
+            wsp = sorted(set(imf) & set(safe))[-6:]
+            if wsp:
+                e['kontr'] = [[m, imf[m], safe[m]] for m in wsp]   # ten sam miesiąc z dwóch źródeł (uncje) — kontrola dzienna
+        kr[c2] = e
+    banki = {'u': 't', 'order': sorted(kr, key=lambda c: -kr[c]['d'][-1][1]), 'kr': kr}
+    return {'pozycje': poz, 'fundusze': fund, 'banki': banki}, sumy
+
+
 def _su_crack(H):
     """Marża rafinerii 3:2:1 (USD/bbl, wyliczona): (2 × benzyna NYH + 1 × olej napędowy NYH) × 42 ÷ 3 − WTI; brak składnika = null."""
     W, G, U = (H['d'].get(k) or {} for k in ('wti', 'gas_nyh', 'ulsd_nyh'))
@@ -9912,7 +10708,7 @@ def _su_crack(H):
                           for d, w in W.items()}
 
 
-def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, budzet_s=None, run_t0=None, fund=None):   # v298: fund — data/fundusze.json (IAU)
     """v295: data/surowce.json w wersji 2 i data/surowce-hist.json → (surowce, historia, zbiór źródeł pobranych w tym przebiegu).
     Każde źródło ma własną bramkę (_su_due) i budżet czasu; źródło bez klucza — pominięte z notatką; źródło z błędem — poprzednie dane z datą
     (część z ok False i krótkim błędem err). Bez wyjątku na zewnątrz poza błędem w samym budowniczym (main zostawia wtedy poprzednie pliki)."""
@@ -9923,6 +10719,7 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
     v2 = prev.get('v') == SU_V
     st = json.loads(json.dumps(prev.get('st'))) if v2 and isinstance(prev.get('st'), dict) else {}
     H = _su_hist_load(prev_hist, prev)
+    _su_hist3(H, prev)   # v298: historia etapu 3 z poprzedniego pliku, gdy brak surowce-hist.json
     P = {}
     for part in ('ceny', 'zapasy'):
         for cid, e in ((prev.get(part) or {}).items() if v2 else ()):
@@ -9940,6 +10737,8 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
     late = run_t0 is not None and time.monotonic() - run_t0 > SU_LATE
     S = {'st': st, 'markets_asof': prev.get('asof')}
     proby, udane, zle = {p: 0 for p in SU_PARTS}, set(), {}
+    S['udane'] = ctx['udane'] = udane   # v298: źródła udane w tym przebiegu — naśladowcy (SU_ZA) biorą odpowiedź lidera
+    ctx.update(raw={}, poz={}, fund=fund)
     pominiete = []
     for src, part in SU_ZR:
         z = st.setdefault(src, {})
@@ -10064,6 +10863,15 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
                 'st': st, 'ceny': ceny, 'zapasy': zapasy, 'mies': mies})
     if kontr:
         out['kontr'] = kontr
+    try:
+        e3, su_fs = _su_etap3(ctx, prev)   # v298: części pozycje, fundusze, banki (+ sumy złota w funduszach do historii)
+    except Exception as e:   # błąd składania etapu 3 nie zatrzymuje pozostałych części — poprzednie dane etapu 3 z ich datami
+        META['errors'].append(mask(f'surowce etap 3: {e}')[:200])
+        e3, su_fs = {p: prev[p] for p in ('pozycje', 'fundusze', 'banki') if v2 and isinstance(prev.get(p), dict)}, {}
+    out.update(e3)
+    pi = ((((prev.get('fundusze') or {}).get('f') or {}).get('IAU') or {}).get('asof')) if v2 and isinstance(prev.get('fundusze'), dict) else None
+    if ((((e3.get('fundusze') or {}).get('f') or {}).get('IAU') or {}).get('asof')) not in (None, pi):   # IAU z pliku funduszy strony (bez źródła) — nowy dzień
+        out['part_at']['fundusze'] = now_iso                                                            # = nowe dane części
     out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
     out['next'] = {p: _su_next(p, out, now) for p in SU_PARTS}
     for x in ctx['uwagi']:
@@ -10076,7 +10884,10 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
     hist = {'v': 1, 'at': out['at'], 'src': 'CapitalFlowAI — historia działu SUROWCE (te same pobrania co data/surowce.json; kody źródeł jak tam)',
             'd': {k: [[d, v] for d, v in sorted(r.items())][-SU_H:] for k, r in sorted(H['d'].items()) if r},
             'w': {k: [[d, v] for d, v in sorted(r.items())][-SU_WH:] for k, r in sorted(H['w'].items()) if r},
-            'm': {k: [[d, v] for d, v in sorted(r.items())][-SU_MH:] for k, r in sorted(H['m'].items()) if r}}
+            'm': {k: [[d, v] for d, v in sorted(r.items())][-SU_MH:] for k, r in sorted(H['m'].items()) if r},
+            'f': {k: [[d, v] for d, v in sorted(r.items())][-SU_H:] for k, r in sorted(H['f'].items()) if r},    # v298: ilości w funduszach
+            'fs': {k: r[-SU_H:] for k, r in sorted(su_fs.items()) if r},                                           # sumy złota (wyliczone)
+            'b': {k: [[d, v] for d, v in sorted(r.items())][-SU_MH:] for k, r in sorted(H['b'].items()) if r}}   # złoto banków (uncje)
     return out, hist, udane
 
 
@@ -21772,7 +22583,8 @@ def main():
     if fmp_su and fmp_su not in SECRETS:
         SECRETS.append(fmp_su)
     try:
-        su, sh, su_zm = build_surowce(prev_su, prev_sh, {'EIA_KEY': eia_key, 'TWELVEDATA_KEY': td_key, 'FMP_KEY': fmp_su}, run_t0=_RUN_T0[0])
+        su, sh, su_zm = build_surowce(prev_su, prev_sh, {'EIA_KEY': eia_key, 'TWELVEDATA_KEY': td_key, 'FMP_KEY': fmp_su}, run_t0=_RUN_T0[0],
+                                      fund=_prev_cache('fundusze'))   # v298: IAU — plik funduszy z pamięci Actions (bez pobierania ze strony)
         save('surowce', su); save('surowce-hist', sh); _SU_RUN.update(su=su, zmiany=set(su_zm))
         for p in SU_PARTS:
             META['ok']['surowce' if p == 'markets' else 'surowce_' + p] = su['ok'][p]

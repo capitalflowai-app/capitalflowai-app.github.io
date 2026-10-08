@@ -25596,7 +25596,8 @@ class PoPrzegladzieV211(unittest.TestCase):
         self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 3)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
-        self.assertEqual(set(self.k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies'}, 'v215: snb — zwykła ocena; v295: + surowce')
+        self.assertEqual(set(self.k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',
+                                                    'surowce_fundusze', 'surowce_banki'}, 'v215: snb — zwykła ocena; v295: + surowce; v298: + etap 3')
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
         t, k = self._t, self.k
@@ -25689,7 +25690,8 @@ class PoPrzegladzieV215(unittest.TestCase):
         Z = k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
-        self.assertEqual(set(k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies'})   # v295: + części surowców
+        self.assertEqual(set(k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',
+                                               'surowce_fundusze', 'surowce_banki'})   # v295: + części surowców; v298: + etap 3
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
 
@@ -31678,8 +31680,10 @@ class SurowceV295(unittest.TestCase):
         return self.api(sorted(rows, reverse=True), lambda s: '$/BBL' if s in ('RWTC', 'RBRTE') else '$/GAL')
 
     def gld_xlsx(self):
-        head = ['Date', 'Closing Price', 'Ounces of Gold per Share', 'NAV/Share at 10:30am NYT', 'Indicative Price per Share at 4:15pm NYT']
-        return _xlsx({'Disclaimer': [['x']], 'US GLD Historical Archive': [head] + [[d, 1.0, oz, nav, 1.0] for d, oz, nav in self.GLD]})
+        head = ['Date', 'Closing Price', 'Ounces of Gold per Share', 'NAV/Share at 10:30am NYT', 'Indicative Price per Share at 4:15pm NYT',
+                'Total Ounces of Gold in the Trust', 'Total Net Asset Value in the Trust']   # v298: ilość złota w funduszu (część fundusze)
+        return _xlsx({'Disclaimer': [['x']], 'US GLD Historical Archive': [head] + [[d, 1.0, oz, nav, 1.0] + list(SurowceEtap3V298.GLD_IL[d])
+                                                                              for d, oz, nav in self.GLD]})
 
     def wb_xlsx(self, cocoa_unit='($/kg)'):
         names = ['', 'Crude oil, average', 'Crude oil, Brent', 'Crude oil, WTI', 'Copper', 'Gold', 'Cocoa', 'Beef **']
@@ -31765,6 +31769,9 @@ class SurowceV295(unittest.TestCase):
                 return self.WB_PAGE.encode()
             if url.endswith('CMO-Historical-Data-Monthly.xlsx'):
                 return self.wb_xlsx()
+            e3 = SurowceEtap3V298.siec3(url)   # v298: źródła etapu 3 (pozycje, fundusze, banki)
+            if e3 is not None:
+                return e3
             raise AssertionError('nieoczekiwany adres w teście: ' + url)
         return fetch, calls
 
@@ -31959,10 +31966,13 @@ class SurowceV295(unittest.TestCase):
         for k in ('at', 'src', 'url', 'data_url', 'unit', 'asof', 'order', 'markets'):
             self.assertIn(k, out, 'klucz v92 bez zmian')
         self.assertEqual((out['v'], out['asof'], sorted(out['markets'])), (2, '2026-09-29', ['copper', 'gold', 'silver', 'wti']))
-        self.assertEqual(out['ok'], {'ceny': True, 'zapasy': True, 'mies': True, 'markets': True}, out.get('err'))
+        self.assertEqual(out['ok'], {'ceny': True, 'zapasy': True, 'mies': True, 'markets': True, 'pozycje': True, 'fundusze': True, 'banki': True},
+                         out.get('err'))   # v298: + trzy części etapu 3
         self.assertEqual(set(out['part_at'].values()), {self.NOW.isoformat()}); self.assertEqual(out['at'], self.NOW.isoformat())
         self.assertEqual(out['next'], {'ceny': '2026-10-08T12:00:00+00:00', 'zapasy': '2026-10-14T14:30:00+00:00',
-                                       'mies': '2026-11-03T12:00:00+00:00', 'markets': '2026-10-09T19:30:00+00:00'})
+                                       'mies': '2026-11-03T12:00:00+00:00', 'markets': '2026-10-09T19:30:00+00:00',
+                                       'pozycje': '2026-10-09T19:30:00+00:00', 'fundusze': '2026-10-08T01:00:00+00:00',
+                                       'banki': '2026-11-07T12:00:00+00:00'})   # v298
         self.assertEqual(zm, {s for s, _ in zd.SU_ZR})
         n = {u.split('?')[0].split('/data/')[0] for u, _, _ in calls if u.startswith(zd.EIA_API)}
         self.assertEqual(len([u for u, _, _ in calls if u.startswith(zd.EIA_API + 'petroleum/pri/spt/')]), 1, 'ceny spot EIA — jedno zapytanie')
@@ -33074,3 +33084,532 @@ class ZlotoKryptoV297c(unittest.TestCase):
         # zła data stanu / brak części — bez wyniku i bez uwagi (jak dotąd)
         R = {'uwagi': []}
         self.assertIsNone(kt.zk_kontrola({'ryn': {'zloto': {'t_d': '2026-02-30'}}}, R)); self.assertIsNone(kt.zk_kontrola({'ryn': None}, R)); self.assertEqual(R['uwagi'], [])
+
+
+# ===================== v298: SUROWCE — etap 3: pozycje, fundusze, banki (data/surowce.json i kontrola) =====================
+# Nagrania (przycięte, bez sieci): CFTC disaggregated — raport 29.09.2026 (30 rynków; pierwsze 23 kolumny pliku tygodniowego) i 22.09 (złoto,
+# kukurydza, gaz — z pliku rocznego); ICE Futures Europe COTHist2026.csv (7 rynków z 22 i 29.09, wiersz z datą 7/28/2026 i wiersz z opcjami;
+# tylko kolumny czytane przez parser); CFTC CIT — deacit.txt (13 rynków, 19 kolumn) i annualci.txt (22.09: pszenica SRW, kukurydza); CFTC TFF
+# 221602 — wiersz pliku tygodniowego (29.09) i rocznego (22.09); archiwa GLD i GLDM (uncje i wartość aktywów 29.09–06.10.2026); MFW IL
+# (RGV_REVS, pobrane 08.10.2026: Polska, Chiny, Rosja, Niemcy); SAFE (plik z 07.09.2026); plik funduszy strony (IAU 02–06.10). Zegar przypięty.
+_E3_W29 = '''WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE,260929,2026-09-29,067651,NYME,01,067,1878576,615887,296348,113558,575715,144192,209028,129436,302987,152323,122452,260751,1798726,1831881,79850,46695
+NAT GAS NYME - NEW YORK MERCANTILE EXCHANGE,260929,2026-09-29,023651,NYME,01,023,1782129,242058,256142,250787,23200,116787,220522,353321,620952,55670,153891,219981,1726757,1744274,55372,37855
+GASOLINE RBOB - NEW YORK MERCANTILE EXCHANGE,260929,2026-09-29,111659,NYME,01,111,342854,82029,172288,53392,41322,10854,104795,10609,37254,8491,37446,20355,317170,330128,25684,12726
+NY HARBOR ULSD - NEW YORK MERCANTILE EXCHANGE,260929,2026-09-29,022651,NYME,01,022,238533,38508,119697,58691,7805,8554,35805,22860,19861,7889,8743,21453,190761,208973,47772,29560
+BRENT LAST DAY - NEW YORK MERCANTILE EXCHANGE,260929,2026-09-29,06765T,NYME,01,067,243324,21795,53279,70288,6185,4926,6246,2060,3345,34893,74742,90704,232197,235241,11127,8083
+GOLD - COMMODITY EXCHANGE INC.,260929,2026-09-29,088691,CMX,01,088,406456,18200,39463,14835,244539,25796,131711,11393,36294,118025,19711,12811,357672,390007,48784,16449
+SILVER - COMMODITY EXCHANGE INC.,260929,2026-09-29,084691,CMX,01,084,107047,5032,21544,23671,47169,5392,16886,9272,7295,16596,2127,5040,79912,97839,27135,9208
+PLATINUM - NEW YORK MERCANTILE EXCHANGE,260929,2026-09-29,076651,NYME,01,076,64046,3114,12337,15095,22920,429,19126,10870,3790,8064,2831,7213,56831,60390,7215,3656
+PALLADIUM - NEW YORK MERCANTILE EXCHANGE,260929,2026-09-29,075651,NYME,01,075,18602,1244,1341,7054,2260,85,3740,11702,851,2658,521,210,15842,16970,2760,1632
+COPPER- #1 - COMMODITY EXCHANGE INC.,260929,2026-09-29,085692,CMX,01,085,301201,30385,134725,54675,45176,8072,92094,14036,35026,31211,23858,31908,283371,292801,17830,8400
+ALUMINUM MWP - COMMODITY EXCHANGE INC.,260929,2026-09-29,191693,CMX,01,191,31455,8191,21847,17919,3027,1222,85,128,190,2950,3766,727,31284,30907,171,548
+STEEL-HRC - COMMODITY EXCHANGE INC.,260929,2026-09-29,192651,CMX,01,192,42389,12216,37586,15863,50,728,8937,1359,204,2728,1078,1255,41931,42260,458,129
+COBALT - COMMODITY EXCHANGE INC.,260929,2026-09-29,188691,CMX,01,188,15920,2863,4766,4524,2152,274,2242,2507,2955,2409,2243,199,15466,15096,454,824
+LITHIUM HYDROXIDE  - COMMODITY EXCHANGE INC.,260929,2026-09-29,189691,CMX,01,189,20993,1399,3756,12929,4181,252,2747,1065,507,388,8337,2404,20626,20502,367,491
+WHEAT-SRW - CHICAGO BOARD OF TRADE,260929,2026-09-29,001602,CBT,00,001,483142,67686,124881,88757,18111,19735,82747,104856,125527,32413,26766,31415,448280,451291,34862,31851
+WHEAT-HRW - CHICAGO BOARD OF TRADE,260929,2026-09-29,001612,CBT,00,001,306523,18373,117250,81210,2608,9344,71011,40334,77946,10630,20343,17192,285706,285017,20817,21506
+CORN - CHICAGO BOARD OF TRADE,260929,2026-09-29,002602,CBT,00,002,1857317,349329,1082314,321474,36997,46831,439843,58623,290375,193009,64728,83405,1724266,1663273,133051,194044
+SOYBEANS - CHICAGO BOARD OF TRADE,260929,2026-09-29,005602,CBT,00,005,1090227,341596,632741,123984,65814,21282,280875,34317,132706,64508,54194,75363,1040314,1016417,49913,73810
+SOYBEAN OIL - CHICAGO BOARD OF TRADE,260929,2026-09-29,007601,CBT,00,007,549820,129363,334660,96477,6094,22059,110278,26714,80754,32145,13843,46115,517191,530239,32629,19581
+SOYBEAN MEAL - CHICAGO BOARD OF TRADE,260929,2026-09-29,026603,CBT,00,026,629109,71113,427152,133645,13982,3969,215318,7740,96205,33112,24209,30243,583605,603500,45504,25609
+ROUGH RICE - CHICAGO BOARD OF TRADE,260929,2026-09-29,039601,CBT,00,039,13869,4516,9132,259,137,0,3616,1497,0,1990,1374,673,11054,12813,2815,1056
+COTTON NO. 2 - ICE FUTURES U.S.,260929,2026-09-29,033661,ICUS,01,033,389494,78815,226929,67599,23926,18522,84353,16516,46823,48286,19510,28350,372748,380576,16746,8918
+COFFEE C - ICE FUTURES U.S.,260929,2026-09-29,083731,ICUS,01,083,154908,41972,57999,24329,22834,4507,34571,18365,18379,9534,12248,14235,147527,148567,7381,6341
+COCOA - ICE FUTURES U.S.,260929,2026-09-29,073732,ICUS,01,073,183888,51466,64949,35968,9679,11449,18590,34612,29155,11870,9967,14957,173455,174768,10433,9120
+SUGAR NO. 11 - ICE FUTURES U.S.,260929,2026-09-29,080732,ICUS,01,080,1099176,192378,537736,248782,126345,17134,314903,96567,121853,46023,95917,57505,998578,1053057,100598,46119
+LIVE CATTLE - CHICAGO MERCANTILE EXCHANGE,260929,2026-09-29,057642,CME,00,057,293639,42153,137427,69039,3758,1397,81722,28529,45318,14347,32372,14015,267991,262816,25648,30823
+FEEDER CATTLE - CHICAGO MERCANTILE EXCHANGE,260929,2026-09-29,061641,CME,00,061,62168,7111,10020,7204,244,1719,17364,9198,10252,2408,12655,6514,52572,50602,9596,11566
+LEAN HOGS - CHICAGO MERCANTILE EXCHANGE,260929,2026-09-29,054642,CME,00,054,289843,31540,34559,77936,2945,4145,61870,112505,52319,16228,41824,22261,266299,270558,23544,19285
+CANOLA - ICE FUTURES U.S.,260929,2026-09-29,135731,ICUS,01,135,345602,132014,215264,6140,20217,3171,135118,23032,27769,19152,33177,19367,342731,341997,2871,3605
+UREA (GRANULAR) FOB US GULF - CHICAGO BOARD OF TRADE,260929,2026-09-29,251607,CBT,00,251,1981,1140,985,130,196,60,0,0,0,200,343,254,1784,1838,197,143
+'''
+_E3_Y22 = '''CORN - CHICAGO BOARD OF TRADE,260922,2026-09-22,002602,CBT,00,002,1854505,315323,1088806,334882,36210,39769,471466,67369,265480,193825,62121,102871,1723616,1662626,130889,191879
+NAT GAS NYME - NEW YORK MERCANTILE EXCHANGE,260922,2026-09-22,023651,NYME,01,023,1837146,239910,263630,248325,21081,117599,266563,332110,653249,39799,190782,215326,1780771,1793777,56375,43369
+GOLD - COMMODITY EXCHANGE INC.,260922,2026-09-22,088691,CMX,01,088,412800,17719,44496,14626,250752,25113,135699,8310,32876,118283,19819,16047,360363,397413,52437,15387
+'''
+_E3_ICE = '''Market_and_Exchange_Names,As_of_Date_In_Form_YYMMDD,As_of_Date_Form_MM/DD/YYYY,CFTC_Contract_Market_Code,CFTC_Commodity_Code,Open_Interest_All,Prod_Merc_Positions_Long_All,Prod_Merc_Positions_Short_All,Swap_Positions_Long_All,Swap_Positions_Short_All,Swap_Positions_Spread_All,M_Money_Positions_Long_All,M_Money_Positions_Short_All,M_Money_Positions_Spread_All,Other_Rept_Positions_Long_All,Other_Rept_Positions_Short_All,Other_Rept_Positions_Spread_All,NonRept_Positions_Long_All,NonRept_Positions_Short_All,FutOnly_or_Combined
+ICE Brent Crude Futures - ICE Futures Europe,260728,7/28/2026,,B,2660884,918548,1245989,401932,57902,198767,331984,127459,188030,159697,407538,382492,79434,52707,FutOnly
+ICE Gasoil Futures - ICE Futures Europe,260922,09/22/2026,,G,779959,198641,300180,265111,16802,33072,103170,17006,50583,6210,253219,85602,37570,23495,FutOnly
+ICE Brent Crude Futures - ICE Futures Europe,260922,09/22/2026,,B,2704463,929414,1252866,393175,78609,189785,331905,103184,255394,150683,374609,386979,67128,63037,FutOnly
+ICE White Sugar Futures - ICE Futures Europe,260922,09/22/2026,,W,152142,22916,95130,19846,14083,3946,64734,6922,19622,8328,3010,6002,6748,3427,FutOnly
+ICE Cocoa Futures - ICE Futures Europe,260922,09/22/2026,,Cocoa,222300,115293,138641,41032,26303,9889,11984,13588,15972,10900,785,13623,3607,3499,FutOnly
+ICE Robusta Coffee Futures - ICE Futures Europe,260922,09/22/2026,,RC,100086,32528,34553,7771,9983,1683,23166,21220,15149,7271,4016,5770,6748,7712,FutOnly
+ICE Wheat Futures - ICE Futures Europe,260922,09/22/2026,,Wheat,8634,6336,7689,307,544,0,492,0,0,0,0,0,1499,401,FutOnly
+ICE Dubai 1st Line Futures,260922,09/22/2026,,Dubai_1st,896776,319269,541863,31839,91289,35750,14317,35395,55045,348973,40007,67974,23609,29453,FutOnly
+ICE Gasoil Futures - ICE Futures Europe,260929,09/29/2026,,G,749721,193932,289330,261010,15634,37045,93584,24239,50616,11405,239763,67945,34184,25149,FutOnly
+ICE Brent Crude Futures - ICE Futures Europe,260929,09/29/2026,,B,2578636,902012,1242289,386885,85509,186020,311738,116275,219823,169934,338771,335336,66888,54613,FutOnly
+ICE Brent Crude Futures and Options - ICE Futures Europe,260929,09/29/2026,,B,3371549,971490,1355219,421727,102672,438342,322525,118223,386176,171850,326691,584564,74875,59662,Combined
+ICE White Sugar Futures - ICE Futures Europe,260929,09/29/2026,,W,154622,23100,94646,19484,13468,4105,63039,8859,21385,9190,2150,6429,7890,3580,FutOnly
+ICE Cocoa Futures - ICE Futures Europe,260929,09/29/2026,,Cocoa,219368,110595,135126,40915,25634,9924,12092,14128,17222,11015,660,12389,5216,4285,FutOnly
+ICE Robusta Coffee Futures - ICE Futures Europe,260929,09/29/2026,,RC,98734,31229,34819,9078,10852,1812,24379,23928,12969,8133,1671,4130,7004,8553,FutOnly
+ICE Wheat Futures - ICE Futures Europe,260929,09/29/2026,,Wheat,8703,6435,7987,246,519,0,508,0,0,0,0,0,1514,197,FutOnly
+ICE Dubai 1st Line Futures,260929,09/29/2026,,Dubai_1st,889021,333046,523572,34465,104197,37598,17006,28870,47258,324868,48397,69601,25179,29528,FutOnly
+'''
+_E3_CITW = '''WHEAT-SRW - CHICAGO BOARD OF TRADE,260929,2026-09-29,001602,CBT,00,001,573356,57170,117749,212231,130379,154782,535095,538948,38261,34408,135315,54186
+WHEAT-HRW - CHICAGO BOARD OF TRADE,260929,2026-09-29,001612,CBT,00,001,334886,51183,58013,109855,55437,130311,312709,311345,22177,23541,96233,13166
+CORN - CHICAGO BOARD OF TRADE,260929,2026-09-29,002602,CBT,00,002,2577179,334460,105681,818690,711990,1267964,2386363,2330894,190816,246284,521223,138559
+SOYBEANS - CHICAGO BOARD OF TRADE,260929,2026-09-29,005602,CBT,00,005,1343560,242332,72189,367013,454518,764962,1285815,1258756,57744,84804,221952,54592
+SOYBEAN OIL - CHICAGO BOARD OF TRADE,260929,2026-09-29,007601,CBT,00,007,621521,91489,40799,160777,197740,372241,587054,600537,34466,20984,137048,26720
+SOYBEAN MEAL - CHICAGO BOARD OF TRADE,260929,2026-09-29,026603,CBT,00,026,720749,189135,32231,174885,146938,472733,669373,691729,51376,29020,158415,11881
+COTTON NO. 2 - ICE FUTURES U.S.,260929,2026-09-29,033661,ICUS,01,033,537908,89274,30673,164751,165001,308287,519415,527881,18493,10027,100390,24170
+LEAN HOGS - CHICAGO MERCANTILE EXCHANGE,260929,2026-09-29,054642,CME,00,054,427530,47384,121904,157904,103245,102192,397430,403219,30100,24311,88898,21219
+LIVE CATTLE - CHICAGO MERCANTILE EXCHANGE,260929,2026-09-29,057642,CME,00,057,422762,64867,41731,149691,107129,181921,392207,381912,30555,40850,70520,8570
+FEEDER CATTLE - CHICAGO MERCANTILE EXCHANGE,260929,2026-09-29,061641,CME,00,061,91408,14889,18382,40578,14192,16478,80019,76874,11389,14534,10361,1435
+COCOA - ICE FUTURES U.S.,260929,2026-09-29,073732,ICUS,01,073,238851,9681,35818,85205,83680,86046,228014,229426,10837,9425,49448,22357
+SUGAR NO. 11 - ICE FUTURES U.S.,260929,2026-09-29,080732,ICUS,01,080,1354420,251221,154844,332149,302759,768150,1249482,1305222,104939,49199,363353,50078
+COFFEE C - ICE FUTURES U.S.,260929,2026-09-29,083731,ICUS,01,083,197518,23017,26510,67463,59573,91004,189751,190733,7768,6785,39698,5755
+'''
+_E3_CITY = '''Market_and_Exchange_Names,As_of_Date_In_Form_YYMMDD,As_of_Date_In_Form_YYYY-MM-DD,CFTC_Contract_Market_Code,CFTC_Market_Code,CFTC_Region_Code,CFTC_Commodity_Code,Open_Interest_All,NComm_Positions_Long_All_NoCIT,NComm_Positions_Short_All_NoCIT,NComm_Postions_Spread_All_NoCIT,Comm_Positions_Long_All_NoCIT,Comm_Positions_Short_All_NoCIT,Tot_Rept_Positions_Long_All,Tot_Rept_Positions_Short_All,NonRept_Positions_Long_All,NonRept_Positions_Short_All,CIT_Positions_Long_All,CIT_Positions_Short_All
+WHEAT-SRW - CHICAGO BOARD OF TRADE,260922,2026-09-22,001602,CBT,00,001,595400,62813,114690,223486,130152,165430,554987,560243,40413,35158,138536,56637
+CORN - CHICAGO BOARD OF TRADE,260922,2026-09-22,002602,CBT,00,002,2675976,372394,104702,876311,697042,1301515,2482417,2428078,193559,247898,536670,145551
+'''
+_E3_TFFW = '"BBG COMMODITY - CHICAGO BOARD OF TRADE",260929,2026-09-29,221602,CBT ,00,221 ,  198088,   68098,  186997,       0,  113475,    1347,    2282,   12936,    7400,      23,     818,       0,       0,  197632,  198049,     456,      39,    5919,       8,   11989,       0,   11987,     -60,   -4881,   -1335,    -933,       0,     270,       0,       0,    6049,    6115,    -130,    -196,  100.0,   34.4,   94.4,    0.0,   57.3,    0.7,    1.2,    6.5,    3.7,    0.0,    0.4,    0.0,    0.0,   99.8,  100.0,    0.2,    0.0,     78,      7,      5,      0,     30,      4,.,     15,      6,.,     11,      0,      0,     63,     17,    65.9,    91.6,    79.7,    97.8,    65.7,    91.6,    78.5,    97.3,"($100 X INDEX)","221602","CBT ","221 ","F40","FutOnly"'
+_E3_TFFY = '"BBG COMMODITY - CHICAGO BOARD OF TRADE",260922,2026-09-22,221602,CBT ,00,221 ,  192169,   68090,  175008,       0,  101488,    1407,    7163,   14271,    8333,      23,     548,       0,       0,  191583,  191934,     586,     235,  -21537,     232,   -7669,   -8872,    -258,     192,       0,   -8368,   -1205,    -662,    -177,       0,       0,  -18105,  -18216,   -3432,   -3321,  100.0,   35.4,   91.1,    0.0,   52.8,    0.7,    3.7,    7.4,    4.3,    0.0,    0.3,    0.0,    0.0,   99.7,   99.9,    0.3,    0.1,     80,      7,      5,      0,     30,      5,.,     16,      7,.,     10,      0,      0,     64,     20,    64.1,    88.2,    78.2,    96.6,    62.9,    88.2,    74.5,    94.4,"($100 X INDEX)","221602","CBT ","221 ","F40","FutOnly"'
+
+
+class SurowceEtap3V298(unittest.TestCase):
+    """v298: części pozycje, fundusze i banki pliku data/surowce.json — parsery na nagraniach, bramki (czas przypięty), naśladowcy bez drugiego
+    zapytania, zgodność wstecz (markets, TR_CS), część z błędem zostaje z datą, historia z poprzedniego pliku, kontrola (świeżość z progami
+    z testu wstecznego, sprzeczności w pliku, porównania). Brak = null, nigdy 0."""
+    NOW = datetime.datetime(2026, 10, 7, 17, 10, tzinfo=datetime.timezone.utc)
+    T = 32150.7466
+    GLD_IL = {'29-Sep-2026': (33996676.24, 141495132210.25), '30-Sep-2026': (33941669.27, 141702408295.58), '01-Oct-2026': (33969172.4, 140978385771.09),
+              '02-Oct-2026': (33941669.48, 142166004142.75), '05-Oct-2026': (33960004.08, 140594506906.19), '06-Oct-2026': (34079177.78, 141589204298.47)}
+    GLDM = [('29-Sep-2026', 0.01977954, 82.350118, 7341779.18, 30564246272.39), ('30-Sep-2026', 0.01977949, 82.605069, 7353646.87, 30708434277.09),
+            ('01-Oct-2026', 0.01977942, 82.117238, 7377382.18, 30625623920.5), ('02-Oct-2026', 0.01977938, 82.876607, 7389249.8, 30958556668.76),
+            ('05-Oct-2026', 0.0197792, 81.918521, 7430786.12, 30772692404.67), ('06-Oct-2026', 0.01977915, 82.210068, 7446609.44, 30947979938.21)]
+    IL = {'POL': [['2026-06', 20333239.989], ['2026-07', 20583249.145], ['2026-08', 20833322.858]], 'CHN': [['2026-05', 74960000.0], ['2026-06', 75440000.0]],
+          'RUS': [['2025-10', 74800000.0], ['2025-11', 74800000.0]], 'DEU': [['2025-07', 107714000.0], ['2026-06', 107683000.0], ['2026-07', 107683000.0]]}
+    SAFE_M = [('2026.05', '3407.52', '7496万盎司'), ('2026.06', '3037.24', '7544万盎司'), ('2026.07', '3063.54', '7608万盎司'), ('2026.08', '3500.80', '7673万盎司')]
+    SAFE_URL = 'https://www.safe.gov.cn/en/file/file/20260907/6be36abf2a5a40db8dca8bd859cc6e18.xlsx'
+    SAFE_PAGE = ('<html><title>Official Reserve Assets (2026)_Forex Reserves_State Administration of Foreign Exchange</title>'
+                 '<a href="/en/file/file/20260907/6be36abf2a5a40db8dca8bd859cc6e18.xlsx" title="xlsx.xlsx">xlsx</a></html>')
+    IAU = [['2026-10-02', 78.754681, 792900000], ['2026-10-05', 77.843342, 792900000], ['2026-10-06', 78.120048, 792900000]]
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._td = zd._TD_T[0]; zd._TD_T[0] = None
+        zd._SU_RUN.clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW.isoformat()))
+
+    def tearDown(self):
+        zd._TD_T[0] = self._td; zd._SU_RUN.clear()
+
+    # ---- nagrania ----
+    @staticmethod
+    def zip_txt(name, text):
+        import io as _io, zipfile as _zip
+        buf = _io.BytesIO()
+        with _zip.ZipFile(buf, 'w') as z:
+            z.writestr(name, text)
+        return buf.getvalue()
+
+    @classmethod
+    def imf_il(cls, il=None, unit='FTO', skala=1.0):
+        il = il or cls.IL
+        cs = sorted(il)
+        per = sorted({m for rows in il.values() for m, _ in rows})
+        series = {f'{i}:0:0:0': {'observations': {str(per.index(m)): [str(v * skala), None] for m, v in il[c]}} for i, c in enumerate(cs)}
+        return {'data': {'dataSets': [{'series': series}], 'structures': [{'dimensions': {
+            'series': [{'id': 'COUNTRY', 'keyPosition': 0, 'values': [{'id': c} for c in cs]}, {'id': 'INDICATOR', 'keyPosition': 1, 'values': [{'id': 'RGV_REVS'}]},
+                       {'id': 'UNIT', 'keyPosition': 2, 'values': [{'id': unit}]}, {'id': 'FREQUENCY', 'keyPosition': 3, 'values': [{'id': 'M'}]}],
+            'observation': [{'id': 'TIME_PERIOD', 'values': [{'value': p.replace('-', '-M')} for p in per]}]}}]}}
+
+    @classmethod
+    def safe_xlsx(cls, wan=None):
+        head, usd, qty = ['项目 Item'], ['4. 黄金'], ['']
+        for m, v, q in cls.SAFE_M:
+            head += [m, None]; usd += [v, v]; qty += [wan or q, wan or q]
+        return _xlsx({'Sheet1': [['官方储备资产'], ['Official reserve assets'], [], head, ['', '亿美元', '亿SDR'], [], ['1. 外汇储备', '33990.78'],
+                                 ['Foreign currency reserves'], usd, ['Gold'], qty, ['5. 其他储备资产', '1.89'], ['合计', '38362.81']]})
+
+    @classmethod
+    def gldm_xlsx(cls, rows=None):
+        head = ['Date', 'Closing Price', 'Ounces of Gold per Share', 'NAV/Share at 10:30am NYT', 'Total Ounces of Gold in the Trust', 'Tonnes of Gold',
+                'Total Net Asset Value in the Trust']
+        body = [[d, 1.0, ops, nav, oz, round(oz / cls.T, 2), tv] for d, ops, nav, oz, tv in (rows or cls.GLDM)]
+        return _xlsx({'Disclaimer': [['x']], 'US GLDM Historical Archive': [head, ['07-Sep-2026'] + ['US Holiday'] * 6] + body})
+
+    @classmethod
+    def siec3(cls, url):
+        """Odpowiedzi źródeł etapu 3 (także dla sieci testowej SurowceV295); inny adres = None."""
+        T = {zd.SU_GLDM_URL: cls.gldm_xlsx, zd.SU_IMF_IL_ZL_URL: lambda: json.dumps(cls.imf_il()).encode(),
+             zd.SU_SAFE_ZL_PAGE: lambda: cls.SAFE_PAGE.encode(), cls.SAFE_URL: cls.safe_xlsx,
+             zd.SU_CIT_WEEK_URL: lambda: _E3_CITW.encode(), zd.SU_CIT_YEAR_URL.format(2026): lambda: cls.zip_txt('annualci.txt', _E3_CITY),
+             zd.CFTC_WEEK_URL: lambda: (_E3_TFFW + '\n').encode(),
+             zd.CFTC_YEAR_URL.format(2026): lambda: cls.zip_txt('FinFutYY.txt', ','.join(zd.CFTC_COLS) + '\n' + _E3_TFFY + '\n'),
+             zd.SU_ICE_URL.format(2026): lambda: ('\ufeff' + _E3_ICE).encode()}
+        f = T.get(url)
+        return f() if f else None
+
+    @classmethod
+    def cftcd_files(cls):
+        return {zd.CFTCD_YEAR_URL.format(2026): cls.zip_txt('f_year.txt', ','.join(zd.CFTCD_COLS) + '\n' + _E3_Y22), zd.CFTCD_WEEK_URL: _E3_W29.encode()}
+
+    def ctx(self, raw=None, prev=None, now=None, fetch=None):
+        n = now or self.NOW
+        return {'now': n, 'now_iso': n.isoformat(), 'keys': {}, 'H': {'d': {}, 'w': {}, 'm': {}, 'f': {}, 'b': {}}, 'P': {}, 'st': {}, 'kontr': {},
+                'prev': prev or {}, 'bledy': [], 'uwagi': [], 'raw': raw if raw is not None else {}, 'poz': {}, 'udane': set(), 'fund': None,
+                'fetch': fetch}
+
+    @staticmethod
+    def siec_z(files, calls=None, fail=()):
+        def fetch(url, timeout, headers=None):
+            if calls is not None:
+                calls.append(url)
+            for k in fail:
+                if k in url:
+                    raise zd.urllib.error.HTTPError(url, 404 if k.startswith('404:') else 503, 'x', {}, __import__('io').BytesIO(b''))
+            if url in files:
+                return files[url]
+            raise AssertionError('nieoczekiwany adres w teście: ' + url)
+        return fetch
+
+    # ---- pozycje ----
+    def test_pozycje_cftc_30_rynkow_z_plikow_czesci_markets(self):
+        files, calls = self.cftcd_files(), []
+        ctx = self.ctx(raw=dict(files), fetch=self.siec_z(files, calls))   # odpowiedzi lidera (cftc) z tego samego przebiegu
+        self.assertEqual(zd._su_poz_cftcd(ctx), '2026-09-29')
+        self.assertEqual(calls, [], 'pliki z pobrania części markets — bez drugiego zapytania (2,4 MB)')
+        C = ctx['poz']['cftc']
+        self.assertEqual(list(C), [k for k, _, _ in zd.SU_POZ_CFTC]); self.assertEqual(len(C), 30)
+        g = C['gold']
+        self.assertEqual((g['oi'], g['net'], g['pct'], g['g'], g['code']), (406456, 120318, 29.6, 'ms', '088691'))
+        self.assertEqual((g['d1'], g['d1p']), (120318 - 127389, round(29.6 - 100.0 * 127389 / 412800, 1)), 'zmiana tygodnia wobec raportu sprzed 7 dni')
+        self.assertEqual(g['pos']['mm'], [131711, 11393, 36294])
+        self.assertEqual(g['h'], {'d': ['2026-09-22', '2026-09-29'], 'oi': [412800, 406456], 'net': [127389, 120318]})
+        for k, e in C.items():
+            L = sum(x[0] + (x[2] or 0) for x in e['pos'].values()); S = sum(x[1] + (x[2] or 0) for x in e['pos'].values())
+            self.assertEqual((L, S), (e['oi'], e['oi']), k)
+            self.assertEqual(e['net'], e['pos']['mm'][0] - e['pos']['mm'][1], k)
+        self.assertEqual((C['corn']['d1'], C['ng']['d1']), ((439843 - 58623) - (471466 - 67369), (220522 - 353321) - (266563 - 332110)))
+        self.assertEqual((C['silver']['d1'], C['silver']['d1p']), (None, None), 'bez raportu sprzed 7 dni — null, nie 0')
+        self.assertEqual((C['urea']['net'], C['urea']['pct'], C['urea']['g']), (0, 0.0, 'fe'), 'mały rynek bez funduszy — 0 to prawdziwa liczba z raportu')
+        self.assertEqual((zd.TR_CS, zd.CFTCD_MARKETS), (('gold', 'silver', 'copper', 'wti'), {'gold': '088691', 'silver': '084691', 'copper': '085692', 'wti': '067651'}),
+                         'TRENDY (TR_CS) i część markets bez zmian')
+        # własne pobranie (start, bez lidera w tym przebiegu): rok bieżący i tydzień — te same wpisy
+        seen = []
+        ctx2 = self.ctx(fetch=self.siec_z(files, seen))
+        self.assertEqual(zd._su_poz_cftcd(ctx2), '2026-09-29')
+        self.assertEqual(seen, [zd.CFTCD_YEAR_URL.format(2026), zd.CFTCD_WEEK_URL]); self.assertEqual(json.dumps(ctx2['poz']['cftc']), json.dumps(C))
+        # rynek, którego nie ma w raporcie: poprzedni wpis zostaje z datą (najwyżej 35 dni, kept), notatka — nie zero
+        prev = {'pozycje': {'cftc': {'cobalt': dict(C['cobalt'], asof='2026-09-15')}}}
+        f3 = {u: (b.replace(b'COBALT', b'XCOBALT').replace(b',188691,', b',999999,') if u == zd.CFTCD_WEEK_URL else b) for u, b in files.items()}
+        ctx3 = self.ctx(raw=f3, prev=prev)
+        zd._su_poz_cftcd(ctx3)
+        self.assertEqual((ctx3['poz']['cftc']['cobalt']['asof'], ctx3['poz']['cftc']['cobalt']['kept']), ('2026-09-15', True))
+        self.assertTrue(any('brak rynku w raporcie — cobalt' in x for x in ctx3['uwagi']), ctx3['uwagi'])
+        ctx4 = self.ctx(raw=f3, prev=prev, now=datetime.datetime(2026, 10, 30, 12, 0, tzinfo=datetime.timezone.utc))
+        zd._su_poz_cftcd(ctx4)
+        self.assertNotIn('cobalt', ctx4['poz']['cftc'], 'stan sprzed ponad 35 dni — bez wpisu (brak, nie zero)')
+
+    def test_pozycje_ice_bom_daty_bez_zer_i_klucz_towaru(self):
+        p, bad = zd.parse_ice_cot('\ufeff' + _E3_ICE)
+        self.assertEqual(sorted(p), sorted(c for _, c, _ in zd.SU_POZ_ICE)); self.assertEqual(bad, [])
+        self.assertIn('2026-07-28', p['B'], 'data 7/28/2026 (bez zera wiodącego) — parsowana, nie porównywana jako tekst')
+        self.assertEqual(p['B']['2026-09-29']['oi'], 2578636, 'wiersz „Futures and Options” pominięty — tylko futures (jak CFTC)')
+        zly = _E3_ICE.replace(',260929,09/29/2026,,Cocoa,219368,', ',260929,09/29/2026,,Cocoa,219369,').replace(',260922,09/22/2026,,G,', ',260923,09/22/2026,,G,')
+        p2, bad2 = zd.parse_ice_cot(zly)
+        self.assertEqual(sorted(bad2), ['Cocoa 2026-09-29', 'G 09/22/2026 (data)']); self.assertNotIn('2026-09-29', p2['Cocoa'])
+        self.assertRaises(RuntimeError, zd.parse_ice_cot, _E3_ICE.replace('M_Money_Positions_Long_All', 'MM_Long'))
+        files = {zd.SU_ICE_URL.format(2026): ('\ufeff' + _E3_ICE).encode()}
+        ctx = self.ctx(fetch=self.siec_z(files))
+        self.assertEqual(zd._su_poz_ice(ctx), '2026-09-29')
+        b = ctx['poz']['ice']['brent']
+        self.assertEqual((b['net'], b['pct'], b['d1'], b['g'], b['code']), (311738 - 116275, 7.6, (311738 - 116275) - (331905 - 103184), 'en', 'B'))
+        self.assertEqual(b['h']['d'], ['2026-07-28', '2026-09-22', '2026-09-29'], 'okno 90 dni')
+        self.assertEqual(sorted(ctx['poz']['ice']), sorted(k for k, _, _ in zd.SU_POZ_ICE))
+        # styczeń: plik nowego roku jeszcze nie istnieje (404) — rok poprzedni, z notatką
+        seen = []
+        ctx2 = self.ctx(now=datetime.datetime(2027, 1, 8, 20, 0, tzinfo=datetime.timezone.utc), fetch=self.siec_z(files, seen, fail=('404:',)))
+        ctx2['fetch'] = self.siec_z(files, seen, fail=('COTHist2027',))
+        f404 = ctx2['fetch']
+
+        def fetch404(url, timeout, headers=None):
+            if '2027' in url:
+                seen.append(url)
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, __import__('io').BytesIO(b''))
+            return f404(url, timeout, headers)
+        ctx2['fetch'] = fetch404
+        self.assertEqual(zd._su_poz_ice(ctx2), '2026-09-29')
+        self.assertEqual(seen, [zd.SU_ICE_URL.format(2027), zd.SU_ICE_URL.format(2026)], 'styczeń: pliku 2027 jeszcze nie ma (404) — rok 2026')
+        self.assertTrue(any('brak pliku 2027' in x for x in ctx2['uwagi']))
+
+    def test_pozycje_cit_i_indeks_tff(self):
+        F = {u: SurowceEtap3V298.siec3(u) for u in (zd.SU_CIT_WEEK_URL, zd.SU_CIT_YEAR_URL.format(2026), zd.CFTC_WEEK_URL, zd.CFTC_YEAR_URL.format(2026))}
+        seen = []
+        ctx = self.ctx(fetch=self.siec_z(F, seen))
+        self.assertEqual(zd._su_poz_cit(ctx), '2026-09-29')
+        self.assertEqual(seen, [zd.SU_CIT_WEEK_URL, zd.SU_CIT_YEAR_URL.format(2026)], 'krótka historia — plik roczny (październik: bez roku poprzedniego)')
+        c = ctx['poz']['cit']['corn']
+        self.assertEqual((c['net'], c['pct'], c['pct_l'], c['d1'], c['pos']['cit']), (521223 - 138559, 14.8, 20.2, (521223 - 138559) - (536670 - 145551), [521223, 138559, None]))
+        self.assertEqual(len(ctx['poz']['cit']), 13); self.assertEqual(ctx['poz']['cit']['cattle']['d1'], None)
+        seen.clear()
+        zd._su_poz_cit(ctx)
+        self.assertEqual(seen, [zd.SU_CIT_WEEK_URL], 'plik roczny najwyżej raz na raport (st.cit.rok) — krótka historia nie ściąga go co przebieg')
+        self.assertEqual(ctx['st']['cit']['rok'], '2026-09-29')
+        p, bad = zd.parse_cit(_E3_CITW, header=zd.SU_CIT_COLS)
+        self.assertEqual(bad, [], 'zaokrąglenia CFTC (różnica 1 kontraktu w 29.09 — kukurydza) mieszczą się w tolerancji')
+        zly = _E3_CITW.replace(',2577179,334460,', ',2577199,334460,')
+        p2, bad2 = zd.parse_cit(zly, header=zd.SU_CIT_COLS)
+        self.assertEqual(bad2, ['002602 2026-09-29'], 'różnica 20 kontraktów — wiersz pominięty')
+        # pełna historia z poprzedniego pliku — bez pliku rocznego
+        days = [(datetime.date(2026, 7, 7) + datetime.timedelta(days=7 * i)).isoformat() for i in range(12)]
+        prev = {'pozycje': {'cit': {k: {'asof': days[-1], 'h': {'d': days, 'oi': [1000] * 12, 'net': [100] * 12}} for k in zd.SU_POZ_CIT}}}
+        seen.clear()
+        ctx2 = self.ctx(prev=prev, fetch=self.siec_z(F, seen))
+        zd._su_poz_cit(ctx2)
+        self.assertEqual(seen, [zd.SU_CIT_WEEK_URL], 'historia z poprzedniego wpisu — bez pliku rocznego')
+        self.assertEqual((ctx2['poz']['cit']['corn']['h']['d'][0], len(ctx2['poz']['cit']['corn']['h']['d']), ctx2['poz']['cit']['corn']['d1']),
+                         ('2026-07-07', 13, (521223 - 138559) - 100))
+        # TFF 221602 — zarządzający aktywami (grupa główna) i dealerzy w historii
+        seen.clear()
+        ctx3 = self.ctx(fetch=self.siec_z(F, seen))
+        self.assertEqual(zd._su_poz_tff(ctx3), '2026-09-29')
+        self.assertEqual(seen, [zd.CFTC_WEEK_URL, zd.CFTC_YEAR_URL.format(2026)])
+        b = ctx3['poz']['tff']['bcom']
+        self.assertEqual((b['oi'], b['net'], b['pct'], b['d1'], b['h']['dn'], b['pos']['asset_mgr']),
+                         (198088, 113475 - 1347, 56.6, (113475 - 1347) - (101488 - 1407), [68090 - 175008, 68098 - 186997], [113475, 1347, 2282]))
+
+    # ---- fundusze ----
+    def test_fundusze_tony_z_uncji_naśladowcy_iau_i_sumy(self):
+        v = SurowceV295()
+        raw = {zd.SU_GLD_URL: v.gld_xlsx(), zd.SU_SPROTT_URL: json.dumps(v.SPROTT).encode()}
+        seen = []
+        ctx = self.ctx(raw=raw, fetch=self.siec_z({zd.SU_GLDM_URL: self.gldm_xlsx()}, seen))
+        ctx['udane'] = {'gld', 'sprott'}
+        ctx['H']['d']['gold'] = {datetime.datetime.strptime(d, '%d-%b-%Y').date().isoformat(): round(nav / oz, 2) for d, oz, nav in v.GLD}
+        self.assertEqual((zd._su_fu_gld(ctx), zd._su_fu_gldm(ctx), zd._su_fu_sprott(ctx)), ('2026-10-06', '2026-10-06', '2026-10-06'))
+        self.assertEqual(seen, [zd.SU_GLDM_URL], 'GLD i Sprott z odpowiedzi liderów — tylko GLDM pobrany')
+        F = ctx['H']['f']
+        self.assertEqual((F['GLD']['2026-10-06'], F['GLDM']['2026-10-06']), (round(34079177.78 / self.T, 3), round(7446609.44 / self.T, 3)))
+        self.assertEqual(len(F['GLDM']), 6, 'wiersz „US Holiday” pominięty')
+        self.assertEqual((F['PHYS']['2026-10-06'], F['PSLV']['2026-10-06'], F['SPPP_pt']['2026-10-06'], F['SPPP_pd']['2026-10-06'], F['SPUT']['2026-10-06'], F['COP']['2026-10-06']),
+                         (round(3751666 / self.T, 3), round(207194980 / self.T, 3), round(200095 / self.T, 3), round(155159 / self.T, 3), 81.697, 14559.0))
+        self.assertEqual(ctx['st']['gld_t']['nav_r'], {'GLD': round((141589204298.47 / (34079177.78 * 381.025846 / 0.09167208) - 1) * 100, 4)})
+        iau = zd._su_fu_iau(ctx['H'], {'f': {'IAU': {'h': self.IAU}}})
+        self.assertEqual((F['IAU']['2026-10-06'], iau), (463.524, ['2026-10-06', round(78.120048 * 792900000 / ctx['H']['d']['gold']['2026-10-06'], 2)]),
+                         'IAU = wartość aktywów ÷ cena złota (wydawca 06.10: 463,54 t)')
+        e3, fs = zd._su_etap3(ctx, None)
+        f = e3['fundusze']['f']
+        self.assertEqual(list(f), [x[0] for x in zd.SU_FU]); self.assertEqual((f['IAU']['x'], f['IAU']['z'], f['SPUT']['u'], f['COP']['qu']), (['wyl'], 'ish', 'mln lb', 't'))
+        self.assertEqual(f['GLD']['w1'], ['2026-09-29', round(F['GLD']['2026-10-06'] - F['GLD']['2026-09-29'], 3)])
+        self.assertEqual((f['PHYS']['w1'], f['PHYS']['q']), (None, ['2026-10-06', 3751666.0]), 'jeden dzień trustu — zmiana tygodnia null, nie 0')
+        S = e3['fundusze']['suma']
+        self.assertEqual(S['au']['d'], [['2026-10-06', round(sum(F[x]['2026-10-06'] for x in ('GLD', 'GLDM', 'IAU', 'PHYS')), 3)]],
+                         'suma czterech — tylko dzień, w którym każdy fundusz ma wartość')
+        self.assertEqual([r[0] for r in S['au_usa']['d']], ['2026-10-02', '2026-10-05', '2026-10-06']); self.assertEqual(fs['au_usa'], S['au_usa']['d'])
+        # sumy: dziura wewnątrz serii (święto) wypełniona poprzednim dniem (≤ 4 dni); za końcem serii — bez dnia
+        su = zd._su_fu_sumy({'GLD': {'2026-10-01': 1.0, '2026-10-02': 1.0, '2026-10-05': 1.0, '2026-10-06': 1.0},
+                             'GLDM': {'2026-10-01': 2.0, '2026-10-05': 3.0}, 'IAU': {'2026-10-01': 4.0, '2026-10-02': 4.0, '2026-10-05': 4.0, '2026-10-06': 4.0}})
+        self.assertEqual(su['au_usa'], [['2026-10-01', 7.0], ['2026-10-02', 7.0], ['2026-10-05', 8.0]])
+        # Sprott: skok ilości > 20% w ≤ 7 dni — punkt odrzucony (lista bez symboli), reszta zapisana
+        ctx2 = self.ctx(raw=raw); ctx2['udane'] = {'sprott'}; ctx2['H']['f']['PHYS'] = {'2026-10-02': 80.0}
+        zd._su_fu_sprott(ctx2)
+        self.assertEqual(ctx2['H']['f']['PHYS'], {'2026-10-02': 80.0}); self.assertIn('2026-10-06', ctx2['H']['f']['PSLV'])
+        self.assertTrue(any(x.startswith('sprott_t PHYS: 80.0 → ') for x in ctx2['bledy']), ctx2['bledy'])
+        # bez lidera w tym przebiegu — kolejność listy sprawdzana złotem i srebrem (zamiana PSLV ↔ SPUT = odpowiedź odrzucona)
+        zam = [v.SPROTT[i] for i in (0, 4, 2, 3, 1, 5)] + v.SPROTT[6:]
+        ctx3 = self.ctx(raw={zd.SU_SPROTT_URL: json.dumps(zam).encode()}); ctx3['H']['d']['silver'] = {'2026-10-02': 62.9}
+        self.assertRaisesRegex(RuntimeError, 'silver z listy', zd._su_fu_sprott, ctx3)
+        self.assertRaisesRegex(RuntimeError, 'brak kolumny uncji', zd.parse_spdr_ilosc, _xlsx({'US GLDM Historical Archive': [['Date', 'NAV/Share']]}), 'GLDM')
+
+    # ---- banki ----
+    def test_banki_uncje_na_tony_kraj_ze_swoim_miesiacem_i_safe(self):
+        got, inna = zd.parse_imf_il_zloto(self.imf_il())
+        self.assertEqual((sorted(got), inna), (['CN', 'DE', 'PL', 'RU'], []))
+        self.assertRaisesRegex(RuntimeError, 'zmiana skali', zd.parse_imf_il_zloto, self.imf_il(skala=1e6))
+        self.assertRaisesRegex(RuntimeError, 'brak krajów z jednostką FTO', zd.parse_imf_il_zloto, self.imf_il(unit='USD'))
+        s = zd.parse_safe_zloto(self.safe_xlsx())
+        self.assertEqual(s, {'2026-05': 74960000.0, '2026-06': 75440000.0, '2026-07': 76080000.0, '2026-08': 76730000.0})
+        self.assertRaisesRegex(RuntimeError, 'poza zakresem', zd.parse_safe_zloto, self.safe_xlsx(wan='76730万盎司'))
+        F = {zd.SU_IMF_IL_ZL_URL: json.dumps(self.imf_il()).encode(), zd.SU_SAFE_ZL_PAGE: self.SAFE_PAGE.encode(), self.SAFE_URL: self.safe_xlsx()}
+        heads = []
+        ctx = self.ctx(fetch=lambda u, t, h=None: heads.append(h) or F[u])
+        self.assertEqual((zd._su_bk_imf(ctx), zd._su_bk_safe(ctx)), ('2026-08', '2026-08'))
+        self.assertEqual(heads[0], {'Accept': 'application/json'})
+        self.assertTrue(any('brak kraju w odpowiedzi MFW' in x and 'TR' in x for x in ctx['uwagi']), 'brak kraju — notatka, poprzednie dane zostają')
+        B = zd._su_etap3(ctx, None)[0]['banki']
+        pl, cn, ru, de = (B['kr'][k] for k in ('PL', 'CN', 'RU', 'DE'))
+        self.assertEqual((pl['u'], pl['asof'], pl['z'], pl['d'][-1], pl['m1'], pl['m12'], pl['oz']),
+                         ('t', '2026-08', 'imf', ['2026-08', round(20833322.858 / self.T, 3)], round((20833322.858 - 20583249.145) / self.T, 3), None, 20833322.858))
+        self.assertEqual((cn['asof'], cn['z'], cn['safe_od'], cn['d'][-1], [r[0] for r in cn['d']]),
+                         ('2026-08', 'safe', '2026-07', ['2026-08', round(76730000.0 / self.T, 3)], ['2026-05', '2026-06', '2026-07', '2026-08']),
+                         'Chiny: MFW do czerwca, SAFE dodaje lipiec i sierpień (nowsze miesiące)')
+        self.assertEqual(cn['kontr'], [['2026-05', 74960000.0, 74960000.0], ['2026-06', 75440000.0, 75440000.0]])
+        self.assertEqual((ru['asof'], ru['m1']), ('2025-11', 0.0), 'Rosja ze swoim (starym) miesiącem')
+        self.assertEqual((de['m12'], de['m1']), (round((107683000.0 - 107714000.0) / self.T, 3), 0.0))
+        self.assertEqual(B['order'], ['DE', 'CN', 'RU', 'PL'])
+        # historia z poprzedniego pliku (utracony surowce-hist.json): miesiące z SAFE wracają do serii SAFE
+        H = {'d': {}, 'w': {}, 'm': {}, 'f': {}, 'b': {}}
+        zd._su_hist3(H, {'v': 2, 'banki': B, 'fundusze': {'f': {'GLD': {'d': [['2026-10-06', 1059.981]]}}}})
+        self.assertEqual((sorted(H['b']['CN_safe']), sorted(H['b']['CN']), H['b']['PL']['2026-08'], H['f']['GLD']), (['2026-07', '2026-08'], ['2026-05', '2026-06'],
+                                                                                                                 20833322.858, {'2026-10-06': 1059.981}))
+
+    # ---- bramki i kalendarz ----
+    def test_bramki_etap3_i_next(self):
+        U = datetime.timezone.utc
+        T = lambda *a: datetime.datetime(*a, tzinfo=U)   # noqa: E731
+        due = zd._su_due
+        z = {'at': '2026-10-02T20:00:00+00:00', 'try': '2026-10-09T18:00:00+00:00', 'asof': '2026-09-29'}
+        now = T(2026, 10, 9, 20, 5)
+        self.assertTrue(due('cftcd', z, now, {'st': {}, 'udane': {'cftc'}}), 'lider pobrany w tym przebiegu — bez zapytania')
+        self.assertFalse(due('cftcd', z, now, {'st': {'cftc': {'asof': '2026-09-29'}}, 'udane': set()}), 'bez lidera i bez nowszych danych — czeka')
+        self.assertTrue(due('cftcd', z, now, {'st': {'cftc': {'asof': '2026-10-06'}}, 'udane': set()}), 'lider ma nowszy raport — własne pobranie')
+        self.assertTrue(due('gld_t', {}, now, {'udane': set()}), 'start — własne pobranie')
+        e = dict(z, err='x')
+        self.assertFalse(due('cftcd', dict(e, **{'try': '2026-10-09T17:00:00+00:00'}), now, {'udane': set()}), 'po błędzie — dopiero po 6 h')
+        self.assertTrue(due('cftcd', dict(e, **{'try': '2026-10-09T14:00:00+00:00'}), now, {'udane': set()}))
+        c = {'at': '2026-10-02T20:00:00+00:00', 'try': '2026-10-09T19:34:00+00:00', 'asof': '2026-09-29'}
+        self.assertTrue(due('cit', c, T(2026, 10, 9, 20, 4), {}), 'piątek po 19:30 bez nowego wtorku — co 30 min')
+        self.assertFalse(due('cit', c, T(2026, 10, 9, 19, 50), {}))
+        self.assertFalse(due('tff', dict(c, asof='2026-10-06'), T(2026, 10, 9, 20, 4), {}), 'nowy wtorek jest — stop')
+        i = {'at': '2026-10-09T10:00:00+00:00', 'try': '2026-10-09T10:00:00+00:00', 'asof': '2026-09-29'}
+        self.assertTrue(due('ice', i, T(2026, 10, 9, 17, 50), {}), 'ICE: plik od 17:45 UTC')
+        self.assertFalse(due('cit', i, T(2026, 10, 9, 17, 50), {}), 'CFTC jeszcze nie (19:30), ostatnie pobranie < 12 h temu')
+        p = {'at': '2026-10-23T09:00:00+00:00', 'try': '2026-10-23T20:00:00+00:00', 'asof': '2026-09-29'}
+        self.assertFalse(due('cit', p, T(2026, 10, 23, 20, 40), {}), 'przerwa w pracy urzędu (brak 3 raportów) — co 12 h, nie co 30 min')
+        self.assertTrue(due('cit', p, T(2026, 10, 23, 21, 1), {}))
+        g = {'at': '2026-10-07T13:05:00+00:00', 'try': '2026-10-07T13:05:00+00:00'}
+        self.assertFalse(due('gldm', g, T(2026, 10, 8, 0, 50), {})); self.assertTrue(due('gldm', g, T(2026, 10, 8, 1, 5), {}), 'archiwum GLDM jak GLD: 01:00 UTC')
+        m = {'at': '2026-10-07T17:10:00+00:00', 'try': '2026-10-07T17:10:00+00:00', 'asof': '2026-08'}
+        self.assertFalse(due('imf_il', m, T(2026, 10, 8, 17, 0), {})); self.assertTrue(due('imf_il', m, T(2026, 10, 8, 17, 10), {}), 'MFW raz na dobę')
+        self.assertTrue(due('imf_il', {}, T(2026, 10, 8, 17, 0), {}))
+        sf = {'at': '2026-10-08T03:00:00+00:00', 'try': '2026-10-08T03:00:00+00:00', 'asof': '2026-08'}
+        self.assertTrue(due('safe_zl', sf, T(2026, 10, 8, 9, 5), {}), 'dni 5–20, brak poprzedniego miesiąca — co 6 h')
+        self.assertFalse(due('safe_zl', dict(sf, asof='2026-09'), T(2026, 10, 8, 9, 5), {}), 'jest wrzesień — raz na tydzień')
+        self.assertFalse(due('safe_zl', dict(sf, at='2026-10-22T03:00:00+00:00'), T(2026, 10, 25, 9, 5), {}), 'po 20. dniu — raz na tydzień')
+        self.assertTrue(due('safe_zl', sf, T(2026, 10, 25, 9, 5), {}), 'ostatnie pobranie ponad tydzień temu')
+        nx = zd._su_next
+        self.assertEqual(nx('pozycje', {'pozycje': {'asof': {'cftc': '2026-09-29'}}}, self.NOW), '2026-10-09T19:30:00+00:00')
+        self.assertEqual(nx('pozycje', {'pozycje': {'asof': {'cftc': '2026-09-22'}}}, self.NOW), '2026-10-02T19:30:00+00:00', 'zaległa (w przeszłości)')
+        self.assertEqual((nx('fundusze', {}, T(2026, 10, 9, 22, 0)), nx('fundusze', {}, T(2026, 10, 10, 5, 0)), nx('fundusze', {}, T(2026, 10, 13, 0, 30))),
+                         ('2026-10-10T01:00:00+00:00', '2026-10-13T01:00:00+00:00', '2026-10-13T01:00:00+00:00'), 'po sesji NYSE: wtorek–sobota 01:00')
+        self.assertEqual((nx('banki', {}, T(2026, 10, 3, 8, 0)), nx('banki', {}, T(2026, 12, 9, 8, 0))), ('2026-10-07T12:00:00+00:00', '2027-01-07T12:00:00+00:00'))
+
+    # ---- całość na nagraniach (sieć testowa v295 + nagrania etapu 3) ----
+    def test_caly_przebieg_drugi_bez_zapytan_blad_czesci_i_historia(self):
+        fetch, calls = SurowceV295().siec()
+        fund = {'f': {'IAU': {'h': self.IAU}}}
+        out, h, zm = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund=fund)
+        self.assertTrue({s for s, _ in zd.SU_E3_ZR} <= zm, zm)
+        self.assertEqual({p: out['ok'][p] for p in ('pozycje', 'fundusze', 'banki')}, {'pozycje': True, 'fundusze': True, 'banki': True}, out.get('err'))
+        n = lambda u: len([c for c, _, _ in calls if c == u])   # noqa: E731
+        self.assertEqual((n(zd.CFTCD_WEEK_URL), n(zd.CFTCD_YEAR_URL.format(2026)), n(zd.SU_GLD_URL), n(zd.SU_SPROTT_URL)), (1, 1, 1, 1),
+                         'naśladowcy (pozycje CFTC, GLD w tonach, trusty) bez drugiego zapytania')
+        for k in ('at', 'src', 'url', 'data_url', 'unit', 'asof', 'order', 'markets'):
+            self.assertIn(k, out, 'klucz v92 bez zmian')
+        self.assertEqual(sorted(out['markets']), ['copper', 'gold', 'silver', 'wti'])
+        P = out['pozycje']
+        self.assertEqual((sorted(P['cftc']), P['asof'], P['unit']), (['copper', 'gold', 'silver', 'wti'], {'cftc': '2026-09-29', 'ice': '2026-09-29', 'cit': '2026-09-29', 'tff': '2026-09-29'}, 'kontrakty'))
+        self.assertEqual(P['cftc']['gold']['net'], out['markets']['gold']['groups']['mm']['net'], 'ta sama liczba w obu częściach')
+        self.assertTrue(any('pozycje USA (30 rynków): brak rynku w raporcie' in x for x in zd.META['notes']), 'nagranie v295: 4 rynki — reszta notatką, nie zero')
+        F = out['fundusze']['f']
+        self.assertEqual((F['GLD']['d'][-1], F['IAU']['d'][-1], F['IAU']['x'], F['PHYS']['u'], F['SPUT']['u']),
+                         (['2026-10-06', round(34079177.78 / self.T, 3)], ['2026-10-06', 463.524], ['wyl'], 't', 'mln lb'))
+        self.assertEqual((out['banki']['kr']['CN']['z'], out['banki']['kr']['PL']['asof']), ('safe', '2026-08'))
+        self.assertEqual((set(h) >= {'f', 'fs', 'b'}, h['f']['GLD'][-1], h['fs']['au_usa'][-1][0], sorted(h['b'])), (True, ['2026-10-06', round(34079177.78 / self.T, 3)], '2026-10-06',
+                                                                                                    ['CN', 'CN_safe', 'DE', 'PL', 'RU']))
+        self.assertEqual(zd.META['errors'], [])
+        # drugi przebieg 10 min później: nic należnego — te same części, bez zapytań
+        calls.clear()
+        out2, h2, zm2 = zd.build_surowce(out, h, {}, now=self.NOW + datetime.timedelta(minutes=10), fetch=fetch, fund=fund)
+        self.assertEqual(([c for c, _, _ in calls], zm2), ([], set()))
+        self.assertEqual({p: out2['ok'][p] for p in ('pozycje', 'fundusze', 'banki')}, {'pozycje': 'cached', 'fundusze': 'cached', 'banki': 'cached'})
+        self.assertEqual(json.dumps([out2['pozycje'], out2['fundusze'], out2['banki']]), json.dumps([out['pozycje'], out['fundusze'], out['banki']]))
+        self.assertEqual((out2['at'], json.dumps(h2)), (out['at'], json.dumps(h)), 'plik bez zmian, gdy nic nowego')
+        # piątek po publikacji: plik ICE z błędem — poprzednie dane z datą, część z ok False i krótkim błędem
+        f3, _ = SurowceV295().siec(fail=('ice.com',))
+        t3 = datetime.datetime(2026, 10, 9, 18, 0, tzinfo=datetime.timezone.utc)
+        zd.META['errors'].clear()
+        out3, h3, zm3 = zd.build_surowce(out2, h2, {}, now=t3, fetch=f3, fund=fund)
+        self.assertNotIn('ice', zm3); self.assertIs(out3['ok']['pozycje'], False); self.assertIn('ice: HTTP Error 503', out3['err']['pozycje'])
+        self.assertEqual(out3['pozycje']['ice'], out['pozycje']['ice']); self.assertIn('ice: HTTP Error 503', out3['st']['ice']['err'])
+        self.assertTrue(any(e.startswith('surowce ice: HTTP Error 503') for e in zd.META['errors']))
+        # utracony surowce-hist.json — fundusze i banki odtworzone z poprzedniego pliku (bez nowych pobrań)
+        out4, h4, zm4 = zd.build_surowce(out, None, {}, now=self.NOW + datetime.timedelta(minutes=10), fetch=fetch, fund=None)
+        self.assertEqual(zm4, set())
+        # błąd składania etapu 3 (np. uszkodzony plik funduszy) — pozostałe części idą dalej, części etapu 3 z poprzedniego pliku
+        with mock.patch.object(zd, '_su_etap3', side_effect=ValueError('test')):
+            out5, _, _ = zd.build_surowce(out, h, {}, now=self.NOW + datetime.timedelta(minutes=10), fetch=fetch)
+        self.assertEqual((out5['pozycje'], out5['ceny']), (out['pozycje'], out['ceny'])); self.assertTrue(any('surowce etap 3: test' in e for e in zd.META['errors']))
+        bez = lambda e: {k: v for k, v in e.items() if k != 'kontr'}   # noqa: E731 — porównanie MFW vs SAFE wraca z następnym pobraniem SAFE
+        self.assertEqual((out4['fundusze']['f']['GLD']['d'], bez(out4['banki']['kr']['CN'])), (out['fundusze']['f']['GLD']['d'], bez(out['banki']['kr']['CN'])))
+
+    def test_main_przekazuje_plik_funduszy_i_meta_czesci(self):
+        v = SurowceV295()
+        fetch, _ = v.siec()
+        out, h, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch)
+        fu = {'at': 'x', 'f': {'IAU': {'h': self.IAU}}}
+        got, saved = [], {}
+        prev = {'energia': {'at': _iso(5), 's': {'wti': {'d': [['2026-09-29', 96.16]]}}}, 'bilans-usa': {'at': _iso(5), 'ita': {}}, 'usa-makro': {'at': _iso(5), 's': {}}}
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in (
+            'build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
+            'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
+            'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
+            'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
+        for s in stubs:
+            s.start()
+        try:
+            with mock.patch.dict(os.environ, {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': '', 'FMP_KEY': ''}, clear=False), \
+                    mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), mock.patch.object(zd, 'previous', lambda n: prev.get(n)), \
+                    mock.patch.object(zd, '_prev_cache', lambda n: fu if n == 'fundusze' else None), mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez sieci')), \
+                    mock.patch.object(zd, 'build_surowce', lambda *a, **k: got.append(k) or (out, h, set())):
+                zd.main()
+        finally:
+            for s in stubs:
+                s.stop()
+        self.assertIs(got[0].get('fund'), fu, 'plik funduszy z pamięci Actions (IAU) — bez pobierania ze strony')
+        self.assertEqual({k: zd.META['ok'][k] for k in ('surowce_pozycje', 'surowce_fundusze', 'surowce_banki')},
+                         {'surowce_pozycje': True, 'surowce_fundusze': True, 'surowce_banki': True})
+        zd._SU_RUN.clear()
+
+    # ---- kontrola dzienna ----
+    def test_kontrola_etap3_swiezosc_spojnosc_porownania(self):
+        k = SurowceV295._kontrola()
+        U = datetime.timezone.utc
+        fetch, _ = SurowceV295().siec()
+        out, _, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund={'f': {'IAU': {'h': self.IAU}}})
+        rows = {r[0]: r for r in k.surowce_swiezosc3(out, self.NOW + datetime.timedelta(hours=1))}
+        E = k.SU3_ETYKIETA
+        self.assertEqual([rows[E[x]][1] for x in ('pozycje', 'pozycje_ice', 'fundusze', 'banki')], ['✅', '✅', '✅', 'ℹ️'])
+        self.assertIn('RU 2025-11', rows[E['banki']][4]); self.assertEqual(rows[E['banki']][3], '2026-08')
+        self.assertEqual((k.surowce_swiezosc3({'v': 2, 'ceny': {}}), k.surowce_swiezosc3(None)), ([], []), 'plik bez części etapu 3 — bez wierszy')
+        # progi z testu wstecznego: CFTC 13 dni — poniedziałek przed publikacją przesuniętą przez święto (16.11.2026) bez uwagi; ICE 14 dni
+        j = {'v': 2, 'asof': '2026-11-03', 'pozycje': {'cftc': {'gold': {'asof': '2026-11-03'}}, 'ice': {'brent': {'asof': '2026-11-03'}}}}
+        st = lambda t, x: {r[0]: r[1] for r in k.surowce_swiezosc3(j, datetime.datetime(*t, tzinfo=U))}[E[x]]   # noqa: E731
+        self.assertEqual([st((2026, 11, 16, 6, 20), 'pozycje'), st((2026, 11, 17, 6, 20), 'pozycje'), st((2026, 11, 17, 6, 20), 'pozycje_ice'),
+                          st((2026, 11, 18, 6, 20), 'pozycje_ice')], ['✅', '⚠️', '✅', '⚠️'])
+        self.assertEqual(k.SU_PROG['markets'], ('w', 13 * 24 * 60), 'v298: część markets — ten sam kalendarz CFTC, 13 dni')
+        mk = {r[0]: r[1] for r in k.surowce_swiezosc(j, datetime.datetime(2026, 11, 16, 6, 20, tzinfo=U))}[k.SU_ETYKIETA['markets']]
+        self.assertEqual(mk, '✅', 'poniedziałek 16.11 rano (publikacja po Dniu Weteranów) — dawniej ⚠️')
+        # sprzeczności w pliku (jedyny powód ❌)
+        self.assertEqual(k.surowce_spojnosc3(out), [])
+        zly = json.loads(json.dumps(out))
+        zly['pozycje']['cit']['corn']['pos']['nc'][0] += 2
+        self.assertEqual(k.surowce_spojnosc3(zly), [], 'CIT: różnica 2 kontraktów — zaokrąglenia CFTC (tolerancja)')
+        zly['pozycje']['cit']['corn']['pos']['nc'][0] += 10
+        zly['pozycje']['ice']['brent']['net'] += 1
+        zly['fundusze']['f']['GLD']['d'][-1][1] += 0.5
+        zly['banki']['kr']['PL']['d'][-1][1] = 0
+        zly['pozycje']['tff']['bcom']['h']['oi'].pop()
+        Z = k.surowce_spojnosc3(zly)
+        for x in ('pozycje.cit.corn: suma pozycji', 'pozycje.ice.brent: netto', 'fundusze.GLD: ', 'banki.PL: wartość 0', 'banki.PL: 0 t ≠ uncje', 'pozycje.tff.bcom: historia'):
+            self.assertTrue(any(z.startswith(x) for z in Z), (x, Z))
+        R = {'bledy': [], 'uwagi': []}
+        k.surowce_kontrola(zly, R)
+        self.assertTrue(R['bledy'] and all(b.startswith('surowce.json: sprzeczność w pliku — ') for b in R['bledy']))
+        # porównania: wartość aktywów GLD (⚠️ powyżej 0,1% — test wsteczny), Chiny MFW vs SAFE (tylko ℹ️), liczba rynków
+        P = k.surowce_porownania3({'v': 2, 'fundusze': {'f': {'GLD': {'asof': '2026-04-10', 'nav_r': 0.3445}, 'GLDM': {'asof': '2026-10-06', 'nav_r': -0.0101}}},
+                                   'banki': {'kr': {'CN': {'kontr': [['2026-06', 75440000.0, 75460000.0]]}}}})
+        W = dict(P['wiersze'])
+        self.assertEqual([zn for o, zn in P['wiersze']], ['⚠️', '✅', 'ℹ️'])
+        self.assertTrue(any('fundusz GLD 2026-04-10' in u for u in P['uwagi'])); self.assertEqual(len(P['uwagi']), 1, 'Chiny: różnica — tylko informacja')
+        self.assertTrue(any('różne: 2026-06' in o for o in W))
+        P2 = k.surowce_porownania3({'v': 2, 'fundusze': {'f': {'GLD': {'asof': '2026-10-06'}, 'IAU': {'asof': '2026-09-30'}}}})
+        self.assertEqual(P2['wiersze'], [('fundusze: IAU z 2026-09-30, GLD z 2026-10-06 — suma złota w funduszach czeka na IAU (6 dni)', 'ℹ️')])
+        z = k.surowce_kontrola(out, {'bledy': [], 'uwagi': []})
+        self.assertTrue(any(o.startswith('pozycje: rynków z bieżącego raportu — USA 4, Londyn 7, fundusze indeksowe 13, indeks 1') for o, _ in z['wiersze']), z['wiersze'])
+        self.assertTrue({'surowce_pozycje', 'surowce_fundusze', 'surowce_banki'} <= set(k.AW_BEZ_BLEDU))

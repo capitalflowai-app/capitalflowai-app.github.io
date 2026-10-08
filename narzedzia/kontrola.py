@@ -628,7 +628,10 @@ AW_BEZ_BLEDU = {   # v211/v215: części bez czerwieni z serii awarii — seria 
     'wycena_bg': 'dodatek SOPR — limit planu źródła (v132)',
     'surowce_ceny': 'surowce — część z błędem zostaje z datą (v295); wiek danych w wierszach świeżości',
     'surowce_zapasy': 'surowce — część z błędem zostaje z datą (v295); wiek danych w wierszach świeżości',
-    'surowce_mies': 'surowce — część z błędem zostaje z datą (v295); wiek danych w wierszach świeżości'}
+    'surowce_mies': 'surowce — część z błędem zostaje z datą (v295); wiek danych w wierszach świeżości',
+    'surowce_pozycje': 'surowce — część z błędem zostaje z datą (v298); wiek danych w wierszach świeżości',
+    'surowce_fundusze': 'surowce — część z błędem zostaje z datą (v298); wiek danych w wierszach świeżości',
+    'surowce_banki': 'surowce — część z błędem zostaje z datą (v298); wiek danych w wierszach świeżości'}
 
 
 def _aw_t(s):
@@ -3742,7 +3745,7 @@ SU_ETYKIETA = {'ceny': 'surowce: ropa i gaz dziennie (strona dzienna T+1, API co
                'live': 'surowce: złoto teraz (notowanie co godzinę)', 'zapasy': 'surowce: zapasy w USA (tydzień do piątku, publ. w środę)',
                'mies': 'surowce: ceny miesięczne (publ. ok. 2. dnia roboczego)', 'markets': 'surowce: pozycje funduszy (stan na wtorek, publ. w piątek)'}
 SU_PROG = {'ceny': ('d', 36 * 60), 'zloto': ('d', 36 * 60), 'live': ('h', 3 * 60), 'zapasy': ('w', 13 * 24 * 60), 'mies': ('m', 45 * 24 * 60),
-           'markets': ('w', 12 * 24 * 60)}
+           'markets': ('w', 13 * 24 * 60)}   # v298: 13 dni (było 12 — 1,14% kontroli z ⚠️ w poniedziałki po święcie; test wsteczny: SU3_PROG)
 # zapasy: tydzień kończy się w piątek, raport w środę 10:30 czasu Nowego Jorku (w tygodniu ze świętem pn–śr: czwartek 11:00) — wiek od końca
 # dnia danych tuż przed kolejnym raportem 11,6 dnia (ze świętem 12,7). Próg 13 dni = 7 dni cyklu + 5 do publikacji + 1 na święto. Test wsteczny
 # (model kalendarza 2021–10.2026: środa / czwartek po święcie, czas letni i zimowy, kontrola 06:20 i 08:36 UTC oraz co godzinę): 9 dni — ⚠️ w 45%
@@ -3941,13 +3944,192 @@ def surowce_kontrola(j, R):
     sprzed wersji 2 = None (raport bez linii)."""
     if not isinstance(j, dict) or j.get('v') != 2:
         return None
-    zle = surowce_spojnosc(j)
+    zle = surowce_spojnosc(j) + surowce_spojnosc3(j)   # v298: + pozycje, fundusze, banki
     for z in zle[:5]:
         R['bledy'].append(f'surowce.json: sprzeczność w pliku — {z}')
     P = surowce_porownania(j)
+    P3 = surowce_porownania3(j)   # v298: etap 3
+    P = {'wiersze': P['wiersze'] + P3['wiersze'], 'uwagi': P['uwagi'] + P3['uwagi']}
     R['uwagi'] += P['uwagi']
     nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
+# ---------------------------------------------------------------- v298: surowce — etap 3 (pozycje, fundusze, banki) ----------------------------------------------------------------
+# Świeżość: osobne wiersze (lista SWIEZOSC i wiersze surowce_swiezosc bez zmian), najwyżej ⚠️; banki — tylko ℹ️ (MFW publikuje kraje w różnych
+# dniach i nie ma historii terminów publikacji, z której dałoby się policzyć próg — kraj starszy niż SU3_BANKI_STARE dni jest wymieniony
+# w uwadze wiersza). Progi z testu wstecznego modelu kalendarza 2021 – 10.2026 (ws53/v298-dane3/bt/bt_pozycje.py; model CFTC odtwarza
+# wszystkie 6 przesuniętych publikacji z harmonogramu 2026): CFTC — 12 dni dawało ⚠️ w 1,14% kontroli (poniedziałki po święcie w tygodniu
+# publikacji), 13 dni — 0%; ICE (model pesymistyczny: piątek 18:45 UTC, po Wielkim Piątku wtorek) — 13 dni 0,29%, 14 dni — 0%.
+# Fundusze złota — ten sam plik i próg co wiersz „złoto dziennie” (36 h robocze). ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku:
+# suma pozycji grup ≠ open interest, netto lub udział niezgodne z pozycjami, tony ≠ uncje ÷ 32 150,7466 (±0,01 t), daty nie rosną, zero zamiast braku.
+SU3_ETYKIETA = {'pozycje': 'surowce: pozycje funduszy — USA, 30 rynków + fundusze indeksowe + indeks (stan na wtorek, publ. w piątek)',
+                'pozycje_ice': 'surowce: pozycje funduszy — Londyn (stan na wtorek, publ. w piątek)',
+                'fundusze': 'surowce: złoto w funduszach (tony; po sesji w USA)',
+                'banki': 'surowce: złoto banków centralnych (miesięcznie; każdy kraj ze swoim miesiącem)'}
+SU3_PROG = {'pozycje': ('w', 13 * 24 * 60), 'pozycje_ice': ('w', 14 * 24 * 60), 'fundusze': ('d', 36 * 60)}
+SU3_BANKI_STARE = 120   # dni od końca miesiąca danych — kraj z danymi starszymi wymieniony w uwadze wiersza banków (bez ⚠️)
+SU3_OZ_T = 32150.7466   # uncji trojańskich w tonie metrycznej
+SU3_NAV_PROG = 0.1      # % — wartość aktywów funduszu GLD/GLDM ÷ (uncje × cena złota z tego pliku) − 1; test wsteczny na archiwach
+                        # (ws53/v298-dane3/bt/bt_fundusze.py): GLD 2005–10.2026 — 5473 dni, p99 0,056%, ponad 0,1% tylko 10.04.2026 (−0,34%);
+                        # GLDM 2018–10.2026 — 2081 dni, maks. 0,023% → ⚠️ powyżej 0,1% (1 dzień na 7554 dni funduszu)
+SU3_TFF_TOL = (5, 0.005)   # TFF: tolerancja sumy jak w cftc_consistent zbieracza (max 5 kontraktów, 0,5% OI)
+SU3_CIT_TOL = 5            # CIT: zaokrąglenia CFTC (2026: 354 z 507 wierszy różni się o 1–2 kontrakty) — jak SU_CIT_TOL zbieracza; pozostałe — dokładnie
+
+
+def surowce_swiezosc3(j, now=None):
+    """Wiersze świeżości części etapu 3 (v298) w kształcie wierszy swiezosc(); tylko części obecne w pliku (plik sprzed v298 — bez wierszy)."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 2:
+        return []
+    rows = []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    P = j.get('pozycje') if isinstance(j.get('pozycje'), dict) else None
+
+    def wiersz(k, txt, kind, part):
+        label = SU3_ETYKIETA[k]
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); return
+        kat, prog = SU3_PROG[k]
+        w = wiek_danych(txt, kind, kat, now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            p = nx.get(part) if part else None
+            pt = _aw_t(p) if isinstance(p, str) else None
+            note = f'próg {fmt_wiek(prog)}' + (' (godziny robocze)' if kat == 'd' else '') + ' — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(p)}' + (' — zaległa (święto albo przerwa w pracy urzędu?)' if pt and pt < now else '') if pt else '')
+        rows.append((label, st, w, txt, note))
+    if P is not None:
+        a = [max(e['asof'] for e in (P.get(sub) or {}).values() if isinstance(e, dict) and isinstance(e.get('asof'), str))
+             for sub in ('cftc', 'cit', 'tff') if any(isinstance(e, dict) and isinstance(e.get('asof'), str) for e in (P.get(sub) or {}).values())]
+        wiersz('pozycje', min(a) if a else None, 'day', 'pozycje')   # najstarsza z trzech części tego samego raportu CFTC — zalegająca część widać
+        ice = [e['asof'] for e in (P.get('ice') or {}).values() if isinstance(e, dict) and isinstance(e.get('asof'), str)]
+        wiersz('pozycje_ice', max(ice) if ice else None, 'day', None)
+    F = j.get('fundusze') if isinstance(j.get('fundusze'), dict) else None
+    if F is not None:
+        g = ((F.get('f') or {}).get('GLD') or {}) if isinstance(F.get('f'), dict) else {}
+        wiersz('fundusze', g.get('asof') if isinstance(g.get('asof'), str) else None, 'day', 'fundusze')
+    B = j.get('banki') if isinstance(j.get('banki'), dict) else None
+    if B is not None:
+        kr = {k: e for k, e in (B.get('kr') or {}).items() if isinstance(e, dict) and isinstance(e.get('asof'), str)} if isinstance(B.get('kr'), dict) else {}
+        if not kr:
+            rows.append((SU3_ETYKIETA['banki'], '?', None, None, 'brak danych tej części w pliku'))
+        else:
+            mx = max(e['asof'] for e in kr.values())
+            stare = sorted((k, e['asof']) for k, e in kr.items() if (wiek_danych(e['asof'], 'month', 'm', now) or 0) > SU3_BANKI_STARE * 24 * 60)
+            note = 'bez progu (MFW publikuje kraje w różnych dniach)' + (
+                '; dane starsze niż ' + str(SU3_BANKI_STARE) + ' dni: ' + ', '.join(f'{k} {a}' for k, a in stare) if stare else '')
+            rows.append((SU3_ETYKIETA['banki'], 'ℹ️', wiek_danych(mx, 'month', 'm', now), mx, note))
+    return rows
+
+
+def _su3_num(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
+def surowce_spojnosc3(j):
+    """Sprzeczności wewnątrz części etapu 3 (❌): suma pozycji grup ≠ open interest (long + spread i short + spread), netto ≠ long − short grupy
+    głównej, udział niezgodny z netto ÷ open interest, historia z datami nie rosnącymi albo listami różnej długości; tony ≠ ilość ÷ przelicznik
+    (±0,01 t; mln funtów ±0,001), daty nie rosną, zero zamiast braku. → lista opisów."""
+    zle = []
+    if not isinstance(j, dict):
+        return zle
+    P = j.get('pozycje') if isinstance(j.get('pozycje'), dict) else {}
+    glowna = {'cftc': 'mm', 'ice': 'mm', 'cit': 'cit', 'tff': 'asset_mgr'}
+    for sub, gk in glowna.items():
+        for k, e in ((P.get(sub) or {}).items() if isinstance(P.get(sub), dict) else ()):
+            if not isinstance(e, dict):
+                continue
+            pos, oi = e.get('pos'), e.get('oi')
+            if isinstance(pos, dict) and _su3_num(oi) and all(isinstance(x, list) and len(x) == 3 and _su3_num(x[0]) and _su3_num(x[1]) for x in pos.values()):
+                L = sum(x[0] + (x[2] or 0) for x in pos.values())
+                S = sum(x[1] + (x[2] or 0) for x in pos.values())
+                tol = max(SU3_TFF_TOL[0], oi * SU3_TFF_TOL[1]) if sub == 'tff' else (SU3_CIT_TOL if sub == 'cit' else 0)
+                if abs(L - oi) > tol or abs(S - oi) > tol:
+                    zle.append(f'pozycje.{sub}.{k}: suma pozycji (long {L}, short {S}) ≠ open interest {oi}')
+                g = pos.get(gk)
+                if isinstance(g, list) and _su3_num(e.get('net')) and e['net'] != g[0] - g[1]:
+                    zle.append(f'pozycje.{sub}.{k}: netto {e["net"]} ≠ long − short ({g[0] - g[1]})')
+                if _su3_num(e.get('pct')) and _su3_num(e.get('net')) and oi and abs(e['pct'] - 100.0 * e['net'] / oi) > 0.051:
+                    zle.append(f'pozycje.{sub}.{k}: udział {e["pct"]}% ≠ netto ÷ open interest')
+            h = e.get('h') if isinstance(e.get('h'), dict) else {}
+            ds = h.get('d') if isinstance(h.get('d'), list) else []
+            if [str(x) for x in ds] != sorted(set(str(x) for x in ds)) or any(isinstance(v, list) and len(v) != len(ds) for v in h.values()):
+                zle.append(f'pozycje.{sub}.{k}: historia — daty nie rosną albo listy różnej długości')
+    F = j.get('fundusze') if isinstance(j.get('fundusze'), dict) else {}
+    for k, e in ((F.get('f') or {}).items() if isinstance(F.get('f'), dict) else ()):
+        if not isinstance(e, dict):
+            continue
+        d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2]
+        if [str(x[0]) for x in d] != sorted(set(str(x[0]) for x in d)):
+            zle.append(f'fundusze.{k}: daty nie rosną albo się powtarzają')
+        if any(x[1] == 0 and _su3_num(x[1]) for x in d):
+            zle.append(f'fundusze.{k}: wartość 0 (brak ma być null)')
+        q, qu = e.get('q'), e.get('qu')
+        if d and isinstance(q, list) and len(q) == 2 and q[0] == d[-1][0] and _su3_num(q[1]) and _su3_num(d[-1][1]):
+            want = q[1] / SU3_OZ_T if qu == 'oz' else (q[1] / 1e6 if qu == 'lb' else q[1])
+            if abs(d[-1][1] - want) > (0.001 if qu == 'lb' else 0.01):
+                zle.append(f'fundusze.{k}: {d[-1][1]} {e.get("u")} ≠ ilość ze źródła przeliczona ({want:.3f})')
+    for sid, e in ((F.get('suma') or {}).items() if isinstance(F.get('suma'), dict) else ()):
+        d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2] if isinstance(e, dict) else []
+        if [str(x[0]) for x in d] != sorted(set(str(x[0]) for x in d)):
+            zle.append(f'fundusze.suma.{sid}: daty nie rosną albo się powtarzają')
+    B = j.get('banki') if isinstance(j.get('banki'), dict) else {}
+    for k, e in ((B.get('kr') or {}).items() if isinstance(B.get('kr'), dict) else ()):
+        if not isinstance(e, dict):
+            continue
+        d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2]
+        if e.get('u') != 't':
+            zle.append(f'banki.{k}: jednostka {e.get("u")} zamiast t')
+        if [str(x[0]) for x in d] != sorted(set(str(x[0]) for x in d)):
+            zle.append(f'banki.{k}: miesiące nie rosną albo się powtarzają')
+        if any(x[1] == 0 and _su3_num(x[1]) for x in d):
+            zle.append(f'banki.{k}: wartość 0 (brak ma być null)')
+        if d and d[-1][0] == e.get('asof') and _su3_num(e.get('oz')) and _su3_num(d[-1][1]) and abs(d[-1][1] - e['oz'] / SU3_OZ_T) > 0.01:
+            zle.append(f'banki.{k}: {d[-1][1]} t ≠ uncje ÷ 32 150,7466 ({e["oz"] / SU3_OZ_T:.3f})')
+    return zle
+
+
+def surowce_porownania3(j):
+    """Porównania etapu 3 z pliku strony (bez sieci): wartość aktywów GLD/GLDM wobec uncji × ceny (⚠️ powyżej SU3_NAV_PROG, test wsteczny
+    w komentarzu stałej), złoto Chin — MFW wobec SAFE w tych samych miesiącach (ℹ️: SAFE podaje 万盎司 — zgodność do 5000 uncji; za krótka
+    historia na próg ⚠️), liczba rynków w pozycjach (ℹ️). → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    W, U = [], []
+    if not isinstance(j, dict):
+        return {'wiersze': W, 'uwagi': U}
+    F = (j.get('fundusze') or {}).get('f') if isinstance(j.get('fundusze'), dict) else None
+    for k in ('GLD', 'GLDM'):
+        e = (F or {}).get(k) if isinstance(F, dict) else None
+        if isinstance(e, dict) and _su3_num(e.get('nav_r')):
+            r = e['nav_r']
+            zn = '⚠️' if abs(r) > SU3_NAV_PROG else '✅'
+            W.append((f'fundusze: {k} {e.get("asof")} — wartość aktywów ÷ (uncje × cena złota) − 1 = {r:+.3f}% (próg {SU3_NAV_PROG:g}%)'.replace('.', ','), zn))
+            if zn == '⚠️':
+                U.append(f'surowce: fundusz {k} {e.get("asof")} — wartość aktywów nie zgadza się z ilością złota × ceną ({r:+.3f}%) — sprawdzić archiwum funduszu'.replace('.', ','))
+    g, i = ((F or {}).get('GLD') or {}) if isinstance(F, dict) else {}, ((F or {}).get('IAU') or {}) if isinstance(F, dict) else {}
+    if isinstance(g.get('asof'), str) and isinstance(i.get('asof'), str) and g['asof'] > i['asof']:
+        try:
+            dni = (dt.date.fromisoformat(g['asof']) - dt.date.fromisoformat(i['asof'])).days
+        except ValueError:
+            dni = 0
+        if dni > 4:   # IAU liczony z pliku funduszy strony (pamięć automatu) — dłuższa zaległość = suma złota w funduszach stoi (bez progu ⚠️)
+            W.append((f'fundusze: IAU z {i["asof"]}, GLD z {g["asof"]} — suma złota w funduszach czeka na IAU ({dni} dni)', 'ℹ️'))
+    cn = (((j.get('banki') or {}).get('kr') or {}).get('CN')) if isinstance(j.get('banki'), dict) and isinstance((j.get('banki') or {}).get('kr'), dict) else None
+    if isinstance(cn, dict) and isinstance(cn.get('kontr'), list) and cn['kontr']:
+        zle = [x for x in cn['kontr'] if isinstance(x, list) and len(x) == 3 and _su3_num(x[1]) and _su3_num(x[2]) and abs(x[1] - x[2]) > 5000]
+        W.append((f'banki: Chiny — MFW vs SAFE, {len(cn["kontr"])} wspólnych mies. (do {cn["kontr"][-1][0]}): '
+                  + ('różne: ' + ', '.join(f'{x[0]} {x[1] / SU3_OZ_T:.1f} vs {x[2] / SU3_OZ_T:.1f} t' for x in zle[:3]) if zle else 'zgodne')
+                  .replace('.', ','), 'ℹ️'))
+    P = j.get('pozycje') if isinstance(j.get('pozycje'), dict) else None
+    if P is not None:
+        cz = []
+        for sub, nazwa in (('cftc', 'USA'), ('ice', 'Londyn'), ('cit', 'fundusze indeksowe'), ('tff', 'indeks')):
+            x = P.get(sub) if isinstance(P.get(sub), dict) else {}
+            kept = [k for k, e in x.items() if isinstance(e, dict) and e.get('kept')]
+            cz.append(f'{nazwa} {len(x) - len(kept)}' + (f' (+{len(kept)} z poprzedniego raportu)' if kept else ''))
+        W.append(('pozycje: rynków z bieżącego raportu — ' + ', '.join(cz), 'ℹ️'))
+    return {'wiersze': W, 'uwagi': U}
 
 
 # ---------------------------------------------------------------- v295c: złoto i surowce a krypto (data/zloto-krypto.json) ----------------------------------------------------------------
@@ -4137,7 +4319,7 @@ def kontrola():
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
     # 3c-su. v295: surowce (data/surowce.json w wersji 2) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
-    for label, st, w, txt, note in surowce_swiezosc(files.get('surowce')):
+    for label, st, w, txt, note in surowce_swiezosc(files.get('surowce')) + surowce_swiezosc3(files.get('surowce')):   # v298: + etap 3
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
