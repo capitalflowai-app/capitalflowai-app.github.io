@@ -3917,7 +3917,8 @@ def surowce_porownania(j, now=None):
             W.append((f'Brent dostawa fizyczna vs kontrakt, zmiany dzienne z {len(wsp)} wspólnych dni: największa różnica {mx} '
                       f'({a[mx]:+.1f}% vs {b[mx]:+.1f}%)'.replace('.', ','), 'ℹ️'))
     for cid, nazwa in (('brent', 'Brent'), ('wti', 'WTI')):
-        tr = []   # v297g: kolejne sesje po punkcie bez potwierdzenia (wpisy q 'trwa') — jedna uwaga zbiorcza na serię, nie po jednej na dzień
+        tr, pk = [], set()   # v297g: kolejne sesje po punkcie bez potwierdzenia (wpisy q 'trwa'); v300: wszystkie (ciąg dłuższy niż SU_Q_DNI dni
+                             # ma w uwadze swój początek), uwaga dla ciągu z ostatnim dniem młodszym niż SU_Q_DNI dni; pk — dni punktów bez potwierdzenia
         for q in ((C.get(cid) or {}).get('q') or []) if isinstance(C.get(cid), dict) else []:
             if not (isinstance(q, list) and len(q) == 3):
                 continue
@@ -3925,18 +3926,52 @@ def surowce_porownania(j, now=None):
                 age = (now.date() - dt.date.fromisoformat(str(q[0]))).days
             except ValueError:
                 continue
+            if q[2] == 'niepotw' and age >= 0:
+                (tr.append if q[1] == 'trwa' else pk.add)(str(q[0]))
             if q[1] == 'trwa':
-                if q[2] == 'niepotw' and 0 <= age <= SU_Q_DNI:
-                    tr.append(str(q[0]))
                 continue
             if q[2] == 'niepotw' and 0 <= age <= SU_Q_DNI:
                 U.append(f'surowce: {nazwa} {q[0]} — punkt do sprawdzenia ({"skok z odwrotem" if q[1] == "skok" else "rozjazd z drugą ropą"}), '
                          + ('kontrakt nie potwierdza ruchu' if cid == 'brent' else 'brak drugiego źródła') + ' — wartość zostaje na stronie z oznaczeniem')
-        if tr:
-            U.append(f'surowce: {nazwa} {min(tr)} – {max(tr)} — cena zostaje na poziomie po nietypowym ruchu ({len(tr)} ses.), '
-                     + ('kontrakt tego nie potwierdza' if cid == 'brent' else 'brak drugiego źródła')
-                     + ' — na stronie uwaga przy kaflu, a zmiana tygodnia jest „—”')
+        if tr:   # v300: osobna uwaga dla każdego ciągu (kolejne sesje serii); zdanie o stronie tylko dla ciągu, który trwa do ostatniej ceny
+            ds = sorted({str(x[0]) for x in ((C.get(cid) or {}).get('d') or []) if isinstance(x, list) and len(x) == 2
+                         and isinstance(x[1], (int, float)) and not isinstance(x[1], bool)})
+            zb = sorted(set(tr) | pk)   # dni bez potwierdzenia (ciągi i punkty) — co jest po końcu ciągu
+            for a, b, n, nast, ost in _su_ciagi(sorted(set(tr)), ds):
+                if (now.date() - dt.date.fromisoformat(b)).days > SU_Q_DNI:
+                    continue
+                z = next((x for x in zb if nast and x >= nast), None)
+                U.append(f'surowce: {nazwa} {a}' + (f' – {b}' if b != a else '') + f' — cena zostaje na poziomie po nietypowym ruchu ({n} ses.), '
+                         + ('kontrakt tego nie potwierdza' if cid == 'brent' else 'brak drugiego źródła')
+                         + (' — na stronie uwaga przy kaflu, a zmiana tygodnia jest „—”' if ost else
+                            '' if not nast else
+                            f' — ciąg już się skończył ({nast} — nowy punkt do sprawdzenia)' if z == nast else
+                            f' — ciąg już się skończył (od {nast} cena bez oznaczenia, znów bez potwierdzenia od {z})' if z else
+                            f' — ciąg już się skończył (od {nast} cena bez oznaczenia)'))
+        lim = (C.get(cid) or {}).get('q_lim') if isinstance(C.get(cid), dict) else None
+        if isinstance(lim, list) and len(lim) == 2 and isinstance(lim[1], int) and not isinstance(lim[1], bool):
+            try:
+                age = (now.date() - dt.date.fromisoformat(str(lim[0]))).days
+            except ValueError:
+                age = None
+            if age is not None and 0 <= age <= SU_Q_DNI:   # v300: ciąg ucięty bezpiecznikiem, a cena dalej bez potwierdzenia — bez oznaczenia na stronie
+                U.append(f'surowce: {nazwa} {lim[0]} — ciąg cen bez potwierdzenia doszedł do bezpiecznika ({lim[1]} sesji); dalsze sesje na nowym '
+                         'poziomie są na stronie bez oznaczenia — sprawdzić ręcznie, czy cena jest prawdziwa')
     return {'wiersze': W, 'uwagi': U}
+
+
+def _su_ciagi(dni, ds):
+    """v300: dni z wpisem q 'trwa' (rosnąco) → ciągi kolejnych sesji serii ds (dni z ceną, rosnąco): [(pierwszy, ostatni, liczba sesji,
+    następna sesja serii po ciągu albo None, czy ciąg kończy się na ostatniej cenie serii)]. Dzień spoza ds — osobny ciąg bez następnej sesji."""
+    pos = {d: i for i, d in enumerate(ds)}
+    G = []
+    for d in dni:
+        i = pos.get(d)
+        if G and i is not None and G[-1][3] is not None and i == G[-1][3] + 1:
+            G[-1][1], G[-1][2], G[-1][3] = d, G[-1][2] + 1, i
+        else:
+            G.append([d, d, 1, i])
+    return [(a, b, n, ds[j + 1] if j is not None and j + 1 < len(ds) else None, j is not None and j == len(ds) - 1) for a, b, n, j in G]
 
 
 def surowce_kontrola(j, R):

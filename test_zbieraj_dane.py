@@ -33708,3 +33708,332 @@ class CzcionkiBezDuplikatowV299(unittest.TestCase):
         self.assertGreater(len(num), 20)
         for v in num:
             self.assertTrue(int(v) % 100 == 0 and 100 <= int(v) <= 900, 'grubość w skrócie font / płótnie: ' + v)
+
+
+class SurowceUwagiV300(unittest.TestCase):
+    """v300 (uwagi z przeglądów działu SUROWCE): zmiana miesiąca kontraktu (roll) w środku ciągu 'trwa' nie zmienia potwierdzenia; poziom
+    odniesienia ciągu bez dni tej samej ropy bez potwierdzenia (powrót ceny po dłuższym okresie bez potwierdzenia nie zaczyna fałszywego ciągu);
+    bezpiecznik SU_Q_MAX dla każdej sesji (także Brent z kontraktem), a ucięcie, po którym cena dalej jest bez potwierdzenia, trafia do pliku
+    (ceny[ropa].q_lim) i kontroli; kontrola: osobna uwaga dla każdego ciągu z jego początkiem, zdanie o stronie tylko dla ciągu do ostatniej ceny,
+    co jest po końcu ciągu; CRYPTO: korelacja pomija tylko dni bez potwierdzenia, a ceny bez potwierdzenia po końcu okna są opisane (kor.br.pom).
+    Nagrania: ceny EIA (Brent, WTI) i kontrakt ciągły na Brenta (BZ=F) z sesji 02.02–10.04.2026 i 29–30.07.2026 (te same dane co w teście
+    wstecznym ws53/v300-uwagi/bt/test_wsteczny_v300.py i próbce surowców v3); wrzesień–październik 2026 z klasy v297g. Bez zegara i sieci."""
+    # [dzień, Brent, WTI, kontrakt] — None: brak notowania (16.02 święto w USA, 06.04 Wielki Poniedziałek w Wielkiej Brytanii)
+    R26 = [["2026-02-02", 67.72, 61.6, 66.3], ["2026-02-03", 70.01, 62.62, 67.33], ["2026-02-04", 71.15, 64.56, 69.46], ["2026-02-05", 69.87, 62.9, 67.55],
+           ["2026-02-06", 70.45, 63.77, 68.05], ["2026-02-09", 71.19, 64.53, 69.04], ["2026-02-10", 71.01, 64.2, 68.8], ["2026-02-11", 71.52, 64.8, 69.4],
+           ["2026-02-12", 69.8, 63.08, 67.52], ["2026-02-13", 69.96, 63.05, 67.75], ["2026-02-16", 70.81, None, None], ["2026-02-17", 69.77, 62.53, 67.42],
+           ["2026-02-18", 71.78, 65.33, 70.35], ["2026-02-19", 73.17, 66.66, 71.66], ["2026-02-20", 72.75, 66.69, 71.76], ["2026-02-23", 71.9, 66.36, 71.49],
+           ["2026-02-24", 71.21, 65.62, 70.77], ["2026-02-25", 70.69, 65.3, 70.85], ["2026-02-26", 71.66, 65.1, 70.75], ["2026-02-27", 71.32, 66.96, 72.48],
+           ["2026-03-02", 77.24, 71.13, 77.74], ["2026-03-03", 83.28, 74.48, 81.4], ["2026-03-04", 81.56, 74.58, 81.4], ["2026-03-05", 88.59, 80.88, 85.41],
+           ["2026-03-06", 95.74, 90.77, 92.69], ["2026-03-09", 94.35, 94.65, 98.96], ["2026-03-10", 89.84, 83.71, 87.8], ["2026-03-11", 90.98, 86.8, 91.98],
+           ["2026-03-12", 102.38, 95.61, 100.46], ["2026-03-13", 103.23, 98.48, 103.14], ["2026-03-16", 101.04, 93.39, 100.21], ["2026-03-17", 108.39, 96.01, 103.42],
+           ["2026-03-18", 118.09, 96.12, 107.38], ["2026-03-19", 111.05, 96.11, 108.65], ["2026-03-20", 118.42, 98.71, 112.19], ["2026-03-23", 103.79, 89.33, 99.94],
+           ["2026-03-24", 108.42, 93.18, 104.49], ["2026-03-25", 109.14, 91.51, 102.22], ["2026-03-26", 113.39, 96.18, 108.01], ["2026-03-27", 121.47, 101.26, 112.57],
+           ["2026-03-30", 121.88, 104.69, 112.78], ["2026-03-31", 126.69, 102.86, 118.35], ["2026-04-01", 119.56, 101.9, 101.16], ["2026-04-02", 127.61, 113.23, 109.03],
+           ["2026-04-06", None, 114.01, 109.77], ["2026-04-07", 138.21, 114.58, 109.27], ["2026-04-08", 122.11, 96.17, 94.75], ["2026-04-09", 119.03, 99.62, 95.92],
+           ["2026-04-10", 119.07, 98.34, 95.2]]
+
+    @staticmethod
+    def ser(R):
+        return tuple({r[0]: r[k] for r in R if r[k] is not None} for k in (1, 2, 3))
+
+    @staticmethod
+    def dni(n, od='2025-01-06'):
+        d0 = datetime.date.fromisoformat(od)
+        out, i = [], 0
+        while len(out) < n:
+            d = d0 + datetime.timedelta(days=i)
+            if d.weekday() < 5:
+                out.append(d.isoformat())
+            i += 1
+        return out
+
+    def test_okno_zmiany_miesiaca_kontraktu(self):
+        f = zd._su_q_okno_roll
+        # 3 ostatnie dni robocze miesiąca (pn–pt) albo pierwsza sesja nowego miesiąca (dni zmiany w serii kontrolnej 2026: 29.06, 30.07, 27.08, 29.09)
+        for a, b in (('2026-06-26', '2026-06-29'), ('2026-07-29', '2026-07-30'), ('2026-08-26', '2026-08-27'), ('2026-09-28', '2026-09-29'),
+                     ('2026-09-30', '2026-10-01'), ('2026-03-31', '2026-04-01'), ('2026-07-31', '2026-08-03'), ('2026-02-25', '2026-02-26')):
+            self.assertTrue(f(a, b), (a, b))
+        for a, b in (('2026-09-24', '2026-09-25'), ('2026-10-01', '2026-10-02'), ('2026-03-24', '2026-03-25'), ('2026-08-25', '2026-08-26'), ('x', 'x')):
+            self.assertFalse(f(a, b), (a, b))
+
+    def test_zmiana_miesiaca_kontraktu_nie_daje_falszywego_braku_potwierdzenia(self):
+        B, W, F = self.ser(self.R26)
+        q = zd.su_q(B, W, F)['brent']
+        # 18.03: Brent +9,0% przy WTI +0,1% i kontrakcie +3,8% — rozjazd i skok bez potwierdzenia (jak dotąd)
+        self.assertIn(['2026-03-18', 'rozjazd', 'niepotw'], q); self.assertIn(['2026-03-18', 'skok', 'niepotw'], q)
+        tr = [x[0] for x in q if x[1] == 'trwa']
+        # 25.03: kontrakt −1,2% od 17.03 przy Brent +0,7% — bez potwierdzenia (bez zmiany miesiąca kontraktu w drodze)
+        self.assertIn('2026-03-25', tr)
+        # 01.04: kontrakt zmienił miesiąc dostawy (118,35 → 101,16: −15,7% przy Brent −5,8% i WTI −0,9%) — to skok samego kontraktu; bez poprawki
+        # zmiana od 17.03 wynosiła −2,2% wobec +10,3% ceny fizycznej (fałszywy brak potwierdzenia), z poprawką kontrakt idzie z rynkiem
+        self.assertNotIn('2026-04-01', tr, q)
+        self.assertEqual(tr, ['2026-03-25'])
+        K = zd._su_q_kontrakt(F, B, W, '2026-03-17', frozenset({'2026-03-18'}))
+        self.assertAlmostEqual(K['2026-04-01'] - K['2026-03-31'], _math_v125.log(119.56 / 126.69), places=9, msg='krok = mediana trzech zmian (tu Brent)')
+        self.assertAlmostEqual(K['2026-03-31'], _math_v125.log(118.35 / 103.42), places=9, msg='poza zmianą miesiąca — droga kontraktu jak notowania')
+        # dzień punktu q na końcu kroku — bez poprawki (błąd ceny fizycznej nie poprawia kontraktu)
+        K2 = zd._su_q_kontrakt(F, B, W, '2026-03-17', frozenset({'2026-04-01'}))
+        self.assertAlmostEqual(K2['2026-04-01'], _math_v125.log(101.16 / 103.42), places=9)
+        # ten sam odstający krok poza oknem zmiany miesiąca — bez poprawki
+        F3 = {'2026-03-23': 100.0, '2026-03-24': 80.0}
+        self.assertAlmostEqual(zd._su_q_kontrakt(F3, B, W, '2026-03-23', frozenset())['2026-03-24'], _math_v125.log(0.8), places=9)
+        # krok w oknie, ale kontrakt między zmianami obu cen fizycznych (nie odstaje) — bez poprawki
+        F4 = {'2026-03-30': 100.0, '2026-03-31': 102.0}   # Brent +3,9%, WTI −1,7%: kontrakt +2,0% w środku
+        self.assertAlmostEqual(zd._su_q_kontrakt(F4, B, W, '2026-03-30', frozenset())['2026-03-31'], _math_v125.log(1.02), places=9)
+        self.assertEqual(zd.SU_Q_ROLL, 0.02, 'próg z testu wstecznego (komentarz SU_Q_ROLL)')
+
+    def test_bezpiecznik_dla_kazdej_sesji_i_dzien_uciecia(self):
+        days = self.dni(90)
+        B = {d: (70.0 if i < 30 else 84.0) * (1 + 0.001 * (i % 3)) for i, d in enumerate(days)}
+        W = {d: 66.0 * (1 + 0.001 * (i % 3)) for i, d in enumerate(days)}
+        # Brent z kontraktem, który nie idzie za ceną (stoi na poziomie sprzed skoku): najwyżej SU_Q_MAX sesji, jak bez kontraktu — kontrakt nie
+        # potwierdza zmiany samej premii ceny fizycznej, więc bez bezpiecznika taki stan byłby oznaczony bez końca; dzień ucięcia w `lim`
+        F = {d: 69.0 for d in days}
+        lim = {}
+        tr = [x[0] for x in zd.su_q(B, W, F, None, lim)['brent'] if x[1] == 'trwa']
+        self.assertEqual(tr, days[31:31 + zd.SU_Q_MAX])
+        self.assertEqual(lim, {'brent': [days[30 + zd.SU_Q_MAX], zd.SU_Q_MAX]}, 'następna sesja dalej na nowym poziomie bez potwierdzenia')
+        # kontrakt potwierdza (idzie za ceną) — kolejne sesje potwierdzone, bez wpisów 'trwa' i bez ucięcia
+        F2 = {d: (69.0 if i < 30 else 82.8) for i, d in enumerate(days)}
+        lim = {}
+        self.assertEqual([x for x in zd.su_q(B, W, F2, None, lim)['brent'] if x[1] == 'trwa'], []); self.assertEqual(lim, {})
+        # kontrakt dogania cenę dopiero po ucięciu — dalsze sesje potwierdzone: ucięcie bez uwagi (nic nie zostaje bez oznaczenia)
+        F3 = {d: (69.0 if i <= 30 + zd.SU_Q_MAX else 82.8) for i, d in enumerate(days)}
+        lim = {}
+        tr = [x[0] for x in zd.su_q(B, W, F3, None, lim)['brent'] if x[1] == 'trwa']
+        self.assertEqual(tr, days[31:31 + zd.SU_Q_MAX]); self.assertEqual(lim, {})
+        # bez kontraktu (i WTI zawsze): najwyżej SU_Q_MAX sesji, dzień ucięcia w `lim`
+        lim = {}
+        tr = [x[0] for x in zd.su_q(B, W, {}, None, lim)['brent'] if x[1] == 'trwa']
+        self.assertEqual(tr, days[31:31 + zd.SU_Q_MAX]); self.assertEqual(lim, {'brent': [days[30 + zd.SU_Q_MAX], 20]})
+        W2 = {d: (66.0 if i < 30 else 52.0) * (1 + 0.001 * (i % 3)) for i, d in enumerate(days)}
+        B2 = {d: 70.0 * (1 + 0.001 * (i % 3)) for i, d in enumerate(days)}
+        lim = {}
+        q = zd.su_q(B2, W2, {}, None, lim)
+        self.assertEqual(len([x for x in q['wti'] if x[1] == 'trwa']), zd.SU_Q_MAX); self.assertEqual(lim, {'wti': [days[30 + zd.SU_Q_MAX], 20]})
+        self.assertEqual(zd.su_q(B2, W2, {}), q, 'bez `lim` — ten sam wynik (parametr opcjonalny)')
+
+    def test_plik_ma_dzien_uciecia_ciagu(self):
+        # build_surowce z samej historii (bez kluczy i sieci): Brent skacze o 20% w 61. sesji i zostaje (WTI bez zmian), kontraktu brak —
+        # ciąg 20 sesji, dzień ucięcia w pliku (ceny.brent.q_lim) dla kontroli; WTI bez wpisu
+        days = self.dni(90, '2026-04-01')
+        hist = {'v': 1, 'd': {'brent': [[d, round((70.0 if i < 60 else 84.0) * (1 + 0.001 * (i % 3)), 3)] for i, d in enumerate(days)],
+                              'wti': [[d, round(66.0 * (1 + 0.001 * (i % 3)), 3)] for i, d in enumerate(days)]}}
+
+        def fetch(url, timeout, headers=None):
+            raise OSError('bez sieci w teście')
+        now = datetime.datetime.fromisoformat(days[-1] + 'T20:00:00+00:00')
+        su = zd.build_surowce(None, hist, {}, now, fetch, budzet_s=30)[0]
+        e = su['ceny']['brent']
+        self.assertIn([days[60], 'rozjazd', 'niepotw'], e['q'])
+        self.assertEqual([x[0] for x in e['q'] if x[1] == 'trwa'], days[61:61 + zd.SU_Q_MAX])
+        self.assertEqual(e['q_lim'], [days[60 + zd.SU_Q_MAX], 20])
+        self.assertNotIn('q_lim', su['ceny']['wti'])
+        json.dumps(su, allow_nan=False)
+
+    def test_kontrola_osobne_ciagi_i_bezpiecznik(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v300', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        B, W, _F = self.ser(self.R26)
+        bd = [[d, v] for d, v in sorted(B.items()) if d <= '2026-04-02']
+        q = [['2026-03-18', 'rozjazd', 'niepotw'], ['2026-03-23', 'trwa', 'niepotw'], ['2026-03-24', 'trwa', 'niepotw'], ['2026-03-26', 'trwa', 'niepotw'],
+             ['2026-04-01', 'trwa', 'niepotw'], ['2026-04-02', 'trwa', 'niepotw']]
+        j = {'v': 2, 'ceny': {'brent': {'u': 'USD/bbl', 'd': bd, 'q': q}, 'wti': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(W.items())]}}}
+        P = k.surowce_porownania(j, datetime.datetime(2026, 4, 3, 6, 20, tzinfo=datetime.timezone.utc))
+        tr = [u for u in P['uwagi'] if 'poziomie po nietypowym ruchu' in u]
+        self.assertEqual(len(tr), 3, P['uwagi'])
+        self.assertEqual(tr, [
+            'surowce: Brent 2026-03-23 – 2026-03-24 — cena zostaje na poziomie po nietypowym ruchu (2 ses.), kontrakt tego nie potwierdza — ciąg już się skończył (od 2026-03-25 cena bez oznaczenia, znów bez potwierdzenia od 2026-03-26)',
+            'surowce: Brent 2026-03-26 — cena zostaje na poziomie po nietypowym ruchu (1 ses.), kontrakt tego nie potwierdza — ciąg już się skończył (od 2026-03-27 cena bez oznaczenia, znów bez potwierdzenia od 2026-04-01)',
+            'surowce: Brent 2026-04-01 – 2026-04-02 — cena zostaje na poziomie po nietypowym ruchu (2 ses.), kontrakt tego nie potwierdza — na stronie uwaga przy kaflu, a zmiana tygodnia jest „—”'])
+        self.assertEqual(sum('na stronie uwaga przy kaflu' in u for u in P['uwagi']), 1, 'zdanie o stronie tylko dla ciągu do ostatniej ceny')
+        self.assertEqual(k._su_ciagi(['2026-03-23', '2026-03-24', '2026-03-26', '2026-04-02'], ['2026-03-20', '2026-03-23', '2026-03-24', '2026-03-25', '2026-03-26', '2026-03-27', '2026-04-02']),
+                         [('2026-03-23', '2026-03-24', 2, '2026-03-25', False), ('2026-03-26', '2026-03-26', 1, '2026-03-27', False), ('2026-04-02', '2026-04-02', 1, None, True)])
+        self.assertEqual(k._su_ciagi(['2026-03-21'], ['2026-03-20']), [('2026-03-21', '2026-03-21', 1, None, False)], 'dzień spoza serii — bez zdania o stronie')
+        # ciąg ucięty bezpiecznikiem (q_lim) — uwaga przez SU_Q_DNI dni; zły zapis albo stary — bez uwagi
+        for lim, ile in ((['2026-03-30', 20], 1), (['2026-03-01', 20], 0), (['2026-03-30', '20'], 0), (['zły', 20], 0), ('2026-03-30', 0), (['2026-03-30', True], 0)):
+            j2 = json.loads(json.dumps(j)); j2['ceny']['wti']['q_lim'] = lim
+            U = [u for u in k.surowce_porownania(j2, datetime.datetime(2026, 4, 3, 6, 20, tzinfo=datetime.timezone.utc))['uwagi'] if 'bezpiecznika' in u]
+            self.assertEqual(len(U), ile, lim)
+            if ile:
+                self.assertEqual(U[0], 'surowce: WTI 2026-03-30 — ciąg cen bez potwierdzenia doszedł do bezpiecznika (20 sesji); dalsze sesje na nowym poziomie są na stronie bez oznaczenia — sprawdzić ręcznie, czy cena jest prawdziwa')
+        self.assertFalse(any('trwa' in u or 'q_lim' in u for u in P['uwagi']), 'bez wewnętrznych słów w raporcie')
+
+    def test_korelacja_pomija_tylko_dni_bez_potwierdzenia_i_mowi_o_pozniejszych(self):
+        F = _ZK_FX
+        su = {'v': 2, 'ceny': {'brent': {'d': F['brent'][-5:], 'q': [['2026-03-18', 'skok', 'potw'], ['2026-04-07', 'rozjazd', 'potw'], ['2026-04-07', 'skok', 'niepotw'],
+                                                                       ['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-05', 'trwa', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']]}}}
+        s, q = zd.zk_seria_su(su, {'v': 1, 'd': {'brent': F['brent']}}, 'brent')
+        self.assertEqual(sorted(q), ['2026-04-07', '2026-10-02', '2026-10-05', '2026-10-06'],
+                         'punkt potwierdzony (18.03) zostaje — to prawdziwy ruch rynku; ten sam dzień z wpisem bez potwierdzenia (07.04) — pominięty')
+        S = ZlotoKryptoV295c.S(self)
+        S['surowce']['ceny']['brent']['q'] = su['ceny']['brent']['q']
+        o = zd.build_zloto_krypto(S, None, ZlotoKryptoV295c.NOW)
+        br, zl = o['kor']['br'], o['kor']['zl']
+        self.assertEqual(br['d'], '2026-10-01', 'koniec okna na ostatnim potwierdzonym dniu')
+        self.assertEqual(br['pom'], {'n': 3, 'od': '2026-10-02'}, 'ceny bez potwierdzenia po końcu okna — powód na stronie')
+        self.assertNotIn('pom', zl); self.assertNotIn('pom', o['kor']['sp'])
+        Wb = zd.zk_wspolne(dict(F['brent']), dict(F['btc']), q)
+        self.assertEqual(br['v'], zd.zk_kor(Wb)['v'])
+        self.assertIn('2026-03-18', [r[0] for r in Wb])
+        # sam punkt w środku serii (bez dni po końcu okna) — bez pola pom
+        S['surowce']['ceny']['brent']['q'] = [['2026-09-29', 'rozjazd', 'niepotw']]
+        o2 = zd.build_zloto_krypto(S, None, ZlotoKryptoV295c.NOW)
+        self.assertEqual(o2['kor']['br']['d'], '2026-10-06'); self.assertNotIn('pom', o2['kor']['br'])
+        json.dumps(o, allow_nan=False)
+        self.assertIsNone(zd.zk_pom(None, {}, {}, set())); self.assertIsNone(zd.zk_pom({'d': 'x'}, {}, {}, set()))
+        self.assertIsNone(zd.zk_pom({'d': '2026-10-06'}, {'2026-10-07': 1}, {}, {'2026-10-07'}), 'bez ceny bitcoina tego dnia — nie liczy się')
+
+    # ---- v300, runda 2 (po przeglądzie): powrót ceny po dłuższym okresie bez potwierdzenia, mediana trzech zmian przy WTI, dzień punktu q
+    # w oknie zmiany miesiąca kontraktu (przez su_q), dwa ucięte ciągi w jednej serii, ucięcie bez fałszywego alarmu, kontrola po końcu ciągu
+    @staticmethod
+    def przyszlosc(do, pow_, od='2026-10-07', kon='2026-12-31', f_po=105.0):
+        """Wrzesień–październik 2026 (prawdziwe ceny EIA z klasy v297g: skok Brenta 02.10 o +18% bez potwierdzenia) + sesje od `od` do `kon`:
+        WTI 96,2, kontrakt 105,0 (po dniu `do`: `f_po`), Brent 125,4 do dnia `do` (cena dalej na poziomie po skoku), potem `pow_` (powrót)."""
+        B, W = SurowceQTrwaV297g.ser(SurowceQTrwaV297g.R26)
+        F = dict(SurowceQTrwaV297g.F)
+        d, e = datetime.date.fromisoformat(od), datetime.date.fromisoformat(kon)
+        while d <= e:
+            if d.weekday() < 5:
+                s = d.isoformat()
+                W[s], F[s], B[s] = 96.2, (105.0 if s <= do else f_po), (125.4 if s <= do else pow_)
+            d += datetime.timedelta(days=1)
+        return B, W, F
+
+    def test_powrot_ceny_po_dluzszym_okresie_bez_potwierdzenia(self):
+        # cena po skoku z 02.10 stoi wysoko 13 sesji, 22.10 wraca do relacji sprzed skoku (114,0 przy WTI 96,2: log 0,170 wobec mediany 0,169):
+        # dzień powrotu to sam punkt 'rozjazd' (Brent −9,1% przy WTI 0%), a dalej — prawidłowe ceny bez oznaczenia. Dawniej poziom odniesienia
+        # dnia powrotu (mediana 20 sesji przed nim) był z cen po skoku, więc każda następna cena była „wciąż na nowym poziomie” (20 sesji)
+        B, W, F = self.przyszlosc('2026-10-21', 114.0)
+        lim = {}
+        q = zd.su_q(B, W, F, None, lim)['brent']
+        self.assertIn(['2026-10-22', 'rozjazd', 'niepotw'], q)
+        tr = [x[0] for x in q if x[1] == 'trwa']
+        self.assertEqual(tr[0], '2026-10-05'); self.assertEqual(tr[-1], '2026-10-21', 'po powrocie — bez wpisów')
+        self.assertEqual(len(tr), 13); self.assertEqual(lim, {})
+        # przyczyna: poziom odniesienia z cen bez potwierdzenia (bez zle) — 20 fałszywych sesji po powrocie
+        lr = {d: _math_v125.log(B[d] / W[d]) for d in set(B) & set(W)}
+        K = sorted(lr); ki = {d: i for i, d in enumerate(K)}
+        old, _c = zd._su_q_trwa('brent', '2026-10-22', B, B, W, F, lr, K, ki, frozenset(), None)
+        self.assertEqual(len(old), zd.SU_Q_MAX)
+        zle = {'brent': {'2026-10-02', '2026-10-22'} | set(tr), 'wti': set()}
+        self.assertEqual(zd._su_q_trwa('brent', '2026-10-22', B, B, W, F, lr, K, ki, frozenset(), zle), (set(), None))
+        # cena wraca do poziomu kontraktu (101,8), a nie do premii sprzed skoku (Brent wobec 01.10 −11,3% przy kontrakcie +0,3% i WTI −3,6%):
+        # to nowy rozjazd bez potwierdzenia — najwyżej SU_Q_MAX sesji, a ucięcie trafia do kontroli (dawniej v300: do końca danych)
+        for do, n0 in (('2026-10-15', 9), ('2026-10-21', 13), ('2026-11-04', 23)):
+            B, W, F = self.przyszlosc(do, 101.8)
+            lim = {}
+            q = zd.su_q(B, W, F, None, lim)['brent']
+            tr = sorted(x[0] for x in q if x[1] == 'trwa')
+            po = [d for d in tr if d > do]
+            self.assertEqual(len(po), zd.SU_Q_MAX, do)
+            self.assertEqual(lim['brent'], [po[-1], zd.SU_Q_MAX], do)
+            self.assertEqual(len([d for d in tr if d <= do]), min(n0, zd.SU_Q_MAX), do + ': ciąg po skoku z 02.10 też najwyżej SU_Q_MAX sesji')
+        # ciąg ze skoku 02.10 ucięty (23 sesje), dzień powrotu 05.11: późniejsze ucięcie w `lim`
+        self.assertGreater(lim['brent'][0], '2026-11-05')
+        # powrót do 101,8 razem z kontraktem (105 → 98): od ostatniego dnia z ceną potwierdzoną (01.10: Brent 114,82, kontrakt 104,7) Brent −11,3%,
+        # kontrakt −6,4% (≥ połowa) — ceny po powrocie potwierdzone; od dnia przed powrotem (Brent 125,4 bez potwierdzenia, kontrakt 105)
+        # byłoby −18,8% wobec −6,7% (< połowa) — fałszywy brak potwierdzenia. Sam dzień powrotu zostaje punktem (kontrakt tego dnia −6,7%)
+        B, W, F = self.przyszlosc('2026-10-21', 101.8, f_po=98.0)
+        lim = {}
+        q = zd.su_q(B, W, F, None, lim)['brent']
+        self.assertIn(['2026-10-22', 'rozjazd', 'niepotw'], q)
+        self.assertEqual([x[0] for x in q if x[1] == 'trwa' and x[0] > '2026-10-21'], []); self.assertEqual(lim, {})
+
+    def test_dwa_uciete_ciagi_w_serii_lim_ma_pozniejszy_i_powrot_bez_ciagu(self):
+        # WTI zaniżony o 20% (błąd ceny, brak drugiego źródła) dwa razy po 26 sesji: każdy ciąg ucięty po SU_Q_MAX sesjach; powroty (punkty
+        # 'rozjazd') bez nowego ciągu; `lim` ma późniejszy dzień ucięcia
+        days = self.dni(140)
+        zle_ = set(range(30, 56)) | set(range(80, 106))
+        W = {d: (52.8 if i in zle_ else 66.0) for i, d in enumerate(days)}
+        B = {d: 70.0 for d in days}
+        lim = {}
+        q = zd.su_q(B, W, {}, None, lim)['wti']
+        self.assertEqual([x[0] for x in q if x[1] != 'trwa'], [days[30], days[56], days[80], days[106]])
+        self.assertEqual(sorted(x[0] for x in q if x[1] == 'trwa'), days[31:51] + days[81:101])
+        self.assertEqual(lim, {'wti': [days[100], zd.SU_Q_MAX]})
+        # błąd trwa dokładnie SU_Q_MAX + 1 sesji (punkt i 20 kolejnych), następna sesja wraca sama — bez ucięcia (bez fałszywej uwagi kontroli)
+        W1 = {d: (52.8 if 30 <= i <= 30 + zd.SU_Q_MAX else 66.0) for i, d in enumerate(days)}
+        lim = {}
+        q = zd.su_q(B, W1, {}, None, lim)['wti']
+        self.assertEqual(sorted(x[0] for x in q if x[1] == 'trwa'), days[31:31 + zd.SU_Q_MAX]); self.assertEqual(lim, {})
+        # ostatnia sesja ciągu to ostatnia cena w danych — następnej jeszcze nie ma: ucięcie zapisane zawczasu
+        lim = {}
+        zd.su_q({d: v for d, v in B.items() if d <= days[30 + zd.SU_Q_MAX]}, {d: v for d, v in W1.items() if d <= days[30 + zd.SU_Q_MAX]}, {}, None, lim)
+        self.assertEqual(lim, {'wti': [days[30 + zd.SU_Q_MAX], zd.SU_Q_MAX]})
+
+    def test_mediana_trzech_zmian_rowna_zmianie_wti(self):
+        # 29.07 → 30.07.2026 (próbka surowców v3, zmiana miesiąca kontraktu dzień przed wygaśnięciem 31.07): kontrakt 90,74 → 86,88 (log −4,35%),
+        # Brent 91,95 → 91,91 (−0,04%), WTI 86,08 → 85,15 (−1,09%) — mediana trzech zmian to zmiana WTI, nie Brenta (cena fizyczna Brenta nie może
+        # potwierdzać sama siebie)
+        F = {'2026-07-29': 90.74, '2026-07-30': 86.88}
+        B = {'2026-07-29': 91.95, '2026-07-30': 91.91}
+        W = {'2026-07-29': 86.08, '2026-07-30': 85.15}
+        k = zd._su_q_kontrakt(F, B, W, '2026-07-29', frozenset())['2026-07-30']
+        self.assertAlmostEqual(k, _math_v125.log(85.15 / 86.08), places=12)
+        self.assertNotAlmostEqual(k, _math_v125.log(91.91 / 91.95), places=4)
+        self.assertTrue(zd._su_q_okno_roll('2026-07-29', '2026-07-30'))
+        # ten sam krok z dniem punktu q — bez poprawki
+        self.assertAlmostEqual(zd._su_q_kontrakt(F, B, W, '2026-07-29', frozenset({'2026-07-30'}))['2026-07-30'], _math_v125.log(86.88 / 90.74), places=12)
+
+    def test_su_q_dzien_punktu_w_oknie_zmiany_miesiaca_bez_poprawki(self):
+        # Brent +10% 01.06.2026 (pierwsza sesja miesiąca — okno zmiany miesiąca kontraktu) przy WTI 0% i kontrakcie −3% (punkt bez potwierdzenia),
+        # potem kontrakt +6,2% i cena zostaje. Krok kontraktu z dniem punktu q liczy się wprost: od 29.05 kontrakt +3% wobec +10% ceny fizycznej —
+        # bez potwierdzenia. Z poprawką (mediana trzech zmian = 0) kontrakt byłby +6,2% (≥ połowa ruchu) i błędna cena potwierdziłaby się sama
+        days = self.dni(40, '2026-04-20')
+        dq = '2026-06-01'
+        self.assertIn(dq, days)
+        B = {d: (110.0 if d >= dq else 100.0) for d in days if d <= '2026-06-12'}
+        W = {d: 80.0 for d in B}
+        F = {d: (100.0 if d < dq else 97.0 if d == dq else 103.0) for d in B}
+        q = zd.su_q(B, W, F)['brent']
+        self.assertIn([dq, 'rozjazd', 'niepotw'], q)
+        self.assertEqual([x[0] for x in q if x[1] == 'trwa'], [d for d in days if dq < d <= '2026-06-12'])
+        self.assertAlmostEqual(zd._su_q_kontrakt(F, B, W, '2026-05-29', frozenset())['2026-06-02'], _math_v125.log(103 / 97), places=12,
+                               msg='bez dnia punktu w qd — krok z 01.06 poprawiony do 0 (to sprawdza, że su_q przekazuje qd)')
+
+    def test_kontrola_co_po_koncu_ciagu_i_poczatek_dluzszego_ciagu(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v300b', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        B, W, _F = self.ser(self.R26)
+        bd = [[d, v] for d, v in sorted(B.items()) if d <= '2026-04-02']
+        now = datetime.datetime(2026, 4, 3, 6, 20, tzinfo=datetime.timezone.utc)
+
+        def U(q):
+            j = {'v': 2, 'ceny': {'brent': {'u': 'USD/bbl', 'd': bd, 'q': q}}}
+            return [u for u in k.surowce_porownania(j, now)['uwagi'] if 'poziomie po nietypowym ruchu' in u]
+        # następna sesja po ciągu to nowy punkt bez potwierdzenia (powrót ceny) — nie „cena bez oznaczenia”
+        u = U([['2026-03-18', 'rozjazd', 'niepotw'], ['2026-03-23', 'trwa', 'niepotw'], ['2026-03-24', 'trwa', 'niepotw'], ['2026-03-25', 'rozjazd', 'niepotw']])
+        self.assertEqual(u, ['surowce: Brent 2026-03-23 – 2026-03-24 — cena zostaje na poziomie po nietypowym ruchu (2 ses.), kontrakt tego nie potwierdza — ciąg już się skończył (2026-03-25 — nowy punkt do sprawdzenia)'])
+        # po ciągu same ceny potwierdzone — jak dotąd; punkt potwierdzony nie liczy się
+        u = U([['2026-03-23', 'trwa', 'niepotw'], ['2026-03-24', 'trwa', 'niepotw'], ['2026-03-26', 'rozjazd', 'potw']])
+        self.assertEqual(u, ['surowce: Brent 2026-03-23 – 2026-03-24 — cena zostaje na poziomie po nietypowym ruchu (2 ses.), kontrakt tego nie potwierdza — ciąg już się skończył (od 2026-03-25 cena bez oznaczenia)'])
+        # ciąg dłuższy niż SU_Q_DNI dni (19.03 – 02.04, pierwszy dzień 15 dni temu) — uwaga z prawdziwym początkiem (dawniej od 20.03, 10 ses.)
+        tr = [d for d, _v in bd if d >= '2026-03-19']
+        u = U([['2026-03-18', 'rozjazd', 'niepotw']] + [[d, 'trwa', 'niepotw'] for d in tr])
+        self.assertEqual(u, ['surowce: Brent 2026-03-19 – 2026-04-02 — cena zostaje na poziomie po nietypowym ruchu (11 ses.), kontrakt tego nie potwierdza — na stronie uwaga przy kaflu, a zmiana tygodnia jest „—”'])
+        # ciąg zakończony ponad SU_Q_DNI dni temu — bez uwagi; data w przyszłości — pominięta
+        self.assertEqual(U([['2026-03-16', 'trwa', 'niepotw'], ['2026-03-17', 'trwa', 'niepotw']]), [])
+        self.assertEqual(U([['2026-04-09', 'trwa', 'niepotw']]), [])
+
+    def test_dni_drugiej_ropy_bez_potwierdzenia_zostaja_w_poziomie_odniesienia(self):
+        # marzec–kwiecień 2020 (nagranie: ceny EIA Brent i WTI z historii pobranej 07.10.2026, kontrakt ciągły BZ=F): WTI ma wiele dni bez
+        # potwierdzenia (punkty i ciągi 'trwa'), a Brent punkt 08.04. Poziom odniesienia Brenta bez dni WTI bez potwierdzenia sięgałby początku
+        # marca (sprzed kryzysu) — 09.04 dostawałby fałszywy wpis 'trwa' (test wsteczny tego wariantu: 1986–2026 95 sesji zamiast 80). Dni tylko
+        # tej samej ropy poza medianą — Brent bez wpisów 'trwa'
+        R = [["2020-03-02", 52.52, 46.78, 51.9], ["2020-03-03", 52.24, 47.27, 51.86], ["2020-03-04", 51.86, 46.78, 51.13], ["2020-03-05", 51.29, 45.9, 49.99],
+             ["2020-03-06", 45.6, 41.14, 45.27], ["2020-03-09", 35.33, 31.05, 34.36], ["2020-03-10", 35.57, 34.47, 37.22], ["2020-03-11", 34.45, 33.13, 35.79],
+             ["2020-03-12", 31.02, 31.56, 33.22], ["2020-03-13", 32.25, 31.72, 33.85], ["2020-03-16", 27.98, 28.96, 30.05], ["2020-03-17", 27.97, 26.96, 28.73],
+             ["2020-03-18", 22.79, 20.48, 24.88], ["2020-03-19", 23.98, 25.09, 28.47], ["2020-03-20", 25.55, 19.48, 26.98], ["2020-03-23", 23.75, 23.33, 27.03],
+             ["2020-03-24", 24.5, 21.03, 27.15], ["2020-03-25", 25.62, 20.75, 27.39], ["2020-03-26", 23.55, 16.6, 26.34], ["2020-03-27", 22.39, 15.48, 24.93],
+             ["2020-03-30", 19.19, 14.1, 22.76], ["2020-03-31", 14.85, 20.51, 22.74], ["2020-04-01", 14.97, 20.28, 24.74], ["2020-04-02", 20.24, 25.18, 29.94],
+             ["2020-04-03", 24.33, 28.36, 34.11], ["2020-04-06", 22.58, 26.21, 33.05], ["2020-04-07", 22.1, 23.54, 31.87], ["2020-04-08", 25.22, 24.97, 32.84],
+             ["2020-04-09", 20.23, 22.9, 31.48], ["2020-04-13", None, 22.36, 31.74], ["2020-04-14", 21.74, 20.15, 29.6], ["2020-04-15", 19.8, 19.96, 27.69],
+             ["2020-04-16", 18.69, 19.82, 27.82], ["2020-04-17", 19.75, 18.31, 28.08]]
+        B, W, F = self.ser(R)
+        q = zd.su_q(B, W, F)
+        self.assertEqual(q['brent'], [['2020-04-02', 'rozjazd', 'potw'], ['2020-04-08', 'rozjazd', 'niepotw'], ['2020-04-09', 'rozjazd', 'niepotw']])
+        self.assertEqual(len([x for x in q['wti'] if x[1] == 'trwa']), 9, 'dni WTI bez potwierdzenia — jak dotąd')

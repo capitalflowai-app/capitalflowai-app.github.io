@@ -15677,8 +15677,8 @@ test('v297g: zmiana tygodnia tylko przy obu końcach potwierdzonych; jeden dzie�
   const sp = su295.sp, d = x => su295.day('pl', x), T = q => { const K = su297.mk('pl', su297.file(q)); return [su295.tiles(sp(K.el.innerHTML)).brent, sp(K.uel.innerHTML)]; };
   /* cena sprzed 5 sesji (29.09) bez potwierdzenia, ostatnia potwierdzona — „—”, bez uwagi o ciągu, dopisek punktu zostaje */
   let [b, u] = T([['2026-09-29', 'rozjazd', 'niepotw']]);
-  assert.ok(b.includes('<small class="su-nc">— w tygodniu (cena niepotwierdzona)</small>') && !b.includes('su-qr') && b.includes(d('2026-09-29') + ' — nietypowa wartość'), b.slice(0, 500));
-  assert.ok(u.includes('<small class="">— w tygodniu (cena niepotwierdzona)</small>') && !u.includes('su-qr'));
+  assert.ok(b.includes('<small class="su-nc">— w tygodniu (cena sprzed tygodnia niepotwierdzona)</small>') && !b.includes('su-qr') && b.includes(d('2026-09-29') + ' — nietypowa wartość'), b.slice(0, 500));   /* v300: powód — cena sprzed tygodnia */
+  assert.ok(u.includes('<small class="">— w tygodniu (cena sprzed tygodnia niepotwierdzona)</small>') && !u.includes('su-qr'));
   /* punkt w środku tygodnia (skok z odwrotem), oba końce potwierdzone — zmiana liczona */
   [b, u] = T([['2026-10-02', 'skok', 'niepotw']]);
   assert.ok(b.includes('▲ +10,1% w tygodniu') && u.includes('▲ +10,1% w tygodniu') && !b.includes('su-qr') && b.includes(d('2026-10-02') + ' — nietypowa wartość'));
@@ -16265,4 +16265,109 @@ test('v299: pliki kafelków zamawiane jako pierwsze — zaraz po srvJSON, przed 
   const x = await Promise.all(['krypto', 'oecd', 'cmc', 'ceny', 'rynki', 'kursy', 'dzis', 'krypto'].map(n => f(n)));
   assert.equal(calls.length, 7, 'gLoad, gDay, krLoad, cmcLoad w tej samej minucie — bez nowych zapytań');
   assert.deepEqual(x[0], {at: 'x'}); assert.notEqual(x[0], x[7], 'każdy wołający dostaje własną kopię (v189)');
+});
+
+
+/* ===================== v300: uwagi z przeglądów działu SUROWCE — ciąg cen bez potwierdzenia od dnia z samym wpisem 'trwa' (z dniem punktu),
+   powód „—” przy zmianie tygodnia (cena sprzed tygodnia), korelacja CRYPTO: powód wcześniejszego końca okna i opis pomijanych dni, słownik su300.
+   Dane: próbka v295g/v297g (su297.file, harness su295: zegar 2026-10-07 18:00 UTC) i plik ZK295C_FILE (harness zk295c: 2026-10-07 20:20 UTC). */
+test('v300: ciąg cen bez potwierdzenia od dnia z samym wpisem „trwa” — uwaga z dniem punktu, po którym cena została na nowym poziomie (kafel i panel USA), bez „nietypowej wartości” dla dnia ciągu', () => {
+  const sp = su295.sp, d = x => su295.day('pl', x), T = (q, F) => { const K = su297.mk('pl', su297.file(q, F)); return [su295.tiles(sp(K.el.innerHTML)).brent, sp(K.uel.innerHTML)]; };
+  const fut = 'Kontrakt terminowy na tę ropę (' + d('2026-10-06') + '): 104,90 USD za baryłkę.';
+  /* 05.10 potwierdzony przez kontrakt, 06.10 już nie (przypadek q3 testu zbieracza) — dawniej kafel: tylko kontrakt, panel USA: „nietypowa wartość” */
+  let [b, u] = T([['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']]);
+  const one = 'Cena z ' + d('2026-10-06') + ' niepotwierdzona drugim źródłem (wciąż na poziomie po nietypowym ruchu z ' + d('2026-10-02') + ').';
+  assert.deepEqual(su297.qr(b), [one + ' ' + fut], b.slice(0, 700));
+  assert.deepEqual(su297.qr(u), [one, fut], 'panel USA — te same zdania w osobnych wierszach');
+  assert.ok(!u.includes(d('2026-10-06') + ' — nietypowa wartość') && !b.includes(d('2026-10-06') + ' — nietypowa wartość'), 'dzień ciągu to nie punkt q');
+  assert.ok(!b.includes(d('2026-10-02') + ' — nietypowa wartość'), 'dzień punktu jest w uwadze — bez osobnego dopisku');
+  assert.equal((b.match(/<line class="su-q" /g) || []).length, 1, 'kółko na wykresie zostaje w dniu punktu');
+  assert.ok(b.includes('<small class="su-nc">— w tygodniu (cena niepotwierdzona)</small>') && u.includes('<small class="">— w tygodniu (cena niepotwierdzona)</small>'));
+  /* bez kontraktu z 06.10 — sama uwaga (dawniej kafel bez żadnej uwagi) */
+  [b, u] = T([['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']], Object.assign({}, su297.FUT, {d: su297.FUT.d.slice(0, 3)}));
+  assert.deepEqual(su297.qr(b), [one]); assert.deepEqual(su297.qr(u), [one]);
+  /* kilka sesji od dnia z samym wpisem 'trwa' (30.09 i 01.10 potwierdzone) — „od {dzień}” z dniem punktu */
+  [b, u] = T([['2026-09-29', 'rozjazd', 'niepotw'], ['2026-10-02', 'trwa', 'niepotw'], ['2026-10-05', 'trwa', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']]);
+  const runp = 'Od ' + d('2026-10-02') + ' ceny niepotwierdzone drugim źródłem (wciąż na poziomie po nietypowym ruchu z ' + d('2026-09-29') + ').';
+  assert.deepEqual(su297.qr(b), [runp + ' ' + fut]); assert.deepEqual(su297.qr(u), [runp, fut]);
+  /* ciąg od punktu — jak dotąd (v297g) */
+  [b] = T(SU297_Q_BRENT);
+  assert.deepEqual(su297.qr(b), ['Od ' + d('2026-10-02') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu). ' + fut]);
+  /* sam punkt na końcu — jak dotąd: dopisek pod wykresem, w panelu USA „nietypowa wartość” */
+  [b, u] = T([['2026-10-06', 'rozjazd', 'niepotw']]);
+  assert.deepEqual(su297.qr(b), [fut]); assert.deepEqual(su297.qr(u), [d('2026-10-06') + ' — nietypowa wartość, niepotwierdzona drugim źródłem', fut]);
+  /* wpis 'trwa' bez wcześniejszego punktu bez potwierdzenia w oknie wykresu (plik uszkodzony; punkty 18.03 i 07.04 są poza oknem 90 sesji) —
+     ogólne „od {dzień}” bez dnia punktu, nigdy surowy klucz ani punkt sprzed pół roku */
+  [b, u] = T([['2026-10-02', 'rozjazd', 'potw'], ['2026-10-06', 'trwa', 'niepotw']]);
+  assert.deepEqual(su297.qr(b), ['Od ' + d('2026-10-06') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu). ' + fut]);
+  assert.ok(!b.includes(d('2026-04-07')) && !u.includes(d('2026-04-07')));
+  /* 10 języków */
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const K = su297.mk(L, su297.file([['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']])), tl = v96src.tFor(L), x = tl('su300.run1p', {d: su295.day(L, '2026-10-06'), p: su295.day(L, '2026-10-02')});
+    assert.ok(su295.tiles(K.el.innerHTML).brent.includes(x) && K.uel.innerHTML.includes(x), L + ': ' + x);
+    const K2 = su297.mk(L, su297.file([['2026-09-29', 'rozjazd', 'niepotw'], ['2026-10-02', 'trwa', 'niepotw'], ['2026-10-05', 'trwa', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']]));
+    assert.ok(su295.tiles(K2.el.innerHTML).brent.includes(tl('su300.runp', {d: su295.day(L, '2026-10-02'), p: su295.day(L, '2026-09-29')})), L + ': runp');
+    assert.ok(!/su30\d\.|su29[57]g\.|NaN|undefined/.test(K.el.innerHTML + K.uel.innerHTML + K2.el.innerHTML), L + ': surowe klucze'); }
+});
+
+test('v300: zmiana tygodnia — gdy bez potwierdzenia jest tylko cena sprzed tygodnia (5 sesji), powód mówi o niej, a nie o głównej cenie (kafel i panel USA)', () => {
+  const sp = su295.sp, d = x => su295.day('pl', x), T = q => { const K = su297.mk('pl', su297.file(q)); return [su295.tiles(sp(K.el.innerHTML)).brent, sp(K.uel.innerHTML)]; };
+  let [b, u] = T([['2026-09-29', 'rozjazd', 'niepotw']]);
+  assert.ok(b.includes('<small class="su-nc">— w tygodniu (cena sprzed tygodnia niepotwierdzona)</small>') && !b.includes('su-qr'), b.slice(0, 500));
+  assert.ok(u.includes('<small class="">— w tygodniu (cena sprzed tygodnia niepotwierdzona)</small>') && !u.includes('su-qr'));
+  assert.ok(b.includes(d('2026-09-29') + ' — nietypowa wartość'), 'dopisek punktu pod wykresem zostaje');
+  /* ostatnia cena bez potwierdzenia (także przy cenie sprzed tygodnia bez potwierdzenia) — „cena niepotwierdzona” jak dotąd */
+  for (const q of [SU297_Q_BRENT, SU297_Q_BRENT.concat([['2026-09-29', 'rozjazd', 'niepotw']]), [['2026-10-06', 'skok', 'niepotw']]]) {
+    [b, u] = T(q);
+    assert.ok(b.includes('— w tygodniu (cena niepotwierdzona)</small>') && u.includes('— w tygodniu (cena niepotwierdzona)</small>') && !b.includes('sprzed tygodnia'), JSON.stringify(q)); }
+  /* punkt w środku tygodnia, oba końce potwierdzone — zmiana liczona */
+  [b, u] = T([['2026-10-01', 'rozjazd', 'niepotw']]);
+  assert.ok(b.includes('▲ +10,1% w tygodniu') && u.includes('▲ +10,1% w tygodniu'));
+  for (const L of ['en', 'de', 'ja']) {
+    const K = su297.mk(L, su297.file([['2026-09-29', 'rozjazd', 'niepotw']])), tl = v96src.tFor(L);
+    assert.ok(su295.tiles(K.el.innerHTML).brent.includes(tl('su300.chg0p')) && K.uel.innerHTML.includes(tl('su300.chg0p')), L); }
+});
+
+test('v300: korelacja z ropą — gdy okno kończy się wcześniej przez ceny bez potwierdzenia, przy linii jest powód z dniem i liczbą sesji; opis pomijanych dni w 10 językach', () => {
+  const sp = zk295c.sp, F = zk295c.clone(ZK295C_FILE);
+  F.kor.br.d = '2026-10-01'; F.kor.br.pom = {n: 3, od: '2026-10-02'};
+  const {K, el} = zk295c.run(F), h = sp(el.innerHTML);
+  assert.ok(h.includes('okno do 01.10.26, 90 wspólnych dni · ceny od 02.10.26 bez potwierdzenia drugim źródłem — pominięte (sesje: 3)</small>'), zk295c.txt(h).slice(0, 900));
+  assert.equal(h.split('bez potwierdzenia drugim źródłem — pominięte').length, 2, 'tylko przy linii ropy');
+  for (const zle of [null, {n: 0, od: '2026-10-02'}, {n: 3, od: 'x'}, {n: '3', od: '2026-10-02'}, {od: '2026-10-02'}, 'x']) {
+    const G = zk295c.clone(F); G.kor.br.pom = zle;
+    assert.ok(!sp(K.zkKor(G)).includes('pominięte'), JSON.stringify(zle)); }
+  const H = zk295c.clone(F); H.kor.br = {v: null, n: 41, d: '2026-10-01', s: [], pom: {n: 3, od: '2026-10-02'}};
+  assert.ok(sp(K.zkKor(H)).includes('z ropą Brent <b>—</b><small>za mało wspólnych dni (41, potrzeba 60) · okno do 01.10.26, 41 wspólnych dni · ceny od 02.10.26 bez potwierdzenia'), 'także przy „—”');
+  assert.ok(h.includes('Pomijamy dni, w których cena ropy nie jest potwierdzona drugim źródłem (podejrzany skok i kolejne sesje na nowym poziomie) — ruch z tych dni wchodzi do liczenia razem z pierwszym potwierdzonym dniem.'));
+  const {D} = zk295c.dict(), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const STARE = ['Pomijamy dni ropy z niepotwierdzonym', 'Oil days with an unconfirmed', 'Öltage mit einem unbestätigten', 'Se omiten los días del petróleo con un salto',
+    'Les jours du pétrole avec un saut', 'Sono esclusi i giorni del petrolio con un salto', 'Dias do petróleo com um salto', 'Дни нефти с подозрительным', '价格出现可疑且未经确认跳变的原油日', '未確認の不審な価格急変があった原油の日'];
+  const NOWE = {pl: 'kolejne sesje', en: 'following sessions', de: 'folgenden Handelstage', es: 'sesiones siguientes', fr: 'séances suivantes', it: 'sedute successive', pt: 'sessões seguintes', ru: 'следующие сессии', zh: '其后停留在新水平', ja: 'その後新しい水準'};
+  for (const L of L10) {
+    assert.ok(D[L]['su295c.kor.how'].includes(NOWE[L]), L + ': opis mówi o kolejnych sesjach na nowym poziomie — ' + D[L]['su295c.kor.how']);
+    for (const s of STARE) assert.ok(!D[L]['su295c.kor.how'].includes(s), L + ': stare zdanie');
+    const LOC = {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'};
+    const R = zk295c.run(F, {lang: L}), x = R.el.innerHTML, tl = v96src.tFor(L);
+    const dd = new Date(Date.parse('2026-10-02T12:00:00Z')).toLocaleDateString(LOC[L], {day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'UTC'});
+    assert.ok(x.includes(tl('su300.kor.q', {d: dd, n: '3'})), L + ': ' + tl('su300.kor.q', {d: dd, n: '3'}));
+    assert.ok(!/su300\.|NaN|undefined/.test(x), L + ': surowe klucze'); }
+});
+
+test('v300: słownik su300 — czysty JSON w 10 językach zaraz po poprzednim, te same klucze i pola {x}, tłumaczenia różne od angielskiego, bez nazw dostawców; każdy klucz użyty; pt „existências”', () => {
+  const a = html.indexOf('{"pl":{"su300.'); assert.ok(a > 0, 'słownik v300');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1), n = +name.slice(5);
+  assert.ok(html.slice(0, d0).endsWith('for(const l in EXTRA' + (n - 1) + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + (n - 1) + '[l]);\n'), 'zaraz po linii nakładania poprzedniego słownika');
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania');
+  const D = JSON.parse(html.slice(a, d1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.deepEqual(K, ['su300.runp', 'su300.run1p', 'su300.chg0p', 'su300.kor.q']);
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10.slice(2)) for (const k of K) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  for (const k of K) assert.ok(!/[぀-ヿ]/.test(D.zh[k]), 'zh bez kany: ' + k);
+  for (const l of L10) for (const k of K) assert.deepEqual(G126_NAMES.check(D[l][k], l), [], l + ' ' + k);
+  for (const k of ['su300.runp', 'su300.run1p', 'su300.chg0p']) assert.ok(su295.blk.includes("'" + k + "'"), 'klucz w kodzie panelu surowców: ' + k);
+  assert.ok(zk295c.BLK.includes("'su300.kor.q'"), 'klucz w kodzie panelu CRYPTO');
+  assert.equal(v96src.I18N.pt['su297g.pt.zapasy'], 'existências nos EUA', 'pt: odmiana europejska, jak nagłówek zapasów w panelu');
+  assert.ok(!html.includes('estoques nos EUA'));
 });

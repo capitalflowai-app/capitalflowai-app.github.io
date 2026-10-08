@@ -8945,7 +8945,19 @@ SU_Q_BAZA = 20      # wspólnych sesji przed punktem — poziom odniesienia (med
 SU_Q_ODCH = 0.08    # punkt zaczyna ciąg, gdy w swoim dniu odbiega od poziomu odniesienia o ≥ 0,08 (≈ 8%, jak próg rozjazdu)
 SU_Q_PROG = 0.05    # ciąg trwa, dopóki odchylenie w tę samą stronę ≥ max(SU_Q_PROG, SU_Q_POL × odchylenie dnia punktu) — czyli co najmniej
 SU_Q_POL = 0.5      # połowa skoku zostaje (bez warunku połowy marzec–kwiecień 2020 dawał ciągi po 1500+ sesji: różnica cen ustaliła się na nowo)
-SU_Q_MAX = 20       # sesji — bezpiecznik długości ciągu (dłuższy rozjazd to już nowy stan rynku, nie błąd danych; w teście wstecznym najwyżej 16)
+SU_Q_MAX = 20       # sesji — bezpiecznik długości ciągu (dłuższy rozjazd to już nowy stan rynku, nie błąd danych; w teście wstecznym najwyżej 16).
+                    # v300: dotyczy też Brenta z kontraktem — kontrakt nie potwierdza zmiany samej premii ceny fizycznej wobec kontraktu (wrzesień
+                    # 2026: +11–17%), więc bez bezpiecznika cena, która po dłuższym okresie bez potwierdzenia wraca do poziomu kontraktu, a nie do
+                    # premii sprzed skoku, była oznaczana bez końca (przegląd v300: 40–54 sesje do końca danych). Ucięcie, po którym cena dalej jest
+                    # na nowym poziomie bez potwierdzenia → ceny[ropa].q_lim i uwaga kontroli (sprawdzić ręcznie). Poziom odniesienia ciągu bez dni
+                    # tej samej ropy bez potwierdzenia (_su_q_trwa); test wsteczny v300 (ws53/v300-uwagi/bt/test_wsteczny_v300.out): 1986–2026 bez
+                    # kontraktu 21 ciągów, 80 sesji (78 różnych dni; v297g: 19, 68, 66), dalej tylko w latach kryzysów, najdłuższy 16; Brent
+                    # z kontraktem 2007–2026: 3 dni (v297g: 4 — bez 01.04.2026, zob. SU_Q_ROLL); powrót ceny po skoku do relacji sprzed niego: 0 sesji.
+SU_Q_ROLL = 0.02    # v300: krok kontraktu w oknie zmiany jego miesiąca dostawy (roll), odstający od zmian OBU cen fizycznych o > 0,02 (log, ≈ 2 pkt
+                    # proc.) w tę samą stronę = skok samego kontraktu → mediana trzech zmian (_su_q_kontrakt). Test wsteczny 08.2007–10.2026
+                    # (kontrakt BZ=F zmienia miesiąc w 1. sesji miesiąca; bt/test_wsteczny_v300.out): poprawionych 13 z 230 kroków 1. sesji
+                    # miesiąca (backwardation 2022 i 2026, kilka dni z niezmienioną ceną kontraktu) i 4 z 4543 pozostałych; oznaczenia Brenta:
+                    # bez fałszywego braku potwierdzenia 01.04.2026 (kontrakt −15,7% przy Brent −5,8%, WTI −0,9%), reszta bez zmian.
 import math as _suq_math, statistics as _suq_stat   # v297g: logarytm i mediana (biblioteka standardowa; ponowny import jest nieszkodliwy)
 SU_ZR = (('eia_dz', 'ceny'), ('td', 'ceny'), ('sprott', 'ceny'), ('acer', 'ceny'), ('wpsr', 'zapasy'), ('wngsr', 'zapasy'),
          ('gld', 'ceny'), ('fmp', 'ceny'), ('eia', 'ceny'), ('eia_t', 'zapasy'), ('cftc', 'markets'), ('fao', 'mies'),
@@ -9530,25 +9542,84 @@ def _su_zm(s):
     return {ks[i]: (s[ks[i]] / s[ks[i - 1]] - 1) * 100 for i in range(1, len(ks)) if s[ks[i - 1]] > 0 and s[ks[i]] > 0}
 
 
-def _su_q_trwa(name, dq, X, B, F, lr, K, ki):
+def _su_q_okno_roll(a, b):
+    """v300: krok kontraktu z sesji a na sesję b leży w oknie zmiany miesiąca dostawy kontraktu ciągłego (roll): b to pierwsza sesja nowego
+    miesiąca albo jeden z 3 ostatnich dni roboczych (pn–pt) swojego miesiąca. Kontrakt na Brenta wygasa w ostatnim dniu roboczym miesiąca;
+    seria kontrolna zmienia miesiąc dzień przed tym (2026: 29.06, 30.07, 27.08 — 31.08 święto w Wielkiej Brytanii — i 29.09), inne serie
+    ciągłe w pierwszej sesji następnego miesiąca."""
+    if a[:7] != b[:7]:
+        return True
+    try:
+        d = datetime.date.fromisoformat(b)
+    except ValueError:
+        return False
+    nast = (d.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+    return sum(1 for k in range(1, (nast - d).days) if (d + datetime.timedelta(days=k)).weekday() < 5) <= 2
+
+
+def _su_q_kontrakt(F, B, W, f0d, qd):
+    """v300: droga kontraktu od dnia f0d → {dzień notowania: skumulowana zmiana logarytmiczna} z kroków między kolejnymi notowaniami kontraktu.
+    Krok w oknie zmiany miesiąca kontraktu (_su_q_okno_roll), który odstaje od zmian OBU cen fizycznych (Brent i WTI) o > SU_Q_ROLL w tę samą
+    stronę, to skok samego kontraktu (nowy miesiąc dostawy, przy backwardation w dół), nie ruch rynku — liczy się wtedy mediana trzech zmian.
+    Bez poprawki: krok poza oknem, krok bez obu cen fizycznych na obu końcach i krok z dniem punktu q (błąd ceny fizycznej nie może poprawiać
+    kontraktu). Dawniej zmiana od f0d była liczona wprost (F[d] ÷ F[f0d]), więc zmiana miesiąca w środku ciągu przesuwała ją o różnicę cen
+    sąsiednich miesięcy (np. 01.04.2026: −15,7% kontraktu przy −5,8% Brenta i −0,9% WTI — fałszywy brak potwierdzenia)."""
+    out, p, c = {}, f0d, 0.0
+    for d in sorted(x for x in F if x > f0d and _isnum(F[x]) and F[x] > 0):
+        k = _suq_math.log(F[d] / F[p])
+        v = (B.get(p), B.get(d), W.get(p), W.get(d))
+        if _su_q_okno_roll(p, d) and p not in qd and d not in qd and all(_isnum(x) and x > 0 for x in v):
+            kb, kw = _suq_math.log(v[1] / v[0]), _suq_math.log(v[3] / v[2])
+            if min(abs(k - kb), abs(k - kw)) > SU_Q_ROLL and (k - kb) * (k - kw) > 0:
+                k = _suq_stat.median((k, kb, kw))
+        c += k
+        out[d] = c
+        p = d
+    return out
+
+
+def _su_q_trwa(name, dq, X, B, W, F, lr, K, ki, qd=frozenset(), zle=None):
     """v297g: kolejne sesje serii X (ropa `name`) po punkcie q z dnia dq, dopóki rozjazd się utrzymuje: log(Brent/WTI) odbiega od poziomu sprzed
     punktu (mediana SU_Q_BAZA wspólnych sesji przed dq) w tę samą stronę o ≥ max(SU_Q_PROG, SU_Q_POL × odchylenie dnia punktu); pierwszy dzień
     poniżej progu kończy ciąg; najwyżej SU_Q_MAX sesji. Dzień bez drugiej ropy (święto w jednym kraju) — jak poprzedni dzień ciągu (nie da się
     go ocenić, a cena dalej jest na nowym poziomie). Zwraca tylko dni BEZ potwierdzenia: Brent — kontrakt od sesji przed punktem do tego dnia
     zmienił się w tę samą stronę o ≥ połowę ruchu ceny fizycznej (ta sama zasada co stan punktu, ale od poziomu sprzed skoku; kontrakt z dnia
-    przed punktem — najwyżej 7 dni wcześniej); WTI — brak drugiego źródła. lr = {dzień: log(Brent/WTI)} wspólnych sesji, K — ich dni rosnąco,
-    ki — pozycja dnia w K. → set dni."""
+    przed punktem — najwyżej 7 dni wcześniej; v300: droga kontraktu bez skoku przy zmianie jego miesiąca — _su_q_kontrakt); WTI — brak
+    drugiego źródła. lr = {dzień: log(Brent/WTI)} wspólnych sesji, K — ich dni rosnąco, ki — pozycja dnia w K, qd — dni punktów q obu ropy
+    (bez poprawki kroku kontraktu).
+    v300: poziom odniesienia bez dni, w których TA SAMA ropa jest bez potwierdzenia — zle = {ropa: dni bez potwierdzenia (punkty q 'niepotw'
+    i dni 'trwa')}; su_q idzie po punktach od najstarszego, więc dni 'trwa' wcześniejszych punktów są już w zle. Mediana SU_Q_BAZA ostatnich
+    wspólnych sesji przed dq bez dni z zle[name] (potrzeba co najmniej połowy z nich); Brent: cena i kontrakt odniesienia z ostatniego dnia przed
+    dq bez oznaczenia Brenta. Dawniej dzień powrotu ceny po dłuższym okresie bez potwierdzenia (sam jest punktem 'rozjazd') miał poziom odniesienia
+    z błędnych cen, więc każda następna, PRAWIDŁOWA cena wyglądała na „wciąż na nowym poziomie” (20 fałszywych sesji). Dni drugiej ropy bez
+    potwierdzenia zostają w medianie: w kryzysach jest ich dużo i bez nich poziom odniesienia byłby przestarzały (test wsteczny, bt/test_wsteczny_
+    v300.out: z wyłączeniem dni obu rop 1986–2026 bez kontraktu 95 sesji zamiast 68 v297g, Brent z kontraktem 2007–2026 +2 dni w 2009 i 2020;
+    tylko tej samej ropy: 80 sesji — 2003 +2, 2020 +4, 2026 +8, 2009 −2, wyłącznie w latach kryzysów — a Brent z kontraktem bez nowych dni).
+    Bez dni z zle wynik jak dotąd.
+    v300: dzień ucięcia bezpiecznikiem — tylko gdy ciąg trwałby dalej z ceną bez potwierdzenia (pierwsza taka sesja przed końcem ciągu) albo gdy
+    następnej sesji jeszcze nie ma (ostrzeżenie zawczasu); ciąg, który zaraz po ucięciu kończy się sam (albo dalej ma tylko ceny potwierdzone)
+    — bez ucięcia (inaczej fałszywa uwaga kontroli).
+    → (set dni bez potwierdzenia, dzień ucięcia ciągu bezpiecznikiem albo None)."""
     i = ki.get(dq)
-    if i is None or i < SU_Q_BAZA // 2:
-        return set()
-    base = _suq_stat.median(lr[K[j]] for j in range(max(0, i - SU_Q_BAZA), i))
+    if i is None:
+        return set(), None
+    zx = (zle or {}).get(name) or ()
+    ref = []
+    for j in range(i - 1, -1, -1):
+        if K[j] not in zx:
+            ref.append(lr[K[j]])
+            if len(ref) >= SU_Q_BAZA:
+                break
+    if len(ref) < SU_Q_BAZA // 2:
+        return set(), None
+    base = _suq_stat.median(ref)
     dev = lr[dq] - base
     if abs(dev) < SU_Q_ODCH:
-        return set()
+        return set(), None
     zn, prog = (1 if dev > 0 else -1), max(SU_Q_PROG, SU_Q_POL * abs(dev))
-    b0 = f0 = None
+    b0, fk = None, {}
     if name == 'brent':
-        bp = [d for d in B if d < dq and _isnum(B[d]) and B[d] > 0]
+        bp = [d for d in B if d < dq and d not in zx and _isnum(B[d]) and B[d] > 0]
         if bp:
             d0 = max(bp)
             b0 = B[d0]
@@ -9558,23 +9629,33 @@ def _su_q_trwa(name, dq, X, B, F, lr, K, ki):
             except ValueError:
                 lo = None
             if fp and lo and max(fp) >= lo:
-                f0 = F[max(fp)]
-    out, n = set(), 0
-    for d in sorted(x for x in X if x > dq and _isnum(X[x])):
-        if d in lr and zn * (lr[d] - base) < prog:
-            break
-        n += 1
+                fk = _su_q_kontrakt(F, B, W, max(fp), qd)
+
+    def koniec(d):   # rozjazd wrócił poniżej progu — koniec ciągu
+        return d in lr and zn * (lr[d] - base) < prog
+
+    def bez(d):   # cena tego dnia bez potwierdzenia drugim źródłem
         rb = X[d] / b0 - 1 if b0 and X[d] > 0 else None
-        f = F.get(d) if f0 else None
-        rf = f / f0 - 1 if _isnum(f) and f > 0 else None
-        if not (rb is not None and rf is not None and rf * rb > 0 and abs(rf) >= 0.5 * abs(rb)):
-            out.add(d)
-        if n >= SU_Q_MAX:
+        rf = _suq_math.exp(fk[d]) - 1 if d in fk else None
+        return not (rb is not None and rf is not None and rf * rb > 0 and abs(rf) >= 0.5 * abs(rb))
+    xs = sorted(x for x in X if x > dq and _isnum(X[x]))
+    out = set()
+    for k, d in enumerate(xs):
+        if koniec(d):
             break
-    return out
-
-
-def su_q(B, W, F, prev=None):
+        if bez(d):
+            out.add(d)
+        if k + 1 >= SU_Q_MAX:
+            if k + 1 == len(xs):
+                return out, d   # następnej sesji jeszcze nie ma — ostrzeżenie zawczasu
+            for x in xs[k + 1:]:
+                if koniec(x):
+                    break
+                if bez(x):
+                    return out, d
+            return out, None
+    return out, None
+def su_q(B, W, F, prev=None, lim=None):
     """Punkty do sprawdzenia w ropie → {'brent': [[dzień, powód, stan]], 'wti': […]}. 'skok': zmiana ≥ 8% i odwrót następnej sesji o ≥ połowę
     przy ruchu drugiej ropy < 5% (test wsteczny: 5 razy na 9514 sesji); 'rozjazd': |zmiana WTI − zmiana Brent| ≥ 8 pkt proc. — dostaje go ropa
     z większym ruchem (94 dni na 8407) — poza dniem powrotu po „skoku” tej samej ropy (wtedy duża zmiana to powrót do normy, nie nowy
@@ -9587,7 +9668,11 @@ def su_q(B, W, F, prev=None):
     v297g: 'trwa' — kolejne sesje po punkcie bez potwierdzenia, na których cena zostaje na nowym poziomie (_su_q_trwa: rozjazd log(Brent/WTI)
     wobec poziomu sprzed punktu ≥ połowy skoku, najwyżej SU_Q_MAX sesji); zapisywane tylko dni bez potwierdzenia, a wpisy 'trwa' w oknie danych
     są liczone od nowa przy każdym przebiegu (poprawka wartości wstępnej może skrócić ciąg). Strona: ostatnia cena bez potwierdzenia = uwaga
-    na kaflu (od dnia punktu) i zmiana tygodnia „—”; kontrola: jedna uwaga zbiorcza na serię."""
+    na kaflu (od dnia punktu) i zmiana tygodnia „—”; kontrola: jedna uwaga zbiorcza na serię.
+    v300: dni 'trwa' Brenta potwierdza droga kontraktu bez skoku przy zmianie jego miesiąca (_su_q_kontrakt); poziom odniesienia ciągu tylko
+    z dni potwierdzonych (punkty obu ropy od najstarszego; dni bez potwierdzenia — punkty i 'trwa' — poza medianą); `lim` (słownik, opcjonalnie)
+    dostaje {ropa: [dzień, SU_Q_MAX]}, gdy ciąg ucięty bezpiecznikiem trwałby dalej (plik: ceny[ropa].q_lim, kontrola: uwaga). Kontrola: osobna
+    uwaga dla każdego ciągu."""
     rb, rw, rf = _su_zm(B), _su_zm(W), _su_zm(F)
     found = {}
 
@@ -9612,6 +9697,8 @@ def su_q(B, W, F, prev=None):
     lr = {d: _suq_math.log(B[d] / W[d]) for d in set(B) & set(W) if _isnum(B[d]) and _isnum(W[d]) and B[d] > 0 and W[d] > 0}
     K = sorted(lr)
     ki = {d: i for i, d in enumerate(K)}
+    qd = frozenset(d for (_n, d, _w) in found)   # v300: dni punktów q obu ropy — bez poprawki kroku kontraktu przy zmianie jego miesiąca
+    QQ, zle = {}, {}
     for name in ('brent', 'wti'):
         X = B if name == 'brent' else W
         x0 = min((d for d in X if _isnum(X[d])), default=None)
@@ -9621,14 +9708,19 @@ def su_q(B, W, F, prev=None):
         for (n, d, why), r in found.items():
             if n == name:
                 Q[(d, why)] = stan(name, d, r)
-        tr = set()
-        for (d, why), st_ in list(Q.items()):
-            if why != 'trwa' and st_ == 'niepotw' and d in ki:
-                tr |= _su_q_trwa(name, d, X, B, F, lr, K, ki)
-        for d in tr:
-            Q[(d, 'trwa')] = 'niepotw'
-        if Q:
-            out[name] = [[d, why, s] for (d, why), s in sorted(Q.items())]
+        QQ[name] = Q
+        zle[name] = {d for (d, _why), st_ in Q.items() if st_ == 'niepotw'}   # v300: dni bez potwierdzenia — poza poziomem odniesienia
+    # v300: punkty bez potwierdzenia od najstarszego — dni 'trwa' wcześniejszych punktów tej samej ropy nie wchodzą do poziomu odniesienia późniejszych
+    for d, name in sorted({(d, name) for name, Q in QQ.items() for (d, why), st_ in Q.items() if why != 'trwa' and st_ == 'niepotw' and d in ki}):
+        t_, cut = _su_q_trwa(name, d, B if name == 'brent' else W, B, W, F, lr, K, ki, qd, zle)
+        zle[name] |= t_
+        for x in t_:
+            QQ[name][(x, 'trwa')] = 'niepotw'
+        if cut and isinstance(lim, dict) and cut > str((lim.get(name) or [''])[0]):
+            lim[name] = [cut, SU_Q_MAX]   # v300: ciąg ucięty bezpiecznikiem, a cena dalej bez potwierdzenia — kontrola o tym mówi
+    for name in ('brent', 'wti'):
+        if QQ[name]:
+            out[name] = [[d, why, s] for (d, why), s in sorted(QQ[name].items())]
     return out
 
 
@@ -10766,8 +10858,9 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
         if len(ctx['bledy']) > nb:   # częściowy błąd źródła (np. jeden z kilku symboli) — dane pozostałych zapisane
             zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
     _su_crack(H)
+    qlim = {}   # v300: ciąg cen bez potwierdzenia ucięty bezpiecznikiem → ceny[ropa].q_lim (kontrola)
     q = su_q(H['d'].get('brent') or {}, H['d'].get('wti') or {}, H['d'].get('brent_fut') or {},
-             {k: (prev.get('ceny') or {}).get(k, {}).get('q') for k in ('brent', 'wti')} if v2 else None)
+             {k: (prev.get('ceny') or {}).get(k, {}).get('q') for k in ('brent', 'wti')} if v2 else None, qlim)
     pc = prev.get('ceny') if v2 and isinstance(prev.get('ceny'), dict) else {}
     ceny = {}
     for cid, g, u, z, x in SU_CENY:
@@ -10786,6 +10879,8 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
             e['pre'] = pre
         if q.get(cid):
             e['q'] = q[cid]
+        if qlim.get(cid):
+            e['q_lim'] = qlim[cid]
         if isinstance(live.get(cid), dict):
             e['live'] = live[cid]
         ceny[cid] = e
@@ -22066,7 +22161,12 @@ def zk_seria_su(su, sh, cid, ok=None):
     """Seria dzienna działu SUROWCE: historia (surowce-hist d[cid]) uzupełniona ostatnimi sesjami (surowce ceny[cid].d — te same pobrania,
     nowsze wygrywają) → ({dzień: liczba}, zbiór dni q „do sprawdzenia”). `ok` (v297c) — sprawdzenie liczby w obu źródłach przed złożeniem
     (złoto: _zk_zl, 100–100 000 USD): liczba spoza zakresu to brak dnia, a poprawna liczba z historii zostaje, gdy nowsze pobranie tego dnia
-    jest uszkodzone — złoto a bitcoin, korelacja, kwoty USD i szacunek rynku złota widzą tę samą serię."""
+    jest uszkodzone — złoto a bitcoin, korelacja, kwoty USD i szacunek rynku złota widzą tę samą serię.
+    v300: zbiór dni q to dni BEZ potwierdzenia drugim źródłem (punkt 'niepotw' i kolejne sesje 'trwa' — cena zostaje na nowym poziomie);
+    punkt potwierdzony ('potw': kontrakt poszedł w tę samą stronę) to prawdziwy ruch rynku i zostaje w korelacji. Dni 'trwa' wypadają celowo:
+    bez nich zmiana z dnia skoku i tak weszłaby do pierwszej sesji po nim (pominięcie samego punktu nic by nie dało), a tak cały ruch z ciągu
+    wchodzi do korelacji dopiero z pierwszym potwierdzonym dniem. Koszt: koniec okna korelacji z ropą stoi na ostatnim potwierdzonym dniu —
+    strona podaje wtedy powód (kor.br.pom)."""
     f = (lambda m: {d: v for d, v in m.items() if ok(v) is not None}) if ok else (lambda m: m)   # noqa: E731
     s = f(zk_ser(((sh or {}).get('d') or {}).get(cid) if isinstance(sh, dict) and isinstance(sh.get('d'), dict) else None))
     e = ((su or {}).get('ceny') or {}).get(cid) if isinstance(su, dict) and isinstance(su.get('ceny'), dict) else None
@@ -22074,9 +22174,18 @@ def zk_seria_su(su, sh, cid, ok=None):
     if isinstance(e, dict):
         s.update(f(zk_ser(e.get('d'))))
         for r in e.get('q') if isinstance(e.get('q'), list) else ():
-            if isinstance(r, (list, tuple)) and r and _zk_day(r[0]):
+            if isinstance(r, (list, tuple)) and r and _zk_day(r[0]) and not (len(r) >= 3 and r[2] == 'potw'):   # v300: tylko bez potwierdzenia
                 q.add(r[0])
     return s, q
+
+
+def zk_pom(k, s, b, q):
+    """v300: dni serii s z ceną bitcoina b tego dnia, pominięte w korelacji (q — bez potwierdzenia drugim źródłem) PO końcu okna k → {'n', 'od'}
+    albo None. Strona mówi wtedy, dlaczego okno kończy się wcześniej niż ostatnia cena (ceny czekają na potwierdzenie)."""
+    if not isinstance(k, dict) or not _zk_day(k.get('d')):
+        return None
+    p = sorted(d for d in (q or ()) if d > k['d'] and d in s and d in b)
+    return {'n': len(p), 'od': p[0]} if p else None
 
 
 def zk_btc(kc, wy):
@@ -22432,6 +22541,10 @@ def build_zloto_krypto(S, prev=None, now=None):
     def kor():
         zl = zk_kor(zk_wspolne(gold, btc, gq))
         br = zk_kor(zk_wspolne(brent, btc, bq))
+        for o_, s_, q_ in ((zl, gold, gq), (br, brent, bq)):   # v300: ceny bez potwierdzenia po końcu okna — powód na stronie
+            p_ = zk_pom(o_, s_, btc, q_)
+            if p_:
+                o_['pom'] = p_
         sp = zk_kor(zk_wspolne(spx, btc))   # S&P 500 dla porównania (plan: korelacja bitcoina także z rynkiem akcji)
         if zl is None and br is None and sp is None:
             return None
