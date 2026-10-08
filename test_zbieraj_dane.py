@@ -33613,3 +33613,98 @@ class SurowceEtap3V298(unittest.TestCase):
         z = k.surowce_kontrola(out, {'bledy': [], 'uwagi': []})
         self.assertTrue(any(o.startswith('pozycje: rynków z bieżącego raportu — USA 4, Londyn 7, fundusze indeksowe 13, indeks 1') for o, _ in z['wiersze']), z['wiersze'])
         self.assertTrue({'surowce_pozycje', 'surowce_fundusze', 'surowce_banki'} <= set(k.AW_BEZ_BLEDU))
+
+
+
+class CzcionkiBezDuplikatowV299(unittest.TestCase):
+    """v299 (szybkość strony, etap 1): fonts.css bez duplikatów — każdy plik czcionki pobierany raz (dawniej 12 plików, w tym ten sam plik
+    pod 2–4 nazwami; pliki zmienne z osią grubości). Wygląd bez zmian: dobór czcionki (treść pliku i grubość nakładana na oś) dla każdej
+    grubości 100–900 taki sam jak przy dawnych 26 regułach; strona używa tylko grubości setkowych (inne dałyby inny obraz przy zakresie)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    STARE = {'Instrument Sans': (400, 500, 600, 700), 'Sora': (500, 600, 700), 'JetBrains Mono': (400, 600)}   # reguły sprzed v299: grubość → plik <Rodzina>-<grubość>-<zakres>
+    PLIK = {'Instrument Sans': 'InstrumentSans', 'Sora': 'Sora', 'JetBrains Mono': 'JetBrainsMono'}
+    ZAKRESY = {'Instrument Sans': ['latin-ext', 'latin'], 'Sora': ['latin-ext', 'latin'],
+               'JetBrains Mono': ['cyrillic-ext', 'cyrillic', 'greek', 'vietnamese', 'latin-ext', 'latin']}
+
+    def reguly(self):
+        import re
+        css = open(os.path.join(self.ROOT, 'fonts', 'fonts.css'), encoding='utf-8').read()
+        R = [dict(zip(('sub', 'fam', 'lo', 'hi', 'plik', 'ur'), m.groups())) for m in re.finditer(
+            r"/\* ([\w-]+) \*/\n@font-face\{font-family:'([^']+)';font-style:normal;font-weight:(\d+)(?: (\d+))?;font-display:swap;"
+            r"src:url\(\./([\w-]+\.woff2)\) format\('woff2'\);unicode-range:([^;]+);\}", css)]
+        self.assertEqual(len(R), css.count('@font-face'), 'każda reguła w znanym kształcie')
+        for r in R:
+            r['lo'] = int(r['lo']); r['hi'] = int(r['hi'] or r['lo'])
+        return R
+
+    def sha(self, plik):
+        import hashlib
+        with open(os.path.join(self.ROOT, 'fonts', plik), 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+
+    @staticmethod
+    def dobierz(twarze, w):
+        """CSS Fonts 4, 5.2 krok 4 (grubość): twarz o zakresie [lo, hi] z w — ona; inaczej dla 400–500 najpierw cięższe do 500, potem lżejsze,
+        potem cięższe; poniżej 400 najpierw lżejsze; powyżej 500 najpierw cięższe. Grubość nakładana na oś = w przycięte do zakresu twarzy."""
+        hit = [t for t in twarze if t[0] <= w <= t[1]]
+        if hit:
+            t = hit[0]
+        else:
+            asc = lambda c: min(c, key=lambda t: t[0]) if c else None   # noqa: E731
+            desc = lambda c: max(c, key=lambda t: t[1]) if c else None   # noqa: E731
+            if 400 <= w <= 500:
+                t = asc([t for t in twarze if w < t[0] <= 500]) or desc([t for t in twarze if t[1] < w]) or asc([t for t in twarze if t[0] > 500])
+            elif w < 400:
+                t = desc([t for t in twarze if t[1] < w]) or asc([t for t in twarze if t[0] > w])
+            else:
+                t = asc([t for t in twarze if t[0] > w]) or desc([t for t in twarze if t[1] < w])
+        return t, max(t[0], min(t[1], w))
+
+    def test_kazdy_plik_raz_bez_duplikatow_tresci(self):
+        R = self.reguly()
+        pliki = sorted({r['plik'] for r in R})
+        for p in pliki:
+            self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'fonts', p)), p)
+        self.assertEqual(len({self.sha(p) for p in pliki}), len(pliki), 'dwa wskazane pliki o tej samej treści = to samo pobierane dwa razy')
+        self.assertEqual(len(pliki), 10, 'Instrument Sans 2, Sora 2, JetBrains Mono 6 (zakresy znaków) — dawniej 26 nazw')
+        for fam, subs in self.ZAKRESY.items():
+            self.assertEqual(sorted({r['sub'] for r in R if r['fam'] == fam}), sorted(subs), fam)
+            for sub in subs:
+                self.assertEqual(len({r['plik'] for r in R if r['fam'] == fam and r['sub'] == sub}), 1, f'{fam} {sub}: jeden plik')
+        self.assertEqual(sorted((r['fam'], r['lo'], r['hi']) for r in R if r['fam'] != 'JetBrains Mono'),
+                         [('Instrument Sans', 400, 700)] * 2 + [('Sora', 500, 700)] * 2, 'jedna reguła na zakres znaków z zakresem grubości')
+        self.assertEqual(sorted({(r['lo'], r['hi']) for r in R if r['fam'] == 'JetBrains Mono'}), [(400, 400), (600, 600)],
+                         'JetBrains Mono: reguły 400 i 600 (zakres 400–600 zmieniłby wygląd grubości 500 w widoku „Wykresy”)')
+
+    def test_dobor_czcionki_jak_przed_v299(self):
+        R = self.reguly()
+        for fam, stare in self.STARE.items():
+            for sub in self.ZAKRESY[fam]:
+                nowe = [(r['lo'], r['hi'], r['plik']) for r in R if r['fam'] == fam and r['sub'] == sub]
+                urs = {r['ur'] for r in R if r['fam'] == fam and r['sub'] == sub}
+                self.assertEqual(len(urs), 1, f'{fam} {sub}: ten sam zakres znaków')
+                for w in range(100, 1000, 100):
+                    t0, a0 = self.dobierz([(x, x, f"{self.PLIK[fam]}-{x}-{sub}.woff2") for x in stare], w)
+                    t1, a1 = self.dobierz(nowe, w)
+                    self.assertEqual((a1, self.sha(t1[2])), (a0, self.sha(t0[2])), f'{fam} {sub} grubość {w}: ta sama treść pliku i grubość osi')
+        # sprawdzenie samej funkcji doboru: dawne 400/600 dla 500 → 400; zakres 400–600 dałby 500 (inny obraz) — dlatego reguły zostają
+        self.assertEqual(self.dobierz([(400, 400, 'a'), (600, 600, 'b')], 500), ((400, 400, 'a'), 400))
+        self.assertEqual(self.dobierz([(400, 600, 'a')], 500)[1], 500)
+        self.assertEqual(self.dobierz([(500, 500, 'a'), (600, 600, 'b')], 400)[0][2], 'a')
+        self.assertEqual(self.dobierz([(400, 400, 'a'), (700, 700, 'b')], 300)[0][2], 'a')
+        self.assertEqual(self.dobierz([(400, 400, 'a'), (600, 600, 'b')], 800)[0][2], 'b')
+
+    def test_strona_tylko_grubosci_setkowe(self):
+        """Zakres grubości daje ten sam obraz co dawne reguły tylko dla grubości setkowych (np. 550 przy zakresie 400–700 = oś 550, dawniej
+        twarz 600) — nowa grubość spoza setek w stronie wymaga sprawdzenia czcionek."""
+        import re
+        html = open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8').read()
+        OK = {'normal', 'bold', 'bolder', 'lighter', 'inherit', 'initial', 'unset'}
+        vals = re.findall(r"font-weight\s*[:=]\s*[\"']?([^;}\"'`\s,)]+)", html)
+        self.assertGreater(len(vals), 50)
+        for v in vals:
+            self.assertTrue(v in OK or (v.isdigit() and int(v) % 100 == 0 and 100 <= int(v) <= 900), 'font-weight: ' + v)
+        num = re.findall(r"(?<![\w.#$-])(\d{3})\s+(?:\d+(?:\.\d+)?px|\$\{|'\s*\+)", html)   # skrót font: i napisy czcionek płótna
+        self.assertGreater(len(num), 20)
+        for v in num:
+            self.assertTrue(int(v) % 100 == 0 and 100 <= int(v) <= 900, 'grubość w skrócie font / płótnie: ' + v)

@@ -16153,3 +16153,116 @@ test('v298g: słownik su298g — ostatni, czysty JSON, te same klucze i zmienne 
   assert.ok(html.includes('#g-surowce .su-poz .wk-bt{grid-column:1/-1;grid-row:2}') && html.includes('#g-surowce .su-kf{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}'), 'telefon 390 px: pasek pozycji pod nazwą, kafle metali w 2 kolumnach');
   const b = su295.blk; assert.ok(b.indexOf('function su3D(){') > 0 && b.indexOf('function su3D(){') < b.indexOf('function renderSu(){') && b.includes("${blocks}`:'')+su3D()+"), 'część D w bloku panelu, przed stopką');
 });
+
+
+/* ---------- v299 (szybkość strony, etap 1): pierwszy widok GLOBAL czeka tylko na pliki kafelków; historia stablecoinów po przyjściu
+   krypto.json (dawniej sprawdzana przed nim — 1,3 MB z zewnątrz przy każdym wejściu); pliki kafelków zamawiane jako pierwsze ---------- */
+const v299 = (() => {
+  const g0 = html.indexOf('function gLoad(cb){'), g1 = html.indexOf('\n}\n', g0) + 2, src = html.slice(g0, g1);
+  const APPLY = ['instApply', 'jpxApply', 'fredApply', 'ticApply', 'spApply', 'kmApply', 'zagApply', 'eerApply', 'cofApply', 'bilApply', 'safeApply',
+    'kanApply', 'korApply', 'spwApply', 'mxApply', 'ueApply', 'rezApply', 'cmApply', 'cftcApply', 'biApply'];
+  const tick = async (n = 80) => { for (let i = 0; i < n; i++) await null; };   // same mikrozadania (bez zegara; jsc bez setTimeout)
+  const AT = {at: '2026-10-07T16:00:00Z'};
+  /* gLoad z atrapami: o.wisi — pliki serwera, które nie przychodzą (do pend[n](dane)); o.gjWisi — obce adresy, które nie odpowiadają */
+  const mk = (o = {}) => {
+    const c = {srv: [], gj: [], ok: [], build: 0, render: 0, mem: 0, cb: 0, unknown: []}, pend = {};
+    const KR = o.KR || {data: {at: 'x', stabh: {d: {30: 1}, pct: {30: 1}, cur: 3}}, p: Promise.resolve()}, CMC = o.CMC || {data: null, p: Promise.resolve()};
+    const E = {
+      GLIVE: {src: {}, srcAt: {}}, KR, CMC, GDATA: {}, LOCALE: {pl: 'pl-PL'}, LANG: 'pl', gISO: ['USA'],
+      GSRC: {stab: 'STAB', fiat: 'FIAT', crypto: 'CG', fx: () => 'FX', buba: () => 'BUBA', oecd: () => 'OECD', rate: () => 'RATE', cli: () => 'CLI'},
+      srvJSON: n => { c.srv.push(n); return (o.wisi || []).includes(n) ? new Promise(r => { pend[n] = r; }) : Promise.resolve(Object.assign({}, AT)); },
+      gJSON: u => { c.gj.push(u); return (o.gjWisi || []).includes(u) ? new Promise(() => {}) : Promise.resolve({data: {}}); },
+      oecdSrv: j => j ? {share: {USA: [['2026-09', 1]]}, irlt: {USA: [['2026-09', 4]]}, cli: {USA: [['2026-09', 100]]}} : {},
+      rynkiSrv: j => j ? {fx: {now: {date: '2026-10-07'}}, ust: [['2026-10-06', 4]], buba: [['2026-10-06', 2]]} : {},
+      krStabh: () => { const D = KR.data; return D && D.stabh && D.stabh.d && D.stabh.pct ? D.stabh : null; },
+      gOk: k => { c.ok.push(k); }, gBuild: () => { c.build++; }, gRenderAll: () => { c.render++; }, gMemSave: () => { c.mem++; },
+      gStatus() {}, gDay() {}, gLinks() {}, gAuto() {}, gCenyApply() {}, gOecd: x => x, gFxRefs: x => x, gBuba: () => [], cgUrl: u => u,
+      gUstLoad: () => Promise.resolve(), tdLoad: () => Promise.resolve(), gFiat: () => null
+    };
+    for (const n of APPLY) E[n] = () => {};
+    const env = new Proxy(E, {has: (t, k) => k !== 'gLoad' && (k in t || !(k in globalThis)),
+      get: (t, k) => { if (k === Symbol.unscopables) return undefined; if (!(k in t)) c.unknown.push(String(k)); return t[k]; }});
+    const gLoad = new Function('E', 'with(E){' + src + '\nreturn gLoad;}')(env);
+    return {gLoad: () => gLoad(() => { c.cb++; }), c, pend, E, AT};
+  };
+  return {src, mk, tick, AT};
+})();
+
+test('v299: historia stablecoinów — decyzja PO przyjściu krypto.json (dawniej przed nim: 1,3 MB z zewnątrz przy każdym wejściu); bez historii w pliku — zapas raz, bez czekania pierwszego widoku', async () => {
+  let res; const KR = {data: null, p: new Promise(r => { res = r; })};
+  const A = v299.mk({KR}); A.gLoad(); await v299.tick();
+  assert.ok(!A.c.gj.includes('STAB'), 'plik jeszcze nie przyszedł — decyzja wstrzymana (dawniej tu szło 1,3 MB)');
+  assert.equal(A.c.cb, 0, 'pierwszy widok czeka na krypto.json (kafelek podaży stablecoinów)');
+  KR.data = {at: 'x', stabh: {d: {30: 1}, pct: {30: 1}, cur: 3}}; res(); await v299.tick();
+  assert.deepEqual(A.c.gj.filter(u => u === 'STAB'), [], 'serwer ma historię — zero zapytań o nią z zewnątrz');
+  assert.ok(A.c.ok.includes('stab') && A.c.cb === 1, 'źródło policzone, pierwszy widok narysowany');
+  assert.deepEqual(A.c.unknown, [], 'atrapy pokrywają wszystkie nazwy z gLoad');
+  const B = v299.mk({KR: {data: {at: 'x', fng: {}}, p: Promise.resolve()}, gjWisi: ['STAB']}); B.gLoad(); await v299.tick();
+  assert.deepEqual(B.c.gj.filter(u => u === 'STAB'), ['STAB'], 'plik bez historii — zapas z zewnątrz dokładnie raz');
+  assert.equal(B.c.cb, 1, 'pierwszy widok nie czeka na 1,3 MB zapasu');
+  assert.ok(!B.c.ok.includes('stab'), 'źródło dopiero po przyjściu zapasu');
+  const C = v299.mk({KR: {data: null, p: Promise.reject(new Error('sieć'))}}); C.gLoad(); await v299.tick();
+  assert.equal(C.c.cb, 1, 'błąd krLoad — bez zawieszenia pierwszego widoku'); assert.deepEqual(C.c.gj.filter(u => u === 'STAB'), ['STAB'], 'i zapas jak dawniej');
+  const D = v299.mk({KR: {data: null}}); D.gLoad(); await v299.tick();
+  assert.equal(D.c.cb, 1, 'bez obietnicy krLoad — decyzja od razu'); assert.deepEqual(D.c.gj.filter(u => u === 'STAB'), ['STAB']);
+});
+
+test('v299: pierwszy widok GLOBAL czeka tylko na pliki kafelków (oecd, rynki, ceny, kursy, krypto, cmc); karty pod mapą i zapasy z obcych serwerów w tle, po nich mapa i kafelki jeszcze raz', async () => {
+  for (const n of ['instytucje', 'jpx', 'tic', 'stopy', 'rezerwy', 'cm', 'cftc', 'bis']) {
+    const A = v299.mk({wisi: [n], gjWisi: ['CG', 'FIAT']}); A.gLoad(); await v299.tick();
+    assert.deepEqual([A.c.cb, A.c.build, A.c.mem], [1, 1, 1], n + ' (i obce zapasy) nie wstrzymują pierwszego widoku; pamięć wyników przy nim, jak dawniej');
+    assert.equal(A.c.render, 0, n + ': bez drugiego rysowania, dopóki reszta nie przyjdzie');
+    A.pend[n](null); await v299.tick();
+    assert.equal(A.c.render, 0, n + ': obce zapasy nadal w drodze — reszta niepełna');
+  }
+  for (const n of ['oecd', 'rynki', 'ceny', 'kursy']) {
+    const A = v299.mk({wisi: [n]}); A.gLoad(); await v299.tick();
+    assert.equal(A.c.cb, 0, n + ': pierwszy widok czeka');
+    A.pend[n](Object.assign({}, v299.AT)); await v299.tick(); assert.equal(A.c.cb, 1, n + ': po przyjściu — narysowany');
+  }
+  let res; const K = v299.mk({CMC: {data: null, p: new Promise(r => { res = r; })}}); K.gLoad(); await v299.tick();
+  assert.equal(K.c.cb, 0, 'kafelek kapitalizacji krypto: czeka na cmc.json'); res(); await v299.tick(); assert.equal(K.c.cb, 1);
+  const B = v299.mk({wisi: ['tic']}); B.gLoad(); await v299.tick();
+  assert.deepEqual([B.c.cb, B.c.build, B.c.render], [1, 1, 0]);
+  B.pend.tic(null); await v299.tick();
+  assert.deepEqual([B.c.build, B.c.render], [2, 1], 'reszta po pierwszym widoku — mapa i kafelki jeszcze raz (ta sama treść końcowa co dawniej)');
+  const C = v299.mk({wisi: ['ceny']}); C.gLoad(); await v299.tick();
+  assert.deepEqual([C.c.build, C.c.render, C.c.cb], [0, 0, 0], 'reszta gotowa przed plikami kafelków — nic nie rysowane w pół drogi');
+  C.pend.ceny(null); await v299.tick(); assert.deepEqual([C.c.build, C.c.render, C.c.cb], [1, 0, 1], 'rysuje Promise.all(P), raz');
+  assert.ok(C.c.ok.includes('crypto') && C.c.ok.includes('stab'), 'źródła zapasowe i tak policzone');
+});
+
+test('v299: P (pierwszy widok) — tylko pliki kafelków; P2 — dawne pliki gLoad bez zmian (żaden nie zniknął, cm zostaje); obietnice krLoad i cmcLoad; odświeżanie bez zmian', () => {
+  const s = v299.src, p0 = s.indexOf('  const P=[\n'), p1 = s.indexOf('\n  ];\n  const P2=[', p0), q1 = s.indexOf('\n  ];\n  Promise.all(P2).then(', p1);
+  assert.ok(p0 > 0 && p1 > p0 && q1 > p1 && s.indexOf('\n  Promise.all(P).then(()=>{', q1) > q1, 'układ gLoad: P, P2, rysowanie po P2, pierwszy widok po P');
+  const names = t => [...t.matchAll(/srvJSON\('([a-z0-9-]+)'\)/g)].map(m => m[1]), P = s.slice(p0, p1), P2 = s.slice(p1, q1);
+  assert.deepEqual(names(P), ['oecd', 'rynki', 'ceny', 'kursy'], 'pierwszy widok: pliki kafelków i mapy');
+  assert.ok(P.includes("krP.then(()=>{if(krStabh())gOk('stab');}),") && P.includes('\n    cmcP,'), 'krypto.json i cmc.json — przez obietnice krLoad/cmcLoad (te same pobrania)');
+  assert.ok(!/GSRC\.(stab|fiat|crypto)/.test(P), 'obce serwery nie wstrzymują pierwszego widoku');
+  assert.deepEqual(names(P2), ['instytucje', 'jpx', 'fred', 'tic', 'stopy', 'obce', 'eer', 'cofer', 'bilans', 'safe', 'kanada', 'korea', 'spw', 'meksyk', 'ue', 'rezerwy', 'cm', 'cftc', 'bis'],
+    'reszta jak dawniej (cm zostaje: inaczej po pełnym odświeżeniu co 30 min liczba źródeł bez niego)');
+  assert.ok(P2.includes("gJSON(cgUrl(GSRC.crypto)).then(j=>{GLIVE.crypto=j.data;gOk('crypto');})") && P2.includes('krP.then(()=>krStabh()?null:gJSON(GSRC.stab).then(') && P2.includes('gJSON(GSRC.fiat).then('), 'obce zapasy w tle');
+  assert.ok(s.includes("const krP=Promise.resolve(typeof KR!=='undefined'&&KR?KR.p:null).catch(()=>{}),cmcP=Promise.resolve(typeof CMC!=='undefined'&&CMC?CMC.p:null).catch(()=>{});"), 'błąd obietnicy nie zawiesza pierwszego widoku');
+  assert.ok(!s.includes('(krStabh()?Promise.resolve()'), 'dawne sprawdzenie przed przyjściem pliku — usunięte');
+  assert.ok(html.includes("function krLoad(){KR.p=srvJSON('krypto').then(j=>{KR.data=") && html.includes("function cmcLoad(){CMC.p=srvJSON('cmc').then(j=>{CMC.data="), 'obietnice krLoad i cmcLoad');
+  const a = html.indexOf('function gAuto(on){'), g = html.slice(a, html.indexOf('\n}\n', a));
+  assert.ok(g.includes('(!krStabh()&&due(15))?gJSON(GSRC.stab)') && g.includes('if(gTick%30===0)gLoad();'), 'zegar GLOBAL bez zmian');
+});
+
+test('v299: pliki kafelków zamawiane jako pierwsze — zaraz po srvJSON, przed modułami niżej w skrypcie; te same pobrania (pamięć minutowa), bez dodatkowych zapytań', async () => {
+  const L = "['oecd','rynki','ceny','kursy','dzis','krypto','cmc'].forEach(n=>srvJSON(n));";
+  const a = html.indexOf('function srvJSON(name){'), b = html.indexOf('\n}\n', a) + 3, i = html.indexOf(L), e = i + L.length;
+  assert.ok(i > b && html.slice(b, i).startsWith('/* v299 (szybkość)') && html.slice(b, i).endsWith('*/\n') && !html.slice(b, i).slice(0, -3).includes('*/'), 'zaraz po srvJSON, tylko komentarz pomiędzy');
+  assert.equal(html.split(L).length, 2, 'jedno miejsce');
+  const first = html.slice(1).search(/\n(?:[a-zA-Z]+Load[A-Z]?\(|loadAll\()/) + 1;
+  assert.ok(first > e, 'przed pierwszym modułem wołanym na starcie (' + html.slice(first + 1, first + 20) + ')');
+  for (const n of ['oecd', 'rynki', 'ceny', 'kursy', 'dzis', 'krypto', 'cmc']) assert.ok(html.indexOf("srvJSON('" + n + "')", e) > e, n + ': plik czytany niżej (gLoad, gDay, krLoad, cmcLoad)');
+  const calls = [], now = Date.parse('2026-10-07T16:40:10Z');
+  const f = new Function('fetch', 'location', 'Date', 'AbortSignal', 'structuredClone', html.slice(a, e) + '\nreturn srvJSON;')(
+    u => { calls.push(u); return Promise.resolve({ok: true, json: () => Promise.resolve({at: 'x'})}); }, {protocol: 'https:'}, {now: () => now},
+    {timeout: () => 'SYG'}, typeof structuredClone === 'function' ? structuredClone : undefined);
+  assert.deepEqual(calls.map(u => u.split('?')[0]), ['data/oecd.json', 'data/rynki.json', 'data/ceny.json', 'data/kursy.json', 'data/dzis.json', 'data/krypto.json', 'data/cmc.json'], 'siedem plików od razu, w tej kolejności');
+  const x = await Promise.all(['krypto', 'oecd', 'cmc', 'ceny', 'rynki', 'kursy', 'dzis', 'krypto'].map(n => f(n)));
+  assert.equal(calls.length, 7, 'gLoad, gDay, krLoad, cmcLoad w tej samej minucie — bez nowych zapytań');
+  assert.deepEqual(x[0], {at: 'x'}); assert.notEqual(x[0], x[7], 'każdy wołający dostaje własną kopię (v189)');
+});

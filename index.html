@@ -3640,6 +3640,10 @@ function srvJSON(name){
   }
   return c.p.then(j=>j&&typeof j==='object'?(typeof structuredClone==='function'?structuredClone(j):JSON.parse(JSON.stringify(j))):j);
 }
+/* v299 (szybkość): pliki kafelków i mapy GLOBAL zamawiane jako pierwsze — przed ~25 modułami, które niżej w skrypcie wołają srvJSON,
+   i przed gLoad na końcu skryptu (dawniej szły na końcu i dzieliły łącze z plikami, których czytelnik jeszcze nie widzi). To te same
+   pobrania (pamięć minutowa srvJSON.c): gLoad, gDay, krLoad i cmcLoad w tej samej minucie biorą je z pamięci. */
+['oecd','rynki','ceny','kursy','dzis','krypto','cmc'].forEach(n=>srvJSON(n));
 /* notowania ETF-ów krajowych → zmiana dnia per region (wspólne dla serwera i klucza Finnhub) */
 function gDayApply(q){
   const day={};let ok=0;
@@ -3751,7 +3755,7 @@ function gCenyRow(r){
 }
 /* v40: CoinMarketCap (klucz właściciela na serwerze) z pliku automatu data/cmc.json */
 const CMC={data:null,timer:null};
-function cmcLoad(){srvJSON('cmc').then(j=>{CMC.data=(j&&typeof j==='object'&&typeof j.total_mcap==='number'&&typeof j.at==='string')?j:null;if(CMC.data)gOk('cmc');renderCmc();if(CMC.data&&typeof renderKPI==='function')renderKPI();if(CMC.data&&typeof gStarted!=='undefined'&&gStarted&&GDATA){gKpis();gRenderAll();}   /* v66: kafelek kapitalizacji z tego samego pliku */
+function cmcLoad(){CMC.p=srvJSON('cmc').then(j=>{CMC.data=(j&&typeof j==='object'&&typeof j.total_mcap==='number'&&typeof j.at==='string')?j:null;if(CMC.data)gOk('cmc');renderCmc();if(CMC.data&&typeof renderKPI==='function')renderKPI();if(CMC.data&&typeof gStarted!=='undefined'&&gStarted&&GDATA){gKpis();gRenderAll();}   /* v66: kafelek kapitalizacji z tego samego pliku */
 }).catch(()=>{CMC.data=null;renderCmc();});}
 function cmcAuto(){if(CMC.timer)clearInterval(CMC.timer);CMC.timer=setInterval(()=>{if(!document.hidden)cmcLoad();},10*60*1000);}   /* v168: plik w każdym przebiegu (co 10 min) */
 /* v41: TradingView — początek
@@ -4000,7 +4004,7 @@ function krMerge(){
   if(H){LIVE.stabD=LIVE.stabD||{};const set=(per,k)=>{if(!LIVE.stabD[per]&&typeof H.d[k]==='number'&&typeof H.pct[k]==='number')LIVE.stabD[per]={d:H.d[k]/1e6,pct:H.pct[k],n:null};};
     set('24H','1');set('7D','7');set('30D','30');set('1R','365');}
 }
-function krLoad(){srvJSON('krypto').then(j=>{KR.data=(j&&typeof j==='object'&&typeof j.at==='string'&&(j.deriv||j.defi||j.fng||j.mk||j.stabh))?j:null;if(KR.data&&(LIVE.st==='err'||LIVE.src==='srv')){if(lvSrv(LIVE.src==='srv'))afterLive();}else if(KR.data&&LIVE.st==='ok'&&LIVE.C){krMerge();applyLive(true);afterLive();}   /* v164: zapas z pliku serwera — także po jego odświeżeniu */if(KR.data){if(KR.data.deriv||KR.data.defi)gOk('kr');if(KR.data.fng)gOk('fng');}renderKr();}).catch(()=>{KR.data=null;renderKr();});}
+function krLoad(){KR.p=srvJSON('krypto').then(j=>{KR.data=(j&&typeof j==='object'&&typeof j.at==='string'&&(j.deriv||j.defi||j.fng||j.mk||j.stabh))?j:null;if(KR.data&&(LIVE.st==='err'||LIVE.src==='srv')){if(lvSrv(LIVE.src==='srv'))afterLive();}else if(KR.data&&LIVE.st==='ok'&&LIVE.C){krMerge();applyLive(true);afterLive();}   /* v164: zapas z pliku serwera — także po jego odświeżeniu */if(KR.data){if(KR.data.deriv||KR.data.defi)gOk('kr');if(KR.data.fng)gOk('fng');}renderKr();}).catch(()=>{KR.data=null;renderKr();});}
 function krAuto(){if(KR.timer)clearInterval(KR.timer);KR.timer=setInterval(()=>{if(!document.hidden)krLoad();},20*60*1000);}
 function krClass(c){const m={'Extreme Fear':'kr.c.xf','Fear':'kr.c.f','Neutral':'kr.c.n','Greed':'kr.c.g','Extreme Greed':'kr.c.xg'};return m[c]?t(m[c]):escH(c||'');}
 function krFngAt(rows,back){const i=rows.length-1-back;return i>=0&&Array.isArray(rows[i])&&typeof rows[i][1]==='number'?rows[i][1]:null;}
@@ -4868,6 +4872,12 @@ function gLoad(cb){
   const today=new Date().toISOString().slice(0,10);
   const back=n=>{const d=new Date();d.setMonth(d.getMonth()-n);return d.toISOString().slice(0,10);};
   gDay();
+  /* v299 (szybkość): pierwszy widok (kafelki, mapa) czeka tylko na pliki kafelków — oecd, rynki, ceny, kursy, krypto.json (podaż
+     stablecoinów, obietnica krLoad: KR.p) i cmc.json (kapitalizacja krypto, CMC.p); reszta (P2: karty pod mapą, szczegóły regionu,
+     zapasy z obcych serwerów) przychodzi w tle, a po niej mapa i kafelki są rysowane jeszcze raz — treść końcowa ta sama co dawniej.
+     Historia stablecoinów: decyzja PO przyjściu krypto.json — dawniej krStabh() sprawdzane przed przyjściem pliku, więc przy każdym
+     wejściu szło z zewnątrz ok. 1,3 MB historii, którą serwer ma (v49). Błąd albo brak obietnicy = decyzja od razu, jak dawniej. */
+  const krP=Promise.resolve(typeof KR!=='undefined'&&KR?KR.p:null).catch(()=>{}),cmcP=Promise.resolve(typeof CMC!=='undefined'&&CMC?CMC.p:null).catch(()=>{});
   const P=[
     /* v99: OECD najpierw z pliku serwera (co 6 h); prosto z OECD tylko część, której w pliku brak — OECD ogranicza zapytania z jednego adresu (429) */
     srvJSON('oecd').then(j=>{const S=oecdSrv(j),pa=(j&&j.part_at&&typeof j.part_at==='object')?j.part_at:{};GLIVE.oecdAt={};   /* czas każdej części pliku — dla strony Źródła */
@@ -4882,15 +4892,19 @@ function gLoad(cb){
           .then(v=>{GLIVE.fx=v;gOk('fx');}).catch(e=>{GLIVE.err=GLIVE.err||('FX '+e.message);}),
         S.ust?Promise.resolve().then(()=>use('ust',v=>{GLIVE.ust=v;})):gUstLoad(),
         S.buba?Promise.resolve().then(()=>use('buba',v=>{GLIVE.buba=v;})):gJSON(GSRC.buba(back(13))).then(x=>{const s=gBuba(x);if(s.length){GLIVE.buba=s;gOk('buba');}}).catch(()=>{})]);}),
-    gJSON(cgUrl(GSRC.crypto)).then(j=>{GLIVE.crypto=j.data;gOk('crypto');}).catch(()=>{}),
-    (krStabh()?Promise.resolve().then(()=>gOk('stab')):gJSON(GSRC.stab).then(j=>{GLIVE.stab=j;gOk('stab');}).catch(()=>{})),   /* v49: bez 1,3 MB, gdy serwer ma historię */
+    krP.then(()=>{if(krStabh())gOk('stab');}),   /* v49: bez 1,3 MB, gdy serwer ma historię (v299: sprawdzane po przyjściu pliku) */
+    cmcP,   /* v299: kafelek „Kapitalizacja krypto” z cmc.json */
     srvJSON('ceny').then(j=>{if(j&&j.q&&typeof j.q==='object'&&typeof j.at==='string'){GLIVE.cenySrv=j.at;gCenyApply(j);return;}GLIVE.cenySrv='';return tdLoad(false);}).catch(()=>{GLIVE.cenySrv='';return tdLoad(false);}),
+    srvJSON('kursy').then(j=>{kmApply(j);}).catch(()=>{kmApply(null);}),   /* v53: średnie miesięczne kursów EBC */
+  ];
+  const P2=[   /* v299: bez czekania pierwszego widoku */
+    gJSON(cgUrl(GSRC.crypto)).then(j=>{GLIVE.crypto=j.data;gOk('crypto');}).catch(()=>{}),   /* kafelek krypto: zapas, gdy brak cmc.json */
+    krP.then(()=>krStabh()?null:gJSON(GSRC.stab).then(j=>{GLIVE.stab=j;gOk('stab');}).catch(()=>{})),   /* historia stablecoinów z zewnątrz tylko bez pliku serwera */
     srvJSON('instytucje').then(j=>{instApply(j);}).catch(()=>{instApply(null);}),
     srvJSON('jpx').then(j=>{if(typeof jpxApply==='function')jpxApply(j);}).catch(()=>{if(typeof jpxApply==='function')jpxApply(null);}),   /* v137: Japonia — akcje na giełdzie (tydzień) */
     srvJSON('fred').then(j=>{fredApply(j);}).catch(()=>{fredApply(null);}),   /* v42: serie Fed z FRED (plik automatu) */
     srvJSON('tic').then(j=>{ticApply(j);}).catch(()=>{ticApply(null);}),   /* v47: TIC (plik automatu, raz na dobę) */
     srvJSON('stopy').then(j=>{spApply(j);}).catch(()=>{spApply(null);}),   /* v52: stopy banków centralnych (BIS, co 6 h) */
-    srvJSON('kursy').then(j=>{kmApply(j);}).catch(()=>{kmApply(null);}),   /* v53: średnie miesięczne kursów EBC */
     srvJSON('obce').then(j=>{zagApply(j);}).catch(()=>{zagApply(null);}),   /* v54: inwestorzy zagraniczni — Indie, Tajwan */
     srvJSON('eer').then(j=>{eerApply(j);}).catch(()=>{eerApply(null);}),   /* v56: kursy efektywne BIS */
     srvJSON('cofer').then(j=>{cofApply(j);}).catch(()=>{cofApply(null);}),   /* v59: MFW COFER */
@@ -4907,6 +4921,7 @@ function gLoad(cb){
     srvJSON('bis').then(j=>{biApply(j);}).catch(()=>{biApply(null);}),   /* v50: BIS LBS — przepływy bankowe między regionami (plik automatu, raz na dobę) */
     gJSON(GSRC.fiat).then(j=>{const f=gFiat(j);if(f){GLIVE.fiat=f;gOk('fiat');}}).catch(()=>{}),
   ];
+  Promise.all(P2).then(()=>{if(GLIVE.st!=='load'&&GDATA){gBuild();gRenderAll();}});   /* v299: reszta po pierwszym widoku — jeszcze raz mapa i kafelki (przed nim rysuje Promise.all(P)) */
   Promise.all(P).then(()=>{
     GLIVE.st=(GLIVE.oecd&&GLIVE.fx)?'ok':'err';
     if(GLIVE.st==='ok'){
