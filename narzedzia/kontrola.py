@@ -44,9 +44,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'zloto-krypto', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60, 'surowce': 24 * 60, 'surowce-hist': 48 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'zloto-krypto': 90, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
 
@@ -3941,6 +3941,29 @@ def surowce_kontrola(j, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v295c: złoto i surowce a krypto (data/zloto-krypto.json) ----------------------------------------------------------------
+# Zasoby wydobytego złota do szacunku wielkości rynku (słupek „Złoto (szacunek)”) to stała z datą stanu w zbieraczu (ZK_ZLOTO), aktualizowana ręcznie
+# co najmniej raz w roku (wydawca publikuje co kwartał). Stan starszy niż ZK_ZASOBY_MAX_DNI = uwaga (przypomnienie, nigdy błąd); data stanu z pliku
+# strony (ryn.zloto.t_d) — bez sieci i bez czytania kodu zbieracza.
+ZK_ZASOBY_MAX_DNI = 456   # ok. 15 miesięcy: roczna aktualizacja + kwartał zapasu na publikację wydawcy
+
+
+def zk_kontrola(j, R, now=None):
+    """Plik zloto-krypto.json → None (brak pliku albo części ryn.zloto z prawdziwą datą stanu) albo {'zasoby_d', 'wiek_dni', 'status'};
+    stan starszy niż ZK_ZASOBY_MAX_DNI — uwaga w R['uwagi'] (⚠️, nigdy ❌ ani BŁĄD)."""
+    ryn = j.get('ryn') if isinstance(j, dict) else None
+    z = ryn.get('zloto') if isinstance(ryn, dict) else None
+    d = _dzien(z.get('t_d')) if isinstance(z, dict) else None
+    if d is None:
+        return None
+    n = ((now or NOW).date() - dt.date.fromisoformat(d)).days
+    st = '⚠️' if n > ZK_ZASOBY_MAX_DNI else '✅'
+    if st == '⚠️':
+        R['uwagi'].append(f'złoto i surowce a krypto: zasoby wydobytego złota (szacunek wielkości rynku) są ze stanu na {d} — {n} dni temu '
+                          f'(próg {ZK_ZASOBY_MAX_DNI} dni); zaktualizować stałą ZK_ZLOTO w zbieraj_dane.py najnowszym szacunkiem (raz w roku)')
+    return {'zasoby_d': d, 'wiek_dni': n, 'status': st}
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -4324,6 +4347,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['surowce'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'surowce: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v295c: złoto i surowce a krypto — wiek stałej zasobów wydobytego złota (z pliku strony, bez zapytań; najwyżej ⚠️)
+    try:
+        Z['zloto-krypto'] = zk_kontrola(files.get('zloto-krypto'), R)
+    except Exception as e:  # noqa
+        Z['zloto-krypto'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'złoto i surowce a krypto: kontrola przerwana ({str(e)[:80]})')
     # 3g. v133: tokenizowane aktywa RWA — własna zmiana 7 dni vs zmiana podana przez źródło, produkty spoza głównej listy, skok sumy dzień do dnia
     # (z pliku strony, bez zapytań; najwyżej ⚠️ — do raportu bez nowej kolumny zgodnosc.csv)
     try:

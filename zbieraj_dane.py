@@ -5136,11 +5136,17 @@ def build_etf(key, cg_key, prev=None, tylko=None):
         # v280: tryb szybki (v279) — kapitalizacje sprzed < 55 min z poprzedniego pliku, bez zapytania planu CoinGecko (10 000 / mies.)
         out['mcap'], out['mcap_at'] = dict(pm), pma_s
         META['ok']['coingecko'] = 'cached'
+        if isinstance(prev.get('tok'), dict) and prev['tok']:
+            out['tok'] = prev['tok']   # v295c: ceny tokenów złota z tego samego (poprzedniego) zapytania — każda z własną chwilą notowania
     else:
         try:
-            u = ('https://api.coingecko.com/api/v3/simple/price?ids=' + ','.join(CG_IDS.values())
-                 + '&vs_currencies=usd&include_market_cap=true')
+            # v295c: + pax-gold i tether-gold (tokeny złota — panel CRYPTO „Złoto i surowce a krypto”) i chwila notowania — to samo jedno zapytanie
+            u = ('https://api.coingecko.com/api/v3/simple/price?ids=' + ','.join(list(CG_IDS.values()) + list(ZK_CG_IDS.values()))
+                 + '&vs_currencies=usd&include_market_cap=true&include_last_updated_at=true')
             j = get_json(u, {'x-cg-demo-api-key': cg_key} if cg_key else None)   # klucz w nagłówku, nie w adresie
+            tk = zk_cg_tok(j)   # v295c: ceny tokenów złota z chwilą notowania (bez wyjątku; token bez ceny albo chwili — bez wpisu)
+            if tk:
+                out['tok'] = tk
             out['mcap'] = {s: j[CG_IDS[s]]['usd_market_cap'] for s in ETF_SYMS}
             out['mcap_at'] = NOW
             META['ok']['coingecko'] = True
@@ -21046,6 +21052,483 @@ def rwe_meta(rw, off, cached=False):
         META['ok']['rwa-emitenci'] = 'cached' if cached else em.get('ok') is True
 
 
+# ===================== v295c: ZŁOTO I SUROWCE A KRYPTO — panel CRYPTO #c-surowce (plik data/zloto-krypto.json) =====================
+# Etap 5 działu SUROWCE (agent CRYPTO). Wyliczenia z plików TEGO przebiegu (SAVED) — bez nowych zapytań do sieci:
+#  * złoto — cena z londyńskiego fixingu popołudniowego wyliczona z archiwum funduszu (data/surowce-hist.json, ostatnie sesje z data/surowce.json);
+#    ropa Brent (dostawa fizyczna) — ta sama seria co dział SUROWCE; punkty „do sprawdzenia” (q) pomijane w korelacjach (opis pliku surowce v2);
+#  * bitcoin — zamknięcie doby UTC z data/ceny-krypto.json (najdłuższa historia w plikach strony: 420 dni; zamknięcia ostateczne od razu; ten sam
+#    plik co panel „Ceny krypto”); zapasowo — tylko gdy tej serii nie ma — cena referencyjna z data/wycena.json (zamknięcie doby UTC w USD;
+#    nigdy dwie serie zmieszane w jednej);
+#  * S&P 500 (dla porównania w korelacji) — dzienne zamknięcia sesji z data/indeksy.json (ix.GSPC.d, ten sam plik co panel indeksów GLOBAL);
+#    miedzi w korelacji nie ma: dział SUROWCE nie ma jej dziennej historii (tylko notowanie bieżące i średnie miesięczne);
+#  * podaż tokenów złota PAXG i XAUT — odczyt własny z łańcucha w data/rwa.json (XAUT: w obiegu = totalSupply − rezerwa emitenta, jak w wycenie
+#    RWA); dziennik podaży prowadzony w tym pliku (zmiany 7 i 30 dni = tokeny wybite minus spalone); PAXG na start z 8 dni zapisów rwa.json;
+#  * ceny tokenów — data/etf.json, blok tok (pax-gold i tether-gold dopisane do istniejącego zapytania o kapitalizacje, z chwilą notowania);
+#    premia tylko, gdy cena tokenu i cena złota pochodzą z chwil oddalonych najwyżej o 1 h (notowanie godzinowe złota, wyrocznia na łańcuchu
+#    albo fixing popołudniowy o 15:00 w Londynie) — inaczej None;
+#  * wielkość rynków — kapitalizacja krypto i bitcoina z data/cmc.json (jak kafel GLOBAL), tokenizowane towary (rodzaj cm) z data/rwa.json,
+#    złoto = szacunek: zasoby wydobytego złota (stała z datą stanu, aktualizowana ręcznie) × ostatnia cena z fixingu.
+# Części: zb (złoto a bitcoin), kor (korelacja krocząca 90 wspólnych dni notowań: złoto, Brent, S&P 500), tok (tokenizowane złoto), ryn (wielkość rynków). Część bez wejść w tym przebiegu = poprzednia
+# z jej czasem (ok False); brak liczby = None, nigdy 0.
+import math as _zk_math
+
+ZK_V = 1
+ZK_OZ_T = 32150.7466          # uncji trojańskich w tonie metrycznej (1 t = 1 000 000 g ÷ 31,1034768 g)
+ZK_OKNO = 90                  # okno korelacji: ostatnie 90 wspólnych dni notowań, zakończone na ostatnim wspólnym dniu (bez zaglądania w przyszłość)
+ZK_OKNO_KAL = 140             # …ale najwyżej 140 dni kalendarzowych wstecz (90 dni notowań ze świętami to ok. 126–132 dni; długa przerwa w danych
+                              # nie wydłuża okna bez końca). Recenzja v295c: okno 90 dni KALENDARZOWYCH miało tylko 62–64 dni robocze — 2–3 święta
+                              # i 1–2 punkty q dawały 59 < 60 i „—” przy kompletnych danych (Brent: 36 z 189 dni próbki); teraz 90 notowań z zapasem
+ZK_MIN = 60                   # najmniej wspólnych dni w oknie — mniej = None (na stronie „—”)
+ZK_ZB_DNI = 400               # dni kalendarzowych wspólnej serii złoto / bitcoin w pliku (okno 365 dni + zapas)
+ZK_KOR_DNI = 730              # dni kalendarzowych serii korelacji (2 lata — tyle, ile pozwalają dane)
+ZK_H_DNI = 400                # dni dziennika podaży tokenów
+ZK_PH_DNI = 90                # dni historii premii tokenów
+ZK_PREM_S = 3600              # premia tylko, gdy ceny tokenu i złota z chwil najwyżej 1 h od siebie
+ZK_ZAPAS_DNI = 2              # zmiana 7 / 30 dni: dzień bazowy dokładnie n dni wcześniej, a gdy go nie ma — najbliższy wcześniejszy, najwyżej 2 dni (data na stronie)
+ZK_CH_MAX_H = 12              # odczyt podaży starszy niż 12 h nie wchodzi do dziennika (jak RWC_CH_MAX_MIN)
+ZK_TOK = (('PAXG', 'paxos-gold', 'pax-gold'), ('XAUT', 'tether-gold', 'tether-gold'))   # symbol, produkt w rwa.json, identyfikator w zapytaniu cen
+ZK_CG_IDS = {s: c for s, _p, c in ZK_TOK}
+ZK_REZ = frozenset({'tether-gold'})   # produkty liczone tylko w obiegu (totalSupply − rezerwa emitenta): bez potwierdzonej rezerwy — brak, nigdy totalSupply
+# zasoby wydobytego złota — szacunek z datą stanu (koniec II kw. 2026: ok. 222 600 t; opublikowany 18.08.2026; aktualizacja kwartalna u wydawcy,
+# tu ręcznie co najmniej raz w roku). Wydawca tylko na stronie „Źródła” i w polu src.
+ZK_ZLOTO = {'t': 222600, 'd': '2026-06-30', 'pub': '2026-08-18'}
+ZK_SRC = ('Obliczenia CapitalFlowAI z plików strony, bez nowych zapytań: złoto (fixing popołudniowy w Londynie wyliczony z archiwum funduszu GLD) '
+          'i ropa Brent (dostawa fizyczna, EIA) — data/surowce-hist.json i data/surowce.json; bitcoin (zamknięcie doby UTC) — data/ceny-krypto.json '
+          '(zapasowo cena referencyjna Coin Metrics z data/wycena.json); S&P 500 (zamknięcia sesji) — data/indeksy.json; podaż PAXG i XAUT — odczyt własny z łańcucha (data/rwa.json); ceny tokenów — '
+          'CoinGecko simple/price (to samo zapytanie co kapitalizacje ETF, data/etf.json); kapitalizacja krypto — CoinMarketCap (data/cmc.json); zasoby '
+          'wydobytego złota — szacunek World Gold Council (above-ground stock, stan na koniec II kw. 2026)')
+
+
+def _zk_num(x, pos=True):
+    """Liczba skończona (nie bool) → float; pos — tylko dodatnia. Inaczej None."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)) or not _zk_math.isfinite(x):
+        return None
+    return float(x) if (x > 0 or not pos) else None
+
+
+def _zk_zl(x):
+    """Cena złota w USD za uncję w rozsądnym zakresie (100–100 000, jak ceny tokenów) → float; inaczej None (uszkodzone wejście nie daje
+    nieskończonej premii ani kwoty)."""
+    v = _zk_num(x)
+    return v if v is not None and 100 < v < 100000 else None
+
+
+def _zk_day(s):
+    """Prawdziwa data 'RRRR-MM-DD' → datetime.date; inaczej None."""
+    if not (isinstance(s, str) and _RWA_DAY.match(s)):
+        return None
+    try:
+        return datetime.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _zk_t(s):
+    """Chwila ISO ze strefą → datetime UTC; inaczej None."""
+    if not isinstance(s, str):
+        return None
+    try:
+        t = datetime.datetime.fromisoformat(s.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    return t.astimezone(datetime.timezone.utc) if t.tzinfo else None
+
+
+def _zk_iso(t):
+    return t.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def zk_ser(rows):
+    """[[dzień, liczba]] → {dzień: liczba > 0}; złe wiersze, brak i zero pominięte (brak to nie zero)."""
+    out = {}
+    for r in rows if isinstance(rows, list) else ():
+        if isinstance(r, (list, tuple)) and len(r) >= 2 and _zk_day(r[0]):
+            v = _zk_num(r[1])
+            if v is not None:
+                out[r[0]] = v
+    return out
+
+
+def zk_seria_su(su, sh, cid):
+    """Seria dzienna działu SUROWCE: historia (surowce-hist d[cid]) uzupełniona ostatnimi sesjami (surowce ceny[cid].d — te same pobrania,
+    nowsze wygrywają) → ({dzień: liczba}, zbiór dni q „do sprawdzenia”)."""
+    s = zk_ser(((sh or {}).get('d') or {}).get(cid) if isinstance(sh, dict) and isinstance(sh.get('d'), dict) else None)
+    e = ((su or {}).get('ceny') or {}).get(cid) if isinstance(su, dict) and isinstance(su.get('ceny'), dict) else None
+    q = set()
+    if isinstance(e, dict):
+        s.update(zk_ser(e.get('d')))
+        for r in e.get('q') if isinstance(e.get('q'), list) else ():
+            if isinstance(r, (list, tuple)) and r and _zk_day(r[0]):
+                q.add(r[0])
+    return s, q
+
+
+def zk_btc(kc, wy):
+    """Bitcoin — zamknięcie doby UTC: ceny-krypto (q.BTC.d) albo — tylko gdy tej serii nie ma — wycena (cm.d: [dzień, mvrv, cena]).
+    → ({dzień: cena}, 'kc' | 'cm' | None). Nigdy dwie serie zmieszane."""
+    q = (kc or {}).get('q') if isinstance(kc, dict) else None
+    s = zk_ser(((q or {}).get('BTC') or {}).get('d') if isinstance(q, dict) and isinstance(q.get('BTC'), dict) else None)
+    if len(s) >= 2:
+        return s, 'kc'
+    cm = (wy or {}).get('cm') if isinstance(wy, dict) else None
+    rows = cm.get('d') if isinstance(cm, dict) and isinstance(cm.get('d'), list) else []
+    s = zk_ser([[r[0], r[2]] for r in rows if isinstance(r, (list, tuple)) and len(r) >= 3])
+    return (s, 'cm') if len(s) >= 2 else ({}, None)
+
+
+def zk_spx(ix):
+    """S&P 500 — dzienne zamknięcia sesji z data/indeksy.json (ix.GSPC.d, ten sam plik co panel indeksów GLOBAL; dni bez sesji wypełnione przez
+    dostawcę są już poza serią) → {dzień: liczba}; brak = {}."""
+    p = (ix or {}).get('ix') if isinstance(ix, dict) else None
+    r = p.get('GSPC') if isinstance(p, dict) else None
+    return zk_ser(r.get('d') if isinstance(r, dict) else None)
+
+
+def zk_wspolne(a, b, skip=()):
+    """Dni wspólne dwóch serii {dzień: liczba} (obie z liczbą, poza dniami `skip`) → [[dzień, a, b]] rosnąco."""
+    sk = set(skip or ())
+    return [[d, a[d], b[d]] for d in sorted(set(a) & set(b)) if d not in sk]
+
+
+def zk_pearson(x, y):
+    """Współczynnik korelacji Pearsona dwóch list równej długości (≥ 3) → liczba w [−1, 1] (4 miejsca) albo None (stała seria / za mało)."""
+    n = len(x)
+    if n < 3 or n != len(y):
+        return None
+    mx, my = sum(x) / n, sum(y) / n
+    sxy = sum((a - mx) * (b - my) for a, b in zip(x, y))
+    sxx = sum((a - mx) ** 2 for a in x)
+    syy = sum((b - my) ** 2 for b in y)
+    if sxx <= 0 or syy <= 0:
+        return None
+    r = sxy / _zk_math.sqrt(sxx * syy)
+    return round(max(-1.0, min(1.0, r)), 4)
+
+
+def zk_kor_okno(pts, i, okno=ZK_OKNO, mn=ZK_MIN, kal=ZK_OKNO_KAL):
+    """Korelacja dziennych zmian (logarytmicznych) w oknie ostatnich `okno` wspólnych dni kończącym się na wspólnym dniu pts[i] (tylko dni wspólne
+    ≤ pts[i] — bez zaglądania w przyszłość), najwyżej `kal` dni kalendarzowych wstecz: dni (pts[i] − kal, pts[i]]. Zmiana = między kolejnymi
+    dniami wspólnymi (ten sam odcinek czasu dla obu rynków). → (r albo None, liczba wspólnych dni w oknie); mniej niż `mn` wspólnych dni = None."""
+    end = _zk_day(pts[i][0])
+    lo = end - datetime.timedelta(days=kal)
+    j = i
+    while j > 0 and i - j + 2 <= okno and _zk_day(pts[j - 1][0]) > lo:
+        j -= 1
+    w = pts[j:i + 1]
+    if len(w) < mn:
+        return None, len(w)
+    xa = [_zk_math.log(w[k][1] / w[k - 1][1]) for k in range(1, len(w))]
+    xb = [_zk_math.log(w[k][2] / w[k - 1][2]) for k in range(1, len(w))]
+    return zk_pearson(xa, xb), len(w)
+
+
+def zk_kor(pts, dni=ZK_KOR_DNI):
+    """Korelacja krocząca dla serii wspólnych dni → {'v', 'n', 'd' (ostatni wspólny dzień = koniec okna), 's': [[dzień, r]] — każdy wspólny dzień
+    z ostatnich `dni` dni z pełnym oknem}; za mało dni = v None; brak dni = None."""
+    if not pts:
+        return None
+    v, n = zk_kor_okno(pts, len(pts) - 1)
+    lo = (_zk_day(pts[-1][0]) - datetime.timedelta(days=dni)).isoformat()
+    s = []
+    for i in range(len(pts)):
+        if pts[i][0] < lo:
+            continue
+        r, _n = zk_kor_okno(pts, i)
+        if r is not None:
+            s.append([pts[i][0], round(r, 3)])
+    return {'v': v, 'n': n, 'd': pts[-1][0], 's': s}
+
+
+def _zk_eu_lato(t):
+    """Czas letni w Wielkiej Brytanii (jak w całej UE): od ostatniej niedzieli marca 01:00 UTC do ostatniej niedzieli października 01:00 UTC."""
+    def ost_ndz(y, m):
+        d = datetime.date(y, m, 31)
+        return d - datetime.timedelta(days=(d.weekday() + 1) % 7)
+    a, b = ost_ndz(t.year, 3), ost_ndz(t.year, 10)
+    od = datetime.datetime(a.year, a.month, a.day, 1, tzinfo=datetime.timezone.utc)
+    do = datetime.datetime(b.year, b.month, b.day, 1, tzinfo=datetime.timezone.utc)
+    return od <= t < do
+
+
+def zk_pm_chwila(day):
+    """Chwila fixingu popołudniowego złota w dniu `day`: 15:00 czasu londyńskiego → UTC (14:00 latem, 15:00 zimą); zły dzień = None."""
+    d = _zk_day(day)
+    if d is None:
+        return None
+    t = datetime.datetime(d.year, d.month, d.day, 15, tzinfo=datetime.timezone.utc)
+    return t - datetime.timedelta(hours=1) if _zk_eu_lato(t - datetime.timedelta(hours=1)) else t
+
+
+def zk_prem(px, px_at, cands, maks=ZK_PREM_S):
+    """Premia tokenu do złota w %: cena tokenu `px` z chwili `px_at` wobec ceny złota z chwili najbliższej spośród `cands` [(kod, cena, chwila ISO)];
+    tylko gdy chwile są najwyżej `maks` s od siebie — inaczej None (na stronie „—”). → {'prem', 'ref', 'ref_px', 'ref_at', 'dt_min'} albo None."""
+    p, tp = _zk_num(px), _zk_t(px_at)
+    if p is None or tp is None:
+        return None
+    best = None
+    for kod, v, at in cands:
+        g, tg = _zk_zl(v), _zk_t(at)
+        if g is None or tg is None:
+            continue
+        dt = abs((tp - tg).total_seconds())
+        if dt <= maks and (best is None or dt < best[0]):
+            best = (dt, kod, g, tg)
+    if best is None:
+        return None
+    return {'prem': round((p / best[2] - 1) * 100, 3), 'ref': best[1], 'ref_px': round(best[2], 2), 'ref_at': _zk_iso(best[3]),
+            'dt_min': int(round(best[0] / 60))}
+
+
+def zk_cg_tok(j):
+    """Odpowiedź zapytania cen (simple/price z include_last_updated_at) → {'PAXG': {'p', 'at'[, 'mcap']}, 'XAUT': …}; token bez ceny albo bez chwili
+    notowania pominięty (premia wymaga chwili); nigdy wyjątek."""
+    out = {}
+    if not isinstance(j, dict):
+        return out
+    for s, cid in ZK_CG_IDS.items():
+        r = j.get(cid)
+        if not isinstance(r, dict):
+            continue
+        p, lu = _zk_num(r.get('usd')), _zk_num(r.get('last_updated_at'))
+        if p is None or not (100 < p < 100000) or lu is None:
+            continue
+        try:
+            at = datetime.datetime.fromtimestamp(int(lu), datetime.timezone.utc).isoformat()
+        except (OverflowError, OSError, ValueError):
+            continue
+        o = {'p': round(p, 4), 'at': at}
+        mc = _zk_num(r.get('usd_market_cap'))
+        if mc is not None:
+            o['mcap'] = round(mc)
+        out[s] = o
+    return out
+
+
+def zk_tonny(oz):
+    """Uncje trojańskie → tony metryczne (4 miejsca); None = None."""
+    v = _zk_num(oz, pos=False)
+    return None if v is None else round(v / ZK_OZ_T, 4)
+
+
+def _zk_odczyt(p, now, rez=False):
+    """Produkt odczytu własnego (rwa.json onchain.p[produkt]) → (uncje w obiegu, chwila odczytu ISO) albo (None, None): wszystkie tokeny z liczbą,
+    najstarszy odczyt ≤ ZK_CH_MAX_H h; XAUT (`rez` — produkt z ZK_REZ) — liczba w obiegu (pole obieg) tylko przy zgodnej rezerwie emitenta
+    (rez.ok True); bez bloku rez albo bez potwierdzenia — brak (nigdy totalSupply z tokenami emitenta jeszcze niewydanymi)."""
+    if not isinstance(p, dict) or not isinstance(p.get('t'), list) or p.get('nr') != p.get('n'):
+        return None, None
+    ts = [_zk_t(r[3]) for r in p['t'] if isinstance(r, list) and len(r) >= 4]
+    if not ts or any(x is None for x in ts) or len(ts) != len(p['t']):
+        return None, None
+    if rez or 'rez' in p:
+        rz = p.get('rez')
+        v = _zk_num(p.get('obieg'))
+        if not (isinstance(rz, dict) and rz.get('ok') is True) or v is None:
+            return None, None
+        t2 = _zk_t(rz.get('at'))
+        if t2 is not None:
+            ts.append(t2)
+    else:
+        v = _zk_num(p.get('sup'))
+    t0 = min(ts)
+    if v is None or (now - t0).total_seconds() > ZK_CH_MAX_H * 3600:
+        return None, None
+    return v, _zk_iso(t0)
+
+
+def zk_zmiana(h, i, n, k=ZK_ZAPAS_DNI):
+    """Zmiana kolumny i dziennika h ([[dzień, a, b]] rosnąco) od dnia bazowego (dokładnie n dni przed ostatnim dniem z liczbą, a gdy go nie ma —
+    najbliższy wcześniejszy, najwyżej k dni) do ostatniego dnia z liczbą → (zmiana w uncjach, dzień bazowy, ostatni dzień) albo None."""
+    rows = [r for r in h if _zk_num(r[i], pos=False) is not None]
+    if not rows:
+        return None
+    last = rows[-1]
+    d0 = _zk_day(last[0]) - datetime.timedelta(days=n)
+    by = {r[0]: r[i] for r in rows}
+    for x in range(k + 1):
+        b = (d0 - datetime.timedelta(days=x)).isoformat()
+        if b in by:
+            return last[i] - by[b], b, last[0]
+    return None
+
+
+def _zk_ch(h, i, n, gpx):
+    z = zk_zmiana(h, i, n)
+    if z is None:
+        return None
+    dz, od, do = z
+    return {'oz': round(dz, 4), 't': zk_tonny(dz), 'usd': round(dz * gpx) if gpx is not None else None, 'od': od, 'do': do}
+
+
+def zk_tok(rw, etf, su, gold, prev, now):
+    """Część tok: podaż PAXG i XAUT (uncje, tony, chwila odczytu), zmiany 7 / 30 dni (uncje, tony, USD po cenie złota z wyceny tokenów), cena tokenu
+    i premia do złota z chwil ≤ 1 h (inaczej poprzednia premia z jej chwilą — strona pokazuje wiek), dziennik podaży h i historia premii ph.
+    Bez żadnego wejścia i bez poprzedniej części = None."""
+    prev = prev if isinstance(prev, dict) else {}
+    oc = (rw or {}).get('onchain') if isinstance(rw, dict) and isinstance(rw.get('onchain'), dict) and not rw['onchain'].get('off') else None
+    P = oc.get('p') if isinstance(oc, dict) and isinstance(oc.get('p'), dict) else {}
+    tok = (etf or {}).get('tok') if isinstance(etf, dict) and isinstance(etf.get('tok'), dict) else {}
+    if not P and not tok and not prev:
+        return None
+    # dziennik podaży: poprzedni + dzisiejszy odczyt (ostatni odczyt dnia wygrywa); PAXG na start z dziennych zapisów rwa.json (8 dni)
+    H = {}
+    for r in prev.get('h') if isinstance(prev.get('h'), list) else ():
+        if isinstance(r, list) and len(r) == 3 and _zk_day(r[0]):
+            H[r[0]] = [_zk_num(r[1]), _zk_num(r[2])]
+    if not H and isinstance(oc, dict) and isinstance(oc.get('hs'), dict) and isinstance(oc['hs'].get('paxos-gold'), list):
+        for r in oc['hs']['paxos-gold']:
+            if isinstance(r, list) and len(r) == 2 and _zk_day(r[0]) and _zk_num(r[1]) is not None:
+                H.setdefault(r[0], [None, None])[0] = round(float(r[1]), 6)
+    cur = {}
+    for k, (s, slug, _cid) in enumerate(ZK_TOK):
+        v, at = _zk_odczyt(P.get(slug), now, slug in ZK_REZ)
+        cur[s] = (v, at)
+        if v is not None:
+            H.setdefault(at[:10], [None, None])[k] = round(v, 6)
+    days = sorted(H)
+    if days:
+        lo = (_zk_day(days[-1]) - datetime.timedelta(days=ZK_H_DNI)).isoformat()
+        days = [d for d in days if d > lo]
+    h = [[d, H[d][0], H[d][1]] for d in days]
+    px = oc['px'].get('zloto') if isinstance(oc, dict) and isinstance(oc.get('px'), dict) else None   # XAU/USD z wyroczni (wycena tokenów w rwa.json)
+    gpx = _zk_zl(px.get('v')) if isinstance(px, dict) and _zk_t(px.get('at')) else None   # cena z wyroczni tylko z prawdziwą chwilą (liczba ma datę)
+    g_last = max(gold) if gold else None
+    gref = {'v': gpx, 'at': _zk_iso(_zk_t(px['at'])), 'z': 'wyr'} if gpx is not None else ({'v': gold[g_last], 'at': g_last, 'z': 'pm'} if g_last else None)
+    gp = gref['v'] if gref else None
+    ce = su.get('ceny') if isinstance(su, dict) else None
+    ge = ce.get('gold') if isinstance(ce, dict) else None
+    live = ge.get('live') if isinstance(ge, dict) else None   # notowanie godzinowe złota (część „ceny” działu SUROWCE)
+    cands = []
+    if isinstance(live, dict):
+        cands.append(('live', live.get('v'), live.get('at')))
+    if isinstance(px, dict):
+        cands.append(('wyr', px.get('v'), px.get('at')))
+    if g_last:
+        pm = zk_pm_chwila(g_last)
+        if pm is not None:
+            cands.append(('pm', gold[g_last], _zk_iso(pm)))
+    out, PH = {}, {}
+    for r in prev.get('ph') if isinstance(prev.get('ph'), list) else ():
+        if isinstance(r, list) and len(r) == 3 and _zk_day(r[0]):
+            PH[r[0]] = [_zk_num(r[1], pos=False), _zk_num(r[2], pos=False)]
+    for k, (s, slug, _cid) in enumerate(ZK_TOK):
+        po = prev.get(s) if isinstance(prev.get(s), dict) else {}
+        v, at = cur[s]
+        if v is None and _zk_num(po.get('oz')) is not None:   # odczyt nieudany / niepełny — poprzednia podaż z jej chwilą
+            v, at = po['oz'], po.get('at')
+        o = {'oz': round(v, 4) if v is not None else None, 't': zk_tonny(v), 'at': at if v is not None else None,
+             'c7': _zk_ch(h, k + 1, 7, gp), 'c30': _zk_ch(h, k + 1, 30, gp)}
+        tp = tok.get(s) if isinstance(tok.get(s), dict) else None
+        if tp and _zk_num(tp.get('p')) is not None and _zk_t(tp.get('at')):
+            o['px'], o['px_at'] = round(tp['p'], 4), tp['at']
+        elif _zk_num(po.get('px')) is not None:
+            o['px'], o['px_at'] = po['px'], po.get('px_at')
+        else:
+            o['px'] = o['px_at'] = None
+        pr = zk_prem(o['px'], o['px_at'], cands) if tp else None
+        # ta sama cena tokenu co w poprzednim pomiarze (tryb szybki etf.json przenosi notowanie bez nowego zapytania), a poprzedni pomiar był nie gorzej
+        # dopasowany w czasie — zostaje poprzedni (z jego ceną złota, chwilą i wpisem ph): nowsze notowanie złota przy starej cenie tokenu dałoby
+        # premię z większą różnicą chwil (premia rzędu 0,1% tonie w godzinnym ruchu ceny złota)
+        if (pr is not None and po.get('prem_at') == o['px_at'] and po.get('px') == o['px'] and _zk_num(po.get('prem'), pos=False) is not None
+                and _zk_num(po.get('dt_min'), pos=False) is not None and po['dt_min'] <= pr['dt_min'] and _zk_num(po.get('ref_px')) is not None
+                and _zk_t(po.get('ref_at'))):
+            pr = {f: po.get(f) for f in ('prem', 'ref', 'ref_px', 'ref_at', 'dt_min')}
+        if pr is not None:
+            o.update(pr)
+            o['prem_at'] = o['px_at']
+            PH.setdefault(o['px_at'][:10], [None, None])[k] = pr['prem']
+        elif _zk_num(po.get('prem'), pos=False) is not None and _zk_t(po.get('prem_at')):
+            for f in ('prem', 'prem_at', 'ref', 'ref_px', 'ref_at', 'dt_min'):
+                o[f] = po.get(f)
+        else:
+            o.update({'prem': None, 'prem_at': None, 'ref': None, 'ref_px': None, 'ref_at': None, 'dt_min': None})
+        out[s] = o
+    # razem: obie podaże w tym samym dniu
+    hs = [[r[0], None, (r[1] + r[2]) if r[1] is not None and r[2] is not None else None] for r in h]
+    vs = [o['oz'] for o in (out[s] for s, _p, _c in ZK_TOK)]
+    tot = sum(vs) if all(x is not None for x in vs) else None
+    out['razem'] = {'oz': round(tot, 4) if tot is not None else None, 't': zk_tonny(tot), 'c7': _zk_ch(hs, 2, 7, gp), 'c30': _zk_ch(hs, 2, 30, gp)}
+    out['gpx'] = gref
+    out['h'] = h
+    pdays = sorted(PH)
+    if pdays:
+        lo = (_zk_day(pdays[-1]) - datetime.timedelta(days=ZK_PH_DNI)).isoformat()
+        pdays = [d for d in pdays if d > lo]
+    out['ph'] = [[d, PH[d][0], PH[d][1]] for d in pdays]
+    return out
+
+
+def zk_ryn(rw, cmc, gold):
+    """Część ryn: wielkość rynków w USD z datą — złoto (szacunek: zasoby × ostatnia cena z fixingu), krypto i bitcoin (cmc.json: kapitalizacja
+    i dominacja, jak kafel GLOBAL), tokenizowane towary (rwa.json, rodzaj cm). Brak wszystkich = None."""
+    out = {}
+    if gold:
+        d = max(gold)
+        out['zloto'] = {'v': round(ZK_ZLOTO['t'] * ZK_OZ_T * gold[d]), 't': ZK_ZLOTO['t'], 't_d': ZK_ZLOTO['d'], 'px': gold[d], 'px_d': d}
+    if isinstance(cmc, dict):
+        tm, dom = _zk_num(cmc.get('total_mcap')), _zk_num(cmc.get('btc_dom'))
+        at = cmc.get('asof') if _zk_t(cmc.get('asof')) else (cmc.get('at') if _zk_t(cmc.get('at')) else None)
+        if tm is not None and at:
+            out['krypto'] = {'v': round(tm), 'at': at}
+            if dom is not None and dom < 100:
+                out['btc'] = {'v': round(tm * dom / 100), 'at': at}
+    if isinstance(rw, dict) and isinstance(rw.get('seg'), dict) and isinstance(rw['seg'].get('cm'), dict):
+        v = _zk_num(rw['seg']['cm'].get('v'))
+        if v is not None and _zk_t(rw.get('at')):
+            out['tok_cm'] = {'v': round(v), 'at': rw['at']}
+    return out or None
+
+
+def build_zloto_krypto(S, prev=None, now=None):
+    """data/zloto-krypto.json z plików tego przebiegu (S = SAVED), bez zapytań do sieci. Każda część osobno: wyliczona teraz (ok True, part_at = teraz)
+    albo — bez wejść — poprzednia z jej czasem (ok False); błąd części = poprzednia + notatka. Plik bez żadnej części = None (main nie zapisuje)."""
+    now = (now or _now_utc()).astimezone(datetime.timezone.utc).replace(microsecond=0)
+    stamp = now.isoformat()
+    S = S if isinstance(S, dict) else {}
+    prev = prev if isinstance(prev, dict) and prev.get('v') == ZK_V else {}
+    pa = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    g = lambda k: S.get(k) if isinstance(S.get(k), dict) else None   # noqa: E731
+    su, sh, kc, wy, rw, etf, cmc, ix = (g(k) for k in ('surowce', 'surowce-hist', 'ceny-krypto', 'wycena', 'rwa', 'etf', 'cmc', 'indeksy'))
+    gold, gq = zk_seria_su(su, sh, 'gold')
+    brent, bq = zk_seria_su(su, sh, 'brent')
+    spx = zk_spx(ix)
+    btc, bsrc = zk_btc(kc, wy)
+
+    def zb():
+        pts = zk_wspolne(gold, btc, gq)
+        if len(pts) < 2:
+            return None
+        lo = (_zk_day(pts[-1][0]) - datetime.timedelta(days=ZK_ZB_DNI)).isoformat()
+        d = [[x[0], round(x[1], 2), round(x[2], 2)] for x in pts if x[0] > lo]
+        return {'d': d, 'do': pts[-1][0], 'n': len(d), 'btc': bsrc}
+
+    def kor():
+        zl = zk_kor(zk_wspolne(gold, btc, gq))
+        br = zk_kor(zk_wspolne(brent, btc, bq))
+        sp = zk_kor(zk_wspolne(spx, btc))   # S&P 500 dla porównania (plan: korelacja bitcoina także z rynkiem akcji)
+        if zl is None and br is None and sp is None:
+            return None
+        return {'okno': ZK_OKNO, 'kal': ZK_OKNO_KAL, 'min': ZK_MIN, 'zl': zl, 'br': br, 'sp': sp, 'btc': bsrc}
+
+    out = {'v': ZK_V, 'at': stamp, 'src': ZK_SRC, 'ok': {}, 'part_at': {}, 'notes': []}
+    for k, fn in (('zb', zb), ('kor', kor), ('tok', lambda: zk_tok(rw, etf, su, gold, prev.get('tok'), now)), ('ryn', lambda: zk_ryn(rw, cmc, gold))):
+        try:
+            v = fn()
+            if v is not None:
+                json.dumps(v, allow_nan=False)   # liczba nieskończona / NaN z uszkodzonego wejścia → błąd części (przeglądarka nie czyta „Infinity”)
+        except Exception as e:  # noqa — błąd jednej części nie psuje pozostałych
+            v = None
+            out['notes'].append(f'{k}: {type(e).__name__}: {str(e)[:120]}')
+        if v is not None:
+            out[k], out['ok'][k], out['part_at'][k] = v, True, stamp
+        elif isinstance(prev.get(k), dict):
+            out[k], out['ok'][k], out['part_at'][k] = prev[k], False, pa.get(k)
+        else:
+            out['ok'][k] = False
+    if not any(k in out for k in ('zb', 'kor', 'tok', 'ryn')):
+        return None
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -21748,6 +22231,19 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'{NS_LABEL}: {e}')); META['ok']['nastroj'] = False
             if prev_ns: save('nastroj', prev_ns)
+    # v295c: CRYPTO „Złoto i surowce a krypto” (data/zloto-krypto.json) — wyliczenia z plików zapisanych w tym przebiegu (SAVED: surowce,
+    # ceny krypto, wycena, RWA, ETF, cmc), bez zapytań do sieci; część bez wejść = poprzednia z jej czasem; awaria = błąd i poprzedni plik
+    prev_zk = previous('zloto-krypto')
+    prev_zk = prev_zk if isinstance(prev_zk, dict) and prev_zk.get('v') == ZK_V else None
+    try:
+        zk = build_zloto_krypto(SAVED, prev_zk)
+        if zk is not None:
+            save('zloto-krypto', zk); META['ok']['zloto-krypto'] = True
+            META['notes'].extend(mask(f'złoto a krypto: {x}')[:200] for x in zk.get('notes') or [])
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'złoto a krypto: {e}')[:200]); META['ok']['zloto-krypto'] = False
+        if prev_zk:
+            save('zloto-krypto', prev_zk)
     _CR_LOG[0] = previous('krypto-dziennik'); _CR_LOG[1] = None   # v125: dziennik kart krypto — źródło licznika „od wdrożenia”
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
