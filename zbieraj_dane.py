@@ -22580,6 +22580,416 @@ def rwe_meta(rw, off, cached=False):
         META['ok']['rwa-emitenci'] = 'cached' if cached else em.get('ok') is True
 
 
+# ===================== v305: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW — data/szlaki.json (dział SUROWCE, etapy 4 i 9 — część) =====================
+# Osobny plik i osobny budowniczy (surowce.json bez zmian). Trzy części, każda z part_at / ok / next / err jak w surowce.json:
+#   cies   — ruch statków przez 8 cieśnin i kanałów (Ormuz, Bab el-Mandeb, Kanał Sueski, Bosfor, Kanał Panamski, Malakka, Gibraltar, Przylądek
+#            Dobrej Nadziei): dzienna liczba przejść (n_total; przejście = statek przecina granicę cieśniny, liczony raz na 48 h) z sygnałów
+#            pozycji statków (AIS) — 90 dni; średnia 7 ostatnich dni (s7) wobec średniej z tych samych 7 dni tygodnia rok wcześniej
+#            (52 tygodnie = 364 dni wstecz: r7; zmiana chg = (s7 / r7 − 1) × 100, tylko gdy r7 ≥ SZ_R7_MIN — inaczej null), w tym
+#            tankowce (t7) i szacowany ładunek w tonach (c7: wydawca szacuje zanurzenie × nośność statku — szacunek, nie pomiar); m7 — średnia
+#            krocząca 7 dni do każdego dnia wykresu (tylko z pełnych 7 dni). Średnie wyłącznie z KOMPLETU 7 kolejnych dni (brak dnia = null);
+#            0 przejść to pomiar (Ormuz 4.03.2026), nie brak;
+#   presja — światowy wskaźnik presji w łańcuchach dostaw: plik CSV wersji interaktywnej (macierz wydań: wiersz = koniec miesiąca danych,
+#            kolumna = wydanie „Mon-YY”; bierzemy NAJNOWSZE wydanie wg daty nagłówka, nie wg pozycji) — 36 miesięcy; odchylenia standardowe
+#            od średniej (0 = przeciętnie). Plik .xlsx ze strony wydawcy to stary plik z 2024 r. — pułapka, nieużywany;
+#   bcpi   — indeks cen surowców (grupa tygodniowa: całość, energia, metale i minerały, rolne) — 36 tygodni; średnia 5 dni roboczych do
+#            środy, 1972 = 100, w USD; ostatnie tygodnie bywają wstępne (wydawca powtarza ostatnią cenę do czasu nowej i poprawia wstecz) —
+#            co pobranie cała seria od nowa.
+# Kody źródeł (pole z, stan st) — pełne nazwy wyłącznie na stronie „Źródła”: pw — PortWatch (ArcGIS, bez klucza), gscpi — CSV wskaźnika
+# presji, bcpi — API Valet banku centralnego (bez klucza). Bramki wg terminów publikacji (_sz_oczek): pw — wtorek ok. 12:10 UTC (dane do
+# niedzieli; sprawdzone 06.10.2026: edycja warstwy 12:09 UTC, najnowszy dzień 04.10), bcpi — tydzień po środzie (07.10 najnowsza 30.09),
+# gscpi — 4. dzień roboczy miesiąca (wydanie „Oct-26” było 07.10). W oknie publikacji, dopóki nowe dane nie przyszły: co SZ_CZESTO min (po
+# SZ_ZALEGLE_H h — co 6 h); poza nim co SZ_RZADKO min (poprawki wstecz). Źródło z błędem = poprzednie dane z ich datą; brak = null, nigdy 0.
+# Budżet czasu: cały budowniczy SZ_BUDZET_S s; źródło startuje tylko, gdy zmieszczą się wszystkie jego zapytania z pełnymi limitami (typowo
+# 3 zapytania, ok. 2–3 s i ok. 140 KB razem, gdy wszystkie są należne; zwykle 0 — dane tygodniowe i miesięczne).
+SZ_V = 1
+SZ_PARTS = ('cies', 'presja', 'bcpi')
+SZ_ZR = (('bcpi', 'bcpi'), ('gscpi', 'presja'), ('pw', 'cies'))     # kolejność: najlżejsze najpierw
+SZ_LIMIT_S = {'bcpi': 20, 'gscpi': 30, 'pw': 30}                   # s — limit jednego zapytania (07–08.10.2026: 0,4 s, 0,5 s, 0,9–1,9 s)
+SZ_ZAPYTANIA = {'pw': 2}                                           # okno bieżące + rok wcześniej (strony ponad pierwszą — z reszty budżetu)
+SZ_BUDZET_S = 120
+SZ_CZESTO = {'pw': 60, 'bcpi': 120, 'gscpi': 180}                  # min — w oknie publikacji, dopóki spodziewane dane nie przyszły
+SZ_RZADKO = {'pw': 24 * 60, 'bcpi': 24 * 60, 'gscpi': 7 * 24 * 60}  # min — poza oknem (poprawki wstecz)
+SZ_ZALEGLE_H = 72                                                  # h po spodziewanej publikacji — dalej ponowienie co 6 h
+SZ_D, SZ_OKNO, SZ_ROK = 90, 7, 364                                 # dni wykresu; dni średniej; dni wstecz porównania (52 tygodnie)
+SZ_OPOZN = 14                                                      # dni — zapas na opóźnienie źródła w zapytaniu bieżącym
+SZ_R7_MIN = 1.0                                                    # statków dziennie rok wcześniej — mniej = zmiana w % bez sensu (null)
+SZ_M, SZ_W = 36, 36                                                # miesięcy wskaźnika presji; tygodni indeksu cen surowców
+SZ_PW_STRONA, SZ_PW_STRON = 1000, 3                                # wierszy na stronę (limit warstwy: 1000); najwięcej stron w zapytaniu
+SZ_CIES = (   # id strony, identyfikator u źródła, fragment nazwy u źródła (sprawdzany: zmiana numeracji = brak, nie zła cieśnina)
+    ('ormuz', 'chokepoint6', 'hormuz'), ('bab', 'chokepoint4', 'mandeb'), ('suez', 'chokepoint1', 'suez'), ('bosfor', 'chokepoint3', 'bosporus'),
+    ('panama', 'chokepoint2', 'panama'), ('malakka', 'chokepoint5', 'malacca'), ('gibraltar', 'chokepoint8', 'gibraltar'),
+    ('przyladek', 'chokepoint7', 'good hope'))
+SZ_PW_URL = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query'
+SZ_PW_POLA = 'date,portid,portname,n_total,n_tanker,n_cargo,capacity'
+SZ_GSCPI_URL = 'https://www.newyorkfed.org/medialibrary/research/interactives/data/gscpi/gscpi_interactive_data.csv'
+SZ_BCPI_URL = 'https://www.bankofcanada.ca/valet/observations/group/BCPI_WEEKLY/json?recent=' + str(SZ_W)
+SZ_BCPI = (('calosc', 'W.BCPI'), ('energia', 'W.ENER'), ('metale', 'W.MTLS'), ('rolne', 'W.AGRI'))
+SZ_MIES_EN = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
+
+
+def _sz_dzien(v):
+    """Data dnia: 'RRRR-MM-DD' (pole DateOnly) albo milisekundy UTC (pole Date) → 'RRRR-MM-DD'; inaczej None."""
+    if isinstance(v, str) and re.match(r'^\d{4}-\d{2}-\d{2}', v):
+        try:
+            return datetime.date.fromisoformat(v[:10]).isoformat()
+        except ValueError:
+            return None
+    if _isnum(v):
+        try:
+            return datetime.datetime.fromtimestamp(v / 1000, datetime.timezone.utc).date().isoformat()
+        except (OverflowError, OSError, ValueError):
+            return None
+    return None
+
+
+def _sz_int(v):
+    return _isnum(v) and v >= 0 and float(v) == int(v)
+
+
+def sz_pw_url(od, do=None, offset=0):
+    """Zapytanie warstwy cieśnin: 8 identyfikatorów, dni od `od` (do `do` włącznie), rosnąco po dniu i identyfikatorze (stała kolejność stron)."""
+    ids = ','.join(f"'{p}'" for _, p, _ in SZ_CIES)
+    w = f"portid IN ({ids}) AND date >= DATE '{od}'" + (f" AND date <= DATE '{do}'" if do else '')
+    q = [('where', w), ('outFields', SZ_PW_POLA), ('orderByFields', 'date,portid'), ('returnGeometry', 'false'),
+         ('resultOffset', str(int(offset))), ('resultRecordCount', str(SZ_PW_STRONA)), ('f', 'json')]
+    return SZ_PW_URL + '?' + urllib.parse.urlencode(q)
+
+
+def parse_pw(j):
+    """Odpowiedź warstwy cieśnin → ({id: {dzień: (statki, tankowce|None, ładunek t|None)}}, niezgodne sumy, złe identyfikatory, jest dalsza strona).
+    Pole error = błąd; identyfikator z nazwą inną niż oczekiwana — pominięty (lista złych; zmiana numeracji u źródła nie podmieni cieśniny);
+    statki nie-liczba albo < 0 = brak wiersza (nigdy 0); 0 = pomiar. Suma statki ≠ tankowce + pozostałe — wiersz zostaje (źródło podaje sumę),
+    liczony w niezgodnych (kontrola: ⚠️; 2019-01-01 – 2026-10-04: 0 z 22 672 wierszy)."""
+    if not isinstance(j, dict):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    if j.get('error'):
+        e = j['error']
+        raise RuntimeError('błąd warstwy: ' + str(e.get('message') if isinstance(e, dict) else e)[:120])
+    F = j.get('features')
+    if not isinstance(F, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    pid = {p: (cid, nm) for cid, p, nm in SZ_CIES}
+    out, nz, zle = {}, 0, set()
+    for f in F:
+        a = f.get('attributes') if isinstance(f, dict) else None
+        if not isinstance(a, dict) or a.get('portid') not in pid:
+            continue
+        cid, nm = pid[a['portid']]
+        if nm not in str(a.get('portname') or '').lower():
+            zle.add(a['portid']); continue
+        d, n, tk, cg, cap = _sz_dzien(a.get('date')), a.get('n_total'), a.get('n_tanker'), a.get('n_cargo'), a.get('capacity')
+        if not d or not _sz_int(n):
+            continue
+        if _sz_int(tk) and _sz_int(cg) and int(n) != int(tk) + int(cg):
+            nz += 1
+        out.setdefault(cid, {})[d] = (int(n), int(tk) if _sz_int(tk) else None, float(cap) if _isnum(cap) and cap >= 0 else None)
+    return out, nz, sorted(zle), bool(j.get('exceededTransferLimit'))
+
+
+def _sz_vint(h):
+    """Nagłówek kolumny wydania 'Oct-26' → '2026-10'; inaczej None."""
+    m = re.match(r'^\s*([A-Za-z]{3})-(\d{2})\s*$', str(h or ''))
+    if not m or m.group(1).lower() not in SZ_MIES_EN:
+        return None
+    return f'20{m.group(2)}-{SZ_MIES_EN.index(m.group(1).lower()) + 1:02d}'
+
+
+def _sz_mies(s):
+    """Koniec miesiąca danych '30-Sep-2026' → '2026-09'; inaczej None."""
+    m = re.match(r'^\s*(\d{1,2})-([A-Za-z]{3})-(\d{4})\s*$', str(s or ''))
+    if not m or m.group(2).lower() not in SZ_MIES_EN:
+        return None
+    return f'{m.group(3)}-{SZ_MIES_EN.index(m.group(2).lower()) + 1:02d}'
+
+
+def parse_gscpi(text):
+    """CSV wersji interaktywnej → (wydanie 'RRRR-MM', {miesiąc 'RRRR-MM': liczba}). Najnowsze wydanie = kolumna z najpóźniejszą datą nagłówka;
+    '#N/A', puste i nie-liczby = brak (nigdy 0). Plik bez nagłówka 'Date' (np. strona HTML zamiast pliku) albo bez kolumn wydań = błąd."""
+    if isinstance(text, bytes):
+        text = text.decode('utf-8-sig', 'replace')
+    R = list(csv.reader(io.StringIO(str(text).lstrip('\ufeff'))))
+    if not R or not R[0] or R[0][0].strip().lower() != 'date':
+        raise RuntimeError('nieznany układ pliku (brak nagłówka Date)')
+    K = [(i, v) for i, v in ((i, _sz_vint(h)) for i, h in enumerate(R[0])) if i and v]
+    if not K:
+        raise RuntimeError('brak kolumn wydań')
+    ci, wyd = max(K, key=lambda x: x[1])
+    out = {}
+    for r in R[1:]:
+        m = _sz_mies(r[0]) if r else None
+        if not m or ci >= len(r):
+            continue
+        v = _num(r[ci])
+        if _isnum(v):
+            out[m] = round(v, 2)
+    if not out:
+        raise RuntimeError(f'wydanie {wyd} bez liczb')
+    return wyd, out
+
+
+def parse_bcpi(j):
+    """Grupa tygodniowa indeksu cen surowców → ({id: {dzień: liczba}}, [opisy pominiętych]). Seria nieobecna w seriesDetail = brak serii (opis);
+    wartość pusta, nie-liczba albo ≤ 0 (indeks 1972 = 100 nie bywa ≤ 0) = brak tego tygodnia (nigdy 0)."""
+    if not isinstance(j, dict) or not isinstance(j.get('observations'), list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    det = j.get('seriesDetail') if isinstance(j.get('seriesDetail'), dict) else {}
+    out, uw = {}, []
+    for cid, s in SZ_BCPI:
+        if s not in det:
+            uw.append(f'brak serii {s}'); continue
+        bad = 0
+        for o in j['observations']:
+            d = _sz_dzien(o.get('d')) if isinstance(o, dict) else None
+            x = o.get(s) if d else None
+            raw = x.get('v') if isinstance(x, dict) else None
+            if raw in (None, ''):   # tydzień bez wartości — brak (bez opisu)
+                continue
+            v = _num(raw)
+            if not _isnum(v) or v <= 0:
+                bad += 1; continue
+            out.setdefault(cid, {})[d] = round(v, 2)
+        if bad:
+            uw.append(f'{s}: {bad} wartości ≤ 0 albo nie-liczby pominięte')
+    if not out:
+        raise RuntimeError('brak serii indeksu')
+    return out, uw
+
+
+# ---- kalendarz publikacji ----
+def _sz_utc(d, h, mi=0):
+    return datetime.datetime(d.year, d.month, d.day, h, mi, tzinfo=datetime.timezone.utc)
+
+
+def _sz_4rob(y, m):
+    """4. dzień roboczy (pn–pt) miesiąca."""
+    return _su_dzien_rob(datetime.date(y, m, 1) - datetime.timedelta(days=1), 4)
+
+
+def _sz_oczek(src, now):
+    """(najnowsze dane spodziewane według kalendarza, chwila ich publikacji) dla źródła: pw — ostatni wtorek 12:10 UTC → dane do soboty
+    przed nim (zwykle są do niedzieli; sobota — zapas na dzień krótszą paczkę); bcpi — środa W, gdy minął wtorek W + 6 dni 12:00 UTC;
+    gscpi — miesiąc przed ostatnim 4. dniem roboczym (15:00 UTC) — dane za poprzedni miesiąc."""
+    if src == 'pw':
+        for back in range(8):
+            d = (now - datetime.timedelta(days=back)).date()
+            if d.weekday() == 1 and _sz_utc(d, 12, 10) <= now:
+                return (d - datetime.timedelta(days=3)).isoformat(), _sz_utc(d, 12, 10)
+    if src == 'bcpi':
+        for back in range(6, 14):
+            d = (now - datetime.timedelta(days=back)).date()
+            if d.weekday() == 2 and _sz_utc(d + datetime.timedelta(days=6), 12) <= now:
+                return d.isoformat(), _sz_utc(d + datetime.timedelta(days=6), 12)
+    if src == 'gscpi':
+        y, m = now.year, now.month
+        for _ in range(3):
+            t = _sz_utc(_sz_4rob(y, m), 15)
+            if t <= now:
+                py, pm = (y - 1, 12) if m == 1 else (y, m - 1)
+                return f'{py:04d}-{pm:02d}', t
+            y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+    raise ValueError(f'kalendarz: {src}')
+
+
+def _sz_due(src, z, now):
+    """Czy źródło trzeba pobrać w tym przebiegu: pierwsze pobranie — co godzinę do skutku; spodziewane dane jeszcze nie przyszły — co
+    SZ_CZESTO min (po SZ_ZALEGLE_H h od publikacji — co 6 h); poza tym co SZ_RZADKO min (poprawki wstecz); po błędzie — najwcześniej po 60 min."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if at == float('inf'):
+        return tr >= 60
+    exp, pub = _sz_oczek(src, now)
+    if str(z.get('asof') or '') < exp:
+        return tr >= (SZ_CZESTO[src] if (now - pub).total_seconds() <= SZ_ZALEGLE_H * 3600 else 360)
+    return at >= SZ_RZADKO[src] and tr >= 60
+
+
+def _sz_next(src, asof, now):
+    """Najbliższa spodziewana publikacja (ISO, UTC); termin w przeszłości = publikacja zaległa (święto, przerwa u źródła)."""
+    exp, pub = _sz_oczek(src, now)
+    if str(asof or '') < exp:
+        return pub.isoformat()
+    if src in ('pw', 'bcpi'):
+        return (pub + datetime.timedelta(days=7)).isoformat()
+    y, m = (pub.year + 1, 1) if pub.month == 12 else (pub.year, pub.month + 1)
+    return _sz_utc(_sz_4rob(y, m), 15).isoformat()
+
+
+# ---- pobrania ----
+def _sz_get(ctx, url, src):
+    """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd źródła; ponowienie później)."""
+    lim = SZ_LIMIT_S[src]
+    if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+        left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+        if left < 5:
+            raise RuntimeError('budżet czasu budowniczego wyczerpany')
+        lim = min(lim, left)
+    return ctx['fetch'](url, lim)
+
+
+def _sz_pw_zap(ctx, od, do):
+    """Zapytanie z kolejnymi stronami (najwyżej SZ_PW_STRON) → (wiersze, niezgodne sumy, złe identyfikatory)."""
+    R, nz, zle, off = {}, 0, set(), 0
+    for _ in range(SZ_PW_STRON):
+        j = json.loads(_sz_get(ctx, sz_pw_url(od, do, off), 'pw'))
+        r, n, z, dalej = parse_pw(j)
+        for cid, rows in r.items():
+            R.setdefault(cid, {}).update(rows)
+        nz += n; zle.update(z)
+        if not dalej:
+            return R, nz, zle
+        off += len(j.get('features') or [])
+    raise RuntimeError(f'więcej niż {SZ_PW_STRON} strony wyników')
+
+
+def _sz_mean(V):
+    return round(sum(V) / len(V), 2) if V and all(_isnum(v) for v in V) else None
+
+
+def _sz_okno(rows, end, k=0):
+    """Wartości (pole k krotki) z 7 kolejnych dni kończących się w dniu end; brak któregoś dnia albo pola = None."""
+    e = datetime.date.fromisoformat(end)
+    V = []
+    for i in range(SZ_OKNO - 1, -1, -1):
+        r = rows.get((e - datetime.timedelta(days=i)).isoformat())
+        if r is None or r[k] is None:
+            return None
+        V.append(r[k])
+    return V
+
+
+def sz_cies(R, Y, nz=0):
+    """Część cies z wierszy okna bieżącego R i okna sprzed roku Y ({id: {dzień: (statki, tankowce, ładunek)}})."""
+    k = {}
+    for cid, _p, _n in SZ_CIES:
+        rows = R.get(cid) or {}
+        if not rows:
+            continue
+        last = max(rows)
+        d0 = (datetime.date.fromisoformat(last) - datetime.timedelta(days=SZ_D - 1)).isoformat()
+        dni = sorted(d for d in rows if d >= d0)
+        e = {'asof': last, 'd': [[d, rows[d][0]] for d in dni], 'm7': [[d, _sz_mean(_sz_okno(rows, d) or [])] for d in dni]}
+        a = (datetime.date.fromisoformat(last) - datetime.timedelta(days=SZ_OKNO - 1)).isoformat()
+        ry = (datetime.date.fromisoformat(last) - datetime.timedelta(days=SZ_ROK)).isoformat()
+        rya = (datetime.date.fromisoformat(ry) - datetime.timedelta(days=SZ_OKNO - 1)).isoformat()
+        yr = (Y or {}).get(cid) or {}
+        s7, t7, c7 = (_sz_mean(_sz_okno(rows, last, i) or []) for i in range(3))
+        r7, rt7, rc7 = (_sz_mean(_sz_okno(yr, ry, i) or []) for i in range(3))
+        e.update({'okno': [a, last], 'rok': [rya, ry], 's7': s7, 't7': t7, 'c7': c7, 'r7': r7, 'rt7': rt7, 'rc7': rc7,
+                  'chg': round((s7 / r7 - 1) * 100, 2) if _isnum(s7) and _isnum(r7) and r7 >= SZ_R7_MIN else None})
+        k[cid] = e
+    if not k:
+        raise RuntimeError('brak danych cieśnin')
+    return {'asof': max(e['asof'] for e in k.values()), 'u': 'statki/dzień', 'okno': SZ_OKNO, 'rok': SZ_ROK, 'nz': nz, 'k': k}
+
+
+def _sz_pobierz_pw(ctx):
+    now = ctx['now']
+    R, nz, zle = _sz_pw_zap(ctx, (now.date() - datetime.timedelta(days=SZ_D + SZ_OKNO - 1 + SZ_OPOZN)).isoformat(), None)
+    if not R:
+        raise RuntimeError('brak wierszy cieśnin' + (f' (zmieniona numeracja: {", ".join(sorted(zle))})' if zle else ''))
+    L = [datetime.date.fromisoformat(max(r)) for r in R.values() if r]
+    a = (min(L) - datetime.timedelta(days=SZ_ROK + SZ_OKNO - 1)).isoformat()
+    b = (max(L) - datetime.timedelta(days=SZ_ROK)).isoformat()
+    Y, nz2, zle2 = _sz_pw_zap(ctx, a, b)
+    zle |= zle2
+    if zle:
+        ctx['bledy'].append('pw: identyfikatory z inną nazwą (pominięte): ' + ', '.join(sorted(zle)))
+    braki = [cid for cid, _p, _n in SZ_CIES if cid not in R]
+    if braki:
+        ctx['bledy'].append('pw: brak cieśnin: ' + ', '.join(braki))
+    if nz + nz2:
+        ctx['uwagi'].append(f'pw: {nz + nz2} wierszy z sumą statków ≠ tankowce + pozostałe')
+    part = sz_cies(R, Y, nz + nz2)
+    ctx['parts']['cies'] = part
+    return part['asof']
+
+
+def _sz_pobierz_gscpi(ctx):
+    wyd, M = parse_gscpi(_sz_get(ctx, SZ_GSCPI_URL, 'gscpi'))
+    ms = sorted(M)[-SZ_M:]
+    ctx['parts']['presja'] = {'asof': ms[-1], 'wyd': wyd, 'u': 'odchylenia standardowe od średniej (0 = przeciętnie)', 'd': [[m, M[m]] for m in ms]}
+    return ms[-1]
+
+
+def _sz_pobierz_bcpi(ctx):
+    S, uw = parse_bcpi(json.loads(_sz_get(ctx, SZ_BCPI_URL, 'bcpi')))
+    ctx['bledy'].extend('bcpi: ' + x for x in uw)
+    s = {}
+    for cid, _s in SZ_BCPI:
+        rows = sorted((S.get(cid) or {}).items())[-SZ_W:]
+        if rows:
+            s[cid] = {'d': [[d, v] for d, v in rows]}
+    asof = max(e['d'][-1][0] for e in s.values())
+    ctx['parts']['bcpi'] = {'asof': asof, 'f': 'W', 'u': 'indeks (1972 = 100, USD)', 's': s}
+    return asof
+
+
+SZ_POBIERZ = {'pw': _sz_pobierz_pw, 'gscpi': _sz_pobierz_gscpi, 'bcpi': _sz_pobierz_bcpi}
+
+
+def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+    """v305: data/szlaki.json. Każde źródło z własną bramką (_sz_due) i budżetem czasu; źródło z błędem — poprzednia część z datą (ok False,
+    krótki zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == SZ_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'bledy': [], 'uwagi': [], 'parts': {}, 't0': time.monotonic(),
+           'budzet': SZ_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or (lambda url, timeout, headers=None: get_bytes(url, headers, timeout=timeout))}
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    proby, zle, pominiete = {p: 0 for p in SZ_PARTS}, {}, []
+    for src, part in SZ_ZR:
+        z = st.setdefault(src, {})
+        if not _sz_due(src, z, now):
+            continue
+        if late and src == 'pw':
+            pominiete.append('pw (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + SZ_ZAPYTANIA.get(src, 1) * SZ_LIMIT_S[src] > ctx['budzet']:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        nb = len(ctx['bledy'])
+        z['try'] = now_iso
+        proby[part] += 1
+        try:
+            asof = SZ_POBIERZ[src](ctx)
+        except Exception as e:
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            continue
+        z['at'] = now_iso; z['asof'] = asof; z.pop('err', None)
+        if len(ctx['bledy']) > nb:
+            zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
+    out = {'v': SZ_V, 'at': None, 'src': 'CapitalFlowAI — szlaki handlowe i łańcuchy dostaw (kody źródeł z: pw, gscpi, bcpi — pełne nazwy na stronie Źródła)'}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok, src_of = {}, {p: s for s, p in SZ_ZR}
+    for p in SZ_PARTS:
+        if p in ctx['parts']:
+            out[p] = ctx['parts'][p]; pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):   # błąd źródła (część z poprzednimi danymi) albo błąd częściowy (np. brak jednej cieśniny — reszta zapisana)
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = 'cached' if isinstance(out.get(p), dict) else False
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out['part_at'] = {p: pat[p] for p in SZ_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in SZ_PARTS if perr.get(p)},
+                'next': {p: _sz_next(src_of[p], (out.get(p) or {}).get('asof'), now) for p in SZ_PARTS}, 'st': st})
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('szlaki: ' + x)[:200])
+    for p in SZ_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('szlaki ' + x)[:200])
+    if pominiete:
+        META['notes'].append('szlaki: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 # ===================== v295c: ZŁOTO I SUROWCE A KRYPTO — panel CRYPTO #c-surowce (plik data/zloto-krypto.json) =====================
 # Etap 5 działu SUROWCE (agent CRYPTO). Wyliczenia z plików TEGO przebiegu (SAVED) — bez nowych zapytań do sieci:
 #  * złoto — cena z londyńskiego fixingu popołudniowego wyliczona z archiwum funduszu (data/surowce-hist.json, ostatnie sesje z data/surowce.json);
@@ -23255,6 +23665,19 @@ def main():
         if prev_sh: save('surowce-hist', prev_sh)
         if isinstance(prev_su, dict) and prev_su.get('v') == SU_V:
             _SU_RUN['su'] = prev_su
+    # v305: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW (data/szlaki.json) — ruch statków w 8 cieśninach, wskaźnik presji w łańcuchach dostaw, indeks
+    # cen surowców; części z własnymi bramkami wg terminów publikacji i budżetem czasu (zwykle bez zapytań — dane tygodniowe i miesięczne);
+    # awaria budowniczego = poprzedni plik. META ok: szlaki_cies, szlaki_presja, szlaki_bcpi.
+    prev_sz = previous('szlaki')
+    try:
+        szl = build_szlaki(prev_sz, run_t0=_RUN_T0[0])
+        save('szlaki', szl)
+        for p in SZ_PARTS:
+            META['ok']['szlaki_' + p] = szl['ok'][p]
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'szlaki: {e}')[:200]); META['ok']['szlaki'] = False
+        if prev_sz:
+            save('szlaki', prev_sz)
     # COIN METRICS (Community, bez klucza): dane dzienne (nowy dzień ok. 02–03 UTC) — plik młodszy niż 60 min bez zapytań;
     # przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_cm = previous('cm')

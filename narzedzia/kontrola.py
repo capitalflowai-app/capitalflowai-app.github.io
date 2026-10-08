@@ -44,9 +44,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'surowce-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'zloto-krypto', 'krypto-dzien', 'krypto-dziennik']
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'surowce-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'zloto-krypto', 'szlaki', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60, 'surowce': 24 * 60, 'surowce-hist': 48 * 60,
-             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'surowce-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'zloto-krypto': 90, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+             'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'surowce-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'zloto-krypto': 90, 'szlaki': 26 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
 
@@ -632,6 +632,10 @@ AW_BEZ_BLEDU = {   # v211/v215: części bez czerwieni z serii awarii — seria 
     'surowce_pozycje': 'surowce — część z błędem zostaje z datą (v298); wiek danych w wierszach świeżości',
     'surowce_fundusze': 'surowce — część z błędem zostaje z datą (v298); wiek danych w wierszach świeżości',
     'surowce_banki': 'surowce — część z błędem zostaje z datą (v298); wiek danych w wierszach świeżości'}
+
+
+AW_BEZ_BLEDU.update({'szlaki_' + p: 'szlaki — część z błędem zostaje z datą (v305); wiek danych w wierszach świeżości'
+                     for p in ('cies', 'presja', 'bcpi')})
 
 
 def _aw_t(s):
@@ -4234,6 +4238,150 @@ def surowce_porownania3(j):
     return {'wiersze': W, 'uwagi': U}
 
 
+# ---------------------------------------------------------------- v305: szlaki handlowe i łańcuchy dostaw (data/szlaki.json) ----------------------------------------------------------------
+# Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️ — pole next pliku mówi, kiedy spodziewana jest publikacja.
+# Progi z testu wstecznego na modelu kalendarza (ws53/v305-szlaki/bt/bt_swiezosc.py, 2021-01 – 2026-10, kontrola co godzinę): cieśniny —
+# publikacja we wtorek ok. 12:10 UTC z danymi do niedzieli, najwyższy wiek 8 d 12 h (spóźnienie o dzień: 9 d 12 h) → próg 10 dni, ⚠️ 0%;
+# indeks cen surowców — środa publikowana ok. tydzień później, najwyższy wiek 13 d 11 h (+2 dni: 15 d 11 h) → 16 dni, 0%; wskaźnik presji —
+# 4. dzień roboczy miesiąca, najwyższy wiek 36 d 14 h (+5 dni: 41 d 14 h) → 45 dni, 0%.
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (daty nie rosną, średnia 7 dni ≠ średnia dni z wykresu, zmiana ≠ s7 / r7, tankowców
+# więcej niż statków, indeks ≤ 0). Progi ⚠️ danych (bt/bt_progi.py na historii z nagrań 08.10.2026): suma statków ≠ tankowce + pozostałe —
+# 0 z 22 672 wierszy 2019–2026; dzień > SZ_K_MAX statków — 0 (najwięcej 298, Malakka); wskaźnik presji |v| > SZ_K_P_MAX — 0 z 18 589 wartości
+# 58 wydań (zakres −1,8 … 4,78); |zmiana m/m| > SZ_K_P_SKOK — 0 z 18 531 (najwyżej 1,70); indeks cen surowców |zmiana tygodnia| > SZ_K_B_SKOK % —
+# 0 z 2855 tygodni od 1972 (najwyżej 24,95%, maj 2020). Spadki ruchu statków (np. Ormuz od 03.2026, Kanał Sueski 03.2021) to zdarzenia, nie
+# błędy danych — bez progu (reguła „dzień < 25% mediany 28 dni” dawała ⚠️ w ok. 5% tygodni, prawie zawsze przy prawdziwych zdarzeniach).
+SZ_K_ETYKIETA = {'cies': 'szlaki: ruch statków w 8 cieśninach (dziennie, publ. we wtorek)',
+                 'presja': 'szlaki: wskaźnik presji w łańcuchach dostaw (miesięcznie, publ. ok. 4. dnia roboczego)',
+                 'bcpi': 'szlaki: indeks cen surowców (tydzień do środy, publ. ok. tydzień później)'}
+SZ_K_PROG = {'cies': ('w', 10 * 24 * 60), 'presja': ('m', 45 * 24 * 60), 'bcpi': ('w', 16 * 24 * 60)}
+SZ_K_MAX = 500          # statków dziennie w jednej cieśninie
+SZ_K_P_MAX = 6.0        # wskaźnik presji (odchylenia standardowe)
+SZ_K_P_SKOK = 2.5       # zmiana wskaźnika presji miesiąc do miesiąca
+SZ_K_B_SKOK = 30.0      # % — zmiana tygodniowa indeksu cen surowców (całość)
+SZ_K_TOL = 0.011        # tolerancja zaokrągleń średnich (2 miejsca po przecinku) i zmiany w %
+SZ_K_NAZWY = {'ormuz': 'Ormuz', 'bab': 'Bab el-Mandeb', 'suez': 'Kanał Sueski', 'bosfor': 'Bosfor', 'panama': 'Kanał Panamski', 'malakka': 'Malakka',
+              'gibraltar': 'Gibraltar', 'przyladek': 'Przylądek Dobrej Nadziei'}
+
+
+def _sz_k_wiersze(e):
+    d = e.get('d') if isinstance(e, dict) else None
+    return [x for x in d if isinstance(x, list) and len(x) == 2] if isinstance(d, list) else []
+
+
+def _sz_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
+
+
+def szlaki_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku szlaki.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga).
+    Najwyżej ⚠️, nigdy ❌; brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for p, label in SZ_K_ETYKIETA.items():
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = P.get('asof') if isinstance(P.get('asof'), str) else None
+        kat, prog = SZ_K_PROG[p]
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(txt, 'month' if p == 'presja' else 'day', kat, now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
+            note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(nt)}' + (' — zaległa (przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def szlaki_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w szlakach) → lista opisów."""
+    zle = []
+    K = ((j.get('cies') or {}).get('k') or {}) if isinstance(j.get('cies'), dict) else {}
+    for cid, e in (K.items() if isinstance(K, dict) else ()):
+        if not isinstance(e, dict):
+            continue
+        d = _sz_k_wiersze(e)
+        ds = [str(x[0]) for x in d]
+        if ds != sorted(set(ds)):
+            zle.append(f'cies.{SZ_K_NAZWY.get(cid, cid)}: daty nie rosną albo się powtarzają')
+        if any(x[1] is not None and not (_sz_k_num(x[1]) and x[1] >= 0) for x in d):
+            zle.append(f'cies.{SZ_K_NAZWY.get(cid, cid)}: liczba statków ujemna albo nie-liczba')
+        s7, t7, r7, chg, ok = e.get('s7'), e.get('t7'), e.get('r7'), e.get('chg'), e.get('okno')
+        if _sz_k_num(s7) and isinstance(ok, list) and len(ok) == 2:
+            V = [x[1] for x in d if ok[0] <= str(x[0]) <= ok[1]]
+            if len(V) == 7 and all(_sz_k_num(v) for v in V) and abs(sum(V) / 7 - s7) > SZ_K_TOL:
+                zle.append(f'cies.{SZ_K_NAZWY.get(cid, cid)}: średnia 7 dni {s7} ≠ średnia dni z wykresu {sum(V) / 7:.2f}')
+        if _sz_k_num(s7) and _sz_k_num(t7) and t7 > s7 + SZ_K_TOL:
+            zle.append(f'cies.{SZ_K_NAZWY.get(cid, cid)}: tankowców ({t7}) więcej niż wszystkich statków ({s7})')
+        if _sz_k_num(chg) and _sz_k_num(s7) and _sz_k_num(r7) and r7 > 0 and abs((s7 / r7 - 1) * 100 - chg) > SZ_K_TOL:
+            zle.append(f'cies.{SZ_K_NAZWY.get(cid, cid)}: zmiana {chg}% ≠ {(s7 / r7 - 1) * 100:.2f}% z s7 / r7')
+    P = j.get('presja') if isinstance(j.get('presja'), dict) else {}
+    ms = [str(x[0]) for x in _sz_k_wiersze(P)]
+    if ms != sorted(set(ms)):
+        zle.append('presja: miesiące nie rosną albo się powtarzają')
+    S = ((j.get('bcpi') or {}).get('s') or {}) if isinstance(j.get('bcpi'), dict) else {}
+    for cid, e in (S.items() if isinstance(S, dict) else ()):
+        d = _sz_k_wiersze(e)
+        ds = [str(x[0]) for x in d]
+        if ds != sorted(set(ds)):
+            zle.append(f'bcpi.{cid}: daty nie rosną albo się powtarzają')
+        if any(x[1] is not None and not (_sz_k_num(x[1]) and x[1] > 0) for x in d):
+            zle.append(f'bcpi.{cid}: wartość ≤ 0 albo nie-liczba (brak ma być null)')
+    return zle
+
+
+def szlaki_porownania(j):
+    """Progi z testów wstecznych (najwyżej ⚠️): sumy statków u źródła, zakres liczby statków, skoki wskaźnika presji i indeksu cen surowców.
+    → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    W, U = [], []
+    C = j.get('cies') if isinstance(j.get('cies'), dict) else {}
+    K = C.get('k') if isinstance(C.get('k'), dict) else {}
+    if K:
+        nz = C.get('nz')
+        duze = [(cid, x[0], x[1]) for cid, e in K.items() if isinstance(e, dict) for x in _sz_k_wiersze(e) if _sz_k_num(x[1]) and x[1] > SZ_K_MAX]
+        if _sz_k_num(nz) and nz > 0:
+            U.append(f'szlaki: {int(nz)} wierszy źródła z sumą statków ≠ tankowce + pozostałe — sprawdzić (w historii 2019–2026: 0)')
+        for cid, d, v in duze[:3]:
+            U.append(f'szlaki: {SZ_K_NAZWY.get(cid, cid)} {d} — {v} statków w jednym dniu (próg {SZ_K_MAX}; w historii najwyżej 298) — sprawdzić')
+        W.append(('cieśniny: sumy i zakres', '⚠️' if (_sz_k_num(nz) and nz > 0) or duze else '✅'))
+    P = _sz_k_wiersze(j.get('presja'))
+    V = [(str(m), v) for m, v in P if _sz_k_num(v)]
+    if V:
+        zle = [(m, v) for m, v in V if abs(v) > SZ_K_P_MAX]
+        sk = [(b[0], b[1] - a[1]) for a, b in zip(V, V[1:]) if abs(b[1] - a[1]) > SZ_K_P_SKOK]
+        for m, v in zle[:2]:
+            U.append(f'szlaki: wskaźnik presji {m} = {v:+.2f} — poza zakresem ±{SZ_K_P_MAX:g} (w historii −1,8 … 4,78) — sprawdzić'.replace('.', ','))
+        for m, c in sk[:2]:
+            U.append(f'szlaki: wskaźnik presji {m} — zmiana o {c:+.2f} w miesiąc (próg {SZ_K_P_SKOK:g}; w historii najwyżej 1,70) — sprawdzić'.replace('.', ','))
+        W.append(('wskaźnik presji: zakres i skoki', '⚠️' if zle or sk else '✅'))
+    B = _sz_k_wiersze(((j.get('bcpi') or {}).get('s') or {}).get('calosc') if isinstance(j.get('bcpi'), dict) else None)
+    V = [(str(d), v) for d, v in B if _sz_k_num(v) and v > 0]
+    if V:
+        sk = [(b[0], (b[1] / a[1] - 1) * 100) for a, b in zip(V, V[1:]) if abs(b[1] / a[1] - 1) * 100 > SZ_K_B_SKOK]
+        for d, c in sk[:2]:
+            U.append(f'szlaki: indeks cen surowców {d} — zmiana o {c:+.1f}% w tydzień (próg {SZ_K_B_SKOK:g}%; od 1972 najwyżej 24,95%) — sprawdzić'.replace('.', ','))
+        W.append(('indeks cen surowców: skoki tygodniowe', '⚠️' if sk else '✅'))
+    return {'wiersze': W, 'uwagi': U}
+
+
+def szlaki_kontrola(j, R):
+    """Kontrola pliku szlaki.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i progi z testów wstecznych (najwyżej ⚠️). Brak pliku albo inna
+    wersja = None (raport bez linii)."""
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = szlaki_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'szlaki.json: sprzeczność w pliku — {z}')
+    P = szlaki_porownania(j)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v295c: złoto i surowce a krypto (data/zloto-krypto.json) ----------------------------------------------------------------
 # Zasoby wydobytego złota do szacunku wielkości rynku (słupek „Złoto (szacunek)”) to stała z datą stanu w zbieraczu (ZK_ZLOTO), aktualizowana ręcznie
 # co najmniej raz w roku (wydawca publikuje co kwartał). Stan starszy niż ZK_ZASOBY_MAX_MIES miesięcy = uwaga (przypomnienie, nigdy błąd); data
@@ -4422,6 +4570,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: {note}')
     # 3c-su. v295: surowce (data/surowce.json w wersji 2) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in surowce_swiezosc(files.get('surowce')) + surowce_swiezosc3(files.get('surowce')):   # v298: + etap 3
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    # 3c-sz. v305: szlaki handlowe i łańcuchy dostaw (data/szlaki.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in szlaki_swiezosc(files.get('szlaki')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
@@ -4661,6 +4816,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['surowce'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'surowce: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v305: szlaki handlowe — sprzeczności w pliku (❌) i progi z testów wstecznych (najwyżej ⚠️), z pliku strony, bez zapytań
+    try:
+        Z['szlaki'] = szlaki_kontrola(files.get('szlaki'), R)
+    except Exception as e:  # noqa
+        Z['szlaki'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'szlaki: kontrola przerwana ({str(e)[:80]})')
     # 3g. v295c: złoto i surowce a krypto — wiek stałej zasobów wydobytego złota (z pliku strony, bez zapytań; najwyżej ⚠️)
     try:
         Z['zloto-krypto'] = zk_kontrola(files.get('zloto-krypto'), R)
@@ -4964,6 +5125,11 @@ def raport_md(R):
             L.append('- Surowce (porównania z pliku strony): ' + (f'? kontrola przerwana ({sz["blad"]})' if sz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(sz['spojnosc'][:3]) + ' ❌ · ' if sz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in sz.get('wiersze') or []) or '—') + '.')
+        szl = Z.get('szlaki')   # v305: szlaki handlowe — sprzeczności w pliku i progi (sumy statków, zakresy, skoki); brak pliku = bez linii
+        if szl:
+            L.append('- Szlaki handlowe i łańcuchy dostaw (z pliku strony): ' + (f'? kontrola przerwana ({szl["blad"]})' if szl.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(szl['spojnosc'][:3]) + ' ❌ · ' if szl.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in szl.get('wiersze') or []) or '—') + '.')
         rz = Z.get('rwa')   # v133: tokenizowane aktywa — zmiana 7 dni (własna vs źródło), produkty spoza listy, skoki sumy; brak pliku = bez linii
         if rz:
             L.append('- Tokenizowane aktywa (RWA): ' + (rz.get('opis') or (f'? kontrola przerwana ({rz["blad"]})' if rz.get('blad') else '—')) + '.')
