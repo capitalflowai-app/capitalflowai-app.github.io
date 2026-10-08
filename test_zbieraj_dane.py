@@ -181,7 +181,7 @@ class MainFlow(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False):
             zd.main()
         self.assertIn('meta', self.saved)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Japonia giełda', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'surowce', 'Coin Metrics', 'MFW', 'EBC kursy', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Japonia giełda', 'Świat dziennie', 'Dziennik świata', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -8207,7 +8207,7 @@ class SurowceV92(unittest.TestCase):
             z.writestr('f_year.txt', self.text(year))
         files = {zd.CFTCD_YEAR_URL.format(2026): buf.getvalue(), zd.CFTCD_WEEK_URL: self.text(week, header=False).encode()}
         zd.META['notes'].clear(); zd.META['errors'].clear()
-        out = zd.build_surowce(fetch=lambda u: files[u] if u in files else (_ for _ in ()).throw(RuntimeError('404')), today=datetime.date(2026, 9, 25))
+        out = zd.su_markets(fetch=lambda u: files[u] if u in files else (_ for _ in ()).throw(RuntimeError('404')), today=datetime.date(2026, 9, 25))   # v295: część CFTC v2
         g = out['markets']['gold']
         self.assertEqual((g['asof'], g['groups']['mm']['net'], len(g['hist']['dates']), g['hist']['mm'][-2:]), (days[-1], 280, 13, [200, 280]),
                          'tydzień z pliku tygodniowego; 13 raportów z okna 90 dni')
@@ -8319,7 +8319,7 @@ class FunduszeV94(unittest.TestCase):
             raise RuntimeError('timeout')
         zd.META['errors'].clear()
         with self.assertRaises(RuntimeError):
-            zd.build_surowce(fetch=fetch, today=datetime.date(2026, 9, 25), prev=prev)   # bez pliku rocznego: 1 raport zamiast 13 — zostaje poprzedni plik
+            zd.su_markets(fetch=fetch, today=datetime.date(2026, 9, 25), prev=prev)   # v295: część CFTC v2; bez pliku rocznego: 1 raport zamiast 13 — zostaje poprzedni plik
         self.assertTrue(any('rok 2026' in e for e in zd.META['errors']))
 
 
@@ -25596,7 +25596,7 @@ class PoPrzegladzieV211(unittest.TestCase):
         self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 3)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
-        self.assertEqual(set(self.k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg'}, 'v215: snb — zwykła ocena')
+        self.assertEqual(set(self.k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies'}, 'v215: snb — zwykła ocena; v295: + surowce')
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
         t, k = self._t, self.k
@@ -25689,7 +25689,7 @@ class PoPrzegladzieV215(unittest.TestCase):
         Z = k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
-        self.assertEqual(set(k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg'})
+        self.assertEqual(set(k.AW_BEZ_BLEDU), {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies'})   # v295: + części surowców
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
 
@@ -25969,7 +25969,7 @@ class LicznikZuzyciaV222(unittest.TestCase):
         z = zd.zuzycie
         a = z(None, {'cg': 4, 'cmc': 1, 'td': 7}, '2026-10-06T07:30:00+00:00')
         self.assertEqual(a['cg'], {'od': '2026-10-06T07:30:00+00:00', 'd': '2026-10-06', 'n': 4, 'm': '2026-10', 'nm': 4})
-        self.assertEqual((a['cmc']['n'], a['td']['n'], sorted(a)), (1, 7, ['cg', 'cmc', 'td']))
+        self.assertEqual((a['cmc']['n'], a['td']['n'], sorted(a)), (1, 7, ['cg', 'cmc', 'fmp', 'td']))   # v295: + FMP
         b = z(a, {'cg': 1}, '2026-10-06T07:40:00+00:00')
         self.assertEqual((b['cg']['n'], b['cg']['nm'], b['cmc']['n'], b['td']['nm'], b['cg']['od']), (5, 5, 1, 7, '2026-10-06T07:30:00+00:00'))
         c = z(b, {'cg': 2}, '2026-10-07T00:00:05+00:00')   # nowa doba UTC
@@ -26404,7 +26404,7 @@ class PoPrzegladzieV226(unittest.TestCase):
         import importlib.util
         spec = importlib.util.spec_from_file_location('kontrola_v226', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
         k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
-        self.assertEqual([x[3] for x in k.ZUZ_PLANY], [10000, 15000, 800])
+        self.assertEqual([x[3] for x in k.ZUZ_PLANY], [10000, 15000, 800, 250])   # v295: + FMP (250 zapytań na dobę)
         q = {'od': '2026-10-06T07:16:20+00:00', 'd': '2026-11-02', 'n': 150, 'm': '2026-11', 'nm': 300, 'mp': ['2026-10', 9700], 'dp': ['2026-11-01', 150]}
         o = k.zuzycie_ocena({'at': '2026-11-02T06:20:00+00:00', 'zuzycie': {'cg': q}})
         self.assertEqual(o['plany'][0]['znak'], '⚠️'); self.assertEqual(o['bledy'], [])
@@ -31586,3 +31586,737 @@ class TrendyRunda2V296(unittest.TestCase):
         b = {x['id']: x for x in self.build(h)['b']}['fe']
         self.assertEqual((b['k'], b['n']), exp[:2], 'build_trendy przekazuje d0 z fund_group')
         self.assertEqual((b['from'], b['to']), exp[2:])
+
+
+# ===================== v295: SUROWCE v2 (dział SUROWCE, etapy 1–2: dane) =====================
+class SurowceV295(unittest.TestCase):
+    """v295: data/surowce.json w wersji 2 i data/surowce-hist.json — parsery źródeł na nagraniach z 07.10.2026 (skrócone), bramki per źródło
+    (kalendarz publikacji, czas przypięty), reguła punktów do sprawdzenia (q), zgodność wstecz (klucze v92, TRENDY: stała TR_CS), energia.json
+    z tego samego pobrania (te same liczby), część z błędem = poprzednie dane z datą, brak = null nigdy 0, klucze nigdy w plikach, budżet czasu."""
+    KEY = 'SEKRET-EIA-295'
+    TDK = 'SEKRET-TD-295'
+    FMPK = 'SEKRET-FMP-295'
+    NOW = datetime.datetime(2026, 10, 7, 17, 10, tzinfo=datetime.timezone.utc)   # środa po raporcie WPSR, API EIA jeszcze z 29.09
+    # nagranie 07.10.2026 (EIA „Daily Prices”, zamknięcie 06.10): trzy tabele, bez stylów i skryptów
+    DZ = ('<table>     <tr> <td> Wholesale Spot Petroleum Prices, 10/06/26 Close </td> </tr> <tr> <th>Product</th> <th>Area</th> <th>Price</th> <th>PercentChange*</th> </tr> <tr> <td>Crude Oil ($/barrel)</td> <td>WTI</td> <td>96.24</td> <td>+0.1</td> </tr> <tr> <td>Brent</td> <td>125.44</td> <td>-0.1</td> </tr> <tr> <td>Louisiana Light</td> <td>98.49</td> <td>+0.1</td> </tr> <tr> <td>Gasoline (RBOB) ($/gallon)</td> <td>NY Harbor</td> <td>3.43</td> <td>+2.3</td> </tr> <tr> <td>Gulf Coast</td> <td>3.24</td> <td>+2.4</td> </tr> <tr> <td>Los Angeles</td> <td>3.93</td> <td>+2.0</td> </tr> <tr> <td>Heating Oil ($/gallon)</td> <td>NY Harbor</td> <td>4.50</td> <td>+1.9</td> </tr> <tr> <td>Gulf Coast</td> <td>4.45</td> <td>+1.9</td> </tr> <tr> <td>3:2:1 Crack Spread ($/barrel)</td> <td>Gulf Coast (LLS)</td> <td>56.25</td> <td>+5.2</td> </tr> <tr> <td>Low-Sulfur Diesel ($/gallon)</td> <td>NY Harbor</td> <td>4.71</td> <td>+1.8</td> </tr> <tr> <td>Gulf Coast</td> <td>4.57</td> <td>+1.2</td> </tr> <tr> <td>Los Angeles</td> <td>4.90</td> <td>+1.8</td> </tr> <tr> <td>Propane ($/gallon)</td> <td>Mont Belvieu, TX</td> <td>0.92</td> <td>-1.5</td> </tr> <tr> <td>Conway, KS</td> <td>0.86</td> <td>-1.9</td> </tr> <tr> <td> </td> </tr>   <tr> <td>  Retail Petroleum Prices (AAA), 10/06/26 ($/gallon)  </td> </tr> <tr> <td>Regular Gasoline</td> <td>U.S. Average</td> <td>4.37</td> <td>0.0</td> </tr> <tr> <td>Diesel</td> <td>U.S. Average</td> <td>6.30</td> <td>-0.2</td> </tr> <tr> <td> </td> </tr> <tr> <th> Financial Indicators, 10/06/26 Close </th> <th>Price</th> <th>PercentChange*</th> </tr> <tr> <td>Commodity Price Index</td> <td>6085.58</td> <td>+0.3</td> </tr> <tr> <td>S&P 500 Index</td> <td>7818.93</td> <td>+0.6</td> </tr> </table>'
+          '<table>        <tr> <td> Select Spot Prices for Delivery Today </td> </tr> <tr> <th>Region</th> <th>Natural Gas($/million Btu)</th> <th>Electricity($/MWh)</th> <th>SparkSpread($/MWh)</th> </tr> <tr> <th>Price</th> <th>PercentChange*</th> <th>Price</th> <th>PercentChange*</th> </tr> <tr> <td>New England</td> <td>1.14</td> <td>-2.0</td> <td>38.37</td> <td>+14.4</td> <td>30.40</td> </tr> <tr> <td>New York City</td> <td>1.05</td> <td>-4.9</td> <td>42.94</td> <td>+4.9</td> <td>35.60</td> </tr> <tr> <td>Mid-Atlantic</td> <td>1.09</td> <td>+0.4</td> <td>74.21</td> <td>+11.1</td> <td>66.58</td> </tr> <tr> <td>Midwest</td> <td>2.70</td> <td>+1.8</td> <td>46.74</td> <td>+27.4</td> <td>27.82</td> </tr> <tr> <td>Louisiana</td> <td>3.03</td> <td>+2.5</td> <td>44.75</td> <td>-14.4</td> <td>23.54</td> </tr> <tr> <td>Houston</td> <td>2.56</td> <td>+2.3</td> <td>70.25</td> <td>+54.4</td> <td>52.35</td> </tr> <tr> <td>Southwest</td> <td>2.51</td> <td>+4.7</td> <td>65.50</td> <td>-11.5</td> <td>47.92</td> </tr> <tr> <td>Southern CA</td> <td>3.51</td> <td>-0.1</td> <td>68.99</td> <td>-12.9</td> <td>44.42</td> </tr> <tr> <td>Northern CA</td> <td>3.83</td> <td>-0.4</td> <td>68.75</td> <td>-11.8</td> <td>41.93</td> </tr> <tr> <td>Northwest</td> <td>3.00</td> <td>+8.3</td> <td>65.00</td> <td>0.0</td> <td>44.00</td> </tr> </table>'
+          '<table> <tr> <th>Region</th> <th>Gas Point Used</th> <th>Power Point Used</th> </tr> <tr> <td>New England</td> <td>Algonquin Citygate</td> <td>Massachusetts Hub (ISONE)</td> </tr> <tr> <td>New York City</td> <td>Transco Zone 6-NY</td> <td>NYC Zone J (NYISO)</td> </tr> <tr> <td>Mid-Atlantic</td> <td>TETCO-M3 </td> <td>Western Hub (PJM)</td> </tr> <tr> <td>Midwest</td> <td>Chicago Citygate</td> <td>Illinois Hub (MISO)</td> </tr> <tr> <td>Louisiana</td> <td>Henry Hub</td> <td>Entergy (SNL index)</td> </tr> <tr> <td>Houston</td> <td>Houston Ship Channel</td> <td>Houston Zone (SNL index)</td> </tr> <tr> <td>Southwest</td> <td>El Paso San Juan</td> <td>Palo Verde (SNL index)</td> </tr> <tr> <td>Southern California (CA)</td> <td>SoCal Border</td> <td>SP-15 (CAISO)</td> </tr> <tr> <td>Northern California (CA)</td> <td>PG&E Citygate</td> <td>NP-15 (CAISO)</td> </tr> <tr> <td>Northwest</td> <td>Northwest Sumas</td> <td>Mid-Columbia (SNL index)</td> </tr> </table>')
+    # ir.eia.gov/wpsr/table1.csv z 07.10.2026 — pierwszy blok (zapasy, mln baryłek) i nagłówek drugiego
+    T1 = '''"STUB_1","10/2/26","9/25/26","Difference","Percent Change","10/3/25","Difference","Percent Change"
+"Crude Oil","707.117","711.087","-3.970","-0.600","827.246","-120.129","-14.500"
+"Commercial (Excluding SPR)","424.134","427.320","-3.186","-0.700","420.261","3.873","0.900"
+"Strategic Petroleum Reserve (SPR)","282.983","283.767","-0.784","-0.300","406.985","-124.002","-30.500"
+"Total Motor Gasoline","204.744","204.362","0.382","0.200","219.093","-14.349","-6.500"
+"Kerosene-Type Jet Fuel","42.504","43.612","-1.108","-2.500","44.268","-1.764","-4.000"
+"Distillate Fuel Oil","105.138","105.180","-0.042","0.000","121.559","-16.420","-13.500"
+"Total Stocks (Including SPR)","1,520.383","1,528.080","-7.697","-0.500","1,694.142","-173.759","-10.300"
+"STUB_1","STUB_2","10/2/26","9/25/26","Difference","10/3/25","Difference","10/2/26","10/3/25","Percent Change","10/2/26","10/3/25","Percent Change"
+"Crude Oil Supply ","(1)     Domestic Production","13,979","13,955","24","13,629","350","13,954","13,529","3.1","13,747","13,445","2.2"
+'''
+    WNGSR = {"release_name": "Weekly Natural Gas Storage Report", "release_date": "2026-Oct-01 00:00:00", "current_week": "2026-09-25",
+             "week_ago": "2026-09-18", "year_ago": "2025-09-25", "5yr_avg": "5-year (2021-25) average",
+             "series": [{"series_id": "png.nw2_epg0_swo_r48_bcf.w", "name": "total lower 48 states", "units": "billion cubic feet",
+                         "calculated": {"5yr-avg": 3336, "net_change": 64}, "data": [["2026-09-25", 3415], ["2026-09-18", 3351], ["2025-09-25", 3553]]}]}
+    ACER = '''"DATE","NORTH-WEST EUROPE PRICE (EUR/MWh)","SOUTH EUROPE PRICE (EUR/MWh)","EU PRICE (EUR/MWh)","LNG BENCHMARK (EUR/MWh)"
+"2026-10-07","73.996","74.558","74.058",""
+"2026-10-06","71.928","72.269","71.875","-3.816"
+"2026-10-05","71.865","72.203","71.811","-1.702"
+"2026-10-02","70.773","71.551","70.759","-4.001"
+"2023-01-19","56.770","","",""
+'''
+    # kalkulator trustów fizycznych (nagranie 07.10.2026, kolejność listy wg strony dostawcy: PHYS, PSLV, SPPP, CEF, SPUT, COP, kursy)
+    SPROTT = [{"id": 0, "dateTimeStamp": "2026-10-06T00:00:00Z", "nav": 32.2438, "units": 485693718, "totalNav": 15660614857, "totalMarketValue": 15622610745, "totalOunces1": 3751666, "totalOunces2": 0},
+              {"id": 0, "dateTimeStamp": "2026-10-06T00:00:00Z", "nav": 20.909, "units": 608052775, "totalNav": 12713797138, "totalMarketValue": 12708987811, "totalOunces1": 207194980, "totalOunces2": 0},
+              {"id": 0, "dateTimeStamp": "2026-10-06T00:00:00Z", "nav": 13.9032, "units": 37690223, "totalNav": 524014602, "totalMarketValue": 524007214, "totalOunces1": 200095, "totalOunces2": 155159},
+              {"id": 0, "dateTimeStamp": "2026-10-06T00:00:00Z", "nav": 43.4941, "units": 170540313, "totalNav": 7417500644, "totalMarketValue": 7404509821, "totalOunces1": 1098496, "totalOunces2": 46140412},
+              {"id": 0, "dateTimeStamp": "2026-10-06T00:00:00Z", "nav": 21.5204, "units": 344156215, "totalNav": 7406394345, "totalMarketValue": 7321675441, "totalOunces1": 81697348, "totalOunces2": 0},
+              {"id": 0, "dateTimeStamp": "2026-10-06T00:00:00Z", "nav": 13.2387, "units": 16236723, "totalNav": 214952745, "totalMarketValue": 212957860, "totalOunces1": 14559, "totalOunces2": 0},
+              {"last": "31.055", "tradeDate": "10/07/2026", "tradeTime": "12:24"}]
+    # ropa — wartości EIA 15–29.09.2026 (strony historii EIA; API miało je do 29.09) i produkty z nagrania API 07.10 (24–29.09)
+    WTI = {'2026-09-15': 107.02, '2026-09-16': 103.62, '2026-09-17': 103.21, '2026-09-18': 101.44, '2026-09-21': 96.97, '2026-09-22': 96.41,
+           '2026-09-23': 93.38, '2026-09-24': 95.88, '2026-09-25': 85.23, '2026-09-28': 99.37, '2026-09-29': 96.16}
+    BRENT = {'2026-09-15': 130.8, '2026-09-16': 127.84, '2026-09-17': 121.18, '2026-09-18': 119.66, '2026-09-21': 116.15, '2026-09-22': 114.89,
+             '2026-09-23': 117.45, '2026-09-24': 120.92, '2026-09-25': 116.01, '2026-09-28': 119.97, '2026-09-29': 113.96}
+    PROD = [('2026-09-29', 'EER_EPJK_PF4_RGC_DPG', '4.399'), ('2026-09-29', 'EER_EPLLPA_PF4_Y44MB_DPG', '.894'), ('2026-09-29', 'EER_EPMRR_PF4_Y05LA_DPG', '4.396'),
+            ('2026-09-29', 'EER_EPMRU_PF4_Y35NY_DPG', '3.329'), ('2026-09-29', 'EER_EPD2DXL0_PF4_Y35NY_DPG', '4.999'), ('2026-09-28', 'EER_EPJK_PF4_RGC_DPG', '4.343'),
+            ('2026-09-28', 'EER_EPLLPA_PF4_Y44MB_DPG', '.894'), ('2026-09-28', 'EER_EPMRU_PF4_Y35NY_DPG', '3.418'), ('2026-09-28', 'EER_EPD2DXL0_PF4_Y35NY_DPG', '4.91'),
+            ('2026-09-25', 'EER_EPD2DXL0_PF4_Y35NY_DPG', '4.949'), ('2026-09-25', 'EER_EPJK_PF4_RGC_DPG', '4.365'), ('2026-09-25', 'EER_EPLLPA_PF4_Y44MB_DPG', '.881'),
+            ('2026-09-25', 'EER_EPMRU_PF4_Y35NY_DPG', '3.493'), ('2026-09-24', 'EER_EPLLPA_PF4_Y44MB_DPG', '.898'), ('2026-09-24', 'EER_EPD2DXL0_PF4_Y35NY_DPG', '4.881')]
+    HH = [('2026-09-29', '3.18'), ('2026-09-28', '3.13'), ('2026-09-25', '3.21'), ('2026-09-24', '3')]
+    WSTK = [('2026-09-25', 'WCSSTUS1', '283767'), ('2026-09-25', 'WGTSTUS1', '204362'), ('2026-09-25', 'WKJSTUS1', '43612'), ('2026-09-25', 'WDISTUS1', '105180'),
+            ('2026-09-25', 'W_EPC0_SAX_YCUOK_MBBL', '24301'), ('2026-09-25', 'WCESTUS1', '427320'), ('2026-09-18', 'WCSSTUS1', '284552'),
+            ('2026-09-18', 'WGTSTUS1', '206046'), ('2026-09-18', 'WKJSTUS1', '45466'), ('2026-09-18', 'WDISTUS1', '107431'),
+            ('2026-09-18', 'W_EPC0_SAX_YCUOK_MBBL', '23748'), ('2026-09-18', 'WCESTUS1', '426398')]
+    GLD = [('29-Sep-2026', 0.09167919, 381.697147), ('30-Sep-2026', 0.09167828, 382.876002), ('01-Oct-2026', 0.09167709, 380.611193),
+           ('02-Oct-2026', 0.09167638, 384.128625), ('05-Oct-2026', 0.09167296, 379.677307), ('06-Oct-2026', 0.09167208, 381.025846)]
+    # gaz w magazynach USA (Lower 48, Bcf), tygodnie od 2020-09-04 do 2026-09-25 (strona historii EIA) — średnia 5 lat jak w raporcie
+    NG0, NG = '2020-09-04', [3525,3614,3680,3756,3831,3877,3926,3955,3919,3927,3958,3940,3939,3848,3726,3574,3460,3330,3196,3009,2881,2689,2518,2281,1943,1845,1793,1782,1750,1764,1784,1845,1883,1898,1958,2029,2100,2215,2313,2411,2427,2482,2558,2574,2629,2678,2714,2727,2776,2822,2851,2871,2923,3006,3082,3170,3288,3369,3461,3548,3611,3618,3644,3623,3564,3505,3417,3362,3226,3195,3016,2810,2591,2323,2101,1911,1782,1643,1519,1440,1389,1415,1382,1397,1450,1490,1567,1643,1732,1819,1901,2003,2095,2169,2251,2311,2369,2401,2416,2457,2501,2519,2579,2640,2694,2771,2874,2977,3106,3231,3342,3394,3501,3580,3644,3564,3483,3462,3412,3325,3112,2891,2902,2820,2734,2583,2366,2266,2195,2114,2030,1972,1900,1853,1830,1855,1930,2009,2063,2141,2240,2336,2446,2550,2634,2729,2805,2881,2930,2971,2987,3001,3030,3065,3083,3115,3148,3205,3269,3359,3445,3529,3626,3700,3779,3773,3833,3826,3836,3719,3664,3577,3490,3476,3336,3182,2856,2659,2584,2530,2470,2374,2334,2325,2332,2296,2259,2283,2333,2425,2484,2569,2640,2719,2804,2900,2974,3045,3102,3134,3199,3209,3231,3249,3270,3264,3299,3334,3347,3387,3445,3493,3548,3630,3706,3785,3864,3931,3972,3969,3967,3937,3747,3622,3529,3413,3373,3115,2892,2571,2397,2297,2101,1840,1760,1698,1707,1744,1773,1830,1846,1934,2041,2145,2255,2375,2476,2598,2707,2802,2898,2953,3006,3052,3075,3123,3130,3186,3199,3217,3262,3333,3423,3499,3551,3631,3712,3798,3872,3905,3950,3936,3924,3913,3735,3569,3401,3364,3244,3174,3054,2813,2454,2202,2059,2007,1876,1838,1872,1818,1851,1900,1960,2063,2142,2205,2290,2391,2483,2578,2686,2759,2835,2922,2983,3024,3056,3084,3117,3153,3169,3184,3214,3254,3298,3351,3415]
+    FAO = ('FAO Food Price Index,,,,,,\n2014-2016=100,,,,,,\nDate,Food Price Index,Meat,Dairy,Cereals,Oils,Sugar\n,,,,,,\n'
+           '2026-07,131.7,129.4,116.6,113.8,195.7,95.0\n2026-08,134.0,129.3,119.2,116.8,196.9,107.4\n2026-09,136.0,127.9,119.1,122.8,198.6,114.0\n')
+    FAO_STARY = 'MONTHLY FOOD PRICE INDICES (2002-2004=100),,,,,,\n,,,,,,\nDate,Food Price Index,Meat Price Index\nFeb-18,171.0,169.2\nMar-18,172.8,169.8\n'
+    WB_PAGE = '<a href="https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx">Monthly prices</a>'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._sec = list(zd.SECRETS); zd.SECRETS[:] = [self.KEY, self.TDK, self.FMPK]
+        self._td = zd._TD_T[0]; zd._TD_T[0] = None
+        zd._SU_RUN.clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW.isoformat()))
+
+    def tearDown(self):
+        zd.SECRETS[:] = self._sec; zd._TD_T[0] = self._td; zd._SU_RUN.clear()
+
+    # ---- nagrania odpowiedzi ----
+    @staticmethod
+    def api(rows, units):
+        return {'response': {'total': len(rows), 'frequency': 'daily', 'data': [
+            {'period': d, 'series': s, 'value': v, 'units': units if isinstance(units, str) else units(s)} for d, s, v in rows]},
+            'warnings': [{'warning': 'incomplete return'}]}
+
+    def spot_rows(self):
+        rows = [(d, 'RWTC', str(v)) for d, v in self.WTI.items()] + [(d, 'RBRTE', str(v)) for d, v in self.BRENT.items()] + self.PROD
+        return self.api(sorted(rows, reverse=True), lambda s: '$/BBL' if s in ('RWTC', 'RBRTE') else '$/GAL')
+
+    def gld_xlsx(self):
+        head = ['Date', 'Closing Price', 'Ounces of Gold per Share', 'NAV/Share at 10:30am NYT', 'Indicative Price per Share at 4:15pm NYT']
+        return _xlsx({'Disclaimer': [['x']], 'US GLD Historical Archive': [head] + [[d, 1.0, oz, nav, 1.0] for d, oz, nav in self.GLD]})
+
+    def wb_xlsx(self, cocoa_unit='($/kg)'):
+        names = ['', 'Crude oil, average', 'Crude oil, Brent', 'Crude oil, WTI', 'Copper', 'Gold', 'Cocoa', 'Beef **']
+        units = ['', '($/bbl)', '($/bbl)', '($/bbl)', '($/mt)', '($/troy oz)', cocoa_unit, '($/kg)']
+        pr = [['World Bank Commodity Price Data (The Pink Sheet)'], ['monthly prices'], ['(nominal)'], ['Updated on October 02, 2026'], names, units,
+              ['2026M07', 95.1, 104.2, 86.0, 14100, 4450, 6.1, 6.9], ['2026M08', 98.0, 110.5, 90.2, 14331, 4419.4, '…', 6.88],
+              ['2026M09', 102.3, 116.8, 96.9, 14474, 4319, 5.92, 6.86]]
+        ix = [['x'], ['monthly indices'], ['(nominal)'], ['Updated on October 02, 2026'], [],
+              ['', 'Total Index', 'Energy', 'Non-energy **'], ['', '', '', '', 'Agriculture **'], ['', '', '', '', '', 'Food **'],
+              ['', '', '', '', '', ''], ['2026M08', 140.1, 145.0, 129.0, 120.0, 123.0], ['2026M09', 142.8, 148.9, 130.5, 121.3, 124.1]]
+        return _xlsx({'Mismatch Details': [['ignore', 'me']], 'Monthly Prices': pr, 'Monthly Indices': ix})
+
+    @staticmethod
+    def imf_json():
+        inds = ['PCOBA', 'PCOPP', 'PENTM', 'PGOLD', 'PLITH']
+        per = ['2026-M02', '2026-M03', '2026-M04', '2026-M05', '2026-M06', '2026-M07', '2026-M08', '2026-M09']
+        val = {(0, 0): ['55858.175', '55849.36', '55857.27', '55853.53', '55854.52', '55872.86', '55854.38', '42212.62'],
+               (1, 0): [None] * 6 + ['14331.26476190476', '14473.05590909091'], (2, 1): [None] * 6 + ['247.035', '248.960'],
+               (3, 0): [None] * 6 + ['4419.415714285714', '4334.746666666667'], (4, 0): [None] * 6 + ['148620.0', '144778.55']}
+        series = {f'0:{i}:{t}:0': {'observations': {str(k): [v, None, 0] for k, v in enumerate(vs) if v is not None}} for (i, t), vs in val.items()}
+        return {'meta': {}, 'data': {'dataSets': [{'series': series}], 'structures': [{'dimensions': {
+            'series': [{'id': 'COUNTRY', 'keyPosition': 0, 'values': [{'id': 'G001'}]}, {'id': 'INDICATOR', 'keyPosition': 1, 'values': [{'id': x} for x in inds]},
+                       {'id': 'DATA_TRANSFORMATION', 'keyPosition': 2, 'values': [{'id': 'USD'}, {'id': 'INDEX'}]},
+                       {'id': 'FREQUENCY', 'keyPosition': 3, 'values': [{'id': 'M'}]}],
+            'observation': [{'id': 'TIME_PERIOD', 'values': [{'value': p} for p in per]}]}}]}}
+
+    def cftc_files(self):
+        import io as _io, zipfile as _zip
+        days = [(datetime.date(2026, 6, 23) + datetime.timedelta(days=7 * i)).isoformat() for i in range(15)]   # do 29.09 (wtorek); 14 w pliku rocznym
+        year, week = [], []
+        for code in zd.CFTCD_MARKETS.values():
+            year += [SurowceV92.row(code, d, 1000, mm=(100 + 5 * i, 20, 10)) for i, d in enumerate(days[:-1])]
+            week.append(SurowceV92.row(code, days[-1], 1000, mm=(300, 20, 10)))
+        buf = _io.BytesIO()
+        with _zip.ZipFile(buf, 'w') as z:
+            z.writestr('f_year.txt', SurowceV92().text(year))
+        return {zd.CFTCD_YEAR_URL.format(2026): buf.getvalue(), zd.CFTCD_WEEK_URL: SurowceV92().text(week, header=False).encode()}
+
+    def siec(self, fail=(), spot=None):
+        calls, cf = [], self.cftc_files()
+        fmp = {'SIUSD': [('2026-10-06', 64.11), ('2026-10-05', 63.2), ('2026-10-02', 62.95)],
+               'BZUSD': [('2026-10-06', 104.9), ('2026-10-05', 105.1), ('2026-10-02', 104.6), ('2026-10-01', 104.7)],
+               'GCUSD': [('2026-10-06', 4180.5), ('2026-10-05', 4166.0)]}
+
+        def fetch(url, timeout, headers=None):
+            calls.append((url, timeout, headers))
+            for k in fail:
+                if k in url:
+                    raise zd.urllib.error.HTTPError(url, 503, 'Service Unavailable', {}, __import__('io').BytesIO(b''))
+            if url.startswith(zd.EIA_API + 'petroleum/pri/spt/'):
+                return json.dumps(spot or self.spot_rows()).encode()
+            if url.startswith(zd.EIA_API + 'natural-gas/pri/fut/'):
+                return json.dumps(self.api([(d, 'RNGWHHD', v) for d, v in self.HH], '$/MMBTU')).encode()
+            if url.startswith(zd.EIA_API + 'petroleum/stoc/wstk/'):
+                return json.dumps(self.api(self.WSTK, 'MBBL')).encode()
+            if url.startswith(zd.EIA_API + 'natural-gas/stor/wkly/'):
+                return json.dumps(self.api([('2026-09-25', 'NW2_EPG0_SWO_R48_BCF', '3415')], 'BCF')).encode()
+            if url == zd.SU_EIA_DZ_URL:
+                return self.DZ.encode()
+            if url == zd.SU_ACER_URL:
+                return self.ACER.encode('latin-1')
+            if url == zd.SU_GLD_URL:
+                return self.gld_xlsx()
+            if url == zd.SU_SPROTT_URL:
+                return json.dumps(self.SPROTT).encode()
+            if url.startswith(zd.TD + '/quote?symbol=XAU/USD'):
+                return json.dumps({'symbol': 'XAU/USD', 'close': '4171.35', 'last_quote_at': 1791387600, 'is_market_open': True}).encode()
+            if url.startswith('https://financialmodelingprep.com/stable/historical-price-eod/light?symbol='):
+                sym = url.split('symbol=')[1].split('&')[0]
+                return json.dumps([{'symbol': sym, 'date': d, 'price': p, 'volume': 1} for d, p in fmp[sym]]).encode()
+            if url == zd.SU_WPSR_URL:
+                return self.T1.encode()
+            if url == zd.SU_WNGSR_URL:
+                return b'\xef\xbb\xbf' + json.dumps(self.WNGSR).encode()
+            if url in cf:
+                return cf[url]
+            if url == zd.SU_FAO_URL:
+                return self.FAO.encode()
+            if url == zd.SU_IMF_URL:
+                self.assertEqual(headers, {'Accept': 'application/json'})
+                return json.dumps(self.imf_json()).encode()
+            if url == zd.SU_WB_PAGE:
+                return self.WB_PAGE.encode()
+            if url.endswith('CMO-Historical-Data-Monthly.xlsx'):
+                return self.wb_xlsx()
+            raise AssertionError('nieoczekiwany adres w teście: ' + url)
+        return fetch, calls
+
+    def keys(self):
+        return {'EIA_KEY': self.KEY, 'TWELVEDATA_KEY': self.TDK, 'FMP_KEY': self.FMPK}
+
+    def build(self, prev=None, hist=None, now=None, **kw):
+        fetch, calls = self.siec(**{k: kw.pop(k) for k in ('fail', 'spot') if k in kw})
+        out, h, zm = zd.build_surowce(prev, hist, kw.pop('keys', self.keys()), now=now or self.NOW, fetch=fetch, **kw)
+        return out, h, zm, calls
+
+    # ---- parsery ----
+    def test_eia_spot_jednym_zapytaniem_i_jednostki(self):
+        u = zd.su_eia_url(self.KEY, 'petroleum/pri/spt', 'daily', '2025-02-14')
+        self.assertTrue(u.startswith('https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=SEKRET-EIA-295&frequency=daily'))
+        self.assertNotIn('facets', u, 'wszystkie 11 serii jednym zapytaniem (bez filtra)')
+        self.assertIn('start=2025-02-14', u); self.assertIn('length=5000', u); self.assertIn('sort%5B0%5D%5Bdirection%5D=desc', u)
+        got, bad = zd.parse_eia_v2(self.spot_rows(), zd.SU_EIA_SPT)
+        self.assertEqual(set(got), {'wti', 'brent', 'ulsd_nyh', 'gas_nyh', 'jet_gulf', 'propan'}, 'benzyna LA i inne serie pominięte')
+        self.assertEqual((got['wti']['2026-09-25'], got['propan']['2026-09-29'], got['brent']['2026-09-29']), (85.23, 0.894, 113.96))
+        j = self.spot_rows(); j['response']['data'].append({'period': '2026-09-29', 'series': 'RBRTE', 'value': '113.96', 'units': '$/GAL'})
+        got2, bad2 = zd.parse_eia_v2(j, zd.SU_EIA_SPT)
+        self.assertEqual(bad2, ['RBRTE']); self.assertNotIn('brent', got2, 'seria z inną jednostką — cała pominięta (zła liczba gorsza niż brak)')
+        j['response']['data'].append({'period': '2026-09-30', 'series': 'RWTC', 'value': None, 'units': '$/BBL'})
+        self.assertNotIn('2026-09-30', zd.parse_eia_v2(j, zd.SU_EIA_SPT)[0]['wti'], 'pusta wartość = brak, nie zero')
+        self.assertRaises(RuntimeError, zd.parse_eia_v2, {'error': 'API_KEY_INVALID'}, zd.SU_EIA_SPT)
+
+    def test_strona_dzienna_t1(self):
+        day, v = zd.parse_eia_dzien(self.DZ, datetime.date(2026, 10, 7))
+        self.assertEqual(day, '2026-10-06', 'zamknięcie z poprzedniego dnia (T+1)')
+        self.assertEqual(v, {'wti': 96.24, 'brent': 125.44, 'ulsd_nyh': 4.71, 'propan': 0.92, 'hh': 3.03},
+                         'benzyna na stronie to RBOB (inny produkt niż seria API) — pominięta; gaz Henry Hub z tabeli gazu (Louisiana)')
+        self.assertRaisesRegex(RuntimeError, 'poza oknem', zd.parse_eia_dzien, self.DZ, datetime.date(2026, 10, 30))
+        self.assertRaisesRegex(RuntimeError, 'brak tabeli', zd.parse_eia_dzien, '<html>Maintenance</html>', datetime.date(2026, 10, 7))
+        inny = self.DZ.replace('<td>Henry Hub</td>', '<td>Katy</td>')
+        self.assertNotIn('hh', zd.parse_eia_dzien(inny, datetime.date(2026, 10, 7))[1], 'region Louisiana to nie Henry Hub — bez gazu')
+
+    def test_pliki_raportow_tygodniowych(self):
+        w1, a, w0, b = zd.parse_wpsr_table1(self.T1)
+        self.assertEqual((w1, w0), ('2026-10-02', '2026-09-25'))
+        self.assertEqual(a, {'us_crude': 424.134, 'us_spr': 282.983, 'us_gasoline': 204.744, 'us_jet': 42.504, 'us_dist': 105.138})
+        self.assertEqual(b['us_crude'], 427.32, 'poprzedni tydzień = API (WCESTUS1 427320 tys. bbl)')
+        self.assertRaisesRegex(RuntimeError, 'piątek', zd.parse_wpsr_table1, self.T1.replace('10/2/26', '10/3/26'))
+        self.assertRaisesRegex(RuntimeError, 'brak wierszy', zd.parse_wpsr_table1, self.T1.replace('Distillate Fuel Oil', 'Distillates'))
+        w, rows, a5 = zd.parse_wngsr(self.WNGSR)
+        self.assertEqual((w, rows, a5), ('2026-09-25', {'2026-09-25': 3415.0, '2026-09-18': 3351.0}, 3336.0), 'rok temu — nie do serii')
+
+    def test_acer_ttf_wyliczony_bez_zera(self):
+        lng, ttf = zd.parse_acer(self.ACER)
+        self.assertEqual((lng['2026-10-07'], ttf['2026-10-07']), (74.058, None), 'benchmark jeszcze pusty — TTF null, nigdy 0')
+        self.assertEqual(ttf['2026-10-06'], round(71.875 + 3.816, 3), 'TTF = cena LNG UE − benchmark (ujemny)')
+        self.assertIsNone(lng['2023-01-19'])
+        self.assertRaisesRegex(RuntimeError, 'brak kolumn', zd.parse_acer, '"DATE","PRICE"\n"2026-10-07","1"\n')
+
+    def test_gld_lbma_pm_i_sprott(self):
+        g = zd.parse_gld_archive(self.gld_xlsx())
+        self.assertEqual(g['2026-10-06'], round(381.025846 / 0.09167208, 2)); self.assertEqual(len(g), 6)
+        day, v, kon = zd.parse_sprott(self.SPROTT)
+        self.assertEqual((day, v), ('2026-10-06', {'uran': 89.62, 'copper': 14627.0}), 'uran USD/lb (Cameco 30.09: 89,63), miedź USD/t')
+        self.assertEqual((round(kon['gold'], 2), round(kon['silver'], 2)), (4164.18, 61.34), 'złoto i srebro z trustów — do sprawdzenia kolejności')
+        zamiana = [self.SPROTT[i] for i in (0, 4, 2, 3, 1, 5)] + self.SPROTT[6:]   # PSLV ↔ SPUT: ceny w obu zakresach, ale podpis listy się nie zgadza?
+        try:
+            d2, v2, _ = zd.parse_sprott(zamiana)
+        except RuntimeError:
+            v2 = None
+        self.assertNotEqual(v2, v, 'zmiana kolejności nie daje cicho innej liczby jako uranu')
+        zla = [self.SPROTT[5]] + self.SPROTT[1:5] + [self.SPROTT[0]] + self.SPROTT[6:]   # COP ↔ PHYS
+        self.assertRaises(RuntimeError, zd.parse_sprott, zla)
+
+    def test_bank_swiatowy_mfw_fao(self):
+        pub, ser, ix, uw = zd.parse_wb(self.wb_xlsx())
+        self.assertEqual(pub, '2026-10-02')
+        self.assertEqual(ser['ropa']['2026-09'], 102.3); self.assertEqual(ser['miedz']['2026-09'], 14474)
+        self.assertIsNone(ser['kakao']['2026-08'], '„…” = brak, nie zero'); self.assertEqual(ser['wolowina']['2026-09'], 6.86, 'nazwa z „**”')
+        self.assertTrue(any('brak kolumny „Aluminum”' in x for x in uw)); self.assertEqual((ix['energia']['2026-09'], ix['zywnosc']['2026-09']), (148.9, 124.1))
+        _, ser2, _, uw2 = zd.parse_wb(self.wb_xlsx(cocoa_unit='($/mt)'))
+        self.assertNotIn('kakao', ser2, 'inna jednostka = seria pominięta (przesunięte kolumny)'); self.assertTrue(any('jednostka' in x for x in uw2))
+        rows, base = zd.parse_fao(self.FAO, datetime.date(2026, 10, 7))
+        self.assertEqual((rows['2026-09'], base), (136.0, '2014-2016=100'))
+        self.assertRaises(RuntimeError, zd.parse_fao, self.FAO_STARY, datetime.date(2026, 10, 7))
+        self.assertRaisesRegex(RuntimeError, 'nieaktualny', zd.parse_fao, self.FAO, datetime.date(2027, 6, 1))
+        s = zd.parse_imf_sdmx(self.imf_json())
+        self.assertEqual(s[('G001', 'PLITH', 'USD', 'M')][-1], ['2026-09', 144778.55])
+        self.assertEqual(zd._su_staly([[f'2026-{m:02d}', v] for m, (_, v) in enumerate(s[('G001', 'PCOBA', 'USD', 'M')], 2)]), [['2026-02', '2026-08']],
+                         'kobalt: wartość przenoszona II–VIII 2026')
+
+    def test_srednia_5_lat_jak_eia(self):
+        d0 = datetime.date.fromisoformat(self.NG0)
+        ser = {(d0 + datetime.timedelta(days=7 * i)).isoformat(): float(v) for i, v in enumerate(self.NG)}
+        self.assertEqual(max(ser), '2026-09-25')
+        a5 = zd._su_avg5(ser, ['2026-09-18', '2026-09-25'])
+        self.assertEqual([x[0] for x in a5], ['2026-09-18', '2026-09-25'])
+        d, lo, avg, hi = a5[-1]
+        self.assertLess(abs(avg / 3336 - 1), 0.002, f'średnia 5 lat {avg} vs EIA 3336 (raport z 01.10.2026)')
+        self.assertTrue(lo <= avg <= hi)
+        self.assertEqual(zd._su_avg5({k: v for k, v in ser.items() if k >= '2023-01-01'}, ['2026-09-25']), [], 'bez pełnych 5 lat — bez pasma')
+
+    def test_regula_q_skok_rozjazd_potwierdzenie(self):
+        W = dict(self.WTI, **{'2026-09-30': 97.18, '2026-10-01': 99.77, '2026-10-02': 97.89, '2026-10-05': 96.13, '2026-10-06': 96.24})
+        B = dict(self.BRENT, **{'2026-09-30': 115.91, '2026-10-01': 114.82, '2026-10-02': 135.51, '2026-10-05': 125.51, '2026-10-06': 125.44})
+        F = {'2026-10-01': 104.7, '2026-10-02': 104.6, '2026-10-05': 105.1}
+        q = zd.su_q(B, W, F)
+        self.assertEqual(q['wti'], [['2026-09-25', 'skok', 'niepotw']], 'WTI 85,23: −11,1% i odwrót +16,6% przy Brent −4,1%; brak drugiego źródła; '
+                                                                         '28.09 (+16,6% przy Brent +3,4%) to powrót po skoku, nie osobny rozjazd')
+        q4 = zd.su_q(B, dict(W, **{'2026-09-25': 95.0, '2026-09-28': 110.0}), F)['wti']
+        self.assertIn(['2026-09-28', 'rozjazd', 'niepotw'], q4, 'bez skoku dnia wcześniej — rozjazd zostaje'); self.assertIn(['2026-09-28', 'skok', 'niepotw'], q4)
+        self.assertEqual(q['brent'], [['2026-10-02', 'rozjazd', 'niepotw']], 'Brent +18,0% przy WTI −1,9%; kontrakt −0,1% — niepotwierdzone')
+        q2 = zd.su_q(B, W, dict(F, **{'2026-10-02': 121.0}))
+        self.assertEqual(q2['brent'][0][2], 'potw', 'kontrakt +15,6% w tę samą stronę — potwierdzone')
+        old = {'brent': [['2019-09-16', 'rozjazd', 'niepotw']], 'wti': []}
+        self.assertIn(['2019-09-16', 'rozjazd', 'niepotw'], zd.su_q(B, W, F, old)['brent'], 'punkt spoza danych nigdy nie znika')
+        W20 = {'2020-04-16': 19.82, '2020-04-17': 18.31, '2020-04-20': -36.98, '2020-04-21': 8.91, '2020-04-22': 13.64}
+        B20 = {'2020-04-16': 18.69, '2020-04-17': 19.75, '2020-04-20': 17.36, '2020-04-21': 9.12, '2020-04-22': 13.77}
+        q3 = zd.su_q(B20, W20, {})
+        self.assertNotIn('2020-04-20', [x[0] for x in q3.get('wti', [])], 'cena ujemna nie daje zmiany % — bez wyjątku')
+        H = {'d': {'wti': dict(W20), 'gas_nyh': {}, 'ulsd_nyh': {}}}
+        zd._su_crack(H)
+        self.assertEqual(H['d']['wti']['2020-04-20'], -36.98, 'prawdziwa skrajność zostaje (nic nie jest usuwane)')
+        self.assertIsNone(H['d']['crack321']['2020-04-20'], 'marża bez składników = null, nie 0')
+
+    def test_api_zastepuje_wstepne_i_kontrola_jednego_dnia(self):
+        ctx = {'H': {'w': {'us_crude': {'2026-09-25': 427.3, '2026-10-02': 424.1}, 'us_spr': {'2026-09-25': 283.7, '2026-10-02': 282.9}}},
+               'P': {'us_crude': {'2026-09-25', '2026-10-02'}, 'us_spr': {'2026-09-25', '2026-10-02'}}, 'kontr': {}, 'now_iso': 'T'}
+        zd._su_api_merge(ctx, 'w', {'us_crude': {'2026-09-25': 427.32, '2026-10-02': 424.134}, 'us_spr': {'2026-09-25': 283.767, '2026-10-02': 282.983}}, 'wpsr')
+        self.assertEqual(ctx['kontr']['wpsr'], {'d': '2026-10-02', 'at': 'T', 'wst': {'us_crude': 424.1, 'us_spr': 282.9}, 'api': {'us_crude': 424.134, 'us_spr': 282.983}},
+                         'najnowszy wspólny tydzień, wszystkie serie (nie tylko ostatnia)')
+        self.assertEqual((ctx['P'], ctx['H']['w']['us_spr']['2026-10-02']), ({'us_crude': set(), 'us_spr': set()}, 282.983), 'API wygrywa, znacznik wstępnej wartości znika')
+        zd._su_wstepne(ctx, 'w', 'us_crude', '2026-10-02', 999.0)
+        self.assertEqual(ctx['H']['w']['us_crude']['2026-10-02'], 424.134, 'plik nie nadpisuje dnia, który ma już API')
+
+    # ---- bramki (czas przypięty) ----
+    def test_bramki_kalendarz_publikacji(self):
+        U = datetime.timezone.utc
+        T = lambda *a: datetime.datetime(*a, tzinfo=U)   # noqa: E731
+        due = zd._su_due
+        z = {'at': '2026-10-07T10:00:00+00:00', 'try': '2026-10-07T14:05:00+00:00', 'asof': '2026-09-29'}
+        self.assertTrue(due('eia', z, T(2026, 10, 7, 14, 40), {}), 'środa po 14:00, API bez wtorku — co 30 min')
+        self.assertFalse(due('eia', z, T(2026, 10, 7, 14, 20), {}))
+        self.assertFalse(due('eia', {'at': '2026-10-08T05:00:00+00:00', 'try': '2026-10-08T05:00:00+00:00', 'asof': '2026-10-06'}, T(2026, 10, 8, 9, 0), {}),
+                         'czwartek, nowy tydzień już jest — co 12 h')
+        self.assertTrue(due('eia', {'at': '2026-10-07T18:00:00+00:00', 'asof': '2026-10-06'}, T(2026, 10, 8, 6, 1), {}), 'po 12 h')
+        dz = {'at': '2026-10-06T12:00:00+00:00', 'try': '2026-10-07T11:00:00+00:00', 'asof': '2026-10-05'}
+        self.assertTrue(due('eia_dz', dz, T(2026, 10, 7, 11, 40), {})); self.assertFalse(due('eia_dz', dz, T(2026, 10, 7, 15, 10), {}), 'po 15:00 — stop')
+        self.assertFalse(due('eia_dz', dict(dz, asof='2026-10-06'), T(2026, 10, 7, 12, 0), {}), 'jest poprzedni dzień roboczy — stop')
+        self.assertFalse(due('eia_dz', dz, T(2026, 10, 10, 12, 0), {}), 'sobota')
+        self.assertEqual(zd._su_dzien_rob(datetime.date(2026, 10, 12), -1), datetime.date(2026, 10, 9), 'poniedziałek → piątek')
+        ac = {'at': '2026-10-07T09:05:00+00:00', 'try': '2026-10-07T09:05:00+00:00'}
+        self.assertFalse(due('acer', ac, T(2026, 10, 7, 16, 50), {})); self.assertTrue(due('acer', ac, T(2026, 10, 7, 17, 0), {}), '17:00 — ocena dnia')
+        self.assertTrue(due('acer', {'at': '2026-10-07T17:00:00+00:00', 'try': '2026-10-07T17:00:00+00:00'}, T(2026, 10, 8, 9, 10), {}), '09:00 — benchmark dnia poprzedniego')
+        self.assertFalse(due('acer', dict(ac, at='2026-10-09T17:00:00+00:00'), T(2026, 10, 10, 12, 0), {}), 'weekend bez terminów')
+        nie = {'at': '2026-10-07T08:00:00+00:00', 'try': '2026-10-07T17:01:00+00:00', 'err': 'x'}
+        self.assertFalse(due('acer', nie, T(2026, 10, 7, 17, 30), {}), 'po nieudanej próbie po terminie — ponowienie po godzinie')
+        self.assertTrue(due('acer', nie, T(2026, 10, 7, 18, 2), {}))
+        self.assertFalse(due('td', {}, T(2026, 10, 10, 12, 0), {}), 'sobota — złoto nie jest notowane'); self.assertTrue(due('td', {}, T(2026, 10, 11, 22, 10), {}))
+        zd._TD_T[0] = zd.time.monotonic()
+        self.assertFalse(due('td', {}, T(2026, 10, 7, 12, 0), {}), 'inna paczka Twelve Data w tej minucie — limit 8 kredytów na minutę')
+        zd._TD_T[0] = None
+        fm = {'at': '2026-10-06T22:35:00+00:00', 'try': '2026-10-06T22:35:00+00:00'}
+        self.assertFalse(due('fmp', fm, T(2026, 10, 7, 21, 0), {})); self.assertTrue(due('fmp', fm, T(2026, 10, 7, 22, 40), {}), 'raz na dobę po 22:30')
+        wp = {'at': '2026-10-01T15:00:00+00:00', 'try': '2026-10-07T14:36:00+00:00', 'asof': '2026-09-25'}
+        self.assertTrue(due('wpsr', wp, T(2026, 10, 7, 14, 46), {}), 'środa od 14:35 — co przebieg, aż przyjdzie tydzień do 2.10')
+        self.assertFalse(due('wpsr', dict(wp, asof='2026-10-02', at='2026-10-07T14:46:00+00:00'), T(2026, 10, 7, 14, 56), {}))
+        st = {'st': {'wpsr': {'asof': '2026-10-02'}, 'wngsr': {'asof': '2026-09-25'}}}
+        et = {'at': '2026-10-05T00:00:00+00:00', 'try': '2026-10-07T14:50:00+00:00', 'asof': '2026-09-25', 'asof_g': '2026-09-25'}
+        self.assertTrue(due('eia_t', et, T(2026, 10, 7, 15, 51), st), 'plik ma nowszy tydzień niż API — co godzinę')
+        self.assertFalse(due('eia_t', dict(et, asof='2026-10-02'), T(2026, 10, 7, 15, 51), st), 'API dogoniło plik — raz na tydzień')
+        cf = {'at': '2026-10-09T18:00:00+00:00', 'try': '2026-10-09T19:40:00+00:00', 'asof': '2026-09-29'}
+        self.assertTrue(due('cftc', cf, T(2026, 10, 9, 20, 11), {'markets_asof': '2026-09-29'}), 'piątek po 19:30 bez nowego wtorku — co 30 min')
+        self.assertFalse(due('cftc', cf, T(2026, 10, 9, 20, 11), {'markets_asof': '2026-10-06'}))
+        self.assertFalse(due('cftc', {'at': '2026-10-23T18:00:00+00:00', 'try': '2026-10-23T19:50:00+00:00', 'asof': '2026-09-29'}, T(2026, 10, 23, 20, 11), {'markets_asof': '2026-09-29'}),
+                         'przerwa w pracy urzędu ponad 14 dni — co 6 h, nie co 30 min')
+        wb = {'at': '2026-09-03T10:00:00+00:00', 'try': '2026-10-02T09:00:00+00:00', 'asof': '2026-08'}
+        self.assertTrue(due('wb', wb, T(2026, 10, 2, 11, 5), {}), 'dni robocze na początku miesiąca, aż przyjdzie wrzesień — co 2 h')
+        self.assertFalse(due('wb', wb, T(2026, 10, 2, 10, 0), {})); self.assertFalse(due('wb', dict(wb, asof='2026-09', at='2026-10-02T11:05:00+00:00'), T(2026, 10, 5, 11, 5), {}))
+        self.assertTrue(due('wb', dict(wb, asof='2026-09'), T(2026, 10, 5, 11, 5), {}), 'poza oknem — raz na tydzień (poprawki wsteczne)')
+
+    def test_next_publikacja(self):
+        U = datetime.timezone.utc
+        now = datetime.datetime(2026, 10, 7, 17, 10, tzinfo=U)
+        out = {'st': {'wpsr': {'asof': '2026-10-02'}}, 'mies': {'asof': '2026-09'}, 'asof': '2026-09-29'}
+        self.assertEqual(zd._su_next('ceny', out, now), '2026-10-08T12:00:00+00:00')
+        self.assertEqual(zd._su_next('zapasy', out, now), '2026-10-14T14:30:00+00:00', 'raport z 7.10 już jest — następna środa')
+        self.assertEqual(zd._su_next('zapasy', {'st': {'wpsr': {'asof': '2026-09-25'}}}, now), '2026-10-07T14:30:00+00:00', 'zaległy (w przeszłości)')
+        self.assertEqual(zd._su_next('mies', out, now), '2026-11-03T12:00:00+00:00', '2. dzień roboczy listopada')
+        self.assertEqual(zd._su_next('markets', out, now), '2026-10-09T19:30:00+00:00')
+        self.assertEqual(zd._su_next('ceny', out, datetime.datetime(2026, 10, 9, 13, 0, tzinfo=U)), '2026-10-12T12:00:00+00:00', 'piątek po publikacji → poniedziałek')
+
+    # ---- całość na nagraniach ----
+    def test_caly_przebieg_v2_zgodnosc_wstecz(self):
+        out, h, zm, calls = self.build(prev={'at': '2026-10-03T00:10:00+00:00', 'markets': {'gold': {}}, 'asof': '2026-09-22'})
+        for k in ('at', 'src', 'url', 'data_url', 'unit', 'asof', 'order', 'markets'):
+            self.assertIn(k, out, 'klucz v92 bez zmian')
+        self.assertEqual((out['v'], out['asof'], sorted(out['markets'])), (2, '2026-09-29', ['copper', 'gold', 'silver', 'wti']))
+        self.assertEqual(out['ok'], {'ceny': True, 'zapasy': True, 'mies': True, 'markets': True}, out.get('err'))
+        self.assertEqual(set(out['part_at'].values()), {self.NOW.isoformat()}); self.assertEqual(out['at'], self.NOW.isoformat())
+        self.assertEqual(out['next'], {'ceny': '2026-10-08T12:00:00+00:00', 'zapasy': '2026-10-14T14:30:00+00:00',
+                                       'mies': '2026-11-03T12:00:00+00:00', 'markets': '2026-10-09T19:30:00+00:00'})
+        self.assertEqual(zm, {s for s, _ in zd.SU_ZR})
+        n = {u.split('?')[0].split('/data/')[0] for u, _, _ in calls if u.startswith(zd.EIA_API)}
+        self.assertEqual(len([u for u, _, _ in calls if u.startswith(zd.EIA_API + 'petroleum/pri/spt/')]), 1, 'ceny spot EIA — jedno zapytanie')
+        self.assertEqual(len(n), 4, 'EIA: spot, Henry Hub, zapasy, gaz w magazynach')
+        C = out['ceny']
+        self.assertEqual(set(C), {c for c, *_ in zd.SU_CENY})
+        b = C['brent']
+        self.assertEqual((b['g'], b['u'], b['f'], b['z'], b['d'][-1], b['pre']), ('en', 'USD/bbl', 'D', 'eia', ['2026-10-06', 125.44], ['2026-10-06']),
+                         'API do 29.09 + strona dzienna 6.10 (T+1, wstępnie)')
+        self.assertEqual(C['wti']['q'], [['2026-09-25', 'skok', 'niepotw']])
+        self.assertEqual((C['ttf']['x'], C['ttf']['d'][-2:]), (['wyl'], [['2026-10-06', 75.691], ['2026-10-07', None]]))
+        self.assertEqual(C['gold']['live'], {'v': 4171.35, 'at': '2026-10-07T15:40:00+00:00', 'z': 'td'})
+        self.assertEqual((C['gold']['d'][-1], C['gold']['x']), (['2026-10-06', round(381.025846 / 0.09167208, 2)], ['wyl']))
+        self.assertEqual((C['silver']['x'], C['silver']['d'][-1]), (['kontr'], ['2026-10-06', 64.11]))
+        self.assertEqual((C['copper']['d'], C['uran']['d'], C['uran']['x']), ([['2026-10-06', 14627.0]], [['2026-10-06', 89.62]], ['wyl', 'fund']))
+        self.assertEqual(C['crack321']['d'][-3:], [['2026-09-28', round((2 * 3.418 + 4.91) * 14 - 99.37, 2)],
+                                                  ['2026-09-29', round((2 * 3.329 + 4.999) * 14 - 96.16, 2)], ['2026-10-06', None]],
+                         'marża 3:2:1 — dzień bez benzyny NYH (strona dzienna podaje RBOB) = null')
+        self.assertEqual(C['hh']['d'][-1], ['2026-10-06', 3.03])
+        Z = out['zapasy']
+        self.assertEqual((Z['us_crude']['d'][-3:], Z['us_crude']['pre']), ([['2026-09-18', 426.398], ['2026-09-25', 427.32], ['2026-10-02', 424.134]], ['2026-10-02']),
+                         'plik raportu ma 2.10 przed API — wartość wstępna')
+        self.assertEqual(Z['us_cushing']['d'], [['2026-09-18', 23.748], ['2026-09-25', 24.301]], 'Cushing tylko z API')
+        self.assertEqual((Z['us_gas']['u'], Z['us_gas']['d'], Z['us_gas']['avg5_zr']), ('Bcf', [['2026-09-18', 3351.0], ['2026-09-25', 3415.0]], ['2026-09-25', 3336.0]))
+        self.assertEqual(out['kontr']['wpsr'], {'d': '2026-09-25', 'at': self.NOW.isoformat(), 'wst': {'us_crude': 427.32, 'us_spr': 283.767, 'us_gasoline': 204.362,
+                                                 'us_jet': 43.612, 'us_dist': 105.18}, 'api': {'us_crude': 427.32, 'us_spr': 283.767, 'us_gasoline': 204.362,
+                                                 'us_jet': 43.612, 'us_dist': 105.18}}, 'plik i API, ten sam tydzień — do kontroli')
+        M = out['mies']
+        self.assertEqual((M['asof'], M['pub'], M['s']['ropa']['d'][-1], M['s']['kobalt']['x'], M['s']['kobalt']['staly']),
+                         ('2026-09', '2026-10-02', ['2026-09', 102.3], ['niepewny'], [['2026-02', '2026-08']]))
+        self.assertEqual((M['ix']['fao']['d'][-1], M['ix']['fao']['u'], M['k']['zloto_mfw']['d'][-1][1]), (['2026-09', 136.0], 'indeks (2014-2016=100)', 4334.7467))
+        self.assertIsNone(dict(M['s']['kakao']['d'])['2026-08'])
+        txt = json.dumps([out, h, zd.META], ensure_ascii=False)
+        for k in (self.KEY, self.TDK, self.FMPK):
+            self.assertNotIn(k, txt, 'klucz nigdy w plikach ani w meta')
+        for part in (out['ceny'], out['zapasy']):
+            for e in part.values():
+                self.assertFalse([x for x in e['d'] if x[1] == 0], 'brak = null, nigdy 0')
+        self.assertEqual(len(h['d']['brent']), 12); self.assertEqual(h['m']['lit'][-1], ['2026-09', 144778.55]); self.assertEqual(h['at'], out['at'])
+        self.assertLess(len(json.dumps(out, separators=(',', ':'))), 60000)
+        self.assertEqual(zd.META['errors'], [])
+        # drugi przebieg 10 min później: żadne źródło nie jest należne — te same dane i ten sam czas „at” (plik nie zmienia się bez nowych danych)
+        out2, h2, zm2, calls2 = self.build(out, h, now=self.NOW + datetime.timedelta(minutes=10))
+        self.assertEqual((calls2, zm2), ([], set()))
+        self.assertEqual(out2['ok'], {p: 'cached' for p in zd.SU_PARTS}); self.assertEqual(out2['at'], out['at'])
+        self.assertEqual(json.dumps([out2['ceny'], out2['zapasy'], out2['mies'], out2['markets']]), json.dumps([out['ceny'], out['zapasy'], out['mies'], out['markets']]))
+        self.assertEqual(json.dumps(h2), json.dumps(h))
+        # API dostaje tydzień (środa wieczorem): wartości wstępne strony zastąpione, różnica do kontroli
+        sp = self.spot_rows(); sp['response']['data'] += [{'period': '2026-10-06', 'series': 'RBRTE', 'value': '125.44', 'units': '$/BBL'},
+                                                          {'period': '2026-10-06', 'series': 'EER_EPD2DXL0_PF4_Y35NY_DPG', 'value': '4.713', 'units': '$/GAL'}]
+        out3, h3, zm3, _ = self.build(out2, h2, now=self.NOW + datetime.timedelta(minutes=50), spot=sp)
+        self.assertIn('eia', zm3); self.assertNotIn('pre', out3['ceny']['brent']); self.assertEqual(out3['ceny']['ulsd_nyh']['d'][-1], ['2026-10-06', 4.713])
+        self.assertEqual(out3['st']['eia']['asof_hh'], '2026-09-29')
+        for st, n in (({'asof': '2026-09-29', 'asof_hh': '2026-09-29'}, 1), ({'asof': '2026-09-22', 'asof_hh': '2026-09-22'}, 2)):
+            fetch, calls = self.siec()
+            ctx = {'now': self.NOW, 'now_iso': 'T', 'keys': self.keys(), 'H': {'d': {}}, 'P': {}, 'kontr': {}, 'st': {'eia': dict(st)},
+                   'bledy': [], 'uwagi': [], 'fetch': fetch}
+            self.assertEqual(zd._su_eia(ctx), '2026-09-29')
+            self.assertEqual(len(calls), n, 'ceny spot bez nowego dnia — bez drugiego zapytania o gaz z tego samego wydania (ok. 16 s mniej)')
+            self.assertEqual(ctx['st']['eia']['asof_hh'], '2026-09-29')
+        self.assertEqual(out3['kontr']['eia_dz']['d'], '2026-10-06'); self.assertEqual(out3['kontr']['eia_dz']['wst']['ulsd_nyh'], 4.71)
+        self.assertEqual(out3['ceny']['wti']['pre'], ['2026-10-06'], 'WTI z 6.10 jeszcze tylko ze strony dziennej')
+
+    def test_czesc_z_bledem_zostaje_z_data(self):
+        out, h, _, _ = self.build()
+        zd.META['errors'].clear()
+        t = datetime.datetime(2026, 10, 8, 9, 5, tzinfo=datetime.timezone.utc)
+        out2, h2, zm, calls = self.build(out, h, now=t, fail=('aegis.acer',))
+        self.assertTrue(any('aegis.acer' in u for u, _, _ in calls))
+        self.assertIs(out2['ok']['ceny'], False); self.assertIn('acer: HTTP Error 503', out2['err']['ceny'])
+        self.assertEqual(out2['ceny']['lng_eu'], out['ceny']['lng_eu'], 'poprzednie dane z ich datą')
+        self.assertEqual(out2['part_at']['ceny'], t.isoformat(), 'inne źródła ceny (złoto, notowanie) udane — czas części nowy')
+        self.assertIn('acer: HTTP Error 503', out2['st']['acer']['err']); self.assertEqual(out2['st']['acer']['at'], self.NOW.isoformat())
+        self.assertTrue(any(e.startswith('surowce acer: HTTP Error 503') for e in zd.META['errors']))
+        out3, _, _, _ = self.build(out2, h2, now=t + datetime.timedelta(hours=1, minutes=1))
+        self.assertIs(out3['ok']['ceny'], True); self.assertNotIn('ceny', out3['err']); self.assertNotIn('err', out3['st']['acer'])
+
+    def test_budzet_spozniony_przebieg_i_brak_kluczy(self):
+        out, h, zm, calls = self.build(budzet_s=0)
+        self.assertEqual((calls, zm), ([], set())); self.assertEqual(out['ok'], {p: False for p in zd.SU_PARTS})
+        self.assertTrue(any('budżet czasu' in n for n in zd.META['notes']))
+        zd.META['notes'].clear()
+        out, h, zm, calls = self.build(run_t0=zd.time.monotonic() - zd.SU_LATE - 5)
+        self.assertEqual(zm & zd.SU_CIEZKIE, set(), 'długi przebieg: ciężkie źródła w następnym'); self.assertIn('acer', zm)
+        self.assertTrue(any('długi przebieg' in n for n in zd.META['notes']))
+        zd.META['notes'].clear()
+        out, h, zm, calls = self.build(keys={})
+        self.assertEqual(zm & {'eia', 'eia_t', 'td', 'fmp'}, set()); self.assertIn('eia_dz', zm)
+        self.assertTrue(any('brak EIA_KEY' in n and 'brak FMP_KEY' in n for n in zd.META['notes']))
+        self.assertEqual(out['ceny']['wti']['d'], [['2026-10-06', 96.24]], 'bez klucza — tylko strona dzienna (bez zer w miejscu braków)')
+
+    def test_sprott_skok_odrzucony(self):
+        hist = {'d': {'uran': [['2026-10-05', 60.0]], 'copper': [['2026-10-05', 14500.0]]}}
+        out, h, zm, _ = self.build(hist=hist)
+        self.assertEqual(out['ceny']['uran']['d'], [['2026-10-05', 60.0]], '60 → 89,62 (+49%) — punkt odrzucony, poprzedni zostaje')
+        self.assertEqual(out['ceny']['copper']['d'][-1], ['2026-10-06', 14627.0])
+        self.assertIs(out['ok']['ceny'], False); self.assertIn('sprott uran', out['err']['ceny'])
+        zamiana = [self.SPROTT[i] for i in (0, 4, 2, 3, 1, 5)] + self.SPROTT[6:]   # PSLV ↔ SPUT: zakresy cen się nakładają, podpis listy ten sam
+        fetch, _ = self.siec()
+        f2 = lambda url, t, h=None: json.dumps(zamiana).encode() if url == zd.SU_SPROTT_URL else fetch(url, t, h)   # noqa: E731
+        out2, _, zm2 = zd.build_surowce(None, {'d': {'silver': [['2026-10-02', 62.9]]}}, self.keys(), now=self.NOW, fetch=f2)
+        self.assertNotIn('sprott', zm2); self.assertNotIn('uran', out2['ceny'], 'srebro z listy (89,62) ≠ srebro z kontraktu (62,9) — cała odpowiedź odrzucona')
+        self.assertIn('silver z listy 89.62', out2['st']['sprott']['err'])
+
+    # ---- energia.json z tego samego pobrania, TRENDY, licznik FMP, main() ----
+    def test_energia_te_same_liczby(self):
+        out, h, _, _ = self.build()
+        e = zd.energia_z_surowcow(out, None)
+        self.assertEqual(e['s']['wti']['d'], [x for x in out['ceny']['wti']['d'] if x[1] is not None])
+        self.assertEqual(e['s']['brent']['d'][-1], ['2026-10-06', 125.44]); self.assertEqual(e['s']['gas']['d'], out['ceny']['hh']['d'])
+        self.assertEqual(e['s']['crude']['d'][-1], ['2026-10-02', 424134]); self.assertEqual(e['s']['spr']['unit'], 'MBBL')
+        self.assertEqual((e['s']['wti']['id'], e['s']['gas']['unit']), ('RWTC', '$/MMBTU'), 'pola jak dotąd (panel USA)')
+        zd._SU_RUN['su'] = out
+        with mock.patch.object(zd, 'get_json', side_effect=AssertionError('energia nie pyta API osobno')):
+            self.assertEqual(zd.build_energia(self.KEY, None)['s'], e['s'])
+        zd._SU_RUN.clear()
+        with mock.patch.object(zd, 'get_json', side_effect=RuntimeError('offline')):
+            self.assertRaises(RuntimeError, zd.build_energia, self.KEY, None)   # bez surowców v2 — dawna ścieżka (osobne zapytania)
+
+    def test_trendy_stala_tr_cs(self):
+        out, _, _, _ = self.build()
+        now = mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 10, 7, 12, 0, tzinfo=datetime.timezone.utc))
+        with now:
+            a = [r for r in zd.build_trendy({'surowce': out})['f'] if r['id'].startswith('cs_')]
+            with mock.patch.object(zd, 'TR_CS', tuple(zd.CFTCD_MARKETS)):   # dawna pętla po CFTCD_MARKETS
+                b = [r for r in zd.build_trendy({'surowce': out})['f'] if r['id'].startswith('cs_')]
+            ext = json.loads(json.dumps(out)); ext['markets']['platinum'] = ext['markets']['gold']
+            with mock.patch.dict(zd.CFTCD_MARKETS, {'platinum': '076651'}):
+                c = [r for r in zd.build_trendy({'surowce': ext})['f'] if r['id'].startswith('cs_')]
+        self.assertEqual(json.dumps(a), json.dumps(b), 'te same wiersze cs_* co przed zmianą')
+        self.assertEqual([r['id'] for r in a], ['cs_gold', 'cs_silver', 'cs_copper', 'cs_wti'])
+        self.assertEqual(json.dumps(c), json.dumps(a), 'rozszerzenie CFTC nie zmienia TRENDÓW po cichu')
+
+    def test_licznik_fmp_i_minuta_td(self):
+        zd._ZUZ.clear()
+        zd._zuz_licz('https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=SIUSD&from=2026-09-26&apikey=k')
+        zd._zuz_licz('https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=%5EGSPC&from=2026-09-26&apikey=k')
+        self.assertIsNone(zd._TD_T[0])
+        zd._zuz_licz('https://api.twelvedata.com/quote?symbol=XAU/USD&apikey=k')
+        self.assertEqual(zd._ZUZ, {'fmp': 2, 'td': 1}); self.assertIsNotNone(zd._TD_T[0], 'chwila zapytania do Twelve Data zapamiętana')
+        a = zd.zuzycie(None, {'fmp': 3}, '2026-10-07T22:40:00+00:00')
+        self.assertEqual((a['fmp']['n'], a['fmp']['d']), (3, '2026-10-07'))
+        zd._ZUZ.clear()
+
+    def test_main_surowce_i_energia(self):
+        out, h, _, _ = self.build()
+        saved, calls = {}, []
+        fresh_e = {'at': _iso(5), 's': {'wti': {'d': [['2026-09-29', 96.16]]}}}   # młodsza niż 6 h według zegara (fresh() liczy od teraz)
+        prev = {'energia': fresh_e, 'bilans-usa': {'at': _iso(5), 'ita': {}}, 'usa-makro': {'at': _iso(5), 's': {}}}
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in (
+            'build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
+            'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
+            'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
+            'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
+        for zm, want_new in (({'eia'}, True), (set(), False)):
+            saved.clear(); calls.clear()
+            for s in stubs:
+                s.start()
+            try:
+                with mock.patch.dict(os.environ, {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': '', 'FMP_KEY': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), mock.patch.object(zd, 'previous', lambda n: prev.get(n)), \
+                        mock.patch.object(zd, '_prev_cache', lambda n: None), mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez sieci')), \
+                        mock.patch.object(zd, 'build_surowce', lambda *a, **k: calls.append(k.get('run_t0')) or (out, h, set(zm))):
+                    zd.main()
+            finally:
+                for s in stubs:
+                    s.stop()
+            self.assertIs(saved['surowce'], out); self.assertIs(saved['surowce-hist'], h)
+            self.assertEqual({k: zd.META['ok'][k] for k in ('surowce', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies')},
+                             {'surowce': True, 'surowce_ceny': True, 'surowce_zapasy': True, 'surowce_mies': True})
+            if want_new:
+                self.assertEqual(saved['energia']['s']['brent']['d'][-1], ['2026-10-06', 125.44], 'nowe dane EIA w surowcach — energia od razu, z tych samych liczb')
+            else:
+                self.assertIs(saved['energia'], fresh_e, 'bez nowych danych EIA — młoda energia.json z pamięci')
+            self.assertEqual(zd._SU_RUN, {}, 'po przebiegu bez stanu (inne testy budują energię same)')
+            self.assertIsNotNone(calls[0], 'budowniczy dostaje początek przebiegu (budżet czasu)')
+
+    # ---- kontrola dzienna ----
+    def test_kontrola_swiezosc_porownania_spojnosc(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v295', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        self.assertIn('surowce', k.PLIKI); self.assertIn('surowce-hist', k.PLIKI); self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
+        self.assertEqual((k.LIMIT_MIN['surowce'], k.LIMIT_MIN['surowce-hist']), (24 * 60, 48 * 60))
+        self.assertNotIn('surowce', [x[1] for x in k.SWIEZOSC], 'lista SWIEZOSC bez zmian — osobne wiersze części (najwyżej ⚠️)')
+        self.assertTrue({'surowce_ceny', 'surowce_zapasy', 'surowce_mies'} <= set(k.AW_BEZ_BLEDU))
+        self.assertEqual([x for x in k.ZUZ_PLANY if x[0] == 'fmp'], [('fmp', 'FMP (darmowy)', 'doba', 250, 'zapytań')])
+        out, _, _, _ = self.build()
+        rows = {r[0]: r for r in k.surowce_swiezosc(out, self.NOW + datetime.timedelta(hours=1))}
+        self.assertEqual(len(rows), 6); self.assertEqual({r[1] for r in rows.values()}, {'✅'}, rows)
+        stare = {r[0]: r for r in k.surowce_swiezosc(out, datetime.datetime(2026, 10, 24, 12, 0, tzinfo=datetime.timezone.utc))}
+        self.assertNotIn(k.SU_ETYKIETA['live'], stare, 'sobota — złoto nie jest notowane, bez wiersza')
+        self.assertNotIn('❌', {r[1] for r in stare.values()}, 'najwyżej uwaga, nigdy ❌')
+        self.assertEqual([stare[k.SU_ETYKIETA[x]][1] for x in ('ceny', 'zloto', 'zapasy', 'mies', 'markets')], ['⚠️', '⚠️', '⚠️', '✅', '⚠️'], 'wrzesień: 23 dni < 45')
+        self.assertIn('zaległa', stare[k.SU_ETYKIETA['zapasy']][4])
+        self.assertEqual((k.surowce_swiezosc({'at': 'x', 'markets': {}}), k.surowce_swiezosc(None)), ([], []), 'plik sprzed v2 — bez wierszy')
+        sept = [d.isoformat() for d in (datetime.date(2026, 9, 1) + datetime.timedelta(days=i) for i in range(30)) if d.weekday() < 5]
+        j = {'v': 2, 'asof': '2026-09-29', 'ok': {'ceny': True, 'zapasy': False},
+             'ceny': {'gold': {'u': 'USD/oz', 'd': [[d, 4334.75 * 1.003] for d in sept] + [['2026-10-01', 4150.0]]},
+                      'brent': {'u': 'USD/bbl', 'd': [[d, 116.8 * 1.05] for d in sept] + [['2026-10-01', 114.8]], 'q': [['2026-10-02', 'rozjazd', 'niepotw']]},
+                      'wti': {'u': 'USD/bbl', 'd': [[d, 96.9] for d in sept] + [['2026-10-01', 99.77]], 'q': [['2026-09-25', 'skok', 'niepotw'], ['2026-03-02', 'skok', 'niepotw']]},
+                      'brent_fut': {'u': 'USD/bbl', 'd': [['2026-09-30', 104.0], ['2026-10-01', 104.7]]}},
+             'zapasy': {'us_gas': {'u': 'Bcf', 'd': [['2026-09-25', 3415]], 'avg5': [['2026-09-25', 3200.0, 3334.5, 3500.0]], 'avg5_zr': ['2026-09-25', 3336]}},
+             'mies': {'asof': '2026-09', 's': {'ropa_brent': {'d': [['2026-09', 116.8]]}, 'ropa_wti': {'d': [['2026-09', 96.9]]}, 'miedz': {'d': [['2026-09', 14474]]}},
+                      'k': {'zloto_mfw': {'d': [['2026-09', 4334.75]]}, 'miedz_mfw': {'d': [['2026-09', 14473.06]]}}},
+             'kontr': {'wpsr': {'d': '2026-10-02', 'wst': {'us_crude': 424.134}, 'api': {'us_crude': 424.2}},
+                       'eia_dz': {'d': '2026-10-06', 'wst': {'ulsd_nyh': 4.71}, 'api': {'ulsd_nyh': 4.713}}}}
+        P = k.surowce_porownania(j, datetime.datetime(2026, 10, 8, 6, 20, tzinfo=datetime.timezone.utc))
+        W = dict((o.split(' (')[0].split(':')[0], zn) for o, zn in P['wiersze'])
+        self.assertEqual((W['złoto 2026-09'], W['ropa Brent 2026-09'], W['ropa WTI 2026-09'], W['miedź 2026-09']), ('✅', '⚠️', '✅', '✅'), P['wiersze'])
+        self.assertEqual((W['zapasy ropy i paliw'], W['ceny'], W['gaz w magazynach USA, średnia 5 lat 2026-09-25']), ('⚠️', '✅', 'ℹ️'), 'plik vs API: każda różnica; strona dzienna do 0,01 USD')
+        self.assertTrue(any(o.startswith('złoto 2026-09') and '+0,30%' in o for o, _ in P['wiersze']))
+        self.assertEqual(len([u for u in P['uwagi'] if 'punkt do sprawdzenia' in u]), 2, 'niepotwierdzone punkty z 14 dni (stary z marca — nie)')
+        self.assertTrue(any('ropa Brent 2026-09' in u and '+5,00%' in u for u in P['uwagi']))
+        R = {'bledy': [], 'uwagi': []}
+        z = k.surowce_kontrola(j, R)
+        self.assertEqual((R['bledy'], z['czesci_bez_odpowiedzi'], z['spojnosc']), ([], ['zapasy'], []), 'porównania — najwyżej uwagi')
+        zly = json.loads(json.dumps(j)); zly['ceny']['wti']['d'][3][1] = 0; zly['ceny']['gold']['u'] = 'USD/g'
+        zly['zapasy']['us_gas']['avg5'][0][1] = 3600.0; zly['ceny']['brent']['d'][5][0] = '2026-09-01'
+        R2 = {'bledy': [], 'uwagi': []}
+        k.surowce_kontrola(zly, R2)
+        self.assertEqual(len(R2['bledy']), 4, R2['bledy']); self.assertTrue(all(b.startswith('surowce.json: sprzeczność w pliku — ') for b in R2['bledy']))
+        self.assertIsNone(k.surowce_kontrola({'at': 'x'}, R2))
+        md = k.raport_md({'at': '2026-10-08T06:20:00+00:00', 'wynik': 'UWAGA', 'bledy': [], 'uwagi': P['uwagi'], 'zgodnosc': {'surowce': z}})
+        self.assertIn('- Surowce (porównania z pliku strony):', md); self.assertIn('ropa Brent 2026-09', md)
+
+    # ---- poprawki po przeglądzie łatki (1 średnia, 3 niskie, 2 drobne) ----
+    @staticmethod
+    def _kontrola():
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v295p', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def test_kontrola_zapasy_prog_13_dni(self):
+        # tydzień do piątku 2.10, raport w środę 14.10 (14:30 UTC): pn–śr przed raportem bez uwagi (dawny próg 9 dni dawał ⚠️ co tydzień
+        # od poniedziałku do środy rano — 45% kontroli w teście wstecznym 2021–2026); czwartek = raport po święcie (norma); piątek = zaległy
+        k = self._kontrola()
+        self.assertEqual(k.SU_PROG['zapasy'], ('w', 13 * 24 * 60))
+        out, _, _, _ = self.build()
+        self.assertEqual((out['zapasy']['us_crude']['d'][-1][0], out['next']['zapasy']), ('2026-10-02', '2026-10-14T14:30:00+00:00'))
+        U, lab = datetime.timezone.utc, k.SU_ETYKIETA['zapasy']
+        for t, st in (((2026, 10, 12, 8, 36), '✅'), ((2026, 10, 13, 6, 20), '✅'), ((2026, 10, 14, 8, 36), '✅'), ((2026, 10, 14, 14, 25), '✅'),
+                      ((2026, 10, 15, 8, 36), '✅'), ((2026, 10, 15, 23, 50), '✅'), ((2026, 10, 16, 8, 36), '⚠️')):
+            r = {x[0]: x for x in k.surowce_swiezosc(out, datetime.datetime(*t, tzinfo=U))}[lab]
+            self.assertEqual(r[1], st, (t, r))
+        self.assertIn('zaległa', r[4]); self.assertIn('próg 13 d', r[4])
+        R = {'uwagi': [], 'bledy': []}
+        for label, st, w, txt, note in k.surowce_swiezosc(out, datetime.datetime(2026, 10, 13, 8, 36, tzinfo=U)):
+            if st == '⚠️' and label == lab:
+                R['uwagi'].append(label)
+        self.assertEqual(R['uwagi'], [], 'wtorek przed raportem — bez uwagi (wynik dnia nie „UWAGA” z tego powodu)')
+
+    def test_kontr_eia_dz_ceny_i_henry_hub_jeden_wpis(self):
+        # ten sam dzień wstępny w cenach spot i w Henry Hub (to samo wydanie API): drugie wywołanie dopisuje gaz, nie kasuje ropy i paliw
+        ctx = {'H': {'d': {'wti': {'2026-10-06': 96.24}, 'hh': {'2026-10-06': 3.03}}}, 'P': {'wti': {'2026-10-06'}, 'hh': {'2026-10-06'}},
+               'kontr': {}, 'now_iso': 'T'}
+        zd._su_api_merge(ctx, 'd', {'wti': {'2026-10-06': 96.25}}, 'eia_dz')
+        zd._su_api_merge(ctx, 'd', {'hh': {'2026-10-06': 3.05}}, 'eia_dz')
+        self.assertEqual(ctx['kontr']['eia_dz'], {'d': '2026-10-06', 'at': 'T', 'wst': {'hh': 3.03, 'wti': 96.24}, 'api': {'hh': 3.05, 'wti': 96.25}})
+        ctx['H']['d']['hh']['2026-10-05'] = 3.0; ctx['P']['hh'] = {'2026-10-05'}
+        zd._su_api_merge(ctx, 'd', {'hh': {'2026-10-05': 3.01}}, 'eia_dz')
+        self.assertEqual(ctx['kontr']['eia_dz']['d'], '2026-10-06', 'starszy dzień nie zastępuje nowszego wpisu')
+        ctx['H']['d']['hh']['2026-10-07'] = 3.1; ctx['P']['hh'] = {'2026-10-07'}
+        zd._su_api_merge(ctx, 'd', {'hh': {'2026-10-07': 3.12}}, 'eia_dz')
+        self.assertEqual(ctx['kontr']['eia_dz'], {'d': '2026-10-07', 'at': 'T', 'wst': {'hh': 3.1}, 'api': {'hh': 3.12}}, 'nowszy dzień — nowy wpis')
+        # przez _su_eia (symulacja przeglądu: spot i Henry Hub z 6.10 — dawniej w kontroli zostawał tylko gaz)
+        sp = self.spot_rows(); sp['response']['data'] += [{'period': '2026-10-06', 'series': 'RBRTE', 'value': '125.44', 'units': '$/BBL'},
+                                                          {'period': '2026-10-06', 'series': 'RWTC', 'value': '96.24', 'units': '$/BBL'},
+                                                          {'period': '2026-10-06', 'series': 'EER_EPD2DXL0_PF4_Y35NY_DPG', 'value': '4.713', 'units': '$/GAL'}]
+        fetch, calls = self.siec(spot=sp)
+        hh = json.dumps(self.api([('2026-10-06', 'RNGWHHD', '3.05')] + [(d, 'RNGWHHD', v) for d, v in self.HH], '$/MMBTU')).encode()
+        f2 = lambda url, t, h=None: hh if url.startswith(zd.EIA_API + 'natural-gas/pri/fut/') else fetch(url, t, h)   # noqa: E731
+        pre = {'wti': 96.24, 'brent': 125.44, 'ulsd_nyh': 4.71, 'propan': 0.88, 'hh': 3.03}
+        ctx = {'now': self.NOW, 'now_iso': 'T', 'keys': self.keys(), 'H': {'d': {c: {'2026-10-06': v} for c, v in pre.items()}},
+               'P': {c: {'2026-10-06'} for c in pre}, 'kontr': {}, 'st': {}, 'bledy': [], 'uwagi': [], 'fetch': f2}
+        self.assertEqual(zd._su_eia(ctx), '2026-10-06')
+        K = ctx['kontr']['eia_dz']
+        self.assertEqual((K['d'], sorted(K['wst']), K['api']), ('2026-10-06', ['brent', 'hh', 'ulsd_nyh', 'wti'],
+                                                              {'brent': 125.44, 'hh': 3.05, 'ulsd_nyh': 4.713, 'wti': 96.24}))
+        self.assertEqual(ctx['P']['propan'], {'2026-10-06'}, 'propan 6.10 jeszcze bez API — zostaje wstępny, poza kontrolą')
+        k = self._kontrola()
+        W = k.surowce_porownania({'v': 2, 'kontr': ctx['kontr']}, self.NOW)['wiersze']
+        self.assertEqual([(o, zn) for o, zn in W if o.startswith('ceny: strona dzienna')],
+                         [('ceny: strona dzienna vs API, 2026-10-06: porównane 4 serii, różne: hh 3.03 vs 3.05', '⚠️')], 'olej napędowy 4,71 vs 4,713 — w tolerancji 0,01 USD')
+
+    def test_zloto_teraz_bez_serii_dziennej(self):
+        # archiwum funduszu (seria dzienna złota) z błędem przy pierwszym przebiegu: notowanie z Twelve Data (zużyty kredyt) zostaje w stanie źródła
+        out, h, zm, _ = self.build(fail=('spdrgoldshares',))
+        self.assertIn('td', zm); self.assertNotIn('gold', out['ceny'])
+        lv = {'v': 4171.35, 'at': '2026-10-07T15:40:00+00:00', 'z': 'td'}
+        self.assertEqual(out['st']['td']['live'], lv)
+        keys = {k: v for k, v in self.keys().items() if k != 'TWELVEDATA_KEY'}   # następny przebieg bez notowania — odtworzenie ze stanu źródła
+        out2, _, zm2, calls2 = self.build(out, h, now=self.NOW + datetime.timedelta(minutes=61), keys=keys)
+        self.assertIn('gld', zm2); self.assertFalse([u for u, _, _ in calls2 if 'twelvedata' in u])
+        self.assertEqual(out2['ceny']['gold']['live'], lv, 'notowanie wraca do ceny.gold.live, gdy seria dzienna się pojawi')
+
+    def test_sprott_stary_punkt_odniesienia(self):
+        # odniesienie sprzed 2 miesięcy (przerwa źródła): zmiana > 25% przyjęta z notatką (dawniej odrzucana przy każdym pobraniu — bez końca)
+        out, h, zm, _ = self.build(hist={'d': {'uran': [['2026-08-03', 60.0]], 'copper': [['2026-09-29', 10000.0]]}})
+        self.assertEqual(out['ceny']['uran']['d'], [['2026-08-03', 60.0], ['2026-10-06', 89.62]])
+        self.assertEqual(out['ceny']['copper']['d'], [['2026-09-29', 10000.0]], 'odniesienie sprzed 7 dni (+46%) — nadal odrzucone (zmiana kolejności listy?)')
+        self.assertIs(out['ok']['ceny'], False); self.assertIn('sprott copper', out['err']['ceny']); self.assertNotIn('sprott uran', out['err']['ceny'])
+        self.assertTrue(any('sprott uran: 60.0 (2026-08-03) → 89.62' in n and 'przyjęte bez sprawdzenia skoku' in n for n in zd.META['notes']))
+
+    def test_eia_t_doganianie_tylko_ostatnie_tygodnie(self):
+        # doganianie pliku raportu (co godzinę w środę i czwartek): tylko ostatnie SU_TYG_DOGON dni; pełne 6 lat raz na 7 dni albo przy krótkiej historii
+        full = {d.isoformat(): 400.0 for d in (datetime.date(2020, 9, 4) + datetime.timedelta(days=7 * i) for i in range(316))}   # do 18.09.2026
+
+        def run(pelne, hist):
+            fetch, calls = self.siec()
+            st = {'eia_t': {'pelne': pelne} if pelne else {}}
+            ctx = {'now': self.NOW, 'now_iso': self.NOW.isoformat(), 'keys': self.keys(), 'H': {'w': {c: dict(hist) for c in ('us_crude', 'us_gas')}},
+                   'P': {}, 'kontr': {}, 'st': st, 'bledy': [], 'uwagi': [], 'fetch': fetch}
+            self.assertEqual(zd._su_eia_t(ctx), '2026-09-25')
+            starts = [zd.urllib.parse.parse_qs(zd.urllib.parse.urlparse(u).query)['start'][0] for u, _, _ in calls]
+            return starts, st['eia_t'].get('pelne'), ctx
+        dz = (self.NOW.date() - datetime.timedelta(days=zd.SU_TYG_DOGON)).isoformat()
+        pe = (self.NOW.date() - datetime.timedelta(days=365 * zd.SU_TYG_LAT + 7)).isoformat()
+        wczoraj = (self.NOW - datetime.timedelta(days=1)).isoformat()
+        starts, p, ctx = run(wczoraj, full)
+        self.assertEqual((starts, p), ([dz, dz], wczoraj), 'pełna historia sprzed doby — dwa krótkie zapytania')
+        self.assertEqual(ctx['H']['w']['us_crude']['2026-09-25'], 427.32); self.assertEqual(len(ctx['H']['w']['us_crude']), 316 + 1, 'historia zostaje, nowy tydzień dopisany')
+        starts, p, _ = run((self.NOW - datetime.timedelta(days=8)).isoformat(), full)
+        self.assertEqual((starts, p), ([pe, pe], self.NOW.isoformat()), 'pełne 6 lat raz na 7 dni (poprawki wstecz)')
+        starts, p, _ = run(wczoraj, {k: v for k, v in list(full.items())[-26:]})
+        self.assertEqual(starts, [pe, pe], 'historia krótsza niż 5 lat (np. utracony surowce-hist.json) — pełne pobranie')
+        starts, p, _ = run(None, {})
+        self.assertEqual((starts, p), ([pe, pe], self.NOW.isoformat()))
+
+    def test_limit_zapytania_w_budzecie_cftc_w_styczniu(self):
+        # CFTC w styczniu–kwietniu: plik roczny bieżący (tu 404), poprzedni i tygodniowy — trzecie zapytanie dostaje tylko resztę budżetu
+        ctx = {'t0': zd.time.monotonic() - 100, 'budzet': 150}
+        self.assertAlmostEqual(zd._su_limit(ctx, 'cftc'), 50, delta=0.5)
+        self.assertEqual(zd._su_limit(ctx, 'eia_dz'), 20, 'limit źródła mniejszy niż reszta budżetu — bez zmian')
+        self.assertEqual(zd._su_limit({}, 'cftc'), 60, 'kontekst bez budżetu — sam limit źródła')
+        self.assertRaises(RuntimeError, zd._su_limit, {'t0': zd.time.monotonic() - 147, 'budzet': 150}, 'cftc')
+        cf, lim = self.cftc_files(), []
+        ctx = {'now': datetime.datetime(2027, 1, 12, 21, 0, tzinfo=datetime.timezone.utc), 't0': zd.time.monotonic() - 10, 'budzet': 150, 'prev': {}}
+
+        def fetch(url, timeout, headers=None):
+            lim.append(timeout); ctx['t0'] -= 45   # każde zapytanie trwa 45 s
+            if url not in cf:
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, __import__('io').BytesIO(b''))
+            return cf[url]
+        ctx['fetch'] = fetch
+        self.assertEqual(zd._su_cftc(ctx), '2026-09-29')
+        self.assertEqual(lim[:2], [60, 60]); self.assertAlmostEqual(lim[2], 50, delta=0.5)
+        self.assertTrue(any('rok 2027: HTTP 404' in e for e in zd.META['errors']))
+        zd.META['errors'].clear()
+
+    def test_kontrola_zero_tylko_w_seriach_nie_wyliczanych(self):
+        k = self._kontrola()
+        j = {'v': 2, 'ceny': {'crack321': {'u': 'USD/bbl', 'x': ['wyl'], 'd': [['2026-10-01', 0.0], ['2026-10-02', 1.5]]},
+                              'wti': {'u': 'USD/bbl', 'd': [['2026-10-01', 0], ['2026-10-02', 96.2]]}}}
+        self.assertEqual(k.surowce_spojnosc(j), ['ceny.wti: wartość 0 (brak ma być null)'], 'marża wyliczona 0,00 jest możliwa — bez ❌')

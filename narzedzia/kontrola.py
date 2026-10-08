@@ -44,8 +44,8 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')          # tylko do odczytu listy prz
 OUT_DIR = os.environ.get('KONTROLA_DIR', 'kontrola')
 ARCH_DIR = os.environ.get('KONTROLA_ARCH', 'archiwum')   # archiwum własne z tego samego checkoutu (v113)
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
-LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60,
+PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'krypto-dzien', 'krypto-dziennik']
+LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60, 'surowce': 24 * 60, 'surowce-hist': 48 * 60,
              'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
@@ -625,7 +625,10 @@ AW_KLUCZ = re.compile(r'klucz\w*(?:\s+\S+)?\s+odrzuc|zły klucz|unauthori[sz]ed|
 AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań(?! w przebiegu)|dobowy limit|limit planu', re.I)   # v211: bez własnego limitu zbieracza
 AW_BEZ_BLEDU = {   # v211/v215: części bez czerwieni z serii awarii — seria tylko informacją (wiek danych ocenia wiersz świeżości); v215: snb usunięte (False = błąd pobrania)
     'ici': 'fundusze USA — z założenia bez czerwieni (v134); wiek danych w wierszu świeżości', 'jpx': 'Japonia — tydzień czeka na publikację giełdy',
-    'wycena_bg': 'dodatek SOPR — limit planu źródła (v132)'}
+    'wycena_bg': 'dodatek SOPR — limit planu źródła (v132)',
+    'surowce_ceny': 'surowce — część z błędem zostaje z datą (v295); wiek danych w wierszach świeżości',
+    'surowce_zapasy': 'surowce — część z błędem zostaje z datą (v295); wiek danych w wierszach świeżości',
+    'surowce_mies': 'surowce — część z błędem zostaje z datą (v295); wiek danych w wierszach świeżości'}
 
 
 def _aw_t(s):
@@ -1369,7 +1372,8 @@ def _wh_rozb(a, b):
 
 ZUZ_PLANY = (('cg', 'CoinGecko (Demo)', 'mies', 10000, 'zapytań'),        # v222: limity darmowych planów (stan 06.10.2026; inny plan = zmiana tutaj)
              ('cmc', 'CoinMarketCap (Basic)', 'mies', 15000, 'zapytań'),       # v226: 15 000 według dostawcy (06.10.2026)
-             ('td', 'Twelve Data (Basic)', 'doba', 800, 'kredytów'))
+             ('td', 'Twelve Data (Basic)', 'doba', 800, 'kredytów'),
+             ('fmp', 'FMP (darmowy)', 'doba', 250, 'zapytań'))       # v295: indeksy (v273) i surowce (srebro, kontrolnie Brent i złoto)
 ZUZ_UWAGA = 0.8       # v222: prognoza miesiąca albo wczorajsza doba ≥ 80% limitu = ⚠️
 ZUZ_BLAD = 0.95       # v222: zużyte w miesiącu ≥ 95% limitu albo wczoraj ≥ 100% limitu doby = ❌
 ZUZ_PROG_H = 24       # v222: prognoza miesiąca dopiero po dobie liczenia
@@ -3729,6 +3733,214 @@ def rwe_kontrola(files, R):
     return Z
 
 
+# ---------------------------------------------------------------- v295: surowce (data/surowce.json w wersji 2) ----------------------------------------------------------------
+# Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian — test liczy jej wiersze), najwyżej ⚠️: przerwy w publikacji (święta w USA,
+# przerwa w pracy urzędu, święta ACER) to nie awaria strony; pole next pliku mówi, kiedy spodziewana jest publikacja. Porównania z progami
+# z testów wstecznych (surowce/projekt/testy_wsteczne.py, 07.10.2026) — tylko uwagi. ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku
+# (zła jednostka, zero zamiast braku, daty nie rosną, pasmo 5 lat z min > max).
+SU_ETYKIETA = {'ceny': 'surowce: ropa i gaz dziennie (strona dzienna T+1, API co tydzień)', 'zloto': 'surowce: złoto dziennie (LBMA PM wyliczona)',
+               'live': 'surowce: złoto teraz (notowanie co godzinę)', 'zapasy': 'surowce: zapasy w USA (tydzień do piątku, publ. w środę)',
+               'mies': 'surowce: ceny miesięczne (publ. ok. 2. dnia roboczego)', 'markets': 'surowce: pozycje funduszy (stan na wtorek, publ. w piątek)'}
+SU_PROG = {'ceny': ('d', 36 * 60), 'zloto': ('d', 36 * 60), 'live': ('h', 3 * 60), 'zapasy': ('w', 13 * 24 * 60), 'mies': ('m', 45 * 24 * 60),
+           'markets': ('w', 12 * 24 * 60)}
+# zapasy: tydzień kończy się w piątek, raport w środę 10:30 czasu Nowego Jorku (w tygodniu ze świętem pn–śr: czwartek 11:00) — wiek od końca
+# dnia danych tuż przed kolejnym raportem 11,6 dnia (ze świętem 12,7). Próg 13 dni = 7 dni cyklu + 5 do publikacji + 1 na święto. Test wsteczny
+# (model kalendarza 2021–10.2026: środa / czwartek po święcie, czas letni i zimowy, kontrola 06:20 i 08:36 UTC oraz co godzinę): 9 dni — ⚠️ w 45%
+# kontroli (pn–śr każdego tygodnia), 12 dni — 2%, 13 dni — 0%. Raport opóźniony o 2 dni (np. święto w środę) = ⚠️ z dopiskiem „zaległa”.
+SU_ZLOTO_PROG = 0.75   # % — średnia miesiąca złota (z archiwum GLD) wobec MFW: 262 miesiące, p99 0,40%, maks. 0,61%
+SU_ROPA_PROG = 4.0     # % — średnia miesiąca ropy (EIA) wobec Banku Światowego: 5 lat WTI maks. 3,55%, Brent 2,78%
+SU_MIEDZ_PROG = 1.0    # % — miedź MFW wobec Banku Światowego: 417 miesięcy, p99 0,70%, maks. 1,22% (5 lat maks. 0,48%)
+SU_MIN_SESJI = 15      # sesji w miesiącu — mniej = bez porównania średniej
+SU_Q_DNI = 14          # dni — punkt do sprawdzenia bez potwierdzenia drugim źródłem młodszy niż tyle = uwaga
+SU_DZ_TOL = 0.01       # USD — strona dzienna (2 miejsca po przecinku) wobec API tego samego dnia
+SU_JEDN = {'brent': 'USD/bbl', 'wti': 'USD/bbl', 'hh': 'USD/MMBtu', 'ttf': 'EUR/MWh', 'lng_eu': 'EUR/MWh', 'ulsd_nyh': 'USD/gal', 'gas_nyh': 'USD/gal',
+           'jet_gulf': 'USD/gal', 'propan': 'USD/gal', 'crack321': 'USD/bbl', 'gold': 'USD/oz', 'silver': 'USD/oz', 'copper': 'USD/t',
+           'uran': 'USD/lb', 'brent_fut': 'USD/bbl', 'gold_fut': 'USD/oz', 'us_crude': 'mln bbl', 'us_spr': 'mln bbl', 'us_gasoline': 'mln bbl',
+           'us_dist': 'mln bbl', 'us_jet': 'mln bbl', 'us_cushing': 'mln bbl', 'us_gas': 'Bcf'}
+
+
+def _su_ostatni(e):
+    d = e.get('d') if isinstance(e, dict) else None
+    r = [x for x in d if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and not isinstance(x[1], bool)] if isinstance(d, list) else []
+    return r[-1] if r else None
+
+
+def _su_handel(now):
+    wd = now.weekday()
+    return not (wd == 5 or (wd == 6 and now.hour < 22) or (wd == 4 and now.hour >= 22))
+
+
+def surowce_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku surowce.json (v2) w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga).
+    Najwyżej ⚠️, nigdy ❌; plik sprzed wersji 2 albo brak pliku = brak wierszy; złoto teraz — tylko w czasie handlu."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 2:
+        return []
+    C, Z, M = j.get('ceny') or {}, j.get('zapasy') or {}, j.get('mies') or {}
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for k, label in SU_ETYKIETA.items():
+        if k == 'live' and not _su_handel(now):
+            continue
+        if k == 'ceny':
+            ls = [x for x in (_su_ostatni(C.get('brent')), _su_ostatni(C.get('wti'))) if x]
+            txt, kind = (max(x[0] for x in ls), 'day') if ls else (None, None)
+        elif k == 'zloto':
+            x = _su_ostatni(C.get('gold')); txt, kind = (x[0], 'day') if x else (None, None)
+        elif k == 'live':
+            lv = (C.get('gold') or {}).get('live') if isinstance(C.get('gold'), dict) else None
+            txt, kind = (lv.get('at'), 'ts') if isinstance(lv, dict) and isinstance(lv.get('at'), str) else (None, None)
+        elif k == 'zapasy':
+            x = _su_ostatni(Z.get('us_crude')); txt, kind = (x[0], 'day') if x else (None, None)
+        elif k == 'mies':
+            txt, kind = (M.get('asof'), 'month') if isinstance(M.get('asof'), str) else (None, None)
+        else:
+            txt, kind = (j.get('asof'), 'day') if isinstance(j.get('asof'), str) else (None, None)
+        kat, prog = SU_PROG[k]
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(txt, kind, kat, now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            p = nx.get(k) if k in ('ceny', 'zapasy', 'mies', 'markets') else None   # złoto: archiwum funduszu i notowania — bez kalendarza w pliku
+            pt = _aw_t(p) if isinstance(p, str) else None
+            note = f'próg {fmt_wiek(prog)}' + (' (godziny robocze)' if kat == 'd' else '') + ' — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(p)}' + (' — zaległa (święto albo przerwa w pracy urzędu?)' if pt and pt < now else '') if pt else '')
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def _su_mies_srednie(e, n=SU_MIN_SESJI):
+    """Średnie miesięczne serii dziennej (tylko pełne miesiące z co najmniej n sesjami z liczbą) → {RRRR-MM: średnia}."""
+    m = {}
+    for x in (e.get('d') or []) if isinstance(e, dict) else []:
+        if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and not isinstance(x[1], bool):
+            m.setdefault(str(x[0])[:7], []).append(x[1])
+    ks = sorted(m)
+    return {k: sum(v) / len(v) for k, v in m.items() if len(v) >= n and k != (ks[-1] if ks else None)}   # ostatni miesiąc pliku — niepełny
+
+
+def _su_mies_wiersz(e):
+    return {str(x[0]): x[1] for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float))} if isinstance(e, dict) else {}
+
+
+def surowce_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w dziale surowce): jednostka inna niż w umowie pliku, zero zamiast braku (poza seriami
+    wyliczonymi — x 'wyl'), daty nie rosną, pasmo 5 lat z min > średnia albo średnia > max. → lista opisów."""
+    zle = []
+    for part in ('ceny', 'zapasy'):
+        for cid, e in ((j.get(part) or {}).items() if isinstance(j.get(part), dict) else ()):
+            if not isinstance(e, dict):
+                continue
+            if cid in SU_JEDN and e.get('u') != SU_JEDN[cid]:
+                zle.append(f'{part}.{cid}: jednostka {e.get("u")} zamiast {SU_JEDN[cid]}')
+            d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2]
+            ds = [str(x[0]) for x in d]
+            if ds != sorted(set(ds)):
+                zle.append(f'{part}.{cid}: daty nie rosną albo się powtarzają')
+            if 'wyl' not in (e.get('x') or ()) and any(x[1] == 0 and not isinstance(x[1], bool) for x in d):   # wyliczone (marża 3:2:1, TTF) —
+                zle.append(f'{part}.{cid}: wartość 0 (brak ma być null)')                                       # 0,00 możliwe, bez ❌
+            for a in e.get('avg5') or []:
+                if isinstance(a, list) and len(a) == 4 and all(isinstance(v, (int, float)) for v in a[1:]) and not (a[1] <= a[2] <= a[3]):
+                    zle.append(f'{part}.{cid}: pasmo 5 lat {a[0]} min/średnia/max w złej kolejności'); break
+    for grp in ('s', 'ix', 'k'):
+        for cid, e in (((j.get('mies') or {}).get(grp) or {}).items() if isinstance((j.get('mies') or {}).get(grp), dict) else ()):
+            ds = [str(x[0]) for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2] if isinstance(e, dict) else []
+            if ds != sorted(set(ds)):
+                zle.append(f'mies.{grp}.{cid}: miesiące nie rosną albo się powtarzają')
+    return zle
+
+
+def surowce_porownania(j, now=None):
+    """Porównania z pliku strony (bez sieci): złoto (GLD) vs MFW, ropa EIA vs Bank Światowy, miedź MFW vs Bank Światowy (średnie miesięcy),
+    plik raportu tygodniowego vs API (ten sam tydzień — identycznie), strona dzienna vs API (ten sam dzień, do 0,01 USD), średnia 5 lat gazu
+    wyliczona vs EIA, Brent fizyczny vs kontrakt (zmiany dzienne) i punkty do sprawdzenia. → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    now = now or NOW
+    C, M, K = j.get('ceny') or {}, j.get('mies') or {}, j.get('kontr') or {}
+    W, U = [], []
+
+    def mies(nazwa, dz, mm, prog, zrodla):
+        a, b = _su_mies_srednie(dz), _su_mies_wiersz(mm)
+        wsp = sorted(set(a) & set(b))
+        if not wsp:
+            W.append((f'{nazwa} ({zrodla}): brak wspólnego pełnego miesiąca', 'ℹ️')); return
+        k = wsp[-1]
+        r = (a[k] / b[k] - 1) * 100 if b[k] else None
+        if r is None:
+            return
+        zn = '⚠️' if abs(r) > prog else '✅'
+        W.append((f'{nazwa} {k} ({zrodla}): {r:+.2f}% (próg {prog:g}%)'.replace('.', ','), zn))
+        if zn == '⚠️':
+            U.append(f'surowce: {nazwa} {k} — średnia miesiąca z dwóch źródeł różni się o {r:+.2f}% (próg {prog:g}% z testu wstecznego) — sprawdzić'.replace('.', ','))
+    mies('złoto', C.get('gold'), (M.get('k') or {}).get('zloto_mfw'), SU_ZLOTO_PROG, 'archiwum funduszu vs MFW')
+    mies('ropa Brent', C.get('brent'), (M.get('s') or {}).get('ropa_brent'), SU_ROPA_PROG, 'EIA vs Bank Światowy')
+    mies('ropa WTI', C.get('wti'), (M.get('s') or {}).get('ropa_wti'), SU_ROPA_PROG, 'EIA vs Bank Światowy')
+    a, b = _su_mies_wiersz((M.get('k') or {}).get('miedz_mfw')), _su_mies_wiersz((M.get('s') or {}).get('miedz'))
+    wsp = sorted(set(a) & set(b))
+    if wsp and b[wsp[-1]]:
+        r = (a[wsp[-1]] / b[wsp[-1]] - 1) * 100
+        zn = '⚠️' if abs(r) > SU_MIEDZ_PROG else '✅'
+        W.append((f'miedź {wsp[-1]} (MFW vs Bank Światowy): {r:+.2f}% (próg {SU_MIEDZ_PROG:g}%)'.replace('.', ','), zn))
+        if zn == '⚠️':
+            U.append(f'surowce: miedź {wsp[-1]} — MFW i Bank Światowy różnią się o {r:+.2f}% (próg {SU_MIEDZ_PROG:g}%) — sprawdzić'.replace('.', ','))
+    for k, nazwa, tol in (('wpsr', 'zapasy ropy i paliw: plik raportu vs API', 0.0005), ('wngsr', 'gaz w magazynach: plik raportu vs API', 0.5),
+                          ('eia_dz', 'ceny: strona dzienna vs API', SU_DZ_TOL)):
+        x = K.get(k) if isinstance(K.get(k), dict) else None
+        if not x or not isinstance(x.get('wst'), dict) or not isinstance(x.get('api'), dict):
+            continue
+        rz = [(c, x['wst'][c], x['api'].get(c)) for c in sorted(x['wst']) if isinstance(x['api'].get(c), (int, float))]
+        zle = [(c, p, q) for c, p, q in rz if abs(p - q) > tol]
+        zn = '⚠️' if zle else '✅'
+        W.append((f'{nazwa}, {x.get("d")}: porównane {len(rz)} serii' + (', różne: ' + ', '.join(f'{c} {p:g} vs {q:g}' for c, p, q in zle[:4]) if zle else ', zgodne'), zn))
+        if zle:
+            U.append(f'surowce: {nazwa} ({x.get("d")}) — różne liczby: ' + ', '.join(f'{c} {p:g} vs {q:g}' for c, p, q in zle[:4]))
+    g = (j.get('zapasy') or {}).get('us_gas') if isinstance(j.get('zapasy'), dict) else None
+    if isinstance(g, dict) and isinstance(g.get('avg5_zr'), list) and len(g['avg5_zr']) == 2:
+        w, ez = g['avg5_zr']
+        own = next((a5[2] for a5 in (g.get('avg5') or []) if isinstance(a5, list) and a5 and a5[0] == w), None)
+        if isinstance(own, (int, float)) and isinstance(ez, (int, float)) and ez:
+            W.append((f'gaz w magazynach USA, średnia 5 lat {w}: wyliczona {_zuz_l(own)} vs EIA {_zuz_l(ez)} Bcf ('
+                      + f'{(own / ez - 1) * 100:+.2f}%)'.replace('.', ','), 'ℹ️'))
+    br, bf = C.get('brent'), C.get('brent_fut')
+    if isinstance(br, dict) and isinstance(bf, dict):
+        def zm(e):
+            d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and x[1] > 0]
+            return {d[i][0]: (d[i][1] / d[i - 1][1] - 1) * 100 for i in range(1, len(d))}
+        a, b = zm(br), zm(bf)
+        wsp = sorted(set(a) & set(b))[-30:]
+        if wsp:
+            mx = max(wsp, key=lambda d: abs(a[d] - b[d]))
+            W.append((f'Brent dostawa fizyczna vs kontrakt, zmiany dzienne z {len(wsp)} wspólnych dni: największa różnica {mx} '
+                      f'({a[mx]:+.1f}% vs {b[mx]:+.1f}%)'.replace('.', ','), 'ℹ️'))
+    for cid, nazwa in (('brent', 'Brent'), ('wti', 'WTI')):
+        for q in ((C.get(cid) or {}).get('q') or []) if isinstance(C.get(cid), dict) else []:
+            if not (isinstance(q, list) and len(q) == 3):
+                continue
+            try:
+                age = (now.date() - dt.date.fromisoformat(str(q[0]))).days
+            except ValueError:
+                continue
+            if q[2] == 'niepotw' and 0 <= age <= SU_Q_DNI:
+                U.append(f'surowce: {nazwa} {q[0]} — punkt do sprawdzenia ({"skok z odwrotem" if q[1] == "skok" else "rozjazd z drugą ropą"}), '
+                         + ('kontrakt nie potwierdza ruchu' if cid == 'brent' else 'brak drugiego źródła') + ' — wartość zostaje na stronie z oznaczeniem')
+    return {'wiersze': W, 'uwagi': U}
+
+
+def surowce_kontrola(j, R):
+    """Kontrola pliku surowce.json bez sieci: sprzeczności wewnątrz pliku (❌ = BŁĄD) i porównania (najwyżej ⚠️). Brak pliku albo plik
+    sprzed wersji 2 = None (raport bez linii)."""
+    if not isinstance(j, dict) or j.get('v') != 2:
+        return None
+    zle = surowce_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'surowce.json: sprzeczność w pliku — {z}')
+    P = surowce_porownania(j)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
@@ -3875,6 +4087,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: {note}')
     # 3c'''. v134: świeżość funduszy USA (data/ici.json) — osobne wiersze tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
     for label, st, w, txt, note in ici_swiezosc(files.get('ici')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    # 3c-su. v295: surowce (data/surowce.json w wersji 2) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in surowce_swiezosc(files.get('surowce')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
@@ -4099,6 +4318,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['jpx'] = {'status': '?', 'blad': str(e)[:120]}
         R['uwagi'].append(f'Japonia — giełda vs MOF: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v295: surowce — sprzeczności w pliku (❌) i porównania z progami z testów wstecznych (najwyżej ⚠️), z pliku strony, bez zapytań
+    try:
+        Z['surowce'] = surowce_kontrola(files.get('surowce'), R)
+    except Exception as e:  # noqa
+        Z['surowce'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'surowce: kontrola przerwana ({str(e)[:80]})')
     # 3g. v133: tokenizowane aktywa RWA — własna zmiana 7 dni vs zmiana podana przez źródło, produkty spoza głównej listy, skok sumy dzień do dnia
     # (z pliku strony, bez zapytań; najwyżej ⚠️ — do raportu bez nowej kolumny zgodnosc.csv)
     try:
@@ -4391,6 +4616,11 @@ def raport_md(R):
             L.append('- Japonia: giełda (tylko handel akcjami na giełdzie) vs MOF (wszystkie akcje i fundusze, także poza giełdą), zagranica netto: '
                      + (jz.get('opis') or (f'? kontrola przerwana ({jz["blad"]})' if jz.get('blad') else '—')) + '.'
                      + (f' Korekty źródła z 7 dni: {len(jz["korekty"])} (sprawdzić ręcznie).' if jz.get('korekty') else ''))
+        sz = Z.get('surowce')   # v295: surowce — sprzeczności w pliku i porównania (bez liczb cen, tylko różnice i znaki); brak pliku v2 = bez linii
+        if sz:
+            L.append('- Surowce (porównania z pliku strony): ' + (f'? kontrola przerwana ({sz["blad"]})' if sz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(sz['spojnosc'][:3]) + ' ❌ · ' if sz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in sz.get('wiersze') or []) or '—') + '.')
         rz = Z.get('rwa')   # v133: tokenizowane aktywa — zmiana 7 dni (własna vs źródło), produkty spoza listy, skoki sumy; brak pliku = bez linii
         if rz:
             L.append('- Tokenizowane aktywa (RWA): ' + (rz.get('opis') or (f'? kontrola przerwana ({rz["blad"]})' if rz.get('blad') else '—')) + '.')

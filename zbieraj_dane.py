@@ -131,7 +131,8 @@ import threading as _zuz_th, urllib.parse as _zuz_parse   # v222: blokada liczni
 
 ZUZ_PLANY = {'cg': ('api.coingecko.com', 'x-cg-demo-api-key'),   # v222: darmowe plany z limitem — host i nagłówek klucza (bez klucza = nie z planu)
              'cmc': ('pro-api.coinmarketcap.com', None),
-             'td': ('api.twelvedata.com', None)}                # Twelve Data: kredyty = liczba symboli w zapytaniu
+             'td': ('api.twelvedata.com', None),                # Twelve Data: kredyty = liczba symboli w zapytaniu
+             'fmp': ('financialmodelingprep.com', None)}        # v295: FMP (plan darmowy 250 zapytań na dobę: indeksy i surowce)
 ZUZ_DOST_H = 6        # v222: raport zużycia od dostawcy (CoinMarketCap) najwyżej raz na blok 6 godzin UTC
 _ZUZ = {}             # v222: zapytania tego przebiegu do planów z limitem (td: kredyty)
 _ZUZ_LOCK = _zuz_th.Lock()
@@ -149,6 +150,7 @@ def _zuz_licz(url, headers=None):
                 return
             n = 1
             if k == 'td':
+                _TD_T[0] = time.monotonic()   # v295: surowce nie pytają Twelve Data w tej samej minucie (limit 8 kredytów na minutę)
                 s = _zuz_parse.parse_qs(u.query).get('symbol')
                 n = max(1, len([x for x in s[0].split(',') if x.strip()])) if s else 1
             with _ZUZ_LOCK:
@@ -2016,8 +2018,9 @@ def parse_cftcd(text, header=None):
     return out, bad
 
 
-def build_surowce(fetch=None, today=None, prev=None):
-    """data/surowce.json — pozycje w kontraktach na złoto, srebro, miedź i ropę WTI: stan z ostatniego raportu + netto grup z 13 raportów."""
+def su_markets(fetch=None, today=None, prev=None):
+    """Część „markets” pliku data/surowce.json (v92; od v295 wołana przez build_surowce w bramce CFTC) — pozycje w kontraktach na złoto,
+    srebro, miedź i ropę WTI: stan z ostatniego raportu + netto grup z 13 raportów. Zachowanie bez zmian."""
     fetch = fetch or (lambda u: get_bytes(u, timeout=120))
     today = today or _now_utc().date()
     errors, rows, bad = [], {}, []
@@ -5683,6 +5686,8 @@ TR_CR_TYP = 9.0       # krypto (próg umowny — jeszcze nie z historii cen, cho
 TR_CR_SYMS = ('BTC', 'ETH', 'XRP', 'BNB', 'SOL', 'DOGE', 'ADA', 'TRX', 'LINK', 'AVAX')
 TR_PX_SYMS = ('SPY', 'EWC', 'ILF', 'VGK', 'KSA', 'TUR', 'EIS', 'EZA', 'INDA', 'MCHI', 'EWJ', 'EWY', 'ASEA', 'EWA')
 TR_CFTC = ('usd', 'eur', 'jpy', 'spx', 'msciem', 'btc', 'eth')   # fundusze lewarowane; bez obligacji 10L (transakcja na bazie)
+TR_CS = ('gold', 'silver', 'copper', 'wti')   # v295: wiersze cs_* (fundusze zarządzające CFTC) — stała, nie CFTCD_MARKETS: rozszerzenie CFTC
+                                              # w dziale SUROWCE nie zmienia TRENDÓW po cichu (nowe wiersze tylko świadomie, tutaj)
 TR_OB = (('in', 1), ('in', 2), ('tw', 1), ('hk', 1), ('br', 1))   # v95: Indie (akcje, dług), Tajwan, Hongkong, Brazylia
 TR_FE = (('fe_us', ('SPY', 'IVV')), ('fe_tech', ('XLK',)), ('fe_fin', ('XLF',)), ('fe_energy', ('XLE',)), ('fe_health', ('XLV',)),
          ('fe_indu', ('XLI',)), ('fe_cdisc', ('XLY',)), ('fe_cstap', ('XLP',)), ('fe_util', ('XLU',)),
@@ -8648,7 +8653,7 @@ def _tr_flows(S):
                     r['roll'] = True; r['x'] = False       # rolowanie kontraktów kwartalnych zawyża zmiany — bez „wyjątkowo”
                 out.append(r)
         su = S.get('surowce') if isinstance(S.get('surowce'), dict) else {}   # v92: surowce — fundusze zarządzające (managed money)
-        for k in CFTCD_MARKETS:
+        for k in TR_CS:   # v295: stała (dawniej CFTCD_MARKETS)
             h = ((su.get('markets') or {}).get(k) or {}).get('hist') or {}
             ds, lv = h.get('dates') or [], h.get('mm') or []
             if len(ds) == len(lv) and len(ds) > 1:
@@ -8894,6 +8899,1131 @@ def build_trendy(S):
             'f': flows, 'p': prices, 'b': base, **daily}
 
 
+# ===================== v295: SUROWCE v2 — dział SUROWCE, etapy 1–2 (dane) =====================
+# data/surowce.json w wersji 2. Zgodność wstecz: klucze v92 (at, src, url, data_url, unit, asof, order, markets) zostają — „markets” (CFTC:
+# złoto, srebro, miedź, WTI) czyta build_trendy. Nowe części: ceny (dziennie), zapasy (tygodniowo), mies (miesięcznie); każda część ma czas
+# udanego pobrania (part_at), stan (ok: true | false | 'cached' — bez próby w tym przebiegu), najbliższą spodziewaną publikację (next) i krótki
+# zamaskowany błąd (err — strona go nie pokazuje). Bramki ŹRÓDEŁ (st) zamiast całego pliku co 6 h: każde źródło ma okno według kalendarza
+# publikacji, a po błędzie ponowienie po godzinie. Źródło z błędem = poprzednie dane z ich datą; brak = null, nigdy 0. „at” = chwila ostatniego
+# udanego pobrania którejkolwiek części (nie przebiegu). Długie historie (400 sesji, 6 lat tygodni, 120 miesięcy): data/surowce-hist.json —
+# strona wczytuje go dopiero po rozwinięciu wykresu. Kody źródeł (pole z) — pełne nazwy wyłącznie na stronie „Źródła”:
+#   eia — EIA Open Data API v2 (klucz EIA_KEY): ceny spot 11 serii jednym zapytaniem + Henry Hub; eia_t — to samo API, zapasy tygodniowe;
+#   eia_dz — strona EIA „Daily Prices” (T+1, bez klucza; wartości wstępne do czasu API: pole pre); acer — ACER TERMINAL (LNG UE i TTF wyliczony);
+#   gld — archiwum funduszu GLD (LBMA PM wyliczona: NAV/jedn. ÷ uncje/jedn.); td — Twelve Data XAU/USD (notowanie co godzinę, pole live);
+#   fmp — FMP (srebro SIUSD, kontrolnie BZUSD i GCUSD, raz na dobę); sprott — kalkulator trustów fizycznych (miedź COP, uran SPUT);
+#   wpsr / wngsr — pliki raportów tygodniowych EIA (ir.eia.gov, bez klucza); wb — Bank Światowy (Pink Sheet); imf — MFW PCPS; fao — FAO; cftc.
+# Budżet czasu: najcięższe przebiegi automatu trwają 14,3–14,5 min z 25 — budowniczy ma SU_BUDZET_S s (każde zapytanie tylko, gdy zmieści się
+# z całym swoim limitem), a w przebiegu dłuższym niż SU_LATE s ciężkie źródła (SU_CIEZKIE) czekają na następny przebieg (10 min później).
+SU_V = 2
+SU_PARTS = ('ceny', 'zapasy', 'mies', 'markets')
+SU_D, SU_H = 90, 400            # sesji: część ceny (surowce.json) / historia (surowce-hist.json)
+SU_W, SU_WH = 26, 6 * 53 + 4    # tygodni: część zapasy / historia (pasmo 5 lat dla 26 tygodni)
+SU_M, SU_MH, SU_K = 36, 120, 24  # miesięcy: część mies / historia / serie kontrolne MFW (mies.k)
+SU_BUDZET_S = 150               # s na cały budowniczy; źródło startuje tylko, gdy zmieszczą się wszystkie jego zapytania z pełnymi limitami
+SU_LATE = BACK_LATE             # s od startu przebiegu — dalej tylko lekkie źródła
+SU_SPOT_DNI = 600               # dni wstecz w zapytaniu EIA spot: ok. 410 sesji × 11 serii < 5000 wierszy (limit API)
+SU_TYG_LAT = 6                  # lat historii tygodniowej z API EIA (pasmo 5 lat + bieżący rok)
+SU_TYG_DOGON = 60               # dni wstecz w zapytaniu doganiającym (eia_t: plik raportu ma nowszy tydzień niż API) — ok. 8 tygodni; pełne
+                                # SU_TYG_LAT lat raz na 7 dni (poprawki wstecz) albo gdy historia krótsza niż 5 lat (np. utracony surowce-hist.json)
+SU_SKOK = 0.25                  # cena z funduszu (Sprott) zmieniona o ponad 25% wobec poprzedniej = punkt odrzucony (zmiana kolejności listy?)
+SU_SKOK_DNI = 7                 # dni — punkt odniesienia starszy (przerwa źródła) = zmiana przyjęta bez sprawdzenia skoku, z notatką (inaczej
+                                # prawdziwa zmiana > 25% po kilku tygodniach przerwy byłaby odrzucana przy każdym pobraniu — odniesienie się nie zmienia)
+SU_ZR = (('eia_dz', 'ceny'), ('td', 'ceny'), ('sprott', 'ceny'), ('acer', 'ceny'), ('wpsr', 'zapasy'), ('wngsr', 'zapasy'),
+         ('gld', 'ceny'), ('fmp', 'ceny'), ('eia', 'ceny'), ('eia_t', 'zapasy'), ('cftc', 'markets'), ('fao', 'mies'),
+         ('imf', 'mies'), ('wb', 'mies'))    # kolejność: najpierw lekkie i częste, na końcu ciężkie i miesięczne
+SU_CIEZKIE = frozenset(('eia', 'eia_t', 'gld', 'cftc', 'wb'))   # ≥ 0,5 MB albo ≥ 7 s na zapytanie
+SU_LIMIT_S = {'eia_dz': 20, 'td': 15, 'sprott': 20, 'acer': 30, 'wpsr': 20, 'wngsr': 20, 'gld': 60, 'fmp': 20, 'eia': 45, 'eia_t': 45,
+              'cftc': 60, 'fao': 30, 'imf': 30, 'wb': 60}   # s — limit jednego zapytania (EIA API odpowiada w 7–16 s; pliki roczne CFTC
+                                                            # 1,9–2,4 MB, 07.10.2026 — v92 miał 120 s bez budżetu)
+SU_ZAPYTANIA = {'eia': 2, 'eia_t': 2, 'fmp': 3, 'wb': 2, 'cftc': 2}   # zapytań na źródło (reszta — 1); CFTC: plik roczny i tygodniowy — od stycznia
+                                                                     # do ok. kwietnia (< 14 raportów w roku) także plik roku poprzedniego: to trzecie
+                                                                     # zapytanie dostaje tylko resztę budżetu (_su_limit), więc budowniczy go nie przekracza
+SU_KLUCZ = {'eia': 'EIA_KEY', 'eia_t': 'EIA_KEY', 'td': 'TWELVEDATA_KEY', 'fmp': 'FMP_KEY'}
+SU_EIA_DZ_URL = 'https://www.eia.gov/todayinenergy/prices.php'
+SU_ACER_URL = 'https://aegis.acer.europa.eu/terminal/price_assessments/historical_data'
+SU_GLD_URL = 'https://api.spdrgoldshares.com/api/v1/historical-archive?product=gld&exchange=NYSE&lang=en'
+SU_SPROTT_URL = 'https://sprott.com/api/FinancialData/v1/BullionCalculatorData'
+SU_TD_URL = TD + '/quote?symbol=XAU/USD&apikey={key}'
+SU_WPSR_URL = 'https://ir.eia.gov/wpsr/table1.csv'
+SU_WNGSR_URL = 'https://ir.eia.gov/ngs/wngsr.json'
+SU_WB_PAGE = 'https://www.worldbank.org/en/research/commodity-markets'
+SU_IMF_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.RES/PCPS/+/G001.PLITH+PCOBA+PREODOM+PGOLD+PCOPP+PALLMETA+PENTM'
+              '.USD+INDEX.M?lastNObservations=' + str(SU_MH))
+SU_FAO_URL = 'https://www.fao.org/media/docs/worldfoodsituationlibraries/wfs-library/food_price_indices_data.csv'
+SU_CENY = (   # id, grupa (en energia, ms metale szlachetne, mi przemysłowe/uran), jednostka, kod źródła, oznaczenia
+    ('brent', 'en', 'USD/bbl', 'eia', ()), ('wti', 'en', 'USD/bbl', 'eia', ()), ('hh', 'en', 'USD/MMBtu', 'eia', ()),
+    ('ttf', 'en', 'EUR/MWh', 'acer', ('wyl',)), ('lng_eu', 'en', 'EUR/MWh', 'acer', ()),
+    ('ulsd_nyh', 'en', 'USD/gal', 'eia', ()), ('gas_nyh', 'en', 'USD/gal', 'eia', ()), ('jet_gulf', 'en', 'USD/gal', 'eia', ()),
+    ('propan', 'en', 'USD/gal', 'eia', ()), ('crack321', 'en', 'USD/bbl', 'eia', ('wyl',)),
+    ('gold', 'ms', 'USD/oz', 'gld', ('wyl',)), ('silver', 'ms', 'USD/oz', 'fmp', ('kontr',)),
+    ('copper', 'mi', 'USD/t', 'sprott', ('wyl', 'fund')), ('uran', 'mi', 'USD/lb', 'sprott', ('wyl', 'fund')),
+    ('brent_fut', 'en', 'USD/bbl', 'fmp', ('kontr',)), ('gold_fut', 'ms', 'USD/oz', 'fmp', ('kontr',)))
+SU_KONTR = ('brent_fut', 'gold_fut')   # serie kontrolne (bez kafla na stronie)
+SU_EIA_SPT = {'RWTC': ('wti', '$/BBL'), 'RBRTE': ('brent', '$/BBL'), 'EER_EPD2DXL0_PF4_Y35NY_DPG': ('ulsd_nyh', '$/GAL'),
+              'EER_EPMRU_PF4_Y35NY_DPG': ('gas_nyh', '$/GAL'), 'EER_EPJK_PF4_RGC_DPG': ('jet_gulf', '$/GAL'),
+              'EER_EPLLPA_PF4_Y44MB_DPG': ('propan', '$/GAL')}   # z 11 serii jednego zapytania (bez filtra) — pozostałe pominięte
+SU_EIA_HH = {'RNGWHHD': ('hh', '$/MMBTU')}
+SU_EIA_ZAP = {'WCESTUS1': ('us_crude', 'MBBL'), 'WCSSTUS1': ('us_spr', 'MBBL'), 'WGTSTUS1': ('us_gasoline', 'MBBL'),
+              'WDISTUS1': ('us_dist', 'MBBL'), 'WKJSTUS1': ('us_jet', 'MBBL'), 'W_EPC0_SAX_YCUOK_MBBL': ('us_cushing', 'MBBL')}
+SU_EIA_GAZ = {'NW2_EPG0_SWO_R48_BCF': ('us_gas', 'BCF')}
+SU_ZAP = (('us_crude', 'mln bbl'), ('us_spr', 'mln bbl'), ('us_gasoline', 'mln bbl'), ('us_dist', 'mln bbl'), ('us_jet', 'mln bbl'),
+          ('us_cushing', 'mln bbl'), ('us_gas', 'Bcf'))
+SU_AVG5 = ('us_crude', 'us_gas')       # pasmo 5 lat (min, średnia, max) dla tych samych dni roku
+SU_WPSR = {'Commercial (Excluding SPR)': 'us_crude', 'Strategic Petroleum Reserve (SPR)': 'us_spr', 'Total Motor Gasoline': 'us_gasoline',
+           'Kerosene-Type Jet Fuel': 'us_jet', 'Distillate Fuel Oil': 'us_dist'}   # table1.csv (mln baryłek); Cushing — tylko z API
+SU_DZ = (('wti', 'Crude Oil', 'WTI', '$/barrel'), ('brent', 'Crude Oil', 'Brent', '$/barrel'),
+         ('ulsd_nyh', 'Low-Sulfur Diesel', 'NY Harbor', '$/gallon'), ('propan', 'Propane', 'Mont Belvieu', '$/gallon'))
+# strona dzienna: benzyna to RBOB (inny produkt niż seria API „conventional”) — pominięta; gaz Henry Hub z tabeli gazu (region Louisiana)
+SU_FMP = (('silver', 'SIUSD'), ('brent_fut', 'BZUSD'), ('gold_fut', 'GCUSD'))   # plan darmowy: tylko te (sonda 07.10: CLUSD, NGUSD, HGUSD — 402)
+SU_SPROTT = (('PHYS', 1000, 10000, False), ('PSLV', 10, 200, False), ('SPPP', None, None, True), ('CEF', None, None, True),
+             ('SPUT', 20, 300, False), ('COP', 3000, 30000, False))   # lista bez symboli: kolejność, zakres ceny jednostki, dwa metale
+SU_WB = (   # id, kolumna Pink Sheet (bez „ **”), jednostka w pliku, grupa, jednostka strony
+    ('ropa', 'Crude oil, average', '($/bbl)', 'en', 'USD/bbl'), ('ropa_brent', 'Crude oil, Brent', '($/bbl)', 'en', 'USD/bbl'),
+    ('ropa_wti', 'Crude oil, WTI', '($/bbl)', 'en', 'USD/bbl'), ('ropa_dubai', 'Crude oil, Dubai', '($/bbl)', 'en', 'USD/bbl'),
+    ('wegiel', 'Coal, Australian', '($/mt)', 'en', 'USD/t'), ('gaz_us', 'Natural gas, US', '($/mmbtu)', 'en', 'USD/MMBtu'),
+    ('gaz_eu', 'Natural gas, Europe', '($/mmbtu)', 'en', 'USD/MMBtu'), ('lng_jp', 'Liquefied natural gas, Japan', '($/mmbtu)', 'en', 'USD/MMBtu'),
+    ('aluminium', 'Aluminum', '($/mt)', 'mi', 'USD/t'), ('ruda_zelaza', 'Iron ore, cfr spot', '($/dmtu)', 'mi', 'USD/dmtu'),
+    ('miedz', 'Copper', '($/mt)', 'mi', 'USD/t'), ('olow', 'Lead', '($/mt)', 'mi', 'USD/t'), ('cyna', 'Tin', '($/mt)', 'mi', 'USD/t'),
+    ('nikiel', 'Nickel', '($/mt)', 'mi', 'USD/t'), ('cynk', 'Zinc', '($/mt)', 'mi', 'USD/t'),
+    ('zloto', 'Gold', '($/troy oz)', 'ms', 'USD/oz'), ('platyna', 'Platinum', '($/troy oz)', 'ms', 'USD/oz'),
+    ('srebro', 'Silver', '($/troy oz)', 'ms', 'USD/oz'),
+    ('pszenica', 'Wheat, US HRW', '($/mt)', 'ag', 'USD/t'), ('kukurydza', 'Maize', '($/mt)', 'ag', 'USD/t'),
+    ('ryz', 'Rice, Thai 5%', '($/mt)', 'ag', 'USD/t'), ('soja', 'Soybeans', '($/mt)', 'ag', 'USD/t'),
+    ('olej_sojowy', 'Soybean oil', '($/mt)', 'ag', 'USD/t'), ('olej_palmowy', 'Palm oil', '($/mt)', 'ag', 'USD/t'),
+    ('kawa_arabica', 'Coffee, Arabica', '($/kg)', 'ag', 'USD/kg'), ('kawa_robusta', 'Coffee, Robusta', '($/kg)', 'ag', 'USD/kg'),
+    ('kakao', 'Cocoa', '($/kg)', 'ag', 'USD/kg'), ('cukier', 'Sugar, world', '($/kg)', 'ag', 'USD/kg'),
+    ('bawelna', 'Cotton, A Index', '($/kg)', 'ag', 'USD/kg'), ('wolowina', 'Beef', '($/kg)', 'ag', 'USD/kg'),
+    ('mocznik', 'Urea', '($/mt)', 'fe', 'USD/t'), ('dap', 'DAP', '($/mt)', 'fe', 'USD/t'), ('potas', 'Potassium chloride', '($/mt)', 'fe', 'USD/t'))
+SU_WBIX = (('calosc', 'Total Index'), ('energia', 'Energy'), ('nieenerg', 'Non-energy'), ('rolne', 'Agriculture'), ('zywnosc', 'Food'),
+           ('zboza', 'Grains'), ('nawozy', 'Fertilizers'), ('metale', 'Metals & Minerals'), ('bazowe', 'Base Metals (ex. iron ore)'),
+           ('szlachetne', 'Precious Metals'))   # arkusz „Monthly Indices” (2010 = 100)
+SU_IMF = (   # id, wskaźnik PCPS, przekształcenie, grupa, jednostka, część (s = seria mapy zmian, ix = indeks, k = kontrolna)
+    ('lit', 'PLITH', 'USD', 'mi', 'USD/t', 's'), ('kobalt', 'PCOBA', 'USD', 'mi', 'USD/t', 's'),
+    ('ziemie_rzadkie', 'PREODOM', 'USD', 'mi', 'USD/t', 's'),
+    ('metale_mfw', 'PALLMETA', 'INDEX', None, 'indeks (2016=100)', 'ix'), ('metale_tr', 'PENTM', 'INDEX', None, 'indeks (2016=100)', 'ix'),
+    ('zloto_mfw', 'PGOLD', 'USD', None, 'USD/oz', 'k'), ('miedz_mfw', 'PCOPP', 'USD', None, 'USD/t', 'k'))
+SU_STALY = (4, 0.001)    # mies.: ≥ 4 kolejnych miesięcy ze zmianą < 0,1% = wartość przenoszona (kobalt MFW II–VIII 2026) → x 'niepewny'
+SU_ENERGIA = (('wti', 'wti', 'RWTC', '$/BBL'), ('brent', 'brent', 'RBRTE', '$/BBL'), ('gas', 'hh', 'RNGWHHD', '$/MMBTU'))
+_SU_RUN = {}             # surowce.json z tego przebiegu (ustawia main) — energia.json z tego samego pobrania
+_TD_T = [None]           # chwila (monotonic) ostatniego zapytania do Twelve Data w tym procesie — limit 8 kredytów na minutę
+
+
+def _su_r(v, n=4):
+    return None if not _isnum(v) else round(float(v), n)
+
+
+def _su_ym(s):
+    m = re.match(r'^(\d{4})M(\d{2})$', str(s or '').strip())
+    return f'{m.group(1)}-{m.group(2)}' if m and 1 <= int(m.group(2)) <= 12 else None
+
+
+def _su_min(now, s):
+    """Minuty od czasu ISO s do now; brak albo zły zapis = nieskończoność (źródło jeszcze nie pobrane)."""
+    t = _aw_t(s) if isinstance(s, str) else None
+    return float('inf') if t is None else (now - t).total_seconds() / 60
+
+
+def _su_dzien_rob(day, k=-1):
+    """Dzień roboczy (pn–pt) k dni roboczych od day (k < 0 — wstecz)."""
+    step = -1 if k < 0 else 1
+    n = abs(k)
+    while n:
+        day += datetime.timedelta(days=step)
+        if day.weekday() < 5:
+            n -= 1
+    return day
+
+
+def _su_piatek_przed(day):
+    """Ostatni piątek przed dniem (tydzień raportów EIA kończy się w piątek)."""
+    return day - datetime.timedelta(days=(day.weekday() - 4) % 7 or 7)
+
+
+def _su_slot(now, slots, dni=None):
+    """Ostatni termin (godz., min) UTC nie później niż now w dozwolone dni tygodnia (0 = poniedziałek); brak w 8 dniach = None."""
+    for back in range(8):
+        day = (now - datetime.timedelta(days=back)).date()
+        if dni is not None and day.weekday() not in dni:
+            continue
+        c = [x for x in (datetime.datetime(day.year, day.month, day.day, h, m, tzinfo=datetime.timezone.utc) for h, m in slots) if x <= now]
+        if c:
+            return max(c)
+    return None
+
+
+def _su_termin(now, z, slots, dni=None, ponow=60):
+    """Źródło publikujące o stałych porach: pobranie po każdym terminie (raz); po nieudanej próbie po terminie — ponowienie po `ponow` min."""
+    s = _su_slot(now, slots, dni)
+    at, tr = _aw_t(z.get('at')) if isinstance(z.get('at'), str) else None, _aw_t(z.get('try')) if isinstance(z.get('try'), str) else None
+    if s is None:
+        return at is None and _su_min(now, z.get('try')) >= ponow
+    if at is not None and at >= s:
+        return False
+    return tr is None or tr < s or _su_min(now, z.get('try')) >= ponow
+
+
+def _su_handel_zloto(now):
+    """Złoto na rynku pozagiełdowym: od niedzieli ok. 22:00 UTC do piątku ok. 22:00 UTC."""
+    wd = now.weekday()
+    return not (wd == 5 or (wd == 6 and now.hour < 22) or (wd == 4 and now.hour >= 22))
+
+
+def _su_cftc_wtorek(now):
+    """Wtorek (stan pozycji) raportu CFTC, który według kalendarza już wyszedł (piątek 19:30 UTC)."""
+    for back in range(8):
+        d = (now - datetime.timedelta(days=back)).date()
+        if d.weekday() == 4 and datetime.datetime(d.year, d.month, d.day, 19, 30, tzinfo=datetime.timezone.utc) <= now:
+            return (d - datetime.timedelta(days=3)).isoformat()
+    return ''
+
+
+def _su_prev_month(now):
+    y, m = now.year, now.month - 1
+    return f'{y - (m == 0):04d}-{12 if m == 0 else m:02d}'
+
+
+def _su_due(src, z, now, S):
+    """Czy źródło trzeba pobrać w tym przebiegu: kalendarz publikacji źródła, po błędzie ponowienie po godzinie (w oknie publikacji częściej).
+    z — stan źródła ({at: ostatnie udane pobranie, try: ostatnia próba, asof: najnowsza data danych}); S — {'st': stany wszystkich źródeł,
+    'markets_asof': data raportu CFTC w pliku}."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    asof = z.get('asof') if isinstance(z.get('asof'), str) else ''
+    wd, hm, today = now.weekday(), (now.hour, now.minute), now.date()
+    first = at == float('inf')
+    if src == 'eia':   # API ma ceny raz w tygodniu (środa; w tygodniu ze świętem — czwartek) — w oknie co 30 min, aż przyjdzie wtorek tygodnia
+        if first:
+            return tr >= 60
+        if wd in (2, 3) and (wd == 3 or hm >= (14, 0)) and asof < (today - datetime.timedelta(days=wd - 1)).isoformat():
+            return tr >= 30
+        return at >= 12 * 60 and tr >= 60
+    if src == 'eia_dz':   # strona dzienna (T+1): dni robocze 11:30–15:00 UTC co 20 min, aż pojawi się poprzedni dzień roboczy; potem stop
+        if first:
+            return tr >= 60
+        return wd < 5 and (11, 30) <= hm < (15, 0) and asof < _su_dzien_rob(today, -1).isoformat() and tr >= 20
+    if src == 'acer':     # ocena ceny LNG tego samego dnia (17:00), benchmark (różnica do TTF) następnego dnia roboczego (09:00)
+        return _su_termin(now, z, ((9, 0), (17, 0)), range(5))
+    if src == 'gld':      # archiwum funduszu po sesji NYSE: 01:00, ponowienie 13:00 UTC
+        return _su_termin(now, z, ((1, 0), (13, 0)))
+    if src == 'td':       # notowanie złota co godzinę w czasie handlu; nie w tej samej minucie co inne paczki Twelve Data (8 kredytów/min)
+        return (_su_handel_zloto(now) and at >= 55 and tr >= 55
+                and (_TD_T[0] is None or time.monotonic() - _TD_T[0] >= TD_SLEEP))
+    if src == 'fmp':      # raz na dobę po zamknięciu (22:30 UTC, dni robocze) — 3 zapytania z planu 250 na dobę
+        return _su_termin(now, z, ((22, 30),), range(5), ponow=120)
+    if src == 'sprott':
+        return at >= 360 and tr >= 60
+    if src in ('wpsr', 'wngsr'):   # pliki raportów tygodniowych: ropa w środę, gaz w czwartek (dzień później w tygodniu ze świętem) od 14:35 UTC
+        if first:
+            return tr >= 30
+        if wd in ((2, 3) if src == 'wpsr' else (3, 4)) and hm >= (14, 35) and asof < _su_piatek_przed(today).isoformat():
+            return tr >= 9          # co przebieg (10 min), aż przyjdzie nowy tydzień
+        return at >= 24 * 60 and tr >= 60
+    if src == 'eia_t':    # historia tygodniowa z API: gdy plik ma tydzień nowszy niż API (co godzinę), poza tym raz na tydzień
+        if first:
+            return tr >= 60
+        st = S.get('st') if isinstance(S.get('st'), dict) else {}
+        fw = str((st.get('wpsr') or {}).get('asof') or '')
+        fg = str((st.get('wngsr') or {}).get('asof') or '')
+        if fw > asof or fg > str(z.get('asof_g') or ''):
+            return tr >= 60
+        return at >= 7 * 24 * 60 and tr >= 60
+    if src == 'cftc':     # piątek od 19:30 UTC co 30 min, aż przyjdzie nowy wtorek (przerwa w pracy urzędu > 14 dni — co 6 h); poza tym co 6 h
+        exp, ma = _su_cftc_wtorek(now), str(S.get('markets_asof') or asof or '')
+        if first:
+            return tr >= 60
+        if exp and ma < exp and (today - datetime.date.fromisoformat(exp)).days <= 14:
+            return tr >= 30
+        return at >= 360 and tr >= 60
+    if src in ('fao', 'imf', 'wb'):   # miesięczne: w pierwszych dniach miesiąca, aż przyjdzie poprzedni miesiąc; poza tym raz na tydzień
+        dzien, co = {'fao': (10, 180), 'imf': (15, 720), 'wb': (10, 120)}[src]
+        if first:
+            return tr >= 60
+        if asof < _su_prev_month(now) and now.day <= dzien and (src != 'wb' or wd < 5):
+            return tr >= co
+        return at >= 7 * 24 * 60 and tr >= 60
+    return False
+
+
+def _su_drugi_rob(y, m):
+    d = datetime.date(y, m, 1)
+    while d.weekday() >= 5:
+        d += datetime.timedelta(days=1)
+    return _su_dzien_rob(d, 1)
+
+
+def _su_next(part, out, now):
+    """Najbliższa spodziewana publikacja części (ISO, UTC) — kontrola i strona wiedzą, że brak nowych danych do tej chwili jest normą.
+    Termin w przeszłości = publikacja zaległa (np. święto albo przerwa w pracy urzędu)."""
+    utc = datetime.timezone.utc
+    iso = lambda d, h, mi=0: datetime.datetime(d.year, d.month, d.day, h, mi, tzinfo=utc).isoformat()   # noqa: E731
+    today = now.date()
+    if part == 'ceny':   # strona dzienna EIA (T+1) ok. 11:30–12:30 UTC w dni robocze
+        d = today if today.weekday() < 5 and now.hour < 12 else _su_dzien_rob(today, 1)
+        return iso(d, 12)
+    if part == 'zapasy':   # raport tygodniowy w środę 10:30 czasu Nowego Jorku (14:30 UTC latem)
+        wed = today - datetime.timedelta(days=today.weekday() - 2)
+        pub = datetime.datetime(wed.year, wed.month, wed.day, 14, 30, tzinfo=utc)
+        if now >= pub and str((((out.get('st') or {}).get('wpsr') or {}).get('asof')) or '') >= _su_piatek_przed(wed).isoformat():
+            pub += datetime.timedelta(days=7)
+        return pub.isoformat()
+    if part == 'mies':   # Bank Światowy: 2. dzień roboczy miesiąca
+        if str((out.get('mies') or {}).get('asof') or '') >= _su_prev_month(now):
+            y, m = (now.year + 1, 1) if now.month == 12 else (now.year, now.month + 1)
+        else:
+            y, m = now.year, now.month
+        return iso(_su_drugi_rob(y, m), 12)
+    if part == 'markets':   # CFTC: piątek 15:30 czasu Nowego Jorku (19:30 UTC latem)
+        exp = _su_cftc_wtorek(now)
+        fri = datetime.date.fromisoformat(exp) + datetime.timedelta(days=3) if exp else today
+        if str(out.get('asof') or '') >= exp:
+            fri += datetime.timedelta(days=7)
+        return iso(fri, 19, 30)
+    return None
+
+
+# ---- parsery (nagrania odpowiedzi w testach SurowceV295) ----
+def su_eia_url(key, route, freq, start, series=None):
+    """Adres EIA API v2: wszystkie serie trasy (series=None) albo wybrane, od dnia start, najnowsze najpierw, do 5000 wierszy (limit API)."""
+    q = ([('api_key', key), ('frequency', freq), ('data[0]', 'value')] + [('facets[series][]', s) for s in (series or ())]
+         + [('start', start), ('sort[0][column]', 'period'), ('sort[0][direction]', 'desc'), ('offset', '0'), ('length', '5000')])
+    return f'{EIA_API}{route}/data/?' + urllib.parse.urlencode(q)
+
+
+def parse_eia_v2(j, want):
+    """EIA API v2 → ({id: {dzień: liczba}}, [serie z inną jednostką]). want: {seria: (id, jednostka)}; wiersz innej serii pominięty,
+    nie-liczba = brak (nigdy 0); seria z inną jednostką niż oczekiwana — cała pominięta (zła liczba gorsza niż brak); pole error = błąd."""
+    if not isinstance(j, dict) or j.get('error'):
+        raise RuntimeError(str((j or {}).get('error') if isinstance(j, dict) else 'nieznany kształt odpowiedzi')[:140])
+    rows = (j.get('response') or {}).get('data')
+    if not isinstance(rows, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out, bad = {}, set()
+    for r in rows:
+        if not isinstance(r, dict) or r.get('series') not in want:
+            continue
+        sid = r['series']; cid, unit = want[sid]
+        if str(r.get('units') or '').upper() != unit:
+            bad.add(sid); continue
+        d, v = str(r.get('period') or ''), _num(r.get('value'))
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', d) and _isnum(v):
+            out.setdefault(cid, {})[d] = v
+    for sid in bad:
+        out.pop(want[sid][0], None)
+    return out, sorted(bad)
+
+
+def _su_cells(row_html):
+    import html as _h
+    return [re.sub(r'\s+', ' ', _h.unescape(re.sub(r'<[^>]+>', ' ', c))).strip() for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', row_html, re.S)]
+
+
+def parse_eia_dzien(text, today=None):
+    """Strona EIA „Daily Prices” → (dzień zamknięcia 'RRRR-MM-DD', {id: liczba}). Tabela „Wholesale Spot Petroleum Prices, MM/DD/YY Close”:
+    wiersz z grupą (produkt i jednostka) albo sam obszar; gaz Henry Hub z tabeli „Select Spot Prices” (region Louisiana — tylko gdy tabela punktów
+    mówi, że to Henry Hub). Dzień zamknięcia z przyszłości albo starszy niż 10 dni = błąd (inna strona)."""
+    m = re.search(r'Wholesale Spot Petroleum Prices,\s*(\d{1,2})/(\d{1,2})/(\d{2})\s*Close', re.sub(r'<[^>]+>', ' ', text))
+    if not m:
+        raise RuntimeError('brak tabeli cen hurtowych z datą zamknięcia')
+    day = datetime.date(2000 + int(m.group(3)), int(m.group(1)), int(m.group(2)))
+    today = today or _now_utc().date()
+    if not (today - datetime.timedelta(days=10) <= day <= today):
+        raise RuntimeError(f'dzień zamknięcia {day} poza oknem 10 dni')
+    out = {}
+    tabs = re.findall(r'<table.*?</table>', text, re.S)
+    hurt = next((t for t in tabs if 'Wholesale Spot Petroleum Prices' in t), '')
+    grupa = ''
+    for row in re.findall(r'<tr.*?</tr>', hurt, re.S):
+        c = _su_cells(row)
+        if len(c) == 4 and '$/' in c[0]:
+            grupa, c = c[0], c[1:]
+        elif len(c) != 3:
+            continue
+        for cid, g, area, unit in SU_DZ:
+            if grupa.startswith(g) and unit in grupa and c[0].startswith(area):
+                v = _num(c[1])
+                if _isnum(v) and v > 0:
+                    out[cid] = v
+    gaz = next((t for t in tabs if 'Select Spot Prices' in t), '')
+    punkty = next((t for t in tabs if 'Gas Point Used' in t), '')
+    hh = any(len(c) >= 2 and c[0] == 'Louisiana' and c[1] == 'Henry Hub' for c in (_su_cells(r) for r in re.findall(r'<tr.*?</tr>', punkty, re.S)))
+    if hh and '$/million Btu' in re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', gaz)):
+        for row in re.findall(r'<tr.*?</tr>', gaz, re.S):
+            c = _su_cells(row)
+            if len(c) >= 2 and c[0] == 'Louisiana':
+                v = _num(c[1])
+                if _isnum(v) and v > 0:
+                    out['hh'] = v
+    if not out:
+        raise RuntimeError('brak cen w tabeli')
+    return day.isoformat(), out
+
+
+def parse_wpsr_table1(text):
+    """ir.eia.gov/wpsr/table1.csv → (tydzień 'RRRR-MM-DD', {id: mln baryłek}, poprzedni tydzień, {id: mln baryłek}). Pierwszy blok pliku
+    (zapasy), wiersze po nazwie; tydzień kończy się w piątek (inny dzień = błąd); liczby z przecinkami tysięcy."""
+    rows = list(csv.reader(io.StringIO(text.lstrip('\ufeff'))))
+    if not rows or not rows[0] or rows[0][0].strip() != 'STUB_1' or len(rows[0]) < 3:
+        raise RuntimeError('nieznany nagłówek pliku')
+
+    def dz(s):
+        d = datetime.datetime.strptime(s.strip(), '%m/%d/%y').date()
+        if d.weekday() != 4:
+            raise RuntimeError(f'tydzień {d} nie kończy się w piątek')
+        return d.isoformat()
+    w1, w0 = dz(rows[0][1]), dz(rows[0][2])
+    a, b = {}, {}
+    for r in rows[1:]:
+        if r and r[0].strip() == 'STUB_1':
+            break
+        cid = SU_WPSR.get(r[0].strip()) if r else None
+        if cid and len(r) >= 3:
+            x, y = _num(r[1]), _num(r[2])
+            if _isnum(x):
+                a[cid] = round(x, 3)
+            if _isnum(y):
+                b[cid] = round(y, 3)
+    if len(a) < len(SU_WPSR):
+        raise RuntimeError(f'brak wierszy: {", ".join(sorted(set(SU_WPSR.values()) - set(a)))}')
+    return w1, a, w0, b
+
+
+def parse_wngsr(j):
+    """ir.eia.gov/ngs/wngsr.json → (tydzień, {tydzień: Bcf} — bieżący i poprzedni, średnia 5 lat według EIA dla bieżącego tygodnia)."""
+    if not isinstance(j, dict) or not isinstance(j.get('series'), list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    s = next((x for x in j['series'] if isinstance(x, dict) and str(x.get('series_id', '')).lower() == 'png.nw2_epg0_swo_r48_bcf.w'), None)
+    if not s:
+        raise RuntimeError('brak serii Lower 48')
+    cur, wa = str(j.get('current_week') or ''), str(j.get('week_ago') or '')
+    rows = {d: float(v) for d, v in (x for x in (s.get('data') or []) if isinstance(x, list) and len(x) == 2)
+            if d in (cur, wa) and _isnum(_num(v))}
+    if cur not in rows:
+        raise RuntimeError('brak bieżącego tygodnia')
+    a5 = _num((s.get('calculated') or {}).get('5yr-avg'))
+    return cur, rows, (a5 if _isnum(a5) else None)
+
+
+def parse_acer(text):
+    """ACER TERMINAL (CSV, cała historia) → ({dzień: cena LNG UE}, {dzień: TTF wyliczony = cena LNG UE − benchmark LNG}) w EUR/MWh.
+    Pusty benchmark (przychodzi następnego dnia roboczego) = TTF null, nigdy 0; kolumny po nazwie."""
+    rows = list(csv.reader(io.StringIO(text.lstrip('\ufeff'))))
+    if not rows:
+        raise RuntimeError('pusty plik')
+    h = [c.strip().upper() for c in rows[0]]
+    try:
+        iD, iE, iB = h.index('DATE'), h.index('EU PRICE (EUR/MWH)'), h.index('LNG BENCHMARK (EUR/MWH)')
+    except ValueError:
+        raise RuntimeError('brak kolumn DATE / EU PRICE / LNG BENCHMARK') from None
+    lng, ttf = {}, {}
+    for r in rows[1:]:
+        if len(r) <= max(iD, iE, iB) or not re.match(r'^\d{4}-\d{2}-\d{2}$', r[iD].strip()):
+            continue
+        d, e, b = r[iD].strip(), _num(r[iE]), _num(r[iB])
+        lng[d] = round(e, 3) if _isnum(e) else None
+        ttf[d] = round(e - b, 3) if _isnum(e) and _isnum(b) else None
+    if not any(v is not None for v in lng.values()):
+        raise RuntimeError('brak cen')
+    return lng, ttf
+
+
+def parse_gld_archive(data):
+    """Archiwum funduszu GLD (xlsx) → {dzień: cena LBMA PM wyliczona} = NAV/jedn. (10:30 NYT, z ceny LBMA PM) ÷ uncje złota na jednostkę,
+    USD/oz (różnica do LBMA PM: koszty funduszu, test wsteczny wobec MFW: maks. 0,61% w 262 miesiącach). Kolumny po nazwie."""
+    rows = _xlsx_rows(data, 'US GLD Historical Archive')
+    head = next((k for k in sorted(rows) if str(rows[k].get(1, '')).strip() == 'Date'), None)
+    if head is None:
+        raise RuntimeError('brak nagłówka')
+    col = {re.sub(r'\s+', ' ', str(v)).strip(): c for c, v in rows[head].items()}
+    cn = next((c for n, c in col.items() if n.startswith('NAV/Share')), None)
+    co = col.get('Ounces of Gold per Share')
+    if not cn or not co:
+        raise RuntimeError('brak kolumn NAV/jedn. albo uncji na jednostkę')
+    out = {}
+    for k in sorted(rows):
+        if k <= head:
+            continue
+        r = rows[k]
+        try:
+            d = datetime.datetime.strptime(str(r.get(1, '')).strip(), '%d-%b-%Y').date().isoformat()
+        except ValueError:
+            continue
+        nav, oz = _num(r.get(cn)), _num(r.get(co))
+        if _isnum(nav) and _isnum(oz) and 0.01 < oz < 1 and nav > 0:
+            v = nav / oz
+            if 100 < v < 100000:
+                out[d] = round(v, 2)
+    if not out:
+        raise RuntimeError('brak wierszy z ceną')
+    return out
+
+
+def parse_td_quote(j):
+    """Twelve Data /quote XAU/USD → {'v', 'at', 'z': 'td'}; komunikat błędu dostawcy (np. limit, plan) = wyjątek."""
+    if not isinstance(j, dict) or j.get('status') == 'error' or (j.get('code') not in (None, 200)):
+        raise RuntimeError(str((j or {}).get('message') if isinstance(j, dict) else 'nieznany kształt odpowiedzi')[:140])
+    v = _num(j.get('close'))
+    if not (_isnum(v) and 100 < v < 100000):
+        raise RuntimeError('brak ceny')
+    ts = _num(j.get('last_quote_at') if j.get('last_quote_at') is not None else j.get('timestamp'))
+    at = (datetime.datetime.fromtimestamp(int(ts), datetime.timezone.utc).isoformat() if _isnum(ts) and ts > 0 else NOW)
+    return {'v': round(v, 2), 'at': at, 'z': 'td'}
+
+
+def parse_sprott(j):
+    """Kalkulator trustów fizycznych (lista bez symboli) → (dzień, {'copper': USD/t, 'uran': USD/lb}, {'gold': …, 'silver': …} — ceny złota
+    i srebra z trustów PHYS i PSLV do sprawdzenia kolejności listy). Cena jednostki = wartość metalu ÷ ilość. Podpis listy (kolejność, zakres
+    ceny, jeden/dwa metale) musi się zgadzać dla wszystkich 6 trustów — inaczej cała odpowiedź odrzucona."""
+    if not isinstance(j, list) or len(j) < len(SU_SPROTT):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    day, out, kon = None, {}, {}
+    for (sym, lo, hi, dwa), r in zip(SU_SPROTT, j):
+        if not isinstance(r, dict):
+            raise RuntimeError(f'{sym}: brak wiersza')
+        q1, q2, mv = _num(r.get('totalOunces1')), _num(r.get('totalOunces2')), _num(r.get('totalMarketValue'))
+        if not (_isnum(q1) and q1 > 0 and _isnum(mv) and mv > 0) or (_isnum(q2) and q2 > 0) != dwa:
+            raise RuntimeError(f'{sym}: inny podpis listy (zmiana kolejności?)')
+        if lo is not None and not (lo <= mv / q1 <= hi):
+            raise RuntimeError(f'{sym}: cena {mv / q1:.2f} poza zakresem {lo}–{hi} (zmiana kolejności?)')
+        d = str(r.get('dateTimeStamp') or '')[:10]
+        if sym in ('PHYS', 'PSLV'):
+            kon['gold' if sym == 'PHYS' else 'silver'] = mv / q1
+        if sym in ('SPUT', 'COP'):
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', d):
+                raise RuntimeError(f'{sym}: brak daty')
+            day = max(day or d, d)
+            out['uran' if sym == 'SPUT' else 'copper'] = round(mv / q1, 2 if sym == 'SPUT' else 0)
+    return day, out, kon
+
+
+def parse_fao(text, today=None):
+    """FAO (CSV indeksów cen żywności) → ({RRRR-MM: indeks}, baza np. '2014-2016=100'). Plik, którego ostatni miesiąc jest starszy niż
+    3 miesiące, odrzucony (stary adres kończy się na 03.2018)."""
+    rows = list(csv.reader(io.StringIO(text.lstrip('\ufeff'))))
+    base = next((r[0].strip() for r in rows[:4] if r and '=100' in r[0]), None)
+    hi = next((i for i, r in enumerate(rows) if r and r[0].strip() == 'Date'), None)
+    if hi is None:
+        raise RuntimeError('brak nagłówka')
+    head = [c.strip() for c in rows[hi]]
+    if 'Food Price Index' not in head:
+        raise RuntimeError('brak kolumny Food Price Index')
+    ci = head.index('Food Price Index')
+    out = {}
+    for r in rows[hi + 1:]:
+        if r and re.fullmatch(r'\d{4}-\d{2}', r[0].strip()) and len(r) > ci:
+            v = _num(r[ci])
+            out[r[0].strip()] = round(v, 2) if _isnum(v) else None
+    if not out:
+        raise RuntimeError('brak wierszy miesięcy (stary format pliku?)')
+    today = today or _now_utc().date()
+    t = today.year * 12 + today.month - 1 - 3
+    if max(out) < f'{t // 12:04d}-{t % 12 + 1:02d}':
+        raise RuntimeError(f'plik nieaktualny (ostatni miesiąc {max(out)}) — stary adres?')
+    return out, base
+
+
+def _su_wb_head(rows, first):
+    """Nazwy kolumn arkusza Banku Światowego: pierwsza niepusta komórka od góry w wierszach nagłówka (bez „**”, pojedyncze spacje)."""
+    names = {}
+    for k in sorted(rows):
+        if k >= first:
+            break
+        for c, v in rows[k].items():
+            s = re.sub(r'\s+', ' ', re.sub(r'\*+', '', str(v))).strip()
+            if c >= 2 and s and c not in names:
+                names[c] = s
+    return names
+
+
+def parse_wb(data):
+    """Bank Światowy, Pink Sheet (CMO-Historical-Data-Monthly.xlsx) → (dzień publikacji, {id: {RRRR-MM: liczba|None}}, {id indeksu: {…}},
+    [uwagi]). Arkusz „Monthly Prices”: wiersz nazw i pod nim jednostek; kolumna po nazwie i jednostce (inna jednostka = seria pominięta z uwagą),
+    „…” = brak (None, nigdy 0); arkusz „Monthly Indices” (2010 = 100); arkusz „Mismatch Details” pomijany."""
+    rows = _xlsx_rows(data, 'Monthly Prices')
+    pub = None
+    for k in sorted(rows)[:8]:
+        m = re.search(r'Updated on\s+([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})', str(rows[k].get(1, '')))
+        if m:
+            pub = datetime.datetime.strptime(f'{m.group(1)} {m.group(2)} {m.group(3)}', '%B %d %Y').date().isoformat()
+    first = next((k for k in sorted(rows) if _su_ym(rows[k].get(1))), None)
+    head = next((k for k in sorted(rows) if any(str(v).strip() == 'Crude oil, average' for v in rows[k].values())), None)
+    if first is None or head is None:
+        raise RuntimeError('brak wiersza nazw albo danych')
+    names = {c: re.sub(r'\s+', ' ', re.sub(r'\*+', '', str(v))).strip() for c, v in rows[head].items()}
+    col = {n: c for c, n in names.items()}
+    unit = rows.get(head + 1, {})
+    ser, uw = {}, []
+    for cid, nazwa, uj, _g, _u in SU_WB:
+        c = col.get(nazwa)
+        if c is None:
+            uw.append(f'brak kolumny „{nazwa}”'); continue
+        if str(unit.get(c, '')).strip() != uj:
+            uw.append(f'„{nazwa}”: jednostka {unit.get(c)!s} zamiast {uj}'); continue
+        ser[cid] = {ym: _su_r(_num(rows[k].get(c))) for k in sorted(rows) if k >= first for ym in (_su_ym(rows[k].get(1)),) if ym}
+    if not ser:
+        raise RuntimeError('żadnej serii')
+    ix = {}
+    try:
+        ri = _xlsx_rows(data, 'Monthly Indices')
+        f2 = next((k for k in sorted(ri) if _su_ym(ri[k].get(1))), None)
+        nm = {n: c for c, n in _su_wb_head(ri, f2 or 0).items()} if f2 else {}
+        for cid, nazwa in SU_WBIX:
+            c = nm.get(nazwa)
+            if c is None:
+                uw.append(f'indeksy: brak kolumny „{nazwa}”'); continue
+            ix[cid] = {ym: _su_r(_num(ri[k].get(c))) for k in sorted(ri) if k >= f2 for ym in (_su_ym(ri[k].get(1)),) if ym}
+    except RuntimeError as e:
+        uw.append(f'indeksy: {e}')
+    return pub, ser, ix, uw
+
+
+def _su_avg5(series, dates):
+    """Pasmo 5 lat dla dni bieżącej serii: [dzień, min, średnia, max] wartości z 5 poprzednich lat w tym samym dniu roku (liniowo między
+    sąsiednimi tygodniami — tak liczy EIA; 25.09.2026: 3334,5 wobec 3336 EIA). Dzień bez pełnych 5 lat — pominięty (bez pasma z mniejszej próby)."""
+    ks = sorted(k for k, v in series.items() if _isnum(v))
+    D = [datetime.date.fromisoformat(k) for k in ks]
+    import bisect
+
+    def at(t):
+        i = bisect.bisect_left(D, t)
+        if i < len(D) and D[i] == t:
+            return series[ks[i]]
+        if 0 < i < len(D) and (D[i] - D[i - 1]).days <= 14:
+            a, b = series[ks[i - 1]], series[ks[i]]
+            return a + (b - a) * (t - D[i - 1]).days / (D[i] - D[i - 1]).days
+        return None
+    out = []
+    for d in dates:
+        t = datetime.date.fromisoformat(d)
+        vals = []
+        for y in range(t.year - 5, t.year):
+            try:
+                tt = t.replace(year=y)
+            except ValueError:
+                tt = t.replace(year=y, day=28)
+            vals.append(at(tt))
+        if all(_isnum(v) for v in vals):
+            out.append([d, round(min(vals), 3), round(sum(vals) / 5, 3), round(max(vals), 3)])
+    return out
+
+
+def _su_zm(s):
+    """{dzień: zmiana % wobec poprzedniej sesji serii} — tylko gdy obie ceny > 0 (cena ujemna, np. WTI 20.04.2020, nie daje zmiany %)."""
+    ks = [k for k in sorted(s) if _isnum(s[k])]
+    return {ks[i]: (s[ks[i]] / s[ks[i - 1]] - 1) * 100 for i in range(1, len(ks)) if s[ks[i - 1]] > 0 and s[ks[i]] > 0}
+
+
+def su_q(B, W, F, prev=None):
+    """Punkty do sprawdzenia w ropie → {'brent': [[dzień, powód, stan]], 'wti': […]}. 'skok': zmiana ≥ 8% i odwrót następnej sesji o ≥ połowę
+    przy ruchu drugiej ropy < 5% (test wsteczny: 5 razy na 9514 sesji); 'rozjazd': |zmiana WTI − zmiana Brent| ≥ 8 pkt proc. — dostaje go ropa
+    z większym ruchem (94 dni na 8407) — poza dniem powrotu po „skoku” tej samej ropy (wtedy duża zmiana to powrót do normy, nie nowy
+    punkt: WTI 28.09.2026 +16,6% po 85,23 z 25.09). Stan 'potw', gdy kontrakt tego samego instrumentu (Brent: brent_fut) zmienił się tego dnia w tę samą
+    stronę o ≥ połowę ruchu (porównanie zmian %, nie poziomów — przy backwardation różnica poziomów przekracza 10 USD); inaczej 'niepotw'
+    (WTI: brak drugiego źródła w planach). Punkty z poprzedniego pliku nigdy nie są usuwane (stan liczony od nowa, gdy dane są w oknie).
+    UWAGA: 'skok' wymaga NASTĘPNEJ sesji (odwrotu) — q patrzy w przyszłość: to oznaczenie danych (strona, kontrola, opisowe korelacje panelu),
+    nie filtr przyczynowy. TRENDY (sygnały ze skutecznością) nie mogą pomijać punktu q od dnia jego daty — najwyżej od dnia, w którym q
+    wyznaczono (następna sesja); inaczej łamią zasadę „dziennik: tylko dane wcześniejsze” (v223)."""
+    rb, rw, rf = _su_zm(B), _su_zm(W), _su_zm(F)
+    found = {}
+
+    def skok(rx, ry, name):
+        ks = sorted(rx)
+        for i in range(len(ks) - 1):
+            d, r, r2 = ks[i], rx[ks[i]], rx[ks[i + 1]]
+            if abs(r) >= 8 and r * r2 < 0 and abs(r2) >= 0.5 * abs(r) and d in ry and abs(ry[d]) < 5:
+                found[(name, d, 'skok')] = r
+    skok(rb, rw, 'brent'); skok(rw, rb, 'wti')
+    poprz = {name: dict(zip(sorted(r)[1:], sorted(r))) for name, r in (('brent', rb), ('wti', rw))}
+    for d in set(rb) & set(rw):
+        if abs(rw[d] - rb[d]) >= 8:
+            name = 'brent' if abs(rb[d]) >= abs(rw[d]) else 'wti'
+            if (name, poprz[name].get(d), 'skok') not in found:
+                found[(name, d, 'rozjazd')] = rb[d] if name == 'brent' else rw[d]
+
+    def stan(name, d, r):
+        x = rf.get(d) if name == 'brent' else None
+        return 'potw' if x is not None and x * r > 0 and abs(x) >= 0.5 * abs(r) else 'niepotw'
+    out = {}
+    for name in ('brent', 'wti'):
+        Q = {(q[0], q[1]): q[2] for q in ((prev or {}).get(name) or []) if isinstance(q, list) and len(q) == 3}
+        for (n, d, why), r in found.items():
+            if n == name:
+                Q[(d, why)] = stan(name, d, r)
+        if Q:
+            out[name] = [[d, why, s] for (d, why), s in sorted(Q.items())]
+    return out
+
+
+def _su_staly(rows):
+    """Odcinki ≥ SU_STALY[0] kolejnych miesięcy ze zmianą < SU_STALY[1] (wartość przenoszona — źródło nie aktualizuje) → [[od, do]]."""
+    ks = [r for r in rows if _isnum(r[1])]
+    out, i = [], 0
+    while i < len(ks):
+        j = i
+        while j + 1 < len(ks) and ks[j][1] and abs(ks[j + 1][1] / ks[j][1] - 1) < SU_STALY[1]:
+            j += 1
+        if j - i + 1 >= SU_STALY[0]:
+            out.append([ks[i][0], ks[j][0]])
+        i = j + 1
+    return out
+
+
+# ---- historia (surowce-hist.json) ----
+def _su_hist_load(ph, prev):
+    """Historia do łączenia: z poprzedniego surowce-hist.json, uzupełniona poprzednim surowce.json (v2) — gdy pliku historii nie było."""
+    H = {'d': {}, 'w': {}, 'm': {}}
+    for k in H:
+        src = (ph or {}).get(k) if isinstance(ph, dict) else None
+        for cid, rows in (src or {}).items() if isinstance(src, dict) else ():
+            if isinstance(rows, list):
+                H[k][cid] = {r[0]: r[1] for r in rows if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str)}
+    if isinstance(prev, dict) and prev.get('v') == SU_V:
+        for k, part in (('d', 'ceny'), ('w', 'zapasy')):
+            for cid, e in (prev.get(part) or {}).items():
+                if isinstance(e, dict) and isinstance(e.get('d'), list):
+                    tgt = H[k].setdefault(cid, {})
+                    for r in e['d']:
+                        if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and r[0] not in tgt:
+                            tgt[r[0]] = r[1]
+        mi = prev.get('mies') if isinstance(prev.get('mies'), dict) else {}
+        for grp in ('s', 'ix', 'k'):
+            for cid, e in (mi.get(grp) or {}).items():
+                rows = e.get('d') if isinstance(e, dict) else e
+                if isinstance(rows, list):
+                    tgt = H['m'].setdefault(cid, {})
+                    for r in rows:
+                        if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and r[0] not in tgt:
+                            tgt[r[0]] = r[1]
+    return H
+
+
+def _su_last(rows):
+    return next((r for r in reversed(rows) if _isnum(r[1])), None)
+
+
+# ---- pobrania źródeł: każde aktualizuje historię H (API ma pierwszeństwo przed szybkimi kanałami: pole pre) ----
+def _su_limit(ctx, src, limit=None):
+    """Limit jednego zapytania: limit źródła, ale nie dłuższy niż reszta budżetu budowniczego — zapytanie ponad liczbę z SU_ZAPYTANIA (CFTC
+    w styczniu–kwietniu: trzy pliki) nie przedłuża przebiegu ponad budżet; reszta < 5 s = błąd źródła (ponowienie w następnym przebiegu).
+    Kontekst bez budżetu (wywołania pojedynczych pobrań w testach) — sam limit źródła."""
+    lim = limit or SU_LIMIT_S[src]
+    if ctx.get('t0') is None or ctx.get('budzet') is None:
+        return lim
+    left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+    if left < 5:
+        raise RuntimeError(f'budżet czasu budowniczego wyczerpany ({ctx["budzet"]:g} s)')
+    return lim if left >= lim else round(left, 1)
+
+
+def _su_get(ctx, src, url, headers=None, limit=None):
+    return ctx['fetch'](url, _su_limit(ctx, src, limit), headers)
+
+
+def _su_json(b):
+    return json.loads(b.decode('utf-8-sig', 'replace') if isinstance(b, (bytes, bytearray)) else b)
+
+
+def _su_api_merge(ctx, kind, got, part):
+    """Wiersze z API → historia: wartości API zastępują wstępne (strona dzienna, plik raportu); różnica wobec wstępnej wartości tego samego
+    dnia zapisana do kontroli (kontr.eia_dz / kontr.wpsr). Ten sam dzień co wpis już zapisany (ceny spot, potem Henry Hub z tego samego
+    wydania API — dwa wywołania z kluczem eia_dz) = serie dopisane do wpisu; nowszy dzień = nowy wpis; starszy = wpis bez zmian."""
+    H, P = ctx['H'][kind], ctx['P']
+    wsp = {cid: {d for d in (P.get(cid, set()) & set(rows)) if _isnum((H.get(cid) or {}).get(d))} for cid, rows in got.items()}
+    dd = max((d for x in wsp.values() for d in x), default=None)   # najnowszy dzień z wartością wstępną i z API — ten do kontroli
+    old = ctx['kontr'].get(part) if isinstance(ctx['kontr'].get(part), dict) else {}
+    od = str(old.get('d') or '')
+    if dd and dd >= od:
+        wst = {c: H[c][dd] for c in wsp if dd in wsp[c]}
+        api = {c: got[c][dd] for c in wsp if dd in wsp[c]}
+        if dd == od and isinstance(old.get('wst'), dict) and isinstance(old.get('api'), dict):
+            wst, api = {**old['wst'], **wst}, {**old['api'], **api}
+        ctx['kontr'][part] = {'d': dd, 'at': ctx['now_iso'], 'wst': dict(sorted(wst.items())), 'api': dict(sorted(api.items()))}
+    for cid, rows in got.items():
+        H.setdefault(cid, {}).update(rows)
+        P.setdefault(cid, set()).difference_update(rows)
+
+
+def _su_wstepne(ctx, kind, cid, d, v):
+    """Wartość z szybkiego kanału (strona dzienna, plik raportu) — tylko gdy API nie ma jeszcze tego dnia; dzień trafia do pre."""
+    tgt, pre = ctx['H'][kind].setdefault(cid, {}), ctx['P'].setdefault(cid, set())
+    if d not in tgt or d in pre:
+        tgt[d] = v; pre.add(d)
+
+
+def _su_eia(ctx):
+    key, now = ctx['keys'].get('EIA_KEY'), ctx['now']
+    start = (now.date() - datetime.timedelta(days=SU_SPOT_DNI)).isoformat()
+    got, bad = parse_eia_v2(_su_json(_su_get(ctx, 'eia', su_eia_url(key, 'petroleum/pri/spt', 'daily', start))), SU_EIA_SPT)
+    if not got.get('wti') or not got.get('brent'):
+        raise RuntimeError('brak ropy WTI albo Brent w odpowiedzi')
+    if bad:
+        ctx['uwagi'].append('EIA spot: inna jednostka serii ' + ', '.join(bad) + ' — pominięte')
+    _su_api_merge(ctx, 'd', got, 'eia_dz')
+    asof, z = max(max(got['wti']), max(got['brent'])), ctx['st'].setdefault('eia', {})
+    d3 = (datetime.date.fromisoformat(asof) - datetime.timedelta(days=3)).isoformat()
+    if asof == z.get('asof') and str(z.get('asof_hh') or '') >= d3:
+        return asof   # ceny spot bez nowego dnia (API publikuje raz w tygodniu) — gaz z tego samego wydania już jest; bez drugiego zapytania (ok. 16 s)
+    try:
+        g2, b2 = parse_eia_v2(_su_json(_su_get(ctx, 'eia', su_eia_url(key, 'natural-gas/pri/fut', 'daily', start, ('RNGWHHD',)))), SU_EIA_HH)
+        if not g2:
+            raise RuntimeError('brak serii' + (' (inna jednostka)' if b2 else ''))
+        _su_api_merge(ctx, 'd', g2, 'eia_dz')
+        z['asof_hh'] = max(g2['hh'])
+    except Exception as e:
+        ctx['bledy'].append(f'eia (Henry Hub): {e}')
+    return asof
+
+
+def _su_eia_dz(ctx):
+    day, vals = parse_eia_dzien(_su_get(ctx, 'eia_dz', SU_EIA_DZ_URL).decode('utf-8', 'replace'), ctx['now'].date())
+    for cid, v in vals.items():
+        _su_wstepne(ctx, 'd', cid, day, v)
+    return day
+
+
+def _su_acer(ctx):
+    lng, ttf = parse_acer(_su_get(ctx, 'acer', SU_ACER_URL).decode('utf-8', 'replace'))
+    ctx['H']['d'].setdefault('lng_eu', {}).update(lng)
+    ctx['H']['d'].setdefault('ttf', {}).update(ttf)
+    return max(d for d, v in lng.items() if v is not None)
+
+
+def _su_gld(ctx):
+    g = parse_gld_archive(_su_get(ctx, 'gld', SU_GLD_URL))
+    ctx['H']['d'].setdefault('gold', {}).update(g)
+    return max(g)
+
+
+def _su_td(ctx):
+    lv = parse_td_quote(_su_json(_su_get(ctx, 'td', SU_TD_URL.format(key=ctx['keys'].get('TWELVEDATA_KEY')))))
+    ctx['live']['gold'] = lv
+    ctx['st'].setdefault('td', {})['live'] = lv   # także w stanie źródła: notowanie (zużyty kredyt) nie przepada, gdy seria dzienna złota jest
+    return lv['at'][:10]                         # jeszcze pusta (wdrożenie, awaria archiwum) — wraca do ceny.gold.live, gdy seria się pojawi
+
+
+def _su_fmp(ctx):
+    key, today, ok, asof = ctx['keys'].get('FMP_KEY'), ctx['now'].date(), 0, ''
+    for cid, sym in SU_FMP:
+        tgt = ctx['H']['d'].setdefault(cid, {})
+        last = max(tgt) if tgt else None
+        frm = (datetime.date.fromisoformat(last) - datetime.timedelta(days=10)) if last else today - datetime.timedelta(days=SU_SPOT_DNI)
+        try:
+            rows = fmp_eod_parse(_su_json(_su_get(ctx, 'fmp', FMP_EOD_URL.format(sym=sym, frm=frm.isoformat(), key=key))))
+        except Exception as e:
+            ctx['bledy'].append(f'fmp {sym}: {e}'); continue
+        tgt.update({d: round(v, 4) for d, v in rows})
+        ok += 1; asof = max(asof, rows[-1][0])
+    if not ok:
+        raise RuntimeError('żaden symbol')
+    return asof
+
+
+def _su_sprott(ctx):
+    day, vals, kon = parse_sprott(_su_json(_su_get(ctx, 'sprott', SU_SPROTT_URL)))
+    od = (datetime.date.fromisoformat(day) - datetime.timedelta(days=7)).isoformat()
+    for cid, tol in (('gold', 0.05), ('silver', 0.10)):   # kolejność listy: złoto i srebro z trustów wobec własnych serii (te same dni ±7)
+        ref = _su_last(sorted((d, x) for d, x in (ctx['H']['d'].get(cid) or {}).items() if od <= d <= day))
+        if ref and abs(kon[cid] / ref[1] - 1) > tol:
+            raise RuntimeError(f'{cid} z listy {kon[cid]:.2f} wobec {ref[1]} ({ref[0]}) — zmiana kolejności listy? odpowiedź odrzucona')
+    for cid, v in vals.items():
+        tgt = ctx['H']['d'].setdefault(cid, {})
+        p = _su_last(sorted((d, x) for d, x in tgt.items() if d < day))
+        if p and abs(v / p[1] - 1) > SU_SKOK:
+            if (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(p[0])).days <= SU_SKOK_DNI:
+                ctx['bledy'].append(f'sprott {cid}: {p[1]} → {v} ({(v / p[1] - 1) * 100:+.0f}%) — punkt odrzucony (zmiana kolejności listy?)'); continue
+            ctx['uwagi'].append(f'sprott {cid}: {p[1]} ({p[0]}) → {v} ({day}, {(v / p[1] - 1) * 100:+.0f}%) — punkt odniesienia starszy niż '
+                                f'{SU_SKOK_DNI} dni (przerwa źródła): przyjęte bez sprawdzenia skoku (kolejność listy sprawdzona złotem i srebrem)')
+        tgt[day] = v
+    return day
+
+
+def _su_wpsr(ctx):
+    w1, a, w0, b = parse_wpsr_table1(_su_get(ctx, 'wpsr', SU_WPSR_URL).decode('utf-8', 'replace'))
+    for d, vals in ((w0, b), (w1, a)):
+        for cid, v in vals.items():
+            _su_wstepne(ctx, 'w', cid, d, v)
+    return w1
+
+
+def _su_wngsr(ctx):
+    w, rows, a5 = parse_wngsr(_su_json(_su_get(ctx, 'wngsr', SU_WNGSR_URL)))
+    for d, v in sorted(rows.items()):
+        _su_wstepne(ctx, 'w', 'us_gas', d, v)
+    if a5 is not None:
+        ctx['avg5_zr'] = [w, a5]
+    return w
+
+
+def _su_eia_t(ctx):
+    """Historia tygodniowa z API: pełne SU_TYG_LAT lat raz na 7 dni (pole st.eia_t.pelne) albo gdy historia ropy lub gazu jest krótsza niż
+    5 lat (pasmo 5 lat); poza tym — doganianie pliku raportu (co godzinę w środę i czwartek) — tylko ostatnie SU_TYG_DOGON dni (mniej danych
+    i krótsze zapytania niż 2 × 7–9 s za pełną historię)."""
+    key, z, now, W = ctx['keys'].get('EIA_KEY'), ctx['st'].setdefault('eia_t', {}), ctx['now'], ctx['H']['w']
+    pelne = _su_min(now, z.get('pelne')) >= 7 * 24 * 60 or any(len(W.get(c) or {}) < 5 * 52 + 4 for c in ('us_crude', 'us_gas'))
+    start = (now.date() - datetime.timedelta(days=365 * SU_TYG_LAT + 7 if pelne else SU_TYG_DOGON)).isoformat()
+    got, bad = parse_eia_v2(_su_json(_su_get(ctx, 'eia_t', su_eia_url(key, 'petroleum/stoc/wstk', 'weekly', start, tuple(SU_EIA_ZAP)))), SU_EIA_ZAP)
+    if not got:
+        raise RuntimeError('brak serii zapasów')
+    if bad:
+        ctx['uwagi'].append('EIA zapasy: inna jednostka serii ' + ', '.join(bad) + ' — pominięte')
+    _su_api_merge(ctx, 'w', {cid: {d: round(v / 1000, 3) for d, v in rows.items()} for cid, rows in got.items()}, 'wpsr')
+    if pelne:
+        z['pelne'] = ctx['now_iso']
+    asof = max(max(r) for r in got.values())
+    try:
+        g2, b2 = parse_eia_v2(_su_json(_su_get(ctx, 'eia_t', su_eia_url(key, 'natural-gas/stor/wkly', 'weekly', start, tuple(SU_EIA_GAZ)))), SU_EIA_GAZ)
+        if not g2:
+            raise RuntimeError('brak serii' + (' (inna jednostka)' if b2 else ''))
+        _su_api_merge(ctx, 'w', g2, 'wngsr')
+        z['asof_g'] = max(g2['us_gas'])
+    except Exception as e:
+        ctx['bledy'].append(f'eia_t (gaz w magazynach): {e}')
+    return asof
+
+
+def _su_cftc(ctx):
+    m = su_markets(fetch=lambda u: ctx['fetch'](u, _su_limit(ctx, 'cftc'), None), today=ctx['now'].date(), prev=ctx['prev'])
+    ctx['markets'] = m
+    return m['asof']
+
+
+def _su_fao(ctx):
+    rows, base = parse_fao(_su_get(ctx, 'fao', SU_FAO_URL).decode('utf-8', 'replace'), ctx['now'].date())
+    ctx['H']['m'].setdefault('fao', {}).update(rows)
+    ctx['st'].setdefault('fao', {})['baza'] = base
+    return max(k for k, v in rows.items() if v is not None)
+
+
+def _su_imf(ctx):
+    ser = parse_imf_sdmx(_su_json(_su_get(ctx, 'imf', SU_IMF_URL, {'Accept': 'application/json'})))
+    asof = ''
+    for cid, ind, tr, _g, _u, _p in SU_IMF:
+        rows = ser.get(('G001', ind, tr, 'M'))
+        if rows:
+            ctx['H']['m'].setdefault(cid, {}).update({ym: _su_r(v) for ym, v in rows})
+            asof = max(asof, rows[-1][0]) if _p == 's' else asof
+        else:
+            ctx['uwagi'].append(f'MFW: brak serii {ind}')
+    if not asof:
+        raise RuntimeError('brak litu, kobaltu i ziem rzadkich')
+    return asof
+
+
+def _su_wb(ctx):
+    page = _su_get(ctx, 'wb', SU_WB_PAGE, limit=30).decode('utf-8', 'replace')
+    m = re.search(r'href="(https://thedocs\.worldbank\.org/[^"]*CMO-Historical-Data-Monthly\.xlsx)"', page)
+    if not m:
+        raise RuntimeError('brak odnośnika do pliku na stronie')
+    pub, ser, ix, uw = parse_wb(_su_get(ctx, 'wb', m.group(1)))
+    for cid, rows in list(ser.items()) + list(ix.items()):
+        ctx['H']['m'].setdefault(cid, {}).update(rows)
+    if uw:
+        ctx['uwagi'].append('Bank Światowy: ' + '; '.join(uw[:4]))
+    ctx['st'].setdefault('wb', {})['pub'] = pub
+    return max(k for k, v in ser.get('ropa', {}).items() if v is not None) if ser.get('ropa') else max(max(r) for r in ser.values())
+
+
+SU_POBIERZ = {'eia': _su_eia, 'eia_dz': _su_eia_dz, 'acer': _su_acer, 'gld': _su_gld, 'td': _su_td, 'fmp': _su_fmp, 'sprott': _su_sprott,
+              'wpsr': _su_wpsr, 'wngsr': _su_wngsr, 'eia_t': _su_eia_t, 'cftc': _su_cftc, 'fao': _su_fao, 'imf': _su_imf, 'wb': _su_wb}
+
+
+def _su_crack(H):
+    """Marża rafinerii 3:2:1 (USD/bbl, wyliczona): (2 × benzyna NYH + 1 × olej napędowy NYH) × 42 ÷ 3 − WTI; brak składnika = null."""
+    W, G, U = (H['d'].get(k) or {} for k in ('wti', 'gas_nyh', 'ulsd_nyh'))
+    H['d']['crack321'] = {d: (round((2 * G[d] + U[d]) * 42 / 3 - w, 2) if _isnum(w) and _isnum(G.get(d)) and _isnum(U.get(d)) else None)
+                          for d, w in W.items()}
+
+
+def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+    """v295: data/surowce.json w wersji 2 i data/surowce-hist.json → (surowce, historia, zbiór źródeł pobranych w tym przebiegu).
+    Każde źródło ma własną bramkę (_su_due) i budżet czasu; źródło bez klucza — pominięte z notatką; źródło z błędem — poprzednie dane z datą
+    (część z ok False i krótkim błędem err). Bez wyjątku na zewnątrz poza błędem w samym budowniczym (main zostawia wtedy poprzednie pliki)."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    keys = keys if isinstance(keys, dict) else {}
+    prev = prev if isinstance(prev, dict) else {}
+    v2 = prev.get('v') == SU_V
+    st = json.loads(json.dumps(prev.get('st'))) if v2 and isinstance(prev.get('st'), dict) else {}
+    H = _su_hist_load(prev_hist, prev)
+    P = {}
+    for part in ('ceny', 'zapasy'):
+        for cid, e in ((prev.get(part) or {}).items() if v2 else ()):
+            if isinstance(e, dict) and isinstance(e.get('pre'), list):
+                P[cid] = {d for d in e['pre'] if isinstance(d, str)}
+    live = {cid: e['live'] for cid, e in ((prev.get('ceny') or {}).items() if v2 else ()) if isinstance(e, dict) and isinstance(e.get('live'), dict)}
+    tdl = (st.get('td') or {}).get('live') if isinstance(st.get('td'), dict) else None   # notowanie zapisane, gdy seria dzienna złota była pusta
+    if isinstance(tdl, dict) and isinstance(tdl.get('at'), str) and str(tdl['at']) > str((live.get('gold') or {}).get('at') or ''):
+        live['gold'] = tdl
+    kontr = json.loads(json.dumps(prev.get('kontr'))) if v2 and isinstance(prev.get('kontr'), dict) else {}
+    ctx = {'now': now, 'now_iso': now_iso, 'keys': keys, 'H': H, 'P': P, 'live': live, 'st': st, 'kontr': kontr, 'prev': prev,
+           'bledy': [], 'uwagi': [], 'markets': None, 'avg5_zr': None, 't0': time.monotonic(),
+           'budzet': SU_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or (lambda url, timeout, headers=None: get_bytes(url, headers, timeout=timeout))}
+    late = run_t0 is not None and time.monotonic() - run_t0 > SU_LATE
+    S = {'st': st, 'markets_asof': prev.get('asof')}
+    proby, udane, zle = {p: 0 for p in SU_PARTS}, set(), {}
+    pominiete = []
+    for src, part in SU_ZR:
+        z = st.setdefault(src, {})
+        if not _su_due(src, z, now, S):
+            continue
+        if SU_KLUCZ.get(src) and not keys.get(SU_KLUCZ[src]):
+            pominiete.append(f'{src} (brak {SU_KLUCZ[src]})'); continue
+        if late and src in SU_CIEZKIE:
+            pominiete.append(f'{src} (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + SU_ZAPYTANIA.get(src, 1) * SU_LIMIT_S[src] > ctx['budzet']:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        nb = len(ctx['bledy'])
+        z['try'] = now_iso
+        try:
+            asof = SU_POBIERZ[src](ctx)
+        except Exception as e:
+            proby[part] += 1
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            continue
+        proby[part] += 1
+        z['at'] = now_iso; z['asof'] = asof; z.pop('err', None); udane.add(src)
+        if src == 'cftc':
+            S['markets_asof'] = asof
+        if len(ctx['bledy']) > nb:   # częściowy błąd źródła (np. jeden z kilku symboli) — dane pozostałych zapisane
+            zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
+    _su_crack(H)
+    q = su_q(H['d'].get('brent') or {}, H['d'].get('wti') or {}, H['d'].get('brent_fut') or {},
+             {k: (prev.get('ceny') or {}).get(k, {}).get('q') for k in ('brent', 'wti')} if v2 else None)
+    pc = prev.get('ceny') if v2 and isinstance(prev.get('ceny'), dict) else {}
+    ceny = {}
+    for cid, g, u, z, x in SU_CENY:
+        rows = sorted(H['d'].get(cid, {}).items())[-SU_D:]
+        if not rows:
+            continue
+        e = {'g': g, 'u': u, 'f': 'D', 'd': [[d, v] for d, v in rows], 'z': z}
+        if x:
+            e['x'] = list(x)
+        pe = pc.get(cid) if isinstance(pc.get(cid), dict) else {}
+        pl = _su_last(pe.get('d') or []) if isinstance(pe.get('d'), list) else None
+        nl = _su_last(e['d'])
+        e['t'] = pe['t'] if (pl == nl and isinstance(pe.get('t'), str)) else now_iso
+        pre = sorted(d for d in P.get(cid, ()) if d >= rows[0][0])
+        if pre:
+            e['pre'] = pre
+        if q.get(cid):
+            e['q'] = q[cid]
+        if isinstance(live.get(cid), dict):
+            e['live'] = live[cid]
+        ceny[cid] = e
+    pz = prev.get('zapasy') if v2 and isinstance(prev.get('zapasy'), dict) else {}
+    zapasy = {}
+    for cid, u in SU_ZAP:
+        rows = sorted((d, v) for d, v in H['w'].get(cid, {}).items() if _isnum(v))[-SU_W:]
+        if not rows:
+            continue
+        e = {'u': u, 'f': 'W', 'd': [[d, v] for d, v in rows], 'z': 'eia'}
+        pe = pz.get(cid) if isinstance(pz.get(cid), dict) else {}
+        e['t'] = pe['t'] if (_su_last(pe.get('d') or []) == _su_last(e['d']) and isinstance(pe.get('t'), str)) else now_iso
+        pre = sorted(d for d in P.get(cid, ()) if d >= rows[0][0])
+        if pre:
+            e['pre'] = pre
+        if cid in SU_AVG5:
+            a5 = _su_avg5(H['w'][cid], [d for d, _ in rows])
+            if a5:
+                e['avg5'] = a5
+        if cid == 'us_gas':
+            a = ctx['avg5_zr'] or pe.get('avg5_zr')
+            if isinstance(a, list) and len(a) == 2:
+                e['avg5_zr'] = a
+        zapasy[cid] = e
+    s, ix, kk = {}, {}, {}
+    for cid, _n, _uj, g, u in SU_WB:
+        rows = sorted(H['m'].get(cid, {}).items())[-SU_M:]
+        if rows:
+            s[cid] = {'g': g, 'u': u, 'd': [[a, b] for a, b in rows], 'z': 'wb'}
+    for cid, _ind, _tr, g, u, p in SU_IMF:
+        rows = sorted(H['m'].get(cid, {}).items())[-(SU_K if p == 'k' else SU_M):]
+        if not rows:
+            continue
+        if p == 's':
+            e = {'g': g, 'u': u, 'd': [[a, b] for a, b in rows], 'z': 'imf'}
+            stl = _su_staly(e['d'])
+            if stl:
+                e['x'] = ['niepewny']; e['staly'] = stl
+            s[cid] = e
+        elif p == 'ix':
+            ix[cid] = {'u': u, 'd': [[a, b] for a, b in rows], 'z': 'imf'}
+        else:
+            kk[cid] = {'u': u, 'd': [[a, b] for a, b in rows], 'z': 'imf'}
+    for cid, _n in SU_WBIX:
+        rows = sorted(H['m'].get(cid, {}).items())[-SU_M:]
+        if rows:
+            ix[cid] = {'u': 'indeks (2010=100)', 'd': [[a, b] for a, b in rows], 'z': 'wb'}
+    rows = sorted(H['m'].get('fao', {}).items())[-SU_M:]
+    if rows:
+        ix['fao'] = {'u': 'indeks (' + str((st.get('fao') or {}).get('baza') or '2014-2016=100') + ')', 'd': [[a, b] for a, b in rows], 'z': 'fao'}
+    wbz = st.get('wb') or {}
+    mies = {'asof': wbz.get('asof'), 'pub': wbz.get('pub'), 's': s, 'ix': ix, 'k': kk,
+            'src': {k: {x: (st.get(k) or {}).get(x) for x in ('asof', 'pub', 'baza') if (st.get(k) or {}).get(x)} for k in ('wb', 'imf', 'fao')}}
+    m = ctx['markets'] if isinstance(ctx['markets'], dict) else prev
+    out = {'v': SU_V, 'at': None, 'src': m.get('src') or 'CFTC — Commitments of Traders: Disaggregated (futures only)',
+           'url': m.get('url') or CFTC_HOME, 'data_url': m.get('data_url') or CFTCD_WEEK_URL, 'unit': m.get('unit') or 'kontrakty',
+           'asof': m.get('asof'), 'order': m.get('order') or [g for g, _, _, _ in CFTCD_GROUPS],
+           'markets': m.get('markets') if isinstance(m.get('markets'), dict) else {}}
+    part_src = {p: [s_ for s_, pp in SU_ZR if pp == p] for p in SU_PARTS}
+    pat = dict(prev.get('part_at') or {}) if v2 and isinstance(prev.get('part_at'), dict) else ({'markets': prev['at']} if prev.get('at') else {})
+    perr = dict(prev.get('err') or {}) if v2 and isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in SU_PARTS:
+        if any(x in udane for x in part_src[p]):
+            pat[p] = now_iso
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = 'cached' if p in pat else False
+            if p not in pat and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out.update({'part_at': {p: pat[p] for p in SU_PARTS if pat.get(p)}, 'ok': ok, 'next': {}, 'err': {p: perr[p] for p in SU_PARTS if perr.get(p)},
+                'st': st, 'ceny': ceny, 'zapasy': zapasy, 'mies': mies})
+    if kontr:
+        out['kontr'] = kontr
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out['next'] = {p: _su_next(p, out, now) for p in SU_PARTS}
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('surowce: ' + x)[:200])
+    for p in SU_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('surowce ' + x)[:200])
+    if pominiete:
+        META['notes'].append('surowce: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    hist = {'v': 1, 'at': out['at'], 'src': 'CapitalFlowAI — historia działu SUROWCE (te same pobrania co data/surowce.json; kody źródeł jak tam)',
+            'd': {k: [[d, v] for d, v in sorted(r.items())][-SU_H:] for k, r in sorted(H['d'].items()) if r},
+            'w': {k: [[d, v] for d, v in sorted(r.items())][-SU_WH:] for k, r in sorted(H['w'].items()) if r},
+            'm': {k: [[d, v] for d, v in sorted(r.items())][-SU_MH:] for k, r in sorted(H['m'].items()) if r}}
+    return out, hist, udane
+
+
+def energia_z_surowcow(su, prev=None):
+    """v295: data/energia.json z TEGO SAMEGO pobrania co surowce.json — identyczne liczby: ropa WTI i Brent, gaz Henry Hub (dzień po dniu,
+    bez braków) oraz zapasy ropy i rezerwa SPR w tys. baryłek (jak dotąd czyta panel USA). Seria, której nie ma w surowcach — poprzednia."""
+    old = (prev or {}).get('s') if isinstance(prev, dict) and isinstance(prev.get('s'), dict) else {}
+    C, Z = su.get('ceny') or {}, su.get('zapasy') or {}
+    out = {'at': NOW, 'src': 'U.S. Energy Information Administration (EIA) — Open Data API v2, Daily Prices (T+1), Weekly Petroleum Status Report',
+           'url': 'https://www.eia.gov/opendata/', 'z': 'surowce', 's': {}}
+    for name, cid, sid, unit in SU_ENERGIA:
+        d = [[a, b] for a, b in ((C.get(cid) or {}).get('d') or []) if _isnum(b)]
+        if d:
+            out['s'][name] = {'id': sid, 'freq': 'daily', 'unit': unit, 'd': d}
+        elif isinstance(old.get(name), dict):
+            out['s'][name] = old[name]
+    for name, cid, sid in (('crude', 'us_crude', 'WCESTUS1'), ('spr', 'us_spr', 'WCSSTUS1')):
+        d = [[a, int(round(b * 1000))] for a, b in ((Z.get(cid) or {}).get('d') or []) if _isnum(b)]
+        if d:
+            out['s'][name] = {'id': sid, 'freq': 'weekly', 'unit': 'MBBL', 'd': d}
+        elif isinstance(old.get(name), dict):
+            out['s'][name] = old[name]
+    if not out['s']:
+        raise RuntimeError('surowce bez cen i zapasów ropy')
+    return out
+
+
 # ===================== v97: DANE RZĄDU USA (domena publiczna) — EIA, BLS, BEA =====================
 # Klucze tylko z GitHub Secrets (EIA_KEY, BLS_KEY, BEA_KEY); nigdy w plikach wynikowych (maskowanie komunikatów: SECRETS).
 EIA_API = 'https://api.eia.gov/v2/'
@@ -8929,7 +10059,11 @@ def eia_series(key, route, freq, sid, n):
 
 def build_energia(key, prev=None):
     """data/energia.json — ceny ropy (WTI, Brent), gazu (Henry Hub) i zapasy ropy w USA (EIA). Seria bez odpowiedzi zostawia
-    poprzednie wartości (z datą); bez żadnej nowej serii = błąd (zostaje poprzedni plik)."""
+    poprzednie wartości (z datą); bez żadnej nowej serii = błąd (zostaje poprzedni plik).
+    v295: gdy w tym przebiegu jest surowce.json w wersji 2 — z TEGO SAMEGO pobrania (te same liczby, bez osobnych zapytań do EIA)."""
+    su = _SU_RUN.get('su')
+    if isinstance(su, dict) and su.get('v') == SU_V and isinstance(su.get('ceny'), dict) and (su['ceny'].get('wti') or su['ceny'].get('brent')):
+        return energia_z_surowcow(su, prev)
     old = (prev or {}).get('s') if isinstance(prev, dict) else None
     old = old if isinstance(old, dict) else {}
     out = {'at': NOW, 'src': 'U.S. Energy Information Administration (EIA) — Open Data API v2', 'url': 'https://www.eia.gov/opendata/', 's': {}}
@@ -19918,6 +21052,7 @@ def main():
     _RUN_T0[0] = time.monotonic()      # v95.2: historia wstecz tylko, gdy przebieg nie jest już długi
     _CZAS.clear()                      # v185: czas części tego przebiegu
     _ZUZ.clear()                       # v222: licznik zużycia planów — od zera w każdym przebiegu (stan narastający w meta.json)
+    _SU_RUN.clear()                    # v295: surowce.json tego przebiegu (energia.json z tego samego pobrania)
     _BACK_LATE_NOTE[0] = False
     soso_key = klucz('SOSOVALUE_KEY')   # v272: spacja/znak sterujący w środku = nieużyty + błąd
     cg_key = klucz('COINGECKO_KEY')
@@ -20022,16 +21157,29 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'CFTC: {e}')); META['ok']['cftc'] = False
             if prev_cftc: save('cftc', prev_cftc); print('CFTC zawiódł — zachowano poprzedni cftc.json z', prev_cftc.get('at'))
-    # v92: CFTC — surowce (raport disaggregated): publikacja w piątki — najwyżej co 6 h; przy awarii poprzedni plik
+    # v295: SUROWCE v2 — części z własnymi bramkami źródeł (ceny, zapasy, mies, markets = CFTC v92; dawna bramka całego pliku co 6 h usunięta),
+    # budżet czasu w budowniczym; historia data/surowce-hist.json z pamięci Actions, gdy to ta sama wersja co surowce.json (bez pobierania
+    # ok. 0,3 MB ze strony co przebieg); awaria budowniczego = poprzednie pliki. META ok: 'surowce' = część CFTC (jak dotąd), surowce_ceny,
+    # surowce_zapasy, surowce_mies.
     prev_su = previous('surowce')
-    if prev_su and fresh(prev_su, 360):
-        save('surowce', prev_su); META['ok']['surowce'] = 'cached'
-    else:
-        try:
-            save('surowce', build_surowce(prev=prev_su)); META['ok']['surowce'] = True
-        except Exception as e:
-            META['errors'].append(mask(f'CFTC surowce: {e}')); META['ok']['surowce'] = False
-            if prev_su: save('surowce', prev_su)
+    ph = _prev_cache('surowce-hist')
+    prev_sh = ph if isinstance(ph, dict) and isinstance(prev_su, dict) and ph.get('at') and ph.get('at') == prev_su.get('at') else previous('surowce-hist')
+    n_err = len(META['errors'])
+    fmp_su = klucz('FMP_KEY')
+    del META['errors'][n_err:]   # zły sekret FMP zgłasza blok indeksów niżej (klucz(), jeden komunikat); wartość i tak maskowana (SECRETS_ZLE)
+    if fmp_su and fmp_su not in SECRETS:
+        SECRETS.append(fmp_su)
+    try:
+        su, sh, su_zm = build_surowce(prev_su, prev_sh, {'EIA_KEY': eia_key, 'TWELVEDATA_KEY': td_key, 'FMP_KEY': fmp_su}, run_t0=_RUN_T0[0])
+        save('surowce', su); save('surowce-hist', sh); _SU_RUN.update(su=su, zmiany=set(su_zm))
+        for p in SU_PARTS:
+            META['ok']['surowce' if p == 'markets' else 'surowce_' + p] = su['ok'][p]
+    except Exception as e:
+        META['errors'].append(mask(f'surowce: {e}')); META['ok']['surowce'] = False
+        if prev_su: save('surowce', prev_su)
+        if prev_sh: save('surowce-hist', prev_sh)
+        if isinstance(prev_su, dict) and prev_su.get('v') == SU_V:
+            _SU_RUN['su'] = prev_su
     # COIN METRICS (Community, bez klucza): dane dzienne (nowy dzień ok. 02–03 UTC) — plik młodszy niż 60 min bez zapytań;
     # przy awarii zachowaj poprzedni plik (pole "at" mówi, jak stary)
     prev_cm = previous('cm')
@@ -20576,7 +21724,7 @@ def main():
                                              ('usa-makro', build_usa_makro, bls_key, 6 * 60, 'BLS', False),
                                              ('bilans-usa', build_bilans_usa, bea_key, 24 * 60, 'BEA', True)):
         prev_x = previous(name)
-        if prev_x and fresh(prev_x, mins):
+        if prev_x and fresh(prev_x, mins) and not (name == 'energia' and _SU_RUN.get('zmiany', set()) & {'eia', 'eia_dz', 'wpsr', 'eia_t'}):   # v295: nowe dane EIA w surowcach — energia od razu
             save(name, prev_x); META['ok'][label.lower()] = 'cached'; continue
         if need and not key:
             META['errors'].append(f'brak {label}_KEY'); META['ok'][label.lower()] = False
@@ -20587,6 +21735,7 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'{label}: {e}')); META['ok'][label.lower()] = False
             if prev_x: save(name, prev_x)
+    _SU_RUN.clear()   # v295: energia gotowa — bez stanu surowców poza przebiegiem
     # v139: nastroje rynków — wskaźnik własny „strach i chciwość” dla GLOBAL (trzy serie dzienne z kluczem FRED_KEY + fundusze SPY / IEF
     # z tego przebiegu, więc po pliku fundusze): co 6 h; plik z brakującym składnikiem ponawiany po godzinie; awaria = poprzedni plik i błąd
     prev_ns = previous('nastroj')
