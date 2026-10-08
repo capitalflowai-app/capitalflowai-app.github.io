@@ -24,8 +24,8 @@ jobs:
     permissions:
       contents: write          # zapis archiwum/*.csv i indeks.json do repozytorium
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7   # v293a: akcje na Node.js 24 (ostatni etap; zmiana tuż przed 01:20 UTC — przebieg po pushu = zrzut z tej samej pory)
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Zapis archiwum (klucz FRED tylko z Secrets; dane z domeny publicznej i obliczenia własne)
