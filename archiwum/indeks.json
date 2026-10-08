@@ -1,5 +1,5 @@
 {
- "at": "2026-10-08T01:30:50+00:00",
+ "at": "2026-10-08T08:22:40+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,13 +22,13 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 169,
    "first": "2026-09-26",
    "last": "2026-10-08",
    "added": 0,
    "revised": 13,
-   "revisions_total": 117,
+   "revisions_total": 130,
    "fetched": 13
   },
   "stablecoiny-eth": {
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 26,
    "first": "2026-09-26",
    "last": "2026-10-08",
    "added": 0,
    "revised": 1,
-   "revisions_total": 10,
+   "revisions_total": 11,
    "fetched": 2
   },
   "plynnosc": {
@@ -68,7 +68,7 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 757,
    "first": "2023-09-26",
    "last": "2026-10-07",
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 1050,
    "first": "2024-10-01",
    "last": "2026-09-29",
@@ -140,7 +140,7 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 525,
    "first": "2024-09-26",
    "last": "2026-10-07",
@@ -170,14 +170,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
-   "rows": 90,
+   "at": "2026-10-08T08:22:40+00:00",
+   "rows": 100,
    "first": "2026-09-28",
-   "last": "2026-10-06",
-   "added": 0,
-   "revised": 0,
-   "revisions_total": 70,
-   "fetched": 90
+   "last": "2026-10-07",
+   "added": 10,
+   "revised": 10,
+   "revisions_total": 80,
+   "fetched": 100
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -200,7 +200,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 132,
    "first": "2026-10-05",
    "last": "2026-10-07",
@@ -240,7 +240,40 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-08T01:30:50+00:00",
+   "at": "2026-10-08T08:22:40+00:00",
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "added": 0,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 0
+  },
+  "surowce-dziennik": {
+   "file": "surowce-dziennik.csv",
+   "src": "Obliczenia własne CapitalFlowAI: dziennik kart reguł „w cieniu” działu SUROWCE (rejestracja z góry 08.10.2026) zapisanych przed granicą karty — 9:00 w Nowym Jorku (sesja) albo 05:30 UTC (doba krypto); g = głos, z = odchylenie wejścia, y = wynik w %, dd = dzień danych wejścia",
+   "cols": [
+    "date",
+    "line",
+    "sym",
+    "g",
+    "state",
+    "z",
+    "saved_at",
+    "y",
+    "dd",
+    "v",
+    "reg"
+   ],
+   "key": [
+    "date",
+    "line",
+    "sym",
+    "v",
+    "reg"
+   ],
+   "ok": true,
+   "at": "2026-10-08T08:22:40+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -252,7 +285,8 @@
  },
  "errors": [],
  "notes": [
-  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
+  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania",
+  "surowce-dziennik: brak pliku dziennika surowców na stronie (404) — nic do zapisania"
  ],
  "seria": {
   "plyn.net": 400,
