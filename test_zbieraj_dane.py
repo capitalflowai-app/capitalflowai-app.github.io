@@ -32639,7 +32639,7 @@ class ZlotoKryptoV295c(unittest.TestCase):
         self.assertEqual(o['tok']['ph'], p['tok']['ph'], 'historia dzienna bez gorszego pomiaru')
         self.assertIsNotNone(zd.zk_prem(4114.84, '2026-10-07T20:13:00+00:00', [('live', 4113.0 * 1.003, '2026-10-07T21:00:00+00:00')]), 'gorszy pomiar mieści się w 1 h — reguła nie „—”, tylko wybór lepszego')
         # poprzedni pomiar gorzej dopasowany (50 min) — nowy (13 min) go zastępuje; nowa cena tokenu (inna chwila) — zawsze nowy pomiar
-        q = json.loads(json.dumps(p)); q['tok']['PAXG'].update(dt_min=50, prem=9.9, ref_at='2026-10-07T19:23:00+00:00')
+        q = json.loads(json.dumps(p)); q['tok']['PAXG'].update(dt_min=50, ref_px=4100.0, prem=round((4114.84 / 4100.0 - 1) * 100, 3), ref_at='2026-10-07T19:23:00+00:00')   # v297c: zgodny ze sobą
         self.assertEqual(zd.build_zloto_krypto(self.S(), q, self.NOW)['tok']['PAXG']['prem'], P1['prem'])
         S = self.S(live_at='2026-10-07T21:00:00+00:00', live_v=4113.0 * 1.003); S['etf']['tok']['PAXG'] = {'p': 4127.0, 'at': '2026-10-07T21:05:00+00:00'}
         P3 = zd.build_zloto_krypto(S, p, self.NOW + datetime.timedelta(hours=1))['tok']['PAXG']
@@ -32677,10 +32677,10 @@ class ZlotoKryptoV295c(unittest.TestCase):
         o = zd.build_zloto_krypto(self.S(), None, self.NOW)
         self.assertEqual(o['ryn']['zloto']['t_d'], zd.ZK_ZLOTO['d'])
         R = {'uwagi': []}
-        z = kt.zk_kontrola(o, R, now=datetime.datetime(2027, 9, 29, 6, 20, tzinfo=datetime.timezone.utc))   # 456 dni po 30.06.2026 — jeszcze ✅
-        self.assertEqual((z['status'], z['wiek_dni'], R['uwagi']), ('✅', 456, []))
-        z = kt.zk_kontrola(o, R, now=datetime.datetime(2027, 9, 30, 6, 20, tzinfo=datetime.timezone.utc))
-        self.assertEqual((z['status'], z['wiek_dni'], len(R['uwagi'])), ('⚠️', 457, 1))
+        z = kt.zk_kontrola(o, R, now=datetime.datetime(2027, 7, 30, 6, 20, tzinfo=datetime.timezone.utc))   # v297c: 13 miesięcy po 30.06.2026 — jeszcze ✅
+        self.assertEqual((z['status'], z['wiek_dni'], R['uwagi']), ('✅', 395, []))
+        z = kt.zk_kontrola(o, R, now=datetime.datetime(2027, 7, 31, 6, 20, tzinfo=datetime.timezone.utc))
+        self.assertEqual((z['status'], z['wiek_dni'], len(R['uwagi'])), ('⚠️', 396, 1))
         self.assertIn('ze stanu na 2026-06-30', R['uwagi'][0]); self.assertIn('ZK_ZLOTO', R['uwagi'][0]); self.assertNotIn('❌', R['uwagi'][0])
         self.assertIsNone(kt.zk_kontrola(None, R)); self.assertIsNone(kt.zk_kontrola({'ryn': {'zloto': {'t_d': '2026-02-30'}}}, R)); self.assertEqual(len(R['uwagi']), 1)
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
@@ -32841,3 +32841,236 @@ class SurowceQTrwaV297g(unittest.TestCase):
         self.assertIn('Brent 2026-10-05 – 2026-10-06', tr[0]); self.assertIn('(2 ses.)', tr[0]); self.assertIn('kontrakt tego nie potwierdza', tr[0])
         self.assertNotIn('2026-03-19', tr[0], 'starszy niż SU_Q_DNI — bez uwagi')
         self.assertFalse(any('trwa' in u for u in P['uwagi']), 'bez wewnętrznego słowa „trwa” w raporcie')
+
+
+class ZlotoKryptoV297c(unittest.TestCase):
+    """v297c (runda 2 recenzji panelu CRYPTO „Złoto i surowce a krypto” + poprawki po recenzji łatki): cena złota sprawdzana raz, u źródła (tok, ryn,
+    zb i kor widzą tę samą serię), cena tokenu należy do pomiaru premii (prem_px; poprzedni pomiar w całości, kompletny i zgodny ze sobą), wejścia
+    spoza rozsądnego zakresu nie wywracają całej części, poprzednia podaż i cena tokenu tylko z prawdziwą chwilą, korelacja z S&P 500 tą samą
+    metodą co złoto, poprzednia część pliku bez NaN / nieskończoności, przypomnienie kontroli po 13 miesiącach kalendarzowych od daty stanu zasobów.
+    Zegar przypięty (NOW jak w klasie v295c), nagrania z klasy v295c."""
+    NOW = datetime.datetime(2026, 10, 7, 20, 20, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def S(self, **kw):
+        return ZlotoKryptoV295c.S(self, **kw)
+
+    def Sk(self, **kw):
+        """Wejścia jako głęboka kopia — zmiany w seriach nie dotykają wspólnych nagrań _ZK_FX."""
+        return json.loads(json.dumps(self.S(**kw)))
+
+    @staticmethod
+    def kt():
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola-zk297-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}, clear=False):
+            spec = importlib.util.spec_from_file_location('v297c_kontrola', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            kt = importlib.util.module_from_spec(spec); spec.loader.exec_module(kt)
+        return kt
+
+    def test_cena_zlota_spoza_zakresu_pominieta_u_zrodla(self):
+        # seria złota sprawdzana raz, u źródła (zk_seria_su z _zk_zl, 100–100 000 USD): uszkodzona liczba = brak dnia; dotąd 1e308 dawało
+        # zmiana × cena = nieskończoność (błąd CAŁEJ części tok i ryn, także krypto i bitcoina)
+        p = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        p['tok']['h'] = [[(datetime.date(2026, 10, 7) - datetime.timedelta(days=i)).isoformat(), 436648.2 - 3000 * i, None] for i in range(8, 0, -1)]
+        self.assertEqual((_ZK_FX['gold'][-1], self.S()['surowce']['ceny']['gold']['d'][-1]), (['2026-10-06', 4156.4], ['2026-10-06', 4156.4]))
+        # (1) uszkodzone tylko nowsze pobranie 06.10 — zostaje poprawna liczba z historii tego dnia (z datą)
+        S = self.Sk(); S['rwa']['onchain']['px']['zloto']['at'] = None
+        S['surowce']['ceny']['gold']['d'][-1][1] = 1e308
+        o = zd.build_zloto_krypto(S, p, self.NOW)
+        json.dumps(o, allow_nan=False)
+        self.assertEqual((o['notes'], o['ok']['tok'], o['ok']['ryn'], o['tok']['gpx']), ([], True, True, {'v': 4156.4, 'at': '2026-10-06', 'z': 'pm'}))
+        self.assertEqual((o['ryn']['zloto']['px'], o['ryn']['zloto']['px_d']), (4156.4, '2026-10-06'))
+        self.assertAlmostEqual(o['tok']['PAXG']['c7']['usd'], o['tok']['PAXG']['c7']['oz'] * 4156.4, delta=1)
+        # (2) 06.10 uszkodzony w obu źródłach (za duża, za mała, ujemna) — dnia nie ma: cena z poprzedniego dnia z JEJ datą (jak przy braku notowania)
+        g05 = dict(_ZK_FX['gold'])['2026-10-05']
+        for zla in (1e308, 0.5, -4156.4, 1e6):
+            S = self.Sk(); S['rwa']['onchain']['px']['zloto']['at'] = None
+            S['surowce']['ceny']['gold']['d'][-1][1] = zla; S['surowce-hist']['d']['gold'][-1][1] = zla
+            o = zd.build_zloto_krypto(S, p, self.NOW)
+            json.dumps(o, allow_nan=False)
+            self.assertEqual((o['notes'], o['tok']['gpx'], o['ryn']['zloto']['px'], o['ryn']['zloto']['px_d']), ([], {'v': g05, 'at': '2026-10-05', 'z': 'pm'}, g05, '2026-10-05'), zla)
+            self.assertAlmostEqual(o['tok']['PAXG']['c7']['usd'], o['tok']['PAXG']['c7']['oz'] * g05, delta=1)
+            self.assertNotIn('2026-10-06', [r[0] for r in o['zb']['d']], zla)
+            self.assertEqual(o['ryn']['krypto']['v'], round(_ZK_CMC['total_mcap']), zla)
+        # (3) straż w samych częściach (wywołanie z inną serią): kwoty USD None, bez szacunku złota — krypto i bitcoin zostają, premia z notowania
+        S = self.S(); S['rwa']['onchain']['px']['zloto']['at'] = None
+        T = zd.zk_tok(S['rwa'], S['etf'], S['surowce'], {'2026-10-06': 1e308}, p['tok'], self.NOW)
+        json.dumps(T, allow_nan=False)
+        self.assertEqual((T['gpx'], T['PAXG']['c7']['usd'], T['PAXG']['c7']['t']), (None, None, zd.zk_tonny(436648.20247 - (436648.2 - 21000))))
+        self.assertEqual(T['PAXG']['prem'], round((4114.84 / 4113.0 - 1) * 100, 3), 'premia z notowania godzinowego — bez zmian')
+        R = zd.zk_ryn(S['rwa'], S['cmc'], {'2026-10-06': 1e308})
+        self.assertNotIn('zloto', R, 'bez rozsądnej ceny złota — bez szacunku (nie nieskończoność, nie zero)')
+        self.assertEqual((R['krypto']['v'], R['btc']['v']), (round(_ZK_CMC['total_mcap']), round(_ZK_CMC['total_mcap'] * _ZK_CMC['btc_dom'] / 100)))
+        self.assertNotIn('zloto', zd.zk_ryn(None, None, {'2026-10-06': 0.5}) or {})
+
+    def test_zb_i_kor_bez_uszkodzonej_ceny_zlota(self):
+        # recenzja v297c: zakres ceny złota sprawdzały tylko części tok i ryn — wykres złoto–bitcoin dostawał punkt 1e308, a korelacja ze złotem
+        # zmieniała się bez notatki (+0,35 → −0,02); teraz uszkodzony dzień = brak dnia: wynik jak bez tego dnia w danych
+        X = _ZK_FX['gold'][-30][0]
+        base = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        self.assertIn(X, [r[0] for r in base['zb']['d']])
+        bez = self.Sk(); bez['surowce-hist']['d']['gold'] = [r for r in bez['surowce-hist']['d']['gold'] if r[0] != X]
+        o2 = zd.build_zloto_krypto(bez, None, self.NOW)
+        for zla in (1e308, 50.0, 1e6, float('inf')):
+            S = self.Sk(); S['surowce-hist']['d']['gold'][-30][1] = zla
+            o = zd.build_zloto_krypto(S, None, self.NOW)
+            json.dumps(o, allow_nan=False)
+            self.assertNotIn(X, [r[0] for r in o['zb']['d']], zla)
+            self.assertTrue(all(100 < r[1] < 100000 for r in o['zb']['d']), zla)
+            self.assertEqual((o['zb'], o['kor'], o['notes']), (o2['zb'], o2['kor'], []), zla)
+            self.assertEqual(o['kor']['br'], base['kor']['br'], 'ropa Brent bez zmian (zakres ceny złota jej nie dotyczy)')
+        self.assertTrue(-1 <= o2['kor']['zl']['v'] <= 1)
+
+    def test_cena_tokenu_spoza_zakresu_bez_premii(self):
+        # cena tokenu w etf.json spoza zakresu zapytania (100–100 000 USD; uszkodzone wejście): dotąd premia ≈ 2,4·10^298 % jako liczba w pliku
+        S = self.S(); S['etf']['tok']['PAXG'] = {'p': 1e300, 'at': '2026-10-07T20:13:00+00:00'}
+        T = zd.build_zloto_krypto(S, None, self.NOW)['tok']
+        self.assertEqual((T['PAXG']['px'], T['PAXG']['prem'], T['PAXG']['prem_px'], T['ph'][-1][1]), (None, None, None, None))
+        self.assertEqual((T['XAUT']['prem'], T['XAUT']['prem_px']), (round((4106.66 / 4113.0 - 1) * 100, 3), 4106.66), 'drugi token bez zmian')
+        # z poprzednim plikiem: poprzednia cena i pomiar premii z ich chwilami (strona pokazuje wiek) — bez nowego pomiaru z uszkodzonej liczby
+        p = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        o = zd.build_zloto_krypto(S, p, self.NOW + datetime.timedelta(minutes=10))['tok']['PAXG']
+        F = ('px', 'px_at') + zd.ZK_POMIAR
+        self.assertEqual({f: o[f] for f in F}, {f: p['tok']['PAXG'][f] for f in F})
+        # poprzednia cena bez prawdziwej chwili albo spoza zakresu — px brak (liczba bez daty nie wchodzi); pomiar premii zostaje w całości
+        # z JEGO ceną tokenu (prem_px) — kafel nie pokaże „0,00 USD”
+        for zle in ({'px_at': 'x'}, {'px_at': None}, {'px': 1e300}):
+            q = json.loads(json.dumps(p)); q['tok']['PAXG'].update(zle)
+            P = zd.build_zloto_krypto(S, q, self.NOW)['tok']['PAXG']
+            self.assertEqual((P['px'], P['prem'], P['prem_px'], P['prem_at']), (None, p['tok']['PAXG']['prem'], 4114.84, '2026-10-07T20:13:00+00:00'), zle)
+        # cena w zakresie — jak dotąd (granice zakresu jak w zapytaniu: 100 < p < 100 000)
+        S2 = self.S(); S2['etf']['tok']['PAXG'] = {'p': 4120.5, 'at': '2026-10-07T20:05:00+00:00'}
+        P2 = zd.build_zloto_krypto(S2, None, self.NOW)['tok']['PAXG']
+        self.assertEqual((P2['px'], P2['prem_px'], P2['dt_min'], P2['prem']), (4120.5, 4120.5, 5, round((4120.5 / 4113.0 - 1) * 100, 3)))
+
+    def test_kafel_premii_cena_tokenu_z_pomiaru(self):
+        # recenzja v297c (weekend: notowanie złota nie przychodzi od piątku 22:00, wyrocznia raz na dobę): nowa cena tokenu (4150 z 23:13) bez ceny
+        # złota z ostatniej godziny — dotąd px nowa, premia stara (z 20:13): kafel „token 4150,00 USD, złoto 4113,00 USD” przy premii +0,05%
+        # (z pokazanych cen wychodzi +0,9%); teraz pomiar w całości z JEGO ceną tokenu (prem_px), nowsza cena tylko w px
+        p = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        P1 = p['tok']['PAXG']
+        self.assertEqual((P1['prem_px'], P1['px'], P1['prem_at'], P1['px_at']), (4114.84, 4114.84, '2026-10-07T20:13:00+00:00', '2026-10-07T20:13:00+00:00'))
+        self.assertEqual(p['tok']['XAUT']['prem_px'], 4106.66)
+        later = self.NOW + datetime.timedelta(hours=3)
+        S = self.S(); S['etf']['tok']['PAXG'] = {'p': 4150.0, 'at': '2026-10-07T23:13:00+00:00'}
+        o = zd.build_zloto_krypto(S, p, later)
+        P = o['tok']['PAXG']
+        self.assertEqual((P['px'], P['px_at']), (4150.0, '2026-10-07T23:13:00+00:00'), 'ostatnia cena tokenu z jej chwilą')
+        self.assertEqual({f: P[f] for f in zd.ZK_POMIAR}, {f: P1[f] for f in zd.ZK_POMIAR}, 'pomiar sprzed 3 h w całości — z ceną tokenu z 20:13')
+        self.assertEqual(P['prem'], round((P['prem_px'] / P['ref_px'] - 1) * 100, 3), 'premia zgodna z cenami pokazanymi na kaflu')
+        self.assertNotEqual(P['prem'], round((P['px'] / P['ref_px'] - 1) * 100, 3))
+        self.assertEqual(o['tok']['ph'], p['tok']['ph'])
+        # następny przebieg: notowanie złota z 23:00 (13 min) — nowy pomiar z NOWĄ ceną tokenu
+        S2 = self.S(live_at='2026-10-07T23:00:00+00:00', live_v=4120.0); S2['etf']['tok']['PAXG'] = {'p': 4150.0, 'at': '2026-10-07T23:13:00+00:00'}
+        q = zd.build_zloto_krypto(S2, o, later + datetime.timedelta(minutes=10))
+        P2 = q['tok']['PAXG']
+        self.assertEqual((P2['prem_px'], P2['prem_at'], P2['ref_at'], P2['dt_min'], P2['prem']),
+                         (4150.0, '2026-10-07T23:13:00+00:00', '2026-10-07T23:00:00+00:00', 13, round((4150.0 / 4120.0 - 1) * 100, 3)))
+        # tryb szybki (ta sama cena tokenu z 23:13), notowanie złota z 23:50 (37 min) — zostaje lepiej dopasowany pomiar z JEGO ceną tokenu
+        S3 = self.S(live_at='2026-10-07T23:50:00+00:00', live_v=4125.0); S3['etf']['tok']['PAXG'] = {'p': 4150.0, 'at': '2026-10-07T23:13:00+00:00'}
+        P3 = zd.build_zloto_krypto(S3, q, later + datetime.timedelta(minutes=40))['tok']['PAXG']
+        self.assertEqual({f: P3[f] for f in zd.ZK_POMIAR}, {f: P2[f] for f in zd.ZK_POMIAR})
+
+    def test_poprzednia_podaz_tylko_z_prawdziwa_chwila(self):
+        p = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        later = self.NOW + datetime.timedelta(hours=13)   # odczyt w rwa.json starszy niż 12 h — mogłaby zostać tylko poprzednia podaż
+        for zle in (12345, 'x', None):
+            q = json.loads(json.dumps(p)); q['tok']['PAXG']['at'] = zle
+            o = zd.build_zloto_krypto(self.S(), q, later)['tok']
+            self.assertEqual((o['PAXG']['oz'], o['PAXG']['at'], o['PAXG']['t']), (None, None, None), f'{zle!r}: liczba bez daty odczytu nie wchodzi (na stronie „—”)')
+            self.assertEqual((o['XAUT']['oz'], o['XAUT']['at']), (p['tok']['XAUT']['oz'], p['tok']['XAUT']['at']), 'z prawdziwą chwilą — poprzednia podaż z jej chwilą')
+            self.assertIsNone(o['razem']['oz'])
+
+    def test_sp500_ta_sama_metoda_co_zloto(self):
+        F = _ZK_FX; b = dict(F['btc']); spx = dict(F['spx'])
+        # dni bez sesji w USA (święta, weekendy) są poza dniami wspólnymi — zmiana liczona między kolejnymi wspólnymi dniami (nie zero, nie brak)
+        self.assertNotIn('2025-12-25', spx); self.assertIn('2025-12-25', b)
+        # bitcoin ma doby po ostatniej sesji w USA: okno kończy się na ostatnim WSPÓLNYM dniu; dzikie liczby po nim nie zmieniają wyniku
+        S = self.S(); S['ceny-krypto']['q']['BTC']['d'] = F['btc'] + [['2026-10-07', 30000.0], ['2026-10-08', 300000.0]]
+        K = zd.build_zloto_krypto(S, None, self.NOW)['kor']
+        self.assertEqual((K['sp']['d'], K['sp']['n']), ('2026-10-06', 90))
+        self.assertEqual(K['sp'], zd.zk_kor(zd.zk_wspolne(spx, b)))
+        W = [[d, spx[d], b[d]] for d in sorted(set(spx) & set(b))][-90:]
+        xa = [_math_v125.log(W[k][1] / W[k - 1][1]) for k in range(1, len(W))]; xb = [_math_v125.log(W[k][2] / W[k - 1][2]) for k in range(1, len(W))]
+        self.assertAlmostEqual(K['sp']['v'], statistics.correlation(xa, xb), places=4)
+        # za mało wspólnych dni (59 sesji) = None (na stronie „—” z powodem), 60 = liczba — ten sam próg co złoto i ropa
+        for n, jest in ((59, False), (60, True)):
+            S = self.S(); S['indeksy']['ix']['GSPC']['d'] = F['spx'][-n:]
+            sp = zd.build_zloto_krypto(S, None, self.NOW)['kor']['sp']
+            self.assertEqual((sp['n'], sp['v'] is not None, sp['d']), (n, jest, '2026-10-06'), n)
+            if not jest:
+                self.assertEqual(sp['s'], [], 'bez pełnego okna — bez punktów na wykresie (nie zero)')
+        # bez S&P 500 w indeksy.json — część kor bez linii S&P (None), złoto i ropa bez zmian
+        S = self.S(); S['indeksy'] = {'ix': {}}
+        K2 = zd.build_zloto_krypto(S, None, self.NOW)['kor']
+        self.assertEqual((K2['sp'], K2['zl'], K2['br']), (None, K['zl'], K['br']))
+
+    def test_poprzedni_pomiar_premii_tylko_kompletny_i_zgodny(self):
+        # poprzedni pomiar z uszkodzonym polem (nieskończoność): dotąd kopiowany bez sprawdzenia → błąd CAŁEJ części tok, a zapasowa poprzednia część
+        # z tą samą nieskończonością trafiała do pliku; brak albo uszkodzona cena tokenu z pomiaru (prem_px) i pomiar niezgodny ze sobą (premia ≠ cena
+        # tokenu ÷ cena złota − 1) — też nie przechodzi (kafel pokazałby sprzeczne liczby albo „0,00 USD”); teraz pomiar „—” w całości, część liczona
+        p = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        P0 = p['tok']['PAXG']
+        zle_pola = (('ref', float('inf')), ('ref_px', float('-inf')), ('dt_min', float('nan')), ('ref', 'zzz'), ('ref_at', None), ('prem_px', 1e300),
+                    ('prem_px', None), ('prem_px', 'x'), ('prem_px', 4000.0), ('prem', 9.9), ('ref_px', 3900.0), ('prem', P0['prem'] + 0.011))
+        for pole, zle in zle_pola:
+            q = json.loads(json.dumps(p)); q['tok']['PAXG'][pole] = zle
+            o = zd.build_zloto_krypto(self.S(live_at='2026-10-07T19:10:00+00:00'), q, self.NOW + datetime.timedelta(hours=2))   # nowy pomiar niemożliwy (> 1 h)
+            json.dumps(o, allow_nan=False)
+            P = o['tok']['PAXG']
+            self.assertEqual((o['notes'], o['ok']['tok'], {f: P[f] for f in zd.ZK_POMIAR}), ([], True, dict.fromkeys(zd.ZK_POMIAR)), (pole, zle))
+            self.assertEqual((P['px'], P['px_at']), (4114.84, '2026-10-07T20:13:00+00:00'), 'ostatnia cena tokenu z chwilą zostaje (kafel jej nie łączy z premią)')
+            self.assertEqual(o['tok']['XAUT']['prem_at'], '2026-10-07T20:13:00+00:00', f'{pole}: drugi token — poprzedni pomiar z jego chwilą')
+        # pomiar zgodny ze sobą (w granicach zaokrągleń: ZK_PREM_TOL = 0,01 p.p.) — zostaje w całości
+        for q_prem in (P0['prem'], P0['prem'] + 0.009):
+            q = json.loads(json.dumps(p)); q['tok']['PAXG']['prem'] = q_prem
+            P = zd.build_zloto_krypto(self.S(live_at='2026-10-07T19:10:00+00:00'), q, self.NOW + datetime.timedelta(hours=2))['tok']['PAXG']
+            self.assertEqual({f: P[f] for f in zd.ZK_POMIAR}, {f: q['tok']['PAXG'][f] for f in zd.ZK_POMIAR}, q_prem)
+        # tryb szybki (ta sama cena tokenu): poprzedni pomiar z nieznanym kodem ceny złota albo niezgodny ze sobą nie jest zachowany — nowy pomiar
+        for pole, zle in (('ref', 'zzz'), ('prem', 9.9), ('prem_px', 4114.85)):
+            q = json.loads(json.dumps(p)); q['tok']['PAXG'][pole] = zle
+            P = zd.build_zloto_krypto(self.S(live_at='2026-10-07T21:00:00+00:00', live_v=4113.0 * 1.003), q, self.NOW + datetime.timedelta(hours=1))['tok']['PAXG']
+            self.assertEqual((P['ref'], P['dt_min'], P['ref_at'], P['prem_px'], P['prem']),
+                             ('live', 47, '2026-10-07T21:00:00+00:00', 4114.84, round((4114.84 / (4113.0 * 1.003) - 1) * 100, 3)), pole)
+
+    def test_poprzednia_czesc_z_nan_nie_trafia_do_pliku(self):
+        # część bez wejść w tym przebiegu = poprzednia; poprzednia z NaN / nieskończonością (plik spoza zbieracza) — pominięta z notatką, nie „NaN” w pliku
+        p = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        q = json.loads(json.dumps(p)); q['kor']['sp']['s'][5][1] = float('nan'); q['part_at']['zb'] = float('inf')
+        S = self.S(); del S['ceny-krypto']   # bez bitcoina: zb i kor bez wejść
+        o = zd.build_zloto_krypto(S, q, self.NOW + datetime.timedelta(hours=1))
+        json.dumps(o, allow_nan=False)
+        self.assertNotIn('kor', o); self.assertIs(o['ok']['kor'], False)
+        self.assertEqual(o['notes'], ['kor: poprzednia część z liczbą nieskończoną albo NaN — pominięta'])
+        self.assertEqual((o['zb'], o['ok']['zb'], o['part_at']['zb']), (p['zb'], False, None), 'poprawna część zostaje; czas części tylko prawdziwy')
+        self.assertIs(o['ok']['tok'], True)
+        # poprawna poprzednia część — jak dotąd: z jej czasem
+        o2 = zd.build_zloto_krypto(S, p, self.NOW + datetime.timedelta(hours=1))
+        self.assertEqual((o2['kor'], o2['ok']['kor'], o2['part_at']['kor'], o2['notes']), (p['kor'], False, self.NOW.isoformat(), []))
+
+    def test_kontrola_przypomnienie_po_13_miesiacach(self):
+        kt = self.kt()
+        self.assertEqual(kt.ZK_ZASOBY_MAX_MIES, 13)
+        utc = lambda d: datetime.datetime(d.year, d.month, d.day, 6, 20, tzinfo=datetime.timezone.utc)   # noqa: E731
+        o = zd.build_zloto_krypto(self.S(), None, self.NOW)
+        self.assertEqual(o['ryn']['zloto']['t_d'], zd.ZK_ZLOTO['d'])
+        R = {'uwagi': []}
+        z = kt.zk_kontrola({'ryn': {'zloto': {'t_d': '2026-06-30'}}}, R, now=utc(datetime.date(2027, 7, 30)))
+        self.assertEqual((z['status'], z['termin'], z['wiek_dni'], R['uwagi']), ('✅', '2027-07-30', 395, []))
+        z = kt.zk_kontrola({'ryn': {'zloto': {'t_d': '2026-06-30'}}}, R, now=utc(datetime.date(2027, 7, 31)))
+        self.assertEqual((z['status'], z['wiek_dni'], len(R['uwagi'])), ('⚠️', 396, 1), 'dotąd próg 456 dni — tu jeszcze ✅')
+        self.assertIn('ze stanu na 2026-06-30 — 396 dni temu (ponad 13 miesięcy, termin 2027-07-30)', R['uwagi'][0])
+        self.assertIn('ZK_ZLOTO', R['uwagi'][0]); self.assertNotIn('❌', R['uwagi'][0])
+        # koniec miesiąca: dzień, którego nie ma w miesiącu docelowym → ostatni dzień miesiąca (także rok przestępny i przejście roku)
+        for d, termin in (('2026-01-31', '2027-02-28'), ('2027-01-31', '2028-02-29'), ('2026-11-30', '2027-12-30'), ('2026-12-31', '2028-01-31'), ('2026-03-15', '2027-04-15')):
+            R = {'uwagi': []}; T = datetime.date.fromisoformat(termin)
+            self.assertEqual(kt._zk_plus_mies(datetime.date.fromisoformat(d), 13).isoformat(), termin, d)
+            self.assertEqual(kt.zk_kontrola({'ryn': {'zloto': {'t_d': d}}}, R, now=utc(T))['status'], '✅', d)
+            self.assertEqual(kt.zk_kontrola({'ryn': {'zloto': {'t_d': d}}}, R, now=utc(T + datetime.timedelta(days=1)))['status'], '⚠️', d)
+            self.assertEqual(len(R['uwagi']), 1, d)
+        # zła data stanu / brak części — bez wyniku i bez uwagi (jak dotąd)
+        R = {'uwagi': []}
+        self.assertIsNone(kt.zk_kontrola({'ryn': {'zloto': {'t_d': '2026-02-30'}}}, R)); self.assertIsNone(kt.zk_kontrola({'ryn': None}, R)); self.assertEqual(R['uwagi'], [])

@@ -21136,7 +21136,8 @@ def rwe_meta(rw, off, cached=False):
 #  * S&P 500 (dla porównania w korelacji) — dzienne zamknięcia sesji z data/indeksy.json (ix.GSPC.d, ten sam plik co panel indeksów GLOBAL);
 #    miedzi w korelacji nie ma: dział SUROWCE nie ma jej dziennej historii (tylko notowanie bieżące i średnie miesięczne);
 #  * podaż tokenów złota PAXG i XAUT — odczyt własny z łańcucha w data/rwa.json (XAUT: w obiegu = totalSupply − rezerwa emitenta, jak w wycenie
-#    RWA); dziennik podaży prowadzony w tym pliku (zmiany 7 i 30 dni = tokeny wybite minus spalone); PAXG na start z 8 dni zapisów rwa.json;
+#    RWA); dziennik podaży prowadzony w tym pliku (zmiany 7 i 30 dni netto = tokeny wprowadzone do obiegu minus wycofane; v297c: przy XAUT
+#    to nie zawsze wybicie i spalenie — emitent wydaje tokeny z rezerwy i przyjmuje je z powrotem); PAXG na start z 8 dni zapisów rwa.json;
 #  * ceny tokenów — data/etf.json, blok tok (pax-gold i tether-gold dopisane do istniejącego zapytania o kapitalizacje, z chwilą notowania);
 #    premia tylko, gdy cena tokenu i cena złota pochodzą z chwil oddalonych najwyżej o 1 h (notowanie godzinowe złota, wyrocznia na łańcuchu
 #    albo fixing popołudniowy o 15:00 w Londynie) — inaczej None;
@@ -21165,6 +21166,7 @@ ZK_CG_IDS = {s: c for s, _p, c in ZK_TOK}
 ZK_REZ = frozenset({'tether-gold'})   # produkty liczone tylko w obiegu (totalSupply − rezerwa emitenta): bez potwierdzonej rezerwy — brak, nigdy totalSupply
 # zasoby wydobytego złota — szacunek z datą stanu (koniec II kw. 2026: ok. 222 600 t; opublikowany 18.08.2026; aktualizacja kwartalna u wydawcy,
 # tu ręcznie co najmniej raz w roku). Wydawca tylko na stronie „Źródła” i w polu src.
+# v297c: kontrola dzienna (narzedzia/kontrola.py, zk_kontrola) przypomina o aktualizacji po 13 miesiącach od daty stanu 'd'.
 ZK_ZLOTO = {'t': 222600, 'd': '2026-06-30', 'pub': '2026-08-18'}
 ZK_SRC = ('Obliczenia CapitalFlowAI z plików strony, bez nowych zapytań: złoto (fixing popołudniowy w Londynie wyliczony z archiwum funduszu GLD) '
           'i ropa Brent (dostawa fizyczna, EIA) — data/surowce-hist.json i data/surowce.json; bitcoin (zamknięcie doby UTC) — data/ceny-krypto.json '
@@ -21185,6 +21187,32 @@ def _zk_zl(x):
     nieskończonej premii ani kwoty)."""
     v = _zk_num(x)
     return v if v is not None and 100 < v < 100000 else None
+
+
+ZK_REF = ('live', 'wyr', 'pm')   # v297c: kody ceny złota w pomiarze premii (notowanie godzinowe, wyrocznia, fixing popołudniowy)
+ZK_POMIAR = ('prem', 'prem_at', 'prem_px', 'ref', 'ref_px', 'ref_at', 'dt_min')   # v297c: pola JEDNEGO pomiaru premii — zawsze razem
+ZK_PREM_TOL = 0.01   # v297c: p.p. — premia w pliku (3 miejsca) zgodna z ceną tokenu ÷ ceną złota (2 miejsca) − 1; zaokrąglenia dają < 0,006 p.p.
+
+
+def _zk_prem_ok(po):
+    """v297c: poprzedni pomiar premii z pliku — kompletny i zgodny ze sobą: premia i różnica chwil skończone, prawdziwe chwile, znany kod,
+    cena tokenu z pomiaru (prem_px) i cena złota w zakresie, a premia = prem_px ÷ ref_px − 1 (z dokładnością ZK_PREM_TOL) — liczby na kaflu
+    nie przeczą sobie. Inaczej pomiar nie przechodzi dalej (na stronie „—”; uszkodzone pole, np. nieskończoność, wywracało całą część tok)."""
+    if not (isinstance(po, dict) and _zk_num(po.get('prem'), pos=False) is not None and _zk_t(po.get('prem_at')) is not None
+            and po.get('ref') in ZK_REF and _zk_t(po.get('ref_at')) is not None and _zk_num(po.get('dt_min'), pos=False) is not None):
+        return False
+    p, g = _zk_zl(po.get('prem_px')), _zk_zl(po.get('ref_px'))
+    return p is not None and g is not None and abs((p / g - 1) * 100 - po['prem']) <= ZK_PREM_TOL
+
+
+def _zk_json_ok(o):
+    """v297c: czy obiekt zapisze się jako poprawny JSON — bez NaN i nieskończoności (przeglądarka nie czyta „NaN” ani „Infinity”,
+    a save() zapisuje je bez błędu)."""
+    try:
+        json.dumps(o, allow_nan=False)
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def _zk_day(s):
@@ -21223,14 +21251,17 @@ def zk_ser(rows):
     return out
 
 
-def zk_seria_su(su, sh, cid):
+def zk_seria_su(su, sh, cid, ok=None):
     """Seria dzienna działu SUROWCE: historia (surowce-hist d[cid]) uzupełniona ostatnimi sesjami (surowce ceny[cid].d — te same pobrania,
-    nowsze wygrywają) → ({dzień: liczba}, zbiór dni q „do sprawdzenia”)."""
-    s = zk_ser(((sh or {}).get('d') or {}).get(cid) if isinstance(sh, dict) and isinstance(sh.get('d'), dict) else None)
+    nowsze wygrywają) → ({dzień: liczba}, zbiór dni q „do sprawdzenia”). `ok` (v297c) — sprawdzenie liczby w obu źródłach przed złożeniem
+    (złoto: _zk_zl, 100–100 000 USD): liczba spoza zakresu to brak dnia, a poprawna liczba z historii zostaje, gdy nowsze pobranie tego dnia
+    jest uszkodzone — złoto a bitcoin, korelacja, kwoty USD i szacunek rynku złota widzą tę samą serię."""
+    f = (lambda m: {d: v for d, v in m.items() if ok(v) is not None}) if ok else (lambda m: m)   # noqa: E731
+    s = f(zk_ser(((sh or {}).get('d') or {}).get(cid) if isinstance(sh, dict) and isinstance(sh.get('d'), dict) else None))
     e = ((su or {}).get('ceny') or {}).get(cid) if isinstance(su, dict) and isinstance(su.get('ceny'), dict) else None
     q = set()
     if isinstance(e, dict):
-        s.update(zk_ser(e.get('d')))
+        s.update(f(zk_ser(e.get('d'))))
         for r in e.get('q') if isinstance(e.get('q'), list) else ():
             if isinstance(r, (list, tuple)) and r and _zk_day(r[0]):
                 q.add(r[0])
@@ -21435,7 +21466,8 @@ def _zk_ch(h, i, n, gpx):
 
 def zk_tok(rw, etf, su, gold, prev, now):
     """Część tok: podaż PAXG i XAUT (uncje, tony, chwila odczytu), zmiany 7 / 30 dni (uncje, tony, USD po cenie złota z wyceny tokenów), cena tokenu
-    i premia do złota z chwil ≤ 1 h (inaczej poprzednia premia z jej chwilą — strona pokazuje wiek), dziennik podaży h i historia premii ph.
+    i premia do złota z chwil ≤ 1 h (inaczej poprzedni pomiar w całości, z jego ceną tokenu prem_px i chwilą — strona pokazuje wiek), dziennik
+    podaży h i historia premii ph. Pola pomiaru: ZK_POMIAR (v297c: px / px_at = ostatnia znana cena tokenu, prem_px = cena użyta w pomiarze).
     Bez żadnego wejścia i bez poprzedniej części = None."""
     prev = prev if isinstance(prev, dict) else {}
     oc = (rw or {}).get('onchain') if isinstance(rw, dict) and isinstance(rw.get('onchain'), dict) and not rw['onchain'].get('off') else None
@@ -21466,7 +21498,10 @@ def zk_tok(rw, etf, su, gold, prev, now):
     px = oc['px'].get('zloto') if isinstance(oc, dict) and isinstance(oc.get('px'), dict) else None   # XAU/USD z wyroczni (wycena tokenów w rwa.json)
     gpx = _zk_zl(px.get('v')) if isinstance(px, dict) and _zk_t(px.get('at')) else None   # cena z wyroczni tylko z prawdziwą chwilą (liczba ma datę)
     g_last = max(gold) if gold else None
-    gref = {'v': gpx, 'at': _zk_iso(_zk_t(px['at'])), 'z': 'wyr'} if gpx is not None else ({'v': gold[g_last], 'at': g_last, 'z': 'pm'} if g_last else None)
+    # v297c: fixing do kwot też tylko w rozsądnym zakresie (jak wyrocznia; seria z build_zloto_krypto jest już sprawdzona u źródła — to straż
+    # części): uszkodzona liczba (np. 1e308) dawała zmiana × cena = nieskończoność i błąd CAŁEJ części tok; teraz kwoty USD = None („—”)
+    g_pm = _zk_zl(gold[g_last]) if g_last else None
+    gref = {'v': gpx, 'at': _zk_iso(_zk_t(px['at'])), 'z': 'wyr'} if gpx is not None else ({'v': g_pm, 'at': g_last, 'z': 'pm'} if g_pm is not None else None)
     gp = gref['v'] if gref else None
     ce = su.get('ceny') if isinstance(su, dict) else None
     ge = ce.get('gold') if isinstance(ce, dict) else None
@@ -21487,34 +21522,41 @@ def zk_tok(rw, etf, su, gold, prev, now):
     for k, (s, slug, _cid) in enumerate(ZK_TOK):
         po = prev.get(s) if isinstance(prev.get(s), dict) else {}
         v, at = cur[s]
-        if v is None and _zk_num(po.get('oz')) is not None:   # odczyt nieudany / niepełny — poprzednia podaż z jej chwilą
+        # odczyt nieudany / niepełny — poprzednia podaż z jej chwilą (v297c: tylko z prawdziwą chwilą — liczba bez daty nie wchodzi)
+        if v is None and _zk_num(po.get('oz')) is not None and _zk_t(po.get('at')):
             v, at = po['oz'], po.get('at')
         o = {'oz': round(v, 4) if v is not None else None, 't': zk_tonny(v), 'at': at if v is not None else None,
              'c7': _zk_ch(h, k + 1, 7, gp), 'c30': _zk_ch(h, k + 1, 30, gp)}
         tp = tok.get(s) if isinstance(tok.get(s), dict) else None
-        if tp and _zk_num(tp.get('p')) is not None and _zk_t(tp.get('at')):
+        # v297c: cena tokenu tylko w zakresie jak w zapytaniu (100–100 000 USD, _zk_zl) i z prawdziwą chwilą — uszkodzona liczba (np. 1e300) dawała
+        # premię ≈ 10^298 %; poprzednia cena też tylko z prawdziwą chwilą; nowy pomiar premii tylko z ceny tokenu z tego pliku etf.json (tp_ok).
+        # px / px_at = ostatnia znana cena tokenu; cena tokenu UŻYTA w pomiarze premii to osobne pole prem_px (z chwili prem_at) — kafel pokazuje ją
+        tp_ok = bool(tp) and _zk_zl(tp.get('p')) is not None and _zk_t(tp.get('at')) is not None
+        if tp_ok:
             o['px'], o['px_at'] = round(tp['p'], 4), tp['at']
-        elif _zk_num(po.get('px')) is not None:
+        elif _zk_zl(po.get('px')) is not None and _zk_t(po.get('px_at')):
             o['px'], o['px_at'] = po['px'], po.get('px_at')
         else:
             o['px'] = o['px_at'] = None
-        pr = zk_prem(o['px'], o['px_at'], cands) if tp else None
+        pr = zk_prem(o['px'], o['px_at'], cands) if tp_ok else None
         # ta sama cena tokenu co w poprzednim pomiarze (tryb szybki etf.json przenosi notowanie bez nowego zapytania), a poprzedni pomiar był nie gorzej
         # dopasowany w czasie — zostaje poprzedni (z jego ceną złota, chwilą i wpisem ph): nowsze notowanie złota przy starej cenie tokenu dałoby
         # premię z większą różnicą chwil (premia rzędu 0,1% tonie w godzinnym ruchu ceny złota)
-        if (pr is not None and po.get('prem_at') == o['px_at'] and po.get('px') == o['px'] and _zk_num(po.get('prem'), pos=False) is not None
-                and _zk_num(po.get('dt_min'), pos=False) is not None and po['dt_min'] <= pr['dt_min'] and _zk_num(po.get('ref_px')) is not None
-                and _zk_t(po.get('ref_at'))):
+        # (v297c: poprzedni pomiar tylko kompletny i zgodny ze sobą — _zk_prem_ok; „ta sama cena” = cena tokenu Z TEGO POMIARU, prem_px)
+        if pr is not None and _zk_prem_ok(po) and po.get('prem_at') == o['px_at'] and po.get('prem_px') == o['px'] and po['dt_min'] <= pr['dt_min']:
             pr = {f: po.get(f) for f in ('prem', 'ref', 'ref_px', 'ref_at', 'dt_min')}
         if pr is not None:
             o.update(pr)
-            o['prem_at'] = o['px_at']
+            o['prem_at'], o['prem_px'] = o['px_at'], o['px']   # v297c: cena tokenu z pomiaru — z tej samej chwili co premia
             PH.setdefault(o['px_at'][:10], [None, None])[k] = pr['prem']
-        elif _zk_num(po.get('prem'), pos=False) is not None and _zk_t(po.get('prem_at')):
-            for f in ('prem', 'prem_at', 'ref', 'ref_px', 'ref_at', 'dt_min'):
+        elif _zk_prem_ok(po):
+            # v297c: bez nowego pomiaru — poprzedni pomiar W CAŁOŚCI (premia z JEJ ceną tokenu prem_px, ceną złota i chwilą; strona pokazuje wiek,
+            # po 36 h „—”); nowsza cena tokenu zostaje tylko w px — kafel nie łączy jej ze starą premią (dotąd np. w weekend: token 4150 USD
+            # z 23:13 przy premii z 20:13, z pokazanych cen wychodziło +0,9% zamiast pokazanych +0,05%)
+            for f in ZK_POMIAR:
                 o[f] = po.get(f)
         else:
-            o.update({'prem': None, 'prem_at': None, 'ref': None, 'ref_px': None, 'ref_at': None, 'dt_min': None})
+            o.update(dict.fromkeys(ZK_POMIAR))
         out[s] = o
     # razem: obie podaże w tym samym dniu
     hs = [[r[0], None, (r[1] + r[2]) if r[1] is not None and r[2] is not None else None] for r in h]
@@ -21535,9 +21577,10 @@ def zk_ryn(rw, cmc, gold):
     """Część ryn: wielkość rynków w USD z datą — złoto (szacunek: zasoby × ostatnia cena z fixingu), krypto i bitcoin (cmc.json: kapitalizacja
     i dominacja, jak kafel GLOBAL), tokenizowane towary (rwa.json, rodzaj cm). Brak wszystkich = None."""
     out = {}
-    if gold:
-        d = max(gold)
-        out['zloto'] = {'v': round(ZK_ZLOTO['t'] * ZK_OZ_T * gold[d]), 't': ZK_ZLOTO['t'], 't_d': ZK_ZLOTO['d'], 'px': gold[d], 'px_d': d}
+    d = max(gold) if gold else None
+    g = _zk_zl(gold[d]) if d else None   # v297c: cena spoza zakresu (uszkodzone wejście) — bez szacunku złota; krypto i bitcoin zostają
+    if g is not None:
+        out['zloto'] = {'v': round(ZK_ZLOTO['t'] * ZK_OZ_T * g), 't': ZK_ZLOTO['t'], 't_d': ZK_ZLOTO['d'], 'px': g, 'px_d': d}
     if isinstance(cmc, dict):
         tm, dom = _zk_num(cmc.get('total_mcap')), _zk_num(cmc.get('btc_dom'))
         at = cmc.get('asof') if _zk_t(cmc.get('asof')) else (cmc.get('at') if _zk_t(cmc.get('at')) else None)
@@ -21562,7 +21605,7 @@ def build_zloto_krypto(S, prev=None, now=None):
     pa = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
     g = lambda k: S.get(k) if isinstance(S.get(k), dict) else None   # noqa: E731
     su, sh, kc, wy, rw, etf, cmc, ix = (g(k) for k in ('surowce', 'surowce-hist', 'ceny-krypto', 'wycena', 'rwa', 'etf', 'cmc', 'indeksy'))
-    gold, gq = zk_seria_su(su, sh, 'gold')
+    gold, gq = zk_seria_su(su, sh, 'gold', _zk_zl)   # v297c: cena złota w zakresie sprawdzana raz, tu (dotąd tylko w tok i ryn)
     brent, bq = zk_seria_su(su, sh, 'brent')
     spx = zk_spx(ix)
     btc, bsrc = zk_btc(kc, wy)
@@ -21594,10 +21637,12 @@ def build_zloto_krypto(S, prev=None, now=None):
             out['notes'].append(f'{k}: {type(e).__name__}: {str(e)[:120]}')
         if v is not None:
             out[k], out['ok'][k], out['part_at'][k] = v, True, stamp
-        elif isinstance(prev.get(k), dict):
-            out[k], out['ok'][k], out['part_at'][k] = prev[k], False, pa.get(k)
+        elif isinstance(prev.get(k), dict) and _zk_json_ok(prev[k]):
+            out[k], out['ok'][k], out['part_at'][k] = prev[k], False, pa.get(k) if _zk_t(pa.get(k)) else None
         else:
             out['ok'][k] = False
+            if isinstance(prev.get(k), dict):   # v297c: poprzednia część z NaN / nieskończonością (plik spoza zbieracza) — nie przechodzi do pliku
+                out['notes'].append(f'{k}: poprzednia część z liczbą nieskończoną albo NaN — pominięta')
     if not any(k in out for k in ('zb', 'kor', 'tok', 'ryn')):
         return None
     return out

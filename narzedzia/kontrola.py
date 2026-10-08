@@ -3952,25 +3952,37 @@ def surowce_kontrola(j, R):
 
 # ---------------------------------------------------------------- v295c: złoto i surowce a krypto (data/zloto-krypto.json) ----------------------------------------------------------------
 # Zasoby wydobytego złota do szacunku wielkości rynku (słupek „Złoto (szacunek)”) to stała z datą stanu w zbieraczu (ZK_ZLOTO), aktualizowana ręcznie
-# co najmniej raz w roku (wydawca publikuje co kwartał). Stan starszy niż ZK_ZASOBY_MAX_DNI = uwaga (przypomnienie, nigdy błąd); data stanu z pliku
-# strony (ryn.zloto.t_d) — bez sieci i bez czytania kodu zbieracza.
-ZK_ZASOBY_MAX_DNI = 456   # ok. 15 miesięcy: roczna aktualizacja + kwartał zapasu na publikację wydawcy
+# co najmniej raz w roku (wydawca publikuje co kwartał). Stan starszy niż ZK_ZASOBY_MAX_MIES miesięcy = uwaga (przypomnienie, nigdy błąd); data
+# stanu z pliku strony (ryn.zloto.t_d) — bez sieci i bez czytania kodu zbieracza.
+ZK_ZASOBY_MAX_MIES = 13   # v297c: 13 miesięcy kalendarzowych od daty stanu (dotąd 456 dni ≈ 15 miesięcy): stała aktualizowana co najmniej raz
+                          # w roku + miesiąc zapasu; wydawca publikuje co kwartał (z kwartalnym raportem popytu) — po 13 miesiącach są już
+                          # co najmniej 3 nowsze stany, więc uwaga nie bywa przedwczesna
+
+
+def _zk_plus_mies(d, m):
+    """Data d + m miesięcy kalendarzowych; dzień, którego nie ma w miesiącu docelowym → ostatni dzień miesiąca (31.01 + 1 = 28.02 / 29.02)."""
+    y, k = divmod(d.month - 1 + m, 12)
+    y, k = d.year + y, k + 1
+    nast = dt.date(y + (k == 12), k % 12 + 1, 1)
+    return dt.date(y, k, min(d.day, (nast - dt.timedelta(days=1)).day))
 
 
 def zk_kontrola(j, R, now=None):
-    """Plik zloto-krypto.json → None (brak pliku albo części ryn.zloto z prawdziwą datą stanu) albo {'zasoby_d', 'wiek_dni', 'status'};
-    stan starszy niż ZK_ZASOBY_MAX_DNI — uwaga w R['uwagi'] (⚠️, nigdy ❌ ani BŁĄD)."""
+    """Plik zloto-krypto.json → None (brak pliku albo części ryn.zloto z prawdziwą datą stanu) albo {'zasoby_d', 'wiek_dni', 'termin', 'status'};
+    dziś później niż data stanu + ZK_ZASOBY_MAX_MIES miesięcy (termin) — uwaga w R['uwagi'] (⚠️, nigdy ❌ ani BŁĄD)."""
     ryn = j.get('ryn') if isinstance(j, dict) else None
     z = ryn.get('zloto') if isinstance(ryn, dict) else None
     d = _dzien(z.get('t_d')) if isinstance(z, dict) else None
     if d is None:
         return None
-    n = ((now or NOW).date() - dt.date.fromisoformat(d)).days
-    st = '⚠️' if n > ZK_ZASOBY_MAX_DNI else '✅'
+    d0, dzis = dt.date.fromisoformat(d), (now or NOW).date()
+    termin, n = _zk_plus_mies(d0, ZK_ZASOBY_MAX_MIES), (dzis - d0).days
+    st = '⚠️' if dzis > termin else '✅'
     if st == '⚠️':
         R['uwagi'].append(f'złoto i surowce a krypto: zasoby wydobytego złota (szacunek wielkości rynku) są ze stanu na {d} — {n} dni temu '
-                          f'(próg {ZK_ZASOBY_MAX_DNI} dni); zaktualizować stałą ZK_ZLOTO w zbieraj_dane.py najnowszym szacunkiem (raz w roku)')
-    return {'zasoby_d': d, 'wiek_dni': n, 'status': st}
+                          f'(ponad {ZK_ZASOBY_MAX_MIES} miesięcy, termin {termin.isoformat()}); zaktualizować stałą ZK_ZLOTO w zbieraj_dane.py '
+                          f'najnowszym szacunkiem (wydawca publikuje co kwartał)')
+    return {'zasoby_d': d, 'wiek_dni': n, 'termin': termin.isoformat(), 'status': st}
 
 
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
