@@ -8934,6 +8934,19 @@ SU_TYG_DOGON = 60               # dni wstecz w zapytaniu doganiającym (eia_t: p
 SU_SKOK = 0.25                  # cena z funduszu (Sprott) zmieniona o ponad 25% wobec poprzedniej = punkt odrzucony (zmiana kolejności listy?)
 SU_SKOK_DNI = 7                 # dni — punkt odniesienia starszy (przerwa źródła) = zmiana przyjęta bez sprawdzenia skoku, z notatką (inaczej
                                 # prawdziwa zmiana > 25% po kilku tygodniach przerwy byłaby odrzucana przy każdym pobraniu — odniesienie się nie zmienia)
+# v297g: punkt q bez potwierdzenia, po którym cena ZOSTAJE na nowym poziomie — kolejne sesje też są oznaczane (wpis q 'trwa'), dopóki rozjazd
+# z drugą ropą się utrzymuje i kontrakt go nie potwierdza (wcześniej oznaczony był tylko dzień skoku, a kafel pokazywał dalsze dni jak zwykłe dane).
+# Miara rozjazdu: log(Brent/WTI) wobec poziomu sprzed punktu (mediana SU_Q_BAZA wspólnych sesji). Test wsteczny na historii EIA 1986 – 6.10.2026
+# (ws53/v297-surowce-global/bt/test_wsteczny_trwa.py: 8409 wspólnych sesji, 103 punkty q; bez kontraktu w historii, więc każdy dzień ciągu liczy
+# się jako niepotwierdzony — górna granica): 19 ciągów, 66 sesji (0,78%), wyłącznie w latach kryzysów i zawirowań rynku ropy (1988, 1991, 1996,
+# 1998, 2000, 2003, 2008–2009, 2020, 2026); w pozostałych 30 latach (m.in. 2001–2002, 2004–2007, 2010–2019, 2021–2025) — zero oznaczeń, choć są
+# tam punkty q (np. Brent 26.02.2016, WTI 26.11.2018) — różnica cen wracała od razu. Najdłuższy ciąg: 16 sesji (WTI, 23.06–16.07.1998).
+SU_Q_BAZA = 20      # wspólnych sesji przed punktem — poziom odniesienia (mediana; potrzeba co najmniej połowy z nich, inaczej bez ciągu)
+SU_Q_ODCH = 0.08    # punkt zaczyna ciąg, gdy w swoim dniu odbiega od poziomu odniesienia o ≥ 0,08 (≈ 8%, jak próg rozjazdu)
+SU_Q_PROG = 0.05    # ciąg trwa, dopóki odchylenie w tę samą stronę ≥ max(SU_Q_PROG, SU_Q_POL × odchylenie dnia punktu) — czyli co najmniej
+SU_Q_POL = 0.5      # połowa skoku zostaje (bez warunku połowy marzec–kwiecień 2020 dawał ciągi po 1500+ sesji: różnica cen ustaliła się na nowo)
+SU_Q_MAX = 20       # sesji — bezpiecznik długości ciągu (dłuższy rozjazd to już nowy stan rynku, nie błąd danych; w teście wstecznym najwyżej 16)
+import math as _suq_math, statistics as _suq_stat   # v297g: logarytm i mediana (biblioteka standardowa; ponowny import jest nieszkodliwy)
 SU_ZR = (('eia_dz', 'ceny'), ('td', 'ceny'), ('sprott', 'ceny'), ('acer', 'ceny'), ('wpsr', 'zapasy'), ('wngsr', 'zapasy'),
          ('gld', 'ceny'), ('fmp', 'ceny'), ('eia', 'ceny'), ('eia_t', 'zapasy'), ('cftc', 'markets'), ('fao', 'mies'),
          ('imf', 'mies'), ('wb', 'mies'))    # kolejność: najpierw lekkie i częste, na końcu ciężkie i miesięczne
@@ -9517,6 +9530,50 @@ def _su_zm(s):
     return {ks[i]: (s[ks[i]] / s[ks[i - 1]] - 1) * 100 for i in range(1, len(ks)) if s[ks[i - 1]] > 0 and s[ks[i]] > 0}
 
 
+def _su_q_trwa(name, dq, X, B, F, lr, K, ki):
+    """v297g: kolejne sesje serii X (ropa `name`) po punkcie q z dnia dq, dopóki rozjazd się utrzymuje: log(Brent/WTI) odbiega od poziomu sprzed
+    punktu (mediana SU_Q_BAZA wspólnych sesji przed dq) w tę samą stronę o ≥ max(SU_Q_PROG, SU_Q_POL × odchylenie dnia punktu); pierwszy dzień
+    poniżej progu kończy ciąg; najwyżej SU_Q_MAX sesji. Dzień bez drugiej ropy (święto w jednym kraju) — jak poprzedni dzień ciągu (nie da się
+    go ocenić, a cena dalej jest na nowym poziomie). Zwraca tylko dni BEZ potwierdzenia: Brent — kontrakt od sesji przed punktem do tego dnia
+    zmienił się w tę samą stronę o ≥ połowę ruchu ceny fizycznej (ta sama zasada co stan punktu, ale od poziomu sprzed skoku; kontrakt z dnia
+    przed punktem — najwyżej 7 dni wcześniej); WTI — brak drugiego źródła. lr = {dzień: log(Brent/WTI)} wspólnych sesji, K — ich dni rosnąco,
+    ki — pozycja dnia w K. → set dni."""
+    i = ki.get(dq)
+    if i is None or i < SU_Q_BAZA // 2:
+        return set()
+    base = _suq_stat.median(lr[K[j]] for j in range(max(0, i - SU_Q_BAZA), i))
+    dev = lr[dq] - base
+    if abs(dev) < SU_Q_ODCH:
+        return set()
+    zn, prog = (1 if dev > 0 else -1), max(SU_Q_PROG, SU_Q_POL * abs(dev))
+    b0 = f0 = None
+    if name == 'brent':
+        bp = [d for d in B if d < dq and _isnum(B[d]) and B[d] > 0]
+        if bp:
+            d0 = max(bp)
+            b0 = B[d0]
+            fp = [d for d in F if d <= d0 and _isnum(F[d]) and F[d] > 0]
+            try:
+                lo = (datetime.date.fromisoformat(d0) - datetime.timedelta(days=7)).isoformat()
+            except ValueError:
+                lo = None
+            if fp and lo and max(fp) >= lo:
+                f0 = F[max(fp)]
+    out, n = set(), 0
+    for d in sorted(x for x in X if x > dq and _isnum(X[x])):
+        if d in lr and zn * (lr[d] - base) < prog:
+            break
+        n += 1
+        rb = X[d] / b0 - 1 if b0 and X[d] > 0 else None
+        f = F.get(d) if f0 else None
+        rf = f / f0 - 1 if _isnum(f) and f > 0 else None
+        if not (rb is not None and rf is not None and rf * rb > 0 and abs(rf) >= 0.5 * abs(rb)):
+            out.add(d)
+        if n >= SU_Q_MAX:
+            break
+    return out
+
+
 def su_q(B, W, F, prev=None):
     """Punkty do sprawdzenia w ropie → {'brent': [[dzień, powód, stan]], 'wti': […]}. 'skok': zmiana ≥ 8% i odwrót następnej sesji o ≥ połowę
     przy ruchu drugiej ropy < 5% (test wsteczny: 5 razy na 9514 sesji); 'rozjazd': |zmiana WTI − zmiana Brent| ≥ 8 pkt proc. — dostaje go ropa
@@ -9526,7 +9583,11 @@ def su_q(B, W, F, prev=None):
     (WTI: brak drugiego źródła w planach). Punkty z poprzedniego pliku nigdy nie są usuwane (stan liczony od nowa, gdy dane są w oknie).
     UWAGA: 'skok' wymaga NASTĘPNEJ sesji (odwrotu) — q patrzy w przyszłość: to oznaczenie danych (strona, kontrola, opisowe korelacje panelu),
     nie filtr przyczynowy. TRENDY (sygnały ze skutecznością) nie mogą pomijać punktu q od dnia jego daty — najwyżej od dnia, w którym q
-    wyznaczono (następna sesja); inaczej łamią zasadę „dziennik: tylko dane wcześniejsze” (v223)."""
+    wyznaczono (następna sesja); inaczej łamią zasadę „dziennik: tylko dane wcześniejsze” (v223).
+    v297g: 'trwa' — kolejne sesje po punkcie bez potwierdzenia, na których cena zostaje na nowym poziomie (_su_q_trwa: rozjazd log(Brent/WTI)
+    wobec poziomu sprzed punktu ≥ połowy skoku, najwyżej SU_Q_MAX sesji); zapisywane tylko dni bez potwierdzenia, a wpisy 'trwa' w oknie danych
+    są liczone od nowa przy każdym przebiegu (poprawka wartości wstępnej może skrócić ciąg). Strona: ostatnia cena bez potwierdzenia = uwaga
+    na kaflu (od dnia punktu) i zmiana tygodnia „—”; kontrola: jedna uwaga zbiorcza na serię."""
     rb, rw, rf = _su_zm(B), _su_zm(W), _su_zm(F)
     found = {}
 
@@ -9548,11 +9609,24 @@ def su_q(B, W, F, prev=None):
         x = rf.get(d) if name == 'brent' else None
         return 'potw' if x is not None and x * r > 0 and abs(x) >= 0.5 * abs(r) else 'niepotw'
     out = {}
+    lr = {d: _suq_math.log(B[d] / W[d]) for d in set(B) & set(W) if _isnum(B[d]) and _isnum(W[d]) and B[d] > 0 and W[d] > 0}
+    K = sorted(lr)
+    ki = {d: i for i, d in enumerate(K)}
     for name in ('brent', 'wti'):
-        Q = {(q[0], q[1]): q[2] for q in ((prev or {}).get(name) or []) if isinstance(q, list) and len(q) == 3}
+        X = B if name == 'brent' else W
+        x0 = min((d for d in X if _isnum(X[d])), default=None)
+        # v297g: wpisy 'trwa' z poprzedniego pliku w oknie danych — liczone od nowa (poprawka wartości wstępnej może skrócić ciąg); starsze zostają
+        Q = {(q[0], q[1]): q[2] for q in ((prev or {}).get(name) or []) if isinstance(q, list) and len(q) == 3
+             and not (q[1] == 'trwa' and x0 is not None and str(q[0]) >= x0)}
         for (n, d, why), r in found.items():
             if n == name:
                 Q[(d, why)] = stan(name, d, r)
+        tr = set()
+        for (d, why), st_ in list(Q.items()):
+            if why != 'trwa' and st_ == 'niepotw' and d in ki:
+                tr |= _su_q_trwa(name, d, X, B, F, lr, K, ki)
+        for d in tr:
+            Q[(d, 'trwa')] = 'niepotw'
         if Q:
             out[name] = [[d, why, s] for (d, why), s in sorted(Q.items())]
     return out

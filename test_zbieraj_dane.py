@@ -31871,7 +31871,8 @@ class SurowceV295(unittest.TestCase):
                                                                          '28.09 (+16,6% przy Brent +3,4%) to powrót po skoku, nie osobny rozjazd')
         q4 = zd.su_q(B, dict(W, **{'2026-09-25': 95.0, '2026-09-28': 110.0}), F)['wti']
         self.assertIn(['2026-09-28', 'rozjazd', 'niepotw'], q4, 'bez skoku dnia wcześniej — rozjazd zostaje'); self.assertIn(['2026-09-28', 'skok', 'niepotw'], q4)
-        self.assertEqual(q['brent'], [['2026-10-02', 'rozjazd', 'niepotw']], 'Brent +18,0% przy WTI −1,9%; kontrakt −0,1% — niepotwierdzone')
+        self.assertEqual(q['brent'], [['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-05', 'trwa', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']],
+                         'Brent +18,0% przy WTI −1,9%; kontrakt −0,1% — niepotwierdzone; v297g: 05.10 i 06.10 cena zostaje na nowym poziomie — też bez potwierdzenia')
         q2 = zd.su_q(B, W, dict(F, **{'2026-10-02': 121.0}))
         self.assertEqual(q2['brent'][0][2], 'potw', 'kontrakt +15,6% w tę samą stronę — potwierdzone')
         old = {'brent': [['2019-09-16', 'rozjazd', 'niepotw']], 'wti': []}
@@ -32713,3 +32714,130 @@ class ZlotoKryptoV295c(unittest.TestCase):
         m = src[src.index('def main():'):]
         a, b = m.index("    # v295c: CRYPTO „Złoto i surowce a krypto”"), m.index("    _CR_LOG[0] = previous('krypto-dziennik')")
         return 'def _zk_main_test():\n' + m[a:b] + '\n_zk_main_test()\n'
+
+
+# ===================== v297g: SUROWCE — Brent po niepotwierdzonym skoku: kolejne sesje też oznaczone (q 'trwa') =====================
+# Dane: prawdziwe ceny EIA (Brent fizyczny RBRTE i WTI Cushing RWTC) z historii pobranej 07.10.2026 — wrzesień–październik 2026 (skok Brenta
+# 02.10 o +18,0% przy WTI −1,9%), luty–marzec 2016 i listopad–grudzień 2018 (punkty q w zwykłych latach — bez ciągu). Kontrakt Brent (seria
+# brent_fut) jak w teście v295: 01.10 104,7; 02.10 104,6 (−0,1%); 05.10 105,1. Bez sieci i bez zegara.
+class SurowceQTrwaV297g(unittest.TestCase):
+    R26 = [["2026-09-01", 96.02, 91.48], ["2026-09-02", 97.59, 92.15], ["2026-09-03", 100.52, 92.55], ["2026-09-04", 102.24, 92.69],
+           ["2026-09-07", 104.47, None], ["2026-09-08", 106.12, 94.21], ["2026-09-09", 109.51, 97.26], ["2026-09-10", 120.98, 103.57],
+           ["2026-09-11", 118.06, 101.27], ["2026-09-14", 121.25, 102.42], ["2026-09-15", 130.8, 107.02], ["2026-09-16", 127.84, 103.62],
+           ["2026-09-17", 121.18, 103.21], ["2026-09-18", 119.66, 101.44], ["2026-09-21", 116.15, 96.97], ["2026-09-22", 114.89, 96.41],
+           ["2026-09-23", 117.45, 93.38], ["2026-09-24", 120.92, 95.88], ["2026-09-25", 116.01, 85.23], ["2026-09-28", 119.97, 99.37],
+           ["2026-09-29", 113.96, 96.16], ["2026-09-30", 115.91, 97.18], ["2026-10-01", 114.82, 99.77], ["2026-10-02", 135.51, 97.89],
+           ["2026-10-05", 125.51, 96.13], ["2026-10-06", 125.44, 96.24]]
+    R16 = [["2016-01-25", 29.82, 30.31], ["2016-01-26", 30.94, 29.54], ["2016-01-27", 31.83, 32.32], ["2016-01-28", 33.01, 33.21],
+           ["2016-01-29", 33.14, 33.66], ["2016-02-01", 32.45, 31.62], ["2016-02-02", 30.98, 29.9], ["2016-02-03", 32.38, 32.29],
+           ["2016-02-04", 32.76, 31.63], ["2016-02-05", 32.35, 30.86], ["2016-02-08", 31.64, 29.71], ["2016-02-09", 30.15, 27.96],
+           ["2016-02-10", 29.64, 27.54], ["2016-02-11", 28.82, 26.19], ["2016-02-12", 31.8, 29.32], ["2016-02-16", 31.09, 29.05],
+           ["2016-02-17", 33.21, 30.68], ["2016-02-18", 33.2, 30.77], ["2016-02-19", 31.66, 29.59], ["2016-02-22", 33.59, 31.37],
+           ["2016-02-23", 31.9, 31.84], ["2016-02-24", 31.5, 30.35], ["2016-02-25", 32.83, 31.4], ["2016-02-26", 35.76, 31.65],
+           ["2016-02-29", 35.92, 32.74], ["2016-03-01", 35.73, 34.39], ["2016-03-02", 36.38, 34.57], ["2016-03-03", 35.75, 34.56],
+           ["2016-03-04", 37.61, 35.91], ["2016-03-07", 39.02, 37.9], ["2016-03-08", 39.16, 36.67], ["2016-03-09", 40.26, 37.62],
+           ["2016-03-10", 38.63, 37.77], ["2016-03-11", 39.41, 38.51], ["2016-03-14", 38.06, 37.2], ["2016-03-15", 37.49, 36.32]]
+    R18 = [["2018-10-22", 80.45, 69.25], ["2018-10-23", 78.67, 66.49], ["2018-10-24", 77.34, 66.56], ["2018-10-25", 77.3, 67.25],
+           ["2018-10-26", 77.4, 67.58], ["2018-10-29", 77.56, 67.0], ["2018-10-30", 75.68, 66.18], ["2018-10-31", 74.84, 65.31],
+           ["2018-11-01", 71.25, 63.67], ["2018-11-02", 71.11, 63.12], ["2018-11-05", 72.68, 63.12], ["2018-11-06", 70.64, 62.16],
+           ["2018-11-07", 70.1, 61.69], ["2018-11-08", 69.29, 60.71], ["2018-11-09", 69.01, 60.19], ["2018-11-12", 69.81, 59.85],
+           ["2018-11-13", 65.45, 55.63], ["2018-11-14", 64.88, 56.16], ["2018-11-15", 65.61, 56.45], ["2018-11-16", 65.29, 56.49],
+           ["2018-11-19", 64.14, 57.16], ["2018-11-20", 61.5, 53.39], ["2018-11-21", 61.65, 54.41], ["2018-11-22", 61.11, None],
+           ["2018-11-23", 57.69, None], ["2018-11-26", 59.7, 51.46], ["2018-11-27", 59.58, 51.31], ["2018-11-28", 57.97, 50.06],
+           ["2018-11-29", 58.29, 51.46], ["2018-11-30", 57.71, 50.78], ["2018-12-03", 60.17, 52.98], ["2018-12-04", 61.22, 53.21],
+           ["2018-12-05", 61.4, 52.64], ["2018-12-06", 57.83, 51.54], ["2018-12-07", 61.71, 52.76], ["2018-12-10", 60.29, 51.07]]
+    F = {'2026-10-01': 104.7, '2026-10-02': 104.6, '2026-10-05': 105.1}
+    # wynik zbieracza dla Brenta na tych danych — ten sam zapis q jest w pliku testowym strony (test_widoki.cjs, SU297_Q_BRENT)
+    Q_BRENT = [['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-05', 'trwa', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']]
+
+    @staticmethod
+    def ser(R):
+        return ({d: b for d, b, w in R if b is not None}, {d: w for d, b, w in R if w is not None})
+
+    def test_skok_brenta_i_kolejne_dni_bez_potwierdzenia(self):
+        B, W = self.ser(self.R26)
+        q = zd.su_q(B, W, self.F)
+        self.assertEqual(q['brent'], self.Q_BRENT, 'Brent 02.10 +18,0% przy WTI −1,9% i kontrakcie −0,1%; 05.10 i 06.10 cena zostaje (125,5 przy WTI 96,2) '
+                                                   '— kontrakt od 01.10 +0,4% wobec +9,3% ceny fizycznej: dalej bez potwierdzenia')
+        self.assertEqual(q['wti'], [['2026-09-25', 'skok', 'niepotw']], 'WTI 25.09: skok z odwrotem następnej sesji — bez ciągu')
+        # kontrakt dogania cenę fizyczną (od 01.10 o ≥ połowę ruchu w tę samą stronę) — kolejne dni potwierdzone, punkt 02.10 zostaje
+        q2 = zd.su_q(B, W, dict(self.F, **{'2026-10-05': 115.0, '2026-10-06': 114.9}))
+        self.assertEqual(q2['brent'], [['2026-10-02', 'rozjazd', 'niepotw']])
+        q3 = zd.su_q(B, W, dict(self.F, **{'2026-10-05': 110.0}))   # +5,1% wobec +9,3% (≥ połowa) — 05.10 potwierdzony; 06.10 bez kontraktu
+        self.assertEqual(q3['brent'], [['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']])
+        q4 = zd.su_q(B, W, dict(self.F, **{'2026-10-05': 108.0}))   # +3,2% < połowa — bez potwierdzenia
+        self.assertEqual(q4['brent'], self.Q_BRENT)
+        q5 = zd.su_q(B, W, dict(self.F, **{'2026-10-02': 121.0}))   # sam skok potwierdzony (+15,7%) — bez ciągu
+        self.assertEqual(q5['brent'], [['2026-10-02', 'rozjazd', 'potw']])
+        q6 = zd.su_q(B, W, {})                                       # bez kontraktu (np. brak klucza) — tak samo jak bez potwierdzenia
+        self.assertEqual(q6['brent'], self.Q_BRENT)
+        q7 = zd.su_q(B, W, dict(self.F, **{'2026-10-06': 104.9}))   # kontrakt 06.10 jak w pliku testowym strony (+0,2%) — te same wpisy
+        self.assertEqual(q7['brent'], self.Q_BRENT)
+
+    def test_ciag_konczy_sie_gdy_rozjazd_wraca_i_nie_wznawia_sie(self):
+        B, W = self.ser(self.R26)
+        B['2026-10-06'] = 116.0                                     # log(116/96,24) = 0,19 — prawie poziom sprzed skoku (mediana 20 sesji 0,18)
+        B['2026-10-07'], W['2026-10-07'] = 126.0, 96.0              # rozjazd znów duży, ale ciąg już się skończył (nowy skok = nowy punkt q)
+        q = zd.su_q(B, W, self.F)['brent']
+        self.assertIn(['2026-10-05', 'trwa', 'niepotw'], q)
+        self.assertFalse([x for x in q if x[0] >= '2026-10-06' and x[1] == 'trwa'], q)
+        # próg = max(0,05; połowa odchylenia dnia skoku): poziom odniesienia (mediana 20 sesji) 0,1693, skok 02.10 +0,1559, próg 0,0779.
+        # WTI 05.10 98,4 (+0,5%, bez nowego rozjazdu): odchylenie 0,0741 < 0,0779 — koniec ciągu, a 06.10 (0,0957) już go nie wznawia;
+        # WTI 97,5: 0,0832 ≥ 0,0779 — ciąg trwa
+        B2, W2 = self.ser(self.R26)
+        W2['2026-10-05'] = 98.4
+        self.assertEqual(zd.su_q(B2, W2, self.F), {'brent': [['2026-10-02', 'rozjazd', 'niepotw']], 'wti': [['2026-09-25', 'skok', 'niepotw']]})
+        W2['2026-10-05'] = 97.5
+        self.assertEqual(zd.su_q(B2, W2, self.F)['brent'], self.Q_BRENT)
+
+    def test_dzien_bez_drugiej_ropy_i_bezpiecznik_dlugosci(self):
+        B, W = self.ser(self.R26)
+        B['2026-10-07'] = 125.0                                     # brak WTI (np. święto w USA) — nie da się ocenić: dzień jak poprzedni w ciągu
+        self.assertIn(['2026-10-07', 'trwa', 'niepotw'], zd.su_q(B, W, self.F)['brent'])
+        # skok, który zostaje na stałe: najwyżej SU_Q_MAX sesji ciągu
+        d0 = datetime.date(2025, 1, 6)
+        days = [(d0 + datetime.timedelta(days=i)).isoformat() for i in range(120) if (d0 + datetime.timedelta(days=i)).weekday() < 5]
+        B3 = {d: (70.0 if i < 30 else 84.0) * (1 + 0.001 * (i % 3)) for i, d in enumerate(days)}
+        W3 = {d: 66.0 * (1 + 0.001 * (i % 3)) for i, d in enumerate(days)}
+        q = zd.su_q(B3, W3, {})['brent']
+        self.assertEqual([x[1] for x in q if x[1] != 'trwa'], ['rozjazd'], q[:3])
+        tr = [x[0] for x in q if x[1] == 'trwa']
+        self.assertEqual(len(tr), zd.SU_Q_MAX); self.assertEqual(tr[0], days[31]); self.assertEqual(tr[-1], days[30 + zd.SU_Q_MAX])
+        self.assertEqual((zd.SU_Q_BAZA, zd.SU_Q_ODCH, zd.SU_Q_PROG, zd.SU_Q_POL, zd.SU_Q_MAX), (20, 0.08, 0.05, 0.5, 20), 'progi z testu wstecznego')
+        # za krótka historia przed punktem (< połowy SU_Q_BAZA wspólnych sesji) — sam punkt, bez ciągu
+        Bk = {d: v for d, v in B3.items() if d >= days[25]}; Wk = {d: v for d, v in W3.items() if d >= days[25]}
+        self.assertEqual([x for x in zd.su_q(Bk, Wk, {})['brent'] if x[1] == 'trwa'], [])
+
+    def test_zwykle_lata_punkt_q_bez_ciagu(self):
+        # luty 2016 (Brent +8,9% przy WTI +0,8%) i listopad 2018 (WTI −5,4% przy Brent +3,5%, po Święcie Dziękczynienia): prawdziwe punkty q
+        # w zwykłych latach — różnica cen wraca od razu, bez kolejnych dni oznaczonych (test wsteczny 1986–2026: zero oznaczeń w tych latach)
+        for R, name, d in ((self.R16, 'brent', '2016-02-26'), (self.R18, 'wti', '2018-11-26')):
+            B, W = self.ser(R)
+            q = zd.su_q(B, W, {})
+            self.assertIn([d, 'rozjazd', 'niepotw'], q[name], q)
+            self.assertEqual([x for n in q for x in q[n] if x[1] == 'trwa'], [], name + ' ' + d)
+
+    def test_poprzedni_plik_trwa_liczony_od_nowa_w_oknie(self):
+        B, W = self.ser(self.R26)
+        old = {'brent': [['2019-01-02', 'trwa', 'niepotw'], ['2026-10-05', 'trwa', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']], 'wti': [['2026-09-28', 'trwa', 'niepotw']]}
+        B['2026-10-05'], B['2026-10-06'] = 116.9, 117.2             # poprawka wartości wstępnych: Brent wrócił — ciągu już nie ma
+        q = zd.su_q(B, W, self.F, old)
+        self.assertEqual([x for x in q['brent'] if x[1] == 'trwa'], [['2019-01-02', 'trwa', 'niepotw']], 'w oknie danych — od nowa; starsze zostają')
+        self.assertEqual(q['wti'], [['2026-09-25', 'skok', 'niepotw']])
+        self.assertEqual(zd.su_q(*self.ser(self.R26), self.F, {'brent': self.Q_BRENT})['brent'], self.Q_BRENT, 'ten sam wynik przy kolejnym przebiegu')
+
+    def test_kontrola_jedna_uwaga_zbiorcza_dla_ciagu(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v297g', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        B, W = self.ser(self.R26)
+        j = {'v': 2, 'ceny': {'brent': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(B.items())], 'q': self.Q_BRENT + [['2026-03-19', 'trwa', 'niepotw']]},
+                              'wti': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(W.items())], 'q': [['2026-09-25', 'skok', 'niepotw']]}}}
+        P = k.surowce_porownania(j, datetime.datetime(2026, 10, 8, 6, 20, tzinfo=datetime.timezone.utc))
+        pk = [u for u in P['uwagi'] if 'punkt do sprawdzenia' in u]
+        self.assertEqual(len(pk), 2, 'punkty q (02.10 Brent, 25.09 WTI) — jak dotąd, po jednej uwadze')
+        tr = [u for u in P['uwagi'] if 'poziomie po nietypowym ruchu' in u]
+        self.assertEqual(len(tr), 1, P['uwagi'])
+        self.assertIn('Brent 2026-10-05 – 2026-10-06', tr[0]); self.assertIn('(2 ses.)', tr[0]); self.assertIn('kontrakt tego nie potwierdza', tr[0])
+        self.assertNotIn('2026-03-19', tr[0], 'starszy niż SU_Q_DNI — bez uwagi')
+        self.assertFalse(any('trwa' in u for u in P['uwagi']), 'bez wewnętrznego słowa „trwa” w raporcie')

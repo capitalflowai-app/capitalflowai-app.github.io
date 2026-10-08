@@ -3914,6 +3914,7 @@ def surowce_porownania(j, now=None):
             W.append((f'Brent dostawa fizyczna vs kontrakt, zmiany dzienne z {len(wsp)} wspólnych dni: największa różnica {mx} '
                       f'({a[mx]:+.1f}% vs {b[mx]:+.1f}%)'.replace('.', ','), 'ℹ️'))
     for cid, nazwa in (('brent', 'Brent'), ('wti', 'WTI')):
+        tr = []   # v297g: kolejne sesje po punkcie bez potwierdzenia (wpisy q 'trwa') — jedna uwaga zbiorcza na serię, nie po jednej na dzień
         for q in ((C.get(cid) or {}).get('q') or []) if isinstance(C.get(cid), dict) else []:
             if not (isinstance(q, list) and len(q) == 3):
                 continue
@@ -3921,9 +3922,17 @@ def surowce_porownania(j, now=None):
                 age = (now.date() - dt.date.fromisoformat(str(q[0]))).days
             except ValueError:
                 continue
+            if q[1] == 'trwa':
+                if q[2] == 'niepotw' and 0 <= age <= SU_Q_DNI:
+                    tr.append(str(q[0]))
+                continue
             if q[2] == 'niepotw' and 0 <= age <= SU_Q_DNI:
                 U.append(f'surowce: {nazwa} {q[0]} — punkt do sprawdzenia ({"skok z odwrotem" if q[1] == "skok" else "rozjazd z drugą ropą"}), '
                          + ('kontrakt nie potwierdza ruchu' if cid == 'brent' else 'brak drugiego źródła') + ' — wartość zostaje na stronie z oznaczeniem')
+        if tr:
+            U.append(f'surowce: {nazwa} {min(tr)} – {max(tr)} — cena zostaje na poziomie po nietypowym ruchu ({len(tr)} ses.), '
+                     + ('kontrakt tego nie potwierdza' if cid == 'brent' else 'brak drugiego źródła')
+                     + ' — na stronie uwaga przy kaflu, a zmiana tygodnia jest „—”')
     return {'wiersze': W, 'uwagi': U}
 
 
