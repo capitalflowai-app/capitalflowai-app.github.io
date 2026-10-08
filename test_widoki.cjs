@@ -16455,3 +16455,56 @@ test('v301: słownik su301 — czysty JSON w 10 językach zaraz po poprzednim, t
   for (const l of L10) for (const k of K) assert.deepEqual(G126_NAMES.check(D[l][k], l), [], l + ' ' + k);
   assert.ok(su295.blk.includes("t('su301.bk.bez')"), 'klucz w kodzie panelu surowców');
 });
+
+/* ---------- v302: dane emitentów — produkt w sumach z poprzedniego odczytu (k = 1) opisany wprost; słownik rwa302.* w 10 językach ---------- */
+function v302Plik() {
+  const F = v169Plik(), at = '2026-10-08T01:46:53+00:00';
+  F.at = at; F.issuer.at = at;
+  F.issuer.p['ondo-global-markets'] = {name: 'Ondo Global Markets', kind: 'ondo_gm', v: 1292131685.93, as_of: '2026-10-06T00:00:00+00:00', read: '2026-10-07T12:20:10+00:00',
+    err: 'ValueError: gmTvl bez zgodnego najnowszego punktu historii', ref: 965790144.95, n: 400, k: 1, zakres: 'gm', vb: 1292131685.93, full: true, stan: 'e'};   /* rekord z żywego pliku 08.10.2026 01:46 UTC */
+  F.issuer.used['ondo-global-markets'] = 1292131685.93;
+  return F;
+}
+test('v302: dane emitentów — poprzedni odczyt (k = 1): dzień stanu z wiekiem i chwila odczytu z wiekiem; bez k, poza sumami, zła chwila — bez zdania', () => {
+  const NOW = '2026-10-08T04:20:00Z', F = v302Plik();
+  const o = rw133.run(F, {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(o.includes('Ostatnia próba odczytu nie dała nowszych danych emitenta — w sumach zostaje poprzedni odczyt: Ondo Global Markets (stan 06.10 · age(2026-10-06); '
+    + 'odczyt [2026-10-07T12:20:10+00:00] · ago(2026-10-07T12:20:10+00:00)).'), 'zdanie z dniem stanu, wiekiem i chwilą odczytu');
+  assert.ok(o.includes('Ondo Global Markets 1,3 mld USD (06.10)'), 'lista produktów w sumach — jak dotąd (dzień stanu)');
+  assert.ok(o.indexOf('Inny zakres niż w ostatnio znanej wartości') < o.indexOf('Ostatnia próba odczytu'), 'po zdaniu o zakresie, w tym samym akapicie');
+  assert.ok(!/NaN|undefined|null|rwa302\.[a-z]/.test(RWC150.txt(o)), 'bez NaN i surowych kluczy');
+  const G = v302Plik(); delete G.issuer.p['ondo-global-markets'].k;
+  assert.ok(!rw133.run(G, {real: true, lang: 'pl', now: NOW}).el.innerHTML.includes('Ostatnia próba odczytu'), 'świeży odczyt — bez zdania');
+  const P = v302Plik(); delete P.issuer.used['ondo-global-markets']; P.issuer.p['ondo-global-markets'].stan = 'poza';
+  const op = rw133.run(P, {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(!op.includes('Ostatnia próba odczytu') && op.includes('zostają poza sumami: Hastra, Ondo Global Markets.'), 'poza sumami — tylko na liście braków');
+  const B = v302Plik(); B.issuer.p['ondo-global-markets'].read = 'wczoraj';
+  assert.ok(!rw133.run(B, {real: true, lang: 'pl', now: NOW}).el.innerHTML.includes('Ostatnia próba odczytu'), 'zła chwila odczytu — bez zdania (nie „—”)');
+  const C = v302Plik(); C.issuer.p['ondo-global-markets'].as_of = 'x';
+  assert.ok(rw133.run(C, {real: true, lang: 'pl', now: NOW}).el.innerHTML.includes('Ondo Global Markets (stan —; odczyt [2026-10-07T12:20:10+00:00]'), 'zły dzień stanu — „—” bez wieku');
+  const e = rw133.run(F, {real: true, lang: 'en', now: NOW}).el.innerHTML;
+  assert.ok(e.includes('The latest read attempt brought no newer issuer data — the totals keep the previous read: Ondo Global Markets (as of ')
+    && e.includes(' · age(2026-10-06); read [2026-10-07T12:20:10+00:00] · ago(2026-10-07T12:20:10+00:00)).'), 'po angielsku');
+  const j = rw133.run(F, {real: true, lang: 'ja', now: NOW}).el.innerHTML;
+  assert.ok(j.includes('直近の読み取りでは発行体の新しいデータを得られませんでした') && j.includes('Ondo Global Markets（基準日 '), 'po japońsku');
+});
+test('v302: słownik rwa302.* — czysty JSON, 10 języków z prawdziwymi tłumaczeniami (te same klucze i pola {x}), linia nakładania zaraz po poprzednim słowniku', () => {
+  const i = html.indexOf('"rwa302.k"'), a = html.lastIndexOf('const EXTRA', i), eq = html.indexOf('=', a), n = html.slice(a + 11, eq), b = html.indexOf(';\nfor(const l in EXTRA' + n + ')', a);
+  assert.ok(i > 0 && /^\d+$/.test(n) && b > eq, 'słownik z kluczem rwa302.k');
+  const D = JSON.parse(html.slice(eq + 1, b)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L10, '10 języków');
+  const ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]).sort(), ['rwa302.k', 'rwa302.k.i'], l);
+    for (const k in D[l]) {
+      assert.equal(ph(D[l][k]), ph(D.en[k]), l + ' ' + k + ': pola {x}');
+      if (l !== 'en') assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+    }
+  }
+  assert.ok(html.includes(';\nfor(const l in EXTRA' + n + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + n + '[l]);'), 'linia nakładania');
+  const prev = 'EXTRA' + (+n - 1);
+  assert.ok(html.includes('for(const l in ' + prev + ')if(I18N[l])Object.assign(I18N[l],' + prev + '[l]);\nconst EXTRA' + n + '='), 'zaraz po poprzednim słowniku');
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith('EXTRA' + n + ' ')), [], 'v142: bez kopii angielskiego');
+  for (const k of ['rwa302.k', 'rwa302.k.i']) assert.ok(rw133.BLK.includes("t('" + k + "'"), 'klucz używany w bloku RWA: ' + k);
+  assert.ok(!/securitize|spiko|centrifuge|backed|llama|archive/i.test(JSON.stringify(D)), 'bez nazw dostawców i serwisów');
+});

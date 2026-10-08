@@ -3693,6 +3693,10 @@ def rwe_porownanie(j, now=None):
             zakres.append(f'{nm(s)} {v / 1e6:.0f} mln USD vs ostatnio znana {r / 1e6:.0f} mln ({v / r:.2f}×)')
     if zakres:
         cz.append('inny zakres niż ostatnio znana (opisane na stronie): ' + '; '.join(zakres[:4]) + ' ℹ️')
+    for s, p in sorted(P.items()):   # v302: liczba dnia emitenta a liczba z nagłówka jego strony (Ondo Global Markets; nagłówek bez daty) — informacja
+        if isinstance(p, dict) and num(p.get('hl')) and p['hl'] > 0 and num(p.get('v')) and abs(p['v'] / p['hl'] - 1) > 0.005:
+            cz.append(f"{nm(s)}: punkt dnia emitenta ({str(p.get('as_of'))[:10]}) {p['v'] / 1e6:.0f} mln USD vs liczba w nagłówku jego strony "
+                      f"{p['hl'] / 1e6:.0f} mln ({(p['v'] / p['hl'] - 1) * 100:+.2f}%) — w sumach punkt dnia (nagłówek bez daty) ℹ️")
     for s, p in sorted(P.items()):   # v267: reszta listy emitenta poza odczytem (xStocks: lista dłuższa niż strona odpowiedzi) — informacja
         og = p.get('ogon') if isinstance(p, dict) and isinstance(p.get('ogon'), dict) else None
         if og and num(og.get('n')) and num(og.get('max_usd')):

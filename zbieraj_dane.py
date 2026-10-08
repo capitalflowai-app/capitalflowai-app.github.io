@@ -21517,7 +21517,7 @@ RWE_SRC = ('Dane emitentów (publiczne, bez klucza): public-api.spiko.io (klasy 
            'hastra.io/hastra-pulse/public/api/v1/por (wYLDS w skarbcach × 1 USD), prod-gw.openeden.com/v3/vault/aggregates (tvl), '
            'matrixdock.com/rwa/anon/website/api/v1/stats/total (podaż XAUm × XAU/USD z wyroczni na Ethereum), api.centrifuge.io (indeks emitenta: '
            'totalIssuance × tokenPrice, bez tokenów-opakowań „de…”); v170: ondo.finance (dane serwera strony emitenta: assetsData USDY + OUSG — tvlUsd.total, '
-           'gmTvl z ostatnim punktem gmTvlHistory), api.backed.fi/graphql (dowód rezerw xStocks: akcje w rezerwie × cena akcji, kurs dzienny z pliku rynki); '
+           'v302: ostatni punkt zakończonej doby gmTvlHistory, zgodny z gmTvl ±2%), api.backed.fi/graphql (dowód rezerw xStocks: akcje w rezerwie × cena akcji, kurs dzienny z pliku rynki); '
            'obliczenia CapitalFlowAI')
 _RWE_SYM = re.compile(r'^[A-Za-z0-9]{2,20}$')
 _RWE_CUR = re.compile(r'^[A-Z]{3}$')
@@ -21728,6 +21728,8 @@ RWE_XS_Q = ('query Reserves($page:Int!,$pageSize:Int!,$where:TokensWhereInput,$o
 RWE_XS_VAR = {'page': 0, 'pageSize': 1000, 'where': {'businessLine': {'equals': 'xStocks'}}, 'orderBy': {'field': 'aum', 'direction': 'desc'},
               'maxAge': 259200, 'maxDivergencePercent': 25, 'ignoreCurrentSession': True}   # jak strona dowodu rezerw emitenta (cena najwyżej 3 dni)
 RWE_MAX_HTML = 5_000_000   # bajtów — strona Ondo (05.10: 672 KB)
+RWE_GM_ZGODA = 0.02        # v302: punkt dnia wykresu emitenta (gmTvlHistory) a liczba z nagłówka strony (gmTvl, bez daty) — najwyżej 2% różnicy
+                           # (pełność punktu; test wsteczny 36 kopii strony 05–10.2026: od 25.09 0–1,48%, niepełne punkty −5…−17%)
 _RWE_NEXTF = re.compile(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)')
 
 
@@ -21780,18 +21782,40 @@ def rwe_ondo_ya_parse(s):
     return {'v': sum(cz.values()), 'as_of': d, 'n': 2, 'cz': cz}
 
 
-def rwe_ondo_gm_parse(s):
-    """v170: Ondo Global Markets — pola gmTvl i gmTvlHistory strony emitenta: gmTvl (USD) musi równać się najnowszemu dziennemu punktowi historii
-    (± 0,5%); stan = dzień tego punktu (00:00 UTC). → {'v', 'as_of', 'n': punktów historii}."""
-    v = _rwc_rez_num(_rwe_po_kluczu(s, 'gmTvl'))
+def rwe_ondo_gm_parse(s, read=None):
+    """v170/v302: Ondo Global Markets — pola gmTvl i gmTvlHistory strony emitenta. Wartość i stan z JEDNEGO punktu wykresu: ostatni punkt
+    ZAKOŃCZONEJ doby (dzień punktu < dzień odczytu `read` w UTC; bez `read` — zegar) — wartość y (USD), stan = chwila punktu (00:00 UTC dnia).
+    Liczba z nagłówka strony (gmTvl, bez daty) tylko sprawdza pełność punktu: różnica ponad RWE_GM_ZGODA = wyjątek (punkt niepełny albo inna
+    definicja — poprzedni odczyt). Każdy punkt z datą i liczbą > 0, bez zdublowanych (inaczej zmiana kształtu = wyjątek).
+    → {'v', 'as_of', 'n': punktów wykresu, 'hl': gmTvl}.
+    v302 (awaria od 07.10.2026 15:20 UTC): v170 brał gmTvl i datował go ostatnim punktem wykresu, gdy oba były równe (± 0,5%). 07.10 emitent
+    przeliczył wykres wstecz (od 29.09 ok. +19,1 mln USD dziennie), usunął punkt 06.10, dodał 07.10 = 1 332,8 mln, a nagłówek został 1 313,4 mln
+    (+1,48%) — każdy odczyt był odrzucany. W archiwum strony (05–09.2026) nagłówek i ostatni punkt różniły się zwykle o 2–17%: to dwie liczby
+    z różnych chwil, więc liczby bez daty nie datujemy cudzą datą — wartość i dzień pochodzą z tego samego punktu."""
+    hl = _rwc_rez_num(_rwe_po_kluczu(s, 'gmTvl'))
     H = _rwe_po_kluczu(s, 'gmTvlHistory')
-    last = max((p for p in H if isinstance(p, dict) and isinstance(p.get('x'), str)), key=lambda p: p['x'], default={}) if isinstance(H, list) else {}
-    x = str(last.get('x') or '')
-    d = _rwe_iso(x[2:] if x.startswith('$D') else x)
-    y = _rwc_rez_num(last.get('y'))
-    if v is None or v <= 0 or d is None or y is None or abs(y - v) > 0.005 * v:
-        raise ValueError('gmTvl bez zgodnego najnowszego punktu historii')
-    return {'v': v, 'as_of': d, 'n': len(H)}
+    if hl is None or hl <= 0 or not isinstance(H, list) or not H:
+        raise ValueError('brak gmTvl albo historii gmTvlHistory')
+    day = ((_rwe_iso(read) if read is not None else None) or _now_utc().astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat())[:10]
+    P, X = [], set()
+    for p in H:
+        x = str(p.get('x') or '') if isinstance(p, dict) else ''
+        d = _rwe_iso(x[2:] if x.startswith('$D') else x)
+        y = _rwc_rez_num(p.get('y')) if isinstance(p, dict) else None
+        if d is None or y is None or y <= 0:
+            raise ValueError('zły punkt historii gmTvlHistory (data albo liczba)')
+        if d in X:
+            raise ValueError(f'zdublowany punkt historii gmTvlHistory ({d[:19]})')
+        X.add(d)
+        P.append((d, y))
+    pelne = [p for p in P if p[0][:10] < day]
+    if not pelne:
+        raise ValueError(f'brak punktu zakończonej doby w gmTvlHistory (przed {day})')
+    d, y = max(pelne)
+    if abs(y - hl) > RWE_GM_ZGODA * hl:
+        raise ValueError(f'dzienny punkt {d[:10]} ({y / 1e6:.1f} mln USD) różni się od nagłówka strony ({hl / 1e6:.1f} mln USD) o '
+                         f'{(y / hl - 1) * 100:+.2f}% — więcej niż {RWE_GM_ZGODA * 100:g}%')
+    return {'v': y, 'as_of': d, 'n': len(H), 'hl': round(hl, 2)}
 
 
 def rwe_xs_parse(j, fx):
@@ -21918,7 +21942,7 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
         if k == 'ondo_ya':
             return rwe_ondo_ya_parse(strona(RWE_ONDO))
         if k == 'ondo_gm':
-            return rwe_ondo_gm_parse(strona(RWE_ONDO))
+            return rwe_ondo_gm_parse(strona(RWE_ONDO), stamp)   # v302: punkt zakończonej doby względem chwili odczytu
         if k == 'xs':
             return rwe_xs_parse(post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': RWE_XS_VAR}, timeout=tmo()), fx)
         raise ValueError(f'nieznany rodzaj {k}')
@@ -21984,7 +22008,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
         err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else (None if isinstance(cur, dict) else 'brak odpowiedzi')
         new = None
         if err is None:
-            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon
+            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'hl', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon; v302: + hl
             new['read'] = rd['at']
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
@@ -22001,7 +22025,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
             ok = False
             notes.append(f'{nm}: {err}' + (f" — poprzedni odczyt (stan {pv['as_of']})" if pv is not None else ' — bez wartości'))
         if new is None and pv is not None:
-            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon
+            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'hl', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon; v302: + hl
             new['k'] = 1
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None

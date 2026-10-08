@@ -23541,7 +23541,7 @@ class RwaEmitenciV170(unittest.TestCase):
         self.assertEqual(s, _RWE170_PAYLOAD, 'napisy połączone w dane serwera (także znaki spoza ASCII)')
         r = zd.rwe_ondo_ya_parse(s)
         self.assertEqual(r, {'v': 2287710214.82 + 321225753.39, 'as_of': '2026-10-05T07:21:44+00:00', 'n': 2, 'cz': {'usdy': 2287710214.82, 'ousg': 321225753.39}})
-        self.assertEqual(zd.rwe_ondo_gm_parse(s), {'v': 1284853526.542776, 'as_of': '2026-10-04T00:00:00+00:00', 'n': 2})
+        self.assertEqual(zd.rwe_ondo_gm_parse(s), {'v': 1284853526.5427766, 'as_of': '2026-10-04T00:00:00+00:00', 'n': 2, 'hl': 1284853526.54})   # v302: wartość z punktu dnia, nagłówek sprawdza
         dwa = _RWE170_PAYLOAD + '3:{"assetsData":' + _RWE170_PAYLOAD.split('"assetsData":', 1)[1].split(',"gmHolders"', 1)[0] + '}\n'
         self.assertAlmostEqual(zd.rwe_ondo_ya_parse(dwa)['v'] / 1e6, 2608.94, places=2, msg='dwa wystąpienia z tą samą wartością — tak')
         with self.assertRaises(ValueError):
@@ -34406,3 +34406,133 @@ class SurowcePoprawkiV301(unittest.TestCase):
         for d, nav, u in SurowceEtap3V298.IAU:
             self.assertEqual(H2['f']['IAU'][d], round(nav * u / G[d] / self.T, 3), d)
         self.assertNotEqual(G['2026-10-02'], G['2026-10-06'])
+
+
+# ===================== v302: DANE EMITENTÓW — ONDO GLOBAL MARKETS: wartość i stan z jednego punktu wykresu (awaria od 07.10.2026 15:20 UTC) =====================
+# Nagrania (publiczne GET strony emitenta bez klucza): 08.10.2026 04:07 UTC — nasze; 07.10 04:10, 26.09 02:54 i 22.09 00:16 UTC — kopie tej samej
+# strony z publicznego archiwum internetu. Pola gmHolders, gmTvl i ostatnie punkty gmTvlHistory dokładnie jak u źródła (reszta wykresu pominięta).
+_RWE302_08 = ('"gmHolders":244400,"gmTvl":1313400574.151612,"gmTvlHistory":[{"x":"$D2026-10-02T00:00:00.000Z","y":1300194299.856738},'
+              '{"x":"$D2026-10-03T00:00:00.000Z","y":1303918370.8003354},{"x":"$D2026-10-04T00:00:00.000Z","y":1306101244.3798501},'
+              '{"x":"$D2026-10-05T00:00:00.000Z","y":1310360351.0408795},{"x":"$D2026-10-07T00:00:00.000Z","y":1332806981.2192812}]')
+_RWE302_07 = ('"gmHolders":181000,"gmTvl":1292131685.929973,"gmTvlHistory":[{"x":"$D2026-10-03T00:00:00.000Z","y":1284813687.4608552},'
+              '{"x":"$D2026-10-04T00:00:00.000Z","y":1286996561.040372},{"x":"$D2026-10-05T00:00:00.000Z","y":1291255667.7013988},'
+              '{"x":"$D2026-10-06T00:00:00.000Z","y":1292131685.929973}]')
+_RWE302_26 = ('"gmHolders":228489,"gmTvl":1219293101.620621,"gmTvlHistory":[{"x":"$D2026-09-23T00:00:00.000Z","y":966741520.4032243},'
+              '{"x":"$D2026-09-24T00:00:00.000Z","y":966140932.8938068},{"x":"$D2026-09-25T00:00:00.000Z","y":1204152790.0552473}]')
+_RWE302_22 = ('"gmHolders":222503,"gmTvl":1165671937.3012846,"gmTvlHistory":[{"x":"$D2026-09-20T00:00:00.000Z","y":953694221},'
+              '{"x":"$D2026-09-21T00:00:00.000Z","y":957562840},{"x":"$D2026-09-21T22:51:47.000Z","y":970062269}]')
+# rekord produktu z żywego pliku rwa.json (08.10.2026 01:46 UTC) — poprzedni odczyt po awarii
+_RWE302_PV = {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'v': 1292131685.93, 'as_of': '2026-10-06T00:00:00+00:00', 'read': '2026-10-07T12:20:10+00:00',
+              'err': 'ValueError: gmTvl bez zgodnego najnowszego punktu historii', 'ref': 965790144.95, 'n': 400, 'k': 1, 'zakres': 'gm',
+              'vb': 1292131685.93, 'full': True, 'stan': 'e'}
+
+
+def _rwe302_s(gm):
+    """Dane serwera strony (jak po rwe_ondo_rsc): assetsData z nagrania v170, potem pola Ondo Global Markets z nagrania `gm`."""
+    return _RWE170_PAYLOAD.split('"gmHolders":', 1)[0] + gm + '}\n2:"zażółć"\n'
+
+
+class RwaOndoGmV302(unittest.TestCase):
+    """v302: Ondo Global Markets — wartość i stan z JEDNEGO punktu wykresu emitenta (ostatnia zakończona doba UTC); liczba z nagłówka strony
+    (gmTvl, bez daty) tylko sprawdza pełność punktu (± RWE_GM_ZGODA); pole hl w rekordzie i informacja w kontroli. Bez sieci, przypięty czas."""
+    NOW = datetime.datetime(2026, 10, 8, 4, 7, 14, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        for n in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, n, side_effect=AssertionError('test nie może pytać sieci')))
+
+    def test_awaria_0710_punkt_dnia_z_nagran(self):
+        """08.10: nagłówek 1313,4 mln, punkt 07.10 = 1332,8 mln (+1,48%; wykres przeliczony wstecz, bez punktu 06.10) — v170 odrzucał (0,5%)."""
+        s = _rwe302_s(_RWE302_08)
+        self.assertEqual(zd.rwe_ondo_rsc(_rwe170_html(s).decode()), s, 'nagranie w kształcie strony (dane serwera w napisach)')
+        r = zd.rwe_ondo_gm_parse(s, '2026-10-08T04:07:14+00:00')
+        self.assertEqual(r, {'v': 1332806981.2192812, 'as_of': '2026-10-07T00:00:00+00:00', 'n': 5, 'hl': 1313400574.15})
+        self.assertAlmostEqual((r['v'] / r['hl'] - 1) * 100, 1.48, places=2)
+        self.assertEqual(zd.RWE_GM_ZGODA, 0.02)
+        r7 = zd.rwe_ondo_gm_parse(_rwe302_s(_RWE302_07), '2026-10-07T04:10:15+00:00')
+        self.assertEqual((r7['v'], r7['as_of'], r7['hl']), (1292131685.929973, '2026-10-06T00:00:00+00:00', 1292131685.93), '07.10 rano: nagłówek = punkt 06.10')
+        r26 = zd.rwe_ondo_gm_parse(_rwe302_s(_RWE302_26), '2026-09-26T02:54:00+00:00')
+        self.assertEqual(r26['as_of'], '2026-09-25T00:00:00+00:00'); self.assertAlmostEqual((r26['v'] / r26['hl'] - 1) * 100, -1.24, places=2)
+        self.assertIn('v302: ostatni punkt zakończonej doby gmTvlHistory, zgodny z gmTvl ±2%', zd.RWE_SRC)
+
+    def test_punkt_niepelny_odrzucony(self):
+        """22.09: ostatni punkt (21.09 22:51 UTC) 970,1 mln wobec nagłówka 1165,7 mln (−16,78%; później uzupełniony do ok. 1 186 mln) — błąd."""
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_ondo_gm_parse(_rwe302_s(_RWE302_22), '2026-09-22T00:16:30+00:00')
+        self.assertIn('dzienny punkt 2026-09-21 (970.1 mln USD) różni się od nagłówka strony (1165.7 mln USD) o -16.78% — więcej niż 2%', str(c.exception))
+        self.assertLessEqual(len('ValueError: ' + str(c.exception)), 160, 'mieści się w polu err')
+
+    def test_doba_biezaca_i_granica_zgody(self):
+        dzis = _RWE302_08.replace('}]', '},{"x":"$D2026-10-08T00:00:00.000Z","y":1500000000.0},{"x":"$D2026-10-08T03:00:00.000Z","y":1313400574.15}]')
+        r = zd.rwe_ondo_gm_parse(_rwe302_s(dzis), '2026-10-08T04:07:14+00:00')
+        self.assertEqual((r['as_of'], r['n']), ('2026-10-07T00:00:00+00:00', 7), 'punkty bieżącej doby (niepełnej) pominięte, także równy nagłówkowi')
+        self.assertEqual(zd.rwe_ondo_gm_parse(_rwe302_s(dzis))['as_of'], '2026-10-07T00:00:00+00:00', 'bez chwili odczytu — zegar (przypięty)')
+        self.assertEqual(zd.rwe_ondo_gm_parse(_rwe302_s(_RWE302_08), '2026-10-05T12:00:00+00:00')['as_of'], '2026-10-04T00:00:00+00:00')
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_ondo_gm_parse(_rwe302_s(_RWE302_08), '2026-10-02T12:00:00+00:00')
+        self.assertIn('brak punktu zakończonej doby', str(c.exception))
+        g = '"gmHolders":1,"gmTvl":1000000000.0,"gmTvlHistory":[{"x":"$D2026-10-06T00:00:00.000Z","y":Y}]'
+        for y, ok in (('1020000000.0', True), ('980000000.0', True), ('1020000001.0', False), ('979999999.0', False)):
+            if ok:
+                self.assertEqual(zd.rwe_ondo_gm_parse(_rwe302_s(g.replace('Y', y)), '2026-10-07T01:00:00+00:00')['v'], float(y), y)
+            else:
+                with self.assertRaises(ValueError, msg=y):
+                    zd.rwe_ondo_gm_parse(_rwe302_s(g.replace('Y', y)), '2026-10-07T01:00:00+00:00')
+
+    def test_zly_ksztalt(self):
+        s = _rwe302_s(_RWE302_08)
+        p0 = '{"x":"$D2026-10-02T00:00:00.000Z","y":1300194299.856738}'
+        for zle, frag in ((s.replace('"gmTvl":1313400574.151612', '"gmTvl":"$undefined"'), 'brak gmTvl'),   # 23–24.09: tak wyglądała strona
+                          (s.replace('"gmTvl":1313400574.151612', '"gmTvl":0'), 'brak gmTvl'),
+                          (_rwe302_s('"gmHolders":1,"gmTvl":5.0,"gmTvlHistory":[]'), 'brak gmTvl albo historii'),
+                          (_rwe302_s('"gmHolders":1,"gmTvl":5.0,"gmTvlHistory":{"x":1}'), 'brak gmTvl albo historii'),
+                          (s.replace(p0, '{"x":"wczoraj","y":1300194299.856738}'), 'zły punkt'),
+                          (s.replace(p0, '{"x":"$D2026-10-02T00:00:00.000Z","y":null}'), 'zły punkt'),
+                          (s.replace(p0, '{"x":"$D2026-10-02T00:00:00.000Z","y":0}'), 'zły punkt'),
+                          (s.replace(p0, '[1,2]'), 'zły punkt'),
+                          (s.replace(p0, '{"x":"$D2026-10-03T00:00:00.000Z","y":1300194299.856738}'), 'zdublowany punkt'),
+                          (s.replace('"gmTvlHistory":[', '"gmTvlHistoryX":['), 'pole gmTvlHistory')):
+            with self.assertRaises(ValueError, msg=frag) as c:
+                zd.rwe_ondo_gm_parse(zle, '2026-10-08T04:07:14+00:00')
+            self.assertIn(frag, str(c.exception))
+
+    def test_odczyt_i_blok_po_awarii(self):
+        """Pełny odczyt z nagraniem strony 08.10 i poprzednim blokiem z żywego pliku (k = 1, stan 06.10): nowy odczyt przyjęty, bez notatki."""
+        calls = []
+        get, post = _rwe170_net(calls, ondo=_rwe170_html(_rwe302_s(_RWE302_08)))
+        rd = zd.rwe_odczyt(self.NOW, fx=zd.rwe_fx(_RWE170_S, self.NOW), get=get, post=post, sleep=lambda s: None)
+        self.assertNotIn('err', rd['r']['ondo-global-markets']); self.assertEqual(calls.count(zd.RWE_ONDO), 1)
+        em = zd.rwe_blok(rd, {'p': {'ondo-global-markets': dict(_RWE302_PV)}}, self.NOW, oc={'v': 1, 'px': {'zloto': dict(_RWE169_GOLD)}},
+                         ref={'ondo-global-markets': 965790144.95})
+        o = em['p']['ondo-global-markets']
+        self.assertEqual((o['v'], o['as_of'], o['hl'], o['err'], o['read'], o['zakres']),
+                         (1332806981.22, '2026-10-07T00:00:00+00:00', 1313400574.15, None, rd['at'], 'gm'))
+        self.assertNotIn('k', o); self.assertTrue(o['full']); self.assertEqual(o['vb'], 1332806981.22)
+        self.assertFalse(any('Ondo Global Markets' in x for x in em['notes']), em['notes'])
+        self.assertIn('ondo-global-markets', zd.rwe_uzyj(em, self.NOW))
+        self.assertIn('ondo-global-markets', zd.rwe_uzyj(em, datetime.datetime(2026, 10, 9, 11, 59, tzinfo=datetime.timezone.utc)))
+        self.assertNotIn('ondo-global-markets', zd.rwe_uzyj(em, datetime.datetime(2026, 10, 9, 12, 1, tzinfo=datetime.timezone.utc)), '60 h od 07.10 00:00')
+        r2 = dict(rd, at='2026-10-08T07:07:14+00:00', r=dict(rd['r'], **{'ondo-global-markets': {'err': 'ValueError: x'}}))
+        o2 = zd.rwe_blok(r2, em, datetime.datetime(2026, 10, 8, 7, 7, 14, tzinfo=datetime.timezone.utc))['p']['ondo-global-markets']
+        self.assertEqual((o2['k'], o2['hl'], o2['as_of'], o2['read'], o2['err']), (1, 1313400574.15, '2026-10-07T00:00:00+00:00', rd['at'], 'ValueError: x'),
+                         'poprzedni odczyt zachowuje swoje pole hl')
+        pv = zd.rwe_blok(dict(rd, r=dict(rd['r'], **{'ondo-global-markets': {'err': 'ValueError: y'}})), {'p': {'ondo-global-markets': dict(_RWE302_PV)}},
+                         self.NOW)['p']['ondo-global-markets']
+        self.assertEqual((pv['k'], pv['as_of'], pv.get('hl')), (1, '2026-10-06T00:00:00+00:00', None), 'starszy rekord bez hl — bez pola')
+
+    def test_kontrola_naglowek_a_punkt(self):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola302-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v302_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        p = {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'v': 1332806981.22, 'as_of': '2026-10-07T00:00:00+00:00', 'hl': 1313400574.15, 'stan': 'e', 'full': True}
+        j = {'issuer': {'at': '2026-10-08T04:07:14+00:00', 'ok': True, 'used': {'ondo-global-markets': 1332806981.22}, 'p': {'ondo-global-markets': p}}}
+        Z = k.rwe_porownanie(j)
+        self.assertIn('Ondo Global Markets: punkt dnia emitenta (2026-10-07) 1333 mln USD vs liczba w nagłówku jego strony 1313 mln (+1.48%) '
+                      '— w sumach punkt dnia (nagłówek bez daty) ℹ️', Z['opis'])
+        self.assertEqual((Z['status'], Z['uwagi']), ('✅', []), 'tylko informacja')
+        for q in (dict(p, hl=1330000000.0), {kk: x for kk, x in p.items() if kk != 'hl'}, dict(p, hl=None)):   # 0,21%; starsze pliki bez hl
+            self.assertNotIn('nagłówku', k.rwe_porownanie({'issuer': dict(j['issuer'], p={'ondo-global-markets': q})})['opis'])
