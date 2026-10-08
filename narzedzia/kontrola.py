@@ -3756,6 +3756,9 @@ SU_MIEDZ_PROG = 1.0    # % — miedź MFW wobec Banku Światowego: 417 miesięcy
 SU_MIN_SESJI = 15      # sesji w miesiącu — mniej = bez porównania średniej
 SU_Q_DNI = 14          # dni — punkt do sprawdzenia bez potwierdzenia drugim źródłem młodszy niż tyle = uwaga
 SU_DZ_TOL = 0.01       # USD — strona dzienna (2 miejsca po przecinku) wobec API tego samego dnia
+SU_FUT_WTI = 0.01      # USD — v301: kontrakt Brenta (seria kontrolna) równy WTI z tego samego dnia (|różnica| < 0,01) = podejrzany punkt dostawcy
+                       # (29.09.2026: 96,16 = WTI przy zmianie miesiąca kontraktu); zbieracz: SU_Q_FUT_WTI (w regule q jak brak notowania);
+                       # tylko ℹ️ — test wsteczny 07.2007–10.2026: 2 takie dni na 4706 (2007, różnica Brent–WTI bliska zera)
 SU_JEDN = {'brent': 'USD/bbl', 'wti': 'USD/bbl', 'hh': 'USD/MMBtu', 'ttf': 'EUR/MWh', 'lng_eu': 'EUR/MWh', 'ulsd_nyh': 'USD/gal', 'gas_nyh': 'USD/gal',
            'jet_gulf': 'USD/gal', 'propan': 'USD/gal', 'crack321': 'USD/bbl', 'gold': 'USD/oz', 'silver': 'USD/oz', 'copper': 'USD/t',
            'uran': 'USD/lb', 'brent_fut': 'USD/bbl', 'gold_fut': 'USD/oz', 'us_crude': 'mln bbl', 'us_spr': 'mln bbl', 'us_gasoline': 'mln bbl',
@@ -3905,12 +3908,32 @@ def surowce_porownania(j, now=None):
         if isinstance(own, (int, float)) and isinstance(ez, (int, float)) and ez:
             W.append((f'gaz w magazynach USA, średnia 5 lat {w}: wyliczona {_zuz_l(own)} vs EIA {_zuz_l(ez)} Bcf ('
                       + f'{(own / ez - 1) * 100:+.2f}%)'.replace('.', ','), 'ℹ️'))
+    wt, bk, rwa = C.get('wti'), C.get('brent_fut'), set()   # v301: kontrakt równy WTI z tego samego dnia — informacja (w regule q jak brak
+    if isinstance(wt, dict) and isinstance(bk, dict):        # notowania); rwa — wszystkie takie dni (poza porównaniem zmian dziennych niżej)
+        num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)   # noqa: E731
+        wd = {x[0]: x[1] for x in (wt.get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and num(x[1])}
+        rw = [(x[0], x[1]) for x in (bk.get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and num(x[1])
+              and num(wd.get(x[0])) and round(abs(x[1] - wd[x[0]]), 6) < SU_FUT_WTI]
+        rwa = {d for d, _ in rw}
+        rn = []   # v301 (przegląd): ℹ️ tylko dla dni z ostatnich SU_Q_DNI dni (jak uwagi o punktach) — inaczej ten sam dzień codziennie przez
+        for d, v in rw:   # całe okno serii (90 sesji, ok. 4 miesiące)
+            try:
+                if 0 <= (now.date() - dt.date.fromisoformat(d)).days <= SU_Q_DNI:
+                    rn.append((d, v))
+            except ValueError:
+                continue
+        if rn:
+            W.append(((f'Brent — kontrakt równy cenie WTI z tego samego dnia: ' + ', '.join(f'{d} ({v:.2f})' for d, v in rn[-3:])
+                       + (f' (razem {len(rn)} dni)' if len(rn) > 3 else '') + ' — podejrzany punkt dostawcy (zmiana miesiąca kontraktu?); '
+                       'w regule punktów do sprawdzenia jak brak notowania').replace('.', ','), 'ℹ️'))
     br, bf = C.get('brent'), C.get('brent_fut')
     if isinstance(br, dict) and isinstance(bf, dict):
-        def zm(e):
+        # v301 (przegląd): bez — dni kontraktu równego WTI (rwa); bez zmiany do takiego dnia i z niego (podejrzany punkt nie wskaże „największej
+        # różnicy”, a zmiana kontraktu z dwóch sesji nie jest porównywana z jednodniową zmianą Brenta fizycznego)
+        def zm(e, bez=frozenset()):
             d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and x[1] > 0]
-            return {d[i][0]: (d[i][1] / d[i - 1][1] - 1) * 100 for i in range(1, len(d))}
-        a, b = zm(br), zm(bf)
+            return {d[i][0]: (d[i][1] / d[i - 1][1] - 1) * 100 for i in range(1, len(d)) if not (d[i][0] in bez or d[i - 1][0] in bez)}
+        a, b = zm(br), zm(bf, rwa)
         wsp = sorted(set(a) & set(b))[-30:]
         if wsp:
             mx = max(wsp, key=lambda d: abs(a[d] - b[d]))
@@ -4036,14 +4059,16 @@ def surowce_swiezosc3(j, now=None):
                 f'; spodziewana publikacja {czas_pl(p)}' + (' — zaległa (święto albo przerwa w pracy urzędu?)' if pt and pt < now else '') if pt else '')
         rows.append((label, st, w, txt, note))
     if P is not None:
-        a = [max(e['asof'] for e in (P.get(sub) or {}).values() if isinstance(e, dict) and isinstance(e.get('asof'), str))
-             for sub in ('cftc', 'cit', 'tff') if any(isinstance(e, dict) and isinstance(e.get('asof'), str) for e in (P.get(sub) or {}).values())]
+        cz = lambda s: P[s] if isinstance(P.get(s), dict) else {}   # noqa: E731 — v301: podczęść, która nie jest słownikiem (uszkodzony plik) = brak
+        a = [max(e['asof'] for e in cz(sub).values() if isinstance(e, dict) and isinstance(e.get('asof'), str))
+             for sub in ('cftc', 'cit', 'tff') if any(isinstance(e, dict) and isinstance(e.get('asof'), str) for e in cz(sub).values())]
         wiersz('pozycje', min(a) if a else None, 'day', 'pozycje')   # najstarsza z trzech części tego samego raportu CFTC — zalegająca część widać
-        ice = [e['asof'] for e in (P.get('ice') or {}).values() if isinstance(e, dict) and isinstance(e.get('asof'), str)]
+        ice = [e['asof'] for e in cz('ice').values() if isinstance(e, dict) and isinstance(e.get('asof'), str)]
         wiersz('pozycje_ice', max(ice) if ice else None, 'day', None)
     F = j.get('fundusze') if isinstance(j.get('fundusze'), dict) else None
     if F is not None:
-        g = ((F.get('f') or {}).get('GLD') or {}) if isinstance(F.get('f'), dict) else {}
+        g = F['f'].get('GLD') if isinstance(F.get('f'), dict) else None
+        g = g if isinstance(g, dict) else {}   # v301: wpis, który nie jest słownikiem — brak
         wiersz('fundusze', g.get('asof') if isinstance(g.get('asof'), str) else None, 'day', 'fundusze')
     B = j.get('banki') if isinstance(j.get('banki'), dict) else None
     if B is not None:

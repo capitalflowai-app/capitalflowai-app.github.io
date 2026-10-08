@@ -33275,7 +33275,8 @@ class SurowceEtap3V298(unittest.TestCase):
         self.assertEqual(list(C), [k for k, _, _ in zd.SU_POZ_CFTC]); self.assertEqual(len(C), 30)
         g = C['gold']
         self.assertEqual((g['oi'], g['net'], g['pct'], g['g'], g['code']), (406456, 120318, 29.6, 'ms', '088691'))
-        self.assertEqual((g['d1'], g['d1p']), (120318 - 127389, round(29.6 - 100.0 * 127389 / 412800, 1)), 'zmiana tygodnia wobec raportu sprzed 7 dni')
+        # v301: d1p z dokładnych udziałów (dawniej z zaokrąglonego pct: round(29.6 − …)) — świadoma zmiana asercji v298
+        self.assertEqual((g['d1'], g['d1p']), (120318 - 127389, round(100.0 * 120318 / 406456 - 100.0 * 127389 / 412800, 1)), 'zmiana tygodnia wobec raportu sprzed 7 dni')
         self.assertEqual(g['pos']['mm'], [131711, 11393, 36294])
         self.assertEqual(g['h'], {'d': ['2026-09-22', '2026-09-29'], 'oi': [412800, 406456], 'net': [127389, 120318]})
         for k, e in C.items():
@@ -34037,3 +34038,371 @@ class SurowceUwagiV300(unittest.TestCase):
         q = zd.su_q(B, W, F)
         self.assertEqual(q['brent'], [['2020-04-02', 'rozjazd', 'potw'], ['2020-04-08', 'rozjazd', 'niepotw'], ['2020-04-09', 'rozjazd', 'niepotw']])
         self.assertEqual(len([x for x in q['wti'] if x[1] == 'trwa']), 9, 'dni WTI bez potwierdzenia — jak dotąd')
+
+
+class SurowcePoprawkiV301(unittest.TestCase):
+    """v301: poprawki po przeglądach fali 3 działu SUROWCE — budżet czasu naśladowcy, d1p z dokładnych udziałów, suma złota oznaczona jako
+    wyliczona, SAFE (ponowienie po 6 h, błąd bez danych części), próg skoku dla młodych trustów, pusty plik ICE, odporna kontrola świeżości,
+    kontrakt Brenta równy WTI, brakujący tydzień pozycji i IAU dla wcześniejszego dnia. Bez zegara (NOW przypięty) i bez sieci (nagrania)."""
+    NOW = datetime.datetime(2026, 10, 7, 17, 10, tzinfo=datetime.timezone.utc)
+    T = 32150.7466
+    FUND = {'f': {'IAU': {'h': SurowceEtap3V298.IAU}}}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._td = zd._TD_T[0]; zd._TD_T[0] = None
+        zd._SU_RUN.clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW.isoformat()))
+
+    def tearDown(self):
+        zd._TD_T[0] = self._td; zd._SU_RUN.clear()
+
+    @staticmethod
+    def rec(oi, net):
+        return {'name': 'X', 'oi': oi, 'g': {'mm': {'long': net + 100, 'short': 100, 'spread': 0, 'net': net}}}
+
+    # (1) budżet czasu naśladowcy
+    def test_budzet_nasladowcy_jeden_limit_gdy_lider_udany(self):
+        v = SurowceV295()
+        fetch, calls = v.siec()
+        with mock.patch.dict(zd.SU_LIMIT_S, {'cftcd': 600}):   # limit naśladowcy powiększony: 1 × 600 s < budżet 1000 s < 2 × 600 s
+            out, h, zm = zd.build_surowce(None, None, v.keys(), now=self.NOW, fetch=fetch, budzet_s=1000, fund=self.FUND)
+            self.assertTrue({'cftc', 'cftcd'} <= zm, zm)
+            self.assertFalse(any('cftcd (budżet czasu)' in x for x in zd.META['notes']), 'lider udany — rezerwa jednego limitu (dawniej 2 × limit: pominięty)')
+            n = lambda u: len([c for c, _, _ in calls if c == u])   # noqa: E731
+            self.assertEqual((n(zd.CFTCD_WEEK_URL), n(zd.CFTCD_YEAR_URL.format(2026))), (1, 1), 'odpowiedź lidera — bez drugiego zapytania')
+            self.assertEqual(out['pozycje']['asof']['cftc'], '2026-09-29')
+            # lider bez pobrania w tym przebiegu, naśladowca należny (np. pominięty wcześniej) — własne pobranie: pełna rezerwa 2 × limit
+            prev = json.loads(json.dumps(out)); prev['st']['cftcd'] = {}
+            zd.META['notes'].clear(); calls.clear()
+            t2 = self.NOW + datetime.timedelta(minutes=10)
+            _, _, zm2 = zd.build_surowce(prev, h, v.keys(), now=t2, fetch=fetch, budzet_s=1000, fund=self.FUND)
+            self.assertNotIn('cftcd', zm2); self.assertTrue(any('cftcd (budżet czasu)' in x for x in zd.META['notes']), zd.META['notes'])
+            _, _, zm3 = zd.build_surowce(prev, h, v.keys(), now=t2, fetch=fetch, budzet_s=1300, fund=self.FUND)
+            self.assertIn('cftcd', zm3); self.assertEqual(n(zd.CFTCD_WEEK_URL), 1, 'własne pobranie, gdy mieści się 2 × limit')
+
+    # (2) i (9a) pozycje: d1p z dokładnych udziałów, brakujący tydzień — null
+    def test_d1p_z_dokladnych_udzialow_i_brakujacy_tydzien(self):
+        rec = self.rec
+        e = zd._su_poz_wpis('000000', {'2026-09-22': rec(1000000, 99600), '2026-09-29': rec(1000000, 100400)}, None, 'mm')
+        self.assertEqual((e['pct'], e['d1'], e['d1p']), (10.0, 800, 0.1), 'd1p z dokładnych udziałów: 10,04 − 9,96 = 0,08 → 0,1 (dawniej 10,0 − 9,96 → 0,0)')
+        # brakujący tydzień: raport sprzed 14 dni to nie zmiana tygodnia — null (nie zmiana z dwóch tygodni)
+        e2 = zd._su_poz_wpis('000000', {'2026-09-15': rec(1000000, 90000), '2026-09-29': rec(1000000, 100400)}, None, 'mm')
+        self.assertEqual((e2['d1'], e2['d1p'], e2['h']['d']), (None, None, ['2026-09-15', '2026-09-29']))
+        pe = {'h': {'d': ['2026-09-08', '2026-09-15'], 'oi': [1000000, 1000000], 'net': [80000, 90000]}}
+        e3 = zd._su_poz_wpis('000000', {'2026-09-29': rec(1000000, 100400)}, pe, 'mm')
+        self.assertEqual((e3['d1'], e3['d1p'], e3['h']['d']), (None, None, ['2026-09-08', '2026-09-15', '2026-09-29']), 'dziura także w historii poprzedniego wpisu')
+        pe4 = {'h': {'d': ['2026-09-15', '2026-09-22'], 'oi': [1000000, 1000000], 'net': [90000, 99600]}}
+        e4 = zd._su_poz_wpis('000000', {'2026-09-29': rec(1000000, 100400)}, pe4, 'mm')
+        self.assertEqual((e4['d1'], e4['d1p']), (800, 0.1), 'raport sprzed 7 dni z historii poprzedniego wpisu')
+        # na nagraniu CFTC: plik roczny bez raportu 22.09 (jest 15.09) — kukurydza, gaz i złoto bez zmiany tygodnia, reszta jak dotąd
+        E = SurowceEtap3V298()
+        files = E.cftcd_files()
+        files[zd.CFTCD_YEAR_URL.format(2026)] = E.zip_txt('f_year.txt', ','.join(zd.CFTCD_COLS) + '\n' + _E3_Y22.replace(',260922,2026-09-22,', ',260915,2026-09-15,'))
+        ctx = E.ctx(raw=dict(files), fetch=E.siec_z(files))
+        self.assertEqual(zd._su_poz_cftcd(ctx), '2026-09-29')
+        C = ctx['poz']['cftc']
+        for k in ('corn', 'ng', 'gold'):
+            self.assertEqual((C[k]['d1'], C[k]['d1p'], C[k]['h']['d']), (None, None, ['2026-09-15', '2026-09-29']), k)
+        self.assertEqual((C['gold']['pct'], C['gold']['net']), (29.6, 120318), 'stan bieżący bez zmian')
+
+    # (3) suma złota w funduszach z IAU (wyliczonym) — oznaczona
+    def test_suma_zlota_oznaczona_jako_wyliczona(self):
+        fetch, _ = SurowceV295().siec()
+        out, _, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund=self.FUND)
+        S, F = out['fundusze']['suma'], out['fundusze']['f']
+        self.assertEqual((F['IAU']['x'], S['au']['x'], S['au_usa']['x']), (['wyl'], ['wyl'], ['wyl']), 'suma z IAU wyliczonym — x jak u IAU')
+        with mock.patch.object(zd, 'SU_FU_SUMY', zd.SU_FU_SUMY + (('pomiar', ('GLD', 'GLDM')),)):
+            out2, _, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund=self.FUND)
+        self.assertNotIn('x', out2['fundusze']['suma']['pomiar'], 'suma samych pomiarów — bez oznaczenia')
+        self.assertEqual(out2['fundusze']['suma']['au']['x'], ['wyl'])
+
+    # (4) SAFE: ponowienie po błędzie najwcześniej po 6 h; błąd bez danych części tylko wtedy, gdy nie ma żadnych danych
+    def test_safe_ponowienie_po_6h(self):
+        due, U = zd._su_due, datetime.timezone.utc
+        now = datetime.datetime(2026, 10, 8, 9, 5, tzinfo=U)
+        e = {'err': 'safe_zl: HTTP Error 403: Forbidden', 'try': '2026-10-08T05:00:00+00:00'}   # przed pierwszym udanym pobraniem, błąd 4 h temu
+        self.assertFalse(due('safe_zl', e, now, {}), 'po błędzie przy starcie — dawniej co godzinę')
+        self.assertTrue(due('safe_zl', dict(e, **{'try': '2026-10-08T03:00:00+00:00'}), now, {}), 'po 6 h — ponowienie')
+        self.assertTrue(due('safe_zl', {'try': '2026-10-08T08:00:00+00:00'}, now, {}), 'start bez błędu — co godzinę jak dotąd')
+        later = datetime.datetime(2026, 10, 25, 9, 5, tzinfo=U)
+        z = {'at': '2026-09-20T03:00:00+00:00', 'asof': '2026-09', 'err': 'x', 'try': '2026-10-25T05:00:00+00:00'}
+        self.assertFalse(due('safe_zl', z, later, {}), 'poza dniami 5–20, po błędzie — też najwcześniej po 6 h')
+        self.assertTrue(due('safe_zl', dict(z, **{'try': '2026-10-25T03:00:00+00:00'}), later, {}))
+        self.assertTrue(due('safe_zl', {k: v for k, v in z.items() if k != 'err'} | {'try': '2026-10-25T08:00:00+00:00'}, later, {}), 'bez błędu — jak dotąd')
+        self.assertEqual((zd.SU_SAFE_PONOW, zd.SU_MIEKKIE), (360, {'safe_zl': 'imf_il'}))
+
+    def test_safe_blad_bez_bledu_czesci_banki(self):
+        fetch, calls = SurowceV295().siec(fail=('safe.gov.cn',))
+        out, h, zm = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund=self.FUND)
+        self.assertIn('imf_il', zm); self.assertNotIn('safe_zl', zm)
+        self.assertIs(out['ok']['banki'], True, 'MFW udał się w tym przebiegu — błąd SAFE to notatka')
+        self.assertNotIn('banki', out.get('err') or {})
+        self.assertIn('safe_zl: HTTP Error 503', out['st']['safe_zl']['err'], 'błąd zapisany przy źródle (bramka: ponowienie po 6 h)')
+        self.assertFalse(any('safe_zl' in x for x in zd.META['errors']), zd.META['errors'])
+        self.assertTrue(any(x.startswith('surowce: safe_zl: HTTP Error 503') and 'notatka' in x for x in zd.META['notes']), zd.META['notes'])
+        cn = out['banki']['kr']['CN']
+        self.assertEqual((cn['z'], cn['asof']), ('imf', '2026-06'), 'Chiny z MFW')
+        # 10 min później — bez ponowienia; 7 h później SAFE znów z błędem, MFW nienależny, część ma dane — 'cached', notatka
+        calls.clear(); zd.META['notes'].clear()
+        out1, h1, zm1 = zd.build_surowce(out, h, {}, now=self.NOW + datetime.timedelta(minutes=10), fetch=fetch, fund=self.FUND)
+        self.assertFalse([c for c, _, _ in calls if 'safe.gov.cn' in c], 'po błędzie — nie co przebieg')
+        out2, _, zm2 = zd.build_surowce(out1, h1, {}, now=self.NOW + datetime.timedelta(hours=7), fetch=fetch, fund=self.FUND)
+        self.assertTrue([c for c, _, _ in calls if 'safe.gov.cn' in c], 'po 6 h — ponowienie')
+        self.assertEqual((out2['ok']['banki'], zm2 & {'imf_il', 'safe_zl'}), ('cached', set()))
+        self.assertTrue(any('safe_zl' in x for x in zd.META['notes'])); self.assertFalse(any('safe_zl' in x for x in zd.META['errors']))
+        self.assertEqual(out2['banki'], out['banki'], 'dane części bez zmian, z ich datami')
+        # bez żadnych danych części (MFW też z błędem, brak poprzedniego pliku) — błąd części jak dotąd
+        zd.META['errors'].clear()
+        f3, _ = SurowceV295().siec(fail=('safe.gov.cn', 'api.imf.org'))
+        out3, _, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=f3, fund=self.FUND)
+        self.assertIs(out3['ok']['banki'], False)
+        self.assertTrue('imf_il: ' in out3['err']['banki'] and 'safe_zl: ' in out3['err']['banki'], out3['err'])
+        self.assertTrue(any(x.startswith('surowce safe_zl:') for x in zd.META['errors']))
+        self.assertTrue(zd._su_ma_dane(out, 'banki') and not zd._su_ma_dane(out3, 'banki') and not zd._su_ma_dane({'v': 2, 'banki': {'kr': []}}, 'banki'))
+
+    # (5) próg skoku ilości: młode trusty COP — 100%, SPUT — 50%, pozostałe — 20%
+    def test_skok_ilosci_mlodych_trustow(self):
+        v, E = SurowceV295(), SurowceEtap3V298()
+        raw = {zd.SU_SPROTT_URL: json.dumps(v.SPROTT).encode()}
+        phys = round(3751666 / self.T, 3)
+        ctx = E.ctx(raw=raw); ctx['udane'] = {'sprott'}
+        ctx['H']['f'].update({'COP': {'2026-10-02': round(14559 / 1.4, 3)}, 'SPUT': {'2026-10-02': round(81.697 / 1.45, 3)}, 'PHYS': {'2026-10-02': round(phys / 1.25, 3)}})
+        zd._su_fu_sprott(ctx)
+        F = ctx['H']['f']
+        self.assertEqual((F['COP']['2026-10-06'], F['SPUT']['2026-10-06']), (14559.0, 81.697), 'COP +40%, SPUT +45% w 4 dni — przyjęte')
+        self.assertNotIn('2026-10-06', F['PHYS'], 'PHYS +25% — odrzucony jak dotąd (próg 20%)')
+        self.assertEqual([x.split(':')[0] for x in ctx['bledy']], ['sprott_t PHYS'])
+        ctx2 = E.ctx(raw=raw); ctx2['udane'] = {'sprott'}
+        ctx2['H']['f'].update({'COP': {'2026-10-02': round(14559 / 1.6, 3)}, 'SPUT': {'2026-10-02': round(81.697 / 1.6, 3)}})
+        zd._su_fu_sprott(ctx2)
+        # przegląd v301: COP +60% (oferta ok. 125 mln USD przy ok. 213 mln aktywów) — przyjęte przy progu 100%; SPUT +60% — odrzucone (50%)
+        self.assertEqual(ctx2['H']['f']['COP']['2026-10-06'], 14559.0, 'COP +60% — przyjęte (próg 100%)')
+        self.assertNotIn('2026-10-06', ctx2['H']['f']['SPUT'], 'SPUT +60% — odrzucone (próg 50%)')
+        self.assertEqual([x.split(':')[0] for x in ctx2['bledy']], ['sprott_t SPUT'])
+        ctx2b = E.ctx(raw=raw); ctx2b['udane'] = {'sprott'}; ctx2b['H']['f']['COP'] = {'2026-10-02': round(14559 / 2.1, 3)}
+        zd._su_fu_sprott(ctx2b)
+        self.assertNotIn('2026-10-06', ctx2b['H']['f']['COP'], 'COP +110% w 4 dni — odrzucone')
+        self.assertEqual([x.split(':')[0] for x in ctx2b['bledy']], ['sprott_t COP'])
+        # zmiana kolejności listy: SPUT dostaje pole ilości PSLV (207,2 wobec 81,7 mln — +154%) — odrzucona także przy 50%
+        zam = [dict(x) for x in v.SPROTT]; zam[4]['totalOunces1'] = v.SPROTT[1]['totalOunces1']
+        ctx3 = E.ctx(raw={zd.SU_SPROTT_URL: json.dumps(zam).encode()}); ctx3['udane'] = {'sprott'}; ctx3['H']['f']['SPUT'] = {'2026-10-02': 81.697}
+        zd._su_fu_sprott(ctx3)
+        self.assertEqual(ctx3['H']['f']['SPUT'], {'2026-10-02': 81.697})
+        # COP z polem ilości innej pozycji listy: każda daje cenę jednostki poza zakresem 3000–30000 USD/t (SPPP: 1064) — odrzucona już przy
+        # odczycie listy; próg skoku 100% to druga straż (najbliższa pozycja, SPPP, to ×13,7)
+        zam2 = [dict(x) for x in v.SPROTT]; zam2[5]['totalOunces1'] = v.SPROTT[2]['totalOunces1']
+        ctx4 = E.ctx(raw={zd.SU_SPROTT_URL: json.dumps(zam2).encode()}); ctx4['udane'] = {'sprott'}; ctx4['H']['f']['COP'] = {'2026-10-02': 14559.0}
+        self.assertRaisesRegex(RuntimeError, 'COP: cena 1064', zd._su_fu_sprott, ctx4)
+        self.assertEqual(ctx4['H']['f']['COP'], {'2026-10-02': 14559.0})
+        for i in range(5):
+            self.assertFalse(3000 <= 212957860 / max(v.SPROTT[i]['totalOunces1'], v.SPROTT[i]['totalOunces2'], 1) <= 30000, i)
+        self.assertEqual((zd.SU_FU_SKOK, zd.SU_FU_SKOK_FU), (0.2, {'COP': 1.0, 'SPUT': 0.5}))
+
+    # (6) ICE: plik bieżącego roku bez wierszy — jak 404 (rok poprzedni)
+    def test_ice_pusty_plik_biezacego_roku_jak_404(self):
+        E, U = SurowceEtap3V298(), datetime.timezone.utc
+        rok26 = ('\ufeff' + _E3_ICE).encode()
+        days = [(datetime.date(2026, 6, 30) + datetime.timedelta(days=7 * i)).isoformat() for i in range(14)]   # 13 tygodni do 29.09 — pełna historia
+        prev = {'pozycje': {'ice': {k: {'asof': days[-1], 'h': {'d': days, 'oi': [1000] * 14, 'net': [100] * 14}} for k, _, _ in zd.SU_POZ_ICE}}}
+        now = datetime.datetime(2027, 1, 2, 20, 0, tzinfo=U)
+        for pusty in (b'', '\ufeff'.encode(), ('\ufeff' + _E3_ICE.split('\n')[0] + '\n').encode()):
+            seen = []
+            files = {zd.SU_ICE_URL.format(2027): pusty, zd.SU_ICE_URL.format(2026): rok26}
+            ctx = E.ctx(now=now, prev=prev, fetch=E.siec_z(files, seen))
+            self.assertEqual(zd._su_poz_ice(ctx), '2026-09-29', pusty[:20])
+            self.assertEqual(seen, [zd.SU_ICE_URL.format(2027), zd.SU_ICE_URL.format(2026)], 'plik 2027 bez wierszy — rok 2026')
+            self.assertTrue(any('plik 2027 bez wierszy rynków' in x for x in ctx['uwagi']), ctx['uwagi'])
+            self.assertEqual(sorted(ctx['poz']['ice']), sorted(k for k, _, _ in zd.SU_POZ_ICE))
+        # plik z wierszami — bez roku poprzedniego (pełna historia); zmieniony układ kolumn to nie pusty plik — błąd jak dotąd
+        seen = []
+        ctx = E.ctx(now=datetime.datetime(2026, 10, 9, 20, 0, tzinfo=U), prev=prev, fetch=E.siec_z({zd.SU_ICE_URL.format(2026): rok26}, seen))
+        self.assertEqual((zd._su_poz_ice(ctx), seen), ('2026-09-29', [zd.SU_ICE_URL.format(2026)]))
+        zly = {zd.SU_ICE_URL.format(2027): _E3_ICE.replace('M_Money_Positions_Long_All', 'MM_Long').encode()}
+        self.assertRaisesRegex(RuntimeError, 'brak kolumn', zd._su_poz_ice, E.ctx(now=now, prev=prev, fetch=E.siec_z(zly)))
+
+    # (6) przegląd v301: poza styczniem plik bieżącego roku pusty, z samym nagłówkiem albo 404 — błąd części bez zapytania o rok poprzedni
+    @staticmethod
+    def siec_404(files, seen):
+        def fetch(url, timeout, headers=None):
+            seen.append(url)
+            if url not in files:
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', {}, __import__('io').BytesIO(b''))
+            return files[url]
+        return fetch
+
+    def test_ice_poza_styczniem_bez_roku_poprzedniego(self):
+        E, U = SurowceEtap3V298(), datetime.timezone.utc
+        days = [(datetime.date(2026, 6, 30) + datetime.timedelta(days=7 * i)).isoformat() for i in range(14)]
+        prev = {'pozycje': {'ice': {k: {'asof': days[-1], 'h': {'d': days, 'oi': [1000] * 14, 'net': [100] * 14}} for k, _, _ in zd.SU_POZ_ICE}}}
+        now = datetime.datetime(2026, 10, 9, 18, 0, tzinfo=U)   # piątek w oknie podmiany pliku (ok. 17:44 UTC; automat pyta co 30 min od 17:45)
+        rok = ('\ufeff' + _E3_ICE).encode()   # plik „roku poprzedniego” z wierszami — gdyby był pobrany, zastąpiłby wpisy
+        head = ('\ufeff' + _E3_ICE.split('\n')[0] + '\n').encode()
+        for plik, opis in ((b'', 'plik 2026 bez wierszy rynków'), ('\ufeff'.encode(), 'plik 2026 bez wierszy rynków'), (head, 'plik 2026 bez wierszy rynków'),
+                           (None, 'brak pliku 2026 (HTTP 404)')):
+            seen, files = [], {zd.SU_ICE_URL.format(2025): rok}
+            if plik is not None:
+                files[zd.SU_ICE_URL.format(2026)] = plik
+            ctx = E.ctx(now=now, prev=prev, fetch=self.siec_404(files, seen))
+            with self.assertRaises(RuntimeError) as cm:
+                zd._su_poz_ice(ctx)
+            self.assertTrue(str(cm.exception).startswith(opis + ' — poza styczniem bez roku poprzedniego (wpisy z 2026 zostają z datą)'), cm.exception)
+            self.assertEqual(seen, [zd.SU_ICE_URL.format(2026)], 'bez zapytania o rok 2025')
+            self.assertNotIn('ice', ctx['poz'], 'wpisy z 29.09.2026 zostają (poprzednie)')
+        # w styczniu — rok poprzedni jak dotąd; poza styczniem bez wpisów z bieżącego roku (start, długa przerwa) — też
+        for n, pv in ((datetime.datetime(2027, 1, 8, 20, 0, tzinfo=U), prev), (now, {}),
+                      (now, {'pozycje': {'ice': {k: {'asof': '2025-12-30'} for k, _, _ in zd.SU_POZ_ICE}}})):
+            seen = []
+            ctx = E.ctx(now=n, prev=pv, fetch=self.siec_404({zd.SU_ICE_URL.format(n.year - 1): rok, zd.SU_ICE_URL.format(n.year): head}, seen))
+            self.assertEqual(zd._su_poz_ice(ctx), '2026-09-29')
+            self.assertEqual(seen, [zd.SU_ICE_URL.format(n.year), zd.SU_ICE_URL.format(n.year - 1)])
+            self.assertTrue(any(f'plik {n.year} bez wierszy rynków — rok poprzedni' in x for x in ctx['uwagi']), ctx['uwagi'])
+
+    def test_ice_poza_styczniem_w_przebiegu_wpisy_bez_zmian(self):
+        fetch, calls = SurowceV295().siec()
+        out, h, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund=self.FUND)
+        self.assertEqual((out['pozycje']['asof']['ice'], out['ok']['pozycje']), ('2026-09-29', True))
+        head = ('\ufeff' + _E3_ICE.split('\n')[0] + '\n').encode()
+
+        def f2(url, timeout, headers=None):
+            if url == zd.SU_ICE_URL.format(2026):
+                calls.append((url, timeout, headers))
+                return head
+            return fetch(url, timeout, headers)
+        calls.clear()
+        out2, _, zm2 = zd.build_surowce(out, h, {}, now=datetime.datetime(2026, 10, 9, 18, 0, tzinfo=datetime.timezone.utc), fetch=f2, fund=self.FUND)
+        u = [c for c, _, _ in calls]
+        self.assertIn(zd.SU_ICE_URL.format(2026), u, 'piątek po publikacji — ICE należny')
+        self.assertNotIn(zd.SU_ICE_URL.format(2025), u, 'bez pliku roku poprzedniego')
+        self.assertNotIn('ice', zm2)
+        self.assertIs(out2['ok']['pozycje'], False)
+        self.assertIn('ice: plik 2026 bez wierszy rynków — poza styczniem bez roku poprzedniego', out2['err']['pozycje'])
+        self.assertEqual(out2['pozycje']['ice'], out['pozycje']['ice'], 'wpisy z 29.09.2026 bez zmian')
+        self.assertEqual((out2['pozycje']['asof']['ice'], out2['st']['ice']['asof']), ('2026-09-29', '2026-09-29'), 'data źródła bez zmian (ponowienie w oknie)')
+
+    # (13) przegląd v301: dane rynku starsze niż jego poprzedni wpis nie zastępują go
+    def test_pozycje_dane_starsze_niz_poprzedni_wpis(self):
+        E, U = SurowceEtap3V298(), datetime.timezone.utc
+        rok26 = ('\ufeff' + _E3_ICE).encode()
+        ost = {c: max(d) for c, d in zd.parse_ice_cot('\ufeff' + _E3_ICE)[0].items()}
+        self.assertEqual(set(ost.values()), {'2026-09-29'})
+        nowsze = {'code': 'B', 'asof': '2026-10-06', 'net': 1, 'oi': 10, 'pct': 10.0, 'h': {'d': ['2026-10-06'], 'oi': [10], 'net': [1]}}
+        prev = {'pozycje': {'ice': {k: ({'asof': '2026-09-22'} if k != 'brent' else nowsze) for k, _, _ in zd.SU_POZ_ICE}}}
+        ctx = E.ctx(now=datetime.datetime(2026, 10, 9, 20, 0, tzinfo=U), prev=prev, fetch=E.siec_z({zd.SU_ICE_URL.format(2026): rok26}))
+        self.assertEqual(zd._su_poz_ice(ctx), '2026-09-29')
+        I = ctx['poz']['ice']
+        self.assertEqual(I['brent'], dict(nowsze, kept=True), 'wpis z 06.10 zostaje (dane z pliku: 29.09)')
+        self.assertTrue(all(e['asof'] == '2026-09-29' and not e.get('kept') for k, e in I.items() if k != 'brent'))
+        self.assertTrue(any('dane starsze niż poprzedni wpis (zostaje poprzedni) — brent' in x for x in ctx['uwagi']), ctx['uwagi'])
+        self.assertFalse(any('brak rynku w raporcie' in x for x in ctx['uwagi']))
+        # poprzedni wpis starszy niż CFTC_KEEP_DAYS — bez wpisu (brak, nie zero), nie dane jeszcze starsze
+        ctx2 = E.ctx(now=datetime.datetime(2026, 11, 20, 20, 0, tzinfo=U), prev=prev, fetch=E.siec_z({zd.SU_ICE_URL.format(2026): rok26}))
+        zd._su_poz_ice(ctx2)
+        self.assertNotIn('brent', ctx2['poz']['ice'])
+        # styczeń: plik 2027 jeszcze pusty, a wpisy są już z 2027 — rok 2026 pobrany, ale starszy: wpisy bez zmian, błąd części
+        p27 = {'pozycje': {'ice': {k: {'asof': '2027-01-13'} for k, _, _ in zd.SU_POZ_ICE}}}
+        seen = []
+        head = ('\ufeff' + _E3_ICE.split('\n')[0] + '\n').encode()
+        ctx3 = E.ctx(now=datetime.datetime(2027, 1, 22, 18, 0, tzinfo=U), prev=p27,
+                     fetch=E.siec_z({zd.SU_ICE_URL.format(2027): head, zd.SU_ICE_URL.format(2026): rok26}, seen))
+        self.assertRaisesRegex(RuntimeError, 'dane starsze niż poprzednie wpisy', zd._su_poz_ice, ctx3)
+        self.assertEqual(seen, [zd.SU_ICE_URL.format(2027), zd.SU_ICE_URL.format(2026)])
+        self.assertNotIn('ice', ctx3['poz'])
+        # ta sama straż w pozostałych podczęściach (wspólny zapis): CFTC — złoto z wpisem nowszym niż pliki
+        E2 = SurowceEtap3V298()
+        files = E2.cftcd_files()
+        pz = {'pozycje': {'cftc': {'gold': {'code': '088691', 'asof': '2026-10-06', 'net': 5, 'oi': 50, 'pct': 10.0}}}}
+        ctx4 = E2.ctx(raw=dict(files), prev=pz, fetch=E2.siec_z(files))
+        self.assertEqual(zd._su_poz_cftcd(ctx4), '2026-09-29')
+        self.assertEqual((ctx4['poz']['cftc']['gold']['asof'], ctx4['poz']['cftc']['gold']['kept']), ('2026-10-06', True))
+        self.assertEqual(ctx4['poz']['cftc']['corn']['asof'], '2026-09-29')
+
+    # (7) kontrola świeżości — podczęść pozycji albo wpis GLD, które nie są słownikami, nie wywracają kontroli
+    def test_kontrola_swiezosc3_odporna_na_zepsute_czesci(self):
+        k = SurowceV295._kontrola()
+        E = k.SU3_ETYKIETA
+        j = {'v': 2, 'pozycje': {'cftc': ['zepsute'], 'ice': 'tekst', 'cit': {'corn': {'asof': '2026-09-29'}}, 'tff': None},
+             'fundusze': {'f': {'GLD': ['x']}}, 'banki': {'kr': []}}
+        rows = {r[0]: r for r in k.surowce_swiezosc3(j, self.NOW)}
+        self.assertEqual((rows[E['pozycje']][1], rows[E['pozycje']][3]), ('✅', '2026-09-29'), 'część z danymi liczona dalej')
+        self.assertEqual([rows[E[x]][1] for x in ('pozycje_ice', 'fundusze', 'banki')], ['?', '?', '?'], 'zepsuta część = brak danych')
+        for zly in ({'v': 2, 'pozycje': {'cftc': 'x', 'cit': [1], 'tff': 7, 'ice': [{'asof': '2026-09-29'}]}},
+                    {'v': 2, 'fundusze': {'f': ['GLD']}}, {'v': 2, 'fundusze': {'f': {'GLD': 'x'}}}, {'v': 2, 'pozycje': {}}):
+            k.surowce_swiezosc3(zly, self.NOW)   # bez wyjątku (pętla świeżości kontroli nie jest w try)
+
+    # (8) kontrakt Brenta równy WTI z tego samego dnia — w regule q jak brak notowania, w kontroli ℹ️
+    def test_kontrakt_rowny_wti_jak_brak_notowania(self):
+        Q = SurowceQTrwaV297g
+        B, W = Q.ser(Q.R26)
+        # kontrakt z pliku (seria kontrolna, 22.09–06.10.2026; 29.09: 96,16 = WTI z tego dnia, przy zmianie miesiąca kontraktu)
+        F = {'2026-09-22': 99.25, '2026-09-23': 103.08, '2026-09-24': 106.6, '2026-09-25': 104.32, '2026-09-28': 105.28, '2026-09-29': 96.16,
+             '2026-09-30': 98.03, '2026-10-01': 102.31, '2026-10-02': 102.25, '2026-10-05': 100.32, '2026-10-06': 100.58}
+        bez = {d: v for d, v in F.items() if d != '2026-09-29'}
+        self.assertEqual(zd.su_q(B, W, F), zd.su_q(B, W, bez), 'punkt równy WTI = brak notowania')
+        # Brent 29.09 −12,5% (WTI −3,2%), następnej sesji odwrót: punkt 'skok'; kontrakt równy WTI (−8,7%) nie może go potwierdzić
+        B2 = dict(B, **{'2026-09-29': 105.0})
+        q = zd.su_q(B2, W, F)['brent']
+        self.assertIn(['2026-09-29', 'skok', 'niepotw'], q)
+        self.assertIn(['2026-09-29', 'skok', 'potw'], zd.su_q(B2, W, dict(F, **{'2026-09-29': 96.17}))['brent'], 'różnica 0,01 — zwykłe notowanie (potwierdza)')
+        self.assertEqual(zd.su_q(B2, W, dict(F, **{'2026-09-29': 96.157})), zd.su_q(B2, W, bez), 'różnica < 0,01 — jak brak')
+        self.assertEqual(zd.SU_Q_FUT_WTI, 0.01)
+        # kontrola: ℹ️ z dniem i ceną; bez takich dni — bez wiersza
+        k = SurowceV295._kontrola()
+        self.assertEqual(k.SU_FUT_WTI, zd.SU_Q_FUT_WTI)
+        j = {'v': 2, 'ceny': {'wti': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(W.items())]}, 'brent': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(B.items())]},
+                              'brent_fut': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(F.items())]}}}
+        P = k.surowce_porownania(j, datetime.datetime(2026, 10, 8, 6, 20, tzinfo=datetime.timezone.utc))
+        w = [o for o, zn in P['wiersze'] if 'równy cenie WTI' in o]
+        self.assertEqual(w, ['Brent — kontrakt równy cenie WTI z tego samego dnia: 2026-09-29 (96,16) — podejrzany punkt dostawcy (zmiana miesiąca kontraktu?); '
+                             'w regule punktów do sprawdzenia jak brak notowania'])
+        self.assertEqual(dict(P['wiersze'])[w[0]], 'ℹ️'); self.assertFalse(any('równy cenie WTI' in u for u in P['uwagi']), 'tylko informacja')
+        j['ceny']['brent_fut']['d'] = [[d, v] for d, v in sorted(bez.items())]
+        self.assertFalse(any('równy cenie WTI' in o for o, _ in k.surowce_porownania(j, datetime.datetime(2026, 10, 8, 6, 20, tzinfo=datetime.timezone.utc))['wiersze']))
+
+    # (8) przegląd v301: ℹ️ tylko dla dni z ostatnich SU_Q_DNI dni; porównanie zmian dziennych Brenta fizycznego i kontraktu bez tych dni
+    def test_kontrola_kontrakt_rowny_wti_okno_i_porownanie(self):
+        Q, U = SurowceQTrwaV297g, datetime.timezone.utc
+        B, W = Q.ser(Q.R26)
+        F = {'2026-09-22': 99.25, '2026-09-23': 103.08, '2026-09-24': 106.6, '2026-09-25': 104.32, '2026-09-28': 105.28, '2026-09-29': 96.16,
+             '2026-09-30': 98.03, '2026-10-01': 102.31, '2026-10-02': 102.25, '2026-10-05': 100.32, '2026-10-06': 100.58}
+        k = SurowceV295._kontrola()
+
+        def wiersze(b, f, now):
+            j = {'v': 2, 'ceny': {'wti': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(W.items())]}, 'brent': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(b.items())]},
+                                  'brent_fut': {'u': 'USD/bbl', 'd': [[d, v] for d, v in sorted(f.items())]}}}
+            return [o for o, _ in k.surowce_porownania(j, now)['wiersze']]
+        # okno jak uwagi o punktach: 29.09 + 14 dni = 13.10 — wiersz ℹ️ jest; od 14.10 — już nie (dawniej przez całe okno serii, ok. 4 miesiące)
+        self.assertTrue(any('równy cenie WTI' in o for o in wiersze(B, F, datetime.datetime(2026, 10, 13, 23, 0, tzinfo=U))))
+        self.assertFalse(any('równy cenie WTI' in o for o in wiersze(B, F, datetime.datetime(2026, 10, 14, 0, 30, tzinfo=U))))
+        self.assertFalse(any('równy cenie WTI' in o for o in wiersze(B, F, datetime.datetime(2026, 9, 28, 12, 0, tzinfo=U))), 'dzień po dacie kontroli — bez wiersza')
+        # Brent fizyczny idzie jak kontrakt (×1,15), poza 29.09 (nie spada razem z punktem równym WTI) i 02.10 (prawdziwa różnica: +2,0%)
+        B3 = dict(B, **{d: round(v * 1.15, 2) for d, v in F.items()})
+        B3['2026-09-29'] = B3['2026-09-28']
+        B3['2026-10-02'] = round(B3['2026-10-01'] * 1.02, 2)
+        now = datetime.datetime(2026, 10, 8, 6, 20, tzinfo=U)
+        por = [o for o in wiersze(B3, F, now) if o.startswith('Brent dostawa fizyczna vs kontrakt')]
+        self.assertEqual(por, ['Brent dostawa fizyczna vs kontrakt, zmiany dzienne z 8 wspólnych dni: największa różnica 2026-10-02 (+2,0% vs -0,1%)'],
+                         'bez zmian 29.09 i 30.09 (do punktu równego WTI i z niego) — dawniej największa różnica wskazywała podejrzany punkt')
+        # bez takiego dnia w pliku kontraktu — zmiany jak dotąd (także zmiana 30.09 liczona od 28.09)
+        bez = {d: v for d, v in F.items() if d != '2026-09-29'}
+        self.assertIn('Brent dostawa fizyczna vs kontrakt, zmiany dzienne z 9 wspólnych dni: największa różnica 2026-10-02 (+2,0% vs -0,1%)', wiersze(B3, bez, now))
+
+    # (9b) IAU dla wcześniejszego dnia — cena złota z tego samego dnia (nie ostatnia dostępna)
+    def test_iau_wczesniejszy_dzien_cena_zlota_z_tego_dnia(self):
+        H = {'d': {'gold': {'2026-10-02': 3900.0, '2026-10-05': 3950.0, '2026-10-06': 4000.0}}, 'f': {}}
+        h = [['2026-10-02', 78.0, 800000000], ['2026-10-05', 77.0, 800000000], ['2026-10-06', 78.5, 800000000], ['2026-10-07', 79.0, 800000000]]
+        last = zd._su_fu_iau(H, {'f': {'IAU': {'h': h}}})
+        I = H['f']['IAU']
+        self.assertEqual((I['2026-10-02'], I['2026-10-05'], I['2026-10-06']),
+                         (round(78.0 * 8e8 / 3900.0 / self.T, 3), round(77.0 * 8e8 / 3950.0 / self.T, 3), round(78.5 * 8e8 / 4000.0 / self.T, 3)))
+        self.assertNotEqual(I['2026-10-02'], round(78.0 * 8e8 / 4000.0 / self.T, 3), 'nie ostatnią ceną')
+        self.assertNotIn('2026-10-07', I, 'bez ceny złota z tego dnia — bez wartości (nie cena z innego dnia)')
+        self.assertEqual(last, ['2026-10-06', round(78.5 * 8e8 / 4000.0, 2)])
+        # na nagraniu (archiwum GLD i plik funduszy strony): 02.10 i 05.10 ceną złota z tych dni
+        v = SurowceV295()
+        G = {datetime.datetime.strptime(d, '%d-%b-%Y').date().isoformat(): round(nav / oz, 2) for d, oz, nav in v.GLD}
+        H2 = {'d': {'gold': G}, 'f': {}}
+        zd._su_fu_iau(H2, self.FUND)
+        for d, nav, u in SurowceEtap3V298.IAU:
+            self.assertEqual(H2['f']['IAU'][d], round(nav * u / G[d] / self.T, 3), d)
+        self.assertNotEqual(G['2026-10-02'], G['2026-10-06'])

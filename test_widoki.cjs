@@ -15951,7 +15951,8 @@ test('v298g: część D — nagłówek „Dokąd płynie kapitał w surowcach”
 test('v298g: złoto w funduszach — linia ton, słupki zmian tygodniowych (ostatni = w1 z pliku = zdanie „kupiły w tygodniu”), kafle GLD/GLDM/IAU (wyliczony)/PHYS z datą i wiekiem, razem z PHYS', () => {
   const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
   const d = x => su298.day('pl', x), B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-fz'), U = F.fundusze.suma.au_usa;
-  assert.ok(B.includes('<p class="wk-sub"><b>Złoto w funduszach, tony</b> · od ' + d(U.d[0][0]) + '</p>'), 'bez historii: 90 dni z surowce.json, od pierwszego dnia');
+  /* v301: jedna linia — nazwa serii w nagłówku (świadoma zmiana asercji v298g) */
+  assert.ok(B.includes('<p class="wk-sub"><b>Złoto w funduszach, tony</b> · 3 fundusze w USA (GLD, GLDM, IAU) · od ' + d(U.d[0][0]) + '</p>'), 'bez historii: 90 dni z surowce.json, od pierwszego dnia');
   assert.ok(B.includes('<polyline class="wk-l s1"') && !B.includes('wk-l s2') && !B.includes('wk-leg'), 'suma 4 funduszy ma 1 dzień — tylko linia 3 funduszy z USA, bez legendy');
   assert.ok(B.includes('<p class="wk-sub"><b>Zmiana w tygodniu — 3 fundusze w USA, tony</b></p>'));
   const C = su298.cols(B), W = K.api.su3Wk(U.d, 52);
@@ -15981,7 +15982,7 @@ test('v298g: złoto w funduszach — po rozwinięciu 365 dni z historii (fs), je
   assert.deepEqual(K.calls.filter(c => c === 'surowce-hist'), ['surowce-hist'], 'rozwinięcie = jedno pobranie pliku historii');
   const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-fz'), A = SU298_H.fs.au_usa, end = Date.parse('2026-10-06T00:00:00Z') - 365 * 864e5;
   const f0 = A.find(r => Date.parse(r[0] + 'T00:00:00Z') >= end)[0];
-  assert.ok(B.includes('<b>Złoto w funduszach, tony</b> · od ' + su298.day('pl', f0) + '</p>'), '365 dni: od ' + f0);
+  assert.ok(B.includes('<b>Złoto w funduszach, tony</b> · 3 fundusze w USA (GLD, GLDM, IAU) · od ' + su298.day('pl', f0) + '</p>'), '365 dni: od ' + f0);   /* v301: nazwa jedynej serii */
   const C = su298.cols(B);
   assert.ok(C.length >= 50 && C.length <= 52 && C[C.length - 1].endsWith(': +5,95 t'), 'tygodnie z roku: ' + C.length);
   assert.ok(!B.includes('Wczytuję dłuższą historię'));
@@ -16038,7 +16039,8 @@ test('v298g: banki centralne — przełącznik 1 / 12 mies. (kliknięcie, zapami
   const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-bk');
   assert.deepEqual(su298.rows(B).map(r => r[1]), ['+132,7 t', '+84,3 t', '+60,6 t', '+20,5 t', '+0,5 t', '0,0 t', '0,0 t', '−1,0 t', '−5,8 t', '−6,2 t']);
   assert.equal(su298.rows(B)[0][0].split(' ')[0], c('PL'), 'Polska pierwsza w 12 miesięcy');
-  assert.ok(B.includes(`Najwięcej złota w 12 miesięcy dokupiły: ${c('PL')} (+132,7 t), ${c('CN')} (+84,3 t), ${c('KZ')} (+60,6 t). Zapas zmniejszyły: ${c('RU')} (−6,2 t), ${c('TR')} (−5,8 t), ${c('DE')} (−1,0 t).`));
+  /* v301: Rosja (dane z listopada 2025, gwiazdka) poza zdaniem — zostaje na słupkach; dopisek o krajach z gwiazdką (świadoma zmiana asercji v298g) */
+  assert.ok(B.includes(`Najwięcej złota w 12 miesięcy dokupiły: ${c('PL')} (+132,7 t), ${c('CN')} (+84,3 t), ${c('KZ')} (+60,6 t). Zapas zmniejszyły: ${c('TR')} (−5,8 t), ${c('DE')} (−1,0 t). Bez krajów z gwiazdką — ich dane są starsze.`));
   assert.ok(B.includes('data-su-bper="12" aria-pressed="true"') && B.includes('Zmiana zapasu złota w 12 miesięcy, tony'));
   const K2 = su298.mk('pl', {}, {ls: {'cfai.su.bper': '12'}}); K2.api.suApply(F); assert.equal(K2.api.SU.bper, 12, 'wybór z przeglądarki');
   const K3 = su298.mk('pl', {}, {ls: {'cfai.su.bper': '7'}}); K3.api.suApply(F); assert.equal(K3.api.SU.bper, 1, 'zła wartość — 1 mies.');
@@ -16370,4 +16372,86 @@ test('v300: słownik su300 — czysty JSON w 10 językach zaraz po poprzednim, t
   assert.ok(zk295c.BLK.includes("'su300.kor.q'"), 'klucz w kodzie panelu CRYPTO');
   assert.equal(v96src.I18N.pt['su297g.pt.zapasy'], 'existências nos EUA', 'pt: odmiana europejska, jak nagłówek zapasów w panelu');
   assert.ok(!html.includes('estoques nos EUA'));
+});
+
+/* ---------- v301: poprawki po przeglądzie fali 3 (STRONA3) — zdania o bankach bez krajów z danymi starszymi niż 120 dni, nazwa jedynej serii
+   na wykresie złota w funduszach, podpis pozycji bez pozycje.asof (data z najnowszego wpisu, bez pustego akapitu); słownik su301 ---------- */
+test('v301: banki — zdania o zakupach i spadkach bez krajów z danymi starszymi niż 120 dni (zostają na słupkach z gwiazdką i przypisem); dopisek tylko, gdy taki kraj ma zmianę', () => {
+  const c = x => su298.cty('pl', x), bk = (F, ls) => { const K = su298.mk('pl', {}, {ls}); K.api.suApply(F); return su298.blk(su298.sp(K.el.innerHTML), 'su-b-bk'); };
+  /* 12 mies.: Rosja (listopad 2025, −6,2 t) — na słupkach z gwiazdką, w zdaniu nie */
+  const B12 = bk(su298.file(), {'cfai.su.bper': '12'});
+  assert.ok(B12.includes(`Zapas zmniejszyły: ${c('TR')} (−5,8 t), ${c('DE')} (−1,0 t). Bez krajów z gwiazdką — ich dane są starsze.</p>`), 'bez Rosji w zdaniu, z dopiskiem');
+  assert.ok(!su298.txt(B12.slice(B12.indexOf('Zapas zmniejszyły'), B12.indexOf('</p>', B12.indexOf('Zapas zmniejszyły')))).includes(c('RU')));
+  assert.ok(su298.rows(B12).find(r => r[0].startsWith(c('RU') + ' *') && r[1] === '−6,2 t'), 'Rosja na słupkach z gwiazdką i liczbą');
+  assert.ok(B12.includes(`<p class="pnote">* ${c('RU')}: najnowsze dostępne dane są za ${su298.mon('pl', '2025-11')} · wiek(2025-11).</p>`), 'przypis zostaje');
+  /* 1 mies.: Rosja 0,0 t — nie trafiłaby do zdania — bez dopisku, zdanie jak w v298g */
+  const B1 = bk(su298.file());
+  assert.ok(B1.includes(`Najwięcej złota w ostatnim miesiącu dokupiły: ${c('CN')} (+20,2 t), ${c('TR')} (+18,9 t), ${c('PL')} (+7,8 t).</p>`) && !B1.includes('Bez krajów z gwiazdką'));
+  /* stary kraj z największym zakupem — nie w zdaniu „dokupiły” (dawniej pierwszy) */
+  const G = su298.file(); G.banki.kr.RU.m1 = 30;
+  const B2 = bk(G), R2 = su298.rows(B2);
+  assert.equal(R2[0][0], c('RU') + ' * ' + su298.monS('pl', '2025-11'), 'słupek: Rosja pierwsza (największa liczba), z gwiazdką i miesiącem');
+  assert.ok(B2.includes(`Najwięcej złota w ostatnim miesiącu dokupiły: ${c('CN')} (+20,2 t), ${c('TR')} (+18,9 t), ${c('PL')} (+7,8 t). Bez krajów z gwiazdką — ich dane są starsze.</p>`));
+  /* żaden kraj z bieżącymi danymi nie dokupił — „żaden z tych banków”, z dopiskiem (Rosja ze starymi danymi +30 t) */
+  const N = su298.file(); for (const k in N.banki.kr) N.banki.kr[k].m1 = k === 'RU' ? 30 : 0;
+  assert.ok(su298.txt(bk(N)).includes('W ostatnim miesiącu żaden z tych banków nie dokupił złota. Bez krajów z gwiazdką — ich dane są starsze.'));
+  /* kraj z bieżącymi danymi bez zmian — jak dotąd; kraj „stary” w danych w maju (130 dni) — też poza zdaniem */
+  const M = su298.file(); M.banki.kr.DE.asof = '2026-05'; M.banki.kr.DE.m1 = -2;
+  const B3 = bk(M);
+  assert.ok(su298.rows(B3).find(r => r[0].startsWith(c('DE') + ' *')) && !B3.includes(`Zapas zmniejszyły: ${c('DE')}`) && B3.includes('Bez krajów z gwiazdką'));
+  /* 10 języków: dopisek przetłumaczony, bez surowego klucza */
+  for (const L of G126_L10) {
+    const K = su298.mk(L, {}, {ls: {'cfai.su.bper': '12'}}); K.api.suApply(su298.file());
+    const h = su298.blk(K.el.innerHTML, 'su-b-bk');
+    assert.ok(h.includes(v96src.I18N[L]['su301.bk.bez']) && !h.includes('su301.'), L);
+  }
+});
+
+test('v301: złoto w funduszach — przy jednej linii nazwa serii w nagłówku wykresu (bez legendy); przy dwóch liniach — legenda, nagłówek jak dotąd', () => {
+  const B = F => { const K = su298.mk('pl', su298.files(F)); K.api.suApply(F); return su298.blk(su298.sp(K.el.innerHTML), 'su-b-fz'); }, d = x => su298.day('pl', x);
+  const F = su298.file(), B1 = B(F);
+  assert.ok(B1.includes('<p class="wk-sub"><b>Złoto w funduszach, tony</b> · 3 fundusze w USA (GLD, GLDM, IAU) · od ' + d(F.fundusze.suma.au_usa.d[0][0]) + '</p>') && !B1.includes('wk-leg'));
+  const G = su298.file(); G.fundusze.suma.au.d = [['2026-10-05', 1866.5], ['2026-10-06', 1871.81]];
+  const B2 = B(G);
+  assert.ok(B2.includes('<p class="wk-sub"><b>Złoto w funduszach, tony</b> · od ') && !B2.includes('</b> · 3 fundusze w USA') && B2.includes('<i class="wk-sq s2"></i>4 fundusze (z PHYS)'), 'dwie linie — legenda');
+  const A = su298.file(); delete A.fundusze.suma.au_usa; A.fundusze.suma.au.d = [['2026-10-05', 1866.5], ['2026-10-06', 1871.81]];
+  assert.ok(B(A).includes('<b>Złoto w funduszach, tony</b> · 4 fundusze (z PHYS) · od ' + d('2026-10-05') + '</p>'), 'jedyna linia — 4 fundusze');
+  for (const L of G126_L10) {
+    const K = su298.mk(L, su298.files(F)); K.api.suApply(F); const E = v96src.I18N[L], h = su298.blk(K.el.innerHTML, 'su-b-fz');
+    assert.ok(h.includes('<b>' + E['su298g.au.l'] + '</b> · ' + E['su298g.au.usa'] + ' · '), L);
+  }
+});
+
+test('v301: pozycje — bez pozycje.asof data stanu z najnowszego wpisu części (bez wpisów z poprzedniego raportu); bez żadnej daty — bez pustego akapitu', () => {
+  const B = F => { const K = su298.mk('pl'); K.api.suApply(F); return su298.blk(su298.sp(K.el.innerHTML), 'su-b-poz'); }, d = x => su298.day('pl', x);
+  const F = su298.file(), B0 = B(F), G = su298.file(); delete G.pozycje.asof;
+  assert.equal(B(G), B0, 'ta sama treść co z pozycje.asof (wtorek 29.09, Londyn ta sama data)');
+  assert.ok(B(G).includes(`<p class="pnote">Stan na ${su298.wd('pl', '2026-09-29')} · wiek(2026-09-29) · publikacja zwykle w piątek</p>`));
+  /* Londyn z innej daty — podpis Londynu z najnowszego wpisu ICE; rynek z poprzedniego raportu (kept) nie wyznacza daty stanu */
+  const L = su298.file(); delete L.pozycje.asof; for (const k in L.pozycje.ice) L.pozycje.ice[k].asof = '2026-09-22';
+  L.pozycje.cftc.cocoa = Object.assign(L.pozycje.cftc.cocoa, {asof: '2026-10-06', kept: true});
+  const BL = B(L);
+  assert.ok(BL.includes(`<p class="pnote">Stan na ${su298.wd('pl', '2026-09-29')} · wiek(2026-09-29) · publikacja zwykle w piątek · Londyn: stan na ${d('2026-09-22')} · wiek(2026-09-22)</p>`), BL.slice(0, 400));
+  /* same wpisy z poprzedniego raportu i bez Londynu — bez daty stanu: bez pustego <p class="pnote"></p> */
+  const K0 = su298.file(); delete K0.pozycje.asof; delete K0.pozycje.ice; for (const k in K0.pozycje.cftc) K0.pozycje.cftc[k].kept = true;
+  const BK = B(K0);
+  assert.ok(BK.includes('su-poz') && !BK.includes('<p class="pnote"></p>') && !BK.includes('Stan na'), 'bez pustego akapitu');
+  assert.ok(su298.rows(BK).filter(r => r[0].endsWith(' *')).length >= 10, 'rynki z poprzedniego raportu — z gwiazdką');
+  /* pozycje.asof obecne — bez zmian (asercje v298g) */
+  assert.ok(B0.includes(`<p class="pnote">Stan na ${su298.wd('pl', '2026-09-29')} · wiek(2026-09-29) · publikacja zwykle w piątek</p>`));
+});
+
+test('v301: słownik su301 — czysty JSON w 10 językach zaraz po poprzednim, te same klucze, tłumaczenia różne od angielskiego, bez nazw dostawców; klucz użyty w kodzie panelu', () => {
+  const a = html.indexOf('{"pl":{"su301.'); assert.ok(a > 0, 'słownik v301');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1), n = +name.slice(5);
+  assert.ok(html.slice(0, d0).endsWith('for(const l in EXTRA' + (n - 1) + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + (n - 1) + '[l]);\n'), 'zaraz po linii nakładania poprzedniego słownika');
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania');
+  const D = JSON.parse(html.slice(a, d1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.deepEqual(K, ['su301.bk.bez']);
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim() && !/\{\w+\}/.test(D[l][k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10.slice(2)) for (const k of K) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  for (const k of K) assert.ok(!/[぀-ヿ]/.test(D.zh[k]), 'zh bez kany: ' + k);
+  for (const l of L10) for (const k of K) assert.deepEqual(G126_NAMES.check(D[l][k], l), [], l + ' ' + k);
+  assert.ok(su295.blk.includes("t('su301.bk.bez')"), 'klucz w kodzie panelu surowców');
 });

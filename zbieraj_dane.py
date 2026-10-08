@@ -8958,6 +8958,11 @@ SU_Q_ROLL = 0.02    # v300: krok kontraktu w oknie zmiany jego miesiąca dostawy
                     # (kontrakt BZ=F zmienia miesiąc w 1. sesji miesiąca; bt/test_wsteczny_v300.out): poprawionych 13 z 230 kroków 1. sesji
                     # miesiąca (backwardation 2022 i 2026, kilka dni z niezmienioną ceną kontraktu) i 4 z 4543 pozostałych; oznaczenia Brenta:
                     # bez fałszywego braku potwierdzenia 01.04.2026 (kontrakt −15,7% przy Brent −5,8%, WTI −0,9%), reszta bez zmian.
+SU_Q_FUT_WTI = 0.01   # USD/bbl — v301: notowanie serii kontrolnej Brenta (brent_fut) równe cenie WTI z tego samego dnia (|różnica| < 0,01,
+                      # czyli co do centa) = podejrzany punkt dostawcy (29.09.2026, zmiana miesiąca kontraktu: 96,16 = WTI; inna publiczna seria kontraktu:
+                      # 102,59) — w regule q jak brak notowania (ani nie potwierdza, ani nie zaprzecza); kontrola: ℹ️. Test wsteczny: kontrakt
+                      # ciągły na Brenta wobec WTI 07.2007–10.2026 (4706 wspólnych dni) — równe co do centa 2 dni (23.08 i 20.12.2007, różnica
+                      # Brent–WTI bliska zera), czyli 0,04% dni bez potwierdzenia z tego powodu
 import math as _suq_math, statistics as _suq_stat   # v297g: logarytm i mediana (biblioteka standardowa; ponowny import jest nieszkodliwy)
 SU_ZR = (('eia_dz', 'ceny'), ('td', 'ceny'), ('sprott', 'ceny'), ('acer', 'ceny'), ('wpsr', 'zapasy'), ('wngsr', 'zapasy'),
          ('gld', 'ceny'), ('fmp', 'ceny'), ('eia', 'ceny'), ('eia_t', 'zapasy'), ('cftc', 'markets'), ('fao', 'mies'),
@@ -9672,7 +9677,10 @@ def su_q(B, W, F, prev=None, lim=None):
     v300: dni 'trwa' Brenta potwierdza droga kontraktu bez skoku przy zmianie jego miesiąca (_su_q_kontrakt); poziom odniesienia ciągu tylko
     z dni potwierdzonych (punkty obu ropy od najstarszego; dni bez potwierdzenia — punkty i 'trwa' — poza medianą); `lim` (słownik, opcjonalnie)
     dostaje {ropa: [dzień, SU_Q_MAX]}, gdy ciąg ucięty bezpiecznikiem trwałby dalej (plik: ceny[ropa].q_lim, kontrola: uwaga). Kontrola: osobna
-    uwaga dla każdego ciągu."""
+    uwaga dla każdego ciągu.
+    v301: notowanie kontraktu równe cenie WTI z tego samego dnia (SU_Q_FUT_WTI) — jak brak notowania: dzień bez potwierdzenia kontraktem,
+    a droga kontraktu (_su_q_kontrakt) i zmiana następnej sesji liczone od poprzedniego notowania."""
+    F = {d: v for d, v in (F or {}).items() if not (_isnum(v) and _isnum(W.get(d)) and round(abs(v - W[d]), 6) < SU_Q_FUT_WTI)}
     rb, rw, rf = _su_zm(B), _su_zm(W), _su_zm(F)
     found = {}
 
@@ -10071,6 +10079,14 @@ SU_FU_LUKA = 4          # dni — dziura wewnątrz serii funduszu (święto gie�
 SU_FU_SKOK = 0.2        # zmiana ilości w trustach Sprott o ponad 20% w ≤ 7 dni = punkt odrzucony (lista bez symboli); archiwa GLD 2006–2026
                         # i GLDM 2019–2026 (bez roku startu funduszu): największa zmiana w 1 sesji 7,2% i 10,2%, w 5 sesjach 18,0% i 17,1%
                         # (ws53/v298-dane3/bt/bt_fundusze.py); trusty Sprott to dojrzałe, duże fundusze
+SU_FU_SKOK_FU = {'COP': 1.0, 'SPUT': 0.5}   # v301: młode, małe trusty — osobny próg. Miedź (COP): ok. 213 mln USD (06.10.2026: 212,96 mln)
+                        # — jedna oferta 100 mln USD to +47% ilości, 110 mln +52%, więc próg 100% (oferta do ok. 213 mln USD w tydzień);
+                        # uran (SPUT): emisje ciągłe (jak w 2021) — wzrost ponad 20% w tydzień jest możliwy, próg 50%. Przy 20% dawało to do
+                        # 7 dni bez danych i błąd części fundusze. Progi dalej wyłapują zmianę kolejności listy (cel tej straży): na nagraniu
+                        # 06.10.2026 pole ilości innej pozycji listy w jednostce funduszu daje dla SPUT co najmniej −95% (PHYS) albo +154%
+                        # (PSLV: 207,2 wobec 81,7 mln — margines do ok. 138 mln funtów SPUT), dla COP co najmniej ×13,7 (SPPP, +1274%;
+                        # margines do ok. 100 tys. t miedzi w COP), a każdą taką zamianę COP odrzuca już zakres ceny jednostki przy odczycie
+                        # listy (3000–30000 USD/t; SPPP: 1064); kolejność listy sprawdzają też ceny złota i srebra z listy (bez udanego lidera)
 # ---- banki ----
 SU_BANKI = (('PL', 'POL'), ('CN', 'CHN'), ('TR', 'TUR'), ('IN', 'IND'), ('CZ', 'CZE'), ('KZ', 'KAZ'), ('JP', 'JPN'), ('US', 'USA'),
             ('DE', 'DEU'), ('RU', 'RUS'))
@@ -10081,6 +10097,18 @@ SU_IMF_IL_ZL_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA
 SU_SAFE_ZL_PAGE = 'https://www.safe.gov.cn/en/2021/0203/2045.html'   # „Official Reserve Assets (2026)” — strona z odnośnikiem do pliku miesiąca
 SU_BANKI_T = (0.5, 20000)    # t — straż skali (atrybut SCALE MFW): kraj spoza zakresu = cała odpowiedź odrzucona (USA 8133 t, CZ 86 t)
 SU_SAFE_WAN = (3000, 30000)  # 万盎司 (10 tys. uncji) — złoto Chin w pliku SAFE (I–VIII 2026: 7419–7673); spoza zakresu = plik odrzucony
+SU_MIEKKIE = {'safe_zl': 'imf_il'}   # v301: źródło uzupełniające → główne źródło tej samej części. Błąd uzupełniającego, gdy główne udało się
+                                     # w tym przebiegu albo część ma wcześniejsze dane = notatka, nie błąd części (SAFE dodaje Chinom 1–2 miesiące
+                                     # przed MFW; przegląd v298: SAFE niesprawdzony z serwerów GitHuba — przy blokadzie co godzinę błąd w META
+                                     # i ok.banki = False, choć Chiny mają dobre dane z MFW)
+SU_SAFE_PONOW = 360   # min — v301: po błędzie SAFE (także przed pierwszym udanym pobraniem) ponowienie najwcześniej po 6 h (dawniej co godzinę)
+
+
+def _su_ma_dane(prev, part, v2=True):
+    """v301: czy część etapu 3 ma wcześniejsze dane — poprzedni plik v2 z co najmniej jednym wpisem (banki: kraj w kr, fundusze: fundusz w f)."""
+    e = prev.get(part) if v2 and isinstance(prev, dict) and isinstance(prev.get(part), dict) else {}
+    sub = e.get({'banki': 'kr', 'fundusze': 'f'}.get(part, ''))
+    return isinstance(sub, dict) and any(isinstance(x, dict) for x in sub.values())
 
 
 def _su_wtorek_po(now, h, m):
@@ -10122,11 +10150,12 @@ def _su_due3(src, z, now, S):
     if src == 'imf_il':   # MFW dopisuje kraje w różnych dniach miesiąca — raz na dobę (11 KB)
         return tr >= 60 and (first or at >= 24 * 60)
     if src == 'safe_zl':  # SAFE ok. 7. dnia miesiąca: w dniach 5–20 co 6 h, aż przyjdzie poprzedni miesiąc; poza tym raz na tydzień
+        pon = SU_SAFE_PONOW if z.get('err') else 60   # v301: po błędzie (także przed pierwszym udanym pobraniem) — najwcześniej po 6 h
         if first:
-            return tr >= 60
+            return tr >= pon
         if asof < _su_prev_month(now) and 5 <= now.day <= 20:
             return tr >= 360
-        return at >= 7 * 24 * 60 and tr >= 60
+        return at >= 7 * 24 * 60 and tr >= pon
     return False
 
 
@@ -10365,7 +10394,7 @@ def _su_poz_wpis(code, recs, prev_e, glowna, hf=(), extra=None):
     w = H.get((ld - datetime.timedelta(days=7)).isoformat())
     e = {'code': code, 'asof': days[-1], 'oi': oi, 'net': n, 'pct': pct,
          'd1': n - w['net'] if w and n is not None and w['net'] is not None else None,
-         'd1p': round(pct - 100.0 * w['net'] / w['oi'], 1) if w and pct is not None and w['net'] is not None and w['oi'] else None,
+         'd1p': round(100.0 * n / oi - 100.0 * w['net'] / w['oi'], 1) if w and pct is not None and w['net'] is not None and w['oi'] else None,   # v301: z dokładnych udziałów
          'pos': {gk: [x['long'], x['short'], x['spread']] for gk, x in last['g'].items()},
          'h': {'d': hd, 'oi': [H[d]['oi'] for d in hd], **{f: [H[d][f] for d in hd] for f, _ in fields}}}
     if extra:
@@ -10377,20 +10406,28 @@ def _su_poz_zapisz(ctx, sub, pairs, rows, prev_sub, glowna, hf=(), extra=None, n
     """Wpisy jednej podczęści (cftc, ice, cit, tff) z rekordów rows {kod: {dzień: rekord}}; pairs — [(id, kod, dodatki wpisu)]. Rynek bez
     rekordów — notatka; poprzedni wpis zostaje (najwyżej CFTC_KEEP_DAYS dni od jego daty) z polem kept. Bez żadnego rynku = wyjątek."""
     out, brak, now = {}, [], ctx['now'].date()
+    starsze = []   # v301: rynki z danymi starszymi niż poprzedni wpis
     for k, code, dod in pairs:
         recs = rows.get(code) or {}
         pe = prev_sub.get(k) if isinstance(prev_sub.get(k), dict) else None
-        if recs:
+        pd = _cftc_iso(pe.get('asof')) if pe else None
+        nd = max((x for x in map(_cftc_iso, recs) if x), default=None)
+        if pd and nd and nd < pd:   # v301: dane starsze niż poprzedni wpis tego rynku (plik roku poprzedniego, plik sprzed podmiany) nie
+            starsze.append(k)       # zastępują go — poprzedni zostaje jak przy braku rynku (kept, najwyżej CFTC_KEEP_DAYS dni od jego daty)
+        elif recs:
             out[k] = _su_poz_wpis(code, recs, pe, glowna, hf, dict(extra or {}, **(dod or {})))
             continue
-        brak.append(k)
-        pd = _cftc_iso(pe.get('asof')) if pe else None
+        else:
+            brak.append(k)
         if pd and 0 <= (now - pd).days <= CFTC_KEEP_DAYS:
             out[k] = dict(pe, kept=True)
     if brak:
         ctx['uwagi'].append(f'pozycje {nazwa or sub}: brak rynku w raporcie — {", ".join(brak[:8])}' + (' …' if len(brak) > 8 else ''))
+    if starsze:
+        ctx['uwagi'].append(f'pozycje {nazwa or sub}: dane starsze niż poprzedni wpis (zostaje poprzedni) — {", ".join(starsze[:8])}'
+                            + (' …' if len(starsze) > 8 else ''))
     if not any(not e.get('kept') for e in out.values()):
-        raise RuntimeError('żaden rynek nie ma danych z tego pobrania')
+        raise RuntimeError('dane starsze niż poprzednie wpisy (poprzednie zostają)' if starsze else 'żaden rynek nie ma danych z tego pobrania')
     ctx['poz'][sub] = out
     return max(e['asof'] for e in out.values() if not e.get('kept'))
 
@@ -10476,21 +10513,32 @@ def _su_poz_cftcd(ctx):
 
 def _su_poz_ice(ctx):
     """Pozycje — ICE Futures Europe (plik roczny CSV ok. 0,3 MB); rok poprzedni tylko przy krótkiej historii (start, styczeń–kwiecień) albo
-    gdy pliku bieżącego roku jeszcze nie ma (HTTP 404 w pierwszych dniach stycznia)."""
+    gdy pliku bieżącego roku jeszcze nie ma (HTTP 404 albo plik bez wierszy rynków) — v301: wtedy tylko w styczniu albo bez wpisów z bieżącego
+    roku; w innym miesiącu to błąd części (wpisy zostają z datą), nie dane sprzed roku."""
     pairs = [(k, c, {'g': g}) for k, c, g in SU_POZ_ICE]
     prev_sub, now = _su_poz_prev(ctx, 'ice'), ctx['now']
     rows, bad = {}, []
 
     def rok(y, nadpisz=True):
-        _su_poz_dodaj(rows, bad, parse_ice_cot(_su_get(ctx, 'ice', SU_ICE_URL.format(y)).decode('utf-8-sig', 'replace')), nadpisz)
-    nie = False
+        t = _su_get(ctx, 'ice', SU_ICE_URL.format(y)).decode('utf-8-sig', 'replace')
+        p = parse_ice_cot(t) if t.strip('\ufeff \t\r\n') else ({}, [])   # v301: plik bez treści — jak plik bez wierszy (nie wyjątek)
+        _su_poz_dodaj(rows, bad, p, nadpisz)
+        return any(p[0].values())
+    nie = None   # v301: (opis błędu, notatka) — plik bieżącego roku bez wierszy rynków (przed pierwszym raportem roku) jak HTTP 404
     try:
-        rok(now.year)
+        if not rok(now.year):
+            nie = (f'plik {now.year} bez wierszy rynków', f'plik {now.year} bez wierszy rynków — rok poprzedni (w pierwszych dniach stycznia to normalne)')
     except urllib.error.HTTPError as e:
         if e.code != 404:
             raise
-        nie = True
-        ctx['uwagi'].append(f'pozycje ice: brak pliku {now.year} (HTTP 404 — w pierwszych dniach stycznia to normalne)')
+        nie = (f'brak pliku {now.year} (HTTP 404)', f'brak pliku {now.year} (HTTP 404 — w pierwszych dniach stycznia to normalne)')
+    if nie and now.month != 1 and any(isinstance(e, dict) and str(e.get('asof') or '')[:5] == f'{now.year}-' for e in prev_sub.values()):
+        # v301 (przegląd): rok poprzedni tylko w styczniu albo bez wpisów z bieżącego roku (start, długa przerwa). W innym miesiącu brak pliku
+        # albo plik bez wierszy (np. w piątek w chwili podmiany pliku ok. 17:44 UTC, gdy automat pyta co 30 min) to błąd części — wpisy zostają
+        # z datą, bez zapytania o rok poprzedni; dawniej dane sprzed roku zastępowały świeższe (09.10.2026: Londyn „stan na 29 wrz 2025”)
+        raise RuntimeError(f'{nie[0]} — poza styczniem bez roku poprzedniego (wpisy z {now.year} zostają z datą)')
+    if nie:
+        ctx['uwagi'].append('pozycje ice: ' + nie[1])
     if nie or (now.month <= 4 and _su_poz_rok(ctx, 'ice', rows, prev_sub, pairs)):
         rok(now.year - 1, nadpisz=False)
     if bad:
@@ -10598,7 +10646,7 @@ def _su_fu_sprott(ctx):
         v = round(x / SU_OZ_T, 3) if jedn[fid] == 'oz' else (round(x / 1e6, 3) if jedn[fid] == 'lb' else round(x, 3))
         tgt = ctx['H']['f'].setdefault(fid, {})
         p = _su_last(sorted((a, b) for a, b in tgt.items() if a < d))
-        if p and (datetime.date.fromisoformat(d) - datetime.date.fromisoformat(p[0])).days <= 7 and abs(v / p[1] - 1) > SU_FU_SKOK:
+        if p and (datetime.date.fromisoformat(d) - datetime.date.fromisoformat(p[0])).days <= 7 and abs(v / p[1] - 1) > SU_FU_SKOK_FU.get(fid, SU_FU_SKOK):
             ctx['bledy'].append(f'sprott_t {fid}: {p[1]} → {v} ({(v / p[1] - 1) * 100:+.0f}%) — punkt odrzucony (zmiana kolejności listy?)'); continue
         tgt[d] = v
         q[fid] = [d, x]
@@ -10762,6 +10810,9 @@ def _su_etap3(ctx, prev):
         rows = (sumy.get(sid) or [])[-SU_FU_DNI:]
         if rows:
             suma[sid] = {'u': 't', 'sklad': list(sklad), 'asof': rows[-1][0], 'd': rows, 'w1': _su_w1(rows)}
+            xs = [x for fid in sklad for x in ((f.get(fid) or {}).get('x') or [])]   # v301: suma z funduszem wyliczonym (IAU: 'wyl') — też
+            if xs:                                                                  # oznaczona (zasada strony: szacunki są opisane)
+                suma[sid]['x'] = list(dict.fromkeys(xs))
     fund = {'u': 't', 'f': f, 'suma': suma}
     # banki
     safe = {m: v for m, v in (H['b'].get('CN_safe') or {}).items() if _isnum(v)}
@@ -10831,7 +10882,7 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
     proby, udane, zle = {p: 0 for p in SU_PARTS}, set(), {}
     S['udane'] = ctx['udane'] = udane   # v298: źródła udane w tym przebiegu — naśladowcy (SU_ZA) biorą odpowiedź lidera
     ctx.update(raw={}, poz={}, fund=fund)
-    pominiete = []
+    pominiete, miekkie = [], []   # v301: miekkie — błędy źródeł uzupełniających (SU_MIEKKIE), rozstrzygane po pętli
     for src, part in SU_ZR:
         z = st.setdefault(src, {})
         if not _su_due(src, z, now, S):
@@ -10840,16 +10891,23 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
             pominiete.append(f'{src} (brak {SU_KLUCZ[src]})'); continue
         if late and src in SU_CIEZKIE:
             pominiete.append(f'{src} (długi przebieg)'); continue
-        if time.monotonic() - ctx['t0'] + SU_ZAPYTANIA.get(src, 1) * SU_LIMIT_S[src] > ctx['budzet']:
+        # v301: naśladowca (SU_ZA), którego lider udał się w tym przebiegu, bierze odpowiedź lidera bez zapytania — rezerwa jednego limitu
+        # (najwyżej jedno zapytanie spoza tej odpowiedzi, np. plik roku poprzedniego przy krótkiej historii), nie SU_ZAPYTANIA × limit. Dawniej
+        # cftcd rezerwował 2 × 60 s ze 150 s: po wolniejszym początku przebiegu był pomijany, a w następnym sam pobierał 2,4 MB (10 min później)
+        nz = 1 if SU_ZA.get(src) in udane else SU_ZAPYTANIA.get(src, 1)
+        if time.monotonic() - ctx['t0'] + nz * SU_LIMIT_S[src] > ctx['budzet']:
             pominiete.append(f'{src} (budżet czasu)'); continue
         nb = len(ctx['bledy'])
         z['try'] = now_iso
         try:
             asof = SU_POBIERZ[src](ctx)
         except Exception as e:
-            proby[part] += 1
             msg = mask(f'{src}: {e}')[:160]
-            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            z['err'] = msg
+            if src in SU_MIEKKIE:   # v301: źródło uzupełniające — notatka albo błąd części rozstrzygane po pętli (wynik źródła głównego)
+                miekkie.append((src, part, msg)); continue
+            proby[part] += 1
+            zle.setdefault(part, []).append(msg)
             continue
         proby[part] += 1
         z['at'] = now_iso; z['asof'] = asof; z.pop('err', None); udane.add(src)
@@ -10857,6 +10915,13 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
             S['markets_asof'] = asof
         if len(ctx['bledy']) > nb:   # częściowy błąd źródła (np. jeden z kilku symboli) — dane pozostałych zapisane
             zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
+    for src, part, msg in miekkie:   # v301: błąd SAFE — gdy MFW (imf_il) udał się w tym przebiegu albo część ma wcześniejsze dane: notatka (Chiny
+        # zostają z danymi MFW albo poprzednimi z datą), nie błąd części; bez żadnych danych części — błąd jak dotąd
+        if SU_MIEKKIE[src] in udane or _su_ma_dane(prev, part, v2):
+            ctx['uwagi'].append(f'{msg} — notatka, nie błąd części {part} (dane z {SU_MIEKKIE[src]} albo wcześniejsze zostają; ponowienie po ≥ 6 h)')
+        else:
+            proby[part] += 1
+            zle.setdefault(part, []).append(msg)
     _su_crack(H)
     qlim = {}   # v300: ciąg cen bez potwierdzenia ucięty bezpiecznikiem → ceny[ropa].q_lim (kontrola)
     q = su_q(H['d'].get('brent') or {}, H['d'].get('wti') or {}, H['d'].get('brent_fut') or {},
