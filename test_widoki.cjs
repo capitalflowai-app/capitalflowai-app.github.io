@@ -15879,3 +15879,277 @@ test('v297c: kafel premii — cena tokenu Z POMIARU premii (prem_px, ta sama chw
   const G = zk295c.clone(ZK295C_FILE); G.tok.PAXG.prem_px = null; G.tok.PAXG.dt_min = null;
   assert.ok(sp(kafel(sp(zk295c.run(G).el.innerHTML), 'pl')).includes('token — USD, złoto 4113,00 USD (notowanie godzinowe; różnica chwil — min)'), 'pl: „—” zamiast „0,00” i „0 min”');
 });
+
+/* ===================== v298g: SUROWCE — D) „Dokąd płynie kapitał w surowcach” (panel #g-surowce; części pozycje, fundusze, banki z łatki v298 DANE3) =====================
+   Dane testowe: SU298_P — części pozycje (15 rynków panelu + benzyna spoza listy; bez pos i h), fundusze (dni przycięte do 20; sumy pełne 90 dni) i banki
+   (bez kontr) z próbki build_surowce v298 na nagraniach z 07–08.10.2026 (bez sieci; = ~/CapitalFlowAI-robocze/surowce/probka_surowce_v3.json);
+   SU298_H — klucze f i fs pliku surowce-hist.json z tej samej próbki. Plik strony = SU295_FILE (części A–C) + te części. Zegar przypięty
+   (2026-10-08 12:00 UTC), wiek danych — atrapa „· wiek(…)”. */
+const SU298_P = {"pozycje":{"unit":"kontrakty","asof":{"cftc":"2026-09-29","ice":"2026-09-29"},"cftc":{"wti":{"code":"067651","asof":"2026-09-29","oi":1878576,"net":79592,"pct":4.2,"d1":-22236,"d1p":-1.3,"g":"en"},"ng":{"code":"023651","asof":"2026-09-29","oi":1782129,"net":-132799,"pct":-7.5,"d1":-67252,"d1p":-3.9,"g":"en"},"gold":{"code":"088691","asof":"2026-09-29","oi":406456,"net":120318,"pct":29.6,"d1":-7071,"d1p":-1.3,"g":"ms"},"silver":{"code":"084691","asof":"2026-09-29","oi":107047,"net":7614,"pct":7.1,"d1":-5695,"d1p":-5.4,"g":"ms"},"platinum":{"code":"076651","asof":"2026-09-29","oi":64046,"net":8256,"pct":12.9,"d1":-1672,"d1p":-2.3,"g":"ms"},"palladium":{"code":"075651","asof":"2026-09-29","oi":18602,"net":-7962,"pct":-42.8,"d1":-1956,"d1p":-6.9,"g":"ms"},"copper":{"code":"085692","asof":"2026-09-29","oi":301201,"net":78058,"pct":25.9,"d1":-4464,"d1p":-1.5,"g":"mi"},"corn":{"code":"002602","asof":"2026-09-29","oi":1857317,"net":381220,"pct":20.5,"d1":-22877,"d1p":-1.3,"g":"ag"},"wheat":{"code":"001602","asof":"2026-09-29","oi":483142,"net":-22109,"pct":-4.6,"d1":-10093,"d1p":-2.1,"g":"ag"},"soy":{"code":"005602","asof":"2026-09-29","oi":1090227,"net":246558,"pct":22.6,"d1":-18601,"d1p":-1.2,"g":"ag"},"coffee":{"code":"083731","asof":"2026-09-29","oi":154908,"net":16206,"pct":10.5,"d1":400,"d1p":0.2,"g":"ag"},"cocoa":{"code":"073732","asof":"2026-09-29","oi":183888,"net":-16022,"pct":-8.7,"d1":384,"d1p":0.5,"g":"ag"},"sugar":{"code":"080732","asof":"2026-09-29","oi":1099176,"net":218336,"pct":19.9,"d1":1707,"d1p":1.0,"g":"ag"},"rbob":{"code":"111659","asof":"2026-09-29","oi":342854,"net":94186,"pct":27.5,"d1":-1852,"d1p":0.9,"g":"en"}},"ice":{"brent":{"code":"B","asof":"2026-09-29","oi":2578636,"net":195463,"pct":7.6,"d1":-33258,"d1p":-0.9,"g":"en"},"gasoil":{"code":"G","asof":"2026-09-29","oi":749721,"net":69345,"pct":9.2,"d1":-16819,"d1p":-1.8,"g":"en"}}},"fundusze":{"u":"t","f":{"GLD":{"m":"au","u":"t","z":"gld","asof":"2026-10-06","d":[["2026-09-09",1050.638],["2026-09-10",1050.285],["2026-09-11",1047.433],["2026-09-14",1047.433],["2026-09-15",1050.285],["2026-09-16",1051.996],["2026-09-17",1052.852],["2026-09-18",1057.13],["2026-09-21",1055.419],["2026-09-22",1055.989],["2026-09-23",1056.845],["2026-09-24",1054.563],["2026-09-25",1054.563],["2026-09-28",1058.841],["2026-09-29",1057.415],["2026-09-30",1055.704],["2026-10-01",1056.559],["2026-10-02",1055.704],["2026-10-05",1056.274],["2026-10-06",1059.981]],"w1":["2026-09-29",2.566],"qu":"oz","q":["2026-10-06",34079177.78],"nav_r":-0.0406},"GLDM":{"m":"au","u":"t","z":"gld","asof":"2026-10-06","d":[["2026-09-09",226.466],["2026-09-10",227.678],["2026-09-11",227.678],["2026-09-14",228.416],["2026-09-15",228.786],["2026-09-16",228.786],["2026-09-17",228.97],["2026-09-18",228.97],["2026-09-21",228.109],["2026-09-22",228.478],["2026-09-23",226.755],["2026-09-24",227.001],["2026-09-25",227.001],["2026-09-28",227.555],["2026-09-29",228.355],["2026-09-30",228.724],["2026-10-01",229.462],["2026-10-02",229.831],["2026-10-05",231.123],["2026-10-06",231.615]],"w1":["2026-09-29",3.26],"qu":"oz","q":["2026-10-06",7446609.44],"nav_r":-0.0101},"IAU":{"m":"au","u":"t","z":"ish","asof":"2026-10-06","d":[["2026-09-09",460.749],["2026-09-10",461.331],["2026-09-11",461.503],["2026-09-14",462.545],["2026-09-15",464.15],["2026-09-16",464.147],["2026-09-17",464.612],["2026-09-18",464.433],["2026-09-21",464.657],["2026-09-22",463.777],["2026-09-23",464.124],["2026-09-24",463.127],["2026-09-25",463.123],["2026-09-28",462.819],["2026-09-29",463.401],["2026-09-30",463.398],["2026-10-01",463.394],["2026-10-02",463.537],["2026-10-05",463.527],["2026-10-06",463.524]],"w1":["2026-09-29",0.123],"qu":"oz","x":["wyl"],"q":["2026-10-06",14902652.79]},"PHYS":{"m":"au","u":"t","z":"sprott","asof":"2026-10-06","d":[["2026-10-06",116.69]],"w1":null,"qu":"oz","q":["2026-10-06",3751666.0]},"PSLV":{"m":"ag","u":"t","z":"sprott","asof":"2026-10-06","d":[["2026-10-06",6444.484]],"w1":null,"qu":"oz","q":["2026-10-06",207194980.0]},"SPPP_pt":{"m":"pt","u":"t","z":"sprott","asof":"2026-10-06","d":[["2026-10-06",6.224]],"w1":null,"qu":"oz","q":["2026-10-06",200095.0]},"SPPP_pd":{"m":"pd","u":"t","z":"sprott","asof":"2026-10-06","d":[["2026-10-06",4.826]],"w1":null,"qu":"oz","q":["2026-10-06",155159.0]},"SPUT":{"m":"u3o8","u":"mln lb","z":"sprott","asof":"2026-10-06","d":[["2026-10-06",81.697]],"w1":null,"qu":"lb","q":["2026-10-06",81697348.0]},"COP":{"m":"cu","u":"t","z":"sprott","asof":"2026-10-06","d":[["2026-10-06",14559.0]],"w1":null,"qu":"t","q":["2026-10-06",14559.0]}},"suma":{"au":{"u":"t","sklad":["GLD","GLDM","IAU","PHYS"],"asof":"2026-10-06","d":[["2026-10-06",1871.81]],"w1":null},"au_usa":{"u":"t","sklad":["GLD","GLDM","IAU"],"asof":"2026-10-06","d":[["2026-05-29",1718.722],["2026-06-01",1718.424],["2026-06-02",1717.134],["2026-06-03",1715.55],["2026-06-04",1713.731],["2026-06-05",1709.772],["2026-06-08",1710.008],["2026-06-09",1706.023],["2026-06-10",1702.471],["2026-06-11",1700.975],["2026-06-12",1699.452],["2026-06-15",1695.968],["2026-06-16",1694.356],["2026-06-17",1694.841],["2026-06-18",1703.662],["2026-06-22",1703.606],["2026-06-23",1698.333],["2026-06-24",1693.571],["2026-06-25",1683.99],["2026-06-26",1681.236],["2026-06-29",1681.062],["2026-06-30",1680.313],["2026-07-01",1680.245],["2026-07-02",1674.677],["2026-07-06",1675.987],["2026-07-07",1676.676],["2026-07-08",1676.303],["2026-07-09",1678.67],["2026-07-10",1675.07],["2026-07-13",1674.78],["2026-07-14",1676.774],["2026-07-15",1674.306],["2026-07-16",1674.302],["2026-07-17",1671.249],["2026-07-20",1675.891],["2026-07-21",1678.418],["2026-07-22",1682.015],["2026-07-23",1682.348],["2026-07-24",1682.872],["2026-07-27",1682.512],["2026-07-28",1681.936],["2026-07-29",1682.503],["2026-07-30",1681.076],["2026-07-31",1679.923],["2026-08-03",1678.877],["2026-08-04",1682.137],["2026-08-05",1685.662],["2026-08-06",1686.661],["2026-08-07",1688.902],["2026-08-10",1692.247],["2026-08-11",1693.279],["2026-08-12",1696.169],["2026-08-13",1693.441],["2026-08-14",1694.145],["2026-08-17",1701.776],["2026-08-18",1696.721],["2026-08-19",1707.058],["2026-08-20",1712.879],["2026-08-21",1722.121],["2026-08-24",1726.965],["2026-08-25",1727.553],["2026-08-26",1727.035],["2026-08-27",1729.509],["2026-08-28",1725.227],["2026-08-31",1726.281],["2026-09-01",1732.151],["2026-09-02",1742.562],["2026-09-03",1739.966],["2026-09-04",1738.987],["2026-09-08",1737.548],["2026-09-09",1737.853],["2026-09-10",1739.294],["2026-09-11",1736.614],["2026-09-14",1738.394],["2026-09-15",1743.221],["2026-09-16",1744.929],["2026-09-17",1746.434],["2026-09-18",1750.533],["2026-09-21",1748.185],["2026-09-22",1748.244],["2026-09-23",1747.724],["2026-09-24",1744.691],["2026-09-25",1744.687],["2026-09-28",1749.215],["2026-09-29",1749.171],["2026-09-30",1747.826],["2026-10-01",1749.415],["2026-10-02",1749.072],["2026-10-05",1750.924],["2026-10-06",1755.12]],"w1":["2026-09-29",5.949]}}},"banki":{"u":"t","order":["US","DE","CN","RU","IN","JP","TR","PL","KZ","CZ"],"kr":{"PL":{"u":"t","asof":"2026-08","z":"imf","oz":20833322.858,"d":[["2024-09",419.706],["2024-10",427.186],["2024-11",448.236],["2024-12",448.236],["2025-01",451.346],["2025-02",480.335],["2025-03",496.813],["2025-04",509.262],["2025-05",515.477],["2025-06",515.477],["2025-07",515.328],["2025-08",515.332],["2025-09",515.341],["2025-10",530.905],["2025-11",543.35],["2025-12",550.216],["2026-01",550.219],["2026-02",570.446],["2026-03",581.647],["2026-04",595.652],["2026-05",613.845],["2026-06",632.434],["2026-07",640.211],["2026-08",647.989]],"m1":7.778,"m12":132.656},"CN":{"u":"t","asof":"2026-08","z":"safe","oz":76730000.0,"d":[["2024-09",2264.333],["2024-10",2264.333],["2024-11",2269.31],["2024-12",2279.574],["2025-01",2284.55],["2025-02",2289.527],["2025-03",2292.326],["2025-04",2294.503],["2025-05",2296.37],["2025-06",2298.547],["2025-07",2300.413],["2025-08",2302.279],["2025-09",2303.523],["2025-10",2304.457],["2025-11",2305.39],["2025-12",2306.323],["2026-01",2307.567],["2026-02",2308.5],["2026-03",2313.477],["2026-04",2321.564],["2026-05",2331.517],["2026-06",2346.446],["2026-07",2366.353],["2026-08",2386.57]],"m1":20.217,"m12":84.29,"safe_od":"2026-07"},"TR":{"u":"t","asof":"2026-08","z":"imf","oz":25443000.0,"d":[["2024-09",743.622],["2024-10",753.979],["2024-11",757.898],["2024-12",771.18],["2025-01",765.052],["2025-02",768.069],["2025-03",768.909],["2025-04",771.553],["2025-05",785.394],["2025-06",788.598],["2025-07",793.108],["2025-08",797.12],["2025-09",798.831],["2025-10",799.95],["2025-11",804.834],["2025-12",811.428],["2026-01",821.598],["2026-02",822.531],["2026-03",693.483],["2026-04",732.114],["2026-05",729.874],["2026-06",729.843],["2026-07",772.455],["2026-08",791.366]],"m1":18.911,"m12":-5.754},"IN":{"u":"t","asof":"2026-07","z":"imf","oz":28309311.06,"d":[["2024-08",848.976],["2024-09",853.641],["2024-10",867.787],["2024-11",876.184],["2024-12",876.184],["2025-01",879.008],["2025-02",879.008],["2025-03",879.584],["2025-04",879.584],["2025-05",879.584],["2025-06",879.982],["2025-07",879.982],["2025-08",879.982],["2025-09",880.181],["2025-10",880.181],["2025-11",880.181],["2025-12",880.343],["2026-01",880.344],["2026-02",880.344],["2026-03",880.518],["2026-04",880.518],["2026-05",880.518],["2026-06",880.518],["2026-07",880.518]],"m1":0.0,"m12":0.536},"CZ":{"u":"t","asof":"2026-08","z":"imf","oz":2757262.0,"d":[["2024-09",46.42],["2024-10",48.752],["2024-11",50.339],["2024-12",51.177],["2025-01",52.856],["2025-02",54.536],["2025-03",56.215],["2025-04",58.732],["2025-05",60.354],["2025-06",61.946],["2025-07",63.58],["2025-08",65.26],["2025-09",66.842],["2025-10",69.214],["2025-11",70.788],["2025-12",71.607],["2026-01",73.286],["2026-02",74.964],["2026-03",76.644],["2026-04",79.158],["2026-05",80.809],["2026-06",82.429],["2026-07",84.081],["2026-08",85.76]],"m1":1.679,"m12":20.5},"KZ":{"u":"t","asof":"2026-08","z":"imf","oz":12124366.05,"d":[["2024-09",285.943],["2024-10",290.151],["2024-11",295.218],["2024-12",284.055],["2025-01",287.891],["2025-02",279.766],["2025-03",290.505],["2025-04",291.421],["2025-05",298.774],["2025-06",306.158],["2025-07",308.728],["2025-08",316.463],["2025-09",324.37],["2025-10",325.027],["2025-11",333.044],["2025-12",341.046],["2026-01",339.907],["2026-02",347.559],["2026-03",353.597],["2026-04",354.287],["2026-05",361.179],["2026-06",368.379],["2026-07",369.759],["2026-08",377.11]],"m1":7.351,"m12":60.647},"JP":{"u":"t","asof":"2026-08","z":"imf","oz":27198880.83,"d":[["2024-09",845.98],["2024-10",845.98],["2024-11",845.98],["2024-12",845.98],["2025-01",845.98],["2025-02",845.98],["2025-03",845.98],["2025-04",845.98],["2025-05",845.98],["2025-06",845.98],["2025-07",845.98],["2025-08",845.98],["2025-09",845.98],["2025-10",845.98],["2025-11",845.98],["2025-12",845.98],["2026-01",845.98],["2026-02",845.98],["2026-03",845.98],["2026-04",845.98],["2026-05",845.98],["2026-06",845.98],["2026-07",845.98],["2026-08",845.98]],"m1":0.0,"m12":0.0},"US":{"u":"t","asof":"2026-08","z":"imf","oz":261498926.24,"d":[["2024-09",8133.526],["2024-10",8133.526],["2024-11",8133.526],["2024-12",8133.526],["2025-01",8133.526],["2025-02",8133.526],["2025-03",8133.526],["2025-04",8133.526],["2025-05",8133.526],["2025-06",8133.526],["2025-07",8133.526],["2025-08",8133.526],["2025-09",8133.526],["2025-10",8133.526],["2025-11",8133.526],["2025-12",8133.526],["2026-01",8133.526],["2026-02",8133.526],["2026-03",8133.526],["2026-04",8133.526],["2026-05",8133.526],["2026-06",8133.526],["2026-07",8133.526],["2026-08",8133.526]],"m1":0.0,"m12":0.0},"DE":{"u":"t","asof":"2026-07","z":"imf","oz":107683000.0,"d":[["2024-08",3351.555],["2024-09",3351.555],["2024-10",3351.555],["2024-11",3351.555],["2024-12",3351.555],["2025-01",3351.555],["2025-02",3351.555],["2025-03",3351.306],["2025-04",3351.12],["2025-05",3350.28],["2025-06",3350.28],["2025-07",3350.28],["2025-08",3350.28],["2025-09",3350.28],["2025-10",3350.28],["2025-11",3350.28],["2025-12",3350.28],["2026-01",3350.28],["2026-02",3350.28],["2026-03",3350.28],["2026-04",3349.502],["2026-05",3349.502],["2026-06",3349.316],["2026-07",3349.316]],"m1":0.0,"m12":-0.964},"RU":{"u":"t","asof":"2025-11","z":"imf","oz":74800000.0,"d":[["2023-12",2332.761],["2024-01",2329.65],["2024-02",2329.65],["2024-03",2332.761],["2024-04",2335.871],["2024-05",2335.871],["2024-06",2335.871],["2024-07",2335.871],["2024-08",2332.761],["2024-09",2332.761],["2024-10",2332.761],["2024-11",2332.761],["2024-12",2332.761],["2025-01",2329.65],["2025-02",2329.65],["2025-03",2329.65],["2025-04",2329.65],["2025-05",2329.65],["2025-06",2329.65],["2025-07",2329.65],["2025-08",2326.54],["2025-09",2329.65],["2025-10",2326.54],["2025-11",2326.54]],"m1":0.0,"m12":-6.221}}},"part_at":{"pozycje":"2026-10-08T02:30:00+00:00","fundusze":"2026-10-08T02:30:00+00:00","banki":"2026-10-08T02:30:00+00:00"},"ok":{"pozycje":true,"fundusze":true,"banki":true},"next":{"pozycje":"2026-10-09T19:30:00+00:00","fundusze":"2026-10-09T01:00:00+00:00","banki":"2026-11-07T12:00:00+00:00"}};
+const SU298_H = {"f":{"COP":[["2026-10-06",14559.0]],"PSLV":[["2026-10-06",6444.484]],"SPPP_pd":[["2026-10-06",4.826]],"SPPP_pt":[["2026-10-06",6.224]],"SPUT":[["2026-10-06",81.697]]},"fs":{"au":[["2026-10-06",1871.81]],"au_usa":[["2025-07-29",1555.29],["2025-07-30",1555.104],["2025-07-31",1554.974],["2025-08-01",1553.541],["2025-08-04",1555.25],["2025-08-05",1556.891],["2025-08-06",1554.382],["2025-08-07",1565.309],["2025-08-08",1571.231],["2025-08-11",1575.312],["2025-08-12",1575.309],["2025-08-13",1576.289],["2025-08-14",1573.42],["2025-08-15",1574.963],["2025-08-18",1575.447],["2025-08-19",1571.004],["2025-08-20",1567.489],["2025-08-21",1566.083],["2025-08-22",1564.614],["2025-08-25",1562.135],["2025-08-26",1566.93],["2025-08-27",1570.414],["2025-08-28",1576.723],["2025-08-29",1588.313],["2025-09-02",1602.308],["2025-09-03",1610.279],["2025-09-04",1609.477],["2025-09-05",1611.986],["2025-09-08",1612.079],["2025-09-09",1615.57],["2025-09-10",1616.149],["2025-09-11",1612.659],["2025-09-12",1610.445],["2025-09-15",1613.006],["2025-09-16",1612.827],["2025-09-17",1615.094],["2025-09-18",1619.528],["2025-09-19",1638.188],["2025-09-22",1645.422],["2025-09-23",1645.42],["2025-09-24",1644.391],["2025-09-25",1647.225],["2025-09-26",1652.894],["2025-09-29",1660.13],["2025-09-30",1663.441],["2025-10-01",1670.682],["2025-10-02",1668.819],["2025-10-03",1669.739],["2025-10-06",1668.988],["2025-10-07",1670.126],["2025-10-08",1672.847],["2025-10-09",1672.05],["2025-10-10",1675.769],["2025-10-13",1677.477],["2025-10-14",1683.087],["2025-10-15",1686.017],["2025-10-16",1701.78],["2025-10-17",1712.73],["2025-10-20",1724.522],["2025-10-21",1726.382],["2025-10-22",1719.587],["2025-10-23",1716.362],["2025-10-24",1709.982],["2025-10-27",1701.779],["2025-10-28",1699.781],["2025-10-29",1696.595],["2025-10-30",1700.885],["2025-10-31",1699.737],["2025-11-03",1700.456],["2025-11-04",1696.016],["2025-11-05",1695.643],["2025-11-06",1697.357],["2025-11-07",1699.305],["2025-11-10",1699.765],["2025-11-11",1704.054],["2025-11-12",1704.924],["2025-11-13",1707.591],["2025-11-14",1703.611],["2025-11-17",1701.334],["2025-11-18",1701.331],["2025-11-19",1703.617],["2025-11-20",1699.333],["2025-11-21",1700.473],["2025-11-24",1700.751],["2025-11-25",1701.241],["2025-11-26",1705.938],["2025-11-28",1705.933],["2025-12-01",1711.056],["2025-12-02",1710.331],["2025-12-03",1709.198],["2025-12-04",1713.384],["2025-12-05",1713.581],["2025-12-08",1712.718],["2025-12-09",1711.805],["2025-12-10",1715.583],["2025-12-11",1720.743],["2025-12-12",1722.745],["2025-12-15",1725.077],["2025-12-16",1725.789],["2025-12-17",1727.538],["2025-12-18",1728.604],["2025-12-19",1729.303],["2025-12-22",1738.475],["2025-12-23",1739.293],["2025-12-24",1743.009],["2025-12-26",1747.093],["2025-12-29",1748.016],["2025-12-30",1748.277],["2025-12-31",1746.843],["2026-01-02",1741.403],["2026-01-05",1740.23],["2026-01-06",1742.561],["2026-01-07",1743.789],["2026-01-08",1743.785],["2026-01-09",1741.994],["2026-01-12",1748.419],["2026-01-13",1752.834],["2026-01-14",1754.062],["2026-01-15",1755.398],["2026-01-16",1767.212],["2026-01-20",1765.662],["2026-01-21",1762.271],["2026-01-22",1765.809],["2026-01-23",1773.327],["2026-01-26",1773.319],["2026-01-27",1775.403],["2026-01-28",1778.409],["2026-01-29",1775.345],["2026-01-30",1779.331],["2026-02-02",1780.793],["2026-02-03",1776.576],["2026-02-04",1778.612],["2026-02-05",1775.037],["2026-02-06",1773.318],["2026-02-09",1777.228],["2026-02-10",1777.421],["2026-02-11",1780.198],["2026-02-12",1775.094],["2026-02-13",1775.947],["2026-02-17",1774.687],["2026-02-18",1774.685],["2026-02-19",1778.278],["2026-02-20",1778.275],["2026-02-23",1786.193],["2026-02-24",1795.138],["2026-02-25",1798.566],["2026-02-26",1798.848],["2026-02-27",1802.645],["2026-03-02",1802.436],["2026-03-03",1799.443],["2026-03-04",1781.082],["2026-03-05",1775.934],["2026-03-06",1769.114],["2026-03-09",1764.391],["2026-03-10",1767.431],["2026-03-11",1771.143],["2026-03-12",1769.71],["2026-03-13",1758.51],["2026-03-16",1756.238],["2026-03-17",1751.638],["2026-03-18",1746.66],["2026-03-19",1739.687],["2026-03-20",1732.993],["2026-03-23",1727.231],["2026-03-24",1726.762],["2026-03-25",1726.19],["2026-03-26",1726.47],["2026-03-27",1723.676],["2026-03-30",1720.958],["2026-03-31",1723.153],["2026-04-01",1727.762],["2026-04-02",1730.129],["2026-04-06",1733.852],["2026-04-07",1734.218],["2026-04-08",1735.471],["2026-04-09",1737.988],["2026-04-10",1738.365],["2026-04-13",1733.664],["2026-04-14",1736.625],["2026-04-15",1739.191],["2026-04-16",1740.639],["2026-04-17",1748.657],["2026-04-20",1747.789],["2026-04-21",1742.686],["2026-04-22",1738.463],["2026-04-23",1736.745],["2026-04-24",1734.171],["2026-04-27",1733.415],["2026-04-28",1730.904],["2026-04-29",1730.337],["2026-04-30",1727.155],["2026-05-01",1728.499],["2026-05-04",1728.07],["2026-05-05",1725.797],["2026-05-06",1724.068],["2026-05-07",1724.351],["2026-05-08",1724.96],["2026-05-11",1727.604],["2026-05-12",1729.845],["2026-05-13",1732.356],["2026-05-14",1732.248],["2026-05-15",1729.673],["2026-05-18",1731.352],["2026-05-19",1729.349],["2026-05-20",1727.649],["2026-05-21",1728.041],["2026-05-22",1725.182],["2026-05-26",1725.169],["2026-05-27",1725.164],["2026-05-28",1722.734],["2026-05-29",1718.722],["2026-06-01",1718.424],["2026-06-02",1717.134],["2026-06-03",1715.55],["2026-06-04",1713.731],["2026-06-05",1709.772],["2026-06-08",1710.008],["2026-06-09",1706.023],["2026-06-10",1702.471],["2026-06-11",1700.975],["2026-06-12",1699.452],["2026-06-15",1695.968],["2026-06-16",1694.356],["2026-06-17",1694.841],["2026-06-18",1703.662],["2026-06-22",1703.606],["2026-06-23",1698.333],["2026-06-24",1693.571],["2026-06-25",1683.99],["2026-06-26",1681.236],["2026-06-29",1681.062],["2026-06-30",1680.313],["2026-07-01",1680.245],["2026-07-02",1674.677],["2026-07-06",1675.987],["2026-07-07",1676.676],["2026-07-08",1676.303],["2026-07-09",1678.67],["2026-07-10",1675.07],["2026-07-13",1674.78],["2026-07-14",1676.774],["2026-07-15",1674.306],["2026-07-16",1674.302],["2026-07-17",1671.249],["2026-07-20",1675.891],["2026-07-21",1678.418],["2026-07-22",1682.015],["2026-07-23",1682.348],["2026-07-24",1682.872],["2026-07-27",1682.512],["2026-07-28",1681.936],["2026-07-29",1682.503],["2026-07-30",1681.076],["2026-07-31",1679.923],["2026-08-03",1678.877],["2026-08-04",1682.137],["2026-08-05",1685.662],["2026-08-06",1686.661],["2026-08-07",1688.902],["2026-08-10",1692.247],["2026-08-11",1693.279],["2026-08-12",1696.169],["2026-08-13",1693.441],["2026-08-14",1694.145],["2026-08-17",1701.776],["2026-08-18",1696.721],["2026-08-19",1707.058],["2026-08-20",1712.879],["2026-08-21",1722.121],["2026-08-24",1726.965],["2026-08-25",1727.553],["2026-08-26",1727.035],["2026-08-27",1729.509],["2026-08-28",1725.227],["2026-08-31",1726.281],["2026-09-01",1732.151],["2026-09-02",1742.562],["2026-09-03",1739.966],["2026-09-04",1738.987],["2026-09-08",1737.548],["2026-09-09",1737.853],["2026-09-10",1739.294],["2026-09-11",1736.614],["2026-09-14",1738.394],["2026-09-15",1743.221],["2026-09-16",1744.929],["2026-09-17",1746.434],["2026-09-18",1750.533],["2026-09-21",1748.185],["2026-09-22",1748.244],["2026-09-23",1747.724],["2026-09-24",1744.691],["2026-09-25",1744.687],["2026-09-28",1749.215],["2026-09-29",1749.171],["2026-09-30",1747.826],["2026-10-01",1749.415],["2026-10-02",1749.072],["2026-10-05",1750.924],["2026-10-06",1755.12]]}};
+/* strażnik tłumaczeń v142 (kategoria c — wyraz pisany w tym języku tak samo jak po angielsku): Gold (de), Palladium (de, fr), Uranium (fr) */
+Object.assign(V142_OK, {'su298g.pz.gold': 'de', 'su298g.pz.palladium': 'de fr', 'su298g.fz.k.SPUT': 'fr', 'su298g.fz.k.SPPP_pd': 'de fr'});
+const su298 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const arc = cut('function arcMs(d){', '\n/* v293 (audyt G2)'), wk = cut('const wkNum=v=>', '\n/* pierścień: udziały'), wk2 = cut('const wkMs=d=>', '\nconst WK_FGZ=');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const NOW = Date.parse('2026-10-08T12:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o)), sp = su295.sp, txt = su295.txt;
+  const BODY = "'use strict';\n" + arc + '\n' + wk + '\n' + wk2 + '\n' + su295.blk + '\nreturn {SU, renderSu, suApply, suHist, su3Wk, su3S, su3A, su3Has};';
+  const mk = (L, files, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details[open]' ? this.open.map(id => ({id})) : []; }, querySelector() { return null; }};
+    const calls = [], clicks = [], ls = Object.assign({}, opt.ls || {});
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined ? null : clone(v)); return this; }}; };
+    const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+      'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'renderUsa', BODY)(
+      q => (q === '#g-surowce' ? el : null), v96src.tFor(L), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv,
+      v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ',
+      {getItem: k => (k in ls ? ls[k] : null), setItem: (k, v) => { ls[k] = String(v); }}, {addEventListener: (e, f) => clicks.push([e, f]), querySelector: () => null, hidden: false},
+      function () { this.observe = () => {}; }, () => 0, FD, undefined);
+    return {api, el, calls, clicks, ls};
+  };
+  /* plik strony: części A–C z próbki v295g + części v298 */
+  const file = () => { const F = clone(SU295_FILE), P = clone(SU298_P); F.at = '2026-10-08T02:30:00+00:00';
+    for (const k of ['pozycje', 'fundusze', 'banki']) F[k] = P[k];
+    for (const k of ['part_at', 'ok', 'next']) F[k] = Object.assign({}, F[k], P[k]); return F; };
+  const hist = () => Object.assign(clone(SU295_HIST), clone(SU298_H));
+  const files = F => ({surowce: F, 'surowce-hist': hist(), 'usa-makro': SU295_MAKRO});
+  /* blok zwijany (HTML do jego końca) */
+  const blk = (h, id) => { const i = h.indexOf(`<details class="etfd su-b" id="${id}"`); return i < 0 ? '' : h.slice(i, h.indexOf('</details>', i) + 10); };
+  /* słupki wkBars: [[etykieta (tekst), wartość (tekst), na]] */
+  const rows = h => [...h.matchAll(/<div class="wk-br( na)?" data-t="([^"]*)"><span class="wk-bl">([\s\S]*?)<\/span><svg[\s\S]*?<span class="wk-bv[^"]*">([\s\S]*?)<\/span><\/div>/g)].map(m => [txt(m[3]), txt(m[4]), !!m[1], m[2]]);
+  /* kolumny wkCols: podpowiedzi (data-t prostokątów trafienia) */
+  const cols = h => { const i = h.indexOf('<div class="wk-ch wk-cols"'); if (i < 0) return []; const c = h.slice(i, h.indexOf('</svg>', i));
+    return [...c.matchAll(/<rect class="wk-hit" x="[\d.]+" y="0" width="10" height="100" data-t="([^"]*)"\/>/g)].map(m => sp(m[1])); };
+  const day = (L, d) => su295.day(L, d), mon = (L, ym) => su295.mon(L, ym);
+  const monS = (L, ym) => new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 15)).toLocaleDateString(LOC[L], {month: 'short', year: '2-digit', timeZone: 'UTC'});
+  const cty = (L, c) => { try { return new Intl.DisplayNames([LOC[L]], {type: 'region'}).of(c); } catch (e) { return c; } };
+  const wd = (L, d) => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString(LOC[L], {weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  return {mk, file, hist, files, blk, rows, cols, day, mon, monS, cty, wd, clone, sp, txt, NOW};
+})();
+
+test('v298g: część D — nagłówek „Dokąd płynie kapitał w surowcach” po blokach C, przed stopką; 4 bloki zwijane w kolejności planu; plik sprzed v298 — bez części D', () => {
+  const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  const h = su298.sp(K.el.innerHTML), iC = h.indexOf('<b>Co surowce mówią o gospodarce</b>'), iD = h.indexOf('<b>Dokąd płynie kapitał w surowcach</b>'), iF = h.indexOf('<p class="pfoot">');
+  assert.ok(iC > 0 && iD > iC && iF > iD, 'kolejność: C → D → stopka');
+  assert.ok(h.slice(iD - 300, iD).includes('<h3 class="mtxt su-h">') && h.includes('img/glify/etf.svg'), 'nagłówek jak A–C (h3 su-h z ikoną)');
+  assert.ok(h.includes('Ile metalu kupują fundusze, ile złota dokładają banki centralne i jak ustawiają się fundusze na giełdach towarowych. Każda liczba ma swoją datę.'));
+  const ids = [...h.slice(iD).matchAll(/<details class="etfd su-b" id="([\w-]+)"( data-su-h="1")?>/g)].map(m => [m[1], !!m[2]]);
+  assert.deepEqual(ids, [['su-b-fz', true], ['su-b-bk', false], ['su-b-poz', false], ['su-b-fiz', true]], 'bloki i dłuższa historia tylko tam, gdzie jest (f, fs)');
+  assert.ok(su298.blk(h, 'su-b-fz').includes('<summary>Złoto w funduszach</summary>') && su298.blk(h, 'su-b-bk').includes('<summary>Złoto banków centralnych</summary>') &&
+    su298.blk(h, 'su-b-poz').includes('<summary>Pozycje funduszy na giełdach towarowych</summary>') && su298.blk(h, 'su-b-fiz').includes('<summary>Uran, miedź i inne metale w funduszach fizycznych</summary>'));
+  assert.deepEqual(K.calls, [], 'zwinięte bloki — bez pobrania historii');
+  const K0 = su298.mk('pl'); K0.api.suApply(SU295_FILE);
+  assert.ok(!K0.el.innerHTML.includes('Dokąd płynie kapitał') && !K0.el.innerHTML.includes('su-b-fz') && !K0.el.innerHTML.includes('su298g.'), 'plik bez części v298 — panel jak dotąd');
+  for (const id of ['su-b-zap', 'su-b-inf', 'su-b-gaz', 'su-b-fao', 'su-b-cg']) assert.equal(su298.blk(h, id), su298.blk(su298.sp(K0.el.innerHTML), id), 'bloki C bez zmian: ' + id);
+});
+
+test('v298g: złoto w funduszach — linia ton, słupki zmian tygodniowych (ostatni = w1 z pliku = zdanie „kupiły w tygodniu”), kafle GLD/GLDM/IAU (wyliczony)/PHYS z datą i wiekiem, razem z PHYS', () => {
+  const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  const d = x => su298.day('pl', x), B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-fz'), U = F.fundusze.suma.au_usa;
+  assert.ok(B.includes('<p class="wk-sub"><b>Złoto w funduszach, tony</b> · od ' + d(U.d[0][0]) + '</p>'), 'bez historii: 90 dni z surowce.json, od pierwszego dnia');
+  assert.ok(B.includes('<polyline class="wk-l s1"') && !B.includes('wk-l s2') && !B.includes('wk-leg'), 'suma 4 funduszy ma 1 dzień — tylko linia 3 funduszy z USA, bez legendy');
+  assert.ok(B.includes('<p class="wk-sub"><b>Zmiana w tygodniu — 3 fundusze w USA, tony</b></p>'));
+  const C = su298.cols(B), W = K.api.su3Wk(U.d, 52);
+  assert.ok(C.length === W.length && C.length >= 17 && C.length <= 19, 'ok. 18 tygodni z 90 sesji: ' + C.length);
+  assert.equal(C[C.length - 1], d('2026-09-29') + ' → ' + d('2026-10-06') + ': +5,95 t', 'ostatni słupek');
+  assert.deepEqual([W[W.length - 1].a, Math.round(W[W.length - 1].v * 1000) / 1000], U.w1, 'reguła słupków = w1 z pliku (dzień odniesienia i zmiana)');
+  assert.ok(B.includes('<p class="pnote su-s">Fundusze złota w USA kupiły w tygodniu 5,95 t złota (tydzień do ' + d('2026-10-06') + ' · wiek(2026-10-06)).</p>'), 'zdanie bez znaku — kierunek mówi czasownik');
+  assert.ok(B.includes('<p class="pnote">Razem z PHYS: 1871,81 t (' + d('2026-10-06') + ' · wiek(2026-10-06)); zmiana w tygodniu: —.</p>'), 'suma 4 funduszy — bez zmiany tygodnia („—”, nie zero)');
+  const T = id => { const i = B.indexOf(`data-su3="${id}"`); return B.slice(i, B.indexOf('</div>', i)); };
+  assert.ok(T('GLD').includes('GLD</span><b>1059,98 <small class="mtxt">t</small> <small class="pos">▲ +2,57 t w tygodniu</small></b>') && T('GLD').includes(d('2026-10-06') + ' · wiek(2026-10-06)'), T('GLD'));
+  assert.ok(T('GLDM').includes('<b>231,62 <small class="mtxt">t</small> <small class="pos">▲ +3,26 t w tygodniu</small></b>'));
+  assert.ok(T('IAU').includes('<b>463,52 <small class="mtxt">t</small> <small class="pos">▲ +0,12 t w tygodniu</small></b><small class="mtxt su-x">wyliczone z wartości funduszu i ceny złota — przybliżenie</small>'), 'IAU — opis wyliczenia');
+  assert.ok(T('PHYS').includes('<b>116,69 <small class="mtxt">t</small></b><small class="mtxt su-few">zmiana w tygodniu — zbieramy dane od ' + d('2026-10-06') + '</small>') && T('PHYS').includes('img/flagi/ca.svg'), 'PHYS: historia od 1 dnia — powód braku zmiany, flaga Kanady');
+  for (const id of ['GLD', 'GLDM', 'IAU']) assert.ok(T(id).includes('img/flagi/us.svg') && T(id).includes('img/glify/gold.svg'), id);
+  assert.ok(B.includes('Fundusz kupuje złoto, gdy inwestorzy wpłacają pieniądze, i sprzedaje, gdy je wypłacają') && B.includes(' Suma i wykresy zawierają IAU wyliczony z wartości funduszu i ceny złota — przybliżenie.</p>'), 'szacunek opisany także przy sumie');
+  /* kierunek i mała zmiana: sprzedały / <0,01 / bez zmian */
+  const S = w => { const G = su298.file(); G.fundusze.suma.au_usa.w1 = w; const Q = su298.mk('pl'); Q.api.suApply(G); return su298.sp(su298.blk(Q.el.innerHTML, 'su-b-fz')); };   /* „<0,01” jak „<1 mln” w wkUsd — tekst, nie znacznik */
+  assert.ok(S(['2026-09-29', -2.5]).includes('Fundusze złota w USA sprzedały w tygodniu 2,50 t złota (tydzień do '));
+  assert.ok(S(['2026-09-29', 0.004]).includes('kupiły w tygodniu <0,01 t złota'), 'niezerowa zmiana poniżej 0,005 t to nie „bez zmian”');
+  assert.ok(S(['2026-09-29', 0]).includes('Ilość złota w funduszach w USA bez zmian w tygodniu (tydzień do '));
+  assert.ok(!S(null).includes('w tygodniu 0') && !S(null).includes('kupiły') && !S(null).includes('sprzedały'), 'brak w1 — bez zdania');
+});
+
+test('v298g: złoto w funduszach — po rozwinięciu 365 dni z historii (fs), jedno pobranie; druga linia (4 fundusze) dopiero od 2 dni; słupki do 52 tygodni', () => {
+  const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  K.el.open = ['su-b-fz']; K.api.renderSu(); K.api.renderSu();
+  assert.deepEqual(K.calls.filter(c => c === 'surowce-hist'), ['surowce-hist'], 'rozwinięcie = jedno pobranie pliku historii');
+  const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-fz'), A = SU298_H.fs.au_usa, end = Date.parse('2026-10-06T00:00:00Z') - 365 * 864e5;
+  const f0 = A.find(r => Date.parse(r[0] + 'T00:00:00Z') >= end)[0];
+  assert.ok(B.includes('<b>Złoto w funduszach, tony</b> · od ' + su298.day('pl', f0) + '</p>'), '365 dni: od ' + f0);
+  const C = su298.cols(B);
+  assert.ok(C.length >= 50 && C.length <= 52 && C[C.length - 1].endsWith(': +5,95 t'), 'tygodnie z roku: ' + C.length);
+  assert.ok(!B.includes('Wczytuję dłuższą historię'));
+  /* suma 4 funduszy z 2 dniami — druga linia i legenda */
+  const G = su298.file(); G.fundusze.suma.au.d = [['2026-10-05', 1866.5], ['2026-10-06', 1871.81]];
+  const Q = su298.mk('pl', su298.files(G)); Q.api.suApply(G); const B2 = su298.blk(su298.sp(Q.el.innerHTML), 'su-b-fz');
+  assert.ok(B2.includes('wk-l s2') && B2.includes('<span><i class="wk-sq s1"></i>3 fundusze w USA (GLD, GLDM, IAU)</span>') && B2.includes('<span><i class="wk-sq s2"></i>4 fundusze (z PHYS)</span>'));
+});
+
+test('v298g: słupki tygodniowe — ta sama reguła co w1 zbieracza (≥ 7 dni wstecz, najwyżej 14), odstęp ponad 14 dni = kreska (brak), nigdy zero; zapis „<0,01”', () => {
+  const K = su298.mk('pl');
+  const V = [['2026-01-05', 10], ['2026-01-12', 12], ['2026-01-14', 13], ['2026-02-10', 20], ['2026-02-17', 19]];
+  assert.deepEqual(K.api.su3Wk(V, 52), [{a: '2026-01-05', b: '2026-01-14', v: 3}, {a: '2026-01-14', b: '2026-02-10', v: null}, {a: '2026-02-10', b: '2026-02-17', v: -1}]);
+  assert.deepEqual(K.api.su3Wk(V, 1), [{a: '2026-02-10', b: '2026-02-17', v: -1}], 'limit — najnowsze');
+  assert.deepEqual(K.api.su3Wk([['2026-01-05', 1]], 52), [], 'jeden dzień — bez słupków');
+  /* reguła zbieracza _su_w1 (Python) dla każdego końca: ostatni dzień ≥ 7 dni wcześniej; > 14 dni — brak */
+  const w1 = (R, i) => { const e = Date.parse(R[i][0]); let j = i - 1; while (j >= 0 && e - Date.parse(R[j][0]) < 7 * 864e5) j--; return j < 0 || e - Date.parse(R[j][0]) > 14 * 864e5 ? null : [R[j][0], R[i][1] - R[j][1]]; };
+  const U = SU298_H.fs.au_usa, W = K.api.su3Wk(U, 52);
+  for (const c of W) { const i = U.findIndex(r => r[0] === c.b), r = w1(U, i); assert.ok(r && r[0] === c.a && Math.abs(r[1] - c.v) < 1e-9, c.b); }
+  const G = su298.file(); G.fundusze.suma.au_usa.d = V; const Q = su298.mk('pl'); Q.api.suApply(G);
+  const B = su298.blk(Q.el.innerHTML, 'su-b-fz');
+  assert.equal((B.slice(B.indexOf('Zmiana w tygodniu')).match(/<line class="wk-gl"/g) || []).length, 1, 'tydzień z przerwą — kreska');
+  assert.ok(su298.cols(B).includes(su298.day('pl', '2026-01-14') + ' → ' + su298.day('pl', '2026-02-10') + ': brak danych — to nie zero'));
+  assert.equal(K.api.su3S(0.003, 2, 't'), '+<0,01 t'); assert.equal(K.api.su3S(-0.003, 2, 't'), '−<0,01 t'); assert.equal(K.api.su3S(0, 1, 't'), '0,0 t');
+  assert.equal(K.api.su3S(-6.221, 1, 't'), '−6,2 t'); assert.equal(K.api.su3S(null, 1, 't'), '—'); assert.equal(K.api.su3S(NaN, 1), '—');
+  assert.equal(K.api.su3A(-5.949, 2, 't'), '5,95 t'); assert.equal(K.api.su3A(0.004, 2, 't'), '<0,01 t');
+});
+
+test('v298g: banki centralne — słupki zmiany w tonach z flagą i miesiącem KAŻDEGO kraju, od największego zakupu; zdanie; Rosja ze starą datą (gwiazdka); Polska — linia 24 miesięcy', () => {
+  const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-bk'), m = ym => su298.monS('pl', ym), c = x => su298.cty('pl', x);
+  const exp = [['CN', '2026-08', '+20,2 t'], ['TR', '2026-08', '+18,9 t'], ['PL', '2026-08', '+7,8 t'], ['KZ', '2026-08', '+7,4 t'], ['CZ', '2026-08', '+1,7 t'],
+    ['IN', '2026-07', '0,0 t'], ['JP', '2026-08', '0,0 t'], ['US', '2026-08', '0,0 t'], ['DE', '2026-07', '0,0 t'], ['RU', '2025-11', '0,0 t']];
+  assert.deepEqual(su298.rows(B).map(r => [r[0], r[1]]), exp.map(([k, a, v]) => [c(k) + (k === 'RU' ? ' *' : '') + ' ' + m(a), v]), 'kolejność, kraj z miesiącem, wartość');
+  for (const [k] of exp) assert.ok(B.includes('img/flagi/' + k.toLowerCase() + '.svg'), 'flaga ' + k);
+  assert.ok(B.includes('data-su-bper="1" aria-pressed="true">1 mies.</button>') && B.includes('data-su-bper="12" aria-pressed="false">12 mies.</button>'));
+  assert.ok(B.includes('Zmiana zapasu złota w ostatnim miesiącu, tony — przy każdym kraju jego miesiąc'));
+  assert.ok(B.includes(`Najwięcej złota w ostatnim miesiącu dokupiły: ${c('CN')} (+20,2 t), ${c('TR')} (+18,9 t), ${c('PL')} (+7,8 t).</p>`), 'trzy największe zakupy; bez sprzedających');
+  assert.ok(B.includes(`<p class="pnote">* ${c('RU')}: najnowsze dostępne dane są za ${su298.mon('pl', '2025-11')} · wiek(2025-11).</p>`), 'dane starsze niż 120 dni — zdanie z miesiącem i wiekiem');
+  assert.equal((B.match(/<p class="pnote">\* /g) || []).length, 1, 'tylko Rosja');
+  const tip = su298.rows(B).find(r => r[0].startsWith(c('PL')))[3];
+  assert.equal(su298.sp(tip), `${c('PL')} · ${su298.mon('pl', '2026-08')}: +7,78 t; zapas 647,99 t`, 'podpowiedź: dokładniej i zapas');
+  assert.ok(B.includes('<p class="wk-sub"><b>Polska — złoto banku centralnego, tony</b> · od września 2024</p>') && B.includes('<polyline class="wk-l s1"'), 'Polska: 24 miesiące');
+  assert.ok(B.includes(`Polska ma 647,99 t złota (${su298.mon('pl', '2026-08')} · wiek(2026-08)); zmiana w miesiącu +7,78 t, w 12 miesięcy +132,66 t.`));
+  assert.ok(B.includes('Banki centralne kupują złoto, by mniej zależeć od dolara i innych walut.'));
+});
+
+test('v298g: banki centralne — przełącznik 1 / 12 mies. (kliknięcie, zapamiętany wybór), sprzedający w zdaniu, brak liczby = „—” (nie zero), próg danych starych 120 dni', () => {
+  const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  const clk = K.clicks.find(c => c[0] === 'click')[1], c = x => su298.cty('pl', x);
+  const btn = {getAttribute: () => '12', closest: s => (s === '#g-surowce button[data-su-bper]' ? btn : null)};
+  clk({target: {closest: s => (s === '#g-surowce button[data-su-bper]' ? btn : null)}});
+  assert.equal(K.api.SU.bper, 12); assert.equal(K.ls['cfai.su.bper'], '12', 'wybór zapamiętany');
+  const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-bk');
+  assert.deepEqual(su298.rows(B).map(r => r[1]), ['+132,7 t', '+84,3 t', '+60,6 t', '+20,5 t', '+0,5 t', '0,0 t', '0,0 t', '−1,0 t', '−5,8 t', '−6,2 t']);
+  assert.equal(su298.rows(B)[0][0].split(' ')[0], c('PL'), 'Polska pierwsza w 12 miesięcy');
+  assert.ok(B.includes(`Najwięcej złota w 12 miesięcy dokupiły: ${c('PL')} (+132,7 t), ${c('CN')} (+84,3 t), ${c('KZ')} (+60,6 t). Zapas zmniejszyły: ${c('RU')} (−6,2 t), ${c('TR')} (−5,8 t), ${c('DE')} (−1,0 t).`));
+  assert.ok(B.includes('data-su-bper="12" aria-pressed="true"') && B.includes('Zmiana zapasu złota w 12 miesięcy, tony'));
+  const K2 = su298.mk('pl', {}, {ls: {'cfai.su.bper': '12'}}); K2.api.suApply(F); assert.equal(K2.api.SU.bper, 12, 'wybór z przeglądarki');
+  const K3 = su298.mk('pl', {}, {ls: {'cfai.su.bper': '7'}}); K3.api.suApply(F); assert.equal(K3.api.SU.bper, 1, 'zła wartość — 1 mies.');
+  const G = su298.file(); G.banki.kr.KZ.m1 = null; G.banki.kr.DE.asof = '2026-05'; G.banki.kr.CZ.asof = '2026-06';
+  const Q = su298.mk('pl'); Q.api.suApply(G); const R = su298.rows(su298.blk(su298.sp(Q.el.innerHTML), 'su-b-bk'));
+  const kz = R.find(r => r[0].startsWith(c('KZ'))); assert.ok(kz[1] === '—' && kz[2] && R[R.length - 1] === kz, 'brak liczby — „—”, kreska, na końcu');
+  assert.ok(R.find(r => r[0].startsWith(c('DE')))[0].includes(' * ') && !R.find(r => r[0].startsWith(c('CZ')))[0].includes('*'), 'maj (130 dni) — gwiazdka; czerwiec (100 dni) — bez');
+  const N = su298.file(); for (const k in N.banki.kr) N.banki.kr[k].m1 = 0; const Q2 = su298.mk('pl'); Q2.api.suApply(N);
+  assert.ok(su298.txt(Q2.el.innerHTML).includes('W ostatnim miesiącu żaden z tych banków nie dokupił złota.'));
+});
+
+test('v298g: pozycje funduszy — 15 rynków w 4 grupach (wspólna skala), netto w % wszystkich otwartych pozycji, strzałka zmiany tygodnia (pkt proc.), stan na dzień tygodnia raportu', () => {
+  const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-poz'), P = F.pozycje;
+  const nm = {wti: 'Ropa WTI', brent: 'Ropa Brent (Londyn)', ng: 'Gaz USA', gasoil: 'Olej napędowy (Londyn)', gold: 'Złoto', silver: 'Srebro', platinum: 'Platyna', palladium: 'Pallad',
+    copper: 'Miedź', corn: 'Kukurydza', wheat: 'Pszenica', soy: 'Soja', coffee: 'Kawa (arabika)', cocoa: 'Kakao (Nowy Jork)', sugar: 'Cukier'};
+  const G = {Energia: [['cftc', 'wti'], ['ice', 'brent'], ['cftc', 'ng'], ['ice', 'gasoil']], 'Metale szlachetne': [['cftc', 'gold'], ['cftc', 'silver'], ['cftc', 'platinum'], ['cftc', 'palladium']],
+    'Metale przemysłowe': [['cftc', 'copper']], Rolne: [['cftc', 'corn'], ['cftc', 'wheat'], ['cftc', 'soy'], ['cftc', 'coffee'], ['cftc', 'cocoa'], ['cftc', 'sugar']]};
+  const f1 = v => (v < 0 ? '−' : v > 0 ? '+' : '') + Math.abs(v).toFixed(1).replace('.', ',') + '%', ar = v => v > 0 ? ' ▲' + v.toFixed(1).replace('.', ',') : v < 0 ? ' ▼' + Math.abs(v).toFixed(1).replace('.', ',') : ' •0,0';
+  const got = {}; B.split('<p class="su-gh">').slice(1).forEach(g => { got[su298.txt(g.slice(0, g.indexOf('</p>')))] = su298.rows(g).map(r => [r[0], r[1]]); });
+  const want = {}; for (const g in G) want[g] = G[g].map(([s, k]) => [nm[k], f1(P[s][k].pct) + ar(P[s][k].d1p)]);
+  assert.deepEqual(got, want, 'grupy, kolejność, % i strzałka');
+  assert.equal(Object.values(got).flat().length, 15); assert.ok(!B.includes('rbob') && !B.includes('Benzyna'), 'rynek spoza listy panelu — nie');
+  assert.ok(B.includes('<span class="wk-bv">+29,6% <small class="neg">▼1,3</small></span>') && B.includes('+10,5% <small class="pos">▲0,2</small>'), 'kolor strzałki wg kierunku');
+  const dom = [...B.matchAll(/<line class="wk-z" x1="([\d.]+)"/g)].map(m => m[1]);
+  assert.ok(dom.length === 15 && new Set(dom).size === 1, 'jedna skala dla wszystkich grup (linia zera w tym samym miejscu)');
+  assert.ok(B.includes(`<p class="pnote">Stan na ${su298.wd('pl', '2026-09-29')} · wiek(2026-09-29) · publikacja zwykle w piątek</p>`), 'stan na dzień tygodnia i datę, wiek; Londyn ta sama data — bez dopisku');
+  const tip = su298.sp(su298.rows(B).find(r => r[0] === 'Złoto')[3]);
+  assert.equal(tip, `Złoto · ${su298.day('pl', '2026-09-29')}: fundusze netto +120 318 kontraktów = +29,6% z 406 456 otwartych pozycji; zmiana w tygodniu: −1,3 pkt proc.`);
+  assert.ok(B.includes('Pasek: przewaga zakładów funduszy na wzrost (zielony) albo na spadek (czerwony)') && B.includes('To nastroje dużych graczy, nie prognoza.'));
+  assert.ok(B.includes('img/flagi/gb.svg') && B.includes('img/glify/oil.svg') && B.includes('img/glify/gold.svg'));
+});
+
+test('v298g: pozycje funduszy — rynek z wcześniejszego raportu (gwiazdka i data), Londyn z inną datą, brak rynku = „—”, brak zmiany tygodnia — bez strzałki; bez danych — bez bloku', () => {
+  const G = su298.file(), P = G.pozycje;
+  P.cftc.cocoa.asof = '2026-09-22'; P.cftc.cocoa.kept = true; P.asof.ice = '2026-09-22'; P.ice.brent.asof = '2026-09-22'; delete P.ice.gasoil; P.cftc.gold.d1p = null;
+  const K = su298.mk('pl'); K.api.suApply(G); const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-poz'), R = su298.rows(B), d = x => su298.day('pl', x);
+  assert.ok(R.find(r => r[0] === 'Kakao (Nowy Jork) *') && B.includes(`<p class="pnote">* Kakao (Nowy Jork): dane z ${d('2026-09-22')} — rynku nie było w najnowszym raporcie.</p>`));
+  assert.ok(R.find(r => r[0] === 'Ropa Brent (Londyn)'), 'Londyn: rynek z datą swojej części — bez gwiazdki');
+  assert.ok(B.includes(` · publikacja zwykle w piątek · Londyn: stan na ${d('2026-09-22')} · wiek(2026-09-22)</p>`), 'Londyn ze swoją datą');
+  const go = R.find(r => r[0] === 'Olej napędowy (Londyn)'); assert.ok(go[1] === '—' && go[2] && su298.sp(go[3]) === 'Olej napędowy (Londyn): brak danych — to nie zero');
+  const au = R.find(r => r[0] === 'Złoto'); assert.ok(au[1] === '+29,6%' && su298.sp(au[3]).endsWith('zmiana w tygodniu: brak danych — to nie zero'), 'bez zmiany tygodnia — bez strzałki');
+  const N = su298.file(); N.pozycje = {unit: 'kontrakty', asof: {}, cftc: {}, ice: {}}; const Q = su298.mk('pl'); Q.api.suApply(N);
+  assert.ok(!Q.el.innerHTML.includes('su-b-poz') && Q.el.innerHTML.includes('su-b-fz'), 'bez rynków — bez bloku pozycji, reszta zostaje');
+});
+
+test('v298g: uran, miedź i inne metale w funduszach fizycznych — kafle (uran w mln funtów i ≈ tonach), historia od 1 dnia = zdanie zamiast wykresu; z historią — wykres uranu i zmiana tygodnia', () => {
+  const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-fiz'), d = x => su298.day('pl', x);
+  const T = id => { const i = B.indexOf(`data-su3="${id}"`); return B.slice(i, B.indexOf('</div>', i)); };
+  assert.deepEqual([...B.matchAll(/data-su3="(\w+)"/g)].map(m => m[1]), ['SPUT', 'COP', 'PSLV', 'SPPP_pt', 'SPPP_pd']);
+  assert.ok(T('SPUT').includes('Uran (SPUT)</span><b>81,70 <small class="mtxt">mln funtów</small></b><small class="mtxt su-t">≈ 37 057 t</small>'), T('SPUT'));
+  assert.ok(T('COP').includes('Miedź (COP)</span><b>14 559 <small class="mtxt">t</small></b>') && T('PSLV').includes('<b>6444,48 ') && T('SPPP_pt').includes('Platyna (SPPP)</span><b>6,22 ') && T('SPPP_pd').includes('Pallad (SPPP)</span><b>4,83 '));
+  for (const id of ['SPUT', 'COP', 'PSLV', 'SPPP_pt', 'SPPP_pd']) assert.ok(T(id).includes('zbieramy dane od ' + d('2026-10-06')) && T(id).includes(d('2026-10-06') + ' · wiek(2026-10-06)'), id);
+  assert.ok(!B.includes('<p class="wk-sub">') && B.includes('Te fundusze podają tylko bieżący stan — wykresy pojawią się, gdy zbierzemy historię.'), 'jeden dzień — bez wykresu');
+  assert.ok(B.includes('<div class="etfkpis su-kf">') && B.includes('img/glify/copper.svg'));
+  const G = su298.file(), S = G.fundusze.f.SPUT; S.d = [['2026-09-28', 80.9], ['2026-09-29', 81.2], ['2026-09-30', 81.2], ['2026-10-01', 81.3], ['2026-10-02', 81.4], ['2026-10-05', 81.5], ['2026-10-06', 81.697]];
+  S.w1 = ['2026-09-29', 0.497]; G.fundusze.f.COP.w1 = ['2026-09-29', 125]; G.fundusze.f.COP.d = [['2026-09-29', 14434], ['2026-10-06', 14559]];
+  const Q = su298.mk('pl', su298.files(G)); Q.api.suApply(G); const B2 = su298.blk(su298.sp(Q.el.innerHTML), 'su-b-fiz');
+  const T2 = id => { const i = B2.indexOf(`data-su3="${id}"`); return B2.slice(i, B2.indexOf('</div>', i)); };
+  assert.ok(T2('SPUT').includes('<small class="pos">▲ +0,50 mln funtów w tygodniu</small>') && T2('COP').includes('<small class="pos">▲ +125 t w tygodniu</small>'), 'zmiana z jednostką; miedź w pełnych tonach');
+  assert.ok(B2.includes('<p class="wk-sub"><b>Uran w funduszu SPUT</b> · mln funtów · od ' + d('2026-09-28') + '</p>') && B2.includes('<p class="wk-sub"><b>Miedź w funduszu COP</b> · t · od ' + d('2026-09-29') + '</p>'));
+  assert.ok(!B2.includes('Te fundusze podają tylko bieżący stan'), 'jest wykres — bez zdania o braku historii');
+  assert.ok(!B2.includes('Srebro w funduszu') && !B2.includes('wk-sub"><b>Platyna'), 'wykresy tylko uranu i miedzi (plan D5)');
+});
+
+test('v298g: błąd części pozycje / fundusze / banki — zdanie jak dla części A–C (z danymi: wcześniejsze dane; bez danych: jeszcze nie pobrano); żadnej części i błędu — bez nagłówka D', () => {
+  const G = su298.file(); G.ok.fundusze = false; G.ok.banki = false; delete G.banki;
+  const K = su298.mk('pl'); K.api.suApply(G); const h = su298.txt(K.el.innerHTML);
+  assert.ok(h.includes('Ostatnie pobranie części danych się nie udało (metale w funduszach) — pokazujemy wcześniejsze dane z ich datą.'), 'fundusze z danymi');
+  assert.ok(h.includes('Części danych jeszcze nie pobrano (złoto banków centralnych) — pojawią się po pierwszym udanym pobraniu.'), 'banki bez danych');
+  assert.ok(!K.el.innerHTML.includes('su-b-bk') && K.el.innerHTML.includes('su-b-fz'));
+  const N = su298.file(); delete N.pozycje; delete N.fundusze; delete N.banki; N.ok.pozycje = false;
+  const Q = su298.mk('pl'); Q.api.suApply(N); const q = su298.txt(Q.el.innerHTML);
+  assert.ok(q.includes('Dokąd płynie kapitał w surowcach') && q.includes('jeszcze nie pobrano (pozycje funduszy na giełdach)') && !Q.el.innerHTML.includes('su-b-'+'fz'), 'tylko błąd — nagłówek ze zdaniem');
+  assert.equal(Q.api.su3Has('pozycje'), false); assert.equal(K.api.su3Has('fundusze'), true); assert.equal(K.api.su3Has('banki'), false);
+  const E = su298.file(); delete E.pozycje; delete E.fundusze; delete E.banki; for (const k of ['pozycje', 'fundusze', 'banki']) delete E.ok[k];
+  const Z = su298.mk('pl'); Z.api.suApply(E); assert.ok(!Z.el.innerHTML.includes('Dokąd płynie'), 'brak części i błędu — bez części D');
+  /* zepsute wpisy — bez wyjątku, „—” */
+  const X = su298.file(); X.fundusze.f.GLD.d = 'x'; X.fundusze.suma.au_usa = null; X.banki.kr.PL = {asof: 'zly'}; X.pozycje.cftc.gold = {asof: '2026-09-29', pct: Infinity};
+  const W = su298.mk('pl'); W.api.suApply(X); const w = su298.sp(W.el.innerHTML);
+  assert.ok(su298.blk(w, 'su-b-fz').includes('data-su3="GLD"><span>') && su298.blk(w, 'su-b-fz').includes('<b class="na">—</b>') && !w.includes('NaN') && !w.includes('undefined'));
+  assert.ok(!su298.rows(su298.blk(w, 'su-b-bk')).some(r => r[0].includes(su298.cty('pl', 'PL'))) && su298.rows(su298.blk(w, 'su-b-poz')).find(r => r[0] === 'Złoto')[1] === '—');
+});
+
+test('v298g: 10 języków — część D narysowana w każdym języku (wszystkie bloki rozwinięte, z historią), bez surowych kluczy i bez nazw dostawców (strażnik v126.2); tona w zapisie języka', () => {
+  const unit = {pl: 't', en: 't', de: 't', es: 't', fr: 't', it: 't', pt: 't', ru: 'т', zh: '吨', ja: 'トン'};
+  for (const L of G126_L10) {
+    const F = su298.file(), K = su298.mk(L, su298.files(F)); K.api.suApply(F); K.el.open = ['su-b-fz', 'su-b-bk', 'su-b-poz', 'su-b-fiz']; K.api.renderSu();
+    const h = K.el.innerHTML, E = v96src.I18N[L], D = h.slice(h.indexOf(E['su298g.h.d']));
+    assert.ok(h.includes('<b>' + E['su298g.h.d'] + '</b>') && ['su-b-fz', 'su-b-bk', 'su-b-poz', 'su-b-fiz'].every(id => h.includes(`id="${id}"`)), L + ': część D');
+    assert.ok(!/su29[58]g\.|su297g\./.test(h) && !h.includes('undefined') && !h.includes('NaN'), L + ': surowe klucze albo puste wartości');
+    assert.ok(su298.blk(h, 'su-b-fz').includes('data-su3="GLD"') && su298.rows(su298.blk(h, 'su-b-poz')).length === 15 && su298.rows(su298.blk(h, 'su-b-bk')).length === 10, L + ': kafle, rynki, kraje');
+    assert.ok(D.includes(' ' + unit[L] + ' ') || D.includes(unit[L] + '</small>'), L + ': jednostka ' + unit[L]);
+    const bad = []; for (const [s] of G126.segs([{k: 'html', v: D, id: 'g-surowce'}])) { const x = G126_NAMES.check(s, L); if (x.length) bad.push(s + ' → ' + x[0]); }
+    assert.deepEqual(bad, [], L + ': nazwy źródeł w części D');
+  }
+});
+
+test('v298g: słownik su298g — ostatni, czysty JSON, te same klucze i zmienne w 10 językach, prawdziwe tłumaczenia; kod: historia tylko po rozwinięciu, przełącznik banków, styl telefonu', () => {
+  const mm = [...html.matchAll(/const (EXTRA\d+)=(\{[^\n]*\});\nfor\(const l in \1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)], last = mm[mm.length - 1];
+  const D = mm.find(m => m[2].includes('"su298g.h.d"')); assert.ok(D, 'słownik su298g');
+  const S = JSON.parse(D[2]), K = Object.keys(S.pl), V = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(S), G126_L10, '10 języków');
+  assert.ok(K.length >= 70 && K.every(k => k.startsWith('su298g.')), 'przedrostek kluczy');
+  for (const L of G126_L10) { assert.deepEqual(Object.keys(S[L]), K, L + ': klucze'); for (const k of K) assert.ok(typeof S[L][k] === 'string' && S[L][k].trim() && V(S[L][k]) === V(S.pl[k]), L + ' ' + k); }
+  for (const L of G126_L10.slice(1)) { const same = K.filter(k => S[L][k] === S.pl[k] && !/^su298g\.(u\.t|au\.tw|fz\.lbt)$/.test(k)); assert.ok(same.length <= 3, L + ': nieprzetłumaczone: ' + same.join(', ')); }
+  assert.ok(+last[1].slice(5) >= +D[1].slice(5), 'słownik su298g nałożony po wcześniejszych (numer = najwyższy + 1 w chwili łatki)');
+  assert.ok(html.includes("const SU_HB=['su-b-gaz','su-b-fao','su-b-cg','su-b-fz','su-b-fiz'];"), 'historia (f, fs) po rozwinięciu złota i metali');
+  assert.ok(html.includes("function suLoad(){srvJSON('surowce').then(suApply);srvJSON('usa-makro').then(suMApply);}"), 'przy starcie bez nowych pobrań');
+  assert.ok(html.includes("const bb=tg.closest('#g-surowce button[data-su-bper]');") && html.includes("localStorage.setItem('cfai.su.bper',String(p))"), 'przełącznik banków w słuchaczu panelu');
+  assert.ok(html.includes('#g-surowce .su-poz .wk-bt{grid-column:1/-1;grid-row:2}') && html.includes('#g-surowce .su-kf{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}'), 'telefon 390 px: pasek pozycji pod nazwą, kafle metali w 2 kolumnach');
+  const b = su295.blk; assert.ok(b.indexOf('function su3D(){') > 0 && b.indexOf('function su3D(){') < b.indexOf('function renderSu(){') && b.includes("${blocks}`:'')+su3D()+"), 'część D w bloku panelu, przed stopką');
+});
