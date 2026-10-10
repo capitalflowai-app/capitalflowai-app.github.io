@@ -1551,9 +1551,12 @@ def parse_stabc(j, top=14):
             'total': [round(tot(1)), round(tot(2)), round(tot(3)), round(tot(4))], 'rows': rows[:top]}
 
 
-def parse_stabh(j):
+def parse_stabh(j, now=None):
     """DefiLlama stablecoincharts/all → podaż stablecoinów w USD (totalCirculatingUSD.peggedUSD) teraz i zmiany za 1, 7, 30, 91, 365 dni
-    (wartość z ostatniego dnia nie później niż N dni wstecz). To zmiana podaży = emisja − umorzenia, nie zmiana ceny."""
+    (wartość z ostatniego dnia nie później niż N dni wstecz). To zmiana podaży = emisja − umorzenia, nie zmiana ceny.
+    v315 (TR7-2): d/pct liczone od punktu BIEŻĄCEJ doby, który jeszcze się zmienia (10.10.2026 o 07:21 UTC „7 dni” = 6⅓ doby); obok pole pelne —
+    zmiany 7 i 30 PEŁNYCH dób do ostatniej zamkniętej doby UTC względem `now` (chwila pobrania; _stabh_pelne) — panel stablecoinów CRYPTO i
+    „Bilans przepływu kapitału”, ta sama definicja co TRENDY (_tr_flows: stable). Bez zamkniętej doby w historii — bez pola."""
     if not isinstance(j, list) or len(j) < 40:
         raise RuntimeError('stablecoincharts: za krótka seria')
     pts = []
@@ -1576,6 +1579,9 @@ def parse_stabh(j):
         if prev:
             out['d'][str(n)] = round(cur - prev[-1]); out['pct'][str(n)] = round((cur / prev[-1] - 1) * 100, 4)
     out['dd'] = _stabh_dd(pts)   # v89: dni do TRENDÓW; v124: do STABH_KEEP = 400 dni kalendarzowych (blok v124 przed main())
+    pe = _stabh_pelne(out['dd'], (now or _now_utc()).astimezone(datetime.timezone.utc).date().isoformat())   # v315 (TR7-2): pełne doby
+    if pe:
+        out['pelne'] = pe
     return out
 
 
@@ -15837,6 +15843,28 @@ def _stabh_dd(pts):
     return [[k, by[k]] for k in sorted(by) if k >= lo]
 
 
+STABH_PELNE = (7, 30)   # v315 (TR7-2): okna zmian podaży z pełnych dób (stabh.pelne) — panel stablecoinów CRYPTO i bilans kapitału
+
+
+def _stabh_pelne(dd, dzis):
+    """v315 (TR7-2): zmiany podaży z PEŁNYCH dób UTC kończących się na ostatniej zamkniętej dobie — ostatni dzień dd przed `dzis` (dzień UTC
+    chwili pobrania), bo punkt bieżącej doby wciąż się zmienia (10.10.2026 o 07:21 UTC stabh.d['7'] = 10.10 minus 03.10 = ok. 6⅓ doby: −911 mln
+    USD; 7 pełnych dób do 09.10: +95 mln, jak w TRENDACH, które liczą dzienne zmiany bez dzisiejszego dnia). dd: [[dzień, USD], …] (_stabh_dd).
+    → {'do': ostatnia zamknięta doba, 'od': {N: dzień}, 'd': {N: USD}, 'pct': {N: %}} dla N z STABH_PELNE — okno N tylko, gdy w dd jest dzień
+    dokładnie N dni wcześniej (brak dnia = brak okna, nigdy sąsiedni dzień); bez zamkniętej doby w dd = None."""
+    M = {r[0]: r[1] for r in dd or [] if isinstance(r, (list, tuple)) and len(r) == 2 and _d(r[0]) and _isnum(r[1]) and r[1] > 0}
+    zam = sorted(x for x in M if x < dzis)
+    if not zam:
+        return None
+    do = zam[-1]
+    out = {'do': do, 'od': {}, 'd': {}, 'pct': {}}
+    for n in STABH_PELNE:
+        od, k = (_d(do) - datetime.timedelta(days=n)).isoformat(), str(n)
+        if od in M:
+            out['od'][k], out['d'][k], out['pct'][k] = od, round(M[do] - M[od]), round((M[do] / M[od] - 1) * 100, 4)
+    return out
+
+
 # ===================== v124: SIEĆ BITCOIN — opłaty, kolejka transakcji, moc obliczeniowa (publiczne eksploratory łańcucha, bez klucza) =====================
 # Plik data/lancuch.json — stan sieci Bitcoin z pierwszej ręki (węzły publicznych eksploratorów łańcucha), bez klucza:
 #   fees       zalecane opłaty (sat/vB): następny blok, pół godziny, godzina, oszczędnie, minimum — co przebieg (20 min);
@@ -22034,6 +22062,7 @@ RWE_XS_BEZ_MAX = 100      # v311: xStocks — najwyżej tyle tokenów z dowodem 
 RWE_XS_BEZ_SYM = 5        # v311: tyle symboli pominiętych tokenów zapisujemy w pliku (kontrola: „np. …”)
 RWE_XS_OBIEG_W = 6        # v311: zapytania o liczbę tokenów w obiegu równolegle (tylko tokeny bez dowodu; 10.10: 58 zapytań po ok. 0,2 s)
 RWE_SEC_OKNO = (19 * 60, 21 * 60)   # v311: min doby UTC [od, do) — znane okno pustej listy kanału agenta transferowego (_rwe_bez_nowych)
+RWE_SEC_OKNO_PV_H = 36   # v315 (recenzja v311): okno tylko, gdy poprzedni odczyt (pv: read) ma najwyżej tyle godzin (max_h produktów kanału)
 RWE_OTHER_MAX = 0.005     # cfg: tokeny w pulach innej waluty (bez kursu): do 0,5% wartości pominięte z notatką, więcej = produkt bez wyceny
 RWE_HD_DAYS = 31          # dni zapisu „co liczyliśmy wg emitentów” (kontrola: skok sumy przy zmianie zbioru)
 RWE_START_MIN = 120       # min — plik bez danych emitentów (pierwsze przebiegi po wdrożeniu) przebudowany po tylu minutach, nie po RWA_EVERY
@@ -22170,9 +22199,11 @@ def rwe_spiko(tmo, fx, get=None):
 def rwe_sec_parse(j, sym):
     """Kanał agenta transferowego (asset-stats) → {'v': Σ aum USD, 'as_of': najstarszy stan wierszy, 'n': sieci, 'u': Σ jednostek}; wiersz innego
     symbolu, liczby złe albo niespójne (aum ≠ jednostki × wycena o więcej niż 1%), zły stan, brak wierszy = wyjątek. v311: pusta lista (albo pole
-    data null) — RweBezNowych z tym samym opisem: w znanym oknie dziennym RWE_SEC_OKNO to nie błąd, tylko „bez nowych danych” (rwe_blok)."""
+    data null) — RweBezNowych z tym samym opisem: w znanym oknie dziennym RWE_SEC_OKNO to nie błąd, tylko „bez nowych danych” (rwe_blok).
+    v315 (recenzja v311): tylko gdy klucz data JEST w odpowiedzi (data [] albo null) — sam komunikat bez pola data (np. {"message": …}) to
+    błąd jak dotąd, nie „pusta lista”."""
     D = j.get('data') if isinstance(j, dict) else None
-    if isinstance(j, dict) and (D is None or D == []):
+    if isinstance(j, dict) and 'data' in j and (D is None or D == []):
         raise RweBezNowych('brak wierszy danych', pusta=1)
     if not isinstance(D, list) or not 1 <= len(D) <= 100:
         raise ValueError('brak wierszy danych')
@@ -22528,15 +22559,22 @@ def _rwe_xs_bez(B, R, obieg, tot, ogon):
     return {'n': len(B), 'max_usd': round(gb), 'obieg': round(ob, 4), 'sym': [s for s, _n in B[:RWE_XS_BEZ_SYM]]}
 
 
-def rwe_xs_obieg(S, tmo, get=None):
+def rwe_xs_obieg(S, tmo, get=None, sleep=None):
     """v311: liczba tokenów w obiegu wg publicznego API emitenta (GET, bez klucza) dla symboli S → {symbol: liczba albo None (błąd sieci, budżet,
-    zły kształt)}; najwyżej RWE_XS_OBIEG_W zapytań naraz, każde z limitem tmo() (budżet kroku). Odpowiedź {"value": liczba} albo sama liczba."""
+    zły kształt)}; najwyżej RWE_XS_OBIEG_W zapytań naraz, każde z limitem tmo() (budżet kroku). Odpowiedź {"value": liczba} albo sama liczba.
+    v315 (recenzja v311): po chwilowym błędzie (_rwe_ponow: przekroczony czas, zerwane połączenie, HTTP 429 albo 5xx) jedna ponowna próba po
+    RWE_PRZERWA s, w tym samym budżecie (RWE_PROBY próby, jak odczyt produktu) — dotąd jedna chwilowa awaria z ok. 58 zapytań odrzucała cały
+    odczyt xStocks (brak liczby → ValueError, którego rwe_odczyt nie ponawia). 4xx, zły kształt i koniec budżetu — bez ponowienia."""
     def jeden(s):
-        try:
-            j = _rwe_json(RWE_XS_OBIEG.format(urllib.parse.quote(s, safe='')), tmo(), get)
-            return s, _rwc_rez_num(j.get('value') if isinstance(j, dict) else j)
-        except Exception:  # noqa — bez liczby: token bez granicy = odczyt odrzucony (_rwe_xs_bez), nigdy zero
-            return s, None
+        for i in range(RWE_PROBY):
+            try:
+                j = _rwe_json(RWE_XS_OBIEG.format(urllib.parse.quote(s, safe='')), tmo(), get)
+                return s, _rwc_rez_num(j.get('value') if isinstance(j, dict) else j)
+            except Exception as e:  # noqa — bez liczby: token bez granicy = odczyt odrzucony (_rwe_xs_bez), nigdy zero
+                if i + 1 >= RWE_PROBY or not _rwe_ponow(e):
+                    return s, None
+                (sleep or time.sleep)(RWE_PRZERWA)
+        return s, None
     with _rwa_cf.ThreadPoolExecutor(max(1, min(RWE_XS_OBIEG_W, len(S)))) as ex:
         return dict(ex.map(jeden, S))
 
@@ -22596,7 +22634,7 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
             return rwe_ondo_gm_parse(strona(RWE_ONDO), stamp)   # v302: punkt zakończonej doby względem chwili odczytu
         if k == 'xs':   # v311: liczba tokenów w obiegu tylko dla tokenów bez dowodu rezerw (GET, ten sam budżet kroku)
             return rwe_xs_parse(post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': RWE_XS_VAR}, timeout=tmo()), fx,
-                                obieg=lambda S: rwe_xs_obieg(S, tmo, get))
+                                obieg=lambda S: rwe_xs_obieg(S, tmo, get, sleep))   # v315: ponowna próba z tym samym `sleep`
         raise ValueError(f'nieznany rodzaj {k}')
 
     def one(slug):
@@ -22641,7 +22679,8 @@ def _rwe_vb(prev_em, slug):
     return rwa_num(o.get('vb')) or rwa_num(o.get('v'))
 
 
-RWE_BN_OPIS = {'gm': 'punkt zakończonej doby taki sam jak przyjęty wcześniej tej doby (punkt bieżącej doby różni się od niego o ponad 2%)',
+RWE_BN_OPIS = {'gm': 'punkt zakończonej doby taki sam jak przyjęty wcześniej tej doby (punkt bieżącej doby różni się od niego o ponad '
+                     f'{RWE_GM_ZGODA * 100:g}%)',   # v315 (recenzja v311): próg ze stałej, nie na sztywno
                'okno': f'pusta lista kanału w znanym oknie dziennym {RWE_SEC_OKNO[0] // 60:02d}:00–{RWE_SEC_OKNO[1] // 60:02d}:00 UTC'}
 
 
@@ -22651,9 +22690,12 @@ def _rwe_bez_nowych(c, bn, pv, at):
       TEJ doby UTC (pv: odczyt tej doby — wtedy sprawdzony z nagłówkiem strony). Wieczorem, gdy na wykresie jest już punkt bieżącej doby,
       a zmiana dnia przekracza RWE_GM_ZGODA, punktu zakończonej doby nie da się sprawdzić nagłówkiem (od 06.2026 ok. co czwarty dzień, v307) —
       ale nic nowego się nie pojawiło: w sumach zostaje ten sam punkt, bez błędu do północy (recenzja v307);
-    * kanał agenta transferowego (sec) — pusta lista (bn: pusta) w znanym oknie dziennym RWE_SEC_OKNO UTC: 06.10.2026 19:23 (MI4 i STAC)
-      i 07.10 19:25 UTC (MI4) — pusta lista, odczyty 18:24 i 20:34 UTC — pełne; innych odczytów w tym oknie w historii kontroli nie ma (RWA co
-      3 h). Okno 19:00–21:00 UTC obejmuje też przesunięcie o godzinę po zmianie czasu w USA albo w Europie. Poza oknem — błąd jak dotąd.
+    * kanał agenta transferowego (sec; reguła obejmuje wszystkie 6 produktów kanału — BCAP, MI4, ACRED, VBILL, STAC, HLSCOPE; dowody tylko dla
+      MI4 i STAC) — pusta lista (bn: pusta) w znanym oknie dziennym RWE_SEC_OKNO UTC. Historia kontroli (24 odczyty, RWA co 3 h): w oknie
+      19:00–21:00 UTC 3 odczyty, z nich 2 z 3 puste (06.10.2026 19:23 — MI4 i STAC; 07.10 19:25 — MI4), trzeci (20:34) pełny; poza oknem 0
+      pustych. Okno obejmuje też przesunięcie o godzinę po zmianie czasu w USA albo w Europie. Poza oknem — błąd jak dotąd. v315 (recenzja
+      v311): tylko przy poprzednim odczycie (pv: read) najwyżej RWE_SEC_OKNO_PV_H godzin przed tym odczytem — starszy (w pliku do 7 dni) to
+      błąd jak dotąd (bez świeżego przyjętego stanu „bez nowych danych” nic nie znaczy).
     Inaczej None (błąd jak dotąd)."""
     k = c.get('kind')
     if k == 'ondo_gm':
@@ -22662,8 +22704,9 @@ def _rwe_bez_nowych(c, bn, pv, at):
                 and round(v, 2) == round(float(pv['v']), 2) and r[:10] == str(_rwe_iso(at) or '')[:10]):
             return 'gm'
     elif k == 'sec' and bn.get('pusta') == 1:
-        t = _rwe_iso(at)
-        if t is not None and RWE_SEC_OKNO[0] <= int(t[11:13]) * 60 + int(t[14:16]) < RWE_SEC_OKNO[1]:
+        t, r = _rwe_iso(at), _rwe_iso(pv.get('read'))
+        if (t is not None and r is not None and RWE_SEC_OKNO[0] <= int(t[11:13]) * 60 + int(t[14:16]) < RWE_SEC_OKNO[1]
+                and 0 <= (datetime.datetime.fromisoformat(t) - datetime.datetime.fromisoformat(r)).total_seconds() <= RWE_SEC_OKNO_PV_H * 3600):
             return 'okno'
     return None
 

@@ -3773,6 +3773,7 @@ RWE_K_BEZ_UWAGA = 0.05     # v311: % wartości produktu — granica pominiętych
                            # (ws53/v311-xstocks/bt/bt_xs311.out): żywe 10.10.2026 — 58 tokenów, ok. 0,003% (ceny akcji ok. 150 USD; 0,11% nawet przy
                            # 5 870 USD za każdą); token „pusty” jak dzisiejsze przy najwyższej cenie akcji na stronie — 0,0037% (0 fałszywych ⚠️ z 1000);
                            # brak dowodu u prawdziwego tokenu w obiegu — ⚠️ od ok. 234 tys. USD wartości (92 z 713 takich przypadków na nagraniu 05.10)
+RWE_SEC_OKNO = (19 * 60, 21 * 60)   # v315 (recenzja v311): to samo okno co RWE_SEC_OKNO w zbieraj_dane.py (test pilnuje zgodności) — opis z wartości
 
 
 def rwe_swiezosc(j, now=None):
@@ -3873,7 +3874,8 @@ def rwe_porownanie(j, now=None):
     bnn = [(nm(s), p['bn']) for s, p in sorted(P.items()) if isinstance(p, dict) and p.get('bn') in ('gm', 'okno')]
     if bnn:   # v311: ostatni odczyt bez nowych danych (nie błąd — w sumach poprzedni odczyt z jego stanem) — informacja
         cz.append('bez nowych danych w ostatnim odczycie (to nie błąd, w sumach poprzedni odczyt): ' + '; '.join(
-            f'{n} — ' + ('punkt dnia taki sam jak przyjęty wcześniej tej doby' if b == 'gm' else 'pusta lista kanału w znanym oknie dziennym 19–21 UTC')
+            f'{n} — ' + ('punkt dnia taki sam jak przyjęty wcześniej tej doby' if b == 'gm' else
+                         f'pusta lista kanału w znanym oknie dziennym {RWE_SEC_OKNO[0] // 60}–{RWE_SEC_OKNO[1] // 60} UTC')   # v315: z wartości okna
             for n, b in bnn) + ' ℹ️')
     if braki:
         cz.append('bez bieżących danych emitenta (poza sumami): ' + '; '.join(braki[:4]) + ' ℹ️')

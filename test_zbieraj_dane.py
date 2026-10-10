@@ -37303,11 +37303,11 @@ class XstocksBezDowoduV311(unittest.TestCase):
 
     # ---------------------------------------------------------------- (2) kanał agenta — pusta lista; (3) Ondo GM — ten sam punkt
     def test_kanal_pusta_lista_to_bez_nowych(self):
-        for j in ({'message': 'Query executed successfully', 'data': [], 'result': 0}, {'data': None}, {'message': 'x'}):
+        for j in ({'message': 'Query executed successfully', 'data': [], 'result': 0}, {'data': None}):   # v315 (recenzja v311): {'message': 'x'} bez pola data — niżej, błąd
             with self.assertRaises(zd.RweBezNowych) as c:
                 zd.rwe_sec_parse(j, 'MI4')
             self.assertEqual((str(c.exception), c.exception.bn), ('brak wierszy danych', {'pusta': 1}))
-        for zle in ('x', [], {'data': 'x'}, {'data': [{}] * 101}):
+        for zle in ('x', [], {'data': 'x'}, {'data': [{}] * 101}, {'message': 'x'}):   # v315 (recenzja v311): sam komunikat bez pola data — błąd, nie „pusta lista”
             with self.assertRaises(ValueError) as c:
                 zd.rwe_sec_parse(zle, 'MI4')
             self.assertNotIsInstance(c.exception, zd.RweBezNowych, zle)
@@ -37848,3 +37848,178 @@ class GlobalV314Fundusze(unittest.TestCase):
                          ['fundusze ETF: 1 problemów, np. limit czasu kroku funduszy (240 s) — reszta w kolejnym przebiegu'],
                          'limit czasu w liczniku funduszy GLOBAL (czas skończył się przy nich)')
         self.assertEqual(([n for n in zd.META['notes'] if 'surowc' in n], zd.META['errors']), ([], []), 'bez uwagi funduszy surowcowych')
+
+
+class StablecoinyPelneDobyV315(unittest.TestCase):
+    """v315 (TR7-2, strona CRYPTO): krypto.json → stabh.pelne — zmiany podaży stablecoinów z 7 i 30 PEŁNYCH dób do ostatniej zamkniętej doby UTC
+    (ta sama definicja co TRENDY), obok dotychczasowych d/pct (od punktu bieżącej, niepełnej doby). Dzienne punkty z migawki m7 (krypto.json,
+    10.10.2026 07:21 UTC: „Zmiana 7 dni” −911 mln USD = 6⅓ doby, w TRENDACH +95 mln za 7 dób do 09.10). Czas przypięty, bez sieci."""
+    U = datetime.timezone.utc
+    DD = [['2026-09-01', 307292864580], ['2026-09-02', 307265283545], ['2026-09-03', 307630220101], ['2026-09-04', 308676336604],
+          ['2026-09-05', 308865619966], ['2026-09-06', 308927744048], ['2026-09-07', 308955237485], ['2026-09-08', 308818960271],
+          ['2026-09-09', 309057822174], ['2026-09-10', 308905223490], ['2026-09-11', 308547158774], ['2026-09-12', 308735800482],
+          ['2026-09-13', 308713430563], ['2026-09-14', 308599085653], ['2026-09-15', 308786489508], ['2026-09-16', 308019810194],
+          ['2026-09-17', 308007819544], ['2026-09-18', 308019607521], ['2026-09-19', 308517994740], ['2026-09-20', 308494066876],
+          ['2026-09-21', 308676709792], ['2026-09-22', 310349625823], ['2026-09-23', 307918173387], ['2026-09-24', 307161812723],
+          ['2026-09-25', 308512905448], ['2026-09-26', 307796037980], ['2026-09-27', 310086306934], ['2026-09-28', 311470047825],
+          ['2026-09-29', 311261810601], ['2026-09-30', 311200297805], ['2026-10-01', 310711423887], ['2026-10-02', 311516937639],
+          ['2026-10-03', 311894350575], ['2026-10-04', 311974411500], ['2026-10-05', 312216069375], ['2026-10-06', 312670377396],
+          ['2026-10-07', 312806553537], ['2026-10-08', 312243322681], ['2026-10-09', 311611497263], ['2026-10-10', 310982936603]]
+
+    DD5 = [[f'2026-08-{d}', 307000000000] for d in range(27, 32)]   # 5 dni wcześniej — parse_stabh chce co najmniej 40 punktów (testy z luką)
+
+    def setUp(self):
+        for nazwa in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, nazwa, side_effect=AssertionError('test nie może pytać sieci')))
+
+    def _j(self, dd):
+        return [{'date': str(int(datetime.datetime.fromisoformat(d + 'T00:00:00+00:00').timestamp())), 'totalCirculatingUSD': {'peggedUSD': v}} for d, v in dd]
+
+    def test_migawka_10_10_jak_trendy(self):
+        h = zd.parse_stabh(self._j(self.DD), now=datetime.datetime(2026, 10, 10, 7, 21, 29, tzinfo=self.U))
+        self.assertEqual((h['asof'], h['d']['7'], h['d']['30']), ('2026-10-10', -911413972, 2077713113), 'd jak dotąd — od punktu bieżącej doby (GLOBAL, scena)')
+        self.assertEqual(h['pelne'], {'do': '2026-10-09', 'od': {'7': '2026-10-02', '30': '2026-09-09'}, 'd': {'7': 94559624, '30': 2553675089},
+                                      'pct': {'7': 0.0304, '30': 0.8263}})
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 10, 10, 7, 30, tzinfo=self.U)):
+            s = {r['id']: r for r in zd.build_trendy({'krypto': {'stabh': h}})['f']}['stab']
+        self.assertEqual((s['date'], s['w']), ('2026-10-09', round(h['pelne']['d']['7'] / 1e6, 2)), 'ta sama liczba co TRENDY (7 dób do 09.10: +94,56 mln)')
+
+    def test_po_polnocy_i_bez_punktu_biezacej_doby(self):
+        h = zd.parse_stabh(self._j(self.DD5 + self.DD[:-1]), now=datetime.datetime(2026, 10, 10, 0, 20, tzinfo=self.U))
+        self.assertEqual((h['pelne']['do'], h['pelne']['d']['7']), ('2026-10-09', 94559624), 'dostawca bez punktu 10.10 — ostatni punkt to zamknięta doba')
+        h2 = zd.parse_stabh(self._j(self.DD), now=datetime.datetime(2026, 10, 11, 0, 20, tzinfo=self.U))
+        self.assertEqual((h2['pelne']['do'], h2['pelne']['od']['7'], h2['pelne']['d']['7']), ('2026-10-10', '2026-10-03', 310982936603 - 311894350575),
+                         'po północy UTC punkt 10.10 to już pełna doba')
+
+    def test_luka_brak_zamknietej_doby_i_zly_zapis(self):
+        now = datetime.datetime(2026, 10, 10, 7, 21, tzinfo=self.U)
+        h = zd.parse_stabh(self._j(self.DD5 + [r for r in self.DD if r[0] != '2026-10-02']), now=now)
+        self.assertEqual((h['pelne']['do'], sorted(h['pelne']['d']), sorted(h['pelne']['od'])), ('2026-10-09', ['30'], ['30']),
+                         'brak dnia początku okna = brak okna (nigdy sąsiedni dzień)')
+        self.assertNotIn('pelne', zd.parse_stabh(self._j(self.DD), now=datetime.datetime(2026, 9, 1, 12, tzinfo=self.U)), 'bez zamkniętej doby — bez pola')
+        self.assertIsNone(zd._stabh_pelne([['2026-10-10', 3e11]], '2026-10-10'))
+        for zly in (None, [], [None], [['x', 1]], [['2026-10-01', 0]], [['2026-10-01', None]], [['2026-10-01', True]], [['2026-10-01', 1, 2]]):
+            self.assertIsNone(zd._stabh_pelne(zly, '2026-10-10'), zly)
+        self.assertEqual(zd.STABH_PELNE, (7, 30))
+
+    def test_bez_now_zegar_zbieracza(self):
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 10, 10, 7, 21, tzinfo=self.U)):
+            self.assertEqual(zd.parse_stabh(self._j(self.DD))['pelne']['do'], '2026-10-09')
+        with mock.patch.object(zd, '_now_utc', return_value=datetime.datetime(2026, 10, 10, 1, 21, tzinfo=datetime.timezone(datetime.timedelta(hours=2)))):
+            self.assertEqual(zd.parse_stabh(self._j(self.DD))['pelne']['do'], '2026-10-08', 'dzień UTC (01:21 +02:00 = 09.10 23:21 UTC)')
+
+
+class XstocksObiegPonowV315(unittest.TestCase):
+    """v315 (recenzja v311): liczba tokenów w obiegu — jedna ponowna próba po chwilowym błędzie (HTTP 503 / 429, przekroczony czas, zerwane
+    połączenie) w budżecie kroku, po RWE_PRZERWA s; 4xx, zły kształt, brak liczby i koniec budżetu — bez ponowienia (jak dotąd). Dotąd jedna
+    chwilowa awaria z ok. 58 zapytań odrzucała cały odczyt xStocks. Atrapy sieci, `sleep` podany (bez czekania)."""
+    NOW = datetime.datetime(2026, 10, 10, 6, 42, 9, tzinfo=datetime.timezone.utc)
+    FX = {'d': '2026-10-09', 'rates': {'HKD': 7.78, 'GBP': 0.75}}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        for nazwa in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, nazwa, side_effect=AssertionError('test nie może pytać sieci')))
+
+    @staticmethod
+    def _get(plan, calls):
+        def get(url, headers=None, timeout=60):
+            calls.append(url)
+            r = plan[url].pop(0)
+            if isinstance(r, BaseException):
+                raise r
+            return r
+        return get
+
+    def test_ponowienie_po_chwilowym_bledzie(self):
+        U = zd.RWE_XS_OBIEG.format
+        for e in (_uerr_v133.HTTPError(U('RACEx'), 503, 'x', {}, None), _uerr_v133.HTTPError(U('RACEx'), 429, 'x', {}, None), TimeoutError('timed out'),
+                  ConnectionResetError('reset'), _uerr_v133.URLError('down')):
+            calls, sl = [], []
+            get = self._get({U('RACEx'): [e, b'{"value":2}'], U('NTESx'): [b'1.5']}, calls)
+            self.assertEqual(zd.rwe_xs_obieg(['RACEx', 'NTESx'], lambda: 5.0, get, sl.append), {'RACEx': 2.0, 'NTESx': 1.5}, e)
+            self.assertEqual((calls.count(U('RACEx')), calls.count(U('NTESx')), sl), (2, 1, [zd.RWE_PRZERWA]), e)
+
+    def test_bez_ponowienia(self):
+        U = zd.RWE_XS_OBIEG.format
+        e503 = lambda: _uerr_v133.HTTPError(U('RACEx'), 503, 'x', {}, None)   # noqa: E731
+        for plan, n in (([_uerr_v133.HTTPError(U('RACEx'), 403, 'x', {}, None), b'{"value":2}'], 1), ([b'<html>', b'{"value":2}'], 1),
+                        ([b'{"value":null}', b'{"value":2}'], 1), ([e503(), e503(), b'{"value":2}'], 2)):
+            calls, sl = [], []
+            self.assertEqual(zd.rwe_xs_obieg(['RACEx'], lambda: 5.0, self._get({U('RACEx'): list(plan)}, calls), sl.append), {'RACEx': None}, plan)
+            self.assertEqual((len(calls), len(sl)), (n, n - 1), plan)
+
+        def tmo():
+            raise TimeoutError('brak czasu w budżecie kroku (35 s)')
+        calls = []
+        self.assertEqual(zd.rwe_xs_obieg(['RACEx'], tmo, self._get({U('RACEx'): [b'{"value":2}']}, calls), lambda s: None), {'RACEx': None})
+        self.assertEqual(calls, [], 'koniec budżetu — bez zapytania i bez ponowienia')
+        self.assertEqual(zd.RWE_PROBY, 2)
+
+    def test_odczyt_przyjety_mimo_chwilowego_bledu(self):
+        N = _rwe170_xs()['data']['tokens']['nodes'] + [_xs311_null('RACEx', 45000), _xs311_null('BABAx', 10752)]
+        xs = {'data': {'tokens': {'nodes': N, 'page': {'totalPages': 1, 'totalNodes': len(N)}}}}
+        g, p = _rwe170_net([], xs=xs)
+        U, n, sl = 'https://api.xstocks.fi/api/v2/public/assets/', [0], []
+
+        def get(url, headers=None, timeout=60):
+            if url.startswith(U):
+                if url == U + 'BABAx/circulating-supply' and not n[0]:
+                    n[0] += 1
+                    raise _uerr_v133.HTTPError(url, 503, 'Service Unavailable', {}, None)
+                return b'{"value":1}'
+            return g(url, headers, timeout)
+        o = zd.rwe_odczyt(self.NOW, fx=self.FX, get=get, post=p, sleep=sl.append)['r']['xstocks']
+        self.assertNotIn('err', o, 'dawniej: „BABAx: dowód rezerw nieznany, liczba tokenów w obiegu też…” — cały odczyt odrzucony')
+        self.assertEqual((o['bez']['n'], o['bez']['obieg'], n[0], sl), (2, 2.0, 1, [zd.RWE_PRZERWA]))
+
+
+class AgentTransferowyOknoV315(unittest.TestCase):
+    """v315 (recenzja v311): kanał agenta transferowego — „pusta lista” tylko przy obecnym kluczu data (sam komunikat to błąd jak dotąd); znane okno
+    19:00–21:00 UTC to „bez nowych danych” tylko przy poprzednim odczycie najwyżej RWE_SEC_OKNO_PV_H = 36 h wcześniej; opisy ze stałych (próg Ondo GM
+    i okno w kontroli). Bez sieci, czas podany wprost."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola315-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v315_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def test_pusta_lista_tylko_przy_kluczu_data(self):
+        for j in ({'data': []}, {'data': None}, {'message': 'Query executed successfully', 'data': [], 'result': 0}):
+            with self.assertRaises(zd.RweBezNowych):
+                zd.rwe_sec_parse(j, 'MI4')
+        for j in ({'message': 'x'}, {}, {'error': 'rate limit'}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_sec_parse(j, 'MI4')
+            self.assertNotIsInstance(c.exception, zd.RweBezNowych, j)
+            self.assertEqual(str(c.exception), 'brak wierszy danych', j)
+
+    def test_okno_tylko_przy_swiezym_poprzednim_odczycie(self):
+        c, at = zd.RWE_PRODUKTY['mantle-index-four-fund'], '2026-10-07T19:25:55+00:00'
+        pv = {'name': 'Mantle Index Four Fund', 'kind': 'sec', 'v': 173493451.31, 'as_of': '2026-10-07T17:46:52+00:00', 'read': '2026-10-07T18:24:47+00:00',
+              'err': None, 'n': 1, 'u': 1345232.248399, 'vb': 173493451.31, 'full': True}
+        for read, exp in (('2026-10-07T18:24:47+00:00', 'okno'), ('2026-10-06T07:25:55+00:00', 'okno'), ('2026-10-06T07:25:54+00:00', None),
+                          ('2026-10-04T19:25:55+00:00', None), ('2026-10-07T19:30:00+00:00', None), ('zły', None)):
+            self.assertEqual(zd._rwe_bez_nowych(c, {'pusta': 1}, dict(pv, read=read), at), exp, read)
+        self.assertEqual(zd.RWE_SEC_OKNO_PV_H, 36)
+        R = {s: ({'oz': 1000.0, 'as_of': at, 'n': 1} if x['kind'] == 'xaum' else {'v': 1e8, 'as_of': at, 'n': 1}) for s, x in zd.RWE_PRODUKTY.items()}
+        R['mantle-index-four-fund'] = {'err': 'ValueError: brak wierszy danych', 'bn': {'pusta': 1}}
+        rd = {'at': at, 'r': R, 'req': 0, 's': 0}
+        for read, ok in (('2026-10-07T18:24:47+00:00', True), ('2026-10-06T06:00:00+00:00', False)):
+            em = zd.rwe_blok(rd, {'p': {'mantle-index-four-fund': dict(pv, read=read)}}, datetime.datetime.fromisoformat(at), oc={'v': 1, 'px': {'zloto': dict(_RWE169_GOLD)}})
+            o = em['p']['mantle-index-four-fund']
+            self.assertEqual((em['ok'], o['err'], o['k'], o['v']), (ok, None if ok else 'ValueError: brak wierszy danych', 1, 173493451.31), read)
+
+    def test_opisy_ze_stalych(self):
+        self.assertEqual(zd.RWE_BN_OPIS['gm'], 'punkt zakończonej doby taki sam jak przyjęty wcześniej tej doby (punkt bieżącej doby różni się od niego o ponad 2%)')
+        self.assertIn(f'{zd.RWE_GM_ZGODA * 100:g}%', zd.RWE_BN_OPIS['gm'])
+        self.assertEqual(self.k.RWE_SEC_OKNO, zd.RWE_SEC_OKNO, 'to samo okno w zbieraczu i kontroli')
+        q = {'mantle-index-four-fund': {'name': 'Mantle Index Four Fund', 'kind': 'sec', 'v': 1.7e8, 'stan': 'e', 'full': True, 'k': 1, 'bn': 'okno'}}
+        j = {'issuer': {'at': '2026-10-07T19:25:55+00:00', 'ok': True, 'used': {'mantle-index-four-fund': 1.7e8}, 'p': q}}
+        self.assertIn('Mantle Index Four Fund — pusta lista kanału w znanym oknie dziennym 19–21 UTC', self.k.rwe_porownanie(j)['opis'])
+        with mock.patch.object(self.k, 'RWE_SEC_OKNO', (18 * 60, 22 * 60)):
+            self.assertIn('Mantle Index Four Fund — pusta lista kanału w znanym oknie dziennym 18–22 UTC', self.k.rwe_porownanie(j)['opis'])
