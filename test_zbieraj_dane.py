@@ -3675,7 +3675,7 @@ class BanxicoApiV126(unittest.TestCase):
     REJECT = {'error': {'url': 'https://www.banxico.org.mx/SieAPIRest/service/v1/token', 'mensaje': 'Token inválido',
                         'detalle': 'El token enviado no es válido, favor de verificar. Para obtener un token consultar la url adjunta.'}}
     NOTE = 'BANXICO_TOKEN odrzucony przez bank (Token inválido) — Meksyk z formularza'
-    KEYS = {'at', 'src', 'url', 'unit', 'cols', 'asof', 'd', 'fx'}    # pola meksyk.json sprzed v126 — bez nowych
+    KEYS = {'at', 'src', 'url', 'unit', 'cols', 'asof', 'd', 'fx', 'ok'}    # pola meksyk.json sprzed v126 — bez nowych; v328: + 'ok' (stan części: d, fx — wspólne dla API i formularza)
 
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
@@ -3896,7 +3896,7 @@ class BanxicoApiV126(unittest.TestCase):
             for tok in (self.TOKEN, ''):
                 with mock.patch.dict(os.environ, {'BANXICO_TOKEN': ' ' + tok + '\n', 'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
                         mock.patch.object(zd, 'save', lambda name, obj: None), mock.patch.object(zd, 'previous', lambda name: None), \
-                        mock.patch.object(zd, 'build_meksyk', side_effect=lambda k, t='': seen.append(t) or {'at': zd.NOW, 'd': []}):
+                        mock.patch.object(zd, 'build_meksyk', side_effect=lambda k, t='', p=None: seen.append(t) or {'at': zd.NOW, 'd': []}):   # v328: + trzeci argument (poprzedni plik)
                     zd.main()
                 self.assertEqual(tok in zd.SECRETS, bool(tok))
         finally:
@@ -24420,7 +24420,7 @@ class MetodologiaRytmV184(unittest.TestCase):
         self.assertEqual(zd.OBCE_SLOW, {'br': 180, 'tr': 180, 'th': 180})
         self.assertIn('Indie, Tajwan, Hongkong</span></td><td><span class="cell">codziennie w dni sesji</span></td><td><span class="cell">automat co godzinę; wynik dnia po sesji', jak)
         self.assertIn('pełny dzień po 16:30 w Bangkoku; automat co 3 godziny', jak)
-        self.assertIn("if prev_mx and fresh(prev_mx, 360) and not old_mx:", src); self.assertIn('około półtora tygodnia; automat co 6 godzin', jak)
+        self.assertIn("if prev_mx and fresh_pelny(prev_mx, 360) and not old_mx:", src); self.assertIn('około półtora tygodnia; automat co 6 godzin', jak)   # v328: bramka Meksyku przez wspólny pomocnik (plik niepełny — 55 min, pełny — nadal 6 h)
         self.assertEqual(zd.AUK_EVERY, 6 * 60); self.assertIn('wyniki po 13:00 czasu Nowego Jorku; automat co 6 godzin', jak)
         self.assertIn("if td_key and prev_ceny and fresh(prev_ceny, 55) and not prev_ceny.get('zapas'):", src)   # v270: plik zapasu to nie pamięć Twelve Data
         self.assertIn('dzienne zamknięcia</span></td><td><span class="cell">automat co około godzinę', jak)
@@ -40489,3 +40489,639 @@ class IndeksyArgentynaV329(unittest.TestCase):
         # poprawna próbka (nagranie, 12 dni) — pobrana jak dotąd
         rows, bf, okh = zd.dl_ad_backfill([], {}, lambda u: next(_dl_ad_series(c) for c in zd.DL_AR_CASAS if u == zd.AD_HIST.format(c=c)), zd.time.monotonic(), 60, now, [])
         self.assertIs(okh, True); self.assertEqual(len(rows), 12)
+
+
+import copy as _cp328   # v328
+
+
+class ZapasyV328(unittest.TestCase):
+    """v328 (zapasy; pasy Z2 i Z3 planu napraw): chwilowa awaria jednego z kilku zapytań pliku nie kasuje dobrych danych na 1–24 h (część z poprzedniego
+    pliku z własną datą, `ok` i META ok = False, plik niepełny świeży 55 min), ceny ETF świata nie są zastępowane niepełną odpowiedzią, pierwsza sesja po święcie
+    w USA nie jest „luką” funduszy. Sieć zaślepiona, czas przypięty (NOW, _now_utc i fresh)."""
+    NOW = '2026-10-10T20:00:00+00:00'
+    CLOCK = datetime.datetime(2026, 10, 10, 20, 0, tzinfo=datetime.timezone.utc)
+    T_OLD = '2026-10-10T18:00:00+00:00'   # czas pobrania „poprzedniego pliku” (2 h przed przebiegiem)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW))
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.CLOCK))
+        self.enterContext(mock.patch.object(zd, 'fresh', self._fresh))   # fresh() z przypiętym zegarem (nie od czasu rzeczywistego)
+        self.enterContext(mock.patch.dict(zd.SAVED, {}, clear=True))
+
+    def _fresh(self, prev, minutes):
+        try:
+            at = datetime.datetime.fromisoformat(prev['at'])
+            return (self.CLOCK - at).total_seconds() < minutes * 60
+        except Exception:
+            return False
+
+    def _ago(self, minutes=0, days=0):
+        return (self.CLOCK - datetime.timedelta(minutes=minutes, days=days)).isoformat()
+
+    # ------------------------------------------------------------------ wspólny pomocnik bramki
+    def test_pomocnik_bramki_plik_niepelny_swiezy_55_min(self):
+        pelny = {'at': self._ago(70), 'ok': {'a': True, 'b': True}}
+        niepelny = {'at': self._ago(70), 'ok': {'a': True, 'b': False}}
+        self.assertFalse(zd.plik_niepelny(pelny)); self.assertTrue(zd.plik_niepelny(niepelny))
+        for p in (None, {}, {'ok': 'x'}, {'ok': {'a': 'cached', 'b': None}}, {'ok': []}):
+            self.assertFalse(zd.plik_niepelny(p), repr(p))   # tylko jawne False; plik sprzed v328 (bez pola) i nie-słowniki — pełny
+        self.assertTrue(zd.fresh_pelny(pelny, 360), 'plik pełny: okno źródła (6 h)')
+        self.assertFalse(zd.fresh_pelny(niepelny, 360), 'plik z częścią nieudaną po 70 min: do ponowienia, choć okno źródła to 6 h')
+        self.assertTrue(zd.fresh_pelny({'at': self._ago(30), 'ok': {'b': False}}, 360), 'ale w ciągu 55 min — bez ponawiania co przebieg (co 10 min)')
+        self.assertTrue(zd.fresh_pelny({'at': self._ago(54), 'ok': {'b': False}}, 1440)); self.assertFalse(zd.fresh_pelny({'at': self._ago(56), 'ok': {'b': False}}, 1440))
+        self.assertFalse(zd.fresh_pelny({'at': self._ago(10), 'ok': {'b': False}}, 5), 'okno krótsze niż 55 min zostaje krótsze')
+        self.assertFalse(zd.fresh_pelny(None, 360)); self.assertFalse(zd.fresh_pelny({'ok': {'b': False}}, 360))
+
+    def test_bramki_main_szesc_plikow(self):
+        """main(): plik z częścią nieudaną (ok False) po 30 min z pamięci, po 70 min budowany od nowa z poprzednim plikiem; plik pełny i plik sprzed v328 —
+        okno źródła (tic 24 h, eer 6 h, spw 24 h, meksyk 6 h, BLS 6 h, BEA 24 h)."""
+        nazwy = {'tic': 'build_tic', 'eer': 'build_eer', 'spw': 'build_spw', 'meksyk': 'build_meksyk', 'usa-makro': 'build_usa_makro', 'bilans-usa': 'build_bilans_usa'}
+        meta_ok = {'tic': 'tic', 'eer': 'eer', 'spw': 'spw', 'meksyk': 'meksyk', 'usa-makro': 'bls', 'bilans-usa': 'bea'}
+
+        def przebieg(wiek, ok, wynik_ok=None):
+            prev = {n: {'at': self._ago(wiek), 'twn': {}, 'd': []} for n in nazwy}
+            if ok is not None:
+                for n in prev:
+                    prev[n]['ok'] = dict(ok)
+            wywolania, saved = {}, {}
+            zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+            def stub(n):
+                def f(*a, **k):
+                    wywolania[n] = a
+                    return {'at': zd.NOW, 'ok': dict(wynik_ok or {'x': True}), 'twn': {}, 'd': []}
+                return f
+            stuby = [mock.patch.object(zd, b, side_effect=RuntimeError('offline')) for b in dir(zd) if b.startswith('build_') and b not in nazwy.values()]
+            stuby += [mock.patch.object(zd, b, side_effect=stub(n)) for n, b in nazwy.items()]
+            [p.start() for p in stuby]
+            try:
+                with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': '', 'BEA_KEY': 'klucz-bea', 'BLS_KEY': '', 'FRED_KEY': '', 'BANXICO_TOKEN': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), mock.patch.object(zd, 'previous', lambda name: prev.get(name)):
+                    zd.main()
+            finally:
+                [p.stop() for p in stuby]
+            return prev, wywolania, saved, dict(zd.META['ok'])
+        prev, w, saved, mok = przebieg(30, {'a': True, 'b': False})
+        self.assertEqual(w, {}, 'plik niepełny po 30 min — z pamięci'); self.assertTrue(all(saved[n] is prev[n] for n in nazwy))
+        self.assertTrue(all(mok[m] == 'cached' for m in meta_ok.values()), mok)
+        prev, w, saved, mok = przebieg(70, {'a': True, 'b': False})
+        self.assertEqual(sorted(w), sorted(nazwy), 'plik niepełny po 70 min — ponowienie we wszystkich sześciu')
+        self.assertIs(w['tic'][0], prev['tic']); self.assertIs(w['eer'][0], prev['eer']); self.assertIs(w['spw'][0], prev['spw'])
+        self.assertIs(w['meksyk'][2], prev['meksyk'], 'Meksyk: prev jako trzeci argument'); self.assertEqual(w['meksyk'][0], '')
+        self.assertIs(w['usa-makro'][1], prev['usa-makro']); self.assertIs(w['bilans-usa'][1], prev['bilans-usa'])
+        for ok in ({'a': True, 'b': True}, None):
+            prev, w, saved, mok = przebieg(70, ok)
+            self.assertEqual(w, {}, f'plik pełny albo sprzed v328 (ok={ok}) — okno źródła, bez zapytań')
+        prev, w, saved, mok = przebieg(400, {'a': True, 'b': True})
+        self.assertEqual(sorted(w), ['eer', 'meksyk', 'usa-makro'], 'po 6 h 40 min: pliki 6-godzinne budowane, dobowe (tic, spw, bea) jeszcze z pamięci')
+        prev, w, saved, mok = przebieg(1500, {'a': True, 'b': True}, wynik_ok={'t2': False, 't1': True})
+        self.assertEqual(sorted(w), sorted(nazwy)); self.assertTrue(all(mok[m] is False for m in meta_ok.values()), 'budowa z częścią nieudaną = META ok False')
+        prev, w, saved, mok = przebieg(1500, None, wynik_ok={'t2': True})
+        self.assertTrue(all(mok[m] is True for m in meta_ok.values()), 'budowa pełna = META ok True')
+
+    # ------------------------------------------------------------------ ZB01-01: EBC, bilans płatniczy
+    def _sdmx(self, klucze, wartosci, okresy=('2026-06', '2026-07')):
+        """Odpowiedź EBC (SDMX-JSON) z seriami `wartosci` = {indeks klucza: [wartość za każdy okres]}."""
+        return {'structure': {'dimensions': {'series': [{'id': 'K', 'values': [{'id': k} for k in klucze]}],
+                                             'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': p} for p in okresy]}]}},
+                'dataSets': [{'series': {str(i): {'observations': {str(j): [v] for j, v in enumerate(vs)}} for i, vs in wartosci.items()}}]}
+
+    def _bop(self, zawodzi=(), prev=None, ca_v=(30000.4, 36516.5003), fa_v=None):
+        fa_v = fa_v or {i: (100.0 * (i + 1), 200.0 * (i + 1)) for i in range(len(zd.BOP_FA_KEYS))}
+        ca, fa = self._sdmx(['CA'], {0: ca_v}), self._sdmx(list(zd.BOP_FA_KEYS), fa_v)
+
+        def ecb(url):
+            if 'T.B.CA.' in url:
+                if 'ca' in zawodzi:
+                    raise RuntimeError('HTTP Error 429: Too Many Requests')
+                return ca
+            if 'fa' in zawodzi:
+                raise TimeoutError('timed out')
+            return fa
+        with mock.patch.object(zd, '_ecb_json', ecb):
+            return zd.bop_czesciowy(prev)
+
+    def _prev_bop(self):
+        b = self._bop()
+        return {'at': self.T_OLD, 'part_at': {'bop': self.T_OLD}, 'bop': b}
+
+    def test_bop_awaria_jednego_zapytania_zostaja_serie_z_poprzedniego(self):
+        prev = self._prev_bop()
+        self.assertEqual(sorted(k for k, v in prev['bop']['s'].items() if v), ['ca', 'di', 'fa', 'oi', 'pi', 'pi_debt', 'pi_eq'])
+        b = self._bop(('ca',), prev, ca_v=(1.0, 2.0))
+        self.assertEqual(b['s']['ca'], prev['bop']['s']['ca'], 'rachunek bieżący z poprzedniego pliku'); self.assertEqual(b['old'], {'ca': self.T_OLD}); self.assertEqual(b['bad'], ['ca'])
+        for n in zd.BOP_FA_KEYS.values():
+            self.assertEqual(b['s'][n], prev['bop']['s'][n], n)
+        self.assertTrue(any(e.startswith('bop ca: HTTP Error 429') for e in zd.META['errors']))
+        zd.META['errors'].clear()
+        b = self._bop(('fa',), prev, fa_v={i: (7.0, 8.0) for i in range(len(zd.BOP_FA_KEYS))})
+        self.assertEqual(b['old'], {'fa': self.T_OLD}); self.assertEqual(b['bad'], ['fa'])
+        self.assertEqual(b['s']['ca'], [['2026-06', 30000], ['2026-07', 36517]], 'rachunek bieżący świeży')
+        for n in zd.BOP_FA_KEYS.values():
+            self.assertEqual(b['s'][n], prev['bop']['s'][n], n)
+        self.assertEqual(sorted(k for k, v in b['s'].items() if v), sorted(prev['bop']['s']), '7 serii, nie 1')
+        self.assertEqual(b['asof'], '2026-07')
+
+    def test_bop_brak_serii_w_udanej_odpowiedzi_nie_jest_awaria(self):
+        prev = self._prev_bop()
+        fa_v = {i: (5.0, 6.0) for i, n in enumerate(zd.BOP_FA_KEYS.values()) if n not in ('di', 'pi_eq')}   # zapytanie udane, ale bez di i pi_eq (zamierzone)
+        b = self._bop((), prev, fa_v=fa_v)
+        self.assertIsNone(b['s']['di']); self.assertIsNone(b['s']['pi_eq']); self.assertNotIn('old', b); self.assertNotIn('bad', b)
+
+    def test_bop_bez_poprzedniego_starsze_niz_limit_oba_zapytania_lancuch(self):
+        b = self._bop(('ca',), None)
+        self.assertIsNone(b['s']['ca']); self.assertNotIn('old', b); self.assertEqual(b['bad'], ['ca'], 'bez poprzedniego pliku jak dotąd (brak), ale oznaczone jako nieudane')
+        prev = self._prev_bop(); prev['at'] = prev['part_at']['bop'] = self._ago(days=zd.BOP_ZAPAS_DNI + 1)
+        b = self._bop(('ca',), prev)
+        self.assertIsNone(b['s']['ca'], 'poprzednia wersja starsza niż limit — brak, nie stare dane'); self.assertNotIn('old', b)
+        with self.assertRaises(RuntimeError):
+            self._bop(('ca', 'fa'), self._prev_bop())   # obie odpowiedzi None — wyjątek (zostaje cała poprzednia część: mechanizm v275)
+        p1 = self._prev_bop(); b1 = self._bop(('fa',), p1)
+        p2 = {'at': self.NOW, 'part_at': {'bop': self.NOW}, 'bop': b1}
+        b2 = self._bop(('fa',), p2)
+        self.assertEqual(b2['old'], {'fa': self.T_OLD}, 'seria wzięta z zapasu dwa razy zachowuje czas pierwotnego pobrania')
+        b3 = self._bop(('ca',), p2)
+        self.assertEqual(b3['old'], {'ca': self.NOW}, 'rachunek bieżący był świeży w poprzednim pliku — jego czas to czas pobrania części'); self.assertNotIn('fa', b3['old'])
+
+    def test_instytucje_bop_czesciowy_meta_ok_false_a_pozostale_zrodla_ok(self):
+        prev = self._prev_bop()
+        triv = lambda *a, **k: {'asof': '2026-10-09', 'd': []}   # noqa: E731
+        with mock.patch.multiple(zd, parse_tga=triv, parse_rrp=triv, parse_soma=triv, parse_tgb=triv, parse_ilm=triv, parse_m3=triv, parse_mof=triv), \
+                mock.patch.object(zd, 'get_json', lambda *a, **k: {}), mock.patch.object(zd, 'get_bytes', lambda *a, **k: b''):
+            ca, fa = self._sdmx(['CA'], {0: (1.0, 2.0)}), self._sdmx(list(zd.BOP_FA_KEYS), {i: (1.0, 2.0) for i in range(6)})
+
+            def ecb(url):
+                if 'T.B.CA.' in url:
+                    raise RuntimeError('HTTP Error 429: Too Many Requests')
+                return fa if '/BPS/' in url else {}
+            with mock.patch.object(zd, '_ecb_json', ecb):
+                out = zd.build_instytucje(prev)
+        self.assertIs(zd.META['ok']['bop'], False, 'META nie mówi już „ok” przy awarii jednego z dwóch zapytań')
+        self.assertTrue(all(zd.META['ok'][k] is True for k in ('tga', 'rrp', 'soma', 'tgb', 'ilm', 'm3', 'mof')))
+        self.assertEqual(out['bop']['s']['ca'], prev['bop']['s']['ca']); self.assertEqual(out['bop']['old'], {'ca': self.T_OLD}); self.assertEqual(out['part_at']['bop'], self.NOW)
+        self.assertEqual(out['bop']['s']['fa'], [['2026-06', 1], ['2026-07', 2]], 'świeże serie rachunku finansowego')
+
+    # ------------------------------------------------------------------ ZB02-02: TIC
+    T2 = ("x\n" * 8 + "country\tcountry_code\tdate\tus_lt_total_pos\tus_lt_total_net\tus_lt_total_valchg\tus_lt_govt_bond_pos\tus_lt_govt_bond_net\tus_lt_govt_bond_valchg\t"
+          "us_lt_corp_bond_pos\tus_lt_corp_bond_net\tus_lt_corp_bond_valchg\tus_lt_eqty_pos\tus_lt_eqty_net\tus_lt_eqty_valchg\n"
+          "Japan\t42609\t2026-07\t1750866\t20746\t-525\t1\t2\t3\t4\t5\t6\t7\t8\t9\nJapan\t42609\t2026-06\t1700000\t500\t0\t1\t2\t3\t4\t5\t6\t7\t8\t9\n"
+          "Grand Total\t99996\t2026-07\t20356009\t68522\t-158325\t1\t2\t3\t4\t5\t6\t7\t8\t9\n")
+    T5 = ("Table 5\nHoldings\nBillions of dollars\nLink\n\nCountry\t2026-07\t2026-06\t2026-05\nJapan\t1103.9\t1116.7\t1143.1\nUnited Kingdom\t998.3\t939.9\t948.6\n"
+          "All Other\t1842.4\t1850.3\t1\nGrand Total\t9248.1\t9298.5\t9300.0\n")
+
+    def _tic(self, zawodzi=(), prev=None, t1=None):
+        def gb(url, headers=None, timeout=60):
+            for n in (2, 5):
+                if f'table{n}' in url and n in zawodzi:
+                    raise RuntimeError(f'HTTP Error 503 (tabela {n})')
+            for n, t in ((1, t1 or Tic.T1), (2, self.T2), (5, self.T5)):
+                if f'table{n}' in url:
+                    return t.encode()
+            raise AssertionError(url)
+        with mock.patch.object(zd, 'get_bytes', gb):
+            return zd.build_tic(prev)
+
+    def _tic_prev(self):
+        p = self._tic(); p['at'] = self.T_OLD
+        return p
+
+    def test_tic_pelny_plik_ma_ok_wszystkich_trzech_tabel(self):
+        t = self._tic()
+        self.assertEqual(t['ok'], {'t1': True, 't2': True, 't5': True}); self.assertNotIn('part_at', t); self.assertFalse(zd.plik_niepelny(t))
+        self.assertEqual(t['regions']['jpn']['out'][-1], ['2026-07', 20746, 1]); self.assertEqual(t['holders']['total'], 9248.1)
+
+    def test_tic_awaria_tabeli_2_zostaja_odplywy_z_poprzedniego_pliku(self):
+        prev = self._tic_prev()
+        t = self._tic(zawodzi=(2,), prev=prev)
+        self.assertEqual(t['ok'], {'t1': True, 't2': False, 't5': True}); self.assertTrue(zd.plik_niepelny(t))
+        self.assertEqual(t['part_at'], {'t2': self.T_OLD}, 'tabela 2 z własnym czasem pobrania')
+        for rid, r in t['regions'].items():
+            for k in zd.TIC_T2_POLA:
+                self.assertEqual(r[k], prev['regions'][rid][k], (rid, k))
+        self.assertEqual(t['world']['out'], prev['world']['out']); self.assertEqual(t['regions']['jpn']['net'][-1], ['2026-07', -27200, 1])
+        self.assertEqual(t['regions']['jpn']['in'], prev['regions']['jpn']['in'], 'tabela 1 świeża')
+        self.assertTrue(any(e.startswith('TIC tabela 2') for e in zd.META['errors']))
+        t2 = self._tic(zawodzi=(2,), prev=t)   # druga awaria z rzędu: czas pobrania tabeli 2 się nie odświeża
+        self.assertEqual(t2['part_at'], {'t2': self.T_OLD}); self.assertEqual(t2['world']['out'], prev['world']['out'])
+
+    def test_tic_awaria_tabeli_5_zostaja_najwieksi_posiadacze(self):
+        prev = self._tic_prev()
+        t = self._tic(zawodzi=(5,), prev=prev)
+        self.assertEqual(t['ok'], {'t1': True, 't2': True, 't5': False}); self.assertEqual(t['holders'], prev['holders']); self.assertEqual(t['part_at'], {'t5': self.T_OLD})
+        self.assertIsNotNone(t['regions']['jpn']['out'], 'tabela 2 świeża')
+        t = self._tic(zawodzi=(2, 5), prev=prev)
+        self.assertEqual(t['part_at'], {'t2': self.T_OLD, 't5': self.T_OLD}); self.assertEqual(t['ok'], {'t1': True, 't2': False, 't5': False})
+
+    def test_tic_nie_miesza_okresow_i_skladu_regionow(self):
+        prev = self._tic_prev(); prev['asof'] = '2026-06'
+        t = self._tic(zawodzi=(2, 5), prev=prev)
+        self.assertIsNone(t['regions']['jpn']['out']); self.assertIsNone(t['world']['net']); self.assertIsNone(t['holders']); self.assertNotIn('part_at', t)
+        self.assertEqual(t['ok'], {'t1': True, 't2': False, 't5': False}, 'poprzedni plik z innym ostatnim miesiącem — brak, nie stare dane')
+        prev = self._tic_prev(); prev['months'] = prev['months'][1:]
+        self.assertIsNone(self._tic(zawodzi=(2,), prev=prev)['regions']['jpn']['out'], 'inne okno miesięcy')
+        prev = self._tic_prev(); prev['regions']['jpn']['members'] = ['Japan']
+        t = self._tic(zawodzi=(2,), prev=prev)
+        self.assertIsNone(t['regions']['jpn']['out'], 'inny skład członków regionu'); self.assertEqual(t['world']['out'], prev['world']['out'], 'pozostałe regiony z poprzedniego')
+        prev = self._tic_prev(); prev['holders']['asof'] = '2026-06'
+        self.assertIsNone(self._tic(zawodzi=(5,), prev=prev)['holders'])
+
+    def test_tic_bez_poprzedniego_albo_poprzedni_bez_tabeli_2_jak_dotad(self):
+        t = self._tic(zawodzi=(2, 5))
+        self.assertIsNone(t['regions']['jpn']['out']); self.assertIsNone(t['holders']); self.assertEqual(t['ok'], {'t1': True, 't2': False, 't5': False})
+        t2 = self._tic(zawodzi=(2,), prev=dict(self._tic(zawodzi=(2,)), at=self.T_OLD))
+        self.assertIsNone(t2['regions']['jpn']['out'], 'poprzedni plik też bez tabeli 2 — nie ma czego zachować'); self.assertNotIn('t2', t2.get('part_at', {}))
+
+    # ------------------------------------------------------------------ Z3-01: kursy efektywne BIS
+    def _eer(self, miesieczne_ok=True, prev=None):
+        def gb(url, headers=None, timeout=60):
+            if '/M.N.B.' in url:
+                if not miesieczne_ok:
+                    raise RuntimeError('HTTP Error 500')
+                return EerV56.M.encode()
+            return EerV56.D.encode()
+        with mock.patch.object(zd, 'get_bytes', gb):
+            return zd.build_eer(prev)
+
+    def test_eer_awaria_zapytania_miesiecznego_zostaje_c12_z_poprzedniego(self):
+        pelny = self._eer(); self.assertEqual(pelny['ok'], {'d': True, 'm': True}); self.assertNotIn('part_at', pelny)
+        self.assertEqual((pelny['rows']['JP']['m'], pelny['rows']['JP']['c12']), ('2026-08', round((68.25 / 70.0 - 1) * 100, 2)))
+        prev = dict(pelny, at=self.T_OLD)
+        e = self._eer(False, prev)
+        self.assertEqual(e['ok'], {'d': True, 'm': False}); self.assertTrue(zd.plik_niepelny(e)); self.assertEqual(e['part_at'], {'m': self.T_OLD})
+        for a in ('JP', 'US'):
+            self.assertEqual((e['rows'][a]['m'], e['rows'][a]['c12']), (prev['rows'][a]['m'], prev['rows'][a]['c12']), a)
+            self.assertEqual((e['rows'][a]['v'], e['rows'][a]['c30']), (pelny['rows'][a]['v'], pelny['rows'][a]['c30']), 'dane dzienne świeże')
+        e2 = self._eer(False, e)
+        self.assertEqual(e2['part_at'], {'m': self.T_OLD}, 'druga awaria z rzędu — czas pobrania nie odświeżony')
+        self.assertTrue(any(x.startswith('BIS kursy efektywne (miesięczne)') for x in zd.META['errors']))
+
+    def test_eer_bez_poprzedniego_albo_za_stary_jak_dotad(self):
+        e = self._eer(False)
+        self.assertIsNone(e['rows']['JP']['c12']); self.assertIsNone(e['rows']['JP']['m']); self.assertEqual(e['ok'], {'d': True, 'm': False}); self.assertNotIn('part_at', e)
+        prev = dict(self._eer(), at=self._ago(days=zd.EER_ZAPAS_DNI + 1))
+        e = self._eer(False, prev)
+        self.assertIsNone(e['rows']['JP']['c12'], 'zmiana 12 mies. sprzed ponad 40 dni — brak, nie stara'); self.assertNotIn('part_at', e)
+        prev = dict(self._eer(), at=self.T_OLD); prev['rows']['JP'] = dict(prev['rows']['JP'], m=None, c12=None)
+        e = self._eer(False, prev)
+        self.assertIsNone(e['rows']['JP']['m']); self.assertEqual(e['rows']['US']['m'], prev['rows']['US']['m'], 'waluty bez miesiąca w poprzednim pliku zostają bez')
+
+    # ------------------------------------------------------------------ Z3-01: obligacje SPW (kraje posiadaczy)
+    def _spw(self, kraje_ok=True, prev=None, kr=None):
+        h = PolskaV87('test_links_by_title_and_by_file_name')
+        st, kr_b = h.st_book(), (kr if kr is not None else h.kr_book())
+
+        def gb(url, headers=None, timeout=60):
+            if url == zd.SPW_PAGE:
+                return h.PAGE.encode()
+            if url.endswith('9ab3f0b9-1742-4b00-a6d9-a6a7753368ee'):
+                return st
+            if url.endswith('fc49ffc2-3403-4ab7-977b-411ed9964215'):
+                if not kraje_ok:
+                    raise RuntimeError('HTTP Error 503: Service Unavailable')
+                return kr_b
+            raise AssertionError(url)
+        with mock.patch.object(zd, 'get_bytes', gb):
+            return zd.build_spw(prev)
+
+    def test_spw_awaria_pliku_krajow_zostaje_lista_z_poprzedniego_z_wlasnym_miesiacem(self):
+        pelny = self._spw(); self.assertEqual(pelny['ok'], {'st': True, 'kr': True}); self.assertNotIn('part_at', pelny)
+        prev = dict(pelny, at=self.T_OLD)
+        s = self._spw(False, prev)
+        self.assertEqual(s['ok'], {'st': True, 'kr': False}); self.assertTrue(zd.plik_niepelny(s)); self.assertEqual(s['kr'], prev['kr'])
+        self.assertEqual([k['m'] for k in s['kr']], ['2026-07', '2026-06'], 'każdy arkusz z własnym miesiącem'); self.assertEqual(s['part_at'], {'kr': self.T_OLD})
+        self.assertTrue(any(e.startswith('MF SPW kraje: HTTP Error 503') for e in zd.META['errors']))
+        self.assertTrue(any(n.startswith('MF SPW: kraje z poprzedniego pliku') for n in zd.META['notes']))
+        s2 = self._spw(False, s)
+        self.assertEqual(s2['part_at'], {'kr': self.T_OLD}, 'druga awaria z rzędu — czas pobrania nie odświeżony')
+
+    def test_spw_bez_poprzedniego_za_stare_kraje_i_zle_dane_jak_dotad(self):
+        s = self._spw(False)
+        self.assertNotIn('kr', s); self.assertEqual(s['ok'], {'st': True, 'kr': False}); self.assertNotIn('part_at', s)
+        prev = dict(self._spw(), at=self.T_OLD); prev['kr'] = [dict(k, m='2026-03') for k in prev['kr']]   # 4 miesiące przed stanem 2026-07
+        self.assertNotIn('kr', self._spw(False, prev), 'lista krajów starsza niż SPW_KR_MAX_M miesięcy od stanu — bez zapasu')
+        for zle in (None, {}, {'kr': 'x'}, {'kr': []}, {'kr': [{'m': 5}]}, {'kr': [{'m': '2026-07'}]}):
+            self.assertNotIn('kr', self._spw(False, zle), repr(zle))
+        s = self._spw(True, prev)
+        self.assertEqual([k['m'] for k in s['kr']], ['2026-07', '2026-06'], 'przy udanym pliku krajów — świeża lista, nie poprzednia'); self.assertEqual(s['ok'], {'st': True, 'kr': True})
+
+    # ------------------------------------------------------------------ Z3-01 i Z3-05: Meksyk
+    def _mx(self, fred_ok=True, prev=None, key='KLUCZ', formy=None):
+        def pb(url, form, timeout=90):
+            if formy is not None:
+                formy.append(dict(form))
+            return MeksykV88.CSV2.encode('latin-1')
+
+        def gj(url, headers=None, timeout=30):
+            if not fred_ok:
+                raise RuntimeError('URLError timed out')
+            return {'observations': [{'date': '2026-09-18', 'value': '18.25'}, {'date': '2026-09-11', 'value': '17.11'}]}
+        with mock.patch.object(zd, 'post_bytes', pb), mock.patch.object(zd, 'get_json', gj), \
+                mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 9, 25, 9, 0, tzinfo=datetime.timezone.utc)):
+            return zd.build_meksyk(key, '', prev)
+
+    def test_meksyk_awaria_kursu_zostaje_kurs_z_poprzedniego_do_7_dni(self):
+        pelny = self._mx(); self.assertEqual(pelny['fx'], [17.11, '2026-09-11']); self.assertEqual(pelny['ok'], {'d': True, 'fx': True}); self.assertNotIn('part_at', pelny)
+        prev = dict(pelny, at=self.T_OLD)
+        m = self._mx(False, prev)
+        self.assertEqual(m['fx'], [17.11, '2026-09-11'], 'kurs z poprzedniego pliku, z jego datą'); self.assertEqual(m['ok'], {'d': True, 'fx': False}); self.assertTrue(zd.plik_niepelny(m))
+        self.assertEqual(m['part_at'], {'fx': self.T_OLD}); self.assertEqual(m['d'], pelny['d'], 'dane Banxico świeże')
+        self.assertTrue(any('Banxico kurs FRED DEXMXUS' in e for e in zd.META['errors']))
+        m2 = self._mx(False, m)
+        self.assertEqual(m2['part_at'], {'fx': self.T_OLD}, 'druga awaria z rzędu — czas pobrania kursu nie odświeżony')
+        for dzien, ma in (('2026-09-07', True), ('2026-09-06', False), ('2026-09-15', False)):   # dane do 14.09: 7 dni wstecz tak, wcześniejszy kurs nie; kurs późniejszy od danych nie
+            p = dict(pelny, at=self.T_OLD, fx=[17.5, dzien])
+            self.assertEqual('fx' in self._mx(False, p), ma, dzien)
+
+    def test_meksyk_bez_poprzedniego_bez_klucza_i_zly_kurs_jak_dotad(self):
+        m = self._mx(False)
+        self.assertNotIn('fx', m); self.assertEqual(m['ok'], {'d': True, 'fx': False}); self.assertNotIn('part_at', m)
+        m = self._mx(False, key='')
+        self.assertNotIn('fx', m); self.assertEqual(m['ok'], {'d': True}, 'bez klucza FRED kurs nie jest awarią'); self.assertFalse(zd.plik_niepelny(m))
+        for zly in (None, {}, {'fx': None}, {'fx': [0, '2026-09-11']}, {'fx': [-1.0, '2026-09-11']}, {'fx': ['x', '2026-09-11']}, {'fx': [17.0]}, {'fx': [17.0, 'wczoraj']},
+                    {'fx': [True, '2026-09-11']}):
+            self.assertNotIn('fx', self._mx(False, zly), repr(zly))
+
+    def test_meksyk_formularz_zestaw_pol_przypiety(self):
+        """Z3-05: od v88.1 formularz zapasowy NIE wysyła 'tipoInformacion' i 'formatoHorizontal' (komentarz w tej samej linii je połykał) — i to działa;
+        zestaw pól przypięty, żeby kolejna zmiana była świadoma (przywrócenie pól dopiero po sondzie w Actions)."""
+        formy = []
+        self._mx(formy=formy)
+        self.assertEqual(sorted(formy[0]), ['anoFinal', 'anoInicial', 'formatoCSV.x', 'formatoCSV.y', 'idCuadro', 'locale', 'metadatosWeb', 'sector', 'series', 'version'])
+        self.assertEqual({k: v for k, v in formy[0].items() if k != 'series'}, {'locale': 'es', 'idCuadro': 'CA138', 'sector': '7', 'version': '3', 'anoInicial': '2024',
+                                                                              'anoFinal': '2026', 'metadatosWeb': 'true', 'formatoCSV.x': '10', 'formatoCSV.y': '10'})
+        import ast, inspect, textwrap
+        zrodlo = textwrap.dedent(inspect.getsource(zd.build_meksyk))
+        formularz = next(n.value for n in ast.walk(ast.parse(zrodlo)) if isinstance(n, ast.Assign) and any(getattr(t, 'id', '') == 'form' for t in n.targets))
+        self.assertEqual(sorted(k.value for k in formularz.keys), sorted(formy[0]), 'zestaw pól w kodzie = wysyłany; żaden komentarz w środku linii nie połyka pól')
+        for linia in zrodlo.splitlines():
+            if "'anoInicial'" in linia:
+                self.assertNotIn('#', linia, 'komentarz w osobnej linii, nie w środku słownika')
+
+    # ------------------------------------------------------------------ zb07-01: BLS
+    BLS_ROWS = [('2025', f'M{m:02d}', str(100 + i)) for i, m in enumerate(range(7, 13))] + [('2026', f'M{m:02d}', str(106 + i)) for i, m in enumerate(range(1, 9))]
+
+    def _bls(self, brak=(), prev=None):
+        def pj(url, obj, timeout=60):
+            return {'status': 'REQUEST_SUCCEEDED', 'message': [], 'Results': {'series': [
+                {'seriesID': sid, 'data': [{'year': y, 'period': p, 'value': v} for y, p, v in self.BLS_ROWS]} for n, sid in zd.BLS_SERIES if n not in brak]}}
+        with mock.patch.object(zd, 'post_json', pj):
+            return zd.build_usa_makro('KLUCZ', prev, today=datetime.date(2026, 10, 10))
+
+    def test_bls_brak_serii_zostaje_seria_z_poprzedniego_z_wlasna_data(self):
+        pelny = self._bls(); self.assertEqual(pelny['ok'], {n: True for n, _ in zd.BLS_SERIES}); self.assertNotIn('part_at', pelny)
+        prev = dict(pelny, at=self.T_OLD)
+        b = self._bls(('nfp',), prev)
+        self.assertEqual(b['ok']['nfp'], False); self.assertTrue(all(b['ok'][n] for n in b['ok'] if n != 'nfp')); self.assertTrue(zd.plik_niepelny(b))
+        self.assertEqual(b['s']['nfp']['d'], prev['s']['nfp']['d']); self.assertEqual(b['s']['nfp']['chg'], pelny['s']['nfp']['chg'], 'pochodne liczone z wierszy zapasu')
+        self.assertEqual(b['part_at'], {'nfp': self.T_OLD}); self.assertTrue(any(e.startswith('BLS: brak serii CES0000000001') for e in zd.META['errors']))
+        b2 = self._bls(('nfp', 'unemp'), b)
+        self.assertEqual(b2['part_at'], {'nfp': self.T_OLD, 'unemp': self.NOW}, 'nfp: czas pierwotny (łańcuch), unemp: czas pobrania poprzedniego pliku')
+
+    def test_bls_bez_poprzedniego_za_stara_seria_albo_inne_id_jak_dotad(self):
+        b = self._bls(('nfp',))
+        self.assertNotIn('nfp', b['s']); self.assertIs(b['ok']['nfp'], False); self.assertNotIn('part_at', b)
+        prev = dict(self._bls(), at=self._ago(days=zd.BLS_ZAPAS_DNI + 1))
+        self.assertNotIn('nfp', self._bls(('nfp',), prev)['s'], 'seria sprzed ponad 40 dni — brak, nie stara')
+        prev = dict(self._bls(), at=self.T_OLD); prev['s']['nfp']['id'] = 'INNE'
+        self.assertNotIn('nfp', self._bls(('nfp',), prev)['s'], 'inne id serii — to nie ta seria')
+        with self.assertRaises(RuntimeError):
+            self._bls(tuple(n for n, _ in zd.BLS_SERIES), dict(self._bls(), at=self.T_OLD))   # żadnej serii w odpowiedzi — wyjątek jak dotąd (main zostawia poprzedni plik)
+
+    # ------------------------------------------------------------------ zb07-01: BEA
+    def _bea(self, zawodzi=lambda p: False, kwartaly=('2026Q1', '2026Q2'), prev=None):
+        def bea_get(key, **p):
+            if zawodzi(p):
+                raise OSError('HTTP Error 503: Service Unavailable')
+            if p['method'] == 'GetParameterValues':
+                if p['ParameterName'] == 'Indicator':
+                    return {'ParamValue': [{'Key': k, 'Desc': k} for k in zd.BEA_IND]}
+                return {'ParamValue': [{'Key': 'China', 'Desc': 'China'}]}
+            if p['datasetname'] == 'NIPA':
+                return {'Data': [{'LineNumber': '1', 'TimePeriod': q, 'DataValue': '2.5'} for q in kwartaly]}
+            if p['AreaOrCountry'] == 'All':
+                return {'Data': [{'AreaOrCountry': 'China', 'TimePeriod': q, 'DataValue': '100', 'UNIT_MULT': '6'} for q in kwartaly]}
+            return {'Data': [{'TimePeriod': q, 'DataValue': '100', 'UNIT_MULT': '6'} for q in kwartaly]}
+        with mock.patch.object(zd, 'bea_get', bea_get):
+            return zd.build_bilans_usa('KLUCZ', prev, today=datetime.date(2026, 10, 10))
+
+    def test_bea_awaria_pkb_zostaje_pkb_z_poprzedniego_z_data(self):
+        pelny = self._bea(); self.assertTrue(all(pelny['ok'].values())); self.assertEqual(len(pelny['ok']), 3 + 4 + 2); self.assertNotIn('part_at', pelny)
+        prev = dict(pelny, at=self.T_OLD)
+        b = self._bea(lambda p: p.get('datasetname') == 'NIPA', prev=prev)
+        self.assertEqual(b['gdp'], prev['gdp']); self.assertIs(b['ok']['gdp'], False); self.assertTrue(zd.plik_niepelny(b)); self.assertEqual(b['part_at'], {'gdp': self.T_OLD})
+        self.assertEqual(sorted(k for k, v in b['ok'].items() if v is False), ['gdp']); self.assertEqual(b['ita'], pelny['ita'])
+        self.assertTrue(any(e.startswith('BEA: 1 zapytań bez danych') for e in zd.META['errors']))
+        b2 = self._bea(lambda p: p.get('datasetname') == 'NIPA', prev=b)
+        self.assertEqual(b2['part_at'], {'gdp': self.T_OLD}, 'łańcuch: czas pierwotny')
+
+    def test_bea_wskazniki_ita_i_obszary_osobno_bez_mieszania_kwartalow(self):
+        pelny = self._bea(); prev = dict(pelny, at=self.T_OLD)
+        aw_ita = lambda p: p.get('Indicator') == 'FinAssetsExclFinDeriv' and p.get('AreaOrCountry') == 'AllCountries'   # noqa: E731
+        b = self._bea(aw_ita, prev=prev)
+        self.assertEqual(b['ita']['FinAssetsExclFinDeriv'], prev['ita']['FinAssetsExclFinDeriv']); self.assertEqual(b['part_at'], {'ita:FinAssetsExclFinDeriv': self.T_OLD})
+        self.assertIs(b['ok']['ita:FinAssetsExclFinDeriv'], False)
+        aw_ob = lambda p: p.get('Indicator') == 'FinLiabsExclFinDeriv' and p.get('AreaOrCountry') == 'All'   # noqa: E731
+        b = self._bea(aw_ob, prev=prev)
+        self.assertEqual(b['areas']['FinLiabsExclFinDeriv'], prev['areas']['FinLiabsExclFinDeriv']); self.assertEqual(b['part_at'], {'areas:FinLiabsExclFinDeriv': self.T_OLD})
+        stary_q = dict(self._bea(kwartaly=('2026Q1',)), at=self.T_OLD)   # poprzedni plik z jednym kwartałem mniej niż świeże wskaźniki
+        b = self._bea(aw_ita, prev=stary_q)
+        self.assertNotIn('FinAssetsExclFinDeriv', b['ita'], 'kwartały ITA nie są mieszane: wskaźnik z poprzedniego pliku tylko z tym samym ostatnim kwartałem'); self.assertNotIn('part_at', b)
+        b = self._bea(aw_ob, prev=stary_q)
+        self.assertNotIn('FinLiabsExclFinDeriv', b['areas'])
+        b = self._bea(lambda p: p.get('datasetname') == 'NIPA', prev=stary_q)
+        self.assertEqual(b['gdp'], stary_q['gdp'], 'PKB to osobny zbiór — własny szereg z własnymi kwartałami')
+
+    def test_bea_nazwy_wskazniki_limit_wieku_i_wszystko_zawiodlo(self):
+        prev = dict(self._bea(), at=self.T_OLD)
+        b = self._bea(lambda p: p['method'] == 'GetParameterValues', prev=prev)
+        self.assertEqual((b['names'], b['ind']), (prev['names'], prev['ind'])); self.assertEqual(b['part_at'], {'names': self.T_OLD, 'ind': self.T_OLD})
+        stary = dict(prev, at=self._ago(days=zd.BEA_ZAPAS_DNI + 1))
+        b = self._bea(lambda p: p.get('datasetname') == 'NIPA', prev=stary)
+        self.assertEqual(b['gdp'], [], 'część sprzed ponad 100 dni — brak, nie stara'); self.assertNotIn('part_at', b)
+        b = self._bea(lambda p: p.get('datasetname') == 'NIPA')
+        self.assertEqual(b['gdp'], []); self.assertIs(b['ok']['gdp'], False)
+        with self.assertRaises(RuntimeError):
+            self._bea(lambda p: p['method'] == 'GetData', prev=prev)   # żadnej serii danych — wyjątek jak dotąd (main zostawia poprzedni plik)
+
+    # ------------------------------------------------------------------ ZB01-02: ceny ETF świata
+    def _td_get(self, dostepne, n=45, limit=(), limit_raz=()):
+        """Zaślepka zapytań Twelve Data: symbole z `dostepne` dostają świece, `limit` — zawsze 429 (kredyty), `limit_raz` — 429 tylko za pierwszym razem."""
+        wywolania, widziane = [], {}
+
+        def get(url, headers=None, timeout=30):
+            syms = url.split('symbol=')[1].split('&')[0].split(',')
+            wywolania.append(syms)
+            out = {}
+            for s in syms:
+                widziane[s] = widziane.get(s, 0) + 1
+                if s in limit or (s in limit_raz and widziane[s] == 1):
+                    out[s] = {'code': 429, 'message': 'You have run out of API credits for the current minute.', 'status': 'error'}
+                elif s in dostepne:
+                    out[s] = _td_symbol(_dates(n), close0=50.0 + zd.DAY_SYMS.index(s))
+                else:
+                    out[s] = {'code': 404, 'message': 'no data', 'status': 'error'}
+            return 200, json.dumps(out)
+        return get, wywolania
+
+    def _prices(self, dostepne, prev=None, n=45, spania=None, **kw):
+        get, wyw = self._td_get(dostepne, n, **kw)
+        sp = [] if spania is None else spania
+        with mock.patch.object(zd, 'get', get), mock.patch.object(zd.time, 'sleep', sp.append):
+            return zd.build_prices('klucz', prev), wyw, sp
+
+    def _ceny_prev(self, n=45, at=None, bez=()):
+        p, _, _ = self._prices([s for s in zd.DAY_SYMS if s not in bez], n=n)
+        return dict(p, at=at or self.T_OLD)
+
+    def test_ceny_progi_i_wspolne_td_min_symbols_bez_zmian(self):
+        self.assertEqual((zd.TD_MIN_SYMBOLS, zd.TD_MIN_STRONA, zd.CENY_UZUP_SESJI), (10, 12, 5))
+        # zapas ze „Świat dziennie” (ceny_z_swiata) nadal działa z 11 funduszami (bez KSA, TUR, EIS) — używa TD_MIN_SYMBOLS = 10, nie progu strony
+        cal = _dates(30)
+        sd = {'cal': cal, 'px': {s: {'d': [[d, 1.0, 50.0 + i * 0.1 + zd.DAY_SYMS.index(s)] for i, d in enumerate(cal)]} for s in zd.DAY_SYMS if s not in ('KSA', 'TUR', 'EIS')}}
+        z = zd.ceny_z_swiata(sd)
+        self.assertEqual((len(z['q']), z['zapas']), (11, True))
+
+    def test_ceny_11_funduszy_uzupelnione_z_poprzedniego_pliku_z_data(self):
+        prev = self._ceny_prev()
+        brak = ('KSA', 'TUR', 'EIS')
+        out, wyw, sp = self._prices([s for s in zd.DAY_SYMS if s not in brak], prev=prev)
+        self.assertEqual(len(out['q']), 14, 'plik pełny — mapa GLOBAL zostaje przy 1Q i 1R na danych giełdowych (reguła 80%)')
+        for s in brak:
+            self.assertEqual(out['q'][s]['d'], prev['q'][s]['d']); self.assertEqual(out['q'][s]['at'], self.T_OLD, 'data pobrania przy funduszu')
+            self.assertEqual(out['q'][s]['asof'], prev['q'][s]['asof'])
+        self.assertNotIn('at', out['q']['SPY']); self.assertEqual(out['q']['SPY']['d'], prev['q']['SPY']['d'])
+        self.assertTrue(any(n.startswith('Twelve Data: uzupełniono z poprzedniego pliku') and 'KSA' in n and 'TUR' in n and 'EIS' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual(sum(1 for e in zd.META['errors'] if e.startswith('Twelve Data ') and ': no data' in e), 3, 'błędy źródła zostają widoczne w meta')
+        out2, _, _ = self._prices([s for s in zd.DAY_SYMS if s not in brak], prev=out)   # łańcuch: pierwotna data pobrania zostaje
+        self.assertEqual(out2['q']['KSA']['at'], self.T_OLD)
+
+    def test_ceny_13_funduszy_brakujacy_z_poprzedniego_a_bez_poprzedniego_13_przechodzi(self):
+        prev = self._ceny_prev()
+        out, _, _ = self._prices([s for s in zd.DAY_SYMS if s != 'ASEA'], prev=prev)
+        self.assertEqual(len(out['q']), 14); self.assertEqual(out['q']['ASEA']['at'], self.T_OLD)
+        out, _, _ = self._prices([s for s in zd.DAY_SYMS if s != 'ASEA'])
+        self.assertEqual(len(out['q']), 13); self.assertNotIn('ASEA', out['q'], 'bez poprzedniego pliku: 13 ≥ 12, bez uzupełnienia')
+        out, _, _ = self._prices([s for s in zd.DAY_SYMS if s not in ('ASEA', 'EWA')])
+        self.assertEqual(len(out['q']), 12, '12 = próg strony')
+
+    def test_ceny_11_bez_uzupelnienia_to_wyjatek_a_potem_zapas(self):
+        dost = [s for s in zd.DAY_SYMS if s not in ('KSA', 'TUR', 'EIS')]
+        with self.assertRaisesRegex(RuntimeError, 'tylko 11 symboli z 14'):
+            self._prices(dost)
+        stary = self._ceny_prev(n=38)   # ostatnia świeca 7 sesji przed najnowszą (> CENY_UZUP_SESJI) — nie uzupełnia
+        with self.assertRaisesRegex(RuntimeError, 'tylko 11 symboli z 14'):
+            self._prices(dost, prev=stary)
+        zap = dict(self._ceny_prev(), zapas=True, src='Nasdaq')
+        with self.assertRaisesRegex(RuntimeError, 'tylko 11 symboli z 14'):
+            self._prices(dost, prev=zap)   # poprzedni plik zapasu (inne źródło) — nie mieszamy
+        out, _, _ = self._prices(dost, prev=self._ceny_prev(n=41))   # 3 sesje wstecz — uzupełnia
+        self.assertEqual(len(out['q']), 14)
+        with self.assertRaises(RuntimeError):   # istniejący przypadek: 9 funduszy nadal błąd
+            self._prices(zd.DAY_SYMS[:9], prev=self._ceny_prev())
+
+    def test_ceny_spy_obowiazkowy_i_krotka_historia_funduszu_zastapiona(self):
+        prev = self._ceny_prev()
+        with self.assertRaisesRegex(RuntimeError, 'SPY obowiązkowy'):
+            self._prices([s for s in zd.DAY_SYMS if s != 'SPY'], prev=prev)
+        get, _ = self._td_get(zd.DAY_SYMS)
+
+        def krotki(url, headers=None, timeout=30):
+            st, body = get(url)
+            return st, json.dumps({k: (_td_symbol(_dates(10)) if k == 'KSA' else v) for k, v in json.loads(body).items()})
+        with mock.patch.object(zd, 'get', krotki), mock.patch.object(zd.time, 'sleep'):
+            out = zd.build_prices('klucz', prev)
+        self.assertEqual(out['q']['KSA']['d'], prev['q']['KSA']['d'], 'fundusz z za krótką historią (10 świec) — pełna historia z poprzedniego pliku')
+
+    def test_ceny_ponowienie_symboli_odrzuconych_limitem(self):
+        lim = ('EWY', 'ASEA', 'EWA')
+        out, wyw, sp = self._prices(zd.DAY_SYMS, limit_raz=lim)
+        self.assertEqual(len(out['q']), 14); self.assertEqual(wyw[-1], list(lim), 'jedno ponowienie tylko odrzuconych symboli'); self.assertEqual(len(wyw), 3)
+        self.assertEqual(sp, [zd.TD_SLEEP, zd.TD_SLEEP], 'minuta między paczkami i minuta przed ponowieniem')
+        self.assertEqual([e for e in zd.META['errors'] if e.startswith('Twelve Data')], [], 'odzyskane symbole nie zostawiają błędów')
+        zd.META['errors'].clear()
+        out, wyw, sp = self._prices(zd.DAY_SYMS, prev=self._ceny_prev(), limit=lim)   # limit trwa: jedno ponowienie, nie pętla; 3 fundusze z poprzedniego pliku
+        self.assertEqual(len(wyw), 3); self.assertEqual(len(out['q']), 14); self.assertEqual(sorted(s for s in out['q'] if 'at' in out['q'][s]), sorted(lim))
+        self.assertEqual(sum(1 for e in zd.META['errors'] if e.startswith('Twelve Data') and 'credits' in e), 3, 'po ponowieniu jeden błąd na symbol, nie dwa')
+
+    def test_ceny_limit_ponowienie_w_budzecie_czasu_i_blad_ponowienia(self):
+        with mock.patch.object(zd, '_RUN_T0', [zd.time.monotonic() - zd.BACK_LATE - 5]):
+            out, wyw, sp = self._prices(zd.DAY_SYMS, limit_raz=('EWY',))
+        self.assertEqual((len(wyw), sp), (2, [zd.TD_SLEEP]), 'przebieg spóźniony (> BACK_LATE) — bez ponowienia')
+        self.assertNotIn('EWY', out['q'])
+        with mock.patch.object(zd, '_RUN_T0', [zd.time.monotonic() - 30]):
+            out, wyw, sp = self._prices(zd.DAY_SYMS, limit_raz=('EWY',))
+        self.assertEqual((len(wyw), len(out['q'])), (3, 14))
+        get, _ = self._td_get(zd.DAY_SYMS, limit_raz=('EWY',))
+        n = [0]
+
+        def get2(url, headers=None, timeout=30):
+            n[0] += 1
+            if n[0] == 3:
+                raise OSError('timed out')
+            return get(url, headers, timeout)
+        with mock.patch.object(zd, 'get', get2), mock.patch.object(zd.time, 'sleep'):
+            out = zd.build_prices('klucz', self._ceny_prev())
+        self.assertEqual(len(out['q']), 14, 'ponowienie padło — fundusz z poprzedniego pliku; pierwotne odpowiedzi zostają')
+
+    def test_ceny_main_przekazuje_poprzedni_plik(self):
+        prev = self._ceny_prev(at=self._ago(120))
+        saved, wyw = {}, []
+        stuby = [mock.patch.object(zd, b, side_effect=RuntimeError('offline')) for b in dir(zd) if b.startswith('build_') and b != 'build_prices']
+        [p.start() for p in stuby]
+        try:
+            with mock.patch.dict(os.environ, {'TWELVEDATA_KEY': 'klucz-td', 'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                    mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), mock.patch.object(zd, 'previous', lambda name: prev if name == 'ceny' else None), \
+                    mock.patch.object(zd, 'build_prices', side_effect=lambda k, p=None: wyw.append((k, p)) or {'at': zd.NOW, 'q': {}}):
+                zd.main()
+        finally:
+            [p.stop() for p in stuby]
+        self.assertEqual(wyw, [('klucz-td', prev)], 'build_prices dostaje poprzedni plik cen')
+
+    # ------------------------------------------------------------------ ZB04-01: fundusze, święto w USA
+    def _fundusze_swieto(self, kon_hist, kon_scr, now, dni_pliku):
+        """build_fundusze z jednym funduszem iShares (EFA): historia kończy się `kon_hist`, zestawienie podaje `kon_scr`, State Street (SPY) kończy się na `kon_hist`.
+        → (liczba pobrań pełnego pliku, fundusz po przebiegu)."""
+        sesje = [d for d in _wdays('2026-10-01', dni_pliku[-1]) if d not in zd.TD_NYSE_CLOSED]
+        hist = [[d, 50.0, 1000000 + 1000 * i] for i, d in enumerate(sesje) if d <= kon_hist]
+        spy = [[d, 700.0 + i, 1000000 + i] for i, d in enumerate(sesje) if d <= kon_hist]
+        prev = {'scr_at': None, 'f': {t: {'iss': 'ssga', 'at': (now - datetime.timedelta(hours=1)).isoformat(), 'h': spy} for t in zd.FUND_SSGA}}
+        prev['f']['EFA'] = {'iss': 'ishares', 'pid': '1', 'bf_done': True, 'h': hist}
+        d = int(kon_scr.replace('-', ''))
+        scr = {'1': {'localExchangeTicker': 'EFA', 'portfolioId': '1', 'navAmount': {'r': 50.0}, 'navAmountAsOf': {'r': d},
+                     'totalNetAssetsFund': {'r': 50.0 * (1000000 + 1000 * len(sesje))}, 'totalNetAssetsFundAsOf': {'r': d}}}
+        doc = FunduszeV90.xml([(datetime.date.fromisoformat(s).strftime('%b %d, %Y'), 50.0, 1000000 + 1000 * i) for i, s in reversed(list(enumerate(sesje))) if s <= kon_scr])
+        calls = []
+
+        def fake(url, timeout=60, headers=None):
+            calls.append(url)
+            return json.dumps(scr).encode() if 'product-screener' in url else doc
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+        with mock.patch.object(zd, 'get_bytes', side_effect=fake), mock.patch.object(zd, '_now_utc', return_value=now), \
+                mock.patch.object(zd, 'FUND_SLEEP', 0), mock.patch.object(zd.time, 'sleep'):
+            out = zd.build_fundusze(prev)
+        return sum('get-fund-document' in u for u in calls), out['f']['EFA']
+
+    def test_fundusze_pierwsza_sesja_po_swiecie_nie_jest_luka(self):
+        """Dziękczynienie 26.11.2026 (czwartek): State Street (SPY) o sesję za iShares — kończy się w środę 25.11, zestawienie iShares podaje piątek 27.11.
+        Dotąd zapasowe liczenie dni roboczych (bez świąt) widziało 2 dni = „lukę” → 25 pobrań pełnych plików po ok. 3 MB; teraz 0 i dzień dopisany od razu."""
+        now = datetime.datetime(2026, 11, 27, 22, 0, tzinfo=datetime.timezone.utc)
+        n, e = self._fundusze_swieto('2026-11-25', '2026-11-27', now, ['2026-11-27'])
+        self.assertEqual(n, 0, 'święto nie jest luką — bez pobrania pełnego pliku'); self.assertEqual(e['h'][-1][0], '2026-11-27'); self.assertNotIn('bf_need', e)
+        self.assertEqual([r[0] for r in e['h'][-2:]], ['2026-11-25', '2026-11-27'])
+
+    def test_fundusze_prawdziwa_luka_nadal_uzupelniana_pelnym_plikiem(self):
+        now = datetime.datetime(2026, 11, 25, 22, 0, tzinfo=datetime.timezone.utc)
+        n, e = self._fundusze_swieto('2026-11-23', '2026-11-25', now, ['2026-11-25'])   # brak wtorku 24.11 (zwykła sesja)
+        self.assertEqual(n, 1, 'brak zwykłej sesji = luka: pełny plik'); self.assertEqual([r[0] for r in e['h'][-3:]], ['2026-11-23', '2026-11-24', '2026-11-25'])
+        n, e = self._fundusze_swieto('2026-11-24', '2026-11-25', now, ['2026-11-25'])   # zwykły następny dzień
+        self.assertEqual(n, 0); self.assertEqual(e['h'][-1][0], '2026-11-25')
+        n, e = self._fundusze_swieto('2026-11-20', '2026-11-25', now, ['2026-11-25'])   # pt → śr: brakuje pn 23 i wt 24
+        self.assertEqual(n, 1)
+
+    def test_fundusze_swieta_nyse_w_zapasowym_liczeniu_dni(self):
+        import inspect
+        self.assertIn('_bdays(_d(L), _d(d), TD_NYSE_CLOSED) > 1', inspect.getsource(zd.build_fundusze))
+        for a, b in (('2026-11-25', '2026-11-27'), ('2026-09-04', '2026-09-08'), ('2026-07-02', '2026-07-06'), ('2026-04-02', '2026-04-06'), ('2027-11-24', '2027-11-26')):
+            self.assertEqual(zd._bdays(datetime.date.fromisoformat(a), datetime.date.fromisoformat(b), zd.TD_NYSE_CLOSED), 1, (a, b))
+        self.assertEqual(zd._bdays(datetime.date(2026, 11, 20), datetime.date(2026, 11, 25), zd.TD_NYSE_CLOSED), 3)

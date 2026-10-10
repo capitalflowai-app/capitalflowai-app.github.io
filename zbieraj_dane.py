@@ -34,6 +34,9 @@ TD_SLEEP = 61
 TD_OUTPUT = 260     # v64: ponad rok sesji (1R = 252) — koszt zapytania ten sam (1 kredyt na symbol niezależnie od liczby świec)
 TD_MIN_SYMBOLS = 10
 TD_MIN_CANDLES = 22
+TD_MIN_STRONA = 12      # v328 (ZB01-02): próg build_prices = próg strony (1Q i 1R wymagają ≥ 80% z 14 funduszy = 12); OSOBNY od TD_MIN_SYMBOLS, którego używa
+                        # ceny_z_swiata (zapas ze „Świat dziennie” nie ma KSA, TUR, EIS — przy 12 przestałby działać)
+CENY_UZUP_SESJI = 5     # v328: brakujący fundusz jest uzupełniany z poprzedniego ceny.json, gdy jego ostatnia świeca jest najwyżej tyle sesji wstecz wobec kalendarza (SPY)
 CMC = 'https://pro-api.coinmarketcap.com'
 # TIC (Skarb USA, dane rządowe): pliki SLT tabulatorowe; pobierane najwyżej raz na dobę (publikacja ok. 15–18 dnia miesiąca)
 TIC_BASE = 'https://ticdata.treasury.gov/resource-center/data-chart-center/tic/Documents/'
@@ -255,6 +258,34 @@ def fresh(prev, minutes):
         return (datetime.datetime.now(datetime.timezone.utc) - at).total_seconds() < minutes * 60
     except Exception:
         return False
+
+
+NIEPELNY_MIN = 55   # v328 (pasy Z2 i Z3 planu napraw): plik z częścią nieudaną jest w main() „świeży” najwyżej tyle minut — ponowienie w następnej godzinie
+
+
+def plik_niepelny(p):
+    """v328: czy plik ma część, która w jego budowie zawiodła — pole 'ok' = {część: True/False}; False = część z poprzedniego pliku (z własnym 'part_at')
+    albo brak. Plik bez pola 'ok' (sprzed v328) i plik pełny — nie."""
+    ok = p.get('ok') if isinstance(p, dict) else None
+    return isinstance(ok, dict) and any(v is False for v in ok.values())
+
+
+def fresh_pelny(prev, minutes):
+    """v328: jak fresh(), ale plik niepełny (plik_niepelny) jest świeży najwyżej NIEPELNY_MIN min — chwilowa awaria jednego z kilku zapytań pliku
+    nie blokuje ponowienia na 6–24 h (jedna zasada dla instytucji/bop, TIC, kursów efektywnych, Meksyku, SPW, BLS i BEA)."""
+    return fresh(prev, min(minutes, NIEPELNY_MIN) if plik_niepelny(prev) else minutes)
+
+
+def _zapas_czas(prev, name):
+    """v328: czas pobrania części `name` poprzedniego pliku: prev['part_at'][name], inaczej prev['at'] (jak _czesc_z_zapasem); brak = None."""
+    pat = prev.get('part_at') if isinstance(prev, dict) and isinstance(prev.get('part_at'), dict) else {}
+    return pat.get(name) or (prev.get('at') if isinstance(prev, dict) else None)
+
+
+def _zapas_wiek_ok(kiedy, max_dni):
+    """v328: czy część pobrana `kiedy` (ISO) nie jest starsza niż max_dni dni wobec chwili przebiegu (NOW); brak albo zły czas = nie."""
+    tk, tn = _ix_dt(kiedy), _ix_dt(NOW)
+    return tk is not None and tn is not None and (tn - tk).total_seconds() <= max_dni * 86400
 
 
 def save(name, obj):
@@ -556,6 +587,42 @@ def parse_bop(j_ca, j_fa):
             'sign': 'net = assets minus liabilities; positive = net outflow from the euro area', 's': s}
 
 
+BOP_GRUPY = (('ca', ('ca',)), ('fa', tuple(BOP_FA_KEYS.values())))   # v328: zapytanie → serie, które z niego pochodzą
+BOP_ZAPAS_DNI = 45
+
+
+def bop_czesciowy(prev=None):
+    """v328 (ZB01-01): część 'bop' to DWA zapytania do EBC — rachunek bieżący ('ca') i rachunek finansowy (fa, di, pi, pi_eq, pi_debt, oi). _ecb_try
+    zamienia błąd w None, a parse_bop wpisuje wtedy None w serie tego zapytania — część wyglądała na udaną (ok = True, świeże part_at), więc mechanizm
+    v275 działał tylko przy awarii OBU zapytań. Teraz serie zapytania, które zawiodło (i tylko jego — brak serii w UDANEJ odpowiedzi bywa zamierzony:
+    di, pi_eq), zostają z poprzedniego pliku z czasem ich pobrania ('old': {zapytanie: czas}); 'bad' = zapytania, które zawiodły (build_instytucje ustawia
+    wtedy META ok['bop'] = False). Poprzednia wersja starsza niż BOP_ZAPAS_DNI dni albo bez tych serii — bez zapasu (brak, nie stare dane). Obie odpowiedzi
+    None — wyjątek z parse_bop: zostaje cała poprzednia część (v275)."""
+    ca, fa = _ecb_try(BOP_CA_URL, 'bop ca'), _ecb_try(BOP_FA_URL, 'bop fa')
+    b = parse_bop(ca, fa)
+    zle = [g for g, r in (('ca', ca), ('fa', fa)) if r is None]
+    if not zle:
+        return b
+    pb = prev.get('bop') if isinstance(prev, dict) and isinstance(prev.get('bop'), dict) else {}
+    ps = pb.get('s') if isinstance(pb.get('s'), dict) else {}
+    stare = pb.get('old') if isinstance(pb.get('old'), dict) else {}
+    old = {}
+    for g, nazwy in BOP_GRUPY:
+        if g not in zle:
+            continue
+        kiedy = stare.get(g) or _zapas_czas(prev, 'bop')   # grupa już raz wzięta z zapasu zachowuje swój czas, inaczej czas pobrania całej części
+        wz = [n for n in nazwy if ps.get(n)]
+        if wz and _zapas_wiek_ok(kiedy, BOP_ZAPAS_DNI):
+            for n in wz:
+                b['s'][n] = ps[n]
+            old[g] = kiedy
+    if old:
+        b['asof'] = max(r[-1][0] for r in b['s'].values() if r)
+        b['old'] = old
+    b['bad'] = zle
+    return b
+
+
 def _czesc_z_zapasem(out, prev, name, dane='', pole='part_at', max_h=None):
     """v275: część `name`, która w tym przebiegu zawiodła, z poprzedniego pliku `prev` (słownik części: prev[dane] albo prev, gdy dane = '')
     z jej własnym czasem pobrania (prev[pole][name], inaczej prev['at']) — data danych części zostaje w niej samej (strona: „stan na …”).
@@ -584,7 +651,7 @@ def build_instytucje(prev=None):
     jobs = [('tga', lambda: parse_tga(get_json(TGA_URL))), ('rrp', lambda: parse_rrp(get_json(RRP_URL))),
             ('soma', lambda: parse_soma(get_json(SOMA_URL))), ('tgb', lambda: parse_tgb(_ecb_json(TGB_URL))),
             ('ilm', lambda: parse_ilm(_ecb_json(ILM_URL))), ('m3', lambda: parse_m3(_ecb_json(M3_URL))),
-            ('bop', lambda: parse_bop(_ecb_try(BOP_CA_URL, 'bop ca'), _ecb_try(BOP_FA_URL, 'bop fa'))),
+            ('bop', lambda: bop_czesciowy(prev)),   # v328 (ZB01-01): jedno z dwóch zapytań bez odpowiedzi — jego serie z poprzedniego pliku, META ok False
             ('mof', lambda: parse_mof(get_bytes(MOF_URL)))]
     udane = 0
     for name, job in jobs:
@@ -595,6 +662,8 @@ def build_instytucje(prev=None):
             META['errors'].append(mask(f'{name}: {e}')); META['ok'][name] = False
             if _czesc_z_zapasem(out, prev, name):   # v275: poprzednia wersja z własną datą — nie „—” do następnej budowy
                 print(f'{name}: zawiódł — zostaje poprzednia wersja z', out['part_at'][name])
+    if isinstance(out.get('bop'), dict) and out['bop'].get('bad'):   # v328 (ZB01-01): część bop niepełna (jedno z dwóch zapytań) — nie „ok”
+        META['ok']['bop'] = False
     if not udane:
         raise RuntimeError('żadne źródło urzędowe nie odpowiedziało')
     return out
@@ -645,6 +714,11 @@ def parse_td(j, syms):
     return q, errors
 
 
+def _td_limit(e):
+    """v328: czy komunikat Twelve Data (symbol albo cała paczka) to limit kredytów / zapytań (429)."""
+    return ': 429' in e or 'credits' in e.lower() or 'limit' in e.lower()
+
+
 def td_batch(syms, key, _retry=True):
     url = f'{TD}/time_series?symbol={",".join(syms)}&interval=1day&outputsize={TD_OUTPUT}&apikey={key}'
     try:
@@ -654,7 +728,7 @@ def td_batch(syms, key, _retry=True):
         raise RuntimeError(f'HTTP {e.code}') from None
     j = json.loads(body)
     q, errors = parse_td(j, syms)
-    if _retry and any(': 429' in e or 'credits' in e.lower() or 'limit' in e.lower() for e in errors) and not q:
+    if _retry and any(_td_limit(e) for e in errors) and not q:
         print('Twelve Data 429 — czekam 61 s')
         time.sleep(TD_SLEEP)
         return td_batch(syms, key, _retry=False)
@@ -777,8 +851,38 @@ def _align_calendar(q, etykieta='Twelve Data'):
     return n
 
 
-def build_prices(key):
-    """data/ceny.json: dzienne zamknięcia 14 ETF-ów zastępczych (te same co DZIŚ), rosnąco po dacie."""
+def _ceny_uzupelnij(q, prev, brak):
+    """v328 (ZB01-02): fundusze z listy `brak` (bez odpowiedzi albo z za krótką historią) z POPRZEDNIEGO ceny.json: tylko świece z kalendarza sesji tego
+    przebiegu (daty SPY), gdy jest ich ≥ TD_MIN_CANDLES, a ostatnia jest najwyżej CENY_UZUP_SESJI sesji wstecz; wpis dostaje 'at' = czas pobrania
+    (poprzedni 'at' funduszu albo pliku — przy łańcuchu zostaje pierwotny) i notatkę w meta. Poprzedni plik zapasu (z giełdy, nie z Twelve Data) — bez
+    uzupełniania (nie mieszamy źródeł). → lista uzupełnionych symboli."""
+    spy = q.get('SPY')
+    if not brak or not isinstance(prev, dict) or prev.get('zapas') or not isinstance(prev.get('q'), dict) or not isinstance(spy, dict):
+        return []
+    cal = sorted({str(r[0])[:10] for r in (spy.get('d') or []) if isinstance(r, list) and r})
+    if not cal:
+        return []
+    ile = []
+    for s in brak:
+        o = prev['q'].get(s)
+        d = [r for r in (o.get('d') if isinstance(o, dict) and isinstance(o.get('d'), list) else [])
+             if isinstance(r, list) and len(r) >= 2 and str(r[0])[:10] in cal and isinstance(r[1], (int, float)) and not isinstance(r[1], bool) and r[1] > 0]
+        if len(d) < TD_MIN_CANDLES:
+            continue
+        ost = str(d[-1][0])[:10]
+        if sum(1 for c in cal if c > ost) > CENY_UZUP_SESJI:
+            continue
+        q[s] = {'asof': ost, 'ex': o.get('ex') or '', 'd': d, 'at': o.get('at') or prev.get('at')}
+        ile.append(s)
+    if ile:
+        META['notes'].append('Twelve Data: uzupełniono z poprzedniego pliku (brak w odpowiedzi): ' + ', '.join(f"{s} (do {q[s]['asof']})" for s in ile))
+    return ile
+
+
+def build_prices(key, prev=None):
+    """data/ceny.json: dzienne zamknięcia 14 ETF-ów zastępczych (te same co DZIŚ), rosnąco po dacie.
+    v328 (ZB01-02): odpowiedź z 10–13 funduszy nie zastępuje pełnego pliku — brakujące z poprzedniego ceny.json (_ceny_uzupelnij); próg pliku = próg strony
+    (TD_MIN_STRONA, 12); SPY obowiązkowy; symbole odrzucone limitem kredytów — jedno ponowienie po TD_SLEEP, jeśli przebieg nie jest spóźniony."""
     q, errors = {}, []
     batches = [DAY_SYMS[i:i + TD_BATCH] for i in range(0, len(DAY_SYMS), TD_BATCH)]
     for n, syms in enumerate(batches):
@@ -787,13 +891,28 @@ def build_prices(key):
         bq, be = td_batch(syms, key)
         q.update(bq)
         errors.extend(be)
+    lim = [m.group(1) for m in (re.match(r'^Twelve Data (\S+): ', e) for e in errors if _td_limit(e)) if m and m.group(1) not in q][:TD_BATCH]
+    if lim and not (_RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > BACK_LATE):
+        time.sleep(TD_SLEEP)   # minuta limitu kredytów od poprzedniej paczki
+        try:
+            rq, rb = td_batch(lim, key, _retry=False)
+        except Exception as e:  # noqa — ponowienie jest dodatkiem: błąd zostaje w meta, pierwotne odpowiedzi bez zmian
+            rq, rb = {}, [f'Twelve Data ponowienie ({", ".join(lim)}): {e}']
+        q.update(rq)
+        errors = [e for e in errors if not any(e.startswith(f'Twelve Data {s}: ') for s in lim)] + rb
     META['errors'].extend(errors)
     _drop_open_session(q)
     _zamkniecia_z_notowan(q, SAVED.get('dzis'))   # v195: świeca wstępna albo brak tuż po sesji — zamknięcie z pliku notowań tego przebiegu
     _align_calendar(q)   # v69: jeden kalendarz sesji dla wszystkich ETF-ów
-    good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
-    if len(good) < TD_MIN_SYMBOLS:
-        raise RuntimeError(f'tylko {len(good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec')
+    fresh_good = [s for s, v in q.items() if len(v['d']) >= TD_MIN_CANDLES]
+    if len(fresh_good) < TD_MIN_SYMBOLS or 'SPY' not in fresh_good:
+        raise RuntimeError(f'tylko {len(fresh_good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec'
+                           + ('' if 'SPY' in fresh_good else ' (SPY obowiązkowy: kalendarz sesji i region USA)'))
+    uzup = _ceny_uzupelnij(q, prev, [s for s in DAY_SYMS if s not in fresh_good])
+    good = fresh_good + uzup
+    pmin = max(TD_MIN_SYMBOLS, min(TD_MIN_STRONA, len(DAY_SYMS) - 2))   # 12 z 14 = próg strony (reguła 80%); w testach z krótszą listą DAY_SYMS — niższy
+    if len(good) < pmin:
+        raise RuntimeError(f'tylko {len(good)} symboli z {len(DAY_SYMS)} ma ≥ {TD_MIN_CANDLES} świec (próg strony {pmin})')
     dates = sorted({v['asof'] for v in q.values()})
     asof = dates[0] if len(dates) == 1 else f'{dates[0]} – {dates[-1]}'
     for s, v in q.items():
@@ -1442,7 +1561,38 @@ def _tic_net(t1, t2, members, months):
     return rows
 
 
-def build_tic():
+TIC_T2_POLA = ('out', 'out_eq', 'out_gov', 'hold_out', 'net')   # v328: pola regionu zależne od tabeli 2
+
+
+def _tic_regiony(plik):
+    """v328: [(nazwa, region)] wszystkich regionów pliku TIC: regions[...], world, carib, twn."""
+    r = plik.get('regions') if isinstance(plik.get('regions'), dict) else {}
+    return [(k, v) for k, v in r.items() if isinstance(v, dict)] + [(k, plik[k]) for k in ('world', 'carib', 'twn') if isinstance(plik.get(k), dict)]
+
+
+def _tic_zapas(out, prev):
+    """v328 (ZB02-02): tabela 2 albo 5, która w tym przebiegu zawiodła (out['ok']), zostaje z poprzedniego pliku z własnym czasem pobrania
+    (out['part_at']['t2'|'t5']) — TYLKO gdy poprzedni plik ma ten sam ostatni miesiąc i to samo okno miesięcy co tabela 1 (część z innego miesiąca niż
+    reszta = brak, nie stare dane); region o innym składzie członków niż w poprzednim pliku — bez zapasu (brak, nie zero)."""
+    if not isinstance(prev, dict) or prev.get('asof') != out.get('asof') or prev.get('months') != out.get('months'):
+        return
+    if not out['ok']['t2']:
+        stary, n = dict(_tic_regiony(prev)), 0
+        for nazwa, r in _tic_regiony(out):
+            o = stary.get(nazwa)
+            if o is not None and o.get('members') == r.get('members') and o.get('out') is not None:
+                for k in TIC_T2_POLA:
+                    r[k] = o.get(k)
+                n += 1
+        if n:
+            out.setdefault('part_at', {})['t2'] = _zapas_czas(prev, 't2')
+    ph = prev.get('holders')
+    if not out['ok']['t5'] and isinstance(ph, dict) and ph.get('asof') == out.get('asof'):
+        out['holders'] = ph
+        out.setdefault('part_at', {})['t5'] = _zapas_czas(prev, 't5')
+
+
+def build_tic(prev=None):
     """data/tic.json — przepływy papierów wartościowych USA ↔ regiony strony (mln USD, miesięcznie, TIC SLT).
     in = netto zakupy amerykańskich papierów przez zagranicę (plus = kapitał do USA); out = netto zakupy zagranicznych
     papierów przez USA (plus = kapitał z USA). Tabela 2 i 5 osobno: ich awaria nie kasuje tabeli 1."""
@@ -1489,6 +1639,8 @@ def build_tic():
         total = next((vals for name, vals in holders['rows'] if name == 'Grand Total'), None)
         out['holders'] = {'asof': hm[0], 'unit': 'mld USD', 'top': top[:15], 'total': total[0] if total else None,
                           'total_d12': (round(total[0] - total[12], 1) if total and len(total) > 12 and total[12] is not None and total[0] is not None else None)}
+    out['ok'] = {'t1': True, 't2': t2 is not None, 't5': holders is not None}   # v328 (ZB02-02): która tabela odpowiedziała; nieudana — z poprzedniego pliku (_tic_zapas)
+    _tic_zapas(out, prev)
     return out
 
 
@@ -3869,19 +4021,43 @@ def eer_summary(daily, monthly):
     return rows
 
 
-def build_eer():
+EER_ZAPAS_DNI = 40   # v328: miesięczne zmiany (c12) z poprzedniego pliku najwyżej tyle dni od ich pobrania
+
+
+def _eer_zapas(out, prev):
+    """v328 (Z3-01): zapytanie miesięczne zawiodło — miesiąc i zmiana 12 mies. (m, c12) każdej waluty z poprzedniego pliku, z czasem ich pobrania
+    (out['part_at']['m']); tylko gdy poprzedni plik jest młodszy niż EER_ZAPAS_DNI dni. Dane dzienne (v, d, c30) zawsze świeże."""
+    pr = prev.get('rows') if isinstance(prev, dict) and isinstance(prev.get('rows'), dict) else {}
+    kiedy = _zapas_czas(prev, 'm')
+    if not pr or not _zapas_wiek_ok(kiedy, EER_ZAPAS_DNI):
+        return
+    n = 0
+    for a, r in out['rows'].items():
+        o = pr.get(a)
+        if isinstance(o, dict) and o.get('m') and r.get('m') is None:
+            r['m'], r['c12'] = o['m'], o.get('c12'); n += 1
+    if n:
+        out['part_at'] = {'m': kiedy}
+
+
+def build_eer(prev=None):
     """data/eer.json — kursy efektywne BIS: dzienne 45 obserwacji (do zmiany 30 dni), miesięczne 14 (do zmiany 12 mies.)."""
     keys = '+'.join(EER_AREAS)
     daily = parse_cbpol_csv(get_bytes(EER_BASE + f'D.N.B.{keys}?lastNObservations=45&format=csv&detail=dataonly', timeout=90))
+    ok_m = True
     try:
         monthly = parse_cbpol_csv(get_bytes(EER_BASE + f'M.N.B.{keys}?lastNObservations=14&format=csv&detail=dataonly', timeout=90))
     except Exception as e:
-        META['errors'].append(mask(f'BIS kursy efektywne (miesięczne): {e}')); monthly = {}
+        META['errors'].append(mask(f'BIS kursy efektywne (miesięczne): {e}')); monthly = {}; ok_m = False
     rows = eer_summary(daily, monthly)
     if not rows:
         raise RuntimeError('żadna waluta')
-    return {'at': NOW, 'src': 'BIS — Effective exchange rates (WS_EER), nominal, broad basket', 'url': 'https://data.bis.org/topics/EER',
-            'unit': 'indeks 2020=100; zmiany w %', 'asof': max((r['d'] or '') for r in rows.values()), 'rows': rows}
+    out = {'at': NOW, 'src': 'BIS — Effective exchange rates (WS_EER), nominal, broad basket', 'url': 'https://data.bis.org/topics/EER',
+           'unit': 'indeks 2020=100; zmiany w %', 'asof': max((r['d'] or '') for r in rows.values()), 'rows': rows,
+           'ok': {'d': True, 'm': ok_m}}   # v328: zapytanie miesięczne (m, c12) może zawieść osobno — wtedy z poprzedniego pliku (_eer_zapas), plik niepełny świeży 55 min
+    if not ok_m:
+        _eer_zapas(out, prev)
+    return out
 
 
 # v59: MFW COFER — skład walutowy światowych rezerw walutowych (kwartalnie), bez klucza
@@ -4385,7 +4561,23 @@ def spw_countries(data):
     return out
 
 
-def build_spw():
+SPW_KR_MAX_M = 3   # v328: kraje z poprzedniego pliku najwyżej tyle miesięcy starsze od stanu (m) — starszych nie pokazujemy
+
+
+def _spw_zapas(out, prev, ostatni):
+    """v328 (Z3-01): plik „po krajach” zawiódł — lista krajów (kr) z poprzedniego pliku, każdy arkusz z WŁASNYM miesiącem (strona podaje go przy tabeli),
+    z czasem pobrania w out['part_at']['kr']; lista starsza niż SPW_KR_MAX_M miesięcy od stanu `ostatni` — bez zapasu (brak, nie stare dane)."""
+    pk = prev.get('kr') if isinstance(prev, dict) else None
+    if not (isinstance(pk, list) and pk and isinstance(pk[0], dict) and isinstance(pk[0].get('m'), str) and isinstance(pk[0].get('c'), list)):
+        return
+    if pk[0]['m'] < _ym_add(ostatni, -SPW_KR_MAX_M):
+        return
+    out['kr'] = pk
+    out.setdefault('part_at', {})['kr'] = _zapas_czas(prev, 'kr')
+    META['notes'].append(f"MF SPW: kraje z poprzedniego pliku (za {pk[0]['m']}), stan za {ostatni}")
+
+
+def build_spw(prev=None):
     """data/spw.json — m: [[miesiąc, razem, obligacje, bony]] mln zł (wartość nominalna, koniec miesiąca), 25 miesięcy;
     t / r: {typ|region: [[miesiąc, mln zł]]} 13 miesięcy; kr: kraje (2 najnowsze miesiące, opcjonalnie)."""
     L = spw_links(get_bytes(SPW_PAGE, timeout=60).decode('utf-8', 'replace'))
@@ -4414,6 +4606,7 @@ def build_spw():
            'm': [[m, T[m]['tot'], (B.get(m) or {}).get('tot'), (S.get(m) or {}).get('tot')] for m in ms],
            't': {k: [[m, (T.get(m) or {}).get(k)] for m in grp] for k, _ in SPW_TYPES if k != 'tot'},
            'r': {k: [[m, (R.get(m) or {}).get(k)] for m in grp] for k, _ in SPW_REGS if k != 'tot'}}
+    out['ok'] = {'st': True, 'kr': True}   # v328: plik „po krajach” może zawieść osobno — wtedy kr z poprzedniego pliku (_spw_zapas), plik niepełny świeży 55 min
     try:
         if 'kr' not in L:
             raise RuntimeError('brak odnośnika do pliku „po krajach”')
@@ -4422,6 +4615,8 @@ def build_spw():
             META['notes'].append(f"MF SPW: kraje za {out['kr'][0]['m']}, stan za {ms[-1]} (tabela krajów ma własny miesiąc)")
     except Exception as e:
         META['errors'].append(mask(f'MF SPW kraje: {e}'))
+        out['ok']['kr'] = False
+        _spw_zapas(out, prev, ms[-1])
     y, mo = int(ms[-1][:4]), int(ms[-1][5:7])
     end = datetime.date(y + (mo == 12), mo % 12 + 1, 1) - datetime.timedelta(days=1)
     if (_now_utc().date() - end).days > SPW_STALE:
@@ -4608,7 +4803,25 @@ def bmx_api_rows(token, now):
     return d
 
 
-def build_meksyk(key, token=''):
+MX_FX_DNI = 7   # v328: kurs z poprzedniego pliku najwyżej tyle dni przed dniem ostatnich danych
+
+
+def _mx_fx_zapas(out, prev):
+    """v328 (Z3-01): zapytanie o kurs (FRED DEXMXUS) zawiodło — kurs z poprzedniego pliku [kurs, dzień kursu], gdy dzień kursu jest nie późniejszy niż dzień
+    ostatnich danych (asof) i nie wcześniejszy niż MX_FX_DNI dni przed nim; z czasem pobrania w out['part_at']['fx']. Inaczej — bez kursu (brak, nie zero)."""
+    fx = prev.get('fx') if isinstance(prev, dict) else None
+    if not (isinstance(fx, list) and len(fx) == 2 and _isnum(fx[0]) and fx[0] > 0 and isinstance(fx[1], str)):
+        return
+    try:
+        wiek = (datetime.date.fromisoformat(out['asof']) - datetime.date.fromisoformat(fx[1])).days
+    except (TypeError, ValueError):
+        return
+    if 0 <= wiek <= MX_FX_DNI:
+        out['fx'] = [fx[0], fx[1]]
+        out['part_at'] = {'fx': _zapas_czas(prev, 'fx')}
+
+
+def build_meksyk(key, token='', prev=None):
     """data/meksyk.json — d: [[data, nierezydenci, razem w obiegu, Bonos M, Cetes, Udibonos]] mln MXN nominalnie (270 sesji);
     fx: [kurs MXN/USD, dzień kursu] (Fed, z dnia danych albo najbliższego wcześniejszego).
     v126: z tokenem (sekret BANXICO_TOKEN) najpierw oficjalne API SIE — te same serie i ten sam zakres, więc te same wiersze; bez tokenu,
@@ -4617,7 +4830,11 @@ def build_meksyk(key, token=''):
     d = bmx_api_rows(token, now) if token else None
     if d is None:
         form = {'locale': 'es', 'idCuadro': 'CA138', 'sector': '7', 'version': '3', 'series': [c for _, c in BMX_SER],
-                'anoInicial': str(now.year - 2), 'anoFinal': str(now.year),    # v88.1: w styczniu też jest koniec poprzedniego roku 'tipoInformacion': '4,1', 'formatoHorizontal': 'false',
+                # v88.1: dwa lata wstecz — w styczniu też jest koniec poprzedniego roku
+                'anoInicial': str(now.year - 2), 'anoFinal': str(now.year),
+                # v328 (Z3-05): od v88.1 (komentarz w tej samej linii połknął dwa pola) formularz NIE wysyła pól 'tipoInformacion' ('4,1') i 'formatoHorizontal'
+                # ('false') — i to działa (CSV z 6 kolumnami, sprawdzone 25–27.09.2026). Zestaw pól jest przypięty testem (MeksykV88); przywrócenie obu pól —
+                # dopiero po sondzie w Actions (porównanie CSV z polami i bez), nie na ślepo (bez sondy nie wysyłamy POST)
                 'metadatosWeb': 'true', 'formatoCSV.x': '10', 'formatoCSV.y': '10'}
         d = parse_bmx(post_bytes(BMX_URL, form).decode('latin-1'))[-MX_KEEP:]
     bad = _mx_bad(d)
@@ -4629,14 +4846,18 @@ def build_meksyk(key, token=''):
     out = {'at': NOW, 'src': 'Banco de México — SIE, Valores gubernamentales: tenencia de Residentes en el Extranjero (SF65218), Total en circulación (SF65219)',
            'url': BMX_PAGE, 'unit': 'mln MXN, wartość nominalna (rejestry INDEVAL, podlegają poprawkom)', 'cols': ['data', 'nierezydenci', 'razem w obiegu', 'Bonos M', 'Cetes', 'Udibonos (w pesos)'],
            'asof': d[-1][0], 'd': d}
+    out['ok'] = {'d': True}   # v328: kurs (fx) może zawieść osobno — wtedy z poprzedniego pliku (_mx_fx_zapas), plik niepełny świeży 55 min
     if key:
         try:
             rates = fred_rates(key, 'DEXMXUS')
             rd, rt = _rate_for(rates, d[-1][0])        # v88.1: kurs z dnia danych albo najbliższego wcześniejszego (jak w przypisie przeglądu)
             if rt:
                 out['fx'] = [rt, rd]
+            out['ok']['fx'] = True
         except Exception as e:
             META['errors'].append(mask(f'Banxico kurs FRED DEXMXUS: {e}'))
+            out['ok']['fx'] = False
+            _mx_fx_zapas(out, prev)
     if (now - datetime.date.fromisoformat(d[-1][0])).days > MX_STALE:
         META['errors'].append(f'Banxico: brak nowego dnia po {d[-1][0]}')
     return out
@@ -5681,7 +5902,7 @@ def build_fundusze(prev=None):
         L = h[-1][0]
         if spy and spy[-1] >= d:
             return any(L < c < d for c in spy)
-        return _bdays(_d(L), _d(d)) > 1
+        return _bdays(_d(L), _d(d), TD_NYSE_CLOSED) > 1   # v328 (ZB04-01): święta NYSE — pierwsza sesja po święcie (np. piątek po Dziękczynieniu) to nie luka
 
     backfills = 0
     czas_glob = None   # v312 (recenzja v309): czy po funduszach GLOBAL był jeszcze czas kroku (zapisane przed pierwszym funduszem surowcowym)
@@ -12461,6 +12682,21 @@ def _yoy(rows, k=12):
     return out
 
 
+BLS_ZAPAS_DNI = 40   # v328: seria z poprzedniego pliku najwyżej tyle dni od jej pobrania
+
+
+def _bls_zapas(out, prev, ok):
+    """v328 (zb07-01): seria BLS, której zabrakło w odpowiedzi (albo bez miesięcy), zostaje z poprzedniego pliku z własnym czasem pobrania
+    (out['part_at'][seria]) — gdy ma te same id i jest młodsza niż BLS_ZAPAS_DNI dni; pochodne (r/r, zmiana m/m) liczone potem z jej wierszy."""
+    ps = prev.get('s') if isinstance(prev, dict) and isinstance(prev.get('s'), dict) else {}
+    for name, sid in BLS_SERIES:
+        o = ps.get(name)
+        kiedy = _zapas_czas(prev, name)
+        if not ok[name] and isinstance(o, dict) and o.get('id') == sid and isinstance(o.get('d'), list) and o['d'] and _zapas_wiek_ok(kiedy, BLS_ZAPAS_DNI):
+            out['s'][name] = {'id': sid, 'd': o['d']}
+            out.setdefault('part_at', {})[name] = kiedy
+
+
 def build_usa_makro(key, prev=None, today=None):
     """data/usa-makro.json — BLS (miesięcznie): inflacja r/r (CPI i bazowa), bezrobocie, zatrudnienie (zmiana m/m), płace r/r.
     „-” w danych BLS (np. październik 2025 — przerwa w pracy rządu USA) = brak, nigdy 0."""
@@ -12483,6 +12719,9 @@ def build_usa_makro(key, prev=None, today=None):
             out['s'][name] = {'id': sid, 'd': [[d, rows[d]] for d in sorted(rows)]}
     if not out['s']:
         raise RuntimeError('brak serii w odpowiedzi')
+    ok = {name: name in out['s'] for name, _ in BLS_SERIES}   # v328 (zb07-01): która seria odpowiedziała; brakująca — z poprzedniego pliku (_bls_zapas)
+    _bls_zapas(out, prev, ok)
+    out['ok'] = ok
     for name in ('cpi', 'core', 'ahe'):
         if name in out['s']:
             out['s'][name]['yoy'] = _yoy(out['s'][name]['d'])
@@ -12534,6 +12773,47 @@ def _bea_mln(r):
         return None
     m = _num(r.get('UNIT_MULT'))
     return round(v * 10 ** ((6 if m is None else m) - 6), 1)
+
+
+BEA_ZAPAS_DNI = 100   # v328: część z poprzedniego pliku najwyżej tyle dni od jej pobrania (dane kwartalne)
+
+
+def _bea_ost_q(x):
+    """v328: ostatni kwartał szeregu [[kwartał, wartość], …] albo ''."""
+    return x[-1][0] if isinstance(x, list) and x and isinstance(x[-1], list) and x[-1] else ''
+
+
+def _bea_zapas(out, prev, ok):
+    """v328 (zb07-01): część BEA, której zapytanie zawiodło (ok[klucz] False), zostaje z poprzedniego pliku z własnym czasem pobrania
+    (out['part_at'][klucz]); klucze: ind, names, gdp, ita:<wskaźnik>, areas:<wskaźnik>. Okresów nie mieszamy: wskaźnik ITA (obszary) z poprzedniego pliku
+    tylko z tym samym ostatnim kwartałem co świeże wskaźniki tej grupy; część starsza niż BEA_ZAPAS_DNI dni — bez zapasu."""
+    if not isinstance(prev, dict):
+        return
+    pat = {}
+
+    def bierz(klucz):
+        kiedy = _zapas_czas(prev, klucz)
+        return kiedy if _zapas_wiek_ok(kiedy, BEA_ZAPAS_DNI) else None
+    for k in ('ind', 'names'):
+        if not ok[k] and isinstance(prev.get(k), dict) and prev[k] and bierz(k):
+            out[k] = prev[k]; pat[k] = bierz(k)
+    if not ok['gdp'] and isinstance(prev.get('gdp'), list) and prev['gdp'] and bierz('gdp'):
+        out['gdp'] = prev['gdp']; pat['gdp'] = bierz('gdp')
+    ita_q = max((_bea_ost_q(x) for x in out['ita'].values()), default='')
+    pita = prev.get('ita') if isinstance(prev.get('ita'), dict) else {}
+    for i in BEA_IND:
+        x = pita.get(i)
+        if not ok['ita:' + i] and isinstance(x, list) and x and (not ita_q or _bea_ost_q(x) == ita_q) and bierz('ita:' + i):
+            out['ita'][i] = x; pat['ita:' + i] = bierz('ita:' + i)
+    ar_q = max((_bea_ost_q(s) for a in out['areas'].values() for s in a.values()), default='')
+    par = prev.get('areas') if isinstance(prev.get('areas'), dict) else {}
+    for i in BEA_AREA_IND:
+        x = par.get(i)
+        if (not ok['areas:' + i] and isinstance(x, dict) and x and bierz('areas:' + i)
+                and (not ar_q or max((_bea_ost_q(s) for s in x.values()), default='') == ar_q)):
+            out['areas'][i] = x; pat['areas:' + i] = bierz('areas:' + i)
+    if pat:
+        out['part_at'] = pat
 
 
 def build_bilans_usa(key, prev=None, today=None):
@@ -12600,6 +12880,11 @@ def build_bilans_usa(key, prev=None, today=None):
         fails.append(f'PKB: {e}')
     if not out['ita'] and not out['areas'] and not out['gdp']:
         raise RuntimeError('brak danych' + (f' ({fails[0]})' if fails else ''))
+    ok = {'ind': bool(out['ind']), 'names': bool(out['names']), 'gdp': bool(out['gdp'])}   # v328 (zb07-01): która część odpowiedziała;
+    ok.update({'ita:' + i: i in out['ita'] for i in BEA_IND})                              # brakująca — z poprzedniego pliku (_bea_zapas)
+    ok.update({'areas:' + i: i in out['areas'] for i in BEA_AREA_IND})
+    _bea_zapas(out, prev, ok)
+    out['ok'] = ok
     if fails:
         META['errors'].append(mask(f'BEA: {len(fails)} zapytań bez danych, np. {fails[0]}'))
     return out
@@ -25435,7 +25720,7 @@ def main():
         META['errors'].append(mask(str(prev_ceny.get('td_blad') or 'Twelve Data: błąd'))[:100] + ' — ponowienie po godzinie')
     elif td_key:
         try:
-            save('ceny', build_prices(td_key)); META['ok']['twelvedata'] = True
+            save('ceny', build_prices(td_key, prev_ceny)); META['ok']['twelvedata'] = True   # v328: brakujące fundusze z poprzedniego pliku (≤ 5 sesji wstecz)
         except Exception as e:
             META['errors'].append(mask(f'Twelve Data: {e}')); META['ok']['twelvedata'] = False
             ceny_zapas(prev_ceny, mask(f'Twelve Data: {e}')[:93], proba=True)   # v269/v271: zapas z giełdy albo poprzedni plik; znacznik próby (v272: najpierw maskowanie)
@@ -25466,11 +25751,11 @@ def main():
         META['errors'].append('brak FRED_KEY'); META['ok']['fred'] = False
     # TIC (Skarb USA, bez klucza, ~1,6 MB): najwyżej raz na dobę; przy awarii zachowaj poprzedni plik
     prev_tic = previous('tic')
-    if prev_tic and fresh(prev_tic, 24 * 60) and 'twn' in prev_tic:   # v50: plik sprzed v48 (bez netto ze wspólnych krajów) pobieramy od nowa
+    if prev_tic and fresh_pelny(prev_tic, 24 * 60) and 'twn' in prev_tic:   # v50: plik sprzed v48 (bez netto ze wspólnych krajów) pobieramy od nowa
         save('tic', prev_tic); META['ok']['tic'] = 'cached'; print('TIC: dane z', prev_tic.get('at'), '— młodsze niż doba')
     else:
         try:
-            save('tic', build_tic()); META['ok']['tic'] = True
+            tic_ = build_tic(prev_tic); save('tic', tic_); META['ok']['tic'] = not plik_niepelny(tic_)   # v328: tabela 2 albo 5 z poprzedniego pliku = ok False, ponowienie po 55 min
         except Exception as e:
             META['errors'].append(mask(f'TIC: {e}')); META['ok']['tic'] = False
             if prev_tic: save('tic', prev_tic); print('TIC zawiódł — zachowano poprzedni tic.json z', prev_tic.get('at'))
@@ -25890,11 +26175,11 @@ def main():
             if prev_o: save('obce', prev_o)
     # EER — kursy efektywne BIS (bez klucza): najwyżej co 6 h
     prev_e = previous('eer')
-    if prev_e and fresh(prev_e, 360):
+    if prev_e and fresh_pelny(prev_e, 360):
         save('eer', prev_e); META['ok']['eer'] = 'cached'
     else:
         try:
-            save('eer', build_eer()); META['ok']['eer'] = True
+            eer_ = build_eer(prev_e); save('eer', eer_); META['ok']['eer'] = not plik_niepelny(eer_)   # v328: zmiany 12 mies. z poprzedniego pliku = ok False
         except Exception as e:
             META['errors'].append(mask(f'BIS kursy efektywne: {e}')); META['ok']['eer'] = False
             if prev_e: save('eer', prev_e)
@@ -25960,11 +26245,11 @@ def main():
             if prev_kr: save('korea', prev_kr)
     # v87: Polska — MF, nierezydenci w krajowych SPW (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
     prev_sp = previous('spw')
-    if prev_sp and fresh(prev_sp, 1440):
+    if prev_sp and fresh_pelny(prev_sp, 1440):
         save('spw', prev_sp); META['ok']['spw'] = 'cached'
     else:
         try:
-            save('spw', build_spw()); META['ok']['spw'] = True
+            spw_ = build_spw(prev_sp); save('spw', spw_); META['ok']['spw'] = not plik_niepelny(spw_)   # v328: kraje z poprzedniego pliku = ok False
         except Exception as e:
             META['errors'].append(mask(f'MF SPW: {e}')); META['ok']['spw'] = False
             if prev_sp: save('spw', prev_sp)
@@ -25976,11 +26261,11 @@ def main():
         SECRETS.append(bmx_token)
     prev_mx = previous('meksyk')
     old_mx = bool(prev_mx) and any(isinstance(r, list) and len(r) < 6 for r in (prev_mx.get('d') or [])[-1:])   # v88.2: plik sprzed podziału na rodzaje papierów
-    if prev_mx and fresh(prev_mx, 360) and not old_mx:
+    if prev_mx and fresh_pelny(prev_mx, 360) and not old_mx:
         save('meksyk', prev_mx); META['ok']['meksyk'] = 'cached'
     else:
         try:
-            save('meksyk', build_meksyk(fred_key, bmx_token)); META['ok']['meksyk'] = True
+            mx_ = build_meksyk(fred_key, bmx_token, prev_mx); save('meksyk', mx_); META['ok']['meksyk'] = not plik_niepelny(mx_)   # v328: kurs z poprzedniego pliku = ok False
         except Exception as e:
             META['errors'].append(mask(f'Banxico: {e}')); META['ok']['meksyk'] = False
             if prev_mx: save('meksyk', prev_mx)
@@ -26104,14 +26389,14 @@ def main():
                                              ('usa-makro', build_usa_makro, bls_key, 6 * 60, 'BLS', False),
                                              ('bilans-usa', build_bilans_usa, bea_key, 24 * 60, 'BEA', True)):
         prev_x = previous(name)
-        if prev_x and fresh(prev_x, mins) and not (name == 'energia' and _SU_RUN.get('zmiany', set()) & {'eia', 'eia_dz', 'wpsr', 'eia_t'}):   # v295: nowe dane EIA w surowcach — energia od razu
+        if prev_x and fresh_pelny(prev_x, mins) and not (name == 'energia' and _SU_RUN.get('zmiany', set()) & {'eia', 'eia_dz', 'wpsr', 'eia_t'}):   # v295: nowe dane EIA w surowcach — energia od razu
             save(name, prev_x); META['ok'][label.lower()] = 'cached'; continue
         if need and not key:
             META['errors'].append(f'brak {label}_KEY'); META['ok'][label.lower()] = False
             if prev_x: save(name, prev_x)
             continue
         try:
-            save(name, fn(key, prev_x)); META['ok'][label.lower()] = True
+            nowy_ = fn(key, prev_x); save(name, nowy_); META['ok'][label.lower()] = not plik_niepelny(nowy_)   # v328: część z poprzedniego pliku = ok False, ponowienie po 55 min
         except Exception as e:
             META['errors'].append(mask(f'{label}: {e}')); META['ok'][label.lower()] = False
             if prev_x: save(name, prev_x)
