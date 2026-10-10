@@ -2489,8 +2489,426 @@ GROUPS.insert(GROUPS.index(g_nasdaq), g_su_metale)
 GROUPS.insert(GROUPS.index(g_nasdaq), g_su_chainlink)
 GROUPS.insert(GROUPS.index(g_nasdaq), g_su_rolne)
 GROUPS.insert(GROUPS.index(g_nasdaq), g_su_kruche)
-TYLKO = ("g_su_td", "g_su_fmp", "g_su_eia", "g_su_tiingo", "g_su_cg", "g_su_energia", "g_su_metale", "g_su_chainlink", "g_su_rolne",
-         "g_su_kruche")   # v294p: ten przebieg — tylko sonda surowców (v288p: g_jse2; v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
+# --------------------------------------------------------------------------- v324p: fala 0 armii (PLAN_ZRODEL, 10.10.2026)
+# Jedna sonda z serwera GitHub dla NOWYCH hostów planu źródeł (fale 1–10, rezerwa R_): tylko GET z nagłówkiem zbieracza
+# „CapitalFlowAI-collector/1.0” (czasem z Range, żeby nie ciągnąć dużych plików), bez kluczy, bez POST, bez obchodzenia ochrony —
+# 403/451/strona wyzwania to wynik, nie powód do ponowienia. Wypisuje tylko: grupę „pz-…”, etykietę (numer fali i zadania, np. F1Z1),
+# kod HTTP, ms, bajty i krótki znacznik (tak/nie, liczba elementów, najnowsza data) — nigdy adresu, nagłówków ani treści.
+import json
+import re
+import time
+import urllib.parse
+import datetime as dt
+
+PZ_UA = {"User-Agent": "CapitalFlowAI-collector/1.0"}      # nagłówek zbieracza (zbieraj_dane.py get())
+
+
+def _pz_h(rng=None, **extra):
+    """Nagłówki: User-Agent zbieracza (+ opcjonalnie Range, żeby nie pobierać całego dużego pliku)."""
+    h = dict(PZ_UA)
+    if rng:
+        h["Range"] = f"bytes={rng}"
+    h.update(extra)
+    return h
+
+
+def _pz_txt(raw):
+    return (raw or b"").decode("utf-8", "replace")
+
+
+def _pz_has(*words):
+    """Znacznik: czy w odpowiedzi są oczekiwane słowa (tak/nie dla każdego) — bez treści."""
+    def f(raw):
+        s = _pz_txt(raw)
+        return " ".join(f"{w[:12].replace(' ', '_')}={'tak' if w in s else 'nie'}" for w in words)
+    return f
+
+
+def _pz_count(pattern):
+    """Liczba trafień wzorca (np. wierszy tabeli) — bez wartości."""
+    rx = re.compile(pattern)
+
+    def f(raw):
+        return f"n={len(rx.findall(_pz_txt(raw)))}"
+    return f
+
+
+def _pz_newest(pattern):
+    """Najnowsza data (RRRR-MM-DD albo RRRRMMDD) pasująca do wzorca z jedną grupą — tylko data."""
+    rx = re.compile(pattern)
+
+    def f(raw):
+        ds = [m.replace("-", "") for m in rx.findall(_pz_txt(raw))]
+        ds = [d for d in ds if d.isdigit() and len(d) == 8]
+        return f"n={len(ds)} newest={max(ds) if ds else '-'}"
+    return f
+
+
+def _pz_json_len(*path):
+    """Liczba elementów listy pod ścieżką JSON (pusta ścieżka = korzeń)."""
+    def f(raw):
+        o = json.loads(raw)
+        for p in path:
+            o = o[p]
+        return f"n={len(o)}"
+    return f
+
+
+def _pz_zip(raw):
+    return f"zip_sig={'tak' if (raw or b'')[:2] == b'PK' else 'nie'}"
+
+
+def _pz_ole(raw):
+    return f"ole2={'tak' if (raw or b'')[:4] == bytes.fromhex('D0CF11E0') else 'nie'} zip={'tak' if (raw or b'')[:2] == b'PK' else 'nie'}"
+
+
+def _pz_pdf(raw):
+    return f"pdf={'tak' if (raw or b'')[:5] == b'%PDF-' else 'nie'}"
+
+
+def _pz_d(d):
+    return d.strftime("%Y-%m-%d")
+
+
+def _pz_q(s):
+    return urllib.parse.quote(s, safe="")
+
+
+def _pz_seq(items):
+    """Kolejne sondy jednej grupy z przerwą 0,4 s (grzecznie wobec serwera)."""
+    out = {}
+    for i, (prov, lab, url, hdr, fn) in enumerate(items):
+        if i:
+            time.sleep(0.4)
+        out[lab] = probe(prov, lab, url, headers=hdr, extra_fn=fn)
+    return out
+
+
+# --------------------------------------------------------------------------- F1Z1 + F5: zboża i rolnictwo
+
+def g_pz_rolne():
+    """F1Z1 (naprawa v320): archiwum ESMIS z raportem WASDE w XML (strona wydań → najnowszy wasdeMMRR*.xml) — host inny niż usda.gov;
+    usda.gov tylko potwierdzenie stanu (403 dla GitHuba od 09/10.10); PSD (apps.fas.usda.gov) jako kontrola. F5Z3: dzienny indeks zbóż
+    (igc.int — dostęp potwierdzony 07.10); F10Z3: FPMA (ceny pszenicy Rosja/Ukraina), ENSO, susza USA, Ren i Missisipi; rezerwa: ESMIS Crop
+    Progress, IBGE, nawozy (USDA AMS PDF, CDR Polska), zapasy kawy ICE."""
+    t = _utc_today()
+    page = "https://esmis.nal.usda.gov/publication/world-agricultural-supply-and-demand-estimates"
+    st, raw = probe("pz-rolne", "F1Z1_esmis_wasde_strona", page, headers=_pz_h(),
+                    extra_fn=_pz_count(r'release-files/\d+/wasde\d{4}[a-z0-9]*\.xml'))
+    links = re.findall(r'(/sites/default/release-files/\d+/wasde(\d{2})(\d{2})[a-z0-9]*\.xml)', _pz_txt(raw)) if st == 200 else []
+    if links:
+        best = max(links, key=lambda x: (x[2], x[1]))[0]                 # najnowszy: rok, potem miesiąc z nazwy wasdeMMRR
+        time.sleep(0.4)
+        probe("pz-rolne", "F1Z1_esmis_wasde_xml", "https://esmis.nal.usda.gov" + best, headers=_pz_h(),
+              extra_fn=_pz_has("World Wheat Supply and Use", "World Corn Supply and Use", "WASDE - "))
+    else:
+        skipped("pz-rolne", "F1Z1_esmis_wasde_xml", "no xml link on page")
+    ym = f"{t.year}-{t.month:02d}" if t.day >= 13 else (f"{t.year}-{t.month - 1:02d}" if t.month > 1 else f"{t.year - 1}-12")
+    items = [
+        ("pz-rolne", "F1Z1_usda_wasde_csv_stan", f"https://www.usda.gov/sites/default/files/documents/oce-wasde-report-data-{ym}.csv",
+         _pz_h("0-1023"), None),
+        ("pz-rolne", "F1Z1_psd_grains_zip_range", "https://apps.fas.usda.gov/psdonline/downloads/psd_grains_pulses_csv.zip",
+         _pz_h("0-1023"), _pz_zip),
+        ("pz-rolne", "F5Z3_igc_goi_xlsb_range", "https://igc.int/_csv/igc__goi.xlsb", _pz_h("0-0"), None),
+        ("pz-rolne", "F10Z3_fpma_serie_int",
+         "https://fpma.fao.org/giews/v4/global/price_module/api/v1/FpmaSerieInternational/?limit=100", _pz_h(), _pz_has('"count"')),
+        ("pz-rolne", "F10Z3_noaa_oni", "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt", _pz_h(), _pz_count(r'\n\s*[A-Z]{3}\s+\d{4}\s')),
+        ("pz-rolne", "F10Z3_usdm_us",
+         "https://usdmdataservices.unl.edu/api/USStatistics/GetDroughtSeverityStatisticsByAreaPercent?aoi=us&startdate="
+         f"{(t - dt.timedelta(days=21)).month}/{(t - dt.timedelta(days=21)).day}/{(t - dt.timedelta(days=21)).year}"
+         f"&enddate={t.month}/{t.day}/{t.year}&statisticsType=1", _pz_h(), None),
+        ("pz-rolne", "F10Z3_pegel_kaub", "https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/KAUB/W/currentmeasurement.json",
+         _pz_h(), _pz_has('"value"')),
+        ("pz-rolne", "F10Z3_noaa_memphis", "https://api.water.noaa.gov/nwps/v1/gauges/MEMT1/stageflow", _pz_h(), _pz_has('"observed"')),
+        ("pz-rolne", "R_esmis_crop_progress", "https://esmis.nal.usda.gov/publication/crop-progress", _pz_h(),
+         _pz_count(r'release-files/\d+/prog\d+\.txt')),
+        ("pz-rolne", "R_ibge_lspa",
+         "https://servicodados.ibge.gov.br/api/v3/agregados/6588/periodos/-1/variaveis/35?localidades=N1%5Ball%5D&classificacao=48%5B39443%5D",
+         _pz_h(), None),
+        ("pz-rolne", "R_ams_3195_pdf_range", "https://www.ams.usda.gov/mnreports/ams_3195.pdf", _pz_h("0-1023"), _pz_pdf),
+        ("pz-rolne", "R_cdr_nawozy_lista", "https://www.cdr.gov.pl/ekonomika-i-organizacja/rynek-nawozow-mineralnych", _pz_h(),
+         _pz_count(r'Tabela_9[^"]*\.xlsx')),
+        ("pz-rolne", "R_ice_coffee_xls_range",
+         f"https://www.ice.com/publicdocs/futures_us_reports/coffee/coffee_cert_stock_{_last_weekday(1):%Y%m%d}.xls", _pz_h("0-1023"), _pz_ole),
+    ]
+    time.sleep(0.4)
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F4: metale
+
+def g_pz_metale():
+    """F4Z1/F4Z2: ceny i zapasy LME (Westmetall), zapasy SHFE/INE (nowa ścieżka stockdata — plik kx z tego hosta działa z GitHuba od 07.10),
+    zapasy COMEX miedzi (Cochilco, lista raportów tygodniowych), ruda żelaza (SGX, rezerwa)."""
+    items = [("pz-metale", "F4Z1_westmetall_przeglad", "https://www.westmetall.com/en/markdaten.php", _pz_h(),
+              _pz_has("Official LME-Prices in US Dollar", "Copper"))]
+    sh = "https://www.shfe.com.cn/data/tradedata/future/stockdata/{}_{}/ZH/all.html"
+    d = _utc_today()
+    tried = 0
+    while tried < 3:                       # dni robocze wstecz (święta w Chinach dają 404 — to wynik, nie błąd)
+        d -= dt.timedelta(days=1)
+        if d.weekday() >= 5:
+            continue
+        items.append(("pz-metale", f"F4Z2_shfe_dailystock_{d:%m%d}", sh.format("dailystock", d.strftime("%Y%m%d")), _pz_h(),
+                      _pz_count("总计")))
+        tried += 1
+    fri = _utc_today() - dt.timedelta(days=(_utc_today().weekday() - 4) % 7 or 7)
+    items.append(("pz-metale", f"F4Z2_shfe_weeklystock_{fri:%m%d}", sh.format("weeklystock", fri.strftime("%Y%m%d")), _pz_h(), _pz_count("总计")))
+    items += [
+        ("pz-metale", "F4Z2_cochilco_lista", "https://www.cochilco.cl/web/informe-semanal-del-cobre/", _pz_h(), _pz_count(r'\.pdf')),
+        ("pz-metale", "R_sgx_fef_futures", "https://api.sgx.com/derivatives/v1.0/contract-code/FEF?category=futures", _pz_h(),
+         _pz_has("daily-settlement-price-abs")),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F5: energia, LNG, prąd, CO2
+
+def g_pz_energia():
+    """F5Z1 LNG (ENTSOG), F5Z2 prąd i CO2 (PSE, Energy-Charts — limit 2/min na IP, tu 1 zapytanie; EEX aukcje EUA); rezerwa: Ember
+    dzienny CSV, OMIE, Elering."""
+    t = _utc_today()
+    jutro = t + dt.timedelta(days=1)
+    pse = lambda rep, d, n: ("https://api.raporty.pse.pl/api/" + rep + "?%24filter=" + _pz_q(f"business_date eq '{_pz_d(d)}'")   # noqa: E731
+                             + f"&%24first={n}")
+    items = [
+        ("pz-energia", "F5Z1_entsog_lng_swinoujscie",
+         "https://transparency.entsog.eu/api/v1/operationalData?indicator=Physical%20Flow&pointKey=LNG-00006,LNG-00027"
+         f"&from={_pz_d(t - dt.timedelta(days=4))}&to={_pz_d(t)}&periodType=day&timezone=CET&limit=-1", _pz_h(),
+         _pz_json_len("operationalData")),
+        ("pz-energia", "F5Z2_pse_rce_pln_dzis", pse("rce-pln", t, 4), _pz_h(), _pz_json_len("value")),
+        ("pz-energia", "F5Z2_pse_rcco2_wczoraj", pse("rcco2", t - dt.timedelta(days=1), 2), _pz_h(), _pz_json_len("value")),
+        ("pz-energia", "F5Z2_energycharts_price_pl", f"https://api.energy-charts.info/price?bzn=PL&start={_pz_d(t)}&end={_pz_d(jutro)}",
+         _pz_h(), _pz_json_len("price")),
+        ("pz-energia", "F5Z2_eex_eua_xlsx_range",
+         f"https://public.eex-group.com/eex/eua-auction-report/emission-spot-primary-market-auction-report-{t.year}-data.xlsx",
+         _pz_h("0-1023"), _pz_zip),
+        ("pz-energia", "R_ember_daily_csv_range",
+         "https://files.ember-energy.org/public-downloads/price/outputs/european_wholesale_electricity_price_data_daily.csv",
+         _pz_h("0-1023"), _pz_has("Country")),
+        ("pz-energia", "R_omie_marginal_dzis",
+         f"https://www.omie.es/en/file-download?parents%5B0%5D=marginalpdbc&filename=marginalpdbc_{t:%Y%m%d}.1", _pz_h(),
+         _pz_has("MARGINALPDBC")),
+        ("pz-energia", "R_elering_nps",
+         f"https://dashboard.elering.ee/api/nps/price?start={_pz_d(t - dt.timedelta(days=1))}T00:00:00.000Z&end={_pz_d(t)}T23:59:59.999Z",
+         _pz_h(), _pz_has('"ee"', '"fi"')),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F1Z3, F6: krypto — stablecoiny, giełdy, DEX, L2
+
+def g_pz_krypto():
+    """F2Z3 emitenci stablecoinów (Circle), F6Z4 skarbiec Tether na żywo (Blockscout, TronGrid), F6Z1 giełdy (DefiLlama /cexs, DEX,
+    OI na łańcuchu — DefiLlama przenosi część punktów do planu płatnego: 402 = wynik), L2BEAT (rezerwa)."""
+    items = [
+        ("pz-krypto", "F2Z3_circle_stablecoins", "https://api.circle.com/v1/stablecoins", _pz_h(), _pz_json_len("data")),
+        ("pz-krypto", "F6Z4_blockscout_tether_skarbiec",
+         "https://eth.blockscout.com/api/v2/addresses/0x5754284f345afc66a98fbB0a0Afe71e0F007B949/token-balances", _pz_h(), _pz_json_len()),
+        ("pz-krypto", "F6Z4_trongrid_tether_skarbiec", "https://api.trongrid.io/v1/accounts/TKHuVq1oKVruCGLvqVexFs6dawKv6fQgFs", _pz_h(),
+         _pz_json_len("data")),
+        ("pz-krypto", "F6Z1_llama_cexs", "https://api.llama.fi/cexs", _pz_h(), _pz_json_len("cexs")),
+        ("pz-krypto", "F6Z1_llama_dexs_overview",
+         "https://api.llama.fi/overview/dexs?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true", _pz_h(),
+         _pz_json_len("protocols")),
+        ("pz-krypto", "F6Z1_llama_open_interest",
+         "https://api.llama.fi/overview/open-interest?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true", _pz_h(),
+         _pz_json_len("protocols")),
+        ("pz-krypto", "R_l2beat_tvs", "https://l2beat.com/api/scaling/tvs", _pz_h(), None),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F2Z3, F6Z3: pochodne krypto (giełdy bez sumy dziś)
+
+def g_pz_pochodne():
+    """F1Z3 Coinbase Derivatives (USA) w miejsce wstrzymanego Coinbase International; F6Z2 Bitget, Gate (godzinowe likwidacje),
+    MEXC, KuCoin, HTX — pełne rynki jednym zapytaniem (z USA dostęp nieznany: Binance 451, Bybit 403 od 26.09)."""
+    items = [
+        ("pz-pochodne", "F1Z3_coinbase_cde_futures", "https://api.coinbase.com/api/v3/brokerage/market/products?product_type=FUTURE&limit=50",
+         _pz_h(), _pz_json_len("products")),
+        ("pz-pochodne", "F6Z2_bitget_tickers", "https://api.bitget.com/api/v2/mix/market/tickers?productType=USDT-FUTURES", _pz_h(),
+         _pz_json_len("data")),
+        ("pz-pochodne", "F6Z2_gate_contract_stats",
+         "https://api.gateio.ws/api/v4/futures/usdt/contract_stats?contract=BTC_USDT&interval=1h&limit=24", _pz_h(), _pz_json_len()),
+        ("pz-pochodne", "F6Z2_kucoin_contracts", "https://api-futures.kucoin.com/api/v1/contracts/active", _pz_h(), _pz_json_len("data")),
+        ("pz-pochodne", "F6Z2_mexc_ticker", "https://contract.mexc.com/api/v1/contract/ticker", _pz_h(), _pz_json_len("data")),
+        ("pz-pochodne", "F6Z2_htx_open_interest", "https://api.hbdm.com/linear-swap-api/v1/swap_open_interest", _pz_h(), _pz_json_len("data")),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F1Z2, F7: fundusze ETF i kapitalizacje
+
+def g_pz_etf():
+    """F1Z2 State Street: nowa ścieżka plików (stara odpowiada 301); F7Z1 iShares UCITS (lista + plik klasy SWDA — Range);
+    F7Z3 kapitalizacja USA (Nasdaq: zestawienie spółek); F10Z4: Shenzhen, CSI 300, Brazylia (CVM); rezerwa: Tajwan (OpenAPI).
+    Rosja bez sondy — decyzja D3 planu: nie (giełda objęta sankcjami)."""
+    t = _utc_today()
+    lw = _last_weekday(1)
+    items = [
+        ("pz-etf", "F1Z2_ssga_nowa_sciezka_xlc", "https://www.ssga.com/library-content/products/fund-data/etfs/us/navhist-us-en-xlc.xlsx",
+         _pz_h("0-1023"), _pz_zip),
+        ("pz-etf", "F1Z2_ssga_stara_sciezka_spy",
+         "https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/navhist-us-en-spy.xlsx", _pz_h("0-1023"), _pz_zip),
+        ("pz-etf", "F7Z1_ishares_uk_lista",
+         "https://www.ishares.com/varnish-api/blk-product-screener-server/api/v1/product-screener/product-data?country=gb&language=en"
+         "&siteName=ishares-uk&userType=individual", _pz_h(), None),
+        ("pz-etf", "F7Z1_blackrock_uk_swda_range",
+         "https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appType=PRODUCT_PAGE"
+         "&appSubType=ISHARES&targetSite=ishares-uk&locale=en_GB&portfolioId=251882&component=fundDownload&userType=individual",
+         _pz_h("0-4095"), None),
+        ("pz-etf", "F7Z3_nasdaq_screener", "https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true",
+         _pz_h(), _pz_json_len("data", "rows")),
+        ("pz-etf", "R_twse_openapi_etf_units", "https://openapi.twse.com.tw/v1/opendata/t187ap47_L", _pz_h(), _pz_json_len()),
+        ("pz-etf", "F10Z4_szse_rynek_dnia",
+         f"https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=1803_sczm&TABKEY=tab1&txtQueryDate={_pz_d(lw)}", _pz_h(),
+         _pz_json_len()),
+        ("pz-etf", "F10Z4_csindex_csi300",
+         f"https://www.csindex.com.cn/csindex-home/perf/index-perf?indexCode=000300&startDate={(t - dt.timedelta(days=14)):%Y%m%d}"
+         f"&endDate={t:%Y%m%d}", _pz_h(), _pz_json_len("data")),
+        ("pz-etf", "F10Z4_cvm_inf_diario_range", f"https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{t:%Y%m}.zip",
+         _pz_h("0-199"), _pz_zip),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F3: Polska
+
+def g_pz_polska():
+    """F3Z2 IZFiA (fundusze), BondSpot (dzienna krzywa Polski), GPW (indeksy z kanału wykresów), F3Z3 wypłaty UE dla Polski (Socrata KE),
+    F10Z1: GUS SDDS, KNF, GPW Benchmark (WIBOR/WIRON — serwer potrafi nie zamknąć strumienia; limit czasu sondy to obsłuży)."""
+    lw = _last_weekday(1)
+    req = json.dumps([{"isin": "PL9999999987", "mode": "RANGE", "from": _pz_d(lw - dt.timedelta(days=10)), "to": _pz_d(lw)}],
+                     separators=(",", ":"))
+    items = [
+        ("pz-polska", "F3Z2_izfia_raporty", "https://www.izfa.pl/raporty", _pz_h(), _pz_newest(r'IZFiA_dane_przeplywy_(\d{8})')),
+        ("pz-polska", "F3Z2_bondspot_fixing",
+         f"https://www.bondspot.pl/fixing_obligacji?date={lw:%Y%m%d}&month={lw.month}&year={lw.year}&type=2", _pz_h(),
+         _pz_count(r'PL0000\d{6}')),
+        ("pz-polska", "F3Z2_gpw_chart_json", "https://www.gpw.pl/chart-json.php?req=" + _pz_q(req), _pz_h(), _pz_has('"data"')),
+        ("pz-polska", "F3Z3_cohesion_wyplaty_pl", "https://cohesiondata.ec.europa.eu/resource/pbbz-hmfu.json?ms=PL&$limit=5", _pz_h(),
+         _pz_json_len()),
+        ("pz-polska", "F10Z1_gus_sdds_strona", "https://stat.gov.pl/banki-i-bazy-danych/sdds/dane-gospodarcze-i-finansowe-dla-polski", _pz_h(),
+         _pz_count(r'sdds_dane_gospodarcze[^"]*\.xlsx')),
+        ("pz-polska", "F10Z1_knf_strona", "https://www.knf.gov.pl/?articleId=56224&p_id=18", _pz_h(), _pz_count(r'Dane_statystyczne[^"]*\.xlsx')),
+        ("pz-polska", "F10Z1_gpwbenchmark_wibor", "https://gpwbenchmark.pl/dane-opoznione", _pz_h(), _pz_has("WIBOR")),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F8: banki centralne (interwencje, bilanse)
+
+def g_pz_banki():
+    """F8Z1 interwencje i rezerwy (HKMA, BCRA v4; rezerwa: BCRP, RBI), F8Z2 bilans i bilans płatniczy Japonii (BoJ API — jedna paczka)."""
+    t = _utc_today()
+    items = [
+        ("pz-banki", "F8Z1_hkma_plynnosc",
+         "https://api.hkma.gov.hk/public/market-data-and-statistics/daily-monetary-statistics/daily-figures-interbank-liquidity"
+         "?pagesize=5&sortby=end_of_date&sortorder=desc&fields=end_of_date,closing_balance,market_activities", _pz_h(),
+         _pz_json_len("result", "records")),
+        ("pz-banki", "F8Z1_bcra_zakupy_78",
+         f"https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/78?desde={_pz_d(t - dt.timedelta(days=20))}&hasta={_pz_d(t)}&limit=20",
+         _pz_h(), _pz_json_len("results")),
+        ("pz-banki", "F8Z2_boj_bs01",
+         "https://www.stat-search.boj.or.jp/api/v1/getDataCode?format=json&lang=en&db=BS01&code=MABJMTA,MABJMA5&startDate="
+         f"{(t - dt.timedelta(days=120)):%Y%m}", _pz_h(), _pz_json_len("RESULTSET")),
+        ("pz-banki", "F8Z2_boj_bp01",
+         "https://www.stat-search.boj.or.jp/api/v1/getDataCode?format=json&lang=en&db=BP01&code=BPBP6JYNFL2,BPBP6JYNFA2&startDate="
+         f"{(t - dt.timedelta(days=120)):%Y%m}", _pz_h(), _pz_json_len("RESULTSET")),
+        ("pz-banki", "R_bcrp_operacje",
+         f"https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04650MD-PD04658MD/json/{t.year}-{(t - dt.timedelta(days=15)).month}-"
+         f"{(t - dt.timedelta(days=15)).day}/{t.year}-{t.month}-{t.day}/ing", _pz_h(), _pz_has('"periods"')),
+        ("pz-banki", "R_rbi_wss_tydzien", "https://www.rbi.org.in/Scripts/WSSViewDetail.aspx?TYPE=Section&PARAM1=2", _pz_h("0-65535"),
+         _pz_count(r'WSSView\.aspx\?Id=\d+')),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F8Z3: waluty i rentowności (nowe hosty)
+
+def g_pz_waluty():
+    """F8Z3 kursy 165 walut (Frankfurter v2 — host znany, nowa wersja), gilty i inflacja UK (Bank Anglii), rezerwa: Riksbank, Norges Bank,
+    krzywa Chin (ChinaMoney), zapas Fed H.15 (Data Download Program)."""
+    t = _utc_today()
+    mon = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[t.month - 1]
+    items = [
+        ("pz-waluty", "F8Z3_frankfurter_v2_rates", "https://api.frankfurter.dev/v2/rates?base=USD", _pz_h(), _pz_json_len()),
+        ("pz-waluty", "F8Z3_boe_iadb_gilty",
+         f"https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp?csv.x=yes&Datefrom=01/{mon}/{t.year}&Dateto=now"
+         "&SeriesCodes=IUDMNPY,IUDMIZC,IUDSOIA&CSVF=TN&UsingCodes=Y&VPD=Y&VFD=N", _pz_h(), _pz_has("IUDMNPY")),
+        ("pz-waluty", "R_riksbank_10y",
+         f"https://api.riksbank.se/swea/v1/Observations/SEGVB10YC/{_pz_d(t - dt.timedelta(days=14))}/{_pz_d(t)}", _pz_h(), _pz_json_len()),
+        ("pz-waluty", "R_norges_generic", "https://data.norges-bank.no/api/data/GOVT_GENERIC_RATES/B..?lastNObservations=1&format=sdmx-csv",
+         _pz_h(), _pz_count(r'\n')),
+        ("pz-waluty", "R_chinamoney_krzywa",
+         "https://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/ClsYldCurvHis?lang=EN&reference=1&bondType=CYCC000&termId=1&pageNum=1&pageSize=60",
+         _pz_h(), _pz_has("maturityYieldStr")),
+        ("pz-waluty", "R_fed_ddp_h15",
+         "https://www.federalreserve.gov/datadownload/Output.aspx?rel=H15&series=bf17364827e38702b42a58cf8eaa3f78&lastobs=3&from=&to="
+         "&filetype=csv&label=include&layout=seriescolumn&type=package", _pz_h(), _pz_has("Time Period")),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F9: makro — kalendarz, nowcasty, nastroje
+
+def g_pz_makro():
+    """F9Z1 kalendarz publikacji (Fed JSON, BEA JSON, Census HTML, Eurostat FullCalendar, EBC HTML), F9Z2 nowcasty i ankiety (GDPNow RSS,
+    Cleveland, WEI, Filadelfia), F9Z3 nastroje (Michigan, FINRA), F8Z4 niepewność (EPU, GPR); rezerwa: TSA, PMMS."""
+    t = _utc_today()
+    d0, d1 = t - dt.timedelta(days=7), t + dt.timedelta(days=35)
+    items = [
+        ("pz-makro", "F9Z1_fed_calendar_json", "https://www.federalreserve.gov/json/calendar.json", _pz_h(), _pz_has("FOMC")),
+        ("pz-makro", "F9Z1_bea_release_dates", "https://apps.bea.gov/API/signup/release_dates.json", _pz_h(), None),
+        ("pz-makro", "F9Z1_census_kalendarz", f"https://www.census.gov/economic-indicators/calendar-listview-{t.year}.html", _pz_h(),
+         _pz_has("Advance Monthly Sales")),
+        ("pz-makro", "F9Z1_eurostat_kalendarz",
+         f"https://ec.europa.eu/eurostat/o/calendars/eventsJson?start={_pz_d(d0)}T00:00:00%2B02:00&end={_pz_d(d1)}T00:00:00%2B01:00",
+         _pz_h(), _pz_json_len()),
+        ("pz-makro", "F9Z1_ebc_kalendarz", "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html", _pz_h(),
+         _pz_has("Monetary policy meeting")),
+        ("pz-makro", "F9Z2_atlanta_gdpnow_rss", "https://www.atlantafed.org/rss/GDPNow", _pz_h(), _pz_has("GDP")),
+        ("pz-makro", "F9Z2_cleveland_nowcast", "https://www.clevelandfed.org/indicators-and-data/inflation-nowcasting", _pz_h(),
+         _pz_has("month-over-month")),
+        ("pz-makro", "F9Z2_dallas_wei_xlsx", "https://www.dallasfed.org/-/media/documents/research/wei/weekly-economic-index.xlsx", _pz_h(),
+         _pz_zip),
+        ("pz-makro", "F9Z2_philly_bos_dif",
+         "https://www.philadelphiafed.org/-/media/FRBP/Assets/Surveys-And-Data/MBOS/Historical-Data/Diffusion-Indexes/bos_dif.csv", _pz_h(),
+         _pz_count(r'\n')),
+        ("pz-makro", "F9Z3_umich_strona", "https://www.sca.isr.umich.edu/", _pz_h(), _pz_has("Consumer Sentiment")),
+        ("pz-makro", "F8Z4_epu_daily_range", "https://www.policyuncertainty.com/media/All_Daily_Policy_Data.csv", _pz_h("0-4095"),
+         _pz_has("daily_policy_index")),
+        ("pz-makro", "F8Z4_gpr_daily_range", "https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.xls", _pz_h("0-4095"), _pz_ole),
+        ("pz-makro", "F9Z3_finra_margin_xlsx", "https://www.finra.org/sites/default/files/2021-03/margin-statistics.xlsx", _pz_h(), _pz_zip),
+        ("pz-makro", "R_tsa_pasazerowie", "https://www.tsa.gov/travel/passenger-volumes", _pz_h(), _pz_count(r'\d{1,2}/\d{1,2}/\d{4}')),
+        ("pz-makro", "R_freddie_pmms", "https://www.freddiemac.com/pmms/docs/PMMS_history.csv", _pz_h(), _pz_count(r'\n')),
+    ]
+    _pz_seq(items)
+
+
+# --------------------------------------------------------------------------- F7Z4: Azja — pozycje zagranicy w kontraktach
+
+def g_pz_azja():
+    """F7Z4 pozycje inwestorów zagranicznych w kontraktach: NSE (Indie, pliki archiwum bez ciasteczek), TAIFEX (Tajwan, OpenAPI)."""
+    lw = _last_weekday(1)
+    items = [
+        ("pz-azja", "F7Z4_nse_participant_oi", f"https://nsearchives.nseindia.com/content/nsccl/fao_participant_oi_{lw:%d%m%Y}.csv", _pz_h(),
+         _pz_has("FII")),
+        ("pz-azja", "F7Z4_nse_fii_stats_xls", f"https://nsearchives.nseindia.com/content/fo/fii_stats_{lw:%d-%b-%Y}.xls", _pz_h(), _pz_ole),
+        ("pz-azja", "F7Z4_taifex_instytucje", "https://openapi.taifex.com.tw/v1/MarketDataOfMajorInstitutionalTradersGeneralBytheDate",
+         _pz_h(Accept="application/json"), _pz_json_len()),
+    ]
+    _pz_seq(items)
+
+
+PZ_GRUPY = (g_pz_rolne, g_pz_metale, g_pz_energia, g_pz_krypto, g_pz_pochodne, g_pz_etf, g_pz_polska, g_pz_banki, g_pz_waluty,
+            g_pz_makro, g_pz_azja)
+for _g in PZ_GRUPY:
+    GROUPS.insert(GROUPS.index(g_nasdaq), _g)       # g_nasdaq zostaje ostatnia (test v127)
+PZ_TYLKO = tuple(g.__name__ for g in PZ_GRUPY)       # w sondy.py: TYLKO = PZ_TYLKO — przebieg tylko tej sondy
+
+TYLKO = PZ_TYLKO   # v324p: ten przebieg — tylko fala 0 armii (v294p: g_su_*; v288p: g_jse2; v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
 
 
 # --------------------------------------------------------------------------- main

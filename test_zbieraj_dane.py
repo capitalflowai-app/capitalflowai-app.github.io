@@ -30873,7 +30873,8 @@ class SondaSurowceV294p(unittest.TestCase):
         S = self._S()
         names = [g.__name__ for g in S.GROUPS]
         su = tuple(n for n in names if n.startswith('g_su_'))
-        self.assertEqual(su, S.TYLKO, 'ten przebieg: tylko sonda surowców'); self.assertEqual(len(su), 10)
+        self.assertEqual(len(su), 10)   # v324p: TYLKO zmienia się co sondę (teraz fala 0 armii) — jak w testach v272p i v288p
+        self.assertTrue(S.TYLKO and all(any(g.__name__ == n for g in S.GROUPS) for n in S.TYLKO), 'TYLKO = istniejące grupy (zmienia się co sondę)')
         self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertTrue(all(names.index(n) < names.index('g_nasdaq') for n in su))
         self.assertEqual(len(set(names)), len(names), 'każda grupa raz')
         self.assertEqual((S.KEY_CANDIDATES['twelvedata'], S.KEY_CANDIDATES['eia'], S.KEY_CANDIDATES['coingecko']), (['TWELVEDATA_KEY'], ['EIA_KEY'], ['COINGECKO_KEY']))
@@ -30910,7 +30911,7 @@ class SondaSurowceV294p(unittest.TestCase):
     def test_sonda_z_atrapa(self):
         import re
         S = self._S()
-        G = [getattr(S, n) for n in S.TYLKO]
+        G = [g for g in S.GROUPS if g.__name__.startswith('g_su_')]   # v324p: grupy sondy surowców (TYLKO zmienia się co sondę)
         o, seen, ev = self._run(S, G)
         self.assertNotIn('TAJNY', o, 'klucz nigdy w wyniku'); self.assertNotIn('http', o.replace('HTTP', ''), 'żadnego adresu')
         self.assertNotIn('twelvedata.com', o); self.assertNotIn('apikey', o)
@@ -39141,3 +39142,73 @@ class ObrazkiZPlikowV319(unittest.TestCase):
         for d in ('img/loga/', 'img/monety/'):
             self.assertIn('\n' + d, t, d)
         self.assertIn('znakami towarowymi ich właścicieli', t)
+
+
+class V324pSondaFala0(unittest.TestCase):
+    """v324p: fala 0 armii — 11 grup sondy nowych hostów z planu źródeł (g_pz_*) przed g_nasdaq, TYLKO = te grupy; z atrapą http:
+    tylko GET, nagłówek zbieracza, adresy https bez kluczy, każda etykieta raz, żadnego adresu w wyniku, bez Rosji (MOEX — decyzja D3);
+    sondy.yml przenosi wiersze „pz-…” do adnotacji (ze ściśniętymi odstępami), a wierszy innych sond nadal nie."""
+    DZIS = datetime.date(2026, 10, 12)
+
+    def _S(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('sondy_v324p', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        return S
+
+    def test_grupy_i_tylko(self):
+        S = self._S()
+        names = [g.__name__ for g in S.GROUPS]
+        pz = tuple(n for n in names if n.startswith('g_pz_'))
+        self.assertEqual(len(pz), 11); self.assertEqual(pz, S.PZ_TYLKO); self.assertEqual(S.TYLKO, S.PZ_TYLKO, 'ten przebieg: tylko fala 0 armii')
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(len(set(names)), len(names), 'każda grupa raz')
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'), encoding='utf-8').read()
+        self.assertNotIn('moex', src.lower(), 'Rosja (MOEX) bez sondy — decyzja D3')
+        self.assertEqual(S.PZ_UA, {'User-Agent': 'CapitalFlowAI-collector/1.0'})
+
+    def test_atrapa_tylko_get_bez_adresow(self):
+        import io as _io, re
+        S = self._S()
+        calls = []
+
+        def http(url, method='GET', body=None, headers=None):
+            calls.append((url, method, body, dict(headers or {})))
+            return 200, b'{}', 5, None
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: None), \
+                mock.patch.object(S, '_utc_today', lambda: self.DZIS), mock.patch('sys.stdout', out):
+            for g in S.PZ_GRUPY:
+                g()
+        txt = out.getvalue()
+        lines = [l for l in txt.splitlines() if l.startswith('pz-')]
+        labels = [l.split('|')[2].strip() for l in lines]
+        urls = [u for u, _, _, _ in calls]
+        self.assertGreaterEqual(len(calls), 80); self.assertEqual(len(lines), len(calls) + 1, 'jeden wiersz na zapytanie + pominięty XML (brak linku)')
+        self.assertEqual(len(labels), len(set(labels)), 'każda etykieta raz'); self.assertEqual(len(urls), len(set(urls)), 'każdy adres raz')
+        self.assertTrue(all(m == 'GET' and b is None for _, m, b, _ in calls), 'tylko GET bez treści')
+        self.assertTrue(all(h.get('User-Agent') == 'CapitalFlowAI-collector/1.0' for _, _, _, h in calls), 'nagłówek zbieracza')
+        self.assertTrue(all(u.startswith('https://') for u in urls))
+        self.assertFalse([u for u in urls if re.search(r'(?i)(api[_-]?key|apikey|token=|access_key|moex)', u)], 'bez kluczy i bez Rosji')
+        self.assertNotIn('http', txt, 'żadnego adresu w wyniku')
+        self.assertIn('F1Z1_esmis_wasde_strona', labels); self.assertIn('F1Z1_esmis_wasde_xml', txt, 'brak linku = wiersz SKIP')
+        self.assertTrue(all(re.match(r'(F\d+Z\d|R_)', e) for e in labels), 'etykieta = zadanie planu albo rezerwa')
+
+    def test_adnotacja_z_wierszami_pz(self):
+        import subprocess, sys, tempfile, textwrap
+        sy = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'sondy.yml'), encoding='utf-8').read()
+        a = sy.index('python3 -c "\n') + len('python3 -c "\n'); b = sy.index('\n          "\n', a)
+        code = textwrap.dedent(sy[a:b])
+        pz = [f'pz-rolne       | env=-                         | F1Z1_x{i:02d}                        | HTTP 200 |     12 ms |       345 B | n=1'
+              for i in range(90)]
+        lines = ['summary pz-rolne        http200 15/15'] + pz + ['deribit        | env=- | y', 'coinalyze      | env=- | x']
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'sondy.txt'), 'w', encoding='utf-8') as f:
+                f.write('\n'.join(lines) + '\n')
+            r = subprocess.run([sys.executable, '-c', code], cwd=d, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        notes = [l for l in r.stdout.splitlines() if l.startswith('::notice title=sondy')]
+        joined = '%0A'.join(notes)
+        self.assertTrue(2 <= len(notes) <= 9, len(notes)); self.assertTrue(all(len(n) < 4300 for n in notes))
+        for i in (0, 45, 89):
+            self.assertIn(f'pz-rolne | env=- | F1Z1_x{i:02d} | HTTP 200 | 12 ms | 345 B | n=1', joined, 'wiersz pz ściśnięty, w adnotacji')
+        self.assertIn('coinalyze', joined); self.assertNotIn('deribit', joined, 'wiersze innych sond nie trafiają do adnotacji')

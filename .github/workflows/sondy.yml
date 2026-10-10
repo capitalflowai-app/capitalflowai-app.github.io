@@ -64,10 +64,11 @@ jobs:
           # wynik jako adnotacje (czytelne bez logowania); znaki specjalne kodowane jak wymaga GitHub. Adnotacja ma ok. 4 KB: najpierw wiersze
           # summary, potem wiersze trzech źródeł z kluczem (v126: Coinalyze, Banxico, EVDS) i ici. v294p: sonda surowców ma ok. 8 KB wierszy summary —
           # dzielone na kilka adnotacji po ≤ 3900 znaków (pierwsza „sondy”, kolejne „sondy-2”, …; najwyżej 9 — GitHub: 10 adnotacji notice na krok)
+          # v324p: wiersze fali 0 armii („pz-…”, ok. 90 sond) też trafiają do adnotacji — ze ściśniętymi odstępami
           python3 -c "
           L=open('sondy.txt',encoding='utf-8').read().splitlines()
           A=[l for l in L if l.startswith('summary')]
-          B=[l for l in L if l.split('|')[0].strip() in ('coinalyze','banxico','evds','ici')]
+          B=[(' '.join(l.split()) if l.startswith('pz-') else l) for l in L if l.split('|')[0].strip() in ('coinalyze','banxico','evds','ici') or l.startswith('pz-')]
           P,c=[],''
           for l in A+['--']+B:
               l=l[:3900]
