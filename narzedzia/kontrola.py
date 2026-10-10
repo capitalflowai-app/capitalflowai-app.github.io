@@ -51,6 +51,24 @@ PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska')   # v304: Polska (data/polsk
 LIMIT_MIN['polska'] = 48 * 60   # v304: plik zmienia się przy każdym udanym pobraniu części (gaz i prąd z giełdy codziennie, także w weekend)
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'surowce-raporty')   # v320: raporty miesięczne o surowcach — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['surowce-raporty'] = 8 * 24 * 60   # v320: każde źródło sprawdzane co najmniej raz na 7 dni (dane miesięczne) — starszy plik = automat go nie dotyka
+# v327 (KON-08): 16 plików zbieracza dotąd bez kontroli wieku. Limit wg rytmu zapisu w main() zbieracza (fresh(poprzedni, C) albo co przebieg) z tym
+# samym zapasem co pliki o tym rytmie: co przebieg i co godzinę (C ≤ 60 min) → 3 h (jak swiat-dzien, krypto); co 6 h i co 12 h → doba (jak oecd, cftc,
+# snb); raz na dobę → 2 doby (jak tic). Test wsteczny: migawki audytu m1–m8, migawka na żywo 10.10 i 121 raportów kontroli 26.09–10.10 (wiek ostatniego
+# przebiegu i pamięć awarii części) — 0 uwag bez awarii; uwaga dopiero, gdy część zbieracza nie działa dłużej niż (limit − C).
+PLIKI_V327 = (('dzis', 180), ('fundusze', 180), ('obce', 180), ('krypto-top10-logo', 180), ('eer', 24 * 60), ('meksyk', 24 * 60), ('kursy', 24 * 60),
+              ('bis', 48 * 60), ('rezerwy', 48 * 60), ('cofer', 48 * 60), ('bilans', 48 * 60), ('safe', 48 * 60), ('ue', 48 * 60), ('kanada', 48 * 60),
+              ('korea', 48 * 60), ('spw', 48 * 60))
+for _n, _m in PLIKI_V327:
+    PLIKI.insert(PLIKI.index('krypto-dzien'), _n)   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+    LIMIT_MIN[_n] = _m
+PLIKI_BEZ = {}   # v327 (KON-08): plik zbieracza świadomie bez kontroli wieku — {nazwa: powód}; dziś żaden (test: każdy zapisywany plik jest w PLIKI albo tu)
+
+
+def pliki_bez_nadzoru(src):
+    """v327 (KON-08): nazwy plików data/*.json zapisywanych przez zbieracz (save('nazwa', …) i pętla budowniczych z kluczem w main()) bez wpisu w PLIKI
+    i bez powodu w PLIKI_BEZ — test pilnuje, żeby nowy plik nie został bez kontroli wieku."""
+    nazwy = set(re.findall(r"\bsave\(['\"]([\w-]+)['\"]", src)) | set(re.findall(r"\(['\"]([\w-]+)['\"], build_\w+, \w+, \d", src))
+    return sorted(n for n in nazwy if n not in PLIKI and n not in PLIKI_BEZ)
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
 
@@ -70,7 +88,9 @@ def wylaczone(meta):
 
 # v115: świeżość ŹRÓDEŁ (data danych, nie czas pliku). (etykieta, plik, kategoria, próg w minutach). Kategorie: 'h' = godzinowe (czas części
 # pliku), 'd' = dzienne w dni robocze (koniec dnia danych, liczone godzinami roboczymi bez sobót i niedziel), 'w' = tygodniowe (koniec dnia danych),
-# 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC +3 dni (raport wtorkowy publikowany w piątek),
+# 'm' = miesięczne (koniec miesiąca danych). Progi z zadania: 3 h / 36 h / 9 dni / 45 dni; CFTC 13 dni (raport wtorkowy publikowany w piątek, a w tygodniu
+# ze świętem w USA w poniedziałek — o 06:20 UTC wiek 12 d 6 h; v327 (KON-02): było 9 + 3 = 12 dni → fałszywe ⚠️ 16.11, 30.11, 28.12.2026; 13 dni jak
+# SU_PROG['markets'] i SU3_PROG['pozycje'] z tych samych danych — test wsteczny v298: 0 z 4206 kontroli 2021–2026, maks. wiek przed publikacją 12,88 d),
 # TIC +40 dni (Skarb USA publikuje dane miesiąca 46–51 dni po jego końcu; tuż przed publikacją wiek = 30 + 51 = 81 dni) — inaczej żółte świeciłoby co miesiąc bez powodu.
 # EIA: ceny dzienne ropy są publikowane raz w tygodniu (środa, za poprzedni tydzień) — próg tygodniowy 9 dni, nie 36 h (26.09: dane z wtorku w sobotę = 3 dni).
 # v182: TGA — zestawienie Skarbu USA za dzień D ukazuje się o 16:00 czasu nowojorskiego NASTĘPNEGO dnia roboczego (20:00 UTC latem, 21:00 zimą), więc
@@ -81,7 +101,7 @@ SWIEZOSC = [
     ('premie krypto (minuty giełd)', 'premie', 'h', 180),
     ('TGA (Fiscal Data, dziennie)', 'instytucje', 'd', 48 * 60), ('ETF krypto (SoSoValue, dziennie)', 'etf', 'd', 36 * 60),
     ('FRED dzienne (RRPONTSYD)', 'fred', 'd', 36 * 60), ('EIA ceny dzienne (publikowane co tydzień)', 'energia', 'w', 9 * 24 * 60),
-    ('CFTC (raport tygodniowy)', 'cftc', 'w', (9 + 3) * 24 * 60), ('FRED tygodniowe (WALCL)', 'fred', 'w', 9 * 24 * 60),
+    ('CFTC (raport tygodniowy)', 'cftc', 'w', 13 * 24 * 60), ('FRED tygodniowe (WALCL)', 'fred', 'w', 9 * 24 * 60),
     ('TIC (miesięcznie)', 'tic', 'm', (45 + 40) * 24 * 60), ('OECD (miesięcznie)', 'oecd', 'm', 45 * 24 * 60), ('BLS (miesięcznie)', 'usa-makro', 'm', 45 * 24 * 60),
 ]
 CG_GLOBAL = 'https://api.coingecko.com/api/v3/global'
@@ -374,7 +394,8 @@ def stopy_porownanie(stopy, fred, now=None, bledy=None):
             out.append({'bank': nazwa, 'brak': 'brak stopy w pliku strony', 'powod': 'strona'})
             continue
         if not _dzien(r.get('date')):   # v248: także 30.02 to nie dzień
-            out.append({'bank': nazwa, 'brak': f'data w pliku strony „{str(r.get("date"))[:10]}” to nie dzień', 'powod': 'strona'})
+            out.append({'bank': nazwa, 'brak': ('brak daty w pliku strony' if r.get('date') in (None, '')   # v327 (KON-06): bez „None” w raporcie
+                                                else f'data w pliku strony „{str(r.get("date"))[:10]}” to nie dzień'), 'powod': 'strona'})
             continue
         jest = [(ids, zr) for ids, _, zr in warianty if all(isinstance(F.get(i), dict) and F.get(i) for i in ids)]
         wyb = None
@@ -572,12 +593,99 @@ EM_TIMEOUT = 45        # s na plik (ok. 250 KB; z USA ok. 0,6 s)
 EM_PAUZA = 1.0         # s przerwy między dwoma zapytaniami do tego samego serwera
 
 
+# v327 (KON-04): wspólny termin całej kontroli (zegar monotoniczny). Zadanie ma limit 12 min, a po pushu najpierw czeka 300 s na publikację;
+# przy wiszącej stronie ok. 56 zapytań po 25 s trwało 20–24 min — GitHub zabijał zadanie i nie powstawał ani raport, ani wpis w historii.
+# Teraz każde zapytanie dostaje najwyżej tyle czasu, ile zostało do terminu; po terminie zapytania nie wychodzą (KoniecCzasu), po 3 kolejnych
+# przekroczeniach czasu przy stronie reszta jej plików jest pomijana jedną uwagą, a raport (także częściowy) zapisuje main() zawsze — z BŁĘDEM
+# „kontrola przerwana: limit czasu”. Zwykle kontrola trwa ok. 1 min (przeglądarka do 2 × 90 s).
+TERMIN_S = 480           # s — zwykły przebieg: 12 min zadania minus maszyna, zapis wyniku i przerwanie awaryjne
+TERMIN_PUSH_S = 300      # s — przebieg po pushu: po czekaniu 300 s zostaje 420 s
+TERMIN_TWARDY_S = 45     # s po terminie — przerwanie awaryjne sygnałem (jedno zapytanie albo przeglądarka nie oddały sterowania)
+TERMIN_MIN_S = 2         # s — mniej do terminu = zapytanie już nie wychodzi
+SITE_PRZEKR_MAX = 3      # kolejne przekroczenia czasu przy stronie = reszta jej plików pominięta (jedna uwaga zamiast kilkudziesięciu)
+PONOW_S = 7              # v327 (KON-05): s — przerwa przed jedną ponowną próbą strony głównej i pliku stanu (5xx albo przekroczenie czasu)
+_TERMIN = {'t0': None, 's': None, 'przekroczony': False, 'site_przekr': 0}
+_R_BIEZACY = [None]      # v327: wynik kontroli w toku — przy przerwaniu raport częściowy z tego, co już sprawdzono
+
+
+class KoniecCzasu(TimeoutError):
+    """v327 (KON-04): zapytanie po terminie całej kontroli albo przerwanie awaryjne — kontrola kończy się raportem częściowym."""
+
+
+def termin_start(s=None):
+    """v327: początek odliczania (kontrola() na starcie); s=None — TERMIN_PUSH_S po pushu (GITHUB_EVENT_NAME), inaczej TERMIN_S."""
+    if s is None:
+        s = TERMIN_PUSH_S if os.environ.get('GITHUB_EVENT_NAME') == 'push' else TERMIN_S
+    _TERMIN.update(t0=time.monotonic(), s=float(s), przekroczony=False, site_przekr=0)
+    return s
+
+
+def termin_zostalo():
+    """v327: sekundy do terminu całej kontroli; None — termin nie ustawiony."""
+    if _TERMIN['t0'] is None:
+        return None
+    return _TERMIN['s'] - (time.monotonic() - _TERMIN['t0'])
+
+
+def termin_czas(s, zapas=30):
+    """v327: najwyżej s sekund, ale tak, żeby przed terminem zostało jeszcze `zapas` s (przeglądarka); bez terminu — s."""
+    z = termin_zostalo()
+    return s if z is None else max(0.0, min(s, z - zapas))
+
+
+def _przekroczenie(e):
+    """v327: przekroczenie czasu (także owinięte w URLError) — nie błąd serwera."""
+    return isinstance(e, TimeoutError) or (isinstance(e, urllib.error.URLError) and isinstance(e.reason, TimeoutError))
+
+
+def site_pomin():
+    """v327: powód pominięcia kolejnego zapytania do strony (strona wisi albo minął termin) albo None."""
+    if _TERMIN['przekroczony']:
+        return 'limit czasu całej kontroli'
+    if _TERMIN['site_przekr'] >= SITE_PRZEKR_MAX:
+        return f'strona nie odpowiada w czasie — {SITE_PRZEKR_MAX} kolejne przekroczenia czasu'
+    return None
+
+
 def get(url, timeout=25, headers=None, limit=None):
+    zost = termin_zostalo()   # v327 (KON-04): limit zapytania skrócony do czasu, który został do terminu całej kontroli
+    if zost is not None:
+        if zost < TERMIN_MIN_S:
+            _TERMIN['przekroczony'] = True
+            raise KoniecCzasu(f'limit czasu całej kontroli ({_TERMIN["s"]:g} s)')
+        timeout = min(timeout, zost)
     req = urllib.request.Request(url, headers={'User-Agent': 'CapitalFlowAI-kontrola/1.0', **(headers or {})})
     t0 = time.monotonic()
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        body = r.read() if limit is None else r.read(limit)   # v237: limit — najwyżej tyle bajtów (sprawdzanie, czy plik jest)
-        return r.status, body, int((time.monotonic() - t0) * 1000)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            body = r.read() if limit is None else r.read(limit)   # v237: limit — najwyżej tyle bajtów (sprawdzanie, czy plik jest)
+            st = r.status
+    except Exception as e:
+        if url.startswith(SITE) and _przekroczenie(e):   # v327: kolejne przekroczenia czasu przy stronie (inna odpowiedź zeruje licznik)
+            _TERMIN['site_przekr'] += 1
+        elif url.startswith(SITE):
+            _TERMIN['site_przekr'] = 0
+        raise
+    if url.startswith(SITE):
+        _TERMIN['site_przekr'] = 0
+    return st, body, int((time.monotonic() - t0) * 1000)
+
+
+def get_ponow(url, ponow_s=None):
+    """v327 (KON-05): strona główna i plik stanu — jedno ponowienie po PONOW_S s przy błędzie chwilowym (5xx albo przekroczenie czasu), jeśli
+    zmieści się przed terminem kontroli; BŁĄD dopiero po drugiej porażce (dotąd jeden chwilowy 503 GitHub Pages = czerwony e-mail). Inne błędy
+    (404, błąd sieci, termin) — od razu, jak dotąd."""
+    ponow_s = PONOW_S if ponow_s is None else ponow_s
+    try:
+        return get(url)
+    except KoniecCzasu:
+        raise
+    except Exception as e:  # noqa
+        zost = termin_zostalo()
+        if not stopy_ponowic(e) or (zost is not None and zost < ponow_s + TERMIN_MIN_S + 1):
+            raise
+    time.sleep(ponow_s)
+    return get(url)
 
 
 def get_json(url, timeout=25):
@@ -749,6 +857,9 @@ CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez 
     (re.compile(r'^limit planu '),   # v222: licznik zużycia darmowych planów
      'Darmowy plan jednego źródła danych jest (prawie) wyczerpany — część liczb może chwilowo zniknąć, aż limit się odnowi (o północy UTC '
      'albo z nowym miesiącem); nic nie psuje się na stałe. Napisz do Claude: „zmniejsz liczbę zapytań — limit planu z kontroli”.'),
+    (re.compile(r'^kontrola przerwana'),   # v327 (KON-04): wspólny termin kontroli albo nieoczekiwana awaria samej kontroli
+     'Kontrola nie zdążyła sprawdzić wszystkiego (strona albo serwery odpowiadały bardzo wolno) — raport jest częściowy. Zwykle to chwilowe; '
+     'sprawdź stronę za godzinę. Jeśli powtarza się kilka dni, napisz do Claude: „kontrola przerwana — sprawdź”.'),
 )
 CO_ZROBIC_INNE = 'Napisz do Claude: „sprawdź błąd z kontroli” — w raporcie niżej jest jego treść.'
 WAIT_UWAGA_MIN, WAIT_BLAD_MIN = 30, 120   # v232: przebieg „Strona i dane” w stanie waiting tak długo — uwaga / błąd (zegar anuluje po 15 min)
@@ -879,6 +990,51 @@ def swiezosc(files, now=None):
         note = '' if st == '✅' else (f'próg {fmt_wiek(prog)}' + (' (godziny robocze)' if kat == 'd' else '') + (', ponad 2× progu' if st == '❌' else ''))
         rows.append((label, st, w, txt, note))
     return rows
+
+
+# ---------------------------------------------------------------- v327 (KON-08): zastój źródeł sprawdzanych tylko przy budowie pliku ----------------------------------------------------------------
+# Zbieracz zgłasza „brak nowego dnia/miesiąca/komunikatu” tylko w przebiegu, który buduje plik (Meksyk co 6 h, SPW i Korea raz na dobę); potem
+# plik „cached” bez błędu w meta.json, więc kontrola trafiała na to zgłoszenie w ok. 3% dni (Meksyk), < 1% (SPW, Korea). Wiek DANYCH w pliku
+# strony z tymi samymi progami co zbieracz (osobne wiersze — lista SWIEZOSC bez zmian). Najwyżej ⚠️, nigdy ❌ ani BŁĄD: trwały zastój źródła to nie
+# awaria strony, a ❌ z wiersza świeżości po HIST_CZERWONE dniach zrobiłby czerwony wynik.
+ZASTOJ = (('Meksyk: obligacje rządu u nierezydentów (dziennie, opóźnienie ok. 1,5 tygodnia)', 'meksyk', 'day'),
+          ('Polska: nierezydenci w obligacjach skarbowych (miesięcznie)', 'spw', 'month'),
+          ('Korea Płd.: inwestorzy zagraniczni w akcjach i obligacjach (komunikat miesięczny)', 'korea', 'month'))
+ZASTOJ_MX_DNI = 21    # = MX_STALE zbieracza: dni bez nowego dnia danych
+ZASTOJ_SPW_DNI = 70   # = SPW_STALE zbieracza: dni po końcu najnowszego miesiąca
+ZASTOJ_FSS_DNI = 34   # = termin FSS zbieracza: 1. dzień drugiego miesiąca po miesiącu danych + 34 dni
+
+
+def zastoj_prog(name, txt):
+    """v327: próg w minutach od końca dnia/miesiąca danych (jak wiek_danych) — od tej chwili zbieracz zgłasza błąd zastoju; (próg, opis)."""
+    if name == 'meksyk':
+        return ZASTOJ_MX_DNI * 1440, f'próg {ZASTOJ_MX_DNI} dni bez nowego dnia — jak zbieracz'
+    if name == 'spw':
+        return ZASTOJ_SPW_DNI * 1440, f'próg {ZASTOJ_SPW_DNI} dni po końcu miesiąca — jak zbieracz'
+    y, m = int(txt[:4]), int(txt[5:7])
+    nast = dt.date(y + (m == 12), m % 12 + 1, 1)                                  # koniec miesiąca danych (od tej chwili liczy wiek_danych)
+    t = y * 12 + m - 1 + 2
+    due = dt.date(t // 12, t % 12 + 1, 1) + dt.timedelta(days=ZASTOJ_FSS_DNI)      # zbieracz: błąd, gdy dziś > due
+    return ((due - nast).days + 1) * 1440, f'termin komunikatu {due.day:02d}.{due.month:02d}.{due.year} — jak zbieracz'
+
+
+def zastoj_swiezosc(files, now=None):
+    """v327 (KON-08): wiersze (etykieta, status, wiek min, data danych, uwaga) dla plików z ZASTOJ; pliku brak — bez wiersza (brak pliku zgłasza pętla
+    plików); brak albo zła data w pliku — „?”. Status najwyżej ⚠️."""
+    out = []
+    for label, name, kind in ZASTOJ:
+        j = files.get(name) if isinstance(files, dict) else None
+        if not isinstance(j, dict):
+            continue
+        txt = j.get('asof')
+        wzor = r'^\d{4}-\d{2}-\d{2}$' if kind == 'day' else r'^\d{4}-(0[1-9]|1[0-2])$'
+        if not (isinstance(txt, str) and re.match(wzor, txt)) or (kind == 'day' and not _dzien(txt)):
+            out.append((label, '?', None, None, 'brak daty danych w pliku')); continue
+        prog, opis = zastoj_prog(name, txt)
+        w = wiek_danych(txt, kind, 'w', now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        out.append((label, st, w, txt, '' if st == '✅' else opis))
+    return out
 
 
 # ---------------------------------------------------------------- v131: szanse decyzji Fed (rynek zakładów) ----------------------------------------------------------------
@@ -2314,9 +2470,15 @@ def zadanie_min(jobs, nazwa):
     return None
 
 
+PRZ_OKNO = 6          # v327 (KON-01): tyle ostatnich zakończonych przebiegów (ok. godzina) ocenia „automat działa z przerwami”
+PRZ_OKNO_BLAD = 3     # v327 (KON-01): tyle porażek w oknie (i ostatni zakończony nieudany) = BŁĄD; mniej = uwaga
+
+
 def przebiegi_ocena(runs, now, kroki=None, pend=None):
     """v124.1: przebiegi automatu („Strona i dane”) z ostatnich 24 h → (actions, bledy, uwagi).
-    BŁĄD tylko, gdy automat NADAL nie działa: dwa ostatnie zakończone przebiegi nieudane albo ≥ 3 porażki w 24 h i ostatni zakończony
+    v327 (KON-01): BŁĄD tylko, gdy automat NADAL nie działa: dwa ostatnie zakończone przebiegi nieudane albo ≥ PRZ_OKNO_BLAD porażek wśród
+    PRZ_OKNO ostatnich zakończonych i ostatni też nieudany (było: ≥ 3 porażki w całej dobie — 06.10.2026 jedna świeża porażka po naprawionych
+    sprzed 23 h dała fałszywy czerwony e-mail). Dawniej: dwa ostatnie zakończone przebiegi nieudane albo ≥ 3 porażki w 24 h i ostatni zakończony
     też nieudany. Jedna świeża porażka = uwaga („kolejny przebieg za ok. 20 min”). Porażki już naprawione (po ostatniej same udane) =
     uwaga z godzinami, krokiem i liczbą udanych przebiegów od ostatniej porażki. Przebiegi w toku i anulowane nie liczą się do serii.
     kroki: {id przebiegu: opis kroku} dla porażek (z API zadań; może brakować — wtedy sama godzina).
@@ -2357,11 +2519,18 @@ def przebiegi_ocena(runs, now, kroki=None, pend=None):
         c = [czas_pl(p['at']) for p in A['porazki'][:5]]
         lista = ', '.join((x[:5] + ' ' + x[-5:] if x != '—' else x) + (f' ({p["krok"]})' if p.get('krok') else '') for x, p in zip(c, A['porazki']))
         lista += f' i {len(por) - 5} wcześniejsze' if len(por) > 5 else ''
-        if z_rzedu >= 2 or (len(por) >= 3 and z_rzedu >= 1):
-            pages = all('GitHub Pages' in str(kroki.get(r.get('id')) or '') for r in zak[:min(z_rzedu, 5)])   # v219/v221: 5 najnowszych porażek serii (tylko one mają opis kroku)
-            bledy.append(f'automat nie działa{" (publikacja GitHub Pages)" if pages else ""}: {pl_przebiegi(len(por))} w 24 h, ostatnie {z_rzedu} z rzędu — strona nie odświeża danych ({lista})')
+        okno = [r for r in zak[:PRZ_OKNO] if r.get('conclusion') == 'failure']   # v327 (KON-01): porażki wśród ostatnich zakończonych
+        if z_rzedu >= 2 or (z_rzedu == 1 and len(okno) >= PRZ_OKNO_BLAD):
+            seria = zak[:min(z_rzedu, 5)] if z_rzedu >= 2 else okno[:5]
+            pages = all('GitHub Pages' in str(kroki.get(r.get('id')) or '') for r in seria)   # v219/v221: 5 najnowszych porażek serii (tylko one mają opis kroku)
+            if z_rzedu >= 2:
+                bledy.append(f'automat nie działa{" (publikacja GitHub Pages)" if pages else ""}: {pl_przebiegi(len(por))} w 24 h, ostatnie {z_rzedu} z rzędu — strona nie odświeża danych ({lista})')
+            else:   # v327: bez „ostatnie 1 z rzędu”
+                bledy.append(f'automat nie działa{" (publikacja GitHub Pages)" if pages else ""}: {pl_przebiegi(len(okno))} wśród {PRZ_OKNO} ostatnich, w tym ostatni — '
+                             f'strona odświeża dane tylko z przerwami ({pl_przebiegi(len(por))} w 24 h: {lista})')
         elif z_rzedu == 1:
-            uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 10 min; dwa nieudane z rzędu = błąd')
+            uwagi.append(f'ostatni przebieg automatu nieudany ({lista}) — kolejny za ok. 10 min; dwa nieudane z rzędu = błąd'
+                         + ('; wcześniejsze porażki z 24 h już naprawione' if len(por) > 1 else ''))   # v327 (KON-01)
         else:
             uwagi.append(f'{pl_przebiegi(len(por))} automatu w 24 h — już naprawione: od ostatniej porażki {pl_udane(udane_po)} z rzędu ({lista})')
     if len(ost) < 20:
@@ -3271,6 +3440,11 @@ def strona_przegladarka(url, czas_s=PRZEGL_CZAS_S, program=None, zegar=time.mono
     'bledy', 'zasoby', 'inne', 'nieczytelne'} albo {'stan': 'brak_programu' | 'zakonczona' (awaria: kod i ostatni wpis błędu) | 'zawieszona'
     (przeglądarka działa, strony brak — zawieszona strona albo źródło, które nie odpowiada) | 'inna_strona' (brak znacznika), 'brak': opis, …}.
     Osobny profil tymczasowy; po zrzucie albo czas_s — zamknięcie całej grupy procesów."""
+    c = termin_czas(czas_s)   # v327 (KON-04): przeglądarka w terminie całej kontroli (z zapasem 30 s); za mało czasu — bez uruchamiania
+    if c < czas_s:
+        if c < 10:
+            return {'stan': 'blad', 'brak': 'pominięta — kończy się czas całej kontroli'}
+        czas_s = c
     program = program or przegladarka_program()
     if not program:
         return {'stan': 'brak_programu', 'brak': 'brak przeglądarki na maszynie kontroli'}
@@ -5184,10 +5358,11 @@ def zk_kontrola(j, R, now=None):
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
+    _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
     files = {}
     # 1. strona główna
     try:
-        st, body, ms = get(f'{SITE}/index.html?nc={int(time.time())}')
+        st, body, ms = get_ponow(f'{SITE}/index.html?nc={int(time.time())}')   # v327 (KON-05): jedno ponowienie przy 5xx albo przekroczeniu czasu
         ok = st == 200 and len(body) > 1_000_000 and b'const EXTRA' in body
         R['strona'] = {'http': st, 'bajty': len(body), 'ms': ms, 'ok': ok}
         if not ok:
@@ -5215,7 +5390,7 @@ def kontrola():
         R['uwagi'] += przegladarka_uwagi_lekka(R['przegladarka_lekka'])
     # 2. plik stanu automatu
     try:
-        st, body, ms = get(f'{SITE}/data/meta.json?nc={int(time.time())}')
+        st, body, ms = get_ponow(f'{SITE}/data/meta.json?nc={int(time.time())}')   # v327 (KON-05): jedno ponowienie przy 5xx albo przekroczeniu czasu
         m = json.loads(body); files['meta'] = m
         w = wiek_min(m.get('at'))
         nie = sorted(k for k, v in (m.get('ok') or {}).items() if v is False)
@@ -5245,8 +5420,13 @@ def kontrola():
         R['meta'] = {'blad': str(e)[:200]}
         R['bledy'].append(f'plik stanu (meta.json) nie odpowiada: {str(e)[:120]}')
     # 3. wiek plików danych
+    pominiete, pow_pom = [], None   # v327 (KON-04): strona wisi albo minął termin — reszta plików bez zapytań, jedna uwaga
     for n in PLIKI:
         if n == 'meta':
+            continue
+        pp = site_pomin()
+        if pp:
+            R['pliki'][n] = {'pominiete': True}; pominiete.append(n); pow_pom = pow_pom or pp
             continue
         try:
             st, body, ms = get(f'{SITE}/data/{n}.json?nc={int(time.time())}')
@@ -5275,6 +5455,10 @@ def kontrola():
             R['uwagi'].append(f'{n}.json: {str(e)[:100]}')
     # 3b. v111: pliki dla wyszukiwarek (robots.txt, sitemap.xml, plik weryfikacji Google) — tylko kod HTTP
     for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html'):
+        pp = site_pomin()   # v327 (KON-04)
+        if pp:
+            R['pliki'][f] = {'pominiete': True}; pominiete.append(f); pow_pom = pow_pom or pp
+            continue
         try:
             st, body, ms = get(f'{SITE}/{f}?nc={int(time.time())}')
             R['pliki'][f] = {'http': st, 'bajty': len(body)}
@@ -5284,6 +5468,8 @@ def kontrola():
             R['pliki'][f] = {'http': e.code}; R['uwagi'].append(f'{f}: HTTP {e.code}')
         except Exception as e:  # noqa
             R['pliki'][f] = {'blad': str(e)[:120]}; R['uwagi'].append(f'{f}: {str(e)[:80]}')
+    if pominiete:   # v327 (KON-04): jedna uwaga zamiast uwagi przy każdym pliku
+        R['uwagi'].append(f'pominięto plików strony: {len(pominiete)} ({pow_pom}) — ' + ', '.join(pominiete[:6]) + (' …' if len(pominiete) > 6 else ''))
     # 3c. v115: świeżość źródeł wg kategorii — żółte po progu, czerwone po 2×
     for label, st, w, txt, note in swiezosc(files):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -5350,6 +5536,14 @@ def kontrola():
             R['uwagi'].append(f'{label}: {note}')
     # 3c-sr. v320: raporty miesięczne o surowcach (data/surowce-raporty.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in surowce_raporty_swiezosc(files.get('surowce-raporty')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    # 3c-zs. v327 (KON-08): zastój źródeł Meksyku, SPW i Korei (zbieracz zgłasza go tylko w przebiegu budującym plik) — progi zbieracza, osobne
+    # wiersze (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
+    for label, st, w, txt, note in zastoj_swiezosc(files):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
@@ -5730,6 +5924,8 @@ def kontrola():
     except Exception as e:  # noqa
         R['github_ostrz'] = {'blad': str(e)[:120]}
     # 5. v115: historia — błędy zbieracza w 3 kolejnych przebiegach kontroli = czerwone
+    if _TERMIN['przekroczony']:   # v327 (KON-04): po terminie całej kontroli część zapytań nie wyszła — raport częściowy
+        R['bledy'].append(kontrola_przerwana_opis(KoniecCzasu()))
     n_err = len(R['meta'].get('errors') or []) if isinstance(R['meta'], dict) else 0
     hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy']),
                                                            'przegl': (R.get('przegladarka') or {}).get('stan')})   # v248: stan przeglądarki
@@ -5791,7 +5987,7 @@ def raport_md(R):
         else:
             L.append(f'- Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z {go.get("sprawdzone", 0)} przepływów): brak ✅'
                      + (f'; nie odczytano: {", ".join(go["bledne"])[:120]}.' if go.get('bledne') else '.'))
-    L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None and not p.get("wylaczone") else ("wyłączone" if p.get("wylaczone") else "HTTP " + str(p.get("http", "?")))}'
+    L.append('- Pliki danych (wiek): ' + ', '.join(f'{n} {("%dh%02d" % divmod(p["wiek_min"], 60)) if p.get("wiek_min") is not None and not p.get("wylaczone") else ("wyłączone" if p.get("wylaczone") else "pominięty" if p.get("pominiete") else "HTTP " + str(p.get("http", "?")))}'
                                              for n, p in (R.get('pliki') or {}).items()) + '.')
     aw = R.get('awarie') if isinstance(R.get('awarie'), dict) else None   # v207: pamięć awarii części automatu
     if aw is not None:
@@ -5840,7 +6036,8 @@ def raport_md(R):
         s = Z.get('stablecoiny')   # v209
         if s:
             if s.get('roznica_pct') is None:
-                L.append(f'- Podaż stablecoinów, dwa źródła: pliki pobrane w odstępie {s.get("odstep_h", "—")} h — bez porównania ℹ️.')
+                L.append(f'- Podaż stablecoinów, dwa źródła: pliki pobrane w odstępie {s["odstep_h"]} h — bez porównania ℹ️.' if s.get('odstep_h') is not None
+                         else '- Podaż stablecoinów, dwa źródła: brak czasu pobrania jednego z plików — bez porównania ℹ️.')   # v327 (KON-06): bez „None h”
             else:
                 L.append(f'- Podaż stablecoinów, dwa źródła: {s["a"] / 1e9:.1f} vs {s["b"] / 1e9:.1f} mld USD — różnica dziś {s["roznica_pct"]:+.2f}%'
                          f'{_norma(s.get("mediana_pct"), s.get("dni", 0), "{:+.2f}%")} — {s.get("status", "?")} {s.get("opis", "")}.')
@@ -5971,14 +6168,75 @@ def raport_md(R):
     return '\n'.join(L) + '\n'
 
 
+def kontrola_przerwana_opis(e):
+    """v327 (KON-04): treść BŁĘDU przerwanej kontroli (początek „kontrola przerwana” — podpowiedź „co zrobić”)."""
+    if isinstance(e, KoniecCzasu):
+        return (f'kontrola przerwana: limit czasu całej kontroli ({_TERMIN["s"] or TERMIN_S:g} s) — część sprawdzeń pominięta, raport częściowy '
+                '(strona albo źródła odpowiadały bardzo wolno)')
+    return f'kontrola przerwana: {type(e).__name__}: {str(e)[:120]} — raport częściowy'
+
+
+def kontrola_przerwana(e):
+    """v327 (KON-04): wynik przerwanej kontroli — to, co kontrola() zdążyła zebrać (_R_BIEZACY), z BŁĘDEM „kontrola przerwana”; wpis
+    w historii, jeśli kontrola() go nie zrobiła."""
+    R = _R_BIEZACY[0] if isinstance(_R_BIEZACY[0], dict) else {}
+    for kk, v in (('at', NOW.isoformat()), ('strona', {}), ('meta', {}), ('pliki', {}), ('actions', {}), ('swiezosc', []), ('zgodnosc', {}),
+                  ('uwagi', []), ('bledy', [])):
+        if not isinstance(R.get(kk), type(v)):
+            R[kk] = v
+    if not any(str(b).startswith('kontrola przerwana') for b in R['bledy']):
+        R['bledy'].append(kontrola_przerwana_opis(e))
+    R['przerwana'] = True
+    if 'historia_n' not in R:
+        try:
+            m = R['meta'] if isinstance(R['meta'], dict) else {}
+            os.makedirs(OUT_DIR, exist_ok=True)
+            R['historia_n'] = len(historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': len(m.get('errors') or []),
+                                                                                    'uwagi': len(R['uwagi']), 'bledy': len(R['bledy']), 'przerwana': True}))
+        except Exception:  # noqa
+            pass
+    R['wynik'] = 'BŁĄD'
+    return R
+
+
+def raport_bezpieczny(R):
+    """v327 (KON-04): raport_md, a gdy raport częściowy go nie przejdzie — nagłówek, „Wynik:” i listy błędów i uwag (format bez zmian)."""
+    try:
+        return raport_md(R)
+    except Exception:  # noqa
+        L = [f'# Kontrola strony — {czas_pl(R.get("at"))} (czas polski)', '', f'**Wynik: {R.get("wynik", "BŁĄD")}**', '',
+             f'❌ Błędów: {len(R.get("bledy") or [])} — wymagają uwagi (szczegóły niżej).', '']
+        L += ['## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R.get('bledy') or []]
+        if R.get('uwagi'):
+            L += ['', '## Uwagi'] + [f'- {x}' for x in R['uwagi']]
+        return '\n'.join(L) + '\n'
+
+
+def _alarm(signum, frame):
+    raise KoniecCzasu('przerwanie awaryjne kontroli')
+
+
 def main():
-    R = kontrola()
-    md = raport_md(R)
-    os.makedirs(OUT_DIR, exist_ok=True)
-    with open(os.path.join(OUT_DIR, 'ostatnia.md'), 'w', encoding='utf-8') as f:
-        f.write(md)
-    with open(os.path.join(OUT_DIR, 'ostatnia.json'), 'w', encoding='utf-8') as f:
-        json.dump(R, f, ensure_ascii=False, indent=1)
+    stary = None
+    if hasattr(signal, 'SIGALRM'):   # v327 (KON-04): przerwanie awaryjne po terminie + TERMIN_TWARDY_S (wiszące zapytanie albo przeglądarka)
+        stary = signal.signal(signal.SIGALRM, _alarm)
+        signal.alarm(int((TERMIN_PUSH_S if os.environ.get('GITHUB_EVENT_NAME') == 'push' else TERMIN_S) + TERMIN_TWARDY_S))
+    R = None
+    try:
+        R = kontrola()
+    except BaseException as e:  # noqa — v327: także przerwanie awaryjne i anulowanie zadania; raport częściowy zamiast żadnego
+        R = kontrola_przerwana(e)
+    finally:
+        if stary is not None:
+            signal.alarm(0); signal.signal(signal.SIGALRM, stary)
+        if R is None:
+            R = kontrola_przerwana(KoniecCzasu())
+        md = raport_bezpieczny(R)
+        os.makedirs(OUT_DIR, exist_ok=True)
+        with open(os.path.join(OUT_DIR, 'ostatnia.md'), 'w', encoding='utf-8') as f:
+            f.write(md)
+        with open(os.path.join(OUT_DIR, 'ostatnia.json'), 'w', encoding='utf-8') as f:
+            json.dump(R, f, ensure_ascii=False, indent=1, default=str)
     print(md)
     summ = os.environ.get('GITHUB_STEP_SUMMARY')
     if summ:

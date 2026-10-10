@@ -14052,9 +14052,9 @@ class KontrolaPrzebiegiV124_1(unittest.TestCase):
         A, b, u = k.przebiegi_ocena(self._seria({5, 25}), self.NOW)
         self.assertEqual(A['porazki_z_rzedu'], 2); self.assertEqual(len(b), 1)
         self.assertIn('automat nie działa: 2 nieudane przebiegi w 24 h, ostatnie 2 z rzędu', b[0])
-        A, b, u = k.przebiegi_ocena(self._seria({5, 405, 805}), self.NOW)
-        self.assertEqual((A['porazki_z_rzedu'], len(b)), (1, 1), '≥ 3 porażki i ostatni też nieudany = błąd')
-        self.assertIn('3 nieudane przebiegi', b[0])
+        A, b, u = k.przebiegi_ocena(self._seria({5, 405, 805}), self.NOW)   # v327 (KON-01): porażki sprzed 7 i 13 h już naprawione (było: BŁĄD, 06.10 fałszywy e-mail)
+        self.assertEqual((A['porazki_z_rzedu'], len(b)), (1, 0), 'jedna świeża porażka po naprawionych = uwaga, nie błąd (v327)')
+        self.assertIn('ostatni przebieg automatu nieudany', u[0]); self.assertIn('wcześniejsze porażki z 24 h już naprawione', u[0])
 
     def test_jedna_swieza_porazka_to_uwaga(self):
         A, b, u = self.k.przebiegi_ocena(self._seria({5}), self.NOW)
@@ -39754,3 +39754,369 @@ class RwaZb10V326(unittest.TestCase):
             if k == 5:
                 self.assertIsNone(aw['rwa-emitenci']['do']); self.assertEqual(aw['rwa-emitenci']['n'], 4, 'n liczy przebiegi ze stanem „nieudany” (także z pamięci)')
         self.assertIsNotNone(aw['rwa-emitenci']['do'], 'udany odczyt zamyka serię'); self.assertEqual(aw['rwa-emitenci']['n'], 4)
+
+
+# ===================== v327: KONTROLA — PAS K PLANU NAPRAW (KON-01, KON-08, KON-02, KON-04, KON-05, KON-06) =====================
+class KontrolaV327(unittest.TestCase):
+    """v327: kontrola dzienna — (KON-01) BŁĄD przebiegów tylko, gdy automat naprawdę nie działa (dwa ostatnie nieudane albo ≥ 3 z 6 ostatnich
+    i ostatni nieudany), (KON-08) 16 plików zbieracza pod kontrolą wieku + test „każdy plik ma wpis” + zastój Meksyku, SPW i Korei z progami zbieracza
+    (najwyżej ⚠️), (KON-02) próg CFTC 13 dni, (KON-04) wspólny termin kontroli i raport zawsze zapisany, (KON-05) jedno ponowienie strony głównej
+    i pliku stanu, (KON-06) bez „None” w raporcie. Bez zegara (NOW przypięty), bez sieci (atrapy urlopen)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    NOW = datetime.datetime(2026, 10, 6, 19, 50, 55, tzinfo=datetime.timezone.utc)   # chwila fałszywego BŁĘDU z 06.10.2026
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='kontrola327-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(cls.tmp, 'k'), 'KONTROLA_ARCH': os.path.join(cls.tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v327_k', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    @staticmethod
+    def _czytaj(*p, js=False):
+        with open(os.path.join(*p), encoding='utf-8') as f:
+            return json.load(f) if js else f.read()
+
+    # ---------------------------------------------------------------- KON-01
+    def _r(self, i, min_temu, wynik, status='completed', dl=4):
+        t = self.NOW - datetime.timedelta(minutes=min_temu)
+        return {'id': i, 'name': 'Strona i dane', 'status': status, 'conclusion': wynik, 'run_started_at': t.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'updated_at': (t + datetime.timedelta(minutes=dl)).strftime('%Y-%m-%dT%H:%M:%SZ')}
+
+    def _seria(self, porazki, n=144):
+        """n przebiegów co 10 min (najnowszy 5 min temu); porażki w podanych minutach temu."""
+        return [self._r(1000 + j, 5 + 10 * j, 'failure' if 5 + 10 * j in porazki else 'success') for j in range(n)]
+
+    def test_kon01_przypadek_0610_to_uwaga(self):
+        k = self.k
+        PG = 'publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)'
+        A, b, u = k.przebiegi_ocena(self._seria({5, 22 * 60 + 55, 23 * 60 + 25, 23 * 60 + 55}), self.NOW, {1000: PG})
+        self.assertEqual(b, [], '06.10.2026: jedna świeża porażka publikacji po 3 naprawionych sprzed 23 h — bez czerwonego e-maila')
+        self.assertEqual((A['porazki_z_rzedu'], len(A['porazki'])), (1, 4))
+        self.assertTrue(u[0].startswith('ostatni przebieg automatu nieudany (06.10 21:45'), u)
+        self.assertIn('dwa nieudane z rzędu = błąd; wcześniejsze porażki z 24 h już naprawione', u[0])
+        for por in ({5, 405, 805}, {5, 365, 725, 1085}, {5, 22 * 60 + 55, 23 * 60 + 25}):
+            self.assertEqual(k.przebiegi_ocena(self._seria(por), self.NOW)[1], [], f'porażki {sorted(por)} — tylko świeża nienaprawiona = uwaga')
+        A, b, u = k.przebiegi_ocena(self._seria({5}), self.NOW)
+        self.assertEqual(b, []); self.assertNotIn('wcześniejsze', u[0], 'jedyna porażka doby — bez dopisku')
+
+    def test_kon01_dwa_ostatnie_nieudane_to_blad(self):
+        A, b, u = self.k.przebiegi_ocena(self._seria({5, 15}), self.NOW)
+        self.assertEqual(len(b), 1); self.assertIn('automat nie działa: 2 nieudane przebiegi w 24 h, ostatnie 2 z rzędu — strona nie odświeża danych', b[0])
+        # 05.10.2026 (prawdziwa awaria, 3 h bez udanego przebiegu): porażki co ok. 35 min, między nimi tylko anulowane — anulowane nie przerywają serii
+        runs = [self._r(1, 35, 'failure', dl=34), self._r(2, 30, 'cancelled'), self._r(3, 20, 'cancelled'), self._r(4, 70, 'failure', dl=40),
+                self._r(5, 50, 'cancelled')] + [self._r(100 + j, 120 + 10 * j, 'success') for j in range(60)]
+        A, b, u = self.k.przebiegi_ocena(runs, self.NOW)
+        self.assertEqual((A['porazki_z_rzedu'], len(b)), (2, 1), 'prawdziwa awaria nadal = BŁĄD')
+
+    def test_kon01_trzy_z_szesciu(self):
+        k = self.k
+        A, b, u = k.przebiegi_ocena(self._seria({5, 25, 45}), self.NOW)
+        self.assertEqual(len(b), 1, 'F S F S F — automat działa z przerwami: BŁĄD')
+        self.assertTrue(b[0].startswith('automat nie działa: 3 nieudane przebiegi wśród 6 ostatnich, w tym ostatni — strona odświeża dane tylko z przerwami'), b)
+        self.assertNotIn('ostatnie 1 z rzędu', b[0]); self.assertIn('(3 nieudane przebiegi w 24 h: 06.10 21:45, 06.10 21:25, 06.10 21:05)', b[0])
+        self.assertEqual(k.przebiegi_ocena(self._seria({15, 25, 45}), self.NOW)[1], [], '3 z 6, ale ostatni udany — naprawione, uwaga')
+        self.assertEqual(k.przebiegi_ocena(self._seria({5, 35, 65}), self.NOW)[1], [], '2 z 6 ostatnich (trzecia porażka poza oknem) — uwaga')
+        self.assertEqual(len(k.przebiegi_ocena(self._seria({5, 45, 55}), self.NOW)[1]), 1, 'trzecia porażka to 6. ostatni przebieg — w oknie')
+        PG = 'publikacja na GitHub Pages (zwykle chwilowa awaria po stronie GitHuba)'
+        b = k.przebiegi_ocena(self._seria({5, 25, 45}), self.NOW, {1000: PG, 1002: PG, 1004: PG})[1]
+        self.assertTrue(b[0].startswith('automat nie działa (publikacja GitHub Pages): 3 nieudane przebiegi wśród 6'), b)
+        self.assertTrue(k.co_zrobic(b)[0].startswith('Ostatnie przebiegi padły na publikacji strony'))
+        b = k.przebiegi_ocena(self._seria({5, 25, 45}), self.NOW, {1000: PG, 1002: 'zbuduj / zbieraj dane', 1004: PG})[1]
+        self.assertTrue(b[0].startswith('automat nie działa: 3'), 'nie wszystkie porażki okna to publikacja — zwykły błąd')
+        self.assertEqual((k.PRZ_OKNO, k.PRZ_OKNO_BLAD), (6, 3))
+
+    def test_kon01_test_wsteczny_przebiegow(self):
+        """Test wsteczny (jak v225/v227) na wzorcach porażek z 15 dni (26.09–10.10.2026; 12 porażek): każda chwila co minutę — nowa reguła daje BŁĄD
+        zawsze, gdy dwa ostatnie zakończone są nieudane (prawdziwa awaria 05.10), a nie daje go po jednej świeżej porażce (06.10, 08.10)."""
+        k = self.k
+        U = datetime.timezone.utc
+        P = lambda s: datetime.datetime.fromisoformat(s.replace('Z', '+00:00'))  # noqa: E731
+        porazki = [('2026-10-05T18:46:09Z', '2026-10-05T19:30:09Z'), ('2026-10-05T19:21:37Z', '2026-10-05T20:00:15Z'), ('2026-10-05T19:56:32Z', '2026-10-05T20:30:22Z'),
+                   ('2026-10-05T20:23:36Z', '2026-10-05T21:00:29Z'), ('2026-10-05T20:55:59Z', '2026-10-05T21:30:36Z'), ('2026-10-06T19:45:05Z', '2026-10-06T19:48:27Z'),
+                   ('2026-10-08T01:11:06Z', '2026-10-08T01:19:53Z')]
+        runs, i = [], 0
+        t = datetime.datetime(2026, 10, 4, 18, 0, tzinfo=U)
+        while t < datetime.datetime(2026, 10, 8, 6, 0, tzinfo=U):   # udane co 10 min poza oknem awarii 05.10 18:46–21:22 (wtedy tylko anulowane)
+            if not (P('2026-10-05T18:45:00Z') <= t <= P('2026-10-05T21:22:00Z')):
+                runs.append({'id': i, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'success', 'run_started_at': t.isoformat(),
+                             'updated_at': (t + datetime.timedelta(minutes=4)).isoformat()}); i += 1
+            t += datetime.timedelta(minutes=10)
+        runs += [{'id': 90000 + j, 'name': 'Strona i dane', 'status': 'completed', 'conclusion': 'failure', 'run_started_at': a, 'updated_at': z}
+                 for j, (a, z) in enumerate(porazki)]
+        T = sorted(((P(str(r['run_started_at'])), P(str(r['updated_at'])), r) for r in runs), key=lambda x: x[0])
+        blad, zle = [], []
+        t = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=U)
+        while t < datetime.datetime(2026, 10, 8, 4, 0, tzinfo=U):
+            vis = [r if b <= t else dict(r, status='in_progress', conclusion=None) for a, b, r in T if t - datetime.timedelta(hours=25) <= a <= t]
+            A, b, u = k.przebiegi_ocena(vis, t)
+            zak = [r for a, b_, r in reversed(T) if a <= t and b_ <= t][:2]
+            if len(zak) == 2 and zak[0]['conclusion'] == zak[1]['conclusion'] == 'failure' and not b:
+                zle.append(t.isoformat())
+            if b:
+                blad.append(t)
+            t += datetime.timedelta(minutes=1)
+        self.assertEqual(zle, [], 'żadna chwila prawdziwej awarii (dwa ostatnie nieudane) bez BŁĘDU')
+        self.assertTrue(blad and P('2026-10-05T20:00:15Z') <= min(blad) <= P('2026-10-05T20:01:15Z') and max(blad) < P('2026-10-05T21:46:00Z'),
+                        'BŁĄD od drugiej zakończonej porażki 05.10 do pierwszego udanego przebiegu po awarii')
+        self.assertFalse([x for x in blad if x.date() != datetime.date(2026, 10, 5)], '06.10 i 08.10 — jedna świeża porażka = bez BŁĘDU')
+
+    # ---------------------------------------------------------------- KON-02
+    def test_kon02_cftc_13_dni(self):
+        k, U = self.k, datetime.timezone.utc
+        prog = [x[3] for x in k.SWIEZOSC if x[0] == 'CFTC (raport tygodniowy)']
+        self.assertEqual(prog, [13 * 24 * 60], 'jak SU_PROG[markets] i SU3_PROG[pozycje] (te same dane)')
+        self.assertEqual((k.SU_PROG['markets'][1], k.SU3_PROG['pozycje'][1]), (13 * 24 * 60, 13 * 24 * 60))
+        st = lambda asof, now: [r for r in k.swiezosc({'cftc': {'asof': asof}}, now) if r[0].startswith('CFTC')][0]  # noqa: E731
+        r = st('2026-11-03', datetime.datetime(2026, 11, 16, 6, 20, tzinfo=U))
+        self.assertEqual((r[1], k.fmt_wiek(r[2])), ('✅', '12 d 6 h'), 'poniedziałek po Veterans Day: 12,3 dnia — raport przesunięty, nie zastój')
+        self.assertEqual(st('2026-11-03', datetime.datetime(2026, 11, 16, 20, 0, tzinfo=U))[1], '✅', 'tuż przed publikacją w poniedziałek (12,8 d)')
+        self.assertEqual(st('2026-11-03', datetime.datetime(2026, 11, 20, 6, 20, tzinfo=U))[1], '⚠️', 'raport nie przyszedł — 16,3 dnia = ⚠️')
+        self.assertEqual(st('2026-09-08', datetime.datetime(2026, 9, 26, 6, 20, tzinfo=U))[1], '⚠️', '17 dni nadal ⚠️')
+        self.assertEqual(st('2026-09-01', datetime.datetime(2026, 9, 28, 6, 20, tzinfo=U))[1], '❌', 'ponad 2 × 13 dni = ❌')
+
+    # ---------------------------------------------------------------- atrapa sieci dla pełnego przebiegu kontrola()
+    class _Resp:
+        def __init__(self, b, status=200):
+            self.b, self.status = b, status
+
+        def read(self, n=None):
+            return self.b if n is None else self.b[:n]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def _urlopen(self, now, pliki=None, wyjatki=None, calls=None, zegar=None, wolno=0):
+        """Strona: index.html, meta.json i podane pliki (reszta 404); inne adresy — błąd sieci. wyjatki: {fragment: f(url, nr) → wyjątek|None};
+        zegar: lista [s] przesuwana o `wolno` s przy każdym zapytaniu (zegar wirtualny)."""
+        import io, urllib.error
+        k, licz = self.k, {}
+        P = {'meta': {'at': (now - datetime.timedelta(minutes=5)).isoformat(), 'ok': {}, 'errors': [], 'notes': []}}
+        P.update(pliki or {})
+
+        def urlopen(req, timeout=None):
+            url = req.full_url
+            if calls is not None:
+                calls.append((url, timeout))
+            if zegar is not None:
+                zegar[0] += wolno
+            for frag, w in (wyjatki or {}).items():
+                if frag in url:
+                    licz[frag] = licz.get(frag, 0) + 1
+                    e = w(url, licz[frag], timeout)
+                    if e is not None:
+                        raise e
+            if '/index.html?' in url:
+                return self._Resp(b'<html>const EXTRA1={};' + b' ' * 1_000_100)
+            if url.startswith(k.SITE + '/data/'):
+                n = url.split('/data/')[1].split('.json')[0]
+                if P.get(n) is None:
+                    raise urllib.error.HTTPError(url, 404, 'nf', {}, io.BytesIO(b''))
+                return self._Resp(json.dumps(P[n]).encode())
+            if url.startswith(k.SITE):
+                return self._Resp(b'x' * 100)
+            raise urllib.error.URLError('offline (test v327)')
+        return urlopen
+
+    def _kontrola(self, now=None, main=False, env=None, zegar=None, spij=None, **kw):
+        import contextlib, io, tempfile
+        k = self.k
+        now = now or self.NOW
+        d = tempfile.mkdtemp(prefix='k-', dir=self.tmp)
+        spano = []
+        p = [mock.patch.object(k, 'NOW', now), mock.patch.object(k, 'OUT_DIR', os.path.join(d, 'kontrola')), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'arch')),
+             mock.patch.object(k.urllib.request, 'urlopen', self._urlopen(now, zegar=zegar, **kw)),
+             mock.patch.object(k.time, 'sleep', spij or (lambda s: spano.append(s))),
+             mock.patch.dict(os.environ, dict({'GITHUB_EVENT_NAME': 'schedule'}, **(env or {})))]
+        if zegar is not None:
+            p.append(mock.patch.object(k.time, 'monotonic', lambda: zegar[0]))
+        with contextlib.ExitStack() as st:
+            for x in p:
+                st.enter_context(x)
+            os.environ.pop('GITHUB_STEP_SUMMARY', None); os.environ.pop('KONTROLA_PRZEGLADARKA', None)
+            if not main:
+                return k.kontrola(), spano, d
+            with contextlib.redirect_stdout(io.StringIO()):
+                try:
+                    k.main(); kod = None
+                except SystemExit as e:
+                    kod = e.code
+            return kod, spano, d
+
+    # ---------------------------------------------------------------- KON-05
+    def test_kon05_jedno_ponowienie_strony_i_pliku_stanu(self):
+        import io, urllib.error
+        k = self.k
+        e503 = lambda url, nr, t, ile=1: urllib.error.HTTPError(url, 503, 'Service Unavailable', {}, io.BytesIO(b'')) if nr <= ile else None  # noqa: E731
+        for cel, txt in (('/index.html?', 'strona główna'), ('/data/meta.json?', 'plik stanu (meta.json)')):
+            R, spano, _ = self._kontrola(wyjatki={cel: e503})
+            self.assertFalse([b for b in R['bledy'] if b.startswith(txt)], f'{cel}: chwilowy 503, druga próba udana — bez BŁĘDU')
+            self.assertIn(k.PONOW_S, spano); self.assertTrue(5 <= k.PONOW_S <= 10)
+            R, spano, _ = self._kontrola(wyjatki={cel: lambda url, nr, t: e503(url, nr, t, 99)})
+            self.assertTrue([b for b in R['bledy'] if b.startswith(txt + ' nie odpowiada: HTTP Error 503')], f'{cel}: dwa razy 503 = BŁĄD jak dotąd')
+            tmo = lambda url, nr, t: urllib.error.URLError(TimeoutError('timed out')) if nr == 1 else None  # noqa: E731
+            R, spano, _ = self._kontrola(wyjatki={cel: tmo})
+            self.assertFalse([b for b in R['bledy'] if b.startswith(txt)], f'{cel}: jedno przekroczenie czasu — ponowione')
+        R, spano, _ = self._kontrola(pliki={'meta': None})
+        self.assertIn('plik stanu (meta.json) nie odpowiada: HTTP Error 404: nf', R['bledy']); self.assertNotIn(k.PONOW_S, spano, '404 — bez ponowienia')
+        self.assertTrue(k.co_zrobic(['strona główna nie odpowiada: HTTP Error 503: x'])[0].startswith('Strona albo jej plik stanu nie odpowiada'))
+
+    # ---------------------------------------------------------------- KON-04
+    def test_kon04_wiszaca_strona_raport_przed_limitem_zadania(self):
+        import socket, urllib.error
+        k = self.k
+        for env, limit in (({'GITHUB_EVENT_NAME': 'schedule'}, 720 - 60), ({'GITHUB_EVENT_NAME': 'push'}, 420 - 30)):
+            zegar, calls = [0.0], []
+
+            def wisi(url, nr, t):
+                zegar[0] += t or 0
+                return urllib.error.URLError(socket.timeout('timed out'))
+            kod, spano, d = self._kontrola(main=True, env=env, zegar=zegar, calls=calls, wyjatki={'': wisi},
+                                           spij=lambda s: zegar.__setitem__(0, zegar[0] + s))
+            self.assertLess(zegar[0], limit, f'{env}: kontrola kończy się przed limitem zadania ({zegar[0]:.0f} s)')
+            self.assertEqual(kod, 1)
+            md = self._czytaj(d, 'kontrola', 'ostatnia.md')
+            self.assertTrue(md.startswith('# Kontrola strony — 06.10.2026, 21:50 (czas polski)\n\n**Wynik: BŁĄD**'), md[:120])
+            site = [u for u, _ in calls if u.startswith(k.SITE)]
+            self.assertLessEqual(len(site), 4, 'strona: 2 próby strony głównej, 2 pliku stanu — potem reszta pominięta')
+            self.assertIn('pominięto plików strony: ', md); self.assertIn('pominięto plików strony: 64 (strona nie odpowiada w czasie — 3 kolejne przekroczenia czasu) — etf, trendy, oecd, rynki, dzwignia, wieloryby …', md)
+            self.assertTrue(os.path.exists(os.path.join(d, 'kontrola', 'historia.json')))
+            self.assertTrue(all(isinstance(t, (int, float)) and t <= 45 for _, t in calls), 'każde zapytanie z limitem')
+
+    def test_kon04_termin_calej_kontroli(self):
+        """Każde zapytanie odpowiada, ale po 20 s (zegar wirtualny): kontrola kończy się w terminie, z BŁĘDEM „kontrola przerwana: limit czasu”."""
+        k = self.k
+        for env, termin in (({'GITHUB_EVENT_NAME': 'schedule'}, k.TERMIN_S), ({'GITHUB_EVENT_NAME': 'push'}, k.TERMIN_PUSH_S)):
+            zegar, calls = [0.0], []
+            kod, spano, d = self._kontrola(main=True, env=env, zegar=zegar, calls=calls, wolno=20, spij=lambda s: zegar.__setitem__(0, zegar[0] + s))
+            self.assertLessEqual(zegar[0], termin + 25, f'{env}: najwyżej termin + jedno zapytanie ({zegar[0]:.0f} s)')
+            self.assertEqual(kod, 1)
+            R = self._czytaj(d, 'kontrola', 'ostatnia.json', js=True)
+            b = [x for x in R['bledy'] if x.startswith('kontrola przerwana: limit czasu całej kontroli')]
+            self.assertEqual(len(b), 1, R['bledy'])
+            self.assertTrue(any(u.startswith('pominięto plików strony') and 'limit czasu całej kontroli' in u for u in R['uwagi']), 'jedna uwaga o pominiętych plikach')
+            self.assertTrue(any(p.get('pominiete') for p in R['pliki'].values()))
+            self.assertTrue(k.co_zrobic(b)[0].startswith('Kontrola nie zdążyła sprawdzić wszystkiego'))
+            self.assertEqual(self._czytaj(d, 'kontrola', 'historia.json', js=True)[-1]['bledy'], len(R['bledy']))
+        self.assertEqual((k.TERMIN_S, k.TERMIN_PUSH_S, k.SITE_PRZEKR_MAX), (480, 300, 3))
+        self.assertLess(k.TERMIN_S + k.TERMIN_TWARDY_S, 720 - 60); self.assertLess(k.TERMIN_PUSH_S + k.TERMIN_TWARDY_S, 420 - 30)
+
+    def test_kon04_przerwanie_awaryjne_raport_czesciowy(self):
+        """Przerwanie w środku kontrola() (sygnał po terminie albo nieoczekiwany wyjątek) — main() zapisuje raport częściowy i wpis w historii."""
+        k = self.k
+        for wyj, txt in ((k.KoniecCzasu('przerwanie awaryjne kontroli'), 'kontrola przerwana: limit czasu całej kontroli'),
+                         (RuntimeError('coś nowego'), 'kontrola przerwana: RuntimeError: coś nowego')):
+            with mock.patch.object(k, 'swiezosc', side_effect=wyj):   # krok 3c — poza blokami try kontroli
+                kod, spano, d = self._kontrola(main=True)
+            self.assertEqual(kod, 1)
+            md = self._czytaj(d, 'kontrola', 'ostatnia.md')
+            self.assertTrue(md.startswith('# Kontrola strony — 06.10.2026, 21:50 (czas polski)\n\n**Wynik: BŁĄD**'), md[:100])
+            self.assertIn(txt, md); self.assertIn('Kontrola nie zdążyła sprawdzić wszystkiego', md)
+            R = self._czytaj(d, 'kontrola', 'ostatnia.json', js=True)
+            self.assertTrue(R['przerwana']); self.assertEqual(R['strona'].get('ok'), True, 'to, co sprawdzono przed przerwaniem, zostaje')
+            h = self._czytaj(d, 'kontrola', 'historia.json', js=True)
+            self.assertEqual((len(h), h[-1].get('przerwana')), (1, True))
+        R = {'at': self.NOW.isoformat(), 'wynik': 'BŁĄD', 'bledy': ['kontrola przerwana: x'], 'uwagi': ['u'], 'meta': 'zły'}
+        md = k.raport_bezpieczny(R)
+        self.assertTrue(md.startswith('# Kontrola strony — 06.10.2026, 21:50 (czas polski)\n\n**Wynik: BŁĄD**')); self.assertIn('- kontrola przerwana: x', md)
+
+    def test_kon04_przegladarka_w_terminie(self):
+        k = self.k
+        with mock.patch.dict(k._TERMIN, {'t0': None}):
+            self.assertEqual(k.termin_czas(k.PRZEGL_CZAS_S), k.PRZEGL_CZAS_S, 'bez terminu — jak dotąd (90 s)')
+        with mock.patch.object(k.time, 'monotonic', lambda: 1000.0), mock.patch.dict(k._TERMIN, {'t0': 1000.0 - 400, 's': 480.0}):
+            self.assertEqual(k.termin_czas(k.PRZEGL_CZAS_S), 50.0, '80 s do terminu — przeglądarka najwyżej 50 s')
+        with mock.patch.object(k.time, 'monotonic', lambda: 1000.0), mock.patch.dict(k._TERMIN, {'t0': 1000.0 - 450, 's': 480.0}), \
+                mock.patch.object(k.subprocess, 'Popen', side_effect=AssertionError('przeglądarka nie powinna ruszyć')):
+            self.assertEqual(k.strona_przegladarka('https://x/', program='/brak/chrome'),
+                             {'stan': 'blad', 'brak': 'pominięta — kończy się czas całej kontroli'}, '30 s do terminu — bez uruchamiania')
+
+    # ---------------------------------------------------------------- KON-06
+    def test_kon06_bez_none_w_raporcie(self):
+        k = self.k
+        kr = {'stabh': {'cur': 311.0e9, 'asof': '2026-10-10'}, 'part_at': {'stabh': '2026-10-10T07:21:29+00:00'}}
+        for cmc in ({'stable_mcap': 283.7e9}, {'stable_mcap': 283.7e9, 'at': None}, {'stable_mcap': 283.7e9, 'at': '2026-10-10T07:50:00'}):
+            s = k.stab_porownanie(kr, cmc)
+            self.assertIsNone(s['odstep_h'])
+            R = {'at': '2026-10-10T07:56:30+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 5}, 'meta': {}, 'pliki': {}, 'actions': {},
+                 'swiezosc': [], 'uwagi': [], 'bledy': [], 'zgodnosc': {'stablecoiny': s}}
+            md = k.raport_md(R)
+            self.assertIn('- Podaż stablecoinów, dwa źródła: brak czasu pobrania jednego z plików — bez porównania ℹ️.', md); self.assertNotIn('None', md)
+        s = k.stab_porownanie(kr, {'stable_mcap': 283.7e9, 'at': '2026-10-10T16:00:00+00:00'})
+        R['zgodnosc']['stablecoiny'] = s
+        self.assertIn('- Podaż stablecoinów, dwa źródła: pliki pobrane w odstępie 8.6 h — bez porównania ℹ️.', k.raport_md(R), 'odstęp jak dotąd')
+        P = k.stopy_porownanie({'rows': {'US': {'rate': 3.875}, 'XM': {'rate': 2.0, 'date': None}, 'GB': {'rate': 4.0, 'date': ''}, 'CH': {'rate': 0.0, 'date': '2026-02-30'}}}, {})
+        D = {x['bank']: x for x in P}
+        self.assertEqual((D['Fed']['brak'], D['EBC']['brak'], D['Bank Anglii']['brak']), ('brak daty w pliku strony',) * 3)
+        self.assertEqual(D['Bank Szwajcarii']['brak'], 'data w pliku strony „2026-02-30” to nie dzień', 'zła data — jak dotąd')
+        self.assertNotIn('None', json.dumps(P, ensure_ascii=False))
+
+    # ---------------------------------------------------------------- KON-08
+    def test_kon08_kazdy_plik_zbieracza_ma_wpis(self):
+        k = self.k
+        src = self._czytaj(self.ROOT, 'zbieraj_dane.py')
+        self.assertEqual(k.pliki_bez_nadzoru(src), [], 'każdy plik data/*.json zbieracza jest w PLIKI albo w PLIKI_BEZ z powodem')
+        self.assertEqual(k.pliki_bez_nadzoru(src + "\n    save('nowy-plik', x)\n"), ['nowy-plik'], 'nowy plik bez wpisu — test pada')
+        self.assertEqual(k.pliki_bez_nadzoru(src + "\n    for name, fn, key, mins, label, need in (('nowy2', build_x, x_key, 60, 'X', True),):\n"), ['nowy2'])
+        nowe = ['bilans', 'bis', 'cofer', 'dzis', 'eer', 'fundusze', 'kanada', 'korea', 'krypto-top10-logo', 'kursy', 'meksyk', 'obce', 'rezerwy', 'safe', 'spw', 'ue']
+        self.assertTrue(set(nowe) <= set(k.PLIKI)); self.assertEqual(len(k.PLIKI), len(set(k.PLIKI)), 'bez powtórzeń')
+        self.assertEqual(len(k.PLIKI), 46 + 16, 'v327: 46 plików (do v320) + 16')
+        self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
+        self.assertEqual({n: k.LIMIT_MIN[n] for n in nowe},
+                         {'dzis': 180, 'fundusze': 180, 'obce': 180, 'krypto-top10-logo': 180, 'eer': 1440, 'meksyk': 1440, 'kursy': 1440, 'bis': 2880,
+                          'rezerwy': 2880, 'cofer': 2880, 'bilans': 2880, 'safe': 2880, 'ue': 2880, 'kanada': 2880, 'korea': 2880, 'spw': 2880})
+        self.assertTrue(all(n in k.LIMIT_MIN for n in k.PLIKI if n != 'meta'), 'każdy plik z PLIKI ma limit')
+        self.assertTrue(all(isinstance(v, str) and v for v in k.PLIKI_BEZ.values()), 'wyjątek tylko z powodem')
+
+    def test_kon08_stary_plik_to_uwaga(self):
+        k = self.k
+        R, _, _ = self._kontrola(pliki={'dzis': {'at': (self.NOW - datetime.timedelta(days=30)).isoformat(), 'q': {}},
+                                        'meksyk': {'at': self.NOW.isoformat(), 'asof': '2026-09-28', 'd': []}})
+        self.assertIn('dzis.json sprzed 720 godz. 0 min (limit 3 godz.)', R['uwagi']); self.assertEqual(R['pliki']['dzis']['wiek_min'], 30 * 1440)
+        self.assertFalse([b for b in R['bledy'] if 'dzis' in b], 'stary plik = uwaga, nie BŁĄD')
+        self.assertFalse([u for u in R['uwagi'] if u.startswith('meksyk.json sprzed')], 'plik świeży — bez uwagi')
+        self.assertIn('kanada.json: HTTP 404 (brak pliku)', R['uwagi'], 'brak pliku z nowej listy = uwaga jak przy innych plikach')
+
+    def test_kon08_zastoj_meksyk_spw_korea(self):
+        k, U = self.k, datetime.timezone.utc
+        T = lambda *a: datetime.datetime(*a, tzinfo=U)  # noqa: E731
+        st = lambda n, j, now: {r[0].split(':')[0]: r for r in k.zastoj_swiezosc({n: j}, now)}  # noqa: E731
+        self.assertEqual((k.ZASTOJ_MX_DNI, k.ZASTOJ_SPW_DNI), (zd.MX_STALE, zd.SPW_STALE), 'progi jak w zbieraczu')
+        src = self._czytaj(self.ROOT, 'zbieraj_dane.py')
+        i = src.index('def build_korea('); self.assertIn(f'+ datetime.timedelta(days={k.ZASTOJ_FSS_DNI})', src[i:src.index('\ndef ', i + 10)], 'termin FSS jak w zbieraczu')
+        # Meksyk: zbieracz — błąd, gdy (dziś − dzień danych) > 21 dni, czyli od dnia danych + 22
+        mx = {'asof': '2026-08-31'}
+        self.assertEqual(st('meksyk', mx, T(2026, 9, 21, 23, 59))['Meksyk'][1], '✅')
+        r = st('meksyk', mx, T(2026, 9, 22, 0, 1))['Meksyk']
+        self.assertEqual((r[1], r[3], r[4]), ('⚠️', '2026-08-31', 'próg 21 dni bez nowego dnia — jak zbieracz'))
+        self.assertEqual(st('meksyk', mx, T(2026, 10, 10, 6, 20))['Meksyk'][1], '⚠️', '40 dni — ⚠️')
+        self.assertEqual(st('meksyk', mx, T(2027, 6, 1))['Meksyk'][1], '⚠️', 'trwały zastój — nigdy ❌')
+        # SPW: błąd, gdy (dziś − ostatni dzień miesiąca) > 70 dni — czerwiec: od 09.09
+        self.assertEqual(st('spw', {'asof': '2026-06'}, T(2026, 9, 8, 23, 59))['Polska'][1], '✅')
+        self.assertEqual(st('spw', {'asof': '2026-06'}, T(2026, 9, 9, 0, 1))['Polska'][1], '⚠️')
+        # Korea: termin = 1. dzień drugiego miesiąca po miesiącu danych + 34 dni (czerwiec → 04.09); błąd od 05.09
+        self.assertEqual(st('korea', {'asof': '2026-06'}, T(2026, 9, 4, 23, 59))['Korea Płd.'][1], '✅')
+        r = st('korea', {'asof': '2026-06'}, T(2026, 9, 5, 0, 1))['Korea Płd.']
+        self.assertEqual((r[1], r[4]), ('⚠️', 'termin komunikatu 04.09.2026 — jak zbieracz'))
+        self.assertEqual(st('korea', {'asof': '2026-12'}, T(2027, 3, 8, 0, 1))['Korea Płd.'][1], '⚠️', 'grudzień → termin 07.03.2027 (przełom roku)')
+        self.assertEqual(st('korea', {'asof': '2026-12'}, T(2027, 3, 7, 23, 0))['Korea Płd.'][1], '✅')
+        # brak pliku — bez wiersza (brak pliku zgłasza pętla plików); zła data — „?”
+        self.assertEqual(k.zastoj_swiezosc({}, T(2026, 10, 10)), [])
+        self.assertEqual([r[1:] for r in k.zastoj_swiezosc({'spw': {'asof': '2026-13'}, 'meksyk': {'asof': None}}, T(2026, 10, 10))],
+                         [('?', None, None, 'brak daty danych w pliku')] * 2)
+        # migawka 10.10 (Meksyk 30.09, SPW 08, Korea 08) — wszystko w normie
+        self.assertEqual({r[1] for r in k.zastoj_swiezosc({'meksyk': {'asof': '2026-09-30'}, 'spw': {'asof': '2026-08'}, 'korea': {'asof': '2026-08'}}, T(2026, 10, 10, 7, 56))}, {'✅'})
+        # w kontrola(): uwaga, nie BŁĄD; wiersz w tabeli świeżości
+        R, _, _ = self._kontrola(now=T(2026, 10, 10, 6, 20), pliki={'meksyk': {'at': '2026-10-10T06:04:02+00:00', 'asof': '2026-08-31', 'd': []},
+                                                                      'spw': {'at': '2026-10-10T06:25:35+00:00', 'asof': '2026-06'},
+                                                                      'korea': {'at': '2026-10-10T05:38:29+00:00', 'asof': '2026-08'}})
+        u = [x for x in R['uwagi'] if x.startswith(('Meksyk', 'Polska: nierezydenci', 'Korea'))]
+        self.assertEqual(u, ['Meksyk: obligacje rządu u nierezydentów (dziennie, opóźnienie ok. 1,5 tygodnia): dane z 2026-08-31 — 39 d 6 h temu (próg 21 dni bez nowego dnia — jak zbieracz)',
+                             'Polska: nierezydenci w obligacjach skarbowych (miesięcznie): dane z 2026-06 — 101 d 6 h temu (próg 70 dni po końcu miesiąca — jak zbieracz)'])
+        self.assertFalse([b for b in R['bledy'] if 'Meksyk' in b or 'Polska' in b], 'zastój = ⚠️, nie BŁĄD')
+        self.assertEqual([r['status'] for r in R['swiezosc'] if r['zrodlo'].startswith(('Meksyk', 'Polska: nierezydenci', 'Korea'))], ['⚠️', '⚠️', '✅'])
+        self.assertEqual(len([x for x in k.SWIEZOSC]), 13, 'lista SWIEZOSC bez zmian')
