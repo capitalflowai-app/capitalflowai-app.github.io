@@ -9730,11 +9730,12 @@ class IndeksyV106(unittest.TestCase):
         self.assertEqual(len([c for c in calls if 'tiingo' in c]), zd.IX_MISS_MAX); self.assertEqual(zd.IX_MISS_MAX, 2)
         self.assertEqual(o['ok'], {'etf': False}); self.assertIs(o['etf'], prev['etf']); self.assertEqual(o['part_at']['etf'], '2026-09-25T09:00:00+00:00')
         self.assertIn('brak odpowiedzi', ' '.join(zd.META['errors']))
-        # EODHD bez odpowiedzi: dwa braki z rzędu kończą pętlę; plik minimalny z licznikiem (dwa zapytania policzone)
+        # EODHD bez odpowiedzi: dwa braki z rzędu kończą pętlę; plik minimalny z licznikiem — v329 (ZB08-01): zapytanie bez odpowiedzi
+        # (zerwane połączenie, czas) nie trafiło do dostawcy, więc nie zużywa dobowego limitu: licznik 0, nie 2 (było: „dwa zapytania policzone”)
         calls.clear(); zd.META['errors'].clear()
         with mock.patch.object(zd, 'get_json', self._gj(calls, eod=ConnectionResetError('reset'))):
             o2 = zd.build_indeksy({'EODHD_KEY': 'k'}, None, now=self.FRI)
-        self.assertEqual(len(calls), 2); self.assertEqual(o2['ok'], {'ix': False}); self.assertEqual(o2['ix_calls'], {'d': '2026-09-25', 'n': 2}); self.assertNotIn('ix', o2)
+        self.assertEqual(len(calls), 2); self.assertEqual(o2['ok'], {'ix': False}); self.assertEqual(o2['ix_calls'], {'d': '2026-09-25', 'n': 0}); self.assertNotIn('ix', o2)
         # udana odpowiedź między brakami zeruje licznik braków
         calls.clear(); zd.META['errors'].clear()
         seq = iter([ConnectionResetError('a'), [{'date': '2026-09-25', 'close': 1.0}], ConnectionResetError('b'), [{'date': '2026-09-25', 'close': 2.0}]])
@@ -17047,8 +17048,9 @@ class DolarV136(unittest.TestCase):
         A = D['ar']
         self.assertEqual(D['ok'], {'ar': True, 'hist_ar': True, 'amb': True, 've': True, 'hist_ve': True, 'bo': True}); self.assertEqual(D['part_at']['hist_ar'], D['at'])
         self.assertEqual(A['bf'], {'ok': list(zd.DL_AR_CASAS), 'at': D['at']})
-        # umowa dat: wiersz serwisu z dnia D = stan na koniec D−1 → zapisany pod D−1 (jak własne odczyty: stan na koniec dnia)
-        keys = sorted((datetime.date.fromisoformat(d) - datetime.timedelta(days=1)).isoformat() for d in DL_AD)
+        # umowa dat: wiersz serwisu z dnia D = stan na koniec D−1 → zapisany pod D−1 (jak własne odczyty: stan na koniec dnia) — v329 (ZB09-01):
+        # tylko od 02.09.2026; wcześniej serwis zapisywał pod D kurs z dnia D (kwiecień 2026: 20 z 20 dni zgodnych z bankiem) → wiersz zostaje pod D
+        keys = sorted(d if d < zd.DL_AD_ZMIANA else (datetime.date.fromisoformat(d) - datetime.timedelta(days=1)).isoformat() for d in DL_AD)
         self.assertEqual([r[0] for r in A['d']], keys + ['2026-09-27'], 'dni serwisu przesunięte o dzień + dzisiejszy własny odczyt')
         R = {r[0]: r for r in A['d']}
         bcra = {x['fecha']: x['detalle'][0]['tipoCotizacion'] for x in DL_BCRA_J['results']}
@@ -17056,9 +17058,11 @@ class DolarV136(unittest.TestCase):
         self.assertNotIn('2026-09-24', [d for d in R if d not in keys], 'żaden wiersz serwisu nie zostaje pod własną datą D')
         self.assertEqual(A['d'][-1], ['2026-09-27', 1545, 1525.5, 1560, 1557.3, 1616.6, 1612], 'dzisiaj: własny odczyt')
         self.assertEqual(A['ch']['contadoconliqui'], {'d7': 0.45, 'd30': -0.1}); self.assertEqual(A['ch']['blue'], {'d7': -0.08, 'd30': -0.58})
-        self.assertEqual(A['mm']['contadoconliqui'], {'n': 12, 'min': 1.48, 'dmin': '2025-10-27', 'max': 12.0, 'dmax': '2025-09-29'})
-        self.assertEqual((A['mm']['blue']['min'], A['mm']['blue']['dmin'], A['mm']['blue']['max'], A['mm']['blue']['dmax']), (-2.5, '2025-11-02', 8.6, '2025-09-27'),
-                         'wiersz 26.09.2025 (też 8,6) poza oknem 365 dni')
+        # v329 (ZB09-01): wiersze sprzed 02.09.2026 pod własną datą serwisu — ekstrema pod dniem sesji (28.10.2025 wtorek, 30.09.2025 wtorek;
+        # było 27.10 i 29.09), a wiersz serwisu 27.09.2025 (sobota, też 8,6) wchodzi w okno 365 dni (było: n 12, max blue pod 27.09 z serwisu 28.09)
+        self.assertEqual(A['mm']['contadoconliqui'], {'n': 13, 'min': 1.48, 'dmin': '2025-10-28', 'max': 12.0, 'dmax': '2025-09-30'})
+        self.assertEqual((A['mm']['blue']['min'], A['mm']['blue']['dmin'], A['mm']['blue']['max'], A['mm']['blue']['dmax']), (-2.5, '2025-11-03', 8.6, '2025-09-27'),
+                         'wiersz serwisu 27.09.2025 — pierwszy z 8,6 w oknie 365 dni')
         # druga budowa 30 min później: 4 zapytania, bez historii; historia i jej czas bez zmian
         D2, asked2 = self._build(D, now=self.NOW + datetime.timedelta(minutes=30))
         self.assertEqual(sorted(asked2), sorted([zd.DL_AR, zd.DL_AR_AMB, zd.DL_VE, zd.DL_BO])); self.assertNotIn('hist_ar', D2['ok']); self.assertNotIn('hist_ve', D2['ok'])
@@ -40120,3 +40124,368 @@ class KontrolaV327(unittest.TestCase):
         self.assertFalse([b for b in R['bledy'] if 'Meksyk' in b or 'Polska' in b], 'zastój = ⚠️, nie BŁĄD')
         self.assertEqual([r['status'] for r in R['swiezosc'] if r['zrodlo'].startswith(('Meksyk', 'Polska: nierezydenci', 'Korea'))], ['⚠️', '⚠️', '✅'])
         self.assertEqual(len([x for x in k.SWIEZOSC]), 13, 'lista SWIEZOSC bez zmian')
+
+
+class IndeksyArgentynaV329(unittest.TestCase):
+    """v329 (pasy Z4 i Z9 planu napraw): ZB08-01 dobowy licznik EODHD tylko z zapytań przyjętych przez dostawcę, HTTP 429 = przerwa do następnego
+    przebiegu; ZB08-02 pole 'wst' — ostatnia sesja najpewniej wstępna (Meksyk); ZB08-04 zapas Tiingo: wszystkie fundusze, najstarsza sesja
+    najpierw; ZB08-05 wiersze-wypełnienia z szumem zapisu i soboty bez sesji; ZB09-01 umowa dat historii Argentyny (przesunięcie tylko od
+    02.09.2026) i jednorazowa przebudowa zapisanej historii; ZB09-03 seria historii bez czytelnych wierszy = nieudana próba z notatką; Z3-04
+    HKEX: błąd HTTP przy starszym dniu = notatka. Bez sieci i bez zegara: get_json / get_bytes zaślepione, NOW i chwile przypięte."""
+    UTC = datetime.timezone.utc
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [None]))
+
+    @staticmethod
+    def _http(code):
+        return zd.urllib.error.HTTPError('u', code, 'x', {}, None)
+
+    # ================================================================ ZB08-01
+    def test_zb0801_awaria_5xx_nie_zjada_limitu_doby(self):
+        # wtorek 13.10.2026, przebiegi co godzinę o :21; EODHD odpowiada HTTP 503 od 06:00 do 12:00 UTC (6 h × do 4 prób), FMP działa
+        start, awaria = datetime.datetime(2026, 10, 13, 0, 21, tzinfo=self.UTC), (6, 12)
+        zegar, proby = {}, []
+
+        def gj(url, headers=None, timeout=30):
+            now = zegar['now']
+            if 'financialmodelingprep' in url:
+                return [{'date': '2026-10-12', 'price': 100.0}, {'date': now.date().isoformat(), 'price': 101.0}]
+            sym = url.split('/eod/')[1].split('.')[0]
+            zly = awaria[0] <= now.hour < awaria[1]
+            proby.append((now.hour, sym, zly))
+            if zly:
+                raise self._http(503)
+            return [{'date': '2026-10-12', 'close': 100.0}, {'date': now.date().isoformat(), 'close': 101.0}]
+        prev = {'at': '2026-10-12T23:21:00+00:00', 'ok': {'ix': True}, 'part_at': {'ix': '2026-10-12T23:21:00+00:00'}, 'ix_calls': {'d': '2026-10-12', 'n': 18},
+                'ix': {s: {'cc': c, 'at': '2026-10-12T23:00:00+00:00', 'd': [['2026-10-09', 99.0], ['2026-10-12', 100.0]]} for s, c, _ in zd.IX_SYMBOLS}}
+        licznik = {}
+        for g in range(24):
+            now = start + datetime.timedelta(hours=g); zegar['now'] = now
+            with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, 'NOW', now.isoformat()):
+                prev = zd.build_indeksy({'EODHD_KEY': 'k', 'FMP_KEY': 'f'}, prev, now=now)
+            licznik[g] = prev['ix_calls']['n']
+            self.assertNotIn('ix_quota', prev, f'{now:%H:%M} — 503 to nie wyczerpany limit')
+        self.assertGreaterEqual(sum(1 for h, _, z in proby if z), 12, 'scenariusz: podczas awarii zbieracz pytał (do 4 razy na godzinę)')
+        self.assertLessEqual(max(licznik[g] for g in range(6, 12)), 2, 'próby z HTTP 503 nie zużywają dobowego limitu (było 16 z 20)')
+        self.assertLessEqual(max(licznik.values()), zd.IX_DAILY)
+        fmp = {s for s, _, _, _ in zd.IX_FMP}
+        bez = sorted(s for s, _, _ in zd.IX_SYMBOLS if s not in fmp and prev['ix'][s]['d'][-1][0] != '2026-10-13')
+        self.assertEqual(bez, [], 'po powrocie dostawcy każdy własny indeks EODHD dostaje sesję tego samego dnia (było 14 bez sesji)')
+        self.assertEqual(licznik[23], sum(1 for _, _, z in proby if not z), 'licznik = zapytania przyjęte przez dostawcę')
+
+    def test_zb0801_429_przerwa_do_nastepnego_przebiegu_402_blokada_doby(self):
+        now = datetime.datetime(2026, 10, 13, 18, 30, tzinfo=self.UTC)   # Europa po sesji
+        prev = {'at': '2026-10-13T17:30:00+00:00', 'ix_calls': {'d': '2026-10-13', 'n': 5},
+                'ix': {s: {'cc': c, 'at': '2026-10-12T23:00:00+00:00', 'd': [['2026-10-12', 100.0]]} for s, c, _ in zd.IX_SYMBOLS}}
+        calls = []
+
+        def gj429(url, headers=None, timeout=30):
+            calls.append(url)
+            raise self._http(429)
+        with mock.patch.object(zd, 'get_json', gj429), mock.patch.object(zd, 'NOW', now.isoformat()):
+            o = zd.build_indeksy({'EODHD_KEY': 'k'}, prev, now=now)
+        self.assertEqual(len(calls), 1, 'po 429 koniec zapytań w tym przebiegu'); self.assertNotIn('ix_quota', o, '429 (limit na minutę) nie blokuje doby')
+        self.assertEqual(o['ix_calls'], {'d': '2026-10-13', 'n': 6}, '429 to odpowiedź 4xx — liczona'); self.assertIs(o['ok']['ix'], False)
+        self.assertTrue(any('HTTP 429' in e and 'następnym przebiegu' in e for e in zd.META['errors']), zd.META['errors'])
+        calls.clear(); zd.META['errors'].clear(); n2 = now + datetime.timedelta(hours=1)
+
+        def gjok(url, headers=None, timeout=30):
+            calls.append(url)
+            return [{'date': '2026-10-13', 'close': 101.0}]
+        with mock.patch.object(zd, 'get_json', gjok), mock.patch.object(zd, 'NOW', n2.isoformat()):
+            o2 = zd.build_indeksy({'EODHD_KEY': 'k'}, o, now=n2)
+        self.assertEqual(len(calls), zd.IX_PER_RUN, 'następny przebieg pyta znowu'); self.assertIs(o2['ok']['ix'], True)
+        # 402 = limit dobowy wyczerpany — blokada do północy UTC jak dotąd
+        calls.clear()
+
+        def gj402(url, headers=None, timeout=30):
+            calls.append(url)
+            raise self._http(402)
+        with mock.patch.object(zd, 'get_json', gj402), mock.patch.object(zd, 'NOW', now.isoformat()):
+            o3 = zd.build_indeksy({'EODHD_KEY': 'k'}, prev, now=now)
+        self.assertEqual((len(calls), o3['ix_quota']), (1, '2026-10-13'))
+
+    def test_zb0801_licznik_rodzaje_bledow(self):
+        now = datetime.datetime(2026, 10, 13, 18, 30, tzinfo=self.UTC)
+        prev = {'ix_calls': {'d': '2026-10-13', 'n': 0},
+                'ix': {s: {'cc': c, 'at': '2026-10-12T23:00:00+00:00', 'd': [['2026-10-12', 100.0]]} for s, c, _ in zd.IX_SYMBOLS}}
+        # 5xx: 4 próby (IX_PER_RUN), żadna z limitu; brak odpowiedzi: 2 próby (IX_MISS_MAX), żadna z limitu; 404/403/pusta lista (odpowiedź
+        # dostawcy): 4 próby, każda z limitu; komunikat błędu w treści (odpowiedź 200): 2 próby do końca pętli, obie z limitu
+        for blad, n in ((self._http(500), 0), (self._http(503), 0), (TimeoutError('timed out'), 0), (zd.urllib.error.URLError('dns'), 0),
+                        (ConnectionResetError('reset'), 0), (self._http(404), 4), (self._http(403), 4), ([], 4), ({'message': 'zły kod'}, 2)):
+            def gj(url, headers=None, timeout=30, b=blad):
+                if isinstance(b, Exception):
+                    raise b
+                return b
+            with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, 'NOW', now.isoformat()):
+                p, calls, quota, ok, got = zd.ix_part('K', json.loads(json.dumps(prev['ix'])), prev['ix_calls'], None, now, [])
+            self.assertEqual(calls['n'], n, repr(blad))
+            self.assertIsNone(quota, repr(blad))
+
+    # ================================================================ ZB08-02
+    MXX_REW = [['2026-10-05', 64327.7891, 64975.0781, '2026-10-06T00:30:21+00:00', '2026-10-07T00:57:57+00:00', True],
+               ['2026-10-06', 65246.9492, 65312.4609, '2026-10-07T01:02:32+00:00', '2026-10-08T00:48:45+00:00', True]]
+
+    def test_zb0802_meksyk_po_polnocy_wst_w_pliku(self):
+        # 09.10 00:21 UTC: pobranie przynosi sesję 08.10 (wstępną) i poprawkę 07.10 — dwie wcześniejsze poprawki ostatniej sesji z pobrań po
+        # północy (nauka pory tego nie umie: pobranie było następnego dnia) → plik oznacza 08.10 jako wstępną; 09.10 22:26 ponowne pobranie
+        # (poprawka 08.10 już u dostawcy) → bez 'wst'
+        n1 = datetime.datetime(2026, 10, 9, 0, 21, 30, tzinfo=self.UTC)
+        ix = {s: {'cc': c, 'at': n1.isoformat(), 'd': [['2026-10-07', 100.0], ['2026-10-08', 101.0]]} for s, c, _ in zd.IX_SYMBOLS}
+        ix['MXX'] = {'cc': 'mx', 'at': '2026-10-08T00:49:43+00:00', 'd': [['2026-10-05', 64975.0781], ['2026-10-06', 65312.4609], ['2026-10-07', 64460.9102]],
+                     'rew': [list(r) for r in self.MXX_REW]}
+        prev = {'at': '2026-10-08T23:30:00+00:00', 'ix_calls': {'d': '2026-10-09', 'n': 0}, 'ix': ix}
+        odp = {1: [{'date': '2026-10-06', 'close': 65312.4609}, {'date': '2026-10-07', 'close': 64653.3281}, {'date': '2026-10-08', 'close': 64871.8086}],
+               2: [{'date': '2026-10-06', 'close': 65312.4609}, {'date': '2026-10-07', 'close': 64653.3281}, {'date': '2026-10-08', 'close': 64986.9102}]}
+        etap, pyt = {'k': 1}, []
+
+        def gj(url, headers=None, timeout=30):
+            pyt.append(url.split('/eod/')[1].split('.')[0])
+            return odp[etap['k']]
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, 'NOW', '2026-10-09T00:21:00+00:00'):
+            o = zd.build_indeksy({'EODHD_KEY': 'k'}, prev, now=n1)
+        self.assertEqual(pyt, ['MXX']); M = o['ix']['MXX']
+        self.assertEqual(M['d'][-1], ['2026-10-08', 64871.8086]); self.assertEqual(len(M['rew']), 3, 'poprawka 07.10 dopisana')
+        self.assertEqual(M.get('wst'), '2026-10-08', 'ostatnia sesja wstępna — strona może ją oznaczyć')
+        self.assertNotIn('h+', M, 'nauka pory nie przesuwa pobrania za północ (zostaje 22 UTC) — dlatego oznaczenie w pliku')
+        self.assertFalse([s for s, r in o['ix'].items() if s != 'MXX' and 'wst' in r], 'inne indeksy bez dowodów — bez pola')
+        etap['k'] = 2; pyt.clear(); n2 = datetime.datetime(2026, 10, 9, 22, 26, tzinfo=self.UTC)
+        for s, r in o['ix'].items():
+            if s != 'MXX':
+                r['at'] = n2.isoformat()   # reszta świeżo pobrana — w tym przebiegu tylko Meksyk
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, 'NOW', '2026-10-09T22:25:30+00:00'):
+            o2 = zd.build_indeksy({'EODHD_KEY': 'k'}, o, now=n2)
+        M2 = o2['ix']['MXX']
+        self.assertEqual(M2['d'][-1], ['2026-10-08', 64986.9102]); self.assertEqual(M2['rew'][-1][:3], ['2026-10-08', 64871.8086, 64986.9102])
+        self.assertNotIn('wst', M2, 'pobranie dobę później — zamknięcie ostateczne, pole znika')
+        # następna noc: nowa sesja pobrana po północy znowu wstępna; plik bez nowego pobrania zachowuje ocenę (liczona z wpisu przy każdej budowie)
+        r = dict(M2, d=M2['d'] + [['2026-10-09', 65000.0]], at='2026-10-10T00:25:00+00:00')
+        self.assertEqual(zd.ix_wst('MXX', r, datetime.datetime(2026, 10, 10, 9, 0, tzinfo=self.UTC)), '2026-10-09')
+
+    def test_zb0802_reguly_dowodu(self):
+        now = datetime.datetime(2026, 10, 9, 0, 30, tzinfo=self.UTC)
+        base = {'cc': 'mx', 'at': '2026-10-09T00:21:00+00:00', 'd': [['2026-10-07', 64653.3], ['2026-10-08', 64871.8]], 'rew': [list(r) for r in self.MXX_REW]}
+        f = zd.ix_wst
+        self.assertEqual(f('MXX', base, now), '2026-10-08')
+        self.assertIsNone(f('MXX', dict(base, rew=base['rew'][:1]), now), 'jedna poprawka to za mało (IX_WST_MIN = 2)')
+        self.assertIsNone(f('MXX', dict(base, rew=[]), now)); self.assertIsNone(f('MXX', {k: v for k, v in base.items() if k != 'rew'}, now))
+        self.assertIsNone(f('MXX', base, now + datetime.timedelta(days=4)), 'poprawki starsze niż IX_WST_DNI dni — bez dowodu')
+        maly = [[r[0], r[1], r[1] * 1.0001, r[3], r[4], True] for r in self.MXX_REW]
+        self.assertIsNone(f('MXX', dict(base, rew=maly), now), 'poprawka 0,01 % — zaokrąglenie, nie dowód (IX_POZNIEJ_PROG)')
+        nie_ost = [r[:5] + [False] for r in self.MXX_REW]
+        self.assertIsNone(f('MXX', dict(base, rew=nie_ost), now), 'poprawka nie ostatniej sesji — nie dowód')
+        # pobranie przed chwilą gotowości w godzinie nauczonej (DAX: poprawki z 17:51 i 17:12, nauczone 18 UTC) — nauka pory to naprawia, bez 'wst'
+        dax = {'cc': 'de', 'at': '2026-10-08T18:21:00+00:00', 'h+': 1, 'd': [['2026-10-07', 1.0], ['2026-10-08', 2.0]],
+               'rew': [['2026-10-06', 24000.0, 23988.0, '2026-10-06T17:51:00+00:00', '2026-10-07T17:06:00+00:00', True],
+                       ['2026-10-07', 24100.0, 24112.5, '2026-10-07T17:12:00+00:00', '2026-10-08T18:31:00+00:00', True]]}
+        self.assertIsNone(f('GDAXI', dax, now)); self.assertEqual(f('GDAXI', dict(dax, **{'h+': 0}), now), '2026-10-08', 'bez nauczonej godziny — te same poprawki są dowodem')
+        # pobranie później niż najwcześniejsza chwila, w której widzieliśmy poprawioną wartość — ostateczne
+        self.assertIsNone(f('MXX', dict(base, at='2026-10-10T01:30:00+00:00'), now), '27,5 h po gotowości — później niż poprawka widziana po 26,8 h')
+        self.assertEqual(f('MXX', dict(base, at='2026-10-09T23:59:00+00:00'), now), '2026-10-08', '26 h — wcześniej niż jakakolwiek widziana poprawka')
+        for zly in (None, {}, {'d': []}, dict(base, at='x'), dict(base, d=[['x', 1.0]]), dict(base, rew=[['2026-10-05', True, 2.0, 'a', 'b', True]] * 3)):
+            self.assertIsNone(f('MXX', zly, now), repr(zly))
+        self.assertIsNone(f('NIEZNANY', base, now)); self.assertEqual(zd._ix_h('FTSE'), 17, 'kod tylko z FMP — godzina z IX_FMP')
+
+    # ================================================================ ZB08-04
+    def _tii(self, asked, last='2026-10-12'):
+        def gj(url, headers=None, timeout=30):
+            if 'massive' in url:
+                raise self._http(403)
+            t = url.split('/daily/')[1].split('/')[0].upper(); asked.append(t)
+            return [{'date': '2026-10-09T00:00:00.000Z', 'close': 50.0}, {'date': last + 'T00:00:00.000Z', 'close': 51.0}]
+        return gj
+
+    def test_zb0804_zapas_tiingo_wszystkie_fundusze(self):
+        self.assertEqual(len(zd.IX_ETF), 46); self.assertGreaterEqual(zd.ETF_TIINGO_MAX, len(zd.IX_ETF), 'cała lista w jednym przebiegu')
+        self.assertLessEqual(zd.ETF_TIINGO_MAX, 50, 'limit Tiingo: 50 zapytań na godzinę')
+        szesc = ('AGG', 'LQD', 'HYG', 'EMB', 'IAU', 'SLV'); self.assertEqual(zd.IX_ETF[40:], szesc)
+        prev = {'date': '2026-10-09', 'src': 'tiingo', 'q': {t: [['2026-10-08' if t in szesc else '2026-10-09', 50.0]] for t in zd.IX_ETF}}
+        now = datetime.datetime(2026, 10, 13, 3, 22, tzinfo=self.UTC)
+        for k in range(3):
+            asked = []
+            with mock.patch.object(zd, 'get_json', self._tii(asked)), mock.patch.object(zd.time, 'sleep'):
+                prev = zd.etf_part({'MASSIVE_KEY': 'm', 'TIINGO_KEY': 't'}, prev, now + datetime.timedelta(hours=6 * k), [])
+            self.assertEqual(sorted(asked), sorted(zd.IX_ETF), f'przebieg {k + 1}: zapytane wszystkie 46 (było 40)')
+        self.assertEqual({t: prev['q'][t][-1][0] for t in zd.IX_ETF}, {t: '2026-10-12' for t in zd.IX_ETF}, 'po 3 przebiegach każdy fundusz ma najnowszą sesję')
+
+    def test_zb0804_kolejnosc_od_najstarszej_sesji_przy_budzecie_czasu(self):
+        # budżet czasu kończy pętlę po kilku funduszach — najpierw te z najstarszą sesją, potem kolejność listy (regiony mapy pierwsze)
+        stare = ('SLV', 'EMB', 'AGG')
+        prev = {'date': '2026-10-09', 'src': 'tiingo', 'q': {t: [['2026-10-08' if t in stare else '2026-10-09', 50.0]] for t in zd.IX_ETF if t != 'HYG'}}
+        asked, clock = [], [0.0]
+
+        def mono():
+            clock[0] += 1.0
+            return clock[0]
+        with mock.patch.object(zd, 'get_json', self._tii(asked)), mock.patch.object(zd.time, 'sleep'), mock.patch.object(zd.time, 'monotonic', mono):
+            zd.etf_part({'TIINGO_KEY': 't'}, prev, datetime.datetime(2026, 10, 13, 3, 22, tzinfo=self.UTC), [], deadline=6.5)
+        self.assertEqual(asked[:4], ['HYG', 'AGG', 'EMB', 'SLV'], 'brak serii, potem najstarsza sesja (w kolejności listy)')
+        self.assertEqual(asked[4:], list(zd.IX_ETF[:len(asked) - 4]), 'reszta w kolejności listy')
+        self.assertEqual(zd._etf_ost([['2026-10-08', 1.0]]), '2026-10-08')
+        for zly in (None, [], [[]], ['x'], [[5, 1.0]], {}):
+            self.assertEqual(zd._etf_ost(zly), '', repr(zly))
+
+    # ================================================================ ZB08-05
+    def test_zb0805_wypelnienia_z_szumem_zapisu_i_soboty(self):
+        f = zd.ix_bez_wypelnien
+        ibex = [['2025-12-23', 17101.2], ['2025-12-24', 17172.9004], ['2025-12-25', 17172.9], ['2025-12-26', 17201.5]]
+        self.assertEqual([r[0] for r in f(ibex, 'IBEX')], ['2025-12-23', '2025-12-24', '2025-12-26'], 'święto: ta sama liczba w zapisie float32 — poza serią')
+        sp = [['2026-07-01', 7483.2349], ['2026-07-02', 7483.24], ['2026-07-06', 7537.4319]]
+        self.assertEqual([r[0] for r in f(sp, 'GSPC')], ['2026-07-01', '2026-07-06'], 'S&P 500 02.07.2026: zmiana 0,00007 % — kopia poprzedniego dnia')
+        mxx = [['2026-06-25', 67000.0], ['2026-06-26', 67229.7646], ['2026-06-27', 67227.8863], ['2026-06-29', 67500.0],
+               ['2026-02-06', 70809.758], ['2026-02-07', 70809.57]]
+        mxx = sorted(mxx)
+        self.assertEqual([r[0] for r in f(mxx, 'MXX')], ['2026-02-06', '2026-06-25', '2026-06-26', '2026-06-29'], 'soboty Meksyku (3e-6, 3e-5) — poza serią')
+        self.assertEqual(f(mxx)[-1], ['2026-06-29', 67500.0], 'bez kodu reguła weekendu obejmuje serię')
+        # prawdziwe sesje weekendowe zostają: Indie 01.02.2026 (niedziela, budżet), Tel Awiw (niedziele do 2025) — także przy małej zmianie
+        ind = [['2026-01-30', 82269.78], ['2026-02-01', 82270.1], ['2026-02-02', 80901.2]]
+        self.assertEqual(f(ind, 'BSESN'), ind); self.assertEqual(f([['2025-10-02', 3241.1], ['2025-10-05', 3241.3]], 'TA125'), [['2025-10-02', 3241.1], ['2025-10-05', 3241.3]])
+        self.assertEqual([r[0] for r in f(ind, 'MXX')], ['2026-01-30', '2026-02-02'], 'ten sam wiersz w serii bez sesji weekendowych — wypełnienie')
+        dz = [['2026-10-02', 7722.72], ['2026-10-03', 7730.0]]
+        self.assertEqual(f(dz, 'GSPC'), dz, 'sobota ze zmianą 0,09 % (≥ 0,05 %) zostaje — nie zgadujemy')
+        tyg = [['2026-10-06', 100.0], ['2026-10-07', 100.00001]]
+        self.assertEqual(f(tyg, 'GSPC'), [['2026-10-06', 100.0]], 'dzień roboczy: różnica 1e-7 = ta sama liczba')
+        tyg2 = [['2026-10-06', 100.0], ['2026-10-07', 100.001]]
+        self.assertEqual(f(tyg2, 'GSPC'), tyg2, 'dzień roboczy: 0,001 % to prawdziwa (mała) zmiana')
+        self.assertEqual(f([['2026-10-03', 'x'], ['2026-10-04', 'x']], 'MXX'), [['2026-10-03', 'x']], 'zła liczba — jak dotąd tylko równość dokładna')
+        self.assertEqual(f([['zła', 5.0], ['2026-10-04', 5.0000001]], 'MXX'), [['zła', 5.0]])
+        x = [list(r) for r in mxx]; f(x, 'MXX'); self.assertEqual(x, mxx, 'wejście bez zmian w miejscu')
+
+    def test_zb0805_build_indeksy_filtr_z_kodem(self):
+        now = datetime.datetime(2026, 10, 5, 12, 0, tzinfo=self.UTC)
+        recent = '2026-10-05T11:00:00+00:00'
+        ix = {s: {'cc': c, 'at': recent, 'd': [['2026-10-01', 100.0], ['2026-10-02', 101.0]]} for s, c, _ in zd.IX_SYMBOLS}
+        ix['MXX']['d'] = [['2026-06-26', 67229.7646], ['2026-06-27', 67227.8863], ['2026-06-29', 67500.0]]
+        ix['BSESN']['d'] = [['2026-01-30', 82269.78], ['2026-02-01', 82270.1], ['2026-02-02', 80901.2]]
+        prev = {'at': recent, 'part_at': {'ix': recent}, 'ix_calls': {'d': '2026-10-05', 'n': 0}, 'ix': ix}
+        with mock.patch.object(zd, 'get_json', lambda *a, **k: self.fail('bez zapytań')), mock.patch.object(zd, 'NOW', now.isoformat()):
+            o = zd.build_indeksy({'EODHD_KEY': 'k'}, prev, now=now)
+        self.assertEqual([r[0] for r in o['ix']['MXX']['d']], ['2026-06-26', '2026-06-29'], 'sobota Meksyku poza serią przy budowie')
+        self.assertEqual(o['ix']['BSESN']['d'], ix['BSESN']['d'], 'niedzielna sesja Indii zostaje (kod przekazany do filtra)')
+
+    # ================================================================ Z3-04
+    JS = ('tabData = [{"id":1,"date":"%s","market":"SSE Southbound","tradingDay":1,"content":[{"table":{"schema":[["Total Turnover","Buy Turnover","Sell Turnover"]],"tr":[{"td":[["3"]]},{"td":[["2"]]},{"td":[["1"]]}]}}]},'
+          '{"id":3,"date":"%s","market":"SZSE Southbound","tradingDay":1,"content":[{"table":{"schema":[["Total Turnover","Buy Turnover","Sell Turnover"]],"tr":[{"td":[["3"]]},{"td":[["2"]]},{"td":[["1"]]}]}}]}];')
+
+    def test_z304_hkex_starszy_dzien_http_to_notatka(self):
+        now = datetime.datetime(2026, 10, 9, 12, 0, tzinfo=self.UTC)
+        prev = {'d': [['2026-10-08', 1.0, 2.0, 1.0, 2, None, None]], 'empty': []}
+        for zly, kod in (('2026-09-25', 503), ('2026-09-25', 500), ('2026-10-09', 503)):
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+
+            def gb(url, headers=None, timeout=60, zly=zly, kod=kod):
+                d = url.split('daily_')[1][:8]; iso = d[:4] + '-' + d[4:6] + '-' + d[6:]
+                if iso == zly:
+                    raise zd.urllib.error.HTTPError(url, kod, 'x', {}, None)
+                return (self.JS % (iso, iso)).encode()
+            with mock.patch.object(zd, 'get_bytes', gb), mock.patch.object(zd.time, 'sleep', lambda s: None), mock.patch.object(zd, '_now_utc', lambda: now), \
+                    mock.patch.object(zd, 'NOW', now.isoformat()):
+                out = zd.hkex_part(prev, '')
+            if zly < '2026-10-01':
+                self.assertEqual(zd.META['errors'], [], f'starszy dzień, HTTP {kod} — nie błąd części')
+                self.assertTrue(any(n.startswith('HKEX historia wstecz') and f'{zly}: HTTP {kod}' in n and 'ponowimy' in n for n in zd.META['notes']), zd.META['notes'])
+                self.assertNotIn(zly, [r[0] for r in out['d']])
+            else:
+                self.assertTrue(any(e.startswith('HKEX:') and f'{zly}: HTTP {kod}' in e for e in zd.META['errors']), 'ostatnie dni — błąd jak dotąd')
+
+    # ================================================================ ZB09-01
+    AD_KW = {'2026-04-06': 1393, '2026-04-07': 1392.5, '2026-04-08': 1387.5, '2026-04-09': 1381, '2026-04-10': 1370, '2026-04-11': 1370, '2026-04-12': 1370,
+             '2026-04-13': 1354, '2026-04-14': 1364, '2026-04-15': 1359, '2026-04-16': 1358, '2026-04-17': 1364.5}
+    BANK_KW = {'2026-04-06': 1393.0, '2026-04-07': 1392.5, '2026-04-08': 1387.5, '2026-04-09': 1381.0, '2026-04-10': 1370.0, '2026-04-13': 1354.0,
+               '2026-04-14': 1364.0, '2026-04-15': 1359.0, '2026-04-16': 1358.0, '2026-04-17': 1364.5}
+    AD_WR = {'2026-08-31': 1508.5, '2026-09-01': 1512, '2026-09-02': 1513, '2026-09-03': 1511, '2026-09-04': 1508, '2026-09-05': 1508, '2026-09-06': 1508,
+             '2026-09-07': 1508, '2026-09-08': 1511.5, '2026-09-09': 1512}
+    BANK_WR = {'2026-08-31': 1508.5, '2026-09-01': 1513.0, '2026-09-02': 1511.0, '2026-09-03': 1508.0, '2026-09-04': 1508.0, '2026-09-07': 1511.5, '2026-09-08': 1512.0}
+
+    def test_zb0901_umowa_dat_zgodna_z_bankiem_kwiecien_i_wrzesien(self):
+        # nagrania 10.10.2026: seria hurtowa serwisu historii i kurs zamknięcia banku centralnego (publiczne API) — wiersz X = kurs banku z dnia X
+        ser = [{'casa': 'mayorista', 'compra': v - 9, 'venta': v, 'fecha': d} for d, v in sorted({**self.AD_KW, **self.AD_WR}.items())]
+        R = {r[0]: r[2] for r in zd.dl_ad_rows({'mayorista': ser})}
+        for d, v in {**self.BANK_KW, **self.BANK_WR}.items():
+            self.assertEqual(R.get(d), v, f'wiersz {d} = zamknięcie banku z {d}')
+        self.assertEqual((R['2026-04-11'], R['2026-04-12']), (1370, 1370), 'weekend: kurs z piątku (było: niedziela 12.04 z kursem poniedziałku 1354)')
+        self.assertEqual(zd.dl_ad_rows({'mayorista': [{'casa': 'mayorista', 'compra': 1, 'venta': 1512, 'fecha': '2026-09-01'}]}), [], 'wiersz przejściowy serwisu z 01.09 pominięty')
+        self.assertEqual(R['2026-09-01'], 1513, '01.09 = wiersz serwisu z 02.09 (nowa umowa)')
+        self.assertEqual((zd.DL_AD_ZMIANA, zd.DL_AD_PRZEJSCIE), ('2026-09-02', '2026-09-01'))
+
+    @staticmethod
+    def _serwis(do='2026-09-26'):
+        """Syntetyczna seria serwisu: zamknięcie dnia roboczego D = 1000 + numer dnia; stara umowa (wiersz D = kurs z D, weekend = piątek) do 31.08,
+        wiersz przejściowy 01.09, od 02.09 wiersz D = kurs z poprzedniego dnia roboczego. → (seria, poprawny stan na koniec dnia X)"""
+        d0, koniec = datetime.date(2026, 5, 1), datetime.date.fromisoformat(do)
+        zam, stan, cur, d = {}, {}, None, d0
+        while d <= koniec:
+            if d.weekday() < 5:
+                cur = 1000.0 + (d - d0).days; zam[d] = cur
+            stan[d.isoformat()] = cur; d += datetime.timedelta(days=1)
+        ser, d = [], d0
+        while d <= koniec:
+            iso = d.isoformat()
+            if iso < '2026-09-01':
+                v = stan[iso]
+            elif iso == '2026-09-01':
+                v = 7777.0
+            else:
+                p = d - datetime.timedelta(days=1)
+                while p.weekday() >= 5:
+                    p -= datetime.timedelta(days=1)
+                v = zam[p]
+            ser.append({'casa': 'mayorista', 'compra': v, 'venta': v, 'fecha': iso}); d += datetime.timedelta(days=1)
+        return ser, stan
+
+    def test_zb0901_jednorazowa_przebudowa_historii(self):
+        ser, stan = self._serwis()
+        nowe = zd.dl_ad_rows({'mayorista': ser})
+        self.assertEqual({r[0]: r[2] for r in nowe}, {k: v for k, v in stan.items() if k <= '2026-09-25'}, 'nowy kod: każdy wiersz = stan na koniec dnia X')
+        # plik zapisany kodem sprzed v329: każdy wiersz serwisu pod D−1 (także sprzed zmiany umowy) + własne odczyty od 26.09
+        stary = [[(datetime.date.fromisoformat(x['fecha']) - datetime.timedelta(days=1)).isoformat(), None, x['venta'], None, None, None, None] for x in ser]
+        wlasne = [['2026-09-26', 1, 1150.0, 2, 3, 4, 5]]
+        rows = zd.dl_hist_merge(wlasne, stary)
+        notes = []
+        fix, ok = zd.dl_ad_daty_naprawa(rows, notes)
+        self.assertTrue(ok); self.assertEqual(len(notes), 1); self.assertIn('2026-08-30', notes[0])
+        F = {r[0]: r for r in fix}
+        self.assertEqual({k: r[2] for k, r in F.items() if k <= '2026-09-25'}, {r[0]: r[2] for r in nowe}, 'po przebudowie = odbudowa nowym kodem')
+        self.assertEqual(F['2026-09-26'], wlasne[0], 'własny odczyt nietknięty'); self.assertNotIn(7777.0, [r[2] for r in fix], 'wiersz przejściowy usunięty')
+        fix2, ok2 = zd.dl_ad_daty_naprawa(fix, notes)
+        self.assertFalse(ok2); self.assertEqual(fix2, fix); self.assertEqual(len(notes), 1, 'druga budowa niczego nie zmienia')
+        self.assertEqual(zd.dl_ad_daty_naprawa(nowe, [])[1], False, 'historia zapisana nowym kodem — bez przebudowy')
+        self.assertEqual(zd.dl_ad_daty_naprawa([r for r in stary if r[0] >= '2026-08-20'], [])[1], False, 'za mało weekendów (< DL_AD_NAPRAWA_MIN)')
+        self.assertEqual(zd.dl_ad_daty_naprawa([], []), ([], False))
+
+    def test_zb0901_przebudowa_w_build_dolar(self):
+        ser, stan = self._serwis()
+        stary = [[(datetime.date.fromisoformat(x['fecha']) - datetime.timedelta(days=1)).isoformat(), None, x['venta'], None, None, None, None] for x in ser]
+        prev = {'ar': {'d': zd.dl_hist_merge(stary, []), 'bf': {'ok': list(zd.DL_AR_CASAS), 'at': '2026-09-26T20:00:00'}}}
+        f, asked = DolarV136('test_historia_laczenie')._fetch()
+        D = zd.build_dolar(prev, now=DolarV136.NOW, fetch=f)
+        self.assertFalse([u for u in asked if 'argentinadatos' in u], 'bez ponownego pobierania historii (zero zapytań więcej)')
+        R = {r[0]: r[2] for r in D['ar']['d']}
+        self.assertEqual(R['2026-06-07'], stan['2026-06-07'], 'niedziela: kurs z piątku'); self.assertEqual(R['2026-06-08'], stan['2026-06-08'])
+        self.assertTrue(any('przesunięte o dzień później' in n for n in D['notes']))
+        D2 = zd.build_dolar(D, now=DolarV136.NOW + datetime.timedelta(minutes=30), fetch=DolarV136('test_historia_laczenie')._fetch()[0])
+        self.assertEqual(D2['ar']['d'], D['ar']['d'], 'kolejna budowa — te same wiersze')
+        self.assertFalse(any('przesunięte' in n for n in D2['notes']))
+
+    # ================================================================ ZB09-03
+    def test_zb0903_seria_bez_czytelnych_wierszy_to_nieudana_proba(self):
+        now = DolarV136.NOW
+        zle = {c: [{'casa': c, 'buy': x['compra'], 'sell': x['venta'], 'date': x['fecha']} for x in _dl_ad_series(c)] for c in zd.DL_AR_CASAS}
+        f, asked = DolarV136('test_historia_laczenie')._fetch(**{'ad_' + c: zle[c] for c in zd.DL_AR_CASAS})
+        D = zd.build_dolar(None, now=now, fetch=f)
+        self.assertIs(D['ok']['hist_ar'], False); self.assertEqual(D['ar']['bf']['ok'], []); self.assertEqual(D['ar']['bf']['n'], 1)
+        self.assertTrue(any('seria bez czytelnych wierszy' in n for n in D['notes']), D['notes'])
+        self.assertTrue(any(n.startswith('Ameryka Łacińska (kursy dolara): historia Argentyny') for n in zd.META['notes']), 'notatka w META')
+        self.assertEqual(zd.META['errors'], [])
+        self.assertTrue(zd.dl_ad_due(D['ar']['bf'], now + datetime.timedelta(days=2)), 'po 2 dobach — ponowna próba')
+        self.assertFalse(zd.dl_ad_due(D['ar']['bf'], now + datetime.timedelta(hours=23)))
+        # seria czytelna, ale kończy się ponad DL_AD_SWIEZA_D dni temu (serwis przestał dopisywać / zmienił format nowych wierszy) — też nieudana
+        stara = {c: [x for x in _dl_ad_series(c) if x['fecha'] < '2026-09-01'] for c in zd.DL_AR_CASAS}
+        dl = {c: stara[c] + [dict(stara[c][-1], fecha=(datetime.date(2026, 8, 1) + datetime.timedelta(days=i)).isoformat()) for i in range(12)] for c in zd.DL_AR_CASAS}
+        rows, bf, okh = zd.dl_ad_backfill([], {}, lambda u: next(dl[c] for c in zd.DL_AR_CASAS if u == zd.AD_HIST.format(c=c)), zd.time.monotonic(), 60, now, [])
+        self.assertIs(okh, False); self.assertEqual(bf['ok'], []); self.assertEqual(rows, [])
+        # poprawna próbka (nagranie, 12 dni) — pobrana jak dotąd
+        rows, bf, okh = zd.dl_ad_backfill([], {}, lambda u: next(_dl_ad_series(c) for c in zd.DL_AR_CASAS if u == zd.AD_HIST.format(c=c)), zd.time.monotonic(), 60, now, [])
+        self.assertIs(okh, True); self.assertEqual(len(rows), 12)

@@ -3120,7 +3120,8 @@ def hkex_part(prev_hk, key):
             if old and e.code == 404:
                 nf[iso] = NOW; nf_new.append(iso); miss += 1; continue   # v95.2: brak pliku za starszy dzień — bez stałej granicy
             if e.code != 404 or iso < now_hk.date().isoformat():
-                fails.append(f'{iso}: HTTP {e.code}')   # v69: 404 za dzień roboczy z przeszłości = brak pliku (święta mają plik) — ponowimy
+                (bfails if old else fails).append(f'{iso}: HTTP {e.code}')   # v69: 404 za dzień roboczy z przeszłości = brak pliku (święta mają plik) — ponowimy;
+                # v329 (Z3-04): starszy dzień (historia wstecz) — notatka „ponowimy”, nie błąd części (jak przy innych wyjątkach i w TWSE)
             continue
         except Exception as e:
             (bfails if old else fails).append(f'{iso}: {e}'); continue
@@ -14633,7 +14634,8 @@ ETF_URL = 'https://api.massive.com/v2/aggs/grouped/locale/us/market/stocks/{d}?a
 TIINGO_URL = 'https://api.tiingo.com/tiingo/daily/{t}/prices?token={key}&startDate={frm}'
 ETF_EVERY = 6 * 60   # min — notowania dzienne: 4 zapytania Massive na dobę (limit planu: 5 na minutę)
 ETF_KEEP = 30        # sesji na fundusz
-ETF_TIINGO_MAX = 40  # zapas Tiingo: najwyżej tyle funduszy na przebieg (limit 50 zapytań na godzinę)
+ETF_TIINGO_MAX = 48  # zapas Tiingo: najwyżej tyle funduszy na przebieg (limit 50 zapytań na godzinę); v329 (ZB08-04): było 40 z 46 — AGG, LQD,
+                     # HYG, EMB, IAU, SLV nigdy nie odświeżane w trybie zapasu; teraz cała lista IX_ETF (46), kolejność od najstarszej sesji (_etf_ost)
 ETF_TIINGO_SLEEP = 0.25
 IX_ETF = tuple(dict.fromkeys(list(DAY_SYMS) + list(FUND_SSGA) + list(FUND_ISH)))   # fundusze używane przez stronę (mapa GLOBAL, TRENDY)
 
@@ -14846,19 +14848,101 @@ def ix_rewizje(old, new, old_at, pomin=()):
     return out
 
 
-def ix_bez_wypelnien(rows):
+IX_WYP_TOL = 1e-6       # v329 (ZB08-05): względna różnica zamknięć mniejsza = ta sama liczba (dostawca raz podaje 17172,9004, raz 17172,9)
+IX_WYP_WEEKEND = 0.05   # v329 (ZB08-05): % — wiersz z soboty albo niedzieli o mniejszej zmianie = wypełnienie (Meksyk: soboty 0,0003–0,003 %)
+IX_SESJE_WEEKEND = ('TA125', 'BSESN')   # v329: prawdziwe sesje weekendowe — Tel Awiw (niedziele do końca 2025), Indie (np. 01.02.2026)
+
+
+def _ix_weekend(d):
+    """v329: dzień RRRR-MM-DD to sobota albo niedziela; zła data = False."""
+    try:
+        return datetime.date.fromisoformat(str(d)).weekday() >= 5
+    except ValueError:
+        return False
+
+
+def ix_bez_wypelnien(rows, sym=None):
     """v179: seria indeksu [[dzień, zamknięcie], …] bez wierszy z zamknięciem DOKŁADNIE równym poprzedniemu — dostawca wypełnia nimi dni bez
     sesji (święta giełdy, w części serii także soboty i niedziele). Strona liczyła je jak sesje: „1 D” = 0,0% z datą święta, okna 5 i 21 sesji
     krótsze o prawdziwe sesje (05.10: 66 takich wierszy w 6 seriach). Prawdziwe zamknięcie indeksu równe poprzedniemu jest bardzo rzadkie,
     a jego pominięcie nie zmienia zmian liczonych między pozostałymi wierszami (ta sama wartość); gdy to ostatni wiersz, strona pokazuje
     poprzednią sesję z jej datą i zmianą (zamiast 0,0%), a okna 5 i 21 sesji sięgają o sesję dalej. Weekend sam w sobie nie jest wypełnieniem
-    (Tel Awiw do końca 2025 handlował w niedziele, Indie — niedzielna sesja budżetowa 01.02.2026). Nowa lista; wejście bez zmian."""
+    (Tel Awiw do końca 2025 handlował w niedziele, Indie — niedzielna sesja budżetowa 01.02.2026). Nowa lista; wejście bez zmian.
+    v329 (ZB08-05): „równe” z tolerancją względną IX_WYP_TOL (dostawca zapisuje tę samą liczbę raz jako float32 — IBEX 25.12.2025:
+    17172,9 po 17172,9004; S&P 500 02.07.2026: 7483,24 po 7483,2349), a wiersz z soboty albo niedzieli o zmianie mniejszej niż
+    IX_WYP_WEEKEND % też jest wypełnieniem (Meksyk: soboty 07.02, 09.05, 27.06.2026) — poza kodami z IX_SESJE_WEEKEND (sym = kod indeksu;
+    bez kodu reguła weekendu obejmuje każdą serię)."""
     out = []
     for r in rows:
-        if out and isinstance(r, list) and len(r) == 2 and isinstance(out[-1], list) and len(out[-1]) == 2 and r[1] == out[-1][1]:
-            continue
+        if out and isinstance(r, list) and len(r) == 2 and isinstance(out[-1], list) and len(out[-1]) == 2:
+            a, b = out[-1][1], r[1]
+            if b == a:
+                continue
+            if all(isinstance(x, (int, float)) and not isinstance(x, bool) and 0 < x < float('inf') for x in (a, b)):   # v329 (ZB08-05)
+                z = abs(b / a - 1)
+                if z < IX_WYP_TOL or (z * 100 < IX_WYP_WEEKEND and sym not in IX_SESJE_WEEKEND and _ix_weekend(r[0])):
+                    continue
         out.append(r)
     return out
+
+
+IX_WST_DNI = 7   # v329 (ZB08-02): okno dowodów (dni) — poprawki ostatniej sesji z tego okresu
+IX_WST_MIN = 2   # v329 (ZB08-02): tyle takich poprawek = pobranie o tej porze zwykle daje zamknięcie wstępne
+
+
+def _ix_h(sym):
+    """v329: godzina UTC z listy (IX_SYMBOLS, a dla kodu tylko z FMP — IX_FMP); nieznany kod = None."""
+    for s, _, h in IX_SYMBOLS:
+        if s == sym:
+            return h
+    for s, _, h, _ in IX_FMP:
+        if s == sym:
+            return h
+    return None
+
+
+def ix_wst(sym, rec, now):
+    """v329 (ZB08-02): dzień ostatniej sesji indeksu, gdy jej zamknięcie jest najpewniej wstępne (pole 'wst' wpisu; strona może dopisać
+    „wstępnie”), albo None. Dowód z poprawek dostawcy ('rew', v260): w ostatnich IX_WST_DNI dniach co najmniej IX_WST_MIN poprawek ostatniej
+    sesji (o więcej niż IX_POZNIEJ_PROG %) po pobraniu NIE wcześniejszym niż chwila gotowości tej sesji w godzinie obecnie nauczonej — takiej
+    poprawki nauka pory pobierania (v262) nie usunie (Meksyk: dostawca ma zamknięcie ok. 00:20–01:00 UTC następnego dnia i poprawia je
+    w ciągu doby; 5.10.2026 wstępnie −0,32 % zamiast +0,69 %). Ostatnia sesja jest wstępna, gdy pobranie, które ją przyniosło ('at'), było
+    bliżej jej chwili gotowości niż najwcześniejsza chwila (licząc od gotowości), w której widzieliśmy już poprawioną wartość — pobranie
+    dobę później (Meksyk od 09.10: 22:26 następnego dnia) daje zamknięcie ostateczne i pola nie ma. Bez stanu: liczone przy każdej budowie."""
+    if not isinstance(rec, dict):
+        return None
+    d, h, at = rec.get('d'), _ix_h(sym), _ix_dt(rec.get('at'))
+    if h is None or at is None or not (isinstance(d, list) and d and isinstance(d[-1], list) and len(d[-1]) == 2 and isinstance(d[-1][0], str)):
+        return None
+    g = ix_godzina(h, rec)
+
+    def gotowa(day):   # chwila gotowości sesji `day` w godzinie obecnie nauczonej
+        try:
+            return datetime.datetime.combine(datetime.date.fromisoformat(day), datetime.time(g), datetime.timezone.utc)
+        except (TypeError, ValueError):
+            return None
+    lo = (now.date() - datetime.timedelta(days=IX_WST_DNI)).isoformat()
+    dowody = []
+    for r in rec.get('rew') if isinstance(rec.get('rew'), list) else []:
+        if not (isinstance(r, list) and len(r) == 6 and r[5] is True and isinstance(r[0], str) and r[0] >= lo
+                and all(isinstance(x, (int, float)) and not isinstance(x, bool) and 0 < x < float('inf') for x in (r[1], r[2]))
+                and abs(r[2] / r[1] - 1) * 100 > IX_POZNIEJ_PROG):
+            continue
+        R, t_pob, t_pop = gotowa(r[0]), _ix_dt(r[3]), _ix_dt(r[4])
+        if R is not None and t_pob is not None and t_pop is not None and t_pob >= R:
+            dowody.append(t_pop - R)
+    if len(dowody) < IX_WST_MIN:
+        return None
+    L = d[-1][0]
+    R = gotowa(L)
+    return L if R is not None and at - R < min(dowody) else None
+
+
+def _etf_ost(rows):
+    """v329 (ZB08-04): dzień ostatniej sesji serii funduszu ('' = brak serii) — kolejność zapasu Tiingo: najstarsza sesja najpierw."""
+    if isinstance(rows, list) and rows and isinstance(rows[-1], list) and rows[-1] and isinstance(rows[-1][0], str):
+        return rows[-1][0]
+    return ''
 
 
 def _ix_brak(rec):
@@ -14966,6 +15050,9 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None, 
     dopiero gdy każda próba w przebiegu została odrzucona, zgłaszamy „klucz odrzucony”. Dwa braki odpowiedzi z rzędu albo
     przekroczony budżet czasu = koniec pętli (zbieracz ma 15 min na wszystkie źródła).
     v273: kody z `pomin` (dostarcza je FMP) poza planem — EODHD bierze je tylko jako zapas.
+    v329 (ZB08-01): do dobowego licznika tylko zapytania przyjęte przez dostawcę (odpowiedź 2xx — także pusta lista — i 4xx); błąd serwera
+    (5xx) i brak odpowiedzi (czas, połączenie) nie zużywają limitu (kilkugodzinna awaria zjadała cały budżet doby). HTTP 429 (za dużo zapytań
+    na minutę) = przerwa do następnego przebiegu; blokada do północy UTC tylko po HTTP 402 (limit dobowy wyczerpany).
     Zwraca (część, licznik, dzień blokady, czy bez błędów, ile odświeżono)."""
     znane = {s for s, _, _ in IX_SYMBOLS} | {s for s, _, _, _ in IX_FMP}
     part = {s: dict(r) for s, r in prev_part.items() if isinstance(r, dict) and s in znane} if isinstance(prev_part, dict) else {}   # v118.2: kod usunięty z listy wypada z pliku
@@ -14979,13 +15066,17 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None, 
         if _ix_late(deadline):
             ok = False; errors.append('EODHD: przekroczony budżet czasu — reszta indeksów za godzinę'); break
         cc = next(c for s, c, _ in IX_SYMBOLS if s == sym)
-        calls['n'] = int(calls.get('n') or 0) + 1; tried += 1
+        calls['n'] = int(calls.get('n') or 0) + 1; tried += 1   # v329 (ZB08-01): cofane niżej, gdy dostawca nie przyjął zapytania
         try:
             part[sym] = ix_fetch(sym, cc, key, part.get(sym), now, sym in wymus); got += 1; miss = 0   # v285: z zapasu tylko z wyboru
         except urllib.error.HTTPError as e:
             ok = False
-            if e.code in (402, 429):      # dobowy limit planu wyczerpany — reszta jutro, poprzednie serie zostają
+            if e.code >= 500:             # v329 (ZB08-01): błąd serwera — zapytanie nieprzyjęte, nie zużywa dobowego limitu
+                calls['n'] -= 1
+            if e.code == 402:             # dobowy limit planu wyczerpany — reszta jutro, poprzednie serie zostają
                 quota = today; errors.append(f'EODHD HTTP {e.code} — limit zapytań wyczerpany ({sym})'); break
+            if e.code == 429:             # v329 (ZB08-01): za dużo zapytań na minutę (nie limit dobowy) — przerwa do następnego przebiegu
+                errors.append(f'EODHD HTTP 429 — za dużo zapytań naraz ({sym}), ponowienie w następnym przebiegu'); break
             if e.code in (401, 403):      # klucz albo plan bez tego indeksu — przerwa na tym kodzie, następny indeks
                 _ix_bad(part, sym, e.code); rej.append(sym); errors.append(f'EODHD HTTP {e.code} — odrzucony kod {sym}.INDX'); continue
             if e.code == 404:             # nieznany kod indeksu — przerwa
@@ -14995,6 +15086,8 @@ def ix_part(key, prev_part, prev_calls, prev_quota, now, errors, deadline=None, 
             _ix_bad(part, sym, 'pusto'); errors.append(f'EODHD: pusta lista dla {sym}.INDX (poza planem?) — przerwa'); continue
         except Exception as e:  # noqa — jeden indeks bez odpowiedzi nie zatrzymuje pozostałych; dwa z rzędu = dostawca nie odpowiada
             ok = False; miss += 1; errors.append(mask(f'{sym}: {e}'))
+            if isinstance(e, (urllib.error.URLError, OSError, _http_client.HTTPException)):   # v329 (ZB08-01): brak odpowiedzi — nie z limitu
+                calls['n'] -= 1
             if miss >= IX_MISS_MAX:
                 errors.append('EODHD: brak odpowiedzi — koniec przebiegu'); break
     if tried and len(rej) == tried:   # każda próba odrzucona: najpewniej klucz (albo plan bez indeksów), nie pojedynczy kod —
@@ -15069,7 +15162,8 @@ def etf_part(keys, prev_etf, now, errors, deadline=None):
     if keys.get('TIINGO_KEY'):
         frm = (now.date() - datetime.timedelta(days=45)).isoformat()
         got, last, miss = 0, '', 0
-        for i, t in enumerate(IX_ETF[:ETF_TIINGO_MAX]):
+        kol = sorted(IX_ETF, key=lambda x: (_etf_ost(q.get(x)), IX_ETF.index(x)))[:ETF_TIINGO_MAX]   # v329 (ZB08-04): najstarsza sesja najpierw
+        for i, t in enumerate(kol):
             if _ix_late(deadline):
                 fails.append(f'Tiingo: przekroczony budżet czasu po {i} funduszach'); break
             if i:
@@ -15329,7 +15423,14 @@ def build_indeksy(keys, prev=None, now=None):
     elif pix:   # bez klucza EODHD — serie z poprzedniego pliku (i z FMP); strona pokazuje datę i wiek każdej
         out['ix'] = pix; out['part_at']['ix'] = NOW if fmp_got else (pat.get('ix') or prev.get('at') or NOW)
     if isinstance(out.get('ix'), dict):   # v179: dni bez sesji wypełnione przez dostawcę — poza serią (każda seria, także niepobrana w tym przebiegu)
-        out['ix'] = {s: (dict(r, d=ix_bez_wypelnien(r['d'])) if isinstance(r, dict) and isinstance(r.get('d'), list) else r) for s, r in out['ix'].items()}
+        out['ix'] = {s: (dict(r, d=ix_bez_wypelnien(r['d'], s)) if isinstance(r, dict) and isinstance(r.get('d'), list) else r) for s, r in out['ix'].items()}
+        for s, r in out['ix'].items():   # v329 (ZB08-02): ostatnia sesja najpewniej wstępna (dowód z poprawek dostawcy) — pole 'wst' = jej dzień
+            if isinstance(r, dict):
+                w = ix_wst(s, r, now)
+                if w:
+                    r['wst'] = w
+                else:
+                    r.pop('wst', None)
     pe = prev.get('etf') if isinstance(prev.get('etf'), dict) and isinstance(prev['etf'].get('q'), dict) and prev['etf']['q'] else None
     if keys.get('MASSIVE_KEY') or keys.get('TIINGO_KEY'):
         last = _ix_dt(pat.get('etf'))
@@ -19949,6 +20050,12 @@ DL_LEFT_MIN = 1.0      # s — mniej zostało z budżetu = zapytanie pominięte 
 DL_HIST_H = 24         # h — historia Wenezueli raz na dobę
 DL_AD_TRIES = 3        # historia Argentyny: najwyżej 3 nieudane próby uzupełnienia (każda brakujących serii), potem tylko własne odczyty (plan §6)
 DL_AD_RETRY_H = 24     # h — najwyżej jedna próba uzupełnienia na dobę (czas próby zapisany w ar.bf.at); udane serie zostają w historii
+DL_AD_ZMIANA = '2026-09-02'     # v329 (ZB09-01): od tej daty serwisu wiersz D = stan z rana dnia D (kurs z poprzedniego dnia roboczego) → zapis pod D−1;
+                                # wcześniej wiersz D = kurs z dnia D (kwiecień 2026: 20 z 20 dni zgodnych z bankiem centralnym) → zapis pod D
+DL_AD_PRZEJSCIE = '2026-09-01'  # v329 (ZB09-01): wiersz z dnia zmiany umowy — żaden z dwóch kursów banku (przejściowy), pominięty
+DL_AD_NAPRAWA_MIN = 3           # v329 (ZB09-01): tyle weekendów z przesuniętym wzorem (i więcej niż poprawnych) = historia zapisana starym kodem
+DL_AD_MIN_WIERSZE = 10          # v329 (ZB09-03): seria historii pobrana dopiero z tyloma czytelnymi wierszami z ostatnich DL_KEEP dni…
+DL_AD_SWIEZA_D = 14             # v329 (ZB09-03): …i z najnowszym czytelnym wierszem nie starszym niż tyle dni (inaczej nieudana próba z notatką)
 DL_STALE_D = 4         # dni — kurs starszy w chwili odczytu jest pokazany z wiekiem, ale nie daje luki (weekend i 3-dniowe święta przechodzą)
 DL_DROP_D = 14         # dni — kurs starszy jest odrzucony (zostaje poprzedni z własnym znacznikiem)
 DL_FUTURE_MIN = 10     # min — znacznik dalej w przyszłości = zły zapis
@@ -20140,12 +20247,17 @@ def dl_ad_rows(series):
     Umowa dat jak we własnych odczytach: wiersz dnia X = stan na KONIEC dnia X (w Argentynie). Serwis zapisuje dzień D odczytem z rana dnia D,
     więc jego wiersz D to stan na koniec dnia D−1: kurs hurtowy wiersza D = zamknięcie banku centralnego z poprzedniego dnia roboczego (wrzesień
     2026: 22 z 27 dni; tego samego dnia — 2), a sobota, niedziela i poniedziałek trzymają zamknięcie z piątku. Dlatego wiersz serwisu z datą D
-    zapisujemy pod D−1 (dzień kalendarzowy): zmiany po 7 i 30 dniach porównują te same dni sesji co własne odczyty."""
+    zapisujemy pod D−1 (dzień kalendarzowy): zmiany po 7 i 30 dniach porównują te same dni sesji co własne odczyty.
+    v329 (ZB09-01): ta umowa serwisu obowiązuje od DL_AD_ZMIANA (02.09.2026); wcześniej wiersz D = kurs z dnia D (kwiecień 2026: 20 z 20 dni,
+    cały okres do 31.08.2026: 92 % dni zgodnych z kursem banku tego dnia) — taki wiersz zostaje pod D; wiersz DL_AD_PRZEJSCIE (01.09.2026,
+    żaden z dwóch kursów banku) pominięty."""
     by = {}
     for i, c in enumerate(DL_AR_CASAS):
         for x in series.get(c) or []:
             if isinstance(x, dict) and dl_day_ok(x.get('fecha')) and dl_num(x.get('venta')):
-                d = (datetime.date.fromisoformat(x['fecha']) - datetime.timedelta(days=1)).isoformat()
+                if x['fecha'] == DL_AD_PRZEJSCIE:
+                    continue   # v329 (ZB09-01): wiersz przejściowy (dzień zmiany umowy dat serwisu)
+                d = x['fecha'] if x['fecha'] < DL_AD_ZMIANA else (datetime.date.fromisoformat(x['fecha']) - datetime.timedelta(days=1)).isoformat()   # v329
                 by.setdefault(d, [None] * len(DL_AR_CASAS))[i] = x['venta']
     return [[d] + by[d] for d in sorted(by)]
 
@@ -20243,7 +20355,11 @@ def dl_ad_backfill(rows, bf, fetch, t0, budget, now, notes):
             j = fetch(AD_HIST.format(c=c))
             if not (isinstance(j, list) and j):
                 raise ValueError('pusta seria')
-            rows = dl_hist_merge(dl_ad_rows({c: j}), rows); have.append(c)
+            nowe = dl_ad_rows({c: j})   # v329 (ZB09-03): niepusta lista bez czytelnych wierszy (zmiana pól albo formatu daty) to nieudana próba
+            ile = sum(1 for r in nowe if r[0] >= (now.date() - datetime.timedelta(days=DL_KEEP)).isoformat())
+            if ile < DL_AD_MIN_WIERSZE or (now.date() - datetime.date.fromisoformat(nowe[-1][0])).days > DL_AD_SWIEZA_D:
+                raise ValueError(f'seria bez czytelnych wierszy (z ostatnich {DL_KEEP} dni: {ile}' + (f', najnowszy {nowe[-1][0]})' if nowe else ')'))
+            rows = dl_hist_merge(nowe, rows); have.append(c)
         except Exception as e:  # noqa
             bad.append(c); notes.append(f'historia Argentyny ({c}): {(str(e) or type(e).__name__)[:60]}')
     bf = dict(bf, ok=[c for c in DL_AR_CASAS if c in have], at=dl_iso(now, z=False))
@@ -20262,6 +20378,38 @@ def dl_ad_due(bf, now):
         return False
     t = dl_ts(bf.get('at'))
     return t is None or now - t >= datetime.timedelta(hours=DL_AD_RETRY_H)
+
+
+def dl_ad_daty_naprawa(rows, notes):
+    """v329 (ZB09-01): jednorazowa przebudowa historii Argentyny zapisanej kodem sprzed v329 — wiersze serwisu sprzed zmiany umowy dat
+    (do 31.08.2026) leżą o dzień za wcześnie (zapisany X = kurs z dnia X+1; zdanie pod wykresem: CCL najwyżej pod niedzielą 12.04.2026 zamiast
+    13.04), a wiersz pod 31.08.2026 to przejściowy wiersz serwisu z 01.09.2026. Rozpoznanie z samych danych (bez znacznika i bez zapytań;
+    seria historii jest pobierana raz, więc sama by się nie naprawiła): w starej umowie kurs hurtowy z piątku stoi też w sobotę i w niedzielę —
+    w poprawnym zapisie sobota = niedziela, w przesuniętym sobota (piątek) ≠ niedziela (poniedziałek), a piątek = sobota. Co najmniej
+    DL_AD_NAPRAWA_MIN weekendów przesuniętych (do 30.08.2026) i więcej niż poprawnych → wiersze do 30.08.2026 o dzień później, wiersz
+    31.08.2026 usunięty (jego miejsce zajmuje kurs z 31.08). Po przebudowie wzór jest poprawny — następna budowa niczego nie zmienia.
+    Własne odczyty (od pierwszej budowy, wrzesień 2026 i później) nie są ruszane. → (wiersze, czy przebudowano)"""
+    i = DL_AR_CASAS.index(DL_AR_BASE) + 1
+    m = {r[0]: r[i] for r in rows if isinstance(r, list) and len(r) > i and dl_day_ok(r[0]) and dl_num(r[i])}
+    p = datetime.date.fromisoformat(DL_AD_PRZEJSCIE)
+    ost, usun = (p - datetime.timedelta(days=2)).isoformat(), (p - datetime.timedelta(days=1)).isoformat()   # 30.08 i 31.08.2026
+    zle = dobre = 0
+    for x, v in m.items():
+        s = datetime.date.fromisoformat(x)
+        nd, pt = (s + datetime.timedelta(days=1)).isoformat(), (s - datetime.timedelta(days=1)).isoformat()
+        if s.weekday() != 5 or nd > ost or nd not in m:
+            continue
+        if m[nd] == v:
+            dobre += 1
+        elif m.get(pt) == v:
+            zle += 1
+    if zle < DL_AD_NAPRAWA_MIN or zle <= dobre:
+        return rows, False
+    out = [([(datetime.date.fromisoformat(r[0]) + datetime.timedelta(days=1)).isoformat()] + r[1:]) if r[0] <= ost else r
+           for r in rows if isinstance(r, list) and r and dl_day_ok(r[0]) and r[0] != usun]
+    notes.append(f'historia Argentyny: daty wierszy do {ost} przesunięte o dzień później (umowa dat serwisu sprzed {DL_AD_ZMIANA}; '
+                 f'weekendy przesunięte {zle}, poprawne {dobre})')
+    return dl_hist_merge(out, []), True
 
 
 def dl_stale_part(cc, P, now):
@@ -20326,12 +20474,14 @@ def build_dolar(prev=None, now=None, fetch=None, budget=None):
         q = dl_keep_prev(q, ar.get('q'), DL_AR_CASAS, now, notes, 'AR')
         if not dl_usable(q.get(DL_AR_BASE), now, 'ar'):
             notes.append('Argentyna: brak aktualnego kursu hurtowego — bez luk')
-        rows = dl_hist_merge(ar.get('d'), [])
+        rows, _ = dl_ad_daty_naprawa(dl_hist_merge(ar.get('d'), []), notes)   # v329 (ZB09-01): jednorazowa przebudowa dat historii sprzed 02.09.2026
         bf = dict(ar['bf']) if isinstance(ar.get('bf'), dict) else {}
         if dl_ad_due(bf, now):
             rows, bf, okh = dl_ad_backfill(rows, bf, call, t0, budget, now, notes)
             if okh is not None:
                 out['ok']['hist_ar'] = okh
+                if okh is False:   # v329 (ZB09-03): nieudana próba uzupełnienia historii widoczna w META (nie tylko w notatkach pliku)
+                    META['notes'].append(mask(f'{DL_LABEL}: ' + '; '.join(n for n in notes if n.startswith('historia Argentyny'))[:300]))
                 if okh:
                     out['part_at']['hist_ar'] = stamp
         today = [dl_local_day(now, 'ar')] + [q[c][1] if dl_usable(q.get(c), now, 'ar') else None for c in DL_AR_CASAS]
