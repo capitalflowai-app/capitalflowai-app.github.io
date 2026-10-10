@@ -5377,6 +5377,9 @@ FUND_ISH_DOC = ('https://www.blackrock.com/varnish-api/blk-one01-product-data/pr
 FUND_SSGA = ('SPY', 'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU', 'SPDW', 'SPEM', 'BIL', 'JNK', 'GLD', 'GLDM')
 FUND_ISH = ('IVV', 'EFA', 'IEFA', 'EZU', 'EWJ', 'EEM', 'IEMG', 'MCHI', 'FXI', 'INDA', 'EWZ', 'EWY', 'EWT',
             'TLT', 'IEF', 'SHY', 'AGG', 'LQD', 'HYG', 'EMB', 'IAU', 'SLV')
+FUND_ISH_SU = ('GSG', 'CMDY', 'COMT')   # v309: fundusze surowcowe iShares — NAV i liczba jednostek, wejście linii su.cm.f reguł „w cieniu”
+#   SUROWCE (TD_SH_SU, przez plik dzienny świata). OSOBNA lista i osobna część 'su' pliku fundusze: FUND_ISH (przepływy GLOBAL i TRENDÓW,
+#   część 'f', IX_ETF — ceny funduszy mapy GLOBAL, plik dzienny świata 44 rynków) bez zmian
 FUND_KEEP = 300          # dni historii na fundusz (tło dla TRENDÓW: 9 tygodni porównania + historia „czy tydzień zapowiadał następny”)
 FUND_MIN = 250           # fundusz iShares z krótszą historią — uzupełnienie pełnym plikiem (najwyżej FUND_BACKFILL na przebieg)
 FUND_BACKFILL = 3
@@ -5453,14 +5456,15 @@ def parse_ishares_hist(data):
     return sorted({r[0]: r for r in out}.values())
 
 
-def parse_ishares_screener(j):
-    """Zestawienie iShares → {symbol: (id funduszu, data, NAV, liczba jednostek = aktywa funduszu / NAV)}; tylko gdy obie daty są te same."""
+def parse_ishares_screener(j, syms=None):
+    """Zestawienie iShares → {symbol: (id funduszu, data, NAV, liczba jednostek = aktywa funduszu / NAV)}; tylko gdy obie daty są te same.
+    v309: syms — symbole do wyjęcia (domyślnie FUND_ISH; zbieracz: FUND_ISH + FUND_ISH_SU z jednej odpowiedzi, bez nowego zapytania)."""
     out = {}
     for pid, f in (j.items() if isinstance(j, dict) else []):
         if not isinstance(f, dict):
             continue
         t = str(f.get('localExchangeTicker') or '').upper()
-        if t not in FUND_ISH:
+        if t not in (FUND_ISH if syms is None else syms):
             continue
         g = lambda k: (f.get(k) or {}).get('r') if isinstance(f.get(k), dict) else None
         nav, tna, d1, d2 = g('navAmount'), g('totalNetAssetsFund'), g('navAmountAsOf'), g('totalNetAssetsFundAsOf')
@@ -5573,13 +5577,19 @@ def _fund_merge(old, new):
 
 def build_fundusze(prev=None):
     """v90/v94: historia NAV i liczby jednostek 37 funduszy. v94: limit czasu całego kroku, przerwa po błędzie źródła, dzień z zestawienia
-    iShares dopisywany tylko bez luki w sesjach (inaczej fundusz czeka na uzupełnienie pełnym plikiem — brak zostaje brakiem)."""
+    iShares dopisywany tylko bez luki w sesjach (inaczej fundusz czeka na uzupełnienie pełnym plikiem — brak zostaje brakiem).
+    v309: + 3 fundusze surowcowe iShares (FUND_ISH_SU: GSG, CMDY, COMT) w OSOBNEJ części 'su' — wejście linii su.cm.f reguł „w cieniu”
+    SUROWCE (przez plik dzienny świata). Ta sama droga co fundusze FUND_ISH (NAV i aktywa z tej samej odpowiedzi zestawienia — bez nowego
+    zapytania; pełny plik wydawcy przy krótkiej historii albo luce; złe wiersze), ale PO nich: pierwszeństwo w limicie pełnych plików
+    (FUND_BACKFILL) i czasu kroku mają fundusze GLOBAL. Część 'f', FUND_ISH i ocena zestawienia (liczba funduszy FUND_ISH) bez zmian;
+    problemy funduszy surowcowych — osobna uwaga w meta (nigdy błąd części fundusze)."""
     prev = prev if isinstance(prev, dict) else {}
     pf = prev.get('f') if isinstance(prev.get('f'), dict) else {}
+    psu = prev.get('su') if isinstance(prev.get('su'), dict) else {}   # v309: fundusze surowcowe (FUND_ISH_SU) — osobna część pliku
     out = {'at': NOW, 'src': 'State Street Global Advisors (SPDR) — NAV history; iShares by BlackRock — product screener and fund data download',
            'unit': 'NAV w USD; liczba jednostek; przepływ = zmiana liczby jednostek × NAV (mln USD, liczony w TRENDACH)',
-           'scr_at': prev.get('scr_at'), 'f': {}}
-    errs = []
+           'scr_at': prev.get('scr_at'), 'f': {}, 'su': {}}
+    errs, errs_su = [], []   # v309: problemy funduszy surowcowych osobno — uwaga w meta, nie licznik błędów funduszy GLOBAL
     now = _now_utc(); t0 = time.monotonic()
     due = lambda at, minutes: not at or (now - datetime.datetime.fromisoformat(at)).total_seconds() >= minutes * 60
     left = lambda: time.monotonic() - t0 < FUND_BUDGET
@@ -5602,10 +5612,12 @@ def build_fundusze(prev=None):
     scr = {}
     if due(prev.get('scr_at'), FUND_SCR_EVERY) and left():
         try:
-            scr = parse_ishares_screener(json.loads(get_bytes(FUND_ISH_SCR, timeout=45).decode('utf-8-sig', 'replace')))
+            scr = parse_ishares_screener(json.loads(get_bytes(FUND_ISH_SCR, timeout=45).decode('utf-8-sig', 'replace')),
+                                         FUND_ISH + FUND_ISH_SU)   # v309: + fundusze surowcowe z tej samej odpowiedzi (bez zapytania)
             out['scr_at'] = NOW
-            if len(scr) < len(FUND_ISH) // 2:
-                errs.append(f'zestawienie iShares: tylko {len(scr)} z {len(FUND_ISH)} funduszy')
+            n_ish = sum(1 for t in scr if t in FUND_ISH)   # v309: ocena jak dotąd — tylko fundusze FUND_ISH (surowcowe jej nie zmieniają)
+            if n_ish < len(FUND_ISH) // 2:
+                errs.append(f'zestawienie iShares: tylko {n_ish} z {len(FUND_ISH)} funduszy')
         except Exception as e:
             errs.append(f'zestawienie iShares: {e}')
 
@@ -5619,8 +5631,9 @@ def build_fundusze(prev=None):
         return _bdays(_d(L), _d(d)) > 1
 
     backfills = 0
-    for t in FUND_ISH:
-        p = dict(pf.get(t)) if isinstance(pf.get(t), dict) else {'iss': 'ishares'}
+    for t in FUND_ISH + FUND_ISH_SU:   # v309: po 22 funduszach GLOBAL — 3 surowcowe (część 'su'); kolejność = pierwszeństwo w limitach
+        zr = psu if t in FUND_ISH_SU else pf
+        p = dict(zr.get(t)) if isinstance(zr.get(t), dict) else {'iss': 'ishares'}
         h = p.get('h') or []
         pobrany = None    # v223/v226: ostatni dzień pełnego pliku pobranego w tym przebiegu — złe dni do niego to już wynik jedynej próby
         pid = (scr.get(t) or (p.get('pid'),))[0]
@@ -5642,7 +5655,7 @@ def build_fundusze(prev=None):
                 if len(full) < FUND_MIN:
                     p['bf_done'] = True                                  # młody fundusz — cała historia już jest
             except Exception as e:
-                errs.append(f'{t} (historia): {e}'); p['bf_err_at'] = NOW
+                (errs_su if t in FUND_ISH_SU else errs).append(f'{t} (historia): {e}'); p['bf_err_at'] = NOW
         if t in scr:
             _, d, nav, sh = scr[t]
             last = h[-1] if h else None
@@ -5662,13 +5675,15 @@ def build_fundusze(prev=None):
                         p['bf_need'] = True
                     elif _fund_bf_zapisz(p, pobrany):   # v226: plik pobrany w tym przebiegu — dni z pliku: próba zużyta; dzień po jego końcu
                         p['bf_need'] = True; p['bf_err_at'] = p.get('bf_err_at') or NOW   # czeka (kolejna próba po FUND_BF_RETRY, bez pętli)
-            out['f'][t] = p
+            out['su' if t in FUND_ISH_SU else 'f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
     if not left():
         errs.append(f'limit czasu kroku funduszy ({FUND_BUDGET} s) — reszta w kolejnym przebiegu')
     if errs:
         (META['errors'] if len(errs) > 5 else META['notes']).append(mask(f'fundusze ETF: {len(errs)} problemów, np. {errs[0]}'))
+    if errs_su:   # v309: fundusze surowcowe (reguły „w cieniu” TRENDÓW) — tylko uwaga; poprzednie dane zostają w części 'su'
+        META['notes'].append(mask(f'fundusze surowcowe (TRENDY, reguły w cieniu): {len(errs_su)} problemów, np. {errs_su[0]}')[:300])
     return out
 
 
@@ -8025,6 +8040,11 @@ WD_MIN_SHARE = 0.9                      # … i każdy z 44 rynków z ceną w �
 WD_LABEL = 'Świat dziennie'
 WD_SSGA = tuple(t for t in FUND_SSGA if t in TD_W_SYMS)     # 14 (bez BIL)
 WD_ISH = tuple(t for t in FUND_ISH if t in TD_W_SYMS)       # 21 (bez SHY)
+WD_SU_PX = ('GSG', 'CMDY', 'COMT', 'DBC', 'USO', 'CPER', 'DBA')   # v309: fundusze surowcowe — otwarcia i zamknięcia sesji (część px) dla
+#   linii su.cm.p reguł „w cieniu” SUROWCE (= SUT_CM_PX). Poza TD_W_SYMS: bez kart reguł głównych, bez wpływu na gotowość pliku i jego stan
+#   (_wd_px_ok, _wd_blockers, bledy — 44 rynki). Ta sama droga co 44 rynki: giełda Nasdaq bez klucza, kalendarz SPY, pierwsza publikacja
+#   z czasem zapisu; seria wstępna w kroku 4b (po gotowych cenach 44 rynków), potem ceny dnia na końcu kolejki
+WD_SU_FL = FUND_ISH_SU                                            # v309: NAV i jednostki (część fl) dla linii su.cm.f — z części 'su' pliku fundusze
 WD_SRC = ('ceny: otwarcie i zamknięcie sesji w USA (Nasdaq, bez klucza); przepływy: pliki wydawców (State Street, iShares); '
           'zagraniczni: TWSE, HKEX, NSDL (z pliku obce)')
 _WD_TERMIN = [None]
@@ -8212,6 +8232,29 @@ def _wd_fl_from_saved(wd, fundusze, iso):
         _wd_rows_merge(wd, 'fl', t, P, ((f or {}).get(t) or {}).get('h'), iso, bool(wd['bf'].get('fl')))
 
 
+def _wd_su_fl_from_saved(wd, fundusze, iso):
+    """v309: NAV i liczba jednostek funduszy surowcowych (WD_SU_FL) z części 'su' pliku fundusze zapisanego w tym przebiegu → część fl,
+    ten sam kształt wierszy co 35 funduszy reguł głównych: [dzień, NAV, jednostki, czas zapisu]. Pierwsze dopisanie funduszu = seria wstępna
+    (ok. 300 dni z pliku fundusze; czas zapisu tylko wierszy z ostatnich WD_FRESH dni, starsze — null = historia); potem dzień PO ostatnim
+    zapisanym — z czasem zapisu (pierwsza publikacja), a dni dopisane WSTECZ (historia z pełnego pliku wydawcy, gdy fundusz zaczął od
+    samego zestawienia) — jak seria wstępna. Wiersz raz zapisany zostaje (inna wartość przy ponownym odczycie → rv.fl, raz na dzień).
+    Brak funduszu w pliku fundusze = brak wpisu (nigdy pusty fundusz ani zero)."""
+    su = fundusze.get('su') if isinstance(fundusze, dict) and isinstance(fundusze.get('su'), dict) else {}
+    for t in WD_SU_FL:
+        e = su.get(t) if isinstance(su.get(t), dict) else {}
+        h = [r for r in e.get('h') if isinstance(r, list) and len(r) >= 3 and isinstance(r[0], str)] if isinstance(e.get('h'), list) else []
+        if not h:
+            continue
+        P = wd['fl'].setdefault(t, {'iss': 'ishares', 'd': []})
+        if not isinstance(P.get('d'), list):
+            P['d'] = []
+        last = P['d'][-1][0] if P['d'] and isinstance(P['d'][-1], list) and P['d'][-1] and isinstance(P['d'][-1][0], str) else None
+        _wd_rows_merge(wd, 'fl', t, P, [r for r in h if last is None or r[0] <= last], iso)   # seria wstępna albo historia wstecz
+        if last is not None:
+            _wd_rows_merge(wd, 'fl', t, P, [r for r in h if r[0] > last], iso, True)   # nowy dzień — chwila zapisu
+        P['iss'] = 'ishares'; P['seed'] = 'fu'   # seria z pliku fundusze (nie z pełnego pliku wydawcy w tym budowniczym)
+
+
 def _wd_ob_from_saved(wd, obce, iso):
     for part in ('tw', 'hk', 'in'):
         src = ((obce or {}).get(part) or {}) if isinstance(obce, dict) else {}
@@ -8373,7 +8416,10 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
     (od 00:40 NY dnia sesji do jej granicy: sonda SPY, potem brakujące; GLD i GLDM bez sondy), (4) seria wstępna: najpierw ceny (SPY pierwszy —
     bez niego nic), pliki wydawców dopiero z kalendarzem (State Street raz, iShares po WD_SEED_ISH; porażka → przerwa 6 h, po 3 — 300 dni z
     pliku fundusze), (5) przycięcie, flagi, `ready` (trwała). Czas zapisu (`seen`) brany po powrocie zapytania. Bez kalendarza — szkielet pliku
-    (cal [], ready false) z danymi przerw. Awaria części = poprzednie dane + wpis w `bledy`; koniec czasu = uwaga, nie błąd."""
+    (cal [], ready false) z danymi przerw. Awaria części = poprzednie dane + wpis w `bledy`; koniec czasu = uwaga, nie błąd.
+    v309: + 7 funduszy surowcowych (WD_SU_PX — ceny: seria wstępna w kroku 4b, potem w cenach dnia na końcu kolejki) i NAV z jednostkami
+    3 z nich (WD_SU_FL — z części 'su' pliku fundusze, krok 2) — wejścia linii su.cm.p i su.cm.f reguł „w cieniu” SUROWCE. Poza TD_W_SYMS:
+    gotowość, karty reguł głównych i bledy pliku bez zmian; ich problemy — uwaga w meta."""
     now = _now_utc(); iso = _wd_iso(); ny = _wd_ny(now)
     tr = round(time.monotonic() - run_t0, 1) if run_t0 is not None else None
     late = tr is not None and tr > WD_LATE
@@ -8386,6 +8432,7 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
           'ready': prev.get('ready') is True, 'bledy': {}, 'req': 0, 'tr': tr}
     saved = saved if isinstance(saved, dict) else {}
     stop = False
+    su_err = {}                                           # v309: problemy funduszy surowcowych — uwaga w meta (bledy i stan pliku bez zmian)
     today_ny = ny.date().isoformat(); mins = ny.hour * 60 + ny.minute
     # (1) ceny dnia
     try:
@@ -8393,7 +8440,8 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
             is_s = ny.weekday() < 5 and today_ny not in TD_NYSE_CLOSED
             want = today_ny if (is_s and mins >= WD_POLL_M) else _wd_prev_session(today_ny)
             a = (_d(today_ny) - datetime.timedelta(days=20)).isoformat()
-            lack = [t for t in TD_W_SYMS if not any(r[0] == wd['cal'][-1] for r in (wd['px'].get(t) or {}).get('d', [])[-3:])
+            su_px = tuple(t for t in WD_SU_PX if (wd['px'].get(t) or {}).get('seed'))   # v309: fundusze surowcowe po serii wstępnej
+            lack = [t for t in TD_W_SYMS + su_px if not any(r[0] == wd['cal'][-1] for r in (wd['px'].get(t) or {}).get('d', [])[-3:])
                     and wd['cal'][-1] not in ((wd['px'].get(t) or {}).get('miss') or [])]
             err = {}
             if wd['cal'][-1] < want and _wd_nq_ok(wd, iso):
@@ -8403,7 +8451,8 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
                 elif 'SPY' in got:
                     wd['nq'] = {'fails': 0, 'next': None, 'since': None}
                 if got.get('SPY') and max(got['SPY'][1], default='') > wd['cal'][-1]:
-                    rest, err2 = _wd_fetch_px([t for t in TD_W_SYMS if t != 'SPY'], a, today_ny, 15, now)
+                    rest, err2 = _wd_fetch_px([t for t in TD_W_SYMS if t != 'SPY'] + list(su_px), a, today_ny, 15, now)   # v309: fundusze
+                    # surowcowe na końcu kolejki (koniec czasu budowniczego zabiera najpierw je, nie 43 rynki)
                     got.update(rest); err.update(err2); wd['try'] = _wd_iso()
                 _wd_merge_px(wd, got, _wd_iso(), True)
             elif wd['cal'][-1] >= want and lack and _wd_nq_ok(wd, iso) and \
@@ -8416,6 +8465,9 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
                     P = wd['px'].setdefault(t, {'d': [], 'miss': []})
                     if not any(r[0] == wd['cal'][-1] for r in P['d']) and wd['cal'][-1] not in P.setdefault('miss', []):
                         P['miss'].append(wd['cal'][-1])
+            esu = {t: err.pop(t) for t in [x for x in err if x in WD_SU_PX]}   # v309: fundusze surowcowe — uwaga w meta, nie bledy pliku
+            if esu:
+                su_err['px'] = _wd_esum(esu)
             if err:
                 wd['bledy']['px'] = _wd_esum(err)
     except WdBudget:
@@ -8427,6 +8479,10 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
     try:
         if wd['cal']:
             _wd_fl_from_saved(wd, saved.get('fundusze'), iso)
+            try:                                          # v309: fundusze surowcowe (część 'su' pliku fundusze) — awaria = uwaga, nie błąd pliku
+                _wd_su_fl_from_saved(wd, saved.get('fundusze'), iso)
+            except Exception as e:  # noqa
+                su_err['fl'] = mask(str(e))[:140]
             _wd_ob_from_saved(wd, saved.get('obce'), iso)
             wd['bf']['ob'] = any(((wd['ob'].get(p) or {}).get('d')) for p in ('tw', 'hk', 'in'))
     except Exception as e:
@@ -8517,6 +8573,31 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
     except Exception as e:
         wd['bledy']['seed'] = mask(str(e))[:140]
     stop = stop or _WD_CUT[0]
+    # (4b) v309: seria wstępna cen 7 funduszy surowcowych (WD_SU_PX — linia su.cm.p reguł „w cieniu” SUROWCE): dopiero po gotowych cenach
+    # 44 rynków (bf.px) i po krokach 1–4 (pierwszeństwo w czasie budowniczego), poza spóźnionym przebiegiem i przerwą po awarii Nasdaq;
+    # historia jak 44 rynki (WD_SEED_DAYS, tylko sesje kalendarza SPY; wiersz z ostatnich WD_FRESH dni z czasem zapisu, starszy — null).
+    # Fundusz bez żadnego wiersza ceny albo z błędem → przerwa WD_SEED_BACK_M (jak 44 rynki); problemy — uwaga w meta, nie bledy.
+    try:
+        if not stop and not late and wd['bf'].get('px') and wd['cal'] and _wd_nq_ok(wd, iso):
+            pend = [t for t in WD_SU_PX if not (wd['px'].get(t) or {}).get('seed') and not _wd_seed_skip(wd['px'].get(t) or {}, iso)]
+            if pend:
+                a = (now.date() - datetime.timedelta(days=WD_SEED_DAYS)).isoformat(); b = now.date().isoformat()
+                got, err = _wd_fetch_px(pend[:WD_SEED_PX], a, b, 9999, now); at = _wd_iso()
+                for t in [x for x in got if not got[x][0]]:   # odpowiedź bez żadnej ceny (inny symbol, pusta tabela) — jak błąd
+                    del got[t]; err[t] = 'brak wierszy cen'
+                _wd_merge_px(wd, got, at)
+                for t in got:
+                    wd['px'][t]['seed'] = True; wd['px'][t].pop('se', None)
+                for t, e in err.items():
+                    P = wd['px'].setdefault(t, {'d': [], 'miss': []}); se = P.setdefault('se', {'n': 0, 'at': None})
+                    se['n'] += 1; se['at'] = at; se['why'] = e
+                if err:
+                    su_err['seed_px'] = _wd_esum(err)
+    except WdBudget:
+        stop = True
+    except Exception as e:
+        su_err['seed'] = mask(str(e))[:140]
+    stop = stop or _WD_CUT[0]
     # (5) przycięcie, flagi, błędy
     _wd_trim(wd)
     wd['ready'] = bool(wd['cal']) and (wd['ready'] or all(wd['bf'].get(k) for k in ('px', 'fl', 'ob')))
@@ -8536,6 +8617,8 @@ def build_swiat_dzien(prev=None, saved=None, run_t0=None):
         META['notes'].append(f"{WD_LABEL}: dostawca przepisał dni już zapisane (w pliku zostaje pierwsza publikacja): {run_rv}")
     if wd['bledy']:
         META['errors'].append(mask(f"{WD_LABEL}: {wd['bledy']}"))
+    if su_err:                                            # v309: fundusze surowcowe (reguły „w cieniu” TRENDÓW) — uwaga, stan pliku bez zmian
+        META['notes'].append(mask(f"{WD_LABEL}: fundusze surowcowe (TRENDY, reguły w cieniu): {su_err}")[:300])
     wd['req'] = len(_WD_SENT)                             # v127 (przegląd): zapytania naprawdę wysłane
     wd['t'] = round(time.monotonic() - t0, 2)
     return wd
@@ -8931,8 +9014,9 @@ def build_trendy(S):
 # wyliczenia); karta, której przed granicą nie było, trafia do dziennika „po czasie” — bez głosu. Dzień danych głosuje najwyżej raz w linii
 # (najnowszy, którego wcześniejsza karta nie użyła; za stary — wcale). Progi wyłącznie ze stałych reguł głównych (TD_LB, TD_MIN, TD_Z1, TD_Z2,
 # TD_FLOOR, TD_GAP); własny Bonferroni: m = 4 linie × 3 oceny = 12; punkty kontrolne 100/200/400 dni z sygnałem zamrażane raz; strona pokazuje
-# tylko opis, licznik i datę rejestracji — linię dopiero z werdyktem „przewaga” w punkcie 200 (TD_SH_JAWNE). Linie cm.p i cm.f czekają na dane
-# funduszy surowcowych (części px i fl pliku swiat-dzien; ten krok ich nie zbiera) — ruszają same, gdy dane będą. Bez zapytań do sieci.
+# tylko opis, licznik i datę rejestracji — linię dopiero z werdyktem „przewaga” w punkcie 200 (TD_SH_JAWNE). Linie cm.p i cm.f biorą dane
+# funduszy surowcowych z części px i fl pliku swiat-dzien — od v309 zbiera je build_swiat_dzien (WD_SU_PX; WD_SU_FL z części 'su' pliku
+# fundusze); bez danych linia czeka, z danymi rusza sama (reguły, kierunki, progi i SUT_SHA bez zmian). Bez zapytań do sieci.
 SUT_V = 1                       # wersja bloku (zmiana linii albo reguły = nowa rejestracja, nowa wersja; stare oceny zostają w 'prev')
 SUT_REG = '2026-10-08'          # data rejestracji (dokument z sumą SHA-256)
 SUT_SINCE = '2026-10-08'        # najwcześniejsza data karty w dzienniku (sesja docelowa świata / doba karty krypto)
@@ -24881,8 +24965,9 @@ def main():
     except Exception as e:
         META['errors'].append(mask(f'fundusze ETF: {e}')); META['ok']['fundusze'] = False
         if prev_fu: save('fundusze', prev_fu)
-    # v127: plik dzienny świata (tylko dla zbieracza): otwarcia i zamknięcia 44 ETF, NAV i jednostki 35 funduszy, zagraniczni — pierwsza
-    # publikacja z chwilą zapisu; poranne pliki State Street; jeden limit czasu; awaria = poprzedni plik i błąd. ~7 MB: pamięć Actions, gdy
+    # v127: plik dzienny świata (tylko dla zbieracza): otwarcia i zamknięcia 44 ETF, NAV i jednostki 35 funduszy, zagraniczni (v309: + ceny
+    # 7 funduszy surowcowych i NAV z jednostkami 3 z nich — z części 'su' pliku fundusze z tego przebiegu, dlatego po nim) — pierwsza
+    # publikacja z chwilą zapisu; poranne pliki State Street; jeden limit czasu; awaria = poprzedni plik i błąd. ~8 MB: pamięć Actions, gdy
     # świeża (≤ 60 min); inaczej nowszy z pamięci i strony (previous) — stara pamięć nie może cofnąć zapisanych dni
     pc_wd = _prev_cache('swiat-dzien')
     prev_wd = pc_wd if isinstance(pc_wd, dict) and fresh(pc_wd, 60) else previous('swiat-dzien')

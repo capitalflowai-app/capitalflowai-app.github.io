@@ -2801,6 +2801,59 @@ def su_dziennik_swiezosc(j, now=None):
     return (lab, '⚠️', w, d, f'próg {fmt_wiek(prog)} — wyniki reguł w cieniu przestały dochodzić (tylko uwaga)')
 
 
+# v309: TRENDY surowce — dane funduszy surowcowych w pliku data/swiat-dzien.json (wejścia linii su.cm.p i su.cm.f reguł „w cieniu” SUROWCE,
+# rejestracja 08.10.2026): część px — otwarcia i zamknięcia 7 funduszy (sesja w USA, ta sama droga co 44 rynki), część fl — NAV i liczba
+# jednostek 3 funduszy (zestawienie wydawcy co 2 h, przez plik fundusze). Plik jest przepisywany w każdym przebiegu (wiek pliku zawsze mały),
+# więc tu: najnowszy dzień z liczbą w każdym funduszu; wiek NAJSTARSZEGO z nich (zalegający fundusz wymieniony w uwadze). Fundusz bez serii
+# w pliku — „?” z nazwą (pierwsze pobranie po wdrożeniu albo awaria), bez progu. Dwa osobne wiersze (lista SWIEZOSC bez zmian), najwyżej ⚠️,
+# nigdy ❌ ani BŁĄD (dane reguł w cieniu, nie liczby strony). Próg 60 h roboczych (kategoria 'd') — test wsteczny (ws53/v309-fundusze-su/bt309/
+# bt_swiezosc_su.py i .out, 10.10.2026): sesje NYSE 2004 – 09.10.2026 z zamknięciami nadzwyczajnymi; dzień D w pliku: ceny — zaobserwowane
+# 00:58–02:05 UTC D+1 (05–09.10.2026), model 03:05 UTC D+1 (zimą 04:05) i pesymistyczny 13:00 UTC D+1; NAV — zaobserwowane 00:02–12:03 UTC D+1,
+# model 14:00 UTC D+1 (zawsze po kontroli 06:20); kontrola codziennie o 06:20 UTC (kontrola.yml) i — górna granica — co godzinę:
+# fałszywych ⚠️ przy 60 h najwyżej 0,024% kontroli dziennych i 0,201% godzinnych (tylko dwudniowe zamknięcia giełdy 2007 i 2012 oraz poranki
+# po święcie w modelu pesymistycznym); przy 48 h — do 2,15% / 1,26%, przy 36 h — do 2,55% / 7,17% (za dużo).
+SUF_PROG = 60 * 60
+SUF_CZ = (('px', 'TRENDY surowce — ceny 7 funduszy surowcowych (sesja w USA; reguły w cieniu)', ('GSG', 'CMDY', 'COMT', 'DBC', 'USO', 'CPER', 'DBA')),
+          ('fl', 'TRENDY surowce — NAV i jednostki 3 funduszy surowcowych (reguły w cieniu)', ('GSG', 'CMDY', 'COMT')))
+
+
+def su_fundusze_swiezosc(wd, now=None):
+    """v309: wiersze świeżości danych funduszy surowcowych w pliku swiat-dzien (części px i fl) w kształcie wierszy swiezosc(): (etykieta,
+    status, wiek min, dzień, uwaga); brak pliku — [] (brak pliku zgłasza pętla wieku plików). Najnowszy dzień funduszu = największa data
+    wiersza z liczbą (px: zamknięcie; fl: NAV i liczba jednostek); status i wiek z najstarszego z tych dni (zalegający fundusz widać)."""
+    if not isinstance(wd, dict):
+        return []
+    now = now or NOW
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and 0 < v < float('inf')  # noqa: E731
+    rows = []
+    for cz, lab, syms in SUF_CZ:
+        P = wd.get(cz) if isinstance(wd.get(cz), dict) else {}
+        ost = {}
+        for s in syms:
+            e = P.get(s) if isinstance(P.get(s), dict) else {}
+            ds = [r[0] for r in (e.get('d') if isinstance(e.get('d'), list) else []) if isinstance(r, list) and len(r) >= 3
+                  and isinstance(r[0], str) and _DZ_DZIEN.match(r[0]) and num(r[2]) and (cz == 'px' or num(r[1]))]
+            if ds:
+                ost[s] = max(ds)
+        brak = [s for s in syms if s not in ost]
+        if not ost:
+            rows.append((lab, '?', None, None, 'brak serii w pliku: ' + ', '.join(brak) + ' (pierwsze pobranie po wdrożeniu albo awaria — tylko uwaga)'))
+            continue
+        d = min(ost.values())
+        w = wiek_danych(d, 'day', 'd', now)
+        if w is None:
+            rows.append((lab, '?', None, d, 'zły zapis dnia')); continue
+        st, u = ('⚠️' if w > SUF_PROG else '✅'), []
+        if st == '⚠️':
+            u.append(f'próg {fmt_wiek(SUF_PROG)} (godziny robocze) — dane przestały dochodzić: ' + ', '.join(sorted(s for s, x in ost.items() if x == d))
+                     + ' (tylko uwaga)')
+        if brak:
+            u.append('brak serii w pliku: ' + ', '.join(brak))
+            st = '⚠️' if st == '⚠️' else '?'
+        rows.append((lab, st, w, d, '; '.join(u)))
+    return rows
+
+
 def dolar_swiezosc(j, now=None):
     """Wiersz świeżości kursów dolara (data/dolar.json → najnowsza z part_at.ar/ve/bo) w kształcie wierszy swiezosc(): (etykieta, status, wiek min,
     data, uwaga); brak pliku = None (brak pliku zgłasza pętla wieku plików). Najwyżej ⚠️ — nieoficjalny serwis kursów to nie awaria strony."""
@@ -4993,6 +5046,13 @@ def kontrola():
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    # 3c-su309. v309: TRENDY surowce — dane funduszy surowcowych w pliku swiat-dzien (wejścia reguł „w cieniu”); osobne wiersze, najwyżej ⚠️
+    for label, st, w, txt, note in su_fundusze_swiezosc(files.get('swiat-dzien')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
     # 3c''. v133: tokenizowane aktywa RWA (data/rwa.json) — świeżość listy osobnym wierszem tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️,

@@ -17467,3 +17467,42 @@ test('v308: strona w atrapie (dane strażnika) — GLOBAL bez kart grupy, bez da
   for (const id of C) assert.ok(!T.el(id).hidden, id + ': pierwsze otwarcie TRENDÓW też otwiera grupę');
   assert.deepEqual(C.map(id => T.el(id).innerHTML), h1, 'ta sama treść kart niezależnie od drogi otwarcia');
 });
+
+
+/* ---------- v309: TRENDY — dane funduszy surowcowych dla linii su.cm.p i su.cm.f bloku „w cieniu” SUROWCE (strona bez zmian) ----------
+   Opis bloku ma być prawdziwy przed danymi i po nich. Podsumowania pola su pliku trendy.json policzone przez zbieracz v309 (ws53/v309-fundusze-su/
+   bt309/proba_przed_po.py) na plikach strony z 10.10.2026 05:07 UTC i nagraniach odpowiedzi z 10.10.2026 05:28 UTC: przed — plik dzienny świata
+   bez funduszy surowcowych (jak na żywo); po — pierwszy przebieg z łatką (seria wstępna cen 7 funduszy, NAV i jednostki 3 funduszy; karty sesji
+   12.10.2026 z danymi z 09.10). Bez nowego słownika — teksty v303 (szukane po kluczu, testy nie zależą od numeru słownika). */
+const SU309 = {
+  przed: {"v":1,"reg":"2026-10-08","sha":"79d4eef13ba7fc33f0630fdb323baf3979e55007a8d120ad9213f8811630fe5b","m":12,"cll":99.6,"looks":[100,200,400],"jawne":200,"at":"2026-10-10T05:30:00Z","l":{"cm.p":[0,100,null,0,null],"cm.f":[0,100,null,0,null],"eq.cu":[0,100,null,0,null],"cr.au":[0,100,null,0,"2026-10-08"]},"ok":[]},
+  po: {"v":1,"reg":"2026-10-08","sha":"79d4eef13ba7fc33f0630fdb323baf3979e55007a8d120ad9213f8811630fe5b","m":12,"cll":99.6,"looks":[100,200,400],"jawne":200,"at":"2026-10-10T05:30:00Z","l":{"cm.p":[0,100,null,0,"2026-10-12"],"cm.f":[0,100,null,0,"2026-10-12"],"eq.cu":[0,100,null,0,null],"cr.au":[0,100,null,0,"2026-10-08"]},"ok":[]}
+};
+
+test('v309: blok „w cieniu” SUROWCE — fundusze surowcowe: „czeka na dane” przed danymi, licznik sesji z sygnałem po nich; polski tekst prawdziwy', () => {
+  const {dict, view, panel} = v303, {data} = trdV96;
+  const pl = dict.obj.pl, f = (k, o) => pl[k].replace(/\{(\w+)\}/g, (_, x) => String(o[x]));
+  const P = s => panel(view(Object.assign({}, data, {su: s}), 'global'));
+  const linia = (p, k) => { const a = p.indexOf('<b>td303.l.' + k + '</b>'); assert.ok(a > 0, k); return p.slice(a, p.indexOf('</li>', a)); };
+  const przed = P(SU309.przed), po = P(SU309.po);
+  for (const k of ['cm.p', 'cm.f']) {
+    assert.ok(linia(przed, k).endsWith('<span class="mtxt">td303.wait</span>'), 'przed: ' + k + ' czeka na dane — ' + linia(przed, k));
+    assert.ok(linia(po, k).endsWith('<span class="mtxt">td303.n.w{"n":0,"c":100}</span>'), 'po: ' + k + ' licznik — ' + linia(po, k));
+  }
+  assert.ok(linia(po, 'eq.cu').endsWith('<span class="mtxt">td303.wait</span>'), 'miedź do złota — nadal czeka (historia wyceny miedzi od 07.10)');
+  assert.ok(linia(po, 'cr.au').endsWith('<span class="mtxt">td303.n.c{"n":0,"c":100}</span>'), 'złoto a bitcoin bez zmian');
+  assert.equal(przed.split('td303.wait').length - 1, 3); assert.equal(po.split('td303.wait').length - 1, 1);
+  /* prawdziwe zdania polskie (słownik v303): przed — „czeka na dane…”, po — „0 z 100 sesji z sygnałem do najbliższej oceny” (n = sesje z sygnałem
+     i znanym wynikiem; pierwsza karta 12.10 — wynik wieczorem tego dnia); opis linii mówi o funduszu surowcowym i następnej sesji */
+  assert.equal(pl['td303.wait'], 'czeka na dane — reguła ruszy sama, gdy dane będą');
+  assert.equal(f('td303.n.w', {n: 0, c: 100}), '0 z 100 sesji z sygnałem do najbliższej oceny');
+  assert.ok(pl['td303.d.cm.p'].includes('funduszu surowcowego') && pl['td303.d.cm.p'].includes('następna sesja'));
+  assert.ok(pl['td303.d.cm.f'].includes('funduszu surowcowego') && pl['td303.d.cm.f'].includes('w następnej sesji'));
+  /* bez wyników i ocen przed punktem 200 — także po danych; ta sama data rejestracji i ta sama liczba prób (4 reguły × 3 oceny) */
+  for (const p of [przed, po]) {
+    assert.ok(!/td303\.(ok|wyc)|\d+(\.\d)?%|"k":|"vd"/.test(p), 'bez ocen i procentów');
+    assert.ok(p.includes('td303.reg{"d":"08.10.2026"}') && p.includes('td303.how{"r":4,"m":12,"j":200}'));
+  }
+  assert.deepEqual([SU309.przed.l['cm.p'][4], SU309.po.l['cm.p'][4], SU309.po.l['cm.f'][4], SU309.po.ok], [null, '2026-10-12', '2026-10-12', []]);
+  assert.deepEqual([SU309.przed.sha, SU309.przed.m], [SU309.po.sha, SU309.po.m], 'rejestracja bez zmian');
+});
