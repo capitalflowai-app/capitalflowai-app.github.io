@@ -12009,7 +12009,8 @@ def energia_z_surowcow(su, prev=None):
 #           DOKŁADNIE zgodnej straży wydania (ostatni miesiąc Arabii Saudyjskiej = miesiąc przed miesiącem wydania). Reguła odtwarza wszystkie
 #           24 terminy 2026–2027 ze strony harmonogramu (nagranie 10.10.2026);
 #   zboza — bilans zbóż świata i USA (pszenica, kukurydza, ryż — bielony, soja: produkcja, zużycie, zapasy końcowe, zapasy w % zużycia)
-#           z miesięcznego raportu ministerstwa rolnictwa USA (plik CSV raportu, ok. 1 MB, bez klucza): sezon prognozy (flaga Proj.) z bieżącego
+#           z miesięcznego raportu ministerstwa rolnictwa USA (v332: plik XML raportu z oficjalnego archiwum ministerstwa, ok. 3,6 MB; zapas — plik CSV
+#           raportu, ok. 1 MB; bez klucza): sezon prognozy (flaga Proj.) z bieżącego
 #           raportu, TEN SAM sezon z poprzedniego raportu (p; w maju, gdy raport otwiera nowy sezon — brak) i poprzedni sezon (r0, szacunek).
 #           Zużycie: świat — zużycie krajowe łącznie (handel między krajami się znosi), USA — krajowe + eksport (jak w bilansach urzędu); zapasy
 #           w % zużycia = zapasy końcowe ÷ zużycie. Straże pliku: jeden numer i jedna data raportu, miesiąc raportu = miesiąc pliku, jednostka
@@ -12027,6 +12028,14 @@ def energia_z_surowcow(su, prev=None):
 # przed automatami — albo 429) ponowienie najwcześniej po 6 h, bez zmiany nagłówków (stan źródła: kod). Budżet czasu SR_BUDZET_S s (źródło startuje
 # tylko, gdy zmieszczą się wszystkie jego zapytania z pełnymi limitami); w długim przebiegu (BACK_LATE) — bez pobrań (dane miesięczne: 10 min
 # później nic nie zmienia). Źródło z błędem = poprzednia część z datą (ok False, krótki zamaskowany err); brak = null, nigdy 0.
+# v332 (F1Z1): zboża z OFICJALNEGO ARCHIWUM biblioteki ministerstwa rolnictwa USA (plik XML raportu), CSV tylko jako zapas. Od ok. 09/10.10.2026
+# serwer plików CSV odpowiada maszynom GitHuba HTTP 403 (część zboza pusta, err „wasde: HTTP Error 403”) — odmowy nie obchodzimy (żadnych innych
+# nagłówków ani ścieżek). Archiwum (inny serwer) ma te same raporty: strona wydań (tabela: dzień wydania i odnośniki do plików) → najnowszy plik
+# wasdeMMRR[v2].xml (ok. 3,6 MB; sonda z GitHuba 10.10.2026: strona 200, plik 200, 11 odnośników XML). Z jednego pliku wychodzi i raport bieżący, i
+# prognoza poprzedniego miesiąca (kolumna „poprzedni miesiąc” w tabelach sezonu prognozy) — bez drugiego zapytania; zgodność z CSV: 144 liczby
+# identyczne (nagranie 10.2026). Zapytania: strona wydań (najwyżej SR_WASDE_STRONA_MAX B) i plik (SR_WASDE_XML_MAX B); XML bez deklaracji DOCTYPE/ENTITY
+# (encje nie są rozwijane); adres pliku tylko ze wzorca ścieżki na stałym hoście archiwum. Awaria archiwum (jakikolwiek błąd) = zapas CSV, ale
+# nie wcześniej niż SR_WASDE_CSV_PAUZA_MIN min po odmowie (403/429) tamtego serwera (st.wasde.csv_od); st.wasde.via = skąd przyszedł raport.
 SR_V = 1
 SR_PARTS = ('ropa', 'zboza', 'uran')
 SR_ZR = (('cameco', 'uran'), ('steo', 'ropa'), ('wasde', 'zboza'))    # kolejność: najlżejsze zapytania najpierw
@@ -12044,7 +12053,14 @@ SR_STEO_JEDN = 'million barrels per day'
 SR_STEO_HIST = 24                                                    # miesięcy przed miesiącem wydania (szacunki) — do tego cała prognoza
 SR_STEO_TOL = 0.005                                                  # mln b/d — różnica ujemna do tej wielkości = zaokrąglenie (wolne moce / poza = 0)
 SR_STEO_SUMA = 0.011    # mln b/d — OPEC+ = objęci + pozostali, OPEC ≥ objęci, poza = Iran + Libia + Wenezuela (3 miejsca; test wsteczny: ≤ 0,001)
-SR_WASDE_URL = 'https://www.usda.gov/sites/default/files/documents/oce-wasde-report-data-{}.csv'
+SR_WASDE_URL = 'https://www.usda.gov/sites/default/files/documents/oce-wasde-report-data-{}.csv'   # zapas (v332): od 10.10.2026 HTTP 403 dla maszyn GitHuba
+SR_WASDE_ESMIS = 'https://esmis.nal.usda.gov'   # v332: archiwum — stały host (odnośnika ze strony wydań nie podążamy na inny host)
+SR_WASDE_STRONA = SR_WASDE_ESMIS + '/publication/world-agricultural-supply-and-demand-estimates'
+SR_WASDE_SCIEZKA = re.compile(r'^/sites/default/release-files/(\d+)/wasde(\d{2})(\d{2})(?:v(\d+))?\.xml$')   # id, MM, RR, wersja (v2 = poprawiony plik)
+SR_WASDE_STRONA_MAX = 2_000_000   # B — strona wydań (10.10.2026: 88 KB)
+SR_WASDE_XML_MAX = 12_000_000     # B — plik XML (10.10.2026: 3,57 MB; ok. 3× zapasu na rozbudowę raportu)
+SR_WASDE_CSV_PAUZA_MIN = 360      # min — po odmowie (403/429) serwera pliku CSV nie pytamy go ponownie przez 6 h
+SR_WASDE_XML_KLUCZE = ('region_header', 'region', 'attribute', 'forecast_month')   # atrybuty XML bez numeru (region_header1, attribute1 …)
 SR_WASDE_KAL = ('2026-01-12', '2026-02-10', '2026-03-10', '2026-04-09', '2026-05-12', '2026-06-11', '2026-07-10', '2026-08-12', '2026-09-11',
                 '2026-10-09', '2026-11-10', '2026-12-10')            # dni raportów 2026 (12:00 czasu Nowego Jorku); 2027 — dopisać po ogłoszeniu
 SR_WASDE_DZIEN = (8, 12)    # miesiąc spoza kalendarza: okno od 8. dnia, termin 12. (raporty zwykle 8.–12. dnia; później — notatka, po SR_WASDE_404_DNI dniach błąd)
@@ -12331,6 +12347,21 @@ def sr_ropa(S, wyd, nast, uw=None):
     return {'wyd': wyd, 'nast': nast, 'pr_od': pr, 'asof': max(hist) if hist else None, 'u': 'mln b/d', 'z': 'steo', 'x': ['sz'], 'ilv': ilv, 's': s}
 
 
+def _sr_wasde_straz(k):
+    """Straż odczytu raportu zbóż: świat = USA + reszta świata (±SR_WASDE_TOL) w produkcji i zapasach każdego sezonu; towar niezgodny usuwany z k
+    (opis na liście wyniku). To zabezpieczenie ODCZYTU (złe wiersze, przesunięte kolumny), nie niezależna kontrola zgodności źródeł."""
+    zle = []
+    for cid in list(k):
+        for my in sorted({y for R in k[cid].values() for y in R}):
+            W, U, F = (k[cid].get(x, {}).get(my, {}) for x in ('swiat', 'usa', 'zagr'))
+            for a in ('prod', 'zapasy'):
+                if all(_isnum(x.get(a)) for x in (W, U, F)) and abs(W[a] - U[a] - F[a]) > SR_WASDE_TOL:
+                    zle.append(f'{cid} {my} {a}: świat {W[a]} ≠ USA {U[a]} + reszta {F[a]}')
+        if any(z.startswith(cid + ' ') for z in zle):
+            del k[cid]
+    return zle
+
+
 def parse_wasde(text):
     """Plik CSV raportu zbóż → {'nr', 'wyd' (dzień raportu), 'mies' (miesiąc raportu), 'lata': {sezon: flaga}, 'k': {towar: {region: {sezon:
     {prod, kraj, eksp, zapasy}}}}} dla pszenicy, kukurydzy, ryżu i soi (tabele SR_WASDE_T; regiony świat, USA, reszta świata), w mln t. Kolumny po
@@ -12361,15 +12392,7 @@ def parse_wasde(text):
             continue
         k.setdefault(cid, {}).setdefault(reg, {}).setdefault(my, {})[atr] = round(v, 2)
         lata.setdefault(my, set()).add(sp(r['ProjEstFlag']).strip('()'))
-    zle = []
-    for cid in list(k):
-        for my in sorted({y for R in k[cid].values() for y in R}):
-            W, U, F = (k[cid].get(x, {}).get(my, {}) for x in ('swiat', 'usa', 'zagr'))
-            for a in ('prod', 'zapasy'):
-                if all(_isnum(x.get(a)) for x in (W, U, F)) and abs(W[a] - U[a] - F[a]) > SR_WASDE_TOL:
-                    zle.append(f'{cid} {my} {a}: świat {W[a]} ≠ USA {U[a]} + reszta {F[a]}')
-        if any(z.startswith(cid + ' ') for z in zle):
-            del k[cid]
+    zle = _sr_wasde_straz(k)   # v332: ta sama straż dla pliku CSV i XML
     if not k:
         raise RuntimeError('brak tabel zbóż świata' + (' (' + '; '.join(zle[:2]) + ')' if zle else ''))
     return {'nr': int(nr), 'wyd': wyd, 'mies': mies, 'lata': {y: sorted(f) for y, f in sorted(lata.items())}, 'k': k, 'zle': zle}
@@ -12467,15 +12490,36 @@ def parse_cameco(text, today=None):
 
 
 # ---- pobrania ----
-def _sr_get(ctx, src, url):
-    """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd źródła; ponowienie później)."""
+def get_bytes_maks(url, headers=None, timeout=60, maks=None):
+    """v332: jak get_bytes, ale odpowiedź dłuższa niż maks bajtów = błąd (czytanie przerwane po maks + 1 B — bez pobierania reszty)."""
+    _zuz_licz(url, headers)
+    with _otworz(url, headers, timeout) as r:
+        b = r.read(maks + 1) if maks else r.read()
+    if maks and len(b) > maks:
+        raise RuntimeError(f'odpowiedź dłuższa niż {maks} B (limit)')
+    return b
+
+
+def _sr_fetch(url, timeout, headers=None, maks=None):
+    """Zapytanie budowniczego raportów (domyślne): z limitem rozmiaru odpowiedzi, gdy maks podany (v332)."""
+    return get_bytes_maks(url, headers, timeout, maks) if maks else get_bytes(url, headers, timeout=timeout)
+
+
+def _sr_get(ctx, src, url, maks=None):
+    """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd źródła; ponowienie później). maks —
+    najwyżej tyle bajtów odpowiedzi (v332; dłuższa = błąd)."""
     lim = SR_LIMIT_S[src]
     if ctx.get('t0') is not None and ctx.get('budzet') is not None:
         left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
         if left < 5:
             raise RuntimeError('budżet czasu budowniczego wyczerpany')
         lim = min(lim, round(left, 1))
-    return ctx['fetch'](url, lim)
+    if maks is None:
+        return ctx['fetch'](url, lim)
+    b = ctx['fetch'](url, lim, maks=maks)
+    if len(b) > maks:
+        raise RuntimeError(f'odpowiedź dłuższa niż {maks} B (limit)')
+    return b
 
 
 def _sr_cameco(ctx):
@@ -12529,10 +12573,10 @@ def _sr_steo(ctx):
     return wyd
 
 
-def _sr_wasde(ctx):
-    """Raport z ostatniego terminu kalendarza; brak jego pliku (404, zwykle dzień po raporcie) — poprzedni miesiąc, gdy pliku jeszcze nie ma
-    (start), inaczej dane w pliku zostają (notatka; po SR_WASDE_404_DNI dniach — błąd). Poprzedni raport: z pliku strony (numer o 1 niższy albo
-    ten sam raport z jego p) albo pobrany (start, przerwa w pobraniach)."""
+def _sr_wasde_csv(ctx):
+    """ZAPAS (v332; do v331 jedyne źródło): plik CSV raportu. Raport z ostatniego terminu kalendarza; brak jego pliku (404, zwykle dzień po raporcie)
+    — poprzedni miesiąc, gdy pliku jeszcze nie ma (start), inaczej dane w pliku zostają (notatka; po SR_WASDE_404_DNI dniach — błąd). Poprzedni
+    raport: z pliku strony (numer o 1 niższy albo ten sam raport z jego p) albo pobrany (start, przerwa w pobraniach)."""
     now = ctx['now']
     P = ctx['pp'].get('zboza')
     P = P if isinstance(P, dict) and isinstance(P.get('k'), dict) and isinstance(P.get('mies'), str) and isinstance(P.get('nr'), int) else None
@@ -12576,6 +12620,214 @@ def _sr_wasde(ctx):
     return cur['mies']
 
 
+import xml.etree.ElementTree as _SrXml   # v332: biblioteka standardowa (parser expat nie pobiera encji zewnętrznych; DOCTYPE/ENTITY i tak odrzucane)
+
+
+def parse_wasde_lista(text, today=None):
+    """v332: strona wydań raportu zbóż w oficjalnym archiwum → {'RRRR-MM': (dzień wydania 'RRRR-MM-DD', ścieżka pliku XML)}. Wiersz tabeli: znacznik
+    czasu z dniem wydania i odnośniki do plików; przyjęte tylko ścieżki wg SR_WASDE_SCIEZKA (host zawsze SR_WASDE_ESMIS — odnośnik na inny host albo
+    inną ścieżkę jest pomijany), miesiąc z nazwy pliku = miesiąc dnia wydania, dzień wydania nie później niż jutro; kilka plików tego samego
+    miesiąca — późniejszy dzień, wyższa wersja (v2 po poprawce), większy numer. Brak wierszy = pusty słownik (wywołujący zgłasza zmianę układu)."""
+    today = today or _now_utc().date()
+    out, naj = {}, {}
+    for row in re.findall(r'<tr\b.*?</tr>', text, re.S | re.I):
+        d = re.search(r'<time[^>]*\bdatetime="(\d{4}-\d{2}-\d{2})', row)
+        wyd = _sr_dz(d.group(1)) if d else None
+        if not wyd or wyd > today + datetime.timedelta(days=1):
+            continue
+        for href in re.findall(r'href="([^"]+)"', row):
+            m = SR_WASDE_SCIEZKA.match(href)
+            if not m:
+                continue
+            ym = f'20{m.group(3)}-{m.group(2)}'
+            if ym != wyd.isoformat()[:7]:
+                continue
+            klucz = (wyd.isoformat(), int(m.group(4) or 1), int(m.group(1)))
+            if ym not in naj or klucz > naj[ym]:
+                naj[ym] = klucz
+                out[ym] = (wyd.isoformat(), href)
+    return out
+
+
+def parse_wasde_xml(raw, wyd):
+    """v332: raport zbóż w XML (oficjalne archiwum) → ten sam kształt co parse_wasde ({'nr', 'wyd', 'mies', 'lata', 'k', 'zle'}) plus 'poprz' —
+    prognoza poprzedniego miesiąca z tych samych tabel (kolumna z nazwą poprzedniego miesiąca w sezonie prognozy; {towar: {region: {sezon: {prod,
+    kraj, eksp, zapasy}}}}) i 'zle_p' (straż tej części). wyd — dzień wydania ze strony wydań (w pliku go nie ma): musi wypadać w miesiącu raportu.
+    Tabele: Report[sub_report_title] → matrix → region_header (sezon + „Est.”/„Proj.”) → region („World 3/”, „United States”, „Total Foreign”) →
+    [forecast_month] → attribute → Cell[cell_value]; przypisy w etykietach („2/”, „/2”) pomijane; tabele w innej jednostce niż mln t pomijane.
+    Bez DOCTYPE/ENTITY; jeden numer i jeden miesiąc raportu w całym pliku; ta sama komórka z dwiema różnymi wartościami = błąd."""
+    b = raw.encode('utf-8') if isinstance(raw, str) else bytes(raw)
+    if len(b) > SR_WASDE_XML_MAX:
+        raise RuntimeError(f'plik raportu dłuższy niż {SR_WASDE_XML_MAX} B')
+    if re.search(rb'<!\s*(?:DOCTYPE|ENTITY)', b, re.I):
+        raise RuntimeError('plik zawiera deklarację typu dokumentu albo encji — odrzucony (encje nie są rozwijane)')
+    try:
+        root = _SrXml.fromstring(b)
+    except _SrXml.ParseError:
+        raise RuntimeError('to nie jest poprawny plik XML raportu') from None
+    sp = lambda x: re.sub(r'\s+', ' ', str(x or '')).strip()   # noqa: E731
+    bez = lambda x: sp(re.sub(r'(?:\b\d+/|/\d+\b)', ' ', str(x or '')))   # noqa: E731  przypisy „3/” i „/2” (ryż: „Total /2 Domestic”)
+    raporty = list(root.iter('Report'))
+    nr, miesiace = set(), set()
+    for rep in raporty:
+        m = re.search(r'WASDE\s*-\s*(\d+)\s*-', rep.get('page_title') or '')
+        if m:
+            nr.add(int(m.group(1)))
+        if rep.get('Report_Month'):
+            miesiace.add(sp(rep.get('Report_Month')))
+    if len(nr) != 1 or len(miesiace) != 1:
+        raise RuntimeError('różne numery albo miesiące raportu w pliku albo to nie plik raportu')
+    nr, rm = nr.pop(), re.match(r'^([A-Za-z]+)\s+(\d{4})$', miesiace.pop())
+    mies = (_sr_data_en(rm.group(1), 1, rm.group(2)) or '')[:7] if rm else ''
+    if not mies or not _sr_dz(wyd) or wyd[:7] != mies:
+        raise RuntimeError(f'zły miesiąc raportu albo dzień wydania ({mies or "—"}, {wyd})')
+    m_biez, m_poprz = int(mies[5:7]), int(_sr_mies(mies, -1)[5:7])
+    k, kp, lata = {}, {}, {}
+
+    def wpisz(cid, c, val):
+        reg, atr = SR_WASDE_REG.get(bez(c.get('region'))), SR_WASDE_ATR.get(bez(c.get('attribute')))
+        mm = re.match(r'^(\d{4}/\d{2})\s*(Est\.|Proj\.)?', sp(c.get('region_header')))
+        x = _num(val)
+        if not (reg and atr and mm and _isnum(x) and x >= 0):
+            return
+        my, fl, fm = mm.group(1), mm.group(2) or '', sp(c.get('forecast_month'))
+        cel = k
+        if fl == 'Proj.' and fm:   # sezon prognozy: kolumny miesięcy — bieżący (do k) i poprzedni (do poprz); inny miesiąc pomijany
+            n = SR_MIES_EN.index(fm[:3].lower()) + 1 if fm[:3].lower() in SR_MIES_EN else None
+            if n == m_poprz and n != m_biez:
+                cel = kp
+            elif n != m_biez:
+                return
+        lata.setdefault(my, set()).add(fl)
+        e = cel.setdefault(cid, {}).setdefault(reg, {}).setdefault(my, {})
+        x = round(x, 2)
+        if atr in e and e[atr] != x:
+            raise RuntimeError(f'ta sama komórka z dwiema wartościami ({cid} {reg} {my} {atr})')
+        e[atr] = x
+
+    def idz(el, cid, c):
+        for a, v in el.attrib.items():
+            nazwa = a.rstrip('0123456789')
+            if nazwa in SR_WASDE_XML_KLUCZE:
+                c = {**c, nazwa: v}
+        if el.tag == 'Cell':
+            v = next((v for a, v in el.attrib.items() if a.startswith('cell_value')), None)
+            if v is not None:
+                wpisz(cid, c, v)
+        for ch in el:
+            idz(ch, cid, c)
+
+    for rep in raporty:
+        t = sp(rep.get('sub_report_title'))
+        cid = next((c for c, n in SR_WASDE_T if t == n or t.startswith(n + ' ')), None)
+        if cid and 'million metric tons' in sp(rep.get('sub_report_subtitle')).lower():
+            idz(rep, cid, {})
+    zle, zle_p = _sr_wasde_straz(k), _sr_wasde_straz(kp)
+    if not k:
+        raise RuntimeError('brak tabel zbóż świata' + (' (' + '; '.join(zle[:2]) + ')' if zle else ''))
+    return {'nr': nr, 'wyd': wyd, 'mies': mies, 'lata': {y: sorted(f) for y, f in sorted(lata.items())}, 'k': k, 'zle': zle, 'poprz': kp, 'zle_p': zle_p}
+
+
+def _sr_wasde_pop(cur, lista, P, uw):
+    """Poprzedni raport z TEGO SAMEGO pliku XML (bez drugiego zapytania) w kształcie parse_wasde dla sr_zboza; None, gdy plik nie ma kolumny poprzedniego
+    miesiąca (maj: nowy sezon) — wtedy p z części strony jak dawniej. Dzień wydania poprzedniego raportu: ze strony wydań, z poprzedniej części
+    strony albo z kalendarza; numer: z poprzedniej części strony albo o 1 niższy. Zgodność: prognoza poprzedniego miesiąca z pliku = zapisana przy
+    poprzednim raporcie (±SR_WASDE_TOL) — różnica tylko w notatce (urząd mógł poprawić plik)."""
+    if cur.get('zle_p'):
+        uw.append('wasde: prognoza poprzedniego raportu w pliku — świat ≠ USA + reszta świata (' + '; '.join(cur['zle_p'][:2]) + ') — pominięta')
+    kp = cur.get('poprz') or {}
+    if not kp:
+        return None
+    pm = _sr_mies(cur['mies'], -1)
+    jest = bool(P) and P.get('mies') == pm   # poprzednia część strony to właśnie ten raport
+    wyd = (lista.get(pm) or (None,))[0]
+    if not wyd and jest and _sr_dz(P.get('wyd')):
+        wyd = P['wyd']
+    if not wyd:
+        d, _t, z_kal, _x = _sr_wasde_exp(pm)
+        wyd = d.isoformat() if z_kal else None
+    rok = _sr_rok(cur['lata'], 'Proj.')
+    if jest and P.get('rok') == rok:
+        roz = []
+        for cid, R in kp.items():
+            for reg, S in R.items():
+                e, q = _sr_zb_wpis(reg, S.get(rok)), ((P.get('k') or {}).get(cid) or {}).get(reg)
+                for a in ('prod', 'zapasy'):
+                    if e and isinstance(q, dict) and _isnum(e.get(a)) and _isnum(q.get(a)) and abs(e[a] - q[a]) > SR_WASDE_TOL:
+                        roz.append(f'{cid} {reg} {a}: {e[a]} (plik) ≠ {q[a]} (zapisane przy poprzednim raporcie)')
+        if roz:
+            uw.append('wasde: prognoza poprzedniego raportu w pliku różni się od zapisanej — ' + '; '.join(roz[:3]))
+    return {'nr': P['nr'] if jest else cur['nr'] - 1, 'wyd': wyd, 'mies': pm, 'k': kp}
+
+
+def _sr_wasde_esmis(ctx, P):
+    """Raport zbóż z oficjalnego archiwum: strona wydań → plik XML raportu z ostatniego terminu kalendarza (brak go w archiwum — poprzedni miesiąc,
+    gdy części jeszcze nie ma; inaczej dane zostają: notatka, po SR_WASDE_404_DNI dniach od terminu — błąd). Prognoza poprzedniego raportu z tego
+    samego pliku (_sr_wasde_pop). Zwraca miesiąc raportu w pliku danych."""
+    now, cel = ctx['now'], _sr_wasde_cel(ctx['now'])
+    lista = parse_wasde_lista(_sr_get(ctx, 'wasde', SR_WASDE_STRONA, maks=SR_WASDE_STRONA_MAX).decode('utf-8', 'replace'), now.date())
+    if not lista:
+        raise RuntimeError('strona wydań archiwum: brak odnośników do plików XML (zmieniony układ strony?)')
+    cur = None
+    for ym in (cel, _sr_mies(cel, -1)):
+        if ym != cel and P and P['mies'] >= ym:
+            break
+        raw = None
+        if ym in lista:
+            try:
+                raw = _sr_get(ctx, 'wasde', SR_WASDE_ESMIS + lista[ym][1], maks=SR_WASDE_XML_MAX)
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    raise
+        if raw is None:
+            if (now - _sr_wasde_exp(ym)[3]).total_seconds() > SR_WASDE_404_DNI * 86400:
+                raise RuntimeError(f'raport {ym}: brak pliku w archiwum ponad {SR_WASDE_404_DNI} dni po terminie — zaległy raport albo zmieniony układ strony wydań')
+            ctx['uwagi'].append(f'wasde: raport {ym} — pliku jeszcze nie ma w archiwum (zwykle kilka minut po raporcie)')
+            continue
+        cur = parse_wasde_xml(raw, lista[ym][0])
+        if cur['mies'] != ym:
+            raise RuntimeError(f'plik {ym} zawiera raport z {cur["mies"]}')
+        break
+    if cur is None:
+        if P:
+            return P['mies']
+        raise RuntimeError('brak pliku raportu w archiwum')
+    if cur['zle']:
+        ctx['bledy'].append('wasde: świat ≠ USA + reszta świata — ' + '; '.join(cur['zle'][:2]))
+    if P and _sr_mies(P['mies'], 1) == cur['mies'] and cur['nr'] != P['nr'] + 1:   # kolejne miesiące = kolejne numery raportów
+        ctx['uwagi'].append(f'wasde: numer raportu {cur["nr"]} nie następuje bezpośrednio po {P["nr"]} (poprzednia część) — sprawdzić')
+    ctx['parts']['zboza'] = sr_zboza(cur, _sr_wasde_pop(cur, lista, P, ctx['uwagi']), P)
+    return cur['mies']
+
+
+def _sr_wasde(ctx):
+    """Źródło zbóż: oficjalne archiwum (_sr_wasde_esmis); jego awaria (jakikolwiek błąd) = zapas, plik CSV (_sr_wasde_csv) — nie wcześniej niż
+    SR_WASDE_CSV_PAUZA_MIN min po odmowie (403/429) tamtego serwera (st.wasde.csv_od; nagłówków ani ścieżek nie zmieniamy). Oba zawiodły = błąd archiwum
+    (kod 403/429 archiwum wydłuża ponowienie do 6 h w _sr_due), przyczyna zapasu w notatce. st.wasde.via — skąd przyszedł raport."""
+    now, z = ctx['now'], ctx['st'].setdefault('wasde', {})
+    P = ctx['pp'].get('zboza')
+    P = P if isinstance(P, dict) and isinstance(P.get('k'), dict) and isinstance(P.get('mies'), str) and isinstance(P.get('nr'), int) else None
+    try:
+        r = _sr_wasde_esmis(ctx, P)
+        z['via'] = 'esmis'
+        return r
+    except Exception as e:
+        blad = e
+    if _su_min(now, z.get('csv_od')) < SR_WASDE_CSV_PAUZA_MIN:
+        raise blad
+    try:
+        r = _sr_wasde_csv(ctx)
+    except Exception as e2:
+        if isinstance(e2, urllib.error.HTTPError) and e2.code in (403, 429):
+            z['csv_od'] = now.replace(microsecond=0).isoformat()
+        ctx['uwagi'].append(mask(f'wasde: zapas (plik CSV) też zawiódł — {e2}')[:160])
+        raise blad from None
+    z.pop('csv_od', None)
+    z['via'] = 'csv'
+    ctx['uwagi'].append(mask(f'wasde: archiwum — {blad}; raport z zapasu (plik CSV)')[:200])
+    return r
+
+
 SR_POBIERZ = {'cameco': _sr_cameco, 'steo': _sr_steo, 'wasde': _sr_wasde}
 
 
@@ -12590,7 +12842,7 @@ def build_su_raporty(prev=None, keys=None, now=None, fetch=None, budzet_s=None, 
     st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
     ctx = {'now': now, 'keys': keys, 'st': st, 'pp': {p: prev[p] for p in SR_PARTS if isinstance(prev.get(p), dict)}, 'bledy': [], 'uwagi': [],
            'parts': {}, 't0': time.monotonic(), 'budzet': SR_BUDZET_S if budzet_s is None else budzet_s,
-           'fetch': fetch or (lambda url, timeout, headers=None: get_bytes(url, headers, timeout=timeout))}
+           'fetch': fetch or _sr_fetch}
     late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
     proby, zle, pominiete, czesc = {p: 0 for p in SR_PARTS}, {}, [], set()
     for src, part in SR_ZR:

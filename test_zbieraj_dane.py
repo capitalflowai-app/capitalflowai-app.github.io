@@ -38371,14 +38371,17 @@ class SurowceRaportyV320(unittest.TestCase):
         uranu. fail — źródła z błędem HTTP kod (domyślnie 503): steo (strona raportu), steo_api, wasde, cameco."""
         W = {'2026-08': self.W08, '2026-09': self.W09, '2026-10': self.W10} if wasde is None else wasde
 
-        def f(url, timeout, headers=None):
+        def f(url, timeout, headers=None, maks=None):
             src = ('steo_api' if url.startswith(zd.EIA_API + 'steo/') else 'steo' if url == zd.SR_STEO_STRONA else
+                   'esmis' if url.startswith(zd.SR_WASDE_ESMIS) else   # v332: archiwum raportów zbóż — źródło podstawowe
                    'wasde' if 'oce-wasde-report-data-' in url else 'cameco' if url == zd.SR_CAMECO_URL else None)
             self.assertIsNotNone(src, url); self.assertGreater(timeout, 0)
-            if calls is not None:
-                calls.append((src, url, timeout))
+            if calls is not None and src != 'esmis':   # v332: ta klasa sprawdza ścieżkę ZAPASOWĄ (plik CSV, v320) — archiwum jest tu niedostępne (503) i nie
+                calls.append((src, url, timeout))      # wchodzi do list zapytań; ścieżka podstawowa (archiwum): klasa ZbozaEsmisV332
             if src in fail:
                 raise urllib.error.HTTPError(url, kod, {403: 'Forbidden', 429: 'Too Many Requests'}.get(kod, 'Service Unavailable'), {}, None)
+            if src == 'esmis':
+                raise urllib.error.HTTPError(url, 503, 'Service Unavailable', {}, None)
             if src == 'steo':
                 return (strona if strona is not None else self.STRONA).encode()
             if src == 'steo_api':
@@ -38692,7 +38695,7 @@ class SurowceRaportyV320(unittest.TestCase):
     def test_odmowa_dostepu_rzadziej(self):
         """Odmowa dostępu (HTTP 403 — ochrona przed automatami — albo 429): ponowienie najwcześniej po 6 h, nagłówki bez zmian; po udanym
         pobraniu kod i stary błąd znikają ze stanu źródła."""
-        o, _ = self.build(fail=('wasde',), kod=403)
+        o, _ = self.build(fail=('wasde', 'esmis'), kod=403)   # v332: odmowa z obu serwerów (archiwum i zapas CSV) — kod archiwum wydłuża ponowienie do 6 h
         self.assertEqual((o['ok']['zboza'], o['st']['wasde']['kod'], o['err']['zboza']), (False, 403, 'wasde: HTTP Error 403: Forbidden'))
         self.assertNotIn('kod', o['st']['cameco'])
         st = o['st']['wasde']
@@ -38701,7 +38704,7 @@ class SurowceRaportyV320(unittest.TestCase):
         self.assertTrue(zd._sr_due('wasde', dict(st, kod=503), self.NOW + datetime.timedelta(minutes=60)), 'inny błąd — co godzinę')
         o2, c2 = self.build(o, now=self.NOW + datetime.timedelta(minutes=70))
         self.assertEqual([x for x in c2 if x[0] == 'wasde'], [], '70 min po 403 — bez zapytania')
-        o3, c3 = self.build(o2, now=self.NOW + datetime.timedelta(minutes=361), fail=('wasde',), kod=429)
+        o3, c3 = self.build(o2, now=self.NOW + datetime.timedelta(minutes=361), fail=('wasde', 'esmis'), kod=429)   # v332: jak wyżej
         self.assertEqual((o3['st']['wasde']['kod'], len([x for x in c3 if x[0] == 'wasde'])), (429, 1))
         o4, _ = self.build(o3, now=self.NOW + datetime.timedelta(minutes=722))
         self.assertEqual((o4['ok']['zboza'], 'kod' in o4['st']['wasde'], 'err' in o4['st']['wasde']), (True, False, False))
@@ -38721,7 +38724,9 @@ class SurowceRaportyV320(unittest.TestCase):
         self.assertIn('surowce (raporty): wasde: raport 2026-10 — pliku jeszcze nie ma (HTTP 404; zwykle dzień po raporcie)', zd.META['notes'])
         o2, _ = self.build(o, now=T(2026, 10, 14, 17, 0), wasde=W)
         self.assertEqual((o2['ok']['zboza'], o2['zboza']), (False, prev['zboza']), 'ponad 5 dni po terminie — błąd części, dane z datą')
-        self.assertIn('raport 2026-10: brak pliku (HTTP 404) ponad 5 dni po terminie — zaległy raport albo zmieniony adres pliku', o2['err']['zboza'])
+        # v332: błąd części to błąd archiwum (w tej klasie niedostępnego, 503); przyczynę odmowy zapasu (plik CSV) niesie notatka
+        self.assertEqual(o2['err']['zboza'], 'wasde: HTTP Error 503: Service Unavailable')
+        self.assertIn('surowce (raporty): wasde: zapas (plik CSV) też zawiódł — raport 2026-10: brak pliku (HTTP 404) ponad 5 dni po terminie — zaległy raport albo zmieniony adres pliku', zd.META['notes'])
         o3, c3 = self.build(now=t, wasde=W)
         self.assertEqual([x[1][-11:-4] for x in c3 if x[0] == 'wasde'], ['2026-10', '2026-09', '2026-08'], 'start bez pliku: wrzesień i sierpień')
         self.assertEqual((o3['zboza']['nr'], o3['zboza']['poprz']['nr']), (675, 674))
@@ -38749,10 +38754,10 @@ class SurowceRaportyV320(unittest.TestCase):
         P27 = {'nr': 680, 'wyd': '2026-12-10', 'mies': '2026-12', 'rok': '2026/27', 'k': {}, 'poprz': None}
         ctx = {'now': T(2027, 1, 17, 16, 0), 'pp': {'zboza': P27}, 'uwagi': [], 'bledy': [], 'st': {'wasde': jan}, 'keys': {}, 'parts': {},
                't0': None, 'budzet': None, 'fetch': self.fetch(wasde={})}
-        self.assertEqual(zd._sr_wasde(ctx), '2026-12', 'miesiąc spoza kalendarza: 404 do 5 dni po 12. — notatka, nie błąd')
+        self.assertEqual(zd._sr_wasde_csv(ctx), '2026-12', 'miesiąc spoza kalendarza: 404 do 5 dni po 12. — notatka, nie błąd')   # v332: ścieżka zapasowa (plik CSV)
         ctx['now'] = T(2027, 1, 17, 18, 0)
         with self.assertRaisesRegex(RuntimeError, 'ponad 5 dni po terminie'):
-            zd._sr_wasde(ctx)
+            zd._sr_wasde_csv(ctx)
         o7, _ = self.build(wasde={'2026-10': self.W10})
         self.assertEqual((o7['ok']['zboza'], o7['zboza']['poprz']), (True, None), 'poprzedni raport niedostępny — bez porównania (notatka)')
         self.assertTrue(any(n.startswith('surowce (raporty): wasde: poprzedni raport (2026-09) — HTTP Error 404') for n in zd.META['notes']))
@@ -38780,7 +38785,9 @@ class SurowceRaportyV320(unittest.TestCase):
         self.assertEqual({ctx['parts']['zboza']['k'][c]['swiat']['p'] is None for c in ctx['parts']['zboza']['k']}, {True})
         o, _ = self.build(wasde={'2026-10': self.W09, '2026-09': self.W09})
         self.assertEqual((o['ok']['zboza'], 'zboza' in o), (False, False))
-        self.assertEqual(o['err']['zboza'], 'wasde: plik 2026-10 zawiera raport z 2026-09')
+        # v332: j.w. — błąd części to błąd archiwum (503), odmowa zapasu (plik CSV z innego miesiąca) w notatce
+        self.assertEqual(o['err']['zboza'], 'wasde: HTTP Error 503: Service Unavailable')
+        self.assertIn('surowce (raporty): wasde: zapas (plik CSV) też zawiódł — plik 2026-10 zawiera raport z 2026-09', zd.META['notes'])
         L = self.W09.split('\n')
         mt = '\n'.join(x.replace('"Million Metric Tons"', '"1000 Metric Tons"') if '"World Wheat Supply and Use"' in x else x for x in L)
         w = zd.parse_wasde(mt)
@@ -41615,3 +41622,477 @@ class OdpornoscPrzebieguV331(unittest.TestCase):
         prev = {'ust': [[d, 4.0] for d in self._dni(D(2025, 11, 1), D(2027, 2, 9))]}
         o, pytania = self._rynki(prev, D(2027, 2, 10), {2027: ['2027-02-09']})
         self.assertEqual(pytania, [2027]); self.assertEqual(o['ust'][0][0], '2026-01-01'); self.assertTrue(self._ma_1r(o['ust']))
+
+
+class ZbozaEsmisV332(unittest.TestCase):
+    """v332 (F1Z1): część „zboza” pliku data/surowce-raporty.json z OFICJALNEGO ARCHIWUM ministerstwa rolnictwa USA (strona wydań → plik XML
+    raportu), plik CSV z serwera ministerstwa (od 09/10.10.2026 HTTP 403 dla maszyn GitHuba) tylko jako zapas. Bez sieci i zegara (NOW przypięty,
+    przebieg sondy v324p z 10.10.2026). Fragment tabeli sr19 (ODC_SR19) jest dosłownie z nagrania prawdziwego pliku (wasde1026.xml, 3,57 MB, 200
+    z GitHuba); reszta pliku XML jest SKŁADANA z liczb nagrania raportu 09.2026 (SurowceRaportyV320.WASDE09) w układzie oryginału (tabele główne
+    i „(Cont'd.)”, kolumny miesięcy sezonu prognozy, wypełniacze, przypisy w etykietach, soja z innymi nazwami elementów, tabele-wabiki); raport
+    10.2026 = wrzesień + zmiana syntetyczna jak w SurowceRaportyV320 (kukurydza −3 mln t zapasów). Zgodność z prawdziwym plikiem (144 liczby
+    identyczne z plikiem CSV, 48 liczb poprzedniego miesiąca identycznych z nagraniem CSV z września) sprawdzona na pełnym nagraniu poza testami."""
+    R = SurowceRaportyV320
+    NOW = datetime.datetime(2026, 10, 10, 19, 43, tzinfo=datetime.timezone.utc)
+    ODC_SR19 = ('<Report Name="sr19" Report_Month="October 2026" page_title=" WASDE - 676 - 19" sub_report_title="World Wheat Supply and Use  1/  (Cont\'d.)" sub_report_subtitle="(Million Metric Tons)">'
+               '<matrix1 region_header1="2026/27 Proj."><m1_region_group_Collection><m1_region_group region1="World  3/">'
+               '<m1_month_group_Collection><m1_month_group forecast_month1="Sep"><m1_attribute_group_Collection>'
+               '<m1_attribute_group attribute1="Production"><FormatFiller3><Cell cell_value1="822.43" /></FormatFiller3></m1_attribute_group>'
+               '<m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3><Cell cell_value1="826.75" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3><Cell cell_value1="211.77" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks"><FormatFiller3><Cell cell_value1="276.29" />'
+               '</FormatFiller3></m1_attribute_group></m1_attribute_group_Collection></m1_month_group><m1_month_group forecast_month1="Oct">'
+               '<m1_attribute_group_Collection><m1_attribute_group attribute1="Production"><FormatFiller3><Cell cell_value1="822.39" />'
+               '</FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3>'
+               '<Cell cell_value1="827.90" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3>'
+               '<Cell cell_value1="208.97" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks">'
+               '<FormatFiller3><Cell cell_value1="276.04" /></FormatFiller3></m1_attribute_group></m1_attribute_group_Collection>'
+               '</m1_month_group></m1_month_group_Collection><FormatFiller4><m1_attribute_group_Collection>'
+               '<m1_attribute_group attribute1="Production"><FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3></m1_attribute_group>'
+               '<m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks"><FormatFiller3><Cell FormatFiller5="filler" />'
+               '</FormatFiller3></m1_attribute_group></m1_attribute_group_Collection></FormatFiller4></m1_region_group>'
+               '<m1_region_group region1="United States"><m1_month_group_Collection><m1_month_group forecast_month1="Sep">'
+               '<m1_attribute_group_Collection><m1_attribute_group attribute1="Production"><FormatFiller3><Cell cell_value1="41.66" />'
+               '</FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3>'
+               '<Cell cell_value1="29.91" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3>'
+               '<Cell cell_value1="21.09" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks">'
+               '<FormatFiller3><Cell cell_value1="19.51" /></FormatFiller3></m1_attribute_group></m1_attribute_group_Collection>'
+               '</m1_month_group><m1_month_group forecast_month1="Oct"><m1_attribute_group_Collection>'
+               '<m1_attribute_group attribute1="Production"><FormatFiller3><Cell cell_value1="41.74" /></FormatFiller3></m1_attribute_group>'
+               '<m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3><Cell cell_value1="30.18" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3><Cell cell_value1="20.41" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks"><FormatFiller3><Cell cell_value1="20.14" />'
+               '</FormatFiller3></m1_attribute_group></m1_attribute_group_Collection></m1_month_group></m1_month_group_Collection>'
+               '<FormatFiller4><m1_attribute_group_Collection><m1_attribute_group attribute1="Production"><FormatFiller3>'
+               '<Cell FormatFiller5="filler" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/">'
+               '<FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Exports">'
+               '<FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3></m1_attribute_group>'
+               '<m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks"><FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3>'
+               '</m1_attribute_group></m1_attribute_group_Collection></FormatFiller4></m1_region_group><m1_region_group region1="Total Foreign">'
+               '<m1_month_group_Collection><m1_month_group forecast_month1="Sep"><m1_attribute_group_Collection>'
+               '<m1_attribute_group attribute1="Production"><FormatFiller3><Cell cell_value1="780.78" /></FormatFiller3></m1_attribute_group>'
+               '<m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3><Cell cell_value1="796.84" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3><Cell cell_value1="190.68" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks"><FormatFiller3><Cell cell_value1="256.79" />'
+               '</FormatFiller3></m1_attribute_group></m1_attribute_group_Collection></m1_month_group><m1_month_group forecast_month1="Oct">'
+               '<m1_attribute_group_Collection><m1_attribute_group attribute1="Production"><FormatFiller3><Cell cell_value1="780.65" />'
+               '</FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3>'
+               '<Cell cell_value1="797.72" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3>'
+               '<Cell cell_value1="188.56" /></FormatFiller3></m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks">'
+               '<FormatFiller3><Cell cell_value1="255.90" /></FormatFiller3></m1_attribute_group></m1_attribute_group_Collection>'
+               '</m1_month_group></m1_month_group_Collection><FormatFiller4><m1_attribute_group_Collection>'
+               '<m1_attribute_group attribute1="Production"><FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3></m1_attribute_group>'
+               '<m1_attribute_group attribute1="Domestic&#xD;&#xA;Total 2/"><FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Exports"><FormatFiller3><Cell FormatFiller5="filler" /></FormatFiller3>'
+               '</m1_attribute_group><m1_attribute_group attribute1="Ending&#xD;&#xA;Stocks"><FormatFiller3><Cell FormatFiller5="filler" />'
+               '</FormatFiller3></m1_attribute_group></m1_attribute_group_Collection></FormatFiller4></m1_region_group>'
+               '</m1_region_group_Collection></matrix1></Report>')
+    SKR = {'Production': 'Production', 'Domestic Total': 'Domestic&#xD;&#xA;Total 2/', 'Total  Domestic': 'Total /2&#xD;&#xA;Domestic',
+           'Exports': 'Exports', 'Ending Stocks': 'Ending&#xD;&#xA;Stocks'}
+    TYTX = ('World Wheat Supply and Use  1/', 'World Corn Supply and Use  1/', 'World Rice Supply and Use  (Milled Basis)  1/',
+            'World Soybean Supply and Use  1/')
+    NRX = ((18, 19), (22, 23), (24, 25), (28, 28))   # numery tabel: główna i „(Cont'd.)” (soja: jedna tabela)
+    LISTA_DOM = {'2026-08': ('2026-08-12', 796014, 'wasde0826'), '2026-09': ('2026-09-11', 796054, 'wasde0926'),
+                 '2026-10': ('2026-10-09', 796099, 'wasde1026')}   # dni i numery plików ze strony wydań (nagranie 10.10.2026)
+
+    @staticmethod
+    def z10(ti, a, r, my):   # SYNTETYCZNY raport 10.2026: kukurydza −3 mln t zapasów (świat i reszta świata) — jak w SurowceRaportyV320
+        return -3.0 if (ti, a, my) == (1, 'Ending Stocks', '26') and r in ('W', 'T') else 0
+
+    @staticmethod
+    def z08(ti, a, r, my):   # SYNTETYCZNY raport 08.2026: zapasy 2026/27 świata i reszty świata przesunięte o tę samą kwotę — jak w SurowceRaportyV320
+        return {0: 1.5, 1: -2.0, 2: 0.5, 3: 1.0}[ti] if (a, my) == ('Ending Stocks', '26') and r in ('W', 'T') else 0
+
+    @classmethod
+    def setUpClass(cls):
+        cls.BAZA = {(ti, a, r, my): float(v) for ti, a, r, my, fl, v in cls.R.WASDE09}
+        cls.ATR_TI = {ti: list(dict.fromkeys(a for t, a, r, my, fl, v in cls.R.WASDE09 if t == ti)) for ti in range(4)}
+        cls.FL = {(ti, my): fl for ti, a, r, my, fl, v in cls.R.WASDE09}
+        cls.W09 = cls.R.wasde_csv()
+        cls.W10 = cls.R.wasde_csv(676, 'October 2026', '2026-10-09', '10', cls.z10)
+        cls.X10 = cls.xml(676, 'October 2026', cls.z10)
+        cls.X09 = cls.xml(675, 'September 2026', None, cls.z08)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW.isoformat()))
+
+    # ---- składanie nagrań ----
+    @classmethod
+    def _atrybuty(cls, ti, r, my, zm, sfx, fill, mn=1.0):
+        w = ''
+        for a in ['Beginning Stocks'] + cls.ATR_TI[ti] + ['Imports']:   # „Beginning Stocks” i „Imports” — atrybuty spoza bilansu (muszą być pominięte)
+            v = mn * (cls.BAZA[(ti, a, r, my)] + (zm(ti, a, r, my) if zm else 0)) if (ti, a, r, my) in cls.BAZA else 1.11
+            et = cls.SKR.get(a, a.replace(' ', '&#xD;&#xA;'))
+            c = f'<Cell cell_value{sfx}="{v:.2f}" />'
+            w += f'<m1_attribute_group{sfx} attribute{sfx}="{et}">' + (f'<FormatFiller3>{c}</FormatFiller3>' if fill else c) + f'</m1_attribute_group{sfx}>'
+        return w
+
+    @classmethod
+    def _macierz(cls, ti, my, zmiana, poprz, miesiace, przes, sfx):
+        fl = cls.FL[(ti, my)]
+        y = int(my) + przes
+        hdr = f'20{y}/{y + 1}' + {'': '', 'E': ' Est.', 'P': ' Proj.'}[fl]
+        reg = ''
+        for r, lab, mn in (('W', 'World  3/' if ti != 3 else 'World  2/', 1.0), ('W', '    World Less China', 0.5), ('U', 'United States', 1.0),
+                           ('T', 'Total Foreign', 1.0), ('T', '    Major Exporters  4/', 0.5)):
+            if fl == 'P':
+                mm = ''.join(f'<m1_month_group{sfx} forecast_month{sfx}="{ml}"><m1_attribute_group_Collection>'
+                             + cls._atrybuty(ti, r, my, zmiana if zr == 'cur' else poprz, sfx, True, mn)
+                             + f'</m1_attribute_group_Collection></m1_month_group{sfx}>' for ml, zr in miesiace)
+                fill = ('<FormatFiller4><m1_attribute_group_Collection><m1_attribute_group' + sfx + ' attribute' + sfx + '="Production"><FormatFiller3>'
+                        '<Cell FormatFiller5="filler" /></FormatFiller3></m1_attribute_group' + sfx + '></m1_attribute_group_Collection></FormatFiller4>')
+                reg += f'<m1_region_group{sfx} region{sfx}="{lab}"><m1_month_group_Collection>{mm}</m1_month_group_Collection>{fill}</m1_region_group{sfx}>'
+            else:
+                reg += (f'<m1_region_group{sfx} region{sfx}="{lab}"><m1_attribute_group_Collection>' + cls._atrybuty(ti, r, my, zmiana, sfx, False, mn)
+                        + f'</m1_attribute_group_Collection></m1_region_group{sfx}>')
+        return f'<matrix{sfx} region_header{sfx}="{hdr}"><m1_region_group{sfx}_Collection>{reg}</m1_region_group{sfx}_Collection></matrix{sfx}>'
+
+    @classmethod
+    def xml(cls, nr=676, mies='October 2026', zmiana=None, poprz=None, miesiace=None, przes=0, dodatek='', jednostka='(Million Metric Tons)'):
+        """Plik XML raportu (UTF-8 z BOM, jak u źródła). zmiana(ti, a, r, my) — zmiana wartości kolumny bieżącego miesiąca, poprz(…) — kolumny
+        poprzedniego miesiąca (sezon prognozy); miesiace — [(nazwa miesiąca, 'cur'|'poprz')]; przes — sezony przesunięte (maj otwiera nowy sezon);
+        dodatek — dowolne elementy dopisane na końcu."""
+        m = list(zd.SR_MIES_EN).index(mies.split()[0][:3].lower())
+        if miesiace is None:
+            miesiace = [(zd.SR_MIES_EN[m - 1].capitalize(), 'poprz'), (zd.SR_MIES_EN[m].capitalize(), 'cur')]
+        out = ''
+        for ti in range(4):
+            sezony = [(my, fl) for (t, my), fl in cls.FL.items() if t == ti]
+            tab = [(cls.NRX[ti][0], [s for s in sezony if s[1] != 'P'] if ti != 3 else sezony, cls.TYTX[ti])]
+            if ti != 3:
+                tab.append((cls.NRX[ti][1], [s for s in sezony if s[1] == 'P'], cls.TYTX[ti] + "  (Cont'd.)"))
+            for nn, ss, tyt in tab:
+                sfx = '4' if ti == 3 else '1'
+                mac = ''.join(cls._macierz(ti, my, zmiana, poprz, miesiace, przes, sfx) for my, fl in ss)
+                out += (f'<sr{nn}><Report Name="sr{nn}" Report_Month="{mies}" page_title=" WASDE - {nr} - {nn}" sub_report_title="{tyt}" '
+                        f'sub_report_subtitle="{jednostka}" sub_report_footer="1/ Aggregate of local marketing years.">{mac}</Report></sr{nn}>')
+        wab = ''.join(
+            f'<sr{nn}><Report Name="sr{nn}" Report_Month="{mies}" page_title=" WASDE - {nr} - {nn}" sub_report_title="{tyt}" sub_report_subtitle="{jed}">'
+            f'<matrix1 region_header1="2026/27 Proj."><m1_region_group_Collection><m1_region_group region1="{rg}"><m1_month_group_Collection>'
+            f'<m1_month_group forecast_month1="{zd.SR_MIES_EN[m].capitalize()}"><m1_attribute_group_Collection><m1_attribute_group attribute1="Production">'
+            f'<Cell cell_value1="9999.00" /></m1_attribute_group></m1_attribute_group_Collection></m1_month_group></m1_month_group_Collection>'
+            f'</m1_region_group></m1_region_group_Collection></matrix1></Report></sr{nn}>'
+            for nn, tyt, jed, rg in ((8, 'World and U.S. Supply and Use for Grains  1/', '(Million Metric Tons)', 'World'),
+                                     (20, 'World Coarse Grain Supply and Use  1/', '(Million Metric Tons)', 'World  3/'),
+                                     (11, 'World Wheat Supply and Use by Class  1/', '(Million Bushels)', 'World')))
+        return (b'\xef\xbb\xbf<?xml version="1.0" encoding="utf-8"?>\n<Report Name="wasde">' + (wab + out + dodatek).encode('utf-8') + b'</Report>')
+
+    @classmethod
+    def mini(cls, tytul, hdr, reg, atr, v, miesiac=None, nr=676, mies='October 2026'):
+        """Pojedyncza tabela z jedną komórką (do skrajnych przypadków)."""
+        mm = (f'<m1_month_group_Collection><m1_month_group forecast_month1="{miesiac}">', '</m1_month_group></m1_month_group_Collection>') if miesiac else ('', '')
+        return (f'<sr99><Report Name="sr99" Report_Month="{mies}" page_title=" WASDE - {nr} - 99" sub_report_title="{tytul}" sub_report_subtitle="(Million Metric Tons)">'
+                f'<matrix1 region_header1="{hdr}"><m1_region_group_Collection><m1_region_group region1="{reg}">{mm[0]}<m1_attribute_group_Collection>'
+                f'<m1_attribute_group attribute1="{atr}"><Cell cell_value1="{v}" /></m1_attribute_group></m1_attribute_group_Collection>{mm[1]}'
+                f'</m1_region_group></m1_region_group_Collection></matrix1></Report></sr99>')
+
+    @classmethod
+    def lista(cls, w=None, dodatek=''):
+        """Strona wydań (układ jak u źródła: tabela, w wierszu znacznik czasu z dniem wydania i odnośniki pdf/txt/xls/xml)."""
+        w = cls.LISTA_DOM if w is None else w
+        wiersze = ''
+        for ym, (d, i, nazwa) in sorted(w.items(), reverse=True):
+            odn = ''.join(f'<a href="/sites/default/release-files/{i}/{nazwa}.{e}" class="usa-tag"><span class="usa-sr-only"><time datetime="{d}T12:00:00Z">{d}</time>'
+                          f' - </span>{e}</a>' for e in ('pdf', 'txt', 'xls', 'xml'))
+            wiersze += (f'<tr><td headers="d" class="views-field views-field-release-date"><time datetime="{d}T12:00:00Z">{d}</time></td>'
+                        f'<td headers="f" class="views-field views-field-release-files">{odn}</td><td class="views-field"><a href="/node/{i}">Details</a></td></tr>')
+        return ('<html><body><form><button>Filter</button></form><table class="cols-3"><thead><tr><th>Date</th><th>Download</th><th>Operations</th></tr></thead>'
+                '<tbody>' + wiersze + dodatek + '</tbody></table></body></html>')
+
+    def fetch(self, calls=None, lista=None, xml=None, csv=None, esmis_kod=None, csv_kod=None, xml_kod=None):
+        """Atrapa sieci: strona wydań archiwum, pliki XML wg miesiąca (brak = HTTP 404), zapasowe pliki CSV wg miesiąca (brak = 404); esmis_kod /
+        csv_kod — HTTP kod błędu całego serwera, xml_kod — kod błędu samego pliku XML; wszystko inne (ropa, uran) — HTTP 503."""
+        X = {'2026-09': self.X09, '2026-10': self.X10} if xml is None else xml
+        C = {'2026-09': self.W09, '2026-10': self.W10} if csv is None else csv
+        nazwy = {403: 'Forbidden', 404: 'Not Found', 429: 'Too Many Requests'}
+
+        def f(url, timeout, headers=None, maks=None):
+            self.assertGreater(timeout, 0)
+            src = ('lista' if url == zd.SR_WASDE_STRONA else 'xml' if url.startswith(zd.SR_WASDE_ESMIS) else 'csv' if 'oce-wasde-report-data-' in url else 'inne')
+            if calls is not None and src != 'inne':
+                calls.append((src, url, timeout, maks))
+            kod = esmis_kod if src in ('lista', 'xml') else csv_kod if src == 'csv' else 503
+            if kod:
+                raise urllib.error.HTTPError(url, kod, nazwy.get(kod, 'Service Unavailable'), {}, None)
+            if src == 'lista':
+                return (self.lista() if lista is None else lista).encode()
+            if src == 'xml':
+                if xml_kod:
+                    raise urllib.error.HTTPError(url, xml_kod, nazwy.get(xml_kod, 'Service Unavailable'), {}, None)
+                m = re.search(r'wasde(\d{2})(\d{2})(?:v\d+)?\.xml$', url)
+                ym = f'20{m.group(2)}-{m.group(1)}'
+                if ym not in X:
+                    raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+                return X[ym]
+            m = re.search(r'oce-wasde-report-data-(\d{4}-\d{2})\.csv$', url)
+            if m.group(1) not in C:
+                raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            return C[m.group(1)].encode()
+        return f
+
+    def build(self, prev=None, now=None, **kw):
+        calls = []
+        o = zd.build_su_raporty(prev, {}, now=now or self.NOW, fetch=self.fetch(calls=calls, **kw))
+        return o, calls
+
+    @staticmethod
+    def T(*a):
+        return datetime.datetime(*a, tzinfo=datetime.timezone.utc)
+
+    # ---- strona wydań ----
+    def test_strona_wydan(self):
+        d = datetime.date(2026, 10, 10)
+        self.assertEqual(zd.parse_wasde_lista(self.lista(), d), {
+            '2026-08': ('2026-08-12', '/sites/default/release-files/796014/wasde0826.xml'), '2026-09': ('2026-09-11', '/sites/default/release-files/796054/wasde0926.xml'),
+            '2026-10': ('2026-10-09', '/sites/default/release-files/796099/wasde1026.xml')})
+        v2 = self.LISTA_DOM | {'2026-05': ('2026-05-12', 795903, 'wasde0526v2')}
+        self.assertEqual(zd.parse_wasde_lista(self.lista(v2), d)['2026-05'], ('2026-05-12', '/sites/default/release-files/795903/wasde0526v2.xml'))
+        dwa = ('<tr><td><time datetime="2026-06-11T12:00:00Z">x</time></td><td><a href="/sites/default/release-files/795930/wasde0626.xml">xml</a>'
+               '<a href="/sites/default/release-files/795937/wasde0626v2.xml">xml</a><a href="/sites/default/release-files/795931/wasde0626v10.xml">xml</a></td></tr>')
+        self.assertEqual(zd.parse_wasde_lista(self.lista({}, dwa), d), {'2026-06': ('2026-06-11', '/sites/default/release-files/795931/wasde0626v10.xml')},
+                         'poprawiony plik (wyższa wersja) wygrywa z pierwszym — v10 > v2 > v1, nie porównanie tekstu')
+        wabik = ('<tr><td><time datetime="2026-10-09T12:00:00Z">x</time></td><td><a href="https://obcy.example/sites/default/release-files/1/wasde1026.xml">x</a>'
+                 '<a href="//obcy.example/sites/default/release-files/3/wasde1026.xml">x</a><a href="/sites/default/release-files/2/../../x/wasde1026.xml">x</a>'
+                 '<a href="/sites/default/release-files/4/wasde1026.xml?x=1">x</a><a href="/inne/wasde1026.xml">x</a></td></tr>')
+        self.assertEqual(zd.parse_wasde_lista(self.lista({}, wabik), d), {}, 'odnośnik na inny host albo inną ścieżkę — pominięty (adres pliku tylko ze wzorca)')
+        self.assertEqual(sorted(zd.parse_wasde_lista(self.lista(), datetime.date(2026, 10, 7))), ['2026-08', '2026-09'], 'dzień wydania z przyszłości (po jutrze) — pominięty')
+        zly_mies = self.lista({'2026-10': ('2026-11-09', 796099, 'wasde1026')})
+        self.assertEqual(zd.parse_wasde_lista(zly_mies, d), {}, 'miesiąc z nazwy pliku ≠ miesiąc dnia wydania — pominięty')
+        self.assertEqual(zd.parse_wasde_lista('<html><title>Access Denied</title></html>', d), {})
+
+    # ---- plik XML ----
+    def test_xml_zgodny_z_plikiem_csv(self):
+        cur, csv, pop = zd.parse_wasde_xml(self.X10, '2026-10-09'), zd.parse_wasde(self.W10), zd.parse_wasde(self.W09)
+        self.assertEqual((cur['nr'], cur['wyd'], cur['mies'], cur['zle'], cur['zle_p']), (676, '2026-10-09', '2026-10', [], []))
+        self.assertEqual(cur['lata'], csv['lata']); self.assertEqual(cur['lata'], {'2024/25': [''], '2025/26': ['Est.'], '2026/27': ['Proj.']})
+        self.assertEqual(cur['k'], csv['k'], 'te same liczby co z pliku CSV: 4 towary × 3 regiony × 3 sezony × 4 wielkości')
+        self.assertEqual(sum(len(v) for c in cur['k'].values() for r in c.values() for v in r.values()), 144)
+        self.assertEqual(cur['poprz'], {c: {r: {'2026/27': pop['k'][c][r]['2026/27']} for r in pop['k'][c]} for c in pop['k']},
+                         'poprzedni miesiąc prognozy z tego samego pliku = prognoza z poprzedniego raportu (plik CSV z września), tylko sezon prognozy')
+        self.assertEqual(zd.parse_wasde_xml(self.X10.decode('utf-8-sig'), '2026-10-09')['k'], csv['k'], 'także tekst bez BOM')
+        self.assertEqual(self.X10.count(b'World Less China'), 12, 'wabiki (wiersze spoza bilansu, tabele o innych tytułach i jednostkach) są w pliku, a nie w wyniku')
+
+    def test_xml_fragment_prawdziwego_pliku(self):
+        c = zd.parse_wasde_xml(self.ODC_SR19, '2026-10-09')
+        self.assertEqual((c['nr'], c['mies'], c['lata'], c['zle'], c['zle_p']), (676, '2026-10', {'2026/27': ['Proj.']}, [], []))
+        self.assertEqual(c['k'], {'pszenica': {
+            'swiat': {'2026/27': {'prod': 822.39, 'kraj': 827.9, 'eksp': 208.97, 'zapasy': 276.04}},
+            'usa': {'2026/27': {'prod': 41.74, 'kraj': 30.18, 'eksp': 20.41, 'zapasy': 20.14}},
+            'zagr': {'2026/27': {'prod': 780.65, 'kraj': 797.72, 'eksp': 188.56, 'zapasy': 255.9}}}}, 'październik: kolumna „Oct”, bez wypełniaczy')
+        self.assertEqual(c['poprz']['pszenica']['swiat']['2026/27'], {'prod': 822.43, 'kraj': 826.75, 'eksp': 211.77, 'zapasy': 276.29}, 'kolumna „Sep”')
+        self.assertEqual(c['poprz']['pszenica']['usa']['2026/27']['zapasy'], 19.51)
+
+    def test_xml_straze(self):
+        bomba = (b'<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;">]><Report Name="wasde"><x>&lol2;</x></Report>')
+        with mock.patch.object(zd._SrXml, 'fromstring', side_effect=AssertionError('parser nie powinien być wywołany')):
+            for tresc in (bomba, bomba.replace(b'DOCTYPE', b'doctype'), b'<Report Name="wasde"><!ENTITY x "y"></Report>', b'<! DOCTYPE x><Report/>'):
+                with self.assertRaisesRegex(RuntimeError, 'deklarację typu dokumentu albo encji'):
+                    zd.parse_wasde_xml(tresc, '2026-10-09')
+        with self.assertRaisesRegex(RuntimeError, 'nie jest poprawny plik XML'):
+            zd.parse_wasde_xml('Access Denied', '2026-10-09')
+        with self.assertRaisesRegex(RuntimeError, 'nie plik raportu'):
+            zd.parse_wasde_xml('<HTML><HEAD><TITLE>Access Denied</TITLE></HEAD></HTML>', '2026-10-09')
+        with mock.patch.object(zd, 'SR_WASDE_XML_MAX', 1000):
+            with self.assertRaisesRegex(RuntimeError, 'dłuższy niż 1000 B'):
+                zd.parse_wasde_xml(self.X10, '2026-10-09')
+        with self.assertRaisesRegex(RuntimeError, 'różne numery'):
+            zd.parse_wasde_xml(self.X10.replace(b'WASDE - 676 - 19', b'WASDE - 677 - 19'), '2026-10-09')
+        with self.assertRaisesRegex(RuntimeError, 'różne numery'):
+            zd.parse_wasde_xml(self.X10.replace(b'October 2026" page_title=" WASDE - 676 - 19', b'September 2026" page_title=" WASDE - 676 - 19'), '2026-10-09')
+        for wyd in ('2026-09-11', None, '', '2026-10'):
+            with self.assertRaisesRegex(RuntimeError, 'zły miesiąc raportu albo dzień wydania'):
+                zd.parse_wasde_xml(self.X10, wyd)
+        with self.assertRaisesRegex(RuntimeError, 'brak tabel zbóż świata'):
+            zd.parse_wasde_xml(self.xml(jednostka='(Million Bushels)'), '2026-10-09')
+        zle = zd.parse_wasde_xml(self.xml(676, 'October 2026', lambda ti, a, r, my: 0.5 if (ti, a, r, my) == (1, 'Production', 'W', '26') else 0), '2026-10-09')
+        self.assertNotIn('kukurydza', zle['k']); self.assertEqual(zle['zle'], ['kukurydza 2026/27 prod: świat 1291.45 ≠ USA 401.33 + reszta 889.62'])
+        self.assertIn('kukurydza', zle['poprz'], 'zła suma tylko w kolumnie bieżącej — poprzednia kolumna zostaje')
+        zp = zd.parse_wasde_xml(self.xml(676, 'October 2026', None, lambda ti, a, r, my: 0.5 if (ti, a, r, my) == (3, 'Ending Stocks', 'W', '26') else 0), '2026-10-09')
+        self.assertEqual((sorted(zp['k']), sorted(zp['poprz']), zp['zle'], zp['zle_p']),
+                         (['kukurydza', 'pszenica', 'ryz', 'soja'], ['kukurydza', 'pszenica', 'ryz'], [], ['soja 2026/27 zapasy: świat 124.52 ≠ USA 8.43 + reszta 115.58']))
+        ok = zd.parse_wasde_xml(self.xml(676, 'October 2026', lambda ti, a, r, my: 0.04 if (ti, a, r, my) == (1, 'Production', 'W', '26') else 0), '2026-10-09')
+        self.assertIn('kukurydza', ok['k'], 'różnica do 0,05 mln t — zaokrąglenia źródła (jak w pliku CSV)')
+
+    def test_xml_komorki_wielokrotne_i_miesiace(self):
+        pow_ = self.mini('World Wheat Supply and Use  1/  (Cont\'d.)', '2026/27 Proj.', 'World  3/', 'Production', '822.43', 'Oct')
+        self.assertEqual(zd.parse_wasde_xml(self.xml(676, 'October 2026', self.z10, dodatek=pow_), '2026-10-09')['k'], zd.parse_wasde(self.W10)['k'],
+                         'ta sama komórka z tą samą wartością — bez zmian')
+        inna = self.mini('World Wheat Supply and Use  1/  (Cont\'d.)', '2026/27 Proj.', 'World  3/', 'Production', '800.00', 'Oct')
+        with self.assertRaisesRegex(RuntimeError, 'ta sama komórka z dwiema wartościami \\(pszenica swiat 2026/27 prod\\)'):
+            zd.parse_wasde_xml(self.xml(676, 'October 2026', self.z10, dodatek=inna), '2026-10-09')
+        obce = zd.parse_wasde_xml(self.xml(676, 'October 2026', self.z10, miesiace=[('Aug', 'poprz'), ('Oct', 'cur'), ('Nov', 'cur')]), '2026-10-09')
+        self.assertEqual((obce['k'], obce['poprz']), (zd.parse_wasde(self.W10)['k'], {}), 'kolumna miesiąca innego niż bieżący i poprzedni — pominięta (nie nadpisuje, nie jest „poprzednim”)')
+        sty = zd.parse_wasde_xml(self.xml(679, 'January 2027', miesiace=[('Dec', 'poprz'), ('Jan', 'cur')]), '2027-01-12')
+        self.assertEqual((sty['mies'], sty['poprz']['pszenica']['swiat']['2026/27']['zapasy'], sty['k']['pszenica']['swiat']['2026/27']['zapasy']), ('2027-01', 276.29, 276.29))
+        maj = zd.parse_wasde_xml(self.xml(683, 'May 2027', przes=1, miesiace=[('May', 'cur')]), '2027-05-12')
+        self.assertEqual((maj['poprz'], maj['lata']), ({}, {'2025/26': [''], '2026/27': ['Est.'], '2027/28': ['Proj.']}), 'maj: nowy sezon ma tylko kolumnę bieżącą')
+
+    # ---- część zboza z archiwum ----
+    def test_pierwsze_wdrozenie_z_archiwum(self):
+        o, calls = self.build()
+        iso = self.NOW.isoformat()
+        self.assertEqual([(c[0], c[1], c[3]) for c in calls], [('lista', zd.SR_WASDE_STRONA, zd.SR_WASDE_STRONA_MAX),
+                         ('xml', 'https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.xml', zd.SR_WASDE_XML_MAX)],
+                         'dwa zapytania z limitem rozmiaru; poprzedni raport z tego samego pliku, plik CSV w ogóle nie pytany')
+        self.assertTrue(all(c[2] <= zd.SR_LIMIT_S['wasde'] for c in calls))
+        Z = o['zboza']
+        self.assertEqual((o['ok']['zboza'], 'zboza' in o['err'], Z['nr'], Z['wyd'], Z['mies'], Z['rok'], Z['rok0'], Z['u'], Z['z']),
+                         (True, False, 676, '2026-10-09', '2026-10', '2026/27', '2025/26', 'mln t', 'wasde'))
+        self.assertEqual(Z['poprz'], {'nr': 675, 'wyd': '2026-09-11', 'mies': '2026-09'})
+        self.assertEqual(o['st']['wasde'], {'try': iso, 'via': 'esmis', 'at': iso, 'asof': '2026-10'})
+        self.assertEqual(Z['k']['kukurydza']['swiat']['su'], round(269.1 / 1320.23 * 100, 2), 'zapasy kukurydzy −3 mln t')
+        self.assertEqual(Z['k']['kukurydza']['swiat']['p']['su'], 20.61, 'poprzedni raport z kolumny „Sep” tego samego pliku')
+        self.assertEqual((Z['k']['pszenica']['swiat']['p']['zapasy'], Z['k']['pszenica']['usa']['p']['eksp']), (276.29, 21.09))
+        self.assertEqual(list(Z['k']), ['pszenica', 'kukurydza', 'ryz', 'soja'])
+        oc, cc = self.build(esmis_kod=403)
+        self.assertEqual([c[0] for c in cc], ['lista', 'csv', 'csv']); self.assertEqual(oc['st']['wasde']['via'], 'csv')
+        self.assertEqual(oc['zboza'], Z, 'archiwum i zapas (plik CSV) dają identyczną część — kształt pliku bez zmian')
+        o2, c2 = self.build(o, now=self.NOW + datetime.timedelta(minutes=10))
+        self.assertEqual(c2, [], '10 min później — nic nie należne')
+        o3, c3 = self.build(o, now=self.NOW + datetime.timedelta(days=7, minutes=1))
+        self.assertEqual(([c[0] for c in c3], o3['zboza']), (['lista', 'xml'], Z), 'sprawdzenie co 7 dni — poprawki wstecz, część bez zmian')
+
+    def test_zapas_csv_i_pauzy_po_odmowie(self):
+        T, iso = self.T, lambda t: t.isoformat()
+        Z = self.build()[0]['zboza']
+        # archiwum odmawia (403), plik CSV działa
+        oa, ca = self.build(esmis_kod=403)
+        self.assertEqual((oa['ok']['zboza'], oa['zboza'], 'kod' in oa['st']['wasde'], 'err' in oa['st']['wasde'], 'csv_od' in oa['st']['wasde']), (True, Z, False, False, False))
+        self.assertIn('surowce (raporty): wasde: archiwum — HTTP Error 403: Forbidden; raport z zapasu (plik CSV)', zd.META['notes'])
+        # oba odmawiają (403): błąd archiwum z kodem (ponowienie po 6 h), odmowa pliku CSV zapisana
+        ob, cb = self.build(esmis_kod=403, csv_kod=403)
+        self.assertEqual([c[0] for c in cb], ['lista', 'csv'])
+        self.assertEqual((ob['ok']['zboza'], 'zboza' in ob, ob['err']['zboza'], ob['st']['wasde']['kod'], ob['st']['wasde']['csv_od']), (False, False, 'wasde: HTTP Error 403: Forbidden', 403, iso(self.NOW)))
+        self.assertIn('surowce (raporty): wasde: zapas (plik CSV) też zawiódł — HTTP Error 403: Forbidden', zd.META['notes'])
+        o2, c2 = self.build(ob, now=self.NOW + datetime.timedelta(minutes=359), esmis_kod=403, csv_kod=403)
+        self.assertEqual(c2, [], 'po 403 — bez zapytań przez 6 h (żadnych prób obejścia)')
+        o3, c3 = self.build(ob, now=self.NOW + datetime.timedelta(minutes=361), esmis_kod=403, csv_kod=403)
+        self.assertEqual([c[0] for c in c3], ['lista', 'csv'], 'po 6 h oba serwery znów pytane, po jednym zapytaniu')
+        # archiwum niedostępne (503), plik CSV odmawia (403): archiwum co godzinę, plik CSV nie częściej niż co 6 h
+        oc, cc = self.build(esmis_kod=503, csv_kod=403)
+        self.assertEqual((oc['err']['zboza'], 'kod' in oc['st']['wasde'], oc['st']['wasde']['csv_od']), ('wasde: HTTP Error 503: Service Unavailable', False, iso(self.NOW)))
+        zd.META['notes'].clear()
+        od, cd = self.build(oc, now=self.NOW + datetime.timedelta(minutes=61), esmis_kod=503, csv_kod=403)
+        self.assertEqual([c[0] for c in cd], ['lista'], 'plik CSV w pauzie po odmowie')
+        self.assertFalse(any('zapas' in n for n in zd.META['notes']))
+        oe, ce = self.build(od, now=self.NOW + datetime.timedelta(minutes=361), esmis_kod=503, csv_kod=403)
+        self.assertEqual([c[0] for c in ce], ['lista', 'csv'])
+        # po pauzie plik CSV odpowiada 200: raport z zapasu, znacznik odmowy znika
+        of, cf = self.build(oc, now=self.NOW + datetime.timedelta(minutes=361), esmis_kod=503)
+        self.assertEqual((of['ok']['zboza'], of['st']['wasde']['via'], 'csv_od' in of['st']['wasde'], of['zboza']['nr']), (True, 'csv', False, 676))
+        # archiwum wraca: znów źródłem podstawowym
+        og, cg = self.build(of, now=self.NOW + datetime.timedelta(minutes=361) + datetime.timedelta(days=7, minutes=1))
+        self.assertEqual(([c[0] for c in cg], og['st']['wasde']['via'], og['zboza']), (['lista', 'xml'], 'esmis', Z))
+        # plik z archiwum nie do odczytania (strona błędu zamiast raportu) = zapas
+        oh, ch = self.build(xml={'2026-10': b'<html><title>Blad</title></html>', '2026-09': self.X09})
+        self.assertEqual(([c[0] for c in ch], oh['st']['wasde']['via'], oh['zboza']), (['lista', 'xml', 'csv', 'csv'], 'csv', Z))
+        self.assertTrue(any(n.startswith('surowce (raporty): wasde: archiwum — różne numery albo miesiące raportu w pliku albo to nie plik raportu; raport z zapasu') for n in zd.META['notes']))
+
+    def test_raport_jeszcze_nie_w_archiwum(self):
+        T = self.T
+        L09 = {k: v for k, v in self.LISTA_DOM.items() if k <= '2026-09'}
+        prev, c0 = self.build(now=T(2026, 10, 5, 12, 0), lista=self.lista(L09))
+        self.assertEqual([c[0] for c in c0], ['lista', 'xml']); self.assertEqual((prev['zboza']['nr'], prev['zboza']['poprz']), (675, {'nr': 674, 'wyd': '2026-08-12', 'mies': '2026-08'}))
+        t = T(2026, 10, 9, 18, 0)
+        o, c = self.build(prev, now=t, lista=self.lista(L09))
+        self.assertEqual([x[0] for x in c], ['lista'], 'października jeszcze nie ma na liście; wrzesień jest już w danych')
+        self.assertEqual((o['ok']['zboza'], o['zboza'], o['part_at']['zboza'], o['st']['wasde']['asof']), (True, prev['zboza'], prev['part_at']['zboza'], '2026-09'))
+        self.assertIn('surowce (raporty): wasde: raport 2026-10 — pliku jeszcze nie ma w archiwum (zwykle kilka minut po raporcie)', zd.META['notes'])
+        o2, _ = self.build(o, now=T(2026, 10, 14, 17, 0), lista=self.lista(L09), csv={})
+        self.assertEqual((o2['ok']['zboza'], o2['zboza']), (False, prev['zboza']), 'ponad 5 dni po terminie — błąd części, dane z datą')
+        self.assertIn('raport 2026-10: brak pliku w archiwum ponad 5 dni po terminie — zaległy raport albo zmieniony układ strony wydań', o2['err']['zboza'])
+        o3, c3 = self.build(prev, now=t, xml_kod=404)
+        self.assertEqual(([x[0] for x in c3], o3['zboza']), (['lista', 'xml'], prev['zboza']), 'odnośnik jest, ale plik odpowiada 404 — jak brak (bez zapasu)')
+        o4, c4 = self.build(now=t, lista=self.lista(L09))
+        self.assertEqual(([x[0] for x in c4], o4['zboza']['nr'], o4['zboza']['poprz']['nr']), (['lista', 'xml'], 675, 674), 'start bez pliku października: wrzesień')
+        o5, _ = self.build(lista='<html><title>Access Denied</title></html>', csv_kod=404)
+        self.assertEqual((o5['ok']['zboza'], o5['err']['zboza']), (False, 'wasde: strona wydań archiwum: brak odnośników do plików XML (zmieniony układ strony?)'))
+        wabik = ('<tr><td><time datetime="2026-10-09T12:00:00Z">x</time></td><td><a href="https://obcy.example/sites/default/release-files/1/wasde1026.xml">x</a></td></tr>')
+        calls = []
+        o6 = zd.build_su_raporty(prev, {}, now=t, fetch=self.fetch(calls=calls, lista=self.lista(L09, wabik)))
+        self.assertTrue(all(c[1].startswith('https://esmis.nal.usda.gov/') for c in calls), calls)
+        self.assertEqual(o6['zboza'], prev['zboza'], 'odnośnik na obcy host ze strony wydań nie jest podążany')
+
+    def test_maj_styczen_i_zgodnosc_z_poprzednia_czescia(self):
+        T = self.T
+        kw = zd.parse_wasde(self.R.wasde_csv(682, 'April 2027', '2027-04-09', '4'))
+        P_kw = zd.sr_zboza(kw)
+        L = {'2027-04': ('2027-04-09', 799000, 'wasde0427'), '2027-05': ('2027-05-12', 799100, 'wasde0527')}
+        ctx = {'now': T(2027, 5, 13, 12, 0), 'pp': {'zboza': P_kw}, 'uwagi': [], 'bledy': [], 'st': {}, 'keys': {}, 'parts': {}, 't0': None, 'budzet': None,
+               'fetch': self.fetch(lista=self.lista(L), xml={'2027-05': self.xml(683, 'May 2027', przes=1, miesiace=[('May', 'cur')])})}
+        self.assertEqual(zd._sr_wasde(ctx), '2027-05')
+        Zm = ctx['parts']['zboza']
+        self.assertEqual((Zm['rok'], Zm['poprz']), ('2027/28', {'nr': 682, 'wyd': '2027-04-09', 'mies': '2027-04'}))
+        self.assertEqual([Zm['k'][c][r]['p'] for c in Zm['k'] for r in Zm['k'][c]], [None] * 8, 'maj: plik nie ma kolumny poprzedniego miesiąca nowego sezonu — brak, nie inny sezon')
+        self.assertEqual(ctx['st']['wasde']['via'], 'esmis')
+        sty, _ = self.build(now=T(2027, 1, 13, 12, 0), lista=self.lista({'2026-12': ('2026-12-10', 797000, 'wasde1226'), '2027-01': ('2027-01-08', 797100, 'wasde0127')}),
+                            xml={'2027-01': self.xml(679, 'January 2027', miesiace=[('Dec', 'poprz'), ('Jan', 'cur')])})
+        self.assertEqual((sty['zboza']['mies'], sty['zboza']['poprz']), ('2027-01', {'nr': 678, 'wyd': '2026-12-10', 'mies': '2026-12'}), 'styczeń: poprzedni miesiąc to grudzień')
+        bez_daty, _ = self.build(now=T(2027, 1, 13, 12, 0), lista=self.lista({'2027-01': ('2027-01-08', 797100, 'wasde0127')}),
+                                 xml={'2027-01': self.xml(679, 'January 2027', miesiace=[('Dec', 'poprz'), ('Jan', 'cur')])})
+        self.assertEqual(bez_daty['zboza']['poprz'], {'nr': 678, 'wyd': '2026-12-10', 'mies': '2026-12'}, 'dzień poprzedniego raportu: z kalendarza, gdy nie ma go na liście')
+        bez_kal, _ = self.build(now=T(2027, 5, 13, 12, 0), lista=self.lista({'2027-05': ('2027-05-12', 799100, 'wasde0527')}),
+                                xml={'2027-05': self.xml(683, 'May 2027', miesiace=[('Apr', 'poprz'), ('May', 'cur')])})
+        self.assertEqual(bez_kal['zboza']['poprz'], {'nr': 682, 'wyd': None, 'mies': '2027-04'}, 'spoza kalendarza i bez listy — dnia brak, nie zgadujemy')
+        # zgodność prognozy z pliku z zapisaną przy poprzednim raporcie
+        L09 = {k: v for k, v in self.LISTA_DOM.items() if k <= '2026-09'}
+        prev, _ = self.build(now=T(2026, 10, 5, 12, 0), lista=self.lista(L09))
+        o, _ = self.build(prev)
+        self.assertFalse(any('różni się od zapisanej' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual(o['zboza']['poprz'], {'nr': 675, 'wyd': '2026-09-11', 'mies': '2026-09'})
+        self.assertFalse(any('nie następuje bezpośrednio' in n for n in zd.META['notes']), 'kolejny miesiąc = numer o 1 większy')
+        zle_nr = json.loads(json.dumps(prev)); zle_nr['zboza']['nr'] = 670
+        self.build(zle_nr)
+        self.assertIn('surowce (raporty): wasde: numer raportu 676 nie następuje bezpośrednio po 670 (poprzednia część) — sprawdzić', zd.META['notes'])
+        zm = lambda ti, a, r, my: 0.5 if (ti, a, my) == (0, 'Ending Stocks', '26') and r in ('W', 'T') else 0   # noqa: E731
+        zd.META['notes'].clear()
+        o2, _ = self.build(prev, xml={'2026-10': self.xml(676, 'October 2026', self.z10, zm)})
+        self.assertIn('surowce (raporty): wasde: prognoza poprzedniego raportu w pliku różni się od zapisanej — pszenica swiat zapasy: 276.79 (plik) ≠ 276.29 (zapisane przy poprzednim raporcie)', zd.META['notes'])
+        self.assertEqual((o2['ok']['zboza'], o2['zboza']['k']['pszenica']['swiat']['p']['zapasy']), (True, 276.79), 'p z pliku; różnica tylko w notatce')
+        zd.META['notes'].clear()
+        zla = lambda ti, a, r, my: 0.5 if (ti, a, r, my) == (0, 'Ending Stocks', 'W', '26') else 0   # noqa: E731
+        o3, _ = self.build(prev, xml={'2026-10': self.xml(676, 'October 2026', self.z10, zla)})
+        self.assertIn('surowce (raporty): wasde: prognoza poprzedniego raportu w pliku — świat ≠ USA + reszta świata (pszenica 2026/27 zapasy: świat 276.79 ≠ USA 19.51 + reszta 256.79) — pominięta', zd.META['notes'])
+        self.assertEqual((o3['ok']['zboza'], o3['zboza']['k']['pszenica']['swiat']['p'], o3['zboza']['k']['kukurydza']['swiat']['p']['su']), (True, None, 20.61),
+                         'pszenica ze złą sumą w poprzedniej kolumnie: brak porównania (nie zero), reszta towarów z pliku')
+
+    # ---- limity odpowiedzi i domyślne pobieranie ----
+    def test_limity_odpowiedzi(self):
+        class Odp:
+            def __init__(s, b): s.b, s.n = io.BytesIO(b), []
+            def read(s, n=-1): s.n.append(n); return s.b.read(n)
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+        o100, o101 = Odp(b'x' * 100), Odp(b'x' * 101)
+        with mock.patch.object(zd, '_otworz', return_value=o100):
+            self.assertEqual(len(zd.get_bytes_maks('https://a.example/', None, 5, 100)), 100)
+        with mock.patch.object(zd, '_otworz', return_value=o101):
+            with self.assertRaisesRegex(RuntimeError, 'dłuższa niż 100 B'):
+                zd.get_bytes_maks('https://a.example/', None, 5, 100)
+        self.assertEqual((o100.n, o101.n), ([101], [101]), 'czytanie przerwane po limicie + 1 bajt — reszty nie pobieramy')
+        with mock.patch.object(zd, '_otworz', return_value=Odp(b'x' * 300)):
+            self.assertEqual(len(zd.get_bytes_maks('https://a.example/')), 300, 'bez limitu — jak get_bytes')
+        ctx = {'fetch': lambda url, t, maks=None: b'x' * 101, 't0': None, 'budzet': None}
+        with self.assertRaisesRegex(RuntimeError, 'dłuższa niż 100 B'):
+            zd._sr_get(ctx, 'wasde', 'https://a.example/', maks=100)
+        self.assertEqual(len(zd._sr_get(ctx, 'wasde', 'https://a.example/', maks=101)), 101)
+        ctx2 = {'fetch': lambda url, t: b'ok', 't0': None, 'budzet': None}
+        self.assertEqual(zd._sr_get(ctx2, 'wasde', 'https://a.example/'), b'ok', 'steo i uran — wywołanie bez limitu rozmiaru jak dotąd')
+        with mock.patch.object(zd, 'get_bytes_maks', return_value=b'a') as gm, mock.patch.object(zd, 'get_bytes', return_value=b'b') as gb:
+            self.assertEqual((zd._sr_fetch('u', 7, None, 10), gm.call_args.args), (b'a', ('u', None, 7, 10)))
+            self.assertEqual((zd._sr_fetch('u', 7), gb.call_args), (b'b', mock.call('u', None, timeout=7)))
+        f = self.fetch()
+
+        widziane = []
+
+        def maks_odp(url, headers, timeout, maks):
+            widziane.append(maks)
+            return f(url, timeout, maks=maks)
+        with mock.patch.object(zd, 'get_bytes_maks', side_effect=maks_odp), mock.patch.object(
+                zd, 'get_bytes', side_effect=lambda url, headers=None, timeout=60: f(url, timeout)):
+            o = zd.build_su_raporty(None, {}, now=self.NOW)
+        self.assertEqual((o['ok']['zboza'], o['zboza']['nr'], o['st']['wasde']['via']), (True, 676, 'esmis'))
+        self.assertEqual(widziane, [zd.SR_WASDE_STRONA_MAX, zd.SR_WASDE_XML_MAX], 'domyślne pobieranie budowniczego przekazuje limit rozmiaru obu odpowiedzi')
