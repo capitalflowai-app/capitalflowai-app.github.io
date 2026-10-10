@@ -11631,6 +11631,675 @@ def energia_z_surowcow(su, prev=None):
     return out
 
 
+# ===================== v320: SUROWCE — RAPORTY MIESIĘCZNE: podaż ropy OPEC+, bilans zbóż, cena uranu (data/surowce-raporty.json) =====================
+# Dział SUROWCE, etap 4 (reszta) i etap 6 (zadanie SUROWCE46). Osobny plik i osobny budowniczy (surowce.json bez zmian); strona wczytuje go dopiero
+# po rozwinięciu bloku „Podaż ropy: OPEC+ i wolne moce” albo „Światowe zapasy zbóż” (część C panelu #g-surowce). Trzy części, każda z part_at / ok /
+# next / err jak w szlaki.json:
+#   ropa  — wydobycie ropy z miesięcznego raportu urzędu energii USA (krótkoterminowa prognoza; API v2 z kluczem EIA_KEY — tym samym mechanizmem
+#           kluczy co dział SUROWCE, wartość nigdy w pliku ani w komunikacie): OPEC+ razem (opec_plus — w definicji urzędu TYLKO kraje objęte
+#           porozumieniem OPEC+, tabela 3d raportu, przypisy b i d), w nim kraje OPEC objęte porozumieniem (objeci) i pozostali uczestnicy (inni, m.in.
+#           Rosja, Kazachstan, Meksyk); cały OPEC (opec — z krajami OPEC poza porozumieniem: w raportach 10.2024–10.2026 Iran, Libia i Wenezuela),
+#           zdolność wydobywcza OPEC (moce) i Arabia Saudyjska (sa); wyliczone: wolne moce OPEC (wolne = zdolność − wydobycie OPEC) i kraje OPEC poza
+#           porozumieniem (poza = cały OPEC − objęci). v320 po przeglądzie: wcześniej „pozostali w OPEC+” liczone jako OPEC+ − OPEC — błędnie (OPEC+
+#           nie zawiera Iranu, Libii i Wenezueli, więc część zaniżona o ich wydobycie, a zdanie „OPEC+ …, w tym OPEC …” nieprawdziwe). Straż serii
+#           (_sr_opec_straz): brak którejś z czterech serii wydobycia, OPEC+ ≠ objęci + pozostali (±SR_STEO_SUMA) albo OPEC < objęci = błąd części
+#           (zły identyfikator serii albo zmiana definicji u źródła — dane zostają poprzednie); test wsteczny ws53/v320-surowce46/bt/bt_opecplus.py
+#           (arkusze 5 wydań 10.2024–10.2026, 207 miesięcy): 0 niezgodnych, największa różnica 0,001. Skład „poza porozumieniem” sprawdzany co
+#           wydanie: poza = Iran + Libia + Wenezuela w miesiącach szacunku (ilv: True/False/None — strona nazywa te kraje tylko przy True).
+#           SR_STEO_HIST miesięcy przed miesiącem wydania i wszystkie miesiące prognozy (kraje — tylko szacunki; prognoz krajów urząd nie podaje).
+#           API NIE oznacza granicy historia/prognoza — dzień wydania (wyd) i następnego wydania (nast) są ze strony raportu (bez klucza, ok. 67 KB);
+#           pierwszy miesiąc prognozy (pr_od) = miesiąc wydania, wcześniejsze miesiące to szacunki urzędu. Straż wydania: wydobycie Arabii Saudyjskiej
+#           urząd podaje tylko do ostatniego miesiąca przed wydaniem (prognozy krajów OPEC nie publikuje), więc musi ono sięgać co najmniej miesiąca
+#           przed miesiącem wydania — inaczej API ma jeszcze poprzednie wydanie (strona bywa szybsza): dane zostają poprzednie (notatka do SR_ZALEGLE_H
+#           h po wydaniu, potem błąd części). Strona raportu niedostępna — dzień wydania z oficjalnej reguły wydawcy (pierwszy wtorek po pierwszym
+#           czwartku miesiąca; poniedziałek albo ten wtorek świętem federalnym — środa; Nowy Rok w czwartek — następny czwartek), przyjęty tylko przy
+#           DOKŁADNIE zgodnej straży wydania (ostatni miesiąc Arabii Saudyjskiej = miesiąc przed miesiącem wydania). Reguła odtwarza wszystkie
+#           24 terminy 2026–2027 ze strony harmonogramu (nagranie 10.10.2026);
+#   zboza — bilans zbóż świata i USA (pszenica, kukurydza, ryż — bielony, soja: produkcja, zużycie, zapasy końcowe, zapasy w % zużycia)
+#           z miesięcznego raportu ministerstwa rolnictwa USA (plik CSV raportu, ok. 1 MB, bez klucza): sezon prognozy (flaga Proj.) z bieżącego
+#           raportu, TEN SAM sezon z poprzedniego raportu (p; w maju, gdy raport otwiera nowy sezon — brak) i poprzedni sezon (r0, szacunek).
+#           Zużycie: świat — zużycie krajowe łącznie (handel między krajami się znosi), USA — krajowe + eksport (jak w bilansach urzędu); zapasy
+#           w % zużycia = zapasy końcowe ÷ zużycie. Straże pliku: jeden numer i jedna data raportu, miesiąc raportu = miesiąc pliku, jednostka
+#           „Million Metric Tons”, świat = USA + reszta świata (±SR_WASDE_TOL mln t; nagranie 09.2026: różnice ≤ 0,01 — zaokrąglenia; towar
+#           niezgodny — pominięty z błędem). To zabezpieczenie ODCZYTU pliku (złe wiersze, przesunięte kolumny), nie niezależna kontrola zgodności
+#           źródeł: „Total Foreign” w pliku to z definicji świat − USA. Kalendarz raportów 2026 (SR_WASDE_KAL, 12:00 czasu Nowego Jorku); miesiąc spoza kalendarza — od
+#           SR_WASDE_DZIEN. dnia (raport zwykle 8.–12.). Plik CSV pojawia się zwykle dzień po raporcie: brak pliku (HTTP 404) do SR_WASDE_404_DNI
+#           dni po terminie = notatka (dane poprzedniego raportu zostają), potem błąd części (zaległy raport albo zmieniony adres pliku);
+#   uran  — średnia branżowa ceny uranu z końca miesiąca (spot i długoterminowa, USD za funt U3O8) ze strony producenta uranu (ok. 330 KB, bez
+#           klucza), SR_CAMECO_M miesięcy — do porównania w kontroli dziennej z ceną wyliczoną z funduszu fizycznego (ceny.uran w surowce.json;
+#           tylko informacja — inne definicje i chwile wyceny).
+# Kody źródeł (z, st) — pełne nazwy wyłącznie na stronie „Źródła”: steo, wasde, cameco. Bramki (_sr_due): pierwsze pobranie co godzinę do skutku;
+# po terminie publikacji, dopóki nowe dane nie przyszły — steo co 60 min, wasde co 2 h (po SR_ZALEGLE_H h od terminu — co 6 h), cameco w dniach
+# 1–15 co 6 h, później raz na dobę; poza oknem raz na 7 dni (poprawki wstecz, stały dostęp do źródła); po odmowie dostępu (HTTP 403 — ochrona
+# przed automatami — albo 429) ponowienie najwcześniej po 6 h, bez zmiany nagłówków (stan źródła: kod). Budżet czasu SR_BUDZET_S s (źródło startuje
+# tylko, gdy zmieszczą się wszystkie jego zapytania z pełnymi limitami); w długim przebiegu (BACK_LATE) — bez pobrań (dane miesięczne: 10 min
+# później nic nie zmienia). Źródło z błędem = poprzednia część z datą (ok False, krótki zamaskowany err); brak = null, nigdy 0.
+SR_V = 1
+SR_PARTS = ('ropa', 'zboza', 'uran')
+SR_ZR = (('cameco', 'uran'), ('steo', 'ropa'), ('wasde', 'zboza'))    # kolejność: najlżejsze zapytania najpierw
+SR_LIMIT_S = {'cameco': 30, 'steo': 30, 'wasde': 40}                 # s — limit jednego zapytania (10.10.2026: strona raportu 1,2 s, API 7–16 s z USA)
+SR_ZAPYTANIA = {'steo': 2, 'wasde': 2}                               # strona + API; raport bieżący + poprzedni (trzecie zapytanie — z reszty budżetu)
+SR_BUDZET_S = 120
+SR_KLUCZ = {'steo': 'EIA_KEY'}
+SR_ZALEGLE_H = 72                                                    # h po terminie publikacji — dalej ponowienie co 6 h
+SR_STEO_STRONA = 'https://www.eia.gov/outlooks/steo/'
+SR_STEO_SER = {'COPR_OPEC': 'opec', 'COPR_OPECPLUS': 'opec_plus', 'COPR_OPECPLUS_OPEC': 'objeci', 'COPR_OPECPLUS_OTHER': 'inni', 'COPC_OPEC': 'moce',
+               'COPR_SA': 'sa', 'COPR_IR': 'ir', 'COPR_LY': 'ly', 'COPR_VE': 've'}   # identyfikatory jak w arkuszu tabeli 3d (copr_opecplus_opec …), wielkimi literami
+SR_STEO_PLIK = ('opec_plus', 'objeci', 'inni', 'opec', 'moce', 'sa')   # serie zapisywane w pliku (kraje ir, ly, ve — tylko do sprawdzenia składu)
+SR_STEO_WYM = ('opec', 'opec_plus', 'objeci', 'inni')                 # serie wydobycia wymagane — bez którejś: błąd części
+SR_STEO_JEDN = 'million barrels per day'
+SR_STEO_HIST = 24                                                    # miesięcy przed miesiącem wydania (szacunki) — do tego cała prognoza
+SR_STEO_TOL = 0.005                                                  # mln b/d — różnica ujemna do tej wielkości = zaokrąglenie (wolne moce / poza = 0)
+SR_STEO_SUMA = 0.011    # mln b/d — OPEC+ = objęci + pozostali, OPEC ≥ objęci, poza = Iran + Libia + Wenezuela (3 miejsca; test wsteczny: ≤ 0,001)
+SR_WASDE_URL = 'https://www.usda.gov/sites/default/files/documents/oce-wasde-report-data-{}.csv'
+SR_WASDE_KAL = ('2026-01-12', '2026-02-10', '2026-03-10', '2026-04-09', '2026-05-12', '2026-06-11', '2026-07-10', '2026-08-12', '2026-09-11',
+                '2026-10-09', '2026-11-10', '2026-12-10')            # dni raportów 2026 (12:00 czasu Nowego Jorku); 2027 — dopisać po ogłoszeniu
+SR_WASDE_DZIEN = (8, 12)    # miesiąc spoza kalendarza: okno od 8. dnia, termin 12. (raporty zwykle 8.–12. dnia; później — notatka, po SR_WASDE_404_DNI dniach błąd)
+SR_WASDE_404_DNI = 5        # dni po terminie — dłuższy brak pliku = błąd części (plik pojawia się zwykle dzień po raporcie)
+SR_WASDE_TOL = 0.05         # mln t — straż odczytu pliku: świat = USA + reszta świata (zaokrąglenia źródła ≤ 0,01; „reszta” = świat − USA u źródła)
+SR_WASDE_T = (('pszenica', 'World Wheat Supply and Use'), ('kukurydza', 'World Corn Supply and Use'),
+              ('ryz', 'World Rice Supply and Use'), ('soja', 'World Soybean Supply and Use'))   # tabele świata (świat, USA, reszta świata w mln t)
+SR_WASDE_REG = {'World': 'swiat', 'United States': 'usa', 'Total Foreign': 'zagr'}
+SR_WASDE_ATR = {'Production': 'prod', 'Domestic Total': 'kraj', 'Total Domestic': 'kraj', 'Exports': 'eksp', 'Ending Stocks': 'zapasy'}
+SR_CAMECO_URL = 'https://www.cameco.com/invest/markets/uranium-price'
+SR_CAMECO_M = 24            # miesięcy w części uran
+SR_CAMECO_ZAKRES = (5, 1000)   # USD/lb — cena spoza zakresu = brak (inna kolumna albo zła liczba)
+SR_MIES_EN = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
+
+
+def _sr_dz(s):
+    """'RRRR-MM-DD…' → data; inaczej None."""
+    try:
+        return datetime.date.fromisoformat(str(s)[:10]) if isinstance(s, str) and len(s) >= 10 else None
+    except ValueError:
+        return None
+
+
+def _sr_mies(ym, k):
+    """Miesiąc 'RRRR-MM' przesunięty o k miesięcy."""
+    n = int(ym[:4]) * 12 + int(ym[5:7]) - 1 + k
+    return f'{n // 12:04d}-{n % 12 + 1:02d}'
+
+
+def _sr_dst(d):
+    """Czas letni w USA (od 2007): od 2. niedzieli marca do 1. niedzieli listopada (dzień zmiany liczony już jako nowy czas)."""
+    m = datetime.date(d.year, 3, 1)
+    n = datetime.date(d.year, 11, 1)
+    return m + datetime.timedelta(days=(6 - m.weekday()) % 7 + 7) <= d < n + datetime.timedelta(days=(6 - n.weekday()) % 7)
+
+
+def _sr_et(d, h, mi=0):
+    """Godzina h:mi czasu Nowego Jorku w dniu d → chwila UTC (reguła czasu letniego USA, bez bazy stref — tak samo w testach i w Actions)."""
+    return datetime.datetime(d.year, d.month, d.day, h, mi, tzinfo=datetime.timezone.utc) + datetime.timedelta(hours=4 if _sr_dst(d) else 5)
+
+
+def _sr_nty(y, m, wd, n):
+    d = datetime.date(y, m, 1)
+    return d + datetime.timedelta(days=(wd - d.weekday()) % 7 + 7 * (n - 1))
+
+
+def _sr_swieta(y):
+    """Święta federalne USA, które mogą wypaść w poniedziałek albo wtorek tuż przed wydaniem (6.–13. dnia miesiąca): Nowy Rok, Dzień
+    Niepodległości, Dzień Pracy, Kolumba, Weteranów, Boże Narodzenie (obchodzone: sobota → piątek, niedziela → poniedziałek)."""
+    obs = lambda d: d - datetime.timedelta(days=1) if d.weekday() == 5 else d + datetime.timedelta(days=1) if d.weekday() == 6 else d   # noqa: E731
+    return {obs(datetime.date(y, 1, 1)), obs(datetime.date(y, 7, 4)), _sr_nty(y, 9, 0, 1), _sr_nty(y, 10, 0, 2), obs(datetime.date(y, 11, 11)),
+            obs(datetime.date(y, 12, 25))}
+
+
+def _sr_steo_wyd(y, m):
+    """Dzień wydania raportu ropy w miesiącu (y, m) z oficjalnej reguły wydawcy: pierwszy wtorek po pierwszym czwartku; Nowy Rok w czwartek —
+    pierwszy czwartek roboczy (13.01.2026); poniedziałek przed nim albo ten wtorek świętem federalnym — środa (09.09.2026, 13.10.2027)."""
+    c = _sr_nty(y, m, 3, 1)
+    if c == datetime.date(y, 1, 1):
+        c += datetime.timedelta(days=7)
+    t = c + datetime.timedelta(days=5)
+    H = _sr_swieta(y)
+    return t + datetime.timedelta(days=1) if (t - datetime.timedelta(days=1)) in H or t in H else t
+
+
+def _sr_steo_ost(now):
+    """Ostatnie wydanie z reguły, którego chwila (12:15 czasu Nowego Jorku) nie jest późniejsza niż now → (dzień, chwila UTC)."""
+    y, m = now.year, now.month
+    for _ in range(3):
+        d = _sr_steo_wyd(y, m)
+        t = _sr_et(d, 12, 15)
+        if t <= now:
+            return d, t
+        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+    return None, None
+
+
+def _sr_wasde_exp(ym):
+    """Spodziewany raport zbóż z miesiąca ym ('RRRR-MM') → (dzień, chwila UTC 12:00 czasu Nowego Jorku, czy z kalendarza, najpóźniejsza chwila
+    terminu). Miesiąc spoza kalendarza — od SR_WASDE_DZIEN[0]. dnia (najwcześniejszy zwykły termin), najpóźniej SR_WASDE_DZIEN[1]. dnia (od niego
+    liczy się zwłoka pliku, po której brak pliku jest błędem)."""
+    k = next((d for d in SR_WASDE_KAL if d.startswith(ym)), None)
+    y, m = int(ym[:4]), int(ym[5:7])
+    d = datetime.date.fromisoformat(k) if k else datetime.date(y, m, SR_WASDE_DZIEN[0])
+    t = _sr_et(d, 12, 0)
+    return d, t, bool(k), (t if k else _sr_et(datetime.date(y, m, SR_WASDE_DZIEN[1]), 12, 0))
+
+
+def _sr_wasde_cel(now):
+    """Najnowszy raport zbóż, który według kalendarza już wyszedł (miesiąc 'RRRR-MM')."""
+    ym = f'{now.year:04d}-{now.month:02d}'
+    return ym if _sr_wasde_exp(ym)[1] <= now else _sr_mies(ym, -1)
+
+
+def _sr_due(src, z, now):
+    """Czy źródło trzeba pobrać w tym przebiegu: pierwsze pobranie (i po błędzie) — najwcześniej po 60 min; po terminie publikacji, dopóki nowe
+    dane nie przyszły — steo co 60 min, wasde co 2 h (po SR_ZALEGLE_H h — co 6 h), cameco w dniach 1–15 co 6 h, potem raz na dobę; poza oknem
+    raz na 7 dni; po odmowie dostępu (kod 403/429 w stanie) — najwcześniej po 6 h. z — stan źródła ({at, try, asof — data danych w pliku;
+    steo: nast — następne wydanie ze strony raportu; kod — 403/429 ostatniej nieudanej próby})."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if z.get('kod') in (403, 429) and tr < 360:   # ochrona przed automatami albo limit: rzadziej, bez obchodzenia (nagłówki bez zmian)
+        return False
+    if at == float('inf'):
+        return tr >= 60
+    asof = str(z.get('asof') or '')
+    if src == 'steo':   # termin: zapowiedź ze strony raportu (nowsza niż wydanie w pliku), inaczej reguła wydawcy
+        n = _sr_dz(z.get('nast'))
+        if n and n.isoformat() > asof:
+            d, t = n, _sr_et(n, 12, 15)
+            if t > now:
+                d = None
+        else:
+            d, t = _sr_steo_ost(now)
+        if d and asof < d.isoformat():
+            return tr >= (60 if (now - t).total_seconds() <= SR_ZALEGLE_H * 3600 else 360)
+    elif src == 'wasde':
+        cel = _sr_wasde_cel(now)
+        if asof < cel:
+            t = _sr_wasde_exp(cel)[1]
+            return tr >= (120 if (now - t).total_seconds() <= SR_ZALEGLE_H * 3600 else 360)
+    elif src == 'cameco':   # koniec poprzedniego miesiąca — cena jest zwykle w pierwszych dniach następnego
+        kon = (now.date().replace(day=1) - datetime.timedelta(days=1)).isoformat()
+        if asof < kon:
+            return tr >= (360 if now.day <= 15 else 24 * 60)
+    return at >= 7 * 24 * 60 and tr >= 60
+
+
+def _sr_next(part, out, now):
+    """Najbliższa spodziewana publikacja części (ISO, UTC); termin w przeszłości = publikacja zaległa (święto, przerwa w pracy urzędu)."""
+    P = out.get(part) if isinstance(out.get(part), dict) else {}
+    if part == 'ropa':
+        wyd = _sr_dz(P.get('wyd'))
+        n = _sr_dz(P.get('nast'))
+        if not (n and wyd and n > wyd):
+            base = wyd or now.date()
+            y, m, n = base.year, base.month, None
+            for _ in range(3):
+                d = _sr_steo_wyd(y, m)
+                if d > base:
+                    n = d; break
+                y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+        return _sr_et(n, 12, 0).isoformat() if n else None
+    if part == 'zboza':
+        ym = P.get('mies') if isinstance(P.get('mies'), str) and re.match(r'^\d{4}-\d{2}$', P.get('mies')) else None
+        nx = _sr_mies(ym, 1) if ym else _sr_wasde_cel(now)
+        return _sr_wasde_exp(nx)[1].isoformat()
+    if part == 'uran':   # koniec następnego miesiąca po ostatnim w pliku, publikacja w pierwszych dniach — do 7. dnia (model testu wstecznego)
+        a = _sr_dz(P.get('asof')) or (now.date().replace(day=1) - datetime.timedelta(days=1))
+        y, m = (a.year + 1, 1) if a.month == 12 else (a.year, a.month + 1)
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+        return datetime.datetime(y, m, 7, 12, 0, tzinfo=datetime.timezone.utc).isoformat()
+    return None
+
+
+# ---- parsery (nagrania w testach SurowceRaportyV320) ----
+def _sr_data_en(mies, dzien, rok):
+    """'October', '6', '2026' (także skrót „Oct.”, „Sept.”) → 'RRRR-MM-DD'; inaczej None."""
+    k = str(mies)[:3].lower()
+    if k not in SR_MIES_EN:
+        return None
+    try:
+        return datetime.date(int(rok), SR_MIES_EN.index(k) + 1, int(dzien)).isoformat()
+    except ValueError:
+        return None
+
+
+def parse_steo_strona(text, today=None):
+    """Strona raportu ropy → (dzień wydania 'RRRR-MM-DD', dzień następnego wydania albo None). Wiersz „Release Date: October 6, 2026 |
+    Forecast Completed: … | Next Release Date: November 10, 2026” (po usunięciu znaczników). Dzień wydania z przyszłości albo starszy niż
+    60 dni = błąd (inna strona albo strona nieaktualizowana); następne wydanie — po dniu wydania i najwyżej 70 dni później, inaczej None."""
+    t = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', text).replace('&nbsp;', ' '))
+    m = re.search(r'(?<!Next )Release Date:\s*([A-Za-z]{3,9})\.?\s+(\d{1,2}),\s*(\d{4})', t)
+    n = re.search(r'Next Release Date:\s*([A-Za-z]{3,9})\.?\s+(\d{1,2}),\s*(\d{4})', t)
+    wyd = _sr_data_en(*m.groups()) if m else None
+    if not wyd:
+        raise RuntimeError('brak dnia wydania na stronie raportu')
+    today = today or _now_utc().date()
+    d = datetime.date.fromisoformat(wyd)
+    if not (today - datetime.timedelta(days=60) <= d <= today):
+        raise RuntimeError(f'dzień wydania {wyd} poza oknem 60 dni')
+    nast = _sr_data_en(*n.groups()) if n else None
+    if nast and not (d < datetime.date.fromisoformat(nast) <= d + datetime.timedelta(days=70)):
+        nast = None
+    return wyd, nast
+
+
+def sr_steo_url(key, start):
+    """Adres API v2 (trasa steo): serie miesięczne SR_STEO_SER od miesiąca start, rosnąco, do 5000 wierszy."""
+    q = ([('api_key', key), ('frequency', 'monthly'), ('data[0]', 'value')] + [('facets[seriesId][]', s) for s in SR_STEO_SER]
+         + [('start', start), ('sort[0][column]', 'period'), ('sort[0][direction]', 'asc'), ('offset', '0'), ('length', '5000')])
+    return f'{EIA_API}steo/data/?' + urllib.parse.urlencode(q)
+
+
+def parse_steo(j):
+    """API v2 (trasa steo) → ({id: {'RRRR-MM': mln b/d}}, [serie z inną jednostką]). Wiersz innej serii pominięty; nie-liczba albo poza (0, 200)
+    = brak (nigdy 0); seria z inną jednostką niż „million barrels per day” — cała pominięta (zła liczba gorsza niż brak); pole error = błąd."""
+    if not isinstance(j, dict) or j.get('error'):
+        raise RuntimeError(str((j or {}).get('error') if isinstance(j, dict) else 'nieznany kształt odpowiedzi')[:140])
+    rows = (j.get('response') or {}).get('data') if isinstance(j.get('response'), dict) else None
+    if not isinstance(rows, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out, bad = {}, set()
+    for r in rows:
+        if not isinstance(r, dict) or r.get('seriesId') not in SR_STEO_SER:
+            continue
+        sid = r['seriesId']
+        if re.sub(r'\s+', ' ', str(r.get('unit') or '')).strip().lower() != SR_STEO_JEDN:
+            bad.add(sid); continue
+        ym, v = str(r.get('period') or ''), _num(r.get('value'))
+        if re.match(r'^\d{4}-\d{2}$', ym) and _isnum(v) and 0 < v < 200:
+            out.setdefault(SR_STEO_SER[sid], {})[ym] = round(v, 3)
+    for sid in bad:
+        out.pop(SR_STEO_SER[sid], None)
+    return out, sorted(bad)
+
+
+def _sr_roznica(A, B, od):
+    """Różnica A − B w tych samych miesiącach od miesiąca od → ([[miesiąc, liczba|None]], [miesiące zbyt ujemne]); ujemna do SR_STEO_TOL = 0
+    (zaokrąglenie), bardziej ujemna = brak (nigdy liczba ujemna)."""
+    w, zle = [], []
+    for m in sorted(set(A) & set(B)):
+        if m < od:
+            continue
+        x = round(A[m] - B[m], 3)
+        if x < -SR_STEO_TOL:
+            zle.append(m); w.append([m, None])
+        else:
+            w.append([m, max(x, 0.0)])
+    return w, zle
+
+
+def _sr_ilv(S, pr):
+    """Skład krajów OPEC poza porozumieniem w miesiącach szacunku (przed miesiącem wydania pr): True — w każdym miesiącu z liczbami cały OPEC −
+    objęci porozumieniem = Iran + Libia + Wenezuela (±SR_STEO_SUMA); False — w którymś nie (zmiana składu u źródła — strona nie nazywa wtedy
+    krajów); None — żadnego miesiąca z kompletem liczb."""
+    O, B = S.get('opec') or {}, S.get('objeci') or {}
+    K = [S.get(k) or {} for k in ('ir', 'ly', 've')]
+    ms = [m for m in sorted(set(O) & set(B)) if m < pr and all(m in x for x in K)]
+    if not ms:
+        return None
+    return all(abs(O[m] - B[m] - sum(x[m] for x in K)) <= SR_STEO_SUMA for m in ms)
+
+
+def _sr_opec_straz(S):
+    """Straż serii wydobycia przed przyjęciem danych → lista opisów (pusta = w porządku): brak serii wymaganej (SR_STEO_WYM), miesiące z OPEC+ ≠
+    objęci + pozostali (±SR_STEO_SUMA) i z OPEC < objęci (−SR_STEO_SUMA) — zły identyfikator serii albo zmiana definicji u źródła."""
+    ids = {v: k for k, v in SR_STEO_SER.items()}
+    brak = [ids[c] for c in SR_STEO_WYM if not S.get(c)]
+    if brak:
+        return ['brak serii ' + ', '.join(brak) + ' — sprawdzić identyfikatory serii']
+    P, B, I, O = (S[c] for c in ('opec_plus', 'objeci', 'inni', 'opec'))
+    zle = []
+    suma = [m for m in sorted(set(P) & set(B) & set(I)) if abs(P[m] - B[m] - I[m]) > SR_STEO_SUMA]
+    if suma:
+        zle.append('OPEC+ ≠ objęci porozumieniem + pozostali uczestnicy (' + ', '.join(suma[:3]) + ')')
+    mn = [m for m in sorted(set(O) & set(B)) if O[m] < B[m] - SR_STEO_SUMA]
+    if mn:
+        zle.append('OPEC < kraje OPEC objęte porozumieniem (' + ', '.join(mn[:3]) + ')')
+    return zle
+
+
+def sr_ropa(S, wyd, nast, uw=None):
+    """Część ropa z serii parse_steo: SR_STEO_HIST miesięcy przed miesiącem wydania i cała prognoza (serie SR_STEO_PLIK); wyliczone w tym samym
+    miesiącu: wolne moce = zdolność − wydobycie OPEC, poza = cały OPEC − kraje OPEC objęte porozumieniem (ujemne do SR_STEO_TOL = 0 —
+    zaokrąglenie, bardziej ujemne = brak z notatką w uw); ilv — skład krajów poza porozumieniem (_sr_ilv)."""
+    pr = wyd[:7]
+    od = _sr_mies(pr, -SR_STEO_HIST)
+    s = {}
+    for cid in SR_STEO_PLIK:
+        rows = sorted((m, v) for m, v in (S.get(cid) or {}).items() if m >= od)
+        if rows:
+            s[cid] = [[m, v] for m, v in rows]
+    for cid, a, b, opis in (('wolne', 'moce', 'opec', 'zdolność wydobywcza OPEC mniejsza niż wydobycie ({}) — wolne moce: brak'),
+                            ('poza', 'opec', 'objeci', 'wydobycie OPEC mniejsze niż krajów OPEC objętych porozumieniem ({}) — kraje OPEC poza porozumieniem: brak')):
+        w, zle = _sr_roznica(S.get(a) or {}, S.get(b) or {}, od)
+        if zle and uw is not None:
+            uw.append('steo: ' + opis.format(', '.join(zle[:4])))
+        if w:
+            s[cid] = w
+    ilv = _sr_ilv(S, pr)
+    if ilv is False and uw is not None:
+        uw.append('steo: kraje OPEC poza porozumieniem ≠ Iran + Libia + Wenezuela (zmiana składu u źródła?) — strona bez nazw tych krajów; sprawdzić opis')
+    hist = [m for m, _ in s.get('opec') or [] if m < pr]
+    return {'wyd': wyd, 'nast': nast, 'pr_od': pr, 'asof': max(hist) if hist else None, 'u': 'mln b/d', 'z': 'steo', 'x': ['sz'], 'ilv': ilv, 's': s}
+
+
+def parse_wasde(text):
+    """Plik CSV raportu zbóż → {'nr', 'wyd' (dzień raportu), 'mies' (miesiąc raportu), 'lata': {sezon: flaga}, 'k': {towar: {region: {sezon:
+    {prod, kraj, eksp, zapasy}}}}} dla pszenicy, kukurydzy, ryżu i soi (tabele SR_WASDE_T; regiony świat, USA, reszta świata), w mln t. Kolumny po
+    nazwie; spacje w nazwach ujednolicone (ryż: „Total  Domestic”); wiersz z inną jednostką niż „Million Metric Tons” pominięty; różne numery
+    albo daty raportu w pliku = błąd; towar, w którym świat ≠ USA + reszta świata (±SR_WASDE_TOL) — pominięty, opis w polu 'zle'."""
+    rows = list(csv.DictReader(io.StringIO(text.lstrip('\ufeff'))))
+    need = ('WasdeNumber', 'ReportDate', 'ReportTitle', 'Attribute', 'Region', 'MarketYear', 'ProjEstFlag', 'Value', 'Unit', 'ReleaseDate')
+    if not rows or any(c not in rows[0] for c in need):
+        raise RuntimeError('nieznany nagłówek pliku (to nie plik raportu?)')
+    sp = lambda x: re.sub(r'\s+', ' ', str(x or '')).strip()   # noqa: E731
+    nr, wyd, rd = {sp(r['WasdeNumber']) for r in rows}, {sp(r['ReleaseDate'])[:10] for r in rows}, {sp(r['ReportDate']) for r in rows}
+    if len(nr) != 1 or len(wyd) != 1 or len(rd) != 1:
+        raise RuntimeError('różne numery albo daty raportu w jednym pliku')
+    nr, wyd, rd = nr.pop(), wyd.pop(), rd.pop()
+    m = re.match(r'^([A-Za-z]+)\s+(\d{4})$', rd)
+    mies = (_sr_data_en(m.group(1), 1, m.group(2)) or '')[:7] if m else ''
+    if not (nr.isdigit() and _sr_dz(wyd) and mies):
+        raise RuntimeError(f'zły numer albo data raportu ({nr}, {wyd}, {rd})')
+    k, lata = {}, {}
+    for r in rows:
+        t = sp(r['ReportTitle'])
+        cid = next((c for c, n in SR_WASDE_T if t == n or t.startswith(n + ' ')), None)
+        reg, atr = SR_WASDE_REG.get(sp(r['Region'])), SR_WASDE_ATR.get(sp(r['Attribute']))
+        if not (cid and reg and atr) or sp(r['Unit']) != 'Million Metric Tons':
+            continue
+        my, v = sp(r['MarketYear']), _num(r['Value'])
+        if not re.match(r'^\d{4}/\d{2}$', my) or not _isnum(v) or v < 0:
+            continue
+        k.setdefault(cid, {}).setdefault(reg, {}).setdefault(my, {})[atr] = round(v, 2)
+        lata.setdefault(my, set()).add(sp(r['ProjEstFlag']).strip('()'))
+    zle = []
+    for cid in list(k):
+        for my in sorted({y for R in k[cid].values() for y in R}):
+            W, U, F = (k[cid].get(x, {}).get(my, {}) for x in ('swiat', 'usa', 'zagr'))
+            for a in ('prod', 'zapasy'):
+                if all(_isnum(x.get(a)) for x in (W, U, F)) and abs(W[a] - U[a] - F[a]) > SR_WASDE_TOL:
+                    zle.append(f'{cid} {my} {a}: świat {W[a]} ≠ USA {U[a]} + reszta {F[a]}')
+        if any(z.startswith(cid + ' ') for z in zle):
+            del k[cid]
+    if not k:
+        raise RuntimeError('brak tabel zbóż świata' + (' (' + '; '.join(zle[:2]) + ')' if zle else ''))
+    return {'nr': int(nr), 'wyd': wyd, 'mies': mies, 'lata': {y: sorted(f) for y, f in sorted(lata.items())}, 'k': k, 'zle': zle}
+
+
+def _sr_zb_wpis(reg, v):
+    """Wartości regionu i sezonu ({prod, kraj, eksp, zapasy}) → wpis strony {prod, uzycie, zapasy, su (%), [eksp — USA]}; brak składnika = None."""
+    if not isinstance(v, dict):
+        return None
+    uz = v.get('kraj') if reg == 'swiat' else (round(v['kraj'] + v['eksp'], 2) if _isnum(v.get('kraj')) and _isnum(v.get('eksp')) else None)
+    e = {'prod': v.get('prod'), 'uzycie': uz, 'zapasy': v.get('zapasy'),
+         'su': round(v['zapasy'] / uz * 100, 2) if _isnum(v.get('zapasy')) and _isnum(uz) and uz > 0 else None}
+    if reg == 'usa':
+        e['eksp'] = v.get('eksp')
+    return e if any(_isnum(x) for x in e.values()) else None
+
+
+def _sr_rok(lata, flaga):
+    return max((y for y, f in (lata or {}).items() if flaga in f), default=None)
+
+
+def sr_zboza(cur, pop=None, stary=None):
+    """Część zboza: raport bieżący cur (parse_wasde), poprzedni raport pop (parse_wasde) albo — gdy go nie pobierano — poprzednia część
+    stary (jej wpisy sezonu prognozy, gdy to raport o numerze o 1 niższym, albo jej wartości p, gdy to ten sam raport sprawdzony ponownie)."""
+    rok, rok0 = _sr_rok(cur['lata'], 'Proj.'), _sr_rok(cur['lata'], 'Est.')
+    if not rok:
+        raise RuntimeError('brak sezonu prognozy (flaga Proj.) w pliku')
+    st = stary if isinstance(stary, dict) and isinstance(stary.get('k'), dict) else None
+    snr = st.get('nr') if st else None
+    k = {}
+    for cid, _t in SR_WASDE_T:
+        C = cur['k'].get(cid)
+        if not C:
+            continue
+        for reg in ('swiat', 'usa'):
+            e = _sr_zb_wpis(reg, (C.get(reg) or {}).get(rok))
+            if not e:
+                continue
+            p = None
+            if pop:
+                p = _sr_zb_wpis(reg, ((pop['k'].get(cid) or {}).get(reg) or {}).get(rok))
+            elif st and snr == cur['nr'] - 1 and st.get('rok') == rok:
+                q = ((st['k'].get(cid) or {}).get(reg) or {})
+                p = {x: q.get(x) for x in ('prod', 'uzycie', 'zapasy', 'su', 'eksp') if x in q} or None
+            elif st and snr == cur['nr'] and st.get('rok') == rok:
+                q = (((st['k'].get(cid) or {}).get(reg) or {}).get('p'))
+                p = dict(q) if isinstance(q, dict) else None
+            e['p'] = p
+            e['r0'] = _sr_zb_wpis(reg, (C.get(reg) or {}).get(rok0)) if rok0 else None
+            k.setdefault(cid, {})[reg] = e
+    if not k:
+        raise RuntimeError(f'brak wpisów sezonu {rok}')
+    if pop:
+        pp = {'nr': pop['nr'], 'wyd': pop['wyd'], 'mies': pop['mies']}
+    elif st and snr == cur['nr'] - 1:
+        pp = {'nr': snr, 'wyd': st.get('wyd'), 'mies': st.get('mies')}
+    elif st and snr == cur['nr'] and isinstance(st.get('poprz'), dict):
+        pp = dict(st['poprz'])
+    else:
+        pp = None
+    return {'nr': cur['nr'], 'wyd': cur['wyd'], 'mies': cur['mies'], 'rok': rok, 'rok0': rok0, 'u': 'mln t', 'z': 'wasde', 'poprz': pp, 'k': k}
+
+
+def parse_cameco(text, today=None):
+    """Strona ceny uranu → [(dzień 'RRRR-MM-DD', spot, długoterminowa)] rosnąco, USD za funt U3O8 (jeden wiersz na miesiąc — późniejsza data).
+    Tabela z kolumnami po klasach komórek (monthly-date, spot-price, long-term-price) i nagłówkiem „Uranium Spot Price”; data RRRR/MM/DD (od 06.2017
+    koniec miesiąca, wcześniej pierwszy dzień); cena spoza SR_CAMECO_ZAKRES = brak; najnowszy dzień z przyszłości albo starszy niż 100 dni = błąd."""
+    tab = next((t for t in re.findall(r'<table.*?</table>', text, re.S) if 'field-monthly-date' in t and 'Uranium Spot Price' in t), None)
+    if not tab:
+        raise RuntimeError('brak tabeli cen miesięcznych')
+    cl = lambda x: re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', x))).strip()   # noqa: E731
+    lo, hi = SR_CAMECO_ZAKRES
+    cena = lambda x: round(x, 2) if _isnum(x) and lo <= x <= hi else None   # noqa: E731
+    M = {}
+    for r in re.findall(r'<tr[^>]*>(.*?)</tr>', tab, re.S):
+        c = {k: cl(v) for k, v in re.findall(r'<td[^>]*class="[^"]*views-field-field-([\w-]+)[^"]*"[^>]*>(.*?)</td>', r, re.S)}
+        m = re.match(r'^(\d{4})/(\d{2})/(\d{2})$', c.get('monthly-date', ''))
+        if not m:
+            continue
+        try:
+            d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat()
+        except ValueError:
+            continue
+        sp, lt = cena(_num(c.get('spot-price'))), cena(_num(c.get('long-term-price')))
+        if (sp is not None or lt is not None) and (d[:7] not in M or d > M[d[:7]][0]):
+            M[d[:7]] = (d, sp, lt)
+    if not M:
+        raise RuntimeError('brak wierszy z ceną')
+    rows = sorted(M.values())
+    today = today or _now_utc().date()
+    last = datetime.date.fromisoformat(rows[-1][0])
+    if not (today - datetime.timedelta(days=100) <= last <= today + datetime.timedelta(days=1)):
+        raise RuntimeError(f'najnowszy miesiąc {rows[-1][0]} poza oknem 100 dni')
+    return rows
+
+
+# ---- pobrania ----
+def _sr_get(ctx, src, url):
+    """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd źródła; ponowienie później)."""
+    lim = SR_LIMIT_S[src]
+    if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+        left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+        if left < 5:
+            raise RuntimeError('budżet czasu budowniczego wyczerpany')
+        lim = min(lim, round(left, 1))
+    return ctx['fetch'](url, lim)
+
+
+def _sr_cameco(ctx):
+    rows = parse_cameco(_sr_get(ctx, 'cameco', SR_CAMECO_URL).decode('utf-8', 'replace'), ctx['now'].date())[-SR_CAMECO_M:]
+    ctx['parts']['uran'] = {'asof': rows[-1][0], 'u': 'USD/lb', 'z': 'cameco', 'd': [[d, s] for d, s, _ in rows],
+                            'lt': [[d, x] for d, _, x in rows]}
+    return rows[-1][0]
+
+
+def _sr_steo(ctx):
+    """Wydanie ze strony raportu (zapasowo — z reguły wydawcy); to samo wydanie co w pliku = bez zapytania do API (część potwierdzona, nast
+    uaktualnione; część bez podziału OPEC+ — pobierana ponownie); nowe — API z kluczem, straż serii (_sr_opec_straz) i straż wydania (ostatni
+    miesiąc Arabii Saudyjskiej)."""
+    now, z = ctx['now'], ctx['st'].setdefault('steo', {})
+    P = ctx['pp'].get('ropa')
+    P = P if isinstance(P, dict) and isinstance(P.get('s'), dict) and isinstance(P.get('wyd'), str) else None
+    try:
+        wyd, nast = parse_steo_strona(_sr_get(ctx, 'steo', SR_STEO_STRONA).decode('utf-8', 'replace'), now.date())
+        regula = False
+    except Exception as e:
+        d, _t = _sr_steo_ost(now)
+        if d is None:
+            raise
+        wyd, nast, regula = d.isoformat(), None, True
+        ctx['uwagi'].append(f'steo: strona raportu — {e}; dzień wydania z reguły wydawcy ({wyd})')
+    pelna = P and all(isinstance(P['s'].get(c), list) for c in SR_STEO_WYM)   # część bez podziału OPEC+ (sprzed poprawki) — pobrać ponownie
+    if pelna and (P['wyd'] == wyd or (regula and P['wyd'][:7] == wyd[:7])):   # to samo wydanie (reguła nie zna dnia dokładniej niż strona)
+        if nast:
+            z['nast'] = nast
+        ctx['parts']['ropa'] = dict(P, nast=nast or P.get('nast'))
+        return P['wyd']
+    if P and wyd < P['wyd']:
+        raise RuntimeError(f'wydanie {wyd} starsze niż w pliku ({P["wyd"]})')
+    pr = wyd[:7]
+    S, bad = parse_steo(_su_json(_sr_get(ctx, 'steo', sr_steo_url(ctx['keys'].get('EIA_KEY'), _sr_mies(pr, -(SR_STEO_HIST + 2))))))
+    if bad:
+        ctx['uwagi'].append('steo: inna jednostka serii ' + ', '.join(bad) + ' — pominięte')
+    zs = _sr_opec_straz(S)   # v320 po przeglądzie: podział OPEC+ wymagany i spójny (zły identyfikator serii = błąd, nie zła liczba na stronie)
+    if zs:
+        raise RuntimeError('serie wydobycia: ' + '; '.join(zs))
+    sa = max(S['sa']) if S.get('sa') else ''
+    if sa < _sr_mies(pr, -1) or (regula and sa != _sr_mies(pr, -1)):
+        msg = f'API ma jeszcze poprzednie wydanie (Arabia Saudyjska do {sa or "—"}, wydanie z {wyd})'
+        if P and not regula and (now - _sr_et(datetime.date.fromisoformat(wyd), 12, 0)).total_seconds() <= SR_ZALEGLE_H * 3600:
+            ctx['uwagi'].append('steo: ' + msg + ' — dane poprzedniego wydania zostają, ponowienie za godzinę')
+            return P['wyd']
+        raise RuntimeError(msg)
+    ctx['parts']['ropa'] = sr_ropa(S, wyd, nast, ctx['uwagi'])
+    if nast:   # zapowiedź następnego wydania — tylko razem z przyjętymi danymi (przy API z poprzednim wydaniem bramka czeka dalej co godzinę)
+        z['nast'] = nast
+    return wyd
+
+
+def _sr_wasde(ctx):
+    """Raport z ostatniego terminu kalendarza; brak jego pliku (404, zwykle dzień po raporcie) — poprzedni miesiąc, gdy pliku jeszcze nie ma
+    (start), inaczej dane w pliku zostają (notatka; po SR_WASDE_404_DNI dniach — błąd). Poprzedni raport: z pliku strony (numer o 1 niższy albo
+    ten sam raport z jego p) albo pobrany (start, przerwa w pobraniach)."""
+    now = ctx['now']
+    P = ctx['pp'].get('zboza')
+    P = P if isinstance(P, dict) and isinstance(P.get('k'), dict) and isinstance(P.get('mies'), str) and isinstance(P.get('nr'), int) else None
+    cel = _sr_wasde_cel(now)
+    cur, url = None, lambda ym: SR_WASDE_URL.format(ym)   # noqa: E731
+    for ym in (cel, _sr_mies(cel, -1)):
+        if ym != cel and P and P['mies'] >= ym:
+            break
+        try:
+            cur = parse_wasde(_sr_get(ctx, 'wasde', url(ym)).decode('utf-8', 'replace'))
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+            t = _sr_wasde_exp(ym)[3]
+            if (now - t).total_seconds() > SR_WASDE_404_DNI * 86400:
+                raise RuntimeError(f'raport {ym}: brak pliku (HTTP 404) ponad {SR_WASDE_404_DNI} dni po terminie — zaległy raport albo zmieniony adres pliku') from None
+            ctx['uwagi'].append(f'wasde: raport {ym} — pliku jeszcze nie ma (HTTP 404; zwykle dzień po raporcie)')
+            continue
+        if cur['mies'] != ym:
+            raise RuntimeError(f'plik {ym} zawiera raport z {cur["mies"]}')
+        break
+    if cur is None:
+        if P:
+            return P['mies']
+        raise RuntimeError('brak pliku raportu (HTTP 404)')
+    if cur['zle']:
+        ctx['bledy'].append('wasde: świat ≠ USA + reszta świata — ' + '; '.join(cur['zle'][:2]))
+    pop = None
+    rok = _sr_rok(cur['lata'], 'Proj.')
+    ma_p = P and P['nr'] == cur['nr'] and P.get('rok') == rok and isinstance(P.get('poprz'), dict)   # ten sam raport, poprzedni już porównany
+    if not (P and P['nr'] == cur['nr'] - 1) and not ma_p:   # (maj: poprzedni raport nie ma nowego sezonu — p brak, poprz zostaje: bez ponawiania)
+        ym = _sr_mies(cur['mies'], -1)
+        try:
+            pop = parse_wasde(_sr_get(ctx, 'wasde', url(ym)).decode('utf-8', 'replace'))
+            if pop['mies'] != ym or pop['nr'] >= cur['nr']:
+                raise RuntimeError(f'plik {ym}: raport {pop["mies"]} nr {pop["nr"]}')
+        except Exception as e:
+            pop = None
+            ctx['uwagi'].append(f'wasde: poprzedni raport ({ym}) — {e}; bez porównania z poprzednim raportem (ponowienie przy następnym sprawdzeniu)')
+    ctx['parts']['zboza'] = sr_zboza(cur, pop, P)
+    return cur['mies']
+
+
+SR_POBIERZ = {'cameco': _sr_cameco, 'steo': _sr_steo, 'wasde': _sr_wasde}
+
+
+def build_su_raporty(prev=None, keys=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+    """v320: data/surowce-raporty.json. Każde źródło z własną bramką (_sr_due) i budżetem czasu; źródło bez klucza — pominięte z notatką; źródło
+    z błędem — poprzednia część z datą (ok False, krótki zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie
+    pobrana); błąd częściowy (np. towar ze złą sumą) — ok False i pole cz = {część: True}. Plik innej wersji = start od zera."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == SR_V else {}
+    keys = keys if isinstance(keys, dict) else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'keys': keys, 'st': st, 'pp': {p: prev[p] for p in SR_PARTS if isinstance(prev.get(p), dict)}, 'bledy': [], 'uwagi': [],
+           'parts': {}, 't0': time.monotonic(), 'budzet': SR_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or (lambda url, timeout, headers=None: get_bytes(url, headers, timeout=timeout))}
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    proby, zle, pominiete, czesc = {p: 0 for p in SR_PARTS}, {}, [], set()
+    for src, part in SR_ZR:
+        z = st.setdefault(src, {})
+        if not _sr_due(src, z, now):
+            continue
+        if SR_KLUCZ.get(src) and not keys.get(SR_KLUCZ[src]):
+            pominiete.append(f'{src} (brak {SR_KLUCZ[src]})'); continue
+        if late:
+            pominiete.append(f'{src} (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + SR_ZAPYTANIA.get(src, 1) * SR_LIMIT_S[src] > ctx['budzet']:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        nb = len(ctx['bledy'])
+        z['try'] = now_iso
+        proby[part] += 1
+        try:
+            asof = SR_POBIERZ[src](ctx)
+        except Exception as e:
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            if isinstance(e, urllib.error.HTTPError) and e.code in (403, 429):   # odmowa dostępu albo limit — następna próba po 6 h (_sr_due)
+                z['kod'] = e.code
+            else:
+                z.pop('kod', None)
+            continue
+        z['at'] = now_iso; z['asof'] = asof; z.pop('err', None); z.pop('kod', None)
+        if len(ctx['bledy']) > nb:
+            zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
+            czesc.add(part)
+    out = {'v': SR_V, 'at': None,
+           'src': 'CapitalFlowAI — raporty miesięczne o surowcach (kody źródeł z: steo, wasde, cameco — pełne nazwy na stronie Źródła)'}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in SR_PARTS:
+        if p in ctx['parts']:
+            out[p] = ctx['parts'][p]; pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = 'cached' if isinstance(out.get(p), dict) else False
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out['part_at'] = {p: pat[p] for p in SR_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in SR_PARTS if perr.get(p)}, 'next': {p: _sr_next(p, out, now) for p in SR_PARTS}, 'st': st})
+    if czesc:
+        out['cz'] = {p: True for p in SR_PARTS if p in czesc}
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('surowce (raporty): ' + x)[:200])
+    for p in SR_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('surowce (raporty) ' + x)[:200])
+    if pominiete:
+        META['notes'].append('surowce (raporty): pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 # ===================== v97: DANE RZĄDU USA (domena publiczna) — EIA, BLS, BEA =====================
 # Klucze tylko z GitHub Secrets (EIA_KEY, BLS_KEY, BEA_KEY); nigdy w plikach wynikowych (maskowanie komunikatów: SECRETS).
 EIA_API = 'https://api.eia.gov/v2/'
@@ -24623,6 +25292,19 @@ def main():
         META['errors'].append(mask(f'surowce (Polska): {e}')[:200])
         if isinstance(prev_pl, dict):
             save('polska', prev_pl)
+    # v320: SUROWCE — RAPORTY MIESIĘCZNE (data/surowce-raporty.json) — podaż ropy OPEC+ (klucz EIA_KEY tym samym mechanizmem co surowce), bilans
+    # zbóż świata i USA, cena uranu z końca miesiąca; części z własnymi bramkami wg terminów publikacji i budżetem czasu (zwykle bez zapytań — dane
+    # miesięczne); awaria budowniczego = poprzedni plik. META ok: surowce_raporty_ropa, surowce_raporty_zboza, surowce_raporty_uran.
+    prev_sr = previous('surowce-raporty')
+    try:
+        srp = build_su_raporty(prev_sr, {'EIA_KEY': eia_key}, run_t0=_RUN_T0[0])
+        save('surowce-raporty', srp)
+        for p in SR_PARTS:
+            META['ok']['surowce_raporty_' + p] = srp['ok'][p]
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'surowce (raporty): {e}')[:200]); META['ok']['surowce_raporty'] = False
+        if prev_sr:
+            save('surowce-raporty', prev_sr)
     # v305: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW (data/szlaki.json) — ruch statków w 8 cieśninach, wskaźnik presji w łańcuchach dostaw, indeks
     # cen surowców; części z własnymi bramkami wg terminów publikacji i budżetem czasu (zwykle bez zapytań — dane tygodniowe i miesięczne);
     # awaria budowniczego = poprzedni plik. META ok: szlaki_cies, szlaki_presja, szlaki_bcpi.

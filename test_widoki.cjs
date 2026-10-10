@@ -18800,3 +18800,245 @@ test('v318 (recenzja TRENDY fali 7): karty giełd BTC i ETH w TRENDACH krypto �
   const kf = g.split('<div class="panel kpi">').find(x => x.includes(I.pl['trd.kc.exch'])) || '';
   assert.ok(kf.includes(I.pl['trd.s.cm_btc']) && kf.includes('7 pełnych dób do 24.09.2026') && !kf.includes('7 dni do'), 'kafel giełd (BTC): ' + kf.slice(0, 400));
 });
+
+/* ===================== v320: SUROWCE — RAPORTY MIESIĘCZNE: bloki „Podaż ropy: OPEC+ i wolne moce” i „Światowe zapasy zbóż” (część C panelu #g-surowce;
+   plik automatu data/surowce-raporty.json) =====================
+   SR320_FILE — wynik zbieracza v320 (build_su_raporty) na nagraniach z 07–10.10.2026: raport ropy z 06.10.2026 (API: 06–12.2026, Arabia Saudyjska do 09.2026),
+   raport zbóż z 09.10.2026 SYNTETYCZNY (nagranie 09.2026 z zapasami kukurydzy −3 mln t; pliku 10.2026 nie dało się nagrać z komputera agenta) wobec
+   prawdziwego raportu z 11.09.2026, średnia branżowa uranu do 30.09.2026. Zegar przypięty (10.10.2026 14:00 UTC), wiek danych — atrapa „wiek(…)”. */
+const SR320_FILE = {"v":1,"at":"2026-10-10T14:00:00+00:00","src":"CapitalFlowAI — raporty miesięczne o surowcach (kody źródeł z: steo, wasde, cameco — pełne nazwy na stronie Źródła)","ropa":{"wyd":"2026-10-06","nast":"2026-11-10","pr_od":"2026-10","asof":"2026-09","u":"mln b/d","z":"steo","x":["sz"],"ilv":true,"s":{"opec_plus":[["2026-06",27.572],["2026-07",29.152],["2026-08",29.105],["2026-09",30.47],["2026-10",30.605],["2026-11",30.934],["2026-12",31.248]],"objeci":[["2026-06",13.49],["2026-07",15.29],["2026-08",15.17],["2026-09",16.42],["2026-10",16.42],["2026-11",16.62],["2026-12",16.87]],"inni":[["2026-06",14.082],["2026-07",13.862],["2026-08",13.935],["2026-09",14.05],["2026-10",14.185],["2026-11",14.314],["2026-12",14.378]],"opec":[["2026-06",18.61],["2026-07",20.58],["2026-08",19.86],["2026-09",20.8],["2026-10",20.76],["2026-11",20.945],["2026-12",21.23]],"moce":[["2026-06",18.63],["2026-07",20.6],["2026-08",19.88],["2026-09",20.82],["2026-10",20.78],["2026-11",20.965],["2026-12",21.25]],"sa":[["2026-06",7.16],["2026-07",7.83],["2026-08",6.53],["2026-09",8.1]],"wolne":[["2026-06",0.02],["2026-07",0.02],["2026-08",0.02],["2026-09",0.02],["2026-10",0.02],["2026-11",0.02],["2026-12",0.02]],"poza":[["2026-06",5.12],["2026-07",5.29],["2026-08",4.69],["2026-09",4.38],["2026-10",4.34],["2026-11",4.325],["2026-12",4.36]]}},"zboza":{"nr":676,"wyd":"2026-10-09","mies":"2026-10","rok":"2026/27","rok0":"2025/26","u":"mln t","z":"wasde","poprz":{"nr":675,"wyd":"2026-09-11","mies":"2026-09"},"k":{"pszenica":{"swiat":{"prod":822.43,"uzycie":826.75,"zapasy":276.29,"su":33.42,"p":{"prod":822.43,"uzycie":826.75,"zapasy":276.29,"su":33.42},"r0":{"prod":843.99,"uzycie":823.98,"zapasy":280.6,"su":34.05}},"usa":{"prod":41.66,"uzycie":51.0,"zapasy":19.51,"su":38.25,"eksp":21.09,"p":{"prod":41.66,"uzycie":51.0,"zapasy":19.51,"su":38.25,"eksp":21.09},"r0":{"prod":54.01,"uzycie":55.63,"zapasy":25.04,"su":45.01,"eksp":24.71}}},"kukurydza":{"swiat":{"prod":1290.95,"uzycie":1320.23,"zapasy":269.1,"su":20.38,"p":{"prod":1290.95,"uzycie":1320.23,"zapasy":272.1,"su":20.61},"r0":{"prod":1330.81,"uzycie":1325.13,"zapasy":301.38,"su":22.74}},"usa":{"prod":401.33,"uzycie":410.99,"zapasy":39.79,"su":9.68,"eksp":83.19,"p":{"prod":401.33,"uzycie":410.99,"zapasy":39.79,"su":9.68,"eksp":83.19},"r0":{"prod":432.34,"uzycie":423.69,"zapasy":48.82,"su":11.52,"eksp":87.0}}},"ryz":{"swiat":{"prod":533.85,"uzycie":539.61,"zapasy":196.99,"su":36.51,"p":{"prod":533.85,"uzycie":539.61,"zapasy":196.99,"su":36.51},"r0":{"prod":545.91,"uzycie":534.39,"zapasy":202.74,"su":37.94}},"usa":{"prod":5.02,"uzycie":7.18,"zapasy":1.28,"su":17.83,"eksp":2.48,"p":{"prod":5.02,"uzycie":7.18,"zapasy":1.28,"su":17.83,"eksp":2.48},"r0":{"prod":6.56,"uzycie":7.78,"zapasy":1.86,"su":23.91,"eksp":2.56}}},"soja":{"swiat":{"prod":442.35,"uzycie":442.44,"zapasy":124.02,"su":28.03,"p":{"prod":442.35,"uzycie":442.44,"zapasy":124.02,"su":28.03},"r0":{"prod":429.41,"uzycie":430.64,"zapasy":125.27,"su":29.09}},"usa":{"prod":123.42,"uzycie":124.52,"zapasy":8.43,"su":6.77,"eksp":45.86,"p":{"prod":123.42,"uzycie":124.52,"zapasy":8.43,"su":6.77,"eksp":45.86},"r0":{"prod":115.99,"uzycie":116.67,"zapasy":8.85,"su":7.59,"eksp":41.37}}}}},"uran":{"asof":"2026-09-30","u":"USD/lb","z":"cameco","d":[["2024-10-31",80.5],["2024-11-30",77.13],["2024-12-31",72.63],["2025-01-31",69.28],["2025-02-28",65.03],["2025-03-31",64.23],["2025-04-30",67.73],["2025-05-31",71.55],["2025-06-30",78.5],["2025-07-31",71.1],["2025-08-31",75.13],["2025-09-30",82.63],["2025-10-31",80.0],["2025-11-30",75.8],["2025-12-31",81.55],["2026-01-31",94.28],["2026-02-28",86.95],["2026-03-31",84.25],["2026-04-30",86.35],["2026-05-31",84.18],["2026-06-30",85.0],["2026-07-31",86.38],["2026-08-31",89.68],["2026-09-30",89.63]],"lt":[["2024-10-31",81.5],["2024-11-30",81.5],["2024-12-31",80.5],["2025-01-31",81.0],["2025-02-28",80.0],["2025-03-31",80.0],["2025-04-30",80.0],["2025-05-31",80.0],["2025-06-30",80.0],["2025-07-31",81.0],["2025-08-31",81.0],["2025-09-30",83.0],["2025-10-31",85.0],["2025-11-30",86.0],["2025-12-31",86.5],["2026-01-31",89.0],["2026-02-28",90.0],["2026-03-31",91.5],["2026-04-30",91.5],["2026-05-31",94.0],["2026-06-30",95.5],["2026-07-31",95.5],["2026-08-31",96.5],["2026-09-30",96.5]]},"part_at":{"ropa":"2026-10-10T14:00:00+00:00","zboza":"2026-10-10T14:00:00+00:00","uran":"2026-10-10T14:00:00+00:00"},"ok":{"ropa":true,"zboza":true,"uran":true},"err":{},"next":{"ropa":"2026-11-10T17:00:00+00:00","zboza":"2026-11-10T17:00:00+00:00","uran":"2026-11-07T12:00:00+00:00"},"st":{"cameco":{"try":"2026-10-10T14:00:00+00:00","at":"2026-10-10T14:00:00+00:00","asof":"2026-09-30"},"steo":{"try":"2026-10-10T14:00:00+00:00","nast":"2026-11-10","at":"2026-10-10T14:00:00+00:00","asof":"2026-10-06"},"wasde":{"try":"2026-10-10T14:00:00+00:00","at":"2026-10-10T14:00:00+00:00","asof":"2026-10"}}};
+const sr320 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const arc = cut('function arcMs(d){', '\n/* v293 (audyt G2)'), wk = cut('const wkNum=v=>', '\n/* pierścień: udziały'), wk2 = cut('const wkMs=d=>', '\nconst WK_FGZ=');
+  const blk = cut('/* ===================== v295g: SUROWCE', '\nsuLoad();suAuto();'), code = cut('/* ===================== v320: SUROWCE — RAPORTY MIESIĘCZNE', '/* ---------- panel ---------- */');
+  const lis = cut('/* v320: raporty miesięczne o surowcach — plik data/surowce-raporty.json', '/* v305g: szlaki handlowe — plik data/szlaki.json');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const NOW = Date.parse('2026-10-10T14:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o)), sp = su295.sp, txt = su295.txt;
+  const BODY = "'use strict';\n" + arc + '\n' + wk + '\n' + wk2 + '\n' + blk + '\n' + lis + '\nreturn {SU, SR, renderSu, suApply, srLoad, srApply, srOk, srBlk};';
+  const mk = (L, files) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details[open]' ? this.open.map(id => ({id})) : []; }, querySelector() { return null; }};
+    const calls = [], clicks = [], ivs = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f) => clicks.push([e, f]), querySelector: () => null, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+      'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'renderUsa', BODY)(
+      q => (q === '#g-surowce' ? el : null), v96src.tFor(L), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv,
+      v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ', {getItem: () => null, setItem() {}}, doc,
+      function () { this.observe = () => {}; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, undefined);
+    return {api, el, calls, clicks, ivs, doc};
+  };
+  const files = F => ({surowce: SU295_FILE, 'surowce-raporty': F === undefined ? SR320_FILE : F});
+  /* blok (HTML do jego końca) */
+  const blkOf = (h, id) => { const i = h.indexOf(`<details class="etfd su-b sr-b" id="${id}">`); return i < 0 ? '' : h.slice(i, h.indexOf('</details>', i) + 10); };
+  /* słuchacz kliknięć i zegar bloków (rozpoznane po kodzie — w wycinku panelu są słuchacze innych bloków) */
+  const mine = f => String(f).includes('su-b-op') || String(f).includes('srLoad');
+  const ev = id => ({target: {closest: s => (s.includes(`details#${id}>summary`) ? {} : null)}});
+  const clk = (K, id) => { const C = K.clicks.filter(c => c[0] === 'click' && mine(c[1])); assert.equal(C.length, 1, 'jeden słuchacz bloków'); C[0][1](ev(id || 'su-b-op')); };
+  const inne = (K, id) => K.clicks.filter(c => c[0] === 'click' && !mine(c[1])).forEach(([, f]) => f(ev(id || 'su-b-op')));
+  const iv = K => { const I = K.ivs.filter(x => mine(x[0])); assert.equal(I.length, 1, 'jeden zegar bloków'); return I[0]; };
+  /* oba bloki po wczytaniu pliku (kliknięcie nagłówka) */
+  const loaded = (L, F) => { const K = mk(L, files(F)); K.api.suApply(SU295_FILE); K.el.open = ['su-b-op', 'su-b-zb']; clk(K); const h = sp(K.el.innerHTML); return {K, h, A: blkOf(h, 'su-b-op'), B: blkOf(h, 'su-b-zb')}; };
+  const day = (L, d) => su295.day(L, d), mon = (L, ym) => su295.mon(L, ym);
+  /* miesiąc w dopełniaczu jak suMonG strony (pełna data bez dnia) */
+  const monG = (L, ym) => { const P = new Intl.DateTimeFormat(LOC[L], {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'}).formatToParts(new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 15))), i = P.findIndex(p => p.type === 'day');
+    return P.filter((p, j) => j !== i && !(j === i + 1 && p.type === 'literal')).map(p => p.value).join('').trim(); };
+  const cols = h => { const i = h.indexOf('<div class="wk-ch wk-cols"'); if (i < 0) return []; const c = h.slice(i, h.indexOf('</svg>', i));
+    return [...c.matchAll(/<rect class="wk-hit" x="[\d.]+" y="0" width="10" height="100" data-t="([^"]*)"\/>/g)].map(m => sp(m[1])); };
+  const rows = h => [...h.matchAll(/<div class="wk-br( na)?" data-t="([^"]*)"><span class="wk-bl">([\s\S]*?)<\/span><svg[\s\S]*?<\/svg><span class="wk-bv[^"]*">([\s\S]*?)<\/span><\/div>/g)]
+    .map(m => ({na: !!m[1], tip: sp(m[2]), l: txt(m[3]), v: txt(m[4])}));
+  return {mk, files, blkOf, clk, inne, iv, loaded, day, mon, monG, cols, rows, clone, sp, txt, code, lis, blk, NOW};
+})();
+
+test('v320: bloki „Podaż ropy” i „Światowe zapasy zbóż” — w części C po „Miedź do złota”, zwinięte; jeden plik dopiero po kliknięciu nagłówka (raz, wspólny), nieudane pobranie bez pętli, kliknięcie = nowa próba, odświeżanie co 30 min', () => {
+  const K = sr320.mk('pl', sr320.files()); K.api.suApply(SU295_FILE);
+  let h = sr320.sp(K.el.innerHTML);
+  const iC = h.indexOf('<b>Co surowce mówią o gospodarce</b>'), iCg = h.indexOf('<details class="etfd su-b" id="su-b-cg"'), iA = h.indexOf('<details class="etfd su-b sr-b" id="su-b-op">'), iB = h.indexOf('<details class="etfd su-b sr-b" id="su-b-zb">');
+  assert.ok(iC > 0 && iC < iCg && iCg < iA && iA < iB, 'część C: po „Miedź do złota”, najpierw ropa, potem zboża');
+  const iD = h.indexOf('Dokąd płynie kapitał w surowcach'); assert.ok(iD < 0 || iB < iD, 'przed częścią D');
+  assert.equal(sr320.blkOf(h, 'su-b-op'), '<details class="etfd su-b sr-b" id="su-b-op"><summary>Podaż ropy: OPEC+ i wolne moce</summary><p class="pnote">Wczytujemy dane…</p></details>');
+  assert.equal(sr320.blkOf(h, 'su-b-zb'), '<details class="etfd su-b sr-b" id="su-b-zb"><summary>Światowe zapasy zbóż: zapasy do zużycia</summary><p class="pnote">Wczytujemy dane…</p></details>');
+  assert.deepEqual(K.calls, [], 'przy starcie i rysowaniu panelu — bez pobrania data/surowce-raporty.json');
+  assert.equal(html.split("srvJSON('surowce-raporty')").length, 2, 'jedno miejsce pobrania (srLoad)');
+  assert.ok(!html.includes("['oecd','rynki','ceny','kursy','dzis','krypto','cmc','surowce-raporty']") && !/function suLoad\(\)\{[^}]*surowce-raporty/.test(html), 'nie przy starcie strony');
+  sr320.inne(K); assert.deepEqual(K.calls, [], 'słuchacze panelu (i innych bloków) nie pobierają pliku raportów');
+  K.el.open = ['su-b-zb']; sr320.clk(K, 'su-b-zb');
+  assert.deepEqual(K.calls, ['surowce-raporty'], 'kliknięcie nagłówka bloku zbóż — pobranie');
+  h = sr320.sp(K.el.innerHTML);
+  assert.ok(sr320.blkOf(h, 'su-b-zb').includes('<div class="su-zb">') && sr320.blkOf(h, 'su-b-op').includes('<div class="wk-ch wk-cols"'), 'po wczytaniu — oba bloki z danymi (jeden plik)');
+  sr320.clk(K, 'su-b-op'); K.api.renderSu(); assert.deepEqual(K.calls, ['surowce-raporty'], 'plik w pamięci — bez kolejnych pobrań');
+  assert.equal(sr320.iv(K)[1], 30 * 60 * 1000);
+  sr320.iv(K)[0](); assert.deepEqual(K.calls, ['surowce-raporty', 'surowce-raporty'], 'po wczytaniu — odświeżenie co 30 min');
+  const K0 = sr320.mk('pl', sr320.files()); K0.api.suApply(SU295_FILE); sr320.iv(K0)[0]();
+  assert.deepEqual(K0.calls, [], 'bloki nigdy nierozwinięte — zegar nic nie pobiera');
+  const F = {surowce: SU295_FILE}, K2 = sr320.mk('pl', F); K2.api.suApply(SU295_FILE); K2.el.open = ['su-b-op']; sr320.clk(K2);
+  assert.deepEqual(K2.calls, ['surowce-raporty']);
+  assert.ok(sr320.blkOf(sr320.sp(K2.el.innerHTML), 'su-b-op').includes('<p class="pnote">Nie udało się wczytać danych — zwiń i rozwiń blok, aby spróbować ponownie.</p>'));
+  K2.api.renderSu(); K2.api.renderSu(); assert.deepEqual(K2.calls, ['surowce-raporty'], 'bez pętli');
+  F['surowce-raporty'] = SR320_FILE; sr320.clk(K2); assert.deepEqual(K2.calls, ['surowce-raporty', 'surowce-raporty']);
+  assert.ok(sr320.blkOf(sr320.sp(K2.el.innerHTML), 'su-b-op').includes('<div class="wk-ch wk-cols"'), 'kliknięcie — nowa próba, potem dane');
+  delete F['surowce-raporty']; sr320.iv(K2)[0](); assert.ok(sr320.blkOf(sr320.sp(K2.el.innerHTML), 'su-b-op').includes('<div class="wk-ch wk-cols"'), 'chwilowy błąd nie zasłania danych');
+  for (const bad of [Object.assign(sr320.clone(SR320_FILE), {v: 2}), {v: 1, at: 'x', ropa: {}}, {v: 1, at: '2026-10-10T14:00:00+00:00'}]) {
+    const K3 = sr320.mk('pl', {surowce: SU295_FILE, 'surowce-raporty': bad}); K3.api.suApply(SU295_FILE); sr320.clk(K3);
+    assert.ok(sr320.blkOf(sr320.sp(K3.el.innerHTML), 'su-b-op').includes('Nie udało się wczytać danych'), JSON.stringify(bad).slice(0, 60));
+  }
+  const K4 = sr320.mk('pl', sr320.files()); K4.api.suApply(null); assert.equal(K4.el.innerHTML, ''); assert.ok(K4.el.hidden, 'bez pliku surowców panel schowany');
+});
+
+test('v320: podaż ropy — kolumny jedna na drugiej (od dołu: pozostali uczestnicy OPEC+, kraje OPEC objęte porozumieniem, kraje OPEC poza porozumieniem, wolne moce OPEC — każda część z własnej serii pliku), miesiące prognozy przygaszone, podpis z miesiącami, dniem raportu i wiekiem, zdania o OPEC+ i całym OPEC, zapasie mocy i prognozie, opis OPEC+', () => {
+  const {A} = sr320.loaded('pl'), d = x => sr320.day('pl', x), m = x => sr320.mon('pl', x), g = x => sr320.monG('pl', x);
+  assert.ok(A.includes('<p class="wk-sub"><b>Wydobycie ropy i wolne moce</b> · mln baryłek dziennie · szacunki do ' + g('2026-09') + ', prognoza od ' + g('2026-10')
+    + ' (kolumny przygaszone) · raport z ' + d('2026-10-06') + ' · wiek(2026-10-06)</p>'), A.slice(0, 600));
+  assert.equal(g('2026-09'), 'września 2026', 'dopełniacz po polsku');
+  assert.ok(A.includes('<span><i class="wk-sq s2"></i>pozostali uczestnicy OPEC+ (m.in. Rosja)</span><span><i class="wk-sq s1"></i>kraje OPEC objęte porozumieniem</span>'
+    + '<span><i class="wk-sq sr-pz"></i>kraje OPEC poza porozumieniem</span><span><i class="wk-sq sr-wm"></i>wolne moce OPEC</span>'), 'legenda czterech części (od dołu)');
+  const T = sr320.cols(A);
+  assert.equal(T.length, 7, 'kolumny: 06–12.2026 (cały zakres pliku)');
+  assert.equal(T[3], m('2026-09') + ' (szacunek) · pozostali uczestnicy OPEC+: 14,05 · kraje OPEC objęte porozumieniem: 16,42 · razem OPEC+: 30,47 · kraje OPEC poza porozumieniem: 4,38 · cały OPEC: 20,80 · wolne moce OPEC: 0,02 mln baryłek dziennie');
+  assert.equal(T[6], m('2026-12') + ' (prognoza) · pozostali uczestnicy OPEC+: 14,38 · kraje OPEC objęte porozumieniem: 16,87 · razem OPEC+: 31,25 · kraje OPEC poza porozumieniem: 4,36 · cały OPEC: 21,23 · wolne moce OPEC: 0,02 mln baryłek dziennie');
+  /* liczby obok siebie mają sens: objęci + pozostali = OPEC+, objęci + poza = cały OPEC (każdy miesiąc pliku) */
+  const S = SR320_FILE.ropa.s, V = k => Object.fromEntries(S[k]);
+  for (const [mm] of S.opec_plus) { assert.ok(Math.abs(V('objeci')[mm] + V('inni')[mm] - V('opec_plus')[mm]) < 0.002, mm + ' OPEC+'); assert.ok(Math.abs(V('objeci')[mm] + V('poza')[mm] - V('opec')[mm]) < 0.002, mm + ' OPEC'); }
+  const svg = A.slice(A.indexOf('<svg class="wk-sv"'), A.indexOf('</svg>', A.indexOf('<svg class="wk-sv"')));
+  assert.equal((svg.match(/<rect class="wk-b (s1|s2|sr-pz|sr-wm)"/g) || []).length, 16, 'szacunki 06–09: 4 × 4 części');
+  assert.equal((svg.match(/<rect class="wk-b (s1|s2|sr-pz|sr-wm) pt"/g) || []).length, 12, 'prognoza 10–12: 3 × 4 części przygaszone (klasa pt)');
+  const c3 = [...svg.matchAll(/<rect class="wk-b (s1|s2|sr-pz|sr-wm)" x="31.5" y="([\d.]+)"/g)].map(x => [x[1], +x[2]]);
+  assert.deepEqual(c3.map(x => x[0]), ['s2', 's1', 'sr-pz', 'sr-wm'], 'od dołu: pozostali, objęci (te dwie = OPEC+), poza (objęci + poza = cały OPEC), wolne moce');
+  assert.ok(c3.every((x, i) => !i || x[1] < c3[i - 1][1]), 'każda kolejna część wyżej');
+  assert.ok(A.includes('<p class="pnote su-s">Szacunek za ' + m('2026-09') + ': kraje objęte porozumieniem OPEC+ wydobywały 30,47 mln baryłek dziennie, w tym kraje spoza OPEC 14,05. '
+    + 'Cały OPEC wydobywał 20,80, w tym Arabia Saudyjska 8,10. Wolne moce OPEC: 0,02 mln baryłek dziennie. To mały zapas na wypadek przerw w dostawach.</p>'
+    + '<p class="pnote">Prognoza na ' + m('2026-12') + ': kraje objęte porozumieniem OPEC+ 31,25 mln baryłek dziennie, cały OPEC 21,23, wolne moce OPEC 0,02.</p>'), A.slice(-1500));
+  assert.ok(!A.includes('9,67') && !A.includes('10,02') && !A.includes('w tym OPEC 20,80'), 'bez dawnego błędu („pozostali” = OPEC+ − OPEC, „OPEC+ …, w tym OPEC …”)');
+  assert.ok(A.includes('<p class="pnote">OPEC+ to kraje OPEC i ich sojusznicy (m.in. Rosja), którzy wspólnie ustalają limity wydobycia. W tych liczbach OPEC+ obejmuje tylko kraje objęte '
+    + 'porozumieniem, a cały OPEC — także kraje OPEC poza porozumieniem. W tym raporcie poza porozumieniem są Iran, Libia i Wenezuela. Wolne moce to ropa'), 'opis OPEC+; skład potwierdzony przez zbieracz (ilv)');
+  assert.ok(A.includes('kolumny przygaszone — prognoza z tego samego raportu'), 'opis przygaszonych kolumn');
+  for (const ilv of [false, null, undefined]) {   /* skład niepotwierdzony — bez nazw krajów */
+    const F = sr320.clone(SR320_FILE); if (ilv === undefined) delete F.ropa.ilv; else F.ropa.ilv = ilv;
+    const A9 = sr320.loaded('pl', F).A; assert.ok(!A9.includes('Iran') && A9.includes('także kraje OPEC poza porozumieniem. Wolne moce to ropa'), String(ilv));
+  }
+  /* ocena zapasu mocy: poniżej 2 — mały, poniżej 4 — umiarkowany, wyżej — duży; bez Arabii Saudyjskiej w miesiącu — zdanie bez niej */
+  for (const [w, s] of [[1.99, 'mały'], [2, 'umiarkowany'], [3.99, 'umiarkowany'], [4, 'duży']]) {
+    const F = sr320.clone(SR320_FILE); F.ropa.s.wolne[3][1] = w;
+    assert.ok(sr320.loaded('pl', F).A.includes('To ' + s + ' zapas na wypadek przerw w dostawach.'), w + ' → ' + s);
+  }
+  const F2 = sr320.clone(SR320_FILE); F2.ropa.s.sa = F2.ropa.s.sa.slice(0, 3); F2.ropa.s.wolne[3][1] = null; F2.ropa.s.wolne[6][1] = null;
+  const A2 = sr320.loaded('pl', F2).A;
+  assert.ok(A2.includes('<p class="pnote su-s">Szacunek za ' + m('2026-09') + ': kraje objęte porozumieniem OPEC+ wydobywały 30,47 mln baryłek dziennie, w tym kraje spoza OPEC 14,05. '
+    + 'Cały OPEC wydobywał 20,80.</p>'), 'bez Arabii Saudyjskiej i bez wolnych mocy — zdania bez nich');
+  assert.ok(!/<p class="pnote su-s">\p{Ll}/u.test(A + A2), 'zdanie nie zaczyna się małą literą (nazwa miesiąca w środku zdania)');
+  assert.ok(!A2.includes('zapas na wypadek') && A2.includes('<p class="pnote">Prognoza na ' + m('2026-12') + ': kraje objęte porozumieniem OPEC+ 31,25 mln baryłek dziennie, cały OPEC 21,23.</p>'));
+  assert.ok(sr320.cols(A2)[3].includes('wolne moce OPEC: — mln'), 'podpowiedź: brak = „—”, nigdy 0');
+  /* strona niczego nie odejmuje: bez serii „poza” i bez liczby pozostałych w miesiącu — część pusta, w podpowiedzi „—” (dawniej OPEC+ − OPEC) */
+  const F3 = sr320.clone(SR320_FILE); delete F3.ropa.s.poza; F3.ropa.s.inni[0][1] = null;
+  const A3 = sr320.loaded('pl', F3).A, T3 = sr320.cols(A3), svg3 = A3.slice(A3.indexOf('<svg class="wk-sv"'));
+  assert.ok(T3[3].includes('kraje OPEC poza porozumieniem: —') && T3[0].includes('pozostali uczestnicy OPEC+: —') && T3[0].includes('razem OPEC+: 27,57'), T3[0]);
+  assert.equal((svg3.match(/<rect class="wk-b sr-pz/g) || []).length, 0); assert.equal((svg3.match(/<rect class="wk-b s2/g) || []).length, 6);
+});
+
+test('v320: zapasy zbóż — słupki świata i USA (raport bieżący i poprzedni obok siebie, jedna skala), liczba bieżąca i w nawiasie poprzednia, zdanie o świecie i największa zmiana, podpowiedź z USA z eksportem', () => {
+  const {B} = sr320.loaded('pl'), d = x => sr320.day('pl', x);
+  assert.ok(B.includes('<p class="wk-sub"><b>Zapasy na koniec sezonu 2026/27 w % rocznego zużycia</b> · prognoza z raportu z ' + d('2026-10-09') + ' · wiek(2026-10-09) · poprzedni raport: ' + d('2026-09-11') + '</p>'), B.slice(0, 500));
+  const gr = B.split('<p class="su-gh">').slice(1).map(x => sr320.txt(x.slice(0, x.indexOf('</p>'))));
+  assert.deepEqual(gr, ['Świat', 'USA']);
+  assert.ok(B.includes('<span><i class="wk-sq s1"></i>raport z ' + d('2026-10-09') + '</span><span><i class="wk-sq s2"></i>poprzedni raport (' + d('2026-09-11') + ')</span>'), 'legenda raz (przy świecie)');
+  assert.equal((B.match(/<div class="wk-leg">/g) || []).length, 1);
+  const R = sr320.rows(B);
+  assert.deepEqual(R.map(r => [r.l, r.v]), [['Pszenica', '33,4% (33,4%)'], ['Kukurydza', '20,4% (20,6%)'], ['Ryż', '36,5% (36,5%)'], ['Soja', '28,0% (28,0%)'],
+    ['Pszenica', '38,3% (38,3%)'], ['Kukurydza', '9,7% (9,7%)'], ['Ryż', '17,8% (17,8%)'], ['Soja', '6,8% (6,8%)']]);
+  assert.equal(R[1].tip, 'Kukurydza · Świat · sezon 2026/27: zapasy 269,1 mln t, zużycie 1320,2 mln t, produkcja 1291,0 mln t → 20,4% rocznego zużycia (raport z ' + d('2026-10-09') + '); poprzedni raport: 20,6%');
+  assert.equal(R[4].tip, 'Pszenica · USA · sezon 2026/27: zapasy 19,5 mln t, zużycie 51,0 mln t (w tym eksport 21,1 mln t), produkcja 41,7 mln t → 38,3% rocznego zużycia (raport z ' + d('2026-10-09') + '); poprzedni raport: 38,3%');
+  assert.ok(!R[0].tip.includes('eksport'), 'świat bez dopisku o eksporcie (handel między krajami się znosi)');
+  /* jedna skala dla świata i USA: pełna szerokość = największa liczba obu grup (pszenica USA 38,25%) */
+  const W = [...B.matchAll(/<rect class="wk-b (s1|s2)" x="0" y="[\d.]+" width="([\d.]+)"/g)].map(x => +x[2]);
+  assert.equal(W.length, 16); assert.equal(Math.max(...W), 100, 'skala do największej liczby obu grup');
+  const V = []; for (const g of ['swiat', 'usa']) for (const c of ['pszenica', 'kukurydza', 'ryz', 'soja']) { const e = SR320_FILE.zboza.k[c][g]; V.push(e.su, e.p.su); }
+  const M = Math.max(...V); V.forEach((v, i) => assert.ok(Math.abs(W[i] - v / M * 100) < 0.011, i + ': ' + W[i] + ' zamiast ' + (v / M * 100)));
+  assert.ok(Math.max(...W.slice(0, 8)) < 99, 'świat bez własnej skali — jego największy słupek (ryż) krótszy niż pszenica USA');
+  assert.ok(B.includes('<p class="pnote su-s">Świat, sezon 2026/27: zapasy na koniec sezonu wystarczą na 33,4% rocznego zużycia pszenicy, 20,4% kukurydzy, 36,5% ryżu i 28,0% soi. '
+    + 'Kukurydza — największa zmiana wobec poprzedniego raportu (' + d('2026-09-11') + '): −0,2 pkt proc.</p>'), B.slice(-900));
+  assert.ok(B.includes('W USA zużycie obejmuje eksport; ryż jest liczony jako bielony.'));
+  /* bez poprzedniego raportu: tylko liczba bieżąca, legenda z „—”, bez zdania o zmianie */
+  const F = sr320.clone(SR320_FILE); F.zboza.poprz = null; for (const c in F.zboza.k) for (const r in F.zboza.k[c]) F.zboza.k[c][r].p = null;
+  const B2 = sr320.loaded('pl', F).B;
+  assert.deepEqual(sr320.rows(B2).slice(0, 2).map(r => r.v), ['33,4%', '20,4%']); assert.ok(!B2.includes('największa zmiana') && !B2.includes(' · poprzedni raport: '), 'bez zdania o zmianie i bez dnia poprzedniego raportu w podpisie');
+  assert.ok(sr320.rows(B2)[0].tip.endsWith('poprzedni raport: —'));
+  assert.equal((B2.match(/<rect class="wk-b s2"/g) || []).length, 0, 'jedna seria (bez pustej drugiej)'); assert.ok(!B2.includes('<i class="wk-sq s2"></i>'), 'legenda bez poprzedniego raportu');
+  const Fm = sr320.clone(SR320_FILE); for (const c in Fm.zboza.k) for (const r in Fm.zboza.k[c]) Fm.zboza.k[c][r].p = null;   /* maj: poprzedni raport bez nowego sezonu (poprz zostaje) */
+  const Bm = sr320.loaded('pl', Fm).B;
+  assert.ok(!Bm.includes(' · poprzedni raport: ') && !Bm.includes('<i class="wk-sq s2"></i>') && !Bm.includes('największa zmiana'), 'bez porównania — jak bez poprzedniego raportu');
+  /* zmiany poniżej 0,05 pkt proc. — zdanie „bez zmian”; brak towaru — wiersz z kreską, w zdaniu „—” */
+  const F2 = sr320.clone(SR320_FILE); F2.zboza.k.kukurydza.swiat.p.su = 20.4; delete F2.zboza.k.soja;
+  const B3 = sr320.loaded('pl', F2).B, R3 = sr320.rows(B3);
+  assert.ok(B3.includes('Wobec poprzedniego raportu (' + d('2026-09-11') + ') wskaźniki świata się nie zmieniły.'));
+  assert.deepEqual([R3[3].l, R3[3].v, R3[3].na], ['Soja', '—', true]); assert.ok(B3.includes(', 36,5% ryżu i — soi.'));
+  const F3 = sr320.clone(SR320_FILE); F3.zboza.k.ryz.swiat.prod = null;
+  assert.ok(sr320.rows(sr320.loaded('pl', F3).B)[2].tip.includes('produkcja — mln t'), 'brak w podpowiedzi = „—”, nigdy 0');
+  /* przegląd: dzień poprzedniego raportu nieznany (poprz bez daty), liczby p są — bez zdania o zmianie (zdanie zawsze z dniem raportu) */
+  const F6 = sr320.clone(SR320_FILE); F6.zboza.poprz = null;
+  const B6 = sr320.loaded('pl', F6).B;
+  assert.ok(!B6.includes('największa zmiana') && !B6.includes('się nie zmieniły') && B6.includes('<i class="wk-sq s2"></i>poprzedni raport (—)'), B6.slice(0, 600));
+});
+
+test('v320: błędy części — z danymi „pokazujemy wcześniejsze dane”, błąd częściowy „część danych niedostępna”, bez danych „jeszcze nie pobrano” (nazwy części)', () => {
+  const F = sr320.clone(SR320_FILE); F.ok.ropa = false; F.ok.zboza = false; F.cz = {zboza: true};
+  const {A, B} = sr320.loaded('pl', F);
+  assert.ok(A.startsWith('<details class="etfd su-b sr-b" id="su-b-op"><summary>Podaż ropy: OPEC+ i wolne moce</summary><p class="pnote neu">Ostatnie pobranie części danych się nie udało (podaż ropy) — pokazujemy wcześniejsze dane z ich datą.</p>'), A.slice(0, 300));
+  assert.ok(B.includes('<p class="pnote neu">Część danych jest niedostępna (bilans zbóż) — nie było jej w ostatnim pobraniu.'), B.slice(0, 400));
+  const G = sr320.clone(SR320_FILE); delete G.ropa; G.ok.ropa = false; delete G.zboza; G.ok.zboza = 'cached';
+  const L = sr320.loaded('pl', G);
+  assert.ok(L.A.includes('<p class="pnote">Części danych jeszcze nie pobrano (podaż ropy) — pojawią się po pierwszym udanym pobraniu.</p></details>'), L.A);
+  assert.ok(L.B.includes('<p class="pnote">Części danych jeszcze nie pobrano (bilans zbóż) — pojawią się po pierwszym udanym pobraniu.</p></details>'), L.B);
+  /* przegląd: część bez próby w tym przebiegu ('cached') z danymi — to nie błąd: bez notatki */
+  const C = sr320.clone(SR320_FILE); C.ok = {ropa: 'cached', zboza: 'cached', uran: 'cached'};
+  const LC = sr320.loaded('pl', C);
+  assert.ok(!/pnote neu|Ostatnie pobranie|niedostępna|jeszcze nie pobrano/.test(LC.A + LC.B) && LC.A.includes('<div class="wk-ch wk-cols"') && LC.B.includes('<div class="su-zb">'));
+});
+
+test('v320: 10 języków — bloki w języku widza, bez surowych kluczy i bez nazw wydawców; słownik su320 czystym JSON-em, te same klucze i pola {x} we wszystkich językach, każdy klucz użyty w kodzie', () => {
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const {A, B} = sr320.loaded(L), t = v96src.tFor(L), s = A + B;
+    assert.ok(A.includes('<summary>' + t('su320.b.op') + '</summary>') && B.includes('<summary>' + t('su320.b.zb') + '</summary>'), L);
+    assert.ok(!/su320\.|su295g\.|sz305\.|\{[a-z]+\}/.test(s.replace(/<[^>]*>/g, ' ')), L + ': surowy klucz albo pole w tekście');
+    for (const w of ['EIA', 'Energy Information', 'USDA', 'WASDE', 'STEO', 'Short-Term', 'Cameco', 'UxC', 'TradeTech', 'Sprott', 'Socrata', 'CFTC']) assert.ok(!s.includes(w), L + ': nazwa wydawcy ' + w);
+    assert.ok(sr320.rows(B).length === 8 && sr320.cols(A).length === 7, L + ': wykresy');
+    assert.ok(A.includes(t('su320.op.def') + (/zh|ja/.test(L) ? '' : ' ') + t('su320.op.ilv')) && !A.includes('9,67') && !A.includes('9.67'), L + ': opis OPEC+ i skład; bez dawnej liczby');
+    assert.ok(!/<p class="pnote[^"]*">\p{Ll}/u.test(s), L + ': zdanie zaczyna się małą literą');
+    assert.equal(/[。！？] /.test(s), false, L + ': po chińsku i japońsku zdania bez spacji po „。”'); if (!/zh|ja/.test(L)) assert.ok(/\. \S/.test(A.replace(/<[^>]*>/g, '')), L + ': zdania ze spacją');
+  }
+  const a = html.indexOf('{"pl":{"su320.b.op":'); assert.ok(a > 0, 'słownik v320');
+  const pre = html.lastIndexOf('const EXTRA', a), name = html.slice(pre + 6, html.indexOf('=', pre)), e = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a);
+  assert.equal(pre + ('const ' + name + '=').length, a, 'deklaracja tuż przed słownikiem'); assert.ok(e > a, 'jedna linia for zaraz po słowniku');
+  assert.equal(html.split('const ' + name + '=').length, 2); assert.equal(html.split(name).length, 4, 'nazwa tylko w definicji i linii nakładania');
+  const D = JSON.parse(html.slice(a, e));
+  assert.deepEqual(Object.keys(D), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']);
+  const K = Object.keys(D.pl), pola = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const l in D) {
+    assert.deepEqual(Object.keys(D[l]), K, l + ': te same klucze');
+    for (const k of K) assert.equal(pola(D[l][k]), pola(D.pl[k]), l + ' ' + k + ': te same pola {x}');
+  }
+  assert.ok(K.every(k => k.startsWith('su320.')), 'przedrostek zadania');
+  const kod = sr320.code + sr320.lis + "srBlk('su-b-op','su320.b.op',srOpec)+srBlk('su-b-zb','su320.b.zb',srZboza)", skl = /^su320\.(op\.(inni|objeci|poza|wolne)|zb\.n\.|zb\.g\.|pt\.)/;
+  for (const k of K.filter(k => !skl.test(k))) assert.ok(kod.includes("'" + k + "'"), 'klucz w kodzie: ' + k);
+  assert.ok(kod.includes("t('su320.zb.n.'+c)") && kod.includes("t('su320.zb.g.'+g)") && kod.includes("t('su320.pt.'+p)") && kod.includes("t('su320.op.'+k)"), 'klucze składane w kodzie');
+  assert.deepEqual(K.filter(k => skl.test(k)).sort(), ['su320.op.inni', 'su320.op.objeci', 'su320.op.poza', 'su320.op.wolne', 'su320.pt.ropa', 'su320.pt.zboza', 'su320.zb.g.swiat', 'su320.zb.g.usa',
+    'su320.zb.n.kukurydza', 'su320.zb.n.pszenica', 'su320.zb.n.ryz', 'su320.zb.n.soja']);
+});
+
+test('v320: miejsce w kodzie — funkcje bloków przed renderSu (w bloku panelu, po blokach szlaków), bloki po „Miedź do złota”, słuchacz i zegar za startem panelu poza wycinkami v295g i szlaków; style części kolumn; widgety TradingView (jeśli są) dalej na dole', () => {
+  const r0 = html.indexOf('function renderSu(){'), z0 = html.indexOf('/* ===================== v320: SUROWCE — RAPORTY MIESIĘCZNE'), s0 = html.indexOf('/* ===================== v305g: SZLAKI');
+  assert.ok(z0 > s0 && z0 < r0, 'funkcje w bloku panelu surowców, przed renderSu');
+  assert.ok(html.includes("+suBlk('su-b-cg','su295g.b.cg',suCg())+srBlk('su-b-op','su320.b.op',srOpec)+srBlk('su-b-zb','su320.b.zb',srZboza);"), 'bloki na końcu części C');
+  const l0 = html.indexOf("document.addEventListener('click',e=>{const tg=e.target;if(tg&&tg.closest&&tg.closest('#g-surowce details#su-b-op>summary,#g-surowce details#su-b-zb>summary'))srLoad();});");
+  assert.ok(l0 > html.indexOf('\nsuLoad();suAuto();try{new MutationObserver') && l0 < html.indexOf('/* v305g: szlaki handlowe — plik data/szlaki.json'), 'słuchacz za startem panelu, przed słuchaczem szlaków');
+  assert.ok(!sr320.blk.includes('su-b-op>summary') && !sr320.blk.includes('srLoad(1)'), 'poza blokiem v295g — liczba słuchaczy i zegarów panelu bez zmian');
+  assert.equal(sr320.lis.split('addEventListener(').length, 2, 'jeden słuchacz'); assert.ok(sr320.lis.includes('setInterval(()=>{if(!document.hidden&&SR.j)srLoad(1);},30*60*1000);'));
+  assert.ok(!sr320.code.includes('setTimeout') && !sr320.code.includes('localStorage') && !sr320.code.includes('addEventListener'), 'bez zegarów, pamięci przeglądarki i słuchaczy w funkcjach bloków');
+  assert.ok(html.includes('#g-surowce .wk-ch .sr-wm{--k:var(--tl)}#g-surowce .wk-ch .sr-pz{--k:var(--yl)}'), 'wolne moce — turkus, kraje OPEC poza porozumieniem — żółte (części, nie kierunek)');
+  assert.ok(html.includes('@media (max-width:620px){#g-surowce .su-zb .wk-br{--lw:30%}}'), 'telefon: węższa kolumna nazw zbóż');
+  const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
+  const tv = sec('tv-markets');   /* przegląd: 10.10.2026 widgety TradingView usunięte decyzją właściciela — gdy sekcji nie ma, test jej nie wymaga */
+  assert.ok(sec('g-surowce') > 0 && (tv < 0 || sec('g-surowce') < tv), 'widgety TradingView (jeśli są) na dole');
+});

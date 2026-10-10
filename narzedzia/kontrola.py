@@ -49,6 +49,8 @@ LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24
              'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'surowce-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'zloto-krypto': 90, 'szlaki': 26 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska')   # v304: Polska (data/polska.json) — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['polska'] = 48 * 60   # v304: plik zmienia się przy każdym udanym pobraniu części (gaz i prąd z giełdy codziennie, także w weekend)
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'surowce-raporty')   # v320: raporty miesięczne o surowcach — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['surowce-raporty'] = 8 * 24 * 60   # v320: każde źródło sprawdzane co najmniej raz na 7 dni (dane miesięczne) — starszy plik = automat go nie dotyka
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
 
@@ -641,6 +643,9 @@ AW_BEZ_BLEDU.update({'szlaki_' + p: 'szlaki — część z błędem zostaje z da
 
 AW_BEZ_BLEDU.update({'polska_' + p: 'Polska — część z błędem zostaje z datą (v304); wiek danych w wierszach świeżości'
                      for p in ('zloto', 'hurt', 'energia', 'stacje', 'pszenica')})
+
+AW_BEZ_BLEDU.update({'surowce_raporty_' + p: 'surowce — raport miesięczny z błędem zostaje z datą (v320); wiek danych w wierszach świeżości'
+                     for p in ('ropa', 'zboza', 'uran')})
 
 
 def _aw_t(s):
@@ -4574,6 +4579,291 @@ def szlaki_kontrola(j, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v320: surowce — raporty miesięczne (data/surowce-raporty.json) i drugi kanał pozycji CFTC ----------------------------------------------------------------
+# Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️; data danych = dzień wydania raportu (ropa, zboża) albo koniec
+# miesiąca ceny (uran). Progi z testu wstecznego (ws53/v320-surowce46/bt/bt_swiezosc.py, 10.10.2026; wiek jak wiek_danych, kontrola co godzinę
+# i o 06:20 UTC): ropa — kalendarz z oficjalnej reguły wydawcy 2010–2027 (zgodny z 24 terminami 2026–2027), najwyższy wiek tuż przed nowym
+# wydaniem 35,76 dnia → próg 38 dni: 0 ⚠️ (35 dni — 57 kontroli, 0,04%); zboża — kalendarz 2026 (najwyżej 35,06 dnia) i model najgorszego
+# przypadku (raport 8.–12. dnia, plik CSV do następnego dnia roboczego: 38,08 dnia) → próg 40 dni: 0 ⚠️ poza przerwą w pracy urzędu (raport
+# odwołany: X 2013, I 2019, X 2025 — wtedy ⚠️ jest prawdziwe); uran — publikacja do 7. dnia następnego miesiąca (07.10.2026 był już wrzesień),
+# najwyżej 38,22 dnia → próg 45 dni: 0 ⚠️ (zapas 7 dni na późniejszą publikację). ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (wolne
+# moce ≠ zdolność − wydobycie, kraje OPEC poza porozumieniem ≠ cały OPEC − objęci porozumieniem, zapasy w % zużycia ≠ zapasy ÷ zużycie, pierwszy
+# miesiąc prognozy ≠ miesiąc wydania, miesiące nie rosną, zero albo wartość ujemna zamiast braku, zła jednostka). Podział OPEC+ (v320 po
+# przeglądzie; OPEC+ urzędu = tylko kraje objęte porozumieniem, cały OPEC — także Iran, Libia, Wenezuela): OPEC+ = objęci + pozostali uczestnicy
+# (±SR_K_TOL) i cały OPEC ≥ objęci — inaczej ⚠️ (źródło niespójne); test wsteczny ws53/v320-surowce46/bt/bt_opecplus.py (arkusze 5 wydań
+# 10.2024–10.2026, 207 miesięcy): 0 ⚠️ (fałszywych 0%). Wcześniejsze „OPEC+ ≥ OPEC” usunięte — zła przesłanka. Uran z funduszu fizycznego (ceny.uran w surowce.json) wobec średniej branżowej z końca miesiąca —
+# tylko ℹ️: inne definicje i chwile wyceny (fundusz wycenia uran po cenach dnia; średnia branżowa — koniec miesiąca), bez progu.
+# Pozycje funduszy USA (pozycje.cftc w surowce.json, plik tygodniowy urzędu) wobec tego samego raportu w drugim kanale urzędu (zbiór danych
+# Socrata 72hh-3qpy, futures only; jedno zapytanie GET bez klucza, ok. 0,2 MB): open interest i 13 pozycji grup ostatniego raportu oraz open
+# interest i netto funduszy zarządzających z 13 tygodni. Test wsteczny (ws53/v320-surowce46/bt/bt_cftc_socrata.py): pliki roczne 2024–2026 wobec
+# drugiego kanału, 30 rynków, 145 tygodni (02.01.2024 – 06.10.2026), 4208 raportów, 58 912 liczb — 0 różnic, 0 raportów tylko w jednym kanale
+# → KAŻDA różnica = ⚠️ (fałszywych 0%). Drugi kanał bez tego raportu (publikuje później) albo bez odpowiedzi — ℹ️, nigdy ❌.
+import urllib.parse   # v320: adres zapytania drugiego kanału (biblioteka standardowa; ponowny import jest nieszkodliwy)
+
+SR_K_ETYKIETA = {'ropa': 'surowce: podaż ropy OPEC+ (raport miesięczny — szacunek i prognoza)', 'zboza': 'surowce: bilans zbóż świata i USA (raport miesięczny)',
+                 'uran': 'surowce: uran — średnia branżowa z końca miesiąca'}
+SR_K_PROG = {'ropa': ('w', 38 * 24 * 60), 'zboza': ('w', 40 * 24 * 60), 'uran': ('w', 45 * 24 * 60)}
+SR_K_DATA = {'ropa': 'wyd', 'zboza': 'wyd', 'uran': 'asof'}
+SR_K_TOL = 0.011         # zaokrąglenia: wolne moce (3 miejsca), zapasy w % zużycia (2 miejsca)
+SR_K_URAN_DNI = 4        # dni — wycena funduszu najwyżej tyle przed końcem miesiąca (koniec miesiąca w weekend albo w święto w Kanadzie)
+SR_K_TOWARY = {'pszenica': 'pszenica', 'kukurydza': 'kukurydza', 'ryz': 'ryż', 'soja': 'soja'}
+SR_K_SOC_URL = 'https://publicreporting.cftc.gov/resource/72hh-3qpy.json'
+SR_K_SOC_POLA = (('oi', None, 'open_interest_all'), ('prod', 0, 'prod_merc_positions_long'), ('prod', 1, 'prod_merc_positions_short'),
+                 ('swap', 0, 'swap_positions_long_all'), ('swap', 1, 'swap__positions_short_all'), ('swap', 2, 'swap__positions_spread_all'),
+                 ('mm', 0, 'm_money_positions_long_all'), ('mm', 1, 'm_money_positions_short_all'), ('mm', 2, 'm_money_positions_spread'),
+                 ('other', 0, 'other_rept_positions_long'), ('other', 1, 'other_rept_positions_short'), ('other', 2, 'other_rept_positions_spread'),
+                 ('nonrept', 0, 'nonrept_positions_long_all'), ('nonrept', 1, 'nonrept_positions_short_all'))
+SR_K_SOC_DNI = 13 * 7    # dni wstecz od ostatniego raportu (13 tygodni historii w pliku strony)
+SR_K_SOC_S = 30          # s — limit zapytania (10.10.2026: 0,2 MB w 1,7 s)
+
+
+def _sr_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf')
+
+
+def _sr_k_wiersze(rows):
+    return [x for x in rows if isinstance(x, list) and len(x) == 2] if isinstance(rows, list) else []
+
+
+def surowce_raporty_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku surowce-raporty.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga).
+    Najwyżej ⚠️, nigdy ❌; brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for p, label in SR_K_ETYKIETA.items():
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = P.get(SR_K_DATA[p]) if isinstance(P.get(SR_K_DATA[p]), str) else None
+        kat, prog = SR_K_PROG[p]
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(txt, 'day', kat, now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
+            note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(nt)}' + (' — zaległa (przerwa w pracy urzędu?)' if pt and pt < now else '') if pt else '')
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def surowce_raporty_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w raportach miesięcznych) → lista opisów."""
+    zle = []
+    R = j.get('ropa') if isinstance(j.get('ropa'), dict) else None
+    if R:
+        if R.get('u') != 'mln b/d':
+            zle.append(f'ropa: jednostka {R.get("u")} zamiast mln b/d')
+        if isinstance(R.get('wyd'), str) and R.get('pr_od') != R['wyd'][:7]:
+            zle.append(f'ropa: pierwszy miesiąc prognozy {R.get("pr_od")} ≠ miesiąc wydania {R["wyd"][:7]}')
+        S = R.get('s') if isinstance(R.get('s'), dict) else {}
+        for cid, rows in S.items():
+            d = _sr_k_wiersze(rows)
+            ms = [str(x[0]) for x in d]
+            if ms != sorted(set(ms)):
+                zle.append(f'ropa.{cid}: miesiące nie rosną albo się powtarzają')
+            zero = cid in ('wolne', 'poza')   # wyliczone różnice: 0 dozwolone (zaokrąglenie), wydobycie i zdolność > 0
+            if any(x[1] is not None and not (_sr_k_num(x[1]) and (x[1] >= 0 if zero else x[1] > 0)) for x in d):
+                zle.append(f'ropa.{cid}: wartość ' + ('ujemna' if zero else '≤ 0') + ' albo nie-liczba (brak ma być null)')
+        O, C, B = ({str(x[0]): x[1] for x in _sr_k_wiersze(S.get(k)) if _sr_k_num(x[1]) and x[1] > 0} for k in ('opec', 'moce', 'objeci'))   # złe liczby — wyżej
+        for m, v in ({str(x[0]): x[1] for x in _sr_k_wiersze(S.get('wolne'))}).items():
+            if _sr_k_num(v) and m in O and m in C and abs(max(C[m] - O[m], 0.0) - v) > SR_K_TOL:
+                zle.append(f'ropa: wolne moce {m} = {v} ≠ zdolność − wydobycie ({C[m] - O[m]:.3f})'); break
+        for m, v in ({str(x[0]): x[1] for x in _sr_k_wiersze(S.get('poza'))}).items():
+            if _sr_k_num(v) and m in O and m in B and abs(max(O[m] - B[m], 0.0) - v) > SR_K_TOL:
+                zle.append(f'ropa: kraje OPEC poza porozumieniem {m} = {v} ≠ cały OPEC − objęci porozumieniem ({O[m] - B[m]:.3f})'); break
+    Zb = j.get('zboza') if isinstance(j.get('zboza'), dict) else None
+    if Zb:
+        if Zb.get('u') != 'mln t':
+            zle.append(f'zboza: jednostka {Zb.get("u")} zamiast mln t')
+        for cid, regs in ((Zb.get('k') or {}).items() if isinstance(Zb.get('k'), dict) else ()):
+            for reg, e in ((regs or {}).items() if isinstance(regs, dict) else ()):
+                for nazwa, x in (('bieżący', e), ('poprzedni', e.get('p') if isinstance(e, dict) else None), ('sezon wcześniej', e.get('r0') if isinstance(e, dict) else None)):
+                    if not isinstance(x, dict):
+                        continue
+                    if any(x.get(a) is not None and not (_sr_k_num(x.get(a)) and x[a] >= 0) for a in ('prod', 'uzycie', 'zapasy', 'su', 'eksp')):
+                        zle.append(f'zboza.{cid}.{reg} ({nazwa}): wartość ujemna albo nie-liczba'); continue
+                    su, zp, uz = x.get('su'), x.get('zapasy'), x.get('uzycie')
+                    if _sr_k_num(su) and _sr_k_num(zp) and _sr_k_num(uz) and uz > 0 and abs(zp / uz * 100 - su) > SR_K_TOL:
+                        zle.append(f'zboza.{cid}.{reg} ({nazwa}): zapasy w % zużycia {su} ≠ {zp / uz * 100:.2f}')
+    U = j.get('uran') if isinstance(j.get('uran'), dict) else None
+    if U:
+        for k in ('d', 'lt'):
+            d = _sr_k_wiersze(U.get(k))
+            ds = [str(x[0]) for x in d]
+            if ds != sorted(set(ds)):
+                zle.append(f'uran.{k}: daty nie rosną albo się powtarzają')
+            if any(x[1] is not None and not (_sr_k_num(x[1]) and x[1] > 0) for x in d):
+                zle.append(f'uran.{k}: wartość ≤ 0 albo nie-liczba (brak ma być null)')
+    return zle
+
+
+def surowce_raporty_porownania(j, su=None, sh=None):
+    """Porównania z plików strony (bez sieci, najwyżej ⚠️): uran z funduszu fizycznego (dzień wyceny najwyżej SR_K_URAN_DNI dni przed końcem
+    miesiąca) wobec średniej branżowej z tego końca miesiąca — ℹ️; podział OPEC+: OPEC+ = objęci porozumieniem + pozostali uczestnicy (±SR_K_TOL)
+    i cały OPEC ≥ objęci, brak podziału w pliku — ⚠️ (źródło niespójne albo zły identyfikator serii); podsumowanie raportów.
+    → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    W, U = [], []
+    R = j.get('ropa') if isinstance(j.get('ropa'), dict) else None
+    if R:
+        S = R.get('s') if isinstance(R.get('s'), dict) else {}
+        O, P, B, I = ({str(x[0]): x[1] for x in _sr_k_wiersze(S.get(k)) if _sr_k_num(x[1])} for k in ('opec', 'opec_plus', 'objeci', 'inni'))
+        suma = sorted(m for m in set(P) & set(B) & set(I) if abs(P[m] - B[m] - I[m]) > SR_K_TOL)
+        mn = sorted(m for m in set(O) & set(B) if O[m] < B[m] - SR_K_TOL)
+        bez = not (B and I)
+        if suma:
+            U.append('surowce: podaż ropy — OPEC+ ≠ kraje OPEC objęte porozumieniem + pozostali uczestnicy w miesiącach ' + ', '.join(suma[:4])
+                     + ' (źródło niespójne) — sprawdzić')
+        if mn:
+            U.append('surowce: podaż ropy — cały OPEC mniejszy niż kraje OPEC objęte porozumieniem w miesiącach ' + ', '.join(mn[:4])
+                     + ' (źródło niespójne) — sprawdzić')
+        if bez:
+            U.append('surowce: podaż ropy — w pliku brak podziału OPEC+ (kraje OPEC objęte porozumieniem, pozostali uczestnicy) — sprawdzić')
+        W.append((f'ropa: wydanie {R.get("wyd") or "—"}, szacunki do {R.get("asof") or "—"}, prognoza od {R.get("pr_od") or "—"}; '
+                  'OPEC+ = objęci porozumieniem + pozostali uczestnicy, cały OPEC ≥ objęci', '⚠️' if suma or mn or bez else '✅'))
+    Zb = j.get('zboza') if isinstance(j.get('zboza'), dict) else None
+    if Zb:
+        K = Zb.get('k') if isinstance(Zb.get('k'), dict) else {}
+        bez = [SR_K_TOWARY.get(c, c) for c in SR_K_TOWARY if c not in K]
+        npw = sum(1 for R2 in K.values() if isinstance(R2, dict) for e in R2.values() if isinstance(e, dict) and isinstance(e.get('p'), dict))
+        W.append((f'zboża: raport {Zb.get("mies") or "—"} (nr {Zb.get("nr") or "—"}), sezon {Zb.get("rok") or "—"}; z poprzednim raportem: {npw} z 8 wpisów'
+                  + (f'; brak: {", ".join(bez)}' if bez else ''), 'ℹ️'))
+    Ur = j.get('uran') if isinstance(j.get('uran'), dict) else None
+    if Ur:
+        C = {str(x[0]): x[1] for x in _sr_k_wiersze(Ur.get('d')) if _sr_k_num(x[1])}
+        F = {}
+        for src in (((sh or {}).get('d') or {}).get('uran') if isinstance(sh, dict) and isinstance(sh.get('d'), dict) else None,
+                    (((su or {}).get('ceny') or {}).get('uran') or {}).get('d') if isinstance(su, dict) and isinstance(su.get('ceny'), dict) else None):
+            for x in _sr_k_wiersze(src):
+                if isinstance(x[0], str) and _sr_k_num(x[1]):
+                    F[x[0][:10]] = x[1]
+        para = None
+        for d in sorted(C, reverse=True):
+            try:
+                k0 = dt.date.fromisoformat(d)
+            except ValueError:
+                continue
+            f = max((x for x in F if (k0 - dt.timedelta(days=SR_K_URAN_DNI)).isoformat() <= x <= d), default=None)
+            if f:
+                para = (d, C[d], f, F[f]); break
+        if para:
+            r = (para[3] / para[1] - 1) * 100
+            W.append((f'uran {para[0]}: wycena funduszu fizycznego ({para[2]}) {para[3]:.2f} vs średnia branżowa {para[1]:.2f} USD/lb ({r:+.2f}%) — '
+                      'informacja (inne definicje i chwile wyceny), bez progu'.replace('.', ','), 'ℹ️'))
+        else:
+            od = min(F) if F else None
+            W.append((f'uran: brak wspólnego dnia (wycena funduszu od {od or "—"}, ostatni koniec miesiąca średniej branżowej {max(C) if C else "—"}) — '
+                      'porównanie od pierwszego końca miesiąca z wyceną funduszu', 'ℹ️'))
+    return {'wiersze': W, 'uwagi': U}
+
+
+def surowce_raporty_kontrola(files, R):
+    """Kontrola pliku surowce-raporty.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i porównania (najwyżej ⚠️). Brak pliku albo inna wersja =
+    None (raport bez linii)."""
+    j = files.get('surowce-raporty') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = surowce_raporty_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'surowce-raporty.json: sprzeczność w pliku — {z}')
+    P = surowce_raporty_porownania(j, files.get('surowce'), files.get('surowce-hist'))
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
+def surowce_cftc_url(kody, od):
+    """Zapytanie drugiego kanału: wiersze rynków `kody` od dnia `od`, tylko pola porównania, rosnąco (bez klucza)."""
+    q = {'$select': 'cftc_contract_market_code,report_date_as_yyyy_mm_dd,' + ','.join(c for _, _, c in SR_K_SOC_POLA),
+         '$where': 'cftc_contract_market_code in(' + ','.join(f"'{c}'" for c in kody) + f") AND report_date_as_yyyy_mm_dd >= '{od}T00:00:00.000'",
+         '$order': 'report_date_as_yyyy_mm_dd,cftc_contract_market_code', '$limit': '5000'}
+    return SR_K_SOC_URL + '?' + urllib.parse.urlencode(q, quote_via=urllib.parse.quote)
+
+
+def surowce_cftc_porownanie(C, wiersze):
+    """Pozycje USA z pliku strony (pozycje.cftc: {rynek: {code, asof, oi, pos, h}}) wobec wierszy drugiego kanału → {'wiersze', 'uwagi', 'raport'}:
+    ostatni raport — open interest i 13 pozycji grup każdego rynku; historia — open interest i netto funduszy zarządzających (h). Każda różnica = ⚠️;
+    rynek bez wiersza w drugim kanale — ℹ️ (kanał publikuje później)."""
+    I = {}
+    for r in wiersze if isinstance(wiersze, list) else []:
+        if isinstance(r, dict) and isinstance(r.get('cftc_contract_market_code'), str) and isinstance(r.get('report_date_as_yyyy_mm_dd'), str):
+            I[(r['cftc_contract_market_code'].strip(), r['report_date_as_yyyy_mm_dd'][:10])] = r
+
+    def n(r, c):
+        try:
+            return int(str(r.get(c)).strip())
+        except (TypeError, ValueError):
+            return None
+    E = {k: e for k, e in C.items() if isinstance(e, dict) and isinstance(e.get('code'), str) and isinstance(e.get('asof'), str)}
+    w = max((e['asof'] for e in E.values()), default=None)
+    rozne, brak, nl, nh = [], [], 0, 0
+    for k, e in sorted(E.items()):
+        if e['asof'] == w:
+            r = I.get((e['code'], w))
+            if r is None:
+                brak.append(k)
+            else:
+                pos = e.get('pos') if isinstance(e.get('pos'), dict) else {}
+                for g, i, col in SR_K_SOC_POLA:
+                    a = e.get('oi') if g == 'oi' else ((pos.get(g) or [None] * 3)[i] if isinstance(pos.get(g), list) and len(pos.get(g)) > i else None)
+                    b = n(r, col)
+                    nl += 1
+                    if a != b:
+                        rozne.append(f'{k} {w} {g if i is None else g + "." + ("long", "short", "spread")[i]}: plik {a} vs {b}')
+        h = e.get('h') if isinstance(e.get('h'), dict) else {}
+        for d, oi, net in zip(h.get('d') or [], h.get('oi') or [], h.get('net') or []):
+            r = I.get((e['code'], str(d)))
+            if r is None or d == e['asof']:
+                continue
+            nh += 1
+            ml, ms_ = n(r, 'm_money_positions_long_all'), n(r, 'm_money_positions_short_all')
+            if oi != n(r, 'open_interest_all') or (ml is None or ms_ is None or net != ml - ms_):
+                rozne.append(f'{k} {d} historia: OI {oi} / netto {net} vs {n(r, "open_interest_all")} / {(ml - ms_) if ml is not None and ms_ is not None else None}')
+    W, U = [], []
+    if w is None:
+        return {'wiersze': [], 'uwagi': [], 'raport': None}
+    hist = f'{nh} {_odm(nh, "wcześniejszy wpis", "wcześniejsze wpisy", "wcześniejszych wpisów")} rynków (open interest i netto funduszy zarządzających)'
+    wyn = f' — różne liczby: {len(rozne)}' if rozne else ' — zgodne'
+    if brak and len(brak) == len([e for e in E.values() if e['asof'] == w]):
+        W.append((f'raport {w}: drugi kanał nie ma jeszcze tego raportu (publikuje później); porównano {hist}{wyn}', '⚠️' if rozne else 'ℹ️'))
+    else:
+        ile = len([e for e in E.values() if e['asof'] == w]) - len(brak)
+        W.append((f'raport {w}: {ile} {_odm(ile, "rynek", "rynki", "rynków")} × {len(SR_K_SOC_POLA)} liczb i {hist}'
+                  + (f'; bez wiersza w drugim kanale: {", ".join(brak[:5])}' if brak else '') + wyn,
+                  '⚠️' if rozne else ('ℹ️' if brak else '✅')))
+    if rozne:
+        U.append(f'surowce: pozycje funduszy USA — plik tygodniowy i drugi kanał urzędu różnią się ({len(rozne)} {_odm(len(rozne), "liczba", "liczby", "liczb")}, np. ' + '; '.join(rozne[:3])
+                 + ') — w 2024–2026 kanały były identyczne; sprawdzić, czy urząd nie poprawił raportu')
+    return {'wiersze': W, 'uwagi': U, 'raport': w}
+
+
+def surowce_cftc_kontrola(j, R, pobierz=None):
+    """Drugi kanał pozycji USA — jedno zapytanie GET bez klucza (pobierz(url) → bajty; domyślnie get). Brak pliku v2 albo pozycji = None (bez
+    zapytania, raport bez linii); błąd zapytania — ℹ️ z opisem, nigdy ❌."""
+    C = (((j or {}).get('pozycje') or {}).get('cftc') if isinstance(j, dict) and j.get('v') == 2 and isinstance(j.get('pozycje'), dict) else None)
+    if not isinstance(C, dict) or not any(isinstance(e, dict) and isinstance(e.get('asof'), str) and isinstance(e.get('code'), str) for e in C.values()):
+        return None
+    w = max(e['asof'] for e in C.values() if isinstance(e, dict) and isinstance(e.get('asof'), str))
+    try:
+        od = (dt.date.fromisoformat(w) - dt.timedelta(days=SR_K_SOC_DNI)).isoformat()
+    except ValueError:
+        return None
+    kody = sorted({e['code'] for e in C.values() if isinstance(e, dict) and isinstance(e.get('code'), str) and re.fullmatch(r'[0-9A-Z]{6}', e['code'])})
+    try:
+        b = pobierz(surowce_cftc_url(kody, od)) if pobierz else get(surowce_cftc_url(kody, od), timeout=SR_K_SOC_S)[1]
+        rows = json.loads(b)
+        if not isinstance(rows, list):
+            raise ValueError('odpowiedź nie jest listą')
+    except Exception as e:  # noqa
+        return {'wiersze': [(f'raport {w}: drugi kanał nie odpowiada ({str(e)[:80]}) — bez porównania', 'ℹ️')], 'uwagi': [], 'raport': w}
+    P = surowce_cftc_porownanie(C, rows)
+    R['uwagi'] += P['uwagi']
+    return P
+
+
 # ---------------------------------------------------------------- v304: Polska (data/polska.json) ----------------------------------------------------------------
 # Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian — test liczy jej wiersze), najwyżej ⚠️; pole next pliku mówi, kiedy
 # spodziewana jest publikacja. Progi z testu wstecznego (ws53/v304-polska/bt/bt_swiezosc.py, 08.10.2026; wiek liczony wiek_danych jak tu;
@@ -5058,6 +5348,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-sr. v320: raporty miesięczne o surowcach (data/surowce-raporty.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in surowce_raporty_swiezosc(files.get('surowce-raporty')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-pl. v304: Polska (data/polska.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
     for label, st, w, txt, note in polska_swiezosc(files.get('polska')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -5312,6 +5609,18 @@ def kontrola():
     except Exception as e:  # noqa
         Z['szlaki'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'szlaki: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v320: raporty miesięczne o surowcach — sprzeczności w pliku (❌) i porównania (uran z funduszu vs średnia branżowa — ℹ️), z plików strony, bez zapytań
+    try:
+        Z['surowce-raporty'] = surowce_raporty_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['surowce-raporty'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'surowce (raporty): kontrola przerwana ({str(e)[:80]})')
+    # 3g. v320: pozycje funduszy USA — plik tygodniowy (surowce.json) vs ten sam raport w drugim kanale urzędu (jedno zapytanie bez klucza); różnica = ⚠️
+    try:
+        Z['surowce-cftc'] = surowce_cftc_kontrola(files.get('surowce'), R)
+    except Exception as e:  # noqa
+        Z['surowce-cftc'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'surowce (pozycje, drugi kanał): kontrola przerwana ({str(e)[:80]})')
     # 3g. v304: Polska — sprzeczności w pliku (❌) i złoto w zł/g wobec ceny w USD × kurs USD/PLN (najwyżej ⚠️), z plików strony, bez zapytań
     try:
         Z['polska'] = polska_kontrola(files, R)
@@ -5629,6 +5938,15 @@ def raport_md(R):
             L.append('- Szlaki handlowe i łańcuchy dostaw (z pliku strony): ' + (f'? kontrola przerwana ({szl["blad"]})' if szl.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(szl['spojnosc'][:3]) + ' ❌ · ' if szl.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in szl.get('wiersze') or []) or '—') + '.')
+        srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
+        if srz:
+            L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(srz['spojnosc'][:3]) + ' ❌ · ' if srz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in srz.get('wiersze') or []) or '—') + '.')
+        scz = Z.get('surowce-cftc')   # v320: pozycje funduszy USA — plik tygodniowy vs drugi kanał urzędu; brak pozycji w pliku = bez linii
+        if scz:
+            L.append('- Surowce — pozycje funduszy USA, plik tygodniowy vs drugi kanał urzędu (ten sam raport): ' + (f'? kontrola przerwana ({scz["blad"]})' if scz.get('blad') else
+                     ' · '.join(f'{o} {zn}' for o, zn in scz.get('wiersze') or []) or '—') + '.')
         pz = Z.get('polska')   # v304: Polska — sprzeczności w pliku i porównanie złota (różnica w %, bez cen); brak pliku = bez linii
         if pz:
             L.append('- Polska (porównanie z plików strony): ' + (f'? kontrola przerwana ({pz["blad"]})' if pz.get('blad') else
