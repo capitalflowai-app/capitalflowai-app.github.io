@@ -39293,3 +39293,254 @@ class WygladGlobalV321(unittest.TestCase):
         self.assertEqual(D['pl']['w321.h.1d'] + D['pl']['w321.h.1m'], '1D1M')
         self.assertEqual(D['pl']['w321.k.gold'], 'Złoto')
         self.assertEqual(D['pl']['w321.k.brent'], 'Ropa Brent')
+
+
+class StopySurowceV325(unittest.TestCase):
+    """v325 — pasy Z1 i Z8 planu napraw. ZB02-01: „Zmiana 12 mies.” stóp od dnia rocznicy (okno dzienne sprzed roku), nie od końca miesiąca;
+    ZB02-03: awaria zapytania miesięcznego / rocznicowego — kolumny z poprzedniego pliku, ponowienie po STOPY_PONOW min; zb07-05: terminy CFTC
+    i EIA w czasie Nowego Jorku (zmiana czasu w USA 1.11.2026); zb07-02: weekendowe wiersze kontraktów FMP pominięte i usunięte z historii.
+    Nagrania: wycinki prawdziwych odpowiedzi BIS WS_CBPOL z 10.10.2026 (dzienne, miesięczne, okno sprzed roku detail=dataonly)."""
+    U = datetime.timezone.utc
+    # stan (ostatnie odczyty dzienne) — wycinek odpowiedzi z 10.10.2026 (pola jak w zapytaniu dziennym)
+    D = ('FREQ,REF_AREA,UNIT_MEASURE,TITLE,TIME_PERIOD,OBS_VALUE,OBS_STATUS\n'
+         'D,US,368,"Central bank policy rates - United States - Daily",2026-10-05,3.875,A\nD,US,368,"x",2026-10-06,3.875,A\n'
+         'D,XM,368,"x",2026-10-06,2.5,A\nD,PL,368,"x",2026-10-06,3.75,A\nD,CA,368,"x",2026-10-02,2.25,A\nD,CA,368,"x",2026-10-05,2.25,A\n'
+         'D,TR,368,"x",2026-10-01,37,A\nD,TR,368,"x",2026-10-02,37,A\nD,RU,368,"x",2026-10-06,14,A\nD,RU,368,"x",2026-10-07,NaN,M\n')
+    M = ('FREQ,REF_AREA,UNIT_MEASURE,TITLE,TIME_PERIOD,OBS_VALUE,OBS_STATUS\n'
+         'M,US,368,"x",2025-09,4.125,A\nM,US,368,"x",2025-10,3.875,A\nM,US,368,"x",2026-09,3.875,A\n'
+         'M,XM,368,"x",2025-09,2,A\nM,XM,368,"x",2025-10,2,A\nM,XM,368,"x",2026-09,2.5,A\n'
+         'M,PL,368,"x",2025-09,4.75,A\nM,PL,368,"x",2025-10,4.5,A\nM,PL,368,"x",2026-09,3.75,A\n'
+         'M,CA,368,"x",2025-09,2.5,A\nM,CA,368,"x",2025-10,2.25,A\nM,CA,368,"x",2026-09,2.25,A\n'
+         'M,TR,368,"x",2025-09,40.5,A\nM,TR,368,"x",2025-10,39.5,A\nM,TR,368,"x",2026-09,37,A\n'
+         'M,RU,368,"x",2025-09,17,A\nM,RU,368,"x",2025-10,16.5,A\nM,RU,368,"x",2026-09,14,A\n')
+    # okno sprzed roku (detail=dataonly: bez opisu i statusu; NaN = brak odczytu) — wycinek prawdziwej odpowiedzi
+    R = ('FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\n'
+         'D,US,2025-09-29,4.125\nD,US,2025-10-03,4.125\nD,US,2025-10-06,4.125\n'
+         'D,XM,2025-10-03,2\nD,XM,2025-10-06,2\n'
+         'D,PL,2025-10-03,4.75\nD,PL,2025-10-04,NaN\nD,PL,2025-10-05,NaN\nD,PL,2025-10-06,4.75\n'
+         'D,CA,2025-10-02,2.5\nD,CA,2025-10-03,2.5\n'
+         'D,TR,2025-09-25,40.5\nD,TR,2025-09-27,NaN\nD,TR,2025-10-01,40.5\nD,TR,2025-10-02,40.5\n'
+         'D,RU,2025-10-03,17\nD,RU,2025-10-04,NaN\nD,RU,2025-10-06,17\n')
+    PRAWDA = {'US': -0.25, 'XM': 0.5, 'PL': -1.0, 'CA': -0.25, 'TR': -3.5, 'RU': -3.0}   # stan − stopa z dnia rocznicy (pełna seria dzienna)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def _gb(self, seen, fail=()):
+        def gb(url, headers=None, timeout=60):
+            seen.append(url)
+            kind = 'r' if 'startPeriod=' in url else ('m' if '/M.' in url else 'd')
+            if kind in fail:
+                raise RuntimeError(f'HTTP Error 503: Service Unavailable ({kind})')
+            return {'d': self.D, 'm': self.M, 'r': self.R}[kind].encode()
+        return gb
+
+    def _build(self, prev=None, fail=()):
+        seen = []
+        with mock.patch.object(zd, 'get_bytes', self._gb(seen, fail)):
+            out = zd.build_stopy(prev)
+        return out, seen
+
+    # ---- ZB02-01
+    def test_d12_od_dnia_rocznicy_prawdziwe_odpowiedzi(self):
+        out, seen = self._build()
+        self.assertEqual(len(seen), 3, 'trzy zapytania: dzienne, miesięczne, rocznicowe')
+        self.assertIn('/WS_CBPOL/1.0/D.US+XM+GB+', seen[2])
+        self.assertTrue(seen[2].endswith('?startPeriod=2025-09-25&endPeriod=2025-10-06&format=csv&detail=dataonly'),
+                        'okno: najstarsza data stanu (TR 2.10) − 12 mies. − 7 dni … najnowsza (6.10) − 12 mies.')
+        self.assertEqual({a: r['d12'] for a, r in out['rows'].items()}, self.PRAWDA,
+                         'USA −0,25 (nie 0), Kanada −0,25, Polska −1,00, Turcja −3,5, Rosja −3,0 — jak w pełnej serii dziennej')
+        self.assertEqual(out['ok'], {'m': True, 'r': True}); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(out['rows']['CA']['last'], ['2025-10', -0.25], '„Ostatnia zmiana” bez zmian (z serii miesięcznej)')
+        self.assertEqual(out['rows']['US']['vs_us'], 0); self.assertEqual(out['rows']['RU']['date'], '2026-10-06')
+
+    def test_d12_stary_sposob_dawal_zle_liczby(self):
+        d, m = zd.parse_cbpol_csv(self.D.encode()), zd.parse_cbpol_csv(self.M.encode())
+        stary = {a: r['d12'] for a, r in zd.cbpol_summary(d, m).items()}   # bez okna — dawna baza miesięczna (zostaje tylko dla v52)
+        self.assertEqual(stary, {'US': 0.0, 'XM': 0.5, 'PL': -0.75, 'CA': 0.0, 'TR': -2.5, 'RU': -2.5}, 'błąd z raportu ZB02-01 (5 z 6)')
+        nowy = {a: r['d12'] for a, r in zd.cbpol_summary(d, m, zd.parse_cbpol_csv(self.R.encode())).items()}
+        self.assertEqual(nowy, self.PRAWDA)
+
+    def test_zmiana_na_poczatku_miesiaca_sprzed_roku(self):
+        D = 'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nD,PL,2026-10-04,4.0\nD,CA,2026-10-02,2.0\n'
+        M = 'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nM,PL,2025-10,4.5\nM,CA,2025-10,2.25\n'
+        R = ('FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\n'
+             'D,PL,2025-10-01,4.75\nD,PL,2025-10-02,4.5\nD,PL,2025-10-03,4.5\nD,PL,2025-10-04,4.5\nD,PL,2025-10-05,4.5\n'
+             'D,CA,2025-10-01,2.5\nD,CA,2025-10-02,2.5\nD,CA,2025-10-03,2.25\nD,CA,2025-10-04,2.25\n')
+        rows = zd.cbpol_summary(zd.parse_cbpol_csv(D.encode()), zd.parse_cbpol_csv(M.encode()), zd.parse_cbpol_csv(R.encode()))
+        self.assertEqual(rows['PL']['d12'], -0.5, 'zmiana 2.10 (przed rocznicą 4.10) wchodzi do bazy')
+        self.assertEqual(rows['CA']['d12'], -0.5, 'zmiana 3.10 (po rocznicy 2.10) nie wchodzi — baza 2,50, nie koniec miesiąca 2,25')
+
+    def test_29_lutego_weekend_i_brak_odczytu(self):
+        self.assertEqual(zd._cbpol_rocznica('2028-02-29'), '2027-02-28'); self.assertEqual(zd._cbpol_rocznica('2026-10-06'), '2025-10-06')
+        D = 'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nD,US,2028-02-29,3.0\nD,GB,2026-10-05,3.75\nD,JP,2026-10-06,1.25\nD,SE,2026-10-06,1.75\n'
+        M = 'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nM,US,2027-02,3.25\nM,GB,2025-10,4.0\nM,JP,2025-10,0.5\nM,SE,2025-10,1.75\n'
+        R = ('FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nD,US,2027-02-27,3.5\nD,US,2027-02-28,3.5\nD,US,2027-03-01,3.25\n'
+             'D,GB,2025-10-03,4.0\nD,JP,2025-09-28,0.5\nD,SE,2025-10-06,NaN\n')
+        rows = zd.cbpol_summary(zd.parse_cbpol_csv(D.encode()), zd.parse_cbpol_csv(M.encode()), zd.parse_cbpol_csv(R.encode()))
+        self.assertEqual(rows['US']['d12'], -0.5, '29.02 → 28.02 rok wcześniej; zmiana 1.03 nie wchodzi')
+        self.assertEqual(rows['GB']['d12'], -0.25, 'rocznica w niedzielę (5.10) — ostatni odczyt w piątek 3.10')
+        self.assertIsNone(rows['JP']['d12'], 'odczyt sprzed 8 dni (> CBPOL_AGO_DNI) = brak, nie przybliżenie końcem miesiąca')
+        self.assertIsNone(rows['SE']['d12'], 'NaN w dniu rocznicy i brak wcześniejszego w oknie = brak, nigdy 0')
+        self.assertEqual(rows['JP']['m_n'], 1)
+
+    def test_okno_najwyzej_rok_i_kraj_bez_dziennych(self):
+        D = 'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nD,US,2026-10-06,3.875\nD,IN,2024-07-23,6.5\n'
+        M = 'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nM,SA,2025-09,4.75\nM,SA,2026-09,4.5\nM,US,2025-10,3.875\n'
+        seen = []
+
+        def gb(url, headers=None, timeout=60):
+            seen.append(url)
+            if 'startPeriod=' in url:
+                return b'FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE\nD,US,2025-10-06,4.125\n'
+            return (M if '/M.' in url else D).encode()
+        with mock.patch.object(zd, 'get_bytes', gb):
+            out = zd.build_stopy()
+        self.assertIn('startPeriod=2024-09-29&endPeriod=2025-10-06', seen[2], 'okno najwyżej CBPOL_AGO_MAX dni — nie od 2023 r.')
+        self.assertIsNone(out['rows']['IN']['d12'], 'kraj ze stanem sprzed ponad roku od reszty — brak')
+        self.assertEqual(out['rows']['US']['d12'], -0.25)
+        self.assertEqual((out['rows']['SA']['date'], out['rows']['SA']['d12']), ('2026-09', -0.25), 'stan z serii miesięcznej — koniec miesiąca do końca miesiąca')
+
+    # ---- ZB02-03
+    def test_awaria_miesiecznych_zostawia_kolumny_z_poprzedniego(self):
+        full, _ = self._build()
+        prev = json.loads(json.dumps(full)); prev['rows']['PL']['date'] = '2026-10-05'   # Polska: nowa data stanu — jej „ostatnia zmiana” nie przechodzi
+        out, _ = self._build(prev, fail=('m',))
+        self.assertEqual(out['ok'], {'m': False, 'r': True})
+        self.assertIn('BIS stopy (miesięczne): HTTP Error 503: Service Unavailable (m)', zd.META['errors'])
+        for a in ('US', 'XM', 'CA', 'TR', 'RU'):
+            self.assertEqual((out['rows'][a]['last'], out['rows'][a]['m_n']), (full['rows'][a]['last'], full['rows'][a]['m_n']), a)
+        self.assertEqual((out['rows']['PL']['last'], out['rows']['PL']['m_n']), (None, 0), 'inna data stanu = brak (strona „—”)')
+        self.assertEqual({a: r['d12'] for a, r in out['rows'].items()}, self.PRAWDA, 'd12 z okna rocznicowego — bez związku z awarią')
+        bez, _ = self._build(None, fail=('m',))
+        self.assertTrue(all(r['last'] is None and r['m_n'] == 0 for r in bez['rows'].values()), 'v63: bez poprzedniego pliku — „—”, nie „bez zmian”')
+
+    def test_awaria_rocznicowego_d12_z_poprzedniego_tylko_od_rocznicy(self):
+        full, _ = self._build()
+        prev = json.loads(json.dumps(full)); prev['rows']['TR']['date'] = '2026-10-01'
+        out, _ = self._build(prev, fail=('r',))
+        self.assertEqual(out['ok'], {'m': True, 'r': False}); self.assertIn('BIS stopy (rok wcześniej): HTTP Error 503: Service Unavailable (r)', zd.META['errors'])
+        want = dict(self.PRAWDA, TR=None)
+        self.assertEqual({a: r['d12'] for a, r in out['rows'].items()}, want, 'ta sama data stanu — d12 z poprzedniego pliku; inna — brak')
+        self.assertEqual(out['rows']['CA']['last'], ['2025-10', -0.25])
+        stary = json.loads(json.dumps(full)); del stary['ok']                                   # plik sprzed v325: d12 od końca miesiąca
+        stary['rows']['US']['d12'] = 0.0
+        out2, _ = self._build(stary, fail=('r',))
+        self.assertTrue(all(r['d12'] is None for r in out2['rows'].values()), 'd12 z pliku sprzed v325 (zła baza) nie przechodzi')
+        out3, _ = self._build(None, fail=('m', 'r'))
+        self.assertEqual(out3['ok'], {'m': False, 'r': False}); self.assertEqual(out3['rows']['US']['rate'], 3.875, 'stopy dzienne zostają')
+        with self.assertRaises(RuntimeError):
+            self._build(prev, fail=('d',))
+
+    def test_bramka_main_ponawia_plik_z_nieudana_czescia(self):
+        full, _ = self._build()
+        calls, saved = [], {}
+
+        def run(prev, wynik):
+            calls.clear(); saved.clear(); zd.META['ok'].clear(); zd.META['errors'].clear()
+            stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in (
+                'build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy',
+                'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
+                'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
+                'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
+                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia',
+                'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa',
+                'build_surowce', 'build_energia')]
+            for s in stubs:
+                s.start()
+            try:
+                with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': '', 'EIA_KEY': '', 'FMP_KEY': ''}, clear=False), \
+                        mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+                        mock.patch.object(zd, 'previous', lambda n: prev if n == 'stopy' else None), \
+                        mock.patch.object(zd, '_prev_cache', lambda n: None), \
+                        mock.patch.object(zd, 'get_json', side_effect=RuntimeError('bez sieci')), \
+                        mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('bez sieci')), \
+                        mock.patch.object(zd, 'build_stopy', lambda p=None: calls.append(p) or wynik):
+                    zd.main()
+            finally:
+                for s in stubs:
+                    s.stop()
+
+        czesc = dict(json.loads(json.dumps(full)), ok={'m': False, 'r': True})
+        for opis, prev, minut, want_call in (('pełny plik sprzed 70 min', full, 70, False), ('pełny plik sprzed 6 h 5 min', full, 365, True),
+                                             ('plik z nieudaną częścią sprzed 30 min', czesc, 30, False),
+                                             ('plik z nieudaną częścią sprzed 70 min', czesc, 70, True),
+                                             ('plik sprzed v325 (bez ok) sprzed 10 min', {k: v for k, v in full.items() if k != 'ok'}, 10, True)):
+            p = dict(prev, at=_iso(minut))
+            run(p, czesc)
+            self.assertEqual(bool(calls), want_call, opis)
+            if want_call:
+                self.assertIs(calls[0], p, 'build_stopy dostaje poprzedni plik'); self.assertIs(saved['stopy'], czesc)
+                self.assertIs(zd.META['ok']['stopy'], False, 'część nieudana — jak stres: nie „ok”')
+            else:
+                self.assertIs(saved['stopy'], p); self.assertEqual(zd.META['ok']['stopy'], 'cached')
+        run(dict(full, at=_iso(400)), full)
+        self.assertIs(zd.META['ok']['stopy'], True)
+
+    # ---- zb07-05
+    def test_cftc_czas_nowego_jorku(self):
+        U, dt = self.U, datetime.datetime
+        self.assertEqual(zd._su_cftc_wtorek(dt(2026, 10, 9, 19, 15, tzinfo=U)), '2026-09-29', 'lato: przed 19:30 UTC')
+        self.assertEqual(zd._su_cftc_wtorek(dt(2026, 10, 9, 19, 45, tzinfo=U)), '2026-10-06', 'lato: 15:30 EDT = 19:30 UTC')
+        self.assertEqual(zd._su_cftc_wtorek(dt(2026, 11, 6, 19, 45, tzinfo=U)), '2026-10-27', 'zima: 14:45 EST — raport dopiero 20:30 UTC')
+        self.assertEqual(zd._su_cftc_wtorek(dt(2026, 11, 6, 20, 45, tzinfo=U)), '2026-11-03')
+        for now, ma, want in ((dt(2026, 10, 9, 19, 45, tzinfo=U), '2026-10-06', False), (dt(2026, 10, 9, 19, 45, tzinfo=U), '2026-09-29', True),
+                              (dt(2026, 11, 6, 19, 45, tzinfo=U), '2026-10-27', False), (dt(2026, 11, 6, 20, 45, tzinfo=U), '2026-10-27', True)):
+            z = {'at': (now - datetime.timedelta(hours=2)).isoformat(), 'try': (now - datetime.timedelta(hours=2)).isoformat(), 'asof': ma}
+            self.assertIs(zd._su_due('cftc', z, now, {'st': {}, 'markets_asof': ma, 'udane': set()}), want, (now, ma))
+        self.assertEqual(zd._su_wtorek_po(dt(2026, 11, 6, 19, 45, tzinfo=U), 19, 30), '2026-10-27', 'CIT/TFF zimą też po 20:30 UTC')
+        self.assertEqual(zd._su_wtorek_po(dt(2026, 11, 6, 20, 31, tzinfo=U), 19, 30), '2026-11-03')
+        self.assertEqual(zd._su_wtorek_po(dt(2026, 10, 9, 19, 31, tzinfo=U), 19, 30), '2026-10-06', 'lato bez zmian')
+        self.assertEqual(zd._su_wtorek_po(dt(2026, 10, 9, 17, 46, tzinfo=U), 17, 45), '2026-10-06')
+        z = {'at': dt(2026, 11, 6, 17, 45, tzinfo=U).isoformat(), 'try': dt(2026, 11, 6, 17, 45, tzinfo=U).isoformat(), 'asof': '2026-10-27'}
+        self.assertFalse(zd._su_due('tff', z, dt(2026, 11, 6, 19, 45, tzinfo=U), {'st': {}}), 'TFF zimą 19:45 UTC — raport jeszcze nie wyszedł')
+        self.assertTrue(zd._su_due('tff', z, dt(2026, 11, 6, 20, 45, tzinfo=U), {'st': {}}))
+
+    def test_eia_wpsr_czas_nowego_jorku(self):
+        U, dt = self.U, datetime.datetime
+        for now, want in ((dt(2026, 10, 7, 14, 20, tzinfo=U), False), (dt(2026, 10, 7, 14, 45, tzinfo=U), True),
+                          (dt(2026, 11, 4, 14, 45, tzinfo=U), False), (dt(2026, 11, 4, 15, 30, tzinfo=U), False), (dt(2026, 11, 4, 15, 45, tzinfo=U), True)):
+            stary = zd._su_piatek_przed(now.date()) - datetime.timedelta(days=7)
+            z = {'at': (now - datetime.timedelta(hours=20)).isoformat(), 'try': (now - datetime.timedelta(minutes=10)).isoformat(), 'asof': stary.isoformat()}
+            self.assertIs(zd._su_due('wpsr', z, now, {'st': {}}), want, now)
+        z = {'at': dt(2026, 11, 5, 0, 0, tzinfo=U).isoformat(), 'try': dt(2026, 11, 5, 15, 20, tzinfo=U).isoformat(), 'asof': '2026-10-23'}
+        self.assertFalse(zd._su_due('wngsr', z, dt(2026, 11, 5, 15, 30, tzinfo=U), {'st': {}}), 'gaz w czwartek zimą od 15:35 UTC')
+        self.assertTrue(zd._su_due('wngsr', z, dt(2026, 11, 5, 15, 40, tzinfo=U), {'st': {}}))
+
+    def test_next_terminy_po_zmianie_czasu(self):
+        U, dt = self.U, datetime.datetime
+        now = dt(2026, 11, 2, 12, 0, tzinfo=U)
+        self.assertEqual(zd._su_next('markets', {'asof': '2026-10-27', 'st': {}}, now), '2026-11-06T20:30:00+00:00')
+        self.assertEqual(zd._su_next('pozycje', {'pozycje': {'asof': {'cftc': '2026-10-27'}}}, now), '2026-11-06T20:30:00+00:00')
+        self.assertEqual(zd._su_next('zapasy', {'st': {'wpsr': {'asof': '2026-10-30'}}}, now), '2026-11-04T15:30:00+00:00')
+        now = dt(2026, 10, 28, 15, 0, tzinfo=U)   # środa przed zmianą czasu, raport już jest — następny w środę 4.11 o 15:30 UTC (nie 14:30)
+        self.assertEqual(zd._su_next('zapasy', {'st': {'wpsr': {'asof': '2026-10-23'}}}, now), '2026-11-04T15:30:00+00:00')
+        now = dt(2026, 10, 8, 12, 0, tzinfo=U)
+        self.assertEqual(zd._su_next('markets', {'asof': '2026-09-29', 'st': {}}, now), '2026-10-09T19:30:00+00:00', 'lato bez zmian')
+        self.assertEqual(zd._su_next('pozycje', {'pozycje': {'asof': {'cftc': '2026-09-29'}}}, now), '2026-10-09T19:30:00+00:00')
+        self.assertEqual(zd._su_next('pozycje', {'pozycje': {'asof': {'cftc': '2026-09-29'}}}, now), zd._su_next3('pozycje', {'pozycje': {'asof': {'cftc': '2026-09-29'}}}, now))
+        self.assertEqual(zd._su_next('zapasy', {'st': {'wpsr': {'asof': '2026-10-02'}}}, now), '2026-10-14T14:30:00+00:00')
+        self.assertEqual(zd._su_next('fundusze', {}, now), zd._su_next3('fundusze', {}, now), 'pozostałe części etapu 3 bez zmian')
+
+    # ---- zb07-02
+    def test_fmp_bez_weekendow_i_czyszczenie_historii(self):
+        hist = {'silver': {'2026-07-10': 50.0, '2026-07-12': 51.0, '2026-07-13': 52.0}, 'brent_fut': {'2026-03-29': 70.0, '2026-03-30': 71.0},
+                'gold_fut': {}, 'gold': {'2026-07-12': 1.0}}
+        ctx = {'keys': {'FMP_KEY': 'k'}, 'now': datetime.datetime(2026, 10, 9, 22, 40, tzinfo=self.U), 'H': {'d': hist}, 'bledy': []}
+        resp = {'SIUSD': [{'date': '2026-10-09', 'price': 48.1}, {'date': '2026-10-11', 'price': 48.5}, {'date': '2026-10-08', 'price': 47.9}],
+                'BZUSD': [{'date': '2026-10-10', 'price': 66.0}, {'date': '2026-10-11', 'price': 66.2}],
+                'GCUSD': [{'date': '2026-10-04', 'price': 4000.0}, {'date': '2026-10-05', 'price': 4010.0}]}
+        urls = []
+
+        def get(c, src, url, headers=None, limit=None):
+            urls.append(url); sym = url.split('symbol=')[1].split('&')[0]
+            return json.dumps(resp[sym]).encode()
+        with mock.patch.object(zd, '_su_get', get):
+            asof = zd._su_fmp(ctx)
+        self.assertEqual(sorted(hist['silver']), ['2026-07-10', '2026-07-13', '2026-10-08', '2026-10-09'], 'niedziela 12.07 usunięta, 11.10 pominięta')
+        self.assertEqual(hist['brent_fut'], {'2026-03-30': 71.0}, 'niedziela 29.03 usunięta; same weekendowe w odpowiedzi — nic nie dopisane')
+        self.assertEqual(sorted(hist['gold_fut']), ['2026-10-05'])
+        self.assertEqual(hist['gold'], {'2026-07-12': 1.0}, 'serie spoza FMP bez zmian')
+        self.assertEqual(asof, '2026-10-09'); self.assertEqual(ctx['bledy'], ['fmp BZUSD: same dni weekendowe'])
+        self.assertIn('from=2026-03-20', urls[1], 'od ostatniej sesji (po czyszczeniu) − 10 dni')
+        self.assertFalse([d for c in ('silver', 'brent_fut', 'gold_fut') for d in hist[c] if datetime.date.fromisoformat(d).weekday() >= 5])

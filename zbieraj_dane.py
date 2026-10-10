@@ -2460,6 +2460,18 @@ def build_rezerwy():
 # BIS — stopy procentowe banków centralnych (WS_CBPOL), bez klucza; dzienne (stan) + miesięczne (historia zmian)
 CBPOL_AREAS = ['US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'JP', 'KR', 'CN', 'IN', 'ID', 'AU', 'CA', 'BR', 'MX', 'ZA', 'TR', 'SA', 'RU']
 CBPOL_BASE = 'https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/'
+CBPOL_AGO_DNI = 7      # v325 (ZB02-01): zapytanie rocznicowe — zapas dni przed najstarszą rocznicą; baza d12 = odczyt dzienny najwyżej tyle dni przed rocznicą
+CBPOL_AGO_MAX = 372    # v325: okno zapytania rocznicowego najwyżej tyle dni (kraj ze stanem dużo starszym od reszty — d12 brak, nie ogromne zapytanie)
+STOPY_PONOW = 55       # v325 (ZB02-03): min — plik z nieudaną częścią (miesięczne albo rocznicowe) ponawiany w następnej godzinie, nie po 6 h
+
+
+def _cbpol_rocznica(day):
+    """v325: dzień rocznicy — ten sam dzień rok wcześniej (29.02 → 28.02); 'RRRR-MM-DD' → 'RRRR-MM-DD'."""
+    d = datetime.date.fromisoformat(day)
+    try:
+        return d.replace(year=d.year - 1).isoformat()
+    except ValueError:
+        return d.replace(year=d.year - 1, day=28).isoformat()
 
 
 def parse_cbpol_csv(raw):
@@ -2483,8 +2495,13 @@ def parse_cbpol_csv(raw):
     return out
 
 
-def cbpol_summary(daily, monthly):
-    """Stan (ostatnia wartość dzienna), zmiana od 12 miesięcy, ostatnia zmiana (miesiąc, o ile pkt proc.), różnica wobec Fed."""
+def cbpol_summary(daily, monthly, rok=None):
+    """Stan (ostatnia wartość dzienna), zmiana od 12 miesięcy, ostatnia zmiana (miesiąc, o ile pkt proc.), różnica wobec Fed.
+    v325 (ZB02-01): rok — odczyty dzienne z okna sprzed roku (zapytanie rocznicowe build_stopy); d12 = stan − ostatni odczyt dzienny z dnia
+    rocznicy (29.02 → 28.02), najwyżej CBPOL_AGO_DNI dni wcześniej; brak odczytu = None. Seria miesięczna BIS to stan z OSTATNIEGO dnia
+    miesiąca, więc baza miesięczna gubiła zmiany między rocznicą a końcem tamtego miesiąca (USA, Kanada, Polska, Turcja, Rosja 10.2026).
+    Stan z serii miesięcznej (kraj bez dziennych) — baza: koniec tego samego miesiąca rok wcześniej (oba to koniec miesiąca — dokładnie).
+    Bez okna (rok=None — tylko wywołania spoza build_stopy, np. testy v52) — dawna baza miesięczna."""
     rows = {}
     for a in CBPOL_AREAS:
         d = daily.get(a) or []; m = monthly.get(a) or []
@@ -2493,8 +2510,12 @@ def cbpol_summary(daily, monthly):
         rate, date = (d[-1][1], d[-1][0]) if d else (m[-1][1], m[-1][0])
         cur_m = date[:7]
         y, mo = int(cur_m[:4]), int(cur_m[5:7])
-        ago = f'{y - 1:04d}-{mo:02d}'
-        base = [v for p, v in m if p <= ago]
+        if rok is not None and len(date) == 10:   # v325 (ZB02-01): baza z dnia rocznicy, nie z końca miesiąca sprzed roku
+            an = _cbpol_rocznica(date); od = (datetime.date.fromisoformat(an) - datetime.timedelta(days=CBPOL_AGO_DNI)).isoformat()
+            base = [v for p, v in (rok.get(a) or []) if len(p) == 10 and od <= p <= an]
+        else:
+            ago = f'{y - 1:04d}-{mo:02d}'
+            base = [v for p, v in m if p <= ago]
         d12 = round(rate - base[-1], 4) if base else None
         last = None   # (miesiąc, zmiana) — przeszukanie od najnowszego: wartość dzienna vs ostatni miesiąc, potem miesiąc do miesiąca
         seq = [v for p, v in m if p < cur_m] + [rate]
@@ -2509,19 +2530,44 @@ def cbpol_summary(daily, monthly):
     return rows
 
 
-def build_stopy():
-    """data/stopy.json — stopy banków centralnych (BIS WS_CBPOL): dzienne 15 obserwacji (ostatnia ważna), miesięczne 25."""
+def build_stopy(prev=None):
+    """data/stopy.json — stopy banków centralnych (BIS WS_CBPOL): dzienne 15 obserwacji (ostatnia ważna), miesięczne 25.
+    v325 (ZB02-01): trzecie, małe zapytanie dzienne o okno sprzed roku [najstarsza data stanu − 12 mies. − CBPOL_AGO_DNI dni, najnowsza
+    data stanu − 12 mies.] (detail=dataonly, ok. 29 KB) — baza „zmiany 12 mies.” z dnia rocznicy (cbpol_summary).
+    v325 (ZB02-03): awaria zapytania miesięcznego albo rocznicowego nie czyści kolumn: „ostatnia zmiana” (z m_n) albo d12 z poprzedniego
+    pliku u krajów z tą samą datą stanu (inna data = brak; d12 tylko z pliku liczonego już od rocznicy — z polem ok); część nieudana
+    = ok['m'] / ok['r'] False i błąd w META, main() ponawia po STOPY_PONOW min. Awaria zapytania dziennego — wyjątek (poprzedni plik)."""
     keys = '+'.join(CBPOL_AREAS)
     daily = parse_cbpol_csv(get_bytes(CBPOL_BASE + f'D.{keys}?lastNObservations=15&format=csv', timeout=90))
+    ok = {'m': True, 'r': True}
     try:
         monthly = parse_cbpol_csv(get_bytes(CBPOL_BASE + f'M.{keys}?lastNObservations=25&format=csv', timeout=90))
     except Exception as e:
-        META['errors'].append(mask(f'BIS stopy (miesięczne): {e}')); monthly = {}
-    rows = cbpol_summary(daily, monthly)
+        META['errors'].append(mask(f'BIS stopy (miesięczne): {e}')); monthly = {}; ok['m'] = False
+    dni = sorted(daily[a][-1][0] for a in CBPOL_AREAS if daily.get(a) and len(daily[a][-1][0]) == 10)
+    rok = {}
+    if dni:
+        hi = _cbpol_rocznica(dni[-1])
+        lo = max(datetime.date.fromisoformat(_cbpol_rocznica(dni[0])) - datetime.timedelta(days=CBPOL_AGO_DNI),
+                 datetime.date.fromisoformat(hi) - datetime.timedelta(days=CBPOL_AGO_MAX)).isoformat()
+        try:
+            rok = parse_cbpol_csv(get_bytes(CBPOL_BASE + f'D.{keys}?startPeriod={lo}&endPeriod={hi}&format=csv&detail=dataonly', timeout=90))
+        except Exception as e:
+            META['errors'].append(mask(f'BIS stopy (rok wcześniej): {e}')); ok['r'] = False
+    rows = cbpol_summary(daily, monthly, rok)
     if not rows:
         raise RuntimeError('BIS stopy: żadna gospodarka')
+    pr = prev.get('rows') if isinstance(prev, dict) and isinstance(prev.get('rows'), dict) else {}
+    d12_od_rocznicy = isinstance(prev, dict) and isinstance(prev.get('ok'), dict)   # plik v325+ — d12 już liczone od dnia rocznicy
+    for a, r in rows.items():
+        p = pr.get(a) if isinstance(pr.get(a), dict) else {}
+        same = p.get('date') == r['date']
+        if not ok['m']:
+            r['last'], r['m_n'] = (p.get('last'), p.get('m_n', 0)) if same else (None, 0)
+        if not ok['r'] and len(r['date']) == 10:
+            r['d12'] = p.get('d12') if same and d12_od_rocznicy else None
     return {'at': NOW, 'src': 'BIS — Central bank policy rates (WS_CBPOL)', 'url': 'https://data.bis.org/topics/CBPOL', 'unit': '% rocznie',
-            'asof': max(r['date'] for r in rows.values()), 'order': [a for a in CBPOL_AREAS if a in rows], 'rows': rows}
+            'asof': max(r['date'] for r in rows.values()), 'order': [a for a in CBPOL_AREAS if a in rows], 'rows': rows, 'ok': ok}
 
 
 # EBC — średnie miesięczne kursy referencyjne (EXR), bez klucza: kurs z tych samych miesięcy co średni indeks OECD na mapie
@@ -9660,11 +9706,17 @@ def _su_handel_zloto(now):
     return not (wd == 5 or (wd == 6 and now.hour < 22) or (wd == 4 and now.hour >= 22))
 
 
+def _su_ny(d, h, m):
+    """v325 (zb07-05): godzina h:m czasu Nowego Jorku w dniu d → chwila UTC (zmiana czasu w USA jak w _tdw_off: latem −4 h, zimą −5 h)."""
+    return datetime.datetime(d.year, d.month, d.day, h, m, tzinfo=datetime.timezone.utc) - datetime.timedelta(hours=_tdw_off(d))
+
+
 def _su_cftc_wtorek(now):
-    """Wtorek (stan pozycji) raportu CFTC, który według kalendarza już wyszedł (piątek 19:30 UTC)."""
+    """Wtorek (stan pozycji) raportu CFTC, który według kalendarza już wyszedł (piątek 15:30 czasu Nowego Jorku: 19:30 UTC latem,
+    20:30 UTC zimą — v325, zb07-05)."""
     for back in range(8):
         d = (now - datetime.timedelta(days=back)).date()
-        if d.weekday() == 4 and datetime.datetime(d.year, d.month, d.day, 19, 30, tzinfo=datetime.timezone.utc) <= now:
+        if d.weekday() == 4 and _su_ny(d, 15, 30) <= now:
             return (d - datetime.timedelta(days=3)).isoformat()
     return ''
 
@@ -9703,10 +9755,11 @@ def _su_due(src, z, now, S):
         return _su_termin(now, z, ((22, 30),), range(5), ponow=120)
     if src == 'sprott':
         return at >= 360 and tr >= 60
-    if src in ('wpsr', 'wngsr'):   # pliki raportów tygodniowych: ropa w środę, gaz w czwartek (dzień później w tygodniu ze świętem) od 14:35 UTC
+    if src in ('wpsr', 'wngsr'):   # pliki raportów tygodniowych: ropa w środę, gaz w czwartek (dzień później w tygodniu ze świętem) od 10:35
+        # czasu Nowego Jorku (14:35 UTC latem, 15:35 UTC zimą — v325, zb07-05)
         if first:
             return tr >= 30
-        if wd in ((2, 3) if src == 'wpsr' else (3, 4)) and hm >= (14, 35) and asof < _su_piatek_przed(today).isoformat():
+        if wd in ((2, 3) if src == 'wpsr' else (3, 4)) and now >= _su_ny(today, 10, 35) and asof < _su_piatek_przed(today).isoformat():
             return tr >= 9          # co przebieg (10 min), aż przyjdzie nowy tydzień
         return at >= 24 * 60 and tr >= 60
     if src == 'eia_t':    # historia tygodniowa z API: gdy plik ma tydzień nowszy niż API (co godzinę), poza tym raz na tydzień
@@ -9718,7 +9771,8 @@ def _su_due(src, z, now, S):
         if fw > asof or fg > str(z.get('asof_g') or ''):
             return tr >= 60
         return at >= 7 * 24 * 60 and tr >= 60
-    if src == 'cftc':     # piątek od 19:30 UTC co 30 min, aż przyjdzie nowy wtorek (przerwa w pracy urzędu > 14 dni — co 6 h); poza tym co 6 h
+    if src == 'cftc':     # piątek od 15:30 czasu Nowego Jorku (19:30 UTC latem, 20:30 zimą) co 30 min, aż przyjdzie nowy wtorek (przerwa w pracy
+        # urzędu > 14 dni — co 6 h); poza tym co 6 h
         exp, ma = _su_cftc_wtorek(now), str(S.get('markets_asof') or asof or '')
         if first:
             return tr >= 60
@@ -9751,24 +9805,29 @@ def _su_next(part, out, now):
     if part == 'ceny':   # strona dzienna EIA (T+1) ok. 11:30–12:30 UTC w dni robocze
         d = today if today.weekday() < 5 and now.hour < 12 else _su_dzien_rob(today, 1)
         return iso(d, 12)
-    if part == 'zapasy':   # raport tygodniowy w środę 10:30 czasu Nowego Jorku (14:30 UTC latem)
+    if part == 'zapasy':   # raport tygodniowy w środę 10:30 czasu Nowego Jorku (14:30 UTC latem, 15:30 UTC zimą — v325, zb07-05)
         wed = today - datetime.timedelta(days=today.weekday() - 2)
-        pub = datetime.datetime(wed.year, wed.month, wed.day, 14, 30, tzinfo=utc)
-        if now >= pub and str((((out.get('st') or {}).get('wpsr') or {}).get('asof')) or '') >= _su_piatek_przed(wed).isoformat():
-            pub += datetime.timedelta(days=7)
-        return pub.isoformat()
+        if now >= _su_ny(wed, 10, 30) and str((((out.get('st') or {}).get('wpsr') or {}).get('asof')) or '') >= _su_piatek_przed(wed).isoformat():
+            wed += datetime.timedelta(days=7)   # następna środa liczona od nowa (może wypaść już po zmianie czasu)
+        return _su_ny(wed, 10, 30).isoformat()
     if part == 'mies':   # Bank Światowy: 2. dzień roboczy miesiąca
         if str((out.get('mies') or {}).get('asof') or '') >= _su_prev_month(now):
             y, m = (now.year + 1, 1) if now.month == 12 else (now.year, now.month + 1)
         else:
             y, m = now.year, now.month
         return iso(_su_drugi_rob(y, m), 12)
-    if part == 'markets':   # CFTC: piątek 15:30 czasu Nowego Jorku (19:30 UTC latem)
+    if part == 'markets':   # CFTC: piątek 15:30 czasu Nowego Jorku (19:30 UTC latem, 20:30 UTC zimą — v325, zb07-05)
         exp = _su_cftc_wtorek(now)
         fri = datetime.date.fromisoformat(exp) + datetime.timedelta(days=3) if exp else today
         if str(out.get('asof') or '') >= exp:
             fri += datetime.timedelta(days=7)
-        return iso(fri, 19, 30)
+        return _su_ny(fri, 15, 30).isoformat()
+    if part == 'pozycje':   # v325 (zb07-05): CFTC jak „markets” — piątek 15:30 czasu Nowego Jorku (gałąź _su_next3 liczyła stałe 19:30 UTC)
+        exp = _su_cftc_wtorek(now)
+        fri = datetime.date.fromisoformat(exp) + datetime.timedelta(days=3) if exp else today
+        if str(((out.get('pozycje') or {}).get('asof') or {}).get('cftc') or '') >= exp:
+            fri += datetime.timedelta(days=7)
+        return _su_ny(fri, 15, 30).isoformat()
     return _su_next3(part, out, now)   # v298: części etapu 3
 
 
@@ -10440,14 +10499,25 @@ def _su_td(ctx):
 
 def _su_fmp(ctx):
     key, today, ok, asof = ctx['keys'].get('FMP_KEY'), ctx['now'].date(), 0, ''
+
+    def weekend(d):   # v325 (zb07-02): sobota/niedziela (wieczorna sesja kontraktów) to nie sesja dzienna serii
+        try:
+            return datetime.date.fromisoformat(d).weekday() >= 5
+        except (TypeError, ValueError):
+            return False
     for cid, sym in SU_FMP:
         tgt = ctx['H']['d'].setdefault(cid, {})
+        for d in [d for d in tgt if weekend(d)]:   # v325 (zb07-02): weekendowe wiersze zapisane przed v325 — usunięte z historii (raz; potem pusto)
+            del tgt[d]
         last = max(tgt) if tgt else None
         frm = (datetime.date.fromisoformat(last) - datetime.timedelta(days=10)) if last else today - datetime.timedelta(days=SU_SPOT_DNI)
         try:
             rows = fmp_eod_parse(_su_json(_su_get(ctx, 'fmp', FMP_EOD_URL.format(sym=sym, frm=frm.isoformat(), key=key))))
         except Exception as e:
             ctx['bledy'].append(f'fmp {sym}: {e}'); continue
+        rows = [r for r in rows if not weekend(r[0])]   # v325 (zb07-02): bez wierszy z soboty i niedzieli
+        if not rows:
+            ctx['bledy'].append(f'fmp {sym}: same dni weekendowe'); continue
         tgt.update({d: round(v, 4) for d, v in rows})
         ok += 1; asof = max(asof, rows[-1][0])
     if not ok:
@@ -10668,10 +10738,13 @@ def _su_ma_dane(prev, part, v2=True):
 
 
 def _su_wtorek_po(now, h, m):
-    """Wtorek (stan pozycji) raportu tygodniowego publikowanego w piątek o h:m UTC, który według kalendarza już wyszedł."""
+    """Wtorek (stan pozycji) raportu tygodniowego publikowanego w piątek o h:m UTC, który według kalendarza już wyszedł.
+    v325 (zb07-05): h:m to godzina UTC przy czasie letnim w USA (CFTC 19:30 UTC = 15:30 w Nowym Jorku); przy czasie zimowym w USA
+    termin o godzinę później (CFTC 20:30 UTC) — publikacja w stałej godzinie czasu Nowego Jorku."""
     for back in range(8):
         d = (now - datetime.timedelta(days=back)).date()
-        if d.weekday() == 4 and datetime.datetime(d.year, d.month, d.day, h, m, tzinfo=datetime.timezone.utc) <= now:
+        if d.weekday() == 4 and (datetime.datetime(d.year, d.month, d.day, h, m, tzinfo=datetime.timezone.utc)
+                                 - datetime.timedelta(hours=_tdw_off(d) + 4)) <= now:
             return (d - datetime.timedelta(days=3)).isoformat()
     return ''
 
@@ -25341,12 +25414,15 @@ def main():
             META['errors'].append(mask(f'MFW rezerwy: {e}')); META['ok']['imf'] = False
             if prev_res: save('rezerwy', prev_res); print('MFW zawiódł — zachowano poprzedni rezerwy.json z', prev_res.get('at'))
     # STOPY banków centralnych (BIS, bez klucza): najwyżej co 6 h; przy awarii poprzedni plik
+    # v325 (ZB02-03): plik z nieudaną częścią (ok[...] False) — ponowienie po STOPY_PONOW min; plik sprzed v325 (bez pola ok, d12 od końca
+    # miesiąca) — od razu nowe pobranie
     prev_st = previous('stopy')
-    if prev_st and fresh(prev_st, 360):
+    pok_st = prev_st.get('ok') if isinstance(prev_st, dict) else None
+    if prev_st and isinstance(pok_st, dict) and fresh(prev_st, 360) and (all(pok_st.values()) or fresh(prev_st, STOPY_PONOW)):
         save('stopy', prev_st); META['ok']['stopy'] = 'cached'
     else:
         try:
-            save('stopy', build_stopy()); META['ok']['stopy'] = True
+            st_ = build_stopy(prev_st); save('stopy', st_); META['ok']['stopy'] = all(st_['ok'].values())
         except Exception as e:
             META['errors'].append(mask(f'BIS stopy: {e}')); META['ok']['stopy'] = False
             if prev_st: save('stopy', prev_st)
