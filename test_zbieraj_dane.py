@@ -38023,3 +38023,49 @@ class AgentTransferowyOknoV315(unittest.TestCase):
         self.assertIn('Mantle Index Four Fund — pusta lista kanału w znanym oknie dziennym 19–21 UTC', self.k.rwe_porownanie(j)['opis'])
         with mock.patch.object(self.k, 'RWE_SEC_OKNO', (18 * 60, 22 * 60)):
             self.assertIn('Mantle Index Four Fund — pusta lista kanału w znanym oknie dziennym 18–22 UTC', self.k.rwe_porownanie(j)['opis'])
+
+
+class TrendyAudytV316(unittest.TestCase):
+    """v316 (audyt m7, TR7-2): karta „Stablecoiny (wszystkie dolarowe)” w TRENDACH liczy 7 PEŁNYCH dób do ostatniej zamkniętej doby UTC — strona pisze
+    „7 pełnych dób do …”. Nagranie: krypto.json stabh.dd z migawki m7 (10.10.2026; 70 ostatnich dni, punkt 10.10 to doba niezamknięta z 07:21 UTC).
+    Wynik jak trendy.json migawki: +94,56 mln USD do 09.10 (09.10 − 02.10); z niepełną dobą 10.10 byłoby −911,41 mln (10.10 − 03.10) — znak odwrotny.
+    Zegar przypięty (_now_utc)."""
+    NOW = datetime.datetime(2026, 10, 10, 7, 52, 13, tzinfo=datetime.timezone.utc)
+    DD = [["2026-08-02", 303813345668], ["2026-08-03", 303701375761], ["2026-08-04", 303961142554], ["2026-08-05", 304160463101], ["2026-08-06", 304326136114],
+          ["2026-08-07", 304470553598], ["2026-08-08", 304507647075], ["2026-08-09", 304504368623], ["2026-08-10", 304577458270], ["2026-08-11", 303661121901],
+          ["2026-08-12", 304601588083], ["2026-08-13", 304702069466], ["2026-08-14", 304603832730], ["2026-08-15", 304759932570], ["2026-08-16", 304662410026],
+          ["2026-08-17", 304662922627], ["2026-08-18", 304770865639], ["2026-08-19", 304748019588], ["2026-08-20", 305441594434], ["2026-08-21", 306414019095],
+          ["2026-08-22", 306685060265], ["2026-08-23", 306803423380], ["2026-08-24", 306886168082], ["2026-08-25", 307018869244], ["2026-08-26", 307298677282],
+          ["2026-08-27", 307623290449], ["2026-08-28", 307678816385], ["2026-08-29", 307308505992], ["2026-08-30", 307218505320], ["2026-08-31", 307337066482],
+          ["2026-09-01", 307292864580], ["2026-09-02", 307265283545], ["2026-09-03", 307630220101], ["2026-09-04", 308676336604], ["2026-09-05", 308865619966],
+          ["2026-09-06", 308927744048], ["2026-09-07", 308955237485], ["2026-09-08", 308818960271], ["2026-09-09", 309057822174], ["2026-09-10", 308905223490],
+          ["2026-09-11", 308547158774], ["2026-09-12", 308735800482], ["2026-09-13", 308713430563], ["2026-09-14", 308599085653], ["2026-09-15", 308786489508],
+          ["2026-09-16", 308019810194], ["2026-09-17", 308007819544], ["2026-09-18", 308019607521], ["2026-09-19", 308517994740], ["2026-09-20", 308494066876],
+          ["2026-09-21", 308676709792], ["2026-09-22", 310349625823], ["2026-09-23", 307918173387], ["2026-09-24", 307161812723], ["2026-09-25", 308512905448],
+          ["2026-09-26", 307796037980], ["2026-09-27", 310086306934], ["2026-09-28", 311470047825], ["2026-09-29", 311261810601], ["2026-09-30", 311200297805],
+          ["2026-10-01", 310711423887], ["2026-10-02", 311516937639], ["2026-10-03", 311894350575], ["2026-10-04", 311974411500], ["2026-10-05", 312216069375],
+          ["2026-10-06", 312670377396], ["2026-10-07", 312806553537], ["2026-10-08", 312243322681], ["2026-10-09", 311611497263], ["2026-10-10", 310982936603]]
+
+    def stab(self, now):
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            zd.META['notes'].clear()
+            out = zd.build_trendy({'krypto': {'stabh': {'dd': [r[:] for r in self.DD]}}})
+        return {r['id']: r for r in out['f']}['stab']
+
+    def test_7_pelnych_dob_do_ostatniej_zamknietej_m7(self):
+        s, dd = self.stab(self.NOW), dict(self.DD)
+        self.assertEqual((s['date'], s['sz'], s['w'], s['base'], s['st']), ('2026-10-09', 7, 94.56, 710.15, 'none'), 'jak trendy.json migawki m7 (+95 mln USD, 7 dni do 09.10.2026)')
+        self.assertEqual(s['w'], round((dd['2026-10-09'] - dd['2026-10-02']) / 1e6, 2), '7 pełnych dób: stan na koniec 09.10 minus stan na koniec 02.10')
+        self.assertEqual(round((dd['2026-10-10'] - dd['2026-10-03']) / 1e6, 2), -911.41, 'z dzisiejszą, niepełną dobą byłoby −911,41 mln (dawna liczba panelu CRYPTO)')
+        # dobę później 10.10 jest już zamknięta — wchodzi do okna (strona pokaże „7 pełnych dób do 10.10.2026”)
+        s2 = self.stab(self.NOW + datetime.timedelta(days=1))
+        self.assertEqual((s2['date'], s2['w']), ('2026-10-10', -911.41))
+
+    def test_dzisiejszy_punkt_nie_zmienia_karty(self):
+        """Punkt doby bieżącej zmienia się w ciągu dnia (07.10: −27,5 mln po 15:58) — karta TRENDÓW go nie czyta, więc jej liczba stoi do północy UTC."""
+        a = self.stab(self.NOW)
+        DD = [r[:] for r in self.DD]
+        DD[-1][1] += 5e9                                                  # dzisiejszy punkt +5 mld — bez wpływu
+        with mock.patch.object(zd, '_now_utc', return_value=self.NOW):
+            b = {r['id']: r for r in zd.build_trendy({'krypto': {'stabh': {'dd': DD}}})['f']}['stab']
+        self.assertEqual((a['date'], a['w'], a['base']), (b['date'], b['w'], b['base']))

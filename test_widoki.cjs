@@ -4503,7 +4503,7 @@ test('v120: blok dzienny — listy stron, kolory tylko przy przewadze, „anti�
   assert.ok(card(rest, 'KSA').includes('<small>trd.d.st.short</small>') && card(rest, 'KSA').includes('trd.d.r.p.nz{"p":"+0.50%"}') && !card(rest, 'KSA').includes('trd.d.r.p.na') && card(rest, 'KSA').includes('<br>trd.d.why.short'), 'KSA: za mało historii — liczba dnia jest (+0,50%), tylko bez porównania z historią (nie „brak danych”)');
   assert.ok(g.includes('trd.d.k.buy</span></div><div class="k-val pos">2</div><small class="mtxt">trd.s.fe_bra (EWZ) · trd.s.fe_us (IVV)</small><div class="k-foot"><span class="dlt up">▲</span><span class="ksrc" title="trd.d.k.edge{&quot;e&quot;:1}">'), 'kafel kupna: 2, zielony (1 z przewagą), nazwy od najsilniejszej');
   assert.ok(g.includes('trd.d.k.sell</span></div><div class="k-val">1</div><small class="mtxt">trd.s.fe_silver (SLV)</small><div class="k-foot"><span class="dlt na">•</span><span class="ksrc" title="trd.d.k.noedge">'), 'kafel sprzedaży: 1, bez koloru (obserwacja)');
-  assert.ok(g.includes('trd.d.k.none</span></div><div class="k-val">4</div><small class="mtxt">trd.d.k.nline{"q":1,"x":1,"s":1,"o":1}</small></div>'), 'kafel „bez sygnału”: 4');
+  assert.ok(g.includes('trd.d.k.none</span></div><div class="k-val">4</div><small class="mtxt">t316.nl.q{"n":1} · t316.nl.x{"n":1} · t316.nl.s{"n":1} · t316.nl.o{"n":1}</small></div>'), 'kafel „bez sygnału”: 4');   /* v316 (TR7-3): cztery liczby, każda z własną odmianą (dawniej jeden tekst trd.d.k.nline) */
   assert.ok(g.includes('trd.d.k.rules</span></div><div class="k-val">trd.d.k.of{"e":1}</div><small class="mtxt">trd.d.k.oos0{"d":"') && g.includes('title="trd.d.k.hist"'), 'kafel reguł: „1 z 7”, licznik od wdrożenia bez par');
   assert.ok(!g.includes('trd.d.none.all'), 'jest linia z przewagą — bez zdania „żadna z 7 reguł”');
   const pool = g.slice(iP, iM); assert.equal((pool.match(/<div class="etfk trk">/g) || []).length, 7, '7 linii zbiorczych');
@@ -4551,7 +4551,7 @@ test('v120: złe wiersze pominięte (stan, siła, kierunek, id, niezgodna strona
   f.trdApply(data({d: badRows.concat([row({id: 'EWA', sym: 'EWA', r: null, zp: null, st: 'nodata'})]), bd: bd.concat([{fam: 'cr', rule: 'f', k: 10, n: 10, vd: 'edge'}, {fam: 'eq', rule: 'f', k: 5, n: 5, vd: 'edge'}, {fam: 'eq', rule: 'p', k: 1, n: 2, vd: 'perhaps'}])}));
   const g = f.el.innerHTML;
   assert.ok(g.includes('id="trd-daily"') && !g.includes('<small>IVV</small>') && !g.includes('trd.px.EWC') && !g.includes('<small>XLK</small>') && !g.includes('<small>SLV</small>') && !g.includes('trd.px.KSA'), 'złe wiersze nie dają kart');
-  assert.ok(g.includes('<div class="k-val">1</div><small class="mtxt">trd.d.k.nline{"q":0,"x":0,"s":0,"o":1}</small>') && g.includes('<summary>trd.d.none.t{"n":1}</summary>'), 'został jeden wiersz „brak danych dnia”');
+  assert.ok(g.includes('<div class="k-val">1</div><small class="mtxt">t316.nl.q{"n":0} · t316.nl.x{"n":0} · t316.nl.s{"n":0} · t316.nl.o{"n":1}</small>')   /* v316 (TR7-3) */ && g.includes('<summary>trd.d.none.t{"n":1}</summary>'), 'został jeden wiersz „brak danych dnia”');
   const ewa = card(g, 'EWA'); assert.ok(ewa.includes('<b class="na">•<small>trd.d.st.nodata</small></b>') && ewa.includes('trd.d.r.p.na') && ewa.includes('<br>trd.d.why.nodata') && !ewa.includes('0%') && !ewa.includes('trd.d.r.f.na'), 'brak liczb = „—” i słowa, nigdy 0: ' + ewa);
   assert.equal((g.slice(g.indexOf('id="trd-dbd"'), g.indexOf('id="trd-dmethod"')).match(/<div class="etfk trk">/g) || []).length, 7, 'nieznana rodzina, duplikat i zły werdykt pominięte — nadal 7 linii');
   assert.ok(g.includes('<div class="k-val">trd.d.k.of{"e":1}</div>'), 'duplikat eq·f (5 z 5) nie liczy się drugi raz');
@@ -5081,7 +5081,7 @@ test('v123: widok krypto — sekcja dzienna krypto nad „Tło”: kafle 1 / 0 /
   assert.ok(c.includes('<h3 class="mtxt"><i class="tg pos">▲</i><b>trd.d.buy.t</b></h3><p class="pnote">trd.dc.buy.sub</p><div class="etfkpis">') && c.includes('<h3 class="mtxt"><i class="tg neg">▼</i><b>trd.d.sell.t</b></h3><p class="pnote">trd.dc.sell.sub</p><p class="pnote">trd.d.empty</p>'), 'listy: podtytuły krypto, pusta strona sprzedaży = zdanie');
   /* kafle — tylko wiersze krypto */
   assert.ok(c.includes('trd.d.k.buy</span></div><div class="k-val">1</div><small class="mtxt">BTC</small>') && c.includes('trd.d.k.sell</span></div><div class="k-val">0</div><small class="mtxt">trd.d.k.empty</small>'), 'kafle stron: 1 (BTC, szary) / 0');
-  assert.ok(c.includes('trd.d.k.none</span></div><div class="k-val">3</div><small class="mtxt">trd.d.k.nline{"q":1,"x":0,"s":1,"o":1}</small>'), 'bez sygnału: 3 (spokojny, nieaktualny, za mało historii)');
+  assert.ok(c.includes('trd.d.k.none</span></div><div class="k-val">3</div><small class="mtxt">t316.nl.q{"n":1} · t316.nl.x{"n":0} · t316.nl.s{"n":1} · t316.nl.o{"n":1}</small>')   /* v316 (TR7-3) */, 'bez sygnału: 3 (spokojny, nieaktualny, za mało historii)');
   assert.ok(c.includes('trd.d.k.rules</span></div><div class="k-val">trd.dc.k.of{"e":0,"n":1}</div>'), 'kafel reguł: „0 z 1”');
   const oos = /trd\.d\.k\.oos0\{"d":"([^"]*)"\}/.exec(c); assert.ok(oos && /29/.test(oos[1]) && !/28/.test(oos[1]), 'od wdrożenia — data z linii krypto (29.09), nie dsince świata (28.09): ' + (oos && oos[1]));
   assert.ok(c.includes('<p class="pnote">trd.dc.none.all</p><h3 class="mtxt"><i class="tg pos">▲</i>'), 'zdanie „reguła krypto bez przewagi” przed listami');
@@ -5137,7 +5137,7 @@ test('v123: linie krypto — tylko cr·p (cr·f, cr·fp, zły werdykt i duplikat
   const pool = c.slice(c.indexOf('id="trd-dbdc"'), c.indexOf('id="trd-dmethodc"'));
   assert.equal((pool.match(/<div class="etfk trk">/g) || []).length, 1, 'jedna linia'); assert.ok(pool.includes('<b>48.2%</b>') && !pool.includes('trd.d.r.f&quot;') && !pool.includes('trd.d.v.edge'), 'pierwsza poprawna cr·p');
   assert.ok(c.includes('<div class="k-val">trd.dc.k.of{"e":0,"n":1}</div>') && c.includes('trd.dc.none.all'), '„0 z 1”, zdanie o braku przewagi');
-  assert.ok(card(c, 'XRP').includes('<small>trd.d.st.x</small>') && card(c, 'XRP').includes('<br>trd.d.why.x') && c.includes('trd.d.k.nline{"q":1,"x":1,"s":1,"o":1}'), 'XRP (reguła x, faza 2): przyjęty, w „Bez sygnału”');
+  assert.ok(card(c, 'XRP').includes('<small>trd.d.st.x</small>') && card(c, 'XRP').includes('<br>trd.d.why.x') && c.includes('t316.nl.q{"n":1} · t316.nl.x{"n":1} · t316.nl.s{"n":1} · t316.nl.o{"n":1}')   /* v316 (TR7-3) */, 'XRP (reguła x, faza 2): przyjęty, w „Bez sygnału”');
   /* linia z przewagą i wiersz „buy” — zielony kolor tylko wtedy */
   const e = Object.assign({}, ln, {k: 560, n: 912, ci: [58, 64.3], h1: 60, h2: 62, vd: 'edge'});
   const f2 = make({mode: 'trendy', trdv: 'crypto'}); f2.trdApply(data({d: [Object.assign({}, rows[0], {st: 'buy', vd: 'edge'})].concat(rows.slice(1)), bd: [e]})); const c2 = sec(f2.el.innerHTML);
@@ -5684,10 +5684,12 @@ test('v125: EXTRA118 — 10 języków w kolejności, te same 83 klucze trd.dc2.*
      z dawnymi wersjami tych trzech tekstów odtworzonymi z nowych (zamiana musi trafić — inaczej suma się nie zgodzi); nowe teksty sprawdzone wprost */
   const A293 = {pl: {'trd.dc2.ev1': '{name} {p}% ({k} z {n})', 'trd.dc2.ev': D.pl['trd.dc2.ev'] + ' (zwykła doba {b0}%)',
       'trd.dc2.sub': D.pl['trd.dc2.sub'].replace('podaż stablecoinów USDT i USDC (wspólna dla całego rynku)', 'podaż stablecoinów (cały rynek)'),
-      'trd.dc2.d.s': D.pl['trd.dc2.d.s'].replace('USDT i USDC, wspólne dla całego rynku', 'cały rynek')},   /* v296 (U5) */
+      'trd.dc2.d.s': D.pl['trd.dc2.d.s'].replace('USDT i USDC, wspólne dla całego rynku', 'cały rynek'),   /* v296 (U5) */
+      'trd.dc2.m.8': D.pl['trd.dc2.m.8'].replace('(bez przewagi; jej trafienia od wdrożenia liczymy dalej w pliku danych — na nowo z bieżących danych, nie z dziennika kart)', '(bez przewagi; jej licznik „od wdrożenia” liczymy dalej w pliku danych)')},   /* v316 (TR7-5) */
     en: {'trd.dc2.ev1': '{name} {p}% ({k} of {n})', 'trd.dc2.ev': D.en['trd.dc2.ev'] + ' (ordinary day {b0}%)',
       'trd.dc2.sub': D.en['trd.dc2.sub'].replace('USDT and USDC stablecoin supply (shared by the whole market)', 'stablecoin supply (whole market)'),
-      'trd.dc2.d.s': D.en['trd.dc2.d.s'].replace('USDT and USDC, shared by the whole market', 'whole market')}};   /* v296 (U5) */
+      'trd.dc2.d.s': D.en['trd.dc2.d.s'].replace('USDT and USDC, shared by the whole market', 'whole market'),   /* v296 (U5) */
+      'trd.dc2.m.8': D.en['trd.dc2.m.8'].replace('(no edge; its hits since going live are still counted in the data file — recomputed from the current data, not from the card journal)', '(no edge; its “since going live” counter keeps running in the data file)')}};   /* v316 (TR7-5) */
   assert.equal(fnv(JSON.stringify(noLate(Object.assign({}, D.pl, A293.pl)))) + ':' + fnv(JSON.stringify(noLate(Object.assign({}, D.en, A293.en)))), 'd09e53bd:e00574a', 'pl i en = Aneks A (poza 5 kluczami dopisku; v293: 3 teksty po audycie)');
   assert.equal(D.pl['trd.dc2.ev'], 'w historii, gdy powód wskazywał tę stronę (sam opis): {l}'); assert.ok(D.pl['trd.dc2.sub'].includes('podaż stablecoinów USDT i USDC (wspólna dla całego rynku)'));
   assert.equal(D.pl['trd.dc2.why.late'], 'ceny i obroty potrzebne tej karcie (z {d} albo z dni, z którymi ją porównujemy — do 61 dni wstecz) trafiły na stronę albo zostały poprawione dopiero po {u} UTC, tuż przed albo już po starcie mierzonego okna — karta jest tylko opisem, bez strony');
@@ -5768,7 +5770,7 @@ test('v125: widok krypto (pl) — sekcja v2 z prawdziwych danych 27.09: kolejno�
   /* kafle */
   assert.ok(c.includes(tp('trd.d.k.buy') + '</span></div><div class="k-val">1</div><small class="mtxt">BNB</small>'), 'kupno: 1 (BNB, szara)');
   assert.ok(c.includes(tp('trd.d.k.sell') + '</span></div><div class="k-val">4</div><small class="mtxt">ETH · TRX · ADA</small>'), 'sprzedaż: 4');
-  assert.ok(c.includes('<div class="k-val">5</div><small class="mtxt">3 spokojnych · 2 sprzecznych · 0 nieaktualnych · 0 bez danych lub historii</small>'), 'bez sygnału: 5');
+  assert.ok(c.includes('<div class="k-val">5</div><small class="mtxt">3 spokojnych · 2 sprzecznych · 0 nieaktualnych · 0 bez danych lub historii</small>'), 'bez sygnału: 5');   /* v316: piaskownica bez tN — tekst bazowy (forma „wiele”); na stronie „3 spokojne · 2 sprzeczne” — test v316 TR7-3 */
   assert.ok(c.includes('<div class="k-val">0 z 7</div>') && T.includes('od wdrożenia reguły (28.09.2026): jeszcze bez par'), '„0 z 7”, od wdrożenia z linii v2');
   assert.ok(T.includes('Cały rynek krypto, doba 26.09.2026 (UTC): podaż stablecoinów (USDT i USDC) zmieniła się o +158 mln USD — w zwykłym zakresie.'), 'pasek rynku');
   /* listy */
@@ -5880,7 +5882,7 @@ test('v125: dane po czasie — SOL „late” w „Bez sygnału dziś” (dane p
   const eth = txt(card(c, 'ETH'));
   assert.ok(eth.includes('po 05:30 UTC, bez głosu: przepływ na giełdy (liczba z tej doby albo dni, z którymi ją porównujemy)') && eth.includes('agresywna sprzedaż 50,5% (829 z 1642; zwykła doba 49,6%) · każda karta 48,9% (1453 z 2969; zwykła doba 49,7%)') && !eth.includes('przepływ na giełdy 48,7%'), 'ETH: przepływ bez głosu, linia all: ' + eth);
   assert.ok(T.includes('Po 05:30 UTC dotarły: przepływ na giełdy (liczba z tej doby albo dni, z którymi ją porównujemy) — na kartach z 26.09.2026 są bez głosu, bo mierzone okno zaczyna się o 06:00 UTC.'), 'ans.late');
-  assert.ok(c.includes('<div class="k-val">5</div><small class="mtxt">2 spokojnych · 2 sprzecznych · 1 nieaktualnych · 0 bez danych lub historii</small>'), '„late” liczone jako nieaktualne');
+  assert.ok(c.includes('<div class="k-val">5</div><small class="mtxt">2 spokojnych · 2 sprzecznych · 1 nieaktualnych · 0 bez danych lub historii</small>'), '„late” liczone jako nieaktualne');   /* v316: piaskownica bez tN — tekst bazowy; na stronie „2 spokojne · 2 sprzeczne · 1 nieaktualna” — test v316 TR7-3 */
   /* brak liczby stablecoinów u BTC (pierwsza karta z wpisem s) */
   const f2 = make('pl'); f2.trdApply(file(rows(R => { const b = by(R, 'BTC'); b.rs = b.rs.map(x => x[0] === 's' ? ['s', null, null, 0] : x); })));
   const c2 = sec(f2.el.innerHTML), T2 = txt(c2);
@@ -5927,7 +5929,7 @@ test('v125 (przegląd 27.09): karta w kolorze — „potwierdzona przewaga” i 
   assert.ok(c2.includes(tp('trd.d.k.buy') + '</span></div><div class="k-val">0</div><small class="mtxt">' + tp('trd.d.k.emptyst', {n: 1}) + '</small>'), 'kafel kupna: nikt aktualny, 1 nieaktualna (jak lista)');
   const iB = c2.indexOf('<b>' + tp('trd.d.buy.t') + '</b>'), iS = c2.indexOf('<b>' + tp('trd.d.sell.t') + '</b>');
   assert.ok(c2.slice(iB, iS).includes(tp('trd.d.empty.st', {n: 1, s: tp('trd.d.k.none')})), 'lista kupna: ta sama liczba');
-  assert.ok(c2.includes('<div class="k-val">9</div><small class="mtxt">3 spokojnych · 2 sprzecznych · 4 nieaktualnych · 0 bez danych lub historii</small>'), '„Bez sygnału”: late jak nieaktualne');
+  assert.ok(c2.includes('<div class="k-val">9</div><small class="mtxt">3 spokojnych · 2 sprzecznych · 4 nieaktualnych · 0 bez danych lub historii</small>'), '„Bez sygnału”: late jak nieaktualne');   /* v316: piaskownica bez tN — tekst bazowy; na stronie „3 spokojne · 2 sprzeczne · 4 nieaktualne” */
   /* punkt kontrolny dziennika: t (przewaga w próbie) — licznik jej nie potwierdził; all — potwierdził */
   const lc = (vd, c) => ({c, k: 60, n: 100, p: 60, b0: 50, ca: [44, 75], vd, to: '2027-01-05'});
   const L3 = lines(B => { by(B, 't').vd = 'edge'; Object.assign(by(B, 't'), {lc: lc('none', 100), lvd: 'none', lnx: 200}); Object.assign(by(B, 'all'), {lc: lc('edge', 200), lvd: 'edge', lnx: 400}); });
@@ -6050,7 +6052,10 @@ test('v125 (dopisek do SPEC §5.1, A1): stara karta przeglądarki — osadzony b
   const {make, oldBlk, file, prodFile, world, rows, lines, clone, CR, V1L, V1R, sec, card, txt, raw} = trdV125, tp = v96src.tFor('pl');
   const OLD = oldBlk();
   assert.ok(!OLD.includes('trdDRow2') && !OLD.includes('trd.dc2.') && !OLD.includes('r.v!==2') && OLD.includes('function trdDailyC(D){'), 'bez kodu v125');
-  const mk = (L, st) => make(L, st || {mode: 'trendy', trdv: 'crypto'}, undefined, undefined, OLD), o = mk('pl');
+  /* v316 (TR7-3): trd.d.k.nline usunięty ze słownika strony (kafel czyta t316.nl.*) — stara karta ma go w swoim dawnym słowniku (tekst z 20316ff) */
+  const NL316 = {pl: '{q} spokojnych · {x} sprzecznych · {s} nieaktualnych · {o} bez danych lub historii', en: '{q} quiet · {x} conflicting · {s} outdated · {o} without data or history'};
+  const tOld = L => { const T = v96src.tFor(L); return (k, v) => { if (k !== 'trd.d.k.nline') return T(k, v); let s = NL316[L]; for (const x in v || {}) s = s.split('{' + x + '}').join(v[x]); return s; }; };
+  const mk = (L, st) => make(L, st || {mode: 'trendy', trdv: 'crypto'}, undefined, tOld(L), OLD), o = mk('pl');
   /* 1. każdy wiersz v2 — z każdą regułą v2, w każdym stanie, z każdą stroną — odrzucony przez trdDRow produkcji (c / cx / c0 spoza TRD_DRL);
         karty v1 z pliku — przyjęte */
   assert.deepEqual(o.TRD_DRL, ['f', 'p', 'fp', 'x', 'none'], 'TRD_DRL produkcji');
@@ -6092,7 +6097,9 @@ test('v125 (dopisek do SPEC §5.1, A1): stara karta przeglądarki — osadzony b
         v125 pokazują go tak samo (bajt w bajt) */
   const bd = file().bd; assert.equal(JSON.stringify(bd[7]), JSON.stringify(V1L), 'linia v1 w pliku v125: tuż po świecie, bez zmian');
   for (const L of ['pl', 'en']) { const a = mk(L), b = make(L); a.trdApply(prodFile()); b.trdApply(prodFile());
-    const s293 = ' · ' + v96src.tFor(L)('a293t.stab'), B = b.el.innerHTML;   /* v293 (T5): jedyna różnica — zdanie o sygnale dziennym na karcie stablecoinów */
+    const s293 = ' · ' + v96src.tFor(L)('a293t.stab'), B0 = b.el.innerHTML;   /* v293 (T5): jedyna różnica — zdanie o sygnale dziennym na karcie stablecoinów */
+    const w316 = [v96src.tFor(L)('t316.stab.win', {d: ''}), v96src.tFor(L)('fo.s', {n: 7, x: v96src.tFor(L)('trd.u.days'), d: ''})], B = B0.split(w316[0]).join(w316[1]);   /* v316 (TR7-2): druga różnica — okno stablecoinów „7 pełnych dób do …” (kafel i karta) zamiast „7 dni do …” */
+    assert.ok(B0.split(w316[0]).length === 3 && !a.el.innerHTML.includes(w316[0]), L + ': okno v316 dwa razy (kafel i karta), w starej stronie wcale');
     assert.ok(B.split(s293).length === 2, L + ': zdanie v293 raz');
     assert.ok(sec(a.el.innerHTML).includes('<b>' + (L === 'pl' ? '48,2' : '48.2') + '%</b>') && B.split(s293).join('') === a.el.innerHTML, L + ': plik v1 — stara strona i strona v125 bajt w bajt'); }
 });
@@ -6883,7 +6890,13 @@ test('v127: EXTRA125 — 10 języków w kolejności, 96 kluczy trd.dw2.* (92 Ane
   /* pl i en dosłownie jak Aneks A (v126/judge2/w/extra123_pl_en.json, 92 klucze; aneks numeracji: nazwa słownika EXTRA125, treść bez zmian) —
      z wyjątkiem dwóch tekstów pl (przegląd 2: trd.dw2.sub i trd.dw2.m.7 bez zwrotu „pochodzi z”, który strażnik nazw v126.2 czyta jako podpis) */
   const KA = K.slice(0, 92), sub = o => JSON.stringify(Object.fromEntries(KA.map(k => [k, o[k]])));
-  assert.equal(trdV125.fnv(sub(D.pl)) + ':' + trdV125.fnv(sub(D.en)), 'd54acd77:a33d8441', 'pl i en 92 kluczy = Aneks A (suma FNV-1a)');
+  /* v316 (TR7-5): trd.dw2.b.v1 i opis wersji 1 w trd.dw2.m.8 zmienione — suma Aneksu A z dawnymi tekstami odtworzonymi z nowych (zamiana musi trafić) */
+  const O316 = {pl: {'trd.dw2.b.v1': 'Wersja 1 reguł świata (od {s}; liczona dalej, bez wpływu na kolor) — licznik „od wdrożenia”: {l}.',
+      'trd.dw2.m.8': D.pl['trd.dw2.m.8'].replace('(bez przewagi; jej trafienia od wdrożenia liczymy dalej — na nowo z bieżących plików danych, nie z dziennika kart — i pokazujemy pod kartami linii)', '(bez przewagi; jej licznik „od wdrożenia” liczymy dalej i pokazujemy pod kartami linii)')},
+    en: {'trd.dw2.b.v1': 'World rule version 1 (since {s}; still counted, no effect on colour) — “since going live” counter: {l}.',
+      'trd.dw2.m.8': D.en['trd.dw2.m.8'].replace('(no edge; its hits since going live are still counted — recomputed from the current data files, not from the card journal — and shown under the line cards)', '(no edge; its “since going live” counter keeps running and is shown under the line cards)')}};
+  assert.equal(trdV125.fnv(sub(Object.assign({}, D.pl, O316.pl))) + ':' + trdV125.fnv(sub(Object.assign({}, D.en, O316.en))), 'd54acd77:a33d8441', 'pl i en 92 kluczy = Aneks A (suma FNV-1a; v316: 2 teksty wersji 1)');
+  assert.ok(D.pl['trd.dw2.b.v1'].includes('liczone na nowo z bieżących plików danych, a nie z dziennika kart z 9:00') && D.en['trd.dw2.m.8'].includes('recomputed from the current data files, not from the card journal'), 'v316: nowe teksty wersji 1');
   assert.equal(D.pl['trd.dw2.ev1'], '{name} {p}% ({k} z {n}; zwykła sesja {b0}%)'); assert.equal(D.en['trd.dw2.win'], 'window: the {s} session, from the open to the close · your time {a}–{b}');
   assert.equal(D.pl['trd.dw2.v.edge'], 'przewaga w historii (w próbie)'); assert.equal(D.pl['trd.dw2.b.pvv'], ' (ocena po {c} sesjach: {v})');
   assert.ok(D.pl['trd.dw2.sub'].includes('Powody to dane znane przed 9:00 w Nowym Jorku:') && !/pochodz\p{L}* z/u.test(D.pl['trd.dw2.sub'] + D.pl['trd.dw2.m.7']), 'przegląd 2: pl bez „pochodzi z”');
@@ -13699,7 +13712,7 @@ test('v216: w cieniu — liczba kandydatów i najbliższy postęp; ujawnienie ty
   const d0 = html.indexOf('const EXTRA180='), d1 = html.indexOf(';\n', d0), E = JSON.parse(html.slice(d0 + 'const EXTRA180='.length, d1));
   assert.deepEqual(Object.keys(E), ['pl']); assert.equal(Object.keys(E.pl).length, 9); assert.ok(Object.keys(E.pl).every(k => k.startsWith('tig.sh')));   // v221: bez eq.n2
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA180)if(I18N[l])Object.assign(I18N[l],EXTRA180[l]);'), 'jedna linia for po słowniku');
-  assert.ok(html.includes("${vd}${trdIgShadow(J,tk)}<p class=\"pnote tig-lw\">${t(tk('tig.l.how')"), 'zdanie pod paskiem, przed opisem metody (v293: tk — klucze widoku)');
+  assert.ok(html.includes("${vd}${trdIgShadow(J,tk)}${trdIgSu(D,cr)}<p class=\"pnote tig-lw\">${t(tk('tig.l.how')"), 'zdanie pod paskiem, przed opisem metody (v293: tk — klucze widoku)');   /* v316 (TR7-1): między nimi zdanie o regułach surowców (trdIgSu) */
 });
 
 
@@ -18300,4 +18313,201 @@ test('v315 (CR7-07): telefon 390 px — reguła tabel dób wielorybów (klasa wh
   const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
   assert.ok(css.includes(R) && css.indexOf(R) > css.indexOf('@media (max-width:620px){#c-wieloryby .list-wrap{padding:6px 0 10px}'), 'po regule 620 px (nadpisuje odstępy)');
   assert.ok(css.includes('.pg-exch .sbar{visibility:hidden}'));
+});
+
+/* ===================== v316: TRENDY — poprawki po audycie m7 (TR7-1 … TR7-5 i dopiski weryfikatora) =====================
+   TR7-1 „Nauka” mówi też o regułach surowców „w cieniu” (druga lista, zapisana 08.10), a blok surowców — że to osobna lista;
+   TR7-2 karta i kafel stablecoinów: „7 pełnych dób do …” (zbieracz liczy 7 zamkniętych dób, bez dzisiejszej, niepełnej);
+   TR7-3 odmiana liczebników przez tN: „1 spokojna · 3 sprzeczne”, „2364 sesje z sygnałem”;
+   TR7-4 blok surowców: „po … sesjach z sygnałem (w krypto: dniach z sygnałem)”, także w ostatnim zdaniu;
+   TR7-5 wersja 1 reguł (świat i krypto): trafienia liczone na nowo z bieżących plików danych, nie z dziennika kart. */
+const v316 = (() => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const i = html.indexOf('{"pl":{"t316.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  const e = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i);
+  const D = JSON.parse(html.slice(i, e));
+  const I = v96src.I18N, tNsrc = html.slice(html.indexOf('function tN(k,n,o){'), html.indexOf('\nfunction rwN(n)'));
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const t0 = html.indexOf('const t=(k,vars)=>'), t1 = html.indexOf(';\n', t0);
+  const tp = L => new Function('I18N', 'LANG', 'return ' + html.slice(t0 + 'const t='.length, t1))(I, L);   /* t() strony: język → en → pl → klucz */
+  const tN = L => new Function('t', 'I18N', 'LANG', 'LOCALE', tNsrc + '\nreturn tN;')(tp(L), I, L, LOC);
+  /* cały blok TRENDY z infografiką (v89 + v158), z tN strony i prawdziwym słownikiem — funkcje do wywołania wprost */
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v158: koniec infografiki */');
+  const blk = html.slice(b0, b1).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '');
+  const mkB = L => { const F = trdV127.fmt(L);
+    const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N', 'sepK'];
+    const vals = [() => null, tp(L), {mode: 'trendy', trdv: 'global'}, () => Promise.resolve(null), v96src.escH, () => '', () => '', F.fInt, F.sg, F.nfmt, F.fPct, () => 'ses', s => s, L, LOC, I, () => ': '];
+    return new Function(...names, tNsrc + '\n' + blk + '\nreturn {trdIgLearn, trdIgSu, trdSu, trdWin, trdNl, trdDay, TRD_SU, trdSuS};')(...vals); };
+  /* świat v2 (plik trdV127.FILE, zegar przypięty) z tN strony — karty linii i zdanie o wersji 1 pod nimi */
+  const mkW = L => { const el = {innerHTML: '', querySelectorAll() { return []; }, querySelector() { return null; }}, F = trdV127.fmt(L), IC = trdV96.ICO;
+    class FD extends Date { static now() { return Date.parse('2026-09-27T16:00:00Z'); } }
+    const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+      'flagImg', 'glyphImg', 'coinImg', 'issBadge', 'issuerOf', 'icoWrap', 'Date'];
+    const vals = [() => el, v96src.tFor(L), {mode: 'trendy', trdv: 'global'}, () => Promise.resolve(null), v96src.escH, v => v > 0 ? 'pos' : v < 0 ? 'neg' : '', () => '',
+      F.fInt, F.sg, F.nfmt, F.fPct, () => 'ses', s => s, L, LOC, I, IC.flagImg, IC.glyphImg, IC.coinImg, IC.issBadge, IC.issuerOf, IC.icoWrap, FD];
+    const f = new Function(...names, tNsrc + '\n' + trdV127.blk + '\nreturn {trdApply};')(...vals); f.trdApply(JSON.parse(JSON.stringify(trdV127.FILE))); return el.innerHTML; };
+  /* widok krypto (dane trdV125 z 27.09) z tN strony — sekcja dzienna */
+  const mkC = (L, R) => { const f = trdV125.make(L, undefined, undefined, undefined, tNsrc + '\n' + trdV125.blk); f.trdApply(trdV125.file(R)); return trdV125.sec(f.el.innerHTML); };
+  const txt = s => s.replace(/<br>/g, ' ').replace(/<[^>]+>/g, ' ').replace(new RegExp('[' + String.fromCharCode(0xa0, 0x202f) + ']', 'g'), ' ').replace(/\s+/g, ' ');
+  return {L10, name, D, I, tp, tN, mkB, mkW, mkC, txt};
+})();
+
+test('v316: słownik t316.* — czysty JSON zaraz po linii nakładania innego słownika, 10 języków z prawdziwymi tłumaczeniami (te same klucze bazowe i pola {x}), formy odmiany tylko tam, gdzie język je rozróżnia; klucze użyte w kodzie; stary klucz trd.d.k.nline usunięty ze wszystkich słowników', () => {
+  const {L10, name, D, I} = v316, ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik: ' + name);
+  const a = html.indexOf('const ' + name + '='), ln = html.slice(html.lastIndexOf('\n', a - 2) + 1, a - 1);
+  assert.ok(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(ln) && html[a - 1] === '\n', 'zaraz po linii for innego słownika: ' + ln.slice(0, 80));
+  assert.deepEqual(Object.keys(D), L10);
+  const B = ['t316.nl.q', 't316.nl.x', 't316.nl.s', 't316.nl.o', 't316.sh.su', 't316.su.sep', 't316.stab.win'];
+  const NL1 = ['odm.t316.nl.q.one', 'odm.t316.nl.x.one', 'odm.t316.nl.s.one'], NL2 = ['odm.t316.nl.q.one', 'odm.t316.nl.q.few', 'odm.t316.nl.x.one', 'odm.t316.nl.x.few', 'odm.t316.nl.s.one', 'odm.t316.nl.s.few'];
+  const ODM = {pl: NL2.concat(['odm.t316.sh.su.one', 'odm.t316.sh.su.few', 'odm.trd.dw2.b.days.one', 'odm.trd.dw2.b.days.few']), ru: NL2.concat(['odm.t316.sh.su.one', 'odm.t316.sh.su.few'])};
+  for (const l of ['es', 'fr', 'it', 'pt']) ODM[l] = NL1.concat(['odm.t316.sh.su.one']);   /* 1 (fr, pt: także 0) — liczba pojedyncza */
+  for (const l of ['en', 'de', 'zh', 'ja']) ODM[l] = ['odm.t316.sh.su.one'];   /* en i de: przymiotnik bez odmiany; zh i ja bez liczby mnogiej (v143: klucz z en we wszystkich) */
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]), B.concat(ODM[l]), 'klucze ' + l);
+    for (const k of Object.keys(D[l])) {
+      const base = k.startsWith('odm.') ? k.replace(/^odm\./, '').replace(/\.(one|few)$/, '') : k, ref = base === 'trd.dw2.b.days' ? I.pl[base] : D.pl[base];
+      assert.ok(typeof D[l][k] === 'string' && D[l][k].trim() && ph(D[l][k]) === ph(ref), l + ' ' + k + ': pola {x}');
+      if (l !== 'en' && D.en[k] !== undefined) assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+      assert.equal(I[l][k], D[l][k], 'scalony słownik strony: ' + l + ' ' + k);
+    }
+  }
+  assert.equal(ph(D.pl['t316.sh.su']), '{d},{n}'); assert.equal(ph(D.pl['t316.su.sep']), '{c}'); assert.equal(ph(D.pl['t316.stab.win']), '{d}'); assert.equal(ph(D.pl['odm.trd.dw2.b.days.few']), '{d}');
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego');
+  assert.deepEqual(v143Bad(html).filter(x => /t316|trd\.dw2\.b\.days/.test(x)), [], 'v143: używane klucze z tekstem angielskim — we wszystkich 8 językach');
+  assert.ok(!new RegExp('[' + String.fromCharCode(0x3040) + '-' + String.fromCharCode(0x30ff) + ']').test(Object.values(D.zh).join('|')), 'zh bez kany');
+  assert.ok(!new RegExp('(\\d|\\})[ ' + String.fromCharCode(0xa0, 0x3000) + ']+(営業日|日間|日|銘柄|件|か月|年|回|本|分|時間|週|つ|位|組|枚|取引日|ブロック|市場|契約|個)').test(Object.values(D.ja).join('|')), 'ja: bez spacji przed licznikiem');
+  assert.ok(!/coingecko|llama|coin ?metrics|binance|sosovalue|ishares|ssga|cftc|lbma|github|tiingo|twelve/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+  /* klucze w kodzie: cztery części kafla (przedrostek), zdanie „Nauki”, zdanie bloku surowców, okno stablecoinów; formy odm.* składa tN */
+  for (const s of ["trdTN('t316.nl.'+k,c[k],{n:trdC(c[k])})", "trdTN('t316.sh.su',n,{n:trdC(n),d})", "t('t316.su.sep',{c:t('td303.l.cr.au')})", "t('t316.stab.win',{d:trdDay(r.date)})",
+    "trdTN('trd.dw2.b.days',b.days,{d:trdNum(b.days)?trdC(b.days):'—'})", "const kk='odm.'+k+'.'+c;"]) assert.ok(html.includes(s), 'w kodzie: ' + s);
+  /* stary tekst kafla (4 liczby, jedna forma) — nigdzie */
+  for (const d of v151Dicts(html)) for (const l in d.obj) assert.ok(!v151Own(d.obj[l], 'trd.d.k.nline'), d.name + ' ' + l + ': trd.d.k.nline');
+  const kod = v143Code(html);
+  assert.ok(!v143Usage(kod).lit.has('trd.d.k.nline') && !/['"`]trd\.d\.k\.nline/.test(kod) && html.split('trd.d.k.nline').length === 2, 'kod bez trd.d.k.nline (została tylko wzmianka w komentarzu v316)');
+});
+
+test('v316 TR7-3: odmiana liczebników — „Bez sygnału dziś” (pl: 1 spokojna · 3 sprzeczne · 5 nieaktualnych; ru, es, fr, it, pt — liczba pojedyncza dla 1) i karty linii świata (2363 sesje / 2390 sesji z sygnałem), w widoku krypto i świata z tN strony', () => {
+  const {tN, mkC, mkW, txt} = v316;
+  const f = (L, k, ns) => ns.map(n => tN(L)('t316.nl.' + k, n, {n}));
+  assert.deepEqual(f('pl', 'q', [0, 1, 2, 3, 4, 5, 12, 13, 21, 22, 24, 25, 102, 112]), ['0 spokojnych', '1 spokojna', '2 spokojne', '3 spokojne', '4 spokojne', '5 spokojnych', '12 spokojnych',
+    '13 spokojnych', '21 spokojnych', '22 spokojne', '24 spokojne', '25 spokojnych', '102 spokojne', '112 spokojnych']);
+  assert.deepEqual(f('pl', 'x', [1, 3, 5]), ['1 sprzeczna', '3 sprzeczne', '5 sprzecznych']); assert.deepEqual(f('pl', 's', [1, 2, 0]), ['1 nieaktualna', '2 nieaktualne', '0 nieaktualnych']);
+  assert.deepEqual(f('pl', 'o', [1, 3]), ['1 bez danych lub historii', '3 bez danych lub historii']);
+  assert.deepEqual(f('ru', 'q', [1, 3, 5, 21, 22, 11]), ['1 спокойная', '3 спокойные', '5 спокойных', '21 спокойная', '22 спокойные', '11 спокойных']);
+  assert.deepEqual(f('ru', 'x', [1, 2, 7]), ['1 противоречивая', '2 противоречивые', '7 противоречивых']); assert.deepEqual(f('ru', 's', [1, 4, 0]), ['1 устаревшая', '4 устаревшие', '0 устаревших']);
+  assert.deepEqual([f('es', 'q', [1, 2]), f('fr', 'x', [0, 1, 2]), f('it', 's', [1, 3]), f('pt', 'q', [1, 2])],
+    [['1 tranquilo', '2 tranquilos'], ['0 contradictoire', '1 contradictoire', '2 contradictoires'], ['1 non aggiornato', '3 non aggiornati'], ['1 calmo', '2 calmos']]);
+  assert.deepEqual([f('en', 'q', [1, 2]), f('de', 'x', [1, 2]), f('zh', 's', [1]), f('ja', 'q', [1])], [['1 quiet', '2 quiet'], ['1 widersprüchlich', '2 widersprüchlich'], ['1 个过期'], ['平穏 1']]);
+  /* karty linii świata (liczby z audytu m7: 2364 / 2392 / 103 / 2474 sesje, 1981 / 965 / 1358 sesji) */
+  assert.deepEqual([2364, 2392, 103, 2474, 1981, 965, 1358, 1, 12, 22].map(n => tN('pl')('trd.dw2.b.days', n, {d: n})), ['2364 sesje z sygnałem', '2392 sesje z sygnałem', '103 sesje z sygnałem',
+    '2474 sesje z sygnałem', '1981 sesji z sygnałem', '965 sesji z sygnałem', '1358 sesji z sygnałem', '1 sesja z sygnałem', '12 sesji z sygnałem', '22 sesje z sygnałem']);
+  assert.equal(tN('en')('trd.dw2.b.days', 2364, {d: '2,364'}), '2,364 sessions with a signal', 'inne języki — tekst bazowy (bez polskiej formy)');
+  assert.equal(tN('pl')('trd.dw2.b.days', NaN, {d: '—'}), '— sesji z sygnałem', 'brak liczby — tekst bazowy z „—”');
+  /* widok krypto (pl): 3 spokojne + 2 sprzeczne; SOL po czasie → 1 nieaktualna; jak w audycie m7: SOL sprzeczny, LINK po czasie → 1 spokojna · 3 sprzeczne */
+  const {rows, by} = trdV125, tile = s => '<small class="mtxt">' + s + '</small>';
+  assert.ok(mkC('pl').includes('<div class="k-val">5</div>' + tile('3 spokojne · 2 sprzeczne · 0 nieaktualnych · 0 bez danych lub historii')), 'bez sygnału: 5');
+  assert.ok(mkC('pl', rows(R => { Object.assign(by(R, 'SOL'), {st: 'late'}); })).includes(tile('2 spokojne · 2 sprzeczne · 1 nieaktualna · 0 bez danych lub historii')), 'SOL po czasie');
+  const m7 = rows(R => { Object.assign(by(R, 'SOL'), {rule: 'cx', st: 'x', rs: by(R, 'DOGE').rs.map(x => x.slice())}); Object.assign(by(R, 'LINK'), {st: 'late'}); });   /* SOL sprzeczny: głosy jak DOGE (+1 i −1) */
+  assert.ok(mkC('pl', m7).includes('<div class="k-val">5</div>' + tile('1 spokojna · 3 sprzeczne · 1 nieaktualna · 0 bez danych lub historii')), 'jak w audycie m7: „1 spokojna · 3 sprzeczne”');
+  assert.ok(mkC('ru', m7).includes(tile('1 спокойная · 3 противоречивые · 1 устаревшая · 0 без данных или истории')), 'ru');
+  assert.ok(mkC('en', m7).includes(tile('1 quiet · 3 conflicting · 1 outdated · 0 without data or history')) && mkC('es', m7).includes(tile('1 tranquilo · 3 contradictorios · 1 desactualizado · 0 sin datos o historial')), 'en, es');
+  assert.ok(mkC('ja', m7).includes(tile('平穏 1 · 矛盾 3 · 期限切れ 1 · データまたは履歴なし 0')), 'ja: jak dawniej (bez liczby mnogiej)');
+  /* widok świata v2 (plik trdV127): sesje z sygnałem na kartach linii — 2363 i 2473 sesje, 2390 / 97 / 1978 / 966 / 1356 sesji */
+  const W = txt(mkW('pl'));
+  for (const s of ['2363 sesje z sygnałem', '2473 sesje z sygnałem', '2390 sesji z sygnałem', '97 sesji z sygnałem', '1978 sesji z sygnałem', '966 sesji z sygnałem', '1356 sesji z sygnałem'])
+    assert.ok(W.includes(' · ' + s + ' · '), 'świat: ' + s);
+  assert.ok(!/\b(\d*[02-9])?[2-4] sesji z sygnałem/.test(W.replace(/\b\d*1[2-4] sesji/g, '')), 'świat: żadnego „2/3/4 sesji” (poza 12–14)');
+  assert.ok(!/\b1 (spokojnych|sprzecznych|nieaktualnych)|\b(\d*[02-9])?[2-4] (spokojnych|sprzecznych|nieaktualnych)/.test(txt(mkC('pl', m7)).replace(/\b\d*1[2-4] \S+/g, '')), 'krypto: bez złych form');
+});
+
+test('v316 TR7-1: „Nauka” — zaraz po zdaniu o regułach „w cieniu” z dziennika zdanie o regułach surowców (druga lista, zapisana 08.10): świat 3, krypto 1; blok surowców mówi, że to osobna lista (3 reguły świata, „Złoto a bitcoin” — krypto); bez pola su — bez zdania', () => {
+  const {mkB, tp} = v316, su = v303.su(), T = tp('pl');
+  const JW = {pg: {l: {'w.all': [5, 100, '2027-03-01', 5]}}, pgs: {l: {'eq.pf': [1, 100, null, 1], 'eq.fo': [0, 100, null, 0]}}};
+  const JC = {pg: {l: {all: [10, 100, null, 10]}}, pgs: {l: {pt: [4, 100, null, 4], ph: [2, 100, null, 2], es: [0, 100, null, 0], n3: [1, 100, null, 1]}}};
+  const B = mkB('pl'), w = B.trdIgLearn(JW, false, {su}), c = B.trdIgLearn(JC, true, {su});
+  const sw = 'Osobno testujemy w cieniu 3 reguły surowców z drugiej listy, zapisanej z góry 08.10.2026 — opis niżej, w „Szczegółach” (blok „Surowce a rynki”).';
+  const sc = 'Osobno testujemy w cieniu 1 regułę surowców z drugiej listy, zapisanej z góry 08.10.2026 — opis niżej, w „Szczegółach” (blok „Surowce a rynki”).';
+  assert.ok(w.includes('<p class="pnote tig-lw">' + sw + '</p>'), w); assert.ok(c.includes('<p class="pnote tig-lw">' + sc + '</p>'), c);
+  const ws = T('a293t.w.sh', {m: 2}), cs = T('tig.sh', {m: 4}), wh = T('a293t.w.l.how', {m: 1}), ch = T('tig.l.how', {m: 1});
+  assert.ok(w.indexOf(ws) > 0 && w.indexOf(ws) < w.indexOf(sw) && w.indexOf(sw) < w.indexOf(wh), 'świat: 2 reguły z dziennika, potem 3 reguły surowców, potem opis metody');
+  assert.ok(c.indexOf(cs) > 0 && c.indexOf(cs) < c.indexOf(sc) && c.indexOf(sc) < c.indexOf(ch), 'krypto: 4 reguły z dziennika, potem 1 reguła surowców, potem opis metody');
+  assert.ok(!/\d+(,\d)?%| z \d+ (sesji|dni)\b/.test(sw + sc), 'bez wyników i postępu (rejestracja: przed werdyktem tylko opis i licznik w bloku)');
+  /* liczba z rejestracji (TRD_SU: 3 linie świata, 1 krypto), nie z pliku; brak bloku — brak zdania */
+  assert.deepEqual(B.TRD_SU.map(x => x[0] + ':' + x[2]), ['cm.p:w', 'cm.f:w', 'eq.cu:w', 'cr.au:c'], 'lista zarejestrowana 08.10 (zdania bloku i „Nauki” zależą od niej)');
+  for (const D of [undefined, {}, {su: null}, {su: {reg: 'x', l: {}}}, {su: {reg: '2026-10-08'}}, {su: Object.assign(v303.su(), {reg: '2026-02-30'})}])
+    assert.ok(!B.trdIgLearn(JW, false, D).includes('Osobno testujemy') && B.trdIgSu(D, true) === '', JSON.stringify(D));
+  assert.ok(B.trdIgLearn(JW, false, {su: Object.assign(v303.su(), {l: {}})}).includes(sw), 'pusta lista linii w pliku — zdanie nadal (liczba z rejestracji, jak blok, który pokazuje „czeka na dane”)');
+  /* inne języki: odmiana także tu (1 / 3) */
+  const en = mkB('en'), ru = mkB('ru');
+  assert.ok(en.trdIgLearn(JW, false, {su}).includes('Separately, we are testing 3 commodity rules in the shadow from a second list') && en.trdIgLearn(JC, true, {su}).includes('we are testing 1 commodity rule in the shadow'), 'en');
+  assert.ok(ru.trdIgLearn(JW, false, {su}).includes('тестируем в тени 3 правила по сырью') && ru.trdIgLearn(JC, true, {su}).includes('тестируем в тени 1 правило по сырью'), 'ru');
+  /* blok surowców: „to osobna lista” zaraz po zdaniu o rejestracji */
+  const p = B.trdSu({su});
+  assert.ok(p.includes('<p class="pnote">Cztery reguły zapisaliśmy z góry 08.10.2026, zanim policzyliśmy jakikolwiek wynik. Listy nie zmieniamy — nowa reguła to nowy zapis z nową datą. To osobna lista — obok reguł w cieniu z części „Nauka” na górze widoku. Trzy reguły dotyczą rynków świata, „Złoto a bitcoin” — krypto.</p>'), p.slice(0, 900));
+  assert.ok(mkB('en').trdSu({su}).includes('This is a separate list, alongside the shadow rules in the learning section at the top of the view. Three rules concern world markets; “Gold and bitcoin” concerns crypto.'), 'en');
+  for (const l of v316.L10) assert.ok(v316.I[l]['t316.su.sep'].includes('{c}') && mkB(l).trdSu({su}).includes(tp(l)('t316.su.sep', {c: tp(l)('td303.l.cr.au')})), l + ': nazwa linii krypto z etykiety bloku');
+  assert.ok(html.includes("${vd}${trdIgShadow(J,tk)}${trdIgSu(D,cr)}<p class=\"pnote tig-lw\">") && html.includes('${trdIgLearn(J,cr,D)}${trdIgChips(D,cr)}'), 'kod: zdanie w „Nauce”, plik TRENDÓW przekazany');
+  assert.equal(html.split('const S=trdSuS(D),').length, 3, 'blok i „Nauka” — ten sam warunek (trdSuS)');
+});
+
+test('v316 TR7-4: blok surowców — oceny „po 100, 200 i 400 sesjach z sygnałem (w krypto: dniach z sygnałem)” i wynik „po 200 sesjach (w krypto: dniach) z sygnałem” (dopisek weryfikatora) — jak liczniki linii; 10 języków', () => {
+  const {mkB, I, L10} = v316;
+  assert.equal(I.pl['td303.sub'], 'Sprawdzamy, czy ruchy surowców pomagają przewidzieć rynki. To nauka strony, a nie sygnały: dopóki reguła nie przejdzie oceny po {j} sesjach z sygnałem (w krypto: dniach z sygnałem), nie pokazujemy jej wyników.');
+  assert.equal(I.pl['td303.how'], 'Każda reguła ma trzy oceny: po 100, 200 i 400 sesjach z sygnałem (w krypto: dniach z sygnałem). Żeby przypadek nie udawał przewagi, poprzeczka jest wyższa niż zwykle: {r} reguły × 3 oceny = {m} prób naraz. Wynik pokazujemy dopiero przy przewadze po {j} sesjach (w krypto: dniach) z sygnałem.');
+  const p = mkB('pl').trdSu({su: v303.su()});
+  assert.ok(p.includes('dopóki reguła nie przejdzie oceny po 200 sesjach z sygnałem (w krypto: dniach z sygnałem), nie pokazujemy jej wyników.') && p.includes('Wynik pokazujemy dopiero przy przewadze po 200 sesjach (w krypto: dniach) z sygnałem.'), p.slice(0, 600));
+  assert.ok(p.includes('7 z 100 sesji z sygnałem do najbliższej oceny') && p.includes('0 z 100 dni z sygnałem do najbliższej oceny'), 'liczniki linii: świat — sesje, krypto — dni (bez zmian)');
+  assert.ok(!/po (100|200|400|\{j\}) dniach/.test(I.pl['td303.sub'] + I.pl['td303.how']) && !/przewadze po \{j\} dniach\.$/.test(I.pl['td303.how']), 'pl: bez „po … dniach z sygnałem” dla wszystkich linii i bez „po 200 dniach.”');
+  /* każdy język: w obu zdaniach słowo „sesja” (świat) i „dzień” (krypto); ostatnie zdanie bloku z „z sygnałem” */
+  const W = {pl: ['sesjach z sygnałem', 'dniach'], en: ['sessions with a signal', 'days'], de: ['Handelstagen mit Signal', 'Tagen'], es: ['sesiones con señal', 'días'],
+    fr: ['séances avec signal', 'jours'], it: ['sedute con segnale', 'giorni'], pt: ['sessões com sinal', 'dias'], ru: ['сессий с сигналом', 'дней'], zh: ['个交易时段', '天数'], ja: ['セッション', '日数']};
+  const END = {pl: 'z sygnałem.', en: 'with a signal.', de: 'mit Signal.', es: 'con señal.', fr: 'avec signal.', it: 'con segnale.', pt: 'com sinal.', ru: 'с сигналом.', zh: '我们才展示结果。', ja: '結果を表示します。'};
+  for (const l of L10) {
+    for (const k of ['td303.sub', 'td303.how']) for (const s of W[l]) assert.ok(I[l][k].includes(s), l + ' ' + k + ': „' + s + '”');
+    assert.ok(I[l]['td303.how'].endsWith(END[l]), l + ': ostatnie zdanie — ' + I[l]['td303.how'].slice(-60));
+    if (l === 'zh' || l === 'ja') assert.ok((I[l]['td303.how'].match(/交易时段|セッション/g) || []).length === 2, l + ': sesje w obu miejscach');
+  }
+});
+
+test('v316 TR7-5: wersja 1 reguł (świat i krypto) — trafienia liczone na nowo z bieżących plików danych, nie z dziennika kart (bez nazwy „licznik „od wdrożenia””, którą metoda wiąże z dziennikiem); 10 języków; licznik wersji 2 nadal z dziennika', () => {
+  const {I, L10, mkW, txt} = v316;
+  assert.equal(I.pl['trd.dw2.b.v1'], 'Wersja 1 reguł świata (od {s}; liczona dalej, bez wpływu na kolor) — trafienia od tej daty, liczone na nowo z bieżących plików danych, a nie z dziennika kart z 9:00 (poprawka danych wstecz może je zmienić): {l}.');
+  assert.ok(I.pl['trd.dw2.m.8'].includes('Wersje reguł świata: 1 — te same powody, ale test na wartości jednostki od zamknięcia do zamknięcia (bez przewagi; jej trafienia od wdrożenia liczymy dalej — na nowo z bieżących plików danych, nie z dziennika kart — i pokazujemy pod kartami linii); 2 —'));
+  assert.ok(I.pl['trd.dc2.m.8'].includes('Wersje reguł krypto: 1 — sam ruch ceny, od zamknięcia do zamknięcia (bez przewagi; jej trafienia od wdrożenia liczymy dalej w pliku danych — na nowo z bieżących danych, nie z dziennika kart); 2 —'));
+  /* metoda wersji 2 bez zmian: licznik „od wdrożenia” z dziennika kart */
+  assert.ok(I.pl['trd.dw2.m.7'].endsWith('Licznik „od wdrożenia” opiera się na dzienniku kart zapisanych tak, jak były o 9:00 w Nowym Jorku.') && I.pl['trd.dc2.m.7'].includes('Licznik „od wdrożenia” pochodzi z dziennika kart'), 'm.7 bez zmian');
+  const OLD = {pl: 'licznik „od wdrożenia”', en: '“since going live” counter', de: 'Zähler „seit Einführung“', es: 'contador «desde la puesta en marcha»', fr: 'compteur « depuis la mise en service »',
+    it: 'contatore «dall’avvio»', pt: 'contador «desde a entrada em vigor»', ru: 'счётчик «с ввода»', zh: '“自启用以来”计数器', ja: '「導入以降」のカウンター'};
+  /* „nie z dziennika kart” — w zdaniu pod kartami (v1) i w obu metodach (m8) */
+  const NEW = {pl: ['nie z dziennika kart z 9:00', 'nie z dziennika kart'], en: ['rather than from the journal of 9:00 cards', 'not from the card journal'], de: ['statt aus dem Journal der Karten von 9:00', 'nicht aus dem Kartenjournal'],
+    es: ['no con el registro de tarjetas de las 9:00', 'no con el registro de tarjetas'], fr: ['non du journal des cartes de 9:00', 'non du journal des cartes'],
+    it: ['non dal registro delle schede delle 9:00', 'non dal registro delle schede'], pt: ['não do registo de cartões das 9:00', 'não do registo de cartões'],
+    ru: ['а не по журналу карточек на 9:00', 'а не по журналу карточек'], zh: ['而不是取自 9:00 的卡片日志', '而不是取自卡片日志'], ja: ['9:00 時点のカードの記録ではなく', 'カードの記録ではなく']};
+  for (const l of L10) for (const k of ['trd.dw2.b.v1', 'trd.dw2.m.8', 'trd.dc2.m.8']) {
+    assert.ok(!I[l][k].includes(OLD[l]), l + ' ' + k + ': bez „licznika od wdrożenia” dla wersji 1');
+    assert.ok(I[l][k].includes(NEW[l][k === 'trd.dw2.b.v1' ? 0 : 1]), l + ' ' + k + ': „nie z dziennika kart” — ' + I[l][k].slice(0, 160));
+    assert.ok(I[l]['trd.dw2.m.7'].toLowerCase().includes(OLD[l].toLowerCase()) && I[l]['trd.dc2.m.7'].toLowerCase().includes(OLD[l].toLowerCase()), l + ': metoda wersji 2 nadal nazywa tak licznik z dziennika kart');
+  }
+  /* świat v2 (plik trdV127, karty v1 bez par): zdanie pod kartami linii */
+  const T = txt(mkW('pl')), i = T.indexOf('Wersja 1 reguł świata');
+  assert.ok(T.slice(i).startsWith('Wersja 1 reguł świata (od 28.09.2026; liczona dalej, bez wpływu na kolor) — trafienia od tej daty, liczone na nowo z bieżących plików danych, a nie z dziennika kart z 9:00 (poprawka danych wstecz może je zmienić): akcje: przepływ dnia — jeszcze bez par'), T.slice(i, i + 300));
+  assert.ok(txt(mkW('en')).includes('— hits since that date, recomputed from the current data files rather than from the journal of 9:00 cards (a backward data correction can change them):'), 'en');
+});
+
+test('v316 TR7-2: stablecoiny w TRENDACH — „7 pełnych dób do …” (zbieracz: 7 zamkniętych dób, bez dzisiejszej, niepełnej doby — test TrendyAudytV316); kafel i karta; giełdy i fundusze bez zmian; 10 języków', () => {
+  const {mkB, I, L10} = v316, B = mkB('pl');
+  assert.equal(B.trdWin({id: 'stab', sz: 7, date: '2026-10-09'}), '7 pełnych dób do 09.10.2026');
+  assert.equal(B.trdWin({id: 'cm_btc', sz: 7, date: '2026-10-09'}), '7 dni do 09.10.2026', 'giełdy — bez zmian');
+  assert.equal(B.trdWin({id: 'cf_btc', sz: 1, date: '2026-10-06'}), I.pl['trd.n.wk'].replace('{d}', '06.10.2026'), 'tydzień raportu — bez zmian');
+  assert.deepEqual(L10.map(l => I[l]['t316.stab.win']), ['7 pełnych dób do {d}', '7 full days to {d}', '7 volle Tage bis {d}', '7 días completos hasta el {d}', '7 jours complets au {d}',
+    '7 giorni interi al {d}', '7 dias completos até {d}', '7 полных суток по {d}', '截至 {d} 的 7 个完整日', '{d}までの丸7日間']);
+  for (const l of L10) { const X = mkB(l); assert.equal(X.trdWin({id: 'stab', sz: 7, date: '2026-10-09'}), I[l]['t316.stab.win'].replace('{d}', X.trdDay('2026-10-09')), l); }
+  /* widok krypto (dane trdV96, polskie teksty): kafel „Stablecoiny: zmiana podaży w 7 dni” i karta */
+  const f = trdV96.make({mode: 'trendy', trdv: 'crypto'}, false, v96src.tFor('pl')); f.trdApply(trdV96.data); const g = f.el.innerHTML;
+  assert.ok(g.includes('Stablecoiny (wszystkie dolarowe) · 7 pełnych dób do 24.09.2026'), 'kafel');
+  const c = trdV96.card(g, 'Stablecoiny (wszystkie dolarowe)');
+  assert.ok(c.includes('7 pełnych dób do 24.09.2026') && c.includes('sygnał dzienny liczy tylko USDT i USDC'), c);
+  assert.ok(trdV96.card(g, I.pl['trd.s.cm_btc']).includes('7 dni do 24.09.2026'), 'giełdy BTC — „7 dni” bez zmian');
+  assert.ok(html.includes("  if(r.id==='stab'&&r.sz===7)return t('t316.stab.win',{d:trdDay(r.date)});") && html.includes("t('fo.s',{n,x:trdUnit(r,n),d:trdDay(r.date)})"), 'kod: tylko wiersz stab');
 });
