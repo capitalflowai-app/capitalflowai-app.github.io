@@ -37094,3 +37094,314 @@ class FunduszeSurowcoweV309(unittest.TestCase):
         i, j = src.index("su_fundusze_swiezosc(files.get('swiat-dzien'))"), src.index("su_dziennik_swiezosc(files.get('surowce-dziennik'))")
         self.assertLess(j, i, 'wiersze po wierszu dziennika reguł w cieniu')
         self.assertNotIn('❌', inspect.getsource(K.su_fundusze_swiezosc).split('"""')[2], 'najwyżej ⚠️, nigdy ❌')
+
+
+# ===================== v311: xSTOCKS — TOKEN BEZ DOWODU REZERW NIE ODRZUCA PRODUKTU; KANAŁ AGENTA — ZNANE OKNO; ONDO GM — „BEZ NOWYCH DANYCH” =====================
+# Liczby z żywych danych 10.10.2026 (publiczne GET dokumentowanego API emitenta, ok. 08:00–08:25 UTC): 58 tokenów bez dowodu rezerw, ich liczba
+# w obiegu — 56 × 1, SKDDx 1,25, QYLDx 2,3682322817888397; ceny akcji w setnych częściach waluty jak w odpowiedzi GraphQL (RACE ok. 450 USD).
+def _xs311_null(sym, px, cur='USD'):
+    return {'symbol': sym, 'proofOfReserves': None, 'tokenCollaterals': [{'collateral': {'price': px, 'priceCurrency': cur, 'symbol': sym[:-1]}}]}
+
+
+class XstocksBezDowoduV311(unittest.TestCase):
+    """v311: (1) xStocks — token z dowodem rezerw null pomijany z górną granicą wartości z liczby tokenów w obiegu (publiczne API emitenta):
+    (2 × w obiegu + 1) × cena akcji; razem z resztą listy ≤ 0,5% sumy i najwyżej 100 tokenów — inaczej błąd jak w v268; (2) kanał agenta
+    transferowego — pusta lista w znanym oknie 19:00–21:00 UTC to „bez nowych danych”; (3) Ondo Global Markets — ten sam punkt zakończonej
+    doby co przyjęty wcześniej tej doby to „bez nowych danych”. Bez sieci (atrapy), przypięty czas."""
+    FX = {'d': '2026-10-09', 'rates': {'HKD': 7.78, 'GBP': 0.75}}
+    NOW = datetime.datetime(2026, 10, 10, 6, 42, 9, tzinfo=datetime.timezone.utc)
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola311-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v311_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        for nazwa in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, nazwa, side_effect=AssertionError('test nie może pytać sieci')))
+
+    def _N(self):   # 3 × 100 mln USD + 60 × 389 USD (jak v268): suma 300 023 340 USD, 0,5% = 1 500 116,70 USD
+        return [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', '2026-10-10T06:00:00Z') for i in range(3)] + \
+               [_rwe170_xn(f'S{i}x', 1, 38900, 'USD', '2026-10-10T06:00:00Z') for i in range(60)]
+
+    @staticmethod
+    def _ob(M=None, calls=None):
+        def f(S):
+            if calls is not None:
+                calls.append(list(S))
+            return {s: (M or {}).get(s, 1) for s in S}
+        return f
+
+    # ---------------------------------------------------------------- (1) xStocks
+    def test_null_na_poczatku_w_srodku_i_na_koncu_pominiety_z_granica(self):
+        N = [_xs311_null('RACEx', 45000), _xs311_null('NTESx', 11772)] + self._N()
+        N.insert(40, _xs311_null('QYLDx', 1700)); N.append(_xs311_null('SKDDx', 2000))
+        calls = []
+        r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'QYLDx': 2.3682322817888397, 'SKDDx': 1.25}, calls))
+        self.assertEqual(calls, [['RACEx', 'NTESx', 'QYLDx', 'SKDDx']], 'jedno wywołanie, symbole w kolejności listy')
+        self.assertAlmostEqual(r['v'], 3 * 100000000 + 60 * 389, places=2, msg='wartość — tylko tokeny z dowodem (bez zmian)')
+        self.assertEqual((r['n'], r['as_of'], 'ogon' in r), (63, '2026-10-10T06:00:00+00:00', False))
+        gb = 3 * 450 + 3 * 117.72 + (2 * 2.3682322817888397 + 1) * 17 + (2 * 1.25 + 1) * 20
+        self.assertEqual(r['bez'], {'n': 4, 'max_usd': round(gb), 'obieg': round(2 + 2.3682322817888397 + 1.25, 4), 'sym': ['RACEx', 'NTESx', 'QYLDx', 'SKDDx']})
+        self.assertEqual(r['bez']['max_usd'], 1871)
+
+    def test_bez_funkcji_obiegu_jak_v268(self):
+        N = self._N(); N.insert(5, _xs311_null('RACEx', 45000))
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX)
+        self.assertEqual(str(c.exception), 'RACEx: dowód rezerw nieznany (brak listy sharesHeld)', 'bez źródła liczby w obiegu — jak v268')
+
+    def test_duzy_token_null_dalej_blad(self):
+        N = self._N(); N[0] = dict(N[0], proofOfReserves=None)   # przegląd v267: null w największym tokenie (STRCx: −15,5% bez błędu)
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 1000000}))
+        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. B0x) najwyżej 200,000,100 USD — ponad 0.5% sumy')
+        with self.assertRaises(ValueError):
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 7500}))   # 1 500 100 USD wobec 0,5% z 200 mln — też ponad
+        self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 4999}))['bez']['max_usd'], 999900, 'mały — pominięty')
+
+    def test_limit_wartosci_razem_z_reszta_listy(self):
+        N = self._N() + [_xs311_null('Mx', 10000)]
+        self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'Mx': 7500}))['bez']['max_usd'], 1500100, 'tuż pod 0,5%')
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'Mx': 7500.1}))
+        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. Mx) najwyżej 1,500,120 USD — ponad 0.5% sumy')
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 2, 'totalNodes': 100}   # reszta listy 36 × 389 × 2 = 28 008 USD
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(j, self.FX, obieg=self._ob({'Mx': 7500}))
+        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. Mx) najwyżej 1,500,100 USD + reszta listy 28,008 — ponad 0.5% sumy', 'jeden limit')
+        r = zd.rwe_xs_parse(j, self.FX, obieg=self._ob({'Mx': 7300}))
+        self.assertEqual((r['ogon'], r['bez']['max_usd']), ({'n': 36, 'max_usd': 28008}, 1460100))
+        for M in ({'Mx': 0}, {'Mx': '0'}, {'Mx': 0.0}):
+            self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob(M))['bez'], {'n': 1, 'max_usd': 100, 'obieg': 0.0, 'sym': ['Mx']},
+                             'zero w obiegu — granica jednej akcji (zaokrąglenie), nie zero')
+
+    def test_limit_liczby_tokenow(self):
+        N = self._N() + [_xs311_null(f'Z{i}x', 100) for i in range(100)]
+        r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob())
+        self.assertEqual((r['bez']['n'], r['bez']['sym'], r['bez']['max_usd']), (100, ['Z0x', 'Z1x', 'Z2x', 'Z3x', 'Z4x'], 300))
+        calls = []
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(_rwe170_xs(N + [_xs311_null('Z100x', 100)]), self.FX, obieg=self._ob(calls=calls))
+        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 101 (np. Z0x) — więcej niż 100')
+        self.assertEqual(calls, [], 'ponad limit liczby — bez zapytań o liczbę w obiegu')
+        self.assertEqual(zd.RWE_XS_BEZ_MAX, 100)
+
+    def test_brak_liczby_w_obiegu_ceny_kursu_albo_zly_symbol(self):
+        N = self._N() + [_xs311_null('RACEx', 45000), _xs311_null('NTESx', 11772)]
+        for M in ({'NTESx': None}, {'NTESx': -1}, {'NTESx': 'x'}, {'NTESx': True}, {'NTESx': float('nan')}, {'NTESx': float('inf')}):
+            with self.assertRaises(ValueError, msg=M) as c:
+                zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=lambda S, M=M: {s: M.get(s, 1) for s in S})
+            self.assertEqual(str(c.exception), 'NTESx: dowód rezerw nieznany, liczba tokenów w obiegu też — wartości nie da się ograniczyć', M)
+        for zle in (None, [], {'RACEx': 1}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=lambda S, zle=zle: zle)
+            self.assertIn('dowód rezerw nieznany, liczba tokenów w obiegu też', str(c.exception))
+        self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=lambda S: {s: '1' for s in S})['bez']['obieg'], 2.0, 'liczba jako napis')
+        for zly in (dict(_xs311_null('RACEx', 45000), tokenCollaterals=[]), _xs311_null('RACEx', None), _xs311_null('RACEx', 0), _xs311_null('RACEx', 45000, None)):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(_rwe170_xs(self._N() + [zly]), self.FX, obieg=self._ob())
+            self.assertEqual(str(c.exception), 'RACEx: dowód rezerw nieznany i brak ceny — wartości nie da się ograniczyć')
+        W = self._N() + [_xs311_null('NXT.GBx', 1429250, 'GBX'), _xs311_null('XIAOx', 5200, 'HKD')]
+        self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(W), self.FX, obieg=self._ob())['bez']['max_usd'], round(3 * 14292.5 / 100 / 0.75 + 3 * 52 / 7.78), 'GBX i HKD')
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(_rwe170_xs(W), {'d': '2026-10-09', 'rates': {'GBP': 0.75}}, obieg=self._ob())
+        self.assertEqual(str(c.exception), 'brak kursu HKD (plik rynki)')
+        for s in ('A/Bx', '../x', 'A Bx', '.Ax', 'A' * 25, 7):
+            calls = []
+            with self.assertRaises(ValueError, msg=s) as c:
+                zd.rwe_xs_parse(_rwe170_xs(self._N() + [_xs311_null(s, 100) if isinstance(s, str) else dict(_xs311_null('Qx', 100), symbol=s)]),
+                                self.FX, obieg=self._ob(calls=calls))
+            self.assertIn('dowód rezerw nieznany, zły symbol', str(c.exception)); self.assertEqual(calls, [], s)
+
+    def test_zywe_dane_10_10(self):
+        """58 tokenów bez dowodu z żywego API emitenta (10.10.2026) przy cenie akcji 5 870 USD (najwyższa wśród tokenów w USD na stronie 05.10) —
+        granica ok. 1,0 mln USD (0,11% wartości), razem z resztą listy z żywego pliku (1 098 092 USD) poniżej 0,5% — odczyt przyjęty."""
+        S = ('QYLDx BIDUx BABAx NTESx JDx SKDDx SKUUx PDDx NVDLx BILIx TBCHx CURRx NNEx SHOEx GRPNx RXTx XPOFx IEPx SPHRx VELOx GRNDx WKHSx BXBLx SVRAx '
+             'RHx NEGGx AEOx JACKx GRABx HQx LASEx PLCEx AMBAx SNAPx PROKx RXRXx IMAXx MRLNx SOUNx CHADx LCIDx HOGx DNUTx SPRYx TNGXx NUAIx SERVx RACEx '
+             'NTLAx LENZx IBTAx HTZx KPTIx FLWSx IBRXx ZBIOx HPKx CSIQx').split()   # kolejność listy dowodów emitenta (10.10.2026)
+        M = dict({s: 1 for s in S}, QYLDx=2.3682322817888397, SKDDx=1.25)
+        N = [_xs311_null(s, 587000) for s in S] + [_rwe170_xn(f'B{i}x', 1000000, 9177, 'USD', '2026-10-10T06:00:00Z') for i in range(10)] + \
+            [_rwe170_xn(f'S{i}x', 1, 400000, 'USD', '2026-10-10T06:00:00Z') for i in range(60)]
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 2, 'totalNodes': len(N) + 135}   # reszta 135 × 4 000 × 2 = 1 080 000 USD
+        r = zd.rwe_xs_parse(j, self.FX, obieg=self._ob(M))
+        self.assertEqual((len(S), r['bez']['n'], r['bez']['obieg'], r['ogon']['max_usd']), (58, 58, 59.6182, 1080000))
+        self.assertEqual(r['bez']['max_usd'], round((2 * 59.6182322817888397 + 58) * 5870))
+        self.assertLess((r['bez']['max_usd'] + r['ogon']['max_usd']) / r['v'], 0.005)
+
+    # ---------------------------------------------------------------- (1) odczyt z siecią (atrapy) i blok
+    def _net(self, xs, circ=None, fail=()):
+        calls = []
+        g, p = _rwe170_net(calls, xs=xs)
+        seen = []
+
+        def get(url, headers=None, timeout=60):
+            if url.startswith('https://api.xstocks.fi/'):
+                self.assertEqual(headers, {'Accept': 'application/json'}); self.assertTrue(0 < timeout <= zd.RWE_TIMEOUT)
+                seen.append(url)
+                if url in fail:
+                    raise _uerr_v133.HTTPError(url, 403, 'Forbidden', {}, None)
+                return (circ or {}).get(url, b'{"value":1}')
+            return g(url, headers, timeout)
+        return get, p, seen
+
+    def test_odczyt_pyta_o_obieg_tylko_tokenow_bez_dowodu(self):
+        N = [_xs311_null('RACEx', 45000)] + _rwe170_xs()['data']['tokens']['nodes'] + [_xs311_null('NXT.GBx', 1429250, 'GBX')]
+        xs = {'data': {'tokens': {'nodes': N, 'page': {'totalPages': 1, 'totalNodes': len(N)}}}}
+        U = 'https://api.xstocks.fi/api/v2/public/assets/'
+        get, post, seen = self._net(xs, {U + 'NXT.GBx/circulating-supply': b'1.5'})
+        rd = zd.rwe_odczyt(self.NOW, fx=dict(self.FX, rates=dict(self.FX['rates'], EUR=0.86)), get=get, post=post, sleep=lambda s: None)
+        o = rd['r']['xstocks']
+        self.assertEqual(sorted(seen), [U + 'NXT.GBx/circulating-supply', U + 'RACEx/circulating-supply'], 'tylko tokeny bez dowodu')
+        self.assertEqual((o['n'], o['bez']['n'], o['bez']['obieg'], o['bez']['sym']), (4, 2, 2.5, ['RACEx', 'NXT.GBx']))
+        self.assertEqual(o['bez']['max_usd'], round(3 * 450 + 4 * 14292.5 / 100 / 0.75))
+        em = zd.rwe_blok(rd, None, self.NOW)
+        self.assertEqual(em['p']['xstocks']['bez'], o['bez'], 'pole bez w bloku pliku')
+        rd2 = dict(rd, at='2026-10-10T09:42:09+00:00', r=dict(rd['r'], xstocks={'err': 'ValueError: x'}))
+        x2 = zd.rwe_blok(rd2, em, datetime.datetime(2026, 10, 10, 9, 42, 9, tzinfo=datetime.timezone.utc))['p']['xstocks']
+        self.assertEqual((x2['k'], x2['bez'], x2['err']), (1, o['bez'], 'ValueError: x'), 'poprzedni odczyt zachowuje pole bez')
+        self.assertIn('v311: token bez dowodu rezerw — górna granica z liczby tokenów w obiegu, api.xstocks.fi/api/v2/public/assets/{symbol}/circulating-supply',
+                      zd.RWE_SRC)
+
+    def test_odczyt_blad_api_obiegu(self):
+        N = _rwe170_xs()['data']['tokens']['nodes'] + [_xs311_null('RACEx', 45000), _xs311_null('BABAx', 10752)]
+        xs = {'data': {'tokens': {'nodes': N, 'page': {'totalPages': 1, 'totalNodes': len(N)}}}}
+        U = 'https://api.xstocks.fi/api/v2/public/assets/'
+        for circ, fail in (({}, (U + 'BABAx/circulating-supply',)), ({U + 'BABAx/circulating-supply': b'<html>'}, ()),
+                           ({U + 'BABAx/circulating-supply': b'{"value":null}'}, ())):
+            get, post, seen = self._net(xs, circ, fail)
+            rd = zd.rwe_odczyt(self.NOW, fx=self.FX, get=get, post=post, sleep=lambda s: None)
+            self.assertEqual(rd['r']['xstocks'], {'err': 'ValueError: BABAx: dowód rezerw nieznany, liczba tokenów w obiegu też — wartości nie da się ograniczyć'})
+            self.assertEqual(len(seen), 2, 'bez ponowienia całego odczytu (zły kształt, 4xx)')
+
+    def test_obieg_rownolegle_w_budzecie(self):
+        import threading, time as _t
+        act, mx, lock = [0], [0], threading.Lock()
+
+        def get(url, headers=None, timeout=60):
+            with lock:
+                act[0] += 1; mx[0] = max(mx[0], act[0])
+            _t.sleep(0.05)
+            with lock:
+                act[0] -= 1
+            return b'{"value":1}'
+        S = [f'T{i}x' for i in range(20)]
+        self.assertEqual(zd.rwe_xs_obieg(S, lambda: 5.0, get), {s: 1.0 for s in S})
+        self.assertLessEqual(mx[0], zd.RWE_XS_OBIEG_W); self.assertGreater(mx[0], 1, 'równolegle')
+
+        def tmo():
+            raise TimeoutError('brak czasu w budżecie kroku (35 s)')
+        self.assertEqual(zd.rwe_xs_obieg(['RACEx'], tmo, get), {'RACEx': None}, 'koniec budżetu — bez liczby, bez wyjątku')
+
+    # ---------------------------------------------------------------- (2) kanał agenta — pusta lista; (3) Ondo GM — ten sam punkt
+    def test_kanal_pusta_lista_to_bez_nowych(self):
+        for j in ({'message': 'Query executed successfully', 'data': [], 'result': 0}, {'data': None}, {'message': 'x'}):
+            with self.assertRaises(zd.RweBezNowych) as c:
+                zd.rwe_sec_parse(j, 'MI4')
+            self.assertEqual((str(c.exception), c.exception.bn), ('brak wierszy danych', {'pusta': 1}))
+        for zle in ('x', [], {'data': 'x'}, {'data': [{}] * 101}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_sec_parse(zle, 'MI4')
+            self.assertNotIsInstance(c.exception, zd.RweBezNowych, zle)
+        self.assertTrue(issubclass(zd.RweBezNowych, ValueError) and not zd._rwe_ponow(zd.RweBezNowych('x')), 'bez ponowienia odczytu')
+
+    def _rd_ok(self, at, **over):
+        R = {s: ({'oz': 1000.0, 'as_of': at, 'n': 1} if c['kind'] == 'xaum' else {'v': 1e8, 'as_of': at, 'n': 1}) for s, c in zd.RWE_PRODUKTY.items()}
+        R.update(over)
+        return {'at': at, 'r': R, 'req': 0, 's': 0}
+
+    def _blok(self, at, slug, cur, pv):
+        now = datetime.datetime.fromisoformat(at)
+        return zd.rwe_blok(self._rd_ok(at, **{slug: cur}), {'p': {slug: pv}} if pv else None, now, oc={'v': 1, 'px': {'zloto': dict(_RWE169_GOLD)}})
+
+    def test_blok_okno_kanalu_agenta(self):
+        pv = {'name': 'Mantle Index Four Fund', 'kind': 'sec', 'v': 173493451.31, 'as_of': '2026-10-07T17:46:52+00:00', 'read': '2026-10-07T18:24:47+00:00',
+              'err': None, 'n': 1, 'u': 1345232.248399, 'vb': 173493451.31, 'full': True}
+        cur = {'err': 'ValueError: brak wierszy danych', 'bn': {'pusta': 1}}
+        for at, okno in (('2026-10-07T19:25:55+00:00', True), ('2026-10-07T19:00:00+00:00', True), ('2026-10-07T20:59:59+00:00', True),
+                         ('2026-10-07T18:59:59+00:00', False), ('2026-10-07T21:00:00+00:00', False), ('2026-10-08T01:46:53+00:00', False)):
+            em = self._blok(at, 'mantle-index-four-fund', cur, pv)
+            o = em['p']['mantle-index-four-fund']
+            self.assertEqual((o['k'], o['v'], o['as_of'], o['read']), (1, 173493451.31, '2026-10-07T17:46:52+00:00', '2026-10-07T18:24:47+00:00'), at)
+            if okno:
+                self.assertEqual((em['ok'], o['err'], o['bn']), (True, None, 'okno'), at)
+                self.assertIn('Mantle Index Four Fund: bez nowych danych — pusta lista kanału w znanym oknie dziennym 19:00–21:00 UTC — poprzedni odczyt '
+                              '(stan 2026-10-07T17:46:52+00:00)', em['notes'])
+            else:
+                self.assertEqual((em['ok'], o['err'], 'bn' in o), (False, 'ValueError: brak wierszy danych', False), at)
+        em = self._blok('2026-10-07T19:25:55+00:00', 'mantle-index-four-fund', cur, None)
+        self.assertEqual((em['ok'], em['p']['mantle-index-four-fund']['v']), (False, None), 'bez poprzedniego odczytu — błąd (nie ma czego zostawić)')
+        em = self._blok('2026-10-07T19:25:55+00:00', 'mantle-index-four-fund', {'err': 'ValueError: brak wierszy danych'}, pv)
+        self.assertFalse(em['ok'], 'zły kształt odpowiedzi (bez danych bn) — błąd także w oknie')
+        em = self._blok('2026-10-07T19:25:55+00:00', 'ondo-global-markets', cur, dict(pv, name='Ondo Global Markets', kind='ondo_gm'))
+        self.assertFalse(em['ok'], 'okno kanału agenta dotyczy tylko jego produktów')
+
+    def test_blok_ondo_ten_sam_punkt_wczesniej_tej_doby(self):
+        pv = {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'v': 1332806981.22, 'as_of': '2026-10-07T00:00:00+00:00', 'read': '2026-10-08T04:07:14+00:00',
+              'err': None, 'n': 6, 'hl': 1313400574.15, 'zakres': 'gm', 'vb': 1332806981.22, 'full': True}
+        msg = 'ValueError: punkt dnia 2026-10-07 (1332.8 mln USD) różni się o -3.42% od nagłówka (1380.0) i o -3.77% od najnowszego 2026-10-08T15:20 (1385.0) — więcej niż 2%'
+        cur = {'err': msg, 'bn': {'as_of': '2026-10-07T00:00:00+00:00', 'v': 1332806981.2192812}}
+        em = self._blok('2026-10-08T16:00:00+00:00', 'ondo-global-markets', cur, pv)
+        o = em['p']['ondo-global-markets']
+        self.assertEqual((em['ok'], o['err'], o['bn'], o['k'], o['v'], o['read'], o['hl']),
+                         (True, None, 'gm', 1, 1332806981.22, '2026-10-08T04:07:14+00:00', 1313400574.15))
+        self.assertIn('Ondo Global Markets: bez nowych danych — punkt zakończonej doby taki sam jak przyjęty wcześniej tej doby (punkt bieżącej doby różni się '
+                      'od niego o ponad 2%) — poprzedni odczyt (stan 2026-10-07T00:00:00+00:00)', em['notes'])
+        for zm, pole in ((dict(pv, read='2026-10-07T21:40:00+00:00'), 'przyjęty poprzedniej doby'), (dict(pv, v=1332806981.23), 'inna wartość (1 cent)'),
+                         (dict(pv, as_of='2026-10-06T00:00:00+00:00'), 'inny dzień punktu'), (dict(pv, read='zły'), 'zła chwila odczytu')):
+            em = self._blok('2026-10-08T16:00:00+00:00', 'ondo-global-markets', cur, zm)
+            self.assertEqual((em['ok'], em['p']['ondo-global-markets']['err']), (False, msg), pole)
+        for bn in ({'as_of': '2026-10-07T00:00:00+00:00'}, {'v': 1332806981.2192812}, {'as_of': 5, 'v': 1332806981.2192812}, {'pusta': 1}):
+            em = self._blok('2026-10-08T16:00:00+00:00', 'ondo-global-markets', dict(cur, bn=bn), pv)
+            self.assertFalse(em['ok'], bn)
+
+    def test_odczyt_ondo_wieczorem_przez_parser(self):
+        p07 = '{"x":"$D2026-10-07T00:00:00.000Z","y":1332806981.2192812}'
+        g = _RWE302_08.replace('"gmTvl":1313400574.151612', '"gmTvl":1380000000.0').replace(p07 + ']', p07 + ',{"x":"$D2026-10-08T15:20:00.000Z","y":1385000000.0}]')
+        get, post = _rwe170_net([], ondo=_rwe170_html(_rwe302_s(g)))
+        T = datetime.datetime(2026, 10, 8, 16, 0, tzinfo=datetime.timezone.utc)
+        rd = zd.rwe_odczyt(T, fx=self.FX, get=get, post=post, sleep=lambda s: None)
+        r = rd['r']['ondo-global-markets']
+        self.assertEqual(r, {'err': 'ValueError: punkt dnia 2026-10-07 (1332.8 mln USD) różni się o -3.42% od nagłówka (1380.0) i o -3.77% od najnowszego '
+                                    '2026-10-08T15:20 (1385.0) — więcej niż 2%', 'bn': {'as_of': '2026-10-07T00:00:00+00:00', 'v': 1332806981.2192812}})
+        pv = {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'v': 1332806981.22, 'as_of': '2026-10-07T00:00:00+00:00', 'read': '2026-10-08T04:07:14+00:00',
+              'err': None, 'n': 6, 'hl': 1313400574.15, 'zakres': 'gm', 'vb': 1332806981.22, 'full': True}
+        o = zd.rwe_blok(rd, {'p': {'ondo-global-markets': pv}}, T)['p']['ondo-global-markets']
+        self.assertEqual((o['bn'], o['err'], o['k']), ('gm', None, 1))
+        g2 = g.replace('"gmTvl":1380000000.0', '"gmTvl":1250000000.0')   # nagłówek nie zgadza się z żadnym punktem — błąd jak w v307, bez danych bn
+        get, post = _rwe170_net([], ondo=_rwe170_html(_rwe302_s(g2)))
+        self.assertNotIn('bn', zd.rwe_odczyt(T, fx=self.FX, get=get, post=post, sleep=lambda s: None)['r']['ondo-global-markets'])
+
+    # ---------------------------------------------------------------- kontrola: wiersze ℹ️
+    def test_kontrola_wiersze_informacyjne(self):
+        k = self.k
+        p = {'name': 'xStocks', 'kind': 'xs', 'v': 921406311.5, 'as_of': '2026-10-10T06:02:11+00:00', 'read': '2026-10-10T06:42:09+00:00', 'stan': 'e', 'full': True,
+             'bez': {'n': 58, 'max_usd': 41234, 'obieg': 59.6182, 'sym': ['RACEx', 'NTESx', 'BABAx', 'QYLDx', 'SKDDx']}}
+        j = {'issuer': {'at': '2026-10-10T06:42:09+00:00', 'ok': True, 'used': {'xstocks': 921406311.5}, 'p': {'xstocks': p}}}
+        Z = k.rwe_porownanie(j)
+        self.assertIn('xStocks: pominięte tokeny bez dowodu rezerw u emitenta — 58 tokenów (np. RACEx, NTESx, BABAx), w obiegu łącznie 59.6182 — najwyżej 41.2 tys. USD '
+                      '(0.004% wartości), odczyt 2026-10-10 06:42 UTC ℹ️', Z['opis'])
+        self.assertEqual((Z['status'], Z['uwagi']), ('✅', []))
+        for b, txt in (({'n': 1, 'max_usd': 1350}, '— 1 token — najwyżej 1.4 tys. USD (<0.001% wartości)'),
+                       ({'n': 3, 'max_usd': 999960, 'sym': 'x'}, '— 3 tokeny — najwyżej 1.00 mln USD (0.109% wartości)')):
+            self.assertIn(txt, k.rwe_porownanie({'issuer': dict(j['issuer'], p={'xstocks': dict(p, bez=b)})})['opis'])
+        for zle in ({'n': 0, 'max_usd': 5}, {'n': 'x', 'max_usd': 5}, {'n': 2, 'max_usd': -1}, {'n': 2}, 'x'):
+            self.assertNotIn('pominięte tokeny', k.rwe_porownanie({'issuer': dict(j['issuer'], p={'xstocks': dict(p, bez=zle)})})['opis'], zle)
+        for x, zn in ((460702, 'ℹ️'), (460704, '⚠️')):   # próg ⚠️: 0,05% wartości produktu (921 406 311,5 USD → 460 703,16 USD)
+            Z = k.rwe_porownanie({'issuer': dict(j['issuer'], p={'xstocks': dict(p, bez={'n': 1, 'max_usd': x})})})
+            self.assertIn(f'— 1 token — najwyżej 460.7 tys. USD (0.050% wartości), odczyt 2026-10-10 06:42 UTC {zn}', Z['opis'])
+            self.assertEqual((Z['status'], len(Z['uwagi'])), ('⚠️', 1) if zn == '⚠️' else ('✅', 0), x)
+        self.assertEqual(Z['uwagi'], ['tokenizowane aktywa (dane emitentów): xStocks — pominięte tokeny bez dowodu rezerw mogą być warte do 460.7 tys. USD '
+                                      '(0.050% wartości produktu): emitent może nie publikować dowodu dla tokenów w obiegu; produkt dalej w sumach (tylko uwaga)'])
+        self.assertEqual(k.RWE_K_BEZ_UWAGA, 0.05)
+        q = {'mantle-index-four-fund': {'name': 'Mantle Index Four Fund', 'kind': 'sec', 'v': 1.7e8, 'stan': 'e', 'full': True, 'k': 1, 'bn': 'okno'},
+             'ondo-global-markets': {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'v': 1.3e9, 'stan': 'e', 'full': True, 'k': 1, 'bn': 'gm'}}
+        Z = k.rwe_porownanie({'issuer': {'at': '2026-10-07T19:25:55+00:00', 'ok': True, 'used': {s: x['v'] for s, x in q.items()}, 'p': q}})
+        self.assertIn('bez nowych danych w ostatnim odczycie (to nie błąd, w sumach poprzedni odczyt): Mantle Index Four Fund — pusta lista kanału w znanym '
+                      'oknie dziennym 19–21 UTC; Ondo Global Markets — punkt dnia taki sam jak przyjęty wcześniej tej doby ℹ️', Z['opis'])
+        self.assertEqual((Z['status'], Z['uwagi']), ('✅', []), 'to nie błąd — bez uwagi i bez ⚠️')

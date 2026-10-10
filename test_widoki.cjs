@@ -17506,3 +17506,81 @@ test('v309: blok „w cieniu” SUROWCE — fundusze surowcowe: „czeka na dane
   assert.deepEqual([SU309.przed.l['cm.p'][4], SU309.po.l['cm.p'][4], SU309.po.l['cm.f'][4], SU309.po.ok], [null, '2026-10-12', '2026-10-12', []]);
   assert.deepEqual([SU309.przed.sha, SU309.przed.m], [SU309.po.sha, SU309.po.m], 'rejestracja bez zmian');
 });
+
+
+/* ---------- v311: xStocks — tokeny bez dowodu rezerw u emitenta pominięte z górną granicą (zdanie w akapicie danych emitentów); słownik xs311.* ----------
+   Rekord xStocks jak po pierwszym przebiegu z łatką na liczbach z żywych danych 10.10.2026 (58 tokenów bez dowodu, w obiegu łącznie 59,6182). */
+function v311Plik(bez) {
+  const F = v169Plik(), at = '2026-10-10T06:42:09+00:00';
+  F.at = at; F.issuer.at = at;
+  F.issuer.p.xstocks = {name: 'xStocks', kind: 'xs', v: 921406311.5, as_of: '2026-10-10T06:02:11+00:00', read: at, err: null, ref: 437964798.83, n: 790,
+    cur: {USD: 921406311.5}, ogon: {n: 318, max_usd: 1288572}, zakres: 'xs', vb: 921406311.5, full: true, stan: 'e'};
+  if (bez !== undefined) F.issuer.p.xstocks.bez = bez;
+  F.issuer.used.xstocks = 921406311.5;
+  return F;
+}
+const V311_BEZ = {n: 58, max_usd: 41234, obieg: 59.6182, sym: ['RACEx', 'NTESx', 'BABAx', 'QYLDx', 'SKDDx']};
+test('v311: zdanie o tokenach bez dowodu rezerw — liczba tokenów, liczba w obiegu, najwyżej ile USD i udział, chwila odczytu; po zdaniu o zakresie; pl, en, ja', () => {
+  const NOW = '2026-10-10T07:00:00Z', A = '[2026-10-10T06:42:09+00:00] · ago(2026-10-10T06:42:09+00:00)';
+  const o = rw133.run(v311Plik(V311_BEZ), {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(o.includes('xStocks: pominęliśmy 58 tokenów, dla których emitent nie publikuje dowodu rezerw (odczyt ' + A + '). Takich tokenów jest w obiegu łącznie 59,62, '
+    + 'więc ich wartość to najwyżej 0,04 mln USD (<0,01% wartości produktu).'), 'zdanie po polsku');
+  assert.ok(o.indexOf('Inny zakres niż w ostatnio znanej wartości') < o.indexOf('pominęliśmy 58 tokenów') && o.indexOf('pominęliśmy') < o.indexOf('zostają poza sumami'),
+    'w akapicie danych emitentów: po zakresie, przed brakami');
+  assert.ok(o.includes('xStocks 921 mln USD (10.10)'), 'xStocks w sumach — jak dotąd');
+  assert.ok(!/NaN|undefined|null|xs311\.[a-z]/.test(RWC150.txt(o)), 'bez NaN i surowych kluczy');
+  const B = v311Plik({n: 3, max_usd: 2345678, obieg: 1234, sym: []});
+  const o2 = rw133.run(B, {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(o2.includes('Takich tokenów jest w obiegu łącznie 1234, więc ich wartość to najwyżej 2 mln USD (0,25% wartości produktu).'), 'większa granica: mln, udział 2 miejsca');
+  const o3 = rw133.run(v311Plik({n: 2, max_usd: 9999, obieg: 'x'}), {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(o3.includes('jest w obiegu łącznie —, więc ich wartość to najwyżej <0,01 mln USD (<0,01% wartości produktu).'), 'brak liczby w obiegu — „—”, mała kwota');
+  const o4 = rw133.run(v311Plik({n: 5, max_usd: 400000, obieg: 7}), {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(o4.includes('jest w obiegu łącznie 7, więc ich wartość to najwyżej 0,40 mln USD (0,04% wartości produktu).'), 'udział między 0,01% a 0,1%; liczba całkowita bez miejsc');
+  const o5 = rw133.run(v311Plik({n: 5, max_usd: 10000, obieg: 7}), {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(o5.includes('najwyżej 0,01 mln USD (<0,01% wartości produktu).'), 'granica 10 tys. USD');
+  assert.ok(rw133.BLK.includes("(typeof tN==='function'?tN:(k,x,v)=>t(k,v))('xs311.bez',b.n,{"), 'odmiana przez tN (z zapasem dla piaskownic)');
+  const e = rw133.run(v311Plik(V311_BEZ), {real: true, lang: 'en', now: NOW}).el.innerHTML;
+  assert.ok(e.includes('xStocks: we left out 58 tokens for which the issuer publishes no proof of reserves (read ') && e.includes('in circulation is 59.62 in total, so their value is at most 0.04 M USD (<0.01% of the product'), 'po angielsku');
+  const j = rw133.run(v311Plik(V311_BEZ), {real: true, lang: 'ja', now: NOW}).el.innerHTML;
+  assert.ok(j.includes('xStocks：発行体が準備金証明を公開していないトークン58件を除外しました'), 'po japońsku (bez spacji przed licznikiem 件 — strażnik v147)');
+});
+test('v311: bez pola bez, zły zapis albo produkt poza sumami — bez zdania (nigdy NaN ani 0)', () => {
+  const NOW = '2026-10-10T07:00:00Z', run = F => rw133.run(F, {real: true, lang: 'pl', now: NOW}).el.innerHTML;
+  assert.ok(!run(v311Plik()).includes('pominęliśmy'), 'bez pola');
+  for (const zle of [null, 'x', {n: 0, max_usd: 5}, {n: 1.5, max_usd: 5}, {n: '3', max_usd: 5}, {n: 3, max_usd: -1}, {n: 3}, {n: 3, max_usd: NaN}])
+    assert.ok(!run(v311Plik(zle)).includes('pominęliśmy'), JSON.stringify(zle));
+  const P = v311Plik(V311_BEZ); delete P.issuer.used.xstocks; P.issuer.p.xstocks.stan = 'poza';
+  const op = run(P);
+  assert.ok(!op.includes('pominęliśmy') && op.includes('zostają poza sumami: Hastra, xStocks.'), 'poza sumami — tylko na liście braków');
+});
+test('v311: odmiana — 1 token / 3 tokeny / 5 i 12 tokenów / 22 tokeny (pl), 1 токен / 3 токена / 5 токенов (ru), 1 token / 2 tokens (en)', () => {
+  const I = g126I18N(), o = {p: 'xStocks', o: '1', v: 'v', pr: 'p', t: 't'};
+  const pl = v183tN({pl: I.pl, en: I.en}, 'pl'), ru = v183tN({ru: I.ru, en: I.en}, 'ru'), en = v183tN({en: I.en}, 'en');
+  const f = (g, n) => g('xs311.bez', n, Object.assign({n}, o));
+  assert.ok(f(pl, 1).startsWith('xStocks: pominęliśmy 1 token, dla którego emitent') && f(pl, 1).includes('Tego tokenu jest w obiegu 1, więc jego wartość'));
+  for (const n of [2, 3, 4, 22, 24]) assert.ok(f(pl, n).startsWith('xStocks: pominęliśmy ' + n + ' tokeny, dla których'), n);
+  for (const n of [5, 12, 13, 21, 58, 100]) assert.ok(f(pl, n).startsWith('xStocks: pominęliśmy ' + n + ' tokenów, dla których'), n);
+  assert.ok(f(ru, 1).includes('мы не учли 1 токен,') && f(ru, 3).includes('мы не учли 3 токена,') && f(ru, 5).includes('мы не учли 5 токенов,') && f(ru, 21).includes('мы не учли 21 токен,'));
+  assert.ok(f(en, 1).includes('we left out 1 token for which') && f(en, 2).includes('we left out 2 tokens for which'));
+});
+test('v311: słownik xs311.* — czysty JSON, 10 języków z prawdziwymi tłumaczeniami (te same pola {x}), formy odmiany tylko tam, gdzie język je ma; linia nakładania zaraz po linii for innego słownika; klucz użyty w bloku RWA', () => {
+  const i = html.indexOf('{"pl":{"xs311.bez"'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.ok(i > 0 && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik xs311: ' + name);
+  const b = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i); assert.ok(b > i, 'linia nakładania');
+  const D = JSON.parse(html.slice(i, b)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10);
+  const KL = {pl: ['one', 'few'], ru: ['one', 'few'], en: ['one'], de: ['one'], es: ['one'], fr: ['one'], it: ['one'], pt: ['one'], zh: ['one'], ja: ['one']};   /* zh, ja: one jak strażnik v143 (Intl.PluralRules i tak wybiera other) */
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]).sort(), ['xs311.bez'].concat(KL[l].map(c => 'odm.xs311.bez.' + c)).sort(), l);
+    for (const k in D[l]) {
+      assert.equal(ph(D[l][k]), '{n},{o},{pr},{p},{t},{v}', l + ' ' + k + ': pola {x} (porządek sort: „{pr}” przed „{p}”)');
+      if (l !== 'en') assert.notEqual(D[l][k], D.en[k] || D.en['xs311.bez'], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+      assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k);
+    }
+  }
+  const ln = html.slice(html.lastIndexOf('\n', a - 2) + 1, a - 1);
+  assert.ok(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(ln) && html[a - 1] === '\n', 'zaraz po linii for innego słownika: ' + ln.slice(0, 80));
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego');
+  assert.ok(rw133.BLK.includes("('xs311.bez',b.n,{"), 'klucz w kodzie bloku RWA');
+  assert.ok(!/backed|api\.|securitize|llama|graphql|alpaca/i.test(JSON.stringify(D)), 'bez nazw dostawców i serwisów');
+});

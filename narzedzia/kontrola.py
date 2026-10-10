@@ -3769,6 +3769,10 @@ def rwc_kontrola(files, R):
 RWE_ETYKIETA = 'tokenizowane aktywa — dane emitentów (co 3 h)'
 RWE_SWIEZ_MIN = 12 * 60    # min — odczyt starszy (plik co 3 h od v172) = ⚠️; nigdy ❌ ani BŁĄD
 RWE_ZAKRES = (0.8, 1.25)   # wartość wg emitenta vs ostatnio znana źródła v133 poza tym pasmem = informacja ℹ️ (inny zakres liczenia albo prawdziwa zmiana)
+RWE_K_BEZ_UWAGA = 0.05     # v311: % wartości produktu — granica pominiętych tokenów bez dowodu rezerw od tylu = ⚠️ (tylko uwaga). Test wsteczny
+                           # (ws53/v311-xstocks/bt/bt_xs311.out): żywe 10.10.2026 — 58 tokenów, ok. 0,003% (ceny akcji ok. 150 USD; 0,11% nawet przy
+                           # 5 870 USD za każdą); token „pusty” jak dzisiejsze przy najwyższej cenie akcji na stronie — 0,0037% (0 fałszywych ⚠️ z 1000);
+                           # brak dowodu u prawdziwego tokenu w obiegu — ⚠️ od ok. 234 tys. USD wartości (92 z 713 takich przypadków na nagraniu 05.10)
 
 
 def rwe_swiezosc(j, now=None):
@@ -3850,6 +3854,27 @@ def rwe_porownanie(j, now=None):
             pr = og['max_usd'] / p['v'] * 100 if num(p.get('v')) and p['v'] > 0 else None
             cz.append(f"{nm(s)}: reszta listy emitenta poza odczytem ({og['n']} {_odm(og['n'], 'token', 'tokeny', 'tokenów')}) najwyżej {kw}"
                       + ((f' ({pr:.3f}% wartości)' if pr >= 0.001 else ' (<0.001% wartości)') if pr is not None else '') + ' ℹ️')
+    for s, p in sorted(P.items()):   # v311: tokeny bez dowodu rezerw pominięte z górną granicą wartości (xStocks) — ℹ️, od RWE_K_BEZ_UWAGA % — ⚠️
+        bz = p.get('bez') if isinstance(p, dict) and isinstance(p.get('bez'), dict) else None
+        if bz and num(bz.get('n')) and bz['n'] >= 1 and num(bz.get('max_usd')) and bz['max_usd'] >= 0:
+            x, nb = bz['max_usd'], int(bz['n'])
+            kw = (f'{x / 1e6:.2f} mln USD' if round(x / 1e3, 1) >= 1000 else f'{x / 1e3:.1f} tys. USD' if round(x) >= 1000 else f'{x:.0f} USD')
+            pr = x / p['v'] * 100 if num(p.get('v')) and p['v'] > 0 else None
+            sy = [y for y in (bz['sym'] if isinstance(bz.get('sym'), list) else []) if isinstance(y, str)][:3]
+            duzo = pr is not None and pr >= RWE_K_BEZ_UWAGA
+            cz.append(f"{nm(s)}: pominięte tokeny bez dowodu rezerw u emitenta — {nb} {_odm(nb, 'token', 'tokeny', 'tokenów')}"
+                      + (f" (np. {', '.join(sy)})" if sy else '') + (f", w obiegu łącznie {bz['obieg']:g}" if num(bz.get('obieg')) else '')
+                      + f' — najwyżej {kw}' + ((f' ({pr:.3f}% wartości)' if pr >= 0.001 else ' (<0.001% wartości)') if pr is not None else '')
+                      + (f", odczyt {p['read'][:16].replace('T', ' ')} UTC" if isinstance(p.get('read'), str) else '') + (' ⚠️' if duzo else ' ℹ️'))
+            if duzo:
+                Z['status'] = '⚠️'
+                Z['uwagi'].append(f'tokenizowane aktywa (dane emitentów): {nm(s)} — pominięte tokeny bez dowodu rezerw mogą być warte do {kw} ({pr:.3f}% '
+                                  'wartości produktu): emitent może nie publikować dowodu dla tokenów w obiegu; produkt dalej w sumach (tylko uwaga)')
+    bnn = [(nm(s), p['bn']) for s, p in sorted(P.items()) if isinstance(p, dict) and p.get('bn') in ('gm', 'okno')]
+    if bnn:   # v311: ostatni odczyt bez nowych danych (nie błąd — w sumach poprzedni odczyt z jego stanem) — informacja
+        cz.append('bez nowych danych w ostatnim odczycie (to nie błąd, w sumach poprzedni odczyt): ' + '; '.join(
+            f'{n} — ' + ('punkt dnia taki sam jak przyjęty wcześniej tej doby' if b == 'gm' else 'pusta lista kanału w znanym oknie dziennym 19–21 UTC')
+            for n, b in bnn) + ' ℹ️')
     if braki:
         cz.append('bez bieżących danych emitenta (poza sumami): ' + '; '.join(braki[:4]) + ' ℹ️')
     hd = rwe_hd(j)

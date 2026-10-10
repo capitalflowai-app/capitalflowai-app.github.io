@@ -22025,6 +22025,11 @@ RWE_MIN_SHARE = 0.01      # część produktu (klasa, token) poniżej 1% wartoś
 RWE_XS_OGON_K = 50        # v265/v267: xStocks — tyle ostatnich tokenów z rezerwą na stronie wyznacza wartość tokenu z dalszej części listy
 RWE_XS_OGON_ZAPAS = 2     # v267 (przegląd v265): zapas — kolejność emitenta wg jego „aum”, nie wg rezerwa × cena (FCNCAx 5,5× sąsiadów, HKD jak USD)
 RWE_XS_OGON_PROC = 0.5    # v265: % — górna granica pominiętej reszty listy do tylu procent sumy = odczyt przyjęty (pole 'ogon'); więcej = błąd
+RWE_XS_BEZ_MAX = 100      # v311: xStocks — najwyżej tyle tokenów z dowodem rezerw null (na stronie odpowiedzi) pomijamy, każdy z górną granicą
+                          #       wartości z liczby tokenów w obiegu (10.10.2026: 58 z 1318 tokenów emitenta; 05.10: 0 z 1000); więcej = błąd
+RWE_XS_BEZ_SYM = 5        # v311: tyle symboli pominiętych tokenów zapisujemy w pliku (kontrola: „np. …”)
+RWE_XS_OBIEG_W = 6        # v311: zapytania o liczbę tokenów w obiegu równolegle (tylko tokeny bez dowodu; 10.10: 58 zapytań po ok. 0,2 s)
+RWE_SEC_OKNO = (19 * 60, 21 * 60)   # v311: min doby UTC [od, do) — znane okno pustej listy kanału agenta transferowego (_rwe_bez_nowych)
 RWE_OTHER_MAX = 0.005     # cfg: tokeny w pulach innej waluty (bez kursu): do 0,5% wartości pominięte z notatką, więcej = produkt bez wyceny
 RWE_HD_DAYS = 31          # dni zapisu „co liczyliśmy wg emitentów” (kontrola: skok sumy przy zmianie zbioru)
 RWE_START_MIN = 120       # min — plik bez danych emitentów (pierwsze przebiegi po wdrożeniu) przebudowany po tylu minutach, nie po RWA_EVERY
@@ -22060,11 +22065,21 @@ RWE_SRC = ('Dane emitentów (publiczne, bez klucza): public-api.spiko.io (klasy 
            'hastra.io/hastra-pulse/public/api/v1/por (wYLDS w skarbcach × 1 USD), prod-gw.openeden.com/v3/vault/aggregates (tvl), '
            'matrixdock.com/rwa/anon/website/api/v1/stats/total (podaż XAUm × XAU/USD z wyroczni na Ethereum), api.centrifuge.io (indeks emitenta: '
            'totalIssuance × tokenPrice, bez tokenów-opakowań „de…”); v170: ondo.finance (dane serwera strony emitenta: assetsData USDY + OUSG — tvlUsd.total, '
-           'v302: ostatni punkt zakończonej doby gmTvlHistory, zgodny z gmTvl ±2%; v307: albo gmTvl zgodny z najnowszym punktem wykresu, a ten z punktem dnia ±2%), api.backed.fi/graphql (dowód rezerw xStocks: akcje w rezerwie × cena akcji, kurs dzienny z pliku rynki); '
+           'v302: ostatni punkt zakończonej doby gmTvlHistory, zgodny z gmTvl ±2%; v307: albo gmTvl zgodny z najnowszym punktem wykresu, a ten z punktem dnia ±2%), api.backed.fi/graphql (dowód rezerw xStocks: akcje w rezerwie × cena akcji, kurs dzienny z pliku rynki; v311: token bez dowodu rezerw — górna granica z liczby tokenów w obiegu, api.xstocks.fi/api/v2/public/assets/{symbol}/circulating-supply); '
            'obliczenia CapitalFlowAI')
 _RWE_SYM = re.compile(r'^[A-Za-z0-9]{2,20}$')
 _RWE_CUR = re.compile(r'^[A-Z]{3}$')
 _RWE_ISO = re.compile(r'^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?$')
+_RWE_XS_SYM = re.compile(r'^[A-Za-z0-9][A-Za-z0-9.\-]{0,23}$')   # v311: symbol tokenu xStocks w adresie zapytania (05.10: litery, cyfry, kropka)
+
+
+class RweBezNowych(ValueError):
+    """v311: odczyt bez nowych danych — wyjątek z danymi `bn`, z których rwe_blok rozstrzyga (_rwe_bez_nowych), czy to błąd, czy tylko „bez
+    nowych danych” (poprzedni odczyt z jego stanem, ok bloku bez zmian). Jak ValueError: bez ponowienia odczytu, ten sam opis błędu."""
+
+    def __init__(self, msg, **bn):
+        super().__init__(msg)
+        self.bn = bn
 
 
 def _rwe_iso(x):
@@ -22150,8 +22165,11 @@ def rwe_spiko(tmo, fx, get=None):
 
 def rwe_sec_parse(j, sym):
     """Kanał agenta transferowego (asset-stats) → {'v': Σ aum USD, 'as_of': najstarszy stan wierszy, 'n': sieci, 'u': Σ jednostek}; wiersz innego
-    symbolu, liczby złe albo niespójne (aum ≠ jednostki × wycena o więcej niż 1%), zły stan, brak wierszy = wyjątek."""
+    symbolu, liczby złe albo niespójne (aum ≠ jednostki × wycena o więcej niż 1%), zły stan, brak wierszy = wyjątek. v311: pusta lista (albo pole
+    data null) — RweBezNowych z tym samym opisem: w znanym oknie dziennym RWE_SEC_OKNO to nie błąd, tylko „bez nowych danych” (rwe_blok)."""
     D = j.get('data') if isinstance(j, dict) else None
+    if isinstance(j, dict) and (D is None or D == []):
+        raise RweBezNowych('brak wierszy danych', pusta=1)
     if not isinstance(D, list) or not 1 <= len(D) <= 100:
         raise ValueError('brak wierszy danych')
     v = u = 0.0
@@ -22264,6 +22282,7 @@ def rwe_cfg_parse(j):
 #     liczbie akcji (dywidendy), więc tokeny × cena akcji zaniżałyby wartość o kilka procent.
 RWE_ONDO = 'https://ondo.finance/'
 RWE_XS = 'https://api.backed.fi/graphql'
+RWE_XS_OBIEG = 'https://api.xstocks.fi/api/v2/public/assets/{}/circulating-supply'   # v311: liczba tokenów w obiegu (dokumentowane API emitenta)
 RWE_XS_Q = ('query Reserves($page:Int!,$pageSize:Int!,$where:TokensWhereInput,$orderBy:TokenSortInput,$maxAge:Int,$maxDivergencePercent:Float,'
             '$ignoreCurrentSession:Boolean){ tokens(page:$page,pageSize:$pageSize,where:$where,orderBy:$orderBy){ nodes{ symbol proofOfReserves{ at '
             'sharesHeld{ quantity } } tokenCollaterals{ collateral{ price(maxAge:$maxAge,maxDivergencePercent:$maxDivergencePercent,'
@@ -22343,7 +22362,10 @@ def rwe_ondo_gm_parse(s, read=None):
     przyjęte 17, jak w v302; samo porównanie z najnowszym punktem przyjęłoby 15, w tym 05.05.2026 punkt niepełny (−4,17% wobec wersji
     ostatecznej, −4,16% wobec najnowszego punktu), i odrzuciłoby 26.05, 06.06 i 16.06 (nagłówek przy punkcie zakończonej doby). Przy zmianie
     dnia ponad RWE_GM_ZGODA (od 06.2026 ok. co czwarty dzień) w tym oknie dalej błąd — w sumach zostaje poprzedni odczyt (zwykle ten sam punkt
-    dnia), jak w v302."""
+    dnia), jak w v302.
+    v311 (recenzja v307): w tym ostatnim przypadku (punkt bieżącej doby, nagłówek zgodny z nim, zmiana dnia ponad RWE_GM_ZGODA) wyjątek
+    RweBezNowych z punktem zakończonej doby (as_of, v) — gdy to ten sam punkt, który przyjęliśmy wcześniej tej doby UTC, rwe_blok zapisuje
+    „bez nowych danych” zamiast błędu (_rwe_bez_nowych); opis błędu bez zmian."""
     hl = _rwc_rez_num(_rwe_po_kluczu(s, 'gmTvl'))
     H = _rwe_po_kluczu(s, 'gmTvlHistory')
     if hl is None or hl <= 0 or not isinstance(H, list) or not H:
@@ -22373,16 +22395,19 @@ def rwe_ondo_gm_parse(s, read=None):
         if abs(yn - hl) > zg * hl:
             raise ValueError(f'punkt dnia {d[:10]} ({y / 1e6:.1f} mln USD) i najnowszy {dn[:16]} ({yn / 1e6:.1f}) różnią się od nagłówka '
                              f'({hl / 1e6:.1f}) o {(y / hl - 1) * 100:+.2f}% i {(yn / hl - 1) * 100:+.2f}% — więcej niż {zg * 100:g}%')
-        raise ValueError(f'punkt dnia {d[:10]} ({y / 1e6:.1f} mln USD) różni się o {(y / hl - 1) * 100:+.2f}% od nagłówka ({hl / 1e6:.1f}) i o '
-                         f'{(y / yn - 1) * 100:+.2f}% od najnowszego {dn[:16]} ({yn / 1e6:.1f}) — więcej niż {zg * 100:g}%')
+        raise RweBezNowych(f'punkt dnia {d[:10]} ({y / 1e6:.1f} mln USD) różni się o {(y / hl - 1) * 100:+.2f}% od nagłówka ({hl / 1e6:.1f}) i o '
+                           f'{(y / yn - 1) * 100:+.2f}% od najnowszego {dn[:16]} ({yn / 1e6:.1f}) — więcej niż {zg * 100:g}%', as_of=d, v=y)   # v311
     return {'v': y, 'as_of': d, 'n': len(H), 'hl': round(hl, 2)}
 
 
-def rwe_xs_parse(j, fx):
+def rwe_xs_parse(j, fx, obieg=None):
     """v170: xStocks — dowód rezerw emitenta (GraphQL tokens, strona 0, do 1000 tokenów od największych): Σ po tokenach z rezerwą: akcje w rezerwie
     (Σ sharesHeld) × cena akcji / 100 (setne części waluty notowania), w USD — inne waluty po kursie `fx` (GBX = pensy: jeszcze / 100 → GBP). Lista
     dłuższa niż strona (totalNodes) — reszta ograniczona z góry, pole 'ogon' (v265/v267); pełna strona bez totalNodes — wyjątek (v268). Dowód rezerw
-    nieznany (null), token z rezerwą bez jednej ceny, waluta bez kursu, zły stan = wyjątek. Stan = najstarszy proofOfReserves.at tokenów ≥ RWE_MIN_SHARE wartości. → {'v', 'as_of', 'n', 'fx': {'d'} albo None, 'cur': {waluta: USD}}."""
+    nieznany (null), token z rezerwą bez jednej ceny, waluta bez kursu, zły stan = wyjątek. Stan = najstarszy proofOfReserves.at tokenów ≥ RWE_MIN_SHARE wartości. → {'v', 'as_of', 'n', 'fx': {'d'} albo None, 'cur': {waluta: USD}}.
+    v311 (awaria od 08.10.2026 ok. 14:07 UTC — „RACEx (wcześniej NTESx): dowód rezerw nieznany”: jeden token odrzucał cały produkt, od 10.10
+    03:40 xStocks poza sumami): token z dowodem null nie przerywa odczytu — _rwe_xs_bez ogranicza jego wartość z góry liczbą tokenów w obiegu
+    (`obieg(symbole)`, publiczne API emitenta) i przyjmuje odczyt z polem 'bez', gdy mieści się w limitach; bez `obieg` — wyjątek jak w v268."""
     if not isinstance(j, dict) or j.get('errors'):
         raise ValueError('odpowiedź z błędem albo nie obiekt')
     data = j.get('data') if isinstance(j.get('data'), dict) else {}
@@ -22390,15 +22415,16 @@ def rwe_xs_parse(j, fx):
     if not isinstance(N, list) or not N:
         raise ValueError('brak listy tokenów')
     R = (fx or {}).get('rates', {})
-    V, cur, used_fx = [], {}, False
+    V, cur, used_fx, B = [], {}, False, []   # v311: B — tokeny z dowodem rezerw null: (symbol do opisu, węzeł)
     for n in N:
         if not isinstance(n, dict):
             raise ValueError('zły token')
         sym = str(n.get('symbol'))[:12]
         por = n.get('proofOfReserves')
         Q = por.get('sharesHeld') if isinstance(por, dict) else None
-        if not isinstance(Q, list):   # v268 (przegląd v267): dowód nieznany (null) to nie „zero” — cicho zaniżyłby sumę (null w STRCx: −15,5%)
-            raise ValueError(f'{sym}: dowód rezerw nieznany (brak listy sharesHeld)')
+        if not isinstance(Q, list):   # v268 (przegląd v267): dowód nieznany (null) to nie „zero” — cicho zaniżyłby sumę (null w STRCx: −15,5%);
+            B.append((sym, n))        # v311: nie przerywa odczytu — wartość ograniczona z góry liczbą tokenów w obiegu (_rwe_xs_bez), inaczej wyjątek
+            continue
         q = [_rwc_rez_num(x.get('quantity')) if isinstance(x, dict) else None for x in Q]
         if any(x is None or x < 0 for x in q):
             raise ValueError(f'{sym}: zła liczba akcji w rezerwie')
@@ -22443,11 +22469,72 @@ def rwe_xs_parse(j, fx):
         if tot <= 0 or gr > RWE_XS_OGON_PROC / 100 * tot:
             raise ValueError(f'tokeny z rezerwą także poza stroną 0 — górna granica reszty listy {gr:,.0f} USD ponad {RWE_XS_OGON_PROC:g}% sumy')
         ogon = {'n': tn - len(N), 'max_usd': round(gr)}
+    bez = _rwe_xs_bez(B, R, obieg, tot, ogon) if B else None   # v311: tokeny bez dowodu rezerw — pole 'bez' albo wyjątek
     big = [d for x, d in V if tot > 0 and x >= RWE_MIN_SHARE * tot]
     if tot <= 0 or not big:
         raise ValueError('suma rezerw zero')
     return {'v': tot, 'as_of': min(big), 'n': len(V), 'fx': {'d': fx['d']} if used_fx else None, 'cur': {k: round(x, 2) for k, x in sorted(cur.items())},
-            **({'ogon': ogon} if ogon else {})}
+            **({'ogon': ogon} if ogon else {}), **({'bez': bez} if bez else {})}
+
+
+def _rwe_xs_bez(B, R, obieg, tot, ogon):
+    """v311: tokeny xStocks z dowodem rezerw null (B: [(symbol do opisu, węzeł)] w kolejności listy) → pole 'bez' {'n', 'max_usd', 'obieg', 'sym'}
+    albo wyjątek. Akcji w rezerwie nie znamy, więc wartość ograniczamy z góry liczbą tokenów W OBIEGU wg publicznego API emitenta (`obieg(symbole)`
+    → {symbol: liczba}; u tokenów z dowodem to ta sama liczba co circulatingSupply w dowodzie — 10.10.2026: 8 z 9 sprawdzonych co do cyfry,
+    9. o 0,003 tokenu, bo dowód był sprzed 31 min — ale liczona także bez dowodu): granica = (RWE_XS_OGON_ZAPAS × w obiegu + 1) × cena akcji
+    (zapas na mnożnik dywidend i zaokrąglenie do całej akcji), w USD po kursie jak wartość (R: kursy pliku rynki). Pominięte, gdy tokenów
+    najwyżej RWE_XS_BEZ_MAX, każdy ma liczbę w obiegu (≥ 0) i cenę, a granica razem z resztą listy (`ogon`) ≤ RWE_XS_OGON_PROC % sumy `tot`.
+    Inaczej wyjątek; bez `obieg` — wyjątek jak w v268 (dowód nieznany). Kolejność listy emitenta (wg jego „aum”) nie ogranicza tokenu bez
+    dowodu — jego „aum” nie musi nic znaczyć; liczba w obiegu — tak. Akcje emitenta ponad obieg (jego zapas: na nagraniu 05.10 u 408 z 748
+    tokenów, każdy najwyżej ok. 9 tys. USD ponad granicę) nie są wartością tokenów w obiegu."""
+    s0 = B[0][0]
+    if obieg is None:
+        raise ValueError(f'{s0}: dowód rezerw nieznany (brak listy sharesHeld)')
+    if len(B) > RWE_XS_BEZ_MAX:
+        raise ValueError(f'tokenów bez dowodu rezerw {len(B)} (np. {s0}) — więcej niż {RWE_XS_BEZ_MAX}')
+    S = [n.get('symbol') for _s, n in B]
+    for (s, _n), x in zip(B, S):
+        if not (isinstance(x, str) and _RWE_XS_SYM.match(x)):
+            raise ValueError(f'{s}: dowód rezerw nieznany, zły symbol')
+    O = obieg(S)
+    O = O if isinstance(O, dict) else {}
+    gb = ob = 0.0
+    for (s, n), x in zip(B, S):
+        q = _rwc_rez_num(O.get(x))
+        if q is None or q < 0:
+            raise ValueError(f'{s}: dowód rezerw nieznany, liczba tokenów w obiegu też — wartości nie da się ograniczyć')
+        C = n.get('tokenCollaterals')
+        col = C[0].get('collateral') if isinstance(C, list) and len(C) == 1 and isinstance(C[0], dict) else None
+        px = _rwc_rez_num(col.get('price')) if isinstance(col, dict) else None
+        c = col.get('priceCurrency') if isinstance(col, dict) else None
+        if px is None or px <= 0 or not isinstance(c, str):
+            raise ValueError(f'{s}: dowód rezerw nieznany i brak ceny — wartości nie da się ograniczyć')
+        g = (RWE_XS_OGON_ZAPAS * q + 1) * px / 100
+        if c != 'USD':
+            r = R.get('GBP' if c == 'GBX' else c)
+            if not r or r <= 0:
+                raise ValueError(f'brak kursu {c} (plik rynki)')
+            g = g / (100 if c == 'GBX' else 1) / r
+        gb += g
+        ob += q
+    og = ogon['max_usd'] if ogon else 0
+    if tot <= 0 or og + gb > RWE_XS_OGON_PROC / 100 * tot:
+        raise ValueError(f'tokenów bez dowodu rezerw {len(B)} (np. {s0}) najwyżej {gb:,.0f} USD' + (f' + reszta listy {og:,.0f}' if ogon else '')
+                         + f' — ponad {RWE_XS_OGON_PROC:g}% sumy')
+    return {'n': len(B), 'max_usd': round(gb), 'obieg': round(ob, 4), 'sym': [s for s, _n in B[:RWE_XS_BEZ_SYM]]}
+
+
+def rwe_xs_obieg(S, tmo, get=None):
+    """v311: liczba tokenów w obiegu wg publicznego API emitenta (GET, bez klucza) dla symboli S → {symbol: liczba albo None (błąd sieci, budżet,
+    zły kształt)}; najwyżej RWE_XS_OBIEG_W zapytań naraz, każde z limitem tmo() (budżet kroku). Odpowiedź {"value": liczba} albo sama liczba."""
+    def jeden(s):
+        try:
+            j = _rwe_json(RWE_XS_OBIEG.format(urllib.parse.quote(s, safe='')), tmo(), get)
+            return s, _rwc_rez_num(j.get('value') if isinstance(j, dict) else j)
+        except Exception:  # noqa — bez liczby: token bez granicy = odczyt odrzucony (_rwe_xs_bez), nigdy zero
+            return s, None
+    with _rwa_cf.ThreadPoolExecutor(max(1, min(RWE_XS_OBIEG_W, len(S)))) as ex:
+        return dict(ex.map(jeden, S))
 
 
 def _rwe_ponow(e):
@@ -22503,8 +22590,9 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
             return rwe_ondo_ya_parse(strona(RWE_ONDO))
         if k == 'ondo_gm':
             return rwe_ondo_gm_parse(strona(RWE_ONDO), stamp)   # v302: punkt zakończonej doby względem chwili odczytu
-        if k == 'xs':
-            return rwe_xs_parse(post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': RWE_XS_VAR}, timeout=tmo()), fx)
+        if k == 'xs':   # v311: liczba tokenów w obiegu tylko dla tokenów bez dowodu rezerw (GET, ten sam budżet kroku)
+            return rwe_xs_parse(post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': RWE_XS_VAR}, timeout=tmo()), fx,
+                                obieg=lambda S: rwe_xs_obieg(S, tmo, get))
         raise ValueError(f'nieznany rodzaj {k}')
 
     def one(slug):
@@ -22517,7 +22605,8 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
                 if i + 1 >= RWE_PROBY or not _rwe_ponow(e) or t0 + budget - clock() < RWE_MIN_TMO + RWE_PRZERWA:
                     break
                 (sleep or time.sleep)(RWE_PRZERWA)
-        return slug, {'err': f'{type(last).__name__}: {last}'[:160]}
+        nz = 'ValueError' if isinstance(last, RweBezNowych) else type(last).__name__   # v311: opis błędu jak dotąd, dane „bez nowych” obok
+        return slug, dict({'err': f'{nz}: {last}'[:160]}, **({'bn': dict(last.bn)} if isinstance(last, RweBezNowych) else {}))
     S = sorted(RWE_PRODUKTY)
     with _rwa_cf.ThreadPoolExecutor(max(1, min(threads or RWE_THREADS, len(S)))) as ex:
         R = dict(ex.map(one, S))
@@ -22548,6 +22637,33 @@ def _rwe_vb(prev_em, slug):
     return rwa_num(o.get('vb')) or rwa_num(o.get('v'))
 
 
+RWE_BN_OPIS = {'gm': 'punkt zakończonej doby taki sam jak przyjęty wcześniej tej doby (punkt bieżącej doby różni się od niego o ponad 2%)',
+               'okno': f'pusta lista kanału w znanym oknie dziennym {RWE_SEC_OKNO[0] // 60:02d}:00–{RWE_SEC_OKNO[1] // 60:02d}:00 UTC'}
+
+
+def _rwe_bez_nowych(c, bn, pv, at):
+    """v311: nieudany odczyt z danymi `bn` (RweBezNowych) to tylko „bez nowych danych” ('gm' / 'okno'), a nie błąd, gdy:
+    * Ondo Global Markets — punkt zakończonej doby (bn: as_of, v) to ten sam punkt (dzień i wartość co do centa), który przyjęliśmy wcześniej
+      TEJ doby UTC (pv: odczyt tej doby — wtedy sprawdzony z nagłówkiem strony). Wieczorem, gdy na wykresie jest już punkt bieżącej doby,
+      a zmiana dnia przekracza RWE_GM_ZGODA, punktu zakończonej doby nie da się sprawdzić nagłówkiem (od 06.2026 ok. co czwarty dzień, v307) —
+      ale nic nowego się nie pojawiło: w sumach zostaje ten sam punkt, bez błędu do północy (recenzja v307);
+    * kanał agenta transferowego (sec) — pusta lista (bn: pusta) w znanym oknie dziennym RWE_SEC_OKNO UTC: 06.10.2026 19:23 (MI4 i STAC)
+      i 07.10 19:25 UTC (MI4) — pusta lista, odczyty 18:24 i 20:34 UTC — pełne; innych odczytów w tym oknie w historii kontroli nie ma (RWA co
+      3 h). Okno 19:00–21:00 UTC obejmuje też przesunięcie o godzinę po zmianie czasu w USA albo w Europie. Poza oknem — błąd jak dotąd.
+    Inaczej None (błąd jak dotąd)."""
+    k = c.get('kind')
+    if k == 'ondo_gm':
+        v, r = rwa_num(bn.get('v')), _rwe_iso(pv.get('read'))
+        if (v is not None and isinstance(bn.get('as_of'), str) and bn['as_of'] == pv.get('as_of') and r is not None
+                and round(v, 2) == round(float(pv['v']), 2) and r[:10] == str(_rwe_iso(at) or '')[:10]):
+            return 'gm'
+    elif k == 'sec' and bn.get('pusta') == 1:
+        t = _rwe_iso(at)
+        if t is not None and RWE_SEC_OKNO[0] <= int(t[11:13]) * 60 + int(t[14:16]) < RWE_SEC_OKNO[1]:
+            return 'okno'
+    return None
+
+
 def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
     """Blok issuer pliku z odczytu `rd` (rwe_odczyt), poprzedniego bloku, bloku onchain TEGO odczytu (`oc`: cena złota dla XAUm) i ostatnio znanych
     wartości źródła v133 (`ref`: {produkt: USD} — pasmo rozsądku bez poprzedniego odczytu emitenta). Każdy produkt: name, kind, v (USD; XAUm =
@@ -22568,7 +22684,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
         err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else (None if isinstance(cur, dict) else 'brak odpowiedzi')
         new = None
         if err is None:
-            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'hl', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon; v302: + hl
+            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'hl', 'bez', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon; v302: + hl; v311: + bez
             new['read'] = rd['at']
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
@@ -22581,11 +22697,16 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
             elif pv is not None and new['as_of'] < pv['as_of']:
                 notes.append(f"{nm}: dane emitenta ze starszym stanem ({new['as_of']}) niż poprzedni odczyt ({pv['as_of']}) — poprzedni odczyt")
                 new = None
+        bn = (_rwe_bez_nowych(c, cur['bn'], pv, rd['at']) if err is not None and pv is not None and isinstance(cur, dict)
+              and isinstance(cur.get('bn'), dict) else None)
+        if bn:   # v311: „bez nowych danych” — nie błąd: poprzedni odczyt z jego stanem (k = 1), ok bloku bez zmian; notatka (kontrola: ℹ️)
+            notes.append(f"{nm}: bez nowych danych — {RWE_BN_OPIS[bn]} — poprzedni odczyt (stan {pv['as_of']})")
+            err = None
         if err is not None:
             ok = False
             notes.append(f'{nm}: {err}' + (f" — poprzedni odczyt (stan {pv['as_of']})" if pv is not None else ' — bez wartości'))
         if new is None and pv is not None:
-            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'hl', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon; v302: + hl
+            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'hl', 'bez', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon')}   # v267: + ogon; v302: + hl; v311: + bez
             new['k'] = 1
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
@@ -22600,6 +22721,8 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
                 wyl = isinstance(oc, dict) and oc.get('off') is True   # v175: odczyt z łańcucha wyłączony celowo (RWA_CHAIN_OFF) — opis, nie usterka
                 ok = ok and wyl
                 notes.append(f'{nm}: brak ceny złota z odczytu z łańcucha' + (' (odczyt z łańcucha wyłączony)' if wyl else '') + ' — bez wyceny')
+        if bn:
+            o['bn'] = bn   # v311: 'gm' / 'okno' — ostatni odczyt bez nowych danych (kontrola: ℹ️)
         if c.get('zakres'):
             o['zakres'] = c['zakres']
         o['vb'] = o['v'] if o['v'] is not None else (round(vb_prev, 2) if vb_prev else None)   # v175: ostatnia przyjęta wartość (pasmo rozsądku)
