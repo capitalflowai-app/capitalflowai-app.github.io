@@ -3113,6 +3113,7 @@ function smallTone(d,o){
 function smallPhotoURL(id,px){
   const o=SMALL_PHOTO[id],src=logoSrc(id);
   const key='ph|'+id+'|'+px+'|'+(PAL.dark?'d':'l');if(urlCache[key])return urlCache[key];
+  if(typeof srvJSON==='function'&&srvJSON.g&&!srvJSON.g.o.c)return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';   /* v308: zdjęcia węzłów sceny (img/wezly, ok. 200 KB) dopiero przy otwartej grupie 'c' — karty ukrytej zakładki CRYPTO rysują ikony od startu; po otwarciu wczytanie zdjęcia (logoImg) i refreshLogoImgs podmieniają ikony jak dotąd */
   const im=logoImg(id);if(!im)return src;   /* jeszcze się wczytuje — bez zapisu w pamięci, po wczytaniu przyjdzie wariant */
   try{
     const S=px*2,cv=document.createElement('canvas');cv.width=S;cv.height=S;const c=cv.getContext('2d');
@@ -3651,6 +3652,7 @@ let gDayBusy=false;
    Pamięć jako własność funkcji (srvJSON.c) — działa także przy wywołaniu z kodu wyżej w pliku (bez strefy martwej zmiennej). */
 function srvJSON(name){
   if(location.protocol==='file:')return Promise.resolve(null);
+  if(srvJSON.g&&srvJSON.g.zamk(name))return new Promise(()=>{});   /* v308: plik z zamkniętej grupy (bramka niżej) — bez pobierania; obietnica się nie rozstrzyga */
   const S=srvJSON.c||(srvJSON.c={}),m=Math.floor(Date.now()/60000);let c=S[name];
   if(!c||c.m!==m){
     const p=fetch('data/'+name+'.json?t='+m,{cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined})
@@ -3664,6 +3666,31 @@ function srvJSON(name){
    i przed gLoad na końcu skryptu (dawniej szły na końcu i dzieliły łącze z plikami, których czytelnik jeszcze nie widzi). To te same
    pobrania (pamięć minutowa srvJSON.c): gLoad, gDay, krLoad i cmcLoad w tej samej minucie biorą je z pamięci. */
 ['oecd','rynki','ceny','kursy','dzis','krypto','cmc'].forEach(n=>srvJSON(n));
+/* v308 (szybkość, etap 2): bramka grup plików serwera. Grupa 'c' — pliki tylko kart zakładki CRYPTO — pobierana dopiero przy pierwszym otwarciu
+   CRYPTO albo TRENDÓW (setMode: zakładka, lewy pasek, „Szczegóły”) albo przy zamiarze (najechanie, dotknięcie, fokus zakładki); ?pelna=1 w adresie
+   (kontrola dzienna) = grupa otwarta od startu, wszystko jak dawniej. Do otwarcia srvJSON pliku grupy nie pobiera i zwraca obietnicę, która się nie
+   rozstrzyga: wołający nic nie nakłada (karta zostaje ukryta jak przed przyjściem danych), a wywołania zegarów i powrotu do karty (v176) przepadają —
+   bez kolejki i bez podwójnego nakładania. srvOpen: raz — grupa otwarta i każda ładowarka z rejestru SRV_LD wołana jeden raz (z nimi dane na żywo
+   sceny — srvLiveStart; zdjęcia węzłów sceny — smallPhotoURL). Plik grupy czyta tylko ładowarka z rejestru (test). Bez grupy zostają pliki czytane
+   też poza CRYPTO (krypto, cmc, etf, cftc, cm — liczba źródeł GLOBAL —, trendy, widoki silnika, archiwum) i już leniwe (krypto-top10-logo, dzienniki
+   TRENDÓW, surowce-hist, szlaki). Plik sceny top 10 (krypto-top10, ok. 3 KB) też zostaje przy starcie: od niego zależy miejsce kamery sceny na
+   komputerze (t10Rehome) — wczytany po otwarciu przesuwałby kamerę na oczach czytelnika. Strony z menu grupy nie potrzebują: w GLOBAL i TRENDACH
+   pokazują dane GLOBAL (gActive), a w CRYPTO grupa jest już otwarta (srvLive przerysowuje stronę, gdy przyjdą dane sceny). */
+const SRV_GR={'ceny-krypto':'c',wieloryby:'c',dzwignia:'c',premie:'c',wycena:'c',rwa:'c',lancuch:'c','zloto-krypto':'c'};
+const SRV_LD={c:[srvLiveStart,whLoad,rwLoad,zkLoad,levLoad,prmLoad,kcLoad,lnLoad,wyLoad]};   /* najpierw scena (największe pobranie), potem karty w kolejności zakładki */
+srvJSON.g={o:{c:(()=>{try{return new URLSearchParams(location.search).get('pelna')==='1';}catch(e){return false;}})()},
+  zamk:n=>Object.prototype.hasOwnProperty.call(SRV_GR,n)&&!srvJSON.g.o[SRV_GR[n]]};
+function srvOpen(g){const G=srvJSON.g;if(!G||G.o[g])return false;G.o[g]=true;
+  for(const f of SRV_LD[g]||[]){try{f();}catch(e){console.error(e);}}   /* błąd jednej ładowarki nie zatrzymuje pozostałych; widoczny w konsoli (kontrola) */
+  return true;}
+/* dane na żywo sceny przy otwarciu grupy: od razu ceny z pliku serwera (krypto.json → mk — plik kafelków, zwykle już w pamięci; ten sam zapas co przy
+   awarii źródła na żywo, z podpisem „Plik serwera” i czasem, nie „Makieta”) i rozmiary węzłów bez animacji (zakładka CRYPTO jeszcze niewidoczna), a dane
+   na żywo po cichu — liczby z pliku zostają na ekranie do chwili sukcesu, jak przy odświeżaniu co 5 min; bez pliku — pobieranie jak dawniej przy starcie
+   strony. Po sukcesie (i przy pobieraniu bez pliku) srvLive. */
+function srvLiveStart(){const s=LIVE.st==='idle'&&lvSrv(false);loadAll(srvLive,s);if(s){renderStatus();renderAll();retarget(true);dirty=true;}}
+/* jak afterLive; po przyjściu danych sceny (albo błędzie) także strona z menu otwarta w trybie CRYPTO — jej liczby są z danych sceny (dawniej wczytanych
+   przy starcie strony; bez tego np. Aktywa w CRYPTO zostałyby z „—” do następnego rysowania) */
+function srvLive(){afterLive();if(LIVE.st!=='load'&&st.mode==='crypto'&&PAGES.includes(page))renderPage();}
 /* notowania ETF-ów krajowych → zmiana dnia per region (wspólne dla serwera i klucza Finnhub) */
 function gDayApply(q){
   const day={};let ok=0;
@@ -8762,6 +8789,7 @@ function setPage(p){if(page===p)return;page=p;applyVis();window.scrollTo({top:0,
 let gStarted=false;
 function setMode(m){
   st.mode=m;['global','crypto','trendy'].forEach(k=>$('#tab-'+k).setAttribute('aria-selected',m===k));
+  if(m!=='global')srvOpen('c');   /* v308 (szybkość, etap 2): pierwsze otwarcie CRYPTO albo TRENDÓW — pliki grupy 'c' i dane na żywo sceny */
   applyVis();
   if(m==='trendy')renderTrendy();
   if(m==='global'&&!gStarted){gStarted=true;gInit();gPeriodButtons();gRenderAll();gLoad(()=>gRenderAll());}
@@ -8909,6 +8937,7 @@ function railH(r){if(r&&r.style&&typeof r.style.setProperty==='function')r.style
 (function(){if(typeof $!=='function')return;const r=$('#rail');if(!r)return;railH(r);
   if(typeof ResizeObserver==='function'){try{new ResizeObserver(()=>{try{railH(r);}catch(e){}}).observe(r);}catch(e){}}})();
 /* v166: koniec bloku */
+['#tab-crypto','#tab-trendy'].forEach(s=>{const b=$(s);if(b)['pointerenter','pointerdown','focus'].forEach(ev=>b.addEventListener(ev,()=>srvOpen('c'),{passive:true}));});   /* v308: zamiar otwarcia CRYPTO / TRENDÓW — pliki grupy 'c' ruszają przed kliknięciem */
 $('#tab-global').addEventListener('click',()=>setMode('global'));
 $('#tab-crypto').addEventListener('click',()=>setMode('crypto'));
 $('#tab-trendy').addEventListener('click',()=>setMode('trendy'));
@@ -8925,7 +8954,7 @@ function dropdown(host,cfg){
   const ck='<svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5 9-10"/></svg>';
   function label(){const g0=cfg.groups[0],cur=g0.items.find(i=>i.v===g0.get());return (cfg.label?`<span class="k">${t(cfg.label)}:</span>`:'')+(cur&&cur.icon?`<img src="${cur.icon()}" alt="">`:'')+`<span>${cur?(cur.raw||t(cur.l)):''}</span>`+car;}   /* v96: wybrany język z flagą także na przycisku */
   function build(){
-    menu.innerHTML=cfg.groups.map(gp=>`<div class="dd-g">${gp.title?`<div class="dd-h">${t(gp.title)}</div>`:''}${gp.items.map(it=>`<button type="button" class="dd-i" role="menuitemradio" data-g="${gp.key}" data-v="${it.v}" aria-checked="${gp.get()===it.v}">${ck}${it.icon?`<img src="${it.icon()}" alt="">`:''}<span>${it.raw||t(it.l)}</span></button>`).join('')}</div>`).join('');
+    menu.innerHTML=cfg.groups.map(gp=>`<div class="dd-g">${gp.title?`<div class="dd-h">${t(gp.title)}</div>`:''}${gp.items.map(it=>`<button type="button" class="dd-i" role="menuitemradio" data-g="${gp.key}" data-v="${it.v}" aria-checked="${gp.get()===it.v}">${ck}${it.icon?`<img src="${it.icon()}" alt="" loading="lazy">`:''}<span>${it.raw||t(it.l)}</span></button>`).join('')}</div>`).join('');
     btn.innerHTML=label();
   }
   function open(){if(openDD&&openDD!==api)openDD.close();build();menu.hidden=false;btn.setAttribute('aria-expanded','true');openDD=api;const f=menu.querySelector('[aria-checked="true"]')||menu.querySelector('.dd-i');if(f)f.focus();}
@@ -9066,7 +9095,7 @@ setInterval(tickClock,1000);tickClock();
 /* ---------- start ---------- */
 applyTheme();applyLang();
 setView();                       /* domyślny widok bąbelków od razu z właściwą sceną */
-loadAll(afterLive);renderStatus();
+if(srvJSON.g.o.c)loadAll(afterLive);renderStatus();   /* v308: dane na żywo sceny CRYPTO od razu tylko przy ?pelna=1 — zwykle przy otwarciu grupy 'c' (srvOpen, rejestr SRV_LD) */
 setInterval(()=>{if(!document.hidden&&st.mode==='crypto'&&LIVE.st==='ok')loadAll(afterLive,true);},5*60*1000);   /* v49: CRYPTO odświeża się samo co 5 min (po cichu) */
 resize();to=targets();
 NODES.forEach(n=>cur[n.id]=st.anim?to[n.id]*.12:to[n.id]);

@@ -3325,6 +3325,50 @@ def przegladarka_wiersz(P):
             + (f'; nieudane wczytania: {len(z)} ({", ".join(hosty[:4])}) ℹ️' if z else '')
             + (f'; inne komunikaty konsoli: {len(i)} (pierwszy: {i[0][:80]}) ℹ️' if i else '') + '.')
 
+
+# ---------------------------------------------------------------- v308: strona jak u czytelnika — druga, lekka runda przeglądarki ----------------
+# Od v308 strona pobiera pliki zakładki CRYPTO (karty, scena: grupa 'c') dopiero przy pierwszym otwarciu CRYPTO albo TRENDÓW. Runda pełna otwiera
+# stronę z ?pelna=1 (wszystko od razu, jak dawniej — te same wykresy i karty, ten sam próg PRZEGL_MIN_WYKRESY); druga, lekka runda — bez dopisku,
+# jak u czytelnika: tylko błędy JavaScriptu i napisy-błędy (bez progu wykresów — karty CRYPTO celowo czekają na otwarcie zakładki).
+PRZEGL_PELNA = '&pelna=1'
+
+
+def przegladarka_lekka(site, pelna, otworz=None):
+    """v308: druga runda — strona bez ?pelna=1 (jak u czytelnika). Tylko po pełnym zrzucie rundy pełnej: bez niego stan strony ocenia runda pełna
+    (zawieszona strona albo brak przeglądarki) i nie czekamy drugi raz do PRZEGL_CZAS_S → {'stan': 'pominieta', 'brak': powód}."""
+    if not (isinstance(pelna, dict) and pelna.get('ok')):
+        return {'stan': 'pominieta', 'brak': 'runda pełna bez zrzutu strony'}
+    try:
+        return (otworz or strona_przegladarka)(f'{site}/?nc={int(time.time())}')
+    except Exception as e:  # noqa
+        return {'stan': 'blad', 'brak': f'błąd sprawdzania: {type(e).__name__}'}
+
+
+def przegladarka_uwagi_lekka(P):
+    """v308: uwagi z rundy bez ?pelna=1 (strona jak u czytelnika): nieobsłużone błędy JavaScriptu i napisy-błędy w tekście strony; bez pełnego
+    zrzutu — bez uwagi (stan strony ocenia runda pełna). Mniej wykresów niż w rundzie pełnej to nie błąd — karty CRYPTO czekają na otwarcie zakładki."""
+    if not (isinstance(P, dict) and P.get('ok')):
+        return []
+    out = []
+    if P.get('bledy'):
+        out.append(f'strona jak u czytelnika (bez ?pelna=1): błędów JavaScriptu {len(P["bledy"])} — pierwszy: {P["bledy"][0]}')
+    if P.get('artefakty_n'):
+        out.append(f'strona jak u czytelnika (bez ?pelna=1): napisy-błędy w tekście strony (NaN, undefined…): {P["artefakty_n"]} — pierwszy: „{(P.get("artefakty") or ["—"])[0]}”')
+    return out
+
+
+def przegladarka_wiersz_lekka(P):
+    """v308: wiersz raportu rundy bez ?pelna=1 — błędy JavaScriptu i napisy-błędy ⚠️ (wpisy konsoli nieczytelne ℹ️); bez pełnego zrzutu
+    „nie sprawdzono” ℹ️ (nigdy cichy ✅)."""
+    h = '- Strona jak u czytelnika (bez ?pelna=1 — pliki CRYPTO dopiero po otwarciu zakładki): '
+    if not (isinstance(P, dict) and P.get('ok')):
+        return h + f'nie sprawdzono ({(P if isinstance(P, dict) else {}).get("brak") or "—"}) ℹ️.'
+    b, nc = P.get('bledy') or [], P.get('nieczytelne') or 0
+    return (h + f'zrzut po {str(P.get("czas_s", "—")).replace(".", ",")} s; błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else ('ℹ️' if nc else '✅'))
+            + (f' (pierwszy: {b[0][:80]})' if b else '') + (f' (wpisów konsoli nieczytelnych: {nc})' if nc else '')
+            + (f'; napisy-błędy w tekście (NaN, undefined…): {P["artefakty_n"]} ⚠️' if P.get('artefakty_n') else '') + '.')
+
+
 # ---------------------------------------------------------------- v141: lżejsza strona — pliki słowników języków (i18n/<język>.<skrót>.js) ----------------------------------------------------------------
 I18N_MAPA = re.compile(r'const CF_I18N_H=(\{[^{}]*\})[;,]')
 I18N_JEZYKI = ('de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja')
@@ -4768,13 +4812,15 @@ def kontrola():
     # KONTROLA_PRZEGLADARKA=1 (ustawia kontrola.yml): testy wołające kontrola() nie mogą uruchamiać przeglądarki — ona ma własną sieć
     if (R.get('strona') or {}).get('ok') and os.environ.get('KONTROLA_PRZEGLADARKA') == '1':
         try:
-            R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}')
+            R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}' + PRZEGL_PELNA)   # v308: wszystko od razu, jak dawniej (pliki CRYPTO bez czekania na otwarcie zakładki)
         except Exception as e:  # noqa
             R['przegladarka'] = {'stan': 'blad', 'brak': f'błąd sprawdzania: {type(e).__name__}'}
         u = przegladarka_uwagi(R['przegladarka'], przegladarka_poprzedni(os.path.join(OUT_DIR, 'historia.json')))   # v248: drugi raz bez strony = uwaga
         if u and R['przegladarka'].get('stan') == 'zawieszona':
             R['przegladarka']['powtorka'] = True
         R['uwagi'] += u
+        R['przegladarka_lekka'] = przegladarka_lekka(SITE, R['przegladarka'])   # v308: druga runda — strona jak u czytelnika (bez ?pelna=1)
+        R['uwagi'] += przegladarka_uwagi_lekka(R['przegladarka_lekka'])
     # 2. plik stanu automatu
     try:
         st, body, ms = get(f'{SITE}/data/meta.json?nc={int(time.time())}')
@@ -5299,6 +5345,9 @@ def raport_md(R):
     pg = R.get('przegladarka')   # v247: strona w przeglądarce bez okna
     if isinstance(pg, dict):
         L.append(przegladarka_wiersz(pg))
+    pl = R.get('przegladarka_lekka')   # v308: runda bez ?pelna=1 (jak u czytelnika)
+    if isinstance(pl, dict):
+        L.append(przegladarka_wiersz_lekka(pl))
     a = R.get('actions') or {}
     if 'przebiegi_24h' in a:
         L.append(f'- Przebiegi Actions w 24 h: {a["przebiegi_24h"]} ({", ".join(f"{k}: {v}" for k, v in a["wg_wyniku"].items()) or "—"}).'

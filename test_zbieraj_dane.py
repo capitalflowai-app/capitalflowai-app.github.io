@@ -27816,7 +27816,7 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
     def test_kontrola_wola(self):
         import inspect
         src = inspect.getsource(self.k.kontrola)
-        self.assertIn("R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}')", src)
+        self.assertIn("R['przegladarka'] = strona_przegladarka(f'{SITE}/?nc={int(time.time())}' + PRZEGL_PELNA)", src)   # v308: runda pełna z ?pelna=1
         self.assertIn("u = przegladarka_uwagi(R['przegladarka'], przegladarka_poprzedni(os.path.join(OUT_DIR, 'historia.json')))", src)   # v248
         self.assertIn("os.environ.get('KONTROLA_PRZEGLADARKA') == '1'", src, 'tylko na żądanie — testy kontrola() bez przeglądarki (ma własną sieć)')
         root = os.path.dirname(os.path.abspath(__file__))
@@ -36371,3 +36371,123 @@ class DrobneV307(unittest.TestCase):
         self.assertEqual((o.get('err'), o['as_of'], o['v'], o['n']), (None, '2026-10-07T00:00:00+00:00', 1332806981.2192812, 6),
                          'stan liczony od chwili odczytu (08.10: punkt 08.10 to jeszcze doba bieżąca), nie od zegara (09.10)')
         self.assertEqual(zd.rwe_ondo_gm_parse(s)['as_of'], '2026-10-08T00:00:00+00:00', 'bez chwili odczytu — zegar 09.10: 08.10 to doba zakończona')
+
+
+# ===================== v308: KONTROLA — STRONA Z ?pelna=1 I DRUGA, LEKKA RUNDA (SZYBKOŚĆ STRONY, ETAP 2) =====================
+class GrupaCryptoKontrolaV308(unittest.TestCase):
+    """v308: strona pobiera pliki zakładki CRYPTO dopiero przy jej otwarciu. Runda pełna kontroli otwiera stronę z ?pelna=1 (wszystko od razu,
+    jak dawniej — te same wykresy i karty); druga, lekka runda bez dopisku (jak u czytelnika), tylko po pełnym zrzucie rundy pełnej: błędy
+    JavaScriptu i napisy-błędy. Bez sieci i bez przeglądarki (atrapa strona_przegladarka), bez zegara (czas atrapy)."""
+
+    OK = {'stan': 'ok', 'ok': True, 'czas_s': 9.8, 'svg': 170, 'wykresy': 20, 'bledy': [], 'zasoby': [], 'inne': [], 'nieczytelne': 0,
+          'artefakty': [], 'artefakty_n': 0}
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola308-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v308_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def _blok(self, wyniki, env='1'):
+        """Krok 1c kontroli (strona w przeglądarce) wycięty ze źródła kontrola() i uruchomiony na atrapach (moduł też podmieniony — runda lekka
+        woła strona_przegladarka z modułu): adresy wołań i R."""
+        import inspect, textwrap, types
+        k, src = self.k, inspect.getsource(self.k.kontrola)
+        a, b = src.index('    # 1c. v247'), src.index('    # 2. plik stanu automatu')
+        urls, wy = [], list(wyniki)
+
+        def strona(u, *a_, **kw):
+            urls.append(u)
+            x = wy.pop(0)
+            if isinstance(x, Exception):
+                raise x
+            return dict(x)
+        czas = types.SimpleNamespace(time=lambda: 1791420000.4)
+        R = {'strona': {'ok': True}, 'uwagi': [], 'bledy': []}
+        ns = dict(vars(k), R=R, strona_przegladarka=strona, time=czas, przegladarka_poprzedni=lambda p: None)
+        with mock.patch.dict(os.environ, {'KONTROLA_PRZEGLADARKA': env}), mock.patch.object(k, 'strona_przegladarka', strona), mock.patch.object(k, 'time', czas):
+            exec(compile(textwrap.dedent(src[a:b]), 'kontrola_1c', 'exec'), ns)
+        self.assertEqual(wy, [], 'wszystkie przygotowane wyniki zużyte')
+        return urls, R
+
+    def test_dwie_rundy_adresy(self):
+        urls, R = self._blok([self.OK, dict(self.OK, wykresy=12, svg=90)])
+        S = self.k.SITE
+        self.assertEqual(urls, [f'{S}/?nc=1791420000&pelna=1', f'{S}/?nc=1791420000'], 'najpierw pełna (wszystko od razu), potem jak u czytelnika')
+        self.assertEqual((R['przegladarka']['wykresy'], R['przegladarka_lekka']['wykresy']), (20, 12))
+        self.assertEqual(R['uwagi'], [], 'mniej wykresów w rundzie lekkiej (karty CRYPTO czekają na otwarcie zakładki) — bez uwagi')
+        urls, R = self._blok([], env='0')
+        self.assertEqual((urls, 'przegladarka' in R, 'przegladarka_lekka' in R), ([], False, False), 'bez KONTROLA_PRZEGLADARKA=1 — bez przeglądarki (testy kontrola())')
+
+    def test_lekka_tylko_po_pelnym_zrzucie(self):
+        Z = {'stan': 'zawieszona', 'brak': 'strona nie oddała się w 90 s — zawieszona strona albo źródło, które nie odpowiada', 'bledy': []}
+        for pelna in (Z, {'stan': 'brak_programu', 'brak': 'brak przeglądarki na maszynie kontroli'}, RuntimeError('x')):
+            urls, R = self._blok([pelna])
+            self.assertEqual(len(urls), 1, 'bez drugiego czekania do 90 s, gdy runda pełna nie ma zrzutu')
+            self.assertEqual(R['przegladarka_lekka'], {'stan': 'pominieta', 'brak': 'runda pełna bez zrzutu strony'})
+            self.assertFalse(any('jak u czytelnika' in u for u in R['uwagi']))
+            self.assertEqual(self.k.przegladarka_wiersz_lekka(R['przegladarka_lekka']),
+                             '- Strona jak u czytelnika (bez ?pelna=1 — pliki CRYPTO dopiero po otwarciu zakładki): nie sprawdzono (runda pełna bez zrzutu strony) ℹ️.')
+
+    def test_lekka_bledy_i_awaria(self):
+        L = dict(self.OK, bledy=['Uncaught TypeError: x (index.html:4410)'], artefakty=['… NaN …'], artefakty_n=1)
+        urls, R = self._blok([self.OK, L])
+        self.assertEqual(R['uwagi'], ['strona jak u czytelnika (bez ?pelna=1): błędów JavaScriptu 1 — pierwszy: Uncaught TypeError: x (index.html:4410)',
+                                      'strona jak u czytelnika (bez ?pelna=1): napisy-błędy w tekście strony (NaN, undefined…): 1 — pierwszy: „… NaN …”'])
+        urls, R = self._blok([self.OK, RuntimeError('x')])
+        self.assertEqual(R['przegladarka_lekka'], {'stan': 'blad', 'brak': 'błąd sprawdzania: RuntimeError'}); self.assertEqual(R['uwagi'], [])
+        Z = {'stan': 'zawieszona', 'brak': 'strona nie oddała się w 90 s — zawieszona strona albo źródło, które nie odpowiada', 'bledy': ['Uncaught Error: a (strona:1)']}
+        urls, R = self._blok([self.OK, Z])
+        self.assertEqual(R['uwagi'], [], 'runda lekka bez pełnego zrzutu — bez uwagi (stan strony ocenia runda pełna)')
+
+    def test_uwagi_i_wiersz_lekka(self):
+        k = self.k
+        self.assertEqual(k.PRZEGL_PELNA, '&pelna=1')
+        h = '- Strona jak u czytelnika (bez ?pelna=1 — pliki CRYPTO dopiero po otwarciu zakładki): '
+        P = dict(self.OK, czas_s=9.84, svg=120, wykresy=3, zasoby=['https://api.coingecko.com/api/v3/global'], inne=['x'])
+        self.assertEqual(k.przegladarka_uwagi_lekka(P), [], 'mało wykresów, nieudane wczytania, inne komunikaty — bez uwagi')
+        self.assertEqual(k.przegladarka_wiersz_lekka(P), h + 'zrzut po 9,84 s; błędów JavaScriptu: 0 ✅.')
+        self.assertEqual(k.przegladarka_wiersz_lekka(dict(P, nieczytelne=2)), h + 'zrzut po 9,84 s; błędów JavaScriptu: 0 ℹ️ (wpisów konsoli nieczytelnych: 2).', 'nigdy cichy ✅')
+        B = dict(P, bledy=['Uncaught TypeError: ' + 'y' * 100], artefakty=['a NaN b'], artefakty_n=2)
+        w = k.przegladarka_wiersz_lekka(B)
+        self.assertTrue(w.startswith(h + 'zrzut po 9,84 s; błędów JavaScriptu: 1 ⚠️ (pierwszy: Uncaught TypeError: yyy'), w)
+        self.assertTrue(w.endswith('; napisy-błędy w tekście (NaN, undefined…): 2 ⚠️.'), w)
+        self.assertEqual(len(k.przegladarka_uwagi_lekka(B)), 2)
+        for X in ({'stan': 'brak_programu', 'brak': 'brak przeglądarki na maszynie kontroli'}, {'stan': 'blad'}, None, 'x'):
+            self.assertEqual(k.przegladarka_uwagi_lekka(X), [])
+        self.assertEqual(k.przegladarka_wiersz_lekka({'stan': 'blad'}), h + 'nie sprawdzono (—) ℹ️.')
+        self.assertEqual(k.przegladarka_wiersz_lekka(None), h + 'nie sprawdzono (—) ℹ️.')
+
+    def test_przegladarka_lekka_wprost(self):
+        k, urls = self.k, []
+        with mock.patch.object(k, 'time', __import__('types').SimpleNamespace(time=lambda: 1791420060.9)):
+            self.assertEqual(k.przegladarka_lekka('https://s', self.OK, otworz=lambda u: urls.append(u) or {'stan': 'ok', 'ok': True}), {'stan': 'ok', 'ok': True})
+            self.assertEqual(urls, ['https://s/?nc=1791420060'], 'adres bez ?pelna=1')
+            self.assertEqual(k.przegladarka_lekka('https://s', {'stan': 'ok'}, otworz=lambda u: urls.append(u)), {'stan': 'pominieta', 'brak': 'runda pełna bez zrzutu strony'})
+            self.assertEqual(k.przegladarka_lekka('https://s', None, otworz=lambda u: urls.append(u))['stan'], 'pominieta')
+            self.assertEqual(len(urls), 1)
+
+    def test_raport(self):
+        k = self.k
+        R = {'at': '2026-10-08T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 500},
+             'meta': {'at': '2026-10-08T06:03:00+00:00', 'wiek_min': 17, 'zrodla': 55, 'bez_odpowiedzi': [], 'errors': [], 'notes': []},
+             'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': [],
+             'przegladarka': {'stan': 'ok', 'ok': True, 'czas_s': 10.4, 'svg': 170, 'wykresy': 20, 'bledy': [], 'zasoby': [], 'inne': []},
+             'przegladarka_lekka': {'stan': 'ok', 'ok': True, 'czas_s': 8.1, 'svg': 90, 'wykresy': 12, 'bledy': [], 'zasoby': [], 'inne': []}}
+        L = k.raport_md(R).splitlines()
+        i = L.index('- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po 10,4 s — grafik 170, wykresów liniowych 20; błędów JavaScriptu: 0 ✅.')
+        self.assertEqual(L[i + 1], '- Strona jak u czytelnika (bez ?pelna=1 — pliki CRYPTO dopiero po otwarciu zakładki): zrzut po 8,1 s; błędów JavaScriptu: 0 ✅.',
+                         'zaraz pod rundą pełną')
+        R.pop('przegladarka_lekka')
+        self.assertFalse(any(x.startswith('- Strona jak u czytelnika') for x in k.raport_md(R).splitlines()), 'bez rundy lekkiej — bez wiersza (dawne raporty)')
+
+    def test_kontrola_wola(self):
+        import inspect
+        src = inspect.getsource(self.k.kontrola)
+        self.assertEqual(src.count('strona_przegladarka('), 1, 'runda pełna wprost; lekka przez przegladarka_lekka')
+        self.assertIn("R['przegladarka_lekka'] = przegladarka_lekka(SITE, R['przegladarka'])", src)
+        self.assertLess(src.index("R['uwagi'] += u\n"), src.index("R['przegladarka_lekka'] = "), 'runda lekka po uwagach rundy pełnej')
+        self.assertIn('L.append(przegladarka_wiersz_lekka(pl))', inspect.getsource(self.k.raport_md))

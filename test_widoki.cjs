@@ -17258,3 +17258,212 @@ test('v307: słownik dr307.* — czysty JSON, 10 języków z prawdziwymi tłumac
   for (const k of K) assert.ok(sz305.code.includes("t('" + k + "'"), 'klucz w kodzie bloku: ' + k);
   assert.ok(!/PortWatch|ArcGIS|Valet|\bIMF\b|Bank of Canada|New York|ondo/i.test(JSON.stringify(D)), 'bez nazw dostawców');
 });
+
+
+/* ===================== v308 (szybkość strony, etap 2): pliki tylko kart zakładki CRYPTO (grupa 'c') dopiero przy pierwszym otwarciu CRYPTO / TRENDÓW =====================
+   Bramka w srvJSON (srvJSON.g), grupy SRV_GR, rejestr ładowarek SRV_LD, srvOpen, srvLiveStart, srvLive; dane na żywo sceny i zdjęcia węzłów sceny
+   (smallPhotoURL) dopiero przy otwartej grupie; ?pelna=1 — grupa otwarta od startu (kontrola dzienna). Testy synchroniczne (działają też pod jsc):
+   obietnice z atrapy rozstrzygane od razu, zegar przypięty (Date.now), bez sieci (atrapa fetch), bez setTimeout; strona w atrapie — dane strażnika G126. */
+const v308 = (() => {
+  const a = html.indexOf('function srvJSON(name){'), z0 = html.indexOf('\nfunction srvLive(){', a), z = html.indexOf('\n', z0 + 1) + 1;
+  assert.ok(a > 0 && z0 > a && z > z0 && html.slice(a, z).includes('function srvOpen(g){') && html.slice(a, z).includes('function srvLiveStart(){'), 'srvJSON i blok bramki (do srvLive)');
+  const LD = ['whLoad', 'rwLoad', 'zkLoad', 'levLoad', 'prmLoad', 'kcLoad', 'lnLoad', 'wyLoad'];
+  const GR = ['ceny-krypto', 'wieloryby', 'dzwignia', 'premie', 'wycena', 'rwa', 'lancuch', 'zloto-krypto'];
+  const T0 = ['oecd', 'rynki', 'ceny', 'kursy', 'dzis', 'krypto', 'cmc'];
+  const PAGES = ['flows', 'assets', 'sectors', 'sources', 'method'];
+  /* obietnica rozstrzygana od razu (bez kolejki zadań): wynik widać zaraz po wywołaniu — także pod jsc, który nie czeka na testy async */
+  class SP {
+    constructor(ex) { this.s = 0; this.v = undefined; this.cb = []; try { ex(v => this.set(1, v), e => this.set(2, e)); } catch (e) { this.set(2, e); } }
+    set(s, v) { if (this.s) return; if (s === 1 && v && typeof v.then === 'function') { v.then(x => this.set(1, x), e => this.set(2, e)); return; }
+      this.s = s; this.v = v; const c = this.cb; this.cb = []; c.forEach(f => f()); }
+    then(f, r) { return new SP((res, rej) => { const go = () => { const h = this.s === 1 ? f : r; if (typeof h === 'function') { try { res(h(this.v)); } catch (e) { rej(e); } } else (this.s === 1 ? res : rej)(this.v); };
+      if (this.s) go(); else this.cb.push(go); }); }
+    catch(r) { return this.then(undefined, r); }
+    static resolve(v) { return v instanceof SP ? v : new SP(r => r(v)); }
+  }
+  /* URLSearchParams w atrapie (powłoka jsc go nie ma): tylko get() — jak w przeglądarce dla prostych adresów */
+  class USP { constructor(q) { this.q = String(q || ''); } get(k) { const r = new RegExp('[?&]' + k + '=([^&#]*)').exec(this.q); return r ? decodeURIComponent(r[1]) : null; } }
+  /* opt: srv — czy zapas z pliku serwera (lvSrv) się udaje; rzuc — ładowarka, która rzuca; page, mode — strona i tryb dla srvLive; st — stan LIVE na starcie */
+  const mk = (search, opt = {}) => {
+    const calls = [], ev = [], errs = [], cbs = [], env = {LIVE: {st: opt.st || 'idle'}, st: {mode: opt.mode || 'global'}};
+    const fetchF = (u, o) => { assert.equal(o.cache, 'no-store'); calls.push(String(u).split('?')[0]); return SP.resolve({ok: true, json: () => SP.resolve({at: 'x', f: String(u).split('?')[0]})}); };
+    const L = LD.map(n => () => { ev.push(n); if (opt.rzuc === n) throw new Error('awaria ' + n); });
+    const lvSrv = k => { ev.push('lvSrv(' + k + ')'); if (opt.srv) env.LIVE.st = 'ok'; return !!opt.srv; };
+    const F = new Function('fetch', 'location', 'Date', 'AbortSignal', 'structuredClone', 'URLSearchParams', 'console', 'Promise', ...LD, 'loadAll', 'afterLive', 'lvSrv',
+      'renderStatus', 'renderAll', 'retarget', 'dirty', 'LIVE', 'st', 'PAGES', 'page', 'renderPage', html.slice(a, z) + '\nreturn {srvJSON, srvOpen, srvLiveStart, srvLive, SRV_GR, SRV_LD};')(
+      fetchF, {protocol: 'https:', search}, {now: () => Date.parse('2026-10-08T10:00:10Z')}, {timeout: () => 'SYG'}, o => JSON.parse(JSON.stringify(o)), USP,
+      {error: x => errs.push(String(x && x.message || x))}, SP, ...L, (cb, q) => { ev.push('loadAll(' + q + ')'); cbs.push(cb); if (opt.rzuc === 'loadAll') throw new Error('awaria loadAll'); },
+      () => { ev.push('afterLive'); }, lvSrv, () => ev.push('renderStatus'), () => ev.push('renderAll'), x => ev.push('retarget(' + x + ')'), false,
+      env.LIVE, env.st, PAGES, opt.page || 'overview', () => ev.push('renderPage'));
+    return Object.assign(F, {calls, ev, errs, cbs, env});
+  };
+  /* wynik obietnicy od razu albo „wisi” */
+  const now = p => { let r = 'wisi'; p.then(v => { r = v; }, e => { r = 'błąd ' + e; }); return r; };
+  /* najbliższa wcześniejsza deklaracja „function X(” na początku linii — funkcja, w której stoi wywołanie */
+  const fnAt = i => { const re = /\nfunction ([A-Za-z0-9_$]+)\(/g; let m, last = null; re.lastIndex = Math.max(0, i - 40000); while ((m = re.exec(html)) && m.index < i) last = m[1]; return last; };
+  return {LD, GR, T0, PAGES, mk, now, fnAt};
+})();
+
+test('v308: bramka — plik grupy „c” przed otwarciem nie jest pobierany, a jego obietnica się nie rozstrzyga; pliki spoza grupy jak dotąd; srvOpen raz woła każdą ładowarkę rejestru (najpierw dane na żywo sceny)', () => {
+  const F = v308.mk('', {srv: true});
+  assert.deepEqual(F.calls, v308.T0.map(n => 'data/' + n + '.json'), 'pliki kafelków zamawiane pierwsze (v299) — bez zmian');
+  assert.deepEqual(Object.keys(F.SRV_GR).sort(), v308.GR.slice().sort(), 'grupa „c”: 8 plików kart CRYPTO');
+  assert.ok(Object.values(F.SRV_GR).every(g => g === 'c'));
+  const P = v308.GR.map(n => F.srvJSON(n));
+  assert.deepEqual(P.map(v308.now), v308.GR.map(() => 'wisi'), 'obietnice plików grupy wiszą — wołający nic nie nakłada (karta zostaje ukryta jak przed danymi)');
+  assert.equal(F.calls.length, 7, 'zamknięta grupa — zero zapytań');
+  const inne = ['krypto-top10', 'krypto', 'cmc', 'etf', 'cftc', 'cm', 'meta', 'nastroj', 'trendy', 'widoki/index', 'surowce', 'surowce-hist', 'usa-makro', 'szlaki', 'polska',
+    'stopy', 'indeksy', 'krypto-top10-logo', 'krypto-dziennik', 'swiat-dziennik', 'instytucje', 'fed', 'surowce-dziennik'];
+  for (const n of inne) assert.deepEqual(v308.now(F.srvJSON(n)), {at: 'x', f: 'data/' + n + '.json'}, n + ': bez grupy — jak dotąd');
+  assert.deepEqual(F.calls.slice(7), inne.filter(n => !v308.T0.includes(n)).map(n => 'data/' + n + '.json'), 'pliki spoza grupy pobierane (te z pamięci minutowej — bez nowego zapytania)');
+  assert.deepEqual(F.ev, [], 'przed otwarciem nic z rejestru');
+  assert.equal(F.srvOpen('c'), true);
+  assert.deepEqual(F.ev, ['lvSrv(false)', 'loadAll(true)', 'renderStatus', 'renderAll', 'retarget(true)'].concat(v308.LD),
+    'każda ładowarka raz: najpierw scena (ceny z pliku serwera od razu, bez animacji; dane na żywo po cichu), potem karty');
+  assert.deepEqual(F.cbs, [F.srvLive], 'dane na żywo sceny — po przyjściu srvLive');
+  const n0 = F.ev.length;
+  assert.equal(F.srvOpen('c'), false); assert.equal(F.ev.length, n0, 'drugie otwarcie — nic');
+  const c0 = F.calls.length;
+  assert.deepEqual(v308.now(F.srvJSON('wieloryby')), {at: 'x', f: 'data/wieloryby.json'}, 'po otwarciu — zwykłe pobranie');
+  assert.equal(F.calls.length, c0 + 1);
+  assert.deepEqual(P.map(v308.now), v308.GR.map(() => 'wisi'), 'obietnice sprzed otwarcia dalej wiszą — bez podwójnego nakładania (dane przynosi ładowarka z rejestru)');
+  assert.deepEqual(F.errs, []);
+});
+
+test('v308: dane na żywo sceny przy otwarciu — bez pliku serwera (krypto.json jeszcze nie przyszedł, za mało monet) pobieranie jak dawniej przy starcie; po wcześniejszym pobraniu bez zapasu', () => {
+  const F = v308.mk('', {srv: false});
+  F.srvLiveStart();
+  assert.deepEqual(F.ev, ['lvSrv(false)', 'loadAll(false)'], 'zwykłe pobieranie (stan „Pobieram dane…”), bez rysowania z pliku');
+  assert.deepEqual(F.cbs, [F.srvLive]);
+  const G = v308.mk('', {srv: true, st: 'ok'});
+  G.srvLiveStart();
+  assert.deepEqual(G.ev, ['loadAll(false)'], 'dane sceny już są — bez zapasu z pliku; pobieranie jak dawniej (loadAll)');
+});
+
+test('v308: ?pelna=1 (kontrola dzienna) — grupa otwarta od startu: pliki grupy pobierane od razu, srvOpen nic nie dubluje; inne adresy grupy nie otwierają', () => {
+  const F = v308.mk('?nc=1791420000&pelna=1', {srv: true});
+  for (const n of v308.GR) assert.deepEqual(v308.now(F.srvJSON(n)), {at: 'x', f: 'data/' + n + '.json'}, n);
+  assert.equal(F.calls.length, 7 + v308.GR.length);
+  assert.equal(F.srvOpen('c'), false); assert.deepEqual(F.ev, [], 'ładowarki i dane sceny ruszają na swoich miejscach w skrypcie (jak dawniej) — bez drugiego razu');
+  for (const s of ['', '?pelna=0', '?pelna=true', '?pelna=', '?lang=en', '?xpelna=1', '?lang=pl&pelna=2', '?nc=1&pelna=11']) {
+    const G = v308.mk(s);
+    assert.equal(v308.now(G.srvJSON('rwa')), 'wisi', s); assert.ok(!G.calls.includes('data/rwa.json'), s + ': bez pobrania');
+  }
+  for (const s of ['?pelna=1', '?lang=en&pelna=1', '?pelna=1&lang=de']) assert.deepEqual(v308.now(v308.mk(s).srvJSON('rwa')), {at: 'x', f: 'data/rwa.json'}, s);
+});
+
+test('v308: srvOpen — błąd jednej ładowarki nie zatrzymuje pozostałych i trafia do konsoli (kontrola dzienna liczy błędy JavaScriptu); srvLive przerysowuje stronę z menu tylko w CRYPTO po przyjściu danych', () => {
+  const F = v308.mk('', {rzuc: 'whLoad', srv: true});
+  assert.equal(F.srvOpen('c'), true);
+  assert.deepEqual(F.ev.filter(x => v308.LD.includes(x)), v308.LD);
+  assert.deepEqual(F.errs, ['awaria whLoad']);
+  const G = v308.mk('', {rzuc: 'loadAll', srv: true}); G.srvOpen('c');
+  assert.deepEqual(G.ev.filter(x => v308.LD.includes(x)), v308.LD, 'błąd danych sceny — karty i tak ruszają'); assert.deepEqual(G.errs, ['awaria loadAll']);
+  /* srvLive: zawsze afterLive; strona z menu (Przepływy, Aktywa, Sektory, Źródła, Metodologia) w trybie CRYPTO — po przyjściu danych sceny albo błędzie */
+  const S = (page, mode, lst) => { const H = v308.mk('', {page, mode}); H.env.LIVE.st = lst; H.srvLive(); return H.ev; };
+  assert.deepEqual(S('assets', 'crypto', 'load'), ['afterLive'], 'start pobierania — bez strony');
+  for (const p of v308.PAGES) { assert.deepEqual(S(p, 'crypto', 'ok'), ['afterLive', 'renderPage'], p); assert.deepEqual(S(p, 'crypto', 'err'), ['afterLive', 'renderPage'], p + ' (błąd)'); }
+  for (const [p, m] of [['overview', 'crypto'], ['settings', 'crypto'], ['assets', 'global'], ['flows', 'trendy']]) assert.deepEqual(S(p, m, 'ok'), ['afterLive'], p + ' ' + m + ': bez danych sceny');
+});
+
+test('v308: rejestr — każdy plik grupy czytany tylko w ładowarce z rejestru (inaczej po otwarciu dane by nie przyszły); pliki GLOBAL i wspólne bez grupy; pierwszy widok GLOBAL (gLoad) bez plików grupy', () => {
+  assert.ok(html.includes("const SRV_GR={'ceny-krypto':'c',wieloryby:'c',dzwignia:'c',premie:'c',wycena:'c',rwa:'c',lancuch:'c','zloto-krypto':'c'};"), 'grupy');
+  assert.ok(html.includes('const SRV_LD={c:[srvLiveStart,' + v308.LD.join(',') + ']};'), 'rejestr');
+  for (const n of v308.LD.concat(['srvOpen', 'srvLiveStart', 'srvLive', 'lvSrv', 'loadAll'])) assert.equal(html.split('\nfunction ' + n + '(').length, 2, n + ': jedna deklaracja na początku linii');
+  const S = [...html.matchAll(/srvJSON\(\s*(['"`])([^'"`]+)\1/g)].map(m => [m[2], m.index]);
+  assert.ok(S.length > 60, 'wywołania srvJSON znalezione: ' + S.length);
+  for (const n of v308.GR) {
+    const at = S.filter(x => x[0] === n);
+    assert.ok(at.length >= 1, n + ': plik czytany');
+    for (const [, i] of at) assert.ok(v308.LD.includes(v308.fnAt(i)), n + ': czytany w ' + v308.fnAt(i) + ' — spoza rejestru');
+    assert.ok(!html.includes("'data/" + n + '.json') && !html.includes('"data/' + n + '.json'), n + ': bez pobrania z pominięciem srvJSON');
+  }
+  for (const n of v308.T0.concat(['krypto-top10', 'nastroj', 'etf', 'meta', 'cm', 'cftc', 'trendy', 'krypto-top10-logo', 'krypto-dziennik', 'swiat-dziennik', 'surowce', 'surowce-hist',
+    'szlaki', 'stopy', 'indeksy', 'polska'])) assert.ok(!html.includes("'" + n + "':'c'") && !new RegExp('[{,]' + n + ":'c'").test(html), n + ': bez grupy');
+  const g0 = html.indexOf('function gLoad(cb){'), gl = html.slice(g0, html.indexOf('\n}\n', g0));
+  assert.ok(g0 > 0 && gl.includes('Promise.all(P)'));
+  for (const n of v308.GR) assert.ok(!gl.includes("srvJSON('" + n + "')"), 'gLoad (pierwszy widok GLOBAL i P2) bez plików grupy — inaczej rysowanie czekałoby bez końca: ' + n);
+  assert.ok(html.indexOf('\nt10Load();t10Auto();') > 0, 'plik sceny top 10 przy starcie jak dawniej (kamera sceny na komputerze)');
+  /* ładowarki grupy bez stanu przed srvJSON: flaga „w toku” ustawiona przed zamkniętą bramką nie zeszłaby nigdy (obietnica wisi) — po otwarciu
+     ładowarka z rejestru by nie ruszyła (por. szLoad z flagą SZ.l — dlatego pliki bloków leniwych, np. szlaki, nie mogą być w grupie) */
+  for (const [f, n] of [['whLoad', 'wieloryby'], ['rwLoad', 'rwa'], ['zkLoad', 'zloto-krypto'], ['levLoad', 'dzwignia'], ['prmLoad', 'premie'], ['kcLoad', 'ceny-krypto'],
+    ['lnLoad', 'lancuch'], ['wyLoad', 'wycena']]) assert.ok(html.includes('\nfunction ' + f + "(){srvJSON('" + n + "')."), f + ': od razu srvJSON (bez flagi „w toku” przed bramką)');
+});
+
+test('v308: otwarcie — setMode (CRYPTO, TRENDY; przed rysowaniem), zamiar na zakładkach; start bez danych na żywo sceny (tylko przy ?pelna=1); zdjęcia węzłów i flagi menu języka', () => {
+  const s0 = html.indexOf('function setMode(m){'), sm = html.slice(s0, html.indexOf('\n}\n', s0));
+  const o = sm.indexOf("\n  if(m!=='global')srvOpen('c');");
+  assert.ok(o > 0 && o < sm.indexOf('applyVis();') && o < sm.indexOf("if(m==='trendy')renderTrendy();") && o < sm.indexOf('gLoad('), 'setMode: otwarcie przed rysowaniem (zakładka jeszcze niewidoczna)');
+  assert.ok(sm.includes("['global','crypto','trendy'].forEach(k=>$('#tab-'+k).setAttribute('aria-selected',m===k));"), 'linia zakładek bez zmian (test v89)');
+  assert.ok(html.includes("['#tab-crypto','#tab-trendy'].forEach(s=>{const b=$(s);if(b)['pointerenter','pointerdown','focus'].forEach(ev=>b.addEventListener(ev,()=>srvOpen('c'),{passive:true}));});"), 'zamiar');
+  assert.ok(html.indexOf("['#tab-crypto','#tab-trendy'].forEach(") < html.indexOf("$('#tab-global').addEventListener('click',()=>setMode('global'));\n$('#tab-crypto').addEventListener('click',()=>setMode('crypto'));\n$('#tab-trendy').addEventListener('click',()=>setMode('trendy'));\ntry{"), 'kliknięcia zakładek bez zmian, zaraz pod zamiarem');
+  assert.equal(html.split('srvOpen(').length - 1, 3, 'srvOpen: deklaracja, setMode, zamiar — nigdzie indziej');
+  assert.ok(html.includes("\nif(srvJSON.g.o.c)loadAll(afterLive);renderStatus();") && !html.includes('\nloadAll(afterLive);renderStatus();'), 'start: dane na żywo tylko przy ?pelna=1');
+  const L = [...html.matchAll(/loadAll\(/g)].map(m => html.slice(m.index - 40, m.index + 40));
+  assert.equal(L.length, 6, 'wywołania loadAll: ' + L.join(' | '));
+  for (const s of ['function loadAll(cb,quiet){', "LIVE.st='idle';loadAll(afterLive);", 'loadAll(afterLive,true);},5*60*1000)', "function srvLiveStart(){const s=LIVE.st==='idle'&&lvSrv(false);loadAll(srvLive,s);",
+    'if(srvJSON.g.o.c)loadAll(afterLive);', 'patrz loadAll()']) assert.ok(html.includes(s), s);
+  assert.ok(html.includes("function srvLiveStart(){const s=LIVE.st==='idle'&&lvSrv(false);loadAll(srvLive,s);if(s){renderStatus();renderAll();retarget(true);dirty=true;}}"), 'srvLiveStart');
+  assert.ok(html.includes("setInterval(()=>{if(!document.hidden&&st.mode==='crypto'&&LIVE.st==='ok')loadAll(afterLive,true);},5*60*1000);"), 'odświeżanie sceny tylko w CRYPTO (grupa otwarta)');
+  /* srvJSON: bramka zaraz po sprawdzeniu pliku lokalnego, przed pamięcią minutową */
+  const a = html.indexOf('function srvJSON(name){'), f = html.slice(a, html.indexOf('\n}\n', a));
+  assert.ok(f.indexOf("location.protocol==='file:'") < f.indexOf('if(srvJSON.g&&srvJSON.g.zamk(name))return new Promise(()=>{});') && f.indexOf('srvJSON.g.zamk') < f.indexOf('srvJSON.c'), 'kolejność w srvJSON');
+  /* zdjęcia węzłów: piksel przed otwarciem — po pamięci wariantu, przed logoImg (bez obrazka w tle); scena 3D (drawIconOn → logoImg) bez zmian */
+  const p0 = html.indexOf('function smallPhotoURL(id,px){'), ps = html.slice(p0, html.indexOf('\n}\n', p0));
+  const g = ps.indexOf("  if(typeof srvJSON==='function'&&srvJSON.g&&!srvJSON.g.o.c)return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';");
+  assert.ok(g > ps.indexOf('if(urlCache[key])return urlCache[key];') && g < ps.indexOf('const im=logoImg(id);'), 'piksel w smallPhotoURL: po pamięci, przed logoImg');
+  assert.ok(html.includes('function logoImg(id){const u=logoSrc(id);if(!u)return null;let im=logoCache[u];if(!im){im=new Image();im.onload=()=>{dirty=true;refreshLogoImgs();};'), 'logoImg bez zmian');
+  /* flagi menu języka: pozycje leniwe, przycisk z flagą wybranego języka bez zmian (test v96) */
+  assert.ok(html.includes("${it.icon?`<img src=\"${it.icon()}\" alt=\"\" loading=\"lazy\">`:''}") && html.includes("(cur&&cur.icon?`<img src=\"${cur.icon()}\" alt=\"\">`:'')"), 'menu języka');
+});
+
+test('v308: zdjęcia węzłów sceny — przy zamkniętej grupie przezroczysty piksel (bez pobierania i bez zapisu w pamięci); po otwarciu zdjęcie jak dotąd (wariant ≤ 24 px po wczytaniu)', () => {
+  const c0 = html.indexOf('const SMALL_PX=24;'), c1 = html.indexOf('\nconst logoTag=', c0);
+  const PIX = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  const SRC = {meme: 'img/wezly/memecoiny.jpg', gaming: 'img/wezly/gaming.jpg', exch: 'img/wezly/gieldy.jpg'};
+  const asked = [], urlCache = {}, G = {o: {c: false}};
+  const srv = function () {}; srv.g = G;
+  const doc = {createElement: () => ({width: 0, height: 0, getContext: () => new Proxy({getImageData: (x, y, w, h) => ({data: new Uint8ClampedArray(w * h * 4)})},
+    {get: (o, k) => (k in o ? o[k] : () => {})}), toDataURL: () => 'data:image/png;base64,WARIANT'})};
+  let img = null;
+  const F = new Function('logoSrc', 'logoImg', 'urlCache', 'PAL', 'hueOf', 'drawIconOn', 'document', 'srvJSON', html.slice(c0, c1) + '\nreturn {iconURL};')(
+    id => SRC[id] || '', id => { asked.push(id); return img; }, urlCache, {dark: true}, () => 120, () => {}, doc, srv);
+  for (const id of ['meme', 'gaming', 'exch']) for (const px of [14, 18, 24]) assert.equal(F.iconURL(id, px), PIX, id + ' ' + px + ' px: piksel');
+  assert.deepEqual(asked, [], 'bez logoImg — przeglądarka nie pobiera zdjęcia'); assert.deepEqual(Object.keys(urlCache), [], 'bez zapisu w pamięci');
+  assert.equal(F.iconURL('meme', 25), SRC.meme, 'powyżej 24 px (lista sceny — tylko w CRYPTO) jak dotąd');
+  G.o.c = true;
+  assert.equal(F.iconURL('meme', 18), SRC.meme, 'po otwarciu, zdjęcie jeszcze się wczytuje — samo zdjęcie (jak dotąd)'); assert.deepEqual(asked, ['meme']);
+  img = {naturalWidth: 512, naturalHeight: 512};
+  assert.equal(F.iconURL('meme', 18), 'data:image/png;base64,WARIANT', 'po wczytaniu — wariant jak dotąd');
+  assert.equal(F.iconURL('exch', 14), 'data:image/png;base64,WARIANT');
+});
+
+test('v308: strona w atrapie (dane strażnika) — GLOBAL bez kart grupy, bez danych na żywo sceny i bez zdjęć węzłów; po otwarciu CRYPTO karty grupy narysowane i plakietka „na żywo”; GLOBAL bez zmian; TRENDY też otwiera', () => {
+  const C = ['c-wieloryby', 'c-rwa', 'c-surowce', 'c-dzwignia', 'c-lancuch', 'c-ceny-krypto', 'c-wycena'];
+  const GL = ['g-kpis', 'g-etf', 'g-prob', 'g-fg', 'tic', 'inst', 'bis', 'g-archiwum', 'g-indeksy', 'g-surowce', 'g-usa', 'g-fund', 'g-dolar', 'g-snb', 'g-insider',
+    'eng-cftc-euro-fx', 'eng-wdi-destinations'];
+  const R = G126.run('pl'), A = R.api;
+  assert.deepEqual(R.ERR, [], 'bez błędów strony');
+  assert.equal(A.st.mode, 'global');
+  for (const id of C) assert.ok(R.el(id).hidden && !R.el(id).innerHTML, id + ': przed otwarciem ukryta (plik grupy nie pobrany)');
+  assert.ok(R.el('g-kpis').innerHTML.length > 200 && !R.el('g-etf').hidden && !R.el('tic').hidden && !R.el('inst').hidden && !R.el('krypto').hidden, 'GLOBAL i karty plików wspólnych narysowane jak dotąd');
+  assert.ok(/(^|\s)off(\s|$)/.test(R.el('live-badge').className), 'dane na żywo sceny nie pobrane: ' + R.el('live-badge').className);
+  assert.ok(!R.CAP.some(c => c.k === 'html' && c.v.includes('img/wezly/')), 'zdjęcia węzłów sceny nie wskazane przed otwarciem');
+  assert.ok(R.el('krypto').innerHTML.includes('data-id="exch"') && R.el('krypto').innerHTML.includes('src="data:image/gif;base64,R0lGOD'), 'ikona giełd w karcie krypto — piksel do otwarcia (podmieni ją refreshLogoImgs)');
+  const g1 = GL.map(id => R.el(id).innerHTML);
+  R.act('tryb crypto', () => A.setMode('crypto'));
+  assert.deepEqual(R.ERR, [], 'bez błędów po otwarciu');
+  for (const id of C) assert.ok(!R.el(id).hidden && R.el(id).innerHTML.length > 200, id + ': po otwarciu narysowana');
+  assert.ok(/(^|\s)on(\s|$)/.test(R.el('live-badge').className) && !/Plik serwera/.test(R.el('live-badge').innerHTML), 'plakietka: dane na żywo sceny: ' + R.el('live-badge').innerHTML);
+  assert.ok(R.CAP.some(c => c.k === 'html' && c.v.includes('img/wezly/')), 'po otwarciu — zdjęcia węzłów jak dotąd');
+  const h1 = C.map(id => R.el(id).innerHTML);
+  R.act('powrót do GLOBAL', () => A.setMode('global'));
+  assert.deepEqual(GL.map(id => R.el(id).innerHTML), g1, 'GLOBAL po otwarciu grupy — ta sama treść');
+  R.act('znowu CRYPTO', () => A.setMode('crypto'));
+  assert.deepEqual(C.map(id => R.el(id).innerHTML), h1, 'ponowne wejście — ta sama treść (bez drugiego nakładania)');
+  const T = G126.run('pl');
+  T.act('tryb trendy', () => T.api.setMode('trendy'));
+  assert.deepEqual(T.ERR, []);
+  for (const id of C) assert.ok(!T.el(id).hidden, id + ': pierwsze otwarcie TRENDÓW też otwiera grupę');
+  assert.deepEqual(C.map(id => T.el(id).innerHTML), h1, 'ta sama treść kart niezależnie od drogi otwarcia');
+});
