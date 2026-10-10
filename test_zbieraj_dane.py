@@ -37699,3 +37699,152 @@ class DrobneV312Fundusze(unittest.TestCase):
                          '4 pliki State Street + limit czasu (zestawienie pominięte — brak czasu)')
         self.assertEqual(([n for n in zd.META['notes'] if 'surowc' in n], zd.META['errors']), ([], []))
         self.assertEqual({t: len(out['su'].get(t, {}).get('h') or []) for t in zd.FUND_ISH_SU}, {t: 0 for t in zd.FUND_ISH_SU}, 'bez czasu — bez pełnych plików')
+
+
+class GlobalV314Kontrola(unittest.TestCase):
+    """v314 (recenzja v312, mutacja R10): kontrola dzienna — PIERWSZY tydzień nowej serii obniżonego VAT na paliwa rozpoznawany po tygodniu wcześniej
+    W CENACH pliku (d[-2]), nie po poprzednim wpisie listy v8. Plik jak żywy polska.json z 10.10.2026 (07:44 UTC; tygodnie 10.08–05.10 z tego pliku,
+    liczby bez zmian): wcześniejsza seria obniżki 17.08–31.08, tydzień 28.09 ze stawką podstawową, najnowszy 05.10 → ⚠\ufe0f i jedna uwaga; tydzień 12.10
+    w tej samej serii → ℹ\ufe0f bez uwagi. Bez sieci i bez zegara (kontrola liczy z liczb pliku)."""
+    UW, INF = '⚠\ufe0f', 'ℹ\ufe0f'
+    ZYWY = json.loads('{"pb95":{"u":"PLN/l","f":"W","z":"wob","x":["brutto","wyl"],"d":[["2026-08-10",7.292],["2026-08-17",6.377],["2026-08-24",6.495],'
+                      '["2026-08-31",6.599],["2026-09-07",7.809],["2026-09-14",7.91],["2026-09-21",7.922],["2026-09-28",8.102],["2026-10-05",6.655]],'
+                      '"ue":[["2026-08-10",8.215],["2026-08-17",8.284],["2026-08-24",8.365],["2026-08-31",8.44],["2026-09-07",8.806],["2026-09-14",8.959],'
+                      '["2026-09-21",9.107],["2026-09-28",9.2],["2026-10-05",8.787]],"n":[["2026-08-10",4.11],["2026-08-17",4.085],["2026-08-24",4.195],'
+                      '["2026-08-31",4.291],["2026-09-07",4.529],["2026-09-14",4.612],["2026-09-21",4.621],["2026-09-28",4.768],["2026-10-05",4.633]],'
+                      '"ue_n":[["2026-08-10",4.151],["2026-08-17",4.279],["2026-08-24",4.347],["2026-08-31",4.397],["2026-09-07",4.614],["2026-09-14",4.723],'
+                      '["2026-09-21",4.839],["2026-09-28",4.904],["2026-10-05",4.711]]},"on":{"u":"PLN/l","f":"W","z":"wob","x":["brutto","wyl"],'
+                      '"d":[["2026-08-10",8.013],["2026-08-17",7.258],["2026-08-24",7.445],["2026-08-31",7.225],["2026-09-07",8.543],["2026-09-14",8.706],'
+                      '["2026-09-21",8.876],["2026-09-28",9.01],["2026-10-05",7.727]],"ue":[["2026-08-10",8.653],["2026-08-17",8.755],["2026-08-24",8.889],'
+                      '["2026-08-31",8.825],["2026-09-07",9.088],["2026-09-14",9.373],["2026-09-21",9.692],["2026-09-28",9.78],["2026-10-05",9.409]],'
+                      '"n":[["2026-08-10",4.821],["2026-08-17",5.027],["2026-08-24",5.2],["2026-08-31",4.996],["2026-09-07",5.252],["2026-09-14",5.384],'
+                      '["2026-09-21",5.523],["2026-09-28",5.632],["2026-10-05",5.742]],"ue_n":[["2026-08-10",5.056],["2026-08-17",5.219],["2026-08-24",5.339],'
+                      '["2026-08-31",5.274],["2026-09-07",5.484],["2026-09-14",5.711],["2026-09-21",5.946],["2026-09-28",6.013],["2026-10-05",5.799]]},'
+                      '"kurs":{"u":"PLN/EUR","f":"W","d":[["2026-08-10",4.2993],["2026-08-17",4.3063],["2026-08-24",4.3078],["2026-08-31",4.328],'
+                      '["2026-09-07",4.3103],["2026-09-14",4.3418],["2026-09-21",4.353],["2026-09-28",4.373],["2026-10-05",4.3795]],"z":"wob"},'
+                      '"v8":["2026-08-17","2026-08-24","2026-08-31","2026-10-05"]}')
+
+    def setUp(self):
+        self.k = PolskaV304._kontrola()
+
+    def test_pierwszy_tydzien_po_tygodniu_bez_obnizki_w_cenach_nie_po_liscie_v8(self):
+        k = self.k
+        o = {'v': 1, 'stacje': json.loads(json.dumps(self.ZYWY))}
+        self.assertEqual(k.polska_spojnosc(o), [], 'plik spójny (jak żywy)')
+        self.assertEqual(k.polska_v8(o), ['2026-08-17', '2026-08-24', '2026-08-31', '2026-10-05'], 'lista v8 zgodna z podatkami w cenach')
+        S = k.polska_stacje(o)
+        self.assertEqual([z for _, z in S['wiersze']], [self.INF, self.INF, self.UW], 'jak żywy plik: dwa opisy zmiany podatków i ⚠ obniżki')
+        self.assertEqual(len(S['uwagi']), 1)
+        self.assertIn('tydzień 2026-10-05 — obniżony VAT na paliwa', S['wiersze'][2][0])
+        self.assertTrue(S['wiersze'][2][0].endswith('początek obniżki VAT na paliwa (tydzień wcześniej, 2026-09-28, bez obniżonego VAT): potwierdzić, '
+                                                    'że obniżka obowiązuje'), 'tydzień wcześniej z cen (28.09 — stawka podstawowa), nie 31.08 z listy v8')
+        R = {'bledy': [], 'uwagi': []}
+        z = k.polska_kontrola({'polska': o}, R)
+        self.assertEqual((R['bledy'], len(R['uwagi']), z['spojnosc']), ([], 1, []), 'uwaga (nie błąd), plik spójny')
+        # kolejny tydzień tej samej serii (12.10, dalej obniżony VAT): opis ℹ, bez uwagi
+        o2 = json.loads(json.dumps(o)); S2 = o2['stacje']
+        S2['pb95']['d'].append(['2026-10-12', 6.70]); S2['pb95']['n'].append(['2026-10-12', 4.68]); S2['pb95']['ue'].append(['2026-10-12', 8.80])
+        S2['kurs']['d'].append(['2026-10-12', 4.38]); S2['v8'].append('2026-10-12')
+        self.assertEqual(k.polska_spojnosc(o2), [])
+        W2 = k.polska_stacje(o2)
+        v = [w for w in W2['wiersze'] if 'obniżony VAT' in w[0]]
+        self.assertEqual([x[1] for x in v], [self.INF]); self.assertTrue(v[0][0].endswith('; strona to opisuje'))
+        self.assertEqual(W2['uwagi'], [], 'kolejny tydzień serii — opis, bez uwagi')
+        # przerwa w cenach (brak tygodnia 28.09 w pliku): tydzień wcześniej w cenach to 21.09 (stawka podstawowa) — nadal początek serii
+        o3 = json.loads(json.dumps(o)); S3 = o3['stacje']
+        for c in ('pb95', 'on'):
+            for kk in ('d', 'ue', 'n', 'ue_n'):
+                S3[c][kk] = [x for x in S3[c][kk] if x[0] != '2026-09-28']
+        S3['kurs']['d'] = [x for x in S3['kurs']['d'] if x[0] != '2026-09-28']
+        self.assertEqual(k.polska_spojnosc(o3), [])
+        v3 = [w for w in k.polska_stacje(o3)['wiersze'] if 'obniżony VAT' in w[0]]
+        self.assertEqual([x[1] for x in v3], [self.UW]); self.assertIn('(tydzień wcześniej, 2026-09-21, bez obniżonego VAT)', v3[0][0])
+
+
+class GlobalV314Polska(unittest.TestCase):
+    """v314 (recenzja v312, zdanie dla częściowych błędów Polski): zbieracz zapisuje pole cz — części z błędem CZĘŚCIOWYM w tym przebiegu (źródło
+    odpowiedziało, dane zapisane, czegoś w nich brak: jedna z dwóch serii hurtu, kurs gazu, arkusz cen bez podatków); część z błędem całego pobrania
+    i część bez nowej próby — bez wpisu; bez braków — bez pola. Strona mówi wtedy „część danych nie przyszła … reszta pochodzi z tego pobrania”
+    zamiast „ostatnie pobranie się nie udało”. Nagrania klasy PolskaV304 i DrobneV312 (bez ponownego uruchamiania ich testów), bez sieci."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self.addCleanup(zd.META['errors'].clear); self.addCleanup(zd.META['notes'].clear)
+        self.P = PolskaV304()
+        self.D = DrobneV312(); self.D.setUp()   # bez_arkusza — biuletyn bez cen bez podatków
+
+    def test_pole_cz_tylko_przy_bledzie_czesciowym_z_tego_pobrania(self):
+        P = self.P
+        fetch, _ = P.siec()
+        o = zd.build_polska(None, now=P.NOW, fetch=fetch)
+        self.assertNotIn('cz', o, 'wszystko pobrane — bez pola')
+        prev = json.loads(json.dumps(o))
+        for k in ('nbp', 'orlen', 'tge', 'agri'):
+            prev['st'][k]['at'] = prev['st'][k]['try'] = '2026-10-07T00:00:00+00:00'
+        prev['st']['nbp']['asof'] = '2026-10-06'
+        fetch, _ = P.siec({'nbp': RuntimeError('HTTP 503'), 'o43': ValueError('zły JSON'), 'tge': P.tge(gas=[('08-10', '-')])})
+        o2 = zd.build_polska(prev, now=datetime.datetime(2026, 10, 8, 12, 0, tzinfo=datetime.timezone.utc), fetch=fetch)
+        self.assertEqual((o2['ok']['zloto'], o2['ok']['hurt'], o2['ok']['energia']), (False, False, False))
+        self.assertEqual(o2['cz'], {'hurt': True, 'energia': True}, 'złoto — błąd całego pobrania (poprzednie dane), hurt i giełda — częściowy')
+        self.assertEqual(o2['part_at']['hurt'], '2026-10-08T12:00:00+00:00'); self.assertEqual(o2['part_at']['zloto'], prev['part_at']['zloto'])
+        fetch3, calls3 = P.siec()
+        o3 = zd.build_polska(o2, now=datetime.datetime(2026, 10, 8, 12, 10, tzinfo=datetime.timezone.utc), fetch=fetch3)
+        self.assertEqual(calls3, [], 'dziesięć minut później — bez nowych prób')
+        self.assertNotIn('cz', o3, 'przebieg bez nowej próby tych części — bez pola (stan błędu z poprzedniej próby zostaje w ok/err)')
+        # biuletyn bez arkusza cen bez podatków (v312): ceny z podatkami z tego pobrania — częściowy błąd części „stacje”
+        fetch, _ = P.siec({'wob': self.D.bez_arkusza()})
+        o4 = zd.build_polska(None, now=P.NOW, fetch=fetch)
+        self.assertEqual((o4['ok']['stacje'], o4['cz']), (False, {'stacje': True}))
+        self.assertEqual(o4['stacje']['pb95']['d'][-1], ['2026-10-05', 6.655], 'ceny z podatkami z tego pobrania')
+        self.assertEqual(self.D.k.polska_spojnosc(o4), [], 'pole cz nie zmienia kontroli pliku')
+
+
+class GlobalV314Fundusze(unittest.TestCase):
+    """v314 (recenzja v312, mutacja R8): komunikat o limicie czasu kroku funduszy, gdy czas skończył się już przy pełnych plikach funduszy GLOBAL
+    iShares (przed funduszami surowcowymi) — zostaje w liczniku „fundusze ETF”, nie w uwadze funduszy surowcowych. Czas sprawdzany przed PIERWSZYM
+    funduszem surowcowym, nie przed pierwszym funduszem pętli (wtedy czas jeszcze był). Zegar atrapy, nagrania klasy FunduszeSurowcoweV309, bez sieci."""
+
+    def setUp(self):
+        self.F = FunduszeSurowcoweV309()
+        self.F.setUp(); self.addCleanup(self.F.doCleanups)
+
+    def test_limit_czasu_przez_pelne_pliki_funduszy_global_w_liczniku_funduszy_etf(self):
+        F, real = self.F, zd.time
+        prev = F.fu_prev(krotkie=('EWZ', 'EWY', 'EWT'))   # trzy fundusze GLOBAL z krótką historią — pełne pliki (limit FUND_BACKFILL = 3)
+        prev['scr_at'] = '2026-10-10T05:20:00+00:00'      # zestawienie sprzed 10 min — bez zapytania (inaczej jego ocena dałaby drugi problem)
+        last = prev['f']['EWZ']['h'][-1][0]
+        dni = [x for x in (datetime.date(2025, 6, 2) + datetime.timedelta(days=i) for i in range(500)) if x.weekday() < 5 and x.isoformat() <= last]
+        syn = [[x.strftime('%b %d, %Y'), '30.0', '--', '1000000'] for x in reversed(dni)]
+
+        class Zegar:
+            t = 1000.0
+
+            def monotonic(self):
+                return self.t
+
+            def sleep(self, s):
+                self.t += s
+
+            def __getattr__(self, k):
+                return getattr(real, k)
+        z, docs = Zegar(), []
+
+        def gb(url, headers=None, timeout=60):
+            if 'get-fund-document' in url:
+                docs.append(url.split('portfolioId=')[1].split('&')[0])
+                z.t += 85.0   # pełny plik funduszu GLOBAL — wolny (limit zapytania 90 s)
+                return F.ish_xml(None, syn)
+            raise AssertionError('zapytanie poza testem: ' + url[:80])
+        with mock.patch.object(zd, '_now_utc', lambda: F.t('2026-10-10T05:30:00')), mock.patch.object(zd, 'get_bytes', gb), \
+                mock.patch.object(zd, 'NOW', '2026-10-10T05:30:00+00:00'), mock.patch.object(zd, 'time', z):
+            out = zd.build_fundusze(prev)
+        self.assertEqual(docs, ['1', '1', '1'], 'trzy pełne pliki funduszy GLOBAL (EWZ, EWY, EWT); funduszy surowcowych — żadnego')
+        self.assertGreater(z.t - 1000.0, zd.FUND_BUDGET, 'czas kroku minął przy pełnych plikach funduszy GLOBAL')
+        self.assertLess(2 * (85.0 + zd.FUND_SLEEP), zd.FUND_BUDGET, 'przed trzecim pełnym plikiem czas jeszcze był (pierwszy fundusz pętli — tym bardziej)')
+        for t in ('EWZ', 'EWY', 'EWT'):
+            self.assertGreater(len(out['f'][t]['h']), 30, t + ': historia z pełnego pliku')
+        self.assertEqual(out['su'], {}, 'fundusze surowcowe czekają na następny przebieg')
+        self.assertEqual([n for n in zd.META['notes'] if n.startswith('fundusze ETF')],
+                         ['fundusze ETF: 1 problemów, np. limit czasu kroku funduszy (240 s) — reszta w kolejnym przebiegu'],
+                         'limit czasu w liczniku funduszy GLOBAL (czas skończył się przy nich)')
+        self.assertEqual(([n for n in zd.META['notes'] if 'surowc' in n], zd.META['errors']), ([], []), 'bez uwagi funduszy surowcowych')

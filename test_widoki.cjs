@@ -2425,7 +2425,7 @@ test('v96-global_tables: flagi po przeglądzie — puste kafelki i nagłówki ta
   const z = f.zagBlock();
   assert.ok(z.includes('[<span class="icos"><img class="ico sm" src="img/flagi/in.svg"') && z.includes('ob.in.k|—|eng.gap]'), 'pusty kafelek Indii z flagą');
   assert.ok(z.includes('<th><span class="icos"><img class="ico sm" src="img/flagi/in.svg"') && z.includes('ob.c.ineq</th>') && z.includes('<th><span class="icos"><img class="ico sm" src="img/flagi/tw.svg"') && z.includes('ob.c.twusd</th>'), 'nagłówki tabeli z flagami');
-  assert.ok(z.includes('<td><span class="cell mono">+0.0</span></td>'), 'tabela: „+0,0” po zaokrągleniu bez koloru');
+  assert.ok(z.includes('<td><span class="cell mono pos">+&lt;0.1</span></td>'), 'tabela: mała liczba „+<0,1” z kolorem jak „<0,1” w BIS (v314, audyt G7: dawniej „+0,0”)');
   const m0 = html.indexOf('/* C. Japonia: tygodniowe transakcje w papierach (MOF) */'), m = html.slice(m0, html.indexOf('\n  }', m0));
   for (const k of ['inst.mof.a.eq.s', 'inst.mof.a.lt.s', 'inst.mof.l.eq.s', 'inst.mof.l.lt.s']) assert.ok(m.includes("<th>${I('f','jp','sm')}${t('" + k + "')}</th>"), 'MOF: flaga przy ' + k);
   assert.ok(I('n', ['Nowa nazwa (the)', 'Japonia']).includes(gtFlag('jp')) && I('n', ['Japan', 'Japonia']).includes(gtFlag('jp')) && I('n', ['Others', 'Pozostałe kraje']).includes('glify/globe.svg'), 'kilka nazw: pierwsza rozpoznana, inaczej glob');
@@ -2790,7 +2790,7 @@ test('v96-pages: Aktywa — kolumna „Aktualność” (częstotliwość i dzie�
   assert.ok(row('as.de10').includes('flagi/de.svg') && row('as.de10').includes('pg.monthly · 2026-08'), 'Niemcy: miesięcznie z okresem');
   assert.ok(row('as.jp10').includes('flagi/jp.svg') && row('as.eq').includes('glify/globe.svg'));
   assert.ok(row('as.fx').includes('flagi/us.svg') && row('as.fx').includes('USD<i>$</i>') && row('as.fx').includes('<span class="cell neg">▼ −0.40%</span>'), 'dolar: flaga i znak $, spadek czerwony');
-  assert.ok(row('as.cry').includes('krypto/btc.svg') && row('as.cry').includes('krypto/eth.svg') && row('as.cry').includes('3900.0 B') && row('as.cry').includes('<span class="cell ">0.00%</span>'), 'krypto: loga BTC+ETH, liczba jak na kafelku, zero bez koloru');
+  assert.ok(row('as.cry').includes('krypto/btc.svg') && row('as.cry').includes('krypto/eth.svg') && row('as.cry').includes('3900.0 B') && row('as.cry').includes('<span class="cell ">0.00%<small class="mtxt"> · u.24h</small></span>'), 'krypto: loga BTC+ETH, liczba jak na kafelku, zero bez koloru (v314, audyt G1: przy liczbie „24h”)');
   assert.ok(row('as.stab').includes('krypto/usdt.svg') && row('as.stab').includes('krypto/usdc.svg') && row('as.stab').includes('<span class="cell pos">▲ +0.80%</span>'));
   // CRYPTO: plik rynku krypto bez CoinPaprika — brakujące kafelki to „—”, nie liczby przykładowe
   const c = pgEnv({st: {mode: 'crypto', period: '24H'}, kpiVals: () => ({mcap: {val: 2.4, unit: 'u.t', dec: 1, d: -1.5, at: '2026-09-25T10:00:00Z'}, dom: {val: 57.1, unit: '%', dec: 1, d: .2}})});
@@ -2854,7 +2854,7 @@ test('v96-pages: po przeglądzie — dni z serwerów zewnętrznych zabezpieczone
   const k = c.el.innerHTML;
   assert.ok(!k.includes('<script>') && !k.includes('<b>w</b>') && k.includes('pg.20m · D(&lt;script&gt;)') && k.includes('pg.live · &lt;b&gt;w&lt;/b&gt;'), 'CRYPTO: czas z pliku i czas na żywo zabezpieczone');
   const a0 = html.indexOf('function renderAssets(){'), a1 = html.indexOf('\nfunction renderSectorsPage(', a0), body = html.slice(a0, a1);
-  assert.ok(body.includes("const when=(fr,day)=>fr+(day?' · '+escH(day)+gAgeNote(day):'');") && !/toFixed\(/.test(body), 'kod: dzień przez escH, liczby przez nfmt');
+  assert.ok(body.includes("const when=(fr,day)=>fr+(day?' · '+escH(typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day):'');") && !/toFixed\(/.test(body), 'kod: dzień przez escH, liczby przez nfmt (v314, audyt G6: chwila notowania przez gFreshTxt)');
   const a = 'const EXTRA91=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   assert.equal(D.pl['pg.20m'], 'co 10 min');   /* v168: plik rynku krypto w każdym przebiegu */ assert.equal(D.en['pg.20m'], 'every 20 min');
 });
@@ -3306,7 +3306,7 @@ test('v98.2: okno pomocy GLOBAL bez nazw instytucji, w 10 językach; Metodologia
     for (const k of ['g.hm.2', 'g.hm.readd', 'g.hm.corr', 'g.hm.probd', 'g.hm.limd']) { const v = t(k); assert.ok(v && v !== k && !PROV.test(v), L + ' ' + k + ': ' + v); }
     if (L !== 'en') for (const k of ['g.hm.corr', 'g.hm.probd']) assert.notEqual(t(k), en(k), 'przetłumaczone (wcześniej po angielsku): ' + L + ' ' + k);
   }
-  assert.ok(v96src.tFor('pl')('g.hm.limd').includes('kwartalne (bilanse płatnicze i międzynarodowe statystyki bankowe)'));
+  assert.ok(v96src.tFor('pl')('g.hm.limd').includes('kwartalne (bilanse płatnicze 37 gospodarek, skład walutowy rezerw świata, międzynarodowe statystyki bankowe)'));   /* v314 (audyt G9): ta sama lista co karta „Jakość danych mapy” */
   assert.ok(v96src.tFor('pl')('g.hm.probd').includes('nie jest to porada inwestycyjna'), 'zastrzeżenie zostaje');
   assert.ok(html.includes("<p class=\"mtxt\">${t('g.help.corr')}</p>") && html.includes("${t('g.help.limd')}"), 'Metodologia: dawne teksty bez zmian');
 });
@@ -8082,7 +8082,7 @@ test('v139: strach i chciwość — skala (gradient czerwień→żółć→ziele
   assert.equal(X.fgCrypto({d: []}), null); assert.equal(X.fgCrypto(null), null);
   const cp = X.fgComps(fg139.N, true);
   assert.equal((cp.rows.match(/<tr>/g) || []).length, 4); assert.deepEqual(cp.miss, []); assert.equal(cp.note, '');
-  assert.ok(cp.rows.includes('fg.raw.vix{"v":"14.21","m":"16.08"}') && cp.rows.includes('fg.raw.hy{"v":"2.80"}') && cp.rows.includes('fg.raw.spx{"v":"7743","p":"+4.3%"}') && cp.rows.includes('fg.raw.sb{"a":"+0.2%","b":"−3.9%"}'), 'liczby składników z pliku');
+  assert.ok(cp.rows.includes('fg.raw.vix{"v":"14.21","m":"16.08"}') && cp.rows.includes('fg.raw.hy{"v":"2.80"}') && cp.rows.includes('fg.raw.spx{"v":"7743.41","p":"+4.3%"}') && cp.rows.includes('fg.raw.sb{"a":"+0.2%","b":"−3.9%"}'), 'liczby składników z pliku (v314, audyt G4: S&P 500 z dwoma miejscami)');
   assert.ok(cp.rows.includes('<i class="fg-dot fg-g"></i>72</span></td><td><span class="cell fg-dd">Sep 22</span>') && cp.rows.includes('<i class="fg-dot fg-f"></i>38</span>'), 'wynik składnika w kolorze stanu, własny dzień');
   assert.ok(cp.rows.includes('<span class="fg-cn"><b>fg.comp.vix</b><small>fg.raw.vix{"v":"14.21","m":"16.08"}</small></span>'), 'liczby składnika pod nazwą');
   const N2 = Object.assign({}, fg139.N, {c: {hy: fg139.N.c.hy, spx: fg139.N.c.spx, sb: Object.assign({}, fg139.N.c.sb, {score: 'x'})}, why: {vix: 'fetch', sb: 'zzz'}});
@@ -12920,7 +12920,7 @@ test('v166: warunki — miesiąc danych i wiek w nagłówku karty, objaśnienie 
 test('v166: „Jakość danych mapy” — data danych wybranego okresu jak kafel „Rynki akcji” (ETF-y dziennie albo miesiące OECD); karta rynku krypto — zdanie o innym spisie monet', () => {
   const a = html.indexOf('function gRenderQ(){'), b = html.indexOf('\nfunction gRenderProb(', a), s = html.slice(a, b);
   assert.ok(s.includes("const KQ=(typeof GKPI!=='undefined'&&Array.isArray(GKPI))?GKPI.find(k=>k.k==='g.k.eq'):null,fr=KQ&&KQ.fresh?String(KQ.fresh):GLIVE.asof;"));
-  assert.ok(s.includes("fr?escH(fr)+gAgeNote(fr):'<span class=\"na\">—</span>'") && s.includes("const sum=(fr?escH(fr)+gAgeNote(fr)+' · ':'')") && !/GLIVE\.asof\?escH/.test(s));
+  assert.ok(s.includes("fr?escH(frT)+gAgeNote(fr):'<span class=\"na\">—</span>'") && s.includes("const sum=(fr?escH(frT)+gAgeNote(fr)+' · ':'')") && !/GLIVE\.asof\?escH/.test(s));   /* v314 (audyt G6): frT — chwila notowania DZIŚ jako data i godzina czytelnika */
   assert.ok(html.includes("fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)}"), 'kafel „Rynki akcji”: data według źródła okresu');
   assert.ok(html.indexOf('function gRenderAll(){gRenderKpi();gRenderDetail();gRenderQ();') > 0, 'gRenderQ po kafelkach (GKPI gotowe)');
   const c0 = html.indexOf('function renderCmc(){'), c1 = html.indexOf('\n}', c0), C = html.slice(c0, c1);
@@ -15227,9 +15227,9 @@ test('v295g: puls surowców — 8 kafli: cena z jednostką, zmiana w tygodniu (w
   assert.ok(T.gold.includes('<b>4156,40 <small class="mtxt">USD za uncję</small> <small class="neg">▼ −0,2% w tygodniu</small>'), T.gold);   // pl: liczby 4-cyfrowe bez odstępu
   assert.ok(/<small class="mtxt su-live">notowanie (?:\d{1,2} [^ <]+ )?\d{2}:\d{2}: 4160,00 \(1 godz\. temu\)<\/small>/.test(T.gold), 'złoto: notowanie z godziną i wiekiem osobno od zamknięcia dnia (v297g: zamiast „teraz HH:MM”; przy innym dniu w strefie czytelnika — z dniem)');
   assert.ok(T.silver.includes('<b class="na">—</b>') && T.silver.includes('brak danych — to nie zero') && !/\d/.test(su295.txt(T.silver).replace('Srebro', '')), 'srebro bez danych w próbce — „—”, nigdy zero');
-  assert.ok(T.copper.includes('<b>14 627 <small class="mtxt">USD za tonę</small></b>') && T.copper.includes('wyliczona z wyceny funduszu — przybliżenie') && !T.copper.includes('cena wyliczona'), 'miedź: jedno zdanie o wycenie funduszu');
+  assert.ok(T.copper.includes('<b>14 627 <small class="mtxt">USD za tonę</small> <small class="su-nc">— w tygodniu (dane od ' + d('2026-10-06') + ')</small></b>') && T.copper.includes('wyliczona z wyceny funduszu — przybliżenie') && !T.copper.includes('cena wyliczona'), 'miedź: jedno zdanie o wycenie funduszu (v314, audyt G8: zmiana w tygodniu „—” z powodem)');
   assert.ok(T.copper.includes('wykres od ' + d('2026-10-06') + ' — zbieramy historię') && !T.copper.includes('su-sp'), 'jeden punkt — bez wykresu, z datą początku historii');
-  assert.ok(T.uran.includes('<b>89,62 <small class="mtxt">USD za funt</small></b>') && T.uran.includes('Uran (U₃O₈)'));
+  assert.ok(T.uran.includes('<b>89,62 <small class="mtxt">USD za funt</small> <small class="su-nc">— w tygodniu (dane od ' + d('2026-10-06') + ')</small></b>') && T.uran.includes('Uran (U₃O₈)'));   /* v314 (audyt G8) */
   for (const id of ['brent', 'wti', 'ttf', 'hh', 'gold']) assert.ok(T[id].includes('<div class="su-sp"><div class="arc-gr">') && T[id].includes('<polyline class="arc-l l1"'), 'mini-wykres (wykres archiwum): ' + id);
   assert.ok(h.includes('img/glify/oil.svg') && h.includes('img/flagi/us.svg') && h.includes('img/flagi/eu.svg') && h.includes('img/glify/gold.svg') && h.includes('img/glify/copper.svg'), 'ikony i flagi z img/');
   assert.ok(h.includes('<span class="live on"><i></i>Plik z D:2026-10-07T17:10:00+00:00</span>'), 'znaczek świeżości z czasem pliku');
@@ -17796,4 +17796,263 @@ test('v312: słownik dr312.* — czysty JSON, 10 języków z prawdziwymi tłumac
   assert.ok(html.includes("t(LIVE.src==='srv'?(LIVE.err?'rel.descSrv':'dr312.descSrv'):'rel.descLive',") && html.includes("el.title=t(LIVE.err?'live.srvT':'dr312.srvT');"), 'klucze w kodzie');
   assert.ok(!/[\u3040-\u30ff]/.test(D.zh['dr312.descSrv'] + D.zh['dr312.srvT']), 'zh bez kany');
   assert.ok(!/coinpaprika|llama|coingecko|github/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+});
+
+
+/* ===================== v314: GLOBAL — poprawki audytu m7 (G1–G9) i uwagi recenzenta v312 ===================== */
+const V314_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+const v314T = (k, o) => k + (o ? JSON.stringify(o) : '');
+/* data i wiek jak u czytelnika (strefa maszyny testu): dzień kalendarzowy czytelnika chwili teraz minus dzień chwili notowania */
+const v314Age = (T, nowMs, isoMs) => { const loc = ms => { const x = new Date(ms); return Date.UTC(x.getFullYear(), x.getMonth(), x.getDate()); };
+  const d = Math.round((loc(nowMs) - loc(isoMs)) / 864e5); return ' · ' + (d === 0 ? T('g.age0') : d === 1 ? T('g.age1') : T('g.age', {n: d})); };
+
+test('v314 (audyt G1): Aktywa — okres zmiany w nagłówku kolumny (GLOBAL: okres wybrany w GLOBAL, CRYPTO: 24 h), krypto w GLOBAL z dopiskiem „24h” jak kafel', () => {
+  const GK = [{k: 'g.k.cry', v: 2795, d: 0.283, d24: 1, fresh: '2026-10-10T07:50:00Z'}, {k: 'g.k.eq', v: 1, fresh: '2026-10-09'}];
+  const run = (per, o) => { const g = pgEnv(Object.assign({gst: {period: per}, GKPI: GK, GDATA: {[per]: {eur: [-5, -1, true], jpn: [3, 2, true], usa: [1, 0.5, true], rus: [0, 0, false], crypto: [1, .5, true]}},
+    gDxy: () => [102.19, 3.63], gStabDelta: () => [0, 0.67, 311], CMC: {data: {total_mcap: 2.795e12}}}, o || {})); g.f.renderAssets(); return g.el.innerHTML; };
+  const row = (h, k) => h.split('<tr>').find(r => r.includes('<b>' + k + '</b>') || r.includes('<b>' + k)) || '';
+  for (const per of ['1D', '1M', '1R']) {
+    const h = run(per);
+    assert.ok(h.includes('<th>pg.change · g.per.' + per + '</th>'), per + ': okres w nagłówku kolumny „Zmiana”');
+    assert.ok(row(h, 'as.cry').includes('<small class="mtxt"> · u.24h</small></span>'), per + ': krypto — „24h” przy liczbie (zmiana z 24 h, jak kafel GLOBAL)');
+    for (const k of ['as.eq', 'as.fx', 'as.stab']) assert.ok(row(h, k) && !row(h, k).includes('u.24h'), per + ' ' + k + ': okres z nagłówka, bez dopisku');
+  }
+  const P = v96src.tFor('pl'), hm = run('1M', {t: P}), hr = run('1R', {t: P});
+  assert.ok(hm.includes('<th>Zmiana · miesiąc</th>') && hr.includes('<th>Zmiana · rok (12 miesięcy)</th>'), 'po polsku: „Zmiana · miesiąc”, „Zmiana · rok (12 miesięcy)”');
+  assert.ok(row(hr, P('as.cry')).includes('<small class="mtxt"> · 24h</small>'), 'po polsku: „· 24h” przy krypto');
+  const c = pgEnv({st: {mode: 'crypto', period: '24H'}, kpiVals: () => ({mcap: {val: 2.4, unit: 'u.t', dec: 1, d: -1.5, at: '2026-09-25T10:00:00Z'}, dom: {val: 57.1, unit: '%', dec: 1, d: .2}})});
+  c.f.renderAssets();
+  assert.ok(c.el.innerHTML.includes('<th>pg.change · u.24h</th>') && !c.el.innerHTML.includes('<small class="mtxt"> · u.24h</small>'), 'CRYPTO: wszystkie zmiany z 24 h — okres w nagłówku, bez dopisków');
+  for (const L of V314_L10) { const T = v96src.tFor(L); assert.ok(T('pg.change') !== 'pg.change' && T('u.24h') !== 'u.24h' && T('g.per.1R') !== 'g.per.1R', L); }
+});
+
+/* TIC: wycinek renderTic z danymi testu (regiony o pełnym i niepełnym składzie) */
+const v314Tic = D => {
+  const a = html.indexOf('function renderTic(){'), b = html.indexOf('/* v50 (fedimf) początek', a), src = html.slice(a, b);
+  const el = {innerHTML: '', hidden: true}, sum = (rows, n) => { if (!Array.isArray(rows) || rows.length < n) return null; let s = 0; for (const r of rows.slice(-n)) { if (typeof r[1] !== 'number') return null; s += r[1]; } return s; };
+  const tic = new Function('bopSum', 't', html.slice(html.indexOf('const ticLast=rows=>'), html.indexOf('\nfunction renderTic(){')) + '\nreturn {ticLast, ticVal, ticNet, ticPartial};')(sum, v314T);
+  const sg = v => v > 0 ? '+' : (v < 0 ? '−' : ''), nf = (v, d = 0) => Number(v).toFixed(d).replace('.', ',');
+  const bop = new Function('instSign', 'instMld', html.slice(html.indexOf('const bopMld='), html.indexOf('\n', html.indexOf('const bopMld='))) + '\nreturn bopMld;')(sg, v => nf(v / 1000, 1));
+  new Function('$', 'TIC', 'gfmt', 't', 'instRow', 'bopMld', 'engNum', 'instFoot', 'engDate', 'ticLast', 'bopSum', 'ticNet', 'ticVal', 'ticPartial', 'GB_', 'escH', 'nfmt', 'instSign', src + '\nrenderTic();')(
+    q => q === '#tic' ? el : null, {data: D}, v => 'G' + v, v314T, (l, v, e, n) => `[${l}|${v}|${n}]`, bop, v => String(v), d => d, d => d, tic.ticLast, sum, tic.ticNet, tic.ticVal, tic.ticPartial,
+    {mea: 1, asean: 1, eur: 1, rus: 1, oce: 1}, v96src.escH, nf, sg);
+  return el.innerHTML;
+};
+const v314TicData = () => {
+  const MS = []; for (let i = 0; i < 12; i++) { const m = 7 + i; MS.push((2025 + Math.floor(m / 12)) + '-' + String(m % 12 + 1).padStart(2, '0')); }
+  const R = (v, n) => MS.map((m, i) => [m, v, typeof n === 'function' ? n(i) : n]);
+  return {at: '2026-09-20T12:00:00Z', asof: '2026-07', months: MS, regions: {
+    mea: {members: ['Saudi Arabia', 'United Arab Emirates', 'Kuwait', 'Israel', 'Turkey'], n: 5, in: R(122, 5), out: R(1236, 4), net: R(1053, 4), hold_in: ['2026-07', 1573263, 5]},
+    asean: {members: ['Indonesia', 'Singapore', 'Thailand', 'Malaysia', 'Philippines'], n: 5, in: R(500, 5), out: R(100, 5), net: R(400, 5), hold_in: ['2026-07', 1801788, 5]},
+    eur: {members: ['Memo: European Union', 'United Kingdom', 'Switzerland', 'Norway'], n: 4, in: R(3000, 4), out: R(1000, 4), net: R(2000, i => i < 6 ? 3 : 4), hold_in: ['2026-07', 18108381, 4]},
+    rus: {members: ['Russia'], n: 1, in: R(10, 1), out: R(-5, 1), net: R(15, 1), hold_in: ['2026-07', 2386, 1]},
+    oce: {members: ['Australia', 'New Zealand'], n: 2, in: R(50, 2), out: R(20, i => i === 11 ? 1 : 2), hold_in: ['2026-07', 0, 2]}},
+    world: {in: R(40600), out: R(68500), hold_in: ['2026-07', 38820000], hold_out: ['2026-07', 20360000]}};
+};
+const v314TicRow = (h, id) => (h.split('<tr>').find(r => r.includes('>g.n.' + id + '</span>')) || '').split('<td>').slice(1);
+
+test('v314 (audyt G2, G7): TIC — suma 12 mies. z niepełnego składu regionu z dopiskiem „(k z n krajów)”; zasoby poniżej 0,005 bln — „<0,01”, nie „0,00”', () => {
+  const h = v314Tic(v314TicData()), P = s => ' <small class="mtxt">(tic.partial' + JSON.stringify(s) + ')</small>';
+  const mea = v314TicRow(h, 'mea'), asean = v314TicRow(h, 'asean'), eur = v314TicRow(h, 'eur'), rus = v314TicRow(h, 'rus'), oce = v314TicRow(h, 'oce');
+  assert.equal(mea.length, 6, 'wiersz Bliskiego Wschodu');
+  assert.ok(mea[4].startsWith('<span class="cell mono">+12,6' + P({k: 4, n: 5}) + '</span>'), 'Bliski Wschód: netto 12 mies. z 4 z 5 krajów — z dopiskiem: ' + mea[4]);
+  assert.ok(mea[3].includes('+1,1' + P({k: 4, n: 5})), 'komórka ostatniego miesiąca — jak dotąd');
+  assert.ok(asean[4].startsWith('<span class="cell mono">+4,8</span>'), 'pełny skład — bez dopisku');
+  assert.ok(eur[4].startsWith('<span class="cell mono">+24,0' + P({k: '3–4', n: 4}) + '</span>'), 'różna liczba krajów w miesiącach — zakres: ' + eur[4]);
+  assert.ok(oce[4].includes('+0,4' + P({k: '1–2', n: 2})), 'bez wierszy netto — z liczby krajów w danych „do” i „z”: ' + oce[4]);
+  assert.ok(rus[5].startsWith('<span class="cell mono">&lt;0,01</span>') && mea[5].startsWith('<span class="cell mono">1,57</span>'), 'zasoby: 2386 mln USD = „<0,01” bln (nie „0,00”), 1,57 bln bez zmian');
+  assert.ok(oce[5].startsWith('<span class="cell mono">0,00</span>'), 'dokładne zero zostaje zerem');
+  const D = v314TicData(); D.regions.mea.net = D.regions.mea.net.slice(1);
+  assert.ok(v314TicRow(v314Tic(D), 'mea')[4].startsWith('<span class="cell mono">—</span>'), 'bez 12 miesięcy — „—” bez dopisku');
+});
+
+test('v314 (audyt G7): dane urzędowe — mld HKD i TWD poniżej 0,05 mld: „+<0,1” ze znakiem, nie „+0,0”', () => {
+  const a0 = html.indexOf('const ZAG={data:null};'), a1 = html.indexOf('function renderInst(){', a0);
+  const f = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'instRow', 'instFoot', 'engNum', 'engDate', 'escH', html.slice(a0, a1) + '\nreturn {ZAG, zagApply, zagB, zagBlock};')(
+    v314T, () => {}, () => {}, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => Number(v).toFixed(d).replace('.', ','), (a, b, c, d) => `[${a}|${b}|${c}|${d}]`, s => s, v => String(v), s => s, v96src.escH);
+  assert.deepEqual([f.zagB(14.63), f.zagB(-14.63), f.zagB(49.9), f.zagB(51), f.zagB(-32964.6), f.zagB(0), f.zagB(null)], ['+&lt;0,1', '−&lt;0,1', '+&lt;0,1', '+0,1', '−33,0', '0', '—']);
+  f.zagApply({at: '2026-10-10T06:39:00+00:00', hk: {d: [['2026-09-29', 14.63, 0, 0, 0, 1.88, '2026-09-26'], ['2026-09-30', -1962.0, 0, 0, 0, -252.3, '2026-09-26']]}});
+  const b = f.zagBlock(), r = b.split('<tr>').find(x => x.includes('2026-09-29')) || '';
+  assert.ok(r.includes('+&lt;0,1') && !r.includes('+0,0'), 'Hongkong 29.09 (+14,63 mln HKD) — „+<0,1”: ' + r);
+  assert.ok(html.includes("const zagB=v=>v==null?'—':(v===0?'0':(Math.abs(v)<50?instSign(v)+'&lt;'+nfmt(0.1,1):instSign(v)+nfmt(Math.abs(v)/1000,1)));"), 'kod: próg jak bopMld');
+});
+
+test('v314 (audyt G3): opisy kwot mapy (DZIŚ, 1T–1R, okno pomocy) — od szacunku bieżącej wartości, nie od bazy; 10 języków; Metodologia — metoda główna przed zapasem', () => {
+  const E = v143Final(html), OLD = ['Kapitalizacja rynku akcji × zmiana ceny ETF', 'kapitalizacja rynku akcji × zmiana ceny ETF', 'pomnożona przez kapitalizację regionu',
+    'Equity market capitalisation × change in the price', 'multiplied by the region\'s market cap.'];
+  const K = ['g.m.reg1d', 'g.m.regtds', 'g.m.regtd', 'g.help.regtds'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  const EST = {pl: 'szacun', en: 'estimat', de: 'schätz', es: 'estima', fr: 'estim', it: 'stim', pt: 'estima', ru: 'оценк', zh: '估算', ja: '推計'};   /* „szacunek” w każdym języku — dawne opisy go nie miały */
+  for (const L of V314_L10) for (const k of K) {
+    const v = E[L][k];
+    assert.ok(typeof v === 'string' && v.length > 80, L + ' ' + k);
+    for (const o of OLD) assert.ok(!v.includes(o), L + ' ' + k + ': stary opis „' + o + '”');
+    assert.equal(ph(v), k === 'g.m.regtds' || k === 'g.m.regtd' ? '{n}' : '', L + ' ' + k + ': pola');
+    if (k !== 'g.m.reg1d') assert.ok(v.includes('÷') && /1 \+/.test(v), L + ' ' + k + ': wzór „szacunek × zmiana ÷ (1 + zmiana)”');
+    assert.ok(v.toLowerCase().includes(EST[L]), L + ' ' + k + ': opis od szacunku bieżącej wartości („' + EST[L] + '”), nie od kapitalizacji z roku danych');
+    if (L !== 'en') assert.notEqual(v, E.en[k], L + ' ' + k + ': tłumaczenie');
+    assert.ok(!GM_PROV.test(v), L + ' ' + k + ': bez nazw dostawców');
+  }
+  for (const L of ['ru', 'zh', 'ja']) for (const k of K) assert.ok(!/[A-Za-z]{4,}/.test(E[L][k].replace(/\bETF\b|\bEWJ\b|\bVGK\b|\b1W\b|\b1M\b|\b1Q\b|\b1Y\b/g, '')), L + ' ' + k + ': bez angielskich słów');
+  assert.ok(E.pl['g.m.regtds'].includes('szacunek × zmiana ÷ (1 + zmiana)') && E.pl['g.m.reg1d'].includes('wartość rynku regionu na początku tej sesji'), 'pl: opis zgodny z liczeniem');
+  /* liczenie kwoty (gAmt) — dokładnie to, co mówi opis: szacunek × zmiana ÷ (1 + zmiana); USA 1M z migawki: 78,71 bln, +2,74% → 2,10 bln (z bazy 68,94 wyszłoby 1,89) */
+  const a = html.indexOf('const gAmt=(r,dp)=>'), gAmt = new Function('GLIVE', html.slice(a, html.indexOf('\n', a)) + '\nreturn gAmt;')({est: {r: {usa: {v: 78710}}}});
+  const amt = gAmt({id: 'usa', mcap: 68938}, 2.74);
+  assert.ok(Math.abs(amt - 78710 * 2.74 / 102.74) < 1e-9 && Math.round(amt / 100) === 21 && Math.round(68938 * 2.74 / 100 / 100) === 19, 'kwota ' + amt);
+  /* Metodologia: DZIŚ i 1T–1R (metoda główna), potem zapas z miesięcznych indeksów i wzór „(wyżej)”, potem poziom wartości */
+  for (const L of V314_L10) {
+    const M = v146Method(L), T = v96src.tFor(L), s0 = M.indexOf('<h2>' + T('pg.m1') + '</h2>');
+    const i1 = M.indexOf(T('g.m.reg1d'), s0), i2 = M.indexOf(T('g.m.regtds', {n: '5 / 21 / 63 / 252'}), s0), i3 = M.indexOf(T('g.help.regfb'), s0), i4 = M.indexOf(T('pg.formula'), s0), i5 = M.indexOf(T('a293g.m.lvl'), s0);
+    assert.ok(s0 > 0 && i1 > s0 && i2 > i1 && i3 > i2 && i4 > i3 && i5 > i4, L + ': kolejność Metodologii ' + [s0, i1, i2, i3, i4, i5].join(','));
+    assert.ok(M.slice(s0).startsWith('<h2>' + T('pg.m1') + '</h2><p class="mtxt"><b>' + T('g.p.1D') + ':</b> '), L + ': pierwszy akapit — DZIŚ (metoda główna), nie wzór zapasowy');
+    const sec = M.slice(s0, M.indexOf('</section>', s0));
+    assert.ok(!sec.includes('<p class="mtxt">' + T('g.m.reg') + '</p>') && sec.split(T('g.help.regfb')).length === 2, L + ': zapas opisany raz — akapitem okna pomocy „Zapas, gdy nie ma cen ETF-ów”');
+  }
+  const UP = {pl: '(wyżej)', en: '(above)', de: '(oben)', es: '(arriba)', fr: '(ci-dessus)', it: '(sopra)', pt: '(acima)', ru: '(выше)', zh: '（见上文）', ja: '（上記）'};
+  for (const L of V314_L10) assert.ok(v96src.tFor(L)('pg.formula').endsWith(UP[L]), L + ': wzór zapasowy odsyła wyżej (metoda główna stoi teraz nad nim): ' + v96src.tFor(L)('pg.formula').slice(-30));
+  assert.ok(v96src.tFor('pl')('g.help.regfb').startsWith('Zapas, gdy nie ma cen ETF-ów'), 'akapit zapasu nazwany zapasem');
+});
+
+test('v314 (audyt G4): Strach i chciwość — S&P 500 z dwoma miejscami po przecinku i nota: zamknięcie według wydawcy indeksu, tabela indeksów — notowanie giełdowe', () => {
+  const X = fg139.mk(), cp = X.fgComps(fg139.N, true);
+  assert.ok(cp.rows.includes('fg.raw.spx{"v":"7743.41","p":"+4.3%"}'), 'dwa miejsca (jak tabela indeksów), dawniej „7743”');
+  assert.equal(cp.sx, '<p class="pnote">g314.fg.spxn{"t":"ix.t"}</p>', 'nota z tytułem panelu indeksów');
+  assert.equal(cp.note, '', 'nota o brakach bez zmian');
+  const N2 = Object.assign({}, fg139.N, {c: {vix: fg139.N.c.vix, hy: fg139.N.c.hy, sb: fg139.N.c.sb}, why: {spx: 'fetch'}});
+  assert.equal(X.fgComps(N2, true).sx, '', 'składnik bez liczby — bez noty');
+  const elG = {hidden: true, innerHTML: ''}, Y = fg139.mk({$: q => q === '#g-fg' ? elG : null});
+  Y.fgApplyG(fg139.N); const g = elG.innerHTML;
+  assert.ok(g.includes('</tbody></table></div><p class="pnote">g314.fg.spxn{"t":"ix.t"}</p><details class="etfd" id="fg-how-g">'), 'nota pod tabelą składników, przed „Jak liczymy”');
+  for (const L of V314_L10) {
+    const T = v96src.tFor(L), v = T('g314.fg.spxn', {t: T('ix.t')});
+    assert.ok(v.includes(T('ix.t')) && v.includes('S&P 500') && /400/.test(v), L + ': ' + v);
+  }
+  assert.ok(v96src.tFor('pl')('g314.fg.spxn', {t: v96src.tFor('pl')('ix.t')}).includes('wydawcy indeksu') && v96src.tFor('pl')('ix.t') === 'Indeksy giełdowe świata');
+});
+
+test('v314 (audyt G5): panel USA — „wstępnie” przy cenie wstępnej, tak jak Puls surowców (ta sama seria i jej pole pre)', () => {
+  const K = su295.mk('pl', SU295_ALL), sp = su295.sp, d = x => su295.day('pl', x);
+  K.api.usaApply('e', {at: '2026-10-01T12:00:00+00:00', s: {wti: {d: [['2026-09-28', 99.37], ['2026-09-29', 96.16]]}, brent: {d: [['2026-09-29', 113.96]]}, gas: {d: [['2026-09-29', 3.18]]}}});
+  const F = su295.clone(SU295_FILE); F.ceny.hh.pre = ['2026-10-02'];   /* gaz: ostatnia cena (06.10) już potwierdzona */
+  K.api.suApply(F);
+  const U = sp(K.uel.innerHTML).split('<div class="etfk">').slice(1), u = n => U.find(x => x.includes(n)) || '', T = su295.tiles(sp(K.el.innerHTML));
+  for (const [n, id] of [['Ropa WTI', 'wti'], ['Brent', 'brent']]) {
+    assert.ok(u(n).includes(d('2026-10-06') + ' · wiek(2026-10-06) · wstępnie</small>'), n + ': panel USA — „wstępnie”: ' + u(n).slice(0, 400));
+    assert.ok(T[id].includes(d('2026-10-06') + ' · wiek(2026-10-06) · wstępnie'), n + ': Puls — to samo');
+  }
+  assert.ok(u('Henry Hub') && !u('Henry Hub').includes('wstępnie') && !T.hh.includes('wstępnie'), 'cena potwierdzona — bez dopisku w obu panelach');
+  const K2 = su295.mk('pl'); K2.api.usaApply('e', {at: '2026-10-01T12:00:00+00:00', s: {wti: {d: [['2026-09-28', 99.37], ['2026-09-29', 96.16]]}, gas: {d: [['2026-09-29', 3.18]]}}});
+  assert.ok(!sp(K2.uel.innerHTML).includes('wstępnie'), 'bez pliku surowców (energia.json) — bez dopisku');
+});
+
+test('v314 (audyt G6): DZIŚ — chwila notowania jako ISO; data i godzina czytelnika z wiekiem: kafel, „Jakość danych mapy”, Aktywa, Wykresy, „Ostatnia sesja” w karcie regionu', () => {
+  const now0 = Date.now, PE = (typeof process !== 'undefined' && process && process.env) ? process.env : null, tz0 = PE ? PE.TZ : undefined;
+  if (PE) PE.TZ = 'Europe/Warsaw';
+  try {
+    const NOW = Date.parse('2026-10-10T07:56:00Z'), ISO = '2026-10-09T20:00:00.000Z', Q = Date.parse(ISO);
+    Date.now = () => NOW;
+    const P = v96src.tFor('pl'), l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+    const e0 = html.indexOf('const engDate=iso=>'), engDate = new Function('LOCALE', 'LANG', html.slice(e0, html.indexOf('\n', e0)) + '\nreturn engDate;')(LOC, 'pl');
+    const GF = new Function('t', 'engDate', html.slice(html.indexOf('function gAgeNote(fresh){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate);
+    const WANT = v96src.escH(engDate(ISO)) + v314Age(P, NOW, Q);
+    assert.ok(/^\d{1,2}\.\d{2}\.\d{4}, \d{2}:\d{2} · /.test(WANT), 'data, godzina i wiek: ' + WANT);
+    /* gDayApply: chwila najnowszego notowania jako ISO (UTC) — bez napisu lokalnego */
+    const d0 = html.indexOf('function gDayApply('), d1 = html.indexOf('function gDay(', d0), GL = {};
+    const apply = new Function('GREG', 'GPROXY', 'GLIVE', 'gOk', 'LOCALE', 'LANG', 'GDATA', html.slice(d0, d1) + '\nreturn gDayApply;')([{id: 'usa'}], {usa: [['SPY', 1]]}, GL, () => {}, LOC, 'pl', null);
+    assert.equal(apply({SPY: {dp: 0.6, c: 670.1, pc: 666.1, t: 1791576000}}), 1);
+    assert.equal(GL.dayAt, ISO, 'dzis.json q.SPY.t = 1791576000 → 2026-10-09T20:00:00.000Z');
+    assert.equal(apply({SPY: {dp: 0.6, t: 0}}), 1); assert.equal(GL.dayAt, '', 'bez czasu notowania — pusto (bez daty i wieku), jak dotąd');
+    /* kafel „Rynki akcji” w DZIŚ: data i godzina czytelnika z wiekiem; szacunek z tego samego dnia — „szacunek wartości” bez drugiego zapisu dnia */
+    const k0 = html.indexOf('\nfunction gRenderKpi(){'), k1 = html.indexOf('\nfunction gNameL(', k0), wrap = {innerHTML: ''};
+    const rk = new Function('$', 'GKPI', 'gst', 't', 'LOCALE', 'LANG', 'gfmt', 'escH', 'gFreshTxt', 'gAgeNote', html.slice(k0, k1) + '\ngRenderKpi();')(
+      q => q === '#g-kpis' ? wrap : null, [{k: 'g.k.eq', v: 152970, u: 'u.b', d: 0.87, cov: [11, 12], estn: 'szacunek wartości', fresh: ISO}], {period: '1D'}, P, LOC, 'pl', v => String(v), v96src.escH, GF.gFreshTxt, GF.gAgeNote);
+    assert.ok(wrap.innerHTML.includes('szacunek wartości · ' + WANT + '</span>'), 'kafel: ' + wrap.innerHTML.slice(-300));
+    const n0 = html.indexOf('function gEqNote(EQ,fr){'), gEqNote = new Function('t', 'escH', html.slice(n0, html.indexOf('\nfunction renderAssets(', n0)) + '\nreturn gEqNote;')(v314T, v96src.escH);
+    assert.equal(gEqNote({n: 11, v: 1, est: '2026-10-09'}, ISO), 'a293g.k.est0', 'notowanie z 9.10 (UTC) i szacunek z zamknięcia 9.10 — ten sam dzień');
+    assert.equal(gEqNote({n: 11, v: 1, est: '2026-10-08'}, '2026-10-09T15:30:00.000Z'), 'a293g.k.est{"d":"2026-10-08"}', 'w sesji — szacunek z poprzedniego zamknięcia, z dniem');
+    /* „Jakość danych mapy” */
+    const q0 = html.indexOf('function gRenderQ(){'), q1 = html.indexOf('\nfunction gRenderProb(', q0), qel = {innerHTML: ''};
+    new Function('$', 'GREG', 'GDATA', 'gst', 'GKPI', 'GLIVE', 'GLINK', 't', 'escH', 'gAgeNote', 'gFreshTxt', html.slice(q0, q1) + '\ngRenderQ();')(
+      q => q === '#g-q' ? qel : null, [{id: 'usa'}, {id: 'rus'}], {'1D': {usa: [469, 0.6, true], rus: [0, 0, false]}}, {period: '1D'}, [{k: 'g.k.eq', fresh: ISO}], {asof: '2026-08'}, true, P, v96src.escH, GF.gAgeNote, GF.gFreshTxt);
+    assert.ok(qel.innerHTML.includes('<p class="pnote">' + WANT + ' · ') && qel.innerHTML.includes('<div class="v">' + WANT + '</div>'), 'jakość danych mapy: nagłówek i karta „Świeżość”');
+    assert.ok(!qel.innerHTML.includes(ISO), 'bez surowej chwili ISO');
+    /* Aktywa: wiersz akcji w DZIŚ */
+    const g = pgEnv({gst: {period: '1D'}, GKPI: [{k: 'g.k.eq', v: 1, fresh: ISO}], GDATA: {'1D': {eur: [-5, -1, true], jpn: [3, 2, true], usa: [1, 0.5, true], rus: [0, 0, false], crypto: [1, .5, true]}},
+      gAgeNote: GF.gAgeNote, gFreshTxt: GF.gFreshTxt, t: P});
+    g.f.renderAssets();
+    const ar = g.el.innerHTML.split('<tr>').find(r => r.includes(P('as.eq'))) || '';
+    assert.ok(ar.includes(P('pg.daily') + ' · ' + WANT), 'Aktywa: ' + ar.slice(-260));
+    /* Wykresy: kafel regionów w DZIŚ */
+    const F = {}; for (const id of ['usa', 'can', 'lat', 'eur', 'rus', 'mea', 'afr', 'ind', 'chn', 'jpn', 'asean', 'oce']) F[id] = id === 'rus' ? [0, 0, false] : [10, 0.5, true];
+    const W = v157G(null, {gst: {period: '1D'}, GDATA: {'1D': F}, GKPI: [{k: 'g.k.eq', fresh: ISO}], GLIVE: {st: 'ok', asof: '2026-08'}, GPROB: [], gFreshTxt: GF.gFreshTxt, gAgeNote: GF.gAgeNote,
+      REGF: {}, regFlags: () => '', flagsHtml: () => ''}).wkGReg();
+    assert.equal(W.d, WANT, 'Wykresy: data i wiek pod kaflem'); assert.ok(v157.tips(W.ch)[0].endsWith(' · ' + engDate(ISO)), 'podpowiedź z datą i godziną czytelnika');
+    /* karta regionu: wiersz „Ostatnia sesja (ETF w USA)” — w każdym okresie */
+    const t0 = html.indexOf("${(dy&&dy.dp!=null)?`<div class=\"wide\"><dt>${t('g.d.today')}</dt>"), t1 = html.indexOf("</dd></div>`:''}", t0) + "</dd></div>`:''}".length;
+    const row = new Function('dy', 't', 'gmTone', 'gmPct', 'gmRf', 'gmFund', 'escH', 'GLIVE', 'gFreshTxt', 'gAgeNote', 's', 'return `' + html.slice(t0, t1) + '`;');
+    const R = row({dp: 0.6, syms: ['SPY']}, P, () => 'pos', v => '+' + v + '%', () => '', x => x, v96src.escH, {dayAt: ISO}, GF.gFreshTxt, GF.gAgeNote, {id: 'usa'});
+    assert.ok(R.endsWith(' · SPY · ' + WANT + '</dd></div>'), 'karta regionu: ' + R);
+  } finally { Date.now = now0; if (PE) { if (tz0 === undefined) delete PE.TZ; else PE.TZ = tz0; } }
+});
+
+test('v314 (audyt G8): Puls surowców — za krótka historia (miedź, uran): „— w tygodniu (dane od …)”, nie pusto; przy 6 notowaniach — zwykła zmiana', () => {
+  const K = su295.mk('pl', SU295_ALL), sp = su295.sp, d = x => su295.day('pl', x);
+  const F = su295.clone(SU295_FILE); F.ceny.copper.d = [['2026-10-02', 14632], ['2026-10-05', 14648], ['2026-10-06', 14811]];   /* jak w żywym pliku: 3 notowania (w migawce 7–9.10) */
+  K.api.suApply(F);
+  const T = su295.tiles(sp(K.el.innerHTML));
+  assert.ok(T.copper.includes('<b>14 811 <small class="mtxt">USD za tonę</small> <small class="su-nc">— w tygodniu (dane od ' + d('2026-10-02') + ')</small></b>'), 'miedź (3 notowania): ' + T.copper.slice(0, 300));
+  assert.ok(T.copper.includes('su-sp'), 'mini-wykres zostaje');
+  assert.ok(T.uran.includes('<small class="su-nc">— w tygodniu (dane od ' + d('2026-10-06') + ')</small></b>'), 'uran (1 notowanie)');
+  assert.ok(T.brent.includes('▲ +10,1% w tygodniu') && !T.brent.includes('dane od'), 'pełna historia — zmiana w tygodniu jak dotąd');
+  F.ceny.copper.d = [['2026-09-29', 14000], ['2026-09-30', 14100], ['2026-10-01', 14200], ['2026-10-02', 14300], ['2026-10-05', 14400], ['2026-10-06', 14700]];
+  K.api.suApply(F);
+  assert.ok(su295.tiles(sp(K.el.innerHTML)).copper.includes('▲ +5,0% w tygodniu'), '6 notowań — zmiana wobec 5 sesji wcześniej');
+  for (const L of V314_L10) { const v = v96src.tFor(L)('g314.su.wk0', {d: 'D'}); assert.ok(v.startsWith('—') && v.includes('D'), L + ': ' + v); }
+});
+
+test('v314 (audyt G9): „Jakość danych mapy”, okno pomocy i Metodologia — ta sama lista pomiarów kwartalnych (bilanse płatnicze 37 gospodarek, skład walutowy rezerw świata, statystyki bankowe), 10 języków', () => {
+  const NEW = {pl: 'kwartalne (bilanse płatnicze 37 gospodarek, skład walutowy rezerw świata, międzynarodowe statystyki bankowe)', en: 'quarterly (balances of payments of 37 economies',
+    de: 'vierteljährlich (Zahlungsbilanzen von 37 Volkswirtschaften', es: 'trimestrales (balanzas de pagos de 37 economías', fr: 'trimestriels (balances des paiements de 37 économies',
+    it: 'trimestrali (bilance dei pagamenti di 37 economie', pt: 'trimestrais (balanços de pagamentos de 37 economias', ru: 'ежеквартальные (платёжные балансы 37 экономик',
+    zh: '每季（37 个经济体的国际收支', ja: '四半期（37経済圏の国際収支'};
+  for (const L of V314_L10) {
+    const T = v96src.tFor(L), q = T('gmap.q.limd'), hm = T('g.hm.limd'), hl = T('g.help.limd');
+    for (const [k, v] of [['gmap.q.limd', q], ['g.hm.limd', hm], ['g.help.limd', hl]]) assert.ok(v.includes(NEW[L]), L + ' ' + k + ': ' + v);
+    const kw = s => s.slice(s.indexOf(NEW[L]), s.indexOf(L === 'zh' || L === 'ja' ? '）' : ')', s.indexOf(NEW[L])) + 1);
+    assert.equal(kw(q), kw(hm), L + ': ta sama lista w karcie i w oknie pomocy'); assert.equal(hl, hm, L + ': Metodologia = okno pomocy');
+  }
+  assert.ok(!v96src.tFor('pl')('gmap.q.limd').includes('kwartalne (rezerwy walutowe, banki)'), 'bez dawnej listy');
+});
+
+test('v314 (recenzja v312): Polska — błąd częściowy części (pole cz zbieracza) opisany zdaniem „część danych nie przyszła … reszta z tego pobrania”, błąd całego pobrania jak dotąd', () => {
+  const F = JSON.parse(JSON.stringify(PL304_FILE));
+  F.ok.stacje = false; F.ok.hurt = false; F.err = {stacje: 'wob: ceny bez podatków niedostępne (brak arkusza)', hurt: 'orlen on: HTTP 503'}; F.cz = {stacje: true};
+  const K = pl304.run('pl', {polska: F}); K.toggle(); const b = pl304.blk(su295.sp(K.el.innerHTML));
+  assert.ok(b.includes('<p class="pnote neu">Część danych nie przyszła w ostatnim pobraniu (ceny na stacjach) — tych liczb brak albo widać wcześniejsze z ich datą; reszta pochodzi z tego pobrania.</p>'), b.slice(0, 900));
+  assert.ok(b.includes('<p class="pnote neu">Ostatnie pobranie części danych się nie udało (ceny hurtowe) — pokazujemy wcześniejsze dane z ich datą.</p>'), 'bez wpisu cz — błąd całego pobrania jak dotąd');
+  delete F.cz; const K2 = pl304.run('pl', {polska: F}); K2.toggle(); const b2 = pl304.blk(su295.sp(K2.el.innerHTML));
+  assert.ok(b2.includes('(ceny hurtowe, ceny na stacjach) — pokazujemy wcześniejsze dane') && !b2.includes('Część danych nie przyszła'), 'plik bez pola cz (starszy zbieracz) — jak dotąd');
+  for (const L of V314_L10) { const v = v96src.tFor(L)('g314.pl.cz', {p: 'P'}); assert.ok(v.includes('P') && v !== 'g314.pl.cz', L); }
+});
+
+test('v314: słownik g314 — czysty JSON, 10 języków, te same klucze i pola, prawdziwe tłumaczenia, bez nazw dostawców, zaraz po linii for poprzedniego słownika', () => {
+  const i = html.indexOf('{"pl":{"g314.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.ok(i > 0 && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik g314: ' + name);
+  const b = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i); assert.ok(b > i, 'linia nakładania');
+  const D = JSON.parse(html.slice(i, b)), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), V314_L10); const K = Object.keys(D.pl);
+  assert.deepEqual(K, ['g314.su.wk0', 'g314.fg.spxn', 'g314.pl.cz']);
+  for (const l of V314_L10) {
+    assert.deepEqual(Object.keys(D[l]), K, l);
+    for (const k of K) {
+      assert.ok(D[l][k].trim() && ph(D[l][k]) === ph(D.pl[k]), l + ' ' + k);
+      if (l !== 'en') assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+      assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k);
+      assert.ok(!GM_PROV.test(D[l][k]) && !/FRED|Finnhub|FMP|EODHD|S&P Dow Jones|Weekly Oil Bulletin|Orlen|TGE|NBP/.test(D[l][k]), l + ' ' + k + ': bez nazw dostawców');
+    }
+  }
+  const ln = html.slice(html.lastIndexOf('\n', a - 2) + 1, a - 1);
+  assert.ok(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(ln) && html[a - 1] === '\n', 'zaraz po linii for innego słownika: ' + ln.slice(0, 80));
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego');
+  assert.ok(!/[\u3040-\u30ff]/.test(D.zh['g314.su.wk0'] + D.zh['g314.fg.spxn'] + D.zh['g314.pl.cz']), 'zh bez kany');
+  assert.ok(!/\d [日件か]|\{d\} から/.test(D.ja['g314.su.wk0'] + D.ja['g314.fg.spxn']), 'ja: bez spacji przed licznikiem (v147)');
 });

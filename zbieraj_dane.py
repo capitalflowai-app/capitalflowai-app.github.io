@@ -24315,6 +24315,7 @@ def build_polska(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     t0, budzet = time.monotonic(), PL_BUDZET_S if budzet_s is None else budzet_s
     late = run_t0 is not None and time.monotonic() - run_t0 > PL_LATE
     proby, udane, zle, pominiete = {p: 0 for p in PL_PARTS}, set(), {}, []
+    czesc = set()   # v314 (recenzja v312): części z błędem częściowym — źródło odpowiedziało, czegoś w nim brak (jak v307 w szlakach)
     for src, part in PL_ZR:
         z = st.setdefault(src, {})
         if not _pl_due(src, z, now):
@@ -24337,6 +24338,7 @@ def build_polska(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
         z['at'] = now_iso; z['asof'] = asof; z.pop('err', None); udane.add(src)
         if len(ctx['bledy']) > nb:   # częściowy błąd (jedna z dwóch serii) — dane drugiej zapisane
             zle.setdefault(part, []).extend(ctx['bledy'][nb:])
+            czesc.add(part)
     H = ctx['H']
     sub = lambda p, k: (prev.get(p) or {}).get(k) if isinstance(prev.get(p), dict) else None   # noqa: E731
     out = {'v': PL_V, 'at': None}
@@ -24411,6 +24413,9 @@ def build_polska(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
                 perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
     out.update({'part_at': {p: pat[p] for p in PL_PARTS if pat.get(p)}, 'ok': ok, 'next': {},
                 'err': {p: perr[p] for p in PL_PARTS if perr.get(p)}, 'st': st})
+    if czesc:   # v314 (recenzja v312): tylko części z błędem częściowym w tym przebiegu (ok False; każda część ma jedno źródło) — strona mówi wtedy
+        # „część danych nie przyszła … reszta pochodzi z tego pobrania” zamiast „ostatnie pobranie się nie udało”; brak pola = bez braków
+        out['cz'] = {p: True for p in PL_PARTS if p in czesc and ok.get(p) is False}
     out.update(parts)
     out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
     out['next'] = {p: _pl_next(p, out, now) for p in PL_PARTS}
