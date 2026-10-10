@@ -9,6 +9,10 @@ img/gieldy/ — web3icons @web3icons/core 4.0.56, licencja MIT (dydx.svg — iko
 img/glify/  — rysunki własne CapitalFlowAI.
 img/favicon.svg, img/favicon-32.png, img/apple-touch-icon.png — ikona strony: logo CapitalFlowAI z nagłówka strony (rysunek własny, v187).
 img/wezly/  — zdjęcia węzłów sceny CRYPTO (gaming, giełdy, memecoiny) dostarczone przez właściciela strony (26.09.2026); używane tylko na tej stronie.
+img/loga/   — loga węzłów sceny CRYPTO (bitcoin, ether, stablecoiny, DeFi, DePIN; *-jasny — warianty jasnego motywu), 256 px; do v319 wbudowane w stronę
+              (base64), przeniesione bez zmian (te same bajty).
+img/monety/ — loga monet koszyków i list Top 10 (48–50 px, WebP/PNG, nazwa pliku = symbol monety); do v319 wbudowane w stronę (base64),
+              przeniesione bez zmian (te same bajty).
 
 Loga projektów kryptowalutowych i giełd są znakami towarowymi ich właścicieli; pokazujemy je tylko po to,
 żeby wskazać, o którym aktywie lub giełdzie mowa — bez sugerowania współpracy.

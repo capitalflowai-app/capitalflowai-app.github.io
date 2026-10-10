@@ -141,7 +141,7 @@ test('nazwy monet i funduszy oraz daty z plików są escapowane', () => {
   assert.ok(html.includes('<small class="mtxt">${escH(f.n)}</small>'));
   assert.ok(html.includes("t('etf.src.snap',{d:escH(D.asof),f:escH(ETF_SNAP.fetched)})"));
   assert.ok(!html.includes('${r.name}') && !html.includes('${f.n}') && !html.includes('${f.t}'));
-  assert.ok(html.includes('/^(https:\\/\\/|data:image\\/(webp|png);base64,)/.test(String(lg))'), 'v96: logo z https albo wbudowany obraz (nie dowolny adres)');
+  assert.ok(html.includes('/^(https:\\/\\/|data:image\\/(webp|png);base64,|img\\/monety\\/[a-z0-9]+\\.(webp|png)$)/.test(String(lg))'), 'v96: logo z https albo wbudowany obraz (nie dowolny adres); v319: albo plik img/monety/<symbol>.webp|png');   /* v319: świadoma zmiana — loga monet z plików (dawniej base64 w stronie) */
   const e0 = html.indexOf('function escH('); const e1 = html.indexOf('\n', e0);
   const escH = new Function(html.slice(e0, e1) + '\nreturn escH;')();
   assert.equal(escH('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
@@ -4212,7 +4212,7 @@ test('v110: zdjęcia węzłów gaming / giełdy / memecoiny z img/wezly/, stary 
   assert.ok(a > 0 && b > a);
   const U = new Function(html.slice(a, b) + '\nreturn {LOGO_URLS,LOGO_URLS_LIGHT};')();
   assert.equal(U.LOGO_URLS.gaming, 'img/wezly/gaming.jpg'); assert.equal(U.LOGO_URLS.exch, 'img/wezly/gieldy.jpg'); assert.equal(U.LOGO_URLS.meme, 'img/wezly/memecoiny.jpg');
-  for (const id of ['btc', 'eth', 'stab', 'defi', 'depin']) assert.ok(/^data:image\//.test(U.LOGO_URLS[id]), 'pozostałe loga bez zmian: ' + id);
+  for (const id of ['btc', 'eth', 'stab', 'defi', 'depin']) assert.ok(/^img\/loga\/[a-z]+\.(webp|png)$/.test(U.LOGO_URLS[id]), 'pozostałe loga bez zmian (v319: te same obrazy z plików img/loga/): ' + id);   /* v319: świadoma zmiana — dawniej base64 (data:image) w stronie */
   assert.ok(!U.LOGO_URLS_LIGHT.gaming && !U.LOGO_URLS_LIGHT.exch && !U.LOGO_URLS_LIGHT.meme, 'zdjęcia wspólne dla obu motywów');
   assert.equal((html.match(/meme:'data:image/g) || []).length, 0);
   assert.ok(html.includes("const LOGO_PHOTO=new Set(['exch','gaming','meme']);") && html.includes('if(LOGO_PHOTO.has(id)){c.lineWidth=Math.max(1,s*.09);'), 'obwódka zdjęć w drawIconOn');
@@ -14610,7 +14610,7 @@ test('v293c CR-07: koszyki sceny — symbole obecne w danych, loga nowych monet,
   for (const s of ['SKY', 'RENDER', 'SYRUP', 'GRAM']) assert.ok(all.includes(s), s);
   const L0 = html.indexOf('const COIN_LOGO={'), L1 = html.indexOf('\nconst BASKET={', L0);
   const LOGO = new Function(html.slice(L0, L1) + '\nreturn COIN_LOGO;')();
-  for (const s of ['VIRTUAL', 'VVV', 'ICP', 'PAXG', 'XAUT', 'APE', 'BEAM', 'SUPER', 'GOMINING', 'GEOD', 'PENGU', 'TRUMP', 'SPX', 'IOTA']) assert.ok(/^data:image\/(webp|png);base64,[A-Za-z0-9+/=]+$/.test(LOGO[s]), s);
+  for (const s of ['VIRTUAL', 'VVV', 'ICP', 'PAXG', 'XAUT', 'APE', 'BEAM', 'SUPER', 'GOMINING', 'GEOD', 'PENGU', 'TRUMP', 'SPX', 'IOTA']) assert.ok(/^img\/monety\/[a-z0-9]+\.(webp|png)$/.test(LOGO[s]), s);   /* v319: świadoma zmiana — logo z pliku img/monety/ (dawniej base64 w stronie) */
   assert.ok(LOGO.RENDER && LOGO.RENDER === LOGO.RNDR, 'RENDER = dawny RNDR');
   const D = {btc: [11900, 0.7], rwa: [-204.7, -0.9], defi: [-34.5, -0.1], exch: [-16100, -1.2]};
   const env = {isLive: () => true, LIVE: {st: 'ok', at: '2026-10-07T16:00:00Z', C: {ONDO: {mcap: 1, pct: {'24H': 1}}, SYRUP: {mcap: 1, pct: {'24H': -2}}, AAVE: {mcap: 1, pct: {'24H': 0}}, UNI: {mcap: 1, pct: {'24H': null}}}},
@@ -15013,10 +15013,13 @@ test('v296c CR-07: każda moneta koszyków sceny ma logo (plik SVG albo wbudowan
   assert.equal(all.length, 70);
   const h0 = html.indexOf('/* ===================== v96: FLAGI, LOGA, WALUTY, ZNACZKI WYDAWCÓW'), h1 = html.indexOf('\nfunction fundIco(', h0);
   const V = new Function('escH', 'ISO32', 'COIN_LOGO', html.slice(h0, html.indexOf('\n', h1 + 1)) + '\nreturn {coinImg, CRYPTO_SVG};')(v96cEsc, {}, LOGO);
-  const bez = all.filter(s => !V.CRYPTO_SVG.has(s.toLowerCase()) && !/^data:image\/(webp|png);base64,[A-Za-z0-9+/=]+$/.test(LOGO[s] || ''));
+  const bez = all.filter(s => !V.CRYPTO_SVG.has(s.toLowerCase()) && !/^img\/monety\/[a-z0-9]+\.(webp|png)$/.test(LOGO[s] || ''));   /* v319: świadoma zmiana — plik img/monety/ (dawniej base64 w stronie) */
   assert.deepEqual(bez, [], 'monety bez logo');
   for (const s of all) { const im = V.coinImg(s); assert.ok(im.includes('<img ') && !im.includes('class="iss'), s + ': ' + im.slice(0, 80)); }
-  for (const s of ['SKY', 'GRAM', 'SYRUP', 'XDC', 'ONYC', 'PLUME', 'FARTCOIN', 'THETA']) assert.ok(LOGO[s].startsWith('data:image/png;base64,iVBORw0KGgo'), s + ': PNG');
+  for (const s of ['SKY', 'GRAM', 'SYRUP', 'XDC', 'ONYC', 'PLUME', 'FARTCOIN', 'THETA']) {   /* v319: świadoma zmiana — plik PNG img/monety/ (dawniej base64 PNG w stronie) */
+    assert.equal(LOGO[s], 'img/monety/' + s.toLowerCase() + '.png', s + ': PNG');
+    if (typeof fs.existsSync === 'function' && __dirname) assert.equal(fs.readFileSync(path.join(__dirname, LOGO[s])).subarray(0, 8).toString('hex'), '89504e470d0a1a0a', s + ': plik PNG');
+  }
   assert.ok(LOGO.GRAM !== LOGO.TON && LOGO.RENDER === LOGO.RNDR, 'GRAM (dawny TON) — logo obecne, nie dawne; RENDER jak dotąd');
 });
 
@@ -17427,7 +17430,7 @@ test('v308: otwarcie — setMode (CRYPTO, TRENDY; przed rysowaniem), zamiar na z
   const p0 = html.indexOf('function smallPhotoURL(id,px){'), ps = html.slice(p0, html.indexOf('\n}\n', p0));
   const g = ps.indexOf("  if(typeof srvJSON==='function'&&srvJSON.g&&!srvJSON.g.o.c)return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';");
   assert.ok(g > ps.indexOf('if(urlCache[key])return urlCache[key];') && g < ps.indexOf('const im=logoImg(id);'), 'piksel w smallPhotoURL: po pamięci, przed logoImg');
-  assert.ok(html.includes('function logoImg(id){const u=logoSrc(id);if(!u)return null;let im=logoCache[u];if(!im){im=new Image();im.onload=()=>{dirty=true;refreshLogoImgs();};'), 'logoImg bez zmian');
+  assert.ok(html.includes('function logoImg(id){const u=logoSrc(id);if(!u)return null;let im=logoCache[u];if(!im){im=new Image();im.onload=()=>{dirty=true;if(typeof gDirty===\'function\')gDirty();refreshLogoImgs();};'), 'logoImg bez zmian (v319: po wczytaniu także gDirty — mapa GLOBAL)');   /* v319: świadoma zmiana — gDirty w onload (test v319) */
   /* flagi menu języka: pozycje leniwe, przycisk z flagą wybranego języka bez zmian (test v96) */
   assert.ok(html.includes("${it.icon?`<img src=\"${it.icon()}\" alt=\"\" loading=\"lazy\">`:''}") && html.includes("(cur&&cur.icon?`<img src=\"${cur.icon()}\" alt=\"\">`:'')"), 'menu języka');
 });
@@ -19041,4 +19044,177 @@ test('v320: miejsce w kodzie — funkcje bloków przed renderSu (w bloku panelu,
   const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
   const tv = sec('tv-markets');   /* przegląd: 10.10.2026 widgety TradingView usunięte decyzją właściciela — gdy sekcji nie ma, test jej nie wymaga */
   assert.ok(sec('g-surowce') > 0 && (tv < 0 || sec('g-surowce') < tv), 'widgety TradingView (jeśli są) na dole');
+});
+
+
+/* ===================== v319 (szybkość strony, etap 4): obrazki z plików img/ zamiast base64 w index.html =====================
+   98 obrazków przeniesionych bez zmian (te same bajty): 7 logo węzłów sceny CRYPTO → img/loga/ (btc, eth, stab, defi, depin; defi-jasny i depin-jasny
+   dla jasnego motywu), 91 logo monet → img/monety/<symbol małymi literami>.webp|png. index.html po kompresji ok. 290 KB lżejsza dla każdego czytelnika.
+   Pierwszy widok GLOBAL potrzebuje z nich tylko logo bitcoina (węzeł krypto na mapie: drawIconOn → logoImg) — zamawiane z <head> (preload).
+   Reszta przy potrzebie: loga monet jak dotąd leniwie (loading="lazy"), loga węzłów w kartach ukrytej zakładki CRYPTO — przezroczysty piksel do otwarcia
+   grupy „c” (jak zdjęcia węzłów v308), przy otwarciu refreshLogoImgs. Testy synchroniczne (działają pod jsc); bajty plików sprawdzane pod node
+   (pod jsc fs.readFileSync zwraca index.html — pliki sprawdza też klasa ObrazkiZPlikowV319 w test_zbieraj_dane.py). */
+const v319 = (() => {
+  const PIX = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  const a = html.indexOf('const LOGO_URLS={'), b = html.indexOf('\nconst logoSrc=', a);
+  assert.ok(a > 0 && b > a, 'LOGO_URLS i LOGO_URLS_LIGHT');
+  const U = new Function(html.slice(a, b) + '\nreturn {LOGO_URLS,LOGO_URLS_LIGHT};')();
+  const L0 = html.indexOf('const COIN_LOGO={'), L1 = html.indexOf('\nconst BASKET={', L0);
+  assert.ok(L0 > 0 && L1 > L0, 'COIN_LOGO');
+  const LOGO = new Function(html.slice(L0, L1) + '\nreturn COIN_LOGO;')();
+  const WEZLY = {btc: 'img/loga/btc.webp', eth: 'img/loga/eth.png', stab: 'img/loga/stab.webp', defi: 'img/loga/defi.webp', depin: 'img/loga/depin.webp'};
+  const JASNE = {defi: 'img/loga/defi-jasny.webp', depin: 'img/loga/depin-jasny.webp'};
+  const NODE = typeof fs.existsSync === 'function' && !!__dirname;
+  const bajty = p => fs.readFileSync(path.join(__dirname, p));
+  const RX_MON = /^img\/monety\/[a-z0-9]+\.(webp|png)$/;
+  /* format z nagłówka pliku: PNG (sygnatura) albo WebP (RIFF … WEBP) */
+  const format = B => (B.subarray(0, 8).toString('hex') === '89504e470d0a1a0a' ? 'png' : (B.subarray(0, 4).toString('latin1') === 'RIFF' && B.subarray(8, 12).toString('latin1') === 'WEBP' ? 'webp' : '?'));
+  return {PIX, U, LOGO, WEZLY, JASNE, NODE, bajty, RX_MON, format};
+})();
+
+test('v319: index.html bez obrazków base64 (poza 1-pikselowym GIF-em v308) — loga węzłów w img/loga/, loga monet w img/monety/ (nazwa = symbol), pliki istnieją i mają format z rozszerzenia', () => {
+  const B = [...html.matchAll(/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]{16,}/g)].map(m => m[0]);
+  assert.ok(B.length >= 1 && B.every(x => x === v319.PIX), 'obrazki base64 inne niż piksel — nowe obrazki dodawać jako pliki w img/ (v319): ' + B.filter(x => x !== v319.PIX).map(x => x.slice(0, 48)).join(' | '));
+  for (const id in v319.WEZLY) assert.equal(v319.U.LOGO_URLS[id], v319.WEZLY[id], id);
+  assert.deepEqual(Object.keys(v319.U.LOGO_URLS_LIGHT).sort(), ['defi', 'depin'], 'warianty jasnego motywu bez zmian');
+  for (const id in v319.JASNE) assert.equal(v319.U.LOGO_URLS_LIGHT[id], v319.JASNE[id], id + ' (jasny)');
+  assert.deepEqual([v319.U.LOGO_URLS.exch, v319.U.LOGO_URLS.gaming, v319.U.LOGO_URLS.meme], ['img/wezly/gieldy.jpg', 'img/wezly/gaming.jpg', 'img/wezly/memecoiny.jpg'], 'zdjęcia węzłów (v110) bez zmian');
+  const K = Object.keys(v319.LOGO);
+  assert.equal(K.length, 92, '91 monet + RENDER (dawny RNDR)');
+  for (const s of K) {
+    assert.ok(v319.RX_MON.test(v319.LOGO[s]), s + ': ' + String(v319.LOGO[s]).slice(0, 40));
+    assert.ok(v319.LOGO[s].startsWith('img/monety/' + (s === 'RENDER' ? 'rndr' : s.toLowerCase()) + '.'), s + ': nazwa pliku = symbol');
+  }
+  if (v319.NODE) {
+    const P = [...new Set(Object.values(v319.U.LOGO_URLS).concat(Object.values(v319.U.LOGO_URLS_LIGHT), Object.values(v319.LOGO)))].filter(p => /^img\/(loga|monety)\//.test(p));
+    assert.equal(P.length, 98, '7 logo węzłów + 91 logo monet');
+    for (const p of P) {
+      assert.ok(fs.existsSync(path.join(__dirname, p)), 'brak pliku ' + p);
+      const D = v319.bajty(p);
+      assert.equal(v319.format(D), p.slice(p.lastIndexOf('.') + 1), p + ': format zgodny z rozszerzeniem');
+      assert.ok(D.length > 100 && D.length <= (p.startsWith('img/loga/') ? 40000 : 12000), p + ': rozmiar ' + D.length + ' B');
+    }
+  }
+});
+
+test('v319: pierwszy widok GLOBAL — logo bitcoina z mapy (węzeł krypto) zamawiane od razu z <head> (preload, ten sam adres co LOGO_URLS.btc); innych obrazków z wyprzedzeniem nie ma; CSP pozwala', () => {
+  const head = html.slice(0, html.indexOf('</head>'));
+  const P = [...head.matchAll(/<link rel="preload"[^>]*>/g)].map(m => m[0]);
+  assert.deepEqual(P, ['<link rel="preload" as="image" href="img/loga/btc.webp" type="image/webp">'], 'jedno zamówienie z wyprzedzeniem');
+  assert.equal(v319.U.LOGO_URLS.btc, 'img/loga/btc.webp', 'ten sam adres co logo węzła (inaczej przeglądarka pobrałaby drugi plik)');
+  assert.ok(head.indexOf('<link href="fonts/fonts.css" rel="stylesheet">') > 0 && head.indexOf('<link href="fonts/fonts.css" rel="stylesheet">') < head.indexOf(P[0]), 'po arkuszu czcionek (najpierw style)');
+  assert.ok(html.includes("drawIconOn(g2,'btc',CN.x,CN.y,CN.r*.46,1,false);"), 'mapa GLOBAL rysuje logo bitcoina — powód zamówienia z wyprzedzeniem');
+  assert.ok(/img-src 'self' data: blob: https:/.test(head), 'CSP: obrazki z własnego folderu (i piksel data:)');
+});
+
+test('v319: iconURL — logo węzła z pliku img/loga/ przy zamkniętej grupie „c” to przezroczysty piksel (karty ukrytej zakładki CRYPTO nie pobierają obrazków przy wejściu do GLOBAL); po otwarciu plik; jasny motyw; zdjęcia (v308) i piktogramy bez zmian', () => {
+  const c0 = html.indexOf('const SMALL_PX=24;'), c1 = html.indexOf('\nconst logoTag=', c0);
+  assert.ok(c0 > 0 && c1 > c0);
+  const PAL = {dark: true}, G = {o: {c: false}}, srv = function () {}; srv.g = G;
+  const logoSrc = id => (!PAL.dark && v319.U.LOGO_URLS_LIGHT[id]) ? v319.U.LOGO_URLS_LIGHT[id] : v319.U.LOGO_URLS[id];
+  let made = 0; const asked = [];
+  const doc = {createElement: () => ({width: 0, height: 0, getContext: () => new Proxy({getImageData: (x, y, w, h) => ({data: new Uint8ClampedArray(w * h * 4)})}, {get: (o, k) => (k in o ? o[k] : () => {})}),
+    toDataURL: () => 'data:image/png;base64,P' + (++made)})};
+  const mk = s => new Function('logoSrc', 'logoImg', 'urlCache', 'PAL', 'hueOf', 'drawIconOn', 'document', 'srvJSON', html.slice(c0, c1) + '\nreturn {iconURL};')(
+    logoSrc, id => { asked.push(id); return null; }, {}, PAL, () => 120, () => {}, doc, s);
+  const F = mk(srv);
+  for (const id in v319.WEZLY) for (const px of [14, 18, 20, 24, 26, 56]) assert.equal(F.iconURL(id, px), v319.PIX, id + ' ' + px + ' px: piksel do otwarcia');
+  for (const id of ['meme', 'gaming', 'exch']) assert.equal(F.iconURL(id, 18), v319.PIX, id + ': piksel v308');
+  assert.deepEqual(asked, [], 'bez logoImg — przeglądarka nic nie pobiera');
+  assert.equal(F.iconURL('meme', 25), 'img/wezly/memecoiny.jpg', 'lista sceny (powyżej 24 px, tylko w CRYPTO) jak w v308');
+  assert.ok(/^data:image\/png;base64,P\d+$/.test(F.iconURL('l12', 18)), 'węzeł bez logo — piktogram z płótna jak dotąd');
+  G.o.c = true;
+  for (const id in v319.WEZLY) for (const px of [14, 18, 26, 56]) assert.equal(F.iconURL(id, px), v319.WEZLY[id], id + ' ' + px + ' px po otwarciu');
+  PAL.dark = false;
+  assert.equal(F.iconURL('defi', 18), v319.JASNE.defi); assert.equal(F.iconURL('depin', 26), v319.JASNE.depin); assert.equal(F.iconURL('btc', 18), v319.WEZLY.btc, 'bitcoin bez wariantu jasnego');
+  G.o.c = false;
+  assert.equal(F.iconURL('defi', 18), v319.PIX, 'wariant jasny też dopiero po otwarciu');
+  PAL.dark = true;
+  assert.equal(mk(undefined).iconURL('eth', 18), v319.WEZLY.eth, 'bez bramki (piaskownica, plik z dysku) — plik od razu');
+  assert.ok(html.includes("function iconURL(id,px=56){\n  if(px<=SMALL_PX&&SMALL_PHOTO[id]&&logoSrc(id))return smallPhotoURL(id,px);") && html.includes("  const src=logoSrc(id);if(src&&!(px<=SMALL_PX&&SMALL_PICTO[id]))return src;"), 'linie v138 i v116 bez zmian');
+});
+
+test('v319: srvOpen(„c”) raz odświeża ikony (refreshLogoImgs) po ładowarkach — piksele kart CRYPTO zamieniają się na pliki; błąd odświeżania nie psuje otwarcia; drugi raz i grupa otwarta od startu (?pelna=1) — bez odświeżania', () => {
+  const a = html.indexOf('function srvJSON(name){'), z0 = html.indexOf('\nfunction srvLive(){', a), z = html.indexOf('\n', z0 + 1) + 1;
+  assert.ok(a > 0 && z0 > a && z > z0);
+  const LD = ['whLoad', 'rwLoad', 'zkLoad', 'levLoad', 'prmLoad', 'kcLoad', 'lnLoad', 'wyLoad'];
+  class USP { constructor(q) { this.q = String(q || ''); } get(k) { const r = new RegExp('[?&]' + k + '=([^&#]*)').exec(this.q); return r ? decodeURIComponent(r[1]) : null; } }
+  const run = (search, rzuc) => {
+    const ev = [], errs = [];
+    const F = new Function('fetch', 'location', 'Date', 'AbortSignal', 'structuredClone', 'URLSearchParams', 'console', ...LD, 'loadAll', 'afterLive', 'lvSrv', 'renderStatus', 'renderAll',
+      'retarget', 'dirty', 'LIVE', 'st', 'PAGES', 'page', 'renderPage', 'refreshLogoImgs', html.slice(a, z) + '\nreturn {srvOpen};')(
+      () => new Promise(() => {}), {protocol: 'https:', search}, {now: () => Date.parse('2026-10-10T08:00:00Z')}, {timeout: () => 'S'}, o => o, USP,
+      {error: x => errs.push(String(x && x.message || x))}, ...LD.map(n => () => ev.push(n)), () => ev.push('loadAll'), () => {}, () => false, () => ev.push('renderStatus'),
+      () => ev.push('renderAll'), () => {}, false, {st: 'idle'}, {mode: 'global'}, [], 'overview', () => {},
+      () => { ev.push('refreshLogoImgs'); if (rzuc) throw new Error('awaria odświeżania'); });
+    return {F, ev, errs};
+  };
+  const A = run('');
+  assert.equal(A.F.srvOpen('c'), true);
+  assert.deepEqual(A.ev, ['loadAll'].concat(LD, ['refreshLogoImgs']), 'najpierw dane sceny i karty (v308), potem jedno odświeżenie ikon');
+  assert.equal(A.F.srvOpen('c'), false); assert.equal(A.ev.length, LD.length + 2, 'drugie otwarcie — nic');
+  const B = run('', true);
+  assert.equal(B.F.srvOpen('c'), true, 'błąd odświeżania nie przerywa otwarcia (setMode idzie dalej)');
+  assert.deepEqual(B.errs, ['awaria odświeżania'], 'błąd widoczny w konsoli (kontrola dzienna)');
+  const C = run('?nc=1&pelna=1');
+  assert.equal(C.F.srvOpen('c'), false); assert.deepEqual(C.ev, [], '?pelna=1: grupa otwarta od startu — iconURL od razu daje pliki, odświeżanie zbędne');
+  assert.ok(html.includes("  if(g==='c'&&typeof refreshLogoImgs==='function')try{refreshLogoImgs();}catch(e){console.error(e);}"), 'linia w srvOpen');
+});
+
+test('v319: logoImg — po wczytaniu pliku logo przerysowanie sceny, mapy GLOBAL (gDirty: przy ograniczonym ruchu mapa rysuje się tylko na żądanie) i ikon; jeden obraz na adres; bez gDirty (piaskownica) bez błędu', () => {
+  const i0 = html.indexOf('function logoImg(id){'), i1 = html.indexOf('\n', i0);
+  assert.ok(i0 > 0 && i1 > i0);
+  const IM = [], ev = [];
+  class Img { constructor() { this.complete = false; this.naturalWidth = 0; this.onload = null; this.src = ''; IM.push(this); } }
+  const mk = g => new Function('logoSrc', 'logoCache', 'Image', 'refreshLogoImgs', ...(g ? ['gDirty'] : []), 'let dirty=false;\n' + html.slice(i0, i1) + '\nreturn {logoImg, get dirty() { return dirty; }};')(
+    id => v319.U.LOGO_URLS[id], {}, Img, () => ev.push('refresh'), ...(g ? [() => ev.push('gDirty')] : []));
+  const F = mk(true);
+  assert.equal(F.logoImg('btc'), null, 'jeszcze się wczytuje');
+  assert.equal(IM.length, 1); assert.equal(IM[0].src, 'img/loga/btc.webp', 'ten sam adres co zamówienie z <head>');
+  assert.equal(F.logoImg('btc'), null); assert.equal(IM.length, 1, 'jeden obraz na adres (logoCache)');
+  IM[0].complete = true; IM[0].naturalWidth = 256; IM[0].onload();
+  assert.deepEqual(ev, ['gDirty', 'refresh']); assert.equal(F.dirty, true);
+  assert.equal(F.logoImg('btc'), IM[0], 'wczytany — rysowany');
+  const G = mk(false);
+  assert.equal(G.logoImg('eth'), null); IM[1].onload(); assert.equal(G.dirty, true, 'bez gDirty w zasięgu — bez błędu');
+  assert.equal(G.logoImg('l12'), null, 'węzeł bez logo — bez obrazu');
+});
+
+test('v319: loga monet z plików img/monety/ — coinImg i lista Top 10 dają ten sam znacznik co dawny obraz wbudowany (loading="lazy"); inne adresy nadal odrzucane', () => {
+  const h0 = html.indexOf('/* ===================== v96: FLAGI, LOGA, WALUTY, ZNACZKI WYDAWCÓW'), h1 = html.indexOf('\nfunction fundIco(', h0);
+  const ico = LG => new Function('escH', 'ISO32', 'COIN_LOGO', html.slice(h0, html.indexOf('\n', h1 + 1)) + '\nreturn {coinImg, CRYPTO_SVG};')(v96cEsc, {}, LG);
+  const V = ico({AAVE: 'img/monety/aave.webp', APE: 'img/monety/ape.png', PEPE: 'data:image/webp;base64,AAAA', ZA: 'img/monety/../x.png', ZB: 'img/monety/Aave.webp', ZC: 'img/krypto/x.svg',
+    ZD: 'javascript:alert(1)', ZE: 'img/monety/aave.webp?x=1', ZF: 'https://example.com/x.png', ZG: 'img/monety/aave.svg', ZH: '/img/monety/aave.webp'});
+  assert.equal(V.coinImg('AAVE'), '<img class="ico" src="img/monety/aave.webp" alt="" title="AAVE" loading="lazy" decoding="async">');
+  assert.equal(V.coinImg('ape', 'sm'), '<img class="ico sm" src="img/monety/ape.png" alt="" title="APE" loading="lazy" decoding="async">');
+  assert.ok(V.coinImg('PEPE').includes('src="data:image/webp;base64,AAAA"'), 'obraz wbudowany nadal przyjmowany');
+  for (const s of ['ZA', 'ZB', 'ZC', 'ZD', 'ZE', 'ZF', 'ZG', 'ZH']) assert.ok(V.coinImg(s).includes('class="iss') && !V.coinImg(s).includes('<img'), s + ': znaczek z literami (adres spoza img/monety/)');
+  const t0 = html.indexOf('function renderTop10(id){'), t1 = html.indexOf('/* ===================== v96 (krypto)', t0);
+  const top = new Function('BASKET', 'LIVE', 'st', 't', 'flowOf', 'COIN_LOGO', 'escH', 'nfmt', 'fPct', 'coinImg', 'liveWhen', 'sg', html.slice(t0, t1) + '\nreturn renderTop10;')(
+    {rwa: ['ONDO', 'XAUT', 'ZA']}, {st: 'ok', src: 'live', C: {ONDO: {name: 'Ondo', mcap: 1e9, pct: {'24H': 1}}, XAUT: {name: 'Tether Gold', mcap: 1e8, pct: {'24H': 1}}, ZA: {name: 'Za', mcap: 1e7, pct: {'24H': 1}}}},
+    {period: '24H'}, (k, o) => k + (o ? JSON.stringify(o) : ''), (m, p) => m * p / 100, {ONDO: 'img/monety/ondo.webp', XAUT: 'img/monety/xaut.png', ZA: 'img/monety/za.svg'}, v96cEsc,
+    (v, d) => Math.abs(v).toFixed(d), v => String(v), s => '<i class="cic">' + s + '</i>', () => 'T', v => v > 0 ? '+' : '');
+  const h = top('rwa');
+  assert.ok(h.includes('<img class="cic" src="img/monety/ondo.webp" alt="" width="22" height="22" loading="lazy">') && h.includes('<img class="cic" src="img/monety/xaut.png" alt="" width="22" height="22" loading="lazy">'), 'Top 10 — jak dawniej przy obrazie wbudowanym');
+  assert.ok(h.includes('<i class="cic">ZA</i>'), 'zły adres — zapas (coinImg)');
+  const R = ico(v319.LOGO);
+  for (const s of Object.keys(v319.LOGO)) if (!R.CRYPTO_SVG.has(s.toLowerCase())) assert.equal(R.coinImg(s), '<img class="ico" src="' + v319.LOGO[s] + '" alt="" title="' + s + '" loading="lazy" decoding="async">', s + ': prawdziwe logo przyjęte');
+});
+
+test('v319: strona w atrapie — przy wejściu (GLOBAL) żadna wpisana treść nie wskazuje img/loga/ ani img/monety/ (bez pobierania obrazków poza logo mapy); ikony węzłów w ukrytej zakładce — piksel; po otwarciu CRYPTO pliki; GLOBAL bez zmian', () => {
+  const R = G126.run('pl'), A = R.api;
+  assert.deepEqual(R.ERR, [], 'bez błędów strony');
+  assert.equal(A.st.mode, 'global');
+  const przed = R.CAP.filter(c => c.k === 'html' && /img\/(loga|monety)\//.test(c.v));
+  assert.deepEqual(przed.map(c => c.id + ': ' + c.v.slice(0, 80)), [], 'przed otwarciem CRYPTO bez obrazków z plików img/loga/ i img/monety/');
+  assert.ok(R.el('chips').innerHTML.includes('data-id="btc" src="' + v319.PIX + '"') && R.el('chips').innerHTML.includes('data-id="defi" src="' + v319.PIX + '"'), 'ikony węzłów w ukrytej zakładce — piksel');
+  const GL = ['g-kpis', 'g-etf', 'g-prob', 'g-fg', 'tic', 'inst', 'bis', 'g-indeksy'];
+  const g1 = GL.map(id => R.el(id).innerHTML);
+  R.act('tryb crypto', () => A.setMode('crypto'));
+  assert.deepEqual(R.ERR, [], 'bez błędów po otwarciu');
+  const ch = R.el('chips').innerHTML, jasny = ch.includes('src="' + v319.JASNE.defi + '"');   /* atrapa: motyw systemowy jasny (matchMedia → false) — defi i depin w wariancie jasnym */
+  for (const id in v319.WEZLY) assert.ok(ch.includes('data-id="' + id + '" src="' + ((jasny && v319.JASNE[id]) || v319.WEZLY[id]) + '"'), id + ': po otwarciu plik');
+  assert.ok(!/data-id="(btc|eth|stab|defi|depin)" src="data:image\/gif/.test(ch), 'loga węzłów bez piksela');
+  R.act('powrót do GLOBAL', () => A.setMode('global'));
+  assert.deepEqual(GL.map(id => R.el(id).innerHTML), g1, 'GLOBAL po otwarciu grupy — ta sama treść');
 });

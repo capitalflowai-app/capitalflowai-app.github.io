@@ -31468,7 +31468,7 @@ class LogaKoszykowV296c(unittest.TestCase):
         html = open(os.path.join(here, 'index.html'), encoding='utf-8').read()
         a = html.index('const COIN_LOGO={'); b = html.index('\nconst BASKET={', a)
         part = html[a:b]
-        self.logo = dict(re.findall(r"[\"']?([A-Z0-9]+)[\"']?\s*:\s*[\"'](data:image/[a-z]+;base64,[A-Za-z0-9+/=]+)[\"']", part))
+        self.logo = dict(re.findall(r"[\"']?([A-Z0-9]+)[\"']?\s*:\s*[\"'](data:image/[a-z]+;base64,[A-Za-z0-9+/=]+|img/monety/[a-z0-9]+\.(?:webp|png))[\"']", part))   # v319: świadoma zmiana — także plik img/monety/ (dawniej tylko base64 w stronie)
         for x, y in re.findall(r'COIN_LOGO\.([A-Z0-9]+)=COIN_LOGO\.([A-Z0-9]+);', part):
             if y in self.logo:
                 self.logo[x] = self.logo[y]
@@ -31476,6 +31476,15 @@ class LogaKoszykowV296c(unittest.TestCase):
         self.basket = {k: re.findall(r"'([^']+)'", v) for k, v in re.findall(r"\n (\w+):\[([^\]]*)\]", html[i:j])}
         s = re.search(r"const CRYPTO_SVG=new Set\('([^']*)'\.split\(' '\)\);", html)
         self.svg = set(s.group(1).split())
+
+    def obraz(self, u):
+        """v319: (typ, bajty) logo — z pliku img/monety/<symbol>.webp|png (od v319) albo z obrazu base64 (dawniej w stronie)."""
+        import base64
+        if u.startswith('data:'):
+            mime, b64 = u[5:].split(';base64,')
+            return mime, base64.b64decode(b64)
+        with open(os.path.join(self.here, u), 'rb') as f:
+            return ('image/webp' if u.endswith('.webp') else 'image/png'), f.read()
 
     def test_kazda_moneta_ma_logo(self):
         import base64
@@ -31488,8 +31497,7 @@ class LogaKoszykowV296c(unittest.TestCase):
                 u = self.logo.get(s)
                 if not u:
                     bez.append(s); continue
-                mime, b64 = u[5:].split(';base64,')
-                raw = base64.b64decode(b64)
+                mime, raw = self.obraz(u)   # v319: świadoma zmiana — bajty z pliku img/monety/ (dawniej z base64 w stronie); typ z rozszerzenia, niżej porównany z bajtami
                 self.assertIn(mime, ('image/png', 'image/webp'), s)
                 self.assertEqual(zd._t10_mime(raw), mime, s + ': rodzaj z pierwszych bajtów')
                 self.assertLessEqual(len(raw), zd.T10_LOGO_MAX, s)
@@ -31499,11 +31507,11 @@ class LogaKoszykowV296c(unittest.TestCase):
     def test_nowe_loga_png_50px(self):
         import base64
         for s in self.NOWE:
-            raw = base64.b64decode(self.logo[s].split(';base64,')[1])
+            raw = self.obraz(self.logo[s])[1]   # v319: świadoma zmiana — bajty z pliku img/monety/
             self.assertEqual(raw[:8], b'\x89PNG\r\n\x1a\n', s)
             self.assertEqual((int.from_bytes(raw[16:20], 'big'), int.from_bytes(raw[20:24], 'big')), (50, 50), s)
-        self.assertNotEqual(self.logo['GRAM'], self.logo['TON'], 'GRAM (dawny TON) — obecne logo, nie dawne')
-        self.assertEqual(len({self.logo[s] for s in self.NOWE}), len(self.NOWE), 'każda moneta — własny obraz')
+        self.assertNotEqual(self.obraz(self.logo['GRAM'])[1], self.obraz(self.logo['TON'])[1], 'GRAM (dawny TON) — obecne logo, nie dawne')   # v319: świadoma zmiana — bajty plików
+        self.assertEqual(len({self.obraz(self.logo[s])[1] for s in self.NOWE}), len(self.NOWE), 'każda moneta — własny obraz')   # v319: świadoma zmiana — bajty plików
 
 
 # ===================== v296: TRENDY — druga runda po recenzji v293 (U2 blok z 6 sesji, U3 karta ceny NAV, P5 tygodnie funduszy) =====================
@@ -39033,3 +39041,103 @@ class SurowceRaportyV320(unittest.TestCase):
         sw = {x['zrodlo']: x for x in R['swiezosc']}
         self.assertEqual(sw[k.SR_K_ETYKIETA['zboza']]['status'], '✅'); self.assertEqual(sw[k.SR_K_ETYKIETA['ropa']]['data'], '2026-10-06')
         self.assertEqual(R['pliki']['surowce-raporty']['http'], 200)
+
+
+class ObrazkiZPlikowV319(unittest.TestCase):
+    """v319 (szybkość strony, etap 4): obrazki dawniej wbudowane w index.html jako base64 są plikami — img/loga/ (7 logo węzłów sceny CRYPTO,
+    256 px) i img/monety/ (91 logo monet, 48–50 px), te same bajty; strona po kompresji ok. 290 KB lżejsza dla każdego czytelnika. Pliki na miejscu,
+    format i wymiary z nagłówka zgodne z rozszerzeniem, publikacja ich wymaga, licencje opisują foldery; w index.html (także w lżejszej kopii
+    publikacji) żadnego obrazka base64 poza 1-pikselowym GIF-em (v308); logo z mapy GLOBAL zamawiane z <head>."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    PIX = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    RX_B64 = re.compile(r'data:image/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]{16,}')
+    RX_REF = re.compile(r'''(['"])(img/(?:loga|monety)/[a-z0-9-]+\.(?:webp|png))\1''')
+    WEZLY = ('btc.webp', 'eth.png', 'stab.webp', 'defi.webp', 'depin.webp', 'defi-jasny.webp', 'depin-jasny.webp')
+
+    def setUp(self):
+        with open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8') as f:
+            self.html = f.read()
+
+    @staticmethod
+    def wymiary(b):
+        """(format, szerokość, wysokość) z nagłówka pliku: PNG (IHDR) albo WebP (VP8X / VP8 / VP8L); inny = ('?', 0, 0)."""
+        import struct
+        if b[:8] == b'\x89PNG\r\n\x1a\n' and b[12:16] == b'IHDR':
+            w, h = struct.unpack('>II', b[16:24])
+            return 'png', w, h
+        if b[:4] == b'RIFF' and b[8:12] == b'WEBP':
+            ch = b[12:16]
+            if ch == b'VP8X':
+                return 'webp', 1 + int.from_bytes(b[24:27], 'little'), 1 + int.from_bytes(b[27:30], 'little')
+            if ch == b'VP8 ':
+                w, h = struct.unpack('<HH', b[26:30])
+                return 'webp', w & 0x3fff, h & 0x3fff
+            if ch == b'VP8L':
+                v = int.from_bytes(b[21:25], 'little')
+                return 'webp', (v & 0x3fff) + 1, ((v >> 14) & 0x3fff) + 1
+        return '?', 0, 0
+
+    def test_brak_obrazkow_base64_w_stronie(self):
+        inne = [m.group(0)[:48] for m in self.RX_B64.finditer(self.html) if m.group(0) != self.PIX]
+        self.assertEqual(inne, [], 'obrazek base64 w index.html — nowe obrazki dodawać jako pliki w img/ (v319)')
+        self.assertGreaterEqual(self.html.count(self.PIX), 1, 'piksel v308 zostaje (bez zapytania do sieci)')
+
+    def test_pliki_na_miejscu_format_i_wymiary(self):
+        refs = sorted({m.group(2) for m in self.RX_REF.finditer(self.html)})
+        self.assertEqual(len(refs), 98, '7 logo węzłów + 91 logo monet')
+        self.assertEqual(sorted(p for p in refs if p.startswith('img/loga/')), sorted('img/loga/' + n for n in self.WEZLY))
+        for p in refs:
+            f = os.path.join(self.ROOT, p)
+            self.assertTrue(os.path.isfile(f), 'brak pliku ' + p)
+            with open(f, 'rb') as fh:
+                b = fh.read()
+            fmt, w, h = self.wymiary(b)
+            self.assertEqual(fmt, p.rsplit('.', 1)[1], p + ': format z nagłówka zgodny z rozszerzeniem')
+            if p.startswith('img/loga/'):
+                self.assertEqual((w, h), (256, 256), p)
+                self.assertLessEqual(len(b), 40000, p)
+            else:
+                self.assertTrue(max(w, h) in (48, 50) and min(w, h) >= 40, f'{p}: {w}×{h}')
+                self.assertLessEqual(len(b), 12000, p)
+
+    def test_loga_monet_nazwa_to_symbol(self):
+        a = self.html.index('const COIN_LOGO={'); z = self.html.index('\nconst BASKET={', a)
+        pary = re.findall(r'''(?:\n |[{,])"?([A-Z0-9]+)"?:['"](img/monety/[a-z0-9]+\.(?:webp|png))['"]''', self.html[a:z])
+        self.assertEqual(len(pary), 91)
+        for sym, p in pary:
+            self.assertEqual(p.split('/')[-1].rsplit('.', 1)[0], sym.lower(), sym)
+        self.assertIn('COIN_LOGO.RENDER=COIN_LOGO.RNDR;', self.html[a:z], 'RENDER = dawny RNDR (ten sam plik)')
+
+    def test_pierwszy_widok_logo_mapy_z_head(self):
+        head = self.html[:self.html.index('</head>')]
+        self.assertEqual(re.findall(r'<link rel="preload"[^>]*>', head), ['<link rel="preload" as="image" href="img/loga/btc.webp" type="image/webp">'])
+        self.assertLess(head.index('<link href="fonts/fonts.css" rel="stylesheet">'), head.index('<link rel="preload" as="image"'))
+        self.assertIn("\n btc:'img/loga/btc.webp',", self.html, 'ten sam adres co logo węzła na mapie')
+        self.assertRegex(head, r"img-src 'self' data: blob: https:")
+
+    def test_lzejsza_kopia_publikacji(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v319_odchudz', os.path.join(self.ROOT, 'narzedzia', 'odchudz_strone.py'))
+        O = importlib.util.module_from_spec(spec); spec.loader.exec_module(O)
+        lek, _, _ = O.podziel(self.html)
+        self.assertEqual([m.group(0)[:48] for m in self.RX_B64.finditer(lek) if m.group(0) != self.PIX], [], 'lżejsza strona bez obrazków base64')
+        self.assertEqual(sorted({m.group(2) for m in self.RX_REF.finditer(lek)}), sorted({m.group(2) for m in self.RX_REF.finditer(self.html)}), 'te same odwołania do plików')
+        h = lek[:lek.index('</head>')]
+        self.assertIn('<link rel="preload" as="image" href="img/loga/btc.webp" type="image/webp">', h, 'zamówienie logo mapy zostaje w <head>')
+
+    def test_publikacja_wymaga_logo(self):
+        with open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8') as f:
+            w = f.read()
+        self.assertIn('cp -r img _site/img', w)
+        for p in ('_site/img/loga/btc.webp', '_site/img/monety/aave.webp'):
+            m = re.search(r'^ +test -f ' + re.escape(p) + r'(?: +#.*)?$', w, re.M)
+            self.assertIsNotNone(m, p + ': osobna linia (w liście „&&” błąd pierwszego członu nie przerywa kroku przy bash -e)')
+            self.assertLess(w.index('cp -r img _site/img'), m.start(), 'po skopiowaniu obrazków')
+            self.assertTrue(os.path.isfile(os.path.join(self.ROOT, p.replace('_site/', ''))), p)
+
+    def test_licencje_opisuja_foldery(self):
+        with open(os.path.join(self.ROOT, 'img', 'LICENCJE.txt'), encoding='utf-8') as f:
+            t = f.read()
+        for d in ('img/loga/', 'img/monety/'):
+            self.assertIn('\n' + d, t, d)
+        self.assertIn('znakami towarowymi ich właścicieli', t)
