@@ -21783,7 +21783,11 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
     Bez `oc` (None) wynik jest taki sam jak w v133.
     v169: `em` = blok issuer (dane emitentów, rwe_blok) — taki produkt BEZ pełnego odczytu z łańcucha, z bieżącymi danymi emitenta (rwe_uzyj), liczy się
     wartością emitenta (via 'e'), nigdy dwiema; w oknie dziennym ph pod kluczem produkt + RWE_PH (zmiany 7/30 dni tylko w obrębie źródła); plik dostaje
-    blok issuer z polami used / seg / hd. Bez `em` (None) wynik jak dotąd."""
+    blok issuer z polami used / seg / hd. Bez `em` (None) wynik jak dotąd.
+    v326-rwa (ZB10-01): produkt ukryty z zamiennikiem (odczyt z łańcucha / dane emitenta) BEZ zapisu hv — zimny start albo powrót na listę ukrytych po
+    przebiegu, w którym go tam nie było — którego źródło JAWNIE nie podaje wartości (odpowiedź „brak wartości”), liczy się zamiennikiem od razu
+    (nigdy obiema wartościami); brak odpowiedzi (błąd, budżet) — bez zmian. v326-rwa (ZB10-03): wartość z dzisiejszego pomiaru przy braku odpowiedzi
+    nie jest oznaczana jako przeniesiona (kolejny przebieg nie cofa się do D−1)."""
     now = now or _now_utc()
     now = now.astimezone(datetime.timezone.utc).replace(microsecond=0)
     day = now.date().isoformat()
@@ -21848,6 +21852,14 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
             v = emv[s]
             rows[s]['via'] = 'e'
             em_used.append(s)
+        elif r is None and hidden_vals.get(s, 0) is None and s in ocv:   # v326 ZB10-01: bez zapisu hv (produkt wrócił na listę ukrytych albo to zimny start),
+            v = ocv[s]                                                    # a źródło JAWNIE nie podaje wartości (odpowiedź „brak wartości”) — zamiennik liczy się
+            rows[s]['via'] = 'o'                                          # tak samo jak przy zapisie „brak wartości od”; brak odpowiedzi (błąd, budżet) — bez zmian
+            oc_used.append(s)
+        elif r is None and hidden_vals.get(s, 0) is None and s in emv:
+            v = emv[s]
+            rows[s]['via'] = 'e'
+            em_used.append(s)
         elif r and r[4]:
             stale.append((s, r, 'g'))
         elif r and first(r):
@@ -21867,7 +21879,8 @@ def rwa_build(parsed, hidden_vals, prev=None, now=None, hidden_ok=True, gold=Non
                     v = x * 1e6
                     rows[s]['via'] = 'k'
                     kept += 1
-                    kept_s.append(s)
+                    if d != day:                                          # v326 ZB10-03: wartość z dzisiejszego pomiaru nie jest „przeniesiona” — bez oznaczenia
+                        kept_s.append(s)                                  # (inaczej kolejny przebieg bez odpowiedzi pomijał ją i cofał się do D−1)
                     break
         rows[s]['v'] = v
     val = {s: r['v'] for s, r in rows.items() if r['v'] is not None}
@@ -23588,13 +23601,15 @@ def rwe_wylaczony(prev_em, now, oc=None, ref=None, S=None):
 
 def rwe_meta(rw, off, cached=False):
     """Stan źródła w META (strona Źródła): 'rwa-emitenci' = 'cached' (plik z pamięci / poprzedni plik) albo ok bloku; wyłączony = notatka bez wpisu
-    stanu; plik bez bloku issuer = bez wpisu."""
+    stanu; plik bez bloku issuer = bez wpisu. v326 (GL-06): ostatni odczyt bloku nieudany (ok = False) zostaje błędem także w przebiegu z pamięci —
+    'cached' przykrywało otwartą serię awarii (strona: „bez błędu 91 z 91”); seria w meta.awarie trwa do udanego odczytu."""
     if off:
         META['notes'].append(f'{RWE_LABEL}: wyłączone zmienną RWA_EM_OFF — bez zapytań do emitentów; sumy bez danych emitentów')
         return
     em = rw.get('issuer') if isinstance(rw, dict) else None
     if isinstance(em, dict) and not em.get('off'):
-        META['ok']['rwa-emitenci'] = 'cached' if cached else em.get('ok') is True
+        ok = em.get('ok')
+        META['ok']['rwa-emitenci'] = False if ok is False else ('cached' if cached else ok is True)   # v326 GL-06: błąd ostatniego odczytu widać także z pamięci
 
 
 # ===================== v305: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW — data/szlaki.json (dział SUROWCE, etapy 4 i 9 — część) =====================

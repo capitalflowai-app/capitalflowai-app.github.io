@@ -39544,3 +39544,213 @@ class StopySurowceV325(unittest.TestCase):
         self.assertEqual(asof, '2026-10-09'); self.assertEqual(ctx['bledy'], ['fmp BZUSD: same dni weekendowe'])
         self.assertIn('from=2026-03-20', urls[1], 'od ostatniej sesji (po czyszczeniu) − 10 dni')
         self.assertFalse([d for c in ('silver', 'brent_fut', 'gold_fut') for d in hist[c] if datetime.date.fromisoformat(d).weekday() >= 5])
+
+
+def _zb326_parsed(hidden, listed=None):
+    """Lista źródła: jedna pozycja z listy (0,5 mld, akcje), produkty ukryte (tvl null) i ewentualnie produkty z wartością na liście."""
+    rows = {'L0': {'name': 'L0', 'seg': 'eq', 'v': 5e8, 'via': 'l', 'unk': False}}
+    for s in hidden:
+        rows[s] = {'name': s, 'seg': 'tb', 'v': None, 'via': 'p', 'unk': False}
+    for s, v in (listed or {}).items():
+        rows[s] = {'name': s, 'seg': 'tb', 'v': v, 'via': 'l', 'unk': False}
+    return {'rows': rows, 'hidden': list(hidden), 'n': {'rwa': len(rows), 'dead': 0, 'bad_slug': 0, 'listed': 1, 'hidden': len(hidden), 'zero': 0}, 'c7_api': None}
+
+
+def _zb326_iso(t):
+    return t.replace(microsecond=0).isoformat()
+
+
+class RwaZb10V326(unittest.TestCase):
+    """v326-rwa (pas Z5 planu napraw): ZB10-01 (produkt z zamiennikiem bez zapisu hv liczy się zamiennikiem, gdy źródło jawnie nie podaje wartości),
+    ZB10-03 (dzisiejszy pomiar nie jest „przeniesiony”), GL-06 (rwe_meta: błąd ostatniego odczytu zostaje błędem także w przebiegu z pamięci).
+    Bez sieci i bez zegara (przypięte NOW)."""
+    UTC = datetime.timezone.utc
+    T0 = datetime.datetime(2026, 10, 1, 0, 7, tzinfo=datetime.timezone.utc)
+    NOW = datetime.datetime(2026, 10, 5, 6, 0, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        for n in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, n, side_effect=AssertionError('test nie może pytać sieci')))
+
+    # ------------------------------------------------------------------------------------------------ pomocnicze
+    def _em(self, now, prev_em=None):
+        """Blok issuer: tylko Spiko odpowiada (2,8 mld, stan godzinę temu), reszta konfiguracji z błędem."""
+        rd = {'at': _zb326_iso(now), 'r': {slug: ({'v': 2.8e9, 'as_of': _zb326_iso(now - datetime.timedelta(hours=1)), 'n': 14} if slug == 'spiko' else {'err': 'x'})
+                                           for slug in zd.RWE_PRODUKTY}, 'req': 1, 's': 0.1}
+        return zd.rwe_blok(rd, prev_em, now, oc=None, ref={'spiko': 2.8e9})
+
+    def _oc_em_pelne(self, now):
+        """Bloki zamienników dla CAŁEJ konfiguracji: odczyt z łańcucha (świeży) i dane emitentów (świeże)."""
+        rd = {'at': _zb326_iso(now), 'r': {slug: ({'oz': 5000.0, 'as_of': _zb326_iso(now)} if c['kind'] == 'xaum'
+                                                 else {'v': 3e8, 'as_of': _zb326_iso(now - datetime.timedelta(hours=1)), 'n': 1})
+                                           for slug, c in zd.RWE_PRODUKTY.items()}, 'req': 1, 's': 0.1}
+        T, O, W = zd.rwc_tokeny()
+        R = {sid: {'sup': {a: 1e6 for a, d in T.get(sid, [])}, 'dec': {a: d for a, d in T.get(sid, [])},
+                   'px': {i: ((4200 * 10 ** 8) if i == 'zloto' else int(1.1 * 10 ** 18), zd.rwc_iso(int(now.timestamp()) - 300)) for i, a in O.get(sid, [])},
+                   'own': {a: '0xe01605f6b6dc593b7d2917f4a0940db2a625b09e' for a in W.get(sid, [])}, 'blk': 1, 'req': 1, 'err': None} for sid in set(T) | set(O) | set(W)}
+        oc = zd.rwc_blok({'at': _zb326_iso(now), 'r': R, 'req': 1, 's': 0.1}, None, now, rez=None)
+        return oc, zd.rwe_blok(rd, None, now, oc=oc, ref={})
+
+    def _w_sumach(self, out, slug):
+        return [t for t in out['top'] if t[0] == slug]
+
+    # ------------------------------------------------------------------------------------------------ ZB10-01
+    def test_zb10_01_produkt_z_emitentem_wraca_po_wypadnieciu_z_listy_ukrytych(self):
+        """Spiko liczy się z danych emitenta (zapis hv „brak wartości od”); w jednym przebiegu źródło poda go na liście (poza listą ukrytych — zapis
+        hv znika), potem wraca z odpowiedzią „0”: ma dalej liczyć się z danych emitenta (dotąd: poza sumami na stałe)."""
+        prev = pem = None
+        plan = [(True, 2.0e9), (True, 2.1e9), (True, None), (True, None), (False, None), (True, None), (True, None), (True, None)]
+        for k, (hid, ans) in enumerate(plan):
+            now = self.T0 + datetime.timedelta(hours=3 * k)
+            pem = self._em(now, pem)
+            P = _zb326_parsed(['spiko'] if hid else [], listed=None if hid else {'spiko': 2.79e9})
+            out = zd.rwa_build(P, {'spiko': ans} if hid else {}, prev, now, hidden_ok=True, gold=None, oc=None, em=pem)
+            prev = json.loads(json.dumps(out))
+            if k >= 2:
+                sp = self._w_sumach(out, 'spiko')
+                self.assertTrue(sp, f'przebieg {k}: Spiko musi być w sumach')
+                self.assertEqual(sp[0][6], 'l' if k == 4 else 'e', 'przebieg 4 — wartość z listy źródła, w pozostałych emitent')
+                self.assertEqual(out['seg']['all']['v'], round(5e8 + (2.79e9 if k == 4 else 2.8e9)), f'przebieg {k}: nigdy dwie wartości jednego produktu')
+        self.assertEqual(out['seg']['all']['n'], 2)
+        self.assertEqual(sorted(out['issuer']['used']), ['spiko'])
+
+    def test_zb10_01_produkt_z_lancucha_bez_zapisu_liczy_sie_zamiennikiem(self):
+        """To samo dla odczytu własnego z łańcucha (via 'o'): produkt (BlackRock BUIDL) po przebiegu poza listą ukrytych, źródło odpowiada „0”."""
+        oc, em = self._oc_em_pelne(self.NOW)
+        self.assertIn('blackrock-buidl', zd.rwc_uzyj(oc, self.NOW))
+        prev = None
+        wart = None
+        for k, (hid, ans) in enumerate([(True, 4e9), (True, 4.1e9), (True, None), (False, None), (True, None), (True, None)]):
+            now = self.NOW + datetime.timedelta(hours=3 * k)
+            oc_k, em_k = self._oc_em_pelne(now)
+            P = _zb326_parsed(['blackrock-buidl'] if hid else [], listed=None if hid else {'blackrock-buidl': 2.2e9})
+            out = zd.rwa_build(P, {'blackrock-buidl': ans} if hid else {}, prev, now, hidden_ok=True, gold=None, oc=oc_k, em=em_k)
+            prev = json.loads(json.dumps(out))
+            if k == 2:
+                wart = self._w_sumach(out, 'blackrock-buidl')[0][3]
+            if k >= 4:
+                t = self._w_sumach(out, 'blackrock-buidl')
+                self.assertTrue(t, f'przebieg {k}: BUIDL musi być w sumach')
+                self.assertEqual((t[0][6], t[0][3]), ('o', wart), 'wartość z łańcucha, ta sama co przed wypadnięciem z listy ukrytych')
+                self.assertIn('blackrock-buidl', out['onchain']['used'])
+
+    def test_zb10_01_zimny_start_odpowiedz_zero_liczy_zamienniki_od_razu(self):
+        """Brak poprzedniego pliku (pamięć Actions i strona), źródło odpowiada „0” dla wszystkich produktów konfiguracji zamienników: wszystkie ze świeżym
+        zamiennikiem liczą się od pierwszego przebiegu — każdy raz (odczyt z łańcucha albo dane emitenta), suma = lista + zamienniki."""
+        cfg = sorted(set(zd.RWC_PRODUKTY) | set(zd.RWE_PRODUKTY))
+        oc, em = self._oc_em_pelne(self.NOW)
+        P = _zb326_parsed(cfg)
+        out = zd.rwa_build(P, {s: None for s in cfg}, None, self.NOW, hidden_ok=True, gold=None, oc=oc, em=em)
+        used_o, used_e = out['onchain']['used'], out['issuer']['used']
+        self.assertFalse(set(used_o) & set(used_e), 'nigdy dwiema wartościami')
+        self.assertGreaterEqual(len(used_o) + len(used_e), 10)
+        self.assertEqual(out['seg']['all']['v'], round(5e8 + sum(used_o.values()) + sum(used_e.values())))
+        self.assertEqual(out['n']['wait'], 0)
+        for s in used_o:
+            self.assertIn(s, set(zd.rwc_uzyj(oc, self.NOW)))
+        # drugi przebieg z poprzednim plikiem (bez zapisów hv produktów) — suma ta sama
+        out2 = zd.rwa_build(P, {s: None for s in cfg}, json.loads(json.dumps(out)), self.NOW + datetime.timedelta(minutes=10), hidden_ok=True, gold=None, oc=oc, em=em)
+        self.assertEqual(out2['seg']['all']['v'], out['seg']['all']['v'])
+
+    def test_zb10_01_bez_odpowiedzi_i_bez_zapisu_nie_podstawia(self):
+        """Źródło nie odpowiedziało (brak klucza w odpowiedziach — błąd, budżet): bez zapisu hv produkt zostaje poza sumami tego przebiegu (jak dotąd);
+        produkt spoza konfiguracji zamienników z odpowiedzią „0” — też poza sumami."""
+        cfg = ['spiko', 'inny-produkt']
+        em = self._em(self.NOW)
+        P = _zb326_parsed(cfg)
+        out = zd.rwa_build(P, {}, None, self.NOW, hidden_ok=False, gold=None, oc=None, em=em)
+        self.assertEqual(out['seg']['all']['v'], round(5e8), 'brak odpowiedzi + brak zapisu = bez zmian względem v320')
+        out = zd.rwa_build(P, {'spiko': None, 'inny-produkt': None}, None, self.NOW, hidden_ok=True, gold=None, oc=None, em=em)
+        self.assertEqual(out['issuer']['used'], {'spiko': 2.8e9})
+        self.assertFalse(self._w_sumach(out, 'inny-produkt'))
+        self.assertEqual(out['seg']['all']['v'], round(5e8 + 2.8e9))
+
+    def test_zb10_01_zrodlo_z_wartoscia_nie_jest_liczone_podwojnie(self):
+        """Źródło poda wartość produktu z zamiennikiem: licząc od drugiego odczytu liczy się wartość źródła (via 'p'), nigdy obie."""
+        prev = pem = None
+        for k, ans in enumerate([2.80e9, 2.80e9, 2.85e9]):
+            now = self.T0 + datetime.timedelta(hours=3 * k)
+            pem = self._em(now, pem)
+            out = zd.rwa_build(_zb326_parsed(['spiko']), {'spiko': ans}, prev, now, hidden_ok=True, gold=None, oc=None, em=pem)
+            prev = json.loads(json.dumps(out))
+        sp = self._w_sumach(out, 'spiko')
+        self.assertEqual((sp[0][6], sp[0][3]), ('p', round(2.85e9)))
+        self.assertEqual(out['issuer']['used'], {})
+        self.assertEqual(out['seg']['all']['v'], round(5e8 + 2.85e9))
+
+    # ------------------------------------------------------------------------------------------------ ZB10-03
+    def test_zb10_03_dzisiejszy_pomiar_nie_jest_przeniesiony(self):
+        """Pomiar 120 mln o 00:00, potem trzy przebiegi bez odpowiedzi tego samego dnia: suma zostaje 120 mln (dotąd od drugiego przebiegu — 100 mln z D−1)
+        i dzisiejszy pomiar nie trafia do ph.kept."""
+        prev = None
+        steps = [(1, 0, 100_000_000.0), (1, 21, 100_000_100.0), (2, 0, 120_000_000.0), (2, 3, None), (2, 6, None), (2, 9, None)]
+        for day, hour, val in steps:
+            now = datetime.datetime(2026, 10, day, hour, 0, tzinfo=self.UTC)
+            out = zd.rwa_build(_zb326_parsed(['prod-a']), {} if val is None else {'prod-a': val}, prev, now, hidden_ok=val is not None)
+            prev = json.loads(json.dumps(out))
+            if day == 2 and val is None:
+                self.assertEqual(out['seg']['all']['v'] - 5e8, 120_000_000, f'{hour:02d}:00 — wartość z dzisiejszego pomiaru')
+                self.assertEqual(out['n']['kept'], 1, 'nadal wartość bez odpowiedzi w tym przebiegu')
+                self.assertNotIn('2026-10-02', out['ph']['kept'], 'dzisiejszy pomiar nie jest „przeniesiony”')
+
+    def test_zb10_03_przeniesienie_z_poprzedniego_dnia_dziala_jak_dotad(self):
+        """Pomiar z D bez odpowiedzi w D+1: wartość przeniesiona (oznaczona), w D+2 jeszcze raz, w D+3 już nie (najwyżej 2 dni od pomiaru)."""
+        prev = None
+        out = None
+        for day, hour, val in [(1, 0, 100_000_000.0), (1, 3, 100_000_100.0), (2, 0, None), (2, 3, None), (3, 0, None), (3, 3, None), (4, 0, None)]:
+            now = datetime.datetime(2026, 10, day, hour, 0, tzinfo=self.UTC)
+            out = zd.rwa_build(_zb326_parsed(['prod-a']), {} if val is None else {'prod-a': val}, prev, now, hidden_ok=val is not None)
+            prev = json.loads(json.dumps(out))
+            if (day, hour) in ((2, 0), (2, 3)):
+                self.assertEqual((out['seg']['all']['v'] - 5e8, out['ph']['kept'].get('2026-10-02')), (100_000_000, ['prod-a']))
+            if (day, hour) == (3, 3):
+                self.assertEqual(out['seg']['all']['v'] - 5e8, 100_000_000, 'wartość z D−2 wciąż w oknie przeniesienia (okno dzienne trzyma mln z rozdzielczością 0,1)')
+        self.assertEqual(out['seg']['all']['v'], round(5e8), 'D+3: za stara — brak wartości, nigdy zero')
+
+    # ------------------------------------------------------------------------------------------------ GL-06
+    def test_gl06_rwe_meta_blad_odczytu_nie_jest_przykryty_pamiecia(self):
+        for ok, cached, oczekiwane in [(False, True, False), (False, False, False), (True, True, 'cached'), (True, False, True), (None, True, 'cached'), (None, False, False)]:
+            zd.META['ok'].clear()
+            zd.rwe_meta({'issuer': {'v': 1, 'ok': ok} if ok is not None else {'v': 1}}, False, cached=cached)
+            if isinstance(oczekiwane, bool):
+                self.assertIs(zd.META['ok']['rwa-emitenci'], oczekiwane, (ok, cached))
+            else:
+                self.assertEqual(zd.META['ok']['rwa-emitenci'], oczekiwane, (ok, cached))
+        zd.META['ok'].clear(); zd.META['notes'].clear()
+        zd.rwe_meta({'issuer': {'v': 1, 'ok': False}}, True, cached=True)
+        self.assertNotIn('rwa-emitenci', zd.META['ok'], 'wyłączone zmienną — bez wpisu stanu'); self.assertEqual(len(zd.META['notes']), 1)
+        for rw in ({'issuer': {'v': 1, 'off': True, 'ok': False}}, {'seg': {}}, None):
+            zd.META['ok'].clear()
+            zd.rwe_meta(rw, False, cached=True)
+            self.assertNotIn('rwa-emitenci', zd.META['ok'], 'plik bez bloku albo blok wyłączony — bez wpisu')
+
+    def test_gl06_main_przebieg_z_pamieci_przy_nieudanym_odczycie_emitentow(self):
+        """main(): plik młodszy niż okres odświeżania (przebieg z pamięci) z blokiem issuer ok = False → META.ok['rwa-emitenci'] = False (strona Źródła
+        liczy to jako błąd); z ok = True → 'cached'. Rytm odświeżania bez zmian (build_rwa nie jest wołany)."""
+        H = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
+        base = {'seg': {'all': {}}, 'hist': [], 'ok': {'list': True, 'hidden': True}}
+        p = {s: {} for s in zd.RWE_PRODUKTY}
+        s, kw = RwaEmitenciV169._main(self, dict(base, at=H(1), issuer={'v': 1, 'at': H(1), 'ok': False, 'p': p}))
+        self.assertEqual(kw, []); self.assertIs(zd.META['ok']['rwa-emitenci'], False); self.assertEqual(zd.META['ok']['rwa'], 'cached')
+        s, kw = RwaEmitenciV169._main(self, dict(base, at=H(1), issuer={'v': 1, 'at': H(1), 'ok': True, 'p': p}))
+        self.assertEqual(kw, []); self.assertEqual(zd.META['ok']['rwa-emitenci'], 'cached')
+
+    def test_gl06_seria_awarii_trwa_do_udanego_odczytu(self):
+        """meta.awarie: przebiegi z pamięci po nieudanym odczycie utrzymują otwartą serię (ost = ostatni przebieg), udany odczyt ją zamyka; przebieg
+        z pamięci po udanym odczycie serii nie otwiera."""
+        t = self.NOW
+        aw = None
+        for k, (ok_issuer, cached) in enumerate([(True, False), (True, True), (False, False), (False, True), (False, True), (False, False), (True, False), (True, True)]):
+            zd.META['ok'].clear()
+            zd.rwe_meta({'issuer': {'v': 1, 'ok': ok_issuer}}, False, cached=cached)
+            now = (t + datetime.timedelta(minutes=10 * k)).isoformat()
+            aw = zd.awarie(aw, zd.META['ok'], now)
+            if k == 1:
+                self.assertNotIn('rwa-emitenci', aw, 'przebieg z pamięci po udanym odczycie serii nie otwiera')
+            if k == 2:
+                self.assertIsNone(aw['rwa-emitenci']['do'])
+            if k == 5:
+                self.assertIsNone(aw['rwa-emitenci']['do']); self.assertEqual(aw['rwa-emitenci']['n'], 4, 'n liczy przebiegi ze stanem „nieudany” (także z pamięci)')
+        self.assertIsNotNone(aw['rwa-emitenci']['do'], 'udany odczyt zamyka serię'); self.assertEqual(aw['rwa-emitenci']['n'], 4)
