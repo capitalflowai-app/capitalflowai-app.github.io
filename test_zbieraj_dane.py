@@ -14853,7 +14853,7 @@ class FedV131(unittest.TestCase):
         self.assertIn("fr = fed_swiezosc(files.get('fed'))", k); self.assertLess(k.index("fr = fed_swiezosc(files.get('fed'))"), k.index('# 3d. v115: zgodność liczb'))
         h = open(os.path.join(root, 'index.html'), encoding='utf-8').read()
         self.assertEqual(h.count('<section class="panel pcard" id="g-fed" hidden></section>'), 1); self.assertIn("srvJSON('fed')", h)
-        self.assertTrue(h.index('<section class="panel pcard" id="g-prob" hidden></section>') < h.index('id="g-fed"') < h.index('id="g-q"') < h.index('id="tv-markets"'), 'zaraz po g-prob, przed widgetami')
+        self.assertTrue(h.index('<section class="panel pcard" id="g-prob" hidden></section>') < h.index('id="g-fed"') < h.index('id="g-q"') and 'id="tv-markets"' not in h, 'zaraz po g-prob (v321: widgety TradingView usunięte)')
         self.assertEqual(h.count('Kalshi'), 1, 'nazwa rynku na stronie jeden raz (stała FED_VENUE)'); self.assertIn("const FED_VENUE={ks:'Kalshi'};", h)
         self.assertEqual(h.count('const EXTRA128='), 1); self.assertNotIn('KXFEDDECISION', h, 'kod serii tylko w pliku danych')
         me = open(__file__, encoding='utf-8').read(); a = me.index('class FedV131(')
@@ -18516,7 +18516,7 @@ class IciV134(unittest.TestCase):
         self.assertNotIn("R['bledy'].append(f'{label}", kz[kz.index('ici_swiezosc('):kz.index('ici_swiezosc(') + 600], 'świeżość funduszy nigdy nie jest błędem')
         h = open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8').read()
         self.assertEqual(h.count('<section class="panel pcard" id="g-fund" hidden></section>'), 1); self.assertIn("srvJSON('ici')", h); self.assertIn('const EXTRA143=', h)
-        self.assertTrue(h.index('id="g-usa"') < h.index('id="g-fund"') < h.index('id="g-indeksy"') < h.index('id="inst"') < h.index('id="tv-markets"'))
+        self.assertTrue(h.index('id="g-usa"') < h.index('id="g-fund"') < h.index('id="g-indeksy"') < h.index('id="inst"') < h.index('id="g-etf"') and 'id="tv-markets"' not in h)   # v321: bez widgetów TradingView; na dole GLOBAL panel krypto (g-etf)
         wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
         self.assertNotIn('ICI', wf, 'żadnego sekretu — źródło publiczne')
         sy = open(os.path.join(self.ROOT, '.github', 'workflows', 'sondy.yml'), encoding='utf-8').read()
@@ -39212,3 +39212,84 @@ class V324pSondaFala0(unittest.TestCase):
         for i in (0, 45, 89):
             self.assertIn(f'pz-rolne | env=- | F1Z1_x{i:02d} | HTTP 200 | 12 ms | 345 B | n=1', joined, 'wiersz pz ściśnięty, w adnotacji')
         self.assertIn('coinalyze', joined); self.assertNotIn('deribit', joined, 'wiersze innych sond nie trafiają do adnotacji')
+
+
+# ===================== v321 (WYGLAD_GLOBAL): wygląd według decyzji właściciela z 10.10.2026 — strona bez TradingView; kafelki GLOBAL „Złoto” i „Ropa Brent”
+# z pliku surowców (te same serie co Puls); słownik nowych tekstów. Testy bez sieci i bez zegara: tekst strony i stałe zbieracza. =====================
+import re as _re_v321  # noqa: E402
+
+
+class WygladGlobalV321(unittest.TestCase):
+    """v321 (agent GLOBAL): (3) widgety TradingView usunięte — strona nie wczytuje cudzych skryptów ani ramek (CSP); (4) GLOBAL = rynki świata — w górnym
+    rzędzie złoto i ropa Brent: zmiana za okres przełącznika GLOBAL (1 / 5 / 21 / 63 / 252 sesje wstecz) — 1D…1KW z data/surowce.json (SU_D sesji),
+    1R z data/surowce-hist.json (SU_H sesji), który strona pobiera dopiero po wybraniu 1R (pierwszy widok bez nowego pliku). Seria i jednostka — te,
+    które zbieracz zapisuje dla Pulsu (SU_CENY); uwaga o cenie bez potwierdzenia z kontraktem terminowym (SU_KONTR, SU_FUT strony)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(cls.ROOT, 'index.html'), encoding='utf-8') as f:
+            cls.h = f.read()
+
+    def test_bez_tradingview(self):
+        h = self.h
+        gp = _re_v321.search(r'\nconst GT_PROV=/[^\n]*', h).group(0)
+        self.assertRegex(gp, r'Trading \?View', 'nazwa zostaje tylko w strażniku nazw dostawców')
+        self.assertIsNone(_re_v321.search(r'(?i)trading\s?view', h.replace(gp, '')), 'poza strażnikiem — ani słowa')
+        csp = _re_v321.search(r'<meta http-equiv="Content-Security-Policy" content="([^"]+)">', h).group(1)
+        self.assertIn("script-src 'self' 'unsafe-inline';", csp)
+        self.assertIn("frame-src 'none';", csp)
+        self.assertNotRegex(csp, r'(?i)tradingview|s3\.')
+        self.assertNotIn('id="tv-', h)
+        self.assertEqual(h.count("try{localStorage.removeItem('cfai.tv.ok');}catch(e){}"), 1, 'dawna zgoda sprzątana przy wczytaniu')
+
+    def test_okresy_kafli_a_dlugosc_plikow_surowcow(self):
+        m = _re_v321.search(r"const SU_K_N=\{'1D':(\d+),'1T':(\d+),'1M':(\d+),'1Q':(\d+),'1R':(\d+)\}", self.h)
+        k = [int(x) for x in m.groups()]
+        self.assertEqual(k, [1, 5, 21, 63, 252], 'sesje wstecz jak ceny funduszy krajowych na mapie (GCENY_N)')
+        self.assertIn("const GCENY_N={'1T':5,'1M':21,'1Q':63,'1R':252};", self.h)
+        self.assertGreater(zd.SU_D, k[3], '1KW (63 sesje) z samego surowce.json — bez pliku historii')
+        self.assertLessEqual(zd.SU_D, k[4], '1R z historii (surowce.json jest krótszy)')
+        self.assertGreater(zd.SU_H, k[4], '1R (252 sesje) z surowce-hist.json')
+
+    def test_serie_zlota_i_brenta_jak_w_pulsie(self):
+        C = {c: (g, u) for c, g, u, *_ in zd.SU_CENY}
+        self.assertEqual(C['gold'], ('ms', 'USD/oz'))
+        self.assertEqual(C['brent'], ('en', 'USD/bbl'))
+        self.assertIn('brent_fut', zd.SU_KONTR, 'kontrakt terminowy do uwagi o cenie bez potwierdzenia')
+        h = self.h
+        self.assertIn("const SU_FUT={brent:'brent_fut'};", h)
+        self.assertIn("if(typeof suKpi==='function')GKPI.push(suKpi('gold','w321.k.gold',per),suKpi('brent','w321.k.brent',per));", h)
+        self.assertIn("const GKPI_TOP=['g.k.eq','g.k.dxy','g.k.us10','g.k.de10','w321.k.gold','w321.k.brent'];", h)
+        self.assertIn("const s=suSer('ceny',id),R=s?suRows(s.d,SU_D):[],V=suVal(R);if(!V.length)return o;", h, 'ta sama seria co Puls (suTile)')
+
+    def test_pierwszy_widok_bez_nowego_pliku(self):
+        h = self.h
+        self.assertIn("['oecd','rynki','ceny','kursy','dzis','krypto','cmc'].forEach(n=>srvJSON(n));", h, 'pliki pierwszego widoku (v299) bez zmian')
+        gr = _re_v321.search(r'const SRV_GR=\{([^}]*)\};', h).group(1)
+        self.assertNotIn('surowce', gr, 'plik surowców poza bramką grup — wczytywany przy starcie (panel „Surowce”)')
+        self.assertEqual(h.count("srvJSON('surowce-hist')"), 2, 'historia tylko leniwie: bloki z wykresami Pulsu (suHist) i kafle przy 1R (suKpiHist)')
+        k0 = h.index('function suKpi(id,key,per){')
+        self.assertIn("else if(per==='1R'&&!SU.hx){o.why=t('w321.k.n.load');suKpiHist();return o;}", h[k0:h.index('function suKpiHist(', k0)])
+        self.assertIn("function suKpiHist(){if(SU.h||SU.hl)return;suHist();", h, 'jedno pobranie (to samo co Puls)')
+        self.assertIn("srvJSON('surowce').then(()=>setTimeout(()=>{SUK.tried=true;gSuRefresh();},0));", h, 'kafle po pierwszym wczytaniu pliku surowców')
+
+    def test_slownik_w321(self):
+        m = _re_v321.search(r'\nconst (EXTRA\d+)=(\{"pl":\{"w321\.[^\n]*?\});\nfor\(const l in \1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n', self.h)
+        self.assertIsNotNone(m, 'czysty JSON i jedna linia for')
+        D = json.loads(m.group(2))
+        self.assertEqual(list(D), self.L10)
+        K = list(D['pl'])
+        for lang in self.L10:
+            self.assertEqual(list(D[lang]), K, lang)
+            for k in K:
+                self.assertEqual(sorted(_re_v321.findall(r'\{[a-z]+\}', D[lang][k])), sorted(_re_v321.findall(r'\{[a-z]+\}', D['pl'][k])), f'{lang} {k}')
+                if lang != 'en' and _re_v321.search(r'[A-Za-z]{4}', D[lang][k]):   # reguła strażnika v142: skrót bez słowa (np. „1M”) może być taki sam
+                    self.assertNotEqual(D[lang][k], D['en'][k], f'{lang} {k}: tłumaczenie, nie kopia angielskiego')
+        self.assertEqual(D['pl']['w321.cov.t'], 'Pokrycie danych GLOBAL')
+        # przegląd 10.10: skróty pod kółkami wartości wstecz w języku strony (pl jak dotąd 1D / 1T / 1M, en 1W jak przycisk okresu)
+        self.assertEqual([D[x]['w321.h.1w'] for x in ('pl', 'en', 'de', 'fr')], ['1T', '1W', '1W', '1S'])
+        self.assertEqual(D['pl']['w321.h.1d'] + D['pl']['w321.h.1m'], '1D1M')
+        self.assertEqual(D['pl']['w321.k.gold'], 'Złoto')
+        self.assertEqual(D['pl']['w321.k.brent'], 'Ropa Brent')

@@ -186,81 +186,8 @@ test('sekcja danych urzędowych: mln → mld z jednym miejscem, grupowanie jak w
   for (const key of ['inst.tga', 'inst.rrp', 'inst.soma', 'inst.tgb.t', 'inst.mof.t', 'inst.not1']) assert.ok(html.includes(`"${key}":`), key);
 });
 
-// v41: oficjalne widgety TradingView — tylko po kliknięciu (zgoda cfai.tv.ok), atrybucja zachowana, motyw i język ze strony
-const tv0 = html.indexOf('/* v41: TradingView — początek');
-const tv1 = html.indexOf('/* v41: TradingView — koniec */', tv0);
-assert.ok(tv0 > 0 && tv1 > tv0, 'blok TradingView istnieje');
-const tvBlock = html.slice(tv0, tv1);
-const tvFor = (lang, theme) => new Function('LANG', 't', 'document', 'localStorage', '$', 'escH',
-  tvBlock + '\nreturn {TV, TV_LOCALE, TV_W, tvLocale, tvTheme, tvMarkup, tvOk};')(
-  lang, (k, v) => v ? k + ':' + JSON.stringify(v) : k, { documentElement: { dataset: { theme } } },
-  { getItem() { throw new Error('bez pamięci'); }, setItem() { throw new Error('bez pamięci'); } }, () => null, s => String(s));
-
-test('TradingView: bez kliknięcia w kodzie strony nie ma żadnego elementu ładowanego z domen TradingView', () => {
-  assert.doesNotMatch(html, /<script[^>]*src=["'][^"']*tradingview/i, 'skrypt TradingView w HTML');
-  assert.doesNotMatch(html, /<iframe[^>]*tradingview/i, 'iframe TradingView w HTML');
-  assert.doesNotMatch(html, /<(link|img|source|embed|object)[^>]*tradingview/i, 'inny element z adresem TradingView');
-  assert.doesNotMatch(html, /tradingview-widget\.com\/w\//, 'komponent web TradingView (język zaszyty w adresie) nie jest używany');
-  // jedyne miejsce włączające widget sprawdza zgodę; adres skryptu jest budowany tylko w tvMount
-  assert.equal((tvBlock.match(/TV\.loaded\[k\]=true/g) || []).length, 1);
-  assert.ok(tvBlock.includes("function tvOn(k){if(!tvOk())return;TV.loaded[k]=true;"), 'włączenie tylko za zgodą');
-  assert.equal((html.match(/https:\/\/s3\.tradingview\.com\/external-embedding\//g) || []).length, 1, 'adres loadera tylko w stałej TV.HOST (nazwa domeny w tekście „Źródła i prawa” i host w polityce CSP to nie adresy loadera)');
-  assert.ok(html.includes("KEY:'cfai.tv.ok'"), 'klucz zgody w localStorage');
-});
-
-test('TradingView: sekcje w istniejących klasach, na samym dole GLOBAL i CRYPTO (v126.1: widgety TradingView na dole), ukryte bez JS', () => {
-  /* v126.1 (decyzja właściciela 27.09): widgety zostają, ale są ostatnimi sekcjami zakładek — po wszystkich panelach danych */
-  const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
-  const cEnd = html.indexOf('</main>', html.indexOf('id="crypto"')), gEnd = html.indexOf('<section class="global" id="trendy"');
-  const cLast = sec('krypto'), gLast = sec('inst');
-  for (const id of ['tv-heatmap', 'tv-chart', 'tv-dvol', 'tv-newsc']) { const i = sec(id); assert.ok(i > cLast && i < cEnd, 'CRYPTO na dole: ' + id); }
-  for (const id of ['tv-markets', 'tv-calendar', 'tv-news']) { const i = sec(id); assert.ok(i > gLast && i < gEnd, 'GLOBAL na dole: ' + id); }
-  assert.ok(sec('tv-heatmap') < sec('tv-chart') && sec('tv-chart') < sec('tv-dvol') && sec('tv-dvol') < sec('tv-newsc'), 'kolejność CRYPTO bez zmian');
-  assert.ok(sec('tv-markets') < sec('tv-calendar') && sec('tv-calendar') < sec('tv-news'), 'kolejność GLOBAL bez zmian');
-  const between = (a, b) => html.slice(a, b).match(/<section [^>]*id="([^"]+)"/g) || [];
-  assert.deepEqual(between(sec('tv-heatmap'), cEnd).map(s => s.match(/id="([^"]+)"/)[1]), ['tv-heatmap', 'tv-chart', 'tv-dvol', 'tv-newsc'], 'po widgetach nic w CRYPTO');
-  assert.deepEqual(between(sec('tv-markets'), gEnd).map(s => s.match(/id="([^"]+)"/)[1]), ['tv-markets', 'tv-calendar', 'tv-news'], 'po widgetach nic w GLOBAL');
-});
-
-test('TradingView: bez pamięci przeglądarki zgoda = brak; język i motyw strony trafiają do konfiguracji', () => {
-  const de = tvFor('de', 'light');
-  assert.equal(de.tvOk(), false);
-  assert.equal(de.tvLocale(), 'de_DE');
-  assert.deepEqual(Object.keys(de.TV_LOCALE).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
-  assert.equal(de.TV_LOCALE.pt, 'br'); assert.equal(de.TV_LOCALE.zh, 'zh_CN');
-  const m = de.TV_W.markets.cfg(), c = de.TV_W.calendar.cfg(), h = de.TV_W.heatmap.cfg(), a = de.TV_W.chart.cfg();
-  assert.equal(m.colorTheme, 'light'); assert.equal(m.locale, 'de_DE'); assert.equal(m.width, '100%'); assert.equal(m.isTransparent, false, 'v41.1: z true widget rysuje się na biało w ciemnym motywie');
-  assert.equal(m.tabs.length, 4); assert.equal(m.tabs[0].title, 'tv.tab.idx'); assert.equal(m.tabs[0].originalTitle, 'Indices');
-  assert.equal(c.colorTheme, 'light'); assert.equal(c.locale, 'de_DE'); assert.equal(c.importanceFilter, '1'); assert.equal(c.countryFilter, 'us,eu,gb,jp,cn,de'); assert.equal(c.isTransparent, false);
-  assert.equal(h.dataSource, 'Crypto'); assert.equal(h.blockSize, 'market_cap_calc'); assert.equal(h.blockColor, '24h_close_change|5'); assert.equal(h.colorTheme, 'light'); assert.equal(h.locale, 'de_DE');
-  assert.equal(a.theme, 'light'); assert.equal(a.locale, 'de_DE'); assert.ok(!('backgroundColor' in a) && !('gridColor' in a), 'jasny motyw: kolory domyślne TradingView'); assert.equal(a.symbol, 'BITSTAMP:BTCUSD'); assert.equal(a.allow_symbol_change, true); assert.equal(a.hide_top_toolbar, false); assert.equal(a.autosize, true);
-  const ja = tvFor('ja', 'dark');
-  assert.equal(ja.TV_W.chart.cfg().theme, 'dark'); assert.equal(ja.TV_W.chart.cfg().backgroundColor, '#0F0F0F'); assert.equal(ja.tvLocale(), 'ja');
-  ja.TV.sym = 'BITSTAMP:ETHUSD';
-  assert.equal(ja.TV_W.chart.cfg().symbol, 'BITSTAMP:ETHUSD');
-  assert.ok(!ja.tvMarkup('chart').includes('tradingview.com') && !/<a\b/.test(ja.tvMarkup('chart')), 'v126.2: znaczniki widgetu bez linku do dostawcy');
-  assert.equal(tvFor('xx', 'dark').tvLocale(), 'en', 'nieznany język → en');
-});
-
-test('TradingView (v126.2): widget bez stopki z nazwą i linkiem dostawcy — sam kontener na całą wysokość; skryptu nie ma w znacznikach', () => {
-  const x = tvFor('pl', 'dark');
-  for (const k of Object.keys(x.TV_W)) {
-    const mk = x.tvMarkup(k), vis = mk.replace(/<!--[\s\S]*?-->/g, '');
-    assert.ok(mk.includes('<div class="tradingview-widget-container" style="height:100%;width:100%">') && mk.includes('<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>'), k);
-    assert.ok(!mk.includes('tradingview-widget-copyright') && !/<a\b/.test(mk) && !mk.includes('tradingview.com') && !/Trading ?View/.test(vis) && !vis.includes(' by '), k + ': bez stopki, linku i nazwy dostawcy');
-    assert.ok(!mk.includes('<script'), k + ': skrypt tylko po zgodzie (tvMount)');
-  }
-});
-
-test('TradingView: wiersz na stronie Źródła, atrybucja, wpis w „Źródła i prawa”, teksty w dziesięciu językach', () => {
-  const d0 = html.indexOf('const EXTRA30='), d1 = html.indexOf(';\n', d0);
-  const dict = v152Eff(JSON.parse(html.slice(d0 + 'const EXTRA30='.length, d1)));
-  assert.deepEqual(Object.keys(dict).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
-  for (const l of Object.keys(dict)) for (const k of ['tv.ph', 'tv.load', 'tv.off', 'tv.st.on', 'tv.st.off', 'tv.t.markets', 'tv.t.chart', 'tv.tab.idx', 'tv.tab.cmd']) assert.ok(dict[l][k], l + ' ' + k);   /* v151: tv.foot — usunięty ze słowników (strona go nie czyta) */
-  // v126.2: teksty wokół widgetów bez nazwy dostawcy (wartość skuteczna, 10 języków); zgoda i ciasteczka opisane ogólnie
-  for (const [l, D] of Object.entries(g126I18N())) for (const k of ['tv.ph', 'tv.load', 'tv.off', 'tv.ph.note']) assert.ok(D[k] && !/Trading ?View/i.test(D[k]), l + ' ' + k);   /* v151: tv.foot — usunięty ze słowników (strona go nie czyta) */
-  assert.ok(g126I18N().pl['tv.ph'].includes('kliknij, aby załadować (treść z serwerów tego serwisu, może ustawić ciasteczka)') && g126I18N().pl['tv.ph'].startsWith('{w}'));
-});
+// v41–v126.2: testy oficjalnych widgetów TradingView (ładowanie po kliknięciu, zgoda cfai.tv.ok, motyw i język, stopka, wiersz w „Źródłach”) — v321: usunięte
+// świadomie razem z widgetami (decyzja właściciela 10.10.2026); strażnik „na stronie nie ma już TradingView” — test v321 na końcu pliku
 
 // v42: serie Fed przez FRED (klucz właściciela) — tylko serie Fed, podpis z FRED, brak nie jest zerem
 const fp0 = html.indexOf('function fredPct(series,back){');
@@ -333,7 +260,7 @@ test('rynek krypto: sekcja w CRYPTO po panelu kapitalizacji, plik krypto.json; v
 });
 
 // v45: polityka bezpieczeństwa treści — każdy adres, z którym łączy się strona, jest na liście; obce adresy nie
-test('CSP: meta obecna, connect-src obejmuje wszystkie hosty pobierane przez stronę, skrypty tylko własne i loader TradingView', () => {
+test('CSP: meta obecna, connect-src obejmuje wszystkie hosty pobierane przez stronę, skrypty tylko własne (v321: bez loadera TradingView), bez ramek', () => {
   const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/);
   assert.ok(m, 'meta CSP');
   const csp = m[1];
@@ -347,8 +274,8 @@ test('CSP: meta obecna, connect-src obejmuje wszystkie hosty pobierane przez str
   const script = html.slice(html.indexOf('<script>'), html.lastIndexOf('</script>'));
   const fetched = new Set([...script.matchAll(/(?:fetch|gJSON|gText)\((?:[^)]*?)(https:\/\/[a-z0-9.-]+)/g)].map(x => x[1]));
   for (const h of fetched) assert.ok(connect.includes(h), 'fetch bez zezwolenia: ' + h);
-  assert.deepEqual(dir('script-src'), ["'self'", "'unsafe-inline'", 'https://s3.tradingview.com']);
-  assert.deepEqual(dir('frame-src'), ['https://www.tradingview-widget.com', 'https://www.tradingview.com']);
+  assert.deepEqual(dir('script-src'), ["'self'", "'unsafe-inline'"]);   /* v321: widgety TradingView usunięte (decyzja właściciela 10.10) — bez loadera */
+  assert.deepEqual(dir('frame-src'), ["'none'"]);   /* v321: bez ramek (dawniej tylko ramki widgetów TradingView) */
   assert.deepEqual(dir('object-src'), ["'none'"]); assert.deepEqual(dir('base-uri'), ["'self'"]);
   assert.ok(html.includes('<meta name="referrer" content="no-referrer">'), 'referrer');
 });
@@ -714,7 +641,7 @@ test('v50 cm: tabela 14 dni w <details>, czego nie mówi, atrybucja z licencją,
 
 test('v50 cm: plik cm.json w gLoad i osobny zegar, wiersz Źródła CRYPTO, atrybucja, prawa, słownik EXTRA41 (PL, EN)', () => {
   assert.ok(html.includes("srvJSON('cm').then(j=>{cmApply(j);}).catch(()=>{cmApply(null);}),"), 'gLoad');
-  assert.ok(html.includes('krLoad();krAuto();tvInit();\n') && html.includes('\ncmLoad();cmAuto();   /* v50: Coin Metrics'), 'start i zegar');
+  assert.ok(html.includes('krLoad();krAuto();\n') && !html.includes('tvInit') && html.includes('\ncmLoad();cmAuto();   /* v50: Coin Metrics'), 'start i zegar');   /* v321: bez tvInit (widgety TradingView usunięte) */
   assert.ok(html.includes('},30*60*1000);}   /* dane dzienne: co 30 min wystarczy */'), 'co 30 min');
   assert.ok(!html.includes('Coin Metrics (wpłaty BTC i ETH na giełdy — licencja niekomercyjna) i DefiLlama'), 'zdanie „nie pokazujemy” zaktualizowane');
   assert.ok(!html.includes('; Coin Metrics, DefiLlama (sieci) · <i>nie pokazujemy</i>'));
@@ -1395,7 +1322,7 @@ test('v76: UE: sumy tylko z kompletu 12 miesięcy, Polska zawsze widoczna, stars
   assert.ok(main.includes('<span class="cell">PL</span>'), 'Polska zawsze w głównej tabeli'); assert.ok(!main.includes('<span class="cell">CZ</span>') && more.includes('CZ'), 'poza 10 — w rozwinięciu');
   assert.ok(!main.includes('>LU<') && more.includes('LU'), 'starszy miesiąc — w rozwinięciu');
   assert.ok(main.includes('<span class="cell mono pos">+120.0</span>'), 'DE 12 miesięcy = 12 × 10 000 mln');
-  assert.ok(more.includes('F2026-03') && more.includes('<span class="cell mono ">—</span>'), 'LU bez kompletu — „—”');
+  assert.ok(more.includes('F2026-03') && more.includes('<span class="cell mono">—</span>'), 'LU bez kompletu — „—” (v321: klasa koloru tylko przy liczbie)');
   assert.ok(html.includes("html+=(typeof ueHtml==='function'&&typeof UE!=='undefined')?ueHtml(UE.data):'';") && html.includes("srvJSON('ue')"));
   assert.ok(html.includes("add('POL',t('fo.pol')"));
   const x0 = html.indexOf('const EXTRA64='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA64='.length, x1)));
@@ -2042,22 +1969,22 @@ test('v96-global_map: szczegóły regionu — flagi krajów i regionów, waluty 
   assert.ok(cty.includes('flagi/de.svg') && cty.includes('>Niemcy</span>') && cty.includes('title="DEU"'), 'kraj: flaga i nazwa');
   assert.ok(f.gmCty('XXX').includes('>XXX</span>') && !f.gmCty('XXX').includes('<img'), 'nieznany kod — sam kod, bez obcego obrazka');
   assert.deepEqual([f.gmTone(2), f.gmTone(-1), f.gmTone(0), f.gmTone(null)], ['pos', 'neg', '', '']);
-  assert.equal(f.gmAmt(0), '<span>F0</span>', 'zero — bez znaku i koloru');
+  assert.equal(f.gmAmt(0), '<span class="neu">F0</span>', 'zero — bez znaku, v321: żółte (bez zmian; dawniej bez koloru)');
   assert.equal(f.gmAmt(-5), '<span class="neg">−F5</span>');
   assert.ok(f.gmFund('EWJ').includes('>iS</span>') && f.gmFund('<x>').includes('&lt;x&gt;'), 'fundusz: znaczek wydawcy, ticker escapowany');
   const fb = f.gFiatBox();
   assert.ok(fb.includes('class="pbox gfiat"') && fb.includes('flagi/us.svg') && fb.includes('<i>€</i>') && fb.includes('<i>£</i>'), 'waluty z flagą i znakiem');
   assert.ok(fb.includes('&lt;B&gt;') && !fb.includes('<b>'), 'kody walut z danych są escapowane');
-  assert.ok(fb.includes('<span class="cell mono pos">+F12</span>') && fb.includes('<span class="cell mono">F0</span>'), 'napływ zielony, zero neutralne');
+  assert.ok(fb.includes('<span class="cell mono pos">+F12</span>') && fb.includes('<span class="cell mono neu">F0</span>'), 'napływ zielony, zero — v321: żółte');
   const pb = f.gProbBox('usa');
-  assert.ok(pb.includes('<h4>g.pr.t · 0</h4>') && pb.includes('<li><span>gmap.pf.cli.lvl</span><b class="">0</b></li>') && pb.includes('<b class="neg">−2</b>'));
+  assert.ok(pb.includes('<h4>g.pr.t · <span class="neu">0</span></h4>') && pb.includes('<li><span>gmap.pf.cli.lvl</span><b class="neu">0</b></li>') && pb.includes('<b class="neg">−2</b>'));   /* v321: zero żółte, wynik w kolorze */
   // gRenderDetail: flagi w nagłówkach, bez wierszy „Źródło”
   const r0 = html.indexOf('function gRenderDetail(){'), r1 = html.indexOf('/* v53: okno czasu', r0), R = html.slice(r0, r1);
   assert.ok(R.includes('<h3>${gmRf(s.id,\'\')}${gNameL(s.id)}</h3>') && R.includes('ri.map(gmCty)') && R.includes('gRegIso(r,gst.period)'), 'region: flagi przed nazwą, kraje z flagami (v200: skład funduszu przy danych z funduszy)');
   assert.ok(R.includes('<h3>${gmRf(e.f,\'\')}${t(\'g.n.\'+e.f)} → ${gmRf(e.t,\'\')}${t(\'g.n.\'+e.t)}</h3>'), 'korytarz: flagi po obu stronach');
   assert.ok(R.includes("t('gmap.cf.edge',{r:gmRf(e.f,'')+t('g.n.'+e.f),c:CRY()})") && R.includes("gmCoins(['BTC','ETH'])"), 'krypto: loga monet');
   assert.ok(!R.includes("t('d.source')") && !GM_PROV.test(R.replace(/\/\*[\s\S]*?\*\//g, '')), 'bez wierszy „Źródło” i nazw dostawców');
-  assert.ok(R.includes('<b class="${gmTone(dy.dp)}">') && R.includes('${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund)'), 'dzisiejsza sesja: kolor wg znaku, flagi regionu (v98.2), fundusze ze znaczkiem');
+  assert.ok(R.includes('<b class="${gmTone(dy.dp)||\'neu\'}">') && R.includes('${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund)'), 'dzisiejsza sesja: kolor wg znaku (v321: zero żółte), flagi regionu (v98.2), fundusze ze znaczkiem');
 });
 
 test('v96-global_map: „Gdzie warunki sprzyjają” z flagami; karty jakości bez karty „Źródła”; słownik bez nazw dostawców', () => {
@@ -2128,20 +2055,20 @@ test('v96-global_map: gRenderDetail uruchomiony — węzeł krypto, regiony, kra
   const c = run({type: 'node', id: 'crypto'}); clean(c, 'crypto');
   assert.ok(/<h3><span class="icos"><img[^>]*krypto\/btc\.svg[^>]*><img[^>]*krypto\/eth\.svg[^>]*><\/span>g\.n\.crypto<\/h3>/.test(c), 'krypto: loga BTC i ETH przed nazwą');
   assert.ok(c.includes('<div class="d-val"><span class="neg">−') && c.includes('krypto/usdt.svg') && c.includes('krypto/usdc.svg'), 'spadek podaży czerwony; stablecoiny z logami');
-  assert.ok(c.includes('<b class="pos">1.5</b>') && c.includes('<b class="">0</b>') && c.includes('class="pbox gfiat"') && c.includes('flagi/us.svg') && c.includes('<i>€</i>'));
+  assert.ok(c.includes('<b class="pos">1.5</b>') && c.includes('<b class="neu">0</b>') && c.includes('class="pbox gfiat"') && c.includes('flagi/us.svg') && c.includes('<i>€</i>'));
   // region: dokładne zero — „nie zmieniła się”, bez „+0,00%”, bez koloru
   const u = run({type: 'node', id: 'usa'}); clean(u, 'usa');
   assert.ok(u.includes('<h3><span class="icos"><img class="ico" src="img/flagi/us.svg"') && u.includes('>Stany Zjednoczone</span>'), 'USA: flaga w nagłówku i przy kraju');
-  assert.ok(u.includes('<div class="d-val"><span>' + NF.gfmt(0) + '</span>'), 'zero: bez znaku i koloru');
+  assert.ok(u.includes('<div class="d-val"><span class="neu">' + NF.gfmt(0) + '</span>'), 'zero: bez znaku, v321: żółte (bez zmian)');
   assert.ok(u.includes(T('gmap.plain.zero', {n: 'g.n.usa', p: 'g.per.1M'})) && !u.includes('g.plain.in'), 'zero nie jest opisane jako wzrost');
-  assert.ok(!u.includes(Z) && u.includes('<span class="">' + Z0 + '</span>') && u.includes('<b class="">' + Z0 + '</b>'), 'zmiana w % i dzisiejsza sesja: zero bez „+”');
+  assert.ok(!u.includes(Z) && u.includes('<span class="neu">' + Z0 + '</span>') && u.includes('<b class="neu">' + Z0 + '</b>'), 'zmiana w % i dzisiejsza sesja: zero bez „+” (v321: żółte)');
   assert.ok(u.includes('>SP</span>') && u.includes('SPY'), 'fundusz sesji ze znaczkiem wydawcy');
   // region: spadek; Japonia i Korea — dwie flagi; dane escapowane
   const j = run({type: 'node', id: 'jpn'}); clean(j, 'jpn');
   assert.ok(j.includes('flagi/jp.svg') && j.includes('flagi/kr.svg') && j.includes('>Korea Południowa</span>'));
   assert.ok(j.includes('<div class="d-val"><span class="neg">−') && j.includes('g.plain.out{') && j.includes('<span class="neg">' + NF.gpct(-1.234) + '</span>') && j.includes('<b class="neg">' + NF.gpct(-0.5) + '</b>'));
   assert.ok(j.includes('&lt;x&gt;') && j.includes('&lt;b&gt;x&lt;/b&gt;') && !j.includes('<x>') && !j.includes('<b>x</b>'), 'ticker i data z danych escapowane');
-  assert.ok(j.includes('<b class="">' + Z0 + '</b>') && j.includes('<b class="neg">' + NF.gpct(-3) + '</b>'), 'składnik rankingu równy zero — bez „+”');
+  assert.ok(j.includes('<b class="neu">' + Z0 + '</b>') && j.includes('<b class="neg">' + NF.gpct(-3) + '</b>'), 'składnik rankingu równy zero — bez „+” (v321: żółty)');
   // region bez danych — brak, nie zero
   const n = run({type: 'node', id: 'can'});
   assert.ok(n.includes('<div class="d-val">—<small>') && n.includes('g.plain.none{') && n.includes('<dd>—</dd>') && n.includes('flagi/ca.svg'));
@@ -2155,7 +2082,7 @@ test('v96-global_map: gRenderDetail uruchomiony — węzeł krypto, regiony, kra
   const ce = run({type: 'edge', id: 'eur>crypto'}); clean(ce, 'eur>crypto');
   assert.ok(ce.includes('<span class="neg">−') && ce.includes(T('gmap.cf.edged.out', {s: '30%'})) && ce.includes(PL['gmap.plain.cf.out'].split('{')[0]) && !ce.includes('g.cf.edged{') && !ce.includes('g.plain.cf{'), 'ujemna kwota opisana jako odpływ: ' + ce.slice(0, 600));
   const cz = run({type: 'edge', id: 'jpn>crypto'});
-  assert.ok(cz.includes('<div class="d-val"><span>' + NF.gfmt(0) + '</span>') && cz.includes(T('gmap.cf.edged.0', {s: '10%'})));
+  assert.ok(cz.includes('<div class="d-val"><span class="neu">' + NF.gfmt(0) + '</span>') && cz.includes(T('gmap.cf.edged.0', {s: '10%'})));   /* v321: zero żółte */
   // korytarz: flagi po obu stronach; opis zależny od powiązań bankowych
   const k = run({type: 'edge', id: 'can>lat'}); clean(k, 'can>lat');
   assert.ok(/<h3><span class="icos"><img[^>]*flagi\/ca\.svg[^>]*><\/span>g\.n\.can → <span class="icos">(<img[^>]*>){3}<i class="more">\+1<\/i><\/span>g\.n\.lat<\/h3>/.test(k), 'korytarz: flagi po obu stronach: ' + k.slice(0, 400));
@@ -2207,12 +2134,12 @@ test('v96-global_tables: gtI — flagi (ISO2, ISO3, strefa euro), regiony, nazwy
   assert.ok(I('iss', 'SPY').includes('>SP</span>') && I('iss', 'VGK').includes('Vanguard') && I('iss', 'ZZZZ') === '', 'wydawca ETF zastępczego — własny znaczek');
   assert.ok(!/https?:/.test(I('f', 'PL') + I('c', 'EUR') + I('m', 'btc')), 'bez obcych adresów obrazków');
   // kolory: plus zielony, minus czerwony, zero i brak bez koloru; inv — kolumna, w której plus = odpływ
-  assert.equal(I('t', 5), ' pos'); assert.equal(I('t', -5), ' neg'); assert.equal(I('t', 0), ''); assert.equal(I('t', null), ''); assert.equal(I('t', NaN), '');
-  assert.equal(I('t', 5, 1), ' neg'); assert.equal(I('t', -5, 1), ' pos'); assert.equal(I('t', 0, 1), '');
-  assert.equal(I('w', -1.5, '−1,5'), '<span class="neg">−1,5</span>'); assert.equal(I('w', 0, '0'), '0'); assert.equal(I('w', 2, '+2', 1), '<span class="neg">+2</span>');
+  assert.equal(I('t', 5), ' pos'); assert.equal(I('t', -5), ' neg'); assert.equal(I('t', 0), ' neu'); assert.equal(I('t', null), ''); assert.equal(I('t', NaN), '');   /* v321: zero żółte (dawniej bez koloru) */
+  assert.equal(I('t', 5, 1), ' pos'); assert.equal(I('t', -5, 1), ' neg'); assert.equal(I('t', 0, 1), ' neu');   /* v321 (decyzja właściciela 10.10): kolor ze znaku także w kolumnach odpływu (dawniej odwrotnie) */
+  assert.equal(I('w', -1.5, '−1,5'), '<span class="neg">−1,5</span>'); assert.equal(I('w', 0, '0'), '<span class="neu">0</span>'); assert.equal(I('w', 2, '+2', 1), '<span class="pos">+2</span>');   /* v321: zero żółte, plus zielony także w kolumnie odpływu */
 });
 
-test('v96-global_tables: rezerwy, stopy, COFER, bilans płatniczy i przegląd — flaga przy każdym kraju, znak waluty, kolory, zero bez koloru', () => {
+test('v96-global_tables: rezerwy, stopy, COFER, bilans płatniczy i przegląd — flaga przy każdym kraju, znak waluty, kolory, zero żółte (v321)', () => {
   const I = gtEnv.gtI;
   const fm0 = html.indexOf('/* v50 (fedimf) początek: Fed H.4.1'), fm1 = html.indexOf('/* v50 koniec (fedimf) */', fm0);
   const F = new Function('t', 'escH', 'engDate', 'engNum', 'nfmt', 'instRow', 'instFoot', 'instMld', 'instSign', 'gOk', 'renderInst', 'LANG', 'gtI',
@@ -2223,7 +2150,7 @@ test('v96-global_tables: rezerwy, stopy, COFER, bilans płatniczy i przegląd �
   const h = F.rezHtml(R);
   assert.ok(h.includes('<span class="cell"><span class="icos"><img class="ico" src="img/flagi/cn.svg"') && h.includes(gtFlag('jp')), 'flaga przy kraju (kod ISO3)');
   assert.ok(h.includes('<span class="cell mono neg">−64.1</span>') && h.includes('<span class="cell mono pos">+158.5'), 'spadek czerwony, wzrost zielony');
-  assert.ok(h.includes('<span class="cell mono">0.0</span>'), 'zero bez koloru');
+  assert.ok(h.includes('<span class="cell mono neu">0.0</span>'), 'zero — v321: żółte (bez zmian; dawniej bez koloru)');
   assert.ok(h.includes('<td><span class="cell mono">—</span></td>') && !h.includes('mono neg">—') && !h.includes('mono pos">—'), 'brak = szare „—”');
   assert.ok(h.includes('flagi/tw.svg') && !h.includes('rez.src') && !h.includes('data.imf.org'), 'brakujący kraj z flagą; bez źródła');
   // stopy i kursy efektywne
@@ -2234,8 +2161,8 @@ test('v96-global_tables: rezerwy, stopy, COFER, bilans płatniczy i przegląd �
   SP.eerApply({ at: 'x', rows: { XM: { c30: 1.2, c12: -0.4, m: '2026-08', d: '2026-09-22' }, US: { c30: 0, c12: 2 } } });
   const sb = SP.spBlock();
   assert.ok(sb.includes(gtFlag('eu')) && sb.includes(gtFlag('us')), 'strefa euro (XM) i USA z flagami');
-  assert.ok(sb.includes('<span class="cell mono neg">−0.50</span>') && sb.includes('<span class="cell mono">0</span>'), 'zmiana stopy: spadek czerwony, zero bez koloru');
-  assert.ok(SP.eerCell('XM') === '<span class="pos">+1.2%</span> · <span class="neg">−0.4%</span>' && SP.eerCell('US') === '0% · <span class="pos">+2.0%</span>', 'siła waluty w kolorze, 0 bez koloru');
+  assert.ok(sb.includes('<span class="cell mono neg">−0.50</span>') && sb.includes('<span class="cell mono neu">0</span>'), 'zmiana stopy: spadek czerwony, zero żółte (v321)');
+  assert.ok(SP.eerCell('XM') === '<span class="pos">+1.2%</span> · <span class="neg">−0.4%</span>' && SP.eerCell('US') === '<span class="neu">0%</span> · <span class="pos">+2.0%</span>', 'siła waluty w kolorze, 0 żółte (v321)');
   const er = SP.eerRegion('eur'); assert.ok(er.includes('"c":"<span class=\\"ccy\\">') && er.includes('EUR<i>€</i>'), 'waluta: flaga, kod i symbol');
   assert.ok(SP.spRegion('usa').startsWith('<div class="wide"><dt>sp.region</dt><dd><span class="icos">'), 'linia regionu: flaga banku centralnego');
   assert.ok(!sb.includes('sp.src') && !sb.includes('eer.src'), 'bez zdań o źródłach');
@@ -2246,13 +2173,13 @@ test('v96-global_tables: rezerwy, stopy, COFER, bilans płatniczy i przegląd �
   X.cofApply({ at: 'x', asof: '2026-Q2', order: ['USD', 'OTHC'], rows: { USD: { sh: 56.3, d1: -0.4, d4: 0, v: 7000, dv4: 12 }, OTHC: { sh: 3, d1: 0.1, d4: 0.2, v: 1, dv4: 0 } } });
   const cf = X.cofHtml(X.COF.data);
   assert.ok(cf.includes('<span class="ccy">') && cf.includes(gtFlag('us')) && cf.includes('<i>$</i>') && cf.includes('img/glify/coin.svg'), 'waluty ze znakiem; „inne” z glifem');
-  assert.ok(cf.includes('<span class="cell mono neg">−0.40</span>') && cf.includes('<span class="cell mono">0</span>') && !cf.includes('cof.src'));
+  assert.ok(cf.includes('<span class="cell mono neg">−0.40</span>') && cf.includes('<span class="cell mono neu">0</span>') && !cf.includes('cof.src'));   /* v321: zero żółte */
   const S4 = (v) => ['2025-Q3', '2025-Q4', '2026-Q1', '2026-Q2'].map(q => [q, v]);
   X.bilApply({ at: 'x', order: ['DEU'], rows: { DEU: { q: '2026-Q2', s: { in_d: S4(1), in_p: S4(-2), in_o: S4(0), out_d: S4(3), out_p: S4(0), out_o: S4(0) } } } });
   const bl = X.bilHtml(X.BIL.data);
   assert.ok(bl.includes(gtFlag('de')), 'flaga kraju');
-  assert.ok(bl.includes('<span class="cell mono neg">-2</span>') && bl.includes('<span class="cell mono">0</span>'), 'składnik napływu: minus czerwony, zero bez koloru');
-  assert.ok(bl.includes('<span class="cell mono neg">12</span></td></tr>'), 'wypływ mieszkańców (plus = odpływ) na czerwono');
+  assert.ok(bl.includes('<span class="cell mono neg">-2</span>') && bl.includes('<span class="cell mono neu">0</span>'), 'składnik napływu: minus czerwony, zero żółte (v321)');
+  assert.ok(bl.includes('<span class="cell mono pos">12</span></td></tr>'), 'wypływ mieszkańców: v321 (decyzja właściciela 10.10) — plus zielony jak wszędzie (dawniej odwrotnie: czerwony)');
   assert.ok(!bl.includes('bil.src'));
 });
 
@@ -2294,7 +2221,7 @@ test('v96-global_tables: widoki silnika — flagi krajów z ISO3; kolor według 
   assert.ok(out.includes('<span class="cell mono neg" title="eng.exact{&quot;v&quot;:&quot;-20877434452.6139&quot;}"'), 'rok wcześniej też odpływ — czerwony');
   assert.ok(out.includes('<span class="cell mono pos" title="eng.exact{&quot;v&quot;:&quot;834210216.59&quot;}"'), 'rok wcześniej napływ — zielony');
   assert.ok(!out.includes('class="cell mono pos" title="eng.exact{&quot;v&quot;:&quot;-'), 'żadna ujemna liczba nie jest zielona');
-  assert.ok(out.includes('<span class="cell mono" title="eng.exact{&quot;v&quot;:&quot;0&quot;}"'), 'zero bez koloru');
+  assert.ok(out.includes('<span class="cell mono neu" title="eng.exact{&quot;v&quot;:&quot;0&quot;}"'), 'zero — v321: żółte (bez zmian; dawniej bez koloru)');
   assert.ok(inn.includes('<span class="cell mono pos" title="eng.exact{&quot;v&quot;:&quot;382049649287.081&quot;}"') && inn.includes('<span class="cell mono neg" title="eng.exact{&quot;v&quot;:&quot;-12285177530.1403&quot;}"'), 'napływ zielony; ujemny rok wcześniej czerwony');
   const d = E.engDest({ engine_panel: { data: { year: 2024, previous_year: 2023, counts: { inflows: 68, outflows: 51 }, inflows: [{ code: 'IRL', value: '1' }], outflows: [{ code: 'NLD', value: '-1' }] } } });
   assert.ok(d.includes('<summary><b class="pos">eng.d.in{') && d.includes('<summary><b class="neg">eng.d.out{'), 'nagłówki: największe napływy zielone, odpływy czerwone');
@@ -2326,7 +2253,7 @@ test('v96-global_tables: bloki krajów — flagi w nagłówkach i liniach region
   assert.ok(!z.includes('ob.src'), 'bez źródeł');
   assert.ok(f.zagRegion('ind').startsWith('<div class="wide"><dt><span class="icos"><img class="ico sm" src="img/flagi/in.svg"') && f.zagRegion('chn').includes(gtFlag('hk')), 'linie regionu z flagami');
   assert.ok(f.trBlock().includes(gtFlag('tr')) && f.trBlock().includes('<span class="neg">−10 inst.mln.usd</span>') && !f.trBlock().includes('tr.src'));
-  assert.ok(f.thRegion('asean').includes(gtFlag('th')) && f.thRegion('asean').includes('"v":"0"'), 'Tajlandia: zero bez koloru');
+  assert.ok(f.thRegion('asean').includes(gtFlag('th')) && f.thRegion('asean').includes('"v":"<span class=\\"neu\\">0</span>"'), 'Tajlandia: zero — v321: żółte');
   f.safeApply({ at: 'x', m: [['2026-08', 1, -2, 3, 1, 2, 0, 0]] });
   const sf = f.safeHtml({ at: 'x', m: [['2026-08', 1, -2, 3, 1, 2, 0, 0]] });
   assert.ok(sf.includes(gtFlag('cn')) && sf.includes('<span class="neg">−2.0 inst.mld.usd</span>') && !sf.includes('sf.src'));
@@ -2349,7 +2276,7 @@ test('v96-global_tables: bloki krajów — flagi w nagłówkach i liniach region
   assert.ok(!/href="https:\/\/(data\.imf\.org|www\.cftc\.gov|fred\.stlouisfed\.org)/.test(body), 'bez linków do dostawców');
 });
 
-test('v96-global_tables: tytuły i opisy bez nazw dostawców (pl, en); widgety — bez stopki ze źródłem, v126.2: bez nazwy i linku dostawcy, zgoda zostaje', () => {
+test('v96-global_tables: tytuły i opisy bez nazw dostawców (pl, en); v321: bez widgetów TradingView (usunięte razem z tekstami tv.*)', () => {
   const a = 'const EXTRA89=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   assert.deepEqual(Object.keys(D.pl).sort(), Object.keys(D.en).sort(), 'te same klucze pl/en');
   // rez.sub zostaje poza listą: „pozycja w MFW” to składnik rezerw (rodzaj aktywa), nie nazwa dostawcy
@@ -2357,16 +2284,13 @@ test('v96-global_tables: tytuły i opisy bez nazw dostawców (pl, en); widgety �
   const titles = ['bis2.t', 'bis2.sub', 'tic.t', 'tic.hold.t', 'tic.members', 'rez.t', 'sp.t', 'sp.c.fx', 'eer.reg', 'ob.sub', 'ob.reg', 'ob.reg.hk', 'br.t', 'br.reg', 'tr.t', 'tr.reg', 'th.t', 'th.reg', 'th.sub',
     'cof.t', 'bil.t', 'bil.reg', 'sf.t', 'sf.reg', 'sf.sub', 'ue.t', 'ue.sub', 'kan.t', 'kan.reg', 'kor.t', 'kor.reg', 'kor.sub', 'mx.t', 'mx.reg', 'mx.sub', 'spw.t', 'spw.reg', 'spw.sub', 'fo.t', 'fo.sub',
     'fo.usa', 'fo.can', 'fo.eur', 'fo.jpn', 'fo.pol', 'fo.polspw', 'fo.kor', 'fo.chn', 'fo.ind', 'fo.twn', 'fo.tha', 'fo.mex', 'fo.tur', 'fo.bra', 'fo.bram', 'inst.t', 'inst.sub', 'inst.fred.t', 'inst.fred.sub',
-    'inst.fred.walcl', 'inst.fred.tga', 'inst.ecb.t', 'inst.ecb.sub', 'inst.tgb.t', 'inst.bop.t', 'inst.bop.sub', 'inst.mof.t', 'cftc.x.t', 'cftc.rep', 'eng.t.cftc-euro-fx', 'tv.t.markets', 'tv.t.calendar',
-    'tv.t.heatmap', 'tv.t.chart', 'tv.sub.markets', 'tv.sub.heatmap', 'g.d.td', 'g.d.tdnote', 'g.d.tdnote.srv'];
+    'inst.fred.walcl', 'inst.fred.tga', 'inst.ecb.t', 'inst.ecb.sub', 'inst.tgb.t', 'inst.bop.t', 'inst.bop.sub', 'inst.mof.t', 'cftc.x.t', 'cftc.rep', 'eng.t.cftc-euro-fx',
+    'g.d.td', 'g.d.tdnote', 'g.d.tdnote.srv'];   /* v321: bez tv.* (widgety usunięte, teksty też) */
   for (const l of ['pl', 'en']) for (const k of titles) { assert.ok(D[l][k], l + ' ' + k); assert.ok(!prov.test(D[l][k]), l + ' ' + k + ': ' + D[l][k]); }
   for (const k of ['ob.tw.usd', 'ob.hk.usd', 'th.usd', 'mx.usd', 'kor.usd']) assert.ok(!/Fed/.test(D.pl[k] + D.en[k]), k + ': kurs bez nazwy dostawcy');
-  for (const l of ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of ['tv.t.markets', 'tv.t.calendar', 'tv.t.heatmap', 'tv.t.chart']) assert.ok(D[l][k] && !D[l][k].includes('TradingView'), l + ' ' + k);
-  const X = tvFor('pl', 'dark'), r0 = html.indexOf('function tvRender(k){'), r1 = html.indexOf('\nfunction tvRenderAll(', r0), p0 = html.indexOf('function tvPlaceholder(k){');
-  assert.ok(!html.slice(r0, r1).includes("t('tv.foot')") && !html.slice(r0, r1).includes('>tradingview.com</a>'), 'bez dodatkowej stopki ze źródłem');
-  assert.ok(html.slice(r0, r1).includes('data-tv-off="1"'), 'wycofanie zgody zostaje');
-  assert.ok(html.slice(p0, r0).includes("t('tv.ph',{w:t('tv.n.'+k)})") && !html.slice(p0, r0).includes('tradingview.com') && !html.slice(p0, r0).includes('>TradingView</a>'), 'v126.2: tekst zgody bez nazwy i linku dostawcy (zgoda i ciasteczka opisane ogólnie)');
-  assert.ok(!X.tvMarkup('markets').includes('tradingview-widget-copyright'), 'v126.2: bez stopki widgetu z nazwą dostawcy');
+  /* v321: widgety TradingView usunięte (decyzja właściciela 10.10) — ich teksty, stopka, zgoda i znaczniki też; w żadnym słowniku nie ma kluczy tv.* */
+  for (const l of Object.keys(D)) assert.ok(!Object.keys(D[l]).some(k => k.startsWith('tv.')), l + ': bez tv.*');
+  assert.ok(!html.includes('function tvRender(') && !html.includes('function tvPlaceholder(') && !html.includes('data-tv-off'), 'bez kodu widgetów');
 });
 
 test('v96-global_tables: widoki silnika — teksty z plików (pl) i tłumaczenia (en) bez nazw dostawców: podtytuł, wiek danych, „Czego nie mówią”, karta wstrzymana', () => {
@@ -2402,14 +2326,14 @@ test('v96-global_tables: widoki silnika — teksty z plików (pl) i tłumaczenia
   assert.equal(C('Bez nazw.'), 'Bez nazw.'); assert.equal(C(''), ''); assert.equal(C(null), null);
 });
 
-test('v96-global_tables: zero po zaokrągleniu bez koloru („−0,0%” nie jest czerwone); liczba „<0,1” ma kolor', () => {
+test('v96-global_tables: zero po zaokrągleniu — v321: żółte („−0,0%” nie jest czerwone; dawniej bez koloru); liczba „<0,1” ma kolor', () => {
   const I = gtEnv.gtI, Z = gtEnv.gtZero;
-  assert.equal(I('w', -0.03, '−0,0%'), '−0,0%'); assert.equal(I('w', 0.04, '+0,0 mld USD'), '+0,0 mld USD'); assert.equal(I('w', -0.03, '−&lt;0,1'), '<span class="neg">−&lt;0,1</span>');
-  assert.equal(I('t', -0.03, 0, '−0,0'), ''); assert.equal(I('t', -0.03, 0, '−0,03'), ' neg'); assert.equal(I('t', -0.03), ' neg'); assert.equal(I('t', 0.2, 1, '+0,2'), ' neg');
+  assert.equal(I('w', -0.03, '−0,0%'), '<span class="neu">−0,0%</span>'); assert.equal(I('w', 0.04, '+0,0 mld USD'), '<span class="neu">+0,0 mld USD</span>'); assert.equal(I('w', -0.03, '−&lt;0,1'), '<span class="neg">−&lt;0,1</span>');
+  assert.equal(I('t', -0.03, 0, '−0,0'), ' neu'); assert.equal(I('t', -0.03, 0, '−0,03'), ' neg'); assert.equal(I('t', -0.03), ' neg'); assert.equal(I('t', 0.2, 1, '+0,2'), ' pos');   /* v321: zero żółte; plus zielony także w kolumnie odpływu */
   assert.ok(Z('−0,0%') && Z('<b>+0.0</b>') && !Z('—') && !Z('+<0,1') && !Z('Holandia: −19 616,2'), 'gtZero');
   const e0 = html.indexOf('const eerPct='), e1 = html.indexOf('\nfunction eerRegion(', e0);
   const f = new Function('instSign', 'nfmt', 'EER', 'gtI', html.slice(e0, e1) + '\nreturn {eerCell};')(v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => Number(v).toFixed(d), { data: { rows: { XM: { c30: -0.03, c12: 2.4 } } } }, I);
-  assert.equal(f.eerCell('XM'), '0.0% · <span class="pos">+2.4%</span>', 'kurs efektywny: zero po zaokrągleniu bez koloru i bez „−” (v98.2), wzrost zielony');
+  assert.equal(f.eerCell('XM'), '<span class="neu">0.0%</span> · <span class="pos">+2.4%</span>', 'kurs efektywny: zero po zaokrągleniu bez „−” (v98.2) i żółte (v321), wzrost zielony');
   for (const s of ["I('t',x.d1m,0,rezD(x.d1m))", "I('t',r[2],0,sg(r[2]))", "I('t',n(r.d1),0,pp(r.d1))", "G('t',x,0,v)", "I('t',nv(r.value),0,v)"]) assert.ok(html.includes(s), 'tekst komórki trafia do koloru: ' + s);
   assert.equal(html.split("c=(v,x)=>`<td><span class=\"cell mono${I('t',x,0,v)}\">${v}</span></td>`").length, 3, 'SPW: obie tabele');
 });
@@ -2444,14 +2368,14 @@ test('v96-global_tables (v126.2): noty i formuły licencji dostawców nie są po
   assert.ok(!html.slice(i0, i1).includes("t('inst.nyfed')") && !html.slice(i0, i1).includes("t('inst.fred.api')") && !html.slice(k0, k1).includes("t('kan.src'"), 'na stronie danych — bez not');
 });
 
-test('v96-global_tables: bilans płatniczy strefy euro — kolor w samej liczbie (komórka jak w v53); rachunek finansowy: plus = odpływ (czerwony)', () => {
+test('v96-global_tables: bilans płatniczy strefy euro — kolor w samej liczbie (komórka jak w v53); v321: rachunek finansowy też ze znaku (plus zielony)', () => {
   const b0 = html.indexOf("const inv=k=>k!=='ca';"), b1 = html.indexOf('/* B4. v50: rezerwy walutowe', b0);
   assert.ok(b0 > 0 && b1 > b0, 'blok BOP');
   const B = html.slice(b0, b1);
   assert.ok(B.includes("const at=(k,p)=>{const r=Array.isArray(BS[k])?BS[k].find(x=>x[0]===p):null;return r?chg(r[1],bopMld(r[1]),inv(k)):'—';};"), 'liczba w kolorze przez chg (gtI w)');
   assert.ok(B.includes('<td><span class="cell mono"${atT(k,p)}>${at(k,p)}</span></td>'), 'znacznik komórki bez zmian');
   const I = gtEnv.gtI, inv = k => k !== 'ca';
-  assert.equal(I('w', 12.3, '+12,3', inv('fa')), '<span class="neg">+12,3</span>', 'rachunek finansowy: plus = kapitał wypłynął — czerwony');
+  assert.equal(I('w', 12.3, '+12,3', inv('fa')), '<span class="pos">+12,3</span>', 'rachunek finansowy: v321 (decyzja właściciela 10.10) — plus zielony jak wszędzie (dawniej czerwony: kapitał wypłynął)');
   assert.equal(I('w', 12.3, '+12,3', inv('ca')), '<span class="pos">+12,3</span>', 'rachunek bieżący: nadwyżka — zielony');
 });
 
@@ -2511,7 +2435,7 @@ test('v96-crypto: fundusze ETF — znaczek wydawcy wg NAZWY (BTC = Grayscale Min
   assert.ok(g.includes('etf.b.live{"d":"2026-09-24","t":"10:00"}'), 'plakietka: data i godzina');
   const bars = f.etfBars(D.assets.btc.day);
   assert.equal((bars.match(/<rect /g) || []).length, 3, 'dzień bez danych = brak słupka, nie zero');
-  assert.ok(bars.includes('fill="var(--gr)"') && bars.includes('fill="var(--rd)"') && bars.includes('fill="var(--dim)"'), 'zero szare, nie zielone');
+  assert.ok(bars.includes('fill="var(--gr)"') && bars.includes('fill="var(--rd)"') && bars.includes('fill="var(--yl)"'), 'zero nie zielone — v321: żółte (dawniej szare)');
   assert.ok(c.includes('<div class="etfr"><span><span class="icos"><img class="ico sm" src="img/krypto/btc.svg"') && c.includes('<b>XRP</b></span>'), 'szyna CRYPTO: logo przy BTC, ETH, SOL, XRP');
   const tiles = g.slice(g.indexOf('<div class="etfkpis">'), g.indexOf('<div class="list-wrap">')).split(/<div class="etfk(?: wrap)?">/).slice(1);
   assert.equal(tiles.length, 6, 'sześć kafelków (bez porównania ze stablecoinami, gdy brak danych)');
@@ -2520,7 +2444,7 @@ test('v96-crypto: fundusze ETF — znaczek wydawcy wg NAZWY (BTC = Grayscale Min
     assert.ok(tl.startsWith('<span><span class="icos"><img class="ico" src="img/flagi/us.svg"') && tl.includes('src="img/glify/etf.svg"'), k + ': flaga USA i znak ETF');
   }
   assert.ok(tiles.find(x => x.includes('etf.k.share</span>')).startsWith('<span><span class="icos"><img class="ico" src="img/glify/etf.svg"'), 'udział: znak ETF');
-  assert.ok(g.includes('etf.k.day</span><b class="pos">100</b>') && g.includes('etf.k.w</span><b class="">0</b>') && g.includes('etf.k.m</span><b class="neg">-2</b>'), 'kafelki: wzrost zielony, spadek czerwony, zero bez koloru');
+  assert.ok(g.includes('etf.k.day</span><b class="pos">100</b>') && g.includes('etf.k.w</span><b class="neu">0</b>') && g.includes('etf.k.m</span><b class="neg">-2</b>'), 'kafelki: wzrost zielony, spadek czerwony, zero żółte (v321)');
 });
 
 test('v96-crypto: stablecoiny per sieć — logo sieci w każdym wierszu, suma z USDT i USDC, zmiany zielone/czerwone, zero i brak bez koloru', () => {
@@ -2676,17 +2600,7 @@ test('v96-crypto: wszystkie 10 języków — teksty, które pokazują panele kry
   for (const l of ['de', 'fr', 'ja']) assert.ok(!/SoSoValue/.test(tx(l, 'etf.src.snap')) && tx(l, 'etf.src.snap').includes('{d}') && tx(l, 'etf.src.snap').includes('{f}'), l + ': migawka ETF — data i czas pobrania zostają, bez dostawcy');
 });
 
-test('v96-crypto: wykres TradingView (CRYPTO) — przyciski BTC/USD i ETH/USD z logo monety i znakiem dolara; bez pomocników sam tekst', () => {
-  const H = v96cHelpers(), el = { innerHTML: '', hidden: true };
-  const mk = (...h) => new Function('LANG', 't', 'document', 'localStorage', '$', 'escH', 'icoWrap', 'coinImg', 'ccyIco', tvBlock + '\nreturn {TV, tvRender};')(
-    'pl', k => k, { documentElement: { dataset: { theme: 'dark' } } }, { getItem() { return null; }, setItem() {} }, s => s === '#tv-chart' ? el : null, v96cEsc, ...h);
-  mk(H.icoWrap, H.coinImg, H.ccyIco).tvRender('chart');
-  assert.ok(el.innerHTML.includes('data-tv-sym="BITSTAMP:BTCUSD" aria-pressed="true"><span class="icos"><img class="ico sm" src="img/krypto/btc.svg"'), 'BTC/USD: logo bitcoina');
-  assert.ok(el.innerHTML.includes('data-tv-sym="BITSTAMP:ETHUSD" aria-pressed="false"><span class="icos"><img class="ico sm" src="img/krypto/eth.svg"'), 'ETH/USD: logo etheru');
-  assert.ok(el.innerHTML.includes('src="img/flagi/us.svg"') && el.innerHTML.includes('</span>BTC/USD</button>') && el.innerHTML.includes('</span>ETH/USD</button>'), 'znak dolara i nazwa pary');
-  mk(undefined, undefined, undefined).tvRender('chart');
-  assert.ok(el.innerHTML.includes('aria-pressed="true">BTC/USD</button>'), 'bez pomocników — tekst jak dawniej');
-});
+// v96-crypto: test przycisków wykresu TradingView (BTC/USD, ETH/USD) — v321: usunięty świadomie razem z widgetem (decyzja właściciela 10.10.2026)
 
 // v96-pages: strony z menu (Przepływy, Sektory, Aktywa) z flagami i logami, trzy kolory, aktualność bez nazw dostawców; flagi języków
 const pgEnv = (over = {}) => {
@@ -2790,7 +2704,7 @@ test('v96-pages: Aktywa — kolumna „Aktualność” (częstotliwość i dzie�
   assert.ok(row('as.de10').includes('flagi/de.svg') && row('as.de10').includes('pg.monthly · 2026-08'), 'Niemcy: miesięcznie z okresem');
   assert.ok(row('as.jp10').includes('flagi/jp.svg') && row('as.eq').includes('glify/globe.svg'));
   assert.ok(row('as.fx').includes('flagi/us.svg') && row('as.fx').includes('USD<i>$</i>') && row('as.fx').includes('<span class="cell neg">▼ −0.40%</span>'), 'dolar: flaga i znak $, spadek czerwony');
-  assert.ok(row('as.cry').includes('krypto/btc.svg') && row('as.cry').includes('krypto/eth.svg') && row('as.cry').includes('3900.0 B') && row('as.cry').includes('<span class="cell ">0.00%<small class="mtxt"> · u.24h</small></span>'), 'krypto: loga BTC+ETH, liczba jak na kafelku, zero bez koloru (v314, audyt G1: przy liczbie „24h”)');
+  assert.ok(row('as.cry').includes('krypto/btc.svg') && row('as.cry').includes('krypto/eth.svg') && row('as.cry').includes('3900.0 B') && row('as.cry').includes('<span class="cell neu">• 0.00%<small class="mtxt"> · u.24h</small></span>'), 'krypto: loga BTC+ETH, liczba jak na kafelku, zero — v321: żółte „•” (v314, audyt G1: przy liczbie „24h”)');
   assert.ok(row('as.stab').includes('krypto/usdt.svg') && row('as.stab').includes('krypto/usdc.svg') && row('as.stab').includes('<span class="cell pos">▲ +0.80%</span>'));
   // CRYPTO: plik rynku krypto bez CoinPaprika — brakujące kafelki to „—”, nie liczby przykładowe
   const c = pgEnv({st: {mode: 'crypto', period: '24H'}, kpiVals: () => ({mcap: {val: 2.4, unit: 'u.t', dec: 1, d: -1.5, at: '2026-09-25T10:00:00Z'}, dom: {val: 57.1, unit: '%', dec: 1, d: .2}})});
@@ -3275,7 +3189,7 @@ test('v98-usa: panel USA — energia, gospodarka i przepływ kapitału; ikony, k
   f.usaApply('b', {at: '2026-09-25T18:42:19+00:00', ita: {FinLiabsExclFinDeriv: [['2026-Q2', 978860]], FinAssetsExclFinDeriv: [['2026-Q2', 663301]], BalCurrAcct: [['2026-Q2', -246023]]},
     gdp: [['2026-Q2', 1.5]], areas: {FinLiabsExclFinDeriv: {Europe: [['2026-Q2', 300000]], China: [['2026-Q2', -1234]]}, FinAssetsExclFinDeriv: {Europe: [['2026-Q2', 100000]]}}, names: {}});
   h = el.innerHTML;
-  assert.ok(h.includes('usa.cpi') && h.includes('3.4%') && h.includes('<small class="">• 0.0 usa.pp') && !h.includes('class="neu">• 0.0'), 'inflacja bez zmiany — v98.2: zero bez koloru (szary „•”)');
+  assert.ok(h.includes('usa.cpi') && h.includes('3.4%') && h.includes('<small class="neu">• 0.0 usa.pp'), 'inflacja bez zmiany — v321 (decyzja właściciela 10.10): żółte „•” (v98.2: było bez koloru)');
   assert.ok(h.includes('usa.unemp') && h.includes('4.1%') && h.includes('class="neg">▼ −0.1 usa.pp'), 'bezrobocie spadło o 0,1 pkt — czerwona strzałka w dół');
   assert.ok(h.includes('<b class="pos">+162 <small class="mtxt">usa.u.k</small></b>'), 'nowe etaty na zielono');
   assert.ok(h.includes('usa.gdp') && h.includes('<b class="pos">+1.5%</b>') && h.includes('usa.q{"q":"2","r":"II","y":"2026"}'), 'PKB na zielono, kwartał po rzymsku');
@@ -3326,23 +3240,19 @@ test('v98.2: jednostka kontraktu i podpis wykresu bez nazw dostawców; flagi prz
   assert.ok(!html.includes('escH(m.unit_note)') && html.includes('${cftcUnit(m.unit_note)}'));
   for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
     const t = v96src.tFor(L);
-    assert.ok(!t('tv.sub.chart').includes('Bitstamp') && t('tv.sub.chart').includes('BTC/USD'), 'wykres bez nazwy giełdy: ' + L);
+    /* v321: tv.sub.chart (podpis wykresu TradingView) usunięty razem z widgetem */
     for (const k of ['cftc.u.btc', 'cftc.u.idx', 'live.nosrc']) assert.ok(t(k) !== k && !/CFTC|Bitstamp/.test(t(k)), L + ' ' + k);
   }
-  const k0 = html.indexOf('function tvCalSub('), k1 = html.indexOf('\nfunction tvRender(', k0);
-  const cal = (L, tt) => new Function('t', 'flagImg', html.slice(k0, k1) + '\nreturn tvCalSub();')(tt || v96src.tFor(L), c => `[${c}]`);
-  assert.equal(cal('pl'), 'Wydarzenia o wysokiej wadze: <span class="tvc">[us]USA</span>, <span class="tvc">[eu]strefa euro</span>, <span class="tvc">[gb]Wielka Brytania</span>, <span class="tvc">[jp]Japonia</span>, <span class="tvc">[cn]Chiny</span>, <span class="tvc">[de]Niemcy</span>.');
-  assert.ok(cal('zh').includes('<span class="tvc">[cn]中国</span>、<span class="tvc">[de]德国</span>。'), cal('zh'));
-  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'ja']) assert.equal((cal(L).match(/class="tvc"/g) || []).length, 6, 'sześć flag: ' + L + ' ' + cal(L));
-  assert.equal(cal('pl', () => 'Tekst bez listy'), 'Tekst bez listy', 'inny kształt tekstu — sam tekst, bez błędu');
-  assert.ok(html.includes("<p class=\"pnote\">${k==='calendar'?tvCalSub():t('tv.sub.'+k)}</p>") && html.includes("<h2>${hIc}${t('tv.t.'+k)}</h2>") && html.includes("({chart:()=>icoWrap(coinImg('BTC','sm')+coinImg('ETH','sm')),"));
+  /* v321: opis kalendarza z flagami (tvCalSub) i nagłówki widgetów TradingView — usunięte razem z widgetami (decyzja właściciela 10.10.2026) */
+  assert.ok(!html.includes('function tvCalSub(') && !html.includes('.tvc{'), 'bez kodu kalendarza widgetu');
 });
-test('v98.2: zero po zaokrągleniu bez koloru i bez minusa (panel USA, kurs efektywny); kolor i strzałka z pokazanej liczby', () => {
+test('v98.2: zero po zaokrągleniu bez minusa (panel USA, kurs efektywny), v321: żółte; kolor i strzałka z pokazanej liczby', () => {
   const u0 = html.indexOf('function usaTone('), u1 = html.indexOf('\nfunction usaMon(', u0);
   const U = new Function('usaNum', 'sg', 'nfmt', html.slice(u0, u1) + '\nreturn {usaTone, usaChg};')(v => typeof v === 'number' && isFinite(v), v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d) => Number(v).toFixed(d));
-  assert.equal(U.usaTone(0), ''); assert.equal(U.usaTone(0.04, 1), ''); assert.equal(U.usaTone(0.06, 1), 'pos'); assert.equal(U.usaTone(-0.06, 1), 'neg'); assert.equal(U.usaTone(null), ''); assert.equal(U.usaTone(-2), 'neg');
+  assert.equal(U.usaTone(0), 'neu'); assert.equal(U.usaTone(0.04, 1), 'neu'); assert.equal(U.usaTone(0.06, 1), 'pos');   /* v321: zero (także po zaokrągleniu) żółte */
+  assert.equal(U.usaTone(-0.06, 1), 'neg'); assert.equal(U.usaTone(null), ''); assert.equal(U.usaTone(-2), 'neg');
   assert.equal(U.usaChg(0.04, 1, '', 'usa.pp'), '• 0.0 usa.pp'); assert.equal(U.usaChg(-0.26, 1, '%', 'usa.wk'), '▼ −0.3% usa.wk'); assert.equal(U.usaChg(-0.04, 1, '%', 'usa.wk'), '• 0.0% usa.wk');
-  assert.ok(!html.includes(":v<0?'neg':'neu';}"), 'zero nie jest żółte');
+  assert.ok(html.includes("return r>0?'pos':r<0?'neg':'neu';}   /* v98.2: zero (także po zaokrągleniu); v321: żółte"), 'v321 (decyzja właściciela 10.10): zero żółte (v98.2: było bez koloru)');
   const e0 = html.indexOf('const eerPct='), e1 = html.indexOf('\n', e0);
   const eer = new Function('instSign', 'nfmt', html.slice(e0, e1) + '\nreturn eerPct;')(v => v > 0 ? '+' : v < 0 ? '−' : '', (v, d) => Number(v).toFixed(d));
   assert.equal(eer(-0.04), '0.0%'); assert.equal(eer(0.04), '0.0%'); assert.equal(eer(0), '0%'); assert.equal(eer(-0.06), '−0.1%'); assert.equal(eer(null), '—');
@@ -3352,13 +3262,13 @@ test('v98.2: kolory tam, gdzie ich brakowało; brak danych szary; plakietka CRYP
   assert.ok(html.includes('<div class="d-val sora${dTone?\' \'+dTone:\'\'}">') && html.includes("dTone=Math.round(v)>0?'pos':Math.round(v)<0?'neg':'';"), 'CRYPTO: kwota w nagłówku szczegółów w kolorze, zero bez');
   assert.ok(html.includes("out:mld(L('out')&&L('out')[0]===i[0]?L('out')[1]:null,1)") && html.includes('fa:mld(f[1],1),pi:p?mld(p[1],1)') && html.includes('a:j(A.total_net,1)'), 'zmierzone przepływy regionu: plus = odpływ — odwrócony kolor');
   const r0 = html.indexOf('function msRegion('), r1 = html.indexOf('\nfunction gProbBox(', r0);
-  const gtI = (k, v, txt, inv) => { const x = inv ? -v : v; return x > 0 ? `<span class="pos">${txt}</span>` : x < 0 ? `<span class="neg">${txt}</span>` : txt; };
+  const gtI = gtEnv.gtI;   /* v321: prawdziwy gtI — kolor ze znaku liczby (dawniej atrapa z odwróceniem odpływu) */
   const ms = new Function('t', 'TIC', 'INST', 'instSign', 'instMld', 'instFoot', 'gtI', 'gmFl', html.slice(r0, r1) + '\nreturn msRegion;')((k, o) => k + (o ? JSON.stringify(o) : ''),
     {data: {world: {in: [['2026-07', 40600]], in_tr: [['2026-07', -3600]], in_eq: [['2026-07', 3700]], out: [['2026-07', 68500]]}}}, undefined,
     v => v > 0 ? '+' : v < 0 ? '−' : '', v => (v / 1000).toFixed(1), d => d, gtI, c => '');
   const us = ms('usa');
-  assert.ok(us.includes('"in":"<span class=\\"pos\\">+40.6</span>"') && us.includes('"tr":"<span class=\\"neg\\">−3.6</span>"') && us.includes('"out":"<span class=\\"neg\\">+68.5</span>"'), 'USA: napływ zielony, zakupy Amerykanów za granicą (odpływ) czerwone: ' + us);
-  assert.ok(html.includes("const chg=(k,d)=>{if(d==null||!isFinite(d))return `<span class=\"cell na\">—</span>`;") && html.includes("<span class=\"sval ${na?'na':c}\">") && html.includes("gAgeNote(fr):'<span class=\"na\">—</span>'],")   /* v166: data okresu (fr), brak — szary „—” */);
+  assert.ok(us.includes('"in":"<span class=\\"pos\\">+40.6</span>"') && us.includes('"tr":"<span class=\\"neg\\">−3.6</span>"') && us.includes('"out":"<span class=\\"pos\\">+68.5</span>"'), 'USA: napływ zielony; zakupy Amerykanów za granicą — v321: plus zielony jak wszędzie (dawniej czerwone): ' + us);
+  assert.ok(html.includes("const chg=(k,d,why)=>{if(d==null||!isFinite(d))return `<span class=\"cell na\">${why?escH(why):'—'}</span>`;")   /* v321: brak — „—” albo powód (kafel surowca) */ && html.includes("<span class=\"sval ${na?'na':c}\">") && html.includes("gAgeNote(fr):'<span class=\"na\">—</span>'],")   /* v166: data okresu (fr), brak — szary „—” */);
   assert.ok(html.includes('#page-assets .cell.na,#page-sectors .sval.na,#g-q .na{color:var(--dim)}'));
   const a0 = html.indexOf('function applyLang(){'), a1 = html.indexOf('\nfunction applyTheme(', a0);
   assert.ok(html.slice(a0, a1).includes("if(typeof renderStatus==='function')renderStatus();"), 'applyLang odświeża plakietkę');
@@ -3407,24 +3317,7 @@ test('v99: OECD najpierw z pliku serwera (co 6 h), prosto z OECD tylko brakując
   assert.ok(G.includes("one('share','oecd','oecd',v=>{GLIVE.oecd=v;},1)") && G.includes("one('cli','cli','cli',v=>{GLIVE.cli=v;})") && !G.includes("gJSON(GSRC.oecd(gISO.join('+'))).then"), 'bez bezpośrednich zapytań przy dobrym pliku');
   // v107: mapy srvAt/metaErr usunięte razem z dawną tabelą źródeł
 });
-test('v100: nowe widgety TradingView po kliknięciu — wiadomości (GLOBAL, CRYPTO), zmienność opcji BTC/ETH (DVOL); zgoda wspólna', () => {
-  const w0 = html.indexOf('const TV_W={'), w1 = html.indexOf('\n};', w0), W = html.slice(w0, w1);
-  for (const k of ['markets', 'calendar', 'heatmap', 'chart', 'news', 'newsc', 'dvol']) assert.ok(W.includes('\n  ' + k + ":{id:'tv-" + k + "'"), 'widget ' + k);
-  assert.ok(W.includes("js:'embed-widget-timeline.js'") && W.includes("feedMode:'all_symbols'") && W.includes("feedMode:'market',market:'crypto'"), 'wiadomości: świat i krypto');
-  assert.ok(W.includes('symbol:TV.dvol') && html.includes("dvol:'DERIBIT:DVOL'") && html.includes("[['DERIBIT:DVOL','BTC'],['DERIBIT:ETHDVOL','ETH']]"), 'DVOL: BTC i ETH');
-  for (const id of ['tv-news', 'tv-newsc', 'tv-dvol']) assert.equal(html.split('<section class="panel pcard" id="' + id + '" hidden></section>').length, 2, 'jedno miejsce: ' + id);
-  const c0 = html.indexOf('<section class="panel pcard" id="tv-chart" hidden></section>'), g0 = html.indexOf('<section class="panel pcard" id="tv-calendar" hidden></section>');
-  assert.ok(html.indexOf('id="tv-dvol"') > c0 && html.indexOf('id="tv-dvol"') < c0 + 200 && html.indexOf('id="tv-news"') > g0 && html.indexOf('id="tv-news"') < g0 + 200, 'CRYPTO: po wykresie; GLOBAL: po kalendarzu');
-  assert.ok(html.includes("closest('[data-tv-load],[data-tv-sym],[data-tv-dvol],[data-tv-off]')") && html.includes("if(b.dataset.tvDvol){TV.dvol=b.dataset.tvDvol;tvRender('dvol');if(!TV.loaded.dvol&&tvOk())tvOn('dvol');return;}"), 'przełącznik BTC/ETH ładuje tylko za zgodą');
-  assert.ok(html.includes('function tvOn(k){if(!tvOk())return;TV.loaded[k]=true;tvRender(k);}'), 'bez kliknięcia — zero połączeń z TradingView');
-  const PROV = /Deribit|CoinDesk|Reuters|Bloomberg/;
-  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
-    const t = v96src.tFor(L);
-    for (const k of ['tv.t.news', 'tv.sub.news', 'tv.n.news', 'tv.t.newsc', 'tv.sub.newsc', 'tv.n.newsc', 'tv.t.dvol', 'tv.sub.dvol', 'tv.n.dvol']) assert.ok(t(k) !== k && !PROV.test(t(k)), L + ' ' + k);
-    assert.ok(!/cztery|four|vier|cuatro|quatre|quattro|quatro|четыр|四|4 つ/.test(t('tv.ph.note')), 'zgoda bez liczby widgetów: ' + L);
-  }
-  assert.ok(v96src.tFor('pl')('tv.sub.dvol').includes('nie prognoza kierunku') && v96src.tFor('pl')('tv.sub.news').includes('nie jest nasza ocena'), 'oczekiwanie rynku, nie prognoza; nagłówki, nie nasza ocena');
-});
+// v100: test widgetów TradingView (wiadomości, zmienność opcji, zgoda wspólna) — v321: usunięty świadomie razem z widgetami (decyzja właściciela 10.10.2026)
 test('v101: kursy EBC i rentowności 10L najpierw z pliku serwera; prosto ze źródła tylko brakująca albo za stara część', () => {
   const r0 = html.indexOf('function rynkiSrv('), r1 = html.indexOf('\n  return out;}', r0) + '\n  return out;}'.length;
   const f = new Function(html.slice(r0, r1) + '\nreturn rynkiSrv;')();
@@ -3443,14 +3336,14 @@ test('v101: kursy EBC i rentowności 10L najpierw z pliku serwera; prosto ze źr
   assert.ok(html.includes("due(15)?srvJSON('rynki').then(j=>{const S=rynkiSrv(j);if(S.fx&&GLIVE.fx){GLIVE.fx=S.fx;"), 'odświeżanie kursów co 15 min — też z pliku');
   // v107: mapy srvAt/metaErr usunięte razem z dawną tabelą źródeł
 });
-test('v102: tło — dwie warstwy ciągów, wolniejsze tempo, najwyżej jeden złoty ciąg naraz z przerwą; kolor złota z motywu', () => {
+test('v102 / v321: tło — trzy warstwy ciągów (v321; było dwie), wolniejsze tempo, złote ciągi znacznie częściej (v321: kilka naraz, przerwa 1,5–4 s); kolor złota z motywu', () => {
   const h0 = html.indexOf('/* ---------- tło: znaki szesnastkowe ---------- */'), h1 = html.indexOf('/* ---------- zegar ---------- */', h0), B = html.slice(h0, h1);
-  assert.ok(B.includes('drops=Array.from({length:cols*2},(_,i)=>hNew(i<cols));'), 'dwa ciągi na kolumnę');
+  assert.ok(B.includes('drops=Array.from({length:cols*3},(_,i)=>hNew(i<cols*2));'), 'v321 (decyzja właściciela 10.10): trzy ciągi na kolumnę (było dwa)');
   assert.ok(B.includes('v:.10+Math.random()*.26') && !B.includes('.25+Math.random()*.55'), 'wolniej niż dotąd');
-  assert.ok(B.includes('function hGoldPick(d,tm){if(!hGold&&d.on&&tm>=hGoldNext){d.gold=true;hGold=true;}}') && B.includes('if(d.gold){d.gold=false;hGold=false;hGoldNext=tm+8000+Math.random()*15000;}'), 'jeden złoty naraz, potem przerwa 8–23 s');
+  assert.ok(B.includes('function hGoldPick(d,tm){if(hGoldN<hGoldMax&&d.on&&tm>=hGoldNext){d.gold=true;hGoldN++;hGoldNext=tm+1500+Math.random()*2500;}}') && B.includes('if(d.gold){d.gold=false;hGoldN=Math.max(0,hGoldN-1);}') && B.includes('hGoldMax=Math.max(2,Math.round(cols/14))'), 'v321: złotych naraz do hGoldMax, kolejny co 1,5–4 s (było: jeden, potem przerwa 8–23 s)');
   assert.ok(B.includes('const tail=d.gold?PAL.hexGoldTail:PAL.hexTail,head=d.gold?PAL.hexGold:PAL.hexHead;') && B.includes("x=(i%cols)*CS"), 'złoty kolor głowy i ogona; kolumna z indeksu');
   assert.ok(html.includes('--hex-gold:255,214,10; --hex-gold-tail:214,178,48;') && html.includes('--hex-gold:176,124,0; --hex-gold-tail:168,136,40;') && html.includes("hexGold:g('--hex-gold')||'255,214,10'"), 'złoto w obu motywach');
-  assert.ok(B.includes('const gi=Math.floor(cols*.37);') && B.includes('col=i===gi?PAL.hexGoldTail:PAL.hexTail'), 'obraz bez animacji też ma złoty ciąg');
+  assert.ok(B.includes('const gi=i=>i%5===2;') && B.includes('col=gi(i)?PAL.hexGoldTail:PAL.hexTail'), 'obraz bez animacji też ma złote ciągi (v321: co 5. kolumna)');
 });
 
 // v103 (obszar „zrodla”): strona Źródła = karta stanu „na żywo” — zegar, czas ostatniego przebiegu z meta.json, liczba źródeł,
@@ -4268,7 +4161,7 @@ test('v107: srvAt/metaErr/tvState, CSS dawnej strony Źródła i klucze zr./g.hs
   for (const L in D) for (const k in D[L]) assert.ok(!/^(zr\.(a|g|ico)\.|g\.hs\.|src\.(f|l|d|m)\.|pg\.(attr|nosrc)|tv\.src\.)/.test(k) && k !== 'zr.sub' && k !== 'zr.help' && k !== 'zr.lic' && k !== 'zr.ico', 'rodzina usunięta w całości: ' + L + ' ' + k);
   for (const k of ['zr2.live', 'zr2.refresh', 'zr2.count', 'zr2.legal', 'zr2.help', 'foot.src', 'pg.sources', 'g.age', 'g.age1', 'g.age0', 'inst.file', 'eng.notsays', 'eng.disclaimer'])   /* v151: zr2.attr, pg.fixed, pg.ok, pg.no usunięte (strona ich nie czyta) */
     assert.ok(D.pl[k] && D.en[k], 'zostaje: ' + k);
-  assert.ok(html.includes('function metaLoad(){') && html.includes('function tvAnyLoaded(){') && html.includes('GLIVE.srcAt'), 'metaLoad, tvAnyLoaded i GLIVE.srcAt zostają');
+  assert.ok(html.includes('function metaLoad(){') && !html.includes('function tvAnyLoaded(){') && html.includes('GLIVE.srcAt'), 'metaLoad i GLIVE.srcAt zostają (v321: tvAnyLoaded usunięte razem z widgetami)');
   // strona Źródła v103 renderuje się po sprzątaniu tak samo (karta stanu, podpisy), bez surowych kluczy
   for (const L of ['pl', 'de', 'ja']) {
     const out = v96src.render(L, false, null).out;
@@ -4825,7 +4718,7 @@ const str121 = (() => {
   return {i0, i1, mk};
 })();
 
-test('v121: stres i opcje — pomocnicze: wiersze rosnąco, najniżej/najwyżej z 60 sesji tylko z liczb, zmiana bez zera w kolorze, wzrost stresu na czerwono, brak ≠ zero', () => {
+test('v121: stres i opcje — pomocnicze: wiersze rosnąco, najniżej/najwyżej z 60 sesji tylko z liczb, zmiana w kolorze kierunku (v321: wzrost zielony, zero żółte), brak ≠ zero', () => {
   assert.ok(str121.i0 > 0 && str121.i1 > str121.i0, 'blok v121 na stronie'); const X = str121.mk();
   assert.deepEqual(X.strRows([['2026-09-23', -2.663], ['2026-09-21', -2.727], ['zła', 1], 'x', ['2026-09-22', null], ['2026-09-24', '1']]), [['2026-09-21', -2.727], ['2026-09-22', null], ['2026-09-23', -2.663], ['2026-09-24', null]]);
   const H = []; for (let i = 0; i < 80; i++) { const d = new Date(Date.UTC(2026, 5, 1 + i)); H.push([d.toISOString().slice(0, 10), i === 70 ? null : (i % 7 === 0 ? -3 - i / 100 : -2 + i / 100)]); }
@@ -4833,10 +4726,11 @@ test('v121: stres i opcje — pomocnicze: wiersze rosnąco, najniżej/najwyżej 
   assert.deepEqual(mm, {n: 59, min: H[77][1], dmin: H[77][0], max: H[79][1], dmax: H[79][0]});
   assert.equal(X.strMinMax([['2026-09-23', 1]], 1, 60), null, 'jedna liczba to nie zakres'); assert.equal(X.strMinMax(null, 1, 60), null); assert.equal(X.strMinMax([['2026-09-23', null], ['2026-09-24', null]], 1, 60), null);
   assert.deepEqual(X.strMinMax([['2026-09-23', 1, 5], ['2026-09-24', 2, 4], ['2026-09-25', 3, null]], 2, 60), {n: 2, min: 4, dmin: '2026-09-24', max: 5, dmax: '2026-09-23'}, 'inna kolumna');
-  assert.deepEqual(X.strDelta(0.004, 2, '1 D', 'inv'), {txt: '• 0.00 1 D', cls: ''}, 'zero po zaokrągleniu — bez strzałki i koloru');
-  assert.deepEqual(X.strDelta(0.11, 2, '1 D', 'inv'), {txt: '▲ +0.11 1 D', cls: 'neg'}, 'wzrost stresu = czerwony'); assert.deepEqual(X.strDelta(-0.163, 2, '5 S', 'inv'), {txt: '▼ −0.16 5 S', cls: 'pos'});
-  assert.deepEqual(X.strDelta(0.05, 2, '1 D', 'none'), {txt: '▲ +0.05 1 D', cls: ''}, 'put/call: bez koloru'); assert.deepEqual(X.strDelta(0.05, 2, '1 D'), {txt: '▲ +0.05 1 D', cls: 'pos'});
-  assert.deepEqual(X.strDelta(null, 2, '1 D', 'inv'), {txt: '— 1 D', cls: 'na'}); assert.deepEqual(X.strDelta(NaN, 2, '1 D'), {txt: '— 1 D', cls: 'na'}); assert.deepEqual(X.strDelta(0.01, 2, '', 'inv'), {txt: '▲ +0.01', cls: 'neg'});
+  /* v321 (decyzja właściciela 10.10): kolor z kierunku liczby w każdym trybie — wzrost zielony, spadek czerwony, zero żółte (dawniej 'inv': wzrost stresu na czerwono; 'none': bez koloru) */
+  assert.deepEqual(X.strDelta(0.004, 2, '1 D', 'inv'), {txt: '• 0.00 1 D', cls: 'neu'}, 'zero po zaokrągleniu — bez strzałki, żółte');
+  assert.deepEqual(X.strDelta(0.11, 2, '1 D', 'inv'), {txt: '▲ +0.11 1 D', cls: 'pos'}, 'wzrost stresu — zielony (kierunek)'); assert.deepEqual(X.strDelta(-0.163, 2, '5 S', 'inv'), {txt: '▼ −0.16 5 S', cls: 'neg'});
+  assert.deepEqual(X.strDelta(0.05, 2, '1 D', 'none'), {txt: '▲ +0.05 1 D', cls: 'pos'}, 'put/call: kolor kierunku'); assert.deepEqual(X.strDelta(0.05, 2, '1 D'), {txt: '▲ +0.05 1 D', cls: 'pos'});
+  assert.deepEqual(X.strDelta(null, 2, '1 D', 'inv'), {txt: '— 1 D', cls: 'na'}); assert.deepEqual(X.strDelta(NaN, 2, '1 D'), {txt: '— 1 D', cls: 'na'}); assert.deepEqual(X.strDelta(0.01, 2, '', 'inv'), {txt: '▲ +0.01', cls: 'pos'});
   assert.equal(X.strVal(-2.663, 2), '−2.66'); assert.equal(X.strVal(0.75, 2), '0.75'); assert.equal(X.strVal(null, 2), '—'); assert.equal(X.strVal('1', 2), '—'); assert.equal(X.strVal(Infinity, 2), '—');
 });
 
@@ -4846,20 +4740,20 @@ test('v121: stres i opcje — panel z pliku: kafle z datą i wiekiem, składowe 
   const fsi = {date: '2026-09-23', value: -2.663, d1: 0.11, d5: -0.163, hist, cols: {credit: {v: null, d1: null}, equity: {v: -0.567, d1: 0.01}, vol: {v: -0.488, d1: 0.118}, zzz: {v: 1, d1: 1}, us: 'x'}};
   const D = {at: '2026-09-26T14:00:00+00:00', ok: {fsi: true}, part_at: {fsi: '2026-09-26T14:00:00+00:00'}, pc_off: true, fsi};
   const b = X.strBody(D);
-  assert.ok(b.startsWith('<div class="etfkpis"><div class="etfk"><span>st.k.fsi</span><b>−2.66<small class="neg">▲ +0.11 st.k.d1</small><small class="pos">▼ −0.16 st.k.d5</small></b><small class="mtxt">'), b.slice(0, 300));
+  assert.ok(b.startsWith('<div class="etfkpis"><div class="etfk"><span>st.k.fsi</span><b>−2.66<small class="pos">▲ +0.11 st.k.d1</small><small class="neg">▼ −0.16 st.k.d5</small></b><small class="mtxt">'), b.slice(0, 300));   /* v321: wzrost zielony, spadek czerwony */
   assert.ok(b.includes('2026 · age(2026-09-23)</small></div></div>'), 'data i wiek danych pod kaflem');
   assert.ok(b.includes('st.mm.fsi{"n":"60","min":"−2.69","dmin":"') && b.includes('","max":"−2.10","dmax":"'), 'najniżej/najwyżej z ostatnich 60 wierszy historii');
   assert.equal((b.match(/<tr><td>/g) || []).length, 3, 'tylko znane składowe obecne w pliku (credit, equity, vol); nieznane klucze i śmieci pominięte');
   assert.ok(b.indexOf('st.p.credit') < b.indexOf('st.p.equity') && b.indexOf('st.p.equity') < b.indexOf('st.p.vol'), 'kolejność z listy');
   assert.ok(b.includes('<td><span class="cell mono na">—</span></td><td><span class="cell mono na">—</span></td>'), 'składowa bez liczby: „—” dwa razy, nie zero');
-  assert.ok(b.includes('<span class="cell mono">−0.57</span></td><td><span class="cell mono neg">▲ +0.01</span>') && b.includes('<span class="cell mono neg">▲ +0.12</span>'), 'wzrost składowej na czerwono');
+  assert.ok(b.includes('<span class="cell mono">−0.57</span></td><td><span class="cell mono pos">▲ +0.01</span>') && b.includes('<span class="cell mono pos">▲ +0.12</span>'), 'wzrost składowej — v321: zielony (dawniej czerwony)');
   assert.ok(b.includes('st.h.parts') && b.includes('st.c.part') && b.endsWith('<p class="pnote">st.note.fsi</p>') && !b.includes('st.pc.') && !b.includes('st.k.pc') && !b.includes('st.fsi.na') && !b.includes('pnote neu'), 'bez zgody: nota samego indeksu, żadnych kafli put/call ani noty o wyłączeniu');
   assert.equal(X.strPcOn(D), false); assert.equal(X.strPcOn({pc_off: false}), true); assert.equal(X.strPcOn({}), true, 'plik bez pc_off (sprzed wyłączenia) = pełny panel');
   assert.ok(!/undefined|NaN|\[object/.test(b));
   const pc = {date: '2026-09-25', total: 0.75, equity: 0.52, index: null, hist: [['2026-09-24', 0.8, 0.55, 0.87], ['2026-09-25', 0.75, 0.52, null], ['2026-09-23', 0.9, 0.6, 1.0], ['x', 1, 1, 1]]};
   const b2 = X.strBody(Object.assign({}, D, {pc_off: false, pc}));
-  assert.ok(b2.includes('<span>st.k.pc</span><b>0.75<small class="">▼ −0.05 st.k.d1</small></b><small class="mtxt">') && b2.includes('age(2026-09-25)'), 'put/call razem ze zmianą wobec poprzedniej sesji z historii, bez koloru');
-  assert.ok(b2.includes('<span>st.k.pce</span><b>0.52<small class="">▼ −0.03 st.k.d1</small></b>') && b2.includes('<span>st.k.pci</span><b>—<small class="na">— st.k.d1</small></b>'), 'indeksy bez liczby = „—”, nie zero');
+  assert.ok(b2.includes('<span>st.k.pc</span><b>0.75<small class="neg">▼ −0.05 st.k.d1</small></b><small class="mtxt">') && b2.includes('age(2026-09-25)'), 'put/call razem ze zmianą wobec poprzedniej sesji z historii, v321: w kolorze kierunku');
+  assert.ok(b2.includes('<span>st.k.pce</span><b>0.52<small class="neg">▼ −0.03 st.k.d1</small></b>') && b2.includes('<span>st.k.pci</span><b>—<small class="na">— st.k.d1</small></b>'), 'indeksy bez liczby = „—”, nie zero');
   assert.ok(b2.includes('st.mm.pc{"n":"3","min":"0.75","dmin":"') && b2.includes('","max":"0.90","dmax":"') && !b2.includes('st.pc.na') && b2.endsWith('<p class="pnote">st.note</p>'), 'ze zgodą: pełna nota');
   assert.equal(X.strBody(Object.assign({}, D, {pc})), b, 'bez zgody dane put/call z pliku pomijane');
   assert.ok((b2.match(/<div class="etfk">/g) || []).length === 4 && b2.indexOf('st.k.fsi') < b2.indexOf('st.k.pc'), 'cztery kafle: indeks, potem trzy put/call');
@@ -5444,15 +5338,15 @@ const snb124 = (() => {
   return {a0, a1, mk, D, W};
 })();
 
-test('v124: Szwajcaria — pomocnicze: historia po dacie, kwota w mld (zh/ja w 億), zmiana ze strzałką bez koloru, luka = brak zmiany, najniżej/najwyżej tylko z liczb', () => {
+test('v124: Szwajcaria — pomocnicze: historia po dacie, kwota w mld (zh/ja w 億), zmiana ze strzałką w kolorze kierunku (v321; było bez koloru), luka = brak zmiany, najniżej/najwyżej tylko z liczb', () => {
   const X = snb124.mk(), R = X.snbRows(snb124.D);
   assert.equal(R.length, 9, 'śmieci i data niemożliwa odrzucone'); assert.equal(R[0][0], '2026-07-17'); assert.equal(R[8][0], '2026-09-18');
   assert.deepEqual(R.find(r => r[0] === '2026-09-04'), ['2026-09-04', null, 464000], 'brak krajowych = null, nie 0');
   assert.equal(X.snbDiv(), 1000, 'bez słownika — mld'); assert.equal(X.snbAmt(null), '—'); assert.equal(X.snbAmt(428033), 'snb.bn{"v":"428.0"}');
   assert.deepEqual(X.snbDelta(null, 'L'), {txt: '— L', cls: 'na'});
-  assert.deepEqual(X.snbDelta(790, 'L'), {txt: '▲ +snb.bn{"v":"0.8"} L', cls: ''}, 'wzrost bez koloru');
-  assert.deepEqual(X.snbDelta(-9077, ''), {txt: '▼ −snb.bn{"v":"9.1"}', cls: ''});
-  assert.deepEqual(X.snbDelta(20, ''), {txt: '• snb.bn{"v":"0.0"}', cls: ''}, 'zero po zaokrągleniu — kropka, bez strzałki');
+  assert.deepEqual(X.snbDelta(790, 'L'), {txt: '▲ +snb.bn{"v":"0.8"} L', cls: 'pos'}, 'wzrost zielony (v321; było bez koloru)');
+  assert.deepEqual(X.snbDelta(-9077, ''), {txt: '▼ −snb.bn{"v":"9.1"}', cls: 'neg'});
+  assert.deepEqual(X.snbDelta(20, ''), {txt: '• snb.bn{"v":"0.0"}', cls: 'neu'}, 'zero po zaokrągleniu — kropka, bez strzałki, żółte (v321)');
   const i11 = R.findIndex(r => r[0] === '2026-09-11'), i28 = R.findIndex(r => r[0] === '2026-08-28'), i04 = R.findIndex(r => r[0] === '2026-09-04');
   assert.equal(X.snbWk(R, i11, 2), R[i11][2] - R[i04][2], 'razem: wobec tygodnia dokładnie 7 dni wcześniej');
   assert.equal(X.snbWk(R, i11, 1), null, 'krajowe 4.09 brak — brak zmiany'); assert.equal(X.snbWk(R, i28, 1), null, 'luka 21.08 — brak zmiany, nie wobec 14.08');
@@ -5461,7 +5355,7 @@ test('v124: Szwajcaria — pomocnicze: historia po dacie, kwota w mld (zh/ja w �
   assert.equal(X.snbMinMax([['2026-09-18', 1, 2]], 1, 52), null, 'jedna liczba — bez zakresu');
   const Z = snb124.mk({t: (k, v) => k === 'snb.div' ? '100' : k + (v ? JSON.stringify(v) : '')});
   assert.equal(Z.snbDiv(), 100); assert.equal(Z.snbAmt(428033), 'snb.bn{"v":"4280"}', 'zh/ja: w 億 (100 mln), bez miejsc po przecinku');
-  assert.deepEqual(Z.snbDelta(790, ''), {txt: '▲ +snb.bn{"v":"8"}', cls: ''});
+  assert.deepEqual(Z.snbDelta(790, ''), {txt: '▲ +snb.bn{"v":"8"}', cls: 'pos'});   /* v321 */
   assert.equal(X.SNB_ROWS, 8); assert.equal(X.SNB_OKNO, 52); assert.equal(X.SNB_MAX_AGE, 45);
 });
 
@@ -5470,7 +5364,7 @@ test('v124: Szwajcaria — panel z pliku: 3 kafle z datą i wiekiem, ▲/▼ wob
   assert.ok(!/undefined|NaN|\[object|null/.test(body), body.slice(0, 300));
   assert.equal((body.match(/<div class="etfk">/g) || []).length, 3, 'trzy kafle');
   assert.ok(body.includes('snb.k.dom') && body.includes('snb.k.tot') && body.includes('snb.k.fx'));
-  assert.ok(body.includes('<small class="">▲ +snb.bn{"v":"0.8"} snb.k.d1w</small>') && body.includes('<small class="">▼ −snb.bn{"v":"9.1"} snb.k.d4w</small>'), 'krajowe: tydzień i 4 tygodnie');
+  assert.ok(body.includes('<small class="pos">▲ +snb.bn{"v":"0.8"} snb.k.d1w</small>') && body.includes('<small class="neg">▼ −snb.bn{"v":"9.1"} snb.k.d4w</small>'), 'krajowe: tydzień i 4 tygodnie (v321: w kolorze kierunku)');
   assert.ok(body.includes('<small class="na">— snb.k.d4w</small>'), 'razem bez zmiany 4-tygodniowej — kreska, nie zero');
   assert.ok(body.includes('snb.wk{"d":') && body.includes('age(2026-09-18)') && body.includes('snb.fxm{"m":') && body.includes('age(2026-07)'), 'data i wiek przy kaflach');
   assert.ok(body.includes('snb.bn{"v":"802.5"}') && body.includes('▲ +snb.bn{"v":"16.4"} snb.k.d1m') && body.includes('— snb.k.d12m'), 'rezerwy: zmiana miesięczna, brak rocznej');
@@ -5482,7 +5376,7 @@ test('v124: Szwajcaria — panel z pliku: 3 kafle z datą i wiekiem, ▲/▼ wob
   assert.equal((r0904.match(/<span class="cell mono na">—<\/span>/g) || []).length, 2, 'tydzień bez krajowych: kwota i zmiana — kreski');
   assert.ok(body.includes('snb.mm{"n":"8","min":"snb.bn{\\"v\\":\\"432.0\\"}"'), 'najniżej / najwyżej z 8 liczb');
   assert.ok(body.includes('snb.leg') && body.includes('snb.note') && body.includes('snb.h.wk') && body.includes('class="snb-w"'), 'noty i nagłówki');
-  assert.ok(!body.includes('pos') && !body.includes('neg'), 'bez kolorów kierunku');
+  assert.ok(body.includes('class="pos"') && body.includes('class="neg"') && body.includes('cell mono neg'), 'v321 (decyzja właściciela 10.10): kolory kierunku w kaflach i tabeli (dawniej bez kolorów)');
   assert.ok(!body.includes('snb.prev') && !body.includes('snb.gw.na') && !body.includes('snb.fx.na'));
   // część z błędem z poprzednią wersją — nota z czasem części; brak części — nota
   const P = Object.assign({}, D, {ok: {gw: true, fx: false}, part_at: {fx: '2026-09-20T10:00:00+00:00'}});
@@ -6440,7 +6334,7 @@ const G126 = (() => {
       if (m[1]) { const i = stk.lastIndexOf(tg); if (i >= 0) stk.length = i; continue; }
       const a = {}; let q; ar.lastIndex = 0; while ((q = ar.exec(m[3]))) a[q[1].toLowerCase()] = q[2] ?? q[3] ?? q[4] ?? '';
       TAGS.push([tg, a, stk.length ? stk[stk.length - 1] : -1]); if (!m[4] && !VOID.test(tg)) stk.push(TAGS.length - 1); } }
-  const INTERNAL = ['st', 'gst', 'GREG', 'GPER', 'gRenderAll', 'gRenderDetail', 'GEDGE', 'GCEDGE', 'NB', 'EB', 'DATA', 'select', 'renderAll', 'setMode', 'setPage', 'openHelp', 'closeHelp', 'renderTrendy', 'TV_W'];
+  const INTERNAL = ['st', 'gst', 'GREG', 'GPER', 'gRenderAll', 'gRenderDetail', 'GEDGE', 'GCEDGE', 'NB', 'EB', 'DATA', 'select', 'renderAll', 'setMode', 'setPage', 'openHelp', 'closeHelp', 'renderTrendy'];   /* v321: bez TV_W (widgety TradingView usunięte) */
   const RET = '\n;return {' + INTERNAL.map(n => `get ${n}(){try{return ${n};}catch(e){return undefined;}}`).join(',') + '};';
   const GLOBALS = ['window', 'document', 'navigator', 'location', 'history', 'localStorage', 'sessionStorage', 'fetch', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
     'requestAnimationFrame', 'cancelAnimationFrame', 'MutationObserver', 'ResizeObserver', 'IntersectionObserver', 'Path2D', 'Image', 'DOMParser', 'Event', 'CustomEvent',
@@ -6638,14 +6532,8 @@ const G126 = (() => {
       R.act('pomoc ' + m, () => { A.openHelp(); A.closeHelp(); });
       for (const p of ['flows', 'assets', 'sectors', 'sources', 'method', 'settings', 'overview']) R.act('strona ' + p, () => A.setPage(p));
     }
-    for (const k of Object.keys(A.TV_W || {})) R.clickDoc({tvLoad: k}, '[data-tv-load]');   /* zgoda i widget po kliknięciu */
-    /* skrypt dostawcy wstawia do naszego DOM ramkę z tytułem z marką (tak robi w przeglądarce: „… TradingView widget”); strona ma zastąpić tytuł ogólnym —
-       końcowy tytuł każdej ramki trafia do przeszukiwanych kawałków (tytuł z marką wpisany tu z pominięciem zapisu, więc zostaje tylko wtedy, gdy strona go nie zmieni) */
+    /* v321: widgety TradingView usunięte (decyzja właściciela 10.10.2026) — bez kliknięć zgody i bez ramek dostawcy; lista ramek zostaje pusta */
     const frames = [];
-    for (const k of Object.keys(A.TV_W || {})) { const box = R.el(A.TV_W[k].id + '-w'); if (!box || !box.innerHTML.includes('tradingview-widget-container__widget')) continue;
-      box._h += '<iframe title="' + k + ' TradingView widget" lang="en"></iframe>'; box._q = null; const f = box.querySelector('iframe'); f._a.title = k + ' TradingView widget'; frames.push([k, f]); }
-    R.fireMOs([{type: 'childList', addedNodes: frames.map(x => x[1]), removedNodes: []}]);
-    for (const [k, f] of frames) R.CAP.push({k: 'attr', v: f.getAttribute('title') || '', id: 'ramka widgetu ' + k});
     /* adresy w naszym DOM (href / src / action w treści wpisanej przez stronę): serwis zewnętrzny widać po najechaniu na link (pasek stanu) */
     const hosts = new Set();
     for (const c of R.CAP) if (c.k === 'html') for (const m of c.v.matchAll(/\b(?:href|src|action|formaction)\s*=\s*["']?(?:https?:)?\/\/([^\/"'\s>?#]+)/gi)) hosts.add(m[1].toLowerCase());
@@ -6674,7 +6562,7 @@ const G126_L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
 /* panele, które z danymi wbudowanymi MUSZĄ się narysować — strażnik nie może przejść „na pusto” */
 const G126_PANELS = ['page-sources', 'page-method', 'page-flows', 'page-assets', 'page-sectors', 'trendy', 'g-detail', 'g-kpis', 'g-prob', 'gh-src', 'detail', 'kpis',
   'c-dzwignia', 'c-wieloryby', 'c-archiwum', 'g-archiwum', 'g-indeksy', 'g-snb', 'g-usa', 'g-insider', 'inst', 'tic', 'bis', 'krypto', 'cmc', 'c-ceny-krypto', 'c-lancuch', 'c-wycena',
-  'eng-cftc-crypto', 'eng-cftc-euro-fx', 'eng-wdi-destinations', 'tv-markets', 'tv-markets-w', 'tv-chart', 'tv-chart-w', 'tv-dvol', 'tv-newsc'];
+  'eng-cftc-crypto', 'eng-cftc-euro-fx', 'eng-wdi-destinations'];   /* v321: bez paneli tv-* (widgety TradingView usunięte) */
 G126_PANELS.push('g-fund');   /* v134: panel funduszy USA (dane wbudowane: ICI134_FILE) musi się narysować */
 G126_PANELS.push('g-dolar');   /* v136: panel kursów dolara Ameryki Łacińskiej (dane wbudowane: DL136_FILE) musi się narysować */
 G126_PANELS.push('c-rwa');   /* v133: panel tokenizowanych aktywów (dane wbudowane: RWA133_FILE) musi się narysować */
@@ -6736,11 +6624,11 @@ test('v126.2-zrodla: słowniki — wartość skuteczna KAŻDEGO klucza w każdym
   for (const l of G126_L10) {
     assert.equal(E[l]['g.help.corr'], E[l]['g.hm.corr'], l + ' g.help.corr'); assert.equal(E[l]['g.help.probd'], E[l]['g.hm.probd'], l + ' g.help.probd'); assert.equal(E[l]['g.help.limd'], E[l]['g.hm.limd'], l + ' g.help.limd');
     for (const k of ['g.pf.cli.lvl', 'g.pf.cli.dir', 'g.pf.mom1', 'g.pf.mom3', 'g.pf.fx', 'g.pf.yld', 'pg.formula']) if (l !== 'pl' && l !== 'en') assert.notEqual(E[l][k], E.en[k], l + ' ' + k + ': Metodologia w języku strony (v142)');
-    assert.ok(E[l]['arc.k.cftc'].includes('{c}') && E[l]['arc.k.cftc'].includes('CME') && !/[(（]CME[)）]/.test(E[l]['arc.k.cftc']) && E[l]['tv.ph'].includes('{w}'), l + ': giełda jako miejsce obrotu, nie dopisek w nawiasie');
+    assert.ok(E[l]['arc.k.cftc'].includes('{c}') && E[l]['arc.k.cftc'].includes('CME') && !/[(（]CME[)）]/.test(E[l]['arc.k.cftc']) && !('tv.ph' in E[l]), l + ': giełda jako miejsce obrotu, nie dopisek w nawiasie (v321: bez tekstów widgetów)');
     for (const k of ['lev.h.bn', 'lev.h.dr', 'lev.h.hl', 'lev.h.tab']) assert.ok(!/[(（][^()（）]*(?:Binance|Deribit|Hyperliquid)[^()（）]*[)）]/.test(E[l][k]), l + ' ' + k + ': giełda jako miejsce obrotu, nie dopisek w nawiasie');
     assert.ok(!/Sources page|stronie Źródła|“Sources” menu|menu „Źródła”/.test(E[l]['pg.assets.dv'] + E[l]['top.err2'] + E[l]['eng.x.gen.lim'] + E[l]['eng.x.gen.not_says']), l + ': bez odesłań do strony Źródła po to, czego ona nie ma');
   }
-  assert.equal(E.pl['arc.src.cftc'], 'tygodniowy raport regulatora rynku terminowego USA'); assert.equal(E.pl['tv.load'], 'Załaduj widget'); assert.equal(E.en['tv.off'], 'Turn off external widgets (withdraw consent)');
+  assert.equal(E.pl['arc.src.cftc'], 'tygodniowy raport regulatora rynku terminowego USA'); assert.ok(!('tv.load' in E.pl) && !('tv.off' in E.en), 'v321: teksty zgody na widgety usunięte');
   assert.ok(E.pl['zr2.legal'].includes('organizacji międzynarodowych, regulatorów rynku, giełd, serwisów zbierających dane rynkowe') && E.en['zr2.legal'].includes('market-data aggregators'), 'zdanie o źródłach pełne (kategorie, bez nazw)');
   assert.ok(E.pl['arc.src.fred'].includes('co tydzień') && E.pl['arc.src.fred'].includes('reverse repo codziennie') && E.en['arc.src.tic'].includes('cross-border'), 'opisy źródeł bazowych prawdziwe (częstotliwość, oba kierunki)');
 });
@@ -6770,22 +6658,8 @@ test('v126.2-zrodla: filtr GT_PROV — zdania z plików silnika (po polsku) z na
     assert.equal(C('Pierwsze zdanie zostaje. Dane pochodzą z ' + n + ' co tydzień. Trzecie zostaje.'), 'Pierwsze zdanie zostaje. Trzecie zostaje.', 'zdanie z nazwą znika: ' + n);
 });
 
-test('v126.2-zrodla: ramka widgetu wstawiona przez skrypt dostawcy dostaje ogólny tytuł (tytuł ramki = nazwa dla czytnika ekranu, bez marki); hash transakcji bez linku do eksploratora', () => {
-  for (const L of ['pl', 'en', 'ja']) {
-    const R = G126.run(L), A = R.api, E = g126I18N()[L];
-    for (const k of Object.keys(A.TV_W)) {
-      R.clickDoc({tvLoad: k}, '[data-tv-load]');
-      const box = R.el(A.TV_W[k].id + '-w');
-      assert.ok(box && box.innerHTML.includes('tradingview-widget-container__widget'), L + ' ' + k + ': widget zamontowany po zgodzie');
-      box._h += '<iframe title="x TradingView widget" lang="en"></iframe>'; box._q = null; const f = box.querySelector('iframe'); f._a.title = k + ' TradingView widget';   /* tak robi skrypt dostawcy */
-      R.fireMOs([{type: 'childList', addedNodes: [f], removedNodes: []}]);
-      assert.equal(f.getAttribute('title'), E['tv.n.' + k], L + ' ' + k + ': tytuł ramki ogólny');
-      assert.deepEqual(G126_NAMES.check(f.getAttribute('title'), L), [], L + ' ' + k);
-    }
-    assert.deepEqual(R.ERR, [], L + ': bez błędów strony');
-  }
-  const t0 = html.indexOf('function tvFrameTitle(k,box){'), t1 = html.indexOf('\n', t0);
-  assert.ok(t0 > 0 && html.slice(t0, html.indexOf('\nfunction ', t0 + 10)).includes("setAttribute('title',nm)") && html.includes('tvFrameTitle(k,box);}'), 'tvMount wywołuje tvFrameTitle');
+test('v126.2-zrodla: hash transakcji bez linku do eksploratora; v321: ramek widgetów dostawcy już nie ma (widgety TradingView usunięte)', () => {
+  assert.ok(!html.includes('function tvFrameTitle(') && !html.includes('tradingview-widget-container'), 'v321: bez kodu ramek widgetu');
   assert.ok(!html.includes('https://etherscan.io/tx/') && html.includes('data-copy="${tx}"') && html.includes("document.addEventListener('click',whCopy);"), 'wieloryby: hash kopiowany, bez linku do serwisu');
 });
 
@@ -6795,8 +6669,8 @@ for (const L of G126_L10) test('v126.2-zrodla: strażnik — ' + L + ': wszystki
   for (const id of G126_PANELS) assert.ok(R.ids.has(id), L + ': panel się nie narysował: ' + id);
   assert.ok(R.ids.size >= 55 && R.segs.size > 3000, L + ': za mało treści: ' + R.ids.size + ' paneli, ' + R.segs.size + ' kawałków');
   const E = g126I18N()[L];
-  assert.ok(R.segs.has(E['nav.sources']) && R.segs.has(E['zr2.live']) && R.segs.has(E['tv.load']), L + ': strona w tym języku (menu, karta Źródła, widget)');
-  assert.ok(R.frames.length >= 7 && R.frames.every(([k, ti]) => ti === E['tv.n.' + k]), L + ': ramki widgetów z ogólnym tytułem: ' + JSON.stringify(R.frames));
+  assert.ok(R.segs.has(E['nav.sources']) && R.segs.has(E['zr2.live']), L + ': strona w tym języku (menu, karta Źródła)');   /* v321: bez widgetów */
+  assert.deepEqual(R.frames, [], L + ': v321 — bez ramek widgetów (TradingView usunięty)');
   assert.deepEqual([...R.hosts].filter(h => h !== 'capitalflowai-app.github.io'), [], L + ': linki do serwisów zewnętrznych w naszym DOM');
   const bad = []; for (const [s, w] of R.segs) { const h = G126_NAMES.check(s, L); if (h.length) bad.push(w + ' → ' + h.join(' ; ')); }
   assert.deepEqual(bad, [], L + ': nazwy źródeł na stronie');
@@ -7327,18 +7201,19 @@ const fed131 = (() => {
   return {a0, a1, mk, D, cp, PIN, ppb, dayPl};
 })();
 
-test('v131: Fed — pomocnicze: szansa w %, zmiana w pkt proc. bez koloru, dni do posiedzenia, posiedzenia przed zamknięciem handlu, kolejność wyników, przeliczenie tylko przy komplecie', () => {
+test('v131: Fed — pomocnicze: szansa w %, zmiana w pkt proc. w kolorze kierunku (v321; było bez koloru), dni do posiedzenia, posiedzenia przed zamknięciem handlu, kolejność wyników, przeliczenie tylko przy komplecie', () => {
   const X = fed131.mk();
   assert.equal(X.fedPct(null), '—'); assert.equal(X.fedPct(undefined), '—'); assert.equal(X.fedPct(NaN), '—');
   assert.equal(X.fedPct(0.005), 'fed.lt1', 'poniżej 1% — „<1%”, nie zero'); assert.equal(X.fedPct(0), 'fed.lt1');
   assert.equal(X.fedPct(0.995), 'fed.gt99'); assert.equal(X.fedPct(0.639), 'fed.pct{"v":"64"}'); assert.equal(X.fedPct(0.01), 'fed.pct{"v":"1"}'); assert.equal(X.fedPct(0.99), 'fed.pct{"v":"99"}');
   assert.deepEqual(X.fedPp(null), {txt: '—', cls: 'na'}); assert.deepEqual(X.fedPp(undefined), {txt: '—', cls: 'na'});
-  assert.deepEqual(X.fedPp(0.004), {txt: '• fed.pp{"v":"0"}', cls: ''}, 'mniej niż pół punktu — kropka');
-  assert.deepEqual(X.fedPp(0.655 - 0.55), {txt: '▲ +fed.pp{"v":"11"}', cls: ''}, 'bez szumu liczb zmiennoprzecinkowych');
-  assert.deepEqual(X.fedPp(-0.006), {txt: '▼ −fed.pp{"v":"0.6"}', cls: ''}, 'poniżej 1 pkt — jedno miejsce po przecinku');
-  assert.deepEqual(X.fedPp(-0.23), {txt: '▼ −fed.pp{"v":"23"}', cls: ''});
-  assert.deepEqual(X.fedPp(0.105, 1), {txt: '▲ +11', cls: ''}, 'w tabeli sama liczba (jednostka w nagłówku)'); assert.deepEqual(X.fedPp(0.001, 1), {txt: '• 0', cls: ''});
-  assert.deepEqual(X.fedPp(-0.006, 1), {txt: '▼ −0.6', cls: ''}); assert.deepEqual(X.fedPp(null, 1), {txt: '—', cls: 'na'});
+  /* v321 (decyzja właściciela 10.10): wzrost zielony, spadek czerwony, zero żółte (dawniej bez koloru) */
+  assert.deepEqual(X.fedPp(0.004), {txt: '• fed.pp{"v":"0"}', cls: 'neu'}, 'mniej niż pół punktu — kropka');
+  assert.deepEqual(X.fedPp(0.655 - 0.55), {txt: '▲ +fed.pp{"v":"11"}', cls: 'pos'}, 'bez szumu liczb zmiennoprzecinkowych');
+  assert.deepEqual(X.fedPp(-0.006), {txt: '▼ −fed.pp{"v":"0.6"}', cls: 'neg'}, 'poniżej 1 pkt — jedno miejsce po przecinku');
+  assert.deepEqual(X.fedPp(-0.23), {txt: '▼ −fed.pp{"v":"23"}', cls: 'neg'});
+  assert.deepEqual(X.fedPp(0.105, 1), {txt: '▲ +11', cls: 'pos'}, 'w tabeli sama liczba (jednostka w nagłówku)'); assert.deepEqual(X.fedPp(0.001, 1), {txt: '• 0', cls: 'neu'});
+  assert.deepEqual(X.fedPp(-0.006, 1), {txt: '▼ −0.6', cls: 'neg'}); assert.deepEqual(X.fedPp(null, 1), {txt: '—', cls: 'na'});
   /* odliczanie: doba decyzji wobec dzisiejszej doby, obie w strefie przeglądarki (tu Warszawa; zegar 27.09 21:45 czasu letniego) */
   assert.equal(X.FED_TZ, 'Europe/Warsaw');
   assert.equal(X.fedLeft('2026-10-28T18:00:00Z'), 'fed.left{"n":"31"}'); assert.equal(X.fedLeft('2026-09-27T21:00:00Z'), 'fed.left0', '23:00 tego samego dnia');
@@ -7380,7 +7255,7 @@ test('v131: Fed — panel z pliku: 3 kafle z czasem i wiekiem, tabela decyzji dl
   assert.ok(body.includes('fed.k.chg{"o":"fed.o.hike25"}'), 'zmiana szansy tej decyzji');
   const h25 = D.ks.meetings[0].out.find(o => o.k === 'hike25');
   const pp = d => { const x = Math.round(d * 1e6) / 1e4, a = Math.abs(x), dec = a < 1 ? 1 : 0; return a < 0.5 ? '• fed.pp{"v":"0"}' : (x > 0 ? '▲ +' : '▼ −') + 'fed.pp{"v":"' + (Math.round(a * 10 ** dec) / 10 ** dec).toFixed(dec) + '"}'; };
-  assert.ok(body.includes('<b>' + pp(h25.p - h25.p7d) + ' fed.d7<small'), '7 dni w wartości kafla: ' + pp(h25.p - h25.p7d));
+  assert.ok(body.includes('<b><span class="' + (h25.p - h25.p7d > 0 ? 'pos' : 'neg') + '">' + pp(h25.p - h25.p7d) + ' fed.d7</span><small'), '7 dni w wartości kafla (v321: w kolorze kierunku): ' + pp(h25.p - h25.p7d));
   assert.ok(body.includes(pp(h25.p - h25.p1d) + ' fed.d1') && body.includes(pp(h25.p - h25.p30d) + ' fed.d30'), 'od wczoraj i 30 dni w podpisach');
   assert.ok(body.includes('</div></div><p class="pnote">fed.at{"t":"D(' + D.part_at.ks + ') · ago(' + D.part_at.ks + ')"}</p>'), 'pod kaflami jeden wiersz: czas cen z wiekiem');
   assert.equal((body.match(/fed\.at/g) || []).length, 1, 'czas cen raz (nie w każdym kaflu)');
@@ -7389,7 +7264,7 @@ test('v131: Fed — panel z pliku: 3 kafle z czasem i wiekiem, tabela decyzji dl
   assert.ok(m1.vol24 > 0 && Math.round(m1.vol24) !== Math.round(m1.vol) && Math.round(m1.oi) !== Math.round(m1.vol), 'nagranie rozróżnia obrót 24 h, łączny obrót i otwarte');
   assert.ok(body.includes('fed.k.act</span><b>' + Math.round(m1.oi).toFixed(0) + '<small'), 'kafel: otwarte kontrakty najbliższego posiedzenia (oi, nie obrót)');
   assert.ok(body.includes('<small class="">fed.vol24{"v":"' + Math.round(m1.vol24).toFixed(0) + '"}</small>'), 'kafel: zawarte w 24 h = vol24 (nie łączny obrót vol)');
-  assert.ok(!/class="[^"]*\b(pos|neg)\b/.test(body), 'bez kolorów kierunku');
+  assert.ok(/class="[^"]*\b(pos|neg)\b/.test(body), 'v321 (decyzja właściciela 10.10): kolory kierunku przy zmianach (dawniej bez)');
   const trs0 = b => b.split('<tr').slice(2), trs = trs0(body);   /* bez wiersza nagłówka */
   assert.ok(trs.some(r => r.includes('>▲ +') || r.includes('>▼ −')) && !trs.some(r => r.includes('fed.pp')), 'zmiana w tabeli bez jednostki (jest w nagłówku)');
   assert.equal(trs.length, 5, 'pięć decyzji'); assert.ok(trs[3].startsWith(' class="fed-top">'), 'wiersz najbardziej prawdopodobnej decyzji wyróżniony');
@@ -7402,7 +7277,7 @@ test('v131: Fed — panel z pliku: 3 kafle z czasem i wiekiem, tabela decyzji dl
   for (const [i, k] of [[2, 'hold'], [3, 'hike25']]) {
     const o = m1.out.find(x => x.k === k), raw = fed131.ppb(o.p - o.p7d);
     assert.notEqual(raw, fed131.ppb(o.pn - o.p7d), k + ': przeliczona dałaby inną liczbę');
-    assert.ok(trs[i].includes('</span></td><td><span class="cell mono">' + raw + '</span></td>'), k + ': zmiana 7 dni w tabeli ' + raw);
+    assert.ok(trs[i].includes('</span></td><td><span class="cell mono ' + (raw.startsWith('▲') ? 'pos' : raw.startsWith('▼') ? 'neg' : 'neu') + '">' + raw + '</span></td>'), k + ': zmiana 7 dni w tabeli ' + raw + ' (v321: w kolorze kierunku)');
   }
   assert.ok(body.includes('<th>fed.c.p{"d":') && (body.match(/<th>fed\.c\.p/g) || []).length === 2 && (body.match(/class="fed-w"/g) || []).length === 3 + 5 * 3, 'kolumny dwóch posiedzeń; węższe ukrywane na telefonie');
   assert.ok(body.includes('title="D(2026-09-27T18:52:51Z)"') && body.includes('>ago(2026-09-27T18:52:51Z)</span>'), 'ostatnia transakcja: wiek, pełny czas w podpowiedzi');
@@ -7516,7 +7391,7 @@ test('v131: Fed — prawdziwy słownik: pl, en, de, zh bez surowych kluczy i pó
   assert.ok(el.hidden === false && !el.innerHTML.includes('Kalshi') && el.innerHTML.includes('<p class="pnote fed-venue">Rynek zakładów w USA</p>'), 'bez nazwy rynku — opis ogólny');
 });
 
-test('v131: Fed — słownik EXTRA128 w 10 językach (te same klucze i pola), sekcja zaraz po #g-prob przed #g-q (TradingView dalej na dole GLOBAL), styl, odświeżanie co 20 min, nazwa rynku w stronie jeden raz', () => {
+test('v131: Fed — słownik EXTRA128 w 10 językach (te same klucze i pola), sekcja zaraz po #g-prob przed #g-q (v321: bez widgetów TradingView), styl, odświeżanie co 20 min, nazwa rynku w stronie jeden raz', () => {
   const a = 'const EXTRA128=', x0 = html.indexOf(a); assert.ok(x0 > 0, 'słownik EXTRA128');
   const E = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
@@ -7531,7 +7406,7 @@ test('v131: Fed — słownik EXTRA128 w 10 językach (te same klucze i pola), se
       assert.ok(!/Kalshi|Polymarket|KXFED|\bAPI\b/i.test(E[L][k]), 'nazwa w słowniku: ' + L + ' ' + k);
     }
     assert.equal(v96src.I18N[L]['fed.t'], E[L]['fed.t'], L + ': nałożony na słownik strony');
-    assert.ok(E[L]['fed.venue.cap'].includes('{v}') && E[L]['fed.how'].includes('▲/▼') && E[L]['fed.sub'].includes('65'), L + ': podpis kolumn z polem, legenda, przykład ceny');
+    assert.ok(E[L]['fed.venue.cap'].includes('{v}') && E[L]['fed.how'].includes('▲') && E[L]['fed.how'].includes('▼') && E[L]['fed.how'].includes('•') && E[L]['fed.sub'].includes('65'), L + ': podpis kolumn z polem, legenda kolorów (v321), przykład ceny');
     const USA = {pl: ' (USA)', en: ' (USA)', de: ' (USA)', es: ' (EE. UU.)', fr: ' (É.-U.)', it: ' (USA)', pt: ' (EUA)', ru: ' (США)', zh: '（美国）', ja: '（米国）'};
     assert.ok(E[L]['fed.c.p'].endsWith('{d}' + USA[L]), L + ': data posiedzenia w nagłówku kolumny z dopiskiem kraju: ' + E[L]['fed.c.p']);
   }
@@ -7543,7 +7418,7 @@ test('v131: Fed — słownik EXTRA128 w 10 językach (te same klucze i pola), se
   const s = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
   assert.equal(html.split('<section class="panel pcard" id="g-fed" hidden></section>').length, 2, 'jedno miejsce sekcji');
   assert.ok(html.indexOf('<section class="panel pcard" id="g-prob" hidden></section>\n    <section class="panel pcard" id="g-fed" hidden></section>\n') > 0, 'zaraz po #g-prob');
-  assert.ok(s('g-fed') < html.indexOf('<section class="panel pcard" id="g-q"></section>') && s('g-fed') < s('inst') && s('inst') < s('tv-markets'), 'przed #g-q; widgety TradingView dalej ostatnie');
+  assert.ok(s('g-fed') < html.indexOf('<section class="panel pcard" id="g-q"></section>') && s('g-fed') < s('inst') && !html.includes('id="tv-markets"'), 'przed #g-q');   /* v321: widgety TradingView usunięte (decyzja właściciela 10.10) */
   assert.ok(html.includes("srvJSON('fed')") && html.includes('/* v131 fed: szanse decyzji na posiedzeniach (rynek zakładów) */') && html.includes('#g-fed .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}'), 'plik, styl');
   assert.ok(html.indexOf('/* v131 fed') < html.indexOf('</style>') && html.indexOf('/* v124 szwajcaria') < html.indexOf('/* v131 fed'), 'styl w arkuszu, po stylu v124');
   assert.ok(html.includes("FED.timer=setInterval(()=>{if(!document.hidden)fedLoad();},10*60*1000);"), 'odświeżanie co 10 min (v168: automat co 10 min)');
@@ -7707,12 +7582,12 @@ test('v128: premie — słownik EXTRA129: 10 języków, te same klucze i miejsca
   assert.ok(D.pl['prm.k.cb.d'].includes('Coinbase {cb} USD') && D.pl['prm.k.cb.d'].includes('Binance {bn} USDT × {u} USD'), 'które nogi i przeliczenie USDT');
 });
 
-test('v128: premie — sekcja tuż po dźwigni i przed archiwum (CRYPTO, przed widgetami na dole), styl, blok JS, plik serwera, odświeżanie, Metodologia z flagą i logami', () => {
+test('v128: premie — sekcja tuż po dźwigni i przed archiwum (CRYPTO; v321: bez widgetów TradingView), styl, blok JS, plik serwera, odświeżanie, Metodologia z flagą i logami', () => {
   const S = '<section class="panel pcard" id="c-premie" hidden></section>';
   assert.equal(html.split(S).length, 2, 'jedna sekcja');
   assert.ok(html.includes('    <section class="panel pcard" id="c-dzwignia" hidden></section>\n    ' + S + '\n    <section class="panel pcard" id="c-archiwum" hidden></section>'), 'zaraz po dźwigni, przed archiwum');
-  const x = html.indexOf(S), cr = html.indexOf('id="crypto"'), tv = html.indexOf('<section class="panel pcard" id="tv-heatmap" hidden></section>');
-  assert.ok(cr > 0 && cr < x && tv > x, 'CRYPTO, przed widgetami (które zostają na dole)');
+  const x = html.indexOf(S), cr = html.indexOf('id="crypto"'), mEnd = html.indexOf('</main>', cr);
+  assert.ok(cr > 0 && cr < x && x < mEnd && !html.includes('id="tv-heatmap"'), 'CRYPTO (v321: widgety TradingView usunięte — decyzja właściciela 10.10)');
   assert.equal(html.split('/* v128 premie cenowe krypto */').length, 2, 'jeden blok stylu');
   assert.ok(html.includes('#c-premie .etfkpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}') && html.includes('#c-premie .etfk b small.neu,#c-premie .etfk>small.mtxt.neu{color:var(--yl-tx)}'), 'styl tylko dla #c-premie');
   assert.ok(html.indexOf('/* v128 premie cenowe krypto */') < html.indexOf('/* v124 szwajcaria'), 'styl przed stylem Szwajcarii');
@@ -8034,7 +7909,7 @@ test('v138: „Giełdy” — wyjaśnienie „wartość wyliczona, nie pomiar”
 const fg139 = (() => {
   const i0 = html.indexOf('/* ===================== v139: STRACH I CHCIWOŚĆ'), i1 = html.indexOf('\nfunction fgLoadG(', i0);
   const mk = (o = {}) => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'KR', 'icoWrap', 'flagImg', 'glyphImg', html.slice(i0, i1) +
-    '\nreturn {FG, FG_CLS, FG_KEYS, fgState, fgBack, fgRows, fgAt, fgHist, fgShort, fgLong, fgInt, fgPct, fgGauge, fgItem, fgBlock, fgCrypto, fgGlobal, fgRaw, fgComps, fgHead, fgHowOpen, fgHowClick, fgRenderC, fgRenderG, fgApplyG};')(
+    '\nreturn {FG, FG_CLS, FG_KEYS, fgState, fgBack, fgRows, fgAt, fgHist, fgShort, fgLong, fgInt, fgPct, fgPs, SG_FG, SG_COV, sgSvg, fgCard, fgCrypto, fgGlobal, fgRaw, fgComps, fgHead, fgHowOpen, fgHowClick, fgRenderC, fgRenderG, fgApplyG};')(   /* v321: sgSvg / fgCard zamiast fgGauge / fgItem / fgBlock */
     o.$ || (() => null), (k, v) => k + (v ? JSON.stringify(v) : ''), (v, d) => Number(v).toFixed(d), v96src.escH, d => ' · age(' + d + ')', iso => 'D(' + iso + ')',
     {pl: 'pl-PL', en: 'en-US'}, 'en', o.KR === undefined ? {data: null} : o.KR, o.icoWrap, o.flagImg, o.glyphImg);
   // nagranie 27.09.2026: plik nastroj.json policzony przez build_nastroj z nagranych serii (ten sam, co w teście Pythona NastrojV139) — skrót historii
@@ -8069,34 +7944,44 @@ test('v139: strach i chciwość — stany z liczby, wiersze, historia (krypto: d
   assert.equal(X.fgShort('2026-09-25'), 'Sep 25'); assert.equal(X.fgLong('2026-09-25'), 'Sep 25, 2026'); assert.equal(X.fgShort('x'), '—');
 });
 
-test('v139: strach i chciwość — skala (gradient czerwień→żółć→zieleń, wskazówka tylko przy liczbie), blok z liczbą, stanem i historią w kolorach stanów, składniki GLOBAL z brakami nazwanymi', () => {
+test('v139: strach i chciwość — skala (v321: wspólne półkole sgSvg — pięć łuków w kolorach stanów, wskazówka tylko przy liczbie), karta z liczbą, stanem, dniem z wiekiem i kółkami 1D / 1T / 1M w kolorach stanów, składniki GLOBAL z brakami nazwanymi', () => {
   const X = fg139.mk();
-  const g0 = X.fgGauge(0, 'gid', 'a"b'), g50 = X.fgGauge(50, 'gid', 'x'), g100 = X.fgGauge(100, 'gid', 'x'), gN = X.fgGauge(null, 'gid', 'x');
-  assert.ok(g0.includes('x2="40.0" y2="100.0"') && g50.includes('x2="100.0" y2="40.0"') && g100.includes('x2="160.0" y2="100.0"'), 'wskazówka: 0 w lewo, 50 w górę, 100 w prawo');
-  assert.ok(X.fgGauge(250, 'gid', 'x').includes('x2="160.0" y2="100.0"'), 'poza skalą — przycięte do 100');
-  assert.ok(!gN.includes('class="fg-nd"') && g0.includes('class="fg-nd"'), 'bez liczby — bez wskazówki');
-  assert.ok(g0.includes('aria-label="a&quot;b"') && g0.includes('<linearGradient id="gid"') && g0.includes('stroke="url(#gid)"'), 'etykieta dostępności, własny gradient');
-  for (const v of ['--rd', '--or', '--yl', '--gr']) assert.ok(g0.includes(`style="stop-color:var(${v})"`), 'kolor ze zmiennej strony: ' + v);
-  assert.ok(g0.indexOf('var(--rd)') < g0.indexOf('var(--yl)') && g0.indexOf('var(--yl)') < g0.indexOf('var(--gr)'), 'czerwień → żółć → zieleń');
-  const G = X.fgGlobal(fg139.N), b = X.fgBlock(Object.assign({}, G, {gid: 'g1', title: 'T'}));
+  /* v321 (decyzja właściciela 10.10.2026: styl „Pokrycie danych”): dawna skala z gradientem (fgGauge) i blok fgBlock zastąpione półkolem sgSvg i kartą fgCard */
+  const g0 = X.sgSvg(0, X.SG_FG, '0', 'a"b'), g50 = X.sgSvg(50, X.SG_FG, '50', 'x'), g100 = X.sgSvg(100, X.SG_FG, '100', 'x'), gN = X.sgSvg(null, X.SG_FG, '—', 'x');
+  assert.ok(g0.includes('x2="36.0" y2="100.0"') && g50.includes('x2="100.0" y2="36.0"') && g100.includes('x2="164.0" y2="100.0"'), 'wskazówka: 0 w lewo, 50 w górę, 100 w prawo');
+  assert.ok(X.sgSvg(250, X.SG_FG, 'x', 'x').includes('x2="164.0" y2="100.0"') && X.sgSvg(-5, X.SG_FG, 'x', 'x').includes('x2="36.0" y2="100.0"'), 'poza skalą — przycięte do 0–100');
+  assert.ok(!gN.includes('class="sg-nd"') && g0.includes('class="sg-nd"') && gN.includes('<circle class="sg-hub" cx="100" cy="100" r="6"/>'), 'bez liczby — bez wskazówki (kółko osi zostaje)');
+  assert.ok(g0.startsWith('<svg class="sg-svg" viewBox="0 0 200 134" role="img" aria-label="a&quot;b">') && gN.endsWith('<text class="sg-tx" x="100" y="131" text-anchor="middle">—</text></svg>'), 'etykieta dostępności; liczba pod kółkiem osi; brak = „—”');
+  assert.deepEqual([...g0.matchAll(/<path class="sg-a (fg-[a-z]+)"/g)].map(m => m[1]), ['fg-xf', 'fg-f', 'fg-n', 'fg-g', 'fg-xg'], 'pięć łuków: czerwień → … → zieleń (klasy stanów — kolory ze zmiennych strony)');
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b|stroke="|fill="/.test(g0), 'bez stałych kolorów w rysunku (oba motywy — CSS)');
+  for (let i = 0; i <= 1000; i++) { const v = i / 10, s = X.SG_FG.find(([a, b], j) => v >= a && (v < b || j === X.SG_FG.length - 1)); assert.equal(s[2], 'fg-' + X.fgState(v), 'łuk = stan z liczby: ' + v); }
+  assert.deepEqual(X.SG_COV.map(s => s[2]), ['fg-xf', 'fg-n', 'fg-xg']);
+  assert.deepEqual([...X.sgSvg(0, X.SG_COV, '0%', 'x').matchAll(/ d="([^"]+)"/g)].map(m => m[1]), ['M20.0 97.2 A80 80 0 0 1 57.6 32.2', 'M62.4 29.4 A80 80 0 0 1 137.6 29.4', 'M142.4 32.2 A80 80 0 0 1 180.0 97.2'], 'pokrycie: łuki jak „Pokrycie danych” w CRYPTO (178°–122°, 118°–62°, 58°–2°)');
+  const G = X.fgGlobal(fg139.N), b = X.fgCard(G, 'T');
   assert.equal(G.v, 62.2); assert.equal(G.s, 'g');
-  assert.ok(b.includes('<div class="fg-num">62</div>') && b.includes('<div class="fg-st"><i class="fg-dot fg-g"></i>fg.s.g</div>'), 'duża liczba i stan');
+  assert.ok(b.startsWith('<span class="sg"><svg class="sg-svg" viewBox="0 0 200 148" preserveAspectRatio="xMidYMin slice"') && b.includes('<text class="sg-tx" x="100" y="145" text-anchor="middle">62</text></svg><b class="sg-n" aria-hidden="true">62</b><span class="sg-st fg-g"><i class="fg-dot"></i>fg.s.g</span>'), 'duża liczba w półkolu (v321 przegląd: wąska kolumna — półkole „wysokie”, liczba też tekstem dla układu zwartego), stan w kolorze stanu');
   assert.ok(b.includes('aria-label="fg.aria{&quot;t&quot;:&quot;T&quot;,&quot;v&quot;:&quot;62&quot;,&quot;s&quot;:&quot;fg.s.g&quot;}"'), 'opis dla czytników');
-  assert.equal((b.match(/<div class="fg-h">/g) || []).length, 4, 'cztery punkty historii');
-  assert.ok(b.includes('<div class="fg-upd">fg.upd{"d":"Sep 25, 2026 · age(2026-09-25)"}</div></div><div class="fg-hist">'), 'dzień danych z wiekiem pod stanem');
-  assert.ok(b.includes('<span class="fg-hl">fg.h.now</span><b class="fg-c fg-g">62</b><span class="fg-hs">fg.s.g</span><small>Sep 25</small>'), 'teraz: liczba w kółku w kolorze stanu, stan, dzień');
-  assert.ok(b.includes('<span class="fg-hl">fg.h.w1</span><b class="fg-c fg-g">67</b><span class="fg-hs">fg.s.g</span><small>Sep 18</small>') && b.includes('<span class="fg-hl">fg.h.m1</span><b class="fg-c fg-g">70</b>'));
-  const bN = X.fgBlock({v: null, s: null, hist: X.fgHist([], 'g'), stOf: () => null, gid: 'g2', title: 'T'});
-  assert.ok(bN.includes('<div class="fg-num">—</div>') && bN.includes('<div class="fg-st">fg.na</div>') && (bN.match(/<b class="fg-c fg-na">—<\/b><span class="fg-hs">fg.na<\/span>/g) || []).length === 4, 'bez danych: „—” i „brak danych”, nigdy zero');
-  assert.ok(!/undefined|NaN|\[object/.test(b + bN));
-  const K = X.fgCrypto(fg139.F), bk = X.fgBlock(Object.assign({}, K, {gid: 'c1', title: 'T'}));
-  assert.equal(K.v, 70); assert.equal(K.s, 'g'); assert.ok(bk.includes('<b class="fg-c fg-g">74</b>') && bk.includes('<b class="fg-c fg-g">71</b>') && bk.includes('<b class="fg-c fg-g">73</b>'), 'krypto: stan z klasy pliku');
+  assert.ok(b.includes('<span class="sg-d" title="fg.upd{&quot;d&quot;:&quot;Sep 25, 2026&quot;}">Sep 25 · age(2026-09-25)</span>'), 'dzień danych z wiekiem pod stanem (pełna data w podpowiedzi)');
+  assert.equal((b.match(/<span class="sg-h" /g) || []).length, 3, 'trzy kółka wartości wstecz (1D / 1T / 1M) — zostają');
+  assert.ok(b.includes('<span class="sg-h" title="fg.h.s1: 60 — fg.s.g · Sep 24, 2026"><b class="fg-c fg-g">60</b><i>w321.h.1d</i><em>fg.s.g</em><small>Sep 24</small></span>'), '1D w GLOBAL = poprzednia sesja, z dniem (v321 przegląd: skrót ze słownika, pełna nazwa w podpowiedzi)');
+  assert.ok(b.includes('<b class="fg-c fg-g">67</b><i>w321.h.1w</i><em>fg.s.g</em><small>Sep 18</small>') && b.includes('<b class="fg-c fg-g">70</b><i>w321.h.1m</i><em>fg.s.g</em><small>Aug 26</small>'), 'tydzień i miesiąc temu: liczba w kółku w kolorze stanu, stan, dzień');
+  /* v321 (przegląd 10.10): panel (long) — półkole jak dawniej (200 × 134), bez liczby tekstem, nad kółkami nazwy jak przed v321 („Poprzednia sesja”, „Tydzień temu”, „Miesiąc temu”) */
+  const bL = X.fgCard(G, 'T', true);
+  assert.ok(bL.startsWith('<span class="sg"><svg class="sg-svg" viewBox="0 0 200 134" role="img"') && bL.includes('y="131"') && !bL.includes('class="sg-n"') && bL.includes('<span class="sg-hs sg-hl">'), 'panel: półkole jak dawniej, bez .sg-n');
+  assert.deepEqual([...bL.matchAll(/<\/b><i>([^<]*)<\/i>/g)].map(m => m[1]), ['fg.h.s1', 'fg.h.w1', 'fg.h.m1'], 'panel GLOBAL: pełne nazwy w języku strony (1D = poprzednia sesja)');
+  assert.deepEqual([...X.fgCard(X.fgCrypto(fg139.F), 'T', true).matchAll(/<\/b><i>([^<]*)<\/i>/g)].map(m => m[1]), ['fg.h.d1', 'fg.h.w1', 'fg.h.m1'], 'panel krypto: wczoraj, tydzień, miesiąc temu');
+  const bN = X.fgCard({v: null, s: null, hist: X.fgHist([], 'g'), stOf: () => null}, 'T');
+  assert.ok(bN.includes('>—</text>') && !bN.includes('class="sg-nd"') && bN.includes('<span class="sg-st">fg.na</span>') && !bN.includes('class="sg-d"') && (bN.match(/<b class="fg-c fg-na">—<\/b><i>w321\.h\.1[dwm]<\/i><em>fg\.na<\/em><small>—<\/small>/g) || []).length === 3 && bN.includes('<b class="sg-n" aria-hidden="true">—</b>'), 'bez danych: „—” i „brak danych”, nigdy zero');
+  assert.ok(bN.includes('aria-label="T: fg.na"'), 'opis dla czytników bez liczby');
+  assert.ok(!/undefined|NaN|\[object/.test(b + bN + X.fgCard(null, 'T')));
+  const K = X.fgCrypto(fg139.F), bk = X.fgCard(K, 'T');
+  assert.equal(K.v, 70); assert.equal(K.s, 'g'); assert.ok(bk.includes('<b class="fg-c fg-g">74</b><i>w321.h.1d</i>') && bk.includes('<b class="fg-c fg-g">71</b><i>w321.h.1w</i>') && bk.includes('<b class="fg-c fg-g">73</b><i>w321.h.1m</i>'), 'krypto: stan z klasy pliku; wczoraj, 7 i 30 dni');
   const K2 = X.fgCrypto({d: [['2026-09-27', 50, 'Unknown']]}); assert.equal(K2.s, null, 'nieznana klasa — bez stanu (nie zgadujemy)');
-  assert.ok(X.fgBlock(Object.assign({}, K2, {gid: 'c2', title: 'T'})).includes('<div class="fg-st">—</div>'));
+  assert.ok(X.fgCard(K2, 'T').includes('<span class="sg-st">—</span>'));
   assert.equal(X.fgCrypto({d: []}), null); assert.equal(X.fgCrypto(null), null);
   const cp = X.fgComps(fg139.N, true);
   assert.equal((cp.rows.match(/<tr>/g) || []).length, 4); assert.deepEqual(cp.miss, []); assert.equal(cp.note, '');
-  assert.ok(cp.rows.includes('fg.raw.vix{"v":"14.21","m":"16.08"}') && cp.rows.includes('fg.raw.hy{"v":"2.80"}') && cp.rows.includes('fg.raw.spx{"v":"7743.41","p":"+4.3%"}') && cp.rows.includes('fg.raw.sb{"a":"+0.2%","b":"−3.9%"}'), 'liczby składników z pliku (v314, audyt G4: S&P 500 z dwoma miejscami)');
+  assert.ok(cp.rows.includes('fg.raw.vix{"v":"14.21","m":"16.08"}') && cp.rows.includes('fg.raw.hy{"v":"2.80"}') && cp.rows.includes('fg.raw.spx{"v":"7743.41","p":"<span class=\\"pos\\">+4.3%</span>"}') && cp.rows.includes('fg.raw.sb{"a":"<span class=\\"pos\\">+0.2%</span>","b":"<span class=\\"neg\\">−3.9%</span>"}'), 'liczby składników z pliku (v314, audyt G4: S&P 500 z dwoma miejscami; v321: procenty w kolorze kierunku)');
   assert.ok(cp.rows.includes('<i class="fg-dot fg-g"></i>72</span></td><td><span class="cell fg-dd">Sep 22</span>') && cp.rows.includes('<i class="fg-dot fg-f"></i>38</span>'), 'wynik składnika w kolorze stanu, własny dzień');
   assert.ok(cp.rows.includes('<span class="fg-cn"><b>fg.comp.vix</b><small>fg.raw.vix{"v":"14.21","m":"16.08"}</small></span>'), 'liczby składnika pod nazwą');
   const N2 = Object.assign({}, fg139.N, {c: {hy: fg139.N.c.hy, spx: fg139.N.c.spx, sb: Object.assign({}, fg139.N.c.sb, {score: 'x'})}, why: {vix: 'fetch', sb: 'zzz'}});
@@ -8114,11 +7999,11 @@ test('v139: strach i chciwość — panele: CRYPTO w pasku (bez pliku krypto ukr
   const KR = {data: null}, I = v96src.H, X = fg139.mk({$, KR, icoWrap: I.icoWrap, flagImg: I.flagImg, glyphImg: I.glyphImg});
   X.fgRenderC(); assert.ok(elC.hidden === true && elC.innerHTML === '', 'bez pliku krypto — ukryta');
   KR.data = {at: '2026-09-27T20:00:00+00:00'}; X.fgRenderC();
-  assert.ok(elC.hidden === false && elC.innerHTML.includes('<div class="fg-num">—</div>') && elC.innerHTML.includes('fg.na') && !elC.innerHTML.includes('fg.upd') && !elC.innerHTML.includes('class="fg-nd"'), 'plik bez nastrojów — „brak danych”, bez wskazówki i daty');
+  assert.ok(elC.hidden === false && elC.innerHTML.includes('>—</text>') && elC.innerHTML.includes('fg.na') && !elC.innerHTML.includes('class="sg-d"') && !elC.innerHTML.includes('class="sg-nd"'), 'plik bez nastrojów — „brak danych”, bez wskazówki i daty');
   KR.data = {at: '2026-09-27T20:00:00+00:00', fng: fg139.F}; X.fgRenderC(); const c = elC.innerHTML;
-  assert.ok(c.startsWith('<h2><span>fg.t.c</span><button type="button" class="mini-i fg-i" data-fg-how="fg-how-c" aria-controls="fg-how-c" title="fg.meth.c" aria-label="fg.how">i</button></h2><div class="fg-box">'), c.slice(0, 200));
-  assert.ok(c.includes('<div class="fg-num">70</div>') && c.includes('id="fg-gr-c"') && c.includes('<div class="fg-upd">fg.upd{"d":"Sep 27, 2026 · age(2026-09-27)"}</div></div><div class="fg-hist">'), 'liczba, gradient, dzień z wiekiem pod stanem');
-  assert.ok(c.endsWith('</div></div><p class="fg-cap">fg.c.cap</p><details class="etfd" id="fg-how-c"><summary>fg.how</summary><p class="pnote">fg.meth.c</p><p class="pnote">fg.not</p></details>'), 'podpis ogólny, pod nim „Jak liczymy” z metodą — czytelne bez najechania myszą (telefon, klawiatura)');
+  assert.ok(c.startsWith('<h2><span>fg.t.c</span><button type="button" class="mini-i fg-i" data-fg-how="fg-how-c" aria-controls="fg-how-c" title="fg.meth.c" aria-label="fg.how">i</button></h2><span class="sg"><svg class="sg-svg"'), c.slice(0, 200));   /* v321: karta fgCard (półkole sgSvg) */
+  assert.ok(c.includes('>70</text></svg>') && c.includes('class="sg-nd"') && c.includes('<span class="sg-d">fg.upd{"d":"Sep 27, 2026 · age(2026-09-27)"}</span><span class="sg-hs sg-hl">') && c.includes('<i>fg.h.d1</i>'), 'liczba, wskazówka, dzień z wiekiem pod stanem jak dawniej, kółka wstecz (v321 przegląd: z nazwami jak dawniej — „Wczoraj”, „Tydzień temu”, „Miesiąc temu”)');
+  assert.ok(c.endsWith('</span></span></span><p class="fg-cap">fg.c.cap</p><details class="etfd" id="fg-how-c"><summary>fg.how</summary><p class="pnote">fg.meth.c</p><p class="pnote">fg.not</p></details>'), 'podpis ogólny, pod nim „Jak liczymy” z metodą — czytelne bez najechania myszą (telefon, klawiatura)');
   elC.innerHTML = elC.innerHTML.replace('id="fg-how-c"', 'id="fg-how-c" open'); X.fgRenderC();
   assert.ok(elC.innerHTML.includes('<details class="etfd" id="fg-how-c" open><summary>fg.how</summary>') && elC.innerHTML.split('id="fg-how-c"').length === 2, 'rozwinięty opis zostaje rozwinięty po odświeżeniu');
   elC.innerHTML = c;
@@ -8127,14 +8012,14 @@ test('v139: strach i chciwość — panele: CRYPTO w pasku (bez pliku krypto ukr
   X.fgApplyG(fg139.N); const g = elG.innerHTML;
   assert.ok(elG.hidden === false && g.startsWith('<div class="etfh"><div><h2><span class="icos">') && g.includes('fg.t.g<button type="button" class="mini-i fg-i" data-fg-how="fg-how-g" aria-controls="fg-how-g" title="fg.meth.g" aria-label="fg.how">i</button></h2>'), 'tytuł z ikonami i przyciskiem (i) do „Jak liczymy”');
   assert.ok(g.includes('<p class="pnote">fg.g.sub</p>') && g.includes('<p class="fg-cap fg-own">fg.g.cap</p>') && g.includes('inst.file{"t":"D(2026-09-27T23:30:00+00:00)"}'), 'opis, podpis „wskaźnik własny (nie pomiar)”, czas pliku');
-  assert.ok(g.includes('<div class="fg-num">62</div>') && g.includes('id="fg-gr-g"') && g.includes('fg.upd{"d":"Sep 25, 2026 · age(2026-09-25)"}') && g.includes('fg.h.s1'), 'wynik, dzień z wiekiem, poprzednia sesja');
+  assert.ok(g.includes('>62</text></svg>') && g.includes('<span class="sg-d">fg.upd{"d":"Sep 25, 2026 · age(2026-09-25)"}</span>') && g.includes('title="fg.h.s1: 60 — fg.s.g · Sep 24, 2026"'), 'wynik, dzień z wiekiem jak dawniej, poprzednia sesja (v321: karta fgCard)');
   assert.ok(g.includes('<h3 class="mtxt">fg.h.parts</h3>') && g.includes('<th>fg.col.c</th><th>fg.col.s</th><th>fg.col.d</th>') && g.includes('<details class="etfd" id="fg-how-g"><summary>fg.how</summary><p class="pnote">fg.meth.g</p><p class="pnote">fg.not</p></details>'), 'tabela składników i „Jak liczymy”');
   assert.ok(g.endsWith('eng.disclaimer</p>') && !g.includes('pnote neu'), 'komplet składników — bez noty o brakach');
   assert.ok(!/undefined|NaN|\[object/.test(c + g));
   X.fgApplyG(null); assert.ok(elG.hidden === false && elG.innerHTML === g, 'chwilowy błąd pobrania nie zasłania wczytanych danych');
   const N3 = Object.assign({}, fg139.N, {now: null, d: [], c: {hy: fg139.N.c.hy}, miss: ['vix', 'spx', 'sb'], why: {vix: 'fetch', spx: 'fetch', sb: 'short'}});
   X.fgApplyG(N3); const g3 = elG.innerHTML;
-  assert.ok(g3.includes('<div class="fg-num">—</div>') && g3.includes('fg.none{"n":1,"c":"fg.comp.vix (fg.why.fetch); fg.comp.spx (fg.why.fetch); fg.comp.sb (fg.why.short)"}') && !g3.includes('fg.upd'), 'mniej niż 3 składniki: „—”, nazwane braki, bez daty wyniku');
+  assert.ok(g3.includes('>—</text>') && g3.includes('fg.none{"n":1,"c":"fg.comp.vix (fg.why.fetch); fg.comp.spx (fg.why.fetch); fg.comp.sb (fg.why.short)"}') && !g3.includes('class="sg-d"'), 'mniej niż 3 składniki: „—”, nazwane braki, bez daty wyniku');
 });
 
 test('v139: strach i chciwość — (i) przy tytule to przycisk: dotknięcie, klawiatura albo mysz rozwija „Jak liczymy” swojego panelu (CRYPTO i GLOBAL), przewija do niego i daje mu fokus; kliknięcie gdzie indziej bez reakcji', () => {
@@ -8153,26 +8038,27 @@ test('v139: strach i chciwość — (i) przy tytule to przycisk: dotknięcie, kl
   const X2 = fg139.mk({$: () => null}); assert.equal(X2.fgHowClick(ev(btn)), false, 'bez opisu na stronie — nic (bez błędu)');
 });
 
-test('v139: strach i chciwość — miejsca na stronie (CRYPTO zaraz pod „Pokryciem danych”, GLOBAL zaraz pod kartami jakości danych, widgety nadal na końcu obu zakładek), plik, odświeżanie, zaczep w renderKr, kolejność bloku, styl w obu motywach; EXTRA136 ×10 bez nazw dostawców', () => {
+test('v139: strach i chciwość — miejsca na stronie (CRYPTO zaraz pod „Pokryciem danych”, GLOBAL zaraz pod kartami jakości danych; v321: bez widgetów), plik, odświeżanie, zaczep w renderKr, kolejność bloku, styl w obu motywach; EXTRA136 ×10 bez nazw dostawców', () => {
   assert.ok(html.includes('<section class="panel gauge"><h2 data-i18n="rail.rel"></h2><div id="gauge"></div></section>\n    <section class="panel fg" id="c-fg" hidden></section>\n'), 'CRYPTO: pasek, zaraz pod „Pokryciem danych”');
   assert.ok(html.includes('<section class="panel pcard" id="g-q"></section>\n    <section class="panel pcard fg" id="g-fg" hidden></section>\n'), 'GLOBAL: zaraz pod kartami jakości danych');
   assert.equal(html.split('id="c-fg"').length, 2); assert.equal(html.split('id="g-fg"').length, 2);
   const secs = (a, b) => [...html.slice(html.indexOf(a), html.indexOf(b, html.indexOf(a))).matchAll(/<section [^>]*id="([^"]+)"/g)].map(m => m[1]);
   const gl = secs('<section class="global" id="global"', '<section class="global" id="trendy"'), cr = secs('<main class="center" id="crypto"', '</main>');
-  assert.ok(gl.length > 10 && gl.slice(-3).every(s => s.startsWith('tv-')) && !gl.slice(0, -3).some(s => s.startsWith('tv-')), 'GLOBAL: widgety na samym dole: ' + gl.slice(-4).join(','));
-  assert.ok(cr.length > 10 && cr.slice(-4).every(s => s.startsWith('tv-')) && !cr.slice(0, -4).some(s => s.startsWith('tv-')), 'CRYPTO: widgety na samym dole: ' + cr.slice(-5).join(','));
+  /* v321: widgety TradingView usunięte (decyzja właściciela 10.10) — żadnej sekcji tv-*; GLOBAL kończy panel krypto (g-etf), CRYPTO — panele rynku (cmc, krypto) */
+  assert.ok(gl.length > 10 && !gl.some(s => s.startsWith('tv-')) && gl[gl.length - 1] === 'g-etf', 'GLOBAL: panel krypto na samym dole: ' + gl.slice(-4).join(','));
+  assert.ok(cr.length > 10 && !cr.some(s => s.startsWith('tv-')) && cr.slice(-2).join(',') === 'cmc,krypto', 'CRYPTO: bez widgetów: ' + cr.slice(-5).join(','));
   assert.ok(gl.indexOf('g-fg') === gl.indexOf('g-q') + 1, 'g-fg zaraz po g-q');
   assert.ok(html.includes("function renderKr(){if(typeof cBal==='function')cBal();if(typeof renderEng==='function')renderEng();   /* v58: panel stablecoinów per sieć z krypto.json */\n  if(typeof fgRenderC==='function')fgRenderC();   /* v139:"), 'zaczep: pasek krypto odświeżany razem z plikiem krypto i zmianą języka');
   const b0 = html.indexOf('/* ===================== v139: STRACH I CHCIWOŚĆ');
   assert.equal(html.split('/* ===================== v139: STRACH I CHCIWOŚĆ').length, 2);
-  assert.ok(html.indexOf('/* v41: TradingView — koniec */') < b0 && b0 < html.indexOf('/* v44: rynek krypto z pliku automatu (krypto.json): ') && b0 < html.indexOf('applyTheme();applyLang();'), 'blok przed pierwszym applyLang (bez martwej strefy stałych), przed blokiem krypto');
+  assert.ok(html.indexOf("try{localStorage.removeItem('cfai.tv.ok');}catch(e){}") < b0 && b0 < html.indexOf('/* v44: rynek krypto z pliku automatu (krypto.json): ') && b0 < html.indexOf('applyTheme();applyLang();'), 'blok przed pierwszym applyLang (bez martwej strefy stałych), przed blokiem krypto');
   const kr = html.slice(html.indexOf('function renderKr(){'), html.indexOf('\n/* v39:')); assert.ok(!kr.includes('v139: STRACH'), 'poza zakresem renderKr…v39 (testy v96)');
   assert.ok(html.includes("function fgLoadG(){srvJSON('nastroj').then(fgApplyG);}") && html.includes('FG.timer=setInterval(()=>{if(!document.hidden)fgLoadG();},60*60*1000);'), 'plik GLOBAL co godzinę (automat co 6 h)');
   assert.ok(html.includes("fgLoadG();fgAutoG();document.addEventListener('click',fgHowClick);try{new MutationObserver(()=>{fgRenderC();fgRenderG();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'przycisk (i) i zmiana języka');
   assert.equal(html.split("document.addEventListener('click',fgHowClick);").length, 2, 'jeden słuchacz przycisków (i) na dokumencie');
   const css0 = html.indexOf('/* v139 strach i chciwość'), css1 = html.indexOf('</style>', css0), css = html.slice(css0, css1);
   assert.ok(css0 > 0 && css1 > css0 && css1 === html.indexOf('</style>'), 'styl w arkuszu strony');
-  for (const s of ['.mini-i.fg-i{cursor:pointer;', '#c-fg .etfd{', '.fg-xf{--fgc:var(--rd)', '.fg-f{--fgc:var(--or)', '.fg-n{--fgc:var(--yl)', '.fg-g{--fgc:var(--gr)', '.fg-xg{--fgc:var(--gr)', '.fg-svg .fg-nd{stroke:var(--tx)}', '.fg-c{']) assert.ok(css.includes(s), 'styl: ' + s);
+  for (const s of ['.mini-i.fg-i{cursor:pointer;', '#c-fg .etfd{', '.fg-xf{--fgc:var(--rd)', '.fg-f{--fgc:var(--or)', '.fg-n{--fgc:var(--yl)', '.fg-g{--fgc:var(--gr)', '.fg-xg{--fgc:var(--gr)', '.sg-nd{stroke:var(--tx);', '.fg-c{']) assert.ok(css.includes(s), 'styl: ' + s);   /* v321: wskazówka wspólnego półkola (sgSvg) */
   assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko zmienne strony — działa w obu motywach');
   const e0 = html.indexOf('const EXTRA136='), e1 = html.indexOf(';\n', e0); assert.ok(e0 > 0 && e1 > e0, 'słownik EXTRA136');
   const E = JSON.parse(html.slice(e0 + 'const EXTRA136='.length, e1)), LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
@@ -8367,11 +8253,11 @@ test('v132: wycena — słownik EXTRA141 w 10 językach (te same klucze i pola),
   }
 });
 
-test('v132: wycena — jedna sekcja w CRYPTO zaraz po sieci Bitcoin (przed panelami rynku i widgetami), styl, blok JS bez nazw źródeł, plik serwera co 30 min, zmiana języka, strażnik v126.2 rysuje panel', () => {
+test('v132: wycena — jedna sekcja w CRYPTO zaraz po sieci Bitcoin (przed panelami rynku; v321: bez widgetów), styl, blok JS bez nazw źródeł, plik serwera co 30 min, zmiana języka, strażnik v126.2 rysuje panel', () => {
   const S = '<section class="panel pcard" id="c-wycena" hidden></section>';
   assert.equal(html.split(S).length, 2, 'jedna sekcja');
-  const a = html.indexOf('<section class="panel pcard" id="c-lancuch" hidden></section>'), x = html.indexOf(S), c = html.indexOf('id="cmc"'), tv = html.indexOf('id="tv-heatmap"'), cr = html.indexOf('id="crypto"');
-  assert.ok(cr > 0 && cr < a && a < x && x < a + 200 && x < c && c < tv, 'CRYPTO: zaraz po sieci Bitcoin, przed panelami rynku i widgetami (widgety nadal na dole)');
+  const a = html.indexOf('<section class="panel pcard" id="c-lancuch" hidden></section>'), x = html.indexOf(S), c = html.indexOf('id="cmc"'), tv = html.indexOf('</main>', c), cr = html.indexOf('id="crypto"');
+  assert.ok(cr > 0 && cr < a && a < x && x < a + 200 && x < c && c < tv && !html.includes('id="tv-heatmap"'), 'CRYPTO: zaraz po sieci Bitcoin, przed panelami rynku (v321: widgety TradingView usunięte)');
   assert.ok(html.includes("function wyLoad(){srvJSON('wycena').then(wyApply);}") && html.includes('WY.timer=setInterval(()=>{if(!document.hidden)wyLoad();},30*60*1000);')
     && html.includes("wyLoad();wyAuto();try{new MutationObserver(()=>renderWy()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}"), 'plik serwera, odświeżanie co 30 min, zmiana języka');
   assert.ok(html.includes("document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('button[data-wy-per]'):null;") && html.includes("localStorage.setItem('cfai.wy.per',String(p))"), 'wybór okna wykresu zapamiętany');
@@ -8448,7 +8334,7 @@ test('v136: Ameryka Łacińska — panel z pliku: 3 kafle (CCL +6.0 %, Wenezuela
   assert.ok(T[1].includes('dl.ve.valid{"d":') && T[1].includes('age(2026-09-25)') && T[1].includes('dl.asof{"d":"D(2026-09-27T18:01:01Z)"}'), 'kurs banku obowiązujący od daty, chwila odczytu kursu równoległego');
   assert.ok(T[2].includes('dl.k.bo') && T[2].includes('<b>−0.1 %') && T[2].includes('dl.bo.usdt') && T[2].includes('dl.hist{"d":'), 'Boliwia: historia dopiero od pierwszego odczytu: ' + T[2]);
   assert.ok(T[2].includes(' · age(2026-09-27)</small>') && !T[2].includes('D(2026-09-27T00:00:00Z)'), 'Boliwia: luka z datą starszego kursu — kurs oficjalny to sama data (bez godziny)');
-  assert.ok(!body.includes('pos') && !body.includes('neg') && !body.includes('class="up') && !body.includes('class="dn'), 'bez kolorów kierunku');
+  assert.ok((body.includes('<small class="pos">') || body.includes('<small class="neg">')) && !body.includes('class="up') && !body.includes('class="dn'), 'v321 (decyzja właściciela 10.10): zmiany luki w kolorze kierunku (dawniej bez)');
   assert.ok(body.includes('dl.mm{"n":"dl.n.contadoconliqui","min":"+1.5 %"') && body.includes('"max":"+12.0 %"') && body.includes('dl.mm{"n":"dl.n.blue","min":"−2.5 %"'), 'najniżej / najwyżej z 365 dni');
   assert.ok(body.includes('<details class="etfd" id="dl-tab"><summary>dl.h.tab</summary>') && body.includes('<div class="list-wrap"><table class="etft">'), 'tabele zwinięte, w ramce przewijania (telefon: strona się nie przesuwa)');
   const trs = body.split('<tr><td>').slice(1);
@@ -8543,7 +8429,7 @@ test('v136: Ameryka Łacińska — prawdziwy słownik (10 języków): bez surowy
   assert.ok(!dl136.PROV.test(S) && !/dolar/i.test(S), 'strona Źródła bez nazw i bez kluczy plików');
 });
 
-test('v136: Ameryka Łacińska — słownik EXTRA145 w 10 językach (te same klucze i pola), sekcja tuż przed #inst (TradingView dalej na dole), styl telefonu, odświeżanie, CSP bez nowego hosta, strona czyta tylko data/dolar.json', () => {
+test('v136: Ameryka Łacińska — słownik EXTRA145 w 10 językach (te same klucze i pola), sekcja tuż przed #inst (v321: bez widgetów TradingView), styl telefonu, odświeżanie, CSP bez nowego hosta, strona czyta tylko data/dolar.json', () => {
   const a = 'const EXTRA145=', x0 = html.indexOf(a); assert.ok(x0 > 0, 'słownik EXTRA145'); assert.equal(html.split(a).length, 2);
   const end = html.indexOf(';\n', x0), E = JSON.parse(html.slice(x0 + a.length, end));
   assert.deepEqual(Object.keys(E), G126_L10, '10 języków, pl pierwszy');
@@ -8564,13 +8450,13 @@ test('v136: Ameryka Łacińska — słownik EXTRA145 w 10 językach (te same klu
   /* słownik nałożony zaraz po swojej definicji (sąsiedztwo, nie „ostatni słownik” — następne wydania dopisują własne po nim), w bloku słowników */
   assert.equal(html.indexOf('for(const l in EXTRA145)if(I18N[l])Object.assign(I18N[l],EXTRA145[l]);\n'), end + 2, 'nałożenie tuż po definicji');
   assert.ok(end < html.indexOf('/* ===================== STAN I DANE'), 'w bloku słowników');
-  /* sekcja: raz, po insiderach, tuż przed #inst; widgety TradingView nadal ostatnie w GLOBAL */
+  /* sekcja: raz, po insiderach, tuż przed #inst; v321: widgety TradingView usunięte — na samym dole GLOBAL panel krypto (g-etf) */
   const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
   assert.equal(html.split('<section class="panel pcard" id="g-dolar" hidden></section>').length, 2, 'jedno miejsce sekcji');
-  assert.ok(sec('g-insider') > 0 && sec('g-dolar') > sec('g-insider') && sec('inst') > sec('g-dolar') && sec('tv-markets') > sec('inst'), 'GLOBAL: przed danymi urzędowymi, widgety dalej na dole');
+  assert.ok(sec('g-insider') > 0 && sec('g-dolar') > sec('g-insider') && sec('inst') > sec('g-dolar') && !html.includes('id="tv-markets"'), 'GLOBAL: przed danymi urzędowymi');
   const gEnd = html.indexOf('<section class="global" id="trendy"'), between = html.slice(sec('g-dolar'), sec('inst')).match(/<section [^>]*id="([^"]+)"/g) || [];
-  assert.deepEqual(between.map(s => s.match(/id="([^"]+)"/)[1]), ['g-dolar'], 'tuż przed #inst'); assert.ok(sec('tv-news') < gEnd);
-  assert.deepEqual((html.slice(sec('tv-markets'), gEnd).match(/<section [^>]*id="([^"]+)"/g) || []).map(s => s.match(/id="([^"]+)"/)[1]), ['tv-markets', 'tv-calendar', 'tv-news'], 'po widgetach nic w GLOBAL');
+  assert.deepEqual(between.map(s => s.match(/id="([^"]+)"/)[1]), ['g-dolar'], 'tuż przed #inst'); assert.ok(sec('inst') < gEnd);
+  assert.deepEqual((html.slice(sec('inst'), gEnd).match(/<section [^>]*id="([^"]+)"/g) || []).map(s => s.match(/id="([^"]+)"/)[1]), ['inst', 'g-etf'], 'po #inst tylko panel krypto (v321)');
   /* styl: 3 kafle, na telefonie (≤ 620 px) jedna kolumna; tabela w ramce przewijania (.list-wrap) — strona nie przesuwa się w bok */
   for (const s of ['/* v136 ameryka łacińska: kurs oficjalny a równoległy dolara */', '#g-dolar .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}',
     '@media (max-width:620px){#g-dolar .etfkpis{grid-template-columns:1fr}', '#g-dolar .etft{min-width:0;width:100%}', '@media (max-width:430px){#g-dolar .etft th.dl-w,#g-dolar .etft td.dl-w{display:none}', '.list-wrap{overflow-x:auto'])
@@ -9334,11 +9220,11 @@ const fnd134 = (() => {
   return {a0, a1, mk, D: ICI134_FILE, cp, PIN, tiles, el, PROV, tFake, phone, PHONE, tw};
 })();
 
-test('v134: fundusze USA — sekcja #g-fund raz, zaraz po #g-usa (przed #g-indeksy i #inst; widgety zostają ostatnie), styl, blok, słownik i odświeżanie', () => {
+test('v134: fundusze USA — sekcja #g-fund raz, zaraz po #g-usa (przed #g-indeksy i #inst; v321: bez widgetów), styl, blok, słownik i odświeżanie', () => {
   const s = '<section class="panel pcard" id="g-fund" hidden></section>';
   assert.equal(html.split(s).length, 2, 'sekcja dokładnie raz');
   const i = id => html.indexOf('id="' + id + '"');
-  assert.ok(i('g-usa') < i('g-fund') && i('g-fund') < i('g-indeksy') && i('g-indeksy') < i('inst') && i('inst') < i('tv-markets'), 'kolejność GLOBAL');
+  assert.ok(i('g-usa') < i('g-fund') && i('g-fund') < i('g-indeksy') && i('g-indeksy') < i('inst') && i('tv-markets') < 0, 'kolejność GLOBAL');   /* v321: widgety TradingView usunięte */
   assert.ok(html.includes('#g-fund .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}') && html.includes('#g-fund .etft th.fnd-w,#g-fund .etft td.fnd-w{display:none}'), 'styl: 3 kafle w rzędzie, telefon bez kolumn mieszane/surowce');
   assert.ok(html.includes("function fndLoad(){srvJSON('ici').then(fndApply);}") && html.includes('fndLoad();fndAuto();try{new MutationObserver(()=>renderFnd())'), 'pobranie pliku automatu, odświeżanie co godzinę i przy zmianie języka');
   assert.equal(html.split('const EXTRA143=').length, 2); assert.ok(/for\(const l in EXTRA143\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA143\[l\]\);\n/.test(html), 'linia nakładania słownika');
@@ -9348,16 +9234,16 @@ test('v134: fundusze USA — sekcja #g-fund raz, zaraz po #g-usa (przed #g-indek
   assert.ok(R.JAK_ICO[n] === 'us @etf' && row.includes('flagi/us.svg') && row.includes('glify/etf.svg') && row.includes('co tydzień (w środę, za tydzień do poprzedniej środy)'), 'Metodologia: wiersz z flagą i znakiem ETF');
 });
 
-test('v134: fundusze USA — pomocnicze: przepływ ze znakiem i kolorem po zaokrągleniu (zero bez koloru), brak = „—” (nigdy 0), data wraca do siebie, wiersze bez śmieci', () => {
+test('v134: fundusze USA — pomocnicze: przepływ ze znakiem i kolorem po zaokrągleniu (v321: zero żółte), brak = „—” (nigdy 0), data wraca do siebie, wiersze bez śmieci', () => {
   const X = fnd134.mk();
   assert.deepEqual(X.fndFlow(1234), {txt: '+1.2 bn', cls: 'pos'}); assert.deepEqual(X.fndFlow(-449), {txt: '−0.4 bn', cls: 'neg'});
-  assert.deepEqual(X.fndFlow(40), {txt: '0.0 bn', cls: ''}, 'zero po zaokrągleniu: bez znaku i bez koloru'); assert.deepEqual(X.fndFlow(-49), {txt: '0.0 bn', cls: ''});
-  assert.deepEqual(X.fndFlow(0), {txt: '0.0 bn', cls: ''}, 'prawdziwe zero to liczba'); assert.deepEqual(X.fndFlow(-10098, false), {txt: '−10.1', cls: 'neg'}, 'tabela: bez jednostki');
+  assert.deepEqual(X.fndFlow(40), {txt: '0.0 bn', cls: 'neu'}, 'zero po zaokrągleniu: bez znaku, v321: żółte'); assert.deepEqual(X.fndFlow(-49), {txt: '0.0 bn', cls: 'neu'});
+  assert.deepEqual(X.fndFlow(0), {txt: '0.0 bn', cls: 'neu'}, 'prawdziwe zero to liczba'); assert.deepEqual(X.fndFlow(-10098, false), {txt: '−10.1', cls: 'neg'}, 'tabela: bez jednostki');
   for (const v of [null, undefined, NaN, Infinity, '1234', true, {}]) assert.deepEqual(X.fndFlow(v), {txt: '—', cls: 'na'}, 'brak = kreska: ' + String(v));
   assert.equal(X.fndAmt(7936481), '7936.5 bn'); assert.equal(X.fndAmt(null), '—');
   const Z = fnd134.mk({t: (k, v) => (k === 'fund.div' ? '100' : k === 'fund.bn' ? v.v + '億' : k)});
   assert.deepEqual(Z.fndFlow(-10098), {txt: '−101億', cls: 'neg'}, 'zh/ja: 億 = 100 mln, bez miejsc po przecinku'); assert.equal(Z.fndAmt(7936481), '79365億');
-  assert.deepEqual(Z.fndFlow(40), {txt: '0億', cls: ''}); assert.deepEqual(Z.fndFlow(60), {txt: '+1億', cls: 'pos'});
+  assert.deepEqual(Z.fndFlow(40), {txt: '0億', cls: 'neu'}); assert.deepEqual(Z.fndFlow(60), {txt: '+1億', cls: 'pos'});   /* v321: zero żółte */
   assert.equal(X.fndDateOk('2026-02-30'), false, 'V8 czyta 2026-02-30 jako 2 marca'); assert.equal(X.fndDateOk('2026-09-16'), true); assert.equal(X.fndDateOk('09/16/2026'), false);
   assert.deepEqual(X.fndRows([['2026-09-16', 1, 'x', null], ['2026-02-30', 1, 2, 3], ['2026-09-09', 4, 5, 6], ['2026-09-02', 1], 'x', null], 3),
     [['2026-09-09', 4, 5, 6], ['2026-09-16', 1, null, null]], 'zła data / długość odrzucona, nie-liczba = null, rosnąco');
@@ -9383,7 +9269,8 @@ test('v134: fundusze USA — panel z pliku: 6 kafli (napływ tygodnia ze znakiem
     assert.ok(T[n].includes('fund.s4{"v":"' + f(s[j]).txt + '"}'), k + ': suma 4 tygodni');
     assert.ok(T[n].includes('<small class="mtxt">fund.wk{"d":"Sep 16, 2026"} · age(2026-09-16)</small>'), k + ': data tygodnia i wiek');
   });
-  assert.ok(T[2].includes('fund.k.bd2{"tax":"' + X.fndFlow(w[7], false).txt + '","muni":"' + X.fndFlow(w[8], false).txt + '"}'), 'obligacje: zwykłe i municypalne');
+  const sp = v => { const o = X.fndFlow(v, false); return o.cls && o.cls !== 'na' ? '<span class="' + o.cls + '">' + o.txt + '</span>' : o.txt; };   /* v321: liczby w zdaniu w kolorze kierunku */
+  assert.ok(T[2].includes('fund.k.bd2' + JSON.stringify({tax: sp(w[7]), muni: sp(w[8])})) && /<span class=\\"(pos|neg|neu)\\">/.test(T[2]), 'obligacje: zwykłe i municypalne');
   assert.ok(T[0].includes('flag=us') && T[1].includes('glyph=globe') && T[3].includes('glyph=chart') && T[4].includes('glyph=gold') && T[5].includes('flag=us') && T[5].includes('glyph=etf'), 'ikony');
   assert.ok(body.includes('<h3 class="mtxt">fund.h.lt</h3><p class="pnote">fund.wk{"d":"Sep 16, 2026"} · age(2026-09-16)</p>'));
   const tb = body.slice(body.indexOf('fund.h.tab'), body.indexOf('</table>', body.indexOf('fund.h.tab')));
@@ -9535,7 +9422,7 @@ const mm135 = (() => {
   return {mk, D: ICI135_FILE, cp, PIN, tiles, b0, b1};
 })();
 
-test('v135: rynek pieniężny — 6 kafli aktywów po kaflach napływów (mld USD), zmiana 1 i 4 tygodni ▲/▼ BEZ koloru, data i wiek, kolumna zmiany w tabeli tygodni, noty', () => {
+test('v135: rynek pieniężny — 6 kafli aktywów po kaflach napływów (mld USD), zmiana 1 i 4 tygodni ▲/▼ w kolorze kierunku (v321; było bez koloru), data i wiek, kolumna zmiany w tabeli tygodni, noty', () => {
   const X = mm135.mk(), D = mm135.D, body = X.fndBody(D), T = mm135.tiles(body);
   assert.equal(T.length, 12, '6 kafli napływów + 6 kafli rynku pieniężnego');
   const w = D.mm.w, last = w[w.length - 1], prev = w[w.length - 2], m4 = w[w.length - 5];
@@ -9546,7 +9433,7 @@ test('v135: rynek pieniężny — 6 kafli aktywów po kaflach napływów (mld US
     assert.ok(tl.includes('fund.mm.k.' + k) && tl.includes('<span class="fnd-v ">' + (last[j] / 1000).toFixed(1) + ' bn</span>'), k + ': ' + tl);
     assert.ok(tl.includes('fund.mm.d1w{"v":"' + X.fndChg(last[j] - prev[j]).txt + '"}') && tl.includes('fund.mm.d4w{"v":"' + X.fndChg(last[j] - m4[j]).txt + '"}'), k + ': zmiany');
     assert.ok(tl.includes('<small class="mtxt">fund.wk{"d":"Sep 23, 2026"} · age(2026-09-23)</small>'), k + ': data i wiek');
-    assert.ok(!/class="[^"]*\b(pos|neg)\b/.test(tl), k + ': zmiana stanu bez koloru');
+    assert.ok(/<small class="(pos|neg|neu)">/.test(tl), k + ': zmiana stanu w kolorze kierunku (v321)');
   });
   assert.deepEqual(D.mm.d1w.slice(0, 6), keys.map((k, i) => last[i + 1] - prev[i + 1]), 'strona liczy tak samo jak zbieracz (d1w)');
   assert.ok(body.indexOf('fund.h.lt') < body.indexOf('fund.h.mm') && body.indexOf('fund.h.mm') < body.indexOf('fund.h.tab'), 'kolejność: napływy, rynek pieniężny, tabela');
@@ -9557,14 +9444,14 @@ test('v135: rynek pieniężny — 6 kafli aktywów po kaflach napływów (mld US
   const trs = tb.split('<tr><td>').slice(1);
   assert.equal(trs.length, 8); assert.ok(trs[0].startsWith('<span class="cell">9/23</span>'), 'tydzień rynku pieniężnego (napływów jeszcze nie ma)');
   assert.equal((trs[0].match(/cell mono na">—/g) || []).length, 6, 'napływy za 23.09 jeszcze nieopublikowane — „—”, nie 0');
-  assert.ok(trs[0].endsWith('<td><span class="cell mono">' + X.fndChg(last[1] - prev[1], false).txt + '</span></td></tr>'), 'zmiana aktywów bez jednostki i bez koloru: ' + trs[0].slice(-120));
+  const ch0 = X.fndChg(last[1] - prev[1], false); assert.ok(trs[0].endsWith('<td><span class="cell mono ' + ch0.cls + '">' + ch0.txt + '</span></td></tr>'), 'zmiana aktywów bez jednostki, v321: w kolorze kierunku: ' + trs[0].slice(-120));
   assert.ok(body.includes('<p class="pnote">fund.mm.note</p>') && body.endsWith('<p class="pnote">fund.mm.note</p>'));
   assert.equal(X.FND_STALE.mm, 10); assert.equal(X.FND_MM.length, 12);
 });
 
 test('v135: rynek pieniężny — zmiana tylko wobec tygodnia dokładnie 7/28 dni (luka = „—”), brak liczby = „—”, nota o starym tygodniu po 10 dniach, sam rynek pieniężny bez napływów', () => {
   const X = mm135.mk();
-  assert.deepEqual(X.fndChg(15000), {txt: '▲ +15.0 bn', cls: ''}); assert.deepEqual(X.fndChg(-256), {txt: '▼ −0.3 bn', cls: ''}); assert.deepEqual(X.fndChg(30), {txt: '• 0.0 bn', cls: ''});
+  assert.deepEqual(X.fndChg(15000), {txt: '▲ +15.0 bn', cls: 'pos'}); assert.deepEqual(X.fndChg(-256), {txt: '▼ −0.3 bn', cls: 'neg'}); assert.deepEqual(X.fndChg(30), {txt: '• 0.0 bn', cls: 'neu'});   /* v321: kolory kierunku */
   for (const v of [null, NaN, '5', undefined]) assert.deepEqual(X.fndChg(v), {txt: '—', cls: 'na'});
   const D = mm135.cp(mm135.D);
   D.mm.w.splice(D.mm.w.length - 2, 1);   // brak 16.09 — zmiana tygodnia niepoliczalna
@@ -9785,15 +9672,15 @@ test('v137: jpxApply — zły plik bez gOk i bez danych; dobry — gOk("jpx") i 
   assert.equal(new Function(html.slice(jpx137.a0, jpx137.a1) + '\nreturn jpxData();')(), null, 'jpxData bez danych');
 });
 
-test('v137: GLOBAL — sekcja #inst z samym plikiem giełdy, blok C2 zaraz po bloku MOF (przed „czego nie mówi”), #inst przed widgetami, plik w gLoad, wiersz regionu, TRENDY i Metodologia', () => {
+test('v137: GLOBAL — sekcja #inst z samym plikiem giełdy, blok C2 zaraz po bloku MOF (przed „czego nie mówi”), #inst przed panelem krypto na dole GLOBAL (v321), plik w gLoad, wiersz regionu, TRENDY i Metodologia', () => {
   const r0 = html.indexOf('function renderInst(){'), r1 = html.indexOf('\nfunction ', r0 + 10), ri = html.slice(r0, r1);
   assert.ok(ri.includes("typeof MX!=='undefined'?MX.data:null,typeof jpxData==='function'?jpxData():null].filter(Boolean);"), 'sekcja także z samym plikiem giełdy');
   const c = ri.indexOf('/* C. Japonia'), c2 = ri.indexOf("html+=typeof jpxHtml==='function'?jpxHtml():'';"), ns = ri.indexOf("<summary>${t('eng.notsays')}</summary><p class=\"pnote\">${t('inst.not1')}");
   assert.ok(c > 0 && c2 > c && ns > c2, 'C2 po bloku MOF, przed „czego nie mówi” sekcji');
   const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
-  assert.ok(sec('inst') > 0 && sec('tv-markets') > sec('inst') && sec('tv-news') > sec('tv-calendar'), '#inst przed widgetami TradingView (ostatnie w GLOBAL)');
+  assert.ok(sec('inst') > 0 && !html.includes('id="tv-markets"'), '#inst w GLOBAL (v321: widgety TradingView usunięte)');
   const gEnd = html.indexOf('<section class="global" id="trendy"');
-  assert.deepEqual((html.slice(sec('tv-markets'), gEnd).match(/<section [^>]*id="([^"]+)"/g) || []).map(s => s.match(/id="([^"]+)"/)[1]), ['tv-markets', 'tv-calendar', 'tv-news'], 'po widgetach nic w GLOBAL');
+  assert.deepEqual((html.slice(sec('inst'), gEnd).match(/<section [^>]*id="([^"]+)"/g) || []).map(s => s.match(/id="([^"]+)"/)[1]), ['inst', 'g-etf'], 'v321: po #inst już tylko panel krypto (g-etf) na samym dole GLOBAL');
   const g0 = html.indexOf("    srvJSON('instytucje').then(j=>{instApply(j);}).catch(()=>{instApply(null);}),\n"), g1 = html.indexOf("    srvJSON('jpx').then(", g0);
   assert.ok(g0 > 0 && g1 > g0 && g1 - g0 < 120 && html.indexOf("srvJSON('jpx')") === g1 + 4, 'plik data/jpx.json w gLoad zaraz po instytucjach, jedno pobranie');
   assert.ok(html.includes("          ${typeof korRegion==='function'?korRegion(s.id):''}\n          ${typeof jpxRegion==='function'?jpxRegion(s.id):''}\n"), 'szczegóły regionu: po Korei');
@@ -9890,7 +9777,8 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {"g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tv.n.heatmap": "de", "tv.n.chart": "de", "tv.tab.idx": "fr", "tv.tab.cmd": "pt", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {"g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+/* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
 const V142_KEYS = ["g.per.1M", "g.per.1Q", "g.per.1R", "g.live.on", "g.live.load", "g.live.off", "g.k.eq", "g.k.us10", "g.k.de10", "g.k.cry", "g.k.stab", "g.nodata", "g.d.chg", "g.d.chgp", "g.d.base", "g.d.cty", "g.d.method", "g.d.corr", "g.m.reg", "g.m.corr", "g.l.corr", "g.l.crypto", "g.plain.in", "g.plain.out", "g.leg.unc", "g.q.fresh", "g.q.cov", "g.q.meth", "g.q.methv", "g.q.corr", "g.q.corrv0", "g.q.lim", "g.q.limv", "set.map", "set.labels", "set.mapdots", "set.lab.both", "set.lab.name", "set.lab.off", "set.dots.soft", "set.dots.mid", "set.dots.hard", "g.pr.t", "g.pr.note", "g.pr.up", "g.pr.dn", "g.pfs.mom3", "g.pfs.mom1", "g.pf.fx", "g.pfs.fx", "g.pf.yld", "g.pfs.yld", "g.help.1", "g.help.read", "g.help.beat", "g.help.meth", "g.help.prob", "g.help.src", "g.help.lim", "pg.flows", "pg.flows.d", "pg.assets", "pg.sectors", "pg.sectors.dg", "pg.method", "pg.method.d", "pg.from", "pg.to", "pg.amount", "pg.class", "pg.value", "pg.change", "pg.live", "pg.daily", "pg.monthly", "as.eq", "as.fx", "as.us10", "as.de10", "as.jp10", "as.cry", "as.stab", "pg.m1", "pg.m2", "pg.m3", "pg.m4", "pg.m5", "pg.comp", "pg.weight", "pg.cal.d", "pg.cal.hit", "pg.cal.none", "g.rf.load", "g.rf.now", "g.rf.at", "g.rf.off", "g.rf.src", "g.cf.t", "g.cf.sub", "g.cf.col.reg", "g.cf.col.cur", "g.cf.col.sh", "g.cf.col.est", "g.cf.m", "g.cf.l", "g.cf.none", "g.cf.edged", "pg.m6", "etf.t", "etf.t.short", "etf.sub", "etf.b.err", "etf.e.key", "etf.k.day", "etf.k.w", "etf.k.cum", "etf.k.aum", "etf.k.share", "etf.k.vsstab", "etf.k.vsstabd", "etf.c.asset", "etf.c.day", "etf.c.w", "etf.c.cum", "etf.c.share", "etf.c.share.s", "etf.c.turn", "etf.c.fee", "etf.c.bars", "etf.c.fund", "etf.c.shareaum", "etf.funds", "etf.m", "etf.s.wait", "pg.m7", "g.help.etf", "g.p.1D", "g.per.1D", "g.d.today", "g.m.reg1d", "g.plain.crypto", "g.stabflow", "g.m.stab", "g.help.3", "g.plain.cf", "pg.sectors.dc", "etf.b.live", "etf.b.snap", "etf.b.load", "etf.src.live", "etf.src.snap", "g.help.corr", "g.help.probd", "g.pf.cli.lvl", "g.pf.cli.dir", "g.pf.mom1", "g.pf.mom3", "pg.formula"];
@@ -10734,9 +10622,9 @@ const rw133 = (() => {
   return {run, clone, day31, BLK};
 })();
 
-test('v133: sekcja #c-rwa pod stablecoinami, przed widgetami; styl, blok JS, ładowanie co 30 min, zmiana języka, chwilowy błąd nie zasłania danych', () => {
+test('v133: sekcja #c-rwa pod stablecoinami (v321: bez widgetów TradingView); styl, blok JS, ładowanie co 30 min, zmiana języka, chwilowy błąd nie zasłania danych', () => {
   const c0 = html.indexOf('id="crypto"'), s = html.indexOf('id="eng-defillama-stablecoins"'), r = html.indexOf('<section class="panel pcard" id="c-rwa" hidden></section>'), f = html.indexOf('id="eng-cftc-crypto"');
-  assert.ok(c0 > 0 && s > c0 && r > s && f > r && r < html.indexOf('id="tv-heatmap"'), 'kolejność: stablecoiny → RWA → pozycje CFTC → … → widgety');
+  assert.ok(c0 > 0 && s > c0 && r > s && f > r && r < html.indexOf('</main>', c0) && !html.includes('id="tv-heatmap"'), 'kolejność: stablecoiny → RWA → pozycje CFTC → …');   /* v321: widgety TradingView usunięte */
   assert.equal(html.split('id="c-rwa"').length - 1, 1, 'jedna sekcja');
   assert.ok(html.includes('#c-rwa .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}') && html.includes('@media (max-width:620px){#c-rwa .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}'), '4 kafle, 2 na telefonie');
   assert.ok(html.includes('#c-rwa table.etft{min-width:0;width:100%}'), 'tabele bez przewijania strony na telefonie');
@@ -11157,7 +11045,7 @@ test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąsk
   const F = L => new Function('LANG', html.slice(a, b) + '\nreturn {sepK, sepL};')(L);
   assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
   for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
-  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 33, 'etykiety składane w kodzie: 33 miejsca (v157: podpowiedzi wykresów — wkK; v230: „7 dni” przy nowej liście portfeli)');
+  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 36, 'etykiety składane w kodzie: 36 miejsc (v157: podpowiedzi wykresów — wkK; v230: „7 dni” przy nowej liście portfeli; v321: +3 — karta wskaźnika fgCard ×2 i kafel gRenderKpi, pokrycie gCovCard i sgCovC zamiast fgBlock i paska v156)');
   assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 29, 'listy składane w kodzie: 29 miejsc');
   for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
     assert.ok(!html.includes(s), 'dawny separator: ' + s);
@@ -11522,17 +11410,17 @@ test('v151: klucze składane z zamkniętych list w kodzie (przedrostek + id z ta
   const I = v143Final(html), U = v143Usage(v143Code(html));
   const arr = decl => { const a = html.indexOf(decl); assert.ok(a > 0, decl); return JSON.parse(html.slice(a + decl.length, html.indexOf(']', a) + 1).replace(/'/g, '"')); };
   const inl = s => { assert.ok(html.includes(s), 'w kodzie: ' + s); return JSON.parse(s.slice(0, s.indexOf(']') + 1).replace(/'/g, '"')); };
-  const tvw = (() => { const a = html.indexOf('const TV_W={'), b = html.indexOf('\n};', a); return [...html.slice(a, b).matchAll(/^ {2}([a-z]+):\{id:/gm)].map(m => m[1]); })();
   const ev = [...html.slice(html.indexOf('const EV={'), html.indexOf('};', html.indexOf('const EV={'))).matchAll(/([a-z]+):\{cls:/g)].map(m => m[1]);
   const panel = [...new Set([...html.matchAll(/trdPanel\('([a-z]+)'/g)].map(m => m[1]))];
   const pf = [...html.slice(html.indexOf('function gProb(){'), html.indexOf('GPROB.push(', html.indexOf('function gProb(){'))).matchAll(/add\('([a-z.0-9]+)'/g)].map(m => m[1]);
   const per = ['24H', '7D', '30D', '1R'], bs = ['buy', 'sell'], vrd = ['coin', 'more', 'less'];
-  assert.deepEqual([tvw.length, ev.length, panel.sort().join(), pf.length], [7, 5, 'c,e,f,p,pc', 6], 'listy z kodu');   /* v315 (CR7-04): + rodzaj dowodu meas (pomiar podaży) */
+  assert.deepEqual([ev.length, panel.sort().join(), pf.length], [5, 'c,e,f,p,pc', 6], 'listy z kodu');   /* v315 (CR7-04): + rodzaj dowodu meas (pomiar podaży); v321: bez listy widgetów TradingView (TV_W usunięta) */
+  assert.ok(!html.includes('const TV_W={'), 'v321: bez listy widgetów');
   const ev4 = ev.filter(k => k !== 'meas');   /* v315: meas — etykieta i opis z EV.meas.k / .d (klucze c315.*); linii ani ograniczenia lim.* nie ma (renderDetails) */
   assert.ok(html.includes("function trdVerdict(b){") && html.includes("?'more':") && html.includes("?'less':'coin';}"), 'trdVerdict: more / less / coin');
   assert.ok(html.includes("k:d?'d':(m?'m':'u'),out}"), 'gRegRatio: rodzaj okna d / m / u');
   const F = [
-    ['kpi.', U.kdef], ['tv.n.', tvw], ['tv.t.', tvw], ['tv.sub.', tvw.filter(k => k !== 'calendar')], ['fg.comp.', arr('const FG_KEYS=')], ['fg.why.', arr('const FG_WHY=')],
+    ['kpi.', U.kdef], ['fg.comp.', arr('const FG_KEYS=')], ['fg.why.', arr('const FG_WHY=')],
     ['fed.o.', arr('const FED_ORDER=')], ['cftc.g.', arr('const CFTC_G=')], ['dl.c.', arr('const DL_AR=')], ['eng.t.', arr('const ENG_VIEWS=')], ['etf.n.', arr('const ETF_SYMS=')],
     ['q.', inl("['src','fresh','compl','meth'].map(k=>`<div class=\"q\">")], ['jpx.c.', inl("['for','ind','trb','bus','it','prop'].map(k=>`<th>${t('jpx.c.'+k)}")],
     ['mx.i.', inl("['bon','cet','udi','oth'].map(k=>{const v=mxI(l,k);")], ['dl.n.', inl("['blue','bolsa','cripto'].map(k=>escH(t('dl.n.'+k))")],
@@ -11829,7 +11717,7 @@ test('v154: „Gdzie warunki sprzyjają” i „Jakość danych mapy” to zwyk�
   GP.push({id: 'usa', score: 40, parts: [['fx', 2, '+2']]}, {id: 'jpn', score: -12, parts: [['mom1', -3, '−3']]});
   f.gRenderProb(); const p = els['#g-prob'].innerHTML;
   assert.equal(els['#g-prob'].hidden, false);
-  assert.ok(p.startsWith('<div class="etfh"><div><h2>Gdzie warunki sprzyjają</h2><p class="pnote">▲ USA +40 · ▼ Japonia i Korea −12 · g.pr.d</p></div></div>'), 'nagłówek z sednem (v166: i miesiącem danych): ' + p.slice(0, 160));
+  assert.ok(p.startsWith('<div class="etfh"><div><h2>Gdzie warunki sprzyjają</h2><p class="pnote"><span class="pos">▲ USA +40</span> · <span class="neg">▼ Japonia i Korea −12</span> · g.pr.d</p></div></div>'), 'nagłówek z sednem (v166: i miesiącem danych; v321: w kolorze wyniku): ' + p.slice(0, 160));
   assert.ok(p.includes('<button class="prow pos" data-r="usa">') && !p.includes('<div class="panel pcard">'), 'wiersze jak dotąd, bez karty w karcie');
   f.gRenderQ(); const q = els['#g-q'].innerHTML;
   assert.ok(q.startsWith('<div class="etfh"><div><h2>Jakość danych mapy</h2><p class="pnote">2026-08 · dane sprzed 34 dni · 2 z 3 regionów z danymi</p></div></div><div class="q-grid gq">'), q.slice(0, 200));
@@ -11859,59 +11747,10 @@ test('v155: małe ikony Gaming i Giełd — wariant zdjęcia właściciela (kadr
 
 
 /* ---------- v156: strach i chciwość w lewym pasku ---------- */
-function v156Pasek(o) {
-  const a = html.indexOf('/* v156 (właściciel 04.10:'), b = html.indexOf('/* v156: koniec paska strachu i chciwości */', a);
-  assert.ok(a > 0 && b > a, 'blok paska');
-  const els = {}, L = {}, calls = [];
-  const mk = id => ({id, hidden: true, innerHTML: '', classList: {s: new Set(), add(c) { this.s.add(c); }, contains(c) { return this.s.has(c); }},
-    scrollIntoView(x) { calls.push(['scroll', id, x]); }, setAttribute() {}});
-  for (const id of ['#side-fg', '#c-fg', '#g-fg', '#tab-global', '#tab-crypto', '#tab-trendy']) els[id] = mk(id);
-  els['#c-fg'].hidden = false; els['#g-fg'].hidden = false;
-  const MO = []; class MOb { constructor(f) { this.f = f; MO.push(this); } observe(x, opt) { (this.o = this.o || []).push([x.id, JSON.stringify(opt)]); } }
-  const st = {mode: o.mode || 'global', anim: false}, pg = {v: o.page || 'overview'};
-  const env = {setTimeout: f => f(), doc: {addEventListener(e, f) { L[e] = f; }}};
-  const F = new Function('$', 't', 'escH', 'KR', 'FG', 'st', 'fgCrypto', 'fgGlobal', 'fgNum', 'fgInt', 'fgIso', 'fgShort', 'gAgeNote', 'fgGauge', 'sepK', 'MutationObserver',
-    'document', 'setTimeout', 'page', 'setPage', 'setMode', 'zwOpenFor', html.slice(a, b) + '\nreturn {fgRenderSide};')(
-    q => els[q] || null, (k, v) => k + (v ? JSON.stringify(v) : ''), v96src.escH, {data: o.kr}, {g: o.g}, st, x => x, x => x, v => typeof v === 'number' && isFinite(v),
-    v => String(Math.round(v)), s => /^\d{4}-\d{2}-\d{2}$/.test(s), s => 'S(' + s + ')', () => ' · wiek', (v, gid) => '<svg data-gid="' + gid + '" data-v="' + v + '"></svg>',
-    () => ': ', MOb, env.doc, env.setTimeout, pg.v, p => calls.push(['page', p]), m => { calls.push(['mode', m]); st.mode = m; }, p => calls.push(['zw', p.id]));
-  return {F, els, L, MO, calls, st};
-}
-test('v156: lewy pasek — dwa wskaźniki (CapitalFlowAI i krypto): skala, liczba, stan, dzień z wiekiem, historia 1D/1T/1M; bieżąca zakładka podświetlona', () => {
-  const row = (d, v) => [d, v], stOf = r => (r[1] < 45 ? 'f' : 'g');
-  const G = {v: 34, s: 'f', date: '2026-10-03', stOf, hist: [['n', row('2026-10-03', 34)], ['s1', row('2026-10-02', 41)], ['w1', null], ['m1', row('2026-09-03', 62)]]};
-  const C = {v: 58, s: 'g', date: '2026-10-04', stOf, hist: [['n', row('2026-10-04', 58)], ['d1', row('2026-10-03', 55)], ['w1', row('2026-09-27', 49)], ['m1', row('2026-09-04', 30)]]};
-  const P = v156Pasek({mode: 'global', kr: {fng: C}, g: G}); const h = P.els['#side-fg'].innerHTML;
-  assert.equal(P.els['#side-fg'].hidden, false);
-  assert.ok(h.startsWith('<button type="button" class="sfg on" data-sfg="global" title="fg.g.cap"') && h.includes('<button type="button" class="sfg" data-sfg="crypto"'), 'GLOBAL podświetlony, kolejność: CapitalFlowAI, krypto');
-  assert.ok(h.includes('<span class="sfg-t">fg.t.g</span><svg data-gid="fg-gr-sg" data-v="34"></svg>') && h.includes('<span class="sfg-t">fg.t.c</span><svg data-gid="fg-gr-sc" data-v="58"></svg>'), 'tytuły i skale (własne id gradientów)');
-  assert.ok(h.includes('<span class="sfg-v"><b>34</b><span class="sfg-s"><i class="fg-dot fg-f"></i>fg.s.f</span></span>') && h.includes('<b>58</b>'), 'liczba i stan');
-  assert.ok(h.includes('<span class="sfg-d">S(2026-10-03) · wiek</span>'), 'dzień danych z wiekiem');
-  assert.ok(h.includes('<span><b class="fg-c fg-f">41</b>1D</span><span><b class="fg-c fg-na">—</b>1T</span><span><b class="fg-c fg-g">62</b>1M</span>'), 'historia GLOBAL; brak = „—”, nie zero');
-  assert.ok(h.includes('<span><b class="fg-c fg-g">55</b>1D</span><span><b class="fg-c fg-g">49</b>1T</span><span><b class="fg-c fg-f">30</b>1M</span>'), 'historia krypto');
-  const Q = v156Pasek({mode: 'crypto', kr: {fng: C}, g: null}); const q = Q.els['#side-fg'].innerHTML;
-  assert.ok(q.includes('class="sfg" data-sfg="global"') && q.includes('<b>—</b>') && q.includes('class="sfg on" data-sfg="crypto"'), 'bez pliku GLOBAL: „—”; krypto podświetlony');
-  const E = v156Pasek({mode: 'global', kr: null, g: null}); assert.equal(E.els['#side-fg'].hidden, true, 'bez danych — pasek ukryty'); assert.equal(E.els['#side-fg'].innerHTML, '');
-  assert.deepEqual(P.MO.map(m => m.o), [[['#c-fg', '{"childList":true}'], ['#g-fg', '{"childList":true}']], [['#tab-global', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-crypto', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-trendy', '{"attributes":true,"attributeFilter":["aria-selected"]}']]], 'odświeżanie: przerysowanie paneli i zmiana zakładki');
-});
-test('v156: kliknięcie wskaźnika w pasku — zakładka wskaźnika i panel ze szczegółami (GLOBAL: karta rozwinięta; CRYPTO: panel przeniesiony pokazany na żądanie)', () => {
-  const X = {v: 50, s: 'n', date: '2026-10-04', stOf: () => 'n', hist: []};
-  const P = v156Pasek({mode: 'crypto', page: 'sources', kr: {fng: X}, g: X});
-  const btn = k => ({closest: s => (s === '#side-fg [data-sfg]' ? {getAttribute: () => k} : null)});
-  P.L.click({target: btn('global')});
-  assert.deepEqual(P.calls, [['page', 'overview'], ['mode', 'global'], ['zw', '#g-fg'], ['scroll', '#g-fg', {behavior: 'auto', block: 'start'}]]);
-  P.calls.length = 0; P.L.click({target: btn('crypto')});
-  assert.ok(P.els['#c-fg'].classList.contains('pokaz'), 'panel krypto pokazany na żądanie'); assert.deepEqual(P.calls.slice(-1), [['scroll', '#c-fg', {behavior: 'auto', block: 'start'}]]);
-  P.calls.length = 0; P.L.click({target: {closest: () => null}}); assert.deepEqual(P.calls, [], 'kliknięcie poza paskiem — nic');
-});
-test('v156: miejsce w lewym pasku (pod menu, nad „Ostatnią aktualizacją”), styl bez stałych kolorów, telefon bez paska, nowa nazwa wskaźnika GLOBAL', () => {
-  const n = html.indexOf('</nav>'), s = html.indexOf('<div class="side-fg" id="side-fg" hidden></div>'), u = html.indexOf('<div class="upd">');
-  assert.ok(n > 0 && s > n && u > s && s < html.indexOf('</aside>'), 'pod menu, nad „Ostatnią aktualizacją”');
-  const c0 = html.indexOf('/* v156: strach i chciwość w lewym pasku — zawsze'), c1 = html.indexOf('</style>', c0), css = html.slice(c0, c1);
-  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko zmienne motywu');
-  assert.ok(css.includes('@media (max-width:900px){.side-fg{display:none!important}}') && css.includes('@media (min-width:901px){#c-fg:not(.pokaz){display:none!important}}'), 'telefon: panele jak dotąd; komputer: panel krypto przeniesiony');
-  assert.ok(html.includes('"fg.t.g":"CapitalFlowAI Strach & Chciwość"') && !html.includes('Strach i chciwość — rynki USA'), 'nazwa wskaźnika GLOBAL');
-});
+// v156: atrapa paska (v156Pasek) i trzy testy paska z dwoma wskaźnikami naraz (CapitalFlowAI i krypto: skala, liczba, stan, dzień z wiekiem, historia,
+// kliknięcie → karta, miejsce pod menu, styl, telefon bez paska) — v321: usunięte świadomie razem z paskiem v156 (decyzja właściciela 10.10.2026: lewa
+// kolumna pokazuje parę pasującą do zakładki — „Pokrycie danych GLOBAL” + „Strach i chciwość GLOBAL” albo „Pokrycie danych” + „Strach i chciwość — krypto”).
+// Te same sprawy (miejsce, styl, telefon, kliknięcie, odświeżanie, dzień danych) sprawdzają testy v321 na końcu pliku.
 
 
 /* ---------- v158: TRENDY — infografika „Wyniki sygnałów” ---------- */
@@ -12258,7 +12097,7 @@ test('v157: GLOBAL — strach i chciwość (linia 0–100 z pasmami, stan z licz
   assert.equal(f.k, 'm'); assert.equal(T.length, 20); assert.equal(T[T.length - 1], '2 paź 2026 · 34 · Strach', 'ostatnia sesja: liczba i stan');
   assert.equal(f.d, '2 paź 2026 · wiek(2026-10-02)');
   assert.equal(v157.tags(f.ch, 'rect', 'wk-zn').length, 5, 'pięć pasm stanów');
-  assert.ok(/aria-label="CapitalFlowAI Strach &amp; Chciwość: teraz 34 \(Strach\); 20 punktów na wykresie, od \d+ do \d+\."/.test(f.ch), 'opis zdaniem');
+  assert.ok(/aria-label="Strach i chciwość GLOBAL: teraz 34 \(Strach\); 20 punktów na wykresie, od \d+ do \d+\."/.test(f.ch), 'opis zdaniem (v321: nowa nazwa wskaźnika)');
   G.STR.data = v157.fix('stres');
   const s = G.wkGStr();
   assert.equal(v157.tips(s.ch).length, 30); assert.equal(v157.tips(s.ch).pop(), '30 wrz 2026 · −2,35'); assert.equal(s.d, '30 wrz 2026 · wiek(2026-09-30)');
@@ -12586,19 +12425,19 @@ test('v157: podpowiedź i klawiatura — wartość ze znacznika, podświetlenie,
   key('ArrowRight'); assert.ok(!tip.hidden && tip.textContent === 'a 1', 'klawisz po kliknięciu — znów podpowiedź z klawiatury');
 });
 
-test('v157: strona — pasek nad kartami z przełącznikiem (GLOBAL i CRYPTO), kontener kafli ukryty, karty i widgety TradingView na miejscu; styl bez stałych kolorów; blok przed startem GLOBAL; zaczep top 10', () => {
+test('v157: strona — pasek nad kartami z przełącznikiem (GLOBAL i CRYPTO), kontener kafli ukryty, karty na miejscu (v321: bez widgetów TradingView); styl bez stałych kolorów; blok przed startem GLOBAL; zaczep top 10', () => {
   const SEL = '<span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span>';
-  for (const [tab, first, tv] of [['global', 'g-etf', 'tv-markets'], ['crypto', 'eng-coinmetrics-exchange-flows', 'tv-heatmap']]) {
+  for (const [tab, first, tv] of [['global', 'g-prob', 'tv-markets'], ['crypto', 'eng-coinmetrics-exchange-flows', 'tv-heatmap']]) {   /* v321: g-etf na samym dole GLOBAL — pierwsza karta pod paskiem to „Gdzie warunki sprzyjają” */
     const bar = `<div class="zw-bar" data-zw="${tab}"><span class="zw-hint" data-i18n="zw.hint"></span>${SEL}<span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->\n    <div class="wk-dash" id="wk-${tab}" hidden></div>`;
     const b = html.indexOf(bar);
     assert.ok(b > html.indexOf(`id="${tab}" role="tabpanel"`) && b < html.indexOf(`id="${first}"`), tab + ': pasek v154 z przełącznikiem, kafle zaraz pod nim, przed pierwszą kartą');
-    assert.ok(html.indexOf(`id="${tv}"`) > b, tab + ': widgety TradingView dalej na dole');
+    assert.ok(html.indexOf(`id="${tv}"`) < 0, tab + ': v321 — widgety TradingView usunięte');
   }
   assert.equal(html.split('class="wk-sel"').length - 1, 2); assert.ok(!/class="[^"]*wk-on/.test(html.slice(0, html.indexOf('<script>'))), 'start: żadna zakładka w widoku Wykresy');
   const c0 = html.indexOf('/* v157: widok „Wykresy” — przełącznik nad kartami'), c1 = html.indexOf('</style>', c0), css = html.slice(c0, c1);
   assert.ok(c0 > 0 && c1 === html.indexOf('</style>'), 'styl w arkuszu strony');
   assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(css), 'tylko zmienne motywu (bez stałych kolorów)');
-  assert.ok(!css.includes('zw-bs{display:none') && !css.includes(':not([id^="tv-"])'), 'Wykresy: „Rozwiń / Zwiń wszystkie” zostają (karty bez kafla są pod kaflami), widgety TradingView nietknięte');
+  assert.ok(!css.includes('zw-bs{display:none') && !css.includes(':not([id^="tv-"])'), 'Wykresy: „Rozwiń / Zwiń wszystkie” zostają (karty bez kafla są pod kaflami)');
   for (const s of ['#global.wk-on>section.pcard.wk-hid,#crypto.wk-on>section.pcard.wk-hid{display:none!important}', '.wk-on>.zw-bar .zw-hint{display:none}',
     '@container wk (min-width:820px){.wk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}', '@media (min-width:621px){.wk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}', '.wk-t.w2{grid-column:span 2}', '.wk-t.r2{grid-row:span 2}',
     'background:color-mix(in srgb,var(--panel) 70%,transparent)', '.wk-tip[hidden]{display:none}', '@container wkt (max-width:300px)'])
@@ -12648,16 +12487,9 @@ test('v157: strona w atrapie (dane wbudowane strażnika, 27.09) — „Wykresy�
 
 
 /* ---------- v163: poprawki po niezależnym przeglądzie v153–v160 ---------- */
-test('v163: lewy pasek — dzień danych zawsze widoczny (niski ekran chowa rysunek skali, nie datę); opis przycisku dla czytnika z dniem i wiekiem', () => {
-  const c0 = html.indexOf('/* v156: strach i chciwość w lewym pasku — zawsze'), c1 = html.indexOf('/* v158: TRENDY — infografika', c0), css = html.slice(c0, c1);
-  assert.ok(c0 > 0 && c1 > c0 && !/\.sfg-d\s*\{\s*display\s*:\s*none/.test(css), 'dzień danych nigdy ukryty');
-  assert.ok(css.includes('@media (max-height:780px){.sfg .fg-svg{max-width:84px}}') && css.includes('@media (max-height:740px){.sfg .fg-svg{display:none}}'), 'niski ekran: mniejsza albo bez skali');
-  const G = {v: 34, s: 'f', date: '2026-10-03', stOf: () => 'f', hist: []};
-  const h = v156Pasek({mode: 'global', kr: null, g: G}).els['#side-fg'].innerHTML;
-  assert.ok(h.includes('aria-label="fg.aria{&quot;t&quot;:&quot;fg.t.g&quot;,&quot;v&quot;:&quot;34&quot;,&quot;s&quot;:&quot;fg.s.f&quot;}, S(2026-10-03) · wiek"'), h.slice(0, 300));
-  const h0 = v156Pasek({mode: 'global', kr: null, g: {v: 34, s: 'f', date: 'zła', stOf: () => 'f', hist: []}}).els['#side-fg'].innerHTML;
-  assert.ok(h0.includes('&quot;fg.s.f&quot;}"') && !h0.includes('S(zła)'), 'zły dzień — opis bez daty');
-});
+// v163: test „lewy pasek — dzień danych zawsze widoczny (niski ekran chowa rysunek skali, nie datę); opis przycisku dla czytnika z dniem i wiekiem” —
+// v321: zastąpiony testem v321 na końcu pliku (lewa kolumna v321: na niskim ekranie mniejsze półkole i bez zdania pod pokryciem, dzień danych i kółka
+// 1D / 1T / 1M zostają zawsze; opis dla czytnika — w półkolu i w podpowiedziach kółek).
 test('v163: telefon — zwinięta karta „CapitalFlowAI Strach & Chciwość” pokazuje w nagłówku liczbę, stan i dzień z wiekiem (tylko ≤ 900 px i tylko zwinięta)', () => {
   const elG = {hidden: true, innerHTML: 'x'}, $ = q => q === '#g-fg' ? elG : null;
   const I = v96src.H, X = fg139.mk({$, KR: {data: null}, icoWrap: I.icoWrap, flagImg: I.flagImg, glyphImg: I.glyphImg});
@@ -12823,7 +12655,7 @@ function v165Node(id) {
     after(x) { out(x); const p = this.parentNode; p.kids.splice(p.kids.indexOf(this) + 1, 0, x); x.parentNode = p; }};
   return n;
 }
-test('v165: CRYPTO ≤ 1240 px — prawa kolumna w zakładce tuż przed widgetami TradingView (widgety na samym dole), szerzej — z powrotem obok kart; widgety nie są przenoszone', () => {
+test('v165: CRYPTO ≤ 1240 px — prawa kolumna w zakładce (v321: bez widgetów — na samym końcu zakładki), szerzej — z powrotem obok kart; inne sekcje nie są przenoszone', () => {
   const {railPlace} = v165Blok(), app = v165Node('app'), cr = v165Node('crypto'), rail = v165Node('rail'), set = v165Node('settings');
   for (const x of [cr, rail, set]) app.insertBefore(x, null);
   const [k1, k2, tv1, tv2] = ['cmc', 'krypto', 'tv-heatmap', 'tv-chart'].map(v165Node); for (const x of [k1, k2, tv1, tv2]) cr.insertBefore(x, null);
@@ -12837,10 +12669,10 @@ test('v165: CRYPTO ≤ 1240 px — prawa kolumna w zakładce tuż przed widgetam
   railPlace(true, rail, cr, null); assert.equal(ids(cr), 'cmc,krypto,tv-heatmap,tv-chart,rail', 'brak widgetu — na końcu zakładki');
   railPlace(false, rail, cr, null); railPlace(true, rail, cr, v165Node('obcy')); assert.equal(ids(cr).split(',').pop(), 'rail', 'widget spoza zakładki — na końcu');
   railPlace(true, null, cr, tv1); railPlace(true, rail, null, tv1);
-  assert.ok(html.includes("const mq=window.matchMedia('(max-width:1240px)'),go=()=>{try{railPlace(mq.matches,r,c,$('#tv-heatmap'));}catch(e){}};"), 'próg jak w CSS (.rail pod kartami ≤ 1240 px)');
+  assert.ok(html.includes("const mq=window.matchMedia('(max-width:1240px)'),go=()=>{try{railPlace(mq.matches,r,c,null);}catch(e){}};"), 'próg jak w CSS (.rail pod kartami ≤ 1240 px); v321: bez widgetu — na końcu zakładki');
   assert.ok(html.includes('@media (max-width:1240px){\n  .app{grid-template-columns:200px minmax(0,1fr)}\n  .top{grid-column:2}\n  .rail{grid-column:2;grid-row:3;'), 'CSS: ≤ 1240 px kolumna pod kartami');
   const t0 = html.indexOf('<main class="center" id="crypto"'), t1 = html.indexOf('</main>', t0), M = html.slice(t0, t1);
-  assert.ok(M.indexOf('id="tv-heatmap"') > M.indexOf('id="krypto"') && M.trimEnd().endsWith('<section class="panel pcard" id="tv-newsc" hidden></section>'), 'widgety TradingView ostatnie w zakładce');
+  assert.ok(M.indexOf('id="tv-') < 0 && M.trimEnd().endsWith('<section class="panel pcard" id="krypto" hidden></section>'), 'v321: widgety TradingView usunięte — zakładkę kończą panele rynku');
 });
 test('v165: TIC po polsku — nazwy krajów z pliku (angielskie) przez Intl.DisplayNames, wiersze zbiorcze ze słownika, Hongkong krótko; en jak dotąd', () => {
   const I = v143Final(html), C = v147Cty('pl');
@@ -12875,12 +12707,13 @@ test('v165: liczby z instMld / engMln / engBld — spacja niełamiąca między t
   for (const L of ['de', 'fr', 'ja']) { const {F, W: x} = W(L); assert.equal(x.engMln(T1), F.engMln(T1), L); assert.equal(x.engBld(45133), F.engBld(45133), L); assert.equal(x.instMld(1754400), F.instMld(1754400), L); }
   assert.equal(html.split('instMld=(f=>function(){return nbTys(f.apply(this,arguments));})(instMld);').length, 2);
 });
-test('v165: lewy pasek — „CapitalFlowAI Strach & Chciwość” przy GLOBAL w widoku „Wykresy” pokazuje kartę (chwilowo „Karty”, bez zapisu)', () => {
-  const a = html.indexOf("document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('#side-fg [data-sfg]'):null;if(!b)return;"), b = html.indexOf('/* v156: koniec paska strachu i chciwości */', a);
+test('v165: lewa kolumna — karta wskaźnika GLOBAL w widoku „Wykresy” pokazuje kartę ze szczegółami (chwilowo „Karty”, bez zapisu); v321: także „Pokrycie danych GLOBAL”', () => {
+  /* v321: pasek v156 zastąpiony lewą kolumną v321 (decyzja właściciela 10.10.2026) — ten sam słuchacz, także dla pary pod mapą (#g-sg) i obu kart GLOBAL */
+  const a = html.indexOf("document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('#side-fg [data-sfg],#g-sg [data-sfg]'):null;if(!b)return;"), b = html.indexOf('/* v321: koniec lewej kolumny wskaźników */', a);
   assert.ok(a > 0 && b > a);
   const s = html.slice(a, b), i = s.indexOf("if(!p||p.hidden)return;"), j = s.indexOf("wkSet('global','karty',true)"), k = s.indexOf('zwOpenFor(p)');
   assert.ok(i > 0 && j > i && k > j, 'po sprawdzeniu panelu, przed rozwinięciem karty');
-  assert.ok(s.includes("if(k==='global'&&p.classList&&p.classList.contains('wk-hid')&&typeof wkSet==='function')wkSet('global','karty',true);"));
+  assert.ok(s.includes("if(tab==='global'&&p.classList&&p.classList.contains('wk-hid')&&typeof wkSet==='function')wkSet('global','karty',true);"));
   assert.ok(html.includes("function wkSet(tab,v,tmp){if(!(tab in WK.v)||(v!=='karty'&&v!=='wykresy'))return;WK.v[tab]=v;if(!tmp)wkSave();wkApply(tab);}"), 'tmp = bez zapisu');
 });
 test('v165: polskie teksty bez angielskich resztek — rodzaj dowodu, legenda, indeks nastrojów, jednostka kontraktu (bez podwójnego nawiasu), RRP, tło, pokrycie KPI; mapa: „Animacja: Włączona”', () => {
@@ -12923,7 +12756,7 @@ test('v166: warunki — wynik regionu tylko ze składników o co najmniej połow
 });
 test('v166: warunki — miesiąc danych i wiek w nagłówku karty, objaśnienie składników (CLI …) pod kolumnami; słownik EXTRA166 tylko po polsku, bez nazw dostawców', () => {
   const a = html.indexOf('function gRenderProb(){'), b = html.indexOf('\nfunction gRenderRefresh(', a), s = html.slice(a, b);
-  assert.ok(s.includes("const pd=GLIVE.asof?' · '+t('g.pr.d',{d:escH(GLIVE.asof)+gAgeNote(GLIVE.asof)}):'';") && s.includes("${sum?escH(sum):t('g.pr.note')}${pd}</p></div></div>"));
+  assert.ok(s.includes("const pd=GLIVE.asof?' · '+t('g.pr.d',{d:escH(GLIVE.asof)+gAgeNote(GLIVE.asof)}):'';") && s.includes("${sum||t('g.pr.note')}${pd}</p></div></div>"));
   assert.ok(s.indexOf("t('g.pr.leg')") > s.indexOf('pcols') && s.indexOf("t('g.pr.leg')") < s.indexOf("t('g.pr.foot')"));
   const d0 = html.indexOf('const EXTRA166='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA166='.length, d1));
   assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['cmc.diff', 'g.pr.d', 'g.pr.leg']);
@@ -13602,7 +13435,7 @@ test('v210: Ustawienia — karta „Prywatność” przed przyciskiem „Gotowe�
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);'), 'jedna linia for po słowniku');
   const T = Object.values(D.pl).join(' ');
   for (const w of ['TradingView', 'GitHub', 'CoinGecko', 'CoinPaprika', 'DefiLlama', 'BIS', 'Google']) assert.ok(!T.includes(w), 'bez nazwy: ' + w);
-  assert.ok(T.includes('nie zapisuje ciasteczek') && T.includes('nie są nigdzie wysyłane') && T.includes('dopiero po Twojej zgodzie') && T.includes('Obraz tła'), 'kluczowe zdania (v215: o wysyłaniu)');
+  assert.ok(T.includes('nie zapisuje ciasteczek') && T.includes('nie są nigdzie wysyłane') && T.includes('nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych') && !T.includes('zgod') && T.includes('Obraz tła'), 'kluczowe zdania (v215: o wysyłaniu; v321: bez widgetów i zgody na nie)');
   for (const k of Object.keys(D.pl)) assert.equal(v96src.tFor('pl')(k), D.pl[k], 'wpis widoczny w słowniku strony: ' + k);
   assert.ok(html.includes("$$('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));"), 'teksty jako zwykły tekst (bez HTML)');
   const c = html.slice(html.indexOf('/* v210: Ustawienia — karta „Prywatność”'), html.indexOf('\n', html.indexOf('.set-priv p{')));
@@ -13677,7 +13510,7 @@ test('v214/v219: Szwajcaria — linia jak wykresy archiwum: podpisy w HTML, punk
   assert.equal((S.match(/<circle class="arc-p"/g) || []).length, 1, '28.08 między lukami — kropka');
   const pl = S.match(/<polyline class="arc-l" points="([^"]+)"/)[1].split(' ').map(p => +p.split(',')[0]);
   assert.ok(pl.length === 5 && Math.abs((pl[1] - pl[0]) - (pl[2] - pl[1])) < 0.2, 'punkty według dat — równe odstępy tygodniowe');
-  assert.ok(S.includes('<div class="arc-x"><span>') && !/undefined|NaN|\[object|null/.test(body) && !body.includes('pos') && !body.includes('neg'), 'daty pod osią; bez kolorów kierunku');
+  assert.ok(S.includes('<div class="arc-x"><span>') && !/undefined|NaN|\[object|null/.test(body) && !S.includes('pos') && !S.includes('neg'), 'daty pod osią; linia bez kolorów kierunku (v321: zmiany w kaflach i tabeli — w kolorze)');
   const krotko = Object.assign({}, D, {hist: D.hist.slice(0, 4).concat(snb124.W.slice(0, 7).map((w, i) => [w, 440000 - i * 1000, 470000]))});
   assert.ok(!X.snbBody(krotko).includes('class="snbw"'), 'mniej niż 8 liczb — bez wykresu');
   const d0 = html.indexOf('const EXTRA179='), d1 = html.indexOf(';\n', d0), E = JSON.parse(html.slice(d0 + 'const EXTRA179='.length, d1));
@@ -13691,7 +13524,7 @@ test('v214/v219: Szwajcaria — linia jak wykresy archiwum: podpisy w HTML, punk
 
 
 /* ---------- v215: karta „Prywatność” — zdanie o tym, co wychodzi z urządzenia ---------- */
-test('v215: Prywatność — zapisy nie są wysyłane; wybrany język decyduje o pliku języka i języku widgetów (po zgodzie)', () => {
+test('v215: Prywatność — zapisy nie są wysyłane; wybrany język decyduje o pliku języka (v321: widgetów już nie ma)', () => {
   const D = v96src.I18N.pl['set.priv.2'];
   assert.ok(D.includes('Te zapisy nie są nigdzie wysyłane') && D.includes('jedynie wybrany język decyduje, który plik języka pobiera strona') && !D.includes('Nic z tego nie opuszcza'), D);
 });
@@ -13736,7 +13569,7 @@ test('v219: słupki — brak = ramka przerywana z „brak danych”, zero szare 
   assert.deepEqual(E, {pl: {'ob.wyk.brak': 'brak danych'}});
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA181)if(I18N[l])Object.assign(I18N[l],EXTRA181[l]);'), 'jedna linia for po słowniku');
   assert.equal(v96src.tFor('pl')('ob.wyk.hk'), 'Hongkong (z Chin)', 'kapitał z Chin kontynentalnych — jak kafelek i tabela');
-  assert.ok(html.includes('.zs-n{fill:none;stroke:var(--dim);') && html.includes('.zs-z{fill:var(--dim)}'), 'styl braku i zera');
+  assert.ok(html.includes('.zs-n{fill:none;stroke:var(--dim);') && html.includes('.zs-z{fill:var(--yl)}'), 'styl braku i zera (v321: zero żółte)');
 });
 
 
@@ -13757,7 +13590,7 @@ test('v221: kandydat ujawniony po 200 dniach i bez przewagi po 400 — wycofany;
   assert.ok(html.slice(html.indexOf(';\n', html.indexOf('const EXTRA182=')), html.indexOf(';\n', html.indexOf('const EXTRA182=')) + 80).includes('for(const l in EXTRA182)if(I18N[l])Object.assign(I18N[l],EXTRA182[l]);'));
   const P = v96src.tFor('pl');
   assert.ok(P('tig.sh.ok').includes('{c}') && P('tig.sh.r.n3').startsWith('przewaga co najmniej 3') && P('tig.sh.r.eq.n2') === 'tig.sh.r.eq.n2', 'teksty kandydatów po poprawce rejestracji');
-  assert.ok(P('ob.wyk').includes('szara kreska = zero') && P('ob.wyk').includes('ramka przerywana = brak danych') && !P('ob.wyk').includes('kreska = brak danych'), 'legenda zgodna z rysunkiem');
+  assert.ok(P('ob.wyk').includes('żółta kreska = zero') && P('ob.wyk').includes('ramka przerywana = brak danych') && !P('ob.wyk').includes('kreska = brak danych'), 'legenda zgodna z rysunkiem (v321: zero żółte — .zs-z{fill:var(--yl)})');
   const X = snb124.mk(), body = X.snbBody(snb124.D), S = body.slice(body.indexOf('<div class="snbw"'), body.indexOf('snb.mm{'));
   assert.equal((S.match(/<rect class="snbw-h"/g) || []).length, 9, 'pas podpowiedzi na każdy tydzień z wierszem');
   assert.ok(/<title>[^<]*: —<\/title>/.test(S) && S.includes('<line class="snbw-k"'), 'tydzień bez liczby — „—”; kropka ostatniego tygodnia');
@@ -15427,10 +15260,10 @@ test('v295g: 10 języków — panel rysuje się w każdym, bez nazw dostawców i
   }
 });
 
-test('v295g: miejsce panelu (przed panelem USA, widgety TradingView dalej na dole), zwijanie jak inne karty, wykresy przez arcChart / wkBars / wkLines / wkCols, styl, odświeżanie', () => {
+test('v295g: miejsce panelu (przed panelem USA; v321: bez widgetów TradingView), zwijanie jak inne karty, wykresy przez arcChart / wkBars / wkLines / wkCols, styl, odświeżanie', () => {
   const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
   assert.ok(sec('g-surowce') > 0 && sec('g-surowce') < sec('g-usa') && html.slice(sec('g-surowce'), sec('g-usa')).match(/<section /g).length === 1, 'zaraz przed #g-usa');
-  assert.ok(sec('g-usa') < sec('tv-markets'), 'widgety na dole');
+  assert.ok(sec('g-usa') > 0 && sec('tv-markets') < 0, 'v321: widgety TradingView usunięte');
   assert.equal(html.split('id="g-surowce"').length, 2, 'jedno miejsce');
   const b = su295.blk;
   assert.ok(b.includes("const el=$('#g-surowce')") && b.includes('<div class="etfh"><div><h2>'), 'nagłówek .etfh — zwijanie v154 (karta startuje zwinięta)');
@@ -15497,10 +15330,10 @@ const zk295c = (() => {
   return {run, clone, sp, txt, dict, BLK};
 })();
 
-test('v295c: sekcja #c-surowce zaraz pod tokenizowanymi aktywami, przed widgetami TradingView; styl tylko ze zmiennych motywu, telefon 2 kolumny; blok JS, odświeżanie co 10 min, zmiana języka', () => {
+test('v295c: sekcja #c-surowce zaraz pod tokenizowanymi aktywami (v321: bez widgetów TradingView); styl tylko ze zmiennych motywu, telefon 2 kolumny; blok JS, odświeżanie co 10 min, zmiana języka', () => {
   const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
   assert.equal(html.split('id="c-surowce"').length - 1, 1, 'jedna sekcja');
-  assert.ok(sec('c-rwa') > 0 && sec('c-surowce') > sec('c-rwa') && sec('c-surowce') < sec('eng-cftc-crypto') && sec('c-surowce') < sec('tv-heatmap'), 'RWA → złoto i surowce → … → widgety TradingView');
+  assert.ok(sec('c-rwa') > 0 && sec('c-surowce') > sec('c-rwa') && sec('c-surowce') < sec('eng-cftc-crypto') && sec('tv-heatmap') < 0, 'RWA → złoto i surowce → …');   /* v321: widgety TradingView usunięte */
   assert.ok(html.indexOf('    <section class="panel pcard" id="c-rwa" hidden></section>\n    <section class="panel pcard" id="c-surowce" hidden></section>\n') > 0, 'obok RWA');
   const c0 = html.indexOf('/* v295c: złoto i surowce a krypto — panel CRYPTO #c-surowce'), c1 = html.indexOf('\n', html.indexOf('@media (max-width:620px){#c-surowce', c0)), css = html.slice(c0, c1);
   assert.ok(c0 > 0 && c1 > c0 && c1 < html.indexOf('</style>'), 'styl w arkuszu strony');
@@ -16813,7 +16646,7 @@ test('v305g: 10 języków — blok w języku widza, bez surowych kluczy i bez na
   for (const g of ['k', 'b', 'pt', 's']) for (const id of ids[g]) assert.ok(K.includes(g === 's' ? 'sz305.p.s.' + id : 'sz305.' + g + '.' + id), 'klucz dla ' + id);
 });
 
-test('v305g: miejsce w kodzie — funkcje bloku przed renderSu, blok przed stopką panelu, słuchacz i zegar za startem panelu; styl serii i telefon (siatka pulsu 2 kolumny); widgety TradingView dalej na dole', () => {
+test('v305g: miejsce w kodzie — funkcje bloku przed renderSu, blok przed stopką panelu, słuchacz i zegar za startem panelu; styl serii i telefon (siatka pulsu 2 kolumny); v321: bez widgetów TradingView', () => {
   const r0 = html.indexOf('function renderSu(){'), z0 = html.indexOf('/* ===================== v305g: SZLAKI');
   assert.ok(z0 > html.indexOf('/* ===================== v295g: SUROWCE') && z0 < r0, 'funkcje bloku w bloku panelu surowców, przed renderSu');
   assert.ok(html.includes("szBlk()+`<p class=\"pfoot\">${t('inst.file',{t:engDate(J.at)})} · ${t('su295g.foot')}"), 'blok tuż przed stopką panelu');
@@ -16825,7 +16658,7 @@ test('v305g: miejsce w kodzie — funkcje bloku przed renderSu, blok przed stopk
   assert.ok(html.includes('#g-surowce .wk-ch .sz-m{--k:var(--tl)}#g-surowce .wk-ch .sz-a{--k:var(--yl)}'), 'kolory linii metali i rolnych (bez zieleni i czerwieni)');
   assert.ok(html.includes('@media (max-width:620px){#g-surowce .su-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}'), 'telefon: kafle cieśnin w 2 kolumnach (siatka pulsu)');
   const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
-  assert.ok(sec('g-surowce') > 0 && sec('g-surowce') < sec('tv-markets'), 'widgety TradingView na dole');
+  assert.ok(sec('g-surowce') > 0 && sec('tv-markets') < 0, 'v321: widgety TradingView usunięte');
   assert.ok(!sz305.code.includes('setTimeout') && !sz305.code.includes('localStorage'), 'bez zegarów i pamięci przeglądarki w bloku');
 });
 
@@ -17751,7 +17584,7 @@ test('v312: kafelki KPI — „brak danych — to nie zero” łamie się w kafl
   assert.equal((pre.match(/\{/g) || []).length, (pre.match(/\}/g) || []).length, 'poza blokiem @media (działa na każdej szerokości)');
   assert.ok(html.includes('.dlt{font-size:12px;font-weight:600;white-space:nowrap}'), 'zmiany liczbowe (▲ +1,23%) dalej w jednej linii');
   assert.ok(html.includes("const dl=gap?`<span class=\"dlt na\">${t('eng.gap')}</span>`"), 'brak danych w kaflu CRYPTO — span .dlt.na');
-  assert.ok(html.includes('}else d=`<span class="dlt na">${t(\'kpi.nodelta\')}</span>`;'), 'brak porównania w kaflu GLOBAL — ta sama klasa');
+  assert.ok(html.includes('}else d=`<span class="dlt na${k.why?\' k-why\':\'\'}">${k.why||t(\'kpi.nodelta\')}</span>`;'), 'brak porównania w kaflu GLOBAL — ta sama klasa (v321: z powodem braku w kaflach surowców)');
 });
 
 test('v312: ikony węzłów z napisem (l12, ai, rwa — bez zdjęcia i logo) po wczytaniu czcionki: pamięć tych ikon czyszczona i obrazki odświeżone; zdjęcia i loga bez zmian', () => {
@@ -17933,7 +17766,7 @@ test('v314 (audyt G3): opisy kwot mapy (DZIŚ, 1T–1R, okno pomocy) — od szac
 
 test('v314 (audyt G4): Strach i chciwość — S&P 500 z dwoma miejscami po przecinku i nota: zamknięcie według wydawcy indeksu, tabela indeksów — notowanie giełdowe', () => {
   const X = fg139.mk(), cp = X.fgComps(fg139.N, true);
-  assert.ok(cp.rows.includes('fg.raw.spx{"v":"7743.41","p":"+4.3%"}'), 'dwa miejsca (jak tabela indeksów), dawniej „7743”');
+  assert.ok(cp.rows.includes('fg.raw.spx{"v":"7743.41","p":"<span class=\\"pos\\">+4.3%</span>"}'), 'dwa miejsca (jak tabela indeksów), dawniej „7743”; v321: procent w kolorze kierunku');
   assert.equal(cp.sx, '<p class="pnote">dr318.fg.spx0</p>', 'wycinek bez panelu indeksów — samo zdanie o źródle');   /* v318 (recenzja G4): nota v314 („ta sama sesja”) tylko przy tym samym dniu sesji w obu panelach — test v318 */
   assert.equal(cp.note, '', 'nota o brakach bez zmian');
   const N2 = Object.assign({}, fg139.N, {c: {vix: fg139.N.c.vix, hy: fg139.N.c.hy, sb: fg139.N.c.sb}, why: {spx: 'fetch'}});
@@ -19217,4 +19050,583 @@ test('v319: strona w atrapie — przy wejściu (GLOBAL) żadna wpisana treść n
   assert.ok(!/data-id="(btc|eth|stab|defi|depin)" src="data:image\/gif/.test(ch), 'loga węzłów bez piksela');
   R.act('powrót do GLOBAL', () => A.setMode('global'));
   assert.deepEqual(GL.map(id => R.el(id).innerHTML), g1, 'GLOBAL po otwarciu grupy — ta sama treść');
+});
+
+
+// ===================== v321 (WYGLAD_GLOBAL): wygląd według decyzji właściciela z 10.10.2026 — tło (więcej cyfr, częściej złote), wskaźniki-półkola
+// (strach i chciwość w obu zakładkach z kółkami 1D / 1T / 1M, „Pokrycie danych GLOBAL”), bez TradingView, GLOBAL = rynki świata (złoto i ropa Brent
+// w górnym rzędzie, panele krypto na dole), kolory kierunku (zielony / czerwony / żółty), „Ostatnia aktualizacja” na zielono. Bez zegara i bez sieci:
+// dane zbudowane w teście albo z nagrań wyżej (fg139). =====================
+const v321 = (() => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const dm = html.match(/\nconst (EXTRA(\d+))=(\{"pl":\{"w321\.[^\n]*?\});\nfor\(const l in \1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/);
+  const D = dm ? JSON.parse(dm[3]) : null;
+  /* n dni sesji (pon.–pt.) kończących się dniem end, rosnąco */
+  const sesje = (n, end) => { const o = []; let ms = Date.parse((end || '2026-10-06') + 'T12:00:00Z'); while (o.length < n) { const d = new Date(ms), w = d.getUTCDay(); if (w && w < 6) o.unshift(d.toISOString().slice(0, 10)); ms -= 864e5; } return o; };
+  return {L10, cut, T, dm, D, sesje};
+})();
+
+test('v321: na stronie nie ma już TradingView (decyzja właściciela 10.10.2026) — bez sekcji tv-*, kodu ładowania, stylów, wpisów CSP (skrypt, ramki) i tekstów tv.*; dawna zgoda w pamięci przeglądarki sprzątana przy wczytaniu; nazwa zostaje tylko w strażniku nazw dostawców', () => {
+  const gp = html.match(/\nconst GT_PROV=\/[^\n]*/);
+  assert.ok(gp && /Trading \?View/.test(gp[0]) && /tradingview/.test(gp[0]), 'strażnik nazw dostawców nadal wycina tę nazwę z tekstów');
+  assert.ok(!/trading\s?view/i.test(html.replace(gp[0], '')), 'poza strażnikiem — ani słowa (tekst, kod, adresy)');
+  assert.ok(!/id="tv-/.test(html) && !/\btv(Init|Refresh|Render|Placeholder|State|AnyLoaded|FrameTitle|CalSub|Load|Theme|Lang|Ok)\b/.test(html) && !html.includes('TV_W') && !html.includes('data-tv-') && !html.includes('.tvc{') && !html.includes('#tv-'), 'bez sekcji, kodu i stylów widgetów');
+  const csp = (html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/) || [])[1] || '';
+  const dir = n => (csp.split(';').map(s => s.trim()).find(s => s.startsWith(n + ' ')) || '').split(/\s+/).slice(1);
+  assert.deepEqual(dir('script-src'), ["'self'", "'unsafe-inline'"], 'skrypty tylko własne'); assert.deepEqual(dir('frame-src'), ["'none'"], 'żadnych ramek');
+  assert.ok(csp.length > 100 && !/tradingview|s3\.|widget/i.test(csp), csp);
+  for (const d of v151Dicts(html)) for (const l in d.obj) assert.ok(!Object.keys(d.obj[l]).some(k => k.startsWith('tv.')), d.name + ' ' + l + ': bez tekstów tv.*');
+  assert.equal(html.split("try{localStorage.removeItem('cfai.tv.ok');}catch(e){}").length, 2, 'dawna zgoda usuwana raz, przy wczytaniu strony');
+  assert.ok(!/getItem\('cfai\.tv\.ok'\)|setItem\('cfai\.tv\.ok'/.test(html), 'nikt jej już nie czyta ani nie zapisuje');
+  const P = v96src.I18N.pl;
+  assert.ok(P['set.priv.3'].includes('Strona nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych.') && !/zgod/.test(P['set.priv.2'] + P['set.priv.3']), 'Prywatność: bez widgetów i zgody na nie');
+  /* zakładki kończą się danymi strony: GLOBAL — panel krypto (g-etf), CRYPTO — panele rynku */
+  const secs = (a, b) => [...html.slice(html.indexOf(a), html.indexOf(b, html.indexOf(a))).matchAll(/<section [^>]*id="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(secs('<section class="global" id="global"', '<section class="global" id="trendy"').slice(-3), ['g-dolar', 'inst', 'g-etf']);
+  assert.deepEqual(secs('<main class="center" id="crypto"', '</main>').slice(-2), ['cmc', 'krypto']);
+});
+
+test('v321: słownik — czysty JSON, 10 języków (pl pierwszy), te same klucze i pola {x}, prawdziwe tłumaczenia (żaden język nie kopiuje angielskiego), bez nazw dostawców i znaków niewidocznych; zaraz po linii for poprzedniego słownika, numer wyższy niż wszystkie wcześniejsze, jedna linia for', () => {
+  const {dm, D, L10} = v321;
+  assert.ok(dm && D, 'definicja i jedna linia for zaraz po niej');
+  assert.equal(html.split('const ' + dm[1] + '=').length, 2, 'jedna definicja'); assert.equal(html.split('for(const l in ' + dm[1] + ')').length, 2, 'jedna linia for');
+  const before = html.slice(0, dm.index + 1);
+  assert.ok(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n$/.test(before), 'zaraz po linii for poprzedniego słownika');
+  const nums = [...before.matchAll(/const EXTRA(\d+)=/g)].map(x => +x[1]);
+  assert.ok(nums.length > 100 && +dm[2] > Math.max(...nums), 'numer wyższy niż wszystkie wcześniejsze: ' + dm[2]);
+  assert.ok(dm.index < html.indexOf('/* ===================== STAN I DANE'), 'w bloku słowników');
+  assert.deepEqual(Object.keys(D), L10, 'polski pierwszy, dziesięć języków');
+  const K = Object.keys(D.pl), pola = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
+  assert.deepEqual(K, ['w321.k.gold', 'w321.k.brent', 'w321.k.n.load', 'w321.k.n.few', 'w321.k.n.l', 'w321.k.n.p', 'w321.cov.t', 'w321.cov.s', 'w321.cov.miss', 'w321.cov.tip', 'w321.h.1d', 'w321.h.1w', 'w321.h.1m']);
+  const PROV = /FRED|EIA|LBMA|\bICE\b|\bCME\b|Nasdaq|Stooq|Yahoo|EODHD|Financial Modeling|Trading ?View|CoinGecko|DefiLlama|Investing|Bloomberg|Reuters|Alternative\.me|CNN/;
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]), K, l + ': te same klucze w tej samej kolejności');
+    for (const k of K) {
+      const s = D[l][k];
+      assert.ok(typeof s === 'string' && s.trim() === s && s.length > 0, l + ' ' + k);
+      assert.equal(pola(s), pola(D.pl[k]), l + ' ' + k + ': te same pola');
+      assert.ok(!/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff\ufe0f]/.test(s), l + ' ' + k + ': bez znaków niewidocznych');
+      assert.ok(!PROV.test(s), l + ' ' + k + ': bez nazw dostawców');
+      if (l !== 'en' && /[A-Za-z]{4}/.test(s)) assert.notEqual(s, D.en[k], l + ' ' + k + ': prawdziwe tłumaczenie, nie kopia angielskiego');   /* reguła strażnika v142: skróty bez słowa (np. „1M”) mogą być takie same */
+      assert.equal(v96src.tFor(l)(k), s, l + ' ' + k + ': w słowniku strony');
+    }
+  }
+  assert.equal(v96src.tFor('pl')('w321.cov.s', {n: 11, m: 12}), '11 z 12 regionów z danymi');
+  assert.equal(v96src.tFor('ja')('w321.cov.s', {n: 11, m: 12}), '12地域中11地域にデータあり', 'ja: liczba przy liczniku bez spacji');
+  assert.ok(D.pl['w321.k.n.few'].startsWith('— ') && D.pl['w321.k.n.l'].startsWith('— ') && D.pl['w321.k.n.p'].startsWith('— '), 'powód braku zmiany zaczyna się od „—” (brak, nie zero)');
+  assert.ok(D.pl['w321.cov.tip'].includes('To nie jest ocena jakości źródeł') && D.pl['w321.cov.tip'].includes('Pokrycie regionów'), 'uczciwy opis miary');
+  /* przegląd 10.10: skróty pod kółkami 1D / 1T / 1M w języku strony (dawniej na stałe po polsku — po angielsku przełącznik okresów „1W”, a kółko „1T”) */
+  assert.deepEqual(L10.map(l => ['w321.h.1d', 'w321.h.1w', 'w321.h.1m'].map(k => D[l][k]).join(' ')), ['1D 1T 1M', '1D 1W 1M', '1T 1W 1M', '1D 1S 1M', '1J 1S 1M', '1G 1S 1M', '1D 1S 1M', '1Д 1Н 1М', '1天 1周 1个月', '1日 1週 1か月']);
+  for (const l of ['pl', 'en']) assert.equal(v96src.tFor(l)('w321.h.1w'), v96src.tFor(l)('g.p.1T'), l + ': tydzień jak przycisk okresu GLOBAL');
+});
+
+test('v321: nowa nazwa wskaźnika GLOBAL „Strach i chciwość GLOBAL” w 10 językach (EXTRA136, w miejscu; człon jak nazwa zakładki GLOBAL), stara nazwa nigdzie; „Pokrycie danych GLOBAL” z tym samym członem', () => {
+  const {L10, D} = v321, e0 = html.indexOf('const EXTRA136='), E = JSON.parse(html.slice(e0 + 'const EXTRA136='.length, html.indexOf(';\n', e0)));
+  assert.deepEqual(L10.map(l => E[l]['fg.t.g']), ['Strach i chciwość GLOBAL', 'Fear & Greed GLOBAL', 'Angst & Gier GLOBAL', 'Miedo y codicia GLOBAL', 'Peur et avidité GLOBAL',
+    'Paura e avidità GLOBALE', 'Medo e ganância GLOBAL', 'Страх и жадность ГЛОБАЛ', '恐惧与贪婪（全球）', '恐怖と強欲（グローバル）']);
+  for (const l of L10) {
+    const t = v96src.tFor(l), tab = t('tab.global');
+    assert.equal(t('fg.t.g'), E[l]['fg.t.g'], l + ': w słowniku strony');
+    assert.ok(E[l]['fg.t.g'].includes(tab) && D[l]['w321.cov.t'].includes(tab), l + ': człon „' + tab + '” jak nazwa zakładki');
+    assert.ok(E[l]['fg.t.g'] !== E[l]['fg.t.c'] && D[l]['w321.cov.t'] !== t('rail.rel'), l + ': nazwy różne od krypto');
+  }
+  assert.ok(!html.includes('CapitalFlowAI Strach & Chciwość"') && !/"fg\.t\.g":"[^"]*(US markets|US-Märkte|EE\. UU\.|américains|mercati USA|dos EUA|рынки США|美国市场|米国市場)/.test(html), 'stara nazwa usunięta we wszystkich językach');
+});
+
+/* ---------- v321: „Pokrycie danych GLOBAL” (gCover / gCovCard) — ten sam wycinek co v154 (gRenderQ) ---------- */
+function v321Cov(GDATA, per, GKPI) {
+  const d0 = html.indexOf('/* v53: okno czasu i źródło bazy'), d1 = html.indexOf('function gRenderRefresh(){', d0);
+  assert.ok(d0 > 0 && d1 > d0 && html.slice(d0, d1).includes('function gCover(per){') && html.slice(d0, d1).includes('function gCovCard(){'), 'gCover i gCovCard przy kartach mapy');
+  const els = {}, $ = s => els[s] || (els[s] = {innerHTML: '', hidden: true}), X = fg139.mk();
+  const ids = ['usa', 'can', 'lat', 'eur', 'gbr', 'chn', 'jpn', 'ind', 'asia', 'oce', 'afr', 'rus'];
+  const f = new Function('t', 'escH', '$', '$$', 'GDATA', 'gst', 'GLIVE', 'GREG', 'GLINK', 'GPROB', 'I18N', 'gAgeNote', 'flagImg', 'regFlags', 'st', 'gRenderDetail', 'gDirty',
+    'GKPI', 'sgSvg', 'SG_COV', 'sepK', 'gFreshTxt', html.slice(d0, d1) + '\nreturn {gCover, gCovCard, gRenderQ};')(
+    v321.T, v96src.escH, $, () => [], GDATA, {period: per || '1M'}, {asof: '2026-08', src: {}}, ids.map(id => ({id})), true, [], {en: {}}, d => ' · wiek(' + d + ')', () => '', () => '',
+    {anim: false}, () => {}, () => {}, GKPI === undefined ? [{k: 'g.k.eq', fresh: '2026-10-09'}] : GKPI, X.sgSvg, X.SG_COV, () => ': ', d => 'F(' + d + ')');
+  return {f, els, ids};
+}
+const v321Map = (has, per) => { const F = {}; ['usa', 'can', 'lat', 'eur', 'gbr', 'chn', 'jpn', 'ind', 'asia', 'oce', 'afr', 'rus'].forEach((id, i) => { F[id] = has(id, i) ? [1, .5, true] : [0, 0, false]; }); return {[per || '1M']: F}; };
+
+test('v321: „Pokrycie danych GLOBAL” — ile z 12 regionów mapy ma liczbę za wybrany okres (ta sama liczba co „Pokrycie regionów” w karcie jakości danych mapy), poziom jak w CRYPTO (≥ 80% wysoka, ≥ 60% umiarkowana), braki z nazwą, dzień danych z wiekiem; bez danych „—”, nigdy 0%', () => {
+  const A = v321Cov(v321Map(id => id !== 'rus'));
+  assert.deepEqual(A.f.gCover('1M'), {n: 11, m: 12, p: 92, miss: ['rus']});
+  A.f.gRenderQ(); const q = A.els['#g-q'].innerHTML;
+  assert.ok(q.includes('g.q.sumcov{"n":11,"m":12}') && q.includes('11 / 12'), 'ta sama liczba co „Pokrycie regionów” (nagłówek i karta)');
+  const c = A.f.gCovCard();
+  assert.ok(c.startsWith('<span class="sg"><svg class="sg-svg" viewBox="0 0 200 148" preserveAspectRatio="xMidYMin slice" role="img" aria-label="w321.cov.t: 92%">') && c.includes('>92%</text></svg>') && c.includes('class="sg-nd"'), 'półkole z procentem i wskazówką (przegląd: „wysokie” — duża liczba pod kółkiem osi)');
+  assert.ok(c.includes('</svg><span class="sg-nl"><b class="sg-n" aria-hidden="true">92%</b><span class="lv sora ok">rel.high</span></span>'), 'liczba też tekstem (układ zwarty lewej kolumny) razem z poziomem');
+  assert.deepEqual([...c.matchAll(/<path class="sg-a (fg-[a-z]+)"/g)].map(m => m[1]), ['fg-xf', 'fg-n', 'fg-xg'], 'trzy łuki jak „Pokrycie danych” w CRYPTO');
+  assert.ok(c.includes('<span class="lv sora ok">rel.high</span>'), 'poziom: wysoka');
+  assert.ok(c.includes('<span class="sg-p">w321.cov.s{"n":11,"m":12} · w321.cov.miss{&quot;r&quot;:&quot;g.n.rus&quot;}</span>'), 'liczba regionów i nazwa brakującego');
+  assert.ok(c.endsWith('<span class="sg-d">F(2026-10-09) · wiek(2026-10-09)</span></span>'), 'dzień danych mapy z wiekiem (jak kafel „Rynki akcji”)');
+  const lv = n => { const X = v321Cov(v321Map((id, i) => i < n)); return [X.f.gCover('1M').p, (X.f.gCovCard().match(/<span class="lv sora (ok|warn)">([a-z.]+)<\/span>/) || []).slice(1).join(' ')]; };
+  assert.deepEqual([12, 10, 9, 8, 7, 0].map(lv), [[100, 'ok rel.high'], [83, 'ok rel.high'], [75, 'ok rel.mid'], [67, 'ok rel.mid'], [58, 'warn rel.low'], [0, 'warn rel.low']], 'progi jak w CRYPTO (≥ 80% wysoka, ≥ 60% umiarkowana)');
+  const Z = v321Map(id => id !== 'rus'); Z['1M'].usa = [0, 0, true];
+  assert.deepEqual(v321Cov(Z).f.gCover('1M'), {n: 11, m: 12, p: 92, miss: ['rus']}, 'region z liczbą 0 (bez zmiany) ma dane — liczy się do pokrycia (brak to nie zero)');
+  assert.ok(!v321Cov(v321Map(() => true)).f.gCovCard().includes('w321.cov.miss'), 'komplet — bez listy braków');
+  const R = v321Cov(v321Map(id => id !== 'rus' && id !== 'afr', '1R'), '1R');
+  assert.deepEqual(R.f.gCover('1R'), {n: 10, m: 12, p: 83, miss: ['afr', 'rus']}, 'okres z przełącznika GLOBAL');
+  assert.equal(R.f.gCover('1M'), null, 'okres bez danych mapy — null');
+  for (const N of [v321Cov(null), v321Cov(v321Map(() => true, '1T'))]) {
+    const n = N.f.gCovCard();
+    assert.ok(n.includes('>—</text>') && !n.includes('class="sg-nd"') && n.includes('<span class="lv sora warn">eng.gap</span>') && !n.includes('class="sg-p"') && !n.includes('class="sg-d"') && !n.includes('0%'), 'bez danych mapy: „—”, „brak danych”, nigdy 0%');
+  }
+  assert.ok(v321Cov(v321Map(() => true), '1M', []).f.gCovCard().includes('<span class="sg-d">F(2026-08) · wiek(2026-08)</span>'), 'bez dnia kafla „Rynki akcji” — dzień danych mapy (jak karta jakości danych)');
+});
+
+/* ---------- v321: lewa kolumna (blok v321 przy pasku; zastępuje pasek v156) ---------- */
+function v321Kol(o) {
+  const a = html.indexOf('/* v321 (decyzja właściciela 10.10.2026; zastępuje pasek v156'), b = html.indexOf('/* v321: koniec lewej kolumny wskaźników */', a);
+  assert.ok(a > 0 && b > a, 'blok lewej kolumny');
+  const els = {}, L = {}, calls = [];
+  const mk = id => ({id, hidden: true, innerHTML: '', parentElement: null, classList: {s: new Set(), add(c) { this.s.add(c); }, contains(c) { return this.s.has(c); }},
+    scrollIntoView(x) { calls.push(['scroll', id, x]); }});
+  for (const id of ['#side-fg', '#g-sg', '#c-fg', '#g-fg', '#g-q', '#gauge', '#trendy', '#tab-global', '#tab-crypto', '#tab-trendy']) els[id] = mk(id);
+  els['#gauge'].parentElement = mk('sec-gauge'); els['#gauge'].parentElement.hidden = false;
+  for (const id of ['#c-fg', '#g-fg', '#g-q']) els[id].hidden = false;
+  if (o.wkHid) els['#g-fg'].classList.add('wk-hid');
+  const MO = []; class MOb { constructor(f) { this.f = f; MO.push(this); } observe(x, opt) { (this.o = this.o || []).push([x.id, JSON.stringify(opt)]); } }
+  const st = {mode: o.mode || 'global', anim: false, trdv: o.trdv || 'global'}, X = fg139.mk();
+  const F = new Function('$', 't', 'escH', 'KR', 'FG', 'st', 'gst', 'isLive', 'LIVE', 'sgSvg', 'SG_COV', 'fgCard', 'fgCrypto', 'fgGlobal', 'gCover', 'gCovCard', 'sepK',
+    'MutationObserver', 'document', 'setTimeout', 'page', 'setPage', 'setMode', 'wkSet', 'zwOpenFor', 'trdIsC', html.slice(a, b) + '\nreturn {sgPara, sgCovC, sgCard, fgRenderSide};')(
+    q => els[q] || null, v321.T, v96src.escH, {data: o.kr === undefined ? null : o.kr}, {g: o.g || null}, st, {period: o.per || '1M'}, () => !!o.live, o.live || {},
+    X.sgSvg, X.SG_COV, X.fgCard, X.fgCrypto, X.fgGlobal, () => (o.cov === undefined ? {n: 11, m: 12, p: 92, miss: ['rus']} : o.cov), () => '<span class="sg">COV</span>', () => ': ',
+    MOb, {addEventListener(e, f) { L[e] = f; }}, f => f(), o.page || 'overview', p => calls.push(['page', p]), m => { calls.push(['mode', m]); st.mode = m; },
+    (tab, v, tmp) => calls.push(['wk', tab, v, tmp]), p => calls.push(['zw', p.id]), o.trdIsC);
+  return {F, els, L, MO, calls, st, X};
+}
+const v321Btn = (k, sel) => ({closest: s => (s === (sel || '#side-fg [data-sfg],#g-sg [data-sfg]') ? {getAttribute: a => (a === 'data-sfg' ? k : null)} : null)});
+
+test('v321: lewa kolumna — para pasująca do zakładki: GLOBAL i TRENDY „global” — „Pokrycie danych GLOBAL” i zaraz pod nim „Strach i chciwość GLOBAL”; TRENDY „krypto” — „Pokrycie danych” i „Strach i chciwość — krypto”; CRYPTO — nic (oba w prawej kolumnie); telefon: para GLOBAL pod mapą (#g-sg)', () => {
+  const kr = {fng: fg139.F}, g = fg139.N;
+  const G = v321Kol({mode: 'global', kr, g}), h = G.els['#side-fg'].innerHTML;
+  assert.equal(G.els['#side-fg'].hidden, false);
+  assert.deepEqual([...h.matchAll(/<button type="button" class="sg-k" data-sfg="([a-z-]+)"/g)].map(m => m[1]), ['cov-g', 'global'], 'GLOBAL: pokrycie, zaraz pod nim strach i chciwość');
+  assert.ok(h.startsWith('<button type="button" class="sg-k" data-sfg="cov-g" title="w321.cov.miss{&quot;r&quot;:&quot;g.n.rus&quot;} · w321.cov.tip{&quot;n&quot;:11,&quot;m&quot;:12,&quot;x&quot;:92,&quot;p&quot;:&quot;g.per.1M&quot;}"><span class="sg-t">w321.cov.t</span><span class="sg">COV</span></button>'), 'karta pokrycia: braki i opis miary w podpowiedzi (niski ekran chowa zdanie pod półkolem)');
+  assert.ok(h.includes('<button type="button" class="sg-k" data-sfg="global" title="fg.g.cap"><span class="sg-t">fg.t.g</span><span class="sg"><svg class="sg-svg"') && h.includes('>62</text>'), 'karta wskaźnika GLOBAL (fgCard)');
+  assert.equal((h.match(/<span class="sg-h" /g) || []).length, 3, 'kółka 1D / 1T / 1M z dniami zostają');
+  assert.ok(h.includes('<b class="fg-c fg-g">60</b><i>w321.h.1d</i>') && h.includes('<small>Sep 18</small>') && h.includes('<small>Aug 26</small>'), 'wartości wstecz z dniami (przegląd: skróty ze słownika)');
+  assert.ok(!h.includes('data-sfg="crypto"') && !h.includes('fg.t.c'), 'GLOBAL bez wskaźnika krypto');
+  assert.equal(G.els['#g-sg'].innerHTML, h, 'telefon: ta sama para pod mapą'); assert.equal(G.els['#g-sg'].hidden, false);
+  const C = v321Kol({mode: 'crypto', kr, g});
+  assert.ok(C.els['#side-fg'].hidden === true && C.els['#side-fg'].innerHTML === '', 'CRYPTO: lewa kolumna bez wskaźników (oba w prawej kolumnie)');
+  assert.ok(C.els['#g-sg'].innerHTML.includes('data-sfg="cov-g"'), '#g-sg zawsze z parą GLOBAL (widoczny tylko na telefonie w GLOBAL)');
+  const TC = v321Kol({mode: 'trendy', kr, g, trdIsC: () => true, live: {cover: .875, src: 'srv', err: ''}}), tc = TC.els['#side-fg'].innerHTML;
+  assert.deepEqual([...tc.matchAll(/data-sfg="([a-z-]+)"/g)].map(m => m[1]), ['cov-c', 'crypto'], 'TRENDY krypto: „Pokrycie danych” i zaraz pod nim strach i chciwość krypto');
+  assert.ok(tc.includes('data-sfg="cov-c" title="dr312.descSrv{&quot;n&quot;:88}"><span class="sg-t">rail.rel</span>') && tc.includes('>88%</text>') && tc.includes('<span class="sg-t">fg.t.c</span>') && tc.includes('>70</text>') && tc.includes('title="fg.c.cap"'), 'liczby: pokrycie 88%, indeks krypto 70');
+  assert.ok(tc.includes('<b class="fg-c fg-g">74</b><i>w321.h.1d</i>') && tc.includes('<b class="fg-c fg-g">73</b><i>w321.h.1m</i>'), 'krypto: wczoraj, 7 i 30 dni');
+  const TG = v321Kol({mode: 'trendy', kr, g, trdIsC: () => false});
+  assert.deepEqual([...TG.els['#side-fg'].innerHTML.matchAll(/data-sfg="([a-z-]+)"/g)].map(m => m[1]), ['cov-g', 'global'], 'TRENDY global: para GLOBAL');
+  assert.deepEqual([v321Kol({mode: 'trendy', trdIsC: undefined, trdv: 'crypto'}).F.sgPara(), v321Kol({mode: 'trendy', trdIsC: undefined}).F.sgPara(), v321Kol({mode: 'crypto'}).F.sgPara()], ['c', 'g', ''], 'bez trdIsC — widok z ustawień');
+  /* bez danych: „—” i „brak danych”, nigdy zero */
+  const E = v321Kol({mode: 'global', kr: null, g: null, cov: null}), e = E.els['#side-fg'].innerHTML;
+  assert.ok(e.includes('data-sfg="cov-g"><span class="sg-t">w321.cov.t</span>') && !e.includes('title="w321.cov.tip') && e.includes('>—</text>') && e.includes('<span class="sg-st">fg.na</span>') && !/>0<\/text>/.test(e), 'bez danych: „—”');
+  const Ek = v321Kol({mode: 'trendy', kr: null, trdIsC: () => true}).els['#side-fg'].innerHTML;
+  assert.ok(Ek.includes('<span class="lv sora warn">eng.gap</span>') && Ek.includes('rel.descOff') && (Ek.match(/>—<\/text>/g) || []).length === 2, 'TRENDY krypto bez danych na żywo i bez pliku krypto — „—” w obu');
+  assert.ok(!/undefined|NaN|\[object/.test(h + tc + e + Ek));
+});
+
+test('v321: lewa kolumna — „Pokrycie danych” w TRENDACH krypto to ta sama liczba, poziom i zdanie co w prawej kolumnie CRYPTO (renderGauge)', () => {
+  const g0 = html.indexOf('function renderGauge(){'), g1 = html.indexOf('\nfunction renderWhy(', g0);
+  const run = live => {
+    const el = {innerHTML: ''}, K = v321Kol({mode: 'trendy', trdIsC: () => true, live}), s = K.F.sgCovC();
+    new Function('$', 't', 'isLive', 'LIVE', 'sepK', html.slice(g0, g1) + '\nrenderGauge();')(q => (q === '#gauge' ? el : null), v321.T, () => !!live, live || {}, () => ': ');
+    const lvG = (el.innerHTML.match(/<div class="lv sora (ok|warn)">([^<]*)<\/div><p>([^<]*)<\/p>/) || []).slice(1), lvS = (s.match(/<span class="lv sora (ok|warn)">([^<]*)<\/span><\/span><span class="sg-p">([^<]*)<\/span>/) || []).slice(1);   /* przegląd: poziom razem z liczbą w .sg-nl */
+    const nG = (el.innerHTML.match(/font-size="15">([^<]*)<\/text>/) || [])[1], nS = (s.match(/<text class="sg-tx"[^>]*>([^<]*)<\/text>/) || [])[1];
+    return {lvG, lvS: lvS.map(x => x.replace(/&quot;/g, '"')), nG, nS};
+  };
+  for (const live of [{cover: .875, src: 'srv', err: ''}, {cover: .82, src: 'live'}, {cover: .79, src: 'live'}, {cover: .64, src: 'srv', err: 'x'}, {cover: .59, src: 'live'}, {cover: .4, src: 'live'}, null]) {   /* progi 80 / 60 z obu stron */
+    const r = run(live);
+    assert.equal(r.nS, r.nG, 'ta sama liczba: ' + r.nG); assert.deepEqual(r.lvS, r.lvG, 'ten sam poziom i to samo zdanie: ' + r.lvG.join(' | '));
+  }
+  assert.equal(run({cover: .875, src: 'srv', err: ''}).nS, '88%'); assert.equal(run(null).nS, '—');
+});
+
+test('v321: lewa kolumna — karta to przycisk: zakładka i karta ze szczegółami (pokrycie GLOBAL → „Jakość danych mapy”, GLOBAL → karta ze składnikami, krypto → prawa kolumna); w „Wykresach” chwilowo „Karty” (bez zapisu); odświeżanie obserwatorami; ten sam tekst — bez przerysowania', () => {
+  const P = v321Kol({mode: 'crypto', page: 'sources', kr: {fng: fg139.F}, g: fg139.N});
+  P.L.click({target: v321Btn('global')});
+  assert.deepEqual(P.calls, [['page', 'overview'], ['mode', 'global'], ['zw', '#g-fg'], ['scroll', '#g-fg', {behavior: 'auto', block: 'start'}]], 'GLOBAL: strona przeglądu, zakładka, rozwinięta karta, przewinięcie');
+  P.calls.length = 0; P.L.click({target: v321Btn('cov-g')});
+  assert.deepEqual(P.calls, [['page', 'overview'], ['zw', '#g-q'], ['scroll', '#g-q', {behavior: 'auto', block: 'start'}]], 'pokrycie GLOBAL → „Jakość danych mapy” (zakładka już GLOBAL)');
+  P.calls.length = 0; P.L.click({target: v321Btn('crypto')});
+  assert.deepEqual(P.calls, [['page', 'overview'], ['mode', 'crypto'], ['zw', '#c-fg'], ['scroll', '#c-fg', {behavior: 'auto', block: 'start'}]], 'krypto → prawa kolumna CRYPTO');
+  P.calls.length = 0; P.L.click({target: v321Btn('cov-c')});
+  assert.deepEqual(P.calls, [['page', 'overview'], ['zw', 'sec-gauge'], ['scroll', 'sec-gauge', {behavior: 'auto', block: 'start'}]], 'pokrycie krypto → sekcja „Pokrycie danych”');
+  P.calls.length = 0; P.L.click({target: {closest: () => null}}); P.L.click({target: v321Btn('zzz')}); assert.deepEqual(P.calls, [], 'poza kartami i nieznana karta — nic');
+  const W = v321Kol({mode: 'global', wkHid: true, g: fg139.N}); W.L.click({target: v321Btn('global')});
+  assert.deepEqual(W.calls.slice(0, 2), [['wk', 'global', 'karty', true], ['zw', '#g-fg']], 'karta schowana w „Wykresach” — chwilowo „Karty”, bez zapisu, potem rozwinięta');
+  const H = v321Kol({mode: 'global', g: fg139.N}); H.els['#g-fg'].hidden = true; H.L.click({target: v321Btn('global')});
+  assert.deepEqual(H.calls, [], 'karta ukryta (brak pliku) — bez przewijania w próżnię');
+  assert.deepEqual(P.MO.map(m => m.o), [[['#c-fg', '{"childList":true}'], ['#g-fg', '{"childList":true}'], ['#g-q', '{"childList":true}'], ['#gauge', '{"childList":true}'], ['#trendy', '{"childList":true}']],
+    [['#tab-global', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-crypto', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-trendy', '{"attributes":true,"attributeFilter":["aria-selected"]}']]],
+  'odświeżanie: panele wskaźników, karty pokrycia (dane, język, okres), TRENDY (widok) i zmiana zakładki');
+  const R = v321Kol({mode: 'global', g: fg139.N}), el = R.els['#side-fg'];
+  el.innerHTML = 'bez zmian'; R.F.fgRenderSide(); assert.equal(el.innerHTML, 'bez zmian', 'ten sam tekst — bez przerysowania (fokus i podpowiedź zostają)');
+  R.st.mode = 'crypto'; R.F.fgRenderSide(); assert.ok(el.hidden === true && el.innerHTML === '', 'zmiana zakładki — nowa treść');
+});
+
+test('v321: lewa kolumna — miejsce (pod menu, nad „Ostatnią aktualizacją”), #g-sg zaraz pod mapą przed paskiem kart, krypto w prawej kolumnie zaraz pod „Pokryciem danych”; styl tylko ze zmiennych motywu; telefon bez lewej kolumny; niski ekran: mniejsze półkole, dzień danych i kółka 1D / 1T / 1M zawsze widoczne', () => {
+  const n = html.indexOf('</nav>'), s = html.indexOf('<div class="side-fg" id="side-fg" hidden></div>'), u = html.indexOf('<div class="upd">');
+  assert.ok(n > 0 && s > n && u > s && s < html.indexOf('</aside>'), 'pod menu, nad „Ostatnią aktualizacją”');
+  const w = html.indexOf('<section class="panel why" id="g-why" hidden>'), g = html.indexOf('<section class="panel sg-pair" id="g-sg" hidden></section>'), z = html.indexOf('<div class="zw-bar" data-zw="global">');
+  assert.ok(w > 0 && g > w && z > g && html.slice(w, g).split('<section').length === 2, 'telefon: para zaraz pod mapą (po „Dlaczego”), przed kartami');
+  assert.equal(html.split('id="g-sg"').length, 2);
+  assert.ok(html.includes('<section class="panel gauge"><h2 data-i18n="rail.rel"></h2><div id="gauge"></div></section>\n    <section class="panel fg" id="c-fg" hidden></section>\n'), 'CRYPTO: zaraz pod „Pokryciem danych”');
+  const c0 = html.indexOf('/* v321 (decyzja właściciela 10.10.2026): wspólny wskaźnik-półkole'), c1 = html.indexOf('/* v321 (decyzja właściciela 10.10): kolory kierunku', c0), css = html.slice(c0, c1);
+  assert.ok(c0 > 0 && c1 > c0 && c1 < html.indexOf('</style>'), 'styl w arkuszu strony');
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b|rgba?\(\d/.test(css), 'tylko zmienne motywu (oba motywy)');
+  assert.ok(css.includes('@media (max-width:900px){.side-fg{display:none!important}}') && css.includes('@media (min-width:901px){#g-sg{display:none!important}}'), 'telefon: lewej kolumny nie ma, para pod mapą; komputer odwrotnie');
+  assert.ok(!html.includes('#c-fg:not(.pokaz)'), 'panel krypto zawsze w prawej kolumnie (dawniej v156 chował go na komputerze)');
+  /* v321 (przegląd 10.10): strach i chciwość w lewej kolumnie WIĘKSZE niż dawniej — półkole 150 px (od 1000 px wysokości okna 156 px), liczba pod kółkiem osi
+     38 jednostek półkola „wysokiego” × 150 / 200 ≈ 28 px (dawniej 22 px obok stanu, w pierwszej wersji v321 ok. 16 px); „Pokrycie danych” poniżej 1000 px
+     zwarte; ≤ 840 px — półkole obok dużej liczby (.sg-n, 32 px), stan, dzień i kółka pod spodem */
+  assert.ok(css.includes('.side-fg .sg-svg{max-width:150px}') && css.includes('@media (min-height:1000px){.side-fg .sg-svg{max-width:156px}}') && css.includes('.side-fg .sg-tx,#g-sg .sg-tx{font-size:38px}'), 'półkole 150 / 156 px, liczba ok. 28 px');
+  const cs0 = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/@media \(max-height:(9\d\d|8[5-9]\d)px\)\{[^@]*max-width:1[0-4]\dpx/.test(cs0) && !cs0.includes('max-height:930px') && !cs0.includes('max-height:880px'), 'od 841 px wysokości okna półkole strachu i chciwości nie mniejsze niż 150 px (dawne progi 930 / 880 px usunięte)');
+  const blk = h0 => (cs0.match(new RegExp('@media \\(max-height:' + h0 + 'px\\)\\{([\\s\\S]*?)\\n\\}')) || [])[1] || '';
+  const cov = blk(999), fgz = blk(840);
+  assert.ok(cov.includes('.side-fg [data-sfg^="cov"] .sg{display:grid;') && cov.includes('.side-fg [data-sfg^="cov"] .sg-nl{display:flex;flex-wrap:wrap') && cov.includes('.side-fg [data-sfg^="cov"] .sg-d{grid-column:1/-1') && cov.includes('.side-fg [data-sfg^="cov"] .sg-p{grid-column:1/-1') && !/\[data-sfg="(global|crypto)"\]/.test(cov), '< 1000 px: pokrycie zwarte (liczba tekstem, długi poziom schodzi pod liczbę, zdanie i dzień pod spodem); strach i chciwość bez zmian');
+  assert.ok(cs0.includes('@media (max-height:800px),(min-height:841px) and (max-height:860px){.side-fg [data-sfg^="cov"] .sg-p{display:none}}'), 'zdanie pod pokryciem (np. „brak: Rosja”) schowane do podpowiedzi tylko przy braku miejsca');
+  assert.ok(fgz.includes('font-size:32px') && /\[data-sfg="global"\] \.sg-hs,\.side-fg \[data-sfg="crypto"\] \.sg-hs\{grid-column:1\/-1/.test(fgz) && /\.sg-st,[^{]*\.sg-d\{grid-column:1\/-1/.test(fgz) && !fgz.includes('cov"]'), '≤ 840 px: półkole obok liczby 32 px; stan (także długi, np. „Skrajna chciwość”), dzień i kółka na całą szerokość');
+  /* liczba nigdy nie znika: gdzie styl chowa liczbę w półkolu (.sg-tx), w tym samym zakresie pokazuje ją tekstem (.sg-n); poza lewą kolumną .sg-n schowane */
+  const sels = (t0, re) => [...t0.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].filter(m => re.test(m[2])).flatMap(m => m[1].split(',').map(x => x.trim()));
+  for (const [nm, t0] of [['< 1000 px', cov], ['≤ 840 px', fgz]]) {
+    const off = sels(t0, /display:none/).filter(x => /\.sg-tx$/.test(x)).map(x => x.slice(0, -7)), on = sels(t0, /display:block/).filter(x => /\.sg-n$/.test(x)).map(x => x.slice(0, -6));
+    assert.ok(off.length > 0 && off.every(x => x.startsWith('.side-fg ')), nm + ': liczba w półkolu schowana tylko w lewej kolumnie');
+    assert.deepEqual(off, on, nm + ': gdzie liczba w półkolu schowana, tam widać ją tekstem');
+  }
+  assert.ok(css.includes('.sg-n{display:none;font:700 30px/1 Sora') && css.includes('.sg-nl{display:contents}') && !/(#g-sg|#c-fg|#g-fg)[^{,]*\.sg-n/.test(cs0) && !/(#g-sg|#c-fg|#g-fg)[^{,]*\.sg-tx\{[^}]*display:none/.test(cs0), 'domyślnie .sg-n schowane (panele, para pod mapą — liczba w półkolu)');
+  assert.ok(css.includes('-webkit-line-clamp:2'), 'zdanie pod pokryciem najwyżej 2 linie (całość w podpowiedzi karty)');
+  /* panele: nazwy kółek nad kółkiem, jak dawniej (.fg-hl przed v321) */
+  assert.ok(css.includes('.sg-hl .sg-h i{order:-1;') && css.includes('min-height:2.4em'), 'panele: nazwa nad kółkiem (2 linie), jak dawniej');
+  const hid = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(m => /display\s*:\s*none/.test(m[2])).flatMap(m => m[1].split(',').map(s => s.trim()));
+  assert.deepEqual(hid.filter(s => /(\.sg-d|\.sg-hs|\.sg-h|\.fg-c|\.sg-h small|\.sg-h i|\.sg-svg)$/.test(s)), [], 'dzień danych, kółka wstecz z dniami i półkole nigdy schowane: ' + hid.join(' | '));
+  for (const r of ['.sg-a{fill:none;stroke:var(--fgc);stroke-width:13}', '.sg-nd{stroke:var(--tx);', '.sg-hub{fill:var(--tx)}', '.sg-tx{fill:var(--tx);', '.sg-st.fg-xf,.sg-st.fg-f{color:var(--rd-tx)}.sg-st.fg-n{color:var(--yl-tx)}.sg-st.fg-g,.sg-st.fg-xg{color:var(--gr-tx)}', '.sg-k:focus-visible{outline:2px solid var(--bl)'])
+    assert.ok(css.includes(r), 'styl: ' + r);
+  assert.ok(html.includes('.fg-xf{--fgc:var(--rd)') && html.includes('.fg-n{--fgc:var(--yl)') && html.includes('.fg-xg{--fgc:var(--gr)'), 'łuki w kolorach stanów (te same co kółka)');
+});
+
+/* ---------- v321: kafelki „Złoto” i „Ropa Brent” (suKpi) — blok surowców v295g + blok v321 ---------- */
+const v321su = (() => {
+  const blk = v321.cut('/* ===================== v295g: SUROWCE', '\nsuLoad();suAuto();'), arc = v321.cut('function arcMs(d){', '\n/* v293 (audyt G2)');
+  const wk = v321.cut('const wkNum=v=>', '\n/* pierścień: udziały'), wk2 = v321.cut('const wkMs=d=>', '\nconst WK_FGZ=');
+  const kb = v321.cut('/* v321 (decyzja właściciela 10.10.2026): kafelki GLOBAL „Złoto” i „Ropa Brent”', '\n/* v321: kafelki „Złoto” i „Ropa Brent” od nowa po pierwszym');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const NOW = Date.parse('2026-10-07T18:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const BODY = "'use strict';\n" + arc + '\n' + wk + '\n' + wk2 + '\n' + blk + '\n' + kb + '\nreturn {SU, SUK, SU_K_N, suApply, suKpi, suKpiHist, gSuRefresh, suTile, suFmt, suDay, suUnit};';
+  const mk = (L, files) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')(L, LOC);
+    const calls = [], srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined ? null : JSON.parse(JSON.stringify(v))); return this; }}; };
+    const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+      'localStorage', 'document', 'MutationObserver', 'setInterval', 'setTimeout', 'Date', BODY)(
+      () => null, v96src.tFor(L), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ',
+      {getItem: () => null, setItem: () => {}}, {addEventListener: () => {}, querySelector: () => null, hidden: false}, function () { this.observe = () => {}; }, () => 0, f => f(), FD);
+    return {api, calls, F};
+  };
+  /* plik surowców v2: złoto 120 sesji (4000 + 2·i), ropa Brent 30 sesji (80 + i/2) z kontraktem terminowym tego samego dnia; q / pre — z opcji */
+  const S = v321.sesje(120), B = S.slice(-30);
+  const file = (o = {}) => ({v: 2, at: '2026-10-07T17:10:00+00:00', ok: {ceny: true}, ceny: {
+    gold: {g: 'ms', u: 'USD/oz', d: S.map((d, i) => [d, 4000 + 2 * i]), pre: o.goldPre || []},
+    brent: {g: 'en', u: 'USD/bbl', d: B.map((d, i) => [d, 80 + i / 2]), q: o.q || [], pre: o.pre || []},
+    brent_fut: {g: 'en', u: 'USD/bbl', d: B.map((d, i) => [d, 79 + i / 2])}}});
+  const hist = n => { const H = v321.sesje(n); return {v: 1, at: '2026-10-07T17:10:00+00:00', d: {gold: H.map((d, i) => [d, 3000 + i])}}; };
+  return {mk, file, hist, S, B};
+})();
+
+test('v321: kafelki „Złoto” i „Ropa Brent” — ta sama seria i liczba co Puls surowców (cena z jednostką, dzień, „wstępnie”), zmiana za okres przełącznika GLOBAL (1 / 5 / 21 / 63 sesje wstecz), w 1T dokładnie zmiana tygodnia z Pulsu', () => {
+  const {mk, file, S} = v321su, K = mk('pl', {}), A = K.api;
+  assert.deepEqual(A.SU_K_N, {'1D': 1, '1T': 5, '1M': 21, '1Q': 63, '1R': 252}, 'jak ceny funduszy krajowych na mapie (GCENY_N)');
+  assert.ok(html.includes("const GCENY_N={'1T':5,'1M':21,'1Q':63,'1R':252};"));
+  A.suApply(file({goldPre: [S[S.length - 1]]}));
+  const g = A.suKpi('gold', 'w321.k.gold', '1M'), V = i => 4000 + 2 * i, n = 119;
+  assert.equal(g.k, 'w321.k.gold'); assert.equal(g.v, V(n)); assert.equal(g.u, 'su'); assert.equal(g.fresh, '2026-10-06'); assert.equal(g.pre, true, '„wstępnie” jak w Pulsie');
+  assert.equal(g.unit, 'USD za uncję'); assert.equal(g.name, 'Złoto (cena londyńska)'); assert.equal(g.why, ''); assert.equal(g.note, '');
+  for (const [per, k] of [['1D', 1], ['1T', 5], ['1M', 21], ['1Q', 63]]) {
+    const o = A.suKpi('gold', 'w321.k.gold', per);
+    assert.ok(Math.abs(o.d - (V(n) / V(n - k) - 1) * 100) < 1e-9, per + ': zmiana wobec ceny sprzed ' + k + ' sesji'); assert.equal(o.from, S[n - k], per + ': dzień porównania');
+  }
+  const t1 = A.suKpi('gold', 'w321.k.gold', '1T'), pulse = A.suTile('gold', 'gold', []);
+  assert.ok(pulse.includes('<b>' + A.suFmt(t1.v) + ' <small class="mtxt">USD za uncję</small>') && pulse.includes('▲ +' + K.F.nfmt(Math.round(t1.d * 10) / 10, 1) + '% '), '1T = zmiana tygodnia z Pulsu, ta sama cena: ' + pulse.slice(0, 300));
+  const b = A.suKpi('brent', 'w321.k.brent', '1T');
+  assert.ok(b.v === 80 + 29 / 2 && b.unit === v96src.tFor('pl')('usa.u.bbl') && b.name === 'Ropa Brent (dostawa fizyczna)' && Math.abs(b.d - ((80 + 29 / 2) / (80 + 24 / 2) - 1) * 100) < 1e-9, 'Brent: cena, jednostka, nazwa jak w Pulsie, zmiana 5 sesji');
+  assert.ok(!html.slice(html.indexOf('function suKpi('), html.indexOf('function suKpiHist(')).includes('Math.random'), 'bez losowości');
+});
+
+test('v321: kafelki surowców — „—” z powodem zamiast zmiany: za krótka historia (dzień początku danych), cena niepotwierdzona (ostatnia albo z początku okresu — zasada Pulsu, z uwagą jak w Pulsie), wczytywanie długiej historii; brak serii — „—”; 1R z pliku historii dopiero po wybraniu 1R', () => {
+  const {mk, file, hist, S, B} = v321su, t = v96src.tFor('pl'), day = d => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  /* krótka historia: Brent ma 30 sesji — 1Q (63) bez pliku historii */
+  let K = mk('pl', {}); K.api.suApply(file()); K.api.SU.hx = true;
+  const q = K.api.suKpi('brent', 'w321.k.brent', '1Q');
+  assert.ok(q.v === 80 + 29 / 2 && q.d === null && q.why === t('w321.k.n.few', {d: day(B[0])}) && q.why.startsWith('— za krótka historia (dane od '), 'za krótka historia: „—” z dniem początku danych — ' + q.why);
+  K = mk('pl', {'surowce-hist': hist(300)}); K.api.suApply(file());
+  assert.ok(K.api.suKpi('brent', 'w321.k.brent', '1Q').why === t('w321.k.n.few', {d: day(B[0])}) && !K.calls.includes('surowce-hist'), 'krótka seria w 1KW — „—” z powodem, bez pobierania pliku historii (ten tylko przy 1R)');
+  /* 1R: plik historii dopiero po wybraniu 1R; do tego czasu „wczytywanie” */
+  K = mk('pl', {'surowce-hist': hist(300)}); K.api.suApply(file());
+  for (const per of ['1D', '1T', '1M', '1Q']) K.api.suKpi('gold', 'w321.k.gold', per);
+  assert.ok(!K.calls.includes('surowce-hist'), 'inne okresy — bez pliku historii (pierwszy widok bez nowych plików)');
+  K.api.SU.hl = true; const w = K.api.suKpi('gold', 'w321.k.gold', '1R');
+  assert.ok(w.d === null && w.why === t('w321.k.n.load') && !K.calls.includes('surowce-hist'), 'historia już w drodze — „wczytywanie”, bez drugiego pobrania');
+  K.api.SU.hl = false; const w2 = K.api.suKpi('gold', 'w321.k.gold', '1R');
+  assert.ok(w2.why === t('w321.k.n.load') && K.calls.includes('surowce-hist') && K.api.SU.h, 'pierwsze 1R: „wczytywanie” i plik historii (ta sama obietnica co bloki z wykresami Pulsu — pamięć srvJSON)');
+  const r = K.api.suKpi('gold', 'w321.k.gold', '1R'), H = v321.sesje(300);
+  assert.ok(Math.abs(r.d - (4238 / (3000 + 47) - 1) * 100) < 1e-9 && r.from === H[47] && r.why === '', '1R: 252 sesje wstecz z historii (nowsze dni — z pliku bieżącego): ' + r.from);
+  K = mk('pl', {'surowce-hist': hist(150)}); K.api.suApply(file()); K.api.suKpi('gold', 'w321.k.gold', '1R');
+  const r2 = K.api.suKpi('gold', 'w321.k.gold', '1R');
+  assert.ok(r2.d === null && r2.why === t('w321.k.n.few', {d: day(v321.sesje(150)[0])}), 'historia za krótka na 252 sesje — „—” z dniem początku');
+  K = mk('pl', {}); K.api.suApply(file()); K.api.suKpi('gold', 'w321.k.gold', '1R');
+  assert.ok(K.api.SU.hx === true && K.api.suKpi('gold', 'w321.k.gold', '1R').why === t('w321.k.n.few', {d: day(S[0])}), 'plik historii niedostępny — „—” z dniem początku danych bieżących (bez ponawiania w kółko)');
+  /* ceny niepotwierdzone: zasada Pulsu (oba końce potwierdzone) */
+  const L = B[29], P5 = B[24];
+  K = mk('pl', {}); K.api.suApply(file({q: [[L, 'skok', 'niepotw']]}));
+  const l1 = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.ok(l1.v === 80 + 29 / 2 && l1.d === null && l1.why === t('w321.k.n.l'), 'ostatnia cena niepotwierdzona — „—” z powodem, cena zostaje');
+  assert.equal(l1.note, t('su295g.q.n', {d: day(L)}) + ' ' + t('su297g.fut', {d: day(L), v: K.api.suFmt(79 + 29 / 2) + ' ' + t('usa.u.bbl')}), 'uwaga jak w Pulsie: dzień i kontrakt terminowy z tego samego dnia');
+  assert.ok(K.api.suTile('brent', 'oil', ['gb']).includes(t('su297g.chg0')), 'Puls też bez zmiany tygodnia');
+  K = mk('pl', {}); K.api.suApply(file({q: [[P5, 'skok', 'niepotw']]}));
+  assert.equal(K.api.suKpi('brent', 'w321.k.brent', '1T').why, t('w321.k.n.p'), 'cena z początku okresu niepotwierdzona');
+  assert.ok(K.api.suKpi('brent', 'w321.k.brent', '1D').d > 0, 'inny okres — oba końce potwierdzone, zmiana jest');
+  K = mk('pl', {}); K.api.suApply(file({q: [[B[27], 'rozjazd', 'niepotw'], [B[28], 'trwa', 'niepotw'], [L, 'trwa', 'niepotw']]}));
+  const run = K.api.suKpi('brent', 'w321.k.brent', '1M');
+  assert.ok(run.why === t('w321.k.n.l') && run.note.startsWith(t('su297g.run', {d: day(B[27])})), 'ciąg kilku sesji — „od {dzień}” jak w Pulsie: ' + run.note);
+  assert.ok(K.api.suTile('brent', 'oil', ['gb']).includes(t('su297g.run', {d: day(B[27])})), 'ta sama uwaga w Pulsie');
+  /* brak serii i stan przed pierwszym wczytaniem */
+  K = mk('pl', {});
+  const x0 = K.api.suKpi('gold', 'w321.k.gold', '1M');
+  assert.ok(x0.v === null && x0.d === null && x0.why === '…', 'przed pierwszym wczytaniem pliku — „—” i „…”');
+  K.api.SUK.tried = true; const x1 = K.api.suKpi('gold', 'w321.k.gold', '1M');
+  assert.ok(x1.v === null && x1.why === '' && x1.fresh === '', 'plik bez serii — „—” (nigdy 0)');
+});
+
+test('v321: górny rząd GLOBAL — rynki akcji, dolar, obligacje USA i Niemiec, złoto, ropa Brent (bez kapitalizacji krypto i stablecoinów; obie liczby dalej na stronie Aktywa); kafel surowca: jednostka, zmiana w kolorze, powód braku, „wstępnie”, uwaga o cenie bez potwierdzenia', () => {
+  const GT = html.match(/\nconst GKPI_TOP=(\[[^\]]*\]);/);
+  assert.ok(GT, 'lista kafli górnego rzędu');
+  const TOP = JSON.parse(GT[1].replace(/'/g, '"'));
+  assert.deepEqual(TOP, ['g.k.eq', 'g.k.dxy', 'g.k.us10', 'g.k.de10', 'w321.k.gold', 'w321.k.brent']);
+  assert.ok(html.includes("if(typeof suKpi==='function')GKPI.push(suKpi('gold','w321.k.gold',per),suKpi('brent','w321.k.brent',per));"), 'gKpis: kafle surowców z okresem przełącznika');
+  const r0 = html.indexOf('function gRenderKpi(){'), r1 = html.indexOf('\nfunction ', r0 + 10), el = {innerHTML: ''};
+  const GKPI = [{k: 'g.k.eq', v: 120.5, u: 'u.b', d: 1.2, fresh: '2026-10-09', cov: [11, 12]}, {k: 'g.k.dxy', v: 98.1, dec: 2, d: -0.31, fresh: '2026-10-09'},
+    {k: 'g.k.us10', v: 4.12, dec: 2, u: 'u.pp0', d: 0.02, dpp: 1, fresh: '2026-10-09'}, {k: 'g.k.de10', v: 2.61, dec: 2, u: 'u.pp0', d: null, fresh: '2026-10-09'},
+    {k: 'g.k.cry', v: 3900, u: 'u.b', d: 1, d24: 1}, {k: 'g.k.stab', v: 311, u: 'u.b', d: 0.3},
+    {k: 'w321.k.gold', v: 4238, u: 'su', d: 0.2365, su: 'gold', fresh: '2026-10-06', unit: 'USD za uncję', pre: true, why: '', name: 'Złoto (cena londyńska)', note: ''},
+    {k: 'w321.k.brent', v: 94.5, u: 'su', d: null, su: 'brent', fresh: '2026-10-06', unit: 'USD za baryłkę', pre: false, why: '— cena niepotwierdzona', name: 'Ropa Brent', note: 'Od 2 paź 2026 ceny niepotwierdzone.'}];
+  const run = G => { new Function('$', 'GKPI', 'GKPI_TOP', 'flagImg', 'icoWrap', 'glyphImg', 'coinImg', 'gfmt', 'suFmt', 'LOCALE', 'LANG', 't', 'gst', 'escH', 'gFreshTxt', 'gAgeNote', 'sepK',
+    html.slice(r0, r1) + '\ngRenderKpi();')(q => (q === '#g-kpis' ? el : null), G, TOP, c => '[F:' + c + ']', s => '<i>' + s + '</i>', g => '[G:' + g + ']', c => '[C:' + c + ']', v => v.toFixed(1) + ' B', v => 'S' + v,
+    {pl: 'pl-PL'}, 'pl', v321.T, {period: '1M'}, v96src.escH, d => 'F(' + d + ')', d => ' · wiek(' + d + ')', () => ': '); return el.innerHTML; };
+  const h = run(GKPI), tiles = h.split('<div class="panel kpi">').slice(1);
+  assert.deepEqual(tiles.map(x => (x.match(/<span>([a-z0-9.]+)<\/span><\/div>/) || [])[1]), TOP, 'sześć kafli w kolejności, bez krypto i stablecoinów');
+  const gold = tiles[4], br = tiles[5];
+  assert.ok(gold.includes('<i>[G:gold]</i><span>w321.k.gold</span>') && gold.includes('title="Złoto (cena londyńska): S4238 USD za uncję">S4238<small class="k-un"> USD za uncję</small></div>'), 'ikona, cena z jednostką Pulsu, podpowiedź');
+  assert.ok(gold.includes('<span class="dlt up">▲ +0,24%<i>g.per.1M</i></span>') && gold.includes('<span class="ksrc">F(2026-10-06) · wiek(2026-10-06) · su295g.pre</span>') && !gold.includes('k-qr'), 'zmiana w kolorze za okres, dzień i wiek, „wstępnie”');
+  assert.ok(br.includes('<i>[G:oil][F:gb][F:no]</i>') && br.includes('<span class="dlt na k-why">— cena niepotwierdzona</span>') && br.includes('<span class="ksrc k-qr">Od 2 paź 2026 ceny niepotwierdzone.</span>'), 'Brent: „—” z powodem i uwaga jak w Pulsie');
+  const z = run([Object.assign({}, GKPI[6], {d: 0.001})]); assert.ok(z.includes('<span class="dlt zero">• 0,00%<i>g.per.1M</i></span>'), 'zero to zero (żółte)');
+  const n = run([Object.assign({}, GKPI[6], {v: null, d: null, why: '…', fresh: '', pre: false})]);
+  assert.ok(n.includes('>—</div>') && n.includes('<span class="dlt na k-why">…</span>') && !n.includes('k-un') && !n.includes('title='), 'bez ceny: „—”, bez jednostki i podpowiedzi');
+  assert.ok(html.includes('#g-kpis .dlt.zero{color:var(--yl-tx)}'), 'zero w kaflu żółte');
+  /* strona Aktywa: wiersze złota i ropy z tych samych kafli; krypto i stablecoiny zostają */
+  const A = pgEnv({GLIVE: {fx: {now: {date: '2026-09-24'}}, irlt: {}, stab: []}, GKPI: [GKPI[4], GKPI[6], GKPI[7], Object.assign({}, GKPI[6], {k: 'w321.k.x'})], gStabDelta: () => [1.2, 0.8, 300]});
+  A.f.renderAssets(); const p = A.el.innerHTML, rows = p.split('<tr>').slice(2);
+  const rg = rows.find(x => x.includes('<b>su295g.k.gold</b>')), rb = rows.find(x => x.includes('<b>su295g.k.brent</b>'));
+  assert.ok(rg && rg.includes('<span class="cell">4238.00 USD za uncję</span>') && rg.includes('<span class="cell pos">▲ +0.24%</span>') && rg.includes('pg.daily · 2026-10-06 ·age(2026-10-06) · su295g.pre'), 'złoto: cena, zmiana, dzień, „wstępnie”');
+  assert.ok(rb && rb.includes('<span class="cell na">— cena niepotwierdzona</span>'), 'Brent: „—” z powodem');
+  assert.ok(rows.some(x => x.includes('<b>as.cry</b>')) && rows.some(x => x.includes('<b>as.stab</b>')), 'krypto i stablecoiny dalej na stronie Aktywa');
+  assert.equal(rows.filter(x => x.includes('su295g.k.')).length, 2, 'tylko dwa wiersze surowców');
+  const A0 = pgEnv({GLIVE: {fx: {now: {date: '2026-09-24'}}, irlt: {}, stab: []}, GKPI: [Object.assign({}, GKPI[6], {d: 0.001})]}); A0.f.renderAssets();
+  assert.ok(A0.el.innerHTML.includes('<span class="cell neu">• 0.00%</span>'), 'zero (po zaokrągleniu) — żółte „•”, nie bez koloru');
+});
+
+test('v321: kolory kierunku w GLOBAL (decyzja właściciela 10.10.2026) — plus / wzrost / ▲ zielony, minus / spadek / ▼ czerwony, zero / bez zmian żółty; także dawniej szare albo odwrócone; liczby bez zmian', () => {
+  const one = (name, deps) => { const m = html.match(new RegExp('\\n(?:function ' + name + '\\(|const ' + name + '=)')); assert.ok(m, name);
+    const e = html.slice(m.index + 1).search(/\n(?:function |const |let |\/\*)/), src = html.slice(m.index + 1, m.index + 1 + e);   /* do następnej deklaracji najwyższego poziomu */
+    return new Function(...Object.keys(deps), src + '\nreturn ' + name + ';')(...Object.values(deps)); };
+  const num = v => typeof v === 'number' && isFinite(v), nfmt = (v, d) => Number(v).toFixed(d);
+  const gtTone = one('gtTone', {}), suTone = one('suTone', {suNum: num}), usaTone = one('usaTone', {usaNum: num}), gmPsT = one('gmPsT', {});
+  const etfTp = new Function(html.match(/\n {2}const etfTp=[^\n]*/)[0] + '\nreturn etfTp;')();   /* pomocnik wewnątrz renderEtf (panel „Napływy ETF do krypto” — kolumna obrotu) */
+  assert.deepEqual([2, -2, 0, null].map(v => gtTone(v, 1)), ['pos', 'neg', 'neu', ''], 'tabele: znak liczby, także dawniej odwrócone (inv bez znaczenia)');
+  assert.deepEqual([0.06, -0.06, 0.04, null].map(v => suTone(v, 1)), ['pos', 'neg', 'neu', ''], 'surowce: zero po zaokrągleniu żółte');
+  assert.deepEqual([0.006, -0.006, 0.004].map(v => usaTone(v, 2)), ['pos', 'neg', 'neu']);
+  assert.deepEqual([0.004, 0.006, -0.006].map(etfTp), ['neu', 'pos', 'neg']);
+  assert.deepEqual([['yld', 2], ['yld', -2], ['fx', 2], ['fx', 0]].map(([k, v]) => gmPsT(k, v)), ['neg', 'pos', 'pos', 'neu'], 'składnik „rentowność” — kolor jak pokazany znak (wkład do wyniku)');
+  const strDelta = one('strDelta', {strNum: num, nfmt});
+  assert.deepEqual([[0.12, 2], [-0.12, 2], [0.001, 2]].map(([d, dec]) => strDelta(d, dec, '', 'any')), [{txt: '▲ +0.12', cls: 'pos'}, {txt: '▼ −0.12', cls: 'neg'}, {txt: '• 0.00', cls: 'neu'}], 'stres: wzrost zielony (jak na całej stronie), zero żółte');
+  const fedPp = one('fedPp', {fedNum: num, nfmt, t: v321.T});
+  assert.deepEqual([fedPp(0.031, 1), fedPp(-0.031, 1), fedPp(0.001, 1), fedPp(null)].map(x => x.cls), ['pos', 'neg', 'neu', 'na'], 'Fed: zmiana szansy w kolorze kierunku (dawniej bez koloru)');
+  const dlCh = one('dlCh', {dlNum: num, dlPp: v => String(v), t: v321.T});
+  assert.deepEqual(dlCh({d7: 1.2, d30: -0.04}).map(x => x.cls), ['pos', 'neu'], 'luka dolarowa: kolor zmiany, zero po zaokrągleniu żółte');
+  /* liczby ze znakiem w małych podpisach paneli z danymi urzędowymi (gSgSmall) */
+  const re = new RegExp(html.match(/\nconst SG_NUM=\/(.*)\/g;/)[1], 'g'), hits = s => [...s.matchAll(re)].map(m => m[2]);
+  assert.deepEqual(hits('12 mies.: +1 754,4 · (≈ −2370 mln USD) · 0,31 · +0,0'), ['+1 754,4', '−2370', '+0,0'], 'tylko liczby ze znakiem (poziomy bez znaku bez koloru), cała liczba');
+  assert.deepEqual(['+1\u202f234\u00a0567,8 mln', '+3 2026 r.', 'x+5', '(+4,4%)'].map(hits), [['+1\u202f234\u00a0567,8'], ['+3'], [], ['+4,4']], 'spacje tysięcy (zwykła, twarda, wąska), rok obok nie dokleja się, znak w środku słowa — nie');
+  assert.ok(!/[\u00a0\u202f]/.test(html.match(/\nconst SG_NUM=[^\n]*/)[0]), 'w kodzie tylko ucieczki \\u (bez znaków niewidocznych)');
+  assert.ok(html.includes("sp.className=/[1-9]/.test(v)?(v[0]==='+'?'pos':'neg'):'neu';"), 'plus zielony, minus czerwony, zero żółte');
+  assert.ok(html.includes("['#inst','#tic','#bis'].forEach(s=>{const e=$(s);if(!e)return;try{gSgSmall(e);new MutationObserver(()=>{try{gSgSmall(e);}catch(x){}}).observe(e,{childList:true});}catch(x){}});"), 'po każdym rysowaniu panelu');
+  /* styl: zmienne motywu (kolory systemowe Apple — ciemny i jasny), zera żółte także w wykresach */
+  for (const [v, d, l] of [['--gr', '#30D158', '#34C759'], ['--rd', '#FF453A', '#FF3B30'], ['--yl', '#FFD60A', '#FFCC00']]) assert.ok(html.includes(v + ':' + d) && html.includes(v + ':' + l), v);
+  for (const r of ['.zs-z{fill:var(--yl)}', '#global .wk-ch .wk-b.zer{--k:var(--yl)}', '#global .pchip.z{color:var(--yl-tx)', '#global .wk-br:has(.wk-b.zer)>.wk-bv{color:var(--yl-tx)}', '#page-assets .cell.neu{color:var(--yl-tx)}'])
+    assert.ok(html.includes(r), 'styl: ' + r);
+  const c0 = html.indexOf('/* v321 (decyzja właściciela 10.10): kolory kierunku w GLOBAL'), css = html.slice(c0, html.indexOf('\n/*', c0 + 10));
+  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css.replace(/#global|#page-assets/g, '')), 'tylko zmienne motywu');
+});
+
+test('v321: teksty o kolorach w 10 językach — bez „bez kolorów” i bez odwróconych kolorów (Szwajcaria, Fed, luka dolarowa, fundusze, stres, BIS, bilans płatniczy, kraje UE, strefa euro, Japonia, wykres dzienny)', () => {
+  const {L10} = v321;
+  const CLR = {pl: /ziel/, en: /green/, de: /grün/, es: /verde/, fr: /vert/, it: /verde/, pt: /verde/, ru: /зелён/, zh: /绿/, ja: /緑/};
+  const RED = {pl: /czerw/, en: /red/, de: /rot/, es: /rojo/, fr: /rouge/, it: /rosso/, pt: /vermelho/, ru: /красн/, zh: /红/, ja: /赤/};
+  const YEL = {pl: /żółt/, en: /yellow/, de: /gelb/, es: /amarillo/, fr: /jaune/, it: /giallo/, pt: /amarelo/, ru: /жёлт/, zh: /黄/, ja: /黄/};
+  for (const l of L10) {
+    const t = v96src.tFor(l);
+    for (const k of ['snb.leg', 'fed.how', 'dl.sub', 'st.note', 'st.note.fsi', 'gt.bis.col', 'fund.mm.note', 'bis2.netplain', 'bil.foot', 'ue.sub', 'inst.bop.sub'])
+      assert.ok(CLR[l].test(t(k)) && RED[l].test(t(k)) && YEL[l].test(t(k)), l + ' ' + k + ': zielony, czerwony i żółty — ' + t(k).slice(-160));
+    assert.ok(CLR[l].test(t('inst.mof.unit')) && RED[l].test(t('inst.mof.unit')) && YEL[l].test(t('fund.leg')), l + ': Japonia i fundusze');
+  }
+  const P = v96src.tFor('pl'), E = v96src.tFor('en');
+  for (const k of ['snb.leg', 'fed.how', 'dl.sub', 'fund.leg', 'fund.mm.note', 'st.note', 'st.note.fsi', 'gt.bis.col', 'bis2.netplain', 'bil.foot', 'ue.sub', 'inst.bop.sub', 'ob.wyk']) {
+    assert.ok(!/bez kolor|szar|na czerwono|kolor czerwony\)|, czerwony\)|\(zielony\);|kolor zielony\)/.test(P(k)), 'pl ' + k + ': ' + P(k));
+    assert.ok(!/no colou?r|grey|gray|shown in red|shown in green|\(outflow, red\)|rising stress in red|inflow \(green\)/.test(E(k)), 'en ' + k + ': ' + E(k));
+  }
+  assert.ok(P('ob.wyk').includes('żółta kreska = zero'), 'wykres dzienny: zero żółte');
+  assert.ok(P('inst.bop.sub').includes('plus = pieniądz netto wypłynął') && E('inst.bop.sub').includes('positive = money flowed out'), 'opis znaku bez zmian');
+  assert.ok(P('st.note').includes('Put/call') && P('st.note').includes('opóźnieniem 2 dni roboczych'), 'reszta noty bez zmian');
+});
+
+test('v321: tło — więcej spadających znaków (trzy warstwy na kolumnę, ok. 3/4 to cyfry, częstsze starty) i złote znacznie częściej (kilka naraz, co 1,5–4 s; w obrazie bez animacji co 5. kolumna); „Widoczność znaków w tle” i bez animacji jak dotąd', () => {
+  const H = html.match(/\nconst HEXC='([^']+)';/);
+  assert.ok(H && H[1].length === 26 && [...H[1]].filter(c => /\d/.test(c)).length === 20 && new Set(H[1]).size === 16, 'zbiór: 16 znaków szesnastkowych, cyfry dwa razy');
+  assert.ok(html.includes('drops=Array.from({length:cols*3},(_,i)=>hNew(i<cols*2));hGoldN=0;hGoldMax=Math.max(2,Math.round(cols/14));hGoldNext=0;'), 'trzy warstwy; złotych naraz 1 na ok. 14 kolumn (co najmniej 2)');
+  const pick = html.match(/\nfunction hGoldPick\(d,tm\)\{[^\n]*\}/)[0], P = new Function('S', pick.replace('function hGoldPick', 'let hGoldN=S.n,hGoldMax=S.max,hGoldNext=S.next;function hGoldPick') + '\nreturn (d,tm)=>{hGoldPick(d,tm);S.n=hGoldN;S.next=hGoldNext;};');
+  const S = {n: 0, max: 2, next: 0}, go = P(S), d = () => ({on: true, gold: false});
+  const a = d(), b = d(), c = d(), off = {on: false, gold: false};
+  go(a, 1000); go(b, 1500); go(off, 9000);
+  assert.ok(a.gold && S.n === 1 && S.next >= 2500 && S.next <= 5000 && !b.gold && !off.gold, 'następny złoty dopiero po przerwie 1,5–4 s; ciąg wyłączony nie dostaje złota');
+  go(b, 6000); go(c, 12000); assert.ok(b.gold && !c.gold && S.n === 2, 'najwyżej hGoldMax naraz');
+  assert.ok(html.includes('if(d.row*FS>H+40){if(d.gold){d.gold=false;hGoldN=Math.max(0,hGoldN-1);}d.row=-Math.floor(Math.random()*30);d.on=Math.random()<.85;'), 'koniec złotego ciągu zwalnia miejsce; ciągi startują częściej');
+  assert.ok(html.includes("if(!d.on){if(Math.random()<.012){d.on=true;d.row=-Math.floor(Math.random()*8);hGoldPick(d,tm);}continue;}"), 'uśpione ciągi budzą się częściej');
+  assert.ok(html.includes("const gi=i=>i%5===2;") && html.includes('col=gi(i)?PAL.hexGoldTail:PAL.hexTail'), 'obraz bez animacji: co 5. kolumna złota');
+  assert.ok(html.includes("function hSync(){cancelAnimationFrame(hraf);if(st.bg==='off')return;if(st.anim&&!document.hidden){hx.clearRect(0,0,W,H);hraf=requestAnimationFrame(hStep);}else hStatic();}") && html.includes('if(tm-lastH>64){lastH=tm;'), 'ustawienie tła, bez animacji — obraz stały, tempo klatek bez zmian');
+  assert.ok(html.includes("function applyHexOp(){const op=st.theme==='custom'?st.customOp:(st.bg==='strong'?.95:.62);"), '„Widoczność znaków w tle” bez zmian');
+});
+
+test('v321: „Ostatnia aktualizacja” w lewej kolumnie — napis i zegar zielone, data biała (w jasnym motywie — kolor tekstu)', () => {
+  assert.ok(html.includes('.upd svg{width:22px;height:22px;flex:none;color:var(--gr)}'), 'zegar zielony');
+  assert.ok(html.includes('.upd>div>span{color:var(--gr-tx);font-weight:500}'), 'napis zielony (wersja do tekstu — kontrast w jasnym motywie)');
+  assert.ok(html.includes('.upd b{display:block;color:var(--tx);font-weight:500}'), 'data w kolorze tekstu (ciemny motyw — biała)');
+  const u = html.slice(html.indexOf('<div class="upd">'), html.indexOf('</div></div>', html.indexOf('<div class="upd">')));
+  assert.ok(/<svg [^>]*>[\s\S]*<\/svg><div><span data-i18n="upd"><\/span><b /.test(u), 'kolejność: zegar, napis, data — ' + u.slice(0, 200));
+});
+
+/* ---------- v321 (przegląd 10.10): poprawki po niezależnym przeglądzie łatki — liczby w kolorze w kafelkach jako tekst w linii, większy wskaźnik strachu
+   i chciwości w lewej kolumnie (półkole „wysokie”, układy zwarte), skróty 1D / 1T / 1M ze słownika i nazwy jak dawniej w panelach, ostatnie szare zmiany
+   w GLOBAL, opis ceny surowca w kaflu i na stronie Aktywa ---------- */
+test('v321 (przegląd): liczba w kolorze w środku tekstu kafelka GLOBAL zostaje tekstem w linii (Fed — zmiana szansy, fundusze — obligacje, ETF wobec stablecoinów, paliwa w Polsce); reguła „.etfk span” (osobna linia 11 px) dotyczy tylko podpisu kafelka', () => {
+  const R = '#global .etfk b>span:is(.pos,.neg,.neu):not(.fnd-v):not(.auk-ar),#global .etfk small span:is(.pos,.neg,.neu){display:inline;font-size:inherit;line-height:inherit}';
+  const sty = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  assert.equal(sty.split(R).length, 2, 'jedna reguła w arkuszu strony');
+  assert.ok(sty.indexOf(R) > sty.indexOf('.etfk span{display:block;color:var(--mut);font-size:11px'), 'po regule podpisu kafelka (i mocniejsza — #global)');
+  /* mini-parser znaczników: każda liczba w kolorze w kafelku stoi bezpośrednio w <b> albo w <small> (tu działa reguła), nigdy w podpisie (.etfk>span) */
+  const colored = h => { const out = [], stk = [];
+    for (const m of h.matchAll(/<(\/?)([a-z][a-z0-9]*)\b([^>]*?)(\/?)>/g)) { const [, end, tag, at, self] = m;
+      if (end) { const i = stk.map(x => x.tag).lastIndexOf(tag); if (i >= 0) stk.length = i; continue; }
+      if (self || /^(br|img|wbr|hr|input)$/.test(tag)) continue;
+      const cls = ((at.match(/class="([^"]*)"/) || [])[1] || '').split(/\s+/).filter(Boolean), k = stk.findIndex(x => x.cls.includes('etfk'));
+      if (tag === 'span' && cls.some(c => /^(pos|neg|neu)$/.test(c)) && k >= 0) out.push({par: stk[stk.length - 1], inSmall: stk.slice(k).some(x => x.tag === 'small'), cls});
+      stk.push({tag, cls}); }
+    return out; };
+  const ok = x => x.inSmall || (x.par.tag === 'b' && !x.cls.includes('fnd-v') && !x.cls.includes('auk-ar'));
+  const fn = name => { const a = html.indexOf('\nfunction ' + name + '('); assert.ok(a > 0, name); return html.slice(a + 1, html.indexOf('\n', a + 1)); };
+  const fedTile = new Function(fn('fedTile') + '\nreturn fedTile;')(), fndTile = new Function('escH', fn('fndTile') + '\nreturn fndTile;')(v96src.escH);
+  const ekpi = new Function('t', html.match(/\n {2}const kpi=\(k,v,cls,ic\)=>[^\n]*/)[0] + '\nreturn kpi;')(k => k);
+  /* Fed: kod kafla zmiany szansy podaje liczbę w <span class="…"> jako wartość kafla */
+  assert.ok(html.includes("t('fed.k.chg',{o:fedLab(top)}),(d=>`<span class=\"${d.cls}\">${d.txt} ${t('fed.d7')}</span>`)(fedPp(fedD(top.p,top.p7d)))"), 'Fed: zmiana tygodnia w kolorze jako wartość kafla');
+  const H = {
+    fed: fedTile('', 'L', '<span class="pos">▲ +3 pkt proc. w 7 dni</span>', [{txt: '▲ +1 pkt proc. od wczoraj', cls: 'pos'}]),
+    fund: fndTile('', 'Obligacje', {txt: '+3,5 mld USD', cls: 'pos'}, [{txt: '4 tyg.: +26,4', cls: 'pos'}, {txt: 'w tym zwykłe <span class="pos">+4,1</span> · municypalne <span class="neg">−0,7</span>', cls: ''}], 'dzień'),
+    etf: ekpi('etf.k.vsstab', '98% <small>ETF <span class="pos">+2,04 mld USD</span> · stablecoiny <span class="pos">+2,08 mld USD</span></small>', ''),
+    pl: '<div class="etfk su-k"><span>Benzyna</span><b>6,66</b><small class="mtxt pl-pod">podatki: 3,33 → 2,02 (<span class="neg">−39,4%</span>); bez podatków <span class="neg">−2,8%</span></small></div>'};
+  assert.ok(html.includes('const fs=v=>{const f=fndFlow(v,false);return f.cls&&f.cls!==\'na\'?`<span class="${f.cls}">${f.txt}</span>`:f.txt;};') && html.includes("tile(F('us','sm'),t('fund.k.bd'),'bd',[bd2])"), 'fundusze: liczby w zdaniu pod kaflem obligacji (linia <small>)');
+  assert.ok(/kpi\('etf\.k\.vsstab',.*' <small>'\+t\('etf\.k\.vsstabd',\{a:`<span class="\$\{etfT\(T\.m\)\}">/.test(html), 'ETF wobec stablecoinów: liczby w <small> wartości kafla');
+  assert.ok(html.includes('return `<small class="mtxt pl-pod">${t(\'pl304.pod\',{a:suFmt(tb,2)+\' \'+u,b:suFmt(tl,2)+\' \'+u,p:typeof gtSg===\'function\'?gtSg(plPct(r)):plPct(r)'), 'paliwa w Polsce: zdanie o podatkach w <small>');
+  for (const [k, h] of Object.entries(H)) { const L = colored(h).filter(x => !x.cls.includes('fnd-v')); assert.ok(L.length > 0 && L.every(ok), k + ': każda liczba w kolorze w zdaniu pod regułą „w linii”: ' + JSON.stringify(L)); }
+  assert.ok(colored(fndTile('', 'X', {txt: '+1', cls: 'pos'}, [], 'd')).every(x => x.cls.includes('fnd-v')), 'wartość funduszu (.fnd-v) — wygląd z bazy, poza regułą');
+});
+
+test('v321 (przegląd): lewa kolumna i para pod mapą — półkole „wysokie” (miejsce na dużą liczbę pod kółkiem osi, w układzie zwartym przycięte od dołu), liczba także tekstem (.sg-n) — zawsze ta sama co w półkolu; panele bez zmian', () => {
+  const X = fg139.mk();
+  const big = X.sgSvg(41, X.SG_FG, '41', 'a', true), pan = X.sgSvg(41, X.SG_FG, '41', 'a');
+  assert.ok(big.startsWith('<svg class="sg-svg" viewBox="0 0 200 148" preserveAspectRatio="xMidYMin slice" role="img" aria-label="a">') && big.includes('<text class="sg-tx" x="100" y="145" text-anchor="middle">41</text>'), 'wysokie: 14 jednostek więcej pod kółkiem osi (kółko do y = 106)');
+  assert.ok(pan.startsWith('<svg class="sg-svg" viewBox="0 0 200 134" role="img"') && pan.includes('y="131"') && !pan.includes('preserveAspectRatio'), 'panele: półkole jak w pierwszej wersji v321');
+  assert.equal(big.replace(/ viewBox="[^"]*" preserveAspectRatio="[^"]*"/, '').replace(/ y="145"/, ''), pan.replace(/ viewBox="[^"]*"/, '').replace(/ y="131"/, ''), 'te same łuki, wskazówka i kółko osi');
+  const num = c => [(c.match(/<text class="sg-tx"[^>]*>([^<]*)<\/text>/) || [])[1], (c.match(/<b class="sg-n" aria-hidden="true">([^<]*)<\/b>/) || [])[1]];
+  for (const v of [null, 0, 24.4, 41.4, 55.5, 100]) {
+    const Xv = v == null ? {v: null, s: null, hist: X.fgHist([], 'g'), stOf: () => null} : {v, s: X.fgState(v), date: '2026-10-09', hist: X.fgHist([['2026-10-09', v]], 'g'), stOf: r => X.fgState(r[1])};
+    const [a, b] = num(X.fgCard(Xv, 'T'));
+    assert.ok(a !== undefined && a === b, 'strach i chciwość: ta sama liczba w półkolu i tekstem: ' + v + ' → ' + a + ' / ' + b);
+    assert.equal(num(X.fgCard(Xv, 'T', true))[1], undefined, 'panel: bez liczby tekstem');
+  }
+  for (const n of [12, 11, 7, 0]) { const [a, b] = num(v321Cov(v321Map((id, i) => i < n)).f.gCovCard()); assert.ok(a === b && /^\d+%$/.test(a), 'pokrycie GLOBAL: ' + a + ' / ' + b); }
+  { const [a, b] = num(v321Cov(null).f.gCovCard()); assert.ok(a === '—' && b === '—', 'bez danych — „—” w obu miejscach (nigdy 0%)'); }
+  for (const live of [{cover: .875, src: 'srv', err: ''}, null]) { const [a, b] = num(v321Kol({mode: 'trendy', trdIsC: () => true, live}).F.sgCovC()); assert.ok(a === b && (live ? a === '88%' : a === '—'), 'pokrycie krypto (TRENDY): ' + a + ' / ' + b); }
+  assert.ok(html.includes("${sgSvg(has?X.v:null,SG_FG,has?fgInt(X.v):'—',aria,!long)}${long?'':`<b class=\"sg-n\" aria-hidden=\"true\">${has?fgInt(X.v):'—'}</b>`}"), 'karta: wąska kolumna — półkole wysokie i liczba tekstem; panel — jak dawniej');
+});
+
+test('v321 (przegląd): kółka wartości wstecz — w wąskiej kolumnie skróty 1D / 1T / 1M w języku strony (dawniej na stałe po polsku), pełna nazwa w podpowiedzi; w panelach GLOBAL i CRYPTO nazwy jak przed v321 nad kółkiem („Poprzednia sesja” / „Wczoraj”, „Tydzień temu”, „Miesiąc temu”), pod kółkiem stan i dzień', () => {
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const mkL = L => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'KR', 'icoWrap', 'flagImg', 'glyphImg', html.slice(fg139.i0, fg139.i1) +
+    '\nreturn {fgCard, fgGlobal, fgCrypto};')(() => null, v96src.tFor(L), (v, d) => Number(v).toFixed(d), v96src.escH, d => ' · wiek(' + d + ')', iso => 'D(' + iso + ')', LOC, L, {data: null});
+  const labs = c => [...c.matchAll(/<\/b><i>([^<]*)<\/i>/g)].map(m => m[1]), tips = c => [...c.matchAll(/<span class="sg-h" title="([^"]*)"/g)].map(m => m[1]);
+  for (const L of v321.L10) {
+    const t = v96src.tFor(L), X = mkL(L), G = X.fgGlobal(fg139.N), K = X.fgCrypto(fg139.F);
+    const ab = ['w321.h.1d', 'w321.h.1w', 'w321.h.1m'].map(k => t(k));
+    assert.deepEqual(labs(X.fgCard(G, 'T')), ab, L + ': wąska kolumna GLOBAL — skróty ze słownika');
+    assert.deepEqual(labs(X.fgCard(K, 'T')), ab, L + ': wąska kolumna krypto — te same skróty');
+    assert.ok(tips(X.fgCard(G, 'T')).every((s, i) => s.startsWith(v96src.escH(t(['fg.h.s1', 'fg.h.w1', 'fg.h.m1'][i])))), L + ': pełna nazwa w podpowiedzi');
+    assert.deepEqual(labs(X.fgCard(G, 'T', true)), ['fg.h.s1', 'fg.h.w1', 'fg.h.m1'].map(k => t(k)), L + ': panel GLOBAL — nazwy jak dawniej');
+    assert.deepEqual(labs(X.fgCard(K, 'T', true)), ['fg.h.d1', 'fg.h.w1', 'fg.h.m1'].map(k => t(k)), L + ': panel krypto — nazwy jak dawniej');
+    assert.ok(ab.every(s => s && !s.startsWith('w321.')), L + ': skróty w słowniku');
+  }
+  assert.deepEqual(labs(mkL('en').fgCard(mkL('en').fgGlobal(fg139.N), 'T')), ['1D', '1W', '1M'], 'po angielsku tydzień „1W”, jak przycisk okresu');
+  const f0 = html.indexOf('function fgCard('), f1 = html.indexOf('\n}', f0);
+  assert.ok(f0 > 0 && !html.slice(f0, f1).includes("['1D','1T','1M']"), 'bez skrótów wpisanych na stałe');
+  const p = mkL('pl').fgCard(mkL('pl').fgGlobal(fg139.N), 'T', true);
+  assert.ok(p.includes('<span class="sg-hs sg-hl"><span class="sg-h" title="Poprzednia sesja: ') && p.includes('<i>Poprzednia sesja</i><em>') && p.includes('<i>Tydzień temu</i>') && p.includes('<i>Miesiąc temu</i>'), 'panel po polsku: „Poprzednia sesja”, „Tydzień temu”, „Miesiąc temu”');
+  assert.ok(/<b class="fg-c fg-[a-z]+">\d+<\/b><i>Tydzień temu<\/i><em>[^<]+<\/em><small>[^<]+<\/small>/.test(p), 'pod kółkiem stan i dzień (wartość wstecz z datą)');
+});
+
+test('v321 (przegląd): ostatnie szare zmiany w GLOBAL w kolorze — banki centralne (Polska: zmiana w miesiącu i w 12 miesięcy), BIS (wkład banków w wypływ), rezerwy (procent zmiany 12 mies. w nawiasie), nota o dwóch wydaniach bilansu USA; liczby bez zmian', () => {
+  assert.ok(html.includes("a:gS(su3S(pl.m1,2,su3T())),b:gS(su3S(pl.m12,2,su3T()))") && html.includes("const gS=x=>typeof gtSg==='function'?gtSg(x):x,li=a=>a.map(r=>`${r.n} (${gS(su3S(r.v,1,su3T()))})`).join(', ')"), 'Polska: zmiany złota w kolorze, jak zakupy innych banków');
+  assert.ok(html.includes("${rq.map(x=>`${I('f',x[0],'sm')}${escH(x[0])} ${I('w',x[1],mld(x[1]))}`).join('; ')}"), 'BIS: wkład banków w wypływ w kolorze');
+  assert.ok(html.includes("<small class=\"mtxt\">(${I('w',x.p12m,rezD(x.p12m)+'%')})</small>"), 'rezerwy: procent w nawiasie w kolorze (nawias zostaje szary)');
+  assert.ok(html.includes("a:g(bopMld(r.t)+u),b:g(bopMld(x[1])+u),d:g(bopMld(r.t-x[1])+u)"), 'bilans USA: kwoty ze znakiem w kolorze, jak w tabeli');
+  const one = (name, deps) => { const m = html.match(new RegExp('\\n(?:function ' + name + '\\(|const ' + name + '=)')); assert.ok(m, name);
+    const e = html.slice(m.index + 1).search(/\n(?:function |const |let |\/\*)/), src = html.slice(m.index + 1, m.index + 1 + e);
+    return new Function(...Object.keys(deps), src + '\nreturn ' + name + ';')(...Object.values(deps)); };
+  const gtZero = one('gtZero', {}), gtTone = one('gtTone', {}), gtSg = one('gtSg', {gtZero}), gtI = one('gtI', {gtTone, gtZero});
+  assert.deepEqual(['+24,90 t', '−0,40 t', '+0,00 t', '672,89 t', '—'].map(gtSg), ['<span class="pos">+24,90 t</span>', '<span class="neg">−0,40 t</span>', '<span class="neu">+0,00 t</span>', '672,89 t', '—'], 'plus zielony, minus czerwony, zero żółte; poziom i brak bez koloru');
+  assert.deepEqual([[4.4, '+4,4%'], [-8.8, '−8,8%'], [0.01, '+0,0%'], [null, '—']].map(([v, s]) => gtI('w', v, s)), ['<span class="pos">+4,4%</span>', '<span class="neg">−8,8%</span>', '<span class="neu">+0,0%</span>', '—'], 'procent rezerw: znak liczby, zero po zaokrągleniu żółte, brak „—”');
+  assert.deepEqual([[296.6, '+296,6'], [-2.7, '−2,7']].map(([v, s]) => gtI('w', v, s)), ['<span class="pos">+296,6</span>', '<span class="neg">−2,7</span>'], 'BIS: tekst liczby bez zmian, tylko kolor');
+});
+
+test('v321 (przegląd): kafel „Złoto” / „Ropa Brent” i wiersze na stronie Aktywa — opis ceny z serii jak w Pulsie (cena wyliczona, z wyceny funduszu, kontrakt terminowy, szacunek); bez znacznika — bez opisu', () => {
+  const {mk, file} = v321su, t = v96src.tFor('pl'), K = mk('pl', {}), A = K.api;
+  const f = file(); f.ceny.gold.x = ['wyl']; f.ceny.brent.x = ['kontr']; A.suApply(f);
+  assert.equal(A.suKpi('gold', 'w321.k.gold', '1M').mk, t('su295g.x.wyl'), 'złoto: „cena wyliczona”');
+  assert.ok(A.suTile('gold', 'gold', []).includes('<small class="mtxt su-x">' + t('su295g.x.wyl') + '</small>'), 'ten sam opis co w Pulsie');
+  assert.equal(A.suKpi('brent', 'w321.k.brent', '1M').mk, t('su295g.x.kontr'), 'ropa: kontrakt terminowy, nie cena fizyczna');
+  const f2 = file(); f2.ceny.gold.x = ['fund', 'wyl', 'zzz']; A.suApply(f2);
+  assert.equal(A.suKpi('gold', 'w321.k.gold', '1M').mk, t('su295g.x.fund'), 'z wyceny funduszu — bez powtórzonego „wyliczona”, nieznany znacznik pominięty');
+  A.suApply(file()); assert.equal(A.suKpi('gold', 'w321.k.gold', '1M').mk, '', 'bez znacznika — bez opisu');
+  /* kafel GLOBAL: opis w stopce za dniem danych; strona Aktywa: w kolumnie dnia */
+  const r0 = html.indexOf('function gRenderKpi(){'), r1 = html.indexOf('\nfunction ', r0 + 10), el = {innerHTML: ''};
+  const run = G => { new Function('$', 'GKPI', 'GKPI_TOP', 'flagImg', 'icoWrap', 'glyphImg', 'coinImg', 'gfmt', 'suFmt', 'LOCALE', 'LANG', 't', 'gst', 'escH', 'gFreshTxt', 'gAgeNote', 'sepK',
+    html.slice(r0, r1) + '\ngRenderKpi();')(q => (q === '#g-kpis' ? el : null), G, ['w321.k.gold'], c => '', s => s, g => '', c => '', v => String(v), v => 'S' + v,
+    {pl: 'pl-PL'}, 'pl', v321.T, {period: '1M'}, v96src.escH, d => 'F(' + d + ')', d => ' · wiek(' + d + ')', () => ': '); return el.innerHTML; };
+  const G1 = {k: 'w321.k.gold', v: 4124.55, u: 'su', d: -6.58, su: 'gold', fresh: '2026-10-08', unit: 'USD za uncję', pre: false, why: '', name: 'Złoto', note: '', mk: 'cena wyliczona'};
+  assert.ok(run([G1]).includes('<span class="ksrc">F(2026-10-08) · wiek(2026-10-08) · cena wyliczona</span>'), 'kafel: dzień, wiek i opis ceny');
+  assert.ok(run([Object.assign({}, G1, {v: null, d: null})]).includes('<span class="ksrc">F(2026-10-08) · wiek(2026-10-08)</span>'), 'bez ceny — bez opisu');
+  assert.ok(!run([Object.assign({}, G1, {mk: ''})]).includes('wyliczona'));
+  const P = pgEnv({GLIVE: {fx: {now: {date: '2026-09-24'}}, irlt: {}, stab: []}, GKPI: [G1], gStabDelta: () => null}); P.f.renderAssets();
+  const row = P.el.innerHTML.split('<tr>').find(x => x.includes('<b>su295g.k.gold</b>'));
+  assert.ok(row && row.includes('2026-10-08 ·age(2026-10-08) · cena wyliczona'), 'strona Aktywa: ten sam opis — ' + (row || '').slice(0, 300));
 });
