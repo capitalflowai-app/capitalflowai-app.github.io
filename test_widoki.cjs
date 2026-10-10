@@ -16876,7 +16876,7 @@ test('v304: kafle Polski — cena z jednostką, zmiana w tygodniu (≥ 7 dni wst
   for (const k of ['hurt.pb95', 'hurt.on', 'energia.gaz', 'zloto']) assert.ok(!T[k].includes('pl-pod') && !T[k].includes('su-qo'), k);
   /* hurt: 08.10 6,086 wobec 01.10 6,165 (dni obowiązywania wt–sob) → −1,3%; bez VAT */
   assert.ok(T['hurt.pb95'].includes('Benzyna 95 w hurcie (Orlen)') && T['hurt.pb95'].includes('<b>6,09 <small class="mtxt">zł/l</small> <small class="neg">▼ −1,3% w tygodniu</small></b>'), T['hurt.pb95']);
-  assert.ok(T['hurt.pb95'].includes('cena hurtowa bez VAT (cena za 1000 l ÷ 1000)') && T['hurt.pb95'].includes('obowiązuje ' + d('2026-10-08') + ' · wiek(2026-10-08)'));
+  assert.ok(T['hurt.pb95'].includes('cena hurtowa z akcyzą i opłatą paliwową, bez VAT (cena za 1000 l ÷ 1000)')   /* v310: opis mówi, że cena hurtowa zawiera akcyzę i opłatę paliwową */ && T['hurt.pb95'].includes('obowiązuje ' + d('2026-10-08') + ' · wiek(2026-10-08)'));
   assert.ok(T['hurt.on'].includes('<b>6,94 <small class="mtxt">zł/l</small> <small class="neg">▼ −4,6% w tygodniu</small></b>'));
   /* giełda: gaz 345,89 wobec 01.10 319,45 → +8,3%; prąd 587,76 wobec 613,58 → −4,2%; dzień dostawy */
   assert.ok(T['energia.gaz'].includes('Gaz na giełdzie (TGE)') && T['energia.gaz'].includes('<b>345,89 <small class="mtxt">zł/MWh</small> <small class="pos">▲ +8,3% w tygodniu</small></b>'), T['energia.gaz']);
