@@ -35958,7 +35958,8 @@ class PolskaV304(unittest.TestCase):
                       'ceny na stacjach: benzyna 95 2026-10-05 — podatki w cenie 3,334 → 2,022 zł/l (-39,4%), cena bez podatków -2,8% (próg 10% — zmiana podatków; '
                       'strona ją opisuje) ℹ️ · ceny na stacjach: olej napędowy 2026-10-05 — podatki w cenie 3,378 → 1,985 zł/l (-41,2%), cena bez podatków +2,0% '
                       '(próg 10% — zmiana podatków; strona ją opisuje) ℹ️ · ceny na stacjach: tydzień 2026-10-05 — obniżony VAT na paliwa (akcyza i opłaty, jakie '
-                      'musiałyby być w cenie benzyny przy VAT 23%: 0,778 zł/l, mniej niż 0,85 × minimalna akcyza UE 1,572 zł/l); strona to opisuje ℹ️.', md)
+                      'musiałyby być w cenie benzyny przy VAT 23%: 0,778 zł/l, mniej niż 0,85 × minimalna akcyza UE 1,572 zł/l); strona to opisuje — początek '
+                      'obniżki VAT na paliwa (tydzień wcześniej, 2026-09-28, bez obniżonego VAT): potwierdzić, że obniżka obowiązuje ⚠️.', md)   # v312: 05.10 — pierwszy tydzień nowej serii obniżonego VAT (⚠️ raz na serię)
 
     # ---- v304b: tydzień niepewny (q), ceny bez podatków, zmiana podatków; uwagi recenzji v304 ----
     # prawdziwe tygodnie z obniżonym VAT na paliwa (8%; pakiet obniżek cen paliw: 17–31.08.2026 — sam VAT, od 03.10.2026 — VAT i akcyza niższa o 0,29 zł/l) —
@@ -36040,8 +36041,9 @@ class PolskaV304(unittest.TestCase):
         k = self._kontrola()
         o = self.plik()
         S = k.polska_stacje(o)
-        self.assertEqual([z for _, z in S['wiersze']], ['ℹ️', 'ℹ️', 'ℹ️'], 'zmiana podatków 05.10 (−39% benzyna, −41% olej) i obniżony VAT — opis ℹ️, nie uwaga')
-        self.assertEqual(S['uwagi'], []); self.assertIn('tydzień 2026-10-05 — obniżony VAT na paliwa', S['wiersze'][2][0])
+        self.assertEqual([z for _, z in S['wiersze']], ['ℹ️', 'ℹ️', '⚠️'], 'zmiana podatków 05.10 (−39% benzyna, −41% olej) — opis ℹ️; v312: 05.10 to'
+                         ' pierwszy tydzień nowej serii obniżonego VAT (28.09 — stawka podstawowa) — ⚠️ raz na serię')
+        self.assertEqual(len(S['uwagi']), 1); self.assertIn('tydzień 2026-10-05 — obniżony VAT na paliwa', S['wiersze'][2][0])   # v312: dotąd 0 uwag
         self.assertEqual(k.PL_POD_PROG, 10.0)
         # podatki prawie bez zmian (−5%) — bez wiersza; przerwa ponad 14 dni — bez porównania
         o2 = json.loads(json.dumps(o)); o2['stacje']['pb95']['n'][-1][1] = 4.80; o2['stacje']['on']['n'][-1][1] = 5.60
@@ -36140,7 +36142,8 @@ class PolskaV304(unittest.TestCase):
         # wiersz ℹ️ tylko dla najnowszego tygodnia z obniżonym VAT i bez q (liczba niepewna — bez opisu VAT)
         W = [w for w, _ in k.polska_stacje(o)['wiersze'] if 'obniżony VAT' in w]
         self.assertEqual(W, ['ceny na stacjach: tydzień 2026-10-05 — obniżony VAT na paliwa (akcyza i opłaty, jakie musiałyby być w cenie benzyny przy VAT 23%: '
-                             '0,778 zł/l, mniej niż 0,85 × minimalna akcyza UE 1,572 zł/l); strona to opisuje'])
+                             '0,778 zł/l, mniej niż 0,85 × minimalna akcyza UE 1,572 zł/l); strona to opisuje — początek obniżki VAT na paliwa (tydzień '
+                             'wcześniej, 2026-09-28, bez obniżonego VAT): potwierdzić, że obniżka obowiązuje'])   # v312: pierwszy tydzień nowej serii (⚠️)
         q = json.loads(json.dumps(o)); q['stacje']['pb95']['q'] = [['2026-10-05', 'nisko', '2026-10-03', 7.0]]
         self.assertFalse(any('obniżony VAT' in w for w, _ in k.polska_stacje(q)['wiersze']))
         st8 = json.loads(json.dumps(o)); st8['stacje']['v8'] = []; st8['stacje']['pb95']['d'][-1][1] = 8.10; st8['stacje']['on']['d'][-1][1] = 9.0
@@ -37405,3 +37408,294 @@ class XstocksBezDowoduV311(unittest.TestCase):
         self.assertIn('bez nowych danych w ostatnim odczycie (to nie błąd, w sumach poprzedni odczyt): Mantle Index Four Fund — pusta lista kanału w znanym '
                       'oknie dziennym 19–21 UTC; Ondo Global Markets — punkt dnia taki sam jak przyjęty wcześniej tej doby ℹ️', Z['opis'])
         self.assertEqual((Z['status'], Z['uwagi']), ('✅', []), 'to nie błąd — bez uwagi i bez ⚠️')
+
+
+class DrobneV312(unittest.TestCase):
+    """v312 (drobne uwagi recenzentów fali 5) — Polska (data/polska.json) i kontrola dzienna: ⚠\ufe0f raz na serię dla PIERWSZEGO tygodnia nowej serii
+    obniżonego VAT na paliwa (v8 — wniosek z podatków w cenie benzyny; reguła zależy od kursu złotego i nie odróżnia obniżki od ceny zaniżonej przez
+    źródło); brak arkusza albo kolumn cen bez podatków w biuletynie = częściowy błąd części „stacje” (ceny z podatkami zapisane, wcześniejsze ceny bez
+    podatków zostają) i wiersz ⚠\ufe0f w kontroli; kurs w pliku z tych samych tygodni co ceny (to samo okno v8 w zbieraczu i kontroli); testy, których
+    brakowało według mutacji recenzji (a)–(f). Nagrania biuletynu z 08.10.2026 (dane klasy PolskaV304), czas przypięty, bez sieci."""
+    UW, INF = '⚠\ufe0f', 'ℹ\ufe0f'
+    U = datetime.timezone.utc
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self.P = PolskaV304()          # nagrania i pomocnicze klasy v304 (siec, wob, plik, _kontrola) — bez ponownego uruchamiania jej testów
+        self.k = self.P._kontrola()
+
+    def bez_arkusza(self, rows=None, wo=None):
+        """Biuletyn z samym arkuszem cen z podatkami (nagranie 08.10.2026 bez arkusza cen bez podatków); wo — arkusz cen bez podatków podany wprost."""
+        kol = ['Consumer prices of petroleum products inclusive of duties and taxes', 'CTR', 'EU_price_with_tax_euro95', 'EU_price_with_tax_diesel',
+               'PL_exchange_rate', 'PL_price_with_tax_euro95', 'PL_price_with_tax_diesel']
+        body = [kol, [None, None, 'Euro-super 95 (I)', 'Gas oil automobile'], ['Date', None, '1000 l', '1000 l', None, '1000 l', '1000 l']]
+        body += [[n, 'EU_', e95, ed, fx, p95, pd] for n, e95, ed, fx, p95, pd in (self.P.WOB if rows is None else rows)]
+        return _xlsx(dict({'Prices with taxes': body}, **({'Prices wo taxes': wo} if wo is not None else {})))
+
+    def wiersze(self, o):
+        S = self.k.polska_stacje(o)
+        return S['wiersze'], S['uwagi']
+
+    # ---------------------------------------------------------------- (1) pierwszy tydzień nowej serii v8 — ⚠ raz na serię
+    def test_v8_pierwszy_tydzien_serii_uwaga_kolejne_tygodnie_opis(self):
+        k, o = self.k, self.P.plik()
+        W, U = self.wiersze(o)
+        v = [w for w in W if 'obniżony VAT' in w[0]]
+        self.assertEqual(len(v), 1); self.assertEqual(v[0][1], self.UW, '05.10 — pierwszy tydzień obniżki (28.09 — stawka podstawowa)')
+        self.assertEqual(v[0][0], 'ceny na stacjach: tydzień 2026-10-05 — obniżony VAT na paliwa (akcyza i opłaty, jakie musiałyby być w cenie benzyny przy VAT 23%: '
+                                  '0,778 zł/l, mniej niż 0,85 × minimalna akcyza UE 1,572 zł/l); strona to opisuje — początek obniżki VAT na paliwa (tydzień '
+                                  'wcześniej, 2026-09-28, bez obniżonego VAT): potwierdzić, że obniżka obowiązuje')
+        self.assertEqual(U, ['Polska: ' + v[0][0] + ' (to wniosek z podatków w cenie benzyny w biuletynie; tak samo wyglądałaby cena zaniżona przez źródło'
+                             ' albo duże osłabienie złotego)'])
+        R = {'bledy': [], 'uwagi': []}
+        z = k.polska_kontrola({'polska': o}, R)
+        self.assertEqual((R['bledy'], R['uwagi'], z['spojnosc']), ([], U, []), 'uwaga (nie błąd); plik spójny')
+        md = k.raport_md({'at': '2026-10-08T06:20:00+00:00', 'wynik': 'UWAGA', 'bledy': [], 'uwagi': R['uwagi'], 'zgodnosc': {'polska': z}})
+        self.assertIn('potwierdzić, że obniżka obowiązuje ' + self.UW + '.', md)
+        # ta sama seria tydzień później (12.10 — dalej obniżony VAT): ℹ jak dotąd, bez uwagi
+        o2 = json.loads(json.dumps(o)); S = o2['stacje']
+        S['pb95']['d'].append(['2026-10-12', 6.70]); S['pb95']['n'].append(['2026-10-12', 4.68]); S['pb95']['ue'].append(['2026-10-12', 8.80])
+        S['kurs']['d'].append(['2026-10-12', 4.38]); S['v8'] = ['2026-10-05', '2026-10-12']
+        self.assertEqual(k.polska_spojnosc(o2), [], 'lista v8 zgodna z podatkami w cenach pliku')
+        W2, U2 = self.wiersze(o2)
+        self.assertEqual([w for w in W2 if 'obniżony VAT' in w[0]], [('ceny na stacjach: tydzień 2026-10-12 — obniżony VAT na paliwa (akcyza i opłaty, jakie '
+                                                                     'musiałyby być w cenie benzyny przy VAT 23%: 0,767 zł/l, mniej niż 0,85 × minimalna akcyza UE '
+                                                                     '1,572 zł/l); strona to opisuje', self.INF)])
+        self.assertEqual(U2, [], 'kolejny tydzień serii — opis, bez uwagi')
+        # w pliku tylko jeden tydzień (brak wcześniejszego) — ⚠: nie da się potwierdzić, że to ta sama seria
+        o3 = json.loads(json.dumps(o)); S = o3['stacje']
+        for c in ('pb95', 'on'):
+            for kk in ('d', 'ue', 'n', 'ue_n'):
+                S[c][kk] = S[c][kk][-1:]
+        S['kurs']['d'] = S['kurs']['d'][-1:]
+        self.assertEqual(k.polska_spojnosc(o3), [])
+        v3 = [w for w in self.wiersze(o3)[0] if 'obniżony VAT' in w[0]]
+        self.assertEqual([x[1] for x in v3], [self.UW]); self.assertTrue(v3[0][0].endswith('początek obniżki VAT na paliwa (w pliku brak wcześniejszego tygodnia): '
+                                                                                         'potwierdzić, że obniżka obowiązuje'))
+        # (d, recenzja) lista v8 z samym starszym tygodniem (najnowszy — stawka podstawowa): bez wiersza obniżonego VAT
+        o4 = json.loads(json.dumps(o)); o4['stacje']['v8'] = ['2026-09-28']
+        self.assertFalse(any('obniżony VAT' in w for w, _ in self.wiersze(o4)[0]))
+        # najnowszy tydzień oznaczony q (liczba niepewna) — bez wiersza obniżonego VAT (q ma pierwszeństwo; q daje własną uwagę)
+        o5 = json.loads(json.dumps(o)); o5['stacje']['pb95']['q'] = [['2026-10-05', 'nisko', '2026-10-03', 7.0]]
+        W5, U5 = self.wiersze(o5)
+        self.assertFalse(any('obniżony VAT' in w for w, _ in W5)); self.assertEqual(len(U5), 1); self.assertIn('oznaczony jako niepewny', U5[0])
+
+    def test_v8_cena_zanizona_przez_zrodlo_daje_uwage_pierwszego_tygodnia(self):
+        # recenzja v304b: cena z podatkami zaniżona przez źródło o 9% w zwykłym tygodniu (28.09: 7,37 zamiast 8,10 zł/l) — reguła v8 uzna tydzień
+        # za obniżony VAT (0,78 × minimum); nowa uwaga każe to potwierdzić, zanim czytelnik zobaczy „VAT obniżony” w kolejnych tygodniach jako opis
+        rows = [list(r) for r in self.P.WOB[1:]]; rows[0][4] *= 0.91
+        fetch, _ = self.P.siec({'wob': self.P.wob([tuple(r) for r in rows], netto=self.P.WOBN[1:])})
+        o = zd.build_polska(None, now=self.P.NOW, fetch=fetch)
+        self.assertEqual((o['stacje']['pb95']['d'][-1], o['stacje']['v8']), (['2026-09-28', 7.373], ['2026-09-28']))
+        v = [w for w in self.wiersze(o)[0] if 'obniżony VAT' in w[0]]
+        self.assertEqual([x[1] for x in v], [self.UW]); self.assertIn('tydzień 2026-09-28 — obniżony VAT na paliwa', v[0][0])
+        self.assertIn('początek obniżki VAT na paliwa (tydzień wcześniej, 2026-09-21, bez obniżonego VAT)', v[0][0])
+        # kurs złotego: ta sama cena i te same podatki, akcyza z opłatami przy minimum UE (1,529 zł/l) — przy 4,38 zł za euro „VAT 23%”,
+        # przy ok. 5,02 zł za euro już „obniżony VAT” (reguła zależy od kursu — opis przy PL_V8_* w zbieraczu)
+        p = 7.6; n = round(p - p * 23 / 123 - 1.529, 3)
+        self.assertEqual(zd.pl_v8({'a': p, 'b': p}, {'a': n, 'b': n}, {'a': 4.38, 'b': 5.02}), ['b'])
+
+    # ---------------------------------------------------------------- (2) brak arkusza albo kolumn cen bez podatków — częściowy błąd i wiersz kontroli
+    def test_bez_arkusza_cen_bez_podatkow_czesciowy_blad_i_wiersz_kontroli(self):
+        P, k = self.P, self.k
+        b = []
+        w = zd.pl_wob(self.bez_arkusza(), b)
+        self.assertEqual((w['2026-10-05']['pb95'], b), ((6.655, 8.75, None, None), ['ceny bez podatków niedostępne (brak arkusza „Prices wo taxes”)']))
+        b = []; zd.pl_wob(P.wob(netto=False), b); self.assertEqual(b, ['ceny bez podatków niedostępne (brak kolumn Polski w arkuszu)'])
+        wo = [['Title', 'CTR', 'PL_exchange_rate', 'PL_price_wo_tax_euro95', 'PL_price_wo_tax_diesel']] + [[n, 'PL', None, p95, pd] for n, _, _, p95, pd in P.WOBN]
+        b = []; zd.pl_wob(self.bez_arkusza(wo=wo), b)
+        self.assertEqual(b, ['ceny bez podatków niedostępne (brak kolumn: EU_price_wo_tax_euro95, EU_price_wo_tax_diesel)'])
+        b = []; self.assertEqual(zd.pl_wob(P.wob(), b), zd.pl_wob(P.wob())); self.assertEqual(b, [], 'pełny arkusz — bez opisu, wynik jak dotąd')
+        # zbieracz, pierwszy przebieg: część „stacje” z częściowym błędem (ok False, opis), ceny z podatkami z tego pobrania, bez cen bez podatków i bez v8
+        fetch, _ = P.siec({'wob': self.bez_arkusza()})
+        o = zd.build_polska(None, now=P.NOW, fetch=fetch)
+        msg = 'wob: ceny bez podatków niedostępne (brak arkusza „Prices wo taxes”)'
+        self.assertEqual((o['ok']['stacje'], o['err'].get('stacje'), o['part_at']['stacje']), (False, msg, '2026-10-08T04:30:00+00:00'))
+        self.assertEqual([p for p in zd.PL_PARTS if o['ok'][p] is not True], ['stacje'], 'pozostałe części bez zmian')
+        self.assertEqual(zd.META['errors'], ['surowce (Polska) ' + msg])
+        S = o['stacje']
+        self.assertEqual((S['pb95']['d'][-1], S['on']['d'][-1], S['pb95']['ue'][-1]), (['2026-10-05', 6.655], ['2026-10-05', 7.727], ['2026-10-05', 8.75]))
+        self.assertFalse({'n', 'ue_n'} & (set(S['pb95']) | set(S['on']))); self.assertNotIn('v8', S)
+        self.assertEqual(o['st']['wob']['asof'], '2026-10-05', 'źródło odpowiedziało — następne pobranie po nowym tygodniu (bez pętli zapytań)')
+        self.assertEqual(k.polska_spojnosc(o), [])
+        W, U = self.wiersze(o)
+        txt = ('ceny na stacjach: w najnowszym tygodniu brak ceny bez podatków — benzyna 95 (2026-10-05), olej napędowy (2026-10-05); nie było jej w biuletynie '
+               '(zmiana pliku źródła?) — strona nie pokaże ceny bez podatków, opisu zmiany podatków ani obniżonego VAT')
+        self.assertEqual((W, U), ([(txt, self.UW)], ['Polska: ' + txt + ' — sprawdzić biuletyn (arkusz cen bez podatków)']))
+        # następny tydzień (12.10), biuletyn znowu bez arkusza: wcześniejsze ceny bez podatków zostają (część z błędem = poprzednie dane z datą), nowy
+        # tydzień — bez nich; cena bez podatków, która nie jest już niższa niż poprawiona cena z podatkami (21.09: 4,353 < 4,621 zł/l) — usunięta
+        prev = json.loads(json.dumps(P.plik()))
+        prev['st']['wob'].update({'at': '2026-10-08T04:30:00+00:00', 'try': '2026-10-08T04:30:00+00:00', 'asof': '2026-10-05'})
+        rows = [(46307, 2001.0, 2150.0, 0.2283, 1520.0, 1765.0)] + [tuple(r) for r in P.WOB]
+        rows[3] = rows[3][:4] + (1000.0,) + rows[3][5:]
+        zd.META['errors'].clear()
+        fetch, calls = P.siec({'wob': self.bez_arkusza(rows)})
+        o2 = zd.build_polska(prev, now=datetime.datetime(2026, 10, 15, 1, 30, tzinfo=self.U), fetch=fetch)
+        self.assertIn('wob', [c[0] for c in calls])
+        self.assertEqual((o2['ok']['stacje'], o2['err']['stacje'], zd.META['errors']), (False, msg, ['surowce (Polska) ' + msg]))
+        S2 = o2['stacje']
+        self.assertEqual([x[0] for x in S2['pb95']['d']], ['2026-09-21', '2026-09-28', '2026-10-05', '2026-10-12'])
+        self.assertEqual((S2['pb95']['d'][0], S2['pb95']['d'][-1]), (['2026-09-21', 4.353], ['2026-10-12', 6.658]))
+        self.assertEqual(S2['pb95']['n'], [x for x in prev['stacje']['pb95']['n'] if x[0] != '2026-09-21'])
+        self.assertEqual((S2['on']['n'], S2['pb95']['ue_n'], S2['on']['ue_n']), (prev['stacje']['on']['n'], prev['stacje']['pb95']['ue_n'], prev['stacje']['on']['ue_n']))
+        self.assertEqual(S2['v8'], ['2026-10-05'], 'v8 z zachowanych cen bez podatków; 12.10 — bez nich, więc bez wniosku')
+        self.assertEqual(k.polska_spojnosc(o2), [])
+        W2, U2 = self.wiersze(o2)
+        self.assertEqual([z for _, z in W2], [self.UW]); self.assertIn('benzyna 95 (2026-10-12), olej napędowy (2026-10-12)', W2[0][0]); self.assertEqual(len(U2), 1)
+        # arkusz wraca: ceny bez podatków znów z biuletynu (także 12.10), część bez błędu
+        net = [(46307, 1070.0, 1320.0, 1060.0, 1310.0)] + list(P.WOBN)
+        fetch, _ = P.siec({'wob': P.wob(rows, netto=net)})
+        p3 = json.loads(json.dumps(o2)); p3['st']['wob'].update({'at': '2026-10-14T01:20:00+00:00', 'try': '2026-10-14T01:20:00+00:00', 'asof': '2026-10-05'})
+        o3 = zd.build_polska(p3, now=datetime.datetime(2026, 10, 15, 1, 30, tzinfo=self.U), fetch=fetch)
+        self.assertEqual((o3['ok']['stacje'], 'stacje' in o3['err'], o3['stacje']['pb95']['n'][-1]), (True, False, ['2026-10-12', 4.643]))
+        self.assertEqual(self.wiersze(o3)[0][-1][1], self.INF, '12.10 — kolejny tydzień serii obniżonego VAT (opis)')
+
+    # ---------------------------------------------------------------- (3) kurs z tych samych tygodni co ceny — to samo okno v8 w zbieraczu i kontroli
+    def test_kurs_z_tygodni_cen_v8_zgodne_z_kontrola(self):
+        # 31 tygodni; najnowszy (05.10) — cena oleju i kurs, bez ceny benzyny; najstarszy tydzień benzyny w oknie (06.04.2026) — obniżony VAT
+        fx0, fx8 = 1 / 4.35, 1 / 4.2753
+        rows, net = [], []
+        for i in range(31):
+            n = 46300 - 7 * i
+            if i == 26:   # 06.04.2026: VAT 8% — 6,127 zł/l z podatkami, 4,144 zł/l bez podatków (nagranie biuletynu)
+                rows.append((n, 1800.0, 1900.0, fx8, 6127 * fx8, 7000 * fx8)); net.append((n, 1000.0, 1100.0, 4144 * fx8, 4900 * fx8))
+            else:
+                rows.append((n, 1800.0, 1900.0, fx0, None if i == 0 else 7900 * fx0, 7500 * fx0)); net.append((n, 1000.0, 1100.0, 4700 * fx0, 4600 * fx0))
+        fetch, _ = self.P.siec({'wob': self.P.wob(rows, netto=net)})
+        o = zd.build_polska(None, now=self.P.NOW, fetch=fetch)
+        S = o['stacje']
+        d95, don, dk = [x[0] for x in S['pb95']['d']], [x[0] for x in S['on']['d']], [x[0] for x in S['kurs']['d']]
+        self.assertEqual((len(d95), d95[0], d95[-1], len(don), don[0], don[-1]), (26, '2026-04-06', '2026-09-28', 26, '2026-04-13', '2026-10-05'))
+        self.assertEqual(dk, sorted(set(d95) | set(don)), 'kurs z tygodni obu serii cen (27 tygodni; dotąd 26 ostatnich tygodni kursu — bez 06.04)')
+        self.assertEqual((S['v8'], self.k.polska_v8(o)), (['2026-04-06'], ['2026-04-06']))
+        self.assertEqual(self.k.polska_spojnosc(o), [], 'dotąd: fałszywe ❌ „lista v8 niezgodna z podatkami w cenach z pliku (2026-04-06)”')
+
+    # ---------------------------------------------------------------- (4) testy brakujące według mutacji recenzji v304b (a)–(f)
+    def test_recenzja_a_wzrost_podatkow_opis_w_kontroli(self):
+        o = self.P.plik(); S = o['stacje']['pb95']
+        S['n'][-1][1] = 4.80; S['d'][-1][1] = round(4.80 + 3.334 * 1.36, 3); del o['stacje']['v8']   # koniec obniżki: podatki +36% (jak 06.07.2026)
+        self.assertEqual(self.k.polska_spojnosc(o), [])
+        W, U = self.wiersze(o)
+        self.assertIn(('ceny na stacjach: benzyna 95 2026-10-05 — podatki w cenie 3,334 → 4,534 zł/l (+36,0%), cena bez podatków +0,7% (próg 10% — zmiana'
+                       ' podatków; strona ją opisuje)', self.INF), W)
+        self.assertEqual(U, [])
+
+    def test_recenzja_b_wpis_q_z_poprzedniego_pliku_z_nieznanym_powodem_pominiety(self):
+        prev = json.loads(json.dumps(self.P.plik()))
+        prev['stacje']['pb95']['q'] = [['2026-10-05', 'nisko', '2026-10-03', 7.0], ['2026-09-28', 'x', '2026-09-26', 6.0], ['2026-09-21', 'wysoko', '2026-09-19']]
+        self.assertEqual(zd._pl_hist(prev)['stacje']['pb95_q'], {'2026-10-05': ['2026-10-05', 'nisko', '2026-10-03', 7.0]}, 'powód spoza nisko/wysoko, wpis niepełny — pominięte')
+
+    def test_recenzja_c_kontrola_wpis_q_z_tygodnia_spoza_cen(self):
+        o = self.P.plik(); o['stacje']['pb95']['q'] = [['2026-10-12', 'nisko', '2026-10-10', 7.0]]
+        self.assertEqual(self.k.polska_spojnosc(o), ['stacje.pb95: zły wpis q (tydzień niepewny)'])
+
+    def test_recenzja_e_kontrola_v8_tylko_cena_bez_podatkow_nizsza(self):
+        o = self.P.plik()
+        self.assertEqual(self.k.polska_v8(o), ['2026-10-05'])
+        for n in (8.102, 8.5):   # cena bez podatków równa / wyższa niż z podatkami (28.09: 8,102 zł/l) — tydzień pominięty, nie „obniżony VAT”
+            z = json.loads(json.dumps(o)); z['stacje']['pb95']['n'][1][1] = n
+            self.assertEqual(self.k.polska_v8(z), ['2026-10-05'], n)
+
+    def test_recenzja_f_zapas_4_tygodni_w_pamieci_zbieracza(self):
+        rows = [(46300 - 7 * i, 2000.0 + i, 2100.0 + i, 0.23, 1800.0 + i, 1900.0 + i) for i in range(31)]
+        net = [(46300 - 7 * i, 1100.0 + i, 1200.0 + i, 1000.0 + i, 1050.0 + i) for i in range(31)]
+        fetch, _ = self.P.siec({'wob': self.P.wob(rows, netto=net)})
+        ctx = {'now': self.P.NOW, 'H': zd._pl_hist({}), 'bledy': [], 'uwagi': [], 'fetch': fetch}
+        ctx['H']['stacje']['pb95']['2026-03-30'] = 9.999   # stara liczba z 28. tygodnia od końca (poza oknem strony 26 tygodni) — źródło ją poprawiło
+        self.assertEqual(zd._pl_wob(ctx), '2026-10-05')
+        H = ctx['H']['stacje']
+        tyg = sorted(H['pb95'])
+        self.assertEqual((len(tyg), tyg[0], tyg[-1]), (zd.PL_W + 4, '2026-03-16', '2026-10-05'), '30 ostatnich tygodni (26 + zapas 4 na poprawki źródła)')
+        self.assertEqual(H['pb95']['2026-03-30'], 7.943, 'poprawka 28. tygodnia od końca przyjęta (zapas 4 tygodni)')
+        self.assertTrue(all(sorted(H[x]) == tyg for x in ('pb95_ue', 'pb95_n', 'pb95_uen', 'on', 'kurs'))); self.assertEqual(ctx['bledy'], [])
+
+
+class DrobneV312Fundusze(unittest.TestCase):
+    """v312 (recenzja v309): fundusze surowcowe — fundusz bez historii cen (zaraz po wdrożeniu albo w 6-godzinnej przerwie po nieudanej serii
+    wstępnej) nie jest pobierany wieczorem razem z cenami dnia ani w ponowieniu (mutacja R14 recenzji); komunikat o limicie czasu kroku funduszy, gdy
+    przekroczyły go dopiero pełne pliki funduszy surowcowych — w uwadze funduszy surowcowych, nie w liczniku problemów funduszy GLOBAL (szósta pozycja
+    zmieniała uwagę w błąd). Nagrania i pomocnicze klasy FunduszeSurowcoweV309 (bez ponownego uruchamiania jej testów), czas przypięty, bez sieci."""
+
+    def setUp(self):
+        self.F = FunduszeSurowcoweV309()   # nagrania, atrapy sieci i zegara snu z klasy v309
+        self.F.setUp(); self.addCleanup(self.F.doCleanups)
+
+    def test_r14_fundusz_bez_historii_nie_wieczorem_z_cenami_dnia(self):
+        F = self.F
+        wd = F.run_wd(F.t('2026-10-10T05:30:00'), F.wd_prev(), {'fundusze': None}, F.nq(fail=('USO',))[1])   # seria wstępna: USO — błąd (przerwa 6 h)
+        self.assertEqual((wd['px']['USO']['d'], 'seed' in wd['px']['USO'], wd['px']['USO']['se']['n']), ([], False, 1))
+        wd['px']['USO']['se']['at'] = '2026-10-12T21:00:00Z'   # ponowna porażka pół godziny przed wieczorną sondą — dalej przerwa
+        seen, real = [], zd._wd_fetch_px
+
+        def rec(syms, a, b, n, now_):
+            seen.append(list(syms)); return real(syms, a, b, n, now_)
+        ex = [('2026-10-12', 50.0, 51.0)]
+        with mock.patch.object(zd, '_wd_fetch_px', rec):
+            wd2 = F.run_wd(F.t('2026-10-12T21:30:00'), wd, {'fundusze': None}, F.nq(extra=ex, fail=('DBA',))[1])
+        bez = [t for t in zd.WD_SU_PX if t != 'USO']
+        self.assertEqual(seen, [['SPY'], [t for t in zd.TD_W_SYMS if t != 'SPY'] + bez], 'wieczorem tylko fundusze z historią; USO bez historii — nie')
+        self.assertEqual((wd2['px']['USO']['d'], 'seed' in wd2['px']['USO'], wd2['px']['USO']['se']['n']), ([], False, 1), 'USO bez wierszy cen')
+        for t in bez:
+            self.assertEqual(wd2['px'][t]['d'][-1][0], '2026-10-09' if t == 'DBA' else '2026-10-12', t)
+        seen.clear()
+        with mock.patch.object(zd, '_wd_fetch_px', rec):
+            wd3 = F.run_wd(F.t('2026-10-12T22:31:00'), wd2, {'fundusze': None}, F.nq(extra=ex)[1])
+        self.assertEqual(seen, [['DBA']], 'ponowienie brakującego dnia — tylko fundusz z historią (USO dalej nie)')
+        self.assertEqual((wd3['px']['DBA']['d'][-1][0], wd3['px']['USO']['d']), ('2026-10-12', []))
+
+    def run_fu(self, prev, ssga_s=0.0):
+        """Krok funduszy z zegarem atrapy: pełny plik funduszu surowcowego trwa 85 s (limit zapytania 90 s), pliki State Street — błąd 503 po ssga_s."""
+        F, real = self.F, zd.time
+
+        class Zegar:
+            t = 1000.0
+
+            def monotonic(self):
+                return self.t
+
+            def sleep(self, s):
+                self.t += s
+
+            def __getattr__(self, k):
+                return getattr(real, k)
+        z = Zegar()
+
+        def gb(url, headers=None, timeout=60):
+            if 'product-screener' in url:
+                return json.dumps(F.NAG['scr']).encode()
+            if 'get-fund-document' in url:
+                z.t += 85.0
+                return F.ish_xml({'239757': 'GSG', '292741': 'CMDY', '270319': 'COMT'}[url.split('portfolioId=')[1].split('&')[0]])
+            if 'ssga.com' in url:
+                z.t += ssga_s
+                raise RuntimeError('HTTP Error 503: Service Unavailable')
+            raise AssertionError('zapytanie poza testem: ' + url[:80])
+        with mock.patch.object(zd, '_now_utc', lambda: F.t('2026-10-10T05:30:00')), mock.patch.object(zd, 'get_bytes', gb), \
+                mock.patch.object(zd, 'NOW', '2026-10-10T05:30:00+00:00'), mock.patch.object(zd, 'time', z):
+            out = zd.build_fundusze(prev)
+        return out, z.t - 1000.0
+
+    def test_limit_czasu_przez_fundusze_surowcowe_w_uwadze_funduszy_surowcowych(self):
+        F = self.F
+        prev = F.fu_prev()
+        for t in ('SPY', 'XLK', 'XLF', 'XLE'):
+            del prev['f'][t]['at']   # 4 pliki State Street do pobrania — błąd 503 (+ zestawienie z nagrania: 2 z 22 funduszy) = 5 problemów GLOBAL
+        out, s = self.run_fu(prev)
+        self.assertGreater(s, zd.FUND_BUDGET, 'krok przekroczył limit — przez 3 pełne pliki funduszy surowcowych (pobierane po funduszach GLOBAL)')
+        for t in zd.FUND_ISH_SU:
+            self.assertEqual(len(out['su'][t]['h']), zd.FUND_KEEP, 'pełne pliki pobrane')
+        self.assertEqual(zd.META['errors'], [], 'dotąd: 6 problemów funduszy GLOBAL (limit czasu doliczony) — uwaga zmieniała się w błąd')
+        self.assertEqual([n for n in zd.META['notes'] if n.startswith('fundusze ETF')], ['fundusze ETF: 5 problemów, np. SPY: HTTP Error 503: Service Unavailable'])
+        self.assertEqual([n for n in zd.META['notes'] if 'surowc' in n],
+                         ['fundusze surowcowe (TRENDY, reguły w cieniu): 1 problemów, np. limit czasu kroku funduszy (240 s) — reszta w kolejnym przebiegu'])
+        # czas skończył się już przy funduszach GLOBAL (wolne pliki State Street): komunikat zostaje w liczniku funduszy GLOBAL, surowcowe czekają
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+        prev = F.fu_prev()
+        for t in ('SPY', 'XLK', 'XLF', 'XLE'):
+            del prev['f'][t]['at']
+        out, s = self.run_fu(prev, ssga_s=70.0)
+        self.assertGreater(s, zd.FUND_BUDGET)
+        self.assertEqual([n for n in zd.META['notes'] if n.startswith('fundusze ETF')], ['fundusze ETF: 5 problemów, np. SPY: HTTP Error 503: Service Unavailable'],
+                         '4 pliki State Street + limit czasu (zestawienie pominięte — brak czasu)')
+        self.assertEqual(([n for n in zd.META['notes'] if 'surowc' in n], zd.META['errors']), ([], []))
+        self.assertEqual({t: len(out['su'].get(t, {}).get('h') or []) for t in zd.FUND_ISH_SU}, {t: 0 for t in zd.FUND_ISH_SU}, 'bez czasu — bez pełnych plików')

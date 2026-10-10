@@ -12733,11 +12733,11 @@ test('v164: zapas cen z pliku serwera — dane sceny z krypto.json → mk (czas 
 test('v164: wpięcie — nieudane pobranie (nie ciche) używa zapasu, plik serwera później też; cicha próba co 5 min wraca na żywo; napisy „plik serwera”, aktywność sektorów bez obrotu „—”', () => {
   assert.ok(html.includes("const LIVE={st:'idle',err:'',at:'',C:null,G:null,tvl:null,stab:null,cover:0,src:''};"));
   assert.ok(html.includes("LIVE.C=m;LIVE.cover=got/want.size;LIVE.src='live';"), 'na żywo — src live');
-  assert.ok(html.includes("if(quiet){LIVE.err=String(err&&err.message||err);return;}LIVE.err=String(err&&err.message||err);LIVE.st=lvSrv(false)?'ok':'err';cb&&cb();"), 'błąd pobrania: zapas albo „Makieta”; ciche odświeżenie — stare dane zostają');
+  assert.ok(html.includes("if(quiet){LIVE.err=String(err&&err.message||err);if(LIVE.src==='srv')cb&&cb();return;}LIVE.err=String(err&&err.message||err);LIVE.st=lvSrv(false)?'ok':'err';cb&&cb();"), 'błąd pobrania: zapas albo „Makieta”; ciche odświeżenie — stare dane zostają (v312: przy cenach z pliku serwera — przerysowanie stanu)');
   assert.ok(html.includes("if(KR.data&&(LIVE.st==='err'||LIVE.src==='srv')){if(lvSrv(LIVE.src==='srv'))afterLive();}else if(KR.data&&LIVE.st==='ok'&&LIVE.C){krMerge();applyLive(true);afterLive();}"), 'plik serwera przychodzi później albo odświeża się');
   assert.ok(html.includes("if(!c||typeof c.vol!=='number'||!isFinite(c.vol))return;v+=c.vol;m+=c.mcap;"), 'aktywność: bez obrotu — brak');
-  assert.ok(html.includes("t(LIVE.src==='srv'?'live.srv':'live.on',{t:liveWhen()})") && html.includes("el.title=s==='err'?(/brak źródła/.test(String(LIVE.err))?t('live.nosrc'):String(LIVE.err)):'';\n  if(s==='ok'&&LIVE.src==='srv')el.title=t('live.srvT');"), 'znaczek CRYPTO');
-  assert.ok(html.includes("t(LIVE.src==='srv'?'rel.descSrv':'rel.descLive',") && html.includes("t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.1h':'pg.live')") && html.includes("t(LIVE.src==='srv'?'top.srv':'top.live',"), 'pokrycie, Przegląd, top 10');
+  assert.ok(html.includes("t(LIVE.src==='srv'?'live.srv':'live.on',{t:liveWhen()})") && html.includes("el.title=s==='err'?(/brak źródła/.test(String(LIVE.err))?t('live.nosrc'):String(LIVE.err)):'';\n  if(s==='ok'&&LIVE.src==='srv')el.title=t(LIVE.err?'live.srvT':'dr312.srvT');"), 'znaczek CRYPTO (v312: bez błędu źródła — podpowiedź „dane na żywo w drodze”)');
+  assert.ok(html.includes("t(LIVE.src==='srv'?(LIVE.err?'rel.descSrv':'dr312.descSrv'):'rel.descLive',")   /* v312: bez błędu źródła — zdanie „w drodze” */ && html.includes("t((typeof LIVE==='object'&&LIVE&&LIVE.src==='srv')?'pg.1h':'pg.live')") && html.includes("t(LIVE.src==='srv'?'top.srv':'top.live',"), 'pokrycie, Przegląd, top 10');
   const d0 = html.indexOf('const EXTRA164='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA164='.length, d1));
   assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['live.srv', 'live.srvT', 'rel.descSrv', 'top.srv']);
   assert.ok(!/coingecko|coinpaprika|defillama|llama/i.test(JSON.stringify(D)), 'bez nazw dostawców');
@@ -17583,4 +17583,217 @@ test('v311: słownik xs311.* — czysty JSON, 10 języków z prawdziwymi tłumac
   assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego');
   assert.ok(rw133.BLK.includes("('xs311.bez',b.n,{"), 'klucz w kodzie bloku RWA');
   assert.ok(!/backed|api\.|securitize|llama|graphql|alpaca/i.test(JSON.stringify(D)), 'bez nazw dostawców i serwisów');
+});
+
+
+/* ---------- v312: drobne uwagi recenzentów fali 5 — CRYPTO: pierwsze otwarcie (ceny z pliku serwera, dane na żywo w drodze), panel „Jakość danych”
+   po wczytaniu etf.json, kafel KPI z „brak danych — to nie zero”, ikony z napisem po wczytaniu czcionki; szlaki po rosyjsku; Polska: opis wzrostu
+   podatków. Testy synchroniczne (jsc nie czeka na testy async), bez zegara (stan podany wprost), bez sieci. ---------- */
+const v312 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  /* obietnica rozstrzygana od razu (wynik widać zaraz po wywołaniu) — jak w v308 */
+  class SP {
+    constructor(ex) { this.s = 0; this.v = undefined; this.cb = []; try { ex(v => this.set(1, v), e => this.set(2, e)); } catch (e) { this.set(2, e); } }
+    set(s, v) { if (this.s) return; if (s === 1 && v && typeof v.then === 'function') { v.then(x => this.set(1, x), e => this.set(2, e)); return; }
+      this.s = s; this.v = v; const c = this.cb; this.cb = []; c.forEach(f => f()); }
+    then(f, r) { return new SP((res, rej) => { const go = () => { const h = this.s === 1 ? f : r; if (typeof h === 'function') { try { res(h(this.v)); } catch (e) { rej(e); } } else (this.s === 1 ? res : rej)(this.v); };
+      if (this.s) go(); else this.cb.push(go); }); }
+    catch(r) { return this.then(undefined, r); }
+    static resolve(v) { return v instanceof SP ? v : new SP(r => r(v)); }
+    static reject(e) { return new SP((_, j) => j(e)); }
+    static all(a) { return new SP((res, rej) => { const o = []; let n = a.length; if (!n) res(o); a.forEach((p, i) => SP.resolve(p).then(v => { o[i] = v; if (--n === 0) res(o); }, rej)); }); }
+  }
+  /* panel wiarygodności (#gauge) i plakietka (#live-badge) dla stanu LIVE — prawdziwe renderGauge i renderStatus, słownik języka L */
+  const stan = (L, live) => {
+    const el = {gauge: {innerHTML: ''}, badge: {className: '', innerHTML: '', title: ''}};
+    const F = new Function('$', 't', 'LIVE', 'isLive', 'liveWhen', 'document', cut('function renderGauge(){', '\nfunction renderWhy(){') + '\n' +
+      cut('function renderStatus(){', '\n\n/* v89: TRENDY') + '\nreturn {renderGauge, renderStatus};')(
+      q => (q === '#gauge' ? el.gauge : q === '#live-badge' ? el.badge : null), v96src.tFor(L), live, () => live.st === 'ok', () => 'CZAS', {querySelector: () => null});
+    F.renderGauge(); F.renderStatus();
+    const m = /<p>([^<]*)<\/p>$/.exec(el.gauge.innerHTML);
+    return {p: m ? m[1] : null, title: el.badge.title, badge: el.badge.innerHTML};
+  };
+  /* loadAll z atrapą pobierania (od razu błąd) — stan LIVE i wywołania cb */
+  const pob = live => {
+    const ev = [];
+    const F = new Function('LIVE', 'SEC_SYM', 'getJSON', 'SRC', 'krMerge', 'applyLive', 'lvSrv', cut('function loadAll(cb,quiet){', '\n/* ===================== v164: zapas') + '\nreturn loadAll;')(
+      live, {btc: ['BTC']}, () => SP.reject(new Error('HTTP 503')), {coins: [], global: [], tvl: [], stab: []}, () => ev.push('krMerge'), q => ev.push('applyLive(' + q + ')'),
+      k => { ev.push('lvSrv(' + k + ')'); live.st = 'ok'; live.src = 'srv'; return true; });
+    return {F, ev};
+  };
+  const f = (s, o) => s.replace(/\{(\w+)\}/g, (_, x) => String(o[x]));
+  return {cut, SP, stan, pob, f};
+})();
+
+test('v312: CRYPTO — ceny z pliku serwera bez błędu źródła (pierwsze otwarcie, dane na żywo w drodze): zdanie neutralne w panelu wiarygodności i podpowiedzi plakietki; po błędzie — „chwilowo nie odpowiada”; dane na żywo bez zmian', () => {
+  const I = v96src.I18N;
+  const w = v312.stan('pl', {st: 'ok', src: 'srv', err: '', cover: 0.92});
+  assert.equal(w.p, 'Ceny z pliku serwera strony (co godzinę) — dane na żywo w drodze. Koszyki sceny z danymi: 92%.');
+  assert.equal(w.title, 'Ceny z pliku serwera strony (odświeżany co godzinę) — dane na żywo w drodze; strona sama przejdzie na nie, gdy przyjdą.');
+  assert.ok(w.badge.includes('Plik serwera (co godzinę) · CZAS'), 'plakietka jak dotąd: plik serwera i czas');
+  assert.ok(!/nie odpowiada/.test(w.p + w.title), 'bez nieprawdziwego powodu');
+  const e = v312.stan('pl', {st: 'ok', src: 'srv', err: 'HTTP 503', cover: 0.92});
+  assert.equal(e.p, v312.f(I.pl['rel.descSrv'], {n: 92})); assert.equal(e.title, I.pl['live.srvT']);
+  assert.ok(e.p.includes('bo źródło na żywo chwilowo nie odpowiada') && e.title.includes('chwilowo nie odpowiada'), 'prawdziwy błąd źródła — jak dotąd');
+  const l = v312.stan('pl', {st: 'ok', src: 'live', err: '', cover: 1});
+  assert.equal(l.p, v312.f(I.pl['rel.descLive'], {n: 100})); assert.equal(l.title, '');
+  assert.equal(v312.stan('pl', {st: 'err', src: '', err: 'brak źródła', cover: 0}).title, I.pl['live.nosrc'], 'awaria bez zapasu — jak dotąd');
+  /* 10 języków: zdanie i podpowiedź w języku widza (bez polskiego i bez surowych kluczy) */
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const x = v312.stan(L, {st: 'ok', src: 'srv', err: '', cover: 0.5});
+    assert.equal(x.p, v312.f(I[L]['dr312.descSrv'], {n: 50})); assert.equal(x.title, I[L]['dr312.srvT']);
+    assert.ok(!/dr312\.|Ceny z pliku|w drodze|\{n\}/.test(x.p + x.title), L + ': ' + x.p);
+  }
+});
+
+test('v312: CRYPTO — ciche pobieranie danych na żywo przy cenach z pliku serwera: po błędzie przerysowanie stanu (zdanie „w drodze” zmienia się na prawdziwy powód); przy danych na żywo cichy błąd jak dotąd', () => {
+  const L1 = {st: 'ok', C: {BTC: {}}, src: 'srv', err: '', cover: 0.92}, A = v312.pob(L1);
+  let n = 0; A.F(() => { n++; }, true);
+  assert.deepEqual([n, L1.err, L1.busy, L1.st, L1.src], [1, 'HTTP 503', false, 'ok', 'srv'], 'cb raz — stan przerysowany; ceny z pliku zostają');
+  assert.ok(v312.stan('pl', L1).p.includes('bo źródło na żywo chwilowo nie odpowiada'), 'po przerysowaniu — prawdziwy powód');
+  const L2 = {st: 'ok', C: {BTC: {}}, src: 'live', err: '', cover: 1}, B = v312.pob(L2);
+  let m = 0; B.F(() => { m++; }, true);
+  assert.deepEqual([m, L2.err, L2.src, B.ev], [0, 'HTTP 503', 'live', []], 'dane na żywo z ekranu zostają, bez przerysowania (jak dotąd)');
+  const L3 = {st: 'idle', C: null, src: '', err: ''}, C = v312.pob(L3);
+  let k = 0; C.F(() => { k++; });
+  assert.deepEqual([k, L3.err, L3.st, C.ev], [2, 'HTTP 503', 'ok', ['lvSrv(false)']], 'pobieranie nie ciche — jak dotąd (stan „Pobieram…”, potem zapas z pliku)');
+  assert.ok(html.includes("if(quiet){LIVE.err=String(err&&err.message||err);if(LIVE.src==='srv')cb&&cb();return;}"));
+});
+
+test('v312: CRYPTO — pierwsze otwarcie (prawdziwe srvLiveStart, lvSrv, loadAll, renderGauge, renderStatus): ceny z pliku serwera i „dane na żywo w drodze”; błąd źródła po chwili — „chwilowo nie odpowiada”', () => {
+  const C = v312.cut;
+  const code = C('/* ===================== v164: zapas', '/* v164: koniec zapasu */') + '\n' + C('function loadAll(cb,quiet){', '\n/* ===================== v164: zapas') + '\n' +
+    C('function renderGauge(){', '\nfunction renderWhy(){') + '\n' + C('function renderStatus(){', '\n\n/* v89: TRENDY') + '\n' + C('function srvLiveStart(){', '\n') + '\n';
+  for (const L of ['pl', 'en', 'ru']) {
+    const LIVE = {st: 'idle', err: '', at: '', C: null, G: null, tvl: null, stab: null, cover: 0, src: ''}, el = {gauge: {innerHTML: ''}, badge: {className: '', innerHTML: '', title: ''}};
+    let rej = null; const ev = [];
+    const SEC_SYM = {btc: ['BTC'], eth: ['ETH'], stab: ['USDT', 'USDC'], defi: ['AAVE', 'UNI', 'CRV', 'LDO', 'MKR'], meme: ['DOGE', 'PEPE', 'WIF', 'SHIB']};
+    const F = new Function('LIVE', 'SEC_SYM', 'krData', 'krMerge', 'applyLive', 'getJSON', 'SRC', '$', 't', 'isLive', 'liveWhen', 'document', 'renderAll', 'retarget', 'srvLive',
+      'let dirty=false;\n' + code + 'return {srvLiveStart, renderGauge, renderStatus};')(
+      LIVE, SEC_SYM, () => ({mk: V164_MK}), () => ev.push('krMerge'), q => ev.push('applyLive(' + q + ')'), () => new v312.SP((res, j) => { rej = j; }),
+      {coins: ['x'], global: [], tvl: [], stab: []}, q => (q === '#gauge' ? el.gauge : q === '#live-badge' ? el.badge : null), (k, o) => {
+        let x = v96src.I18N[L][k] ?? v96src.I18N.en[k] ?? v96src.I18N.pl[k] ?? k; for (const v in o || {}) x = x.split('{' + v + '}').join(o[v]); return x; },   /* jak t() strony */
+      () => LIVE.st === 'ok', () => 'CZAS', {querySelector: () => null}, () => { ev.push('renderAll'); F.renderGauge(); }, x => ev.push('retarget(' + x + ')'),
+      () => { ev.push('srvLive'); F.renderStatus(); F.renderGauge(); });
+    const I = v96src.I18N[L], P = v96src.I18N.pl, p = () => (/<p>([^<]*)<\/p>$/.exec(el.gauge.innerHTML) || [])[1];
+    F.srvLiveStart();
+    assert.deepEqual([LIVE.st, LIVE.src, LIVE.err, LIVE.busy], ['ok', 'srv', '', true], L + ': ceny z pliku serwera od razu, dane na żywo w drodze');
+    assert.equal(p(), v312.f(I['dr312.descSrv'], {n: Math.round(12 / 13 * 100)}), L); assert.equal(el.badge.title, I['dr312.srvT'], L);
+    assert.ok(el.badge.innerHTML.includes(P['live.srv'].split(' · ')[0]), L + ': plakietka — plik serwera (jak dotąd): ' + el.badge.innerHTML);
+    assert.deepEqual(ev, ['krMerge', 'applyLive(false)', 'renderAll', 'retarget(true)'], L);
+    rej(new Error('HTTP 503'));   /* źródło na żywo odmawia */
+    assert.deepEqual([LIVE.st, LIVE.src, LIVE.err, LIVE.busy, ev.slice(4)], ['ok', 'srv', 'HTTP 503', false, ['srvLive']], L + ': ceny z pliku zostają, stan przerysowany');
+    assert.equal(p(), v312.f(I['rel.descSrv'] ?? P['rel.descSrv'], {n: 92}), L + ': po błędzie — „chwilowo nie odpowiada” (napisy v164 tylko po polsku)');
+    assert.equal(el.badge.title, I['live.srvT'] ?? P['live.srvT'], L);
+  }
+});
+
+test('v312: panel „Jakość danych” przerysowany po każdej zmianie stanu plików ETF, rynku krypto i kontraktów (plik po ostatnim rysowaniu zostawiał „—” — wyścig w bazie)', () => {
+  const src = v312.cut('function etfLoad(cb){', '\nfunction etfAuto(){');
+  const mk = srv => {
+    const ev = [], ETF = {mcap: {}};
+    const F = new Function('srvJSON', 'ETF', 'renderEtf', 'renderWhy', 'etfKey', 'etfFromSnap', 'LOCALE', 'LANG', src + '\nreturn etfLoad;')(
+      n => { ev.push('srvJSON(' + n + ')'); return v312.SP.resolve(n === 'etf' ? srv : null); }, ETF, () => ev.push('renderEtf:' + ETF.live), () => ev.push('renderWhy:' + ETF.live),
+      () => '', () => ({snap: true}), {pl: 'pl-PL'}, 'pl');
+    return {F, ev, ETF};
+  };
+  const A = mk({at: '2026-10-10T05:00:00Z', mcap: {btc: 1}, assets: {btc: {day: [[1, 2]]}}});
+  let n = 0; A.F(() => { n++; });
+  assert.deepEqual(A.ev, ['srvJSON(etf)', 'srvJSON(meta)', 'renderEtf:true', 'renderEtf:true', 'renderWhy:true'], 'plik serwera: panel po wczytaniu (fundusze ETF ✓)');
+  assert.equal(n, 1, 'cb raz, po panelu');
+  const B = mk(null); B.F();
+  assert.deepEqual(B.ev, ['srvJSON(etf)', 'renderEtf:false', 'renderWhy:false'], 'bez pliku i bez klucza — migawka; panel „—”');
+  assert.ok(src.includes('    etfLoadLive(done);\n') && !src.includes('etfLoadLive(cb);'), 'dane z klucza (właściciel) — też przez done (cb przy sukcesie i błędzie)');
+  /* pliki rynku krypto (cmc) i kontraktów z nastrojami (krypto): panel po wczytaniu i po błędzie */
+  const one = (fn, args, vals, ok) => {
+    const a = html.indexOf('function ' + fn + '(){'), b = html.indexOf('});}', a) + 4, ev = [], D = {};
+    new Function('srvJSON', 'renderWhy', ...args, html.slice(a, b) + '\n' + fn + '();')(() => (ok ? v312.SP.resolve(vals.file) : v312.SP.reject(new Error('x'))),
+      () => ev.push('renderWhy:' + JSON.stringify(D.o.data)), ...vals.stubs(ev, D));
+    return ev;
+  };
+  const cmc = {file: {total_mcap: 1, at: 'x'}, stubs: (ev, D) => { D.o = {}; return [D.o, () => ev.push('gOk'), () => ev.push('renderCmc'), () => ev.push('renderKPI')]; }};
+  assert.deepEqual(one('cmcLoad', ['CMC', 'gOk', 'renderCmc', 'renderKPI'], cmc, true), ['gOk', 'renderCmc', 'renderWhy:{"total_mcap":1,"at":"x"}', 'renderKPI']);
+  assert.deepEqual(one('cmcLoad', ['CMC', 'gOk', 'renderCmc', 'renderKPI'], cmc, false), ['renderCmc', 'renderWhy:null']);
+  const kr = {file: {at: 'x', fng: 1}, stubs: (ev, D) => { D.o = {}; return [D.o, {st: 'idle'}, () => ev.push('gOk'), () => ev.push('renderKr')]; }};
+  assert.deepEqual(one('krLoad', ['KR', 'LIVE', 'gOk', 'renderKr'], kr, true), ['gOk', 'renderKr', 'renderWhy:{"at":"x","fng":1}']);
+  assert.deepEqual(one('krLoad', ['KR', 'LIVE', 'gOk', 'renderKr'], kr, false), ['renderKr', 'renderWhy:null']);
+  /* w atrapie strony: pliki wczytane na starcie — panel już je pokazuje (bez czekania na rysowanie CRYPTO) */
+  const R = G126.run('pl'), q = R.el('qgrid').innerHTML, I = v96src.I18N.pl;
+  for (const k of ['q.s.mkt', 'q.s.kr', 'q.s.etf']) assert.ok(q.includes(I[k] + ' ✓'), k + ': ' + q.slice(0, 400));
+  assert.deepEqual(R.ERR, []);
+});
+
+test('v312: kafelki KPI — „brak danych — to nie zero” łamie się w kaflu (komputer, sześć kafelków w rzędzie; dotąd kafel TVL ucinał tekst „to nie ze”)', () => {
+  const v165 = '#kpis .k-foot,#g-kpis .k-foot{flex-wrap:wrap;row-gap:2px}\n#kpis .k-foot .ksrc,#g-kpis .k-foot .ksrc{flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}\n';
+  const r = '#kpis .k-foot .dlt.na,#g-kpis .k-foot .dlt.na{white-space:normal;line-height:1.3}\n', i = html.indexOf(r), a = html.indexOf(v165);
+  assert.ok(a > 0 && i > a && i < html.indexOf('</style>', a) && html.split(r).length === 2, 'reguła po v165 (bez zmian), w głównym arkuszu');
+  const s0 = html.lastIndexOf('<style', i), pre = html.slice(html.indexOf('>', s0) + 1, i).replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(s0 > 0 && s0 < a && html.indexOf('</style>', s0) > i, 'ten sam blok <style> co reguły v165');
+  assert.equal((pre.match(/\{/g) || []).length, (pre.match(/\}/g) || []).length, 'poza blokiem @media (działa na każdej szerokości)');
+  assert.ok(html.includes('.dlt{font-size:12px;font-weight:600;white-space:nowrap}'), 'zmiany liczbowe (▲ +1,23%) dalej w jednej linii');
+  assert.ok(html.includes("const dl=gap?`<span class=\"dlt na\">${t('eng.gap')}</span>`"), 'brak danych w kaflu CRYPTO — span .dlt.na');
+  assert.ok(html.includes('}else d=`<span class="dlt na">${t(\'kpi.nodelta\')}</span>`;'), 'brak porównania w kaflu GLOBAL — ta sama klasa');
+});
+
+test('v312: ikony węzłów z napisem (l12, ai, rwa — bez zdjęcia i logo) po wczytaniu czcionki: pamięć tych ikon czyszczona i obrazki odświeżone; zdjęcia i loga bez zmian', () => {
+  const a = html.indexOf('function icoFonts(){'), e = '.then(icoFonts);}', b = html.indexOf(e, a);
+  assert.ok(a > html.indexOf("document.fonts.load('600 16px \"Sora\"')") && b > a, 'zaraz po czcionkach sceny');
+  const code = html.slice(a, b + e.length);
+  const LS = {btc: 'b', eth: 'e', stab: 's', defi: 'd', depin: 'p', exch: 'img/wezly/gieldy.jpg', gaming: 'img/wezly/gaming.jpg', meme: 'img/wezly/memecoiny.jpg'};
+  const urlCache = {'l12|18|d': 'A', 'ai|26|d': 'B', 'rwa|14|l': 'C', 'btc|18|d': 'D', 'ph|meme|18|d': 'E', 'exch|14|d': 'F'};
+  let ref = 0, ok = null; const loads = [];
+  const fonts = {load: x => { loads.push(x); return new v312.SP(r => { ok = r; }); }, ready: v312.SP.resolve()};
+  const F = new Function('urlCache', 'logoSrc', 'refreshLogoImgs', 'document', 'Promise', 'let dirty=false;\n' + code + '\nreturn {get dirty() { return dirty; }};')(
+    urlCache, id => LS[id] || '', () => { ref++; }, {fonts}, v312.SP);
+  assert.deepEqual(loads, ['700 16px "Sora"'], 'czcionka napisów ikon (Sora 700)');
+  assert.deepEqual([ref, F.dirty, Object.keys(urlCache).length], [0, false, 6], 'przed wczytaniem czcionki — nic');
+  ok([]);
+  assert.deepEqual(Object.keys(urlCache).sort(), ['btc|18|d', 'exch|14|d', 'ph|meme|18|d'], 'l12, ai, rwa — wyczyszczone; zdjęcia i loga zostają');
+  assert.deepEqual([ref, F.dirty], [1, true], 'obrazki odświeżone, scena przerysowana');
+  new Function('urlCache', 'logoSrc', 'refreshLogoImgs', 'document', 'Promise', 'let dirty=false;\n' + code)({}, () => '', () => {}, {}, v312.SP);   /* bez document.fonts — bez błędu */
+  /* węzły sceny bez zdjęcia i loga to dokładnie l12, ai, rwa (rysowane napisem czcionką strony) */
+  const n0 = html.indexOf('const NODES=['), ids = [...html.slice(n0, html.indexOf('];', n0)).matchAll(/\{id:'(\w+)'/g)].map(m => m[1]);
+  const L0 = html.indexOf('const LOGO_URLS={'), ls = html.slice(L0, html.indexOf('};', L0));
+  assert.deepEqual(ids.filter(id => !ls.includes('\n ' + id + ':')), ['l12', 'ai', 'rwa']);
+  for (const s of ["slab(s*.35,'L1',", "ICONS_V4._text(c,'AI',", "ICONS_V4._text(c,'RWA',"]) assert.ok(html.includes(s), s);
+});
+
+test('v312: szlaki po rosyjsku — indeks cen surowców „{v} пункта” (liczba zawsze z ułamkiem — dopełniacz l. poj., jak „2,7 судна”); inne języki bez zmian', () => {
+  const R = sz305.loaded('ru').B;
+  assert.ok(R.includes('индекс цен на сырьё 729,3 пункта,'), R.slice(R.indexOf('индекс'), R.indexOf('индекс') + 80));
+  assert.ok(!R.includes('пунктов'), 'bez „пунктов” po liczbie z ułamkiem');
+  assert.ok(v96src.I18N.ru['sz305.b.s'].includes('{v} пункта,'));
+  assert.ok(sz305.loaded('pl').B.includes('indeks cen surowców 729,3 pkt,') && sz305.loaded('en').B.includes('commodity price index 729.3 points,'));
+});
+
+test('v312 (recenzja v304b, mutacja a): opis zmiany podatków na kaflu także przy WZROŚCIE podatków (koniec obniżki — np. 06.07.2026 +36%)', () => {
+  const F = JSON.parse(JSON.stringify(PL304_FILE));
+  F.stacje.pb95.n[5][1] = 4.80; F.stacje.pb95.d[5][1] = +(4.80 + 3.334 * 1.36).toFixed(3); F.stacje.v8 = [];
+  const T = pl304.tiles(pl304q.loaded('pl', F));
+  assert.ok(T['stacje.pb95'].includes('podatki w cenie litra: 3,33 zł/l → 4,53 zł/l (+36,0%); cena bez podatków +0,7%'), T['stacje.pb95']);
+  assert.ok(!T['stacje.pb95'].includes('pl-v8'), 'bez dopisku obniżonego VAT');
+});
+
+test('v312: słownik dr312.* — czysty JSON, 10 języków z prawdziwymi tłumaczeniami (te same klucze i pola {x}), zaraz po linii nakładania poprzedniego słownika, klucze użyte w kodzie', () => {
+  const i = html.indexOf('{"pl":{"dr312.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.ok(i > 0 && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik dr312: ' + name);
+  const b = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i); assert.ok(b > i, 'linia nakładania');
+  const D = JSON.parse(html.slice(i, b)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.deepEqual(K, ['dr312.descSrv', 'dr312.srvT']);
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]), K, l);
+    for (const k of K) {
+      assert.ok(D[l][k].trim() && ph(D[l][k]) === ph(D.pl[k]), l + ' ' + k);
+      if (l !== 'en') assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+      assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k);
+    }
+  }
+  assert.equal(ph(D.pl['dr312.descSrv']), '{n}'); assert.equal(ph(D.pl['dr312.srvT']), '');
+  const ln = html.slice(html.lastIndexOf('\n', a - 2) + 1, a - 1);
+  assert.ok(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(ln) && html[a - 1] === '\n', 'zaraz po linii for innego słownika: ' + ln.slice(0, 80));
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego');
+  assert.ok(html.includes("t(LIVE.src==='srv'?(LIVE.err?'rel.descSrv':'dr312.descSrv'):'rel.descLive',") && html.includes("el.title=t(LIVE.err?'live.srvT':'dr312.srvT');"), 'klucze w kodzie');
+  assert.ok(!/[\u3040-\u30ff]/.test(D.zh['dr312.descSrv'] + D.zh['dr312.srvT']), 'zh bez kany');
+  assert.ok(!/coinpaprika|llama|coingecko|github/i.test(JSON.stringify(D)), 'bez nazw dostawców');
 });

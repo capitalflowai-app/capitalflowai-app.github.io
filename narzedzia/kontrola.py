@@ -4599,6 +4599,12 @@ def szlaki_kontrola(j, R):
 # benzyny / oleju — wyłącznie przy zmianach podatków: 2010 akcyza na olej, 02.2022 VAT 8%, 01.2023 koniec obniżki, 2026 kolejne edycje obniżki
 # VAT i akcyzy) — to opis, nie błąd; ℹ️, gdy najnowszy tydzień jest na liście v8 (obniżony VAT na paliwa — zbieracz rozpoznaje go z podatków
 # w cenie benzyny: akcyza i opłaty przy VAT 23% poniżej 0,85 × minimalnej akcyzy UE; test wsteczny 2005–10.2026: 0 pomyłek, bt3/bt_vat.py).
+# v312 (recenzja v304b): PIERWSZY tydzień nowej serii v8 (tydzień wcześniej w pliku — bez obniżonego VAT albo brak wcześniejszego tygodnia) = ⚠️
+# „początek obniżki VAT na paliwa — potwierdzić, że obniżka obowiązuje”, raz na serię (kolejne tygodnie serii — ℹ️ jak dotąd): reguła v8 zależy od
+# kursu złotego i nie odróżnia obniżki VAT od ceny zaniżonej przez źródło (opis przy PL_V8_* w zbieraczu). Test wsteczny 2005–10.2026
+# (ws53/v312-drobne6/bt/bt_v312.py, 1087 tygodni): 4 takie tygodnie (07.02.2022, 06.04.2026, 17.08.2026, 05.10.2026 — wszystkie prawdziwe obniżki;
+# 0,37% tygodni), poza nimi 0. ⚠️, gdy w najnowszym tygodniu benzyny albo oleju nie ma ceny bez podatków (brak arkusza albo kolumn w biuletynie —
+# zbieracz zgłasza wtedy częściowy błąd części „stacje”; strona traci cenę bez podatków, opis zmiany podatków i obniżony VAT); test wsteczny: 0 z 1087.
 import bisect   # v304: ostatnia sesja przed dniem ceny (biblioteka standardowa; ponowny import jest nieszkodliwy)
 PL_ETYKIETA = {'zloto': 'Polska: złoto w zł/g (dni robocze w Polsce)', 'hurt': 'Polska: ceny hurtowe paliw (dni obowiązywania wt–sob)',
                'energia': 'Polska: gaz i prąd z giełdy (dzień dostawy, 7 dni w tygodniu)',
@@ -4614,6 +4620,7 @@ PL_POD_PROG = 10.0       # % — zmiana podatków w cenie na stacjach tydzień d
 PL_PALIWO = {'pb95': 'benzyna 95', 'on': 'olej napędowy'}
 PL_QOPIS = {'nisko': 'niższa niż cena hurtowa z VAT', 'wysoko': 'o ponad 30% wyższa niż cena hurtowa z 23% VAT'}
 PL_V8 = (23.0, 359.0, 0.85)   # v304b: stawka podstawowa VAT %, minimalna akcyza UE na benzynę (EUR/1000 l), próg — jak w zbieraczu (opis wiersza ℹ️)
+# v312: próg w euro, podatki w złotych — reguła zależy od kursu złotego (opis przy PL_V8_* w zbieraczu); stąd ⚠️ dla pierwszego tygodnia serii
 
 
 def _pl_e(j, p, k):
@@ -4761,7 +4768,7 @@ def polska_zloto(j, su, rynki):
 def polska_stacje(j):
     """v304b: ceny na stacjach — oznaczenia q z pliku (⚠️ najnowszy tydzień paliwa, ℹ️ starsze tygodnie) i zmiana podatków w cenie najnowszego
     tygodnia wobec tygodnia wcześniej (≥ PL_POD_PROG %, przerwa ≤ 14 dni; ℹ️ — opis zmiany, nie błąd). → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
-    W, U = [], []
+    W, U, bez_n = [], [], []
     f3 = lambda v: f'{v:.3f}'.replace('.', ',')   # noqa: E731
     num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)   # noqa: E731
     for c, nazwa in PL_PALIWO.items():
@@ -4783,6 +4790,8 @@ def polska_stacje(j):
             else:
                 W.append((txt + ' (starszy tydzień w pliku)', 'ℹ️'))
         N = {str(x[0]): x[1] for x in (e.get('n') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])}
+        if last not in N:   # v312 (recenzja v304b): najnowszy tydzień paliwa bez ceny bez podatków — wiersz ⚠️ niżej (jeden dla obu paliw)
+            bez_n.append(f'{nazwa} ({last})')
         if len(d) < 2:
             continue
         pr = str(d[-2][0])
@@ -4800,6 +4809,11 @@ def polska_stacje(j):
             pc = lambda v: f'{v:+.1f}%'.replace('.', ',')   # noqa: E731
             W.append((f'ceny na stacjach: {nazwa} {last} — podatki w cenie {f3(ta)} → {f3(tb)} zł/l ({pc(r)}), cena bez podatków {pc(rn)}'
                       f' (próg {PL_POD_PROG:g}% — zmiana podatków; strona ją opisuje)', 'ℹ️'))
+    if bez_n:
+        txt = ('ceny na stacjach: w najnowszym tygodniu brak ceny bez podatków — ' + ', '.join(bez_n) + '; nie było jej w biuletynie (zmiana pliku'
+               ' źródła?) — strona nie pokaże ceny bez podatków, opisu zmiany podatków ani obniżonego VAT')
+        W.append((txt, '⚠️'))
+        U.append(f'Polska: {txt} — sprawdzić biuletyn (arkusz cen bez podatków)')
     S8 = j.get('stacje') if isinstance(j.get('stacje'), dict) else {}
     e = _pl_e(j, 'stacje', 'pb95')
     d = [x for x in ((e or {}).get('d') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])]
@@ -4813,7 +4827,15 @@ def polska_stacje(j):
         if num(n) and num(k) and k > 0:
             ile = (f' (akcyza i opłaty, jakie musiałyby być w cenie benzyny przy VAT {PL_V8[0]:g}%: {f3((p - n) - p * PL_V8[0] / (100 + PL_V8[0]))} zł/l,'
                    f' mniej niż {pr} × minimalna akcyza UE {f3(PL_V8[1] * k / 1000)} zł/l)')
-        W.append((f'ceny na stacjach: tydzień {last} — obniżony VAT na paliwa{ile}; strona to opisuje', 'ℹ️'))
+        txt = f'ceny na stacjach: tydzień {last} — obniżony VAT na paliwa{ile}; strona to opisuje'
+        pw = str(d[-2][0]) if len(d) > 1 else None   # v312 (recenzja v304b): tydzień wcześniej w pliku — ta sama seria v8 czy jej początek
+        if pw is not None and pw in S8['v8']:
+            W.append((txt, 'ℹ️'))
+        else:   # pierwszy tydzień nowej serii (raz na serię) — reguła v8 zależy od kursu złotego i nie odróżnia obniżki od ceny zaniżonej przez źródło
+            txt += (' — początek obniżki VAT na paliwa (' + (f'tydzień wcześniej, {pw}, bez obniżonego VAT' if pw else 'w pliku brak wcześniejszego tygodnia')
+                    + '): potwierdzić, że obniżka obowiązuje')
+            W.append((txt, '⚠️'))
+            U.append(f'Polska: {txt} (to wniosek z podatków w cenie benzyny w biuletynie; tak samo wyglądałaby cena zaniżona przez źródło albo duże osłabienie złotego)')
     return {'wiersze': W, 'uwagi': U}
 
 

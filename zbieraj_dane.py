@@ -5631,7 +5631,10 @@ def build_fundusze(prev=None):
         return _bdays(_d(L), _d(d)) > 1
 
     backfills = 0
+    czas_glob = None   # v312 (recenzja v309): czy po funduszach GLOBAL był jeszcze czas kroku (zapisane przed pierwszym funduszem surowcowym)
     for t in FUND_ISH + FUND_ISH_SU:   # v309: po 22 funduszach GLOBAL — 3 surowcowe (część 'su'); kolejność = pierwszeństwo w limitach
+        if czas_glob is None and t in FUND_ISH_SU:
+            czas_glob = left()
         zr = psu if t in FUND_ISH_SU else pf
         p = dict(zr.get(t)) if isinstance(zr.get(t), dict) else {'iss': 'ishares'}
         h = p.get('h') or []
@@ -5678,8 +5681,9 @@ def build_fundusze(prev=None):
             out['su' if t in FUND_ISH_SU else 'f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
-    if not left():
-        errs.append(f'limit czasu kroku funduszy ({FUND_BUDGET} s) — reszta w kolejnym przebiegu')
+    if not left():   # v312 (recenzja v309): limit przekroczony dopiero przy funduszach surowcowych (pełne pliki po funduszach GLOBAL) — uwaga funduszy
+        # surowcowych, nie licznik problemów funduszy GLOBAL (ich szósta pozycja zmieniłaby uwagę „fundusze ETF” w błąd, choć fundusze GLOBAL były gotowe)
+        (errs_su if czas_glob else errs).append(f'limit czasu kroku funduszy ({FUND_BUDGET} s) — reszta w kolejnym przebiegu')
     if errs:
         (META['errors'] if len(errs) > 5 else META['notes']).append(mask(f'fundusze ETF: {len(errs)} problemów, np. {errs[0]}'))
     if errs_su:   # v309: fundusze surowcowe (reguły „w cieniu” TRENDÓW) — tylko uwaga; poprzednie dane zostają w części 'su'
@@ -23829,6 +23833,13 @@ PL_Q_DNI = 6                 # najstarsza cena hurtowa do sprawdzenia tygodnia (
 PL_V8_VAT = 23.0             # % — podstawowa stawka VAT na paliwa
 PL_V8_EMIN = 359.0           # EUR/1000 l — minimalna akcyza UE na benzynę bezołowiową
 PL_V8_PROG = 0.85            # ułamek minimum — z testu wstecznego (0,753 … 0,922)
+# v312 (recenzja v304b): reguła zależy od KURSU ZŁOTEGO — próg jest w euro (minimalna akcyza UE na benzynę), przeliczany kursem z tego samego
+# biuletynu, a podatki w cenie są w złotych. Od 03.10.2026 akcyza z opłatami jest blisko minimum UE (ok. 1,53 zł/l): gdyby po końcu obniżki VAT wrócił
+# do 23%, a akcyza została niska, już osłabienie złotego o ok. 14% (kurs ok. 5,0 zł za euro; 05.10.2026 — 4,38) dałoby fałszywe „VAT obniżony” —
+# tak samo cena z podatkami zaniżona przez źródło o ok. 9% w zwykłym tygodniu (28.09.2026: 7,37 zamiast 8,10 zł/l → 0,78 × minimum). Reguła nie
+# odróżnia tych przypadków od prawdziwej obniżki, więc kontrola dzienna daje ⚠️ dla PIERWSZEGO tygodnia każdej nowej serii v8 („początek obniżki
+# VAT na paliwa — potwierdzić, że obowiązuje”; 2005–10.2026: 4 takie tygodnie z 1087 — 07.02.2022, 06.04.2026, 17.08.2026, 05.10.2026 — wszystkie
+# prawdziwe obniżki; ws53/v312-drobne6/bt). Zmiana minimum UE albo stawek VAT = przegląd PL_V8_* tutaj i PL_V8 w kontroli.
 PL_AGRI_URL = ('https://api.tech.ec.europa.eu/agrifood/api/cereal/prices?memberStateCodes=PL&productCodes=BLTPAN'
                '&beginDate={od}&endDate={do}')
 PL_DNI_PIERWSZE = 140        # dni wstecz w pierwszym (albo krótkim) zapytaniu części dziennych: 90 dni roboczych / obowiązywania ≈ 126 dni
@@ -24072,16 +24083,19 @@ def _pl_wob_ark(data, ark, tag, need_fx):
     return out
 
 
-def pl_wob(data):
+def pl_wob(data, bledy=None):
     """Plik historii biuletynu: arkusz „Prices with taxes” (PL_exchange_rate = EUR za 1 zł, PL_/EU_price_with_tax_euro95 / _diesel = EUR
-    za 1000 l) i — v304b — „Prices wo taxes” (ceny bez podatków, te same jednostki; brak arkusza albo kolumn = ceny bez podatków puste,
-    nie błąd) → {poniedziałek: {'kurs': zł za 1 EUR, 'pb95': (Polska zł/l, UE zł/l, Polska bez podatków, UE bez podatków), 'on': (…)}};
+    za 1000 l) i — v304b — „Prices wo taxes” (ceny bez podatków, te same jednostki; brak arkusza albo kolumn = ceny bez podatków puste;
+    v312: i opis braku w liście bledy — zbieracz zgłasza częściowy błąd części „stacje”, dotąd po cichu)
+    → {poniedziałek: {'kurs': zł za 1 EUR, 'pb95': (Polska zł/l, UE zł/l, Polska bez podatków, UE bez podatków), 'on': (…)}};
     wiersz bez kursu albo z ceną z podatkami poza 1–30 zł/l = brak; cena bez podatków poza 0,5–30 zł/l albo nie niższa niż z podatkami = brak."""
     A = _pl_wob_ark(data, PL_WOB_ARK, 'with', True)
     try:
         N = _pl_wob_ark(data, PL_WOB_ARK_N, 'wo', False)
-    except RuntimeError:
+    except RuntimeError as e:
         N = {}
+        if bledy is not None:   # v312 (recenzja v304b): bez tego znikały po cichu lista v8, zdanie „Bez podatków…” i opisy zmiany podatków
+            bledy.append(f'ceny bez podatków niedostępne ({e})')
     out = {}
     for d in sorted(A):
         row, rn = A[d], N.get(d) or {}
@@ -24226,18 +24240,23 @@ def _pl_agri(ctx):
 
 def _pl_wob(ctx):
     H = ctx['H']['stacje']
-    w = pl_wob(_pl_get(ctx, 'wob', PL_WOB_URL))
+    bez_n = []   # v312: brak arkusza albo kolumn cen bez podatków — częściowy błąd części „stacje” (ceny z podatkami zapisane)
+    w = pl_wob(_pl_get(ctx, 'wob', PL_WOB_URL), bez_n)
+    stare = lambda k, d, r: H[k][d] if _isnum(H[k].get(d)) and _isnum(r) and H[k][d] < r else None   # noqa: E731
     for d, x in sorted(w.items())[-PL_W - 4:]:   # z zapasem 4 tygodni (poprawki ostatnich tygodni w pliku)
         H['kurs'][d] = x['kurs']
         for cid, _ in PL_WOB:
             pl, eu, pn, en = x[cid]
             if pl is None:   # v304b (recenzja v304): tydzień bez ceny Polski — bez średniej UE i cen bez podatków (kontrola uznałaby plik za sprzeczny)
                 eu = pn = en = None
+            elif bez_n:   # v312: biuletyn bez cen bez podatków — wcześniejsze liczby zostają, o ile nadal niższe niż ceny z podatkami tego tygodnia
+                pn, en = stare(cid + '_n', d, pl), stare(cid + '_uen', d, eu)
             for k, v in ((cid, pl), (cid + '_ue', eu), (cid + '_n', pn), (cid + '_uen', en)):
                 if v is None:
                     H[k].pop(d, None)
                 else:
                     H[k][d] = v
+    ctx['bledy'].extend(mask(f'wob: {x}')[:160] for x in bez_n)   # v312: część „stacje” — ok False i opis (jak brak jednej z dwóch serii hurtu)
     return max(w)
 
 
@@ -24360,11 +24379,14 @@ def build_polska(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
             if q:
                 e['q'] = q
             P[c] = e
-    k = [[d, v] for d, v in sorted((H['stacje'].get('kurs') or {}).items())][-PL_W:]
+    tyg = {x[0] for e in P.values() for x in e['d']}   # v312 (recenzja v304b): kurs z tych samych tygodni co ceny w pliku — dotąd 26 ostatnich tygodni
+    # kursu: tydzień z kursem i ceną oleju, ale bez ceny benzyny przesuwał okno kursu, a kontrola liczy v8 z kursu pliku (fałszywe „lista v8 niezgodna”)
+    k = [[d, v] for d, v in sorted((H['stacje'].get('kurs') or {}).items()) if d in tyg]
     if P and k:
         P['kurs'] = {'u': 'PLN/EUR', 'f': 'W', 'd': k, 'z': 'wob'}
     if 'pb95' in P:   # v304b: tygodnie z obniżonym VAT na paliwa (tygodnie cen benzyny z okna wykresu) — opis dla strony i kontroli
-        v8 = pl_v8({d: v for d, v in P['pb95']['d']}, H['stacje'].get('pb95_n') or {}, H['stacje'].get('kurs') or {})
+        v8 = pl_v8({d: v for d, v in P['pb95']['d']}, {d: v for d, v in P['pb95'].get('n') or []},   # v312: z liczb zapisanych w pliku —
+                   {d: v for d, v in (P.get('kurs') or {}).get('d') or []})                      # te same wejścia co polska_v8 w kontroli
         if v8:
             P['v8'] = v8
     if P:
