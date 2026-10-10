@@ -11046,7 +11046,7 @@ test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąsk
   assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
   for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
   assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 36, 'etykiety składane w kodzie: 36 miejsc (v157: podpowiedzi wykresów — wkK; v230: „7 dni” przy nowej liście portfeli; v321: +3 — karta wskaźnika fgCard ×2 i kafel gRenderKpi, pokrycie gCovCard i sgCovC zamiast fgBlock i paska v156)');
-  assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 29, 'listy składane w kodzie: 29 miejsc');
+  assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 30, 'listy składane w kodzie: 30 miejsc');   /* v323: +1 — panel „Siła sygnałów” (trdSilaSep) */
   for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
     assert.ok(!html.includes(s), 'dawny separator: ' + s);
   /* atrapa strony (dane strażnika): TIC — skład regionów i etykiety */
@@ -11762,7 +11762,7 @@ function v158Blok(o) {
     'tig.hist.sub': 'od {d} · n = {n}', 'tig.d.since': 'Od startu ({d})', 'tig.wait': '+ {n} czeka', 'tig.s.none': 'bez sygnału: {n}', 'tig.aria.b': 'Dni: {s}'};
   const t = (k, v) => { let s = PL[k] ?? k; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
   const X = new Function('t', 'escH', 'nfmt', 'trdNum', 'trdC', 'trdDay', 'LOCALE', 'LANG', 'sepK', 'srvJSON', 'st', 'renderTrendy', 'trdDRow', 'trdDRowW', 'trdDName', 'TRD_DFAM',
-    html.slice(a, b).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '') + '\nreturn {TRDJ, trdJStat, trdIgTone, trdIgDonut, trdIgBars, trdIgChips, trdIg, trdIgWrap, trdJLoad};')(
+    html.slice(a, b).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '') + '\nreturn {TRDJ, trdJStat, trdIgTone, trdIgDonut, trdIgBars, trdIg, trdIgWrap, trdJLoad};')(
     t, v96src.escH, (v, d) => Number(v).toFixed(d), v => typeof v === 'number' && isFinite(v), v => v, d => d.slice(8) + '.' + d.slice(5, 7), {pl: 'pl-PL'}, 'pl', () => ': ',
     o.srv || (n => { calls.push(n); return new Promise(() => {}); }), {mode: 'trendy'}, () => calls.push('render'),
     r => r, r => r, r => ({s: 'N:' + r.id, ic: '<i class="ic"></i>'}), ['eq', 'bd', 'pm']);
@@ -11781,7 +11781,7 @@ test('v158: dziennik → wyniki jak w zbieraczu — N ≠ 0, znak y = znak N tra
   assert.deepEqual([X.trdIgTone(700, 1000, 30), X.trdIgTone(300, 1000, 30), X.trdIgTone(520, 1000, 30), X.trdIgTone(21, 33, 2), X.trdIgTone(6, 9, 30), X.trdIgTone(0, 0, 0)],
     ['p', 'm', 'z', 'na', 'na', 'na'], 'kolory: przewaga w dniach / odwrotnie / w granicach przypadku / za mało dni / mniej niż 10 par');
 });
-test('v158: infografika krypto — liczba główna „k z n” i procent, 3 pierścienie (ostatnie dni, od startu, historia), słupki dzień po dniu, chipy; reszta pod „Szczegóły”', () => {
+test('v158: infografika krypto — liczba główna „k z n” i procent, 3 pierścienie (ostatnie dni, od startu, historia), słupki dzień po dniu (v323: bez chipów); reszta pod „Szczegóły”', () => {
   const {X, calls} = v158Blok({});
   const rows = [], add = (d, N, y) => rows.push([d, 'C' + rows.length, N, 'obs', '', 'x', y]);
   for (const [d, k, m, w] of [['2026-09-28', 2, 6, 0], ['2026-09-29', 1, 8, 1], ['2026-09-30', 2, 2, 0], ['2026-10-01', 2, 2, 0], ['2026-10-02', 0, 0, 8], ['2026-10-03', 0, 0, 4]]) {
@@ -11799,8 +11799,8 @@ test('v158: infografika krypto — liczba główna „k z n” i procent, 3 pier
   assert.ok(h.includes('<small>od 09.11 · n = 6329</small>'), 'historia: od kiedy i ile');
   assert.equal((h.match(/<rect class="h"/g) || []).length, 4, 'zielone słupki: 4 dni z trafieniami'); assert.equal((h.match(/<rect class="m"/g) || []).length, 4, 'czerwone: 4 dni');
   assert.equal((h.match(/<rect class="w"/g) || []).length, 2, 'dwa dni tylko czekające — szara ramka');
-  assert.ok(h.includes('<span class="tig-c m"') === false && h.includes('<span class="tig-c na" title="N:BTC"><i class="ic"></i><b>BTC</b><i>▼●●</i></span>'), 'BTC: szary (bez przewagi), w dół, siła 2 — pierwszy');
-  assert.ok(h.includes('<span class="tig-c p" title="N:ETH"><i class="ic"></i><b>ETH</b><i>▲●</i></span>') && h.includes('bez sygnału: 1') && !h.includes('SPY'), 'ETH kolorowy; XRP bez sygnału; świat nie w krypto');
+  /* v323 (decyzja właściciela 10.10, punkt 6): chipy „Dzisiejsze sygnały” zastąpił panel „Siła sygnałów” nad wynikami (wskaźnik 1–10 przy każdej karcie) */
+  assert.ok(!h.includes('tig-c') && !h.includes('tig.s.') && !h.includes('BTC') && !h.includes('SPY'), 'v323: bez chipów w infografice');
   assert.ok(h.includes('<p class="pfoot">tig.foot.c eng.disclaimer</p></section>'), 'stopka z zastrzeżeniem');
   assert.deepEqual(calls, [], 'dziennik świeży — bez ponownego wczytania');
   const r0 = html.indexOf('function renderTrendy(){'), R = html.slice(r0, html.indexOf('\n}\n', r0));
@@ -18283,7 +18283,7 @@ test('v316 TR7-1: „Nauka” — zaraz po zdaniu o regułach „w cieniu” z d
   assert.ok(p.includes('<p class="pnote">Cztery reguły zapisaliśmy z góry 08.10.2026, zanim policzyliśmy jakikolwiek wynik. Listy nie zmieniamy — nowa reguła to nowy zapis z nową datą. To osobna lista — obok reguł w cieniu z części „Nauka” na górze widoku. Trzy reguły dotyczą rynków świata, „Złoto a bitcoin” — krypto.</p>'), p.slice(0, 900));
   assert.ok(mkB('en').trdSu({su}).includes('This is a separate list, alongside the shadow rules in the learning section at the top of the view. Three rules concern world markets; “Gold and bitcoin” concerns crypto.'), 'en');
   for (const l of v316.L10) assert.ok(v316.I[l]['t316.su.sep'].includes('{c}') && mkB(l).trdSu({su}).includes(tp(l)('t316.su.sep', {c: tp(l)('td303.l.cr.au')})), l + ': nazwa linii krypto z etykiety bloku');
-  assert.ok(html.includes("${vd}${trdIgShadow(J,tk)}${trdIgSu(D,cr)}<p class=\"pnote tig-lw\">") && html.includes('${trdIgLearn(J,cr,D)}${trdIgChips(D,cr)}'), 'kod: zdanie w „Nauce”, plik TRENDÓW przekazany');
+  assert.ok(html.includes("${vd}${trdIgShadow(J,tk)}${trdIgSu(D,cr)}<p class=\"pnote tig-lw\">") && html.includes('function trdIgLd(J,cr,D){const h=trdIgLearn(J,cr,D);') && html.includes('${trdIgLd(J,cr,D)}`+'), 'kod: zdanie w „Nauce”, plik TRENDÓW przekazany (v323: „Nauka” w zwijanym bloku, bez chipów)');
   assert.equal(html.split('const S=trdSuS(D),').length, 3, 'blok i „Nauka” — ten sam warunek (trdSuS)');
 });
 
@@ -20160,4 +20160,248 @@ test('v322 (po przeglądzie, pkt 5): archiwum CRYPTO — ostatnie wartości pozy
   const cb = blk('cftc.btc');
   assert.ok(/<i class="l1"><\/i><b class="neg">−6852 [^<]*<\/b>/.test(cb) && /<i class="l2"><\/i><b class="pos">1234 [^<]*<\/b>/.test(cb) && /<i class="l3"><\/i><b class="neu">0 [^<]*<\/b>/.test(cb), 'CFTC BTC: krótkie czerwone, długie zielone, 0 żółte: ' + cb.slice(0, 600));
   assert.ok(/<span class="arc-last"><i class="l1"><\/i><b>/.test(blk('stab')) && !/arc-last"><i class="l\d"><\/i><b class=/.test(g) && g.includes('<b>−'), 'stablecoiny i archiwum GLOBAL — bez zmian (bez klasy)');
+});
+
+
+/* ===================== v323: TRENDY prościej — siła sygnału 1–10 przy każdej karcie (decyzja właściciela 10.10.2026, punkt 6) =====================
+   Panel „Siła sygnałów” nad „Wynikami sygnałów”: karty sygnałów dnia (wiersze `d` wersji 2) od najsilniejszego sygnału wzrostu do najsilniejszego spadku,
+   przy każdej półkole w stylu „Pokrycie danych” i pasek 10 kratek w stylu „Aktywność sektorów”. Wskaźnik tylko z pól karty (dir, N, str):
+   poziom = min(5, str + |N| − 1), wynik = 5,5 + dir × (poziom − 0,5); stany bez oceny — bez wskazówki, „—”. Dane testów: wiersze migawki audytu m7
+   (plik trendy.json z 10.10.2026 07:52 UTC — 13 kart świata i 10 krypto, bez zmian), zegar przypięty (10.10.2026 08:05 UTC). */
+const v323 = (() => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const i = html.indexOf('{"pl":{"w323.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  const e = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i);
+  assert.ok(i > 0 && a > 0 && e > i && /^EXTRA\d+$/.test(name), 'słownik v323');
+  const D = JSON.parse(html.slice(i, e));
+  const I = v96src.I18N, l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const t0 = html.indexOf('const t=(k,vars)=>'), t1 = html.indexOf(';\n', t0);
+  const tp = L => new Function('I18N', 'LANG', 'return ' + html.slice(t0 + 'const t='.length, t1))(I, L);   /* t() strony: język → en → pl → klucz */
+  const tNsrc = html.slice(html.indexOf('function tN(k,n,o){'), html.indexOf('\nfunction rwN(n)'));
+  const g0 = html.indexOf('function gAgeNote(fresh){'), gAge = html.slice(g0, html.indexOf('\n}\n', g0) + 3);
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v323: koniec siły sygnału */');
+  assert.ok(b0 > 0 && b1 > b0 && html.indexOf('/* v158: koniec infografiki */') < b1, 'blok TRENDY z infografiką i panelem v323 (panel za końcem infografiki)');
+  const blk = html.slice(b0, b1).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '');
+  const NOW = [Date.parse('2026-10-10T08:05:00Z')];
+  class FD extends Date { static now() { return NOW[0]; } }                      /* zegar bloku — przypięty */
+  const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+    'flagImg', 'glyphImg', 'coinImg', 'issBadge', 'issuerOf', 'icoWrap', 'Date', 'sepL', 'sepK'];
+  const RET = '\nreturn {trdSila, trdSilaG, trdSilaBar, trdSilaW, trdSilaK, trdSilaPanel, trdIg, trdIgWrap, trdIgLd, trdDRow, trdDRowW, trdDWhyW, trdDWhy2, TRDJ, TRD_SANG, TRD_SNA};';
+  const make = (L, st) => { const F = trdV127.fmt(L), IC = trdV96.ICO;
+    const vals = [() => null, tp(L), st || {mode: 'trendy', trdv: 'global', anim: true}, () => new Promise(() => {}), v96src.escH, () => '', F.fInt, F.sg, F.nfmt, F.fPct,
+      () => 'ses', s => 'T[' + s + ']', L, LOC, I, IC.flagImg, IC.glyphImg, IC.coinImg, IC.issBadge, IC.issuerOf, IC.icoWrap, FD, () => (L === 'ja' ? '、' : ', '), () => ': '];
+    return new Function(...names, tNsrc + '\n' + gAge + '\n' + blk + RET)(...vals); };
+  const FILE = {"at":"2026-10-10T07:52:13+00:00","d":[{"id":"SPY","fam":"eq","grp":"fe_us","iss":"ssga","pub":0,"sym":"SPY","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":null,"cur":"USD","fu":null,"zf":null,"r":0.6,"zp":0.86,"rule":"c0","dir":0,"side":"none","str":0,"st":"quiet","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",0.6,0.86,0],["f",null,null,0]],"N":0,"ek":[],"vx":[],"lt":[],"pw":["f"]},{"id":"IVV","fam":"eq","grp":"fe_us","iss":"ishares","pub":0,"sym":"IVV","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":-781.89,"cur":"USD","fu":-781.89,"zf":-0.09,"r":0.6,"zp":0.87,"rule":"c0","dir":0,"side":"none","str":0,"st":"quiet","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",0.6,0.87,0],["f",-781.89,-0.09,0]],"N":0,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"XLF","fam":"eq","grp":"fe_fin","iss":"ssga","pub":0,"sym":"XLF","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":null,"cur":"USD","fu":null,"zf":null,"r":0.92,"zp":1.22,"rule":"c","dir":1,"side":"buy","str":1,"st":"obs","vd":"none","ik":484,"in":999,"ici":[45.4,51.5],"rs":[["p",0.92,1.22,1],["f",null,null,0]],"N":1,"ek":[],"vx":[],"lt":[],"pw":["f"]},{"id":"EWJ","fam":"eq","grp":"fe_jpn","iss":"ishares","pub":0,"sym":"EWJ","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":0.0,"cur":"USD","fu":0.0,"zf":-0.09,"r":0.55,"zp":0.45,"rule":"c0","dir":0,"side":"none","str":0,"st":"quiet","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",0.55,0.45,0],["f",0.0,-0.09,0]],"N":0,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"SPEM","fam":"eq","grp":"fe_em","iss":"ssga","pub":0,"sym":"SPEM","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":null,"cur":"USD","fu":null,"zf":null,"r":1.32,"zp":1.44,"rule":"c","dir":1,"side":"buy","str":1,"st":"obs","vd":"none","ik":404,"in":822,"ici":[45.7,52.6],"rs":[["p",1.32,1.44,1],["f",null,null,0]],"N":1,"ek":[],"vx":[],"lt":[],"pw":["f"]},{"id":"MCHI","fam":"eq","grp":"fe_chn","iss":"ishares","pub":0,"sym":"MCHI","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":-21.08,"cur":"USD","fu":-21.08,"zf":-1.4,"r":2.32,"zp":2.36,"rule":"cx","dir":0,"side":"none","str":0,"st":"x","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",2.32,2.36,1],["f",-21.08,-1.4,-1]],"N":0,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"FXI","fam":"eq","grp":"fe_chn","iss":"ishares","pub":0,"sym":"FXI","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":"HKD","f":0.0,"cur":"USD","fu":0.0,"zf":0.29,"r":2.36,"zp":2.19,"rule":"c","dir":1,"side":"buy","str":2,"st":"obs","vd":"none","ik":414,"in":831,"ici":[46.4,53.2],"rs":[["p",2.36,2.19,1],["f",0.0,0.29,0],["o",null,null,0]],"N":1,"ek":[],"vx":[],"lt":[],"pw":["o"]},{"id":"INDA","fam":"eq","grp":"fe_india","iss":"ishares","pub":0,"sym":"INDA","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":"USD","f":0.0,"cur":"USD","fu":0.0,"zf":0.3,"r":1.03,"zp":1.3,"rule":"cx","dir":0,"side":"none","str":0,"st":"x","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",1.03,1.3,1],["f",0.0,0.3,0],["o",-1331.36,-3.26,-1]],"N":0,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"EWZ","fam":"eq","grp":"fe_bra","iss":"ishares","pub":0,"sym":"EWZ","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":497.87,"cur":"USD","fu":497.87,"zf":4.67,"r":2.23,"zp":1.04,"rule":"c","dir":1,"side":"buy","str":3,"st":"obs","vd":"none","ik":405,"in":854,"ici":[44.1,50.8],"rs":[["p",2.23,1.04,1],["f",497.87,4.67,1]],"N":2,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"TLT","fam":"bd","grp":"fe_ustl","iss":"ishares","pub":0,"sym":"TLT","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":280.43,"cur":"USD","fu":280.43,"zf":0.2,"r":0.14,"zp":0.22,"rule":"c0","dir":0,"side":"none","str":0,"st":"quiet","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",0.14,0.22,0],["f",280.43,0.2,0]],"N":0,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"LQD","fam":"bd","grp":"fe_ig","iss":"ishares","pub":0,"sym":"LQD","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":-562.86,"cur":"USD","fu":-562.86,"zf":-1.13,"r":-0.06,"zp":-0.15,"rule":"c","dir":-1,"side":"sell","str":1,"st":"obs","vd":"none","ik":322,"in":659,"ici":[45.1,52.7],"rs":[["p",-0.06,-0.15,0],["f",-562.86,-1.13,-1]],"N":-1,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"HYG","fam":"bd","grp":"fe_hy","iss":"ishares","pub":0,"sym":"HYG","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":-292.71,"cur":"USD","fu":-292.71,"zf":-1.28,"r":0.12,"zp":0.49,"rule":"c","dir":-1,"side":"sell","str":1,"st":"obs","vd":"none","ik":309,"in":663,"ici":[42.8,50.4],"rs":[["p",0.12,0.49,0],["f",-292.71,-1.28,-1]],"N":-1,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"EWC","fam":"eq","grp":null,"iss":null,"pub":0,"sym":"EWC","date":"2026-10-09","nx":"2026-10-12","live":true,"age":1,"we":960,"oc":null,"f":null,"cur":null,"fu":null,"zf":null,"r":1.22,"zp":1.53,"rule":"c","dir":1,"side":"buy","str":1,"st":"obs","vd":"none","ik":352,"in":688,"ici":[47.4,54.9],"rs":[["p",1.22,1.53,1]],"N":1,"ek":[],"vx":[],"lt":[],"pw":[]},{"id":"BTC","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"BTC","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":1.08,"zp":0.47,"rule":"cx","dir":0,"side":"none","str":0,"st":"x","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",1.08,0.47,0],["t",55.6,1.87,1],["e",4261,1.43,-1],["s",-235,-0.61,0],["h",-0.0447,-0.81,0]],"N":0,"ek":[],"lt":[]},{"id":"ETH","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"ETH","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":0.52,"zp":0.16,"rule":"cx","dir":0,"side":"none","str":0,"st":"x","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",0.52,0.16,0],["t",51.4,0.62,0],["e",71540,1.85,-1],["s",-235,-0.61,0],["h",-0.0447,-1.2,1]],"N":0,"ek":[],"lt":[]},{"id":"XRP","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"XRP","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":1.11,"zp":0.26,"rule":"c","dir":1,"side":"buy","str":1,"st":"obs","vd":"none","ik":321,"in":628,"ici":[47.2,55.0],"rs":[["p",1.11,0.26,0],["t",51.8,1.15,1],["s",-235,-0.61,0],["h",-0.0366,-0.94,0]],"N":1,"ek":[],"lt":[]},{"id":"BNB","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"BNB","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":0.85,"zp":0.4,"rule":"c","dir":1,"side":"buy","str":2,"st":"obs","vd":"none","ik":306,"in":619,"ici":[45.5,53.4],"rs":[["p",0.85,0.4,0],["t",53.3,1.15,1],["s",-235,-0.61,0],["h",-0.0553,-1.33,1]],"N":2,"ek":[],"lt":[]},{"id":"SOL","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"SOL","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":-0.45,"zp":-0.13,"rule":"c0","dir":0,"side":"none","str":0,"st":"quiet","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",-0.45,-0.13,0],["t",50.1,0.05,0],["s",-235,-0.61,0],["h",-0.0408,-0.65,0]],"N":0,"ek":[],"lt":[]},{"id":"DOGE","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"DOGE","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":1.61,"zp":0.4,"rule":"cx","dir":0,"side":"none","str":0,"st":"x","vd":null,"ik":null,"in":null,"ici":null,"rs":[["p",1.61,0.4,0],["t",44.8,-1.64,-1],["s",-235,-0.61,0],["h",-0.048,-1.41,1]],"N":0,"ek":[],"lt":[]},{"id":"ADA","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"ADA","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":4.69,"zp":1.09,"rule":"c","dir":1,"side":"buy","str":1,"st":"obs","vd":"none","ik":296,"in":627,"ici":[43.3,51.1],"rs":[["p",4.69,1.09,1],["t",48.5,-0.5,0],["s",-235,-0.61,0],["h",-0.0518,-0.77,0]],"N":1,"ek":[],"lt":[]},{"id":"TRX","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"TRX","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":-0.27,"zp":-0.31,"rule":"c","dir":-1,"side":"sell","str":1,"st":"obs","vd":"none","ik":293,"in":607,"ici":[44.3,52.2],"rs":[["p",-0.27,-0.31,0],["t",41.8,-1.38,-1],["s",-235,-0.61,0],["h",-0.0832,-0.94,0]],"N":-1,"ek":[],"lt":[]},{"id":"LINK","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"LINK","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":0.82,"zp":0.19,"rule":"c","dir":-1,"side":"sell","str":1,"st":"obs","vd":"none","ik":329,"in":674,"ici":[45.1,52.6],"rs":[["p",0.82,0.19,0],["t",44.2,-1.73,-1],["s",-235,-0.61,0],["h",-0.0446,-0.99,0]],"N":-1,"ek":[],"lt":[]},{"id":"AVAX","fam":"cr","grp":null,"iss":null,"pub":0,"sym":"AVAX","date":"2026-10-09","nx":"2026-10-10","live":true,"age":1,"f":null,"cur":null,"fu":null,"zf":null,"r":2.57,"zp":0.53,"rule":"c","dir":-1,"side":"sell","str":1,"st":"obs","vd":"none","ik":322,"in":635,"ici":[46.8,54.6],"rs":[["p",2.57,0.53,0],["t",44.6,-1.21,-1],["s",-235,-0.61,0],["h",-0.0468,-0.93,0]],"N":-1,"ek":[],"lt":[]}],"bd":[{"fam":"cr","rule":"p","v":2,"wh":6,"cut":330,"k":1253,"n":2610,"vd":"none"}]};
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const world = () => Object.assign(clone(FILE), {d: clone(FILE.d.filter(r => r.fam !== 'cr'))});
+  const crypto = () => Object.assign(clone(FILE), {d: clone(FILE.d.filter(r => r.fam === 'cr'))});
+  /* kolejne karty panelu: [nazwa (tekst bez znaczników), liczba, strefa] */
+  const cards = h => [...h.matchAll(/<div class="tsg-k (up|dn|mid|na)">[\s\S]*?<b class="tsg-n \1" aria-hidden="true">([^<]*)<\/b>[\s\S]*?<div class="tsg-nm">[\s\S]*?<span>([\s\S]*?)<\/span><\/div>/g)]
+    .map(m => [m[3].replace(/<small>/g, '(').replace(/<\/small>/g, ')').replace(/<[^>]+>/g, '').replace(/\s+\(/g, ' (').trim(), m[2], m[1]]);
+  return {L10, name, D, I, tp, make, FILE, world, crypto, clone, cards, NOW};
+})();
+
+test('v323: wskaźnik 1–10 — poziom = min(5, siła dnia + |N| − 1), wynik = 5,5 ± (poziom − 0,5): monotoniczny, symetryczny, środek 5,5 = brak sygnału; stany bez oceny bez liczby', () => {
+  const X = v323.make('pl'), S = (st, dir, str, N) => X.trdSila({st, dir, str, N});
+  for (const st of ['obs', 'buy']) for (let g = 1; g <= 3; g++) for (let n = 1; n <= 5; n++) {
+    const up = S(st === 'buy' ? 'buy' : st, 1, g, n), dn = S(st === 'buy' ? 'sell' : st, -1, g, -n), lv = Math.min(5, g + n - 1);
+    assert.ok(Number.isInteger(up.s) && up.s >= 6 && up.s <= 10 && up.s === 5 + lv && up.z === 'up' && up.lv === lv, JSON.stringify([g, n, up]));
+    assert.ok(Number.isInteger(dn.s) && dn.s >= 1 && dn.s <= 5 && dn.s === 6 - lv && dn.z === 'dn', JSON.stringify([g, n, dn]));
+    assert.equal(up.s + dn.s, 11, 'symetria: ten sam układ w drugą stronę = 11 − wynik');
+    if (g < 3) { assert.ok(S('obs', 1, g + 1, n).s >= up.s && S('obs', -1, g + 1, -n).s <= dn.s, 'mocniej (siła dnia) — dalej od środka'); }
+    if (n < 5) { assert.ok(S('obs', 1, g, n + 1).s >= up.s && S('obs', -1, g, -(n + 1)).s <= dn.s, 'większa przewaga głosów — dalej od środka'); }
+  }
+  /* powód przeciw: 2 za i 1 przeciw (N = 1, siła 2) — bliżej środka niż 2 za bez sprzeciwu (N = 2, siła 2) */
+  assert.ok(S('obs', 1, 2, 1).s < S('obs', 1, 2, 2).s && S('obs', -1, 2, -1).s > S('obs', -1, 2, -2).s, 'powód przeciw przysuwa do środka');
+  assert.deepEqual([S('quiet', 0, 0, 0), S('x', 0, 0, 0)], [{s: 5.5, lv: 0, z: 'mid'}, {s: 5.5, lv: 0, z: 'mid'}], 'spokojnie i sprzeczne — środek 5,5');
+  for (const st of ['stale', 'late', 'short', 'nodata', 'gap', '']) assert.deepEqual(S(st, 1, 2, 2), {s: null, lv: null, z: 'na'}, 'bez oceny: ' + st);
+  assert.deepEqual([X.trdSila(null), X.trdSila({st: 'obs', dir: 0, str: 1, N: 0})].map(o => o.z), ['na', 'na'], 'zły wiersz — bez oceny, nigdy liczba');
+  /* migawka m7: EWZ (2 za, siła 3) 9, FXI (1 za mocno) 7, XLF (1 za) 6, LQD (1 przeciw) 5, BNB (2 za, siła 2) 8, TRX (1 przeciw) 5 */
+  const F = v323.FILE.d, s = id => X.trdSila(F.find(r => r.id === id)).s;
+  assert.deepEqual(['EWZ', 'FXI', 'XLF', 'LQD', 'BNB', 'TRX', 'BTC', 'SOL'].map(s), [9, 7, 6, 5, 8, 5, 5.5, 5.5]);
+});
+
+test('v323: półkole — łuki jak „Pokrycie danych”, wskazówka w łuku strony (spadki: czerwony, wzrosty: zielony, 5,5 pionowo w żółtym), bez oceny bez wskazówki; pasek 10 kratek od środka', () => {
+  const X = v323.make('pl'), ang = h => { const m = /<line x1="100" y1="100" x2="([\d.]+)" y2="([\d.]+)"\/>/.exec(h); return m ? Math.round(Math.atan2(100 - +m[2], +m[1] - 100) * 180 / Math.PI) : null; };
+  for (let s = 1; s <= 10; s++) {
+    const z = s >= 6 ? 'up' : 'dn', h = X.trdSilaG({s, z}, 'a'), a = ang(h);
+    assert.ok(z === 'up' ? a >= 2 && a <= 58 : a >= 122 && a <= 178, s + ': kąt ' + a);
+    assert.ok(h.includes(`class="tsg-a ${z === 'up' ? 'g' : 'r'} on"`) && (h.match(/ on"/g) || []).length === 1, s + ': podświetlony łuk strony');
+    if (s > 1) assert.ok(a < ang(X.trdSilaG({s: s - 1, z: s - 1 >= 6 ? 'up' : 'dn'}, 'a')), 'wyżej = bardziej w prawo');
+    assert.ok(h.includes(`<g class="tsg-nd" style="--r0:${X.TRD_SANG[s] - 90}deg">`), 'wskazówka wjeżdża od środka');
+  }
+  const m = X.trdSilaG({s: 5.5, z: 'mid'}, 'x'), n = X.trdSilaG({s: null, z: 'na'}, 'Akcje "A" & <B>');
+  assert.equal(ang(m), 90); assert.ok(m.includes('class="tsg-a y on"'), '5,5 — żółty środek');
+  assert.ok(!n.includes('tsg-nd') && !n.includes(' on"') && n.includes('aria-label="Akcje &quot;A&quot; &amp; &lt;B&gt;"'), 'bez oceny: bez wskazówki i bez podświetlenia; podpis bezpieczny');
+  assert.equal((n.match(/<path class="tsg-a /g) || []).length, 3, 'trzy łuki zawsze');
+  const lit = h => [...h.matchAll(/<i( class="on" style="--o:([\d.]+)")?><\/i>|<b><\/b>/g)].map(x => x[0] === '<b></b>' ? '|' : x[1] ? +x[2] : 0);
+  assert.deepEqual(lit(X.trdSilaBar({s: 8, z: 'up'})), [0, 0, 0, 0, 0, '|', 0.62, 0.715, 0.81, 0, 0], 'wzrost 8: kratki 6–8 w prawo od środka, mocniej dalej od środka');
+  assert.deepEqual(lit(X.trdSilaBar({s: 2, z: 'dn'})), [0, 0.905, 0.81, 0.715, 0.62, '|', 0, 0, 0, 0, 0], 'spadek 2: kratki 2–5 w lewo od środka');
+  assert.deepEqual(lit(X.trdSilaBar({s: 10, z: 'up'})).filter(x => x).length, 6, '10: pięć kratek + środek');
+  assert.deepEqual(lit(X.trdSilaBar({s: 1, z: 'dn'})).slice(0, 5), [1, 0.905, 0.81, 0.715, 0.62], '1: pięć kratek w lewo');
+  for (const o of [{s: 5.5, z: 'mid'}, {s: null, z: 'na'}]) { const h = X.trdSilaBar(o); assert.ok(!h.includes('class="on"') && h.includes(`class="tsg-bar ${o.z}"`) && h.includes('aria-hidden="true"'), o.z); }
+});
+
+test('v323: panel świata z migawki m7 — od 9 do 5, grupy z liczbami, zdania z powodami, data i wiek przy każdej karcie, zastrzeżenie, „bez przewagi w historii”', () => {
+  const X = v323.make('pl'), h = X.trdSilaPanel(v323.world(), false), C = v323.cards(h);
+  assert.ok(h.startsWith('<section class="panel pcard trd-sila" id="trd-sila"><h2><span class="icos">') && h.includes('Siła sygnałów na sesję w USA — 12.10.2026</h2>'), h.slice(0, 400));
+  assert.deepEqual(C, [['Akcje Brazylii (EWZ)', '9', 'up'], ['Akcje Chin (FXI)', '7', 'up'], ['Akcje rynków wschodzących (SPEM)', '6', 'up'], ['Kanada (EWC)', '6', 'up'],
+    ['Sektor finansowy USA (XLF)', '6', 'up'], ['Akcje Chin (MCHI)', '5,5', 'mid'], ['Akcje Indii (INDA)', '5,5', 'mid'], ['Akcje Japonii (EWJ)', '5,5', 'mid'], ['Akcje USA (IVV)', '5,5', 'mid'],
+    ['Akcje USA (SPY)', '5,5', 'mid'], ['Obligacje skarbowe USA ponad 20 lat (TLT)', '5,5', 'mid'], ['Obligacje firm o dobrej ocenie (LQD)', '5', 'dn'], ['Obligacje firm wysokiego ryzyka (HYG)', '5', 'dn']],
+    'kolejność: od najsilniejszego wzrostu (9) do spadku (5); w środku bez kierunku (sprzeczne, potem spokojne); równe — po nazwie');
+  for (const [k, n] of [['Sygnał wzrostu', 5], ['Bez wyraźnego kierunku', 6], ['Sygnał spadku', 2]]) assert.ok(h.includes(`<b>${k}</b><span class="tsg-c">(${n})</span></h3>`), k);
+  assert.ok(h.includes('<h3 class="tsg-gh up"><i class="tg up">▲</i><b>Sygnał wzrostu</b>') && h.includes('<h3 class="tsg-gh mid"><i class="tg mid">●</i><b>Bez wyraźnego kierunku</b>') &&
+    h.includes('<h3 class="tsg-gh dn"><i class="tg dn">▼</i><b>Sygnał spadku</b>'), 'nagłówki grup ze znakiem w kolorze strony');
+  assert.ok(!h.includes('id="trd-sila-mid"') && !h.includes('id="trd-sila-na"') && !h.includes('Bez oceny teraz'), '6 kart bez kierunku — bez zwijania; bez oceny — brak grupy');
+  assert.equal((h.match(/dane 09\.10\.2026 → następna sesja 12\.10\.2026 · dane sprzed 1 dnia<\/p>/g) || []).length, 13, 'każda karta: data danych → sesja i wiek');
+  assert.ok(h.includes('<p class="tsg-w">cena: dzień wyraźnie w górę (+2,23%) · pieniądze: napływ dużo większy niż zwykle (+498 mln USD)</p>'), 'EWZ: dwa powody słowami');
+  assert.ok(h.includes('<p class="tsg-w">cena: dzień wyraźnie w górę (+0,92%) · czeka na dane: przepływ do funduszu</p>'), 'XLF: powód i dane w drodze');
+  assert.ok(h.includes('<p class="tsg-w">żaden z powodów nie odbiega dziś od zwykłego poziomu · czeka na dane: przepływ do funduszu</p>'), 'SPY: spokojnie, przepływ w drodze');
+  assert.ok(h.includes('<p class="tsg-w">cena: dzień mocno w górę (+2,32%) · pieniądze: odpływ wyraźnie większy niż zwykle (−21 mln USD)</p>'), 'MCHI: sprzeczne powody');
+  assert.ok(h.includes('<p class="tsg-w">pieniądze: odpływ wyraźnie większy niż zwykle (−563 mln USD)</p>'), 'LQD: cena obligacji bez głosu — bez zdania o cenie');
+  assert.ok(h.includes('<span class="tsg-z up" aria-hidden="true">▲ wzrost</span>') && h.includes('<span class="tsg-z dn" aria-hidden="true">▼ spadek</span>') &&
+    h.includes('<span class="tsg-z mid" aria-hidden="true">sprzeczne</span>') && h.includes('<span class="tsg-z mid" aria-hidden="true">spokojnie</span>'), 'słowa stanu w kolorze strony');
+  assert.ok(h.includes('aria-label="Akcje Brazylii (EWZ): siła sygnału 9 z 10 — wzrost"') && h.includes('aria-label="Akcje USA (SPY): siła sygnału 5,5 z 10 — spokojnie"'), 'opis dla czytnika ekranu');
+  assert.ok(h.includes('<p class="pnote"><b>Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.</b></p>'), 'zastrzeżenie');
+  assert.ok(h.includes('<p class="pnote tsg-ed"><i class="tdot"></i>Dziś żaden sygnał nie ma potwierdzonej przewagi w historii — to obserwacje z danych, nie przewaga.</p>'), 'bez przewagi w historii — wprost');
+  assert.ok(h.includes('<span class="mid"><i></i>5,5: brak wyraźnego kierunku</span>') && h.includes('<details class="etfd" id="trd-sila-jak"><summary>Jak liczymy wskaźnik 1–10</summary>'), 'legenda i metoda');
+  assert.ok(h.includes('<p class="pfoot">Plik z T[2026-10-10T07:52:13+00:00] · dane z dzisiaj</p></section>'), 'stopka: czas pliku i wiek');
+  assert.ok(!/NaN|undefined|null/.test(h.replace(/aria-hidden/g, '')), 'bez NaN / undefined / null');
+  assert.equal((h.match(/<g class="tsg-nd"/g) || []).length, 13, 'wskazówka przy każdej karcie z oceną');
+  assert.equal(X.trdSilaPanel(v323.world(), true), '', 'świat w widoku krypto — nic (karty krypto osobno)');
+  assert.equal(X.trdSilaPanel({at: 'x', d: v323.world().d.map(r => Object.assign(r, {rs: undefined}))}, false), '', 'bez wierszy wersji 2 — bez panelu (układ jak dotąd)');
+  assert.equal(X.trdSilaPanel(null, false) + X.trdSilaPanel({}, true), '');
+});
+
+test('v323: panel krypto z migawki m7 — doba UTC od 06:00, BNB 8 na górze, sprzeczne BTC/DOGE/ETH i spokojny SOL w środku, AVAX/LINK/TRX 5 na dole; stablecoiny — sam znak w kolorze', () => {
+  const X = v323.make('pl'), h = X.trdSilaPanel(v323.crypto(), true), C = v323.cards(h);
+  assert.ok(h.includes('Siła sygnałów na dobę 10.10.2026 (od 06:00 UTC)</h2>'), h.slice(0, 300));
+  assert.deepEqual(C.map(c => c[0] + ':' + c[1]), ['BNB:8', 'ADA:6', 'XRP:6', 'BTC:5,5', 'DOGE:5,5', 'ETH:5,5', 'SOL:5,5', 'AVAX:5', 'LINK:5', 'TRX:5']);
+  assert.equal((h.match(/zamknięcie 09\.10\.2026 \(UTC\) → następna doba 10\.10\.2026 · dane sprzed 1 dnia<\/p>/g) || []).length, 10, 'każda karta: zamknięcie doby → doba i wiek');
+  assert.ok(h.includes('<p class="tsg-w">agresywne kupno wyraźnie większe niż zwykle (53,3% obrotu) · premia na kontraktach wieczystych wyraźnie niższa niż zwykle (−0,055%)</p>'), 'BNB: dwa powody');
+  assert.ok(h.includes('<p class="tsg-w">żaden z powodów nie odbiega dziś od zwykłego poziomu</p>'), 'SOL: spokojnie');
+  const X2 = v323.make('pl'), D = v323.crypto(), b = D.d.find(r => r.id === 'XRP');
+  b.rs = b.rs.map(x => x[0] === 's' ? ['s', 410, 1.6, 1] : x); b.N = 2; b.str = 2;   /* stablecoiny w górę (wspólne dla rynku) — na karcie sam znak w kolorze */
+  assert.ok(X2.trdSilaPanel(D, true).includes('agresywne kupno wyraźnie większe niż zwykle (51,8% obrotu) · stablecoiny <i class="tg up">▲</i></p>'), 'stablecoiny: znak w kolorze (bez szarych strzałek)');
+  assert.ok(!/<i class="tg">[▲▼]/.test(h) && !/class="[^"]*\b(na|gy)\b[^"]*">[▲▼]/.test(h), 'żadnej szarej strzałki');
+});
+
+test('v323: stany bez oceny — „czeka” (karta nieaktualna), „po czasie”, „za mało historii”, „brak danych”: bez wskazówki, „—”, powód słowami; karta z przewagą i „odwrotnie”; zwijanie grup > 6', () => {
+  const X = v323.make('pl'), D = v323.world(), R = id => D.d.find(r => r.id === id);
+  Object.assign(R('SPY'), {st: 'stale', live: false, pw: []});
+  Object.assign(R('IVV'), {st: 'late'});
+  Object.assign(R('EWJ'), {st: 'short'});
+  R('TLT').rs = [['p', null, null, 0], ['f', null, null, 0]]; Object.assign(R('TLT'), {st: 'nodata', r: null, zp: null, f: null, fu: null, zf: null});
+  Object.assign(R('EWZ'), {st: 'buy', vd: 'edge', ek: ['p']});
+  Object.assign(R('XLF'), {vd: 'anti'});
+  /* INDA: cena i przepływ za wzrostem, zagraniczni przeciw (N = 1, siła 2) → 7 i „przeciw: …”; EWC: sama cena mocno w dół (N = −1, siła 2) → 4 — najniżej */
+  R('INDA').rs = [['p', 1.03, 1.3, 1], ['f', 50, 1.2, 1], ['o', -1331.36, -3.26, -1]]; Object.assign(R('INDA'), {N: 1, dir: 1, str: 2, rule: 'c', side: 'buy', st: 'obs', vd: 'none'});
+  R('EWC').rs = [['p', -2.0, -2.5, -1]]; Object.assign(R('EWC'), {N: -1, dir: -1, str: 2, rule: 'c', side: 'sell', st: 'obs', vd: 'none'});
+  const h = X.trdSilaPanel(D, false), C = v323.cards(h);
+  assert.deepEqual(C.filter(c => c[2] === 'dn').map(c => c[0] + ':' + c[1]), ['Obligacje firm o dobrej ocenie (LQD):5', 'Obligacje firm wysokiego ryzyka (HYG):5', 'Kanada (EWC):4'],
+    'spadki: od najsłabszego do najsilniejszego (najsilniejszy spadek na samym dole)');
+  assert.ok(h.includes('<p class="tsg-w">cena: dzień wyraźnie w górę (+1,03%) · pieniądze: napływ wyraźnie większy niż zwykle (+50 mln USD) · przeciw: inwestorzy zagraniczni: sprzedawali dużo więcej niż zwykle ('), 'powód przeciw — w zdaniu');
+  assert.deepEqual(C.filter(c => c[2] === 'na'), [['Akcje USA (SPY)', '—', 'na'], ['Akcje USA (IVV)', '—', 'na'], ['Akcje Japonii (EWJ)', '—', 'na'], ['Obligacje skarbowe USA ponad 20 lat (TLT)', '—', 'na']],
+    'na końcu, w kolejności: czeka, po czasie, za mało historii, brak danych');
+  assert.equal((h.match(/<g class="tsg-nd"/g) || []).length, C.length - 4, 'bez wskazówki przy 4 kartach bez oceny');
+  for (const z of ['czeka', 'po czasie', 'za mało historii', 'brak danych']) assert.ok(h.includes(`<span class="tsg-z na" aria-hidden="true">${z}</span>`), z);
+  assert.ok(h.includes('dane z sesji 09.10.2026 dotyczyły sesji 12.10.2026, która już się skończyła — czekamy na nowe') && h.includes('<p class="tsg-t">09.10.2026 · dane sprzed 1 dnia</p>'), 'czeka: powód; bez „następnej sesji”, która minęła');
+  assert.ok(h.includes('ceny z sesji 09.10.2026 trafiły na stronę dopiero po 9:00 w Nowym Jorku — karta jest tylko opisem, bez strony'), 'po czasie');
+  assert.ok(h.includes('za mało historii — potrzeba co najmniej 40 dni danych') && h.includes('brak liczb z tego dnia — brak nie jest zerem'), 'za mało historii, brak danych');
+  assert.ok(h.includes('aria-label="Akcje USA (SPY): bez oceny — czeka"'), 'opis bez liczby');
+  assert.ok(h.includes('<b>Bez oceny teraz</b><span class="tsg-c">(4)</span></h3>'), 'grupa bez oceny (≤ 6 — bez zwijania)');
+  assert.ok(h.includes('<p class="pnote tsg-ed"><i class="tdot"></i>Z potwierdzoną przewagą w historii: <i class="tg up">▲</i> Akcje Brazylii (EWZ).</p>') && h.includes('<span class="tsg-e up">✓ przewaga w historii (w próbie)</span>'), 'karta w kolorze — przewaga');
+  assert.ok(h.includes('<span class="tsg-e mid">w historii częściej odwrotnie — strony nie odwracamy</span>'), '„odwrotnie” — informacja na żółto');
+  assert.deepEqual(C.filter(c => c[2] === 'up').map(c => c[0] + ':' + c[1]), ['Akcje Brazylii (EWZ):9', 'Akcje Chin (FXI):7', 'Akcje Indii (INDA):7', 'Akcje rynków wschodzących (SPEM):6', 'Sektor finansowy USA (XLF):6'],
+    'kolor nie zmienia liczby (karta w kolorze ma tę samą skalę); powód przeciw przysuwa do środka (INDA 7, nie 8)');
+  /* więcej niż 6 kart bez kierunku — grupa zwinięta (id pamiętane przy odświeżeniu), w podsumowaniu liczby spokojnych i sprzecznych z odmianą */
+  const D2 = v323.world(); D2.d.filter(r => r.dir === 1).forEach(r => Object.assign(r, {st: 'quiet', dir: 0, side: 'none', str: 0, N: 0, rule: 'c0', vd: null, rs: r.rs.map(x => [x[0], x[1], x[2], 0])}));
+  const h2 = X.trdSilaPanel(D2, false);
+  assert.ok(h2.includes('<details class="etfd tsg-d" id="trd-sila-mid"><summary><span><i class="tg mid">●</i> Bez wyraźnego kierunku <span class="tsg-c">(11)</span> · 9 spokojnych · 2 sprzeczne</span></summary>'), h2.slice(h2.indexOf('tsg-d'), h2.indexOf('tsg-d') + 200));
+  assert.ok(h2.includes('<b>Sygnał wzrostu</b><span class="tsg-c">(0)</span></h3><p class="pnote">Dziś żadnego sygnału wzrostu.</p>'), 'pusta strona — wprost');
+  const D3 = v323.world(); D3.d.forEach(r => Object.assign(r, {st: 'stale', live: false, side: 'none', pw: []}));
+  const h3 = X.trdSilaPanel(D3, false);
+  assert.ok(h3.includes('<h2><span class="icos">') && h3.includes('Siła sygnałów</h2>') && h3.includes('<details class="etfd tsg-d" id="trd-sila-na"><summary><span>Bez oceny teraz <span class="tsg-c">(13)</span> · 13 nieaktualnych</span></summary>'), 'wszystko nieaktualne: tytuł bez daty, grupa zwinięta');
+  assert.equal((h3.match(/<g class="tsg-nd"/g) || []).length, 0, 'żadnej wskazówki');
+});
+
+test('v323: układ TRENDÓW — panel „Siła sygnałów” nad „Wynikami sygnałów”, chipy usunięte, „Nauka” zwinięta, reszta w „Szczegółach”; błąd panelu nie psuje układu; „Animacje” wyłączone — wskazówka bez ruchu', () => {
+  const X = v323.make('pl');
+  const mk = (n) => ({n, nextSibling: null, kids: [], appendChild(c) { this.kids.push(c); c.par = this; }});
+  const run = (D, cr) => { const hr = mk('hr'), x1 = mk('x1'); hr.nextSibling = x1; const ins = []; hr.insertAdjacentHTML = (p, h) => ins.push([p, h]);
+    const w = {querySelector: q => (q === ':scope>.head-row' ? hr : null), kids: [], appendChild(c) { this.kids.push(c); }};
+    const G = globalThis, had = 'document' in G, prev = G.document; G.document = {createElement: tag => mk(tag)};
+    try { X.trdIgWrap(w, D, cr); } finally { if (had) G.document = prev; else delete G.document; }
+    return {w, ins}; };
+  for (const cr of [false, true]) {
+    const {w, ins} = run(cr ? v323.crypto() : v323.world(), cr), h = ins[0] && ins[0][1];
+    assert.ok(ins.length === 1 && ins[0][0] === 'afterend' && h.startsWith('<section class="panel pcard trd-sila" id="trd-sila">'), 'panel zaraz pod nagłówkiem');
+    assert.ok(h.indexOf('<section class="panel pcard trd-ig" id="trd-ig">') > h.indexOf('</section>'), 'pod nim „Wyniki sygnałów”');
+    assert.ok(w.kids[0].id === 'trd-wiecej' && w.kids[0].kids[1].kids.map(k => k.n).join() === 'x1', 'reszta w „Szczegółach”');
+    assert.ok(!h.includes('tig-c') && !h.includes('tig.s.'), 'bez chipów „Dzisiejsze sygnały”');
+  }
+  const bad = v323.crypto(); Object.defineProperty(bad, 'd', {get() { throw new Error('zły plik'); }});   /* „Wyniki sygnałów” nie czytają kart (d) — tylko panel */
+  const r = run(bad, true);
+  assert.ok(r.ins.length === 1 && r.ins[0][1].startsWith('<section class="panel pcard trd-ig" id="trd-ig">'), 'błąd panelu — wyniki i „Szczegóły” jak dotąd');
+  X.TRDJ.c = {since: '2026-09-28', rows: [], pg: {do: '2026-10-01', l: {all: [10, 100, null]}}, cp: {}}; X.TRDJ.at = v323.NOW[0]; X.TRDJ.tried = true;
+  const ig = X.trdIg({d: []}, true);
+  assert.ok(ig.includes('<details class="etfd tig-ld" id="trd-nauka"><summary>Nauka: postęp do oceny sygnałów i reguły w cieniu</summary><div class="tig-l">'), 'Nauka w zwijanym bloku');
+  assert.ok(ig.indexOf('id="trd-nauka"') > ig.indexOf('class="tig-g') && ig.indexOf('id="trd-nauka"') < ig.indexOf('<p class="pfoot">'), 'pod pierścieniami i słupkami, przed stopką');
+  assert.equal(X.trdIgLd({}, true, {}), '', 'bez bloku nauki — nic');
+  const Y = v323.make('pl', {mode: 'trendy', trdv: 'global', anim: false});
+  assert.ok(Y.trdSilaPanel(v323.world(), false).startsWith('<section class="panel pcard trd-sila tsg-still" id="trd-sila">'), 'Animacje wyłączone — klasa bez ruchu');
+  const R0 = html.indexOf('function renderTrendy(){'), R1 = html.indexOf('\n}\n', R0);
+  assert.ok(html.slice(R0, R1).includes("  if(typeof trdIgWrap==='function')trdIgWrap(w,D,cr);"), 'renderTrendy bez zmian — przebudowa w trdIgWrap');
+  assert.ok(!html.includes('function trdIgChips(') && !html.includes('.tig-cs{') && !html.includes('.tig-c{'), 'chipy usunięte z kodu i stylu');
+});
+
+test('v323: zdania kart — te same powody co pierwsza linia kart w „Szczegółach” (liczby bez zmian), bez listy „w zwykłym zakresie”', () => {
+  const X = v323.make('pl'), F = v323.FILE, L = F.bd[0];
+  for (const r0 of F.d) {
+    const cr = r0.fam === 'cr', r = cr ? X.trdDRow(v323.clone(r0)) : X.trdDRowW(v323.clone(r0)); assert.ok(r, r0.id);
+    const a = X.trdSilaW(r, cr, L), b = cr ? X.trdDWhy2(r, L) : X.trdDWhyW(r);
+    const nums = s => (s.replace(/<[^>]+>/g, '').match(/[−+]?\d[\d\s,.]*%?/g) || []).map(x => x.trim());
+    for (const n of nums(a)) assert.ok(b.includes(n), r0.id + ': liczba ' + n + ' jest też w „Szczegółach”: ' + b);
+    assert.ok(!a.includes('w zwykłym zakresie'), r0.id + ': bez listy „w zwykłym zakresie”');
+  }
+  /* bez głosu: „żaden nie odbiega” tylko, gdy jest z czym porównać; liczba bez historii — „bez porównania z historią”; nic — „—” */
+  const spy = v323.clone(F.d.find(r => r.id === 'SPY')), W = o => X.trdSilaW(X.trdDRowW(Object.assign(v323.clone(spy), o)), false, {});
+  assert.equal(W({pw: [], rs: [['p', 0.6, 0.86, 0], ['f', 12.5, null, 0]]}), 'żaden z powodów nie odbiega dziś od zwykłego poziomu · bez porównania z historią: przepływ do funduszu');
+  assert.equal(W({pw: [], rs: [['p', 0.6, null, 0], ['f', 12.5, null, 0]]}), 'bez porównania z historią: ruch ceny, przepływ do funduszu', 'nic do porównania — bez zdania „żaden nie odbiega”');
+  assert.equal(W({pw: [], rs: [['p', null, null, 0], ['f', null, null, 0]]}), 'brak danych z tej sesji: ruch ceny, przepływ do funduszu');
+  assert.equal(W({pw: [], rs: []}), '—', 'nic do powiedzenia — „—”');
+});
+
+test('v323: słownik — czysty JSON, 10 języków, te same klucze i pola {x}, każdy klucz użyty w kodzie; prawdziwe tłumaczenia; bez nazw dostawców; ja bez spacji przed licznikami', () => {
+  const {D, L10, name} = v323;
+  assert.deepEqual(Object.keys(D), L10);
+  const K = Object.keys(D.pl), ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  assert.equal(K.length, 30); assert.ok(K.every(k => k.startsWith('w323.')));
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l + ': te same klucze'); for (const k of K) assert.equal(ph(D[l][k]), ph(D.en[k]), l + ' ' + k + ': pola {x}'); }
+  for (const l of L10.slice(2)) for (const k of K) assert.ok(D[l][k] !== D.en[k], l + ' ' + k + ': nie kopia angielskiego');
+  assert.equal(html.split(name).length - 1, 3, 'nazwa słownika tylko w definicji i linii for');
+  const code = html.slice(html.indexOf('/* ===================== v323: TRENDY — siła sygnału'), html.indexOf('/* v323: koniec siły sygnału */')) + html.slice(html.indexOf('function trdIgLd('), html.indexOf('function trdIg(D,cr){'));
+  for (const k of K) assert.ok(code.includes("'" + k + "'") || (k.startsWith('w323.z.') && code.includes("t('w323.z.'+S)") && ['stale', 'late', 'short', 'nodata'].includes(k.slice(7))), 'klucz użyty: ' + k);
+  const prov = ['SoSoValue', 'DefiLlama', 'CoinMarketCap', 'CoinGecko', 'CoinPaprika', 'Coin Metrics', 'Farside', 'Binance', 'Bybit', 'Deribit', 'iShares', 'SPDR', 'State Street', 'BlackRock',
+    'Twelve Data', 'Finnhub', 'EODHD', 'FRED', 'TradingView', 'Glassnode', 'CryptoQuant', 'Alternative', 'Yahoo', 'Nasdaq', 'Stooq'];
+  const all = JSON.stringify(D);
+  for (const p of prov) assert.ok(!all.includes(p), 'bez nazwy dostawcy: ' + p);
+  for (const k of K) assert.ok(!/(\d|\})[ \u00a0](日|件|営業日|日間|銘柄|か月|年)/.test(D.ja[k]), 'ja bez spacji przed licznikiem: ' + k);
+  assert.ok(D.pl['w323.jak.1'].includes('Poziom = siła dnia + przewaga głosów − 1, najwyżej 5') && D.pl['w323.jak.1'].includes('Sygnał wzrostu = 5 + poziom (6–10), sygnał spadku = 6 − poziom (5–1)'), 'wzór opisany');
+  assert.ok(D.pl['w323.jak.2'].includes('(11 − wynik)') && D.pl['w323.sub'].includes('nie pewność ani prognoza ceny'), 'symetria i „nie pewność” opisane');
+  const X = v323.make('en'), h = X.trdSilaPanel(v323.world(), false);
+  assert.ok(h.includes('Signal strength for the US session — 10/12/2026</h2>') && h.includes('<span class="mid"><i></i>5.5: no clear direction</span>') && h.includes('>5.5</b>'), 'en: liczba 5.5 w zapisie języka');
+  const J = v323.make('ja').trdSilaPanel(v323.crypto(), true);
+  assert.ok(J.includes('10段階中8') && J.includes('上昇シグナル'), 'ja');
+});
+
+test('v323: styl — tylko zmienne motywu (bez kolorów zapisanych wprost), kolory kierunku --gr/--rd/--yl, wskazówka bez ruchu przy prefers-reduced-motion i „Animacjach” wyłączonych, telefon — jedna kolumna', () => {
+  const c0 = html.indexOf('/* v323: TRENDY — siła sygnału 1–10 przy każdej karcie (decyzja właściciela 10.10)'), c1 = html.indexOf('@media (max-width:620px){.tsg-l{', c0), css = html.slice(c0, html.indexOf('\n', c1));
+  assert.ok(c0 > 0 && c1 > c0, 'blok stylu v323');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(\d/.test(css), 'bez kolorów zapisanych wprost');
+  for (const s of ['.tsg-a.r{stroke:var(--rd)}', '.tsg-a.y{stroke:var(--yl)}', '.tsg-a.g{stroke:var(--gr)}', '.tsg-bar.up i.on{background:rgba(var(--gr-rgb),var(--o,1))}',
+    '.tsg-bar.dn i.on{background:rgba(var(--rd-rgb),var(--o,1))}', '.tsg-n.up,.tsg-z.up,.tsg-e.up{color:var(--gr-tx)}', '.tsg-still .tsg-nd{animation:none}',
+    '@media (max-width:620px){.tsg-l{grid-template-columns:minmax(0,1fr)}']) assert.ok(css.includes(s), s);
+  assert.ok(html.includes('@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}'), 'reguła ogólna: bez ruchu');
+  assert.ok(c0 > html.indexOf('/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie'), 'po stylu infografiki (test v158 sprawdza tam tylko zmienne motywu)');
 });

@@ -1369,7 +1369,7 @@ td .cell .logo-img{width:34px;height:34px}
    kafelka: osobna linia 11 px) robiła z niej osobną, małą linię (Fed: zmiana szansy, fundusze: obligacje, ETF wobec stablecoinów, paliwa w Polsce);
    wartość funduszu (.fnd-v) i strzałka aukcji (.auk-ar) mają własny wygląd z bazy */
 #global .etfk b>span:is(.pos,.neg,.neu):not(.fnd-v):not(.auk-ar),#global .etfk small span:is(.pos,.neg,.neu){display:inline;font-size:inherit;line-height:inherit}
-/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie, słupki dzień po dniu, chipy sygnałów) */
+/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie, słupki dzień po dniu; v323: chipy sygnałów zastąpił panel „Siła sygnałów”) */
 .trd-ig .tig-g{display:grid;grid-template-columns:minmax(150px,.75fr) minmax(0,1.5fr) minmax(0,1.6fr);gap:14px;align-items:center;margin-top:10px}
 .trd-ig .tig-g.tig-g2{grid-template-columns:minmax(150px,.75fr) minmax(0,2fr)}
 .tig-k{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel-2)}
@@ -1397,13 +1397,6 @@ td .cell .logo-img{width:34px;height:34px}
 .tig-lg span{display:inline-flex;align-items:center;gap:5px}
 .tig-lg i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .tig-lg i.h{background:var(--gr)}.tig-lg i.m{background:var(--rd)}.tig-lg i.w{border:1px dashed var(--gy)}
-.tig-s{margin-top:14px}
-.tig-cs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.tig-c{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:4px 9px 4px 5px;font-size:12px;background:var(--panel-2)}
-.tig-c.p{border-color:var(--gr)}.tig-c.m{border-color:var(--rd)}
-.tig-c i{font-style:normal;font-weight:700;letter-spacing:-.05em}
-.tig-c.p i{color:var(--gr-tx)}.tig-c.m i{color:var(--rd-tx)}.tig-c.na i{color:var(--mut)}
-.tig-c.tig-n{color:var(--mut);padding-left:9px}
 /* v208: nauka sygnałów — pasek postępu do punktu kontrolnego (kolor niebieski: postęp, nie trafienie ani chybienie) */
 .tig-l{margin-top:14px}
 .tig-l h3{margin:0 0 6px}
@@ -1429,6 +1422,50 @@ td .cell .logo-img{width:34px;height:34px}
 .trd-wiecej{margin-top:12px}
 .trd-wiecej>summary{font-weight:600}
 @media (max-width:900px){.trd-ig .tig-g,.trd-ig .tig-g.tig-g2{grid-template-columns:minmax(0,1fr)}}
+/* v323: TRENDY — siła sygnału 1–10 przy każdej karcie (decyzja właściciela 10.10): półkole jak „Pokrycie danych”, pasek 10 kratek jak „Aktywność sektorów”;
+   kolory tylko ze zmiennych motywu (--gr / --rd / --yl: systemowe, ciemny i jasny); wskazówka wjeżdża od środka (bez ruchu przy prefers-reduced-motion
+   — reguła ogólna strony — i przy wyłączonych „Animacjach”: klasa tsg-still) */
+.trd-sila h2 .icos{margin-right:8px}
+.trd-sila .tsg-ed{color:var(--tx)}.trd-sila .tsg-ed .tdot{--c:var(--yl);margin-right:7px;vertical-align:1px}   /* informacja — żółta kropka (kolory decyzji 10.10) */
+.trd-sila .tsg-ed .tg.up{color:var(--gr-tx)}.trd-sila .tsg-ed .tg.dn{color:var(--rd-tx)}
+.tsg-lg{display:flex;flex-wrap:wrap;gap:4px 16px;margin:8px 0 0;font-size:11.5px;color:var(--mut)}
+.tsg-lg span{display:inline-flex;align-items:center;gap:6px}
+.tsg-lg i{width:10px;height:10px;border-radius:3px;flex:none;background:var(--line-2)}
+.tsg-lg .up i{background:var(--gr)}.tsg-lg .mid i{background:var(--yl)}.tsg-lg .dn i{background:var(--rd)}
+.tsg-gh{display:flex;align-items:center;gap:6px;margin:18px 0 8px;font-size:14px}
+.tsg-gh .tg{font-size:13px}.tsg-gh .tg.up{color:var(--gr-tx)}.tsg-gh .tg.dn{color:var(--rd-tx)}.tsg-gh .tg.mid,.tsg-d>summary .tg.mid{color:var(--yl-tx);font-size:10px;vertical-align:1px}
+.tsg-c{color:var(--dim);font-weight:500;font-size:12.5px}
+.tsg-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.tsg-d{margin-top:14px}.tsg-d>summary{font-weight:600}.tsg-d>.tsg-l{margin-top:10px}
+.tsg-k{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:start;border:1px solid var(--line);border-left:3px solid var(--line-2);border-radius:12px;padding:10px 12px 10px 10px;background:var(--panel-2);min-width:0}
+.tsg-k.up{border-left-color:var(--gr)}.tsg-k.dn{border-left-color:var(--rd)}.tsg-k.mid{border-left-color:var(--yl)}
+.tsg-g{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
+.tsg-svg{width:96px;height:auto;display:block;overflow:visible}
+.tsg-a{fill:none;stroke-width:14;opacity:.26}.tsg-a.on{opacity:1}
+.tsg-a.r{stroke:var(--rd)}.tsg-a.y{stroke:var(--yl)}.tsg-a.g{stroke:var(--gr)}
+.tsg-k.na .tsg-a{opacity:.14}
+.tsg-nd{transform-box:view-box;transform-origin:100px 100px;animation:tsgNd .7s cubic-bezier(.2,.8,.2,1) both}
+.tsg-nd line{stroke:var(--tx);stroke-width:7;stroke-linecap:round}.tsg-nd circle{fill:var(--tx)}
+@keyframes tsgNd{from{transform:rotate(var(--r0,0deg))}to{transform:rotate(0deg)}}
+.tsg-still .tsg-nd{animation:none}
+.tsg-n{font:700 24px/1 Sora,sans-serif;font-variant-numeric:tabular-nums;margin-top:3px}
+.tsg-z{font-size:11px;font-weight:600;line-height:1.25;margin-top:4px}
+.tsg-n.up,.tsg-z.up,.tsg-e.up{color:var(--gr-tx)}.tsg-n.dn,.tsg-z.dn,.tsg-e.dn{color:var(--rd-tx)}.tsg-n.mid,.tsg-z.mid,.tsg-e.mid{color:var(--yl-tx)}.tsg-n.na,.tsg-z.na{color:var(--mut)}
+.tsg-b{min-width:0}
+.tsg-nm{display:flex;align-items:center;gap:0;font-weight:600;font-size:13.5px;line-height:1.3;min-width:0}
+.tsg-nm .icos{margin-right:7px}
+.tsg-nm>span{min-width:0;overflow-wrap:anywhere}
+.tsg-nm small{color:var(--dim);font-size:10.5px;font-weight:500;margin-left:4px}
+.tsg-bar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) 4px repeat(5,minmax(0,1fr));gap:2px;align-items:center;max-width:230px;margin:7px 0 6px}
+.tsg-bar i{height:9px;border-radius:2px;background:var(--line)}
+.tsg-bar b{height:14px;border-radius:2px;background:var(--line-2)}
+.tsg-bar.mid b{background:var(--yl)}
+.tsg-bar.up i.on{background:rgba(var(--gr-rgb),var(--o,1))}.tsg-bar.dn i.on{background:rgba(var(--rd-rgb),var(--o,1))}
+.tsg-w{margin:0;font-size:12px;line-height:1.42;color:var(--tx);overflow-wrap:anywhere}
+.tsg-e{display:block;margin-top:4px;font-size:11px;font-weight:600}
+.tsg-t{margin:4px 0 0;font-size:10.5px;line-height:1.35;color:var(--dim)}
+.tig-ld{margin-top:14px}.tig-ld>summary{font-weight:600}.tig-ld>.tig-l{margin-top:8px}
+@media (max-width:620px){.tsg-l{grid-template-columns:minmax(0,1fr)}.tsg-k{grid-template-columns:84px minmax(0,1fr);gap:10px;padding:9px 10px 9px 8px}.tsg-svg{width:84px}.tsg-n{font-size:22px}}
 /* v157: widok „Wykresy” — przełącznik nad kartami, siatka półprzezroczystych kafli z prostymi wykresami; kolory tylko ze zmiennych motywu */
 .wk-sel{display:inline-flex;align-items:center;gap:8px;margin-left:auto}
 .wk-lab{color:var(--mut);font-size:12.5px}
@@ -2476,6 +2513,9 @@ const EXTRA216={"pl":{"w321.k.gold":"Złoto","w321.k.brent":"Ropa Brent","w321.k
 for(const l in EXTRA216)if(I18N[l])Object.assign(I18N[l],EXTRA216[l]);
 const EXTRA217={"pl":{"w322.leg.beat":"Element bije jak serce, gdy płynie z niego albo do niego kapitał: im większa zmiana wartości, tym mocniejsze uderzenie.","w322.leg.t10":"Przy okresie 24H linie do grup top 10 niosą prąd — zmianę wartości pokazanych monet w 24 h: zielony płynie do grupy, czerwony z grupy; skala jak na liniach modelu.","w322.t10.dt":"Prąd grupy (24 h)"},"en":{"w322.leg.beat":"An element beats like a heart when capital flows out of it or into it: the bigger the change in value, the stronger the beat.","w322.leg.t10":"With the 24H period the lines to the top 10 groups carry a flow — the change in value of the coins shown over 24 h: green flows into the group, red out of it; same scale as the model lines.","w322.t10.dt":"Group flow (24 h)"},"de":{"w322.leg.beat":"Ein Element schlägt wie ein Herz, wenn Kapital aus ihm oder in es fließt: Je größer die Wertänderung, desto stärker der Schlag.","w322.leg.t10":"Im Zeitraum 24H tragen die Linien zu den Top-10-Gruppen einen Strom — die Wertänderung der gezeigten Coins in 24 h: Grün fließt in die Gruppe, Rot aus ihr heraus; gleicher Maßstab wie die Linien des Modells.","w322.t10.dt":"Strom der Gruppe (24 h)"},"es":{"w322.leg.beat":"Un elemento late como un corazón cuando el capital sale de él o entra en él: cuanto mayor es el cambio de valor, más fuerte es el latido.","w322.leg.t10":"Con el periodo 24H, las líneas hacia los grupos top 10 llevan una corriente: el cambio de valor de las monedas mostradas en 24 h; el verde fluye hacia el grupo y el rojo sale de él, con la misma escala que las líneas del modelo.","w322.t10.dt":"Corriente del grupo (24 h)"},"fr":{"w322.leg.beat":"Un élément bat comme un cœur lorsque du capital en sort ou y entre : plus la variation de valeur est grande, plus le battement est fort.","w322.leg.t10":"Sur la période 24H, les lignes vers les groupes top 10 portent un courant : la variation de valeur des cryptos affichées sur 24 h ; le vert va vers le groupe, le rouge en sort, à la même échelle que les lignes du modèle.","w322.t10.dt":"Courant du groupe (24 h)"},"it":{"w322.leg.beat":"Un elemento batte come un cuore quando il capitale ne esce o vi entra: più grande è la variazione di valore, più forte è il battito.","w322.leg.t10":"Con il periodo 24H le linee verso i gruppi top 10 portano una corrente: la variazione di valore delle monete mostrate in 24 h; il verde scorre verso il gruppo, il rosso ne esce, con la stessa scala delle linee del modello.","w322.t10.dt":"Corrente del gruppo (24 h)"},"pt":{"w322.leg.beat":"Um elemento bate como um coração quando o capital sai dele ou entra nele: quanto maior a variação de valor, mais forte a batida.","w322.leg.t10":"No período 24H, as linhas para os grupos top 10 levam uma corrente: a variação de valor das moedas mostradas em 24 h; o verde flui para o grupo e o vermelho sai dele, na mesma escala das linhas do modelo.","w322.t10.dt":"Corrente do grupo (24 h)"},"ru":{"w322.leg.beat":"Элемент бьётся как сердце, когда из него или в него течёт капитал: чем больше изменение стоимости, тем сильнее удар.","w322.leg.t10":"При периоде 24H по линиям к группам топ-10 идёт поток — изменение стоимости показанных монет за 24 ч: зелёный течёт в группу, красный — из неё; масштаб тот же, что у линий модели.","w322.t10.dt":"Поток группы (24 ч)"},"zh":{"w322.leg.beat":"当资金流出或流入某个元素时，它会像心脏一样跳动：价值变化越大，跳动越强。","w322.leg.t10":"选择 24H 时段时，通往前 10 名分组的线上显示资金流，即所示币种在 24 小时内的价值变化：绿色流向该组，红色从该组流出；比例与模型的线相同。","w322.t10.dt":"分组资金流（24 小时）"},"ja":{"w322.leg.beat":"資本が流出入している要素は心臓のように脈打ちます。価値の変化が大きいほど、鼓動は強くなります。","w322.leg.t10":"期間24Hでは、トップ10グループへの線に流れが表示されます。表示中の銘柄の24時間の価値変化で、緑はグループへ、赤はグループから流れ、モデルの線と同じ縮尺です。","w322.t10.dt":"グループの流れ（24時間）"}};
 for(const l in EXTRA217)if(I18N[l])Object.assign(I18N[l],EXTRA217[l]);
+/* v323: TRENDY — panel „Siła sygnałów” (wskaźnik 1–10 przy każdej karcie; decyzja właściciela 10.10, punkt 6) — 10 języków */
+const EXTRA218={"pl":{"w323.t.w":"Siła sygnałów na sesję w USA — {s}","w323.t.c":"Siła sygnałów na dobę {s} (od {h} UTC)","w323.t0":"Siła sygnałów","w323.sub":"Wskaźnik 1–10 przy każdej karcie to siła sygnału z reguł strony — nie pewność ani prognoza ceny. Jak często sygnały się sprawdzały, pokazują wyniki niżej.","w323.e0":"Dziś żaden sygnał nie ma potwierdzonej przewagi w historii — to obserwacje z danych, nie przewaga.","w323.e1":"Z potwierdzoną przewagą w historii: {l}.","w323.lg.up":"6–10: sygnał wzrostu (10 — najsilniejszy)","w323.lg.mid":"{m}: brak wyraźnego kierunku","w323.lg.dn":"1–5: sygnał spadku (1 — najsilniejszy)","w323.lg.na":"„—”: bez oceny teraz","w323.g.up":"Sygnał wzrostu","w323.g.dn":"Sygnał spadku","w323.g.mid":"Bez wyraźnego kierunku","w323.g.na":"Bez oceny teraz","w323.g.up0":"Dziś żadnego sygnału wzrostu.","w323.g.dn0":"Dziś żadnego sygnału spadku.","w323.z.up":"wzrost","w323.z.dn":"spadek","w323.z.q":"spokojnie","w323.z.x":"sprzeczne","w323.z.stale":"czeka","w323.z.late":"po czasie","w323.z.short":"za mało historii","w323.z.nodata":"brak danych","w323.aria":"{n}: siła sygnału {s} z 10 — {z}","w323.aria0":"{n}: bez oceny — {z}","w323.jak.t":"Jak liczymy wskaźnik 1–10","w323.jak.1":"Wskaźnik bierze tylko to, co już jest na karcie: kierunek (czy więcej powodów wskazuje wzrost, czy spadek), przewagę głosów (o ile powodów więcej wskazuje tę stronę niż przeciwną) i siłę dnia (1–3: ile powodów wskazuje tę stronę, plus jeden punkt, gdy któryś odbiega mocno — o co najmniej 2 rozrzuty; najwyżej 3). Poziom = siła dnia + przewaga głosów − 1, najwyżej 5. Sygnał wzrostu = 5 + poziom (6–10), sygnał spadku = 6 − poziom (5–1), a brak kierunku — spokojny dzień albo tyle samo powodów za i przeciw — to środek skali, {m}.","w323.jak.2":"Każdy dodatkowy zgodny powód albo mocniejszy ruch odsuwa wskaźnik od środka, a powód przeciw przysuwa go do środka; ten sam układ w drugą stronę daje wynik lustrzany (11 − wynik). Wskaźnik nie zmienia reguł, progów ani dzienników sygnałów i nie mówi, jak często sygnał się sprawdzał — to pokazują wyniki i szczegóły niżej. Karta bez oceny (czeka na nowe dane, dane po czasie, za mało historii, brak danych) nie ma wskazówki — zamiast liczby jest „—”.","w323.nauka":"Nauka: postęp do oceny sygnałów i reguły w cieniu"},"en":{"w323.t.w":"Signal strength for the US session — {s}","w323.t.c":"Signal strength for the day {s} (from {h} UTC)","w323.t0":"Signal strength","w323.sub":"The 1–10 gauge on each card is the signal strength from the site’s rules — not certainty or a price forecast. How often the signals were right is shown in the results below.","w323.e0":"Today no signal has a confirmed edge in the history — these are observations from the data, not an edge.","w323.e1":"With a confirmed edge in the history: {l}.","w323.lg.up":"6–10: signal of a rise (10 — the strongest)","w323.lg.mid":"{m}: no clear direction","w323.lg.dn":"1–5: signal of a fall (1 — the strongest)","w323.lg.na":"“—”: no reading right now","w323.g.up":"Signal of a rise","w323.g.dn":"Signal of a fall","w323.g.mid":"No clear direction","w323.g.na":"No reading right now","w323.g.up0":"No signal of a rise today.","w323.g.dn0":"No signal of a fall today.","w323.z.up":"rise","w323.z.dn":"fall","w323.z.q":"quiet","w323.z.x":"conflicting","w323.z.stale":"waiting","w323.z.late":"too late","w323.z.short":"too little history","w323.z.nodata":"no data","w323.aria":"{n}: signal strength {s} out of 10 — {z}","w323.aria0":"{n}: no reading — {z}","w323.jak.t":"How we compute the 1–10 gauge","w323.jak.1":"The gauge uses only what is already on the card: the direction (whether more reasons point to a rise or to a fall), the vote margin (how many more reasons point that way than the other way) and the strength of the day (1–3: how many reasons point that way, plus one point when one of them departs strongly — by at least 2 spreads; at most 3). Level = strength of the day + vote margin − 1, at most 5. A signal of a rise = 5 + level (6–10), a signal of a fall = 6 − level (5–1), and no direction — a quiet day or as many reasons for as against — is the middle of the scale, {m}.","w323.jak.2":"Each additional agreeing reason or a stronger move pushes the gauge away from the middle, and a reason against pulls it towards the middle; the same set-up in the other direction gives a mirror result (11 − score). The gauge does not change the rules, thresholds or signal logs and does not tell how often a signal was right — that is shown in the results and details below. A card without a reading (waiting for new data, data too late, too little history, no data) has no needle — instead of a number there is “—”.","w323.nauka":"Learning: progress towards the signal evaluation and the shadow rules"},"de":{"w323.t.w":"Signalstärke für die US-Sitzung — {s}","w323.t.c":"Signalstärke für den Tag {s} (ab {h} UTC)","w323.t0":"Signalstärke","w323.sub":"Die Anzeige 1–10 auf jeder Karte ist die Signalstärke aus den Regeln der Seite — weder Gewissheit noch eine Preisprognose. Wie oft die Signale zutrafen, zeigen die Ergebnisse weiter unten.","w323.e0":"Heute hat kein Signal einen bestätigten Vorteil in der Historie — das sind Beobachtungen aus den Daten, kein Vorteil.","w323.e1":"Mit bestätigtem Vorteil in der Historie: {l}.","w323.lg.up":"6–10: Signal für einen Anstieg (10 — das stärkste)","w323.lg.mid":"{m}: keine klare Richtung","w323.lg.dn":"1–5: Signal für einen Rückgang (1 — das stärkste)","w323.lg.na":"„—“: derzeit keine Bewertung","w323.g.up":"Signal für einen Anstieg","w323.g.dn":"Signal für einen Rückgang","w323.g.mid":"Keine klare Richtung","w323.g.na":"Derzeit keine Bewertung","w323.g.up0":"Heute kein Signal für einen Anstieg.","w323.g.dn0":"Heute kein Signal für einen Rückgang.","w323.z.up":"Anstieg","w323.z.dn":"Rückgang","w323.z.q":"ruhig","w323.z.x":"widersprüchlich","w323.z.stale":"wartet","w323.z.late":"zu spät","w323.z.short":"zu wenig Historie","w323.z.nodata":"keine Daten","w323.aria":"{n}: Signalstärke {s} von 10 — {z}","w323.aria0":"{n}: keine Bewertung — {z}","w323.jak.t":"Wie wir die Anzeige 1–10 berechnen","w323.jak.1":"Die Anzeige nutzt nur, was schon auf der Karte steht: die Richtung (ob mehr Gründe auf einen Anstieg oder auf einen Rückgang zeigen), den Stimmenvorsprung (wie viele Gründe mehr in diese Richtung zeigen als in die andere) und die Tagesstärke (1–3: wie viele Gründe in diese Richtung zeigen, plus ein Punkt, wenn einer stark abweicht — um mindestens 2 Streuungen; höchstens 3). Stufe = Tagesstärke + Stimmenvorsprung − 1, höchstens 5. Signal für einen Anstieg = 5 + Stufe (6–10), Signal für einen Rückgang = 6 − Stufe (5–1), und keine Richtung — ein ruhiger Tag oder gleich viele Gründe dafür und dagegen — ist die Mitte der Skala, {m}.","w323.jak.2":"Jeder zusätzliche übereinstimmende Grund oder eine stärkere Bewegung rückt die Anzeige von der Mitte weg, ein Grund dagegen rückt sie zur Mitte hin; dieselbe Lage in die andere Richtung ergibt ein Spiegelbild (11 − Wert). Die Anzeige ändert weder Regeln noch Schwellen noch Signalprotokolle und sagt nicht, wie oft ein Signal zutraf — das zeigen die Ergebnisse und Einzelheiten weiter unten. Eine Karte ohne Bewertung (wartet auf neue Daten, Daten zu spät, zu wenig Historie, keine Daten) hat keinen Zeiger — statt einer Zahl steht „—“.","w323.nauka":"Lernen: Fortschritt bis zur Bewertung der Signale und Regeln im Hintergrund"},"es":{"w323.t.w":"Fuerza de las señales para la sesión en EE. UU. — {s}","w323.t.c":"Fuerza de las señales para el día {s} (desde las {h} UTC)","w323.t0":"Fuerza de las señales","w323.sub":"El indicador 1–10 de cada tarjeta es la fuerza de la señal según las reglas del sitio, no una certeza ni un pronóstico del precio. Con qué frecuencia acertaron las señales lo muestran los resultados más abajo.","w323.e0":"Hoy ninguna señal tiene una ventaja confirmada en el historial: son observaciones de los datos, no una ventaja.","w323.e1":"Con ventaja confirmada en el historial: {l}.","w323.lg.up":"6–10: señal de subida (10, la más fuerte)","w323.lg.mid":"{m}: sin dirección clara","w323.lg.dn":"1–5: señal de bajada (1, la más fuerte)","w323.lg.na":"«—»: sin valoración por ahora","w323.g.up":"Señal de subida","w323.g.dn":"Señal de bajada","w323.g.mid":"Sin dirección clara","w323.g.na":"Sin valoración por ahora","w323.g.up0":"Hoy ninguna señal de subida.","w323.g.dn0":"Hoy ninguna señal de bajada.","w323.z.up":"subida","w323.z.dn":"bajada","w323.z.q":"tranquilo","w323.z.x":"contradictorio","w323.z.stale":"en espera","w323.z.late":"tardío","w323.z.short":"poco historial","w323.z.nodata":"sin datos","w323.aria":"{n}: fuerza de la señal {s} de 10 — {z}","w323.aria0":"{n}: sin valoración — {z}","w323.jak.t":"Cómo calculamos el indicador 1–10","w323.jak.1":"El indicador usa solo lo que ya está en la tarjeta: la dirección (si más motivos apuntan a una subida o a una bajada), la ventaja de votos (cuántos motivos más apuntan a ese lado que al contrario) y la fuerza del día (1–3: cuántos motivos apuntan a ese lado, más un punto cuando alguno se aparta con fuerza, al menos 2 dispersiones; como máximo 3). Nivel = fuerza del día + ventaja de votos − 1, como máximo 5. Señal de subida = 5 + nivel (6–10), señal de bajada = 6 − nivel (5–1), y la falta de dirección —un día tranquilo o tantos motivos a favor como en contra— es el centro de la escala, {m}.","w323.jak.2":"Cada motivo adicional a favor o un movimiento más fuerte aleja el indicador del centro, y un motivo en contra lo acerca al centro; la misma situación en la otra dirección da un resultado simétrico (11 − valor). El indicador no cambia las reglas, los umbrales ni los registros de señales y no dice con qué frecuencia acertó una señal: eso lo muestran los resultados y los detalles más abajo. Una tarjeta sin valoración (espera datos nuevos, datos tardíos, poco historial, sin datos) no tiene aguja: en lugar de un número aparece «—».","w323.nauka":"Aprendizaje: avance hacia la evaluación de las señales y reglas en la sombra"},"fr":{"w323.t.w":"Force des signaux pour la séance aux États-Unis — {s}","w323.t.c":"Force des signaux pour la journée du {s} (à partir de {h} UTC)","w323.t0":"Force des signaux","w323.sub":"L’indicateur 1–10 de chaque carte est la force du signal selon les règles du site — ni une certitude ni une prévision de prix. La fréquence à laquelle les signaux se sont vérifiés figure dans les résultats plus bas.","w323.e0":"Aujourd’hui, aucun signal n’a d’avantage confirmé dans l’historique — ce sont des observations tirées des données, pas un avantage.","w323.e1":"Avec un avantage confirmé dans l’historique : {l}.","w323.lg.up":"6–10 : signal de hausse (10 — le plus fort)","w323.lg.mid":"{m} : aucune direction claire","w323.lg.dn":"1–5 : signal de baisse (1 — le plus fort)","w323.lg.na":"« — » : pas de lecture pour l’instant","w323.g.up":"Signal de hausse","w323.g.dn":"Signal de baisse","w323.g.mid":"Aucune direction claire","w323.g.na":"Pas de lecture pour l’instant","w323.g.up0":"Aucun signal de hausse aujourd’hui.","w323.g.dn0":"Aucun signal de baisse aujourd’hui.","w323.z.up":"hausse","w323.z.dn":"baisse","w323.z.q":"calme","w323.z.x":"contradictoire","w323.z.stale":"en attente","w323.z.late":"trop tard","w323.z.short":"historique trop court","w323.z.nodata":"pas de données","w323.aria":"{n} : force du signal {s} sur 10 — {z}","w323.aria0":"{n} : pas de lecture — {z}","w323.jak.t":"Comment nous calculons l’indicateur 1–10","w323.jak.1":"L’indicateur n’utilise que ce qui figure déjà sur la carte : la direction (plus de raisons pointent-elles vers une hausse ou vers une baisse), l’avance en votes (combien de raisons de plus pointent dans ce sens que dans l’autre) et la force du jour (1–3 : combien de raisons pointent dans ce sens, plus un point quand l’une s’écarte fortement — d’au moins 2 écarts types ; au plus 3). Niveau = force du jour + avance en votes − 1, au plus 5. Signal de hausse = 5 + niveau (6–10), signal de baisse = 6 − niveau (5–1), et l’absence de direction — journée calme ou autant de raisons pour que contre — est le milieu de l’échelle, {m}.","w323.jak.2":"Chaque raison concordante supplémentaire ou un mouvement plus fort éloigne l’indicateur du milieu, et une raison contraire le rapproche du milieu ; la même configuration dans l’autre sens donne un résultat symétrique (11 − valeur). L’indicateur ne change ni les règles, ni les seuils, ni les journaux de signaux et ne dit pas à quelle fréquence un signal s’est vérifié — c’est ce que montrent les résultats et les détails plus bas. Une carte sans lecture (attend de nouvelles données, données trop tardives, historique trop court, pas de données) n’a pas d’aiguille — à la place d’un chiffre figure « — ».","w323.nauka":"Apprentissage : progression vers l’évaluation des signaux et règles dans l’ombre"},"it":{"w323.t.w":"Forza dei segnali per la seduta negli USA — {s}","w323.t.c":"Forza dei segnali per la giornata del {s} (dalle {h} UTC)","w323.t0":"Forza dei segnali","w323.sub":"L’indicatore 1–10 di ogni scheda è la forza del segnale secondo le regole del sito — non una certezza né una previsione del prezzo. Quante volte i segnali si sono rivelati giusti lo mostrano i risultati più in basso.","w323.e0":"Oggi nessun segnale ha un vantaggio confermato nella storia — sono osservazioni dai dati, non un vantaggio.","w323.e1":"Con vantaggio confermato nella storia: {l}.","w323.lg.up":"6–10: segnale di rialzo (10 — il più forte)","w323.lg.mid":"{m}: nessuna direzione chiara","w323.lg.dn":"1–5: segnale di ribasso (1 — il più forte)","w323.lg.na":"«—»: nessuna lettura per ora","w323.g.up":"Segnale di rialzo","w323.g.dn":"Segnale di ribasso","w323.g.mid":"Nessuna direzione chiara","w323.g.na":"Nessuna lettura per ora","w323.g.up0":"Oggi nessun segnale di rialzo.","w323.g.dn0":"Oggi nessun segnale di ribasso.","w323.z.up":"rialzo","w323.z.dn":"ribasso","w323.z.q":"tranquillo","w323.z.x":"contraddittorio","w323.z.stale":"in attesa","w323.z.late":"in ritardo","w323.z.short":"storia insufficiente","w323.z.nodata":"nessun dato","w323.aria":"{n}: forza del segnale {s} su 10 — {z}","w323.aria0":"{n}: nessuna lettura — {z}","w323.jak.t":"Come calcoliamo l’indicatore 1–10","w323.jak.1":"L’indicatore usa solo ciò che è già sulla scheda: la direzione (se più motivi indicano un rialzo o un ribasso), il margine di voti (quanti motivi in più indicano quel lato rispetto all’altro) e la forza del giorno (1–3: quanti motivi indicano quel lato, più un punto quando uno si discosta con forza — di almeno 2 deviazioni; al massimo 3). Livello = forza del giorno + margine di voti − 1, al massimo 5. Segnale di rialzo = 5 + livello (6–10), segnale di ribasso = 6 − livello (5–1), e nessuna direzione — una giornata tranquilla o tanti motivi a favore quanti contro — è il centro della scala, {m}.","w323.jak.2":"Ogni motivo concorde in più o un movimento più forte allontana l’indicatore dal centro, mentre un motivo contrario lo avvicina al centro; la stessa situazione nell’altra direzione dà un risultato speculare (11 − valore). L’indicatore non cambia regole, soglie né registri dei segnali e non dice quante volte un segnale si è rivelato giusto — lo mostrano i risultati e i dettagli più in basso. Una scheda senza lettura (attende nuovi dati, dati in ritardo, storia insufficiente, nessun dato) non ha lancetta — al posto del numero c’è «—».","w323.nauka":"Apprendimento: avanzamento verso la valutazione dei segnali e regole nell’ombra"},"pt":{"w323.t.w":"Força dos sinais para a sessão nos EUA — {s}","w323.t.c":"Força dos sinais para o dia {s} (a partir das {h} UTC)","w323.t0":"Força dos sinais","w323.sub":"O indicador 1–10 de cada cartão é a força do sinal segundo as regras do site — não é certeza nem previsão de preço. Com que frequência os sinais acertaram mostram os resultados mais abaixo.","w323.e0":"Hoje nenhum sinal tem vantagem confirmada no histórico — são observações dos dados, não uma vantagem.","w323.e1":"Com vantagem confirmada no histórico: {l}.","w323.lg.up":"6–10: sinal de alta (10 — o mais forte)","w323.lg.mid":"{m}: nenhuma direção clara","w323.lg.dn":"1–5: sinal de queda (1 — o mais forte)","w323.lg.na":"«—»: sem leitura por agora","w323.g.up":"Sinal de alta","w323.g.dn":"Sinal de queda","w323.g.mid":"Nenhuma direção clara","w323.g.na":"Sem leitura por agora","w323.g.up0":"Hoje nenhum sinal de alta.","w323.g.dn0":"Hoje nenhum sinal de queda.","w323.z.up":"alta","w323.z.dn":"queda","w323.z.q":"calmo","w323.z.x":"contraditório","w323.z.stale":"em espera","w323.z.late":"atrasado","w323.z.short":"histórico curto","w323.z.nodata":"sem dados","w323.aria":"{n}: força do sinal {s} de 10 — {z}","w323.aria0":"{n}: sem leitura — {z}","w323.jak.t":"Como calculamos o indicador 1–10","w323.jak.1":"O indicador usa apenas o que já está no cartão: a direção (se mais motivos apontam para alta ou para queda), a vantagem de votos (quantos motivos a mais apontam para esse lado do que para o outro) e a força do dia (1–3: quantos motivos apontam para esse lado, mais um ponto quando algum se afasta com força — pelo menos 2 dispersões; no máximo 3). Nível = força do dia + vantagem de votos − 1, no máximo 5. Sinal de alta = 5 + nível (6–10), sinal de queda = 6 − nível (5–1), e a ausência de direção — um dia calmo ou tantos motivos a favor quanto contra — é o centro da escala, {m}.","w323.jak.2":"Cada motivo concordante a mais ou um movimento mais forte afasta o indicador do centro, e um motivo contrário aproxima-o do centro; a mesma situação no sentido oposto dá um resultado simétrico (11 − valor). O indicador não muda regras, limiares nem registos de sinais e não diz com que frequência um sinal acertou — isso mostram os resultados e os detalhes mais abaixo. Um cartão sem leitura (aguarda dados novos, dados atrasados, histórico curto, sem dados) não tem ponteiro — em vez de um número aparece «—».","w323.nauka":"Aprendizagem: progresso até à avaliação dos sinais e regras na sombra"},"ru":{"w323.t.w":"Сила сигналов на сессию в США — {s}","w323.t.c":"Сила сигналов на сутки {s} (с {h} UTC)","w323.t0":"Сила сигналов","w323.sub":"Шкала 1–10 на каждой карточке — это сила сигнала по правилам сайта, а не уверенность и не прогноз цены. Как часто сигналы оправдывались, показывают результаты ниже.","w323.e0":"Сегодня ни у одного сигнала нет подтверждённого преимущества в истории — это наблюдения по данным, а не преимущество.","w323.e1":"С подтверждённым преимуществом в истории: {l}.","w323.lg.up":"6–10: сигнал роста (10 — самый сильный)","w323.lg.mid":"{m}: нет ясного направления","w323.lg.dn":"1–5: сигнал падения (1 — самый сильный)","w323.lg.na":"«—»: сейчас без оценки","w323.g.up":"Сигнал роста","w323.g.dn":"Сигнал падения","w323.g.mid":"Нет ясного направления","w323.g.na":"Сейчас без оценки","w323.g.up0":"Сегодня нет сигналов роста.","w323.g.dn0":"Сегодня нет сигналов падения.","w323.z.up":"рост","w323.z.dn":"падение","w323.z.q":"спокойно","w323.z.x":"противоречиво","w323.z.stale":"ждёт","w323.z.late":"опоздали","w323.z.short":"мало истории","w323.z.nodata":"нет данных","w323.aria":"{n}: сила сигнала {s} из 10 — {z}","w323.aria0":"{n}: без оценки — {z}","w323.jak.t":"Как мы считаем шкалу 1–10","w323.jak.1":"Шкала берёт только то, что уже есть на карточке: направление (больше причин указывают на рост или на падение), перевес голосов (на сколько причин больше указывают в эту сторону, чем в противоположную) и силу дня (1–3: сколько причин указывают в эту сторону, плюс одно очко, если какая-то отклоняется сильно — хотя бы на 2 разброса; не больше 3). Уровень = сила дня + перевес голосов − 1, не больше 5. Сигнал роста = 5 + уровень (6–10), сигнал падения = 6 − уровень (5–1), а отсутствие направления — спокойный день или поровну причин за и против — это середина шкалы, {m}.","w323.jak.2":"Каждая дополнительная согласная причина или более сильное движение отодвигают стрелку от середины, а причина против придвигает её к середине; та же картина в другую сторону даёт зеркальный результат (11 − значение). Шкала не меняет правил, порогов и журналов сигналов и не говорит, как часто сигнал оправдывался, — это показывают результаты и подробности ниже. У карточки без оценки (ждёт новых данных, данные опоздали, мало истории, нет данных) нет стрелки — вместо числа стоит «—».","w323.nauka":"Обучение: путь к оценке сигналов и правила в тени"},"zh":{"w323.t.w":"美国交易时段的信号强度 — {s}","w323.t.c":"{s} 当天的信号强度（从 UTC {h} 起）","w323.t0":"信号强度","w323.sub":"每张卡片上的 1–10 指示是按本站规则得出的信号强度——不是确定性，也不是价格预测。信号过去的命中频率见下方的结果。","w323.e0":"今天没有任何信号在历史中具有确认的优势——这些只是数据观察，不是优势。","w323.e1":"历史中具有确认优势的：{l}。","w323.lg.up":"6–10：上涨信号（10 最强）","w323.lg.mid":"{m}：没有明确方向","w323.lg.dn":"1–5：下跌信号（1 最强）","w323.lg.na":"“—”：目前无读数","w323.g.up":"上涨信号","w323.g.dn":"下跌信号","w323.g.mid":"没有明确方向","w323.g.na":"目前无读数","w323.g.up0":"今天没有上涨信号。","w323.g.dn0":"今天没有下跌信号。","w323.z.up":"上涨","w323.z.dn":"下跌","w323.z.q":"平静","w323.z.x":"矛盾","w323.z.stale":"等待中","w323.z.late":"迟到","w323.z.short":"历史太短","w323.z.nodata":"无数据","w323.aria":"{n}：信号强度 {s}/10 — {z}","w323.aria0":"{n}：无读数 — {z}","w323.jak.t":"我们如何计算 1–10 指示","w323.jak.1":"该指示只使用卡片上已有的信息：方向（指向上涨的理由多还是指向下跌的理由多）、票数优势（指向这一方向的理由比相反方向多几个）以及当日强度（1–3：指向这一方向的理由个数，若其中某个强烈偏离——至少 2 个离散度——再加 1 分；最多 3）。等级 = 当日强度 + 票数优势 − 1，最多 5。上涨信号 = 5 + 等级（6–10），下跌信号 = 6 − 等级（5–1），而没有方向——平静的一天或支持与反对的理由一样多——即为刻度中点 {m}。","w323.jak.2":"每多一个同向理由或出现更强的变动，指针就离中点更远；一个反向理由则让它靠近中点；同样的情况换成相反方向，得到镜像结果（11 − 数值）。该指示不改变规则、阈值或信号日志，也不说明信号过去命中的频率——这些见下方的结果和详情。没有读数的卡片（等待新数据、数据迟到、历史太短、无数据）没有指针——数字处显示“—”。","w323.nauka":"学习：信号评估进度与后台测试的规则"},"ja":{"w323.t.w":"米国取引セッションのシグナルの強さ — {s}","w323.t.c":"{s}のシグナルの強さ（UTC {h}から）","w323.t0":"シグナルの強さ","w323.sub":"各カードの1〜10の指標は、サイトのルールによるシグナルの強さです。確実性でも価格予測でもありません。シグナルがどのくらい当たったかは下の結果をご覧ください。","w323.e0":"今日は履歴上の優位性が確認されたシグナルはありません。データからの観察であり、優位性ではありません。","w323.e1":"履歴上の優位性が確認されたもの：{l}。","w323.lg.up":"6〜10：上昇シグナル（10が最強）","w323.lg.mid":"{m}：はっきりした方向なし","w323.lg.dn":"1〜5：下落シグナル（1が最強）","w323.lg.na":"「—」：現在は判定なし","w323.g.up":"上昇シグナル","w323.g.dn":"下落シグナル","w323.g.mid":"はっきりした方向なし","w323.g.na":"現在は判定なし","w323.g.up0":"今日は上昇シグナルはありません。","w323.g.dn0":"今日は下落シグナルはありません。","w323.z.up":"上昇","w323.z.dn":"下落","w323.z.q":"平穏","w323.z.x":"矛盾","w323.z.stale":"待機中","w323.z.late":"遅延","w323.z.short":"履歴不足","w323.z.nodata":"データなし","w323.aria":"{n}：シグナルの強さ 10段階中{s} — {z}","w323.aria0":"{n}：判定なし — {z}","w323.jak.t":"1〜10の指標の計算方法","w323.jak.1":"指標はカードにすでにある情報だけを使います：方向（上昇と下落のどちらを示す理由が多いか）、票の差（その方向を示す理由が反対方向より何個多いか）、その日の強さ（1〜3：その方向を示す理由の数に、どれかが強く外れたとき——ばらつき2つ分以上——1点を加えたもの。最大3）。レベル＝その日の強さ＋票の差−1（最大5）。上昇シグナル＝5＋レベル（6〜10）、下落シグナル＝6−レベル（5〜1）、方向なし——平穏な日、または賛否の理由が同数——は目盛りの中央{m}です。","w323.jak.2":"同じ方向の理由が1つ増えるか動きが強くなるたびに指標は中央から離れ、反対の理由は中央に近づけます。同じ状況が逆方向なら結果は鏡像（11−値）です。指標はルール、しきい値、シグナル記録を変えず、シグナルがどのくらい当たったかも示しません——それは下の結果と詳細で確認できます。判定のないカード（新しいデータ待ち、データの遅れ、履歴不足、データなし）には針がなく、数字の代わりに「—」が表示されます。","w323.nauka":"学習：シグナル評価までの進み具合と非公開で検証中のルール"}};
+for(const l in EXTRA218)if(I18N[l])Object.assign(I18N[l],EXTRA218[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8884,16 +8924,6 @@ function trdIgBars(W,S){
     sum.push(`${d.slice(8)}.${d.slice(5,7)} ${k}/${x.n}${x.wait&&!x.n?' ('+t('tig.b.w')+')':''}`);});
   return `<svg class="tig-bs" width="${wd}" height="${H}" viewBox="0 0 ${wd} ${H}" role="img" aria-label="${escH(t('tig.aria.b',{s:sum.join(', ')}))}"><line class="z" x1="0" y1="${mid}" x2="${wd}" y2="${mid}"/>${g}</svg>`;
 }
-function trdIgChips(D,cr){
-  const A=Array.isArray(D&&D.d)?D.d:[];
-  const R=(cr?A.filter(r=>r&&r.fam==='cr'&&Array.isArray(r.rs)).map(trdDRow):A.filter(r=>r&&typeof r==='object'&&TRD_DFAM.includes(r.fam)&&Array.isArray(r.rs)).map(trdDRowW)).filter(Boolean);
-  if(!R.length)return '';
-  const sig=R.filter(r=>r.side==='buy'||r.side==='sell').sort((a,b)=>(b.str-a.str)||(a.side===b.side?0:a.side==='buy'?-1:1)),none=R.length-sig.length;
-  const chip=r=>{const nm=trdDName(r,'sm'),cls=r.st==='buy'?'p':r.st==='sell'?'m':'na';
-    return `<span class="tig-c ${cls}" title="${escH(nm.s)}">${nm.ic}<b>${escH(r.sym||r.id)}</b><i>${r.side==='buy'?'▲':'▼'}${'●'.repeat(Math.max(0,Math.min(3,r.str)))}</i></span>`;};
-  return `<div class="tig-s"><h3 class="mtxt"><b>${t('tig.s.t')}</b></h3><p class="pnote">${t('tig.s.sub')}</p>`+
-    (sig.length?`<div class="tig-cs">${sig.map(chip).join('')}${none?`<span class="tig-c na tig-n">${t('tig.s.none',{n:none})}</span>`:''}</div>`:`<p class="pnote">${t('tig.s.empty')}</p>`)+`</div>`;
-}
 /* v208: nauka sygnałów — postęp linii łącznej do najbliższego punktu kontrolnego (dziennik: pg.l[linia] = [n, c, szacunek], cp = oceny zapisane
    raz i na zawsze). Brak pola (dziennik sprzed v208) albo zły kształt — bez bloku. Szacunek tylko miesiąc i rok, podpisany jako szacunek. */
 const TRD_LV={edge:'tig.l.vd.edge',none:'tig.l.vd.none',anti:'tig.l.vd.anti'};
@@ -8938,6 +8968,9 @@ function trdIgLearn(J,cr,D){
   const vd=last?`<p class="pnote">${t(tk('tig.l.vd'),{c:trdC(last[0]),d:fd(last[9],{day:'2-digit',month:'2-digit',year:'numeric'}),v:t(TRD_LV[last[8]]||'tig.l.vd.none')})}</p>`:'';
   return `<div class="tig-l"><h3 class="mtxt"><b>${t(c===null?'tig.l.t3':last?'tig.l.t2':'tig.l.t')}</b></h3>${bar}<p class="pnote">${txt}</p>${vd}${trdIgShadow(J,tk)}${trdIgSu(D,cr)}<p class="pnote tig-lw">${t(tk('tig.l.how'),{m:trdC(lines)})}</p></div>`;
 }
+/* v323: „Nauka” (postęp do oceny, reguły w cieniu) w zwijanym bloku pod wynikami — widoczne zostają procenty i wykresy trafień; id trd-nauka
+   (TRD.open pamięta otwarcie). Bez bloku nauki — nic. */
+function trdIgLd(J,cr,D){const h=trdIgLearn(J,cr,D);return h?`<details class="etfd tig-ld" id="trd-nauka"><summary>${t('w323.nauka')}</summary>${h}</details>`:'';}
 function trdIg(D,cr){
   trdJLoad();
   const J=cr?TRDJ.c:TRDJ.w,rows=J&&Array.isArray(J.rows)?J.rows:[],since=J&&typeof J.since==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(J.since)?J.since:null;
@@ -8960,10 +8993,11 @@ function trdIg(D,cr){
     trdIgDonut(pc(A.k,A.n),trdIgTone(A.k,A.n,dA),brak?t('tig.d.since0'):t('tig.d.since',{d:since?dm(since):'—'}),A.n?nd(A.n,dA,1):wk)+
     trdIgDonut(H?100*H.k/H.n:null,H?trdIgHTone(H):'na',t('tig.d.hist'),H?t('tig.hist.sub',{d:typeof H.from==='string'?dd(H.from):'—',n:trdC(H.n)}):'—')+`</div>`;
   const bars=W.length?`<div class="tig-b"><h3 class="mtxt"><b>${t('tig.b.t')}</b></h3>${trdIgBars(W,S)}<p class="tig-lg"><span><i class="h"></i>${t('tig.b.k')}</span><span><i class="m"></i>${t('tig.b.m')}</span><span><i class="w"></i>${t('tig.b.w')}</span></p><p class="pnote tig-lw">${t(cr?'a293t.ig.bc':'a293t.ig.bw')}</p></div>`:'';
-  return `<section class="panel pcard trd-ig" id="trd-ig">${head}<div class="tig-g${W.length?'':' tig-g2'}">${big}${dn}${bars}</div>${trdIgLearn(J,cr,D)}${trdIgChips(D,cr)}`+
+  return `<section class="panel pcard trd-ig" id="trd-ig">${head}<div class="tig-g${W.length?'':' tig-g2'}">${big}${dn}${bars}</div>${trdIgLd(J,cr,D)}`+   /* v323: chipy „Dzisiejsze sygnały” zastąpił panel „Siła sygnałów” nad wynikami; „Nauka” zwinięta */
     `<p class="pfoot">${t(cr?'tig.foot.c':'tig.foot.w')} ${t('eng.disclaimer')}</p></section>`;
 }
 /* po narysowaniu TRENDY (renderTrendy): infografika zaraz pod nagłówkiem, cała dotychczasowa treść pod jednym rozwijanym blokiem „Szczegóły”
+   (v323: nad infografiką panel „Siła sygnałów” — trdSilaPanel, gdy jest; jego błąd nie psuje reszty układu)
    (id trd-wiecej — TRD.open pamięta otwarcie). Atrapy testów (sam napis innerHTML, bez querySelector) — bez zmian. Błąd — układ jak dotąd. */
 function trdIgWrap(w,D,cr){
   try{
@@ -8973,13 +9007,132 @@ function trdIgWrap(w,D,cr){
     const sm=document.createElement('summary');sm.textContent=t('tig.more');det.appendChild(sm);
     const box=document.createElement('div');box.className='trd-wiecej-b';det.appendChild(box);
     let n=hr.nextSibling;while(n){const nx=n.nextSibling;box.appendChild(n);n=nx;}
-    w.appendChild(det);hr.insertAdjacentHTML('afterend',trdIg(D,cr));
+    let sp='';try{sp=typeof trdSilaPanel==='function'?trdSilaPanel(D,cr):'';}catch(e){sp='';}
+    w.appendChild(det);hr.insertAdjacentHTML('afterend',sp+trdIg(D,cr));
   }catch(e){}
 }
 /* pomoc „Jak czytać” w TRENDACH otwiera „Jak liczymy”, który jest teraz w „Szczegółach” — najpierw je rozwija (przechwytywanie: przed obsługą przycisku) */
 document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('#help'):null;if(!b||typeof st!=='object'||!st||st.mode!=='trendy')return;
   const dw=$('#trd-wiecej');if(dw)dw.open=true;},true);
 /* v158: koniec infografiki */
+/* ===================== v323: TRENDY — siła sygnału 1–10 przy każdej karcie (decyzja właściciela 10.10.2026, punkt 6: „TRENDY prościej”) =====================
+   Panel nad „Wynikami sygnałów”: karty sygnałów dnia (wiersze `d` wersji 2 — świat: trdDRowW, krypto: trdDRow → trdDRow2; te same kontrole co
+   w „Szczegółach”) od najsilniejszego sygnału wzrostu do najsilniejszego sygnału spadku. Wskaźnik liczony WYŁĄCZNIE z pól karty, które zbieracz
+   już zapisuje: kierunek dir (znak N), przewaga głosów |N| (N = suma głosów powodów: +1 / −1 / 0) i siła dnia str (1–3: liczba powodów zgodnych
+   z kierunkiem + punkt, gdy któryś odbiega o co najmniej 2 rozrzuty; najwyżej 3):
+       poziom = min(5, str + |N| − 1) ∈ {1…5};  wynik = 5,5 + dir × (poziom − 0,5)  →  wzrost 6…10, spadek 5…1, spokojnie / sprzeczne (dir = 0) = 5,5.
+   Monotoniczny (dodatkowy zgodny powód albo mocny ruch → dalej od środka, powód przeciw → bliżej), symetryczny (dir → −dir daje 11 − wynik),
+   środek = brak sygnału. To siła sygnału reguł, nie pewność ani prognoza ceny; reguły, progi i dzienniki bez zmian (strona tylko czyta plik).
+   Stany bez oceny (karta nieaktualna — czeka na nowe dane, dane po czasie, za mało historii, brak danych) — bez wskazówki, „—”. Półkole jak
+   „Pokrycie danych” (łuki czerwony, żółty, zielony; łuk strony karty podświetlony, wskazówka), pasek 10 kratek jak „Aktywność sektorów” — od
+   środka: wzrost w prawo na zielono, spadek w lewo na czerwono. Kolory ze zmiennych motywu (--gr / --rd / --yl: systemowe, tryb ciemny i jasny).
+   Grupy „bez wyraźnego kierunku” i „bez oceny teraz” zwinięte, gdy mają więcej niż 6 kart (id pamiętane w TRD.open). Bez wierszy wersji 2 —
+   bez panelu (układ jak dotąd). */
+const TRD_SNA=['stale','late','short','nodata'];
+const TRD_SANG=[null,172,161,150,139,128,52,41,30,19,8];   /* kąt wskazówki dla wyniku 1…10 (180° = lewy koniec łuku): spadki w czerwonym łuku, wzrosty w zielonym; 5,5 → 90° */
+const trdSilaSep=()=>typeof sepL==='function'?sepL():', ';   /* lista w zdaniu: „, ” (ja „、”) — jedno miejsce panelu */
+function trdSila(r){
+  if(!r||typeof r!=='object'||TRD_SNA.includes(r.st))return {s:null,lv:null,z:'na'};
+  if(r.st==='x'||r.st==='quiet')return {s:5.5,lv:0,z:'mid'};
+  if(!['buy','sell','obs'].includes(r.st)||(r.dir!==1&&r.dir!==-1))return {s:null,lv:null,z:'na'};
+  const n=Number.isInteger(r.N)&&r.N!==0?Math.abs(r.N):1,g=Number.isInteger(r.str)&&r.str>0?Math.min(3,r.str):1,lv=Math.min(5,g+n-1);
+  return {s:5.5+r.dir*(lv-.5),lv,z:r.dir>0?'up':'dn'};
+}
+/* półkole: łuki jak „Pokrycie danych” (renderGauge); wskazówka od środka do pozycji wyniku — tylko przy ocenie (animacja wyłączana przez
+   prefers-reduced-motion i ustawienie „Animacje”) */
+function trdSilaG(o,aria){
+  const P=(a,r)=>[100+r*Math.cos(a*Math.PI/180),100-r*Math.sin(a*Math.PI/180)],f=x=>x.toFixed(1);
+  const arc=(a,b,c,z)=>{const[x1,y1]=P(a,80),[x2,y2]=P(b,80);return `<path class="tsg-a ${c}${o.z===z?' on':''}" d="M${f(x1)} ${f(y1)} A80 80 0 0 1 ${f(x2)} ${f(y2)}"/>`;};
+  const A=o.z==='mid'?90:(o.z==='up'||o.z==='dn')?TRD_SANG[o.s]:null;
+  let nd='';
+  if(typeof A==='number'){const[x,y]=P(A,62);nd=`<g class="tsg-nd" style="--r0:${A-90}deg"><line x1="100" y1="100" x2="${f(x)}" y2="${f(y)}"/><circle cx="100" cy="100" r="9"/></g>`;}
+  return `<svg class="tsg-svg" viewBox="0 0 200 110" role="img" aria-label="${escH(aria)}">${arc(178,122,'r','dn')}${arc(118,62,'y','mid')}${arc(58,2,'g','up')}${nd}</svg>`;
+}
+/* pasek 10 kratek (jak „Aktywność sektorów”), od środka: wzrost — kratki 6…wynik na zielono, spadek — wynik…5 na czerwono, im dalej od środka, tym mocniej;
+   brak kierunku — żadnej kratki (środek na żółto); bez oceny — pusty */
+function trdSilaBar(o){
+  let h='';
+  for(let j=1;j<=10;j++){
+    if(j===6)h+='<b></b>';
+    const on=o.z==='up'?j>=6&&j<=o.s:o.z==='dn'?j<=5&&j>=o.s:false;
+    h+=on?`<i class="on" style="--o:${(.62+.095*(o.z==='up'?j-6:5-j)).toFixed(3)}"></i>`:'<i></i>';
+  }
+  return `<span class="tsg-bar ${o.z}" aria-hidden="true">${h}</span>`;
+}
+/* krótkie zdanie karty: powody z głosem (po stronie karty, potem „przeciw: …”; te same zdania co na kartach w „Szczegółach”), a bez głosów —
+   „żaden z powodów nie odbiega od zwykłego poziomu” (gdy któryś da się porównać); do tego dane w drodze (przed 9:00 w Nowym Jorku), po czasie,
+   bez porównania z historią i brakujące. Bez listy „w zwykłym zakresie” i bez opisu ceny obligacji — są w „Szczegółach”. Stablecoiny (wspólne dla
+   rynku krypto) — sam znak kierunku w kolorze. Nic do powiedzenia — „—”. */
+function trdSilaW(r,cr,L){
+  const R=r.rs||[],on=R.filter(x=>x.g!==0),mine=r.dir?on.filter(x=>x.g===r.dir):on,vs=r.dir?on.filter(x=>x.g===-r.dir):[],sep=trdSilaSep();
+  const tx=x=>!cr?trdDRsTxtW(x,r):x.k==='s'?t('trd.dc2.n.s')+(x.g>0?' <i class="tg up">▲</i>':' <i class="tg dn">▼</i>'):trdDRsTxt(x,r);
+  const nm=A=>A.map(x=>t((cr?'trd.dc2.n.':'trd.dw2.n.')+x.k)).join(sep);
+  const P=mine.map(tx);if(vs.length)P.push(t(cr?'trd.dc2.vs':'trd.dw2.vs',{l:vs.map(tx).join(' · ')}));
+  const rest=R.filter(x=>x.g===0&&!(r.fam==='bd'&&x.k==='p')),lt=r.lt||[],pw=r.pw||[],w8=x=>pw.includes(x.k)||lt.includes(x.k);
+  if(!on.length&&rest.some(x=>trdNum(x.z)&&!w8(x)))P.push(t(cr?'trd.dc2.why.quiet':'trd.dw2.why.quiet'));   /* „żaden nie odbiega” tylko, gdy jest z czym porównać */
+  const pend=rest.filter(x=>pw.includes(x.k)),late=rest.filter(x=>lt.includes(x.k)),nz=rest.filter(x=>trdNum(x.v)&&!trdNum(x.z)&&!w8(x)),na=rest.filter(x=>!trdNum(x.v)&&!w8(x));
+  if(pend.length)P.push(t('trd.dw2.pw',{l:nm(pend)}));
+  if(late.length)P.push(cr?t('trd.dc2.lt',{l:nm(late),u:trdHM(L.cut)}):t('trd.dw2.lt',{l:nm(late)}));
+  if(nz.length)P.push(t(cr?'trd.dc2.nz':'trd.dw2.nz',{l:nm(nz)}));
+  if(na.length)P.push(t(cr?'trd.dc2.na':'trd.dw2.na',{l:nm(na)}));
+  return P.length?P.join(' · '):'—';
+}
+/* jedna karta: półkole z liczbą i słowem stanu · flaga/logo i nazwa · pasek · krótkie zdanie (powody słowami — to samo, co pierwsza linia karty
+   w „Szczegółach”; stany bez oceny — ich powód) · przewaga w historii, gdy karta jest w kolorze („odwrotnie” — jako informacja) · data danych,
+   następna sesja / doba i wiek karty */
+function trdSilaK(r,cr,L){
+  const o=r.o||trdSila(r),N=trdDName(r),S=r.st,d=trdDay(r.date),nx=r.nx?trdDay(r.nx):'—';
+  const num=o.s===null?'—':nfmt(o.s,o.s%1?1:0);
+  const zw=o.z==='up'?t('w323.z.up'):o.z==='dn'?t('w323.z.dn'):o.z==='mid'?t(S==='x'?'w323.z.x':'w323.z.q'):t('w323.z.'+S);
+  const aria=o.s===null?t('w323.aria0',{n:N.s,z:zw}):t('w323.aria',{n:N.s,s:num,z:zw});
+  let why;
+  if(o.z!=='na')why=trdSilaW(r,cr,L);
+  else if(S==='stale'){const wh=Number.isInteger(L.wh)?L.wh:6;
+    why=cr?t('trd.dc2.why.stale',{d,b:trdIso(r.nx)?new Date(Date.parse(r.nx+'T00:00:00Z')+(wh+24)*3600e3).toLocaleString(LOCALE[LANG],{timeZone:'UTC',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}):
+      t('trd.dw2.why.stale',{d,s:nx});}
+  else if(S==='late')why=cr?t('trd.dc2.why.late',{d,u:trdHM(L.cut)}):t((r.rs||[]).some(x=>x.k==='p'&&trdNum(x.v))?'trd.dw2.why.late':'trd.dw2.why.nopx',{d});
+  else why=t('trd.d.why.'+S,{d,nx:'—'});
+  const ed=S==='buy'||S==='sell'?`<span class="tsg-e ${o.z}">✓ ${t(cr?'trd.dc2.v.edge':'trd.dw2.v.edge')}</span>`:o.z!=='na'&&r.vd==='anti'?`<span class="tsg-e mid">${t('trd.d.v.anti')}</span>`:'';
+  return `<div class="tsg-k ${o.z}"><div class="tsg-g">${trdSilaG(o,aria)}<b class="tsg-n ${o.z}" aria-hidden="true">${num}</b>`+
+    `<span class="tsg-z ${o.z}" aria-hidden="true">${o.z==='up'?'▲ ':o.z==='dn'?'▼ ':''}${escH(zw)}</span></div>`+
+    `<div class="tsg-b"><div class="tsg-nm">${N.ic}<span>${N.h}</span></div>${trdSilaBar(o)}<p class="tsg-w">${why}</p>${ed}`+
+    `<p class="tsg-t">${S==='stale'?d:t(cr?'trd.dc.nx':'trd.d.nx',{d,nx})}${gAgeNote(r.date)}</p></div></div>`;   /* nieaktualna: sama data danych (jej sesja / doba już minęła) */
+}
+/* cały panel: tytuł (sesja / doba kart aktualnych), skala słowami, zastrzeżenie, przewaga w historii (zwykle: żadnej), legenda, grupy w kolejności
+   wzrost (10 → 6) · bez kierunku (5,5) · spadek (5 → 1) · bez oceny; „Jak liczymy” zwinięte; stopka z czasem pliku i wiekiem. '' bez wierszy wersji 2 */
+function trdSilaPanel(D,cr){
+  if(!D||typeof D!=='object'||!Array.isArray(D.d))return '';
+  const R=D.d.filter(r=>r&&typeof r==='object'&&Array.isArray(r.rs)&&(cr?r.fam==='cr':TRD_DFAM.includes(r.fam))).map(r=>cr?trdDRow(r):trdDRowW(r)).filter(Boolean);
+  if(!R.length)return '';
+  const L=cr?((Array.isArray(D.bd)?D.bd:[]).find(b=>b&&typeof b==='object'&&b.fam==='cr'&&b.v===2)||{}):{};
+  R.forEach(r=>{r.nm=trdDName(r).s;r.o=trdSila(r);});
+  const byN=(a,b)=>a.nm.localeCompare(b.nm),eg=r=>r.st==='buy'||r.st==='sell'?1:0;
+  const up=R.filter(r=>r.o.z==='up').sort((a,b)=>(b.o.s-a.o.s)||(eg(b)-eg(a))||byN(a,b));
+  const dn=R.filter(r=>r.o.z==='dn').sort((a,b)=>(b.o.s-a.o.s)||(eg(a)-eg(b))||byN(a,b));
+  const mid=R.filter(r=>r.o.z==='mid').sort((a,b)=>((a.st==='x'?0:1)-(b.st==='x'?0:1))||byN(a,b));
+  const na=R.filter(r=>r.o.z==='na').sort((a,b)=>(TRD_SNA.indexOf(a.st)-TRD_SNA.indexOf(b.st))||byN(a,b));
+  const S=R.filter(r=>r.live&&r.st!=='stale').map(r=>r.nx).filter(trdIso).sort().pop()||null,m=nfmt(5.5,1);
+  const h2=!S?t('w323.t0'):cr?t('w323.t.c',{s:trdDay(S),h:trdHM((Number.isInteger(L.wh)?L.wh:6)*60)}):t('w323.t.w',{s:trdDay(S)});
+  const col=R.filter(eg),sep=trdSilaSep();
+  const edge=col.length?t('w323.e1',{l:col.map(r=>`<i class="tg ${r.o.z}">${r.o.z==='up'?'▲':'▼'}</i> ${escH(r.nm)}`).join(sep)}):t('w323.e0');
+  const box=A=>`<div class="tsg-l">${A.map(r=>trdSilaK(r,cr,L)).join('')}</div>`;
+  const hd=(z,g,k,n)=>`<h3 class="tsg-gh ${z}">${g?`<i class="tg ${z}">${g}</i>`:''}<b>${t(k)}</b><span class="tsg-c">(${trdC(n)})</span></h3>`;
+  const grp=(z,g,k,A,e)=>hd(z,g,k,A.length)+(A.length?box(A):`<p class="pnote">${t(e)}</p>`);
+  const fold=(id,z,k,A,sub)=>{const g=z==='mid'?'●':'';return !A.length?'':A.length<=6?hd(z,g,k,A.length)+box(A):
+    `<details class="etfd tsg-d" id="${id}"><summary><span>${g?`<i class="tg ${z}">${g}</i> `:''}${t(k)} <span class="tsg-c">(${trdC(A.length)})</span>${sub?' · '+sub:''}</span></summary>${box(A)}</details>`;};   /* jeden element w summary (flex) — tekst zawija się jak zdanie */
+  const nl=(k,n)=>n?trdTN('t316.nl.'+k,n,{n:trdC(n)}):'',cnt=(A,f)=>A.filter(f).length;
+  const midS=[nl('q',cnt(mid,r=>r.st==='quiet')),nl('x',cnt(mid,r=>r.st==='x'))].filter(Boolean).join(' · ');
+  const naS=[nl('s',cnt(na,r=>r.st==='stale'||r.st==='late')),nl('o',cnt(na,r=>r.st==='short'||r.st==='nodata'))].filter(Boolean).join(' · ');
+  const lg=`<p class="tsg-lg"><span class="up"><i></i>${t('w323.lg.up')}</span><span class="mid"><i></i>${t('w323.lg.mid',{m})}</span>`+
+    `<span class="dn"><i></i>${t('w323.lg.dn')}</span><span class="na"><i></i>${t('w323.lg.na')}</span></p>`;
+  const still=typeof st==='object'&&st&&st.anim===false;
+  return `<section class="panel pcard trd-sila${still?' tsg-still':''}" id="trd-sila"><h2>${trdIco(cr?'$BTC @gauge':'@globe @gauge',[],2,'sm')}${h2}</h2>`+
+    `<p class="pnote">${t('w323.sub')}</p><p class="pnote"><b>${t('eng.disclaimer')}</b></p><p class="pnote tsg-ed"><i class="tdot"></i>${edge}</p>${lg}`+
+    grp('up','▲','w323.g.up',up,'w323.g.up0')+fold('trd-sila-mid','mid','w323.g.mid',mid,midS)+grp('dn','▼','w323.g.dn',dn,'w323.g.dn0')+fold('trd-sila-na','na','w323.g.na',na,naS)+
+    `<details class="etfd" id="trd-sila-jak"><summary>${t('w323.jak.t')}</summary><p class="pnote">${t('w323.jak.1',{m})}</p><p class="pnote">${t('w323.jak.2')}</p></details>`+
+    (typeof D.at==='string'&&isFinite(Date.parse(D.at))?`<p class="pfoot">${t('inst.file',{t:engDate(D.at)})}${gAgeNote(D.at)}</p>`:'')+`</section>`;
+}
+/* v323: koniec siły sygnału */
 
 /* ---------- okno pomocy (znak zapytania) ---------- */
 const hModal=$('#help-modal');
