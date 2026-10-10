@@ -605,10 +605,10 @@ test('v50 cm: brak pliku zostawia kartę silnika; plik z danymi rysuje panel, gO
 
 test('v50 cm: netto z pola net (nie z zaokrąglonych wpłat i wypłat), podpis ze znaku, brak = „—” i „brak danych”, nigdy 0', () => {
   const m = cmMake(), h = m.api.cmPanel(cmSample());
-  assert.ok(h.includes('[cm.in|22388 BTC|inst.exact:{"v":"22387.65 BTC"}|cm.usd:{"v":"1.9 u.b"}]'), 'wpłynęło');
-  assert.ok(h.includes('[cm.net|−10057 BTC|inst.exact:{"v":"−10056.90 BTC"}|cm.s.out · cm.usd:{"v":"−0.8 u.b"}]'), 'netto dnia z pola net');
+  assert.ok(h.includes('[cm.in|22388 BTC|inst.exact:{"v":"22387.65 BTC"}|cm.usd:{"v":"<span class=\\"pos\\">1.9 u.b</span>"}]'), 'wpłynęło');   /* v322 (pkt 5): kwota w USD w kolorze wiersza (dawniej szara) */
+  assert.ok(h.includes('[cm.net|−10057 BTC|inst.exact:{"v":"−10056.90 BTC"}|cm.s.out · cm.usd:{"v":"<span class=\\"neg\\">−0.8 u.b</span>"}]'), 'netto dnia z pola net');   /* v322 (pkt 5): kwota w USD w kolorze wiersza */
   assert.ok(!h.includes('10056.89'), 'nie liczymy netto z zaokrąglonych');
-  assert.ok(h.includes('[cm.net7|−34395 BTC|inst.exact:{"v":"−34394.79 BTC"}|cm.s.out · cm.win:{"n":7,"d":"2026-09-23"} · cm.usd:{"v":"−2.9 u.b"}]'));
+  assert.ok(h.includes('[cm.net7|−34395 BTC|inst.exact:{"v":"−34394.79 BTC"}|cm.s.out · cm.win:{"n":7,"d":"2026-09-23"} · cm.usd:{"v":"<span class=\\"neg\\">−2.9 u.b</span>"}]'));   /* v322 (pkt 5): kwota w USD w kolorze wiersza */
   assert.ok(h.includes('[cm.net30|—||eng.gap]'), 'brak sumy 30 dni to brak, nie zero');
   assert.ok(h.includes('[cm.ch7|−20434 BTC (−0.75%)|inst.exact:{"v":"−20434.46 BTC"}|cm.z.down:{"n":7,"d":"2026-09-16"}]'));
   assert.ok(h.includes('[cm.ch30|—||eng.gap]'));
@@ -2447,7 +2447,7 @@ test('v96-crypto: fundusze ETF — znaczek wydawcy wg NAZWY (BTC = Grayscale Min
   assert.ok(g.includes('etf.k.day</span><b class="pos">100</b>') && g.includes('etf.k.w</span><b class="neu">0</b>') && g.includes('etf.k.m</span><b class="neg">-2</b>'), 'kafelki: wzrost zielony, spadek czerwony, zero żółte (v321)');
 });
 
-test('v96-crypto: stablecoiny per sieć — logo sieci w każdym wierszu, suma z USDT i USDC, zmiany zielone/czerwone, zero i brak bez koloru', () => {
+test('v96-crypto: stablecoiny per sieć — logo sieci w każdym wierszu, suma z USDT i USDC, zmiany zielone/czerwone, zero żółte (v322), brak bez koloru', () => {
   const H = v96cHelpers();
   const a0 = html.indexOf('function stcPanel(S,H){'), a1 = html.indexOf("ENG_OVR['defillama-stablecoins']=el=>", a0);
   assert.ok(a0 > 0 && a1 > a0);
@@ -2459,8 +2459,8 @@ test('v96-crypto: stablecoiny per sieć — logo sieci w każdym wierszu, suma z
   assert.ok(h.includes('<span class="cell"><span class="icos"><img class="ico" src="img/sieci/ethereum.svg"') && h.includes('title="Ethereum" loading="lazy" decoding="async"></span>Ethereum</span>'), 'Ethereum z logo sieci');
   assert.ok(h.includes('img/sieci/hyper-evm.svg') && h.includes('<span class="iss" style="--ic:') && h.includes('Nowa &lt;Sieć&gt;</span>') && !h.includes('Nowa <Sieć>'), 'nieznana sieć — znaczek z literami, nazwa escapowana');
   assert.ok(h.includes('krypto/usdt.svg') && h.includes('krypto/usdc.svg') && h.includes('stc.k.tot</span><b>313.00 mld</b>') && h.includes('a293c.stc.k.all</span><b>311.00 mld</b>'), 'suma z logo USDT i USDC');
-  assert.ok(h.includes('stc.k.d7</span><b class="pos">+1.47 mld</b>') && h.includes('stc.k.d30</span><b>0</b>'), 'wzrost zielony, zero bez koloru');
-  assert.ok(h.includes('<span class="cell mono neg">−0.19 mld</span>') && h.includes('<span class="cell mono ">0</span>') && h.includes('<span class="cell mono ">—</span>'), 'spadek czerwony, zero i brak bez koloru');
+  assert.ok(h.includes('stc.k.d7</span><b class="pos">+1.47 mld</b>') && h.includes('stc.k.d30</span><b class="eq">0</b>'), 'wzrost zielony, zero żółte');   /* v322 (decyzja właściciela 10.10, pkt 5): zero = bez zmian — żółte (dawniej bez koloru) */
+  assert.ok(h.includes('<span class="cell mono neg">−0.19 mld</span>') && h.includes('<span class="cell mono eq">0</span>') && h.includes('<span class="cell mono ">—</span>'), 'spadek czerwony, zero żółte, brak bez koloru');   /* v322 (pkt 5): zero żółte */
   assert.ok(h.includes('<p class="pfoot">stc.src eng.disclaimer</p>'), 'zdanie o sposobie liczenia (bez dostawcy — słownik)');
 });
 
@@ -2479,14 +2479,14 @@ test('v96-crypto: Coin Metrics — logo BTC i ETH w nagłówkach i w tabeli, wp�
   const h = api.cmPanel(D);
   assert.ok(h.includes('<h3 class="mtxt"><span class="icos"><img class="ico" src="img/krypto/btc.svg"') && h.includes('<h3 class="mtxt"><span class="icos"><img class="ico" src="img/krypto/eth.svg"'), 'logo przy nagłówkach BTC i ETH (także bez danych)');
   assert.ok(h.includes('cm.in</span><b class="pos" title=') && h.includes('cm.out</span><b class="neg" title=') && h.includes('cm.net</span><b class="neg" title='), 'wpłynęło zielone, wypłynęło czerwone, netto wg znaku');
-  assert.ok(h.includes('cm.net7</span><b title=') && h.includes('cm.net30</span><b class="pos" title=') && h.includes('cm.ch7</span><b class="pos" title='), 'zero bez koloru; wzrost zapasu zielony');
+  assert.ok(h.includes('cm.net7</span><b class="eq" title=') && h.includes('cm.net30</span><b class="pos" title=') && h.includes('cm.ch7</span><b class="pos" title='), 'zero żółte; wzrost zapasu zielony');   /* v322 (pkt 5): zero żółte */
   assert.ok(h.includes('<th><span class="icos"><img class="ico sm" src="img/krypto/btc.svg"') && h.includes('img/krypto/eth.svg" alt="" title="ETH" loading="lazy" decoding="async"></span>ETH cm.c.net</th>'), 'logo w nagłówkach tabeli');
-  assert.ok(h.includes('<span class="cell mono neg">−10.00 BTC</span>') && h.includes('<span class="cell mono">0.00 BTC</span>'), 'tabela: spadek czerwony, zero bez koloru');
+  assert.ok(h.includes('<span class="cell mono neg">−10.00 BTC</span>') && h.includes('<span class="cell mono eq">0.00 BTC</span>'), 'tabela: spadek czerwony, zero żółte');   /* v322 (pkt 5) */
   assert.ok(!h.includes('coinmetrics.io') && !h.includes('creativecommons') && !h.includes('Coin Metrics'), 'bez podpisu dostawcy w panelu');
-  assert.ok(h.includes('cm.ch30</span><b title=') && h.includes('0.00 BTC (0.00%)') && !h.includes('+0.00%'), 'zmiana zapasu 0 — bez koloru i bez „+”');
+  assert.ok(h.includes('cm.ch30</span><b class="eq" title=') && h.includes('0.00 BTC (0.00%)') && !h.includes('+0.00%'), 'zmiana zapasu 0 — żółta, bez „+”');   /* v322 (pkt 5) */
 });
 
-test('v96-crypto: kafelki CRYPTO — logo przy każdym, zmiana 0 to „•” bez koloru (nie zielone ▲), bez nazw dostawców', () => {
+test('v96-crypto: kafelki CRYPTO — logo przy każdym, zmiana 0 to „•” żółte (v322; nie zielone ▲), bez nazw dostawców', () => {
   const H = v96cHelpers();
   const k0 = html.indexOf('const KDEF=['), k1 = html.indexOf('/* zapasowe wartości', k0);
   const KDEF = new Function(html.slice(k0, k1) + '\nreturn KDEF;')();
@@ -2511,26 +2511,26 @@ test('v96-crypto: kafelki CRYPTO — logo przy każdym, zmiana 0 to „•” be
   assert.ok(!el.innerHTML.includes('<svg'), 'logo zamiast symbolu konturowego');
 });
 
-test('v96-crypto: chipy, lista i Top 10 — zero bez koloru i bez strzałki; Top 10 bez nazwy dostawcy', () => {
+test('v96-crypto: chipy, lista i Top 10 — zero żółte (v322) i bez strzałki; Top 10 bez nazwy dostawcy', () => {
   const NODES = [{ id: 'btc' }, { id: 'eth' }, { id: 'rwa' }], DATA = { '24H': { btc: [5, 1.2], eth: [-3, -0.5], rwa: [0, 0] } }, st = { period: '24H', view: 'list', sel: null };
   const ch = { innerHTML: '' }, wrap = { innerHTML: '' };
   const c0 = html.indexOf('function renderChips(){'), c1 = html.indexOf('\nfunction renderLegend(', c0);
   new Function('$', '$$', 'DATA', 'st', 'NODES', 'isSel', 'iconURL', 'nName', 'fPct', 't', 'select', html.slice(c0, c1) + '\nrenderChips();')(
     () => ch, () => [], DATA, st, NODES, () => false, id => 'data:image/png;base64,' + id, id => 'n.' + id, v => String(v), k => k, () => {});
-  assert.ok(ch.innerHTML.includes('<button class="chip-n eq" data-n="rwa"') && ch.innerHTML.includes('n.rwa<span class="p">• 0</span>'), 'zero: „•”, bez koloru');
+  assert.ok(ch.innerHTML.includes('<button class="chip-n eq" data-n="rwa"') && ch.innerHTML.includes('n.rwa<span class="p">• 0</span>'), 'zero: „•”, żółte (v322: klasa eq)');   /* v322 (pkt 5): komunikat zgodny ze stylem (#chips .chip-n.eq — żółte) */
   assert.ok(ch.innerHTML.includes('<button class="chip-n in" data-n="btc"') && ch.innerHTML.includes('<button class="chip-n out" data-n="eth"'));
   const l0 = html.indexOf('function renderList(){'), l1 = html.indexOf('\n/* ---------- sterowanie', l0);
   new Function('$', '$$', 'DATA', 'st', 'NODES', 'isSel', 'iconURL', 'nName', 'fInt', 'fPct', 't', 'select', html.slice(l0, l1) + '\nrenderList();')(
     () => wrap, () => [], DATA, st, NODES, () => false, id => 'data:image/png;base64,' + id, id => 'n.' + id, v => String(v), v => String(v), k => k, () => {});
   const row = wrap.innerHTML.slice(wrap.innerHTML.indexOf('data-n="rwa"'));
-  assert.ok(row.includes('<span class="sz eq"') && row.includes('<span class="cell "><b>• 0</b>') && row.includes('<span class="cell">d.eq</span>'), 'lista: zero neutralne');
+  assert.ok(row.includes('<span class="sz eq"') && row.includes('<span class="cell eq"><b>• 0</b>') && row.includes('<span class="cell eq">d.eq</span>'), 'lista: zero — żółte „•”');   /* v322 (pkt 5): zero = bez zmian — żółte; kierunek słowami też w kolorze */
   assert.ok(wrap.innerHTML.includes('<span class="cell pos"><b>▲ 5</b>') && wrap.innerHTML.includes('<span class="cell neg"><b>▼ -3</b>'));
   const t0 = html.indexOf('function renderTop10(id){'), t1 = html.indexOf('/* ===================== v96 (krypto)', t0);
   const top = new Function('BASKET', 'LIVE', 'st', 't', 'flowOf', 'COIN_LOGO', 'escH', 'nfmt', 'fPct', 'coinImg', 'liveWhen', 'sg', html.slice(t0, t1) + '\nreturn renderTop10;')(
     { rwa: ['ONDO', 'OM'] }, { st: 'ok', C: { ONDO: { name: 'Ondo', mcap: 1e9, pct: { '24H': 0 } }, OM: { name: 'Mantra', mcap: 1e9, pct: { '24H': 2 } } } }, st, v96cT,
     (m, p) => m * p / 100, {}, v96cEsc, (v, d) => v.toFixed(d), v => String(v), s => '<i class="cic">' + s + '</i>', () => 'T', v => v > 0 ? '+' : v < 0 ? '−' : '');
   const h = top('rwa');
-  assert.ok(h.includes('<span class="fl ">0.0</span>') && h.includes('<span class="bar "><i style="width:0.0%">') && h.includes('<span class="fl pos">+20</span>'), 'Top 10: zero bez koloru, bez „+” i bez paska');
+  assert.ok(h.includes('<span class="fl eq">0.0</span>') && h.includes('<span class="bar eq"><i style="width:0.0%">') && h.includes('<span class="fl pos">+20</span>'), 'Top 10: zero żółte, bez „+” i bez paska');   /* v322 (pkt 5) */
   assert.ok(html.includes('.t10 .bar:not(.pos):not(.neg) i{background:var(--dim)}'), 'Top 10: pasek bez kierunku szary, nie turkusowy');
   assert.ok(h.includes('top.live{"t":"T"}'));
   const LIVEe = { st: 'err', err: 'HTTP 500', C: {} };
@@ -2551,11 +2551,11 @@ test('v96-crypto: panele krypto bez nazw dostawców i linków; logo giełdy, DeF
   const det = body('function renderDetails(){', '\nfunction renderChips(');
   assert.ok(det.includes("t('d.meth')") && !det.includes("t('d.source')") && det.includes('cGrpW(e.f)') && det.includes("cGrpW(s.id,'lg')"), 'szczegóły: „jak liczymy” zamiast „źródło”, logo');
   const rail = body('function renderRail(){', '\nconst SEC_IDS=');
-  assert.ok(rail.includes('<span class="ep">${cGrpW(e.f,\'sm\')}${nName(e.f)}</span> → <span class="ep">${cGrpW(e.t,\'sm\')}${nName(e.t)}</span>'), 'szyna: logo obu końców przepływu, logo i nazwa razem');
+  assert.ok(rail.includes('<span class="ep">${cGrpW(e.f,\'sm\')}${nName(e.f)}</span> <span class="ra">→</span> <span class="ep">${cGrpW(e.t,\'sm\')}${nName(e.t)}</span>'), 'szyna: logo obu końców przepływu, logo i nazwa razem');   /* v322 (pkt 5): strzałka w kolorze grupy (napływy zielone, odpływy czerwone; dawniej szara) */
   const sec = body('function renderSectors(){', '\nfunction renderGauge(');
   assert.ok(!sec.includes('hsl(') && sec.includes("cGrpW(id,'sm')"), 'sektory: logo, poziom aktywności bez czerwieni');
   const bal = body('function cBal(){', '\nfunction renderEtf(');
-  assert.ok(bal.includes("flagImg('us','sm')+glyphImg('etf','sm')") && bal.includes("ic('USDT','USDC')") && !bal.includes('s30>=0'), 'bilans: logo przy liniach, zero bez koloru');
+  assert.ok(bal.includes("flagImg('us','sm')+glyphImg('etf','sm')") && bal.includes("ic('USDT','USDC')") && !bal.includes('s30>=0'), 'bilans: logo przy liniach, zero nie zielone (v322: żółte)');   /* v322 (pkt 5) */
   const top = body('function renderTop10(id){', '\nconst liveWhen=');
   assert.ok(!top.includes('CoinPaprika:') && !top.includes('r.fl>=0'));
 });
@@ -2656,7 +2656,7 @@ test('v96-pages: Przepływy — flagi obu końców (GLOBAL), loga grup (CRYPTO),
   assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('data-id="stab"') && k.includes('data-id="defi"'), 'loga grup krypto');
   assert.ok(k.includes('<span class="cell neg"><b>−415 u.m</b>') && k.includes('<span class="cell pos"><b>+512 u.m</b>'), 'kwota idzie za kierunkiem');
   assert.ok(!/\+\+|−\+|\+−/.test(k), 'bez „++1 840” ani „−+520”');
-  assert.ok(k.includes('class="amt in pos">+1840 u.m') && !k.includes('class="amt out neg">−520 u.m') && k.includes('<span class="amt">−520 u.m</span>'));   /* v315 (CR7-01): „Giełdy” (reszta bilansu) poza listą spadków — osobny wiersz bez koloru kierunku */
+  assert.ok(k.includes('class="amt in pos">+1840 u.m') && !k.includes('class="amt out neg">−520 u.m') && k.includes('<span class="amt neg">−520 u.m</span>'));   /* v322 (decyzja właściciela 10.10, pkt 5): reszta bilansu nadal poza listami, ale w kolorze znaku (dawniej szara) */   /* v315 (CR7-01): „Giełdy” (reszta bilansu) poza listą spadków — osobny wiersz bez koloru kierunku */
 });
 
 test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa kraje = dwie flagi), trzy kolory, loga grup krypto', () => {
@@ -2673,7 +2673,7 @@ test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa k
   assert.equal((subOf(jpn).match(/<img /g) || []).length, 2, 'Japonia i Korea — dwie flagi');
   assert.ok(/title="[^"]+"/.test(subOf(jpn)), 'nazwa kraju w podpowiedzi');
   assert.ok(eur.includes('<span class="sval neg">−5.0 B</span>') && jpn.includes('<span class="sval pos">+3.0 B</span>'));
-  assert.ok(usa.includes('<span class="sval ">0.0 B</span>') && usa.includes('width:0%'), 'dokładne zero — bez koloru i bez paska');
+  assert.ok(usa.includes('<span class="sval eq">0.0 B</span>') && usa.includes('width:0%'), 'dokładne zero — żółte, bez paska');   /* v322 (pkt 5) */
   assert.ok(rus.includes('<span class="sval na">—</span>') && rus.includes('class="sna">g.nodata<'), 'brak danych to szary „—” (v98.2), nie zero');
   assert.ok(nameOf(cr).includes('krypto/usdt.svg') && !nameOf(cr).includes('krypto/btc.svg') && subOf(cr).includes('pg.sub.crypto') && subOf(cr).includes('krypto/usdt.svg') && subOf(cr).includes('krypto/usdc.svg'));   // v296c (CR-03): przed nazwą USDT i USDC (wiersz = podaż stablecoinów), nie BTC
   const p0 = html.indexOf('function pgNodes(){'), p1 = html.indexOf('\nconst pgFmt=', p0);
@@ -2681,8 +2681,8 @@ test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa k
   const c = pgEnv({st: {mode: 'crypto', period: '24H'}});
   c.f.renderSectorsPage();
   const k = c.el.innerHTML;
-  assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('<span class="sval pos">+1840 u.m</span>') && k.includes('<span class="sval">−520 u.m</span>') && !k.includes('<span class="sval neg">−520 u.m</span>'));   /* v315 (CR7-01): reszta bilansu poza rankingiem — osobny wiersz bez koloru */
-  assert.ok(!/\+\+|−\+/.test(k) && k.includes('<span class="sval ">0 u.m</span>'), 'CRYPTO: bez „++”, zero bez koloru');
+  assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('<span class="sval pos">+1840 u.m</span>') && k.includes('<span class="sval neg">−520 u.m</span>'));   /* v322 (pkt 5): reszta bilansu poza rankingiem, w kolorze znaku */   /* v315 (CR7-01): reszta bilansu poza rankingiem — osobny wiersz bez koloru */
+  assert.ok(!/\+\+|−\+/.test(k) && k.includes('<span class="sval eq">0 u.m</span>'), 'CRYPTO: bez „++”, zero żółte');   /* v322 (pkt 5) */
 });
 
 test('v96-pages: Aktywa — kolumna „Aktualność” (częstotliwość i dzień, bez nazw dostawców), flagi i loga, trzy kolory', () => {
@@ -2797,12 +2797,12 @@ test('v96-pages: po przeglądzie — Sektory: flagi przy nazwie = kraje z wiersz
   const c = pgEnv(E);
   c.f.renderSectorsPage();
   const k = c.el.innerHTML, rk = id => k.split('<div class="secrow">').find(x => x.includes('data-id="' + id + '"')) || '';
-  assert.ok(rk('stab').includes('<span class="sval ">0 u.m</span>') && rk('stab').includes('width:0%'), '+0,3 mln → „0 mln” bez koloru');
-  assert.ok(rk('exch').includes('<span class="sval">0 u.m</span>') && !k.includes('−0 u.m') && !k.includes('+0 u.m'), '−0,4 mln → „0 mln” bez koloru i znaku');   /* v315 (CR7-01): „Giełdy” w osobnym wierszu (reszta bilansu) — klasa bez kierunku */
+  assert.ok(rk('stab').includes('<span class="sval eq">0 u.m</span>') && rk('stab').includes('width:0%'), '+0,3 mln → „0 mln” żółte, bez paska');   /* v322 (pkt 5) */
+  assert.ok(rk('exch').includes('<span class="sval eq">0 u.m</span>') && !k.includes('−0 u.m') && !k.includes('+0 u.m'), '−0,4 mln → „0 mln” żółte, bez znaku');   /* v322 (pkt 5) */   /* v315 (CR7-01): „Giełdy” w osobnym wierszu (reszta bilansu) — klasa bez kierunku */
   const f = pgEnv(E);
   f.f.renderFlows();
   const fl = f.el.innerHTML, tr = fl.split('<tr>').slice(2);
-  assert.ok(tr.find(r => r.includes('N:exch')).includes('<span class="cell "><b>0 u.m</b>'), 'korytarz 0,2 mln — bez koloru i znaku');
+  assert.ok(tr.find(r => r.includes('N:exch')).includes('<span class="cell eq"><b>0 u.m</b>'), 'korytarz 0,2 mln — żółty, bez znaku');   /* v322 (pkt 5) */
   const lists = fl.slice(0, fl.indexOf('<section class="panel pgc pg-exch">'));   /* v315 (CR7-01): „Giełdy” (reszta bilansu) — osobny wiersz pod listami, nad tabelą */
   assert.ok(fl.indexOf('<section class="panel pgc pg-exch">') > 0 && fl.indexOf('<section class="panel pgc pg-exch">') < fl.indexOf('<table>'), 'osobny wiersz „Giełdy” pod listami');
   assert.ok(!lists.includes('data-id="stab"') && !lists.includes('data-id="exch"') && lists.includes('data-id="btc"'), 'zaokrąglone zero nie trafia do list największych');
@@ -3259,7 +3259,7 @@ test('v98.2: zero po zaokrągleniu bez minusa (panel USA, kurs efektywny), v321:
 });
 test('v98.2: kolory tam, gdzie ich brakowało; brak danych szary; plakietka CRYPTO w nowym języku', () => {
   assert.ok(html.includes("L.push(ln('cb.cme',t('cb.cme.v',{b:cbTone(g(mb)),e:cbTone(g(me))}),"), 'CME w bilansie krypto: kolor pozycji');
-  assert.ok(html.includes('<div class="d-val sora${dTone?\' \'+dTone:\'\'}">') && html.includes("dTone=Math.round(v)>0?'pos':Math.round(v)<0?'neg':'';"), 'CRYPTO: kwota w nagłówku szczegółów w kolorze, zero bez');
+  assert.ok(html.includes('<div class="d-val sora${dTone?\' \'+dTone:\'\'}">') && html.includes("dTone=Math.round(v)>0?'pos':Math.round(v)<0?'neg':'eq';"), 'CRYPTO: kwota w nagłówku szczegółów w kolorze, zero żółte');   /* v322 (pkt 5) */
   assert.ok(html.includes("out:mld(L('out')&&L('out')[0]===i[0]?L('out')[1]:null,1)") && html.includes('fa:mld(f[1],1),pi:p?mld(p[1],1)') && html.includes('a:j(A.total_net,1)'), 'zmierzone przepływy regionu: plus = odpływ — odwrócony kolor');
   const r0 = html.indexOf('function msRegion('), r1 = html.indexOf('\nfunction gProbBox(', r0);
   const gtI = gtEnv.gtI;   /* v321: prawdziwy gtI — kolor ze znaku liczby (dawniej atrapa z odwróceniem odpływu) */
@@ -3532,14 +3532,14 @@ test('v104-dzwignia: panel — kafelki z kolorami wg kierunku, brak = „—” 
   assert.ok(h.includes('lev.tab.sub{n=234} · ' + asof + '</p>'), 'tabela kontraktów ma własną datę części (stan na): ' + h.slice(h.indexOf('lev.tab.sub'), h.indexOf('lev.tab.sub') + 120));
   assert.ok(h.includes('lev.k.oib{c=ETH}</span><b>6.10 <small class="mtxt">lev.u.mld</small></b>') && !h.includes('lev.mean{v=0.00'), 'otwarte pozycje ETH koniec dnia bez średniej (brak, nie zero)');
   assert.ok(h.includes('lev.k.dvol{c=BTC}</span><b>34.7 <small class="neg">lev.dn{n=1,v=−1.5%}</small></b>'), 'DVOL BTC: spadek o 1,5 % — czerwono');
-  assert.ok(h.includes('lev.k.dvol{c=ETH}</span><b>48.2 <small class="neu">lev.dn{n=1,v=+0.4%}</small></b>'), 'DVOL ETH: zmiana w granicach ±1 % — żółto');
+  assert.ok(h.includes('lev.k.dvol{c=ETH}</span><b>48.2 <small class="pos">lev.dn{n=1,v=+0.4%}</small></b>'), 'DVOL ETH: +0,4 % — zielono');   /* v322 (decyzja właściciela 10.10, pkt 5; jak GLOBAL v321): kolor ze znaku pokazanej zmiany (dawniej ±1 % żółto) */
   assert.ok(h.includes('lev.k.pc{c=BTC}</span><b class="pos">0.52 <small class="pos">lev.more.call</small></b>') && h.includes('lev.k.pc{c=ETH}</span><b class="neg">1.31 <small class="neg">lev.more.put</small></b>'), 'put/call: poniżej 1 zielono (więcej calli), powyżej 1 czerwono (więcej putów)');
-  assert.ok(h.includes('<td><span class="cell">OKX</span></td><td><span class="cell">ETH</span></td><td><span class="cell mono neg">−0.5%</span></td><td><span class="cell mono">1.60</span></td><td><span class="cell mono">1.00<small>'), 'tabela giełd: OKX ETH — finansowanie ujemne czerwono, stosunek 1,00 bez koloru');
+  assert.ok(h.includes('<td><span class="cell">OKX</span></td><td><span class="cell">ETH</span></td><td><span class="cell mono neg">−0.5%</span></td><td><span class="cell mono">1.60</span></td><td><span class="cell mono neu">1.00<small>'), 'tabela giełd: OKX ETH — finansowanie ujemne czerwono, stosunek 1,00 żółty');   /* v322 (pkt 5): bez przewagi — żółte */
   assert.ok(h.includes('<td><span class="cell">Binance</span></td><td><span class="cell">BTC</span></td><td><span class="cell mono na" title="lev.np">—</span></td><td><span class="cell mono">8.09</span></td><td><span class="cell mono pos">1.23</span></td>'), 'tabela giełd: Binance nie publikuje finansowania — „—” z podpowiedzią');
   assert.ok(h.includes('<td><span class="cell">Hyperliquid</span></td><td><span class="cell">BTC</span></td><td><span class="cell mono pos">+10.9%</span></td><td><span class="cell mono">3.16</span></td><td><span class="cell mono na" title="lev.np">—</span></td>'), 'tabela giełd: Hyperliquid bez stosunku kont');
   const tab = h.slice(h.indexOf('lev.h.tab'), h.indexOf('lev-opt'));
   assert.ok(tab.indexOf('>BTC<') < tab.indexOf('>ETH<') && tab.indexOf('>ETH<') < tab.indexOf('>HYPE<') && tab.indexOf('>HYPE<') < tab.indexOf('>SOL<'), 'tabela Hyperliquid w kolejności otwartych pozycji');
-  assert.ok(tab.includes('<td><span class="cell mono na">—</span></td>') && tab.includes('<span class="cell mono">0.0%</span>') && !tab.includes('cell mono pos">0.0%') && tab.includes('lev.tab.sub{n=234}'), 'SOL bez finansowania — „—”; zmiana 0,0 % bez koloru');
+  assert.ok(tab.includes('<td><span class="cell mono na">—</span></td>') && tab.includes('<span class="cell mono neu">0.0%</span>') && !tab.includes('cell mono pos">0.0%') && tab.includes('lev.tab.sub{n=234}'), 'SOL bez finansowania — „—”; zmiana 0,0 % żółta');   /* v322 (pkt 5): zero żółte (neu) */
   assert.ok(h.includes('lev.opt.tot{v=351283,c=BTC,u=29.48,pc=0.52} · ' + asof + '</p>') && h.includes('<span class="cell mono">33.8%</span>'), 'opcje wg terminu: razem, ≈ USD, put/call, data części, udział terminu');
   assert.ok(!h.includes('·wiek(2026-12-25)') && !h.includes('·wiek(2026-10-30)'), 'termin wygaśnięcia nie dostaje „wieku danych”');
   assert.ok(h.includes('<summary>eng.notsays</summary><p class="pnote">lev.not1</p>') && h.includes('lev.not6</p></details><p class="pfoot">inst.file{t=D:' + lev104.now + '} · eng.disclaimer</p>'), '„Czego te dane nie mówią” i stopka');
@@ -3617,7 +3617,7 @@ test('v104-dzwignia: 10 języków z tymi samymi kluczami lev.*, po niemiecku bez
   assert.ok(!/publikuje|publish|veröffentlicht|publica|publie|pubblica|публикует|公布|公表/.test(Object.values(D).map(x => x['lev.np']).join(' ')) && D.pl['lev.np'].includes('źródle'), '„—” w tabeli giełd: brak w naszym źródle, nie „giełda nie publikuje”');
   assert.ok(D.pl['lev.k.taker'].includes('średnia dnia') && D.pl['lev.last5'].startsWith('ostatnie 5 min') && D.pl['lev.asof'] === 'stan na {t}', 'nowe podpisy: średnia dnia, ostatnie 5 min, stan na');
 });
-test('v105: wieloryby — pomocnicze: kształt pliku, kwoty, zmiana wobec zrzutu, skrót transakcji, zero bez koloru', () => {
+test('v105: wieloryby — pomocnicze: kształt pliku, kwoty, zmiana wobec zrzutu, skrót transakcji, zero żółte (v322)', () => {
   const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whTile(', w0);
   assert.ok(w0 > 0 && w1 > w0, 'blok v105 w stronie');
   const T = (k, v) => k + (v ? JSON.stringify(v) : '');
@@ -3633,11 +3633,11 @@ test('v105: wieloryby — pomocnicze: kształt pliku, kwoty, zmiana wobec zrzutu
   assert.deepEqual(W.whChg(H, '2026-09-26', 7, 4, 900), {d: -100, t: '2026-09-19T00:05:00+00:00'}, 'zmiana wobec zrzutu sprzed 7 dni');
   assert.equal(W.whChg(H, '2026-09-27', 1, 4, 900), null, 'zrzut bez liczby (null) — brak, nie zero');
   assert.equal(W.whChg(H, '2026-09-28', 1, 3, 150), null, 'brak zrzutu z poprzedniej doby — brak');
-  assert.deepEqual(W.whChg(H, '2026-09-26', 1, 4, 900), {d: 0, t: '2026-09-25T00:07:00+00:00'}, 'równe salda: zmiana 0 (prawdziwe zero, bez koloru w whDelta)');
+  assert.deepEqual(W.whChg(H, '2026-09-26', 1, 4, 900), {d: 0, t: '2026-09-25T00:07:00+00:00'}, 'równe salda: zmiana 0 (prawdziwe zero — w whDelta żółte, v322)');
   assert.equal(W.whChg(H, '2026-09-26', 1, 3, null), null); assert.equal(W.whChg(null, '2026-09-26', 1, 3, 1), null);
   assert.equal(W.whShort('0x' + 'ab'.repeat(32)), '0xabab…abab'); assert.equal(W.whShort('0x12'), ''); assert.equal(W.whShort(null), '');
   assert.deepEqual(W.whDelta(2500000), {txt: '▲ +2.5 wh.u.mln', cls: 'pos'}); assert.deepEqual(W.whDelta(-3), {txt: '▼ −3', cls: 'neg'});
-  assert.deepEqual(W.whDelta(0.4), {txt: '• 0', cls: ''}, 'zero po zaokrągleniu — bez strzałki i koloru'); assert.deepEqual(W.whDelta(-0.3), {txt: '• 0', cls: ''});
+  assert.deepEqual(W.whDelta(0.4), {txt: '• 0', cls: 'neu'}, 'zero po zaokrągleniu — bez strzałki, żółte'); assert.deepEqual(W.whDelta(-0.3), {txt: '• 0', cls: 'neu'});   /* v322 (pkt 5) */
 });
 test('v105: wieloryby — panel z pliku: kafle z datą i wiekiem, tabela z linkiem, stan pusty, bez pliku ukryty, brak nie jest zerem', () => {
   const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whApply(', w0);
@@ -3943,7 +3943,7 @@ test('v126-dzwignia-cz: sekcja „Wszystkie duże giełdy” — kafelki z datą
   assert.ok(h.includes('lev.k.oicz{c=BTC}</span><b>20.20 <small class="mtxt">lev.u.mld</small> <small>lev.cz.nex{n=4,m=5} · <span class="pos">lev.cz.d24{v=+5.3%}</span></small></b>' + when), 'BTC: suma, liczba giełd i rynków, zmiana 24 h na zielono, data i wiek: ' + h.slice(h.indexOf('lev.k.oicz{c=BTC}'), h.indexOf('lev.k.oicz{c=BTC}') + 300));
   assert.ok(h.includes('lev.k.oicz{c=ETH}</span><b>8.50 <small class="mtxt">lev.u.mld</small> <small>lev.cz.nex{n=4,m=4} · <span class="neg">lev.cz.d24{v=−2.1%}</span></small></b>'), 'ETH: spadek na czerwono');
   assert.ok(h.includes('lev.k.lq{c=BTC}</span><b class="neg">84.7 <small class="mtxt">lev.u.mln</small> <small class="neg">lev.lq.sub{l=68.1,s=16.6}</small></b>' + when), 'BTC: więcej likwidacji długich — czerwono');
-  assert.ok(h.includes('lev.k.lq{c=ETH}</span><b>20.5 <small class="mtxt">lev.u.mln</small> <small>lev.lq.sub{l=10.0,s=10.5}</small></b>'), 'ETH: prawie po równo (±10 %) — bez koloru');
+  assert.ok(h.includes('lev.k.lq{c=ETH}</span><b class="neu">20.5 <small class="mtxt">lev.u.mln</small> <small class="neu">lev.lq.sub{l=10.0,s=10.5}</small></b>'), 'ETH: prawie po równo (±10 %) — żółte');   /* v322 (pkt 5) */
   assert.equal((h.match(/class="etfk"/g) || []).length, 22, '18 dotychczasowych + 4 nowe kafelki');
   const tab = h.slice(h.indexOf('<table class="etft lev-cz">'), h.indexOf('</table>', h.indexOf('<table class="etft lev-cz">')));
   assert.ok(tab.includes('<th>lev.c.coin</th><th>lev.c.oi</th><th>lev.c.fundv</th><th>lev.c.lq</th><th>lev.c.lsx</th><th>lev.c.nex</th><th>lev.c.when</th>'), 'kolumny');
@@ -3955,7 +3955,7 @@ test('v126-dzwignia-cz: sekcja „Wszystkie duże giełdy” — kafelki z datą
   const xrp = tab.slice(tab.indexOf('>XRP<'));
   assert.ok(xrp.includes('<td><span class="cell mono">1.30</span></td><td><span class="cell mono na" title="lev.cz.nofy">—</span></td><td><span class="cell mono na" title="lev.cz.nolq">—</span></td><td><span class="cell mono na" title="lev.cz.nols">—</span></td>'), 'XRP: bez zmiany (brak odczytu sprzed doby), bez potwierdzonego okresu, bez likwidacji i bez stosunku kont — „—” z powodem: ' + xrp.slice(0, 500));
   const sol = tab.slice(tab.indexOf('>SOL<'), tab.indexOf('>XRP<'));
-  assert.ok(sol.includes('<small>+0.0%</small>') && sol.includes('title="lev.np">—</span>') && sol.includes('D:' + lev126.t2), 'SOL: zmiana 0,0 % bez koloru; bez finansowania w pliku; własna data');
+  assert.ok(sol.includes('<small><span class="neu">+0.0%</span></small>') && sol.includes('title="lev.np">—</span>') && sol.includes('D:' + lev126.t2), 'SOL: zmiana 0,0 % żółta; bez finansowania w pliku; własna data');   /* v322 (pkt 5) */
   assert.ok(!/>0(\.0+)?</.test(tab) && !/>0(\.0+)? \/ /.test(tab), 'brak nigdy nie jest zerem');
   assert.ok(h.includes('</table></div><p class="pnote">lev.cz.fnote</p><details class="etfd" id="lev-czf">'), 'notka o okresach rozliczenia pod tabelą, potem finansowanie wg giełd');
   assert.ok(h.includes('<p class="pnote">lev.not5</p><p class="pnote">lev.not6cz</p><p class="pnote">lev.not7</p></details>') && !h.includes('lev.not6</p>'), '„czego nie mówią”: not6 zastąpione, not7 dopisane');
@@ -4071,13 +4071,13 @@ test('v108: wieloryby — nowe giełdy (Bybit, KuCoin, Bitfinex): kafle, noty z 
   assert.equal((seg('KuCoin').match(/— · wh\.nochg/g) || []).length, 3, 'KuCoin bez historii: trzy kafle z „brak wcześniejszego zrzutu”, nie zero');
   assert.equal((seg('Bitfinex').match(/— · wh\.nochg/g) || []).length, 3, 'Bitfinex bez historii: trzy kafle z „brak wcześniejszego zrzutu”');
   assert.ok(seg('Bybit').includes('<small class="pos">▲ +100000 · wh.vs{"t":"[2026-09-25T00:03:00+00:00]"}</small>'), 'Bybit USDT: zmiana wobec wczorajszego zrzutu, zielona');
-  assert.ok(seg('Bybit').includes('<small class="">• 0 · wh.vs{"t":"[2026-09-25T00:03:00+00:00]"}</small>'), 'Bybit USDC: równe salda = zero bez koloru i strzałki');
+  assert.ok(seg('Bybit').includes('<small class="neu">• 0 · wh.vs{"t":"[2026-09-25T00:03:00+00:00]"}</small>'), 'Bybit USDC: równe salda = zero, żółte, bez strzałki');   /* v322 (pkt 5) */
   assert.equal((seg('Bybit').match(/wh\.d7: — · wh\.short/g) || []).length, 3, 'Bybit: 7 dni bez zrzutu = „za krótka historia” przy trzech kaflach'); assert.ok(!seg('Bybit').includes('wh.nochg'), 'Bybit ma wczorajszy zrzut');
   assert.ok(out.includes(`wh.blk{"t":"[${t0}]","n":"4899"} · age(2026-09-26)`), 'data i wiek salda przy kaflach');
   assert.ok((out.match(/<i class="ico sm">Bybit<\/i>/g) || []).length >= 5 && (out.match(/<i class="ico sm">Bitfinex<\/i>/g) || []).length >= 5, 'logo (albo monogram) giełdy przy nagłówku, kaflach i w tabeli');
   const rows = out.split('<tr><td>').length - 1;
   assert.equal(rows, 3, 'v193: przelew Bybit → KuCoin = jeden wiersz „⇄ Bybit → KuCoin”, para wew = dwa wiersze');
-  assert.ok(out.includes('<span class="cell whpr">⇄<span class="whg"><span class="icos"><i class="ico sm">Bybit</i></span>Bybit</span><span class="whg">→ <span class="icos"><i class="ico sm">KuCoin</i></span>KuCoin</span></span>'), 'v193: kierunek z logo i nazwami obu giełd');
+  assert.ok(out.includes('<span class="cell whpr"><span class="neu">⇄</span><span class="whg"><span class="icos"><i class="ico sm">Bybit</i></span>Bybit</span><span class="whg"><span class="neu">→</span> <span class="icos"><i class="ico sm">KuCoin</i></span>KuCoin</span></span>'), 'v193: kierunek z logo i nazwami obu giełd');   /* v322 (pkt 5): strzałki żółte (kierunek nieokreślony) */
   assert.equal((out.match(/class="cell neu wew"/g) || []).length, 2, 'para na Bybit: obie strony bursztynowe z dopiskiem');
   assert.ok(!/Hacken|Etherscan|Chainlink|CoinGecko|PublicNode|publicnode|GitHub/.test(out.replace(/href="[^"]*"/g, '')), 'bez nazw dostawców ani audytora w tekście panelu');
   // słownik: nowe klucze wh.n.* w dziesięciu językach, z datą listy, bez nazw dostawców i audytora; stare klucze bez zmian
@@ -4121,7 +4121,7 @@ test('v110: render() rysuje oba widoki w scenie 3D — płaski renderer bąbelk�
   assert.equal((html.match(/\blabelSpot\(/g) || []).length, 0, 'labelSpot usunięty (labelSpotG mapy GLOBAL zostaje)');
   assert.ok(html.includes('function labelSpotG(') && html.includes('function heart(time){') && html.includes('const hb=heart(time);') && html.includes('const qpt=('), 'heart, qpt i labelSpotG zostają dla mapy GLOBAL');
   assert.ok(html.includes("if(!n._hull.length)return Math.hypot(x-n._c[0],y-n._c[1])<=n._c[2]+4;"), 'pick 3D trafia w kule po n._c');
-  assert.ok(html.includes("if(!mirror){n._c=[cp[0],cp[1],Rp];n._hull=[];"), 'kula zapisuje trafienie');
+  assert.ok(html.includes("if(!mirror){n._c=[cp[0],cp[1],Rp/kb];n._hull=[];"), 'kula zapisuje trafienie');   /* v322 (pkt 7): trafienie z kuli bez pulsu (Rp/kb) */
   assert.ok(html.includes('const BUB_R=.72;') && html.includes("r=s*(style==='bubble'?BUB_R:.62)") && html.includes("st.view==='bubbles'?cur[n.id]*BUB_R:cur[n.id]*.58"), 'promień kul większy niż .62, linie zaczynają się na powierzchni kuli');
   assert.ok(html.includes("drawSphere(n,mirror,ga,n.shape==='sphere'?'globe':'bubble')"), 'gałąź kul w drawScene');
   assert.ok(html.includes("if(st.view!=='bubbles')LAT.forEach(([a,b])=>{") && (html.match(/LAT\.forEach\(/g) || []).length === 1, 'siatka LAT (szare linie między sąsiadami) tylko w widoku BLOCKCHAIN 3D — KULE 3D bez szarych linii');
@@ -4548,10 +4548,10 @@ test('v121: ceny krypto — pomocnicze: wiersze po dacie, zmiana wobec dokładni
   assert.equal(v.date, '2026-09-25'); assert.equal(v.close, 140); assert.equal(v.vol, 1520256979); assert.equal(v.d7, null); assert.equal(v.n, 40); assert.equal(v.from, day(40));
   assert.equal(K.kcDerive({d: rows}).vol, null, 'bez obrotu = null'); assert.equal(K.kcDerive(null), null); assert.equal(K.kcDerive({d: []}), null); assert.equal(K.kcDerive('x'), null);
   K.KC.data = {q: {BTC: {d: rows}}}; assert.equal(K.kcSeries('btc').length, 40, 'zaczep dla TRENDÓW: seria pary'); assert.equal(K.kcSeries('ETH').length, 0); K.KC.data = null; assert.equal(K.kcSeries('BTC').length, 0);
-  assert.equal(K.kcTone(0.04), ''); assert.equal(K.kcTone(0.05), 'pos'); assert.equal(K.kcTone(-0.3), 'neg'); assert.equal(K.kcTone(null), '');
+  assert.equal(K.kcTone(0.04), 'eq'); assert.equal(K.kcTone(0.05), 'pos');   /* v322 (pkt 5): zero po zaokrągleniu — żółte */ assert.equal(K.kcTone(-0.3), 'neg'); assert.equal(K.kcTone(null), '');
   assert.equal(K.kcPct(null), '<span class="cell mono na" title="kc.na">—</span>', 'brak z powodem');
   assert.ok(K.kcPct({p: 2.34, t: '2026-09-24'}).startsWith('<span class="cell mono pos" title="kc.vs{') && K.kcPct({p: 2.34, t: '2026-09-24'}).endsWith('">+2.3%</span>'), 'zmiana z datą porównania w podpowiedzi');
-  assert.ok(K.kcPct({p: -0.04, t: '2026-09-24'}).includes('class="cell mono" title=') && K.kcPct({p: -0.04, t: '2026-09-24'}).endsWith('>0.0%</span>'), 'zero po zaokrągleniu — bez koloru');
+  assert.ok(K.kcPct({p: -0.04, t: '2026-09-24'}).includes('class="cell mono eq" title=') && K.kcPct({p: -0.04, t: '2026-09-24'}).endsWith('>0.0%</span>'), 'zero po zaokrągleniu — żółte');   /* v322 (pkt 5) */
   assert.equal(K.kcPx(84099.99), '84100'); assert.equal(K.kcPx(4034.5), '4035'); assert.equal(K.kcPx(403.456), '403.46'); assert.equal(K.kcPx(0.2468), '0.2468'); assert.equal(K.kcPx(null), '—'); assert.equal(K.kcPx(0), '—');
   assert.equal(K.kcVol(1520256979), '1.52 wh.u.mld USDT'); assert.equal(K.kcVol(49214794), '49.2 wh.u.mln USDT'); assert.equal(K.kcVol(250e6), '250 wh.u.mln USDT'); assert.equal(K.kcVol(null), '');
 });
@@ -5214,8 +5214,8 @@ test('v124: sieć Bitcoin — panel z pliku: 7 kafli z czasem i wiekiem, dopisek
   assert.ok(out.includes('>72910<small>') && out.includes('ln.k.mp.vb{"v":"40.4","n":"41"}') && out.includes('ln.k.mp.fee{"v":"0.063"}'), 'kolejka: liczba, rozmiar ≈ bloki, opłaty w BTC');
   assert.ok(out.includes('>968736<small>') && out.includes('ln.k.tip.tx{"n":"6514"}') && out.includes('ln.k.tip.at{"t":"[') && out.includes('ln.ago.m{\\"n\\":9}'), 'ostatni blok z czasem bloku i wiekiem');
   assert.ok(out.includes('939 EH/s') && out.includes('ln.k.hr30{"p":"') && !out.includes('ln.k.hr30.na') && out.includes('ln.k.hr3{"v":"883"}'), 'moc: bieżąca, 30 dni, 3 doby');
-  assert.ok(out.includes('>−2.4%<small>') && out.includes('ln.k.diff.left{"n":"960","d":"') && out.includes('ln.k.diff.prog{"p":"52"}') && out.includes('ln.k.diff.prev{"p":"+4.2%"}') && out.includes('ln.k.diff.bt{"m":"10.3"}'), 'trudność');
-  assert.ok(out.includes('>ln.k.chk.same<small>') && out.includes('ln.k.chk.h{"h":"968736"}') && out.includes('ln.k.chk.mp{"n":"67394"} (ln.k.chk.mpd{"p":"−7.6%"})'), 'drugi eksplorator: ten sam blok, kolejka i różnica');
+  assert.ok(out.includes('>−2.4%<small>') && out.includes('ln.k.diff.left{"n":"960","d":"') && out.includes('ln.k.diff.prog{"p":"52"}') && out.includes('ln.k.diff.prev{"p":"<span class=\\"pos\\">+4.2%</span>"}') && out.includes('ln.k.diff.bt{"m":"10.3"}'), 'trudność');   /* v322 (pkt 5): poprzednia zmiana trudności w kolorze znaku */
+  assert.ok(out.includes('>ln.k.chk.same<small>') && out.includes('ln.k.chk.h{"h":"968736"}') && out.includes('ln.k.chk.mp{"n":"67394"} (ln.k.chk.mpd{"p":"<span class=\\"eq\\">−7.6%</span>"})'), 'drugi eksplorator: ten sam blok, kolejka i różnica');   /* v322 (pkt 5): różnica wobec głównego żółta (informacja, nie kierunek) */
   assert.equal((out.match(/<small class="mtxt">\[/g) || []).length, 6, 'sześć kafli z czasem pobrania części'); assert.ok(!out.includes('ln.stale') && !out.includes('ln.na'));
   assert.ok(out.includes('<svg class="arc-svg"') && (out.match(/<polyline class="arc-l l1"/g) || []).length === 1 && (out.match(/<polyline class="arc-l l2"/g) || []).length === 1, 'wykres: doba i średnia 7 dób');
   assert.ok(out.includes('ln.h.hist') && out.includes('ln.leg.day') && out.includes('ln.leg.ma') && out.includes('ln.hist.note{"d":') && out.includes(' · age(' + dd(1) + ')'), 'wykres z legendą, datą i wiekiem ostatniej doby');
@@ -7476,7 +7476,7 @@ test('v128: premie — pomocnicze: procent ze znakiem z pokazanej liczby, kolor 
   const X = prm128.mk();
   assert.equal(X.prmPct(0.061), '+0.06 %'); assert.equal(X.prmPct(-0.081), '−0.08 %', 'minus U+2212'); assert.equal(X.prmPct(0.004), '0.00 %', '0,00 bez znaku');
   assert.equal(X.prmPct(-0.004), '0.00 %'); assert.equal(X.prmPct(null), '—'); assert.equal(X.prmPct(NaN), '—'); assert.equal(X.prmPct('1'), '—');
-  assert.deepEqual([0.06, 0.05, 0.049, 0, -0.04, -0.05, -0.08, null].map(X.prmTone), ['pos', 'pos', '', '', '', 'neg', 'neg', ''], 'szum ±0,05 bez koloru');
+  assert.deepEqual([0.06, 0.05, 0.049, 0, -0.04, -0.05, -0.08, null].map(X.prmTone), ['pos', 'pos', 'pos', 'neu', 'neg', 'neg', 'neg', ''], 'kolor z pokazanej liczby: plus zielony, minus czerwony, 0,00 żółte');   /* v322 (decyzja właściciela 10.10, pkt 5; jak GLOBAL v321): dawniej szum ±0,05 bez koloru — pasmo zostało tylko w podpowiedzi (prmBand) */
   assert.equal(X.PRM_NOISE, 0.05); assert.equal(X.PRM_OLD, 60); assert.equal(X.PRM_DEAD, 180); assert.deepEqual(X.PRM.ok, [30, 90, 400]); assert.equal(X.PRM.per, 90);
   assert.equal(X.prmMs('2026-09-27T20:05'), Date.parse('2026-09-27T20:05:00Z')); assert.ok(isNaN(X.prmMs('2026-09-27 20:05'))); assert.ok(isNaN(X.prmMs(null)));
   assert.equal(X.prmAge(prm128.mm(3)), 2, 'wiek od końca minuty'); assert.equal(X.prmAge('x'), null);
@@ -7489,13 +7489,13 @@ test('v128: premie — pomocnicze: procent ze znakiem z pokazanej liczby, kolor 
   assert.equal(X.prmWhy({why: 'blocked'}, 'eth'), 'prm.na.blk'); assert.equal(X.prmWhy({}, 'eth'), 'eng.gap', 'nieznany powód — ogólne „brak danych, nie zero”');
 });
 
-test('v128: premie — panel z pliku: dwa kafle USA z minutami, wiekiem, cenami i wartością bez przeliczenia USDT; szum bez koloru; stary odczyt „—”; wykres dzienny 30/90/400', () => {
+test('v128: premie — panel z pliku: dwa kafle USA z minutami, wiekiem, cenami i wartością bez przeliczenia USDT; szum żółty (v322); stary odczyt „—”; wykres dzienny 30/90/400', () => {
   const X = prm128.mk(), el = X.show(prm128.file()), out = el.innerHTML;
   assert.ok(!el.hidden && out.includes('<h2><span class="icos"><i class="ico sm">BTC</i><i class="ico sm">ETH</i></span>prm.t</h2>') && out.includes('prm.sub') && out.includes('class="live on"'), 'nagłówek, logo monet, plik młody');
   assert.equal((out.match(/<div class="etfk">/g) || []).length, 2, 'dwa kafle (BTC, ETH)');
   assert.ok(out.includes('<div class="etfk"><span><span class="icos"><i class="fl sm">us</i><i class="ico sm">BTC</i></span>prm.k.cb{&quot;c&quot;:&quot;BTC&quot;}</span>'), 'flaga USA i logo monety w etykiecie');
   assert.ok(out.includes('<b class="pos">+0.06 %<small>prm.k.cb.d{"cb":"84731.20","bn":"84748.00","u":"0.99975","m":"'), 'BTC +0,06 % zielone, ceny z ostatniej minuty');
-  assert.ok(out.includes('<small>prm.k.cb.raw{"v":"−0.02 %"}</small>'), 'wartość bez przeliczenia USDT');
+  assert.ok(out.includes('<small>prm.k.cb.raw{"v":"<span class=\\"neg\\">−0.02 %</span>"}</small>'), 'wartość bez przeliczenia USDT');   /* v322 (pkt 5): w kolorze znaku (dawniej szara) */
   assert.ok(out.includes('<b class="neg">−0.08 %'), 'ETH −0,08 % czerwone');
   assert.equal((out.match(/<small class="mtxt">prm\.win\{"n":5,"a":"\d\d:\d\d","b":"\d\d:\d\d"\} · prm\.ago\.m\{"n":2\}<\/small>/g) || []).length, 2, 'minuty okna (czas czytelnika) i wiek pod każdym kaflem');
   assert.ok(!out.includes('prm.stale') && !out.includes('prm.na.'), 'świeży odczyt bez dopisków');
@@ -7505,10 +7505,10 @@ test('v128: premie — panel z pliku: dwa kafle USA z minutami, wiekiem, cenami 
   assert.ok(['prm.not1', 'prm.not2', 'prm.not3', 'prm.not4', 'eng.notsays', 'prm.foot', 'eng.disclaimer', 'id="prm-not"'].every(k => out.includes(k)), '„czego nie mówi”, stopka');
   assert.ok(!/NaN|undefined|Infinity|null/.test(out), 'bez NaN i „null”');
   assert.ok(!/Binance Vision|CC BY|Creative Commons|Frankfurter|EBC|ECB|data-api|https?:\/\//.test(out), 'bez podpisów źródeł i licencji w panelu');
-  // szum i zero: bez koloru, z podpowiedzią
+  // szum i zero: kolor ze znaku, 0,00 żółte (v322; dawniej bez koloru), z podpowiedzią
   const z = prm128.file(); z.now.cb.btc.p = 0.04; z.now.cb.eth.p = 0.004;
   const oz = X.show(z).innerHTML;
-  assert.ok(oz.includes('<b title="prm.noise">+0.04 %') && oz.includes('<b title="prm.noise">0.00 %'), '±0,04 i 0,00 — bez koloru, podpowiedź szumu');
+  assert.ok(oz.includes('<b class="pos" title="prm.noise">+0.04 %') && oz.includes('<b class="neu" title="prm.noise">0.00 %'), '+0,04 zielone, 0,00 żółte — obie z podpowiedzią szumu');   /* v322 (pkt 5): kolor ze znaku, pasmo w podpowiedzi */
   // brak: „—” z powodem, nigdy 0
   const n = prm128.file(); n.now.cb.btc = {p: null, n: 2, why: 'few_minutes'}; n.now.cb.eth = null; n.now.cb.why = null;
   const on = X.show(n).innerHTML;
@@ -7635,16 +7635,16 @@ test('v129: premie — panel z Koreą: trzy kafle Korei (flaga, ceny w KRW i USD
   const i = s => out.indexOf(s);
   assert.ok(i('prm.k.kr{&quot;c&quot;:&quot;BTC&quot;}') < i('prm.k.kr{&quot;c&quot;:&quot;ETH&quot;}') && i('prm.k.kr{&quot;c&quot;:&quot;ETH&quot;}') < i('prm.k.usdt</span>') && i('prm.k.usdt</span>') < i('prm.k.cb{&quot;c&quot;:&quot;BTC&quot;}'), 'kolejność kafli');
   assert.ok(out.includes('<span class="icos"><i class="fl sm">kr</i><i class="ico sm">BTC</i></span>') && out.includes('<i class="fl sm">kr</i><i class="ico sm">USDT</i>'), 'flaga Korei i logo monety');
-  assert.ok(out.includes('<b title="prm.kr.noise">+0.09 %<small>prm.k.kr.d{"up":"106009000","cb":"84790.00","fx":"1250.00","m":"'), 'Korea BTC: ceny obu giełd i kurs; +0,09 — w paśmie niepewności kursu, bez koloru');
+  assert.ok(out.includes('<b class="pos" title="prm.kr.noise">+0.09 %<small>prm.k.kr.d{"up":"106009000","cb":"84790.00","fx":"1250.00","m":"'), 'Korea BTC: ceny obu giełd i kurs; +0,09 — zielone, w paśmie niepewności kursu z podpowiedzią');   /* v322 (pkt 5): kolor ze znaku */
   const fxl = `prm.fx{"d":"${X.prmDay(prm128.day(2))}"} · age(${prm128.day(2)})`;
   assert.equal(out.split(fxl).length - 1, 3, 'data i wiek kursu pod każdym kaflem Korei'); assert.ok(X.prmDay(prm128.day(2)).length > 5);
-  assert.ok(out.includes('<b title="prm.kr.noise">−0.06 %') && out.includes('<b title="prm.kr.noise">+0.08 %<small>prm.k.usdt.d{"up":"1251.00","fx":"1250.00","m":"') && out.includes('<small>prm.k.usdt.n</small>'), 'ETH, USDT z objaśnieniem');
+  assert.ok(out.includes('<b class="neg" title="prm.kr.noise">−0.06 %') && out.includes('<b class="pos" title="prm.kr.noise">+0.08 %<small>prm.k.usdt.d{"up":"1251.00","fx":"1250.00","m":"') && out.includes('<small>prm.k.usdt.n</small>'), 'ETH, USDT z objaśnieniem');   /* v322 (pkt 5): kolor ze znaku, w paśmie z podpowiedzią */
   assert.ok(out.includes('prm.kr.t</h2>') && out.includes('prm.kr.sub') && out.includes('prm.not5') && out.includes('prm.kr.foot'), 'tytuł, opis, uwaga o kursie, stopka Korei');
-  // v2: kafle Korei na żywo — kolor dopiero poza ±0,5 pkt proc. (niepewność kursu dziennego); kafle USA — szum ±0,05 bez zmian
+  // v2: kafle Korei na żywo — pasmo ±0,5 pkt proc. (niepewność kursu dziennego), kafle USA — szum ±0,05; v322: kolor ze znaku, pasmo w podpowiedzi
   const pb = prm129.file(); pb.now.kr.btc.p = 0.6; pb.now.kr.eth.p = -0.5; pb.now.kr.usdt.p = 0.49; pb.now.cb.btc.p = 0.06; pb.now.cb.eth.p = 0.049;
   const ob = X.show(pb).innerHTML;
-  assert.ok(ob.includes('<b class="pos">+0.60 %<small>prm.k.kr.d') && ob.includes('<b class="neg">−0.50 %<small>prm.k.kr.d') && ob.includes('<b title="prm.kr.noise">+0.49 %<small>prm.k.usdt.d'), 'Korea: ±0,5 pkt proc.');
-  assert.ok(ob.includes('<b class="pos">+0.06 %<small>prm.k.cb.d') && ob.includes('<b title="prm.noise">+0.05 %<small>prm.k.cb.d'), 'USA: szum ±0,05 jak dotąd');
+  assert.ok(ob.includes('<b class="pos">+0.60 %<small>prm.k.kr.d') && ob.includes('<b class="neg">−0.50 %<small>prm.k.kr.d') && ob.includes('<b class="pos" title="prm.kr.noise">+0.49 %<small>prm.k.usdt.d'), 'Korea: ±0,5 pkt proc.');   /* v322 (pkt 5): kolor ze znaku, pasmo w podpowiedzi */
+  assert.ok(ob.includes('<b class="pos">+0.06 %<small>prm.k.cb.d') && ob.includes('<b class="pos" title="prm.noise">+0.05 %<small>prm.k.cb.d'), 'USA: szum ±0,05 w podpowiedzi, kolor ze znaku');   /* v322 (pkt 5) */
   const f2 = prm129.file(); f2.now.kr.fx = 1300; f2.fx = {d: prm128.day(2), v: 1250, src: 'ecb', seen: f2.at};
   assert.ok(X.show(f2).innerHTML.includes('"fx":"1300.00"') && !X.show(f2).innerHTML.includes('"fx":"1250.00"'), 'kurs z bloku Korei — ten, którym liczono premię');
   // v2: osobne małe wykresy z własną osią — Korea (kolumna BTC, nie USDT) i USA, każdy z jedną linią
@@ -7653,7 +7653,7 @@ test('v129: premie — panel z Koreą: trzy kafle Korei (flaga, ceny w KRW i USD
   assert.ok(svgs[0].includes('arc-l l1') && !svgs[0].includes('arc-l l2') && svgs[1].includes('arc-l l2') && !svgs[1].includes('arc-l l1'), 'Korea nad USA, bez wspólnej osi');
   const hk = out.slice(out.indexOf('prm.h.kr'), out.indexOf('<svg'));
   const lk = prm129.bd(60).slice(-1)[0];   // ostatni dzień roboczy: [dzień, BTC, USDT = 0,25, …]
-  assert.ok(lk[1] !== lk[2] && hk.includes('<b>+' + lk[1].toFixed(2) + ' %</b>') && !hk.includes('+0.25 %'), 'Korea: ostatnia wartość z kolumny BTC, nie USDT (0,25)');
+  assert.ok(lk[1] !== lk[2] && hk.includes('">+' + lk[1].toFixed(2) + ' %</b>') && !hk.includes('+0.25 %'), 'Korea: ostatnia wartość z kolumny BTC, nie USDT (0,25)');   /* v322 (pkt 5): ostatnia wartość w kolorze (klasa przed liczbą) */
   assert.equal((out.match(/<polyline class="arc-l l1"/g) || []).length, 1, 'Korea: dni robocze bez weekendów — linia ciągła');
   assert.equal((out.match(/<polyline class="arc-l l2"/g) || []).length, 1); assert.ok(out.includes('<i class="l1"></i>prm.h.kr') && out.includes('<i class="l2"></i>prm.h.cb') && out.includes('prm.kr.hn{"d":"'), 'legenda obu linii');
   assert.ok(!/NaN|undefined|Infinity|null/.test(out), 'bez NaN');
@@ -8144,13 +8144,13 @@ test('v132: wycena — panel z nagranego pliku: 4 kafle z dniem i wiekiem, stref
   assert.ok(!el.hidden && out.includes('<h2><span class="icos"><i class="ico sm">BTC</i></span>wy.t</h2>') && out.includes('wy.sub') && out.includes('class="live on"'), 'nagłówek, logo monety, plik młody');
   assert.equal((out.match(/<div class="etfk"/g) || []).length, 4, 'cztery kafle');
   assert.ok(out.includes('<span>wy.k.mvrv</span><b>1.58<small>wy.zone{"z":"wy.z.mvrv.1"}</small>'), 'MVRV 1,58 — strefa umiarkowanego zysku');
-  assert.ok(out.includes('<small>wy.k.mvrv.30{"v":"1.51","c":"+0.06"}</small><small>wy.k.mvrv.y{"lo":"1.10","hi":"2.29"}</small>'), '30 dni temu (dokładnie ten dzień) i zakres roku');
+  assert.ok(out.includes('<small>wy.k.mvrv.30{"v":"1.51","c":"<span class=\\"pos\\">+0.06</span>"}</small><small>wy.k.mvrv.y{"lo":"1.10","hi":"2.29"}</small>'), '30 dni temu (dokładnie ten dzień) i zakres roku');   /* v322 (pkt 5): zmiana w kolorze znaku (dawniej szara) */
   assert.ok(/<div class="etfk" title="wy\.k\.mvrv\.yt\{&quot;lo&quot;:&quot;1\.10&quot;,&quot;dl&quot;:&quot;[^&]+&quot;,&quot;hi&quot;:&quot;2\.29&quot;/.test(out), 'daty minimum i maksimum roku w podpowiedzi');
   assert.ok(out.includes('<span>wy.k.rp</span><b>53536 USD<small>wy.k.rp.up{"p":"84387","g":"57.6"}</small></b>'), 'średnia cena zakupu i cena rynkowa 57,6% powyżej');
   assert.ok(out.includes('<span>wy.k.nupl</span><b>0.37<small>wy.zone{"z":"wy.z.nupl.2"}</small>') && out.includes('<small>wy.k.nupl.p{"p":"37"}</small>'), 'NUPL 0,365589 → 0,37 — optymizm / niepokój, 37% to niezrealizowany zysk netto');
   const n36 = wy132.clone(wy132.FILE); n36.cm.last.nupl = 0.364973; const o36 = wy132.run(n36).el.innerHTML;
   assert.ok(o36.includes('<b>0.36<small>') && o36.includes('wy.k.nupl.p{"p":"36"}') && !o36.includes('"p":"37"'), 'przegląd v132 (2): NUPL 0,364973 (02.10 na żywo) — 0,36 / 36%, jedno zaokrąglenie');
-  assert.ok(/<span>wy\.k\.sopr<\/span><b>1\.002<small>wy\.k\.sopr\.day\{"d":"[^"]+","v":"1\.0019"\}<\/small><small>wy\.k\.sopr\.p\{"p":"\+0\.2%"\}<\/small><small>wy\.k\.sopr\.late\{"n":"7"\}<\/small><\/b>/.test(out), 'SOPR: średnia 7 dni, dzień według źródła, z zyskiem, 7 dni opóźnienia');
+  assert.ok(/<span>wy\.k\.sopr<\/span><b>1\.002<small>wy\.k\.sopr\.day\{"d":"[^"]+","v":"1\.0019"\}<\/small><small>wy\.k\.sopr\.p\{"p":"<span class=\\"pos\\">\+0\.2%<\/span>"\}<\/small><small>wy\.k\.sopr\.late\{"n":"7"\}<\/small><\/b>/.test(out), 'SOPR: średnia 7 dni, dzień według źródła, z zyskiem, 7 dni opóźnienia');   /* v322 (pkt 5): zysk sprzedających w kolorze znaku */
   assert.equal((out.match(/<small class="mtxt">wy\.asof\{"d":"[^"]+"\} · age\(2026-09-26\)<\/small>/g) || []).length, 3, 'trzy kafle z dniem danych 26.09 i wiekiem');
   assert.equal((out.match(/<small class="mtxt">wy\.asof\{"d":"[^"]+"\} · age\(2026-09-20\)<\/small>/g) || []).length, 1, 'SOPR z dniem 20.09 i wiekiem');
   assert.equal((out.match(/<small class="wy-bl"><span class="wy-bar" aria-hidden="true">/g) || []).length, 2, 'neutralne paski stref (MVRV, NUPL)');
@@ -8197,7 +8197,7 @@ test('v132: wycena — brak i stare dane: „—” z powodem (nigdy 0), SOPR be
   assert.ok(o.includes('<small>wy.k.sopr.late0</small>') && !o.includes('wy.k.sopr.late{'), 'zmierzone opóźnienie 0 dni — „bez opóźnienia”, nie „7 dni”');
   const zn = C(F); delete zn.bg.delay_d; assert.ok(tile(R(zn).innerHTML, 'wy.k.sopr').includes('wy.k.sopr.late{"n":"7"}'), 'bez zmierzonego opóźnienia — 7 dni (darmowy plan)');
   const sl = C(F); sl.bg.sopr.d = sl.bg.sopr.d.map(r => [r[0], 0.995]); sl.bg.delay_d = 9; o = tile(R(sl).innerHTML, 'wy.k.sopr');
-  assert.ok(o.includes('wy.k.sopr.l{"p":"−0.5%"}') && o.includes('wy.k.sopr.late{"n":"9"}'), 'ze stratą; opóźnienie zmierzone przez automat');
+  assert.ok(o.includes('wy.k.sopr.l{"p":"<span class=\\"neg\\">−0.5%</span>"}') && o.includes('wy.k.sopr.late{"n":"9"}'), 'ze stratą; opóźnienie zmierzone przez automat');   /* v322 (pkt 5): w kolorze znaku */
   for (const D of [null, {at: '2026-09-27T21:20:00+00:00', cm: {}}, {at: '2026-09-27T21:20:00+00:00', cm: {asof: '2026-09-26', last: {}, d: []}, bg: {}}]) {
     const Z = R(D); assert.ok(Z.hidden && Z.innerHTML === '', 'nic do pokazania — sekcja ukryta: ' + JSON.stringify(D));
   }
@@ -8670,7 +8670,7 @@ test('v140: podpowiedź monety — nazwa i symbol (escH), miejsce w sektorze, ce
   assert.ok(e.includes('<dd>—</dd>') && !e.includes('▲') && !e.includes('0.00%') && !e.includes('<img') && e.includes('N(meme)'), 'brak ceny i zmiany = „—”; złe logo — bez obrazka; nazwa sektora ze słownika');
   assert.ok(e.includes('494 u.m') && e.includes('c10.at{&quot;t&quot;:&quot;—&quot;}'), 'kapitalizacja w mln; brak czasu = „—”');
   assert.ok(X.t10TipHtml('ai', {...c, ch: -2.4}, 2, 10, '', null, NOW).includes('<dd class="dn">▼ −2.40%</dd>'));
-  assert.ok(X.t10TipHtml('ai', {...c, ch: 0}, 2, 10, '', null, NOW).includes('<dd class="">• 0.00%</dd>'), 'zero z pliku — bez koloru');
+  assert.ok(X.t10TipHtml('ai', {...c, ch: 0}, 2, 10, '', null, NOW).includes('<dd class="eq">• 0.00%</dd>'), 'zero z pliku — żółte');   /* v322 (pkt 5) */
   assert.deepEqual([84650, 1.53, 0.0125697, 5.93e-6, 0, -1, null, NaN].map(X.t10Px), ['84,650', '1.53', '0.0126', '0.00000593', '—', '—', '—', '—']);
   assert.deepEqual([1.7e12, 3.2e9, 4.9e8, 0, null].map(X.t10Mc), ['1.70 u.t', '3.2 u.b', '490 u.m', '—', '—']);
   assert.deepEqual(['2026-09-27T23:10:20Z', '2026-09-27T21:22:20Z', '2026-09-24T23:22:20Z', 'x'].map(s => X.t10Ago(s, NOW)), ['ln.ago.m{"n":12}', 'ln.ago.h{"n":2}', 'ln.ago.d{"n":3}', '']);
@@ -8771,7 +8771,7 @@ const t10H = (() => {
       TAGS.push([tg, a, stk.length ? stk[stk.length - 1] : -1]); if (!m[4] && !VOID.test(tg)) { stk.push(TAGS.length - 1); stn.push(tg); } } }
   const INTERNAL = ['st', 'cam', 'NODES', 'NB', 'EB', 'EDGES', 'T10', 'PAL', 'CW', 'CH', 'cFull', 'hover', 'cur', 'select', 'setMode', 'setPage', 'setView', 'applyTheme', 'readPalette', 'renderAll',
     'render', 'resize', 'homeDist', 'homeBase', 'pick', 'pickModel', 'pr', 'setCam', 't', 'nName', 't10Items', 't10After', 't10Pick', 't10PickTop', 't10TipShow', 't10TipHide', 't10Set', 't10Fit',
-    't10Load', 't10LogoLoad', 't10Col', 'cSetFull', 'T10_COL', 'T10_G', 'T10_N', 'T10_NP'];
+    't10Load', 't10LogoLoad', 't10Col', 'cSetFull', 'T10_COL', 'T10_G', 'T10_N', 'T10_NP', 'DATA', 'LIVE', 't10Flow', 't10Coins'];   /* v322: + DATA, LIVE, t10Flow, t10Coins (testy bicia serca i prądu) */
   const RET = '\n;return {' + INTERNAL.map(n => `get ${n}(){try{return ${n};}catch(e){return undefined;}}`).join(',') + '};';
   const GLOBALS = ['window', 'document', 'navigator', 'location', 'history', 'localStorage', 'sessionStorage', 'fetch', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
     'requestAnimationFrame', 'cancelAnimationFrame', 'MutationObserver', 'ResizeObserver', 'IntersectionObserver', 'Path2D', 'Image', 'DOMParser', 'Event', 'CustomEvent',
@@ -10669,11 +10669,11 @@ test('v133: dzień wdrożenia (pl) — kafle z bieżącą wyceną, pod liczbą o
   const F = rw133.clone(RWA133_FILE); delete F.n.small_v; assert.ok(rw133.run(F, {real: true}).el.innerHTML.includes('Produkty poniżej 10 mln USD wchodzą do sum, ale nie do zmian.'), 'bez danych — zdanie bez liczby');
 });
 
-test('v133: po 31 dniach — „+1,0%” zielone „(od 20.09)”, spadek czerwony z „−”, zero po zaokrągleniu bez koloru, udziały sumują się do 100%; notka o zapisach do 30. dnia (także gdy 7 dni już jest)', () => {
+test('v133: po 31 dniach — „+1,0%” zielone „(od 20.09)”, spadek czerwony z „−”, zero po zaokrągleniu żółte (v322), udziały sumują się do 100%; notka o zapisach do 30. dnia (także gdy 7 dni już jest)', () => {
   const {el} = rw133.run(rw133.day31(), {real: true}), out = el.innerHTML;
   assert.ok(out.includes('<small class="pos">7 dni: +1,0% (od 20.09)</small><small class="pos">30 dni: +4,4% (od 28.08)</small>'), 'wszystkie: wzrost zielony z dniem kotwicy');
   assert.ok(out.includes('<small class="pos">7 dni: +0,4% (od 20.09)</small>'), 'obligacje i fundusze');
-  assert.ok(out.includes('<small class="neg">7 dni: −2,3% (od 20.09)</small><small>30 dni: 0,0% (od 28.08)</small>'), 'złoto: spadek czerwony z minusem; −0,04% → 0,0% bez koloru');
+  assert.ok(out.includes('<small class="neg">7 dni: −2,3% (od 20.09)</small><small class="neu">30 dni: 0,0% (od 28.08)</small>'), 'złoto: spadek czerwony z minusem; −0,04% → 0,0% żółte');   /* v322 (pkt 5) */
   assert.ok(out.includes('<small class="na">7 dni: —</small><small class="pos">30 dni: +3,2% (od 28.08)</small>'), 'kredyt: brak 7 dni „—”, 30 dni jest');
   assert.ok(!out.includes('Zmiany 7 i 30 dni liczymy'), 'po 30 dniach bez notki o czekaniu');
   const W = rw133.day31(); W.seg.all.c30 = null; W.seg.all.c30_from = null;
@@ -10685,7 +10685,7 @@ test('v133: po 31 dniach — „+1,0%” zielone „(od 20.09)”, spadek czerwo
   assert.equal(sh.length, 7); assert.ok(Math.abs(sh.reduce((a, b) => a + b, 0) - 100) <= 0.1 + 1e-9, 'udziały: ' + sh.join(' + '));
   const {K} = rw133.run();
   assert.deepEqual([K.rwPct(1), K.rwPct(-2.31), K.rwPct(0.04), K.rwPct(null), K.rwPct(NaN)], ['+1.0%', '−2.3%', '0.0%', '—', '—']);
-  assert.deepEqual([K.rwCls(1), K.rwCls(-0.06), K.rwCls(0.04), K.rwCls(null)], ['pos', 'neg', '', 'na']);
+  assert.deepEqual([K.rwCls(1), K.rwCls(-0.06), K.rwCls(0.04), K.rwCls(null)], ['pos', 'neg', 'neu', 'na']);   /* v322 (pkt 5): zero po zaokrągleniu — żółte */
   assert.deepEqual([K.rwUsd(2.7756e13), K.rwUsd(1.52e10), K.rwUsd(3.2e8), K.rwUsd(5e5), K.rwUsd(0), K.rwUsd(null), K.rwUsd(-5)], ['27.76 u.t', '15.2 u.b', '320 u.m', '<1 u.m', '—', '—', '—']);
   assert.deepEqual([K.rwShare(1, 4), K.rwShare(null, 4), K.rwShare(1, 0)], ['25.0%', '—', '—']);
 });
@@ -12256,8 +12256,8 @@ test('v157: CRYPTO — wieloryby (tokeny z listy giełdy; ETH po kursie), dźwig
   C.PRM.data = v157.fix('premie');
   const p = C.wkCPrm();
   assert.equal(v157.tags(p.ch, 'polyline', 'wk-l').length >= 2, true); assert.equal((p.ch.match(/class="wk-ch wk-lines"/g) || []).length, 2, 'dwa wykresy (własna oś każdej linii)');
-  assert.ok(p.ch.startsWith('<div class="wk-pair"><div><p class="wk-sub"><i class="wk-sq s1"></i>Korea · BTC · <b>+0,20 %</b></p>'), 'Korea pierwsza, ostatnia premia');
-  assert.ok(p.ch.includes('USA · BTC · <b>0,00 %</b>'), 'USA');
+  assert.ok(p.ch.startsWith('<div class="wk-pair"><div><p class="wk-sub"><i class="wk-sq s1"></i>Korea · BTC · <b class="pos">+0,20 %</b></p>'), 'Korea pierwsza, ostatnia premia');   /* v322 (pkt 5): ostatnia premia w kolorze swojego znaku */
+  assert.ok(p.ch.includes('USA · BTC · <b class="neu">0,00 %</b>'), 'USA');   /* v322 (pkt 5): 0,00 — żółta (bez zmian) */
   assert.equal(p.d, '2026-10-03 · wiek(2026-10-03)');
   const f = C.wkCFg(), F = v157.tips(f.ch);
   assert.equal(F.length, 31); assert.equal(F[30], '4 paź 2026 · 65 · Chciwość', 'stan z klasy pliku');
@@ -12818,8 +12818,8 @@ test('v167: „ETF → krypto” w prawej kolumnie — kwoty bez końcowego „U
   const f = new Function('etfM', html.slice(a, b) + '\nreturn etfMr;')(v => v);
   assert.equal(f('+103 mln USD'), '+103 mln'); assert.equal(f('+2,75 mld USD'), '+2,75 mld'); assert.equal(f('−55 Mio. USD'), '−55 Mio.'); assert.equal(f('+1 百万美元'), '+1 百万美元');
   assert.equal(f('—'), '—'); assert.equal(f('0 mln USD'), '0 mln');
-  assert.ok(html.includes('${etfMr(a.d1)}</span><span class="mono ${etfCls(a.m)}">${etfMr(a.m)}</span>') && html.includes('<div class="etfr etfr-h"><span>USD</span><span>${t(\'etf.c.day\')}</span>'));
-  assert.ok(html.includes("${t('etf.k.cum')}${typeof sepK==='function'?sepK():': '}<b class=\"${etfCls(T.cum)}\">${etfM(T.cum)}</b>"), 'suma od startu — z jednostką jak dotąd');
+  assert.ok(html.includes('${etfMr(a.d1)}</span><span class="mono ${etfCz(a.m)}">${etfMr(a.m)}</span>') && html.includes('<div class="etfr etfr-h"><span>USD</span><span>${t(\'etf.c.day\')}</span>'));   /* v322 (pkt 5): etfCz — zero w prawej kolumnie żółte */
+  assert.ok(html.includes("${t('etf.k.cum')}${typeof sepK==='function'?sepK():': '}<b class=\"${etfCz(T.cum)}\">${etfM(T.cum)}</b>"), 'suma od startu — z jednostką jak dotąd');   /* v322 (pkt 5): etfCz — zero żółte */
 });
 test('v167: archiwum — wiek danych obok daty ostatniej wartości (wykresy i kafelki); Aktywa — zmiana rentowności 10-letnich w pp; Sektory w GLOBAL — „regiony świata”', () => {
   assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>${l.note?`<span class=\"arc-last arc-obs\"><small>${l.note}</small></span>`:''}`:'';}).join('');") /* v296 (runda 2, G2): + dopisek pod wartością */ && html.includes("`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));}")   /* v293 (audyt G2): dzień obserwacji serii tygodniowej */);
@@ -13243,7 +13243,7 @@ test('v191: dane z serwera starsze niż 60 min — pasek w nagłówku (min / god
 
 
 /* ---------- v193: wieloryby — przelew między dwiema giełdami z listy w jednym wierszu „⇄ A → B”; nota pod tabelą poprawiona w 10 językach ---------- */
-test('v193: para ▼ z A / ▲ na B (ta sama transakcja, zdarzenie, token, kwota) albo wiersz z polem x = jeden wiersz „⇄ A → B” bez koloru; inne wiersze bez zmian; nota „druga strona to portfel spoza listy” w 10 językach', () => {
+test('v193: para ▼ z A / ▲ na B (ta sama transakcja, zdarzenie, token, kwota) albo wiersz z polem x = jeden wiersz „⇄ A → B” (strzałki żółte — v322); inne wiersze bez zmian; nota „druga strona to portfel spoza listy” w 10 językach', () => {
   const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whApply(', w0);
   const run = D => {
     const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
@@ -13265,13 +13265,13 @@ test('v193: para ▼ z A / ▲ na B (ta sama transakcja, zdarzenie, token, kwota
   const rows = body.split('<tr><td>').length - 1;
   assert.equal(rows, 7, '8 wierszy pliku → 7 w tabeli (para c7 razem): ' + rows);
   const ex = n => `<span class="icos"><i class="ico sm">${n}</i></span>${n}`;
-  assert.equal(body.split(`<span class="cell whpr">⇄<span class="whg">${ex('Binance')}</span><span class="whg">→ ${ex('Bybit')}</span></span>`).length - 1, 2, 'para bez x i wiersz z x: „⇄ Binance → Bybit”, bez koloru');
+  assert.equal(body.split(`<span class="cell whpr"><span class="neu">⇄</span><span class="whg">${ex('Binance')}</span><span class="whg"><span class="neu">→</span> ${ex('Bybit')}</span></span>`).length - 1, 2, 'para bez x i wiersz z x: „⇄ Binance → Bybit”, strzałki żółte');   /* v322 (pkt 5): kierunek nieokreślony — żółte strzałki (dawniej bez koloru) */
   assert.ok(!body.includes('▲ wh.in · <span class="icos"><i class="ico sm">Bybit</i></span>Bybit'), 'Bybit nie ma osobnego wiersza „na giełdę”');
   assert.ok(body.includes(`<span class="cell pos">▲ wh.in · ${ex('Bitfinex')}</span>`) && body.includes(`<span class="cell neg">▼ wh.out · ${ex('OKX')}</span>`) && body.includes(`<span class="cell pos">▲ wh.in · ${ex('Binance')}</span>`), 'zwykłe wiersze jak dotąd (ten sam hash, inny token — osobno)');
   assert.ok(body.includes(`<span class="cell neg">▼ wh.out · ${ex('Bybit')}</span>`) && body.includes(`<span class="cell pos">▲ wh.in · ${ex('KuCoin')}</span>`), 'bez poprawnego hasha — bez łączenia');
   assert.ok(body.indexOf('120.0') < body.indexOf('19.9') && body.indexOf('19.9') < body.indexOf('12.0'), 'kolejność malejąco wg kwoty zostaje');
   const one = run(Object.assign({}, D, {transfery: [row({dir: 'in', exch: 'Bybit', tx: h('bb'), x: 'Binance'})]}));
-  assert.ok(one.includes(`<span class="cell whpr">⇄<span class="whg">${ex('Binance')}</span><span class="whg">→ ${ex('Bybit')}</span></span>`), 'sam wiersz „na giełdę” z x: kierunek od x do giełdy wiersza');
+  assert.ok(one.includes(`<span class="cell whpr"><span class="neu">⇄</span><span class="whg">${ex('Binance')}</span><span class="whg"><span class="neu">→</span> ${ex('Bybit')}</span></span>`), 'sam wiersz „na giełdę” z x: kierunek od x do giełdy wiersza');   /* v322 (pkt 5) */
   assert.ok(html.includes('#c-wieloryby td .cell.whpr{flex-wrap:wrap;row-gap:2px}') && html.includes('.whpr .whg{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}'), 'telefon: „→ B” w całości w drugiej linii');
   const self = run(Object.assign({}, D, {transfery: [row({dir: 'out', exch: 'Bybit', tx: h('dd'), x: 'Bybit'})]}));
   assert.ok(self.includes(`<span class="cell neg">▼ wh.out · ${ex('Bybit')}</span>`), 'x równe giełdzie wiersza — zignorowane');
@@ -14465,14 +14465,14 @@ test('v293c CR-07: koszyki sceny — symbole obecne w danych, loga nowych monet,
   assert.ok(!top(Object.assign({SYRUP: one.ONDO, XAUT: one.ONDO}, one))('rwa').includes('a293c.top.cov'), 'pełny koszyk — bez dopisku');
 });
 
-test('v293c CR-07: Top 10 sektora — przepływ zero po zaokrągleniu bez znaku, koloru i paska (monety o stałej wartości, np. ONYC: dawniej „−0,0” na czerwono)', () => {
+test('v293c CR-07: Top 10 sektora — przepływ zero po zaokrągleniu bez znaku i paska, żółty — v322 (monety o stałej wartości, np. ONYC: dawniej „−0,0” na czerwono)', () => {
   const t0 = html.indexOf('function renderTop10(id){'), t1 = html.indexOf('/* ===================== v96 (krypto)', t0);
   const top = new Function('BASKET', 'LIVE', 'st', 't', 'flowOf', 'COIN_LOGO', 'escH', 'nfmt', 'fPct', 'coinImg', 'liveWhen', 'sg', html.slice(t0, t1) + '\nreturn renderTop10;')(
     {rwa: ['ONYC', 'ONDO', 'XAUT']}, {st: 'ok', src: 'live', C: {ONYC: {name: 'OnRe', mcap: 1e9, pct: {'24H': -0.004}}, ONDO: {name: 'Ondo', mcap: 1e9, pct: {'24H': -7.6}}, XAUT: {name: 'Tether Gold', mcap: 1e8, pct: {'24H': 0.06}}}},
     {period: '24H'}, (k, o) => k + (o ? JSON.stringify(o) : ''), (m, p) => m * p / 100, {}, s => String(s), (v, d) => Math.abs(v).toFixed(d), (v, d = 1) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%',
     s => s, () => 'T', v => v > 0 ? '+' : v < 0 ? '−' : '');
   const L = top('rwa').split('<li>').slice(1), row = s => L.find(x => x.includes('<span class="sym">' + s + '</span>'));
-  assert.ok(row('ONYC').includes('<span class="fl ">0.0</span>') && row('ONYC').includes('<span class="bar "><i style="width:0.0%">') && row('ONYC').includes('<span class="sc ">0.0%</span>'), row('ONYC'));
+  assert.ok(row('ONYC').includes('<span class="fl eq">0.0</span>') && row('ONYC').includes('<span class="bar eq"><i style="width:0.0%">') && row('ONYC').includes('<span class="sc eq">0.0%</span>'), row('ONYC'));   /* v322 (pkt 5): zero po zaokrągleniu — żółte, bez paska */
   assert.ok(row('XAUT').includes('<span class="fl pos">+0.1</span>') && row('XAUT').includes('<span class="sc pos">+0.1%</span>'), 'mały, ale widoczny po zaokrągleniu — z kolorem');
   assert.ok(row('ONDO').includes('<span class="fl neg">−76</span>') && row('ONDO').includes('<span class="sc neg">−7.6%</span>'));
 });
@@ -14501,7 +14501,7 @@ test('v293c CR-12: trudność — zmiana poniżej 0,1% z dwoma miejscami (−0,0
   const F = new Function('lnNum', 'fPct', html.slice(a, b) + '\nreturn {lnPct, lnPctS};')(v => typeof v === 'number' && isFinite(v), (v, d = 1) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%');
   assert.deepEqual([-0.03, 0.04, -0.0999, -0.1, 4.16, -2.42, null].map(F.lnPctS), ['−0.03%', '+0.04%', '−0.10%', '−0.1%', '+4.2%', '−2.4%', '—']);
   assert.equal(F.lnPct(-0.03, 1), '0.0%', 'dawny zapis — bez znaku');
-  assert.ok(html.includes("t('ln.k.diff.prev',{p:lnPctS(Df.prev_change)})") && html.includes("lnTile(iG,t('ln.k.diff'),lnPctS(Df.change_est),"));
+  assert.ok(html.includes("t('ln.k.diff.prev',{p:`<span class=\"${lnTn(Df.prev_change)}\">${lnPctS(Df.prev_change)}</span>`})") && html.includes("lnTile(iG,t('ln.k.diff'),lnPctS(Df.change_est),"));   /* v322 (pkt 5): zmiana w kolorze znaku (lnTn — te same miejsca co lnPctS) */
 });
 
 test('v293c CR-13: dźwignia — obrót 0 albo brak = „—”, poniżej 0,5 mln USD „<1” (nie „0”)', () => {
@@ -15317,7 +15317,7 @@ const zk295c = (() => {
     const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null}, clicks = [];
     const doc = {addEventListener: (e, f) => clicks.push(f), documentElement: {}, hidden: false, querySelector: () => null};
     const K = new Function('$', 't', 'nfmt', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', 'lnAgo', 'icoWrap', 'glyphImg', 'coinImg', 'Date', 'srvJSON', 'document', 'localStorage', 'setInterval', 'MutationObserver', 'D',
-      BLK + '\nif(D!==undefined){ZK.data=D;renderZk();}\nreturn {ZK,zkWin,zkIdx,zkChg,zkTon,zkT,zkUsd,zkOzTxt,zkPct,zkKorTxt,zkPremOk,zkPremTile,zkKor,zkRyn,zkZb,zkTok,zkBody,zkOk,zkApply,renderZk,ZK_OZ_T,ZK_OLD,ZK_PREM_OLD};')(
+      BLK + '\nif(D!==undefined){ZK.data=D;renderZk();}\nreturn {ZK,zkWin,zkIdx,zkChg,zkCls,zkTon,zkT,zkUsd,zkOzTxt,zkPct,zkKorTxt,zkPremOk,zkPremTile,zkKor,zkRyn,zkZb,zkTok,zkBody,zkOk,zkApply,renderZk,ZK_OZ_T,ZK_OLD,ZK_PREM_OLD};')(   /* v322: + zkCls (kolor zmian w testach v295c / v297c) */
       q => (q === '#c-surowce' ? el : null), R.t, R.nfmt, v96src.escH, LOC, L, s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')', s => ' · ago(' + String(s) + ')',
       x => `<span class="icos">${x}</span>`, n => `<i class="g ${n}"></i>`, c => `<i class="c ${c}"></i>`, FD, () => ({then() {}}), doc, {getItem: () => null, setItem() {}}, () => 1, class { observe() {} }, D);
     return {el, K, clicks};
@@ -15359,7 +15359,7 @@ test('v295c: złoto a bitcoin — tylko dni wspólne, linie od 100 na początku 
   assert.equal(K.zkChg([R[0]], 1), null, 'jeden punkt — bez zmiany');
   K.ZK.per = 30; K.renderZk();
   const W = K.zkWin(R, 30), a = K.zkPct(K.zkChg(W, 1), 1), b = K.zkPct(K.zkChg(W, 2), 1), h = zk295c.sp(el.innerHTML);
-  assert.ok(h.includes(`Od początku okna (${zk295c.sp(new Date(Date.parse(W[0][0] + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC'}))}): złoto ${a}, bitcoin ${b} — ${W.length} wspólnych dni.`), 'podpis zmiany: ' + zk295c.txt(h).slice(0, 400));
+  assert.ok(h.includes(`Od początku okna (${zk295c.sp(new Date(Date.parse(W[0][0] + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC'}))}): złoto <span class="${K.zkCls(K.zkChg(W, 1), 1)}">${a}</span>, bitcoin <span class="${K.zkCls(K.zkChg(W, 2), 1)}">${b}</span> — ${W.length} wspólnych dni.`), 'podpis zmiany: ' + zk295c.txt(h).slice(0, 400));   /* v322 (pkt 5): zmiany w kolorze znaku */
   assert.ok(h.includes('Ostatni wspólny dzień: 06.10.2026 · age(2026-10-06).'), 'data i wiek');
   assert.ok(h.includes('aria-pressed="true">30 dni</button>') && h.includes('data-zk-per="365"'), 'przełącznik okna');
   assert.ok(h.includes('<polyline class="arc-l zk-au"') && h.includes('<polyline class="arc-l zk-bt"') && h.includes('<line class="arc-zero"'), 'dwie linie i linia 100');
@@ -15406,7 +15406,7 @@ test('v295c: premia tokenu do złota — tylko z chwil najwyżej 1 h od siebie i
   assert.equal(K.zkPremOk(Object.assign({}, o, {prem_at: '2026-10-06T08:19:00+00:00', ref_at: '2026-10-06T08:00:00+00:00'}), NOW), false, 'pomiar sprzed ponad 36 h — „—”');
   assert.equal(K.zkPremOk(Object.assign({}, o, {prem: null}), NOW), false);
   const h = sp(el.innerHTML), P = ZK295C_FILE.tok.PAXG;
-  assert.ok(h.includes(`PAXG — premia do ceny złota</span><b>${sp(K.zkPct(P.prem, 2))}<small>token 4114,84 USD, złoto 4113,00 USD (notowanie godzinowe; różnica chwil 13 min)</small></b><small class="mtxt">pomiar: [2026-10-07T20:13:00+00:00]`), 'premia z cenami, źródłem ceny złota (opis ogólny) i chwilą: ' + zk295c.txt(h).slice(0, 900));
+  assert.ok(h.includes(`PAXG — premia do ceny złota</span><b class="${K.zkCls(P.prem, 2)}">${sp(K.zkPct(P.prem, 2))}<small>token 4114,84 USD, złoto 4113,00 USD (notowanie godzinowe; różnica chwil 13 min)</small></b><small class="mtxt">pomiar: [2026-10-07T20:13:00+00:00]`), 'premia z cenami, źródłem ceny złota (opis ogólny) i chwilą: ' + zk295c.txt(h).slice(0, 900));   /* v322 (pkt 5): premia w kolorze znaku */
   const F = zk295c.clone(ZK295C_FILE); F.tok.XAUT.ref_at = '2026-10-07T18:00:00+00:00';
   assert.ok(sp(zk295c.run(F).el.innerHTML).includes('XAUT — premia do ceny złota</span><b class="na">—<small class="na">brak pomiaru z ostatnich 36 h, w którym ceny tokenu i złota dzieli najwyżej 1 h</small><small>ostatni pomiar: [2026-10-07T20:13:00+00:00]'), 'chwile 2 h 13 min od siebie — „—”');
   assert.ok(sp(zk295c.run(ZK295C_FILE, {now: '2026-10-09T08:14:00Z'}).el.innerHTML).includes('PAXG — premia do ceny złota</span><b class="na">—'), 'po 36 h — „—”');
@@ -15686,7 +15686,7 @@ test('v297c: zmiana podaży mniejsza niż 0,005 t — „<0,005 t” na kaflu i 
   assert.ok(h.includes('W ciągu 30 dni (od 07.09.2026) podaż tokenów złota w obiegu spadła netto o 0,01 t (≈ 0,7 mln USD)') && !h.includes('tylko o'), 'dokładnie −0,005 t: zdanie jak kafel (0,01 t), nie „mniej niż” — ' + zk295c.txt(h).slice(0, 1200));
   F.tok.XAUT.c7 = {oz: -128.6, t: -0.004, usd: -527000, od: '2026-09-30', do: '2026-10-07'};
   h = sp(zk295c.run(F).el.innerHTML);
-  assert.ok(h.includes('<small>7 dni: −<0,005 t (≈ −0,5 mln USD) od 30.09.26</small>'), 'kafel: „<0,005 t” ze znakiem — ' + zk295c.txt(h).slice(0, 1200));
+  assert.ok(h.includes('<small class="neg">7 dni: −<0,005 t (≈ −0,5 mln USD) od 30.09.26</small>'), 'kafel: „<0,005 t” ze znakiem — ' + zk295c.txt(h).slice(0, 1200));   /* v322 (pkt 5): kolor znaku jak w tekście (dawniej bez koloru — zero po zaokrągleniu) */
   F.tok.razem.c30 = {oz: 0, t: 0, usd: 0, od: '2026-09-07', do: '2026-10-07'};
   h = sp(zk295c.run(F).el.innerHTML);
   assert.ok(h.includes('W ciągu 30 dni (od 07.09.2026) podaż tokenów złota się nie zmieniła.') && !h.includes('tylko o') && !h.includes('mniej niż 0,005 t'), 'zero — „się nie zmieniła”');
@@ -15712,7 +15712,7 @@ test('v297c: kafel premii — cena tokenu Z POMIARU premii (prem_px, ta sama chw
   /* recenzja v297c (weekend): nowa cena tokenu 4150 z 23:13 bez ceny złota z ostatniej godziny — pomiar z 20:13 zostaje z JEGO ceną tokenu */
   const F = zk295c.clone(ZK295C_FILE); Object.assign(F.tok.PAXG, {px: 4150, px_at: '2026-10-07T23:13:00+00:00'});
   const h = sp(zk295c.run(F, {now: '2026-10-07T23:20:00Z'}).el.innerHTML);
-  assert.ok(h.includes('PAXG — premia do ceny złota</span><b>+0,05%<small>token 4114,84 USD, złoto 4113,00 USD (notowanie godzinowe; różnica chwil 13 min)</small></b><small class="mtxt">pomiar: [2026-10-07T20:13:00+00:00]'), 'cena tokenu z chwili pomiaru: ' + zk295c.txt(h).slice(0, 900));
+  assert.ok(h.includes('PAXG — premia do ceny złota</span><b class="pos">+0,05%<small>token 4114,84 USD, złoto 4113,00 USD (notowanie godzinowe; różnica chwil 13 min)</small></b><small class="mtxt">pomiar: [2026-10-07T20:13:00+00:00]'), 'cena tokenu z chwili pomiaru: ' + zk295c.txt(h).slice(0, 900));   /* v322 (pkt 5): premia w kolorze znaku */
   assert.ok(!h.includes('4150,00') && !kafel(h, 'pl').includes('4150'), 'nowsza cena tokenu nie trafia na kafel premii');
   /* brak ceny tokenu z pomiaru (plik bez pola, null, tekst) i brak różnicy chwil — „—” w każdym języku, nigdy „0,00” / „0 min” */
   for (const brak of [{prem_px: null}, {prem_px: undefined}, {prem_px: 'x'}, {prem_px: NaN}]) {
@@ -18004,7 +18004,7 @@ test('v315 (CR7-01…05, dopiski): okno „Dlaczego to widzisz?” — „spadł
   assert.ok(en.includes('fell by 971 M USD (') && !en.includes(' by +'), en);
 });
 
-test('v315 (CR7-01, CR7-04): Przepływy i Sektory w CRYPTO — „Giełdy” poza listami wzrostów/spadków i poza rankingiem, osobny opisany wiersz bez koloru kierunku; stablecoiny: pomiar podaży albo szacunek; GLOBAL bez zmian', () => {
+test('v315 (CR7-01, CR7-04): Przepływy i Sektory w CRYPTO — „Giełdy” poza listami wzrostów/spadków i poza rankingiem, osobny opisany wiersz (v322: w kolorze znaku); stablecoiny: pomiar podaży albo szacunek; GLOBAL bez zmian', () => {
   const D = {'1R': {btc: [-781319, -32.6], exch: [1161298, null], stab: [8130, 2.68, 'sup'], defi: [-8576, -10.1]}};
   const c = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: D});
   c.f.renderFlows();
@@ -18012,11 +18012,11 @@ test('v315 (CR7-01, CR7-04): Przepływy i Sektory w CRYPTO — „Giełdy” poz
   assert.ok(a > 0 && b > a && k.indexOf('<section class="panel"><div class="list-wrap"><table>') > b, 'osobny wiersz pod listami, nad tabelą korytarzy');
   assert.ok(!k.slice(a, b).includes('data-id="exch"') && k.slice(a, b).includes('class="amt in pos">+8130 u.m') && k.slice(a, b).includes('class="amt out neg">−781319 u.m'), 'listy bez „Giełd”');
   const x = k.slice(b, k.indexOf('</section>', b));
-  assert.ok(x.includes('<h2>c315.pg.exch.h</h2>') && x.includes('data-id="exch"') && x.includes('<span class="amt">+1161298 u.m</span>') && x.includes('<p class="pnote">c315.pg.exch.d</p>'), x);
+  assert.ok(x.includes('<h2>c315.pg.exch.h</h2>') && x.includes('data-id="exch"') && x.includes('<span class="amt pos">+1161298 u.m</span>') && x.includes('<p class="pnote">c315.pg.exch.d</p>'), x);   /* v322 (pkt 5): reszta bilansu w kolorze znaku */
   c.f.renderSectorsPage();
   const s = c.el.innerHTML, rows = s.split('<div class="secrow">').slice(1);
   assert.ok(rows.length === 4 && rows[3].includes('data-id="exch"') && s.indexOf('pg-exch') > s.indexOf('data-id="defi"'), 'ranking bez „Giełd”, osobny wiersz na końcu');
-  assert.ok(rows[3].includes('<span class="sval">+1161298 u.m</span>') && rows[3].includes('<span>c315.pg.exch.d</span>') && rows[0].includes('data-id="stab"') && rows[0].includes('<span>c315.ev.meas</span>'), rows[0] + rows[3]);
+  assert.ok(rows[3].includes('<span class="sval pos">+1161298 u.m</span>')   /* v322 (pkt 5): reszta bilansu w kolorze znaku */ && rows[3].includes('<span>c315.pg.exch.d</span>') && rows[0].includes('data-id="stab"') && rows[0].includes('<span>c315.ev.meas</span>'), rows[0] + rows[3]);
   assert.ok(rows[2].includes('width:100%'), 'pasek najdłuższy dla największej zmiany wartości (BTC), nie dla reszty bilansu');
   const p = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: {'1R': {btc: [5, 1], exch: [-5, null], stab: [0, 0], defi: [0, 0]}}});
   p.f.renderSectorsPage(); const ps = p.el.innerHTML.split('<div class="secrow">').find(r => r.includes('data-id="stab"')) || '';
@@ -19629,4 +19629,535 @@ test('v321 (przegląd): kafel „Złoto” / „Ropa Brent” i wiersze na stron
   const P = pgEnv({GLIVE: {fx: {now: {date: '2026-09-24'}}, irlt: {}, stab: []}, GKPI: [G1], gStabDelta: () => null}); P.f.renderAssets();
   const row = P.el.innerHTML.split('<tr>').find(x => x.includes('<b>su295g.k.gold</b>'));
   assert.ok(row && row.includes('2026-10-08 ·age(2026-10-08) · cena wyliczona'), 'strona Aktywa: ten sam opis — ' + (row || '').slice(0, 300));
+});
+/* ===================== v322 (wygląd CRYPTO; decyzje właściciela 10.10.2026: pkt 7 — bicie serca w scenie 3D, pkt 8 — prąd w widoku top 10,
+   pkt 5 — kolory kierunku w CRYPTO i na stronach Przepływy / Sektory) =====================
+   Bicie serca zniknęło w v110 (26.09.2026): płaski widok bąbelków (jedyny z heart() w CRYPTO) zastąpiła scena 3D, której bryły nie dostawały czasu
+   klatki. Testy łapią zanik pulsu na dwóch poziomach: czyste funkcje (siła, rytm, fala) i prawdziwa scena w atrapie z płótnem zapisującym łuki
+   i wierzchołki (rozmiar bryły przy uderzeniu i w przerwie, fala, oba widoki, dane na żywo i z pliku serwera, bez animacji). */
+const v322 = (() => {
+  const cut = (a, b, from) => { const i = html.indexOf(a, from || 0), j = html.indexOf(b, i + a.length); assert.ok(i > 0 && j > i, 'wycinek: ' + a.slice(0, 60)); return html.slice(i, j); };
+  /* płótno zapisujące: łuki (środek, promień, styl i grubość linii w chwili łuku), wypełnienia, punkty ścieżek */
+  const ctx = () => { const L = {arc: [], fill: [], pts: []};
+    const o = {L, strokeStyle: '', fillStyle: '', lineWidth: 1, globalAlpha: 1, globalCompositeOperation: 'source-over',
+      save() {}, restore() {}, beginPath() {}, closePath() {}, stroke() {},
+      arc(x, y, r) { L.arc.push({x, y, r, style: String(o.strokeStyle), lw: o.lineWidth}); }, fill(p) { L.fill.push({style: String(o.fillStyle), alpha: o.globalAlpha, path: p || null}); },
+      moveTo(x, y) { L.pts.push([x, y]); }, lineTo(x, y) { L.pts.push([x, y]); }};
+    return o; };
+  const BEAT = cut('function heart(time){', '/* v322: koniec bicia serca */');
+  const beat = o => { o = o || {}; const st = Object.assign({anim: true, period: '24H'}, o.st || {}), g = ctx();
+    const F = new Function('st', 'DATA', 'NODES', 'EDGES', 'g', BEAT + '\nreturn {heart, cBeatS, cBeatPrep, cBeatA, cBeatK, cBeatWave, CB, CB_K};')(st, o.DATA, o.NODES, o.EDGES, g);
+    return Object.assign(F, {st, g}); };
+  /* prąd top 10: t10Flow, t10Cur i pomocnicze cząstki sceny (hash1, dotBatch) w piaskownicy; Path2D zapisuje kółka cząstek */
+  const CUR = cut('const hash1=', '\nfunction drawEdge(') + '\n' + cut('function t10Flow(c){', '\n/* kwota prądu') + '\n' + cut('function t10CurB(){', '\n/* pusta grupa');
+  const cur = o => { o = o || {}; const g = ctx(), P = [];
+    class P2 { constructor() { this.a = []; P.push(this); } moveTo() {} arc(x, y, r) { this.a.push([x, y, r]); } }
+    const st = Object.assign({anim: false, period: '24H'}, o.st || {}), CB = {t: o.t || 0}, EDGES = o.EDGES || [{a: 400}], PAL = {dark: true, gr: '48,209,88', rd: '255,69,58'};
+    const F = new Function('g', 'Path2D', 'st', 'CB', 'EDGES', 'eAmt', 'PAL', 'T10_G', 'FP', CUR + '\nreturn {t10Flow, t10Cur, t10CurB, t10CurPaint};')(g, P2, st, CB, EDGES, e => e.a, PAL,
+      [['l1', 'l12', 'L1'], ['l2', 'l12', 'L2'], ['ai', 'ai']], 500);
+    /* jedna klatka: partie, linia (lub kilka), malowanie */
+    const run = (...L) => { const TB = F.t10CurB(); for (const a of L) F.t10Cur(...a, TB); F.t10CurPaint(TB); return TB; };
+    return Object.assign(F, {g, P, PAL, st, CB, run}); };
+  /* v322 (po przeglądzie): mini-kaskada stylów strony — liczy kolor elementu tak jak przeglądarka (w spoczynku), z reguł <style> strony i drzewa znaczników.
+     Reguły: bloki @media / @supports spłaszczone (warunki pomijane: reguła z telefonu też musi dać żółty), @media print i @keyframes pominięte. Selektory: znacznik,
+     #id, .klasa, [atrybut], kombinatory „ ” > + ~, :not() :is() :where() :has() (potomek), :root, :first-child :last-child :only-child :nth-child() :nth-last-child();
+     stany (:hover, :focus…) i nieznane pseudoklasy — reguła nie działa w spoczynku; pseudoelementy — nie dotyczą elementu. Waga: !important, specyficzność,
+     kolejność; styl w atrybucie ponad regułami. Kolor bez reguły — z rodzica; var(--x) rozwijane z własności niestandardowych (dziedziczonych) elementu,
+     na którym stoi deklaracja; zmienne motywu (--yl, --yl-tx, --gr…) to wynik. Drzewo: znaczniki strony (bez skryptu) + treść wstawiona do elementu o id. */
+  const kaskada = src => {
+    const css = src.slice(src.indexOf('<style>') + 7, src.indexOf('</style>')).replace(/\/\*[\s\S]*?\*\//g, '');
+    const split = s => { const o = []; let d = 0, c = ''; for (const ch of s) { if (ch === '(' || ch === '[') d++; else if (ch === ')' || ch === ']') d--; if (ch === ',' && !d) { o.push(c.trim()); c = ''; } else c += ch; } if (c.trim()) o.push(c.trim()); return o; };
+    const parse = s => { const out = []; let i = 0, comb = null; s = String(s).trim();
+      while (i < s.length) {
+        let ws = false; while (i < s.length && /\s/.test(s[i])) { i++; ws = true; }
+        if (i >= s.length) break;
+        if ('>+~'.includes(s[i])) { comb = s[i++]; while (i < s.length && /\s/.test(s[i])) i++; } else if (ws && out.length) comb = ' ';
+        const c = {tag: null, ids: [], cls: [], at: [], ps: [], pe: false}; let m, any = false;
+        if ((m = /^(\*|[a-zA-Z][\w-]*)/.exec(s.slice(i)))) { if (m[1] !== '*') c.tag = m[1].toLowerCase(); i += m[1].length; any = true; }
+        for (;;) { const r = s.slice(i);
+          if ((m = /^#([\w-]+)/.exec(r))) c.ids.push(m[1]);
+          else if ((m = /^\.([\w-]+)/.exec(r))) c.cls.push(m[1]);
+          else if ((m = /^\[\s*([\w-]+)\s*(?:([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]*)))?\s*(?:[is]\s*)?\]/.exec(r))) c.at.push([m[1].toLowerCase(), m[2] || '', m[3] ?? m[4] ?? m[5] ?? '']);
+          else if ((m = /^(::?)([\w-]+)/.exec(r))) { i += m[0].length; any = true; let arg = null;
+            if (s[i] === '(') { let d = 1, j = i + 1; while (j < s.length && d) { if (s[j] === '(') d++; else if (s[j] === ')') d--; j++; } arg = s.slice(i + 1, j - 1); i = j; }
+            if (m[1] === '::' || /^(before|after|first-line|first-letter|placeholder|selection|marker|backdrop)$/i.test(m[2])) c.pe = true; else c.ps.push([m[2].toLowerCase(), arg]);
+            continue; }
+          else break;
+          i += m[0].length; any = true; }
+        if (!any) return null;
+        out.push({c, comb: out.length ? (comb || ' ') : null}); comb = null; }
+      return out.length ? out : null; };
+    const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+    const spc = q => q.reduce((s, {c}) => { let z = [0, 0, 0];
+      for (const [n, a] of c.ps) { if (n === 'where') continue;
+        if (n === 'not' || n === 'is' || n === 'matches' || n === 'has') { const m = split(a || '').map(parse).filter(Boolean).map(spc).sort(cmp).pop() || [0, 0, 0]; z = [z[0] + m[0], z[1] + m[1], z[2] + m[2]]; }
+        else z = [z[0], z[1] + 1, z[2]]; }
+      return [s[0] + c.ids.length + z[0], s[1] + c.cls.length + c.at.length + z[1], s[2] + (c.tag ? 1 : 0) + (c.pe ? 1 : 0) + z[2]]; }, [0, 0, 0]);
+    /* reguły */
+    const RULES = [];
+    const decl = b => { const D = {}; for (const x of b.split(';')) { const k = x.indexOf(':'); if (k < 0) continue; const p = x.slice(0, k).trim().toLowerCase(); let v = x.slice(k + 1).trim();
+      const imp = /!\s*important$/i.test(v); if (imp) v = v.replace(/\s*!\s*important$/i, ''); if (p) D[p] = {v, imp}; } return D; };
+    const block = (a, b) => { let i = a;
+      while (i < b) { const o = css.indexOf('{', i); if (o < 0 || o >= b) break; let d = 1, k = o + 1; while (k < b && d) { if (css[k] === '{') d++; else if (css[k] === '}') d--; k++; }
+        const head = css.slice(i, o).trim();
+        if (/^@(media|supports|layer|container)\b/i.test(head)) { if (!/^@media\s+print\b/i.test(head)) block(o + 1, k - 1); }
+        else if (!head.startsWith('@')) { const sels = split(head); RULES.push({sels, Q: sels.map(parse), decl: decl(css.slice(o + 1, k - 1)), n: RULES.length}); }
+        i = k; } };
+    block(0, css.length);
+    /* drzewo */
+    const VOID = /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr|path|circle|rect|line|polyline|polygon|ellipse|stop|use)$/;
+    const node = (tag, a, par) => { const e = {tag, at: a, id: a.id || '', cls: new Set(String(a.class || '').split(/\s+/).filter(Boolean)), style: {}, par, kids: []};
+      for (const x of String(a.style || '').split(';')) { const k = x.indexOf(':'); if (k > 0) e.style[x.slice(0, k).trim().toLowerCase()] = {v: x.slice(k + 1).trim().replace(/\s*!\s*important$/i, ''), imp: /!\s*important/i.test(x)}; }
+      if (par) par.kids.push(e); return e; };
+    const grow = (markup, root) => { const re = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[^\s=>\/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>/g, ar = /([^\s=>\/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+      const stk = [root], made = []; let m;
+      while ((m = re.exec(markup))) { const tg = m[2].toLowerCase();
+        if (m[1]) { let i = stk.length - 1; while (i > 0 && stk[i].tag !== tg) i--; if (i > 0) stk.length = i; continue; }
+        const a = {}; let q; ar.lastIndex = 0; while ((q = ar.exec(m[3]))) a[q[1].toLowerCase()] = (q[2] ?? q[3] ?? q[4] ?? '').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+        const e = node(tg, a, stk[stk.length - 1]); made.push(e); if (!m[4] && !VOID.test(tg)) stk.push(e); }
+      return made; };
+    const s0 = src.indexOf("<script>\n(function(){\n'use strict';\n");
+    const MARK = src.slice(0, s0 > 0 ? s0 : src.length).replace(/<!--[\s\S]*?-->/g, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    const DOC = {tag: '#document', at: {}, id: '', cls: new Set(), style: {}, par: null, kids: []};
+    const ALL = grow(MARK, DOC); for (const e of DOC.kids) e.par = null;
+    const byId = id => ALL.find(e => e.id === id) || null;
+    /* dopasowanie */
+    const desc = e => { const o = []; const w = x => { for (const k of x.kids) { o.push(k); w(k); } }; w(e); return o; };
+    const nth = (a, i) => { a = String(a || '').replace(/\s/g, '').toLowerCase(); if (a === 'odd') return i % 2 === 1; if (a === 'even') return i % 2 === 0; if (/^\d+$/.test(a)) return i === +a;
+      const m = /^([+-]?\d*)n([+-]\d+)?$/.exec(a); if (!m) return false; const A = m[1] === '' || m[1] === '+' ? 1 : m[1] === '-' ? -1 : +m[1], B = m[2] ? +m[2] : 0;
+      return A === 0 ? i === B : (i - B) / A >= 0 && (i - B) % A === 0; };
+    const sib = e => (e.par ? e.par.kids : [e]);
+    const mp = (e, n, a) => { const q = () => split(a || '').map(parse);
+      if (n === 'not') return !q().some(x => x && ms(e, x)); if (n === 'is' || n === 'where' || n === 'matches') return q().some(x => x && ms(e, x));
+      if (n === 'has') return q().some(x => x && desc(e).some(d => ms(d, x)));
+      if (n === 'root') return e.tag === 'html';
+      const S = sib(e), i = S.indexOf(e) + 1, L = S.length;
+      if (n === 'first-child') return i === 1; if (n === 'last-child') return i === L; if (n === 'only-child') return L === 1;
+      if (n === 'nth-child') return nth(a, i); if (n === 'nth-last-child') return nth(a, L - i + 1);
+      return false; };
+    const mc = (e, c) => !c.pe && (!c.tag || e.tag === c.tag) && c.ids.every(x => e.id === x) && c.cls.every(x => e.cls.has(x)) &&
+      c.at.every(([k, op, v]) => { if (!(k in e.at)) return false; const x = e.at[k];
+        return !op || (op === '=' ? x === v : op === '~=' ? x.split(/\s+/).includes(v) : op === '^=' ? x.startsWith(v) : op === '$=' ? x.endsWith(v) : op === '*=' ? x.includes(v) : op === '|=' ? (x === v || x.startsWith(v + '-')) : false); }) &&
+      c.ps.every(([n, a]) => mp(e, n, a));
+    const ms = (e, q) => { const go = (x, k) => { if (!x || !mc(x, q[k].c)) return false; if (!k) return true; const cb = q[k].comb;
+        if (cb === '>') return go(x.par, k - 1);
+        if (cb === ' ') { for (let p = x.par; p; p = p.par) if (go(p, k - 1)) return true; return false; }
+        const S = sib(x), j = S.indexOf(x);
+        if (cb === '+') return j > 0 && go(S[j - 1], k - 1);
+        if (cb === '~') { for (let t = j - 1; t >= 0; t--) if (go(S[t], k - 1)) return true; }
+        return false; };
+      return go(e, q.length - 1); };
+    /* kaskada */
+    const better = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] > b[i]; return false; };
+    const win = (e, p) => { let best = null;
+      if (e.style[p]) best = {w: [e.style[p].imp ? 1 : 0, 1, 0, 0, 0, 0], v: e.style[p].v, r: null};
+      for (const r of RULES) { const d = r.decl[p]; if (!d) continue; let sp = null;
+        r.Q.forEach(q => { if (q && ms(e, q)) { const z = spc(q); if (!sp || cmp(z, sp) > 0) sp = z; } });
+        if (!sp) continue; const w = [d.imp ? 1 : 0, 0, ...sp, r.n]; if (!best || better(w, best.w)) best = {w, v: d.v, r}; }
+      return best; };
+    const get = (e, p) => { for (let x = e; x; x = x.par) { const b = win(x, p); if (b && b.v !== 'inherit' && b.v !== 'unset') return {v: b.v, at: x, r: b.r}; } return null; };
+    const THEME = /^--(yl|yl-tx|gr|gr-tx|rd|rd-tx|mut|dim|text|gy|bl|or|tl)$/;
+    const color = e => { let r = get(e, 'color'), n = 0, why = r && r.r ? r.r.sels.join(',') : '';
+      while (r && n++ < 12) { const m = /^var\(\s*(--[\w-]+)\s*(?:,\s*(.+))?\)$/.exec(r.v.trim()); if (!m) return {v: r.v, why};
+        if (THEME.test(m[1])) return {v: 'var(' + m[1] + ')', why};
+        const c = get(r.at, m[1]); r = c ? c : (m[2] ? {v: m[2], at: r.at} : null); }
+      return {v: r ? r.v : null, why}; };
+    const yellow = e => /^var\(--yl(-tx)?\)$/.test(String(color(e).v));
+    /* treść wstawiona do elementu o id (albo do nowego elementu w nim — np. podpowiedź top 10 w #stage); zwraca nowe elementy */
+    const place = (id, markup, wrap) => { const host = byId(id); if (!host) throw new Error('kaskada: brak #' + id);
+      const root = wrap ? node(wrap.tag || 'div', wrap.at || {}, host) : host; const made = grow(markup, root); if (wrap) made.unshift(root); return made; };
+    const unplace = (id, made) => { const host = byId(id); const S = new Set(made); const drop = x => { x.kids = x.kids.filter(k => !S.has(k)); x.kids.forEach(drop); }; drop(host); };
+    const path = e => { const o = []; for (let x = e; x; x = x.par) o.unshift(x.tag + (x.id ? '#' + x.id : '') + (x.cls.size ? '.' + [...x.cls].join('.') : '')); return o.slice(-4).join(' > '); };
+    const prop = (e, p) => { const r = get(e, p); return r ? r.v : null; };
+    return {RULES, split, parse, spc, ms, byId, place, unplace, color, yellow, prop, path, ALL};
+  };
+  return {cut, ctx, beat, cur, kaskada};
+})();
+
+test('v322 (pkt 7): bicie serca — siła węzła z wartości bezwzględnej zmiany (0,3–1, pierwiastek udziału w największej), tylko węzły z linią przepływu i zmianą ≥ 0,5 mln USD; rytm heart() jak mapa GLOBAL; fala po uderzeniu; bez animacji — bez pulsu', () => {
+  const NODES = [{id: 'exch'}, {id: 'btc'}, {id: 'eth'}, {id: 'ai'}, {id: 'meme'}, {id: 'rwa'}];
+  const DATA = {'24H': {exch: [-8840, null], btc: [1200, .1], eth: [300, .2], ai: [0.3, .01], meme: [-50, -1], rwa: [800, 2]}};
+  const EDGES = [{f: 'exch', t: 'btc'}, {f: 'exch', t: 'eth'}, {f: 'meme', t: 'btc'}, {f: 'exch', t: 'ai'}];   /* rwa — bez linii */
+  const B = v322.beat({DATA, NODES, EDGES}), D = DATA['24H'], S = id => B.cBeatS(id, D, EDGES), want = v => .3 + .7 * Math.sqrt(Math.abs(v) / 8840);
+  assert.equal(S('exch'), 1, 'największa zmiana — pełna siła (reszta bilansu „Giełdy” bije jak inne węzły)');
+  for (const id of ['btc', 'eth', 'meme']) assert.ok(Math.abs(S(id) - want(D[id][0])) < 1e-12, id);
+  assert.ok(S('btc') > S('eth') && S('eth') > S('meme') && S('meme') > .3, 'większy przepływ — mocniejszy puls');
+  assert.equal(S('ai'), 0, 'zmiana poniżej 0,5 mln USD — bez pulsu (próg linii buildEdges)'); assert.equal(S('rwa'), 0, 'bez linii przepływu — bez pulsu');
+  assert.equal(B.cBeatS('x', D, EDGES), 0); assert.equal(B.cBeatS('btc', {btc: ['a']}, EDGES), 0); assert.equal(B.cBeatS('btc', null, EDGES), 0); assert.equal(B.cBeatS('btc', D, null), 0, 'brak danych — bez pulsu');
+  assert.ok(B.heart(230) > .999 && B.heart(920) > .45 && B.heart(920) < .55 && B.heart(3000) < 1e-6 && B.heart(230 + 4600) > .999, 'heart(): uderzenie (5 % cyklu), odbicie (20 %), przerwa — co 4,6 s');
+  B.cBeatPrep(230);
+  for (const n of NODES) assert.ok(Math.abs(B.cBeatK(n) - (1 + B.CB_K * S(n.id))) < 1e-9, n.id);
+  assert.ok(Math.abs(B.cBeatK({id: 'exch'}) - 1.08) < 1e-3 && B.cBeatK({id: 'rwa'}) === 1 && B.cBeatK({id: 'ai'}) === 1, 'do +8 %; bez pulsu — 1');
+  B.cBeatPrep(3000); assert.ok(NODES.every(n => Math.abs(B.cBeatK(n) - 1) < 1e-6), 'przerwa — zwykły rozmiar');
+  B.cBeatPrep(552);   /* 12 % cyklu: fala po uderzeniu */
+  B.cBeatWave({id: 'exch'}, 100, 100, 40, '1,2,3', true); B.cBeatWave({id: 'meme'}, 300, 100, 40, '1,2,3', true); B.cBeatWave({id: 'rwa'}, 500, 100, 40, '1,2,3', true);
+  const A = B.g.L.arc, al = a => +/,([\d.]+)\)$/.exec(a.style)[1];
+  assert.equal(A.length, 2, 'fala tylko przy węzłach z pulsem');
+  assert.ok(A[0].x === 100 && A[1].x === 300 && A[0].r > 40 && A[1].r > 40 && A[0].r > A[1].r && A[0].lw > A[1].lw && al(A[0]) > al(A[1]), 'od brzegu na zewnątrz; większy przepływ — dalsza, grubsza i jaśniejsza fala');
+  A.length = 0; B.cBeatPrep(3000); B.cBeatWave({id: 'exch'}, 100, 100, 40, '1,2,3', true); assert.equal(A.length, 0, 'w przerwie bez fali');
+  const N = v322.beat({DATA, NODES, EDGES, st: {anim: false}}); N.cBeatPrep(230);
+  assert.ok(NODES.every(n => N.cBeatK(n) === 1), 'bez animacji — bez pulsu'); N.cBeatPrep(552); N.cBeatWave({id: 'exch'}, 100, 100, 40, '1,2,3', true); assert.equal(N.g.L.arc.length, 0, 'i bez fali');
+  assert.ok(/anim:!reduce,rot:!reduce/.test(html) && html.includes("const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;"), 'prefers-reduced-motion wyłącza animacje (st.anim)');
+  assert.ok(html.includes('  cBeatPrep(time);   /* v322 (pkt 7)') && html.indexOf('cBeatPrep(time);') < html.indexOf('setCam();drawFloor();NODES.forEach(drawGroundGlow);'), 'faza serca liczona przed rysowaniem klatki');
+});
+
+test('v322 (pkt 7): bicie serca w prawdziwej scenie (strona w atrapie, płótno zapisujące) — BLOCKCHAIN 3D i KULE 3D, dane na żywo i z pliku serwera: przy uderzeniu bryła z przepływem rośnie o 8 % × siła (wierzchołki bloku, obrys kuli), po uderzeniu fala; w przerwie i bez animacji — bez pulsu; środek, góra etykiety i trafienie bez pulsu', () => {
+  for (const srv of [false, true]) {
+    const T = G126_DATA['https://api.coinpaprika.com/v1/tickers'], KF = JSON.parse(JSON.stringify(G126_DATA['data/krypto']));
+    KF.mk = {asof: '2026-09-27T21:30:00', cols: ['sym', 'mcap', 'p24h', 'p7d', 'p30d', 'p1y'], rows: T.map(c => [c.symbol, c.quotes.USD.market_cap, c.quotes.USD.percent_change_24h, c.quotes.USD.percent_change_7d, c.quotes.USD.percent_change_30d, c.quotes.USD.percent_change_1y])};
+    const R = t10B.open(1100, 680, srv ? {files: {'https://api.coinpaprika.com/v1/tickers': null, 'data/krypto': KF}} : {}), A = R.api, g = R.el('c3d').getContext('2d'), tag = srv ? 'plik serwera (ceny z krypto.json)' : 'na żywo';
+    assert.equal(A.LIVE.st, 'ok', tag); assert.equal(A.LIVE.src === 'srv', srv, 'tryb danych: ' + tag);
+    const arcs = [], pts = [], near = (a, b) => Math.abs(a - b) < 1e-6;
+    g.arc = (x, y, r) => arcs.push([x, y, r]); g.moveTo = (x, y) => pts.push([x, y]); g.lineTo = (x, y) => pts.push([x, y]);
+    A.st.anim = true; A.st.rot = false; A.st.t10 = false;
+    const D = A.DATA[A.st.period], mx = Math.max(...A.NODES.map(n => Math.abs(D[n.id][0])));
+    const S = n => { const v = D[n.id][0]; return Math.abs(v) >= .5 && A.EDGES.some(e => e.f === n.id || e.t === n.id) ? .3 + .7 * Math.sqrt(Math.abs(v) / mx) : 0; };
+    const beating = A.NODES.filter(n => S(n) > 0), still = A.NODES.filter(n => !S(n));
+    assert.ok(beating.length >= 6 && beating.some(n => n.id === 'exch'), tag + ': bije większość węzłów, także „Giełdy”: ' + beating.map(n => n.id));
+    const shot = tm => { arcs.length = 0; pts.length = 0; Object.assign(A.cam, {yaw: .78, pitch: .36, tx: 0, ty: .3, tz: 0}); A.cam.dist = A.homeDist();
+      R.act('klatka', () => A.render(tm)); assert.deepEqual(R.ERR, [], 'klatka bez błędów'); return {arcs: arcs.slice(), pts: pts.slice()}; };
+    const at = (f, n) => f.arcs.filter(a => near(a[0], n._cx) && near(a[1], n._cy));
+    for (const view of ['blocks', 'bubbles']) {
+      A.st.view = view; const w = tag + ' / ' + view;
+      const rest = shot(3000), pos0 = A.NODES.map(n => [n._cx, n._cy, n._top, n._c ? n._c[2] : 0]);
+      assert.ok(A.NODES.every(n => Math.abs(n._kb - 1) < 1e-6), w + ': przerwa — bez pulsu');
+      const hit = shot(230);
+      for (const n of A.NODES) assert.ok(Math.abs(n._kb - (1 + .08 * S(n))) < 1e-6, w + ' ' + n.id + ': skala ' + n._kb);
+      A.NODES.forEach((n, i) => assert.ok([n._cx, n._cy, n._top, n._c ? n._c[2] : 0].every((v, j) => Math.abs(v - pos0[i][j]) < 1e-6), w + ' ' + n.id + ': środek, góra etykiety i trafienie bez pulsu'));
+      for (const n of beating) {
+        if (view === 'bubbles' || n.shape === 'sphere') { const r0 = n._c[2];
+          assert.ok(at(rest, n).some(a => near(a[2], r0)) && at(hit, n).some(a => near(a[2], r0 * n._kb)) && !at(hit, n).some(a => near(a[2], r0)), w + ' ' + n.id + ': kula większa przy uderzeniu'); }
+        else { const h = A.cur[n.id] * n._kb / 2;
+          for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) { const q = A.pr([n.p[0] + x * h, n.p[1] + y * h, n.p[2] + z * h]);
+            assert.ok(hit.pts.some(p => near(p[0], q[0]) && near(p[1], q[1])), w + ' ' + n.id + ': wierzchołek bloku powiększonego przy uderzeniu'); } }
+      }
+      const wave = shot(552);   /* 12 % cyklu: fala po uderzeniu (pierścień więcej niż w przerwie) */
+      for (const n of beating) assert.equal(at(wave, n).length, at(rest, n).length + 1, w + ' ' + n.id + ': fala');
+      for (const n of still) { assert.equal(n._kb, 1, w + ' ' + n.id + ': bez przepływu — bez pulsu'); assert.equal(at(wave, n).length, at(rest, n).length, w + ' ' + n.id + ': bez fali'); }
+    }
+    A.st.anim = false; A.st.view = 'blocks'; shot(230);
+    assert.ok(A.NODES.every(n => n._kb === 1), tag + ': bez animacji (ustawienie, prefers-reduced-motion) — bryły stoją');
+  }
+});
+
+test('v322 (pkt 8): prąd w widoku top 10 — t10Flow: zmiana wartości pokazanych monet grupy w 24 h (mln USD), brak = null; t10Cur: kierunek i kolor ze znaku, liczba cząstek w skali linii modelu, grot przy końcu, bez animacji równo rozłożone, poniżej 0,5 mln — bez prądu', () => {
+  const C = v322.cur(), F = C.t10Flow;
+  assert.ok(Math.abs(F([{mc: 1e9, ch: 10}, {mc: 5e8, ch: -5}]) - ((1e9 - 1e9 / 1.1) + (5e8 - 5e8 / .95)) / 1e6) < 1e-9, 'suma: kapitalizacja − kapitalizacja ÷ (1 + zmiana)');
+  assert.equal(F([{mc: 1e9, ch: null}, {mc: 0, ch: 5}, {mc: 1e9, ch: -100}, {mc: 'x', ch: 1}]), null, 'bez zmiany / bez kapitalizacji / −100 % — poza sumą; nic — null, nie zero');
+  assert.equal(F([]), null); assert.equal(F(null), null);
+  const pa = [100, 300, 40], pb = [400, 120, 50], up = [{mc: 4e9, ch: 5}], dn = [{mc: 4e9, ch: -5}];
+  const v = F(up), arrow = X => X.g.L.fill.filter(f => /,\.8\)$/.test(f.style));
+  C.run(['ai', pa, pb, up, false]);
+  const P = C.P, n = Math.round(8 + 14 * Math.sqrt(Math.min(1, v / 400))), a1 = arrow(C);
+  assert.equal(P.reduce((s, p) => s + p.a.length, 0), 2 * n, 'liczba cząstek w skali linii modelu: ' + n);
+  assert.ok(a1.length === 1 && a1[0].style === 'rgba(48,209,88,.8)', 'wzrost: zielony grot');
+  const tip = C.g.L.pts[0], dB = Math.hypot(tip[0] - pb[0], tip[1] - pb[1]), dA = Math.hypot(tip[0] - pa[0], tip[1] - pa[1]);
+  assert.ok(dB < 5 && dA > 100, 'wzrost — prąd płynie od sektora do grupy (grot przy grupie)');
+  const xs = P.flatMap(p => p.a.map(q => q[0])).sort((a, b) => a - b);
+  assert.ok(Math.abs(xs[0] - (pa[0] + (pb[0] - pa[0]) * .5 / n)) < 1e-9, 'bez animacji — cząstki równo rozłożone (pierwsza w połowie pierwszego odcinka)');
+  const D = v322.cur(); D.run(['ai', pa, pb, dn, true]);
+  const a2 = arrow(D), tip2 = D.g.L.pts[0];
+  assert.ok(a2.length === 1 && a2[0].style === 'rgba(255,69,58,.8)' && Math.hypot(tip2[0] - pa[0], tip2[1] - pa[1]) < 5, 'spadek — czerwony, od grupy do sektora (grot przy sektorze)');
+  assert.ok(D.g.L.fill.every(f => f.alpha === .25), 'przygaszony razem z linią (zaznaczenie innego elementu)');
+  const big = v322.cur(), small = v322.cur();
+  big.run(['ai', pa, pb, [{mc: 5e10, ch: 5}], false]); small.run(['ai', pa, pb, [{mc: 1e8, ch: 5}], false]);
+  const cnt = X => X.P.reduce((s, p) => s + p.a.length, 0);
+  assert.ok(cnt(big) === 2 * 22 && cnt(small) < cnt(big), 'większy prąd — więcej cząstek; ponad największą linię sceny — jak największa');
+  const none = v322.cur(); none.run(['ai', pa, pb, [{mc: 1e7, ch: 1}], false], ['l1', pa, pb, [{mc: 1e9, ch: null}], false]);
+  assert.ok(none.P.length === 0 && none.g.L.fill.length === 0, 'poniżej 0,5 mln USD albo bez danych — bez prądu');
+  for (const period of ['7D', '30D', '1R']) { const pq = v322.cur({st: {period}}); pq.run(['ai', pa, pb, up, false]);
+    assert.ok(pq.P.length === 0 && pq.g.L.fill.length === 0, period + ': bez prądu — dane prądu są z 24 h (po przeglądzie v322; sama linia jak dotąd)'); }
+  const an = v322.cur({st: {anim: true}, t: 1234}); an.run(['ai', pa, pb, up, false]);
+  const two = v322.cur(); two.run(['ai', pa, pb, up, false], ['l1', [500, 300, 40], [800, 120, 50], up, false], ['l2', pa, pb, dn, false]);
+  assert.ok(two.g.L.fill.filter(f => !/,\.8\)$/.test(f.style)).length <= 2 * 2 * 4, 'cząstki wszystkich linii — wspólne partie: najwyżej 2 kolory × 2 partie × 4 koszyki wypełnień na klatkę');
+  assert.equal(arrow(two).length, 3, 'grot na każdej linii');
+  const xs2 = an.P.flatMap(p => p.a.map(q => q[0])).sort((a, b) => a - b);
+  assert.ok(xs2.length === xs.length && JSON.stringify(xs2) !== JSON.stringify(xs), 'z animacją cząstki płyną (położenie zależy od czasu klatki)');
+  /* podpowiedź monety: wiersz „Prąd grupy (24 h)” z kwotą w kolorze kierunku; bez prądu — bez wiersza */
+  const X = t10v140.mk(), c = {id: 'near', sym: 'NEAR', name: 'NEAR', px: 5, mc: 6.8e9, ch: 6.25, upd: '2026-09-27T21:22:20Z'}, NOW = Date.parse('2026-09-27T23:22:20Z');
+  assert.ok(X.t10TipHtml('ai', c, 1, 10, '', null, NOW, 64.59).includes('<dt>w322.t10.dt</dt><dd class="up">▲ +65 u.m</dd></dl>'), 'wzrost grupy');
+  assert.ok(X.t10TipHtml('ai', c, 1, 10, '', null, NOW, -2500).includes('<dt>w322.t10.dt</dt><dd class="dn">▼ −2.5 u.b</dd></dl>'), 'spadek grupy, mld');
+  for (const fl of [undefined, null, .3, NaN]) assert.ok(!X.t10TipHtml('ai', c, 1, 10, '', null, NOW, fl).includes('w322.t10.dt') && X.t10TipHtml('ai', c, 1, 10, '', null, NOW, fl).includes('</dd></dl>'), 'bez prądu — bez wiersza: ' + fl);
+});
+
+test('v322 (pkt 8): prąd w prawdziwej scenie — grot na każdej linii sektor → grupa z prądem (zielony do grupy, czerwony z grupy), tylko gdy grupy top 10 są pokazane; kierunek z danych pliku', () => {
+  for (const [W, H] of [[1100, 680], [343, 380]]) {
+    const R = t10B.open(W, H), A = R.api, g = R.el('c3d').getContext('2d'), fills = [];
+    Object.assign(A.PAL, {gr: '48,209,88', rd: '255,69,58', yl: '255,214,10'});   /* atrapa nie liczy zmiennych CSS — kolory kierunku jak w ciemnym motywie */
+    g.fill = () => fills.push(String(g.fillStyle));
+    const gr = 'rgba(' + A.PAL.gr + ',.8)', rd = 'rgba(' + A.PAL.rd + ',.8)';
+    const exp = A.T10_G.map(([k]) => A.t10Flow(A.t10Coins(k))).filter(v => v !== null && Math.abs(v) >= .5);
+    assert.ok(exp.length >= 6, 'grupy z prądem w pliku testowym: ' + exp.length);
+    fills.length = 0; t10B.frame(R, .78);
+    const G = fills.filter(f => f === gr).length, Rr = fills.filter(f => f === rd).length;
+    assert.deepEqual([G, Rr], [exp.filter(v => v > 0).length, exp.filter(v => v < 0).length], W + ' px: groty prądu — tyle, ile grup z prądem, kolor ze znaku');
+    t10B.click(R, R.el('z-t10'), 't10Set(!st.t10)'); fills.length = 0; t10B.frame(R, .78);
+    assert.equal(fills.filter(f => f === gr || f === rd).length, 0, 'grupy ukryte — bez prądu');
+    t10B.click(R, R.el('z-t10'), 't10Set(!st.t10)');   /* grupy znowu pokazane */
+    A.st.period = '7D'; fills.length = 0; t10B.frame(R, .78);
+    assert.equal(fills.filter(f => f === gr || f === rd).length, 0, W + ' px: okres 7D — bez prądu (prąd to zmiana z 24 h; po przeglądzie v322)');
+    A.st.period = '24H'; fills.length = 0; t10B.frame(R, .78);
+    assert.equal(fills.filter(f => f === gr || f === rd).length, exp.length, W + ' px: z powrotem 24H — prąd na każdej linii z prądem');
+  }
+});
+
+test('v322 (pkt 5): kolory kierunku w CRYPTO i na stronach Przepływy / Sektory — strzałki prawej kolumny i strony Przepływy w kolorze, podpis linii w scenie w kolorze kierunku, zero w scenie „•” żółte, „Giełdy” w kolorze znaku; style bez szarości dla zera', () => {
+  const R = t10B.open(1100, 680), A = R.api;
+  Object.assign(A.PAL, {gr: '48,209,88', rd: '255,69,58', yl: '255,204,1'});   /* atrapa nie liczy zmiennych CSS (żółty inny niż kolor grupy RWA top 10) */
+  const ri = R.el('rows-in').innerHTML, ro = R.el('rows-out').innerHTML;
+  assert.ok(ri.includes('<span class="ra">→</span>') && ro.includes('<span class="ra">→</span>') && !/<\/span> → <span class="ep">/.test(ri + ro), 'prawa kolumna: strzałka w znaczniku ra (zielona w napływach, czerwona w odpływach)');
+  const e = A.EDGES.find(x => x.k === 'in'), o = A.EDGES.find(x => x.k === 'out');
+  for (const [x, col, sg] of [[e, A.PAL.gr, '▲ +'], [o, A.PAL.rd, '▼ −']]) { if (!x) continue;
+    A.st.sel = {type: 'edge', id: x.id}; const f = t10B.frame(R, .78), l = f.text.find(tx => tx.s.startsWith(sg) && tx.s.endsWith(A.t('u.m')));
+    assert.ok(l && l.fill === 'rgb(' + col + ')', 'podpis wybranej linii w kolorze kierunku: ' + JSON.stringify(l)); }
+  A.st.sel = null;
+  const D = A.DATA[A.st.period], id = A.NODES.find(n => n.id !== 'exch').id, keep = D[id][0]; D[id][0] = 0;
+  const f0 = t10B.frame(R, .78), lz = f0.text.find(tx => tx.s.startsWith('• ') && tx.fill === 'rgb(' + A.PAL.yl + ')');
+  assert.ok(lz, 'zero: „•” i żółty (dawniej „▼” na zielono)');
+  assert.ok(f0.stroke.some(s => s.style.startsWith('rgba(255,204,1,')), 'bryła bez zmian — krawędzie żółte (tintOf; dawniej zielone)'); D[id][0] = keep;
+  R.act('Przepływy', () => A.setPage('flows'));
+  const pf = R.el('page-flows').innerHTML;
+  assert.ok(/<span class="cell (pos|neg)">→<\/span>/.test(pf) && !pf.includes('<span class="cell">→</span>'), 'Przepływy: strzałka w kolorze kwoty');
+  assert.ok(/<span class="amt (pos|neg|eq)">[+−]?[\d\s ]/.test(pf.slice(pf.indexOf('pg-exch'))), 'Przepływy: „Giełdy” w kolorze znaku');
+  R.act('Sektory', () => A.setPage('sectors'));
+  const ps = R.el('page-sectors').innerHTML;
+  assert.ok(/<span class="sval (pos|neg|eq)">/.test(ps.slice(ps.indexOf('pg-exch'))), 'Sektory: „Giełdy” w kolorze znaku');
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  for (const r of ['#kpis .dlt.eq{color:var(--yl-tx)}', '#chips .chip-n.eq{--c:var(--yl)}#chips .chip-n.eq .p{color:var(--yl-tx)}', '#list-wrap .sz.eq{--c:var(--yl)}',
+    '#rows-in .ra{color:var(--gr-tx)}#rows-out .ra{color:var(--rd-tx)}', '#wk-crypto .zer{--k:var(--yl);--kr:var(--yl-rgb)}', '#wk-crypto .wk-br:has(.wk-b.pos) .wk-bv{color:var(--gr-tx)}',
+    '#wk-crypto .wk-br:has(.wk-b.neg) .wk-bv{color:var(--rd-tx)}', '#c-dzwignia .etfk b small span.pos{color:var(--gr-tx)}#c-dzwignia .etfk b small span.neg{color:var(--rd-tx)}'])
+    assert.equal(css.split(r).length, 2, 'styl raz: ' + r);
+  for (const r of ['#kpis .dlt.eq{color:var(--mut)}', '#chips .chip-n.eq{--c:var(--mut)}', '#list-wrap .sz.eq{--c:var(--dim)}']) assert.ok(!css.includes(r), 'bez szarości dla zera: ' + r);
+  /* liczby w kolorze wewnątrz zdań pod kaflami (wpływy na giełdy, sieć Bitcoina, wycena): wspólna reguła .etfk span robi z każdego span blok w kolorze --mut —
+     reguła v322 przywraca je do linii (bez tego liczba wypada do osobnego wiersza i jest szara) */
+  const di = css.indexOf('{display:inline;font-size:inherit;line-height:inherit;font-weight:inherit}', css.indexOf('/* liczba w kolorze wewnątrz zdania pod kaflem'));
+  assert.ok(di > 0, 'reguła „w linii”'); const selL = css.slice(css.lastIndexOf('\n', di) + 1, di).split(',');
+  for (const q of ['#eng-coinmetrics-exchange-flows .etfk small span', '#c-lancuch .etfk b small span', '#c-wycena .etfk b small span'])
+    for (const [c, v] of [['pos', 'gr'], ['neg', 'rd'], ['eq', 'yl']]) {
+      assert.ok(selL.includes(q + '.' + c), 'w linii: ' + q + '.' + c);
+      assert.ok(new RegExp('(^|[,}\\n])' + (q + '.' + c).replace(/[.#-]/g, '\\$&') + '[^{]*\\{color:var\\(--' + v + '-tx\\)\\}').test(css), 'kolor: ' + q + '.' + c); }
+  assert.ok(/\n\.etfk span\{display:block;color:var\(--mut\)/.test(css), 'wspólna reguła .etfk span (powód reguły v322) — gdyby zniknęła, reguła v322 do przejrzenia');
+  const v322css = css.slice(css.indexOf('/* v322 (decyzja właściciela 10.10.2026, pkt 5)'), css.indexOf('#wk-crypto .wk-sub b.neu{color:var(--yl-tx)}'));
+  assert.ok(v322css.length > 500 && !/#[0-9a-f]{3,6}\b|var\(--(mut|dim|gy)\)/i.test(v322css.replace(/#[a-z][\w-]*/g, '')), 'tylko zmienne kolorów kierunku (--gr / --rd / --yl), bez szarości i bez kolorów wpisanych na sztywno');
+  /* zmienne kolorów: systemowe kolory Apple (ciemny / jasny motyw) */
+  assert.ok(html.includes('--bl:#0A84FF; --gr:#30D158; --rd:#FF453A;') && html.includes('--yl:#FFD60A;') && html.includes('--bl:#007AFF; --gr:#34C759; --rd:#FF3B30;') && html.includes('--yl:#FFCC00;'), 'Apple: zielony, czerwony, żółty w obu motywach');
+});
+
+test('v322 (pkt 5): zero i „bez zmian” żółte także tam, gdzie dotąd żaden test nie sprawdzał zera — ETF i bilans kapitału w prawej kolumnie, rynek krypto, wpływy na giełdy, sieć Bitcoina (moc 30 dni, trudność), wieloryby (sumy dobowe), złoto, ostatnia premia nad wykresem', () => {
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const line = s => { const a = html.indexOf(s); assert.ok(a > 0 && html.indexOf(s, a + 1) < 0, 'jedno miejsce: ' + s); return html.slice(a, html.indexOf('\n', a)); };
+  const fn = (s, name) => new Function(line(s) + '\nreturn ' + name + ';')();
+  /* ETF w prawej kolumnie: etfCz — zero żółte, brak bez koloru (panel ETF w GLOBAL nadal etfCls) */
+  const etfCls = fn('const etfCls=', 'etfCls'), etfCz = new Function('etfCls', line('    const etfCz=') + '\nreturn etfCz;')(etfCls);
+  assert.deepEqual([12.5, -3, 0, null, undefined, NaN].map(etfCz), ['pos', 'neg', 'eq', '', '', ''], 'ETF → krypto: zero żółte, brak bez koloru');
+  assert.deepEqual([12.5, -3, 0, null].map(etfCls), ['pos', 'neg', '', ''], 'etfCls (GLOBAL) bez zmian');
+  /* bilans kapitału: ETF, stablecoiny, giełdy i pozycje CME równe zeru — żółte; brak — bez koloru */
+  const a0 = html.indexOf('function cBal(){'), a1 = html.indexOf('function renderEtf(){', a0), el = {hidden: true, innerHTML: ''};
+  const bal = (m, s30, nb, ne, cme) => { new Function('$', 't', 'ETF', 'etfTotals', 'etfM', 'etfCls', 'krStabh', 'gfmt', 'CM', 'cmA', 'cmIs', 'cmUsd', 'cftcMkt', 'cftcS', 'instFoot', html.slice(a0, a1) + '\ncBal();')(
+    () => el, T, {data: {assets: {}, m, asof: '2026-10-09'}}, D => ({m: D.m}), v => String(v), etfCls, () => ({asof: '2026-10-09', d: {'30': s30}}), v => v.toFixed(2) + ' mld',
+    {data: {assets: {btc: {asof: '2026-10-09', sum30: {net_usd: nb}}, eth: {asof: '2026-10-09', sum30: {net_usd: ne}}}}}, (D, a) => D.assets[a] || null, v => typeof v === 'number' && isFinite(v),
+    v => (v < 0 ? '−' : '') + (Math.abs(v) / 1e9).toFixed(1) + ' mld', k => (k === 'btc' ? {asof: '2026-10-06', groups: {asset_mgr: {net: cme}}} : null), v => (v == null ? '—' : String(v)), d => d); return el.innerHTML; };
+  const b0 = bal(0, 0, 0, 0, 0);
+  assert.ok(b0.includes('cb.etf: <b class="eq">0</b>') && b0.includes('cb.stab: <b class="eq">0.00 mld</b>') && b0.includes('cb.ex: <b class="eq">0.0 mld</b>') && b0.includes('cb.cme.v{"b":"<span class=\\"eq\\">0</span>","e":"—"}'), 'bilans: zera żółte — ' + b0);
+  const b1 = bal(-5, 2e9, -1e9, null, -7);
+  assert.ok(b1.includes('cb.etf: <b class="neg">-5</b>') && b1.includes('cb.stab: <b class="pos">+2.00 mld</b>') && b1.includes('cb.ex: <b class="">—</b>') && b1.includes('cb.cme.v{"b":"<span class=\\"neg\\">-7</span>","e":"—"}'), 'bilans: znak w kolorze, brak bez koloru — ' + b1);
+  /* rynek krypto: zmiana kapitalizacji 24 h równa zeru — żółta */
+  const c0 = html.indexOf('function renderCmc(){'), c1 = html.indexOf('\n}', c0) + 2, cm = {hidden: true, innerHTML: ''}, engK = fn('const engK=', 'engK');
+  const cmc = p => { new Function('$', 'CMC', 'gfmt', 't', 'nfmt', 'gpct', 'escH', 'gAgeNote', 'cGrp', 'engK', 'engDate', html.slice(c0, c1) + '\nrenderCmc();')(
+    q => (q === '#cmc' ? cm : null), {data: {asof: '2026-10-10T08:00:00Z', at: '2026-10-10T08:01:00Z', total_mcap: 3.1e12, mcap_chg24_pct: p}}, v => v.toFixed(2) + ' B', T, (v, d) => Number(v).toFixed(d),
+    v => (v > 0 ? '+' : '−') + Math.abs(v).toFixed(2) + '%', s => String(s), () => '', () => '', engK, s => String(s)); return cm.innerHTML; };
+  assert.ok(cmc(0).includes('<span>cmc.chg</span><b class="eq">0.00%</b>') && cmc(1.5).includes('<span>cmc.chg</span><b class="pos">+1.50%</b>') && cmc(-2).includes('<span>cmc.chg</span><b class="neg">−2.00%</b>') && cmc(null).includes('<span>cmc.chg</span><b>eng.gap</b>'), 'rynek krypto: zero żółte, brak bez koloru');
+  /* sieć Bitcoina: moc za 30 dni, szacowana i poprzednia zmiana trudności — kolor z pokazanej liczby, zero żółte */
+  const k0 = html.indexOf('/* ===================== v124: SIEĆ BITCOIN'), k1 = html.indexOf('\nfunction lnApply(', k0);
+  const ln = D => { const e = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    new Function('$', 't', 'nfmt', 'fPct', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'glyphImg', 'D', html.slice(k0, k1) + '\nLN.data=D;renderLn();')(
+      q => (q === '#c-lancuch' ? e : null), T, (v, d) => Number(v).toFixed(d), (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%', v96src.escH, {pl: 'pl-PL'}, 'pl',
+      s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')', x => `<span class="icos">${x}</span>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (n, c) => `<i class="gl ${c}">${n}</i>`, D);
+    return e.innerHTML; };
+  const now = Date.now(), iso = m => new Date(now - m * 60e3).toISOString(), dd = i => new Date(now - i * 864e5).toISOString().slice(0, 10);
+  const lnD = (f, ce, pc) => { const hist = []; for (let i = 60; i >= 1; i--) hist.push([dd(i), f(i)]);
+    return {at: iso(5), ok: {fees: true, mempool: true, difficulty: true, tip: true, hashrate: true, hist: true, check: true},
+      fees: {fast: 1.641, half_hour: 1.006, hour: 0.532, economy: 0.2, minimum: 0.1, prec: true, at: iso(5)}, mempool: {count: 72910, vsize: 40383203, total_fee: 6343662, at: iso(5)},
+      difficulty: {progress: 52.38, change_est: ce, remaining_blocks: 960, eta: '2026-10-03T15:47:50+00:00', prev_change: pc, next_height: 969696, block_min: 10.26, at: iso(5)},
+      tip: {height: 968736, time: iso(9), tx_count: 6514, at: iso(5)}, hashrate: {current: 939.2, avg_3d: 883.3, day: dd(1), hist, hist_at: iso(300), at: iso(5)},
+      check: {height: 968736, count: 67394, vsize: 39204062, at: iso(4)}}; };
+  const l0 = ln(lnD(() => 900, 0, 0));
+  assert.ok(l0.includes('ln.k.hr30{"p":"<span class=\\"eq\\">0.0%</span>"}') && l0.includes('<b class="eq">0.00%<small>') && l0.includes('ln.k.diff.prev{"p":"<span class=\\"eq\\">0.00%</span>"}'), 'sieć: zera żółte — ' + l0.slice(0, 2400));
+  const l1 = ln(lnD(i => 1000 - i, -2.42, 4.16));
+  assert.ok(/ln\.k\.hr30\{"p":"<span class=\\"pos\\">\+[\d.]+%<\/span>"\}/.test(l1) && l1.includes('<b class="neg">−2.4%<small>') && l1.includes('ln.k.diff.prev{"p":"<span class=\\"pos\\">+4.2%</span>"}'), 'sieć: wzrost mocy zielony, spadek trudności czerwony');
+  /* wpływy na giełdy: wpłynęło albo wypłynęło 0 — żółte (dawniej bez koloru) */
+  const cH = v96cHelpers(), s0 = html.indexOf('/* v50: Coin Metrics Community (plik automatu cm.json)'), s1 = html.indexOf('/* v50 cm: koniec */', s0);
+  const cmApi = new Function('ENG_OVR', 't', 'instSign', 'nfmt', 'gfmt', 'gpct', 'instRow', 'instFoot', 'escH', 'engDate', 'engNum', 'gOk', 'srvJSON', 'renderEng', 'coinImg', 'icoWrap',
+    html.slice(s0, s1) + '\nreturn {cmPanel};')(
+    {}, v96cT, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), v => v.toFixed(1) + ' u.b', v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + '%',
+    (l, v, e, n) => `<div class="etfk"><span>${l}</span><b${e ? ' title="' + e + '"' : ''}>${v}</b></div>`, d => v96cEsc(d), v96cEsc, iso => 'F(' + iso + ')', v => String(v), () => {}, () => Promise.resolve(null), () => {},
+    cH.coinImg, cH.icoWrap);
+  const cmD = {at: '2026-10-09T20:40:00+00:00', cols: ['date', 'in', 'out', 'net', 'in_usd', 'out_usd', 'net_usd'],
+    assets: {btc: {sym: 'BTC', asof: '2026-10-08', status: 'reviewed', last: {in: 0, out: 0, net: 0, in_usd: 0, out_usd: 0, net_usd: 0}, d: [['2026-10-08', 0, 0, 0, 0, 0, 0]]}, eth: null}};
+  const ch = cmApi.cmPanel(cmD);
+  assert.ok(ch.includes('cm.in</span><b class="eq" title=') && ch.includes('cm.out</span><b class="eq" title=') && ch.includes('cm.net</span><b class="eq" title='), 'wpływy na giełdy: zera żółte — ' + ch.slice(0, 1500));
+  /* wieloryby, sumy dobowe: netto zero — żółte */
+  const ws = html.slice(html.indexOf('function whDob(D){'), html.indexOf('function whTable(D){'));
+  const whDob = new Function('t', 'engDate', 'escH', 'whNum', 'whAmt', 'nfmt', ws + '\nreturn whDob;')(T, s => 'D(' + s + ')', s => String(s), v => typeof v === 'number' && isFinite(v), (v, u) => v.toFixed(0) + ' ' + u, v => String(v));
+  const wd = whDob({dobowe: {'2026-10-08': {Binance: {USDT: {in: 2e6, out: 2e6, n: 2}}, OKX: {USDC: {in: 0, out: 1e6, n: 1}}}}, dobowe_od: '2026-10-01T00:00:00+00:00'});
+  assert.ok(wd.includes('<span class="cell mono neu">0 USD</span>') && wd.includes('<span class="cell mono neg">-1000000 USD</span>'), 'wieloryby: netto doby zero — żółte, odpływ czerwony');
+  /* złoto a krypto: zmiana zero po zaokrągleniu — żółta, brak — „na” */
+  const ZK = zk295c.run(undefined).K;
+  assert.deepEqual([[0, 1], [0.04, 1], [-0.04, 1], [0.06, 1], [-0.06, 1], [0.004, 2], [null, 1]].map(([v, d]) => ZK.zkCls(v, d)), ['neu', 'neu', 'neu', 'pos', 'neg', 'neu', 'na'], 'złoto: zero po zaokrągleniu żółte');
+  /* premie: ostatnia wartość nad wykresem — kolor jak kafle (Korea poza ±0,5, USA poza ±0,05; w paśmie żółta) */
+  const P = prm129.mk(), pf = (kr, cb) => { const f = prm129.file(); f.h_kr[f.h_kr.length - 1][1] = kr; f.h_cb[f.h_cb.length - 1][1] = cb; const o = P.show(f).innerHTML;
+    return [o.slice(o.indexOf('prm.h.kr'), o.indexOf('<svg')), o.slice(o.indexOf('prm.h.cb'), o.lastIndexOf('<svg'))]; };
+  const [k1h, c1h] = pf(0.7, -0.2), [k2h, c2h] = pf(0.3, 0.03);
+  assert.ok(k1h.includes('<span class="arc-last"><b class="pos">+0.70 %</b>') && c1h.includes('<span class="arc-last"><b class="neg">−0.20 %</b>'), 'premie: poza pasmem — zielona / czerwona: ' + k1h.slice(0, 300) + ' | ' + c1h.slice(0, 300));
+  assert.ok(k2h.includes('<span class="arc-last"><b class="pos">+0.30 %</b>') && c2h.includes('<span class="arc-last"><b class="pos">+0.03 %</b>'), 'premie: w paśmie szumu też kolor ze znaku (po przeglądzie v322; pasmo tylko w podpowiedzi kafla)');
+  const [k3h, c3h] = pf(0, -0.001);
+  assert.ok(k3h.includes('<span class="arc-last"><b class="neu">0.00 %</b>') && c3h.includes('<span class="arc-last"><b class="neu">0.00 %</b>'), 'premie: 0,00 — żółta (bez zmian)');
+  /* drugi eksplorator (po przeglądzie): różnica wobec głównego — żółta (informacja o zgodności źródeł, nie kierunek rynku); „ten sam blok” bez zmian */
+  assert.ok(l0.includes('ln.k.chk.mpd{"p":"<span class=\\"eq\\">−7.6%</span>"}') && l0.includes('>ln.k.chk.same<small>'), 'drugi eksplorator: różnica kolejki żółta, ten sam blok bez koloru: ' + l0.slice(l0.indexOf('ln.k.chk'), l0.indexOf('ln.k.chk') + 400));
+  const lX = lnD(() => 900, 0, 0); lX.check.height = lX.tip.height + 1; const l2 = ln(lX);
+  assert.ok(l2.includes('<b class="eq">ln.k.chk.dh{"n":"+1"}<small>'), 'drugi eksplorator: o blok dalej — „+1” żółte: ' + l2.slice(l2.indexOf('ln.k.chk'), l2.indexOf('ln.k.chk') + 300));
+});
+
+test('v322: słownik w322.* — czysty JSON zaraz po linii nakładania innego słownika, 10 języków z prawdziwymi tłumaczeniami (te same klucze), klucze użyte w kodzie, bez nazw dostawców; ja bez spacji przed licznikiem', () => {
+  const i = html.indexOf('{"pl":{"w322.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.ok(i > 0 && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik w322: ' + name);
+  const b = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i); assert.ok(b > i, 'linia nakładania');
+  const D = JSON.parse(html.slice(i, b)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.deepEqual(K, ['w322.leg.beat', 'w322.leg.t10', 'w322.t10.dt']);
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l);
+    for (const k of K) { assert.ok(D[l][k].trim() && !/\{\w+\}/.test(D[l][k]), l + ' ' + k); if (l !== 'en') assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+      assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  const ln = html.slice(html.lastIndexOf('\n', a - 2) + 1, a - 1);
+  assert.ok(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(ln) && html[a - 1] === '\n', 'zaraz po linii for innego słownika');
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego');
+  const code = html.slice(0, a) + html.slice(b);
+  for (const k of K) assert.ok(code.includes("t('" + k + "')"), 'klucz w kodzie: ' + k);
+  assert.ok(!/[぀-ヿ]/.test(Object.values(D.zh).join('')), 'zh bez kany');
+  assert.ok(!/\d [時日件]/.test(Object.values(D.ja).join('')) && D.ja['w322.t10.dt'].includes('24時間'), 'ja: liczba z licznikiem bez spacji');
+  assert.ok(!/coinpaprika|coingecko|llama|coinmarketcap|sosovalue|github|binance|tether|circle|alternative/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+  assert.ok(D.pl['w322.t10.dt'] === 'Prąd grupy (24 h)' && D.pl['w322.leg.beat'].includes('bije jak serce') && D.pl['w322.leg.t10'].includes('24 h'), 'polskie teksty');
+  for (const l of L10) assert.ok(D[l]['w322.leg.t10'].includes('24H'), l + ': legenda mówi, że prąd jest przy okresie 24H (po przeglądzie)');
+  assert.ok(D.ru['w322.t10.dt'] === 'Поток группы (24 ч)' && D.zh['w322.t10.dt'] === '分组资金流（24 小时）' && !/(^|[\s—])Ток|电流/.test(D.ru['w322.leg.t10'] + D.zh['w322.leg.t10']), 'ru / zh: przepływ kapitału, nie prąd elektryczny');
+});
+test('v322 (po przeglądzie, pkt 5): kaskada stylów jak w przeglądarce — w zakładce CRYPTO, prawej kolumnie, oknie szczegółów, podpowiedzi top 10 i na stronach Przepływy / Sektory każda liczba z klasą kierunku ma kolor kierunku (zielony / czerwony / żółty — także zero, dawniej szare albo białe); każdy selektor reguły żółtego zera pilnowany osobno', () => {
+  const K = v322.kaskada(html);
+  /* 1) reguła żółtego zera: każdy z 15 selektorów (dawniej żaden test jej nie pilnował — usunięcie całej reguły przechodziło) */
+  const SEL = ['#list-wrap .cell.eq', '#detail .d-val.eq', '#detail .d-grid .eq', '.t10 .fl.eq', '.t10 .sc.eq', '.t10-tip dd.eq', '#c-ceny-krypto .cell.eq', '#cmc .etfk b.eq',
+    '#eng-coinmetrics-exchange-flows .eq', '#eng-defillama-stablecoins .eq', '#c-etf .eq', '#c-bal .eq', '#page-flows .eq', '#page-sectors .sval.eq', '#c-lancuch .etfk b.eq'];
+  for (const q of SEL) assert.ok(K.RULES.some(r => r.sels.includes(q) && r.decl.color && r.decl.color.v === 'var(--yl-tx)'), 'reguła żółtego zera: ' + q);
+  /* 2) strona w atrapie z zerami w plikach (ETF, rynek krypto, ceny krypto, sieć Bitcoina, stablecoiny, wpływy na giełdy) i w scenie (DeFi, „Giełdy”, moneta koszyka) */
+  const cp = k => JSON.parse(JSON.stringify(G126_DATA[k]));
+  const etf = cp('data/etf'); for (const a in etf.assets) etf.assets[a].m = 0; etf.assets.xrp.d1 = 0;
+  const cmc = cp('data/cmc'); cmc.mcap_chg24_pct = 0;
+  const kc = cp('data/ceny-krypto'); { const d = kc.q.BTC.d; d[d.length - 1][1] = d[d.length - 2][1]; }
+  const lc = cp('data/lancuch'); lc.difficulty.change_est = 0; lc.difficulty.prev_change = 0; lc.check.height = lc.tip.height + 1;
+  const kr = cp('data/krypto'); kr.stabh.d['30'] = 0; kr.stabh.pct['30'] = 0; kr.stabc.rows[0][4] = 0;
+  const cm = cp('data/cm'); cm.assets.btc.sum7 = {in: 0, out: 0, net: 0, in_usd: 0, out_usd: 0, net_usd: 0}; cm.assets.btc.sum30.net_usd = 0; cm.assets.btc.sum30.net = 0;
+  const dz = cp('data/dzwignia'); if (dz.dr && dz.dr.ETH && dz.dr.ETH.dvol) dz.dr.ETH.dvol.d1 = 0.02;   /* DVOL „+0,0%” — żółte */
+  const R = t10B.open(1100, 680, {files: {'data/etf': etf, 'data/cmc': cmc, 'data/ceny-krypto': kc, 'data/lancuch': lc, 'data/krypto': kr, 'data/cm': cm, 'data/dzwignia': dz}}), A = R.api;
+  const D = A.DATA[A.st.period]; D.defi[0] = 0; D.defi[1] = 0; D.exch[0] = 0;
+  A.st.view = 'list'; R.act('lista', () => A.renderAll()); R.act('wybór DeFi', () => A.select({type: 'node', id: 'defi'}));
+  const sym = (/<span class="sym">([^<]+)<\/span>/.exec(R.el('detail').innerHTML) || [])[1]; assert.ok(sym && A.LIVE.C[sym], 'moneta koszyka DeFi w szczegółach');
+  A.LIVE.C[sym].pct[A.st.period] = 0; R.act('ponownie', () => A.renderAll());
+  const CTX = ['kpis', 'chips', 'rows-in', 'rows-out', 'c-etf', 'c-bal', 'cmc', 'c-ceny-krypto', 'c-lancuch', 'eng-coinmetrics-exchange-flows', 'eng-defillama-stablecoins',
+    'c-dzwignia', 'c-wieloryby', 'c-rwa', 'c-surowce', 'c-wycena', 'list-wrap', 'detail'].map(id => [id, R.el(id).innerHTML]);
+  R.act('Przepływy', () => A.setPage('flows')); CTX.push(['page-flows', R.el('page-flows').innerHTML]);
+  R.act('Sektory', () => A.setPage('sectors')); CTX.push(['page-sectors', R.el('page-sectors').innerHTML]);
+  assert.deepEqual(R.ERR, [], 'strona w atrapie bez błędów');
+  /* podpowiedź monety top 10 (zmiana 0 i prąd grupy) i panel premii (w paśmie szumu i 0,00) — z ich własnych funkcji */
+  const X = t10v140.mk(), tc = {id: 'near', sym: 'NEAR', name: 'NEAR', px: 5, mc: 6.8e9, ch: 0, upd: '2026-09-27T21:22:20Z'};
+  CTX.push(['stage', X.t10TipHtml('ai', tc, 1, 10, '', null, Date.parse('2026-09-27T23:22:20Z'), -540), {tag: 'div', at: {class: 't10-tip'}}]);
+  const pf = prm129.file(); pf.now.kr.btc.p = 0.3; pf.now.kr.eth.p = -0.2; pf.now.kr.usdt.p = 0; pf.now.cb.btc.p = 0.03; pf.now.cb.eth.p = 0;
+  CTX.push(['c-premie', prm129.mk().show(pf).innerHTML]);
+  const WANT = {pos: /^var\(--gr(-tx)?\)$/, up: /^var\(--gr(-tx)?\)$/, neg: /^var\(--rd(-tx)?\)$/, dn: /^var\(--rd(-tx)?\)$/, eq: /^var\(--yl(-tx)?\)$/, neu: /^var\(--yl(-tx)?\)$/};
+  const MARK = ['sz', 'bar', 'chip-n'];   /* znaczniki bez własnego tekstu: kółko wielkości i pasek (kolor przez --c), przycisk elementu (kolor ma jego „•” / strzałka .p) */
+  const used = new Set(), n = {eq: 0, neu: 0, pos: 0, neg: 0}, bad = [];
+  for (const [id, markup, wrap] of CTX) {
+    assert.ok(markup && markup.length > 40, id + ': treść narysowana');
+    const made = K.place(id, markup, wrap);
+    for (const e of made) {
+      if (MARK.some(m => e.cls.has(m))) {
+        if (e.cls.has('eq') && e.cls.has('sz')) assert.equal(K.prop(e, '--c'), 'var(--yl)', id + ': kółko wielkości przy zerze — żółte');
+        if (e.cls.has('eq') && e.cls.has('chip-n')) { const p = e.kids.find(k => k.cls.has('p')); assert.ok(p && K.yellow(p), id + ': „•” przy zerze w przycisku elementu — żółte'); n.eq++; }
+        continue; }
+      for (const c of Object.keys(WANT)) if (e.cls.has(c)) {
+        const col = K.color(e); if (n[c] !== undefined) n[c]++;
+        if (!WANT[c].test(String(col.v))) bad.push(id + ': ' + K.path(e) + ' (' + c + ') → ' + col.v + ' z „' + col.why.slice(0, 80) + '”');
+        if (c === 'eq') for (const q of SEL) if (K.ms(e, K.parse(q))) used.add(q); }
+      if (e.cls.has('ra')) { const col = K.color(e).v; if (!(id === 'rows-in' ? WANT.pos : WANT.neg).test(String(col))) bad.push(id + ': strzałka przepływu → ' + col); }
+    }
+    K.unplace(id, made);
+  }
+  assert.deepEqual(bad, [], 'kolor kierunku z kaskady stylów');
+  assert.deepEqual(SEL.filter(q => !used.has(q)), [], 'każdy selektor reguły żółtego zera ma w teście swoje zero');
+  assert.ok(n.eq >= 30 && n.neu >= 3 && n.pos >= 100 && n.neg >= 50, 'sprawdzone elementy: ' + JSON.stringify(n));
+  /* 3) strażnik działa: bez reguły (albo bez jednego selektora) zero wraca do szarego / białego */
+  const H0 = html.replace('#c-etf .eq,', ''), K0 = v322.kaskada(H0), m0 = K0.place('c-etf', CTX.find(x => x[0] === 'c-etf')[1]), z0 = m0.find(e => e.cls.has('eq'));
+  assert.ok(z0 && !K0.yellow(z0), 'mutacja: bez „#c-etf .eq” zero w ETF nie jest żółte (' + K0.color(z0).v + ')');
+});
+
+test('v322 (po przeglądzie, pkt 5): okno szczegółów — wiersz „Wartość” w kolorze nagłówka (dawniej biały): klasa kierunku na wierszu, kwota i procent dziedziczą kolor, podpis „Wartość” zostaje szary; zero i „+0” — żółte; linia — napływ zielony, odpływ czerwony; treść wiersza bez zmian', () => {
+  const det = (id, R) => c315.det('pl', {st: {period: '24H', sel: {type: 'node', id}}, DATA: {'24H': {[id]: R}}});
+  const row = h => (/<div(?: class="([a-z]+)")?><dt>Wartość<\/dt><dd>([^<]*)<\/dd><\/div>/.exec(h) || []).slice(1);
+  const up = det('btc', [1374.2, 0.06]), dn = det('eth', [-970.9, -0.31]), z = det('defi', [0, 0]), tiny = det('ai', [0.3, 0.02]), x = det('exch', [-8840, null]);
+  assert.deepEqual(row(up), ['pos', '+1374 mln USD (+0,1% względem poprzednich 24 godzin)'], up);
+  assert.ok(up.includes('<div class="d-val sora pos">'), 'nagłówek w tym samym kolorze');
+  assert.deepEqual(row(dn), ['neg', '−971 mln USD (−0,3% względem poprzednich 24 godzin)'], dn);
+  assert.deepEqual(row(z), ['eq', '0 mln USD (0,0% względem poprzednich 24 godzin)'], z);
+  assert.deepEqual(row(tiny), ['eq', '+0 mln USD (+0,0% względem poprzednich 24 godzin)'], 'zero po zaokrągleniu — żółte jak nagłówek');
+  assert.deepEqual(row(x), ['neg', '−8840 mln USD'], 'Giełdy: reszta bilansu bez procentu, w kolorze znaku');
+  const E = (k, a) => c315.det('pl', {st: {period: '24H', sel: {type: 'edge', id: 'e'}}, EB: {e: {id: 'e', f: 'exch', t: 'btc', a, k, ev: 'proxy', live: true}}, DATA: {'24H': {}}});
+  assert.deepEqual(row(E('in', 574)), ['pos', '+574 mln USD'], 'linia: napływ zielony'); assert.deepEqual(row(E('out', 302)), ['neg', '−302 mln USD'], 'linia: odpływ czerwony');
+  assert.deepEqual(row(E('in', 0.4)), ['eq', '+0 mln USD'], 'linia z kwotą zero po zaokrągleniu (w scenie nie powstaje — linie od 0,5 mln) — żółta, nie biała');
+  /* style: zielony i czerwony z reguł ogólnych (.pos / .neg), żółty — #detail .d-grid .eq; podpis wiersza ma własny szary kolor (.d-grid dt) */
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  assert.ok(/(^|[,}\n])#detail \.d-grid \.eq[,{]/.test(css) && /\.pos\{--c:var\(--gr\);color:var\(--gr-tx\)\}/.test(css) && /\.d-grid dt\{color:var\(--mut\)/.test(css), 'style wiersza');
+  /* kaskada jak w przeglądarce: dd dziedziczy kolor wiersza, dt zostaje szary */
+  const K = v322.kaskada(html);
+  for (const [h, want] of [[up, 'var(--gr-tx)'], [dn, 'var(--rd-tx)'], [z, 'var(--yl-tx)']]) {
+    const m = K.place('detail', h), dd = m.find(e => e.tag === 'dd'), dt = dd.par.kids.find(k => k.tag === 'dt');   /* pierwszy wiersz siatki — „Wartość” */
+    assert.ok(K.color(dd).v === want && K.color(dt).v === 'var(--mut)', 'wiersz „Wartość”: ' + K.color(dd).v + ' (oczekiwany ' + want + '), podpis ' + K.color(dt).v);
+    K.unplace('detail', m); }
+});
+test('v322 (po przeglądzie, pkt 5): premie i DVOL — kolor ze znaku pokazanej liczby (plus zielony, minus czerwony, 0,00 żółte; jak GLOBAL v321); pasmo szumu zostaje w podpowiedzi przy liczbie i w uwagach panelu — „kierunek niepewny” zamiast „bez koloru” (10 języków)', () => {
+  const X = prm128.mk();
+  assert.deepEqual([0.051, 0.049, 0.004, 0.006, 0, -0.004, -0.006, -0.049, -0.051, null, NaN].map(X.prmTone), ['pos', 'pos', 'neu', 'pos', 'neu', 'neu', 'neg', 'neg', 'neg', '', ''], 'znak z pokazanej liczby (2 miejsca)');
+  const f = prm129.file(); f.now.kr.btc.p = 0.3; f.now.kr.eth.p = -0.2; f.now.kr.usdt.p = 0.6; f.now.cb.btc.p = 0.03; f.now.cb.eth.p = -0.001;
+  const o = prm129.mk().show(f).innerHTML;
+  assert.ok(o.includes('<b class="pos" title="prm.kr.noise">+0.30 %') && o.includes('<b class="neg" title="prm.kr.noise">−0.20 %') && o.includes('<b class="pos">+0.60 %'), 'Korea: w paśmie ±0,5 — kolor ze znaku i podpowiedź; poza pasmem — bez podpowiedzi');
+  assert.ok(o.includes('<b class="pos" title="prm.noise">+0.03 %') && o.includes('<b class="neu" title="prm.noise">0.00 %'), 'USA: +0,03 zielone z podpowiedzią szumu; 0,00 żółte');
+  const f2 = prm129.file(); f2.now.cb.btc.raw = -0.09; f2.now.cb.eth.raw = 0.12; const o2 = prm129.mk().show(f2).innerHTML;
+  assert.ok(o2.includes('prm.k.cb.raw{"v":"<span class=\\"neg\\">−0.09 %</span>"}') && o2.includes('prm.k.cb.raw{"v":"<span class=\\"pos\\">+0.12 %</span>"}'), 'premia bez przeliczenia USDT — w kolorze znaku (dawniej szara)');
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  assert.ok(css.includes('#c-premie .etfk b small span.neg{color:var(--rd-tx)}') && css.includes('#c-premie .etfk b small span.pos{color:var(--gr-tx)}') && /#c-premie \.etfk b small span\.neu\{display:inline;/.test(css), 'style dopisku: w linii, w kolorze');
+  assert.ok(html.includes('function prmBand(v,n){return prmNum(v)&&v<n&&v>-n;}') && html.includes("tip=prmBand(v,nz?nz.v:PRM_NOISE)?"), 'podpowiedź pasma: wartość w paśmie (krańce poza pasmem, jak dawny kolor od ±n)');
+  /* DVOL: kolor ze znaku pokazanej zmiany (dawniej ±1 % żółto, zero bez koloru) */
+  const lf = lev104.mk({}), fx = lev104.fix(); fx.dr.BTC.dvol.d1 = -0.3; fx.dr.ETH.dvol.d1 = 0.02; lf.levApply(fx); const lh = lf.el.innerHTML;
+  assert.ok(lh.includes('lev.k.dvol{c=BTC}</span><b>34.7 <small class="neg">lev.dn{n=1,v=−0.3%}</small></b>') && lh.includes('lev.k.dvol{c=ETH}</span><b>48.2 <small class="neu">lev.dn{n=1,v=+0.0%}</small></b>'),
+    'DVOL: −0,3 % czerwono (dawniej żółto), +0,0 % żółto (zero po zaokrągleniu): ' + lh.slice(lh.indexOf('lev.k.dvol{c=BTC}'), lh.indexOf('lev.k.dvol{c=BTC}') + 300));
+  /* teksty: pasmo opisane jako niepewny kierunek, nie „bez koloru” — we wszystkich 10 językach, w kafelkach i w uwagach panelu */
+  const I = g126I18N(), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const OLD = /bez koloru|no colour|uncoloured|coloured only|ohne Farbe|erst außerhalb|sin color|solo se colorean|sans couleur|ne sont colorées|senza colore|colorate solo|sem cor|só ganham cor|без цвета|окрашиваются только|不着色|才着色|色なし|色を付けません|だけ色が付きます/;
+  const NEW = {pl: 'kierunek', en: 'direction', de: 'Richtung', es: 'dirección', fr: 'sens', it: 'direzione', pt: 'direção', ru: 'направление', zh: '方向', ja: '方向'};
+  for (const L of L10) for (const k of ['prm.noise', 'prm.kr.noise', 'prm.not3', 'prm.not5']) {
+    const t = I[L][k]; assert.ok(typeof t === 'string' && !OLD.test(t), L + ' ' + k + ': bez „bez koloru” — ' + t); assert.ok(t.includes(NEW[L]), L + ' ' + k + ': kierunek niepewny — ' + t); }
+  assert.equal(I.pl['prm.noise'], 'w granicach szumu (±0,05 pkt proc.) — kierunek niepewny'); assert.equal(I.pl['prm.kr.noise'], 'w granicach niepewności kursu wymiany (±0,5 pkt proc.) — kierunek niepewny');
+  assert.ok(I.pl['prm.not3'].endsWith('a przy wartościach w granicach ±0,05 pkt proc. kolor pokazuje tylko znak liczby: to szum, kierunek jest niepewny.') && I.pl['prm.not5'].includes('Dlatego w granicach ±0,5 pkt proc. kolor kafli Korei pokazuje tylko znak liczby, a kierunek jest niepewny.'), 'pl: uwagi panelu');
+  assert.ok(I.pl['prm.not5'].includes('zawsze przybliżona') && I.ja['prm.not5'].includes('UTC 12:10ごろ') && I.ja['prm.not3'].startsWith('1分の終値はたった 1件の小さな取引のこともあります。'), 'reszta uwag bez zmian');
+});
+test('v322 (po przeglądzie, pkt 5): archiwum CRYPTO — ostatnie wartości pozycji netto CFTC (BTC, ETH) w kolorze znaku jak pozycje CME w prawej kolumnie (długie zielone, krótkie czerwone, 0 żółte); archiwum GLOBAL, stablecoiny i wieloryby bez zmian', () => {
+  const a0 = html.indexOf('function arcMeta('), a1 = html.indexOf('function arcApply(', a0); assert.ok(a0 > 0 && a1 > a0);
+  const el = {g: {innerHTML: '', hidden: true}, c: {innerHTML: '', hidden: true}};
+  const ser = (unit, v) => ({unit, freq: 'W', first: '2026-08-01', d: [['2026-09-29', v * 2], ['2026-10-06', v]]});
+  const S = {'cftc.btc.lev': ser('kontrakty', -6852), 'cftc.btc.am': ser('kontrakty', 1234), 'cftc.btc.dealer': ser('kontrakty', 0.4), 'stab.usdt': ser('tok', 1.8e11), 'stab.usdc': ser('tok', 7.4e10),
+    'plyn.net': ser('mln USD', -5793943), 'rent.spread': ser('pp', -1.25)};
+  const F = new Function('ARC', 't', 'nfmt', 'escH', 'gAgeNote', '$', 'instRow', 'engDate', 'arcWhLista', 'WH', html.slice(a0, a1) + '\nreturn {renderArc, arcTn};')(
+    {data: {at: '2026-10-07T02:04:34+00:00', series: S}, per: 90, ok: [30, 90, 365]}, a293gT, (v, d) => Number(v).toFixed(d), s => String(s), d => ' ·wiek(' + d + ')',
+    q => q === '#g-archiwum' ? el.g : q === '#c-archiwum' ? el.c : null, (a, b, c, d) => '<R>' + a + '|' + b + '|' + d + '</R>', s => String(s), () => '', {data: null});
+  assert.deepEqual([5, -5, 0.4, -0.4, 0, null, NaN].map(F.arcTn), ['pos', 'neg', 'neu', 'neu', 'neu', '', ''], 'znak z pokazanej liczby (pełne kontrakty)');
+  F.renderArc(); const c = el.c.innerHTML, g = el.g.innerHTML, blk = k => c.slice(c.indexOf('data-arc="' + k + '"'), c.indexOf('<p class="pnote">', c.indexOf('data-arc="' + k + '"')));
+  const cb = blk('cftc.btc');
+  assert.ok(/<i class="l1"><\/i><b class="neg">−6852 [^<]*<\/b>/.test(cb) && /<i class="l2"><\/i><b class="pos">1234 [^<]*<\/b>/.test(cb) && /<i class="l3"><\/i><b class="neu">0 [^<]*<\/b>/.test(cb), 'CFTC BTC: krótkie czerwone, długie zielone, 0 żółte: ' + cb.slice(0, 600));
+  assert.ok(/<span class="arc-last"><i class="l1"><\/i><b>/.test(blk('stab')) && !/arc-last"><i class="l\d"><\/i><b class=/.test(g) && g.includes('<b>−'), 'stablecoiny i archiwum GLOBAL — bez zmian (bez klasy)');
 });
