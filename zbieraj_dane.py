@@ -209,19 +209,59 @@ def soso(path, key, _retry=True):
     return j['data'] if isinstance(j, dict) and 'data' in j else j
 
 
+# v331 (ZB10-02): odczyt poprzednich plików z opublikowanej strony ma wspólny budżet czasu na przebieg. Dawniej każdy z ok. 60 plików czekał do 30 s, więc strona,
+# która przyjmuje połączenia i nie odpowiada, zjadała 30 min (limit zadania 25 min) i nic się nie publikowało, choć pamięć Actions wystarcza.
+PREV_SITE_TMO = 10      # s na jedno zapytanie o poprzedni plik
+PREV_SITE_BUDGET = 90   # s łącznie na wszystkie takie zapytania w jednym przebiegu
+PREV_SITE_FAILS = 2     # tyle kolejnych porażek sieci (brak odpowiedzi, odmowa, błąd serwera) = strona pominięta do końca przebiegu (zostaje pamięć Actions)
+_PREV_SITE = {'run': None, 'spent': 0.0, 'fails': 0, 'off': False}   # liczniki jednego przebiegu (klucz: _RUN_T0 ustawiany przez main)
+
+
+def _pclock():
+    return time.monotonic()
+
+
+def _prev_site_stan():
+    st = _PREV_SITE
+    if st['run'] != _RUN_T0[0]:   # nowy przebieg (main ustawia _RUN_T0) — liczniki od zera
+        st.update(run=_RUN_T0[0], spent=0.0, fails=0, off=False)
+    return st
+
+
 def _prev_site(name):
     site = os.environ.get('SITE_URL', '').rstrip('/')
     if not site:
         return None
+    st = _prev_site_stan()
+    if st['off']:
+        return None   # strona pominięta do końca przebiegu — zostaje pamięć Actions (zbiorczy wpis w META już jest)
+    left = PREV_SITE_BUDGET - st['spent']
+    if left < 1:
+        st['off'] = True
+        META['errors'].append(f'poprzednie pliki ze strony: budżet czasu przebiegu ({PREV_SITE_BUDGET} s) wyczerpany — dalej tylko pamięć Actions')
+        return None
+    t0, siec = _pclock(), False   # siec: nie odpowiedziała (czas, odmowa, błąd serwera) — 404 i uszkodzony JSON to odpowiedzi strony
     try:
-        return get_json(f'{site}/data/{name}.json?t={int(time.time())}')
+        return get_json(f'{site}/data/{name}.json?t={int(time.time())}', timeout=min(PREV_SITE_TMO, left))
     except urllib.error.HTTPError as e:
         if e.code == 404:   # pliku jeszcze nie ma (pierwszy przebieg) — informacja, nie błąd
             META['notes'].append(f'poprzedni {name}.json: brak na stronie (404)'); return None
-        META['errors'].append(mask(f'poprzedni {name}.json: {e}')); return None
+        META['errors'].append(mask(f'poprzedni {name}.json: {e}')); siec = True; return None
     except Exception as e:  # noqa
         META['errors'].append(mask(f'poprzedni {name}.json: {e}'))
+        siec = not isinstance(e, ValueError)
         return None
+    finally:
+        st['spent'] += max(0.0, _pclock() - t0)
+        st['fails'] = st['fails'] + 1 if siec else 0
+        if st['fails'] >= PREV_SITE_FAILS and not st['off']:
+            st['off'] = True
+            META['errors'].append(f'poprzednie pliki ze strony: brak odpowiedzi ({st["fails"]} kolejne porażki) — dalej tylko pamięć Actions do końca przebiegu')
+
+
+def _dict(x):
+    """v331 (ZB10-04): pole ok / errs poprzedniego pliku bywa uszkodzone (tekst, lista, liczba) — wtedy pusty słownik, a nie wyjątek poza try."""
+    return x if isinstance(x, dict) else {}
 
 
 def _prev_cache(name):
@@ -12997,6 +13037,8 @@ FX_URL = 'https://api.frankfurter.dev/v1/{d}?from=USD'
 UST_URL = 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value={y}'
 BUBA_URL = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604.R10XX.R.A.A._Z._Z.A?startPeriod={f}&format=json'
 RYNKI_EVERY = 60     # kursy EBC i rentowności zmieniają się raz dziennie — co godzinę wystarczy
+RYNKI_RETRY = 60     # v331 (zb07-04): część z błędem ponawiana najwcześniej po tylu minutach od ostatniej budowy (dawniej co przebieg, 8 zapytań co 10 min)
+UST_DNI = 400        # v331 (zb07-06): rentowność USA — wiersze nie starsze niż tyle dni zostają w pliku także z roku y-2 (1R na przełomie roku)
 FX_ECB_URL = ('https://data-api.ecb.europa.eu/service/data/EXR/D..EUR.SP00.A?startPeriod={od}&endPeriod={do}&format=csvdata')   # v255: zapas —
 #   kursy referencyjne prosto z EBC (pośrednik je tylko przekazuje); 06.10.2026: 29 walut, okno 11 dni ok. 45 KB, 0,6 s
 FX_ECB_OKNO = 10     # v255: dni wstecz od daty — ostatni fixing ≤ data (weekendy, święta TARGET)
@@ -13129,6 +13171,7 @@ def build_rynki(prev=None, today=None):
             out[k] = v; out['ok'][k] = True; out['part_at'][k] = NOW
         except Exception as e:  # noqa — część z błędem: poprzednia wersja z własnym czasem, nigdy zera
             META['errors'].append(mask(f'{RYNKI_PX[k]}: {e}')); out['ok'][k] = False
+            out.setdefault('errs', {})[k] = mask(str(e))[:160]   # v331: przyczyna zostaje w pliku (wpis w META także w przebiegach z pamięci)
             if prev.get(k):
                 out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
 
@@ -13162,9 +13205,20 @@ def build_rynki(prev=None, today=None):
 
     def ust():
         y = today.year
-        old = [r for r in (prev.get('ust') or []) if isinstance(r, list) and str(r[0]).startswith(str(y - 1))]
+        lim = (today - datetime.timedelta(days=UST_DNI)).isoformat()
+        rows = [r for r in (prev.get('ust') or []) if isinstance(r, list) and r and isinstance(r[0], str)]
+        old = [r for r in rows if r[0].startswith(str(y - 1))]
         if len(old) < 200:   # poprzedni rok zmienia się rzadko — pobierany tylko, gdy w pliku go brak
             old = ust_parse(get(UST_URL.format(y=y - 1), timeout=60)[1])
+        if int(lim[:4]) < y - 1:   # v331 (zb07-06): początek roku — okres 1R potrzebuje końca roku y-2 (Skarb USA nowy rok zaczyna pustym kanałem)
+            od = f'{y - 1}-01-01'
+            tail = [r for r in rows if lim <= r[0] < od]
+            if not tail:   # brak w poprzednim pliku (pierwszy przebieg, plik sprzed v331) — jedno dodatkowe zapytanie; jego błąd nie psuje części
+                try:
+                    tail = [r for r in ust_parse(get(UST_URL.format(y=y - 2), timeout=60)[1]) if lim <= r[0] < od]
+                except Exception as e:  # noqa
+                    META['notes'].append(mask(f'{RYNKI_PX["ust"]}: koniec roku {y - 2} (odniesienie 1R na początku roku) niedostępny: {str(e)[:80]}'))
+            old = tail + old
         cur = ust_parse(get(UST_URL.format(y=y), timeout=60)[1])
         return old + [r for r in cur if not old or r[0] > old[-1][0]]
 
@@ -25929,9 +25983,15 @@ def main():
             if prev_st: save('stopy', prev_st)
     # v101: kursy EBC i rentowności 10L (bez klucza) — co godzinę; każda część osobno (strona Źródła: rynki_fx / rynki_ust / rynki_buba)
     prev_ry = previous('rynki')
-    if prev_ry and fresh(prev_ry, RYNKI_EVERY) and all((prev_ry.get('ok') or {}).get(k) for k in RYNKI_PX):
+    pok_ry = _dict((prev_ry or {}).get('ok'))
+    zle_ry = [k for k in RYNKI_PX if not pok_ry.get(k)]   # v331 (zb07-04): część z JAWNYM błędem (ok = false) nie wymusza przebudowy co przebieg — ponowienie po RYNKI_RETRY min;
+    #   brak wpisu albo zły typ (uszkodzony plik) = przebudowa jak dotąd; ZB10-04: pole ok o złym typie to pusty słownik
+    if prev_ry and fresh(prev_ry, RYNKI_EVERY) and (not zle_ry or (all(pok_ry.get(k) is False for k in zle_ry) and fresh(prev_ry, RYNKI_RETRY))):
         save('rynki', prev_ry); rynki_fx_nota(prev_ry)   # v258: kursy z zapasu EBC widoczne także w przebiegu z pamięci
-        for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = 'cached'
+        for k in RYNKI_PX:
+            META['ok'][f'rynki_{k}'] = False if k in zle_ry else 'cached'   # v331: część z błędem zostaje widoczna (z przyczyną z pliku), nie „cached”
+            if k in zle_ry:
+                META['errors'].append(mask(f"{RYNKI_PX[k]}: {str(_dict(prev_ry.get('errs')).get(k) or 'błąd w ostatnim pobraniu')[:160]}"))
     else:
         try:
             ry = build_rynki(prev_ry); save('rynki', ry)
@@ -26045,7 +26105,7 @@ def main():
     if not PC_ZGODA:
         META['notes'].append('Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta)')
     prev_st = previous('stres')
-    pok_st = (prev_st or {}).get('ok') or {}
+    pok_st = _dict((prev_st or {}).get('ok'))   # v331 (ZB10-04): pole ok o złym typie = pusty słownik
     if prev_st and fresh(prev_st, STRES_EVERY) and bool(prev_st.get('pc_off')) == (not PC_ZGODA) and (all(pok_st.get(k) for k in stres_czesci()) or fresh(prev_st, STRES_RETRY)):
         save('stres', prev_st); META['ok']['stres'] = 'cached'
     else:
@@ -26141,7 +26201,7 @@ def main():
                 META['errors'].append(mask(f'{FED_LABEL}: {e}')); META['ok']['fed'] = False
                 if prev_fed: save('fed', prev_fed)
     # v136: Ameryka Łacińska — kurs oficjalny a równoległy dolara (bez klucza): plik młodszy niż DL_EVERY min z kompletem krajów = bez zapytań;
-    # kraj z błędem = ponowienie w następnym przebiegu (20 min); awaria całości = poprzedni plik i błąd
+    # kraj z błędem = ponowienie w następnym przebiegu (10 min); awaria całości = poprzedni plik i błąd
     prev_dl = previous('dolar')
     pok_dl = prev_dl.get('ok') if isinstance(prev_dl, dict) and isinstance(prev_dl.get('ok'), dict) else {}
     if isinstance(prev_dl, dict) and fresh(prev_dl, DL_EVERY) and all(pok_dl.get(k) is True for k in DL_PARTS):
@@ -26163,7 +26223,7 @@ def main():
     prev_ix = previous('indeksy') if ix_any else None
     if ix_any and prev_ix and fresh(prev_ix, IX_EVERY):
         save('indeksy', prev_ix)
-        for k, st in (prev_ix.get('ok') or {}).items():
+        for k, st in _dict(prev_ix.get('ok')).items():   # v331 (ZB10-04)
             META['ok']['indeksy_' + k] = 'cached' if st is True else st
     elif ix_any:
         try:
@@ -26178,7 +26238,7 @@ def main():
                 save('indeksy', prev_ix)
     # v99: OECD (bez klucza) — co 6 h; część z błędem ponawiana po godzinie
     prev_oe = previous('oecd')
-    pok_oe = (prev_oe or {}).get('ok') or {}
+    pok_oe = _dict((prev_oe or {}).get('ok'))   # v331 (ZB10-04)
     if prev_oe and fresh(prev_oe, OECD_EVERY) and (all(pok_oe.get(k) for k in OECD_Q) or fresh(prev_oe, OECD_RETRY)):
         save('oecd', prev_oe); META['ok']['oecd'] = 'cached'
     else:
@@ -26206,16 +26266,16 @@ def main():
         META['notes'].append('brak EVDS_KEY — Turcja tylko z pliku ZIP banku (ostatnie tygodnie, bez pełnej historii od 2020)')
     # OBCE — zmierzone dzienne przepływy inwestorów zagranicznych (NSDL Indie, TWSE Tajwan): najwyżej co 3 h
     prev_o = previous('obce')
-    pok = (prev_o or {}).get('ok') or {}   # v80: brak oczekiwanej części = pobierz od nowa; część z błędem — ponów po 60 min
+    pok = _dict((prev_o or {}).get('ok'))   # v331 (ZB10-04): zły typ pola = {}; v80: brak oczekiwanej części = pobierz od nowa; część z błędem — ponów po 60 min
     miss = [p for p in ('in', 'tw', 'hk', 'br', 'tr', 'th') if prev_o and p not in prev_o and pok.get(p) is not False]
     retry = [p for p, st in pok.items() if st is False]
     if prev_o and isinstance(prev_o.get('br'), dict) and any(isinstance(r, list) and len(r) < 10 for r in (prev_o['br'].get('m') or [])):
         miss.append('br')   # v81: wiersze miesięczne Brazylii bez kolumn banku centralnego — pobierz od razu
     if prev_o and fresh(prev_o, 60) and not miss:   # v91: co godzinę (Indie, Tajwan, Hongkong; część z błędem też ponawiana po 60 min); wolniejsze — OBCE_SLOW
         save('obce', prev_o); META['ok']['obce'] = 'cached'
-        for p, st in (prev_o.get('ok') or {}).items():   # v77: stan części z ostatniego pełnego pobrania (błąd zostaje widoczny)
+        for p, st in _dict(prev_o.get('ok')).items():   # v331 (ZB10-04); v77: stan części z ostatniego pełnego pobrania (błąd zostaje widoczny)
             META['ok']['obce_' + p] = 'cached' if st is True else st
-        META['errors'].extend(e for es in (prev_o.get('errs') or {}).values() for e in (es if isinstance(es, list) else []))
+        META['errors'].extend(e for es in _dict(prev_o.get('errs')).values() for e in (es if isinstance(es, list) else []))   # v331 (ZB10-04)
         evds_note(prev_o.get('tr'), evds_key)   # v126: przyczyna zapasu ZIP Turcji widoczna także w przebiegu z pamięci
         bcb_nota(prev_o.get('br'))   # v261: Brazylia — serie z usługi SOAP widoczne także w przebiegu z pamięci
     else:

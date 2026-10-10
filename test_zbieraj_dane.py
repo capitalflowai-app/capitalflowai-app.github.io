@@ -1868,16 +1868,16 @@ class StanV51(unittest.TestCase):
             with open(os.path.join(d, 'ceny.json'), 'w', encoding='utf-8') as f:
                 json.dump({'at': '2026-09-25T08:00:00+00:00', 'src': 'pamięć'}, f)
             with mock.patch.dict(os.environ, {'CACHE_DIR': d, 'SITE_URL': 'https://x'}, clear=False), \
-                 mock.patch.object(zd, 'get_json', lambda u, h=None: {'at': '2026-09-25T07:00:00+00:00', 'src': 'strona'}):
+                 mock.patch.object(zd, 'get_json', lambda u, h=None, timeout=30: {'at': '2026-09-25T07:00:00+00:00', 'src': 'strona'}):   # v331: + timeout (limit 10 s przekazywany nazwanym argumentem)
                 self.assertEqual(zd.previous('ceny')['src'], 'pamięć')
             with mock.patch.dict(os.environ, {'CACHE_DIR': d, 'SITE_URL': 'https://x'}, clear=False), \
-                 mock.patch.object(zd, 'get_json', lambda u, h=None: {'at': '2026-09-25T09:00:00+00:00', 'src': 'strona'}):
+                 mock.patch.object(zd, 'get_json', lambda u, h=None, timeout=30: {'at': '2026-09-25T09:00:00+00:00', 'src': 'strona'}):   # v331: + timeout
                 self.assertEqual(zd.previous('ceny')['src'], 'strona')
             with mock.patch.dict(os.environ, {'CACHE_DIR': d, 'SITE_URL': ''}, clear=False):
                 self.assertEqual(zd.previous('ceny')['src'], 'pamięć', 'awaria/brak strony — zostaje pamięć')
 
     def test_missing_previous_file_is_a_note_not_an_error(self):
-        def nf(u, h=None):
+        def nf(u, h=None, timeout=30):   # v331: + timeout
             raise zd.urllib.error.HTTPError(u, 404, 'Not Found', None, None)
         with mock.patch.dict(os.environ, {'CACHE_DIR': '', 'SITE_URL': 'https://x'}, clear=False), mock.patch.object(zd, 'get_json', nf):
             self.assertIsNone(zd.previous('bis'))
@@ -41333,3 +41333,285 @@ class KryptoZ6V330(unittest.TestCase):
         for z in (1.0, 2.0, -1.0, -2.0, 1.0004, 2.5, None):   # z na progu albo nad nim bez zmian
             V = {'p': (0.5, z, 0, True)}
             self.assertEqual(self._cr_row(V)['zp'], (None if z is None else round(z, 2)), z)
+
+
+class OdpornoscPrzebieguV331(unittest.TestCase):
+    """v331 (pas Z7): wspólny budżet czasu odczytu poprzednich plików ze strony (ZB10-02), częściowy błąd rynki.json bez przebudowy co przebieg (zb07-04),
+    rentowność 10L USA na przełomie roku (zb07-06), uszkodzone pole ok / errs poprzedniego pliku (ZB10-04). Bez sieci i bez zegara: czas strony to licznik
+    wirtualny (_pclock), poprzednie pliki z _iso(), a budowniczowie w main() zaślepieni."""
+    SZESC = (('rynki', 'ok'), ('stres', 'ok'), ('indeksy', 'ok'), ('oecd', 'ok'), ('obce', 'ok'), ('obce', 'errs'))
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.t = [0.0]
+        self.ps = [mock.patch.object(zd, '_pclock', lambda: self.t[0]), mock.patch.dict(zd._PREV_SITE, {'run': None, 'spent': 0.0, 'fails': 0, 'off': False}),
+                   mock.patch.object(zd, '_RUN_T0', [None]), mock.patch.dict(os.environ, {'SITE_URL': 'https://strona.test', 'CACHE_DIR': ''}, clear=False)]
+        [p.start() for p in self.ps]
+
+    def tearDown(self):
+        [p.stop() for p in self.ps]
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    def _zb_main(self, prev=None, gj=None, extra=(), keys=True):
+        """main() z zaślepionymi budowniczymi (poza `extra`); zapisane pliki w słowniku. prev=None — prawdziwe previous()."""
+        import contextlib, io, tempfile
+        saved = {}
+        env = {k: ('DUMMYKEY0123456789' if keys else '') for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY',
+                                                                  'BLS_KEY', 'BEA_KEY', 'EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'COINALYZE_KEY', 'ETHERSCAN_KEY', 'EVDS_KEY')}
+        env.update({'SITE_URL': os.environ.get('SITE_URL', ''), 'CACHE_DIR': ''})
+        ps = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n not in extra and callable(getattr(zd, n))]
+        ps += [mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), mock.patch.object(zd, 'OUT', tempfile.mkdtemp()),
+               mock.patch.object(zd, '_zuz_dost_cmc', lambda *a, **k: None), mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd.time, 'sleep', lambda s: None)]
+        if prev is not None:
+            ps.append(mock.patch.object(zd, 'previous', lambda name: prev.get(name)))
+        if gj is not None:
+            ps.append(mock.patch.object(zd, 'get_json', gj))
+        with contextlib.ExitStack() as st, contextlib.redirect_stdout(io.StringIO()):
+            for p in ps:
+                st.enter_context(p)
+            self.assertEqual(zd.main(), 0)
+        return saved
+
+    # ---------------------------------------------------------------- ZB10-02
+    def test_zdrowa_strona_wynik_bez_zmian(self):
+        calls = []
+        plik = {'at': _iso(3), 'x': 1}
+
+        def gj(url, headers=None, timeout=30):
+            calls.append((url, timeout)); self.t[0] += 0.2
+            return plik
+        with mock.patch.object(zd, 'get_json', gj):
+            wyn = [zd.previous(f'p{i}') for i in range(70)]
+        self.assertTrue(all(w is plik for w in wyn)); self.assertEqual(len(calls), 70, 'zdrowa strona — każdy plik pobrany')
+        self.assertEqual({t for _, t in calls}, {zd.PREV_SITE_TMO}); self.assertEqual(zd.PREV_SITE_TMO, 10)
+        self.assertTrue(all(u.startswith('https://strona.test/data/p') for u, _ in calls)); self.assertEqual(zd.META['errors'], [])
+
+    def test_wiszaca_strona_po_dwoch_porazkach_pomijana(self):
+        import tempfile
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(timeout); self.t[0] += timeout           # przekroczenie czasu = cały przyznany limit
+            raise TimeoutError('timed out')
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'p5.json'), 'w', encoding='utf-8') as f:
+                json.dump({'at': _iso(2), 'src': 'pamięć'}, f)
+            with mock.patch.dict(os.environ, {'CACHE_DIR': d}, clear=False), mock.patch.object(zd, 'get_json', gj):
+                wyn = [zd.previous(f'p{i}') for i in range(62)]
+        self.assertEqual(len(calls), zd.PREV_SITE_FAILS, 'po dwóch kolejnych porażkach zero dalszych zapytań do strony')
+        self.assertEqual(wyn[5]['src'], 'pamięć', 'pamięć Actions działa dalej'); self.assertEqual([w for i, w in enumerate(wyn) if i != 5], [None] * 61)
+        self.assertLessEqual(self.t[0], 2 * zd.PREV_SITE_TMO); self.assertLess(self.t[0], 25 * 60)
+        zb = [e for e in zd.META['errors'] if e.startswith('poprzednie pliki ze strony')]
+        self.assertEqual(len(zb), 1, 'jeden zbiorczy wpis w META'); self.assertEqual(len([e for e in zd.META['errors'] if e.startswith('poprzedni p')]), 2)
+
+    def test_wolna_strona_budzet_na_przebieg(self):
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(timeout); self.t[0] += min(8.0, timeout)    # odpowiada, ale wolno: 8 s na plik
+            return {'at': _iso(1)}
+        with mock.patch.object(zd, 'get_json', gj):
+            for i in range(40):
+                zd.previous(f'p{i}')
+            po = len(calls)
+            self.assertIsNone(zd.previous('jeszcze')); self.assertEqual(len(calls), po, 'po wyczerpaniu budżetu zero zapytań')
+        self.assertLessEqual(self.t[0], zd.PREV_SITE_BUDGET); self.assertEqual(po, 12); self.assertTrue(all(t <= zd.PREV_SITE_TMO for t in calls))
+        self.assertEqual(calls[-1], 2.0, 'ostatnie zapytanie dostaje tylko to, co zostało z budżetu')
+        self.assertEqual(len([e for e in zd.META['errors'] if 'budżet czasu' in e]), 1)
+
+    def test_404_i_zly_json_nie_wylaczaja_strony_a_sukces_zeruje_serie(self):
+        calls = []
+        seq = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(url); r = seq[len(calls) - 1]
+            if r == '404':
+                raise zd.urllib.error.HTTPError(url, 404, 'Not Found', None, None)
+            if r == 'json':
+                raise ValueError('Expecting value')
+            if r == 'siec':
+                raise OSError('connection reset')
+            return {'at': _iso(1)}
+        seq[:] = ['404', '404', '404', 'json', 'json', 'json', 'siec', 'ok', 'siec', 'ok', 'siec']
+        with mock.patch.object(zd, 'get_json', gj):
+            wyn = [zd.previous(f'p{i}') for i in range(len(seq))]
+        self.assertEqual(len(calls), len(seq), 'nigdy dwie kolejne porażki sieci — strona nie została wyłączona')
+        self.assertFalse(zd._PREV_SITE['off']); self.assertEqual(sum(w is not None for w in wyn), 2)
+        self.assertEqual(len([n for n in zd.META['notes'] if '(404)' in n]), 3); self.assertFalse([e for e in zd.META['errors'] if e.startswith('poprzednie pliki')])
+
+    def test_blad_serwera_5xx_liczy_sie_jak_porazka(self):
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(url); raise zd.urllib.error.HTTPError(url, 503, 'Service Unavailable', None, None)
+        with mock.patch.object(zd, 'get_json', gj):
+            [zd.previous(f'p{i}') for i in range(10)]
+        self.assertEqual(len(calls), 2)
+
+    def test_nowy_przebieg_zeruje_liczniki(self):
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append(url); raise OSError('refused')
+        with mock.patch.object(zd, 'get_json', gj):
+            [zd.previous(f'p{i}') for i in range(5)]
+            self.assertEqual(len(calls), 2); self.assertTrue(zd._PREV_SITE['off'])
+            zd._RUN_T0[0] = 123.5            # main() ustawia nowy początek przebiegu
+            [zd.previous(f'q{i}') for i in range(5)]
+            self.assertEqual(len(calls), 4, 'nowy przebieg — strona znów odpytana (dwa zapytania do kolejnego wyłączenia)')
+
+    def test_main_wiszaca_strona_mieści_się_w_budzecie(self):
+        calls = []
+
+        def gj(url, headers=None, timeout=30):
+            calls.append((url.split('/data/')[-1].split('?')[0], timeout)); self.t[0] += timeout
+            raise TimeoutError('timed out')
+        saved = self._zb_main(gj=gj)
+        self.assertEqual(len(calls), zd.PREV_SITE_FAILS, f'cały przebieg: tylko dwa zapytania do strony, było {len(calls)}')
+        self.assertLessEqual(self.t[0], 2 * zd.PREV_SITE_TMO); self.assertIn('meta', saved)
+        self.assertEqual(len([e for e in zd.META['errors'] if e.startswith('poprzednie pliki ze strony')]), 1)
+
+    # ---------------------------------------------------------------- ZB10-04
+    def test_dict_pomocnik(self):
+        d = {'a': 1}
+        self.assertIs(zd._dict(d), d)
+        for zle in ('x', '', [1], [], 7, 0, True, False, None, 1.5):
+            self.assertEqual(zd._dict(zle), {}, repr(zle))
+
+    def test_main_uszkodzone_pole_ok_errs_nie_zatrzymuje_przebiegu(self):
+        for plik, pole in self.SZESC:
+            for zla in ('x', [1], 7, True):
+                prev = {'rynki': {'at': _iso(5), 'ok': {k: True for k in zd.RYNKI_PX}},
+                        'stres': {'at': _iso(5), 'pc_off': True, 'ok': {k: True for k in zd.stres_czesci()}},
+                        'indeksy': {'at': _iso(5), 'ok': {k: True for k in zd.IX_PARTS}},
+                        'oecd': {'at': _iso(5), 'ok': {k: True for k in zd.OECD_Q}},
+                        'obce': {'at': _iso(5), 'ok': {p: True for p in ('in', 'tw', 'hk', 'br', 'tr', 'th')}, 'errs': {}, **{p: {} for p in ('in', 'tw', 'hk', 'br', 'tr', 'th')}}}
+                prev[plik][pole] = zla
+                zd.META['errors'].clear(); zd.META['ok'].clear()
+                with self.subTest(plik=plik, pole=pole, zla=zla):
+                    saved = self._zb_main(prev=prev)
+                    self.assertIs(saved[plik], prev[plik], 'plik przeszedł przez bramkę i został zachowany'); self.assertIn('meta', saved)
+
+    # ---------------------------------------------------------------- zb07-04
+    def test_main_rynki_czesc_z_bledem_nie_wymusza_przebudowy(self):
+        ok = {'fx': True, 'ust': True, 'buba': False}
+        for wiek, zapytan in ((10, 0), (30, 0), (59, 0), (61, 1)):
+            prev = {'rynki': {'at': _iso(wiek), 'ok': dict(ok), 'errs': {'buba': 'awaria X'}, 'fx': {}, 'ust': [], 'part_at': {}}}
+            nowy = {'at': zd.NOW, 'ok': dict(ok)}
+            b = mock.Mock(return_value=nowy)
+            zd.META['errors'].clear(); zd.META['ok'].clear()
+            with self.subTest(wiek=wiek), mock.patch.object(zd, 'build_rynki', b):
+                saved = self._zb_main(prev=prev, extra=('build_rynki',))
+            self.assertEqual(b.call_count, zapytan, f'plik sprzed {wiek} min z ok.buba = false')
+            if not zapytan:
+                self.assertIs(saved['rynki'], prev['rynki'])
+                self.assertEqual((zd.META['ok']['rynki_fx'], zd.META['ok']['rynki_ust'], zd.META['ok']['rynki_buba']), ('cached', 'cached', False), 'część z błędem zostaje widoczna')
+                self.assertIn('Bundesbank 10L: awaria X', zd.META['errors'])
+            else:
+                self.assertIs(saved['rynki'], nowy)
+
+    def test_main_rynki_zdrowy_plik_zero_zapytan_a_zepsuty_wpis_przebudowa(self):
+        for ok, zapytan in (({'fx': True, 'ust': True, 'buba': True}, 0), ({'fx': True, 'ust': True}, 1), ({'fx': True, 'ust': True, 'buba': 0}, 1), ('x', 1), (None, 1)):
+            prev = {'rynki': {'at': _iso(5), 'ok': ok, 'fx': {}, 'ust': []}}
+            b = mock.Mock(return_value={'at': zd.NOW, 'ok': {'fx': True, 'ust': True, 'buba': True}})
+            with self.subTest(ok=ok), mock.patch.object(zd, 'build_rynki', b):
+                self._zb_main(prev=prev, extra=('build_rynki',))
+            self.assertEqual(b.call_count, zapytan)
+
+    def test_main_rynki_czas_ponowienia_jest_parametrem(self):
+        prev = {'rynki': {'at': _iso(40), 'ok': {'fx': True, 'ust': False, 'buba': True}}}
+        for retry, zapytan in ((30, 1), (45, 0)):
+            b = mock.Mock(return_value={'at': zd.NOW, 'ok': {'fx': True, 'ust': True, 'buba': True}})
+            with self.subTest(retry=retry), mock.patch.object(zd, 'RYNKI_RETRY', retry), mock.patch.object(zd, 'build_rynki', b):
+                self._zb_main(prev=prev, extra=('build_rynki',))
+            self.assertEqual(b.call_count, zapytan)
+
+    def test_build_rynki_zapisuje_przyczyne_bledu_tylko_przy_bledzie(self):
+        bank = [False]
+
+        def gj(url, headers=None, timeout=30):
+            if 'bundesbank' in url:
+                if bank[0]:
+                    raise OSError('awaria Bundesbanku')
+                return RynkiV101.BUBA
+            d = url.split('/v1/')[1].split('?')[0]
+            return dict(RynkiV101.FX, date=RynkiV101.FX['date'] if d == 'latest' else min(d, RynkiV101.FX['date']))
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, 'get', lambda url, headers=None, timeout=30: (200, RynkiV101.XML)):
+            o = zd.build_rynki(None, today=datetime.date(2026, 9, 26))
+            self.assertNotIn('errs', o, 'zdrowy plik bez nowego pola')
+            bank[0] = True
+            o = zd.build_rynki(None, today=datetime.date(2026, 9, 26))
+        self.assertEqual(o['ok'], {'fx': True, 'ust': True, 'buba': False}); self.assertEqual(list(o['errs']), ['buba']); self.assertIn('awaria Bundesbanku', o['errs']['buba'])
+
+    # ---------------------------------------------------------------- zb07-06
+    @staticmethod
+    def _xml(daty, v=4.0):
+        return ('<feed xmlns="http://www.w3.org/2005/Atom" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" '
+                'xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices">'
+                + ''.join(f'<entry><content type="application/xml"><m:properties><d:NEW_DATE m:type="Edm.DateTime">{d}T00:00:00</d:NEW_DATE>'
+                          f'<d:BC_10YEAR m:type="Edm.Double">{v}</d:BC_10YEAR></m:properties></content></entry>' for d in daty) + '</feed>')
+
+    @staticmethod
+    def _dni(a, b):
+        d = a
+        while d <= b:
+            if d.weekday() < 5:
+                yield d.isoformat()
+            d += datetime.timedelta(days=1)
+
+    def _rynki(self, prev, today, lata):
+        """build_rynki z feedami Skarbu USA z `lata` ({rok: [daty]}); zwraca (wynik, lista pobranych lat)."""
+        pytania = []
+
+        def gt(url, headers=None, timeout=30):
+            y = int(url.rsplit('=', 1)[1]); pytania.append(y)
+            if lata.get(y) is None:
+                raise OSError(f'brak pliku {y}')
+            return 200, self._xml(lata[y])
+
+        def gj(url, headers=None, timeout=30):
+            if 'bundesbank' in url:
+                return RynkiV101.BUBA
+            d = url.split('/v1/')[1].split('?')[0]
+            return dict(RynkiV101.FX, date=RynkiV101.FX['date'] if d == 'latest' else min(d, RynkiV101.FX['date']))
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, 'get', gt):
+            return zd.build_rynki(prev, today=today), pytania
+
+    def _ma_1r(self, ust):
+        last = datetime.date.fromisoformat(ust[-1][0]); lim = last.replace(year=last.year - 1).isoformat()
+        return any(r[0] <= lim for r in ust)
+
+    def test_ust_przelom_roku_z_poprzedniego_pliku(self):
+        D = datetime.date
+        prev = {'ust': [[d, 4.0] for d in self._dni(D(2025, 1, 1), D(2026, 12, 31))]}
+        for dzien in (D(2027, 1, 2), D(2027, 1, 3), D(2027, 1, 4), D(2027, 1, 5)):
+            with self.subTest(dzien=dzien):
+                o, pytania = self._rynki(prev, dzien, {2027: []})            # nowy rok: pusty kanał (HTTP 200)
+                u = o['ust']
+                self.assertEqual(pytania, [2027], 'zero dodatkowych zapytań, gdy poprzedni plik ma koniec roku y-2')
+                self.assertTrue(self._ma_1r(u), f'okres 1R ma punkt odniesienia; plik od {u[0][0]} do {u[-1][0]}')
+                self.assertGreaterEqual(u[0][0], (dzien - datetime.timedelta(days=zd.UST_DNI)).isoformat()); self.assertLess(u[0][0], '2026-01-01')
+                self.assertEqual([r[0] for r in u], sorted({r[0] for r in u}), 'rosnąco, bez powtórzeń')
+        o, _ = self._rynki(prev, D(2027, 1, 5), {2027: ['2027-01-04']})
+        self.assertEqual(o['ust'][-1], ['2027-01-04', 4.0]); self.assertTrue(self._ma_1r(o['ust']))
+
+    def test_ust_przelom_roku_bez_poprzedniego_pliku_jedno_zapytanie_wiecej(self):
+        D = datetime.date
+        o, pytania = self._rynki(None, D(2027, 1, 2), {2027: [], 2026: list(self._dni(D(2026, 1, 1), D(2026, 12, 31))), 2025: list(self._dni(D(2025, 1, 1), D(2025, 12, 31)))})
+        self.assertEqual(sorted(pytania), [2025, 2026, 2027]); u = o['ust']
+        self.assertEqual(u[0][0], '2025-11-28', 'tylko wiersze z ostatnich 400 dni'); self.assertTrue(self._ma_1r(u)); self.assertTrue(o['ok']['ust'])
+        # błąd dodatkowego zapytania nie psuje części (jak dotąd bez 1R, notatka)
+        zd.META['notes'].clear()
+        o, pytania = self._rynki(None, D(2027, 1, 2), {2027: [], 2026: list(self._dni(D(2026, 1, 1), D(2026, 12, 31)))})
+        self.assertTrue(o['ok']['ust']); self.assertEqual(o['ust'][0][0], '2026-01-01'); self.assertFalse(self._ma_1r(o['ust']))
+        self.assertTrue(any('koniec roku 2025' in n for n in zd.META['notes']))
+
+    def test_ust_poza_poczatkiem_roku_bez_zmian(self):
+        D = datetime.date
+        prev = {'ust': [[d, 4.0] for d in self._dni(D(2025, 1, 1), D(2026, 9, 25))]}
+        o, pytania = self._rynki(prev, D(2026, 9, 26), {2026: ['2026-09-25', '2026-09-24']})
+        self.assertEqual(pytania, [2026]); self.assertEqual(o['ust'][0][0], '2025-01-01'); self.assertEqual(o['ust'][-1][0], '2026-09-25')
+        # początek lutego: 400 dni wstecz sięga już początku roku y-1 — rok y-2 nie wraca
+        prev = {'ust': [[d, 4.0] for d in self._dni(D(2025, 11, 1), D(2027, 2, 9))]}
+        o, pytania = self._rynki(prev, D(2027, 2, 10), {2027: ['2027-02-09']})
+        self.assertEqual(pytania, [2027]); self.assertEqual(o['ust'][0][0], '2026-01-01'); self.assertTrue(self._ma_1r(o['ust']))
