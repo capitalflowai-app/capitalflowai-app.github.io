@@ -1672,7 +1672,9 @@ def parse_mk(pages):
 
 def parse_stabc(j, top=14):
     """v58: DefiLlama /stablecoins → podaż stablecoinów dolarowych per sieć: teraz, zmiana 1, 7 i 30 dni (USD).
-    Zmiana liczona tylko z aktywów, które mają obie wartości (brak poprzedniej = poza oknem, nie zero)."""
+    Zmiana liczona tylko z aktywów, które mają obie wartości (brak poprzedniej = poza oknem, nie zero).
+    v330 (ZB02-04): sieć, w której ŻADNE aktywo nie ma wartości porównawczej dla okna, ma zmianę None (strona: „—”), nie 0; sumy zmian pomijają takie
+    sieci, a gdy żadna sieć nie ma wartości — None."""
     A = j.get('peggedAssets') if isinstance(j, dict) else None
     if not isinstance(A, list) or not A:
         raise RuntimeError('stablecoins: brak peggedAssets')
@@ -1687,20 +1689,25 @@ def parse_stabc(j, top=14):
             cur = num(v.get('current'))
             if cur is None or cur < 0:
                 continue
-            c = ch.setdefault(str(name)[:40], {'cur': 0.0, 'd1': [0.0, 0.0], 'd7': [0.0, 0.0], 'd30': [0.0, 0.0]})
+            c = ch.setdefault(str(name)[:40], {'cur': 0.0, 'd1': [0.0, 0.0, 0], 'd7': [0.0, 0.0, 0], 'd30': [0.0, 0.0, 0]})
             c['cur'] += cur
             for k, f in (('d1', 'circulatingPrevDay'), ('d7', 'circulatingPrevWeek'), ('d30', 'circulatingPrevMonth')):
                 p = num(v.get(f))
                 if p is not None and p >= 0:
-                    c[k][0] += cur; c[k][1] += p
+                    c[k][0] += cur; c[k][1] += p; c[k][2] += 1
     if not ch:
         raise RuntimeError('stablecoins: żadna sieć')
-    rows = [[n, round(c['cur']), round(c['d1'][0] - c['d1'][1]), round(c['d7'][0] - c['d7'][1]), round(c['d30'][0] - c['d30'][1])]
+    dz = lambda c, k: round(c[k][0] - c[k][1]) if c[k][2] else None   # v330: bez żadnego aktywa porównawczego = brak
+    rows = [[n, round(c['cur']), dz(c, 'd1'), dz(c, 'd7'), dz(c, 'd30')]
             for n, c in sorted(ch.items(), key=lambda x: -x[1]['cur'])]
-    tot = lambda i: sum(r[i] for r in rows)
+
+    def tot(i):   # v330: suma po sieciach, które mają wartość; żadna = None
+        v = [r[i] for r in rows if r[i] is not None]
+        return round(sum(v)) if v else None
+
     return {'src': 'DefiLlama — stablecoins (chainCirculating, peggedUSD)', 'unit': 'USD', 'asof': NOW[:10],
             'cols': ['sieć', 'podaż', 'zmiana 1 dzień', 'zmiana 7 dni', 'zmiana 30 dni'], 'n': len(rows),
-            'total': [round(tot(1)), round(tot(2)), round(tot(3)), round(tot(4))], 'rows': rows[:top]}
+            'total': [tot(1), tot(2), tot(3), tot(4)], 'rows': rows[:top]}
 
 
 def parse_stabh(j, now=None):
@@ -5177,17 +5184,23 @@ def t10_logos(top, imgs, prev_logo=None, at=None, end=None, late=False):
     return {'at': at or _now_utc().replace(microsecond=0).isoformat(), 'n': len(logo), 'logo': logo}
 
 
+def _t10_fresh(r, now):
+    """v330 (ZB04-02): wiersz z poprzedniego pliku wolno przenieść, gdy jego WŁASNE notowanie (kolumna upd) ma mniej niż T10_MAX_AGE min; brak czasu
+    albo zły format = nie (brak danych, nie stara cena). Dawniej wiek liczony z czasu PLIKU, a ten dostaje nowy czas w każdym przebiegu."""
+    a = _t10_age(r[6], now)
+    return a is not None and a < T10_MAX_AGE
+
+
 def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None):
     """(data/krypto-top10.json, data/krypto-top10-logo.json): grupy top 10 w 8 kategoriach. Kategoria bez składu młodszego niż T10_SKLAD albo z mniej
     niż T10_N kandydatami — pobranie kategorii; pozostałe (i kategorie z błędem, które mają poprzednich kandydatów) — ceny kandydatów jednym zapytaniem
-    ids=…; wiersze bez nowych cen = poprzednie z ich czasem notowania (plik młodszy niż T10_MAX_AGE), inaczej grupa pusta. Każda awaria części = błąd
-    „krypto top 10: …” w meta; żadnej monety w żadnej grupie = wyjątek (przebieg główny zostawia poprzednie pliki). Cały budowniczy ≤ T10_BUDGET s; przebieg
+    ids=…; wiersze bez nowych cen = poprzednie, ale tylko te, których własne notowanie (upd) ma mniej niż T10_MAX_AGE min (v330: dawniej wiek z czasu PLIKU), inaczej grupa pusta. Każda awaria części = błąd
+    „krypto top 10: …” w meta; żadnej monety w żadnej grupie: bez poprzedniego pliku wyjątek (jak dotąd), z poprzednim plikiem (v330) PLIK Z PUSTYMI GRUPAMI (strona: „brak danych”, ok = False, błąd w meta, loga bez zmian) — poprzedni plik ze starymi cenami nie zostaje. Cały budowniczy ≤ T10_BUDGET s; przebieg
     zbieracza dłuższy niż T10_LATE s (run_t0 — start przebiegu, domyślnie _RUN_T0) — bez składu kategorii i bez nowych logo (notatka; w następnym przebiegu)."""
     now = now or _now_utc()
     at = now.replace(microsecond=0).isoformat()
     hdr = {'x-cg-demo-api-key': cg_key} if cg_key else None   # klucz tylko w nagłówku, nigdy w adresie ani w pliku
     pg = prev.get('g') if isinstance(prev, dict) and isinstance(prev.get('g'), dict) else {}
-    prev_age = _t10_age(prev.get('at'), now) if isinstance(prev, dict) else None
     t0 = _t10_mono()
     run_t0 = _RUN_T0[0] if run_t0 is None else run_t0
     late = run_t0 is not None and t0 - run_t0 > T10_LATE
@@ -5245,7 +5258,7 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
         g = G[k]
         rows = g['rows']
         if rows is None:
-            rows = g['prev'] if g['prev'] and prev_age is not None and prev_age < T10_MAX_AGE else []
+            rows = [r for r in g['prev'] if _t10_fresh(r, now)]   # v330 (ZB04-02): wiek z czasu notowania wiersza, nie pliku
             if not any(e.startswith(k + ':') for e in errs):
                 errs.append(f'{k}: ' + ('poprzednie ceny' if rows else 'brak danych'))
         bez = set(T10_BEZ.get(k, ()))
@@ -5255,11 +5268,14 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
         pool = [i for i in g['pool'] if i not in bez]   # v155: kandydaci też bez wykluczonych (kolejne ceny tylko dla monet grupy)
         out['g'][k] = {'cat': cat, 'sk': g['sk'] if rows else None, 'pool': pool if rows else [], 'c': rows}
         out['ok'][k] = g['rows'] is not None
-    if not any(out['g'][k]['c'] for k, _ in T10_CATS):
+    pusty = not any(out['g'][k]['c'] for k, _ in T10_CATS)
+    if pusty and not pg:   # v330 (ZB04-02): bez poprzedniego pliku nie ma czego chronić; z plikiem — zapis pustych grup (main inaczej zostawiłby stare ceny)
         raise RuntimeError('żadna grupa nie ma monet' + (f' ({"; ".join(errs)[:300]})' if errs else ''))
     if errs:
         META['errors'].append(mask('krypto top 10: ' + '; '.join(errs))[:500])
     out['calls'] = st['n']
+    if pusty and isinstance(prev_logo, dict) and isinstance(prev_logo.get('logo'), dict):   # v330: awaria źródła — loga zostają (po powrocie bez ponownego pobierania)
+        return out, prev_logo
     return out, t10_logos(out, imgs, prev_logo, at, st['end'], late)
 
 
@@ -7128,7 +7144,9 @@ def _td_row_cr2(s, vd_by, own, today, now_utc):
     stronie jej nie ma, a linia połączenia karty (n2 przy |N| ≥ 2, inaczej all) nie wychodzi „odwrotnie” (anti).
     Reguła wiersza v2: 'c' (N ≠ 0), 'cx' (są głosy, ale po równo — sprzeczne), 'c0' (żaden powód nie głosuje). Nigdy kody v1 ('x', 'none'):
     strona sprzed v125 (karta przeglądarki otwarta przed wdrożeniem, TRD_DRL = f/p/fp/x/none) odrzuca wtedy KAŻDY wiersz v2 i pokazuje
-    swoją notę, zamiast opisywać kartę v2 zdaniami v1, które dla niej są nieprawdziwe (przegląd 27.09)."""
+    swoją notę, zamiast opisywać kartę v2 zdaniami v1, które dla niej są nieprawdziwe (przegląd 27.09).
+    v330 (Z05-1): odchylenie z w rs i zp przez _tdw_rz (jak świat od v127) — publikowana liczba nie przekracza progu 1 ani 2 przez samo zaokrąglenie
+    (BNB 30.10.2024: −1,9962 → było −2,00, teraz −1,99: strona czyta „mocno” z liczby, a siła dnia liczona z niezaokrąglonej)."""
     i = len(s['dates']) - 1
     date = s['dates'][i]
     V, N = _td_votes(s, i)
@@ -7167,11 +7185,11 @@ def _td_row_cr2(s, vd_by, own, today, now_utc):
 
     def rnd(x, k):
         return (round(x, k) if k else int(round(x))) if _isnum(x) else None
-    rs = [[k, rnd(50 + V[k][0] / 2 if k == 't' and _isnum(V[k][0]) else V[k][0], TD_CR_DIG[k]), rnd(V[k][1], 2), V[k][2]]
+    rs = [[k, rnd(50 + V[k][0] / 2 if k == 't' and _isnum(V[k][0]) else V[k][0], TD_CR_DIG[k]), _tdw_rz(V[k][1]), V[k][2]]
           for k, _ in TD_CR_IN if k in V]
     return {'id': s['id'], 'fam': 'cr', 'grp': None, 'iss': None, 'pub': 0, 'sym': s['sym'], 'date': date,
             'nx': (_d(date) + datetime.timedelta(days=1)).isoformat(), 'live': live, 'age': (today - _d(date)).days,
-            'f': None, 'cur': None, 'fu': None, 'zf': None, 'r': rnd(V['p'][0], 2), 'zp': rnd(V['p'][1], 2),
+            'f': None, 'cur': None, 'fu': None, 'zf': None, 'r': rnd(V['p'][0], 2), 'zp': _tdw_rz(V['p'][1]),
             'rule': rule, 'dir': d, 'side': side, 'str': sg, 'st': st,
             'vd': ('edge' if colour else ('none' if lv == 'edge' else lv)) if d else None,
             'ik': o[0], 'in': o[1], 'ici': list(wilson(o[0], o[1])) if d and o[1] else None,
@@ -13929,11 +13947,43 @@ def cz_direct(out, p, c, now):
     return f, h, names
 
 
+CZ_CHK_EXTRA = ('kr',)   # v330 (zb07-03): części, których rynek bywa poniżej progu „dużych” (Kraken: BTC 0,74 %, ETH 0,44 % pozycji) — stawka do potwierdzenia okresu osobno
+
+
+def cz_chk_sym(cz, c, code, names):
+    """v330 (zb07-03): symbol rynku giełdy `code` (moneta c) u pośrednika, którego nazwa bez końcówki giełdy równa się jednej z `names` BEZ względu na wielkość
+    liter (pośrednik podaje 'pf_xbtusd.K', nasz odczyt Krakena 'PF_XBTUSD'); brak = None."""
+    low = {str(n).lower() for n in names if n}
+    return next((r[0] for r in ((cz.get('mk') or {}).get(c) or {}).get('all') or [] if r[1] == code and r[0].rsplit('.', 1)[0].lower() in low), None)
+
+
+def cz_chk_rates(cz, c, rows, key, out, now):
+    """v330 (zb07-03): stawki rynków z CZ_CHK_EXTRA, które mamy odczytane bezpośrednio (cz_direct), a które nie weszły do `rows` (duże rynki monety, ≥ CZ_MINSHARE
+    pozycji) — jedno dodatkowe zapytanie (1–2 symbole), tylko gdy zostało budżetu przebiegu (_CZ_LEFT); bez niego okres giełdy nie byłby nigdy potwierdzony.
+    Nieudane zapytanie nie psuje zadania (notatka; potwierdzenie przy następnym odczycie). → {symbol: (stawka % za okres, update ms)}."""
+    have = {r[0] for r in rows}
+    want = []
+    for code, name in (cz.get('ex') or {}).items():
+        p = cz_part_of(name)
+        d = cz_direct(out, p, c, now) if p in CZ_CHK_EXTRA else None
+        sym = cz_chk_sym(cz, c, code, d[2]) if d else None
+        if sym and sym not in have and sym not in want:
+            want.append(sym)
+    if not want or _CZ_LEFT[0] < len(want):
+        return {}
+    try:
+        return cz_cur(cz_many('funding-rate', want, key, {}))
+    except Exception as e:  # noqa — stawka do porównania jest dodatkiem; zadanie finansowania liczy dalej
+        META['notes'].append(mask(f'Dźwignia: {CZ_PX}: stawka do potwierdzenia okresu ({", ".join(want)}): {e}')[:300])
+        return {}
+
+
 def cz_check(c, rates, cz, out, now):
     """Zgodność stawki pośrednika z naszym odczytem tej samej giełdy (moneta c): r = stawka pośrednika / stawka giełdy za okres z tabeli
     CZ_FR_H (OKX: okres z naszego odczytu). r w CZ_CHK_BAND [0,5; 2] = okres potwierdzony; poza = niezgodny (giełda nie jest przeliczana
     na rok) — pośrednik podający stawkę przeliczoną na 4 h albo 8 h zamiast okresu giełdy daje r ≈ 4 albo 8 i nie przejdzie;
-    stawka bliska zera albo brak świeżego odczytu = nierozstrzygające (bez wpisu). → {'<część>:<moneta>': {r, ok, t (, h, sym)}}."""
+    stawka bliska zera albo brak świeżego odczytu = nierozstrzygające (bez wpisu). → {'<część>:<moneta>': {r, ok, t (, h, sym)}}.
+    v330 (zb07-03): nazwy rynków (i klucze stawek) porównywane bez względu na wielkość liter."""
     res = {}
     for code, name in (cz.get('ex') or {}).items():
         p = cz_part_of(name)
@@ -13942,8 +13992,8 @@ def cz_check(c, rates, cz, out, now):
             continue
         f, h, names = d
         hh = h if p == 'okx' else CZ_FR_H.get(p)
-        sym = next((r[0] for r in ((cz.get('mk') or {}).get(c) or {}).get('all') or [] if r[1] == code and r[0].rsplit('.', 1)[0] in names), None)
-        v = rates.get(sym) if sym else None
+        sym = cz_chk_sym(cz, c, code, names)   # v330: bez względu na wielkość liter
+        v = (rates.get(sym) or {k.lower(): x for k, x in rates.items()}.get(sym.lower())) if sym else None
         if not hh or v is None or abs(f / h) < CZ_CHK_MIN:
             continue
         r = round((v[0] / 100) / (f / h * hh), 3)   # granice pasma na tej samej liczbie, która trafia do pliku
@@ -14147,6 +14197,7 @@ def cz_t_fr(cz, c, key, out, now):
     rows = cz_big_rows(cz, c)
     rates = cz_cur(cz_many('funding-rate', [r[0] for r in rows], key, {}))
     if c in ('BTC', 'ETH') and isinstance(out, dict):
+        rates = {**rates, **cz_chk_rates(cz, c, rows, key, out, now)}   # v330 (zb07-03): + stawka Krakena (poza `rows`, więc nie wchodzi do średniej)
         cz['chk'].update(cz_check(c, rates, cz, out, now))
     agg = cz_fr(rows, rates, cz['s'], lambda sym, code: cz_hours(sym, code, c, cz, now), now)
     if agg is None:

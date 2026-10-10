@@ -17653,8 +17653,20 @@ class KryptoTop10V140(unittest.TestCase):
         self.assertEqual(out['g']['l1']['c'], base['g']['l1']['c']); self.assertFalse(any(out['ok'].values()))
         self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: ceny ('), zd.META['errors'])
         zd.META['errors'].clear()
-        with self.assertRaisesRegex(RuntimeError, 'żadna grupa'):
-            self._build(self._aged(base, zd.T10_MAX_AGE + 1, groups=()), logo, fail=('ids',))   # plik starszy niż 3 doby — bez podmiany
+        # v330 (ZB04-02, świadoma zmiana): wiek wiersza liczony z JEGO czasu notowania (kolumna upd), nie z czasu pliku. Plik „sprzed 3 dób” z młodymi
+        # notowaniami przenosi wiersze; plik ze starymi notowaniami = puste grupy i ZAPISANY plik (ok = False), nie wyjątek — inaczej main zostawiłby
+        # poprzedni plik z 71-godzinnymi wierszami (wyjątek zostaje tylko bez poprzedniego pliku — zob. wyżej)
+        out, _ = self._build(self._aged(base, zd.T10_MAX_AGE + 1, groups=()), logo, fail=('ids',))
+        self.assertEqual(out['g']['l1']['c'], base['g']['l1']['c'], 'stary czas pliku, młode notowania — wiersze zostają')
+        zd.META['errors'].clear()
+        stare = self._aged(base, zd.T10_MAX_AGE + 1, groups=())
+        for g in stare['g'].values():
+            for r in g['c']:
+                r[6] = (T10_NOW - datetime.timedelta(minutes=zd.T10_MAX_AGE + 1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        out, lg = self._build(stare, logo, fail=('ids',))
+        self.assertTrue(all(g['c'] == [] and g['sk'] is None and g['pool'] == [] for g in out['g'].values()), 'stare notowania — grupy puste (brak danych)')
+        self.assertFalse(any(out['ok'].values())); self.assertIs(lg, logo, 'loga bez zmian')
+        self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: ceny ('), zd.META['errors'])
         zd.META['errors'].clear()
         prev = self._aged(base, 60, groups=()); prev['g']['depin']['sk'] = (T10_NOW - datetime.timedelta(minutes=400)).isoformat()
         out, _ = self._build(prev, logo, fail=('depin',))                   # kategoria zawiodła — kandydaci z poprzedniego składu dostają nowe ceny
@@ -41125,3 +41137,199 @@ class ZapasyV328(unittest.TestCase):
         for a, b in (('2026-11-25', '2026-11-27'), ('2026-09-04', '2026-09-08'), ('2026-07-02', '2026-07-06'), ('2026-04-02', '2026-04-06'), ('2027-11-24', '2027-11-26')):
             self.assertEqual(zd._bdays(datetime.date.fromisoformat(a), datetime.date.fromisoformat(b), zd.TD_NYSE_CLOSED), 1, (a, b))
         self.assertEqual(zd._bdays(datetime.date(2026, 11, 20), datetime.date(2026, 11, 25), zd.TD_NYSE_CLOSED), 3)
+
+
+class KryptoZ6V330(unittest.TestCase):
+    """v330 (pas Z6 planu napraw + Z05-1): ZB04-02 (top 10: wiek wierszy z ich notowania, puste grupy zapisane), zb07-03 (finansowanie Krakena:
+    wielkość liter i dopytanie o stawkę), ZB02-04 (stablecoiny wg sieci: brak ≠ 0), Z05-1 (karty krypto: z nie przekracza progu przez zaokrąglenie).
+    Bez sieci i bez zegara: get_json / cz_many zaślepione, czas przypięty."""
+    UTC = datetime.timezone.utc
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.addCleanup(lambda: (zd.META['errors'].clear(), zd.META['notes'].clear(), zd.META['ok'].clear()))
+        self.clock, self.imgs = [1000.0], []
+        self.enterContext(mock.patch.object(zd, '_t10_mono', lambda: self.clock[0]))
+        self.enterContext(mock.patch.object(zd, '_t10_sleep', lambda s: self.clock.__setitem__(0, self.clock[0] + s)))
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [None]))
+        self.enterContext(mock.patch.object(zd, 'NOW', self.KNOW.isoformat()))   # czas potwierdzeń w chk — przypięty
+
+    # ---------------------------------------------------------------- ZB04-02
+    def _t10(self, prev=None, prev_logo=None, now=None, down=False):
+        def get_json(url, headers=None, timeout=30):
+            if down:
+                raise _t10_ue.HTTPError(url, 503, 'Service Unavailable', None, None)
+            q = _t10_up.parse_qs(_t10_up.urlsplit(url).query)
+            if 'category' in q:
+                return _t10_copy.deepcopy(T10_FIX[q['category'][0]])
+            want, seen = set(q['ids'][0].split(',')), {}
+            for rows in T10_FIX.values():
+                for x in rows:
+                    if x['id'] in want and x['id'] not in seen:
+                        seen[x['id']] = _t10_copy.deepcopy(x)
+            return list(seen.values())
+
+        def get_bytes(url, headers=None, timeout=60):
+            self.imgs.append(url)
+            return T10_PNG
+        with mock.patch.object(zd, 'get_json', get_json), mock.patch.object(zd, 'get_bytes', get_bytes):
+            return zd.build_krypto_top10('KLUCZ', prev, prev_logo, now=now or T10_NOW)
+
+    def _n(self, out):
+        return sum(len(g['c']) for g in out['g'].values())
+
+    def test_zb0402_rows_expire_by_own_quote_time_and_file_is_written(self):
+        """4 doby godzinnych przebiegów przy niedziałającym API, każdy z wynikiem poprzedniego jako prev (tak woła main()): wiersze znikają, gdy NOTOWANIE
+        ma ≥ T10_MAX_AGE min; plik jest za każdym razem zapisywany (nowy czas, ok = False, błąd w meta); po 72 h grupy puste, loga bez zmian."""
+        base, logo = self._t10()
+        self.assertEqual(self._n(base), 80)
+        n_img0 = len(self.imgs)
+        quote = lambda r: datetime.datetime.fromisoformat(r[6].replace('Z', '+00:00'))   # noqa: E731
+        prev, plog, sizes, logs = base, logo, {}, {}
+        for h in range(1, 4 * 24 + 1):
+            now = T10_NOW + datetime.timedelta(hours=h)
+            zd.META['errors'].clear()
+            prev, plog = self._t10(prev, plog, now=now, down=True)
+            sizes[h] = self._n(prev)
+            logs[h] = plog
+            ref = sum(1 for g in base['g'].values() for r in g['c'] if (now - quote(r)).total_seconds() / 60 < zd.T10_MAX_AGE)
+            self.assertEqual(sizes[h], ref, f'po {h} h: wiek z notowania wiersza')
+            self.assertEqual(prev['at'], now.replace(microsecond=0).isoformat(), 'plik zapisany w każdym przebiegu')
+            self.assertFalse(any(prev['ok'].values()), f'po {h} h'); self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: '), zd.META['errors'])
+        self.assertEqual((sizes[1], sizes[24]), (80, 80)); self.assertEqual((sizes[72], sizes[73], sizes[96]), (0, 0, 0), 'po 72 h żadnej starej ceny')
+        self.assertTrue(all(g['c'] == [] and g['sk'] is None and g['pool'] == [] for g in prev['g'].values()), 'pusta grupa = brak danych (strona: „brak danych”)')
+        self.assertTrue(logs[72] is logs[71] and logs[96] is logs[72] and plog is logs[96], 'loga bez zmian po opróżnieniu grup (nie kasowane razem z nimi)')
+        self.assertTrue(plog['logo'] and len(self.imgs) == n_img0, 'loga zostały, żadnego nowego pobierania')
+        # powrót źródła: grupy pełne, skład z kategorii, loga z poprzedniego pliku (bez ponownego pobierania)
+        n_img = len(self.imgs)
+        out, lg = self._t10(prev, plog, now=T10_NOW + datetime.timedelta(hours=100))
+        self.assertEqual(self._n(out), 80); self.assertTrue(all(out['ok'].values()))
+        self.assertLess(len(self.imgs) - n_img, 5, 'loga z poprzedniego pliku zostały (nowe tylko dla monet, które wcześniej wypadły z grup)')
+
+    def test_zb0402_file_age_is_not_row_age_and_missing_time_is_dropped(self):
+        base, logo = self._t10()
+        stary_plik = _t10_copy.deepcopy(base); stary_plik['at'] = (T10_NOW - datetime.timedelta(hours=100)).isoformat()
+        out, _ = self._t10(stary_plik, logo, now=T10_NOW + datetime.timedelta(hours=1), down=True)
+        self.assertEqual(self._n(out), 80, 'czas pliku nie decyduje — młode notowania zostają')
+        bez = _t10_copy.deepcopy(base); bez['g']['l1']['c'][0][6] = None; bez['g']['l1']['c'][1][6] = 'zły'
+        out, _ = self._t10(bez, logo, now=T10_NOW + datetime.timedelta(hours=1), down=True)
+        self.assertEqual(len(out['g']['l1']['c']), 8, 'wiersz bez czasu notowania (albo ze złym) nie jest przenoszony'); self.assertEqual(self._n(out), 78)
+        zd.META['errors'].clear()
+        with self.assertRaisesRegex(RuntimeError, 'żadna grupa nie ma monet'):
+            self._t10(down=True)   # bez poprzedniego pliku nie ma czego zapisać — wyjątek jak dotąd
+
+    # ---------------------------------------------------------------- zb07-03
+    KNOW = datetime.datetime(2026, 10, 10, 7, 44, 6, tzinfo=datetime.timezone.utc)
+
+    def _kr(self):
+        t = '2026-10-10T07:23:04+00:00'
+        out = {'kr': {'t': t, 'f_hours': 1, 'BTC': {'f_h': 1.0564662e-05, 'f_hours': 1, 't': t, 'sym': 'PF_XBTUSD'},
+                      'ETH': {'f_h': 8.120404e-06, 'f_hours': 1, 't': t, 'sym': 'PF_ETHUSD'}}}
+        s = '2026-10-10T07:30:00+00:00'
+        cz = zd.cz_norm({'ex': {'K': 'Kraken', 'A': 'Binance'},
+                         'mk': {'BTC': {'all': [['BTCUSDT_PERP.A', 'A', 'USDT', 0], ['pf_xbtusd.K', 'K', 'USD', 0]], 'big': ['BTCUSDT_PERP.A']},
+                                'ETH': {'all': [['ETHUSDT_PERP.A', 'A', 'USDT', 0], ['pf_ethusd.K', 'K', 'USD', 0]], 'big': ['ETHUSDT_PERP.A']},
+                                'XRP': {'all': [['XRPUSDT_PERP.A', 'A', 'USDT', 0], ['pf_xrpusd.K', 'K', 'USD', 0]], 'big': ['XRPUSDT_PERP.A', 'pf_xrpusd.K']}},
+                         's': {'pf_xrpusd.K': [2e8, s], 'XRPUSDT_PERP.A': [8e8, s], 'BTCUSDT_PERP.A': [9e9, s], 'ETHUSDT_PERP.A': [4e9, s]}})
+        return out, cz
+
+    def _many(self, mult=1.0, fail_kraken=False):
+        """Zaślepka cz_many: odpowiedź pośrednika; Kraken (symbol kończy się .K) = nasza stawka godzinowa × mult (w %), reszta 0,0042 %."""
+        out, _ = self._kr(); ms = int(self.KNOW.timestamp() * 1000); calls = self.calls = []
+
+        def many(path, syms, key, params):
+            calls.append(list(syms))
+            if fail_kraken and all(x.endswith('.K') for x in syms):
+                raise RuntimeError('HTTP 400')
+            res = []
+            for x in syms:
+                c = 'BTC' if x.lower().startswith('pf_xbt') else 'ETH' if x.lower().startswith('pf_eth') else None
+                res.append({'symbol': x, 'value': out['kr'][c]['f_h'] * 100 * mult if c else (0.001 if x.endswith('.K') else 0.0042), 'update': ms})
+            return res
+        return many
+
+    def test_zb0703_check_ignores_letter_case(self):
+        out, cz = self._kr(); ms = int(self.KNOW.timestamp() * 1000); fh = out['kr']['BTC']['f_h'] * 100
+        r = zd.cz_check('BTC', {'pf_xbtusd.K': (fh, ms)}, cz, out, self.KNOW)
+        self.assertEqual({k: (v['r'], v['ok']) for k, v in r.items()}, {'kr:BTC': (1.0, True)}, 'symbol pośrednika małymi, nasz wielkimi literami')
+        r = zd.cz_check('BTC', {'PF_XBTUSD.K': (fh, ms)}, cz, out, self.KNOW)
+        self.assertEqual(r['kr:BTC']['ok'], True, 'klucz stawki innej wielkości niż symbol z listy rynków')
+        r = zd.cz_check('BTC', {'pf_xbtusd.K': (fh * 8, ms)}, cz, out, self.KNOW)
+        self.assertEqual((r['kr:BTC']['r'], r['kr:BTC']['ok']), (8.0, False), 'stawka przeliczona na 8 h przez pośrednika = niezgodna')
+        self.assertEqual(zd.cz_check('BTC', {}, cz, out, self.KNOW), {}, 'brak stawki rynku = nierozstrzygające')
+
+    def test_zb0703_fr_asks_kraken_rate_though_small_market_and_confirms_period(self):
+        out, cz = self._kr()
+        self.enterContext(mock.patch.object(zd, '_CZ_LEFT', [32]))
+        with mock.patch.object(zd, 'cz_many', self._many()):
+            zd.cz_t_fr(cz, 'BTC', 'KLUCZ', out, self.KNOW)
+            self.assertEqual(self.calls, [['BTCUSDT_PERP.A'], ['pf_xbtusd.K']], 'duże rynki jednym zapytaniem, Kraken (0,7 % pozycji) osobnym')
+            zd.cz_t_fr(cz, 'ETH', 'KLUCZ', out, self.KNOW)
+        self.assertEqual({k: v['ok'] for k, v in cz['chk'].items()}, {'kr:BTC': True, 'kr:ETH': True})
+        self.assertEqual(zd.cz_hours('pf_xrpusd.K', 'K', 'XRP', cz, self.KNOW), 1, 'okres Krakena potwierdzony dla każdego jego rynku')
+        self.assertEqual(sorted(cz['c']['BTC']['f']['by']), ['A'], 'Kraken nie wchodzi do średniej monety, w której nie jest dużym rynkiem')
+        with mock.patch.object(zd, 'cz_many', self._many()):
+            zd.cz_t_fr(cz, 'XRP', 'KLUCZ', out, self.KNOW)
+        f = cz['c']['XRP']['f']
+        self.assertEqual((f['yv'], f['by']['K'][1]), ('K', 1)); self.assertEqual(f['by']['K'][3], round(0.001 * 24 * 365, 3)); self.assertEqual(f['y'], f['by']['K'][3])
+        self.assertEqual(len(self.calls), 1, 'moneta inna niż BTC/ETH: bez dodatkowego zapytania')
+        self.assertEqual(zd.META['notes'], [])
+
+    def test_zb0703_other_period_is_not_confirmed(self):
+        out, cz = self._kr()
+        self.enterContext(mock.patch.object(zd, '_CZ_LEFT', [32]))
+        with mock.patch.object(zd, 'cz_many', self._many(mult=8.0)):
+            zd.cz_t_fr(cz, 'BTC', 'KLUCZ', out, self.KNOW)
+        self.assertEqual((cz['chk']['kr:BTC']['r'], cz['chk']['kr:BTC']['ok']), (8.0, False))
+        self.assertIsNone(zd.cz_hours('pf_xrpusd.K', 'K', 'XRP', cz, self.KNOW), 'niezgodny okres — stawka nie jest przeliczana na rok')
+
+    def test_zb0703_no_budget_or_failed_extra_call_does_not_fail_the_task(self):
+        out, cz = self._kr()
+        self.enterContext(mock.patch.object(zd, '_CZ_LEFT', [0]))
+        with mock.patch.object(zd, 'cz_many', self._many()):
+            zd.cz_t_fr(cz, 'BTC', 'KLUCZ', out, self.KNOW)
+        self.assertEqual(self.calls, [['BTCUSDT_PERP.A']], 'budżet wyczerpany — bez dodatkowego zapytania, bez wyjątku'); self.assertNotIn('kr:BTC', cz['chk'])
+        self.assertIn('f', cz['c']['BTC'], 'zadanie finansowania BTC policzone')
+        zd._CZ_LEFT[0] = 32
+        with mock.patch.object(zd, 'cz_many', self._many(fail_kraken=True)):
+            zd.cz_t_fr(cz, 'ETH', 'KLUCZ', out, self.KNOW)
+        self.assertIn('ETH', cz['c']); self.assertNotIn('kr:ETH', cz['chk'])
+        self.assertTrue(zd.META['notes'] and 'pf_ethusd.K' in zd.META['notes'][0] and 'HTTP 400' in zd.META['notes'][0], zd.META['notes'])
+        self.assertEqual(zd.META['errors'], [])
+
+    # ---------------------------------------------------------------- ZB02-04
+    def test_zb0204_chain_without_comparison_is_none_not_zero(self):
+        j = {'peggedAssets': [{'pegType': 'peggedUSD', 'chainCirculating': {
+            'Ethereum': {'current': {'peggedUSD': 100.0}, 'circulatingPrevDay': {'peggedUSD': 99.0}, 'circulatingPrevWeek': {'peggedUSD': 90.0}, 'circulatingPrevMonth': {'peggedUSD': 80.0}},
+            'Arc': {'current': {'peggedUSD': 50.0}, 'circulatingPrevDay': {'peggedUSD': 49.0}, 'circulatingPrevWeek': {'peggedUSD': 45.0}},
+            'Nowa': {'current': {'peggedUSD': 7.0}}}}]}
+        out = zd.parse_stabc(j)
+        rows = {r[0]: r for r in out['rows']}
+        self.assertEqual(rows['Ethereum'], ['Ethereum', 100, 1, 10, 20])
+        self.assertEqual(rows['Arc'], ['Arc', 50, 1, 5, None], '30 dni: brak wartości porównawczej = None, nie 0')
+        self.assertEqual(rows['Nowa'], ['Nowa', 7, None, None, None])
+        self.assertEqual(out['total'], [157, 2, 15, 20], 'sumy bez sieci, które nie mają wartości w danym oknie'); self.assertEqual(out['n'], 3)
+        json.dumps(out, allow_nan=False)
+        j2 = {'peggedAssets': [{'pegType': 'peggedUSD', 'chainCirculating': {'Arc': {'current': {'peggedUSD': 50.0}, 'circulatingPrevDay': {'peggedUSD': 49.0}}}}]}
+        self.assertEqual(zd.parse_stabc(j2)['total'], [50, 1, None, None], 'żadna sieć bez wartości w oknie — suma None')
+        self.assertEqual(zd.parse_stabc(j, top=1)['total'], out['total'], 'suma po wszystkich sieciach, nie tylko pokazanych')
+
+    # ---------------------------------------------------------------- Z05-1
+    def _cr_row(self, V):
+        dates = [(datetime.date(2026, 9, 26) - datetime.timedelta(days=49 - i)).isoformat() for i in range(50)]
+        s = {'id': 'BNB', 'sym': 'BNB', 'dates': dates, 'in': {k: [1.0] * 50 for k in 'ptesh'}, 'late': False, 'on': {}}
+        now = datetime.datetime(2026, 9, 27, 9, 0, tzinfo=self.UTC)
+        vd = {('cr', k): 'none' for _, k in zd.TD_RULES_CR2}
+        with mock.patch.object(zd, '_td_votes', lambda s_, i: (V, sum(x[2] for x in V.values()))):
+            return zd._td_row_cr2(s, vd, {}, now.date(), now)
+
+    def test_z051_crypto_card_z_never_crosses_a_threshold_by_rounding(self):
+        V = {'p': (0.5, -1.9962, -1, True), 't': (10.0, 0.9996, 0, True), 'e': (5.0, 1.9999, -1, True), 's': (3.0, -2.0001, -1, True), 'h': (0.001, 3.14159, -1, True)}
+        r = self._cr_row(V)
+        self.assertEqual([x[2] for x in r['rs']], [-1.99, 0.99, 1.99, -2.0, 3.14], 'z pod progiem zostaje pod progiem (BNB 30.10.2024: −1,9962 → −1,99)')
+        self.assertEqual((r['zp'], r['r']), (-1.99, 0.5)); self.assertEqual(r['zp'], r['rs'][0][2], 'zp = z powodu p')
+        self.assertEqual([x[3] for x in r['rs']], [-1, 0, -1, -1, -1], 'głosy bez zmian (liczone z niezaokrąglonego z)')
+        self.assertEqual(r['str'], 3, 'siła dnia bez zmian: ponad próg tylko s (−2,0001) i h (3,14) -> 3 powody + mocno')
+        for z in (1.0, 2.0, -1.0, -2.0, 1.0004, 2.5, None):   # z na progu albo nad nim bez zmian
+            V = {'p': (0.5, z, 0, True)}
+            self.assertEqual(self._cr_row(V)['zp'], (None if z is None else round(z, 2)), z)
