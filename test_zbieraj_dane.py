@@ -35538,7 +35538,7 @@ class SzlakiV305(unittest.TestCase):
         y['bcpi']['s']['calosc']['d'][-1][1] = 1000.0
         P2 = k.szlaki_porownania(y)
         self.assertEqual([w[1] for w in P2['wiersze']], ['⚠️', '⚠️', '⚠️'])
-        self.assertEqual(P2['uwagi'], ['szlaki: 2 wierszy źródła z sumą statków ≠ tankowce + pozostałe — sprawdzić (w historii 2019–2026: 0)',
+        self.assertEqual(P2['uwagi'], ['szlaki: 2 wiersze źródła z sumą statków ≠ tankowce + pozostałe — sprawdzić (w historii 2019–2026: 0)',   # v307: odmiana
                                        'szlaki: Malakka 2026-10-04 — 612 statków w jednym dniu (próg 500; w historii najwyżej 298) — sprawdzić',
                                        'szlaki: wskaźnik presji 2026-09 = +6,50 — poza zakresem ±6 (w historii −1,8 … 4,78) — sprawdzić',
                                        'szlaki: wskaźnik presji 2026-09 — zmiana o +5,30 w miesiąc (próg 2,5; w historii najwyżej 1,70) — sprawdzić',
@@ -36150,3 +36150,224 @@ class PolskaV304(unittest.TestCase):
         fetch, _ = self.siec({'o41': self.orlen(or41, 'Pb95')})
         o5 = zd.build_polska(None, now=self.NOW, fetch=fetch)
         self.assertEqual((o5['stacje']['pb95']['q'][0][:2], o5['stacje']['v8']), (['2026-10-05', 'nisko'], ['2026-10-05']))
+
+
+class DrobneV307(unittest.TestCase):
+    """v307: drobne uwagi recenzentów fali 4. Szlaki (v305): odmiana liczby statków i wierszy po polsku (kontrola, notatka zbieracza), skoki
+    tylko między DOKŁADNIE sąsiednimi tygodniami / miesiącami, cieśnina w tyle za najnowszym dniem (⚠️ w wierszu świeżości), błąd częściowy
+    części (pole cz), testy graniczne bramki 72 h, progu r7 i świeżości. RWA (v302): pełność punktu Ondo Global Markets — nagłówek zgodny
+    z punktem zakończonej doby albo z najnowszym punktem wykresu, gdy ten zgadza się z punktem zakończonej doby; chwila odczytu z innej doby
+    niż zegar. Bez sieci (nagrania v302 / v305), zegar przypięty."""
+    NOW = datetime.datetime(2026, 10, 8, 4, 30, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW.isoformat()))
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: self.NOW))
+        for n in ('post_json', 'get_bytes', 'get_json'):
+            self.enterContext(mock.patch.object(zd, n, side_effect=AssertionError('test nie może pytać sieci')))
+        self.sz = SzlakiV305()   # nagrania i atrapa sieci v305 (jego testy się tu nie uruchamiają)
+
+    def build(self, prev=None, now=None, **kw):
+        return zd.build_szlaki(prev, now=now or self.NOW, fetch=self.sz.fetch(**kw))
+
+    # ---- (1) odmiana po polsku ----
+    def test_odmiana_statkow_i_wierszy(self):
+        k = self.sz.kt()
+        for v, s in ((0, '0 statków'), (1, '1 statek'), (2, '2 statki'), (4, '4 statki'), (5, '5 statków'), (12, '12 statków'), (14, '14 statków'),
+                     (21, '21 statków'), (22, '22 statki'), (298, '298 statków'), (502, '502 statki'), (612, '612 statków'), (2.0, '2 statki'),
+                     (2.7, '2,7 statku'), (0.5, '0,5 statku'), (43.14, '43,14 statku')):
+            self.assertEqual(k._sz_k_statki(v), s, v)
+        o = self.build()
+        y = json.loads(json.dumps(o))
+        y['cies']['k']['malakka']['d'][-1][1] = 502
+        for nz, w in ((1, '1 wiersz'), (2, '2 wiersze'), (5, '5 wierszy'), (12, '12 wierszy'), (22, '22 wiersze')):
+            y['cies']['nz'] = nz
+            U = k.szlaki_porownania(y)['uwagi']
+            self.assertEqual(U[0], f'szlaki: {w} źródła z sumą statków ≠ tankowce + pozostałe — sprawdzić (w historii 2019–2026: 0)')
+            self.assertEqual(U[1], 'szlaki: Malakka 2026-10-04 — 502 statki w jednym dniu (próg 500; w historii najwyżej 298) — sprawdzić')
+        # notatka zbieracza o wierszach źródła z niezgodną sumą (statki ≠ tankowce + pozostałe)
+        R = self.sz.wszystkie()
+        D = sorted(a['date'] for a in R if a['portid'] == 'chokepoint2' and a['date'] >= self.sz.PW_OD)
+        for i, w in ((1, '1 wiersz'), (2, '2 wiersze'), (5, '5 wierszy')):
+            zd.META['notes'].clear()
+            zle = [dict(a, n_cargo=a['n_cargo'] + 1) if a['portid'] == 'chokepoint2' and a['date'] in D[:i] else a for a in R]
+            o2 = zd.build_szlaki(None, now=self.NOW, fetch=self.sz.fetch(rows=zle))
+            self.assertEqual((o2['cies']['nz'], o2['ok']['cies']), (i, True))
+            self.assertIn(f'szlaki: pw: {w} z sumą statków ≠ tankowce + pozostałe', zd.META['notes'])
+        self.assertEqual([zd._sz_odm(n, 'wiersz', 'wiersze', 'wierszy') for n in (0, 1, 3, 11, 13, 23, 104, 112)],
+                         ['wierszy', 'wiersz', 'wiersze', 'wierszy', 'wierszy', 'wiersze', 'wiersze', 'wierszy'])
+
+    # ---- (3) skoki tylko między sąsiednimi tygodniami / miesiącami ----
+    def test_kontrola_skoki_tylko_sasiednie(self):
+        k = self.sz.kt()
+        o = self.build()
+        st = lambda x, w: dict(k.szlaki_porownania(x)['wiersze'])[w]   # noqa: E731
+        B, P = 'indeks cen surowców: skoki tygodniowe', 'wskaźnik presji: zakres i skoki'
+        y = json.loads(json.dumps(o)); c = y['bcpi']['s']['calosc']['d']
+        self.assertEqual([x[0] for x in c[-3:]], ['2026-09-16', '2026-09-23', '2026-09-30'])
+        del c[-2]; c[-1][1] = 1010.0   # 16.09 → 30.09: +31,2% w 2 tygodnie (luka w serii)
+        self.assertEqual(st(y, B), '✅', 'zmiana z dwóch tygodni to nie skok tygodniowy')
+        self.assertFalse([u for u in k.szlaki_porownania(y)['uwagi'] if 'indeks cen' in u])
+        y = json.loads(json.dumps(o)); y['bcpi']['s']['calosc']['d'][-1][1] = 1010.0   # 23.09 → 30.09: +35,9%
+        self.assertEqual(st(y, B), '⚠️')
+        y = json.loads(json.dumps(o)); p = y['presja']['d']
+        self.assertEqual([x[0] for x in p[-3:]], ['2026-07', '2026-08', '2026-09'])
+        del p[-2]; p[-1][1] = 3.6   # lipiec 0,93 → wrzesień 3,6: +2,67 w dwa miesiące
+        self.assertEqual(st(y, P), '✅', 'luka miesiąca — bez skoku')
+        y = json.loads(json.dumps(o)); y['presja']['d'][-1][1] = 3.8   # sierpień 1,20 → wrzesień 3,8: +2,60 w miesiąc
+        self.assertEqual(st(y, P), '⚠️')
+        y = json.loads(json.dumps(o)); y['presja']['d'] = [['2025-12', 0.1], ['2026-01', 2.9]]
+        self.assertEqual(st(y, P), '⚠️', 'grudzień → styczeń to sąsiednie miesiące')
+        self.assertEqual((k._sz_k_dni('2026-09-23', '2026-09-30'), k._sz_k_dni('x', '2026-09-30')), (7, None))
+        self.assertEqual([k._sz_k_nast_mies(a, b) for a, b in (('2026-08', '2026-09'), ('2026-12', '2027-01'), ('2026-07', '2026-09'),
+                                                                ('2026-09', '2026-08'), ('2026-9', '2026-10'))], [True, True, False, False, False])
+
+    # ---- (4) cieśnina w tyle za najnowszym dniem ----
+    def test_kontrola_ciesnina_w_tyle(self):
+        k = self.sz.kt()
+        o = self.build()
+        lab, t = k.SZ_K_ETYKIETA['cies'], datetime.datetime(2026, 10, 8, 6, 20, tzinfo=datetime.timezone.utc)
+        row = lambda x, now=t: {r[0]: r for r in k.szlaki_swiezosc(x, now)}[lab]   # noqa: E731
+        self.assertEqual(k.SZ_K_OPOZN, 7); self.assertEqual(row(o)[1:], ('✅', row(o)[2], '2026-10-04', ''))
+        for asof, st in (('2026-09-27', '✅'), ('2026-09-26', '⚠️')):
+            y = json.loads(json.dumps(o)); y['cies']['k']['bab']['asof'] = asof
+            r = row(y)
+            self.assertEqual((r[1], r[3]), (st, '2026-10-04'), asof)
+        self.assertEqual(r[4], 'cieśniny w tyle za najnowszym dniem (2026-10-04): Bab el-Mandeb — ostatni dzień 2026-09-26, 8 dni wcześniej '
+                               '(próg 7 dni; w historii 2019–2026: 0) — najwyżej uwaga')
+        y = json.loads(json.dumps(o)); del y['cies']['k']['bab']; y['cies']['k']['ormuz']['asof'] = 'zły'
+        r = row(y)
+        self.assertEqual(r[1], '⚠️'); self.assertIn(': Ormuz — brak daty ostatniego dnia, Bab el-Mandeb — brak w pliku (próg 7 dni', r[4])
+        late = row(y, datetime.datetime(2026, 10, 15, 0, 1, tzinfo=datetime.timezone.utc))
+        self.assertEqual(late[1], '⚠️'); self.assertIn('spodziewana publikacja', late[4]); self.assertIn('; cieśniny w tyle za najnowszym dniem', late[4])
+        self.assertEqual(row(dict(o, cies={}))[1], '?', 'część bez danych — jak dotąd')
+        self.assertEqual(k._sz_k_opozn({'asof': '2026-10-04', 'k': {}}), [], 'bez cieśnin — opisuje to wiersz świeżości / błąd zbieracza')
+        R = {'bledy': [], 'uwagi': []}
+        y = json.loads(json.dumps(o)); y['cies']['k']['suez']['asof'] = '2026-09-01'
+        self.assertEqual(k.szlaki_kontrola(y, R)['spojnosc'], [], 'opóźnienie to nie sprzeczność (bez ❌)'); self.assertEqual(R['bledy'], [])
+
+    # ---- (5) testy graniczne ----
+    def test_bramka_zaleglosci_72h(self):
+        utc = datetime.timezone.utc
+        pub = datetime.datetime(2026, 10, 13, 12, 10, tzinfo=utc)
+        self.assertEqual(zd.SZ_ZALEGLE_H, 72)
+        self.assertEqual(zd._sz_oczek('pw', pub + datetime.timedelta(hours=73)), ('2026-10-10', pub))
+        z = lambda t, m: {'at': '2026-10-13T11:00:00+00:00', 'try': (t - datetime.timedelta(minutes=m)).isoformat(), 'asof': '2026-10-04'}   # noqa: E731
+        for hh, mm, m, due in ((71, 0, 61, True), (71, 0, 59, False), (72, 0, 61, True), (72, 1, 61, False), (73, 0, 61, False),
+                               (73, 0, 359, False), (73, 0, 361, True)):
+            t = pub + datetime.timedelta(hours=hh, minutes=mm)
+            self.assertEqual(zd._sz_due('pw', z(t, m), t), due, (hh, mm, m))
+
+    def test_r7_ponizej_progu(self):
+        def rok(txt):
+            R = [a for a in self.sz.wszystkie() if not (a['portid'] == 'chokepoint1' and a['date'] < '2026-01-01')]
+            return sorted(R + self.sz.rows(self.sz.PWR_OD, txt, 'chokepoint1'), key=lambda a: (a['date'], a['portid']))
+        S = self.build(rows=rok('1,0,10 0,0,0 1,0,10 0,0,0 1,0,10 0,0,0 1,0,10'))['cies']['k']['suez']
+        self.assertEqual((S['s7'], S['r7'], S['chg']), (43.14, 0.57, None), 'rok wcześniej 0,57 statku dziennie (< 1) — bez zmiany w %')
+        S = self.build(rows=rok(' '.join(['1,0,10'] * 7)))['cies']['k']['suez']
+        self.assertEqual((S['r7'], S['chg']), (1.0, 4214.0), 'dokładnie 1 statek dziennie — próg włącznie')
+        self.assertEqual(zd.SZ_R7_MIN, 1.0)
+
+    def test_swiezosc_tuz_przed_progiem(self):
+        k = self.sz.kt()
+        o = self.build()
+        utc = datetime.timezone.utc
+        st = lambda *a: [r[1] for r in k.szlaki_swiezosc(o, datetime.datetime(*a, tzinfo=utc))]   # noqa: E731
+        self.assertEqual(st(2026, 10, 14, 23, 0)[0], '✅', 'cieśniny: 9 d 23 h')
+        self.assertEqual(st(2026, 10, 15, 0, 0)[0], '✅', 'cieśniny: równo 10 dni — jeszcze bez uwagi')
+        self.assertEqual(st(2026, 10, 15, 0, 1)[0], '⚠️')
+        self.assertEqual(st(2026, 10, 16, 23, 0)[2], '✅', 'indeks cen: 15 d 23 h')
+        self.assertEqual(st(2026, 10, 17, 0, 0)[2], '✅')
+        self.assertEqual(st(2026, 10, 17, 0, 1)[2], '⚠️')
+
+    # ---- (6) błąd częściowy części ----
+    def test_blad_czesciowy_pole_cz(self):
+        o = self.build()
+        self.assertNotIn('cz', o, 'bez braków — bez pola cz')
+        bez = [a for a in self.sz.wszystkie() if a['portid'] != 'chokepoint4']
+        o2 = self.build(rows=bez)
+        self.assertEqual((o2['ok'], o2['cz'], o2['err']), ({'cies': False, 'presja': True, 'bcpi': True}, {'cies': True}, {'cies': 'pw: brak cieśnin: bab'}))
+        self.assertEqual(o2['part_at']['cies'], '2026-10-08T04:30:00+00:00'); self.assertNotIn('bab', o2['cies']['k'])
+        o3 = self.build(o2, now=self.NOW + datetime.timedelta(minutes=10), rows=bez)
+        self.assertEqual((o3['ok']['cies'], 'cz' in o3), ('cached', False), 'pole cz tylko w przebiegu z próbą (jak ok)')
+        o4 = self.build(o, now=datetime.datetime(2026, 10, 13, 12, 20, tzinfo=datetime.timezone.utc), fail={'pw'})
+        self.assertEqual((o4['ok']['cies'], 'cz' in o4), (False, False), 'błąd całego źródła — bez cz (strona: „pobranie się nie udało”)')
+
+        def bez_rolnych(j):
+            del j['seriesDetail']['W.AGRI']
+        o5 = self.build(bcpi=self.sz.bcpi_json(bez_rolnych))
+        self.assertEqual((o5['ok']['bcpi'], o5['cz'], sorted(o5['bcpi']['s'])), (False, {'bcpi': True}, ['calosc', 'energia', 'metale']))
+        self.assertIn('szlaki bcpi: brak serii W.AGRI', zd.META['errors'])
+
+    # ---- (7) RWA: nagłówek a najnowszy punkt wykresu ----
+    P07 = '{"x":"$D2026-10-07T00:00:00.000Z","y":1332806981.2192812}'
+
+    def gm(self, hl, y08, t='2026-10-08T15:20:00.000Z'):
+        g = _RWE302_08.replace('"gmTvl":1313400574.151612', f'"gmTvl":{hl}')
+        if y08 is not None:
+            g = g.replace(self.P07 + ']', self.P07 + f',{{"x":"$D{t}","y":{y08}}}]')
+        return _rwe302_s(g)
+
+    def test_rwa_naglowek_z_najnowszym_punktem(self):
+        T = '2026-10-08T16:00:00+00:00'
+        # recenzja: punkt bieżącej doby (08.10) i nagłówek przy nim (różnica wykres / nagłówek ok. 1,5%) — spadek dnia o 1% i o 0,6%; v302 dawał
+        # błąd do północy UTC
+        for hl, y08 in ((1300000000.0, 1319478911.4), (1305500000.0, 1324810000.0)):
+            r = zd.rwe_ondo_gm_parse(self.gm(hl, y08), T)
+            self.assertEqual((r['v'], r['as_of'], r['hl'], r['n']), (1332806981.2192812, '2026-10-07T00:00:00+00:00', hl, 6))
+            self.assertGreater(abs(r['v'] / hl - 1), zd.RWE_GM_ZGODA, 'punkt zakończonej doby poza ±2% nagłówka — przyjęty dzięki najnowszemu punktowi')
+        # nagłówek jeszcze przy punkcie zakończonej doby, punkt bieżącej doby inny (jak 26.05, 06.06, 16.06 w archiwum strony) — przyjęty jak w v302
+        r = zd.rwe_ondo_gm_parse(self.gm(1330000000.0, 1250000000.0), T)
+        self.assertEqual((r['as_of'], r['v']), ('2026-10-07T00:00:00+00:00', 1332806981.2192812))
+        # nagłówek przy najnowszym punkcie, ale punkt zakończonej doby o ponad 2% od najnowszego (jak 05.05.2026 w archiwum: punkt dnia niepełny,
+        # −4,17% wobec wersji ostatecznej) — błąd (poprzedni odczyt w sumach), nie liczba z niepełnego punktu
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_ondo_gm_parse(self.gm(1380000000.0, 1385000000.0), T)
+        m3 = str(c.exception)
+        self.assertEqual(m3, 'punkt dnia 2026-10-07 (1332.8 mln USD) różni się o -3.42% od nagłówka (1380.0) i o -3.77% od najnowszego '
+                             '2026-10-08T15:20 (1385.0) — więcej niż 2%')
+        # żaden z dwóch punktów nie zgadza się z nagłówkiem — błąd z oboma punktami
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_ondo_gm_parse(self.gm(1250000000.0, 1319478911.4), T)
+        m2 = str(c.exception)
+        self.assertEqual(m2, 'punkt dnia 2026-10-07 (1332.8 mln USD) i najnowszy 2026-10-08T15:20 (1319.5) różnią się od nagłówka (1250.0) '
+                             'o +6.62% i +5.56% — więcej niż 2%')
+        for m in (m2, m3):
+            self.assertLessEqual(len('ValueError: ' + m), 160, 'mieści się w polu err')
+        # bez punktu bieżącej doby — jak v302 (ten sam opis błędu)
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_ondo_gm_parse(self.gm(1250000000.0, None), T)
+        self.assertTrue(str(c.exception).startswith('dzienny punkt 2026-10-07 (1332.8 mln USD) różni się od nagłówka strony (1250.0 mln USD) o +6.62%'))
+
+        # granice (nagłówek 1000 mln, odczyt 07.10 18:00 — punkt 07.10 to bieżąca doba): najnowszy wobec nagłówka ±2% (punkt dnia blisko
+        # najnowszego, a poza ±2% nagłówka) i punkt dnia wobec najnowszego ±2% (najnowszy zgodny z nagłówkiem)
+        def gm2(y06, y07):
+            return _rwe302_s('"gmHolders":1,"gmTvl":1000000000.0,"gmTvlHistory":[{"x":"$D2026-10-06T00:00:00.000Z","y":' + y06 + '},'
+                             '{"x":"$D2026-10-07T00:00:00.000Z","y":' + y07 + '}]')
+        for y06, y07, ok in (('1025500000.0', '1020000000.0', True), ('1025500000.0', '1020000001.0', False),
+                             ('975000000.0', '980000000.0', True), ('975000000.0', '979999999.0', False),
+                             ('1039380000.0', '1019000000.0', True), ('1039380001.0', '1019000000.0', False),
+                             ('950000000.0', '1000000000.0', False)):
+            if ok:
+                self.assertEqual(zd.rwe_ondo_gm_parse(gm2(y06, y07), '2026-10-07T18:00:00+00:00')['v'], float(y06), (y06, y07))
+            else:
+                with self.assertRaises(ValueError, msg=(y06, y07)):
+                    zd.rwe_ondo_gm_parse(gm2(y06, y07), '2026-10-07T18:00:00+00:00')
+        self.assertIn('v307: albo gmTvl zgodny z najnowszym punktem wykresu, a ten z punktem dnia ±2%', zd.RWE_SRC)
+        self.assertIn('v302: ostatni punkt zakończonej doby gmTvlHistory, zgodny z gmTvl ±2%', zd.RWE_SRC)
+
+    # ---- (8) RWA: chwila odczytu z innej doby niż zegar ----
+    def test_rwa_odczyt_chwila_z_innej_doby(self):
+        zegar = datetime.datetime(2026, 10, 9, 13, 0, tzinfo=datetime.timezone.utc)
+        self.enterContext(mock.patch.object(zd, '_now_utc', lambda: zegar))
+        s = self.gm(1313400574.151612, 1320000000.0, '2026-10-08T00:00:00.000Z')
+        calls = []
+        get, post = _rwe170_net(calls, ondo=_rwe170_html(s))
+        now = datetime.datetime(2026, 10, 8, 16, 0, tzinfo=datetime.timezone.utc)
+        rd = zd.rwe_odczyt(now, fx=zd.rwe_fx(_RWE170_S, now), get=get, post=post, sleep=lambda s: None)
+        o = rd['r']['ondo-global-markets']
+        self.assertEqual((rd['at'], calls.count(zd.RWE_ONDO)), ('2026-10-08T16:00:00+00:00', 1))
+        self.assertEqual((o.get('err'), o['as_of'], o['v'], o['n']), (None, '2026-10-07T00:00:00+00:00', 1332806981.2192812, 6),
+                         'stan liczony od chwili odczytu (08.10: punkt 08.10 to jeszcze doba bieżąca), nie od zegara (09.10)')
+        self.assertEqual(zd.rwe_ondo_gm_parse(s)['as_of'], '2026-10-08T00:00:00+00:00', 'bez chwili odczytu — zegar 09.10: 08.10 to doba zakończona')

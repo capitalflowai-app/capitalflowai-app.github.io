@@ -21976,7 +21976,7 @@ RWE_SRC = ('Dane emitentów (publiczne, bez klucza): public-api.spiko.io (klasy 
            'hastra.io/hastra-pulse/public/api/v1/por (wYLDS w skarbcach × 1 USD), prod-gw.openeden.com/v3/vault/aggregates (tvl), '
            'matrixdock.com/rwa/anon/website/api/v1/stats/total (podaż XAUm × XAU/USD z wyroczni na Ethereum), api.centrifuge.io (indeks emitenta: '
            'totalIssuance × tokenPrice, bez tokenów-opakowań „de…”); v170: ondo.finance (dane serwera strony emitenta: assetsData USDY + OUSG — tvlUsd.total, '
-           'v302: ostatni punkt zakończonej doby gmTvlHistory, zgodny z gmTvl ±2%), api.backed.fi/graphql (dowód rezerw xStocks: akcje w rezerwie × cena akcji, kurs dzienny z pliku rynki); '
+           'v302: ostatni punkt zakończonej doby gmTvlHistory, zgodny z gmTvl ±2%; v307: albo gmTvl zgodny z najnowszym punktem wykresu, a ten z punktem dnia ±2%), api.backed.fi/graphql (dowód rezerw xStocks: akcje w rezerwie × cena akcji, kurs dzienny z pliku rynki); '
            'obliczenia CapitalFlowAI')
 _RWE_SYM = re.compile(r'^[A-Za-z0-9]{2,20}$')
 _RWE_CUR = re.compile(r'^[A-Z]{3}$')
@@ -22250,7 +22250,16 @@ def rwe_ondo_gm_parse(s, read=None):
     v302 (awaria od 07.10.2026 15:20 UTC): v170 brał gmTvl i datował go ostatnim punktem wykresu, gdy oba były równe (± 0,5%). 07.10 emitent
     przeliczył wykres wstecz (od 29.09 ok. +19,1 mln USD dziennie), usunął punkt 06.10, dodał 07.10 = 1 332,8 mln, a nagłówek został 1 313,4 mln
     (+1,48%) — każdy odczyt był odrzucany. W archiwum strony (05–09.2026) nagłówek i ostatni punkt różniły się zwykle o 2–17%: to dwie liczby
-    z różnych chwil, więc liczby bez daty nie datujemy cudzą datą — wartość i dzień pochodzą z tego samego punktu."""
+    z różnych chwil, więc liczby bez daty nie datujemy cudzą datą — wartość i dzień pochodzą z tego samego punktu.
+    v307 (recenzja v302): gdy na wykresie jest już punkt bieżącej doby, nagłówek opisuje zwykle JEGO chwilę (07.10 od ok. 15:20, 21.09 od
+    22:51) — samo porównanie z punktem zakończonej doby dawało wtedy do północy UTC fałszywy błąd przy zmianie dnia od ok. 0,5–2,5% (zależnie
+    od różnicy nagłówek / wykres). Pełność punktu zakończonej doby: nagłówek zgodny z nim (± RWE_GM_ZGODA, jak v302) ALBO nagłówek zgodny
+    z NAJNOWSZYM punktem wykresu i punkt zakończonej doby zgodny z tym najnowszym (oba ± RWE_GM_ZGODA); wartość i stan dalej z punktu
+    zakończonej doby. Test wsteczny: 46 odczytów strony 01–10.2026, 38 z polami nagłówka i wykresu (ws53/v307-drobne/bt/bt_ondo_gm.py) —
+    przyjęte 17, jak w v302; samo porównanie z najnowszym punktem przyjęłoby 15, w tym 05.05.2026 punkt niepełny (−4,17% wobec wersji
+    ostatecznej, −4,16% wobec najnowszego punktu), i odrzuciłoby 26.05, 06.06 i 16.06 (nagłówek przy punkcie zakończonej doby). Przy zmianie
+    dnia ponad RWE_GM_ZGODA (od 06.2026 ok. co czwarty dzień) w tym oknie dalej błąd — w sumach zostaje poprzedni odczyt (zwykle ten sam punkt
+    dnia), jak w v302."""
     hl = _rwc_rez_num(_rwe_po_kluczu(s, 'gmTvl'))
     H = _rwe_po_kluczu(s, 'gmTvlHistory')
     if hl is None or hl <= 0 or not isinstance(H, list) or not H:
@@ -22271,9 +22280,17 @@ def rwe_ondo_gm_parse(s, read=None):
     if not pelne:
         raise ValueError(f'brak punktu zakończonej doby w gmTvlHistory (przed {day})')
     d, y = max(pelne)
-    if abs(y - hl) > RWE_GM_ZGODA * hl:
-        raise ValueError(f'dzienny punkt {d[:10]} ({y / 1e6:.1f} mln USD) różni się od nagłówka strony ({hl / 1e6:.1f} mln USD) o '
-                         f'{(y / hl - 1) * 100:+.2f}% — więcej niż {RWE_GM_ZGODA * 100:g}%')
+    dn, yn = max(P)   # v307: najnowszy punkt wykresu (także bieżącej doby) — chwila, którą zwykle opisuje nagłówek
+    zg = RWE_GM_ZGODA
+    if abs(y - hl) > zg * hl and (abs(yn - hl) > zg * hl or abs(y - yn) > zg * yn):
+        if dn == d:
+            raise ValueError(f'dzienny punkt {d[:10]} ({y / 1e6:.1f} mln USD) różni się od nagłówka strony ({hl / 1e6:.1f} mln USD) o '
+                             f'{(y / hl - 1) * 100:+.2f}% — więcej niż {zg * 100:g}%')
+        if abs(yn - hl) > zg * hl:
+            raise ValueError(f'punkt dnia {d[:10]} ({y / 1e6:.1f} mln USD) i najnowszy {dn[:16]} ({yn / 1e6:.1f}) różnią się od nagłówka '
+                             f'({hl / 1e6:.1f}) o {(y / hl - 1) * 100:+.2f}% i {(yn / hl - 1) * 100:+.2f}% — więcej niż {zg * 100:g}%')
+        raise ValueError(f'punkt dnia {d[:10]} ({y / 1e6:.1f} mln USD) różni się o {(y / hl - 1) * 100:+.2f}% od nagłówka ({hl / 1e6:.1f}) i o '
+                         f'{(y / yn - 1) * 100:+.2f}% od najnowszego {dn[:16]} ({yn / 1e6:.1f}) — więcej niż {zg * 100:g}%')
     return {'v': y, 'as_of': d, 'n': len(H), 'hl': round(hl, 2)}
 
 
@@ -22647,6 +22664,12 @@ def _sz_int(v):
     return _isnum(v) and v >= 0 and float(v) == int(v)
 
 
+def _sz_odm(n, f1, f2, f5):
+    """v307: polska odmiana po liczbie całkowitej — 1 wiersz, 2 wiersze, 5 wierszy, 12 wierszy, 22 wiersze."""
+    n = abs(int(n))
+    return f1 if n == 1 else f2 if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else f5
+
+
 def sz_pw_url(od, do=None, offset=0):
     """Zapytanie warstwy cieśnin: 8 identyfikatorów, dni od `od` (do `do` włącznie), rosnąco po dniu i identyfikatorze (stała kolejność stron)."""
     ids = ','.join(f"'{p}'" for _, p, _ in SZ_CIES)
@@ -22898,7 +22921,8 @@ def _sz_pobierz_pw(ctx):
     if braki:
         ctx['bledy'].append('pw: brak cieśnin: ' + ', '.join(braki))
     if nz + nz2:
-        ctx['uwagi'].append(f'pw: {nz + nz2} wierszy z sumą statków ≠ tankowce + pozostałe')
+        n = nz + nz2   # v307: odmiana („1 wiersz”, „2 wiersze”, „5 wierszy”)
+        ctx['uwagi'].append(f'pw: {n} {_sz_odm(n, "wiersz", "wiersze", "wierszy")} z sumą statków ≠ tankowce + pozostałe')
     part = sz_cies(R, Y, nz + nz2)
     ctx['parts']['cies'] = part
     return part['asof']
@@ -22929,7 +22953,9 @@ SZ_POBIERZ = {'pw': _sz_pobierz_pw, 'gscpi': _sz_pobierz_gscpi, 'bcpi': _sz_pobi
 
 def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     """v305: data/szlaki.json. Każde źródło z własną bramką (_sz_due) i budżetem czasu; źródło z błędem — poprzednia część z datą (ok False,
-    krótki zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera."""
+    krótki zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera.
+    v307: błąd częściowy (źródło odpowiedziało, ale czegoś zabrakło — np. jednej cieśniny albo serii indeksu) — ok False jak dotąd i pole
+    cz = {część: True} (tylko w przebiegu z taką próbą, jak ok): strona mówi „część danych niedostępna”, nie „pobranie się nie udało”."""
     now = now or _now_utc()
     now_iso = now.replace(microsecond=0).isoformat()
     prev = prev if isinstance(prev, dict) and prev.get('v') == SZ_V else {}
@@ -22938,7 +22964,7 @@ def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
            'budzet': SZ_BUDZET_S if budzet_s is None else budzet_s,
            'fetch': fetch or (lambda url, timeout, headers=None: get_bytes(url, headers, timeout=timeout))}
     late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
-    proby, zle, pominiete = {p: 0 for p in SZ_PARTS}, {}, []
+    proby, zle, pominiete, czesc = {p: 0 for p in SZ_PARTS}, {}, [], set()
     for src, part in SZ_ZR:
         z = st.setdefault(src, {})
         if not _sz_due(src, z, now):
@@ -22959,6 +22985,7 @@ def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
         z['at'] = now_iso; z['asof'] = asof; z.pop('err', None)
         if len(ctx['bledy']) > nb:
             zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
+            czesc.add(part)   # v307: błąd częściowy — dane tej części z tego pobrania, czegoś w nich brak
     out = {'v': SZ_V, 'at': None, 'src': 'CapitalFlowAI — szlaki handlowe i łańcuchy dostaw (kody źródeł z: pw, gscpi, bcpi — pełne nazwy na stronie Źródła)'}
     pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
     perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
@@ -22980,6 +23007,8 @@ def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
     out.update({'ok': ok, 'err': {p: perr[p] for p in SZ_PARTS if perr.get(p)},
                 'next': {p: _sz_next(src_of[p], (out.get(p) or {}).get('asof'), now) for p in SZ_PARTS}, 'st': st})
+    if czesc:   # v307: tylko części z błędem częściowym w tym przebiegu (ok False) — brak pola = bez braków
+        out['cz'] = {p: True for p in SZ_PARTS if p in czesc}
     for x in ctx['uwagi']:
         META['notes'].append(mask('szlaki: ' + x)[:200])
     for p in SZ_PARTS:

@@ -16695,7 +16695,7 @@ test('v305g: kafle 8 cieśnin — statki dziennie (średnia 7 dni), zmiana rok d
   assert.ok(B.includes('<p class="wk-sub"><b>Ruch statków w cieśninach i kanałach</b></p><div class="etfkpis su-kpis sz-kpis">'), 'siatka pulsu (4 kolumny, telefon 2)');
   const O = T.ormuz;
   assert.ok(O.includes('Cieśnina Ormuz') && O.includes('img/flagi/ir.svg') && O.includes('img/flagi/om.svg'), 'nazwa i flagi krajów nad cieśniną');
-  assert.ok(O.includes('<b>2,7 <small class="mtxt">statków dziennie</small> <small class="neg">▼ −97,6% rok do roku</small></b>'), O);
+  assert.ok(O.includes('<b>2,7 <small class="mtxt">statku dziennie</small> <small class="neg">▼ −97,6% rok do roku</small></b>'), O);
   assert.ok(O.includes('<small class="mtxt">rok wcześniej: 111,3 dziennie</small><small class="mtxt">w tym tankowce: 0,9 dziennie</small><small class="mtxt su-x">ładunek ≈ 0,08 mln t dziennie (szacunek)</small>'));
   assert.ok(O.includes('<div class="su-sp"><div class="arc-gr">') && O.includes('<polyline class="arc-l l1"'), 'mini-wykres (średnia 7 dni, 90 dni)');
   assert.ok(O.includes('<small class="mtxt su-d">średnia 7 dni: ' + d('2026-09-28') + ' – ' + d('2026-10-04') + ' · wiek(2026-10-04)</small>'), 'dni średniej i wiek ostatniego dnia');
@@ -16711,8 +16711,8 @@ test('v305g: kafle 8 cieśnin — statki dziennie (średnia 7 dni), zmiana rok d
   K.bosfor.m7 = K.bosfor.m7.slice(-1);
   const T2 = sz305.tiles(sz305.loaded('pl', F).B);
   assert.ok(T2.bab.includes('<b class="na">—</b><small class="mtxt">brak danych — to nie zero</small>') && !/\d/.test(sz305.txt(T2.bab).replace('Bab el-Mandeb', '')), 'brak = „—”, nigdy zero');
-  assert.ok(T2.ormuz.includes('<b>0,0 <small class="mtxt">statków dziennie</small> <small class="neg">▼ −100,0% rok do roku</small></b>'), '0 statków to pomiar');
-  assert.ok(T2.suez.includes('<b>43,1 <small class="mtxt">statków dziennie</small></b><small class="mtxt">rok wcześniej: 0,6 dziennie</small>'), 'bez zmiany w %');
+  assert.ok(T2.ormuz.includes('<b>0,0 <small class="mtxt">statku dziennie</small> <small class="neg">▼ −100,0% rok do roku</small></b>'), '0 statków to pomiar');
+  assert.ok(T2.suez.includes('<b>43,1 <small class="mtxt">statku dziennie</small></b><small class="mtxt">rok wcześniej: 0,6 dziennie</small>'), 'bez zmiany w %');
   assert.ok(T2.panama.includes('<small class="mtxt">rok wcześniej: —</small>') && !T2.panama.includes('tankowce') && !T2.panama.includes('ładunek'));
   assert.ok(!T2.bosfor.includes('su-sp') && T2.bosfor.includes('su-d'), 'jeden punkt średniej — bez wykresu, z datą');
 });
@@ -17108,4 +17108,153 @@ test('v304b: obniżony VAT na paliwa (lista v8) — dopisek na kaflach cen na st
     const x = pl304q.loaded(L, PL304_FILE), D = v96src.I18N[L];
     assert.ok(x.includes('<small class="mtxt pl-v8">' + D['pl304.v8'] + '</small>') && x.includes(D['pl304.s.v8'] + '</p>') && !/pl304\./.test(x), L);
   }
+});
+
+/* ===================== v307: drobne uwagi recenzentów fali 4 — blok „Szlaki handlowe i łańcuchy dostaw” (v305g) =====================
+   Odmiana liczby statków (liczba z ułamkiem: po polsku „statku”, po rosyjsku „судна”), „близко к среднему”, zmiana w tygodniu / miesiąc
+   wcześniej tylko z DOKŁADNIE poprzedniego tygodnia / miesiąca, błąd częściowy części (pole cz pliku), granice zdania o presji, dwa kliknięcia
+   przy odroczonej odpowiedzi = jedno pobranie, słownik dr307.*. Dane: SZ305_FILE, zegar przypięty jak w sz305; testy nie zależą od numeru
+   słownika (szukany po kluczu). */
+const dr307 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const arc = cut('function arcMs(d){', '\n/* v293 (audyt G2)'), wk = cut('const wkNum=v=>', '\n/* pierścień: udziały'), wk2 = cut('const wkMs=d=>', '\nconst WK_FGZ=');
+  const blk = cut('/* ===================== v295g: SUROWCE', '\nsuLoad();suAuto();'), lis = cut('/* v305g: szlaki handlowe — plik data/szlaki.json', '\n/* ===================== v98: USA — energia');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const NOW = sz305.NOW;
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const BODY = "'use strict';\n" + arc + '\n' + wk + '\n' + wk2 + '\n' + blk + '\n' + lis + '\nreturn {SU, SZ, renderSu, suApply, szLoad, szApply};';
+  /* jak sz305.mk, ale odpowiedź srvJSON przychodzi dopiero po K.flush() (odroczona — jak w sieci) */
+  const mkD = (L, files) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details[open]' ? this.open.map(id => ({id})) : []; }, querySelector() { return null; }};
+    const calls = [], clicks = [], ivs = [], pend = [];
+    const srv = n => { calls.push(n); return {then(f) { pend.push(() => { const v = (files || {})[n]; f(v === undefined ? null : sz305.clone(v)); }); return this; }}; };
+    const doc = {addEventListener: (e, f) => clicks.push([e, f]), querySelector: () => null, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+      'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'renderUsa', BODY)(
+      q => (q === '#g-surowce' ? el : null), v96src.tFor(L), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv,
+      v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ', {getItem: () => null, setItem() {}}, doc,
+      function () { this.observe = () => {}; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, undefined);
+    return {api, el, calls, clicks, ivs, flush() { while (pend.length) pend.shift()(); }};
+  };
+  const blk307 = h => sz305.blkOf(sz305.sp(h));
+  return {mkD, blk307};
+})();
+
+test('v307: szlaki — liczba statków z ułamkiem: po polsku „2,7 statku dziennie” (dopełniacz l. poj.) w każdym kaflu, po rosyjsku „судна в день”; zdanie o presji po rosyjsku „близко к среднему”', () => {
+  const {B} = sz305.loaded('pl'), T = sz305.tiles(B);
+  assert.equal(Object.keys(T).length, 8);
+  for (const [id, x] of Object.entries(T)) assert.ok(/<b>\d+,\d <small class="mtxt">statku dziennie<\/small>/.test(x), id + ': ' + x.slice(0, 240));
+  assert.ok(!B.includes('statków dziennie'), 'bez „statków” po liczbie z ułamkiem');
+  assert.ok(T.ormuz.includes('<b>2,7 <small class="mtxt">statku dziennie</small> <small class="neg">▼ −97,6% rok do roku</small></b>'));
+  assert.ok(T.malakka.includes('<b>226,3 <small class="mtxt">statku dziennie</small>'));
+  const F = sz305.clone(SZ305_FILE); F.cies.k.ormuz.s7 = 0; F.cies.k.suez.s7 = 1; F.cies.k.bab.s7 = 5; F.cies.k.bosfor.s7 = 22;
+  const T2 = sz305.tiles(sz305.loaded('pl', F).B);
+  for (const [id, v] of [['ormuz', '0,0'], ['suez', '1,0'], ['bab', '5,0'], ['bosfor', '22,0']])
+    assert.ok(T2[id].includes('<b>' + v + ' <small class="mtxt">statku dziennie</small>'), id + ': liczba zawsze z jednym miejscem po przecinku — zawsze dopełniacz l. poj.');
+  const R = sz305.loaded('ru').B, TR = sz305.tiles(R);
+  assert.ok(TR.ormuz.includes('<b>2,7 <small class="mtxt">судна в день</small>'), TR.ormuz.slice(0, 300));
+  assert.ok(!R.includes('судов в день'));
+  const G = sz305.clone(SZ305_FILE); G.presja.d[35][1] = 0;
+  const RG = sz305.txt(sz305.loaded('ru', G).B);
+  assert.ok(RG.includes('давление в мировых цепочках поставок близко к среднему (месяцем ранее +1,20).') && !RG.includes('около средней'), RG.slice(0, 400));
+  assert.ok(sz305.loaded('en').B.includes('<b>2.7 <small class="mtxt">ships a day</small>'), 'inne języki bez zmian');
+});
+
+test('v307: szlaki — zmiana w tygodniu tylko wobec tygodnia dokładnie 7 dni wcześniej (luka w serii = „—”); wskaźnik presji — „miesiąc wcześniej” tylko z poprzedniego miesiąca', () => {
+  const m = x => sz305.mon('pl', x);
+  assert.ok(sz305.loaded('pl').B.includes('zmiana w tygodniu −1,9% (energia −2,4%, metale i minerały −1,5%, rolne −1,6%)'), 'pełne serie — jak v305g');
+  const F = sz305.clone(SZ305_FILE), E = F.bcpi.s.energia.d;
+  assert.equal(E[E.length - 2][0], '2026-09-23'); E.splice(E.length - 2, 1);   /* energia bez 23.09 — poprzedni wiersz to 16.09 (14 dni) */
+  const B = sz305.loaded('pl', F).B;
+  assert.ok(B.includes('zmiana w tygodniu −1,9% (energia —, metale i minerały −1,5%, rolne −1,6%)'), 'zmiana z 2 tygodni nie jest „w tygodniu”');
+  assert.ok(B.includes('<polyline class="wk-l s2"'), 'linia energii zostaje (z przerwą)');
+  const G = sz305.clone(SZ305_FILE), C = G.bcpi.s.calosc.d; C.splice(C.length - 2, 1);
+  assert.ok(sz305.loaded('pl', G).B.includes('indeks cen surowców 729,3 pkt, zmiana w tygodniu — (energia −2,4%'), 'całość bez poprzedniego tygodnia');
+  const P = sz305.clone(SZ305_FILE);
+  assert.equal(P.presja.d[34][0], '2026-08'); P.presja.d.splice(34, 1);
+  const S = sz305.txt(sz305.loaded('pl', P).B);
+  assert.ok(S.includes('presja w światowych łańcuchach dostaw jest wyraźnie większa niż zwykle (miesiąc wcześniej —).'), 'bez sierpnia — „—”, nie lipiec');
+  const Q = sz305.clone(SZ305_FILE); Q.presja.d = [['2025-12', 0.4], ['2026-01', 0.5]]; delete Q.presja.wyd;
+  assert.ok(sz305.txt(sz305.loaded('pl', Q).B).includes('(miesiąc wcześniej +0,40).'), 'styczeń wobec grudnia (przełom roku)');
+  assert.ok(sz305.txt(sz305.loaded('pl').B).includes(m('2026-09') + ' · wiek(2026-09): +1,28 — presja w światowych łańcuchach dostaw jest wyraźnie większa niż zwykle (miesiąc wcześniej +1,20).'));
+  /* pomocnicze: dzień k dni wcześniej (także przez przełom roku; zła data = '' — bez błędu toISOString w Safari) i miesiąc wcześniej */
+  const c = sz305.code, Dm = new Function(c.slice(c.indexOf('const szDm='), c.indexOf('\n/* ---------- A) kafel')) + '\nreturn {szDm, szMp};')();
+  assert.deepEqual([Dm.szDm('2026-09-30', 7), Dm.szDm('2026-01-03', 7), Dm.szDm('2024-03-06', 7), Dm.szDm('x', 7), Dm.szMp('2026-01'), Dm.szMp('2026-10'), Dm.szMp('2026-12')],
+    ['2026-09-23', '2025-12-27', '2024-02-28', '', '2025-12', '2026-09', '2026-11']);
+});
+
+test('v307: szlaki — błąd częściowy części (pole cz: źródło odpowiedziało, czegoś zabrakło) — „część danych niedostępna”, nie „ostatnie pobranie się nie udało”', () => {
+  const F = sz305.clone(SZ305_FILE); F.ok = {cies: false, presja: true, bcpi: true}; F.cz = {cies: true}; F.err = {cies: 'pw: brak cieśnin: bab'}; delete F.cies.k.bab;
+  const {B} = sz305.loaded('pl', F);
+  assert.ok(B.includes('<p class="pnote neu">Część danych jest niedostępna (ruch statków) — nie było jej w ostatnim pobraniu. Braki oznaczamy „—”, reszta pochodzi z tego pobrania.</p>'), B.slice(0, 700));
+  assert.ok(!B.includes('Ostatnie pobranie części danych się nie udało'));
+  assert.ok(sz305.tiles(B).bab.includes('<b class="na">—</b>') && sz305.tiles(B).ormuz.includes('statku dziennie'));
+  /* błąd całego źródła (bez cz) — dawne zdanie; razem z błędem częściowym innej części — oba zdania */
+  const G = sz305.clone(SZ305_FILE); G.ok = {cies: false, presja: true, bcpi: false}; G.cz = {bcpi: true};
+  const BG = sz305.loaded('pl', G).B;
+  assert.ok(BG.includes('Ostatnie pobranie części danych się nie udało (ruch statków)') && BG.includes('Część danych jest niedostępna (indeks cen surowców)'));
+  /* cz bez błędu części (ok inne niż false) i cz części bez danych — bez zdania o braku części (bez danych: „jeszcze nie pobrano”) */
+  const H = sz305.clone(SZ305_FILE); H.ok = {cies: 'cached', presja: true, bcpi: true}; H.cz = {cies: true};
+  assert.ok(!sz305.loaded('pl', H).B.includes('pnote neu'));
+  const J = sz305.clone(SZ305_FILE); J.ok = {cies: true, presja: true, bcpi: false}; J.cz = {bcpi: true}; delete J.bcpi;
+  const BJ = sz305.loaded('pl', J).B;
+  assert.ok(BJ.includes('Części danych jeszcze nie pobrano (indeks cen surowców)') && !BJ.includes('Część danych jest niedostępna'));
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const x = sz305.loaded(L, F).B;
+    assert.ok(!x.includes('dr307.') && x.includes('<p class="pnote neu">') && x.includes(v96src.I18N[L]['sz305.pt.cies']), L);
+  }
+});
+
+test('v307: szlaki — zdanie o presji na granicach poziomów (±0,25 i ±1: 0,3 i 0,25 — nieco większa, 0,24 — przeciętna)', () => {
+  const m = x => sz305.mon('pl', x);
+  const lv = v => { const F = sz305.clone(SZ305_FILE); F.presja.d[35][1] = v; const S = sz305.loaded('pl', F).B; const i = S.indexOf('<p class="pnote su-s">' + m('2026-09')); return sz305.txt(S.slice(i, S.indexOf('</p>', i))); };
+  const W = {hi2: 'jest wyraźnie większa niż zwykle', hi1: 'jest nieco większa niż zwykle', eq: 'jest przeciętna', lo1: 'jest nieco mniejsza niż zwykle', lo2: 'jest wyraźnie mniejsza niż zwykle'};
+  for (const [v, k] of [[1, 'hi2'], [0.99, 'hi1'], [0.3, 'hi1'], [0.25, 'hi1'], [0.24, 'eq'], [-0.24, 'eq'], [-0.25, 'lo1'], [-0.3, 'lo1'], [-0.99, 'lo1'], [-1, 'lo2']]) {
+    const s = lv(v); assert.ok(s.includes(W[k]), v + ' → ' + k + ': ' + s);
+  }
+});
+
+test('v307: szlaki — dwa kliknięcia nagłówka, zanim przyjdzie odpowiedź (odroczona) = jedno pobranie; po odpowiedzi dane bez kolejnych pobrań; zegar w trakcie wczytywania nic nie pobiera', () => {
+  const K = dr307.mkD('pl', sz305.files()); K.api.suApply(SU295_FILE); K.el.open = ['su-b-sz'];
+  sz305.clk(K); sz305.clk(K);
+  assert.deepEqual(K.calls, ['szlaki'], 'drugie kliknięcie w trakcie wczytywania — bez drugiego pobrania');
+  assert.ok(dr307.blk307(K.el.innerHTML).includes('<p class="pnote">Wczytujemy dane…</p>'), 'przed odpowiedzią — zdanie o wczytywaniu');
+  sz305.iv(K)[0](); assert.deepEqual(K.calls, ['szlaki']);
+  K.flush();
+  assert.ok(dr307.blk307(K.el.innerHTML).includes('data-sz="ormuz"'), 'po odpowiedzi — kafle');
+  sz305.clk(K); sz305.clk(K); assert.deepEqual(K.calls, ['szlaki'], 'plik w pamięci');
+  sz305.iv(K)[0](); sz305.iv(K)[0](); sz305.clk(K);
+  assert.deepEqual(K.calls, ['szlaki', 'szlaki'], 'odświeżenie zegarem: jedno pobranie, choć zegar i kliknięcie przyszły w trakcie');
+  K.flush(); assert.ok(dr307.blk307(K.el.innerHTML).includes('data-sz="ormuz"'));
+  /* odroczony błąd przy pierwszym wczytaniu: zdanie z prośbą; następne kliknięcie — nowa próba */
+  const F = {surowce: SU295_FILE}, K2 = dr307.mkD('pl', F); K2.api.suApply(SU295_FILE); K2.el.open = ['su-b-sz'];
+  sz305.clk(K2); sz305.clk(K2); K2.flush();
+  assert.deepEqual(K2.calls, ['szlaki']);
+  assert.ok(dr307.blk307(K2.el.innerHTML).includes('Nie udało się wczytać danych'));
+  F.szlaki = SZ305_FILE; sz305.clk(K2); sz305.clk(K2); assert.deepEqual(K2.calls, ['szlaki', 'szlaki']);
+  K2.flush(); assert.ok(dr307.blk307(K2.el.innerHTML).includes('data-sz="ormuz"'));
+});
+
+test('v307: słownik dr307.* — czysty JSON, 10 języków z prawdziwymi tłumaczeniami (te same klucze i pola {x}), linia nakładania zaraz po poprzednim słowniku, klucz użyty w kodzie bloku', () => {
+  const i = html.indexOf('{"pl":{"dr307.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.ok(i > 0 && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik dr307: ' + name);
+  const b = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i); assert.ok(b > i, 'linia nakładania');
+  const D = JSON.parse(html.slice(i, b)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.deepEqual(K, ['dr307.cz']);
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]), K, l);
+    for (const k of K) {
+      assert.ok(D[l][k].trim() && ph(D[l][k]) === '{p}', l + ' ' + k);
+      if (l !== 'en') assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+      assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k);
+    }
+  }
+  const ln = html.slice(html.lastIndexOf('\n', a - 2) + 1, a - 1);   /* linia przed słownikiem — for innego słownika (numer bez znaczenia) */
+  assert.ok(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(ln) && html[a - 1] === '\n', 'zaraz po linii for innego słownika: ' + ln.slice(0, 80));
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego');
+  for (const k of K) assert.ok(sz305.code.includes("t('" + k + "'"), 'klucz w kodzie bloku: ' + k);
+  assert.ok(!/PortWatch|ArcGIS|Valet|\bIMF\b|Bank of Canada|New York|ondo/i.test(JSON.stringify(D)), 'bez nazw dostawców');
 });

@@ -4264,6 +4264,10 @@ SZ_K_P_MAX = 6.0        # wskaźnik presji (odchylenia standardowe)
 SZ_K_P_SKOK = 2.5       # zmiana wskaźnika presji miesiąc do miesiąca
 SZ_K_B_SKOK = 30.0      # % — zmiana tygodniowa indeksu cen surowców (całość)
 SZ_K_TOL = 0.011        # tolerancja zaokrągleń średnich (2 miejsca po przecinku) i zmiany w %
+SZ_K_OPOZN = 7          # v307: dni — ostatni dzień cieśniny starszy niż najnowszy dzień części (cies.asof) o więcej = ⚠️ w wierszu świeżości
+                        # (jedna cieśnina przestała się aktualizować; cies.asof = max ze wszystkich). Test wsteczny ws53/v307-drobne/bt/
+                        # bt_cies_opozn.py na historii 2019-01-01 – 2026-10-04 (nagranie v305): 2804 dni i 401 paczek tygodniowych — 0 ⚠️ przy
+                        # progach 3–14 dni (8 cieśnin publikowanych razem, bez luk); brak cieśniny w pliku — też ⚠️ (w historii: 0)
 SZ_K_NAZWY = {'ormuz': 'Ormuz', 'bab': 'Bab el-Mandeb', 'suez': 'Kanał Sueski', 'bosfor': 'Bosfor', 'panama': 'Kanał Panamski', 'malakka': 'Malakka',
               'gibraltar': 'Gibraltar', 'przyladek': 'Przylądek Dobrej Nadziei'}
 
@@ -4275,6 +4279,57 @@ def _sz_k_wiersze(e):
 
 def _sz_k_num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
+
+
+def _sz_k_statki(v):
+    """v307: liczba statków z rzeczownikiem po polsku — liczba całkowita: zwykła odmiana (1 statek, 2 statki, 5 statków, 12 statków,
+    22 statki, 502 statki); z ułamkiem: dopełniacz liczby pojedynczej (2,7 statku)."""
+    if _sz_k_num(v) and abs(v) != float('inf') and float(v) == int(v):
+        return f'{int(v)} {_odm(abs(int(v)), "statek", "statki", "statków")}'
+    return (f'{v:g}'.replace('.', ',') if _sz_k_num(v) else str(v)) + ' statku'
+
+
+def _sz_k_dzien(s):
+    """'RRRR-MM-DD…' → data; inaczej None."""
+    try:
+        return dt.date.fromisoformat(s[:10]) if isinstance(s, str) else None
+    except ValueError:
+        return None
+
+
+def _sz_k_dni(a, b):
+    """v307: dni od a do b ('RRRR-MM-DD'); zła data = None."""
+    x, y = _sz_k_dzien(a), _sz_k_dzien(b)
+    return (y - x).days if x and y else None
+
+
+def _sz_k_nast_mies(a, b):
+    """v307: czy miesiąc b ('RRRR-MM') jest zaraz po miesiącu a (także grudzień → styczeń)."""
+    m = re.match(r'^(\d{4})-(\d{2})$', str(a)), re.match(r'^(\d{4})-(\d{2})$', str(b))
+    if not (m[0] and m[1]):
+        return False
+    (ya, ma), (yb, mb) = (int(x) for x in m[0].groups()), (int(x) for x in m[1].groups())
+    return yb * 12 + mb == ya * 12 + ma + 1
+
+
+def _sz_k_opozn(C):
+    """v307: cieśniny, których ostatni dzień (k.<id>.asof) jest o ponad SZ_K_OPOZN dni starszy niż najnowszy dzień części (cies.asof), bez daty
+    albo nieobecne w pliku → lista opisów (pusta = wszystkie aktualne; część bez daty albo bez cieśnin — pusta, opisuje to wiersz świeżości)."""
+    a = _sz_k_dzien(C.get('asof')) if isinstance(C, dict) else None
+    K = C.get('k') if isinstance(C, dict) else None
+    if a is None or not isinstance(K, dict) or not K:
+        return []
+    out = []
+    for cid, nazwa in SZ_K_NAZWY.items():
+        e = K.get(cid)
+        d = _sz_k_dzien(e.get('asof')) if isinstance(e, dict) else None
+        if not isinstance(e, dict):
+            out.append(f'{nazwa} — brak w pliku')
+        elif d is None:
+            out.append(f'{nazwa} — brak daty ostatniego dnia')
+        elif (a - d).days > SZ_K_OPOZN:
+            out.append(f'{nazwa} — ostatni dzień {d.isoformat()}, {(a - d).days} dni wcześniej')
+    return out
 
 
 def szlaki_swiezosc(j, now=None):
@@ -4298,6 +4353,12 @@ def szlaki_swiezosc(j, now=None):
             nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
             note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' + (
                 f'; spodziewana publikacja {czas_pl(nt)}' + (' — zaległa (przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        if p == 'cies' and st != '?':   # v307: jedna cieśnina w tyle (cies.asof = max ze wszystkich) — najwyżej ⚠️
+            op = _sz_k_opozn(P)
+            if op:
+                st = '⚠️'
+                note = '; '.join(x for x in (note, f'cieśniny w tyle za najnowszym dniem ({txt}): ' + ', '.join(op)
+                                              + f' (próg {SZ_K_OPOZN} dni; w historii 2019–2026: 0) — najwyżej uwaga') if x)
         rows.append((label, st, w, txt, note))
     return rows
 
@@ -4349,15 +4410,16 @@ def szlaki_porownania(j):
         nz = C.get('nz')
         duze = [(cid, x[0], x[1]) for cid, e in K.items() if isinstance(e, dict) for x in _sz_k_wiersze(e) if _sz_k_num(x[1]) and x[1] > SZ_K_MAX]
         if _sz_k_num(nz) and nz > 0:
-            U.append(f'szlaki: {int(nz)} wierszy źródła z sumą statków ≠ tankowce + pozostałe — sprawdzić (w historii 2019–2026: 0)')
+            U.append(f'szlaki: {int(nz)} {_odm(int(nz), "wiersz", "wiersze", "wierszy")} źródła z sumą statków ≠ tankowce + pozostałe — sprawdzić '
+                     f'(w historii 2019–2026: 0)')   # v307: odmiana
         for cid, d, v in duze[:3]:
-            U.append(f'szlaki: {SZ_K_NAZWY.get(cid, cid)} {d} — {v} statków w jednym dniu (próg {SZ_K_MAX}; w historii najwyżej 298) — sprawdzić')
+            U.append(f'szlaki: {SZ_K_NAZWY.get(cid, cid)} {d} — {_sz_k_statki(v)} w jednym dniu (próg {SZ_K_MAX}; w historii najwyżej 298) — sprawdzić')
         W.append(('cieśniny: sumy i zakres', '⚠️' if (_sz_k_num(nz) and nz > 0) or duze else '✅'))
     P = _sz_k_wiersze(j.get('presja'))
     V = [(str(m), v) for m, v in P if _sz_k_num(v)]
     if V:
         zle = [(m, v) for m, v in V if abs(v) > SZ_K_P_MAX]
-        sk = [(b[0], b[1] - a[1]) for a, b in zip(V, V[1:]) if abs(b[1] - a[1]) > SZ_K_P_SKOK]
+        sk = [(b[0], b[1] - a[1]) for a, b in zip(V, V[1:]) if _sz_k_nast_mies(a[0], b[0]) and abs(b[1] - a[1]) > SZ_K_P_SKOK]   # v307: sąsiednie miesiące
         for m, v in zle[:2]:
             U.append(f'szlaki: wskaźnik presji {m} = {v:+.2f} — poza zakresem ±{SZ_K_P_MAX:g} (w historii −1,8 … 4,78) — sprawdzić'.replace('.', ','))
         for m, c in sk[:2]:
@@ -4366,7 +4428,8 @@ def szlaki_porownania(j):
     B = _sz_k_wiersze(((j.get('bcpi') or {}).get('s') or {}).get('calosc') if isinstance(j.get('bcpi'), dict) else None)
     V = [(str(d), v) for d, v in B if _sz_k_num(v) and v > 0]
     if V:
-        sk = [(b[0], (b[1] / a[1] - 1) * 100) for a, b in zip(V, V[1:]) if abs(b[1] / a[1] - 1) * 100 > SZ_K_B_SKOK]
+        sk = [(b[0], (b[1] / a[1] - 1) * 100) for a, b in zip(V, V[1:])
+              if _sz_k_dni(a[0], b[0]) == 7 and abs(b[1] / a[1] - 1) * 100 > SZ_K_B_SKOK]   # v307: tylko tydzień dokładnie sprzed 7 dni (luka ≠ skok)
         for d, c in sk[:2]:
             U.append(f'szlaki: indeks cen surowców {d} — zmiana o {c:+.1f}% w tydzień (próg {SZ_K_B_SKOK:g}%; od 1972 najwyżej 24,95%) — sprawdzić'.replace('.', ','))
         W.append(('indeks cen surowców: skoki tygodniowe', '⚠️' if sk else '✅'))
